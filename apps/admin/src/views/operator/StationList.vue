@@ -4,6 +4,18 @@
       <h2>运营商管理</h2>
     </div>
 
+    <!-- 分工说明：与「多小程序管理」职责区分（两页合并已入拍板清单·菜单暂不动） -->
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom:16px"
+    >
+      <template #title>
+        本页管理运营商的品牌信息与站长配额；运营商小程序的发布配置请前往「多小程序管理」。
+      </template>
+    </el-alert>
+
     <el-table
       v-loading="loading"
       :data="list"
@@ -21,7 +33,7 @@
         width="120"
       >
         <template #default="{ row }">
-          <el-tag>{{ row.level }}</el-tag>
+          <el-tag>{{ OPERATOR_LEVELS[row.level] || row.level || '—' }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column
@@ -136,6 +148,14 @@ interface OperatorStation {
   usedQuota: number;
   status: string;
 }
+
+/** 运营商等级翻译（LEVEL_1/2/3 为运营层级，BLACK_GOLD 为线下驿站赠送的历史等级口径） */
+const OPERATOR_LEVELS: Record<string, string> = {
+  LEVEL_1: "一级运营商",
+  LEVEL_2: "二级运营商",
+  LEVEL_3: "三级运营商",
+  BLACK_GOLD: "黑金运营商",
+};
 
 const loading = ref(false);
 const loadError = ref(false);

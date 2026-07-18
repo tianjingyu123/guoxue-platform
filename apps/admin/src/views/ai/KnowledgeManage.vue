@@ -44,29 +44,20 @@
     </div>
 
     <template v-if="selectedCircle">
-      <!-- 统计 -->
+      <!-- 统计（"今日确认"恒0假卡与"最近同步"本地时间冒充服务器时间已删：
+           后端无对应统计/同步时间端点，无真源不显示，已记后端清单） -->
       <el-row
         :gutter="16"
         style="margin-bottom:16px"
       >
-        <el-col :span="6">
+        <el-col :span="12">
           <div class="stat-card">
             <span class="value">{{ stats.totalEntries }}</span><span class="label">已入库内容</span>
           </div>
         </el-col>
-        <el-col :span="6">
+        <el-col :span="12">
           <div class="stat-card warn">
             <span class="value">{{ stats.pendingCandidates }}</span><span class="label">待确认候选</span>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="stat-card">
-            <span class="value">{{ stats.confirmedToday }}</span><span class="label">今日确认</span>
-          </div>
-        </el-col>
-        <el-col :span="6">
-          <div class="stat-card">
-            <span class="value">{{ stats.lastSync ? fmtDate(stats.lastSync) : '从未' }}</span><span class="label">最近同步</span>
           </div>
         </el-col>
       </el-row>
@@ -326,7 +317,8 @@ const syncing = ref(false);
 const circlesErr = ref(false);
 const submitting = ref(false);
 
-const stats = reactive({ totalEntries: 0, pendingCandidates: 0, confirmedToday: 0, lastSync: "" });
+// confirmedToday/lastSync 已删：前者从未被赋值恒0，后者用本地时间冒充服务器同步时间（刷新即丢）
+const stats = reactive({ totalEntries: 0, pendingCandidates: 0 });
 
 const selectedCircleName = computed(() => {
   return circles.value.find((c) => c.id === selectedCircle.value)?.name || "";
@@ -416,7 +408,6 @@ async function syncCircle() {
   try {
     await knowledgeApi.syncCircle(selectedCircle.value);
     ElMessage.success("同步已触发，新内容将出现在候选列表中");
-    stats.lastSync = new Date().toISOString();
     fetchCandidates();
   } catch { /* ignore */ } finally { syncing.value = false; }
 }
@@ -426,7 +417,6 @@ async function syncAll() {
   try {
     await knowledgeApi.syncAll();
     ElMessage.success("全量同步已触发");
-    stats.lastSync = new Date().toISOString();
     if (selectedCircle.value) fetchCandidates();
   } catch { /* ignore */ } finally { syncing.value = false; }
 }

@@ -93,10 +93,11 @@
       </el-table-column>
       <el-table-column
         label="押金"
-        width="100"
+        width="110"
+        align="right"
       >
         <template #default="{ row }">
-          {{ row.depositAmount ?? 0 }}
+          ¥{{ Number(row.depositAmount ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -307,10 +308,11 @@
         <el-table-column
           prop="price"
           label="价格"
-          width="80"
+          width="100"
+          align="right"
         >
           <template #default="{ row }">
-            {{ row.price ?? 0 }}
+            ¥{{ Number(row.price ?? 0).toFixed(2) }}
           </template>
         </el-table-column>
         <el-table-column
@@ -426,7 +428,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { offlineApi } from "@/api";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 
@@ -549,14 +551,36 @@ async function save() {
 
 async function handleAudit(row: VenueRow, status: string) {
   if (auditing.value) return;
-  const label = status === "ACTIVE" ? "通过" : status === "DISABLED" ? "拒绝/禁用" : status;
+  const isDanger = status === "DISABLED";
+  const label = status === "ACTIVE" ? (row.status === "PENDING" ? "通过" : "启用") : row.status === "PENDING" ? "拒绝" : "禁用";
+  try {
+    if (isDanger) {
+      // L2 危险操作：理由必填 + 确认（后端 AuditStationDto 暂不落理由，落库已记后端清单，前端先拦误操作）
+      const { value } = await ElMessageBox.prompt(
+        `确定${label}驿站「${row.name || row.id}」？${row.status === "ACTIVE" ? "禁用后该驿站将对用户不可见，其课程与预约入口关闭。" : ""}请填写理由：`,
+        `${label}驿站`,
+        {
+          confirmButtonText: "确认" + label,
+          cancelButtonText: "取消",
+          inputPlaceholder: "必填，例：资质材料不全 / 违规经营",
+          inputValidator: (v: string) => (v && v.trim().length >= 2 ? true : "请填写理由（至少2个字）"),
+          type: "warning",
+        },
+      );
+      if (!value) return;
+    } else {
+      await ElMessageBox.confirm(`确定${label}驿站「${row.name || row.id}」？`, "确认操作", { type: "info" });
+    }
+  } catch {
+    return; // 用户取消
+  }
   auditing.value = true;
   try {
     await offlineApi.audit(row.id, status);
     ElMessage.success(`已${label}`);
     fetchList();
   } catch {
-    ElMessage.error("操作失败");
+    ElMessage.error("操作失败，请重试");
   } finally {
     auditing.value = false;
   }

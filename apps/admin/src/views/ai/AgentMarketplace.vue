@@ -33,12 +33,12 @@
       </el-col>
       <el-col :span="4">
         <div class="stat-card">
-          <span class="value">{{ stats.totalCalls?.toLocaleString() || 0 }}</span><span class="label">总调用次数</span>
+          <span class="value">{{ stats.totalCalls?.toLocaleString() || 0 }}</span><span class="label">调用次数（近7天·全平台）</span>
         </div>
       </el-col>
       <el-col :span="4">
         <div class="stat-card">
-          <span class="value">{{ stats.todayCalls?.toLocaleString() || 0 }}</span><span class="label">今日调用</span>
+          <span class="value">{{ stats.todayCalls?.toLocaleString() || 0 }}</span><span class="label">今日调用（全平台）</span>
         </div>
       </el-col>
       <el-col :span="4">
@@ -134,12 +134,19 @@
                   {{ CAT_LABELS[agent.category] || agent.category }}
                 </div>
               </div>
-              <el-switch
-                v-model="agent.enabled"
-                size="small"
-                :loading="agentToggling === agent.id"
-                @change="(v: boolean) => toggleAgent(agent, v)"
-              />
+              <!-- 圈子助理暂无启停接口：禁用开关+说明，禁止假成功 toast -->
+              <el-tooltip
+                :content="agent.source === 'bot' ? (agent.enabled ? '点击停用' : '点击启用') : '圈子助理暂无启停接口（后端待接线），请到圈主助理页管理'"
+                placement="top"
+              >
+                <el-switch
+                  v-model="agent.enabled"
+                  size="small"
+                  :disabled="agent.source !== 'bot'"
+                  :loading="agentToggling === agent.id"
+                  @change="(v: boolean) => toggleAgent(agent, v)"
+                />
+              </el-tooltip>
             </div>
           </template>
 
@@ -162,12 +169,7 @@
                 <span class="stat-label">调用</span>
                 <span class="stat-value">{{ (agent.callCount || 0).toLocaleString() }}</span>
               </div>
-              <div class="agent-stat-item">
-                <span class="stat-label">成功率</span>
-                <span :style="{ color: agent.successRate >= 95 ? 'var(--color-success)' : agent.successRate >= 80 ? 'var(--color-warning)' : 'var(--color-error)' }">
-                  {{ agent.successRate || 0 }}%
-                </span>
-              </div>
+              <!-- 成功率指标已删：后端无逐智能体成功率真源（原 98%/95% 为硬编码假数据） -->
             </div>
             <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
               <el-tag
@@ -210,7 +212,7 @@
             </el-button>
             <el-button
               size="small"
-              @click="viewLogs(agent)"
+              @click="goCallCenter"
             >
               日志
             </el-button>
@@ -258,14 +260,9 @@
           <el-descriptions-item label="调用次数">
             {{ (detailAgent.callCount || 0).toLocaleString() }}
           </el-descriptions-item>
-          <el-descriptions-item label="成功率">
-            {{ detailAgent.successRate || 0 }}%
-          </el-descriptions-item>
-          <el-descriptions-item label="今日调用">
-            {{ (detailAgent.todayCalls || 0).toLocaleString() }}
-          </el-descriptions-item>
+          <!-- 成功率/今日调用已删：后端无逐智能体真源，不显示估算值 -->
           <el-descriptions-item label="类型">
-            {{ detailAgent.type || '-' }}
+            {{ detailAgent.type || '—' }}
           </el-descriptions-item>
           <el-descriptions-item label="免费/付费">
             <el-tag
@@ -303,82 +300,9 @@
       </template>
     </el-dialog>
 
-    <!-- 调用日志 -->
-    <el-dialog
-      v-model="logsVisible"
-      title="智能体调用日志"
-      width="900px"
-    >
-      <el-table
-        v-loading="logsLoading"
-        :data="agentLogs"
-        stripe
-        size="small"
-        max-height="400"
-      >
-        <el-table-column
-          label="用户"
-          width="120"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            {{ row.userId || '匿名' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="输入"
-          min-width="180"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            {{ row.query?.substring(0, 80) || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="输出"
-          min-width="180"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            {{ row.response?.substring(0, 80) || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="延迟"
-          width="75"
-        >
-          <template #default="{ row }">
-            {{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="状态"
-          width="70"
-        >
-          <template #default="{ row }">
-            <el-tag
-              :type="row.status === 'success' ? 'success' : 'danger'"
-              size="small"
-            >
-              {{ row.status || 'ok' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="时间"
-          width="160"
-        >
-          <template #default="{ row }">
-            {{ fmt(row.createdAt) }}
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-empty
-        v-if="!logsLoading && agentLogs.length === 0"
-        description="暂无调用日志"
-        :image-size="60"
-      />
-    </el-dialog>
+    <!-- 调用日志弹窗已删：原弹窗展示的 query/response/latencyMs/status 字段在
+         /ai/call-logs 真实返回体中均不存在（永远显示"-"的假表），且后端不支持按智能体
+         过滤日志。"日志"按钮改为跳转 AI 调用中心统一查看。 -->
   </div>
 </template>
 
@@ -390,13 +314,13 @@ import { botApi, api } from "@/api";
 
 const router = useRouter();
 
-// 智能体卡片数据结构（聚合自 bot/运营机器人/圈子助理三源，字段宽松）
+// 智能体卡片数据结构（聚合自 bot/圈子助理两源，字段宽松）
+// successRate 已删：后端无逐智能体成功率真源，禁止硬编码估算值
 interface Agent {
   id: string;
   name: string;
   category: string;
   enabled: boolean;
-  successRate: number;
   type?: string;
   description?: string;
   isFree?: boolean;
@@ -409,28 +333,6 @@ interface Agent {
   frequency?: string;
   callCount?: number;
   todayCalls?: number;
-}
-
-// 调用日志展示行
-interface AgentLog {
-  userId?: string;
-  query?: string;
-  response?: string;
-  latencyMs?: number;
-  status?: string;
-  createdAt?: string;
-}
-
-// 后端调用日志原始结构（字段比展示行多）
-interface CallLogRaw {
-  userId?: string;
-  query?: string;
-  prompt?: string;
-  response?: string;
-  content?: string;
-  latencyMs?: number;
-  status?: string;
-  createdAt?: string;
 }
 
 const CAT_ICONS: Record<string, string> = { paipan: "🔮", customer_service: "💁", content: "📝", operation: "⚙️", knowledge: "📚", circle: "🔄" };
@@ -448,10 +350,6 @@ const agents = ref<Agent[]>([]);
 
 const detailVisible = ref(false);
 const detailAgent = ref<Agent | null>(null);
-const logsVisible = ref(false);
-const agentLogs = ref<AgentLog[]>([]);
-const logsLoading = ref(false);
-const currentLogAgent = ref<Agent | null>(null);
 
 const categoryList = computed(() => {
   const cats = new Set(agents.value.map((a) => a.category));
@@ -469,8 +367,6 @@ const filteredAgents = computed(() => {
   }
   return list.sort((a, b) => CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category));
 });
-
-function fmt(d: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-"; }
 
 onMounted(() => refresh());
 
@@ -505,7 +401,6 @@ async function loadBots() {
         source: "bot",
         sourceId: bot.id,
         callCount: bot.useCount || 0,
-        successRate: 98,
       });
     }
   } catch { loadErr.value = true; }
@@ -529,19 +424,22 @@ async function loadCircleAssistants() {
         sourceId: ca.id || ca.circleId,
         model: ca.modelName || "deepseek-v4-flash",
         callCount: ca.useCount || 0,
-        successRate: ca.successRate || 95,
       });
     }
   } catch { loadErr.value = true; }
 }
 
 async function loadStats() {
+  // /ai/usage-stats 返回体只有 totalCalls/totalTokens/estimatedCost（无 todayCalls 字段），
+  // 今日数据需单独按 period=day 再取一次，禁止读不存在的字段假装有值
   try {
-    const { data } = await api.get("/ai/usage-stats", { params: { period: "week" } });
-    const d = data;
-    stats.totalCalls = d?.totalCalls || 0;
-    stats.todayCalls = d?.todayCalls || 0;
-  } catch { /* ignore */ }
+    const [{ data: week }, { data: day }] = await Promise.all([
+      api.get("/ai/usage-stats", { params: { period: "week" } }),
+      api.get("/ai/usage-stats", { params: { period: "day" } }),
+    ]);
+    stats.totalCalls = week?.totalCalls || 0;
+    stats.todayCalls = day?.totalCalls || 0;
+  } catch { /* 统计卡失败不阻塞列表 */ }
 }
 
 function applyFilter() { /* computed handles filtering */ }
@@ -551,11 +449,15 @@ function goToBotManage() { router.push("/bots"); }
 
 async function toggleAgent(agent: Agent, enabled: boolean) {
   if (agentToggling.value === agent.id) return; // 防重复
+  // 只有 bot 源有启停接口；其余源开关已禁用，这里兜底防御，绝不假成功
+  if (agent.source !== "bot") {
+    agent.enabled = !enabled;
+    ElMessage.warning("该智能体暂无启停接口（后端待接线）");
+    return;
+  }
   agentToggling.value = agent.id;
   try {
-    if (agent.source === "bot") {
-      await botApi.update(agent.sourceId, { status: enabled ? "ACTIVE" : "DISABLED" });
-    }
+    await botApi.update(agent.sourceId, { status: enabled ? "ACTIVE" : "DISABLED" });
     ElMessage.success(`「${agent.name}」已${enabled ? '启用' : '停用'}`);
   } catch {
     agent.enabled = !enabled;
@@ -570,27 +472,9 @@ function viewDetail(agent: Agent) {
   detailVisible.value = true;
 }
 
-async function viewLogs(agent: Agent) {
-  currentLogAgent.value = agent;
-  logsVisible.value = true;
-  logsLoading.value = true;
-  try {
-    const params: Record<string, string | number> = { page: 1, pageSize: 30, scene: agent.scene || agent.source || "bot" };
-    const { data } = await api.get("/ai/call-logs", { params });
-    const d = data;
-    const list = (d?.list || d?.data || []) as CallLogRaw[];
-    agentLogs.value = list.map((log) => ({
-      userId: log.userId,
-      query: log.query || log.prompt,
-      response: log.response || log.content,
-      latencyMs: log.latencyMs,
-      status: log.status,
-      createdAt: log.createdAt,
-    }));
-  } catch {
-    agentLogs.value = [];
-    ElMessage.error("日志加载失败，请重试");
-  } finally { logsLoading.value = false; }
+/** 后端不支持按智能体过滤日志，统一跳 AI 调用中心查看（原弹窗字段全为不存在字段的假表，已删） */
+function goCallCenter() {
+  router.push("/ai/usage");
 }
 
 function configAgent(agent: Agent) {

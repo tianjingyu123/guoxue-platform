@@ -30,24 +30,39 @@
         show-overflow-tooltip
       />
       <el-table-column
-        prop="stationId"
         label="所属驿站"
-        width="200"
-      />
+        width="160"
+        show-overflow-tooltip
+      >
+        <!-- 后端 include station {id,name}，显示名称而非裸 UUID -->
+        <template #default="{ row }">
+          {{ row.station?.name || '—' }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="讲师"
         width="100"
       >
+        <!-- 后端未 include teacher（仅 teacherId），有姓名显示姓名，否则截断 ID+悬浮全文（讲师姓名已记后端清单） -->
         <template #default="{ row }">
-          {{ row.teacher?.name || row.teacherId || '-' }}
+          <span v-if="row.teacher?.name">{{ row.teacher.name }}</span>
+          <el-tooltip
+            v-else-if="row.teacherId"
+            :content="row.teacherId"
+            placement="top"
+          >
+            <span>{{ row.teacherId.slice(0, 8) }}…</span>
+          </el-tooltip>
+          <span v-else>—</span>
         </template>
       </el-table-column>
       <el-table-column
         label="价格"
         width="80"
       >
+        <!-- price 为 Decimal(10,2) 单位元，禁止再 ÷100 -->
         <template #default="{ row }">
-          ¥{{ ((row.price || 0) / 100).toFixed(2) }}
+          ¥{{ Number(row.price || 0).toFixed(2) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -153,6 +168,7 @@ interface CourseRow {
   id: string
   title?: string
   stationId?: string
+  station?: { id?: string; name?: string }
   teacher?: { name?: string }
   teacherId?: string
   price?: number
@@ -176,7 +192,8 @@ async function fetchList() {
   try {
     const url = tab.value === 'pending' ? '/offline/admin/courses/pending' : '/offline/admin/courses/recommended'
     const { data } = await api.get(url, { params: { page: page.value, pageSize: 20 } })
-    list.value = data.items || data.data || []
+    // 后端返回体键名是 courses（offline-course.service listPendingCourses/listRecommendedCourses）
+    list.value = data.courses || []
     total.value = data.total || 0
   } catch { list.value = []; loadError.value = true } finally { loading.value = false }
 }

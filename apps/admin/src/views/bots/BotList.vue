@@ -117,6 +117,30 @@
           <span v-else>{{ row.pricePer10Coin }} 币/10次</span>
         </template>
       </el-table-column>
+      <!-- 凭证列（新契约 isConfigured）：占位智能体一眼可见，Coze 新令牌可直接从编辑表单填入 -->
+      <el-table-column
+        label="凭证"
+        width="90"
+        align="center"
+      >
+        <template #default="{ row }">
+          <el-tag
+            v-if="row.isConfigured === false"
+            type="danger"
+            size="small"
+          >
+            未配置
+          </el-tag>
+          <el-tag
+            v-else-if="row.isConfigured === true"
+            type="success"
+            size="small"
+          >
+            已配置
+          </el-tag>
+          <span v-else>—</span>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="dailyLimit"
         label="日限额"
@@ -216,16 +240,21 @@
             placeholder="第三方Bot标识"
           />
         </el-form-item>
+        <!-- 新契约：PUT /bots/:id apiKey 缺省 = 保留原值，编辑时留空即不改密钥 -->
         <el-form-item
           label="API Key"
-          required
+          :required="!isEditing"
         >
           <el-input
             v-model="form.apiKey"
             type="password"
             show-password
-            placeholder="API密钥"
+            :placeholder="isEditing ? '留空 = 保持原密钥不变；粘贴新密钥即覆盖' : 'API密钥'"
           />
+          <span
+            v-if="isEditing"
+            class="field-hint"
+          >密钥不回显；仅在需要更换（如 Coze 新令牌）时填写</span>
         </el-form-item>
         <el-form-item label="头像">
           <CosImageUpload v-model="form.avatar" />
@@ -550,7 +579,7 @@ import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
-import { botApi, circleApi } from "@/api";
+import { botApi, circleApi, api } from "@/api";
 
 /** Bot 列表行（核心标识字段必填，其余宽松 optional） */
 interface BotRow {
@@ -558,6 +587,7 @@ interface BotRow {
   name: string;
   type: string;
   botId: string;
+  /** 管理端新契约返回掩码值（如 sk-****abcd），编辑时留空=保持不变 */
   apiKey: string;
   isFree: boolean;
   avatar?: string;
@@ -570,6 +600,8 @@ interface BotRow {
   freeUses?: number;
   /** AI 计费：追问包定价（国学币/10次），0=免费不限 */
   pricePer10Coin?: number;
+  /** 管理端新契约 GET /bots/admin/list：凭证是否已配置（占位 bot=false） */
+  isConfigured?: boolean;
 }
 /** Bot 知识库条目 */
 interface BotKnowledge { id: string; title?: string; content?: string; sourceType?: string }
@@ -636,17 +668,36 @@ function typeLabel(t: string): string {
   return map[t] || t;
 }
 
+/** 管理端列表是否已走上新契约（/bots/admin/list·含占位 bot 与 isConfigured） */
+const adminListAvailable = ref(true);
+
 async function fetchList() {
   loading.value = true;
   loadError.value = false;
+  const params: Record<string, string> = {};
+  if (typeFilter.value) params.type = typeFilter.value;
   try {
-    const params: Record<string, string> = {};
-    if (typeFilter.value) params.type = typeFilter.value;
-    const { data } = await botApi.list(params);
-    list.value = Array.isArray(data) ? data : [];
-  } catch {
-    loadError.value = true;
-    list.value = [];
+    // 并行后端新契约：GET /bots/admin/list（含未配置凭证的占位 bot·apiKey 掩码·isConfigured）
+    const { data } = await api.get("/bots/admin/list", { params });
+    list.value = Array.isArray(data) ? data : (data?.items ?? []);
+    adminListAvailable.value = true;
+  } catch (e) {
+    const st = (e as { response?: { status?: number } })?.response?.status;
+    if (st === 404) {
+      // 后端尚未部署新契约 → 降级回 C 端列表（只含已配置且在架的 bot）
+      adminListAvailable.value = false;
+      try {
+        const { data } = await botApi.list(params);
+        list.value = Array.isArray(data) ? data : [];
+        ElMessage.warning("管理端接口未部署：当前仅显示已配置的智能体，占位智能体不可见（待后端部署 /bots/admin/list）");
+      } catch {
+        loadError.value = true;
+        list.value = [];
+      }
+    } else {
+      loadError.value = true;
+      list.value = [];
+    }
   } finally {
     loading.value = false;
   }
@@ -683,7 +734,8 @@ function openEdit(row: BotRow) {
   form.avatar = row.avatar || "";
   form.intro = row.intro || "";
   form.botId = row.botId;
-  form.apiKey = row.apiKey;
+  // 不回填 apiKey：新契约列表返回的是掩码值，回填后原样提交会把真密钥覆盖成掩码；留空=保持不变
+  form.apiKey = "";
   form.isFree = row.isFree;
   form.dailyLimit = row.dailyLimit ?? 5;
   form.price = row.price ?? 0;
@@ -695,21 +747,25 @@ function openEdit(row: BotRow) {
 }
 
 async function saveForm() {
-  if (!form.name || !form.botId || !form.apiKey) {
-    ElMessage.warning("请填写名称、Bot ID 和 API Key");
+  // 校验：新建必填 apiKey；编辑放过空值（新契约 PUT /bots/:id apiKey 缺省 = 保留原值）
+  if (!form.name || !form.botId || (!isEditing.value && !form.apiKey)) {
+    ElMessage.warning(isEditing.value ? "请填写名称和 Bot ID" : "请填写名称、Bot ID 和 API Key");
     return;
   }
   saving.value = true;
   try {
-    const payload = { ...form };
+    const payload: Record<string, unknown> = { ...form };
     if (isEditing.value) {
-      // PUT /bots/:id（UpdateBotDto 已含 freeUses/pricePer10Coin，直传）
+      // 留空 = 不改密钥：从 payload 中剔除空 apiKey，后端缺省保留原值
+      if (!form.apiKey) delete payload.apiKey;
       await botApi.update(editingId.value, payload);
       ElMessage.success("已更新");
     } else {
       // 后端 CreateBotDto 未收录计费字段（全局 forbidNonWhitelisted 会 400），
       // 故新建时剥离，创建成功后补一次 PUT 写入计费定价
-      const { freeUses, pricePer10Coin, ...createPayload } = payload;
+      const { freeUses: _fu, pricePer10Coin: _pp, ...createPayload } = payload;
+      const freeUses = form.freeUses;
+      const pricePer10Coin = form.pricePer10Coin;
       const { data: created } = await botApi.create(createPayload);
       if ((freeUses > 0 || pricePer10Coin > 0) && created?.id) {
         await botApi.update(String(created.id), { freeUses, pricePer10Coin });
@@ -803,6 +859,8 @@ async function openBindCircle(row: BotRow) {
     circleList.value = data.items || data.circles || (Array.isArray(data) ? data : []);
     bindDialogVisible.value = true;
   } catch {
+    // 原来静默吞错=点了没反应（体验标准红线5）
+    ElMessage.error("圈子列表加载失败，请重试");
   }
 }
 

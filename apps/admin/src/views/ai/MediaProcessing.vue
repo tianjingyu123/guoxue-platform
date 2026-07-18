@@ -529,7 +529,7 @@ async function submitAudit() {
     lastAuditResult.value = data;
     ElMessage.success("AI审核完成");
     loadTasks();
-  } catch { /* ignore */ } finally { auditing.value = false; }
+  } catch { ElMessage.error("图片审核失败，请检查图片地址后重试"); } finally { auditing.value = false; }
 }
 
 async function submitTts() {
@@ -543,7 +543,7 @@ async function submitTts() {
     });
     ElMessage.success("TTS任务已提交");
     loadTasks();
-  } catch { /* ignore */ } finally { ttsGenerating.value = false; }
+  } catch { ElMessage.error("TTS 任务提交失败，请重试"); } finally { ttsGenerating.value = false; }
 }
 
 async function submitTranscribe() {
@@ -556,7 +556,7 @@ async function submitTranscribe() {
     });
     ElMessage.success("转写任务已提交");
     loadTasks();
-  } catch { /* ignore */ } finally { transcribing.value = false; }
+  } catch { ElMessage.error("转写任务提交失败，请检查音频地址后重试"); } finally { transcribing.value = false; }
 }
 
 function onTabChange(_tab: string) { loadTasks(); }

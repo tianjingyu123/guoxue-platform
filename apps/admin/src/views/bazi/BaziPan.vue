@@ -30,12 +30,26 @@ const loading = ref(false)
 const error = ref(false)
 const inputCollapsed = ref(false)
 
+// 旺相休囚死拼音 → 中文（引擎 geju.ts deLing() 返回拼音直进 geJu.desc，展示层必须翻译）
+const DE_LING_CN: Record<string, string> = { wang: '旺', xiang: '相', xiu: '休', qiu: '囚', si: '死' }
+
+/** 清洗引擎结果中的拼音字段（只在"得令情况："后精确替换，不动其它文本） */
+function normalizeResult(r: any): any {
+  if (r?.geJu?.desc && typeof r.geJu.desc === 'string') {
+    r.geJu.desc = r.geJu.desc.replace(
+      /得令情况：(wang|xiang|xiu|qiu|si)/g,
+      (_m: string, p: string) => `得令情况：${DE_LING_CN[p] || p}`,
+    )
+  }
+  return r
+}
+
 async function doCalc() {
   if (loading.value) return // 防重复
   loading.value = true
   error.value = false
   try {
-    result.value = (await paipanApi.preview({ ...form })).data
+    result.value = normalizeResult((await paipanApi.preview({ ...form })).data)
   } catch {
     error.value = true
     ElMessage.error('排盘失败，请稍后重试')

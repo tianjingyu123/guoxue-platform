@@ -188,7 +188,26 @@
               <span>已处理 {{ fmt(events.data.processed) }}</span>
               <span :class="{ 'metric-warn': events.data.failed > 0 }">失败 {{ fmt(events.data.failed) }}</span>
             </div>
-            <div class="card-foot muted-foot">事件在各 AI 模块内消费·此处为运行水位</div>
+            <!-- 下钻：事件多为 AI 调用产生，明细统一在 AI 调用中心查看；失败/待处理走协作审核兜底 -->
+            <div class="card-foot">
+              <el-button
+                text
+                type="primary"
+                size="small"
+                @click="$router.push('/ai/usage')"
+              >
+                调用明细 →
+              </el-button>
+              <el-button
+                v-if="events.data.pending > 0 || events.data.failed > 0"
+                text
+                type="warning"
+                size="small"
+                @click="$router.push('/ai/collaborations')"
+              >
+                去兜底 →
+              </el-button>
+            </div>
           </template>
           <CardFallback
             v-else-if="events.status !== 'loading'"
@@ -369,13 +388,18 @@ const media = newState<MediaToday>();
 const loadMedia = () =>
   runCard(media, async () => {
     const { data } = await aiAdminApi.getCallLogs({ page: 1, pageSize: 100 });
-    const list: Array<{ createdAt?: string; tokenUsage?: number }> = data?.list ?? [];
+    // tokenUsage 是 Json 对象 {promptTokens, completionTokens}（ai-logger.service.ts 写入），
+    // 原 Number(r.tokenUsage) 对对象恒为 NaN→0，今日 token 永远显示 0，已改为两字段累加
+    const list: Array<{ createdAt?: string; tokenUsage?: { promptTokens?: number; completionTokens?: number } | null }> = data?.list ?? [];
     const dayStart = new Date();
     dayStart.setHours(0, 0, 0, 0);
     const todayList = list.filter((r) => r.createdAt && new Date(r.createdAt) >= dayStart);
     return {
       todayCount: todayList.length,
-      todayTokens: todayList.reduce((s, r) => s + (Number(r.tokenUsage) || 0), 0),
+      todayTokens: todayList.reduce(
+        (s, r) => s + (Number(r.tokenUsage?.promptTokens) || 0) + (Number(r.tokenUsage?.completionTokens) || 0),
+        0,
+      ),
       // 首页 100 条全是今日 → 实际今日量可能更多，如实展示为下限
       todayCapped: list.length >= 100 && todayList.length === list.length,
       total: Number(data?.total) || 0,

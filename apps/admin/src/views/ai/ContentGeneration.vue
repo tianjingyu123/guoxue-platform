@@ -48,12 +48,12 @@
       </el-col>
       <el-col :span="4">
         <div class="stat-card info">
-          <span class="value">{{ genStats.totalTasks || 0 }}</span><span class="label">总任务数</span>
+          <span class="value">{{ genStats.totalTasks || 0 }}</span><span class="label">生成记录（近{{ HISTORY_LIMIT }}条内）</span>
         </div>
       </el-col>
       <el-col :span="4">
         <div class="stat-card">
-          <span class="value">{{ genStats.successRate || 0 }}%</span><span class="label">任务成功率</span>
+          <span class="value">{{ genStats.totalTasks ? genStats.successRate + '%' : '—' }}</span><span class="label">生成成功率（同口径）</span>
         </div>
       </el-col>
     </el-row>
@@ -280,20 +280,32 @@
           </el-form>
         </el-card>
 
-        <!-- 最近触发的任务 -->
+        <!-- 最近触发的任务（诚实态：原"执行中"状态从不更新是假轮询感；
+             现改为"已提交"+ 引导到生成历史看真实结果；Token 列删除——本地提交记录无该数据） -->
         <el-card style="margin-top:16px">
           <template #header>
-            <span>最近生成任务</span>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span>本次会话提交的任务</span>
+              <el-button
+                size="small"
+                text
+                type="primary"
+                @click="activeTab = 'history'; fetchHistory()"
+              >
+                查看生成结果 →
+              </el-button>
+            </div>
           </template>
           <el-table
             :data="recentTasks"
             stripe
             size="small"
             max-height="300"
+            empty-text="本次会话尚未提交生成任务"
           >
             <el-table-column
               label="品类"
-              width="120"
+              width="150"
             >
               <template #default="{ row }">
                 {{ row.categoryLevel1 }}{{ row.categoryLevel2 ? ' / ' + row.categoryLevel2 : '' }}
@@ -301,7 +313,7 @@
             </el-table-column>
             <el-table-column
               label="类型"
-              width="150"
+              width="220"
             >
               <template #default="{ row }">
                 <el-tag
@@ -316,27 +328,20 @@
             </el-table-column>
             <el-table-column
               label="状态"
-              width="90"
+              width="180"
             >
-              <template #default="{ row }">
+              <template #default>
                 <el-tag
-                  :type="row.status === 'success' ? 'success' : row.status === 'error' ? 'danger' : 'info'"
+                  type="info"
                   size="small"
                 >
-                  {{ row.status === 'success' ? '成功' : row.status === 'error' ? '失败' : '执行中' }}
+                  已提交
                 </el-tag>
+                <span style="font-size:11px;color:var(--color-text-secondary);margin-left:6px">结果见生成历史</span>
               </template>
             </el-table-column>
             <el-table-column
-              label="Token"
-              width="100"
-            >
-              <template #default="{ row }">
-                {{ row.tokenUsage ? 'P:' + row.tokenUsage.promptTokens + ' C:' + row.tokenUsage.completionTokens : '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column
-              label="时间"
+              label="提交时间"
               width="170"
             >
               <template #default="{ row }">
@@ -347,23 +352,31 @@
         </el-card>
       </el-tab-pane>
 
-      <!-- 生成历史 -->
+      <!-- 生成历史（真源改接 GET /content-generation/history：原来调的 /ai/media/tasks
+           是媒体任务日志·与内容生成无关·且其 scene/status/日期参数被后端硬编码忽略） -->
       <el-tab-pane
         label="生成历史"
         name="history"
       >
         <el-card>
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+            title="以下为内容生成引擎的逐条产出记录（内存缓冲·服务重启后清空），点击标题右侧可查看失败原因"
+            style="margin-bottom:12px"
+          />
           <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
             <el-select
               v-model="historyFilter.category"
-              placeholder="品类筛选"
+              placeholder="一级品类"
               size="small"
               clearable
               style="width:160px"
               @change="fetchHistory"
             >
               <el-option
-                v-for="c in allCategoryNames"
+                v-for="c in level1Names"
                 :key="c"
                 :label="c"
                 :value="c"
@@ -407,21 +420,19 @@
                 value="error"
               />
             </el-select>
-            <el-date-picker
-              v-model="historyFilter.dateRange"
-              type="daterange"
-              range-separator="至"
-              start-placeholder="开始"
-              end-placeholder="结束"
-              size="small"
-              style="width:260px"
-            />
+            <!-- 日期范围筛选已删：/content-generation/history 不支持日期参数，筛了不生效属假交互 -->
             <el-button
               size="small"
               type="primary"
               @click="fetchHistory"
             >
-              搜索
+              查询
+            </el-button>
+            <el-button
+              size="small"
+              @click="resetHistoryFilter"
+            >
+              重置
             </el-button>
           </div>
 
@@ -447,65 +458,58 @@
             stripe
             size="small"
             max-height="450"
-            empty-text="暂无生成历史"
+            empty-text="暂无生成记录，可到「手动生成」触发一次"
           >
             <el-table-column
-              label="场景"
+              label="品类"
               width="160"
-              show-overflow-tooltip
-              prop="scene"
-            />
-            <el-table-column
-              label="模型"
-              width="160"
-              prop="modelName"
-              show-overflow-tooltip
-            />
-            <el-table-column
-              label="输入"
-              min-width="200"
-              show-overflow-tooltip
             >
               <template #default="{ row }">
-                {{ row.prompt?.substring(0, 100) || row.query?.substring(0, 100) || '-' }}
+                {{ row.categoryLevel1 }}{{ row.categoryLevel2 ? ' / ' + row.categoryLevel2 : '' }}
               </template>
             </el-table-column>
             <el-table-column
-              label="输出预览"
-              min-width="200"
+              label="类型"
+              width="100"
+            >
+              <template #default="{ row }">
+                <el-tag size="small">
+                  {{ typeLabel(row.type) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="标题"
+              min-width="240"
               show-overflow-tooltip
             >
               <template #default="{ row }">
-                {{ row.response?.substring(0, 100) || '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column
-              label="Token"
-              width="110"
-            >
-              <template #default="{ row }">
-                <span v-if="row.tokenUsage">P:{{ row.tokenUsage.promptTokens }} C:{{ row.tokenUsage.completionTokens }}</span>
-                <span v-else>-</span>
-              </template>
-            </el-table-column>
-            <el-table-column
-              label="延迟"
-              width="75"
-            >
-              <template #default="{ row }">
-                {{ row.latencyMs ? row.latencyMs + 'ms' : '-' }}
+                {{ row.title || '—' }}
               </template>
             </el-table-column>
             <el-table-column
               label="状态"
-              width="75"
+              width="100"
             >
               <template #default="{ row }">
+                <el-tooltip
+                  v-if="row.status === 'error' && row.error"
+                  :content="row.error"
+                  placement="top"
+                >
+                  <el-tag
+                    type="danger"
+                    size="small"
+                  >
+                    失败
+                  </el-tag>
+                </el-tooltip>
                 <el-tag
+                  v-else
                   :type="row.status === 'success' ? 'success' : 'danger'"
                   size="small"
                 >
-                  {{ row.status || 'ok' }}
+                  {{ row.status === 'success' ? '成功' : '失败' }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -518,15 +522,6 @@
               </template>
             </el-table-column>
           </el-table>
-          <el-pagination
-            v-if="!historyErr"
-            v-model:current-page="historyPagination.page"
-            :total="historyPagination.total"
-            :page-size="20"
-            layout="total, prev, pager, next"
-            style="margin-top:12px;justify-content:flex-end"
-            @current-change="fetchHistory"
-          />
         </el-card>
       </el-tab-pane>
     </el-tabs>
@@ -534,9 +529,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from "vue";
-import { ElMessage } from "element-plus";
-import { contentGenerationApi, aiAdminApi } from "@/api";
+import { ref, reactive, computed, onMounted } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { contentGenerationApi } from "@/api";
 import AiMaintainedBanner from "@/components/AiMaintainedBanner.vue";
 
 /** 品类健康度行（字段宽松 optional） */
@@ -554,30 +549,23 @@ interface CategoryNode {
   label: string;
   children?: { label: string }[];
 }
-/** Token 用量 */
-interface TokenUsage { promptTokens?: number; completionTokens?: number }
-/** 最近生成任务 */
+/** 本次会话提交的任务（仅本地记录·真实结果看生成历史） */
 interface RecentTask {
   categoryLevel1?: string;
   categoryLevel2?: string;
   types?: string[];
-  status?: string;
-  tokenUsage?: TokenUsage;
   createdAt?: string;
 }
-/** 生成历史日志 */
+/** 生成历史行（与 GET /content-generation/history 返回体 GenerationRecord 一致） */
 interface HistoryLog {
-  scene?: string;
-  modelName?: string;
-  prompt?: string;
-  query?: string;
-  response?: string;
-  content?: string;
-  messages?: { content?: string }[];
-  tokenUsage?: TokenUsage;
-  latencyMs?: number;
-  status?: string;
-  createdAt?: string;
+  id: string;
+  categoryLevel1: string;
+  categoryLevel2: string;
+  type: string;
+  title: string;
+  status: "success" | "error";
+  error?: string;
+  createdAt: string;
 }
 /** 统计接口响应 */
 interface StatsResponse {
@@ -593,12 +581,6 @@ interface CategoriesResponse {
   categories?: CategoryNode[];
   tree?: CategoryNode[];
   [key: string]: unknown;
-}
-/** 历史日志接口响应 */
-interface HistoryResponse {
-  list?: HistoryLog[];
-  data?: HistoryLog[];
-  total?: number;
 }
 
 const activeTab = ref("health");
@@ -617,21 +599,16 @@ const loadErr = ref(false);
 const genStats = reactive({ totalTasks: 0, successRate: 0 });
 const genForm = reactive({ level1: "", level2: "", types: ["knowledge", "classics", "tutorial"] as string[] });
 
-// 生成历史
+// 生成历史（真源 GET /content-generation/history·内存环形缓冲·无分页用 limit）
+const HISTORY_LIMIT = 200;
 const historyLogs = ref<HistoryLog[]>([]);
 const historyLoading = ref(false);
 const historyErr = ref(false);
-const historyFilter = reactive({ category: "", type: "", status: "", dateRange: null as [Date, Date] | null });
-const historyPagination = reactive({ page: 1, total: 0 });
+// dateRange 已删：端点不支持日期参数
+const historyFilter = reactive({ category: "", type: "", status: "" });
 
-const allCategoryNames = computed(() => {
-  const names: string[] = [];
-  categories.value.forEach((c) => {
-    names.push(c.label);
-    if (c.children) c.children.forEach((s) => names.push(s.label));
-  });
-  return [...new Set(names)].sort();
-});
+// 端点只支持一级品类过滤（categoryLevel1），不再把二级品类混进下拉造成筛不出
+const level1Names = computed(() => [...new Set(categories.value.map((c) => c.label))].sort());
 
 const filteredCategoryStats = computed(() => {
   let list = categoryStats.value;
@@ -688,26 +665,29 @@ async function loadCategories() {
   if (c) categories.value = c.categories || c.tree || Object.entries(c).map(([k, v]) => ({ label: k, children: (v as string[]).map(s => ({ label: s })) }));
 }
 
+function typeLabel(t: string): string {
+  return t === "knowledge" ? "基础知识" : t === "classics" ? "经典精华" : t === "tutorial" ? "玩法教程" : t;
+}
+
+function resetHistoryFilter() {
+  historyFilter.category = "";
+  historyFilter.type = "";
+  historyFilter.status = "";
+  fetchHistory();
+}
+
 async function fetchHistory() {
   historyLoading.value = true;
   historyErr.value = false;
   try {
-    const params: Record<string, string | number> = { page: historyPagination.page, pageSize: 20, scene: "content_generation" };
+    const params: Record<string, string | number> = { limit: HISTORY_LIMIT };
+    if (historyFilter.category) params.categoryLevel1 = historyFilter.category;
+    if (historyFilter.type) params.type = historyFilter.type;
     if (historyFilter.status) params.status = historyFilter.status;
-    if (historyFilter.dateRange) {
-      params.startDate = historyFilter.dateRange[0]?.toISOString();
-      params.endDate = historyFilter.dateRange[1]?.toISOString();
-    }
-    const { data } = await aiAdminApi.getCallLogs(params);
-    const d = data as HistoryResponse;
-    const list = d?.list || d?.data || [];
-    historyLogs.value = list.map((log) => ({
-      ...log,
-      prompt: log.query || log.prompt || log.messages?.[log.messages.length - 1]?.content,
-      response: log.response || log.content,
-    }));
-    historyPagination.total = d?.total || list.length;
-    genStats.totalTasks = historyPagination.total;
+    const { data } = await contentGenerationApi.getHistory(params);
+    const list = (Array.isArray(data) ? data : []) as HistoryLog[];
+    historyLogs.value = list;
+    genStats.totalTasks = list.length;
     const successCount = list.filter((l) => l.status === "success").length;
     genStats.successRate = list.length > 0 ? Math.round((successCount / list.length) * 100) : 0;
   } catch { historyErr.value = true; } finally { historyLoading.value = false; }
@@ -716,6 +696,15 @@ async function fetchHistory() {
 async function triggerGenerate() {
   if (!genForm.level1) { ElMessage.warning("请选择品类"); return; }
   if (genForm.types.length === 0) { ElMessage.warning("请选择生成类型"); return; }
+  // L3 确认：写型 AI 任务，消耗 AI 配额（体验标准第七节）
+  const typeNames = genForm.types.map(typeLabel).join("、");
+  try {
+    await ElMessageBox.confirm(
+      `将为「${genForm.level1}${genForm.level2 ? " / " + genForm.level2 : ""}」调用 AI 生成 ${typeNames} 共 ${genForm.types.length} 类内容（每类若干条），会消耗 AI 调用配额，产出进入草稿箱等待人工审核。确认触发？`,
+      "触发 AI 生成",
+      { type: "warning", confirmButtonText: "确认生成", cancelButtonText: "取消" },
+    );
+  } catch { return; }
   generating.value = true;
   try {
     await contentGenerationApi.generate({
@@ -723,27 +712,33 @@ async function triggerGenerate() {
       categoryLevel2: genForm.level2 || undefined,
       types: genForm.types,
     });
-    ElMessage.success("生成任务已提交，内容将存入草稿箱等待审核");
-    // 添加到最近任务列表
+    ElMessage.success("生成任务已提交，结果请到「生成历史」查看，内容将存入草稿箱等待审核");
     recentTasks.value.unshift({
       categoryLevel1: genForm.level1,
       categoryLevel2: genForm.level2,
       types: [...genForm.types],
-      status: "running",
       createdAt: new Date().toISOString(),
     });
     if (recentTasks.value.length > 20) recentTasks.value.pop();
     refreshStats();
-  } catch { /* ignore */ } finally { generating.value = false; }
+  } catch { ElMessage.error("生成任务提交失败，请重试"); } finally { generating.value = false; }
 }
 
 async function autoFill() {
+  // L3 确认：批量写型任务，影响范围预告
+  try {
+    await ElMessageBox.confirm(
+      `将为 ${stats.emptyCategories || "所有"} 个空品类批量调用 AI 自动生成种子内容，会消耗较多 AI 调用配额，产出进入草稿箱等待人工审核。确认触发？`,
+      "一键填充空品类",
+      { type: "warning", confirmButtonText: "确认填充", cancelButtonText: "取消" },
+    );
+  } catch { return; }
   autoFilling.value = true;
   try {
     await contentGenerationApi.autoFill();
-    ElMessage.success("空品类填充已触发");
+    ElMessage.success("空品类填充已触发，结果请到「生成历史」查看");
     refreshStats();
-  } catch { /* ignore */ } finally { autoFilling.value = false; }
+  } catch { ElMessage.error("触发失败，请重试"); } finally { autoFilling.value = false; }
 }
 
 function generateFor(row: CategoryStatRow) {
@@ -751,7 +746,8 @@ function generateFor(row: CategoryStatRow) {
   genForm.level2 = row.level2 || "";
   genForm.types = ["knowledge", "classics", "tutorial"];
   activeTab.value = "generate";
-  nextTick(() => triggerGenerate());
+  // 不再静默自动触发：跳到手动生成页由 triggerGenerate 内的 L3 确认把关
+  triggerGenerate();
 }
 
 function fillSpecific(row: CategoryStatRow) {

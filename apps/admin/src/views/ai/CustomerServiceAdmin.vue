@@ -16,39 +16,25 @@
       </div>
     </div>
 
-    <!-- 统计 -->
+    <!-- 统计（口径讲真话：后端暂无客服会话维度统计，只有全平台 AI 调用数；
+         自动解决率/转人工次数/平均响应三卡已删——/ai/usage-stats 返回体无对应字段，不显示假值） -->
     <el-row
       :gutter="16"
       style="margin-bottom:16px"
     >
-      <el-col :span="4">
+      <el-col :span="8">
         <div class="stat-card">
-          <span class="value">{{ stats.totalConversations?.toLocaleString() || 0 }}</span><span class="label">总对话数</span>
+          <span class="value">{{ stats.totalConversations?.toLocaleString() || 0 }}</span><span class="label">平台 AI 调用数（近30天·非仅客服）</span>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :span="8">
         <div class="stat-card">
-          <span class="value">{{ stats.todayConversations?.toLocaleString() || 0 }}</span><span class="label">今日对话</span>
+          <span class="value">{{ stats.todayConversations?.toLocaleString() || 0 }}</span><span class="label">今日 AI 调用（全平台）</span>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col :span="8">
         <div class="stat-card info">
           <span class="value">{{ stats.faqCount }}</span><span class="label">FAQ条目</span>
-        </div>
-      </el-col>
-      <el-col :span="4">
-        <div class="stat-card">
-          <span class="value">{{ stats.autoResolveRate || 0 }}%</span><span class="label">自动解决率</span>
-        </div>
-      </el-col>
-      <el-col :span="4">
-        <div class="stat-card warn">
-          <span class="value">{{ stats.humanTransferCount || 0 }}</span><span class="label">转人工次数</span>
-        </div>
-      </el-col>
-      <el-col :span="4">
-        <div class="stat-card">
-          <span class="value">{{ stats.avgResponseMs || 0 }}ms</span><span class="label">平均响应</span>
         </div>
       </el-col>
     </el-row>
@@ -59,6 +45,15 @@
         label="FAQ管理"
         name="faq"
       >
+        <!-- 诚实横幅：后端 grep customer_service_faq 零命中，客服引擎暂不读取该配置 -->
+        <el-alert
+          type="warning"
+          :closable="false"
+          show-icon
+          title="该配置暂未接入客服引擎（后端待接线），保存仅存档"
+          description="FAQ 内容会保存到系统配置，但智能客服当前回答不会引用这里的条目；后端接线后自动生效。"
+          style="margin-bottom:12px"
+        />
         <el-row :gutter="16">
           <el-col :span="10">
             <el-card>
@@ -164,6 +159,15 @@
         label="转人工规则"
         name="rules"
       >
+        <!-- 诚实横幅：后端 grep customer_service_rules 零命中，规则暂不被客服引擎消费 -->
+        <el-alert
+          type="warning"
+          :closable="false"
+          show-icon
+          title="该配置暂未接入客服引擎（后端待接线），保存仅存档"
+          description="规则会保存到系统配置，但当前转人工行为不受这里控制；后端接线后自动生效。"
+          style="margin-bottom:12px"
+        />
         <el-card>
           <template #header>
             <span>转人工触发条件</span>
@@ -254,39 +258,22 @@
         name="monitor"
       >
         <el-card>
-          <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center">
-            <el-input
-              v-model="monitorKeyword"
-              placeholder="搜索对话内容"
-              size="small"
-              style="width:240px"
-              clearable
-            />
-            <el-select
-              v-model="monitorStatus"
-              placeholder="状态"
-              size="small"
-              clearable
-              style="width:130px"
-            >
-              <el-option
-                label="已解决"
-                value="resolved"
-              />
-              <el-option
-                label="转人工"
-                value="transferred"
-              />
-              <el-option
-                label="未解决"
-                value="unresolved"
-              />
-            </el-select>
+          <!-- 原"状态筛选/关键词搜索"已删：/ai/call-logs 仅支持 service 参数，
+               status/keyword 后端不消费，筛选点了不生效属假交互（体验标准红线6） -->
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+            title="客服会话明细后端暂未开放，以下为全平台 AI 调用记录（GET /ai/call-logs）"
+            style="margin-bottom:12px"
+          />
+          <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
             <el-button
               size="small"
+              :loading="convLoading"
               @click="fetchConversations"
             >
-              搜索
+              刷新
             </el-button>
           </div>
           <el-result
@@ -313,44 +300,56 @@
             max-height="400"
             empty-text="暂无对话记录"
           >
+            <!-- 列与 /ai/call-logs 真实返回体一一对应；原"问题/回答/已解决/转人工"列
+                 取的字段（query/response/status/content）在返回体中不存在，永远显示"-"，已删 -->
             <el-table-column
               label="用户"
-              width="150"
+              width="160"
               show-overflow-tooltip
             >
               <template #default="{ row }">
-                {{ row.userId || '匿名' }}
+                {{ row.userNickname || (row.userId === 'system' ? '系统' : '—') }}
               </template>
             </el-table-column>
             <el-table-column
-              label="问题"
-              min-width="200"
-              show-overflow-tooltip
-            >
-              <template #default="{ row }">
-                {{ row.question?.substring(0, 80) || '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column
-              label="回答"
-              min-width="200"
-              show-overflow-tooltip
-            >
-              <template #default="{ row }">
-                {{ row.answer?.substring(0, 80) || '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column
-              label="状态"
-              width="90"
+              label="类型"
+              width="130"
             >
               <template #default="{ row }">
                 <el-tag
-                  :type="row.resolved ? 'success' : row.transferred ? 'warning' : 'info'"
+                  size="small"
+                  type="info"
+                >
+                  {{ row.analyzeType || '—' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="模型"
+              min-width="160"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.modelName || '—' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="缓存命中"
+              width="90"
+              align="center"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  v-if="row.isCached"
+                  type="success"
                   size="small"
                 >
-                  {{ row.resolved ? '已解决' : row.transferred ? '转人工' : '未解决' }}
+                  命中
                 </el-tag>
+                <span
+                  v-else
+                  style="color:var(--color-text-secondary)"
+                >否</span>
               </template>
             </el-table-column>
             <el-table-column
@@ -370,42 +369,30 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { ChatUI } from '@/components/ChatUI'
 import type { ChatUIConfig } from '@/components/ChatUI/types'
 import { systemApi, api } from "@/api";
 import { BRAND } from "@/lib/brand";
 
-// 对话监控行
+// 调用记录行（与 GET /ai/call-logs 真实返回体一致·ai.service.ts getAiCallLogs）
 interface ConversationRow {
+  id: string;
   userId?: string;
-  question?: string;
-  answer?: string;
-  resolved?: boolean;
-  transferred?: boolean;
+  userNickname?: string;
+  analyzeType?: string;
+  modelName?: string | null;
+  isCached?: boolean;
   createdAt?: string;
 }
 // 系统配置项
 interface SystemConfig { configKey?: string; configValue?: string }
-// 后端调用日志原始结构
-interface CallLogRaw {
-  userId?: string;
-  query?: string;
-  prompt?: string;
-  response?: string;
-  content?: string;
-  status?: string;
-  createdAt?: string;
-}
 
 const activeTab = ref("faq");
 const savingFaq = ref(false);
 const savingRules = ref(false);
 
-const stats = reactive({
-  totalConversations: 0, todayConversations: 0, faqCount: 0,
-  autoResolveRate: 0, humanTransferCount: 0, avgResponseMs: 0,
-});
+const stats = reactive({ totalConversations: 0, todayConversations: 0, faqCount: 0 });
 
 // FAQ
 const faqData = ref<Record<string, Array<{ q: string; a: string }>>>({});
@@ -435,9 +422,7 @@ const csChatConfig: ChatUIConfig = {
   extraBody: { scene: 'customer_service' },
 }
 
-// 对话监控
-const monitorKeyword = ref("");
-const monitorStatus = ref("");
+// 对话监控（状态/关键词筛选已删：后端不支持对应参数）
 const conversations = ref<ConversationRow[]>([]);
 const convLoading = ref(false);
 const convErr = ref(false);
@@ -509,7 +494,16 @@ function addCategory() {
   editingCat.value = key;
 }
 
-function deleteCategory(cat: string) {
+async function deleteCategory(cat: string) {
+  // L1 确认：删除分类连带删除其下全部条目，不可恢复（需再点保存才落库）
+  const count = (faqData.value[cat] || []).length;
+  try {
+    await ElMessageBox.confirm(
+      `删除分类「${faqCatNames.value[cat] || cat}」将连带删除其下 ${count} 条 FAQ，确定删除？（点击"保存FAQ"后生效）`,
+      "删除确认",
+      { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" },
+    );
+  } catch { return; }
   delete faqData.value[cat];
   delete faqCatNames.value[cat];
   if (editingCat.value === cat) {
@@ -561,35 +555,28 @@ async function saveRules() {
   }
 }
 
-// ── 对话监控 ──
+// ── 对话监控（真实数据源：GET /ai/call-logs·仅支持 page/pageSize/service 参数）──
 async function fetchConversations() {
   convLoading.value = true;
   convErr.value = false;
   try {
-    const params: Record<string, string | number> = { page: 1, pageSize: 20, scene: "customer_service" };
-    if (monitorKeyword.value) params.keyword = monitorKeyword.value;
-    const { data } = await api.get("/ai/call-logs", { params });
-    const d = data as { items?: CallLogRaw[]; list?: CallLogRaw[]; data?: CallLogRaw[] };
-    conversations.value = (d?.items || d?.list || d?.data || []).map((log) => ({
-      userId: log.userId,
-      question: log.query || log.prompt,
-      answer: log.response || log.content,
-      resolved: log.status === "success" && !log.content?.includes("转人工"),
-      transferred: log.content?.includes("转人工") || log.content?.includes("人工客服"),
-      createdAt: log.createdAt,
-    }));
+    const { data } = await api.get("/ai/call-logs", { params: { page: 1, pageSize: 20 } });
+    const d = data as { items?: ConversationRow[] };
+    conversations.value = d?.items || [];
   } catch { convErr.value = true; } finally { convLoading.value = false; }
 }
 
 async function fetchStats() {
+  // /ai/usage-stats 返回体只有 totalCalls/totalTokens/estimatedCost；
+  // 原 successRate/avgLatencyMs/todayCalls 均为不存在字段（恒0假数据），对应统计卡已删
   try {
-    const { data } = await api.get("/ai/usage-stats", { params: { period: "month" } });
-    const d = data as { totalCalls?: number; todayCalls?: number; successRate?: number; avgLatencyMs?: number };
-    stats.totalConversations = d?.totalCalls || 0;
-    stats.todayConversations = d?.todayCalls || 0;
-    stats.autoResolveRate = d?.successRate || 0;
-    stats.avgResponseMs = d?.avgLatencyMs || 0;
-  } catch { /* ignore */ }
+    const [{ data: month }, { data: day }] = await Promise.all([
+      api.get("/ai/usage-stats", { params: { period: "month" } }),
+      api.get("/ai/usage-stats", { params: { period: "day" } }),
+    ]);
+    stats.totalConversations = (month as { totalCalls?: number })?.totalCalls || 0;
+    stats.todayConversations = (day as { totalCalls?: number })?.totalCalls || 0;
+  } catch { /* 统计卡失败不阻塞主体 */ }
 }
 </script>
 

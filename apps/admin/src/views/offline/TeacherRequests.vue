@@ -55,6 +55,22 @@
         </template>
       </el-table-column>
       <el-table-column
+        label="老师"
+        width="110"
+      >
+        <!-- 后端返回体仅有 teacherId（未 include teacher 姓名，已记后端清单），截断显示+悬浮全文 -->
+        <template #default="{ row }">
+          <el-tooltip
+            v-if="row.teacherId"
+            :content="row.teacherId"
+            placement="top"
+          >
+            <span>{{ row.teacherId.slice(0, 8) }}…</span>
+          </el-tooltip>
+          <span v-else>—</span>
+        </template>
+      </el-table-column>
+      <el-table-column
         label="课程意向"
         min-width="150"
         prop="courseTitle"
@@ -153,6 +169,7 @@ import { teacherRequestApi } from "@/api";
 /** 驿站-老师双选申请行（字段宽松 optional） */
 interface TeacherRequestRow {
   station?: { name?: string; city?: string }
+  teacherId?: string
   courseTitle?: string
   courseIntro?: string
   proposedFee?: number

@@ -316,21 +316,19 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/system/ai-gateway"),
       M("/ai/rag-templates"),
       M("/ai/data-explorer"),
-      M("/ai/usage"),
-      M("/ai/chat-logs"),
-      M("/ai/call-monitor"),
+      M("/ai/usage", "AI调用中心"),
+      // 对话日志(/ai/chat-logs)与调用监控(/ai/call-monitor)已并入"AI调用中心"（三页原先全调错端点
+      // /ai/media/tasks·真数据在 /ai/usage-stats 与 /ai/call-logs·2026-07-18 合并）。
+      // 菜单先下架，路由保留为引导页；拍板确认后删路由。
     ],
   },
   {
-    title: "🔮 排盘工具",
+    title: "🔮 排盘数据",
     icon: "Timer",
     children: [
-      M("/bazi"),
-      M("/ziwei"),
-      M("/qimen"),
-      M("/liuyao"),
-      M("/daliuren"),
-      M("/paipan-records"),
+      // 董事长拍板(2026-07-18)：后台排盘=前台用户排盘数据管理，后台不排盘。
+      // 五个排盘工具页(/bazi /ziwei /qimen /liuyao /daliuren)菜单下架，路由保留；拍板确认后删路由。
+      M("/paipan-records", "排盘记录管理"),
     ],
   },
   {
@@ -425,6 +423,12 @@ const NOT_IN_MENU = new Set<string>([
   //   不加进本集合会被下方"覆盖护栏"兜底进「📦 其他」组，等于白隐藏
   "/contents/recommend", // 推荐管理：字段全错必400·与推荐规则(/recommend/rules)同端点双入口
   "/circle-backend", // 圈子后台管理：只读死列表半僵尸页·与 /circles 重复
+  // ↓ 董事长拍板(2026-07-18)：后台不排盘·排盘=前台用户数据管理——五个工具页下架
+  "/bazi",
+  "/ziwei",
+  "/qimen",
+  "/liuyao",
+  "/daliuren",
 ]);
 
 /**

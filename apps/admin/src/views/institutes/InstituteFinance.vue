@@ -31,8 +31,25 @@
       </el-select>
     </div>
 
+    <!-- 403：权限降级人话（后端已放行 SUPER/OPERATION/FINANCE_ADMIN 免会籍查账） -->
     <el-result
-      v-if="loadError && !loading"
+      v-if="forbidden && !loading"
+      icon="warning"
+      title="无权查看研究院财务"
+      sub-title="本页仅限研究院管理层或平台管理员（超管/运营/财务）查看。若您应有权限，请联系超管确认账号角色。"
+    >
+      <template #extra>
+        <el-button
+          type="primary"
+          @click="fetchFinance"
+        >
+          重试
+        </el-button>
+      </template>
+    </el-result>
+
+    <el-result
+      v-else-if="loadError && !loading"
       icon="error"
       title="加载失败"
       sub-title="请检查网络后重试"
@@ -48,7 +65,7 @@
     </el-result>
 
     <el-row
-      v-show="!loadError"
+      v-show="!loadError && !forbidden"
       v-loading="loading"
       :gutter="16"
       class="overview-row"
@@ -58,7 +75,7 @@
           <div class="stat-label">
             总收入
           </div><div class="stat-value">
-            ¥{{ finance.totalRevenue || 0 }}
+            ¥{{ fmt(finance.totalRevenue) }}
           </div>
         </el-card>
       </el-col>
@@ -70,7 +87,7 @@
             class="stat-value"
             style="color:#409eff"
           >
-            ¥{{ finance.instituteShare || 0 }}
+            ¥{{ fmt(finance.instituteShare) }}
           </div>
         </el-card>
       </el-col>
@@ -82,7 +99,7 @@
             class="stat-value"
             style="color:#e6a23c"
           >
-            ¥{{ finance.totalDividends || 0 }}
+            ¥{{ fmt(finance.totalDividends) }}
           </div>
         </el-card>
       </el-col>
@@ -94,7 +111,7 @@
             class="stat-value"
             style="color:#67c23a"
           >
-            ¥{{ finance.remaining || 0 }}
+            ¥{{ fmt(finance.remaining) }}
           </div>
         </el-card>
       </el-col>
@@ -102,20 +119,27 @@
 
     <!-- 发放分红 -->
     <el-card
-      v-show="!loadError"
+      v-show="!loadError && !forbidden"
       class="section-card"
       shadow="never"
     >
       <template #header>
         <span style="font-weight:600">发放分红/奖励</span>
-        <el-button
-          type="primary"
-          size="small"
-          style="float:right"
-          @click="showDividendDialog = true"
+        <!-- 数据加载失败/加载中时禁发：防止在"剩余可分"未知的情况下盲发资金 -->
+        <el-tooltip
+          :content="loadError || loading ? '财务数据未加载成功，暂不能发放' : '发起分红/奖励发放（需财务审批后生效）'"
+          placement="top"
         >
-          + 发放
-        </el-button>
+          <el-button
+            type="primary"
+            size="small"
+            style="float:right"
+            :disabled="loadError || loading"
+            @click="showDividendDialog = true"
+          >
+            + 发放
+          </el-button>
+        </el-tooltip>
       </template>
       <el-table
         v-loading="loading"
@@ -147,7 +171,7 @@
           align="right"
         >
           <template #default="{ row }">
-            ¥{{ row.amount }}
+            ¥{{ fmt(row.amount) }}
           </template>
         </el-table-column>
         <el-table-column
@@ -270,12 +294,17 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { instituteApi } from "@/api";
 
 const loading = ref(false);
 const loadError = ref(false);
+// 403：无权限（非研究院管理层且非平台管理角色），与网络错误分开降级
+const forbidden = ref(false);
 const period = ref("");
+
+/** 金额千分位两位小数 */
+function fmt(v: number | undefined) { return Number(v || 0).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 /** 分红记录行（字段宽松 optional） */
 interface DividendRow {
   user?: { nickname?: string };
@@ -312,10 +341,15 @@ onMounted(() => { fetchFinance(); fetchMembers(); });
 async function fetchFinance() {
   loading.value = true;
   loadError.value = false;
+  forbidden.value = false;
   try {
     const { data } = await instituteApi.getFinance(period.value || undefined);
     finance.value = data;
-  } catch { loadError.value = true; } finally { loading.value = false; }
+  } catch (e) {
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    if (status === 403) forbidden.value = true;
+    else loadError.value = true;
+  } finally { loading.value = false; }
 }
 
 async function fetchMembers() {
@@ -327,6 +361,20 @@ async function fetchMembers() {
 
 async function submitDividend() {
   if (savingDividend.value) return;
+  // 资金操作前置校验：成员必选、金额必须大于 0
+  if (!dividendForm.value.userId) { ElMessage.warning("请选择发放成员"); return; }
+  if (!dividendForm.value.amount || dividendForm.value.amount <= 0) { ElMessage.warning("发放金额必须大于 0"); return; }
+  // 确认框写明对象与金额（资金类操作，防误点）
+  const memberName = memberOptions.value.find((m) => m.userId === dividendForm.value.userId)?.user?.nickname || dividendForm.value.userId;
+  try {
+    await ElMessageBox.confirm(
+      `确认向「${memberName}」发放${dividendTypeLabel(dividendForm.value.type)} ¥${fmt(dividendForm.value.amount)}？提交后进入财务审批流。`,
+      "确认发放",
+      { type: "warning", confirmButtonText: "确认发放", cancelButtonText: "取消" },
+    );
+  } catch {
+    return; // 用户取消
+  }
   savingDividend.value = true;
   try {
     await instituteApi.createDividend(dividendForm.value);
@@ -334,7 +382,7 @@ async function submitDividend() {
     showDividendDialog.value = false;
     dividendForm.value = { userId: "", type: "MGMT_BONUS", amount: 0, period: "", description: "" };
     fetchFinance();
-  } catch { ElMessage.error("发放失败"); }
+  } catch { ElMessage.error("发放提交失败，请重试"); }
   finally { savingDividend.value = false; }
 }
 </script>

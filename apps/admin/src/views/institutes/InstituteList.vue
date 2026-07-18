@@ -336,14 +336,30 @@
         label-width="100px"
       >
         <el-form-item
-          label="用户ID"
+          label="被特邀用户"
           required
         >
-          <el-input
+          <!-- 远程搜索选择器（昵称/手机号搜索·替代手输裸 userId） -->
+          <el-select
             v-model="inviteForm.userId"
-            placeholder="被特邀用户的 userId"
+            filterable
+            remote
             clearable
-          />
+            :remote-method="searchUsers"
+            :loading="userSearching"
+            placeholder="输入昵称或手机号搜索"
+            style="width:100%"
+          >
+            <el-option
+              v-for="u in userOptions"
+              :key="u.id"
+              :label="`${u.nickname || '未命名'}（${u.phone || u.id.slice(0, 8) + '…'}）`"
+              :value="u.id"
+            />
+          </el-select>
+          <div class="field-hint">
+            按昵称或手机号搜索平台用户；选中后将以其身份直接开通研究院会籍
+          </div>
         </el-form-item>
         <el-form-item label="席位类型">
           <el-select
@@ -392,7 +408,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { instituteApi } from "@/api";
+import { instituteApi, userApi } from "@/api";
 
 /** 研究院成员行（字段宽松 optional） */
 interface InstituteMemberRow {
@@ -428,6 +444,23 @@ const editForm = reactive({ role: "TYPE_A", status: "ACTIVE", deposit: 0, tasksR
 const inviteVisible = ref(false);
 const inviting = ref(false);
 const inviteForm = reactive({ userId: "", seatType: "LECTURE", feeExempt: true, remark: "" });
+
+// 用户远程搜索（GET /users?keyword= 按昵称/手机号搜索）
+interface UserOption { id: string; nickname?: string; phone?: string }
+const userOptions = ref<UserOption[]>([]);
+const userSearching = ref(false);
+async function searchUsers(query: string) {
+  if (!query || query.trim().length < 2) { userOptions.value = []; return; }
+  userSearching.value = true;
+  try {
+    const { data } = await userApi.list({ keyword: query.trim(), page: 1, pageSize: 20 });
+    userOptions.value = data.users || [];
+  } catch {
+    userOptions.value = [];
+  } finally {
+    userSearching.value = false;
+  }
+}
 
 function roleLabel(r: string) {
   const m: Record<string, string> = { INITIATOR: "发起人", TYPE_A: "潜力讲师", TYPE_B: "深造者" };
@@ -500,6 +533,7 @@ function openInvite() {
   inviteForm.seatType = "LECTURE";
   inviteForm.feeExempt = true;
   inviteForm.remark = "";
+  userOptions.value = [];
   inviteVisible.value = true;
 }
 
@@ -507,7 +541,7 @@ async function submitInvite() {
   if (inviting.value) return;
   const userId = inviteForm.userId.trim();
   if (!userId) {
-    ElMessage.warning("请填写被特邀用户的 userId");
+    ElMessage.warning("请先搜索并选择被特邀用户");
     return;
   }
   inviting.value = true;
@@ -529,12 +563,41 @@ async function submitInvite() {
 async function handleUpdate(row: InstituteMemberRow, status: string) {
   if (acting.value) return;
   const label = status === "FROZEN" ? "冻结" : status === "ACTIVE" && row.status === "FROZEN" ? "解冻" : "设为已退出";
-  await ElMessageBox.confirm(`确定${label}成员「${row.user?.nickname}」？`, "提示", { type: "warning" });
+  const isDanger = status === "FROZEN" || status === "LEFT";
+  try {
+    if (isDanger) {
+      // L2 危险操作：理由必填（后端 UpdateMemberDto 暂不落理由，落库已记后端清单，前端先拦误操作）
+      // 退出时明示保证金去向：仅改会籍状态，保证金不会自动退还
+      const depositNote = status === "LEFT" && Number(row.deposit || 0) > 0
+        ? `注意：设为退出仅变更会籍状态，该成员保证金 ¥${Number(row.deposit || 0).toFixed(2)} 不会自动退还，如需退还请另行走财务流程。`
+        : status === "FROZEN"
+          ? "冻结期间该成员任务与分享积分暂停累计。"
+          : "";
+      const { value } = await ElMessageBox.prompt(
+        `确定${label}成员「${row.user?.nickname || "-"}」？${depositNote}请填写理由：`,
+        `${label}成员`,
+        {
+          confirmButtonText: `确认${label}`,
+          cancelButtonText: "取消",
+          inputPlaceholder: "必填，例：连续两期未完成任务 / 本人申请退出",
+          inputValidator: (v: string) => (v && v.trim().length >= 2 ? true : "请填写理由（至少2个字）"),
+          type: "warning",
+        },
+      );
+      if (!value) return;
+    } else {
+      await ElMessageBox.confirm(`确定${label}成员「${row.user?.nickname || "-"}」？`, "确认操作", { type: "info" });
+    }
+  } catch {
+    return; // 用户取消
+  }
   acting.value = true;
   try {
     await instituteApi.updateMember(row.id, { status });
     ElMessage.success(`已${label}`);
     fetchList();
+  } catch {
+    ElMessage.error("操作失败，请重试");
   } finally {
     acting.value = false;
   }
@@ -547,4 +610,5 @@ async function handleUpdate(row: InstituteMemberRow, status: string) {
 .header h2 { margin: 0 0 8px; font-size: 18px; color: var(--color-text-title); }
 .search-row { display: flex; gap: 8px; align-items: center; }
 .pagination { margin-top: 12px; display: flex; justify-content: flex-end; }
+.field-hint { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; margin-top: 4px; }
 </style>

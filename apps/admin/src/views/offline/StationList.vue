@@ -2,9 +2,20 @@
   <div class="page">
     <PageHeader title="分站管理">
       <template #actions>
-        <el-button @click="exportData">
-          导出CSV
-        </el-button>
+        <el-input
+          v-model="keyword"
+          placeholder="筛选当前页（名称/推广码/负责人）"
+          clearable
+          style="width: 240px"
+        />
+        <el-tooltip
+          content="导出当前页已加载的分站（全量导出需后端支持，已记后端清单）"
+          placement="bottom"
+        >
+          <el-button @click="exportData">
+            导出当前页
+          </el-button>
+        </el-tooltip>
         <el-button
           type="primary"
           @click="openCreate"
@@ -16,7 +27,7 @@
 
     <el-table
       v-loading="loading"
-      :data="stations"
+      :data="filteredStations"
       border
       stripe
     >
@@ -58,10 +69,14 @@
         </template>
       </el-table-column>
       <el-table-column
-        prop="totalEarning"
         label="累计收益"
-        width="120"
-      />
+        width="130"
+        align="right"
+      >
+        <template #default="{ row }">
+          ¥{{ Number(row.totalEarning ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="创建时间"
         width="170"
@@ -221,14 +236,14 @@
       </template>
     </el-dialog>
 
-    <!-- 运营商管理对话框 -->
+    <!-- 运营商管理对话框（/station/operator/list 不支持按分站过滤，标题说真话·按站过滤已记后端清单） -->
     <el-dialog
       v-model="operatorDialogVisible"
-      title="运营商管理"
+      title="全平台运营商"
       width="700px"
     >
       <div class="operator-header">
-        <span v-if="currentStation">分站：{{ currentStation.name }}</span>
+        <span>以下为全平台运营商列表（暂不支持按分站筛选）</span>
         <el-button
           type="primary"
           size="small"
@@ -253,10 +268,13 @@
           </template>
         </el-table-column>
         <el-table-column
-          prop="level"
           label="等级"
-          width="100"
-        />
+          width="110"
+        >
+          <template #default="{ row }">
+            {{ OPERATOR_LEVELS[row.level] || row.level || '—' }}
+          </template>
+        </el-table-column>
         <el-table-column
           prop="containQuota"
           label="站长名额"
@@ -328,8 +346,11 @@
         >
           <el-input
             v-model="operatorForm.userId"
-            placeholder="输入用户ID"
+            placeholder="粘贴平台用户ID（UUID）"
           />
+          <div class="field-hint">
+            在「用户管理」中找到目标用户，复制其用户ID粘贴到此处；该用户将被授予运营商身份
+          </div>
         </el-form-item>
         <el-form-item
           label="等级"
@@ -500,7 +521,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { stationApi } from "@/api";
@@ -542,7 +563,27 @@ interface TemplateRow {
   preview?: { tabs?: string[]; modules?: string[] }
 }
 
+/** 运营商等级翻译 */
+const OPERATOR_LEVELS: Record<string, string> = {
+  LEVEL_1: "一级运营商",
+  LEVEL_2: "二级运营商",
+  LEVEL_3: "三级运营商",
+  BLACK_GOLD: "黑金运营商",
+};
+
 const stations = ref<StationRow[]>([]);
+// 关键词筛选：后端 /station 列表不支持 keyword（已记后端清单），此处为当前页本地过滤
+const keyword = ref("");
+const filteredStations = computed(() => {
+  const k = keyword.value.trim().toLowerCase();
+  if (!k) return stations.value;
+  return stations.value.filter(
+    (s) =>
+      (s.name || "").toLowerCase().includes(k) ||
+      (s.code || "").toLowerCase().includes(k) ||
+      (s.user?.nickname || "").toLowerCase().includes(k),
+  );
+});
 const loading = ref(false);
 const loadError = ref(false);
 const actioning = ref(false);
@@ -660,7 +701,13 @@ async function toggleStatus(row: StationRow, status: string) {
 }
 
 function delStation(id: string) {
-  ElMessageBox.confirm("确定删除该分站？", "警告", { type: "warning" }).then(async () => {
+  const row = stations.value.find((s) => s.id === id);
+  // L3 危险操作：写明影响范围后确认
+  ElMessageBox.confirm(
+    `确定删除分站「${row?.name || id}」（推广码 ${row?.code || "—"}）？删除后：该分站推广码立即失效、站长后台不可再登录该分站、关联运营商与推广关系断开。此操作不可恢复。`,
+    "删除分站",
+    { type: "warning", confirmButtonText: "我已知晓影响，确认删除", cancelButtonText: "取消", confirmButtonClass: "el-button--danger" },
+  ).then(async () => {
     if (actioning.value) return;
     actioning.value = true;
     try {
@@ -687,10 +734,12 @@ function exportData() {
       { label: "累计收益", key: "totalEarning" },
       { label: "创建时间", key: "createdAt" },
     ],
-    stations.value.map((s) => ({
+    // 导出当前页（含本地关键词过滤后的可见行）
+    filteredStations.value.map((s) => ({
       ...s,
       ownerName: s.user?.nickname || "-",
       statusLabel: s.status === "ACTIVE" ? "正常" : "已禁用",
+      totalEarning: Number(s.totalEarning ?? 0).toFixed(2),
       createdAt: new Date(s.createdAt).toLocaleString(),
     })),
   );
@@ -814,6 +863,7 @@ async function saveOperator() {
 <style scoped>
 .page { padding: 0; }
 .pagination-wrap { margin-top: var(--spacing-lg); display: flex; justify-content: center; }
+.field-hint { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; margin-top: 4px; }
 .operator-header { margin-bottom: var(--spacing-md); display: flex; justify-content: space-between; align-items: center; }
 
 /* 模版选择 */
