@@ -4,7 +4,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
-import { CozeService } from "./coze.service";
+import { CozeService, CozeStreamEvent } from "./coze.service";
 import { CreateBotDto, UpdateBotDto, BindBotToCircleDto, AddKnowledgeDto, ChatDto } from "./bot.dto";
 import { encrypt, decrypt } from "../../common/crypto.util";
 import { Cacheable } from "../../common/cache.decorator";
@@ -12,6 +12,9 @@ import { safePagination } from "../../common/pagination";
 import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
 import { RecommendationService } from "./recommendation.service";
 import { CoinService } from "../coin/coin.service";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { AiMessage } from "../ai-gateway/adapters/base.adapter";
+import { randomUUID } from "crypto";
 
 @Injectable()
 export class BotService {
@@ -21,6 +24,7 @@ export class BotService {
     private prisma: PrismaService,
     private coze: CozeService,
     private reco: RecommendationService,
+    private aiGateway: AiGatewayService,
     @Optional() private coin?: CoinService,
   ) {}
 
@@ -401,7 +405,7 @@ export class BotService {
    * - 审计：完整净文本落 BotChatLog（与非流式同表同结构）
    */
   chatStreamRich(
-    bot: { id: string; botId: string; apiKey: string },
+    bot: { id: string; botId: string; apiKey: string; runtime?: string; systemPrompt?: string | null },
     userId: string,
     dto: ChatDto,
   ): Observable<{ type: "chunk" | "meta"; content?: string; conversationId?: string; disclaimer?: string; recommendation?: unknown }> {
@@ -432,8 +436,14 @@ export class BotService {
         held = s.slice(cut);
       };
 
-      const sub = this.coze
-        .chatStreamEx({ botId: bot.botId, apiKey: bot.apiKey, userId, query: dto.query, conversationId: dto.conversationId })
+      // 数据源按运行时分发：local 走自建 ai-gateway(DeepSeek 流式)，coze 保持现状。
+      // 两者产出同样的事件流 {type:'meta',conversationId} | {type:'chunk',content}，外层 emitSafe/reco/审计对两者通用。
+      const source$ =
+        bot.runtime === "local"
+          ? this.localChatStream(bot, userId, dto)
+          : this.coze.chatStreamEx({ botId: bot.botId, apiKey: bot.apiKey, userId, query: dto.query, conversationId: dto.conversationId });
+
+      const sub = source$
         .subscribe({
           next: (ev) => {
             if (ev.type === "meta") {
@@ -482,6 +492,40 @@ export class BotService {
           },
         });
       return () => sub.unsubscribe();
+    });
+  }
+
+  /**
+   * 自建运行时数据源（bot.runtime='local'）：走自建 ai-gateway(DeepSeek 流式)。
+   * 产出与 coze.chatStreamEx 一致的事件契约 {type:'meta',conversationId} | {type:'chunk',content}，
+   * 使 chatStreamRich 外层 emitSafe(软性导流)/reco.build/botChatLog 审计逻辑对两种运行时完全通用。
+   */
+  private localChatStream(
+    bot: { id: string; systemPrompt?: string | null },
+    userId: string,
+    dto: { query: string; conversationId?: string },
+  ): Observable<CozeStreamEvent> {
+    return new Observable((subscriber) => {
+      void (async () => {
+        try {
+          // conversationId：local 自管——续聊沿用传入的，首次用与 botChatLog 一致的新 id
+          const convId = dto.conversationId || randomUUID();
+          subscriber.next({ type: "meta", conversationId: convId }); // 先下发供前端续聊 + 外层审计取用
+          // 组装 messages：system(人设) + 历史 + 当前 query（历史仅续聊时按 conversationId 拉取）
+          const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId) : [];
+          const messages: AiMessage[] = [
+            ...(bot.systemPrompt ? [{ role: "system" as const, content: bot.systemPrompt }] : []),
+            ...history.map((h) => ({ role: h.role as AiMessage["role"], content: h.content })),
+            { role: "user" as const, content: dto.query },
+          ];
+          for await (const chunk of this.aiGateway.chatStream({ scene: "agent-chat", userId, messages, options: {} })) {
+            if (chunk) subscriber.next({ type: "chunk", content: chunk });
+          }
+          subscriber.complete();
+        } catch (err) {
+          subscriber.error(err);
+        }
+      })();
     });
   }
 

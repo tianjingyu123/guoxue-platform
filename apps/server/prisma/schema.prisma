@@ -1578,6 +1578,8 @@ model BotConfig {
   pricePer10Coin Int      @default(0) // 每 10 次追问价格（国学币·0=该智能体免费不限）
   sortOrder      Int      @default(0)
   voiceEnabled   Boolean? @default(false) // Coze 语音通话开关
+  runtime        String   @default("coze") // 运行时:coze(走Coze API) | local(走自建ai-gateway·DeepSeek·快且省) | custom-http
+  systemPrompt   String? // 自建运行时(local)的人设/角色提示词·作为 system message 传 ai-gateway(Coze侧人设迁移过来)
   status         String   @default("ACTIVE")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

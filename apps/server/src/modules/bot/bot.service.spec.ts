@@ -3,6 +3,7 @@ import { BotService } from "./bot.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CozeService } from "./coze.service";
 import { RecommendationService } from "./recommendation.service";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { BusinessException } from "../../common/business.exception";
 
 // consumeQuota/purchaseUses 经 getBotOrThrow 解密 apiKey，spec 中用透传 mock 避免真实密文依赖
@@ -54,6 +55,7 @@ describe("BotService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CozeService, useValue: mockCoze },
         { provide: RecommendationService, useValue: mockReco },
+        { provide: AiGatewayService, useValue: { chatStream: jest.fn() } },
       ],
     }).compile();
     svc = mod.get(BotService);
