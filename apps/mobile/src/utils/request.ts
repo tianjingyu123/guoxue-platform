@@ -154,7 +154,10 @@ export function refreshAccessToken(): Promise<RefreshResult> {
       timeout: TIMEOUT,
       success: (res) => {
         const body = res.data as ApiResponse<{ accessToken?: string; refreshToken?: string }>
-        if (res.statusCode === 200 && body?.code === 200 && body.data?.accessToken) {
+        // 🔴 后端 /auth/refresh、/auth/handoff/exchange 是 POST 接口，NestJS 默认返回 HTTP 201。
+        // 此处原写死 statusCode===200 → 续期实际成功(code=200+新token)却被判失败 → 清 token 踢下线，
+        // 这正是"用一两小时(access 2h到期续期时)就自动退出、反复改 refresh 却没根治"的真凶(2026-07-18 生产实测确认)。
+        if ((res.statusCode === 200 || res.statusCode === 201) && body?.code === 200 && body.data?.accessToken) {
           setToken(body.data.accessToken)
           if (body.data.refreshToken) setRefreshToken(body.data.refreshToken)
           done('ok')
@@ -196,7 +199,10 @@ export function exchangeHandoff(code: string): Promise<boolean> {
       timeout: TIMEOUT,
       success: (res) => {
         const body = res.data as ApiResponse<{ accessToken?: string; refreshToken?: string }>
-        if (res.statusCode === 200 && body?.code === 200 && body.data?.accessToken) {
+        // 🔴 后端 /auth/refresh、/auth/handoff/exchange 是 POST 接口，NestJS 默认返回 HTTP 201。
+        // 此处原写死 statusCode===200 → 续期实际成功(code=200+新token)却被判失败 → 清 token 踢下线，
+        // 这正是"用一两小时(access 2h到期续期时)就自动退出、反复改 refresh 却没根治"的真凶(2026-07-18 生产实测确认)。
+        if ((res.statusCode === 200 || res.statusCode === 201) && body?.code === 200 && body.data?.accessToken) {
           setToken(body.data.accessToken)
           if (body.data.refreshToken) setRefreshToken(body.data.refreshToken)
           resolve(true)
