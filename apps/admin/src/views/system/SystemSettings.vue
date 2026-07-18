@@ -94,6 +94,22 @@
               </el-button>
             </div>
           </template>
+          <!-- 对象数组：摘要展示（结构化数据·N 项），可展开看格式化原文，不铺原始 JSON -->
+          <template v-else-if="parseValue(row).kind === 'summary'">
+            <span class="summary-text">（结构化数据 · {{ parseValue(row).count }} 项）</span>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="toggleExpand(row.configKey)"
+            >
+              {{ expandedKeys.has(row.configKey) ? '收起' : '展开' }}
+            </el-button>
+            <pre
+              v-if="expandedKeys.has(row.configKey)"
+              class="summary-raw"
+            >{{ parseValue(row).raw }}</pre>
+          </template>
           <!-- 长文本：折叠展示 -->
           <template v-else-if="(row.configValue || '').length > 150">
             <span>{{ expandedKeys.has(row.configKey) ? row.configValue : row.configValue.slice(0, 150) + '…' }}</span>
@@ -224,6 +240,7 @@ import { ref, onMounted } from "vue";
 import { systemApi } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
+import { formatDateTime } from "@/utils/datetime";
 
 // 系统配置行（依据列表列/编辑表单实际访问字段声明）
 interface SysConfig {
@@ -262,9 +279,11 @@ function toggleExpand(key: string) {
 }
 
 interface ParsedValue {
-  kind: "tags" | "object" | "text";
+  kind: "tags" | "object" | "summary" | "text";
   tags?: string[];
   entries?: Array<[string, string]>;
+  count?: number; // summary：结构化数据项数
+  raw?: string; // summary：展开时呈现的格式化原文
 }
 const parseCache = new Map<string, ParsedValue>();
 function parseValue(row: SysConfig): ParsedValue {
@@ -277,13 +296,17 @@ function parseValue(row: SysConfig): ParsedValue {
     try {
       const parsed = JSON.parse(v);
       if (Array.isArray(parsed) && parsed.every((x) => typeof x === "string" || typeof x === "number")) {
-        result = { kind: "tags", tags: parsed.map(String) };
+        result = { kind: "tags", tags: parsed.map((x) => formatIsoish(String(x))) };
+      } else if (Array.isArray(parsed)) {
+        // 对象数组（如 operation_robots 运行配置）：不铺原文，摘要 + 可展开格式化原文
+        result = { kind: "summary", count: parsed.length, raw: JSON.stringify(parsed, null, 2) };
       } else if (parsed && typeof parsed === "object") {
+        // ISO 裸时间（如 hot_content_pool 的 updatedAt）格式化为中式，其余原样
         result = {
           kind: "object",
           entries: Object.entries(parsed).map(([k, val]) => [
             k,
-            typeof val === "object" && val !== null ? JSON.stringify(val) : String(val),
+            typeof val === "object" && val !== null ? JSON.stringify(val) : formatIsoish(String(val)),
           ]),
         };
       }
@@ -306,7 +329,12 @@ function isMojibake(text?: string) {
 }
 
 function formatTime(t?: string) {
-  return t ? new Date(t).toLocaleString("zh-CN", { hour12: false }) : "-";
+  return formatDateTime(t);
+}
+
+// ISO 8601 裸时间字符串 → 中式 "YYYY-MM-DD HH:mm"（如 hot_content_pool 内的 updatedAt/generatedAt），非时间原样返回
+function formatIsoish(v: string): string {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) ? formatDateTime(v) : v;
 }
 
 onMounted(() => fetchConfigs());
@@ -401,4 +429,17 @@ async function remove(row: SysConfig) {
 
 <style scoped>
 .page { padding: 0; }
+.summary-text { color: var(--el-text-color-secondary); }
+.summary-raw {
+  margin: 6px 0 0;
+  padding: 8px;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
 </style>

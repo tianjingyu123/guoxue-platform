@@ -194,6 +194,7 @@ import { ref, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { ElMessage } from "element-plus"
 import { api, paipanApi } from "@/api"
+import { formatDateTime } from "@/utils/datetime"
 import PageHeader from "@/components/PageHeader.vue"
 import SearchFilter, { type FilterDef } from "@/components/SearchFilter.vue"
 import DataTable, { type TableColumn } from "@/components/DataTable.vue"
@@ -341,8 +342,7 @@ async function viewDetail(row: PaipanRow) {
 }
 
 function formatDate(d?: string): string {
-  if (!d) return ""
-  return new Date(d).toLocaleString("zh-CN")
+  return formatDateTime(d)
 }
 
 // ── 键值展示（格式化中文键值，不甩生 JSON） ──

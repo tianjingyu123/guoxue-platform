@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import { formatDateTime } from '@/utils/datetime'
 
 // 资金审批单行（后端 FundApproval；amountUnit 为新契约字段：COIN=国学币计 / CNY=人民币计）
 interface ApprovalRow {
@@ -52,7 +53,7 @@ async function fetchCoinRate() {
   }
 }
 
-function formatDate(d?: string) { return d ? new Date(d).toLocaleString('zh-CN', { hour12: false }) : '—' }
+function formatDate(d?: string) { return formatDateTime(d) }
 function formatMoney(v: number | string | null | undefined) {
   if (v == null) return '—'
   return '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

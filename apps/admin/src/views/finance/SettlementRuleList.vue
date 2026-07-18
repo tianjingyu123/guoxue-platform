@@ -3,6 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { settlementRuleApi } from '@/api'
+import { formatDateTime } from '@/utils/datetime'
 
 // 单条分成方案（role+rate 为核心字段，允许后端扩展字段透传保留）
 interface SettlementSplit {
@@ -149,7 +150,7 @@ function splitsSummary(splits: SettlementSplit[] | null | undefined) {
 }
 
 function formatDate(d?: string) {
-  return d ? new Date(d).toLocaleString() : '-'
+  return formatDateTime(d)
 }
 
 async function fetchList() {

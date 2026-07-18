@@ -190,7 +190,7 @@
                 v-if="agent.type"
                 size="small"
               >
-                {{ agent.type }}
+                {{ botTypeLabel(agent.type) }}
               </el-tag>
               <el-tag
                 v-if="agent.scene"
@@ -262,7 +262,7 @@
           </el-descriptions-item>
           <!-- 成功率/今日调用已删：后端无逐智能体真源，不显示估算值 -->
           <el-descriptions-item label="类型">
-            {{ detailAgent.type || '—' }}
+            {{ botTypeLabel(detailAgent.type) || '—' }}
           </el-descriptions-item>
           <el-descriptions-item label="免费/付费">
             <el-tag
@@ -338,6 +338,27 @@ interface Agent {
 const CAT_ICONS: Record<string, string> = { paipan: "🔮", customer_service: "💁", content: "📝", operation: "⚙️", knowledge: "📚", circle: "🔄" };
 const CAT_LABELS: Record<string, string> = { paipan: "排盘类", customer_service: "客服类", content: "内容类", operation: "运营类", knowledge: "知识类", circle: "圈子类" };
 const CATEGORY_ORDER = ["paipan", "customer_service", "content", "knowledge", "circle"];
+
+// 智能体类型标签中文映射（BotConfig.type 真实枚举·与 seed 14 款智能体对齐·圈子助理已是中文原样透传·未知值兜底显原文）
+const BOT_TYPE_LABELS: Record<string, string> = {
+  CUSTOMER_SERVICE: "智能客服",
+  CIRCLE_ASSISTANT: "圈主助理",
+  STATION_ASSISTANT: "站长助理",
+  CONTENT_WRITER: "获客文案",
+  REPORT_FACTORY: "报告工厂",
+  GOODS_RECOMMENDER: "开运好物推荐",
+  WHITE_LABEL_AI: "白标AI",
+  MASTER_PRACTICE: "大师对练",
+  CLASSIC_DICTIONARY: "古籍活字典",
+  CRM_ASSISTANT: "客户关系管家",
+  OFFICE_ASSISTANT: "办公助理",
+  FORTUNE_CHECK: "运势自查",
+  SCHEDULE_GUARDIAN: "时间守护",
+  IP_INCUBATOR: "IP孵化",
+};
+function botTypeLabel(t?: string) {
+  return t ? (BOT_TYPE_LABELS[t] || t) : "";
+}
 
 const loading = ref(false);
 const loadErr = ref(false);

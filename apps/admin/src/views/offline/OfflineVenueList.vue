@@ -118,7 +118,7 @@
         width="170"
       >
         <template #default="{ row }">
-          {{ new Date(row.createdAt).toLocaleString() }}
+          {{ formatDateTime(row.createdAt) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -296,7 +296,7 @@
           width="300"
         >
           <template #default="{ row }">
-            {{ new Date(row.startTime).toLocaleString() }} ~ {{ new Date(row.endTime).toLocaleString() }}
+            {{ formatDateTime(row.startTime) }} ~ {{ formatDateTime(row.endTime) }}
           </template>
         </el-table-column>
         <el-table-column
@@ -431,6 +431,7 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { offlineApi } from "@/api";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
+import { formatDateTime } from "@/utils/datetime";
 
 /** 驿站行（字段宽松 optional） */
 interface VenueRow {

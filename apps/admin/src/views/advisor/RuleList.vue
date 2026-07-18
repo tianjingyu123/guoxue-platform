@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { advisorRuleApi } from '@/api'
+import { formatDateTime } from '@/utils/datetime'
 
 interface AdvisorRule {
   id: string
@@ -71,7 +72,7 @@ function severityLabel(severity: string) {
 }
 
 function formatDate(d?: string) {
-  return d ? new Date(d).toLocaleString() : '-'
+  return formatDateTime(d)
 }
 
 async function fetchList() {

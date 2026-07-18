@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { financeApi } from '@/api'
 import { exportCSV } from '@/utils/export'
+import { formatDateTime } from '@/utils/datetime'
 
 // 财务月报行（指标展平为一层后的宽松本地类型；id 仅已保存记录有 → 用于区分"预览"与"已保存"）
 interface ReportRow {
@@ -33,7 +34,7 @@ const detailData = ref<ReportRow | null>(null)
 
 onMounted(() => fetchList())
 
-function formatDate(d?: string) { return d ? new Date(d).toLocaleString('zh-CN', { hour12: false }) : '—' }
+function formatDate(d?: string) { return formatDateTime(d) }
 function formatMoney(v: number | string | null | undefined) {
   if (v == null) return '—'
   return '¥' + Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

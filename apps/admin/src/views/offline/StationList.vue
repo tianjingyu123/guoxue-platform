@@ -82,7 +82,7 @@
         width="170"
       >
         <template #default="{ row }">
-          {{ new Date(row.createdAt).toLocaleString() }}
+          {{ formatDateTime(row.createdAt) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -303,7 +303,7 @@
           width="120"
         >
           <template #default="{ row }">
-            {{ row.expireAt ? new Date(row.expireAt).toLocaleDateString() : '永久' }}
+            {{ row.expireAt ? formatDate(row.expireAt) : '永久' }}
           </template>
         </el-table-column>
         <el-table-column
@@ -311,7 +311,7 @@
           width="140"
         >
           <template #default="{ row }">
-            {{ new Date(row.createdAt).toLocaleString() }}
+            {{ formatDateTime(row.createdAt) }}
           </template>
         </el-table-column>
       </el-table>
@@ -528,6 +528,7 @@ import { stationApi } from "@/api";
 import ImageUpload from "@/components/ImageUpload.vue";
 import PageHeader from "@/components/PageHeader.vue";
 import { exportCSV } from "@/utils/export";
+import { formatDateTime, formatDate } from "@/utils/datetime";
 
 const router = useRouter();
 
@@ -740,7 +741,7 @@ function exportData() {
       ownerName: s.user?.nickname || "-",
       statusLabel: s.status === "ACTIVE" ? "正常" : "已禁用",
       totalEarning: Number(s.totalEarning ?? 0).toFixed(2),
-      createdAt: new Date(s.createdAt).toLocaleString(),
+      createdAt: formatDateTime(s.createdAt),
     })),
   );
 }

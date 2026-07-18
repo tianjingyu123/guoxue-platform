@@ -236,6 +236,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import axios from "axios";
 import { smsApi } from "@/api";
+import { formatDateTime } from "@/utils/datetime";
 
 // 短信发送日志行（按列配置与模板访问字段定义的宽松本地类型）
 interface SmsLogRow {
@@ -320,7 +321,7 @@ function maskPhone(p?: string) {
   return s.slice(0, 3) + "****" + s.slice(-4);
 }
 
-function fmtDate(d?: string) { return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "—"; }
+function fmtDate(d?: string) { return formatDateTime(d); }
 function fmtNum(n?: number) { return Number(n || 0).toLocaleString("zh-CN"); }
 
 /** 成功率配色：无发送=中性；≥90 绿；70–90 橙；<70 红（0% 不再用成功绿） */
