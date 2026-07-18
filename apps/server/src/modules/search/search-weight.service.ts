@@ -22,12 +22,21 @@ export class SearchWeightService {
     return this.prisma.searchWeight.delete({ where: { id } });
   }
 
-  /** 获取所有启用的权重，按 entityType 分组 */
+  /**
+   * 获取所有启用的权重映射。
+   * - 逐字段键 `entityType:fieldName`（运营后台配置粒度，保留原样）；
+   * - 实体聚合键 `entityType:all`（= 该实体各字段最大权重，通常即 title/name 主字段）——
+   *   搜索侧 ftsOrLike 把多字段拼成单个 tsvector 只产出一个 rank，只能按实体整体加权，
+   *   故消费方（search.service.ts）读 `:all` 做整体重排。缺此聚合键则加权恒取 1.0（形同虚设）。
+   */
   async getWeightMap(): Promise<Map<string, number>> {
     const rows = await this.prisma.searchWeight.findMany({ where: { enabled: true } });
     const map = new Map<string, number>();
     for (const r of rows) {
       map.set(`${r.entityType}:${r.fieldName}`, r.weight);
+      const aggKey = `${r.entityType}:all`;
+      const prev = map.get(aggKey) ?? 0;
+      if (r.weight > prev) map.set(aggKey, r.weight);
     }
     return map;
   }

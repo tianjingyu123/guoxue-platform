@@ -46,7 +46,7 @@ export class RecommendController {
 
   @Get("personalized")
   @UseGuards(JwtAuthGuard, FeatureFlagGuard)
-  @RequireFeature("recommend_algorithm")
+  @RequireFeature("recommend_engine")
   @ApiOperation({ summary: "获取个性化推荐（旧版兼容）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -79,7 +79,7 @@ export class RecommendController {
 
   @Put("insert")
   @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
-  @RequireFeature("recommend_algorithm")
+  @RequireFeature("recommend_engine")
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置分区强插" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -127,7 +127,7 @@ export class RecommendController {
 
   @Get(":scene")
   @UseGuards(FeatureFlagGuard)
-  @RequireFeature("recommend_algorithm")
+  @RequireFeature("recommend_engine")
   @ApiOperation({ summary: "全页面智能推荐" })
   @ApiResponse({ status: 200, description: "成功" })
   async recommend(

@@ -118,10 +118,12 @@ export class SearchService {
       rows = await this.runLike(entityType, q, limit, offset);
     }
 
-    // 3. 应用权重
+    // 3. 应用权重（按实体整体加权：weightMap 存的实体键与本层表名映射对齐）
     if (weightMap && weightMap.size > 0) {
+      // 搜索表名（Article/ClassicBook…）→ 权重表 entityType（article/classic…）
+      const weightEntity = entityType === "ClassicBook" ? "classic" : entityType.toLowerCase();
+      const entityWeight = weightMap.get(`${weightEntity}:all`) ?? 1.0;
       for (const row of rows) {
-        const entityWeight = weightMap.get(`${entityType.toLowerCase()}:all`) ?? 1.0;
         row.rank = (row.rank || 0.1) * entityWeight;
       }
       rows.sort((a, b) => (b.rank || 0) - (a.rank || 0));
