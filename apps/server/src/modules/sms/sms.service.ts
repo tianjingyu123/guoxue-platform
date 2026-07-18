@@ -96,6 +96,10 @@ export class SmsService {
 
   /** 发送短信验证码 */
   async sendVerifyCode(phone: string, scene: string = "LOGIN"): Promise<{ ok: boolean; message: string }> {
+    // 🔴 scene 归一化为大写：H5 发码传小写(login/register/reset)，而校验侧硬编码大写(LOGIN/RESET)，
+    // 大小写不一致导致 Redis key(sms:code:{scene}:{phone}) 存读错位 → 码永远读不到 → "刚发就过期"
+    // （2026-07-18 生产短信接通后首次真正走验证码登录时暴露）。
+    scene = scene.toUpperCase();
     // 频率限制：60秒内只能发一次
     const rateKey = `sms:rate:${phone}`;
     const lastSent = await this.redis.get(rateKey);
@@ -169,6 +173,7 @@ export class SmsService {
 
   /** 验证短信验证码（含爆破防护：5次失败后锁定30分钟） */
   async verifyCode(phone: string, code: string, scene: string = "LOGIN"): Promise<boolean> {
+    scene = scene.toUpperCase(); // 与 sendVerifyCode 一致归一化，杜绝发码/校验大小写错位
     const codeKey = `sms:code:${scene}:${phone}`;
     const failKey = `sms:fail:${scene}:${phone}`;
 
