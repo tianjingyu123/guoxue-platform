@@ -282,7 +282,13 @@ export class CozeService {
     });
   }
 
-  /** 轮询对话结果 */
+  /**
+   * 轮询对话结果 —— 先查 chat 状态机再取消息（诊断+止血）：
+   * - failed：立即抛出 Coze 返回的 last_error（暴露真因：模型报错/bot 配置问题），不再对失败傻等满超时
+   * - completed：取 assistant answer 消息返回
+   * - in_progress/created：继续等（真慢才会走到超时）
+   * 关键日志（不含敏感）：last_error / completed 无 answer / 超时，供生产定位"慢 vs 卡死 vs 配置错"。
+   */
   private async pollChatResult(
     chatId: string,
     conversationId: string,
@@ -290,37 +296,61 @@ export class CozeService {
     maxRetries = 30,
   ) {
     for (let i = 0; i < maxRetries; i++) {
-      const messagesResp = await fetch(
-        `${this.baseUrl}/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`,
+      // 1) 查 chat 状态，区分 completed / failed / in_progress
+      const retrieveResp = await fetch(
+        `${this.baseUrl}/chat/retrieve?chat_id=${chatId}&conversation_id=${conversationId}`,
         {
           headers: { "Authorization": `Bearer ${apiKey}` },
-          signal: AbortSignal.timeout(10000), // 防 COZE 轮询无响应挂死请求线程
+          signal: AbortSignal.timeout(10000),
         },
       );
+      const retrieveData = await retrieveResp.json() as Record<string, unknown>;
+      const chatObj = retrieveData.data as Record<string, unknown> | undefined;
+      const status = chatObj?.status as string | undefined;
 
-      const messagesData = await messagesResp.json() as Record<string, unknown>;
-      if (messagesData.code !== 0) {
-        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取消息列表失败: ${messagesData.msg}`);
+      if (status === "failed") {
+        const lastError = chatObj?.last_error as Record<string, unknown> | undefined;
+        this.logger.error(
+          `COZE对话失败(chat.failed) chatId=${chatId} code=${lastError?.code ?? ""} msg=${lastError?.msg ?? ""}`,
+        );
+        throw new BusinessException(
+          ErrorCode.THIRD_AI_FAILED,
+          `COZE对话失败: ${(lastError?.msg as string) || "模型未产出回答，请检查智能体模型/发布状态"}`,
+        );
       }
 
-      const messages = (messagesData.data as Array<Record<string, unknown>>) || [];
-      const assistantMsg = messages.find(
-        (m) => (m as Record<string, unknown>).role === "assistant" && (m as Record<string, unknown>).type === "answer",
-      );
-
-      if (assistantMsg) {
-        return {
-          chatId,
-          conversationId,
-          content: assistantMsg.content,
-          messages,
-        };
+      if (status === "completed") {
+        // 2) 完成 → 取 assistant answer 消息
+        const messagesResp = await fetch(
+          `${this.baseUrl}/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`,
+          {
+            headers: { "Authorization": `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(10000),
+          },
+        );
+        const messagesData = await messagesResp.json() as Record<string, unknown>;
+        if (messagesData.code !== 0) {
+          throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取消息列表失败: ${messagesData.msg}`);
+        }
+        const messages = (messagesData.data as Array<Record<string, unknown>>) || [];
+        const assistantMsg = messages.find(
+          (m) => (m as Record<string, unknown>).role === "assistant" && (m as Record<string, unknown>).type === "answer",
+        );
+        if (assistantMsg) {
+          return { chatId, conversationId, content: assistantMsg.content, messages };
+        }
+        // completed 但无 answer（异常）→ 报错暴露，不再空转
+        this.logger.error(
+          `COZE已完成但无answer消息 chatId=${chatId} types=${messages.map((m) => m.type).join(",")}`,
+        );
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "COZE已完成但未返回回答内容，请检查智能体配置");
       }
 
-      // 等待1秒后重试
+      // in_progress / created / requires_action → 继续等待
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "COZE对话超时，未获取到响应");
+    this.logger.warn(`COZE对话轮询超时 chatId=${chatId} maxRetries=${maxRetries}（模型生成过慢）`);
+    throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "COZE对话超时，模型生成过慢，建议更换更快的模型");
   }
 
   /** 获取对话消息列表 */
