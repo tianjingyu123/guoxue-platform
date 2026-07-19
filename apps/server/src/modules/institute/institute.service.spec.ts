@@ -37,6 +37,12 @@ describe("InstituteService", () => {
         count: jest.fn(),
         groupBy: jest.fn().mockResolvedValue([]),
       },
+      instituteRevenue: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null } }),
+      },
+      instituteDividend: {
+        aggregate: jest.fn().mockResolvedValue({ _sum: { amount: null } }),
+      },
       stationTeacher: {
         groupBy: jest.fn().mockResolvedValue([]),
       },
@@ -232,6 +238,66 @@ describe("InstituteService", () => {
       expect(prisma.circleMember.create).toHaveBeenCalledWith({
         data: { circleId: "big-c", userId: "u-vip", role: "MEMBER" },
       });
+    });
+  });
+
+  describe("线上会费未开放（资金防假写）", () => {
+    it("任务全部完成也不展示已缴或可退款状态", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue({
+        id: "m1",
+        userId: "u1",
+        deposit: 10000,
+        depositRefunded: false,
+        tasksRequired: 3,
+        tasks: [
+          { status: "VERIFIED" },
+          { status: "VERIFIED" },
+          { status: "VERIFIED" },
+        ],
+        expireAt: null,
+        institute: { id: "i1", name: "国学研究院" },
+      });
+
+      const result = await svc.getMyDashboard("u1");
+
+      expect(result).not.toBeNull()
+      expect(result!.depositStatus).toEqual({
+        deposited: 0,
+        refunded: false,
+        canRefund: false,
+        refundCondition: "线上会费收退款尚未开放，当前没有可退线上订单",
+      });
+    });
+
+    it("旧前端直调退款接口会被拒绝且不写成员状态", async () => {
+      await expect(svc.requestDepositRefund("u1")).rejects.toThrow(/线上会费收退款尚未开放/);
+      expect(prisma.instituteMember.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("requestDividend（只允许真实入账留存）", () => {
+    it("收入池为 0 时拒绝发起分红审批", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue({ id: "mgr", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" });
+      (svc as any).fundApproval = { create: jest.fn() };
+
+      await expect(svc.requestDividend("u-admin", { userId: "u1", type: "MGMT_BONUS", amount: 1 }))
+        .rejects.toThrow(/可分配余额不足/);
+      expect((svc as any).fundApproval.create).not.toHaveBeenCalled();
+    });
+
+    it("金额不超过真实留存余额时才创建审批并携带研究院归属", async () => {
+      prisma.instituteMember.findFirst.mockResolvedValue({ id: "mgr", instituteId: "i1", role: "PRESIDENT", status: "ACTIVE" });
+      prisma.instituteRevenue.aggregate.mockResolvedValue({ _sum: { amount: 1000 } });
+      prisma.instituteDividend.aggregate.mockResolvedValue({ _sum: { amount: 100 } });
+      const create = jest.fn().mockResolvedValue({ submitted: true });
+      (svc as any).fundApproval = { create };
+
+      await svc.requestDividend("u-admin", { userId: "u1", type: "MGMT_BONUS", amount: 400 });
+
+      expect(create).toHaveBeenCalledWith(expect.objectContaining({
+        amount: 400,
+        payload: expect.objectContaining({ instituteId: "i1", userId: "u1" }),
+      }));
     });
   });
 

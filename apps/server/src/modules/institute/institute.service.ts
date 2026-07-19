@@ -375,17 +375,15 @@ export class InstituteService {
     const isExpiring = member.expireAt ? member.expireAt <= new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) : false;
     const isExpired = member.expireAt ? member.expireAt < now : false;
 
-    // 所有任务已验证 → 可退保证金
-    const canRefund = !member.depositRefunded && verifiedCount >= member.tasksRequired;
-
+    // 当前没有研究院线上支付订单，deposit 仅为历史名义金额，绝不能当作已收款或可退款凭证。
     return {
       ...member,
       taskProgress: { total: member.tasksRequired, completed: completedCount, verified: verifiedCount },
       depositStatus: {
-        deposited: Number(member.deposit),
-        refunded: member.depositRefunded,
-        canRefund,
-        refundCondition: `完成${member.tasksRequired}项年度任务且全部通过验证`,
+        deposited: 0,
+        refunded: false,
+        canRefund: false,
+        refundCondition: "线上会费收退款尚未开放，当前没有可退线上订单",
       },
       expireStatus: { isExpiring, isExpired, expireAt: member.expireAt },
     };
@@ -414,27 +412,12 @@ export class InstituteService {
     return { tasks, templates };
   }
 
-  async requestDepositRefund(userId: string) {
-    // 多院化：findFirst（按最早会籍·现阶段单院行为不变）
-    const member = await this.prisma.instituteMember.findFirst({
-      where: { userId },
-      orderBy: { joinedAt: "asc" },
-      include: { tasks: true },
-    });
-    if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "不是研究院成员");
-    if (member.depositRefunded) throw new BusinessException(ErrorCode.BAD_REQUEST, "保证金已退还");
-
-    const verifiedCount = member.tasks.filter(t => t.status === "VERIFIED").length;
-    if (verifiedCount < member.tasksRequired) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `还需完成${member.tasksRequired - verifiedCount}项任务`);
-    }
-
-    await this.prisma.instituteMember.update({
-      where: { id: member.id },
-      data: { depositRefunded: true, status: "GRADUATED" },
-    });
-
-    return { success: true, message: "保证金退还申请已提交" };
+  async requestDepositRefund(_userId: string) {
+    // 资金铁律：没有真实支付订单与退款流水时，绝不写“已退款”状态。
+    throw new BusinessException(
+      ErrorCode.BAD_REQUEST,
+      "研究院线上会费收退款尚未开放；如有线下缴费凭证，请联系平台客服人工核验",
+    );
   }
 
   async getMyDividends(userId: string, rawPage = 1, rawPageSize = 20) {
@@ -590,11 +573,40 @@ export class InstituteService {
    * 审批通过后由 FundApprovalExecutor 调用 createDividend 真正发放。
    */
   async requestDividend(userId: string, dto: { userId: string; type: string; amount: number; description?: string; period?: string }) {
-    await this.assertManagement(userId);
+    const mgr = await this.assertManagement(userId);
     if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    if (!Number.isFinite(dto.amount) || dto.amount <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "发放金额必须大于 0");
+    }
+
+    // 资金双查：只能从同院已入账留存中发起审批，名义会费与申请金额绝不计入余额。
+    const [revenueAgg, dividendAgg] = await Promise.all([
+      this.prisma.instituteRevenue.aggregate({
+        where: { instituteId: mgr.instituteId },
+        _sum: { amount: true },
+      }),
+      this.prisma.instituteDividend.aggregate({
+        where: { instituteId: mgr.instituteId },
+        _sum: { amount: true },
+      }),
+    ]);
+    const instituteShare = Number(revenueAgg._sum.amount || 0) * 0.5;
+    const distributed = Number(dividendAgg._sum.amount || 0);
+    const remaining = Math.max(0, instituteShare - distributed);
+    if (dto.amount > remaining) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `可分配余额不足，当前为 ¥${remaining.toFixed(2)}`);
+    }
+
     return this.fundApproval.create({
       type: "DIVIDEND",
-      payload: { userId: dto.userId, type: dto.type, amount: dto.amount, description: dto.description, period: dto.period },
+      payload: {
+        instituteId: mgr.instituteId,
+        userId: dto.userId,
+        type: dto.type,
+        amount: dto.amount,
+        description: dto.description,
+        period: dto.period,
+      },
       amount: dto.amount,
       summary: `研究院发放分红/奖励 ¥${dto.amount}（对象用户 ${dto.userId}，类型 ${dto.type}）`,
       requestedBy: userId,

@@ -35,7 +35,7 @@
         <view class="wrap">
           <!-- ══════ T1 待确认/审批 ══════ -->
           <template v-if="activeTab === 'audit'">
-            <view class="note">仅管理层可见（入口在会员中心态D）。此处为入会最终确认——即确认支付到账、流程完结，非资格审核（交钱即进原则不变）。</view>
+            <view class="note">仅管理层可见。请根据平台资格校验结果与申请信息完成审核；当前申请未收款，请勿把申请金额当作到账凭证。</view>
             <view class="stats">
               <view class="stat"><text class="stat-b serif">{{ pending.length }}</text><text class="stat-s">待确认入会</text></view>
               <view class="stat"><text class="stat-b serif">{{ overview.activeMembers }}</text><text class="stat-s">在册成员</text></view>
@@ -49,7 +49,7 @@
               <view v-else class="av"><text class="av-t">{{ memberName(m.user).slice(0,1) }}</text></view>
               <view class="row-body">
                 <text class="name">{{ memberName(m.user) }}</text>
-                <text class="meta">{{ roleLabel[m.role] }} · {{ m.joinYear }}年申请 · 会费¥{{ formatPrice(num(m.deposit)).toLocaleString() }}</text>
+                <text class="meta">{{ roleLabel[m.role] }} · {{ m.joinYear }}年申请 · 当前未收款</text>
               </view>
               <view class="acts">
                 <view class="mb mb-fill" :class="{ 'mb-off': actioningId === m.id }" @tap="onApprove(m, 'ACTIVE')"><text class="mb-fill-t">通过</text></view>
@@ -93,7 +93,8 @@
               <view class="fkv"><text class="fk">可分配余额</text><text class="fv fv-gold serif">¥{{ formatPrice(finance.remaining).toLocaleString() }}</text></view>
             </view>
 
-            <view class="btn-pri" @tap="openGrant"><app-icon name="gift" :size="16" color="#fff" /><text class="btn-pri-t">发放分红 / 奖励</text></view>
+            <view class="note">线上会费收款与收入归集尚未开放。本页只展示已实际入账的收入记录；可分配余额为 0 时不能发起分红审批。</view>
+            <view class="btn-pri" :class="{ 'btn-off': finance.remaining <= 0 }" @tap="openGrant"><app-icon name="gift" :size="16" color="#fff" /><text class="btn-pri-t">发起分红 / 奖励审批</text></view>
 
             <text class="sec-t">分红发放记录</text>
             <view v-if="finance.dividends.length === 0" class="mini-empty"><text class="mini-empty-t">暂无分红记录</text></view>
@@ -180,9 +181,9 @@
             <text class="field-label">说明（选填）</text>
             <input class="field-input" v-model="grant.description" placeholder="如：院长岗位季度分红" placeholder-class="ph" />
           </view>
-          <text class="sheet-note">发放来源：研究院留存。提交后计入成员分红记录。</text>
+          <text class="sheet-note">发放来源：研究院已入账留存。提交后进入资金审批，不会立即发放；审批通过后才计入成员分红记录。</text>
           <view class="submit-btn" :class="{ 'submit-off': !canGrant || granting }" @tap="doGrant">
-            <text class="submit-btn-t">{{ granting ? '发放中…' : '确认发放' }}</text>
+            <text class="submit-btn-t">{{ granting ? '提交中…' : '提交审批' }}</text>
           </view>
         </view>
       </view>
@@ -451,9 +452,13 @@ const granting = ref(false)
 const grant = ref({ userId: '', type: 'MGMT_BONUS' as DividendType, amount: '', description: '' })
 const memberNames = computed(() => members.value.map((m) => memberName(m.user)))
 const grantMemberName = computed(() => memberName(members.value.find((m) => m.userId === grant.value.userId)?.user))
-const canGrant = computed(() => !!grant.value.userId && Number(grant.value.amount) > 0)
+const canGrant = computed(() => !!grant.value.userId && Number(grant.value.amount) > 0 && Number(grant.value.amount) <= finance.value.remaining)
 
 function openGrant() {
+  if (finance.value.remaining <= 0) {
+    uni.showToast({ title: '暂无可分配入账余额', icon: 'none' })
+    return
+  }
   grant.value = { userId: '', type: 'MGMT_BONUS', amount: '', description: '' }
   grantOpen.value = true
 }
@@ -472,7 +477,7 @@ async function doGrant() {
       amount: Number(grant.value.amount),
       description: grant.value.description || undefined,
     })
-    uni.showToast({ title: '已发放', icon: 'success' })
+    uni.showToast({ title: '已提交审批', icon: 'success' })
     grantOpen.value = false
     await load()
     activeTab.value = 'finance'
@@ -578,6 +583,7 @@ $line: #ECE7DF;
 .damt { font-size: 28rpx; font-weight: 700; color: $ink; margin-left: auto; flex-shrink: 0; }
 
 .btn-pri { display: flex; align-items: center; justify-content: center; gap: 12rpx; height: 92rpx; border-radius: 999px; background: $red; margin-top: 12rpx; }
+.btn-pri.btn-off { opacity: 0.45; }
 .btn-pri-t { font-size: 26rpx; font-weight: 700; color: #fff; }
 
 /* 弹层 */

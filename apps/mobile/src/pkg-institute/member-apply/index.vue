@@ -2,9 +2,8 @@
   I7 · 加入研究院（V0 视觉稿 1:1 还原版）
   设计源：D:\V0书院研究院文件\_ext\public\visual\mockup\I7-join.html
   ─ 保留现有全部数据接线与向导：memberApplySteps 5 步 / 席位选择 seatOptions / 门槛自检 checkEligibility
-    / applyMember 真提交 / 模拟支付弹窗（后端无真收银台，保持模拟）。
-  ─ 灵魂：讲透「可退押金」诱因 —— 申请分享+完成月/季/年任务→年度全额退会费；纯学习不申请则不退费。
-  ─ 交钱即进不设资格审核门槛；50/50 平台/研究院留存；禁承诺式收益宣传，如实提示退费需完成任务、有不退费风险。
+    / applyMember 真提交。
+  ─ 当前仅开放资格申请与管理层审核，不创建支付订单、不扣款；收费能力上线后必须以真实订单与服务协议为准。
 -->
 <template>
   <view class="page">
@@ -33,32 +32,32 @@
       <view class="wrap">
         <!-- ══════ Step 1：了解机制（机制说明主态·V0 态A） ══════ -->
         <block v-if="step === 1">
-          <!-- 价格卡 -->
+          <!-- 申请主卡 -->
           <view class="pricecard">
             <view class="seal" />
-            <text class="pc-lbl">研究院年度会籍</text>
+            <text class="pc-lbl">研究院成员申请</text>
             <view class="pc-num-row">
-              <text class="pc-num serif">¥10,000</text>
-              <text class="pc-unit">/年</text>
+              <text class="pc-num serif">资格自检</text>
+              <text class="pc-unit"> · 免费提交</text>
             </view>
             <view class="pc-chips">
-              <view class="chip"><text class="chip-t">交钱即进 · 无审核门槛</text></view>
-              <view class="chip"><text class="chip-t">可退押金机制</text></view>
+              <view class="chip"><text class="chip-t">先申请 · 后审核</text></view>
+              <view class="chip"><text class="chip-t">当前申请不扣款</text></view>
             </view>
           </view>
 
-          <!-- 会费怎么退：两条路径（灵魂·退费诱因） -->
-          <text class="sec-t">会费怎么退？两条路径</text>
+          <!-- 真实生效流程 -->
+          <text class="sec-t">申请如何生效？两步确认</text>
           <view class="split">
             <view class="half go">
-              <text class="half-b">申请分享</text>
-              <text class="half-p">成为分享会员，承接月/季/年任务</text>
-              <view class="rtag on"><text class="rtag-t">完成任务 → 年度全额退还</text></view>
+              <text class="half-b">平台数据自检</text>
+              <text class="half-p">核对所选席位对应的准入条件</text>
+              <view class="rtag on"><text class="rtag-t">满足条件 → 可提交</text></view>
             </view>
             <view class="half">
-              <text class="half-b">纯学习</text>
-              <text class="half-p">不申请分享，享受全部学习权益</text>
-              <view class="rtag off"><text class="rtag-t off-t">会费不退</text></view>
+              <text class="half-b">管理层审核</text>
+              <text class="half-p">核对申请身份与席位意向</text>
+              <view class="rtag off"><text class="rtag-t off-t">通过后会籍生效</text></view>
             </view>
           </view>
 
@@ -77,7 +76,7 @@
           <!-- 分享任务要求（shareTaskRules） -->
           <text class="sec-t">分享任务要求</text>
           <view class="card task-card">
-            <text class="task-hint">申请分享的成员，需完成以下任务方可年度退还会费：</text>
+            <text class="task-hint">讲席成员加入后，通过以下任务积累研究与分享成果：</text>
             <view v-for="(task, i) in shareTasks" :key="i" class="task-li">
               <view class="task-ic"><app-icon :name="task.icon" :size="15" color="#C9A96E" /></view>
               <view class="task-info">
@@ -88,28 +87,28 @@
             </view>
           </view>
 
-          <!-- 资金机制 50/50 -->
-          <text class="sec-t">资金机制</text>
+          <!-- 当前费用能力说明 -->
+          <text class="sec-t">费用说明</text>
           <view class="card fund">
-            <text class="fund-t">会费收入由平台与研究院 <text class="fund-em">50 : 50</text> 留存；研究院留存用于运营与管理层分红（管理层由平台任命轮岗）。</text>
+            <text class="fund-t">研究院线上会费收款与退款尚未开放。当前页面只提交成员申请，<text class="fund-em">不会创建订单，也不会扣款</text>；后续如开放，以正式支付页、订单记录和服务协议为准。</text>
           </view>
 
-          <!-- 风险提示（实色醒目·禁承诺式宣传） -->
+          <!-- 申请提示 -->
           <view class="risk">
             <view class="risk-head">
               <app-icon name="alert-triangle" :size="16" color="#C41E3A" />
-              <text class="risk-title">风险提示（请务必阅读）</text>
+              <text class="risk-title">申请提示（请务必阅读）</text>
             </view>
-            <text class="risk-p">· 退费需以「申请分享 + 完成年度任务」为前提，存在因未完成任务而不予退费的风险。</text>
+            <text class="risk-p">· 提交申请后仍需管理层审核，不代表自动成为研究院成员。</text>
             <text class="risk-p">· 加入研究院不构成任何收益承诺；能否签约为讲师由平台评估决定。</text>
           </view>
 
-          <!-- 同意勾选（收敛为一条·对应 V0 态A check；内部仍维护三项承诺一并置位） -->
+          <!-- 同意勾选 -->
           <view class="check" @tap="toggleAgreeAll">
             <view class="cb" :class="{ 'cb-on': agreeAll }">
               <app-icon v-if="agreeAll" name="check" :size="12" color="#fff" />
             </view>
-            <text class="check-txt">我已阅读并同意<text class="check-link">《研究院会籍服务协议》</text>及上述风险提示，理解退费需完成任务、有不退费风险</text>
+            <text class="check-txt">我已阅读并同意<text class="check-link">《研究院会籍服务协议》</text>及上述申请提示，理解申请须经资格校验与管理层审核，当前提交不会扣款</text>
           </view>
 
           <view class="primary-btn" :class="{ 'btn-disabled': !canNext1 }" @tap="canNext1 && (step = 2)">
@@ -120,7 +119,7 @@
         <!-- ══════ Step 2：选择席位（双轨席位制 + 门槛自检） ══════ -->
         <block v-if="step === 2">
           <text class="sec-t">选择席位</text>
-          <text class="sec-sub">研究院实行双轨席位制：讲席以分享考核换年费返还（可退），研修席专注研学不担考核（不退）。</text>
+          <text class="sec-sub">研究院实行双轨席位制：讲席承担年度分享考核，研修席专注研学、不承担分享任务。</text>
           <view class="seat-list">
             <view
               v-for="s in seatOptions"
@@ -139,7 +138,7 @@
               </view>
               <!-- 可退/不退标签 -->
               <view class="seat-rtag" :class="s.value === 'LECTURE' ? 'seat-rtag-on' : 'seat-rtag-off'">
-                <text class="seat-rtag-t">{{ s.value === 'LECTURE' ? '考核达标 · 会费可退' : '专注研学 · 会费不退' }}</text>
+                <text class="seat-rtag-t">{{ s.value === 'LECTURE' ? '承担分享考核' : '专注研学成长' }}</text>
               </view>
               <view class="seat-points">
                 <view v-for="(p, i) in s.points" :key="i" class="seat-point">
@@ -233,27 +232,27 @@
           <view class="btn-row">
             <view class="ghost-btn" @tap="step = 2"><text class="ghost-btn-text">上一步</text></view>
             <view class="primary-btn flex1" :class="{ 'btn-disabled': !canNext3 }" @tap="canNext3 && (step = 4)">
-              <text class="primary-btn-text">下一步：缴纳会费</text>
+              <text class="primary-btn-text">下一步：确认申请</text>
             </view>
           </view>
         </block>
 
-        <!-- ══════ Step 4：缴纳会费 ══════ -->
+        <!-- ══════ Step 4：确认并提交 ══════ -->
         <block v-if="step === 4">
           <view class="pricecard small">
             <view class="seal" />
-            <text class="pc-lbl">研究院年度会费</text>
+            <text class="pc-lbl">本次成员申请</text>
             <view class="pc-num-row">
-              <text class="pc-num serif">¥10,000</text>
-              <text class="pc-unit">/年</text>
+              <text class="pc-num serif">¥0</text>
+              <text class="pc-unit"> · 不扣款</text>
             </view>
-            <text class="pc-sub">{{ feeSubText }}</text>
+            <text class="pc-sub">{{ applicationSubText }}</text>
           </view>
 
-          <text class="sec-t">会费说明</text>
+          <text class="sec-t">提交说明</text>
           <view class="card fund">
             <view class="desc-list">
-              <text v-for="(line, i) in feeDescLines" :key="i" class="desc-line">{{ i + 1 }}. {{ line }}</text>
+              <text v-for="(line, i) in applicationDescLines" :key="i" class="desc-line">{{ i + 1 }}. {{ line }}</text>
             </view>
           </view>
 
@@ -261,41 +260,41 @@
           <view class="card kv-card">
             <view class="kv"><text class="kv-k">席位类型</text><text class="kv-v">{{ seatType ? seatTypeLabel[seatType] : '' }}</text></view>
             <view class="kv"><text class="kv-k">成员身份</text><text class="kv-v">{{ selectedRoleName }}</text></view>
-            <view class="kv"><text class="kv-k">加入年份</text><text class="kv-v">{{ joinYear }} 年</text></view>
-            <view class="kv last"><text class="kv-k">会费金额</text><text class="kv-v red">¥10,000</text></view>
+            <view class="kv"><text class="kv-k">申请年度</text><text class="kv-v">{{ joinYear }} 年</text></view>
+            <view class="kv last"><text class="kv-k">本次支付</text><text class="kv-v red">¥0（不扣款）</text></view>
           </view>
 
           <view class="note-box">
             <app-icon name="info" :size="15" color="#B8892E" />
-            <text class="note-box-t">演示环境下会费支付为模拟流程（POST applyMember），无真实收银台。提交后进入平台最终确认（非资格审核）。</text>
+            <text class="note-box-t">提交后将创建待审核申请，不会创建支付订单。审核通过后会籍生效；未来如开放会费，将另行展示正式订单与协议。</text>
           </view>
 
           <view class="btn-row">
             <view class="ghost-btn" @tap="step = 3"><text class="ghost-btn-text">上一步</text></view>
-            <view class="primary-btn flex1" @tap="showPayDialog = true">
-              <app-icon name="credit-card" :size="16" color="#fff" />
-              <text class="primary-btn-text">立即开通</text>
+            <view class="primary-btn flex1" @tap="showConfirmDialog = true">
+              <app-icon name="send" :size="16" color="#fff" />
+              <text class="primary-btn-text">核对并提交</text>
             </view>
           </view>
         </block>
 
-        <!-- ══════ Step 5：完成（V0 态C 已提交待确认 PENDING） ══════ -->
+        <!-- ══════ Step 5：提交完成 ══════ -->
         <block v-if="step === 5">
           <view class="center">
             <view class="bigcheck"><app-icon name="check" :size="38" color="#fff" /></view>
-            <text class="center-h serif">已提交，等待平台确认</text>
-            <text class="center-p">这是入会流程的最终确认环节，不是资格审核；确认通过后会籍即生效（ACTIVE），届时可进入会籍中心。</text>
+            <text class="center-h serif">申请已提交，等待审核</text>
+            <text class="center-p">平台已收到你的席位与身份申请。管理层审核通过后，会籍状态将变为 ACTIVE；本次提交未创建订单、未发生扣款。</text>
           </view>
           <view class="card kv-card">
-            <view class="kv"><text class="kv-k">当前状态</text><text class="kv-v gold">PENDING · 待确认</text></view>
+            <view class="kv"><text class="kv-k">当前状态</text><text class="kv-v gold">PENDING · 待审核</text></view>
             <view class="kv"><text class="kv-k">席位类型</text><text class="kv-v">{{ seatType ? seatTypeLabel[seatType] : '' }}</text></view>
             <view class="kv last"><text class="kv-k">提交时间</text><text class="kv-v">{{ submittedAt }}</text></view>
           </view>
           <view class="card fund next-fund">
             <view class="desc-list">
-              <text class="desc-line">1. 确认通过后，你将正式成为研究院{{ seatType ? seatTypeLabel[seatType] : '' }}成员</text>
-              <text class="desc-line">2. 可在「我的会籍」查看会籍状态与年度考核</text>
-              <text class="desc-line">3. {{ seatType === 'LECTURE' ? '完成积分与线下分享考核，年度结算可返还 50%–100% 会费' : '尊享全部分享内容与圈层网络，后续可申请转讲席' }}</text>
+              <text class="desc-line">1. 审核通过后，你将正式成为研究院{{ seatType ? seatTypeLabel[seatType] : '' }}成员</text>
+              <text class="desc-line">2. 可在「我的会籍」查看状态、任务与年度考核</text>
+              <text class="desc-line">3. {{ seatType === 'LECTURE' ? '通过分享任务积累成果，进入讲师签约观察通道' : '参与研学、活动与圈层交流，持续沉淀专业能力' }}</text>
             </view>
           </view>
           <view class="ghost-btn full" @tap="goInstitute"><text class="ghost-btn-text">先去逛逛研究院首页</text></view>
@@ -306,23 +305,23 @@
       </view>
     </scroll-view>
 
-    <!-- ══════ 态B 模拟支付确认弹层（底部 sheet） ══════ -->
-    <view v-if="showPayDialog" class="mask" @tap="showPayDialog = false">
+    <!-- ══════ 提交申请确认弹层（底部 sheet） ══════ -->
+    <view v-if="showConfirmDialog" class="mask" @tap="showConfirmDialog = false">
       <view class="sheet" @tap.stop>
-        <text class="sheet-h serif">确认开通</text>
+        <text class="sheet-h serif">确认提交申请</text>
         <view class="card kv-card">
-          <view class="kv"><text class="kv-k">项目</text><text class="kv-v">研究院年度会籍</text></view>
-          <view class="kv"><text class="kv-k">金额</text><text class="kv-v red">¥10,000</text></view>
-          <view class="kv"><text class="kv-k">有效期</text><text class="kv-v">开通确认后 12 个月</text></view>
-          <view class="kv last"><text class="kv-k">退费规则</text><text class="kv-v">{{ seatType === 'LECTURE' ? '申请分享+完成任务 → 年退' : '研修席不予返还' }}</text></view>
+          <view class="kv"><text class="kv-k">项目</text><text class="kv-v">研究院成员申请</text></view>
+          <view class="kv"><text class="kv-k">申请费用</text><text class="kv-v red">¥0（不扣款）</text></view>
+          <view class="kv"><text class="kv-k">处理方式</text><text class="kv-v">资格校验后进入管理层审核</text></view>
+          <view class="kv last"><text class="kv-k">生效时间</text><text class="kv-v">审核通过后</text></view>
         </view>
         <view class="sheet-note">
-          <text class="sheet-note-t">模拟支付说明：当前后端为模拟会费流程（POST applyMember），无真实收银台，真实支付接入列入后端待办。</text>
+          <text class="sheet-note-t">提交后不会创建支付订单，也不会扣款。请确认席位与身份信息无误。</text>
         </view>
         <view class="btn-pri" :class="{ 'btn-disabled': joining }" @tap="doApply">
-          <text class="btn-pri-t">{{ joining ? '提交中…' : '确认支付 ¥10,000' }}</text>
+          <text class="btn-pri-t">{{ joining ? '提交中…' : '确认提交' }}</text>
         </view>
-        <view class="btn-ghost" @tap="showPayDialog = false"><text class="btn-ghost-t">再想想</text></view>
+        <view class="btn-ghost" @tap="showConfirmDialog = false"><text class="btn-ghost-t">返回检查</text></view>
       </view>
     </view>
   </view>
@@ -332,6 +331,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import {
   memberApplyNotices as notices,
   shareTaskRules as shareTasks,
@@ -358,7 +358,7 @@ const joinYear = new Date().getFullYear()
 const step = ref(1)
 const selectedRole = ref('')
 const agreeAll = ref(false)
-const showPayDialog = ref(false)
+const showConfirmDialog = ref(false)
 const joining = ref(false)
 const submittedAt = ref('')
 
@@ -383,34 +383,53 @@ const seatNextText = computed(() => {
   if (eligibility.value && !eligibility.value.eligible) return `还差 ${failedCount.value} 项门槛`
   return '下一步：选择成员身份'
 })
-const feeSubText = computed(() =>
-  seatType.value === 'LECTURE' ? '考核达标返还 50%–100%（积分+线下双达标全额返还）' : '研修席年费不予返还 · 尊享全部分享内容与圈层网络',
+const applicationSubText = computed(() =>
+  seatType.value === 'LECTURE' ? '讲席申请 · 分享考核与讲师成长通道' : '研修席申请 · 专注研学与圈层交流',
 )
-const feeDescLines = computed(() =>
+const applicationDescLines = computed(() =>
   seatType.value === 'LECTURE'
     ? [
-        '讲席实行年度积分考核：100 分达标线 + 季度 15 分最低线。',
-        '积分达标且线下分享达标（三选一），年度结算全额返还会费。',
-        '积分达标但线下未达标（纯线上分享型），返还 50%。',
-        '连续两季不足 15 分或年度不足 60 分，自动转研修席（籍在不驱逐）。',
+        '本次只提交讲席申请，不创建订单、不扣款。',
+        '平台将再次校验讲席准入条件，管理层审核通过后会籍生效。',
+        '讲席成员按年度任务积累分享成果，并进入讲师签约观察通道。',
+        '线上会费功能尚未开放；未来如开放，以正式订单与协议为准。',
       ]
     : [
-        '研修席无分享考核，专注研学与圈层交流。',
-        '年费为研究院收入池的主要来源，不予返还。',
-        '尊享全部分享内容、活动与圈层社交网络，含优先咨询/约课权。',
-        '后续可申请转讲席（需通过讲席准入门槛校验）。',
+        '本次只提交研修席申请，不创建订单、不扣款。',
+        '平台将再次校验研修席准入条件，管理层审核通过后会籍生效。',
+        '研修席专注研学与圈层交流，不承担年度分享任务。',
+        '线上会费功能尚未开放；未来如开放，以正式订单与协议为准。',
       ],
 )
 
-/** 单勾选同意即一并置位内部三项承诺（任务/退费/规则） */
+/** 单勾选确认申请规则 */
 function toggleAgreeAll() {
   agreeAll.value = !agreeAll.value
 }
 
 async function selectSeat(v: SeatType) {
+  if (!getToken()) {
+    promptLoginForEligibility()
+    return
+  }
   if (seatType.value === v) return
   seatType.value = v
   await loadEligibility()
+}
+
+function promptLoginForEligibility() {
+  uni.showModal({
+    title: '登录后继续申请',
+    content: '席位自检需要读取你的平台成长数据。登录后可继续选择席位，当前不会产生扣款。',
+    confirmText: '去登录',
+    cancelText: '稍后再说',
+    confirmColor: '#C41E3A',
+    success: (res) => {
+      if (!res.confirm) return
+      try { uni.setStorageSync('login:redirect', '/institute/member-apply') } catch { /* 回跳记录失败不阻断登录 */ }
+      navigateTo('/login')
+    },
+  })
 }
 
 async function loadEligibility() {
@@ -442,16 +461,15 @@ async function doApply() {
     await instituteApi.applyMember({
       role: selectedRole.value,
       joinYear,
-      deposit: 10000,
       seatType: (seatType.value || 'STUDY') as SeatType,
     })
     const d = new Date()
     submittedAt.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-    showPayDialog.value = false
+    showConfirmDialog.value = false
     step.value = 5
   } catch (e) {
     // 门槛不合格时后端 400 message 带未通过项，直接 toast 呈现
-    showPayDialog.value = false
+    showConfirmDialog.value = false
     uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
     joining.value = false

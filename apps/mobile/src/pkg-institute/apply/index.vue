@@ -104,6 +104,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import { instituteApi, lecturerLevelLabel } from '@/pkg-institute/lib/institute-data'
 
 const sysInfo = uni.getSystemInfoSync()
@@ -112,9 +113,9 @@ const navHeight = computed(() => statusBarHeight.value + 44)
 
 // 成长路径（末段签约金色强调，对齐 mockup step.gold）
 const path = [
-  { title: '加入研究院', desc: '缴纳统一年度会费，交费即进，不做事前资格筛选。', gold: false },
-  { title: '申请成为分享会员', desc: '在会籍中心一键开启，获得承接任务与退费资格。', gold: false },
-  { title: '完成月/季/年分享任务', desc: '直播 / 线下沙龙 / 大型分享；完成年度任务可退还会费。', gold: true },
+  { title: '提交入院申请', desc: '完成席位条件自检并提交申请，由研究院管理层审核。', gold: false },
+  { title: '选择讲席成长通道', desc: '讲席成员承接分享任务，持续沉淀专业成果。', gold: false },
+  { title: '完成月/季/年分享任务', desc: '直播 / 线下沙龙 / 大型分享均进入年度成长记录。', gold: true },
   { title: '平台观察评估 → 主动签约', desc: '评估任务完成质量、活动贡献、内容产出与会员反馈。', gold: false },
   { title: '进入驿站讲师库授课', desc: '签约讲师入驻线下驿站，获得授课排期、收益与荣誉体系。', gold: false },
 ]
@@ -147,6 +148,12 @@ const loadingMy = ref(true)
 const isMember = ref(false)
 
 async function load() {
+  // 讲师遴选是公开机制页；游客不调用私有会籍接口，避免 401 把整页误拦到登录页。
+  if (!getToken()) {
+    isMember.value = false
+    loadingMy.value = false
+    return
+  }
   loadingMy.value = true
   try {
     const my = await instituteApi.getMy()

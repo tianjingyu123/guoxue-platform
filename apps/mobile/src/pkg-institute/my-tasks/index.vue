@@ -1,13 +1,7 @@
 <!--
   I8 · 我的会籍中心（V0 视觉稿 1:1 还原 · 委托核心灵魂页）
-  一页承载会员全部自服务（委托书 §3.2）：
-    ① 印玺会籍卡（姓名/角色/状态/加入年/到期/讲师等级）
-    ② 申请分享开关（seatType 区分 STUDY 研修席 / LECTURE 讲席）——态A 未申请分享转化态 + 态A2 二次确认弹层
-    ③ 月/季/年任务进度三格 + 本期任务单项「提交完成」+ 年度考核（积分/四季度/档位预测）
-    ④ 年度退费（canRefund 激活 / 未达标灰置差距）+ 50/50 口径说明
-    ⑤ 分红记录（管理层）+ 管理端入口
-  数据接线全部保留自旧版：getMy / getMyTasks / completeTask / depositRefund / getDividends / getMyAssessment
-  真连铁律：无「席位切换」后端端点 → 申请分享诚实降级为跳转现有真实入会流程 /institute/member-apply（含选席位步骤）
+  一页承载会员全部自服务：会籍状态、席位说明、学习入口、任务进度、年度考核与管理入口。
+  当前线上会费收退款未开放；成员端不展示可退款状态、不调用假退款写接口。
 -->
 <template>
   <view class="page">
@@ -45,7 +39,7 @@
       <view v-else-if="!member" class="empty-box">
         <view class="empty-seal"><app-icon name="graduation-cap" :size="40" color="#C9A96E" /></view>
         <text class="empty-title serif">你还不是研究院成员</text>
-        <text class="empty-sub">缴纳年度会费即可加入，申请分享并完成任务可全额退费</text>
+        <text class="empty-sub">完成资格自检并提交申请，管理层审核通过后会籍生效；当前申请不扣款</text>
         <view class="empty-btn" @tap="goApply">
           <text class="empty-btn-text">申请加入研究院</text>
           <app-icon name="chevron-right" :size="15" color="#fff" />
@@ -74,7 +68,7 @@
               <view class="mkv"><text class="k">加入年份</text><text class="v">{{ member.joinYear }}</text></view>
               <view class="mkv"><text class="k">会籍到期</text><text class="v">{{ member.expireStatus.expireAt ? fmtDate(member.expireStatus.expireAt) : '—' }}</text></view>
               <view class="mkv"><text class="k">讲师等级</text><text class="v">{{ member.lecturerLevel !== 'NONE' ? lecturerLevelLabel[member.lecturerLevel] : '—（未进入分享通道）' }}</text></view>
-              <view v-if="isLecture" class="mkv"><text class="k">退费资格</text><text class="v">已开启 · 完成任务后可申请</text></view>
+              <view v-if="isLecture" class="mkv"><text class="k">分享考核</text><text class="v">已开启 · 记录年度成长</text></view>
             </view>
             <view v-if="member.status === 'PENDING'" class="mc-pending">
               <app-icon name="clock" :size="13" color="#C9A96E" />
@@ -90,15 +84,13 @@
             </view>
           </view>
 
-          <!-- ② 态A：研修席 → 申请成为分享会员（转化关键态） -->
+          <!-- ② 研修席成长说明：当前无在线转席端点，避免跳入重复申请死路 -->
           <view v-if="!isLecture" class="apply-card">
-            <text class="apply-title serif">申请成为分享会员</text>
-            <text class="apply-desc">
-              承接月 / 季 / 年分享任务，完成年度任务即可<text class="hl">全额退还 ¥{{ depositText }} 会费</text>，并进入讲师签约观察通道。
-            </text>
-            <text class="apply-warn">当前席位：{{ seatChipText }} —— 会籍到期后会费不予退还。</text>
-            <view class="apply-btn" @tap="openSharerSheet">
-              <text class="apply-btn-text">申请分享 · 开启退费资格</text>
+            <text class="apply-title serif">了解讲席成长通道</text>
+            <text class="apply-desc">讲席成员承接月 / 季 / 年分享任务，成果进入讲师签约观察体系。</text>
+            <text class="apply-warn">当前席位：{{ seatChipText }}。在线转席尚未开放，如需调整请联系研究院管理层。</text>
+            <view class="apply-btn" @tap="goLecturerPath">
+              <text class="apply-btn-text">查看讲师遴选与成长路径</text>
               <app-icon name="chevron-right" :size="15" color="#fff" />
             </view>
           </view>
@@ -115,16 +107,16 @@
                 <view class="pcell-ic"><app-icon name="book-open" :size="20" color="#C41E3A" /></view>
                 <text class="pcell-label">内容库</text>
               </view>
-              <view class="pcell" @tap="goApply">
+              <view class="pcell" @tap="goLecturerPath">
                 <view class="pcell-ic"><app-icon name="award" :size="20" color="#C41E3A" /></view>
                 <text class="pcell-label">讲师之路</text>
               </view>
             </view>
 
-            <text class="sec-t serif">关于退费</text>
+            <text class="sec-t serif">费用状态</text>
             <view class="refund-info">
-              <text class="refund-info-title">仅分享会员完成年度任务可退</text>
-              <text class="refund-info-desc">纯学习会籍（研修席）不退费，可享全部分享内容与圈层社交。详细规则见《会籍服务协议》。</text>
+              <text class="refund-info-title">当前未开放线上会费收退款</text>
+              <text class="refund-info-desc">本会籍页面不会发起扣款或退款。未来如开放，将以正式支付订单、退款流水与服务协议为准。</text>
             </view>
           </template>
 
@@ -139,7 +131,7 @@
                 <view class="tbar"><view class="tbar-i" :style="{ width: g.pct + '%' }" /></view>
               </view>
             </view>
-            <text class="tg-hint">按平台标准模板的月 / 季 / 年周期归类，全部达标方可申请退费</text>
+            <text class="tg-hint">按平台标准模板的月 / 季 / 年周期归类，用于年度成长评估与讲师遴选</text>
 
             <!-- 年度考核（接口未开通 → 诚实降级隐藏） -->
             <view v-if="assessment" class="assess-card">
@@ -170,7 +162,7 @@
                     <text class="a-ring-total">/100 分</text>
                   </view>
                   <!-- #endif -->
-                  <text class="a-ring-label">年度全返线 100 分</text>
+                  <text class="a-ring-label">年度卓越线 100 分</text>
                 </view>
                 <view class="quarters">
                   <view v-for="(q, i) in quarters" :key="i" class="q-row">
@@ -198,7 +190,7 @@
                   <text class="offline-label">{{ offlineIndicatorText(it.type) }}</text>
                   <text class="offline-num" :style="{ color: it.count >= it.required ? '#2fa84f' : '#9B9B9B' }">{{ it.count }}/{{ it.required }}</text>
                 </view>
-                <text class="offline-hint">任意一项达到要求即视为线下达标，是全额返还的必要条件</text>
+                <text class="offline-hint">任意一项达到要求即视为线下达标，是年度卓越档的重要条件</text>
               </view>
 
               <view class="tier-guide" :style="{ background: tierMeta.bg }">
@@ -269,33 +261,12 @@
               </view>
             </template>
 
-            <!-- ④ 年度退费 -->
-            <text class="sec-t serif">年度退费</text>
-            <!-- 已退还 -->
-            <view v-if="member.depositStatus.refunded" class="card refund done-refund">
-              <view class="refund-done-row">
-                <app-icon name="check-circle" :size="18" color="#2fa84f" />
-                <text class="refund-done-text">会费 ¥{{ depositText }} 已退还</text>
-              </view>
-            </view>
-            <!-- 可退（激活） -->
-            <view v-else-if="member.depositStatus.canRefund" class="card refund go">
-              <text class="refund-txt strong">年度任务已全部完成</text>
-              <text class="refund-gap">可申请<text class="gap-b">全额</text>退还会费 ¥{{ depositText }}。提交后由研究院财务确认发放；退费后本年度会籍权益保留至到期日。</text>
-              <view class="rbtn-on" :class="{ 'mbtn-disabled': refunding }" @tap="onRefund">
-                <text class="rbtn-on-text">{{ refunding ? '提交中…' : `申请退还会费 ¥${depositText}` }}</text>
-              </view>
-              <view class="refund-note">
-                <text class="refund-note-text">
-                  口径说明：会费作为<text class="note-b">可退押金</text>按全额 ¥{{ depositText }} 退还；平台与研究院 50/50 留存仅为内部核算科目，<text class="note-b">不影响退费金额</text>。
-                </text>
-              </view>
-            </view>
-            <!-- 未达标（灰置 + 差距） -->
-            <view v-else class="card refund">
-              <text class="refund-txt">完成年度全部任务后，可申请退还会费 ¥{{ depositText }}。</text>
-              <text class="refund-gap">当前差距：{{ member.depositStatus.refundCondition }}（已通过 {{ member.taskProgress.verified }}/{{ member.taskProgress.total }} 项）。</text>
-              <view class="rbtn-dis"><text class="rbtn-dis-text">申请退还会费（未达标 · 不可用）</text></view>
+            <!-- ④ 费用与结算：当前无线上收款订单，不提供伪退款入口 -->
+            <text class="sec-t serif">费用与结算</text>
+            <view class="card refund">
+              <text class="refund-txt strong">当前没有线上会费订单</text>
+              <text class="refund-gap">本页面仅记录会籍与成长任务，不会发起扣款或退款。如你持有线下缴费凭证，请联系平台客服人工核验，切勿重复支付。</text>
+              <view class="rbtn-dis"><text class="rbtn-dis-text">线上收退款尚未开放</text></view>
             </view>
 
             <!-- 签约观察 -->
@@ -334,27 +305,7 @@
       </template>
     </scroll-view>
 
-    <!-- ② 态A2：申请分享二次确认弹层 -->
-    <view v-if="sharerSheet" class="mask" @tap="closeSharerSheet">
-      <view class="sheet" @tap.stop>
-        <view class="sh-ic"><app-icon name="alert-triangle" :size="22" color="#C41E3A" /></view>
-        <text class="sheet-title serif">确认申请成为分享会员？</text>
-        <text class="sheet-lead">此操作将<text class="lead-b">开启退费资格</text>，同时为你绑定本会籍年度的分享任务。请先了解以下规则：</text>
-        <view class="terms">
-          <view v-for="(t, i) in sharerTerms" :key="i" class="term" :class="{ last: i === sharerTerms.length - 1 }">
-            <view class="term-tk"><app-icon name="check" :size="10" color="#fff" /></view>
-            <text class="term-text">{{ t }}</text>
-          </view>
-        </view>
-        <view class="sheet-warn2">
-          <text class="sheet-warn2-text">申请后本年度内任务口径以《会籍服务协议》为准；开启后不可在本年度内撤销分享身份。</text>
-        </view>
-        <view class="sh-btns">
-          <view class="sh-cancel" @tap="closeSharerSheet"><text class="sh-cancel-text">再想想</text></view>
-          <view class="sh-ok" @tap="confirmSharer"><text class="sh-ok-text">确认申请 · 开启退费资格</text></view>
-        </view>
-      </view>
-    </view>
+
   </view>
 </template>
 
@@ -393,9 +344,7 @@ const templates = ref<TaskTemplate[]>([])
 const dividends = ref<InstituteDividend[]>([])
 /** 年度考核（T9-P1）·接口 404/未开通时保持 null → 诚实降级隐藏考核卡 */
 const assessment = ref<MyAssessment | null>(null)
-const refunding = ref(false)
 const completingId = ref('')
-const sharerSheet = ref(false)
 
 // ───── 席位判定（②申请分享开关的核心）─────
 /**
@@ -414,7 +363,6 @@ const statusChipClass = computed(() => {
   return s === 'ACTIVE' ? 'active' : s === 'PENDING' ? 'pending' : 'line'
 })
 const avatarChar = computed(() => (memberName(member.value?.user) || '院').slice(0, 1))
-const depositText = computed(() => formatPrice(num(member.value?.depositStatus.deposited)).toLocaleString())
 
 // ───── 任务进度三格：按平台模板周期（月/季/年）归类 ─────
 const tagText = (t: TaskType) => {
@@ -474,24 +422,20 @@ const tierGuidance = computed(() => {
   const offlineTip = unmet ? `再完成 ${unmet.required - unmet.count} 场「${offlineIndicatorText(unmet.type)}」` : '完成任一线下分享指标'
   switch (a.tier) {
     case 'FULL_REFUND':
-      return '积分与线下分享双达标，保持至年度结算即可全额返还年费'
+      return '积分与线下分享双达标，已进入年度卓越档，保持高质量输出'
     case 'HALF_REFUND':
-      return `积分已达标，${offlineTip}（三选一）即可升级为全额返还`
+      return `积分已达标，${offlineTip}（三选一）即可进入年度卓越档`
     case 'KEEP':
-      return `距年度全返线还差 ${gap} 分${a.offline.met ? '' : '，线下分享指标也需达标'}——继续加油，籍位无忧`
+      return `距年度卓越线还差 ${gap} 分${a.offline.met ? '' : '，线下分享指标也需达标'}——继续积累成果`
     case 'AT_RISK':
-      return `积分低于警戒线（季度 15 分 / 年度 60 分），连续不达标将自动转研修席——尽快安排一次分享${gap > 0 ? `，距全返线还差 ${gap} 分` : ''}`
+      return `积分低于警戒线（季度 15 分 / 年度 60 分），连续不达标将自动转研修席——尽快安排一次分享${gap > 0 ? `，距卓越线还差 ${gap} 分` : ''}`
     default:
       return ''
   }
 })
 
 // ───── 静态文案 ─────
-const sharerTerms = [
-  '需完成月 / 季 / 年全部任务，方可申请全额退还会费。',
-  '任务未完成 / 中途放弃分享，会费不予退还。',
-  '持续表现优秀者，由平台主动评估邀约签约（遴选制，非自荐）。',
-]
+
 function periodLabel(p: string) {
   return p === 'MONTH' ? '每月' : p === 'QUARTER' ? '每季度' : '每年'
 }
@@ -546,44 +490,8 @@ async function onComplete(t: InstituteTask) {
   }
 }
 
-// ───── 年度退费（真实 api）─────
-function onRefund() {
-  if (!member.value || refunding.value) return
-  if (!member.value.depositStatus.canRefund) {
-    uni.showToast({ title: member.value.depositStatus.refundCondition, icon: 'none' })
-    return
-  }
-  uni.showModal({
-    title: '申请退费',
-    content: '确认申请退还会费？退费后会籍将转为已结业。',
-    confirmColor: '#C41E3A',
-    success: async (res) => {
-      if (!res.confirm) return
-      refunding.value = true
-      try {
-        const r = await instituteApi.depositRefund()
-        uni.showToast({ title: r.message || '已提交', icon: 'success' })
-        await load()
-      } catch (e) {
-        uni.showToast({ title: (e as Error)?.message || '申请失败', icon: 'none' })
-      } finally {
-        refunding.value = false
-      }
-    },
-  })
-}
-
-// ───── ② 申请分享开关：无「席位切换」后端端点 → 诚实降级为跳转真实入会流程 ─────
-function openSharerSheet() {
-  sharerSheet.value = true
-}
-function closeSharerSheet() {
-  sharerSheet.value = false
-}
-function confirmSharer() {
-  sharerSheet.value = false
-  // 平台无 seatType 在线切换端点，导向现有真实入会流程（含选席位步骤，可选 LECTURE 讲席）
-  navigateTo('/institute/member-apply?seat=LECTURE')
+function goLecturerPath() {
+  navigateTo('/institute/apply')
 }
 
 // ───── 跳转 ─────

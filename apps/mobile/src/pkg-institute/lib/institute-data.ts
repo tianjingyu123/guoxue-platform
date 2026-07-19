@@ -137,7 +137,6 @@ export interface FinanceOverview {
 export interface ApplyMemberPayload {
   role: string
   joinYear: number
-  deposit?: number
   /** 双轨席位（T9-P1）：LECTURE 讲席（分享考核）/ STUDY 研修席（专注研学） */
   seatType?: SeatType
 }
@@ -178,11 +177,11 @@ export interface MyAssessment {
 export const seatTypeLabel: Record<SeatType, string> = {
   LECTURE: '讲席（分享席）', STUDY: '研修席（学习席）',
 }
-/** 档位预测徽章：金（全返）/ 银（半返）/ 灰（保籍）/ 红（转席风险）*/
+/** 年度成长档位徽章：后端枚举名保留兼容，用户侧不承诺未上线的资金能力 */
 export const assessmentTierMeta: Record<AssessmentTier, { label: string; color: string; bg: string; icon: string }> = {
-  FULL_REFUND: { label: '预计全额返还', color: '#b8860b', bg: 'rgba(212,160,23,0.14)', icon: 'trophy' },
-  HALF_REFUND: { label: '预计返还 50%', color: '#64748b', bg: '#f1f5f9', icon: 'medal' },
-  KEEP: { label: '保籍达标', color: '#6b7280', bg: '#f3f4f6', icon: 'shield-check' },
+  FULL_REFUND: { label: '年度卓越', color: '#b8860b', bg: 'rgba(212,160,23,0.14)', icon: 'trophy' },
+  HALF_REFUND: { label: '积分达标', color: '#64748b', bg: '#f1f5f9', icon: 'medal' },
+  KEEP: { label: '持续成长', color: '#6b7280', bg: '#f3f4f6', icon: 'shield-check' },
   AT_RISK: { label: '有转席风险', color: '#dc2626', bg: '#fef2f2', icon: 'alert-triangle' },
 }
 /** 积分类型中文标签（§3.3 积分表·未知类型回退原文）*/
@@ -207,12 +206,12 @@ export const seatOptions: { value: SeatType; name: string; tagline: string; acce
   {
     value: 'LECTURE',
     name: '讲席',
-    tagline: '分享席 · 以讲促学，考核返费',
+    tagline: '分享席 · 以讲促学，成果沉淀',
     accent: '#c41e3a',
     accentBg: 'rgba(196,30,58,0.06)',
     points: [
       { icon: 'mic', text: '义务：年度分享积分考核（100 分达标线 · 季度 15 分最低线）' },
-      { icon: 'coins', text: '年费：考核达标返还 50%–100%（积分+线下双达标可全额返还）' },
+      { icon: 'trending-up', text: '成长：积分与线下分享共同形成年度成长档位' },
       { icon: 'graduation-cap', text: '权益：讲师五级培养通道 → 签约进驿站授课 + 影响力榜单 + 带教资格' },
       { icon: 'refresh-cw', text: '考核不达标自动转研修席（籍在不驱逐）' },
     ],
@@ -225,7 +224,7 @@ export const seatOptions: { value: SeatType; name: string; tagline: string; acce
     accentBg: 'rgba(37,99,235,0.05)',
     points: [
       { icon: 'book-open', text: '义务：无分享考核，专注研学' },
-      { icon: 'coins', text: '年费：全额缴纳（高端学习社群年费，不予返还）' },
+      { icon: 'compass', text: '成长：不参与分享考核，专注研学与圈层交流' },
       { icon: 'users', text: '权益：全部分享内容 + 活动 + 圈层社交网络' },
       { icon: 'star', text: '优先咨询/约课权，后续可申请转讲席' },
     ],
@@ -456,13 +455,13 @@ export const memberApplyRoles: { value: string; label: string; desc: string }[] 
   { value: 'TYPE_B', label: '深造成员', desc: '以学习深造为主，暂不承担分享任务' },
 ]
 export const applySpecialtyOptions = ['八字命理', '紫微斗数', '风水堪舆', '周易六爻', '奇门遁甲', '姓名学', '梅花易数', '手相面相', '塔罗占卜', '其他']
-export const memberApplySteps = ['了解机制', '选择席位', '填写资料', '缴纳会费', '提交完成']
-/** 加入须知（来自定位文档：付费准入、分享退费机制）*/
+export const memberApplySteps = ['了解机制', '选择席位', '确认身份', '提交申请', '等待审核']
+/** 加入须知（当前真实申请流程）*/
 export const memberApplyNotices = [
-  { icon: 'wallet', title: '统一会费', desc: '全员缴纳相同年度会费（10000 元/年），交费即可加入，不做事前资格筛选' },
-  { icon: 'refresh-cw', title: '分享可退费', desc: '申请分享并完成月/季/年任务，年度结束全额退还会费' },
-  { icon: 'graduation-cap', title: '纯学习模式', desc: '不申请分享则不承担任务，会费不退，相当于加入高端学习社群' },
-  { icon: 'badge-check', title: '签约通道', desc: '分享表现优秀者，平台主动发起签约邀请，进入驿站讲师库' },
+  { icon: 'badge-check', title: '资格准入', desc: '平台按所选席位核对真实数据，满足条件后才可提交申请' },
+  { icon: 'users', title: '双轨席位', desc: '讲席承担分享考核，研修席专注研学与圈层交流' },
+  { icon: 'trending-up', title: '成长记录', desc: '任务、活动与内容贡献进入年度成长记录与讲师观察体系' },
+  { icon: 'shield-check', title: '审核生效', desc: '管理层审核通过后会籍生效；当前申请不创建订单、不扣款' },
 ]
 /** 分享任务体系说明（来自定位文档）*/
 export const shareTaskRules = [
@@ -557,10 +556,6 @@ export const instituteApi = {
     return apiPost<InstituteTask>(`/institute/my/tasks/${id}/complete`)
   },
 
-  /** 申请退还会费/保证金 POST /institute/my/deposit-refund */
-  depositRefund(): Promise<{ success: boolean; message: string }> {
-    return apiPost<{ success: boolean; message: string }>('/institute/my/deposit-refund')
-  },
 
   /** 我的分红/奖励 GET /institute/my/dividends */
   async getDividends(): Promise<InstituteDividend[]> {

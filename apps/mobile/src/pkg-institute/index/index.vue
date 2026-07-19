@@ -186,7 +186,7 @@
           </view>
           <view class="card org">
             <text class="org-txt">院长 / 副院长 / 秘书长 由平台任命轮岗</text>
-            <text class="org-sm">会费收入平台 / 研究院 50 : 50 留存，管理层从留存中发放分红。</text>
+            <text class="org-sm">当前线上会费收款与收入归集尚未开放；组织经费与分红仅以实际入账记录和资金审批结果为准。</text>
             <view v-if="info.management.length" class="mgmt-list">
               <view v-for="m in info.management" :key="m.id" class="mgmt-row">
                 <view class="mgmt-av">
@@ -225,11 +225,11 @@
     <!-- 吸底 CTA -->
     <view v-if="info && !loading && !errMsg" class="dock">
       <view class="price">
-        <text class="price-b">¥10,000</text>
-        <text class="price-s"> /年 · 可退押金机制</text>
+        <text class="price-b">资格申请</text>
+        <text class="price-s"> · 当前不扣款</text>
       </view>
       <view class="cta" @tap="goApply">
-        <text class="cta-t">加入研究院</text>
+        <text class="cta-t">提交申请</text>
         <app-icon name="arrow-right" :size="15" color="#fff" />
       </view>
     </view>
@@ -262,11 +262,11 @@ const events = ref<InstituteEvent[]>([])
 
 // 五步成长主线（机制说明·非虚构数据，来自定位文档）
 const funnelSteps = [
-  { title: '付费准入', desc: '会费 ¥10,000/年 · 交钱即进 · 不设审核门槛', gold: false },
-  { title: '申请分享（自主选择）', desc: '成为分享会员承接任务；不申请则纯学习', gold: false },
-  { title: '完成任务 → 年度退还会费', desc: '会费本质是可退押金；不申请分享不退费', gold: true },
-  { title: '平台评估 → 主动签约成讲师', desc: '签约遴选制，非自荐填表', gold: false },
-  { title: '进入线下驿站讲师库授课', desc: '签约讲师入驻驿站，线下开讲', gold: false },
+  { title: '资格自检', desc: '按讲席或研修席要求核对平台真实数据', gold: false },
+  { title: '提交入院申请', desc: '选择席位与成员身份；当前申请不扣款', gold: false },
+  { title: '管理层审核', desc: '核对申请信息，通过后会籍正式生效', gold: true },
+  { title: '参与研学与分享成长', desc: '讲席承接任务，研修席专注学习与交流', gold: false },
+  { title: '平台评估 → 主动签约讲师', desc: '优秀成员进入驿站讲师库与授课通道', gold: false },
 ]
 
 // 签约讲师数（真实字段·SIGNED 计数）
