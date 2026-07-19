@@ -546,6 +546,17 @@ export class ShopOrderService {
     return enriched;
   }
 
+  /**
+   * 订单状态变更后清缓存 —— 详情缓存 + 该用户订单列表全部分页/状态组合缓存。
+   * 支付回调入账（PENDING→PAID）后必须调用：否则 getOrder 命中旧 PENDING 缓存（TTL 300s），
+   * 导致支付页轮询 getOrderPayState 永远读到未支付（不跳转）、订单详情显示「待付款」。
+   * 列表 key 形如 userOrders:{uid}:{page}:{pageSize}:{status}，用 delByPattern 一次清净。
+   */
+  async invalidateOrderCache(orderId: string, userId?: string): Promise<void> {
+    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    if (userId) await this.redis.delByPattern(`${CACHE_PREFIX}userOrders:${userId}:*`);
+  }
+
   private readonly VALID_ORDER_STATUSES = new Set(["PENDING", "PAID", "SHIPPED", "COMPLETED", "REFUNDED", "CANCELLED"]);
 
   async listOrders(dto: OrderListQueryDto) {
