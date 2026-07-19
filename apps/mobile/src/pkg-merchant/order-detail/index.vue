@@ -279,7 +279,7 @@ import {
   orderStatusConfig,
   expressCompanies,
   type MerchantOrder,
-} from '@/lib/merchant-data'
+} from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarH = ref(0)
 uni.getSystemInfo({ success: (e) => { statusBarH.value = e.statusBarHeight || 0 } })

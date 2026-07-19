@@ -130,7 +130,7 @@ import { goBack, navigateTo } from '@/utils/router'
 import {
   instituteApi, lecturerLevelLabel,
   type RankingItem,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

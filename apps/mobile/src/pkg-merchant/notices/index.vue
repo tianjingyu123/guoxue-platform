@@ -172,7 +172,7 @@ import {
   violationStatusConfig,
   type MerchantNotice,
   type MerchantViolation,
-} from '@/lib/merchant-data'
+} from '@/pkg-merchant/lib/merchant-data'
 
 // 咨询后端未实现（getInquiries 诚实降级返回空），结构未定 → 宽松记录类型
 type MerchantInquiry = {

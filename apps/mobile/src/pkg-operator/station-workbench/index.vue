@@ -113,8 +113,8 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
-import { operatorApi, type StationPanelInfo, type StationOverviewItem } from '@/lib/operator-data'
-import { pinnedApi, type PinnedSummaryItem } from '@/lib/station-pinned-data'
+import { operatorApi, type StationPanelInfo, type StationOverviewItem } from '@/pkg-operator/lib/operator-data'
+import { pinnedApi, type PinnedSummaryItem } from '@/pkg-operator/lib/station-pinned-data'
 
 const statusBarH = ref(0)
 const loading = ref(true)

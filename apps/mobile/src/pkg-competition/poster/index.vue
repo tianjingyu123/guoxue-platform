@@ -58,7 +58,7 @@ import { BRAND } from '@/lib/brand'
 import {
   competitionApi, promotionLabel, typeLabel,
   type Competition, type Registration, type Ranking, type MyResults, type PromotionStatus,
-} from '@/lib/competition-data'
+} from '@/pkg-competition/lib/competition-data'
 
 const instance = getCurrentInstance()?.proxy
 

@@ -174,7 +174,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { accountApi, REGIONS, PROVINCES } from '@/lib/account-data'
+import { accountApi, REGIONS, PROVINCES } from '@/pkg-account/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)

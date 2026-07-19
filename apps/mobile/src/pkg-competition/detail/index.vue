@@ -209,7 +209,7 @@ import {
   competitionApi, mapStatus, uiStatusConfig, typeLabel, levelInfo, topPrizeText, fmtDate, yuan,
   roundTypeLabel, promotionLabel,
   type Competition, type Registration, type Ranking, type CompetitionRound, type RoundStatus, type RoundType, type PrizeItem,
-} from '@/lib/competition-data'
+} from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
 const sysH = ref(667)

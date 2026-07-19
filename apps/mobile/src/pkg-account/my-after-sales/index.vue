@@ -117,7 +117,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import SmartCover from '@/components/common/smart-cover.vue'
-import { accountApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/lib/account-data'
+import { accountApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/pkg-account/lib/account-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)

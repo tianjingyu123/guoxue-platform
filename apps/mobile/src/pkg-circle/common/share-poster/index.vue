@@ -141,7 +141,7 @@ import {
   recordPosterShare,
   type PosterType,
   type PosterData,
-} from '@/lib/poster-data'
+} from '@/pkg-circle/lib/poster-data'
 import { BRAND } from '@/lib/brand'
 import { drawQrToCanvas } from '@/utils/qrcode'
 

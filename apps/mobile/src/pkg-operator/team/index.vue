@@ -15,7 +15,7 @@ import {
   type StationSuccessCase,
   type OperatorTeamTask,
   type TeamTaskType,
-} from '@/lib/operator-data'
+} from '@/pkg-operator/lib/operator-data'
 
 const loading = ref(true)
 const error = ref('')

@@ -158,7 +158,7 @@ import { BRAND } from '@/lib/brand'
 import {
   competitionApi, mapStatus, uiStatusConfig, typeLabel, levelInfo, topPrizeText, fmtDate,
   type Competition, type UiStatus, type CompetitionRound,
-} from '@/lib/competition-data'
+} from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
 

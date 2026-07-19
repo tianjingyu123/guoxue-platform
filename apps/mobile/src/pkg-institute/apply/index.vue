@@ -104,7 +104,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instituteApi, lecturerLevelLabel } from '@/lib/institute-data'
+import { instituteApi, lecturerLevelLabel } from '@/pkg-institute/lib/institute-data'
 
 const sysInfo = uni.getSystemInfoSync()
 const statusBarHeight = ref(sysInfo.statusBarHeight || 20)

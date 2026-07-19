@@ -159,7 +159,7 @@ import {
   BOUNTY_CATEGORY_LABEL,
   type BountyQuestion,
   type BountyStatus,
-} from '@/lib/bounty-data'
+} from '@/pkg-bounty/lib/bounty-data'
 
 const bountyId = ref('')
 const myId = getMyUserId()

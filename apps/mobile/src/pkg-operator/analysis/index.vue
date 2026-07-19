@@ -153,7 +153,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { operatorApi, type MemberPerf } from '@/lib/operator-data'
+import { operatorApi, type MemberPerf } from '@/pkg-operator/lib/operator-data'
 import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)

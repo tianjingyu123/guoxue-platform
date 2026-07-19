@@ -82,7 +82,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { operatorApi, type DormantMember } from '@/lib/operator-data'
+import { operatorApi, type DormantMember } from '@/pkg-operator/lib/operator-data'
 
 const loading = ref(true)
 const error = ref('')

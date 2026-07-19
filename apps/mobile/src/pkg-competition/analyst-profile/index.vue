@@ -159,7 +159,7 @@ import { getToken } from '@/utils/storage'
 import {
   competitionApi, analystLevel, ANALYST_LEVELS, promotionLabel, fmtDate,
   type MyTalentProfile, type TalentMedal,
-} from '@/lib/competition-data'
+} from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
 const sysH = ref(667)

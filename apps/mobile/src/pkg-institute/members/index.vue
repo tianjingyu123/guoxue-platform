@@ -136,7 +136,7 @@ import { goBack, navigateTo } from '@/utils/router'
 import {
   instituteApi, roleLabel, isManagement, memberName,
   type InstituteRole, type InstituteMember, type InstituteIntro, type BoardGroup,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const scrollHeight = ref(600)

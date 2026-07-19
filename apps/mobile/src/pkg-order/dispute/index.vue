@@ -213,7 +213,7 @@ import {
   disputeTypes,
   disputeStatusConfig,
   type DisputeListItem,
-} from '@/lib/order-data'
+} from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)

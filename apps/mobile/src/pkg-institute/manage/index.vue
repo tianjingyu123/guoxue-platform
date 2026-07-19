@@ -235,7 +235,7 @@ import {
   dividendTypeLabel, memberName, num, fmtDate, MGMT_ROLES,
   type ManageOverview, type FinanceOverview, type InstituteMember,
   type InstituteRole, type LecturerLevel, type DividendType, type BoardGroup,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const scrollHeight = ref(600)

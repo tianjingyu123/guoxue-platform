@@ -79,7 +79,7 @@ import { mineApi } from '@/lib/mine-data'
 import { BRAND } from '@/lib/brand'
 
 // 热卜 logo（放 src/static，多端可用；:src 动态绑定避免 Vite 静态解析报错）
-const logoSrc = ref('/static/logo.jpg')
+const logoSrc = ref('/static/logo.webp')
 
 const aboutStats = ref<{ value: string; label: string; color: string }[]>([])
 const aboutFeatures = ref<{ icon: string; title: string; desc: string }[]>([])

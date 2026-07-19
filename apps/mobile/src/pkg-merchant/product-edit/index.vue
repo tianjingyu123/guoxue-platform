@@ -994,7 +994,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { chooseAndUploadImage } from '@/utils/request'
-import { merchantBackendApi, productCategories, type MerchantProductSku } from '@/lib/merchant-data'
+import { merchantBackendApi, productCategories, type MerchantProductSku } from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })

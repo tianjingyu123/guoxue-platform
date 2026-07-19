@@ -105,7 +105,7 @@
 import { ref, reactive, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
-import { orderApi, reviewTagsByRating, reviewRatingLabels, type ReviewItem } from '@/lib/order-data'
+import { orderApi, reviewTagsByRating, reviewRatingLabels, type ReviewItem } from '@/pkg-order/lib/order-data'
 
 const safeBottom = ref(0)
 const orderId = ref('')

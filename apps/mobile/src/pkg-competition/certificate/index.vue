@@ -123,7 +123,7 @@ import { getUserInfo } from '@/utils/storage'
 import {
   competitionApi, promotionLabel,
   type Competition, type Registration, type Ranking,
-} from '@/lib/competition-data'
+} from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
 const sysH = ref(667)

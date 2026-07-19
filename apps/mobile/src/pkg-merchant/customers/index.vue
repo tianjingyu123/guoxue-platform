@@ -105,7 +105,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
-import { merchantBackendApi, type MerchantCustomer } from '@/lib/merchant-data'
+import { merchantBackendApi, type MerchantCustomer } from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

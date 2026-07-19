@@ -177,7 +177,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AdvisorCard from '@/components/workbench/advisor-card.vue'
 import MarketingTopicsCard from '@/components/workbench/marketing-topics-card.vue'
 import CrmReminderCard from '@/components/workbench/crm-reminder-card.vue'
-import TeamTaskCard from '@/components/workbench/team-task-card.vue'
+import TeamTaskCard from '@/pkg-operator/components/team-task-card.vue'
 import FunnelCard from '@/components/workbench/funnel-card.vue'
 import AlmanacBar from '@/components/workbench/almanac-bar.vue'
 import { navigateTo } from '@/utils/router'
@@ -187,7 +187,7 @@ import {
   type StationTrendData,
   type StationNotice,
   type StationPanelQuickAction,
-} from '@/lib/operator-data'
+} from '@/pkg-operator/lib/operator-data'
 
 const loading = ref(true)
 const error = ref('')

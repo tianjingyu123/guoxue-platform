@@ -175,7 +175,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import { onLoad, onHide } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack, redirectTo } from '@/utils/router'
-import { competitionApi, questionTypeLabel, type PaperQuestion, type PaperAnswerItem, type QuestionType } from '@/lib/competition-data'
+import { competitionApi, questionTypeLabel, type PaperQuestion, type PaperAnswerItem, type QuestionType } from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
 const sysH = ref(667)

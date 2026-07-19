@@ -21,7 +21,7 @@ import {
   BOUNTY_CATEGORY_OPTIONS,
   BOUNTY_CATEGORY_LABEL,
   type BountyCategory,
-} from '@/lib/bounty-data'
+} from '@/pkg-bounty/lib/bounty-data'
 
 const amountPresets = [50, 100, 200]
 const categoryOptions = BOUNTY_CATEGORY_OPTIONS

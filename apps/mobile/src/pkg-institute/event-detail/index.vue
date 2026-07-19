@@ -115,7 +115,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instituteApi, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor, fmtDateTime, memberName, type InstituteEvent } from '@/lib/institute-data'
+import { instituteApi, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor, fmtDateTime, memberName, type InstituteEvent } from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

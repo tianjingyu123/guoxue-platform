@@ -281,7 +281,7 @@ import {
   type SimilarCasesResult,
   type BaziRecordItem,
 } from '@/lib/creation-assist-data'
-import { publishAssistApi } from '@/lib/publish-assist-data'
+import { publishAssistApi } from '@/pkg-circle/lib/publish-assist-data'
 
 const props = defineProps<{
   visible: boolean

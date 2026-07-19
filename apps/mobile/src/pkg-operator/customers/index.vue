@@ -198,7 +198,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { navigateTo } from '@/utils/router'
 import { useList } from '@/composables/useList'
-import { customerApi, type StationCustomer, type CustomerTimelineEvent } from '@/lib/operator-data'
+import { customerApi, type StationCustomer, type CustomerTimelineEvent } from '@/pkg-operator/lib/operator-data'
 
 // ===== 状态栏留白（自定义导航） =====
 const statusBarHeight = ref(20)

@@ -105,7 +105,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, reLaunch } from '@/utils/router'
-import { merchantApi, type MerchantAgreement } from '@/lib/merchant-data'
+import { merchantApi, type MerchantAgreement } from '@/pkg-merchant/lib/merchant-data'
 
 const agreement = ref<MerchantAgreement | null>(null)
 const loading = ref(true)

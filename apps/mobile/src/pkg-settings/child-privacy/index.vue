@@ -150,7 +150,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
-import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/lib/legal-data'
+import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/pkg-settings/lib/legal-data'
 import { BRAND } from '@/lib/brand'
 
 // 后端 type 枚举无 child-privacy（仅 agreement/privacy/community）→ legalApi.getDoc 以内置合规文本兜底

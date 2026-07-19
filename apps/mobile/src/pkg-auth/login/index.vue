@@ -164,7 +164,7 @@ import { BRAND } from '@/lib/brand'
 import { hasSelectedInterests } from '@/utils/interests'
 
 const statusBarHeight = ref(0)
-const logoSrc = ref('/static/logo.jpg')
+const logoSrc = ref('/static/logo.webp')
 
 // UI 临时状态
 const loginType = ref<'phone' | 'password'>('phone')

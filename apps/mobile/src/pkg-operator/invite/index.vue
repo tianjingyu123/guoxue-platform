@@ -167,7 +167,7 @@
 import { ref, computed, onMounted, getCurrentInstance, nextTick } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { operatorApi, type InvitedStation } from '@/lib/operator-data'
+import { operatorApi, type InvitedStation } from '@/pkg-operator/lib/operator-data'
 import { BRAND } from '@/lib/brand'
 import { drawQrToCanvas } from '@/utils/qrcode'
 

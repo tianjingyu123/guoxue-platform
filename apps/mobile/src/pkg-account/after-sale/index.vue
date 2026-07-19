@@ -151,7 +151,7 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, redirectTo } from '@/utils/router'
-import { accountApi, afterSaleReasons } from '@/lib/account-data'
+import { accountApi, afterSaleReasons } from '@/pkg-account/lib/account-data'
 import { uploadImage } from '@/utils/request'
 
 const statusBarHeight = ref(20)

@@ -154,7 +154,7 @@ import {
   levelInfo,
   roundTypeLabel,
   type Competition,
-} from '@/lib/competition-data'
+} from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
 const sysH = ref(667)

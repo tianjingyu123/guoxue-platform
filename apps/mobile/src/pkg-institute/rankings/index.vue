@@ -133,7 +133,7 @@ import { useShare } from '@/composables/useShare'
 import {
   instituteApi, lecturerLevelLabel, lecturerLevelColor, fmtDateTime,
   type RankingItem, type RankingDims,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

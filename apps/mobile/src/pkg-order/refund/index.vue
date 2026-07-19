@@ -130,7 +130,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
-import { orderApi } from '@/lib/order-data'
+import { orderApi } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)

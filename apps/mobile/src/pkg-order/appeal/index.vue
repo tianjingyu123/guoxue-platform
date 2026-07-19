@@ -247,7 +247,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
-import { orderApi } from '@/lib/order-data'
+import { orderApi } from '@/pkg-order/lib/order-data'
 
 interface AppealOrder { id: string; title: string; price: number; status: string }
 // 可申诉订单：接真实「已完成」订单（原为渊海子平/开运水晶等硬编码假数据）

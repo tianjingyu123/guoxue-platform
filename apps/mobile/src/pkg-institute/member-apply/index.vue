@@ -343,7 +343,7 @@ import {
   instituteApi,
   type SeatType,
   type EligibilityResult,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 
 const statusBarH = ref(0)
 const scrollHeight = ref(600)

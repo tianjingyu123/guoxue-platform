@@ -119,7 +119,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
-import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/lib/legal-data'
+import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/pkg-settings/lib/legal-data'
 
 const TYPE = 'privacy-policy'
 

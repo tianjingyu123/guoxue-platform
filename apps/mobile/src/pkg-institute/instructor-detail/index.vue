@@ -146,7 +146,7 @@ import {
   memberStatusLabel, memberStatusColor, isManagement, memberName,
   taskTypeLabel, taskTypeColor, taskStatusLabel, taskStatusColor, fmtDate,
   type MemberDetail,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

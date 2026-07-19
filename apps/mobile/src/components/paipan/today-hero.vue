@@ -52,7 +52,7 @@ function goWannianli() {
     <!-- 顶行：品牌 + 完整黄历入口 -->
     <view class="hero-top">
       <view class="brand">
-        <image class="brand-logo" src="/static/logo.jpg" mode="aspectFill" />
+        <image class="brand-logo" src="/static/logo.webp" mode="aspectFill" />
         <view class="brand-texts">
           <text class="brand-name">热卜国学</text>
           <text class="brand-sub">GUOXUE STUDIO</text>

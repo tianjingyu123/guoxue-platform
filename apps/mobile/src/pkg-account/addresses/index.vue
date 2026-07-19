@@ -116,7 +116,7 @@
 import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { accountApi, type ShippingAddressItem } from '@/lib/account-data'
+import { accountApi, type ShippingAddressItem } from '@/pkg-account/lib/account-data'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)

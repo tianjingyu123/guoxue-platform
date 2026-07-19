@@ -91,7 +91,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack } from '@/utils/router'
 import { useList } from '@/composables/useList'
-import { instituteApi, lecturerLevelLabel, lecturerLevelColor, fmtDate, type LectureItem } from '@/lib/institute-data'
+import { instituteApi, lecturerLevelLabel, lecturerLevelColor, fmtDate, type LectureItem } from '@/pkg-institute/lib/institute-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)

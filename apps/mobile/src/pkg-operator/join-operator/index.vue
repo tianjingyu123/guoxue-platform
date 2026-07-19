@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { operatorApi } from '@/lib/operator-data'
+import { operatorApi } from '@/pkg-operator/lib/operator-data'
 import { shopApi } from '@/lib/shop-data'
 
 // —— 自定义导航：顶部状态栏留白 ——

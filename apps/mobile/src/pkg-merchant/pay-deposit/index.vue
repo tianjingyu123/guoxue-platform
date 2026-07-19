@@ -115,7 +115,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantApi } from '@/lib/merchant-data'
+import { merchantApi } from '@/pkg-merchant/lib/merchant-data'
 
 // 后端 PayDepositDto 仅支持微信/支付宝（银行转账无对应支付能力）
 const paymentMethods = [

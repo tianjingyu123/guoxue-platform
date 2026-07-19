@@ -63,7 +63,7 @@ import {
   type MerchantDashboard,
   type RevenueOverview,
   type MerchantContentStats,
-} from '@/lib/merchant-data'
+} from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

@@ -400,8 +400,8 @@ import { VOICE } from '@/lib/voice'
 import { circleApi } from '@/lib/circle-data'
 import { circleDetailApi } from '@/lib/circle-detail-data'
 import { articleApi, tagApi, addArticleRecommend, type ProductLibraryItem } from '@/lib/article-data'
-import { publishAssistApi } from '@/lib/publish-assist-data'
-import CreationAssistDrawer from '@/components/circle/creation-assist-drawer.vue'
+import { publishAssistApi } from '@/pkg-circle/lib/publish-assist-data'
+import CreationAssistDrawer from '@/pkg-circle/components/creation-assist-drawer.vue'
 
 interface CircleItem { id: string; name: string; cover: string }
 

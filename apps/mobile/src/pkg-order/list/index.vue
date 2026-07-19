@@ -177,7 +177,7 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { navigateTo } from '@/utils/router'
 import { useList } from '@/composables/useList'
-import { orderApi, orderStatusTabs, orderStatusConfig, orderCancelReasons, orderTypeMeta, type OrderListItem } from '@/lib/order-data'
+import { orderApi, orderStatusTabs, orderStatusConfig, orderCancelReasons, orderTypeMeta, type OrderListItem } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
 
 const statusTabs = orderStatusTabs

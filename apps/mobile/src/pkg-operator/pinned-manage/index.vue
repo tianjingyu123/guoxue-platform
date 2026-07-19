@@ -94,7 +94,7 @@ import {
   type PinnedBoardData,
   type PinnedContentBrief,
   type PinnedSlotInput,
-} from '@/lib/station-pinned-data'
+} from '@/pkg-operator/lib/station-pinned-data'
 import PinnedPicker from './PinnedPicker.vue'
 
 const COVER_GRADIENTS = [

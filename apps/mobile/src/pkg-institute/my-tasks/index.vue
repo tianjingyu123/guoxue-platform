@@ -371,7 +371,7 @@ import {
   assessmentTierMeta, pointTypeText, offlineIndicatorText,
   type MyDashboard, type InstituteTask, type TaskTemplate, type InstituteDividend, type MyAssessment,
   type TaskType, type DividendType, type SeatType,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 
 /** 运行时后端 getMyDashboard 以 ...member 展开整行，含 seatType 列，但数据层类型未声明，此处本地扩展 */
 type MyDashboardExt = MyDashboard & { seatType?: SeatType }

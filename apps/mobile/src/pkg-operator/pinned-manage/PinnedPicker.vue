@@ -105,7 +105,7 @@ import {
   LIVE_STATUS_TABS,
   CONTENT_TYPE_LABEL,
   type PinnedContentBrief,
-} from '@/lib/station-pinned-data'
+} from '@/pkg-operator/lib/station-pinned-data'
 
 const props = defineProps<{
   stationId: string

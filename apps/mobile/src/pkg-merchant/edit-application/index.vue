@@ -117,7 +117,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantApi, productCategories } from '@/lib/merchant-data'
+import { merchantApi, productCategories } from '@/pkg-merchant/lib/merchant-data'
 
 const allCategories = productCategories
 

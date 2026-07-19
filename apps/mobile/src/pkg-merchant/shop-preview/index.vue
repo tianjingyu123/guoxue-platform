@@ -100,7 +100,7 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
-import { merchantBackendApi, type MerchantProfile, type MerchantProduct } from '@/lib/merchant-data'
+import { merchantBackendApi, type MerchantProfile, type MerchantProduct } from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

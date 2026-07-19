@@ -19,7 +19,7 @@ import {
   dashboardApi,
   type DashboardRevenue,
   type RevenueBreakdownItem,
-} from '@/lib/circle-dashboard-data'
+} from '@/pkg-circle/lib/circle-dashboard-data'
 import { inviteApi, type InviteCodeItem } from '@/lib/circle-invite-data'
 
 const circleId = ref('')

@@ -138,7 +138,7 @@ import {
   remainingLockTime,
   BOUNTY_CATEGORY_LABEL,
   type BountyQuestion,
-} from '@/lib/bounty-data'
+} from '@/pkg-bounty/lib/bounty-data'
 
 const statusBarHeight = ref(0)
 try {

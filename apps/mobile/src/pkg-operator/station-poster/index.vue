@@ -152,7 +152,7 @@
 import { ref, computed, onMounted, getCurrentInstance } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { operatorApi } from '@/lib/operator-data'
+import { operatorApi } from '@/pkg-operator/lib/operator-data'
 import { BRAND } from '@/lib/brand'
 import { drawQrToCanvas } from '@/utils/qrcode'
 

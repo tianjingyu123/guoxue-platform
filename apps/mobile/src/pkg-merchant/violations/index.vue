@@ -119,7 +119,7 @@ import {
   violationTypeConfig,
   violationStatusConfig,
   type MerchantViolation,
-} from '@/lib/merchant-data'
+} from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarHeight = ref(20)
 const navH = ref(64)

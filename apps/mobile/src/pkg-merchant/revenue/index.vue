@@ -160,7 +160,7 @@ import {
   settlementStatusConfig,
   type RevenueOverview,
   type MerchantSettlement,
-} from '@/lib/merchant-data'
+} from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarHeight = ref(0)
 const loading = ref(true)

@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { teamTaskApi, TEAM_TASK_TYPE_LABELS, TEAM_TASK_UNIT, type MyTeamTask } from '@/lib/operator-data'
+import { teamTaskApi, TEAM_TASK_TYPE_LABELS, TEAM_TASK_UNIT, type MyTeamTask } from '@/pkg-operator/lib/operator-data'
 
 const loading = ref(true)
 const error = ref('')

@@ -227,7 +227,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { operatorApi, type StationConfigData, type StationTemplateOption } from '@/lib/operator-data'
+import { operatorApi, type StationConfigData, type StationTemplateOption } from '@/pkg-operator/lib/operator-data'
 
 const statusBarHeight = ref(20)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 20 } })

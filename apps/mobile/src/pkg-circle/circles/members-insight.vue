@@ -122,7 +122,7 @@ import {
   dashboardApi,
   type CircleMemberInsight,
   type MemberTimelineEvent,
-} from '@/lib/circle-dashboard-data'
+} from '@/pkg-circle/lib/circle-dashboard-data'
 
 const circleId = ref('')
 

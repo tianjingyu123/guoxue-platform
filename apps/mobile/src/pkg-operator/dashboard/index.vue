@@ -8,7 +8,7 @@ import {
   type StationTeamMember,
   type StationTeamOverview,
   type TeamHealth,
-} from '@/lib/operator-data'
+} from '@/pkg-operator/lib/operator-data'
 import { formatPrice } from '@/utils/format'
 
 // —— 自定义导航：顶部状态栏留白 ——

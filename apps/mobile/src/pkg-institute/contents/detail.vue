@@ -104,7 +104,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instituteApi, contentTypeLabel, contentTypeColor, fmtDate, type InstituteContentDetail } from '@/lib/institute-data'
+import { instituteApi, contentTypeLabel, contentTypeColor, fmtDate, type InstituteContentDetail } from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

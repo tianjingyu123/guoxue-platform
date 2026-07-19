@@ -53,7 +53,7 @@ import { navigateTo, reLaunch } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
 import { hasSelectedInterests } from '@/utils/interests'
 
-const logoSrc = ref('/static/logo.jpg')
+const logoSrc = ref('/static/logo.webp')
 const slogan = BRAND.slogan
 const brandName = BRAND.name
 const tagline = BRAND.tagline

@@ -16,7 +16,7 @@ import {
   type StationFeature,
   type StationFeedCard,
   type MicroPageView,
-} from '@/lib/station-home-data'
+} from '@/pkg-operator/lib/station-home-data'
 import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)

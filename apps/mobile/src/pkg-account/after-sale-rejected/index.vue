@@ -161,7 +161,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { accountApi } from '@/lib/account-data'
+import { accountApi } from '@/pkg-account/lib/account-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)

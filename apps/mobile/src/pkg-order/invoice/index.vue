@@ -178,7 +178,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { orderApi, invoiceStatusConfig, INVOICE_AVAILABLE, type InvoiceOrder, type InvoiceRecord } from '@/lib/order-data'
+import { orderApi, invoiceStatusConfig, INVOICE_AVAILABLE, type InvoiceOrder, type InvoiceRecord } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
 
 // 后端暂无电子发票子系统，统一诚实降级提示（不臆造可开票数据）

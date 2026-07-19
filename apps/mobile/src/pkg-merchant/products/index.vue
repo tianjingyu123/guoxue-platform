@@ -165,7 +165,7 @@ import {
   productStatusLabel,
   type MerchantProduct,
   type ProductStatus,
-} from '@/lib/merchant-data'
+} from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarH = ref(0)
 const safeBottom = ref(0)

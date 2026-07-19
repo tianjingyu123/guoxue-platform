@@ -171,7 +171,7 @@ import {
   type TeamMemberRanking,
   type QuotaUsageItem,
   type OperatorQuickAction,
-} from '@/lib/operator-data'
+} from '@/pkg-operator/lib/operator-data'
 
 interface PanelInfo {
   id: number

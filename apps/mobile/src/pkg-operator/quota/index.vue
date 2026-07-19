@@ -177,7 +177,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { operatorApi, type QuotaRecord } from '@/lib/operator-data'
+import { operatorApi, type QuotaRecord } from '@/pkg-operator/lib/operator-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)

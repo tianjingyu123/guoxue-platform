@@ -113,7 +113,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, reLaunch, goBack } from '@/utils/router'
-import { merchantApi, categoryName, type MerchantApplication, type MerchantStatus } from '@/lib/merchant-data'
+import { merchantApi, categoryName, type MerchantApplication, type MerchantStatus } from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarH = ref(0)
 const loading = ref(true)

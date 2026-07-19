@@ -20,7 +20,7 @@ import { getToken, getUserInfo } from '@/utils/storage'
 import {
   postDetailApi, parseMarkdown,
   type PostDetail, type MdBlock,
-} from '@/lib/post-detail-data'
+} from '@/pkg-circle/lib/post-detail-data'
 import { circleManageApi } from '@/lib/circle-manage-data'
 import { circleDetailApi, type CircleMemberRole } from '@/lib/circle-detail-data'
 import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'

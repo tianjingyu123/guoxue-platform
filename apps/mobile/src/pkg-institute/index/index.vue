@@ -246,7 +246,7 @@ import {
   eventStatusLabel, eventStatusColor, eventTypeLabel, eventTypeColor,
   roleLabel, roleColor, fmtDate, memberName,
   type InstituteIntro, type TalentTeacher, type InstituteEvent, type EventType,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)

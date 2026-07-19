@@ -122,7 +122,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, goBack } from '@/utils/router'
-import { merchantApi } from '@/lib/merchant-data'
+import { merchantApi } from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarH = ref(0)
 const safeBottom = ref(0)

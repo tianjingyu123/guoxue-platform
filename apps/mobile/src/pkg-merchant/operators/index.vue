@@ -161,7 +161,7 @@ import {
   merchantBackendApi,
   type MerchantMember,
   type MerchantMemberAudit,
-} from '@/lib/merchant-data'
+} from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarH = ref(20)
 const navH = ref(64)

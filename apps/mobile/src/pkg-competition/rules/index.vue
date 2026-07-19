@@ -154,7 +154,7 @@ import { navigateBack } from '@/utils/router'
 import {
   competitionApi, roundTypeLabel, promotionLabel, yuan,
   type Competition, type CompetitionRound, type Ranking, type PromotionStatus,
-} from '@/lib/competition-data'
+} from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
 

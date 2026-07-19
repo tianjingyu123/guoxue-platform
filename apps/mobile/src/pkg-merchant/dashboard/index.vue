@@ -221,7 +221,7 @@ import {
   type MerchantCreditLogItem,
   creditGradeConfig,
   creditFactorNames,
-} from '@/lib/merchant-data'
+} from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarH = ref(0)
 const loading = ref(true)

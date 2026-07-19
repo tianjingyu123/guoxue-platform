@@ -144,7 +144,7 @@ import {
   STATION_EARNING_TYPE_LABELS,
   type StationBalanceInfo,
   type StationEarningItem,
-} from '@/lib/operator-data'
+} from '@/pkg-operator/lib/operator-data'
 
 const statusBarHeight = ref(20)
 try {

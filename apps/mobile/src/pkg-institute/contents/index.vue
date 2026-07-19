@@ -153,7 +153,7 @@ import {
   lecturerLevelLabel, lecturerLevelColor,
   fmtDate,
   type InstituteContentType, type InstituteContentItem, type LectureItem,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)

@@ -19,7 +19,7 @@ import {
   type CircleDashboardOverview,
   type DashboardTrendPoint,
   type DashboardPendingQuestion,
-} from '@/lib/circle-dashboard-data'
+} from '@/pkg-circle/lib/circle-dashboard-data'
 import { circleManageApi, type CircleOverview } from '@/lib/circle-manage-data'
 import { growthApi } from '@/lib/circle-growth-data'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
