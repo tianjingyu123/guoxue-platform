@@ -10,9 +10,6 @@ import { ShopOrderService } from "./shop-order.service";
 import { ShopPaymentService } from "./shop-payment.service";
 import { isStocklessOrderType } from "./shop-order-types.constants";
 
-/** 缓存前缀 */
-const CACHE_PREFIX = "shop:";
-
 /**
  * 商城订单-履约与取消域（从 shop.service 拆出·纯搬家不改逻辑）。
  * 职责：发货、管理员确认支付、完成、确认收货、取消(库存/券/秒杀回补)、超时未支付自动取消 cron。
@@ -38,7 +35,7 @@ export class ShopOrderLifecycleService {
       where: { id: orderId },
       data: { status: "SHIPPED", shippedAt: new Date() },
     });
-    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    await this.orderSvc.invalidateOrderCache(orderId, order.userId);
     return updated;
   }
 
@@ -59,7 +56,7 @@ export class ShopOrderLifecycleService {
       if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
       await this.paymentSvc.runPaidPostProcessors(order, tx);
     });
-    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    await this.orderSvc.invalidateOrderCache(orderId, order.userId);
     // 线下确认收款同样记分佣 + 平台费（与网关支付路径一致，避免账目漏记）
     await this.attribution.recordOrderCommissionAndFee(order);
     // 拼团订单：管理员确认支付后同样触发成团结算（本地无微信证书时用此路径验证闭环）
@@ -75,7 +72,7 @@ export class ShopOrderLifecycleService {
       where: { id: orderId },
       data: { status: "COMPLETED", completedAt: new Date() },
     });
-    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    await this.orderSvc.invalidateOrderCache(orderId, order.userId);
     // 异步记录购买行为
     if (order) {
       this.prisma.userBehavior.create({ data: { userId: order.userId, targetType: order.type, targetId: order.targetId, behavior: "PURCHASE", weight: 5 } }).catch((e) => this.logger.warn("用户购买行为记录失败", e));
@@ -88,8 +85,8 @@ export class ShopOrderLifecycleService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { userId: true } });
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能确认自己的订单");
+    // 缓存已由 completeOrder → invalidateOrderCache(该订单 userId=本人) 清净，无需重复清
     const result = await this.completeOrder(orderId);
-    await this.redis.del(`${CACHE_PREFIX}userOrders:${userId}:1:20`);
     return result;
   }
 
@@ -145,8 +142,7 @@ export class ShopOrderLifecycleService {
       return { id: orderId, status: "CANCELLED" };
     } finally {
       await this.redis.del(lockKey);
-      await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
-      await this.redis.del(`${CACHE_PREFIX}userOrders:${userId}:1:20`);
+      await this.orderSvc.invalidateOrderCache(orderId, userId);
     }
   }
 
