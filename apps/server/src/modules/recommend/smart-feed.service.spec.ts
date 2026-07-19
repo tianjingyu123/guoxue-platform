@@ -216,4 +216,18 @@ describe("SmartFeedService", () => {
       expect(result.timeSlot).toBe("evening");
     });
   });
+
+  describe("生产内容卫生", () => {
+    it("短视频源精确排除播放器联调种子", async () => {
+      await svc.getCategoryFeed("video", 1, 6);
+
+      expect(prisma.video.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            NOT: { id: { startsWith: "demo-video-" } },
+          }),
+        }),
+      );
+    });
+  });
 });

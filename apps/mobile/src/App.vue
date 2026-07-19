@@ -148,6 +148,27 @@ page {
 }
 
 /* #ifdef H5 */
+/* H5 保留滚动能力但隐藏浏览器原生粗滚动条。
+   移动端使用底部导航和页面滚动反馈，原生滚动条会挤占内容宽度并破坏沉浸感；
+   Firefox 与 Chromium/WebView 分别处理，滚轮、触摸和键盘滚动均不受影响。 */
+html,
+body,
+uni-page-body,
+uni-scroll-view,
+uni-scroll-view .uni-scroll-view {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+uni-page-body::-webkit-scrollbar,
+uni-scroll-view::-webkit-scrollbar,
+uni-scroll-view .uni-scroll-view::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 /* 桌面浏览器打开 H5 时限宽居中（移动优先产品的业界标准壳）。
    关键技巧：给 uni-app 容器加 transform 使其成为 fixed 子元素的包含块——
    底部导航/悬浮球/弹窗等 position:fixed 元素随之被约束在壳内，无需逐组件适配。

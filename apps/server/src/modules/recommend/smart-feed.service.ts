@@ -776,7 +776,14 @@ export class SmartFeedService {
     if (take <= 0) return [];
     try {
       const videos = await this.prisma.video.findMany({
-        where: { status: "PUBLISHED", visibility: "PLATFORM", isPrivate: false },
+        where: {
+          status: "PUBLISHED",
+          visibility: "PLATFORM",
+          isPrivate: false,
+          // 播放器联调种子只用于验播放器，禁止进入首页/发现正式内容流。
+          // 用专用 ID 前缀精确隔离，不按标题/作者模糊过滤，避免误伤真实内容。
+          NOT: { id: { startsWith: "demo-video-" } },
+        },
         select: {
           id: true,
           title: true,
