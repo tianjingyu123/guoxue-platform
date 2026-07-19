@@ -265,18 +265,40 @@ export class ShopOrderService {
       // 扣减库存（仅有库存概念的订单），带库存 >= 数量 约束防止超卖（按 qty 扣减，钱货严谨）。
       // 无库存概念的订单（会员/分站年租/运营商开通）targetId 不是商品ID，扣库存会匹配 0 行 → 误报「库存不足」。
       if (!isStocklessOrderType(dto.type)) {
+        let beforeStock: number | null = null;
+        let movementProductId = dto.targetId;
         if (dto.skuId) {
+          if (merchantId) {
+            const skuBefore = await tx.productSku.findUnique({
+              where: { id: dto.skuId }, select: { stock: true, productId: true },
+            });
+            beforeStock = skuBefore?.stock ?? null;
+            movementProductId = skuBefore?.productId ?? dto.targetId;
+          }
           const skuResult = await tx.productSku.updateMany({
             where: { id: dto.skuId, stock: { gte: qty } },
             data: { stock: { decrement: qty } },
           });
           if (skuResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "SKU库存不足");
         } else {
+          if (merchantId) {
+            const productBefore = await tx.product.findUnique({ where: { id: dto.targetId }, select: { stock: true } });
+            beforeStock = productBefore?.stock ?? null;
+          }
           const productResult = await tx.product.updateMany({
             where: { id: dto.targetId, stock: { gte: qty } },
             data: { stock: { decrement: qty } },
           });
           if (productResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
+        }
+        // 商家商品扣库与库存流水同事务提交；平台/圈主/驿站商品不写商家账。
+        if (merchantId && beforeStock !== null) {
+          await tx.inventoryMovement.create({ data: {
+            merchantId, productId: movementProductId, skuId: dto.skuId || null,
+            type: "SALE_OUT", quantity: -qty, beforeStock, afterStock: beforeStock - qty,
+            referenceType: "ORDER", referenceId: order.id, idempotencyKey: `order-sale:${order.id}`,
+            operatorId: userId, reason: "商城订单创建扣减库存",
+          } });
         }
       }
 

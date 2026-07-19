@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, MinLength, IsDateString,
+  IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, MinLength, IsDateString, ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -576,4 +576,137 @@ export class MerchantSkuDto {
   @IsOptional() @IsNumber() @Min(0)
   @Type(() => Number)
   stock?: number;
+}
+
+// ─── 商家进销存 ───
+
+export class InventoryListQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "商品标题搜索" })
+  @IsOptional() @IsString()
+  keyword?: string;
+
+  @ApiPropertyOptional({ description: "仅显示低库存" })
+  @IsOptional() @Type(() => Boolean) @IsBoolean()
+  lowStock?: boolean;
+}
+
+export class InventoryMovementQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "商品ID" })
+  @IsOptional() @IsString()
+  productId?: string;
+
+  @ApiPropertyOptional({ description: "流水类型" })
+  @IsOptional() @IsString()
+  type?: string;
+}
+
+export class InventoryAdjustmentDto {
+  @ApiProperty({ description: "幂等请求ID" })
+  @IsString() @MinLength(8) @MaxLength(100)
+  requestId: string;
+  @ApiProperty({ description: "商品ID" })
+  @IsString()
+  productId: string;
+  @ApiPropertyOptional({ description: "SKU ID；多规格商品必填" })
+  @IsOptional() @IsString()
+  skuId?: string;
+  @ApiProperty({ description: "调整方式", enum: ["INCREASE", "DECREASE", "SET"] })
+  @IsString() @IsIn(["INCREASE", "DECREASE", "SET"])
+  mode: "INCREASE" | "DECREASE" | "SET";
+  @ApiProperty({ description: "数量；SET时为目标库存" })
+  @IsNumber() @Min(0) @Type(() => Number)
+  quantity: number;
+  @ApiProperty({ description: "调整原因" })
+  @IsString() @MinLength(2) @MaxLength(200)
+  reason: string;
+}
+
+export class InventoryAlertSettingDto {
+  @ApiProperty({ description: "商品ID" })
+  @IsString()
+  productId: string;
+  @ApiPropertyOptional({ description: "SKU ID" })
+  @IsOptional() @IsString()
+  skuId?: string;
+  @ApiProperty({ description: "低库存阈值" })
+  @IsNumber() @Min(0) @Max(1000000) @Type(() => Number)
+  lowStockThreshold: number;
+  @ApiPropertyOptional({ description: "是否启用", default: true })
+  @IsOptional() @IsBoolean()
+  enabled?: boolean;
+}
+
+export class PurchaseOrderItemDto {
+  @ApiProperty({ description: "商品ID" })
+  @IsString()
+  productId: string;
+  @ApiPropertyOptional({ description: "SKU ID" })
+  @IsOptional() @IsString()
+  skuId?: string;
+  @ApiProperty({ description: "采购数量" })
+  @IsNumber() @Min(1) @Type(() => Number)
+  quantity: number;
+  @ApiProperty({ description: "采购单价" })
+  @IsNumber() @Min(0) @Type(() => Number)
+  unitCost: number;
+}
+
+export class CreatePurchaseOrderDto {
+  @ApiProperty({ description: "供应商名称" })
+  @IsString() @MinLength(1) @MaxLength(100)
+  supplierName: string;
+  @ApiPropertyOptional({ description: "联系人" })
+  @IsOptional() @IsString() @MaxLength(50)
+  contactName?: string;
+  @ApiPropertyOptional({ description: "联系电话" })
+  @IsOptional() @IsString() @MaxLength(30)
+  contactPhone?: string;
+  @ApiPropertyOptional({ description: "预计到货时间" })
+  @IsOptional() @IsDateString()
+  expectedAt?: string;
+  @ApiPropertyOptional({ description: "备注" })
+  @IsOptional() @IsString() @MaxLength(500)
+  remark?: string;
+  @ApiProperty({ description: "采购明细", type: [PurchaseOrderItemDto] })
+  @IsArray() @ValidateNested({ each: true }) @Type(() => PurchaseOrderItemDto)
+  items: PurchaseOrderItemDto[];
+}
+
+export class ReceivePurchaseItemDto {
+  @ApiProperty({ description: "采购明细ID" })
+  @IsString()
+  itemId: string;
+  @ApiProperty({ description: "本次收货数量" })
+  @IsNumber() @Min(1) @Type(() => Number)
+  quantity: number;
+}
+
+export class ReceivePurchaseOrderDto {
+  @ApiProperty({ description: "幂等请求ID" })
+  @IsString() @MinLength(8) @MaxLength(100)
+  requestId: string;
+  @ApiProperty({ description: "本次到货明细", type: [ReceivePurchaseItemDto] })
+  @IsArray() @ValidateNested({ each: true }) @Type(() => ReceivePurchaseItemDto)
+  items: ReceivePurchaseItemDto[];
+}
+
+export class PurchaseOrderQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "采购单状态" })
+  @IsOptional() @IsString()
+  status?: string;
+}
+
+export class ReturnInspectionDto {
+  @ApiProperty({ description: "幂等请求ID" })
+  @IsString() @MinLength(8) @MaxLength(100)
+  requestId: string;
+  @ApiProperty({ description: "退货验收是否合格；不合格不入库" })
+  @IsBoolean()
+  accepted: boolean;
+  @ApiPropertyOptional({ description: "合格入库数量；默认订单全部数量" })
+  @IsOptional() @IsNumber() @Min(1) @Type(() => Number)
+  quantity?: number;
+  @ApiPropertyOptional({ description: "验收备注" })
+  @IsOptional() @IsString() @MaxLength(300)
+  remark?: string;
 }

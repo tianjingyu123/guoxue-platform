@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { MerchantBackendController } from "./merchant-backend.controller";
 import { MerchantService } from "./merchant.service";
 import { MerchantSettlementService } from "./merchant-settlement.service";
+import { MerchantInventoryService } from "./merchant-inventory.service";
 import { MerchantGuard } from "./merchant.guard";
 
 const mockMerchantSvc = {
@@ -29,6 +30,12 @@ const mockSettlementSvc = {
   getRevenueOverview: jest.fn().mockResolvedValue({ totalSales: 5000, merchantShare: 4000 }),
   listSettlements: jest.fn().mockResolvedValue({ list: [], total: 0 }),
 };
+const mockInventorySvc = {
+  overview: jest.fn(), stocks: jest.fn(), movements: jest.fn(), adjust: jest.fn(),
+  alerts: jest.fn(), setAlert: jest.fn(), createPurchaseOrder: jest.fn(),
+  listPurchaseOrders: jest.fn(), getPurchaseOrder: jest.fn(), submitPurchaseOrder: jest.fn(),
+  receivePurchaseOrder: jest.fn(), cancelPurchaseOrder: jest.fn(),
+};
 
 describe("MerchantBackendController", () => {
   let ctrl: MerchantBackendController;
@@ -39,6 +46,7 @@ describe("MerchantBackendController", () => {
       providers: [
         { provide: MerchantService, useValue: mockMerchantSvc },
         { provide: MerchantSettlementService, useValue: mockSettlementSvc },
+        { provide: MerchantInventoryService, useValue: mockInventorySvc },
       ],
     })
       .overrideGuard(MerchantGuard).useValue({ canActivate: () => true })

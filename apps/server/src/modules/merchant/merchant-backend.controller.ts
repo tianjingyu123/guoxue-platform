@@ -5,12 +5,17 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { Auditable } from "../../common/audit.decorator";
 import { MerchantService } from "./merchant.service";
 import { MerchantSettlementService } from "./merchant-settlement.service";
+import { MerchantInventoryService } from "./merchant-inventory.service";
 import { MerchantGuard } from "./merchant.guard";
 import {
   UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
   ShipOrderDto, RejectRefundDto, ReviewQueryDto, ReplyReviewDto,
   PaginationDto, AppealViolationDto, MerchantProductDto, MerchantSkuDto, ProcessAfterSaleDto,
   AddMerchantMemberDto,
+  InventoryListQueryDto, InventoryMovementQueryDto, InventoryAdjustmentDto,
+  InventoryAlertSettingDto, CreatePurchaseOrderDto, PurchaseOrderQueryDto,
+  ReceivePurchaseOrderDto,
+  ReturnInspectionDto,
 } from "./merchant.dto";
 
 type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: unknown } };
@@ -23,6 +28,7 @@ export class MerchantBackendController {
   constructor(
     private readonly merchantService: MerchantService,
     private readonly settlementService: MerchantSettlementService,
+    private readonly inventoryService: MerchantInventoryService,
   ) {}
 
   private getMerchant(req: AuthRequest) {
@@ -315,6 +321,101 @@ export class MerchantBackendController {
   @ApiResponse({ status: 200, description: "成功" })
   getContentStats(@Req() req: AuthRequest) {
     return this.merchantService.getContentStats(this.getMerchant(req).id);
+  }
+
+  @Post("after-sales/:id/return-inspection")
+  @Auditable({ action: "商家退货验收入库", targetType: "AFTER_SALE" })
+  @ApiOperation({ summary: "退货验收；合格才回补库存" })
+  inspectReturn(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: ReturnInspectionDto) {
+    return this.inventoryService.inspectReturn(
+      this.getMerchant(req).id, this.shopUserId(req),
+      (req as unknown as { actingUserId: string }).actingUserId, id, dto,
+    );
+  }
+
+  // ── 进销存 ──
+
+  @Get("inventory/overview")
+  @ApiOperation({ summary: "库存总览" })
+  inventoryOverview(@Req() req: AuthRequest) {
+    return this.inventoryService.overview(this.getMerchant(req).id, this.shopUserId(req));
+  }
+
+  @Get("inventory/stocks")
+  @ApiOperation({ summary: "商品与SKU库存列表" })
+  inventoryStocks(@Req() req: AuthRequest, @Query() q: InventoryListQueryDto) {
+    return this.inventoryService.stocks(this.getMerchant(req).id, this.shopUserId(req), q);
+  }
+
+  @Get("inventory/movements")
+  @ApiOperation({ summary: "库存流水" })
+  inventoryMovements(@Req() req: AuthRequest, @Query() q: InventoryMovementQueryDto) {
+    return this.inventoryService.movements(this.getMerchant(req).id, q);
+  }
+
+  @Post("inventory/adjustments")
+  @Auditable({ action: "商家库存调整", targetType: "PRODUCT" })
+  @ApiOperation({ summary: "手工调整或盘点库存（幂等）" })
+  adjustInventory(@Req() req: AuthRequest, @Body() dto: InventoryAdjustmentDto) {
+    return this.inventoryService.adjust(
+      this.getMerchant(req).id, this.shopUserId(req),
+      (req as unknown as { actingUserId: string }).actingUserId, dto,
+    );
+  }
+
+  @Get("inventory/alerts")
+  @ApiOperation({ summary: "低库存预警" })
+  inventoryAlerts(@Req() req: AuthRequest) {
+    return this.inventoryService.alerts(this.getMerchant(req).id, this.shopUserId(req));
+  }
+
+  @Put("inventory/alerts")
+  @ApiOperation({ summary: "设置低库存阈值" })
+  setInventoryAlert(@Req() req: AuthRequest, @Body() dto: InventoryAlertSettingDto) {
+    return this.inventoryService.setAlert(this.getMerchant(req).id, this.shopUserId(req), dto);
+  }
+
+  @Post("purchase-orders")
+  @ApiOperation({ summary: "创建采购单" })
+  createPurchaseOrder(@Req() req: AuthRequest, @Body() dto: CreatePurchaseOrderDto) {
+    return this.inventoryService.createPurchaseOrder(
+      this.getMerchant(req).id, this.shopUserId(req),
+      (req as unknown as { actingUserId: string }).actingUserId, dto,
+    );
+  }
+
+  @Get("purchase-orders")
+  @ApiOperation({ summary: "采购单列表" })
+  listPurchaseOrders(@Req() req: AuthRequest, @Query() q: PurchaseOrderQueryDto) {
+    return this.inventoryService.listPurchaseOrders(this.getMerchant(req).id, q);
+  }
+
+  @Get("purchase-orders/:id")
+  @ApiOperation({ summary: "采购单详情" })
+  getPurchaseOrder(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.inventoryService.getPurchaseOrder(this.getMerchant(req).id, id);
+  }
+
+  @Post("purchase-orders/:id/submit")
+  @ApiOperation({ summary: "确认采购下单" })
+  submitPurchaseOrder(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.inventoryService.submitPurchaseOrder(this.getMerchant(req).id, id);
+  }
+
+  @Post("purchase-orders/:id/receive")
+  @Auditable({ action: "采购到货入库", targetType: "PURCHASE_ORDER" })
+  @ApiOperation({ summary: "采购到货入库（支持部分到货、幂等）" })
+  receivePurchaseOrder(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: ReceivePurchaseOrderDto) {
+    return this.inventoryService.receivePurchaseOrder(
+      this.getMerchant(req).id, this.shopUserId(req),
+      (req as unknown as { actingUserId: string }).actingUserId, id, dto,
+    );
+  }
+
+  @Post("purchase-orders/:id/cancel")
+  @ApiOperation({ summary: "取消未入库采购单" })
+  cancelPurchaseOrder(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.inventoryService.cancelPurchaseOrder(this.getMerchant(req).id, id);
   }
 
   // ── 操作员管理（B8）──

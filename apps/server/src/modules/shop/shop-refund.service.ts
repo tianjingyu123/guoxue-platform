@@ -10,6 +10,7 @@ import { UnionpayService } from "./unionpay.service";
 import { PaymentProviderFactory } from "./payment-factory";
 import { WebhookService } from "../webhook/webhook.service";
 import { RMB_TO_FEN } from "../../common/constants";
+import { isStocklessOrderType } from "./shop-order-types.constants";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -132,11 +133,45 @@ export class ShopRefundService {
    * 佣金不冲正、仍被结算给商家"的重复出账。CAS 保证并发/重投下只冲正一次。
    */
   private async applyRefundedBookkeeping(orderId: string, amount: number, reason?: string) {
-    const res = await this.prisma.order.updateMany({
-      where: { id: orderId, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
-      data: { status: "REFUNDED", refundedAt: new Date() },
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order || !["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) return;
+    const changed = await this.prisma.$transaction(async (tx) => {
+      const res = await tx.order.updateMany({
+        where: { id: orderId, status: order.status },
+        data: { status: "REFUNDED", refundedAt: new Date() },
+      });
+      if (res.count === 0) return false;
+      // 未发货退款自动回补；已发货/已完成必须等退货验收，避免货未回却虚增库存。
+      if (order.status === "PAID" && order.merchantId && !isStocklessOrderType(order.type)) {
+        let beforeStock: number | null = null;
+        let productId = order.targetId;
+        if (order.skuId) {
+          const sku = await tx.productSku.findUnique({
+            where: { id: order.skuId }, select: { stock: true, productId: true },
+          });
+          beforeStock = sku?.stock ?? null;
+          productId = sku?.productId ?? order.targetId;
+          await tx.productSku.updateMany({ where: { id: order.skuId }, data: { stock: { increment: order.quantity } } });
+        } else if (order.targetId) {
+          const product = await tx.product.findUnique({ where: { id: order.targetId }, select: { stock: true } });
+          beforeStock = product?.stock ?? null;
+          await tx.product.updateMany({ where: { id: order.targetId }, data: { stock: { increment: order.quantity } } });
+        }
+        if (productId && beforeStock !== null) {
+          await tx.inventoryMovement.create({ data: {
+            merchantId: order.merchantId, productId, skuId: order.skuId,
+            type: "REFUND_RETURN", quantity: order.quantity,
+            beforeStock, afterStock: beforeStock + order.quantity,
+            referenceType: "RETURN", referenceId: order.id,
+            idempotencyKey: `order-refund:${order.id}`, operatorId: order.userId,
+            reason: reason || "未发货订单退款自动回补库存",
+            metadata: { refundStage: "BEFORE_SHIPMENT" },
+          } });
+        }
+      }
+      return true;
     });
-    if (res.count === 0) return; // 已退款/状态不符 → 幂等跳过，不重复冲正
+    if (!changed) return;
     await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
     if (this.commissionSvc) {
       this.commissionSvc.reverseCommission(orderId).catch((e) =>
@@ -218,22 +253,12 @@ export class ShopRefundService {
       const outTradeNo = body.out_trade_no as string;
 
       if (refundStatus === "SUCCESS") {
-        // 查找关联订单用于分佣冲正
         const refundedOrder = await this.prisma.order.findFirst({
           where: { payTransactionId: outTradeNo },
-          select: { id: true },
+          select: { id: true, amount: true },
         });
-
-        await this.prisma.order.updateMany({
-          where: { payTransactionId: outTradeNo, status: { not: "REFUNDED" } },
-          data: { status: "REFUNDED", refundedAt: new Date() },
-        });
-
-        // 异步冲正分佣
-        if (refundedOrder && this.commissionSvc) {
-          this.commissionSvc.reverseCommission(refundedOrder.id).catch((e) =>
-            this.logger.error(`退款回调分佣冲正失败, 订单: ${refundedOrder.id}`, e)
-          );
+        if (refundedOrder) {
+          await this.applyRefundedBookkeeping(refundedOrder.id, Number(refundedOrder.amount), "微信退款回调成功");
         }
 
         const refundAmount = (body.amount as Record<string, unknown>)?.refund ?? body.refund_amount;

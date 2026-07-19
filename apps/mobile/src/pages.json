@@ -1729,6 +1729,12 @@
           }
         },
         {
+          "path": "inventory/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "product-edit/index",
           "style": {
             "navigationStyle": "custom"

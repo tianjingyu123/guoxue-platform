@@ -14,6 +14,7 @@ import { MerchantSettlementService } from "./merchant-settlement.service";
 import { MerchantMetricService } from "./merchant-metric.service";
 import { MerchantCreditService } from "./merchant-credit.service";
 import { MerchantPunishmentService } from "./merchant-punishment.service";
+import { MerchantInventoryService } from "./merchant-inventory.service";
 import { MerchantGuard } from "./merchant.guard";
 import { MerchantController } from "./merchant.controller";
 import { MerchantBackendController } from "./merchant-backend.controller";
@@ -31,7 +32,7 @@ import { MerchantAdminController } from "./merchant-admin.controller";
     AuditModule,
   ],
   controllers: [MerchantController, MerchantBackendController, MerchantAdminController],
-  providers: [MerchantService, MerchantDepositService, MerchantAgreementService, MerchantSettlementService, MerchantMetricService, MerchantCreditService, MerchantPunishmentService, MerchantGuard],
+  providers: [MerchantService, MerchantDepositService, MerchantAgreementService, MerchantSettlementService, MerchantMetricService, MerchantCreditService, MerchantPunishmentService, MerchantInventoryService, MerchantGuard],
   exports: [MerchantService, MerchantDepositService, MerchantSettlementService, MerchantMetricService, MerchantCreditService, MerchantPunishmentService],
 })
 export class MerchantModule {}

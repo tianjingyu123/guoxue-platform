@@ -112,16 +112,39 @@ export class ShopOrderLifecycleService {
 
         // 恢复库存（虚拟商品如会员/分站/运营商无需恢复·单一真源见 shop-order-types.constants）
         if (!isStocklessOrderType(order.type)) {
+          let beforeStock: number | null = null;
+          let movementProductId = order.targetId;
           if (order.skuId) {
+            if (order.merchantId) {
+              const skuBefore = await tx.productSku.findUnique({
+                where: { id: order.skuId }, select: { stock: true, productId: true },
+              });
+              beforeStock = skuBefore?.stock ?? null;
+              movementProductId = skuBefore?.productId ?? order.targetId;
+            }
             await tx.productSku.updateMany({
               where: { id: order.skuId },
               data: { stock: { increment: order.quantity } },
             });
           } else if (order.targetId) {
+            if (order.merchantId) {
+              const productBefore = await tx.product.findUnique({ where: { id: order.targetId }, select: { stock: true } });
+              beforeStock = productBefore?.stock ?? null;
+            }
             await tx.product.updateMany({
               where: { id: order.targetId },
               data: { stock: { increment: order.quantity } },
             });
+          }
+          if (order.merchantId && movementProductId && beforeStock !== null) {
+            await tx.inventoryMovement.create({ data: {
+              merchantId: order.merchantId, productId: movementProductId, skuId: order.skuId,
+              type: "ORDER_CANCEL_RETURN", quantity: order.quantity,
+              beforeStock, afterStock: beforeStock + order.quantity,
+              referenceType: "ORDER", referenceId: order.id,
+              idempotencyKey: `order-cancel:${order.id}`, operatorId: userId,
+              reason: "待付款订单取消回补库存",
+            } });
           }
         }
 
@@ -212,7 +235,7 @@ export class ShopOrderLifecycleService {
         // （超卖+已用券复活）。故先在事务内锁定「仍 PENDING」的确定名单，只对该名单翻转与回补。
         const toCancel = await tx.order.findMany({
           where: { id: { in: lockedIds }, status: "PENDING" },
-          select: { id: true, type: true, skuId: true, targetId: true, couponId: true, quantity: true, promotionType: true, promotionId: true },
+          select: { id: true, type: true, skuId: true, targetId: true, couponId: true, quantity: true, promotionType: true, promotionId: true, merchantId: true },
         });
         if (toCancel.length === 0) return;
         const cancelIds = toCancel.map((o) => o.id);
@@ -231,10 +254,27 @@ export class ShopOrderLifecycleService {
           }
         }
         for (const [skuId, count] of skuCounts) {
+          const merchantOrders = toCancel.filter((o) => o.skuId === skuId && o.merchantId);
+          const skuBefore = merchantOrders.length
+            ? await tx.productSku.findUnique({ where: { id: skuId }, select: { stock: true, productId: true } })
+            : null;
           await tx.productSku.updateMany({
             where: { id: skuId },
             data: { stock: { increment: count } },
           });
+          if (skuBefore) {
+            let runningStock = skuBefore.stock;
+            for (const order of merchantOrders) {
+              await tx.inventoryMovement.create({ data: {
+                merchantId: order.merchantId!, productId: skuBefore.productId, skuId,
+                type: "ORDER_CANCEL_RETURN", quantity: order.quantity,
+                beforeStock: runningStock, afterStock: runningStock + order.quantity,
+                referenceType: "ORDER", referenceId: order.id,
+                idempotencyKey: `order-cancel:${order.id}`, reason: "超时未付款自动取消回补库存",
+              } });
+              runningStock += order.quantity;
+            }
+          }
         }
 
         // 聚合商品库存恢复（按下单数量 quantity 回补，与 createOrder 扣减对称）
@@ -245,10 +285,27 @@ export class ShopOrderLifecycleService {
           }
         }
         for (const [targetId, count] of productCounts) {
+          const merchantOrders = toCancel.filter((o) => !o.skuId && o.targetId === targetId && o.merchantId);
+          const productBefore = merchantOrders.length
+            ? await tx.product.findUnique({ where: { id: targetId }, select: { stock: true } })
+            : null;
           await tx.product.updateMany({
             where: { id: targetId },
             data: { stock: { increment: count } },
           });
+          if (productBefore) {
+            let runningStock = productBefore.stock;
+            for (const order of merchantOrders) {
+              await tx.inventoryMovement.create({ data: {
+                merchantId: order.merchantId!, productId: targetId, skuId: null,
+                type: "ORDER_CANCEL_RETURN", quantity: order.quantity,
+                beforeStock: runningStock, afterStock: runningStock + order.quantity,
+                referenceType: "ORDER", referenceId: order.id,
+                idempotencyKey: `order-cancel:${order.id}`, reason: "超时未付款自动取消回补库存",
+              } });
+              runningStock += order.quantity;
+            }
+          }
         }
 
         // 聚合秒杀条目已售量回补（与取消单量对称·防负数见 restoreFlashSaleSold）

@@ -134,6 +134,9 @@ export function makeMockPrisma(): any {
     merchant: {
       findUnique: jest.fn().mockResolvedValue(null),
     },
+    inventoryMovement: {
+      create: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), count: jest.fn(), findMany: jest.fn(),
+    },
     groupBuy: {
       findUnique: jest.fn(),
     },
