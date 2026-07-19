@@ -13,6 +13,7 @@ import { CoursePurchaseService } from "./course-purchase.service";
 import { CourseLearningService } from "./course-learning.service";
 import { CourseWorkService } from "./course-work.service";
 import { CourseReviewQaService } from "./course-review-qa.service";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 import {
   CreateCourseDto, UpdateCourseDto,
   CreateChapterDto, UpdateChapterDto,
@@ -217,7 +218,7 @@ export class CourseService {
     const filterStatus = auditStatus || status;
     const hasPrice = minPrice !== undefined || maxPrice !== undefined;
     const filterHash = `${circleId ?? ""}:${filterStatus ?? ""}:${type ?? ""}:${keyword ?? ""}:${categoryLevel1 ?? ""}:${sort ?? ""}:${free ? "1" : ""}:${minPrice ?? ""}-${maxPrice ?? ""}`;
-    const cacheKey = `courses:list:${page}:${pageSize}:${filterHash}`;
+    const cacheKey = `courses:list:v2:${page}:${pageSize}:${filterHash}`;
 
     // 关键词搜索、类型/品类/排序/免费/价格筛选不缓存（组合太多）
     if (!keyword && !type && !categoryLevel1 && !sort && !free && !hasPrice) {
@@ -234,6 +235,7 @@ export class CourseService {
     else {
       where.auditStatus = "APPROVED";
       where.deletedAt = null; // 严重违规软删的课程不出公开列表
+      where.id = { notIn: publicQuarantinedIds("course") };
       // 平台公共池（未按圈子过滤）只出「全平台开放」课程；圈内列表（带 circleId）不出机审降级 SELF_ONLY 的课程
       if (!circleId) where.visibility = "PLATFORM";
       else where.visibility = { not: "SELF_ONLY" };
@@ -284,7 +286,13 @@ export class CourseService {
   /** 课程一级品类聚合(供课程列表页 tab：仅返回真实有课程的品类+计数，分页后无法从单页聚合) */
   async listCourseCategoryTabs(stationId?: string) {
     // 品类 tab 服务于平台课程列表页 → 与公共池口径一致（只统计全平台开放课程）
-    const where: Prisma.CourseWhereInput = { auditStatus: "APPROVED", visibility: "PLATFORM", categoryLevel1: { not: null } };
+    const where: Prisma.CourseWhereInput = {
+      id: { notIn: publicQuarantinedIds("course") },
+      auditStatus: "APPROVED",
+      visibility: "PLATFORM",
+      deletedAt: null,
+      categoryLevel1: { not: null },
+    };
     if (stationId) where.stationId = stationId;
     const grouped = await this.prisma.course.groupBy({
       by: ["categoryLevel1"],

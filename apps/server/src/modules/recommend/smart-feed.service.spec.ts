@@ -1,4 +1,5 @@
 import { SmartFeedService } from "./smart-feed.service";
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
 
 /**
  * SmartFeedService 时段感知（timeSlot 因子）单测
@@ -218,6 +219,17 @@ describe("SmartFeedService", () => {
   });
 
   describe("生产内容卫生", () => {
+    it("推荐统一出口排除精确隔离 ID 且保留普通内容", async () => {
+      prisma.product.findMany.mockResolvedValue([
+        { ...mockProduct, id: PUBLIC_QUARANTINED_IDS.product[0] },
+        mockProduct,
+      ]);
+
+      const result = await svc.getCategoryFeed("product", 1, 6);
+
+      expect(result.map((item) => item.id)).toEqual(["p1"]);
+    });
+
     it("短视频源精确排除播放器联调种子", async () => {
       await svc.getCategoryFeed("video", 1, 6);
 

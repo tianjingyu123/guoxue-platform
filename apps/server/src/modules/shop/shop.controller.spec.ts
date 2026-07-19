@@ -125,6 +125,21 @@ describe("ShopController", () => {
     expect(result).toHaveLength(1);
   });
 
+  it("GET /shop/products — 游客传 ALL 仍强制公开在售口径", async () => {
+    await ctrl.listProducts({ page: 1, pageSize: 20, status: "ALL" } as any);
+    expect(mockShopSvc.listProducts).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: undefined }),
+    );
+  });
+
+  it("GET /shop/products — 管理员保留 ALL 工作队列", async () => {
+    const req: any = { user: { id: "admin", roles: ["OPERATION_ADMIN"] } };
+    await ctrl.listProducts({ page: 1, pageSize: 20, status: "ALL" } as any, req);
+    expect(mockShopSvc.listProducts).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "ALL" }),
+    );
+  });
+
   it("GET /shop/products/:id — 商品详情", async () => {
     const result: any = await ctrl.getProduct("p1");
     expect(result.price).toBe(99);

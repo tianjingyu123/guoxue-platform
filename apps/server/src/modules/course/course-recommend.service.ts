@@ -4,6 +4,7 @@ import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 
 /**
  * 课程-相关推荐域（从 course.service 拆出·纯搬家不改逻辑）。
@@ -27,7 +28,7 @@ export class CourseRecommendService {
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
 
     const where: Prisma.CourseWhereInput = {
-      id: { not: courseId },
+      id: { not: courseId, notIn: publicQuarantinedIds("course") },
       auditStatus: "APPROVED",
     };
     if (course.tags.length > 0) where.tags = { hasSome: course.tags };
@@ -43,7 +44,7 @@ export class CourseRecommendService {
 
     // 不足时用同类热门补充
     if (related.length < limit && course.categoryLevel1) {
-      const existingIds = [courseId, ...related.map(r => r.id)];
+      const existingIds = [courseId, ...publicQuarantinedIds("course"), ...related.map(r => r.id)];
       const fallback = await this.prisma.course.findMany({
         where: { id: { notIn: existingIds }, auditStatus: "APPROVED", categoryLevel1: course.categoryLevel1 },
         select: { id: true, title: true, cover: true, type: true, price: true, studentCount: true },

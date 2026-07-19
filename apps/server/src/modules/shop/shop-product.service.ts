@@ -11,6 +11,7 @@ import {
   CreateProductDto, UpdateProductDto, ProductListQueryDto,
   PRODUCT_SCENE_TAGS,
 } from "./shop.dto";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 
 /** 缓存前缀（与 shop.service 一致） */
 const CACHE_PREFIX = "shop:";
@@ -230,6 +231,7 @@ export class ShopProductService {
       }
     } else {
       where.status = "ON_SALE";
+      where.id = { notIn: publicQuarantinedIds("product") };
     }
     if (stationId) where.stationId = stationId;
     if (keyword) where.title = { contains: keyword, mode: "insensitive" };
@@ -306,7 +308,12 @@ export class ShopProductService {
   async listProductCategoryL1() {
     const grouped = await this.prisma.product.groupBy({
       by: ["categoryLevel1"],
-      where: { categoryLevel1: { not: null } },
+      where: {
+        id: { notIn: publicQuarantinedIds("product") },
+        status: "ON_SALE",
+        deletedAt: null,
+        categoryLevel1: { not: null },
+      },
       _count: { _all: true },
     });
     return grouped
@@ -327,7 +334,12 @@ export class ShopProductService {
     // limit 归一化：非法/NaN 回落默认 6，夹取 1..50（公开端点防大页拖库）
     const take = Math.min(Math.max(Math.trunc(limit) || 6, 1), 50);
     const products = await this.prisma.product.findMany({
-      where: { status: "ON_SALE", deletedAt: null, sceneTags: { has: tag } },
+      where: {
+        id: { notIn: publicQuarantinedIds("product") },
+        status: "ON_SALE",
+        deletedAt: null,
+        sceneTags: { has: tag },
+      },
       select: {
         id: true, title: true, intro: true, images: true,
         price: true, originalPrice: true, salesCount: true, sceneTags: true, createdAt: true,
@@ -355,7 +367,11 @@ export class ShopProductService {
     if (!merchant) throw new BusinessException(ErrorCode.NOT_FOUND, "店铺不存在或未开通");
 
     // 商品经创建者 userId 归属商家（Product 无 merchantId 列，用 userId 关联在售商品）
-    const where: Prisma.ProductWhereInput = { userId: merchant.userId, status: "ON_SALE" };
+    const where: Prisma.ProductWhereInput = {
+      id: { notIn: publicQuarantinedIds("product") },
+      userId: merchant.userId,
+      status: "ON_SALE",
+    };
     const [products, total, cumSalesAgg, cumOrderCount, ratingAgg] = await Promise.all([
       this.prisma.product.findMany({
         where,

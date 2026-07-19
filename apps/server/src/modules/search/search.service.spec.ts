@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { SearchService } from "./search.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
 
 const mockRedis = {
   getJson: jest.fn().mockResolvedValue(null),
@@ -55,6 +56,17 @@ describe("SearchService", () => {
       const result = await svc.search({ q: "论语", type: "article" });
       expect(result.articles).toHaveLength(1);
       expect(result.courses).toBeUndefined();
+    });
+
+    it("精确隔离联调记录且保留正常搜索结果", async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        { id: PUBLIC_QUARANTINED_IDS.product[0], title: "联调商品", rank: 1 },
+        { id: "normal-product", title: "正常商品", rank: 0.8 },
+      ]);
+
+      const result = await svc.search({ q: "商品", type: "product" });
+
+      expect(result.products).toEqual([{ id: "normal-product", title: "正常商品", rank: 0.8 }]);
     });
 
     it("空查询返回空结果", async () => {

@@ -6,6 +6,7 @@ import { UnifiedPricingService } from "../pricing/unified-pricing.service"
 import { AuditService } from "../audit/audit.service"
 import { BusinessException } from "../../common/business.exception"
 import { makeMockPrisma, makeMockRedis, makeMockUnifiedPricing, makeMockAudit } from "./shop-test-mocks"
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine"
 
 const mockPrisma = makeMockPrisma()
 const mockRedis = makeMockRedis()
@@ -81,6 +82,7 @@ describe("ShopProductService", () => {
       await svc.listProducts({ page: 1, pageSize: 10 })
       const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
       expect(arg.where.status).toBe("ON_SALE")
+      expect(arg.where.id).toEqual({ notIn: [...PUBLIC_QUARANTINED_IDS.product] })
     })
 
     it("status=ALL 查全量（管理端工作队列·不加状态过滤）", async () => {
@@ -89,6 +91,7 @@ describe("ShopProductService", () => {
       await svc.listProducts({ page: 1, pageSize: 10, status: "ALL" })
       const arg = mockPrisma.product.findMany.mock.calls.at(-1)![0]
       expect(arg.where.status).toBeUndefined()
+      expect(arg.where.id).toBeUndefined()
     })
 
     it("status 逗号多值转 in 查询", async () => {
@@ -133,7 +136,12 @@ describe("ShopProductService", () => {
       expect(result[0].price).toBe(199)
       expect(result[0].originalPrice).toBe(199) // 无原价回落现价
       const args = mockPrisma.product.findMany.mock.calls[0][0]
-      expect(args.where).toEqual({ status: "ON_SALE", deletedAt: null, sceneTags: { has: "节气时令" } })
+      expect(args.where).toEqual({
+        id: { notIn: [...PUBLIC_QUARANTINED_IDS.product] },
+        status: "ON_SALE",
+        deletedAt: null,
+        sceneTags: { has: "节气时令" },
+      })
       expect(args.orderBy).toEqual([{ salesCount: "desc" }, { createdAt: "desc" }])
       expect(args.take).toBe(6)
     })
@@ -150,6 +158,31 @@ describe("ShopProductService", () => {
       mockPrisma.product.findMany.mockResolvedValue([])
       const result = await svc.listProductsByScene("学业考试")
       expect(result).toEqual([])
+    })
+  })
+
+  describe("getStore", () => {
+    it("店铺主页商品列表排除精确隔离商品", async () => {
+      ;(mockPrisma.merchant as any).findFirst = jest.fn().mockResolvedValue({
+        id: "merchant-1",
+        userId: "merchant-user",
+        shopName: "国学雅集",
+        shopLogo: null,
+        shopIntro: null,
+        openedAt: new Date(),
+        creditGrade: "B",
+      })
+      mockPrisma.product.findMany.mockResolvedValue([])
+      mockPrisma.product.count.mockResolvedValue(0)
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 0 } })
+      mockPrisma.order.count.mockResolvedValue(0)
+      ;(mockPrisma.productReview as any).aggregate = jest.fn().mockResolvedValue({ _avg: { rating: null }, _count: 0 })
+
+      await svc.getStore("merchant-1")
+
+      expect(mockPrisma.product.findMany.mock.calls.at(-1)![0].where.id).toEqual({
+        notIn: [...PUBLIC_QUARANTINED_IDS.product],
+      })
     })
   })
 

@@ -15,6 +15,7 @@ import { AbTestService } from "./services/ab-test.service";
 import { RecommendSceneService } from "./services/recommend-scene.service";
 import { RecommendInsertService } from "./services/recommend-insert.service";
 import { RecommendSelectService } from "./services/recommend-select.service";
+import { isPublicContentQuarantined } from "../../common/public-content-quarantine";
 
 /**
  * 推荐服务（facade·2026-07-05 P2-5 按域拆分）
@@ -118,6 +119,9 @@ export class RecommendService {
     } catch (e) {
       this.logger.warn(`站长精选注入失败: ${e instanceof Error ? e.message : String(e)}`);
     }
+
+    // 公开内容卫生兜底：覆盖召回、冷启动、运营强插和站长精选四条来源。
+    filtered = filtered.filter((item) => !isPublicContentQuarantined(item.type, item.id));
 
     // 分页切片
     const start = (ctx.page - 1) * ctx.pageSize;
@@ -341,7 +345,7 @@ export class RecommendService {
 
   private cacheKey(ctx: RecommendContext): string {
     const params = [ctx.contentId, ctx.paipanType, ctx.listType, ctx.page, ctx.pageSize].join(":");
-    return `recommend:${ctx.scene}:${ctx.userId ?? "anonymous"}:${params}:v1`;
+    return `recommend:${ctx.scene}:${ctx.userId ?? "anonymous"}:${params}:v2`;
   }
 
   private generateRecommendId(): string {

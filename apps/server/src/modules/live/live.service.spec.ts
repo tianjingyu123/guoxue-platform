@@ -8,6 +8,7 @@ import { AuditService } from "../audit/audit.service";
 import { NotificationService } from "../notification/notification.service";
 import { ImService } from "../im/im.service";
 import { BusinessException } from "../../common/business.exception";
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
 
 const mockPrisma = {
   liveRoom: {
@@ -24,6 +25,9 @@ const mockPrisma = {
   courseChapter: {
     create: jest.fn(),
     findFirst: jest.fn(),
+  },
+  product: {
+    findMany: jest.fn(),
   },
 };
 
@@ -72,6 +76,18 @@ describe("LiveService", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  describe("getLiveProducts", () => {
+    it("主播选品库排除精确隔离商品", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([]);
+
+      await svc.getLiveProducts("on");
+
+      expect(mockPrisma.product.findMany.mock.calls[0][0].where.id).toEqual({
+        notIn: [...PUBLIC_QUARANTINED_IDS.product],
+      });
+    });
+  });
 
   describe("createRoom", () => {
     it("创建直播间成功", async () => {

@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { AuditService } from "../audit/audit.service";
 import { safePagination } from "../../common/pagination";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 
 @Injectable()
 export class VideoService {
@@ -137,7 +138,7 @@ export class VideoService {
     return this.prisma.video.update({ where: { id }, data });
   }
 
-  @Cacheable({ key: (args) => `video:list:${JSON.stringify(args[0])}`, ttl: 60 })
+  @Cacheable({ key: (args) => `video:list:v2:${JSON.stringify(args[0])}`, ttl: 60 })
   async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string; scope?: string }) {
     const { circleId, status, stationId, scope } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
@@ -155,6 +156,7 @@ export class VideoService {
       // 圈内列表：机审降级 SELF_ONLY 的作品仅作者本人可见（走「我的作品」），圈内流不出
       where.visibility = { not: "SELF_ONLY" };
     }
+    if (scope !== "all") where.id = { notIn: publicQuarantinedIds("video") };
 
     const [videos, total] = await Promise.all([
       this.prisma.video.findMany({
@@ -407,7 +409,13 @@ export class VideoService {
   async listItems(rawPage: number, rawPageSize: number, opts?: { sort?: string; followerId?: string }) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     // 瀑布流=平台公共池：只出「全平台开放+审核通过+非私密」内容（圈内封闭作品不外泄）
-    const where: Prisma.VideoWhereInput = { status: "PUBLISHED", visibility: "PLATFORM", auditStatus: "APPROVED", isPrivate: false };
+    const where: Prisma.VideoWhereInput = {
+      id: { notIn: publicQuarantinedIds("video") },
+      status: "PUBLISHED",
+      visibility: "PLATFORM",
+      auditStatus: "APPROVED",
+      isPrivate: false,
+    };
 
     // 关注 tab：仅拉取已关注作者的视频；未登录或未关注任何人 → 空列表（前端引导登录/去关注）
     if (opts?.sort === "follow") {
@@ -456,7 +464,13 @@ export class VideoService {
   async searchVideos(params: { keyword?: string; category?: string; page: number; pageSize: number }) {
     const { keyword, category } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
-    const where: any = { status: "PUBLISHED", visibility: "PLATFORM", auditStatus: "APPROVED", isPrivate: false };
+    const where: Prisma.VideoWhereInput = {
+      id: { notIn: publicQuarantinedIds("video") },
+      status: "PUBLISHED",
+      visibility: "PLATFORM",
+      auditStatus: "APPROVED",
+      isPrivate: false,
+    };
 
     if (keyword) {
       where.OR = [
@@ -503,7 +517,11 @@ export class VideoService {
   async listProducts(rawPage: number, rawPageSize: number) {
     const { skip, pageSize } = safePagination(rawPage, rawPageSize);
     const products = await this.prisma.product.findMany({
-      where: { status: "ON_SALE", deletedAt: null },
+      where: {
+        id: { notIn: publicQuarantinedIds("product") },
+        status: "ON_SALE",
+        deletedAt: null,
+      },
       orderBy: { salesCount: "desc" },
       skip,
       take: pageSize,

@@ -11,6 +11,7 @@ import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
 
 const mockPrisma = {
   circle: {
@@ -150,6 +151,9 @@ describe("CircleService", () => {
       expect(result).toHaveProperty("circles");
       expect(result.circles).toHaveLength(1);
       expect(result.total).toBe(10);
+      expect(mockPrisma.circle.findMany.mock.calls.at(-1)![0].where.id).toEqual({
+        notIn: [...PUBLIC_QUARANTINED_IDS.circle],
+      });
     });
   });
 

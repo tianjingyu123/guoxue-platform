@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "../ai-gateway/vector.service";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 
 export interface SemanticResult {
   id: string;
@@ -189,12 +190,12 @@ export class SemanticSearchService {
           take: 100,
         }),
         this.prisma.course.findMany({
-          where: { auditStatus: "APPROVED" },
+          where: { id: { notIn: publicQuarantinedIds("course") }, auditStatus: "APPROVED" },
           select: { id: true, title: true, intro: true, cover: true },
           take: 100,
         }),
         this.prisma.circle.findMany({
-          where: { status: "ACTIVE" },
+          where: { id: { notIn: publicQuarantinedIds("circle") }, status: "ACTIVE" },
           select: { id: true, name: true, intro: true, cover: true },
           take: 50,
         }),
@@ -204,7 +205,7 @@ export class SemanticSearchService {
           take: 100,
         }),
         this.prisma.video.findMany({
-          where: { status: "PUBLISHED" },
+          where: { id: { notIn: publicQuarantinedIds("video") }, status: "PUBLISHED" },
           select: { id: true, title: true, coverUrl: true },
           take: 50,
         }),

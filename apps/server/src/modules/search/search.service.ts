@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { SemanticSearchService } from "./semantic-search.service";
+import { isPublicContentQuarantined, type PublicQuarantineType } from "../../common/public-content-quarantine";
 
 /** 搜索结果缓存 TTL */
 const SEARCH_CACHE_TTL = 120;
@@ -58,7 +59,7 @@ export class SearchService {
 
     if (!q?.trim()) return { q, type };
 
-    const cacheKey = `search:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
+    const cacheKey = `search:v2:${createHash("sha1").update(`${q}|${type || "all"}|${page}|${pageSize}`).digest("hex")}`;
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
@@ -118,6 +119,11 @@ export class SearchService {
       rows = await this.runLike(entityType, q, limit, offset);
     }
 
+    const quarantineType = this.toPublicQuarantineType(entityType);
+    if (quarantineType) {
+      rows = rows.filter((row) => !isPublicContentQuarantined(quarantineType, String(row.id || "")));
+    }
+
     // 3. 应用权重（按实体整体加权：weightMap 存的实体键与本层表名映射对齐）
     if (weightMap && weightMap.size > 0) {
       // 搜索表名（Article/ClassicBook…）→ 权重表 entityType（article/classic…）
@@ -130,6 +136,16 @@ export class SearchService {
     }
 
     return rows;
+  }
+
+  private toPublicQuarantineType(entityType: string): PublicQuarantineType | null {
+    switch (entityType) {
+      case "Course": return "course";
+      case "Product": return "product";
+      case "Circle": return "circle";
+      case "Video": return "video";
+      default: return null;
+    }
   }
 
   /** PostgreSQL 全文搜索 */
@@ -353,8 +369,12 @@ export class SearchService {
     return [
       ...articles.map((a) => ({ label: a.title, type: "article", id: a.id })),
       ...contents.map((c) => ({ label: c.title, type: "content", id: c.id })),
-      ...courses.map((c) => ({ label: c.title, type: "course", id: c.id })),
-      ...circles.map((c) => ({ label: c.name, type: "circle", id: c.id })),
+      ...courses
+        .filter((c) => !isPublicContentQuarantined("course", String(c.id || "")))
+        .map((c) => ({ label: c.title, type: "course", id: c.id })),
+      ...circles
+        .filter((c) => !isPublicContentQuarantined("circle", String(c.id || "")))
+        .map((c) => ({ label: c.name, type: "circle", id: c.id })),
     ].slice(0, 10);
   }
 

@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { VodService } from "./vod.service";
 import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
 
 const mockPrisma = {
   video: {
@@ -121,6 +122,9 @@ describe("VideoService", () => {
       const result = await svc.list({});
       expect(result).toHaveProperty("videos");
       expect(result.total).toBe(0);
+      expect(mockPrisma.video.findMany.mock.calls.at(-1)![0].where.id).toEqual({
+        notIn: [...PUBLIC_QUARANTINED_IDS.video],
+      });
     });
 
     it("按 circleId 和 status 过滤（圈内列表排除机审降级 SELF_ONLY）", async () => {
@@ -128,8 +132,22 @@ describe("VideoService", () => {
       mockPrisma.video.count.mockResolvedValue(0);
       await svc.list({ circleId: "c1", status: "PUBLISHED" });
       expect(mockPrisma.video.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { circleId: "c1", status: "PUBLISHED", visibility: { not: "SELF_ONLY" } } }),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            circleId: "c1",
+            status: "PUBLISHED",
+            visibility: { not: "SELF_ONLY" },
+            id: { notIn: [...PUBLIC_QUARANTINED_IDS.video] },
+          }),
+        }),
       );
+    });
+
+    it("管理端 scope=all 保留隔离记录用于审核", async () => {
+      mockPrisma.video.findMany.mockResolvedValue([]);
+      mockPrisma.video.count.mockResolvedValue(0);
+      await svc.list({ scope: "all" });
+      expect(mockPrisma.video.findMany.mock.calls.at(-1)![0].where.id).toBeUndefined();
     });
   });
 

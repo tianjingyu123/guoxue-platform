@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RecommendService } from "./recommend.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { RedisService } from "../../redis/redis.service";
+import { isPublicContentQuarantined } from "../../common/public-content-quarantine";
 
 /**
  * 首页聚合瀑布流「九类卡统一信封」。
@@ -215,12 +216,14 @@ export class SmartFeedService {
       default:
         items = await this.cached(`smartfeed:pool:default:${userId}:${pageSize}`, POOL_TTL_USER, () => this.getDefaultFeed(userId, pageSize));
     }
+    items = this.excludePublicQuarantine(items);
 
     // 空兜底：某分层策略无产出（如 normal 段 personalized 返空 / 该段数据源恰好为空）时，
     // 回落到热门混排（新手池：热门文章/课程/古籍/视频），确保任何用户首页都有内容、不留白。
     // 复用同一全局新手池缓存（与 new 段共享），无串味。
     if (items.length === 0) {
       items = await this.cached(`smartfeed:pool:new:${pageSize}`, POOL_TTL, () => this.getNewUserFeed(userId, pageSize));
+      items = this.excludePublicQuarantine(items);
     }
 
     // 质量因子（创-P1·任务八接线）：qualityScore 作为排序因子（权重 0.3）·<40 分标记软限流
@@ -268,6 +271,7 @@ export class SmartFeedService {
     const timeSlot = this.resolveTimeSlot();
     // 广口径池为全平台共享热门（getBroadFeed 无 userId 参数），全局 key 缓存·无串味
     let items = await this.cached(`smartfeed:pool:broad:${pageSize}`, POOL_TTL, () => this.getBroadFeed(pageSize)); // 广口径 7 类·首页展示全部卡片形态
+    items = this.excludePublicQuarantine(items);
     // 游客可见内容控制：后台配置 ConfigSystem.guest.visibleTypes（JSON 类型白名单）·空/未配 = 全部可见
     const allow = await this.getGuestVisibleTypes();
     if (allow) items = items.filter((i) => allow.has(i.type));
@@ -311,7 +315,13 @@ export class SmartFeedService {
   async getCategoryFeed(type: string, page = 1, size = 6): Promise<FeedItem[]> {
     // 分类 feed 为全平台共享热门（按 viewCount/studentCount 排序·无用户私有数据），
     // 全局 key 按 type/page/size 缓存，无跨用户串味。
-    return this.cached(`smartfeed:cat:${type}:${page}:${size}`, CATEGORY_TTL, () => this.computeCategoryFeed(type, page, size));
+    const items = await this.cached(`smartfeed:cat:${type}:${page}:${size}`, CATEGORY_TTL, () => this.computeCategoryFeed(type, page, size));
+    return this.excludePublicQuarantine(items);
+  }
+
+  /** 统一信封出口兜底：覆盖个性化推荐与旧缓存，未知类型 fail-open。 */
+  private excludePublicQuarantine(items: FeedItem[]): FeedItem[] {
+    return items.filter((item) => !isPublicContentQuarantined(item.type, item.id));
   }
 
   private async computeCategoryFeed(type: string, page = 1, size = 6): Promise<FeedItem[]> {

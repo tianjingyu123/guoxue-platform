@@ -64,10 +64,14 @@ export class ShopController {
   }
 
   @Get("products")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取商品列表" })
   @ApiResponse({ status: 200, description: "成功" })
-  listProducts(@Query() q: ProductListQueryDto) {
-    return this.shop.listProducts(q);
+  listProducts(@Query() q: ProductListQueryDto, @Req() req?: Request) {
+    // 状态筛选仅管理角色可用；游客即使手工传 ALL/PENDING/OFF_SHELF 也强制回到公开在售口径。
+    const roles = ((req?.user as { roles?: string[] } | undefined)?.roles) || [];
+    const isAdmin = roles.some((r) => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(r));
+    return this.shop.listProducts(isAdmin ? q : { ...q, status: undefined });
   }
 
   @Get("products/category-tabs")

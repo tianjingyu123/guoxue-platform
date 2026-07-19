@@ -10,6 +10,7 @@ import { AuditService } from "../../audit/audit.service";
 import { CreateCircleDto, UpdateCircleDto, AdminUpdateCircleDto } from "../circle.dto";
 import { Prisma, CircleType, CircleStatus } from "@prisma/client";
 import { CircleSharedService } from "./circle-shared.service";
+import { publicQuarantinedIds } from "../../../common/public-content-quarantine";
 
 /**
  * 圈子-核心域（从 circle.service 拆出·纯搬家不改逻辑）。
@@ -205,12 +206,15 @@ export class CircleCoreService {
     const { keyword, tag, type, stationId } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterHash = `${keyword ?? ""}:${tag ?? ""}:${type ?? ""}`;
-    const cacheKey = `circles:list:${page}:${pageSize}:${filterHash}`;
+    const cacheKey = `circles:list:v2:${page}:${pageSize}:${filterHash}`;
 
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
-    const where: Prisma.CircleWhereInput = { status: "ACTIVE" };
+    const where: Prisma.CircleWhereInput = {
+      id: { notIn: publicQuarantinedIds("circle") },
+      status: "ACTIVE",
+    };
 
     if (keyword) {
       where.OR = [

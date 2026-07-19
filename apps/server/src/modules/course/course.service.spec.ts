@@ -13,6 +13,7 @@ import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
 
 const mockPrisma = {
   course: {
@@ -226,6 +227,8 @@ describe("CourseService", () => {
       expect(result).toHaveProperty("courses");
       expect(result.total).toBe(0);
       expect(mockRedis.setJson).toHaveBeenCalled();
+      const where = mockPrisma.course.findMany.mock.calls.at(-1)![0].where;
+      expect(where.id).toEqual({ notIn: [...PUBLIC_QUARANTINED_IDS.course] });
     });
 
     it("有缓存时直接返回", async () => {
@@ -233,6 +236,14 @@ describe("CourseService", () => {
       mockRedis.getJson.mockResolvedValue(cached);
       const result = await svc.listCourses({ page: 1, pageSize: 20 });
       expect(result).toEqual(cached);
+    });
+
+    it("管理端 ALL 保留隔离记录用于审核", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.course.findMany.mockResolvedValue([]);
+      mockPrisma.course.count.mockResolvedValue(0);
+      await svc.listCourses({ page: 1, pageSize: 20, status: "ALL" });
+      expect(mockPrisma.course.findMany.mock.calls.at(-1)![0].where.id).toBeUndefined();
     });
 
     // 分类/排序/免费 下沉：作用于 where/orderBy，且筛选态绕过缓存
