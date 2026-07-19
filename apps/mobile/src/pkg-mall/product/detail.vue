@@ -570,6 +570,7 @@ async function toggleFavorite() {
 </style>
 
 <style lang="scss">
+/* #ifdef H5 */
 /* H5 端 rich-text 渲染为真实 DOM，但 scoped 样式吃不到其内部节点 → 用非 scoped 块 + 页面独有类名限定，
    作为数据层行内样式注入（@/utils/rich-content）之外的 CSS 兜底：详情多图无缝拼接 */
 .desc-section .desc img {
@@ -587,4 +588,5 @@ async function toggleFavorite() {
   padding: 0 28rpx;
   box-sizing: border-box;
 }
+/* #endif */
 </style>
