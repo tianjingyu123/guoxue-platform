@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, MinLength, IsDateString, ValidateNested,
+  ArrayMinSize, ArrayMaxSize,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -465,12 +466,31 @@ export class ShipOrderDto {
   @ApiProperty({ description: "物流公司" })
   @IsString()
   @MinLength(1)
+  @MaxLength(50)
   company: string;
 
   @ApiProperty({ description: "快递单号" })
   @IsString()
   @MinLength(1)
+  @MaxLength(80)
   trackingNo: string;
+}
+
+export class BatchShipOrderItemDto extends ShipOrderDto {
+  @ApiProperty({ description: "订单ID" })
+  @IsString()
+  @MinLength(1)
+  orderId: string;
+}
+
+export class BatchShipOrdersDto {
+  @ApiProperty({ type: [BatchShipOrderItemDto], description: "批量发货明细，最多50单" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => BatchShipOrderItemDto)
+  items: BatchShipOrderItemDto[];
 }
 
 export class RejectRefundDto {

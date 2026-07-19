@@ -13,7 +13,7 @@ import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import {
   CreateMerchantApplyDto, UpdateMerchantApplyDto, ApproveMerchantDto, UpdateMerchantStatusDto,
   MerchantListQueryDto, UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
-  ShipOrderDto, ReviewQueryDto, PaginationDto,
+  ReviewQueryDto, PaginationDto,
   CreateViolationDto, HandleViolationDto, MerchantProductDto,
 } from "./merchant.dto";
 
@@ -627,17 +627,6 @@ export class MerchantService {
     return enriched;
   }
 
-  async shipOrder(merchantId: string, orderId: string, dto: ShipOrderDto) {
-    const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
-    if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
-    if (order.status !== "PAID") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前订单状态不可发货");
-
-    await this.prisma.order.update({ where: { id: orderId }, data: { status: "SHIPPED", shippedAt: new Date() } });
-    await this.prisma.orderLogistics.create({
-      data: { orderId, company: dto.company, logisticsNo: dto.trackingNo },
-    });
-    return { success: true };
-  }
 
   async approveRefund(merchantId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });

@@ -6,6 +6,7 @@ import { Auditable } from "../../common/audit.decorator";
 import { MerchantService } from "./merchant.service";
 import { MerchantSettlementService } from "./merchant-settlement.service";
 import { MerchantInventoryService } from "./merchant-inventory.service";
+import { MerchantShippingService } from "./merchant-shipping.service";
 import { MerchantGuard } from "./merchant.guard";
 import {
   UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
@@ -16,6 +17,7 @@ import {
   InventoryAlertSettingDto, CreatePurchaseOrderDto, PurchaseOrderQueryDto,
   ReceivePurchaseOrderDto,
   ReturnInspectionDto,
+  BatchShipOrdersDto,
 } from "./merchant.dto";
 
 type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: unknown } };
@@ -29,6 +31,7 @@ export class MerchantBackendController {
     private readonly merchantService: MerchantService,
     private readonly settlementService: MerchantSettlementService,
     private readonly inventoryService: MerchantInventoryService,
+    private readonly shippingService: MerchantShippingService,
   ) {}
 
   private getMerchant(req: AuthRequest) {
@@ -166,7 +169,31 @@ export class MerchantBackendController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   shipOrder(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: ShipOrderDto) {
-    return this.merchantService.shipOrder(this.getMerchant(req).id, id, dto);
+    return this.shippingService.shipOrder(this.getMerchant(req).id, req.user.id, id, dto);
+  }
+
+  @Post("orders/batch-ship")
+  @ApiOperation({ summary: "批量发货（逐单隔离，返回成功与失败明细）" })
+  @ApiResponse({ status: 201, description: "批量处理完成" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  batchShipOrders(@Req() req: AuthRequest, @Body() dto: BatchShipOrdersDto) {
+    return this.shippingService.batchShipOrders(this.getMerchant(req).id, req.user.id, dto);
+  }
+
+  @Get("orders/:id/shipment")
+  @ApiOperation({ summary: "获取商家订单运单及快递100实时轨迹" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  getShipment(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.shippingService.getShipment(this.getMerchant(req).id, id);
+  }
+
+  @Put("orders/:id/shipment")
+  @ApiOperation({ summary: "修改已发货订单运单" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  updateShipment(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: ShipOrderDto) {
+    return this.shippingService.updateShipment(this.getMerchant(req).id, req.user.id, id, dto);
   }
 
   @Post("orders/:id/refund/approve")

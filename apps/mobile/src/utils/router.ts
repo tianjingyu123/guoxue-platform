@@ -429,6 +429,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/merchant/inventory': '/pkg-merchant/inventory/index',
   '/merchant/product-edit': '/pkg-merchant/product-edit/index',
   '/merchant/orders': '/pkg-merchant/orders/index',
+  '/merchant/batch-ship': '/pkg-merchant/batch-ship/index',
   '/merchant/order-detail': '/pkg-merchant/order-detail/index',
   '/merchant/revenue': '/pkg-merchant/revenue/index',
   // 商家经营管理（评价/分析/设置/预览/公告/咨询）

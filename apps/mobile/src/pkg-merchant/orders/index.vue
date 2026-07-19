@@ -13,6 +13,10 @@
           <AppIcon name="arrow-left" :size="20" color="#ffffff" />
         </view>
         <text class="nav-title">订单管理</text>
+        <view v-if="activeTab === 'PAID'" class="nav-action" @tap.stop="go('/merchant/batch-ship')">
+          <AppIcon name="layers" :size="15" color="#ffffff" />
+          <text>批量发货</text>
+        </view>
       </view>
     </view>
 
@@ -236,6 +240,19 @@ $line: #edeae4;
   font-size: 18px;
   font-weight: 700;
   color: #fff;
+}
+.nav-action {
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 4rpx 0 18rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+.nav-action text {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 /* Tab */

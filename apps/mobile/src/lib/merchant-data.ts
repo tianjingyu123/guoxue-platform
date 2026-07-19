@@ -138,6 +138,32 @@ export interface MerchantOrder {
   hasGiftCard?: boolean
 }
 
+export interface MerchantShipment {
+  id: string
+  orderId: string
+  company?: string | null
+  trackingNo?: string | null
+  status: string
+  updatedAt: string
+}
+
+export interface MerchantTrackItem {
+  time?: string
+  status?: string
+  location?: string
+}
+
+export interface MerchantShipmentDetail {
+  logistics: MerchantShipment | null
+  track: { state?: string; message?: string; tracks: MerchantTrackItem[] } | null
+}
+
+export interface MerchantBatchShipResult {
+  successCount: number
+  failedCount: number
+  items: Array<{ orderId: string; success: boolean; replayed?: boolean; message?: string }>
+}
+
 export interface MerchantReview {
   id: string
   productId: string
@@ -324,6 +350,14 @@ export const merchantBackendApi = {
   getOrder: (id: string) => apiGet<MerchantOrder>(`/merchant-backend/orders/${id}`),
   shipOrder: (id: string, company: string, trackingNo: string) =>
     apiPut(`/merchant-backend/orders/${id}/ship`, { company, trackingNo }),
+  batchShipOrders: (items: Array<{ orderId: string; company: string; trackingNo: string }>) =>
+    apiPost<MerchantBatchShipResult>('/merchant-backend/orders/batch-ship', { items }),
+  getShipment: (id: string) =>
+    apiGet<MerchantShipmentDetail>(`/merchant-backend/orders/${id}/shipment`),
+  updateShipment: (id: string, company: string, trackingNo: string) =>
+    apiPut<{ success: boolean; replayed: boolean; logistics: MerchantShipment }>(
+      `/merchant-backend/orders/${id}/shipment`, { company, trackingNo },
+    ),
   approveRefund: (id: string) => apiPost(`/merchant-backend/orders/${id}/refund/approve`, {}),
   rejectRefund: (id: string, reason: string) => apiPost(`/merchant-backend/orders/${id}/refund/reject`, { reason }),
 
