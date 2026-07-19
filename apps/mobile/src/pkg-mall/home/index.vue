@@ -8,6 +8,7 @@ import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
 import MarketingZone from '@/pkg-mall/components/marketing-zone.vue'
 import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import { shopApi } from '@/lib/shop-data'
 import type { MallQuickEntry, MallBanner, MallLive, MallCategory } from '@/lib/shop-data'
 import type { ProductCardData } from '@/lib/card-utils'
@@ -42,6 +43,11 @@ async function fetchData() {
 
 /** 购物车数量角标（未登录/失败静默为 0，超 99 显示 99+） */
 async function fetchCartCount() {
+  // 商城陈列允许游客浏览；购物车角标仅登录后拉取，游客点购物车时再进入登录流程。
+  if (!getToken()) {
+    cartCount.value = 0
+    return
+  }
   try {
     const res = await shopApi.getCart()
     cartCount.value = (res.items || []).reduce((s, i) => s + i.quantity, 0)

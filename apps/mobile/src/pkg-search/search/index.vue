@@ -136,6 +136,7 @@ import AiSearchModal from '@/components/common/ai-search-modal.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { searchApi, type HotSearchItem } from '@/lib/search-data'
 import { track } from '@/composables/useTrack'
+import { getToken } from '@/utils/storage'
 
 // ===== UI 状态 =====
 const statusBarHeight = ref(0)
@@ -179,7 +180,7 @@ function onInput() {
 async function loadPanels() {
   const [hot, history] = await Promise.all([
     searchApi.getHot(8).catch(() => [] as HotSearchItem[]),
-    searchApi.getHistory().catch(() => [] as string[]),
+    getToken() ? searchApi.getHistory().catch(() => [] as string[]) : Promise.resolve([] as string[]),
   ])
   hotList.value = hot
   historyList.value = history
@@ -253,7 +254,8 @@ function doSearch(kw: string) {
   if (!historyList.value.includes(q)) {
     historyList.value = [q, ...historyList.value].slice(0, 10)
   }
-  searchApi.saveHistory(q) // fire-and-forget：失败不该挡住跳转
+  // 搜索本身允许游客使用；历史是登录态增强项，游客不发私有请求，避免 401 抢走结果页跳转。
+  if (getToken()) searchApi.saveHistory(q) // fire-and-forget：失败不该挡住跳转
   // 透传来源板块 Tab（商城入口带 tab=product → 结果页直落「商品」Tab）
   const tabQ = entryTab.value ? `&tab=${encodeURIComponent(entryTab.value)}` : ''
   navigateTo(`/search/result?keyword=${encodeURIComponent(q)}${tabQ}`)

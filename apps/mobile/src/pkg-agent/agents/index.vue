@@ -264,6 +264,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import {
   agentsSquareApi,
   formatCount,
@@ -326,9 +327,14 @@ async function loadData() {
       const n = heat.get(b.id)
       if (n) b.useCount = n
     })
-    agentsSquareApi.getConversations()
-      .then((cs) => { recentConvs.value = (cs || []).slice(0, 6) })
-      .catch(() => { recentConvs.value = [] })
+    // 最近会话是登录态增强项：游客只浏览公开广场，不触发 401 全局登录跳转。
+    if (getToken()) {
+      agentsSquareApi.getConversations()
+        .then((cs) => { recentConvs.value = (cs || []).slice(0, 6) })
+        .catch(() => { recentConvs.value = [] })
+    } else {
+      recentConvs.value = []
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {

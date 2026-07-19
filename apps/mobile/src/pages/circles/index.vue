@@ -80,12 +80,14 @@ async function loadCircles(silent = false) {
 
 /** 我的圈子 + 动态 + 统计（与分类无关，首屏加载一次；各自空数据走空态） */
 async function loadExtras() {
+  // 圈子广场是公共获客页：游客只拉公开动态，不能让可选“我的”接口 401 劫持整页去登录。
+  const hasSession = !!getToken()
   const [myRes, postRes, statsRes, jrRes] = await Promise.allSettled([
-    circleApi.my(),
+    hasSession ? circleApi.my() : Promise.resolve([]),
     circleApi.getHotPosts(),
-    circleApi.getMyStats(),
+    hasSession ? circleApi.getMyStats() : Promise.resolve(myStats.value),
     // 我的入圈申请（真连 GET /circles/my-join-requests）：待审核圈子回填「审核中」标；未登录不发请求
-    getToken() ? growthApi.myJoinRequests() : Promise.resolve([]),
+    hasSession ? growthApi.myJoinRequests() : Promise.resolve([]),
   ])
   myCircles.value = myRes.status === 'fulfilled' ? myRes.value : []
   joinedIds.value = new Set(myCircles.value.map((c) => String(c.id)))
