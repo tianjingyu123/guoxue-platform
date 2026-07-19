@@ -20,6 +20,8 @@ const mockSystemSvc = {
   upsertPageContent: jest.fn().mockResolvedValue({ id: "pc1" }),
   createSiteNotice: jest.fn().mockResolvedValue({ id: "sn1", title: "公告" }),
   getSiteNotices: jest.fn().mockResolvedValue({ items: [], total: 0 }),
+  getPublicSiteNotices: jest.fn().mockResolvedValue({ items: [], total: 0 }),
+  getPublicSiteNotice: jest.fn().mockResolvedValue({ id: "sn1", title: "公告" }),
   updateSiteNotice: jest.fn().mockResolvedValue({ id: "sn1", title: "新公告" }),
   deleteSiteNotice: jest.fn().mockResolvedValue(undefined),
   getConfigVersions: jest.fn().mockResolvedValue({ items: [], total: 0 }),
@@ -160,6 +162,16 @@ describe("SystemController", () => {
   });
 
   // ── 全站公告 ──
+
+  it("GET /system/public/site-notices — 公开公告列表", async () => {
+    const result: any = await ctrl.getPublicSiteNotices();
+    expect(result.items).toHaveLength(0);
+  });
+
+  it("GET /system/public/site-notices/:id — 公开公告详情", async () => {
+    const result: any = await ctrl.getPublicSiteNotice("sn1");
+    expect(result.id).toBe("sn1");
+  });
 
   it("POST /system/site-notices — 创建公告", async () => {
     const result: any = await ctrl.createSiteNotice({ title: "公告", content: "内容" } as any);

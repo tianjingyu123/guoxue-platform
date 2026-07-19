@@ -444,6 +444,61 @@ export class SystemService {
 
   // ───────── 全站弹窗公告 ─────────
 
+  /** C 端公开公告：仅返回已启用且处于展示时间窗内的记录。 */
+  async getPublicSiteNotices(rawPage: number, rawPageSize: number) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, 50);
+    const now = new Date();
+    const where: Prisma.SiteNoticeWhereInput = {
+      isActive: true,
+      AND: [
+        { OR: [{ startTime: null }, { startTime: { lte: now } }] },
+        { OR: [{ endTime: null }, { endTime: { gte: now } }] },
+      ],
+    };
+    const select: Prisma.SiteNoticeSelect = {
+      id: true,
+      title: true,
+      content: true,
+      type: true,
+      startTime: true,
+      endTime: true,
+      createdAt: true,
+      updatedAt: true,
+    };
+    const [items, total] = await Promise.all([
+      this.prisma.siteNotice.findMany({ where, select, orderBy: { createdAt: "desc" }, skip, take: pageSize }),
+      this.prisma.siteNotice.count({ where }),
+    ]);
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
+  }
+
+  /** C 端公开公告详情：停用、未开始或已过期的记录一律不可见。 */
+  async getPublicSiteNotice(id: string) {
+    const now = new Date();
+    const notice = await this.prisma.siteNotice.findFirst({
+      where: {
+        id,
+        isActive: true,
+        AND: [
+          { OR: [{ startTime: null }, { startTime: { lte: now } }] },
+          { OR: [{ endTime: null }, { endTime: { gte: now } }] },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        type: true,
+        startTime: true,
+        endTime: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (!notice) throw new BusinessException(ErrorCode.NOT_FOUND, "公告不存在");
+    return notice;
+  }
+
   /** 创建全站公告 */
   async createSiteNotice(dto: {
     title: string;

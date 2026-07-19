@@ -642,7 +642,24 @@ export class SystemController {
     return this.systemService.upsertPageContent(dto.pageRoute, dto.fieldKey, dto.content);
   }
 
-  // ───────── 全站弹窗公告 ─────────
+  // ───────── 全站公告 ─────────
+
+  @Get("public/site-notices")
+  @ApiOperation({ summary: "获取当前有效的公开公告" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  async getPublicSiteNotices(
+    @Query("page") page = "1",
+    @Query("pageSize") pageSize = "20",
+  ) {
+    return this.systemService.getPublicSiteNotices(Number(page), Number(pageSize));
+  }
+
+  @Get("public/site-notices/:id")
+  @ApiOperation({ summary: "获取当前有效的公开公告详情" })
+  getPublicSiteNotice(@Param("id") id: string) {
+    return this.systemService.getPublicSiteNotice(id);
+  }
 
   @Post("site-notices")
   @RedLineGate(RedLine.EXTERNAL_PUBLISH)

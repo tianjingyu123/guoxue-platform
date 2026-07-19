@@ -11,7 +11,7 @@ const mockPrisma = {
   configSystem: { findMany: jest.fn(), findUnique: jest.fn(), upsert: jest.fn(), delete: jest.fn(), deleteMany: jest.fn() },
   brandConfig: { findUnique: jest.fn(), upsert: jest.fn() },
   auditLog: { findMany: jest.fn(), count: jest.fn() },
-  siteNotice: { findMany: jest.fn(), count: jest.fn() },
+  siteNotice: { findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
 };
 const mockRedis = { get: jest.fn(), set: jest.fn(), del: jest.fn(), getJson: jest.fn(), setJson: jest.fn() };
 const mockAudit = { log: jest.fn(), getLogWithRollback: jest.fn(), listRollbackable: jest.fn() };
@@ -151,6 +151,28 @@ describe("SystemService", () => {
       mockPrisma.configSystem.findMany.mockResolvedValue([]);
       const result = await svc.getPublicConfigs([]);
       expect(result).toEqual({});
+    });
+  });
+
+  describe("getPublicSiteNotices", () => {
+    it("只查询启用且处于展示时间窗内的公告", async () => {
+      mockPrisma.siteNotice.findMany.mockResolvedValue([]);
+      mockPrisma.siteNotice.count.mockResolvedValue(0);
+
+      const result = await svc.getPublicSiteNotices(1, 20);
+
+      expect(result).toMatchObject({ items: [], total: 0, page: 1, pageSize: 20 });
+      const arg = mockPrisma.siteNotice.findMany.mock.calls[0][0];
+      expect(arg.where.isActive).toBe(true);
+      expect(arg.where.AND).toHaveLength(2);
+      expect(arg.select).not.toHaveProperty("isActive");
+    });
+
+    it("详情不返回停用或过期公告", async () => {
+      mockPrisma.siteNotice.findFirst.mockResolvedValue(null);
+      await expect(svc.getPublicSiteNotice("missing")).rejects.toMatchObject({
+        response: expect.objectContaining({ message: "公告不存在" }),
+      });
     });
   });
 
