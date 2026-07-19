@@ -1,5 +1,5 @@
 /** 平台公告公开数据层：只读取后台已启用且处于展示时间窗内的 SiteNotice。 */
-import { apiGet } from '@/utils/request'
+import { apiGet, apiGetPaged } from '@/utils/request'
 
 export interface PublicNotice {
   id: string
@@ -21,7 +21,12 @@ export interface PublicNoticePage {
 }
 
 export const noticesApi = {
-  list: (page = 1, pageSize = 50) =>
-    apiGet<PublicNoticePage>(`/system/public/site-notices?page=${page}&pageSize=${pageSize}`),
+  list: async (page = 1, pageSize = 50): Promise<PublicNoticePage> => {
+    const result = await apiGetPaged<PublicNotice>(`/system/public/site-notices?page=${page}&pageSize=${pageSize}`)
+    return {
+      ...result,
+      totalPages: result.pageSize > 0 ? Math.ceil(result.total / result.pageSize) : 1,
+    }
+  },
   detail: (id: string) => apiGet<PublicNotice>(`/system/public/site-notices/${encodeURIComponent(id)}`),
 }
