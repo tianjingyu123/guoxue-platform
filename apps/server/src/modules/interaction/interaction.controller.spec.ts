@@ -3,6 +3,7 @@ import { InteractionController } from "./interaction.controller";
 import { InteractionService } from "./interaction.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { PrismaService } from "../../prisma/prisma.service";
 
 const mockInteractionSvc = {
   toggleLike: jest.fn().mockResolvedValue({ liked: true }),
@@ -23,13 +24,20 @@ const mockInteractionSvc = {
   dismissReport: jest.fn().mockResolvedValue({ id: "rpt1", status: "DISMISSED" }),
 };
 
+const mockPrisma = {
+  report: { update: jest.fn().mockResolvedValue({ id: "rpt1", status: "DISMISSED" }) },
+};
+
 describe("InteractionController", () => {
   let ctrl: InteractionController;
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [InteractionController],
-      providers: [{ provide: InteractionService, useValue: mockInteractionSvc }],
+      providers: [
+        { provide: InteractionService, useValue: mockInteractionSvc },
+        { provide: PrismaService, useValue: mockPrisma },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })

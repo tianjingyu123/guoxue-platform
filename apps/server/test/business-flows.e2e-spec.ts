@@ -380,7 +380,7 @@ describe("核心业务流程 E2E", () => {
       await request(app.getHttpServer())
         .post("/api/v1/shop/pay/notify")
         .send({ id: "ord-flow-4", event_type: "TRANSACTION.SUCCESS" })
-        .expect(201)
+        .expect(200)
 
       // Step 5: 查询支付状态
       prisma.user.findUnique.mockResolvedValue({ id: "u-flow-4", status: "ACTIVE", roles: [] })

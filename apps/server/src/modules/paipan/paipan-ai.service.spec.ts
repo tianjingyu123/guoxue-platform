@@ -86,7 +86,8 @@ describe("PaipanAiService", () => {
       })
       const result = await svc.analyzeBazi("u1", "p1", mockBaziResult)
       expect(result.isCached).toBe(true)
-      expect(result.analysisContent).toBe("已有分析")
+      expect(result.analysisContent).toContain("已有分析")
+      expect(result.analysisContent).toContain("风险提示")
     })
 
     it("无 API Key 时返回友好提示", async () => {
@@ -122,7 +123,8 @@ describe("PaipanAiService", () => {
         }),
       })
       const result = await svc.analyzeBazi("u1", "p1", mockBaziResult)
-      expect(result.analysisContent).toBe("AI分析结果...")
+      expect(result.analysisContent).toContain("AI分析结果...")
+      expect(result.analysisContent).toContain("风险提示")
       expect(result.isCached).toBe(false)
     })
 
