@@ -4,10 +4,10 @@
  *
  * 结构（自上而下）：
  *  ① 大搜索框 → ② 运营楼层（block-renderer·discoverBlocks） → ③ 金刚区 2×5（十大板块正门）
- *  → ④ 按类别分区（7 类·每区= 标题 + 更多› + 双列瀑布流 6 张 + 查看更多加载）
+ *  → ④ 按类别分区（7 类·每区= 标题 + 更多› + 双列瀑布流 4 张 + 查看更多渐进加载）
  *  → ⑤ 事业与合作（B 端折叠区·董事长拍板保留·放最下）
  *
- * 数据真连：getCategoryFeed(type, page, size=6) → 该类别一页 FeedEnvelope[]，
+ * 数据真连：getCategoryFeed(type, page, size=4) → 该类别一页 FeedEnvelope[]，
  * 卡片统一走 <feed-card>（九类通用卡·自带点击/角标/去数字化）。空则隐藏该分区；
  * 追加「有返回但不足一页」才判到底（空返回可能是网络失败，保留按钮可重试）。
  * 首屏三态：骨架（.skeleton 微光）→ 七类全空视为整页错误给重试 → 正常分区。
@@ -56,6 +56,7 @@ const CATEGORIES: CategoryDef[] = [
   { type: 'product', title: '掌柜好物',   more: '/pkg-mall/home/index' },
   { type: 'post',    title: '圈内精华',   more: '/pages/circles/index' },
 ]
+const SECTION_PAGE_SIZE = 4
 
 /** 每个分区独立维护：items + page + loading + 是否到底 */
 interface SectionState {
@@ -82,17 +83,17 @@ function rightCol(type: string): FeedEnvelope[] {
 const firstLoading = ref(true)
 const loadError = ref(false)
 
-// SWR 首屏缓存（照首页 FEED_CACHE_KEY 模式）：只存七分区各自的第一页（6 张）——
+// SWR 首屏缓存（照首页 FEED_CACHE_KEY 模式）：只存七分区各自的第一页（4 张）——
 // 再次进入 tab 先渲染缓存跳过骨架屏，后台 loadFirstPages 静默刷新替换
 const DISCOVER_CACHE_KEY = 'discover:home:cache'
 
-/** 缓存写入：各分区首页快照（只截第一页 6 张控制体积；全空不写） */
+/** 缓存写入：各分区首页快照（只截第一页 4 张控制体积；全空不写） */
 function writeSectionsCache() {
   try {
     const snap: Record<string, FeedEnvelope[]> = {}
     let hasAny = false
     CATEGORIES.forEach((c) => {
-      const first = sections[c.type].items.slice(0, 6)
+      const first = sections[c.type].items.slice(0, SECTION_PAGE_SIZE)
       if (first.length) hasAny = true
       snap[c.type] = first
     })
@@ -113,7 +114,7 @@ function restoreSectionsCache(): boolean {
           s.items = list as FeedEnvelope[]
           s.page = 1
           s.loaded = true
-          s.noMore = list.length < 6
+          s.noMore = list.length < SECTION_PAGE_SIZE
           hit = true
         }
       })
@@ -122,7 +123,7 @@ function restoreSectionsCache(): boolean {
   return hit
 }
 
-/** 首屏加载：各分区并行拉第一页 6 张，返回空则该区不渲染 */
+/** 首屏加载：各分区并行拉第一页 4 张，返回空则该区不渲染 */
 async function loadFirstPages() {
   // 已有内容时（下拉刷新）不回骨架，静默重拉
   const hadAny = CATEGORIES.some((c) => sections[c.type].items.length > 0)
@@ -130,14 +131,14 @@ async function loadFirstPages() {
   await Promise.all(
     CATEGORIES.map(async (c) => {
       const s = sections[c.type]
-      const list = await getCategoryFeed(c.type, 1, 6)
+      const list = await getCategoryFeed(c.type, 1, SECTION_PAGE_SIZE)
       // 刷新失败（lib 层吞错返回 []）时保留已有内容，不把整区清空
       if (!list.length && s.items.length) return
       s.items = list
       s.page = 1
       s.loaded = true
       // 只有「有返回但不足一页」才判到底；空返回可能是网络失败，不据此锁死
-      s.noMore = list.length > 0 && list.length < 6
+      s.noMore = list.length > 0 && list.length < SECTION_PAGE_SIZE
     }),
   )
   firstLoading.value = false
@@ -154,18 +155,18 @@ function retryFirst() {
   loadFirstPages()
 }
 
-/** 「查看更多」：该类别 page++ 再拉 6 张追加；有返回但不足一页才判到底 */
+/** 「查看更多」：该类别 page++ 再拉 4 张追加；有返回但不足一页才判到底 */
 async function loadMore(type: string) {
   const s = sections[type]
   if (s.loadingMore || s.noMore) return
   s.loadingMore = true
   try {
     const next = s.page + 1
-    const list = await getCategoryFeed(type, next, 6)
+    const list = await getCategoryFeed(type, next, SECTION_PAGE_SIZE)
     if (list.length) {
       s.items = s.items.concat(list)
       s.page = next
-      if (list.length < 6) s.noMore = true
+      if (list.length < SECTION_PAGE_SIZE) s.noMore = true
     } else {
       // 空返回无法区分「到底」与「请求失败」（lib 层吞错返回 []）：
       // 不设 noMore、保留按钮让用户可重试，避免把一次网络失败当成永久到底
@@ -267,7 +268,7 @@ function goEntry(href: string) { navigateTo(href) }
           </view>
         </view>
 
-        <!-- 查看更多：加载该类别再 6 张（到底则隐藏） -->
+        <!-- 查看更多：加载该类别再 4 张（到底则隐藏） -->
         <view v-if="!sections[cat.type].noMore" class="more-wrap">
           <view class="more-btn" hover-class="more-btn-press" @tap="loadMore(cat.type)">
             <text class="more-btn-txt">{{ sections[cat.type].loadingMore ? '加载中…' : '查看更多' }}</text>
@@ -315,22 +316,22 @@ $ink: #2C2C2C; $sub: #6E6E73; $faint: #999999; $wash: #F6F1E7; $line: #F2EDE4;
 .disc-blocks { padding: 8rpx 0 4rpx; }
 
 /* ③ 金刚区 2×5 */
-.kong { display: flex; flex-wrap: wrap; padding: 28rpx 24rpx 8rpx; }
-.k { width: 20%; display: flex; flex-direction: column; align-items: center; gap: 12rpx; margin-bottom: 28rpx; }
+.kong { display: flex; flex-wrap: wrap; padding: 24rpx 24rpx 4rpx; }
+.k { width: 20%; display: flex; flex-direction: column; align-items: center; gap: 10rpx; margin-bottom: 24rpx; }
 .k-press { opacity: 0.6; }
-.k-ic { width: 92rpx; height: 92rpx; border-radius: 28rpx; background: $wash; display: flex; align-items: center; justify-content: center; }
+.k-ic { width: 88rpx; height: 88rpx; border-radius: 24rpx; background: linear-gradient(145deg, #FFFFFF, $wash); border: 2rpx solid rgba(201,169,110,0.16); box-shadow: 0 4rpx 14rpx rgba(60,50,40,0.05); display: flex; align-items: center; justify-content: center; }
 .k-label { font-size: 22rpx; color: #6B655B; line-height: 1.2; }
 
 /* ④ 类别分区 */
-.cat-section { padding-top: 16rpx; }
-.sec { display: flex; align-items: baseline; justify-content: space-between; padding: 16rpx 40rpx 12rpx; }
+.cat-section { margin-top: 12rpx; padding-top: 20rpx; border-top: 2rpx solid $line; }
+.sec { display: flex; align-items: baseline; justify-content: space-between; padding: 12rpx 32rpx 16rpx; }
 .sec-title { font-size: 34rpx; font-weight: 700; color: $ink; font-family: var(--font-serif); }
 .sec-more { display: flex; align-items: center; }
 .sec-more-press { opacity: 0.6; }
 .sec-more-txt { font-size: 24rpx; color: $faint; }
 
 /* 双列瀑布流（与首页一致：奇偶分列） */
-.flow { display: flex; gap: 12rpx; padding: 0 32rpx; align-items: flex-start; }
+.flow { display: flex; gap: 16rpx; padding: 0 24rpx; align-items: flex-start; }
 .col { flex: 1; display: flex; flex-direction: column; gap: 12rpx; min-width: 0; }
 
 /* 查看更多 */

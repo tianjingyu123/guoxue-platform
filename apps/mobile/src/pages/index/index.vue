@@ -262,9 +262,6 @@ function switchTab(id: TabId) {
 function goPlaza() {
   navigateTo('/pkg-live/plaza/index')
 }
-function goSearch() {
-  navigateTo('/search')
-}
 
 // ── 卡片长按 → 负反馈轻浮层 ──
 // 自定义长按：原生 @longpress 阈值太短（滑动中手指稍停就误触），改 touch 计时 700ms，
@@ -340,10 +337,10 @@ function backToTop() {
     <app-network-bar />
     <customer-service-fab />
 
-    <!-- 顶栏（自定义导航·实色吸顶）：品牌字按董事长要求去掉，仅留搜索入口靠右 -->
+    <!-- 顶栏（自定义导航·实色吸顶）：不回加品牌大字，以统一搜索入口承接首要任务 -->
     <view class="brand-row" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="search-btn" hover-class="btn-press" @tap="goSearch">
-        <AppIcon name="search" :size="32" color="#8A8578" :stroke-width="2" />
+      <view class="home-search">
+        <search-bar default-tab="all" placeholder="搜古籍 · 课程 · 排盘 · 智能体" />
       </view>
     </view>
 
@@ -543,28 +540,10 @@ function backToTop() {
   height: auto;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   padding: 12rpx 24rpx 8rpx;
   background-color: #FAF8F5;
 }
-.brand {
-  font-size: 44rpx;
-  font-weight: 900;
-  letter-spacing: 6rpx;
-  color: #2C2C2C;
-  font-family: 'Noto Serif SC', serif;
-}
-.brand-em { color: #C41E3A; }
-.search-btn {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  background-color: #FFFFFF;
-  box-shadow: 0 2rpx 6rpx rgba(60, 50, 40, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.home-search { width: 100%; }
 .btn-press { opacity: 0.7; }
 
 /* ── 顶部轻 Tab（吸顶胶囊条） ── */
@@ -617,7 +596,7 @@ function backToTop() {
   right: 0;
   /* 底部导航高度 + iOS 全面屏安全区（不加 safe-area 时刘海屏底部内容被 home 条遮挡） */
   bottom: calc(112rpx + env(safe-area-inset-bottom));
-  top: calc(160rpx + var(--status-bar-height, 0px));
+  top: calc(184rpx + var(--status-bar-height, 0px));
 }
 
 /* ── 焦点区（16:10 · 编辑式直播优先） ── */
@@ -708,7 +687,7 @@ function backToTop() {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(160rpx + var(--status-bar-height, 0px));
+  top: calc(184rpx + var(--status-bar-height, 0px));
   /* 与 .content 同口径：底部导航 + 安全区 */
   bottom: calc(112rpx + env(safe-area-inset-bottom));
   display: flex;

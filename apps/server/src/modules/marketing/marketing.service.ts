@@ -911,9 +911,9 @@ export class MarketingService {
       where: { route },
       include: { components: { orderBy: { sortOrder: "asc" } } },
     });
-    if (!page || page.status !== "PUBLISHED") {
-      throw new BusinessException(ErrorCode.NOT_FOUND, "页面不存在或未发布");
-    }
+    // 这是 C 端可选运营楼层：未配置或尚未发布是正常状态，返回 null 让页面使用内建布局。
+    // 若抛 404，首页/发现每次进入都会制造 api_error 噪音，掩盖真正的接口故障。
+    if (!page || page.status !== "PUBLISHED") return null;
     // 过滤掉不在展示时间范围内的组件
     const now = new Date();
     page.components = page.components.filter((c) => {

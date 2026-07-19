@@ -33,7 +33,7 @@ function onTap() {
 </script>
 
 <template>
-  <view class="search-bar" @tap="onTap">
+  <view class="search-bar" role="button" :aria-label="`搜索：${keyword || placeholder}`" tabindex="0" hover-class="search-bar--pressed" @tap="onTap" @keyup.enter="onTap">
     <AppIcon name="search" :size="32" color="#999999" />
     <text class="search-bar__ph">{{ keyword || placeholder }}</text>
     <view v-if="ai" class="search-bar__ai">
@@ -48,10 +48,13 @@ function onTap() {
   display: flex;
   align-items: center;
   gap: $space-xs;
-  height: 72rpx;
+  min-height: 88rpx;
   padding: 0 $space-md;
   background: var(--surface-sunken);
   border-radius: $radius-full;
+}
+.search-bar--pressed {
+  opacity: 0.82;
 }
 .search-bar__ph {
   flex: 1;

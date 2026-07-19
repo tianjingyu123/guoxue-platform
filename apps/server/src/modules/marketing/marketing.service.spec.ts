@@ -443,6 +443,25 @@ describe("MarketingService", () => {
     });
   });
 
+  describe("getPublishedPageByRoute", () => {
+    it("未配置页面返回 null，C 端使用内建布局且不产生 404", async () => {
+      mockPrisma.marketingPage.findUnique.mockResolvedValue(null);
+      await expect(svc.getPublishedPageByRoute("home")).resolves.toBeNull();
+    });
+
+    it("草稿页面返回 null，不向 C 端泄露未发布配置", async () => {
+      mockPrisma.marketingPage.findUnique.mockResolvedValue({ id: "mp1", route: "home", status: "DRAFT", components: [] });
+      await expect(svc.getPublishedPageByRoute("home")).resolves.toBeNull();
+    });
+
+    it("已发布页面只返回展示时间范围内的组件", async () => {
+      const active = { id: "c1", startTime: null, endTime: null };
+      const future = { id: "c2", startTime: new Date(Date.now() + 60_000), endTime: null };
+      mockPrisma.marketingPage.findUnique.mockResolvedValue({ id: "mp1", route: "home", status: "PUBLISHED", components: [active, future] });
+      const result: any = await svc.getPublishedPageByRoute("home");
+      expect(result.components).toEqual([active]);
+    });
+  });
   describe("addPageComponent", () => {
     it("添加页面组件成功", async () => {
       mockPrisma.marketingPage.findUnique.mockResolvedValue({ id: "mp1" });
