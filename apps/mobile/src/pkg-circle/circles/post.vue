@@ -226,8 +226,8 @@ function fmtFileSize(size: number): string {
 function openAttachment(f: { name: string; url: string }) {
   // #ifdef H5
   window.open(f.url, '_blank')
-  return
   // #endif
+  // #ifndef H5
   uni.showLoading({ title: '下载中…' })
   uni.downloadFile({
     url: f.url,
@@ -242,6 +242,7 @@ function openAttachment(f: { name: string; url: string }) {
     },
     fail: () => { uni.hideLoading(); uni.showToast({ title: '下载失败', icon: 'none' }) },
   })
+  // #endif
 }
 
 // ─── 互动（乐观更新 + 失败回滚 + 防重复）───

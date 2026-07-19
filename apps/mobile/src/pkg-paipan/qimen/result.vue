@@ -124,12 +124,15 @@ function handleShare() {
   // #ifdef H5
   const url = window.location.href
   const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
-  if (nav.share) { nav.share({ title: summary, url }).catch(() => {}); return }
-  uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
-  return
+  if (nav.share) {
+    nav.share({ title: summary, url }).catch(() => {})
+  } else {
+    uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  }
   // #endif
-  // eslint-disable-next-line no-unreachable
+  // #ifndef H5
   uni.setClipboardData({ data: summary, success: () => uni.showToast({ title: '盘面已复制', icon: 'none' }) })
+  // #endif
 }
 
 onLoad((opts: Record<string, string> = {}) => {

@@ -759,15 +759,16 @@ function chooseDocFiles(count: number): Promise<Array<{ path: string; name: stri
       resolve(files)
     }
     const u = uni as unknown as Record<string, (opts: Record<string, unknown>) => void>
+    let handled = false
     // #ifdef H5
+    handled = true
     u.chooseFile({ count, type: 'all', extension: DOC_EXTS, success: normalize, fail: () => reject(new Error('已取消')) })
-    return
     // #endif
     // #ifdef MP-WEIXIN
+    handled = true
     u.chooseMessageFile({ count, type: 'file', extension: DOC_EXTS.map((e) => e.slice(1)), success: normalize, fail: () => reject(new Error('已取消')) })
-    return
     // #endif
-    reject(new Error('当前端暂不支持选择文件'))
+    if (!handled) reject(new Error('当前端暂不支持选择文件'))
   })
 }
 

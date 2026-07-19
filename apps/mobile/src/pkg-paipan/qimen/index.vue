@@ -108,12 +108,15 @@ function handleShare() {
   // #ifdef H5
   const url = window.location.href
   const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
-  if (nav.share) { nav.share({ title, url }).catch(() => {}); return }
-  uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
-  return
+  if (nav.share) {
+    nav.share({ title, url }).catch(() => {})
+  } else {
+    uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  }
   // #endif
-  // eslint-disable-next-line no-unreachable
+  // #ifndef H5
   uni.setClipboardData({ data: title, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })
+  // #endif
 }
 </script>
 
