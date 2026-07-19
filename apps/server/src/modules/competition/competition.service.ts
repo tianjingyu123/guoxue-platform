@@ -6,6 +6,12 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SystemService } from "../system/system.service";
 import { safePagination } from "../../common/pagination";
+import {
+  COMPETITION_DEMO_PREFIX,
+  PUBLIC_COMPETITION_STATUSES,
+  isDemoCompetitionId,
+  isPublicCompetitionStatus,
+} from "./competition-public.policy";
 
 @Injectable()
 export class CompetitionService {
@@ -86,6 +92,82 @@ export class CompetitionService {
       this.prisma.competition.count({ where }),
     ]);
     return { data, total, page, pageSize };
+  }
+
+  /**
+   * C 端赛事列表：只展示已发布、进行中、已结束的真实赛事。
+   * comp-demo-* 是明确的演示脚本标识，仅后台可见，不做生产数据写删。
+   */
+  async listPublicCompetitions(query: { type?: string; status?: string; keyword?: string; page?: number; pageSize?: number }) {
+    const { type, status, keyword } = query;
+    const { page, pageSize, skip } = safePagination(query.page, query.pageSize);
+    if (status && !isPublicCompetitionStatus(status)) {
+      return { data: [], total: 0, page, pageSize };
+    }
+
+    const where: any = {
+      status: status || { in: [...PUBLIC_COMPETITION_STATUSES] },
+      NOT: { id: { startsWith: COMPETITION_DEMO_PREFIX } },
+    };
+    if (type) where.type = type;
+    if (keyword) where.title = { contains: keyword, mode: "insensitive" };
+
+    const [data, total] = await Promise.all([
+      this.prisma.competition.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+        include: { rounds: { orderBy: { sortOrder: "asc" } }, _count: { select: { registrations: true } } },
+      }),
+      this.prisma.competition.count({ where }),
+    ]);
+    return { data, total, page, pageSize };
+  }
+
+  async getPublicCompetition(id: string) {
+    if (isDemoCompetitionId(id)) throw new NotFoundException("赛事不存在");
+    const competition = await this.prisma.competition.findFirst({
+      where: { id, status: { in: [...PUBLIC_COMPETITION_STATUSES] } },
+      include: {
+        rounds: { orderBy: { sortOrder: "asc" } },
+        _count: { select: { registrations: true, questions: true } },
+      },
+    });
+    if (!competition) throw new NotFoundException("赛事不存在");
+    return competition;
+  }
+
+  /** 公开子资源统一闸门，防止通过榜单、报名、成绩等路径绕过列表/详情隔离。 */
+  async assertPublicCompetition(id: string) {
+    if (isDemoCompetitionId(id)) throw new NotFoundException("赛事不存在");
+    const competition = await this.prisma.competition.findFirst({
+      where: { id, status: { in: [...PUBLIC_COMPETITION_STATUSES] } },
+      select: { id: true, status: true },
+    });
+    if (!competition) throw new NotFoundException("赛事不存在");
+    return competition;
+  }
+
+  async assertPublicRound(id: string) {
+    if (isDemoCompetitionId(id)) throw new NotFoundException("赛程不存在");
+    const round = await this.prisma.competitionRound.findUnique({
+      where: { id },
+      select: { id: true, competitionId: true },
+    });
+    if (!round) throw new NotFoundException("赛程不存在");
+    await this.assertPublicCompetition(round.competitionId);
+    return round;
+  }
+
+  async assertPublicRanking(id: string) {
+    const ranking = await this.prisma.competitionRanking.findUnique({
+      where: { id },
+      select: { id: true, competitionId: true },
+    });
+    if (!ranking) throw new NotFoundException("排名记录不存在");
+    await this.assertPublicCompetition(ranking.competitionId);
+    return ranking;
   }
 
   async getCompetition(id: string) {

@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { maskName } from "../../common/crypto.util";
 import { safePagination, paginated } from "../../common/pagination";
+import { COMPETITION_DEMO_PREFIX } from "./competition-public.policy";
 
 /**
  * talentScore 加权（设计钉死·赛-P4）：
@@ -186,14 +187,16 @@ export class TalentService {
    */
   async listTalents(pageRaw?: string | number, pageSizeRaw?: string | number) {
     const { page, pageSize, skip } = safePagination(pageRaw, pageSizeRaw);
+    const where = { NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } } };
     const [rows, total] = await Promise.all([
       this.prisma.competitionTalent.findMany({
+        where,
         orderBy: [{ talentScore: "desc" }, { updatedAt: "asc" }],
         skip,
         take: pageSize,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
       }),
-      this.prisma.competitionTalent.count(),
+      this.prisma.competitionTalent.count({ where }),
     ]);
 
     const certified = await this.certifiedMap(rows.map((r) => r.userId));
@@ -212,7 +215,7 @@ export class TalentService {
         level: r.level,
         // 战绩徽章只出奖牌（冠亚季军）·公开榜不暴露完整参赛轨迹
         medals: this.parseBadges(r.badges)
-          .filter((b) => (MEDAL_STATUS as readonly string[]).includes(b.status))
+          .filter((b) => !b.competitionId.startsWith(COMPETITION_DEMO_PREFIX) && (MEDAL_STATUS as readonly string[]).includes(b.status))
           .map((b) => ({ competitionId: b.competitionId, title: b.title, status: b.status, finishedAt: b.finishedAt })),
         isCertified: !!cert,
         verifiedTitle: cert?.verifiedTitle ?? null,

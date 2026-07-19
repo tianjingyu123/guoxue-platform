@@ -95,53 +95,47 @@
           </view>
         </template>
 
-        <!-- 快捷入口宫格 -->
-        <view class="a1-sec-hd">
-          <text class="a1-sec-title">快捷入口</text>
-          <text class="a1-sec-more">荣誉 · 裂变</text>
-        </view>
-        <view class="a1-grid">
-          <view v-for="e in entries" :key="e.key" class="a1-ge" @tap="onEntry(e.key)">
-            <view class="a1-ge-ico" :class="e.tone"><app-icon :name="e.icon" :size="20" :color="e.color" /></view>
-            <text class="a1-ge-txt">{{ e.label }}</text>
-          </view>
-        </view>
-
         <!-- 全部赛事三态列表 -->
-        <view class="a1-sec-hd">
-          <text class="a1-sec-title">全部赛事</text>
-          <text class="a1-sec-more">综合排序 ›</text>
-        </view>
-
-        <view v-if="listCompetitions.length" class="a1-list">
-          <view v-for="comp in listCompetitions" :key="comp.id" class="a1-lc" @tap="go('/competition/' + comp.id)">
-            <view class="a1-lc-cover" :class="{ ended: comp.ui === 'ended' }">
-              <image v-if="comp.cover" :src="comp.cover" mode="aspectFill" class="a1-lc-cover-img" />
-              <view v-else class="a1-lc-cover-ph"><app-icon name="award" :size="26" color="rgba(201,169,110,0.5)" /></view>
-            </view>
-            <view class="a1-lc-body">
-              <text class="a1-lc-title">{{ comp.title }}</text>
-              <view class="a1-lc-tags">
-                <text class="a1-chip type">{{ comp.typeTag }}</text>
-                <text class="a1-chip level">{{ comp.levelLabel }}</text>
-                <text class="a1-chip prize">{{ comp.prize }}</text>
+        <template v-if="listCompetitions.length">
+          <view class="a1-sec-hd">
+            <text class="a1-sec-title">全部赛事</text>
+            <text class="a1-sec-more">综合排序</text>
+          </view>
+          <view class="a1-list">
+            <view v-for="comp in listCompetitions" :key="comp.id" class="a1-lc" @tap="go('/competition/' + comp.id)">
+              <view class="a1-lc-cover" :class="{ ended: comp.ui === 'ended' }">
+                <image v-if="comp.cover" :src="comp.cover" mode="aspectFill" class="a1-lc-cover-img" />
+                <view v-else class="a1-lc-cover-ph"><app-icon name="award" :size="26" color="rgba(201,169,110,0.5)" /></view>
               </view>
-              <view class="a1-lc-foot">
-                <view class="a1-status-dot" :class="comp.ui === 'ended' ? 's-end' : 's-ing'">
-                  <view class="a1-dot" /><text class="a1-status-txt">{{ comp.footText }}</text>
+              <view class="a1-lc-body">
+                <text class="a1-lc-title">{{ comp.title }}</text>
+                <view class="a1-lc-tags">
+                  <text class="a1-chip type">{{ comp.typeTag }}</text>
+                  <text class="a1-chip level">{{ comp.levelLabel }}</text>
+                  <text class="a1-chip prize">{{ comp.prize }}</text>
                 </view>
-                <view class="a1-mini-btn" :class="{ on: comp.ui === 'registering' }">
-                  <text class="a1-mini-btn-txt" :class="{ on: comp.ui === 'registering' }">{{ comp.actionText }}</text>
+                <view class="a1-lc-foot">
+                  <view class="a1-status-dot" :class="comp.ui === 'ended' ? 's-end' : 's-ing'">
+                    <view class="a1-dot" /><text class="a1-status-txt">{{ comp.footText }}</text>
+                  </view>
+                  <view class="a1-mini-btn" :class="{ on: comp.ui === 'registering' }">
+                    <text class="a1-mini-btn-txt" :class="{ on: comp.ui === 'registering' }">{{ comp.actionText }}</text>
+                  </view>
                 </view>
               </view>
             </view>
           </view>
-        </view>
+        </template>
 
-        <!-- empty -->
-        <view v-else class="a1-empty">
+        <!-- 无赛事或搜索无结果 -->
+        <view v-if="!filteredCompetitions.length" class="a1-empty">
           <app-icon name="award" :size="48" color="#d8cfc0" />
-          <text class="a1-empty-txt">暂无相关赛事</text>
+          <text class="a1-empty-title">{{ cards.length ? '没有找到匹配赛事' : '赛事正在筹备' }}</text>
+          <text class="a1-empty-txt">{{ cards.length ? '换个关键词或分类试试' : '赛程、规则与评审就绪后，我们会第一时间开放' }}</text>
+          <view class="a1-empty-action" @tap="go('/pkg-competition/talents/index')">
+            <text class="a1-empty-action-txt">查看赛事人才榜</text>
+            <app-icon name="arrow-right" :size="15" color="#C41E3A" />
+          </view>
         </view>
       </template>
 
@@ -188,15 +182,6 @@ const categories = [
 const activeCategory = ref('all')
 const searchQuery = ref('')
 
-// 快捷入口 6 格（icon 用 app-icon 现有名）
-const entries = [
-  { key: 'live', label: '直播赛间', icon: 'video', tone: 'red', color: '#C41E3A' },
-  { key: 'offline', label: '线下赛', icon: 'map-pin', tone: 'gold', color: '#A5883F' },
-  { key: 'ranking', label: '排行榜', icon: 'bar-chart-3', tone: 'gold', color: '#A5883F' },
-  { key: 'talents', label: '分析师榜', icon: 'user', tone: 'gold', color: '#A5883F' },
-  { key: 'invite', label: '邀请同台', icon: 'user-plus', tone: 'red', color: '#C41E3A' },
-  { key: 'rules', label: '赛制公示', icon: 'file-text', tone: 'gray', color: '#6E6E73' },
-]
 
 // 每秒滴答（驱动倒计时重算）
 const nowTick = ref(Date.now())
@@ -310,18 +295,6 @@ async function load() {
 
 function go(p: string) { navigateTo(p) }
 
-// 快捷入口降级处理（诚实：后端无对应能力的一律 toast / 引导）
-function onEntry(key: string) {
-  switch (key) {
-    case 'live': uni.showToast({ title: '直播赛即将开放', icon: 'none' }); break
-    case 'offline': uni.showToast({ title: '线下赛即将开放', icon: 'none' }); break
-    // 排行榜依赖具体赛事，无全局榜 → 引导到人才榜
-    case 'ranking': uni.showToast({ title: '请进入具体赛事查看排行', icon: 'none' }); break
-    case 'talents': navigateTo('/pkg-competition/talents/index'); break
-    case 'invite': uni.showToast({ title: '邀请同台即将开放', icon: 'none' }); break
-    case 'rules': uni.showToast({ title: '赛制公示即将开放', icon: 'none' }); break
-  }
-}
 
 onMounted(() => {
   try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
@@ -416,15 +389,6 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .a1-btn-ghost-txt { color: #6E6E73; font-size: 15px; font-weight: 600; }
 .a1-btn-dual { display: flex; gap: 11px; }
 
-/* 快捷入口宫格 */
-.a1-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; padding: 0 20px; }
-.a1-ge { background: #FFF; border: 1px solid #ECE7DF; border-radius: 15px; padding: 15px 6px; display: flex; flex-direction: column; align-items: center; gap: 9px; box-shadow: 0 3px 12px rgba(60,40,20,0.04); }
-.a1-ge-ico { width: 42px; height: 42px; border-radius: 13px; display: flex; align-items: center; justify-content: center; }
-.a1-ge-ico.red { background: #fdeef0; }
-.a1-ge-ico.gold { background: #f6efdf; }
-.a1-ge-ico.blue { background: #eef2f5; }
-.a1-ge-ico.gray { background: #f1efec; }
-.a1-ge-txt { font-size: 12px; color: #2C2C2C; font-weight: 500; }
 
 /* 全部赛事列表卡 */
 .a1-list { padding: 0; }
@@ -450,8 +414,11 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 .a1-mini-btn-txt.on { color: #fff; }
 
 /* empty */
-.a1-empty { padding: 48px 40px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.a1-empty-txt { color: #9A9A9A; font-size: 14px; }
+.a1-empty { padding: 56px 40px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.a1-empty-title { color: #2C2C2C; font-size: 17px; font-weight: 700; font-family: 'Songti SC', 'STSong', serif; }
+.a1-empty-txt { color: #9A9A9A; font-size: 13px; line-height: 1.65; text-align: center; }
+.a1-empty-action { margin-top: 4px; display: flex; align-items: center; gap: 4px; padding: 9px 16px; border-radius: 999px; background: #fff; border: 1px solid #eadde0; }
+.a1-empty-action-txt { color: #C41E3A; font-size: 13px; font-weight: 600; }
 
 .a1-safe { height: 30px; }
 </style>

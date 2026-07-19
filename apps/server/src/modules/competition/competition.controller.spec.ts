@@ -16,7 +16,12 @@ const mockService: Record<string, jest.Mock> = {
   startCompetition: jest.fn(),
   finishCompetition: jest.fn(),
   listCompetitions: jest.fn(),
+  listPublicCompetitions: jest.fn(),
   getCompetition: jest.fn(),
+  getPublicCompetition: jest.fn(),
+  assertPublicCompetition: jest.fn(),
+  assertPublicRound: jest.fn(),
+  assertPublicRanking: jest.fn(),
   createRound: jest.fn(),
   getRounds: jest.fn(),
   updateRound: jest.fn(),
@@ -244,28 +249,32 @@ describe("CompetitionPublicController", () => {
 
   it("应被定义", () => expect(ctrl).toBeDefined());
 
-  it("公开赛事列表", async () => {
-    mockService.listCompetitions.mockResolvedValue({ items: [] } as any);
+  it("公开赛事列表只走公开边界", async () => {
+    mockService.listPublicCompetitions.mockResolvedValue({ items: [] } as any);
     const result: any = await ctrl.list({} as any);
     expect(result.items).toHaveLength(0);
+    expect(mockService.listCompetitions).not.toHaveBeenCalled();
   });
 
-  it("公开赛事详情", async () => {
-    mockService.getCompetition.mockResolvedValue({ id: "c1" } as any);
+  it("公开赛事详情只走公开边界", async () => {
+    mockService.getPublicCompetition.mockResolvedValue({ id: "c1" } as any);
     const result: any = await ctrl.get("c1");
     expect(result.id).toBe("c1");
+    expect(mockService.getCompetition).not.toHaveBeenCalled();
   });
 
   it("公开排名", async () => {
     mockService.getRankings.mockResolvedValue({ items: [] } as any);
     const result: any = await ctrl.getRankings("c1", {} as any);
     expect(result.items).toHaveLength(0);
+    expect(mockService.assertPublicCompetition).toHaveBeenCalledWith("c1");
   });
 
   it("报名参赛", async () => {
     mockService.register.mockResolvedValue({ id: "reg1" } as any);
     const result: any = await ctrl.register("c1", {}, { user: { id: "u1", roles: [] as RoleType[] } } as any);
     expect(result.id).toBe("reg1");
+    expect(mockService.assertPublicCompetition).toHaveBeenCalledWith("c1");
   });
 
   it("我的报名状态", async () => {
@@ -284,6 +293,7 @@ describe("CompetitionPublicController", () => {
     mockService.submitAnswer.mockResolvedValue({ id: "a1" } as any);
     const result: any = await ctrl.submitAnswer("r1", { questionId: "q1", answer: "A" } as any, { user: { id: "u1", roles: [] as RoleType[] } } as any);
     expect(result.id).toBe("a1");
+    expect(mockService.assertPublicRound).toHaveBeenCalledWith("r1");
   });
 
   it("批量提交答题", async () => {
@@ -296,12 +306,14 @@ describe("CompetitionPublicController", () => {
     mockService.generatePaper.mockResolvedValue({ questions: [] } as any);
     const result: any = await ctrl.getPaper("r1");
     expect(result.questions).toHaveLength(0);
+    expect(mockService.assertPublicRound).toHaveBeenCalledWith("r1");
   });
 
   it("查看电子证书", async () => {
     mockService.getCertificateHtml.mockResolvedValue("<html>证书</html>" as any);
     const result: any = await ctrl.viewCertificate("rank1");
     expect(result).toContain("证书");
+    expect(mockService.assertPublicRanking).toHaveBeenCalledWith("rank1");
   });
 
   it("人才榜（公开·透传分页）", async () => {
