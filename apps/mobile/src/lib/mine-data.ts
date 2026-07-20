@@ -195,37 +195,6 @@ export const blacklistSearchPool: SearchUserItem[] = [
   { id: 2004, nickname: '八字小王', avatar: AVATAR('sp-4'), isBlocked: true },
 ]
 
-/* —— 青少年模式 —— */
-export interface TeenModeSettings {
-  enabled: boolean
-  dailyLimit: number
-  restrictedStartHour: number
-  restrictedEndHour: number
-  autoNightMode: boolean
-  filterLevel: 'strict' | 'moderate'
-  hasPassword: boolean
-}
-export const defaultTeenModeSettings: TeenModeSettings = {
-  enabled: false,
-  dailyLimit: 40,
-  restrictedStartHour: 22,
-  restrictedEndHour: 6,
-  autoNightMode: true,
-  filterLevel: 'moderate',
-  hasPassword: false,
-}
-export const teenTimeLimitOptions = [
-  { value: 15, label: '15分钟' },
-  { value: 30, label: '30分钟' },
-  { value: 40, label: '40分钟（默认）' },
-  { value: 60, label: '60分钟' },
-  { value: 90, label: '90分钟' },
-  { value: 120, label: '120分钟' },
-]
-export const teenFilterLevels = [
-  { value: 'strict', label: '严格', desc: '仅显示适合青少年的教育内容' },
-  { value: 'moderate', label: '适中', desc: '过滤不适内容，保留大部分功能' },
-]
 
 /* —— 数据导出 —— */
 export interface ExportDataType {
@@ -872,19 +841,6 @@ interface RawBlacklist {
   blockedUser?: { id?: number; nickname?: string | null; avatar?: string | null } | null
   createdAt?: string | null
 }
-/** 青少年模式 settings 原始结构 */
-interface RawTeenSettings {
-  dailyLimitMinutes?: number | string
-  blockStartHour?: number | string
-  blockEndHour?: number | string
-  contentFilter?: string
-  guardianPassword?: string | null
-}
-/** GET /users/me/teen-mode 原始响应 */
-interface RawTeenMode {
-  enabled?: boolean
-  settings?: RawTeenSettings | null
-}
 /** 后端 Feedback 原始项 */
 interface RawFeedback {
   id: string | number
@@ -1138,19 +1094,6 @@ function adaptBlacklist(b: RawBlacklist): BlacklistItem {
   }
 }
 
-/** 后端青少年模式 {enabled,settings} → 前端 TeenModeSettings */
-function adaptTeenMode(r: RawTeenMode): TeenModeSettings {
-  const s: RawTeenSettings = r?.settings ?? {}
-  return {
-    enabled: !!r?.enabled,
-    dailyLimit: Number(s.dailyLimitMinutes ?? 40),
-    restrictedStartHour: Number(s.blockStartHour ?? 22),
-    restrictedEndHour: Number(s.blockEndHour ?? 6),
-    autoNightMode: true,
-    filterLevel: (s.contentFilter === 'strict' ? 'strict' : 'moderate'),
-    hasPassword: !!s.guardianPassword,
-  }
-}
 
 /** 后端 Feedback 记录 → 前端 HistoryFeedbackItem（后端无独立 title，取内容首行） */
 function adaptFeedbackHistory(f: RawFeedback): HistoryFeedbackItem {
@@ -1524,23 +1467,7 @@ export const mineApi = {
     return true
   },
 
-  /** 获取青少年模式设置 —— GET /users/me/teen-mode（{enabled,settings} → 适配） */
-  async getTeenMode(): Promise<TeenModeSettings> {
-    const r = await apiGet<RawTeenMode>('/users/me/teen-mode')
-    return adaptTeenMode(r)
-  },
 
-  /** 更新青少年模式 —— PUT /users/me/teen-mode（前端字段 → 后端 DTO 映射） */
-  async updateTeenMode(_settings: TeenModeSettings): Promise<boolean> {
-    await apiPut('/users/me/teen-mode', {
-      enabled: _settings.enabled,
-      dailyLimitMinutes: _settings.dailyLimit,
-      blockStartHour: _settings.restrictedStartHour,
-      blockEndHour: _settings.restrictedEndHour,
-      contentFilter: _settings.filterLevel,
-    })
-    return true
-  },
 
   /** 注销账号信息 —— GET /users/delete-account/info（脱敏手机号 + 原因 + 影响数据 + 真实资产） */
   async getDeleteAccountInfo(): Promise<{
