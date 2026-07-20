@@ -44,9 +44,16 @@ describe("RecommendController", () => {
   beforeEach(() => { jest.clearAllMocks(); });
 
   it("POST /recommend/log — 上报推荐事件", async () => {
-    const dto: any = { events: [{ event: "click", contentId: "a1" }] };
-    const result: any = await ctrl.log(dto);
+    const req: any = { user: { id: "u1" } };
+    const dto: any = {
+      recommendId: "rec_12345678",
+      interactions: [
+        { itemId: "a1", itemType: "ARTICLE", position: 0, action: "CLICK" },
+      ],
+    };
+    const result: any = await ctrl.log(req, dto);
     expect(result.success).toBe(true);
+    expect(mockRecommendSvc.logInteractions).toHaveBeenCalledWith(dto, "u1");
   });
 
   it("GET /recommend/trending — 热门推荐", async () => {

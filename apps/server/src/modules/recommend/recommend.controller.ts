@@ -3,6 +3,7 @@ import { Controller, Get, Post, Put, Delete, Param, Query, Body, Req, UseGuards 
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { RecommendService } from "./recommend.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
@@ -20,12 +21,12 @@ export class RecommendController {
   // ───── 固定路由（必须在 :scene 之前，避免被参数路由拦截） ─────
 
   @Post("log")
-  @UseGuards(ThrottleGuard)
+  @UseGuards(OptionalAuthGuard, ThrottleGuard)
   @ApiOperation({ summary: "上报推荐曝光/点击" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  log(@Body() dto: RecommendLogDto) {
-    return this.svc.logInteractions(dto);
+  log(@Req() req: Request, @Body() dto: RecommendLogDto) {
+    return this.svc.logInteractions(dto, req.user?.id);
   }
 
   @Get("trending")
@@ -126,7 +127,7 @@ export class RecommendController {
   // 注意：新增静态路由的控制器必须在本控制器之前注册，否则会被 :scene 通配拦截
 
   @Get(":scene")
-  @UseGuards(FeatureFlagGuard)
+  @UseGuards(OptionalAuthGuard, FeatureFlagGuard)
   @RequireFeature("recommend_engine")
   @ApiOperation({ summary: "全页面智能推荐" })
   @ApiResponse({ status: 200, description: "成功" })

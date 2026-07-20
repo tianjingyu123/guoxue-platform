@@ -10,6 +10,8 @@
  */
 import { navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
+import { getCurrentInstance, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { apiPostOptionalAuth } from '@/utils/request'
 
 export interface RecommendItem {
   id: string | number
@@ -22,9 +24,13 @@ export interface RecommendItem {
   tag?: string
   /** 点击跳转路径（原型路径，走 navigateTo） */
   href: string
+  /** 服务端生成的推荐批次，供真实曝光/点击归因。 */
+  recommendId?: string
+  itemType?: string
+  position?: number
 }
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   title?: string
   items?: RecommendItem[]
 }>(), {
@@ -32,7 +38,85 @@ withDefaults(defineProps<{
   items: () => [],
 })
 
+
+const instance = getCurrentInstance()
+const reportedImpressions = new Set<string>()
+let observer: any = null
+let mounted = false
+
+function trackingKey(item: RecommendItem) {
+  return `${item.recommendId}:${item.itemType}:${item.id}`
+}
+
+function sendTracking(action: 'IMPRESSION' | 'CLICK', items: RecommendItem[]) {
+  const groups = new Map<string, RecommendItem[]>()
+  for (const item of items) {
+    if (!item.recommendId || !item.itemType) continue
+    const group = groups.get(item.recommendId) || []
+    group.push(item)
+    groups.set(item.recommendId, group)
+  }
+  for (const [recommendId, group] of groups) {
+    void apiPostOptionalAuth('/recommend/log', {
+      recommendId,
+      interactions: group.map(item => ({
+        itemId: String(item.id),
+        itemType: item.itemType,
+        position: item.position ?? 0,
+        action,
+      })),
+    }).catch(() => undefined)
+  }
+}
+
+function reportImpressions() {
+  const pending = props.items.filter((item) => {
+    if (!item.recommendId || !item.itemType) return false
+    const key = trackingKey(item)
+    if (reportedImpressions.has(key)) return false
+    reportedImpressions.add(key)
+    return true
+  })
+  if (pending.length) sendTracking('IMPRESSION', pending)
+}
+
+async function armImpressionObserver() {
+  if (!mounted || !props.items.length) return
+  // #ifdef H5
+  await nextTick()
+  observer?.disconnect()
+  try {
+    observer = uni.createIntersectionObserver(instance as any)
+    observer.relativeToViewport({ top: 0, bottom: 0 }).observe('.rec', (res: any) => {
+      if (res.intersectionRatio > 0) {
+        reportImpressions()
+        observer?.disconnect()
+        observer = null
+      }
+    })
+  } catch {
+    reportImpressions()
+  }
+  // #endif
+  // #ifndef H5
+  reportImpressions()
+  // #endif
+}
+
+watch(() => props.items.map(item => trackingKey(item)).join('|'), () => {
+  if (mounted) void armImpressionObserver()
+})
+onMounted(() => {
+  mounted = true
+  void armImpressionObserver()
+})
+onUnmounted(() => {
+  mounted = false
+  observer?.disconnect()
+  observer = null
+})
 function go(item: RecommendItem) {
+  sendTracking('CLICK', [item])
   if (item.href) navigateTo(item.href)
 }
 </script>

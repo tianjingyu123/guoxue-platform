@@ -77,7 +77,7 @@ describe("AbTestController", () => {
 
   it("GET /recommend/ab-tests/reports/latest — 获取最新实验汇总报告", async () => {
     const result = await ctrl.getReport();
-    expect(result.totalExperiments).toBe(1);
+    expect(result?.totalExperiments).toBe(1);
   });
 
   it("POST /recommend/ab-tests/reports/generate — 手动生成实验汇总报告", async () => {

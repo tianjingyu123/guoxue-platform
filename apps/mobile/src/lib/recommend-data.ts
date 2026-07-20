@@ -65,7 +65,7 @@ function subtitleOf(vo: RecommendVO): string | undefined {
 }
 
 /** 后端 VO → 统一推荐卡 */
-function toRecommendItem(vo: RecommendVO): RecommendItem {
+function toRecommendItem(vo: RecommendVO, recommendId: string, position: number): RecommendItem {
   const price = typeof vo.metadata?.price === 'number' ? vo.metadata.price : undefined
   return {
     id: vo.id,
@@ -75,6 +75,9 @@ function toRecommendItem(vo: RecommendVO): RecommendItem {
     price: price && price > 0 ? price : undefined,
     tag: vo.reason || vo.tags?.[0],
     href: hrefOf(vo),
+    recommendId,
+    itemType: vo.type,
+    position,
   }
 }
 
@@ -91,7 +94,8 @@ export const recommendApi = {
       if (contentId) url += `&contentId=${encodeURIComponent(contentId)}`
       const res = await apiGet<RecommendResponse>(url)
       const items = Array.isArray(res?.items) ? res.items : []
-      return items.map(toRecommendItem).filter(it => it.title)
+      const recommendId = typeof res?.recommendId === 'string' ? res.recommendId : ''
+      return items.map((item, index) => toRecommendItem(item, recommendId, index)).filter(it => it.title)
     } catch {
       return []
     }

@@ -39,9 +39,10 @@ import { RecommendInsertService } from "./services/recommend-insert.service";
 import { RecommendSelectService } from "./services/recommend-select.service";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { StationPickModule } from "../station-pick/station-pick.module";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
-  imports: [AiGatewayModule, StationPickModule],
+  imports: [AiGatewayModule, StationPickModule, AuthModule],
   // ⚠️ TouchpointController 必须排在 RecommendController 之前（其 @Get(":scene") 通配会拦截 /recommend/touchpoint）
   controllers: [SmartFeedController, TouchpointController, RecommendController, RecommendRuleController, AbTestController],
   providers: [

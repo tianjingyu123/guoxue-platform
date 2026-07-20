@@ -1,4 +1,15 @@
-import { IsOptional, IsString, IsArray, IsInt, Min, Max, MinLength } from "class-validator";
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+  ValidateNested,
+} from "class-validator";
 import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -92,19 +103,40 @@ export class RecommendResponse {
   extra?: Record<string, unknown>;
 }
 
-export class RecommendLogDto {
+export class RecommendInteractionDto {
   @IsString()
   @MinLength(1)
+  itemId: string;
+
+  @IsString()
+  @IsIn(Object.values(RecommendItemType))
+  itemType: string;
+
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  position: number;
+
+  @IsIn(["IMPRESSION", "CLICK"])
+  action: "IMPRESSION" | "CLICK";
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(86400)
+  staySeconds?: number;
+}
+
+export class RecommendLogDto {
+  @IsString()
+  @MinLength(8)
   recommendId: string;
 
   @IsArray()
-  interactions: {
-    itemId: string;
-    itemType: string;
-    position: number;
-    action: "IMPRESSION" | "CLICK";
-    staySeconds?: number;
-  }[];
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => RecommendInteractionDto)
+  interactions: RecommendInteractionDto[];
 }
 
 export interface RecommendContext {
