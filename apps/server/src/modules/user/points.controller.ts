@@ -8,7 +8,6 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import { SpendPointsDto } from "./dto/points.dto";
 import { ContentExpService } from "../user-growth/content-exp.service";
 
 /**
@@ -93,16 +92,17 @@ export class PointsController {
   @Get("points/tasks")
   @ApiOperation({ summary: "积分任务列表（每日可做的赚积分任务）" })
   @ApiResponse({ status: 200, description: "成功" })
-  getPointsTasks() {
-    // 复用赚积分规则，映射为前端任务卡片结构
+  async getPointsTasks(@Req() req: Request) {
+    // 上线阶段只展示已有真实积分写入链路的任务；完成态读取当天签到记录。
+    const checkedIn = await this.svc.hasCheckedInToday(req.user.id);
     return this.getDefaultEarnRules().map((r, i) => ({
       id: i + 1,
       title: r.title,
       points: r.points,
       icon: r.icon,
-      action: "去完成",
+      action: checkedIn ? "已完成" : "去签到",
       limit: r.limit,
-      completed: false,
+      completed: checkedIn,
     }));
   }
 
@@ -207,12 +207,7 @@ export class PointsController {
 
   private getDefaultEarnRules() {
     return [
-      { id: "1", title: "每日签到", description: "连续签到奖励翻倍", points: 10, icon: "calendar", limit: "每日1次" },
-      { id: "2", title: "完成学习", description: "学习课程满30分钟", points: 20, icon: "book-open", limit: "每日3次" },
-      { id: "3", title: "发表评论", description: "发表优质课程评论", points: 15, icon: "message-circle", limit: "每日5次" },
-      { id: "4", title: "分享内容", description: "分享课程或圈子内容", points: 10, icon: "share-2", limit: "每日3次" },
-      { id: "5", title: "购买课程", description: "每消费10元获1积分", points: 1, icon: "shopping-bag", limit: "无上限" },
-      { id: "6", title: "邀请好友", description: "好友注册成功", points: 100, icon: "gift", limit: "无上限" },
+      { id: "1", title: "每日签到", description: "基础5积分，连续签到每3天提升一档", points: 5, icon: "calendar", limit: "基础5分起 · 每日1次" },
     ];
   }
 

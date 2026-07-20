@@ -1627,31 +1627,7 @@
           }
         },
         {
-          "path": "invite-rewards/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "invite/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "live-arena/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "offline-detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "offline-checkin/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -1770,19 +1746,7 @@
           }
         },
         {
-          "path": "inquiries/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "content-stats/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "circle-bindding/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2402,18 +2366,6 @@
           }
         },
         {
-          "path": "bookings/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "reservations/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "teen-mode-intro/index",
           "style": {
             "navigationStyle": "custom"
@@ -2439,12 +2391,6 @@
         },
         {
           "path": "applications/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "invite-records/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2510,18 +2456,6 @@
         },
         {
           "path": "follows/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "invite/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "invite/history/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2692,12 +2626,6 @@
           }
         },
         {
-          "path": "im/invite/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "im/group-detail/index",
           "style": {
             "navigationStyle": "custom"
@@ -2813,18 +2741,6 @@
       "pages": [
         {
           "path": "detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "calendar/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "landing/index",
           "style": {
             "navigationStyle": "custom"
           }

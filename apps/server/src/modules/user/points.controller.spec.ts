@@ -8,6 +8,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 const mockSvc = {
   getPoints: jest.fn(),
+  hasCheckedInToday: jest.fn(),
   getPointsRecords: jest.fn(),
   getGrowth: jest.fn(),
   getGrowthRecords: jest.fn(),
@@ -51,6 +52,22 @@ describe("PointsController", () => {
       const result = await ctrl.getPoints(mockReq);
       expect(result.balance).toBe(100);
       expect(mockSvc.getPoints).toHaveBeenCalledWith("u1");
+    });
+  });
+
+  describe("GET points/tasks", () => {
+    it("仅返回已有真实入账链路的签到任务", async () => {
+      mockSvc.hasCheckedInToday.mockResolvedValue(false);
+      const result = await ctrl.getPointsTasks(mockReq);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ title: "每日签到", points: 5, completed: false, action: "去签到" });
+      expect(mockSvc.hasCheckedInToday).toHaveBeenCalledWith("u1");
+    });
+
+    it("签到后返回真实完成态", async () => {
+      mockSvc.hasCheckedInToday.mockResolvedValue(true);
+      const result = await ctrl.getPointsTasks(mockReq);
+      expect(result[0]).toMatchObject({ completed: true, action: "已完成" });
     });
   });
 

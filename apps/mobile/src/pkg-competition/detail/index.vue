@@ -80,19 +80,6 @@
             <view class="block"><text class="block-text">{{ comp.description }}</text></view>
           </view>
 
-          <!-- 荐才同荣（平台机制说明） -->
-          <view class="sec">
-            <view class="invite-reward">
-              <text class="ir-title">◆ 荐才同荣 · 邀请人连带奖励</text>
-              <text class="ir-p">你邀请的参赛者获得实物奖励时，你作为荐才人自动获得对应一份连带奖励。仅追溯一层（你→TA），不做多级分销，挂钩真实赛事荣誉而非消费。</text>
-              <view class="ir-map">
-                <view class="ir-col"><text class="ir-h">TA 得冠军</text><text class="ir-v">荐者得最高档连带奖</text></view>
-                <view class="ir-col"><text class="ir-h">TA 晋级/优胜</text><text class="ir-v">荐者得中档连带奖</text></view>
-                <view class="ir-col"><text class="ir-h">TA 参与荣誉</text><text class="ir-v">荐者得荣誉值/积分</text></view>
-              </view>
-            </view>
-          </view>
-
           <!-- 规则透明公示 -->
           <view v-if="plainRules" class="sec">
             <view class="sec-hd"><text class="sec-title">规则透明公示</text></view>
@@ -466,15 +453,6 @@ $line: #ECE7DF;
 .srun { background: #f9f3e6; border: 1rpx solid #ecdcbb; border-radius: 11px; padding: 11px 13px; margin-top: 12px; }
 .srun-txt { font-size: 11.5px; color: $gold-deep; line-height: 1.7; }
 .srun-em { color: $red; }
-
-/* ─── 荐才同荣 ─── */
-.invite-reward { background: linear-gradient(135deg, #faf3e6, #f6ecd8); border: 1rpx solid #ecdcbb; border-radius: 15px; padding: 15px; }
-.ir-title { display: block; font-size: 14px; font-weight: 700; color: $gold-deep; margin-bottom: 8px; }
-.ir-p { display: block; font-size: 12px; color: $t2; line-height: 1.7; }
-.ir-map { display: flex; gap: 9px; margin-top: 12px; }
-.ir-col { flex: 1; background: $card; border: 1rpx solid #ecdcbb; border-radius: 11px; padding: 11px 6px; text-align: center; }
-.ir-h { display: block; font-size: 10px; color: $t3; margin-bottom: 6px; }
-.ir-v { display: block; font-size: 11px; font-weight: 700; color: $gold-deep; line-height: 1.5; }
 
 /* ─── 提示 ─── */
 .notice { display: flex; gap: 8px; align-items: flex-start; background: #f9f3e6; border: 1rpx solid #ecdcbb; border-radius: 11px; padding: 11px 13px; }

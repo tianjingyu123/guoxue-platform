@@ -49,22 +49,22 @@
           </view>
         </view>
 
-        <!-- 费用说明（需支付降级占位） -->
+        <!-- 付费报名尚未接入收银台：前后端双门禁，不允许免费绕过 -->
         <view v-if="isPaid" class="card">
           <text class="card-h3">费用说明</text>
-          <text class="fee-desc">报名费用于赛事组织与奖金池。在线支付即将开放，当前可免费报名参与，后续开赛前补缴。</text>
+          <text class="fee-desc">本场为付费赛事，在线报名暂未开放。请等待主办方开放正式收银台后再报名，请勿通过其他方式私下缴费。</text>
         </view>
 
-        <!-- 邀请码（邀请赛入口 / 邀请奖励入口） -->
+        <!-- 邀请码（邀请赛准入 / 普通赛事来源归因） -->
         <view v-if="comp.isInviteOnly || inviteCode" class="card">
           <text class="card-h3">邀请码 <text v-if="comp.isInviteOnly" class="req">*</text></text>
           <input
             v-model="inviteCode"
             class="invite-input"
-            :placeholder="comp.isInviteOnly ? '本赛为邀请制，请输入邀请码' : '有邀请码可填写，助力邀请奖励'"
+            :placeholder="comp.isInviteOnly ? '本赛为邀请制，请输入邀请码' : '有邀请码可填写，便于赛事来源统计'"
             placeholder-class="ph"
           />
-          <text class="invite-hint">{{ comp.isInviteOnly ? '本赛为邀请制，需填写有效邀请码方可报名' : '填写好友邀请码，报名后可为其助力邀请奖励' }}</text>
+          <text class="invite-hint">{{ comp.isInviteOnly ? '本赛为邀请制，需填写有效邀请码方可报名' : '填写好友邀请码后，报名记录会保留本次邀请来源' }}</text>
         </view>
 
         <!-- 实名提示 -->
@@ -99,7 +99,7 @@
           <text class="cta-amt">{{ isPaid ? '¥' + yuan(comp.entryFee) : '免费' }}</text>
         </view>
         <view class="btn-primary" :class="{ disabled: !canSubmit || submitting }" @tap="onSubmit">
-          <text class="btn-primary-txt">{{ submitting ? '提交中…' : '确认报名' }}</text>
+          <text class="btn-primary-txt">{{ isPaid ? '付费报名暂未开放' : (submitting ? '提交中…' : '确认报名') }}</text>
         </view>
       </view>
     </template>
@@ -171,11 +171,11 @@ const step = ref<1 | 2>(1)
 const submitting = ref(false)
 const agreeRules = ref(false)
 const inviteCode = ref('')
-const inviterId = ref('') // 从邀请链接带入（邀请奖励归因）
+const inviterId = ref('') // 从邀请链接带入（赛事来源归因）
 const participantNo = ref('')
 const registrationTime = ref('')
 
-// 是否需支付（entryFee>0 → 降级占位，仍允许免费报名）
+// 是否需支付（entryFee>0 时须等待正式收银台，禁止免费绕过）
 const isPaid = computed(() => (comp.value?.entryFee ?? 0) > 0)
 
 // 报名时间区间（publishedAt ~ 首个非报名轮的 startAt）
@@ -216,8 +216,9 @@ const plainRules = computed(() =>
   (comp.value?.rules || '').replace(/[#*`>]/g, '').replace(/\n{2,}/g, '\n').trim(),
 )
 
-// 本地校验：必须勾选同意；若为邀请赛则邀请码必填
+// 本地校验：付费赛事未接正式收银台前不可提交；邀请赛须填写邀请码。
 const canSubmit = computed(() => {
+  if (isPaid.value) return false
   if (!agreeRules.value) return false
   if (comp.value?.isInviteOnly && !inviteCode.value.trim()) return false
   return true

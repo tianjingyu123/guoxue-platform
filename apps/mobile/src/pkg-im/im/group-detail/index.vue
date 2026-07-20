@@ -193,9 +193,6 @@ function handleShowQrcode() {
   showQrcode.value = true
 }
 
-function goInvite() {
-  navigateTo(`/im/invite?groupId=${groupId.value}`)
-}
 </script>
 
 <template>
@@ -264,12 +261,6 @@ function goInvite() {
                   </view>
                 </view>
                 <text class="member-name">{{ member.remark || member.nickname }}</text>
-              </view>
-              <view v-if="permissions.canInvite" class="member-cell" @tap="goInvite">
-                <view class="invite-avatar">
-                  <AppIcon name="user-plus" :size="20" color="#999999" />
-                </view>
-                <text class="member-name">邀请</text>
               </view>
             </view>
           </view>

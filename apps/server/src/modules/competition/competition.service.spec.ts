@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { CompetitionService } from "./competition.service";
 
 describe("CompetitionService 公开赛事边界", () => {
@@ -7,6 +7,7 @@ describe("CompetitionService 公开赛事边界", () => {
       findMany: jest.fn(),
       count: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
     },
     competitionRound: { findUnique: jest.fn() },
     competitionRanking: { findUnique: jest.fn() },
@@ -53,5 +54,10 @@ describe("CompetitionService 公开赛事边界", () => {
     prisma.competitionRound.findUnique.mockResolvedValue({ id: "round-1", competitionId: "real-1" });
     prisma.competition.findFirst.mockResolvedValue(null);
     await expect(service.assertPublicRound("round-1")).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("付费赛事未接正式收银台前禁止免费报名", async () => {
+    prisma.competition.findUnique.mockResolvedValue({ id: "paid-1", status: "PUBLISHED", entryFee: 9900 });
+    await expect(service.register("paid-1", "u1")).rejects.toThrow(BadRequestException);
   });
 });

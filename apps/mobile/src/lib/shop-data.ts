@@ -3,12 +3,10 @@
  * mock 数据 + 类型 + 装配函数。图片走 /static（跨端约定）。
  */
 import type { ProductCardData } from '@/lib/card-utils'
-import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
 import { getTempReferrer } from '@/utils/referral'
 import { couponApi } from '@/lib/coupon-data'
 import { unescapeEntities, normalizeRichContent } from '@/utils/rich-content'
-
-const P = 'https://api.rebugx.cn/assets/images/products'
 
 /* ============================================================
    内容来源暂存（佣-V2-P3）：文章/内容页 → 商品详情 → 结算的间接购买链路
@@ -1216,7 +1214,6 @@ interface RawCartItem { id?: string; productId?: string; product?: { title?: str
 interface RawAddress { id?: string; name?: string; contactName?: string; phone?: string; contactPhone?: string; province?: string; city?: string; district?: string; address?: string; detail?: string; isDefault?: boolean }
 interface RawCoupon { id?: string; name?: string; type?: string; value?: number | string; minAmount?: number | string; validEnd?: string; scope?: string; discountRate?: number | string; discountAmount?: number | string; totalCount?: number; usedCount?: number }
 interface RawUserCoupon { id?: string; couponId?: string; used?: boolean; coupon?: RawCoupon | null }
-interface RawCategoryNode { id?: string; name?: string; children?: { id?: string; name?: string }[] }
 interface RawFlashItem { productId?: string; product?: { title?: string; image?: string; originalPrice?: number | string; price?: number | string } | null; flashPrice?: number | string; stock?: number; sold?: number }
 interface RawFlashSale { id?: string; name?: string; startTime?: string; endTime?: string; items?: RawFlashItem[] }
 interface RawShopOrder { id?: string; targetId?: string; skuId?: string; status?: string; amount?: number | string; payAmount?: number | string; payMethod?: string; paidAt?: string; quantity?: number; product?: { id?: string; title?: string; cover?: string } | null; sku?: { skuName?: string } | null }
@@ -1825,17 +1822,20 @@ export const shopApi = {
   },
 
   /** 支付成功页订单摘要 — GET /shop/orders/:id（真查金额/支付方式/支付时间/件数，替代硬编码展示） */
-  async getOrderSummary(orderId: string): Promise<{ orderId: string; amount: number; payMethod: string; paidAt: string; itemCount: number }> {
+  async getOrderSummary(orderId: string): Promise<{ orderId: string; amount: number; payMethod: string; paidAt: string; itemCount: number; status: string; paid: boolean }> {
     const o = await apiGet<RawShopOrder>(`/shop/orders/${orderId}`)
     const methodMap: Record<string, string> = { WECHAT: '微信支付', ALIPAY: '支付宝', UNIONPAY: '银联支付', HUIFU: '汇付支付', COIN: '国学币' }
     const paidAt = o?.paidAt ? new Date(o.paidAt) : null
     const fmt = (d: Date) => `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    const status = String(o?.status || 'PENDING').toUpperCase()
     return {
       orderId: o?.id || orderId,
       amount: shopNum(o?.payAmount ?? o?.amount),
       payMethod: methodMap[String(o?.payMethod || '').toUpperCase()] || '在线支付',
       paidAt: paidAt ? fmt(paidAt) : '',
       itemCount: Math.max(1, Number(o?.quantity) || 1),
+      status,
+      paid: ['PAID', 'SHIPPED', 'COMPLETED'].includes(status),
     }
   },
 

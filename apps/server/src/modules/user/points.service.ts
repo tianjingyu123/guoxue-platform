@@ -26,6 +26,17 @@ export class PointsService {
     return points;
   }
 
+  /** 今日是否已完成真实签到任务（供积分任务卡片展示，避免恒 false）。 */
+  async hasCheckedInToday(userId: string): Promise<boolean> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const record = await this.prisma.checkIn.findUnique({
+      where: { userId_checkInDate: { userId, checkInDate: today } },
+      select: { id: true },
+    });
+    return !!record;
+  }
+
   async getPointsRecords(userId: string, rawPage = 1, rawPageSize = 20) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const [items, total] = await Promise.all([

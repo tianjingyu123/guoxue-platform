@@ -54,8 +54,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/im/group-list': '/pkg-im/im/group-list/index',
   // 好友请求（待处理/已处理+同意/拒绝+全部同意）
   '/im/friend-requests': '/pkg-im/im/friend-requests/index',
-  // 邀请好友（链接/二维码/海报Tab+奖励说明+分享渠道+邀请记录入口）
-  '/im/invite': '/pkg-im/im/invite/index',
   // 分享海报（圈子/帖子/文章/直播/邀请，type+targetId）
   '/pkg-circle/common/share-poster': '/pkg-circle/common/share-poster/index',
   '/common/share-poster': '/pkg-circle/common/share-poster/index',
@@ -267,10 +265,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/mine/learning-dashboard': '/pkg-mine/learning-dashboard/index',
   '/mine/follows': '/pkg-mine/follows/index',
   '/mine/downloads': '/pkg-mine/downloads/index',
-  '/mine/bookings': '/pkg-mine/bookings/index',
-  '/reservations': '/pkg-mine/reservations/index',
   '/mine/applications': '/pkg-mine/applications/index',
-  '/mine/invite-records': '/pkg-mine/invite-records/index',
   '/mine/submissions': '/pkg-mine/submissions/index',
   // 帮助与反馈 / 关于我们（设置主页"其他"分区）
   '/feedback': '/pkg-mine/feedback/index',
@@ -283,8 +278,6 @@ const ROUTE_MAP: Record<string, string> = {
    * （"八字入门实战课·周易大师·已学65%"），而个人中心的「我的课程」正是走这个别名。
    * 真页是 pkg-course/learn（真连课程进度）。假页已退役删除。 */
   '/learning': '/pkg-course/learn/index',
-  '/invite': '/pkg-profile/invite/index',
-  '/invite/history': '/pkg-profile/invite/history/index',
   '/vip': '/pkg-profile/vip/index',
   '/vip/records': '/pkg-profile/vip/records/index',
   // 悬赏广场（列表/发布/回答/我的；静态须优先于动态 /bounty/:id 详情）
@@ -297,9 +290,6 @@ const ROUTE_MAP: Record<string, string> = {
   // 举报（表单/记录列表；result/:id 结果详情走动态路由，须优先于动态匹配）
   '/report': '/pkg-report/index/index',
   '/report/result': '/pkg-report/result/index',
-  // 活动（日历/落地页静态；activity/:id 详情走动态路由，须优先于动态匹配）
-  '/activity/calendar': '/pkg-activity/calendar/index',
-  '/activity/landing': '/pkg-activity/landing/index',
   // 平台公告（列表/版本升级静态；notices/:id 详情走动态路由，须优先于动态匹配）
   '/notices': '/pkg-notices/index/index',
   '/notices/upgrade': '/pkg-notices/upgrade/index',
@@ -436,9 +426,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/merchant/profile': '/pkg-merchant/profile/index',
   '/merchant/shop-preview': '/pkg-merchant/shop-preview/index',
   '/merchant/notices': '/pkg-merchant/notices/index',
-  '/merchant/inquiries': '/pkg-merchant/inquiries/index',
   '/merchant/content-stats': '/pkg-merchant/content-stats/index',
-  '/merchant/circle-bindding': '/pkg-merchant/circle-bindding/index',
   '/merchant/violations': '/pkg-merchant/violations/index',
   // 研究院（书院）：首页 + 讲师广场 + 活动列表 + 讲师申请（详情页为动态 /institute/instructors|events/:id）
   '/institute': '/pkg-institute/index/index',
@@ -556,7 +544,7 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/content\/([^/?]+)$/, '/pkg-common/content/index', 'slug'],
   // 举报结果详情 /report/result/:id（静态 /report、/report/result 已在 ROUTE_MAP 优先命中）
   [/^\/report\/result\/([^/?]+)$/, '/pkg-report/detail/index', 'id'],
-  // 活动详情 /activity/:id（静态 /activity/calendar、/activity/landing 已在 ROUTE_MAP 优先命中）
+  // 活动详情 /activity/:id
   [/^\/activity\/([^/?]+)$/, '/pkg-activity/detail/index', 'id'],
   // 公告详情 /notices/:id（静态 /notices、/notices/upgrade 已在 ROUTE_MAP 优先命中）
   [/^\/notices\/([^/?]+)$/, '/pkg-notices/detail/index', 'id'],

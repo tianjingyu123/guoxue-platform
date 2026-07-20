@@ -52,23 +52,9 @@ function go(url: string) {
 function pct(cur: number, max: number) {
   return Math.min(100, Math.round((cur / max) * 100))
 }
-/* —— 任务按钮 = 「去完成」跳对应功能页 ——
- * 原实现是 setTimeout 本地 +积分 置完成态（资产造假），已删除。
- * 完成态如实显示后端下发值（后端 /users/me/points/tasks 目前恒 completed:false，真进度待后端）。
- * 后端任务无 type 字段 → 按标题映射跳转目标（与 server points.controller getDefaultEarnRules
- * 的 6 个标题对齐，并兼容旧 mock 标题）；映射不到的任务隐藏按钮。 */
+/* 上线阶段只展示后端已有真实入账链路的签到任务。 */
 const TASK_ROUTES: Record<string, string> = {
   '每日签到': '/profile', // 签到入口在个人中心（profile 页签到卡，POST /users/me/checkin）
-  '完成学习': '/courses',
-  '发表评论': '/courses',
-  '购买课程': '/courses',
-  '分享内容': '/pages/circles/index',
-  '邀请好友': '/invite',
-  // 兼容旧 mock 标题（points-data pointsTasks）
-  '邀请好友注册': '/invite',
-  '购买课程/商品': '/mall',
-  '发布帖子': '/publish',
-  '发布文章': '/editor',
 }
 function taskRoute(task: PointsTask): string | undefined {
   return TASK_ROUTES[task.title]
@@ -131,7 +117,7 @@ function goTask(task: PointsTask) {
             <view class="task-info">
               <view class="task-title-row">
                 <text class="task-title">{{ task.title }}</text>
-                <text class="task-badge">+{{ task.points }} 积分</text>
+                <text class="task-badge">+{{ task.points }} 积分起</text>
               </view>
               <text class="task-limit">{{ task.limit }}</text>
               <view v-if="task.max !== undefined && task.current !== undefined" class="task-progress">
@@ -157,12 +143,12 @@ function goTask(task: PointsTask) {
         </view>
       </view>
 
-      <!-- 其他获取方式 -->
+      <!-- 真实积分规则 -->
       <view class="note">
-        <text class="note-title">更多积分获取方式</text>
-        <text class="note-item">• 每次消费 ¥1 = 1 积分</text>
-        <text class="note-item">• 邀请好友注册 = 100 积分</text>
-        <text class="note-item">• 参与平台活动可获得额外积分</text>
+        <text class="note-title">签到积分说明</text>
+        <text class="note-item">• 每日签到基础获得 5 积分</text>
+        <text class="note-item">• 连续签到每满 3 天，下一档起每日额外增加 3 积分</text>
+        <text class="note-item">• 积分到账后可在积分明细中核对</text>
       </view>
       <view class="bottom-space" />
     </scroll-view>

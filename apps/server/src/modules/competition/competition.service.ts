@@ -313,6 +313,10 @@ export class CompetitionService {
   async register(competitionId: string, userId: string, inviterId?: string, inviteCode?: string) {
     const competition = await this.getCompetitionOrThrow(competitionId);
     if (competition.status !== "PUBLISHED") throw new BadRequestException("赛事未开放报名");
+    // 付费赛事尚未接入正式收银台，禁止前端绕过或直接调用 API 免费占位。
+    if (competition.entryFee > 0) {
+      throw new BadRequestException("付费赛事在线报名暂未开放");
+    }
 
     // 检查邀请制赛事
     if ((competition as any).isInviteOnly) {

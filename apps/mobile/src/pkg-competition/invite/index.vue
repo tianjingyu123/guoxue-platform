@@ -7,9 +7,9 @@
           <view class="a14-brand-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#fff" /></view>
           <view class="a14-brand-title">
             <text class="a14-brand-h1">邀请好友同台</text>
-            <text class="a14-brand-en">INVITE &amp; SHARE HONOR</text>
+            <text class="a14-brand-en">INVITE &amp; JOIN</text>
           </view>
-          <view class="a14-brand-btn" @tap="showRules = true"><app-icon name="file-text" :size="18" color="#fff" /></view>
+          <view class="a14-brand-btn" />
         </view>
       </view>
 
@@ -18,8 +18,8 @@
         <view class="a14-hero">
           <view class="a14-hero-seal" />
           <text class="a14-hero-big">邀友参赛</text>
-          <text class="a14-hero-big red">他获奖 · 你也有奖</text>
-          <text class="a14-hero-p">把好友请上国学竞技场，一起争荣誉。TA 获得实物奖励时，你作为荐才人同享一份对应奖励。</text>
+          <text class="a14-hero-big red">一起切磋 · 共赴赛场</text>
+          <text class="a14-hero-p">把赛事分享给好友。好友通过你的链接报名后，系统会记录本次邀请来源，方便赛事组织与参赛关系核对。</text>
         </view>
 
         <!-- 我的专属邀请 -->
@@ -58,85 +58,11 @@
             </view>
           </view>
 
-          <text class="a14-tip">邀请关系一次性绑定、永久留痕、系统自动记录，全程无人工。仅一层：不追溯 TA 再邀请的人。</text>
+          <text class="a14-tip">邀请来源在好友报名时一次性记录，仅用于赛事归因与组织统计，不产生积分、返现或实物奖励。</text>
         </view>
-
-        <!-- 奖励怎么拿 -->
-        <view class="a14-blk-h">
-          <view class="a14-blk-ln" />
-          <text class="a14-blk-t">奖励怎么拿</text>
-        </view>
-        <view class="a14-rrule">
-          <view class="a14-step">
-            <view class="a14-num">1</view>
-            <view class="a14-step-body">
-              <text class="a14-step-h">基础邀请奖励</text>
-              <text class="a14-step-p">被邀请人「完成首次报名 / 答题」，你即得基础奖励（荣誉值 / 参赛券）。</text>
-            </view>
-          </view>
-          <view class="a14-step">
-            <view class="a14-num">2</view>
-            <view class="a14-step-body">
-              <text class="a14-step-h">连带奖励 · 一人得奖 荐者同荣</text>
-              <text class="a14-step-p">被邀请人获<text class="a14-hl">实物奖励</text>时，你自动获得<text class="a14-hl">对应一份连带奖励</text>。挂钩真实赛事荣誉，非消费返利，仅一层。</text>
-            </view>
-          </view>
-
-          <!-- 连带奖励映射 -->
-          <view class="a14-irmap">
-            <view v-for="(m, i) in rewardMap" :key="i" class="a14-irc">
-              <text class="a14-irc-h">{{ m.head }}</text>
-              <text class="a14-irc-arrow">↓ 同荣</text>
-              <text class="a14-irc-v">{{ m.value }}</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 进入 A15 我的邀请奖励 -->
-        <view class="a14-entry" @tap="goRecords">
-          <view class="a14-entry-info">
-            <text class="a14-entry-t">我的邀请奖励</text>
-            <text class="a14-entry-sub">看已邀请的人 + 我的奖励发放状态</text>
-          </view>
-          <app-icon name="chevron-right" :size="20" color="#C41E3A" />
-        </view>
-
-        <!-- 规则细则入口 -->
-        <view class="a14-rules-entry" @tap="showRules = true">
-          <app-icon name="shield-check" :size="15" color="#a5883f" />
-          <text class="a14-rules-entry-t">查看邀请奖励规则细则（合规 · 一级 · 挂钩真实获奖）</text>
-        </view>
-
         <view class="a14-safe" />
       </view>
     </scroll-view>
-
-    <!-- 规则细则弹层 -->
-    <view v-if="showRules" class="a14-mask" @tap="showRules = false">
-      <view class="a14-sheet" @tap.stop>
-        <view class="a14-sheet-head">
-          <text class="a14-sheet-title">邀请奖励规则</text>
-          <view class="a14-sheet-close" @tap="showRules = false"><app-icon name="x" :size="18" color="#999" /></view>
-        </view>
-        <scroll-view scroll-y class="a14-sheet-body">
-          <view class="a14-blk-h">
-            <view class="a14-blk-ln" />
-            <text class="a14-blk-t">规则细则</text>
-            <text class="a14-blk-gd">公开透明</text>
-          </view>
-          <view class="a14-terms">
-            <view v-for="(t, i) in terms" :key="i" class="a14-term">
-              <view class="a14-term-dot" />
-              <text class="a14-term-t"><text class="a14-term-b">{{ t.b }}</text>：{{ t.text }}</text>
-            </view>
-          </view>
-          <view class="a14-redline">
-            <text class="a14-redline-t">合规红线（R1）：仅一级、挂钩真实获奖实物、协议明示；绝不做多级分销 / 团队计酬。奖励一律为「荐才同荣」荣誉叙事。</text>
-          </view>
-          <view class="a14-sheet-safe" />
-        </scroll-view>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -153,7 +79,6 @@ const instance = getCurrentInstance()?.proxy
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 
-const showRules = ref(false)
 const qrSize = ref(132)
 
 // 携带 compId（可选）：从某场赛事详情进入邀请页时透传，链接落到该赛事；否则落赛事首页
@@ -184,22 +109,6 @@ const inviteLink = computed(() => {
   const q = `inviterId=${inviterId.value}${compId.value ? `&compId=${compId.value}` : ''}`
   return `${base}?${q}`
 })
-
-// 连带奖励映射（合规叙事·挂钩真实赛事名次，非拉人头计酬）
-const rewardMap = [
-  { head: 'TA 得冠军', value: '荐者得\n最高档连带奖' },
-  { head: 'TA 晋级 / 优胜', value: '荐者得\n中档连带奖' },
-  { head: 'TA 参与荣誉', value: '荐者得\n荣誉值 / 积分' },
-]
-
-// 规则细则（合规 R1·文案严禁拉人赚钱/多级/团队计酬）
-const terms = [
-  { b: '仅奖励一级', text: '只奖励直接邀请人（你 → TA），不向上追溯多级、不做团队计酬。' },
-  { b: '挂钩真实获奖', text: '只有被邀请人真实获奖、平台发放实物时才触发连带奖励，不按邀请人头数计酬。' },
-  { b: '对应 / 等值', text: '连带奖励与被邀请人所获实物对应或等值，具体对应关系由赛事奖品配置定义。' },
-  { b: '发放公示', text: '所有邀请奖励发放状态在「我的邀请奖励」页公开可查，防暗箱。' },
-  { b: '诚信前提', text: '邀请关系需真实有效，恶意刷邀请 / 虚假账号取消奖励资格。' },
-]
 
 // 二维码渲染（真实绘制邀请链接·登录后才画）
 onReady(() => { setTimeout(renderQr, 60) })
@@ -233,11 +142,6 @@ function copyLink() {
 function goPoster() {
   if (!inviterId.value) { uni.showToast({ title: '请先登录', icon: 'none' }); return }
   navigateTo(`/pkg-competition/poster/index?id=${compId.value || ''}&inviterId=${inviterId.value}`)
-}
-
-// 我的邀请奖励（A15·赛事版邀请奖励页）
-function goRecords() {
-  navigateTo('/pkg-competition/invite-rewards/index')
 }
 </script>
 
