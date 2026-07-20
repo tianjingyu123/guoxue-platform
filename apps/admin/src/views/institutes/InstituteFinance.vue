@@ -73,7 +73,7 @@
       <el-col :span="6">
         <el-card shadow="never">
           <div class="stat-label">
-            总收入
+            会费实际入账
           </div><div class="stat-value">
             ¥{{ fmt(finance.totalRevenue) }}
           </div>
@@ -82,7 +82,7 @@
       <el-col :span="6">
         <el-card shadow="never">
           <div class="stat-label">
-            研究院分成
+            研究院留存（50%）
           </div><div
             class="stat-value"
             style="color:#409eff"
@@ -94,7 +94,7 @@
       <el-col :span="6">
         <el-card shadow="never">
           <div class="stat-label">
-            已发放分红
+            已确认分配
           </div><div
             class="stat-value"
             style="color:#e6a23c"
@@ -106,7 +106,7 @@
       <el-col :span="6">
         <el-card shadow="never">
           <div class="stat-label">
-            剩余可分
+            可申请分配
           </div><div
             class="stat-value"
             style="color:#67c23a"
@@ -117,27 +117,37 @@
       </el-col>
     </el-row>
 
-    <!-- 发放分红 -->
+    <el-alert
+      v-show="!loadError && !forbidden"
+      type="info"
+      :closable="false"
+      show-icon
+      :title="'待审批占用 ¥' + fmt(finance.pendingDividends) + '，已从可申请余额扣除'"
+      description="审批通过后生成分配确认记录，不代表款项已到账；实际结算以平台资金流水为准。"
+      style="margin-bottom:16px"
+    />
+
+    <!-- 分配审批 -->
     <el-card
       v-show="!loadError && !forbidden"
       class="section-card"
       shadow="never"
     >
       <template #header>
-        <span style="font-weight:600">发放分红/奖励</span>
+        <span style="font-weight:600">分红/奖励分配审批</span>
         <!-- 数据加载失败/加载中时禁发：防止在"剩余可分"未知的情况下盲发资金 -->
         <el-tooltip
-          :content="loadError || loading ? '财务数据未加载成功，暂不能发放' : '发起分红/奖励发放（需财务审批后生效）'"
+          :content="loadError || loading ? '财务数据未加载成功，暂不能发起审批' : '发起分红/奖励分配审批（需财务审批后生效）'"
           placement="top"
         >
           <el-button
             type="primary"
             size="small"
             style="float:right"
-            :disabled="loadError || loading"
-            @click="showDividendDialog = true"
+            :disabled="loadError || loading || !finance.canRequestDividend || Number(finance.remaining || 0) <= 0 || memberOptions.length === 0"
+            @click="openDividendDialog"
           >
-            + 发放
+            + 发起审批
           </el-button>
         </el-tooltip>
       </template>
@@ -194,17 +204,17 @@
         </el-table-column>
         <template #empty>
           <el-empty
-            description="暂无分红记录"
+            description="暂无已确认分配"
             :image-size="80"
           />
         </template>
       </el-table>
     </el-card>
 
-    <!-- 发放分红弹窗 -->
+    <!-- 分配审批弹窗 -->
     <el-dialog
       v-model="showDividendDialog"
-      title="发放分红/奖励"
+      title="发起分红/奖励分配审批"
       width="500px"
     >
       <el-form
@@ -257,7 +267,8 @@
         >
           <el-input-number
             v-model="dividendForm.amount"
-            :min="0"
+            :min="0.01"
+            :max="Number(finance.remaining || 0)"
             :precision="2"
             style="width:100%"
           />
@@ -285,7 +296,7 @@
           :loading="savingDividend"
           @click="submitDividend"
         >
-          确认发放
+          提交审批
         </el-button>
       </template>
     </el-dialog>
@@ -319,6 +330,8 @@ interface FinanceData {
   totalRevenue?: number;
   instituteShare?: number;
   totalDividends?: number;
+  pendingDividends?: number;
+  canRequestDividend?: boolean;
   remaining?: number;
   dividends?: DividendRow[];
 }
@@ -359,18 +372,27 @@ async function fetchMembers() {
   } catch {}
 }
 
+function openDividendDialog() {
+  if (!finance.value.canRequestDividend) { ElMessage.warning("仅本院在册管理层可发起分配审批"); return; }
+  if (Number(finance.value.remaining || 0) <= 0) { ElMessage.warning("暂无可申请分配余额"); return; }
+  if (!memberOptions.value.length) { ElMessage.warning("暂无可选择的在册成员"); return; }
+  dividendForm.value = { userId: "", type: "MGMT_BONUS", amount: 0, period: "", description: "" };
+  showDividendDialog.value = true;
+}
+
 async function submitDividend() {
   if (savingDividend.value) return;
   // 资金操作前置校验：成员必选、金额必须大于 0
-  if (!dividendForm.value.userId) { ElMessage.warning("请选择发放成员"); return; }
-  if (!dividendForm.value.amount || dividendForm.value.amount <= 0) { ElMessage.warning("发放金额必须大于 0"); return; }
+  if (!dividendForm.value.userId) { ElMessage.warning("请选择分配成员"); return; }
+  if (!dividendForm.value.amount || dividendForm.value.amount <= 0) { ElMessage.warning("分配金额必须大于 0"); return; }
+  if (dividendForm.value.amount > Number(finance.value.remaining || 0)) { ElMessage.warning("分配金额不能超过可申请余额"); return; }
   // 确认框写明对象与金额（资金类操作，防误点）
   const memberName = memberOptions.value.find((m) => m.userId === dividendForm.value.userId)?.user?.nickname || dividendForm.value.userId;
   try {
     await ElMessageBox.confirm(
-      `确认向「${memberName}」发放${dividendTypeLabel(dividendForm.value.type)} ¥${fmt(dividendForm.value.amount)}？提交后进入财务审批流。`,
-      "确认发放",
-      { type: "warning", confirmButtonText: "确认发放", cancelButtonText: "取消" },
+      `确认向「${memberName}」申请分配${dividendTypeLabel(dividendForm.value.type)} ¥${fmt(dividendForm.value.amount)}？提交后进入财务审批流。`,
+      "确认分配审批",
+      { type: "warning", confirmButtonText: "提交审批", cancelButtonText: "取消" },
     );
   } catch {
     return; // 用户取消
@@ -378,11 +400,11 @@ async function submitDividend() {
   savingDividend.value = true;
   try {
     await instituteApi.createDividend(dividendForm.value);
-    ElMessage.success("已提交审批，待财务审批后生效");
+    ElMessage.success("已提交审批；通过后生成分配确认记录");
     showDividendDialog.value = false;
     dividendForm.value = { userId: "", type: "MGMT_BONUS", amount: 0, period: "", description: "" };
     fetchFinance();
-  } catch { ElMessage.error("发放提交失败，请重试"); }
+  } catch (e) { ElMessage.error((e as Error)?.message || "分配审批提交失败，请重试"); }
   finally { savingDividend.value = false; }
 }
 </script>

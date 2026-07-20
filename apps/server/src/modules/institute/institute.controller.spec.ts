@@ -11,6 +11,7 @@ const mockInstituteSvc = {
   join: jest.fn().mockResolvedValue({ id: "m1", status: "PENDING" }),
   getMyDashboard: jest.fn().mockResolvedValue({ id: "m1", role: "LECTURER" }),
   listMembers: jest.fn().mockResolvedValue([{ id: "m1", name: "张老师" }]),
+  listAdminMembers: jest.fn().mockResolvedValue({ members: [{ id: "m1" }], total: 1 }),
   getMember: jest.fn().mockResolvedValue({ id: "m1", name: "张老师", bio: "..." }),
   updateLecturerLevel: jest.fn().mockResolvedValue({ id: "m1", lecturerLevel: 3 }),
   getSigningCandidates: jest.fn().mockResolvedValue([{ id: "u1", name: "候选讲师" }]),
@@ -21,7 +22,10 @@ const mockInstituteSvc = {
   listEvents: jest.fn().mockResolvedValue([{ id: "e1", title: "学术讲座" }]),
   updateEvent: jest.fn().mockResolvedValue({ id: "e1", status: "CANCELLED" }),
   inviteMember: jest.fn().mockResolvedValue({ id: "m-vip", status: "ACTIVE", feeExempt: true }),
-  getRankings: jest.fn().mockResolvedValue({ items: [{ rank: 1, userId: "u1", score: 100 }], updatedAt: "2026-07-03T00:00:00.000Z" }),
+  getRankings: jest.fn().mockResolvedValue({
+    items: [{ rank: 1, userId: "u1", score: 100 }],
+    updatedAt: "2026-07-03T00:00:00.000Z",
+  }),
 };
 
 const mockBoardSvc = {
@@ -31,13 +35,27 @@ const mockBoardSvc = {
 };
 
 const mockLectureSvc = {
-  listLectures: jest.fn().mockResolvedValue({ items: [{ id: "c1", title: "阳明心学与现代经营" }], total: 1, page: 1, pageSize: 20 }),
-  archiveLecture: jest.fn().mockResolvedValue({ id: "c1", courseOrigin: "INSTITUTE_LECTURE", auditStatus: "PENDING" }),
+  listLectures: jest.fn().mockResolvedValue({
+    items: [{ id: "c1", title: "阳明心学与现代经营" }],
+    total: 1,
+    page: 1,
+    pageSize: 20,
+  }),
+  archiveLecture: jest
+    .fn()
+    .mockResolvedValue({ id: "c1", courseOrigin: "INSTITUTE_LECTURE", auditStatus: "PENDING" }),
 };
 
 const mockAssessmentSvc = {
   getEligibility: jest.fn().mockResolvedValue({ seatType: "LECTURE", eligible: true, checks: [] }),
-  getMyAssessment: jest.fn().mockResolvedValue({ year: 2026, points: 120, tier: "FULL_REFUND", quarterPoints: [30, 30, 30, 30], offline: { met: true, detail: [] }, pointItems: [] }),
+  getMyAssessment: jest.fn().mockResolvedValue({
+    year: 2026,
+    points: 120,
+    tier: "FULL_REFUND",
+    quarterPoints: [30, 30, 30, 30],
+    offline: { met: true, detail: [] },
+    pointItems: [],
+  }),
   addManualPoints: jest.fn().mockResolvedValue({ id: "sp1", points: 20 }),
 };
 
@@ -54,13 +72,17 @@ describe("InstituteController", () => {
         { provide: LectureArchiveService, useValue: mockLectureSvc },
       ],
     })
-      .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
-      .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(InstituteController);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
   it("POST /institute/members — 加入研究院", async () => {
     const req: any = { user: { id: "u1" } };
@@ -85,16 +107,40 @@ describe("InstituteController", () => {
 
   it("POST /institute/lectures/archive — 归档大师讲座", async () => {
     const req: any = { user: { id: "u-mgr" } };
-    const dto: any = { videoUrl: "https://vod.example.com/replay.mp4", lecturerUserId: "u-lect", title: "阳明心学与现代经营" };
+    const dto: any = {
+      videoUrl: "https://vod.example.com/replay.mp4",
+      lecturerUserId: "u-lect",
+      title: "阳明心学与现代经营",
+    };
     const result: any = await ctrl.archiveLecture(req, dto);
     expect(result.courseOrigin).toBe("INSTITUTE_LECTURE");
     expect(mockLectureSvc.archiveLecture).toHaveBeenCalledWith("u-mgr", dto);
   });
 
   it("GET /institute/members — 成员列表", async () => {
-    const result: any = await ctrl.listMembers("LECTURER", "ACTIVE", 2025 as any, 1 as any, 20 as any);
+    const result: any = await ctrl.listMembers(
+      "LECTURER",
+      "ACTIVE",
+      2025 as any,
+      1 as any,
+      20 as any,
+    );
     expect(result).toHaveLength(1);
     expect(mockInstituteSvc.listMembers).toHaveBeenCalled();
+  });
+
+  it("GET /institute/admin/members — 平台后台成员列表", async () => {
+    const result: any = await ctrl.listAdminMembers(
+      undefined,
+      "ACTIVE",
+      undefined,
+      1 as any,
+      20 as any,
+    );
+    expect(result.total).toBe(1);
+    expect(mockInstituteSvc.listAdminMembers).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "ACTIVE", page: 1, pageSize: 20 }),
+    );
   });
 
   it("GET /institute/members/:id — 成员详情", async () => {

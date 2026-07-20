@@ -83,21 +83,22 @@
 
           <!-- ══════ T3 财务与分红 ══════ -->
           <template v-else-if="activeTab === 'finance'">
-            <text class="sec-t sec-t-first">留存概览（本年度）</text>
+            <text class="sec-t sec-t-first">会费留存概览（累计）</text>
             <view class="finance">
               <view class="seal" />
               <view class="fkv"><text class="fk">会费总收入</text><text class="fv serif">¥{{ formatPrice(num(finance.totalRevenue)).toLocaleString() }}</text></view>
               <view class="fkv"><text class="fk">平台留存（50%）</text><text class="fv serif">¥{{ formatPrice(finance.platformShare).toLocaleString() }}</text></view>
               <view class="fkv"><text class="fk">研究院留存（50%）</text><text class="fv fv-gold serif">¥{{ formatPrice(finance.instituteShare).toLocaleString() }}</text></view>
-              <view class="fkv"><text class="fk">已发放分红</text><text class="fv serif">¥{{ formatPrice(finance.totalDividends).toLocaleString() }}</text></view>
-              <view class="fkv"><text class="fk">可分配余额</text><text class="fv fv-gold serif">¥{{ formatPrice(finance.remaining).toLocaleString() }}</text></view>
+              <view class="fkv"><text class="fk">已确认分配</text><text class="fv serif">¥{{ formatPrice(finance.totalDividends).toLocaleString() }}</text></view>
+              <view class="fkv"><text class="fk">待审批占用</text><text class="fv serif">¥{{ formatPrice(finance.pendingDividends).toLocaleString() }}</text></view>
+              <view class="fkv"><text class="fk">可申请分配</text><text class="fv fv-gold serif">¥{{ formatPrice(finance.remaining).toLocaleString() }}</text></view>
             </view>
 
-            <view class="note">线上会费收款与收入归集尚未开放。本页只展示已实际入账的收入记录；可分配余额为 0 时不能发起分红审批。</view>
-            <view class="btn-pri" :class="{ 'btn-off': finance.remaining <= 0 }" @tap="openGrant"><app-icon name="gift" :size="16" color="#fff" /><text class="btn-pri-t">发起分红 / 奖励审批</text></view>
+            <view class="note">线上会费收款与收入归集尚未开放。本页只认会费实际入账；待审批金额会占用余额。审批通过仅生成分配确认记录，实际结算与到账以平台资金流水为准。</view>
+            <view class="btn-pri" :class="{ 'btn-off': finance.remaining <= 0 || !finance.canRequestDividend }" @tap="openGrant"><app-icon name="gift" :size="16" color="#fff" /><text class="btn-pri-t">发起分红 / 奖励审批</text></view>
 
-            <text class="sec-t">分红发放记录</text>
-            <view v-if="finance.dividends.length === 0" class="mini-empty"><text class="mini-empty-t">暂无分红记录</text></view>
+            <text class="sec-t">分配确认记录</text>
+            <view v-if="finance.dividends.length === 0" class="mini-empty"><text class="mini-empty-t">暂无已确认分配</text></view>
             <view v-for="d in finance.dividends" :key="d.id" class="row">
               <view class="row-body">
                 <view class="name-row">
@@ -156,13 +157,13 @@
       </template>
     </scroll-view>
 
-    <!-- 发放分红弹窗 -->
+    <!-- 分红/奖励分配审批弹窗 -->
     <view v-if="grantOpen" class="mask" @tap="grantOpen = false">
       <view class="sheet" @tap.stop>
-        <text class="sheet-title serif">发放分红 / 奖励</text>
+        <text class="sheet-title serif">分红 / 奖励分配审批</text>
         <view class="sheet-body">
           <view class="field">
-            <text class="field-label">发放对象</text>
+            <text class="field-label">分配对象</text>
             <picker mode="selector" :range="memberNames" @change="onPickMember">
               <view class="picker-box"><text class="picker-text" :class="{ 'picker-ph': !grant.userId }">{{ grant.userId ? grantMemberName : '请选择成员' }}</text><app-icon name="chevron-down" :size="16" color="#9B9B9B" /></view>
             </picker>
@@ -181,7 +182,7 @@
             <text class="field-label">说明（选填）</text>
             <input class="field-input" v-model="grant.description" placeholder="如：院长岗位季度分红" placeholder-class="ph" />
           </view>
-          <text class="sheet-note">发放来源：研究院已入账留存。提交后进入资金审批，不会立即发放；审批通过后才计入成员分红记录。</text>
+          <text class="sheet-note">分配来源：研究院会费实际入账留存。提交后进入资金审批；审批通过生成分配确认记录，不代表款项已到账。</text>
           <view class="submit-btn" :class="{ 'submit-off': !canGrant || granting }" @tap="doGrant">
             <text class="submit-btn-t">{{ granting ? '提交中…' : '提交审批' }}</text>
           </view>
@@ -258,7 +259,7 @@ const activeTab = ref<'audit' | 'members' | 'finance' | 'template' | 'board'>('a
 const loading = ref(true)
 const errMsg = ref('')
 const overview = ref<ManageOverview>({ totalMembers: 0, activeMembers: 0, expiringMembers: 0, yearEvents: 0, yearRevenue: 0 })
-const finance = ref<FinanceOverview>({ totalRevenue: 0, platformShare: 0, instituteShare: 0, totalDividends: 0, remaining: 0, revenues: [], dividends: [] })
+const finance = ref<FinanceOverview>({ totalRevenue: 0, platformShare: 0, instituteShare: 0, totalDividends: 0, pendingDividends: 0, canRequestDividend: false, remaining: 0, revenues: [], dividends: [] })
 const pending = ref<InstituteMember[]>([])
 const members = ref<InstituteMember[]>([])
 const actioningId = ref('')
@@ -436,7 +437,7 @@ function onDisband(g: BoardGroup) {
   })
 }
 
-// ── 发放分红 ──
+// ── 分红/奖励分配审批 ──
 const dividendTypes: { value: DividendType; label: string }[] = [
   { value: 'MGMT_BONUS', label: '管理层分红' },
   { value: 'TEACHER_AWARD', label: '优秀讲师奖励' },
@@ -455,8 +456,12 @@ const grantMemberName = computed(() => memberName(members.value.find((m) => m.us
 const canGrant = computed(() => !!grant.value.userId && Number(grant.value.amount) > 0 && Number(grant.value.amount) <= finance.value.remaining)
 
 function openGrant() {
+  if (!finance.value.canRequestDividend) {
+    uni.showToast({ title: '仅本院在册管理层可发起分配审批', icon: 'none' })
+    return
+  }
   if (finance.value.remaining <= 0) {
-    uni.showToast({ title: '暂无可分配入账余额', icon: 'none' })
+    uni.showToast({ title: '暂无可申请分配余额', icon: 'none' })
     return
   }
   grant.value = { userId: '', type: 'MGMT_BONUS', amount: '', description: '' }
@@ -482,7 +487,7 @@ async function doGrant() {
     await load()
     activeTab.value = 'finance'
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '发放失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '提交失败', icon: 'none' })
   } finally {
     granting.value = false
   }

@@ -1,5 +1,5 @@
 // 文化研究院（institute）数据层 —— 真连 @guoxue/server /institute/*
-// 定位：精英师资筛选培养体系（付费准入→分享任务考核→押金退费→签约讲师→驿站供给）
+// 定位：精英师资筛选培养体系（资格申请→分享任务考核→签约讲师→驿站供给；线上会费尚未开放）
 // 后端模型为准，原型虚构字段（讲师评分/学员数/圈子统计）已剔除，按真实数据维度呈现。
 import { apiGet, apiGetPaged, apiPost, apiPut } from '@/utils/request'
 
@@ -35,8 +35,7 @@ export interface InstituteMember {
   instituteId: string
   userId: string
   role: InstituteRole
-  deposit: string | number
-  depositRefunded: boolean
+  seatType: SeatType
   expireAt: string | null
   joinYear: number
   tasksCompleted: number
@@ -129,6 +128,8 @@ export interface FinanceOverview {
   platformShare: number
   instituteShare: number
   totalDividends: number
+  pendingDividends: number
+  canRequestDividend: boolean
   remaining: number
   revenues: { id: string; sourceType: string; amount: string | number; description: string | null; createdAt: string }[]
   dividends: InstituteDividend[]
@@ -594,9 +595,9 @@ export const instituteApi = {
     return apiPut<InstituteMember>(`/institute/manage/members/${id}/recommend`, { lecturerLevel })
   },
 
-  /** 发放分红/奖励 POST /institute/manage/dividends */
-  createDividend(data: { userId: string; type: DividendType; amount: number; description?: string; period?: string }): Promise<InstituteDividend> {
-    return apiPost<InstituteDividend>('/institute/manage/dividends', data)
+  /** 发起分红/奖励分配审批（不代表已到账） POST /institute/manage/dividends */
+  createDividend(data: { userId: string; type: DividendType; amount: number; description?: string; period?: string }): Promise<{ submitted: boolean; approvalId: string; status: string; message: string }> {
+    return apiPost<{ submitted: boolean; approvalId: string; status: string; message: string }>('/institute/manage/dividends', data)
   },
 
   // ───── 私董会小组（T9-P1·私密子圈承载）─────

@@ -282,8 +282,8 @@
 
           <!-- ⑤ 分红记录（管理层） + 管理端入口 -->
           <template v-if="isManagement(member.role)">
-            <text class="sec-t serif">我的分红记录</text>
-            <view v-if="dividends.length === 0" class="card mini-empty"><text class="mini-empty-text">暂无分红记录</text></view>
+            <text class="sec-t serif">我的分配记录</text>
+            <view v-if="dividends.length === 0" class="card mini-empty"><text class="mini-empty-text">暂无已确认分配</text></view>
             <template v-else>
               <view v-for="d in dividends" :key="d.id" class="card drow">
                 <view class="drow-left">

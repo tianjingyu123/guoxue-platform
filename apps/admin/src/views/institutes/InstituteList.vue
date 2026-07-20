@@ -15,16 +15,24 @@
             value=""
           />
           <el-option
+            label="待审核"
+            value="PENDING"
+          />
+          <el-option
             label="活跃"
             value="ACTIVE"
           />
           <el-option
-            label="已退出"
-            value="LEFT"
+            label="已拒绝"
+            value="REJECTED"
           />
           <el-option
-            label="已冻结"
-            value="FROZEN"
+            label="已结业"
+            value="GRADUATED"
+          />
+          <el-option
+            label="已暂停"
+            value="SUSPENDED"
           />
         </el-select>
         <el-select
@@ -41,6 +49,18 @@
           <el-option
             label="发起人"
             value="INITIATOR"
+          />
+          <el-option
+            label="院长"
+            value="PRESIDENT"
+          />
+          <el-option
+            label="副院长"
+            value="VICE_PRESIDENT"
+          />
+          <el-option
+            label="秘书长"
+            value="SECRETARY_GENERAL"
           />
           <el-option
             label="潜力讲师"
@@ -127,12 +147,14 @@
         </template>
       </el-table-column>
       <el-table-column
-        label="保证金"
+        label="会费状态"
         width="110"
-        align="right"
+        align="center"
       >
         <template #default="{ row }">
-          ¥{{ Number(row.deposit || 0).toFixed(2) }}
+          <el-tag size="small" :type="row.feeExempt ? 'success' : 'info'">
+            {{ row.feeExempt ? '免会费' : '当前未收款' }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column
@@ -190,27 +212,27 @@
             size="small"
             type="warning"
             :loading="acting"
-            @click="handleUpdate(row, 'FROZEN')"
+            @click="handleUpdate(row, 'SUSPENDED')"
           >
-            冻结
+            暂停
           </el-button>
           <el-button
-            v-if="row.status === 'FROZEN'"
+            v-if="row.status === 'SUSPENDED'"
             size="small"
             type="success"
             :loading="acting"
             @click="handleUpdate(row, 'ACTIVE')"
           >
-            解冻
+            恢复
           </el-button>
           <el-button
             v-if="row.status === 'ACTIVE'"
             size="small"
             type="danger"
             :loading="acting"
-            @click="handleUpdate(row, 'LEFT')"
+            @click="handleUpdate(row, 'GRADUATED')"
           >
-            退出
+            结业
           </el-button>
         </template>
       </el-table-column>
@@ -258,6 +280,18 @@
               value="INITIATOR"
             />
             <el-option
+              label="院长"
+              value="PRESIDENT"
+            />
+            <el-option
+              label="副院长"
+              value="VICE_PRESIDENT"
+            />
+            <el-option
+              label="秘书长"
+              value="SECRETARY_GENERAL"
+            />
+            <el-option
               label="潜力讲师"
               value="TYPE_A"
             />
@@ -277,24 +311,22 @@
               value="ACTIVE"
             />
             <el-option
-              label="已退出"
-              value="LEFT"
+              label="已结业"
+              value="GRADUATED"
             />
             <el-option
-              label="已冻结"
-              value="FROZEN"
+              label="已暂停"
+              value="SUSPENDED"
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="保证金(元)">
-          <el-input-number
-            v-model="editForm.deposit"
-            :min="0"
-            :step="100"
-            :precision="2"
-            style="width:100%"
-          />
-        </el-form-item>
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="线上会费收款尚未开放，后台不能手工改写到账金额"
+          style="margin-bottom:14px"
+        />
         <el-form-item label="需完成任务">
           <el-input-number
             v-model="editForm.tasksRequired"
@@ -416,7 +448,6 @@ interface InstituteMemberRow {
   user?: { nickname?: string };
   role: string;
   status: string;
-  deposit?: number;
   tasksRequired?: number;
   tasksCompleted?: number;
   joinedAt?: string;
@@ -438,7 +469,7 @@ const total = ref(0);
 const dialogVisible = ref(false);
 const saving = ref(false);
 const editingRow = ref<InstituteMemberRow | null>(null);
-const editForm = reactive({ role: "TYPE_A", status: "ACTIVE", deposit: 0, tasksRequired: 3 });
+const editForm = reactive({ role: "TYPE_A", status: "ACTIVE", tasksRequired: 3 });
 
 // 特邀名师（破格引入·跳过准入门槛·调 POST /institute/admin/members/invite）
 const inviteVisible = ref(false);
@@ -463,22 +494,22 @@ async function searchUsers(query: string) {
 }
 
 function roleLabel(r: string) {
-  const m: Record<string, string> = { INITIATOR: "发起人", TYPE_A: "潜力讲师", TYPE_B: "深造者" };
+  const m: Record<string, string> = { INITIATOR: "发起人", TYPE_A: "潜力讲师", TYPE_B: "深造者", PRESIDENT: "院长", VICE_PRESIDENT: "副院长", SECRETARY_GENERAL: "秘书长" };
   return m[r] || r;
 }
 
 function roleTagType(r: string) {
-  const m: Record<string, string> = { INITIATOR: "danger", TYPE_A: "warning", TYPE_B: "success" };
+  const m: Record<string, string> = { INITIATOR: "danger", PRESIDENT: "danger", VICE_PRESIDENT: "warning", SECRETARY_GENERAL: "primary", TYPE_A: "warning", TYPE_B: "success" };
   return m[r] || "info";
 }
 
 function statusLabel(s: string) {
-  const m: Record<string, string> = { ACTIVE: "活跃", LEFT: "已退出", FROZEN: "已冻结" };
+  const m: Record<string, string> = { PENDING: "待审核", ACTIVE: "在册", REJECTED: "已拒绝", GRADUATED: "已结业", SUSPENDED: "已暂停" };
   return m[s] || s;
 }
 
 function statusType(s: string) {
-  const m: Record<string, string> = { ACTIVE: "success", LEFT: "danger", FROZEN: "warning" };
+  const m: Record<string, string> = { PENDING: "warning", ACTIVE: "success", REJECTED: "danger", GRADUATED: "info", SUSPENDED: "warning" };
   return m[s] || "info";
 }
 
@@ -505,7 +536,6 @@ function openEdit(row: InstituteMemberRow) {
   editingRow.value = row;
   editForm.role = row.role;
   editForm.status = row.status;
-  editForm.deposit = Number(row.deposit || 0);
   editForm.tasksRequired = row.tasksRequired ?? 3;
   dialogVisible.value = true;
 }
@@ -517,7 +547,6 @@ async function saveEdit() {
     await instituteApi.updateMember(editingRow.value.id, {
       role: editForm.role,
       status: editForm.status,
-      deposit: editForm.deposit,
       tasksRequired: editForm.tasksRequired,
     });
     ElMessage.success("已更新");
@@ -562,24 +591,20 @@ async function submitInvite() {
 
 async function handleUpdate(row: InstituteMemberRow, status: string) {
   if (acting.value) return;
-  const label = status === "FROZEN" ? "冻结" : status === "ACTIVE" && row.status === "FROZEN" ? "解冻" : "设为已退出";
-  const isDanger = status === "FROZEN" || status === "LEFT";
+  const label = status === "SUSPENDED" ? "暂停" : status === "ACTIVE" && row.status === "SUSPENDED" ? "恢复" : "设为已结业";
+  const isDanger = status === "SUSPENDED" || status === "GRADUATED";
   try {
     if (isDanger) {
-      // L2 危险操作：理由必填（后端 UpdateMemberDto 暂不落理由，落库已记后端清单，前端先拦误操作）
-      // 退出时明示保证金去向：仅改会籍状态，保证金不会自动退还
-      const depositNote = status === "LEFT" && Number(row.deposit || 0) > 0
-        ? `注意：设为退出仅变更会籍状态，该成员保证金 ¥${Number(row.deposit || 0).toFixed(2)} 不会自动退还，如需退还请另行走财务流程。`
-        : status === "FROZEN"
-          ? "冻结期间该成员任务与分享积分暂停累计。"
-          : "";
+      const hint = status === "SUSPENDED"
+        ? "暂停后该成员将不再计入在册成员，恢复后可继续参与。"
+        : "结业仅变更会籍状态，不代表退款或资金结算。";
       const { value } = await ElMessageBox.prompt(
-        `确定${label}成员「${row.user?.nickname || "-"}」？${depositNote}请填写理由：`,
+        `确定${label}成员「${row.user?.nickname || "-"}」？${hint}请填写理由：`,
         `${label}成员`,
         {
           confirmButtonText: `确认${label}`,
           cancelButtonText: "取消",
-          inputPlaceholder: "必填，例：连续两期未完成任务 / 本人申请退出",
+          inputPlaceholder: "必填，例：连续两期未完成任务 / 本人申请结业",
           inputValidator: (v: string) => (v && v.trim().length >= 2 ? true : "请填写理由（至少2个字）"),
           type: "warning",
         },

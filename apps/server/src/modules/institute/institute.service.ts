@@ -38,8 +38,48 @@ export interface LecturerRankingsResponse {
   updatedAt: string;
 }
 
-/** 研究院保证金固定金额（元）——服务端定价，杜绝客户端传任意/负数金额 */
-const INSTITUTE_DEFAULT_DEPOSIT = 10000;
+/** 线上会费订单尚未开放：未付款申请的资金字段必须为 0，不能把制度定价写成已收款。 */
+const INSTITUTE_UNPAID_DEPOSIT = 0;
+const MEMBER_ROLES = [
+  "INITIATOR",
+  "TYPE_A",
+  "TYPE_B",
+  "PRESIDENT",
+  "VICE_PRESIDENT",
+  "SECRETARY_GENERAL",
+] as const;
+const MEMBER_STATUSES = ["PENDING", "ACTIVE", "REJECTED", "GRADUATED", "SUSPENDED"] as const;
+const LECTURER_LEVELS = ["NONE", "PREPARATORY", "JUNIOR", "SENIOR", "SIGNED"] as const;
+const EVENT_TYPES = ["SALON", "LIVE", "COURSE"] as const;
+const SELF_SERVICE_ROLES: InstituteRole[] = ["INITIATOR", "TYPE_A", "TYPE_B"];
+const DIVIDEND_TYPES = ["MGMT_BONUS", "TEACHER_AWARD", "OPERATION"] as const;
+
+/** 公开成员字段白名单：资金、免会费与特邀留痕只允许本人/平台后台读取。 */
+const PUBLIC_MEMBER_SELECT = {
+  id: true,
+  instituteId: true,
+  userId: true,
+  role: true,
+  seatType: true,
+  expireAt: true,
+  joinYear: true,
+  tasksCompleted: true,
+  tasksRequired: true,
+  lecturerLevel: true,
+  status: true,
+  joinedAt: true,
+  user: { select: { id: true, nickname: true, avatar: true } },
+} satisfies Prisma.InstituteMemberSelect;
+
+const PUBLIC_TASK_SELECT = {
+  id: true,
+  taskType: true,
+  title: true,
+  description: true,
+  status: true,
+  completedAt: true,
+  createdAt: true,
+} satisfies Prisma.InstituteTaskSelect;
 
 @Injectable()
 export class InstituteService {
@@ -57,18 +97,30 @@ export class InstituteService {
 
   async getIntro() {
     const institute = await this.prisma.institute.findFirst({
+      where: { status: "ACTIVE" },
       select: {
-        id: true, name: true, intro: true, logo: true,
-        legalEntity: true, status: true, createdAt: true,
-        _count: { select: { members: true, events: true, courses: true } },
+        id: true,
+        name: true,
+        intro: true,
+        logo: true,
+        legalEntity: true,
+        status: true,
+        createdAt: true,
+        _count: {
+          select: { members: { where: { status: "ACTIVE" } }, events: true, courses: true },
+        },
       },
     });
     if (!institute) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院尚未建立");
 
     // 管理层列表
     const management = await this.prisma.instituteMember.findMany({
-      where: { role: { in: MGMT_ROLES }, status: "ACTIVE" },
-      select: { id: true, role: true, user: { select: { id: true, nickname: true, avatar: true } } },
+      where: { instituteId: institute.id, role: { in: MGMT_ROLES }, status: "ACTIVE" },
+      select: {
+        id: true,
+        role: true,
+        user: { select: { id: true, nickname: true, avatar: true } },
+      },
     });
 
     return { ...institute, management };
@@ -87,7 +139,8 @@ export class InstituteService {
       this.prisma.instituteMember.findMany({
         where,
         select: {
-          id: true, lecturerLevel: true,
+          id: true,
+          lecturerLevel: true,
           user: { select: { id: true, nickname: true, avatar: true } },
         },
         skip,
@@ -109,7 +162,10 @@ export class InstituteService {
   async getRankings(year?: number): Promise<LecturerRankingsResponse> {
     const nowYear = new Date().getFullYear();
     // 参数防御：非法/越界年份回落到当年
-    const y = year && Number.isFinite(year) && year >= 2000 && year <= nowYear + 1 ? Math.floor(year) : nowYear;
+    const y =
+      year && Number.isFinite(year) && year >= 2000 && year <= nowYear + 1
+        ? Math.floor(year)
+        : nowYear;
 
     const cacheKey = `institute:rankings:${y}`;
     if (this.redis) {
@@ -161,7 +217,8 @@ export class InstituteService {
     const eventMap = new Map<string, number>();
     for (const g of eventGroups) if (g.lecturerId) eventMap.set(g.lecturerId, g._count._all);
     const stationMap = new Map<string, number>();
-    for (const g of stationGroups) if (g.sourceUserId) stationMap.set(g.sourceUserId, g._count._all);
+    for (const g of stationGroups)
+      if (g.sourceUserId) stationMap.set(g.sourceUserId, g._count._all);
 
     const rows = members.map((m) => {
       const eventCount = eventMap.get(m.userId) || 0;
@@ -184,7 +241,9 @@ export class InstituteService {
         stations: round1((r.stationCount / maxStations) * 100),
         seniority: round1((r.seniorityYears / SENIORITY_CAP_YEARS) * 100),
       };
-      const score = round1(dims.tasks * 0.4 + dims.events * 0.3 + dims.stations * 0.2 + dims.seniority * 0.1);
+      const score = round1(
+        dims.tasks * 0.4 + dims.events * 0.3 + dims.stations * 0.2 + dims.seniority * 0.1,
+      );
       return { ...r, dims, score };
     });
 
@@ -217,7 +276,10 @@ export class InstituteService {
   // 加入
   // ════════════════════════════════════════
 
-  async join(userId: string, dto: { role: string; joinYear: number; deposit?: number; seatType?: string }) {
+  async join(
+    userId: string,
+    dto: { role: string; joinYear: number; deposit?: number; seatType?: string },
+  ) {
     const institute = await this.prisma.institute.findFirst();
     if (!institute) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院尚未建立");
 
@@ -227,9 +289,17 @@ export class InstituteService {
     });
     if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已是研究院成员");
 
-    // 越权防护：管理层角色只能由现任管理层经 assignMemberRole 任命，禁止自助申请时自封
-    if (MGMT_ROLES.includes(dto.role as InstituteRole)) {
-      throw new BusinessException(ErrorCode.FORBIDDEN, "管理层角色（主席/副主席/秘书长）只能由现任管理层任命，不能自助申请");
+    // 服务端枚举防御：不能依赖 Prisma 枚举错误兜底，更不能接受自造角色。
+    if (!SELF_SERVICE_ROLES.includes(dto.role as InstituteRole)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的成员身份");
+    }
+    const currentYear = new Date().getFullYear();
+    if (
+      !Number.isInteger(dto.joinYear) ||
+      dto.joinYear < currentYear ||
+      dto.joinYear > currentYear + 1
+    ) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "申请年份仅支持本年度或下一年度");
     }
 
     // T9-P1 双轨席位：讲席五维/研修席三维准入·服务端强制校验（不合格 400 带未通过项）
@@ -237,7 +307,10 @@ export class InstituteService {
     if (this.assessment) {
       const elig = await this.assessment.getEligibility(userId, seatType);
       if (!elig.eligible) {
-        const failed = elig.checks.filter((c) => !c.pass).map((c) => c.label).join("；");
+        const failed = elig.checks
+          .filter((c) => !c.pass)
+          .map((c) => c.label)
+          .join("；");
         throw new BusinessException(ErrorCode.BAD_REQUEST, `入会条件未满足：${failed}`);
       }
     }
@@ -252,7 +325,7 @@ export class InstituteService {
         role: dto.role as InstituteRole,
         seatType,
         joinYear: dto.joinYear,
-        deposit: INSTITUTE_DEFAULT_DEPOSIT, // 服务端固定，不信客户端
+        deposit: INSTITUTE_UNPAID_DEPOSIT, // 未创建支付订单，资金字段必须为 0
         tasksRequired: 3,
         status: "PENDING", // 申请入会先进入待审核，管理层通过后转 ACTIVE
         expireAt,
@@ -260,10 +333,7 @@ export class InstituteService {
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
     });
 
-    // 圈层社交地基（§3.6.5）：研究院有专属大圈时，入会自动入圈（幂等）
-    if (institute.circleId) {
-      await this.autoJoinInstituteCircle(institute.circleId, userId);
-    }
+    // 申请仍为 PENDING，不能提前进入研究院专属圈；审批通过后再 fail-open 自动入圈。
     return member;
   }
 
@@ -279,7 +349,10 @@ export class InstituteService {
     const institute = await this.prisma.institute.findFirst();
     if (!institute) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院尚未建立");
 
-    const user = await this.prisma.user.findUnique({ where: { id: dto.userId }, select: { id: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+      select: { id: true },
+    });
     if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "被特邀用户不存在");
 
     // 同院重复会籍拒（复合唯一 instituteId+userId 语义）
@@ -301,7 +374,7 @@ export class InstituteService {
           role: "TYPE_A", // 特邀名师按潜力讲师角色入册（管理层角色仍须任命流程）
           seatType,
           joinYear,
-          deposit: feeExempt ? 0 : 10000,
+          deposit: INSTITUTE_UNPAID_DEPOSIT, // 特邀同样没有线上支付订单；feeExempt 只表达制度豁免
           feeExempt,
           invitedBy: operatorUserId,
           inviteRemark: dto.remark || null,
@@ -313,13 +386,14 @@ export class InstituteService {
       });
     } catch (e: unknown) {
       // 并发防重：复合唯一约束冲突 = 已有会籍
-      if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户已是研究院成员");
+      if (isUniqueConstraintError(e))
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户已是研究院成员");
       throw e;
     }
 
-    // 复用入会自动入专属大圈（幂等）
+    // 特邀会籍直接 ACTIVE，可立即入专属圈；入圈异常不得反噬已生效会籍。
     if (institute.circleId) {
-      await this.autoJoinInstituteCircle(institute.circleId, dto.userId);
+      await this.autoJoinInstituteCircleSafe(institute.circleId, dto.userId);
     }
     return member;
   }
@@ -342,11 +416,29 @@ export class InstituteService {
     try {
       await this.prisma.$transaction([
         this.prisma.circleMember.create({ data: { circleId, userId, role: "MEMBER" } }),
-        this.prisma.circle.update({ where: { id: circleId }, data: { memberCount: { increment: 1 } } }),
+        this.prisma.circle.update({
+          where: { id: circleId },
+          data: { memberCount: { increment: 1 } },
+        }),
       ]);
     } catch (e: unknown) {
       // 并发下唯一约束冲突 = 已在圈内，幂等忽略
       if (!isUniqueConstraintError(e)) throw e;
+    }
+  }
+
+  private async autoJoinInstituteCircleSafe(circleId: string, userId: string) {
+    try {
+      await this.autoJoinInstituteCircle(circleId, userId);
+    } catch (error) {
+      this.logger.warn(
+        "研究院会籍已生效，但自动入圈失败（fail-open） circleId=" +
+          circleId +
+          " userId=" +
+          userId +
+          " error=" +
+          ((error as Error)?.message || "unknown"),
+      );
     }
   }
 
@@ -367,18 +459,24 @@ export class InstituteService {
     if (!member) return null;
 
     // 计算任务进度
-    const verifiedCount = member.tasks.filter(t => t.status === "VERIFIED").length;
-    const completedCount = member.tasks.filter(t => t.status === "COMPLETED").length;
+    const verifiedCount = member.tasks.filter((t) => t.status === "VERIFIED").length;
+    const completedCount = member.tasks.filter((t) => t.status === "COMPLETED").length;
 
     // 检查续费状态
     const now = new Date();
-    const isExpiring = member.expireAt ? member.expireAt <= new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) : false;
+    const isExpiring = member.expireAt
+      ? member.expireAt <= new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+      : false;
     const isExpired = member.expireAt ? member.expireAt < now : false;
 
     // 当前没有研究院线上支付订单，deposit 仅为历史名义金额，绝不能当作已收款或可退款凭证。
     return {
       ...member,
-      taskProgress: { total: member.tasksRequired, completed: completedCount, verified: verifiedCount },
+      taskProgress: {
+        total: member.tasksRequired,
+        completed: completedCount,
+        verified: verifiedCount,
+      },
       depositStatus: {
         deposited: 0,
         refunded: false,
@@ -444,15 +542,32 @@ export class InstituteService {
    * @param opts.asAdmin 平台管理角色豁免（SUPER_ADMIN/OPERATION_ADMIN/FINANCE_ADMIN·由 controller 判角色后传入，
    *        service 不自行判角色）：无需研究院会籍即可进入，视角落到默认研究院。C 端调用不传 opts，行为零变化。
    */
-  private async assertManagement(userId: string, opts?: { asAdmin?: boolean }) {
+  private async assertManagement(
+    userId: string,
+    opts?: { asAdmin?: boolean; instituteId?: string },
+  ) {
     if (opts?.asAdmin) {
-      const institute = await this.prisma.institute.findFirst({ select: { id: true } });
+      const institute = await this.prisma.institute.findFirst({
+        where: opts.instituteId ? { id: opts.instituteId } : undefined,
+        select: { id: true },
+      });
       if (!institute) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院尚未建立");
-      return { id: "", instituteId: institute.id, role: "PRESIDENT" as InstituteRole, status: "ACTIVE" };
+      return {
+        id: "",
+        instituteId: institute.id,
+        role: "PRESIDENT" as InstituteRole,
+        status: "ACTIVE",
+      };
     }
-    // 多院化：直接按「ACTIVE 管理层会籍」查找（findFirst·防止 PENDING 记录绕过授权的语义不变）
+    // 多院化：资金执行可按 payload 中的 instituteId 精确复核，普通管理页沿用本人最早可用管理席位。
     const member = await this.prisma.instituteMember.findFirst({
-      where: { userId, status: "ACTIVE", role: { in: MGMT_ROLES } },
+      where: {
+        userId,
+        status: "ACTIVE",
+        role: { in: MGMT_ROLES },
+        ...(opts?.instituteId ? { instituteId: opts.instituteId } : {}),
+      },
+      orderBy: { joinedAt: "asc" },
       select: { id: true, instituteId: true, role: true, status: true },
     });
     if (!member) {
@@ -468,18 +583,25 @@ export class InstituteService {
     const now = new Date();
     const yearStart = new Date(now.getFullYear(), 0, 1);
 
-    const [totalMembers, activeMembers, expiringMembers, totalEvents, financeSummary] = await Promise.all([
-      this.prisma.instituteMember.count({ where: { instituteId } }),
-      this.prisma.instituteMember.count({ where: { instituteId, status: "ACTIVE" } }),
-      this.prisma.instituteMember.count({
-        where: { instituteId, status: "ACTIVE", expireAt: { gte: now, lte: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) } },
-      }),
-      this.prisma.instituteEvent.count({ where: { instituteId, scheduleAt: { gte: yearStart } } }),
-      this.prisma.instituteRevenue.aggregate({
-        where: { instituteId, createdAt: { gte: yearStart } },
-        _sum: { amount: true },
-      }),
-    ]);
+    const [totalMembers, activeMembers, expiringMembers, totalEvents, financeSummary] =
+      await Promise.all([
+        this.prisma.instituteMember.count({ where: { instituteId } }),
+        this.prisma.instituteMember.count({ where: { instituteId, status: "ACTIVE" } }),
+        this.prisma.instituteMember.count({
+          where: {
+            instituteId,
+            status: "ACTIVE",
+            expireAt: { gte: now, lte: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) },
+          },
+        }),
+        this.prisma.instituteEvent.count({
+          where: { instituteId, scheduleAt: { gte: yearStart } },
+        }),
+        this.prisma.instituteRevenue.aggregate({
+          where: { instituteId, sourceType: "MEMBERSHIP", createdAt: { gte: yearStart } },
+          _sum: { amount: true },
+        }),
+      ]);
 
     return {
       totalMembers,
@@ -491,110 +613,193 @@ export class InstituteService {
   }
 
   async getPendingMembers(userId: string) {
-    await this.assertManagement(userId);
+    const mgr = await this.assertManagement(userId);
     return this.prisma.instituteMember.findMany({
-      where: { status: "PENDING" as any },
-      include: { user: { select: { id: true, nickname: true, avatar: true } } },
+      where: { instituteId: mgr.instituteId, status: "PENDING" },
+      select: PUBLIC_MEMBER_SELECT,
       orderBy: { joinedAt: "desc" },
     });
   }
-
   async approveMember(userId: string, memberId: string, status: string, _reason?: string) {
-    await this.assertManagement(userId);
+    const mgr = await this.assertManagement(userId);
+    if (!["ACTIVE", "REJECTED"].includes(status)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的审核状态");
+    }
     const member = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
-    if (member.userId === userId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己的成员申请");
+    if (member.instituteId !== mgr.instituteId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅可审批本研究院的成员申请");
+    }
+    if (member.status !== "PENDING") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "仅待审核申请可处理");
+    }
+    if (member.userId === userId)
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能审批自己的成员申请");
 
-    return this.prisma.instituteMember.update({
+    const updated = await this.prisma.instituteMember.update({
       where: { id: memberId },
       data: { status },
     });
+    if (status === "ACTIVE") {
+      const institute = await this.prisma.institute.findUnique({
+        where: { id: member.instituteId },
+        select: { circleId: true },
+      });
+      if (institute?.circleId) {
+        await this.autoJoinInstituteCircleSafe(institute.circleId, member.userId);
+      }
+    }
+    return updated;
   }
-
   async assignMemberRole(userId: string, memberId: string, role: string) {
-    await this.assertManagement(userId);
+    const mgr = await this.assertManagement(userId);
     if (!MGMT_ROLES.includes(role as InstituteRole)) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "仅可任命主席/副主席/秘书长");
     }
     const existing = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "书院成员不存在");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院成员不存在");
+    if (existing.instituteId !== mgr.instituteId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅可任命本研究院成员");
+    }
+    if (existing.status !== "ACTIVE") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "仅在册成员可被任命");
+    }
     return this.prisma.instituteMember.update({
       where: { id: memberId },
       data: { role: role as InstituteRole },
     });
   }
-
   async getFinanceOverview(userId: string, period?: string, opts?: { asAdmin?: boolean }) {
-    // 财务概览（只读）：平台管理角色可 asAdmin 豁免会籍；分红发放等资金写操作不豁免，仍须真实管理层会籍
-    await this.assertManagement(userId, opts);
-    const where: Prisma.InstituteRevenueWhereInput = {};
-    const dividendWhere: Prisma.InstituteDividendWhereInput = {};
+    // 只读财务按管理者所属研究院隔离；50/50 仅适用于 MEMBERSHIP 会费实际入账。
+    const mgr = await this.assertManagement(userId, opts);
+    const where: Prisma.InstituteRevenueWhereInput = {
+      instituteId: mgr.instituteId,
+      sourceType: "MEMBERSHIP",
+    };
+    const dividendWhere: Prisma.InstituteDividendWhereInput = { instituteId: mgr.instituteId };
 
     if (period) {
-      // period format: 2026-Q1 or 2026
+      if (!/^\d{4}(?:-Q[1-4])?$/.test(period)) {
+        throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          "财务周期格式应为 YYYY 或 YYYY-Q1 至 YYYY-Q4",
+        );
+      }
       if (period.includes("-Q")) {
-        const [year, q] = period.split("-Q");
-        const quarterStart = new Date(+year, (+q - 1) * 3, 1);
-        const quarterEnd = new Date(+year, +q * 3, 0);
-        where.createdAt = { gte: quarterStart, lte: quarterEnd };
-        dividendWhere.createdAt = { gte: quarterStart, lte: quarterEnd };
+        const [year, q] = period.split("-Q").map(Number);
+        const start = new Date(year, (q - 1) * 3, 1);
+        const end = new Date(year, q * 3, 1);
+        where.createdAt = { gte: start, lt: end };
+        dividendWhere.createdAt = { gte: start, lt: end };
       } else {
-        const yearStart = new Date(+period, 0, 1);
-        const yearEnd = new Date(+period, 11, 31);
-        where.createdAt = { gte: yearStart, lte: yearEnd };
-        dividendWhere.createdAt = { gte: yearStart, lte: yearEnd };
+        const year = Number(period);
+        const start = new Date(year, 0, 1);
+        const end = new Date(year + 1, 0, 1);
+        where.createdAt = { gte: start, lt: end };
+        dividendWhere.createdAt = { gte: start, lt: end };
       }
     }
 
-    const [revenue, dividends, revenueAgg] = await Promise.all([
-      this.prisma.instituteRevenue.findMany({ where, orderBy: { createdAt: "desc" }, take: 50 }),
-      this.prisma.instituteDividend.findMany({ where: dividendWhere, include: { user: { select: { id: true, nickname: true } } }, orderBy: { createdAt: "desc" }, take: 50 }),
-      this.prisma.instituteRevenue.aggregate({ where, _sum: { amount: true } }),
-    ]);
+    const pendingWhere: Prisma.FundApprovalWhereInput = {
+      type: "DIVIDEND",
+      status: "PENDING",
+      payload: { path: ["instituteId"], equals: mgr.instituteId },
+    };
+    const [revenue, dividends, revenueAgg, dividendAgg, pendingApprovals, requesterMembership] =
+      await Promise.all([
+        this.prisma.instituteRevenue.findMany({ where, orderBy: { createdAt: "desc" }, take: 50 }),
+        this.prisma.instituteDividend.findMany({
+          where: dividendWhere,
+          include: { user: { select: { id: true, nickname: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        }),
+        this.prisma.instituteRevenue.aggregate({ where, _sum: { amount: true } }),
+        this.prisma.instituteDividend.aggregate({
+          where: dividendWhere,
+          _sum: { amount: true },
+        }),
+        this.prisma.fundApproval.findMany({ where: pendingWhere, select: { amount: true } }),
+        this.prisma.instituteMember.findFirst({
+          where: {
+            instituteId: mgr.instituteId,
+            userId,
+            status: "ACTIVE",
+            role: { in: MGMT_ROLES },
+          },
+          select: { id: true },
+        }),
+      ]);
 
-    const totalRevenue = revenueAgg._sum.amount || 0;
-    const platformShare = Number(totalRevenue) * 0.5;
-    const instituteShare = Number(totalRevenue) * 0.5;
-    const totalDividends = dividends.reduce((sum, d) => sum + Number(d.amount), 0);
+    const totalRevenue = Number(revenueAgg._sum.amount || 0);
+    const platformShare = totalRevenue * 0.5;
+    const instituteShare = totalRevenue * 0.5;
+    const totalDividends = Number(dividendAgg._sum.amount || 0);
+    const pendingDividends = pendingApprovals.reduce((sum, a) => sum + Number(a.amount || 0), 0);
 
     return {
       totalRevenue,
       platformShare,
       instituteShare,
       totalDividends,
-      remaining: instituteShare - totalDividends,
+      pendingDividends,
+      canRequestDividend: Boolean(requesterMembership),
+      remaining: Math.max(0, instituteShare - totalDividends - pendingDividends),
       revenues: revenue,
       dividends,
     };
   }
 
   /**
-   * 发起分红发放审批（不立即发放）。校验管理层身份后创建 FundApproval(PENDING)，
-   * 审批通过后由 FundApprovalExecutor 调用 createDividend 真正发放。
+   * 发起分红/奖励分配审批（不立即到账）。校验管理层身份后创建 FundApproval(PENDING)，
+   * 审批通过后由 FundApprovalExecutor 调用 createDividend 生成已确认分配记录。
    */
-  async requestDividend(userId: string, dto: { userId: string; type: string; amount: number; description?: string; period?: string }) {
+  async requestDividend(
+    userId: string,
+    dto: { userId: string; type: string; amount: number; description?: string; period?: string },
+  ) {
     const mgr = await this.assertManagement(userId);
     if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
     if (!Number.isFinite(dto.amount) || dto.amount <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "发放金额必须大于 0");
     }
+    if (!DIVIDEND_TYPES.includes(dto.type as (typeof DIVIDEND_TYPES)[number])) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的分红类型");
+    }
+    const target = await this.prisma.instituteMember.findFirst({
+      where: { instituteId: mgr.instituteId, userId: dto.userId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (!target) throw new BusinessException(ErrorCode.BAD_REQUEST, "分配对象须为本研究院在册成员");
 
-    // 资金双查：只能从同院已入账留存中发起审批，名义会费与申请金额绝不计入余额。
-    const [revenueAgg, dividendAgg] = await Promise.all([
+    // 资金双查：会费实际入账留存 - 已确认分配 - 待审占用。名义金额与其他收入不进入此池。
+    const [revenueAgg, dividendAgg, pendingApprovals] = await Promise.all([
       this.prisma.instituteRevenue.aggregate({
-        where: { instituteId: mgr.instituteId },
+        where: { instituteId: mgr.instituteId, sourceType: "MEMBERSHIP" },
         _sum: { amount: true },
       }),
       this.prisma.instituteDividend.aggregate({
         where: { instituteId: mgr.instituteId },
         _sum: { amount: true },
       }),
+      this.prisma.fundApproval.findMany({
+        where: {
+          type: "DIVIDEND",
+          status: "PENDING",
+          payload: { path: ["instituteId"], equals: mgr.instituteId },
+        },
+        select: { amount: true },
+      }),
     ]);
     const instituteShare = Number(revenueAgg._sum.amount || 0) * 0.5;
     const distributed = Number(dividendAgg._sum.amount || 0);
-    const remaining = Math.max(0, instituteShare - distributed);
+    const reserved = pendingApprovals.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+    const remaining = Math.max(0, instituteShare - distributed - reserved);
     if (dto.amount > remaining) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `可分配余额不足，当前为 ¥${remaining.toFixed(2)}`);
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `可分配余额不足，扣除待审占用后当前为 ¥${remaining.toFixed(2)}`,
+      );
     }
 
     return this.fundApproval.create({
@@ -608,36 +813,95 @@ export class InstituteService {
         period: dto.period,
       },
       amount: dto.amount,
-      summary: `研究院发放分红/奖励 ¥${dto.amount}（对象用户 ${dto.userId}，类型 ${dto.type}）`,
+      summary: `研究院分红/奖励分配审批 ¥${dto.amount}（对象用户 ${dto.userId}，类型 ${dto.type}）`,
       requestedBy: userId,
     });
   }
+  async createDividend(
+    userId: string,
+    dto: {
+      instituteId: string;
+      userId: string;
+      type: string;
+      amount: number;
+      description?: string;
+      period?: string;
+    },
+  ) {
+    if (!dto.instituteId)
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "审批单缺少研究院归属");
+    if (!Number.isFinite(dto.amount) || dto.amount <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "分配金额必须大于 0");
+    }
+    if (!DIVIDEND_TYPES.includes(dto.type as (typeof DIVIDEND_TYPES)[number])) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的分红类型");
+    }
+    const mgr = await this.assertManagement(userId, { instituteId: dto.instituteId });
 
-  async createDividend(userId: string, dto: { userId: string; type: string; amount: number; description?: string; period?: string }) {
-    const mgr = await this.assertManagement(userId);
-    return this.prisma.instituteDividend.create({
-      data: {
-        instituteId: mgr.instituteId,
-        userId: dto.userId,
-        type: dto.type,
-        amount: dto.amount,
-        description: dto.description,
-        period: dto.period,
+    // 执行阶段在 SERIALIZABLE 事务内再次复核余额；并发审批只能有一笔成功，失败审批回退待审。
+    return this.prisma.$transaction(
+      async (tx) => {
+        const [target, revenueAgg, dividendAgg] = await Promise.all([
+          tx.instituteMember.findFirst({
+            where: { instituteId: mgr.instituteId, userId: dto.userId, status: "ACTIVE" },
+            select: { id: true },
+          }),
+          tx.instituteRevenue.aggregate({
+            where: { instituteId: mgr.instituteId, sourceType: "MEMBERSHIP" },
+            _sum: { amount: true },
+          }),
+          tx.instituteDividend.aggregate({
+            where: { instituteId: mgr.instituteId },
+            _sum: { amount: true },
+          }),
+        ]);
+        if (!target)
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "分配对象已不是本研究院在册成员");
+
+        const instituteShare = Number(revenueAgg._sum.amount || 0) * 0.5;
+        const distributed = Number(dividendAgg._sum.amount || 0);
+        const remaining = Math.max(0, instituteShare - distributed);
+        if (dto.amount > remaining) {
+          throw new BusinessException(
+            ErrorCode.BAD_REQUEST,
+            `审批执行时余额不足，当前为 ¥${remaining.toFixed(2)}`,
+          );
+        }
+
+        return tx.instituteDividend.create({
+          data: {
+            instituteId: mgr.instituteId,
+            userId: dto.userId,
+            type: dto.type,
+            amount: dto.amount,
+            description: dto.description,
+            period: dto.period,
+          },
+        });
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
-
   async recommendToTalentPool(userId: string, memberId: string, lecturerLevel: string) {
-    await this.assertManagement(userId);
+    const mgr = await this.assertManagement(userId);
+    if (!["PREPARATORY", "JUNIOR", "SENIOR", "SIGNED"].includes(lecturerLevel)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的讲师等级");
+    }
     const existing = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "书院成员不存在");
-    if (existing.userId === userId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能推荐自己进入人才库");
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院成员不存在");
+    if (existing.instituteId !== mgr.instituteId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅可推荐本研究院成员");
+    }
+    if (existing.status !== "ACTIVE") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "仅在册成员可推荐进入人才库");
+    }
+    if (existing.userId === userId)
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能推荐自己进入人才库");
     return this.prisma.instituteMember.update({
       where: { id: memberId },
       data: { lecturerLevel },
     });
   }
-
   // ════════════════════════════════════════
   // 任务模板管理
   // ════════════════════════════════════════
@@ -646,11 +910,29 @@ export class InstituteService {
     return this.prisma.instituteTaskTemplate.findMany({ orderBy: { sortOrder: "asc" } });
   }
 
-  async createTaskTemplate(dto: { taskType: string; title: string; description?: string; requiredCount?: number; periodUnit?: string; sortOrder?: number }) {
+  async createTaskTemplate(dto: {
+    taskType: string;
+    title: string;
+    description?: string;
+    requiredCount?: number;
+    periodUnit?: string;
+    sortOrder?: number;
+  }) {
     return this.prisma.instituteTaskTemplate.create({ data: dto });
   }
 
-  async updateTaskTemplate(id: string, dto: { taskType?: string; title?: string; description?: string; requiredCount?: number; periodUnit?: string; sortOrder?: number; status?: string }) {
+  async updateTaskTemplate(
+    id: string,
+    dto: {
+      taskType?: string;
+      title?: string;
+      description?: string;
+      requiredCount?: number;
+      periodUnit?: string;
+      sortOrder?: number;
+      status?: string;
+    },
+  ) {
     const existing = await this.prisma.instituteTaskTemplate.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "任务模板不存在");
     return this.prisma.instituteTaskTemplate.update({ where: { id }, data: dto });
@@ -661,11 +943,11 @@ export class InstituteService {
   // ════════════════════════════════════════
 
   async getMember(memberId: string) {
-    const member = await this.prisma.instituteMember.findUnique({
-      where: { id: memberId },
-      include: {
-        user: { select: { id: true, nickname: true, avatar: true } },
-        tasks: { orderBy: { createdAt: "desc" } },
+    const member = await this.prisma.instituteMember.findFirst({
+      where: { id: memberId, status: "ACTIVE" },
+      select: {
+        ...PUBLIC_MEMBER_SELECT,
+        tasks: { select: PUBLIC_TASK_SELECT, orderBy: { createdAt: "desc" } },
       },
     });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
@@ -677,20 +959,31 @@ export class InstituteService {
         where: { sourceUserId: member.userId, status: "ACTIVE" },
         select: { stationId: true, station: { select: { name: true } } },
       });
-      enrolledStations = sts.map((s) => ({ stationId: s.stationId, name: s.station?.name || "" }));
+      enrolledStations = sts.map((station) => ({
+        stationId: station.stationId,
+        name: station.station?.name || "",
+      }));
     }
     return { ...member, enrolledStations };
   }
-
-  async updateMember(memberId: string, dto: { role?: string; status?: string; deposit?: number }) {
+  async updateMember(
+    memberId: string,
+    dto: { role?: string; status?: string; tasksRequired?: number },
+  ) {
     const member = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
+    if (dto.role && !MEMBER_ROLES.includes(dto.role as (typeof MEMBER_ROLES)[number])) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的成员角色");
+    }
+    if (dto.status && !MEMBER_STATUSES.includes(dto.status as (typeof MEMBER_STATUSES)[number])) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的成员状态");
+    }
     return this.prisma.instituteMember.update({
       where: { id: memberId },
       data: {
         ...(dto.role ? { role: dto.role as InstituteRole } : {}),
         ...(dto.status ? { status: dto.status } : {}),
-        ...(dto.deposit !== undefined ? { deposit: dto.deposit } : {}),
+        ...(dto.tasksRequired !== undefined ? { tasksRequired: dto.tasksRequired } : {}),
       },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
     });
@@ -700,8 +993,50 @@ export class InstituteService {
     return this.getMyDashboard(userId);
   }
 
-  async listMembers(params: { role?: string; status?: string; joinYear?: number; page?: number; pageSize?: number }) {
+  async listMembers(params: {
+    role?: string;
+    status?: string;
+    joinYear?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
+    const { role, joinYear } = params;
+    if (role && !MEMBER_ROLES.includes(role as (typeof MEMBER_ROLES)[number])) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的成员角色");
+    }
+    const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
+    // 公开列表永远只展示在册成员；PENDING/REJECTED/SUSPENDED 只能走本人或管理接口。
+    const where: Prisma.InstituteMemberWhereInput = { status: "ACTIVE" };
+    if (role) where.role = role as InstituteRole;
+    if (joinYear) where.joinYear = joinYear;
+
+    const [members, total] = await Promise.all([
+      this.prisma.instituteMember.findMany({
+        where,
+        select: PUBLIC_MEMBER_SELECT,
+        skip,
+        take: pageSize,
+        orderBy: { joinedAt: "desc" },
+      }),
+      this.prisma.instituteMember.count({ where }),
+    ]);
+    return { members, total, page, pageSize };
+  }
+  /** 平台后台成员列表：受 RolesGuard 保护，可查看特邀/免会费留痕，但仍不返回用户手机号等身份信息。 */
+  async listAdminMembers(params: {
+    role?: string;
+    status?: string;
+    joinYear?: number;
+    page?: number;
+    pageSize?: number;
+  }) {
     const { role, status, joinYear } = params;
+    if (role && !MEMBER_ROLES.includes(role as (typeof MEMBER_ROLES)[number])) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的成员角色");
+    }
+    if (status && !MEMBER_STATUSES.includes(status as (typeof MEMBER_STATUSES)[number])) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的成员状态");
+    }
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.InstituteMemberWhereInput = {};
     if (role) where.role = role as InstituteRole;
@@ -720,8 +1055,10 @@ export class InstituteService {
     ]);
     return { members, total, page, pageSize };
   }
-
   async updateLecturerLevel(memberId: string, dto: { lecturerLevel: string }) {
+    if (!LECTURER_LEVELS.includes(dto.lecturerLevel as (typeof LECTURER_LEVELS)[number])) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的讲师等级");
+    }
     const member = await this.prisma.instituteMember.findUnique({ where: { id: memberId } });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "成员不存在");
     return this.prisma.instituteMember.update({
@@ -734,7 +1071,13 @@ export class InstituteService {
 
   async addTask(memberId: string, dto: { taskType: string; title: string; description?: string }) {
     return this.prisma.instituteTask.create({
-      data: { memberId, taskType: dto.taskType, title: dto.title, description: dto.description, status: "PENDING" },
+      data: {
+        memberId,
+        taskType: dto.taskType,
+        title: dto.title,
+        description: dto.description,
+        status: "PENDING",
+      },
     });
   }
 
@@ -744,8 +1087,10 @@ export class InstituteService {
       include: { member: true },
     });
     if (!task) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-    if (task.member.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能完成自己的任务");
-    if (task.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "任务状态不允许");
+    if (task.member.userId !== userId)
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只能完成自己的任务");
+    if (task.status !== "PENDING")
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "任务状态不允许");
 
     const updated = await this.prisma.instituteTask.update({
       where: { id: taskId },
@@ -760,10 +1105,12 @@ export class InstituteService {
 
   async verifyTask(taskId: string, verifierId: string) {
     const task = await this.prisma.instituteTask.findUnique({
-      where: { id: taskId }, include: { member: true },
+      where: { id: taskId },
+      include: { member: true },
     });
     if (!task) throw new BusinessException(ErrorCode.TASK_NOT_FOUND);
-    if (task.status !== "COMPLETED") throw new BusinessException(ErrorCode.BAD_REQUEST, "任务尚未完成，无法验证");
+    if (task.status !== "COMPLETED")
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "任务尚未完成，无法验证");
 
     return this.prisma.instituteTask.update({
       where: { id: taskId },
@@ -773,20 +1120,57 @@ export class InstituteService {
 
   // ───────── 活动排期 ─────────
 
-  async createEvent(userId: string, dto: { title: string; type: string; lecturerId?: string; description?: string; location?: string; scheduleAt: string; maxAttendees?: number; instituteId?: string }) {
+  async createEvent(
+    userId: string,
+    dto: {
+      title: string;
+      type: string;
+      lecturerId?: string;
+      description?: string;
+      location?: string;
+      scheduleAt: string;
+      maxAttendees?: number;
+      instituteId?: string;
+    },
+  ) {
     const mgr = await this.assertManagement(userId);
-    const instituteId = dto.instituteId || mgr.instituteId;
+    if (!EVENT_TYPES.includes(dto.type as (typeof EVENT_TYPES)[number])) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的活动类型");
+    }
+    if (dto.instituteId && dto.instituteId !== mgr.instituteId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅可为本研究院创建活动");
+    }
+    const scheduleAt = new Date(dto.scheduleAt);
+    if (Number.isNaN(scheduleAt.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "活动时间格式不正确");
+    }
+    if (dto.lecturerId) {
+      const lecturer = await this.prisma.instituteMember.findFirst({
+        where: { instituteId: mgr.instituteId, userId: dto.lecturerId, status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (!lecturer) throw new BusinessException(ErrorCode.BAD_REQUEST, "讲师须为本研究院在册成员");
+    }
     return this.prisma.instituteEvent.create({
       data: {
-        title: dto.title, type: dto.type, lecturerId: dto.lecturerId,
-        description: dto.description, location: dto.location,
-        scheduleAt: new Date(dto.scheduleAt), maxAttendees: dto.maxAttendees || 50,
-        instituteId,
+        title: dto.title,
+        type: dto.type,
+        lecturerId: dto.lecturerId,
+        description: dto.description,
+        location: dto.location,
+        scheduleAt,
+        maxAttendees: dto.maxAttendees || 50,
+        instituteId: mgr.instituteId,
       },
     });
   }
-
-  async listEvents(params: { type?: string; status?: string; upcoming?: boolean; page?: number; pageSize?: number }) {
+  async listEvents(params: {
+    type?: string;
+    status?: string;
+    upcoming?: boolean;
+    page?: number;
+    pageSize?: number;
+  }) {
     const { type, status, upcoming } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize, NO_PAGE_LIMIT);
     const where: Prisma.InstituteEventWhereInput = {};
@@ -797,7 +1181,8 @@ export class InstituteService {
     const [events, total] = await Promise.all([
       this.prisma.instituteEvent.findMany({
         where,
-        skip, take: pageSize,
+        skip,
+        take: pageSize,
         orderBy: { scheduleAt: "asc" },
       }),
       this.prisma.instituteEvent.count({ where }),
@@ -822,10 +1207,16 @@ export class InstituteService {
     return { ...event, lecturer };
   }
 
-  async updateEvent(id: string, dto: { status?: string; title?: string; description?: string; location?: string }) {
+  async updateEvent(
+    id: string,
+    dto: { status?: string; title?: string; description?: string; location?: string },
+  ) {
     const existing = await this.prisma.instituteEvent.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "活动不存在");
-    const updated = await this.prisma.instituteEvent.update({ where: { id }, data: dto as Prisma.InstituteEventUpdateInput });
+    const updated = await this.prisma.instituteEvent.update({
+      where: { id },
+      data: dto as Prisma.InstituteEventUpdateInput,
+    });
 
     // T9-P1 自动记分挂点：状态首次流转到 COMPLETED 时给讲师记分享积分（refId=eventId 幂等查重）
     if (this.assessment && dto.status === "COMPLETED" && existing.status !== "COMPLETED") {
@@ -863,7 +1254,11 @@ export class InstituteService {
     const enrolled = userIds.length
       ? await this.prisma.stationTeacher.findMany({
           where: { sourceUserId: { in: userIds }, status: "ACTIVE" },
-          select: { sourceUserId: true, stationId: true, station: { select: { id: true, name: true } } },
+          select: {
+            sourceUserId: true,
+            stationId: true,
+            station: { select: { id: true, name: true } },
+          },
         })
       : [];
 
