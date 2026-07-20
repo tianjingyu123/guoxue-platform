@@ -1,450 +1,369 @@
 <script setup lang="ts">
-/**
- * 同城发现·Feed（从原型 app/same-city/feed/page.tsx 575行 分级迁移）
- * 头部(城市切换+刷新) + 类型筛选tab + 内容卡片列表 + 城市选择弹层(热门城市)
- * 分级说明：主列表/筛选/城市切换完整；卡片详情跳转→toast占位(详情页未迁)
- */
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import SmartCover from '@/components/common/smart-cover.vue'
-import SmartAvatar from '@/components/common/smart-avatar.vue'
-import { goBack } from '@/utils/router'
-import { formatPrice } from '@/utils/format'
-import {
-  mockFeedItems, mockHotCities, filterTabs,
-  getContentTypeLabel, getContentTypeColor, getTypeIconName, formatDistance,
-  type SameCityItem, type SameCityContentType,
-} from '@/lib/same-city-data'
+import { goBack, navigateTo } from '@/utils/router'
 
 const statusBarHeight = ref(0)
-try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch (e) { statusBarHeight.value = 0 }
-
-const currentCity = ref('北京')
-const activeTab = ref<SameCityContentType | 'all'>('all')
-const refreshing = ref(false)
-const showCityPicker = ref(false)
-// 定位失败提示（H5/小程序预览无真实定位，默认 true，与原型预览态一致；原型 locationError 控制）
-const locationError = ref(true)
-
-function requestLocation() {
-  locationError.value = false
-  uni.getLocation({
-    type: 'gcj02',
-    success: () => { locationError.value = false },
-    fail: () => { locationError.value = true },
-  })
+try {
+  statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
+} catch {
+  statusBarHeight.value = 0
 }
 
-const items = computed(() =>
-  activeTab.value === 'all'
-    ? mockFeedItems
-    : mockFeedItems.filter((i) => i.type === activeTab.value),
-)
-
-function onRefresh() {
-  if (refreshing.value) return
-  refreshing.value = true
-  setTimeout(() => {
-    refreshing.value = false
-    uni.showToast({ title: '已刷新', icon: 'none' })
-  }, 800)
+function goStations() {
+  navigateTo('/offline/stations')
 }
-
-function pickCity(name: string) {
-  currentCity.value = name
-  showCityPicker.value = false
-}
-
-function openDetail(item: SameCityItem) {
-  uni.showToast({ title: `${getContentTypeLabel(item.type)}详情待迁移`, icon: 'none' })
-}
-
-function onNavigate(item: SameCityItem) {
-  uni.showToast({ title: `导航前往「${item.location.name}」`, icon: 'none' })
-}
-
-function dateOnly(t?: string) { return t ? t.split(' ')[0] : '' }
 </script>
 
 <template>
-  <view class="sc">
-    <!-- 头部 -->
-    <view class="sc-header" :style="{ paddingTop: statusBarHeight + 12 + 'px' }">
-      <view class="sc-header-row">
-        <view class="sc-back" @tap="goBack">
-          <app-icon name="chevron-left" :size="40" color="#2C2C2C" />
-        </view>
-        <view class="sc-city" @tap="showCityPicker = true">
-          <app-icon name="map-pin" :size="30" color="#C9A86A" />
-          <text class="sc-city-name">{{ currentCity }}</text>
-          <app-icon name="chevron-down" :size="28" color="#999999" />
-        </view>
-        <view class="sc-flex" />
-        <view class="sc-refresh" :class="{ spinning: refreshing }" @tap="onRefresh">
-          <app-icon name="refresh-cw" :size="36" color="#666666" />
-        </view>
+  <view class="city-page">
+    <view
+      class="city-nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view
+        class="nav-action"
+        role="button"
+        aria-label="返回"
+        @tap="goBack"
+      >
+        <app-icon
+          name="chevron-left"
+          :size="22"
+          color="#2f2925"
+        />
       </view>
-
-      <!-- 定位失败提示（对应原型 locationError，bg-amber-50 text-amber-800） -->
-      <view v-if="locationError" class="sc-locerr">
-        <text class="sc-locerr-txt">定位失败，请手动选择城市</text>
-        <text class="sc-locerr-retry" @tap="requestLocation">重试</text>
-      </view>
-
-      <!-- 类型筛选 tab -->
-      <scroll-view scroll-x class="sc-tabs" :show-scrollbar="false">
-        <view class="sc-tabs-row">
-          <view
-            v-for="t in filterTabs"
-            :key="t.key"
-            class="sc-tab"
-            :class="{ on: activeTab === t.key }"
-            @tap="activeTab = t.key"
-          >
-            <text class="sc-tab-txt" :class="{ on: activeTab === t.key }">{{ t.label }}</text>
-          </view>
-        </view>
-      </scroll-view>
+      <text class="nav-title">
+        同城发现
+      </text>
+      <view class="nav-space" />
     </view>
 
-    <!-- 内容列表 -->
-    <scroll-view scroll-y class="sc-scroll">
-      <view v-if="items.length === 0" class="sc-empty">
-        <app-icon name="compass" :size="80" color="#CCCCCC" />
-        <text class="sc-empty-txt">暂无附近内容</text>
-        <text class="sc-empty-sub">换个城市或类型试试</text>
-      </view>
+    <scroll-view
+      scroll-y
+      class="city-scroll"
+    >
+      <view class="city-hero">
+        <view class="hero-orbit">
+          <view class="hero-mark">
+            <app-icon
+              name="map-pin"
+              :size="34"
+              color="#fff"
+            />
+          </view>
+          <view class="orbit-dot dot-one" />
+          <view class="orbit-dot dot-two" />
+        </view>
 
-      <view v-else class="sc-list">
-        <view v-for="item in items" :key="item.id" class="sc-card" @tap="openDetail(item)">
-          <view class="sc-cover-wrap">
-            <smart-cover class="sc-cover" :src="item.cover" :title="item.title" :type="item.type === 'video' ? 'video' : item.type === 'course' ? 'course' : 'default'" deco :deco-size="72" />
-            <view class="sc-type" :style="{ color: getContentTypeColor(item.type).color, background: getContentTypeColor(item.type).bg }">
-              <text class="sc-type-txt" :style="{ color: getContentTypeColor(item.type).color }">{{ getContentTypeLabel(item.type) }}</text>
+        <text class="hero-kicker">
+          LOCAL DISCOVERY
+        </text>
+        <text class="hero-title">
+          同城发现正在筹备
+        </text>
+        <text class="hero-desc">
+          我们正在接入经过核验的驿站、线下课程与同城活动。场地、时间和距离可信后，内容才会在这里开放。
+        </text>
+
+        <view class="trust-card">
+          <view class="trust-row">
+            <view class="trust-icon">
+              <app-icon
+                name="shield-check"
+                :size="17"
+                color="#A5162E"
+              />
             </view>
-            <view v-if="item.location.distance !== undefined" class="sc-dist" @tap.stop="onNavigate(item)">
-              <app-icon name="navigation" :size="22" color="#FFFFFF" />
-              <text class="sc-dist-txt">{{ formatDistance(item.location.distance) }}</text>
-            </view>
-            <view v-if="item.type === 'video'" class="sc-play">
-              <app-icon name="play" :size="44" color="#FFFFFF" />
-            </view>
-            <view v-if="item.price !== undefined || item.isFree" class="sc-price">
-              <text class="sc-price-txt">{{ item.isFree ? '免费' : '¥' + formatPrice(item.price) }}</text>
+            <view class="trust-copy">
+              <text class="trust-title">
+                真实信息优先
+              </text>
+              <text class="trust-desc">
+                不展示演示活动、虚构人数或未经核验的距离
+              </text>
             </view>
           </view>
-
-          <view class="sc-body">
-            <text class="sc-card-title">{{ item.title }}</text>
-            <text v-if="item.description" class="sc-card-desc">{{ item.description }}</text>
-
-            <view v-if="item.startTime" class="sc-meta-row">
-              <app-icon name="calendar" :size="24" color="#999999" />
-              <text class="sc-meta-txt">{{ dateOnly(item.startTime) }}</text>
-              <text v-if="item.status" class="sc-status">· {{ item.status }}</text>
+          <view class="trust-divider" />
+          <view class="trust-row">
+            <view class="trust-icon">
+              <app-icon
+                name="compass"
+                :size="17"
+                color="#A5883F"
+              />
             </view>
-
-            <view class="sc-meta-row">
-              <app-icon name="map-pin" :size="24" color="#999999" />
-              <text class="sc-meta-txt sc-ellipsis">{{ item.location.name }}</text>
-            </view>
-
-            <view class="sc-foot">
-              <view class="sc-stats">
-                <view v-if="item.participantCount !== undefined" class="sc-stat">
-                  <app-icon name="users" :size="22" color="#999999" />
-                  <text class="sc-stat-txt">{{ item.participantCount }}</text>
-                </view>
-                <view v-if="item.viewCount !== undefined" class="sc-stat">
-                  <app-icon name="eye" :size="22" color="#999999" />
-                  <text class="sc-stat-txt">{{ item.viewCount }}</text>
-                </view>
-                <view v-if="item.likeCount !== undefined" class="sc-stat">
-                  <app-icon name="heart" :size="22" color="#999999" />
-                  <text class="sc-stat-txt">{{ item.likeCount }}</text>
-                </view>
-              </view>
-              <view v-if="item.author" class="sc-author">
-                <smart-avatar class="sc-author-avatar" :src="item.author.avatar" :name="item.author.name" />
-                <text class="sc-author-name">{{ item.author.name }}</text>
-              </view>
-            </view>
-
-            <view v-if="item.tags && item.tags.length" class="sc-tags">
-              <view v-for="(tag, i) in item.tags.slice(0, 3)" :key="i" class="sc-tag">
-                <text class="sc-tag-txt">{{ tag }}</text>
-              </view>
+            <view class="trust-copy">
+              <text class="trust-title">
+                位置授权自愿
+              </text>
+              <text class="trust-desc">
+                正式开放后仍可手动选城，无需强制提供精确位置
+              </text>
             </view>
           </view>
         </view>
+
+        <view
+          class="primary-action"
+          role="button"
+          aria-label="先逛线下驿站"
+          @tap="goStations"
+        >
+          <text class="primary-action-text">
+            先逛线下驿站
+          </text>
+          <app-icon
+            name="arrow-right"
+            :size="17"
+            color="#fff"
+          />
+        </view>
+        <view
+          class="secondary-action"
+          role="button"
+          aria-label="返回上一页"
+          @tap="goBack"
+        >
+          <text class="secondary-action-text">
+            返回上一页
+          </text>
+        </view>
       </view>
-      <view class="sc-bottom" />
+
+      <view class="city-footer">
+        <view class="footer-line" />
+        <text class="footer-text">
+          真实场地 · 有效时间 · 自愿定位
+        </text>
+        <view class="footer-line" />
+      </view>
+      <view class="safe-space" />
     </scroll-view>
-
-    <!-- 城市选择弹层 -->
-    <view v-if="showCityPicker" class="sc-mask" @tap="showCityPicker = false">
-      <view class="sc-sheet" @tap.stop>
-        <view class="sc-sheet-head">
-          <text class="sc-sheet-title">选择城市</text>
-          <view @tap="showCityPicker = false"><app-icon name="x" :size="36" color="#999999" /></view>
-        </view>
-        <view class="sc-cur">
-          <app-icon name="map-pin" :size="28" color="#C9A86A" />
-          <text class="sc-cur-txt">当前定位：{{ currentCity }}</text>
-        </view>
-        <text class="sc-sheet-label">热门城市</text>
-        <view class="sc-city-grid">
-          <view
-            v-for="c in mockHotCities"
-            :key="c.code"
-            class="sc-city-item"
-            :class="{ on: currentCity === c.name }"
-            @tap="pickCity(c.name)"
-          >
-            <text class="sc-city-item-txt" :class="{ on: currentCity === c.name }">{{ c.name }}</text>
-          </view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <style scoped>
-.sc {
+.city-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(201, 169, 110, 0.16), transparent 28%),
+    linear-gradient(180deg, #fffaf4 0%, #f8f5f0 54%, #f5f2ed 100%);
+  color: #2f2925;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background: #F5F5F5;
 }
-.sc-header {
-  background: #FFFFFF;
-  border-bottom: 2rpx solid #EEEEEE;
-}
-.sc-header-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  padding: 12rpx 24rpx;
-}
-.sc-back { width: 88rpx; height: 88rpx; margin: -18rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
-.sc-city {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-}
-.sc-city-name {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #2C2C2C;
-}
-.sc-flex { flex: 1; }
-.sc-refresh { padding: 10rpx; }
-.sc-refresh.spinning { animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-  /* 定位失败提示条：对应原型 bg-amber-50 text-amber-800 */
-  .sc-locerr {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16rpx 24rpx;
-  background-color: #FFFBEB;
-  }
-  .sc-locerr-txt { font-size: 26rpx; color: #92400E; }
-  .sc-locerr-retry { font-size: 24rpx; color: #C9A86A; }
-
-  .sc-tabs { white-space: nowrap; }
-.sc-tabs-row {
-  display: flex;
-  gap: 16rpx;
-  padding: 8rpx 24rpx 20rpx;
-}
-.sc-tab {
-  padding: 12rpx 32rpx;
-  border-radius: 999rpx;
-  background: #F0F0F0;
-}
-.sc-tab.on { background: #C9A86A; }
-.sc-tab-txt {
-  font-size: 26rpx;
-  color: #666666;
-}
-.sc-tab-txt.on { color: #FFFFFF; }
-
-.sc-scroll { flex: 1; }
-.sc-list {
-  padding: 24rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-}
-.sc-card {
-  background: #FFFFFF;
-  border-radius: 16rpx;
-  overflow: hidden;
-  border: 2rpx solid #EEEEEE;
-}
-.sc-cover-wrap {
-  position: relative;
-  width: 100%;
-  height: 340rpx;
-  background-color: #E5E5E5; /* 空封面时显示灰底占位，匹配原型 placeholder.svg 观感 */
-}
-.sc-cover { width: 100%; height: 100%; }
-.sc-type {
-  position: absolute;
-  top: 16rpx;
-  left: 16rpx;
-  padding: 4rpx 14rpx;
-  border-radius: 8rpx;
-}
-.sc-type-txt { font-size: 22rpx; font-weight: 500; }
-.sc-dist {
-  position: absolute;
-  top: 16rpx;
-  right: 16rpx;
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-  padding: 4rpx 14rpx;
-  border-radius: 8rpx;
-  background: rgba(0, 0, 0, 0.6);
-}
-.sc-dist-txt { font-size: 22rpx; color: #FFFFFF; }
-.sc-play {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.sc-price {
-  position: absolute;
-  bottom: 16rpx;
-  right: 16rpx;
-  padding: 4rpx 16rpx;
-  border-radius: 8rpx;
-  background: #C9A86A;
-}
-.sc-price-txt { font-size: 24rpx; font-weight: 600; color: #FFFFFF; }
-
-.sc-body { padding: 20rpx; }
-.sc-card-title {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #2C2C2C;
-  line-height: 1.4;
-  margin-bottom: 8rpx;
-}
-.sc-card-desc {
-  display: block;
-  font-size: 26rpx;
-  color: #888888;
-  line-height: 1.5;
-  margin-bottom: 14rpx;
-}
-.sc-meta-row {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  margin-bottom: 10rpx;
-}
-.sc-meta-txt { font-size: 24rpx; color: #999999; }
-.sc-ellipsis {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  max-width: 480rpx;
-}
-.sc-status { font-size: 24rpx; color: #C9A86A; }
-.sc-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 6rpx;
-}
-.sc-stats { display: flex; gap: 24rpx; }
-.sc-stat { display: flex; align-items: center; gap: 4rpx; }
-.sc-stat-txt { font-size: 22rpx; color: #999999; }
-.sc-author { display: flex; align-items: center; gap: 8rpx; }
-.sc-author-avatar { width: 36rpx; height: 36rpx; border-radius: 50%; background-color: #E5E5E5; }
-.sc-author-name { font-size: 22rpx; color: #999999; }
-.sc-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10rpx;
-  margin-top: 14rpx;
-}
-.sc-tag {
-  padding: 4rpx 14rpx;
-  border-radius: 6rpx;
-  background: #F5F5F5;
-}
-.sc-tag-txt { font-size: 22rpx; color: #999999; }
-
-.sc-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 120rpx 0;
-  gap: 16rpx;
-}
-.sc-empty-txt { font-size: 28rpx; color: #999999; }
-.sc-empty-sub { font-size: 24rpx; color: #CCCCCC; }
-.sc-bottom { height: 40rpx; }
-
-.sc-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  z-index: 100;
-  display: flex;
-  align-items: flex-end;
-}
-.sc-sheet {
-  width: 100%;
-  background: #FFFFFF;
-  border-radius: 24rpx 24rpx 0 0;
-  padding: 32rpx 24rpx calc(40rpx + env(safe-area-inset-bottom));
-}
-.sc-sheet-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24rpx;
-}
-.sc-sheet-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
-.sc-cur {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  padding: 20rpx;
-  background: rgba(201, 168, 106, 0.08);
-  border-radius: 12rpx;
-  margin-bottom: 24rpx;
-}
-.sc-cur-txt { font-size: 26rpx; color: #2C2C2C; }
-.sc-sheet-label { display: block; font-size: 24rpx; color: #999999; margin-bottom: 16rpx; }
-.sc-city-grid {
+.city-nav {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16rpx;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  min-height: 52px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
-.sc-city-item {
-  padding: 18rpx 0;
+.nav-action,
+.nav-space {
+  width: 44px;
+  height: 44px;
+}
+.nav-action {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.nav-action:active {
+  background: rgba(47, 41, 37, 0.06);
+  transform: scale(0.96);
+}
+.nav-title {
   text-align: center;
-  border-radius: 12rpx;
-  border: 2rpx solid #EEEEEE;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
-.sc-city-item.on { border-color: #C9A86A; background: rgba(201, 168, 106, 0.08); }
-.sc-city-item-txt { font-size: 26rpx; color: #2C2C2C; }
-.sc-city-item-txt.on { color: #C9A86A; }
+.city-scroll {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+}
+.city-hero {
+  padding: 42px 26px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.hero-orbit {
+  width: 108px;
+  height: 108px;
+  border: 1px solid rgba(165, 22, 46, 0.16);
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 18px 50px rgba(83, 52, 31, 0.08);
+}
+.hero-orbit::before {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border: 1px dashed rgba(165, 136, 63, 0.28);
+  border-radius: 50%;
+}
+.hero-mark {
+  width: 62px;
+  height: 62px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #c41e3a, #921326);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 28px rgba(165, 22, 46, 0.28);
+  transform: rotate(-4deg);
+}
+.orbit-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #c9a96e;
+  box-shadow: 0 2px 8px rgba(165, 136, 63, 0.28);
+}
+.dot-one {
+  width: 9px;
+  height: 9px;
+  top: 13px;
+  right: 17px;
+}
+.dot-two {
+  width: 6px;
+  height: 6px;
+  left: 9px;
+  bottom: 29px;
+}
+.hero-kicker {
+  margin-top: 26px;
+  color: #a5883f;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.6px;
+}
+.hero-title {
+  margin-top: 8px;
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.hero-desc {
+  margin-top: 13px;
+  max-width: 330px;
+  color: #766e68;
+  font-size: 14px;
+  line-height: 1.8;
+  text-align: center;
+}
+.trust-card {
+  width: 100%;
+  margin-top: 28px;
+  padding: 8px 16px;
+  border: 1px solid rgba(201, 169, 110, 0.28);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 12px 36px rgba(65, 45, 30, 0.06);
+  box-sizing: border-box;
+}
+.trust-row {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.trust-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-radius: 13px;
+  background: #fbf3ee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.trust-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.trust-title {
+  font-size: 14px;
+  color: #3d3530;
+  font-weight: 700;
+}
+.trust-desc {
+  color: #918982;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.trust-divider {
+  height: 1px;
+  margin-left: 50px;
+  background: #eee7df;
+}
+.primary-action,
+.secondary-action {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.primary-action {
+  margin-top: 24px;
+  gap: 6px;
+  background: linear-gradient(135deg, #c41e3a, #9f1830);
+  box-shadow: 0 10px 24px rgba(165, 22, 46, 0.24);
+}
+.primary-action:active {
+  transform: translateY(1px);
+  box-shadow: 0 6px 16px rgba(165, 22, 46, 0.2);
+}
+.primary-action-text {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+.secondary-action {
+  margin-top: 10px;
+  border: 1px solid #e5ddd3;
+  background: rgba(255, 255, 255, 0.62);
+}
+.secondary-action:active {
+  background: #fff;
+}
+.secondary-action-text {
+  color: #6e655e;
+  font-size: 14px;
+  font-weight: 600;
+}
+.city-footer {
+  padding: 26px 30px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.footer-line {
+  height: 1px;
+  flex: 1;
+  background: #e8e0d7;
+}
+.footer-text {
+  color: #aaa098;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+}
+.safe-space {
+  height: calc(24px + env(safe-area-inset-bottom));
+}
 </style>
