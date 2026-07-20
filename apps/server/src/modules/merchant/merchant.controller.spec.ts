@@ -16,8 +16,8 @@ const mockMerchantSvc = {
   submitForReview: jest.fn().mockResolvedValue({ id: "m1", status: "PENDING_REVIEW" }),
 };
 const mockDepositSvc = {
-  getDepositInfo: jest.fn().mockResolvedValue({ depositAmount: 2000, depositPaid: false }),
-  payDeposit: jest.fn().mockResolvedValue({ depositRecordId: "dr1", amount: 2000, payMethod: "WECHAT" }),
+  getDepositInfo: jest.fn().mockResolvedValue({ depositAmount: 0, depositPaid: false, waived: true, collectionAvailable: false, refundAvailable: false }),
+  payDeposit: jest.fn().mockRejectedValue(new Error("当前实行免保证金入驻，无需支付")),
 };
 const mockAgreementSvc = {
   getLatestAgreement: jest.fn().mockResolvedValue({ id: "a1", version: "1.0", title: "协议" }),
@@ -74,12 +74,13 @@ describe("MerchantController", () => {
 
   it("GET /merchant/deposit-info — 获取保证金信息", async () => {
     const result = await ctrl.getDepositInfo(mockReq());
-    expect(result.depositAmount).toBe(2000);
+    expect(result.depositAmount).toBe(0);
+    expect(result.waived).toBe(true);
   });
 
-  it("POST /merchant/pay-deposit — 发起保证金支付", async () => {
-    const result = await ctrl.payDeposit(mockReq(), { payMethod: "WECHAT" });
-    expect(result.amount).toBe(2000);
+  it("POST /merchant/pay-deposit — 当前免缴时拒绝支付", async () => {
+    await expect(ctrl.payDeposit(mockReq(), { payMethod: "WECHAT" })).rejects.toThrow("无需支付");
+    expect(mockDepositSvc.payDeposit).toHaveBeenCalled();
   });
 
   it("GET /merchant/agreement-preview — 预览协议", async () => {

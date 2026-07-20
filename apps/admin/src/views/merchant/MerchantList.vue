@@ -19,7 +19,7 @@
             value="REVIEW_FAILED"
           />
           <el-option
-            label="待缴保证金"
+            label="保证金待处理"
             value="DEPOSIT_PENDING"
           />
           <el-option
@@ -285,19 +285,18 @@
           </div>
         </div>
       </div>
+      <el-alert
+        title="当前实行免保证金入驻；审核通过后商家将直接进入待签约状态"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-top:12px"
+      />
       <el-form
         :model="approveForm"
         label-width="100px"
         style="margin-top:12px"
       >
-        <el-form-item label="保证金金额">
-          <el-input-number
-            v-model="approveForm.depositAmount"
-            :min="0"
-            :precision="2"
-            style="width:100%"
-          />
-        </el-form-item>
         <el-form-item label="分佣比例">
           <el-input-number
             v-model="approveForm.commissionRate"
@@ -469,7 +468,7 @@ const rejectDialog = ref(false)
 const approveId = ref('')
 const rejectId = ref('')
 const rejectReason = ref('')
-const approveForm = ref({ depositAmount: undefined as number | undefined, commissionRate: undefined as number | undefined, remark: '' })
+const approveForm = ref({ commissionRate: undefined as number | undefined, remark: '' })
 
 // 被审资料本体（审核弹窗打开时拉详情展示）
 const reviewDetail = ref<MerchantReviewDetail | null>(null)
@@ -494,7 +493,7 @@ async function loadReviewDetail(id: string) {
 const STATUS_MAP: Record<string, string> = {
   PENDING_REVIEW: '待审核',
   REVIEW_FAILED: '审核驳回',
-  DEPOSIT_PENDING: '待缴保证金',
+  DEPOSIT_PENDING: '保证金待处理',
   AGREEMENT_PENDING: '待签署协议',
   ACTIVE: '已开通',
   SUSPENDED: '已暂停',
@@ -526,7 +525,7 @@ async function fetchList() {
     const data = res.data as { items?: MerchantRow[]; list?: MerchantRow[]; total?: number }
     list.value = data.items || data.list || []
     total.value = data.total || 0
-  } catch (e) {
+  } catch (_e) {
     error.value = true
   } finally { loading.value = false }
 }
@@ -537,7 +536,7 @@ function goPunish(id: string) { router.push(`/merchants/${id}?tab=punishments`) 
 
 function openApprove(row: MerchantRow) {
   approveId.value = row.id
-  approveForm.value = { depositAmount: undefined, commissionRate: undefined, remark: '' }
+  approveForm.value = { commissionRate: undefined, remark: '' }
   loadReviewDetail(row.id)
   approveDialog.value = true
 }
@@ -549,7 +548,7 @@ async function doApprove() {
     ElMessage.success('审核已通过')
     approveDialog.value = false
     fetchList()
-  } catch (e) {
+  } catch (_e) {
   } finally { saving.value = false }
 }
 
@@ -568,7 +567,7 @@ async function doReject() {
     ElMessage.success('已驳回')
     rejectDialog.value = false
     fetchList()
-  } catch (e) {
+  } catch (_e) {
   } finally { saving.value = false }
 }
 

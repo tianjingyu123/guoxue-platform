@@ -192,18 +192,17 @@ export class MerchantAdminController {
 
   @Post(":id/deposits/refund")
   @Auditable({ action: "退还保证金", targetType: "MERCHANT" })
-  @ApiOperation({ summary: "退还保证金" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiOperation({ summary: "退还保证金（真实原路退款未开放，当前拒绝）" })
+  @ApiResponse({ status: 400, description: "真实原路退款未开放" })
   refundDeposit(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: RefundDepositDto) {
     return this.depositService.refundDeposit(id, req.user.id, dto);
   }
 
   @Post(":id/deposits/adjust")
   @Auditable({ action: "调整保证金", targetType: "MERCHANT" })
-  @ApiOperation({ summary: "调整保证金金额" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiOperation({ summary: "保证金调额（当前仅允许零金额遗留状态自愈）" })
+  @ApiResponse({ status: 201, description: "零金额遗留状态已修复" })
+  @ApiResponse({ status: 400, description: "正金额、已缴或存在账面余额时拒绝" })
   adjustDeposit(@Param("id") id: string, @Body() dto: AdjustDepositDto) {
     return this.depositService.adjustDeposit(id, dto);
   }

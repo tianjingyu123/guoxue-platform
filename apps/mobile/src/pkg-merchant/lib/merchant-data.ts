@@ -1,6 +1,6 @@
 // ===== 商家端数据层 —— 真连后端 /merchant（入驻）+ /merchant-backend（经营后台）=====
 // 定位：商家=平台电商供货端/供应链源头，商品池唯一正规入口；圈主/驿站/商城为分销渠道。
-// 状态机：PENDING_REVIEW →(审核)→ DEPOSIT_PENDING →(缴保证金)→ AGREEMENT_PENDING →(签协议)→ ACTIVE
+// 当前状态机：PENDING_REVIEW →(审核通过·免保证金)→ AGREEMENT_PENDING →(签协议)→ ACTIVE
 import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 // ───────── 商家状态 ─────────
@@ -31,6 +31,7 @@ export interface MerchantApplication {
   totalSales?: string | number
   totalOrders?: number
   rating?: string | number
+  reviewedAt?: string | null
   openedAt?: string | null
   closedAt?: string | null
   remark?: string | null
@@ -41,6 +42,9 @@ export interface DepositInfo {
   depositAmount: number
   depositPaid: boolean
   status: MerchantStatus
+  waived: boolean
+  collectionAvailable: boolean
+  refundAvailable: boolean
 }
 
 export interface MerchantAgreement {
@@ -257,7 +261,6 @@ export const merchantApi = {
   updateApplication: (data: Partial<MerchantApplication>) => apiPut<MerchantApplication>('/merchant/application', data),
   submit: () => apiPost('/merchant/submit', {}),
   getDepositInfo: () => apiGet<DepositInfo>('/merchant/deposit-info'),
-  payDeposit: (payMethod: 'WECHAT' | 'ALIPAY') => apiPost('/merchant/pay-deposit', { payMethod }),
   getAgreementPreview: () => apiGet<MerchantAgreement>('/merchant/agreement-preview'),
   signAgreement: (version: string, agreed = true) => apiPost('/merchant/sign-agreement', { version, agreed }),
 }

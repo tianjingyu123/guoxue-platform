@@ -1,13 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { MerchantDepositService } from "./merchant-deposit.service";
-import { MerchantService } from "./merchant.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
-
-const mockMerchantSvc = {
-  calculateDeposit: jest.fn().mockResolvedValue(2000),
-  handleDepositPaid: jest.fn().mockResolvedValue({ id: "m1" }),
-};
 
 const mockPrisma: any = {
   merchant: {
@@ -17,6 +11,7 @@ const mockPrisma: any = {
   merchantDepositRecord: {
     create: jest.fn(),
     update: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
   },
@@ -30,7 +25,6 @@ describe("MerchantDepositService", () => {
       providers: [
         MerchantDepositService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: MerchantService, useValue: mockMerchantSvc },
       ],
     }).compile();
     svc = mod.get(MerchantDepositService);
@@ -39,12 +33,43 @@ describe("MerchantDepositService", () => {
   beforeEach(() => { jest.clearAllMocks(); });
 
   describe("getDepositInfo", () => {
-    it("返回保证金信息", async () => {
+    it("免保证金商家返回免缴且不可在线收退款", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({
-        id: "m1", depositAmount: 2000, depositPaid: false, status: "DEPOSIT_PENDING",
+        id: "m1", depositAmount: 0, depositPaid: false, status: "AGREEMENT_PENDING",
       });
+      mockPrisma.merchantDepositRecord.findFirst.mockResolvedValue(null);
+
       const result = await svc.getDepositInfo("u1");
-      expect(result.depositAmount).toBe(2000);
+
+      expect(result).toEqual(expect.objectContaining({
+        depositAmount: 0,
+        depositPaid: false,
+        waived: true,
+        collectionAvailable: false,
+        refundAvailable: false,
+      }));
+    });
+
+    it("只把非模拟成功流水认定为真实到账", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", depositAmount: 2000, depositPaid: true, status: "AGREEMENT_PENDING",
+      });
+      mockPrisma.merchantDepositRecord.findFirst.mockResolvedValue({ payTransactionId: "WX202607190001", amount: 2000 });
+
+      const result = await svc.getDepositInfo("u1");
+
+      expect(result.depositPaid).toBe(true);
+      expect(result.waived).toBe(false);
+    });
+
+    it("SIMULATED 流水不得被认定为到账", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", depositAmount: 2000, depositPaid: true, status: "AGREEMENT_PENDING",
+      });
+      mockPrisma.merchantDepositRecord.findFirst.mockResolvedValue({ payTransactionId: "SIMULATED-dr1", amount: 2000 });
+
+      const result = await svc.getDepositInfo("u1");
+
       expect(result.depositPaid).toBe(false);
     });
 
@@ -55,72 +80,77 @@ describe("MerchantDepositService", () => {
   });
 
   describe("payDeposit", () => {
-    it("发起保证金支付成功", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({
-        id: "m1", userId: "u1", status: "DEPOSIT_PENDING", depositAmount: 2000,
-      });
-      mockPrisma.merchantDepositRecord.create.mockResolvedValue({
-        id: "dr1", merchantId: "m1", amount: 2000, type: "PAYMENT", status: "PENDING",
-      });
-      mockPrisma.merchantDepositRecord.update.mockResolvedValue({
-        id: "dr1", status: "SUCCESS",
-      });
-      const result = await svc.payDeposit("u1", { payMethod: "WECHAT" });
-      expect(result.amount).toBe(2000);
-      expect(result.payMethod).toBe("WECHAT");
-      // 模拟支付：记录置 SUCCESS 并推进状态机
-      expect(mockPrisma.merchantDepositRecord.update).toHaveBeenCalledWith({
-        where: { id: "dr1" },
-        data: expect.objectContaining({ status: "SUCCESS" }),
-      });
-      expect(mockMerchantSvc.handleDepositPaid).toHaveBeenCalledWith("m1");
-      expect(result.paid).toBe(true);
-      expect(result.status).toBe("AGREEMENT_PENDING");
+    it("免保证金不创建支付流水", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 0 });
+
+      await expect(svc.payDeposit("u1", { payMethod: "WECHAT" })).rejects.toThrow("无需支付");
+      expect(mockPrisma.merchantDepositRecord.create).not.toHaveBeenCalled();
+      expect(mockPrisma.merchantDepositRecord.update).not.toHaveBeenCalled();
     });
 
-    it("状态不正确抛出异常", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({
-        id: "m1", userId: "u1", status: "ACTIVE", depositAmount: 2000,
-      });
-      await expect(svc.payDeposit("u1", { payMethod: "WECHAT" })).rejects.toThrow(BusinessException);
+    it("正金额在真实收款未接入时拒绝且零写入", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 2000 });
+
+      await expect(svc.payDeposit("u1", { payMethod: "ALIPAY" })).rejects.toThrow("在线收款尚未开放");
+      expect(mockPrisma.merchantDepositRecord.create).not.toHaveBeenCalled();
+      expect(mockPrisma.merchant.update).not.toHaveBeenCalled();
     });
   });
 
   describe("refundDeposit", () => {
-    it("管理员退还保证金", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 2000, depositPaid: true });
-      mockPrisma.merchantDepositRecord.create.mockResolvedValue({
-        id: "dr2", merchantId: "m1", amount: 2000, type: "REFUND", status: "SUCCESS",
+    it("退款渠道未接入时拒绝且不伪造 SUCCESS", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", depositAmount: 2000, depositPaid: true,
       });
-      const result = await svc.refundDeposit("m1", "admin1", {});
-      expect(result.type).toBe("REFUND");
-      expect(result.status).toBe("SUCCESS");
-    });
 
-    it("不能给自己名下的商家退还保证金（防自审自批）", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", depositAmount: 2000, depositPaid: true });
-      await expect(svc.refundDeposit("m1", "u1", {})).rejects.toThrow(BusinessException);
-    });
-
-    it("加固：未缴纳保证金 → 无可退还（拒绝凭空退还）", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 0, depositPaid: false });
-      await expect(svc.refundDeposit("m1", "admin1", {})).rejects.toThrow("未缴纳保证金");
+      await expect(svc.refundDeposit("m1", "admin1", { amount: 2000 })).rejects.toThrow("已阻止账面退款");
       expect(mockPrisma.merchantDepositRecord.create).not.toHaveBeenCalled();
     });
 
-    it("加固：退款额超过已缴保证金 → 拒绝（防超额退还）", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 2000, depositPaid: true });
-      await expect(svc.refundDeposit("m1", "admin1", { amount: 5000 })).rejects.toThrow("超过已缴保证金");
+    it("不能给自己名下的商家发起退还", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", depositAmount: 2000, depositPaid: true,
+      });
+
+      await expect(svc.refundDeposit("m1", "u1", {})).rejects.toThrow(BusinessException);
       expect(mockPrisma.merchantDepositRecord.create).not.toHaveBeenCalled();
     });
   });
 
   describe("adjustDeposit", () => {
-    it("调整保证金金额", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", depositAmount: 2000 });
-      mockPrisma.merchant.update.mockResolvedValue({ id: "m1", depositAmount: 3000 });
-      const result = await svc.adjustDeposit("m1", { amount: 3000 });
-      expect(result.depositAmount).toBe(3000);
+    it("当前政策拒绝调高保证金", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", depositAmount: 0, depositPaid: false, status: "AGREEMENT_PENDING",
+      });
+
+      await expect(svc.adjustDeposit("m1", { amount: 3000 })).rejects.toThrow("不可设置正金额");
+      expect(mockPrisma.merchant.update).not.toHaveBeenCalled();
+    });
+
+    it("存在账面余额时拒绝直接调零", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", depositAmount: 2000, depositPaid: true, status: "AGREEMENT_PENDING",
+      });
+
+      await expect(svc.adjustDeposit("m1", { amount: 0 })).rejects.toThrow("不可直接调额");
+      expect(mockPrisma.merchant.update).not.toHaveBeenCalled();
+    });
+
+    it("零金额遗留待缴状态可推进到待签约", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", depositAmount: 0, depositPaid: false, status: "DEPOSIT_PENDING",
+      });
+      mockPrisma.merchant.update.mockResolvedValue({
+        id: "m1", depositAmount: 0, depositPaid: false, status: "AGREEMENT_PENDING",
+      });
+
+      const result = await svc.adjustDeposit("m1", { amount: 0 });
+
+      expect(result.status).toBe("AGREEMENT_PENDING");
+      expect(mockPrisma.merchant.update).toHaveBeenCalledWith({
+        where: { id: "m1" },
+        data: { depositAmount: 0, depositPaid: false, status: "AGREEMENT_PENDING" },
+      });
     });
   });
 
@@ -133,13 +163,11 @@ describe("MerchantDepositService", () => {
       expect(result.total).toBe(1);
     });
 
-    it("page='abc' 非法入参 → skip 不为 NaN（safePagination 兜底）", async () => {
+    it("非法分页参数安全回落", async () => {
       mockPrisma.merchantDepositRecord.findMany.mockResolvedValue([]);
       mockPrisma.merchantDepositRecord.count.mockResolvedValue(0);
       await svc.listDepositRecords("m1", "abc" as any, "xyz" as any);
-      const callArg = mockPrisma.merchantDepositRecord.findMany.mock.calls[0][0];
-      expect(Number.isNaN(callArg.skip)).toBe(false);
-      expect(callArg.skip).toBe(0);
+      expect(mockPrisma.merchantDepositRecord.findMany.mock.calls[0][0].skip).toBe(0);
     });
   });
 });

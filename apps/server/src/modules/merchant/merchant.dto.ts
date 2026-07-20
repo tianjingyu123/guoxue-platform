@@ -79,11 +79,6 @@ export class CreateMerchantApplyDto {
   @ApiPropertyOptional({ description: "经营类目ID列表" })
   @IsOptional() @IsArray() @IsString({ each: true })
   categoryIds?: string[];
-
-  @ApiPropertyOptional({ description: "保证金金额（开启自动计算时忽略）" })
-  @IsOptional() @IsNumber() @Min(0)
-  @Type(() => Number)
-  depositAmount?: number;
 }
 
 export class UpdateMerchantApplyDto {
@@ -160,7 +155,7 @@ export class SignAgreementDto {
 // ─── 管理员审核 ───
 
 export class ApproveMerchantDto {
-  @ApiPropertyOptional({ description: "保证金金额" })
+  @ApiPropertyOptional({ description: "兼容字段：当前仅允许 0，正金额将被拒绝" })
   @IsOptional() @IsNumber() @Min(0)
   @Type(() => Number)
   depositAmount?: number;

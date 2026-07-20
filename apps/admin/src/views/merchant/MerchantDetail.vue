@@ -89,7 +89,7 @@
               {{ formatDate(merchant.reviewedAt) }}
             </el-descriptions-item>
             <el-descriptions-item label="保证金">
-              {{ merchant.depositAmount ? '¥' + Number(merchant.depositAmount).toFixed(2) : '未设置' }}
+              {{ Number(merchant.depositAmount || 0) > 0 ? '¥' + Number(merchant.depositAmount).toFixed(2) : '当前免缴' }}
             </el-descriptions-item>
             <el-descriptions-item label="分佣比例">
               {{ merchant.commissionRate ? (Number(merchant.commissionRate) * 100).toFixed(1) + '%' : '默认' }}
@@ -454,21 +454,13 @@
         label="保证金记录"
         name="deposits"
       >
-        <div style="margin-bottom:12px">
-          <el-button
-            type="primary"
-            size="small"
-            @click="openRefund"
-          >
-            退还保证金
-          </el-button>
-          <el-button
-            size="small"
-            @click="openAdjust"
-          >
-            调整保证金
-          </el-button>
-        </div>
+        <el-alert
+          title="当前实行免保证金入驻；本页仅保留历史流水只读核验，在线收款与原路退款未接入前不提供资金操作"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom:12px"
+        />
         <el-table
           :data="deposits"
           stripe
@@ -843,18 +835,17 @@
       title="审核通过"
       width="500px"
     >
+      <el-alert
+        title="当前实行免保证金入驻；审核通过后商家将直接进入待签约状态"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom:16px"
+      />
       <el-form
         :model="approveForm"
         label-width="100px"
       >
-        <el-form-item label="保证金金额">
-          <el-input-number
-            v-model="approveForm.depositAmount"
-            :min="0"
-            :precision="2"
-            style="width:100%"
-          />
-        </el-form-item>
         <el-form-item label="分佣比例">
           <el-input-number
             v-model="approveForm.commissionRate"
@@ -997,95 +988,6 @@
       </template>
     </el-dialog>
 
-    <!-- 保证金退还对话框（资金支出·退还金额必填·不允许隐式全额） -->
-    <el-dialog
-      v-model="refundDialog"
-      title="退还保证金"
-      width="440px"
-    >
-      <el-alert
-        type="warning"
-        :closable="false"
-        show-icon
-        style="margin-bottom:12px"
-        :title="`该商家当前已缴保证金 ¥${currentDeposit.toFixed(2)}，退还为资金支出且不可逆，请仔细核对金额。`"
-      />
-      <el-form label-width="80px">
-        <el-form-item
-          label="退还金额"
-          required
-        >
-          <el-input-number
-            v-model="refundAmount"
-            :min="0"
-            :max="currentDeposit"
-            :precision="2"
-            style="width:100%"
-          />
-          <div class="fund-hint">
-            金额必填（已预填当前保证金全额，可改为部分退还），不可超过已缴 ¥{{ currentDeposit.toFixed(2) }}
-          </div>
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="refundRemark" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="refundDialog = false">
-          取消
-        </el-button>
-        <el-button
-          type="danger"
-          :loading="saving"
-          @click="doRefund"
-        >
-          确认退还
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 保证金调整对话框 -->
-    <el-dialog
-      v-model="adjustDialog"
-      title="调整保证金"
-      width="420px"
-    >
-      <el-form label-width="80px">
-        <el-form-item
-          label="新金额"
-          required
-        >
-          <el-input-number
-            v-model="adjustAmount"
-            :min="0"
-            :precision="2"
-            style="width:100%"
-          />
-          <div class="fund-hint">
-            当前保证金 ¥{{ currentDeposit.toFixed(2) }}，保存后按新金额记账
-          </div>
-        </el-form-item>
-        <el-form-item label="调整原因">
-          <el-input
-            v-model="adjustReason"
-            type="textarea"
-            :rows="2"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="adjustDialog = false">
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          :loading="saving"
-          @click="doAdjust"
-        >
-          确认调整
-        </el-button>
-      </template>
-    </el-dialog>
 
     <!-- 生成结算单对话框 -->
     <el-dialog
@@ -1210,7 +1112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
@@ -1283,18 +1185,11 @@ const deposits = ref<DepositRow[]>([])
 const approveDialog = ref(false)
 const rejectDialog = ref(false)
 const rejectReason = ref('')
-const approveForm = ref({ depositAmount: undefined as number | undefined, commissionRate: undefined as number | undefined, remark: '' })
+const approveForm = ref({ commissionRate: undefined as number | undefined, remark: '' })
 
 const violationDialog = ref(false)
 const violationForm = ref({ type: 'MINOR', title: '', description: '', penalty: undefined as number | undefined, remark: '' })
 
-const refundDialog = ref(false)
-const refundAmount = ref(0)
-const refundRemark = ref('')
-
-const adjustDialog = ref(false)
-const adjustAmount = ref(0)
-const adjustReason = ref('')
 
 const commissionDialog = ref(false)
 const commissionRate = ref(0.8)
@@ -1315,7 +1210,7 @@ const paySettleAmount = ref(0)
 const paySettleRemark = ref('')
 
 const STATUS_MAP: Record<string, string> = {
-  PENDING_REVIEW: '待审核', REVIEW_FAILED: '审核驳回', DEPOSIT_PENDING: '待缴保证金',
+  PENDING_REVIEW: '待审核', REVIEW_FAILED: '审核驳回', DEPOSIT_PENDING: '保证金待处理',
   AGREEMENT_PENDING: '待签署协议', ACTIVE: '已开通', SUSPENDED: '已暂停', CLOSED: '已关闭',
 }
 const VIOLATION_TYPE: Record<string, string> = { MINOR: '轻微', MODERATE: '中等', SEVERE: '严重' }
@@ -1405,7 +1300,7 @@ async function fetchDetail() {
     merchant.value = (res.data as MerchantInfo)
     violations.value = merchant.value?.violations || []
     deposits.value = merchant.value?.depositRecords || []
-  } catch (e) {
+  } catch (_e) {
     error.value = true
   } finally { loading.value = false }
 }
@@ -1419,7 +1314,7 @@ async function fetchStats() {
 
 // 审核
 function openApprove() {
-  approveForm.value = { depositAmount: undefined, commissionRate: undefined, remark: '' }
+  approveForm.value = { commissionRate: undefined, remark: '' }
   approveDialog.value = true
 }
 async function doApprove() {
@@ -1429,7 +1324,7 @@ async function doApprove() {
     ElMessage.success('审核已通过')
     approveDialog.value = false
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 function openReject() { rejectReason.value = ''; rejectDialog.value = true }
@@ -1441,7 +1336,7 @@ async function doReject() {
     ElMessage.success('已驳回')
     rejectDialog.value = false
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 async function changeStatus(status: string) {
@@ -1479,12 +1374,11 @@ async function doCreateViolation() {
   if (!violationForm.value.title || !violationForm.value.description) { ElMessage.warning('请填写完整'); return }
   saving.value = true
   try {
-    // 保留 as any：violationForm 含 undefined 可选字段，与 api dto 结构存在差异
-    await merchantApi.createViolation(id, violationForm.value as any)
+    await merchantApi.createViolation(id, violationForm.value)
     ElMessage.success('违规记录已创建')
     violationDialog.value = false
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 
@@ -1495,7 +1389,7 @@ async function handleViolationAction(vid: string, status: string) {
     await merchantApi.handleViolation(id, vid, { status })
     ElMessage.success(status === 'CONFIRMED' ? '违规已确认' : '违规已驳回')
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 
@@ -1543,7 +1437,7 @@ async function doCreatePunishment() {
     punishDialog.value = false
     fetchPunishments()
     fetchDetail() // 暂停/清退会改商家状态，同步刷新
-  } catch (e) { /* 错误走全局提示 */ }
+  } catch (_e) { /* 错误走全局提示 */ }
   finally { saving.value = false }
 }
 
@@ -1565,7 +1459,7 @@ async function doRevokePunishment(row: PunishmentRow) {
     ElMessage.success('处罚已撤销，状态已按快照恢复')
     fetchPunishments()
     fetchDetail()
-  } catch (e) { /* 错误走全局提示 */ }
+  } catch (_e) { /* 错误走全局提示 */ }
   finally { saving.value = false }
 }
 
@@ -1591,7 +1485,7 @@ async function doGenerateSettlement() {
     ElMessage.success('结算单已生成')
     settleDialog.value = false
     fetchSettlements()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 
@@ -1624,7 +1518,7 @@ async function doPaySettlement() {
     ElMessage.success('已标记为已支付')
     paySettleDialog.value = false
     fetchSettlements()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 
@@ -1637,54 +1531,6 @@ async function doCancelSettlement(sid: string) {
   } catch { /* cancelled */ }
 }
 
-// 保证金（资金支出 L4 语义：金额显式必填 + 二次确认写明金额与不可逆；真四眼复核流待后端支持）
-const currentDeposit = computed(() => Number(merchant.value?.depositAmount || 0))
-
-function openRefund() {
-  // 预填当前保证金全额并显式展示，杜绝"留 0 → 后端隐式全额退"的陷阱
-  refundAmount.value = currentDeposit.value
-  refundRemark.value = ''
-  refundDialog.value = true
-}
-async function doRefund() {
-  if (!refundAmount.value || refundAmount.value <= 0) { ElMessage.warning('请输入退还金额（须大于 0）'); return }
-  if (refundAmount.value > currentDeposit.value) { ElMessage.warning(`退还金额不可超过已缴保证金 ¥${currentDeposit.value.toFixed(2)}`); return }
-  try {
-    await ElMessageBox.confirm(
-      `即将向商家「${merchant.value?.shopName || id}」退还保证金 ¥${refundAmount.value.toFixed(2)}（已缴 ¥${currentDeposit.value.toFixed(2)}）。资金支出不可逆，确认退还？`,
-      '退还保证金（不可逆）',
-      { type: 'error', confirmButtonText: '确认退还', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger' },
-    )
-  } catch { return }
-  saving.value = true
-  try {
-    // 金额恒显式传递，绝不依赖后端"缺省=全额"语义
-    await merchantApi.refundDeposit(id, { amount: refundAmount.value, remark: refundRemark.value || undefined })
-    ElMessage.success(`已退还保证金 ¥${refundAmount.value.toFixed(2)}`)
-    refundDialog.value = false
-    fetchDetail()
-  } catch (e) { }
-  finally { saving.value = false }
-}
-function openAdjust() { adjustAmount.value = currentDeposit.value; adjustReason.value = ''; adjustDialog.value = true }
-async function doAdjust() {
-  if (!adjustAmount.value) { ElMessage.warning('请输入新金额'); return }
-  try {
-    await ElMessageBox.confirm(
-      `保证金将由 ¥${currentDeposit.value.toFixed(2)} 调整为 ¥${adjustAmount.value.toFixed(2)}，将影响商家账面记录。确认调整？`,
-      '调整保证金',
-      { type: 'warning', confirmButtonText: '确认调整', cancelButtonText: '取消' },
-    )
-  } catch { return }
-  saving.value = true
-  try {
-    await merchantApi.adjustDeposit(id, { amount: adjustAmount.value, reason: adjustReason.value || undefined })
-    ElMessage.success('保证金已调整')
-    adjustDialog.value = false
-    fetchDetail()
-  } catch (e) { }
-  finally { saving.value = false }
-}
 
 // 分佣
 function openCommission() {
@@ -1698,7 +1544,7 @@ async function doSetCommission() {
     ElMessage.success('分佣比例已更新')
     commissionDialog.value = false
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 </script>

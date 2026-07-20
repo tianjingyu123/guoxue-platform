@@ -112,6 +112,9 @@ describe("MerchantService", () => {
       mockPrisma.merchant.update.mockResolvedValue({ id: "m1", status: "PENDING_REVIEW" });
       const result = await svc.submitForReview("u1");
       expect(result.status).toBe("PENDING_REVIEW");
+      expect(mockPrisma.merchant.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: "AGREEMENT_PENDING", depositAmount: 0, depositPaid: false }),
+      }));
     });
 
     it("信息不完整抛出异常", async () => {
@@ -179,13 +182,22 @@ describe("MerchantService", () => {
   });
 
   describe("approveApplication", () => {
-    it("审核通过成功", async () => {
+    it("审核通过直接进入待签约", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "PENDING_REVIEW" });
-      mockPrisma.merchant.update.mockResolvedValue({ id: "m1", status: "DEPOSIT_PENDING" });
-      const result = await svc.approveApplication("m1", "admin1", { depositAmount: 2000 });
-      expect(result.status).toBe("DEPOSIT_PENDING");
+      mockPrisma.merchant.update.mockResolvedValue({ id: "m1", status: "AGREEMENT_PENDING", depositAmount: 0 });
+      const result = await svc.approveApplication("m1", "admin1", {});
+      expect(result.status).toBe("AGREEMENT_PENDING");
+      expect(mockPrisma.merchant.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: "AGREEMENT_PENDING", depositAmount: 0, depositPaid: false }),
+      }));
       expect(mockNotification.send).toHaveBeenCalled();
       expect(mockSystemService.logAudit).toHaveBeenCalled();
+    });
+
+    it("当前免保证金政策拒绝审核人设置正金额", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "PENDING_REVIEW" });
+      await expect(svc.approveApplication("m1", "admin1", { depositAmount: 2000 })).rejects.toThrow("不可设置保证金金额");
+      expect(mockPrisma.merchant.update).not.toHaveBeenCalled();
     });
 
     it("非待审核状态抛出异常", async () => {
@@ -213,14 +225,6 @@ describe("MerchantService", () => {
     });
   });
 
-  describe("handleDepositPaid", () => {
-    it("保证金缴纳后状态变更为待签署协议", async () => {
-      mockPrisma.merchant.update.mockResolvedValue({ id: "m1", userId: "u1", status: "AGREEMENT_PENDING", depositPaid: true });
-      const result = await svc.handleDepositPaid("m1");
-      expect(result.status).toBe("AGREEMENT_PENDING");
-      expect(mockNotification.send).toHaveBeenCalled();
-    });
-  });
 
   describe("handleAgreementSigned", () => {
     it("签署协议后店铺开通", async () => {

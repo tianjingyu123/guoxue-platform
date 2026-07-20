@@ -28,14 +28,26 @@ export class MerchantAgreementService {
 
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
-    if (merchant.status !== "AGREEMENT_PENDING") throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "当前状态不可签署协议");
+
+    const depositAmount = Number(merchant.depositAmount ?? 0);
+    const isWaived = depositAmount <= 0;
+    const isLegacyWaivedPending = merchant.status === "DEPOSIT_PENDING" && isWaived;
+    if (merchant.status !== "AGREEMENT_PENDING" && !isLegacyWaivedPending) {
+      throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "当前状态不可签署协议");
+    }
+    if (!isWaived && !(await this.hasVerifiedPayment(merchant.id, depositAmount))) {
+      throw new BusinessException(ErrorCode.MERCHANT_DEPOSIT_NOT_PAID, "未核验到真实保证金到账记录，暂不可签约");
+    }
 
     const template = await this.getLatestAgreement();
+    if (dto.version !== template.version) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "协议已更新，请刷新后重新阅读并签署");
+    }
 
     const agreement = await this.prisma.merchantAgreement.create({
       data: {
         merchantId: merchant.id,
-        version: dto.version || template.version,
+        version: template.version,
         title: template.title,
         content: template.content,
         signedAt: new Date(),
@@ -48,7 +60,7 @@ export class MerchantAgreementService {
     return agreement;
   }
 
-  /** 管理员创建协议模版 */
+  /** 管理员创建协议模板 */
   async createAgreement(dto: CreateAgreementDto) {
     return this.prisma.merchantAgreement.create({
       data: {
@@ -60,7 +72,7 @@ export class MerchantAgreementService {
     });
   }
 
-  /** 管理员更新协议模版 */
+  /** 管理员更新协议模板 */
   async updateAgreement(id: string, dto: UpdateAgreementDto) {
     const agreement = await this.prisma.merchantAgreement.findUnique({ where: { id } });
     if (!agreement) throw new BusinessException(ErrorCode.NOT_FOUND, "协议不存在");
@@ -92,5 +104,16 @@ export class MerchantAgreementService {
       this.prisma.merchantAgreement.count({ where: { merchantId: "TEMPLATE" } }),
     ]);
     return { list, total, page, pageSize };
+  }
+
+  private async hasVerifiedPayment(merchantId: string, expectedAmount: number): Promise<boolean> {
+    const record = await this.prisma.merchantDepositRecord.findFirst({
+      where: { merchantId, type: "PAYMENT", status: "SUCCESS", payTransactionId: { not: null } },
+      select: { payTransactionId: true, amount: true },
+      orderBy: { createdAt: "desc" },
+    });
+    return !!record?.payTransactionId
+      && !record.payTransactionId.startsWith("SIMULATED-")
+      && Number(record.amount) + 1e-6 >= expectedAmount;
   }
 }

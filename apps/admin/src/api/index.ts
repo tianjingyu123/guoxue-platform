@@ -994,7 +994,7 @@ export const merchantApi = {
   listMembers: (id: string) => api.get(`/admin/merchants/${id}/members`),
   addMember: (id: string, data: { phone: string }) => api.post(`/admin/merchants/${id}/members`, data),
   removeMember: (id: string, userId: string) => api.delete(`/admin/merchants/${id}/members/${userId}`),
-  approve: (id: string, data: { depositAmount?: number; commissionRate?: number; remark?: string }) =>
+  approve: (id: string, data: { commissionRate?: number; remark?: string }) =>
     api.post(`/admin/merchants/${id}/approve`, data),
   reject: (id: string, data: { reason: string }) =>
     api.post(`/admin/merchants/${id}/reject`, data),
@@ -1008,10 +1008,6 @@ export const merchantApi = {
     api.put(`/admin/merchants/${id}/violations/${violationId}`, data),
   getDeposits: (id: string, params?: { page?: number; pageSize?: number }) =>
     api.get(`/admin/merchants/${id}/deposits`, { params }),
-  refundDeposit: (id: string, data: { amount?: number; remark?: string }) =>
-    api.post(`/admin/merchants/${id}/deposits/refund`, data),
-  adjustDeposit: (id: string, data: { amount: number; reason?: string }) =>
-    api.post(`/admin/merchants/${id}/deposits/adjust`, data),
   setCommission: (id: string, data: { rate: number }) =>
     api.put(`/admin/merchants/${id}/commission`, data),
   getAgreements: (params?: { page?: number; pageSize?: number }) =>

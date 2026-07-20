@@ -113,20 +113,14 @@ export class MerchantService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "请完善入驻信息");
     }
 
-    // 自动审核开关：开启时提交即视为审核通过，直接进入待缴保证金状态（开发/演示环境用，
-    // 生产关闭后走人工审核 admin approve）。自动审核必须同时算出保证金，否则缴费环节会因金额未设置而拦截。
+    // 当前实行免保证金入驻：自动审核通过后直接进入待签约，不制造待缴费状态。
     const autoApprove = await this.featureFlag.isEnabled(MERCHANT_FEATURE_FLAGS.AUTO_APPROVE);
-    let depositAmount: any = merchant.depositAmount;
-    const autoCalc = autoApprove || (await this.featureFlag.isEnabled(MERCHANT_FEATURE_FLAGS.DEPOSIT_AUTO));
-    if (autoCalc) {
-      depositAmount = await this.calculateDeposit(merchant.categoryIds);
-    }
 
     return this.prisma.merchant.update({
       where: { userId },
       data: {
-        status: autoApprove ? "DEPOSIT_PENDING" : "PENDING_REVIEW",
-        depositAmount,
+        status: autoApprove ? "AGREEMENT_PENDING" : "PENDING_REVIEW",
+        ...(autoApprove ? { depositAmount: 0, depositPaid: false } : {}),
         reviewedAt: autoApprove ? new Date() : null,
         rejectReason: null,
       },
@@ -143,25 +137,6 @@ export class MerchantService {
     const perCategory = catCfg ? parseFloat(catCfg.configValue) : 500;
 
     return baseAmount + (categoryIds.length * perCategory);
-  }
-
-  // ─── 保证金缴纳后回调 ───
-
-  async handleDepositPaid(merchantId: string) {
-    const merchant = await this.prisma.merchant.update({
-      where: { id: merchantId },
-      data: { depositPaid: true, status: "AGREEMENT_PENDING" },
-    });
-
-    await this.notification.send(merchant.userId, {
-      type: "SYSTEM",
-      title: "保证金已到账",
-      content: "您的保证金已确认到账，请签署入驻协议以完成开店。",
-      targetType: "MERCHANT",
-      targetId: merchantId,
-    });
-
-    return merchant;
   }
 
   // ─── 协议签署后回调 ───
@@ -312,13 +287,18 @@ export class MerchantService {
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
     if (merchant.status !== "PENDING_REVIEW") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可审核");
 
+    if (dto.depositAmount != null && dto.depositAmount > 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前实行免保证金入驻，不可设置保证金金额");
+    }
+
     const updateData: any = {
-      status: "DEPOSIT_PENDING",
+      status: "AGREEMENT_PENDING",
+      depositAmount: 0,
+      depositPaid: false,
       reviewedBy: reviewerId,
       reviewedAt: new Date(),
       remark: dto.remark ?? null,
     };
-    if (dto.depositAmount != null) updateData.depositAmount = dto.depositAmount;
     if (dto.commissionRate != null) updateData.commissionRate = dto.commissionRate;
 
     const updated = await this.prisma.merchant.update({ where: { id: merchantId }, data: updateData });
@@ -326,7 +306,7 @@ export class MerchantService {
     await this.notification.send(merchant.userId, {
       type: "SYSTEM",
       title: "入驻审核通过",
-      content: `您的入驻申请已通过审核${dto.depositAmount != null ? "，保证金金额：" + dto.depositAmount + "元" : ""}。请缴纳保证金以继续。`,
+      content: "您的入驻申请已通过审核，当前免缴保证金。请签署入驻协议以完成开店。",
       targetType: "MERCHANT",
       targetId: merchantId,
     });

@@ -268,7 +268,7 @@ const statusTextMap: Record<MerchantStatus, string> = {
   CLOSED: '已关闭',
   PENDING_REVIEW: '审核中',
   REVIEW_FAILED: '审核未通过',
-  DEPOSIT_PENDING: '待缴保证金',
+  DEPOSIT_PENDING: '保证金待处理',
   AGREEMENT_PENDING: '待签协议',
 }
 const statusInfo = computed(() => ({ text: statusTextMap[profile.value?.status ?? 'ACTIVE'] ?? '官方认证' }))

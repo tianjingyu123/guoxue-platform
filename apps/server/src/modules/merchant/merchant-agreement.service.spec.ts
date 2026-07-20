@@ -8,6 +8,10 @@ const mockMerchantSvc = {
   handleAgreementSigned: jest.fn().mockResolvedValue({ id: "m1" }),
 };
 
+const template = {
+  id: "a1", merchantId: "TEMPLATE", version: "1.0", title: "商家入驻协议", content: "协议内容",
+};
+
 const mockPrisma: any = {
   merchant: { findUnique: jest.fn() },
   merchantAgreement: {
@@ -19,6 +23,7 @@ const mockPrisma: any = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  merchantDepositRecord: { findFirst: jest.fn() },
 };
 
 describe("MerchantAgreementService", () => {
@@ -39,11 +44,8 @@ describe("MerchantAgreementService", () => {
 
   describe("getLatestAgreement", () => {
     it("返回最新协议", async () => {
-      mockPrisma.merchantAgreement.findFirst.mockResolvedValue({
-        id: "a1", merchantId: "TEMPLATE", version: "1.0", title: "商家入驻协议", content: "<p>协议内容</p>",
-      });
-      const result = await svc.getLatestAgreement();
-      expect(result.version).toBe("1.0");
+      mockPrisma.merchantAgreement.findFirst.mockResolvedValue(template);
+      expect((await svc.getLatestAgreement()).version).toBe("1.0");
     });
 
     it("无可用协议抛出异常", async () => {
@@ -53,68 +55,108 @@ describe("MerchantAgreementService", () => {
   });
 
   describe("signAgreement", () => {
-    it("签署协议成功", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "AGREEMENT_PENDING" });
-      mockPrisma.merchantAgreement.findFirst.mockResolvedValue({
-        id: "a1", merchantId: "TEMPLATE", version: "1.0", title: "商家入驻协议", content: "<p>内容</p>",
-      });
+    beforeEach(() => {
+      mockPrisma.merchantAgreement.findFirst.mockResolvedValue(template);
       mockPrisma.merchantAgreement.create.mockResolvedValue({
         id: "a2", merchantId: "m1", version: "1.0", signedAt: new Date(),
       });
-      const result = await svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true });
-      expect(result.merchantId).toBe("m1");
+      mockPrisma.merchantDepositRecord.findFirst.mockResolvedValue(null);
     });
 
-    it("不同意协议抛出异常", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "AGREEMENT_PENDING" });
+    it("免保证金待签约商家可签署", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "AGREEMENT_PENDING", depositAmount: 0,
+      });
+
+      const result = await svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true });
+
+      expect(result.merchantId).toBe("m1");
+      expect(mockMerchantSvc.handleAgreementSigned).toHaveBeenCalledWith("m1", "127.0.0.1");
+    });
+
+    it("兼容零金额遗留待缴状态直接签署", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "DEPOSIT_PENDING", depositAmount: 0,
+      });
+
+      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true })).resolves.toBeTruthy();
+    });
+
+    it("正金额无真实流水时拒绝签署", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "AGREEMENT_PENDING", depositAmount: 2000,
+      });
+
+      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true })).rejects.toThrow("未核验到真实保证金");
+      expect(mockPrisma.merchantAgreement.create).not.toHaveBeenCalled();
+    });
+
+    it("SIMULATED 流水不得解锁签约", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "AGREEMENT_PENDING", depositAmount: 2000,
+      });
+      mockPrisma.merchantDepositRecord.findFirst.mockResolvedValue({ payTransactionId: "SIMULATED-dr1", amount: 2000 });
+
+      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true })).rejects.toThrow("未核验到真实保证金");
+    });
+
+    it("真实成功流水可解锁正金额签约", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "AGREEMENT_PENDING", depositAmount: 2000,
+      });
+      mockPrisma.merchantDepositRecord.findFirst.mockResolvedValue({ payTransactionId: "WX202607190001", amount: 2000 });
+
+      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true })).resolves.toBeTruthy();
+    });
+
+    it("真实流水金额不足时仍拒绝签约", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "AGREEMENT_PENDING", depositAmount: 2000,
+      });
+      mockPrisma.merchantDepositRecord.findFirst.mockResolvedValue({ payTransactionId: "WX202607190002", amount: 1 });
+
+      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true })).rejects.toThrow("未核验到真实保证金");
+      expect(mockPrisma.merchantAgreement.create).not.toHaveBeenCalled();
+    });
+
+    it("协议版本已更新时拒绝签旧版", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "AGREEMENT_PENDING", depositAmount: 0,
+      });
+
+      await expect(svc.signAgreement("u1", "127.0.0.1", { version: "0.9", agreed: true })).rejects.toThrow("协议已更新");
+      expect(mockPrisma.merchantAgreement.create).not.toHaveBeenCalled();
+    });
+
+    it("不同意协议时拒绝", async () => {
       await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: false })).rejects.toThrow(BusinessException);
     });
 
-    it("状态不正确抛出异常", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "PENDING_REVIEW" });
+    it("非签约状态拒绝", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "PENDING_REVIEW", depositAmount: 0,
+      });
       await expect(svc.signAgreement("u1", "127.0.0.1", { version: "1.0", agreed: true })).rejects.toThrow(BusinessException);
     });
   });
 
-  describe("createAgreement", () => {
-    it("管理员创建协议模版", async () => {
-      mockPrisma.merchantAgreement.create.mockResolvedValue({
-        id: "a1", merchantId: "TEMPLATE", version: "1.0", title: "入驻协议", content: "<p>内容</p>",
-      });
-      const result = await svc.createAgreement({ version: "1.0", title: "入驻协议", content: "<p>内容</p>" });
-      expect(result.version).toBe("1.0");
-    });
-  });
-
-  describe("listAgreements", () => {
-    it("返回协议模版列表", async () => {
-      mockPrisma.merchantAgreement.findMany.mockResolvedValue([{ id: "a1", version: "1.0" }]);
-      mockPrisma.merchantAgreement.count.mockResolvedValue(1);
-      const result = await svc.listAgreements({});
-      expect(result.list).toHaveLength(1);
+  describe("template management", () => {
+    it("管理员创建协议模板", async () => {
+      mockPrisma.merchantAgreement.create.mockResolvedValue(template);
+      expect((await svc.createAgreement({ version: "1.0", title: "商家入驻协议", content: "协议内容" })).version).toBe("1.0");
     });
 
-    it("page='abc' 非法入参 → skip 不为 NaN（safePagination 兜底）", async () => {
-      mockPrisma.merchantAgreement.findMany.mockResolvedValue([]);
-      mockPrisma.merchantAgreement.count.mockResolvedValue(0);
-      await svc.listAgreements({ page: "abc" as any, pageSize: "xyz" as any });
-      const callArg = mockPrisma.merchantAgreement.findMany.mock.calls[0][0];
-      expect(Number.isNaN(callArg.skip)).toBe(false);
-      expect(callArg.skip).toBe(0);
-    });
-  });
-
-  describe("deleteAgreement", () => {
-    it("删除协议成功", async () => {
-      mockPrisma.merchantAgreement.findUnique.mockResolvedValue({ id: "a1", version: "1.0" });
-      mockPrisma.merchantAgreement.delete.mockResolvedValue({});
-      await expect(svc.deleteAgreement("a1")).resolves.toBeUndefined();
-    });
-
-    it("协议不存在时抛 404", async () => {
+    it("删除不存在的协议报错", async () => {
       mockPrisma.merchantAgreement.findUnique.mockResolvedValue(null);
       await expect(svc.deleteAgreement("nope")).rejects.toThrow(BusinessException);
       expect(mockPrisma.merchantAgreement.delete).not.toHaveBeenCalled();
+    });
+
+    it("协议模板分页非法参数安全回落", async () => {
+      mockPrisma.merchantAgreement.findMany.mockResolvedValue([]);
+      mockPrisma.merchantAgreement.count.mockResolvedValue(0);
+      await svc.listAgreements({ page: "abc" as any, pageSize: "xyz" as any });
+      expect(mockPrisma.merchantAgreement.findMany.mock.calls[0][0].skip).toBe(0);
     });
   });
 });

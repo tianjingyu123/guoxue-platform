@@ -1,108 +1,304 @@
-<!--
-  M3 · 商家入驻申请状态（V0 视觉稿 1:1 还原 · 阶段二）
-  三态：A 审核中(pending) / B 已通过(approved) / C 已驳回(rejected)。
-  真连 merchantApi.getApplication()：
-    - 审核中 PENDING_REVIEW → 展示提交信息 + 等待提示，仅「返回首页」。
-    - 通过   DEPOSIT_PENDING/AGREEMENT_PENDING/ACTIVE → 「去签约开通」跳 M4。
-    - 驳回   REVIEW_FAILED/SUSPENDED/CLOSED → 显示驳回原因 + 「修改重提」跳 M2。
-  视觉 token 同 B3：页底 #FAF8F5、朱红 #C41E3A、金 #C9A96E、绿 #2E8B57。
--->
+<!-- 商家入驻状态：审核、待签约、已开通、驳回、停业五态真实映射。 -->
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarH + 'px' }">
-      <view class="nav-back" @tap="goBack">
-        <AppIcon name="arrow-left" :size="36" color="#2C2C2C" />
+    <view
+      class="nav"
+      :style="{ paddingTop: statusBarH + 'px' }"
+    >
+      <view
+        class="nav-back"
+        @tap="goBack"
+      >
+        <AppIcon
+          name="arrow-left"
+          :size="36"
+          color="#2C2C2C"
+        />
       </view>
-      <text class="nav-ttl">申请状态</text>
-      <view class="nav-refresh" :class="{ spinning: refreshing }" @tap="onRefresh">
-        <AppIcon name="refresh-cw" :size="36" color="#9A9A9A" />
+      <text class="nav-ttl">
+        申请状态
+      </text>
+      <view
+        class="nav-refresh"
+        :class="{ spinning: refreshing }"
+        @tap="onRefresh"
+      >
+        <AppIcon
+          name="refresh-cw"
+          :size="36"
+          color="#9A9A9A"
+        />
       </view>
     </view>
 
     <!-- 加载态 -->
-    <view v-if="loading" class="state">
-      <text class="state-t">加载中…</text>
+    <view
+      v-if="loading"
+      class="state"
+    >
+      <text class="state-t">
+        加载中…
+      </text>
     </view>
 
     <!-- 未申请态 -->
-    <view v-else-if="notApplied" class="state">
-      <view class="state-ic"><AppIcon name="store" :size="80" color="#C9A96E" /></view>
-      <text class="state-title serif">尚未提交入驻申请</text>
-      <text class="state-t">成为平台商家，开启你的国学生意</text>
-      <view class="state-btn" @tap="goApply"><text>立即入驻</text></view>
+    <view
+      v-else-if="notApplied"
+      class="state"
+    >
+      <view class="state-ic">
+        <AppIcon
+          name="store"
+          :size="80"
+          color="#C9A96E"
+        />
+      </view>
+      <text class="state-title serif">
+        尚未提交入驻申请
+      </text>
+      <text class="state-t">
+        成为平台商家，开启你的国学生意
+      </text>
+      <view
+        class="state-btn"
+        @tap="goApply"
+      >
+        <text>立即入驻</text>
+      </view>
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="error" class="state">
-      <view class="state-ic err"><AppIcon name="alert-circle" :size="80" color="#C41E3A" /></view>
-      <text class="state-title serif">加载失败</text>
-      <text class="state-t">{{ error }}</text>
-      <view class="state-btn" @tap="load"><text>重试</text></view>
+    <view
+      v-else-if="error"
+      class="state"
+    >
+      <view class="state-ic err">
+        <AppIcon
+          name="alert-circle"
+          :size="80"
+          color="#C41E3A"
+        />
+      </view>
+      <text class="state-title serif">
+        加载失败
+      </text>
+      <text class="state-t">
+        {{ error }}
+      </text>
+      <view
+        class="state-btn"
+        @tap="load"
+      >
+        <text>重试</text>
+      </view>
     </view>
 
     <!-- 三态主体 -->
-    <view v-else class="body">
+    <view
+      v-else
+      class="body"
+    >
       <!-- 状态图标 -->
-      <view class="icon" :class="phase">
+      <view
+        class="icon"
+        :class="phase"
+      >
         <!-- 审核中：时钟 -->
-        <AppIcon v-if="phase === 'pending'" name="clock" :size="72" color="#C9A96E" />
-        <!-- 通过：勾选 -->
-        <AppIcon v-else-if="phase === 'approved'" name="check-circle-2" :size="76" color="#2E8B57" />
-        <!-- 驳回：叉 -->
-        <AppIcon v-else name="x-circle" :size="72" color="#C41E3A" />
+        <AppIcon
+          v-if="phase === 'pending'"
+          name="clock"
+          :size="72"
+          color="#C9A96E"
+        />
+        <AppIcon
+          v-else-if="phase === 'approved' || phase === 'active'"
+          name="check-circle-2"
+          :size="76"
+          color="#2E8B57"
+        />
+        <AppIcon
+          v-else-if="phase === 'blocked'"
+          name="alert-circle"
+          :size="72"
+          color="#B45309"
+        />
+        <AppIcon
+          v-else
+          name="x-circle"
+          :size="72"
+          color="#C41E3A"
+        />
       </view>
 
-      <text class="st serif">{{ headTitle }}</text>
-      <text class="sd">{{ headDesc }}</text>
+      <text class="st serif">
+        {{ headTitle }}
+      </text>
+      <text class="sd">
+        {{ headDesc }}
+      </text>
 
       <!-- 进度指示（审核中 / 通过 显示三步）-->
-      <view v-if="phase !== 'rejected'" class="steps">
+      <view
+        v-if="phase === 'pending' || phase === 'approved' || phase === 'active'"
+        class="steps"
+      >
         <!-- 步骤1 已提交（永远 done）-->
         <view class="dot done">
-          <view class="c"><AppIcon name="check" :size="24" color="#fff" /></view>
-          <text class="dot-t">已提交</text>
+          <view class="c">
+            <AppIcon
+              name="check"
+              :size="24"
+              color="#fff"
+            />
+          </view>
+          <text class="dot-t">
+            已提交
+          </text>
         </view>
         <view class="line done" />
         <!-- 步骤2 审核中 -->
-        <view class="dot" :class="phase === 'pending' ? 'on' : 'done'">
+        <view
+          class="dot"
+          :class="phase === 'pending' ? 'on' : 'done'"
+        >
           <view class="c">
-            <AppIcon v-if="phase === 'approved'" name="check" :size="24" color="#fff" />
-            <text v-else>2</text>
+            <AppIcon
+              v-if="phase !== 'pending'"
+              name="check"
+              :size="24"
+              color="#fff"
+            />
+            <text v-else>
+              2
+            </text>
           </view>
-          <text class="dot-t">审核中</text>
+          <text class="dot-t">
+            审核中
+          </text>
         </view>
-        <view class="line" :class="{ done: phase === 'approved' }" />
+        <view
+          class="line"
+          :class="{ done: phase === 'approved' || phase === 'active' }"
+        />
         <!-- 步骤3 已通过 -->
-        <view class="dot" :class="{ done: phase === 'approved' }">
+        <view
+          class="dot"
+          :class="{ done: phase === 'approved' || phase === 'active' }"
+        >
           <view class="c">
-            <AppIcon v-if="phase === 'approved'" name="check" :size="24" color="#fff" />
-            <text v-else>3</text>
+            <AppIcon
+              v-if="phase === 'approved' || phase === 'active'"
+              name="check"
+              :size="24"
+              color="#fff"
+            />
+            <text v-else>
+              3
+            </text>
           </view>
-          <text class="dot-t">已通过</text>
+          <text class="dot-t">
+            {{ phase === 'active' ? '已开通' : '已通过' }}
+          </text>
         </view>
       </view>
 
-      <!-- 信息框（审核中 / 通过）-->
-      <view v-if="phase !== 'rejected'" class="infobox">
-        <text v-if="phase === 'pending'" class="info-line">提交时间：{{ submitTime }}</text>
-        <text v-else class="info-line">审核通过时间：{{ reviewTime }}</text>
-        <text class="info-line">主体名称：{{ app?.shopName || '—' }}</text>
-        <text v-if="phase === 'pending'" class="info-line">主营类目：{{ categoryText }}</text>
-        <text v-else class="info-line">下一步：签署《商家合作协议》并开通店铺。</text>
+      <view
+        v-if="phase === 'pending' || phase === 'approved' || phase === 'active'"
+        class="infobox"
+      >
+        <text
+          v-if="phase === 'pending'"
+          class="info-line"
+        >
+          提交时间：{{ submitTime }}
+        </text>
+        <text
+          v-else-if="phase === 'active'"
+          class="info-line"
+        >
+          开通时间：{{ openTime }}
+        </text>
+        <text
+          v-else
+          class="info-line"
+        >
+          审核通过时间：{{ reviewTime }}
+        </text>
+        <text class="info-line">
+          主体名称：{{ app?.shopName || '—' }}
+        </text>
+        <text
+          v-if="phase === 'pending'"
+          class="info-line"
+        >
+          主营类目：{{ categoryText }}
+        </text>
+        <text
+          v-else-if="phase === 'active'"
+          class="info-line"
+        >
+          下一步：进入商家工作台管理商品与订单。
+        </text>
+        <text
+          v-else
+          class="info-line"
+        >
+          下一步：签署《商家合作协议》并开通店铺。
+        </text>
       </view>
 
-      <!-- 驳回原因框 -->
-      <view v-if="phase === 'rejected'" class="reason">
-        <text class="reason-b">驳回原因：</text><text class="reason-txt">{{ rejectText }}</text>
-        <text class="reason-time">审核时间：{{ reviewTime }}</text>
+      <view
+        v-if="phase === 'rejected' || phase === 'blocked'"
+        class="reason"
+      >
+        <text class="reason-b">
+          {{ phase === 'rejected' ? '驳回原因：' : '当前状态：' }}
+        </text><text class="reason-txt">
+          {{ statusDetail }}
+        </text>
+        <text class="reason-time">
+          状态更新时间：{{ reviewTime }}
+        </text>
       </view>
 
       <!-- 底部固定 CTA -->
       <view class="foot">
-        <view v-if="phase === 'pending'" class="cta ghost" @tap="goHome"><text>返回首页</text></view>
-        <view v-else-if="phase === 'approved'" class="cta" @tap="goSign"><text>去签约开通</text></view>
-        <view v-else class="cta" @tap="goApply"><text>修改重提</text></view>
+        <view
+          v-if="phase === 'pending'"
+          class="cta ghost"
+          @tap="goHome"
+        >
+          <text>返回首页</text>
+        </view>
+        <view
+          v-else-if="phase === 'approved'"
+          class="cta"
+          @tap="goSign"
+        >
+          <text>签署协议，完成开通</text>
+        </view>
+        <view
+          v-else-if="phase === 'active'"
+          class="cta"
+          @tap="goDashboard"
+        >
+          <text>进入商家工作台</text>
+        </view>
+        <view
+          v-else-if="phase === 'blocked'"
+          class="cta"
+          @tap="goService"
+        >
+          <text>联系平台客服</text>
+        </view>
+        <view
+          v-else
+          class="cta"
+          @tap="goApply"
+        >
+          <text>修改资料并重新提交</text>
+        </view>
       </view>
     </view>
   </view>
@@ -113,7 +309,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, reLaunch, goBack } from '@/utils/router'
-import { merchantApi, categoryName, type MerchantApplication, type MerchantStatus } from '@/pkg-merchant/lib/merchant-data'
+import { merchantApi, categoryName, type MerchantApplication } from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarH = ref(0)
 const loading = ref(true)
@@ -122,31 +318,26 @@ const error = ref('')
 const notApplied = ref(false)
 const app = ref<MerchantApplication | null>(null)
 
-// 后端 7 态 → V0 三态收敛
-type Phase = 'pending' | 'approved' | 'rejected'
+type Phase = 'pending' | 'approved' | 'active' | 'rejected' | 'blocked'
 const phase = computed<Phase>(() => {
-  const s: MerchantStatus = app.value?.status ?? 'PENDING_REVIEW'
-  if (s === 'PENDING_REVIEW') return 'pending'
-  // 审核已过（待缴费/待签约/已开通）→ 引导去签约开通
-  if (s === 'DEPOSIT_PENDING' || s === 'AGREEMENT_PENDING' || s === 'ACTIVE') return 'approved'
-  // REVIEW_FAILED / SUSPENDED / CLOSED → 驳回类（有原因、需修改重提）
-  return 'rejected'
+  const current = app.value?.status ?? 'PENDING_REVIEW'
+  if (current === 'PENDING_REVIEW') return 'pending'
+  if (current === 'DEPOSIT_PENDING' || current === 'AGREEMENT_PENDING') return 'approved'
+  if (current === 'ACTIVE') return 'active'
+  if (current === 'REVIEW_FAILED') return 'rejected'
+  return 'blocked'
 })
 
-const headTitle = computed(() => {
-  switch (phase.value) {
-    case 'pending': return '审核中'
-    case 'approved': return '审核通过'
-    default: return '申请被驳回'
-  }
-})
-const headDesc = computed(() => {
-  switch (phase.value) {
-    case 'pending': return '你的入驻申请已提交，平台将在 1-3 个工作日内完成审核，请耐心等待。'
-    case 'approved': return '恭喜！你的入驻申请已通过审核，签署合作协议后即可开通店铺、上架商品。'
-    default: return '很抱歉，你的入驻申请未通过审核，请根据原因修改后重新提交。'
-  }
-})
+const headTitle = computed(() => ({
+  pending: '审核中', approved: '审核通过', active: '店铺已开通', rejected: '申请被驳回', blocked: '店铺暂不可经营',
+}[phase.value]))
+const headDesc = computed(() => ({
+  pending: '你的入驻申请已提交，平台将在 1-3 个工作日内完成审核，请耐心等待。',
+  approved: '你的入驻申请已通过审核，签署合作协议后即可开通店铺。',
+  active: '入驻流程已经完成，现在可以进入工作台上架商品、处理订单。',
+  rejected: '申请资料未通过审核，请根据原因修改后重新提交。',
+  blocked: '店铺已暂停或关闭，不能通过重复申请自行恢复，请联系平台核实。',
+}[phase.value]))
 
 function fmtTime(v?: string | null): string {
   if (!v) return '—'
@@ -155,13 +346,14 @@ function fmtTime(v?: string | null): string {
   return s.length >= 16 ? s.slice(0, 16).replace('T', ' ') : s
 }
 const submitTime = computed(() => fmtTime(app.value?.createdAt))
-const reviewTime = computed(() => fmtTime(app.value?.openedAt || app.value?.createdAt))
+const reviewTime = computed(() => fmtTime(app.value?.reviewedAt || app.value?.createdAt))
+const openTime = computed(() => fmtTime(app.value?.openedAt || app.value?.reviewedAt || app.value?.createdAt))
 const categoryText = computed(() => {
   const ids = app.value?.categoryIds ?? []
   if (!ids.length) return '—'
   return ids.map((id) => categoryName(id)).join('、')
 })
-const rejectText = computed(() => app.value?.rejectReason || app.value?.remark || '请联系平台客服了解详情。')
+const statusDetail = computed(() => app.value?.rejectReason || app.value?.remark || (phase.value === 'blocked' ? '店铺当前已暂停或关闭，请联系平台客服核实。' : '请根据审核意见完善资料。'))
 
 async function load() {
   loading.value = true
@@ -187,13 +379,15 @@ async function onRefresh() {
 }
 
 function goHome() { reLaunch('/pages/index/index') }
-function goSign() { navigateTo('/merchant/sign-agreement') } // → M4
-function goApply() { navigateTo('/merchant/apply') }          // → M2
+function goSign() { navigateTo('/merchant/sign-agreement') }
+function goApply() { navigateTo('/merchant/apply') }
+function goDashboard() { reLaunch('/pkg-merchant/dashboard/index') }
+function goService() { navigateTo('/customer-service') }
 
 onLoad(() => {
   try {
     statusBarH.value = uni.getSystemInfoSync().statusBarHeight || 0
-  } catch (e) {
+  } catch (_e) {
     statusBarH.value = 0
   }
   load()
