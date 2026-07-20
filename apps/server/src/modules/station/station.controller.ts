@@ -20,7 +20,7 @@ export class StationController {
   @Post("apply")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "用户自助申请开通分站" })
-  @ApiResponse({ status: 201, description: "申请成功，等待审核" })
+  @ApiResponse({ status: 201, description: "申请成功，待支付开通" })
   @ApiResponse({ status: 400, description: "参数校验失败或已开通分站" })
   @ApiResponse({ status: 401, description: "未登录" })
   applyStation(@Req() req: Request, @Body() dto: ApplyStationDto) {
@@ -49,6 +49,14 @@ export class StationController {
     return { ...station, lockedUsers, monthOrders, monthEarning, selfPurchaseSaved };
   }
 
+  @Get("operator-invite/:id")
+  @ApiOperation({ summary: "公开校验运营商邀请与剩余名额" })
+  @ApiResponse({ status: 200, description: "邀请有效" })
+  @ApiResponse({ status: 400, description: "邀请无效、已过期或名额已满" })
+  getOperatorInvite(@Param("id") id: string) {
+    return this.svc.getOperatorInvite(id);
+  }
+
   @Put("my")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新自己的分站信息（自服务）" })
@@ -61,7 +69,8 @@ export class StationController {
     // 安全修复(后端审计P0)：status 是治理/计费门槛字段(commission 计费依赖"非 ACTIVE 不发佣金")，
     // 绝不能经自服务接口设置——否则站长可 PUT {status:"ACTIVE"} 绕过加盟费白拿佣金。此处剥离 status，
     // 状态变更只能走管理端审核流。
-    const { status: _ignoredStatus, ...safe } = dto;
+    const safe = { ...dto };
+    delete safe.status;
     return this.svc.updateStation(station.id, safe);
   }
 

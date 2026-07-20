@@ -6,7 +6,7 @@
         <view class="js-nav-back" @tap="goBack">
           <app-icon name="chevron-left" :size="40" color="#2C2C2C" />
         </view>
-        <text class="js-nav-title">成为站长</text>
+        <text class="js-nav-title">{{ pageTitle }}</text>
         <view class="js-nav-holder" />
       </view>
     </view>
@@ -21,13 +21,6 @@
       <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
     </view>
 
-    <!-- 申请已提交（真调用 /station/apply 成功后的真实态） -->
-    <view v-else-if="applied" class="apply-done" :style="{ paddingTop: navHeight + 'px' }">
-      <view class="apply-done-ic"><app-icon name="check-circle-2" :size="48" color="#2E8B57" /></view>
-      <text class="apply-done-title serif">申请已提交</text>
-      <text class="apply-done-desc">你的分站申请已提交，平台将尽快审核。审核通过后即可在个人中心进入分站管理。</text>
-      <view class="apply-done-btn" @tap="goBack"><text class="apply-done-btn-text">返回</text></view>
-    </view>
 
     <!-- 正常内容 -->
     <template v-else>
@@ -37,12 +30,12 @@
           <view class="js-hero-badge">
             <app-icon name="home" :size="30" color="#ffffff" />
           </view>
-          <text class="js-hero-title serif">开你的分站</text>
-          <text class="js-hero-sub">在平台各板块主推位选品、推广拉客{{ '\n' }}你引流来的客户消费，即为你带来分销佣金</text>
+          <text class="js-hero-title serif">{{ heroTitle }}</text>
+          <text class="js-hero-sub">{{ heroSubtitle }}</text>
         </view>
 
         <!-- 运营商邀请归属横幅（仅邀请开通态显示） -->
-        <view v-if="invitedByOperator" class="js-invite">
+        <view v-if="!existingStation && invitedByOperator" class="js-invite">
           <view class="js-invite-av">
             <text class="js-invite-av-text">{{ operatorInitial }}</text>
           </view>
@@ -56,8 +49,8 @@
         <!-- 费用说明 -->
         <text class="js-sec-title serif">费用说明</text>
         <view class="js-fee">
-          <view class="js-fee-tag"><text class="js-fee-tag-text">无门槛加入</text></view>
-          <text class="js-fee-name">系统租赁费</text>
+          <view class="js-fee-tag"><text class="js-fee-tag-text">{{ existingStation ? '权益顺延' : '无门槛加入' }}</text></view>
+          <text class="js-fee-name">{{ existingStation ? '系统租赁续费' : '系统租赁费' }}</text>
           <view class="js-fee-price serif">
             <text class="js-fee-price-yuan">¥</text>
             <text class="js-fee-price-num">999</text>
@@ -65,20 +58,20 @@
           </view>
           <text class="js-fee-nolimit">开通无门槛 · 人人可开</text>
           <view class="js-fee-div" />
-          <text class="js-rule-title">减免与退还规则</text>
-          <!-- 原样措辞·勿改 -->
+          <text class="js-rule-title">费用执行说明</text>
+          <!-- 以当前真实资金能力为准 -->
           <view class="js-rule">
             <view class="js-rule-ic waive"><text class="js-rule-ic-text">免</text></view>
-            <text class="js-rule-tx">若分站收入累计<text class="js-b">小于 5 倍</text>系统租赁费，则<text class="js-b">不用再交</text>租赁费。</text>
+            <text class="js-rule-tx">当前在线订单按<text class="js-b">服务端显示金额</text>收取，支付成功后激活或顺延一年。</text>
           </view>
           <view class="js-rule">
             <view class="js-rule-ic refund"><text class="js-rule-ic-text">退</text></view>
-            <text class="js-rule-tx">若分站收入<text class="js-b">一年内累计达到 10 倍</text>平台系统租赁费，则<text class="js-b">退还</text>租赁费，<text class="js-b">仅限第一年有效</text>。</text>
+            <text class="js-rule-tx"><text class="js-b">自动减免与原路退还尚未开放</text>，当前不作为支付条件；后续上线将另行公示。</text>
           </view>
         </view>
 
         <!-- 开通后你可以 -->
-        <text class="js-sec-title serif">开通后你可以</text>
+        <text class="js-sec-title serif">{{ existingStation ? '续费后继续享有' : '开通后你可以' }}</text>
         <view class="js-steps">
           <view class="js-step">
             <view class="js-step-ic"><app-icon name="grid" :size="20" color="#C41E3A" /></view>
@@ -104,7 +97,7 @@
         </view>
 
         <!-- 风险提示（合规红线·逐字） -->
-        <view class="js-risk">
+        <view v-if="!existingStation" class="js-risk">
           <view class="js-risk-t">
             <app-icon name="alert-triangle" :size="15" color="#9A6E24" />
             <text class="js-risk-t-text">加入前请务必阅读</text>
@@ -114,28 +107,45 @@
           <view class="js-risk-i"><view class="js-risk-dot" /><text class="js-risk-i-text">请理性决策，量力而行。</text></view>
         </view>
 
-        <!-- 分站信息（必填·后端 ApplyStationDto 要求 name+code） -->
-        <text class="js-sec-title serif">分站信息（必填）</text>
-        <view class="js-invite-input-card">
-          <input
-            v-model="stationName"
-            class="js-invite-input"
-            placeholder="分站名称（如：XX国学驿站）"
-            placeholder-class="js-invite-ph"
-            maxlength="50"
-          />
-          <input
-            v-model="stationCode"
-            class="js-invite-input js-invite-input-gap"
-            placeholder="专属推广码（字母/数字·全平台唯一）"
-            placeholder-class="js-invite-ph"
-            maxlength="30"
-          />
-          <text class="js-invite-input-note">名称与推广码用于生成你的专属分站入口，推广码全平台唯一，提交后由平台审核。</text>
-        </view>
+        <!-- 首次开通填写分站信息；已有 PENDING/ACTIVE/EXPIRED 分站直接继续支付或续费 -->
+        <template v-if="!existingStation">
+          <text class="js-sec-title serif">分站信息（必填）</text>
+          <view class="js-invite-input-card">
+            <input
+              v-model="stationName"
+              class="js-invite-input"
+              placeholder="分站名称（如：XX国学驿站）"
+              placeholder-class="js-invite-ph"
+              maxlength="50"
+            />
+            <input
+              v-model="stationCode"
+              class="js-invite-input js-invite-input-gap"
+              placeholder="专属推广码（字母/数字·全平台唯一）"
+              placeholder-class="js-invite-ph"
+              maxlength="30"
+            />
+            <text class="js-invite-input-note">名称与推广码用于生成你的专属分站入口，支付完成后即开通。</text>
+          </view>
+        </template>
+        <template v-else>
+          <text class="js-sec-title serif">当前分站</text>
+          <view class="js-current-station">
+            <view class="js-current-head">
+              <view class="js-current-icon"><app-icon name="home" :size="20" color="#C41E3A" /></view>
+              <view class="js-current-main">
+                <text class="js-current-name">{{ existingStation.name }}</text>
+                <text class="js-current-code">推广码 {{ existingStation.code }}</text>
+              </view>
+              <text class="js-current-status">{{ existingStatusLabel }}</text>
+            </view>
+            <text class="js-current-note">{{ existingStation.status === 'PENDING' ? '申请已保留，可直接重新发起支付，无需重复填写资料。' : '续费成功后有效期在当前剩余时间基础上顺延，不会吞掉未到期天数。' }}</text>
+            <text v-if="existingStation.expireAt" class="js-current-expire">当前有效期至 {{ formatDate(existingStation.expireAt) }}</text>
+          </view>
+        </template>
 
         <!-- 运营商邀请码（选填·自主开通态可填） -->
-        <template v-if="!invitedByOperator">
+        <template v-if="!existingStation && !invitedByOperator">
           <text class="js-sec-title serif">运营商邀请码（选填）</text>
           <view class="js-invite-input-card">
             <input
@@ -170,10 +180,10 @@
 
       <!-- 底部 CTA -->
       <view class="js-cta">
-        <text class="js-cta-price">系统租赁费 <text class="js-cta-price-b">¥999 / 年</text> · 达标可减免/退还</text>
+        <text class="js-cta-price">系统租赁费 <text class="js-cta-price-b">¥999 / 年</text> · 实际金额以订单为准</text>
         <text class="js-cta-hint">点击即表示已阅读并同意 <text class="js-cta-hint-link" @tap="openAgreement">《站长服务协议》</text></text>
-        <view class="js-cta-btn" :class="{ 'js-cta-btn-disabled': submitting }" @tap="handleOpen">
-          <text class="js-cta-btn-text">{{ submitting ? '提交中…' : (invitedByOperator ? '确认开通（归属 ' + operatorName + '）' : '确认开通我的分站') }}</text>
+        <view class="js-cta-btn" :class="{ 'js-cta-btn-disabled': submitting || renewalBlocked }" @tap="handleOpen">
+          <text class="js-cta-btn-text">{{ submitting ? '处理中…' : ctaLabel }}</text>
         </view>
       </view>
     </template>
@@ -181,14 +191,14 @@
     <!-- 待支付：微信 Native 扫码 + 轮询（范式同 join-operator） -->
     <view v-if="payPending" class="modal-mask">
       <view class="modal-card" @tap.stop>
-        <text class="modal-title">请使用微信扫码支付</text>
+        <text class="modal-title">请使用微信扫码{{ paymentPurpose === 'renew' ? '续费' : '开通' }}</text>
         <text class="pay-amount"><text class="pay-amount-yuan">¥</text>{{ payPending.amount }}</text>
         <text class="pay-tip">复制以下支付链接，在微信中打开完成支付：</text>
         <text class="pay-url" :selectable="true">{{ payPending.codeUrl }}</text>
         <view class="modal-btn" @tap="copyCodeUrl">
           <text class="modal-btn-txt">复制支付链接</text>
         </view>
-        <text class="pay-poll">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动开通</text>
+        <text class="pay-poll">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动{{ paymentPurpose === 'renew' ? '续费' : '开通' }}</text>
         <text class="pay-cancel" @tap="cancelPay">取消</text>
       </view>
     </view>
@@ -196,8 +206,8 @@
     <!-- 支付渠道未就绪：诚实降级，不假装成功（分站已建，订单已保留） -->
     <view v-if="payUnavailable" class="modal-mask" @tap="payUnavailable = false">
       <view class="modal-card" @tap.stop>
-        <text class="modal-title">支付渠道正在开通中</text>
-        <text class="modal-desc">微信支付商户资质审核中，暂时无法在线支付。你的分站申请已保留，可稍后在订单记录中继续支付开通。</text>
+        <text class="modal-title">暂时无法获取付款码</text>
+        <text class="modal-desc">本次未能获取微信付款码，分站资料不会丢失。你可以稍后关闭本页重新发起支付；系统不会把未付款订单当作已开通。</text>
         <view class="modal-btn" @tap="payUnavailable = false">
           <text class="modal-btn-txt">我知道了</text>
         </view>
@@ -212,7 +222,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { operatorApi } from '@/pkg-operator/lib/operator-data'
 import { shopApi } from '@/lib/shop-data'
-import { apiPost } from '@/utils/request'
+import { apiGet, apiPost } from '@/utils/request'
+import { getToken } from '@/utils/storage'
 
 // ===== 状态栏留白（自定义导航） =====
 const statusBarHeight = ref(20)
@@ -222,11 +233,20 @@ const navHeight = ref(64)
 const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
-const applied = ref(false)
 
 // ===== 分站信息（后端 ApplyStationDto 必填 name+code） =====
+interface ExistingStation {
+  id: string
+  name: string
+  code: string
+  status: string
+  expireAt?: string | null
+}
+
 const stationName = ref('')
 const stationCode = ref('')
+const existingStation = ref<ExistingStation | null>(null)
+const paymentPurpose = ref<'open' | 'renew'>('open')
 
 // ===== 支付状态（范式对齐 join-operator：Native 扫码 + 轮询 + 渠道未就绪诚实降级）=====
 const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
@@ -240,26 +260,64 @@ const inviteCode = ref('')
 const operatorName = ref('')
 const invitedByOperator = computed(() => !!operatorName.value)
 const operatorInitial = computed(() => operatorName.value ? operatorName.value.charAt(0) : '运')
+const renewalBlocked = computed(() => existingStation.value?.status === 'DISABLED')
+const pageTitle = computed(() => {
+  if (!existingStation.value) return '成为站长'
+  return existingStation.value.status === 'PENDING' ? '继续开通分站' : '分站续费'
+})
+const heroTitle = computed(() => {
+  if (!existingStation.value) return '开你的分站'
+  return existingStation.value.status === 'PENDING' ? '完成分站开通' : '为分站续费'
+})
+const heroSubtitle = computed(() => existingStation.value
+  ? (existingStation.value.status === 'PENDING'
+      ? '资料已经保留，只需完成支付即可正式开通'
+      : '续费从当前到期日顺延，保留全部经营数据与客户归属')
+  : '在平台各板块主推位选品、推广拉客\n你引流来的客户消费，即为你带来分销佣金')
+const existingStatusLabel = computed(() => {
+  const map: Record<string, string> = { PENDING: '待支付', ACTIVE: '运营中', EXPIRED: '已到期', DISABLED: '已停用' }
+  return map[existingStation.value?.status || ''] || '状态待核验'
+})
+const ctaLabel = computed(() => {
+  if (!existingStation.value) return invitedByOperator.value ? `确认开通（归属 ${operatorName.value}）` : '确认开通我的分站'
+  if (existingStation.value.status === 'PENDING') return '继续支付开通'
+  if (renewalBlocked.value) return '分站已停用，请联系平台'
+  return '续费一年'
+})
 
 // ===== FAQ（合规文案·逐字照 mockup-C2） =====
 const expandedFaq = ref<number | null>(0)
 const faqs = [
   { q: '什么是「主推位」？', a: '平台每个板块保留 6 个主推位，由你从平台内容库挑内容锁定。你引流来的客户浏览平台该板块时，会优先看到你锁定的内容，其余位置照常走平台推荐。你不需要、也不能装修页面。' },
-  { q: '999 元租赁费什么情况能减免/退还？', a: '若分站收入累计小于 5 倍系统租赁费，则不用再交租赁费；若分站收入一年内累计达到 10 倍平台系统租赁费，则退还租赁费，仅限第一年有效。' },
+  { q: '租赁费是否支持自动减免或退还？', a: '当前在线开通与续费按服务端订单金额收取，自动减免和原路退还能力尚未开放，不作为本次支付条件；后续如上线，平台会另行公示规则。' },
   { q: '需要单独注册账号吗？', a: '无需单独注册，沿用你的平台账号即可开通，无分站装修、无独立页面、无独立账号。' },
   { q: '佣金什么时候结算？', a: '归属客户消费后，按平台约定比例结算佣金。佣金仅基于真实交易结算，收益取决于你的实际推广，平台不作任何收益承诺。' },
 ]
 
+async function loadExistingStation() {
+  if (!getToken()) return
+  try {
+    const station = await apiGet<ExistingStation>('/station/my')
+    existingStation.value = station
+    stationName.value = station.name
+    stationCode.value = station.code
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (!msg.includes('还没有开通') && !msg.includes('未找到') && !msg.includes('不存在')) throw e
+    existingStation.value = null
+  }
+}
+
 async function fetchData() {
   try {
-    // 复用现有数据调用作为三态骨架（费用费率）；页面展示文案以 mockup 为准内联
     await operatorApi.getStationPricing()
-    // 读取邀请码入参（运营商邀请开通态）
+    await loadExistingStation()
+    // 运营商邀请链接统一使用 op=<Operator.id>；兼容旧 inviteCode/code 参数。
     const pages = getCurrentPages()
     const cur: any = pages[pages.length - 1]
-    const code = cur?.options?.inviteCode || cur?.options?.code || ''
-    if (code) {
-      inviteCode.value = code
+    const code = cur?.options?.op || cur?.options?.inviteCode || cur?.options?.code || ''
+    if (!existingStation.value && code) {
+      inviteCode.value = String(code)
       await verifyInvite()
     }
   } catch (e) {
@@ -284,13 +342,21 @@ onMounted(() => {
   fetchData()
 })
 
-// 验证运营商邀请码（activate/激活接口复用；后端无验证端点时诚实降级为不阻断开通）
-async function verifyInvite() {
+// 公开端点只返回品牌名与剩余名额，不暴露运营商身份信息。
+async function verifyInvite(): Promise<boolean> {
   const code = inviteCode.value.trim()
-  if (!code) { operatorName.value = ''; return }
-  // 后端暂无 GET /station/invite/:code 验证端点 → 诚实降级：
-  // 仅在提交时把 inviteCode 带给 apply，归属关系由后端解析；此处不虚构运营商姓名。
-  // 若后续补齐验证端点，可在此填充 operatorName 以显示归属横幅。
+  if (!code) { operatorName.value = ''; return true }
+  try {
+    const result = await apiGet<{ operatorId: string; operatorName: string; availableQuota: number }>(
+      `/station/operator-invite/${encodeURIComponent(code)}`,
+    )
+    operatorName.value = result.operatorName
+    return true
+  } catch (e) {
+    operatorName.value = ''
+    uni.showToast({ title: (e as Error)?.message || '运营商邀请码无效', icon: 'none' })
+    return false
+  }
 }
 
 function toggleFaq(i: number) {
@@ -312,18 +378,33 @@ function openAgreement() {
  */
 async function handleOpen() {
   if (submitting.value) return
+  if (renewalBlocked.value) {
+    uni.showToast({ title: '分站已被平台停用，请先联系平台客服', icon: 'none' })
+    return
+  }
+
+  const wasExisting = !!existingStation.value
   const name = stationName.value.trim()
   const code = stationCode.value.trim()
-  if (!name) { uni.showToast({ title: '请填写分站名称', icon: 'none' }); return }
-  if (!code) { uni.showToast({ title: '请填写专属推广码', icon: 'none' }); return }
-  submitting.value = true
-  try {
-    // 1) 建分站（PENDING）。后端 ApplyStationDto 收 name/code，返回创建的 station 记录（含 id）。
-    //    后端会校验"已开通"和"推广码占用"并回具体 message。
-    const station = await apiPost<{ id: string }>('/station/apply', { name, code })
-    if (!station?.id) throw new Error('分站创建失败')
+  if (!wasExisting && !name) { uni.showToast({ title: '请填写分站名称', icon: 'none' }); return }
+  if (!wasExisting && !code) { uni.showToast({ title: '请填写专属推广码', icon: 'none' }); return }
+  if (!wasExisting && inviteCode.value.trim() && !(await verifyInvite())) return
 
-    // 2) 为该分站创建付费开通订单（targetId=分站 id）。后端校验分站存在+归属付款人+定价。
+  submitting.value = true
+  paymentPurpose.value = wasExisting && existingStation.value?.status !== 'PENDING' ? 'renew' : 'open'
+  try {
+    let station = existingStation.value
+    if (!station) {
+      station = await apiPost<ExistingStation>('/station/apply', {
+        name,
+        code,
+        ...(inviteCode.value.trim() ? { operatorId: inviteCode.value.trim() } : {}),
+      })
+      if (!station?.id) throw new Error('分站创建失败')
+      // 申请一旦落库，即使支付渠道暂时不可用，下次点击也直接为同一分站续付，不再重复申请。
+      existingStation.value = station
+    }
+
     const order = await shopApi.createOrder({
       type: 'STATION_MASTER',
       targetId: station.id,
@@ -331,23 +412,15 @@ async function handleOpen() {
     })
     if (!order.id) throw new Error('订单创建失败')
 
-    // 3) 发起微信 Native 扫码支付
     const pay = await shopApi.payOrderNative(order.id)
     if (pay.codeUrl) {
       payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
       startPolling(order.id)
     } else {
-      // 未返回 code_url = 渠道未就绪，不假装成功（分站已建，订单保留在订单记录中可继续支付）
       payUnavailable.value = true
     }
   } catch (e) {
-    // "已开通/已有分站" 等业务拦截 → 直接透传后端 message；其余（渠道未就绪/未配价格等）→ 诚实降级
-    const msg = (e as Error)?.message || ''
-    if (msg.includes('已开通') || msg.includes('已有分站')) {
-      uni.showToast({ title: msg, icon: 'none' })
-    } else {
-      payUnavailable.value = true
-    }
+    uni.showToast({ title: (e as Error)?.message || '支付发起失败，请稍后重试', icon: 'none' })
   } finally {
     submitting.value = false
   }
@@ -390,8 +463,12 @@ function stopPolling() {
 function onPaid() {
   stopPolling()
   payPending.value = null
-  uni.showToast({ title: '分站开通成功', icon: 'success' })
+  uni.showToast({ title: paymentPurpose.value === 'renew' ? '分站续费成功' : '分站开通成功', icon: 'success' })
   setTimeout(() => navigateTo('/pkg-operator/station-home/index'), 1200)
+}
+
+function formatDate(value: string) {
+  return String(value).replace('T', ' ').slice(0, 10)
 }
 
 function copyCodeUrl() {
@@ -482,6 +559,17 @@ onUnmounted(() => stopPolling())
 .js-risk-dot { width: 10rpx; height: 10rpx; border-radius: 999rpx; background: #DDA149; flex-shrink: 0; margin-top: 13rpx; }
 .js-risk-i-text { flex: 1; font-size: 23rpx; color: #8a6a30; line-height: 1.7; }
 
+/* ===== 当前分站（续付/续费） ===== */
+.js-current-station { margin: 0 38rpx; padding: 31rpx; border: 1rpx solid #E8DFD3; border-radius: 27rpx; background: #FFFFFF; }
+.js-current-head { display: flex; align-items: center; gap: 20rpx; }
+.js-current-icon { width: 72rpx; height: 72rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 20rpx; background: rgba(196,30,58,0.08); }
+.js-current-main { flex: 1; min-width: 0; }
+.js-current-name { display: block; overflow: hidden; color: #2C2C2C; font-size: 28rpx; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.js-current-code { display: block; margin-top: 7rpx; color: #8A8178; font-size: 21rpx; }
+.js-current-status { flex-shrink: 0; padding: 7rpx 16rpx; border-radius: 999rpx; background: #FBEFF0; color: #C41E3A; font-size: 21rpx; }
+.js-current-note { display: block; margin-top: 24rpx; padding-top: 22rpx; border-top: 1rpx solid #EFEBE4; color: #6E6E73; font-size: 23rpx; line-height: 1.65; }
+.js-current-expire { display: block; margin-top: 12rpx; color: #9A6E24; font-size: 22rpx; }
+
 /* ===== 邀请码输入 ===== */
 .js-invite-input-card { margin: 0 38rpx; background: #FFFFFF; border: 1rpx solid #EFEBE4; border-radius: 27rpx; padding: 31rpx; }
 .js-invite-input { height: 88rpx; background: rgba(138,129,120,0.06); border-radius: 17rpx; padding: 0 27rpx; font-size: 26rpx; color: #2C2C2C; }
@@ -511,15 +599,7 @@ onUnmounted(() => stopPolling())
 .js-cta-btn-disabled { opacity: 0.55; }
 .js-cta-btn-text { font-size: 31rpx; font-weight: 600; color: #fff; }
 
-/* ===== 申请已提交态 ===== */
-.apply-done { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 64rpx; text-align: center; }
-.apply-done-ic { width: 150rpx; height: 150rpx; border-radius: 50%; background: rgba(46,139,87,0.12); display: flex; align-items: center; justify-content: center; margin-bottom: 40rpx; }
-.apply-done-title { font-size: 40rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 18rpx; }
-.apply-done-desc { font-size: 26rpx; color: #6E6E73; line-height: 1.7; margin-bottom: 56rpx; }
-.apply-done-btn { width: 100%; height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 20rpx rgba(196,30,58,0.3); }
-.apply-done-btn-text { font-size: 31rpx; font-weight: 600; color: #fff; }
-
-/* ===== 三态 ===== */
+/* ===== 加载与错误态 ===== */
 .state-loading { flex: 1; display: flex; align-items: center; justify-content: center; }
 .state-loading-text { font-size: 28rpx; color: #6E6E73; }
 .state-error { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx; }

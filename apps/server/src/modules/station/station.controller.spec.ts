@@ -18,6 +18,7 @@ const mockStationSvc = {
   getRevenueDashboard: jest.fn().mockResolvedValue({ revenue: 10000, orders: 50 }),
   getMiniConfig: jest.fn().mockResolvedValue({ appId: "wx123", jumpList: [] }),
   resolveJumpTarget: jest.fn().mockResolvedValue({ appId: "wx456", path: "/pages/index" }),
+  getOperatorInvite: jest.fn().mockResolvedValue({ operatorId: "op1", operatorName: "华夏运营中心", availableQuota: 5 }),
 };
 
 describe("StationController", () => {
@@ -40,6 +41,12 @@ describe("StationController", () => {
     const result: any = await ctrl.getBrandByCode("ABC123");
     expect(result.name).toBe("国学分站");
     expect(mockStationSvc.getBrandByCode).toHaveBeenCalledWith("ABC123");
+  });
+
+  it("GET /station/operator-invite/:id — 公开校验运营商邀请", async () => {
+    const result: any = await ctrl.getOperatorInvite("op1");
+    expect(result.operatorName).toBe("华夏运营中心");
+    expect(mockStationSvc.getOperatorInvite).toHaveBeenCalledWith("op1");
   });
 
   it("GET /station/:id/brand — 分站品牌配置", async () => {

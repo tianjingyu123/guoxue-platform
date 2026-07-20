@@ -77,10 +77,13 @@ export class ShopOrderService {
       // 分站年租：targetId = stationId（须先 applyStation 建记录）。价格真源 CommissionConfig.rateA，禁硬编码。
       const station = await this.prisma.station.findUnique({
         where: { id: dto.targetId },
-        select: { id: true, userId: true },
+        select: { id: true, userId: true, status: true },
       });
       if (!station) throw new BusinessException(ErrorCode.STATION_NOT_FOUND, "分站不存在，请先提交开通申请");
       if (station.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能为自己的分站缴纳年租");
+      if (station.status === "DISABLED") {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "分站已被平台停用，暂不可续费，请联系平台客服");
+      }
       actualAmount = await this.resolveBillingPrice("station_master_price", "分站年租");
     } else if (dto.type === "PRACTITIONER_PRO") {
       // 从业者会员（工作台专业版）月付：价格真源 CommissionConfig.rateA，禁硬编码
@@ -176,112 +179,137 @@ export class ShopOrderService {
     // 尤其自购立减——站长本身是分销角色，不排除的话他买运营商资格会被自己的分销比例打折（实测 4999→3999.2，平台白丢 1000）。
     const isFranchiseFee = FRANCHISE_ORDER_TYPES.includes(dto.type);
 
-    return this.prisma.$transaction(async (tx) => {
-      // 优惠券校验与折扣计算（服务端计算，防篡改；计算逻辑与 estimateOrder 共用同一实现）
-      if (dto.couponId && !isFranchiseFee) {
-        actualAmount = await this.applyCouponPricing(tx, userId, dto.couponId, dto.targetId, actualAmount);
+    // 同一用户/分站的年租下单串行化，防双击或多端并发创建两张都可支付的订单。
+    const stationOrderLockKey = dto.type === "STATION_MASTER"
+      ? "station-order:create:" + userId + ":" + dto.targetId
+      : null;
+    if (stationOrderLockKey) {
+      const locked = await this.redis.setNX(stationOrderLockKey, "1", 30);
+      if (!locked) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付订单正在创建，请稍后重试");
+    }
 
-        // 条件更新防并发双花：仅当券仍 used:false 才置为已用；两并发单只有一个 count>0
-        const claimed = await tx.userCoupon.updateMany({
-          where: { id: dto.couponId, userId, used: false },
-          data: { used: true, usedAt: new Date() },
-        });
-        if (claimed.count === 0) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在或已被使用");
-      }
-
-      // 分销角色自购立减（供-P3 泛化）：在券后价基础上按直推佣金比例立减，并清空推荐关系（佣金天然不产生）
-      let selfDiscount = 0;
-      if (selfPurchaseRate > 0 && !isFranchiseFee) {
-        selfDiscount = Math.round(actualAmount * selfPurchaseRate * 100) / 100;
-        actualAmount = Math.max(0.01, Math.round((actualAmount - selfDiscount) * 100) / 100);
-      }
-
-      // ── 秒杀两道闸（每人限购 + 秒杀条目量原子扣减）──
-      // FlashSaleItem 按 @@unique([flashSaleId, productId]) 唯一定位；
-      // 与下方 Product/SKU 库存 CAS 扣减并存：两道闸都通过才成交。
-      if (promotionType === "FLASH_SALE" && promotionId) {
-        const flashItem = await tx.flashSaleItem.findFirst({
-          where: { flashSaleId: promotionId, productId: dto.targetId },
-          select: { id: true, limitCount: true },
-        });
-        if (!flashItem) {
-          throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND, "秒杀商品不存在");
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 分站年租只保留一张可支付本地订单；重进页面直接续付，避免重复付款后权益叠加两次。
+        if (dto.type === "STATION_MASTER") {
+          // PostgreSQL 事务级锁是 Redis 降级/多实例场景的最终防线；事务结束自动释放。
+          const dbLockName = "station-order:" + userId + ":" + dto.targetId;
+          await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", dbLockName);
+          const pending = await tx.order.findFirst({
+            where: { userId, type: "STATION_MASTER", targetId: dto.targetId, status: "PENDING" },
+            orderBy: { createdAt: "desc" },
+          });
+          if (pending) return pending;
         }
 
-        // 闸1: 每人限购（limitCount > 0 才限购）：统计该用户同活动有效订单（未取消/未退款）已购数量
-        if (flashItem.limitCount > 0) {
-          const bought = await tx.order.aggregate({
-            where: {
-              userId,
-              promotionType: "FLASH_SALE",
-              promotionId,
-              targetId: dto.targetId,
-              status: { notIn: ["CANCELLED", "REFUNDED"] },
-            },
-            _sum: { quantity: true },
+        // 优惠券校验与折扣计算（服务端计算，防篡改；计算逻辑与 estimateOrder 共用同一实现）
+        if (dto.couponId && !isFranchiseFee) {
+          actualAmount = await this.applyCouponPricing(tx, userId, dto.couponId, dto.targetId, actualAmount);
+
+          // 条件更新防并发双花：仅当券仍 used:false 才置为已用；两并发单只有一个 count>0
+          const claimed = await tx.userCoupon.updateMany({
+            where: { id: dto.couponId, userId, used: false },
+            data: { used: true, usedAt: new Date() },
           });
-          const boughtQty = bought._sum.quantity ?? 0;
-          if (boughtQty + qty > flashItem.limitCount) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, `超出每人限购 ${flashItem.limitCount} 件`);
+          if (claimed.count === 0) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在或已被使用");
+        }
+
+        // 分销角色自购立减（供-P3 泛化）：在券后价基础上按直推佣金比例立减，并清空推荐关系（佣金天然不产生）
+        let selfDiscount = 0;
+        if (selfPurchaseRate > 0 && !isFranchiseFee) {
+          selfDiscount = Math.round(actualAmount * selfPurchaseRate * 100) / 100;
+          actualAmount = Math.max(0.01, Math.round((actualAmount - selfDiscount) * 100) / 100);
+        }
+
+        // ── 秒杀两道闸（每人限购 + 秒杀条目量原子扣减）──
+        // FlashSaleItem 按 @@unique([flashSaleId, productId]) 唯一定位；
+        // 与下方 Product/SKU 库存 CAS 扣减并存：两道闸都通过才成交。
+        if (promotionType === "FLASH_SALE" && promotionId) {
+          const flashItem = await tx.flashSaleItem.findFirst({
+            where: { flashSaleId: promotionId, productId: dto.targetId },
+            select: { id: true, limitCount: true },
+          });
+          if (!flashItem) {
+            throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND, "秒杀商品不存在");
+          }
+
+          // 闸1: 每人限购（limitCount > 0 才限购）：统计该用户同活动有效订单（未取消/未退款）已购数量
+          if (flashItem.limitCount > 0) {
+            const bought = await tx.order.aggregate({
+              where: {
+                userId,
+                promotionType: "FLASH_SALE",
+                promotionId,
+                targetId: dto.targetId,
+                status: { notIn: ["CANCELLED", "REFUNDED"] },
+              },
+              _sum: { quantity: true },
+            });
+            const boughtQty = bought._sum.quantity ?? 0;
+            if (boughtQty + qty > flashItem.limitCount) {
+              throw new BusinessException(ErrorCode.BAD_REQUEST, `超出每人限购 ${flashItem.limitCount} 件`);
+            }
+          }
+
+          // 闸2: 原子扣减秒杀条目量（Prisma 不支持列间比较，用条件 UPDATE：sold + qty <= stock 才成交）
+          const flashDeducted = await tx.$executeRaw`
+            UPDATE "FlashSaleItem"
+            SET "sold" = "sold" + ${qty}, "updatedAt" = NOW()
+            WHERE "id" = ${flashItem.id} AND "sold" + ${qty} <= "stock"
+          `;
+          if (flashDeducted === 0) {
+            throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "秒杀商品已抢完");
           }
         }
 
-        // 闸2: 原子扣减秒杀条目量（Prisma 不支持列间比较，用条件 UPDATE：sold + qty <= stock 才成交）
-        const flashDeducted = await tx.$executeRaw`
-          UPDATE "FlashSaleItem"
-          SET "sold" = "sold" + ${qty}, "updatedAt" = NOW()
-          WHERE "id" = ${flashItem.id} AND "sold" + ${qty} <= "stock"
-        `;
-        if (flashDeducted === 0) {
-          throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "秒杀商品已抢完");
-        }
-      }
+        const order = await tx.order.create({
+          data: {
+            userId,
+            type: dto.type as any,
+            targetId: dto.targetId,
+            skuId: dto.skuId,
+            quantity: qty,
+            amount: actualAmount,
+            couponId: dto.couponId,
+            promotionType,
+            promotionId,
+            merchantId,
+            addressId: dto.addressId,
+            shippingInfo: shippingInfo as any,
+            referrerId: selfDiscount > 0 ? null : permanentReferrerId,
+            tempReferrerId: selfDiscount > 0 ? null : tempReferrerId,
+            tempRefSubjectType: selfDiscount > 0 ? null : tempRefSubjectType, // 渠道主体类型（佣-V2-P2·分佣受益人路由依据·与推荐关系同生共灭）
+            sourceContentType, // 内容来源（佣-V2-P3·纯记录·自购单也保留来源便于内容转化统计）
+            sourceContentId,
+            selfDiscount: selfDiscount > 0 ? selfDiscount : null,
+            giftCardMeta: selfDiscount > 0 ? undefined : giftCardMeta, // 白标贺卡任务（供-P2·与推荐关系同生共灭）
+            status: "PENDING",
+          },
+        });
 
-      const order = await tx.order.create({
-        data: {
-          userId,
-          type: dto.type as any,
-          targetId: dto.targetId,
-          skuId: dto.skuId,
-          quantity: qty,
-          amount: actualAmount,
-          couponId: dto.couponId,
-          promotionType,
-          promotionId,
-          merchantId,
-          addressId: dto.addressId,
-          shippingInfo: shippingInfo as any,
-          referrerId: selfDiscount > 0 ? null : permanentReferrerId,
-          tempReferrerId: selfDiscount > 0 ? null : tempReferrerId,
-          tempRefSubjectType: selfDiscount > 0 ? null : tempRefSubjectType, // 渠道主体类型（佣-V2-P2·分佣受益人路由依据·与推荐关系同生共灭）
-          sourceContentType, // 内容来源（佣-V2-P3·纯记录·自购单也保留来源便于内容转化统计）
-          sourceContentId,
-          selfDiscount: selfDiscount > 0 ? selfDiscount : null,
-          giftCardMeta: selfDiscount > 0 ? undefined : giftCardMeta, // 白标贺卡任务（供-P2·与推荐关系同生共灭）
-          status: "PENDING",
-        },
+        // 扣减库存（仅有库存概念的订单），带库存 >= 数量 约束防止超卖（按 qty 扣减，钱货严谨）。
+        // 无库存概念的订单（会员/分站年租/运营商开通）targetId 不是商品ID，扣库存会匹配 0 行 → 误报「库存不足」。
+        if (!isStocklessOrderType(dto.type)) {
+          if (dto.skuId) {
+            const skuResult = await tx.productSku.updateMany({
+              where: { id: dto.skuId, stock: { gte: qty } },
+              data: { stock: { decrement: qty } },
+            });
+            if (skuResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "SKU库存不足");
+          } else {
+            const productResult = await tx.product.updateMany({
+              where: { id: dto.targetId, stock: { gte: qty } },
+              data: { stock: { decrement: qty } },
+            });
+            if (productResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
+          }
+        }
+
+        return order;
       });
-
-      // 扣减库存（仅有库存概念的订单），带库存 >= 数量 约束防止超卖（按 qty 扣减，钱货严谨）。
-      // 无库存概念的订单（会员/分站年租/运营商开通）targetId 不是商品ID，扣库存会匹配 0 行 → 误报「库存不足」。
-      if (!isStocklessOrderType(dto.type)) {
-        if (dto.skuId) {
-          const skuResult = await tx.productSku.updateMany({
-            where: { id: dto.skuId, stock: { gte: qty } },
-            data: { stock: { decrement: qty } },
-          });
-          if (skuResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "SKU库存不足");
-        } else {
-          const productResult = await tx.product.updateMany({
-            where: { id: dto.targetId, stock: { gte: qty } },
-            data: { stock: { decrement: qty } },
-          });
-          if (productResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
-        }
-      }
-
-      return order;
-    });
+    } finally {
+      if (stationOrderLockKey) await this.redis.del(stationOrderLockKey);
+    }
   }
 
   /**

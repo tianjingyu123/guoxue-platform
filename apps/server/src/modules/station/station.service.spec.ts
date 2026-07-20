@@ -7,9 +7,10 @@ import { InsightService } from "../track/insight.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
-  station: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+  station: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(), count: jest.fn() },
   stationEarning: { findMany: jest.fn(), count: jest.fn() },
-  operator: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+  operator: { create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+  $transaction: jest.fn(),
 };
 
 const mockRedis = {
@@ -34,13 +35,91 @@ describe("StationService", () => {
     svc = mod.get(StationService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation(async (cb: (tx: typeof mockPrisma) => unknown) => cb(mockPrisma));
+  });
 
   describe("createStation", () => {
     it("创建分站成功", async () => {
       mockPrisma.station.create.mockResolvedValue({ id: "s-1", name: "国学分站", code: "gx001" });
       const result = await svc.createStation("user-1", { name: "国学分站", code: "gx001" });
       expect(result.id).toBe("s-1");
+    });
+  });
+
+  describe("applyStation", () => {
+    it("自主申请创建 PENDING 分站且不绑定运营商", async () => {
+      mockPrisma.station.findFirst.mockResolvedValue(null);
+      mockPrisma.station.findUnique.mockResolvedValue(null);
+      mockPrisma.station.create.mockResolvedValue({ id: "s-1", status: "PENDING", operatorId: null });
+
+      await svc.applyStation("u-1", { name: "我的分站", code: "MINE" });
+
+      expect(mockPrisma.station.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ userId: "u-1", status: "PENDING", operatorId: undefined }),
+      }));
+      expect(mockPrisma.operator.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("有效邀请以真实站数校准 usedQuota 并绑定运营商", async () => {
+      mockPrisma.station.findFirst.mockResolvedValue(null);
+      mockPrisma.station.findUnique.mockResolvedValue(null);
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op-1", status: "ACTIVE", expireAt: null, containQuota: 6, usedQuota: 0 });
+      mockPrisma.station.count.mockResolvedValue(2);
+      mockPrisma.operator.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.station.create.mockResolvedValue({ id: "s-1", operatorId: "op-1" });
+
+      const result = await svc.applyStation("u-1", { name: "团队分站", code: "TEAM", operatorId: "op-1" });
+
+      expect(result.operatorId).toBe("op-1");
+      expect(mockPrisma.operator.updateMany).toHaveBeenCalledWith({
+        where: { id: "op-1", status: "ACTIVE", usedQuota: 0 },
+        data: { usedQuota: 3 },
+      });
+      expect(mockPrisma.station.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ operatorId: "op-1" }) }));
+    });
+
+    it("过期运营商邀请不占名额也不建站", async () => {
+      mockPrisma.station.findFirst.mockResolvedValue(null);
+      mockPrisma.station.findUnique.mockResolvedValue(null);
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op-1", status: "ACTIVE", expireAt: new Date("2020-01-01"), containQuota: 6, usedQuota: 0 });
+
+      await expect(svc.applyStation("u-1", { name: "团队分站", code: "TEAM", operatorId: "op-1" })).rejects.toThrow("邀请码无效或已过期");
+      expect(mockPrisma.operator.updateMany).not.toHaveBeenCalled();
+      expect(mockPrisma.station.create).not.toHaveBeenCalled();
+    });
+
+    it("真实站数达到配额时拒绝邀请开站", async () => {
+      mockPrisma.station.findFirst.mockResolvedValue(null);
+      mockPrisma.station.findUnique.mockResolvedValue(null);
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op-1", status: "ACTIVE", expireAt: null, containQuota: 6, usedQuota: 1 });
+      mockPrisma.station.count.mockResolvedValue(6);
+
+      await expect(svc.applyStation("u-1", { name: "团队分站", code: "TEAM", operatorId: "op-1" })).rejects.toThrow("名额已用完");
+      expect(mockPrisma.station.create).not.toHaveBeenCalled();
+    });
+
+    it("并发抢占名额失败时不创建分站", async () => {
+      mockPrisma.station.findFirst.mockResolvedValue(null);
+      mockPrisma.station.findUnique.mockResolvedValue(null);
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op-1", status: "ACTIVE", expireAt: null, containQuota: 6, usedQuota: 2 });
+      mockPrisma.station.count.mockResolvedValue(2);
+      mockPrisma.operator.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(svc.applyStation("u-1", { name: "团队分站", code: "TEAM", operatorId: "op-1" })).rejects.toThrow("名额状态已变化");
+      expect(mockPrisma.station.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getOperatorInvite", () => {
+    it("只返回公开品牌与真实剩余名额", async () => {
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op-1", brandName: "华夏运营中心", status: "ACTIVE", expireAt: null, containQuota: 6, usedQuota: 1 });
+      mockPrisma.station.count.mockResolvedValue(3);
+
+      await expect(svc.getOperatorInvite("op-1")).resolves.toEqual({
+        operatorId: "op-1", operatorName: "华夏运营中心", availableQuota: 3,
+      });
     });
   });
 

@@ -283,7 +283,7 @@ function noticeColor(type: string) {
 
 function goAction(qa: StationPanelQuickAction) { navigateTo(qa.path) }
 function goNotices() { navigateTo('/station/notices') }
-function goRenew() { navigateTo('/pkg-operator/join-station/index') }
+function goRenew() { navigateTo('/pkg-operator/join-station/index?renew=1') }
 function goEarnings() { navigateTo('/station/earnings') }
 // 站长佣金结算后进入平台钱包，提现在钱包内完成
 function goWithdraw() { navigateTo('/pkg-mine/wallet/index') }

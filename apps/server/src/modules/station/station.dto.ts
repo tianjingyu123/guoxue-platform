@@ -120,6 +120,12 @@ export class ApplyStationDto {
   @IsOptional()
   @IsString()
   logo?: string;
+
+  /** 运营商邀请归属；只接受后端真实存在且仍有名额的 Operator.id */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  operatorId?: string;
 }
 
 export class UpdateOperatorBrandDto {

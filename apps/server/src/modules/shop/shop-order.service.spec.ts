@@ -32,6 +32,7 @@ describe("ShopOrderService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPrisma.order.findFirst.mockReset()
   })
 
   describe("createOrder", () => {
@@ -697,6 +698,33 @@ describe("ShopOrderService", () => {
       expect(mockPrisma.order.create.mock.calls[0][0].data.amount).toBe(999)
     })
 
+    it("分站年租：已有待支付单时复用原单，不重复创建可扣款订单", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1", status: "PENDING" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 999 })
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o-pending", amount: 999, status: "PENDING" })
+
+      const result = await svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 1 })
+
+      expect(result.id).toBe("o-pending")
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "station-order:u1:st1",
+      )
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+      expect(mockRedis.del).toHaveBeenCalledWith("station-order:create:u1:st1")
+    })
+
+    it("分站年租：订单创建锁冲突时拒绝并发建单", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1", status: "PENDING" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 999 })
+      mockRedis.setNX.mockResolvedValueOnce(false)
+
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 1 }),
+      ).rejects.toThrow("支付订单正在创建")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
     it("分站年租：只能为自己的分站缴费（越权 403）", async () => {
       mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "someone-else" })
       await expect(
@@ -709,6 +737,14 @@ describe("ShopOrderService", () => {
       await expect(
         svc.createOrder("u1", { type: "STATION_MASTER", targetId: "gone", amount: 999 }),
       ).rejects.toThrow("请先提交开通申请")
+    })
+
+    it("分站年租：平台停用态不可通过续费重新激活", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1", status: "DISABLED" })
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 999 }),
+      ).rejects.toThrow("分站已被平台停用")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
     })
 
     it("分站年租：未配置价格 → 结构化报错，绝不按 0 元放行", async () => {

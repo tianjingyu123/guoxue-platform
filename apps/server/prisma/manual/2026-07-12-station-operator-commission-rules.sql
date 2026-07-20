@@ -27,9 +27,9 @@ VALUES
   (gen_random_uuid(), 'station.rental_fee_yearly', '999',
    '分站系统租赁费(元/年)', now(), now()),
   (gen_random_uuid(), 'station.rental_waiver_income_multiple', '5',
-   '减免：分站收入累计 < 5 倍租赁费(<4995元)则不用再交租赁费', now(), now()),
+   '预留参数：自动续费减免尚未上线，不得作为当前支付承诺', now(), now()),
   (gen_random_uuid(), 'station.rental_refund_income_multiple', '10',
-   '退还：分站收入一年内累计 ≥ 10 倍租赁费(≥9990元)则退还租赁费', now(), now()),
+   '预留参数：自动原路退还尚未上线，不得作为当前支付承诺', now(), now()),
   (gen_random_uuid(), 'station.rental_refund_first_year_only', 'true',
    '退还规则仅限第一年有效', now(), now()),
   -- 开通页文案纪律

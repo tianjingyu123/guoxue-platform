@@ -60,11 +60,63 @@ describe("ShopPaymentService", () => {
   describe("createNativePayment", () => {
     const mockOrder = { id: "o1", userId: "u1", type: "PRODUCT", amount: "99", status: "PENDING" }
 
+    beforeEach(() => {
+      mockRedis.getJson.mockReset().mockResolvedValue(null)
+      mockRedis.setJson.mockReset().mockResolvedValue(undefined)
+      mockRedis.setNX.mockReset().mockResolvedValue(true)
+      mockRedis.del.mockReset().mockResolvedValue(undefined)
+      mockWechatPay.createNativeOrder.mockReset().mockResolvedValue({ codeUrl: "weixin://wxpay/mock" })
+      mockWechatPay.closeOrder.mockReset().mockResolvedValue({})
+      mockWechatPay.queryOrder.mockReset().mockResolvedValue({ trade_state: "NOTPAY" })
+    })
+
     it("创建扫码支付成功", async () => {
       mockPrisma.order.findUnique.mockResolvedValue(mockOrder)
       mockPrisma.order.update.mockResolvedValue({ ...mockOrder })
       const result = await svc.createNativePayment("o1", "u1")
       expect(result.codeUrl).toBeDefined()
+      expect(mockRedis.del).toHaveBeenCalledWith("shop:order:o1")
+    })
+
+    it("重复进入时复用已缓存付款码，不向微信再建一笔", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...mockOrder, payTransactionId: "GX-old" })
+      mockRedis.getJson
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ codeUrl: "weixin://wxpay/existing", raw: { reused: true } })
+
+      const result = await svc.createNativePayment("o1", "u1")
+
+      expect(result.codeUrl).toBe("weixin://wxpay/existing")
+      expect(mockWechatPay.createNativeOrder).not.toHaveBeenCalled()
+      expect(mockRedis.setNX).not.toHaveBeenCalled()
+    })
+
+    it("付款码缓存失效时先关闭旧微信订单，再生成新码", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...mockOrder, payTransactionId: "GX-old" })
+      mockPrisma.order.update.mockResolvedValue({ ...mockOrder })
+
+      const result = await svc.createNativePayment("o1", "u1")
+
+      expect(mockWechatPay.closeOrder).toHaveBeenCalledWith("GX-old")
+      expect(mockWechatPay.createNativeOrder).toHaveBeenCalledTimes(1)
+      expect(result.codeUrl).toBe("weixin://wxpay/mock")
+    })
+
+    it("付款码生成锁冲突时拒绝创建第二笔", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue(mockOrder)
+      mockRedis.setNX.mockResolvedValueOnce(false)
+
+      await expect(svc.createNativePayment("o1", "u1")).rejects.toThrow("付款码正在生成")
+      expect(mockWechatPay.createNativeOrder).not.toHaveBeenCalled()
+    })
+
+    it("旧微信订单无法安全关单时不创建第二笔", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...mockOrder, payTransactionId: "GX-old" })
+      mockWechatPay.closeOrder.mockRejectedValueOnce(new Error("ORDERPAID"))
+      mockWechatPay.queryOrder.mockResolvedValueOnce({ trade_state: "USERPAYING" })
+
+      await expect(svc.createNativePayment("o1", "u1")).rejects.toThrow("原付款正在处理中")
+      expect(mockWechatPay.createNativeOrder).not.toHaveBeenCalled()
     })
 
     it("已支付订单不可重复支付", async () => {
@@ -168,6 +220,17 @@ describe("ShopPaymentService", () => {
 
       const data = tx.station.update.mock.calls[0][0].data
       expect(monthsBetween(new Date(), data.expireAt)).toBe(18)
+    })
+
+    it("支付回调遇到平台停用态只顺延有效期，不解除 DISABLED", async () => {
+      const tx = makeTx()
+      tx.station.findUnique.mockResolvedValue({ id: "st1", expireAt: null, status: "DISABLED" })
+
+      await (svc as any).processStationMasterPaid({ id: "o1", userId: "u1", targetId: "st1" }, tx)
+
+      const data = tx.station.update.mock.calls[0][0].data
+      expect(data.status).toBe("DISABLED")
+      expect(monthsBetween(new Date(), data.expireAt)).toBe(12)
     })
 
     it("分站不存在：记录错误但不抛（不阻断已成功的支付记账）", async () => {

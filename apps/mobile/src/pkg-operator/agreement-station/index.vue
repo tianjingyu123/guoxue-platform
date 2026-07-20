@@ -16,7 +16,7 @@
       <!-- 协议头 -->
       <view class="ag-head">
         <text class="ag-head-title">热卜国学站长服务协议</text>
-        <text class="ag-head-meta">版本：2026-07-01 · 最近更新：2026-07-01</text>
+        <text class="ag-head-meta">版本：2026-07-19 · 最近更新：2026-07-19</text>
       </view>
 
       <!-- 正文 -->
@@ -35,10 +35,10 @@
         </view>
 
         <view class="ag-sec">
-          <text class="ag-sh">三、系统使用费与减免</text>
+          <text class="ag-sh">三、系统使用费</text>
           <text class="ag-p">3.1 开通分站无准入门槛，站长需缴纳系统租赁费 <text class="ag-hl">999 元/年</text>。</text>
-          <text class="ag-p">3.2 <text class="ag-hl">续费减免</text>：若某年度内站长通过分站产生的累计收入达到系统租赁费的 5 倍及以上，则免除下一年度系统租赁费。</text>
-          <text class="ag-p">3.3 <text class="ag-hl">费用退还（仅限第一年）</text>：若第一年度内累计收入达到系统租赁费的 10 倍及以上，平台退还该年度已缴纳的系统租赁费。此退还条款仅适用于第一年。</text>
+          <text class="ag-p">3.2 当前在线开通与续费按服务端订单显示金额收取；支付成功后激活或顺延一年，未到期的剩余时间不会被扣除。</text>
+          <text class="ag-p">3.3 <text class="ag-hl">自动减免与原路退还当前尚未开放</text>，不构成本次付款条件。后续如上线相关权益，平台将另行公示并由用户确认适用规则。</text>
         </view>
 
         <view class="ag-sec">

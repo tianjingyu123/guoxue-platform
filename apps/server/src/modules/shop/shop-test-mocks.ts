@@ -65,6 +65,7 @@ export function makeMockPrisma(): any {
       if (Array.isArray(arg)) return Promise.all(arg);
       return arg(mockPrisma);
     }),
+    $queryRawUnsafe: jest.fn().mockResolvedValue([]),
     $executeRaw: jest.fn().mockResolvedValue(1),
     product: {
       create: jest.fn(),
@@ -91,6 +92,7 @@ export function makeMockPrisma(): any {
     },
     order: {
       create: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),

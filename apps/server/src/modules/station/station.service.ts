@@ -92,24 +92,82 @@ export class StationService {
 
   /** 用户自助申请开通分站 */
   async applyStation(userId: string, dto: ApplyStationDto) {
-    // 检查是否已有分站
-    const existing = await this.prisma.station.findFirst({ where: { userId } });
-    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "你已开通分站，无需重复申请");
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // userId/code 都有唯一索引；事务内先给出可读错误，数据库唯一约束继续做最终兜底。
+        const existing = await tx.station.findFirst({ where: { userId } });
+        if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "你已有分站，可直接继续支付或续费");
 
-    // 检查推广码是否已被占用
-    const codeExists = await this.prisma.station.findUnique({ where: { code: dto.code } });
-    if (codeExists) throw new BusinessException(ErrorCode.BAD_REQUEST, "推广码已被占用，请更换");
+        const codeExists = await tx.station.findUnique({ where: { code: dto.code } });
+        if (codeExists) throw new BusinessException(ErrorCode.BAD_REQUEST, "推广码已被占用，请更换");
 
-    return this.prisma.station.create({
-      data: {
-        userId,
-        name: dto.name,
-        code: dto.code,
-        intro: dto.intro,
-        logo: dto.logo,
-        status: "PENDING",
-      },
+        let operatorId: string | undefined;
+        if (dto.operatorId) {
+          const operator = await tx.operator.findUnique({
+            where: { id: dto.operatorId },
+            select: { id: true, status: true, expireAt: true, containQuota: true, usedQuota: true },
+          });
+          const now = new Date();
+          if (!operator || operator.status !== "ACTIVE" || (operator.expireAt && operator.expireAt <= now)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商邀请码无效或已过期");
+          }
+
+          // 真实 Station.operatorId 数量是配额真源；usedQuota 只作 CAS 镜像，创建时顺手校准历史漂移。
+          const actualUsed = await tx.station.count({ where: { operatorId: operator.id } });
+          const currentUsed = actualUsed;
+          if (operator.containQuota <= 0 || currentUsed >= operator.containQuota) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "该运营商的分站名额已用完");
+          }
+          const reserved = await tx.operator.updateMany({
+            where: { id: operator.id, status: "ACTIVE", usedQuota: operator.usedQuota },
+            data: { usedQuota: currentUsed + 1 },
+          });
+          if (reserved.count === 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商名额状态已变化，请刷新后重试");
+          }
+          operatorId = operator.id;
+        }
+
+        return tx.station.create({
+          data: {
+            userId,
+            name: dto.name,
+            code: dto.code,
+            intro: dto.intro,
+            logo: dto.logo,
+            status: "PENDING",
+            operatorId,
+          },
+        });
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "你已有分站或推广码已被占用，请刷新后重试");
+      }
+      throw error;
+    }
+  }
+
+  /** 公开校验运营商邀请，不返回用户身份或联系方式。 */
+  async getOperatorInvite(operatorId: string) {
+    const operator = await this.prisma.operator.findUnique({
+      where: { id: operatorId },
+      select: { id: true, brandName: true, status: true, expireAt: true, containQuota: true, usedQuota: true },
     });
+    const now = new Date();
+    if (!operator || operator.status !== "ACTIVE" || (operator.expireAt && operator.expireAt <= now)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商邀请码无效或已过期");
+    }
+    const actualUsed = await this.prisma.station.count({ where: { operatorId: operator.id } });
+    const used = actualUsed;
+    if (operator.containQuota <= 0 || used >= operator.containQuota) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该运营商的分站名额已用完");
+    }
+    return {
+      operatorId: operator.id,
+      operatorName: operator.brandName || "平台运营商",
+      availableQuota: operator.containQuota - used,
+    };
   }
 
   async updateStation(id: string, dto: UpdateStationDto) {
@@ -199,7 +257,7 @@ export class StationService {
     const customers = await this.insight.buildCustomerProfiles(
       relations.map((r) => ({ userId: r.userId, boundAt: r.createdAt })),
     );
-    return { customers, total };
+    return { customers, total, page, pageSize };
   }
 
   /** 单个归属客户的最近行为时间线（先校验归属关系，防越权窥探） */

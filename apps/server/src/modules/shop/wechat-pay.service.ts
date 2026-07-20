@@ -432,6 +432,15 @@ export class WechatPayService {
     return this.callApi("GET", `/v3/pay/transactions/out-trade-no/${outTradeNo}?mchid=${this.mchId}`);
   }
 
+  /** 关闭尚未支付的商户订单；微信确认关单成功后才允许生成新的付款码。 */
+  async closeOrder(outTradeNo: string) {
+    return this.callApi(
+      "POST",
+      "/v3/pay/transactions/out-trade-no/" + outTradeNo + "/close",
+      { mchid: this.mchId },
+    );
+  }
+
   /** 申请退款 */
   async refund(params: {
     outTradeNo?: string;

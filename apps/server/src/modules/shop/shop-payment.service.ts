@@ -106,38 +106,92 @@ export class ShopPaymentService {
       where: { id: orderId },
       data: { payTransactionId: outTradeNo },
     });
+    await this.redis.del("shop:order:" + orderId);
 
     return result.paySign;
   }
 
-  /** 创建Native扫码支付 */
+  /**
+   * 创建 Native 扫码支付。
+   * 同一本地订单在付款码有效期内复用同一码；缓存失效后必须先关掉旧微信订单，
+   * 防止用户重进页面生成多张都能扣款的二维码。
+   */
   async createNativePayment(orderId: string, userId: string, notifyUrl?: string) {
     const order = await this.orderSvc.getOrder(orderId);
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
     if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
-    // 无商户证书/密钥时 crypto 签名会抛裸 500 → 前置检查返回结构化 400
     if (!this.wechatPay.isConfigured) {
       throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
     }
 
-    const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
-    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+    const cacheKey = "shop:pay:native:" + orderId;
+    const cached = await this.redis.getJson<{ codeUrl?: string; raw?: unknown }>(cacheKey);
+    if (cached?.codeUrl) return cached;
 
-    const result = await this.wechatPay.createNativeOrder({
-      outTradeNo,
-      description: `国学平台订单-${orderId.slice(0, 8)}`,
-      amount: { total: totalFen },
-      attach: orderId,
-      notifyUrl,
-    });
+    const initLockKey = "pay:init:native:" + orderId;
+    const locked = await this.redis.setNX(initLockKey, "1", 60);
+    if (!locked) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "付款码正在生成，请稍后重试");
+    }
 
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { payTransactionId: outTradeNo },
-    });
+    try {
+      // 双检缓存：另一请求可能刚在抢锁前完成。
+      const cachedAfterLock = await this.redis.getJson<{ codeUrl?: string; raw?: unknown }>(cacheKey);
+      if (cachedAfterLock?.codeUrl) return cachedAfterLock;
 
-    return result;
+      if (order.payTransactionId) {
+        try {
+          await this.wechatPay.closeOrder(order.payTransactionId);
+        } catch (closeError) {
+          // 关单失败可能是用户刚好已支付：主动查单并补入账；其余状态宁可稍后重试，也不创建第二笔。
+          try {
+            const queried = await this.wechatPay.queryOrder(order.payTransactionId);
+            if (queried.trade_state === "SUCCESS") {
+              const handled = await this.handlePaymentNotify({
+                ...queried,
+                out_trade_no: order.payTransactionId,
+                trade_state: "SUCCESS",
+                attach: orderId,
+              });
+              if (handled) {
+                throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已支付，请勿重复付款");
+              }
+            }
+          } catch (queryError) {
+            if (queryError instanceof BusinessException && queryError.message.includes("订单已支付")) throw queryError;
+            this.logger.warn("旧付款单查单失败 order=" + orderId + ": " + (queryError as Error).message);
+          }
+          this.logger.warn("旧付款单关单失败 order=" + orderId + ": " + (closeError as Error).message);
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "原付款正在处理中，请稍后重试");
+        }
+      }
+
+      // 首次发起使用订单 ID 派生的确定性商户号：即使 Redis 完全不可用，多实例并发也只能命中同一微信订单。
+      // 旧单已安全关单后的重新发起才换新商户号。
+      const outTradeNo = order.payTransactionId
+        ? "GX" + Date.now() + orderId.slice(0, 8)
+        : "GX" + String(orderId).replace(/[^A-Za-z0-9]/g, "").slice(0, 30);
+      const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+      const result = await this.wechatPay.createNativeOrder({
+        outTradeNo,
+        description: "国学平台订单-" + orderId.slice(0, 8),
+        amount: { total: totalFen },
+        attach: orderId,
+        notifyUrl,
+      });
+
+      // 先缓存付款码再写本地交易号：即便数据库瞬时失败，重试也会复用同一码，避免生成第二笔渠道订单。
+      await this.redis.setJson(cacheKey, result, 110 * 60);
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { payTransactionId: outTradeNo },
+      });
+      await this.redis.del("shop:order:" + orderId);
+      return result;
+    } finally {
+      await this.redis.del(initLockKey);
+    }
   }
 
   /**
@@ -176,6 +230,7 @@ export class ShopPaymentService {
       where: { id: orderId },
       data: { payTransactionId: outTradeNo },
     });
+    await this.redis.del("shop:order:" + orderId);
 
     return { mwebUrl: result.h5Url, outTradeNo };
   }
@@ -499,6 +554,12 @@ export class ShopPaymentService {
       const processor = this.paidPostProcessors[order.type];
       if (processor) await processor(order as Order, tx);
     });
+    // 入账后立即清掉下单/支付阶段缓存；否则前端两分钟轮询会被五分钟 PENDING 缓存遮住。
+    await Promise.all([
+      this.redis.del("shop:order:" + order.id),
+      this.redis.del("shop:pay:native:" + order.id),
+      this.redis.delByPattern("shop:userOrders:" + order.userId + ":*"),
+    ]);
     // 拼团订单：支付成功后结算成团（事务外独立处理，失败不影响支付主流程）
     await this.orderSvc.settleGroupBuyIfNeeded(order.id).catch((e) => this.logger.error(`拼团成团结算失败 order=${order.id}`, e));
   }
@@ -590,7 +651,8 @@ export class ShopPaymentService {
     await tx.station.update({
       where: { id: station.id },
       data: {
-        status: "ACTIVE",
+        // 管理端 DISABLED 是治理状态，已发起支付的竞态回调只能顺延权益，绝不能替站长解除停用。
+        status: station.status === "DISABLED" ? "DISABLED" : "ACTIVE",
         expireAt: this.calcRenewedExpiry(station.expireAt, months),
       },
     });
