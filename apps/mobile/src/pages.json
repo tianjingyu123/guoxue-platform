@@ -2390,12 +2390,6 @@
           }
         },
         {
-          "path": "applications/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "submissions/index",
           "style": {
             "navigationStyle": "custom"

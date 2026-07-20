@@ -62,6 +62,12 @@ export class BaziCaseController {
 
   // ── 我的投稿（登录）──
 
+  @Get("reward-plan")
+  @ApiOperation({ summary: "案例投稿当前奖励方案（配置不完整时明确停用）" })
+  rewardPlan() {
+    return this.svc.rewardPlan();
+  }
+
   @Get("mine")
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

@@ -61,6 +61,12 @@ export interface BaziCaseItem {
   sameCount?: number
 }
 
+export interface CaseRewardPlan {
+  enabled: boolean
+  tiers: { key: 'basic' | 'good' | 'premium'; minQuality: number; amount: number | null }[]
+  note: string
+}
+
 export interface LifeEvent {
   year: number
   ganzhi?: string
@@ -146,6 +152,10 @@ export const caseApi = {
     return apiGet<{ items: (BaziCaseItem & { status: string; reviewNote?: string })[]; approved: number; total: number; badge: string | null }>(
       '/bazi-cases/mine',
     )
+  },
+
+  rewardPlan() {
+    return apiGet<CaseRewardPlan>('/bazi-cases/reward-plan')
   },
 
   leaderboard(limit = 20) {

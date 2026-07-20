@@ -49,6 +49,7 @@ describe("BaziCaseService", () => {
         findUnique: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         create: jest.fn().mockImplementation(({ data }: any) => Promise.resolve({ id: "new", ...data })),
         count: jest.fn().mockResolvedValue(0),
         groupBy: jest.fn().mockResolvedValue([]),
@@ -58,8 +59,9 @@ describe("BaziCaseService", () => {
         upsert: jest.fn(),
         update: jest.fn(),
       },
-      commissionConfig: { findUnique: jest.fn() },
+      commissionConfig: { findUnique: jest.fn(), findMany: jest.fn() },
       user: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn(async (fn: (tx: any) => Promise<unknown>) => fn(prisma)),
     };
     coin = { income: jest.fn().mockResolvedValue({}) };
 
@@ -217,6 +219,37 @@ describe("BaziCaseService", () => {
     });
   });
 
+  describe("投稿奖励公开方案", () => {
+    it("三档配置齐全且均为正数才启用，并按真实配置返回", async () => {
+      prisma.commissionConfig.findMany.mockResolvedValue([
+        { configKey: "case_reward_basic", rateA: 20 },
+        { configKey: "case_reward_good", rateA: 60 },
+        { configKey: "case_reward_premium", rateA: 150 },
+      ]);
+
+      const result = await svc.rewardPlan();
+
+      expect(result.enabled).toBe(true);
+      expect(result.tiers.map((item) => item.amount)).toEqual([20, 60, 150]);
+      expect(prisma.commissionConfig.findMany).toHaveBeenCalledWith({
+        where: { configKey: { in: ["case_reward_basic", "case_reward_good", "case_reward_premium"] } },
+        select: { configKey: true, rateA: true },
+      });
+    });
+
+    it("任一档缺失时整套停用，不向前端暴露部分奖励承诺", async () => {
+      prisma.commissionConfig.findMany.mockResolvedValue([
+        { configKey: "case_reward_basic", rateA: 20 },
+        { configKey: "case_reward_good", rateA: 60 },
+      ]);
+
+      const result = await svc.rewardPlan();
+
+      expect(result.enabled).toBe(false);
+      expect(result.tiers.every((item) => item.amount === null)).toBe(true);
+    });
+  });
+
   describe("审核与发币", () => {
     it("通过 → 按质量档发币，金额取自配置（不硬编码）", async () => {
       prisma.baziCase.findUnique.mockResolvedValue({ ...CASE, status: "PENDING", quality: 90 });
@@ -228,7 +261,9 @@ describe("BaziCaseService", () => {
       expect(coin.income).toHaveBeenCalledWith(
         "u9",
         expect.objectContaining({ amountCoin: 150, scene: "CASE_CONTRIBUTION", refId: "c1" }),
+        prisma,
       );
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(r.rewarded).toBe(150);
     });
 
@@ -249,6 +284,31 @@ describe("BaziCaseService", () => {
 
       expect(coin.income).not.toHaveBeenCalled();
       expect(r.rewarded).toBe(0);
+    });
+
+    it("并发审核只有抢占旧状态成功的一方可发币", async () => {
+      prisma.baziCase.findUnique.mockResolvedValue({ ...CASE, status: "PENDING", quality: 90 });
+      prisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 150 });
+      prisma.baziCase.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(svc.approve("admin1", "c1")).rejects.toThrow("案例状态已变化");
+      expect(coin.income).not.toHaveBeenCalled();
+    });
+
+    it("发币失败会让审核事务失败，避免状态先成功", async () => {
+      prisma.baziCase.findUnique.mockResolvedValue({ ...CASE, status: "PENDING", quality: 90 });
+      prisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 150 });
+      coin.income.mockRejectedValue(new Error("coin failed"));
+
+      await expect(svc.approve("admin1", "c1")).rejects.toThrow("coin failed");
+      expect(coin.income).toHaveBeenCalledWith("u9", expect.any(Object), prisma);
+    });
+
+    it("已发放奖励的案例不能再改为未收录", async () => {
+      prisma.baziCase.findUnique.mockResolvedValue({ status: "APPROVED" });
+
+      await expect(svc.reject("admin1", "c1", "改判")).rejects.toThrow("不能改为未收录");
+      expect(prisma.baziCase.updateMany).not.toHaveBeenCalled();
     });
 
     it("平台自己整理的案例（非 USER）不发币", async () => {

@@ -8,13 +8,13 @@
  * 合规：真人经历是敏感信息，投稿的往往还是别人的八字。
  *   授权勾选是硬门槛（后端也会拒收未授权的），姓名一律不收（后端强制匿名）。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
 import { navigateBack } from '@/utils/router'
-import { caseApi, LIFE_DIMENSIONS, type LifeEvent } from '@/pkg-paipan/lib/case-data'
+import { caseApi, LIFE_DIMENSIONS, type CaseRewardPlan, type LifeEvent } from '@/pkg-paipan/lib/case-data'
 import { computeBazi } from '@/pkg-paipan/lib/bazi-engine'
 
 const GANS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸']
@@ -75,7 +75,29 @@ const quality = computed(() => {
   return Math.max(0, Math.min(100, s))
 })
 const tier = computed(() => (quality.value >= 80 ? '精品档' : quality.value >= 50 ? '良好档' : '基础档'))
-const reward = computed(() => (quality.value >= 80 ? 150 : quality.value >= 50 ? 60 : 20))
+const rewardPlan = ref<CaseRewardPlan | null>(null)
+const reward = computed<number | null>(() => {
+  if (!rewardPlan.value?.enabled) return null
+  const ordered = [...rewardPlan.value.tiers].sort((a, b) => b.minQuality - a.minQuality)
+  return ordered.find((item) => quality.value >= item.minQuality)?.amount ?? null
+})
+
+onMounted(async () => {
+  try {
+    rewardPlan.value = await caseApi.rewardPlan()
+  } catch {
+    rewardPlan.value = {
+      enabled: false,
+      tiers: [],
+      note: '奖励方案暂时无法确认，当前页面不承诺国学币奖励',
+    }
+  }
+})
+
+const rewardHint = computed(() => reward.value == null
+  ? (rewardPlan.value?.note || '奖励方案读取中，最终以审核通过时的平台配置为准')
+  : `当前方案约 ${reward.value} 国学币，最终以审核通过时的平台配置为准。`,
+)
 
 const canSubmit = computed(() => {
   const p = finalPillars.value
@@ -128,7 +150,7 @@ async function submit() {
     })
     uni.showModal({
       title: '投稿已提交',
-      content: `质量评级：${res.quality >= 80 ? '精品档' : res.quality >= 50 ? '良好档' : '基础档'}。\n审核通过后发放国学币，可在「我的投稿」查看进度。`,
+      content: `质量评级：${res.quality >= 80 ? '精品档' : res.quality >= 50 ? '良好档' : '基础档'}。\n平台将核验内容与授权信息，可在「我的投稿」查看进度。`,
       showCancel: false,
       success: () => navigateBack(),
     })
@@ -142,7 +164,7 @@ async function submit() {
 
 <template>
   <view class="sb">
-    <ToolHeader title="投稿案例" subtitle="真实经历 · 采纳有奖" />
+    <ToolHeader title="投稿案例" subtitle="真实经历 · 匿名收录" />
 
     <scroll-view class="sb-body" scroll-y :show-scrollbar="false">
       <!-- 收什么 -->
@@ -301,7 +323,7 @@ async function submit() {
           </view>
           <view class="sb-quality-body">
             <text class="sb-quality-tier">{{ tier }}</text>
-            <text class="sb-quality-hint">审核通过后可得 {{ reward }} 国学币。补上大事年表能显著提高评级。</text>
+            <text class="sb-quality-hint">{{ rewardHint }} 补上大事年表能显著提高评级。</text>
           </view>
         </view>
       </PaperCard>
@@ -321,7 +343,7 @@ async function submit() {
       <view class="sb-btn" :class="{ 'sb-btn--off': !canSubmit }" @tap="submit">
         <text class="sb-btn-txt">{{ submitting ? '提交中…' : '提交投稿' }}</text>
       </view>
-      <text class="sb-foot">提交后由平台审核，通过即收录并发放国学币</text>
+      <text class="sb-foot">提交后由平台审核，通过后匿名收录；奖励以审核通过时的平台方案为准</text>
 
       <view class="sb-space" />
     </scroll-view>

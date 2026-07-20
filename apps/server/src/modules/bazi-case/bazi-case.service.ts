@@ -321,6 +321,36 @@ export class BaziCaseService {
     });
   }
 
+  /** 投稿奖励方案：三档配置必须同时存在且均为正数，否则整套方案停用，避免部分档位误导。 */
+  async rewardPlan() {
+    const definitions = [
+      { key: "basic" as const, configKey: "case_reward_basic", minQuality: 0 },
+      { key: "good" as const, configKey: "case_reward_good", minQuality: 50 },
+      { key: "premium" as const, configKey: "case_reward_premium", minQuality: 80 },
+    ];
+    const rows = await this.prisma.commissionConfig.findMany({
+      where: { configKey: { in: definitions.map((item) => item.configKey) } },
+      select: { configKey: true, rateA: true },
+    });
+    const amountMap = new Map(rows.map((row) => [row.configKey, Number(row.rateA)]));
+    const enabled = definitions.every((item) => {
+      const amount = amountMap.get(item.configKey);
+      return Number.isFinite(amount) && Number(amount) > 0;
+    });
+
+    return {
+      enabled,
+      tiers: definitions.map((item) => ({
+        key: item.key,
+        minQuality: item.minQuality,
+        amount: enabled ? amountMap.get(item.configKey)! : null,
+      })),
+      note: enabled
+        ? "最终奖励以审核通过时的平台配置为准"
+        : "奖励方案尚未配置完整，当前投稿不承诺国学币奖励",
+    };
+  }
+
   /** 我的投稿 */
   async myContributions(userId: string) {
     const items = await this.prisma.baziCase.findMany({
@@ -385,31 +415,50 @@ export class BaziCaseService {
     if (!c) throw new BusinessException(ErrorCode.NOT_FOUND, "案例不存在");
     if (c.status === "APPROVED") return { id, status: "APPROVED", rewarded: 0, note: "已审核通过，未重复发币" };
 
-    await this.prisma.baziCase.update({
-      where: { id },
-      data: { status: "APPROVED", reviewedAt: new Date(), reviewedBy: adminId, reviewNote: note ?? null },
+    const amount = c.source === "USER" && c.contributorId ? await this.rewardOf(c.quality) : 0;
+    const rewarded = await this.prisma.$transaction(async (tx) => {
+      // 乐观锁抢占本次审核。两个管理员同时点击时，只有一个能把读取到的旧状态改为 APPROVED。
+      const claimed = await tx.baziCase.updateMany({
+        where: { id, status: c.status },
+        data: { status: "APPROVED", reviewedAt: new Date(), reviewedBy: adminId, reviewNote: note ?? null },
+      });
+      if (claimed.count === 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "案例状态已变化，请刷新后重试");
+      }
+
+      // 状态与奖励必须同事务：发币失败就回滚 APPROVED，避免“已收录但没收到奖励”。
+      if (amount > 0 && c.contributorId) {
+        await this.coin.income(
+          c.contributorId,
+          {
+            amountCoin: amount,
+            scene: "CASE_CONTRIBUTION",
+            refId: id,
+            description: `案例投稿采纳奖励（${tierName(c.quality)}）`,
+          },
+          tx,
+        );
+      }
+      return amount;
     });
 
-    if (c.source !== "USER" || !c.contributorId) return { id, status: "APPROVED", rewarded: 0 };
-
-    const amount = await this.rewardOf(c.quality);
-    if (amount > 0) {
-      await this.coin.income(c.contributorId, {
-        amountCoin: amount,
-        scene: "CASE_CONTRIBUTION",
-        refId: id,
-        description: `案例投稿采纳奖励（${tierName(c.quality)}）`,
-      });
-    }
-
-    return { id, status: "APPROVED", rewarded: amount };
+    return { id, status: "APPROVED", rewarded };
   }
 
   async reject(adminId: string, id: string, note: string) {
-    await this.prisma.baziCase.update({
-      where: { id },
+    const c = await this.prisma.baziCase.findUnique({ where: { id }, select: { status: true } });
+    if (!c) throw new BusinessException(ErrorCode.NOT_FOUND, "案例不存在");
+    if (c.status === "APPROVED") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "案例已审核通过并可能发放奖励，不能改为未收录");
+    }
+
+    const claimed = await this.prisma.baziCase.updateMany({
+      where: { id, status: c.status },
       data: { status: "REJECTED", reviewedAt: new Date(), reviewedBy: adminId, reviewNote: note },
     });
+    if (claimed.count === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "案例状态已变化，请刷新后重试");
+    }
     return { id, status: "REJECTED" };
   }
 

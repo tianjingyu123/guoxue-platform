@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo, toastComingSoon } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 import {
   profileApi, getGreeting, roleHref, type UserRole,
 } from '@/lib/profile-data'
@@ -124,7 +124,7 @@ const orderStatus = computed(() => [
    笔记 / 直播 / 申请 / 收货地址 / 创作中心 / 讲师工作台 / 资质 ——
    这些页面全是"做完了但没人跳得进去"的孤岛，用户体感就是"这个没做"。
    （lib/profile-data 里那份 quickFunctions 是死常量、没人读，已删。） */
-const matrixItems: { icon: string; label: string; href?: string; star?: boolean; comingSoon?: boolean }[] = [
+const matrixItems: { icon: string; label: string; href: string; star?: boolean }[] = [
   { icon: 'compass', label: '我的排盘记录', href: '/paipan', star: true },
   { icon: 'book-open', label: '我的课程', href: '/courses/my-learning' },
   // 我的圈子 → 圈子板块「我的」门户 /pkg-circle/circles/me（与圈子页右上角头像入口指向同一页）
@@ -142,7 +142,7 @@ const matrixItems: { icon: string; label: string; href?: string; star?: boolean;
   { icon: 'radio', label: '我的直播', href: '/pkg-live/manage/index' },
   { icon: 'award', label: '讲师工作台', href: '/pkg-creator/teacher-dashboard/index' },
   { icon: 'shield-check', label: '我的资质', href: '/pkg-creator/my-qualifications/index' },
-  { icon: 'clipboard-list', label: '我的申请', href: '/mine/applications' },
+  { icon: 'clipboard-list', label: '我的投稿', href: '/mine/submissions' },
   // 收货地址此前全项目零入口：买了实体商品的用户只能在结算时被动选，改不了地址
   { icon: 'map-pin', label: '收货地址', href: '/shop/addresses' },
 ]
@@ -350,7 +350,7 @@ function applyRole(role: string) {
 
     <!-- ===== ⑤ 我的内容矩阵（4 列 × 4 行·个人中心的入口集散地） ===== -->
     <view class="matrix">
-      <view v-for="m in matrixItems" :key="m.label" class="m-item tap-press" :class="{ star: m.star }" @tap="m.comingSoon ? toastComingSoon() : go(m.href)">
+      <view v-for="m in matrixItems" :key="m.label" class="m-item tap-press" :class="{ star: m.star }" @tap="go(m.href)">
         <view class="m-icon">
           <AppIcon :name="m.icon" :size="40" :color="m.star ? '#B4884A' : '#2B2620'" />
           <view v-if="m.star" class="m-star-dot" />

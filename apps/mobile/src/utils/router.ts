@@ -265,7 +265,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/mine/learning-dashboard': '/pkg-mine/learning-dashboard/index',
   '/mine/follows': '/pkg-mine/follows/index',
   '/mine/downloads': '/pkg-mine/downloads/index',
-  '/mine/applications': '/pkg-mine/applications/index',
   '/mine/submissions': '/pkg-mine/submissions/index',
   // 帮助与反馈 / 关于我们（设置主页"其他"分区）
   '/feedback': '/pkg-mine/feedback/index',

@@ -112,6 +112,10 @@ function goSubmit() {
   navigateTo('/pkg-paipan/cases/submit')
 }
 
+function goMine() {
+  navigateTo('/mine/submissions')
+}
+
 const emptyText = computed(() =>
   keyword.value || source.value ? '没有匹配的案例' : '案例库还在积累中',
 )
@@ -159,9 +163,13 @@ const emptyText = computed(() =>
           </view>
         </view>
 
-        <view v-if="myBadge" class="cs-badge">
-          <AppIcon name="award" :size="16" color="#B8912F" />
-          <text class="cs-badge-txt">{{ myBadge }} · 已采纳 {{ myApproved }} 篇</text>
+        <view class="cs-mine" @tap="goMine">
+          <view class="cs-mine-icon"><AppIcon name="file-text" :size="18" color="#A6342C" /></view>
+          <view class="cs-mine-copy">
+            <text class="cs-mine-title">{{ myBadge ? `${myBadge} · 已收录 ${myApproved} 篇` : '我的投稿' }}</text>
+            <text class="cs-mine-sub">查看审核进度、收录结果与审核说明</text>
+          </view>
+          <AppIcon name="chevron-right" :size="18" color="#9A8C7E" />
         </view>
 
         <scroll-view class="cs-srcs" scroll-x :show-scrollbar="false">
@@ -226,7 +234,7 @@ const emptyText = computed(() =>
         <PaperCard padding="lg">
           <view class="cs-intro">
             <AppIcon name="award" :size="20" color="#B8912F" />
-            <text class="cs-intro-txt">案例库靠同好共建。投稿采纳后有国学币，累计采纳可得称号（铜 5 · 银 20 · 金 50）。</text>
+            <text class="cs-intro-txt">案例库靠同好共建。投稿通过后匿名进入案例库，累计收录可得称号（铜 5 · 银 20 · 金 50）；奖励以审核通过时的平台方案为准。</text>
           </view>
         </PaperCard>
 
@@ -354,19 +362,29 @@ const emptyText = computed(() =>
   font-weight: 600;
 }
 
-.cs-badge {
+.cs-mine {
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: 14rpx;
+  min-height: 88rpx;
   padding: 12rpx 20rpx;
-  border-radius: 10rpx;
-  background: rgba(212, 175, 55, 0.1);
+  box-sizing: border-box;
+  border-radius: 14rpx;
+  background: #fffaf2;
+  border: 1rpx solid rgba(166, 52, 44, 0.14);
 }
-.cs-badge-txt {
-  font-size: 23rpx;
-  color: #b8912f;
-  font-weight: 600;
+.cs-mine-icon {
+  width: 54rpx;
+  height: 54rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx 8rpx 14rpx 9rpx;
+  background: rgba(166, 52, 44, 0.08);
 }
+.cs-mine-copy { flex: 1; min-width: 0; }
+.cs-mine-title { display: block; font-size: 24rpx; color: #3a2a1e; font-weight: 700; }
+.cs-mine-sub { display: block; margin-top: 3rpx; font-size: 20rpx; color: #9a8c7e; }
 
 .cs-srcs {
   white-space: nowrap;
