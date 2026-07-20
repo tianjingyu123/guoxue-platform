@@ -77,7 +77,7 @@ const perUsePrice = computed(() => {
 async function refreshQuota() {
   if (!agentId.value) return
   try {
-    quota.value = await botApi.getQuota(agentId.value)
+    quota.value = await botApi.getQuota(agentId.value, true)
   } catch (_e) {
     quota.value = null
   }
@@ -112,18 +112,18 @@ async function loadData() {
       conversationId.value = convId
       agentApi.setConversation(id, convId)
       try {
-        const hist = await agentApi.getChatHistory(id, convId)
+        const hist = await agentApi.getChatHistory(id, convId, true)
         if (hist.length) messages.value = hist
       } catch (_e) { /* 历史拉取失败：保持欢迎语，不造假 */ }
     } else {
       // ② 直接点智能体进入：自动接上该智能体的最近一次会话（退出再进能续上，不是每次全新对话）
       try {
-        const list = await agentApi.getHistory()
+        const list = await agentApi.getHistory(true)
         const last = list.find((h) => h.botConfigId === id)
         if (last?.conversationId) {
           conversationId.value = last.conversationId
           agentApi.setConversation(id, last.conversationId)
-          const hist = await agentApi.getChatHistory(id, last.conversationId)
+          const hist = await agentApi.getChatHistory(id, last.conversationId, true)
           if (hist.length) messages.value = hist
         }
       } catch (_e) { /* 无历史或拉取失败：保持欢迎语开新会话 */ }

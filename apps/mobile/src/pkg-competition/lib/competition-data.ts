@@ -4,7 +4,7 @@
  * 列表端点经 ResponseInterceptor 拆包 → apiGetPaged 取 .items；对象端点 apiGet。
  * id 为 cuid 字符串。金额单位为「分」。
  */
-import { apiGet, apiGetPaged, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiGetPaged, apiPost } from '@/utils/request'
 
 // ─────────── 后端枚举 ───────────
 export type CompetitionStatus = 'DRAFT' | 'PUBLISHED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
@@ -340,8 +340,10 @@ export const competitionApi = {
     return apiGetPaged<TalentItem>(`/competitions/talents?${q.toString()}`)
   },
   /** 我的战绩档案（登录） */
-  myTalent() {
-    return apiGet<MyTalentProfile>('/competitions/talents/me')
+  myTalent(optionalAuth = false) {
+    return optionalAuth
+      ? apiGetOptionalAuth<MyTalentProfile>('/competitions/talents/me')
+      : apiGet<MyTalentProfile>('/competitions/talents/me')
   },
   /** 电子证书 HTML（公开，返回 base64） */
   async certificateHtml(rankingId: string): Promise<string> {

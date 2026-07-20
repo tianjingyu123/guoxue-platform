@@ -4,7 +4,7 @@
  * 注：后端达人模型只有「角色 + 提问价/连麦价 + 响应时限」，原型臆想的评分/专长标签/
  *     在线状态/累计咨询数 后端无支撑，已按数据流铁律去除（不展示假数据）。
  */
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 import { getStorage } from '@/utils/storage'
 
 export interface ConsultExpert {
@@ -61,7 +61,7 @@ export const consultApi = {
     const ids = expertIds.filter(Boolean)
     if (!ids.length) return {}
     try {
-      const res = await apiGet<Record<string, ExpertRatingStat>>(
+      const res = await apiGetOptionalAuth<Record<string, ExpertRatingStat>>(
         `/consult-calls/expert-stats?expertIds=${encodeURIComponent(ids.join(','))}`,
       )
       return res && typeof res === 'object' ? res : {}

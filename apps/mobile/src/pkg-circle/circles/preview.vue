@@ -76,12 +76,12 @@ async function loadData() {
     const essence = p.data.filter((x) => x.isEssence)
     previewPosts.value = [...essence, ...p.data.filter((x) => !x.isEssence)].slice(0, 2)
     if (isLoggedIn()) {
-      const st = await circleDetailApi.getJoinStatus(circleId.value)
+      const st = await circleDetailApi.getJoinStatus(circleId.value, true)
       isJoined.value = st.joined
       // 待审核态跨会话回填（与详情页同口径）：有本圈 PENDING 申请 → 按钮持久「申请已提交 · 查看进度」
       if (!st.joined) {
         try {
-          const reqs = await growthApi.myJoinRequests()
+          const reqs = await growthApi.myJoinRequests(true)
           applied.value = reqs.some((r) => r.status === 'PENDING' && String(r.circleId) === String(circleId.value))
         } catch { /* 拉取失败保持会话内状态 */ }
       }

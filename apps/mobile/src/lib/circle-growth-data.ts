@@ -2,7 +2,7 @@
  * 圈子成长体系 数据层（真连 growth 后端：签到 / 成长等级 / 徽章 / 入圈审批）
  * 后端路由挂在 circles/:id 下。后端无的字段降级隐藏，不造假。
  */
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 // ── 类型 ────────────────────────────────────────────
 
@@ -199,8 +199,11 @@ export const growthApi = {
     apiPost(`/circles/${circleId}/join-requests/${reqId}/review`, { action, rejectReason }),
 
   /** 我的入圈申请列表（申请人视角） — GET /circles/my-join-requests */
-  myJoinRequests: async (): Promise<MyJoinRequestItem[]> => {
-    return pickArray(await apiGet<RawMyJoinRequest[] | { data?: RawMyJoinRequest[] }>(`/circles/my-join-requests`)).map((x) => ({
+  myJoinRequests: async (optionalAuth = false): Promise<MyJoinRequestItem[]> => {
+    const rows = optionalAuth
+      ? await apiGetOptionalAuth<RawMyJoinRequest[] | { data?: RawMyJoinRequest[] }>('/circles/my-join-requests')
+      : await apiGet<RawMyJoinRequest[] | { data?: RawMyJoinRequest[] }>('/circles/my-join-requests')
+    return pickArray(rows).map((x) => ({
       id: x.id,
       circleId: x.circleId,
       status: x.status,

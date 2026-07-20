@@ -139,7 +139,7 @@ function saveProgressThrottled() {
   lastSaveTs = now
   const pct = Math.min(100, Math.round((currentTime.value / duration.value) * 100))
   if (pct <= 0) return
-  courseApi.saveProgress(currentLessonId.value, pct).catch(() => { /* 静默：进度回写失败不打断播放 */ })
+  courseApi.saveProgress(currentLessonId.value, pct, true).catch(() => { /* 静默：进度回写失败不打断播放 */ })
 }
 // 视频态进度轨点击跳转（保守：只做 tap 定位，touchmove 拖动不做）
 function onTrackTap(e: any) {
@@ -245,7 +245,7 @@ function onArticleDone() {
 async function refreshProgress() {
   if (!courseId.value) return
   try {
-    const p = await courseApi.getProgress(courseId.value)
+    const p = await courseApi.getProgress(courseId.value, true)
     if (p.totalLessons > 0 && p.completedLessons >= p.totalLessons) {
       completedAll.value = true
       showCongrats.value = true

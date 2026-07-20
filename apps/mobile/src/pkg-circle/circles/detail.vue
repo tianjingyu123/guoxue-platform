@@ -172,9 +172,9 @@ async function loadData() {
       circleDetailApi.lives(circleId.value),
       circleDetailApi.products(circleId.value),
       circleDetailApi.postedArticles(circleId.value),
-      isLoggedIn() ? circleDetailApi.getJoinStatus(circleId.value) : Promise.reject(new Error('未登录')),
+      isLoggedIn() ? circleDetailApi.getJoinStatus(circleId.value, true) : Promise.reject(new Error('未登录')),
       // 我的入圈申请（GET /circles/my-join-requests）：待审核态跨会话回填——此前 applied 仅会话内，重进页面按钮退回"申请加入"
-      isLoggedIn() ? growthApi.myJoinRequests() : Promise.reject(new Error('未登录')),
+      isLoggedIn() ? growthApi.myJoinRequests(true) : Promise.reject(new Error('未登录')),
     ])
     posts.value = p.status === 'fulfilled' ? p.value.data : []
     members.value = m.status === 'fulfilled' ? m.value.data : []

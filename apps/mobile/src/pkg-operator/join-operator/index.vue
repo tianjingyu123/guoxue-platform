@@ -71,10 +71,10 @@ async function fetchData() {
     currentOperator.value = null
     if (getToken()) {
       try {
-        currentOperator.value = await operatorApi.getCurrentOperator()
+        currentOperator.value = await operatorApi.getCurrentOperator(true)
       } catch (e) {
         const message = (e as Error)?.message || ''
-        if (!/运营商|不是|未找到/.test(message)) throw e
+        if (!/运营商|不是|未找到|未登录|登录已过期/.test(message)) throw e
       }
     }
   } catch (e) {

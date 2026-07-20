@@ -1,7 +1,7 @@
 // ============ 直播板块(live) mock 数据（从原型 app/live 迁移） ============
 // 说明：原型封面/头像为 mock 配图，dev 下回退占位；此处统一用 /marketing 占位路径，比对时会被中和
 
-import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost, apiPostOptionalAuth, apiPut, apiDelete } from '@/utils/request'
 
 export type LiveStatus = 'live' | 'upcoming' | 'replay'
 export type LiveType = 'knowledge' | 'commerce'
@@ -2107,7 +2107,7 @@ export const liveApi = {
    */
   async reportCircleChannelClick(circleId: string): Promise<void> {
     if (!circleId) return
-    try { await apiPost('/commission/channel-click', { subjectType: 'CIRCLE', subjectId: circleId, targetType: 'SHOP_ALL' }) } catch { /* 静默 */ }
+    try { await apiPostOptionalAuth('/commission/channel-click', { subjectType: 'CIRCLE', subjectId: circleId, targetType: 'SHOP_ALL' }) } catch { /* 静默 */ }
   },
 
   /**
@@ -2117,7 +2117,7 @@ export const liveApi = {
   async getGifts(): Promise<{ gifts: LiveGift[]; balance: number }> {
     const [rawGifts, bal] = await Promise.all([
       apiGet<RawGift[] | { items?: RawGift[]; gifts?: RawGift[] }>('/live/gifts').catch(() => [] as RawGift[]),
-      apiGet<RawCoinBalance>('/coin/balance').catch(() => null),
+      apiGetOptionalAuth<RawCoinBalance>('/coin/balance').catch(() => null),
     ])
     const arr = Array.isArray(rawGifts) ? rawGifts : (rawGifts?.items ?? rawGifts?.gifts ?? [])
     return { gifts: arr.map(adaptGift), balance: Number(bal?.balance) || 0 }

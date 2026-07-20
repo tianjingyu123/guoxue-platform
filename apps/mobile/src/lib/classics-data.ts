@@ -1,5 +1,5 @@
 import type { CoverColor } from '@/lib/classics-cover'
-import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiGetPaged, apiPost, apiPut, apiPutOptionalAuth, apiDelete } from '@/utils/request'
 import { BRAND } from '@/lib/brand'
 
 // ===================== 首页 classics/home =====================
@@ -775,7 +775,7 @@ export const classicsApi = {
     return await apiDelete<unknown>(`/classic/favorites/${bookId}`)
   },
   async favoriteStatus(bookId: string): Promise<{ favorited: boolean }> {
-    return await apiGet<{ favorited: boolean }>(`/classic/favorites/${bookId}/status`)
+    return await apiGetOptionalAuth<{ favorited: boolean }>(`/classic/favorites/${bookId}/status`)
   },
 
   /** 合集详情（后端暂无数据源→null 走空态） */
@@ -838,7 +838,7 @@ export const classicsApi = {
     messageCount?: number
     messages: { role: string; content: string; chapterId?: string | null; createdAt?: string }[]
   }> {
-    return await apiGet<{
+    return await apiGetOptionalAuth<{
       bookId: string
       hasMemory: boolean
       messageCount?: number
@@ -851,11 +851,14 @@ export const classicsApi = {
   },
 
   // ── 阅读进度（需登录） ──
-  async getProgress(bookId: string) {
-    return await apiGet<unknown>(`/classic/progress/${bookId}`)
+  async getProgress(bookId: string, optionalAuth = false) {
+    const path = `/classic/progress/${bookId}`
+    return optionalAuth ? await apiGetOptionalAuth<unknown>(path) : await apiGet<unknown>(path)
   },
-  async saveProgress(bookId: string, chapterId: string, progress: number) {
-    return await apiPut<unknown>(`/classic/progress/${bookId}`, { chapterId, progress })
+  async saveProgress(bookId: string, chapterId: string, progress: number, optionalAuth = false) {
+    const path = `/classic/progress/${bookId}`
+    const data = { chapterId, progress }
+    return optionalAuth ? await apiPutOptionalAuth<unknown>(path, data) : await apiPut<unknown>(path, data)
   },
   async continueReading(limit = 20) {
     return await apiGet<unknown>(`/classic/continue-reading?limit=${limit}`)

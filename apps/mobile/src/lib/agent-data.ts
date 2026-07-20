@@ -9,7 +9,7 @@
  * - 推荐内容(课程/圈子/商品) 与「用户全部对话历史」后端无对应端点 → 返回空数组走空态。
  * - 失败直接 throw，让页面走 error 态，禁止 catch 返回假回复。
  */
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 export interface ChatMessage {
   id: number
@@ -244,8 +244,11 @@ export const agentApi = {
   },
 
   /** 拉取某会话的历史消息 —— GET /bots/:id/chat-history/:conversationId（续聊回填） */
-  async getChatHistory(agentId: string, conversationId: string): Promise<ChatMessage[]> {
-    const res = await apiGet<RawChatHistoryMsg[]>(`/bots/${agentId}/chat-history/${encodeURIComponent(conversationId)}`)
+  async getChatHistory(agentId: string, conversationId: string, optionalAuth = false): Promise<ChatMessage[]> {
+    const path = `/bots/${agentId}/chat-history/${encodeURIComponent(conversationId)}`
+    const res = optionalAuth
+      ? await apiGetOptionalAuth<RawChatHistoryMsg[]>(path)
+      : await apiGet<RawChatHistoryMsg[]>(path)
     const arr = Array.isArray(res) ? res : []
     return arr.map((m: RawChatHistoryMsg, i: number) => ({
       id: i,
@@ -288,8 +291,10 @@ export const agentApi = {
   },
 
   /** 对话历史 —— GET /bots/my-conversations（按 conversationId 聚合的我的会话） */
-  async getHistory(): Promise<HistoryItem[]> {
-    const res = await apiGet<unknown>('/bots/my-conversations')
+  async getHistory(optionalAuth = false): Promise<HistoryItem[]> {
+    const res = optionalAuth
+      ? await apiGetOptionalAuth<unknown>('/bots/my-conversations')
+      : await apiGet<unknown>('/bots/my-conversations')
     return unwrap<RawConversation>(res).map((c: RawConversation, i: number) => ({
       id: i + 1,
       botConfigId: String(c.botConfigId),

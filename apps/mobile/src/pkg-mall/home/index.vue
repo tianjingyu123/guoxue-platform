@@ -49,7 +49,7 @@ async function fetchCartCount() {
     return
   }
   try {
-    const res = await shopApi.getCart()
+    const res = await shopApi.getCart(true)
     cartCount.value = (res.items || []).reduce((s, i) => s + i.quantity, 0)
   } catch {
     cartCount.value = 0

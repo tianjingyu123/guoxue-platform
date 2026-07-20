@@ -14,7 +14,7 @@
  * - 点赞态  GET  /interaction/like/check?targetType=COMMENT&targetIds=a,b
  *           逗号分隔·返回已赞 targetId 字符串数组·需登录（未登录别调，会触发全局 401 跳转）。
  */
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 /** 常用 targetType（后端 comment 模块是通用字符串字段，允许业务扩展新类型） */
 export type CommentTargetType =
@@ -187,7 +187,7 @@ export function toggleCommentLike(commentId: string): Promise<{ liked?: boolean 
 export async function checkCommentsLiked(ids: string[]): Promise<string[]> {
   if (!ids.length) return []
   try {
-    const r = await apiGet<unknown>(
+    const r = await apiGetOptionalAuth<unknown>(
       `/interaction/like/check?targetType=COMMENT&targetIds=${ids.map((i) => encodeURIComponent(i)).join(',')}`,
     )
     const data = r && typeof r === 'object' && 'data' in (r as object) ? (r as { data?: unknown }).data : r

@@ -83,11 +83,11 @@ async function loadExtras() {
   // 圈子广场是公共获客页：游客只拉公开动态，不能让可选“我的”接口 401 劫持整页去登录。
   const hasSession = !!getToken()
   const [myRes, postRes, statsRes, jrRes] = await Promise.allSettled([
-    hasSession ? circleApi.my() : Promise.resolve([]),
+    hasSession ? circleApi.my(true) : Promise.resolve([]),
     circleApi.getHotPosts(),
-    hasSession ? circleApi.getMyStats() : Promise.resolve(myStats.value),
+    hasSession ? circleApi.getMyStats(true) : Promise.resolve(myStats.value),
     // 我的入圈申请（真连 GET /circles/my-join-requests）：待审核圈子回填「审核中」标；未登录不发请求
-    hasSession ? growthApi.myJoinRequests() : Promise.resolve([]),
+    hasSession ? growthApi.myJoinRequests(true) : Promise.resolve([]),
   ])
   myCircles.value = myRes.status === 'fulfilled' ? myRes.value : []
   joinedIds.value = new Set(myCircles.value.map((c) => String(c.id)))

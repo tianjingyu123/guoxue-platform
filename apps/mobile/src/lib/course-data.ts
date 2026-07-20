@@ -1,7 +1,7 @@
 // 课程模块数据(从原型 app/courses/page.tsx 迁移)
 import type { CourseCardData } from '@/lib/card-utils'
 import type { BannerItem } from '@/lib/home-data'
-import { apiGet, apiPost, apiPut, apiGetPaged, useMock } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost, apiPut, apiPutOptionalAuth, apiGetPaged } from '@/utils/request'
 
 // 课程首页 Banner
 export const courseBanners: BannerItem[] = [
@@ -384,7 +384,7 @@ export const courseApi = {
   /** 课程访问权限 — GET /courses/:id/access（已购/会员→true；未登录/未购→false，静默降级不抛错） */
   async checkAccess(id: string): Promise<boolean> {
     try {
-      const res = await apiGet<{ hasAccess?: boolean }>(`/courses/${id}/access`)
+      const res = await apiGetOptionalAuth<{ hasAccess?: boolean }>(`/courses/${id}/access`)
       return !!res?.hasAccess
     } catch {
       return false
@@ -394,7 +394,7 @@ export const courseApi = {
   /** 是否已收藏 — GET /interaction/collect（在我的收藏中匹配 COURSE·未登录静默 false） */
   async isFavorited(id: string): Promise<boolean> {
     try {
-      const res = await apiGet<{ items?: { targetType?: string; targetId?: string }[] }>('/interaction/collect?pageSize=200')
+      const res = await apiGetOptionalAuth<{ items?: { targetType?: string; targetId?: string }[] }>('/interaction/collect?pageSize=200')
       return (res?.items ?? []).some((it) => it.targetType === 'COURSE' && it.targetId === id)
     } catch {
       return false
@@ -408,10 +408,11 @@ export const courseApi = {
   },
 
   /** 学习进度概览 — 合并 GET /courses/:id/chapters + /progress + 课程标题 */
-  async getProgress(id: string): Promise<CourseProgress> {
+  async getProgress(id: string, optionalAuth = false): Promise<CourseProgress> {
+    const progressPath = `/courses/${id}/progress`
     const [chapters, progress, course] = await Promise.all([
       apiGet<unknown>(`/courses/${id}/chapters`),
-      apiGet<unknown>(`/courses/${id}/progress`),
+      optionalAuth ? apiGetOptionalAuth<unknown>(progressPath) : apiGet<unknown>(progressPath),
       apiGet<RawCourse>(`/courses/${id}`).catch(() => null),
     ])
     const chList = toList<RawChapter>(chapters)
@@ -534,16 +535,17 @@ export const courseApi = {
    * progress 为 0-100 百分比（后端 UpdateProgressDto 校验 0-100，upsert 落 ReadingProgress）。
    * 播放器 onTimeUpdate 节流调用；失败由调用方静默降级，不打断播放。
    */
-  async saveProgress(chapterId: string, progress: number): Promise<void> {
+  async saveProgress(chapterId: string, progress: number, optionalAuth = false): Promise<void> {
     const p = Math.max(0, Math.min(100, Math.round(progress)))
-    await apiPut(`/courses/chapters/${chapterId}/progress`, { progress: p })
+    if (optionalAuth) await apiPutOptionalAuth(`/courses/chapters/${chapterId}/progress`, { progress: p })
+    else await apiPut(`/courses/chapters/${chapterId}/progress`, { progress: p })
   },
 
   /** 播放页章节目录 — GET /courses/:id/chapters + /progress（单级章节包成「章含一课时」） */
   async getPlayerChapters(id: string): Promise<PlayerChapter[]> {
     const [chapters, progress] = await Promise.all([
       apiGet<unknown>(`/courses/${id}/chapters`),
-      apiGet<unknown>(`/courses/${id}/progress`).catch(() => []),
+      apiGetOptionalAuth<unknown>(`/courses/${id}/progress`).catch(() => []),
     ])
     const chList = toList<RawChapter>(chapters).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
     const progMap = new Map<string, RawProgress>(toList<RawProgress>(progress).map((p): [string, RawProgress] => [p.chapterId || '', p]))

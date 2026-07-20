@@ -7,7 +7,7 @@
 //   GET /users/:id/is-following → { following }
 // 后端无公开数据源的字段（title/level/verified/specialties/rating/教学经历/
 // 资质证书/讲师课程列表/评价）→ 一律留空，由页面 v-if 诚实降级，绝不回退假 mock。
-import { apiGet } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth } from '@/utils/request'
 
 export interface InstructorCertificate { name: string; issuer: string; year: string }
 export interface InstructorFeaturedCourse {
@@ -78,7 +78,7 @@ export const instructorApi = {
     const [user, stats, follow] = await Promise.all([
       apiGet<UserBasic>(`/users/${id}`),
       apiGet<UserStats>(`/users/${id}/stats`).catch(() => null),
-      apiGet<{ following: boolean }>(`/users/${id}/is-following`).catch(() => null),
+      apiGetOptionalAuth<{ following: boolean }>(`/users/${id}/is-following`).catch(() => null),
     ])
     return {
       id: user.id,

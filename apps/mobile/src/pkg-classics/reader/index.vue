@@ -395,7 +395,7 @@ async function submitNote() {
 // ── 进度上报（登录态才有意义；静默失败不打扰阅读）──
 function saveProgress() {
   if (!isLoggedIn() || !curChapter.value) return
-  classicsApi.saveProgress(bookId.value, curChapter.value.id, progressPct.value).catch(() => {})
+  classicsApi.saveProgress(bookId.value, curChapter.value.id, progressPct.value, true).catch(() => {})
 }
 
 function pickTheme(t: Theme) { theme.value = t; savePref() }

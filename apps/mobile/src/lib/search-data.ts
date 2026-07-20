@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDelete } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost, apiDelete } from '@/utils/request'
 
 /**
  * 全局搜索数据层。
@@ -170,7 +170,7 @@ export const searchApi = {
 
   /** 保存搜索历史（登录态，失败静默） */
   async saveHistory(keyword: string): Promise<void> {
-    try { await apiGet(`/search/history/save?keyword=${encodeURIComponent(keyword)}`) } catch { /* 非关键 */ }
+    try { await apiGetOptionalAuth(`/search/history/save?keyword=${encodeURIComponent(keyword)}`) } catch { /* 非关键 */ }
   },
 
   /**
@@ -197,7 +197,7 @@ export const searchApi = {
    */
   async getHistory(limit = 10): Promise<string[]> {
     try {
-      const rows = await apiGet<Array<{ keyword?: string }>>('/search/history')
+      const rows = await apiGetOptionalAuth<Array<{ keyword?: string }>>('/search/history')
       const seen = new Set<string>()
       const out: string[] = []
       for (const r of Array.isArray(rows) ? rows : []) {

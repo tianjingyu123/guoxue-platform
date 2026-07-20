@@ -79,7 +79,7 @@ async function fetchBook(id: string) {
     let resumePct = 0
     if (getToken()) {
       try {
-        const p = await classicsApi.getProgress(id) as { chapterId?: string; progress?: number } | null
+        const p = await classicsApi.getProgress(id, true) as { chapterId?: string; progress?: number } | null
         if (p?.chapterId) {
           const i = chapters.value.findIndex((c) => c.id === p.chapterId)
           if (i >= 0) { resumeIdx = i; resumePct = Number(p.progress) || 0 }
@@ -189,7 +189,7 @@ function playFromSelection() {
 
 function saveProgress() {
   if (!getToken() || !curChapter.value) return
-  classicsApi.saveProgress(bookId.value, curChapter.value.id, progress.value).catch(() => {})
+  classicsApi.saveProgress(bookId.value, curChapter.value.id, progress.value, true).catch(() => {})
 }
 
 function goBack() {

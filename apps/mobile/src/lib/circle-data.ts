@@ -2,7 +2,7 @@
  * 圈子数据 + 类型 + API 封装（从原型 app/circles/page.tsx 与 lib/api.ts circleApi 1:1 迁移）
  * mock 数据与原型完全一致；真实接口走 utils/request，mock 开关同原型口径。
  */
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 export interface Circle {
   id: string
@@ -301,11 +301,13 @@ export const circleApi = {
       throw e
     }
   },
-  my: async (): Promise<Circle[]> => {
+  my: async (optionalAuth = false): Promise<Circle[]> => {
     try {
       // 后端 /circles/my 返回 CircleMember[]（圈子信息嵌套在 .circle）——此前直接当圈子适配导致
       // 首页「我的圈子」横滑卡无名字无封面、点击 id 错跳加载失败（董事长 2026-07-11 真机反馈根因）
-      const res = await apiGet<Array<RawCircle & { circle?: RawCircle }> | RawCircleListResp>('/circles/my')
+      const res = optionalAuth
+        ? await apiGetOptionalAuth<Array<RawCircle & { circle?: RawCircle }> | RawCircleListResp>('/circles/my')
+        : await apiGet<Array<RawCircle & { circle?: RawCircle }> | RawCircleListResp>('/circles/my')
       const arr = Array.isArray(res) ? res : ((res?.data ?? []) as Array<RawCircle & { circle?: RawCircle }>)
       return arr
         .map((m) => {
@@ -390,9 +392,11 @@ export const circleApi = {
     }
   },
   /** 我的圈子数据汇总（已加入/发帖/获赞，真实聚合；失败返回全 0 占位） */
-  getMyStats: async (): Promise<MyCircleStats> => {
+  getMyStats: async (optionalAuth = false): Promise<MyCircleStats> => {
     try {
-      const res = await apiGet<RawMyStats>('/circles/my-stats')
+      const res = optionalAuth
+        ? await apiGetOptionalAuth<RawMyStats>('/circles/my-stats')
+        : await apiGet<RawMyStats>('/circles/my-stats')
       return {
         joinedCount: Number(res?.joinedCount) || 0,
         postCount: Number(res?.postCount) || 0,

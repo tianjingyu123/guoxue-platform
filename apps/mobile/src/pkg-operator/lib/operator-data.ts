@@ -1,6 +1,6 @@
 // 分站运营商 - 加入运营商页数据（对齐原型 app/join/operator）
 
-import { apiGet, apiPost, apiPut } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost, apiPut } from '@/utils/request'
 
 export interface PlanCompareRow {
   feature: string
@@ -600,8 +600,10 @@ export const operatorApi = {
   async getOperatorPricing(): Promise<OperatorPlan> {
     return apiGet<OperatorPlan>('/station/operator-plan')
   },
-  async getCurrentOperator(): Promise<CurrentOperator> {
-    const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
+  async getCurrentOperator(optionalAuth = false): Promise<CurrentOperator> {
+    const op = optionalAuth
+      ? await apiGetOptionalAuth<RawOperatorDashboard>('/station/operator-dashboard/my')
+      : await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
     return {
       id: op.id,
       level: op.level || '',

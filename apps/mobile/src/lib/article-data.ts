@@ -114,7 +114,7 @@ export const mockArticle: ArticleData = {
 }
 
 // ============ 真实 API 层（列表 / 发布 / 草稿 / 标签） ============
-import { apiGet, apiPost, apiPut, apiDelete, apiGetPaged } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost, apiPut, apiDelete, apiGetPaged } from '@/utils/request'
 
 /** 文章列表项（对齐后端 article.service.listArticles 的 select 字段） */
 export interface ArticleListItem {
@@ -474,8 +474,8 @@ export const articleApi = {
    */
   async checkInteraction(id: string): Promise<{ liked: boolean; collected: boolean }> {
     const [likedIds, collects] = await Promise.all([
-      apiGet<unknown>(`/interaction/like/check?targetType=ARTICLE&targetIds=${id}`).catch(() => null),
-      apiGet<unknown>(`/interaction/collect?page=1&pageSize=100`).catch(() => null),
+      apiGetOptionalAuth<unknown>(`/interaction/like/check?targetType=ARTICLE&targetIds=${id}`).catch(() => null),
+      apiGetOptionalAuth<unknown>(`/interaction/collect?page=1&pageSize=100`).catch(() => null),
     ])
     const likedObj = (likedIds ?? {}) as { data?: unknown[]; items?: unknown[] }
     const likedArr: unknown[] = Array.isArray(likedIds) ? likedIds : (likedObj.data ?? likedObj.items ?? [])

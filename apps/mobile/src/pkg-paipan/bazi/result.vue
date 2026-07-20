@@ -125,7 +125,7 @@ async function saveRecord(result: any) {
         useTrueSolarTime: calcOpts.trueSolar,
         useDaylightSaving: calcOpts.dst,
         earlyZi: calcOpts.earlyZi,
-      })).id
+      }, true)).id
       // 交给 school-analysis：它拿到 recordId 就不会再自己建一条
       recordIdFromQuery.value = serverId
     } catch {

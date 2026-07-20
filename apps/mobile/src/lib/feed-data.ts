@@ -10,8 +10,7 @@
  *  - POST /users/feedback  { type, content }          → 负反馈（不感兴趣）
  */
 
-import { apiGet, apiPost } from '@/utils/request'
-import { getToken } from '@/utils/storage'
+import { apiGet, apiGetOptionalAuth, apiPostOptionalAuth } from '@/utils/request'
 import { getCachedUiConfig } from '@/lib/ui-config-data'
 
 // ============================================
@@ -282,7 +281,7 @@ export async function getCategoryFeed(type: string, page = 1, size = 6): Promise
 
 export async function getSmartFeed(page = 1, pageSize = 20): Promise<FeedEnvelope[]> {
   // 不再吞异常：请求失败向上抛出，页面据此展示错误态+重试（区别于返回 [] 的"真空"）。
-  const data = await apiGet<{ items?: RawFeedItem[] }>(
+  const data = await apiGetOptionalAuth<{ items?: RawFeedItem[] }>(
     `/recommend/smart-feed/feed?page=${page}&pageSize=${pageSize}`,
   )
   const raw = Array.isArray(data?.items) ? data.items : []
@@ -297,7 +296,7 @@ export async function getSmartFeed(page = 1, pageSize = 20): Promise<FeedEnvelop
  */
 export async function sendFeedback(item: FeedEnvelope, reason: string): Promise<boolean> {
   try {
-    await apiPost('/users/feedback', {
+    await apiPostOptionalAuth('/users/feedback', {
       type: 'feed_dislike',
       content: JSON.stringify({
         feedId: item.id,

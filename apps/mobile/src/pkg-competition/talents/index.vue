@@ -224,7 +224,7 @@ async function loadMore() {
 async function loadMine() {
   if (!getToken()) return
   try {
-    mine.value = await competitionApi.myTalent()
+    mine.value = await competitionApi.myTalent(true)
   } catch {
     mine.value = null
   }

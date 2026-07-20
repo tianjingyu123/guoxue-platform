@@ -2,7 +2,7 @@
  * 平台智能体 data 层 —— 对接 GET /bots（真实 BotConfig 全局智能体列表）。
  * 严格按后端字段映射，原型臆想字段(评分/使用量/创建者/置顶)后端无→不映射、页面降级隐藏。
  */
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 export interface BotItem {
   id: string
@@ -75,8 +75,11 @@ export const botApi = {
   },
 
   /** 我的追问额度 GET /bots/:id/quota（会员免费/试用剩余/追问包余量/定价） */
-  async getQuota(id: string): Promise<BotQuota> {
-    const q = await apiGet<Partial<BotQuota>>(`/bots/${id}/quota`)
+  async getQuota(id: string, optionalAuth = false): Promise<BotQuota> {
+    const path = `/bots/${id}/quota`
+    const q = optionalAuth
+      ? await apiGetOptionalAuth<Partial<BotQuota>>(path)
+      : await apiGet<Partial<BotQuota>>(path)
     return {
       memberFree: !!q?.memberFree,
       pricePer10Coin: Number(q?.pricePer10Coin) || 0,

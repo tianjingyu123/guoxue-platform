@@ -109,7 +109,7 @@ function retry() { loadData() }
 async function loadRole() {
   if (!circleId.value || !getToken()) return
   try {
-    const st = await circleDetailApi.getJoinStatus(circleId.value)
+    const st = await circleDetailApi.getJoinStatus(circleId.value, true)
     myRole.value = st.role
   } catch { /* 静默：查询失败不显示治理项 */ }
 }

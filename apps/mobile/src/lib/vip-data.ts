@@ -9,7 +9,7 @@
 // 下单/支付/轮询复用 lib/shop-data.ts 的 shopApi（createOrder type=MEMBER / payOrderNative / getOrderPayState）。
 // 错误一律抛给页面走三态，不回退假数据。
 
-import { apiGet } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth } from '@/utils/request'
 
 /** 后端会员套餐档位（MemberConfig.level；LIFETIME 已停售仅存量展示） */
 export type MemberLevel = 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'YEARLY_AUTO' | 'LIFETIME'
@@ -186,10 +186,11 @@ export const vipApi = {
   },
 
   /** AI 伴读额度 — GET /member/ai-quota（会员 remaining=-1 表示不限量） */
-  async getAiQuota(): Promise<{ isMember: boolean; dailyLimit: number; usedToday: number; remaining: number }> {
-    const res = await apiGet<{ isMember?: boolean; dailyLimit?: number; usedToday?: number; remaining?: number }>(
-      '/member/ai-quota',
-    )
+  async getAiQuota(optionalAuth = false): Promise<{ isMember: boolean; dailyLimit: number; usedToday: number; remaining: number }> {
+    type QuotaResponse = { isMember?: boolean; dailyLimit?: number; usedToday?: number; remaining?: number }
+    const res = optionalAuth
+      ? await apiGetOptionalAuth<QuotaResponse>('/member/ai-quota')
+      : await apiGet<QuotaResponse>('/member/ai-quota')
     return {
       isMember: !!res?.isMember,
       dailyLimit: Number(res?.dailyLimit ?? 10),

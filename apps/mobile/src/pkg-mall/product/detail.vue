@@ -50,7 +50,7 @@ async function fetchData() {
     quantity.value = 1
     // 底栏收藏态/购物车角标（未登录/失败静默降级，不阻塞详情渲染）
     shopApi.isProductFavorited(String(data.id)).then((v) => { isFavorite.value = v })
-    shopApi.getCart()
+    shopApi.getCart(true)
       .then((res: { items?: Array<{ quantity: number }> }) => { cartCount.value = (res.items || []).reduce((s: number, i: { quantity: number }) => s + i.quantity, 0) })
       .catch(() => {})
     // 详情加载成功后并行拉取推荐（内置降级）——不 await，避免推荐接口白拖首屏一个 RTT：

@@ -192,7 +192,7 @@ const quotaExhausted = ref(false)
 async function loadQuota() {
   if (!getToken()) return // 未登录不打扰，发送时才引导登录
   try {
-    const q = await vipApi.getAiQuota()
+    const q = await vipApi.getAiQuota(true)
     quota.value = { isMember: q.isMember, dailyLimit: q.dailyLimit, remaining: q.remaining }
     quotaExhausted.value = !q.isMember && q.remaining <= 0
   } catch {

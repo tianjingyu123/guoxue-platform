@@ -239,7 +239,7 @@ async function fetchData(id: string) {
     // 真实在架状态：登录用户查阅读进度，有记录即在书架（记录内 chapterId 用于续读）
     if (getToken() && data.book?.id) {
       try {
-        const prog = (await classicsApi.getProgress(data.book.id)) as { chapterId?: string } | null
+        const prog = (await classicsApi.getProgress(data.book.id, true)) as { chapterId?: string } | null
         isInBookshelf.value = !!prog
         lastChapterId.value = (prog && typeof prog.chapterId === 'string') ? prog.chapterId : ''
       } catch { /* 未登录或无记录 */ }
@@ -263,7 +263,7 @@ onShow(async () => {
   if (!shownOnce) { shownOnce = true; return } // 首次 onShow 紧随 onLoad，fetchData 已在查
   if (!getToken() || !book.value) return
   try {
-    const prog = (await classicsApi.getProgress(book.value.id)) as { chapterId?: string } | null
+    const prog = (await classicsApi.getProgress(book.value.id, true)) as { chapterId?: string } | null
     if (prog) {
       isInBookshelf.value = true
       lastChapterId.value = typeof prog.chapterId === 'string' ? prog.chapterId : ''

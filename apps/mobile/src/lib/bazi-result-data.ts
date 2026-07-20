@@ -1,6 +1,6 @@
 /** 八字结果页示例数据（从原型 result/page.tsx 1:1 迁移） */
 import { GAN_SHI_SHEN } from './bazi-constants'
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPostOptionalAuth } from '@/utils/request'
 
 const _mockBaziData = {
   name: '未知', gender: '男', zodiac: '猪', qianKun: '乾造', birthYear: 1983,
@@ -289,10 +289,12 @@ export const baziApi = {
 
   /**
    * 排盘并保存记录（POST /paipan/bazi，需登录）——流派点评的前置步骤：拿 paipanRecordId。
-   * 未登录时 401 由 request 层统一跳登录（与页面既有 AI 分析行为一致）。
+   * 默认用于主动 AI 分析，失效时回登录；结果页后台自动保存传 optionalAuth=true，
+   * 失效时仅保留本地盘，不打断用户查看结果。
    */
-  async createRecord(input: BaziCalcInput): Promise<{ id: string }> {
-    const res = await apiPost<{ id?: string }>('/paipan/bazi', {
+  async createRecord(input: BaziCalcInput, optionalAuth = false): Promise<{ id: string }> {
+    const create = optionalAuth ? apiPostOptionalAuth<{ id?: string }> : apiPost<{ id?: string }>
+    const res = await create('/paipan/bazi', {
       name: input.name || undefined,
       gender: input.gender,
       year: input.year,

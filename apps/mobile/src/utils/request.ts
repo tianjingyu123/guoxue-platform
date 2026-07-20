@@ -49,6 +49,7 @@ const TIMEOUT = 15000
 const LOGIN_URL = '/pkg-auth/login/index'
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE'
+type UnauthorizedMode = 'redirect' | 'silent'
 
 /**
  * 网络失败文案归一化。
@@ -117,6 +118,19 @@ function handleUnauthorized() {
       }, 1500)
     },
   })
+}
+
+/**
+ * 可选登录请求的会话过期只清理无效凭证，不劫持当前公开页面；调用方随后匿名重试一次。
+ * 主动操作和受保护页面仍走 handleUnauthorized，保持登录回跳能力不变。
+ */
+function handleAuthExpired(mode: UnauthorizedMode) {
+  if (mode === 'redirect') {
+    handleUnauthorized()
+    return
+  }
+  clearToken()
+  clearRefreshToken()
 }
 
 /**
@@ -222,7 +236,7 @@ function buildHeader(custom?: Record<string, string>): Record<string, string> {
   }
 }
 
-function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Record<string, string>, _retried = false, timeoutMs: number = TIMEOUT): Promise<T> {
+function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Record<string, string>, _retried = false, timeoutMs: number = TIMEOUT, unauthorizedMode: UnauthorizedMode = 'redirect'): Promise<T> {
   return new Promise((resolve, reject) => {
     // 等待握手就绪门（正常启动立即通过；仅在 URL 握手码换会话期间短暂等待）
     _authReady.then(() => {
@@ -242,12 +256,20 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
             // access 过期：用 refreshToken 无感换新 token 后重试原请求(30天免登录，降短信成本)；
             // 仅当 refreshToken 真失效(auth-fail)才退出；刷新时网络超时(network-fail)不退出，避免"链接超时被误退出"。
             refreshAccessToken().then((r) => {
-              if (r === 'ok') resolve(apiFetch<T>(path, method, data, header, true, timeoutMs))
+              if (r === 'ok') resolve(apiFetch<T>(path, method, data, header, true, timeoutMs, unauthorizedMode))
               else if (r === 'network-fail') reject(new Error('网络连接超时，请稍后重试'))
-              else { handleUnauthorized(); reject(new Error('未登录或登录已过期')) }
+              else if (unauthorizedMode === 'silent') {
+                // 清掉无效凭证后匿名重试：OptionalAuth 公开端点继续返回游客内容；
+                // 真正私有端点再次 401 后静默 reject，不循环、不跳登录。
+                handleAuthExpired(unauthorizedMode)
+                resolve(apiFetch<T>(path, method, data, header, true, timeoutMs, unauthorizedMode))
+              } else {
+                handleAuthExpired(unauthorizedMode)
+                reject(new Error('未登录或登录已过期'))
+              }
             })
           } else {
-            handleUnauthorized()
+            handleAuthExpired(unauthorizedMode)
             reject(new Error('未登录或登录已过期'))
           }
           return
@@ -262,7 +284,7 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
       fail: (err) => {
         // 幂等 GET 网络失败/超时自动重试一次，吸收瞬时抖动
         if (method === 'GET' && !_retried) {
-          resolve(apiFetch<T>(path, method, data, header, true, timeoutMs))
+          resolve(apiFetch<T>(path, method, data, header, true, timeoutMs, unauthorizedMode))
           return
         }
         reportApiError(path, 0) // 旁路：网络失败/超时（重试后仍失败），status=0
@@ -274,6 +296,9 @@ function apiFetch<T>(path: string, method: Method, data?: unknown, header?: Reco
 }
 
 export const apiGet = <T>(path: string, header?: Record<string, string>) => apiFetch<T>(path, 'GET', undefined, header)
+/** 公开页面的个性化增强读取：会尝试无感续期，确认失效后仅清凭证、不跳登录。 */
+export const apiGetOptionalAuth = <T>(path: string, header?: Record<string, string>) =>
+  apiFetch<T>(path, 'GET', undefined, header, false, TIMEOUT, 'silent')
 
 /**
  * 分页 GET：后端 ResponseInterceptor 把 { items, total, page, pageSize } 转为
@@ -328,6 +353,11 @@ export function apiGetPaged<T>(path: string, header?: Record<string, string>, _r
 export const apiPost = <T>(path: string, data?: unknown, header?: Record<string, string>, timeoutMs?: number) => apiFetch<T>(path, 'POST', data, header, false, timeoutMs)
 export const apiPut = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'PUT', data, header)
 export const apiDelete = <T>(path: string, data?: unknown, header?: Record<string, string>) => apiFetch<T>(path, 'DELETE', data, header)
+/** 公开页面的非关键自动写入（如阅读进度、负反馈）：失效时静默降级。 */
+export const apiPostOptionalAuth = <T>(path: string, data?: unknown, header?: Record<string, string>, timeoutMs?: number) =>
+  apiFetch<T>(path, 'POST', data, header, false, timeoutMs, 'silent')
+export const apiPutOptionalAuth = <T>(path: string, data?: unknown, header?: Record<string, string>) =>
+  apiFetch<T>(path, 'PUT', data, header, false, TIMEOUT, 'silent')
 
 /**
  * 上传单张图片 — POST /upload/image（multipart，字段名 file，需登录）

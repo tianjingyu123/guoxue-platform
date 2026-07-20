@@ -3,7 +3,7 @@
  * mock 数据 + 类型 + 装配函数。图片走 /static（跨端约定）。
  */
 import type { ProductCardData } from '@/lib/card-utils'
-import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
 import { getTempReferrer } from '@/utils/referral'
 import { couponApi } from '@/lib/coupon-data'
 import { unescapeEntities, normalizeRichContent } from '@/utils/rich-content'
@@ -1635,7 +1635,7 @@ export const shopApi = {
   /** 是否已收藏商品 — GET /interaction/collect（匹配 PRODUCT·未登录静默 false，与课程收藏同范式） */
   async isProductFavorited(id: string): Promise<boolean> {
     try {
-      const res = await apiGet<{ items?: { targetType?: string; targetId?: string }[] }>('/interaction/collect?pageSize=200')
+      const res = await apiGetOptionalAuth<{ items?: { targetType?: string; targetId?: string }[] }>('/interaction/collect?pageSize=200')
       return (res?.items ?? []).some((it) => it.targetType === 'PRODUCT' && it.targetId === id)
     } catch {
       return false
@@ -1649,13 +1649,15 @@ export const shopApi = {
   },
 
   /** 获取购物车（{items} 信封形态·商城首页/商品详情角标用） — GET /shop/cart */
-  async getCart(): Promise<{ items: SkuCartItem[] }> {
-    return { items: await this.getSkuCart() }
+  async getCart(optionalAuth = false): Promise<{ items: SkuCartItem[] }> {
+    return { items: await this.getSkuCart(optionalAuth) }
   },
 
   /** 获取 SKU 维度购物车 — GET /shop/cart（后端购物车本就含 skuId） */
-  async getSkuCart(): Promise<SkuCartItem[]> {
-    const res = await apiGet<{ items?: RawCartItem[] }>('/shop/cart')
+  async getSkuCart(optionalAuth = false): Promise<SkuCartItem[]> {
+    const res = optionalAuth
+      ? await apiGetOptionalAuth<{ items?: RawCartItem[] }>('/shop/cart')
+      : await apiGet<{ items?: RawCartItem[] }>('/shop/cart')
     return (res?.items || []).map((it: RawCartItem) => ({
       id: it.id,
       productId: it.productId,
@@ -1963,7 +1965,7 @@ export const shopApi = {
   async getGroupBuyList(): Promise<{ list: GroupBuyItem[]; myList: MyGroupBuyItem[] }> {
     const [active, my] = await Promise.all([
       apiGet<RawGroupBuy[]>('/marketing/group-buys/active'),
-      apiGet<RawMyGroupBuy[]>('/marketing/group-buys/my').catch(() => []), // 未登录/无记录降级空（非假数据）
+      apiGetOptionalAuth<RawMyGroupBuy[]>('/marketing/group-buys/my').catch(() => []), // 未登录/无记录降级空（非假数据）
     ])
     return {
       list: (active || []).map(adaptGroupBuyItem),

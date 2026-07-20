@@ -8,7 +8,7 @@
  * - 后端无对应端点的（热门问答 / 对话历史 / 常见问题）→ 返回空数组走空态，禁止返回 mock。
  * - 请求失败直接 throw，让页面走 error 态，禁止 catch 返回假数据兜底。
  */
-import { apiGet } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth } from '@/utils/request'
 import { botTypeLabel } from './bot-data'
 
 export interface SquareBot {
@@ -177,7 +177,7 @@ export const agentsSquareApi = {
 
   /** 对话历史 —— GET /bots/my-conversations（按 conversationId 聚合的我的会话） */
   async getConversations(): Promise<AgentConversation[]> {
-    const res = await apiGet<unknown>('/bots/my-conversations')
+    const res = await apiGetOptionalAuth<unknown>('/bots/my-conversations')
     return unwrap<RawConversation>(res).map((c: RawConversation) => ({
       id: String(c.conversationId),
       conversationId: String(c.conversationId),

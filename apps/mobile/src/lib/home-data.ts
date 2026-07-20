@@ -1,6 +1,6 @@
 /** 首页数据层（1:1 迁移自原型 components/home-feed.tsx + home/home-banner.tsx + common/daily-verse） */
 
-import { apiGet, apiGetPaged, useMock } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiGetPaged } from '@/utils/request'
 import { getToken } from '@/utils/storage'
 import { getEffectiveThemes } from '@/utils/interests'
 
@@ -361,7 +361,7 @@ export const homeApi = {
   async getPersonalizedFeed(page = 1, pageSize = 20): Promise<RenderItem[]> {
     if (!getToken()) return []
     try {
-      const data = await apiGet<{ items?: SmartFeedRawItem[] }>(
+      const data = await apiGetOptionalAuth<{ items?: SmartFeedRawItem[] }>(
         `/recommend/smart-feed/feed?page=${page}&pageSize=${pageSize}`,
       )
       const raw = Array.isArray(data?.items) ? data.items : []

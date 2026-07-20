@@ -2,7 +2,7 @@
  * 圈子详情页数据 + 类型（从原型 app/circles/[id]/page.tsx 1:1 迁移）
  * 含 CircleDetail / CirclePost / CircleMember / 专栏 / 活动 / 会员权益。
  */
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 export interface CircleOwner { id: string; name: string; avatar: string }
 
@@ -378,9 +378,11 @@ export const circleDetailApi = {
    *    detail.isJoined 恒 false、myRole 恒 null。故登录态下须单独查此鉴权端点覆盖真实加入态。
    * 失败返回 { joined:false }（不阻断页面渲染）。
    */
-  getJoinStatus: async (id: string): Promise<{ joined: boolean; role: CircleMemberRole | null; expired: boolean; joinedAt: string | null; expireAt: string | null }> => {
+  getJoinStatus: async (id: string, optionalAuth = false): Promise<{ joined: boolean; role: CircleMemberRole | null; expired: boolean; joinedAt: string | null; expireAt: string | null }> => {
     try {
-      const r = await apiGet<{ joined?: boolean; role?: string; expired?: boolean; joinedAt?: string; expireAt?: string | null }>(`/circles/${id}/join/status`)
+      const path = `/circles/${id}/join/status`
+      type JoinStatus = { joined?: boolean; role?: string; expired?: boolean; joinedAt?: string; expireAt?: string | null }
+      const r = optionalAuth ? await apiGetOptionalAuth<JoinStatus>(path) : await apiGet<JoinStatus>(path)
       return {
         joined: !!r?.joined,
         role: (r?.role as CircleMemberRole) ?? null,

@@ -18,7 +18,7 @@
  * marketing 模块 /marketing/coupons*（CouponTemplate/CouponRecord）是 admin 营销模板体系，
  * 与 checkout 核销未打通，待 P1 两套券体系统一后再切换。
  */
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 import { getToken } from '@/utils/storage'
 
 /* ── 类型 ── */
@@ -196,8 +196,10 @@ function adaptMyCoupon(r: RawUserCoupon): MyCouponItem {
 }
 
 /** 拉「我的券」原始列表（my 只返回 used=false 的持有券） */
-async function fetchMyRaw(): Promise<RawUserCoupon[]> {
-  const res = await apiGet<RawUserCoupon[] | { items?: RawUserCoupon[] }>('/shop/coupons/my')
+async function fetchMyRaw(optionalAuth = false): Promise<RawUserCoupon[]> {
+  const res = optionalAuth
+    ? await apiGetOptionalAuth<RawUserCoupon[] | { items?: RawUserCoupon[] }>('/shop/coupons/my')
+    : await apiGet<RawUserCoupon[] | { items?: RawUserCoupon[] }>('/shop/coupons/my')
   return pickItems<RawUserCoupon>(res)
 }
 
@@ -209,7 +211,7 @@ export const couponApi = {
     let held = new Set<string>()
     if (getToken()) {
       try {
-        const my = await fetchMyRaw()
+        const my = await fetchMyRaw(true)
         held = new Set(
           my.filter((r) => !r.used).map((r) => String(r.couponId ?? r.coupon?.id ?? '')).filter(Boolean),
         )

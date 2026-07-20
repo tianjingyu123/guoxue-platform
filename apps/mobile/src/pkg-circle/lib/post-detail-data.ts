@@ -3,7 +3,7 @@
  * 真连后端 GET /circles/:id/posts/:postId + GET /comment?targetType=POST。
  * 富页面字段（音频/打赏/作者等级粉丝/阅读量/收藏/分享）后端无 → 适配为空，页面对应板块降级隐藏。
  */
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 export interface PostAuthor {
   id: string
@@ -324,7 +324,7 @@ export const postDetailApi = {
   checkPostLiked: async (postId: string): Promise<boolean> => {
     try {
       // 后端返回已点赞的 targetId 字符串数组；兼容对象数组 / 字典等其他形态
-      const r = await apiGet<unknown>(`/interaction/like/check?targetType=POST&targetIds=${postId}`)
+      const r = await apiGetOptionalAuth<unknown>(`/interaction/like/check?targetType=POST&targetIds=${postId}`)
       const data = (r && typeof r === 'object' && 'data' in r) ? (r as { data?: unknown }).data : r
       if (Array.isArray(data)) {
         return data.some((x) => {
