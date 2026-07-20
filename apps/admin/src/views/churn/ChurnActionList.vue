@@ -19,6 +19,14 @@
             value="PENDING"
           />
           <el-option
+            label="待人工处理"
+            value="PENDING_MANUAL"
+          />
+          <el-option
+            label="冷却期跳过"
+            value="SKIPPED"
+          />
+          <el-option
             label="已完成"
             value="COMPLETED"
           />
@@ -119,7 +127,7 @@
         show-overflow-tooltip
       >
         <template #default="{ row }">
-          <span :class="{ 'err-text': row.status === 'FAILED' }">
+          <span :class="{ 'err-text': row.status === 'FAILED' || row.status === 'PENDING_MANUAL' }">
             {{ resultText(row) }}
           </span>
         </template>
@@ -219,22 +227,22 @@ function gotoUser(id?: string) {
   if (id) router.push(`/users/${id}`);
 }
 
-// 结果列：FAILED 优先展示失败原因（errorLog），其余展示执行结果，缺省 —
+// 非完成态展示诚实原因（包括待人工/冷却跳过），完成态展示执行结果。
 function resultText(row: ChurnActionRow): string {
-  if (row.status === "FAILED") return row.errorLog || "—";
-  return row.result || "—";
+  if (row.status === "COMPLETED") return row.result || "执行成功";
+  return row.errorLog || row.result || "—";
 }
 
 function statusTag(status: string) {
   const map: Record<string, string> = {
-    PENDING: "info", COMPLETED: "success", FAILED: "danger",
+    PENDING: "info", PENDING_MANUAL: "warning", SKIPPED: "info", COMPLETED: "success", FAILED: "danger",
   };
   return map[status] || "info";
 }
 
 function statusLabel(status: string) {
   const map: Record<string, string> = {
-    PENDING: "待处理", COMPLETED: "已完成", FAILED: "失败",
+    PENDING: "待处理", PENDING_MANUAL: "待人工", SKIPPED: "已跳过", COMPLETED: "已完成", FAILED: "失败",
   };
   return map[status] || status;
 }

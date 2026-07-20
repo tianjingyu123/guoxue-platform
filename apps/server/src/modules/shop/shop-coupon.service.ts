@@ -106,55 +106,94 @@ export class ShopCouponService {
 
   async claimCoupon(userId: string, couponId: string) {
     return this.prisma.$transaction(async (tx) => {
+      await this.lockCouponIssuance(tx, couponId);
       const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
       if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
-      if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
-      if (new Date() > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
-      if (coupon.totalCount !== -1 && coupon.usedCount >= coupon.totalCount) {
-        throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已被领完");
-      }
+      this.assertCouponIssuable(coupon);
 
       const existing = await tx.userCoupon.findFirst({
         where: { userId, couponId, used: false },
       });
       if (existing) throw new BusinessException(ErrorCode.COUPON_INVALID, "已领取过该优惠券");
 
-      await tx.coupon.update({
-        where: { id: couponId },
-        data: { usedCount: { increment: 1 } },
-      });
-
+      await this.incrementIssuedCount(tx, couponId, 1);
       return tx.userCoupon.create({ data: { userId, couponId } });
     });
   }
 
+  /** 管理员/召回单发：与用户领取共用库存、状态和事务锁；已持有未用券时幂等返回。 */
   async grantCoupon(couponId: string, userId: string) {
-    return this.prisma.userCoupon.create({ data: { userId, couponId } });
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockCouponIssuance(tx, couponId);
+      const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
+      if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
+      this.assertCouponIssuable(coupon);
+
+      const existing = await tx.userCoupon.findFirst({ where: { userId, couponId, used: false } });
+      if (existing) return existing;
+
+      await this.incrementIssuedCount(tx, couponId, 1);
+      return tx.userCoupon.create({ data: { userId, couponId } });
+    });
   }
 
   /**
    * 批量发放优惠券（券体系统一后 admin 唯一批量发放口，替代 marketing 模板 batch-grant）。
-   * 每人一张；已持有该券未使用的用户跳过；返回发放/跳过统计。
+   * 每人一张；已持有未使用的用户跳过；库存不足整批失败，不做部分发放。
    */
   async batchGrantCoupon(couponId: string, userIds: string[]) {
-    const coupon = await this.prisma.coupon.findUnique({ where: { id: couponId } });
-    if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
-    if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
-    if (new Date() > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockCouponIssuance(tx, couponId);
+      const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
+      if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
+      this.assertCouponIssuable(coupon);
 
-    const unique = [...new Set(userIds)];
-    const holders = await this.prisma.userCoupon.findMany({
-      where: { couponId, used: false, userId: { in: unique } },
-      select: { userId: true },
-    });
-    const holderSet = new Set(holders.map((h) => h.userId));
-    const targets = unique.filter((id) => !holderSet.has(id));
-    if (targets.length) {
-      await this.prisma.userCoupon.createMany({
-        data: targets.map((userId) => ({ userId, couponId })),
+      const unique = [...new Set(userIds)];
+      const holders = await tx.userCoupon.findMany({
+        where: { couponId, used: false, userId: { in: unique } },
+        select: { userId: true },
       });
+      const holderSet = new Set(holders.map((holder) => holder.userId));
+      const targets = unique.filter((id) => !holderSet.has(id));
+      if (coupon.totalCount !== -1 && targets.length > coupon.totalCount - coupon.usedCount) {
+        throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券库存不足，批量发放已取消");
+      }
+      if (targets.length) {
+        await this.incrementIssuedCount(tx, couponId, targets.length);
+        await tx.userCoupon.createMany({ data: targets.map((userId) => ({ userId, couponId })) });
+      }
+      return { granted: targets.length, skipped: unique.length - targets.length };
+    });
+  }
+
+  private async lockCouponIssuance(tx: Prisma.TransactionClient, couponId: string) {
+    await tx.$queryRawUnsafe(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      `coupon-issue:${couponId}`,
+    );
+  }
+
+  private assertCouponIssuable(coupon: {
+    status: string;
+    validStart: Date;
+    validEnd: Date;
+    totalCount: number;
+    usedCount: number;
+  }) {
+    const now = new Date();
+    if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
+    if (coupon.validStart && now < coupon.validStart) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券尚未生效");
+    if (now > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
+    if (coupon.totalCount !== -1 && coupon.usedCount >= coupon.totalCount) {
+      throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已被领完");
     }
-    return { granted: targets.length, skipped: unique.length - targets.length };
+  }
+
+  private async incrementIssuedCount(tx: Prisma.TransactionClient, couponId: string, count: number) {
+    await tx.coupon.update({
+      where: { id: couponId },
+      data: { usedCount: { increment: count } },
+    });
   }
 
   async getUserCoupons(userId: string) {

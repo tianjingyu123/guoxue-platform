@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsInt, IsArray, ArrayMinSize, Min, MinLength, IsDateString } from "class-validator";
+import { IsString, IsOptional, IsEnum, IsInt, IsArray, ArrayMinSize, Min, MinLength, IsDateString, IsBoolean, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 import { MemberLevel, RoleType, UserStatus } from "@prisma/client";
 
@@ -112,10 +112,14 @@ export class AddWhitelistDto {
   userId: string;
 }
 
-export class UpdateNotifySettingsDto {
-  @IsOptional() @IsString()
-  key?: string;
+export const NOTIFY_SETTING_KEYS = [
+  "message", "course", "live", "interact", "system", "marketingSms",
+] as const;
 
-  @IsOptional()
-  value?: boolean | string;
+export class UpdateNotifySettingsDto {
+  @IsString() @IsIn(NOTIFY_SETTING_KEYS)
+  key: string;
+
+  @IsBoolean()
+  value: boolean;
 }

@@ -4661,7 +4661,7 @@ model ChurnAction {
   userId      String
   actionType  String // COUPON/SMS/TEMPLATE_MSG/WEBHOOK
   actionData  Json      @default("{}")
-  status      String    @default("PENDING") // PENDING/SENT/SUCCESS/FAILED
+  status      String    @default("PENDING") // PENDING/COMPLETED/PENDING_MANUAL/SKIPPED/FAILED
   result      String?
   errorLog    String?
   executedAt  DateTime?
@@ -4676,7 +4676,7 @@ model ChurnAction {
 model ChurnRule {
   id             String   @id @default(uuid())
   name           String
-  riskLevel      String // MEDIUM/HIGH/CRITICAL
+  riskLevel      String // LOW/MEDIUM/HIGH/CRITICAL
   scoreThreshold Float?
   daysThreshold  Int?
   actionType     String // COUPON/SMS/TEMPLATE_MSG/WEBHOOK

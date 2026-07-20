@@ -20,6 +20,7 @@ const mockPrisma = {
   order: { findUnique: jest.fn() },
   afterSale: { create: jest.fn(), findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
   $transaction: jest.fn().mockImplementation((fn: (prisma: typeof mockPrisma) => unknown) => fn(mockPrisma)),
+  $queryRawUnsafe: jest.fn().mockResolvedValue([{ pg_advisory_xact_lock: "" }]),
 };
 
 const mockRefundSvc = { refundOrder: jest.fn() };
@@ -43,7 +44,14 @@ describe("ShopCouponService", () => {
   it("应被定义", () => expect(svc).toBeDefined());
 
   describe("batchGrantCoupon", () => {
-    const activeCoupon = { id: "c1", status: "ACTIVE", validEnd: new Date(Date.now() + 86400000) };
+    const activeCoupon = {
+      id: "c1",
+      status: "ACTIVE",
+      validStart: new Date(Date.now() - 86400000),
+      validEnd: new Date(Date.now() + 86400000),
+      totalCount: 100,
+      usedCount: 10,
+    };
 
     it("去重发放并跳过已持有未用者", async () => {
       mockCoupon.findUnique.mockResolvedValue(activeCoupon);
@@ -53,6 +61,10 @@ describe("ShopCouponService", () => {
       expect(result).toEqual({ granted: 2, skipped: 1 });
       expect(mockPrisma.userCoupon.createMany).toHaveBeenCalledWith({
         data: [{ userId: "u1", couponId: "c1" }, { userId: "u3", couponId: "c1" }],
+      });
+      expect(mockCoupon.update).toHaveBeenCalledWith({
+        where: { id: "c1" },
+        data: { usedCount: { increment: 2 } },
       });
     });
 
@@ -73,6 +85,14 @@ describe("ShopCouponService", () => {
       const result = await svc.batchGrantCoupon("c1", ["u1"]);
       expect(result).toEqual({ granted: 0, skipped: 1 });
       expect(mockPrisma.userCoupon.createMany).not.toHaveBeenCalled();
+    });
+
+    it("库存不足时整批失败且不创建", async () => {
+      mockCoupon.findUnique.mockResolvedValue({ ...activeCoupon, totalCount: 11, usedCount: 10 });
+      mockPrisma.userCoupon.findMany.mockResolvedValue([]);
+      await expect(svc.batchGrantCoupon("c1", ["u1", "u2"])).rejects.toThrow("库存不足");
+      expect(mockPrisma.userCoupon.createMany).not.toHaveBeenCalled();
+      expect(mockCoupon.update).not.toHaveBeenCalled();
     });
   });
 
@@ -209,9 +229,30 @@ describe("ShopCouponService", () => {
 
   describe("grantCoupon", () => {
     it("管理员发放优惠券", async () => {
+      mockCoupon.findUnique.mockResolvedValue({
+        id: "c1", status: "ACTIVE", validStart: new Date("2025-01-01"),
+        validEnd: new Date("2030-12-31"), totalCount: 100, usedCount: 10,
+      });
+      mockPrisma.userCoupon.findFirst.mockResolvedValue(null);
       mockPrisma.userCoupon.create.mockResolvedValue({ id: "uc1", userId: "u1", couponId: "c1" });
       const result = await svc.grantCoupon("c1", "u1");
       expect(result.couponId).toBe("c1");
+      expect(mockCoupon.update).toHaveBeenCalledWith({
+        where: { id: "c1" }, data: { usedCount: { increment: 1 } },
+      });
+    });
+
+    it("已持有未使用券时幂等返回且不占库存", async () => {
+      const existing = { id: "uc1", userId: "u1", couponId: "c1" };
+      mockCoupon.findUnique.mockResolvedValue({
+        id: "c1", status: "ACTIVE", validStart: new Date("2025-01-01"),
+        validEnd: new Date("2030-12-31"), totalCount: 100, usedCount: 10,
+      });
+      mockPrisma.userCoupon.findFirst.mockResolvedValue(existing);
+
+      await expect(svc.grantCoupon("c1", "u1")).resolves.toEqual(existing);
+      expect(mockCoupon.update).not.toHaveBeenCalled();
+      expect(mockPrisma.userCoupon.create).not.toHaveBeenCalled();
     });
   });
 

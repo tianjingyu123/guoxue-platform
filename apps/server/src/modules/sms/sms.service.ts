@@ -9,9 +9,22 @@ import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
 import { MetricsService } from "../../common/metrics.service";
 import { safePagination } from "../../common/pagination";
 
+interface TencentSendStatus {
+  Code?: string;
+  Message?: string;
+  PhoneNumber?: string;
+  SerialNo?: string;
+}
+
+export interface RetentionSmsResult {
+  ok: boolean;
+  disposition: "SENT" | "MANUAL" | "SKIPPED" | "FAILED";
+  message: string;
+}
+
 /**
  * 腾讯云短信 SMS 服务（纯原生API，不依赖SDK）
- * 用于发送手机验证码，支持登录/注册/找回密码等场景
+ * 验证码与业务短信共用底层签名调用，但模板、频控和业务方法严格隔离。
  */
 @Injectable()
 export class SmsService {
@@ -20,6 +33,7 @@ export class SmsService {
   private readonly secretKey: string;
   private readonly appId: string;
   private readonly signName: string;
+  private readonly churnTemplateId: string;
   private readonly templateId: string;
   private readonly host = "sms.tencentcloudapi.com";
   private readonly apiVersion = "2021-01-11";
@@ -35,6 +49,7 @@ export class SmsService {
     this.secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
     this.appId = process.env.SMS_APP_ID || "";
     this.signName = process.env.SMS_SIGN_NAME || "国学平台";
+    this.churnTemplateId = process.env.SMS_CHURN_TEMPLATE_ID || "";
     this.templateId = process.env.SMS_TEMPLATE_ID || "";
     this.region = process.env.SMS_REGION || process.env.COS_REGION || "ap-guangzhou";
 
@@ -77,8 +92,22 @@ export class SmsService {
         throw new BusinessException(ErrorCode.THIRD_SMS_FAILED, `短信发送失败: ${data.Response.Error.Message}`);
       }
 
+      const response = data.Response!;
+      if (action === "SendSms") {
+        const statuses = (response as typeof response & { SendStatusSet?: TencentSendStatus[] }).SendStatusSet;
+        const rejected = !Array.isArray(statuses) || statuses.length === 0
+          ? { Code: "EMPTY_STATUS", Message: "短信服务未返回号码受理结果" }
+          : statuses.find((status) => String(status.Code).toLowerCase() !== "ok");
+        if (rejected) {
+          const reason = rejected.Code || "recipient_rejected";
+          this.metrics?.recordExternalApi("sms", action, false, duration, reason);
+          this.logger.error(`SMS 号码未受理 [${reason}] ${rejected.PhoneNumber ?? ""}: ${rejected.Message ?? "未知原因"}`);
+          throw new BusinessException(ErrorCode.THIRD_SMS_FAILED, `短信发送失败: ${rejected.Message || reason}`);
+        }
+      }
+
       this.metrics?.recordExternalApi("sms", action, true, duration);
-      return data.Response!;
+      return response;
     } catch (err) {
       const duration = Date.now() - start;
       if (err instanceof BusinessException) throw err;
@@ -168,6 +197,68 @@ export class SmsService {
 
       this.logger.error(`短信发送失败: ${maskPhone(phone)}`, errorMsg);
       return { ok: false, message: errorMsg };
+    }
+  }
+
+  /**
+   * 发送流失召回短信。与验证码彻底隔离：不生成/存储验证码，只使用经审核的专用模板。
+   * 未配置模板时返回 MANUAL，由流失动作转入人工待办，绝不借用验证码模板伪装成功。
+   */
+  async sendRetentionMessage(
+    phone: string,
+    templateParams: string[] = [],
+    cooldownDays = 7,
+  ): Promise<RetentionSmsResult> {
+    if (!this.secretId || !this.secretKey || !this.appId || !process.env.SMS_SIGN_NAME?.trim() || !this.churnTemplateId) {
+      return {
+        ok: false,
+        disposition: "MANUAL",
+        message: "召回短信专用模板未配置或短信基础配置不完整，待人工处理",
+      };
+    }
+    if (!/^1\d{10}$/.test(phone)) {
+      return { ok: false, disposition: "FAILED", message: "目标用户手机号格式无效" };
+    }
+    if (templateParams.length > 6 || templateParams.some((value) => typeof value !== "string" || value.length > 32)) {
+      return { ok: false, disposition: "FAILED", message: "召回短信模板参数不合法" };
+    }
+
+    const safeCooldownDays = Math.min(90, Math.max(1, Math.trunc(cooldownDays) || 7));
+    const cooldownKey = `sms:retention:cooldown:${phone}`;
+    if (await this.redis.get(cooldownKey)) {
+      return {
+        ok: false,
+        disposition: "SKIPPED",
+        message: `用户仍在 ${safeCooldownDays} 天短信冷却期内，本次未重复发送`,
+      };
+    }
+
+    try {
+      await this.callApi("SendSms", {
+        PhoneNumberSet: [`+86${phone}`],
+        SmsSdkAppId: this.appId,
+        SignName: this.signName,
+        TemplateId: this.churnTemplateId,
+        TemplateParamSet: templateParams,
+      });
+      await this.redis.set(cooldownKey, "1", safeCooldownDays * 86400);
+      this.prisma.smsLog.create({
+        data: { phone: maskPhone(phone), scene: "CHURN_RETENTION", status: "SUCCESS" },
+      }).catch((err) => this.logger.warn("SMS日志写入失败", err));
+      this.logger.log(`召回短信已发送到 ${maskPhone(phone)}`);
+      return { ok: true, disposition: "SENT", message: "召回短信已发送" };
+    } catch (err) {
+      const message = (err as Error).message || "召回短信发送失败";
+      this.prisma.smsLog.create({
+        data: {
+          phone: maskPhone(phone),
+          scene: "CHURN_RETENTION",
+          status: "FAIL",
+          errorMsg: message.substring(0, 200),
+        },
+      }).catch((logErr) => this.logger.warn("SMS日志写入失败", logErr));
+      this.logger.error(`召回短信发送失败: ${maskPhone(phone)}`, message);
+      return { ok: false, disposition: "FAILED", message };
     }
   }
 
@@ -271,18 +362,22 @@ export class SmsService {
       }),
     ]);
 
-    const items = {
+    const churnTemplateId = process.env.SMS_CHURN_TEMPLATE_ID || "";
+    const verificationItems = {
       secretId: !!secretId,
       secretKey: !!secretKey,
       sdkAppId: !!appId,
       signName: !!signName,
       templateId: !!templateId,
     };
+    const ready = Object.values(verificationItems).every(Boolean);
+    const retentionReady = !!secretId && !!secretKey && !!appId && !!signName && !!churnTemplateId;
 
     return {
-      ready: Object.values(items).every(Boolean), // 配置项齐全（真实可用性以最近发送结果为准）
+      ready,
+      retentionReady,
       devMode: this.isDevMode(),
-      items, // 各配置项存在性（布尔·不含任何明文）
+      items: { ...verificationItems, churnTemplateId: !!churnTemplateId },
       signName: signName || null, // 签名内容非密钥·运营可读
       region,
       lastSuccessAt: lastSuccess?.createdAt ?? null,

@@ -52,12 +52,31 @@
             type="info"
             size="small"
           >
-            状态检测待部署
+            状态检测失败
           </el-tag>
           <span class="config-detail">
-            配置状态检测端点（GET /sms/admin/config-status）待后端部署，暂以发送日志间接判断。
+            暂时无法读取短信配置状态，请检查服务连接后重试。
           </span>
         </template>
+      </div>
+      <div class="config-row retention-row">
+        <span class="config-label">召回专用模板：</span>
+        <el-tag
+          :type="config.retentionReady === true ? 'success' : (config.retentionReady === false ? 'warning' : 'info')"
+          size="small"
+        >
+          {{ config.retentionReady === true ? '已配置' : (config.retentionReady === false ? '未配置' : '检测中') }}
+        </el-tag>
+        <span
+          class="config-detail"
+          :class="{ danger: config.retentionReady === false }"
+        >
+          {{ config.retentionReady === true
+            ? '仅向主动开启“活动与福利短信”的用户发送，并受规则冷却期限制。'
+            : (config.retentionReady === false
+              ? '未配置 SMS_CHURN_TEMPLATE_ID 时，召回动作会转为“待人工”，不会混用验证码模板。'
+              : '正在读取专用模板配置状态。') }}
+        </span>
       </div>
     </el-card>
 
@@ -109,7 +128,7 @@
       v-if="stats.today.total === 0"
       class="today-hint"
     >
-      今日暂无短信发送——没有用户触发验证码场景时为正常现象，无需处理。
+      今日暂无短信发送——没有用户触发验证码或合规召回场景时为正常现象，无需处理。
     </p>
 
     <!-- 发送日志 -->
@@ -208,7 +227,7 @@
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty :description="loadError ? '加载失败' : (filterStatus ? '当前筛选下暂无记录，换个筛选条件试试' : '暂无发送日志——用户触发验证码后这里会出现记录')">
+          <el-empty :description="loadError ? '加载失败' : (filterStatus ? '当前筛选下暂无记录，换个筛选条件试试' : '暂无发送日志——验证码或召回短信真实发送后这里会出现记录')">
             <el-button
               v-if="loadError"
               type="primary"
@@ -275,20 +294,22 @@ const stats = reactive({
   successRate: "0",
 });
 
-/** 配置状态（新契约 GET /sms/admin/config-status·404 降级"待部署"） */
-const config = reactive<{ state: "loading" | "ok" | "unconfigured" | "unknown"; lastSuccessAt?: string }>({
+/** 配置状态（GET /sms/admin/config-status；失败时诚实显示未知） */
+const config = reactive<{ state: "loading" | "ok" | "unconfigured" | "unknown"; lastSuccessAt?: string; retentionReady?: boolean }>({
   state: "loading",
 });
 
 async function fetchConfigStatus() {
   config.state = "loading";
+  config.retentionReady = undefined;
+  config.lastSuccessAt = undefined;
   try {
     const res = await probe.get("/sms/admin/config-status");
     if (res.status === 404) { config.state = "unknown"; return; }
     if (res.status >= 400) { config.state = "unknown"; return; }
     const d = unwrap(res.data) || {};
-    const configured = d.configured ?? d.isConfigured ?? d.enabled ?? false;
-    config.state = configured ? "ok" : "unconfigured";
+    config.state = d.ready === true ? "ok" : "unconfigured";
+    config.retentionReady = d.retentionReady === true;
     config.lastSuccessAt = d.lastSuccessAt ?? d.lastSuccessTime ?? d.lastSentAt ?? undefined;
   } catch { config.state = "unknown"; }
 }
@@ -306,6 +327,7 @@ const SCENE_LABEL: Record<string, string> = {
   WITHDRAW: "提现验证",
   IDENTITY: "实名认证",
   NOTIFY: "通知短信",
+  CHURN_RETENTION: "流失召回",
 };
 function sceneLabel(s?: string) {
   if (!s) return "—";

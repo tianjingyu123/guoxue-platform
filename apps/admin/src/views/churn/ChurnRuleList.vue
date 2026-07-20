@@ -49,13 +49,13 @@
       </el-table-column>
       <el-table-column
         prop="scoreThreshold"
-        label="评分阈值"
+        label="最高活跃分"
         width="110"
         sortable
       />
       <el-table-column
         prop="daysThreshold"
-        label="天数阈值"
+        label="最少沉默天数"
         width="110"
       />
       <el-table-column
@@ -162,7 +162,7 @@
           </el-select>
         </el-form-item>
         <el-form-item
-          label="评分阈值"
+          label="最高活跃分"
           prop="scoreThreshold"
         >
           <el-input-number
@@ -173,7 +173,7 @@
           />
         </el-form-item>
         <el-form-item
-          label="天数阈值"
+          label="最少沉默天数"
           prop="daysThreshold"
         >
           <el-input-number
@@ -190,6 +190,7 @@
           <el-select
             v-model="form.actionType"
             style="width:100%"
+            @change="handleActionTypeChange"
           >
             <el-option
               label="短信触达"
@@ -210,18 +211,23 @@
               v-model="form.actionConfig"
               type="textarea"
               :rows="3"
-              :placeholder='form.actionType === "SMS" ? "JSON 对象，短信动作需包含 phone 字段，如 {\"phone\": \"138****0000\"}" : "JSON 对象，如 {\"couponId\": \"xxx\"}"'
+              :placeholder="actionConfigPlaceholder"
             />
             <div class="config-hint">
               {{ form.actionType === 'SMS'
-                ? '短信动作：配置中必须含 "phone" 字段，缺失时该次动作会跳过并记录日志'
-                : '优惠券动作：当前记录发放请求后由运营人工发放，配置写明优惠券信息即可' }}
+                ? '短信只发给已在 C 端主动开启“活动与福利短信”的用户；号码取用户主数据。需先配置审核通过的召回模板，默认 7 天冷却。'
+                : '填写商城优惠券 couponId 后自动发放并可在下单时真实核销；缺失或失效会诚实转人工/失败。' }}
             </div>
           </div>
         </el-form-item>
         <el-form-item label="启用状态">
           <el-switch v-model="form.isActive" />
-          <span class="config-hint" style="margin-left:8px">禁用后规则不参与评分后的自动挽回</span>
+          <span
+            class="config-hint"
+            style="margin-left:8px"
+          >
+            禁用后规则不参与评分后的自动挽回
+          </span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -241,7 +247,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from "vue";
+import { ref, onMounted, reactive, computed } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { churnApi } from "@/api";
 
@@ -252,7 +258,7 @@ interface ChurnRule {
   scoreThreshold: number;
   daysThreshold: number;
   actionType: string;
-  actionConfig: string;
+  actionConfig: unknown;
   isActive: boolean;
 }
 
@@ -271,15 +277,21 @@ const ACTION_TYPE_MAP: Record<string, string> = {
   COUPON: "发送优惠券",
 };
 
+const SMS_ACTION_CONFIG = '{\n  "cooldownDays": 7,\n  "templateParams": []\n}';
+const COUPON_ACTION_CONFIG = '{\n  "couponId": "",\n  "cooldownDays": 7\n}';
 const form = reactive({
   name: "",
-  riskLevel: "LOW",
-  scoreThreshold: 50,
-  daysThreshold: 30,
+  riskLevel: "HIGH",
+  scoreThreshold: 30,
+  daysThreshold: 14,
   actionType: "SMS",
-  actionConfig: "",
+  actionConfig: SMS_ACTION_CONFIG,
   isActive: true,
 });
+const actionConfigPlaceholder = computed(() => form.actionType === "SMS"
+  ? '如 {"cooldownDays":7,"templateParams":[]}'
+  : '如 {"couponId":"商城优惠券ID","cooldownDays":7}',
+);
 
 const rules = {
   name: [{ required: true, message: "请输入规则名称", trigger: "blur" }],
@@ -315,13 +327,17 @@ async function fetchList() {
 function openAddDialog() {
   isEdit.value = false;
   form.name = "";
-  form.riskLevel = "LOW";
-  form.scoreThreshold = 50;
-  form.daysThreshold = 30;
+  form.riskLevel = "HIGH";
+  form.scoreThreshold = 30;
+  form.daysThreshold = 14;
   form.actionType = "SMS";
-  form.actionConfig = "";
+  form.actionConfig = SMS_ACTION_CONFIG;
   form.isActive = true;
   dialogVisible.value = true;
+}
+
+function handleActionTypeChange(actionType: string) {
+  form.actionConfig = actionType === "COUPON" ? COUPON_ACTION_CONFIG : SMS_ACTION_CONFIG;
 }
 
 function openEditDialog(row: ChurnRule) {
@@ -347,11 +363,18 @@ async function handleSubmit() {
   let actionConfig: Record<string, unknown> = {};
   if (form.actionConfig && form.actionConfig.trim()) {
     try {
-      actionConfig = JSON.parse(form.actionConfig);
+      const parsed: unknown = JSON.parse(form.actionConfig);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not-object");
+      actionConfig = parsed as Record<string, unknown>;
     } catch {
-      ElMessage.error("动作配置必须是合法 JSON");
+      ElMessage.error("动作配置必须是合法的 JSON 对象");
       return;
     }
+  }
+  if (form.actionType === "COUPON"
+    && (typeof actionConfig.couponId !== "string" || !actionConfig.couponId.trim())) {
+    ElMessage.error("发送优惠券必须填写有效的 couponId");
+    return;
   }
   const payload = { ...form, actionConfig };
   submitting.value = true;

@@ -879,14 +879,15 @@ export class UserService {
       { key: "live", label: "直播提醒", icon: "radio", value: saved.live ?? false },
       { key: "interact", label: "互动提醒", icon: "message-square", value: saved.interact ?? true },
       { key: "system", label: "系统通知", icon: "settings", value: saved.system ?? true },
+      { key: "marketingSms", label: "活动与福利短信", icon: "gift", value: saved.marketingSms ?? false },
     ];
   }
 
-  async updateNotifySettings(userId: string, dto: { key?: string; value?: boolean | string }) {
+  async updateNotifySettings(userId: string, dto: { key: string; value: boolean }) {
     if (!dto.key) throw new BusinessException(ErrorCode.BAD_REQUEST, "key 不能为空");
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { notifySettings: true } });
     const current = (user?.notifySettings as Record<string, boolean>) ?? {};
-    const updated = { ...current, [dto.key]: Boolean(dto.value) };
+    const updated = { ...current, [dto.key]: dto.value };
     await this.prisma.user.update({ where: { id: userId }, data: { notifySettings: updated as any } });
     return { success: true };
   }

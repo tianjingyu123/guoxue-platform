@@ -102,11 +102,12 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   },
   {
     key: "tencent_sms", label: "腾讯云短信", category: "腾讯云",
-    note: "用于注册/登录验证码。★优先配这个。签名和模板都需在短信控制台提交审核、通过后才能用。",
+    note: "用于验证码与用户主动订阅后的召回短信。签名和两类模板都需在短信控制台分别审核通过，严禁混用。",
     fields: [
       S("sdkAppId", "短信 SdkAppId", "SMS_APP_ID", false, "短信控制台→应用管理→应用列表→SDKAppID（纯数字）"),
       S("signName", "签名内容", "SMS_SIGN_NAME", false, "短信控制台→国内短信→签名管理，填『审核通过』的签名内容（如：某某国学）"),
-      S("templateId", "模板 ID", "SMS_TEMPLATE_ID", false, "短信控制台→正文模板管理，填『审核通过』的模板ID（纯数字）"),
+      S("templateId", "验证码模板 ID", "SMS_TEMPLATE_ID", false, "审核通过的验证码模板ID（变量通常为验证码、有效分钟）"),
+      S("churnTemplateId", "召回短信模板 ID", "SMS_CHURN_TEMPLATE_ID", false, "审核通过的营销/通知类召回模板ID；未配置时动作自动转人工待办，不会借用验证码模板"),
     ],
   },
   {
