@@ -136,10 +136,18 @@
         </view>
       </view>
 
-      <!-- 联系方式 -->
+      <!-- 联系方式：未配置对外邮箱时统一进入真实平台客服，不展示占位地址 -->
       <view class="contact">
-        <text class="contact-tip">如有疑问，请联系我们</text>
-        <text class="contact-email" @tap="contactEmail">privacy@rebu.com</text>
+        <text class="contact-tip">对信息收集或授权管理有疑问？</text>
+        <view
+          class="contact-service"
+          role="button"
+          aria-label="联系平台客服"
+          @tap="contactService"
+        >
+          <app-icon name="message-square" :size="18" color="#ffffff" />
+          <text>联系平台客服</text>
+        </view>
       </view>
     </view>
 
@@ -284,7 +292,7 @@ const requiredFields = computed(() =>
 )
 
 const goPrivacy = () => navigateTo('/settings/privacy')
-const contactEmail = () => {}
+const contactService = () => navigateTo('/customer-service')
 </script>
 
 <style scoped>
@@ -582,9 +590,22 @@ const contactEmail = () => {}
   display: block;
   margin-bottom: 16rpx;
 }
-.contact-email {
-  font-size: 28rpx;
-  color: var(--brand);
+.contact-service {
+  min-height: 88rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 0 36rpx;
+  border-radius: 18rpx;
+  background: var(--brand);
+  font-size: 27rpx;
+  font-weight: 600;
+  color: #ffffff;
+}
+.contact-service:active {
+  opacity: 0.86;
+  transform: scale(0.985);
 }
 
 /* 底部按钮 */

@@ -77,11 +77,19 @@ export const BRAND = reactive<BrandConfig>({
   primaryColor: '#c41e3a',
   h5Url: 'https://api.rebugx.cn/h5/',
   servicePhone: '',
-  serviceEmail: 'support@rebu.com',
-  serviceWechat: 'rebu_guoxue',
+  serviceEmail: '',
+  serviceWechat: '',
   companyName: '',
   platformName: '热卜国学',
 })
+
+const CLEARABLE_BRAND_FIELDS = new Set<keyof BrandConfig>([
+  'logoUrl',
+  'servicePhone',
+  'serviceEmail',
+  'serviceWechat',
+  'companyName',
+])
 
 let hydrating: Promise<void> | null = null
 
@@ -94,7 +102,8 @@ export function hydrateBrandConfig(): Promise<void> {
       if (!cfg) return
       for (const [remoteKey, localKey] of Object.entries(FIELD_MAP)) {
         const v = cfg[remoteKey]
-        if (typeof v === 'string' && v !== '') BRAND[localKey] = v
+        if (typeof v !== 'string') continue
+        if (v !== '' || CLEARABLE_BRAND_FIELDS.has(localKey)) BRAND[localKey] = v
       }
     } catch {
       // 静默降级：品牌配置拉取失败时保留内置默认值，不影响启动

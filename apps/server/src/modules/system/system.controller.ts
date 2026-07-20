@@ -344,25 +344,22 @@ export class SystemController {
     return this.systemService.updateBrandConfig({ ...dto }, u?.nickname || u?.id);
   }
 
-  /** 公开接口：关于我们 */
+  /** 公开接口：关于我们。规模指标没有可审计聚合口径前保持为空，禁止固定宣传数字。 */
   @Get("about")
   @ApiOperation({ summary: "获取关于我们信息（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
   async getAbout() {
     return {
-      stats: [
-        { value: "100+", label: "专家讲师", color: "#c41e3a" },
-        { value: "500+", label: "精品课程", color: "#d4b87d" },
-        { value: "50万+", label: "学习用户", color: "#6ed24a" },
-      ],
+      stats: [],
       features: [
-        { icon: "book-open", title: "专业内容", desc: "严选优质国学课程与古籍资源" },
-        { icon: "users", title: "圈子交流", desc: "加入志同道合的学习社区" },
-        { icon: "award", title: "名师指导", desc: "一对一咨询，答疑解惑" },
-        { icon: "building-2", title: "线下活动", desc: "定期举办国学文化体验活动" },
+        { icon: "book-open", title: "古籍与工具", desc: "阅读经典原文，使用经过校验的传统文化工具" },
+        { icon: "play", title: "内容与课程", desc: "从公开内容到体系课程，按真实上架状态呈现" },
+        { icon: "users", title: "社区交流", desc: "围绕兴趣加入圈子，与同好持续讨论和学习" },
+        { icon: "sparkles", title: "智能辅助", desc: "为伴读、搜索、客服与创作提供流式智能能力" },
       ],
     };
   }
+
   // ── 审计日志 ──
 
   @Get("audit-logs")

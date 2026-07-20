@@ -7,8 +7,6 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 /* —— 头像生成辅助（沿用工程 dicebear 约定） —— */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
-/* —— 商品/封面图基址（沿用 shop-data 约定） —— */
-const P = 'https://api.rebugx.cn/assets/images/products'
 
 /* —— 通用账户资料 —— */
 export const mineProfile = {
@@ -625,19 +623,6 @@ export const historyFeedbacks: HistoryFeedbackItem[] = [
   { id: 1, type: 'bug', title: '课程视频播放卡顿', content: '在观看八字入门课程时，视频经常卡顿...', time: '2024-03-15', status: 'resolved', reply: '感谢您的反馈，我们已优化视频服务器，请您再试试。' },
   { id: 2, type: 'suggestion', title: '建议增加离线下载功能', content: '希望能支持课程视频离线下载...', time: '2024-03-10', status: 'processing', reply: null },
   { id: 3, type: 'other', title: '如何申请成为讲师', content: '想了解成为平台讲师的条件...', time: '2024-02-28', status: 'resolved', reply: '您好，您可以在研究院页面查看讲师申请条件和流程。' },
-]
-
-/* —— 关于我们(about) —— */
-export const aboutStats = [
-  { value: '100+', label: '专家讲师', color: '#c41e3a' },
-  { value: '500+', label: '精品课程', color: '#d4b87d' },
-  { value: '50万+', label: '学习用户', color: '#6ed24a' },
-]
-export const aboutFeatures = [
-  { icon: 'book-open', title: '专业内容', desc: '严选优质国学课程与古籍资源' },
-  { icon: 'users', title: '圈子交流', desc: '加入志同道合的学习社区' },
-  { icon: 'award', title: '名师指导', desc: '一对一咨询，答疑解惑' },
-  { icon: 'building-2', title: '线下活动', desc: '定期举办国学文化体验活动' },
 ]
 
 /* —— 编辑资料(profile/edit) —— */
@@ -1368,30 +1353,12 @@ function adaptFavorite(it: RawFavorite): FavItem {
 }
 
 /* —— 诗词/古籍/电子书收藏适配（各自独立收藏表·统一并入"我的收藏"展示） —— */
-/** 诗词收藏项（GET /poetry/collections） */
-function adaptPoemFav(c: { id: string; title?: string; author?: string; dynasty?: string; collectedAt?: string }): FavItem {
-  return {
-    id: `poem_${c.id}`, targetType: 'POEM', targetId: String(c.id), type: 'poem',
-    title: c.title || '诗词', subtitle: [c.author, c.dynasty].filter(Boolean).join(' · ') || '诗词',
-    cover: '', collectedAt: formatDate(c.collectedAt ?? ''), isInvalid: false,
-  }
-}
 /** 古籍收藏项（GET /classic/favorites → items[]） */
 function adaptClassicFav(b: { id: string; title?: string; author?: string; dynasty?: string; addedAt?: string }): FavItem {
   return {
     id: `classic_${b.id}`, targetType: 'CLASSIC', targetId: String(b.id), type: 'classic',
     title: b.title || '古籍', subtitle: [b.author, b.dynasty].filter(Boolean).join(' · ') || '古籍',
     cover: '', collectedAt: formatDate(b.addedAt ?? ''), isInvalid: false,
-  }
-}
-/** 电子书收藏项（GET /ebook/favorites → items[{ favoritedAt, ebook }]） */
-function adaptEbookFav(it: { favoritedAt?: string; ebook?: { id: string; title?: string; author?: string; cover?: string } }): FavItem | null {
-  const e = it.ebook
-  if (!e) return null
-  return {
-    id: `ebook_${e.id}`, targetType: 'EBOOK', targetId: String(e.id), type: 'ebook',
-    title: e.title || '电子书', subtitle: e.author || '电子书',
-    cover: e.cover || '', collectedAt: formatDate(it.favoritedAt ?? ''), isInvalid: false,
   }
 }
 
@@ -1887,15 +1854,6 @@ export const mineApi = {
   async submitFeedback(_type: string, _content: string, _contact?: string, _images?: string[]): Promise<{ success: boolean; message: string }> {
     await apiPost('/users/feedback', { type: _type, content: _content, contact: _contact, images: _images })
     return { success: true, message: '反馈已提交' }
-  },
-
-  /**
-   * 获取关于页数据
-   * aboutStats/aboutFeatures 是纯 UI 展示配置（平台简介数据），后端无 /about 端点，
-   * 直接返回前端维护的展示常量，不属于伪造业务数据。
-   */
-  async getAbout(): Promise<{ stats: typeof aboutStats; features: typeof aboutFeatures }> {
-    return { stats: aboutStats, features: aboutFeatures }
   },
 
   /**

@@ -78,7 +78,7 @@
           <text class="guardian-title">监护人联系方式</text>
           <text class="guardian-desc">如您是未成年人的监护人，对我们处理您所监护的未成年人个人信息有任何疑问、意见或建议，或需要行使相关权利，请通过以下方式联系我们：</text>
           <view class="contact-list">
-            <view class="contact-item" @tap="onMail">
+            <view v-if="BRAND.serviceEmail" class="contact-item" @tap="onMail">
               <view class="contact-icon-wrap">
                 <app-icon name="mail" :size="20" color="#c41e3a" />
               </view>
@@ -87,7 +87,7 @@
                 <text class="contact-value">{{ BRAND.serviceEmail }}</text>
               </view>
             </view>
-            <!-- 客服电话来自后台品牌配置（BRAND.servicePhone），未配置时不展示占位号码 -->
+            <!-- 电话与邮箱均只展示后台真实配置；始终保留可用的在线客服入口 -->
             <view v-if="BRAND.servicePhone" class="contact-item" @tap="onPhone">
               <view class="contact-icon-wrap">
                 <app-icon name="phone" :size="20" color="#c41e3a" />
@@ -95,6 +95,15 @@
               <view class="contact-info">
                 <text class="contact-label">电话联系</text>
                 <text class="contact-value">{{ BRAND.servicePhone }}（工作日 9:00-18:00）</text>
+              </view>
+            </view>
+            <view class="contact-item" @tap="onService">
+              <view class="contact-icon-wrap">
+                <app-icon name="message-square" :size="20" color="#c41e3a" />
+              </view>
+              <view class="contact-info">
+                <text class="contact-label">在线客服</text>
+                <text class="contact-value">进入平台客服提交问题</text>
               </view>
             </view>
           </view>
@@ -149,7 +158,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { legalApi, extractToc, type LegalDoc, type LegalTocItem } from '@/pkg-settings/lib/legal-data'
 import { BRAND } from '@/lib/brand'
 
@@ -205,6 +214,7 @@ async function handleConfirm() {
 }
 
 const onMail = () => {
+  if (!BRAND.serviceEmail) return
   // H5 端无统一 mailto 能力，复制邮箱供监护人联系
   uni.setClipboardData({ data: BRAND.serviceEmail, success: () => uni.showToast({ title: '邮箱已复制', icon: 'none' }) })
 }
@@ -212,6 +222,7 @@ const onPhone = () => {
   if (!BRAND.servicePhone) return
   uni.makePhoneCall({ phoneNumber: BRAND.servicePhone, fail: () => {} })
 }
+const onService = () => navigateTo('/customer-service')
 </script>
 
 <style scoped>

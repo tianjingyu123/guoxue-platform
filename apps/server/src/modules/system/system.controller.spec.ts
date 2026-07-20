@@ -137,6 +137,13 @@ describe("SystemController", () => {
     expect(result.layout).toBeDefined();
   });
 
+  it("GET /system/about — 不返回不可审计的固定规模数字", async () => {
+    const result: any = await ctrl.getAbout();
+    expect(result.stats).toEqual([]);
+    expect(JSON.stringify(result)).not.toMatch(/100\+|500\+|50万\+/);
+    expect(result.features).toHaveLength(4);
+  });
+
   // ── 审计日志 ──
 
   it("GET /system/audit-logs — 审计日志列表", async () => {
