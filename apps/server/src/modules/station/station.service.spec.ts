@@ -10,6 +10,8 @@ const mockPrisma = {
   station: { create: jest.fn(), update: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(), count: jest.fn() },
   stationEarning: { findMany: jest.fn(), count: jest.fn() },
   operator: { create: jest.fn(), findUnique: jest.fn(), updateMany: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+  commissionConfig: { findUnique: jest.fn() },
+  configSystem: { findUnique: jest.fn() },
   $transaction: jest.fn(),
 };
 
@@ -109,6 +111,24 @@ describe("StationService", () => {
 
       await expect(svc.applyStation("u-1", { name: "团队分站", code: "TEAM", operatorId: "op-1" })).rejects.toThrow("名额状态已变化");
       expect(mockPrisma.station.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getOperatorPlan", () => {
+    it("价格、名额与服务期读取支付链同一配置真源", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: "4999", rateB: "6" });
+      mockPrisma.configSystem.findUnique.mockResolvedValue({ configValue: "12" });
+
+      await expect(svc.getOperatorPlan()).resolves.toEqual({
+        level: "SILVER", price: 4999, quotaTotal: 6, serviceMonths: 12,
+        managementRate: 0.1, allocationMode: "INVITE",
+      });
+    });
+
+    it("价格或名额缺失时 fail-closed，不发布 0 元方案", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: "0", rateB: "6" });
+      mockPrisma.configSystem.findUnique.mockResolvedValue(null);
+      await expect(svc.getOperatorPlan()).rejects.toThrow("方案暂不可用");
     });
   });
 

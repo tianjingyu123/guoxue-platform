@@ -94,6 +94,13 @@ export class ShopOrderService {
       if (!OPERATOR_LEVELS.includes(level)) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商档位不存在");
       }
+      const existingOperator = await this.prisma.operator.findUnique({
+        where: { userId },
+        select: { id: true, status: true },
+      });
+      if (existingOperator?.status === "DISABLED") {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "运营商资格已被平台停用，暂不可续费，请联系平台客服");
+      }
       actualAmount = await this.resolveBillingPrice(`operator_${level}`, "运营商档位");
     } else {
       const productId = dto.targetId;
@@ -179,24 +186,26 @@ export class ShopOrderService {
     // 尤其自购立减——站长本身是分销角色，不排除的话他买运营商资格会被自己的分销比例打折（实测 4999→3999.2，平台白丢 1000）。
     const isFranchiseFee = FRANCHISE_ORDER_TYPES.includes(dto.type);
 
-    // 同一用户/分站的年租下单串行化，防双击或多端并发创建两张都可支付的订单。
-    const stationOrderLockKey = dto.type === "STATION_MASTER"
+    // 分站年租和运营商资格均属可续期服务：同用户/同标的下单串行化，只保留一张可支付订单。
+    const recurringOrderLockKey = dto.type === "STATION_MASTER"
       ? "station-order:create:" + userId + ":" + dto.targetId
-      : null;
-    if (stationOrderLockKey) {
-      const locked = await this.redis.setNX(stationOrderLockKey, "1", 30);
+      : dto.type === "OPERATOR"
+        ? "operator-order:create:" + userId + ":" + dto.targetId
+        : null;
+    if (recurringOrderLockKey) {
+      const locked = await this.redis.setNX(recurringOrderLockKey, "1", 30);
       if (!locked) throw new BusinessException(ErrorCode.BAD_REQUEST, "支付订单正在创建，请稍后重试");
     }
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        // 分站年租只保留一张可支付本地订单；重进页面直接续付，避免重复付款后权益叠加两次。
-        if (dto.type === "STATION_MASTER") {
+        if (dto.type === "STATION_MASTER" || dto.type === "OPERATOR") {
           // PostgreSQL 事务级锁是 Redis 降级/多实例场景的最终防线；事务结束自动释放。
-          const dbLockName = "station-order:" + userId + ":" + dto.targetId;
+          const dbLockName = (dto.type === "STATION_MASTER" ? "station-order:" : "operator-order:")
+            + userId + ":" + dto.targetId;
           await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", dbLockName);
           const pending = await tx.order.findFirst({
-            where: { userId, type: "STATION_MASTER", targetId: dto.targetId, status: "PENDING" },
+            where: { userId, type: dto.type as any, targetId: dto.targetId, status: "PENDING" },
             orderBy: { createdAt: "desc" },
           });
           if (pending) return pending;
@@ -308,7 +317,7 @@ export class ShopOrderService {
         return order;
       });
     } finally {
-      if (stationOrderLockKey) await this.redis.del(stationOrderLockKey);
+      if (recurringOrderLockKey) await this.redis.del(recurringOrderLockKey);
     }
   }
 

@@ -148,6 +148,37 @@ export class StationService {
     }
   }
 
+  /** 公开运营商方案：价格、名额与服务期均读取支付链同一真源。 */
+  async getOperatorPlan() {
+    const [plan, period] = await Promise.all([
+      this.prisma.commissionConfig.findUnique({
+        where: { configKey: "operator_SILVER" },
+        select: { rateA: true, rateB: true },
+      }),
+      this.prisma.configSystem.findUnique({
+        where: { configKey: "station.billing_period_months" },
+        select: { configValue: true },
+      }),
+    ]);
+    const price = Number(plan?.rateA ?? 0);
+    const quotaTotal = Math.max(0, Math.floor(Number(plan?.rateB ?? 0)));
+    const configuredMonths = Number(period?.configValue ?? 12);
+    const serviceMonths = Number.isFinite(configuredMonths) && configuredMonths > 0
+      ? Math.floor(configuredMonths)
+      : 12;
+    if (!plan || !(price > 0) || quotaTotal <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商方案暂不可用，请联系平台客服");
+    }
+    return {
+      level: "SILVER",
+      price: Math.round(price * 100) / 100,
+      quotaTotal,
+      serviceMonths,
+      managementRate: 0.1,
+      allocationMode: "INVITE",
+    };
+  }
+
   /** 公开校验运营商邀请，不返回用户身份或联系方式。 */
   async getOperatorInvite(operatorId: string) {
     const operator = await this.prisma.operator.findUnique({

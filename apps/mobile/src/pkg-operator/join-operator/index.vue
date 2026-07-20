@@ -1,76 +1,82 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, getCurrentInstance, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { operatorApi } from '@/pkg-operator/lib/operator-data'
+import {
+  operatorApi,
+  type CurrentOperator,
+  type OperatorPlan,
+} from '@/pkg-operator/lib/operator-data'
 import { shopApi } from '@/lib/shop-data'
+import { getToken } from '@/utils/storage'
+import { drawQrToCanvas } from '@/utils/qrcode'
 
-// —— 自定义导航：顶部状态栏留白 ——
+const instance = getCurrentInstance()?.proxy
+const QR_PX = 176
 const statusBarHeight = ref(0)
-
 const loading = ref(true)
 const error = ref('')
 const agreed = ref(false)
 const submitting = ref(false)
 const expandedFaq = ref<number | null>(0)
+const plan = ref<OperatorPlan | null>(null)
+const currentOperator = ref<CurrentOperator | null>(null)
 
-// ★ 合规红线：文案逐字照 mockup-C1，不复用可能过时的营销常量。
-// 单档 4999 = 1 自用 + 5 可售（名额不可加购）；团队管理奖 = 名下站长收入的 10%。
-// 严禁承诺式/收益诱导宣传，风险提示三条必须存在。
-const PRICE = 4999
-const OWN_SLOTS = 1
-const SELLABLE_SLOTS = 5
-// 唯一对外档位（对应后端 CommissionConfig.operator_SILVER）。真实计费金额由服务端读配置决定，
-// 上面的 PRICE 只用于合规文案展示，不参与计费。
-const OPERATOR_LEVEL = 'SILVER'
-
-const heroNums = [
-  { value: '¥4999', label: '唯一对外档位', gold: false },
-  { value: '1+5', label: '分站（自用+可售）', gold: true },
-  { value: '10%', label: '团队管理奖', gold: false },
-]
-
-// 运营商权益（去承诺·陈述功能）
-const benefits = [
-  { icon: 'building-2', name: '1+5 个分站', desc: '1 个自用分站 + 5 个可对外销售的分站名额' },
-  { icon: 'award', name: '团队管理奖 10%', desc: '名下站长产生收入时，你获得其收入的 10% 作为团队管理奖' },
-  { icon: 'bar-chart-3', name: '团队业绩看板', desc: '查看名下站长的收益、活跃度与转化情况' },
-  { icon: 'bell', name: '沉寂预警 + 批量提醒', desc: '站长长时间无活动时预警，可批量发送提醒' },
-]
-
-// ★ 风险提示三条（替代承诺宣传·必须醒目）
+const price = computed(() => plan.value?.price ?? 0)
+const ownSlots = 1
+const inviteSlots = computed(() => Math.max(0, (plan.value?.quotaTotal ?? 1) - ownSlots))
+const serviceMonths = computed(() => plan.value?.serviceMonths ?? 0)
+const managementPct = computed(() => Math.round((plan.value?.managementRate ?? 0) * 100))
+const isRenewal = computed(() => Boolean(currentOperator.value))
+const renewalBlocked = computed(() => currentOperator.value?.status === 'DISABLED')
+const OPERATOR_STATUS_LABEL: Record<string, string> = {
+  ACTIVE: '服务中',
+  EXPIRED: '已到期，可续费恢复',
+  DISABLED: '平台停用',
+}
+const statusLabel = computed(() => OPERATOR_STATUS_LABEL[currentOperator.value?.status || ''] || currentOperator.value?.status || '')
+const actionLabel = computed(() => isRenewal.value ? '确认续费运营商' : '确认开通运营商')
+const heroNums = computed(() => [
+  { value: `¥${price.value}`, label: `${serviceMonths.value}个月服务期`, gold: false },
+  { value: `${ownSlots}+${inviteSlots.value}`, label: '分站（自用+邀请）', gold: true },
+  { value: `${managementPct.value}%`, label: '团队管理奖', gold: false },
+])
+const benefits = computed(() => [
+  { icon: 'building-2', name: `${ownSlots}+${inviteSlots.value} 个分站`, desc: `${ownSlots} 个自用分站 + ${inviteSlots.value} 个站长邀请名额，邀请成功后自动占用` },
+  { icon: 'award', name: `团队管理奖 ${managementPct.value}%`, desc: `名下站长产生真实推广收入时，按当前规则获得 ${managementPct.value}% 团队管理奖` },
+  { icon: 'bar-chart-3', name: '团队业绩看板', desc: '查看名下站长的收益、活跃度与团队表现' },
+  { icon: 'user-plus', name: '邀请归属管理', desc: '生成专属邀请链接，查看已加入并归属团队的分站' },
+])
 const risks = [
   '请先评估你是否具备推广渠道与资源；若没有推广能力，请勿加入。',
-  '这是投资行为，存在亏损风险，收益取决于你的团队与推广，平台不作任何收益承诺。',
+  '这是经营投入，存在亏损风险，收益取决于团队实际运营，平台不作任何收益承诺。',
   '请理性决策，量力而行。',
 ]
+const faqs = computed(() => [
+  { q: '运营商和站长有什么区别？', a: `运营商负责邀请与管理一支站长团队，并按当前 ${managementPct.value}% 规则获得团队管理奖；站长负责运营自己的分站并获得真实推广佣金。` },
+  { q: '团队管理奖怎么计算？', a: `名下站长每产生一笔真实推广收入，平台按当前 ${managementPct.value}% 规则核算团队管理奖；具体以实际账单为准。` },
+  { q: `${ownSlots}+${inviteSlots.value} 个分站分别是什么？`, a: `${ownSlots} 个名额用于自有分站，其余 ${inviteSlots.value} 个用于邀请站长加入团队。名额不可私下出售、转让或加购，邀请成功后自动占用。` },
+  { q: '服务期多久，如何续费？', a: `本方案每次开通或续费增加 ${serviceMonths.value} 个月服务期；有效期内提前续费会在原到期日后顺延，不会损失剩余天数。` },
+])
 
-// 常见问题（照 mockup 原文）
-const faqs = [
-  {
-    q: '运营商和站长有什么区别？',
-    a: '运营商负责邀请与管理一支站长团队，从名下站长收入中获得 10% 团队管理奖；站长自己开分站、在主推位选品推广，获得分销佣金。',
-  },
-  {
-    q: '团队管理奖 10% 怎么算？',
-    a: '名下站长每产生一笔真实推广收入，你按其收入的 10% 获得团队管理奖，随其收入结算发放。',
-  },
-  {
-    q: '1+5 个分站分别是什么？',
-    a: '1 个自用分站（你本人运营），5 个可对外销售的分站名额（用于邀请新站长加入你的团队）。名额不可加购。',
-  },
-  {
-    q: '需要单独注册账号吗？',
-    a: '不需要。沿用平台统一账号，无独立登录与密码，开通后即以运营商身份使用。',
-  },
-]
+function formatDate(value?: string | null) {
+  return value ? String(value).slice(0, 10) : '—'
+}
 
 async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    // 复用现有数据调用以维持数据依赖与三态骨架；文案不采用其营销常量，一律以 mockup 内联为准
-    await operatorApi.getOperatorPricing()
+    plan.value = await operatorApi.getOperatorPricing()
+    currentOperator.value = null
+    if (getToken()) {
+      try {
+        currentOperator.value = await operatorApi.getCurrentOperator()
+      } catch (e) {
+        const message = (e as Error)?.message || ''
+        if (!/运营商|不是|未找到/.test(message)) throw e
+      }
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -78,62 +84,53 @@ async function fetchData() {
   }
 }
 
-function retry() {
-  fetchData()
-}
-
+function retry() { fetchData() }
 onMounted(() => {
-  try {
-    statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
-  } catch {
-    statusBarHeight.value = 0
-  }
+  try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch { statusBarHeight.value = 0 }
   fetchData()
 })
+function toggleFaq(i: number) { expandedFaq.value = expandedFaq.value === i ? null : i }
+function goBack() { uni.navigateBack({ delta: 1 }) }
 
-function toggleFaq(i: number) {
-  expandedFaq.value = expandedFaq.value === i ? null : i
-}
-
-function goBack() {
-  uni.navigateBack({ delta: 1 })
-}
-
-// —— 支付状态（范式对齐 pkg-profile/vip：Native 扫码 + 轮询 + 渠道未就绪诚实降级）——
 const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
-const payUnavailable = ref(false)
+const payFailure = ref('')
+const payOrderKept = ref(false)
+const qrReady = ref(false)
 const pollCount = ref(0)
-const POLL_MAX = 40 // 3s × 40 ≈ 2 分钟
+const POLL_MAX = 40
 let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 async function onSubmit() {
-  if (submitting.value || !agreed.value) return
+  if (submitting.value || !agreed.value || renewalBlocked.value || !plan.value) return
   submitting.value = true
+  payFailure.value = ''
+  payOrderKept.value = false
   try {
-    // 1) 创建运营商订单。targetId=档位；金额由服务端按 CommissionConfig.operator_<level>.rateA 定价，
-    //    前端 PRICE 仅用于合规文案展示，绝不参与计费（防篡改）。
-    const order = await shopApi.createOrder({
-      type: 'OPERATOR',
-      targetId: OPERATOR_LEVEL,
-      quantity: 1,
-    })
+    const order = await shopApi.createOrder({ type: 'OPERATOR', targetId: plan.value.level, quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
-
-    // 2) 发起微信 Native 扫码支付
+    payOrderKept.value = true
     const pay = await shopApi.payOrderNative(order.id)
-    if (pay.codeUrl) {
-      payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
-      startPolling(order.id)
-    } else {
-      // 未返回 code_url = 渠道未就绪，不假装成功
-      payUnavailable.value = true
-    }
-  } catch {
-    // 支付渠道未就绪（商户资质审核中必现）→ 诚实提示，订单保留在购买记录中
-    payUnavailable.value = true
+    if (!pay.codeUrl) throw new Error('微信支付未返回支付二维码，请稍后重试')
+    payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
+    qrReady.value = false
+    await nextTick()
+    renderPayQr()
+    startPolling(order.id)
+  } catch (e) {
+    payFailure.value = (e as Error)?.message || '支付发起失败，请稍后重试'
   } finally {
     submitting.value = false
   }
+}
+
+function renderPayQr() {
+  const value = payPending.value?.codeUrl
+  if (!value) return
+  try {
+    const ctx = uni.createCanvasContext('operatorPayQr', instance)
+    const ok = drawQrToCanvas(ctx, value, 8, 8, QR_PX - 16, {})
+    ctx.draw(false, () => { qrReady.value = ok })
+  } catch { qrReady.value = false }
 }
 
 function startPolling(orderId: string) {
@@ -143,15 +140,10 @@ function startPolling(orderId: string) {
     pollCount.value++
     try {
       const st = await shopApi.getOrderPayState(orderId)
-      if (st.paid) {
-        onPaid()
-        return
-      }
-    } catch {
-      // 单次查询失败不中断轮询
-    }
+      if (st.paid) { onPaid(); return }
+    } catch { /* 单次查询失败不中断轮询 */ }
     if (pollCount.value >= POLL_MAX) {
-      uni.showToast({ title: '未检测到支付结果，可稍后在订单记录中查看', icon: 'none' })
+      uni.showToast({ title: '暂未检测到支付结果，再次进入本页可继续支付', icon: 'none' })
       payPending.value = null
       return
     }
@@ -159,40 +151,27 @@ function startPolling(orderId: string) {
   }
   pollTimer = setTimeout(tick, 3000)
 }
-
-function stopPolling() {
-  if (pollTimer) {
-    clearTimeout(pollTimer)
-    pollTimer = null
-  }
-}
-
-/**
- * 支付成功：后端支付后处理器已建号并设到期日，此处仅提示 + 回到工作台。
- * 🔴 原跳 /pkg-operator/operator-dashboard/index —— 该目录根本不存在（真实页是 dashboard），
- *    navigateTo 失败后统一弹「功能开发中」：用户交完 4999 加盟费，第一眼看到的是报错。
- */
+function stopPolling() { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null } }
 function onPaid() {
   stopPolling()
   payPending.value = null
-  uni.showToast({ title: '开通成功', icon: 'success' })
+  uni.showToast({ title: isRenewal.value ? '续费成功' : '开通成功', icon: 'success' })
   setTimeout(() => navigateTo('/pkg-operator/dashboard/index'), 1200)
 }
-
 function copyCodeUrl() {
   if (!payPending.value) return
-  uni.setClipboardData({
-    data: payPending.value.codeUrl,
-    success: () => uni.showToast({ title: '已复制', icon: 'none' }),
-  })
+  uni.setClipboardData({ data: payPending.value.codeUrl, success: () => uni.showToast({ title: '支付链接已复制', icon: 'none' }) })
 }
-
-/** 取消只关弹层、停轮询；订单保留在订单记录中可继续支付（不擅自取消订单） */
-function cancelPay() {
-  stopPolling()
-  payPending.value = null
+function openWechatPay() {
+  if (!payPending.value) return
+  // #ifdef H5
+  window.location.href = payPending.value.codeUrl
+  // #endif
+  // #ifndef H5
+  copyCodeUrl()
+  // #endif
 }
-
+function cancelPay() { stopPolling(); payPending.value = null }
 onUnmounted(() => stopPolling())
 </script>
 
@@ -204,7 +183,7 @@ onUnmounted(() => stopPolling())
       <view class="nav-back" @tap="goBack">
         <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
       </view>
-      <text class="nav-title">成为运营商</text>
+      <text class="nav-title">{{ isRenewal ? '续费运营商' : '成为运营商' }}</text>
       <view class="nav-holder" />
     </view>
 
@@ -237,25 +216,35 @@ onUnmounted(() => stopPolling())
           </view>
         </view>
 
+        <view v-if="currentOperator" class="current-card" :class="{ blocked: renewalBlocked }">
+          <view class="current-main">
+            <text class="current-title">当前运营商资格</text>
+            <text class="current-status">{{ statusLabel }}</text>
+          </view>
+          <text class="current-meta">当前到期日：{{ formatDate(currentOperator.expireAt) }}</text>
+          <text v-if="renewalBlocked" class="current-warn">该资格已被平台停用，暂不能通过付款解除，请联系平台客服。</text>
+          <text v-else class="current-tip">续费成功后将在当前有效期基础上顺延 {{ serviceMonths }} 个月。</text>
+        </view>
+
         <!-- 单档套餐（唯一对外档位）-->
-        <text class="sec-title serif">开通档位</text>
+        <text class="sec-title serif">{{ isRenewal ? '续费方案' : '开通方案' }}</text>
         <view class="pkg">
           <view class="pkg-tag"><text class="pkg-tag-text">唯一对外档位</text></view>
           <text class="pkg-name">一级运营商</text>
           <view class="pkg-price serif">
             <text class="pkg-price-symbol">¥</text>
-            <text class="pkg-price-num">{{ PRICE }}</text>
+            <text class="pkg-price-num">{{ price }}</text>
           </view>
-          <text class="pkg-sub">一次性开通 · 获得 1+5 个分站</text>
+          <text class="pkg-sub">{{ serviceMonths }} 个月运营服务 · {{ ownSlots }} 个自用 + {{ inviteSlots }} 个邀请名额</text>
           <view class="pkg-div" />
           <view class="slots">
             <view class="slot">
-              <text class="slot-n">{{ OWN_SLOTS }}</text>
+              <text class="slot-n">{{ ownSlots }}</text>
               <text class="slot-l">自用分站</text>
             </view>
             <view class="slot">
-              <text class="slot-n gold">{{ SELLABLE_SLOTS }}</text>
-              <text class="slot-l">可对外销售分站</text>
+              <text class="slot-n gold">{{ inviteSlots }}</text>
+              <text class="slot-l">站长邀请名额</text>
             </view>
           </view>
         </view>
@@ -305,7 +294,7 @@ onUnmounted(() => stopPolling())
 
       <!-- 底部 CTA -->
       <view class="cta">
-        <text class="cta-price">开通费用 <text class="cta-price-b">¥{{ PRICE }}</text> · 获得 1+5 个分站</text>
+        <text class="cta-price">{{ isRenewal ? '续费' : '开通' }}金额 <text class="cta-price-b">¥{{ price }}</text> · {{ serviceMonths }}个月服务期</text>
         <view class="cta-hint">
           <view class="agree-box" :class="{ on: agreed }" @tap="agreed = !agreed">
             <AppIcon v-if="agreed" name="check" :size="20" color="#fff" />
@@ -315,8 +304,8 @@ onUnmounted(() => stopPolling())
             <text class="cta-hint-link" @tap="navigateTo('/pkg-operator/agreement-operator/index')">《运营商服务协议》</text>
           </text>
         </view>
-        <view class="cta-btn" :class="{ disabled: !agreed }" @tap="onSubmit">
-          <text class="cta-btn-text">确认开通运营商</text>
+        <view class="cta-btn" :class="{ disabled: !agreed || renewalBlocked || submitting }" @tap="onSubmit">
+          <text class="cta-btn-text">{{ renewalBlocked ? '资格已停用' : (submitting ? '正在创建订单…' : actionLabel) }}</text>
         </view>
       </view>
     </template>
@@ -324,24 +313,28 @@ onUnmounted(() => stopPolling())
     <!-- 待支付：微信 Native 扫码 + 轮询（范式同 pkg-profile/vip） -->
     <view v-if="payPending" class="modal-mask">
       <view class="modal-card" @tap.stop>
-        <text class="modal-title">请使用微信扫码支付</text>
+        <text class="modal-title">微信支付</text>
         <text class="pay-amount"><text class="pay-amount-yuan">¥</text>{{ payPending.amount }}</text>
-        <text class="pay-tip">复制以下支付链接，在微信中打开完成支付：</text>
-        <text class="pay-url" :selectable="true">{{ payPending.codeUrl }}</text>
-        <view class="modal-btn" @tap="copyCodeUrl">
-          <text class="modal-btn-txt">复制支付链接</text>
+        <text class="pay-tip">请使用微信扫描二维码完成支付</text>
+        <view class="pay-qr-wrap">
+          <canvas id="operatorPayQr" canvas-id="operatorPayQr" class="pay-qr" />
+          <text v-if="!qrReady" class="pay-qr-loading">二维码生成中…</text>
         </view>
-        <text class="pay-poll">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动开通</text>
+        <view class="modal-btn" @tap="openWechatPay">
+          <text class="modal-btn-txt">在微信中打开</text>
+        </view>
+        <text class="pay-copy" @tap="copyCodeUrl">无法打开？复制支付链接</text>
+        <text class="pay-poll">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后{{ isRenewal ? '自动续期' : '自动开通' }}</text>
         <text class="pay-cancel" @tap="cancelPay">取消</text>
       </view>
     </view>
 
-    <!-- 支付渠道未就绪：诚实降级，不假装成功 -->
-    <view v-if="payUnavailable" class="modal-mask" @tap="payUnavailable = false">
+    <view v-if="payFailure" class="modal-mask" @tap="payFailure = ''">
       <view class="modal-card" @tap.stop>
-        <text class="modal-title">支付渠道正在开通中</text>
-        <text class="modal-desc">微信支付商户资质审核中，暂时无法在线支付。订单已保留，可稍后在订单记录中继续支付。</text>
-        <view class="modal-btn" @tap="payUnavailable = false">
+        <text class="modal-title">支付未发起</text>
+        <text class="modal-desc">{{ payFailure }}</text>
+        <text v-if="payOrderKept" class="modal-order-tip">订单已安全保留，再次点击开通/续费将继续使用同一张待支付订单。</text>
+        <view class="modal-btn" @tap="payFailure = ''">
           <text class="modal-btn-txt">我知道了</text>
         </view>
       </view>
@@ -386,6 +379,14 @@ onUnmounted(() => stopPolling())
   padding: 42rpx 38rpx; position: relative; box-shadow: 0 23rpx 65rpx rgba(196,30,58,0.1); }
 .pkg-tag { position: absolute; top: 0; right: 42rpx; background: #C41E3A; border-radius: 0 0 17rpx 17rpx; padding: 8rpx 23rpx; }
 .pkg-tag-text { font-size: 21rpx; font-weight: 600; color: #fff; }
+.current-card { margin: 0 38rpx 30rpx; padding: 28rpx 30rpx; border-radius: 27rpx; background: #F4F8F2; border: 1rpx solid #D9E7D4; }
+.current-card.blocked { background: #FFF3F1; border-color: #F1C7C1; }
+.current-main { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }
+.current-title { font-size: 27rpx; font-weight: 700; color: #2C2C2C; }
+.current-status { font-size: 22rpx; font-weight: 600; color: #47713C; }
+.current-card.blocked .current-status { color: #C41E3A; }
+.current-meta, .current-tip, .current-warn { display: block; margin-top: 10rpx; font-size: 22rpx; line-height: 1.55; color: #6E6E73; }
+.current-warn { color: #A53B2E; }
 .pkg-name { font-size: 27rpx; font-weight: 600; color: #6E6E73; }
 .pkg-price { display: flex; align-items: baseline; margin-top: 16rpx; }
 .pkg-price-symbol { font-size: 35rpx; font-weight: 700; color: #C41E3A; }
@@ -456,7 +457,11 @@ onUnmounted(() => stopPolling())
 .pay-amount { margin-top: 21rpx; font-size: 54rpx; font-weight: 700; color: #C41E3A; }
 .pay-amount-yuan { font-size: 31rpx; }
 .pay-tip { margin-top: 21rpx; font-size: 23rpx; color: #6E6E73; text-align: center; line-height: 1.6; }
-.pay-url { margin-top: 15rpx; width: 100%; padding: 18rpx; background: #F7F5F2; border-radius: 12rpx; font-size: 21rpx; color: #3A3A3C; word-break: break-all; line-height: 1.5; }
+.pay-qr-wrap { width: 352rpx; height: 352rpx; margin-top: 20rpx; position: relative; border-radius: 20rpx; overflow: hidden; background: #F7F5F2; }
+.pay-qr { width: 352rpx; height: 352rpx; }
+.pay-qr-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 23rpx; color: #9A9A9A; }
+.pay-copy { margin-top: 18rpx; font-size: 23rpx; color: #97794a; }
+.modal-order-tip { display: block; margin-top: 14rpx; font-size: 22rpx; line-height: 1.55; color: #97794a; text-align: center; }
 .pay-poll { margin-top: 23rpx; font-size: 21rpx; color: #9A9A9A; text-align: center; line-height: 1.6; }
 .pay-cancel { margin-top: 20rpx; font-size: 25rpx; color: #9A9A9A; }
 </style>

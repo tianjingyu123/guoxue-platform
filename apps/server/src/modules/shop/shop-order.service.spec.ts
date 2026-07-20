@@ -33,6 +33,7 @@ describe("ShopOrderService", () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockPrisma.order.findFirst.mockReset()
+    mockPrisma.operator.findUnique.mockResolvedValue(null)
   })
 
   describe("createOrder", () => {
@@ -766,6 +767,39 @@ describe("ShopOrderService", () => {
         where: { configKey: "operator_SILVER" },
       })
       expect(mockPrisma.order.create.mock.calls[0][0].data.amount).toBe(4999)
+    })
+
+    it("运营商开通：已有待支付单时复用原单，避免资格重复续期", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 4999, rateB: 6 })
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "op-pending", amount: 4999, status: "PENDING" })
+
+      const result = await svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 1 })
+
+      expect(result.id).toBe("op-pending")
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "operator-order:u1:SILVER",
+      )
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+      expect(mockRedis.del).toHaveBeenCalledWith("operator-order:create:u1:SILVER")
+    })
+
+    it("运营商续费：正常到期态允许创建续费订单", async () => {
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op1", status: "EXPIRED" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 4999, rateB: 6 })
+      mockPrisma.order.create.mockResolvedValue({ id: "op-renew" })
+
+      const result = await svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 4999 })
+
+      expect(result.id).toBe("op-renew")
+    })
+
+    it("运营商续费：平台停用态不可通过付款重新激活", async () => {
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op1", status: "DISABLED" })
+      await expect(
+        svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 4999 }),
+      ).rejects.toThrow("运营商资格已被平台停用")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
     })
 
     it("运营商开通：非法档位直接拒单", async () => {

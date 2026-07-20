@@ -5,6 +5,7 @@ import { navigateTo } from '@/utils/router'
 import {
   operatorApi,
   type OperatorDashboardData,
+  type OperatorPlan,
   type StationTeamMember,
   type StationTeamOverview,
   type TeamHealth,
@@ -17,6 +18,7 @@ const statusBarHeight = ref(0)
 const loading = ref(true)
 const error = ref('')
 const notOpened = ref(false)
+const plan = ref<OperatorPlan | null>(null)
 
 const data = ref<OperatorDashboardData>({} as OperatorDashboardData)
 const overview = ref<StationTeamOverview | null>(null)
@@ -46,22 +48,10 @@ const healthRingStyle = computed(() => ({
   background: `conic-gradient(${healthColor.value} 0% ${healthPct.value}%, #EDEAE3 ${healthPct.value}% 100%)`,
 }))
 
-// —— 名额概览（自用/已售/已赠/可用；后端仅总/已用 → 已售等同已用，已赠诚实为0）——
-const quota = computed(() => {
-  const q = data.value.quota || { total: 0, used: 0, sold: 0, available: 0 }
-  const self = q.used > 0 ? 1 : 0
-  const sold = Math.max(0, q.used - self)
-  return { total: q.total, self, sold, gifted: 0, available: q.available }
-})
-// 进度条各段宽度（自用+已售+已赠 占比）
-const quotaBar = computed(() => {
-  const total = quota.value.total || 1
-  return {
-    self: (quota.value.self / total) * 100,
-    sold: (quota.value.sold / total) * 100,
-    gifted: (quota.value.gifted / total) * 100,
-  }
-})
+// —— 名额仅表示真实团队归属占用，不售卖、不私下转赠 ——
+const quota = computed(() => data.value.quota || { total: 0, used: 0, available: 0 })
+const quotaUsedPct = computed(() => (quota.value.used / (quota.value.total || 1)) * 100)
+const planInviteSlots = computed(() => Math.max(0, (plan.value?.quotaTotal ?? 1) - 1))
 
 // —— 团队业绩 Top5（按累计收益，取前5）——
 const topMembers = computed(() =>
@@ -94,6 +84,7 @@ async function loadData() {
   error.value = ''
   notOpened.value = false
   try {
+    plan.value = await operatorApi.getOperatorPricing()
     const [d, ov, th, ms] = await Promise.all([
       operatorApi.getDashboardData(),
       operatorApi.getTeamOverview().catch(() => null),
@@ -150,6 +141,9 @@ function goSettings() {
 function goJoin() {
   navigateTo('/pkg-operator/join-operator/index')
 }
+function goRenew() {
+  navigateTo('/pkg-operator/join-operator/index?renew=1')
+}
 </script>
 
 <template>
@@ -183,8 +177,8 @@ function goJoin() {
       <view class="benefit">
         <view class="b-icn"><AppIcon name="ticket" :size="36" color="#97794a" /></view>
         <view class="b-body">
-          <text class="b-t">6 个站长名额</text>
-          <text class="b-d">1 个自用开设分站 + 5 个可对外出售或赠送，名额固定</text>
+          <text class="b-t">{{ plan?.quotaTotal || 0 }} 个站长名额</text>
+          <text class="b-d">1 个用于自有分站 + {{ planInviteSlots }} 个邀请名额，邀请成功后自动占用</text>
         </view>
       </view>
       <view class="benefit">
@@ -205,10 +199,10 @@ function goJoin() {
 
     <view class="guide-card guide-price-card">
       <view class="price-row">
-        <text class="price-p serif">4999</text>
-        <text class="price-u">元 · 一次性资格费</text>
+        <text class="price-p serif">{{ plan?.price || 0 }}</text>
+        <text class="price-u">元 · {{ plan?.serviceMonths || 0 }}个月运营服务</text>
       </view>
-      <text class="price-sub">含 6 个站长名额（1 自用 + 5 可售）</text>
+      <text class="price-sub">含 {{ plan?.quotaTotal || 0 }} 个名额（1 个自用 + {{ planInviteSlots }} 个邀请名额）</text>
       <text class="risk">运营商需具备团队招募与管理能力。若无相应推广资源，请勿盲目加入。本项目存在投资风险，收益取决于团队实际运营情况，平台不承诺任何收益，请理性决策。</text>
     </view>
 
@@ -232,10 +226,14 @@ function goJoin() {
         <view class="avatar"><text class="avatar-char serif">{{ avatarChar }}</text></view>
         <view class="id-body">
           <text class="id-name serif">{{ data.name }}</text>
-          <view class="lvl-tag">
-            <AppIcon name="star" :size="20" color="#4a3a1a" />
-            <text class="lvl-txt">{{ data.level }}</text>
+          <view class="id-row">
+            <view class="lvl-tag">
+              <AppIcon name="star" :size="20" color="#4a3a1a" />
+              <text class="lvl-txt">{{ data.level }}</text>
+            </view>
+            <view class="renew-chip" @tap.stop="goRenew"><text class="renew-chip-text">续费</text></view>
           </view>
+          <text class="id-expiry">{{ data.status === 'ACTIVE' ? '有效至' : '当前状态' }}：{{ data.status === 'ACTIVE' ? (data.expireAt || '—') : (data.status || '—') }}</text>
         </view>
       </view>
 
@@ -302,29 +300,11 @@ function goJoin() {
           </view>
         </view>
         <view class="quota-segs">
-          <view class="qseg">
-            <view class="qtop"><view class="dot" style="background:#C9A96E" /><text class="qlbl">自用</text></view>
-            <text class="qval serif">{{ quota.self }}</text>
-          </view>
-          <view class="qseg">
-            <view class="qtop"><view class="dot" style="background:#C41E3A" /><text class="qlbl">已售</text></view>
-            <text class="qval serif">{{ quota.sold }}</text>
-          </view>
-          <view class="qseg">
-            <view class="qtop"><view class="dot" style="background:#A0C4FF" /><text class="qlbl">已赠</text></view>
-            <text class="qval serif">{{ quota.gifted }}</text>
-          </view>
-          <view class="qseg">
-            <view class="qtop"><view class="dot" style="background:#E0E0E0" /><text class="qlbl">可用</text></view>
-            <text class="qval serif">{{ quota.available }}</text>
-          </view>
+          <view class="qseg"><view class="qtop"><view class="dot" style="background:#C9A96E" /><text class="qlbl">已占用</text></view><text class="qval serif">{{ quota.used }}</text></view>
+          <view class="qseg"><view class="qtop"><view class="dot" style="background:#E0E0E0" /><text class="qlbl">可邀请</text></view><text class="qval serif">{{ quota.available }}</text></view>
         </view>
-        <view class="qbar">
-          <view class="qbar-i" :style="{ width: quotaBar.self + '%', background: '#C9A96E' }" />
-          <view class="qbar-i" :style="{ width: quotaBar.sold + '%', background: '#C41E3A' }" />
-          <view class="qbar-i" :style="{ width: quotaBar.gifted + '%', background: '#A0C4FF' }" />
-        </view>
-        <text class="quota-note">共 {{ quota.total }} 个名额（1 自用 + 5 可售），已分配 {{ quota.self + quota.sold + quota.gifted }} 个</text>
+        <view class="qbar"><view class="qbar-i" :style="{ width: quotaUsedPct + '%', background: '#C9A96E' }" /></view>
+        <text class="quota-note">共 {{ quota.total }} 个名额，邀请站长完成开站后自动占用；名额不用于私下交易。</text>
       </view>
 
       <!-- 团队业绩 Top5 -->
@@ -379,8 +359,12 @@ function goJoin() {
 .avatar-char { font-size: 42rpx; color: #fff; }
 .id-body { flex: 1; min-width: 0; }
 .id-name { display: block; font-size: 35rpx; font-weight: 600; color: #fff; }
-.lvl-tag { display: inline-flex; align-items: center; gap: 8rpx; height: 42rpx; padding: 0 17rpx; margin-top: 10rpx; background: rgba(201,169,110,0.95); border-radius: 12rpx; }
+.id-row { display: flex; align-items: center; gap: 14rpx; margin-top: 10rpx; }
+.lvl-tag { display: inline-flex; align-items: center; gap: 8rpx; height: 42rpx; padding: 0 17rpx; background: rgba(201,169,110,0.95); border-radius: 12rpx; }
 .lvl-txt { font-size: 21rpx; color: #4a3a1a; font-weight: 600; }
+.renew-chip { min-width: 104rpx; height: 88rpx; padding: 0 20rpx; border-radius: 999rpx; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.renew-chip-text { font-size: 21rpx; color: #fff; font-weight: 600; }
+.id-expiry { display: block; margin-top: 9rpx; font-size: 20rpx; color: rgba(255,255,255,0.76); }
 
 .earn-banner { display: flex; margin-top: 34rpx; position: relative; z-index: 1; }
 .earn-cell { flex: 1; text-align: center; }

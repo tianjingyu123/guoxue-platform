@@ -20,15 +20,24 @@ export interface FaqItem {
   a: string
 }
 
-// 价格
-export const operatorPricing = {
-  price: 4999,
-  originalPrice: 5999,
-  quotaUnitPrice: 999,
-  quotaCount: 6,
-  get quotaValue() {
-    return this.quotaUnitPrice * this.quotaCount
-  },
+/** 唯一对外运营商方案：金额、名额和服务期全部以服务端配置为准。 */
+export interface OperatorPlan {
+  level: string
+  price: number
+  quotaTotal: number
+  serviceMonths: number
+  managementRate: number
+  allocationMode: 'INVITE'
+}
+
+export interface CurrentOperator {
+  id: string
+  level: string
+  status: string
+  expireAt?: string | null
+  containQuota: number
+  usedQuota: number
+  brandName?: string
 }
 
 // 权益对比
@@ -266,8 +275,11 @@ export const stationPanelQuickActions: StationPanelQuickAction[] = [
 export interface OperatorDashboardData {
   name: string
   level: string
+  rawLevel: string
+  status: string
+  expireAt: string
   joinDate: string
-  quota: { total: number; used: number; sold: number; available: number }
+  quota: { total: number; used: number; available: number }
   team: { total: number; thisMonth: number }
   earnings: { total: number; thisMonth: number; pending: number; teamBonus: number; quotaSales: number }
   stats: { totalUsers: number; thisMonthUsers: number; conversionRate: number }
@@ -294,7 +306,7 @@ export interface DashboardTeamMember {
 
 export interface DashboardQuotaRecord {
   id: number | string
-  type: 'self' | 'sold'
+  type: 'allocated'
   name: string
   date: string
   price?: number
@@ -336,8 +348,8 @@ export interface StationSuccessCase {
 // ===== 名额管理 quota 数据（对齐原型 app/operator/quota，页面内联）=====
 
 export interface QuotaRecord {
-  id: number
-  type: 'self' | 'sold' | 'gifted'
+  id: number | string
+  type: 'allocated'
   name: string
   phone?: string
   date: string
@@ -407,6 +419,8 @@ interface RawOperatorDashboard {
   brandName?: string
   user?: RawUserLite | null
   level?: string
+  status?: string
+  expireAt?: string | null
   purchasedAt?: string | null
   containQuota?: number | string
   usedQuota?: number | string
@@ -580,11 +594,24 @@ export interface UpdateStationPayload {
 }
 
 // ===== operatorApi — 运营商/站长数据 API 层 =====
-// 注：入驻营销内容（定价/方案/权益/收益案例/FAQ/协议）后端无对应端点，属前端运营配置（静态展示文案），
-//     非业务数据，直接返回常量即可（保留 async 以兼容调用方 await）。
+// 注：金额、名额与服务期由公开方案端点返回；权益、FAQ 等说明文案仍为前端运营配置。
 export const operatorApi = {
-  // === 运营商入驻 (用于 join-operator 页·静态运营文案) ===
-  async getOperatorPricing() { return operatorPricing },
+  // === 运营商入驻 ===
+  async getOperatorPricing(): Promise<OperatorPlan> {
+    return apiGet<OperatorPlan>('/station/operator-plan')
+  },
+  async getCurrentOperator(): Promise<CurrentOperator> {
+    const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
+    return {
+      id: op.id,
+      level: op.level || '',
+      status: op.status || '',
+      expireAt: op.expireAt,
+      containQuota: toNum(op.containQuota),
+      usedQuota: toNum(op.usedQuota),
+      brandName: op.brandName,
+    }
+  },
   async getPlanComparison() { return planComparison },
   async getOperatorBenefits() { return operatorBenefits },
   async getOperatorFaqs() { return operatorFaqs },
@@ -758,12 +785,14 @@ export const operatorApi = {
     const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
     const total = toNum(op.containQuota)
     const used = toNum(op.usedQuota)
-    // 后端 quota 仅 总/已用/可用；原型的自用vs已售区分后端无 → sold 等同 used 诚实展示
     return {
       name: op.brandName || op.user?.nickname || '我的运营中心',
       level: OPERATOR_LEVEL_LABEL[op.level || ''] || '运营商',
+      rawLevel: op.level || '',
+      status: op.status || '',
+      expireAt: toYmd(op.expireAt),
       joinDate: toYmd(op.purchasedAt),
-      quota: { total, used, sold: used, available: Math.max(0, total - used) },
+      quota: { total, used, available: Math.max(0, total - used) },
       team: { total: toNum(op.stationCount), thisMonth: toNum(op.monthNewStations) },
       // pending/teamBonus/quotaSales 后端无单独字段 → 0，页面降级隐藏对应卡片
       earnings: {
@@ -811,11 +840,11 @@ export const operatorApi = {
     }))
   },
   async getDashboardQuotaRecords(): Promise<DashboardQuotaRecord[]> {
-    // 后端无名额销售流水表 → 用名下站长映射为"已用名额记录"（真实）
+    // 用真实归属分站映射为名额占用记录。
     const stations = await apiGet<RawStationItem[]>('/station/operator-dashboard/my/stations')
     return (stations || []).map((s) => ({
       id: s.id,
-      type: 'sold' as const,
+      type: 'allocated' as const,
       name: s.name || '未命名分站',
       date: toYmd(s.createdAt),
       status: s.status === 'ACTIVE' ? ('active' as const) : ('pending' as const),
@@ -908,7 +937,7 @@ export const operatorApi = {
     return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
   },
 
-  // === 名额管理 (用于 quota 页·真连 quota-usage·名额交易体系后端未实现→诚实降级) ===
+  // === 名额管理：名额仅用于邀请归属，不售卖、不私下转赠 ===
   async getQuotaData() {
     const [q, op] = await Promise.all([
       apiGet<RawQuotaUsage>('/station/operator-dashboard/quota-usage'),
@@ -919,15 +948,19 @@ export const operatorApi = {
     return {
       total,
       used,
-      sold: 0,    // 后端无名额交易记录 → 诚实为 0
-      gifted: 0,
       available: Math.max(0, total - used),
-      price: operatorPricing.quotaUnitPrice, // 名额单价：运营配置常量
     }
   },
-  // 名额交易记录：后端暂无名额售卖/赠送模型 → 诚实返回空（页面展示"剩余N个待分配"）
+  // 真实归属分站即真实名额占用记录。
   async getQuotaRecords(): Promise<QuotaRecord[]> {
-    return []
+    const stations = await apiGet<RawStationItem[]>('/station/operator-dashboard/my/stations')
+    return (stations || []).map((s) => ({
+      id: s.id,
+      type: 'allocated' as const,
+      name: s.name || '未命名分站',
+      date: toYmd(s.createdAt),
+      status: s.status === 'ACTIVE' ? '已开通' : '处理中',
+    }))
   },
   async getQuotaSaleLink(): Promise<string> {
     const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')

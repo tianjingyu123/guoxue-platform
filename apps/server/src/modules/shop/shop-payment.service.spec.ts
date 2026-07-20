@@ -187,7 +187,7 @@ describe("ShopPaymentService", () => {
   /** 极简 fake tx：只提供两个处理器实际用到的表 */
   const makeTx = (over: any = {}) => ({
     configSystem: { findUnique: jest.fn().mockResolvedValue({ configValue: "12" }) },
-    // SILVER 为唯一对外档位：¥4999 / 6 名额（1 自用 + 5 可售·对齐合规文案）
+    // SILVER 为唯一对外档位：¥4999 / 6 名额（1 自用 + 5 个邀请名额）
     commissionConfig: { findUnique: jest.fn().mockResolvedValue({ rateA: 4999, rateB: 6 }) },
     station: { findUnique: jest.fn(), update: jest.fn() },
     operator: { findUnique: jest.fn().mockResolvedValue(null), create: jest.fn(), update: jest.fn() },
@@ -261,7 +261,7 @@ describe("ShopPaymentService", () => {
     it("等级只升不降：已是 DIAMOND 再买 SILVER，仍保持 DIAMOND 且名额取大者", async () => {
       const tx = makeTx()
       tx.operator.findUnique.mockResolvedValue({
-        id: "op1", level: "DIAMOND", containQuota: 100, expireAt: null,
+        id: "op1", level: "DIAMOND", containQuota: 100, expireAt: null, status: "ACTIVE",
       })
       // 买的是 SILVER（rateA=4999 / rateB=10）
       await (svc as any).processOperatorPaid({ id: "o1", userId: "u1", targetId: "SILVER" }, tx)
@@ -276,13 +276,39 @@ describe("ShopPaymentService", () => {
         commissionConfig: { findUnique: jest.fn().mockResolvedValue({ rateA: 19999, rateB: 100 }) },
       })
       tx.operator.findUnique.mockResolvedValue({
-        id: "op1", level: "SILVER", containQuota: 6, expireAt: null,
+        id: "op1", level: "SILVER", containQuota: 6, expireAt: null, status: "ACTIVE",
       })
       await (svc as any).processOperatorPaid({ id: "o1", userId: "u1", targetId: "DIAMOND" }, tx)
 
       const data = tx.operator.update.mock.calls[0][0].data
       expect(data.level).toBe("DIAMOND")
       expect(data.containQuota).toBe(100)
+    })
+
+    it("支付回调遇到平台停用态只顺延有效期，不解除 DISABLED", async () => {
+      const tx = makeTx()
+      tx.operator.findUnique.mockResolvedValue({
+        id: "op1", level: "SILVER", containQuota: 6, expireAt: null, status: "DISABLED",
+      })
+
+      await (svc as any).processOperatorPaid({ id: "o1", userId: "u1", targetId: "SILVER" }, tx)
+
+      const data = tx.operator.update.mock.calls[0][0].data
+      expect(data.status).toBe("DISABLED")
+      expect(monthsBetween(new Date(), data.expireAt)).toBe(12)
+    })
+
+    it("正常到期态续费后恢复 ACTIVE", async () => {
+      const tx = makeTx()
+      tx.operator.findUnique.mockResolvedValue({
+        id: "op1", level: "SILVER", containQuota: 6, expireAt: new Date(Date.now() - 86400000), status: "EXPIRED",
+      })
+
+      await (svc as any).processOperatorPaid({ id: "o1", userId: "u1", targetId: "SILVER" }, tx)
+
+      const data = tx.operator.update.mock.calls[0][0].data
+      expect(data.status).toBe("ACTIVE")
+      expect(monthsBetween(new Date(), data.expireAt)).toBe(12)
     })
 
     it("非法档位：不建号，记录错误后返回", async () => {

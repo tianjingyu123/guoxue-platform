@@ -16,7 +16,7 @@
       <!-- 协议头 -->
       <view class="ag-head">
         <text class="ag-head-title">热卜国学运营商服务协议</text>
-        <text class="ag-head-meta">版本：2026-07-01 · 最近更新：2026-07-01</text>
+        <text class="ag-head-meta">版本：2026-07-19 · 最近更新：2026-07-19</text>
       </view>
 
       <!-- 正文 -->
@@ -24,7 +24,7 @@
         <view class="ag-sec">
           <text class="ag-sh">一、定义与解释</text>
           <text class="ag-p">1.1 本协议所称「运营商」，是指在热卜国学平台（以下简称「平台」）缴纳运营商资格费用后，获得运营商身份，依本协议规则招募、管理站长并获取团队管理奖励的用户。运营商沿用平台统一账号，无独立后台。</text>
-          <text class="ag-p">1.2 运营商资格费用为 <text class="ag-hl">4999 元</text>，含 <text class="ag-hl">6 个站长名额</text>（1 个自用 + 5 个可对外出售/赠送），名额总数固定，不可加购。</text>
+          <text class="ag-p">1.2 开通或续费的实际金额、服务期和名额数量，以付款前页面展示及服务端生成的订单为准。名额用于自有分站和邀请站长建立真实团队归属，不得私下出售、转让或加购。</text>
         </view>
 
         <view class="ag-sec">
@@ -32,13 +32,13 @@
           <text class="ag-p">2.1 平台向运营商提供以下服务：</text>
           <text class="ag-p">（a）站长团队管理工具，包括成员列表、业绩排行、沉寂预警等功能；</text>
           <text class="ag-p">（b）<text class="ag-hl">团队管理奖励</text>：就运营商名下站长产生的收入，平台按 <text class="ag-hl">10%</text> 向运营商额外支付团队管理奖励（该奖励由平台承担，不从站长收益中扣除）；</text>
-          <text class="ag-p">（c）名额管理功能，包括查看、分配、赠送站长名额。</text>
+          <text class="ag-p">（c）名额管理功能，包括查看总量与占用情况、生成专属邀请链接、查看已加入并归属团队的分站。</text>
         </view>
 
         <view class="ag-sec">
           <text class="ag-sh">三、收益与结算</text>
-          <text class="ag-p">3.1 团队管理奖励按名下站长收入的 10% 计算，以平台账单为准。</text>
-          <text class="ag-p">3.2 结算周期：<text class="ag-hl">每月 25 日</text>结算上月已确认收益，到账方式为微信零钱或绑定银行卡。</text>
+          <text class="ag-p">3.1 团队管理奖励按开通页面所示的当前比例，基于名下站长的真实、有效且无退款交易核算，最终以平台账单为准。</text>
+          <text class="ag-p">3.2 已确认收益按平台届时公示的结算与提现规则处理；可用的结算周期、账户和到账方式以账单及提现页面实际支持为准。</text>
           <text class="ag-p">3.3 若订单发生退款，对应奖励自动冲销。</text>
         </view>
 
@@ -46,12 +46,12 @@
           <text class="ag-sh">四、权利与义务</text>
           <text class="ag-p">4.1 运营商应遵守平台规则，不得通过虚假交易、刷单等方式套取奖励。</text>
           <text class="ag-p">4.2 运营商不得以平台名义向第三方承诺任何未经平台授权的收益保证。</text>
-          <text class="ag-p">4.3 平台有权因违规行为暂停或终止运营商资格，已支付费用不予退还。</text>
+          <text class="ag-p">4.3 平台有权依违规程度采取提醒、限制功能、暂停或终止资格等措施；已支付费用及未结算权益按适用法律、本协议和平台届时公示的规则处理。</text>
         </view>
 
         <view class="ag-sec">
           <text class="ag-sh">五、协议变更</text>
-          <text class="ag-p">平台可根据运营情况对本协议进行修订，修订内容将于平台内公告，运营商继续使用服务视为同意修订内容。</text>
+          <text class="ag-p">平台可根据运营情况依法修订本协议，并通过平台内公告等方式提示。涉及价格、服务期或核心权益的重大调整将按适用规则提前公示；已购买服务按下单时确认的订单权益执行。</text>
         </view>
 
         <view class="ag-sec">

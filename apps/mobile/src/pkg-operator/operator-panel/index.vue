@@ -49,7 +49,7 @@
             v-for="item in overview"
             :key="item.key"
             class="op-ov-card"
-            @tap="navigateTo('/pkg-operator/operator-panel/index')"
+            @tap="navigateTo('/pkg-operator/dashboard/index')"
           >
             <text class="op-ov-label">{{ item.label }}</text>
             <text class="op-ov-value">{{ formatValue(item.value, item.unit) }}</text>
@@ -120,7 +120,7 @@
               </view>
             </view>
           </view>
-          <view class="op-rank-more" @tap="navigateTo('/pkg-operator/operator-panel/index')">
+          <view class="op-rank-more" @tap="navigateTo('/pkg-operator/team/index')">
             <text class="op-rank-more-text">查看完整排行</text>
             <app-icon name="chevron-right" :size="26" color="#C41E3A" />
           </view>
@@ -148,8 +148,8 @@
               <text v-if="q.expireAt" class="op-quota-expire">有效期至 {{ q.expireAt }}</text>
             </view>
           </view>
-          <view class="op-quota-btn" @tap="navigateTo('/pkg-operator/operator-panel/index')">
-            <text class="op-quota-btn-text">升级配额</text>
+          <view class="op-quota-btn" @tap="navigateTo('/pkg-operator/invite/index')">
+            <text class="op-quota-btn-text">邀请站长</text>
           </view>
         </view>
       </view>

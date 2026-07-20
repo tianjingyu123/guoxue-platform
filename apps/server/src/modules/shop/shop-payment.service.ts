@@ -677,7 +677,7 @@ export class ShopPaymentService {
 
     const existing = await tx.operator.findUnique({
       where: { userId: order.userId },
-      select: { id: true, level: true, containQuota: true, expireAt: true },
+      select: { id: true, level: true, containQuota: true, expireAt: true, status: true },
     });
 
     if (!existing) {
@@ -702,7 +702,8 @@ export class ShopPaymentService {
       data: {
         level: keepLevel as any,
         containQuota: Math.max(existing.containQuota ?? 0, quota),
-        status: "ACTIVE",
+        // EXPIRED 是正常到期态，续费后恢复；DISABLED 是平台治理态，竞态回调不得替用户解封。
+        status: existing.status === "DISABLED" ? "DISABLED" : "ACTIVE",
         expireAt: this.calcRenewedExpiry(existing.expireAt, months),
       },
     });
