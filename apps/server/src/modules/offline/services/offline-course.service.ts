@@ -24,6 +24,11 @@ export class OfflineCourseService {
     private shared: OfflineSharedService,
   ) {}
 
+  /** 只有已预约和已到店记录占用名额；CANCELLED 必须释放容量。 */
+  private get activeRegWhere(): Prisma.OfflineCourseRegistrationWhereInput {
+    return { status: { in: ["REGISTERED", "SIGNED_IN"] } };
+  }
+
   // ───────── 线下课程 ─────────
 
   // 🔴 契约防再犯（2026-07-17 审计核实）：
@@ -41,17 +46,31 @@ export class OfflineCourseService {
     });
   }
 
-  async listOfflineCourses(stationId?: string, rawPage = 1, rawPageSize = 20) {
+  async listOfflineCourses(stationId?: string, rawPage = 1, rawPageSize = 20, userId?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    // 传 stationId=单驿站课程（含草稿）；不传=用户端发现，仅 ACTIVE 驿站的已审核已发布课程
+    // 公开请求即使传 stationId 也只能看 ACTIVE 驿站的已审核已发布课程；
+    // 只有已登录驿站主本人可在经营后台预览本驿站全部状态。
+    let ownerView = false;
+    if (stationId && userId) {
+      const station = await this.prisma.stationOffline.findUnique({
+        where: { id: stationId },
+        select: { ownerUserId: true },
+      });
+      ownerView = station?.ownerUserId === userId;
+    }
+    const publicWhere: Prisma.OfflineCourseWhereInput = {
+      auditStatus: "APPROVED",
+      status: "PUBLISHED",
+      station: { status: "ACTIVE" },
+    };
     const where: Prisma.OfflineCourseWhereInput = stationId
-      ? { stationId }
-      : { auditStatus: "APPROVED", status: "PUBLISHED", station: { status: "ACTIVE" } };
+      ? (ownerView ? { stationId } : { ...publicWhere, stationId })
+      : publicWhere;
     const [courses, total] = await Promise.all([
       this.prisma.offlineCourse.findMany({
         where,
         include: {
-          _count: { select: { registrations: true } },
+          _count: { select: { registrations: { where: this.activeRegWhere } } },
           station: { select: { id: true, name: true, city: true } },
         },
         skip,
@@ -69,23 +88,42 @@ export class OfflineCourseService {
     };
   }
 
-  async getOfflineCourse(courseId: string) {
+  async getOfflineCourse(courseId: string, userId?: string) {
     const course = await this.prisma.offlineCourse.findUnique({
       where: { id: courseId },
       include: {
-        station: { select: { id: true, name: true, address: true, phone: true } },
-        registrations: true,
+        station: {
+          select: {
+            id: true, name: true, city: true, address: true, phone: true,
+            status: true, ownerUserId: true,
+          },
+        },
+        _count: { select: { registrations: { where: this.activeRegWhere } } },
       },
     });
-    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
-    let teacher: { id: string; name: string; avatar: string | null; specialties: string[]; bio: string | null } | null = null;
+    const isPublic = course?.status === "PUBLISHED"
+      && course.auditStatus === "APPROVED"
+      && course.station.status === "ACTIVE";
+    const isOwner = !!userId && course?.station.ownerUserId === userId;
+    if (!course || (!isPublic && !isOwner)) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    }
+    let teacher: { id: string; name: string; avatar: string | null; specialties: string[]; bio: string | null; sourceUserId: string | null } | null = null;
     if (course.teacherId) {
       teacher = await this.prisma.stationTeacher.findUnique({
         where: { id: course.teacherId },
-        select: { id: true, name: true, avatar: true, specialties: true, bio: true },
+        select: { id: true, name: true, avatar: true, specialties: true, bio: true, sourceUserId: true },
       });
     }
-    return { ...course, teacher };
+    const safeStation = {
+      id: course.station.id,
+      name: course.station.name,
+      city: course.station.city,
+      address: course.station.address,
+      phone: course.station.phone,
+    };
+    // 公开详情只返回有效报名数，绝不返回 userId、qrCode、verifyCode 等报名凭证。
+    return { ...course, station: safeStation, teacher };
   }
 
   // ───────── 课程报名 ─────────
@@ -146,8 +184,15 @@ export class OfflineCourseService {
   async registerCourse(userId: string, courseId: string) {
     const course = await this.prisma.offlineCourse.findUnique({
       where: { id: courseId },
+      include: { station: { select: { status: true } } },
     });
     if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    if (course.status !== "PUBLISHED" || course.auditStatus !== "APPROVED" || course.station.status !== "ACTIVE") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "课程未开放报名");
+    }
+    if (course.startTime.getTime() <= Date.now()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "课程已开场，无法报名");
+    }
 
     const qrCode = `QR_${courseId}_${userId}_${Date.now()}`;
     // 行锁串行化防超卖：锁定课程行后，在锁内查重 + 计数 + 创建（消除 count-then-create 竞态）
@@ -157,14 +202,25 @@ export class OfflineCourseService {
       const existing = await tx.offlineCourseRegistration.findUnique({
         where: { courseId_userId: { courseId, userId } },
       });
-      if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
+      if (existing && existing.status !== "CANCELLED") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "已报名该课程");
+      }
 
-      const count = await tx.offlineCourseRegistration.count({ where: { courseId } });
+      const count = await tx.offlineCourseRegistration.count({
+        where: { courseId, ...this.activeRegWhere },
+      });
       if (count >= course.maxStudents) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "课程名额已满");
       }
 
       const verifyCode = await this.genVerifyCode(tx, courseId);
+      // 取消后可重新预约：复用唯一报名行并换新凭证。
+      if (existing) {
+        return tx.offlineCourseRegistration.update({
+          where: { id: existing.id },
+          data: { status: "REGISTERED", qrCode, verifyCode, signedAt: null },
+        });
+      }
       try {
         return await tx.offlineCourseRegistration.create({
           data: { courseId, userId, qrCode, verifyCode },
@@ -191,7 +247,11 @@ export class OfflineCourseService {
       include: { course: { select: { id: true, title: true, startTime: true, location: true } } },
     });
     if (!reg) throw new BusinessException(ErrorCode.NOT_FOUND, "未报名该课程");
+    if (reg.status === "CANCELLED") throw new BusinessException(ErrorCode.NOT_FOUND, "报名已取消");
     if (reg.status === "SIGNED_IN") throw new BusinessException(ErrorCode.BAD_REQUEST, "已签到，无法取消");
+    if (reg.course.startTime.getTime() - Date.now() < 24 * 60 * 60 * 1000) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "距开课不足24小时，无法在线取消，请联系驿站处理");
+    }
 
     const updated = await this.prisma.offlineCourseRegistration.update({
       where: { id: reg.id },
@@ -215,11 +275,19 @@ export class OfflineCourseService {
     if (!reg) throw new BusinessException(ErrorCode.NOT_FOUND, "无效的签到码");
     if (reg.status === "CANCELLED") throw new BusinessException(ErrorCode.BAD_REQUEST, "报名已取消");
     if (reg.status === "SIGNED_IN") throw new BusinessException(ErrorCode.BAD_REQUEST, "已签到");
+    if (!this.isSameDay(reg.course.startTime, new Date())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "签到凭证仅限开课当天使用");
+    }
 
-    return this.prisma.offlineCourseRegistration.update({
-      where: { id: reg.id },
-      data: { status: "SIGNED_IN", signedAt: new Date() },
+    const signedAt = new Date();
+    const claimed = await this.prisma.offlineCourseRegistration.updateMany({
+      where: { id: reg.id, status: "REGISTERED" },
+      data: { status: "SIGNED_IN", signedAt },
     });
+    if (claimed.count === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "凭证状态已变化，请刷新后重试");
+    }
+    return { ...reg, status: "SIGNED_IN", signedAt };
   }
 
   /**
@@ -249,10 +317,15 @@ export class OfflineCourseService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "核销码非当天有效，已失效");
     }
 
-    return this.prisma.offlineCourseRegistration.update({
-      where: { id: reg.id },
-      data: { status: "SIGNED_IN", signedAt: new Date() },
+    const signedAt = new Date();
+    const claimed = await this.prisma.offlineCourseRegistration.updateMany({
+      where: { id: reg.id, status: "REGISTERED" },
+      data: { status: "SIGNED_IN", signedAt },
     });
+    if (claimed.count === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "凭证状态已变化，请刷新后重试");
+    }
+    return { ...reg, status: "SIGNED_IN", signedAt };
   }
 
   /** 同一自然日判定（当天有效核销用·按服务器时区） */

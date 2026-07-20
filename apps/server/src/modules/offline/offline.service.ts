@@ -33,8 +33,8 @@ export class OfflineService {
     return this.stationSvc.listStations(rawPage, rawPageSize, city, status);
   }
 
-  getStation(id: string) {
-    return this.stationSvc.getStation(id);
+  getStation(id: string, userId?: string) {
+    return this.stationSvc.getStation(id, userId);
   }
 
   getMyStation(userId: string) {
@@ -43,8 +43,8 @@ export class OfflineService {
 
   // ───────── 品牌主页（驿-P1） ─────────
 
-  getStationHome(id: string) {
-    return this.stationSvc.getStationHome(id);
+  getStationHome(id: string, userId?: string) {
+    return this.stationSvc.getStationHome(id, userId);
   }
 
   updateStationBrand(userId: string, dto: { brandStory?: string; photos?: string[]; featuredTeacherIds?: string[] }) {
@@ -77,12 +77,12 @@ export class OfflineService {
     return this.courseSvc.createOfflineCourse(userId, dto);
   }
 
-  listOfflineCourses(stationId?: string, rawPage = 1, rawPageSize = 20) {
-    return this.courseSvc.listOfflineCourses(stationId, rawPage, rawPageSize);
+  listOfflineCourses(stationId?: string, rawPage = 1, rawPageSize = 20, userId?: string) {
+    return this.courseSvc.listOfflineCourses(stationId, rawPage, rawPageSize, userId);
   }
 
-  getOfflineCourse(courseId: string) {
-    return this.courseSvc.getOfflineCourse(courseId);
+  getOfflineCourse(courseId: string, userId?: string) {
+    return this.courseSvc.getOfflineCourse(courseId, userId);
   }
 
   // ───────── 课程报名 ─────────

@@ -50,14 +50,37 @@ export class OfflineStationService {
     return { stations, total, page, pageSize };
   }
 
-  async getStation(id: string) {
+  async getStation(id: string, userId?: string) {
+    const meta = await this.prisma.stationOffline.findUnique({
+      where: { id },
+      select: { ownerUserId: true, status: true },
+    });
+    const ownerView = !!userId && meta?.ownerUserId === userId;
+    if (!meta || (meta.status !== "ACTIVE" && !ownerView)) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
+    }
+
+    const courseWhere: Prisma.OfflineCourseWhereInput = ownerView
+      ? {}
+      : { auditStatus: "APPROVED", status: "PUBLISHED" };
     const s = await this.prisma.stationOffline.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true, name: true, city: true, address: true, phone: true,
+        cover: true, type: true, intro: true, businessHours: true,
+        images: true, tags: true, facilities: true, status: true,
         owner: { select: { id: true, nickname: true, avatar: true } },
-        courses: { orderBy: { startTime: "asc" }, take: 10 },
+        courses: {
+          where: courseWhere,
+          include: {
+            _count: {
+              select: { registrations: { where: { status: { in: ["REGISTERED", "SIGNED_IN"] } } } },
+            },
+          },
+          orderBy: { startTime: "asc" },
+          take: 10,
+        },
         products: { where: { status: "ACTIVE" } },
-        teacherBookings: { orderBy: { bookingDate: "desc" }, take: 10 },
       },
     });
     if (!s) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
@@ -88,20 +111,21 @@ export class OfflineStationService {
    * 驿站品牌主页聚合（公开·无守卫）：
    * 基础信息+brandStory/photos + 讲师阵容（featuredTeacherIds→StationTeacher·签约讲师补 F1 认证徽章数据）
    * + 特色课程（近期已过审已发布）+ 学员评价聚合（课程评价按驿站维度·无评价诚实省略 rating/空 reviews）。
-   * DISABLED 驿站不公开；PENDING 保留可见（驿站长审核前预览，纯展示信息无风险）。
+   * 公开仅 ACTIVE；PENDING/DISABLED 只允许已登录驿站主本人预览。
    */
-  async getStationHome(id: string) {
+  async getStationHome(id: string, userId?: string) {
     const station = await this.prisma.stationOffline.findUnique({
       where: { id },
       select: {
         id: true, name: true, city: true, address: true, phone: true,
         cover: true, type: true, intro: true, businessHours: true,
-        images: true, tags: true, facilities: true, status: true,
+        images: true, tags: true, facilities: true, status: true, ownerUserId: true,
         brandStory: true, photos: true, featuredTeacherIds: true,
         owner: { select: { id: true, nickname: true, avatar: true } },
       },
     });
-    if (!station || station.status === "DISABLED") {
+    const ownerView = !!userId && station?.ownerUserId === userId;
+    if (!station || (station.status !== "ACTIVE" && !ownerView)) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
     }
 
@@ -111,7 +135,11 @@ export class OfflineStationService {
       // 特色课程表：近期未结束的已过审已发布课程（按开课时间升序）
       this.prisma.offlineCourse.findMany({
         where: { stationId: id, auditStatus: "APPROVED", status: "PUBLISHED", endTime: { gte: now } },
-        include: { _count: { select: { registrations: true } } },
+        include: {
+          _count: {
+            select: { registrations: { where: { status: { in: ["REGISTERED", "SIGNED_IN"] } } } },
+          },
+        },
         orderBy: { startTime: "asc" },
         take: 6,
       }),
@@ -311,7 +339,12 @@ export class OfflineStationService {
           id: true, name: true, city: true, address: true,
           cover: true, phone: true, type: true, intro: true,
           businessHours: true, images: true, tags: true, facilities: true, status: true,
-          _count: { select: { courses: true, products: true } },
+          _count: {
+            select: {
+              courses: { where: { auditStatus: "APPROVED", status: "PUBLISHED" } },
+              products: { where: { status: "ACTIVE" } },
+            },
+          },
         },
         skip, take: pageSize,
         orderBy: { createdAt: "desc" },

@@ -66,19 +66,25 @@
           <almanac-bar margin="12px 0 0" />
 
           <!-- 经营数据 -->
-          <view class="b1-sec"><text class="b1-sec-title">经营数据</text><text class="b1-sec-link" @tap="showIncome = !showIncome">营收看板 ›</text></view>
+          <view class="b1-sec"><text class="b1-sec-title">经营数据</text><text class="b1-sec-link" @tap="showIncome = !showIncome">收款口径 ›</text></view>
           <view class="b1-grid3">
-            <view class="b1-gitem"><text class="b1-num">{{ stats?.activeCourses ?? 0 }}</text><text class="b1-gitem-label">在售课程</text></view>
-            <view class="b1-gitem"><text class="b1-num">{{ stats?.monthOrders ?? 0 }}</text><text class="b1-gitem-label">本月招生</text></view>
-            <view class="b1-gitem"><text class="b1-num gold">{{ revenueDisplay }}</text><text class="b1-gitem-label">本月营收(元)</text></view>
+            <view class="b1-gitem"><text class="b1-num">{{ stats?.activeCourses ?? 0 }}</text><text class="b1-gitem-label">已发布课程</text></view>
+            <view class="b1-gitem"><text class="b1-num">{{ stats?.monthOrders ?? 0 }}</text><text class="b1-gitem-label">线上实收单</text></view>
+            <view class="b1-gitem"><text class="b1-num gold">{{ revenueDisplay }}</text><text class="b1-gitem-label">线上实收(元)</text></view>
           </view>
 
-          <!-- 营收看板（展开·累计收益真连） -->
+          <!-- 收款口径：未接入前明确降级，不把到店收款伪装成平台营收。 -->
           <view v-if="showIncome" class="b1-income">
-            <view class="b1-income-row"><text class="b1-income-label">累计营收</text><text class="b1-income-val">¥{{ num(stats?.totalRevenue).toLocaleString() }}</text></view>
-            <view class="b1-income-row"><text class="b1-income-label">累计驿站分成</text><text class="b1-income-val">¥{{ num(stats?.totalStationIncome).toLocaleString() }}</text></view>
-            <view class="b1-income-row"><text class="b1-income-label">已结算</text><text class="b1-income-val">¥{{ num(stats?.settledAmount).toLocaleString() }}</text></view>
-            <text class="b1-income-tip">结算由平台按自然月核算发起，明细见「订单与结算」</text>
+            <view v-if="!stats?.onlineCollectionEnabled" class="b1-income-capability">
+              <text class="b1-income-capability-title">当前为到店支付</text>
+              <text class="b1-income-capability-text">平台暂不代收课程费用，因此到店收款不会出现在本看板，也不会自动生成平台结算单。</text>
+            </view>
+            <template v-else>
+              <view class="b1-income-row"><text class="b1-income-label">平台累计实收</text><text class="b1-income-val">¥{{ num(stats?.totalRevenue).toLocaleString() }}</text></view>
+              <view class="b1-income-row"><text class="b1-income-label">应计驿站分成</text><text class="b1-income-val">¥{{ num(stats?.totalStationIncome).toLocaleString() }}</text></view>
+              <view class="b1-income-row"><text class="b1-income-label">渠道确认结算</text><text class="b1-income-val">¥{{ num(stats?.settledAmount).toLocaleString() }}</text></view>
+            </template>
+            <text class="b1-income-tip">本页只统计平台支付系统确认的订单；到店收款请按驿站自有账目管理。</text>
           </view>
 
           <!-- 经营顾问建议（自包含·空/失败自动隐藏） -->
@@ -162,7 +168,7 @@ const modules = [
   { key: 'roster', label: '招生名单', icon: 'users' },
   { key: 'teachers', label: '师资管理', icon: 'graduation-cap' },
   { key: 'products', label: '驿站商品', icon: 'shopping-bag' },
-  { key: 'settlement', label: '订单结算', icon: 'wallet' },
+  { key: 'settlement', label: '线上收款', icon: 'wallet' },
   { key: 'brand', label: '品牌资料', icon: 'edit' },
 ]
 
@@ -251,7 +257,7 @@ function goBrandHome() { if (station.value) navigateTo(`/pkg-offline/station-det
 .b1-main { padding: 6px 20px 40px; }
 .b1-sec { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 10px; }
 .b1-sec-title { font-size: 16px; font-weight: 700; color: #2C2C2C; font-family: 'Songti SC', serif; }
-.b1-sec-link { font-size: 11px; color: #C41E3A; }
+.b1-sec-link { height: 44px; box-sizing: border-box; display: flex; align-items: center; padding-left: 16px; margin: -13px 0; font-size: 11px; color: #C41E3A; }
 
 .b1-todo { background: #fff; border-radius: 18px; box-shadow: 0 2px 10px rgba(60,40,20,0.05); overflow: hidden; }
 .b1-todo-row { display: flex; align-items: center; gap: 10px; padding: 14px; border-bottom: 1px solid #EDE9E2; }
@@ -272,6 +278,9 @@ function goBrandHome() { if (station.value) navigateTo(`/pkg-offline/station-det
 .b1-income-label { font-size: 13px; color: #6E6E73; }
 .b1-income-val { font-size: 15px; font-weight: 700; color: #2C2C2C; }
 .b1-income-tip { display: block; font-size: 11px; color: #b0a89c; margin-top: 6px; line-height: 1.6; }
+.b1-income-capability { padding: 12px; border-radius: 14px; background: #faf6ef; border: 1px solid #eadcc6; margin-bottom: 8px; }
+.b1-income-capability-title { display: block; font-size: 13px; font-weight: 700; color: #8a6420; }
+.b1-income-capability-text { display: block; margin-top: 5px; font-size: 11.5px; line-height: 1.65; color: #756754; }
 
 .b1-grid-fn { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 .b1-fn { background: #fff; border-radius: 16px; padding: 16px 6px; text-align: center; box-shadow: 0 2px 10px rgba(60,40,20,0.05); display: flex; flex-direction: column; align-items: center; gap: 8px; }

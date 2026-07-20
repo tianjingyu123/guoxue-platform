@@ -28,13 +28,21 @@
       </view>
 
       <template v-else>
+        <view v-if="!detail" class="b7-capability">
+          <view class="b7-capability-icon"><app-icon name="alert-circle" :size="18" color="#8a6420" /></view>
+          <view class="b7-capability-body">
+            <text class="b7-capability-title">当前为到店支付</text>
+            <text class="b7-capability-text">平台暂不代收驿站课程费用。本页只保留平台支付系统确认的历史记录；到店收款不会自动生成订单或结算单。</text>
+          </view>
+        </view>
+
         <!-- ============ 态③ 结算单详情（只读） ============ -->
         <view v-if="detail" class="b7-page-pad">
           <!-- 头卡：金额大数 + 状态 -->
           <view class="b7-detail-hero">
             <text class="b7-hero-period">{{ periodLabel(detail.period) }} 结算单</text>
             <text class="b7-hero-amount money">¥{{ fmtMoney(detail.stationShare) }}</text>
-            <text class="b7-hero-status">{{ detail.settled ? '已结算' : '待平台打款' }}<template v-if="detail.settled && detail.settledAt"> · {{ fmtDate(detail.settledAt) }}</template></text>
+            <text class="b7-hero-status">{{ detail.settled ? '历史已标记' : '待人工核验' }}<template v-if="detail.settled && detail.settledAt"> · {{ fmtDate(detail.settledAt) }}</template></text>
           </view>
 
           <!-- 结算构成（后端真口径：总收入 / 驿站分成70% / 平台分成30%） -->
@@ -46,19 +54,19 @@
             <view class="b7-frow"><text class="b7-lb">本期总收入</text><text class="b7-vl">¥{{ fmtMoney(detail.totalIncome) }}</text></view>
             <view class="b7-frow"><text class="b7-lb">平台分成（30%）</text><text class="b7-vl red">− ¥{{ fmtMoney(detail.platformShare) }}</text></view>
             <view class="b7-frow"><text class="b7-lb strong">驿站应结（70%）</text><text class="b7-vl"><text class="money b7-vl-gold">¥{{ fmtMoney(detail.stationShare) }}</text></text></view>
-            <text class="b7-frow-tip">平台按自然月归集已完成订单核算，抽成比例以平台协议为准</text>
+            <text class="b7-frow-tip">仅展示历史记录；当前平台在线收款与自动结算均未开放</text>
           </view>
 
           <!-- 结算信息 -->
           <view class="b7-card">
             <text class="b7-card-title" style="margin-bottom:6px">结算信息</text>
             <view class="b7-frow"><text class="b7-lb">结算周期</text><text class="b7-vl">{{ periodLabel(detail.period) }}</text></view>
-            <view class="b7-frow"><text class="b7-lb">结算状态</text><text class="b7-vl">{{ detail.settled ? '已结算' : '待平台打款' }}</text></view>
-            <view class="b7-frow"><text class="b7-lb">到账时间</text><text class="b7-vl">{{ detail.settledAt ? fmtDate(detail.settledAt) : '—' }}</text></view>
+            <view class="b7-frow"><text class="b7-lb">记录状态</text><text class="b7-vl">{{ detail.settled ? '历史已标记' : '待人工核验' }}</text></view>
+            <view class="b7-frow"><text class="b7-lb">标记时间</text><text class="b7-vl">{{ detail.settledAt ? fmtDate(detail.settledAt) : '—' }}</text></view>
             <view class="b7-frow"><text class="b7-lb">结算单号</text><text class="b7-vl">{{ detail.id }}</text></view>
           </view>
 
-          <text class="b7-detail-note">说明：结算由平台按周期核算并发起打款，金额与到账均由平台掌握，如有疑问请联系平台运营。</text>
+          <text class="b7-detail-note">说明：旧模型的“已标记”不等于渠道到账；真实打款接入前，平台不会新增结算单或仅改状态冒充到账。</text>
           <view class="b7-safe" />
         </view>
 
@@ -79,7 +87,7 @@
           <view v-else-if="!orders.length" class="b7-empty">
             <app-icon name="file-text" :size="60" color="#d3c9b6" />
             <text class="b7-empty-title serif">暂无订单</text>
-            <text class="b7-empty-sub">完成招生核销与商品自提后，订单将在此汇总</text>
+            <text class="b7-empty-sub">当前到店支付不生成平台订单；接入统一收银台后，已支付记录才会在此汇总</text>
           </view>
 
           <!-- 订单卡列表 -->
@@ -111,22 +119,22 @@
             <view class="b7-ov-row">
               <view class="b7-ov-col">
                 <text class="b7-ov-num money gold">¥{{ fmtMoney(pendingTotal) }}</text>
-                <text class="b7-ov-label">待结算</text>
+                <text class="b7-ov-label">待人工核验</text>
               </view>
               <view class="b7-ov-divider" />
               <view class="b7-ov-col">
                 <text class="b7-ov-num money white">¥{{ fmtMoney(settledTotal) }}</text>
-                <text class="b7-ov-label">累计已结算</text>
+                <text class="b7-ov-label">历史已标记</text>
               </view>
             </view>
-            <text class="b7-ov-tip">结算周期：自然月 · 金额由平台核算 · 打款由平台发起</text>
+            <text class="b7-ov-tip">历史只读 · 标记状态不等于渠道到账</text>
           </view>
 
           <!-- 空态 -->
           <view v-if="!settlements.length" class="b7-empty">
             <app-icon name="file-text" :size="60" color="#d3c9b6" />
             <text class="b7-empty-title serif">还没有结算单</text>
-            <text class="b7-empty-sub">完成招生核销与商品自提后产生订单{{ '\n' }}平台按自然月生成上月结算单</text>
+            <text class="b7-empty-sub">当前没有平台在线实收记录{{ '\n' }}到店收款请按驿站自有账目管理</text>
             <view class="b7-empty-btn" @tap="switchTab('orders')"><text class="b7-empty-btn-text">去看订单</text></view>
           </view>
 
@@ -140,7 +148,7 @@
                 </view>
                 <view class="b7-settle-right">
                   <text class="b7-settle-amount money" :class="s.settled ? 'gray' : 'gold'">¥{{ fmtMoney(s.stationShare) }}</text>
-                  <text class="b7-tagg" :class="s.settled ? 'red' : 'gold'" style="margin-top:5px">{{ s.settled ? ('已结算' + (s.settledAt ? ' ' + fmtDate(s.settledAt) : '')) : '待平台打款' }}</text>
+                  <text class="b7-tagg" :class="s.settled ? 'red' : 'gold'" style="margin-top:5px">{{ s.settled ? ('历史已标记' + (s.settledAt ? ' ' + fmtDate(s.settledAt) : '')) : '待人工核验' }}</text>
                 </view>
               </view>
             </view>
@@ -309,6 +317,11 @@ onLoad((q) => {
 
 .b7-body { flex: 1; height: 0; min-height: 0; }
 .b7-page-pad { padding: 14px 20px 40px; }
+.b7-capability { margin: 14px 20px 0; padding: 13px 14px; display: flex; gap: 10px; border: 1px solid #eadcc6; border-radius: 16px; background: #faf6ef; }
+.b7-capability-icon { width: 30px; height: 30px; flex-shrink: 0; border-radius: 10px; background: #f2e5d1; display: flex; align-items: center; justify-content: center; }
+.b7-capability-body { flex: 1; min-width: 0; }
+.b7-capability-title { display: block; font-size: 13px; font-weight: 700; color: #8a6420; }
+.b7-capability-text { display: block; margin-top: 4px; font-size: 11.5px; line-height: 1.65; color: #756754; }
 
 /* 三态 */
 .b7-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 90px 40px 0; }

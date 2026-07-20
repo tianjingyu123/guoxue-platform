@@ -72,12 +72,12 @@
             </template>
             <!-- 已取消 -->
             <template v-else>
-              <text class="c4-cancelled-hint">报名已取消{{ '' }}</text>
+              <text class="c4-cancelled-hint">报名已取消{{ Number(r.course.price) > 0 ? ' · 如已付款请联系驿站处理' : '' }}</text>
             </template>
           </view>
 
           <view class="c4-list-foot">
-            <text>退改规则：距开课 ≥24h 可取消全额退款或改期1次；&lt;24h 仅可改期1次、不退款；已核销不退；缺席视为已消费不退。</text>
+            <text>平台不代收付费课费用；取消仅释放预约名额。已向驿站付款的退改退款，请凭付款凭证联系驿站处理；免费课距开课 ≥24h 可在线取消。</text>
           </view>
         </view>
       </template>
@@ -125,6 +125,7 @@
               <view class="c4-btn c4-btn-o" @tap="callStation"><app-icon name="phone" :size="14" color="#C41E3A" /><text class="c4-btn-o-text">联系驿站</text></view>
             </view>
             <text class="c4-ticket-foot">到店后请出示本凭证给驿站工作人员</text>
+            <text v-if="activePayAtStation" class="c4-ticket-foot">本凭证仅用于预约核销，不是付款凭证；支付后请向驿站索取收款凭证</text>
           </template>
           <!-- 已核销：同学圈 / 评价 -->
           <template v-else>
@@ -183,6 +184,7 @@ const emptyText = computed(() =>
 )
 
 const activeSigned = computed(() => active.value?.status === 'SIGNED_IN')
+const activePayAtStation = computed(() => Number(active.value?.course.price || 0) > 0)
 const codeDigits = computed(() => (active.value?.verifyCode || '').padEnd(6, ' ').slice(0, 6).split(''))
 
 async function load() {
@@ -228,7 +230,13 @@ function hoursToStart(startTime: string): number {
   return (new Date(startTime).getTime() - Date.now()) / 3600000
 }
 function refundHint(c: OfflineCourse): string {
-  return hoursToStart(c.startTime) >= 24 ? '距开课 >24h · 可全额退款或改期' : '距开课 <24h · 仅可改期1次、恕不退款'
+  const h = hoursToStart(c.startTime)
+  if (Number(c.price) > 0) {
+    return h >= 24
+      ? '可取消预约名额 · 已付款请联系驿站处理'
+      : '不足24小时 · 请联系驿站协商处理'
+  }
+  return h >= 24 ? '距开课 >24h · 可在线取消报名' : '距开课 <24h · 请联系驿站'
 }
 function statusLabel(r: MyRegistration): string {
   return r.status === 'SIGNED_IN' ? '已到店' : r.status === 'CANCELLED' ? '已取消' : '待到店'
@@ -262,12 +270,15 @@ function onBack() {
 }
 function onCancel(r: MyRegistration) {
   if (hoursToStart(r.course.startTime) < 24) {
-    uni.showModal({ title: '不足24小时', content: '距开课不足24小时，恕不支持取消退款；如需改期请联系驿站', showCancel: false })
+    uni.showModal({ title: '不足24小时', content: '距开课不足24小时，无法在线取消；请联系驿站协商处理', showCancel: false })
     return
   }
+  const paidAtStation = Number(r.course.price) > 0
   uni.showModal({
     title: '取消报名',
-    content: '确定取消本次报名？取消后名额释放，退款将原路返还（到账以平台处理为准）。',
+    content: paidAtStation
+      ? '确定取消本次预约？本操作只释放名额；平台未代收款，如已向驿站付款请凭付款凭证联系驿站处理。'
+      : '确定取消本次报名？取消后名额将释放。',
     confirmText: '确定取消',
     success: async (res) => {
       if (!res.confirm) return

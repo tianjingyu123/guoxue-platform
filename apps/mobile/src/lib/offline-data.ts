@@ -104,9 +104,8 @@ export interface StationDetail extends Station {
   rating?: StationRating
 }
 
-export interface OfflineCourseDetail extends OfflineCourse {
-  registrations: CourseRegistration[]
-}
+/** 公开课程详情不包含报名人或核销凭证；本人凭证须走 my-registration 私有接口。 */
+export type OfflineCourseDetail = OfflineCourse
 
 // ===== 品牌主页（驿-P1·GET /offline/stations/:id/home）=====
 
@@ -399,7 +398,7 @@ export const offlineApi = {
     return apiGet<OfflineCourse[]>(`/offline/courses?${q}`)
   },
 
-  /** 课程详情 GET /offline/courses/:id（对象，含 teacher/station/registrations）*/
+  /** 课程详情 GET /offline/courses/:id（安全公开对象：teacher/station/有效报名数，不含报名凭证）*/
   getCourse(id: string): Promise<OfflineCourseDetail> {
     return apiGet<OfflineCourseDetail>(`/offline/courses/${id}`)
   },
@@ -521,6 +520,10 @@ export interface DashboardStats {
   monthOrders: number
   monthRevenue: string | number
   monthStationIncome: string | number
+  /** 当前收款模式：付费课到店支付，平台不代收。 */
+  collectionMode?: 'PAY_AT_STATION' | string
+  onlineCollectionEnabled?: boolean
+  settlementEnabled?: boolean
 }
 
 export interface StationProduct {
@@ -542,7 +545,7 @@ export interface RegistrationRow {
   user: { nickname: string; avatar: string | null }
 }
 
-// ===== B7 订单与结算（后端真实口径：平台抽成30%/驿站70%·非设计稿示例5%）=====
+// ===== B7 平台在线订单与历史结算（当前收款/打款未接入·只读 fail-closed）=====
 export type StationOrderType = 'OFFLINE_COURSE' | 'PRODUCT' | 'SERVICE' | 'TEACHER_BOOKING'
 /** 驿站订单（GET /offline/stations/:id/orders·orderType/status筛选） */
 export interface StationOrder {
@@ -555,8 +558,8 @@ export interface StationOrder {
   status: string
   createdAt: string
 }
-/** 驿站结算单（GET /offline/stations/:id/settlements·服务端生成·只读·驿站侧不可发起打款）
- * 🔴后端真实字段：totalIncome/stationShare(70%)/platformShare(30%)/settled·无退款抵扣/课程商品分项/orderCount */
+/** 驿站历史结算单（GET /offline/stations/:id/settlements·只读）。
+ * settled 仅为旧模型标记，不等同于渠道到账；真实打款接入前禁止新增或改状态。 */
 export interface StationSettlement {
   id: string
   stationId: string
@@ -823,7 +826,7 @@ export const offlineManageApi = {
     return apiGet<OnboardingData>('/offline/dashboard/onboarding')
   },
 
-  // ===== B7 订单与结算（驿站主·只读展示·打款由平台发起）=====
+  // ===== B7 平台在线订单与历史结算（驿站主·只读；当前在线收款/真实打款未开放）=====
 
   /** 驿站订单列表 GET /offline/stations/:id/orders（orderType/status筛选·拆包兼容orders键） */
   async getStationOrders(stationId: string, params?: { orderType?: string; status?: string; page?: number; pageSize?: number }): Promise<{ items: StationOrder[]; total: number }> {

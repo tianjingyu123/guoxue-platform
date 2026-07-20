@@ -32,6 +32,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     count: jest.fn(),
   },
   offlineCourseReview: {
@@ -65,6 +66,7 @@ const mockPrisma = {
   },
   stationTeacher: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
   },
   // 佣-V2-P3 驿站开通赠"高级线下运营商"
   operator: {
@@ -77,6 +79,9 @@ const mockPrisma = {
   stationOrder: {
     findMany: jest.fn(),
     count: jest.fn(),
+    aggregate: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
   },
   stationSettlement: {
     findMany: jest.fn(),
@@ -209,7 +214,7 @@ describe("OfflineService", () => {
   describe("getStation", () => {
     it("获取驿站详情成功", async () => {
       mockPrisma.stationOffline.findUnique.mockResolvedValue({
-        id: "s1", name: "驿站", owner: {}, courses: [], products: [],
+        id: "s1", name: "驿站", status: "ACTIVE", owner: {}, courses: [], products: [],
       });
       const result = await svc.getStation("s1");
       expect(result.id).toBe("s1");
@@ -458,7 +463,7 @@ describe("OfflineService", () => {
   });
 
   describe("getStation 评分聚合", () => {
-    const stationRow = { id: "s1", name: "驿站", owner: {}, courses: [], products: [], teacherBookings: [] };
+    const stationRow = { id: "s1", name: "驿站", status: "ACTIVE", owner: {}, courses: [], products: [] };
 
     it("有评价时返回 rating: { avg 1位小数, count }", async () => {
       mockPrisma.stationOffline.findUnique.mockResolvedValue(stationRow);
@@ -554,7 +559,8 @@ describe("OfflineService", () => {
   describe("registerCourse 通知触点", () => {
     const course = {
       id: "oc1", title: "面授课", maxStudents: 30,
-      startTime: new Date("2026-07-10T09:00:00"), location: "北京国学馆",
+      status: "PUBLISHED", auditStatus: "APPROVED", station: { status: "ACTIVE" },
+      startTime: new Date(Date.now() + 48 * 60 * 60 * 1000), location: "北京国学馆",
     };
 
     it("报名成功后发送站内通知", async () => {
@@ -584,7 +590,7 @@ describe("OfflineService", () => {
     it("取消报名成功后发送取消确认通知", async () => {
       mockPrisma.offlineCourseRegistration.findUnique.mockResolvedValue({
         id: "reg1", status: "REGISTERED",
-        course: { id: "oc1", title: "面授课", startTime: new Date(), location: "馆" },
+        course: { id: "oc1", title: "面授课", startTime: new Date(Date.now() + 48 * 60 * 60 * 1000), location: "馆" },
       });
       mockPrisma.offlineCourseRegistration.update.mockResolvedValue({ id: "reg1", status: "CANCELLED" });
       const result = await svc.cancelRegistration("u1", "oc1");
@@ -604,8 +610,8 @@ describe("OfflineService", () => {
     describe("signInCourse", () => {
       it("驿站主可扫码签到", async () => {
         asOwnedBy(OWNER);
-        mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({ id: "reg1", status: "REGISTERED", course: {} });
-        mockPrisma.offlineCourseRegistration.update.mockResolvedValue({ id: "reg1", status: "SIGNED_IN" });
+        mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({ id: "reg1", status: "REGISTERED", course: { startTime: new Date() } });
+        mockPrisma.offlineCourseRegistration.updateMany.mockResolvedValue({ count: 1 });
         const result = await svc.signInCourse(OWNER, "s1", "QR_x");
         expect(result.status).toBe("SIGNED_IN");
       });
@@ -621,7 +627,7 @@ describe("OfflineService", () => {
         mockPrisma.offlineCourse.findUnique.mockResolvedValue({ stationId: "s1" });
         asOwnedBy(OWNER);
         mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({ id: "reg1", status: "REGISTERED", course: { startTime: new Date() } });
-        mockPrisma.offlineCourseRegistration.update.mockResolvedValue({ id: "reg1", status: "SIGNED_IN" });
+        mockPrisma.offlineCourseRegistration.updateMany.mockResolvedValue({ count: 1 });
         const result = await svc.signInByCode(OWNER, "oc1", "826194");
         expect(result.status).toBe("SIGNED_IN");
       });
@@ -636,14 +642,14 @@ describe("OfflineService", () => {
         asOwnedBy(OWNER);
         mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({ id: "reg1", status: "SIGNED_IN", course: { startTime: new Date() } });
         await expect(svc.signInByCode(OWNER, "oc1", "826194")).rejects.toThrow(BusinessException);
-        expect(mockPrisma.offlineCourseRegistration.update).not.toHaveBeenCalled();
+        expect(mockPrisma.offlineCourseRegistration.updateMany).not.toHaveBeenCalled();
       });
       it("非当天课程的码核销被拦截（已失效）", async () => {
         mockPrisma.offlineCourse.findUnique.mockResolvedValue({ stationId: "s1" });
         asOwnedBy(OWNER);
         mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({ id: "reg1", status: "REGISTERED", course: { startTime: new Date("2020-01-01T09:00:00") } });
         await expect(svc.signInByCode(OWNER, "oc1", "826194")).rejects.toThrow(BusinessException);
-        expect(mockPrisma.offlineCourseRegistration.update).not.toHaveBeenCalled();
+        expect(mockPrisma.offlineCourseRegistration.updateMany).not.toHaveBeenCalled();
       });
     });
 
@@ -817,6 +823,126 @@ describe("OfflineService", () => {
   });
 
   // 坏味道 P2-4：入参归一化（safePagination），防非法 page/pageSize 致 skip:NaN/负数进 Prisma 抛 500
+  describe("上线安全边界（预约到店与资金真相）", () => {
+    const validCourse = () => ({
+      id: "oc-safe", title: "安全面授课", maxStudents: 2,
+      status: "PUBLISHED", auditStatus: "APPROVED", station: { status: "ACTIVE" },
+      startTime: new Date(Date.now() + 48 * 60 * 60 * 1000), location: "国学馆",
+    });
+
+    it("公开课程列表始终附加审核、发布和 ACTIVE 驿站过滤", async () => {
+      mockPrisma.offlineCourse.findMany.mockResolvedValue([]);
+      mockPrisma.offlineCourse.count.mockResolvedValue(0);
+      await svc.listOfflineCourses("s1");
+      expect(mockPrisma.offlineCourse.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          stationId: "s1", auditStatus: "APPROVED", status: "PUBLISHED",
+          station: { status: "ACTIVE" },
+        },
+      }));
+    });
+
+    it("驿站主可预览本人课程，但匿名用户不能打开草稿详情", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ ownerUserId: "owner1" });
+      mockPrisma.offlineCourse.findMany.mockResolvedValue([]);
+      mockPrisma.offlineCourse.count.mockResolvedValue(0);
+      await svc.listOfflineCourses("s1", 1, 20, "owner1");
+      expect(mockPrisma.offlineCourse.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { stationId: "s1" } }));
+
+      mockPrisma.offlineCourse.findUnique.mockResolvedValue({
+        ...validCourse(), status: "DRAFT", teacherId: null,
+        station: { id: "s1", name: "驿站", city: "北京", address: "地址", phone: "电话", status: "ACTIVE", ownerUserId: "owner1" },
+        _count: { registrations: 0 },
+      });
+      await expect(svc.getOfflineCourse("oc-safe")).rejects.toThrow(BusinessException);
+    });
+
+    it("公开课程详情不返回报名记录和核销凭证", async () => {
+      mockPrisma.offlineCourse.findUnique.mockResolvedValue({
+        ...validCourse(), teacherId: null,
+        station: { id: "s1", name: "驿站", city: "北京", address: "地址", phone: "电话", status: "ACTIVE", ownerUserId: "owner1" },
+        _count: { registrations: 1 },
+      });
+      const result: any = await svc.getOfflineCourse("oc-safe");
+      expect(result).not.toHaveProperty("registrations");
+      expect(result.station).not.toHaveProperty("ownerUserId");
+      expect(result.station).not.toHaveProperty("status");
+      expect(JSON.stringify(result)).not.toContain("verifyCode");
+      expect(JSON.stringify(result)).not.toContain("qrCode");
+    });
+
+    it("已取消预约可复用唯一行重新预约，并且 CANCELLED 不占容量", async () => {
+      mockPrisma.offlineCourse.findUnique.mockResolvedValue(validCourse());
+      mockPrisma.offlineCourseRegistration.findUnique.mockResolvedValue({ id: "reg-old", status: "CANCELLED" });
+      mockPrisma.offlineCourseRegistration.count.mockResolvedValue(0);
+      mockPrisma.offlineCourseRegistration.update.mockResolvedValue({ id: "reg-old", status: "REGISTERED" });
+      const result = await svc.registerCourse("u1", "oc-safe");
+      expect(result.status).toBe("REGISTERED");
+      expect(mockPrisma.offlineCourseRegistration.count).toHaveBeenCalledWith({
+        where: { courseId: "oc-safe", status: { in: ["REGISTERED", "SIGNED_IN"] } },
+      });
+      expect(mockPrisma.offlineCourseRegistration.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "reg-old" }, data: expect.objectContaining({ status: "REGISTERED", signedAt: null }),
+      }));
+      expect(mockPrisma.offlineCourseRegistration.create).not.toHaveBeenCalled();
+    });
+
+    it("草稿课程不能报名，距开课不足24小时不能在线取消", async () => {
+      mockPrisma.offlineCourse.findUnique.mockResolvedValue({ ...validCourse(), status: "DRAFT" });
+      await expect(svc.registerCourse("u1", "oc-safe")).rejects.toThrow("课程未开放报名");
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+
+      mockPrisma.offlineCourseRegistration.findUnique.mockResolvedValue({
+        id: "reg1", status: "REGISTERED",
+        course: { id: "oc-safe", title: "课", startTime: new Date(Date.now() + 60 * 60 * 1000), location: "馆" },
+      });
+      await expect(svc.cancelRegistration("u1", "oc-safe")).rejects.toThrow("不足24小时");
+      expect(mockPrisma.offlineCourseRegistration.update).not.toHaveBeenCalled();
+    });
+
+    it("二维码仅当天有效，CAS 认领失败时不得伪造签到成功", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ ownerUserId: "owner1" });
+      mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({
+        id: "reg1", status: "REGISTERED", course: { startTime: new Date("2020-01-01T09:00:00") },
+      });
+      await expect(svc.signInCourse("owner1", "s1", "QR_x")).rejects.toThrow("仅限开课当天");
+      expect(mockPrisma.offlineCourseRegistration.updateMany).not.toHaveBeenCalled();
+
+      mockPrisma.offlineCourseRegistration.findFirst.mockResolvedValue({
+        id: "reg1", status: "REGISTERED", course: { startTime: new Date() },
+      });
+      mockPrisma.offlineCourseRegistration.updateMany.mockResolvedValue({ count: 0 });
+      await expect(svc.signInCourse("owner1", "s1", "QR_x")).rejects.toThrow("状态已变化");
+    });
+
+    it("未接统一收银台时所有资金写入口 fail-closed 且不写库", async () => {
+      await expect(svc.createOrder("s1", "u1", { orderType: "OFFLINE_COURSE", targetId: "oc1", amount: 1 }))
+        .rejects.toThrow("仅支持到店支付");
+      await expect(svc.updateOrderStatus("u1", "o1", "PAID")).rejects.toThrow("只能由支付系统更新");
+      await expect(svc.createSettlement("s1", { period: "2026-07", totalIncome: 999999 }))
+        .rejects.toThrow("不可创建结算单");
+      await expect(svc.settleStation("s1", "st1")).rejects.toThrow("禁止仅修改为已结算");
+      expect(mockPrisma.stationOrder.create).not.toHaveBeenCalled();
+      expect(mockPrisma.stationOrder.update).not.toHaveBeenCalled();
+    });
+
+    it("收益看板只统计真实已支付状态并显式返回到店支付能力", async () => {
+      mockPrisma.stationOffline.findUnique.mockResolvedValue({ id: "s1", ownerUserId: "owner1" });
+      mockPrisma.stationOrder.aggregate
+        .mockResolvedValueOnce({ _sum: { amount: 100, stationIncome: 70 }, _count: 1 })
+        .mockResolvedValueOnce({ _sum: { amount: 100, stationIncome: 70 }, _count: 1 });
+      mockPrisma.offlineCourse.count.mockResolvedValue(1);
+      mockPrisma.stationProduct.count.mockResolvedValue(2);
+      const result: any = await svc.getRevenueDashboard("owner1", "s1");
+      expect(mockPrisma.stationOrder.aggregate.mock.calls[0][0].where.status).toEqual({ in: ["PAID", "COMPLETED"] });
+      expect(mockPrisma.stationOrder.aggregate.mock.calls[1][0].where.status).toEqual({ in: ["PAID", "COMPLETED"] });
+      expect(result).toEqual(expect.objectContaining({
+        collectionMode: "PAY_AT_STATION", onlineCollectionEnabled: false,
+        settlementEnabled: false, totalOrders: 1, totalRevenue: 100,
+      }));
+    });
+  });
+
   describe("分页入参加固（P2-4）", () => {
     it("listStations: 非法 page(NaN 字符串) 归一化第1页·skip 不为 NaN", async () => {
       mockPrisma.stationOffline.findMany.mockResolvedValue([]);

@@ -68,39 +68,12 @@ export class OfflineCommerceService {
 
   // ───────── 订单 ─────────
 
-  async createOrder(stationId: string, userId: string, dto: { orderType: string; targetId: string; amount: number }) {
-    // 服务端校验金额：从数据库查询实际价格，忽略前端传入的 amount
-    let actualAmount: number;
-    // 命名统一修复(后端审计P2)：原判 "COURSE"，但 schema 注释/前端/dashboard 聚合/reminder 全用 "OFFLINE_COURSE"。
-    // 前端一直发 OFFLINE_COURSE → 原来恒落 else 抛"不支持的订单类型"，课程订单根本建不了、dashboard 课程收入恒 0。
-    if (dto.orderType === "OFFLINE_COURSE") {
-      const course = await this.prisma.offlineCourse.findUnique({ where: { id: dto.targetId } });
-      if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
-      actualAmount = Number(course.price);
-    } else if (dto.orderType === "PRODUCT") {
-      const product = await this.prisma.stationProduct.findUnique({ where: { id: dto.targetId } });
-      if (!product) throw new BusinessException(ErrorCode.NOT_FOUND, "商品不存在");
-      actualAmount = Number(product.price);
-    } else if (dto.orderType === "TEACHER_BOOKING") {
-      // 教师预约：从预约记录查询价格
-      const booking = await this.prisma.stationTeacherBooking.findUnique({ where: { id: dto.targetId }, select: { price: true } });
-      if (!booking) throw new BusinessException(ErrorCode.NOT_FOUND, "预约记录不存在");
-      actualAmount = Number(booking.price || 0);
-      if (actualAmount <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "预约金额异常");
-    } else {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `不支持的订单类型: ${dto.orderType}`);
-    }
-
-    const stationIncome = actualAmount * 0.7;
-    return this.prisma.stationOrder.create({
-      data: {
-        stationId,
-        orderType: dto.orderType,
-        targetId: dto.targetId,
-        amount: actualAmount,
-        stationIncome,
-      },
-    });
+  async createOrder(_stationId: string, _userId: string, _dto: { orderType: string; targetId: string; amount: number }): Promise<never> {
+    // StationOrder 缺少付款人、支付交易号和回调状态，不能作为在线资金订单使用。
+    throw new BusinessException(
+      ErrorCode.BAD_REQUEST,
+      "驿站在线收款尚未接入统一收银台，当前仅支持到店支付，不生成平台订单",
+    );
   }
 
   async listOrders(operatorUserId: string, stationId: string, params?: { orderType?: string; status?: string; page?: number; pageSize?: number }) {
@@ -122,28 +95,22 @@ export class OfflineCommerceService {
     return { orders, total, page, pageSize };
   }
 
-  async updateOrderStatus(userId: string, orderId: string, status: string) {
-    const existing = await this.prisma.stationOrder.findUnique({ where: { id: orderId } });
-    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站订单不存在");
-    await this.shared.assertStationOwner(userId, existing.stationId);
-    return this.prisma.stationOrder.update({ where: { id: orderId }, data: { status } });
+  async updateOrderStatus(_userId: string, _orderId: string, _status: string): Promise<never> {
+    // 付款状态只能由真实支付回调推进；驿站主不得手工伪造 PAID/COMPLETED。
+    throw new BusinessException(
+      ErrorCode.BAD_REQUEST,
+      "驿站在线订单状态只能由支付系统更新，当前功能尚未开放",
+    );
   }
 
   // ───────── 结算 ─────────
 
-  async createSettlement(stationId: string, dto: { period: string; totalIncome: number }) {
-    const platformShare = dto.totalIncome * 0.3; // 平台抽成30%
-    const stationShare = dto.totalIncome * 0.7;
-
-    return this.prisma.stationSettlement.create({
-      data: {
-        stationId,
-        period: dto.period,
-        totalIncome: dto.totalIncome,
-        stationShare,
-        platformShare,
-      },
-    });
+  async createSettlement(_stationId: string, _dto: { period: string; totalIncome: number }): Promise<never> {
+    // 禁止以管理员手填金额代替已支付订单归集。
+    throw new BusinessException(
+      ErrorCode.BAD_REQUEST,
+      "驿站自动归集与真实打款尚未接入，当前不可创建结算单",
+    );
   }
 
   async listSettlements(operatorUserId: string, stationId: string, rawPage = 1, rawPageSize = 20) {
@@ -160,17 +127,12 @@ export class OfflineCommerceService {
     return { settlements, total, page, pageSize };
   }
 
-  async settleStation(stationId: string, settlementId: string) {
-    const settlement = await this.prisma.stationSettlement.findFirst({
-      where: { id: settlementId, stationId },
-    });
-    if (!settlement) throw new BusinessException(ErrorCode.NOT_FOUND, "结算单不存在");
-    if (settlement.settled) throw new BusinessException(ErrorCode.BAD_REQUEST, "已结算");
-
-    return this.prisma.stationSettlement.update({
-      where: { id: settlementId },
-      data: { settled: true, settledAt: new Date() },
-    });
+  async settleStation(_stationId: string, _settlementId: string): Promise<never> {
+    // settled=true 不能替代真实出款凭证；通道接入前一律 fail-closed。
+    throw new BusinessException(
+      ErrorCode.BAD_REQUEST,
+      "驿站真实打款通道尚未接入，禁止仅修改为已结算",
+    );
   }
 
   // ───────── 收益看板 ─────────
@@ -180,40 +142,43 @@ export class OfflineCommerceService {
     const station = await this.prisma.stationOffline.findUnique({ where: { id: stationId } });
     if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "驿站不存在");
 
-    const [orders, settlements, courses, products] = await Promise.all([
+    const paidStatuses = ["PAID", "COMPLETED"];
+    const [orders, courses, products] = await Promise.all([
       this.prisma.stationOrder.aggregate({
-        where: { stationId },
+        where: { stationId, status: { in: paidStatuses } },
         _sum: { amount: true, stationIncome: true },
         _count: true,
       }),
-      this.prisma.stationSettlement.aggregate({
-        where: { stationId, settled: true },
-        _sum: { stationShare: true, platformShare: true, totalIncome: true },
+      this.prisma.offlineCourse.count({
+        where: { stationId, auditStatus: "APPROVED", status: "PUBLISHED" },
       }),
-      this.prisma.offlineCourse.count({ where: { stationId } }),
       this.prisma.stationProduct.count({ where: { stationId, status: "ACTIVE" } }),
     ]);
 
-    // 本月订单
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthOrders = await this.prisma.stationOrder.aggregate({
-      where: { stationId, createdAt: { gte: monthStart } },
+      where: { stationId, status: { in: paidStatuses }, createdAt: { gte: monthStart } },
       _sum: { amount: true, stationIncome: true },
       _count: true,
     });
 
+    const totalRevenue = Number(orders._sum.amount || 0);
+    const totalStationIncome = Number(orders._sum.stationIncome || 0);
     return {
       totalOrders: orders._count,
-      totalRevenue: orders._sum.amount || 0,
-      totalStationIncome: orders._sum.stationIncome || 0,
-      settledAmount: settlements._sum.stationShare || 0,
-      platformFee: settlements._sum.platformShare || 0,
+      totalRevenue,
+      totalStationIncome,
+      settledAmount: 0,
+      platformFee: Math.max(0, totalRevenue - totalStationIncome),
       activeCourses: courses,
       activeProducts: products,
       monthOrders: monthOrders._count,
       monthRevenue: monthOrders._sum.amount || 0,
       monthStationIncome: monthOrders._sum.stationIncome || 0,
+      collectionMode: "PAY_AT_STATION",
+      onlineCollectionEnabled: false,
+      settlementEnabled: false,
     };
   }
 

@@ -44,7 +44,7 @@
             </view>
             <view class="c3-price-row">
               <text v-if="num(course.price) === 0" class="c3-price free">免费</text>
-              <text v-else class="c3-price">¥ {{ num(course.price) }}</text>
+              <text v-else class="c3-price">到店价 ¥ {{ num(course.price) }}</text>
               <text class="c3-quota">
                 已报 {{ enrolledCount }} / {{ course.maxStudents }}
                 <text class="c3-quota-strong">· {{ isFull ? '已满' : `余 ${remaining} 位` }}</text>
@@ -152,7 +152,7 @@
               <app-icon name="alert-circle" :size="15" color="#C9A96E" />
               <text class="c3-notice-title">报名须知 · 退改规则</text>
             </view>
-            <text class="c3-notice-text">{{ REFUND_POLICY }}</text>
+            <text class="c3-notice-text">{{ refundPolicy }}</text>
           </view>
         </view>
         <view class="c3-safe" />
@@ -171,7 +171,7 @@
         <template v-else>
           <view class="c3-foot-info">
             <text v-if="num(course.price) === 0" class="c3-foot-price free">免费</text>
-            <text v-else class="c3-foot-price">¥ {{ num(course.price) }}</text>
+            <text v-else class="c3-foot-price">到店价 ¥ {{ num(course.price) }}</text>
             <text class="c3-foot-info-sub">{{ isFull ? '名额已满' : `余 ${remaining} 位` }}</text>
           </view>
           <view class="c3-foot-btn primary wide" :class="{ disabled: !canEnroll }" @tap="onEnrollTap">
@@ -195,7 +195,7 @@
           </view>
 
           <view class="c3-sheet-row">
-            <text class="c3-sheet-label">报名费用</text>
+            <text class="c3-sheet-label">{{ num(course.price) > 0 ? '到店支付' : '报名费用' }}</text>
             <text v-if="num(course.price) === 0" class="c3-sheet-amount free">免费</text>
             <text v-else class="c3-sheet-amount">¥ {{ num(course.price) }}</text>
           </view>
@@ -203,13 +203,13 @@
           <!-- 诚实降级：付费课扣款未开放 -->
           <view v-if="num(course.price) > 0" class="c3-sheet-payhint">
             <app-icon name="alert-circle" :size="13" color="#C9A96E" />
-            <text class="c3-sheet-payhint-text">在线支付即将开放，当前可先锁定名额、到店支付</text>
+            <text class="c3-sheet-payhint-text">平台当前不代收款；本次仅预约名额，请到店向驿站支付并索取付款凭证</text>
           </view>
 
-          <text class="c3-sheet-terms">提交即同意《线下课报名须知》· 距开课 ≥24h 可取消全额退款或改期 1 次</text>
+          <text class="c3-sheet-terms">{{ num(course.price) > 0 ? '提交仅预约名额；平台未收款，不提供自动原路退款' : '提交即同意《线下课报名须知》；距开课 ≥24h 可在线取消' }}</text>
 
           <view class="c3-sheet-btn" :class="{ disabled: submitting }" @tap="onEnroll">
-            <text class="c3-sheet-btn-text">{{ submitting ? '提交中…' : (num(course.price) > 0 ? '确认报名 · 到店支付' : '确认报名') }}</text>
+            <text class="c3-sheet-btn-text">{{ submitting ? '提交中…' : (num(course.price) > 0 ? '确认预约名额' : '确认报名') }}</text>
           </view>
         </view>
       </view>
@@ -296,18 +296,24 @@ try {
   statusBarHeight.value = info.statusBarHeight || 0
 } catch {}
 
-// 退改缺席口径（红线·完整·与 C4 一致）
-const REFUND_POLICY =
-  '· 距开课 ≥24h：可取消并全额退款，或改期 1 次\n' +
-  '· 距开课 <24h：仅可改期 1 次，恕不退款\n' +
-  '· 已核销到店：视为已消费，不予退款\n' +
-  '· 缺席未到：视为已消费，不予退款\n' +
-  '· 到店请出示核销凭证，迟到 15 分钟视为放弃席位'
+// 当前付费课为到店支付：平台只管理预约/核销，不代收款，也不能承诺原路退款。
+const FREE_POLICY =
+  '· 距开课 ≥24h：可在平台取消并释放名额\n' +
+  '· 距开课 <24h：请联系驿站协商改期\n' +
+  '· 已核销到店：报名已履约，不能在线取消\n' +
+  '· 到店请出示本人的预约核销凭证'
+const PAY_AT_STATION_POLICY =
+  '· 本平台当前不代收课程费用，本页提交仅预约名额\n' +
+  '· 请到店向驿站支付并索取付款凭证\n' +
+  '· 本页取消仅释放预约名额，不会触发自动退款\n' +
+  '· 如已向驿站付款，退改与退款请凭付款凭证联系驿站处理\n' +
+  '· 到店核销凭证不是付款凭证'
 
 const loading = ref(true)
 const errMsg = ref('')
 const courseId = ref('')
 const course = ref<OfflineCourseDetail | null>(null)
+const refundPolicy = computed(() => num(course.value?.price) > 0 ? PAY_AT_STATION_POLICY : FREE_POLICY)
 const myReg = ref<CourseRegistration | null>(null)
 const submitting = ref(false)
 const showConfirm = ref(false)
@@ -315,12 +321,8 @@ const showTeacher = ref(false)
 const showCancelConfirm = ref(false)
 
 const derivedStatus = computed(() => (course.value ? deriveCourseStatus(course.value) : 'draft'))
-const enrolledCount = computed(() => {
-  // 优先本次拉取的报名明细去掉已取消；回退到 _count
-  const regs = course.value?.registrations
-  if (regs && regs.length) return regs.filter((r) => r.status !== 'CANCELLED').length
-  return course.value?._count?.registrations ?? 0
-})
+// 公开详情只返回服务端过滤后的有效报名数，不接收任何报名人或核销凭证。
+const enrolledCount = computed(() => course.value?._count?.registrations ?? 0)
 const remaining = computed(() => Math.max(0, (course.value?.maxStudents ?? 0) - enrolledCount.value))
 const isFull = computed(() => derivedStatus.value === 'full')
 const isEnrolled = computed(() => !!myReg.value && myReg.value.status !== 'CANCELLED')
@@ -328,7 +330,7 @@ const canEnroll = computed(() => derivedStatus.value === 'enrolling' && !isEnrol
 
 const ctaLabel = computed(() => {
   if (isFull.value) return '名额已满'
-  if (derivedStatus.value === 'enrolling') return num(course.value?.price) > 0 ? `立即报名 · ¥${num(course.value?.price)}` : '立即报名 · 免费'
+  if (derivedStatus.value === 'enrolling') return num(course.value?.price) > 0 ? `预约名额 · 到店付 ¥${num(course.value?.price)}` : '立即报名 · 免费'
   return courseStatusLabel[derivedStatus.value]
 })
 
@@ -351,12 +353,16 @@ function sessionRange(c: OfflineCourseDetail): string {
 }
 
 const cancelHint = computed(() => {
+  const paidAtStation = num(course.value?.price) > 0
   const st = course.value?.startTime
-  if (!st) return '取消后名额将释放，退款按课程政策执行。'
+  if (!st) return paidAtStation
+    ? '取消只释放预约名额；如已向驿站付款，请凭付款凭证联系驿站处理。'
+    : '取消后将释放预约名额。'
   const h = (new Date(st).getTime() - Date.now()) / 3600000
-  return h >= 24
-    ? '距开课 ≥24h，取消后名额释放并全额退款（到账以平台处理为准）。'
-    : '距开课不足 24h，仅可改期 1 次、恕不退款；如需改期请联系驿站。'
+  if (h < 24) return '距开课不足 24 小时，无法在线取消，请联系驿站处理。'
+  return paidAtStation
+    ? '取消后释放预约名额；平台未代收款，不会触发自动退款。'
+    : '取消后将释放预约名额。'
 })
 
 // ===== 学员评价 =====
@@ -492,7 +498,7 @@ async function onEnroll() {
     const reg = await offlineApi.register(courseId.value)
     myReg.value = reg
     showConfirm.value = false
-    uni.showToast({ title: num(course.value?.price) > 0 ? '报名成功 · 请到店支付' : '报名成功', icon: 'success' })
+    uni.showToast({ title: num(course.value?.price) > 0 ? '预约成功 · 请到店支付' : '报名成功', icon: 'success' })
     await load()
     // 报名后跳凭证页（checkin·出到店凭证）
     setTimeout(goTicket, 600)
@@ -514,7 +520,7 @@ async function onCancel() {
   const st = course.value?.startTime
   if (st && (new Date(st).getTime() - Date.now()) / 3600000 < 24) {
     showCancelConfirm.value = false
-    uni.showModal({ title: '不足24小时', content: '距开课不足24小时，恕不支持取消退款；如需改期请联系驿站', showCancel: false })
+    uni.showModal({ title: '不足24小时', content: '距开课不足24小时，无法在线取消；请联系驿站协商处理', showCancel: false })
     return
   }
   submitting.value = true
@@ -644,7 +650,7 @@ async function onCancel() {
 .c3-notice-text { font-size: 12px; color: #6E6E73; line-height: 1.9; white-space: pre-line; }
 
 /* 底部固定 CTA */
-.c3-footer { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 12px 20px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #EFEAE3; }
+.c3-footer { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 12px 20px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid #EFEAE3; }
 .c3-foot-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .c3-foot-info-title { font-size: 15px; font-weight: 700; color: #2C2C2C; }
 .c3-foot-price { font-size: 20px; font-weight: 700; color: #C41E3A; font-family: 'Songti SC', serif; }
