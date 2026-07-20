@@ -11,19 +11,24 @@
  * 支付链路照抄书院会员页（pkg-profile/vip）：创建订单 → 微信 Native 扫码 → 轮询订单状态。
  * 渠道未就绪就诚实降级，不假装成功。
  */
-import { ref, onUnmounted } from 'vue'
+import { getCurrentInstance, nextTick, ref, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import { shopApi } from '@/lib/shop-data'
+import { drawQrToCanvas } from '@/utils/qrcode'
 import { wsApi, type ProStatus } from '../lib/workspace-api'
 
+const instance = getCurrentInstance()?.proxy
+const QR_PX = 176
 const loading = ref(true)
 const pro = ref<ProStatus | null>(null)
 const purchasing = ref(false)
 const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
-const payUnavailable = ref(false)
+const payFailure = ref('')
+const payOrderKept = ref(false)
+const qrReady = ref(false)
 const POLL_MAX = 40
 const pollCount = ref(0)
 let pollTimer: ReturnType<typeof setTimeout> | null = null
@@ -55,22 +60,36 @@ async function load() {
 async function purchase() {
   if (purchasing.value) return
   purchasing.value = true
+  payFailure.value = ''
+  payOrderKept.value = false
   try {
     // 服务端按 CommissionConfig 真价计费，前端传的任何金额都无效（防篡改）
     const order = await shopApi.createOrder({ type: 'PRACTITIONER_PRO', targetId: 'practitioner_pro_monthly', quantity: 1 })
     if (!order.id) throw new Error('订单创建失败')
+    payOrderKept.value = true
     const pay = await shopApi.payOrderNative(order.id)
-    if (pay.codeUrl) {
-      payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
-      startPolling(order.id)
-    } else {
-      payUnavailable.value = true
-    }
-  } catch {
-    // 微信支付商户资质仍在审核时必现 → 诚实提示，订单留在购买记录里
-    payUnavailable.value = true
+    if (!pay.codeUrl) throw new Error('微信支付未返回付款二维码，请稍后重试')
+    payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
+    qrReady.value = false
+    await nextTick()
+    renderPayQr()
+    startPolling(order.id)
+  } catch (e) {
+    payFailure.value = (e as Error)?.message || '支付发起失败，请稍后重试'
   } finally {
     purchasing.value = false
+  }
+}
+
+function renderPayQr() {
+  const value = payPending.value?.codeUrl
+  if (!value) return
+  try {
+    const ctx = uni.createCanvasContext('practitionerPayQr', instance)
+    const ok = drawQrToCanvas(ctx, value, 8, 8, QR_PX - 16, {})
+    ctx.draw(false, () => { qrReady.value = ok })
+  } catch {
+    qrReady.value = false
   }
 }
 
@@ -111,8 +130,18 @@ function copyCode() {
   if (!payPending.value) return
   uni.setClipboardData({
     data: payPending.value.codeUrl,
-    success: () => uni.showToast({ title: '已复制，在微信中打开', icon: 'none' }),
+    success: () => uni.showToast({ title: '支付链接已复制', icon: 'none' }),
   })
+}
+
+function openWechatPay() {
+  if (!payPending.value) return
+  // #ifdef H5
+  window.location.href = payPending.value.codeUrl
+  // #endif
+  // #ifndef H5
+  copyCode()
+  // #endif
 }
 
 function dateText(iso?: string | null): string {
@@ -217,23 +246,26 @@ function dateText(iso?: string | null): string {
       <view class="pro-sheet" @tap.stop>
         <text class="pro-sheet-title">请使用微信扫码支付</text>
         <text class="pro-sheet-amount">¥{{ payPending.amount }}</text>
-        <text class="pro-sheet-tip">复制以下支付链接，在微信中打开完成支付：</text>
-        <view class="pro-code" @tap="copyCode">
-          <text class="pro-code-txt">{{ payPending.codeUrl }}</text>
+        <text class="pro-sheet-tip">请使用微信扫描二维码完成支付</text>
+        <view class="pro-qr-wrap">
+          <canvas id="practitionerPayQr" canvas-id="practitionerPayQr" class="pro-qr" />
+          <text v-if="!qrReady" class="pro-qr-loading">二维码生成中…</text>
         </view>
-        <view class="pro-btn pro-btn--ghost" @tap="copyCode">
-          <text class="pro-btn-txt pro-btn-txt--ghost">复制支付链接</text>
+        <view class="pro-btn pro-btn--ghost" @tap="openWechatPay">
+          <text class="pro-btn-txt pro-btn-txt--ghost">在微信中打开</text>
         </view>
+        <text class="pro-copy" @tap="copyCode">无法打开？复制支付链接</text>
         <text class="pro-poll">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动开通</text>
       </view>
     </view>
 
-    <!-- 渠道未就绪（诚实降级，不假装成功） -->
-    <view v-if="payUnavailable" class="pro-mask" @tap="payUnavailable = false">
+    <!-- 支付失败：展示真实错误；只有订单确实建成时才提示已保留 -->
+    <view v-if="payFailure" class="pro-mask" @tap="payFailure = ''">
       <view class="pro-modal" @tap.stop>
-        <text class="pro-modal-title">支付渠道正在开通中</text>
-        <text class="pro-modal-desc">微信支付商户资质审核中，暂时无法在线支付，敬请期待。订单已保留在你的订单记录中。</text>
-        <view class="pro-btn pro-btn--primary" @tap="payUnavailable = false">
+        <text class="pro-modal-title">支付未发起</text>
+        <text class="pro-modal-desc">{{ payFailure }}</text>
+        <text v-if="payOrderKept" class="pro-order-tip">订单已安全保留，可稍后重新发起支付；系统不会把未付款订单当作已开通。</text>
+        <view class="pro-btn pro-btn--primary" @tap="payFailure = ''">
           <text class="pro-btn-txt pro-btn-txt--primary">知道了</text>
         </view>
       </view>
@@ -542,19 +574,23 @@ function dateText(iso?: string | null): string {
   color: #7A6C5E;
 }
 
-.pro-code {
-  margin-top: 16rpx;
-  padding: 20rpx;
-  border-radius: 12rpx;
-  background: rgba(154, 140, 126, 0.1);
+.pro-qr-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 352rpx;
+  height: 352rpx;
+  margin: 24rpx auto 0;
+  border-radius: 20rpx;
+  background: #fff;
+  overflow: hidden;
 }
 
-.pro-code-txt {
-  font-size: 20rpx;
-  line-height: 1.6;
-  color: #7A6C5E;
-  word-break: break-all;
-}
+.pro-qr { width: 352rpx; height: 352rpx; }
+.pro-qr-loading { position: absolute; font-size: 22rpx; color: #9A8C7E; }
+.pro-copy { display: block; margin-top: 18rpx; text-align: center; font-size: 22rpx; color: #9A8C7E; }
+.pro-order-tip { display: block; margin-top: 14rpx; font-size: 22rpx; line-height: 1.6; color: #9A8C7E; }
 
 .pro-poll {
   display: block;

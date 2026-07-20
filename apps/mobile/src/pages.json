@@ -1174,12 +1174,6 @@
           }
         },
         {
-          "path": "circles/distribution",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "circles/earnings",
           "style": {
             "navigationStyle": "custom"
@@ -1191,13 +1185,6 @@
             "navigationStyle": "custom"
           }
         },
-        {
-          "path": "circles/analytics",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        
         {
           "path": "circles/consult-ask",
           "style": {
