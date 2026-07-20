@@ -52,7 +52,10 @@ describe("MerchantController", () => {
   const mockReq = (id = "u1") => ({ user: { id }, socket: { remoteAddress: "127.0.0.1" } } as any);
 
   it("POST /merchant/apply — 提交入驻申请", async () => {
-    const result = await ctrl.createApplication(mockReq(), { shopName: "测试店铺", contactName: "张三", contactPhone: "13800138000", idCardNumber: "110101199001011234" } as any);
+    const result = await ctrl.createApplication(mockReq(), {
+      shopName: "测试店铺", contactName: "张三", contactPhone: "13800138000",
+      idCardNumber: "110101199001011234", businessLicense: "https://cdn.example.com/license.jpg",
+    } as any);
     expect(result.status).toBe("PENDING_REVIEW");
     expect(mockMerchantSvc.createApplication).toHaveBeenCalled();
   });

@@ -408,7 +408,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/merchant/join': '/pkg-merchant/join/index',
   '/merchant/apply': '/pkg-merchant/apply/index',
   '/merchant/application-status': '/pkg-merchant/application-status/index',
-  '/merchant/edit-application': '/pkg-merchant/edit-application/index',
   '/merchant/sign-agreement': '/pkg-merchant/sign-agreement/index',
   '/merchant/pay-deposit': '/pkg-merchant/pay-deposit/index',
   '/terms/merchant': '/pkg-merchant/terms/index',

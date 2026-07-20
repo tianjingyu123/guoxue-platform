@@ -75,7 +75,8 @@ describe("MerchantService", () => {
       mockPrisma.merchant.create.mockResolvedValue({ id: "m1", userId: "u1", shopName: "测试店铺", status: "PENDING_REVIEW" });
 
       const result = await svc.createApplication("u1", {
-        shopName: "测试店铺", contactName: "张三", contactPhone: "13800138000", idCardNumber: "110101199001011234",
+        shopName: "测试店铺", contactName: "张三", contactPhone: "13800138000",
+        idCardNumber: "110101199001011234", businessLicense: "https://cdn.example.com/license.jpg",
       } as any);
 
       expect(result.shopName).toBe("测试店铺");
@@ -120,6 +121,7 @@ describe("MerchantService", () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({
         id: "m1", userId: "u1", status: "PENDING_REVIEW", contactName: "张三",
         idCardNumber: "123", contactPhone: "13800138000", categoryIds: ["c1", "c2"], depositAmount: 0,
+        businessLicense: "https://cdn.example.com/license.jpg",
       });
       mockPrisma.merchant.update.mockResolvedValue({ id: "m1", status: "PENDING_REVIEW" });
       const result = await svc.submitForReview("u1");
@@ -135,6 +137,17 @@ describe("MerchantService", () => {
         idCardNumber: null, contactPhone: null, categoryIds: [],
       });
       await expect(svc.submitForReview("u1")).rejects.toThrow(BusinessException);
+    });
+
+    it("缺少营业执照时拒绝进入审核", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "PENDING_REVIEW", contactName: "张三",
+        idCardNumber: "123", contactPhone: "13800138000", categoryIds: ["c1"], businessLicense: null,
+      });
+
+      await expect(svc.submitForReview("u1")).rejects.toThrow("请上传营业执照");
+      expect(mockPrisma.merchant.update).not.toHaveBeenCalled();
+      expect(mockFeatureFlag.isEnabled).not.toHaveBeenCalled();
     });
   });
 

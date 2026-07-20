@@ -1656,12 +1656,6 @@
           }
         },
         {
-          "path": "edit-application/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "sign-agreement/index",
           "style": {
             "navigationStyle": "custom"

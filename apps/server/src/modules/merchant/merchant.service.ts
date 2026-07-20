@@ -112,6 +112,12 @@ export class MerchantService {
     if (!merchant.contactName || !merchant.idCardNumber || !merchant.contactPhone) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "请完善入驻信息");
     }
+    if (!merchant.businessLicense?.trim()) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "请上传营业执照：无有效营业执照无法完成主体核验和商户进件",
+      );
+    }
 
     // 当前实行免保证金入驻：自动审核通过后直接进入待签约，不制造待缴费状态。
     const autoApprove = await this.featureFlag.isEnabled(MERCHANT_FEATURE_FLAGS.AUTO_APPROVE);

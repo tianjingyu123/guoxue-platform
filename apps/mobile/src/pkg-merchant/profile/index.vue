@@ -1,6 +1,6 @@
 <!--
   B7 · 店铺资料（商家板块 · V0 重构版）
-  态A 资料编辑：店招16:9 + logo1:1 + 店名 + 简介 + 客服/营业(展示) + 只读分销渠道
+  态A 资料编辑：logo1:1 + 店名 + 简介 + 客服/营业(展示) + 只读分销渠道
   态B 对外预览：合并原 shop-preview（买家视角店铺展示，仅预览不可下单）
   规格红线：商家不做店铺装修/流量投放，仅基础资料；分销渠道由平台配置（只读）
   可写字段：仅 shopName / shopLogo / shopIntro（updateProfile）
@@ -37,24 +37,6 @@
       <!-- ══════════ 态A · 资料编辑 ══════════ -->
       <scroll-view v-if="mode === 'edit'" scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
         <view class="body">
-          <!-- 店招头图 16:9 -->
-          <view class="group">
-            <view class="group-t"><text class="group-t-txt">店招头图（16:9）</text></view>
-            <view class="banner" @tap="onUploadBanner">
-              <image
-                lazy-load
-                v-if="form.shopBanner"
-                :src="form.shopBanner"
-                class="banner-img"
-                mode="aspectFill"
-              />
-              <view v-else class="banner-ph">
-                <app-icon name="image" :size="26" color="#8a7a60" />
-                <text class="banner-ph-txt">＋ 点击上传店招</text>
-                <text class="banner-ph-sz">建议 1280×720</text>
-              </view>
-            </view>
-          </view>
 
           <!-- 店铺基本信息 -->
           <view class="group">
@@ -64,14 +46,25 @@
             <view class="field">
               <text class="field-label">店铺 Logo（1:1）</text>
               <view class="logo-row">
-                <view class="logo-box" @tap="onUploadLogo">
+                <view
+                  class="logo-box"
+                  :class="{ 'logo-box-done': !!form.shopLogo, 'logo-box-busy': logoUploading }"
+                  @tap="onUploadLogo"
+                >
                   <image lazy-load v-if="form.shopLogo" :src="form.shopLogo" class="logo-img" mode="aspectFill" />
                   <view v-else class="logo-ph">
-                    <app-icon name="plus" :size="18" color="#8a7a60" />
-                    <text class="logo-ph-txt">上传</text>
+                    <app-icon :name="logoUploading ? 'loader-2' : 'plus'" :size="18" color="#8a7a60" />
+                    <text class="logo-ph-txt">{{ logoUploading ? '上传中' : '上传' }}</text>
+                  </view>
+                  <view v-if="logoUploading && form.shopLogo" class="logo-busy">
+                    <app-icon name="loader-2" :size="18" color="#ffffff" />
+                    <text>上传中</text>
                   </view>
                 </view>
-                <text class="logo-tip">建议 400×400</text>
+                <view class="logo-copy">
+                  <text class="logo-tip">建议使用 400×400 的正方形品牌图，JPG / PNG / WebP，最大 10MB</text>
+                  <text class="logo-state">{{ form.shopLogo ? '已上传 · 点击可预览、更换或移除' : '尚未上传 · 店铺将使用默认标识' }}</text>
+                </view>
               </view>
             </view>
 
@@ -126,21 +119,20 @@
 
       <!-- ══════════ 态B · 对外预览 ══════════ -->
       <scroll-view v-else scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
-        <!-- 店招 16:9 -->
-        <view class="pv-banner">
-          <image lazy-load v-if="form.shopBanner" :src="form.shopBanner" class="pv-banner-img" mode="aspectFill" />
-          <view v-else class="pv-banner-ph"><text class="pv-banner-ph-txt">店招 16:9</text></view>
-        </view>
-
-        <!-- 店铺头部（logo 上浮） -->
-        <view class="pv-head">
-          <view class="pv-logo">
-            <image lazy-load v-if="form.shopLogo" :src="form.shopLogo" class="pv-logo-img" mode="aspectFill" />
-            <app-icon v-else name="store" :size="24" color="#8a7a60" />
-          </view>
-          <view class="pv-head-info">
-            <text class="pv-name">{{ form.shopName || '未命名店铺' }}</text>
-            <text class="pv-meta">官方认证 · 综合评分 {{ ratingText }} · 在售 {{ products.length }} 件</text>
+        <!-- 店铺身份页眉：只使用后端真实可写字段，不伪造店招 -->
+        <view class="pv-hero">
+          <view class="pv-hero-ring pv-hero-ring-a" />
+          <view class="pv-hero-ring pv-hero-ring-b" />
+          <text class="pv-hero-kicker">热卜国学 · 品质商家</text>
+          <view class="pv-head">
+            <view class="pv-logo">
+              <image lazy-load v-if="form.shopLogo" :src="form.shopLogo" class="pv-logo-img" mode="aspectFill" />
+              <app-icon v-else name="store" :size="24" color="#8a7a60" />
+            </view>
+            <view class="pv-head-info">
+              <text class="pv-name">{{ form.shopName || '未命名店铺' }}</text>
+              <text class="pv-meta">官方认证 · 综合评分 {{ ratingText }} · 在售 {{ products.length }} 件</text>
+            </view>
           </view>
         </view>
 
@@ -181,8 +173,8 @@
       class="cta-bar"
       :style="{ paddingBottom: 'calc(14px + env(safe-area-inset-bottom))' }"
     >
-      <view class="cta" :class="{ saving: submitting }" @tap="onSave">
-        <text class="cta-text">{{ submitting ? '保存中…' : '保存资料' }}</text>
+      <view class="cta" :class="{ saving: submitting || logoUploading }" @tap="onSave">
+        <text class="cta-text">{{ logoUploading ? 'Logo 上传中…' : (submitting ? '保存中…' : '保存资料') }}</text>
       </view>
     </view>
   </view>
@@ -193,6 +185,7 @@ import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { merchantBackendApi, type MerchantProfile, type MerchantProduct } from '@/pkg-merchant/lib/merchant-data'
+import { chooseAndUploadImage } from '@/utils/request'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -207,14 +200,14 @@ const mode = ref<'edit' | 'preview'>('edit')
 const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
+const logoUploading = ref(false)
 const profile = ref<MerchantProfile | null>(null)
 const products = ref<MerchantProduct[]>([])
 
-// 可写字段（shopBanner 为前端占位·后端 updateProfile 暂不含·上传功能待开放）
+// 后端真实可写字段，仅保留 shopName / shopLogo / shopIntro
 const form = ref({
   shopName: '',
   shopLogo: '' as string,
-  shopBanner: '' as string,
   shopIntro: '',
 })
 
@@ -236,7 +229,6 @@ async function load() {
     form.value = {
       shopName: p.shopName || '',
       shopLogo: p.shopLogo || '',
-      shopBanner: '',
       shopIntro: p.shopIntro || '',
     }
   } catch (e) {
@@ -259,15 +251,38 @@ function openPreview() {
   mode.value = 'preview'
 }
 
-function onUploadBanner() {
-  uni.showToast({ title: '店招上传即将开放', icon: 'none' })
+async function chooseLogo() {
+  if (logoUploading.value) return
+  logoUploading.value = true
+  try {
+    form.value.shopLogo = await chooseAndUploadImage()
+  } catch (e) {
+    const message = (e as Error)?.message || ''
+    if (message && message !== '已取消') uni.showToast({ title: message, icon: 'none' })
+  } finally {
+    logoUploading.value = false
+  }
 }
+
 function onUploadLogo() {
-  uni.showToast({ title: 'Logo 上传即将开放', icon: 'none' })
+  if (logoUploading.value) return
+  const url = form.value.shopLogo
+  if (!url) {
+    chooseLogo()
+    return
+  }
+  uni.showActionSheet({
+    itemList: ['预览 Logo', '重新上传', '移除 Logo'],
+    success: ({ tapIndex }) => {
+      if (tapIndex === 0) uni.previewImage({ urls: [url], current: url })
+      if (tapIndex === 1) chooseLogo()
+      if (tapIndex === 2) form.value.shopLogo = ''
+    },
+  })
 }
 
 async function onSave() {
-  if (submitting.value) return
+  if (submitting.value || logoUploading.value) return
   if (!form.value.shopName.trim()) {
     uni.showToast({ title: '请填写店铺名称', icon: 'none' })
     return
@@ -316,20 +331,25 @@ $line: #edeae4;
   background: linear-gradient(135deg, $brand, #a01830);
 }
 .nav-bar {
+  position: relative;
   display: flex;
   align-items: center;
   height: 44px;
   padding: 0 20rpx;
 }
 .nav-back {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .nav-title {
-  flex: 1;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 50%;
+  white-space: nowrap;
   text-align: center;
   font-size: 34rpx;
   font-weight: 700;
@@ -338,15 +358,19 @@ $line: #edeae4;
 .nav-pv {
   display: flex;
   align-items: center;
+  margin-left: auto;
+  justify-content: center;
   gap: 4rpx;
-  height: 52rpx;
-  padding: 0 20rpx;
+  min-width: 88rpx;
+  height: 88rpx;
+  padding: 0 18rpx;
+  box-sizing: border-box;
   border-radius: 30rpx;
   background: rgba(255, 255, 255, 0.18);
 }
 .nav-pv-ghost {
   background: transparent;
-  width: 64rpx;
+  width: 88rpx;
   padding: 0;
 }
 .nav-pv-text {
@@ -409,44 +433,6 @@ $line: #edeae4;
   color: $ink;
 }
 
-/* 店招 16:9 比例框（padding-top 56.25%） */
-.banner {
-  width: 100%;
-  height: 0;
-  padding-top: 56.25%;
-  position: relative;
-  border-radius: 28rpx;
-  background: linear-gradient(135deg, #e8dfd3, #d8ccb8);
-  overflow: hidden;
-}
-.banner-img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-.banner-ph {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-}
-.banner-ph-txt {
-  font-size: 24rpx;
-  color: #8a7a60;
-}
-.banner-ph-sz {
-  font-size: 20rpx;
-  color: #8a7a60;
-  opacity: 0.7;
-}
 
 /* 字段卡片 */
 .field {
@@ -507,6 +493,8 @@ $line: #edeae4;
 .logo-box {
   width: 128rpx;
   height: 128rpx;
+  position: relative;
+  border: 1rpx dashed rgba(138, 122, 96, 0.5);
   border-radius: 28rpx;
   background: linear-gradient(135deg, #e8dfd3, #d8ccb8);
   display: flex;
@@ -515,6 +503,8 @@ $line: #edeae4;
   overflow: hidden;
   flex-shrink: 0;
 }
+.logo-box-done { border-style: solid; border-color: rgba(128, 94, 44, 0.28); }
+.logo-box-busy { pointer-events: none; }
 .logo-img {
   width: 128rpx;
   height: 128rpx;
@@ -529,9 +519,31 @@ $line: #edeae4;
   font-size: 20rpx;
   color: #8a7a60;
 }
+.logo-busy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  color: #ffffff;
+  font-size: 20rpx;
+  background: rgba(44, 35, 25, 0.68);
+}
+.logo-copy { flex: 1; min-width: 0; }
 .logo-tip {
+  display: block;
   font-size: 22rpx;
+  line-height: 1.55;
   color: $ink-3;
+}
+.logo-state {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 21rpx;
+  line-height: 1.5;
+  color: #8a6d2f;
 }
 
 /* 只读分销渠道 */
@@ -599,41 +611,33 @@ $line: #edeae4;
 }
 
 /* ══════════ 态B · 对外预览 ══════════ */
-.pv-banner {
-  width: 100%;
-  height: 0;
-  padding-top: 56.25%;
+.pv-hero {
   position: relative;
-  background: linear-gradient(135deg, #c9bba0, #b0a088);
   overflow: hidden;
+  padding: 34rpx 40rpx 40rpx;
+  background:
+    radial-gradient(circle at 86% 12%, rgba(255, 247, 225, 0.64), transparent 32%),
+    linear-gradient(135deg, #d7c5a4, #b89e72);
 }
-.pv-banner-img {
+.pv-hero-ring {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  border: 1rpx solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  pointer-events: none;
 }
-.pv-banner-ph {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.pv-banner-ph-txt {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.85);
+.pv-hero-ring-a { width: 260rpx; height: 260rpx; right: -80rpx; top: -116rpx; }
+.pv-hero-ring-b { width: 170rpx; height: 170rpx; right: 24rpx; top: -80rpx; }
+.pv-hero-kicker {
+  display: block;
+  margin-bottom: 28rpx;
+  font-size: 20rpx;
+  letter-spacing: 5rpx;
+  color: rgba(74, 53, 25, 0.68);
 }
 .pv-head {
   display: flex;
   align-items: center;
   gap: 24rpx;
-  padding: 0 40rpx;
-  margin-top: -56rpx;
   position: relative;
   z-index: 2;
 }
@@ -656,7 +660,6 @@ $line: #edeae4;
 .pv-head-info {
   flex: 1;
   min-width: 0;
-  padding-top: 56rpx;
 }
 .pv-name {
   display: block;

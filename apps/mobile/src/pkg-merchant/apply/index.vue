@@ -43,16 +43,6 @@
           <view class="m2-group-t"><text>主体信息</text></view>
 
           <view class="m2-field">
-            <text class="m2-label">主体类型 <text class="m2-req">*</text></text>
-            <view class="m2-picker" @tap="openEntityPicker">
-              <text class="m2-picker-txt" :class="{ 'm2-picker-on': !!form.entityType }">
-                {{ entityTypeLabel || '请选择：个人 / 个体工商户 / 企业' }}
-              </text>
-              <AppIcon name="chevron-down" :size="16" color="#9A9A9A" />
-            </view>
-          </view>
-
-          <view class="m2-field">
             <text class="m2-label">主体名称 / 店铺名 <text class="m2-req">*</text></text>
             <input
               class="m2-input"
@@ -91,25 +81,62 @@
             </view>
           </view>
 
+          <view class="m2-qual-note">
+            <AppIcon name="shield-check" :size="18" color="#805E2C" />
+            <text>当前仅支持个体工商户或企业入驻。营业执照用于主体核验与后续商户进件，不会在店铺公开展示。</text>
+          </view>
+
           <view class="m2-field">
-            <text class="m2-label">营业执照 <text class="m2-opt">（企业/个体建议提供）</text></text>
-            <view class="m2-upload" @tap="comingSoon">
-              <AppIcon name="upload" :size="22" color="#C9A96E" />
-              <text class="m2-upload-txt">点击上传</text>
-              <text class="m2-upload-sz">图片/PDF · 清晰可辨</text>
+            <text class="m2-label">营业执照 <text class="m2-req">*</text></text>
+            <view
+              class="m2-upload m2-upload-license"
+              :class="{
+                'm2-upload-done': !!form.businessLicense,
+                'm2-upload-busy': uploadingKey === 'businessLicense',
+                'm2-upload-error': !!fieldErr('businessLicense'),
+              }"
+              @tap="handleCredential('businessLicense')"
+            >
+              <image v-if="form.businessLicense" class="m2-upload-img" :src="form.businessLicense" mode="aspectFill" />
+              <view v-else class="m2-upload-copy">
+                <AppIcon :name="uploadingKey === 'businessLicense' ? 'loader-2' : 'upload'" :size="22" color="#A57935" />
+                <text class="m2-upload-txt">{{ uploadingKey === 'businessLicense' ? '上传中…' : '上传营业执照' }}</text>
+                <text class="m2-upload-sz">JPG / PNG / WebP · 最大 10MB</text>
+              </view>
+              <text v-if="form.businessLicense" class="m2-upload-badge">已上传 · 点击管理</text>
+            </view>
+            <view v-if="fieldErr('businessLicense')" class="m2-err m2-err-mt">
+              <AppIcon name="alert-circle" :size="12" color="#C41E3A" />
+              <text>{{ fieldErr('businessLicense') }}</text>
             </view>
           </view>
 
           <view class="m2-field">
             <text class="m2-label">身份证（人像面 / 国徽面）<text class="m2-opt">（选填，可后台补充）</text></text>
             <view class="m2-up-row">
-              <view class="m2-upload m2-upload-sm" @tap="comingSoon">
-                <AppIcon name="upload" :size="18" color="#C9A96E" />
-                <text class="m2-upload-txt">人像面</text>
+              <view
+                class="m2-upload m2-upload-sm"
+                :class="{ 'm2-upload-done': !!form.idCardFront, 'm2-upload-busy': uploadingKey === 'idCardFront' }"
+                @tap="handleCredential('idCardFront')"
+              >
+                <image v-if="form.idCardFront" class="m2-upload-img" :src="form.idCardFront" mode="aspectFill" />
+                <view v-else class="m2-upload-copy">
+                  <AppIcon :name="uploadingKey === 'idCardFront' ? 'loader-2' : 'upload'" :size="18" color="#A57935" />
+                  <text class="m2-upload-txt">{{ uploadingKey === 'idCardFront' ? '上传中…' : '人像面' }}</text>
+                </view>
+                <text v-if="form.idCardFront" class="m2-upload-badge">已上传 · 点击管理</text>
               </view>
-              <view class="m2-upload m2-upload-sm" @tap="comingSoon">
-                <AppIcon name="upload" :size="18" color="#C9A96E" />
-                <text class="m2-upload-txt">国徽面</text>
+              <view
+                class="m2-upload m2-upload-sm"
+                :class="{ 'm2-upload-done': !!form.idCardBack, 'm2-upload-busy': uploadingKey === 'idCardBack' }"
+                @tap="handleCredential('idCardBack')"
+              >
+                <image v-if="form.idCardBack" class="m2-upload-img" :src="form.idCardBack" mode="aspectFill" />
+                <view v-else class="m2-upload-copy">
+                  <AppIcon :name="uploadingKey === 'idCardBack' ? 'loader-2' : 'upload'" :size="18" color="#A57935" />
+                  <text class="m2-upload-txt">{{ uploadingKey === 'idCardBack' ? '上传中…' : '国徽面' }}</text>
+                </view>
+                <text v-if="form.idCardBack" class="m2-upload-badge">已上传 · 点击管理</text>
               </view>
             </view>
           </view>
@@ -217,15 +244,10 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { merchantApi, productCategories } from '@/pkg-merchant/lib/merchant-data'
+import { chooseAndUploadImage } from '@/utils/request'
 
 const categories = productCategories
-
-// 主体类型（前端配置，随主体名称一并进备注/后端保留字段）
-const entityTypes = [
-  { id: 'personal', name: '个人' },
-  { id: 'individual', name: '个体工商户' },
-  { id: 'company', name: '企业' },
-]
+type CredentialKey = 'businessLicense' | 'idCardFront' | 'idCardBack'
 
 const statusBarHeight = ref(0)
 const loading = ref(true)
@@ -233,19 +255,20 @@ const error = ref('')
 const isEdit = ref(false)        // 是否为「驳回后重提」态（已有申请）
 const rejectReason = ref('')     // 驳回原因
 const isSubmitting = ref(false)
+const uploadingKey = ref<CredentialKey | ''>('')
 const touched = reactive<Record<string, boolean>>({})
 
 const form = reactive({
-  entityType: '',
   shopName: '',
   shopIntro: '',
   contactName: '',
   contactPhone: '',
   idNumber: '',
+  businessLicense: '',
+  idCardFront: '',
+  idCardBack: '',
   categories: [] as string[],
 })
-
-const entityTypeLabel = computed(() => entityTypes.find((e) => e.id === form.entityType)?.name || '')
 
 // ───────── 校验 ─────────
 // 各校验器入参类型不一（string / string[]），统一 Record 映射形参逆变只能取 any
@@ -272,6 +295,10 @@ const validators: Record<string, (v: any) => string | null> = {
       return '请输入正确的身份证号码'
     return null
   },
+  businessLicense: (v: string) => {
+    if (!v) return '请上传清晰、完整的营业执照'
+    return null
+  },
   categories: (v: string[]) => {
     if (!v || v.length === 0) return '请至少选择一个经营类目'
     return null
@@ -291,10 +318,11 @@ function markTouched(field: string) {
 
 // 提交按钮可点判断（态A 必填齐全；态B 至少店名齐全）
 const canSubmit = computed(() => {
-  if (isSubmitting.value) return false
-  if (isEdit.value) return !!form.shopName.trim()
+  if (isSubmitting.value || !!uploadingKey.value) return false
+  if (isEdit.value) return !!form.shopName.trim() && !!form.businessLicense
   return (
     !!form.shopName.trim() &&
+    !!form.businessLicense &&
     !!form.contactName.trim() &&
     /^1[3-9]\d{9}$/.test(form.contactPhone.trim()) &&
     !!form.idNumber.trim() &&
@@ -315,10 +343,12 @@ async function load() {
     form.shopIntro = app.shopIntro || ''
     form.contactName = app.contactName || ''
     form.categories = [...(app.categoryIds || [])]
+    form.businessLicense = app.businessLicense || ''
+    form.idCardFront = app.idCardFront || ''
+    form.idCardBack = app.idCardBack || ''
     // 身份证号 / 手机号后端脱敏返回，不回填输入框，留空按需重填（提交时仅覆盖有值字段）
     form.idNumber = ''
     form.contactPhone = ''
-    form.entityType = ''
   } catch (e) {
     // 404 = 未申请 → 态A 首次填写（这是正常路径，非错误）
     const msg = (e as Error)?.message || ''
@@ -335,15 +365,6 @@ async function load() {
   }
 }
 
-function openEntityPicker() {
-  uni.showActionSheet({
-    itemList: entityTypes.map((e) => e.name),
-    success: (res) => {
-      form.entityType = entityTypes[res.tapIndex].id
-    },
-  })
-}
-
 function toggleCategory(id: string) {
   const idx = form.categories.indexOf(id)
   if (idx >= 0) form.categories.splice(idx, 1)
@@ -352,14 +373,44 @@ function toggleCategory(id: string) {
   markTouched('categories')
 }
 
-function comingSoon() {
-  uni.showToast({ title: '图片上传功能即将开放', icon: 'none' })
+async function chooseCredential(key: CredentialKey) {
+  if (uploadingKey.value) return
+  uploadingKey.value = key
+  try {
+    form[key] = await chooseAndUploadImage()
+    if (key === 'businessLicense') markTouched('businessLicense')
+  } catch (e) {
+    const message = (e as Error)?.message || ''
+    if (message && message !== '已取消') uni.showToast({ title: message, icon: 'none' })
+  } finally {
+    uploadingKey.value = ''
+  }
+}
+
+function handleCredential(key: CredentialKey) {
+  if (uploadingKey.value) return
+  const url = form[key]
+  if (!url) {
+    chooseCredential(key)
+    return
+  }
+  uni.showActionSheet({
+    itemList: ['预览图片', '重新上传', '移除图片'],
+    success: ({ tapIndex }) => {
+      if (tapIndex === 0) uni.previewImage({ urls: [url], current: url })
+      if (tapIndex === 1) chooseCredential(key)
+      if (tapIndex === 2) {
+        form[key] = ''
+        if (key === 'businessLicense') markTouched('businessLicense')
+      }
+    },
+  })
 }
 
 function validateForm(): boolean {
   const fields = isEdit.value
-    ? ['shopName', 'contactPhone', 'idNumber', 'categories']  // 态B：脱敏字段留空放行
-    : ['shopName', 'contactName', 'contactPhone', 'idNumber', 'categories']
+    ? ['shopName', 'contactPhone', 'idNumber', 'businessLicense', 'categories']  // 态B：脱敏字段留空放行
+    : ['shopName', 'contactName', 'contactPhone', 'idNumber', 'businessLicense', 'categories']
   fields.forEach((f) => markTouched(f))
   for (const f of fields) {
     const fn = validators[f]
@@ -386,6 +437,9 @@ async function handleSubmit() {
         shopName: form.shopName.trim(),
         shopIntro: form.shopIntro.trim() || undefined,
         categoryIds: form.categories,
+        businessLicense: form.businessLicense,
+        idCardFront: form.idCardFront || undefined,
+        idCardBack: form.idCardBack || undefined,
       }
       if (form.contactName.trim()) payload.contactName = form.contactName.trim()
       if (form.idNumber.trim()) payload.idCardNumber = form.idNumber.trim()
@@ -400,6 +454,9 @@ async function handleSubmit() {
         contactPhone: form.contactPhone.trim(),
         idCardNumber: form.idNumber.trim(),
         categoryIds: form.categories,
+        businessLicense: form.businessLicense,
+        idCardFront: form.idCardFront || undefined,
+        idCardBack: form.idCardBack || undefined,
       })
     }
     // 统一提交审核 → 进入待审核态
@@ -457,7 +514,7 @@ $green: #2E8B57;
 }
 .m2-back {
   position: absolute; left: 36rpx;
-  width: 60rpx; height: 60rpx; border-radius: 50%;
+  width: 88rpx; height: 88rpx; border-radius: 50%;
   background: $card; border: 1px solid $line;
   display: flex; align-items: center; justify-content: center;
 }
@@ -547,14 +604,35 @@ $green: #2E8B57;
 .m2-upload {
   background: $wash; border: 1.5px dashed #D8CFC2; border-radius: 24rpx;
   height: 184rpx;
+  position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 10rpx;
 }
+.m2-upload-license { height: 238rpx; }
 .m2-upload-sm { height: 140rpx; }
+.m2-upload-copy { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; }
 .m2-upload-txt { font-size: 24rpx; color: $ink2; }
 .m2-upload-sz { font-size: 20rpx; color: $ink3; }
 .m2-up-row { display: flex; gap: 22rpx; }
 .m2-up-row .m2-upload { flex: 1; }
+.m2-upload-img { width: 100%; height: 100%; }
+.m2-upload-done { border-style: solid; border-color: rgba(128, 94, 44, .32); background: #EDE3D1; }
+.m2-upload-busy { opacity: .64; pointer-events: none; }
+.m2-upload-error { border-color: rgba(196, 30, 58, .72); background: #FFF7F7; }
+.m2-upload-badge {
+  position: absolute; left: 14rpx; right: 14rpx; bottom: 12rpx;
+  height: 46rpx; border-radius: 23rpx;
+  display: flex; align-items: center; justify-content: center;
+  color: #FFFFFF; font-size: 20rpx; font-weight: 600;
+  background: rgba(44, 35, 25, .72); backdrop-filter: blur(8rpx);
+}
+.m2-qual-note {
+  display: flex; align-items: flex-start; gap: 12rpx;
+  margin: 0 28rpx 26rpx; padding: 20rpx 22rpx;
+  border: 1rpx solid rgba(128, 94, 44, .18);
+  border-radius: 18rpx; background: #FBF5E9;
+}
+.m2-qual-note text { flex: 1; font-size: 22rpx; line-height: 1.58; color: #725E43; }
 
 /* 类目 chips */
 .m2-cats { display: flex; flex-wrap: wrap; gap: 16rpx; }
