@@ -48,7 +48,7 @@ describe("Payment E2E", () => {
           notify_id: "n1",
           total_amount: "99.00",
         })
-        .expect(201)
+        .expect(200)
 
       expect(res.text).toBe("success")
     })
@@ -59,7 +59,7 @@ describe("Payment E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/shop/alipay/notify")
         .send({ out_trade_no: "ALI001", sign: "invalid", trade_status: "TRADE_SUCCESS" })
-        .expect(201)
+        .expect(200)
 
       expect(res.text).toBe("fail")
     })
@@ -77,7 +77,7 @@ describe("Payment E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/shop/unionpay/notify")
         .send({ orderId: "UNI001", respCode: "00", signature: "valid" })
-        .expect(201)
+        .expect(200)
 
       expect(res.text).toBe("success")
     })
@@ -88,7 +88,7 @@ describe("Payment E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/shop/unionpay/notify")
         .send({ orderId: "UNI001", respCode: "00", signature: "invalid" })
-        .expect(201)
+        .expect(200)
 
       expect(res.text).toBe("fail")
     })

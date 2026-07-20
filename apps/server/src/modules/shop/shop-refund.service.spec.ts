@@ -72,6 +72,28 @@ describe("ShopRefundService", () => {
       await expect(svc.refundOrder("o1")).rejects.toThrow(BusinessException)
     })
 
+    it("商家未发货订单退款：回补库存并写 REFUND_RETURN 流水", async () => {
+      const order = { id: "o2", userId: "buyer", merchantId: "m1", type: "PRODUCT", targetId: "p1", skuId: null, quantity: 2, status: "PAID", amount: 99, payTransactionId: "txn2" }
+      mockPrisma.order.findUnique.mockResolvedValue(order)
+      mockPrisma.product.findUnique.mockResolvedValue({ stock: 10 })
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 })
+      await (svc as any).applyRefundedBookkeeping("o2", 99, "退款")
+      expect(mockPrisma.product.updateMany).toHaveBeenCalledWith({ where: { id: "p1" }, data: { stock: { increment: 2 } } })
+      expect(mockPrisma.inventoryMovement.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+        merchantId: "m1", type: "REFUND_RETURN", quantity: 2, beforeStock: 8, afterStock: 10,
+        idempotencyKey: "order-refund:o2",
+      }) })
+    })
+
+    it("已发货订单退款：只退钱不自动回补库存", async () => {
+      const order = { id: "o3", userId: "buyer", merchantId: "m1", type: "PRODUCT", targetId: "p1", skuId: null, quantity: 1, status: "SHIPPED", amount: 99 }
+      mockPrisma.order.findUnique.mockResolvedValue(order)
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 })
+      await (svc as any).applyRefundedBookkeeping("o3", 99, "退款退货")
+      expect(mockPrisma.product.updateMany).not.toHaveBeenCalled()
+      expect(mockPrisma.inventoryMovement.create).not.toHaveBeenCalled()
+    })
+
     it("支付通道未配置时失败关闭，不伪造已退款", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", amount: "99", payMethod: "WECHAT", payTransactionId: "txn1" })
       mockPaymentFactory.isConfigured.mockReturnValueOnce(false)

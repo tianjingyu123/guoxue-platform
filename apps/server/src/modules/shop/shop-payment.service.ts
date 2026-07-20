@@ -554,12 +554,9 @@ export class ShopPaymentService {
       const processor = this.paidPostProcessors[order.type];
       if (processor) await processor(order as Order, tx);
     });
-    // 入账后立即清掉下单/支付阶段缓存；否则前端两分钟轮询会被五分钟 PENDING 缓存遮住。
-    await Promise.all([
-      this.redis.del("shop:order:" + order.id),
-      this.redis.del("shop:pay:native:" + order.id),
-      this.redis.delByPattern("shop:userOrders:" + order.userId + ":*"),
-    ]);
+    // 入账成功后立即清订单缓存：否则 getOrder 命中旧 PENDING 缓存(TTL 300s)，
+    // 导致支付页轮询 getOrderPayState 永远读到未支付(不跳转)、订单详情显示「待付款」。
+    await this.orderSvc.invalidateOrderCache(order.id, order.userId).catch((e) => this.logger.warn(`订单缓存清除失败 order=${order.id}`, e));
     // 拼团订单：支付成功后结算成团（事务外独立处理，失败不影响支付主流程）
     await this.orderSvc.settleGroupBuyIfNeeded(order.id).catch((e) => this.logger.error(`拼团成团结算失败 order=${order.id}`, e));
   }

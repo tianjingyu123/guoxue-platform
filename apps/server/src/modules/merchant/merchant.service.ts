@@ -13,7 +13,7 @@ import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import {
   CreateMerchantApplyDto, UpdateMerchantApplyDto, ApproveMerchantDto, UpdateMerchantStatusDto,
   MerchantListQueryDto, UpdateMerchantProfileDto, ProductQueryDto, MerchantOrderQueryDto,
-  ShipOrderDto, ReviewQueryDto, PaginationDto,
+  ReviewQueryDto, PaginationDto,
   CreateViolationDto, HandleViolationDto, MerchantProductDto,
 } from "./merchant.dto";
 
@@ -614,27 +614,6 @@ export class MerchantService {
       this.prisma.orderLogistics.findUnique({ where: { orderId } }),
     ]);
     return { ...enriched, logistics: logistics || null };
-  }
-
-  async shipOrder(merchantId: string, orderId: string, dto: ShipOrderDto) {
-    return this.prisma.$transaction(async (tx) => {
-      // CAS 防重复点击：订单状态与运单必须在同一事务内落库，避免“已发货但无运单”的半成品状态。
-      const changed = await tx.order.updateMany({
-        where: { id: orderId, merchantId, status: "PAID" },
-        data: { status: "SHIPPED", shippedAt: new Date() },
-      });
-      if (changed.count === 0) {
-        const exists = await tx.order.findFirst({ where: { id: orderId, merchantId }, select: { id: true } });
-        if (!exists) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
-        throw new BusinessException(ErrorCode.BAD_REQUEST, "当前订单状态不可发货，请刷新后重试");
-      }
-      await tx.orderLogistics.upsert({
-        where: { orderId },
-        create: { orderId, company: dto.company, logisticsNo: dto.trackingNo },
-        update: { company: dto.company, logisticsNo: dto.trackingNo },
-      });
-      return { success: true };
-    });
   }
 
   async approveRefund(merchantId: string, orderId: string) {

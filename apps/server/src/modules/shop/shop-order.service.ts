@@ -299,18 +299,37 @@ export class ShopOrderService {
         // 扣减库存（仅有库存概念的订单），带库存 >= 数量 约束防止超卖（按 qty 扣减，钱货严谨）。
         // 无库存概念的订单（会员/分站年租/运营商开通）targetId 不是商品ID，扣库存会匹配 0 行 → 误报「库存不足」。
         if (!isStocklessOrderType(dto.type)) {
+          let beforeStock: number | null = null;
+          let movementProductId = dto.targetId;
           if (dto.skuId) {
             const skuResult = await tx.productSku.updateMany({
               where: { id: dto.skuId, stock: { gte: qty } },
               data: { stock: { decrement: qty } },
             });
             if (skuResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "SKU库存不足");
+            if (merchantId) {
+              const skuAfter = await tx.productSku.findUnique({ where: { id: dto.skuId }, select: { stock: true, productId: true } });
+              beforeStock = skuAfter ? skuAfter.stock + qty : null;
+              movementProductId = skuAfter?.productId ?? dto.targetId;
+            }
           } else {
             const productResult = await tx.product.updateMany({
               where: { id: dto.targetId, stock: { gte: qty } },
               data: { stock: { decrement: qty } },
             });
             if (productResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
+            if (merchantId) {
+              const productAfter = await tx.product.findUnique({ where: { id: dto.targetId }, select: { stock: true } });
+              beforeStock = productAfter ? productAfter.stock + qty : null;
+            }
+          }
+          if (merchantId && beforeStock !== null) {
+            await tx.inventoryMovement.create({ data: {
+              merchantId, productId: movementProductId, skuId: dto.skuId || null,
+              type: "SALE_OUT", quantity: -qty, beforeStock, afterStock: beforeStock - qty,
+              referenceType: "ORDER", referenceId: order.id, idempotencyKey: `order-sale:${order.id}`,
+              operatorId: userId, reason: "商城订单创建扣减库存",
+            } });
           }
         }
 
@@ -581,6 +600,20 @@ export class ShopOrderService {
 
     const [enriched] = await this.enrichOrders([order]);
     return enriched;
+  }
+
+  /**
+   * 订单状态变更后清缓存 —— 详情缓存 + 该用户订单列表全部分页/状态组合缓存。
+   * 支付回调入账（PENDING→PAID）后必须调用：否则 getOrder 命中旧 PENDING 缓存（TTL 300s），
+   * 导致支付页轮询 getOrderPayState 永远读到未支付（不跳转）、订单详情显示「待付款」。
+   * 列表 key 形如 userOrders:{uid}:{page}:{pageSize}:{status}，用 delByPattern 一次清净。
+   */
+  async invalidateOrderCache(orderId: string, userId?: string): Promise<void> {
+    await Promise.all([
+      this.redis.del(`${CACHE_PREFIX}order:${orderId}`),
+      this.redis.del(`${CACHE_PREFIX}pay:native:${orderId}`),
+      userId ? this.redis.delByPattern(`${CACHE_PREFIX}userOrders:${userId}:*`) : Promise.resolve(),
+    ]);
   }
 
   private readonly VALID_ORDER_STATUSES = new Set(["PENDING", "PAID", "SHIPPED", "COMPLETED", "REFUNDED", "CANCELLED"]);

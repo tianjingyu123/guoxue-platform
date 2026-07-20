@@ -253,6 +253,7 @@ const gradeUi = computed(() => creditGradeConfig[credit.value?.creditGrade ?? 'B
 const quickItems = [
   { label: '新建商品', icon: 'plus', path: '/pkg-merchant/product-edit/index' },
   { label: '商品管理', icon: 'package', path: '/pkg-merchant/products/index' },
+  { label: '库存采购', icon: 'archive', path: '/pkg-merchant/inventory/index' },
   { label: '订单管理', icon: 'shopping-cart', path: '/pkg-merchant/orders/index' },
   { label: '结算收入', icon: 'credit-card', path: '/pkg-merchant/revenue/index' },
   { label: '评价管理', icon: 'star', path: '/pkg-merchant/reviews/index' },

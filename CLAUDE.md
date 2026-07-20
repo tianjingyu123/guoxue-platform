@@ -1,5 +1,7 @@
 # CLAUDE.md — 国学传统文化综合平台
 
+> **当前进度唯一真源：** `docs/progress/当前生产基线-20260719.md`。启动后必须先读该文件；旧交接与旧阻塞清单仅用于历史追溯。
+
 **计划文件：** `docs/progress/stateful-knitting-star.md`
 **项目目录：** `guoxue-platform/`
 **当前阶段：** P2 增强
@@ -17,10 +19,11 @@
 - 管理员（用户）可随时通过"一键接管"开关暂停你的所有自动化权限
 
 ### 启动时务必
-1. 读取 `docs/progress/stateful-knitting-star.md` 了解完整规划
-2. 读取 `.claude/projects/C--Users-Administrator-Desktop/memory/ongoing_task.md` 了解当前进度
-3. 检查工具链状态后（`npx tsc --noEmit`、`npx jest --no-coverage`）向用户汇报
-4. 检查是否有未完成的定时任务或待处理异常
+1. 读取 `docs/progress/当前生产基线-20260719.md` 了解真实断点
+2. 读取 `docs/progress/stateful-knitting-star.md` 了解完整规划
+3. 如本机存在 `.claude/projects/C--Users-Administrator-Desktop/memory/ongoing_task.md`，再读取本机临时记忆；不存在时不得据此判断项目无进度
+4. 检查工具链状态后（`npx tsc --noEmit`、`npx jest --no-coverage`）向用户汇报
+5. 检查是否有未完成的定时任务或待处理异常
 
 ### 多实例启动协议（换电脑/新环境）
 你的记忆不存于本地硬盘，而存于 Git 仓库。任何新电脑启动流程：

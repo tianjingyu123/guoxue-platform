@@ -56,12 +56,13 @@ describe("SystemService.toggleAutomation — 开关切换落审计", () => {
   };
   const mockAudit = { log: jest.fn().mockResolvedValue({}) };
   const mockThirdParty = { isThirdPartyKey: jest.fn().mockReturnValue(false) };
+  const mockScheduler = { getCronJobs: jest.fn().mockReturnValue(new Map()) };
 
   let svc: SystemService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    svc = new SystemService(mockPrisma as any, mockRedis as any, mockAudit as any, mockThirdParty as any);
+    svc = new SystemService(mockPrisma as any, mockRedis as any, mockAudit as any, mockThirdParty as any, mockScheduler as any);
   });
 
   it("关闭开关 — 写 ConfigSystem automation_enabled=false 并审计 automation.disabled", async () => {

@@ -2,6 +2,8 @@ import { Test } from "@nestjs/testing";
 import { MerchantBackendController } from "./merchant-backend.controller";
 import { MerchantService } from "./merchant.service";
 import { MerchantSettlementService } from "./merchant-settlement.service";
+import { MerchantInventoryService } from "./merchant-inventory.service";
+import { MerchantShippingService } from "./merchant-shipping.service";
 import { MerchantGuard } from "./merchant.guard";
 
 const mockMerchantSvc = {
@@ -17,7 +19,6 @@ const mockMerchantSvc = {
   unlistProduct: jest.fn().mockResolvedValue({ count: 1 }),
   listOrders: jest.fn().mockResolvedValue({ list: [], total: 0 }),
   getOrder: jest.fn().mockResolvedValue({ id: "o1", merchantId: "m1", status: "PAID" }),
-  shipOrder: jest.fn().mockResolvedValue({ success: true }),
   approveRefund: jest.fn().mockResolvedValue({ count: 1 }),
   listReviews: jest.fn().mockResolvedValue({ list: [], total: 0 }),
   replyReview: jest.fn().mockResolvedValue({ id: "r1" }),
@@ -29,6 +30,18 @@ const mockSettlementSvc = {
   getRevenueOverview: jest.fn().mockResolvedValue({ totalSales: 5000, merchantShare: 4000 }),
   listSettlements: jest.fn().mockResolvedValue({ list: [], total: 0 }),
 };
+const mockInventorySvc = {
+  overview: jest.fn(), stocks: jest.fn(), movements: jest.fn(), adjust: jest.fn(),
+  alerts: jest.fn(), setAlert: jest.fn(), createPurchaseOrder: jest.fn(),
+  listPurchaseOrders: jest.fn(), getPurchaseOrder: jest.fn(), submitPurchaseOrder: jest.fn(),
+  receivePurchaseOrder: jest.fn(), cancelPurchaseOrder: jest.fn(),
+};
+const mockShippingSvc = {
+  shipOrder: jest.fn().mockResolvedValue({ success: true }),
+  batchShipOrders: jest.fn().mockResolvedValue({ successCount: 1, failedCount: 0, items: [] }),
+  getShipment: jest.fn().mockResolvedValue({ logistics: null, track: null }),
+  updateShipment: jest.fn().mockResolvedValue({ success: true }),
+};
 
 describe("MerchantBackendController", () => {
   let ctrl: MerchantBackendController;
@@ -39,6 +52,8 @@ describe("MerchantBackendController", () => {
       providers: [
         { provide: MerchantService, useValue: mockMerchantSvc },
         { provide: MerchantSettlementService, useValue: mockSettlementSvc },
+        { provide: MerchantInventoryService, useValue: mockInventorySvc },
+        { provide: MerchantShippingService, useValue: mockShippingSvc },
       ],
     })
       .overrideGuard(MerchantGuard).useValue({ canActivate: () => true })
@@ -83,6 +98,19 @@ describe("MerchantBackendController", () => {
   it("PUT /merchant-backend/orders/:id/ship — 发货", async () => {
     const result = await ctrl.shipOrder(mockReq(), "o1", { company: "顺丰", trackingNo: "SF123" });
     expect(result.success).toBe(true);
+    expect(mockShippingSvc.shipOrder).toHaveBeenCalledWith("m1", "u1", "o1", { company: "顺丰", trackingNo: "SF123" });
+  });
+
+  it("POST /merchant-backend/orders/batch-ship — 批量发货", async () => {
+    const result = await ctrl.batchShipOrders(mockReq(), { items: [{ orderId: "o1", company: "顺丰", trackingNo: "SF123" }] });
+    expect(result.successCount).toBe(1);
+  });
+
+  it("GET/PUT /merchant-backend/orders/:id/shipment — 查询并修改运单", async () => {
+    await ctrl.getShipment(mockReq(), "o1");
+    await ctrl.updateShipment(mockReq(), "o1", { company: "中通快递", trackingNo: "ZT456" });
+    expect(mockShippingSvc.getShipment).toHaveBeenCalledWith("m1", "o1");
+    expect(mockShippingSvc.updateShipment).toHaveBeenCalledWith("m1", "u1", "o1", { company: "中通快递", trackingNo: "ZT456" });
   });
 
   it("GET /merchant-backend/revenue — 收入概览", async () => {

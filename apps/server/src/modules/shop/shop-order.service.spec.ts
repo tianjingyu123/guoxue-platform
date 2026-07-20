@@ -51,6 +51,24 @@ describe("ShopOrderService", () => {
       expect(result.id).toBe("o1")
     })
 
+    it("商家商品下单后按原子扣减结果写销售出库流水", async () => {
+      mockPrisma.product.findUnique
+        .mockResolvedValueOnce({ id: "p1", price: 99, status: "ON_SALE", supplierType: "CERTIFIED_MERCHANT", userId: "seller" })
+        .mockResolvedValueOnce({ stock: 7 })
+      mockPrisma.merchant.findUnique.mockResolvedValueOnce({ id: "m1" })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-ledger", status: "PENDING" })
+
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 3 })
+
+      expect(mockPrisma.product.updateMany).toHaveBeenCalledWith({
+        where: { id: "p1", stock: { gte: 3 } }, data: { stock: { decrement: 3 } },
+      })
+      expect(mockPrisma.inventoryMovement.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+        merchantId: "m1", productId: "p1", type: "SALE_OUT", quantity: -3,
+        beforeStock: 10, afterStock: 7, idempotencyKey: "order-sale:o-ledger",
+      }) })
+    })
+
     it("使用优惠券创建订单", async () => {
       const now = new Date()
       mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 99, status: "ON_SALE" })

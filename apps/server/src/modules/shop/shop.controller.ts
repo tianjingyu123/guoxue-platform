@@ -448,7 +448,7 @@ export class ShopController {
   @HttpCode(200) // 微信V3仅认 200/204 为成功，Nest默认201会被判失败导致无限重试
   @SkipFormat()
   @ApiOperation({ summary: "微信支付回调通知" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handlePayNotify(@Req() req: AuthRequest) {
     const signHeader = (req.headers["wechatpay-signature"] as string) || "";
@@ -473,7 +473,7 @@ export class ShopController {
   @HttpCode(200) // 支付宝要求 HTTP 200 + body "success"
   @SkipFormat()
   @ApiOperation({ summary: "支付宝支付回调通知" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleAlipayNotify(@Req() req: AuthRequest) {
     const params = req.body;
@@ -488,7 +488,7 @@ export class ShopController {
   @HttpCode(200) // 银联要求 HTTP 200 为成功应答
   @SkipFormat()
   @ApiOperation({ summary: "银联支付回调通知" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleUnionpayNotify(@Req() req: AuthRequest) {
     const params = req.body;
@@ -503,7 +503,7 @@ export class ShopController {
   @HttpCode(200) // 微信V3仅认 200/204 为成功
   @SkipFormat()
   @ApiOperation({ summary: "微信退款回调通知" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleRefundNotify(@Req() req: AuthRequest) {
     const signHeader = (req.headers["wechatpay-signature"] as string) || "";

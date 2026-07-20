@@ -185,6 +185,32 @@ export interface LogisticsTrackResult {
   message?: string
 }
 
+export interface MerchantShipment {
+  id: string
+  orderId: string
+  company?: string | null
+  trackingNo?: string | null
+  status: string
+  updatedAt: string
+}
+
+export interface MerchantTrackItem {
+  time?: string
+  status?: string
+  location?: string
+}
+
+export interface MerchantShipmentDetail {
+  logistics: MerchantShipment | null
+  track: { state?: string; message?: string; tracks: MerchantTrackItem[] } | null
+}
+
+export interface MerchantBatchShipResult {
+  successCount: number
+  failedCount: number
+  items: Array<{ orderId: string; success: boolean; replayed?: boolean; message?: string }>
+}
+
 export interface MerchantReview {
   id: string
   productId: string
@@ -296,6 +322,28 @@ export interface MerchantContentStats {
   totalLikes: number
 }
 
+export interface InventoryOverview {
+  skuCount: number; totalStock: number; lowStockCount: number; outOfStockCount: number
+  movementCount: number; pendingPurchaseCount: number
+}
+export interface InventoryStockItem {
+  productId: string; skuId: string | null; title: string; image?: string | null
+  skuLabel?: string | null; stock: number; threshold: number | null; lowStock: boolean
+}
+export interface InventoryMovement {
+  id: string; type: string; quantity: number; beforeStock: number; afterStock: number
+  reason?: string | null; metadata?: { title?: string; skuLabel?: string } | null; createdAt: string
+}
+export interface PurchaseOrderItem {
+  id: string; productId: string; skuId?: string | null; productTitle: string; skuLabel?: string | null
+  quantity: number; receivedQuantity: number; unitCost: string | number
+}
+export interface PurchaseOrder {
+  id: string; orderNo: string; supplierName: string
+  status: 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED'
+  totalAmount: string | number; expectedAt?: string | null; createdAt: string; items: PurchaseOrderItem[]
+}
+
 // ───────── 入驻链路 API（/merchant） ─────────
 export const merchantApi = {
   /** 获取入驻申请（未申请时后端 404 → 抛错，页面据此显示「未申请」态） */
@@ -348,6 +396,14 @@ export const merchantBackendApi = {
   getOrder: (id: string) => apiGet<MerchantOrder>(`/merchant-backend/orders/${id}`),
   shipOrder: (id: string, company: string, trackingNo: string) =>
     apiPut(`/merchant-backend/orders/${id}/ship`, { company, trackingNo }),
+  batchShipOrders: (items: Array<{ orderId: string; company: string; trackingNo: string }>) =>
+    apiPost<MerchantBatchShipResult>('/merchant-backend/orders/batch-ship', { items }),
+  getShipment: (id: string) =>
+    apiGet<MerchantShipmentDetail>(`/merchant-backend/orders/${id}/shipment`),
+  updateShipment: (id: string, company: string, trackingNo: string) =>
+    apiPut<{ success: boolean; replayed: boolean; logistics: MerchantShipment }>(
+      `/merchant-backend/orders/${id}/shipment`, { company, trackingNo },
+    ),
   approveRefund: (id: string) => apiPost(`/merchant-backend/orders/${id}/refund/approve`, {}),
   rejectRefund: (id: string, reason: string) => apiPost(`/merchant-backend/orders/${id}/refund/reject`, { reason }),
   getLogisticsTrack: (trackingNo: string, company?: string) => {
@@ -403,6 +459,40 @@ export const merchantBackendApi = {
   },
   getNotices: () => apiGet<MerchantNotice[]>('/merchant-backend/notices'),
   getContentStats: () => apiGet<MerchantContentStats>('/merchant-backend/content-stats'),
+
+  // 进销存
+  getInventoryOverview: () => apiGet<InventoryOverview>('/merchant-backend/inventory/overview'),
+  getInventoryStocks: (params?: { page?: number; pageSize?: number; keyword?: string; lowStock?: boolean }) => {
+    const q = new URLSearchParams()
+    q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 100))
+    if (params?.keyword) q.set('keyword', params.keyword)
+    if (params?.lowStock) q.set('lowStock', 'true')
+    return apiGet<{ items: InventoryStockItem[]; total: number }>(`/merchant-backend/inventory/stocks?${q}`)
+  },
+  getInventoryMovements: (params?: { page?: number; pageSize?: number; productId?: string }) => {
+    const q = new URLSearchParams()
+    q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 50))
+    if (params?.productId) q.set('productId', params.productId)
+    return apiGet<{ items: InventoryMovement[]; total: number }>(`/merchant-backend/inventory/movements?${q}`)
+  },
+  adjustInventory: (data: { requestId: string; productId: string; skuId?: string; mode: 'INCREASE' | 'DECREASE' | 'SET'; quantity: number; reason: string }) =>
+    apiPost('/merchant-backend/inventory/adjustments', data),
+  setInventoryAlert: (data: { productId: string; skuId?: string; lowStockThreshold: number; enabled?: boolean }) =>
+    apiPut('/merchant-backend/inventory/alerts', data),
+  getPurchaseOrders: (params?: { page?: number; pageSize?: number; status?: string }) => {
+    const q = new URLSearchParams()
+    q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 50))
+    if (params?.status) q.set('status', params.status)
+    return apiGet<{ items: PurchaseOrder[]; total: number }>(`/merchant-backend/purchase-orders?${q}`)
+  },
+  createPurchaseOrder: (data: { supplierName: string; items: Array<{ productId: string; skuId?: string; quantity: number; unitCost: number }> }) =>
+    apiPost<PurchaseOrder>('/merchant-backend/purchase-orders', data),
+  submitPurchaseOrder: (id: string) => apiPost<PurchaseOrder>(`/merchant-backend/purchase-orders/${id}/submit`, {}),
+  cancelPurchaseOrder: (id: string) => apiPost<PurchaseOrder>(`/merchant-backend/purchase-orders/${id}/cancel`, {}),
+  receivePurchaseOrder: (id: string, data: { requestId: string; items: Array<{ itemId: string; quantity: number }> }) =>
+    apiPost(`/merchant-backend/purchase-orders/${id}/receive`, data),
+  inspectReturn: (afterSaleId: string, data: { requestId: string; accepted: boolean; quantity?: number; remark?: string }) =>
+    apiPost(`/merchant-backend/after-sales/${afterSaleId}/return-inspection`, data),
 
   // 操作员（B8·MerchantMember）
   // 🔴 2026-07-14：这三个端点后端此前**根本不存在**（只有 admin 侧 /admin/merchants/:id/members），

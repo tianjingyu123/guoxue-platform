@@ -136,47 +136,57 @@
             <view class="card-h">
               <text class="card-h-ic">◈</text>
               <text class="card-h-t">物流信息</text>
+              <view class="logistics-actions">
+                <text class="logistics-action" @tap="loadShipment">刷新轨迹</text>
+                <text
+                  v-if="order.status === 'SHIPPED' && shipment?.logistics"
+                  class="logistics-action logistics-action-edit"
+                  @tap="openEditShipment"
+                >修改运单</text>
+              </view>
             </view>
             <view class="kv">
               <text class="k">发货时间</text>
               <text class="v">{{ formatTime(order.shippedAt) }}</text>
             </view>
-            <template v-if="order.logistics">
+            <template v-if="shipment?.logistics">
               <view class="kv">
                 <text class="k">快递公司</text>
-                <text class="v">{{ order.logistics.company || '—' }}</text>
+                <text class="v">{{ shipment.logistics.company || '—' }}</text>
               </view>
               <view class="kv">
                 <text class="k">物流单号</text>
-                <view class="v-copy" @tap="copy(order.logistics.logisticsNo)">
-                  <text class="v v-no">{{ order.logistics.logisticsNo }}</text>
-                  <text class="copy-mini">复制</text>
-                </view>
-              </view>
-              <view class="track-trigger" :class="{ disabled: trackLoading }" @tap="loadTrack">
-                <app-icon name="truck" :size="15" color="#C41E3A" />
-                <text class="track-trigger-text">{{ trackLoading ? '查询中…' : trackLoaded ? '刷新物流轨迹' : '查询最新物流轨迹' }}</text>
-              </view>
-              <view v-if="trackError" class="track-error"><text>{{ trackError }}</text></view>
-              <view v-else-if="trackLoaded && visibleTracks.length === 0" class="track-empty">
-                <text>{{ trackMessage || '暂未查询到物流轨迹，请稍后再试' }}</text>
-              </view>
-              <view v-else-if="visibleTracks.length > 0" class="track-list">
-                <view v-for="(trackItem, index) in visibleTracks" :key="`${trackItem.time || ''}-${index}`" class="track-row">
-                  <view class="track-line">
-                    <view class="track-dot" :class="{ first: index === 0 }" />
-                  </view>
-                  <view class="track-main">
-                    <text class="track-status">{{ trackItem.status || '物流状态更新' }}</text>
-                    <text class="track-meta">{{ trackItem.time || '' }}{{ trackItem.location ? ` · ${trackItem.location}` : '' }}</text>
+                <view class="v-copy">
+                  <text class="v">{{ shipment.logistics.trackingNo || '—' }}</text>
+                  <view
+                    v-if="shipment.logistics.trackingNo"
+                    class="copy-btn"
+                    @tap="copy(shipment.logistics.trackingNo)"
+                  >
+                    <AppIcon name="copy" :size="12" color="#6E6E73" />
                   </view>
                 </view>
-                <view v-if="tracks.length > 3" class="track-more" @tap="showAllTracks = !showAllTracks">
-                  <text>{{ showAllTracks ? '收起轨迹' : `查看全部 ${tracks.length} 条` }}</text>
-                </view>
+              </view>
+              <view class="kv">
+                <text class="k">物流状态</text>
+                <text class="v v-sent">{{ shipmentStatusText }}</text>
               </view>
             </template>
-            <view v-else class="track-empty"><text>该订单暂无运单信息，请联系平台核查</text></view>
+            <view v-if="shipmentLoading" class="track-empty">正在查询快递100…</view>
+            <view v-else-if="trackItems.length" class="track-list">
+              <view v-for="(item, index) in trackItems" :key="`${item.time || ''}-${index}`" class="track-item">
+                <view class="track-axis">
+                  <view class="track-dot" :class="{ active: index === 0 }" />
+                  <view v-if="index < trackItems.length - 1" class="track-line" />
+                </view>
+                <view class="track-body">
+                  <text class="track-status">{{ item.status || '物流状态更新' }}</text>
+                  <text v-if="item.location" class="track-location">{{ item.location }}</text>
+                  <text v-if="item.time" class="track-time">{{ item.time }}</text>
+                </view>
+              </view>
+            </view>
+            <view v-else class="track-empty">{{ shipmentMessage }}</view>
           </view>
 
           <!-- 订单信息 -->
@@ -218,7 +228,7 @@
       <view v-if="shipping && shipping.phone" class="fbtn fbtn-ghost" @tap="callPhone(shipping.phone)">
         <text>联系买家</text>
       </view>
-      <view class="fbtn fbtn-primary" @tap="showShip = true">
+      <view class="fbtn fbtn-primary" @tap="openShip">
         <AppIcon name="truck" :size="16" color="#fff" />
         <text>填写运单发货</text>
       </view>
@@ -228,7 +238,7 @@
     <!-- 发货弹窗 -->
     <view v-if="showShip" class="mask" @tap="showShip = false">
       <view class="sheet" @tap.stop>
-        <text class="sheet-title">填写物流信息</text>
+        <text class="sheet-title">{{ shipmentMode === 'edit' ? '修改物流信息' : '填写物流信息' }}</text>
         <view class="field">
           <text class="field-label">快递公司 <text class="req">*</text></text>
           <view class="field-select" @tap="showExpress = true">
@@ -265,10 +275,10 @@
         <view
           class="ship-submit"
           :class="{ disabled: !trackingNo || !expressCompany || submitting }"
-          @tap="handleShip"
+          @tap="handleShipment"
         >
           <AppIcon name="check-circle" :size="16" color="#fff" />
-          <text>{{ submitting ? '提交中…' : '确认发货' }}</text>
+          <text>{{ submitting ? '提交中…' : shipmentMode === 'edit' ? '保存修改' : '确认发货' }}</text>
         </view>
       </view>
     </view>
@@ -303,6 +313,7 @@ import {
   orderStatusConfig,
   expressCompanies,
   type MerchantOrder,
+  type MerchantShipmentDetail,
 } from '@/pkg-merchant/lib/merchant-data'
 
 const statusBarH = ref(0)
@@ -312,20 +323,17 @@ const statusCfg = orderStatusConfig
 
 const orderId = ref('')
 const order = ref<MerchantOrder | null>(null)
+const shipment = ref<MerchantShipmentDetail | null>(null)
 const loading = ref(true)
 const error = ref('')
 
 const showShip = ref(false)
 const showExpress = ref(false)
+const shipmentMode = ref<'ship' | 'edit'>('ship')
+const shipmentLoading = ref(false)
 const expressCompany = ref('')
 const trackingNo = ref('')
 const submitting = ref(false)
-const trackLoading = ref(false)
-const trackLoaded = ref(false)
-const trackError = ref('')
-const trackMessage = ref('')
-const tracks = ref<{ time?: string; status?: string; location?: string }[]>([])
-const showAllTracks = ref(false)
 
 const footStyle = 'padding-bottom: calc(24rpx + env(safe-area-inset-bottom));'
 
@@ -342,17 +350,35 @@ async function load() {
   }
   loading.value = true
   error.value = ''
-  trackLoaded.value = false
-  trackError.value = ''
-  trackMessage.value = ''
-  tracks.value = []
-  showAllTracks.value = false
   try {
-    order.value = await merchantBackendApi.getOrder(orderId.value)
+    const nextOrder = await merchantBackendApi.getOrder(orderId.value)
+    order.value = nextOrder
+    if (nextOrder.status === 'SHIPPED' || nextOrder.status === 'COMPLETED') {
+      void loadShipment()
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadShipment() {
+  if (!orderId.value || shipmentLoading.value) return
+  shipmentLoading.value = true
+  try {
+    shipment.value = await merchantBackendApi.getShipment(orderId.value)
+  } catch (e) {
+    shipment.value = {
+      logistics: null,
+      track: {
+        state: 'unknown',
+        message: (e as Error)?.message || '物流查询暂不可用，请稍后刷新',
+        tracks: [],
+      },
+    }
+  } finally {
+    shipmentLoading.value = false
   }
 }
 
@@ -365,7 +391,23 @@ const addressText = computed(() => {
   return [s.province, s.city, s.district, s.detail].filter(Boolean).join('')
 })
 const amountText = computed(() => Number(order.value?.amount ?? 0).toFixed(2))
-const visibleTracks = computed(() => showAllTracks.value ? tracks.value : tracks.value.slice(0, 3))
+const trackItems = computed(() => shipment.value?.track?.tracks?.slice(0, 8) || [])
+const shipmentMessage = computed(() => shipment.value?.track?.message || '暂无物流轨迹，快递揽收后会自动更新')
+const shipmentStatusText = computed(() => {
+  const state = String(shipment.value?.track?.state ?? 'unknown')
+  const map: Record<string, string> = {
+    '0': '运输中',
+    '1': '已揽收',
+    '2': '物流异常',
+    '3': '已签收',
+    '4': '已退签',
+    '5': '派送中',
+    '6': '退回中',
+    '7': '转投中',
+    unknown: '等待物流更新',
+  }
+  return map[state] || shipment.value?.logistics?.status || '等待物流更新'
+})
 
 const statusDescMap: Record<string, string> = {
   PENDING: '等待买家付款',
@@ -394,39 +436,44 @@ function pickExpress(name: string) {
   showExpress.value = false
 }
 
-async function handleShip() {
-  if (!trackingNo.value || !expressCompany.value || submitting.value) return
+function openShip() {
+  shipmentMode.value = 'ship'
+  expressCompany.value = ''
+  trackingNo.value = ''
+  showShip.value = true
+}
+
+function openEditShipment() {
+  const logistics = shipment.value?.logistics
+  if (!logistics) return
+  shipmentMode.value = 'edit'
+  expressCompany.value = logistics.company || ''
+  trackingNo.value = logistics.trackingNo || ''
+  showShip.value = true
+}
+
+async function handleShipment() {
+  const company = expressCompany.value.trim()
+  const no = trackingNo.value.trim()
+  if (!no || !company || submitting.value) return
   submitting.value = true
   try {
-    await merchantBackendApi.shipOrder(orderId.value, expressCompany.value, trackingNo.value)
+    const isEdit = shipmentMode.value === 'edit'
+    if (isEdit) {
+      await merchantBackendApi.updateShipment(orderId.value, company, no)
+    } else {
+      await merchantBackendApi.shipOrder(orderId.value, company, no)
+    }
     showShip.value = false
-    expressCompany.value = ''
-    trackingNo.value = ''
-    uni.showToast({ title: '发货成功', icon: 'success' })
+    uni.showToast({ title: isEdit ? '运单已更新' : '发货成功', icon: 'success' })
     await load()
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '发货失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || '物流信息提交失败', icon: 'none' })
   } finally {
     submitting.value = false
   }
 }
 
-async function loadTrack() {
-  const logistics = order.value?.logistics
-  if (!logistics?.logisticsNo || trackLoading.value) return
-  trackLoading.value = true
-  trackError.value = ''
-  try {
-    const result = await merchantBackendApi.getLogisticsTrack(logistics.logisticsNo, logistics.company)
-    tracks.value = result.tracks || []
-    trackMessage.value = result.message || ''
-    trackLoaded.value = true
-  } catch (e) {
-    trackError.value = (e as Error)?.message || '物流查询失败，请稍后重试'
-  } finally {
-    trackLoading.value = false
-  }
-}
 function formatTime(s?: string | null) {
   return s ? String(s).replace('T', ' ').slice(0, 16) : ''
 }
@@ -537,6 +584,19 @@ $line: #edeae4;
   font-weight: 600;
   color: $t1;
 }
+.logistics-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.logistics-action {
+  font-size: 12px;
+  color: $gold;
+}
+.logistics-action-edit {
+  color: $red;
+}
 
 .kv {
   display: flex;
@@ -582,6 +642,72 @@ $line: #edeae4;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 快递100真实轨迹 */
+.track-list {
+  border-top: 1px dashed $line;
+  margin-top: 16rpx;
+  padding-top: 24rpx;
+}
+.track-item {
+  display: flex;
+  min-height: 92rpx;
+}
+.track-axis {
+  width: 28rpx;
+  margin-right: 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.track-dot {
+  width: 12rpx;
+  height: 12rpx;
+  margin-top: 8rpx;
+  border-radius: 50%;
+  background: #d8d1c5;
+  flex-shrink: 0;
+}
+.track-dot.active {
+  width: 16rpx;
+  height: 16rpx;
+  margin-top: 6rpx;
+  background: $red;
+  box-shadow: 0 0 0 6rpx rgba(196, 30, 58, 0.08);
+}
+.track-line {
+  width: 1px;
+  flex: 1;
+  margin-top: 8rpx;
+  background: $line;
+}
+.track-body {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 24rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.track-status {
+  font-size: 13px;
+  color: $t1;
+  line-height: 1.5;
+}
+.track-location,
+.track-time {
+  font-size: 11px;
+  color: $t3;
+  line-height: 1.45;
+}
+.track-empty {
+  border-top: 1px dashed $line;
+  margin-top: 16rpx;
+  padding-top: 24rpx;
+  font-size: 12px;
+  color: $t3;
+  line-height: 1.5;
 }
 
 /* 脱敏提示 */
