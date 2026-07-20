@@ -1,5 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { RecommendController } from "./recommend.controller";
+import { RecommendScene } from "./recommend.dto";
 import { RecommendService } from "./recommend.service";
 import { ColdStartService } from "./services/cold-start.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -98,7 +99,7 @@ describe("RecommendController", () => {
   it("GET /recommend/:scene — 场景推荐", async () => {
     const q: any = { page: 1, pageSize: 10 };
     const req: any = { user: { id: "u1" } };
-    const result: any = await ctrl.recommend("home" as any, q, req);
+    const result: any = await ctrl.recommend(RecommendScene.GUESS_LIKE, q, req);
     expect(result).toHaveLength(1);
   });
 });

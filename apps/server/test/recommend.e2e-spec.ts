@@ -110,7 +110,7 @@ describe("Recommend E2E", () => {
       expect(res.body.pagination.pageSize).toBe(3);
     });
 
-    it("无效场景返回兜底内容（非报错）", async () => {
+    it("无效场景返回 404，避免抢占其他控制器路由", async () => {
       prisma.article.findMany.mockResolvedValue([]);
       prisma.course.findMany.mockResolvedValue([]);
       prisma.product.findMany.mockResolvedValue([]);
@@ -118,9 +118,18 @@ describe("Recommend E2E", () => {
 
       const res = await request(app.getHttpServer())
         .get("/api/v1/recommend/invalid_scene")
-        .expect(200);
+        .expect(404);
 
-      expect(res.body.items).toBeDefined();
+      expect(res.body.message).toContain("推荐场景不存在");
+    });
+
+    it("A/B 管理接口使用独立 admin 路由并要求登录", async () => {
+      await request(app.getHttpServer())
+        .get("/api/v1/admin/recommend/ab-tests")
+        .expect(401);
+      await request(app.getHttpServer())
+        .get("/api/v1/recommend/ab-tests")
+        .expect(404);
     });
   });
 

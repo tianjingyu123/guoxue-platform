@@ -7,7 +7,7 @@ import { AbTestService } from "./services/ab-test.service";
 import { CreateAbTestDto, UpdateAbTestDto } from "./ab-test.dto";
 
 @ApiTags("A/B实验管理")
-@Controller("recommend/ab-tests")
+@Controller("admin/recommend/ab-tests")
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 @ApiBearerAuth()

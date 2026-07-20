@@ -1137,17 +1137,17 @@ export const importApi = {
 
 // A/B实验管理
 export const abTestApi = {
-  list: () => api.get("/recommend/ab-tests"),
-  detail: (id: string) => api.get(`/recommend/ab-tests/${id}`),
-  create: (data: Record<string, unknown>) => api.post("/recommend/ab-tests", data),
-  update: (id: string, data: Record<string, unknown>) => api.put(`/recommend/ab-tests/${id}`, data),
-  delete: (id: string) => api.delete(`/recommend/ab-tests/${id}`),
-  start: (id: string) => api.post(`/recommend/ab-tests/${id}/start`),
-  pause: (id: string) => api.post(`/recommend/ab-tests/${id}/pause`),
-  complete: (id: string) => api.post(`/recommend/ab-tests/${id}/complete`),
-  getReport: () => api.get("/recommend/ab-tests/reports/latest"),
-  generateReport: () => api.post("/recommend/ab-tests/reports/generate"),
-  getMetrics: (id: string) => api.get(`/recommend/ab-tests/${id}/metrics`),
+  list: () => api.get("/admin/recommend/ab-tests"),
+  detail: (id: string) => api.get(`/admin/recommend/ab-tests/${id}`),
+  create: (data: Record<string, unknown>) => api.post("/admin/recommend/ab-tests", data),
+  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/recommend/ab-tests/${id}`, data),
+  delete: (id: string) => api.delete(`/admin/recommend/ab-tests/${id}`),
+  start: (id: string) => api.post(`/admin/recommend/ab-tests/${id}/start`),
+  pause: (id: string) => api.post(`/admin/recommend/ab-tests/${id}/pause`),
+  complete: (id: string) => api.post(`/admin/recommend/ab-tests/${id}/complete`),
+  getReport: () => api.get("/admin/recommend/ab-tests/reports/latest"),
+  generateReport: () => api.post("/admin/recommend/ab-tests/reports/generate"),
+  getMetrics: (id: string) => api.get(`/admin/recommend/ab-tests/${id}/metrics`),
 };
 
 // 推荐规则管理

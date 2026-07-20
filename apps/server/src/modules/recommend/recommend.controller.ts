@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, Req, UseGuards, NotFoundException } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { RecommendService } from "./recommend.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -137,6 +137,9 @@ export class RecommendController {
     @Req() req: Request,
     @StationId() stationId?: string,
   ) {
+    if (!Object.values(RecommendScene).includes(scene)) {
+      throw new NotFoundException("推荐场景不存在");
+    }
     return this.svc.getRecommendations({
       scene,
       userId: req.user?.id,
