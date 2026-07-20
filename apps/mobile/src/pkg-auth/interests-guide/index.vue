@@ -75,7 +75,7 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { reLaunch } from '@/utils/router'
-import { INTEREST_THEMES, saveInterestThemes } from '@/utils/interests'
+import { INTEREST_THEMES, markInterestGuideSkipped, saveInterestThemes } from '@/utils/interests'
 
 const DECO_SYMBOLS = ['☯', '☷', '☵', '☳', '☴']
 const MAX_SELECT = 3
@@ -118,6 +118,7 @@ function handleSubmit() {
 function handleSkip() {
   if (navigated) return
   navigated = true
+  markInterestGuideSkipped()
   reLaunch('/pages/index/index')
 }
 </script>
@@ -159,7 +160,13 @@ function handleSkip() {
   top: 88rpx;
   right: 40rpx;
   z-index: 20;
-  padding: 8rpx 28rpx;
+  min-width: 104rpx;
+  min-height: 88rpx;
+  padding: 0 28rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999rpx;
   border: 2rpx solid #e8e0d5;
   background: rgba(255, 255, 255, 0.7);

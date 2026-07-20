@@ -129,7 +129,8 @@
         </view>
       </view>
 
-      <!-- 第三方登录 -->
+      <!-- 第三方登录：当前只接了小程序 uni.login，H5 不展示不可用入口 -->
+      <!-- #ifdef MP-WEIXIN -->
       <view class="third-party">
         <view class="divider">
           <view class="divider-line" />
@@ -145,11 +146,12 @@
           </view>
         </view>
       </view>
+      <!-- #endif -->
     </view>
 
     <!-- 底部安全提示 -->
     <view class="footer">
-      <text class="footer-text">登录即代表您同意遵守平台规则，共建和谐社区</text>
+      <text class="footer-text">我们重视您的隐私与账号安全</text>
     </view>
   </view>
 </template>
@@ -161,7 +163,7 @@ import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
 import { setToken, setRefreshToken, setUserInfo } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
-import { hasSelectedInterests } from '@/utils/interests'
+import { hasCompletedInterestGuide } from '@/utils/interests'
 
 const statusBarHeight = ref(0)
 const logoSrc = ref('/static/logo.webp')
@@ -231,7 +233,7 @@ async function handleSendCode() {
 
 /**
  * 登录成功后的统一去向：
- * 1) 新用户/未选兴趣 → 仍先走欢迎峰值页（welcome→兴趣引导），不被回跳打断注册引导流；
+ * 1) 未完成兴趣引导 → 仍先走欢迎峰值页（welcome→兴趣引导），不被回跳打断注册引导流；
  * 2) 有 login:redirect（401 被踢时 request.ts 记录的原页面完整路径·含 query）→ reLaunch 回原页
  *    （项目为自定义底部导航非原生 tabBar，主 tab 页与普通页统一走 reLaunch，无需 switchTab 分叉）；
  * 3) 无 redirect → 维持原行为回首页。
@@ -253,7 +255,7 @@ function goAfterLogin() {
   const consumeRedirect = () => {
     try { uni.removeStorageSync('login:redirect') } catch { /* 清除失败不阻断跳转 */ }
   }
-  if (!hasSelectedInterests()) {
+  if (!hasCompletedInterestGuide()) {
     // 欢迎峰值页优先于回跳：此处是「明确放弃」redirect（预期行为·引导流不被打断），
     // 放弃时同样 remove，避免残留到下次登录被误消费
     if (redirect) consumeRedirect()
@@ -398,8 +400,8 @@ onUnmounted(() => {
   height: 112rpx;
 }
 .back-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -453,7 +455,11 @@ onUnmounted(() => {
   margin-bottom: 48rpx;
 }
 .tab {
-  padding-bottom: 16rpx;
+  min-height: 88rpx;
+  padding: 0 8rpx;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
   border-bottom: 4rpx solid transparent;
 }
 .tab.active {
@@ -509,14 +515,14 @@ onUnmounted(() => {
 }
 .code-btn {
   position: absolute;
-  right: 16rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 128rpx;
-  height: 60rpx;
+  height: 88rpx;
   padding: 0 24rpx;
   border-radius: 16rpx;
   background: rgba(196, 30, 58, 0.1);
@@ -558,6 +564,9 @@ onUnmounted(() => {
   justify-content: flex-end;
 }
 .forgot-link {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
   font-size: 26rpx;
   color: var(--brand);
 }
@@ -623,6 +632,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 88rpx;
 }
 .register-normal {
   font-size: 28rpx;

@@ -296,8 +296,8 @@ onUnmounted(() => {
   height: 112rpx;
 }
 .back-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   margin-left: -8rpx;
   display: flex;
   align-items: center;
@@ -411,13 +411,15 @@ onUnmounted(() => {
 }
 .code-btn {
   position: absolute;
-  right: 16rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12rpx 28rpx;
+  min-width: 128rpx;
+  height: 88rpx;
+  padding: 0 24rpx;
   border-radius: 16rpx;
   background: rgba(196, 30, 58, 0.1);
 }
@@ -434,9 +436,14 @@ onUnmounted(() => {
 }
 .eye-btn {
   position: absolute;
-  right: 32rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 密码强度 */

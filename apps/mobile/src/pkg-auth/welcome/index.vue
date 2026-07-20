@@ -51,7 +51,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, reLaunch } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
-import { hasSelectedInterests } from '@/utils/interests'
+import { hasCompletedInterestGuide } from '@/utils/interests'
 
 const logoSrc = ref('/static/logo.webp')
 const slogan = BRAND.slogan
@@ -63,7 +63,7 @@ const showTitle = ref(false)
 const showSlogan = ref(false)
 const showButton = ref(false)
 
-let timers: ReturnType<typeof setTimeout>[] = []
+const timers: ReturnType<typeof setTimeout>[] = []
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let navigated = false
 
@@ -71,8 +71,8 @@ function handleNavigate() {
   if (navigated) return
   navigated = true
   if (countdownTimer) clearInterval(countdownTimer)
-  // 本地真源判断：已选过兴趣主题直接进首页，未选过进兴趣引导（单步 6 主题卡）
-  if (hasSelectedInterests()) {
+  // 本地真源判断：已完成兴趣引导（选择或跳过）直接进首页，否则进入单步 6 主题卡
+  if (hasCompletedInterestGuide()) {
     // 用完整页面路径（'/' 在 ROUTE_MAP 无映射会原样透传，小程序端不可达）
     reLaunch('/pages/index/index')
   } else {
@@ -82,9 +82,9 @@ function handleNavigate() {
 
 onMounted(() => {
   // 渐入动画序列
-  timers.push(setTimeout(() => (showTitle.value = true), 1000))
-  timers.push(setTimeout(() => (showSlogan.value = true), 1500))
-  timers.push(setTimeout(() => (showButton.value = true), 2000))
+  timers.push(setTimeout(() => (showTitle.value = true), 300))
+  timers.push(setTimeout(() => (showSlogan.value = true), 600))
+  timers.push(setTimeout(() => (showButton.value = true), 900))
   // 倒计时
   countdownTimer = setInterval(() => {
     countdown.value -= 1
@@ -195,7 +195,10 @@ onUnmounted(() => {
   margin-top: 112rpx;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12rpx;
+  min-height: 96rpx;
+  box-sizing: border-box;
   padding: 28rpx 80rpx;
   border-radius: 48rpx;
   background: var(--brand);

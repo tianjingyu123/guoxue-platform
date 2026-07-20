@@ -302,7 +302,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/favorites': '/pkg-mine/favorites/index',
   // 注册成功欢迎仪式（峰值时刻，3s倒计时自动进首页/兴趣引导）
   '/welcome': '/pkg-auth/welcome/index',
-  // 兴趣引导（注册流 welcome→interests-guide→首页，选3-8个兴趣领域）
+  // 兴趣引导（注册流 welcome→interests-guide→首页，选 1-3 个兴趣领域或主动跳过）
   '/interests-guide': '/pkg-auth/interests-guide/index',
   // ===== V0 6.24 新增14条静态路由 =====
   '/login/forgot-password': '/pkg-auth/forgot-password/index',
@@ -363,8 +363,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/points/exchange': '/pkg-mine/points/exchange/index',
   '/points/history': '/pkg-mine/points/history/index',
   '/points/tasks': '/pkg-mine/points/tasks/index',
-  // 找回账号（设置-手机页「找回原账号」指向；本轮新迁 pkg-auth/recover）
-  '/auth/recover': '/pkg-auth/recover/index',
   // 智能客服（/customer-service 已在前面映射；这里仅补 /agent 前缀的调用方）
   '/agent/customer-service': '/pkg-agent/agent/customer-service',
   // 秒杀首页（重复 seckill 页已删 → 真版秒杀 flash-sale，同端点两套 UI 收敛为一）

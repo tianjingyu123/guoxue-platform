@@ -160,9 +160,9 @@
       </view>
 
       <!-- 底部链接 -->
-      <view class="bottom-link">
+      <view class="bottom-link" @tap="goLogin">
         <text class="bottom-normal">已有账号？</text>
-        <text class="bottom-strong" @tap="goLogin">立即登录</text>
+        <text class="bottom-strong">立即登录</text>
       </view>
     </view>
   </view>
@@ -174,7 +174,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
 import { setToken, setRefreshToken, setUserInfo } from '@/utils/storage'
-import { hasSelectedInterests } from '@/utils/interests'
+import { hasCompletedInterestGuide } from '@/utils/interests'
 
 const statusBarHeight = ref(0)
 const steps = ['phone', 'verify', 'password'] as const
@@ -315,8 +315,8 @@ async function handleRegister() {
       setToken(res.data.token)
       setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
-      // 新用户/未选过兴趣 → 先走欢迎峰值页(welcome→兴趣引导)，选完再进首页；老用户直接进首页
-      if (hasSelectedInterests()) {
+      // 未完成兴趣引导 → 先走欢迎峰值页；已选择或明确跳过的用户直接进首页
+      if (hasCompletedInterestGuide()) {
         uni.reLaunch({ url: '/pages/index/index' })
       } else {
         reLaunch('/welcome')
@@ -364,8 +364,8 @@ onUnmounted(() => {
   height: 112rpx;
 }
 .back-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   margin-left: -16rpx;
   display: flex;
   align-items: center;
@@ -515,6 +515,10 @@ onUnmounted(() => {
   color: #999999;
 }
 .resend-btn {
+  min-height: 88rpx;
+  padding-left: 24rpx;
+  display: flex;
+  align-items: center;
   font-size: 26rpx;
   font-weight: 500;
   color: var(--brand);
@@ -589,6 +593,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 88rpx;
   margin-top: 64rpx;
 }
 .bottom-normal {

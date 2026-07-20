@@ -2547,12 +2547,6 @@
           "style": {
             "navigationStyle": "custom"
           }
-        },
-        {
-          "path": "recover/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
         }
       ]
     },
