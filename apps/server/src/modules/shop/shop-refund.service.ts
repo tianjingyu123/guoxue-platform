@@ -174,28 +174,27 @@ export class ShopRefundService {
       // 支付宝/银联维持原 outTradeNo 行为不变。
       const transactionId = payMethod === "WECHAT" ? (order.payTransactionId || undefined) : undefined;
 
-      // 支付网关未配置（如管理员线下确认支付的订单、或本环境未接入网关）时无法调用网关退款，
-      // 降级为「线下退款」：标记 REFUNDED + 冲正分佣，由财务线下打款。
-      // 否则会因缺密钥抛「No key provided to sign」导致退款 500 崩溃。
-      let result: { status: string };
+      // 资金操作必须 fail-closed：通道未配置时绝不能只改成 REFUNDED 再要求财务线下补钱。
       if (!this.paymentFactory.isConfigured(payMethod)) {
-        this.logger.warn(`支付渠道 ${payMethod} 未配置，订单 ${orderId} 降级为线下退款（标记 REFUNDED，需财务线下打款）`);
-        result = { status: "SUCCESS" };
-      } else {
-        result = await this.paymentFactory.refund(payMethod, {
-          outTradeNo,
-          transactionId,
-          outRefundNo,
-          totalYuan: Number(order.amount),
-          totalFen,
-          reason: reason || "用户申请退款",
-        });
+        this.logger.error(`支付渠道 ${payMethod} 未配置，拒绝自动退款，订单: ${orderId}`);
+        throw new BusinessException(ErrorCode.INTERNAL_ERROR, "原支付渠道暂不可退款，请联系平台处理");
       }
 
-      if (result.status === "SUCCESS" || result.status === "PROCESSING") {
+      const result = await this.paymentFactory.refund(payMethod, {
+        outTradeNo,
+        transactionId,
+        outRefundNo,
+        totalYuan: Number(order.amount),
+        totalFen,
+        reason: reason || "用户申请退款",
+      });
+
+      if (result.status === "SUCCESS") {
         await this.applyRefundedBookkeeping(orderId, Number(order.amount), reason);
+      } else if (result.status !== "PROCESSING") {
+        throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款通道未受理，请稍后重试");
       }
-
+      // PROCESSING 仅表示渠道已受理：订单保持原状态，等待退款回调后再记 REFUNDED。
       return result;
     } finally {
       await this.redis.del(lockKey);
@@ -218,32 +217,39 @@ export class ShopRefundService {
       const outTradeNo = body.out_trade_no as string;
 
       if (refundStatus === "SUCCESS") {
-        // 查找关联订单用于分佣冲正
+        // refundOrder 使用稳定退款单号 RF{orderId}；微信回调的 out_trade_no 并非 transaction_id，
+        // 不能再拿它匹配 payTransactionId，否则真实回调会找不到订单。
+        const orderIdFromRefundNo = outRefundNo?.startsWith("RF") ? outRefundNo.slice(2) : "";
+        const transactionId = body.transaction_id as string | undefined;
         const refundedOrder = await this.prisma.order.findFirst({
-          where: { payTransactionId: outTradeNo },
-          select: { id: true },
+          where: orderIdFromRefundNo
+            ? { id: orderIdFromRefundNo }
+            : { OR: [{ payTransactionId: transactionId || outTradeNo }, { id: outTradeNo }] },
+          select: { id: true, amount: true },
         });
 
-        await this.prisma.order.updateMany({
-          where: { payTransactionId: outTradeNo, status: { not: "REFUNDED" } },
-          data: { status: "REFUNDED", refundedAt: new Date() },
-        });
-
-        // 异步冲正分佣
-        if (refundedOrder && this.commissionSvc) {
-          this.commissionSvc.reverseCommission(refundedOrder.id).catch((e) =>
-            this.logger.error(`退款回调分佣冲正失败, 订单: ${refundedOrder.id}`, e)
-          );
+        if (refundedOrder) {
+          await this.applyRefundedBookkeeping(refundedOrder.id, Number(refundedOrder.amount), "支付渠道退款成功回调");
+          await this.prisma.afterSale.updateMany({
+            where: { orderId: refundedOrder.id, status: "PROCESSING", type: { contains: "refund", mode: "insensitive" } },
+            data: { status: "APPROVED" },
+          });
         }
 
-        const refundAmount = (body.amount as Record<string, unknown>)?.refund ?? body.refund_amount;
-        this.webhook.fire("ORDER_REFUNDED", {
-          outTradeNo,
-          outRefundNo,
-          refundAmount,
-        }).catch((err) => this.logger.warn("Webhook ORDER_REFUNDED 发送失败", err));
-        this.logger.log(`退款回调: ${outRefundNo} 成功, 订单: ${outTradeNo}`);
+        // applyRefundedBookkeeping 内部已做 CAS、分佣冲正与 webhook；找不到订单时只告警，不伪造退款完成事件。
+        if (!refundedOrder) {
+          this.logger.error(`退款回调无法定位订单: outRefundNo=${outRefundNo}, outTradeNo=${outTradeNo}`);
+        }
+        this.logger.log(`退款回调: ${outRefundNo} 成功, 订单: ${refundedOrder?.id || outTradeNo}`);
       } else if (refundStatus === "FAIL" || refundStatus === "CLOSED") {
+        // 异步退款未完成时不动订单资金状态，只把本次占用的售后退回 PENDING 允许人工核对后重试。
+        const orderIdFromRefundNo = outRefundNo?.startsWith("RF") ? outRefundNo.slice(2) : "";
+        if (orderIdFromRefundNo) {
+          await this.prisma.afterSale.updateMany({
+            where: { orderId: orderIdFromRefundNo, status: "PROCESSING", type: { contains: "refund", mode: "insensitive" } },
+            data: { status: "PENDING", logistics: `退款通道${refundStatus === "FAIL" ? "失败" : "关闭"}，请核对后重试` },
+          });
+        }
         this.logger.warn(`退款回调: ${outRefundNo} 失败/关闭, 状态: ${refundStatus}, 订单: ${outTradeNo}`);
       }
     } finally {

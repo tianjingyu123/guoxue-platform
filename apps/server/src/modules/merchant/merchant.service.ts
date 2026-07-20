@@ -603,20 +603,32 @@ export class MerchantService {
   async getOrder(merchantId: string, orderId: string) {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
     if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
-    const [enriched] = await this.enrichOrders([order]);
-    return enriched;
+    const [[enriched], logistics] = await Promise.all([
+      this.enrichOrders([order]),
+      this.prisma.orderLogistics.findUnique({ where: { orderId } }),
+    ]);
+    return { ...enriched, logistics: logistics || null };
   }
 
   async shipOrder(merchantId: string, orderId: string, dto: ShipOrderDto) {
-    const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
-    if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
-    if (order.status !== "PAID") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前订单状态不可发货");
-
-    await this.prisma.order.update({ where: { id: orderId }, data: { status: "SHIPPED", shippedAt: new Date() } });
-    await this.prisma.orderLogistics.create({
-      data: { orderId, company: dto.company, logisticsNo: dto.trackingNo },
+    return this.prisma.$transaction(async (tx) => {
+      // CAS 防重复点击：订单状态与运单必须在同一事务内落库，避免“已发货但无运单”的半成品状态。
+      const changed = await tx.order.updateMany({
+        where: { id: orderId, merchantId, status: "PAID" },
+        data: { status: "SHIPPED", shippedAt: new Date() },
+      });
+      if (changed.count === 0) {
+        const exists = await tx.order.findFirst({ where: { id: orderId, merchantId }, select: { id: true } });
+        if (!exists) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "当前订单状态不可发货，请刷新后重试");
+      }
+      await tx.orderLogistics.upsert({
+        where: { orderId },
+        create: { orderId, company: dto.company, logisticsNo: dto.trackingNo },
+        update: { company: dto.company, logisticsNo: dto.trackingNo },
+      });
+      return { success: true };
     });
-    return { success: true };
   }
 
   async approveRefund(merchantId: string, orderId: string) {
@@ -734,9 +746,23 @@ export class MerchantService {
     const { page, pageSize, skip } = safePagination(q?.page, q?.pageSize, NO_PAGE_LIMIT);
     const orders = await this.prisma.order.findMany({
       where: { merchantId },
-      select: { id: true, amount: true, status: true },
+      select: { id: true, targetId: true, amount: true, status: true },
     });
-    const orderMap = new Map(orders.map((o) => [o.id, o]));
+    const productIds = [...new Set(orders.map((o) => o.targetId))];
+    const products = productIds.length > 0
+      ? await this.prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, title: true, images: true } })
+      : [];
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const orderMap = new Map(orders.map((o) => {
+      const product = productMap.get(o.targetId);
+      return [o.id, {
+        id: o.id,
+        amount: o.amount,
+        status: o.status,
+        productTitle: product?.title ?? "订单商品",
+        productImage: product?.images?.[0] ?? null,
+      }];
+    }));
     const orderIds = [...orderMap.keys()];
     if (orderIds.length === 0) return { list: [], total: 0, page, pageSize };
 
@@ -782,31 +808,79 @@ export class MerchantService {
   async processAfterSale(merchantId: string, afterSaleId: string, dto: { action: string; remark?: string }) {
     const record = await this.getAfterSale(merchantId, afterSaleId);
     if (!record) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后单不存在");
-    const status = dto.action === "approve" ? "APPROVED" : dto.action === "reject" ? "REJECTED" : dto.action === "complete" ? "COMPLETED" : undefined;
-    if (!status) throw new BusinessException(ErrorCode.BAD_REQUEST, "无效操作: " + dto.action);
 
-    if (dto.action === "approve" && this.isRefundType(record.type)) {
+    if (dto.action === "complete") {
+      const changed = await this.prisma.afterSale.updateMany({
+        where: { id: afterSaleId, status: "APPROVED" },
+        data: { status: "COMPLETED", ...(dto.remark ? { logistics: dto.remark } : {}) },
+      });
+      if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已同意的售后可确认完成，请刷新后重试");
+      return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
+    }
+
+    if (record.status !== "PENDING") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, record.status === "PROCESSING" ? "售后正在处理中，请勿重复操作" : "售后状态已变更，请刷新后重试");
+    }
+
+    if (dto.action === "reject") {
+      const changed = await this.prisma.afterSale.updateMany({
+        where: { id: afterSaleId, status: "PENDING" },
+        data: { status: "REJECTED", ...(dto.remark ? { logistics: dto.remark } : {}) },
+      });
+      if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变更，请刷新后重试");
+      return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
+    }
+
+    if (dto.action !== "approve") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "无效操作: " + dto.action);
+    }
+
+    if (!this.isRefundType(record.type)) {
+      const changed = await this.prisma.afterSale.updateMany({
+        where: { id: afterSaleId, status: "PENDING" },
+        data: { status: "APPROVED", ...(dto.remark ? { logistics: dto.remark } : {}) },
+      });
+      if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变更，请刷新后重试");
+      return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
+    }
+
+    // 退款类先以 CAS 抢占 PROCESSING，拒绝/重复点击无法与真实退款并发互踩。
+    const reserved = await this.prisma.afterSale.updateMany({
+      where: { id: afterSaleId, status: "PENDING" },
+      data: { status: "PROCESSING" },
+    });
+    if (reserved.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变更，请刷新后重试");
+
+    try {
       const order = await this.prisma.order.findFirst({ where: { id: record.orderId, merchantId } });
       if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后关联订单不存在，无法退款");
       if (order.status !== "REFUNDED") {
-        // 🔴 绝不能只改售后状态不退钱；退款必须走统一退款服务（真实渠道退款/线下降级 + CAS + 分佣冲正）
-        if (!this.shopRefund) {
-          throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款服务暂不可用，请稍后重试");
+        if (!this.shopRefund) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款服务暂不可用，请稍后重试");
+        const refundResult = await this.shopRefund.refundOrder(record.orderId, record.reason || "商家同意售后退款");
+        if (refundResult.status === "PROCESSING") {
+          // 渠道仅受理时保持 PROCESSING，成功回调会把订单记 REFUNDED 并同步售后为 APPROVED。
+          return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
         }
-        await this.shopRefund.refundOrder(record.orderId, record.reason || "商家同意售后退款");
       }
-      // 订单已 REFUNDED → 幂等跳过退款，只标记售后状态
+      const finalized = await this.prisma.afterSale.updateMany({
+        where: { id: afterSaleId, status: "PROCESSING" },
+        data: { status: "APPROVED", ...(dto.remark ? { logistics: dto.remark } : {}) },
+      });
+      if (finalized.count === 0) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款已受理，但售后状态同步失败");
+      return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
+    } catch (error) {
+      // 若渠道退款已成功而最终状态写入异常，以资金事实为准强制收敛为 APPROVED；否则退回 PENDING 允许安全重试。
+      const latestOrder = await this.prisma.order.findFirst({ where: { id: record.orderId, merchantId }, select: { status: true } });
+      if (latestOrder?.status === "REFUNDED") {
+        return this.prisma.afterSale.update({ where: { id: afterSaleId }, data: { status: "APPROVED" } });
+      }
+      await this.prisma.afterSale.updateMany({
+        where: { id: afterSaleId, status: "PROCESSING" },
+        data: { status: "PENDING" },
+      });
+      throw error;
     }
-
-    const data: { status: string; logistics?: string } = { status };
-    // AfterSale 无专用备注字段，remark 与 shop 版同口径落 logistics（原实现直接丢弃）
-    if (dto.remark) data.logistics = dto.remark;
-    return this.prisma.afterSale.update({
-      where: { id: afterSaleId },
-      data,
-    });
   }
-
   // ─── 客户管理 ───
 
   async listCustomers(merchantId: string, q?: { page?: number; pageSize?: number; keyword?: string }) {
@@ -883,41 +957,14 @@ export class MerchantService {
     }));
   }
 
-  /** 客户咨询列表 — 查询该商家订单相关的售后 */
-  async listInquiries(merchantId: string, paging: { page: number; pageSize: number }) {
-    const { page, pageSize, skip } = safePagination(paging.page, paging.pageSize, NO_PAGE_LIMIT);
-    // 先查该商家的订单ID
-    const orderIds = await this.prisma.order.findMany({
-      where: { merchantId },
-      select: { id: true },
-      take: 100,
-    });
-    const ids = orderIds.map((o) => o.id);
-
-    const list = ids.length > 0 ? await this.prisma.afterSale.findMany({
-      where: { orderId: { in: ids } },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: pageSize,
-    }) : [];
-
-    return {
-      items: list.map((item) => ({
-        id: item.id,
-        productName: "",
-        customer: "",
-        status: item.status === "PENDING" ? "unanswered" : "answered",
-        question: item.reason ?? "",
-        answer: "",
-        time: item.createdAt.toISOString().slice(0, 16).replace("T", " "),
-        replies: 0,
-      })),
-      total: list.length,
-      page,
-      pageSize,
-    };
+  /**
+   * 旧版客户咨询兼容端点。平台尚未建立咨询模型，必须返回诚实空集；
+   * 绝不能把 AfterSale 伪装成咨询，否则字段错位且会隐藏真实待售后入口。
+   */
+  async listInquiries(_merchantId: string, paging: { page: number; pageSize: number }) {
+    const { page, pageSize } = safePagination(paging.page, paging.pageSize, NO_PAGE_LIMIT);
+    return { items: [], total: 0, page, pageSize };
   }
-
   /** 内容统计 — 商品/文章数量聚合 */
   async getContentStats(merchantId: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId }, select: { userId: true } });

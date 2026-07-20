@@ -1,7 +1,7 @@
 <!--
   B9 · 消息中心（V0 重构版）
-  合并原 notices / inquiries / violations 三页为单页三态 Tab：
-    ①平台通知(getNotices) ②客户咨询(getInquiries·后端未实现→诚实空态) ③违规处置(getViolations·只读+申诉 appealViolation)
+  合并平台通知 / 售后处理 / 违规处置为单页三态 Tab：
+    ①平台通知(getNotices) ②售后处理(getAfterSales·真实资金链) ③违规处置(getViolations·只读+申诉 appealViolation)
   Tab 上带未读红点角标。违规记录由平台后台产生，商家侧只读，可申诉。
   设计token：页底#FAF8F5 / 卡片#FFF / 朱红#C41E3A / 金#C9A96E / 描边#EDEAE4 / 圆角18px / 胶囊999px
 -->
@@ -65,40 +65,69 @@
         </view>
       </template>
 
-      <!-- ══════════ 态B 客户咨询 ══════════ -->
-      <template v-else-if="active === 'inquiries'">
-        <view v-if="inquiryState.loading" class="state"><text class="state-text">加载中…</text></view>
-        <view v-else-if="inquiryState.error" class="state">
+      <!-- ══════════ 态B 售后处理 ══════════ -->
+      <template v-else-if="active === 'afterSales'">
+        <view v-if="afterSaleState.loading" class="state"><text class="state-text">加载中…</text></view>
+        <view v-else-if="afterSaleState.error" class="state">
           <app-icon name="alert-circle" :size="40" color="#dc2626" />
-          <text class="state-text">{{ inquiryState.error }}</text>
-          <view class="state-btn" @tap="loadInquiries"><text class="state-btn-text">重试</text></view>
+          <text class="state-text">{{ afterSaleState.error }}</text>
+          <view class="state-btn" @tap="loadAfterSales"><text class="state-btn-text">重试</text></view>
         </view>
-        <view v-else-if="inquiries.length === 0" class="state">
-          <view class="ph-icon"><app-icon name="message-square" :size="36" color="#C41E3A" /></view>
-          <text class="state-text">暂无客户咨询</text>
-          <text class="state-sub">在线咨询功能正在建设中，当前客户沟通请通过「订单售后」处理。</text>
+        <view v-else-if="afterSales.length === 0" class="state">
+          <view class="ph-icon"><app-icon name="check-circle" :size="36" color="#C9A96E" /></view>
+          <text class="state-text">暂无售后申请</text>
+          <text class="state-sub">新的退款、退货或换货申请会集中显示在这里。</text>
         </view>
         <view v-else class="body">
+          <view class="after-banner">
+            <app-icon name="shield-check" :size="16" color="#8a6d2f" />
+            <text class="after-banner-text">退款类申请确认后将进入原支付渠道，请核对原因与金额后再操作。</text>
+          </view>
           <view
-            v-for="q in inquiries"
-            :key="String(q.id)"
-            class="icard"
-            :class="{ wait: !q.reply }"
+            v-for="item in afterSales"
+            :key="item.id"
+            class="acard"
+            :class="{ pending: item.status === 'PENDING' || item.status === 'PROCESSING' }"
           >
-            <view class="iuser">
-              <view class="iavatar" />
-              <text class="iuser-name">{{ q.nickname || '匿名客户' }}</text>
-              <text class="iuser-dot"> · </text>
-              <text :class="q.reply ? 'st-done' : 'st-wait'">{{ q.reply ? '已回复' : '待回复' }}</text>
+            <view class="ahead">
+              <view class="atype"><text class="atype-text">{{ afterSaleTypeLabel(item.type) }}</text></view>
+              <text class="astatus" :class="afterSaleStatusTone(item.status)">{{ afterSaleStatusLabel(item.status) }}</text>
+              <text class="ntime">{{ formatTime(item.createdAt) }}</text>
             </view>
-            <view v-if="q.productTitle" class="iprod"><text class="iprod-text">关于商品：{{ q.productTitle }}</text></view>
-            <text class="imsg">{{ q.content }}</text>
-            <view v-if="q.reply" class="ianswer"><text class="ianswer-text">商家回复：{{ q.reply }}</text></view>
-            <view v-else class="ibtn" @tap="onReply(q)"><text class="ibtn-text">回复</text></view>
+            <view class="aproduct">
+              <image v-if="item.order?.productImage" class="aproduct-img" :src="item.order.productImage" mode="aspectFill" />
+              <view v-else class="aproduct-ph"><app-icon name="package" :size="22" color="#C9A96E" /></view>
+              <view class="aproduct-main">
+                <text class="aproduct-title">{{ item.order?.productTitle || '订单商品' }}</text>
+                <text class="aproduct-order">订单 {{ shortOrderId(item.orderId) }} · {{ orderStatusLabel(item.order?.status) }}</text>
+              </view>
+              <text class="aamount">¥{{ money(item.amount ?? item.order?.amount) }}</text>
+            </view>
+            <view class="areason">
+              <text class="areason-label">申请原因</text>
+              <text class="areason-text">{{ item.reason || '用户未填写原因' }}</text>
+            </view>
+            <view v-if="item.logistics" class="aremark"><text class="aremark-text">处理记录：{{ item.logistics }}</text></view>
+            <view v-if="item.status === 'PROCESSING'" class="aprocessing">
+              <app-icon name="clock" :size="15" color="#b45309" />
+              <text class="aprocessing-text">资金处理中，请勿重复操作</text>
+            </view>
+            <view v-else-if="item.status === 'PENDING'" class="aactions">
+              <view class="abtn abtn-ghost" :class="{ disabled: submittingId === item.id }" @tap="rejectAfterSale(item)">
+                <text class="abtn-ghost-text">拒绝申请</text>
+              </view>
+              <view class="abtn abtn-primary" :class="{ disabled: submittingId === item.id }" @tap="approveAfterSale(item)">
+                <text class="abtn-primary-text">{{ submittingId === item.id ? '处理中…' : approveLabel(item.type) }}</text>
+              </view>
+            </view>
+            <view v-else-if="item.status === 'APPROVED' && !isRefundType(item.type)" class="aactions single">
+              <view class="abtn abtn-ghost" :class="{ disabled: submittingId === item.id }" @tap="completeAfterSale(item)">
+                <text class="abtn-ghost-text">{{ submittingId === item.id ? '处理中…' : '确认售后完成' }}</text>
+              </view>
+            </view>
           </view>
         </view>
       </template>
-
       <!-- ══════════ 态C 违规处置（只读+申诉） ══════════ -->
       <template v-else>
         <view v-if="violationState.loading" class="state"><text class="state-text">加载中…</text></view>
@@ -163,26 +192,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import {
   merchantBackendApi,
   violationTypeConfig,
   violationStatusConfig,
+  orderStatusConfig,
   type MerchantNotice,
   type MerchantViolation,
+  type MerchantAfterSale,
+  type MerchantAfterSaleStatus,
+  type MerchantOrderStatus,
 } from '@/pkg-merchant/lib/merchant-data'
-
-// 咨询后端未实现（getInquiries 诚实降级返回空），结构未定 → 宽松记录类型
-type MerchantInquiry = {
-  id: string | number
-  nickname?: string
-  productTitle?: string
-  content?: string
-  reply?: string | null
-  [k: string]: unknown
-}
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -197,22 +221,22 @@ scrollTop.value = navHeight.value + 46
 const typeConfig = violationTypeConfig
 const statusConfig = violationStatusConfig
 
-type TabKey = 'notices' | 'inquiries' | 'violations'
+type TabKey = 'notices' | 'afterSales' | 'violations'
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'notices', label: '平台通知' },
-  { key: 'inquiries', label: '客户咨询' },
+  { key: 'afterSales', label: '售后处理' },
   { key: 'violations', label: '违规处置' },
 ]
 const active = ref<TabKey>('notices')
 
 // 各态数据
 const notices = ref<MerchantNotice[]>([])
-const inquiries = ref<MerchantInquiry[]>([])
+const afterSales = ref<MerchantAfterSale[]>([])
 const violations = ref<MerchantViolation[]>([])
 
 // 各态独立加载/错误态
 const noticeState = reactive({ loading: false, error: '', loaded: false })
-const inquiryState = reactive({ loading: false, error: '', loaded: false })
+const afterSaleState = reactive({ loading: false, error: '', loaded: false })
 const violationState = reactive({ loading: false, error: '', loaded: false })
 
 const submittingId = ref('')
@@ -220,7 +244,7 @@ const submittingId = ref('')
 // 未读红点角标（真实数据聚合）
 function badgeOf(key: TabKey): number {
   if (key === 'notices') return notices.value.filter((n) => !n.read).length
-  if (key === 'inquiries') return inquiries.value.filter((q) => !q.reply).length
+  if (key === 'afterSales') return afterSales.value.filter((item) => item.status === 'PENDING' || item.status === 'PROCESSING').length
   return violations.value.filter((v) => v.status === 'PENDING' && !v.appeal).length
 }
 
@@ -247,7 +271,7 @@ function switchTab(key: TabKey) {
 
 function ensureLoaded(key: TabKey) {
   if (key === 'notices' && !noticeState.loaded) loadNotices()
-  else if (key === 'inquiries' && !inquiryState.loaded) loadInquiries()
+  else if (key === 'afterSales' && !afterSaleState.loaded) loadAfterSales()
   else if (key === 'violations' && !violationState.loaded) loadViolations()
 }
 
@@ -264,17 +288,17 @@ async function loadNotices() {
   }
 }
 
-async function loadInquiries() {
-  inquiryState.loading = true
-  inquiryState.error = ''
+async function loadAfterSales() {
+  afterSaleState.loading = true
+  afterSaleState.error = ''
   try {
-    const res = await merchantBackendApi.getInquiries({ page: 1, pageSize: 100 })
-    inquiries.value = (res.items || []) as MerchantInquiry[]
-    inquiryState.loaded = true
+    const res = await merchantBackendApi.getAfterSales({ page: 1, pageSize: 100 })
+    afterSales.value = res.items
+    afterSaleState.loaded = true
   } catch (e) {
-    inquiryState.error = (e as Error)?.message || '加载失败'
+    afterSaleState.error = (e as Error)?.message || '加载失败'
   } finally {
-    inquiryState.loading = false
+    afterSaleState.loading = false
   }
 }
 
@@ -303,24 +327,129 @@ function openNotice(n: MerchantNotice) {
   if (!n.read) n.read = true
 }
 
-function onReply(q: MerchantInquiry) {
+function isRefundType(type?: string | null): boolean {
+  return /refund/i.test(type || '')
+}
+
+function afterSaleTypeLabel(type?: string | null): string {
+  if (isRefundType(type)) return '退款'
+  const map: Record<string, string> = { return: '退货', exchange: '换货' }
+  return map[String(type || '').toLowerCase()] || '售后'
+}
+
+function afterSaleStatusLabel(status: MerchantAfterSaleStatus): string {
+  const map: Record<MerchantAfterSaleStatus, string> = {
+    PENDING: '待处理', PROCESSING: '处理中', APPROVED: '已同意', REJECTED: '已拒绝', CANCELLED: '已取消', COMPLETED: '已完成',
+  }
+  return map[status] || status
+}
+
+function afterSaleStatusTone(status: MerchantAfterSaleStatus): string {
+  if (status === 'PENDING') return 'tone-wait'
+  if (status === 'PROCESSING') return 'tone-process'
+  if (status === 'APPROVED' || status === 'COMPLETED') return 'tone-done'
+  return 'tone-muted'
+}
+
+function approveLabel(type?: string | null): string {
+  if (isRefundType(type)) return '同意并退款'
+  if (String(type).toLowerCase() === 'return') return '同意退货'
+  if (String(type).toLowerCase() === 'exchange') return '同意换货'
+  return '同意申请'
+}
+
+function shortOrderId(id?: string | null): string {
+  if (!id) return '—'
+  return id.length > 12 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id
+}
+
+function orderStatusLabel(status?: MerchantOrderStatus): string {
+  return status ? (orderStatusConfig[status]?.label || status) : '—'
+}
+
+function money(value?: string | number | null): string {
+  return Number(value || 0).toFixed(2)
+}
+
+function approveAfterSale(item: MerchantAfterSale) {
+  if (submittingId.value) return
+  const refund = isRefundType(item.type)
   uni.showModal({
-    title: '回复客户',
-    editable: true,
-    placeholderText: '请输入回复内容…',
-    success: (r) => {
+    title: refund ? '确认同意退款' : `确认${approveLabel(item.type)}`,
+    content: refund
+      ? `确认将 ¥${money(item.amount ?? item.order?.amount)} 按原支付渠道退回买家？提交后不可撤销。`
+      : `确认同意该${afterSaleTypeLabel(item.type)}申请？`,
+    confirmText: refund ? '确认退款' : '确认同意',
+    confirmColor: '#C41E3A',
+    success: async (r) => {
       if (!r.confirm) return
-      const text = (r.content || '').trim()
-      if (!text) {
-        uni.showToast({ title: '请输入回复内容', icon: 'none' })
-        return
+      submittingId.value = item.id
+      try {
+        await merchantBackendApi.processAfterSale(item.id, 'approve')
+        uni.showToast({ title: refund ? '退款已提交' : '已同意申请', icon: 'success' })
+        afterSaleState.loaded = false
+        await loadAfterSales()
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '处理失败', icon: 'none' })
+      } finally {
+        submittingId.value = ''
       }
-      // 咨询回复端点后端未实现，暂本地占位提示（不造假成功写库）
-      uni.showToast({ title: '回复功能建设中', icon: 'none' })
     },
   })
 }
 
+function rejectAfterSale(item: MerchantAfterSale) {
+  if (submittingId.value) return
+  uni.showModal({
+    title: '拒绝售后申请',
+    editable: true,
+    placeholderText: '请填写拒绝原因（将展示给买家）',
+    confirmText: '确认拒绝',
+    confirmColor: '#C41E3A',
+    success: async (r) => {
+      if (!r.confirm) return
+      const remark = (r.content || '').trim()
+      if (!remark) {
+        uni.showToast({ title: '请填写拒绝原因', icon: 'none' })
+        return
+      }
+      submittingId.value = item.id
+      try {
+        await merchantBackendApi.processAfterSale(item.id, 'reject', `商家拒绝：${remark}`)
+        uni.showToast({ title: '已拒绝申请', icon: 'success' })
+        afterSaleState.loaded = false
+        await loadAfterSales()
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '处理失败', icon: 'none' })
+      } finally {
+        submittingId.value = ''
+      }
+    },
+  })
+}
+
+function completeAfterSale(item: MerchantAfterSale) {
+  if (submittingId.value) return
+  uni.showModal({
+    title: '确认售后完成',
+    content: `请确认该${afterSaleTypeLabel(item.type)}事项已经实际完成。`,
+    confirmColor: '#C41E3A',
+    success: async (r) => {
+      if (!r.confirm) return
+      submittingId.value = item.id
+      try {
+        await merchantBackendApi.processAfterSale(item.id, 'complete')
+        uni.showToast({ title: '售后已完成', icon: 'success' })
+        afterSaleState.loaded = false
+        await loadAfterSales()
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '处理失败', icon: 'none' })
+      } finally {
+        submittingId.value = ''
+      }
+    },
+  })
+}
 function onAppeal(v: MerchantViolation) {
   if (submittingId.value) return
   uni.showModal({
@@ -349,7 +478,14 @@ function onAppeal(v: MerchantViolation) {
   })
 }
 
-onMounted(() => loadNotices())
+onLoad((opts) => {
+  if (String(opts?.tab || '') === 'after-sales') {
+    active.value = 'afterSales'
+    loadAfterSales()
+  } else {
+    loadNotices()
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -512,82 +648,130 @@ $line: #edeae4;
   display: block;
 }
 
-/* ── 态B 咨询卡 ── */
-.icard {
-  background: $card;
-  border-radius: 18px;
-  padding: 28rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
-}
-.icard.wait {
-  border: 1px solid #f0d0d5;
-}
-.iuser {
+/* ── 态B 售后卡 ── */
+.after-banner {
   display: flex;
-  align-items: center;
-  font-size: 24rpx;
-  color: $t2;
-  margin-bottom: 16rpx;
-}
-.iavatar {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e8dfd3, #d8ccb8);
-  margin-right: 16rpx;
-}
-.iuser-name {
-  color: $t2;
-}
-.iuser-dot {
-  color: $t3;
-}
-.st-wait {
-  color: $red;
-}
-.st-done {
-  color: $t3;
-}
-.iprod {
+  align-items: flex-start;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+  padding: 20rpx 24rpx;
+  border: 1px solid #eadfc8;
+  border-radius: 14rpx;
   background: #fbf7ef;
-  border-radius: 10rpx;
-  padding: 12rpx 20rpx;
-  margin-bottom: 16rpx;
 }
-.iprod-text {
+.after-banner-text {
+  flex: 1;
   font-size: 22rpx;
+  line-height: 1.6;
   color: #8a6d2f;
 }
-.imsg {
-  font-size: 26rpx;
-  color: $t1;
-  line-height: 1.6;
-  display: block;
-  margin-bottom: 20rpx;
+.acard {
+  margin-bottom: 24rpx;
+  padding: 28rpx;
+  border: 1px solid $line;
+  border-radius: 18px;
+  background: $card;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
-.ianswer {
-  background: #f5f1ea;
-  border-radius: 12rpx;
-  padding: 20rpx 24rpx;
+.acard.pending { border-color: #edc6cd; }
+.ahead {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 22rpx;
 }
-.ianswer-text {
-  font-size: 24rpx;
-  color: $t2;
-  line-height: 1.6;
+.atype {
+  padding: 4rpx 14rpx;
+  border-radius: 8rpx;
+  background: #fbeff0;
 }
-.ibtn {
-  display: inline-flex;
-  align-self: flex-start;
+.atype-text { font-size: 21rpx; font-weight: 600; color: $red; }
+.astatus {
+  padding: 4rpx 14rpx;
   border-radius: 999px;
-  padding: 12rpx 36rpx;
-  background: $red;
+  font-size: 21rpx;
 }
-.ibtn-text {
-  font-size: 24rpx;
-  color: #ffffff;
+.astatus.tone-wait { color: #b91c1c; background: #fee2e2; }
+.astatus.tone-process { color: #b45309; background: #fef3c7; }
+.astatus.tone-done { color: #15803d; background: #dcfce7; }
+.astatus.tone-muted { color: #6b7280; background: #f3f4f6; }
+.ahead .ntime { margin-left: auto; }
+.aproduct {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 18rpx;
+  border-radius: 14rpx;
+  background: #faf8f5;
 }
-
+.aproduct-img,
+.aproduct-ph {
+  width: 84rpx;
+  height: 84rpx;
+  flex-shrink: 0;
+  border-radius: 12rpx;
+}
+.aproduct-img { background: #f1ece4; }
+.aproduct-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5efe3;
+}
+.aproduct-main { flex: 1; min-width: 0; }
+.aproduct-title {
+  display: block;
+  overflow: hidden;
+  color: $t1;
+  font-size: 25rpx;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aproduct-order { display: block; margin-top: 8rpx; color: $t3; font-size: 20rpx; }
+.aamount { color: $red; font-size: 28rpx; font-weight: 700; }
+.areason { padding: 22rpx 2rpx 8rpx; }
+.areason-label { display: block; margin-bottom: 8rpx; color: $t3; font-size: 21rpx; }
+.areason-text { display: block; color: $t1; font-size: 25rpx; line-height: 1.65; }
+.aremark {
+  margin-top: 12rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 10rpx;
+  background: #f5f1ea;
+}
+.aremark-text { color: $t2; font-size: 22rpx; line-height: 1.55; }
+.aprocessing {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-top: 20rpx;
+  padding-top: 18rpx;
+  border-top: 1px solid $line;
+}
+.aprocessing-text { color: #b45309; font-size: 22rpx; }
+.aactions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 18rpx;
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1px solid $line;
+}
+.aactions.single { justify-content: flex-end; }
+.abtn {
+  min-width: 176rpx;
+  min-height: 88rpx;
+  padding: 0 24rpx;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.abtn.disabled { opacity: 0.45; pointer-events: none; }
+.abtn-ghost { border: 1px solid #d6d1c9; background: #fff; }
+.abtn-primary { border: 1px solid $red; background: $red; }
+.abtn-ghost-text { color: $t2; font-size: 23rpx; }
+.abtn-primary-text { color: #fff; font-size: 23rpx; font-weight: 600; }
 /* ── 态C 违规卡 ── */
 .banner-warn {
   background: #fbeff0;

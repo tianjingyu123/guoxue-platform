@@ -1,7 +1,7 @@
 <!--
   B4 · 订单管理（列表·V0 视觉稿 1:1 还原）
-  态A 订单列表：按状态 Tab(全部/待付款/待发货/待收货/已完成/退款) + 订单卡
-  规格红线：商家只做发货与查看；退款/售后审批由平台处理，商家侧仅展示进度
+  态A 订单列表：按状态 Tab(全部/待付款/待发货/待收货/已完成/已退款) + 订单卡
+  规格红线：订单状态与售后状态分离；订单页显示交易结果，待处理售后统一进入消息中心
   视觉 token：宣纸白#FAF8F5 / 卡片白#FFF / 朱红#C41E3A / 金#C9A96E
 -->
 <template>
@@ -99,8 +99,8 @@
             <view v-if="o.status === 'PAID'" class="btn btn-primary" @tap.stop="goDetail(o.id)">
               <text>去发货</text>
             </view>
-            <view v-else-if="o.status === 'REFUNDED'" class="btn btn-primary" @tap.stop="goDetail(o.id)">
-              <text>处理退款</text>
+            <view v-else-if="o.status === 'REFUNDED'" class="btn btn-ghost" @tap.stop="goDetail(o.id)">
+              <text>查看退款结果</text>
             </view>
             <view v-else class="btn btn-ghost" @tap.stop="goDetail(o.id)">
               <text>查看详情</text>
@@ -139,7 +139,7 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: 'PAID', label: '待发货' },
   { key: 'SHIPPED', label: '待收货' },
   { key: 'COMPLETED', label: '已完成' },
-  { key: 'REFUNDED', label: '退款' },
+  { key: 'REFUNDED', label: '已退款' },
 ]
 
 const orders = ref<MerchantOrder[]>([])
@@ -179,7 +179,7 @@ const filteredOrders = computed(() => orders.value)
 
 // 状态色调映射到视觉稿三色（朱红待办 / 金已发 / 灰完成）
 function statusTone(s: MerchantOrderStatus): string {
-  if (s === 'PENDING' || s === 'PAID' || s === 'REFUNDED') return 'wait'
+  if (s === 'PENDING' || s === 'PAID') return 'wait'
   if (s === 'SHIPPED') return 'sent'
   return 'done'
 }

@@ -140,6 +140,49 @@ export interface MerchantOrder {
   buyerPhone?: string | null
   /** 贺卡任务标记（后端 enrich·列表轻量露出） */
   hasGiftCard?: boolean
+  /** 发货后由订单详情返回的真实运单信息 */
+  logistics?: {
+    company: string
+    logisticsNo: string
+    createdAt?: string
+    updatedAt?: string
+  } | null
+}
+
+export type MerchantAfterSaleStatus = 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED'
+
+export interface MerchantAfterSale {
+  id: string
+  orderId: string
+  type: string
+  reason: string
+  status: MerchantAfterSaleStatus
+  amount?: string | number | null
+  logistics?: string | null
+  createdAt: string
+  updatedAt: string
+  order?: {
+    id: string
+    amount: string | number
+    status: MerchantOrderStatus
+    productTitle?: string
+    productImage?: string | null
+  } | null
+}
+
+export interface LogisticsTrackItem {
+  time?: string
+  status?: string
+  location?: string
+}
+
+export interface LogisticsTrackResult {
+  state?: string
+  isCheck?: boolean
+  company?: string
+  logisticsNo?: string
+  tracks?: LogisticsTrackItem[]
+  message?: string
 }
 
 export interface MerchantReview {
@@ -307,6 +350,23 @@ export const merchantBackendApi = {
     apiPut(`/merchant-backend/orders/${id}/ship`, { company, trackingNo }),
   approveRefund: (id: string) => apiPost(`/merchant-backend/orders/${id}/refund/approve`, {}),
   rejectRefund: (id: string, reason: string) => apiPost(`/merchant-backend/orders/${id}/refund/reject`, { reason }),
+  getLogisticsTrack: (trackingNo: string, company?: string) => {
+    const q = new URLSearchParams({ no: trackingNo })
+    if (company) q.set('company', company)
+    return apiGet<LogisticsTrackResult>(`/shop/logistics/track?${q.toString()}`)
+  },
+
+  // 售后（真实 AfterSale 状态机；退款类同意操作由后端统一退款服务执行）
+  getAfterSales: (params?: { type?: string; status?: MerchantAfterSaleStatus; page?: number; pageSize?: number }) => {
+    const q = new URLSearchParams()
+    if (params?.type) q.set('type', params.type)
+    if (params?.status) q.set('status', params.status)
+    q.set('page', String(params?.page ?? 1))
+    q.set('pageSize', String(params?.pageSize ?? 20))
+    return apiGetPaged<MerchantAfterSale>(`/merchant-backend/after-sales?${q.toString()}`)
+  },
+  processAfterSale: (id: string, action: 'approve' | 'reject' | 'complete', remark?: string) =>
+    apiPut<MerchantAfterSale>(`/merchant-backend/after-sales/${id}/process`, { action, remark }),
 
   // 评价
   getReviews: (params?: { rating?: number; page?: number; pageSize?: number }) => {
@@ -333,7 +393,7 @@ export const merchantBackendApi = {
     apiGetPaged<MerchantViolation>(`/merchant-backend/violations?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`),
   appealViolation: (id: string, appeal: string) => apiPost(`/merchant-backend/violations/${id}/appeal`, { appeal }),
 
-  // 客户 / 通知 / 咨询 / 内容
+  // 客户 / 通知 / 内容
   getCustomers: (params?: { page?: number; pageSize?: number; keyword?: string }) => {
     const q = new URLSearchParams()
     q.set('page', String(params?.page ?? 1))
@@ -342,9 +402,6 @@ export const merchantBackendApi = {
     return apiGetPaged<MerchantCustomer>(`/merchant-backend/customers?${q.toString()}`)
   },
   getNotices: () => apiGet<MerchantNotice[]>('/merchant-backend/notices'),
-  getInquiries: (params?: { page?: number; pageSize?: number }) =>
-    // 后端咨询子系统未实现（诚实降级返回空），结构未定 → 用宽松记录类型占位
-    apiGetPaged<Record<string, unknown>>(`/merchant-backend/inquiries?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`),
   getContentStats: () => apiGet<MerchantContentStats>('/merchant-backend/content-stats'),
 
   // 操作员（B8·MerchantMember）

@@ -1,7 +1,7 @@
 <!--
   B1 · 商家工作台（V0 还原·合并 dashboard + analytics + content-stats 概览/图表）
   结构：店铺头(朱红) → 信用分金色卡 → 数据概览(今日/本月·真实字段) → 近7日订单趋势(metrics.items)
-        → 待办三卡(待发货/待处理咨询/待回评·可点跳) → 快捷入口(B2/B4/B5/B6/B7/B8/B9)
+        → 待办三卡(待发货/待处理售后/待回评·可点跳) → 快捷入口(B2/B4/B5/B6/B7/B8/B9)
   硬约束：纯 uni-app · rpx · @tap · padding-top 比例框（无 aspect-ratio）· 实色卡片 · 真实数据接线 · 三态
 -->
 <template>
@@ -152,10 +152,10 @@
           <text class="tn">{{ pendingShip }}</text>
           <text class="tt">待发货</text>
         </view>
-        <view class="tcard" @tap="go('/pkg-merchant/notices/index')">
-          <view v-if="pendingInquiry > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingInquiry) }}</text></view>
-          <text class="tn">{{ pendingInquiry }}</text>
-          <text class="tt">待处理咨询</text>
+        <view class="tcard" @tap="go('/pkg-merchant/notices/index?tab=after-sales')">
+          <view v-if="pendingAfterSale > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingAfterSale) }}</text></view>
+          <text class="tn">{{ pendingAfterSale }}</text>
+          <text class="tt">待处理售后</text>
         </view>
         <view class="tcard" @tap="go('/pkg-merchant/reviews/index')">
           <view v-if="pendingReviews > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingReviews) }}</text></view>
@@ -232,9 +232,9 @@ const hasNotice = ref(false)
 
 const tab = ref<'today' | 'month'>('today')
 
-// 待办计数（待发货来自订单 PAID·待咨询来自 inquiries·待回评来自 dashboard）
+// 待办计数（待发货来自订单 PAID·待售后来自 AfterSale.PENDING·待回评来自 dashboard）
 const pendingShip = ref(0)
-const pendingInquiry = ref(0)
+const pendingAfterSale = ref(0)
 const pendingReviews = computed(() => dashboard.value?.pendingReviews ?? 0)
 
 // 履约趋势卡（近7日·独立三态不阻塞主数据）
@@ -346,9 +346,9 @@ async function loadTodo() {
     pendingShip.value = paid.total
   } catch { pendingShip.value = 0 }
   try {
-    const inq = await merchantBackendApi.getInquiries({ page: 1, pageSize: 1 })
-    pendingInquiry.value = inq.total
-  } catch { pendingInquiry.value = 0 }
+    const afterSale = await merchantBackendApi.getAfterSales({ status: 'PENDING', page: 1, pageSize: 1 })
+    pendingAfterSale.value = afterSale.total
+  } catch { pendingAfterSale.value = 0 }
 }
 
 async function load() {

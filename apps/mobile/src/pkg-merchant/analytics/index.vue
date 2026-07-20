@@ -98,8 +98,6 @@ const metrics = computed(() => {
     { title: '在售商品', value: n(c.publishedProducts), unit: '件', desc: '当前上架销售中' },
     { title: '草稿商品', value: n(c.draftProducts), unit: '件', desc: '未发布草稿' },
     { title: '待回复评价', value: n(d.pendingReviews), unit: '条', desc: '尚未回复的评价' },
-    { title: '发布文章', value: n(c.publishedArticles), unit: '篇', desc: '已发布内容文章' },
-    { title: '内容浏览', value: n(c.totalViews), unit: '次', desc: '内容累计浏览量' },
   ]
 })
 

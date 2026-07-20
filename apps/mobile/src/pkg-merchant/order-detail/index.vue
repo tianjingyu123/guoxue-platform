@@ -1,7 +1,7 @@
 <!--
   B4 · 订单详情（V0 视觉稿 1:1 还原）
   态B 订单详情：状态横幅 + 收货信息(脱敏) + 商品清单 + 金额 + 订单信息 + 底部发货/售后操作
-  规格红线：收货人信息脱敏；商家只做发货/查看；退款审批由平台处理（此处保留商家侧处理入口）
+  规格红线：收货人信息脱敏；订单与售后状态分离；售后处理统一从消息中心进入
   视觉 token：宣纸白#FAF8F5 / 卡片白#FFF / 朱红#C41E3A / 金#C9A96E
 -->
 <template>
@@ -131,7 +131,7 @@
             <text class="gift-hint">可在后台「订单管理 → 打印贺卡」打印 A6 贺卡（含名片二维码）</text>
           </view>
 
-          <!-- 物流信息（已发货则展示） -->
+          <!-- 物流信息（已发货则展示真实运单与快递100轨迹） -->
           <view v-if="order.shippedAt" class="card">
             <view class="card-h">
               <text class="card-h-ic">◈</text>
@@ -141,10 +141,42 @@
               <text class="k">发货时间</text>
               <text class="v">{{ formatTime(order.shippedAt) }}</text>
             </view>
-            <view class="kv">
-              <text class="k">物流状态</text>
-              <text class="v v-sent">商品已发出</text>
-            </view>
+            <template v-if="order.logistics">
+              <view class="kv">
+                <text class="k">快递公司</text>
+                <text class="v">{{ order.logistics.company || '—' }}</text>
+              </view>
+              <view class="kv">
+                <text class="k">物流单号</text>
+                <view class="v-copy" @tap="copy(order.logistics.logisticsNo)">
+                  <text class="v v-no">{{ order.logistics.logisticsNo }}</text>
+                  <text class="copy-mini">复制</text>
+                </view>
+              </view>
+              <view class="track-trigger" :class="{ disabled: trackLoading }" @tap="loadTrack">
+                <app-icon name="truck" :size="15" color="#C41E3A" />
+                <text class="track-trigger-text">{{ trackLoading ? '查询中…' : trackLoaded ? '刷新物流轨迹' : '查询最新物流轨迹' }}</text>
+              </view>
+              <view v-if="trackError" class="track-error"><text>{{ trackError }}</text></view>
+              <view v-else-if="trackLoaded && visibleTracks.length === 0" class="track-empty">
+                <text>{{ trackMessage || '暂未查询到物流轨迹，请稍后再试' }}</text>
+              </view>
+              <view v-else-if="visibleTracks.length > 0" class="track-list">
+                <view v-for="(trackItem, index) in visibleTracks" :key="`${trackItem.time || ''}-${index}`" class="track-row">
+                  <view class="track-line">
+                    <view class="track-dot" :class="{ first: index === 0 }" />
+                  </view>
+                  <view class="track-main">
+                    <text class="track-status">{{ trackItem.status || '物流状态更新' }}</text>
+                    <text class="track-meta">{{ trackItem.time || '' }}{{ trackItem.location ? ` · ${trackItem.location}` : '' }}</text>
+                  </view>
+                </view>
+                <view v-if="tracks.length > 3" class="track-more" @tap="showAllTracks = !showAllTracks">
+                  <text>{{ showAllTracks ? '收起轨迹' : `查看全部 ${tracks.length} 条` }}</text>
+                </view>
+              </view>
+            </template>
+            <view v-else class="track-empty"><text>该订单暂无运单信息，请联系平台核查</text></view>
           </view>
 
           <!-- 订单信息 -->
@@ -191,15 +223,7 @@
         <text>填写运单发货</text>
       </view>
     </view>
-    <!-- 底部操作栏：退款处理 -->
-    <view v-else-if="order && order.status === 'REFUNDED'" class="ship-bar" :style="footStyle">
-      <view class="fbtn fbtn-ghost" :class="{ disabled: submitting }" @tap="handleReject">
-        <text>拒绝退款</text>
-      </view>
-      <view class="fbtn fbtn-primary" :class="{ disabled: submitting }" @tap="handleApprove">
-        <text>{{ submitting ? '处理中…' : '同意退款' }}</text>
-      </view>
-    </view>
+
 
     <!-- 发货弹窗 -->
     <view v-if="showShip" class="mask" @tap="showShip = false">
@@ -296,6 +320,12 @@ const showExpress = ref(false)
 const expressCompany = ref('')
 const trackingNo = ref('')
 const submitting = ref(false)
+const trackLoading = ref(false)
+const trackLoaded = ref(false)
+const trackError = ref('')
+const trackMessage = ref('')
+const tracks = ref<{ time?: string; status?: string; location?: string }[]>([])
+const showAllTracks = ref(false)
 
 const footStyle = 'padding-bottom: calc(24rpx + env(safe-area-inset-bottom));'
 
@@ -312,6 +342,11 @@ async function load() {
   }
   loading.value = true
   error.value = ''
+  trackLoaded.value = false
+  trackError.value = ''
+  trackMessage.value = ''
+  tracks.value = []
+  showAllTracks.value = false
   try {
     order.value = await merchantBackendApi.getOrder(orderId.value)
   } catch (e) {
@@ -330,13 +365,14 @@ const addressText = computed(() => {
   return [s.province, s.city, s.district, s.detail].filter(Boolean).join('')
 })
 const amountText = computed(() => Number(order.value?.amount ?? 0).toFixed(2))
+const visibleTracks = computed(() => showAllTracks.value ? tracks.value : tracks.value.slice(0, 3))
 
 const statusDescMap: Record<string, string> = {
   PENDING: '等待买家付款',
   PAID: '买家已付款，请在 48 小时内发货',
   SHIPPED: '商品已发出，等待买家确认收货',
   COMPLETED: '交易已完成',
-  REFUNDED: '买家申请退款，请及时处理',
+  REFUNDED: '退款已完成，本订单交易已关闭',
   CANCELLED: '订单已取消',
 }
 const statusDesc = computed(() => statusDescMap[order.value?.status || ''] || '')
@@ -375,56 +411,22 @@ async function handleShip() {
   }
 }
 
-async function handleApprove() {
-  if (submitting.value) return
-  uni.showModal({
-    title: '同意退款',
-    content: '确认同意此订单的退款申请？退款将原路退回买家。',
-    confirmColor: '#C41E3A',
-    success: async (res) => {
-      if (!res.confirm) return
-      submitting.value = true
-      try {
-        await merchantBackendApi.approveRefund(orderId.value)
-        uni.showToast({ title: '已同意退款', icon: 'success' })
-        await load()
-      } catch (e) {
-        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
-      } finally {
-        submitting.value = false
-      }
-    },
-  })
+async function loadTrack() {
+  const logistics = order.value?.logistics
+  if (!logistics?.logisticsNo || trackLoading.value) return
+  trackLoading.value = true
+  trackError.value = ''
+  try {
+    const result = await merchantBackendApi.getLogisticsTrack(logistics.logisticsNo, logistics.company)
+    tracks.value = result.tracks || []
+    trackMessage.value = result.message || ''
+    trackLoaded.value = true
+  } catch (e) {
+    trackError.value = (e as Error)?.message || '物流查询失败，请稍后重试'
+  } finally {
+    trackLoading.value = false
+  }
 }
-
-function handleReject() {
-  if (submitting.value) return
-  uni.showModal({
-    title: '拒绝退款',
-    editable: true,
-    placeholderText: '请填写拒绝原因',
-    confirmColor: '#C41E3A',
-    success: async (res) => {
-      if (!res.confirm) return
-      const reason = (res.content || '').trim()
-      if (!reason) {
-        uni.showToast({ title: '请填写拒绝原因', icon: 'none' })
-        return
-      }
-      submitting.value = true
-      try {
-        await merchantBackendApi.rejectRefund(orderId.value, reason)
-        uni.showToast({ title: '已拒绝退款', icon: 'success' })
-        await load()
-      } catch (e) {
-        uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
-      } finally {
-        submitting.value = false
-      }
-    },
-  })
-}
-
 function formatTime(s?: string | null) {
   return s ? String(s).replace('T', ' ').slice(0, 16) : ''
 }
@@ -918,4 +920,44 @@ $line: #edeae4;
   font-size: 14px;
   color: $red;
 }
+
+/* 真实物流轨迹 */
+.v-copy { display: flex; align-items: center; justify-content: flex-end; gap: 12rpx; min-width: 0; }
+.v-no { max-width: 360rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy-mini { flex-shrink: 0; color: #c41e3a; font-size: 21rpx; }
+.track-trigger {
+  min-height: 88rpx;
+  margin-top: 20rpx;
+  border: 1px solid #edc6cd;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  background: #fff8f8;
+}
+.track-trigger.disabled { opacity: 0.55; pointer-events: none; }
+.track-trigger-text { color: #c41e3a; font-size: 23rpx; font-weight: 600; }
+.track-error,
+.track-empty {
+  margin-top: 16rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 10rpx;
+  background: #faf8f5;
+  color: #8a8178;
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+.track-error { color: #b91c1c; background: #fff1f2; }
+.track-list { margin-top: 24rpx; padding-top: 4rpx; border-top: 1px dashed #e4ddd3; }
+.track-row { display: flex; min-height: 92rpx; }
+.track-line { position: relative; width: 36rpx; flex-shrink: 0; }
+.track-line::after { content: ''; position: absolute; top: 22rpx; bottom: -8rpx; left: 10rpx; width: 2rpx; background: #e4ddd3; }
+.track-row:last-of-type .track-line::after { display: none; }
+.track-dot { position: relative; z-index: 1; width: 16rpx; height: 16rpx; margin: 12rpx 0 0 3rpx; border: 4rpx solid #fff; border-radius: 50%; background: #b8afa4; box-shadow: 0 0 0 2rpx #ddd4c8; }
+.track-dot.first { background: #c41e3a; box-shadow: 0 0 0 2rpx #edc6cd; }
+.track-main { flex: 1; min-width: 0; padding: 6rpx 0 22rpx; }
+.track-status { display: block; color: #3f3a36; font-size: 23rpx; line-height: 1.55; }
+.track-meta { display: block; margin-top: 7rpx; color: #99918a; font-size: 20rpx; }
+.track-more { min-height: 64rpx; display: flex; align-items: center; justify-content: center; color: #8a6d2f; font-size: 22rpx; }
 </style>

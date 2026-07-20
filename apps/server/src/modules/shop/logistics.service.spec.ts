@@ -1,5 +1,6 @@
 import { Test } from "@nestjs/testing";
 import { LogisticsService } from "./logistics.service";
+import { createHash } from "crypto";
 
 describe("LogisticsService", () => {
   let svc: LogisticsService;
@@ -93,8 +94,12 @@ describe("LogisticsService", () => {
 
         await svc.queryTrack("SF123", "顺丰速运");
 
-        const calledUrl = fetchMock.mock.calls[0][0] as string;
-        expect(calledUrl).toContain("shunfeng");
+        const [calledUrl, options] = fetchMock.mock.calls[0] as [string, { method: string; headers: Record<string, string>; body: string }];
+        const form = new URLSearchParams(options.body);
+        expect(calledUrl).toBe("https://poll.kuaidi100.com/poll/query.do");
+        expect(options.method).toBe("POST");
+        expect(options.headers["Content-Type"]).toBe("application/x-www-form-urlencoded");
+        expect(JSON.parse(form.get("param") || "{}")).toEqual({ com: "shunfeng", num: "SF123" });
       });
 
       it("映射所有常见快递公司名", async () => {
@@ -124,8 +129,9 @@ describe("LogisticsService", () => {
         for (const { input, expected } of companies) {
           fetchMock.mockClear();
           await svc.queryTrack("NUM", input);
-          const url = fetchMock.mock.calls[0][0] as string;
-          expect(url).toContain(expected);
+          const options = fetchMock.mock.calls[0][1] as { body: string };
+          const param = JSON.parse(new URLSearchParams(options.body).get("param") || "{}");
+          expect(param.com).toBe(expected);
         }
       });
 
@@ -135,8 +141,27 @@ describe("LogisticsService", () => {
         });
 
         await svc.queryTrack("NUM", "不知名快递");
-        const url = fetchMock.mock.calls[0][0] as string;
-        expect(url).toContain("不知名快递");
+        const options = fetchMock.mock.calls[0][1] as { body: string };
+        const param = JSON.parse(new URLSearchParams(options.body).get("param") || "{}");
+        expect(param.com).toBe("不知名快递");
+      });
+
+      it("按官方契约使用完整 param JSON 计算 32 位大写签名", async () => {
+        fetchMock.mockResolvedValue({
+          json: jest.fn().mockResolvedValue({ returnCode: "200", state: "3", com: "shunfeng", nu: "SF123", data: [] }),
+        });
+
+        await svc.queryTrack("SF123", "顺丰");
+
+        const options = fetchMock.mock.calls[0][1] as { body: string };
+        const form = new URLSearchParams(options.body);
+        const param = form.get("param") || "";
+        const expected = createHash("md5")
+          .update(param + "test-api-key" + "test-customer")
+          .digest("hex")
+          .toUpperCase();
+        expect(form.get("customer")).toBe("test-customer");
+        expect(form.get("sign")).toBe(expected);
       });
 
       it("API 返回错误时返回 null 并回退自动识别", async () => {

@@ -42,6 +42,10 @@ describe("ShopRefundService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPaymentFactory.isConfigured.mockReturnValue(true)
+    mockPaymentFactory.refund.mockResolvedValue({ status: "SUCCESS" })
+    mockPrisma.order.findFirst = mockPrisma.order.findFirst || jest.fn()
+    mockPrisma.afterSale = mockPrisma.afterSale || { updateMany: jest.fn().mockResolvedValue({ count: 1 }) }
   })
 
   describe("refundExpiredGroupBuysCron (P1-3)", () => {
@@ -67,8 +71,70 @@ describe("ShopRefundService", () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PENDING" })
       await expect(svc.refundOrder("o1")).rejects.toThrow(BusinessException)
     })
-  })
 
+    it("支付通道未配置时失败关闭，不伪造已退款", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", amount: "99", payMethod: "WECHAT", payTransactionId: "txn1" })
+      mockPaymentFactory.isConfigured.mockReturnValueOnce(false)
+
+      await expect(svc.refundOrder("o1")).rejects.toThrow("原支付渠道暂不可退款")
+      expect(mockPaymentFactory.refund).not.toHaveBeenCalled()
+      expect(mockPrisma.order.updateMany).not.toHaveBeenCalled()
+    })
+
+    it("渠道返回 PROCESSING 时保持订单原状态，等待成功回调", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", amount: "99", payMethod: "WECHAT", payTransactionId: "txn1" })
+      mockPaymentFactory.refund.mockResolvedValueOnce({ status: "PROCESSING" })
+
+      const result = await svc.refundOrder("o1")
+
+      expect(result.status).toBe("PROCESSING")
+      expect(mockPrisma.order.updateMany).not.toHaveBeenCalled()
+    })
+
+    it("渠道未受理时抛错且不落退款账", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", amount: "99", payMethod: "WECHAT", payTransactionId: "txn1" })
+      mockPaymentFactory.refund.mockResolvedValueOnce({ status: "FAILED" })
+
+      await expect(svc.refundOrder("o1")).rejects.toThrow("退款通道未受理")
+      expect(mockPrisma.order.updateMany).not.toHaveBeenCalled()
+    })
+
+    it("成功回调按 RF{orderId} 定位订单并同步售后", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", amount: "99" })
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 })
+      mockPrisma.afterSale.updateMany.mockResolvedValue({ count: 1 })
+
+      await svc.handleRefundNotify({
+        out_refund_no: "RFo1",
+        out_trade_no: "merchant-order-no",
+        transaction_id: "wx-transaction-id",
+        refund_status: "SUCCESS",
+      })
+
+      expect(mockPrisma.order.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "o1" } }))
+      expect(mockPrisma.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: "o1" }) }))
+      expect(mockPrisma.afterSale.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ orderId: "o1", status: "PROCESSING" }),
+        data: { status: "APPROVED" },
+      }))
+    })
+
+    it("失败回调不改订单资金状态并把售后退回 PENDING", async () => {
+      mockPrisma.afterSale.updateMany.mockResolvedValue({ count: 1 })
+
+      await svc.handleRefundNotify({
+        out_refund_no: "RFo1",
+        out_trade_no: "merchant-order-no",
+        refund_status: "FAIL",
+      })
+
+      expect(mockPrisma.order.updateMany).not.toHaveBeenCalled()
+      expect(mockPrisma.afterSale.updateMany).toHaveBeenCalledWith({
+        where: { orderId: "o1", status: "PROCESSING", type: { contains: "refund", mode: "insensitive" } },
+        data: { status: "PENDING", logistics: "退款通道失败，请核对后重试" },
+      })
+    })
+  })
   describe("退款金额校验 (C7)", () => {
     beforeEach(() => { jest.clearAllMocks() })
 

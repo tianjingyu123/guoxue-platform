@@ -33,14 +33,14 @@ export class LogisticsService {
     this.apiKey = process.env.KUAIDI100_API_KEY || "";
     this.customer = process.env.KUAIDI100_CUSTOMER || "";
 
-    if (!this.apiKey) {
+    if (!this.apiKey || !this.customer) {
       this.logger.warn("快递100未配置，物流查询将不可用");
     }
   }
 
   /** 查询物流轨迹 */
   async queryTrack(logisticsNo: string, company?: string) {
-    if (!this.apiKey) {
+    if (!this.apiKey || !this.customer) {
       return { track: [], state: "unknown", message: "物流服务未配置" };
     }
 
@@ -60,37 +60,42 @@ export class LogisticsService {
 
   /** 使用指定快递公司查询 */
   private async queryWithCompany(com: string, num: string) {
-    const resp = await fetch(
-      `https://poll.kuaidi100.com/poll/query.do?customer=${this.customer}&sign=${this.sign(num)}&param=${JSON.stringify({ com, num })}`,
-      { method: "GET" },
-    );
-    const data = await resp.json() as KuaidiResponse;
+    const data = await this.requestKuaidi100({ com, num });
     if (data.returnCode === "200" || data.status === "200") {
-      return {
-        state: data.state,
-        isCheck: data.ischeck === "1",
-        company: data.com,
-        logisticsNo: data.nu,
-        tracks: (data.data || []).map((item) => ({
-          time: item.time || item.ftime,
-          status: item.status || item.context,
-          location: item.location || "",
-        })),
-      };
+      return this.formatResult(data);
     }
     return null;
   }
 
-  /** 自动识别快递公司 */
+  /** 无公司时交由快递100自动识别 */
   private async autoDetect(num: string) {
-    const resp = await fetch(
-      `https://poll.kuaidi100.com/poll/query.do?customer=${this.customer}&sign=${this.sign(num)}&param=${JSON.stringify({ num })}`,
-      { method: "GET" },
-    );
-    const data = await resp.json() as KuaidiResponse;
+    const data = await this.requestKuaidi100({ num });
     if (data.returnCode !== "200" && data.status !== "200") {
       return { state: "unknown", message: data.message || "查询失败" };
     }
+    return this.formatResult(data);
+  }
+
+  /**
+   * 官方实时查询契约：POST application/x-www-form-urlencoded，
+   * sign = MD5(param JSON + key + customer).toUpperCase()。
+   */
+  private async requestKuaidi100(payload: { com?: string; num: string }): Promise<KuaidiResponse> {
+    const param = JSON.stringify(payload);
+    const body = new URLSearchParams({
+      customer: this.customer,
+      sign: this.sign(param),
+      param,
+    });
+    const response = await fetch("https://poll.kuaidi100.com/poll/query.do", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    });
+    return response.json() as Promise<KuaidiResponse>;
+  }
+
+  private formatResult(data: KuaidiResponse) {
     return {
       state: data.state,
       isCheck: data.ischeck === "1",
@@ -103,7 +108,6 @@ export class LogisticsService {
       })),
     };
   }
-
   /** 快递100签名: MD5(param + key + customer) */
   private sign(param: string): string {
     const { createHash } = require("crypto");
