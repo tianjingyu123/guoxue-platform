@@ -647,6 +647,14 @@ export const courseApi = {
     }
   },
 
+  /** 提交课时作业 — POST /courses/chapters/:chapterId/works */
+  async submitWork(chapterId: string, payload: { content: string; images?: string[] }): Promise<{ id: string; createdAt: string }> {
+    const work = await apiPost<RawWork>(`/courses/chapters/${chapterId}/works`, payload)
+    const id = work?.id || ''
+    if (!id) throw new Error('提交结果缺少作业编号，请稍后重试')
+    return { id, createdAt: work.createdAt ? String(work.createdAt) : '' }
+  },
+
   /** 作业提交列表 — GET /courses/:id/works（后端已 join user/chapter） */
   async getWorkSubmissions(id: string): Promise<WorkSubmission[]> {
     const data = await apiGet<unknown>(`/courses/${id}/works`)

@@ -10,11 +10,12 @@
  *   故「AI 批改卡」以后端 score/feedback 承载批改结果；「讲师复核卡」仅当后端补齐独立复核
  *   字段（gradedBy.name / teacherComment 且区别于 AI 批改）时展示，当前恒隐藏但结构保留。
  * 页面入口：传 workId → 已提交（批改态）；仅传 chapterId → 未提交（提交态）。
- * 提交 / 选图为交互占位（后端提交端点未落地，沿用原页占位，不造假）。
+ * 提交与选图均真连：图片先上传文件服务，作业再写入课程作业模型并进入批改态。
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
+import { chooseAndUploadImage } from '@/utils/request'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { courseApi } from '@/lib/course-data'
@@ -37,6 +38,8 @@ const work = ref<WorkResult | null>(null)
 // 未提交态：答题输入
 const content = ref('')
 const images = ref<string[]>([])
+const uploadingImage = ref(false)
+const submitting = ref(false)
 
 // —— 三态判定 ——
 // 有 workId 且拿到批改结果 → 已提交（批改流）；否则未提交（提交流）
@@ -50,16 +53,62 @@ const hasTeacherReview = computed(() => {
 })
 
 // 未提交态输入校验
-const wordCount = computed(() => content.value.length)
+const wordCount = computed(() => content.value.trim().length)
 const minWords = computed(() => requirement.value?.minWords ?? 0)
-const canSubmit = computed(() => wordCount.value >= minWords.value)
+const canSubmit = computed(() => Boolean(chapterId.value && requirement.value && wordCount.value >= minWords.value))
+const submitDisabled = computed(() => !canSubmit.value || submitting.value || uploadingImage.value)
 
 function removeImage(index: number) {
   images.value = images.value.filter((_, i) => i !== index)
 }
-// 选图 / 提交为交互占位，交付时接 uploadApi / submitWork
-function onAddImage() {}
-function onSubmit() {}
+async function onAddImage() {
+  if (uploadingImage.value) return
+  const maxImages = requirement.value?.maxImages ?? 9
+  if (images.value.length >= maxImages) {
+    uni.showToast({ title: `最多上传 ${maxImages} 张图片`, icon: 'none' })
+    return
+  }
+  uploadingImage.value = true
+  try {
+    const url = await chooseAndUploadImage()
+    if (url && !images.value.includes(url)) images.value = [...images.value, url]
+  } catch (e) {
+    const message = (e as Error)?.message || ''
+    if (message && message !== '已取消') uni.showToast({ title: message, icon: 'none' })
+  } finally {
+    uploadingImage.value = false
+  }
+}
+async function onSubmit() {
+  if (submitDisabled.value) return
+  const answer = content.value.trim()
+  const attachments = [...images.value]
+  submitting.value = true
+  try {
+    const created = await courseApi.submitWork(chapterId.value, { content: answer, images: attachments })
+    const rawSubmittedAt = created.createdAt || new Date().toISOString()
+    workId.value = created.id
+    work.value = {
+      id: created.id,
+      chapterId: chapterId.value,
+      status: 'pending',
+      chapterTitle: requirement.value?.chapterTitle || '',
+      courseTitle: requirement.value?.courseTitle || '',
+      content: answer,
+      images: attachments,
+      submittedAt: rawSubmittedAt.replace('T', ' ').slice(0, 16),
+      maxScore: 100,
+      canResubmit: false,
+    }
+    content.value = ''
+    images.value = []
+    uni.showToast({ title: '作业已提交', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提交失败，请重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
+}
 
 async function loadData() {
   loading.value = true
@@ -70,6 +119,7 @@ async function loadData() {
       work.value = await courseApi.getWorkResult(workId.value)
     } else {
       // 未提交：拉作业要求
+      if (!chapterId.value) throw new Error('缺少章节信息，请从课程目录重新进入')
       requirement.value = await courseApi.getWorkRequirement(chapterId.value)
     }
   } catch (e) {
@@ -82,7 +132,7 @@ async function loadData() {
 onLoad((options?: Record<string, string>) => {
   uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
   workId.value = options?.workId || ''
-  chapterId.value = options?.chapterId || options?.id || '1'
+  chapterId.value = options?.chapterId || options?.id || ''
   loadData()
 })
 
@@ -158,9 +208,9 @@ function previewImage(urls: string[], current: string) {
                 <app-icon name="x" :size="22" color="#ffffff" />
               </view>
             </view>
-            <view v-if="images.length < (requirement?.maxImages ?? 9)" class="img-add" hover-class="btn-press" @tap="onAddImage">
-              <app-icon name="image-plus" :size="40" color="#999999" />
-              <text class="img-add-txt">添加图片</text>
+            <view v-if="images.length < (requirement?.maxImages ?? 9)" class="img-add" :class="{ disabled: uploadingImage }" hover-class="btn-press" @tap="onAddImage">
+              <app-icon :name="uploadingImage ? 'loader' : 'image-plus'" :size="40" color="#999999" />
+              <text class="img-add-txt">{{ uploadingImage ? '上传中…' : '添加图片' }}</text>
             </view>
           </view>
           <text class="img-count">最多 {{ requirement?.maxImages ?? 9 }} 张</text>
@@ -169,9 +219,9 @@ function previewImage(urls: string[], current: string) {
 
       <!-- 吸底提交 -->
       <view class="bottom-bar">
-        <view class="btn-submit" :class="{ disabled: !canSubmit }" hover-class="btn-press" @tap="canSubmit && onSubmit()">
-          <app-icon name="send" :size="34" :color="canSubmit ? '#ffffff' : '#999999'" />
-          <text class="btn-submit-txt" :class="{ disabled: !canSubmit }">提交作业</text>
+        <view class="btn-submit" :class="{ disabled: submitDisabled }" hover-class="btn-press" @tap="onSubmit">
+          <app-icon name="send" :size="34" :color="submitDisabled ? '#999999' : '#ffffff'" />
+          <text class="btn-submit-txt" :class="{ disabled: submitDisabled }">{{ submitting ? '提交中…' : '提交作业' }}</text>
         </view>
       </view>
     </template>
@@ -305,6 +355,7 @@ function previewImage(urls: string[], current: string) {
 .img-thumb-img { width: 100%; height: 100%; }
 .img-del { position: absolute; top: 8rpx; right: 8rpx; width: 40rpx; height: 40rpx; background: rgba(0,0,0,0.6); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
 .img-add { width: 152rpx; height: 152rpx; border-radius: 16rpx; border: 3rpx dashed #EDE7DD; background: #F8F4EC; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; }
+.img-add.disabled { opacity: 0.55; }
 .img-add-txt { font-size: 22rpx; color: #999999; }
 .img-count { display: block; font-size: 24rpx; color: #999999; margin-top: 16rpx; }
 

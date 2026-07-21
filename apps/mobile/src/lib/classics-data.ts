@@ -408,6 +408,8 @@ export interface RankBook {
   views: string
   rating: number
   category: string
+  desc?: string
+  reads?: number
 }
 const _mockRankingPageBooks: RankBook[] = [
   { id: '1', rank: 1, title: '周易', author: '伏羲、周文王', dynasty: '先秦', views: '128.5万', rating: 4.9, category: '易经' },

@@ -123,6 +123,7 @@ export class ClassicsBffService {
     return {
       id: b.id, rank, title: b.title, author: b.author || "佚名",
       dynasty: b.dynasty || "", views: fmtReads(b.viewCount),
+      desc: this.cleanIntro(b.intro, b.title), reads: b.viewCount,
       rating: 0, category: b.category, // rating 保留字段兼容类型，前端已不展示古籍星级
     };
   }

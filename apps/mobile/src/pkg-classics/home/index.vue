@@ -4,7 +4,7 @@ import { onPullDownRefresh } from '@dcloudio/uni-app'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { classicsApi, _mockFilterTypes, fmtReads, type CategoryTile, type BookListItem, type RankItem, type AudioItem, type FeaturedItem } from '@/lib/classics-data'
+import { classicsApi, _mockFilterTypes, fmtReads, type CategoryTile, type BookListItem, type RankBook, type RankItem, type AudioItem, type FeaturedItem } from '@/lib/classics-data'
 
 // 从 API 获取的数据
 const libraryStats = ref<{ value: string; label: string }[]>([])
@@ -21,6 +21,8 @@ const filterTypes = _mockFilterTypes
 const loading = ref(true)
 const error = ref('')
 const activeType = ref('all')
+const refreshingRanking = ref(false)
+const rankingSort = ref<'hot' | 'new'>('hot')
 
 async function fetchData() {
   loading.value = true
@@ -89,7 +91,39 @@ function goBack() {
   if (pages.length > 1) uni.navigateBack()
   else uni.switchTab?.({ url: '/pages/index/index' }).catch?.(() => {})
 }
-function onRefreshRanking() {}
+async function onRefreshRanking() {
+  if (refreshingRanking.value) return
+  refreshingRanking.value = true
+  try {
+    const currentIds = new Set(rankingData.value.map((book) => book.id))
+    let sort = rankingSort.value
+    let result = await classicsApi.ranking(sort)
+    let candidates = result.books.filter((book) => !currentIds.has(book.id))
+    if (!candidates.length) {
+      sort = sort === 'hot' ? 'new' : 'hot'
+      result = await classicsApi.ranking(sort)
+      candidates = result.books.filter((book) => !currentIds.has(book.id))
+    }
+    if (!candidates.length) {
+      uni.showToast({ title: '当前已是完整榜单', icon: 'none' })
+      return
+    }
+    rankingData.value = candidates.slice(0, 5).map((book: RankBook): RankItem => ({
+      id: book.id,
+      title: book.title,
+      author: book.author,
+      dynasty: book.dynasty,
+      desc: book.desc || [book.category, book.dynasty].filter(Boolean).join(' · ') || '典籍推荐',
+      reads: Number(book.reads) || 0,
+    }))
+    rankingSort.value = sort
+    uni.showToast({ title: '已换一批', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '榜单更新失败，请重试', icon: 'none' })
+  } finally {
+    refreshingRanking.value = false
+  }
+}
 </script>
 
 <template>
@@ -311,7 +345,9 @@ function onRefreshRanking() {}
               <app-icon name="chevron-right" :size="36" color="rgba(0,0,0,0.2)" />
             </view>
           </view>
-          <view class="ch-refresh" @tap="onRefreshRanking">换一批</view>
+          <view class="ch-refresh" :class="{ 'ch-refresh--loading': refreshingRanking }" @tap="onRefreshRanking">
+            {{ refreshingRanking ? '换批中…' : '换一批' }}
+          </view>
         </view>
       </view>
 
@@ -917,6 +953,9 @@ function onRefreshRanking() {}
   border-radius: 32rpx;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
   &:active { transform: scale(0.99); }
+}
+.ch-refresh--loading {
+  opacity: 0.55;
 }
 
 /* 听书 */
