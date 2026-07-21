@@ -14,6 +14,7 @@ import FeedCard from '@/components/feed/feed-card.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import DailyStudy from '@/components/home/daily-study.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { navigateTo } from '@/utils/router'
 import { VOICE } from '@/lib/voice'
 import { getSmartFeed, sendFeedback, ratioPadding, feedTargetUrl, type FeedEnvelope } from '@/lib/feed-data'
@@ -451,6 +452,8 @@ function backToTop() {
 
       <!-- 今日学一点：按用户兴趣主题每日推 3 条真实内容（自拉数据·空则整体隐藏，兴趣个性化产物上屏） -->
       <daily-study />
+
+      <station-pinned-rail board="home" />
 
       <!-- 双列瀑布流 + 16:9 全宽大卡（董事长 2026-07-17 拍板：每 ~8 条升 1 条 live/course）。
            数据分段渲染：每段 = 双列区块 + 段尾全宽大卡；长按呼负反馈浮层（大卡同样支持） -->

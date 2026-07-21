@@ -122,6 +122,8 @@
         </view>
       </view>
 
+      <station-pinned-rail board="agent" />
+
       <!-- ② 我的最近使用（my-conversations 聚合，未登录/无记录隐藏） -->
       <view v-if="recentConvs.length" class="section-mt">
         <view class="section-px sec-head">
@@ -263,6 +265,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import {

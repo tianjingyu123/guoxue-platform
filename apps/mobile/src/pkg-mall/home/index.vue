@@ -6,6 +6,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import ProductCard from '@/components/cards/product-card.vue'
 import LiveCard from '@/components/cards/live-card.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import MarketingZone from '@/pkg-mall/components/marketing-zone.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
@@ -111,6 +112,8 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
           <text v-if="entry.badge" class="quick-bdg">{{ entry.badge }}</text>
         </view>
       </view>
+
+      <station-pinned-rail board="mall" :inset="false" />
 
       <!-- 电商直播（暂无实时直播聚合时隐藏） -->
       <view v-if="mallCommerceLives.length" class="section">

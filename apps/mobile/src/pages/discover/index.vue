@@ -20,6 +20,7 @@ import FeedCard from '@/components/feed/feed-card.vue'
 import { navigateTo } from '@/utils/router'
 import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
 import BlockRenderer from '@/components/layout/block-renderer.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { getCategoryFeed, type FeedEnvelope } from '@/lib/feed-data'
 import { coreEntries, serviceGroups } from '@/lib/discover-data'
 
@@ -221,6 +222,8 @@ function goEntry(href: string) { navigateTo(href) }
         <text class="k-label">{{ k.label }}</text>
       </view>
     </view>
+
+    <station-pinned-rail board="home" />
 
     <!-- ④a 首屏骨架：分区占位（复用全局 .skeleton 微光，2 个假分区各 3 张骨架卡） -->
     <template v-if="firstLoading">

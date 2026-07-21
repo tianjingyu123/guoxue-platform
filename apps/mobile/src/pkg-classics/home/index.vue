@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import FlatCover from '@/components/classics/flat-cover.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, _mockFilterTypes, fmtReads, type CategoryTile, type BookListItem, type RankItem, type AudioItem, type FeaturedItem } from '@/lib/classics-data'
 
@@ -138,6 +139,8 @@ function onRefreshRanking() {}
           <text class="ch-search-ph">搜书名、作者、朝代或门类</text>
         </view>
       </view>
+
+      <station-pinned-rail board="ebook" :inset="false" />
 
       <!-- 今日导读 -->
       <view class="ch-sec">

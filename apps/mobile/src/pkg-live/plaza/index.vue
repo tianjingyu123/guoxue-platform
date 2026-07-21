@@ -7,6 +7,7 @@ import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import DegradedBanner from '@/components/degraded-banner.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
@@ -185,6 +186,8 @@ async function toggleBook(item: LiveItem) {
       </view>
 
       <template v-else>
+        <station-pinned-rail board="live" :inset="false" />
+
         <!-- ══ 直播中 ══（0 场时整区收起） -->
         <block v-if="livesNow.length > 0">
           <view class="sec">

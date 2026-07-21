@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsArray, IsIn, IsInt, IsOptional, IsString, Max, Min, ValidateNested } from "class-validator";
+import { IsArray, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from "class-validator";
 
 /**
  * 分站主推位 9 大板块（顺序固定·与 S2 稿一致）
@@ -83,4 +83,15 @@ export class CatalogQueryDto {
   @Min(1)
   @Max(50)
   pageSize?: number;
+}
+
+/** C 端读取当前归因分站的某板块主推位。ref 为本机 7 天临时分享归因，服务端会校验为有效分站。 */
+export class PublicPinnedQueryDto {
+  @IsIn(PINNED_BOARDS as unknown as string[])
+  board!: PinnedBoard;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  ref?: string;
 }

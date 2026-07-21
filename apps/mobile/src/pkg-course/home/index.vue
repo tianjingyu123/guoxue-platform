@@ -11,6 +11,7 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -323,6 +324,8 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
         </scroll-view>
       </view>
       </template>
+
+      <station-pinned-rail board="course" :inset="false" />
 
       <!-- ══ 区块6 全部课程（分类筛选 + 排序 + 单列大卡）══ -->
       <view class="sort-row">

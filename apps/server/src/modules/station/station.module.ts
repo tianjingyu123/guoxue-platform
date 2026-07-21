@@ -10,7 +10,7 @@ import { PromotionService } from "./promotion.service";
 import { StationPaipanSyncService } from "./station-paipan-sync.service";
 import { TeamTaskService } from "./team-task.service";
 import { StationMicroPageController } from "./station-micro-page.controller";
-import { StationPinnedController } from "./station-pinned.controller";
+import { StationPinnedController, StationPinnedPublicController } from "./station-pinned.controller";
 import { StationPinnedService } from "./station-pinned.service";
 import { StationBillingService } from "./station-billing.service";
 import { RedisModule } from "../../redis/redis.module";
@@ -20,7 +20,7 @@ import { FundApprovalCoreModule } from "../fund-approval/fund-approval-core.modu
 
 @Module({
   imports: [RedisModule, MarketingModule, TrackModule, FundApprovalCoreModule],
-  controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController, StationAdminOverviewController, StationMicroPageController, StationPinnedController],
+  controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController, StationAdminOverviewController, StationMicroPageController, StationPinnedPublicController, StationPinnedController],
   providers: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService, TeamTaskService, StationPinnedService, StationBillingService],
   exports: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService, TeamTaskService, StationBillingService],
 })

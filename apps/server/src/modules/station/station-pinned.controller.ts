@@ -1,8 +1,10 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Put, Query, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { Request } from "express";
 import { StationPinnedService } from "./station-pinned.service";
-import { CatalogQueryDto, SavePinnedBatchDto } from "./station-pinned.dto";
+import { CatalogQueryDto, PublicPinnedQueryDto, SavePinnedBatchDto } from "./station-pinned.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { StationMasterGuard } from "../../common/station-master.guard";
 
 /**
@@ -36,8 +38,8 @@ export class StationPinnedController {
 
   @Put(":stationId/batch")
   @ApiOperation({ summary: "S2 保存某板块全部主推位（快照式覆盖写）" })
-  saveBatch(@Param("stationId") stationId: string, @Body() dto: SavePinnedBatchDto, @Req() req: any) {
-    return this.svc.saveBatch(stationId, req.user?.id, dto);
+  saveBatch(@Param("stationId") stationId: string, @Body() dto: SavePinnedBatchDto, @Req() req: Request) {
+    return this.svc.saveBatch(stationId, req.user.id, dto);
   }
 
   @Delete(":stationId/:board/:slotIndex")
@@ -48,5 +50,19 @@ export class StationPinnedController {
     @Param("slotIndex", ParseIntPipe) slotIndex: number,
   ) {
     return this.svc.removeSlot(stationId, board, slotIndex);
+  }
+}
+
+/** C 端公开消费者：临时分站分享优先，其次登录用户永久归属；只返回当前仍公开可用的内容。 */
+@ApiTags("分站主推位")
+@UseGuards(OptionalAuthGuard)
+@Controller("public/station-pinned")
+export class StationPinnedPublicController {
+  constructor(private svc: StationPinnedService) {}
+
+  @Get()
+  @ApiOperation({ summary: "C 端读取当前归因分站的板块主推位（临时分享优先于永久归属）" })
+  getCurrent(@Query() query: PublicPinnedQueryDto, @Req() req: Request) {
+    return this.svc.getPublicBoard(query.board, req.user?.id, query.ref);
   }
 }

@@ -74,6 +74,8 @@
     <!-- 文章列表 -->
     <scroll-view scroll-y class="list-scroll">
       <view class="list">
+        <station-pinned-rail board="article" :inset="false" />
+
         <!-- loading -->
         <view v-if="loading" class="state">
           <AppLoading />
@@ -153,6 +155,7 @@ import AppLoading from '@/components/common/app-loading.vue'
 import AiSearchModal from '@/components/common/ai-search-modal.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { articleApi, tagApi, type ArticleListItem, type HotTag } from '@/lib/article-data'
 

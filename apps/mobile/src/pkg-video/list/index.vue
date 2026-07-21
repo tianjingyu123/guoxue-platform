@@ -25,6 +25,8 @@
       </scroll-view>
     </view>
 
+    <station-pinned-rail v-if="!loading && !error" board="video" :inset="false" />
+
     <!-- 骨架态：双列错位微光卡 -->
     <view v-if="loading" class="vl-feed">
       <view class="vl-col">
@@ -136,6 +138,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import PublishGuideSheet from '@/components/video/publish-guide-sheet.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { navigateTo } from '@/utils/router'
 import { checkVideoPublishPermission } from '@/lib/publish-permission'
 import {

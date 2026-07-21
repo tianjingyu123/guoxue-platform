@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   BOARD_LABELS,
@@ -8,18 +8,6 @@ import {
   SavePinnedBatchDto,
   SLOTS_PER_BOARD,
 } from "./station-pinned.dto";
-
-/** 板块 → 主推位内容类型（home 为混合，item 自带类型） */
-const BOARD_CONTENT_TYPE: Record<Exclude<PinnedBoard, "home">, string> = {
-  mall: "product",
-  course: "course",
-  circle: "circle",
-  agent: "agent",
-  ebook: "ebook",
-  article: "article",
-  video: "video",
-  live: "live_room",
-};
 
 /** 统一选品/主推内容简报 */
 export interface ContentBrief {
@@ -40,8 +28,16 @@ function toNum(v: unknown): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
+function isPublicBotConfigured(bot: { runtime: string; botId: string; apiKey: string }): boolean {
+  if (bot.runtime === "local") return true;
+  if (!bot.botId || /^coze_/i.test(bot.botId)) return false;
+  return Boolean(bot.apiKey && bot.apiKey !== "sk_dev_placeholder");
+}
+
 @Injectable()
 export class StationPinnedService {
+  private readonly logger = new Logger(StationPinnedService.name);
+
   constructor(private prisma: PrismaService) {}
 
   // ═══════════════════════════════════════════════
@@ -114,6 +110,33 @@ export class StationPinnedService {
   // ═══════════════════════════════════════════════
   // S3：选品库列表
   // ═══════════════════════════════════════════════
+  /**
+   * C 端读取当前分站的主推内容。
+   * 临时分享 ref 优先于用户永久归属；任何解析/内容异常都 fail-open 为空，不阻断主页面。
+   */
+  async getPublicBoard(board: PinnedBoard, userId?: string, ref?: string) {
+    const empty = { station: null, board, label: BOARD_LABELS[board], items: [] as ContentBrief[] };
+    try {
+      const station = await this.resolvePublicStation(userId, ref);
+      if (!station) return empty;
+
+      const records = await this.prisma.stationPinnedContent.findMany({
+        where: { stationId: station.id, board, isActive: true },
+        orderBy: { slotIndex: "asc" },
+        take: SLOTS_PER_BOARD,
+      });
+      if (!records.length) return { ...empty, station };
+
+      const briefMap = await this.enrichContents(records, true);
+      const items = records
+        .map((record) => briefMap.get(`${record.contentType}:${record.contentId}`))
+        .filter((item): item is ContentBrief => Boolean(item));
+      return { station, board, label: BOARD_LABELS[board], items };
+    } catch (error) {
+      this.logger.warn(`读取 C 端分站主推失败(board=${board})`, error);
+      return empty;
+    }
+  }
   async getCatalog(stationId: string, query: CatalogQueryDto) {
     await this.assertStation(stationId);
     const pageSize = query.pageSize && query.pageSize > 0 ? query.pageSize : 20;
@@ -257,10 +280,10 @@ export class StationPinnedService {
       }
       case "live": {
         // 正在直播 LIVING / 预约 WAITING
-        const statusFilter =
+        const statusFilter: Array<"LIVING" | "WAITING"> =
           status === "live" ? ["LIVING"] : status === "scheduled" ? ["WAITING"] : ["LIVING", "WAITING"];
         const rows = await this.prisma.liveRoom.findMany({
-          where: { status: { in: statusFilter as any }, ...titleWhere, ...idNotIn },
+          where: { status: { in: statusFilter }, ...titleWhere, ...idNotIn },
           select: { id: true, title: true, cover: true, status: true, startTime: true, viewCount: true },
           orderBy: { createdAt: "desc" },
           take,
@@ -277,15 +300,68 @@ export class StationPinnedService {
           viewerCount: r.viewCount,
         }));
       }
-      case "agent":
+      case "agent": {
+        const rows = await this.prisma.botConfig.findMany({
+          where: {
+            status: "ACTIVE",
+            ...(q ? { name: { contains: q, mode: "insensitive" as const } } : {}),
+            ...idNotIn,
+          },
+          select: { id: true, name: true, avatar: true, intro: true, runtime: true, botId: true, apiKey: true },
+          orderBy: { sortOrder: "asc" },
+          take: Math.max(take * 2, take),
+        });
+        return rows
+          .filter(isPublicBotConfigured)
+          .slice(0, take)
+          .map((r) => ({ id: r.id, title: r.name, cover: r.avatar, price: null, contentType: "agent", sourceBoard: "agent" }));
+      }
       default:
-        // 智能体主推位（CircleBot 需 join botConfig）P0 暂降级空态，与 S2 稿智能体 0/6 一致
         return [];
     }
   }
 
-  /** 批量 enrich 已锁记录的标题/封面（按 contentType 分组查各表） */
-  private async enrichContents(records: { contentType: string; contentId: string }[]): Promise<Map<string, ContentBrief>> {
+  private async resolvePublicStation(userId?: string, ref?: string) {
+    const select = { id: true, userId: true, name: true, code: true, logo: true, themeColor: true } as const;
+
+    if (ref) {
+      const temporary = await this.prisma.station.findFirst({
+        where: { status: "ACTIVE", OR: [{ userId: ref }, { code: ref }] },
+        select,
+      });
+      if (temporary) return temporary;
+    }
+    if (!userId) return null;
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { attributionStationId: true },
+    });
+    if (user?.attributionStationId) {
+      const attributed = await this.prisma.station.findFirst({
+        where: { id: user.attributionStationId, status: "ACTIVE" },
+        select,
+      });
+      if (attributed) return attributed;
+    }
+
+    const relation = await this.prisma.referralRelation.findFirst({
+      where: { userId, referrerType: "STATION_MASTER", relationStatus: "ACTIVE" },
+      orderBy: { createdAt: "asc" },
+      select: { referrerId: true },
+    });
+    if (!relation) return null;
+    return this.prisma.station.findFirst({
+      where: { userId: relation.referrerId, status: "ACTIVE" },
+      select,
+    });
+  }
+
+  /** 批量 enrich 已锁记录的标题/封面（按 contentType 分组查各表）；publicOnly 时剔除已下架内容。 */
+  private async enrichContents(
+    records: { contentType: string; contentId: string }[],
+    publicOnly = false,
+  ): Promise<Map<string, ContentBrief>> {
     const map = new Map<string, ContentBrief>();
     const byType = new Map<string, string[]>();
     for (const r of records) {
@@ -297,37 +373,37 @@ export class StationPinnedService {
       if (!ids.length) continue;
       switch (type) {
         case "course": {
-          const rows = await this.prisma.course.findMany({ where: { id: { in: ids } }, select: { id: true, title: true, cover: true, price: true } });
+          const rows = await this.prisma.course.findMany({ where: { id: { in: ids }, ...(publicOnly ? { auditStatus: "APPROVED", deletedAt: null } : {}) }, select: { id: true, title: true, cover: true, price: true } });
           rows.forEach((r) => map.set(`course:${r.id}`, { id: r.id, title: r.title, cover: r.cover, price: toNum(r.price), contentType: "course", sourceBoard: "course" }));
           break;
         }
         case "product": {
-          const rows = await this.prisma.product.findMany({ where: { id: { in: ids } }, select: { id: true, title: true, images: true, price: true } });
+          const rows = await this.prisma.product.findMany({ where: { id: { in: ids }, ...(publicOnly ? { status: "ON_SALE", deletedAt: null } : {}) }, select: { id: true, title: true, images: true, price: true } });
           rows.forEach((r) => map.set(`product:${r.id}`, { id: r.id, title: r.title, cover: r.images?.[0] || null, price: toNum(r.price), contentType: "product", sourceBoard: "mall" }));
           break;
         }
         case "circle": {
-          const rows = await this.prisma.circle.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, cover: true, price: true } });
+          const rows = await this.prisma.circle.findMany({ where: { id: { in: ids }, ...(publicOnly ? { status: "ACTIVE", deletedAt: null } : {}) }, select: { id: true, name: true, cover: true, price: true } });
           rows.forEach((r) => map.set(`circle:${r.id}`, { id: r.id, title: r.name, cover: r.cover, price: toNum(r.price), contentType: "circle", sourceBoard: "circle" }));
           break;
         }
         case "article": {
-          const rows = await this.prisma.article.findMany({ where: { id: { in: ids } }, select: { id: true, title: true, cover: true } });
+          const rows = await this.prisma.article.findMany({ where: { id: { in: ids }, ...(publicOnly ? { auditStatus: "APPROVED", deletedAt: null } : {}) }, select: { id: true, title: true, cover: true } });
           rows.forEach((r) => map.set(`article:${r.id}`, { id: r.id, title: r.title, cover: r.cover, price: null, contentType: "article", sourceBoard: "article" }));
           break;
         }
         case "video": {
-          const rows = await this.prisma.video.findMany({ where: { id: { in: ids } }, select: { id: true, title: true, coverUrl: true } });
+          const rows = await this.prisma.video.findMany({ where: { id: { in: ids }, ...(publicOnly ? { auditStatus: "APPROVED", status: "PUBLISHED", isPrivate: false } : {}) }, select: { id: true, title: true, coverUrl: true } });
           rows.forEach((r) => map.set(`video:${r.id}`, { id: r.id, title: r.title || "未命名视频", cover: r.coverUrl, price: null, contentType: "video", sourceBoard: "video" }));
           break;
         }
         case "ebook": {
-          const rows = await this.prisma.classicBook.findMany({ where: { id: { in: ids } }, select: { id: true, title: true, cover: true } });
+          const rows = await this.prisma.classicBook.findMany({ where: { id: { in: ids }, ...(publicOnly ? { status: "PUBLISHED", deletedAt: null } : {}) }, select: { id: true, title: true, cover: true } });
           rows.forEach((r) => map.set(`ebook:${r.id}`, { id: r.id, title: r.title, cover: r.cover, price: null, contentType: "ebook", sourceBoard: "ebook" }));
           break;
         }
         case "live_room": {
-          const rows = await this.prisma.liveRoom.findMany({ where: { id: { in: ids } }, select: { id: true, title: true, cover: true, status: true, startTime: true, viewCount: true } });
+          const rows = await this.prisma.liveRoom.findMany({ where: { id: { in: ids }, ...(publicOnly ? { status: { in: ["LIVING", "WAITING"] } } : {}) }, select: { id: true, title: true, cover: true, status: true, startTime: true, viewCount: true } });
           rows.forEach((r) =>
             map.set(`live_room:${r.id}`, {
               id: r.id,
@@ -341,6 +417,16 @@ export class StationPinnedService {
               viewerCount: r.viewCount,
             }),
           );
+          break;
+        }
+        case "agent": {
+          const rows = await this.prisma.botConfig.findMany({
+            where: { id: { in: ids }, ...(publicOnly ? { status: "ACTIVE" } : {}) },
+            select: { id: true, name: true, avatar: true, runtime: true, botId: true, apiKey: true },
+          });
+          rows
+            .filter((row) => !publicOnly || isPublicBotConfigured(row))
+            .forEach((row) => map.set(`agent:${row.id}`, { id: row.id, title: row.name, cover: row.avatar, price: null, contentType: "agent", sourceBoard: "agent" }));
           break;
         }
         default:
