@@ -593,22 +593,38 @@ describe("CommissionService", () => {
       expect(mockPrisma.stationEarning.create.mock.calls[0][0].data.rate).toBe(0.15);
     });
 
-    it("临时推荐佣金不派运营商管理奖", async () => {
-      mockActiveStation("operator-1");
+    it("临时链接抢占后，管理奖归实际获佣分站所属运营商", async () => {
+      mockActiveStation("operator-d");
       mockPrisma.temporaryReferralConfig.findMany.mockResolvedValue([
-        { stationId: null, operatorId: "operator-1", commissionRate: 20 },
+        { stationId: null, operatorId: "operator-d", commissionRate: 20 },
       ]);
+      mockPrisma.operator.findUnique.mockResolvedValue({
+        id: "operator-d",
+        userId: "operator-d-user",
+        parentOperatorId: null,
+        status: "ACTIVE",
+        channelType: "ONLINE",
+        mgmtRate: null,
+      });
       await svc.calculateAndRecord(
-        "order-temp-no-bonus",
+        "order-temp-operator-d",
         "COURSE",
         100,
+        "station-b-user",
+        "station-e-user",
         undefined,
-        "referrer-1",
-        undefined,
-        "buyer-1",
+        "buyer-c",
       );
-      expect(mockPrisma.operator.findUnique).not.toHaveBeenCalled();
-      expect(mockPrisma.operatorEarning.create).not.toHaveBeenCalled();
+      expect(mockPrisma.stationEarning.create.mock.calls[0][0].data.earned).toBe(20);
+      expect(mockPrisma.operatorEarning.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          operatorId: "operator-d",
+          orderId: "order-temp-operator-d",
+          source: "MGMT_BONUS",
+          amount: 20,
+          earned: 2,
+        }),
+      });
     });
   });
   describe("calculateOperatorBonus 两级计酬合规", () => {

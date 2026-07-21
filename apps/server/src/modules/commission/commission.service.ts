@@ -294,10 +294,9 @@ export class CommissionService {
       .catch((err) => this.logger.warn("收益通知发送失败", err));
 
     // ───────── 运营商管理奖 ─────────
-    // PRD 6.4：临时推荐佣金不计入管理奖；永久归属订单才派唯一一笔二级管理奖。
-    const bonus = tempReferrerId
-      ? null
-      : await this.calculateOperatorBonus(station.id, orderId, earned);
+    // 只看本单实际获佣分站的 operatorId，与临时/永久归因无关：临时链接抢占成功后，
+    // 直接佣金归该临时分站，管理奖同步归该分站所属运营商，不沿用买家的永久锁定关系。
+    const bonus = await this.calculateOperatorBonus(station.id, orderId, earned);
 
     // ───────── T1-P2b 统一总账影子双写（不影响现有资金路径，失败仅记日志）─────────
     // 过渡期比例以本方法实际使用值 rateOverride 传入，保证总账与实付一致；P2-c 切换后以 SettlementRule 为真源

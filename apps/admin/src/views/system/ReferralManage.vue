@@ -198,7 +198,7 @@ async function save() {
           { label: "有效期", value: period },
         ],
         description: "提交后不会立即改变佣金；财务审批通过后，新支付的临时推荐订单才会使用新比例。",
-        warning: "临时推荐佣金不计入运营商管理奖；分站规则优先于运营商规则，运营商规则优先于全局规则。",
+        warning: "管理奖随本单实际获佣分站归属计算；分站规则优先于运营商规则，运营商规则优先于全局规则。",
         warningTone: "danger",
       }),
       "临时分佣配置审批确认",
@@ -276,7 +276,7 @@ async function del(row: ReferralConfig) {
       type="warning"
       :closable="false"
       show-icon
-      title="仅影响审批通过后新支付的临时推荐订单，且不计运营商管理奖；所有变更均须资金审批"
+      title="仅影响审批通过后新支付的临时推荐订单；管理奖随实际获佣分站归属计算，所有变更均须资金审批"
       class="impact-alert"
     />
 
