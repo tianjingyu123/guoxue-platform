@@ -4,7 +4,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { MemberLevel, Prisma, RoleType, UserStatus } from "@prisma/client";
+import { MemberLevel, OrderStatus, Prisma, RoleType, UserStatus } from "@prisma/client";
 import { maskPhone } from "../../common/crypto.util";
 import { safePagination } from "../../common/pagination";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
@@ -260,6 +260,77 @@ export class UserService {
 
   // ───────── 用户统计 ─────────
 
+  /** 用户收到的赞：按内容作者反查 Like，不能把“我点过的赞”冒充“我获赞”。 */
+  private async countReceivedLikes(userId: string): Promise<number> {
+    const rows = await this.prisma.$queryRaw<Array<{ count: bigint | number | string }>>(Prisma.sql`
+      SELECT COUNT(*)::bigint AS "count"
+      FROM "Like" l
+      WHERE
+        (l."targetType" IN ('POST', 'CIRCLE_POST') AND EXISTS (
+          SELECT 1 FROM "Post" p WHERE p."id" = l."targetId" AND p."userId" = ${userId}
+        ))
+        OR (l."targetType" = 'ARTICLE' AND EXISTS (
+          SELECT 1 FROM "Article" a WHERE a."id" = l."targetId" AND a."userId" = ${userId}
+        ))
+        OR (l."targetType" = 'VIDEO' AND EXISTS (
+          SELECT 1 FROM "Video" v WHERE v."id" = l."targetId" AND v."userId" = ${userId}
+        ))
+    `);
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  /**
+   * 个人中心首屏摘要：一次请求返回真实社交、资产和订单角标。
+   * 纯只读聚合，不修改余额、积分、优惠券或订单状态。
+   */
+  async getMySummary(userId: string) {
+    const now = new Date();
+    const [following, followers, receivedLikes, coinAccount, points, coupons, orderGroups] = await Promise.all([
+      this.prisma.follow.count({ where: { userId } }),
+      this.prisma.follow.count({ where: { followedUserId: userId } }),
+      this.countReceivedLikes(userId),
+      this.prisma.virtualCoinAccount.findUnique({ where: { userId }, select: { balance: true } }),
+      this.prisma.userPoints.findUnique({ where: { userId }, select: { balance: true } }),
+      this.prisma.userCoupon.count({
+        where: {
+          userId,
+          used: false,
+          coupon: {
+            status: "ACTIVE",
+            validStart: { lte: now },
+            validEnd: { gte: now },
+          },
+        },
+      }),
+      this.prisma.order.groupBy({
+        by: ["status"],
+        where: {
+          userId,
+          status: {
+            in: [OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.REFUNDED],
+          },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const orderCount = new Map(orderGroups.map((row) => [row.status, row._count._all]));
+    return {
+      stats: { following, followers, likes: receivedLikes },
+      assets: {
+        coins: Number(coinAccount?.balance ?? 0),
+        coupons,
+        points: Number(points?.balance ?? 0),
+      },
+      orders: {
+        pending: orderCount.get(OrderStatus.PENDING) ?? 0,
+        shipped: orderCount.get(OrderStatus.PAID) ?? 0,
+        received: orderCount.get(OrderStatus.SHIPPED) ?? 0,
+        refund: orderCount.get(OrderStatus.REFUNDED) ?? 0,
+      },
+    };
+  }
+
   async getUserStats(userId: string) {
     const [articles, courses, circles, followers, following, likes, collects] = await Promise.all([
       this.prisma.article.count({ where: { userId } }),
@@ -267,7 +338,7 @@ export class UserService {
       this.prisma.circle.count({ where: { ownerId: userId } }),
       this.prisma.follow.count({ where: { followedUserId: userId } }),
       this.prisma.follow.count({ where: { userId } }),
-      this.prisma.like.count({ where: { userId } }),
+      this.countReceivedLikes(userId),
       this.prisma.collect.count({ where: { userId } }),
     ]);
 

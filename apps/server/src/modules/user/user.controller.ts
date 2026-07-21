@@ -91,6 +91,15 @@ export class UserController {
     return this.user.getBrowseHistory(req.user.id, +page, +pageSize);
   }
 
+  @Get("me/summary")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取当前用户个人中心统计摘要" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getMySummary(@Req() req: Request) {
+    return this.user.getMySummary(req.user.id);
+  }
+
   // ───────── 白名单管理（GET 必须在 :id 动态路由之前声明，否则被 :id 遮蔽 → 白名单页必 500·后端审计修复） ─────────
 
   @Get("whitelist")

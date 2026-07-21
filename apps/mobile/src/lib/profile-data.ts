@@ -30,11 +30,11 @@ export interface ProfileData {
   roles: RoleEntry[]
   messages: { system: number; interaction: number; transaction: number }
   checkIn: { todayChecked: boolean; continuousDays: number; totalPoints: number }
-  stats: { following: number; followers: number; likes: number }
-  coins: number
-  coupons: number
-  points: number
-  orders: { pending: number; shipped: number; received: number; refund: number }
+  stats: { following: number | null; followers: number | null; likes: number | null }
+  coins: number | null
+  coupons: number | null
+  points: number | null
+  orders: { pending: number | null; shipped: number | null; received: number | null; refund: number | null }
   continueLearning: { id: number; title: string; progress: number; lastLesson: string } | null
 }
 
@@ -124,8 +124,20 @@ interface RawCheckin {
   totalPoints?: number
 }
 
+interface RawProfileSummary {
+  stats?: { following?: number | string; followers?: number | string; likes?: number | string }
+  assets?: { coins?: number | string; coupons?: number | string; points?: number | string }
+  orders?: { pending?: number | string; shipped?: number | string; received?: number | string; refund?: number | string }
+}
+
+function asMetric(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) && n >= 0 ? n : null
+}
+
 /** /auth/me + 签到状态 → 个人中心主页数据 */
-function adaptProfile(me: RawMe, checkin: RawCheckin | null): ProfileData {
+function adaptProfile(me: RawMe, checkin: RawCheckin | null, summary: RawProfileSummary | null): ProfileData {
   const level = String(me?.memberLevel ?? 'NONE')
   let vipExpiry = ''
   let vipDaysLeft = 0
@@ -163,25 +175,35 @@ function adaptProfile(me: RawMe, checkin: RawCheckin | null): ProfileData {
       continuousDays: checkin?.continuousDays ?? 0,
       totalPoints: checkin?.totalPoints ?? 0,
     },
-    // 关注/资产/订单暂无聚合端点 → 0（真实默认值，非伪造）
-    stats: { following: 0, followers: 0, likes: 0 },
-    coins: 0,
-    coupons: 0,
-    points: 0,
-    orders: { pending: 0, shipped: 0, received: 0, refund: 0 },
+    // 聚合请求失败时显示“—”，绝不把未知状态冒充真实 0。
+    stats: {
+      following: asMetric(summary?.stats?.following),
+      followers: asMetric(summary?.stats?.followers),
+      likes: asMetric(summary?.stats?.likes),
+    },
+    coins: asMetric(summary?.assets?.coins),
+    coupons: asMetric(summary?.assets?.coupons),
+    points: asMetric(summary?.assets?.points),
+    orders: {
+      pending: asMetric(summary?.orders?.pending),
+      shipped: asMetric(summary?.orders?.shipped),
+      received: asMetric(summary?.orders?.received),
+      refund: asMetric(summary?.orders?.refund),
+    },
     continueLearning: null,
   }
 }
 
 export const profileApi = {
-  /** 获取用户主页数据 —— GET /auth/me + GET /users/me/checkin/status 并行聚合 */
+  /** 获取用户主页数据 —— 资料、签到与真实统计摘要并行聚合 */
   async getProfile(): Promise<ProfileData> {
-    const [me, checkin] = await Promise.all([
+    const [me, checkin, summary] = await Promise.all([
       apiGet<RawMe>('/auth/me'),
       // 签到状态非主资料，失败不阻断主页加载
       apiGet<RawCheckin>('/users/me/checkin/status').catch(() => null),
+      apiGet<RawProfileSummary>('/users/me/summary').catch(() => null),
     ])
-    return adaptProfile(me, checkin)
+    return adaptProfile(me, checkin, summary)
   },
 
   /** 每日签到 —— POST /users/me/checkin（返回连续天数+本次积分；失败由页面三态处理） */

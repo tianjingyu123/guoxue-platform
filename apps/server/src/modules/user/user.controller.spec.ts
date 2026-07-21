@@ -6,6 +6,7 @@ import { RolesGuard } from "../../common/roles.guard";
 
 const mockUserSvc: Record<string, jest.Mock> = {
   updateProfile: jest.fn().mockResolvedValue({ id: "u1", nickname: "新昵称" } as any),
+  getMySummary: jest.fn().mockResolvedValue({ stats: { following: 2, followers: 3, likes: 4 } } as any),
   getUserById: jest.fn().mockResolvedValue({ id: "u1", nickname: "张三" } as any),
   getUserStats: jest.fn().mockResolvedValue({ articleCount: 10, followerCount: 100 } as any),
   listUsers: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 } as any),
@@ -57,6 +58,12 @@ describe("UserController", () => {
   it("PUT /users/profile — 更新个人资料", async () => {
     const result: any = await ctrl.updateProfile(mockReq(), { nickname: "新昵称" });
     expect(result.nickname).toBe("新昵称");
+  });
+
+  it("GET /users/me/summary — 当前用户个人中心统计", async () => {
+    const result: any = await ctrl.getMySummary(mockReq());
+    expect(result.stats.likes).toBe(4);
+    expect(mockUserSvc.getMySummary).toHaveBeenCalledWith("u1");
   });
 
   it("GET /users/:id — 获取用户详情", async () => {

@@ -33,11 +33,11 @@ const userData = ref({
   roles: [] as import('@/lib/profile-data').RoleEntry[],
   messages: { system: 0, interaction: 0, transaction: 0 },
   checkIn: { todayChecked: false, continuousDays: 0, totalPoints: 0 },
-  stats: { following: 0, followers: 0, likes: 0 },
-  coins: 0,
-  coupons: 0,
-  points: 0,
-  orders: { pending: 0, shipped: 0, received: 0, refund: 0 },
+  stats: { following: null as number | null, followers: null as number | null, likes: null as number | null },
+  coins: null as number | null,
+  coupons: null as number | null,
+  points: null as number | null,
+  orders: { pending: null as number | null, shipped: null as number | null, received: null as number | null, refund: null as number | null },
   continueLearning: null as { id: number; title: string; progress: number; lastLesson: string } | null,
 })
 const recItems = ref<RecommendItem[]>([])
@@ -104,11 +104,14 @@ async function loadWalletBalance() {
     walletBalance.value = info.availableBalance
   } catch { walletBalance.value = null }
 }
+function metricText(value: number | null): string {
+  return value == null ? '—' : String(value)
+}
 const assetCells = computed(() => [
   { key: 'wallet', label: '钱包余额', value: walletBalance.value == null ? '—' : `¥${walletBalance.value.toFixed(walletBalance.value % 1 ? 2 : 0)}`, href: '/pkg-mine/wallet/index' },
-  { key: 'coins', label: '国学币', value: String(userData.value.coins), href: '/pkg-mine/wallet/index' },
-  { key: 'coupons', label: '优惠券', value: String(userData.value.coupons), href: '/pkg-shop/coupons/index' },
-  { key: 'points', label: '积分', value: String(userData.value.points), href: '/pkg-mine/points/index' },
+  { key: 'coins', label: '国学币', value: metricText(userData.value.coins), href: '/pkg-mine/wallet/index' },
+  { key: 'coupons', label: '优惠券', value: metricText(userData.value.coupons), href: '/pkg-shop/coupons/index' },
+  { key: 'points', label: '积分', value: metricText(userData.value.points), href: '/pkg-mine/points/index' },
 ])
 
 /* ===== 订单条 ===== */
@@ -268,9 +271,9 @@ function applyRole(role: string) {
 
       <!-- 三数据：关注/粉丝/获赞 -->
       <view class="id-stats">
-        <view class="st" @tap="go('/pkg-mine/follows/index')"><text class="st-b">{{ userData.stats.following }}</text><text class="st-l">关注</text></view>
-        <view class="st" @tap="go('/pkg-mine/follows/index?tab=followers')"><text class="st-b">{{ userData.stats.followers }}</text><text class="st-l">粉丝</text></view>
-        <view class="st" @tap="go('/pkg-mine/likes/index')"><text class="st-b">{{ userData.stats.likes }}</text><text class="st-l">获赞</text></view>
+        <view class="st" @tap="go('/pkg-mine/follows/index')"><text class="st-b">{{ metricText(userData.stats.following) }}</text><text class="st-l">关注</text></view>
+        <view class="st" @tap="go('/pkg-mine/follows/index?tab=followers')"><text class="st-b">{{ metricText(userData.stats.followers) }}</text><text class="st-l">粉丝</text></view>
+        <view class="st" @tap="go('/pkg-mine/likes/index')"><text class="st-b">{{ metricText(userData.stats.likes) }}</text><text class="st-l">获赞</text></view>
       </view>
 
       <!-- 会员金卡条：会员=暖金渐变金底深字 / 非会员=宣纸衬底金描边 -->
@@ -341,7 +344,7 @@ function applyRole(role: string) {
         <view v-for="item in orderStatus" :key="item.key" class="o-item tap-press" @tap="go(`/pkg-order/list/index?tab=${orderTabOf(item.key)}`)">
           <view class="o-icon">
             <AppIcon :name="item.icon" :size="40" color="#2B2620" />
-            <text v-if="item.count > 0" class="o-dot">{{ item.count }}</text>
+            <text v-if="item.count != null && item.count > 0" class="o-dot">{{ item.count }}</text>
           </view>
           <text class="o-label">{{ item.label }}</text>
         </view>

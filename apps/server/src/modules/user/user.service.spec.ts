@@ -47,8 +47,10 @@ const mockPrisma = {
   notification: { create: jest.fn().mockResolvedValue({}), createMany: jest.fn().mockResolvedValue({ count: 0 }), updateMany: jest.fn() },
   userTag: { findMany: jest.fn().mockResolvedValue([]) },
   userBehaviorLog: { groupBy: jest.fn(), findMany: jest.fn() },
-  order: { aggregate: jest.fn() },
+  order: { aggregate: jest.fn(), groupBy: jest.fn() },
   virtualCoinAccount: { findUnique: jest.fn() },
+  userPoints: { findUnique: jest.fn() },
+  userCoupon: { count: jest.fn() },
   circleMember: { count: jest.fn(), deleteMany: jest.fn() },
   courseProgress: { findMany: jest.fn() },
   deviceFingerprint: { findMany: jest.fn() },
@@ -58,6 +60,7 @@ const mockPrisma = {
   bookmark: { deleteMany: jest.fn() },
   auditLog: { create: jest.fn() },
   auth: { deleteMany: jest.fn() },
+  $queryRaw: jest.fn().mockResolvedValue([{ count: BigInt(0) }]),
   $transaction: jest.fn().mockImplementation((fn: (prisma: typeof mockPrisma) => unknown) => fn(mockPrisma)),
 };
 
@@ -237,7 +240,7 @@ describe("UserService", () => {
       mockPrisma.circle.count.mockResolvedValue(2);
       mockPrisma.follow.count.mockResolvedValueOnce(50);  // followers count
       mockPrisma.follow.count.mockResolvedValueOnce(20);  // following count
-      mockPrisma.like.count.mockResolvedValue(100);
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: BigInt(100) }]);
       mockPrisma.collect.count.mockResolvedValue(30);
 
       const stats = await svc.getUserStats("u1");
@@ -253,6 +256,37 @@ describe("UserService", () => {
 
   // ═══════════════════ getPublicProfile（C端公开主页·脱敏） ═══════════════════
 
+  describe("getMySummary", () => {
+    it("返回真实社交、资产和订单角标，且优惠券只统计当前可用券", async () => {
+      mockPrisma.follow.count.mockResolvedValueOnce(12).mockResolvedValueOnce(8);
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: BigInt(19) }]);
+      mockPrisma.virtualCoinAccount.findUnique.mockResolvedValue({ balance: 88.5 });
+      mockPrisma.userPoints.findUnique.mockResolvedValue({ balance: 360 });
+      mockPrisma.userCoupon.count.mockResolvedValue(3);
+      mockPrisma.order.groupBy.mockResolvedValue([
+        { status: "PENDING", _count: { _all: 2 } },
+        { status: "PAID", _count: { _all: 4 } },
+        { status: "SHIPPED", _count: { _all: 1 } },
+        { status: "REFUNDED", _count: { _all: 5 } },
+      ]);
+
+      const result = await svc.getMySummary("u1");
+
+      expect(result).toEqual({
+        stats: { following: 12, followers: 8, likes: 19 },
+        assets: { coins: 88.5, coupons: 3, points: 360 },
+        orders: { pending: 2, shipped: 4, received: 1, refund: 5 },
+      });
+      expect(mockPrisma.userCoupon.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          userId: "u1",
+          used: false,
+          coupon: expect.objectContaining({ status: "ACTIVE" }),
+        }),
+      });
+    });
+  });
+
   describe("getPublicProfile", () => {
     /** getUserStats 内部依赖的 7 个 count，统一置 0，避免污染断言 */
     function stubStatsCounts() {
@@ -260,7 +294,7 @@ describe("UserService", () => {
       mockPrisma.course.count.mockResolvedValue(0);
       mockPrisma.circle.count.mockResolvedValue(0);
       mockPrisma.follow.count.mockResolvedValue(0);
-      mockPrisma.like.count.mockResolvedValue(0);
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: BigInt(0) }]);
       mockPrisma.collect.count.mockResolvedValue(0);
     }
 
