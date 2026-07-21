@@ -793,7 +793,7 @@ export class LiveService {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id },
       include: {
-        user: { select: { id: true, nickname: true, avatar: true } },
+        user: { select: { id: true, nickname: true, avatar: true, bio: true, _count: { select: { followers: true } } } },
         circle: { select: { id: true, name: true } },
         products: true,
       },
@@ -808,9 +808,16 @@ export class LiveService {
     if (!isOwner) {
       await this.prisma.liveRoom.update({ where: { id }, data: { viewCount: { increment: 1 } } });
     }
+    const host = room.hostUserId === room.userId
+      ? room.user
+      : await this.prisma.user.findUnique({
+          where: { id: room.hostUserId },
+          select: { id: true, nickname: true, avatar: true, bio: true, _count: { select: { followers: true } } },
+        });
+
     // #21 回放章节点随详情返回（raw 读绕过 prisma generate；列未就绪/查询失败不阻断详情）
     const replayChapters = await this.getReplayChapters(id);
-    return { ...room, replayChapters };
+    return { ...room, user: host || room.user, replayChapters };
   }
 
   // ───────── 回放章节点（#21·主播标注） ─────────

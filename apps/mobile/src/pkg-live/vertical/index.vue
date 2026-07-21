@@ -36,7 +36,7 @@
           <view class="host-text">
             <view class="host-name-row">
               <text class="host-name">{{ room.hostName }}</text>
-              <view class="host-level">
+              <view v-if="room.hostLevel > 0" class="host-level">
                 <AppIcon name="crown" :size="20" color="#fff" />
                 <text class="host-level-txt">Lv.{{ room.hostLevel }}</text>
               </view>
@@ -239,6 +239,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { withRef } from '@/utils/referral'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { formatPrice } from '@/utils/format'
 import {
@@ -379,17 +380,32 @@ async function onToggleFollow() {
     followSubmitting.value = false
   }
 }
-// @data-needs: 分享直播间（uni.share 待接入）
-function onShare() {}
-// 双击点赞 + 飘心动画（点赞计数 fire-and-forget 上报，失败不影响动画）
-function onDoubleTap() {
+function buildShareUrl(): string {
+  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
+  // #ifdef H5
+  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
+  // #endif
+  if (!base.endsWith('/')) base += '/'
+  return withRef(`${base}pkg-live/vertical/index?id=${currentRoomId.value}`)
+}
+function onShare() {
+  uni.setClipboardData({ data: buildShareUrl(), success: () => uni.showToast({ title: '链接已复制，粘贴给好友吧', icon: 'none' }), fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }) })
+}
+// 双击点赞保留即时动画；服务端失败时回滚计数并明确提示。
+async function onDoubleTap() {
   likeCount.value++
   const id = Date.now() + Math.random()
   floatingHearts.value.push({ id, x: Math.random() * 60 - 30, scale: 0.8 + Math.random() * 0.4 })
   setTimeout(() => {
     floatingHearts.value = floatingHearts.value.filter((h) => h.id !== id)
   }, 1500)
-  if (room.value.id) liveApi.likeRoom(room.value.id).catch(() => {})
+  if (!room.value.id) return
+  try {
+    await liveApi.likeRoom(room.value.id)
+  } catch (e) {
+    likeCount.value = Math.max(0, likeCount.value - 1)
+    uni.showToast({ title: (e as Error)?.message || '点赞失败，请重试', icon: 'none' })
+  }
 }
 function onOpenCommentInput() { showCommentInput.value = true }
 function onCloseCommentInput() { showCommentInput.value = false }
@@ -397,16 +413,28 @@ function onCloseCommentInput() { showCommentInput.value = false }
 let sendingComment = false
 async function onSendComment() {
   const text = commentInput.value.trim()
-  if (!text || sendingComment) { showCommentInput.value = false; return }
+  if (!text || sendingComment) return
   sendingComment = true
-  comments.value.push({ id: 'local-' + Date.now(), userName: '我', content: text, type: 'text' })
+  const localId = 'local-' + Date.now()
+  comments.value.push({ id: localId, userName: '我', content: text, type: 'text' })
   commentInput.value = ''
   showCommentInput.value = false
   try {
-    if (danmakuGroupId) await tim.sendGroupText(danmakuGroupId, text)
-    liveApi.sendComment(room.value.id, text).catch(() => {})
-  } catch { /* TIM 发送失败 → 已本地上屏，静默降级 */ }
-  finally { sendingComment = false }
+    let delivered = false
+    if (danmakuGroupId) {
+      try { await tim.sendGroupText(danmakuGroupId, text); delivered = true } catch { /* 继续尝试服务端 */ }
+    }
+    try { await liveApi.sendComment(room.value.id, text); delivered = true } catch { /* 由统一失败态处理 */ }
+    if (!delivered) throw new Error('消息发送失败')
+  } catch (e) {
+    const index = comments.value.findIndex((item) => item.id === localId)
+    if (index >= 0) comments.value.splice(index, 1)
+    commentInput.value = text
+    showCommentInput.value = true
+    uni.showToast({ title: (e as Error)?.message || '消息发送失败，请重试', icon: 'none' })
+  } finally {
+    sendingComment = false
+  }
 }
 function onOpenGiftPanel() { showGiftPanel.value = true }
 function onCloseGiftPanel() { showGiftPanel.value = false }
@@ -451,8 +479,8 @@ async function onSendGift(gift: LiveGift) {
     sendingGift = false
   }
 }
-// @data-needs: 跳转充值页/充值弹窗
-function onRecharge() {}
+// @data-needs: 统一钱包真实充值入口
+function onRecharge() { navigateTo('/wallet/recharge') }
 function onOpenProductList() { showProductList.value = true }
 function onCloseProductList() { showProductList.value = false }
 /**

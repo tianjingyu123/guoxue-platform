@@ -71,7 +71,7 @@ export const liveHosts: LiveHost[] = [
 ]
 
 // ============ 直播回放列表(live/replays) ============
-// @data-needs: 回放列表, 参数 sortBy(latest|popular|duration)+search, 返回 LiveReplay[]
+// @data-needs: 回放列表, 参数 sortBy(latest|popular)+search, 返回 LiveReplay[]
 export interface LiveReplay {
   id: string
   title: string
@@ -87,7 +87,6 @@ export interface LiveReplay {
 export const replaySortOptions = [
   { value: 'latest', label: '最新发布' },
   { value: 'popular', label: '最多播放' },
-  { value: 'duration', label: '时长最长' },
 ] as const
 
 export const liveReplays: LiveReplay[] = [
@@ -633,7 +632,7 @@ export const replayCommentTagsByRating: Record<number, string[]> = {
 export const replayCommentLabels = ['', '很差', '较差', '一般', '不错', '非常好']
 
 // ============ 横屏直播间(live/horizontal) ============
-// @data-needs: 横屏直播间详情, 参数 id, 返回 HorizontalLiveRoom + 课件/问答/聊天/资料
+// @data-needs: 横屏直播间详情, 参数 id, 返回 HorizontalLiveRoom + 课件/TIM聊天；无后端数据源的问答与资料由页面隐藏
 export interface HorizontalLiveRoom {
   id: string
   title: string
@@ -641,6 +640,7 @@ export interface HorizontalLiveRoom {
   hostAvatar: string
   hostTitle: string
   followers: number
+  hostBio: string
   viewers: number
   likes: number
   duration: string
@@ -667,6 +667,7 @@ export const horizontalLiveRoom: HorizontalLiveRoom = {
   hostName: '张明远',
   hostAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp',
   hostTitle: '易学研究员',
+  hostBio: '',
   followers: 12800,
   viewers: 1856,
   likes: 4520,
@@ -1211,7 +1212,7 @@ export const liveManageStatusConfig: Record<string, { label: string; color: stri
 // ============ API 层 ============
 
 /* —— 后端原始响应类型（容错适配用，字段宽松，仅声明 adapter 实际访问到的字段；不 export） —— */
-interface RawLiveUser { nickname?: string; avatar?: string }
+interface RawLiveUser { id?: string; nickname?: string; avatar?: string; bio?: string; _count?: { followers?: number } }
 /** 后端直播间原始响应 */
 interface RawLiveRoom {
   id?: string
@@ -1427,8 +1428,8 @@ export const liveApi = {
       category: r?.category || '', isHot: false,
     })
     const [latest, popular] = await Promise.all([
-      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays').catch(() => ({ items: [] as RawReplayHomeItem[] })),
-      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays?sortBy=popular').catch(() => ({ items: [] as RawReplayHomeItem[] })),
+      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays'),
+      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays?sortBy=popular'),
     ])
     const list = (Array.isArray(latest?.items) ? latest.items : []).map(toItem)
     const hotItems = (Array.isArray(popular?.items) ? popular.items : []).slice(0, 5).map((r: RawReplayHomeItem) => ({ ...toItem(r), isHot: true }))
@@ -1996,7 +1997,7 @@ export const liveApi = {
       hostAvatar: r.user?.avatar || '',
       hostId: r.user?.id || r.hostUserId || '', // 关注主播用
       hostLevel: 0, // 后端无主播等级 → 降级
-      followers: 0, // 后端房间未聚合粉丝数 → 降级
+      followers: r.user?._count?.followers ?? 0,
       viewerCount: r.viewCount ?? 0,
       likeCount: r.likeCount ?? 0,
       onlineAvatars: [], // 后端无在线头像列表 → 降级(页面 v-for 不渲染)
@@ -2023,8 +2024,9 @@ export const liveApi = {
       title: r.title || '',
       hostName: r.user?.nickname || '',
       hostAvatar: r.user?.avatar || '',
-      hostTitle: '', // 后端房间无主播头衔 → 降级
-      followers: 0,
+      hostTitle: '', // 后端房间无主播头衔 → 页面隐藏
+      hostBio: r.user?.bio || '',
+      followers: r.user?._count?.followers ?? 0,
       viewers: r.viewCount ?? 0,
       likes: r.likeCount ?? 0,
       duration: '', // 时长依赖运行时 → 降级
@@ -2094,7 +2096,7 @@ export const liveApi = {
       hostName: r.user?.nickname || '',
       hostAvatar: r.user?.avatar || '',
       hostId: r.user?.id || r.hostUserId || '',
-      followers: null, // 后端房间接口无主播粉丝数 → null（页面 v-if 隐藏，不显示假「0 粉丝」）
+      followers: r.user?._count?.followers ?? null,
       viewerCount: r.viewCount ?? 0,
       likeCount: r.likeCount ?? 0,
       isFollowing: false, // 后端房间未返回关注态 → 降级(页面按钮默认未关注)

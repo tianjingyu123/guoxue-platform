@@ -708,6 +708,29 @@ describe("LiveService", () => {
       expect(result.id).toBe("r1");
     });
 
+    it("委托开播时返回真实主播资料而不是创建人资料", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1",
+        title: "直播",
+        userId: "creator1",
+        hostUserId: "host1",
+        visibility: "PLATFORM",
+        auditStatus: "APPROVED",
+        user: { id: "creator1", nickname: "创建人", avatar: "", bio: "", _count: { followers: 1 } },
+        circle: null,
+        products: [],
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: "host1", nickname: "真实主播", avatar: "host.webp", bio: "专注经典讲解", _count: { followers: 18 },
+      });
+      mockPrisma.liveRoom.update.mockResolvedValue({});
+
+      const result = await svc.getRoom("r1", "viewer1");
+
+      expect(result.user).toMatchObject({ id: "host1", nickname: "真实主播", bio: "专注经典讲解" });
+      expect(result.user?._count.followers).toBe(18);
+    });
+
     it("直播间不存在抛出 NotFoundException", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue(null);
       await expect(svc.getRoom("invalid")).rejects.toThrow(BusinessException);
