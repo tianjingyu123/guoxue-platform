@@ -17,7 +17,7 @@ import { OpsActionService } from "./ops-action.service";
 import { ExportService } from "./export.service";
 import { Response, Request } from "express";
 import * as fs from "fs";
-import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto, UpdateBrandConfigDto } from "./system.dto";
+import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, UpdateMemberConfigDto, ExportExcelDto, UpdateBrandConfigDto } from "./system.dto";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { Auditable } from "../../common/audit.decorator";
 import { THIRD_PARTY_SERVICES } from "../../config/third-party-services";
@@ -882,6 +882,7 @@ export class SystemController {
   }
 
   @Post("member-configs")
+  @Auditable({ action: "提交会员套餐新增审批", targetType: "MEMBER_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "创建或更新会员等级配置" })
@@ -890,11 +891,12 @@ export class SystemController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async upsertMemberConfig(@Body() dto: UpsertMemberConfigDto) {
-    return this.systemService.upsertMemberConfig(dto);
+  async upsertMemberConfig(@Body() dto: UpsertMemberConfigDto, @Req() req: Request) {
+    return this.systemService.requestUpsertMemberConfig(dto, req.user.id);
   }
 
   @Put("member-configs/:id")
+  @Auditable({ action: "提交会员套餐修改审批", targetType: "MEMBER_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新会员等级配置" })
@@ -904,11 +906,12 @@ export class SystemController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async updateMemberConfig(@Param("id") id: string, @Body() dto: UpsertMemberConfigDto) {
-    return this.systemService.updateMemberConfig(id, dto);
+  async updateMemberConfig(@Param("id") id: string, @Body() dto: UpdateMemberConfigDto, @Req() req: Request) {
+    return this.systemService.requestUpdateMemberConfig(id, dto, req.user.id);
   }
 
   @Delete("member-configs/:id")
+  @Auditable({ action: "提交会员套餐删除审批", targetType: "MEMBER_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除会员等级配置" })
@@ -918,9 +921,8 @@ export class SystemController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async deleteMemberConfig(@Param("id") id: string) {
-    await this.systemService.deleteMemberConfig(id);
-    return { ok: true };
+  async deleteMemberConfig(@Param("id") id: string, @Req() req: Request) {
+    return this.systemService.requestDeleteMemberConfig(id, req.user.id);
   }
 
   /** 发送文件到客户端 */

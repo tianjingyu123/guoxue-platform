@@ -9,7 +9,7 @@ interface ApprovalRow {
   id: string
   type: string
   summary?: string
-  payload?: Record<string, any>
+  payload?: Record<string, unknown>
   amount?: number
   amountUnit?: 'COIN' | 'CNY'
   requestedBy?: string
@@ -45,8 +45,8 @@ onMounted(() => {
 
 async function fetchCoinRate() {
   try {
-    const { data } = await api.get('/system/configs/coin_to_rmb_rate')
-    const rate = Number((data as any)?.configValue)
+    const { data } = await api.get<{ configValue?: unknown }>('/system/configs/coin_to_rmb_rate')
+    const rate = Number(data?.configValue)
     coinRate.value = Number.isFinite(rate) && rate > 0 ? rate : null
   } catch {
     coinRate.value = null // 配置读不到 → 只显币数
@@ -80,10 +80,11 @@ const TYPE_LABELS: Record<string, string> = {
   RECHARGE: '国学币充值',
   COIN_REFUND: '国学币退款',
   COMMISSION_CONFIG: '分佣比例变更',
+  MEMBER_CONFIG: '会员套餐变更',
 }
 function typeLabel(t: string) { return TYPE_LABELS[t] || t }
 function typeTagType(t: string) {
-  const m: Record<string, string> = { DIVIDEND: 'warning', REFUND: 'danger', RECHARGE: 'success', COIN_REFUND: 'danger', COMMISSION_CONFIG: 'primary' }
+  const m: Record<string, string> = { DIVIDEND: 'warning', REFUND: 'danger', RECHARGE: 'success', COIN_REFUND: 'danger', COMMISSION_CONFIG: 'primary', MEMBER_CONFIG: 'warning' }
   return m[t] || 'info'
 }
 
@@ -96,9 +97,14 @@ function statusLabel(s: string) {
   return m[s] || s
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown> : {}
+}
+
 /** payload 摘要：取关键字段简短展示 */
 function payloadBrief(row: ApprovalRow): string {
-  const p = row?.payload && typeof row.payload === 'object' ? row.payload : {}
+  const p = asRecord(row?.payload)
   switch (row.type) {
     case 'DIVIDEND':
       return `对象 ${p.userId ?? '—'} / 类型 ${p.type ?? '—'}`
@@ -108,10 +114,24 @@ function payloadBrief(row: ApprovalRow): string {
       return `用户 ${p.userId ?? '—'} / 退回 ${p.amountCoin ?? '—'} 国学币${p.description ? ` — ${p.description}` : ''}`
     case 'REFUND':
       return `交易号 ${p.outTradeNo ?? p.orderId ?? '—'}`
-    case 'COMMISSION_CONFIG':
-      return p.method === 'updateCommissionConfig'
-        ? `${p.type ?? '—'} → ${p.rate ?? '—'}`
-        : `${p.key ?? '—'} ${JSON.stringify(p.dto ?? {})}`
+    case 'COMMISSION_CONFIG': {
+      if (p.method === 'updateCommissionConfig') return `${p.type ?? '—'} → ${p.rate ?? '—'}`
+      if (String(p.method || '').includes('TemporaryReferralConfig')) {
+        const dto = asRecord(p.dto)
+        const scope = dto.stationId ? `分站 ${dto.stationId}` : dto.operatorId ? `运营商 ${dto.operatorId}` : '全局'
+        if (p.method === 'deleteTemporaryReferralConfig') return `删除临时分佣 / 配置 ${p.id ?? '—'}`
+        return `${scope} / ${dto.commissionRate ?? '—'}% / ${dto.validFrom ?? '—'} ~ ${dto.validTo ?? '—'}`
+      }
+      return `${p.key ?? '—'} ${JSON.stringify(p.dto ?? {})}`
+    }
+    case 'MEMBER_CONFIG': {
+      const dto = asRecord(p.dto)
+      if (p.method === 'deleteMemberConfig') return `删除套餐 ${p.id ?? '—'}`
+      const target = dto.level ? `${dto.level} · ${dto.name ?? '—'}` : `套餐 ${p.id ?? '—'}`
+      const price = dto.price == null ? '' : ` / ¥${Number(dto.price).toFixed(2)}`
+      const state = dto.isActive == null ? '' : dto.isActive ? ' / 启用' : ' / 停用'
+      return `${target}${price}${state}`
+    }
     default:
       return ''
   }
@@ -205,10 +225,22 @@ async function reject() {
           style="width:130px"
           @change="page = 1; fetchList()"
         >
-          <el-option label="待审批" value="PENDING" />
-          <el-option label="已通过" value="APPROVED" />
-          <el-option label="已拒绝" value="REJECTED" />
-          <el-option label="全部" value="ALL" />
+          <el-option
+            label="待审批"
+            value="PENDING"
+          />
+          <el-option
+            label="已通过"
+            value="APPROVED"
+          />
+          <el-option
+            label="已拒绝"
+            value="REJECTED"
+          />
+          <el-option
+            label="全部"
+            value="ALL"
+          />
         </el-select>
         <el-button @click="fetchList">
           刷新
@@ -223,7 +255,10 @@ async function reject() {
       sub-title="资金审批列表加载出错，请重试"
     >
       <template #extra>
-        <el-button type="primary" @click="fetchList">
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
           重试
         </el-button>
       </template>
@@ -238,29 +273,50 @@ async function reject() {
         <template #empty>
           <el-empty :description="statusFilter === 'PENDING' ? '暂无待审批的资金操作' : '暂无审批记录，可切换状态筛选'" />
         </template>
-        <el-table-column label="类型" width="130">
+        <el-table-column
+          label="类型"
+          width="130"
+        >
           <template #default="{ row }">
-            <el-tag :type="typeTagType(row.type)" size="small">
+            <el-tag
+              :type="typeTagType(row.type)"
+              size="small"
+            >
               {{ typeLabel(row.type) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="摘要" min-width="220" show-overflow-tooltip>
+        <el-table-column
+          label="摘要"
+          min-width="220"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             {{ row.summary }}
           </template>
         </el-table-column>
-        <el-table-column label="参数摘要" min-width="180" show-overflow-tooltip>
+        <el-table-column
+          label="参数摘要"
+          min-width="180"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             {{ payloadBrief(row) }}
           </template>
         </el-table-column>
-        <el-table-column label="金额" width="180" align="right">
+        <el-table-column
+          label="金额"
+          width="180"
+          align="right"
+        >
           <template #default="{ row }">
             <span style="font-weight:600;color:var(--color-warning, #e6a23c)">{{ amountDisplay(row) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="发起人" width="110">
+        <el-table-column
+          label="发起人"
+          width="110"
+        >
           <template #default="{ row }">
             <el-tooltip
               v-if="row.requestedBy"
@@ -275,21 +331,37 @@ async function reject() {
             <span v-else>—</span>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small">
+            <el-tag
+              :type="statusTagType(row.status)"
+              size="small"
+            >
               {{ statusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="发起时间" width="165">
+        <el-table-column
+          label="发起时间"
+          width="165"
+        >
           <template #default="{ row }">
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column
+          label="操作"
+          width="220"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="viewDetail(row)">
+            <el-button
+              size="small"
+              @click="viewDetail(row)"
+            >
               详情
             </el-button>
             <el-button
@@ -336,16 +408,25 @@ async function reject() {
         border
       >
         <el-descriptions-item label="类型">
-          <el-tag :type="typeTagType(detailData.type)" size="small">
+          <el-tag
+            :type="typeTagType(detailData.type)"
+            size="small"
+          >
             {{ typeLabel(detailData.type) }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="statusTagType(detailData.status)" size="small">
+          <el-tag
+            :type="statusTagType(detailData.status)"
+            size="small"
+          >
             {{ statusLabel(detailData.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="摘要" :span="2">
+        <el-descriptions-item
+          label="摘要"
+          :span="2"
+        >
           {{ detailData.summary }}
         </el-descriptions-item>
         <el-descriptions-item label="金额">
@@ -365,13 +446,22 @@ async function reject() {
         <el-descriptions-item label="处理时间">
           {{ formatDate(detailData.processedAt) }}
         </el-descriptions-item>
-        <el-descriptions-item v-if="detailData.reviewedBy" label="审批人">
+        <el-descriptions-item
+          v-if="detailData.reviewedBy"
+          label="审批人"
+        >
           {{ detailData.reviewedBy }}
         </el-descriptions-item>
-        <el-descriptions-item v-if="detailData.reviewNote" label="审批备注">
+        <el-descriptions-item
+          v-if="detailData.reviewNote"
+          label="审批备注"
+        >
           {{ detailData.reviewNote }}
         </el-descriptions-item>
-        <el-descriptions-item label="执行参数(payload)" :span="2">
+        <el-descriptions-item
+          label="执行参数(payload)"
+          :span="2"
+        >
           <pre class="payload-pre">{{ prettyPayload(detailData) }}</pre>
         </el-descriptions-item>
       </el-descriptions>

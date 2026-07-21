@@ -38,13 +38,13 @@ const OPERATOR_MGMT_RATES: Record<string, { mgmt: number }> = {
   SILVER: { mgmt: 0.08 },
   GOLD: { mgmt: 0.12 },
   DIAMOND: { mgmt: 0.15 },
-  BLACK_GOLD: { mgmt: 0.20 },
+  BLACK_GOLD: { mgmt: 0.2 },
 };
 
 /** V2 管理奖默认比率（基数=站长实得佣金额·operator.mgmtRate 为空时按渠道类型取默认） */
 const MGMT_RATE_DEFAULTS: Record<string, number> = {
-  ONLINE: 0.10, // 线上运营商：名下站长推广佣金的 10%
-  OFFLINE: 0.20, // 线下运营商（驿站赠送"高级线下运营商"）：名下站长推广佣金的 20%
+  ONLINE: 0.1, // 线上运营商：名下站长推广佣金的 10%
+  OFFLINE: 0.2, // 线下运营商（驿站赠送"高级线下运营商"）：名下站长推广佣金的 20%
 };
 
 /**
@@ -128,7 +128,10 @@ export class CommissionService {
     return configs;
   }
 
-  async updateConfig(key: string, dto: { rateA?: number; rateB?: number; rateC?: number; description?: string }) {
+  async updateConfig(
+    key: string,
+    dto: { rateA?: number; rateB?: number; rateC?: number; description?: string },
+  ) {
     const config = await this.prisma.commissionConfig.findUnique({ where: { configKey: key } });
     if (!config) throw new BusinessException(ErrorCode.NOT_FOUND, "配置不存在");
     const updated = await this.prisma.commissionConfig.update({
@@ -191,7 +194,10 @@ export class CommissionService {
     // 临时归因命中 CIRCLE/OFFLINE_STATION 渠道：佣金受益人=tempReferrerId（点击时解析好的圈主/驿站主），
     // 落账走统一总账 LedgerEntry（role=CIRCLE/OFFLINE_STATION），不建 StationEarning、不派运营商管理奖
     // （管理奖仅 STATION 渠道向上派生·两级计酬合规见设计 §五）。subjectType=STATION 或空 → 现行分站路径。
-    if (tempReferrerId && (channelSubjectType === "CIRCLE" || channelSubjectType === "OFFLINE_STATION")) {
+    if (
+      tempReferrerId &&
+      (channelSubjectType === "CIRCLE" || channelSubjectType === "OFFLINE_STATION")
+    ) {
       return this.recordChannelBeneficiaryCommission({
         orderId,
         type,
@@ -241,8 +247,14 @@ export class CommissionService {
       return null;
     }
 
-    // 佣-V2-P1 佣金取值链（2026-07-04 拍板）：PRODUCT 类订单优先用逐品站长佣金率，回落类型默认 rateA
-    const rate = await this.resolveEffectiveRate(type, orderTargetId, Number(config.rateA));
+    // 永久归属订单：PRODUCT 优先逐品率，其他场景回落类型默认 rateA。
+    // 临时推荐订单：默认读取 temp_referral（PRD 6.4 默认 15%），再允许临时配置按作用域覆盖。
+    const baseRate = tempReferrerId
+      ? await this.resolveTemporaryReferralDefaultRate(Number(config.rateA))
+      : await this.resolveEffectiveRate(type, orderTargetId, Number(config.rateA));
+    const rate = tempReferrerId
+      ? await this.resolveTemporaryReferralRate(station.id, station.operatorId, baseRate)
+      : baseRate;
     // 规整到分（四舍五入），与本文件管理奖/平台抽成一致，避免 JS 浮点尾数（如 99.9*0.7）污染分账与累加
     const earned = Math.round(amount * rate * 100) / 100;
 
@@ -268,7 +280,8 @@ export class CommissionService {
     });
 
     // 发送收益通知（fire-and-forget，不阻塞主流程）
-    this.prisma.notification.create({
+    this.prisma.notification
+      .create({
       data: {
         userId: station.userId,
         type: "EARNING",
@@ -277,10 +290,14 @@ export class CommissionService {
         targetType: type,
         targetId: orderId,
       },
-    }).catch((err) => this.logger.warn("收益通知发送失败", err));
+      })
+      .catch((err) => this.logger.warn("收益通知发送失败", err));
 
     // ───────── 运营商管理奖 ─────────
-    const bonus = await this.calculateOperatorBonus(station.id, orderId, earned);
+    // PRD 6.4：临时推荐佣金不计入管理奖；永久归属订单才派唯一一笔二级管理奖。
+    const bonus = tempReferrerId
+      ? null
+      : await this.calculateOperatorBonus(station.id, orderId, earned);
 
     // ───────── T1-P2b 统一总账影子双写（不影响现有资金路径，失败仅记日志）─────────
     // 过渡期比例以本方法实际使用值 rateOverride 传入，保证总账与实付一致；P2-c 切换后以 SettlementRule 为真源
@@ -293,9 +310,21 @@ export class CommissionService {
           amount,
           payerId: effectivePayerId,
           parties: {
-            STATION: { type: "STATION", id: station.id, userId: station.userId, rateOverride: rate },
+            STATION: {
+              type: "STATION",
+              id: station.id,
+              userId: station.userId,
+              rateOverride: rate,
+            },
             ...(bonus
-              ? { OPERATOR: { type: "OPERATOR", id: bonus.operatorId, userId: bonus.userId, rateOverride: bonus.rate } }
+              ? {
+                  OPERATOR: {
+                    type: "OPERATOR",
+                    id: bonus.operatorId,
+                    userId: bonus.userId,
+                    rateOverride: bonus.rate,
+                  },
+                }
               : {}),
           },
         });
@@ -323,7 +352,10 @@ export class CommissionService {
       if (!this.userGrowth) return; // 单测/裁剪部署缺 provider 兜底
       if (!buyerId) return; // 无法确认买家身份则不发（防自购/重复判定失效）
       if (buyerId === referrerId) return; // 自购不计
-      const exp = Math.min(Math.floor(amount) * SHARE_CONVERSION_EXP_PER_YUAN, SHARE_CONVERSION_EXP_CAP);
+      const exp = Math.min(
+        Math.floor(amount) * SHARE_CONVERSION_EXP_PER_YUAN,
+        SHARE_CONVERSION_EXP_CAP,
+      );
       if (exp <= 0) return;
       // 同一（买家, 推荐人）仅首单计：该买家历史已支付订单中已有同推荐人（永久或临时）则跳过
       const prior = await this.prisma.order.findFirst({
@@ -347,7 +379,11 @@ export class CommissionService {
    * 佣-V2-P1 佣金取值链：PRODUCT 类订单逐品率 Product.commissionRate（0-1 小数·空=未逐品配置）
    * 覆盖类型级默认 CommissionConfig.rateA；非 PRODUCT 订单直接用 rateA。查询失败回落默认，不阻断分佣。
    */
-  private async resolveEffectiveRate(type: string, orderTargetId: string | null, rateA: number): Promise<number> {
+  private async resolveEffectiveRate(
+    type: string,
+    orderTargetId: string | null,
+    rateA: number,
+  ): Promise<number> {
     let rate = rateA;
     if (type === "PRODUCT" && orderTargetId) {
       try {
@@ -364,6 +400,71 @@ export class CommissionService {
       }
     }
     return rate;
+  }
+
+  /** 临时推荐默认费率真源；配置缺失、越界或查询失败时回落订单类型费率，不阻断支付后记账。 */
+  private async resolveTemporaryReferralDefaultRate(fallbackRate: number): Promise<number> {
+    try {
+      const config = await this.prisma.commissionConfig.findUnique({
+        where: { configKey: "temp_referral" },
+        select: { rateA: true },
+      });
+      if (!config) return fallbackRate;
+      const rate = Number(config.rateA);
+      if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
+        this.logger.warn("temp_referral 默认费率越界，已回落订单类型费率");
+        return fallbackRate;
+      }
+      return rate;
+    } catch (error) {
+      this.logger.warn("temp_referral 默认费率查询失败，已回落订单类型费率", error as Error);
+      return fallbackRate;
+    }
+  }
+
+  /**
+   * 当前临时推荐订单命中的临时分佣率；永久归属订单不会调用本方法。
+   * 作用域优先级固定为：分站 > 所属运营商 > 全局；同一层级按 createdAt 最新优先。
+   * TemporaryReferralConfig.commissionRate 存 0-100 百分比，返回值转换为 0-1 小数。
+   */
+  private async resolveTemporaryReferralRate(
+    stationId: string,
+    operatorId: string | null | undefined,
+    fallbackRate: number,
+  ): Promise<number> {
+    try {
+      const now = new Date();
+      const scopeFilters: Prisma.TemporaryReferralConfigWhereInput[] = [
+        { stationId },
+        { stationId: null, operatorId: null },
+      ];
+      if (operatorId) scopeFilters.splice(1, 0, { operatorId });
+      const configs = await this.prisma.temporaryReferralConfig.findMany({
+        where: {
+          validFrom: { lte: now },
+          validTo: { gte: now },
+          OR: scopeFilters,
+        },
+        select: { stationId: true, operatorId: true, commissionRate: true },
+        orderBy: { createdAt: "desc" },
+      });
+      const selected =
+        configs.find((config) => config.stationId === stationId) ??
+        (operatorId
+          ? configs.find((config) => config.operatorId === operatorId && !config.stationId)
+          : undefined) ??
+        configs.find((config) => !config.stationId && !config.operatorId);
+      if (!selected) return fallbackRate;
+      const percent = Number(selected.commissionRate);
+      if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+        this.logger.warn(`分站 ${stationId} 命中的临时分佣比例越界，已回落默认费率`);
+        return fallbackRate;
+      }
+      return percent / 100;
+    } catch (error) {
+      this.logger.warn(`分站 ${stationId} 临时分佣查询失败，已回落默认费率`, error as Error);
+      return fallbackRate;
+    }
   }
 
   /**
@@ -384,7 +485,16 @@ export class CommissionService {
     configRateA: number;
     orderTargetId: string | null;
   }) {
-    const { orderId, type, amount, beneficiaryUserId, subjectType, payerId, configRateA, orderTargetId } = params;
+    const {
+      orderId,
+      type,
+      amount,
+      beneficiaryUserId,
+      subjectType,
+      payerId,
+      configRateA,
+      orderTargetId,
+    } = params;
 
     // 渠道主体自购不产生佣金（与站长路径同口径防御性拦截）
     if (payerId && payerId === beneficiaryUserId) {
@@ -400,7 +510,13 @@ export class CommissionService {
 
     // 幂等守卫：同订单同渠道角色已有正向佣金则返回既有记录（支付回调可能重入）
     const existing = await this.prisma.ledgerEntry.findFirst({
-      where: { refType: "ORDER", refId: orderId, role: subjectType, category: "COMMISSION", amount: { gt: 0 } },
+      where: {
+        refType: "ORDER",
+        refId: orderId,
+        role: subjectType,
+        category: "COMMISSION",
+        amount: { gt: 0 },
+      },
     });
     if (existing) return existing;
 
@@ -479,7 +595,9 @@ export class CommissionService {
     const alreadyReversed =
       (await this.prisma.stationEarning.findFirst({ where: { orderId, earned: { lt: 0 } } })) ??
       (await this.prisma.operatorEarning.findFirst({ where: { orderId, earned: { lt: 0 } } })) ??
-      (await this.prisma.platformFeeRecord.findFirst({ where: { sourceId: orderId, type: "REFUND" } }));
+      (await this.prisma.platformFeeRecord.findFirst({
+        where: { sourceId: orderId, type: "REFUND" },
+      }));
     if (alreadyReversed) {
       this.logger.log(`订单 ${orderId} 已冲正，跳过重复冲正`);
       return null;
@@ -607,7 +725,8 @@ export class CommissionService {
       where: { userId },
       select: { id: true },
     });
-    if (!station) throw new BusinessException(ErrorCode.FORBIDDEN, "您不是站长，无法查看被抢佣明细");
+    if (!station)
+      throw new BusinessException(ErrorCode.FORBIDDEN, "您不是站长，无法查看被抢佣明细");
 
     const where: Prisma.OrderWhereInput = {
       user: { attributionStationId: station.id }, // 买家永久归属我的分站
@@ -666,20 +785,26 @@ export class CommissionService {
 
   // ───────── 提现管理 ─────────
 
-  async applyWithdrawal(userId: string, dto: {
+  async applyWithdrawal(
+    userId: string,
+    dto: {
     amount: number;
     bankName?: string;
     bankAccount?: string;
     bankHolder?: string;
     alipayAccount?: string;
     stationId?: string;
-  }) {
+    },
+  ) {
     // 金额基本合法性校验（防御纵深，DTO 已校验正数/上限）
     if (!dto.amount || dto.amount <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "提现金额必须大于0");
     }
     if (dto.amount > MAX_WITHDRAW_RMB) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `单次提现金额不可超过 ¥${MAX_WITHDRAW_RMB}`);
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `单次提现金额不可超过 ¥${MAX_WITHDRAW_RMB}`,
+      );
     }
 
     // 查找分站
@@ -710,11 +835,16 @@ export class CommissionService {
         this.systemService?.getConfig("withdrawal_min").catch(() => null),
       ]);
       if (balance < dto.amount) {
-        throw new BusinessException(ErrorCode.BAD_REQUEST, `余额不足，当前可提现余额 ¥${balance.toFixed(2)}`);
+        throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          `余额不足，当前可提现余额 ¥${balance.toFixed(2)}`,
+        );
       }
 
-      const minAmount = cfg ? Number(cfg.rateA)
-        : sysCfg?.configValue ? Number(sysCfg.configValue)
+      const minAmount = cfg
+        ? Number(cfg.rateA)
+        : sysCfg?.configValue
+          ? Number(sysCfg.configValue)
         : 100;
       if (dto.amount < minAmount) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, `最低提现金额为 ¥${minAmount}`);
@@ -733,12 +863,14 @@ export class CommissionService {
         },
       });
 
-      this.webhook.fire("WITHDRAWAL_REQUESTED", {
+      this.webhook
+        .fire("WITHDRAWAL_REQUESTED", {
         withdrawalId: withdrawal.id,
         userId,
         stationId,
         amount: dto.amount,
-      }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+        })
+        .catch((err) => this.logger.warn("Webhook 发送失败", err));
 
       return withdrawal;
     } finally {
@@ -765,7 +897,7 @@ export class CommissionService {
     // 解密敏感金融字段
     // 金融敏感字段解密后脱敏返回（银行卡只留后4位、持卡人保留姓氏、支付宝中段掩码），
     // 防管理端/用户端批量泄露完整卡号。管理员打款若需完整卡号应走独立的解密+审计接口。
-    const decoded = withdrawals.map(w => ({
+    const decoded = withdrawals.map((w) => ({
       ...w,
       bankAccount: w.bankAccount ? maskBankCard(decrypt(w.bankAccount)) : null,
       bankHolder: w.bankHolder ? maskName(decrypt(w.bankHolder)) : null,
@@ -796,7 +928,8 @@ export class CommissionService {
     const w = await this.prisma.withdrawal.findUnique({ where: { id } });
     if (!w) throw new BusinessException(ErrorCode.NOT_FOUND, "提现记录不存在");
     // 防自审自批：受益人不得审核自己的提现申请
-    if (w.userId === reviewerId) throw new BusinessException(ErrorCode.FORBIDDEN, "不能审核自己的提现申请");
+    if (w.userId === reviewerId)
+      throw new BusinessException(ErrorCode.FORBIDDEN, "不能审核自己的提现申请");
     if (w.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录已处理");
 
     // CAS：仅当仍为 PENDING 才翻转，并发下只有一个请求能成功
@@ -873,7 +1006,10 @@ export class CommissionService {
   async confirmPayout(id: string, payoutRef: string, operatorId: string) {
     const ref = (payoutRef || "").trim();
     if (!ref) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "必须提供打款流水号（银行/支付宝转账凭证号）");
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "必须提供打款流水号（银行/支付宝转账凭证号）",
+      );
     }
 
     const w = await this.prisma.withdrawal.findUnique({ where: { id } });
@@ -894,9 +1030,14 @@ export class CommissionService {
       );
     }
 
-    this.webhook.fire("WITHDRAWAL_PAID", {
-      withdrawalId: id, userId: w.userId, amount: Number(w.amount), payoutRef: ref,
-    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+    this.webhook
+      .fire("WITHDRAWAL_PAID", {
+        withdrawalId: id,
+        userId: w.userId,
+        amount: Number(w.amount),
+        payoutRef: ref,
+      })
+      .catch((err) => this.logger.warn("Webhook 发送失败", err));
 
     return this.prisma.withdrawal.findUnique({ where: { id } });
   }
@@ -916,7 +1057,7 @@ export class CommissionService {
     // 解密敏感金融字段
     // 金融敏感字段解密后脱敏返回（银行卡只留后4位、持卡人保留姓氏、支付宝中段掩码），
     // 防管理端/用户端批量泄露完整卡号。管理员打款若需完整卡号应走独立的解密+审计接口。
-    const decoded = withdrawals.map(w => ({
+    const decoded = withdrawals.map((w) => ({
       ...w,
       bankAccount: w.bankAccount ? maskBankCard(decrypt(w.bankAccount)) : null,
       bankHolder: w.bankHolder ? maskName(decrypt(w.bankHolder)) : null,
@@ -927,7 +1068,10 @@ export class CommissionService {
 
   // ───────── 推荐链接 ─────────
 
-  async createReferralLink(userId: string, dto: { targetType: string; targetId: string; channel?: string }) {
+  async createReferralLink(
+    userId: string,
+    dto: { targetType: string; targetId: string; channel?: string },
+  ) {
     // 生成短码
     const code = this.generateCode();
     return this.prisma.referralLink.create({
@@ -992,7 +1136,14 @@ export class CommissionService {
 
     const operator = await this.prisma.operator.findUnique({
       where: { id: station.operatorId },
-      select: { id: true, userId: true, parentOperatorId: true, status: true, channelType: true, mgmtRate: true },
+      select: {
+        id: true,
+        userId: true,
+        parentOperatorId: true,
+        status: true,
+        channelType: true,
+        mgmtRate: true,
+      },
     });
     if (!operator || operator.status !== "ACTIVE") return null;
 
@@ -1002,7 +1153,14 @@ export class CommissionService {
       if (!operator.parentOperatorId) return null; // 顶级运营商自营分站：无管理奖，平台留存
       const parentOp = await this.prisma.operator.findUnique({
         where: { id: operator.parentOperatorId },
-        select: { id: true, userId: true, parentOperatorId: true, status: true, channelType: true, mgmtRate: true },
+        select: {
+          id: true,
+          userId: true,
+          parentOperatorId: true,
+          status: true,
+          channelType: true,
+          mgmtRate: true,
+        },
       });
       if (!parentOp || parentOp.status !== "ACTIVE") return null;
       beneficiary = parentOp;
@@ -1012,7 +1170,7 @@ export class CommissionService {
     const mgmtRate =
       beneficiary.mgmtRate != null
         ? Number(beneficiary.mgmtRate)
-        : MGMT_RATE_DEFAULTS[beneficiary.channelType] ?? MGMT_RATE_DEFAULTS.ONLINE;
+        : (MGMT_RATE_DEFAULTS[beneficiary.channelType] ?? MGMT_RATE_DEFAULTS.ONLINE);
     if (mgmtRate <= 0) return null;
 
     const mgmtEarned = Math.round(stationEarned * mgmtRate * 100) / 100;
@@ -1037,7 +1195,8 @@ export class CommissionService {
       where: { id: beneficiary.id },
       data: { totalEarning: { increment: mgmtEarned } },
     });
-    this.prisma.notification.create({
+    this.prisma.notification
+      .create({
       data: {
         userId: beneficiary.userId,
         type: "EARNING",
@@ -1046,9 +1205,15 @@ export class CommissionService {
         targetType: "OPERATOR_EARNING",
         targetId: orderId,
       },
-    }).catch((err) => this.logger.warn("管理奖通知发送失败", err));
+      })
+      .catch((err) => this.logger.warn("管理奖通知发送失败", err));
 
-    return { operatorId: beneficiary.id, userId: beneficiary.userId, rate: mgmtRate, earned: mgmtEarned };
+    return {
+      operatorId: beneficiary.id,
+      userId: beneficiary.userId,
+      rate: mgmtRate,
+      earned: mgmtEarned,
+    };
   }
 
   /**
@@ -1161,7 +1326,10 @@ export class CommissionService {
     }
   }
 
-  async calculatePlatformFee(type: string, amount: number): Promise<{ platformFee: number; platformRate: number } | null> {
+  async calculatePlatformFee(
+    type: string,
+    amount: number,
+  ): Promise<{ platformFee: number; platformRate: number } | null> {
     // 与正向分佣(calculateAndRecord)口径统一：订单类型枚举(COURSE/PRODUCT/...)需先映射成 CommissionConfig.configKey。
     // 原实现用原始 type 直查，订单侧(大写枚举)恒查不到 → 平台费从不入账(财务对账漏记)。
     // mapTypeToConfigKey 已做幂等：圈子收益侧直传的 configKey(circle_join/gift 等小写)原样返回，口径不变。
@@ -1246,12 +1414,7 @@ export class CommissionService {
    * @param sourceId 来源记录ID
    * @param amount 原始金额
    */
-  async recordCircleRevenue(
-    circleId: string,
-    type: string,
-    sourceId: string,
-    amount: number,
-  ) {
+  async recordCircleRevenue(circleId: string, type: string, sourceId: string, amount: number) {
     // ── 圈子双轨（董事长 2026-07-14 拍板）──
     // 平台分成由该圈子的【收款主体】决定，而不是按收入类型查全局费率：
     //   无执照圈主 → 平台收款（平台是经营者，担内容/纠纷责任）→ 平台抽 50%
@@ -1364,7 +1527,8 @@ export class CommissionService {
     //    StationEarning（可提现·真实资损），平台费也只按商品率错记。
     //    返回一个 commissionConfig 里不存在的 key → calculateAndRecord 与
     //    calculatePlatformFee 都会 `if(!config) return null` 而正确跳过。
-    if (CommissionService.FRANCHISE_ORDER_TYPES.includes(type)) return "__franchise_no_commission__";
+    if (CommissionService.FRANCHISE_ORDER_TYPES.includes(type))
+      return "__franchise_no_commission__";
     // 大写订单类型枚举 → 配置key
     if (type in map) return map[type];
     // 幂等：圈子收益侧(recordCircleRevenue)直传的已是配置key(小写，如 circle_join / gift / circle_join_referral)，
@@ -1387,10 +1551,16 @@ export class CommissionService {
 
   async getCommissionConfig() {
     const configs = await this.prisma.commissionConfig.findMany();
-    const result: Record<string, {
-      rateA: number; rateB: number; rateC: number | null;
-      configName: string | null; description: string | null;
-    }> = {};
+    const result: Record<
+      string,
+      {
+        rateA: number;
+        rateB: number;
+        rateC: number | null;
+        configName: string | null;
+        description: string | null;
+      }
+    > = {};
     for (const cfg of configs) {
       result[cfg.configKey] = {
         rateA: Number(cfg.rateA),

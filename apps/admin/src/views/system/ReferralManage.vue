@@ -1,7 +1,270 @@
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { api } from "@/api";
+import { createConfirmMessage } from "@/lib/confirm-message";
+import { useAuthStore } from "@/store/auth";
+
+interface ReferralConfig {
+  id?: string;
+  stationId?: string | null;
+  operatorId?: string | null;
+  commissionRate?: number | string;
+  validFrom?: string;
+  validTo?: string;
+  createdBy?: string | null;
+  createdAt?: string;
+}
+
+type TabName = "all" | "history";
+
+const auth = useAuthStore();
+const loading = ref(false);
+const activeLoading = ref(false);
+const saving = ref(false);
+const loadError = ref(false);
+const activeError = ref(false);
+const list = ref<ReferralConfig[]>([]);
+const activeConfigs = ref<ReferralConfig[]>([]);
+const total = ref(0);
+const allTotal = ref(0);
+const page = ref(1);
+const vis = ref(false);
+const editingId = ref("");
+const tab = ref<TabName>("all");
+const form = reactive({
+  stationId: "",
+  operatorId: "",
+  commissionRate: 10,
+  validFrom: "",
+  validTo: "",
+});
+
+const displayTotal = computed(() => Math.max(allTotal.value, activeConfigs.value.length));
+const canDelete = computed(() => auth.isSuperAdmin);
+
+onMounted(() => {
+  void fetchList();
+  void fetchActive();
+});
+
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function toPickerValue(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function toIso(value: string): string {
+  return new Date(value.replace(" ", "T")).toISOString();
+}
+
+function formatDate(value?: string): string {
+  if (!value) return "-";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
+}
+
+function scopeText(config: ReferralConfig): string {
+  if (config.stationId) return `分站「${config.stationId}」`;
+  if (config.operatorId) return `运营商「${config.operatorId}」`;
+  return "全局";
+}
+
+function scopeType(config: ReferralConfig): string {
+  if (config.stationId) return "分站";
+  if (config.operatorId) return "运营商";
+  return "全局";
+}
+
+function statusOf(config: ReferralConfig): { text: string; type: "success" | "warning" | "info" } {
+  const now = Date.now();
+  const start = config.validFrom ? new Date(config.validFrom).getTime() : Number.NaN;
+  const end = config.validTo ? new Date(config.validTo).getTime() : Number.NaN;
+  if (Number.isNaN(start) || Number.isNaN(end)) return { text: "时间异常", type: "warning" };
+  if (now < start) return { text: "待生效", type: "warning" };
+  if (now <= end) return { text: "生效中", type: "success" };
+  return { text: "已到期", type: "info" };
+}
+
+function defaultWindow() {
+  const start = new Date();
+  start.setSeconds(0, 0);
+  const end = new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return { validFrom: toPickerValue(start), validTo: toPickerValue(end) };
+}
+
+async function fetchActive() {
+  activeLoading.value = true;
+  activeError.value = false;
+  try {
+    const { data } = await api.get("/admin/referral/temp-configs/active");
+    activeConfigs.value = Array.isArray(data) ? data : data ? [data] : [];
+  } catch {
+    activeError.value = true;
+    activeConfigs.value = [];
+  } finally {
+    activeLoading.value = false;
+  }
+}
+
+async function fetchList() {
+  loading.value = true;
+  loadError.value = false;
+  const url = tab.value === "history"
+    ? "/admin/referral/temp-configs/history"
+    : "/admin/referral/temp-configs";
+  try {
+    const { data } = await api.get(url, { params: { page: page.value, pageSize: 20 } });
+    list.value = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
+    total.value = Number(data?.total ?? list.value.length) || 0;
+    if (tab.value === "all") allTotal.value = total.value;
+  } catch {
+    loadError.value = true;
+    list.value = [];
+    total.value = 0;
+    if (tab.value === "all") allTotal.value = 0;
+    ElMessage.error("临时分佣配置加载失败，请重试");
+  } finally {
+    loading.value = false;
+  }
+}
+
+function onTabChange() {
+  page.value = 1;
+  void fetchList();
+}
+
+function openCreate() {
+  editingId.value = "";
+  Object.assign(form, {
+    stationId: "",
+    operatorId: "",
+    commissionRate: 10,
+    ...defaultWindow(),
+  });
+  vis.value = true;
+}
+
+function openEdit(row: ReferralConfig) {
+  editingId.value = row.id ?? "";
+  Object.assign(form, {
+    stationId: row.stationId || "",
+    operatorId: row.operatorId || "",
+    commissionRate: Number(row.commissionRate) || 0,
+    validFrom: row.validFrom ? toPickerValue(row.validFrom) : "",
+    validTo: row.validTo ? toPickerValue(row.validTo) : "",
+  });
+  vis.value = true;
+}
+
+function validateForm(): string | null {
+  const stationId = form.stationId.trim();
+  const operatorId = form.operatorId.trim();
+  if (stationId && operatorId) return "分站 ID 和运营商 ID 只能填写一个";
+  if (!Number.isFinite(form.commissionRate) || form.commissionRate < 0 || form.commissionRate > 100) {
+    return "佣金比例必须在 0 到 100 之间";
+  }
+  if (!form.validFrom || !form.validTo) return "开始时间和结束时间都必须填写";
+  const start = new Date(form.validFrom.replace(" ", "T"));
+  const end = new Date(form.validTo.replace(" ", "T"));
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "有效期格式不正确";
+  if (start.getTime() >= end.getTime()) return "结束时间必须晚于开始时间";
+  return null;
+}
+
+async function save() {
+  const error = validateForm();
+  if (error) {
+    ElMessage.warning(error);
+    return;
+  }
+
+  const stationId = form.stationId.trim();
+  const operatorId = form.operatorId.trim();
+  const scope = scopeText({ stationId, operatorId });
+  const period = `${form.validFrom} ~ ${form.validTo}`;
+  try {
+    await ElMessageBox.confirm(
+      createConfirmMessage({
+        headline: "即将提交临时分佣配置审批",
+        headlineTone: "warning",
+        rows: [
+          { label: "生效范围", value: scope },
+          { label: "佣金比例", value: `${Number(form.commissionRate).toFixed(1)}%`, tone: "warning" },
+          { label: "有效期", value: period },
+        ],
+        description: "提交后不会立即改变佣金；财务审批通过后，新支付的临时推荐订单才会使用新比例。",
+        warning: "临时推荐佣金不计入运营商管理奖；分站规则优先于运营商规则，运营商规则优先于全局规则。",
+        warningTone: "danger",
+      }),
+      "临时分佣配置审批确认",
+      { type: "warning", confirmButtonText: "确认提交审批" },
+    );
+  } catch {
+    return;
+  }
+
+  const payload = {
+    commissionRate: Number(form.commissionRate),
+    stationId: stationId || null,
+    operatorId: operatorId || null,
+    validFrom: toIso(form.validFrom),
+    validTo: toIso(form.validTo),
+  };
+
+  saving.value = true;
+  try {
+    const response = editingId.value
+      ? await api.put(`/admin/referral/temp-configs/${editingId.value}`, payload)
+      : await api.post("/admin/referral/temp-configs", payload);
+    ElMessage.success(response.data?.message || "已提交审批，请在资金审批中心查看进度");
+    vis.value = false;
+    await Promise.all([fetchList(), fetchActive()]);
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function del(row: ReferralConfig) {
+  if (!row.id) return;
+  try {
+    await ElMessageBox.confirm(
+      createConfirmMessage({
+        headline: "即将提交删除临时分佣配置审批",
+        headlineTone: "danger",
+        rows: [
+          { label: "生效范围", value: scopeText(row) },
+          { label: "佣金比例", value: `${Number(row.commissionRate).toFixed(1)}%` },
+          { label: "有效期", value: `${formatDate(row.validFrom)} ~ ${formatDate(row.validTo)}` },
+        ],
+        description: "审批通过并删除后，该范围将按下一条命中的临时配置或默认佣金规则计算。",
+        warning: "删除生效中的配置会改变后续订单分佣，请确认回落规则符合预期。",
+        warningTone: "danger",
+      }),
+      "删除临时分佣配置审批确认",
+      { type: "error", confirmButtonText: "确认提交删除审批" },
+    );
+    const { data } = await api.delete(`/admin/referral/temp-configs/${row.id}`);
+    ElMessage.success(data?.message || "已提交删除审批，请在资金审批中心查看进度");
+    await Promise.all([fetchList(), fetchActive()]);
+  } catch {
+    // 用户取消或接口拦截器已提示错误。
+  }
+}
+</script>
+
 <template>
   <div class="page">
     <div class="toolbar">
-      <h3>推荐码管理</h3><el-button
+      <div>
+        <h3>临时分佣配置</h3>
+        <p>为临时推荐订单设置全局、运营商或分站佣金；到期自动回落，不改变用户永久归属。</p>
+      </div>
+      <el-button
         type="primary"
         @click="openCreate"
       >
@@ -9,23 +272,45 @@
       </el-button>
     </div>
 
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      title="仅影响审批通过后新支付的临时推荐订单，且不计运营商管理奖；所有变更均须资金审批"
+      class="impact-alert"
+    />
+
     <el-row
       :gutter="16"
-      style="margin-bottom:16px"
+      class="summary-grid"
     >
-      <el-col :span="6">
-        <el-card shadow="hover">
+      <el-col
+        :xs="12"
+        :sm="8"
+        :md="6"
+      >
+        <el-card
+          shadow="never"
+          class="summary-card"
+        >
           <el-statistic
             title="配置总数"
             :value="displayTotal"
           />
         </el-card>
       </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover">
+      <el-col
+        :xs="12"
+        :sm="8"
+        :md="6"
+      >
+        <el-card
+          shadow="never"
+          class="summary-card active-summary"
+        >
           <el-statistic
             title="当前生效"
-            :value="activeConfig ? 1 : 0"
+            :value="activeConfigs.length"
           />
         </el-card>
       </el-col>
@@ -35,45 +320,88 @@
       type="info"
       :closable="false"
       show-icon
-      title="关于「分站ID / 运营商ID」"
-      description="此处为系统内部标识（分站、运营商的唯一 ID），留空表示对全局生效。临时配置用于活动期内临时调整推荐分佣比例，到期自动失效。"
-      style="margin-bottom:16px"
+      title="作用域优先级"
+      description="分站配置优先于所属运营商配置，运营商配置优先于全局配置；同一层级同时生效时，以最新创建的配置为准。分站 ID 与运营商 ID 均留空表示全局。"
+      class="impact-alert"
     />
 
-    <!-- 当前生效 -->
+    <el-alert
+      v-if="activeError"
+      type="error"
+      :closable="false"
+      show-icon
+      title="当前生效配置加载失败"
+      class="impact-alert"
+    >
+      <el-button
+        size="small"
+        @click="fetchActive"
+      >
+        重试
+      </el-button>
+    </el-alert>
+
     <el-card
-      v-if="activeConfig"
       shadow="never"
-      style="margin-bottom:16px;border-left:3px solid var(--color-success)"
+      class="active-card"
     >
       <template #header>
-        <b>当前生效的临时配置</b>
+        <div class="card-heading">
+          <b>当前生效规则</b>
+          <span>仅展示此刻位于有效期内的配置</span>
+        </div>
       </template>
-      <el-descriptions
-        :column="3"
-        border
+      <el-table
+        v-loading="activeLoading"
+        :data="activeConfigs"
+        row-key="id"
+        empty-text=" "
       >
-        <el-descriptions-item label="分站ID">
-          {{ activeConfig.stationId || '全局' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="运营商ID">
-          {{ activeConfig.operatorId || '-' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="佣金比例">
-          {{ activeConfig.commissionRate }}%
-        </el-descriptions-item>
-        <el-descriptions-item label="有效期">
-          {{ formatDate(activeConfig.validFrom) }} ~ {{ formatDate(activeConfig.validTo) }}
-        </el-descriptions-item>
-        <el-descriptions-item label="创建时间">
-          {{ formatDate(activeConfig.createdAt) }}
-        </el-descriptions-item>
-      </el-descriptions>
+        <template #empty>
+          <el-empty
+            description="当前没有临时分佣规则，订单使用默认佣金配置"
+            :image-size="72"
+          />
+        </template>
+        <el-table-column
+          label="范围"
+          min-width="220"
+        >
+          <template #default="{ row }">
+            <div class="scope-cell">
+              <el-tag
+                type="success"
+                size="small"
+                effect="plain"
+              >
+                {{ scopeType(row) }}
+              </el-tag>
+              <span>{{ row.stationId || row.operatorId || '全局' }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="佣金比例"
+          width="110"
+        >
+          <template #default="{ row }">
+            <strong class="rate">{{ Number(row.commissionRate).toFixed(1) }}%</strong>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="有效期"
+          min-width="330"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.validFrom) }} ~ {{ formatDate(row.validTo) }}
+          </template>
+        </el-table-column>
+      </el-table>
     </el-card>
 
-    <!-- 配置列表 -->
     <el-tabs
       v-model="tab"
+      class="config-tabs"
       @tab-change="onTabChange"
     >
       <el-tab-pane
@@ -81,7 +409,7 @@
         name="all"
       />
       <el-tab-pane
-        label="历史记录"
+        label="已到期记录"
         name="history"
       />
     </el-tabs>
@@ -91,8 +419,8 @@
       type="error"
       :closable="false"
       show-icon
-      title="加载失败"
-      style="margin-bottom:12px"
+      title="配置列表加载失败"
+      class="impact-alert"
     >
       <el-button
         size="small"
@@ -106,46 +434,67 @@
       v-loading="loading"
       :data="list"
       stripe
+      row-key="id"
+      empty-text=" "
     >
       <template #empty>
-        <el-empty description="暂无推荐码配置" />
+        <el-empty :description="tab === 'history' ? '暂无已到期配置' : '暂无临时分佣配置'" />
       </template>
       <el-table-column
-        prop="stationId"
-        label="分站ID"
-        width="180"
+        label="范围"
+        min-width="230"
       >
         <template #default="{ row }">
-          {{ row.stationId || '全局' }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="operatorId"
-        label="运营商ID"
-        width="180"
-      >
-        <template #default="{ row }">
-          {{ row.operatorId || '-' }}
+          <div class="scope-cell">
+            <el-tag
+              size="small"
+              effect="plain"
+            >
+              {{ scopeType(row) }}
+            </el-tag>
+            <span>{{ row.stationId || row.operatorId || '全局' }}</span>
+          </div>
         </template>
       </el-table-column>
       <el-table-column
         label="佣金比例"
+        width="110"
+      >
+        <template #default="{ row }">
+          <strong class="rate">{{ Number(row.commissionRate).toFixed(1) }}%</strong>
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="状态"
         width="100"
       >
         <template #default="{ row }">
-          {{ row.commissionRate }}%
+          <el-tag
+            :type="statusOf(row).type"
+            size="small"
+          >
+            {{ statusOf(row).text }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column
         label="有效期"
-        width="300"
+        min-width="330"
       >
         <template #default="{ row }">
           {{ formatDate(row.validFrom) }} ~ {{ formatDate(row.validTo) }}
         </template>
       </el-table-column>
       <el-table-column
-        prop="createdAt"
+        label="创建人"
+        prop="createdBy"
+        width="130"
+      >
+        <template #default="{ row }">
+          {{ row.createdBy || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column
         label="创建时间"
         width="170"
       >
@@ -167,6 +516,8 @@
             编辑
           </el-button>
           <el-button
+            v-if="canDelete"
+            v-permission="['SUPER_ADMIN']"
             size="small"
             type="danger"
             @click="del(row)"
@@ -179,7 +530,7 @@
 
     <div
       v-if="total > 20"
-      style="margin-top:16px;display:flex;justify-content:flex-end"
+      class="pagination-wrap"
     >
       <el-pagination
         v-model:current-page="page"
@@ -192,27 +543,50 @@
 
     <el-dialog
       v-model="vis"
-      :title="editingId ? '编辑配置' : '创建配置'"
-      width="500px"
+      :title="editingId ? '编辑临时分佣配置' : '创建临时分佣配置'"
+      width="min(680px, calc(100vw - 32px))"
+      :close-on-click-modal="false"
     >
+      <el-alert
+        type="info"
+        :closable="false"
+        title="只填写一个作用域；两个 ID 均留空表示全局生效"
+        class="dialog-alert"
+      />
       <el-form
         :model="form"
-        label-width="90px"
+        label-width="110px"
       >
-        <el-form-item label="分站ID">
-          <el-input
-            v-model="form.stationId"
-            placeholder="留空则为全局"
-          />
-        </el-form-item>
-        <el-form-item label="运营商ID">
-          <el-input
-            v-model="form.operatorId"
-            placeholder="留空则为全局"
-          />
-        </el-form-item>
+        <el-row :gutter="16">
+          <el-col
+            :xs="24"
+            :sm="12"
+          >
+            <el-form-item label="分站 ID">
+              <el-input
+                v-model="form.stationId"
+                maxlength="64"
+                clearable
+                placeholder="与运营商 ID 二选一"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col
+            :xs="24"
+            :sm="12"
+          >
+            <el-form-item label="运营商 ID">
+              <el-input
+                v-model="form.operatorId"
+                maxlength="64"
+                clearable
+                placeholder="与分站 ID 二选一"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item
-          label="佣金比例(%)"
+          label="佣金比例"
           required
         >
           <el-input-number
@@ -220,12 +594,22 @@
             :min="0"
             :max="100"
             :precision="1"
+            :step="1"
             style="width:100%"
           />
+          <div class="field-help">
+            输入百分比，例如 10 表示订单实付金额的 10%。
+          </div>
         </el-form-item>
         <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="开始时间">
+          <el-col
+            :xs="24"
+            :sm="12"
+          >
+            <el-form-item
+              label="开始时间"
+              required
+            >
               <el-date-picker
                 v-model="form.validFrom"
                 type="datetime"
@@ -234,8 +618,14 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="结束时间">
+          <el-col
+            :xs="24"
+            :sm="12"
+          >
+            <el-form-item
+              label="结束时间"
+              required
+            >
               <el-date-picker
                 v-model="form.validTo"
                 type="datetime"
@@ -249,94 +639,43 @@
       <template #footer>
         <el-button @click="vis = false">
           取消
-        </el-button><el-button
+        </el-button>
+        <el-button
           type="primary"
           :loading="saving"
           @click="save"
         >
-          保存
+          提交审批
         </el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { api } from '@/api'
+<style scoped>
+.page { padding: 16px; }
+.toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.toolbar h3 { margin: 0; color: var(--color-text-title); font-size: 20px; }
+.toolbar p { margin: 6px 0 0; color: var(--color-text-secondary); font-size: 13px; line-height: 1.6; }
+.impact-alert { margin-bottom: 14px; }
+.summary-grid { margin-bottom: 14px; }
+.summary-card { border-color: var(--color-border-light); }
+.active-summary { border-left: 3px solid var(--color-success); }
+.active-card { margin-bottom: 18px; border-left: 3px solid var(--color-success); }
+.card-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.card-heading span { color: var(--color-text-secondary); font-size: 12px; }
+.config-tabs { margin-top: 4px; }
+.scope-cell { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.scope-cell span { overflow: hidden; color: var(--color-text-title); text-overflow: ellipsis; white-space: nowrap; }
+.rate { color: var(--color-gold); font-variant-numeric: tabular-nums; }
+.pagination-wrap { display: flex; justify-content: flex-end; margin-top: 16px; }
+.dialog-alert { margin-bottom: 16px; }
+.field-help { width: 100%; margin-top: 4px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }
 
-// 推荐码临时配置行（字段依据列表列/详情/表单实际访问声明，宽松可选）
-interface ReferralConfig {
-  id?: string
-  stationId?: string
-  operatorId?: string
-  commissionRate?: number
-  validFrom?: string
-  validTo?: string
-  createdAt?: string
+@media (max-width: 760px) {
+  .toolbar { flex-direction: column; }
+  .toolbar .el-button { width: 100%; }
+  .card-heading { align-items: flex-start; flex-direction: column; }
+  .pagination-wrap { overflow-x: auto; justify-content: flex-start; }
 }
-
-const loading = ref(false); const saving = ref(false); const loadError = ref(false); const list = ref<ReferralConfig[]>([]); const total = ref(0); const page = ref(1)
-const vis = ref(false); const editingId = ref(''); const tab = ref('all')
-const activeConfig = ref<ReferralConfig | null>(null)
-const form = reactive({ stationId: '', operatorId: '', commissionRate: 10, validFrom: '', validTo: '' })
-
-// 修「总数0/生效1」矛盾：生效配置来自独立接口，可能未计入列表 total，至少不低于生效数
-const displayTotal = computed(() => Math.max(total.value, activeConfig.value ? 1 : 0))
-
-onMounted(() => { fetchList(); fetchActive() })
-function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
-
-async function fetchActive() {
-  try { const { data } = await api.get('/admin/referral/temp-configs/active'); activeConfig.value = data } catch { activeConfig.value = null }
-}
-
-async function fetchList() {
-  loading.value = true
-  loadError.value = false
-  const url = tab.value === 'history' ? '/admin/referral/temp-configs/history' : '/admin/referral/temp-configs'
-  try { const { data } = await api.get(url, { params: { page: page.value, pageSize: 20 } }); list.value = data.items || data.data || []; total.value = data.total || 0 } catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') } finally { loading.value = false }
-}
-
-function onTabChange() { page.value = 1; fetchList() }
-function openCreate() { editingId.value = ''; Object.assign(form, { stationId: '', operatorId: '', commissionRate: 10, validFrom: '', validTo: '' }); vis.value = true }
-function openEdit(row: ReferralConfig) {
-  editingId.value = row.id ?? ''
-  Object.assign(form, { stationId: row.stationId || '', operatorId: row.operatorId || '', commissionRate: row.commissionRate, validFrom: row.validFrom || '', validTo: row.validTo || '' })
-  vis.value = true
-}
-async function save() {
-  // L3：推荐分佣比例变更直接影响全站/分站的推广返佣金额
-  const scope = form.stationId ? `分站「${form.stationId}」` : (form.operatorId ? `运营商「${form.operatorId}」` : '全局')
-  const period = form.validFrom && form.validTo ? `${form.validFrom} ~ ${form.validTo}` : '未设有效期（长期生效）'
-  try {
-    await ElMessageBox.confirm(
-      `即将保存推荐分佣临时配置：<div style="margin-top:6px">生效范围：<b>${scope}</b></div><div>佣金比例：<b style="color:var(--el-color-warning)">${form.commissionRate}%</b></div><div>有效期：${period}</div><div style="margin-top:6px;font-size:12px;color:var(--el-text-color-secondary)">生效后该范围内的推广返佣金额将按此比例计算，请确认比例无误。</div>`,
-      '分佣配置保存确认',
-      { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: '确认保存' },
-    )
-  } catch { return }
-  saving.value = true
-  try {
-    const payload = {
-      commissionRate: form.commissionRate,
-      stationId: form.stationId || undefined,
-      operatorId: form.operatorId || undefined,
-      validFrom: form.validFrom ? new Date(form.validFrom).toISOString() : undefined,
-      validTo: form.validTo ? new Date(form.validTo).toISOString() : undefined,
-    }
-    if (editingId.value) { await api.put(`/admin/referral/temp-configs/${editingId.value}`, payload) }
-    else { await api.post('/admin/referral/temp-configs', payload) }
-    ElMessage.success('已保存'); vis.value = false; fetchList(); fetchActive()
-  } catch { } finally { saving.value = false }
-}
-async function del(row: ReferralConfig) {
-  const scope = row.stationId ? `分站「${row.stationId}」` : (row.operatorId ? `运营商「${row.operatorId}」` : '全局')
-  try {
-    await ElMessageBox.confirm(`确定删除该临时分佣配置（${scope}，佣金 ${row.commissionRate}%）？删除后该范围将回落至默认分佣规则。`, '删除确认', { type: 'warning', confirmButtonText: '确定删除' })
-    await api.delete(`/admin/referral/temp-configs/${row.id}`); ElMessage.success('已删除'); fetchList(); fetchActive()
-  } catch {}
-}
-</script>
-<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>
+</style>

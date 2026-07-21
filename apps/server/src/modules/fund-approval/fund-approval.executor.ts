@@ -6,6 +6,8 @@ import { InstituteService } from "../institute/institute.service";
 import { HuifuService } from "../huifu/huifu.service";
 import { CoinService } from "../coin/coin.service";
 import { CommissionService } from "../commission/commission.service";
+import { AdminReferralService } from "../station/admin-referral.service";
+import { SystemService } from "../system/system.service";
 
 /**
  * 资金审批执行器：审批通过时按 type 调用对应模块的「真实执行方法」。
@@ -22,6 +24,8 @@ export class FundApprovalExecutor {
     private huifu: HuifuService,
     private coin: CoinService,
     private commission: CommissionService,
+    private referrals: AdminReferralService,
+    private system: SystemService,
   ) {}
 
   /** 审批：approve=true → 认领并执行；approve=false → 标记 REJECTED */
@@ -73,7 +77,27 @@ export class FundApprovalExecutor {
         if (p.method === "updateCommissionConfig") {
           return this.commission.updateCommissionConfig(p.type, p.rate);
         }
+        if (p.method === "createTemporaryReferralConfig") {
+          return this.referrals.create(p.dto, approval.requestedBy);
+        }
+        if (p.method === "updateTemporaryReferralConfig") {
+          return this.referrals.update(p.id, p.dto ?? {});
+        }
+        if (p.method === "deleteTemporaryReferralConfig") {
+          return this.referrals.delete(p.id);
+        }
         return this.commission.updateConfig(p.key, p.dto ?? {});
+      case "MEMBER_CONFIG":
+        if (p.method === "upsertMemberConfig") {
+          return this.system.upsertMemberConfig(p.dto);
+        }
+        if (p.method === "updateMemberConfig") {
+          return this.system.updateMemberConfig(p.id, p.dto ?? {});
+        }
+        if (p.method === "deleteMemberConfig") {
+          return this.system.deleteMemberConfig(p.id);
+        }
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "未知会员配置审批方法");
       case "REFUND":
         return this.huifu.createRefund(p);
       case "HUIFU_SPLIT":

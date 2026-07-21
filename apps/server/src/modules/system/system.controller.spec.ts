@@ -29,6 +29,9 @@ const mockSystemSvc = {
   getConfigDiff: jest.fn().mockResolvedValue({ diff: "..." }),
   getMemberConfigs: jest.fn().mockResolvedValue([]),
   upsertMemberConfig: jest.fn().mockResolvedValue({ id: "mc1" }),
+  requestUpsertMemberConfig: jest.fn().mockResolvedValue({ submitted: true, approvalId: "a1", status: "PENDING" }),
+  requestUpdateMemberConfig: jest.fn().mockResolvedValue({ submitted: true, approvalId: "a2", status: "PENDING" }),
+  requestDeleteMemberConfig: jest.fn().mockResolvedValue({ submitted: true, approvalId: "a3", status: "PENDING" }),
   getPublicBanners: jest.fn().mockResolvedValue({ banners: [] }),
   getHomeConfig: jest.fn().mockResolvedValue({ layout: "default", paipanSlot: 6, featuredTags: [] }),
   getBrandConfig: jest.fn().mockResolvedValue({ id: "default", siteName: "热卜国学", siteNameShort: "热卜" }),
@@ -224,8 +227,26 @@ describe("SystemController", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("POST /system/member-configs — 更新会员配置", async () => {
-    const result: any = await ctrl.upsertMemberConfig({ level: 1 } as any);
-    expect(result.id).toBe("mc1");
+  it("POST /system/member-configs — 提交会员配置审批", async () => {
+    const req = { user: { id: "admin-1" } } as any;
+    const dto = { level: "MONTHLY", name: "月卡", price: 19 } as any;
+    const result: any = await ctrl.upsertMemberConfig(dto, req);
+    expect(result.status).toBe("PENDING");
+    expect(mockSystemSvc.requestUpsertMemberConfig).toHaveBeenCalledWith(dto, "admin-1");
+  });
+
+  it("PUT /system/member-configs/:id — 提交会员配置修改审批", async () => {
+    const req = { user: { id: "admin-1" } } as any;
+    const dto = { price: 20 } as any;
+    const result: any = await ctrl.updateMemberConfig("m1", dto, req);
+    expect(result.status).toBe("PENDING");
+    expect(mockSystemSvc.requestUpdateMemberConfig).toHaveBeenCalledWith("m1", dto, "admin-1");
+  });
+
+  it("DELETE /system/member-configs/:id — 提交会员配置删除审批", async () => {
+    const req = { user: { id: "admin-1" } } as any;
+    const result: any = await ctrl.deleteMemberConfig("m1", req);
+    expect(result.status).toBe("PENDING");
+    expect(mockSystemSvc.requestDeleteMemberConfig).toHaveBeenCalledWith("m1", "admin-1");
   });
 });

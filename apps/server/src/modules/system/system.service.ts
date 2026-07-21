@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { SchedulerRegistry } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -7,10 +7,27 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
 import { ThirdPartyConfigLoader } from "./third-party-config.loader";
+import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
 const CONFIG_CACHE_TTL = 3600; // 1小时
 const CONFIG_CACHE_PREFIX = "sys:config:";
+const MEMBER_PLAN_LEVELS = new Set(["MONTHLY", "QUARTERLY", "YEARLY", "YEARLY_AUTO", "LIFETIME"]);
+
+type MemberConfigCreateInput = {
+  level: string;
+  name: string;
+  price: number;
+  coinBonus?: number;
+  monthlyPoints?: number;
+  monthlyCouponId?: string | null;
+  sort?: number;
+  benefits?: string[];
+  maxBorrowDays?: number;
+  isActive?: boolean;
+};
+
+type MemberConfigUpdateInput = Omit<Partial<MemberConfigCreateInput>, "level">;
 
 @Injectable()
 export class SystemService {
@@ -22,11 +39,13 @@ export class SystemService {
     private audit: AuditService,
     private thirdParty: ThirdPartyConfigLoader,
     private scheduler: SchedulerRegistry,
+    @Optional() private fundApproval?: FundApprovalService,
   ) {}
 
   async getAllConfigs() {
     const cached = await this.redis.getJson<any[]>(CONFIG_CACHE_PREFIX + "all");
-    const configs = cached ?? await this.prisma.configSystem.findMany({ orderBy: { configKey: "asc" } });
+    const configs =
+      cached ?? (await this.prisma.configSystem.findMany({ orderBy: { configKey: "asc" } }));
     if (!cached) await this.redis.setJson(CONFIG_CACHE_PREFIX + "all", configs, CONFIG_CACHE_TTL);
     // 第三方密钥：解密 + 敏感字段掩码后返回（明文不出后端；缓存里存的仍是密文）
     return configs.map((c: any) =>
@@ -150,7 +169,9 @@ export class SystemService {
     const payH5Provider = flagRow?.configValue === "huifu" ? "huifu" : "direct";
     // 泛型须为完整品牌类型：用 Record<string,string> 会让展开后丢失具体字段，
     // 使返回值退化成联合类型（缓存分支只剩 payH5Provider），调用方读 siteName 即类型报错。
-    const cached = await this.redis.getJson<typeof SystemService.DEFAULT_BRAND_CONFIG>(CONFIG_CACHE_PREFIX + "brand");
+    const cached = await this.redis.getJson<typeof SystemService.DEFAULT_BRAND_CONFIG>(
+      CONFIG_CACHE_PREFIX + "brand",
+    );
     if (cached) return { ...cached, payH5Provider };
     const row = await this.prisma.brandConfig.findUnique({ where: { id: "default" } });
     // merge 默认值：将来新增字段时旧记录也能拿到兜底值
@@ -204,7 +225,11 @@ export class SystemService {
 
     const parseValue = (config: { configValue: string } | null, defaultValue: string) => {
       if (!config) return defaultValue;
-      try { return JSON.parse(config.configValue); } catch (_err) { return config.configValue; }
+      try {
+        return JSON.parse(config.configValue);
+      } catch (_err) {
+        return config.configValue;
+      }
     };
 
     return {
@@ -251,7 +276,12 @@ export class SystemService {
   // ── 操作回滚 ──
 
   /** 获取可回滚的审计日志列表 */
-  async getRollbackableLogs(params: { page: number; pageSize: number; targetType?: string; targetId?: string }) {
+  async getRollbackableLogs(params: {
+    page: number;
+    pageSize: number;
+    targetType?: string;
+    targetId?: string;
+  }) {
     return this.audit.listRollbackable(params);
   }
 
@@ -296,8 +326,18 @@ export class SystemService {
 
   async healthCheck() {
     const checks: Record<string, boolean> = {};
-    try { await this.prisma.$queryRaw`SELECT 1`; checks.database = true; } catch (_err) { checks.database = false; }
-    try { await this.redis.get("health:check"); checks.redis = true; } catch (_err) { checks.redis = false; }
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      checks.database = true;
+    } catch (_err) {
+      checks.database = false;
+    }
+    try {
+      await this.redis.get("health:check");
+      checks.redis = true;
+    } catch (_err) {
+      checks.redis = false;
+    }
 
     const allHealthy = Object.values(checks).every(Boolean);
     return {
@@ -328,7 +368,11 @@ export class SystemService {
   }
 
   async toggleAutomation(enabled: boolean, operator: string) {
-    await this.setConfig("automation_enabled", enabled ? "true" : "false", `自动化开关 — ${operator}`);
+    await this.setConfig(
+      "automation_enabled",
+      enabled ? "true" : "false",
+      `自动化开关 — ${operator}`,
+    );
     const status = enabled ? "已开启" : "已关闭（Claude 权限降为只读）";
     await this.audit.log({
       userId: operator,
@@ -383,7 +427,12 @@ export class SystemService {
    */
   async rollbackAudit(auditId: string, operator: string) {
     const log = await this.audit.getLogWithRollback(auditId); // 无快照即抛
-    const data = log.rollbackData as { kind?: string; key?: string; previousValue?: string | null; previousExists?: boolean } | null;
+    const data = log.rollbackData as {
+      kind?: string;
+      key?: string;
+      previousValue?: string | null;
+      previousExists?: boolean;
+    } | null;
 
     if (!data || data.kind !== "config" || !data.key) {
       throw new BusinessException(
@@ -409,11 +458,21 @@ export class SystemService {
       detail: `${operator} 回滚审计 ${auditId}：配置 ${data.key} 还原为「${data.previousExists === false ? "(删除)" : data.previousValue}」`,
     });
 
-    return { rolledBack: true, auditId, key: data.key, restoredValue: data.previousExists === false ? null : data.previousValue };
+    return {
+      rolledBack: true,
+      auditId,
+      key: data.key,
+      restoredValue: data.previousExists === false ? null : data.previousValue,
+    };
   }
 
   /** 可回滚操作列表（透传 audit.listRollbackable，供后台"一键回滚"面板） */
-  async listRollbackable(params: { targetType?: string; targetId?: string; page?: number; pageSize?: number }) {
+  async listRollbackable(params: {
+    targetType?: string;
+    targetId?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
     return this.audit.listRollbackable(params);
   }
 
@@ -466,7 +525,13 @@ export class SystemService {
       updatedAt: true,
     };
     const [items, total] = await Promise.all([
-      this.prisma.siteNotice.findMany({ where, select, orderBy: { createdAt: "desc" }, skip, take: pageSize }),
+      this.prisma.siteNotice.findMany({
+        where,
+        select,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+      }),
       this.prisma.siteNotice.count({ where }),
     ]);
     return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
@@ -544,14 +609,17 @@ export class SystemService {
   }
 
   /** 更新全站公告 */
-  async updateSiteNotice(id: string, dto: {
+  async updateSiteNotice(
+    id: string,
+    dto: {
     title?: string;
     content?: string;
     type?: string;
     isActive?: boolean;
     startTime?: string;
     endTime?: string;
-  }) {
+    },
+  ) {
     this.logger.log(`更新全站公告: id=${id}`);
     const existing = await this.prisma.siteNotice.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "站内公告不存在");
@@ -754,7 +822,12 @@ export class SystemService {
    * - recent：DB 中 Webhook 触发型 cron（action=cron.*）的最近执行记录，与注册任务合并展示。
    */
   async getCronJobs(recentLimit = 20) {
-    const registered: Array<{ name: string; cronTime: string | null; nextRun: string | null; running: boolean }> = [];
+    const registered: Array<{
+      name: string;
+      cronTime: string | null;
+      nextRun: string | null;
+      running: boolean;
+    }> = [];
     try {
       const jobs = this.scheduler.getCronJobs();
       for (const [name, job] of jobs) {
@@ -763,14 +836,22 @@ export class SystemService {
         try {
           const nd = (job as { nextDate?: () => unknown }).nextDate?.();
           nextRun = this.toIso(nd);
-        } catch { nextRun = null; }
+        } catch {
+          nextRun = null;
+        }
         try {
           // cronTime.source 在不同版本形态各异，尽量取到表达式字符串
           const ct = (job as { cronTime?: { source?: unknown } }).cronTime;
           cronTime = ct?.source != null ? String(ct.source) : null;
-        } catch { cronTime = null; }
+        } catch {
+          cronTime = null;
+        }
         let running = false;
-        try { running = Boolean((job as { running?: boolean }).running); } catch { running = false; }
+        try {
+          running = Boolean((job as { running?: boolean }).running);
+        } catch {
+          running = false;
+        }
         registered.push({ name, cronTime, nextRun, running });
       }
     } catch (err) {
@@ -787,8 +868,20 @@ export class SystemService {
     if (v == null) return null;
     if (v instanceof Date) return v.toISOString();
     const anyV = v as { toISO?: () => string; toJSDate?: () => Date; toString?: () => string };
-    if (typeof anyV.toISO === "function") { try { return anyV.toISO(); } catch { /* noop */ } }
-    if (typeof anyV.toJSDate === "function") { try { return anyV.toJSDate().toISOString(); } catch { /* noop */ } }
+    if (typeof anyV.toISO === "function") {
+      try {
+        return anyV.toISO();
+      } catch {
+        /* noop */
+      }
+    }
+    if (typeof anyV.toJSDate === "function") {
+      try {
+        return anyV.toJSDate().toISOString();
+      } catch {
+        /* noop */
+      }
+    }
     const s = String(v);
     const d = new Date(s);
     return Number.isNaN(d.getTime()) ? s : d.toISOString();
@@ -802,14 +895,24 @@ export class SystemService {
     const yesterday = new Date(today.getTime() - 86400000);
 
     const [
-      newUsers, activeUsers, newOrders, newContents,
-      totalRevenue, pendingReports, pendingWithdrawals,
+      newUsers,
+      activeUsers,
+      newOrders,
+      newContents,
+      totalRevenue,
+      pendingReports,
+      pendingWithdrawals,
     ] = await Promise.all([
       this.prisma.user.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
       this.prisma.userBehavior.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
-      this.prisma.order.count({ where: { createdAt: { gte: yesterday, lt: today }, status: "PAID" } }),
+      this.prisma.order.count({
+        where: { createdAt: { gte: yesterday, lt: today }, status: "PAID" },
+      }),
       this.prisma.content.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
-      this.prisma.order.aggregate({ where: { createdAt: { gte: yesterday, lt: today }, status: "PAID" }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({
+        where: { createdAt: { gte: yesterday, lt: today }, status: "PAID" },
+        _sum: { amount: true },
+      }),
       this.prisma.report.count({ where: { status: "PENDING" } }),
       this.prisma.withdrawal.count({ where: { status: "PENDING" } }),
     ]);
@@ -841,10 +944,15 @@ export class SystemService {
         const passed = await this.quickContentCheck(content.title, content.body || "");
         await this.prisma.content.update({
           where: { id: content.id },
-          data: { status: passed ? "PUBLISHED" : "REJECTED", auditReason: passed ? undefined : "自动审核不通过" },
+          data: {
+            status: passed ? "PUBLISHED" : "REJECTED",
+            auditReason: passed ? undefined : "自动审核不通过",
+          },
         });
         audited++;
-      } catch (_err) { /* 单条失败不中断整体 */ }
+      } catch (_err) {
+        /* 单条失败不中断整体 */
+      }
     }
 
     return { total: pendingContent.length, audited };
@@ -853,7 +961,10 @@ export class SystemService {
   private async quickContentCheck(title: string, body: string): Promise<boolean> {
     const keywords = (await this.getConfig("audit_block_keywords"))?.configValue;
     if (keywords) {
-      const blockList = keywords.split(",").map((k: string) => k.trim()).filter(Boolean);
+      const blockList = keywords
+        .split(",")
+        .map((k: string) => k.trim())
+        .filter(Boolean);
       const text = title + body;
       if (blockList.some((k: string) => text.includes(k))) return false;
     }
@@ -886,7 +997,9 @@ export class SystemService {
           data: { status: "PROCESSED", result: "自动处理", processedAt: new Date() },
         });
         processed++;
-      } catch (_err) { /* 单条失败继续 */ }
+      } catch (_err) {
+        /* 单条失败继续 */
+      }
     }
 
     return { total: pending.length, processed };
@@ -904,72 +1017,182 @@ export class SystemService {
 
   // ───────── 会员配置 ─────────
 
+  private validateMemberConfigValues(dto: MemberConfigUpdateInput & { level?: string }) {
+    if (dto.level !== undefined && !MEMBER_PLAN_LEVELS.has(dto.level)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "会员套餐标识不合法");
+    }
+    if (dto.name !== undefined && (!dto.name.trim() || dto.name.trim().length > 50)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "套餐名称必须为 1 到 50 个有效字符");
+    }
+    if (dto.monthlyCouponId && dto.monthlyCouponId.trim().length > 100) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "赠券模板 ID 不能超过 100 个字符");
+    }
+    if (dto.benefits !== undefined) {
+      if (
+        !Array.isArray(dto.benefits) ||
+        dto.benefits.some(
+          (item) => typeof item !== "string" || !item.trim() || item.trim().length > 200,
+        )
+      ) {
+        throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          "每条会员权益必须为 1 到 200 个有效字符",
+        );
+      }
+    }
+    const checks: Array<[number | undefined, number, number, string, boolean]> = [
+      [dto.price, 0, 999999.99, "会员价格", false],
+      [dto.coinBonus, 0, 1000000, "国学币赠送数", true],
+      [dto.monthlyPoints, 0, 1000000, "每月赠送积分", true],
+      [dto.sort, 0, 9999, "展示排序", true],
+      [dto.maxBorrowDays, 1, 3650, "最大借阅天数", true],
+    ];
+    for (const [value, min, max, label, integer] of checks) {
+      if (
+        value !== undefined &&
+        (!Number.isFinite(value) ||
+          value < min ||
+          value > max ||
+          (integer && !Number.isInteger(value)))
+      ) {
+        throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          `${label}必须${integer ? "为整数且" : ""}在 ${min} 到 ${max} 之间`,
+        );
+      }
+    }
+  }
+
+  private requireMemberApproval(): FundApprovalService {
+    if (!this.fundApproval) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "资金审批服务不可用");
+    }
+    return this.fundApproval;
+  }
   /** 获取所有会员等级配置 */
   async getMemberConfigs() {
     this.logger.log("查询所有会员等级配置");
     return this.prisma.memberConfig.findMany({
-      orderBy: { price: "asc" },
+      orderBy: [{ sort: "asc" }, { price: "asc" }],
     });
   }
 
-  /** 创建或更新会员等级配置 */
-  async upsertMemberConfig(dto: {
-    level: string;
-    name: string;
-    price: number;
-    coinBonus?: number;
-    benefits?: Record<string, unknown>;
-    maxBorrowDays?: number;
-    isActive?: boolean;
-  }) {
+  /** 新增/覆盖套餐：仅提交审批，不直接改价或发放权益。 */
+  async requestUpsertMemberConfig(dto: MemberConfigCreateInput, requestedBy: string) {
+    this.validateMemberConfigValues(dto);
+    return this.requireMemberApproval().create({
+      type: "MEMBER_CONFIG",
+      payload: { method: "upsertMemberConfig", dto },
+      amount: null,
+      summary: `会员套餐新增/覆盖 [${dto.level} · ${dto.name.trim()}] ¥${Number(dto.price).toFixed(2)}`,
+      requestedBy,
+    });
+  }
+
+  /** 修改套餐：审批前确认目标存在并校验完整资金边界。 */
+  async requestUpdateMemberConfig(id: string, dto: MemberConfigUpdateInput, requestedBy: string) {
+    this.validateMemberConfigValues(dto);
+    const existing = await this.prisma.memberConfig.findUnique({ where: { id } });
+    if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "会员配置不存在");
+    const nextName = dto.name?.trim() || existing.name;
+    const nextPrice = dto.price ?? Number(existing.price);
+    return this.requireMemberApproval().create({
+      type: "MEMBER_CONFIG",
+      payload: { method: "updateMemberConfig", id, dto },
+      amount: null,
+      summary: `会员套餐修改 [${existing.level} · ${nextName}] ¥${Number(nextPrice).toFixed(2)}${dto.isActive === undefined ? "" : dto.isActive ? " · 启用" : " · 停用"}`,
+      requestedBy,
+    });
+  }
+
+  /** 删除套餐：审批提交和审批执行时都检查启停与待支付订单。 */
+  async requestDeleteMemberConfig(id: string, requestedBy: string) {
+    const existing = await this.assertMemberConfigDeletable(id);
+    return this.requireMemberApproval().create({
+      type: "MEMBER_CONFIG",
+      payload: { method: "deleteMemberConfig", id },
+      amount: null,
+      summary: `会员套餐删除 [${existing.level} · ${existing.name}] ¥${Number(existing.price).toFixed(2)}`,
+      requestedBy,
+    });
+  }
+
+  /** 审批通过后的真实新增/覆盖入口。 */
+  async upsertMemberConfig(dto: MemberConfigCreateInput) {
+    this.validateMemberConfigValues(dto);
     this.logger.log(`更新会员配置: level=${dto.level}`);
+    const update: Prisma.MemberConfigUpdateInput = {
+      name: dto.name.trim(),
+      price: dto.price,
+    };
+    if (dto.coinBonus !== undefined) update.coinBonus = dto.coinBonus;
+    if (dto.monthlyPoints !== undefined) update.monthlyPoints = dto.monthlyPoints;
+    if (dto.monthlyCouponId !== undefined)
+      update.monthlyCouponId = dto.monthlyCouponId?.trim() || null;
+    if (dto.sort !== undefined) update.sort = dto.sort;
+    if (dto.benefits !== undefined)
+      update.benefits = dto.benefits.map((item) => item.trim()) as Prisma.InputJsonValue;
+    if (dto.maxBorrowDays !== undefined) update.maxBorrowDays = dto.maxBorrowDays;
+    if (dto.isActive !== undefined) update.isActive = dto.isActive;
     return this.prisma.memberConfig.upsert({
       where: { level: dto.level },
       create: {
         level: dto.level,
-        name: dto.name,
+        name: dto.name.trim(),
         price: dto.price,
         coinBonus: dto.coinBonus ?? 0,
-        benefits: (dto.benefits || {}) as Prisma.InputJsonValue,
+        monthlyPoints: dto.monthlyPoints ?? 0,
+        monthlyCouponId: dto.monthlyCouponId?.trim() || null,
+        sort: dto.sort ?? 0,
+        benefits: (dto.benefits?.map((item) => item.trim()) ?? []) as Prisma.InputJsonValue,
         maxBorrowDays: dto.maxBorrowDays ?? 30,
         isActive: dto.isActive ?? true,
       },
-      update: {
-        name: dto.name,
-        price: dto.price,
-        coinBonus: dto.coinBonus,
-        benefits: dto.benefits as Prisma.InputJsonValue,
-        maxBorrowDays: dto.maxBorrowDays,
-        isActive: dto.isActive,
-      },
+      update,
     });
   }
 
-  /** 更新会员等级配置 */
-  async updateMemberConfig(id: string, dto: {
-    name?: string;
-    price?: number;
-    coinBonus?: number;
-    benefits?: Record<string, unknown>;
-    maxBorrowDays?: number;
-    isActive?: boolean;
-  }) {
+  /** 审批通过后的真实更新入口。 */
+  async updateMemberConfig(id: string, dto: MemberConfigUpdateInput) {
+    this.validateMemberConfigValues(dto);
     const existing = await this.prisma.memberConfig.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "会员配置不存在");
     const data: Prisma.MemberConfigUpdateInput = {};
-    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.price !== undefined) data.price = dto.price;
     if (dto.coinBonus !== undefined) data.coinBonus = dto.coinBonus;
-    if (dto.benefits !== undefined) data.benefits = dto.benefits as Prisma.InputJsonValue;
+    if (dto.monthlyPoints !== undefined) data.monthlyPoints = dto.monthlyPoints;
+    if (dto.monthlyCouponId !== undefined)
+      data.monthlyCouponId = dto.monthlyCouponId?.trim() || null;
+    if (dto.sort !== undefined) data.sort = dto.sort;
+    if (dto.benefits !== undefined)
+      data.benefits = dto.benefits.map((item) => item.trim()) as Prisma.InputJsonValue;
     if (dto.maxBorrowDays !== undefined) data.maxBorrowDays = dto.maxBorrowDays;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     return this.prisma.memberConfig.update({ where: { id }, data });
   }
 
-  /** 删除会员等级配置 */
-  async deleteMemberConfig(id: string) {
+  private async assertMemberConfigDeletable(id: string) {
     const existing = await this.prisma.memberConfig.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "会员配置不存在");
+    if (existing.isActive) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "启用中的会员套餐不能删除，请先停用");
+    }
+    const referencedOrders = await this.prisma.order.count({
+      where: { type: "MEMBER", targetId: id },
+    });
+    if (referencedOrders > 0) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `已有 ${referencedOrders} 笔订单引用该套餐，为保留支付回调与历史审计链不能删除；请保持停用状态`,
+      );
+    }
+    return existing;
+  }
+
+  /** 审批通过后的真实删除入口。 */
+  async deleteMemberConfig(id: string) {
+    await this.assertMemberConfigDeletable(id);
     return this.prisma.memberConfig.delete({ where: { id } });
   }
 }

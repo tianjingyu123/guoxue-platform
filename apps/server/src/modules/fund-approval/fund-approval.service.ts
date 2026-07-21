@@ -5,7 +5,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
-export type FundApprovalType = "DIVIDEND" | "REFUND" | "RECHARGE" | "COMMISSION_CONFIG" | "COIN_REFUND" | "HUIFU_SPLIT";
+export type FundApprovalType = "DIVIDEND" | "REFUND" | "RECHARGE" | "COMMISSION_CONFIG" | "MEMBER_CONFIG" | "COIN_REFUND" | "HUIFU_SPLIT";
 
 /** amount 存"币数"的审批类型（其余均为人民币元）——前端显示单位以 amountUnit 为准，防止把币数当成元 */
 const COIN_AMOUNT_TYPES: readonly string[] = ["RECHARGE", "COIN_REFUND"];
