@@ -144,7 +144,8 @@ function contentUrl(type: string, id: string): string {
     : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
     : type === 'live' ? `/pkg-live/watch/index?id=${id}`
     : type === 'circle' ? `/pkg-circle/circles/detail?id=${id}`
-    : '' // post 无 circleId / classic·ebook·poetry·content 等无对应映射 → 保持提示
+    : type === 'post' || type === 'circle_post' ? `/pkg-circle/circles/post?id=${id}`
+    : '' // classic·ebook·poetry·content 等无对应映射 → 保持提示
 }
 async function openItem(item: HistoryItem) {
   const raw = (await loadRawMap()).get(item.id)

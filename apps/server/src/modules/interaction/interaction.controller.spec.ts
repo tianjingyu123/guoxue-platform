@@ -7,6 +7,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 
 const mockInteractionSvc = {
   toggleLike: jest.fn().mockResolvedValue({ liked: true }),
+  removeLike: jest.fn().mockResolvedValue({ success: true }),
   isLiked: jest.fn().mockResolvedValue({ a1: true, a2: false }),
   getLikeCount: jest.fn().mockResolvedValue(42),
   createComment: jest.fn().mockResolvedValue({ id: "c1", content: "好文" }),
@@ -53,6 +54,13 @@ describe("InteractionController", () => {
     const result: any = await ctrl.toggleLike(req, dto);
     expect(result.liked).toBe(true);
     expect(mockInteractionSvc.toggleLike).toHaveBeenCalledWith("u1", dto);
+  });
+
+  it("DELETE /interaction/like/:id — 确定性取消自己的点赞", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.removeLike(req, "l1");
+    expect(result.success).toBe(true);
+    expect(mockInteractionSvc.removeLike).toHaveBeenCalledWith("u1", "l1");
   });
 
   it("GET /interaction/like/check — 检查点赞", async () => {

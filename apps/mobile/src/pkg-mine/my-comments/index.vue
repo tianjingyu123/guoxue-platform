@@ -15,6 +15,8 @@ import {
 const isEditMode = ref(false)
 const selectedIds = ref<(string | number)[]>([])
 const activeId = ref<string | number | null>(null)
+const deletingId = ref<string | number | null>(null)
+const batchDeleting = ref(false)
 
 const { list, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<MyCommentItem>({
   fetcher: async ({ page, pageSize }) => ({ items: await mineApi.getMyComments(page, pageSize) }),
@@ -43,19 +45,55 @@ function toggleActive(id: string | number) {
   if (isEditMode.value) return
   activeId.value = activeId.value === id ? null : id
 }
-function deleteOne(id: string | number) {
-  list.value = list.value.filter((c) => c.id !== id)
-  activeId.value = null
-  uni.showToast({ title: '已删除', icon: 'none' })
+async function deleteOne(id: string | number) {
+  if (deletingId.value !== null || batchDeleting.value) return
+  deletingId.value = id
+  try {
+    await mineApi.deleteMyComment(id)
+    list.value = list.value.filter((c) => c.id !== id)
+    selectedIds.value = selectedIds.value.filter((selectedId) => selectedId !== id)
+    activeId.value = null
+    uni.showToast({ title: '评论已删除', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '删除失败，请重试', icon: 'none' })
+  } finally {
+    deletingId.value = null
+  }
 }
-function batchDelete() {
-  if (selectedIds.value.length === 0) return
-  list.value = list.value.filter((c) => !selectedIds.value.includes(c.id))
-  selectedIds.value = []
-  isEditMode.value = false
-  uni.showToast({ title: '已删除', icon: 'none' })
+async function batchDelete() {
+  if (selectedIds.value.length === 0 || batchDeleting.value || deletingId.value !== null) return
+  batchDeleting.value = true
+  const selected = list.value
+    .filter((comment) => selectedIds.value.includes(comment.id))
+    // 先删无回复项，再删父评论，避免父评论级联后选中的回复变成 404。
+    .sort((a, b) => Number(a.hasReply) - Number(b.hasReply))
+  const succeeded: (string | number)[] = []
+  const failed: (string | number)[] = []
+  try {
+    for (const comment of selected) {
+      try {
+        await mineApi.deleteMyComment(comment.id)
+        succeeded.push(comment.id)
+      } catch {
+        failed.push(comment.id)
+      }
+    }
+    const succeededKeys = new Set(succeeded.map(String))
+    list.value = list.value.filter((comment) => !succeededKeys.has(String(comment.id)))
+    selectedIds.value = failed
+    if (failed.length === 0) {
+      isEditMode.value = false
+      uni.showToast({ title: `已删除 ${succeeded.length} 条评论`, icon: 'success' })
+    } else if (succeeded.length > 0) {
+      uni.showToast({ title: `已删除 ${succeeded.length} 条，${failed.length} 条失败`, icon: 'none' })
+    } else {
+      uni.showToast({ title: '删除失败，请稍后重试', icon: 'none' })
+    }
+  } finally {
+    batchDeleting.value = false
+  }
 }
-/** 跳评论目标内容页（原为"开发中"toast）。circle_post 详情页需 circleId 本数据没有；question 无独立详情页 → 保持提示 */
+/** 帖子详情已支持仅凭 postId 反查所属圈子；question 暂无独立详情页。 */
 function openTarget(c: MyCommentItem) {
   const { id, type } = c.target
   const url =
@@ -63,6 +101,7 @@ function openTarget(c: MyCommentItem) {
     : type === 'course' ? `/pkg-course/detail/index?id=${id}`
     : type === 'video' ? `/pkg-video/detail/index?id=${id}`
     : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : type === 'circle_post' ? `/pkg-circle/circles/post?id=${id}`
     : ''
   if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
   uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
@@ -139,7 +178,9 @@ function openTarget(c: MyCommentItem) {
             <!-- 删除确认 -->
             <view v-if="!isEditMode && activeId === c.id" class="del-row" @tap.stop>
               <text class="del-cancel" @tap="activeId = null">取消</text>
-              <text class="del-confirm" @tap="deleteOne(c.id)">删除评论</text>
+              <text class="del-confirm" :class="{ disabled: deletingId !== null || batchDeleting }" @tap="deleteOne(c.id)">
+                {{ deletingId === c.id ? '删除中…' : '删除评论' }}
+              </text>
             </view>
           </view>
         </view>
@@ -150,9 +191,9 @@ function openTarget(c: MyCommentItem) {
     <!-- 批量操作栏 -->
     <view v-if="isEditMode" class="batch-bar">
       <text class="batch-all" @tap="selectAll">全选</text>
-      <view class="batch-del" :class="{ disabled: selectedIds.length === 0 }" @tap="batchDelete">
+      <view class="batch-del" :class="{ disabled: selectedIds.length === 0 || batchDeleting }" @tap="batchDelete">
         <AppIcon name="trash-2" :size="16" color="#fff" />
-        <text class="batch-del-text">删除 ({{ selectedIds.length }})</text>
+        <text class="batch-del-text">{{ batchDeleting ? '删除中…' : `删除 (${selectedIds.length})` }}</text>
       </view>
     </view>
     </template>
@@ -199,6 +240,7 @@ function openTarget(c: MyCommentItem) {
 .del-row { display: flex; margin-top: 20rpx; border-top: 1rpx solid #F2ECE1; }
 .del-cancel { flex: 1; text-align: center; padding: 20rpx 0; font-size: 26rpx; color: #8a8178; }
 .del-confirm { flex: 1; text-align: center; padding: 20rpx 0; font-size: 26rpx; color: var(--brand); font-weight: 500; border-left: 1rpx solid #F2ECE1; }
+.del-confirm.disabled { opacity: 0.5; }
 
 .batch-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1rpx solid #EDE7DC; padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: space-between; z-index: 20; }
 .batch-all { font-size: 28rpx; color: var(--brand); }

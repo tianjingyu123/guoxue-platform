@@ -254,7 +254,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/mine/points': '/pkg-mine/points/index',
   '/mine/history': '/pkg-mine/history/index',
   '/history': '/pkg-mine/browse-history/index',
-  '/likes': '/pkg-mine/likes/index', // 我的点赞(顶级活页,profile顶部"获赞"指向;/mine/my-likes为孤岛旧版)
+  '/likes': '/pkg-mine/likes/index', // 我的点赞（主动点过的赞）；“获赞”是收到的赞，不再误跳本页
   '/mine/my-likes': '/pkg-mine/my-likes/index',
   '/mine/my-comments': '/pkg-mine/my-comments/index',
   '/mine/received-comments': '/pkg-mine/received-comments/index',

@@ -273,7 +273,8 @@ function applyRole(role: string) {
       <view class="id-stats">
         <view class="st" @tap="go('/pkg-mine/follows/index')"><text class="st-b">{{ metricText(userData.stats.following) }}</text><text class="st-l">关注</text></view>
         <view class="st" @tap="go('/pkg-mine/follows/index?tab=followers')"><text class="st-b">{{ metricText(userData.stats.followers) }}</text><text class="st-l">粉丝</text></view>
-        <view class="st" @tap="go('/pkg-mine/likes/index')"><text class="st-b">{{ metricText(userData.stats.likes) }}</text><text class="st-l">获赞</text></view>
+        <!-- “获赞”是内容收到的赞；现有 likes 页是主动点赞，二者不可混跳。 -->
+        <view class="st"><text class="st-b">{{ metricText(userData.stats.likes) }}</text><text class="st-l">获赞</text></view>
       </view>
 
       <!-- 会员金卡条：会员=暖金渐变金底深字 / 非会员=宣纸衬底金描边 -->

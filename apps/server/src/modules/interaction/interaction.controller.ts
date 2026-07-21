@@ -37,6 +37,18 @@ export class InteractionController {
     return this.svc.toggleLike(req.user.id, dto);
   }
 
+  @Delete("like/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "按点赞记录 ID 取消自己的点赞" })
+  @ApiResponse({ status: 200, description: "取消成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权操作" })
+  @ApiResponse({ status: 404, description: "点赞记录不存在" })
+  @ApiBearerAuth()
+  removeLike(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.removeLike(req.user.id, id);
+  }
+
   @Get("like/check")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "检查是否已点赞" })

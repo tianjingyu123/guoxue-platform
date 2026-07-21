@@ -78,6 +78,7 @@ function openContent(c: ReceivedCommentItem) {
     : type === 'course' ? `/pkg-course/detail/index?id=${id}`
     : type === 'video' ? `/pkg-video/detail/index?id=${id}`
     : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : type === 'circle_post' ? `/pkg-circle/circles/post?id=${id}`
     : ''
   if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
   uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })

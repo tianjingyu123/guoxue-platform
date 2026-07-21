@@ -112,6 +112,30 @@ describe("InteractionService", () => {
     })
   })
 
+  describe("removeLike", () => {
+    it("按记录 ID 删除自己的点赞", async () => {
+      mockPrisma.like.findUnique.mockResolvedValue({ id: "l1", userId: "u1" })
+      mockPrisma.like.delete.mockResolvedValue({})
+
+      const result = await svc.removeLike("u1", "l1")
+
+      expect(result).toEqual({ success: true })
+      expect(mockPrisma.like.delete).toHaveBeenCalledWith({ where: { id: "l1" } })
+    })
+
+    it("不能删除他人的点赞", async () => {
+      mockPrisma.like.findUnique.mockResolvedValue({ id: "l1", userId: "u2" })
+      await expect(svc.removeLike("u1", "l1")).rejects.toThrow(BusinessException)
+      expect(mockPrisma.like.delete).not.toHaveBeenCalled()
+    })
+
+    it("记录不存在时不创建反向点赞", async () => {
+      mockPrisma.like.findUnique.mockResolvedValue(null)
+      await expect(svc.removeLike("u1", "missing")).rejects.toThrow(BusinessException)
+      expect(mockPrisma.like.create).not.toHaveBeenCalled()
+    })
+  })
+
   describe("isLiked", () => {
     it("返回用户点赞的 targetId 集合", async () => {
       mockPrisma.like.findMany.mockResolvedValue([{ targetId: "a1" }, { targetId: "a3" }])

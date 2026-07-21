@@ -51,7 +51,7 @@ async function unlike(item: LikeItem) {
   if (unliking.value !== null) return
   unliking.value = item.id
   try {
-    await mineApi.getMyLikes() // 这里可能需要一个取消点赞的API，目前用现有接口
+    await mineApi.removeMyLike(item.id)
     list.value = list.value.filter((i) => i.id !== item.id)
     uni.showToast({ title: '已取消点赞', icon: 'none' })
   } catch (e) {
@@ -68,6 +68,7 @@ function openTarget(item: LikeItem) {
     : type === 'course' ? `/pkg-course/detail/index?id=${id}`
     : type === 'video' ? `/pkg-video/detail/index?id=${id}`
     : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : type === 'circle_post' ? `/pkg-circle/circles/post?id=${id}`
     : ''
   if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
   uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })

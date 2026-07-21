@@ -45,6 +45,20 @@ export class InteractionService {
     return { liked: true };
   }
 
+  /** 从“我的点赞”按记录 ID 确定性取消，避免 toggle 在客户端状态过期时反向创建点赞。 */
+  async removeLike(userId: string, likeId: string) {
+    const like = await this.prisma.like.findUnique({
+      where: { id: likeId },
+      select: { id: true, userId: true },
+    });
+    if (!like) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "点赞记录不存在");
+    if (like.userId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只能取消自己的点赞");
+    }
+    await this.prisma.like.delete({ where: { id: likeId } });
+    return { success: true };
+  }
+
   async isLiked(userId: string, targetType: string, targetIds: string[]) {
     const likes = await this.prisma.like.findMany({
       where: { userId, targetType, targetId: { in: targetIds } },

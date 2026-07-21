@@ -57,9 +57,11 @@ async function handleUnlike(item: LikeItem) {
   if (unliking.value !== null) return
   unliking.value = item.id
   try {
-    // 乐观移除（后端取消点赞端点为 interaction toggle，此处先本地移除保持交互）
+    await mineApi.removeMyLike(item.id)
     list.value = list.value.filter((i) => i.id !== item.id)
     uni.showToast({ title: '已取消点赞', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
     unliking.value = null
   }
@@ -72,6 +74,7 @@ function goDetail(item: LikeItem) {
     : type === 'course' ? `/pkg-course/detail/index?id=${id}`
     : type === 'video' ? `/pkg-video/detail/index?id=${id}`
     : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : type === 'circle_post' ? `/pkg-circle/circles/post?id=${id}`
     : ''
   if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
   uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })

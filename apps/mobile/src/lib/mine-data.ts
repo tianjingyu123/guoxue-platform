@@ -1745,11 +1745,21 @@ export const mineApi = {
     return list.map(adaptLike)
   },
 
+  /** 确定性取消一条自己的点赞记录，不使用可能反向创建的 toggle。 */
+  async removeMyLike(id: string | number): Promise<void> {
+    await apiDelete(`/interaction/like/${encodeURIComponent(String(id))}`)
+  },
+
   /** 获取我的评论 —— GET /users/me/comments（后端 {items} 含 target/replyCount/hasReply → 适配） */
   async getMyComments(page = 1, pageSize = 20): Promise<MyCommentItem[]> {
     const res = await apiGet<{ items?: RawComment[] } | RawComment[]>(`/users/me/comments?page=${page}&pageSize=${pageSize}`)
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return list.map(adaptMyComment)
+  },
+
+  /** 删除自己的评论（后端同时清理该评论的直接回复）。 */
+  async deleteMyComment(id: string | number): Promise<void> {
+    await apiDelete(`/interaction/comment/${encodeURIComponent(String(id))}`)
   },
 
   /** 获取收到的评论 —— GET /users/me/received-comments（后端 {items} 含 user/target/isReplied/myReply → 适配） */
