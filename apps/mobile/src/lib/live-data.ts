@@ -1979,8 +1979,8 @@ export const liveApi = {
         stock: p.stock ?? 0,
         sold: p.salesCount ?? 0,
       }))
-    } catch {
-      return []
+    } catch (error) {
+      throw error
     }
   },
 
