@@ -265,7 +265,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useAuthStore, type MenuItem } from "@/store/auth";
@@ -445,15 +445,22 @@ function humanTime(iso: string): string {
   return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+let unreadTimer: ReturnType<typeof setInterval> | null = null;
+
 onMounted(async () => {
   try {
     await auth.fetchProfile();
     await auth.fetchMenus();
     fetchUnread();
-    setInterval(fetchUnread, 60000)
+    unreadTimer = setInterval(fetchUnread, 60000);
   } catch {
     router.push("/login");
   }
+});
+
+onUnmounted(() => {
+  if (unreadTimer) clearInterval(unreadTimer);
+  unreadTimer = null;
 });
 
 async function logout() {

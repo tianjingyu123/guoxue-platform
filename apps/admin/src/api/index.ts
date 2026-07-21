@@ -1,5 +1,6 @@
 import axios from "axios";
 import { ElMessage, ElNotification } from "element-plus";
+import { h } from "vue";
 
 export const api = axios.create({
   baseURL: "/api/v1",
@@ -22,10 +23,12 @@ function showError(msg: string | string[]) {
   if (Array.isArray(msg)) {
     ElNotification({
       title: "提交失败，请检查以下问题",
-      message: msg.map((m) => `<div style="margin:4px 0">${m}</div>`).join(""),
+      message: h(
+        "div",
+        msg.map((m) => h("div", { style: "margin:4px 0" }, String(m))),
+      ),
       type: "error",
       duration: 6000,
-      dangerouslyUseHTMLString: true,
     });
   } else {
     ElMessage.error(msg);
