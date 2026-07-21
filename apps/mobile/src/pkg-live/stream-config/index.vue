@@ -40,27 +40,27 @@
             <AppIcon name="monitor" :size="48" color="#fff" />
           </view>
           <view class="room-info">
-            <text class="room-title">{{ config.roomTitle }}</text>
-            <text class="room-id">直播间ID: {{ config.roomId }}</text>
+            <text class="room-title">{{ config.roomTitle || 'OBS 推流账户' }}</text>
+            <text class="room-id">推流标识: {{ config.roomId || '暂未生成' }}</text>
           </view>
         </view>
       </view>
 
-      <!-- 推流状态(默认未推流) -->
+      <!-- 这里只能确认推流凭据是否就绪，实际连接状态以 OBS 为准 -->
       <view class="card">
         <view class="status-row">
           <view class="status-left">
-            <view class="status-icon off">
-              <AppIcon name="wifi-off" :size="40" color="#999" />
+            <view class="status-icon" :class="configReady ? 'ready' : 'off'">
+              <AppIcon :name="configReady ? 'check' : 'wifi-off'" :size="40" :color="configReady ? '#16a34a' : '#999'" />
             </view>
             <view class="status-text">
-              <text class="status-title off">未推流</text>
-              <text class="status-note">等待OBS连接</text>
+              <text class="status-title" :class="configReady ? 'ready' : 'off'">{{ configReady ? '推流信息已就绪' : '推流服务未配置' }}</text>
+              <text class="status-note">{{ configReady ? '连接状态请以 OBS 显示为准' : '请联系管理员配置直播域名' }}</text>
             </view>
           </view>
-          <view class="refresh-btn" @tap="handleRefresh">
+          <view class="refresh-btn" :class="{ disabled: checking }" @tap="handleRefresh">
             <AppIcon name="refresh-cw" :size="32" color="#C41E3A" :class="{ spin: checking }" />
-            <text class="refresh-txt">刷新</text>
+            <text class="refresh-txt">{{ checking ? '更新中' : '更新地址' }}</text>
           </view>
         </view>
       </view>
@@ -75,8 +75,8 @@
         <view class="field">
           <text class="field-label">推流地址（服务器）</text>
           <view class="field-row">
-            <view class="field-value">{{ config.streamUrl }}</view>
-            <view class="field-btn" :class="{ copied: copiedUrl }" @tap="copyUrl">
+            <view class="field-value">{{ config.streamUrl || '暂未配置' }}</view>
+            <view class="field-btn" :class="{ copied: copiedUrl, disabled: !config.streamUrl }" @tap="copyUrl">
               <AppIcon :name="copiedUrl ? 'check' : 'copy'" :size="40" :color="copiedUrl ? '#16a34a' : '#666'" />
             </view>
           </view>
@@ -85,11 +85,11 @@
         <view class="field">
           <text class="field-label">推流密钥（串流密钥）</text>
           <view class="field-row">
-            <view class="field-value">{{ showKey ? config.streamKey : '••••••••••••••••••••••' }}</view>
+            <view class="field-value">{{ config.streamKey ? (showKey ? config.streamKey : '••••••••••••••••••••••') : '暂未配置' }}</view>
             <view class="field-btn" @tap="showKey = !showKey">
               <AppIcon :name="showKey ? 'eye-off' : 'eye'" :size="40" color="#666" />
             </view>
-            <view class="field-btn" :class="{ copied: copiedKey }" @tap="copyKey">
+            <view class="field-btn" :class="{ copied: copiedKey, disabled: !config.streamKey }" @tap="copyKey">
               <AppIcon :name="copiedKey ? 'check' : 'copy'" :size="40" :color="copiedKey ? '#16a34a' : '#666'" />
             </view>
           </view>
@@ -124,7 +124,7 @@
       <view class="card">
         <view class="obs-head">
           <text class="card-title nomb">OBS配置教程</text>
-          <view class="obs-download">
+          <view class="obs-download" @tap="openObsDownload">
             <text class="obs-download-txt">下载OBS</text>
             <AppIcon name="external-link" :size="32" color="#C41E3A" />
           </view>
@@ -146,7 +146,10 @@
 
         <!-- 当前步骤内容 -->
         <view class="step-box">
-          <view class="step-img">步骤 {{ currentStep + 1 }} 示意图</view>
+          <view class="step-img">
+            <AppIcon name="settings" :size="48" color="#a98b60" />
+            <text>请在 OBS 设置中完成本步骤</text>
+          </view>
           <text class="step-box-title">步骤 {{ currentStep + 1 }}: {{ obsSteps[currentStep].title }}</text>
           <text class="step-box-desc">{{ obsSteps[currentStep].description }}</text>
         </view>
@@ -173,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { liveApi, obsConfigSteps, streamConfigFaq, type StreamConfig } from '@/lib/live-data'
@@ -198,6 +201,7 @@ const copiedUrl = ref(false)
 const copiedKey = ref(false)
 const checking = ref(false)
 const currentStep = ref(0)
+const configReady = computed(() => Boolean(config.value.streamUrl && config.value.streamKey))
 
 async function fetchData() {
   loading.value = true
@@ -213,14 +217,62 @@ async function fetchData() {
 }
 
 function copyUrl() {
-  copiedUrl.value = true
-  setTimeout(() => (copiedUrl.value = false), 2000)
+  const value = config.value.streamUrl
+  if (!value) {
+    uni.showToast({ title: '推流地址暂未配置', icon: 'none' })
+    return
+  }
+  uni.setClipboardData({
+    data: value,
+    success: () => {
+      copiedUrl.value = true
+      uni.showToast({ title: '推流地址已复制', icon: 'none' })
+      setTimeout(() => (copiedUrl.value = false), 2000)
+    },
+    fail: () => uni.showToast({ title: '复制失败，请长按复制', icon: 'none' }),
+  })
 }
 function copyKey() {
-  copiedKey.value = true
-  setTimeout(() => (copiedKey.value = false), 2000)
+  const value = config.value.streamKey
+  if (!value) {
+    uni.showToast({ title: '推流密钥暂未配置', icon: 'none' })
+    return
+  }
+  uni.setClipboardData({
+    data: value,
+    success: () => {
+      copiedKey.value = true
+      uni.showToast({ title: '推流密钥已复制', icon: 'none' })
+      setTimeout(() => (copiedKey.value = false), 2000)
+    },
+    fail: () => uni.showToast({ title: '复制失败，请长按复制', icon: 'none' }),
+  })
 }
-function handleRefresh() {}
+async function handleRefresh() {
+  if (checking.value) return
+  checking.value = true
+  try {
+    config.value = await liveApi.getStreamConfig()
+    uni.showToast({ title: '推流信息已更新', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '更新失败，请重试', icon: 'none' })
+  } finally {
+    checking.value = false
+  }
+}
+function openObsDownload() {
+  const url = 'https://obsproject.com/download'
+  // #ifdef H5
+  window.open(url, '_blank', 'noopener,noreferrer')
+  // #endif
+  // #ifndef H5
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '下载地址已复制，请在浏览器打开', icon: 'none' }),
+    fail: () => uni.showToast({ title: '请访问 obsproject.com 下载', icon: 'none' }),
+  })
+  // #endif
+}
 function prevStep() {
   if (currentStep.value > 0) currentStep.value--
 }
@@ -344,6 +396,9 @@ onMounted(() => { fetchData() })
 .status-icon.off {
   background: #f3f4f6;
 }
+.status-icon.ready {
+  background: #dcfce7;
+}
 .status-text {
   display: flex;
   flex-direction: column;
@@ -354,6 +409,9 @@ onMounted(() => { fetchData() })
 }
 .status-title.off {
   color: #666;
+}
+.status-title.ready {
+  color: #15803d;
 }
 .status-note {
   font-size: 28rpx;
@@ -366,6 +424,9 @@ onMounted(() => { fetchData() })
   padding: 12rpx 24rpx;
   border: 1rpx solid var(--brand);
   border-radius: 999rpx;
+}
+.refresh-btn.disabled {
+  opacity: 0.55;
 }
 .refresh-txt {
   font-size: 28rpx;
@@ -431,6 +492,9 @@ onMounted(() => { fetchData() })
 }
 .field-btn.copied {
   background: #dcfce7;
+}
+.field-btn.disabled {
+  opacity: 0.45;
 }
 .field-warn {
   display: block;
@@ -514,8 +578,12 @@ onMounted(() => { fetchData() })
   border-radius: 16rpx;
   margin-bottom: 24rpx;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12rpx;
+}
+.step-img text {
   font-size: 28rpx;
   color: #999;
 }

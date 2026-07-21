@@ -613,6 +613,40 @@ describe("LiveService", () => {
     });
   });
 
+  describe("getMyRooms", () => {
+    it("返回管理端需要的真实直播形态、商品数与回放字段", async () => {
+      const createdAt = new Date();
+      mockPrisma.liveRoom.findMany.mockResolvedValue([{
+        id: "r1",
+        title: "测试回放",
+        cover: "https://img/cover.webp",
+        status: "REPLAY",
+        viewCount: 18,
+        chargeType: "FREE",
+        orientation: "landscape",
+        quality: "uhd",
+        replayUrl: "https://media/replay.mp4",
+        startTime: createdAt,
+        endTime: createdAt,
+        createdAt,
+        visibility: "PLATFORM",
+        auditStatus: "APPROVED",
+        _count: { products: 2 },
+      }]);
+
+      const result = await svc.getMyRooms("host1");
+
+      expect(result.stats).toMatchObject({ totalViews: 18, endedCount: 1, totalCount: 1 });
+      expect(result.rooms[0]).toMatchObject({
+        productCount: 2,
+        hasProducts: true,
+        orientation: "landscape",
+        quality: "uhd",
+        replayUrl: "https://media/replay.mp4",
+      });
+    });
+  });
+
   describe("getConsoleData", () => {
     it("返回直播间真实画质档位且空数据使用零值", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({

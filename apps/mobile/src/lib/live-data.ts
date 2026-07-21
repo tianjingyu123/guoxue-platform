@@ -157,24 +157,20 @@ export const replayHotSearches = ['易经入门', '风水布局', '八字排盘'
 export interface HostLiveStats {
   totalViews: number
   totalRevenue: number
-  avgDuration: number
-  fansGrowth: number
   totalRooms: number
-  totalGifts: number
-  viewsGrowthRate: number
-  revenueGrowthRate: number
+  endedRooms: number
+  viewsGrowthRate: number | null
+  revenueGrowthRate: number | null
 }
 // @data-needs: 主播直播记录, 返回 HostLiveRoom[]
 export interface HostLiveRoom {
   id: string
   title: string
   cover: string
-  status: 'ended' | 'preview'
+  status: 'live' | 'ended' | 'preview'
   dateText: string
   duration: number
   views: number
-  gifts: number
-  revenue: number
 }
 export interface HostLiveTrend {
   dateLabel: string
@@ -182,36 +178,6 @@ export interface HostLiveTrend {
   revenue: number
 }
 
-export const hostLiveStats: HostLiveStats = {
-  totalViews: 125680,
-  totalRevenue: 8960,
-  avgDuration: 125,
-  fansGrowth: 1280,
-  totalRooms: 48,
-  totalGifts: 3250,
-  viewsGrowthRate: 15.2,
-  revenueGrowthRate: 8.5,
-}
-
-export const hostLiveRooms: HostLiveRoom[] = [
-  { id: '1', title: '八字命理入门精讲（第12期）', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'ended', dateText: '1/15 19:00', duration: 150, views: 3280, gifts: 280, revenue: 560 },
-  { id: '2', title: '紫微斗数实战案例分析', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'ended', dateText: '1/12 20:00', duration: 120, views: 2560, gifts: 180, revenue: 380 },
-  { id: '3', title: '六爻占卜基础教学', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'ended', dateText: '1/10 19:30', duration: 90, views: 1980, gifts: 120, revenue: 240 },
-  { id: '4', title: '梅花易数快速入门', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'preview', dateText: '1/20 19:00', duration: 0, views: 0, gifts: 0, revenue: 0 },
-]
-
-// 固定的30天趋势(避免随机数破坏比对稳定性)
-const _viewsSeq = [1820, 2360, 1540, 2890, 2100, 1680, 3200, 2450, 1920, 2780, 1450, 3050, 2200, 1760, 2640, 1980, 3380, 2120, 1580, 2900, 2460, 1840, 3120, 2280, 1660, 2740, 2040, 3300, 2380, 2860]
-const _revSeq = [220, 380, 160, 480, 320, 200, 560, 420, 260, 500, 140, 540, 360, 240, 460, 300, 580, 340, 180, 520, 400, 260, 540, 380, 220, 480, 320, 560, 420, 500]
-export const hostLiveTrend: HostLiveTrend[] = Array.from({ length: 30 }, (_, i) => {
-  // 与原型一致：近30天(以今天为最后一天)
-  const d = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000)
-  return {
-    dateLabel: `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-    views: _viewsSeq[i],
-    revenue: _revSeq[i],
-  }
-})
 
 export function formatHostNumber(num: number): string {
   if (num >= 10000) return (num / 10000).toFixed(1) + '万'
@@ -1266,7 +1232,7 @@ interface RawQualityPackage { id?: string; name?: string; quality?: string; minu
 /** GET /live/rooms 列表（裸数组或包装对象） */
 interface RawLiveRoomList { rooms?: RawLiveRoom[]; data?: RawLiveRoom[] }
 /** GET /live/my-rooms 经营聚合 */
-interface RawMyRoomsStats { monthCount?: number; totalViews?: number; endedCount?: number }
+interface RawMyRoomsStats { monthCount?: number; totalViews?: number; endedCount?: number; totalCount?: number }
 interface RawMyRooms { stats?: RawMyRoomsStats; rooms?: RawLiveRoom[] }
 /** 主播/回放列表包装（Array.isArray 守卫在运行时处理裸数组分支） */
 interface RawHostsResp { items?: LiveHost[] }
@@ -2052,8 +2018,12 @@ export const liveApi = {
     ])
     const s = my?.stats
     const totalRevenue = Number(earn?.stats?.total) || 0
+    const revenueGrowthRate = earn?.stats?.trend != null && Number.isFinite(Number(earn.stats.trend))
+      ? Number(earn.stats.trend)
+      : null
     const rooms: HostLiveRoom[] = (my?.rooms || []).map((r: RawLiveRoom): HostLiveRoom => {
-      const ended = String(r.status || '').toUpperCase() === 'ENDED' || String(r.status || '').toUpperCase() === 'REPLAY'
+      const rawStatus = String(r.status || '').toUpperCase()
+      const ended = rawStatus === 'ENDED' || rawStatus === 'REPLAY'
       let duration = 0
       if (r.startTime && r.endTime) {
         const m = Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 60000)
@@ -2061,22 +2031,18 @@ export const liveApi = {
       }
       return {
         id: r.id || '', title: r.title || '', cover: r.cover || '',
-        status: ended ? 'ended' : 'preview',
+        status: ended ? 'ended' : rawStatus === 'LIVING' ? 'live' : 'preview',
         dateText: fmtLiveTime(r.startTime) || '',
         duration, views: r.viewCount || 0,
-        gifts: 0, // 单场打赏依赖运行时聚合 → 降级
-        revenue: 0,
       }
     })
     const stats: HostLiveStats = {
       totalViews: s?.totalViews ?? 0,
       totalRevenue,
-      avgDuration: 0,
-      fansGrowth: 0,
-      totalRooms: (my?.rooms || []).length,
-      totalGifts: 0,
-      viewsGrowthRate: 0,
-      revenueGrowthRate: Number(earn?.stats?.trend) || 0,
+      totalRooms: s?.totalCount ?? rooms.length,
+      endedRooms: s?.endedCount ?? rooms.filter((room) => room.status === 'ended').length,
+      viewsGrowthRate: null, // 后端暂无观看量分期对比源 → 页面显示“暂无同比数据”
+      revenueGrowthRate,
     }
     return { stats, rooms, trend: [] }
   },

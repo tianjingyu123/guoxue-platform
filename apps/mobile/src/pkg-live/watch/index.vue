@@ -740,33 +740,48 @@ async function onFollow() {
 let sendingComment = false
 async function onSendComment() {
   const text = commentText.value.trim()
-  if (!text || sendingComment) { showCommentInput.value = false; return }
+  if (!text || sendingComment) return
   sendingComment = true
-  // 乐观上屏 + 清空
-  comments.value.push({ id: 'local-' + Date.now(), userName: '我', content: text, type: 'text' })
+  const localId = `local-${Date.now()}`
+  comments.value.push({ id: localId, userName: '我', content: text, type: 'text' })
   commentText.value = ''
   scrollDanmakuToBottom()
   showCommentInput.value = false
   try {
-    // 弹幕走 TIM 群实时下发给其他观众；同时后端持久化（并行，互不阻塞）
-    if (danmakuGroupId) await tim.sendGroupText(danmakuGroupId, text)
-    liveApi.sendComment(room.value.id, text).catch(() => {})
-  } catch { /* TIM 发送失败 → 已本地上屏，静默降级 */ }
-  finally { sendingComment = false }
+    const timDelivery = danmakuGroupId
+      ? tim.sendGroupText(danmakuGroupId, text).then(() => true).catch(() => false)
+      : Promise.resolve(false)
+    const apiDelivery = liveApi.sendComment(room.value.id, text).then(() => true).catch(() => false)
+    const [timDelivered, apiDelivered] = await Promise.all([timDelivery, apiDelivery])
+    if (!timDelivered && !apiDelivered) {
+      comments.value = comments.value.filter((comment) => comment.id !== localId)
+      commentText.value = text
+      showCommentInput.value = true
+      scrollDanmakuToBottom()
+      uni.showToast({ title: '评论发送失败，请重试', icon: 'none' })
+    }
+  } finally {
+    sendingComment = false
+  }
 }
 
-function onTapLike() {
-  spawnHeart()
-  // 点赞计数上报（fire-and-forget，失败不影响飘心动画）
-  liveApi.likeRoom(room.value.id).catch(() => {})
+async function onTapLike() {
+  const id = spawnHeart()
+  try {
+    await liveApi.likeRoom(room.value.id)
+  } catch (e) {
+    floatingHearts.value = floatingHearts.value.filter((heart) => heart.id !== id)
+    uni.showToast({ title: (e as Error)?.message || '点赞失败，请重试', icon: 'none' })
+  }
 }
 
-function spawnHeart() {
+function spawnHeart(): number {
   const id = ++heartId
   floatingHearts.value.push({ id, left: 40 + Math.random() * 80, duration: 2 + Math.random() })
   setTimeout(() => {
     floatingHearts.value = floatingHearts.value.filter((h) => h.id !== id)
   }, 3000)
+  return id
 }
 
 let sendingGift = false
