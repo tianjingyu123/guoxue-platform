@@ -128,7 +128,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
           M("/categories"),
           M("/freight-templates"),
           M("/reviews"),
-          M("/pricing/rules"),
+          M("/pricing/rules", "价格与促销"),
           M("/pricing/demand"),
         ],
       },

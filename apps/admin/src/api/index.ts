@@ -524,7 +524,7 @@ export const botApi = {
   getRanking: (limit?: number) => api.get("/bots/ranking", { params: { limit: limit || 20 } }),
   syncFromCoze: () => api.post("/bots/sync/coze"),
   getCozeBotInfo: (id: string) => api.get(`/bots/${id}/coze-info`),
-  runWorkflow: (data: { workflowId: string; parameters?: Record<string, any> }) =>
+  runWorkflow: (data: { workflowId: string; parameters?: Record<string, unknown> }) =>
     api.post("/bots/workflow/run", data),
   getBotApprovals: (params?: { page?: number; pageSize?: number }) =>
     api.get("/bots/manage/approvals", { params }),
@@ -1005,7 +1005,7 @@ export const merchantApi = {
     api.put(`/admin/merchants/${id}/status`, data),
   getViolations: (id: string, params?: { page?: number; pageSize?: number }) =>
     api.get(`/admin/merchants/${id}/violations`, { params }),
-  createViolation: (id: string, data: { type: string; title: string; description: string; penalty?: number; evidence?: any; remark?: string }) =>
+  createViolation: (id: string, data: { type: string; title: string; description: string; penalty?: number; evidence?: unknown; remark?: string }) =>
     api.post(`/admin/merchants/${id}/violations`, data),
   handleViolation: (id: string, violationId: string, data: { status: string; note?: string }) =>
     api.put(`/admin/merchants/${id}/violations/${violationId}`, data),
@@ -1426,11 +1426,6 @@ export const memberAdminApi = {
 
 // ───────── 智能定价管理 ─────────
 export const pricingApi = {
-  getRules: (params?: { page?: number; pageSize?: number }) =>
-    api.get("/pricing/admin/rules", { params }),
-  createRule: (data: Record<string, unknown>) => api.post("/pricing/admin/rules", data),
-  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/pricing/admin/rules/${id}`, data),
-  deleteRule: (id: string) => api.delete(`/pricing/admin/rules/${id}`),
   getDemand: (params?: { page?: number; pageSize?: number; targetType?: string; demandLevel?: string }) =>
     api.get("/pricing/admin/demand", { params }),
 };
@@ -1505,9 +1500,9 @@ export const bigscreenTokenApi = {
 export const ragTemplateApi = {
   list: (params?: { scene?: string; status?: string }) => api.get("/admin/rag/templates", { params }),
   detail: (id: string) => api.get(`/admin/rag/templates/${id}`),
-  create: (data: { scene: string; templateName: string; systemPrompt: string; userPromptTemplate?: string; variables?: any[] }) =>
+  create: (data: { scene: string; templateName: string; systemPrompt: string; userPromptTemplate?: string; variables?: unknown[] }) =>
     api.post("/admin/rag/templates", data),
-  update: (id: string, data: { scene?: string; templateName?: string; systemPrompt?: string; userPromptTemplate?: string; variables?: any[]; status?: string }) =>
+  update: (id: string, data: { scene?: string; templateName?: string; systemPrompt?: string; userPromptTemplate?: string; variables?: unknown[]; status?: string }) =>
     api.put(`/admin/rag/templates/${id}`, data),
   delete: (id: string) => api.delete(`/admin/rag/templates/${id}`),
   preview: (idOrData: string | { systemPrompt: string; userPromptTemplate?: string; variables?: Record<string, string>; testQuestion?: string }, data?: Record<string, unknown>) =>
@@ -1686,7 +1681,7 @@ export const backupApi = {
 
 // ───────── AI事件总线 ─────────
 export const aiEventApi = {
-  publish: (data: { type: string; source: string; severity?: string; payload?: any; context?: any }) =>
+  publish: (data: { type: string; source: string; severity?: string; payload?: unknown; context?: unknown }) =>
     api.post("/ai/events/publish", data),
   list: (params?: { page?: number; pageSize?: number; type?: string; source?: string; severity?: string; status?: string }) =>
     api.get("/ai/events", { params }),
@@ -1726,7 +1721,7 @@ export const aiCollaborationApi = {
   pending: () => api.get("/ai/collaborations/pending"),
   overview: () => api.get("/ai/collaborations/overview"),
   detail: (id: string) => api.get(`/ai/collaborations/${id}`),
-  review: (id: string, data: { action: string; reviewer?: string; note?: string; modifications?: any }) =>
+  review: (id: string, data: { action: string; reviewer?: string; note?: string; modifications?: unknown }) =>
     api.post(`/ai/collaborations/${id}/review`, data),
   execute: (id: string) => api.post(`/ai/collaborations/${id}/execute`),
   rollback: (id: string, reason?: string) => api.post(`/ai/collaborations/${id}/rollback`, { reason }),

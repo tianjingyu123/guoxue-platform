@@ -449,13 +449,13 @@ const routes = [
         path: "pricing/rules",
         name: "PricingRuleList",
         component: () => import("@/views/pricing/RuleList.vue"),
-        meta: { title: "定价规则", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "价格与促销", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "pricing/rules/:id",
         name: "PricingRuleEdit",
-        component: () => import("@/views/pricing/RuleEdit.vue"),
-        meta: { hidden: true, title: "定价规则编辑", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        redirect: "/pricing/rules",
+        meta: { hidden: true, title: "价格与促销", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "pricing/demand",
