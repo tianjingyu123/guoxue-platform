@@ -11,6 +11,7 @@ describe("公开内容精确隔离规则", () => {
     expect(isPublicContentQuarantined("video", PUBLIC_QUARANTINED_IDS.video[0])).toBe(true);
     expect(isPublicContentQuarantined("circle", PUBLIC_QUARANTINED_IDS.circle[0])).toBe(true);
     expect(isPublicContentQuarantined("article", PUBLIC_QUARANTINED_IDS.article[0])).toBe(true);
+    expect(isPublicContentQuarantined("post", PUBLIC_QUARANTINED_IDS.post[0])).toBe(true);
     expect(isPublicContentQuarantined("PRODUCT", PUBLIC_QUARANTINED_IDS.product[0])).toBe(true);
     expect(isPublicContentQuarantined("product", "normal-product-id")).toBe(false);
     expect(isPublicContentQuarantined("article", PUBLIC_QUARANTINED_IDS.product[0])).toBe(false);

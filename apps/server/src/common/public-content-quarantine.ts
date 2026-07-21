@@ -46,6 +46,13 @@ export const PUBLIC_QUARANTINED_IDS = {
     "ad3f1479-9a0e-46de-91f1-5590d1d3dd61",
     "dddf248a-b1ee-4696-99e9-2c7ecd5d4831",
   ],
+  post: [
+    "6e01e181-86a8-4c8e-9da4-a52c38349d35",
+    "42227388-1d53-4e9f-8690-c6e6fcde3349",
+    "a82138da-39a4-4661-a457-289022f5d091",
+    "3a1bc4bd-db7f-4bd7-ae54-e7fa76414d3d",
+    "62260726-38b5-4ba7-baab-5da224758336",
+  ],
 } as const;
 
 export type PublicQuarantineType = keyof typeof PUBLIC_QUARANTINED_IDS;
@@ -56,6 +63,7 @@ const PUBLIC_QUARANTINED_ID_SETS: Record<PublicQuarantineType, ReadonlySet<strin
   video: new Set(PUBLIC_QUARANTINED_IDS.video),
   circle: new Set(PUBLIC_QUARANTINED_IDS.circle),
   article: new Set(PUBLIC_QUARANTINED_IDS.article),
+  post: new Set(PUBLIC_QUARANTINED_IDS.post),
 };
 
 /** 返回可安全传给 Prisma `notIn` 的可变数组副本。 */

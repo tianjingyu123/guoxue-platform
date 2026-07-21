@@ -7,6 +7,7 @@ import { BusinessException } from "../../../common/business.exception";
 import { ErrorCode } from "../../../common/error-codes";
 import { Cacheable } from "../../../common/cache.decorator";
 import { safePagination } from "../../../common/pagination";
+import { publicQuarantinedIds } from "../../../common/public-content-quarantine";
 import { PrismaService } from "../../../prisma/prisma.service";
 import { RedisService } from "../../../redis/redis.service";
 import { CoinService } from "../../coin/coin.service";
@@ -222,7 +223,11 @@ export class CirclePostService {
   async getPosts(circleId: string, query: { type?: string; isEssence?: string; page?: number; pageSize?: number }) {
     const { type, isEssence } = query;
     const { page, pageSize, skip } = safePagination(query.page, query.pageSize);
-    const where: Prisma.PostWhereInput = { circleId, status: "PUBLISHED" };
+    const where: Prisma.PostWhereInput = {
+      id: { notIn: publicQuarantinedIds("post") },
+      circleId,
+      status: "PUBLISHED",
+    };
 
     if (type) where.type = type as PostType;
     if (isEssence === "true") where.isEssence = true;
@@ -398,7 +403,7 @@ export class CirclePostService {
   async getHotContentRanking(circleId: string, limit = 10) {
     // 获取最近帖子作为候选集
     const posts = await this.prisma.post.findMany({
-      where: { circleId, status: "PUBLISHED" },
+      where: { id: { notIn: publicQuarantinedIds("post") }, circleId, status: "PUBLISHED" },
       select: {
         id: true, title: true,
         user: { select: { id: true, nickname: true, avatar: true } },
@@ -499,7 +504,7 @@ export class CirclePostService {
   /** 获取全平台热门帖子（跨圈子） */
   async getGlobalHotPosts(limit = 10) {
     const posts = await this.prisma.post.findMany({
-      where: { status: 'PUBLISHED' },
+      where: { id: { notIn: publicQuarantinedIds("post") }, status: 'PUBLISHED' },
       select: {
         id: true, title: true, content: true,
         circleId: true,
@@ -550,6 +555,7 @@ export class CirclePostService {
     // 今日帖子
     const todayPosts = await this.prisma.post.findMany({
       where: {
+        id: { notIn: publicQuarantinedIds("post") },
         status: 'PUBLISHED',
         createdAt: { gte: todayStart, lt: tomorrowStart },
       },
