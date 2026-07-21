@@ -196,17 +196,14 @@
               v-for="m in payMethods"
               :key="m.key"
               class="pay-item"
-              :class="{ 'pay-item-disabled': !m.enabled }"
-              @tap="selectPayMethod(m)"
             >
-              <view class="pay-radio" :class="{ 'pay-radio-on': paymentMethod === m.key && m.enabled }">
-                <view v-if="paymentMethod === m.key && m.enabled" class="pay-radio-dot" />
+              <view class="pay-radio pay-radio-on">
+                <view class="pay-radio-dot" />
               </view>
               <view class="pay-logo" :style="{ background: m.color }">
                 <text class="pay-logo-txt">{{ m.short }}</text>
               </view>
               <text class="pay-name">{{ m.label }}</text>
-              <text v-if="!m.enabled" class="pay-soon">即将开通</text>
             </view>
           </view>
 
@@ -263,20 +260,6 @@
         </view>
       </view>
     </view>
-
-    <!-- 支付渠道未就绪提示（诚实降级，不假装成功） -->
-    <view v-if="payUnavailable" class="modal-mask" @tap="payUnavailable = false">
-      <view class="modal-card" @tap.stop>
-        <view class="modal-icon">
-          <app-icon name="shield" :size="56" color="#C9A96E" />
-        </view>
-        <text class="modal-title">支付渠道正在开通中</text>
-        <text class="modal-desc">微信支付商户资质审核中，暂时无法在线支付，敬请期待。</text>
-        <view class="modal-btn" @tap="payUnavailable = false">
-          <text class="modal-btn-txt">我知道了</text>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
@@ -299,11 +282,10 @@ import { formatPrice } from '@/utils/format'
 interface VipPlanGroup { level: string; levelName: string; description: string; plans: VipPlan[] }
 interface VipCenterData { status: VipMemberStatus; planGroups: VipPlanGroup[] }
 
-// 支付方式：后端仅有微信支付创建端点（pay/native 扫码），支付宝无创建支付端点 → 置灰诚实标注
-interface PayMethodItem { key: 'wechat' | 'alipay'; label: string; short: string; color: string; enabled: boolean }
+// 正式收银入口只展示已经接通并完成验收的支付方式
+interface PayMethodItem { key: 'wechat'; label: string; short: string; color: string }
 const payMethods: PayMethodItem[] = [
-  { key: 'wechat', label: '微信支付', short: '微', color: '#22C55E', enabled: true },
-  { key: 'alipay', label: '支付宝', short: '支', color: '#3B82F6', enabled: false },
+  { key: 'wechat', label: '微信支付', short: '微', color: '#22C55E' },
 ]
 
 // 常见问题（运营文案；V3：年费价从套餐真数据取，不再硬编码 ¥148——后台改价 FAQ 就变成假承诺）
@@ -330,7 +312,6 @@ const error = ref<string | null>(null)
 const selectedLevel = ref('vip')
 const selectedPlan = ref<VipPlan | null>(null)
 const showPaySheet = ref(false)
-const paymentMethod = ref<'wechat' | 'alipay'>('wechat')
 const purchasing = ref(false)
 
 // —— 会员协议 ——
@@ -339,9 +320,6 @@ const showAgreement = ref(false)
 const agreement = ref<VipAgreement | null>(null)
 const agreementLoading = ref(false)
 const agreementError = ref<string | null>(null)
-
-// 支付渠道未就绪弹层（仅在错误确属渠道未配置时展示，其余错误如实透出）
-const payUnavailable = ref(false)
 
 const currentPlanGroup = computed(() => data.value?.planGroups.find(g => g.level === selectedLevel.value))
 
@@ -410,14 +388,6 @@ function selectLevel(level: string) {
   selectedPlan.value = group?.plans.find(p => p.popular) || group?.plans[0] || null
 }
 
-function selectPayMethod(m: PayMethodItem) {
-  if (!m.enabled) {
-    uni.showToast({ title: `${m.label}即将开通，敬请期待`, icon: 'none' })
-    return
-  }
-  paymentMethod.value = m.key
-}
-
 // —— 会员服务协议 ——
 function openAgreement() {
   showAgreement.value = true
@@ -478,14 +448,8 @@ async function handlePurchase() {
     showPaySheet.value = false
     navigateTo(`/pkg-shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
   } catch (e) {
-    // V2 错误透传：只有确属支付渠道未配置类错误才提示「开通中」，
-    // 其余（登录态失效/参数/套餐下架/余额类）如实展示后端 message，不再一律吞成「渠道开通中」误导用户
     const msg = (e as Error)?.message || ''
-    if (/未配置|渠道|商户|支付.*(开通|配置|证书)/.test(msg)) {
-      payUnavailable.value = true
-    } else {
-      uni.showToast({ title: msg || '下单失败，请重试', icon: 'none' })
-    }
+    uni.showToast({ title: msg || '下单失败，请重试', icon: 'none' })
   } finally {
     purchasing.value = false
   }
@@ -604,14 +568,12 @@ onShow(() => {
 .sheet-amount-yuan { font-size: 32rpx; }
 .pay-list { display: flex; flex-direction: column; gap: 24rpx; }
 .pay-item { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; border: 2rpx solid #E8E3DB; border-radius: 16rpx; }
-.pay-item-disabled { opacity: 0.5; }
 .pay-radio { width: 36rpx; height: 36rpx; border-radius: 50%; border: 2rpx solid #C9C4BB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pay-radio-on { border-color: var(--brand); }
 .pay-radio-dot { width: 20rpx; height: 20rpx; border-radius: 50%; background: var(--brand); }
 .pay-logo { width: 64rpx; height: 64rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pay-logo-txt { font-size: 24rpx; font-weight: 700; color: #FFFFFF; }
 .pay-name { font-size: 28rpx; color: #2C2C2C; flex: 1; }
-.pay-soon { font-size: 22rpx; color: #8A8478; background: #F0EDE8; padding: 4rpx 16rpx; border-radius: 999rpx; }
 .sheet-confirm { margin-top: 32rpx; height: 96rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .sheet-confirm.disabled { opacity: 0.5; }
 .sheet-confirm-txt { font-size: 30rpx; font-weight: 500; color: #FFFFFF; }
@@ -636,13 +598,4 @@ onShow(() => {
 .agreement-retry { padding: 12rpx 48rpx; border-radius: 999rpx; border: 2rpx solid var(--brand); }
 .agreement-retry-txt { font-size: 26rpx; color: var(--brand); }
 .agreement-confirm { flex-shrink: 0; }
-
-/* 支付渠道未就绪弹窗 */
-.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 400; display: flex; align-items: center; justify-content: center; }
-.modal-card { width: 560rpx; background: #FFFFFF; border-radius: 24rpx; padding: 48rpx 40rpx; display: flex; flex-direction: column; align-items: center; }
-.modal-icon { width: 112rpx; height: 112rpx; border-radius: 50%; background: rgba(201,169,110,0.12); display: flex; align-items: center; justify-content: center; }
-.modal-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; margin-top: 24rpx; }
-.modal-desc { font-size: 26rpx; color: #8A8478; line-height: 1.7; margin-top: 16rpx; text-align: center; }
-.modal-btn { margin-top: 40rpx; width: 100%; height: 88rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
-.modal-btn-txt { font-size: 28rpx; font-weight: 500; color: #FFFFFF; }
 </style>
