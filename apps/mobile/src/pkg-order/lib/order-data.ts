@@ -4,7 +4,7 @@
  * 售后/退款/纠纷：/shop/orders/:id/after-sale、/shop/after-sales/*（平台仅一套售后子系统，退款页与纠纷页共用之）
  * 物流：/shop/orders/:id/logistics
  * 评价：/shop/products/:id/reviews
- * 发票：后端暂无电子发票子系统 —— 诚实降级（见文末 invoice 三方法），不臆造数据。
+ * 发票：/finance/my/invoices（用户申请、财务开具、文件下载真实闭环）。
  * 图片走后端真实字段（product.images[0]），无则前端 v-if 降级。
  */
 import { apiGet, apiPost, apiPut } from '@/utils/request'
@@ -178,17 +178,15 @@ export const reviewTagsByRating: Record<number, string[]> = {
 export const reviewRatingLabels = ['', '很差', '较差', '一般', '不错', '非常好']
 
 /* ============================================================
-   六、发票管理（app/orders/invoice）—— 后端暂无电子发票子系统
+   六、发票管理（app/orders/invoice）
    ============================================================ */
 
 export interface InvoiceOrder { orderId: string; orderNo: string; amount: number; createdAt: string; productName: string }
 export interface InvoiceRecord {
-  id: string; type: 'personal' | 'company'; title: string; taxNumber?: string
+  id: string; orderId: string; orderNo: string; type: 'personal' | 'company'; title: string; taxNumber?: string
   amount: number; status: 'pending' | 'processing' | 'completed' | 'rejected'
-  email: string; createdAt: string; completedAt?: string; rejectReason?: string
+  createdAt: string; invoiceUrl?: string; expressNo?: string
 }
-/** 电子发票功能是否已接入后端（当前后端无发票子系统，统一降级） */
-export const INVOICE_AVAILABLE = false
 
 export const invoiceStatusConfig: Record<string, { label: string; color: string; bg: string }> = {
   pending: { label: '待处理', color: '#A16207', bg: '#FEF9C3' },
@@ -257,6 +255,7 @@ interface RawOrder {
   id?: string
   status?: string
   orderType?: string
+  type?: string
   amount?: number | string
   originalAmount?: number | string
   payAmount?: number | string
@@ -272,6 +271,18 @@ interface RawOrder {
   product?: RawProductLite | null
   sku?: RawSkuLite | null
   bundle?: { name?: string } | null
+}
+interface RawInvoice {
+  id?: string
+  orderId?: string
+  type?: string
+  title?: string
+  taxNo?: string | null
+  amount?: number | string
+  status?: string
+  invoiceUrl?: string | null
+  expressNo?: string | null
+  createdAt?: string | null
 }
 /** 后端物流轨迹节点 */
 interface RawTrack { status?: string; desc?: string; description?: string; time?: string }
@@ -416,7 +427,7 @@ function toOrderProduct(o: RawOrder): OrderProduct {
 }
 
 function adaptOrderListItem(o: RawOrder): OrderListItem {
-  const orderType = o.orderType || 'PRODUCT'
+  const orderType = o.orderType || o.type || 'PRODUCT'
   const isVirtual = orderType !== 'PRODUCT'
   return {
     id: o.id || '',
@@ -679,15 +690,69 @@ export const orderApi = {
     return true
   },
 
-  /** —— 发票：后端暂无电子发票子系统，诚实降级（返回空，页面展示"即将开放"） —— */
+  /** 可开票订单：仅交易完成、实付大于 0、且没有有效发票申请的订单。 */
   async getInvoiceOrders(): Promise<InvoiceOrder[]> {
-    return []
+    const invoiceRes = await apiGet<{ invoices?: RawInvoice[] }>('/finance/my/invoices?page=1&pageSize=100')
+    const occupied = new Set(
+      (invoiceRes?.invoices || [])
+        .filter((invoice) => invoice.status !== 'REJECTED')
+        .map((invoice) => invoice.orderId)
+        .filter((id): id is string => !!id),
+    )
+    const all: RawOrder[] = []
+    let page = 1
+    let total = 0
+    do {
+      const res = await apiGet<{ orders?: RawOrder[]; total?: number }>(
+        `/shop/orders/my?page=${page}&pageSize=100&status=COMPLETED`,
+      )
+      const rows = res?.orders || []
+      all.push(...rows)
+      total = res?.total ?? all.length
+      if (rows.length === 0) break
+      page += 1
+    } while (all.length < total && page <= 10)
+
+    return all
+      .filter((order) => !!order.id && num(order.payAmount ?? order.amount) > 0 && !occupied.has(order.id!))
+      .map((order) => ({
+        orderId: order.id!,
+        orderNo: shortNo(order.id),
+        amount: num(order.payAmount ?? order.amount),
+        createdAt: fmtTime(order.createdAt),
+        productName: order.product?.title || order.title || '消费订单',
+      }))
   },
   async getInvoices(): Promise<InvoiceRecord[]> {
-    return []
+    const res = await apiGet<{ invoices?: RawInvoice[] }>('/finance/my/invoices?page=1&pageSize=100')
+    const statusMap: Record<string, InvoiceRecord['status']> = {
+      PENDING: 'pending',
+      ISSUED: 'completed',
+      MAILED: 'completed',
+      REJECTED: 'rejected',
+    }
+    return (res?.invoices || []).map((invoice) => ({
+      id: invoice.id || '',
+      orderId: invoice.orderId || '',
+      orderNo: shortNo(invoice.orderId),
+      type: invoice.type === 'COMPANY' ? 'company' : 'personal',
+      title: invoice.title || '发票',
+      taxNumber: invoice.taxNo || undefined,
+      amount: num(invoice.amount),
+      status: statusMap[invoice.status || ''] || 'processing',
+      createdAt: fmtTime(invoice.createdAt),
+      invoiceUrl: invoice.invoiceUrl || undefined,
+      expressNo: invoice.expressNo || undefined,
+    }))
   },
-  async applyInvoice(_orderIds?: string[], _type?: 'personal' | 'company', _title?: string, _email?: string, _taxNumber?: string): Promise<boolean> {
-    throw new Error('电子发票功能即将开放，如需发票请联系在线客服')
+  async applyInvoice(orderId: string, type: 'personal' | 'company', title: string, taxNumber?: string): Promise<boolean> {
+    await apiPost('/finance/my/invoices', {
+      orderId,
+      type: type.toUpperCase(),
+      title: title.trim(),
+      taxNo: taxNumber?.trim() || undefined,
+    })
+    return true
   },
 
   /** 退款进度（按 orderId 在用户售后单中匹配最新一条）

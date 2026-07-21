@@ -23,6 +23,7 @@ const mockPrisma: any = {
     create: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
   },
@@ -58,6 +59,8 @@ const mockPrisma: any = {
     create: jest.fn().mockResolvedValue({}),
   },
 };
+mockPrisma.$queryRawUnsafe = jest.fn().mockResolvedValue([]);
+mockPrisma.$transaction = jest.fn(async (callback: (tx: any) => Promise<unknown>) => callback(mockPrisma));
 
 describe("FinanceService", () => {
   let svc: FinanceService;
@@ -145,6 +148,50 @@ describe("FinanceService", () => {
     it("订单不存在抛出异常", async () => {
       mockPrisma.order.findUnique.mockResolvedValue(null);
       await expect(svc.createInvoice({ orderId: "invalid", type: "PERSONAL", title: "x", amount: 99 })).rejects.toThrow(BusinessException);
+    });
+  });
+
+  describe("createMyInvoice", () => {
+    beforeEach(() => {
+      mockPrisma.invoice.findFirst.mockResolvedValue(null);
+      mockPrisma.invoice.create.mockResolvedValue({ id: "inv-user-1", status: "PENDING" });
+    });
+
+    it("仅按服务端实付金额创建用户发票", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "o1", userId: "u1", status: "COMPLETED", amount: 120, payAmount: 99,
+      });
+      await svc.createMyInvoice("u1", "o1", "PERSONAL", " 张三 ");
+      expect(mockPrisma.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ userId: "u1", orderId: "o1", title: "张三", amount: 99 }),
+      }));
+    });
+
+    it("拒绝给他人订单申请发票", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "o1", userId: "other", status: "COMPLETED", amount: 99, payAmount: 99,
+      });
+      await expect(svc.createMyInvoice("u1", "o1", "PERSONAL", "张三")).rejects.toThrow(BusinessException);
+    });
+
+    it("拒绝未完成订单申请发票", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "o1", userId: "u1", status: "PAID", amount: 99, payAmount: 99,
+      });
+      await expect(svc.createMyInvoice("u1", "o1", "PERSONAL", "张三")).rejects.toThrow(BusinessException);
+    });
+
+    it("拒绝同一订单重复申请有效发票", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "o1", userId: "u1", status: "COMPLETED", amount: 99, payAmount: 99,
+      });
+      mockPrisma.invoice.findFirst.mockResolvedValue({ id: "existing" });
+      await expect(svc.createMyInvoice("u1", "o1", "PERSONAL", "张三")).rejects.toThrow(BusinessException);
+    });
+
+    it("企业发票缺少税号时拒绝", async () => {
+      await expect(svc.createMyInvoice("u1", "o1", "COMPANY", "某某公司")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
   });
 

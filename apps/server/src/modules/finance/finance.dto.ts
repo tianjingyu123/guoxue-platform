@@ -1,4 +1,4 @@
-import { MinLength,  IsOptional, IsString, IsDateString, IsNumber, IsIn, Min } from "class-validator";
+import { MinLength, MaxLength, IsOptional, IsString, IsDateString, IsNumber, IsIn, IsUrl, Min } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -64,6 +64,26 @@ export class CreateInvoiceDto {
   amount: number;
 }
 
+export class CreateMyInvoiceDto {
+  @IsString()
+  @MinLength(1)
+  orderId: string;
+
+  @IsString()
+  @IsIn(["PERSONAL", "COMPANY"])
+  type: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  title: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  taxNo?: string;
+}
+
 export class InvoiceQueryDto {
   @IsOptional()
   @IsString()
@@ -82,8 +102,9 @@ export class InvoiceQueryDto {
 }
 
 export class IssueInvoiceDto {
-  @IsString()
-  @MinLength(1)
+  @IsUrl({ protocols: ["http", "https"], require_protocol: true }, {
+    message: "发票文件链接格式不合法（仅支持 http/https）",
+  })
   invoiceUrl: string;
 }
 

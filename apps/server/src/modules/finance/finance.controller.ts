@@ -5,6 +5,7 @@ import { FinanceService } from "./finance.service";
 import {
   CreateReconciliationDto,
   CreateInvoiceDto,
+  CreateMyInvoiceDto,
   IssueInvoiceDto,
   MailInvoiceDto,
   RejectInvoiceDto,
@@ -94,12 +95,13 @@ export class FinanceController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "申请开票" })
   @ApiResponse({ status: 201, description: "申请成功" })
+  @ApiResponse({ status: 400, description: "订单状态或开票信息不符合要求" })
   @ApiResponse({ status: 401, description: "未登录" })
   createMyInvoice(
     @Req() req: Request,
-    @Body() body: { orderId: string; type: string; title: string; taxNo?: string; email?: string },
+    @Body() body: CreateMyInvoiceDto,
   ) {
-    return this.svc.createMyInvoice(req.user.id, body.orderId, body.type, body.title, body.taxNo, body.email);
+    return this.svc.createMyInvoice(req.user.id, body.orderId, body.type, body.title, body.taxNo);
   }
 
   // ───────── 2b. 发票管理（管理端） ─────────

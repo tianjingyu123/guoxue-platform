@@ -282,21 +282,43 @@ export class FinanceService {
   }
 
   /** 用户申请开票 */
-  async createMyInvoice(userId: string, orderId: string, type: string, title: string, taxNo?: string, _email?: string) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, '订单不存在');
-    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, '无权操作他人订单');
+  async createMyInvoice(userId: string, orderId: string, type: string, title: string, taxNo?: string) {
+    const normalizedTitle = title.trim();
+    const normalizedTaxNo = taxNo?.trim() || null;
+    if (type === "COMPANY" && !normalizedTaxNo) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "企业发票必须填写纳税人识别号");
+    }
 
-    return this.prisma.invoice.create({
-      data: {
-        userId,
-        orderId,
-        type,
-        title,
-        taxNo: taxNo || null,
-        amount: order.payAmount || order.amount,
-        status: 'PENDING',
-      },
+    return this.prisma.$transaction(async (tx) => {
+      // 同一订单申请串行化；无需新增唯一索引和生产 DDL，也能阻断双击/并发重复开票。
+      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `invoice:${orderId}`);
+      const order = await tx.order.findUnique({ where: { id: orderId } });
+      if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作他人订单");
+      if (order.status !== "COMPLETED") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "仅交易已完成的订单可以申请发票");
+      }
+      const amount = Number(order.payAmount ?? order.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "实付金额为 0 的订单无需开票");
+      }
+      const existing = await tx.invoice.findFirst({
+        where: { orderId, userId, status: { in: ["PENDING", "ISSUED", "MAILED"] } },
+        select: { id: true },
+      });
+      if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已申请过发票");
+
+      return tx.invoice.create({
+        data: {
+          userId,
+          orderId,
+          type,
+          title: normalizedTitle,
+          taxNo: normalizedTaxNo,
+          amount,
+          status: "PENDING",
+        },
+      });
     });
   }
 
