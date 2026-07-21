@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, financeApi } from '@/api'
+import { useAuthStore } from '@/store/auth'
 import { exportCSV } from '@/utils/export'
+
+const auth = useAuthStore()
+const canPayout = computed(() => auth.hasRole('FINANCE_ADMIN'))
 
 // 结算单行（按列配置与模板访问字段定义的宽松本地类型；detail 含嵌套汇总，置为必填以满足模板内裸访问）
 interface SettlementRow {
@@ -116,6 +120,10 @@ async function doApprove(row: SettlementRow) {
 }
 
 async function doPay(row: SettlementRow) {
+  if (!canPayout.value) {
+    ElMessage.warning('仅财务管理员可执行真实打款')
+    return
+  }
   try {
     // 🔴 新契约：打款必须回填转账流水号 payoutRef（出款幂等键·防重复打款）。
     //    未部署新后端时流水号不会被落库（旧接口忽略 body），但填了也不会造成假成功。
@@ -314,13 +322,17 @@ function handleExport() {
               审批
             </el-button>
             <el-button
-              v-if="row.status === 'APPROVED'"
+              v-if="row.status === 'APPROVED' && canPayout"
               size="small"
               type="primary"
               @click="doPay(row)"
             >
               打款
             </el-button>
+            <span
+              v-else-if="row.status === 'APPROVED' && !canPayout"
+              class="pending-finance"
+            >待财务打款</span>
             <span
               v-else-if="row.status === 'PAID'"
               style="color:#67c23a;font-size:12px"
@@ -472,4 +484,5 @@ function handleExport() {
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .toolbar-right { display: flex; gap: 8px; align-items: center; }
 .copyable { cursor: pointer; color: var(--el-color-primary); }
+.pending-finance { color: var(--color-text-secondary); font-size: 12px; }
 </style>

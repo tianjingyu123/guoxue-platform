@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { FinanceController } from "./finance.controller";
 import { FinanceService } from "./finance.service";
 import { RolesGuard } from "../../common/roles.guard";
+import { ROLES_KEY } from "../../common/roles.decorator";
 
 const mockSvc = {
   triggerReconciliation: jest.fn().mockResolvedValue({ id: "r1", source: "WECHAT", status: "MATCHED" }),
@@ -134,6 +135,15 @@ describe("FinanceController", () => {
     const result: any = await ctrl.confirmWithdrawalPay("w1", { payoutRef: "WX20260717001" } as any, mockReq());
     expect(result!.status).toBe("PAID");
     expect(mockSvc.confirmWithdrawalPay).toHaveBeenCalledWith("w1", "admin1", "WX20260717001");
+  });
+
+  it("真实出款端点仅允许财务管理员或超级管理员", () => {
+    expect(Reflect.getMetadata(ROLES_KEY, FinanceController.prototype.paySettlement)).toEqual([
+      "SUPER_ADMIN", "FINANCE_ADMIN",
+    ]);
+    expect(Reflect.getMetadata(ROLES_KEY, FinanceController.prototype.confirmWithdrawalPay)).toEqual([
+      "SUPER_ADMIN", "FINANCE_ADMIN",
+    ]);
   });
 
   it("GET /finance/withdrawals/:id/payout-account — 打款用明文收款账户（审计留痕后返回）", async () => {

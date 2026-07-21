@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { api, financeApi } from '@/api'
+import { useAuthStore } from '@/store/auth'
 import { exportCSV } from '@/utils/export'
 
 const router = useRouter()
+const auth = useAuthStore()
+const canPayout = computed(() => auth.hasRole('FINANCE_ADMIN'))
+
+type AccountInfo = Record<string, unknown>
+interface AutoPayoutResult {
+  needUserConfirm?: boolean
+}
 
 // 提现申请行（后端 WithdrawalApplication：amount/fee/taxAmount/actualAmount/payMethod/accountInfo/status）
 interface WithdrawalRow {
@@ -19,7 +27,7 @@ interface WithdrawalRow {
   status: string
   createdAt: string
   // 收款账户信息为 Json，结构不固定，保留宽松类型
-  accountInfo?: Record<string, any>
+  accountInfo?: AccountInfo
   reviewedBy?: string
   reviewNote?: string
   // 渠道自动代付
@@ -60,13 +68,22 @@ function maskAccountNo(no: unknown) {
 }
 
 // 收款账户信息存于 accountInfo(Json)，结构不固定，做容错读取
-function acct(row: WithdrawalRow | null | undefined): Record<string, any> {
+function acct(row: WithdrawalRow | null | undefined): AccountInfo {
   const a = row?.accountInfo
   return a && typeof a === 'object' ? a : {}
 }
-function bankName(row: WithdrawalRow | null | undefined) { const a = acct(row); return a.bankName || a.bank || '' }
-function accountNo(row: WithdrawalRow | null | undefined) { const a = acct(row); return a.cardNo || a.account || a.bankCard || a.alipayAccount || a.no || '' }
-function accountName(row: WithdrawalRow | null | undefined) { const a = acct(row); return a.name || a.accountName || a.realName || '' }
+function firstText(info: AccountInfo, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = info[key]
+    if (value != null && String(value).trim()) return String(value)
+  }
+  return ''
+}
+function bankName(row: WithdrawalRow | null | undefined) { return firstText(acct(row), 'bankName', 'bank') }
+function accountNo(row: WithdrawalRow | null | undefined) {
+  return firstText(acct(row), 'cardNo', 'account', 'bankCard', 'alipayAccount', 'no')
+}
+function accountName(row: WithdrawalRow | null | undefined) { return firstText(acct(row), 'name', 'accountName', 'realName') }
 
 // 后端字段：payMethod = WECHAT / ALIPAY / BANK
 // toUpperCase：存量行是前端直传的小写 'alipay'/'bank'（新行已在后端统一大写）
@@ -164,6 +181,10 @@ async function reject() {
  * 真正标记 PAID 的是微信回调确认 SUCCESS 之后。
  */
 async function autoPayout(row: WithdrawalRow) {
+  if (!canPayout.value) {
+    ElMessage.warning('仅财务管理员可发起自动代付')
+    return
+  }
   if (!isWechat(row.payMethod)) {
     ElMessage.warning('目前仅微信零钱支持自动代付，其他方式请走人工打款')
     return
@@ -176,15 +197,15 @@ async function autoPayout(row: WithdrawalRow) {
       { type: 'warning', confirmButtonText: '确认发起', cancelButtonText: '取消' }
     )
     saving.value = true
-    const res: any = await financeApi.autoPayout(row.id)
-    if (res?.needUserConfirm) {
+    const response = await financeApi.autoPayout(row.id) as { data: AutoPayoutResult }
+    if (response.data?.needUserConfirm) {
       ElMessage.success('转账已发起，等待用户在微信中确认收款')
     } else {
       ElMessage.success('转账已发起')
     }
     fetchList()
-  } catch (e: any) {
-    if (e !== 'cancel' && e?.message) ElMessage.error(e.message)
+  } catch (e: unknown) {
+    if (e !== 'cancel' && e !== 'close') ElMessage.error(errMsg(e))
   } finally {
     saving.value = false
   }
@@ -192,6 +213,10 @@ async function autoPayout(row: WithdrawalRow) {
 
 /** 主动同步渠道转账状态（回调之外的兜底核实） */
 async function syncTransfer(row: WithdrawalRow) {
+  if (!canPayout.value) {
+    ElMessage.warning('仅财务管理员可同步渠道转账状态')
+    return
+  }
   if (!row.payoutRef) { ElMessage.warning('该提现尚未发起渠道转账'); return }
   try {
     saving.value = true
@@ -221,15 +246,19 @@ interface PayoutAccount {
   amount: number
   actualAmount: number
   payMethod: string
-  accountInfo?: Record<string, any>
+  accountInfo?: AccountInfo
 }
 
-function payoutAcct(): Record<string, any> {
+function payoutAcct(): AccountInfo {
   const a = payoutAccount.value?.accountInfo
   return a && typeof a === 'object' ? a : {}
 }
 
 async function openPayout(row: WithdrawalRow) {
+  if (!canPayout.value) {
+    ElMessage.warning('仅财务管理员可执行人工打款')
+    return
+  }
   payoutRow.value = row
   payoutAccount.value = null
   payoutRef.value = ''
@@ -255,6 +284,10 @@ async function openPayout(row: WithdrawalRow) {
 }
 
 async function confirmPayout() {
+  if (!canPayout.value) {
+    ElMessage.warning('仅财务管理员可确认打款')
+    return
+  }
   if (saving.value || !payoutRow.value || !payoutAccount.value) return
   const ref_ = payoutRef.value.trim()
   if (ref_.length < 4) {
@@ -507,7 +540,7 @@ function handleExport() {
             </el-button>
             <!-- 已审核通过：微信零钱走自动代付，其他通道走人工打款兜底 -->
             <el-tooltip
-              v-if="row.status === 'APPROVED' && isWechat(row.payMethod)"
+              v-if="row.status === 'APPROVED' && isWechat(row.payMethod) && canPayout"
               content="通过微信商家转账把钱打到用户微信零钱；用户需在微信内确认收款"
               placement="top"
             >
@@ -521,7 +554,7 @@ function handleExport() {
               </el-button>
             </el-tooltip>
             <el-button
-              v-if="row.status === 'APPROVED'"
+              v-if="row.status === 'APPROVED' && canPayout"
               size="small"
               :type="isWechat(row.payMethod) ? 'default' : 'primary'"
               @click="openPayout(row)"
@@ -530,13 +563,17 @@ function handleExport() {
             </el-button>
             <!-- 已发起渠道转账：钱还没到用户手上，等他在微信里确认收款 -->
             <el-button
-              v-if="row.status === 'TRANSFERRING'"
+              v-if="row.status === 'TRANSFERRING' && canPayout"
               size="small"
               :loading="saving"
               @click="syncTransfer(row)"
             >
               同步状态
             </el-button>
+            <span
+              v-else-if="row.status === 'APPROVED' && !canPayout"
+              class="pending-finance"
+            >待财务打款</span>
             <span
               v-else-if="row.status === 'PAID'"
               style="color:#67c23a;font-size:12px"
@@ -798,4 +835,5 @@ function handleExport() {
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
 .toolbar-right { display: flex; gap: 8px; align-items: center; }
 .copyable { cursor: pointer; color: var(--el-color-primary); }
+.pending-finance { color: var(--color-text-secondary); font-size: 12px; }
 </style>
