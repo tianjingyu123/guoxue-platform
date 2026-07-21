@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import { createConfirmMessage } from '@/lib/confirm-message'
 
 interface AppVersionRow {
   id: string
@@ -73,9 +74,17 @@ async function save() {
   if (form.forceUpdate) {
     try {
       await ElMessageBox.confirm(
-        `即将发布<b style="color:var(--el-color-danger)">强制更新</b>版本（${form.platform === 'ios' ? 'iOS' : 'Android'} · ${form.version}）。<div style="margin-top:6px;font-size:12px;color:var(--el-text-color-secondary)">所有低于该版本的用户打开 App 后将被强制要求升级，不升级无法继续使用。请确认下载地址有效、更新包已就绪。</div>`,
+        createConfirmMessage({
+          headline: '即将发布强制更新版本',
+          headlineTone: 'danger',
+          rows: [
+            { label: '平台', value: form.platform === 'ios' ? 'iOS' : 'Android' },
+            { label: '版本', value: form.version, tone: 'warning' },
+          ],
+          description: '所有低于该版本的用户打开 App 后将被强制要求升级，不升级无法继续使用。请确认下载地址有效、更新包已就绪。',
+        }),
         '强制更新发布确认',
-        { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: '确认发布强制更新' },
+        { type: 'warning', confirmButtonText: '确认发布强制更新' },
       )
     } catch { return }
   }

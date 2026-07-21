@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import { createConfirmMessage } from '@/lib/confirm-message'
 
 // 法律文件版本行（依据列表列/编辑表单实际访问字段声明）
 interface LegalDoc {
@@ -80,14 +81,21 @@ async function save() {
     const existing = publishedCountOfType(form.type)
     // 编辑自身已是发布态时不算新增冲突（existing 含自身）；新建或从草稿转发布时若已存在发布版本则强警示
     const willConflict = !editingId.value ? existing >= 1 : existing >= 2
-    const conflictHtml = willConflict
-      ? `<div style="margin-top:8px;padding:8px;background:var(--el-color-warning-light-9);border-radius:4px;color:var(--el-color-warning);font-size:12px">注意：「${typeLabel[form.type] ?? form.type}」已存在其他「已发布」版本，发布本版本后将出现<b>多个生效版本</b>。请发布后立即将旧版本改为「草稿」。</div>`
-      : ''
     try {
       await ElMessageBox.confirm(
-        `即将<b style="color:var(--el-color-danger)">发布</b>「${typeLabel[form.type] ?? form.type} · ${form.title}」（${form.version || '未填版本号'}）。发布后将立即作为 C 端展示的<b>生效法律文本</b>，对全体用户生效。${conflictHtml}`,
+        createConfirmMessage({
+          headline: '即将发布生效法律文本',
+          headlineTone: 'danger',
+          rows: [
+            { label: '协议类型', value: typeLabel[form.type] ?? form.type },
+            { label: '标题', value: form.title },
+            { label: '版本', value: form.version || '未填版本号' },
+          ],
+          description: '发布后将立即作为 C 端展示的生效法律文本，对全体用户生效。',
+          warning: willConflict ? `注意：「${typeLabel[form.type] ?? form.type}」已存在其他已发布版本，发布本版本后将出现多个生效版本。请发布后立即将旧版本改为草稿。` : undefined,
+        }),
         '发布协议确认',
-        { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: '确认发布' },
+        { type: 'warning', confirmButtonText: '确认发布' },
       )
     } catch { return }
   }
@@ -109,10 +117,20 @@ async function del(row: LegalDoc) {
   try {
     await ElMessageBox.confirm(
       isPublished
-        ? `<div style="color:var(--el-color-danger);font-weight:600">危险：正在删除「已发布」的法律文本</div><div style="margin-top:6px">「${typeLabel[row.type] ?? row.type} · ${row.title}」（${row.version || '无版本号'}）当前对全体 C 端用户生效。删除后该协议将从线上消失，可能造成注册/下单流程缺少必需协议、引发合规风险。</div><div style="margin-top:6px;font-size:12px;color:var(--el-text-color-secondary)">建议：如需下线请先发布新版本或改为草稿，而非直接删除。</div>`
+        ? createConfirmMessage({
+            headline: '危险：正在删除已发布的法律文本',
+            headlineTone: 'danger',
+            rows: [
+              { label: '协议', value: `${typeLabel[row.type] ?? row.type} · ${row.title}` },
+              { label: '版本', value: row.version || '无版本号' },
+            ],
+            description: '该文本当前对全体 C 端用户生效。删除后协议将从线上消失，可能造成注册或下单流程缺少必需协议，引发合规风险。',
+            warning: '建议：如需下线请先发布新版本或改为草稿，而非直接删除。',
+            warningTone: 'danger',
+          })
         : `确定删除草稿「${row.title}」（${row.version || '无版本号'}）？`,
       '删除法律文本确认',
-      { type: isPublished ? 'error' : 'warning', dangerouslyUseHTMLString: isPublished, confirmButtonText: '确定删除', confirmButtonClass: isPublished ? 'el-button--danger' : '' },
+      { type: isPublished ? 'error' : 'warning', confirmButtonText: '确定删除', confirmButtonClass: isPublished ? 'el-button--danger' : '' },
     )
     await api.delete(`${BASE}/${row.id}`)
     ElMessage.success('已删除')

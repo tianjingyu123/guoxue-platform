@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import { createConfirmMessage } from '@/lib/confirm-message'
 
 interface FeatureFlagRow {
   id?: string
@@ -78,16 +79,20 @@ async function save() {
 async function toggleEnabled(row: FeatureFlagRow) {
   // L3：功能开关一键影响全平台，确认框写明 flag 名与影响，有备注（含红线说明）则一并展示
   const target = !row.enabled
-  const noteHtml = row.description
-    ? `<div style="margin-top:8px;padding:8px;background:var(--el-fill-color-light);border-radius:4px;font-size:12px">备注：${escapeHtml(row.description)}</div>`
-    : ''
   try {
     await ElMessageBox.confirm(
-      `<div>即将<b style="color:${target ? 'var(--el-color-success)' : 'var(--el-color-danger)'}">${target ? '开启' : '关闭'}</b>功能开关：</div>
-       <div style="margin-top:6px"><b>${escapeHtml(row.name || row.key)}</b>（<code>${escapeHtml(row.key)}</code>）</div>
-       <div style="margin-top:6px;font-size:12px;color:var(--el-text-color-secondary)">该操作立即对全平台所有用户生效，${target ? '相关功能入口将对用户开放' : '相关功能入口将立即对用户隐藏/不可用'}。</div>${noteHtml}`,
+      createConfirmMessage({
+        headline: `即将${target ? '开启' : '关闭'}功能开关`,
+        headlineTone: target ? 'success' : 'danger',
+        rows: [
+          { label: '功能', value: row.name || row.key },
+          { label: '标识键', value: row.key },
+        ],
+        description: `该操作立即对全平台所有用户生效，${target ? '相关功能入口将对用户开放' : '相关功能入口将立即对用户隐藏或不可用'}。`,
+        warning: row.description ? `备注：${row.description}` : undefined,
+      }),
       '开关切换确认',
-      { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: target ? '确认开启' : '确认关闭' },
+      { type: 'warning', confirmButtonText: target ? '确认开启' : '确认关闭' },
     )
   } catch { return }
   const oldVal = row.enabled
@@ -98,10 +103,6 @@ async function toggleEnabled(row: FeatureFlagRow) {
   } catch {
     row.enabled = oldVal
   }
-}
-
-function escapeHtml(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 async function del(row: FeatureFlagRow) {

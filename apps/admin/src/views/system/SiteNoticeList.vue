@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import { createConfirmMessage } from '@/lib/confirm-message'
 
 // 全站公告行（依据列表列/编辑表单实际访问字段声明）
 interface SiteNotice {
@@ -80,11 +81,17 @@ async function save() {
 }
 
 async function del(row: SiteNotice) {
-  const activeWarn = row.isActive
-    ? '该公告当前<b style="color:var(--el-color-danger)">生效中</b>，删除后将立即从全站用户端消失。'
-    : ''
   try {
-    await ElMessageBox.confirm(`确定删除公告「${row.title}」？${activeWarn}`, '删除确认', { type: 'warning', dangerouslyUseHTMLString: !!activeWarn, confirmButtonText: '确定删除' })
+    await ElMessageBox.confirm(
+      createConfirmMessage({
+        headline: '确定删除全站公告？',
+        rows: [{ label: '公告标题', value: row.title }],
+        warning: row.isActive ? '该公告当前生效中，删除后将立即从全站用户端消失。' : undefined,
+        warningTone: 'danger',
+      }),
+      '删除确认',
+      { type: 'warning', confirmButtonText: '确定删除' },
+    )
     await api.delete(`${BASE}/${row.id}`)
     ElMessage.success('已删除')
     fetchList()

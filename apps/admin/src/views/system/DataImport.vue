@@ -243,8 +243,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { importApi, classicApi } from '@/api'
+import { createConfirmMessage } from '@/lib/confirm-message'
 
 const TYPE_LABEL: Record<string, string> = { article: '文章', course: '课程', product: '商品', classic: '古籍', user: '用户' }
 
@@ -266,21 +267,27 @@ const file = ref<File | null>(null)
 const importing = ref(false)
 const importResult = ref<ImportResult | null>(null)
 
-// uploadFile 为 Element Plus 上传文件对象，结构由框架定义，保留 any
-function onFileChange(uploadFile: any) { file.value = uploadFile.raw }
+function onFileChange(uploadFile: UploadFile) { file.value = uploadFile.raw ?? null }
 
 async function doImport() {
   if (!file.value) { ElMessage.warning('请选择文件'); return }
   // L3：导入将向生产库批量写入数据，无法一键撤销；用户类导入涉及账号，额外强提示
   const typeName = TYPE_LABEL[importType.value] || importType.value
-  const extra = importType.value === 'user'
-    ? '<div style="margin-top:6px;color:var(--el-color-danger);font-size:12px">该类型将批量创建<b>用户账号</b>，请务必核对手机号唯一性，避免生成重复/垃圾账号。</div>'
-    : ''
   try {
     await ElMessageBox.confirm(
-      `即将把 CSV 文件「${file.value.name}」按<b>「${typeName}」</b>类型导入生产数据库。导入结果无法一键撤销，请确认文件内容与格式说明一致。${extra}`,
+      createConfirmMessage({
+        headline: '即将向生产数据库批量导入数据',
+        headlineTone: 'warning',
+        rows: [
+          { label: 'CSV 文件', value: file.value.name },
+          { label: '导入类型', value: typeName },
+        ],
+        description: '导入结果无法一键撤销，请确认文件内容与格式说明一致。',
+        warning: importType.value === 'user' ? '该类型将批量创建用户账号，请务必核对手机号唯一性，避免生成重复或垃圾账号。' : undefined,
+        warningTone: 'danger',
+      }),
       '数据导入确认',
-      { type: 'warning', dangerouslyUseHTMLString: true, confirmButtonText: '确认导入' },
+      { type: 'warning', confirmButtonText: '确认导入' },
     )
   } catch { return }
   importing.value = true
