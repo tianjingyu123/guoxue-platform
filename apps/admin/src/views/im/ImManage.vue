@@ -456,6 +456,7 @@ import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import axios from "axios";
 import { imApi } from "@/api";
+import { useAuthStore } from "@/store/auth";
 
 /** 在线状态查询结果 */
 interface ImStateResult { userId?: string; state?: string; platform?: string; lastActiveTime?: string }
@@ -482,6 +483,7 @@ probeHttp.interceptors.request.use((c) => {
   return c;
 });
 
+const auth = useAuthStore();
 const activeTab = ref("state");
 /** 真探测的连接状态：调只读端点成功=可达（原实现是写死 true 的假"已连接"，已废除） */
 const connState = ref<"checking" | "ok" | "fail">("checking");
@@ -526,11 +528,14 @@ function msgTypeLabel(t?: string) {
 
 onMounted(() => probeConnectivity());
 
-/** 真探测：调任一 IM 只读端点，2xx=服务可达；4xx/5xx/网络失败=异常 */
+/** 真探测：只查询当前管理员本人，避免用虚构账号触发后端隐私校验 403。 */
 async function probeConnectivity() {
   connState.value = "checking";
   try {
-    const res = await probeHttp.get("/im/account/state", { params: { userIds: "__conn_probe__" } });
+    if (!auth.user?.id) await auth.fetchProfile();
+    const selfId = String(auth.user?.id || "");
+    if (!selfId) throw new Error("无法识别当前管理员");
+    const res = await probeHttp.get("/im/account/state", { params: { userIds: selfId } });
     connState.value = res.status < 400 ? "ok" : "fail";
   } catch { connState.value = "fail"; }
 }

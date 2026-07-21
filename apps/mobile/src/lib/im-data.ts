@@ -3,7 +3,7 @@
  * v0 迁移：会话列表/聊天/通知三页公用
  */
 import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
-import { useTim, type TimMessage, type TimConversation, type TimGroup, type TimGroupMember } from '@/composables/useTim'
+import { useTim, type TimMessage, type TimConversation, type TimGroup, type TimGroupMember, type TimFriendApplication } from '@/composables/useTim'
 
 export type ConversationType = 'private' | 'group' | 'service' | 'system'
 export type MessageType = 'text' | 'image' | 'voice' | 'video' | 'file' | 'system' | 'product'
@@ -718,25 +718,15 @@ export interface FriendRequestsResponse {
   totalPending: number
 }
 
-/** 后端归一化待处理申请项（GET /im/friends/pending → { pending: ImPendingRaw[] }） */
-interface ImPendingRaw {
-  userId: string
-  nick: string
-  avatar: string
-  wording: string
-  /** 秒级时间戳 */
-  addTime: number
-}
-
-/** 后端待处理申请 → 前端 FriendRequestItem */
-function toFriendRequestItem(p: ImPendingRaw): FriendRequestItem {
-  const nickname = p.nick || p.userId.slice(0, 8)
+/** 腾讯 SDK 好友申请 → 前端 FriendRequestItem */
+function toFriendRequestItem(p: TimFriendApplication): FriendRequestItem {
+  const nickname = p.nick || p.userID.slice(0, 8)
   return {
-    id: p.userId,
-    fromUser: { id: p.userId, nickname, avatar: p.avatar || '' },
+    id: p.userID,
+    fromUser: { id: p.userID, nickname, avatar: p.avatar || '' },
     message: p.wording || undefined,
     status: 'pending',
-    createdAt: p.addTime ? formatMessageTime(p.addTime * 1000) : '',
+    createdAt: p.time ? formatMessageTime(p.time * 1000) : '',
   }
 }
 
@@ -901,19 +891,21 @@ export const imApi = {
     return (res.friends || []).map(toFriendItem)
   },
 
-  /** 获取好友请求列表（真连 GET /im/friends/pending；腾讯无历史，processed 恒空） */
+  /** 获取好友请求列表（腾讯客户端 SDK 真源；服务端 REST 不提供待申请拉取） */
   async getFriendRequests(): Promise<FriendRequestsResponse> {
-    const res = await apiGet<{ pending: ImPendingRaw[] }>('/im/friends/pending')
-    const pending = (res.pending || []).map(toFriendRequestItem)
+    const tim = useTim()
+    const applications = await tim.getFriendApplications()
+    const pending = applications.map(toFriendRequestItem)
+    await tim.markFriendApplicationsRead()
     return { pending, processed: [], totalPending: pending.length }
   },
 
   /**
-   * 处理好友请求（同意/拒绝）。fromUserId = 申请人账号（FriendRequestItem.id）。
-   * 真连 POST /im/friends/approve | /im/friends/reject（body: { toUserId }）；失败抛错由页面处理。
+   * 处理好友请求（腾讯客户端 SDK）。fromUserId = 申请人账号（FriendRequestItem.id）。
+   * 同意时建立双向好友关系；失败抛错由页面处理。
    */
   async handleFriendRequest(fromUserId: string, action: 'approve' | 'reject'): Promise<void> {
-    await apiPost(`/im/friends/${action}`, { toUserId: fromUserId })
+    await useTim().handleFriendApplication(fromUserId, action)
   },
 
   /** 发起好友申请（真连 POST /im/friends）。toUserId = 对方账号；remark 可选备注 */

@@ -74,6 +74,17 @@ export interface TimGroup {
   selfInfo?: { role?: string; messageRemindType?: string; nameCard?: string }
 }
 
+/** SDK 好友申请对象（getFriendApplicationList 返回；仅声明页面需要的字段） */
+export interface TimFriendApplication {
+  userID: string
+  avatar?: string
+  nick?: string
+  time?: number
+  source?: string
+  wording?: string
+  type: string
+}
+
 /** SDK 群成员对象（getGroupMemberList 返回 memberList；role=Owner|Admin|Member） */
 export interface TimGroupMember {
   userID: string
@@ -304,10 +315,40 @@ export function useTim() {
     try { await chat.setMessageRead({ conversationID: `GROUP${groupId}` }) } catch { /* ignore */ }
   }
 
+  // ───────── 好友申请：腾讯仅在客户端 SDK 提供申请列表拉取 ─────────
+
+  /** 拉取别人发给我的待处理好友申请（SDK 缓存会在 ready 前完成同步） */
+  async function getFriendApplications(): Promise<TimFriendApplication[]> {
+    await ensureLogin()
+    const res = await chat!.getFriendApplicationList()
+    const list = ((res.data?.friendApplicationList || []) as unknown) as TimFriendApplication[]
+    return list.filter((item) => item.type === TIM!.TYPES.SNS_APPLICATION_SENT_TO_ME)
+  }
+
+  /** 同意或拒绝好友申请；同意时建立双向好友关系 */
+  async function handleFriendApplication(userID: string, action: 'approve' | 'reject'): Promise<void> {
+    await ensureLogin()
+    if (action === 'approve') {
+      await chat!.acceptFriendApplication({
+        userID,
+        type: TIM!.TYPES.SNS_APPLICATION_AGREE_AND_ADD,
+      })
+      return
+    }
+    await chat!.refuseFriendApplication({ userID })
+  }
+
+  /** 进入申请页后上报已读；失败不阻断已成功拉取的列表 */
+  async function markFriendApplicationsRead(): Promise<void> {
+    await ensureLogin()
+    try { await chat!.setFriendApplicationRead() } catch { /* fail-open */ }
+  }
+
   return {
     isReady, isLoggedIn, ensureLogin, sendText, getC2CHistory, setC2CRead, onMessage,
     getConversationList, onConversationsUpdated, pinConversation, setConversationMute, deleteConversation,
     joinGroup, quitGroup, sendGroupText, getGroupHistory,
     getGroupProfile, getGroupMemberList, getJoinedGroupList, setGroupRead,
+    getFriendApplications, handleFriendApplication, markFriendApplicationsRead,
   }
 }

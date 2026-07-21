@@ -168,11 +168,6 @@ export const imApi = {
   deleteFriend: (toUserId: string) =>
     api.delete(`/im/friends/${toUserId}`),
   getFriendList: () => api.get("/im/friends"),
-  approveFriendRequest: (toUserId: string) =>
-    api.post("/im/friends/approve", { toUserId }),
-  rejectFriendRequest: (toUserId: string) =>
-    api.post("/im/friends/reject", { toUserId }),
-  listPendingFriendRequests: () => api.get("/im/friends/pending"),
   // 黑名单
   addBlacklist: (toUserId: string) =>
     api.post("/im/blacklist", { toUserId }),

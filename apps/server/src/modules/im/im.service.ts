@@ -20,15 +20,6 @@ export interface ImFriend {
   remark: string;
 }
 
-/** 归一化待处理好友申请（来自 friend_get_pendency + 资料补全） */
-export interface ImPendingRequest {
-  userId: string;
-  nick: string;
-  avatar: string;
-  wording: string;
-  addTime: number;
-}
-
 @Injectable()
 export class ImService {
   private readonly logger = new Logger(ImService.name);
@@ -407,63 +398,6 @@ export class ImService {
     return this.callImApi("sns/black_list_get", {
       From_Account: userId,
     });
-  }
-
-  // ───────── 好友申请 ─────────
-
-  /** 审批好友申请 */
-  async approveFriendRequest(userId: string, fromUserId: string) {
-    return this.callImApi("sns/friend_add_response", {
-      From_Account: userId,
-      ResponseItem: [
-        {
-          To_Account: fromUserId,
-          ResponseAction: "Response_Action_Agree",
-        },
-      ],
-    });
-  }
-
-  /** 拒绝好友申请 */
-  async rejectFriendRequest(userId: string, fromUserId: string) {
-    return this.callImApi("sns/friend_add_response", {
-      From_Account: userId,
-      ResponseItem: [
-        {
-          To_Account: fromUserId,
-          ResponseAction: "Response_Action_Reject",
-        },
-      ],
-    });
-  }
-
-  /** 获取待处理好友申请（拉取待处理申请 + 批量补全申请人昵称/头像，归一化返回） */
-  async listPendingFriendRequests(userId: string): Promise<{ pending: ImPendingRequest[] }> {
-    const resp = (await this.callImApi("sns/friend_get_pendency", {
-      From_Account: userId,
-      PendencyType: "Pendency_Type_ComeIn",
-      StartTime: 0,
-    })) as TimApiResponse;
-    const items =
-      (resp.PendencyItem as Array<{
-        To_Account?: string;
-        AddWording?: string;
-        AddTime?: number;
-      }>) || [];
-    const accounts = items
-      .map((it) => it.To_Account)
-      .filter((a): a is string => !!a);
-    const profiles = await this.getProfiles(accounts);
-    const pending: ImPendingRequest[] = items
-      .filter((it): it is { To_Account: string; AddWording?: string; AddTime?: number } => !!it.To_Account)
-      .map((it) => ({
-        userId: it.To_Account,
-        nick: profiles[it.To_Account]?.nick || "",
-        avatar: profiles[it.To_Account]?.avatar || "",
-        wording: it.AddWording || "",
-        addTime: typeof it.AddTime === "number" ? it.AddTime : 0,
-      }));
-    return { pending };
   }
 
   // ───────── 群组详情 ─────────
