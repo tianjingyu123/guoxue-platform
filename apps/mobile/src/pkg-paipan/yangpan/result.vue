@@ -5,6 +5,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+import ToolAiAnalysis from '@/components/paipan/tool-ai-analysis.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { yangpanApi, type YangpanResult, type YangpanInput } from '@/lib/yangpan-data'
@@ -46,6 +47,7 @@ const loading = ref(true)
 const errMsg = ref('')
 const result = ref<YangpanResult | null>(null)
 const saving = ref(false)
+const serverRecordId = ref('')
 
 function buildInput(): YangpanInput {
   return {
@@ -66,6 +68,7 @@ function buildInput(): YangpanInput {
 async function load() {
   loading.value = true
   errMsg.value = ''
+  serverRecordId.value = ''
   try {
     result.value = await yangpanApi.calculate(buildInput())
     saveRecord(result.value)
@@ -94,7 +97,8 @@ async function onSave() {
   if (!getToken()) { uni.showToast({ title: '请先登录后保存', icon: 'none' }); return }
   saving.value = true
   try {
-    await yangpanApi.save(buildInput())
+    const saved = await yangpanApi.save(buildInput())
+    serverRecordId.value = saved.id
     uni.showToast({ title: '已保存到排盘记录', icon: 'success' })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
@@ -103,10 +107,16 @@ async function onSave() {
   }
 }
 
-/** AI 智能解析（后端阳盘奇门 AI 端点尚未提供，暂占位） */
-function onAnalyze() {
-  uni.showToast({ title: 'AI 智能解析即将上线', icon: 'none' })
-}
+/** 当前命理盘 AI 输入：兼容统一工具提示词字段，同时保留原始参数供审计。 */
+const aiInput = computed(() => ({
+  ...buildInput(),
+  birthTime: `${q.year}-${pad(q.month)}-${pad(q.day)} ${pad(q.hour)}:${pad(q.minute)}`,
+  datetime: `${q.year}-${pad(q.month)}-${pad(q.day)} ${pad(q.hour)}:${pad(q.minute)}`,
+  birthplace: q.place,
+  method: q.panMethod === 'zhuan' ? '转盘' : '飞盘',
+  qiJuMethod: q.startMethod === 'zhirun' ? '置闰' : q.startMethod === 'chaibu' ? '拆补' : '茅山',
+}))
+const aiRequestKey = computed(() => JSON.stringify(aiInput.value))
 
 /** 分享：H5 系统分享/复制链接，其余端复制盘面摘要（照 jinkoujue/meihua 范式） */
 function handleShare() {
@@ -447,10 +457,14 @@ function goToBazi() {
       </view>
 
       <!-- AI解析/保存 -->
-      <view class="cta">
-        <view class="cta-ai" @tap="onAnalyze"><app-icon name="sparkles" :size="32" color="#ffffff" /><text class="cta-ai-t">AI智能解析</text></view>
-        <view class="cta-save" :class="{ disabled: saving }" @tap="onSave"><app-icon name="save" :size="30" color="var(--text-ink)" /><text class="cta-save-t">{{ saving ? '保存中…' : '保存' }}</text></view>
-      </view>
+      <tool-ai-analysis tool-id="qimen-yang-mingli" :input="aiInput" :result="result" :request-key="aiRequestKey" :record-id="serverRecordId">
+        <template #secondary>
+          <view class="cta-save" :class="{ disabled: saving }" @tap="onSave">
+            <app-icon name="save" :size="30" color="var(--text-ink)" />
+            <text class="cta-save-t">{{ saving ? '保存中…' : '保存' }}</text>
+          </view>
+        </template>
+      </tool-ai-analysis>
 
       <!-- 免责声明 -->
       <view class="dc-wrap"><disclaimer variant="fortune" tone="card" /></view>
@@ -602,9 +616,6 @@ function goToBazi() {
 .ln-age.act { background: rgba(196,30,58,0.08); }
 
 /* CTA */
-.cta { display: flex; gap: 24rpx; padding: 24rpx 24rpx 0; }
-.cta-ai { flex: 1; display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 26rpx 0; background: var(--brand); border-radius: 20rpx; box-shadow: 0 8rpx 20rpx rgba(196,30,58,0.25); }
-.cta-ai-t { font-size: 28rpx; font-weight: 500; color: #fff; }
 .cta-save { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 26rpx 48rpx; background: var(--secondary, rgba(0,0,0,0.04)); border: 2rpx solid var(--border); border-radius: 20rpx; }
 .cta-save.disabled { opacity: 0.55; }
 .cta-save-t { font-size: 28rpx; font-weight: 500; color: var(--text-ink); }

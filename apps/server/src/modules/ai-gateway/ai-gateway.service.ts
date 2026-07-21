@@ -20,6 +20,9 @@ export interface GatewayChatRequest {
   options?: AiChatOptions;
   /** 跳过语义缓存（创作型场景用：营销文案等要求每次生成都是新内容，且固定指令占比大易误命中） */
   skipCache?: boolean;
+  /** 跳过网关通用审计落库。
+   *  仅供会自行写入业务记录的上层服务使用，避免同一次 AI 调用产生两条 AiAnalysisRecord。 */
+  skipAuditLog?: boolean;
   /** 缓存作用域键（数据隔离修复P1）：按实体隔离的场景传入(如圈主助理传 circleId)，
    *  使语义缓存按实体分区、杜绝跨圈串答；不参与模型选路。 */
   cacheScopeKey?: string;
@@ -117,7 +120,7 @@ export class AiGatewayService {
     const latency = Date.now() - startedAt;
     const inputText = req.messages.map((m) => m.content).join(" ");
 
-    this.aiLogger
+    if (!req.skipAuditLog) this.aiLogger
       .log({
         userId: req.userId,
         scene: req.scene,
@@ -204,7 +207,7 @@ export class AiGatewayService {
     const latency = Date.now() - startedAt;
     const inputText = req.messages.map((m) => m.content).join(" ");
 
-    this.aiLogger
+    if (!req.skipAuditLog) this.aiLogger
       .log({
         userId: req.userId,
         scene: req.scene,

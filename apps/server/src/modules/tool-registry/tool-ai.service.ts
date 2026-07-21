@@ -1,4 +1,4 @@
-import { Injectable, Inject, Optional } from "@nestjs/common";
+import { Injectable, Inject, Logger, Optional } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -15,6 +15,8 @@ import { buildXuanKongPrompt, buildBaZhaiPrompt, buildLuoPanPrompt, buildLiJiChi
 import { buildTaiYiPrompt, buildQiZhengPrompt, buildWuYunLiuQiPrompt } from "./prompts/xingming";
 import { buildQiMingPrompt, buildXingMingJieXiPrompt } from "./prompts/naming";
 import { buildFeiGongQiMenPrompt, buildPhoneAnalysisPrompt, buildWanNianLiPrompt, buildKangXiPrompt, buildHanZiFilterPrompt } from "./prompts/utility";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import type { AiMessage } from "../ai-gateway/adapters/base.adapter";
 
 /** AI分析请求 */
 export interface ToolAiAnalyzeRequest {
@@ -39,10 +41,12 @@ export interface ToolAiAnalyzeResponse {
  */
 @Injectable()
 export class ToolAiService {
+  private readonly logger = new Logger(ToolAiService.name);
   private apiKey: string;
 
   constructor(
     private prisma: PrismaService,
+    private gateway: AiGatewayService,
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
   ) {
     this.apiKey = process.env.DEEPSEEK_API_KEY || "";
@@ -115,6 +119,74 @@ export class ToolAiService {
       createdAt: record.createdAt,
       isCached: false,
     };
+  }
+
+  /**
+   * 对任意工具结果进行真流式 AI 分析。
+   * 复用统一 AI 网关的模型路由/降级能力；完整正文由本服务落业务记录，故关闭网关通用重复审计。
+   */
+  async *analyzeStream(
+    userId: string,
+    paipanRecordId: string | undefined,
+    req: ToolAiAnalyzeRequest,
+  ): AsyncIterable<string> {
+    const tool = ALL_TOOLS.find((item) => item.id === req.toolId);
+    if (!tool) throw new BusinessException(ErrorCode.NOT_FOUND, `工具 ${req.toolId} 不存在`);
+
+    if (paipanRecordId) {
+      const existing = await this.prisma.aiAnalysisRecord.findFirst({
+        where: { userId, paipanRecordId, toolId: req.toolId, analyzeType: "GENERAL" },
+      });
+      if (existing) {
+        yield existing.analysisContent;
+        return;
+      }
+    }
+
+    const prompt = this.buildPrompt(req.toolId, req.input, req.result);
+    const messages: AiMessage[] = [
+      {
+        role: "system",
+        content: "你是一位精通中国传统玄学与易学的资深专家。严格依据给定盘面分析，不虚构盘面中没有的信息；用简体中文，结论专业、通俗、可核对。",
+      },
+      { role: "user", content: prompt },
+    ];
+
+    let fullContent = "";
+    for await (const chunk of this.gateway.chatStream({
+      scene: "tool_analysis",
+      userId,
+      messages,
+      options: { temperature: 0.6, maxTokens: 4096 },
+      // 命盘数据不能走相似语义缓存，否则在 embedding 降级时存在跨盘串结果风险。
+      skipCache: true,
+      // 下方写入带 toolId/paipanRecordId 的业务记录，避免网关再写一条无归属记录。
+      skipAuditLog: true,
+    })) {
+      if (!chunk) continue;
+      fullContent += chunk;
+      yield chunk;
+    }
+
+    if (!fullContent.trim()) {
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "AI 未返回有效解析，请稍后重试");
+    }
+
+    // 审计落库 fail-open：生成结果已经完整交付时，日志/记录故障不能反向让用户看到失败。
+    try {
+      await this.prisma.aiAnalysisRecord.create({
+        data: {
+          userId,
+          paipanRecordId,
+          toolId: req.toolId,
+          analyzeType: "GENERAL",
+          analysisContent: fullContent,
+          isCached: false,
+        },
+      });
+    } catch (err) {
+      this.logger.warn(`工具AI分析记录写入失败: ${(err as Error).message}`);
+    }
   }
 
   /** 获取分析记录 */

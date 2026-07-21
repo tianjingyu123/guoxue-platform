@@ -65,6 +65,17 @@ describe("StreamUnifierService", () => {
       expect(lines[0]).toContain("参考A");
     });
 
+    it("在done前输出业务元信息", async () => {
+      async function* source() { yield "内容"; }
+      const gen = svc.unify(source(), { meta: { disclaimer: "仅供参考" } });
+      const lines: string[] = [];
+      for await (const line of gen) lines.push(line);
+      expect(lines).toHaveLength(3);
+      expect(lines[1]).toContain('"type":"meta"');
+      expect(lines[1]).toContain("仅供参考");
+      expect(lines[2]).toContain('"type":"done"');
+    });
+
     it("流式异常时输出error", async () => {
       // 测试流式异常抛出：需要 async generator 签名，但函数体只 throw 不含 yield
       // eslint-disable-next-line require-yield

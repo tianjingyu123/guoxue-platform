@@ -38,6 +38,8 @@ export interface UnifiedStreamChunk {
   recommendation?: unknown;
 }
 
+type StreamMeta = Pick<UnifiedStreamChunk, "conversationId" | "disclaimer" | "recommendation">;
+
 /**
  * 流式响应统一层
  *
@@ -53,7 +55,7 @@ export class StreamUnifierService {
   /** 将 AsyncIterable<string> 包装为统一 SSE 格式的 AsyncGenerator */
   async *unify(
     source: AsyncIterable<string>,
-    options?: { sources?: Array<{ title: string; excerpt: string }> },
+    options?: { sources?: Array<{ title: string; excerpt: string }>; meta?: StreamMeta },
   ): AsyncGenerator<string, void, undefined> {
     try {
       // 先发送参考来源（如有）
@@ -71,6 +73,11 @@ export class StreamUnifierService {
       // 流式输出文本块
       for await (const chunk of source) {
         yield this.encode({ type: "chunk", content: chunk });
+      }
+
+      // 业务元信息统一在文本完成后、done 前发送（免责声明/会话 id/推荐等）
+      if (options?.meta && Object.values(options.meta).some((value) => value !== undefined)) {
+        yield this.encode({ type: "meta", ...options.meta });
       }
 
       // 完成信号
@@ -124,6 +131,7 @@ export class StreamUnifierService {
     res: Response,
     source: AsyncIterable<string>,
     sources?: Array<{ title: string; excerpt: string }>,
+    meta?: StreamMeta,
   ): Promise<void> {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -132,7 +140,7 @@ export class StreamUnifierService {
     res.flushHeaders();
 
     try {
-      for await (const line of this.unify(source, { sources })) {
+      for await (const line of this.unify(source, { sources, meta })) {
         res.write(line);
       }
     } catch (err: any) {
