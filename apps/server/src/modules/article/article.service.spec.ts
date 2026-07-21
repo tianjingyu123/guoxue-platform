@@ -5,6 +5,7 @@ import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
 import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 
 const mockPrisma = {
   article: {
@@ -166,6 +167,11 @@ describe("ArticleService", () => {
       expect(result).toHaveProperty("total");
       expect(result.total).toBe(0);
       expect(mockRedis.setJson).toHaveBeenCalled();
+      expect(mockPrisma.article.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: { notIn: publicQuarantinedIds("article") } }),
+        }),
+      );
     });
 
     it("有缓存时直接返回", async () => {

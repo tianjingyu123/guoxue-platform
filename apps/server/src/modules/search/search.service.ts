@@ -140,6 +140,7 @@ export class SearchService {
 
   private toPublicQuarantineType(entityType: string): PublicQuarantineType | null {
     switch (entityType) {
+      case "Article": return "article";
       case "Course": return "course";
       case "Product": return "product";
       case "Circle": return "circle";
@@ -367,7 +368,9 @@ export class SearchService {
     ]);
 
     return [
-      ...articles.map((a) => ({ label: a.title, type: "article", id: a.id })),
+      ...articles
+        .filter((a) => !isPublicContentQuarantined("article", String(a.id || "")))
+        .map((a) => ({ label: a.title, type: "article", id: a.id })),
       ...contents.map((c) => ({ label: c.title, type: "content", id: c.id })),
       ...courses
         .filter((c) => !isPublicContentQuarantined("course", String(c.id || "")))

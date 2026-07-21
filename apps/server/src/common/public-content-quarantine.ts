@@ -21,14 +21,30 @@ export const PUBLIC_QUARANTINED_IDS = {
     "c42459b2-04f6-45e5-902d-fefcad62c3f0",
     "ec7017b1-cb1b-4478-9773-7ecbc7bda9bf",
     "a7bc3f2c-6bc1-4877-ad8d-f36d1be215cf",
+    "04db938d-a0cc-450c-b6fe-c2d71ee07984",
+    "08256525-5af0-437e-89c2-c801d9e2ec7f",
+    "658b71ae-8c10-452c-af4f-59e68fa4d623",
   ],
   video: [
     "c8ebccac-0253-4a37-a1f0-9b411a4912c7",
     "ba5bfb1e-bd79-4558-8839-ce946b06f40b",
     "f278cf9a-13ff-4bff-a447-809bd14888e6",
+    "d8d6fe05-8c87-4d9a-a2c2-02a4d9d87087",
+    "338640de-c2e4-4ea6-979a-85bb02c0279b",
+    "cec62c69-92a9-4b9e-beda-f4295345e9d4",
+    "19e34a5b-4a9c-440f-a295-d92b780d7233",
+    "afcfa54e-fe31-43a5-9b01-228616543b3e",
   ],
   circle: [
     "ee88c589-0cf1-43a0-920f-a33f865e0660",
+    "4c3c8ad2-17be-4433-b430-16e9122dd174",
+    "35f11f51-3df6-4982-a055-ba5b0a7c4edb",
+    "c3f1d4bb-ab86-4fa2-b9d0-ecc850f0a783",
+  ],
+  article: [
+    "94caeb7c-370e-45b4-9036-3a70675ed9a8",
+    "ad3f1479-9a0e-46de-91f1-5590d1d3dd61",
+    "dddf248a-b1ee-4696-99e9-2c7ecd5d4831",
   ],
 } as const;
 
@@ -39,6 +55,7 @@ const PUBLIC_QUARANTINED_ID_SETS: Record<PublicQuarantineType, ReadonlySet<strin
   course: new Set(PUBLIC_QUARANTINED_IDS.course),
   video: new Set(PUBLIC_QUARANTINED_IDS.video),
   circle: new Set(PUBLIC_QUARANTINED_IDS.circle),
+  article: new Set(PUBLIC_QUARANTINED_IDS.article),
 };
 
 /** 返回可安全传给 Prisma `notIn` 的可变数组副本。 */

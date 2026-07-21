@@ -493,9 +493,16 @@ function goBack() {
 .search-clear { padding: 8rpx; }
 .search-divider { width: 2rpx; height: 40rpx; background: #e5e5e5; margin: 0 16rpx; }
 .voice-btn {
+  position: relative;
   width: 56rpx; height: 56rpx; border-radius: 999rpx;
   background: #f5f0e8;
   display: flex; align-items: center; justify-content: center;
+}
+.voice-btn::before {
+  content: '';
+  position: absolute;
+  inset: -16rpx;
+  border-radius: 999rpx;
 }
 .voice-btn.listening { background: var(--brand); }
 .listening-mask {

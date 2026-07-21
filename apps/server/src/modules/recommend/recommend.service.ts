@@ -15,7 +15,7 @@ import { AbTestService } from "./services/ab-test.service";
 import { RecommendSceneService } from "./services/recommend-scene.service";
 import { RecommendInsertService } from "./services/recommend-insert.service";
 import { RecommendSelectService } from "./services/recommend-select.service";
-import { isPublicContentQuarantined } from "../../common/public-content-quarantine";
+import { isPublicContentQuarantined, publicQuarantinedIds } from "../../common/public-content-quarantine";
 import type { AbTestAssignment } from "./ab-test.dto";
 
 const TRACKING_CONTEXT_TTL = 7 * 86400;
@@ -272,7 +272,7 @@ export class RecommendService {
     if (tags.length === 0) return [];
 
     return this.prisma.article.findMany({
-      where: { id: { not: contentId }, auditStatus: "APPROVED", tags: { hasSome: tags } },
+      where: { id: { not: contentId, notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED", tags: { hasSome: tags } },
       select: this.selectSvc.articleSelect(),
       take: 5,
       orderBy: [{ viewCount: "desc" }, { likeCount: "desc" }],
@@ -297,7 +297,7 @@ export class RecommendService {
     if (tags.length === 0) return [];
 
     return this.prisma.article.findMany({
-      where: { id: { notIn: interactedIds }, auditStatus: "APPROVED", tags: { hasSome: tags } },
+      where: { id: { notIn: [...interactedIds, ...publicQuarantinedIds("article")] }, auditStatus: "APPROVED", tags: { hasSome: tags } },
       select: this.selectSvc.articleSelect(),
       take: 5,
       orderBy: [{ viewCount: "desc" }, { likeCount: "desc" }],
@@ -309,7 +309,7 @@ export class RecommendService {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     const byViews = await this.prisma.article.findMany({
-      where: { createdAt: { gte: sevenDaysAgo }, auditStatus: "APPROVED" },
+      where: { id: { notIn: publicQuarantinedIds("article") }, createdAt: { gte: sevenDaysAgo }, auditStatus: "APPROVED" },
       select: this.selectSvc.articleSelect(),
       take: 10,
       orderBy: { viewCount: "desc" },
@@ -327,7 +327,7 @@ export class RecommendService {
     const sortedIds = [...engagementMap.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([id]) => id);
     const byEngagement = sortedIds.length > 0
       ? await this.prisma.article.findMany({
-          where: { id: { in: sortedIds }, auditStatus: "APPROVED" },
+          where: { id: { in: sortedIds, notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED" },
           select: this.selectSvc.articleSelect(),
         })
       : [];

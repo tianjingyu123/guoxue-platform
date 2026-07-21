@@ -69,6 +69,17 @@ describe("SearchService", () => {
       expect(result.products).toEqual([{ id: "normal-product", title: "正常商品", rank: 0.8 }]);
     });
 
+    it("文章搜索同样隔离精确联调记录", async () => {
+      mockPrisma.$queryRawUnsafe.mockResolvedValue([
+        { id: PUBLIC_QUARANTINED_IDS.article[0], title: "联调文章", rank: 1 },
+        { id: "normal-article", title: "正常文章", rank: 0.8 },
+      ]);
+
+      const result = await svc.search({ q: "文章", type: "article" });
+
+      expect(result.articles).toEqual([{ id: "normal-article", title: "正常文章", rank: 0.8 }]);
+    });
+
     it("空查询返回空结果", async () => {
       const result = await svc.search({ q: "" });
       expect(result).toEqual({ q: "", type: undefined });

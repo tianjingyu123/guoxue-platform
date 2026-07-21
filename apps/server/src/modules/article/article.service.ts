@@ -9,6 +9,7 @@ import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
 import { AuditService } from "../audit/audit.service";
 import { safePagination, paginated } from "../../common/pagination";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
 import { Prisma } from "@prisma/client";
@@ -185,6 +186,7 @@ export class ArticleService {
       else where.auditStatus = { not: "DRAFT" };
       if (keyword) where.title = { contains: keyword, mode: "insensitive" };
     } else {
+      where.id = { notIn: publicQuarantinedIds("article") };
       where.auditStatus = "APPROVED"; // 默认只返回审核通过的
       // 平台公共池（未按圈子过滤）只出「全平台开放」内容；圈内列表（带 circleId）圈内内容全可见
       if (!circleId) where.visibility = "PLATFORM";
@@ -222,7 +224,12 @@ export class ArticleService {
   async getHomeFeed(params: { page: number; pageSize: number; userId?: string }) {
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     // 首页信息流=平台公共池：只出「全平台开放」且审核通过的内容
-    const where: Prisma.ArticleWhereInput = { isPushHome: true, auditStatus: "APPROVED", visibility: "PLATFORM" };
+    const where: Prisma.ArticleWhereInput = {
+      id: { notIn: publicQuarantinedIds("article") },
+      isPushHome: true,
+      auditStatus: "APPROVED",
+      visibility: "PLATFORM",
+    };
 
     // 热度加权：浏览量×1 + 点赞×2 + 收藏×3
     const [articles, total] = await Promise.all([
@@ -254,7 +261,7 @@ export class ArticleService {
 
     return this.prisma.article.findMany({
       where: {
-        id: { not: articleId },
+        id: { not: articleId, notIn: publicQuarantinedIds("article") },
         auditStatus: "APPROVED",
         OR: [
           { circleId: article.circleId }, // 本圈相关：圈内内容全可见
