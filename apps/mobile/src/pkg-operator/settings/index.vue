@@ -57,7 +57,7 @@
         <text class="st-note">头像、昵称、手机、微信由平台统一账号管理，点击跳转平台账号设置。</text>
       </view>
 
-      <!-- ===== 通知设置（开关切换即时保存·本地态诚实降级） ===== -->
+      <!-- ===== 通知设置（复用平台账号 notifySettings，跨端云同步） ===== -->
       <view class="st-group">
         <text class="st-group-lbl">通知设置</text>
         <view class="st-card">
@@ -68,11 +68,12 @@
               :checked="notifications[n.key]"
               color="#C41E3A"
               style="transform: scale(0.9)"
+              :disabled="savingKey !== null"
               @change="onToggle(n.key, $event)"
             />
           </view>
         </view>
-        <text class="st-note">通知偏好暂存于本地，云端同步即将开放。</text>
+        <text class="st-note">通知偏好已与平台账号同步，换设备登录后仍会保留。</text>
       </view>
 
       <!-- ===== 协议与帮助 ===== -->
@@ -107,7 +108,7 @@
 import { reactive, ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { apiGet } from '@/utils/request'
+import { apiGet, apiPut } from '@/utils/request'
 import { navigateTo } from '@/utils/router'
 
 // === 基本信息：来自 /auth/me 真实字段 ===
@@ -128,13 +129,19 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    // /auth/me 返回结构较杂，此处仅取展示字段，保留 any
-    const data = await apiGet<any>('/auth/me')
+    const [data, settings] = await Promise.all([
+      // /auth/me 返回结构较杂，此处仅取展示字段，保留 any
+      apiGet<any>('/auth/me'),
+      apiGet<OperatorNotifySetting[]>('/users/notify-settings?scope=operator'),
+    ])
     me.nickname = data?.nickname || ''
     me.phone = data?.phone || ''
     me.avatar = data?.avatar || ''
     // 微信绑定态：后端 openId/unionId/wechatOpenId 任一存在即视为已绑定
     me.wechatBound = !!(data?.openId || data?.unionId || data?.wechatOpenId)
+    for (const item of settings) {
+      if (isNotifyKey(item.key)) notifications[item.key] = item.value
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -142,25 +149,43 @@ async function load() {
   }
 }
 
-// === 通知设置：后端无运营商通知端点 → 本地态（诚实降级，切换即时反馈，不伪造云端持久化） ===
-type NotifyKey = 'team' | 'report' | 'dormant' | 'system'
+// === 通知设置：复用 User.notifySettings JSON，运营商专属键不影响 C 端通用通知开关 ===
+type NotifyKey = 'operatorTeam' | 'operatorReport' | 'operatorDormant' | 'operatorSystem'
+interface OperatorNotifySetting { key: string; label: string; icon: string; value: boolean }
 const notifyItems: { key: NotifyKey; label: string; icon: string }[] = [
-  { key: 'team', label: '团队事件通知', icon: 'users' },
-  { key: 'report', label: '业绩报告推送', icon: 'bar-chart-3' },
-  { key: 'dormant', label: '沉寂预警提醒', icon: 'alert-triangle' },
-  { key: 'system', label: '系统通知', icon: 'bell' },
+  { key: 'operatorTeam', label: '团队事件通知', icon: 'users' },
+  { key: 'operatorReport', label: '业绩报告推送', icon: 'bar-chart-3' },
+  { key: 'operatorDormant', label: '沉寂预警提醒', icon: 'alert-triangle' },
+  { key: 'operatorSystem', label: '系统通知', icon: 'bell' },
 ]
 const notifications = reactive<Record<NotifyKey, boolean>>({
-  team: true,
-  report: true,
-  dormant: true,
-  system: false,
+  operatorTeam: true,
+  operatorReport: true,
+  operatorDormant: true,
+  operatorSystem: false,
 })
+const savingKey = ref<NotifyKey | null>(null)
 
-function onToggle(key: NotifyKey, e: Event) {
-  notifications[key] = Boolean((e as CustomEvent<{ value: boolean }>).detail?.value)
-  // 后端暂无 PUT /operator/settings 端点，仅本地生效并即时反馈
-  uni.showToast({ title: '已保存', icon: 'success', duration: 1000 })
+function isNotifyKey(key: string): key is NotifyKey {
+  return notifyItems.some((item) => item.key === key)
+}
+
+async function onToggle(key: NotifyKey, e: Event) {
+  if (savingKey.value !== null) return
+  const previous = notifications[key]
+  const next = Boolean((e as CustomEvent<{ value: boolean }>).detail?.value)
+  if (next === previous) return
+  notifications[key] = next
+  savingKey.value = key
+  try {
+    await apiPut('/users/notify-settings', { key, value: next })
+    uni.showToast({ title: '已同步', icon: 'success', duration: 1000 })
+  } catch (e) {
+    notifications[key] = previous
+    uni.showToast({ title: (e as Error)?.message || '同步失败，已恢复原设置', icon: 'none' })
+  } finally {
+    savingKey.value = null
+  }
 }
 
 // === 基本信息编辑：跳平台账号设置（沿用平台统一账号） ===

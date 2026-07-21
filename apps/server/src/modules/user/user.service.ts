@@ -941,9 +941,17 @@ export class UserService {
 
   // ───────── 通知设置 ─────────
 
-  async getNotifySettings(userId: string) {
+  async getNotifySettings(userId: string, scope?: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { notifySettings: true } });
     const saved = (user?.notifySettings as Record<string, boolean>) ?? {};
+    if (scope === "operator") {
+      return [
+        { key: "operatorTeam", label: "团队事件通知", icon: "users", value: saved.operatorTeam ?? true },
+        { key: "operatorReport", label: "业绩报告推送", icon: "bar-chart-3", value: saved.operatorReport ?? true },
+        { key: "operatorDormant", label: "沉寂预警提醒", icon: "alert-triangle", value: saved.operatorDormant ?? true },
+        { key: "operatorSystem", label: "系统通知", icon: "bell", value: saved.operatorSystem ?? false },
+      ];
+    }
     return [
       { key: "message", label: "新消息通知", icon: "bell", value: saved.message ?? true },
       { key: "course", label: "课程提醒", icon: "book-open", value: saved.course ?? true },

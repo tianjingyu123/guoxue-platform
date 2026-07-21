@@ -6,6 +6,8 @@ import { RolesGuard } from "../../common/roles.guard";
 
 const mockUserSvc: Record<string, jest.Mock> = {
   updateProfile: jest.fn().mockResolvedValue({ id: "u1", nickname: "新昵称" } as any),
+  getNotifySettings: jest.fn().mockResolvedValue([{ key: "operatorTeam", value: true }] as any),
+  updateNotifySettings: jest.fn().mockResolvedValue({ success: true } as any),
   getMySummary: jest.fn().mockResolvedValue({ stats: { following: 2, followers: 3, likes: 4 } } as any),
   getUserById: jest.fn().mockResolvedValue({ id: "u1", nickname: "张三" } as any),
   getUserStats: jest.fn().mockResolvedValue({ articleCount: 10, followerCount: 100 } as any),
@@ -58,6 +60,19 @@ describe("UserController", () => {
   it("PUT /users/profile — 更新个人资料", async () => {
     const result: any = await ctrl.updateProfile(mockReq(), { nickname: "新昵称" });
     expect(result.nickname).toBe("新昵称");
+  });
+
+  it("GET /users/notify-settings?scope=operator — 获取运营商通知偏好", async () => {
+    const result: any = await ctrl.getNotifySettings(mockReq(), "operator");
+    expect(result[0].key).toBe("operatorTeam");
+    expect(mockUserSvc.getNotifySettings).toHaveBeenCalledWith("u1", "operator");
+  });
+
+  it("PUT /users/notify-settings — 更新运营商通知偏好", async () => {
+    const dto = { key: "operatorTeam", value: false } as any;
+    const result: any = await ctrl.updateNotifySettings(mockReq(), dto);
+    expect(result.success).toBe(true);
+    expect(mockUserSvc.updateNotifySettings).toHaveBeenCalledWith("u1", dto);
   });
 
   it("GET /users/me/summary — 当前用户个人中心统计", async () => {

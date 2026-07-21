@@ -640,6 +640,38 @@ describe("UserService", () => {
     });
   });
 
+  describe("notify settings", () => {
+    it("按 operator scope 返回运营商专属偏好并保留已保存值", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        notifySettings: { operatorTeam: false, operatorSystem: true },
+      });
+
+      const result = await svc.getNotifySettings("u1", "operator");
+
+      expect(result).toEqual([
+        expect.objectContaining({ key: "operatorTeam", value: false }),
+        expect.objectContaining({ key: "operatorReport", value: true }),
+        expect.objectContaining({ key: "operatorDormant", value: true }),
+        expect.objectContaining({ key: "operatorSystem", value: true }),
+      ]);
+    });
+
+    it("更新运营商专属键时合并原通知偏好，不覆盖其他设置", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        notifySettings: { message: false, operatorTeam: true },
+      });
+      mockPrisma.user.update.mockResolvedValue({});
+
+      const result = await svc.updateNotifySettings("u1", { key: "operatorTeam", value: false });
+
+      expect(result).toEqual({ success: true });
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: "u1" },
+        data: { notifySettings: { message: false, operatorTeam: false } },
+      });
+    });
+  });
+
   // ═══════════════════ 账户注销 ═══════════════════
 
   describe("requestAccountDeletion", () => {

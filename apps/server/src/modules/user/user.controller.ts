@@ -40,10 +40,11 @@ export class UserController {
   @Get("notify-settings")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取通知设置" })
+  @ApiQuery({ name: "scope", required: false, enum: ["operator"] })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getNotifySettings(@Req() req: Request) {
-    return this.user.getNotifySettings(req.user.id);
+  getNotifySettings(@Req() req: Request, @Query("scope") scope?: string) {
+    return this.user.getNotifySettings(req.user.id, scope);
   }
 
   @Put("notify-settings")

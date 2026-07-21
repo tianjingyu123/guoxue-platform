@@ -115,6 +115,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { shareLink } from '@/utils/share'
 
 const statusBarHeight = ref(0)
 const navH = ref(44)
@@ -166,8 +167,8 @@ function onBuy(item: ActivityItem) {
     uni.showToast({ title: '抢购成功！', icon: 'success' })
   }
 }
-function onShare() {
-  uni.showToast({ title: '链接已复制', icon: 'none' })
+async function onShare() {
+  await shareLink({ title: activity.value?.title || '限时活动' })
 }
 function go(path: string) {
   navigateTo(path)

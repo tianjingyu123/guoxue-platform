@@ -114,6 +114,7 @@ export class AddWhitelistDto {
 
 export const NOTIFY_SETTING_KEYS = [
   "message", "course", "live", "interact", "system", "marketingSms",
+  "operatorTeam", "operatorReport", "operatorDormant", "operatorSystem",
 ] as const;
 
 export class UpdateNotifySettingsDto {

@@ -21,6 +21,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { shareLink } from '@/utils/share'
 import {
   userProfileApi,
   formatCount,
@@ -181,8 +182,11 @@ async function handleFollow() {
   }
 }
 
-function handleShare() {
-  uni.showToast({ title: '链接已复制', icon: 'none' })
+async function handleShare() {
+  await shareLink({
+    title: profile.value?.profile.nickname ? `${profile.value.profile.nickname}的主页` : '用户主页',
+    text: profile.value?.profile.bio || undefined,
+  })
 }
 
 function goChat() {

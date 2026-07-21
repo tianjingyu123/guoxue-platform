@@ -8,6 +8,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { shareLink } from '@/utils/share'
 import { apiGet, apiPost } from '@/utils/request'
 
 interface Announcement {
@@ -134,7 +135,12 @@ async function markRead() {
 }
 function openCircle() { navigateTo(`/pkg-circle/circles/detail?id=${circleId.value}`) }
 function openRelated(id: string) { navigateTo(`/pkg-circle/circles/announcements?id=${id}&circleId=${circleId.value}`) }
-function share() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
+async function share() {
+  await shareLink({
+    title: announcement.value?.title || '圈子公告',
+    text: announcement.value?.circleName ? `来自${announcement.value.circleName}` : undefined,
+  })
+}
 </script>
 
 <template>
