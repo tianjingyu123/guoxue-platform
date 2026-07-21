@@ -2,7 +2,7 @@
 /**
  * 排盘工具主页（V0 排盘工具 7月10日版 v0.5-v0.7 首页重构还原）
  * 结构：顶栏 / 今日时刻Hero / AI智能解盘卡 / 双人合盘卡 / 为你推荐(收藏夹·可管理) /
- *       全部工具(收起3排·展开全部) / 中医工具(折叠) / AI智能体横滚 / 合规提示 / 底部导航
+ *       全部工具(收起3排·展开全部) / 中医工具(已上线能力卡) / AI智能体横滚 / 合规提示 / 底部导航
  * 收藏与频次本地持久化（lib/paipan/tool-prefs），拖拽交互降级为「管理」编辑模式（uni-app 多端稳妥）。
  * R4 合规（微信小程序无占卜类目）：占卜类工具 MP 端隐藏入口，八字类改历法表述——仅展示层，路由/逻辑不变。
  */
@@ -19,10 +19,8 @@ import { navigateTo } from '@/utils/router'
 const GRID_COLS = 4
 const COLLAPSED_ROWS = 3
 const COLLAPSED_COUNT = GRID_COLS * COLLAPSED_ROWS // 收起时显示 3 排
-const MEDICAL_COLLAPSED = 12
 
 const showAllTools = ref(false)
-const showMedical = ref(false)
 const editing = ref(false)
 const favIds = ref<string[]>([])
 
@@ -63,18 +61,30 @@ const CATEGORY_ACCENT: Record<ToolCategory, { color: string; label: string }> = 
 
 const byId = new Map(tools.map((t) => [t.id, t]))
 
+/**
+ * 正式入口只展示已经交付的工具。
+ * comingSoon 项仍保留在配置真源里供后续开发，但不能铺在生产首页让用户逐个点进占位页。
+ */
 const visibleTools = computed(() => tools
-  .filter((t) => !MP_HIDDEN_TOOL_IDS.includes(t.id))
+  .filter((t) => !t.comingSoon && !MP_HIDDEN_TOOL_IDS.includes(t.id))
   .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)))
 
 const displayTools = computed(() => (showAllTools.value ? visibleTools.value : visibleTools.value.slice(0, COLLAPSED_COUNT)))
 
 const favTools = computed(() => favIds.value
   .map((id) => byId.get(id))
-  .filter((t): t is Tool => !!t && !MP_HIDDEN_TOOL_IDS.includes(t.id))
+  .filter((t): t is Tool => !!t && !t.comingSoon && !MP_HIDDEN_TOOL_IDS.includes(t.id))
   .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)))
 
-const displayMedical = computed(() => (showMedical.value ? medicalTools : medicalTools.slice(0, MEDICAL_COLLAPSED)))
+const availableMedical = computed(() => medicalTools.filter((t) => !t.comingSoon))
+const MEDICAL_DESCRIPTIONS: Record<string, string> = {
+  wuyun: '五运六气节律 · 司天在泉 · 主客气推演',
+}
+
+function medicalDescription(id: string) {
+  return MEDICAL_DESCRIPTIONS[id] || '传统中医文化研究工具'
+}
+
 const displayAgents = computed(() =>
   (MP_VISIBLE_AGENT_IDS ? agents.filter((a) => (MP_VISIBLE_AGENT_IDS as string[]).includes(a.id)) : agents).slice(0, 6))
 
@@ -257,9 +267,8 @@ onShow(() => { favIds.value = getFavorites() })
             @tap="openTool(tool)"
           >
             <view class="cell-icon">
-              <tool-icon :icon-id="tool.iconId" :size="88" :class="{ 'icon-dim': tool.comingSoon }" />
-              <view v-if="tool.badge && !tool.comingSoon && !editing" class="badge badge-red" />
-              <view v-if="tool.comingSoon && !editing" class="soon-tag"><text class="soon-tag-txt">即将</text></view>
+              <tool-icon :icon-id="tool.iconId" :size="88" />
+              <view v-if="tool.badge && !editing" class="badge badge-red" />
               <view v-if="editing" class="cell-fav-mark" :class="{ 'cell-fav-on': isFav(tool.id) }">
                 <app-icon :name="isFav(tool.id) ? 'check' : 'plus'" :size="22" color="#ffffff" />
               </view>
@@ -273,27 +282,26 @@ onShow(() => { favIds.value = getFavorites() })
         </view>
       </view>
 
-      <!-- 中医工具 -->
-      <view class="section-px section-mt">
+      <!-- 中医工具：只露出已经交付并验证过的能力，不展示占位工具墙 -->
+      <view v-if="availableMedical.length" class="section-px section-mt">
         <view class="sec-head">
           <view class="sec-title-row">
             <app-icon name="stethoscope" :size="32" color="#059669" />
             <text class="sec-title">中医工具</text>
           </view>
+          <text class="sec-live">已上线</text>
         </view>
-        <view class="grid">
-          <view v-for="tool in displayMedical" :key="tool.id" class="cell" @tap="navigateTo(tool.href)">
-            <view class="cell-icon">
-              <tool-icon :icon-id="tool.iconId" :size="88" :class="{ 'icon-dim': tool.comingSoon }" />
-              <view v-if="tool.badge && !tool.comingSoon" class="badge badge-green" />
-              <view v-if="tool.comingSoon" class="soon-tag"><text class="soon-tag-txt">即将</text></view>
+        <view class="medical-list">
+          <view v-for="tool in availableMedical" :key="tool.id" class="medical-card tap-press" @tap="navigateTo(tool.href)">
+            <view class="medical-icon">
+              <tool-icon :icon-id="tool.iconId" :size="72" />
             </view>
-            <text class="cell-name">{{ tool.name }}</text>
+            <view class="medical-copy">
+              <text class="medical-name">{{ tool.name }}</text>
+              <text class="medical-desc">{{ medicalDescription(tool.id) }}</text>
+            </view>
+            <app-icon name="chevron-right" :size="32" color="#7B9B84" />
           </view>
-        </view>
-        <view v-if="medicalTools.length > MEDICAL_COLLAPSED" class="toggle" @tap="showMedical = !showMedical">
-          <text class="toggle-text">{{ showMedical ? '收起' : `展开全部 ${medicalTools.length} 个工具` }}</text>
-          <app-icon :name="showMedical ? 'chevron-up' : 'chevron-down'" :size="32" color="#999999" />
         </view>
       </view>
 
@@ -495,6 +503,41 @@ onShow(() => { favIds.value = getFavorites() })
 .sec-link { display: flex; align-items: center; gap: 4rpx; }
 .sec-link-text { font-size: 24rpx; color: var(--brand); }
 .sec-hint { font-size: 22rpx; color: var(--text-soft, #999); }
+.sec-live {
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(5, 150, 105, 0.1);
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #047857;
+}
+
+/* 中医工具：已上线能力用完整信息卡呈现，避免单个工具留在四列网格里显得残缺 */
+.medical-list { display: flex; flex-direction: column; gap: 16rpx; }
+.medical-card {
+  min-height: 120rpx;
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  padding: 22rpx 24rpx;
+  border: 2rpx solid rgba(5, 150, 105, 0.16);
+  border-radius: 26rpx;
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.92), rgba(255, 255, 255, 0.98));
+  box-shadow: 0 6rpx 20rpx rgba(5, 100, 75, 0.06);
+}
+.medical-icon {
+  width: 92rpx;
+  height: 92rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24rpx;
+  background: rgba(5, 150, 105, 0.08);
+}
+.medical-copy { min-width: 0; flex: 1; }
+.medical-name { display: block; font-size: 29rpx; font-weight: 700; color: #214B3A; }
+.medical-desc { display: block; margin-top: 6rpx; font-size: 22rpx; line-height: 1.45; color: #6D8779; }
 
 /* 为你推荐（收藏夹）：2 列横卡 */
 .fav-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
@@ -547,16 +590,6 @@ onShow(() => { favIds.value = getFavorites() })
 .cell-icon { position: relative; }
 .badge { position: absolute; top: -4rpx; right: -4rpx; width: 16rpx; height: 16rpx; border-radius: 50%; }
 .badge-red { background: var(--brand); }
-.badge-green { background: #10b981; }
-/* 即将上线：灰置图标 + 右上角「即将」小标 */
-.icon-dim { opacity: 0.4; }
-.soon-tag {
-  position: absolute; top: -10rpx; right: -14rpx;
-  background: #9a8f80; border-radius: 14rpx;
-  padding: 0 8rpx; height: 26rpx;
-  display: flex; align-items: center; justify-content: center;
-}
-.soon-tag-txt { font-size: 18rpx; color: #fff; line-height: 1; }
 .cell-fav-mark {
   position: absolute; top: -8rpx; right: -8rpx;
   width: 36rpx; height: 36rpx; border-radius: 50%;
