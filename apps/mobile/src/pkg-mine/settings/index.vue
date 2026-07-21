@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
-import { navigateTo, toastComingSoon } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 import { clearToken, clearRefreshToken, clearUserInfo } from '@/utils/storage'
 import { mineApi, type SettingNotifyItem } from '@/lib/mine-data'
 
@@ -145,6 +145,32 @@ function handleClearCache() {
   setTimeout(() => (cacheCleared.value = false), 3000)
   uni.showToast({ title: freed > 0 ? `已清理 ${formatKb(freed)}` : '已清理', icon: 'none' })
 }
+
+const clearingHistory = ref(false)
+function handleClearHistory() {
+  if (clearingHistory.value) return
+  uni.showModal({
+    title: '清除浏览历史',
+    content: '将永久删除账号内全部浏览记录，此操作无法撤销。',
+    confirmText: '确认清除',
+    confirmColor: '#C41E3A',
+    success: async (result) => {
+      if (!result.confirm || clearingHistory.value) return
+      clearingHistory.value = true
+      try {
+        await mineApi.clearHistory()
+        // 浏览历史页的原始记录映射不使用本地缓存；这里只清除可能存在的旧页面缓存键。
+        try { uni.removeStorageSync('mine:browse-history:cache') } catch { /* 不阻断服务端删除 */ }
+        uni.showToast({ title: '浏览历史已清除', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '清除失败，请重试', icon: 'none' })
+      } finally {
+        clearingHistory.value = false
+      }
+    },
+  })
+}
+
 function handleLogout() {
   showLogout.value = false
   // 退出必须清空本地登录凭证，否则「退出」只是跳页、登录态仍在 → 换账号会串号（安全事故）。
@@ -259,9 +285,10 @@ function handleLogout() {
             </view>
           </view>
           -->
-          <view class="row" @tap="toastComingSoon">
+          <view class="row" :class="{ disabled: clearingHistory }" @tap="handleClearHistory">
             <AppIcon name="history" :size="18" color="#666" />
             <text class="row-label">清除浏览历史</text>
+            <text v-if="clearingHistory" class="row-sub">清除中…</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
         </view>
@@ -396,6 +423,9 @@ function handleLogout() {
   padding: 28rpx 32rpx;
   border-bottom: 1rpx solid #e8e3db;
   transition: background-color 0.15s ease;
+}
+.row.disabled {
+  opacity: 0.55;
 }
 .row:active {
   background: #faf8f5;

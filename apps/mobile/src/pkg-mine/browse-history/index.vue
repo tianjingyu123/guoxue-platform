@@ -6,7 +6,9 @@
         <app-icon name="arrow-left" :size="20" color="#2c2c2c" />
       </view>
       <text class="nav-title">浏览历史</text>
-      <view class="nav-right" />
+      <view class="nav-right" :class="{ disabled: clearing }" @click="clearAll">
+        <text v-if="totalCount > 0" class="nav-clear">{{ clearing ? '清除中' : '清空' }}</text>
+      </view>
     </view>
 
     <!-- 加载骨架 -->
@@ -91,6 +93,7 @@ import {
 const loading = ref(true)
 const error = ref('')
 const groups = ref<HistoryGroup[]>([])
+const clearing = ref(false)
 
 const totalCount = computed(() => groups.value.reduce((s, g) => s + g.items.length, 0))
 
@@ -150,6 +153,30 @@ async function openItem(item: HistoryItem) {
   uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
 }
 
+function clearAll() {
+  if (clearing.value || totalCount.value === 0) return
+  uni.showModal({
+    title: '清空浏览历史',
+    content: `将删除全部 ${totalCount.value} 条浏览记录，此操作无法撤销。`,
+    confirmText: '确认清空',
+    confirmColor: '#C41E3A',
+    success: async (result) => {
+      if (!result.confirm || clearing.value) return
+      clearing.value = true
+      try {
+        await mineApi.clearHistory()
+        groups.value = []
+        rawMapPromise = null
+        uni.showToast({ title: '浏览历史已清空', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '清空失败，请重试', icon: 'none' })
+      } finally {
+        clearing.value = false
+      }
+    },
+  })
+}
+
 onMounted(loadData)
 </script>
 
@@ -184,7 +211,19 @@ onMounted(loadData)
   color: #2c2c2c;
 }
 .nav-right {
-  width: 64rpx;
+  min-width: 80rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.nav-right.disabled {
+  opacity: 0.55;
+}
+.nav-clear {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: var(--brand);
 }
 
 .content {

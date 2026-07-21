@@ -1733,6 +1733,11 @@ export const mineApi = {
     return adaptHistory(list)
   },
 
+  /** 清空当前用户全部浏览历史 —— DELETE /users/me/history（后端按登录用户隔离） */
+  async clearHistory(): Promise<void> {
+    await apiDelete('/users/me/history')
+  },
+
   /** 获取我的点赞 —— GET /users/me/likes（后端 {items} 含多态 target 详情 → 适配，目标已删降级） */
   async getMyLikes(_filter?: string): Promise<LikeItem[]> {
     const res = await apiGet<{ items?: RawLike[] } | RawLike[]>('/users/me/likes?page=1&pageSize=50')

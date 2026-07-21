@@ -84,6 +84,7 @@ const statusBarHeight = ref(20)
 const safeBottom = ref(0)
 const scrollHeight = ref(600)
 const agreed = ref(false)
+const contentSlug = ref('')
 
 const typeLabels: Record<string, string> = {
   notice: '公告',
@@ -238,11 +239,41 @@ onLoad((options) => {
     // ignore
   }
   const slug = (options && (options.slug || options.id)) || ''
+  contentSlug.value = slug
   content.value = contentData[slug] || fallback
 })
 
-function onShare() {
-  uni.showToast({ title: '分享功能开发中', icon: 'none' })
+function copyShareLink(url: string) {
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '链接已复制', icon: 'none' }),
+    fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }),
+  })
+}
+
+async function onShare() {
+  if (!contentSlug.value || content.value === fallback) {
+    uni.showToast({ title: '当前内容无法分享', icon: 'none' })
+    return
+  }
+  const h5Base = (BRAND.h5Url || 'https://api.rebugx.cn/h5/').replace(/\/$/, '')
+  const canonical = `${h5Base}/pkg-common/content/index?slug=${encodeURIComponent(contentSlug.value)}`
+  // #ifdef H5
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : canonical
+  const nav = navigator as Navigator & { share?: (data: { title?: string; text?: string; url?: string }) => Promise<void> }
+  if (nav.share) {
+    try {
+      await nav.share({ title: content.value.title, text: `${BRAND.platformName} · ${content.value.title}`, url: shareUrl })
+      return
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return
+    }
+  }
+  copyShareLink(shareUrl)
+  // #endif
+  // #ifndef H5
+  copyShareLink(canonical)
+  // #endif
 }
 function onAction() {
   if (!agreed.value) {
