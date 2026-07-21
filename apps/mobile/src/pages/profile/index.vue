@@ -253,7 +253,7 @@ function applyRole(role: string) {
       </view>
 
       <view class="id-row">
-        <view class="id-avatar" @tap="go('/pages/profile/edit')">
+        <view class="id-avatar" @tap="go('/mine/edit-profile')">
           <!-- smart-avatar：头像 URL 失效自动翻昵称首字色块（原 image 裂图时是纯红空圈） -->
           <smart-avatar class="avatar-img" :src="userData.avatar" :name="userData.name || '国'" />
         </view>

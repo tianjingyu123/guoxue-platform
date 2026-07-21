@@ -225,9 +225,9 @@ async function onBlockUser() {
   }
 }
 
-/** 编辑资料（①自己态）：主包已有路由 /pages/profile/edit */
+/** 编辑资料（①自己态）：统一进入真实资料编辑页 */
 function goEditProfile() {
-  navigateTo('/pages/profile/edit')
+  navigateTo('/mine/edit-profile')
 }
 
 // 付费咨询：走图文付费提问（consult-ask）。多圈子开通时让用户选圈子
