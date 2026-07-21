@@ -79,7 +79,7 @@ const TYPE_LABELS: Record<string, string> = {
   REFUND: '汇付退款',
   RECHARGE: '国学币充值',
   COIN_REFUND: '国学币退款',
-  COMMISSION_CONFIG: '分佣比例变更',
+  COMMISSION_CONFIG: '分佣/结算规则变更',
   MEMBER_CONFIG: '会员套餐变更',
 }
 function typeLabel(t: string) { return TYPE_LABELS[t] || t }
@@ -121,6 +121,14 @@ function payloadBrief(row: ApprovalRow): string {
         const scope = dto.stationId ? `分站 ${dto.stationId}` : dto.operatorId ? `运营商 ${dto.operatorId}` : '全局'
         if (p.method === 'deleteTemporaryReferralConfig') return `删除临时分佣 / 配置 ${p.id ?? '—'}`
         return `${scope} / ${dto.commissionRate ?? '—'}% / ${dto.validFrom ?? '—'} ~ ${dto.validTo ?? '—'}`
+      }
+      if (String(p.method || '').includes('SettlementRule')) {
+        const dto = asRecord(p.dto)
+        const action = p.method === 'createSettlementRule' ? '创建' : '修改'
+        const scene = p.scene ?? dto.scene ?? p.id ?? '—'
+        const splitCount = Array.isArray(dto.splits) ? ` / ${dto.splits.length} 个分账项` : ''
+        const state = dto.enabled == null ? '' : dto.enabled ? ' / 启用' : ' / 停用'
+        return `${action}结算规则 ${scene}${splitCount}${state}`
       }
       return `${p.key ?? '—'} ${JSON.stringify(p.dto ?? {})}`
     }

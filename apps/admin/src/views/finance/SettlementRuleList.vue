@@ -315,14 +315,14 @@ async function save() {
     return
   }
 
-  // L3 影响预告：保存即改变该场景后续订单的资金分账
+  // L3 影响预告：提交审批；仅其他财务/超管审批通过后改变后续订单分账
   try {
     await ElMessageBox.confirm(
-      `确认保存「${editingId.value ? sceneLabel(form.scene) : form.scene.trim()}」结算规则？\n` +
-      `保存后该场景所有新订单将按以下方案分账：\n${splitsSummary(splits)}\n` +
+      `确认提交「${editingId.value ? sceneLabel(form.scene) : form.scene.trim()}」结算规则变更审批？\n` +
+      `审批通过后，该场景所有新订单将按以下方案分账：\n${splitsSummary(splits)}\n` +
       `启用状态：${form.enabled ? '启用' : '停用'}`,
-      '结算规则变更确认',
-      { type: 'warning', confirmButtonText: '确认保存', cancelButtonText: '再检查一下' },
+      '结算规则变更审批',
+      { type: 'warning', confirmButtonText: '提交审批', cancelButtonText: '再检查一下' },
     )
   } catch { return }
 
@@ -342,7 +342,7 @@ async function save() {
     } else {
       await settlementRuleApi.createRule({ ...payload, scene: form.scene.trim() })
     }
-    ElMessage.success('已保存')
+    ElMessage.success('变更申请已提交，待其他财务或超管审批后生效')
     dialogVisible.value = false
     fetchList()
   } catch {
@@ -353,16 +353,16 @@ async function save() {
 }
 
 // 表格内就地切换启用开关（规则无删除，只允许停用）
-// L3 危险操作：启停直接改变该场景后续所有订单的分账行为，切换前必须影响预告确认
+// L3 危险操作：启停也只提交审批，审批通过前页面保持当前真实状态
 async function toggleEnabled(row: SettlementRule) {
   if (togglingId.value) { row.enabled = !row.enabled; return }
   try {
     await ElMessageBox.confirm(
       row.enabled
-        ? `确认【启用】「${sceneLabel(row.scene)}」结算规则？\n启用后该场景所有新订单将按此方案分账：\n${splitsSummary(row.splits)}`
-        : `确认【停用】「${sceneLabel(row.scene)}」结算规则？\n停用后该场景新订单将不再按此规则分账，请确认已有替代口径。`,
-      '结算规则变更确认',
-      { type: 'warning', confirmButtonText: row.enabled ? '确认启用' : '确认停用', cancelButtonText: '取消' },
+        ? `确认提交【启用】「${sceneLabel(row.scene)}」审批？\n审批通过后，该场景新订单将按此方案分账：\n${splitsSummary(row.splits)}`
+        : `确认提交【停用】「${sceneLabel(row.scene)}」审批？\n审批通过后，该场景新订单将不再按此规则分账，请确认已有替代口径。`,
+      '结算规则启停审批',
+      { type: 'warning', confirmButtonText: '提交审批', cancelButtonText: '取消' },
     )
   } catch {
     row.enabled = !row.enabled // 取消 → 回滚开关
@@ -378,7 +378,8 @@ async function toggleEnabled(row: SettlementRule) {
       enabled: row.enabled,
       remark: row.remark ?? undefined,
     })
-    ElMessage.success(row.enabled ? '已启用' : '已停用')
+    ElMessage.success(`${row.enabled ? '启用' : '停用'}申请已提交，审批通过后生效`)
+    await fetchList()
   } catch {
     // 失败回滚开关状态
     row.enabled = !row.enabled
@@ -397,7 +398,7 @@ onMounted(fetchList)
       :closable="false"
       show-icon
       style="margin-bottom:16px"
-      title="分佣比例调整实时影响资金结算，计酬层级受平台合规铁律硬性约束（最多两级），修改前请确认已获授权"
+      title="分佣比例调整须经另一名财务或超管审批后生效；计酬层级受平台合规铁律硬性约束（最多两级）"
     />
 
     <div class="toolbar">
@@ -687,7 +688,7 @@ onMounted(fetchList)
               v-model="splitsJsonText"
               type="textarea"
               :rows="8"
-              placeholder='JSON 数组，rate 为 0~1 小数，如 [{"role":"PLATFORM","rate":0.3},{"role":"LECTURER","rate":0.5}]'
+              placeholder="JSON 数组，rate 为 0~1 小数，如 [{&quot;role&quot;:&quot;PLATFORM&quot;,&quot;rate&quot;:0.3},{&quot;role&quot;:&quot;LECTURER&quot;,&quot;rate&quot;:0.5}]"
             />
           </div>
         </el-form-item>
@@ -742,7 +743,7 @@ onMounted(fetchList)
           :disabled="!jsonMode && totalExceeded"
           @click="save"
         >
-          保存
+          提交审批
         </el-button>
       </template>
     </el-dialog>

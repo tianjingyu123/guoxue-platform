@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { SettlementRuleAdminService } from "./settlement-rule-admin.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
+import { FundApprovalService } from "../fund-approval/fund-approval.service";
 
 const mockPrisma = {
   settlementRule: {
@@ -10,6 +11,10 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
   },
+};
+
+const mockApprovals = {
+  create: jest.fn(),
 };
 
 const VALID_SPLITS = [
@@ -34,7 +39,11 @@ describe("SettlementRuleAdminService", () => {
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
-      providers: [SettlementRuleAdminService, { provide: PrismaService, useValue: mockPrisma }],
+      providers: [
+        SettlementRuleAdminService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: FundApprovalService, useValue: mockApprovals },
+      ],
     }).compile();
     svc = mod.get(SettlementRuleAdminService);
   });
@@ -49,6 +58,47 @@ describe("SettlementRuleAdminService", () => {
       const result = await svc.listRules();
       expect(result.items).toHaveLength(1);
       expect(mockPrisma.settlementRule.findMany).toHaveBeenCalledWith({ orderBy: { scene: "asc" } });
+    });
+  });
+
+  describe("fund approval requests", () => {
+    it("创建申请只提交审批，审批前不写真实结算规则", async () => {
+      mockPrisma.settlementRule.findUnique.mockResolvedValue(null);
+      mockApprovals.create.mockResolvedValue({ submitted: true, approvalId: "a1", status: "PENDING" });
+
+      const result = await svc.requestCreateRule(createDto(), "admin-1");
+
+      expect(result.submitted).toBe(true);
+      expect(mockApprovals.create).toHaveBeenCalledWith(expect.objectContaining({
+        type: "COMMISSION_CONFIG",
+        requestedBy: "admin-1",
+        payload: expect.objectContaining({ method: "createSettlementRule", scene: "TEST_SCENE" }),
+      }));
+      expect(mockPrisma.settlementRule.create).not.toHaveBeenCalled();
+    });
+
+    it("修改/启停申请只提交审批，并把真实场景带给审批中心", async () => {
+      mockPrisma.settlementRule.findUnique.mockResolvedValue({ id: "r1", scene: "QUESTION" });
+      mockApprovals.create.mockResolvedValue({ submitted: true, approvalId: "a2", status: "PENDING" });
+
+      await svc.requestUpdateRule("r1", { enabled: false } as any, "admin-2");
+
+      expect(mockApprovals.create).toHaveBeenCalledWith(expect.objectContaining({
+        requestedBy: "admin-2",
+        payload: { method: "updateSettlementRule", id: "r1", scene: "QUESTION", dto: { enabled: false } },
+      }));
+      expect(mockPrisma.settlementRule.update).not.toHaveBeenCalled();
+    });
+
+    it("非法分账比例在进入审批队列前即拒绝", async () => {
+      const dto = createDto({
+        splits: [
+          { role: "PROVIDER", rate: 0.8, basis: "GROSS", category: "SERVICE" },
+          { role: "PLATFORM", rate: 0.3, basis: "GROSS", category: "PLATFORM" },
+        ],
+      });
+      await expect(svc.requestCreateRule(dto, "admin-1")).rejects.toThrow(/超过 1/);
+      expect(mockApprovals.create).not.toHaveBeenCalled();
     });
   });
 

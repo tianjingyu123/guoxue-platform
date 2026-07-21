@@ -6,8 +6,10 @@ import { SettlementRuleAdminService } from "./settlement-rule-admin.service";
 import { LedgerBalanceService } from "./ledger-balance.service";
 import { SettlementFreezeService } from "./settlement-freeze.service";
 import { SettlementController } from "./settlement.controller";
+import { FundApprovalCoreModule } from "../fund-approval/fund-approval-core.module";
 
 @Module({
+  imports: [FundApprovalCoreModule],
   controllers: [SettlementController],
   providers: [
     SettlementService,
@@ -17,6 +19,6 @@ import { SettlementController } from "./settlement.controller";
     LedgerBalanceService,
     SettlementFreezeService,
   ],
-  exports: [SettlementService, LedgerBalanceService, SettlementFreezeService],
+  exports: [SettlementService, SettlementRuleAdminService, LedgerBalanceService, SettlementFreezeService],
 })
 export class SettlementModule {}

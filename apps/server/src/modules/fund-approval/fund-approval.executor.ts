@@ -8,6 +8,7 @@ import { CoinService } from "../coin/coin.service";
 import { CommissionService } from "../commission/commission.service";
 import { AdminReferralService } from "../station/admin-referral.service";
 import { SystemService } from "../system/system.service";
+import { SettlementRuleAdminService } from "../settlement/settlement-rule-admin.service";
 
 /**
  * 资金审批执行器：审批通过时按 type 调用对应模块的「真实执行方法」。
@@ -26,6 +27,7 @@ export class FundApprovalExecutor {
     private commission: CommissionService,
     private referrals: AdminReferralService,
     private system: SystemService,
+    private settlementRules: SettlementRuleAdminService,
   ) {}
 
   /** 审批：approve=true → 认领并执行；approve=false → 标记 REJECTED */
@@ -85,6 +87,12 @@ export class FundApprovalExecutor {
         }
         if (p.method === "deleteTemporaryReferralConfig") {
           return this.referrals.delete(p.id);
+        }
+        if (p.method === "createSettlementRule") {
+          return this.settlementRules.createRule(p.dto, approval.requestedBy);
+        }
+        if (p.method === "updateSettlementRule") {
+          return this.settlementRules.updateRule(p.id, p.dto ?? {}, approval.requestedBy);
         }
         return this.commission.updateConfig(p.key, p.dto ?? {});
       case "MEMBER_CONFIG":

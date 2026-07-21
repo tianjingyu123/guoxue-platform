@@ -11,6 +11,7 @@ describe("FundApprovalExecutor 自审自批防护", () => {
   let coin: any;
   let referrals: any;
   let system: any;
+  let settlementRules: any;
 
   beforeEach(() => {
     approvals = {
@@ -29,7 +30,13 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       updateMemberConfig: jest.fn().mockResolvedValue({ id: "m1" }),
       deleteMemberConfig: jest.fn().mockResolvedValue({ id: "m1" }),
     };
-    executor = new FundApprovalExecutor(approvals, {} as any, {} as any, coin, {} as any, referrals, system);
+    settlementRules = {
+      createRule: jest.fn().mockResolvedValue({ id: "sr1" }),
+      updateRule: jest.fn().mockResolvedValue({ id: "sr1" }),
+    };
+    executor = new FundApprovalExecutor(
+      approvals, {} as any, {} as any, coin, {} as any, referrals, system, settlementRules,
+    );
   });
 
   it("发起人不能审批自己发起的资金操作（approve）", async () => {
@@ -61,7 +68,9 @@ describe("FundApprovalExecutor 自审自批防护", () => {
   // 🔴 汇付分账四眼收口：审批通过后由执行器调用 createSplit 真正发起渠道分账
   it("HUIFU_SPLIT 审批通过后执行 huifu.createSplit", async () => {
     const huifu = { createSplit: jest.fn().mockResolvedValue({ splitStatus: "PROCESSING" }) };
-    const exec2 = new FundApprovalExecutor(approvals, {} as any, huifu as any, coin, {} as any, referrals, system);
+    const exec2 = new FundApprovalExecutor(
+      approvals, {} as any, huifu as any, coin, {} as any, referrals, system, settlementRules,
+    );
     const payload = { orderId: "order-1", amount: 100, receivers: [{ acctId: "A1", amount: 100, name: "张三" }] };
     approvals.findById.mockResolvedValue({ id: "a2", status: "PENDING", requestedBy: "admin-1", type: "HUIFU_SPLIT", payload });
     const res = await exec2.review("a2", true, undefined, "admin-2");
@@ -96,6 +105,26 @@ describe("FundApprovalExecutor 自审自批防护", () => {
     await executor.review("a5", true, undefined, "admin-2");
     expect(referrals.delete).toHaveBeenCalledWith("r1");
   });
+  it("结算规则创建审批通过后才执行真实创建", async () => {
+    const dto = { scene: "QUESTION", splits: [{ role: "PROVIDER", rate: 0.8 }] };
+    approvals.findById.mockResolvedValue({
+      id: "a9", status: "PENDING", requestedBy: "admin-1", type: "COMMISSION_CONFIG",
+      payload: { method: "createSettlementRule", dto },
+    });
+    await executor.review("a9", true, undefined, "admin-2");
+    expect(settlementRules.createRule).toHaveBeenCalledWith(dto, "admin-1");
+  });
+
+  it("结算规则修改审批通过后才执行真实更新", async () => {
+    const dto = { enabled: false };
+    approvals.findById.mockResolvedValue({
+      id: "a10", status: "PENDING", requestedBy: "admin-1", type: "COMMISSION_CONFIG",
+      payload: { method: "updateSettlementRule", id: "sr1", dto },
+    });
+    await executor.review("a10", true, undefined, "admin-2");
+    expect(settlementRules.updateRule).toHaveBeenCalledWith("sr1", dto, "admin-1");
+  });
+
   it("会员套餐新增审批通过后执行真实写入", async () => {
     const dto = { level: "MONTHLY", name: "月卡", price: 19 };
     approvals.findById.mockResolvedValue({
