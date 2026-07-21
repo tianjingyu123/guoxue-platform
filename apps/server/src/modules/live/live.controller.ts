@@ -442,11 +442,15 @@ export class LiveController {
   }
 
   @Get("rooms/:id/muted-users")
-  @ApiOperation({ summary: "获取禁言用户列表" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取禁言用户列表（主播或管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限（仅主播本人或管理员）" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  listMutedUsers(@Param("id") id: string) {
-    return this.svc.listMutedUsers(id);
+  @ApiBearerAuth()
+  listMutedUsers(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.listMutedUsers(id, req.user.id, this.isAdmin(req));
   }
 
   // ───────── 限时秒杀 ─────────

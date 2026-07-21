@@ -29,9 +29,37 @@ const mockPrisma = {
   product: {
     findMany: jest.fn(),
   },
+  liveMinuteData: {
+    aggregate: jest.fn(),
+  },
+  giftRecord: {
+    aggregate: jest.fn(),
+    groupBy: jest.fn(),
+  },
+  order: {
+    aggregate: jest.fn(),
+  },
+  comment: {
+    count: jest.fn(),
+    findMany: jest.fn(),
+  },
+  like: {
+    count: jest.fn(),
+  },
   liveProduct: {
     deleteMany: jest.fn(),
     createMany: jest.fn(),
+    findMany: jest.fn(),
+  },
+  liveMutedUser: {
+    upsert: jest.fn(),
+    deleteMany: jest.fn(),
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    delete: jest.fn(),
+  },
+  user: {
+    findMany: jest.fn(),
   },
   $transaction: jest.fn(),
 };
@@ -423,6 +451,91 @@ describe("LiveService", () => {
       expect(mockPrisma.liveRoom.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { status: "LIVING" } }),
       );
+    });
+  });
+
+  describe("getConsoleData", () => {
+    it("返回直播间真实画质档位且空数据使用零值", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        hostUserId: "host1", viewCount: 0, title: "测试直播", quality: "uhd",
+      });
+      mockPrisma.liveMinuteData.aggregate.mockResolvedValue({ _max: { onlineCount: null }, _avg: { onlineCount: null } });
+      mockPrisma.giftRecord.aggregate.mockResolvedValue({ _sum: { totalCoin: null } });
+      mockPrisma.giftRecord.groupBy.mockResolvedValue([]);
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: null } });
+      mockPrisma.comment.count.mockResolvedValue(0);
+      mockPrisma.comment.findMany.mockResolvedValue([]);
+      mockPrisma.like.count.mockResolvedValue(0);
+      mockPrisma.liveProduct.findMany.mockResolvedValue([]);
+      mockPrisma.user.findMany.mockResolvedValue([]);
+      mockPrisma.product.findMany.mockResolvedValue([]);
+
+      const result = await svc.getConsoleData("r1", "host1");
+
+      expect(result.quality).toBe("uhd");
+      expect(result.stats).toMatchObject({ onlineCount: 0, totalViews: 0, totalGift: 0, totalSales: 0 });
+      expect(mockPrisma.liveRoom.findUnique).toHaveBeenCalledWith({
+        where: { id: "r1" },
+        select: { hostUserId: true, viewCount: true, title: true, quality: true },
+      });
+    });
+
+    it("非房主不能读取主播控制台", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1", viewCount: 0, title: "直播", quality: "basic" });
+      await expect(svc.getConsoleData("r1", "other")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.liveMinuteData.aggregate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("listMutedUsers", () => {
+    it("房主仅能读取当前有效禁言并获得安全用户资料", async () => {
+      const mutedAt = new Date("2026-07-21T10:00:00.000Z");
+      const expiresAt = new Date("2099-07-21T11:00:00.000Z");
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+      mockPrisma.liveMutedUser.findMany.mockResolvedValue([
+        { id: "m1", liveRoomId: "r1", userId: "u1", mutedBy: "host1", mutedAt, expiresAt: null },
+        { id: "m2", liveRoomId: "r1", userId: "u2", mutedBy: "host1", mutedAt, expiresAt },
+      ]);
+      mockPrisma.user.findMany.mockResolvedValue([
+        { id: "u1", nickname: "观众甲", avatar: "https://img.example/a.jpg" },
+        { id: "u2", nickname: "观众乙", avatar: null },
+      ]);
+
+      const result = await svc.listMutedUsers("r1", "host1");
+
+      expect(mockPrisma.liveMutedUser.findMany).toHaveBeenCalledWith({
+        where: {
+          liveRoomId: "r1",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: expect.any(Date) } }],
+        },
+        orderBy: { mutedAt: "desc" },
+      });
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ["u1", "u2"] } },
+        select: { id: true, nickname: true, avatar: true },
+      });
+      expect(result).toEqual([
+        { id: "m1", userId: "u1", nickname: "观众甲", avatar: "https://img.example/a.jpg", mutedAt, expiresAt: null, isPermanent: true },
+        { id: "m2", userId: "u2", nickname: "观众乙", avatar: null, mutedAt, expiresAt, isPermanent: false },
+      ]);
+    });
+
+    it("非房主不能读取禁言名单", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+
+      await expect(svc.listMutedUsers("r1", "other")).rejects.toThrow(BusinessException);
+
+      expect(mockPrisma.liveMutedUser.findMany).not.toHaveBeenCalled();
+      expect(mockPrisma.user.findMany).not.toHaveBeenCalled();
+    });
+
+    it("管理员可以读取空禁言名单且不额外查询用户", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+      mockPrisma.liveMutedUser.findMany.mockResolvedValue([]);
+
+      await expect(svc.listMutedUsers("r1", "admin1", true)).resolves.toEqual([]);
+
+      expect(mockPrisma.user.findMany).not.toHaveBeenCalled();
     });
   });
 

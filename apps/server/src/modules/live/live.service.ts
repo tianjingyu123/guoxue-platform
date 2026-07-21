@@ -653,7 +653,7 @@ export class LiveService {
   async getConsoleData(roomId: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
-      select: { hostUserId: true, viewCount: true, title: true },
+      select: { hostUserId: true, viewCount: true, title: true, quality: true },
     });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该直播间");
@@ -700,7 +700,7 @@ export class LiveService {
     });
 
     // 连麦请求 / 提词器脚本无对应数据源 → 空（前端降级）
-    return { title: room.title, stats, danmaku, requests: [], products, script: [] };
+    return { title: room.title, quality: room.quality, stats, danmaku, requests: [], products, script: [] };
   }
 
   async getRoom(id: string, viewerId?: string) {
@@ -995,11 +995,44 @@ export class LiveService {
     return { success: true };
   }
 
-  /** 获取禁言列表 */
-  async listMutedUsers(roomId: string) {
-    return this.prisma.liveMutedUser.findMany({
-      where: { liveRoomId: roomId },
+  /** 获取当前有效禁言列表（仅主播本人或管理员） */
+  async listMutedUsers(roomId: string, operatorId: string, isAdmin = false) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: { hostUserId: true },
+    });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.hostUserId !== operatorId && !isAdmin) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以查看禁言名单");
+    }
+
+    const now = new Date();
+    const records = await this.prisma.liveMutedUser.findMany({
+      where: {
+        liveRoomId: roomId,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
       orderBy: { mutedAt: "desc" },
+    });
+    if (records.length === 0) return [];
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...new Set(records.map((record) => record.userId))] } },
+      select: { id: true, nickname: true, avatar: true },
+    });
+    const userById = new Map(users.map((user) => [user.id, user]));
+
+    return records.map((record) => {
+      const user = userById.get(record.userId);
+      return {
+        id: record.id,
+        userId: record.userId,
+        nickname: user?.nickname || "用户",
+        avatar: user?.avatar || null,
+        mutedAt: record.mutedAt,
+        expiresAt: record.expiresAt,
+        isPermanent: record.expiresAt === null,
+      };
     });
   }
 

@@ -38,7 +38,7 @@
       </view>
       <text class="mono time-txt">{{ formatTime(liveTime) }}</text>
       <view class="qtag" :class="{ warn: remainWarn }">
-        <text class="qtag-txt">{{ qualityLabel }} · 剩余 {{ remainMinutes }} 分钟</text>
+        <text class="qtag-txt">{{ qualityStatusLabel }}</text>
       </view>
       <view class="endbtn" @tap="showEndDialog = true">
         <text class="endbtn-txt">下播</text>
@@ -110,21 +110,13 @@
         </view>
         <text class="op-txt">商品</text>
       </view>
-      <view class="op" @tap="onFlashSale">
-        <view class="op-ic"><AppIcon name="zap" :size="28" color="#A89FA8" /></view>
-        <text class="op-txt">秒杀</text>
-      </view>
-      <view class="op" @tap="showProductSheet = true">
+      <view class="op" @tap="openMutedSheet">
         <view class="op-ic"><AppIcon name="ban" :size="28" color="#A89FA8" /></view>
         <text class="op-txt">禁言管理</text>
       </view>
-      <view v-if="isPortrait" class="op" @tap="onFlipBeauty">
-        <view class="op-ic"><AppIcon name="refresh-cw" :size="28" color="#A89FA8" /></view>
-        <text class="op-txt">翻转/美颜</text>
-      </view>
-      <view class="op" @tap="onMore">
-        <view class="op-ic"><AppIcon name="more-horizontal" :size="28" color="#A89FA8" /></view>
-        <text class="op-txt">更多</text>
+      <view class="op" @tap="onShareRoom">
+        <view class="op-ic"><AppIcon name="share-2" :size="28" color="#A89FA8" /></view>
+        <text class="op-txt">分享</text>
       </view>
     </view>
 
@@ -144,7 +136,7 @@
       </view>
     </view>
 
-    <!-- ── 商品/禁言半屏列表 ── -->
+    <!-- ── 商品半屏列表 ── -->
     <view v-if="showProductSheet" class="mask sheet-mask" @tap="showProductSheet = false">
       <view class="sheet" @tap.stop>
         <view class="sheet-head">
@@ -180,6 +172,50 @@
         </scroll-view>
       </view>
     </view>
+
+    <!-- ── 禁言管理半屏列表 ── -->
+    <view v-if="showMutedSheet" class="mask sheet-mask" @tap="showMutedSheet = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">禁言名单（{{ mutedUsers.length }}）</text>
+          <view class="sheet-close" @tap="showMutedSheet = false">
+            <AppIcon name="x" :size="32" color="#A89FA8" />
+          </view>
+        </view>
+        <scroll-view scroll-y class="sheet-body">
+          <view v-if="mutedLoading" class="sheet-state">
+            <AppIcon name="loader-2" :size="34" color="#A89FA8" />
+            <text class="sheet-state-txt">正在加载禁言名单…</text>
+          </view>
+          <view v-else-if="mutedError" class="sheet-state">
+            <text class="sheet-state-txt error">{{ mutedError }}</text>
+            <view class="sheet-retry" @tap="loadMutedUsers">重新加载</view>
+          </view>
+          <view v-else>
+            <view v-if="mutedUsers.length === 0" class="sheet-empty">
+              <text class="sheet-empty-txt">当前没有被禁言的用户</text>
+            </view>
+            <view v-for="item in mutedUsers" :key="item.id" class="muted-row">
+              <view class="muted-avatar">
+                <image v-if="item.avatar" class="muted-avatar-img" :src="item.avatar" mode="aspectFill" />
+                <text v-else class="muted-avatar-txt">{{ (item.nickname || '用').charAt(0) }}</text>
+              </view>
+              <view class="muted-info">
+                <text class="muted-name">{{ item.nickname }}</text>
+                <text class="muted-meta">{{ formatMutedStatus(item) }}</text>
+              </view>
+              <view
+                class="muted-action"
+                :class="{ disabled: unmutingUserId === item.userId }"
+                @tap="confirmUnmute(item)"
+              >
+                {{ unmutingUserId === item.userId ? '解除中…' : '解除禁言' }}
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -189,7 +225,8 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
-import { liveApi, type ConsoleDanmaku, type ConsoleProduct } from '@/lib/live-data'
+import { withRef } from '@/utils/referral'
+import { liveApi, type ConsoleDanmaku, type ConsoleProduct, type LiveMutedUserItem } from '@/lib/live-data'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _goBack = goBack // 保留返回工具（顶栏无返回键时用于兜底）
@@ -219,17 +256,24 @@ const liveTime = ref(0) // 已播秒数
 const danmakuScrollTop = ref(0)
 const showEndDialog = ref(false)
 const showProductSheet = ref(false)
+const showMutedSheet = ref(false)
+const mutedUsers = ref<LiveMutedUserItem[]>([])
+const mutedLoading = ref(false)
+const mutedError = ref('')
+const unmutingUserId = ref('')
 
-// 画质档 & 剩余时长（后端暂无该字段，诚实降级为占位值·剩余分钟由时长包体系提供）
-const qualityLabel = ref('高清')
+// 画质档来自直播间；付费档剩余分钟来自额度账户。额度接口失败时只显示档位，不伪造 0。
+const quality = ref<'basic' | 'hd' | 'uhd'>('basic')
 const remainMinutes = ref(0)
-const remainWarn = computed(() => remainMinutes.value > 0 && remainMinutes.value < 15)
+const quotaLoaded = ref(false)
+const qualityLabel = computed(() => quality.value === 'uhd' ? '超清' : quality.value === 'hd' ? '高清' : '标清')
+const qualityStatusLabel = computed(() =>
+  quality.value === 'basic' || !quotaLoaded.value ? qualityLabel.value : `${qualityLabel.value} · 剩余 ${remainMinutes.value} 分钟`,
+)
+const remainWarn = computed(() => quality.value !== 'basic' && quotaLoaded.value && remainMinutes.value > 0 && remainMinutes.value < 15)
 
 // 本场收入 = 打赏 + 带货 GMV（金额单位分→元由 formatPrice 处理，这里 stats 已是元口径展示值）
 const sessionIncome = computed(() => (stats.value.totalGift || 0) + (stats.value.totalSales || 0))
-
-// 竖屏判断：竖屏手机直播才显示「翻转/美颜」（本地端能力·OBS 横屏隐藏）
-const isPortrait = ref(true)
 
 // ===== 格式化 =====
 function formatNum(n: number) {
@@ -255,12 +299,19 @@ async function fetchData(silent = false) {
     error.value = ''
   }
   try {
-    const res = await liveApi.getConsoleData(consoleId.value)
+    const [res, quota] = await Promise.all([
+      liveApi.getConsoleData(consoleId.value),
+      liveApi.getQuota().catch(() => null),
+    ])
     roomTitle.value = res.title || ''
     stats.value = res.stats
     danmakuList.value = res.danmaku
     products.value = res.products
-    // 剩余时长若后端未提供则保持 0（不显示警示·不编假数字）
+    quality.value = res.quality
+    quotaLoaded.value = quota !== null
+    remainMinutes.value = quota
+      ? (res.quality === 'uhd' ? quota.uhdMinutes : res.quality === 'hd' ? quota.hdMinutes : 0)
+      : 0
     scrollDanmakuToBottom()
   } catch (e) {
     if (silent) uni.showToast({ title: (e as Error)?.message || '商品刷新失败', icon: 'none' })
@@ -291,13 +342,6 @@ let liveTimer: ReturnType<typeof setInterval> | null = null
 
 onLoad((options) => {
   if (options?.id) consoleId.value = String(options.id)
-  // 检测屏幕方向（宽>高判定为横屏/OBS，隐藏翻转美颜）
-  try {
-    const info = uni.getSystemInfoSync()
-    isPortrait.value = (info.screenHeight || 1) >= (info.screenWidth || 0)
-  } catch {
-    isPortrait.value = true
-  }
   fetchData()
   liveTimer = setInterval(() => {
     liveTime.value += 1
@@ -345,35 +389,90 @@ function confirmMute(item: ConsoleDanmaku) {
   })
 }
 
-// ===== 秒杀（后端有端点·前端需选品/定价/时长表单尚未接·诚实降级）=====
-function onFlashSale() {
-  uni.showToast({ title: '秒杀功能开发中', icon: 'none' })
+// ===== 禁言名单 =====
+async function loadMutedUsers() {
+  if (mutedLoading.value) return
+  mutedLoading.value = true
+  mutedError.value = ''
+  try {
+    mutedUsers.value = await liveApi.getMutedUsers(consoleId.value)
+  } catch (e) {
+    mutedError.value = (e as Error)?.message || '禁言名单加载失败，请重试'
+  } finally {
+    mutedLoading.value = false
+  }
 }
 
-// ===== 翻转/美颜（本地端能力·无后端·占位）=====
-function onFlipBeauty() {
-  uni.showToast({ title: '翻转/美颜（本地端能力）', icon: 'none' })
+function openMutedSheet() {
+  showMutedSheet.value = true
+  loadMutedUsers()
 }
 
-// ===== 更多 =====
-function onMore() {
-  uni.showActionSheet({
-    itemList: ['分享直播间'],
+function formatMutedStatus(item: LiveMutedUserItem) {
+  if (item.isPermanent || !item.expiresAt) return '永久禁言'
+  const date = new Date(item.expiresAt)
+  if (Number.isNaN(date.getTime())) return '限时禁言'
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `禁言至 ${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function confirmUnmute(item: LiveMutedUserItem) {
+  if (unmutingUserId.value) return
+  uni.showModal({
+    title: '解除禁言',
+    content: `确定允许「${item.nickname}」重新在本直播间发言吗？`,
+    confirmText: '解除',
     success: (res) => {
-      if (res.tapIndex === 0) onShareRoom()
+      if (!res.confirm) return
+      unmutingUserId.value = item.userId
+      liveApi.unmuteUser(consoleId.value, item.userId)
+        .then(() => {
+          mutedUsers.value = mutedUsers.value.filter((muted) => muted.userId !== item.userId)
+          uni.showToast({ title: '已解除禁言', icon: 'success' })
+        })
+        .catch((e) => {
+          uni.showToast({ title: (e as Error)?.message || '解除失败，请重试', icon: 'none' })
+        })
+        .finally(() => {
+          unmutingUserId.value = ''
+        })
     },
   })
 }
 
-// ===== 分享直播间 =====
-function onShareRoom() {
-  uni.showToast({ title: '已唤起分享', icon: 'none' })
+function buildShareUrl(): string {
+  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
+  // #ifdef H5
+  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
+  // #endif
+  if (!base.endsWith('/')) base += '/'
+  return withRef(`${base}pkg-live/watch/index?id=${consoleId.value}`)
 }
 
-// ===== 时长续购（时长包体系尚未接入·占位）=====
+// ===== 分享直播间：H5 优先系统分享，不支持时复制可归因链接 =====
+async function onShareRoom() {
+  const url = buildShareUrl()
+  // #ifdef H5
+  const webNavigator = navigator as Navigator & {
+    share?: (data: { title?: string; url?: string }) => Promise<void>
+  }
+  if (typeof webNavigator.share === 'function') {
+    try {
+      await webNavigator.share({ title: roomTitle.value || '直播间', url })
+      return
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return
+    }
+  }
+  // #endif
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '直播链接已复制，可粘贴分享给好友', icon: 'none' }),
+  })
+}
+
+// ===== 时长续购：进入真实画质时长包购买页 =====
 function onRenewDuration() {
-  // 🔴 2026-07-14：原为「开发中」假 toast，而 quality-packages 画质时长包页早已完整建好（真连
-  //    liveApi.purchaseQualityPackage）——直播时长快用完点「续购」却弹开发中，等于这页永远进不去。
   uni.navigateTo({ url: '/pkg-live/quality-packages/index' })
 }
 
@@ -730,7 +829,9 @@ async function onConfirmEnd() {
 }
 .sheet {
   width: 100%;
+  height: 70vh;
   max-height: 70vh;
+  box-sizing: border-box;
   background: #221e28;
   border-top-left-radius: 32rpx;
   border-top-right-radius: 32rpx;
@@ -767,6 +868,7 @@ async function onConfirmEnd() {
   justify-content: center;
 }
 .sheet-body {
+  box-sizing: border-box;
   padding: 16rpx 28rpx 40rpx;
   height: 0;
   flex: 1;
@@ -855,6 +957,87 @@ async function onConfirmEnd() {
 .prod-stock {
   font-size: 22rpx;
   color: #6e6470;
+}
+
+.sheet-state {
+  min-height: 320rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+}
+.sheet-state-txt {
+  font-size: 25rpx;
+  color: #8e858f;
+  line-height: 1.5;
+  text-align: center;
+}
+.sheet-state-txt.error {
+  color: #c7bdc8;
+}
+.sheet-retry {
+  height: 64rpx;
+  padding: 0 30rpx;
+  border: 1rpx solid #c9a96e;
+  border-radius: 999rpx;
+  color: #c9a96e;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+}
+.muted-row {
+  min-height: 116rpx;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  border-bottom: 2rpx solid #2a2530;
+}
+.muted-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #312b38;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.muted-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+.muted-avatar-txt {
+  font-size: 28rpx;
+  color: #b8afb9;
+}
+.muted-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.muted-name {
+  color: #f5f0eb;
+  font-size: 27rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.muted-meta {
+  color: #746b76;
+  font-size: 22rpx;
+}
+.muted-action {
+  flex-shrink: 0;
+  color: #c9a96e;
+  font-size: 24rpx;
+  padding: 18rpx 0 18rpx 24rpx;
+}
+.muted-action.disabled {
+  color: #5f5661;
 }
 
 /* ===== 错误态 ===== */

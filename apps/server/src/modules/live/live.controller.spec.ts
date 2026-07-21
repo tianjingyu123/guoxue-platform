@@ -209,6 +209,24 @@ describe("LiveController", () => {
     expect(result.count).toBe(50);
   });
 
+  it("GET /live/rooms/:id/muted-users — 房主读取禁言名单", async () => {
+    const req: any = { user: { id: "host1", roles: [] } };
+    await ctrl.listMutedUsers("r1", req);
+    expect(mockLiveSvc.listMutedUsers).toHaveBeenCalledWith("r1", "host1", false);
+  });
+
+  it("GET /live/rooms/:id/muted-users — 管理员权限透传到服务层", async () => {
+    const req: any = { user: { id: "admin1", roles: ["OPERATION_ADMIN"] } };
+    await ctrl.listMutedUsers("r1", req);
+    expect(mockLiveSvc.listMutedUsers).toHaveBeenCalledWith("r1", "admin1", true);
+  });
+
+  it("DELETE /live/rooms/:id/mute/:userId — 解除禁言", async () => {
+    const req: any = { user: { id: "host1", roles: [] } };
+    await ctrl.unmuteUser("r1", "u1", req);
+    expect(mockLiveSvc.unmuteUser).toHaveBeenCalledWith("r1", "u1", "host1", false);
+  });
+
   it("POST /live/callback — 腾讯云回调", async () => {
     const body = { event_type: 1, stream_param: "r1" };
     const result: any = await ctrl.handleCallback(body);

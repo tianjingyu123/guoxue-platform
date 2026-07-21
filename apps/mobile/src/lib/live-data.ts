@@ -726,67 +726,43 @@ export interface LiveQuota {
 }
 
 // ============ 创作者后台 · 直播中控制台 (/creator/live/console) ============
-// @data-needs: 直播实时数据流（在线/观看/打赏/带货等），由后端 WebSocket 推送
-export const consoleLiveStats = {
-  onlineCount: 1258,
-  totalViews: 8560,
-  newFollowers: 86,
-  totalGift: 2680,
-  totalSales: 12800,
-  peakOnline: 1580,
-  avgWatchTime: '8:32',
-  interactionRate: '12.5%',
+export interface ConsoleLiveStats {
+  onlineCount: number
+  totalViews: number
+  newFollowers: number
+  totalGift: number
+  totalSales: number
+  peakOnline: number
+  avgWatchTime: string
+  interactionRate: string
+}
+function emptyConsoleLiveStats(): ConsoleLiveStats {
+  return {
+    onlineCount: 0,
+    totalViews: 0,
+    newFollowers: 0,
+    totalGift: 0,
+    totalSales: 0,
+    peakOnline: 0,
+    avgWatchTime: '--',
+    interactionRate: '0%',
+  }
 }
 
-// @data-needs: 实时弹幕流，后端推送追加；含等级/VIP 标记
+// 实时数据均由 GET /live/console/:id 返回；缺失字段只显示零值，不回退原型样例。
 export interface ConsoleDanmaku { id: number; userId?: string; user: string; content: string; time: string; level: number; isVip: boolean }
-export const consoleDanmaku: ConsoleDanmaku[] = [
-  { id: 1, user: '易学小白', content: '老师讲得真好！', time: '10:23:15', level: 3, isVip: false },
-  { id: 2, user: '命理爱好者', content: '这个八字怎么看财运？', time: '10:23:18', level: 5, isVip: true },
-  { id: 3, user: '紫微迷', content: '老师能讲讲紫微斗数吗', time: '10:23:22', level: 2, isVip: false },
-  { id: 4, user: '风水先生', content: '支持老师！', time: '10:23:25', level: 8, isVip: true },
-  { id: 5, user: '新用户001', content: '刚来，老师在讲什么？', time: '10:23:30', level: 1, isVip: false },
-  { id: 6, user: '道法自然', content: '八字日主分析很到位', time: '10:23:35', level: 6, isVip: false },
-  { id: 7, user: '学易人', content: '请问今天有抽奖吗？', time: '10:23:40', level: 4, isVip: false },
-  { id: 8, user: '命理大师粉丝', content: '已购买课程，非常棒！', time: '10:23:45', level: 7, isVip: true },
-]
-
-// @data-needs: 连麦申请列表，观众发起后入列；接受/拒绝走后端
+export interface LiveMutedUserItem {
+  id: string
+  userId: string
+  nickname: string
+  avatar: string | null
+  mutedAt: string
+  expiresAt: string | null
+  isPermanent: boolean
+}
 export interface ConsoleConnectRequest { id: number; user: string; avatar: string; reason: string; waitTime: string }
-export const consoleConnectRequests: ConsoleConnectRequest[] = [
-  { id: 1, user: '命理爱好者', avatar: '', reason: '想请教老师关于日主偏弱的问题', waitTime: '2:30' },
-  { id: 2, user: '紫微迷', avatar: '', reason: '我的命盘有疑问想请老师解答', waitTime: '1:15' },
-  { id: 3, user: '风水先生', avatar: '', reason: '交流风水布局心得', waitTime: '0:45' },
-]
-
-// @data-needs: 直播间挂载商品；isLive 表示正在讲解；上架/结束讲解走后端
 export interface ConsoleProduct { id: number; name: string; price: number; stock: number; sold: number; isLive: boolean; isHot: boolean }
-export const consoleProducts: ConsoleProduct[] = [
-  { id: 1, name: '八字命理精讲课程', price: 199, stock: 100, sold: 58, isLive: true, isHot: true },
-  { id: 2, name: '紫微斗数入门到精通', price: 299, stock: 50, sold: 32, isLive: false, isHot: false },
-  { id: 3, name: '开光貔貅摆件', price: 168, stock: 15, sold: 85, isLive: false, isHot: true },
-  { id: 4, name: '专业罗盘（铜制）', price: 398, stock: 8, sold: 42, isLive: false, isHot: false },
-  { id: 5, name: '五帝钱套装', price: 88, stock: 3, sold: 97, isLive: false, isHot: false },
-]
-
-// @data-needs: 提词器脚本，主播预先配置；isCurrent 标记当前进度
 export interface ConsoleScript { id: number; time: string; content: string; done: boolean; isCurrent?: boolean }
-export const consoleScript: ConsoleScript[] = [
-  { id: 1, time: '00:00', content: '开场白：欢迎各位来到今天的八字命理课堂', done: true },
-  { id: 2, time: '05:00', content: '第一部分：八字的基本概念和四柱含义', done: true },
-  { id: 3, time: '15:00', content: '第二部分：十天干的特性与作用关系', done: false, isCurrent: true },
-  { id: 4, time: '30:00', content: '第三部分：十二地支的藏干与刑冲合害', done: false },
-  { id: 5, time: '45:00', content: '第四部分：日主强弱的判断方法', done: false },
-  { id: 6, time: '55:00', content: '互动环节：观众提问与命盘分析', done: false },
-  { id: 7, time: '58:00', content: '结尾：课程推荐和下期预告', done: false },
-]
-
-// 优惠券选项（发放优惠券弹窗，照抄原型）
-export const consoleCoupons = [
-  { name: '满100减10', count: 100 },
-  { name: '满200减30', count: 50 },
-  { name: '课程8折券', count: 30 },
-]
 
 // ============ creator/live/obs 推流设置(竖屏,含实时推流统计) ============
 export const obsStreamData = {
@@ -1309,7 +1285,8 @@ interface RawEndRoom {
 interface RawEndResp { room?: RawEndRoom; recommendLives?: LiveEndRecommendLive[]; recommendCourses?: typeof liveEndRecommendCourses }
 /** GET /live/console/:id */
 interface RawConsole {
-  title?: string; stats?: typeof consoleLiveStats; danmaku?: ConsoleDanmaku[]
+  title?: string; quality?: string
+  stats?: Partial<ConsoleLiveStats>; danmaku?: ConsoleDanmaku[]
   requests?: ConsoleConnectRequest[]; products?: ConsoleProduct[]; script?: ConsoleScript[]
 }
 /** GET /live/stream-config */
@@ -1598,6 +1575,11 @@ export const liveApi = {
     await apiPost(`/live/rooms/${roomId}/mute`, { userId, ...(durationMinutes ? { durationMinutes } : {}) })
   },
 
+  /** 当前有效禁言名单（仅房主或管理员） — GET /live/rooms/:id/muted-users */
+  async getMutedUsers(roomId: string): Promise<LiveMutedUserItem[]> {
+    return await apiGet<LiveMutedUserItem[]>(`/live/rooms/${roomId}/muted-users`)
+  },
+
   /** 解除禁言 — DELETE /live/rooms/:id/mute/:userId */
   async unmuteUser(roomId: string, userId: string): Promise<void> {
     await apiDelete(`/live/rooms/${roomId}/mute/${userId}`)
@@ -1706,14 +1688,15 @@ export const liveApi = {
 
   /** 获取直播控制台数据 — GET /live/console/:id */
   async getConsoleData(id: string): Promise<{
-    title: string; stats: typeof consoleLiveStats; danmaku: ConsoleDanmaku[]; requests: ConsoleConnectRequest[]
+    title: string; quality: 'basic' | 'hd' | 'uhd'; stats: ConsoleLiveStats; danmaku: ConsoleDanmaku[]; requests: ConsoleConnectRequest[]
     products: ConsoleProduct[]; script: ConsoleScript[]
   }> {
     try {
       const data = await apiGet<RawConsole>(`/live/console/${id}`)
       return {
         title: data?.title || '',
-        stats: data?.stats || consoleLiveStats,
+        quality: data?.quality === 'uhd' ? 'uhd' : data?.quality === 'hd' ? 'hd' : 'basic',
+        stats: { ...emptyConsoleLiveStats(), ...(data?.stats || {}) },
         danmaku: data?.danmaku || [],
         requests: data?.requests || [],
         products: data?.products || [],
