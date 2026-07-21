@@ -598,6 +598,21 @@ describe("CommissionService", () => {
       mockPrisma.temporaryReferralConfig.findMany.mockResolvedValue([
         { stationId: null, operatorId: "operator-d", commissionRate: 20 },
       ]);
+      mockPrisma.station.findUnique
+        .mockResolvedValueOnce({
+          id: "station-e",
+          userId: "station-e-user",
+          operatorId: "operator-d",
+          status: "ACTIVE",
+          totalEarning: 0,
+        })
+        .mockResolvedValueOnce({
+          id: "station-e",
+          userId: "station-e-user",
+          operatorId: "operator-d",
+          status: "ACTIVE",
+          totalEarning: 0,
+        });
       mockPrisma.operator.findUnique.mockResolvedValue({
         id: "operator-d",
         userId: "operator-d-user",
@@ -615,7 +630,13 @@ describe("CommissionService", () => {
         undefined,
         "buyer-c",
       );
-      expect(mockPrisma.stationEarning.create.mock.calls[0][0].data.earned).toBe(20);
+      expect(mockPrisma.station.findUnique.mock.calls[0][0]).toEqual({
+        where: { userId: "station-e-user" },
+      });
+      expect(mockPrisma.station.findUnique).not.toHaveBeenCalledWith({
+        where: { userId: "station-b-user" },
+      });
+      expect(mockPrisma.stationEarning.create.mock.calls[0][0].data).toMatchObject({ stationId: "station-e", earned: 20 });
       expect(mockPrisma.operatorEarning.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           operatorId: "operator-d",

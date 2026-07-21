@@ -215,6 +215,21 @@ describe("ShopOrderService", () => {
       expect(data.tempRefSubjectType).toBe("STATION")
     })
 
+    it("永久归属 B 与临时分站 E 并存落单，临时链接不改永久绑定但作为本单优先归因", async () => {
+      setupChannelOrder()
+      setAttributionFlag(true)
+      mockPrisma.channelClick.findFirst.mockResolvedValueOnce({
+        beneficiaryUserId: "station-e-user",
+        subjectType: "STATION",
+      })
+      mockPrisma.referralRelation.findFirst.mockResolvedValueOnce({ referrerId: "station-b-user" })
+      await svc.createOrder("buyer-c", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.referrerId).toBe("station-b-user")
+      expect(data.tempReferrerId).toBe("station-e-user")
+      expect(data.tempRefSubjectType).toBe("STATION")
+    })
+
     it("开关开+无精确命中：SHOP_ALL 全店链接兜底", async () => {
       setupChannelOrder()
       setAttributionFlag(true)

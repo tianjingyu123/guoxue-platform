@@ -325,18 +325,32 @@ export class OperatorDashboardController {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const stationIds = stations.map(s => s.id);
 
-    const monthEarnings = await this.prisma.stationEarning.groupBy({
-      by: ["stationId"],
-      where: { stationId: { in: stationIds }, createdAt: { gte: monthStart } },
-      _sum: { earned: true },
-    });
+    const [monthEarnings, monthMgmtBonuses] = await Promise.all([
+      this.prisma.stationEarning.groupBy({
+        by: ["stationId"],
+        where: { stationId: { in: stationIds }, createdAt: { gte: monthStart } },
+        _sum: { earned: true },
+      }),
+      this.prisma.operatorEarning.groupBy({
+        by: ["sourceStationId"],
+        where: {
+          operatorId: operator.id,
+          source: "MGMT_BONUS",
+          sourceStationId: { in: stationIds },
+          createdAt: { gte: monthStart },
+        },
+        _sum: { earned: true },
+      }),
+    ]);
     const earningsMap = new Map(monthEarnings.map(e => [e.stationId, e._sum.earned || 0]));
+    const mgmtBonusMap = new Map(monthMgmtBonuses.map(e => [e.sourceStationId, e._sum.earned || 0]));
 
-    // 管理奖估算（当月站长佣金 * 5%）
+    // 管理奖只展示本运营商真实入账：与该站长本单实际获得的直接推荐奖励同源，含退款冲正净额。
+    // 禁止按团队佣金乘固定比例估算，否则临时链接覆盖永久归属时会把管理奖错误展示给原归属运营商。
     return stations.map(s => ({
       ...s,
       monthEarning: earningsMap.get(s.id) || 0,
-      mgmtBonus: Math.round(Number(earningsMap.get(s.id) ?? 0) * 0.05 * 100) / 100,
+      mgmtBonus: Math.round(Number(mgmtBonusMap.get(s.id) ?? 0) * 100) / 100,
     }));
   }
 
