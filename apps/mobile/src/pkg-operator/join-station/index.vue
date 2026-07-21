@@ -53,8 +53,8 @@
           <text class="js-fee-name">{{ existingStation ? '系统租赁续费' : '系统租赁费' }}</text>
           <view class="js-fee-price serif">
             <text class="js-fee-price-yuan">¥</text>
-            <text class="js-fee-price-num">999</text>
-            <text class="js-fee-price-unit"> / 年</text>
+            <text class="js-fee-price-num">{{ displayPrice }}</text>
+            <text class="js-fee-price-unit"> / {{ servicePeriodLabel }}</text>
           </view>
           <text class="js-fee-nolimit">开通无门槛 · 人人可开</text>
           <view class="js-fee-div" />
@@ -62,7 +62,7 @@
           <!-- 以当前真实资金能力为准 -->
           <view class="js-rule">
             <view class="js-rule-ic waive"><text class="js-rule-ic-text">免</text></view>
-            <text class="js-rule-tx">当前在线订单按<text class="js-b">服务端显示金额</text>收取，支付成功后激活或顺延一年。</text>
+            <text class="js-rule-tx">当前在线订单按<text class="js-b">服务端显示金额</text>收取，支付成功后激活或顺延{{ servicePeriodText }}。</text>
           </view>
           <view class="js-rule">
             <view class="js-rule-ic refund"><text class="js-rule-ic-text">退</text></view>
@@ -180,7 +180,7 @@
 
       <!-- 底部 CTA -->
       <view class="js-cta">
-        <text class="js-cta-price">系统租赁费 <text class="js-cta-price-b">¥999 / 年</text> · 实际金额以订单为准</text>
+        <text class="js-cta-price">系统租赁费 <text class="js-cta-price-b">¥{{ displayPrice }} / {{ servicePeriodLabel }}</text> · 与订单配置同步</text>
         <text class="js-cta-hint">点击即表示已阅读并同意 <text class="js-cta-hint-link" @tap="openAgreement">《站长服务协议》</text></text>
         <view class="js-cta-btn" :class="{ 'js-cta-btn-disabled': submitting || renewalBlocked }" @tap="handleOpen">
           <text class="js-cta-btn-text">{{ submitting ? '处理中…' : ctaLabel }}</text>
@@ -193,11 +193,15 @@
       <view class="modal-card" @tap.stop>
         <text class="modal-title">请使用微信扫码{{ paymentPurpose === 'renew' ? '续费' : '开通' }}</text>
         <text class="pay-amount"><text class="pay-amount-yuan">¥</text>{{ payPending.amount }}</text>
-        <text class="pay-tip">复制以下支付链接，在微信中打开完成支付：</text>
-        <text class="pay-url" :selectable="true">{{ payPending.codeUrl }}</text>
-        <view class="modal-btn" @tap="copyCodeUrl">
-          <text class="modal-btn-txt">复制支付链接</text>
+        <text class="pay-tip">请使用微信扫描二维码完成支付</text>
+        <view class="pay-qr-wrap">
+          <canvas id="stationPayQr" canvas-id="stationPayQr" class="pay-qr" />
+          <text v-if="!qrReady" class="pay-qr-loading">二维码生成中…</text>
         </view>
+        <view class="modal-btn" @tap="openWechatPay">
+          <text class="modal-btn-txt">在微信中打开</text>
+        </view>
+        <text class="pay-copy" @tap="copyCodeUrl">无法打开？复制支付链接</text>
         <text class="pay-poll">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动{{ paymentPurpose === 'renew' ? '续费' : '开通' }}</text>
         <text class="pay-cancel" @tap="cancelPay">取消</text>
       </view>
@@ -217,13 +221,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { computed, getCurrentInstance, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { operatorApi } from '@/pkg-operator/lib/operator-data'
+import { operatorApi, type StationPlan } from '@/pkg-operator/lib/operator-data'
 import { shopApi } from '@/lib/shop-data'
 import { apiGet, apiPost } from '@/utils/request'
 import { getToken } from '@/utils/storage'
+import { drawQrToCanvas } from '@/utils/qrcode'
+
+const instance = getCurrentInstance()?.proxy
+const QR_PX = 176
 
 // ===== 状态栏留白（自定义导航） =====
 const statusBarHeight = ref(20)
@@ -246,14 +254,28 @@ interface ExistingStation {
 const stationName = ref('')
 const stationCode = ref('')
 const existingStation = ref<ExistingStation | null>(null)
+const stationPlan = ref<StationPlan | null>(null)
 const paymentPurpose = ref<'open' | 'renew'>('open')
 
 // ===== 支付状态（范式对齐 join-operator：Native 扫码 + 轮询 + 渠道未就绪诚实降级）=====
 const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
 const payUnavailable = ref(false)
+const qrReady = ref(false)
 const pollCount = ref(0)
 const POLL_MAX = 40 // 3s × 40 ≈ 2 分钟
 let pollTimer: ReturnType<typeof setTimeout> | null = null
+
+const displayPrice = computed(() => {
+  const price = stationPlan.value?.price ?? 0
+  return Number.isInteger(price) ? String(price) : price.toFixed(2)
+})
+const servicePeriodText = computed(() => {
+  const months = stationPlan.value?.serviceMonths ?? 0
+  if (months === 12) return '一年'
+  if (months > 0 && months % 12 === 0) return `${months / 12} 年`
+  return `${months} 个月`
+})
+const servicePeriodLabel = computed(() => servicePeriodText.value === '一年' ? '年' : servicePeriodText.value)
 
 // ===== 邀请开通态 =====
 const inviteCode = ref('')
@@ -282,7 +304,7 @@ const ctaLabel = computed(() => {
   if (!existingStation.value) return invitedByOperator.value ? `确认开通（归属 ${operatorName.value}）` : '确认开通我的分站'
   if (existingStation.value.status === 'PENDING') return '继续支付开通'
   if (renewalBlocked.value) return '分站已停用，请联系平台'
-  return '续费一年'
+  return `续费 ${servicePeriodText.value}`
 })
 
 // ===== FAQ（合规文案·逐字照 mockup-C2） =====
@@ -310,7 +332,7 @@ async function loadExistingStation() {
 
 async function fetchData() {
   try {
-    await operatorApi.getStationPricing()
+    stationPlan.value = await operatorApi.getStationPricing()
     await loadExistingStation()
     // 运营商邀请链接统一使用 op=<Operator.id>；兼容旧 inviteCode/code 参数。
     const pages = getCurrentPages()
@@ -415,6 +437,9 @@ async function handleOpen() {
     const pay = await shopApi.payOrderNative(order.id)
     if (pay.codeUrl) {
       payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
+      qrReady.value = false
+      await nextTick()
+      renderPayQr()
       startPolling(order.id)
     } else {
       payUnavailable.value = true
@@ -424,6 +449,16 @@ async function handleOpen() {
   } finally {
     submitting.value = false
   }
+}
+
+function renderPayQr() {
+  const value = payPending.value?.codeUrl
+  if (!value) return
+  try {
+    const ctx = uni.createCanvasContext('stationPayQr', instance)
+    const ok = drawQrToCanvas(ctx, value, 8, 8, QR_PX - 16, {})
+    ctx.draw(false, () => { qrReady.value = ok })
+  } catch { qrReady.value = false }
 }
 
 function startPolling(orderId: string) {
@@ -477,6 +512,16 @@ function copyCodeUrl() {
     data: payPending.value.codeUrl,
     success: () => uni.showToast({ title: '已复制', icon: 'none' }),
   })
+}
+
+function openWechatPay() {
+  if (!payPending.value) return
+  // #ifdef H5
+  window.location.href = payPending.value.codeUrl
+  // #endif
+  // #ifndef H5
+  copyCodeUrl()
+  // #endif
 }
 
 /** 取消只关弹层、停轮询；订单保留在订单记录中可继续支付（不擅自取消订单） */
@@ -617,7 +662,10 @@ onUnmounted(() => stopPolling())
 .pay-amount { margin-top: 21rpx; font-size: 54rpx; font-weight: 700; color: #C41E3A; }
 .pay-amount-yuan { font-size: 31rpx; }
 .pay-tip { margin-top: 21rpx; font-size: 23rpx; color: #6E6E73; text-align: center; line-height: 1.6; }
-.pay-url { margin-top: 15rpx; width: 100%; padding: 18rpx; background: #F7F5F2; border-radius: 12rpx; font-size: 21rpx; color: #3A3A3C; word-break: break-all; line-height: 1.5; }
+.pay-qr-wrap { width: 352rpx; height: 352rpx; margin-top: 20rpx; position: relative; border-radius: 20rpx; overflow: hidden; background: #F7F5F2; }
+.pay-qr { width: 352rpx; height: 352rpx; }
+.pay-qr-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 23rpx; color: #9A9A9A; }
+.pay-copy { margin-top: 18rpx; font-size: 23rpx; color: #97794a; }
 .pay-poll { margin-top: 23rpx; font-size: 21rpx; color: #9A9A9A; text-align: center; line-height: 1.6; }
 .pay-cancel { margin-top: 20rpx; font-size: 25rpx; color: #9A9A9A; }
 </style>

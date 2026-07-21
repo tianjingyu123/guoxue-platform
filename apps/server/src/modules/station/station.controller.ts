@@ -49,6 +49,14 @@ export class StationController {
     return { ...station, lockedUsers, monthOrders, monthEarning, selfPurchaseSaved };
   }
 
+  @Get("station-plan")
+  @ApiOperation({ summary: "公开获取站长当前方案（价格/服务期真源）" })
+  @ApiResponse({ status: 200, description: "方案可用" })
+  @ApiResponse({ status: 400, description: "方案配置缺失" })
+  getStationPlan() {
+    return this.svc.getStationPlan();
+  }
+
   @Get("operator-plan")
   @ApiOperation({ summary: "公开获取运营商当前方案（价格/名额/服务期真源）" })
   @ApiResponse({ status: 200, description: "方案可用" })

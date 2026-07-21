@@ -148,6 +148,32 @@ export class StationService {
     }
   }
 
+  /** 公开站长方案：展示金额与支付订单读取同一个 CommissionConfig 真源。 */
+  async getStationPlan() {
+    const [plan, period] = await Promise.all([
+      this.prisma.commissionConfig.findUnique({
+        where: { configKey: "station_master_price" },
+        select: { rateA: true },
+      }),
+      this.prisma.configSystem.findUnique({
+        where: { configKey: "station.billing_period_months" },
+        select: { configValue: true },
+      }),
+    ]);
+    const price = Number(plan?.rateA ?? 0);
+    const configuredMonths = Number(period?.configValue ?? 12);
+    const serviceMonths = Number.isFinite(configuredMonths) && configuredMonths > 0
+      ? Math.floor(configuredMonths)
+      : 12;
+    if (!plan || !(price > 0)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "站长方案暂不可用，请联系平台客服");
+    }
+    return {
+      price: Math.round(price * 100) / 100,
+      serviceMonths,
+    };
+  }
+
   /** 公开运营商方案：价格、名额与服务期均读取支付链同一真源。 */
   async getOperatorPlan() {
     const [plan, period] = await Promise.all([

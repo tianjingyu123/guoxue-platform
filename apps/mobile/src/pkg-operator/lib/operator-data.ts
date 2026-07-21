@@ -30,6 +30,11 @@ export interface OperatorPlan {
   allocationMode: 'INVITE'
 }
 
+export interface StationPlan {
+  price: number
+  serviceMonths: number
+}
+
 export interface CurrentOperator {
   id: string
   level: string
@@ -71,14 +76,6 @@ export const operatorFaqs: FaqItem[] = [
   { q: '已经是站长可以开通运营商吗？', a: '可以另行开通运营商，实际金额以服务端订单为准，原站长权益继续有效。' },
   { q: '收益有保障吗？可以退出吗？', a: '推广收益取决于您的实际推广效果，平台不承诺任何固定收益。您可随时申请终止合作，剩余服务期费用按协议约定处理。' },
 ]
-
-// ===== 加入站长页数据（对齐原型 app/join/station）=====
-
-// 价格
-export const stationPricing = {
-  price: 999,
-  originalPrice: 999,
-}
 
 // 站长权益（对齐原型 benefits）
 export const stationBenefits: OperatorBenefit[] = [
@@ -619,7 +616,9 @@ export const operatorApi = {
   async getOperatorFaqs() { return operatorFaqs },
 
   // === 站长入驻 (用于 join-station 页·静态运营文案) ===
-  async getStationPricing() { return stationPricing },
+  async getStationPricing(): Promise<StationPlan> {
+    return apiGet<StationPlan>('/station/station-plan')
+  },
   async getStationBenefits() { return stationBenefits },
   async getStationFaqs() { return stationFaqs },
 

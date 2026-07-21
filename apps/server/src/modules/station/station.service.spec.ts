@@ -114,6 +114,25 @@ describe("StationService", () => {
     });
   });
 
+  describe("getStationPlan", () => {
+    it("价格与服务期读取支付链同一配置真源", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: "999" });
+      mockPrisma.configSystem.findUnique.mockResolvedValue({ configValue: "12" });
+
+      await expect(svc.getStationPlan()).resolves.toEqual({
+        price: 999,
+        serviceMonths: 12,
+      });
+    });
+
+    it("价格缺失时 fail-closed，不发布 0 元方案", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: "0" });
+      mockPrisma.configSystem.findUnique.mockResolvedValue(null);
+
+      await expect(svc.getStationPlan()).rejects.toThrow("站长方案暂不可用");
+    });
+  });
+
   describe("getOperatorPlan", () => {
     it("价格、名额与服务期读取支付链同一配置真源", async () => {
       mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: "4999", rateB: "6" });
