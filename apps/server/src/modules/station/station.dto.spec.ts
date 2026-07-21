@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { validate } from "class-validator";
-import { CreateStationDto, UpdateStationDto, CreateOperatorDto } from "./station.dto";
+import { CreateStationDto, UpdateStationDto, CreateOperatorDto, RemindDormantStationsDto } from "./station.dto";
 
 describe("Station DTO 校验", () => {
   describe("CreateStationDto", () => {
@@ -79,6 +79,22 @@ describe("Station DTO 校验", () => {
     it("缺 level 报错", async () => {
       const dto = Object.assign(new CreateOperatorDto(), {});
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+  });
+  describe("RemindDormantStationsDto", () => {
+    it("1-20 个唯一站点 ID 通过", async () => {
+      const dto = Object.assign(new RemindDormantStationsDto(), { stationIds: ["station-1", "station-2"] });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("空数组、重复 ID 或超过 20 个均拒绝", async () => {
+      const empty = await validate(Object.assign(new RemindDormantStationsDto(), { stationIds: [] }));
+      const duplicate = await validate(Object.assign(new RemindDormantStationsDto(), { stationIds: ["station-1", "station-1"] }));
+      const tooMany = await validate(Object.assign(new RemindDormantStationsDto(), {
+        stationIds: Array.from({ length: 21 }, (_, i) => `station-${i}`),
+      }));
+      expect(empty.length).toBeGreaterThan(0);
+      expect(duplicate.length).toBeGreaterThan(0);
+      expect(tooMany.length).toBeGreaterThan(0);
     });
   });
 });

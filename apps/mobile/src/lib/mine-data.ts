@@ -1336,6 +1336,7 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
     video: `/video/${targetId}`, product: `/shop/product/${targetId}`,
     post: `/post/${targetId}`, circle_post: `/post/${targetId}`,
     circle: `/circle/${targetId}`, order: `/orders/${targetId}`, live: `/live/${targetId}`,
+    station: '/pkg-operator/station-home/index',
   }
   return map[t] || ''
 }

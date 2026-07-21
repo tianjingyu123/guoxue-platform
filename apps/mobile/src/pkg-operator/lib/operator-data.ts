@@ -1009,6 +1009,9 @@ export const operatorApi = {
         reminded: false,
       }))
   },
+  async remindDormantStations(stationIds: string[]): Promise<{ sent: number; skipped: number; cooldownHours: number }> {
+    return apiPost('/station/operator-dashboard/dormant/remind', { stationIds })
+  },
 
   // === 业绩分析 (用于 analysis 页·真连收益·流量漏斗后端无埋点→降级) ===
   async getAnalysisMembers(): Promise<MemberPerf[]> {

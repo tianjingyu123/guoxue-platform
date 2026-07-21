@@ -17,9 +17,10 @@ import { RedisModule } from "../../redis/redis.module";
 import { MarketingModule } from "../marketing/marketing.module";
 import { TrackModule } from "../track/track.module";
 import { FundApprovalCoreModule } from "../fund-approval/fund-approval-core.module";
+import { NotificationModule } from "../notification/notification.module";
 
 @Module({
-  imports: [RedisModule, MarketingModule, TrackModule, FundApprovalCoreModule],
+  imports: [RedisModule, MarketingModule, TrackModule, FundApprovalCoreModule, NotificationModule],
   controllers: [StationController, AdminReferralController, PromotionController, StationDashboardController, OperatorDashboardController, StationAdminOverviewController, StationMicroPageController, StationPinnedPublicController, StationPinnedController],
   providers: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService, TeamTaskService, StationPinnedService, StationBillingService],
   exports: [StationService, AdminReferralService, PromotionService, StationDashboardService, StationPaipanSyncService, TeamTaskService, StationBillingService],

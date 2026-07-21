@@ -7,7 +7,9 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { PrismaService } from "../../prisma/prisma.service";
-import { UpdateMyOperatorDto } from "./station.dto";
+import { RemindDormantStationsDto, UpdateMyOperatorDto } from "./station.dto";
+import { NotificationService } from "../notification/notification.service";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 /** 平台管理角色（后台可代查任意站长/运营商仪表盘）。仅这两类角色允许透传 stationId/operatorId 指定查看对象。 */
 function isPlatformAdmin(req: Request): boolean {
@@ -113,6 +115,7 @@ export class OperatorDashboardController {
     private readonly prisma: PrismaService,
     private readonly teamTask: TeamTaskService,
     private readonly dashboard: StationDashboardService,
+    private readonly notification: NotificationService,
   ) {}
 
   /**
@@ -352,6 +355,49 @@ export class OperatorDashboardController {
       monthEarning: earningsMap.get(s.id) || 0,
       mgmtBonus: Math.round(Number(mgmtBonusMap.get(s.id) ?? 0) * 100) / 100,
     }));
+  }
+
+  @Post("dormant/remind")
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "向名下沉寂站长发送真实站内提醒（单次≤20·同站24小时冷却）" })
+  @ApiResponse({ status: 201, description: "返回实际发送与冷却跳过数量" })
+  @ApiResponse({ status: 403, description: "包含非本运营商名下分站" })
+  async remindDormantStations(@Req() req: Request, @Body() body: RemindDormantStationsDto) {
+    const operator = await this.resolveOperator(req);
+    const stationIds = [...new Set(body.stationIds)];
+    const stations = await this.prisma.station.findMany({
+      where: { id: { in: stationIds }, operatorId: operator.id },
+      select: { id: true, userId: true, name: true },
+    });
+    if (stations.length !== stationIds.length) {
+      throw new ForbiddenException("所选分站不属于当前运营商团队");
+    }
+
+    const title = "运营团队提醒你回来看看";
+    const cooldownSince = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recent = await this.prisma.notification.findMany({
+      where: {
+        userId: { in: stations.map(s => s.userId) },
+        type: "SYSTEM",
+        title,
+        targetType: "STATION",
+        targetId: { in: stationIds },
+        createdAt: { gte: cooldownSince },
+      },
+      select: { targetId: true },
+    });
+    const cooledStationIds = new Set(recent.map(n => n.targetId).filter(Boolean));
+    const pending = stations.filter(s => !cooledStationIds.has(s.id));
+
+    await Promise.all(pending.map(station => this.notification.send(station.userId, {
+      type: "SYSTEM",
+      title,
+      content: `你的分站「${station.name}」本月尚未产生推广收益，运营商团队邀请你回到工作台检查权益状态、主推内容与分享链路。`,
+      targetType: "STATION",
+      targetId: station.id,
+    })));
+
+    return { sent: pending.length, skipped: stationIds.length - pending.length, cooldownHours: 24 };
   }
 
   // ───────── 团队任务下发（商-P2·运营商视角）─────────

@@ -3,13 +3,16 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { OperatorDashboardController } from "./station-dashboard.controller";
 import { StationDashboardService } from "./station-dashboard.service";
 import { TeamTaskService } from "./team-task.service";
+import { NotificationService } from "../notification/notification.service";
 
 const mockPrisma = {
   operator: { findFirst: jest.fn() },
   station: { findMany: jest.fn() },
   stationEarning: { groupBy: jest.fn() },
   operatorEarning: { groupBy: jest.fn() },
+  notification: { findMany: jest.fn() },
 };
+const mockNotification = { send: jest.fn() };
 
 describe("OperatorDashboardController", () => {
   let controller: OperatorDashboardController;
@@ -20,6 +23,7 @@ describe("OperatorDashboardController", () => {
       mockPrisma as unknown as PrismaService,
       {} as TeamTaskService,
       {} as StationDashboardService,
+      mockNotification as unknown as NotificationService,
     );
   });
 
@@ -73,5 +77,37 @@ describe("OperatorDashboardController", () => {
       },
       _sum: { earned: true },
     });
+  });
+
+  it("只提醒本团队站长，24 小时内已提醒目标跳过", async () => {
+    mockPrisma.operator.findFirst.mockResolvedValue({ id: "operator-d", userId: "operator-user", containQuota: 6 });
+    mockPrisma.station.findMany.mockResolvedValue([
+      { id: "station-e", userId: "user-e", name: "E 分站" },
+      { id: "station-f", userId: "user-f", name: "F 分站" },
+    ]);
+    mockPrisma.notification.findMany.mockResolvedValue([{ targetId: "station-f" }]);
+    mockNotification.send.mockResolvedValue({ id: "notice-e" });
+
+    await expect(controller.remindDormantStations(
+      { user: { id: "operator-user", roles: [] } } as unknown as Request,
+      { stationIds: ["station-e", "station-f"] },
+    )).resolves.toEqual({ sent: 1, skipped: 1, cooldownHours: 24 });
+    expect(mockNotification.send).toHaveBeenCalledTimes(1);
+    expect(mockNotification.send).toHaveBeenCalledWith("user-e", expect.objectContaining({
+      type: "SYSTEM", targetType: "STATION", targetId: "station-e",
+    }));
+  });
+
+  it("请求包含非本团队分站时整批拒绝，不发送任何通知", async () => {
+    mockPrisma.operator.findFirst.mockResolvedValue({ id: "operator-d", userId: "operator-user", containQuota: 6 });
+    mockPrisma.station.findMany.mockResolvedValue([
+      { id: "station-e", userId: "user-e", name: "E 分站" },
+    ]);
+
+    await expect(controller.remindDormantStations(
+      { user: { id: "operator-user", roles: [] } } as unknown as Request,
+      { stationIds: ["station-e", "foreign-station"] },
+    )).rejects.toThrow("所选分站不属于当前运营商团队");
+    expect(mockNotification.send).not.toHaveBeenCalled();
   });
 });

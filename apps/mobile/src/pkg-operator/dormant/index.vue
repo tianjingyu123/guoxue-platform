@@ -70,10 +70,10 @@
         </view>
         <view
           class="dm-bb-btn"
-          :class="{ off: selectedIds.length === 0 }"
+          :class="{ off: selectedIds.length === 0 || submitting }"
           @tap="remindSelected"
         >
-          <text class="dm-bb-btn-txt">发送激活提醒</text>
+          <text class="dm-bb-btn-txt">{{ submitting ? '发送中…' : '发送激活提醒' }}</text>
         </view>
       </view>
     </template>
@@ -145,25 +145,42 @@ function subLine(m: DormantMember): string {
 }
 
 function daysLabel(m: DormantMember): string {
+  if (m.reminded) return '今日已提醒'
   return m.lastActiveDays > 0 ? `${m.lastActiveDays} 天` : '无收益'
 }
 
 // ===== 批量勾选 =====
 function toggleSelect(id: string) {
+  const member = members.value.find((m) => m.id === id)
+  if (member?.reminded) {
+    uni.showToast({ title: '今日已提醒，无需重复发送', icon: 'none' })
+    return
+  }
   const i = selectedIds.value.indexOf(id)
   if (i >= 0) selectedIds.value.splice(i, 1)
   else selectedIds.value.push(id)
 }
 
-// 批量提醒：后端暂无 remind 接口，前端态标记已提醒（沿用数据层降级口径）
-function remindSelected() {
+// 批量提醒：真实写入目标站长的站内通知；后端校验团队归属并按站点做 24 小时冷却。
+async function remindSelected() {
   if (selectedIds.value.length === 0 || submitting.value) return
   submitting.value = true
   const ids = [...selectedIds.value]
-  members.value.forEach((m) => { if (ids.includes(m.id)) m.reminded = true })
-  uni.showToast({ title: `已向 ${ids.length} 位站长发送提醒`, icon: 'none' })
-  selectedIds.value = []
-  setTimeout(() => { submitting.value = false }, 800)
+  try {
+    const result = await operatorApi.remindDormantStations(ids)
+    members.value.forEach((m) => { if (ids.includes(m.id)) m.reminded = true })
+    selectedIds.value = []
+    const title = result.sent === 0
+      ? `${result.skipped} 位站长今日已提醒`
+      : result.skipped > 0
+        ? `已发送 ${result.sent} 位，${result.skipped} 位今日已提醒`
+        : `已向 ${result.sent} 位站长发送提醒`
+    uni.showToast({ title, icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '提醒发送失败，请稍后重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
 
 function goInvite() {
