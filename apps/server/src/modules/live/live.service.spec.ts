@@ -29,6 +29,11 @@ const mockPrisma = {
   product: {
     findMany: jest.fn(),
   },
+  liveProduct: {
+    deleteMany: jest.fn(),
+    createMany: jest.fn(),
+  },
+  $transaction: jest.fn(),
 };
 
 const mockRedis = {
@@ -75,7 +80,10 @@ describe("LiveService", () => {
     svc = mod.get(LiveService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation(async (run: (tx: typeof mockPrisma) => unknown) => run(mockPrisma));
+  });
 
   describe("getLiveProducts", () => {
     it("主播选品库排除精确隔离商品", async () => {
@@ -97,6 +105,7 @@ describe("LiveService", () => {
     });
 
     it("带商品创建直播间成功", async () => {
+      mockPrisma.product.findMany.mockResolvedValue([{ id: "p1" }]);
       mockPrisma.liveRoom.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: "r1", ...data, products: [{ productId: "p1" }] }),
       );
@@ -129,6 +138,125 @@ describe("LiveService", () => {
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", title: "新标题" });
       const result = await svc.updateRoom("u1", "r1", { title: "新标题" });
       expect(result.title).toBe("新标题");
+    });
+  });
+
+  describe("updateRoomProducts", () => {
+    it("房主可按请求顺序事务替换本场商品", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+      mockPrisma.product.findMany.mockResolvedValue([{ id: "p2" }, { id: "p1" }]);
+      mockPrisma.liveProduct.deleteMany.mockResolvedValue({ count: 1 });
+      mockPrisma.liveProduct.createMany.mockResolvedValue({ count: 2 });
+
+      const result = await svc.updateRoomProducts("host1", "room1", ["p2", "p1"]);
+
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.liveProduct.deleteMany).toHaveBeenCalledWith({ where: { liveId: "room1" } });
+      expect(mockPrisma.liveProduct.createMany).toHaveBeenCalledWith({
+        data: [
+          { liveId: "room1", productId: "p2", sortOrder: 0 },
+          { liveId: "room1", productId: "p1", sortOrder: 1 },
+        ],
+      });
+      expect(result).toEqual({ success: true, count: 2, productIds: ["p2", "p1"] });
+    });
+
+    it("清空商品时只删除关联，不写空批次", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+      mockPrisma.liveProduct.deleteMany.mockResolvedValue({ count: 2 });
+
+      await svc.updateRoomProducts("host1", "room1", []);
+
+      expect(mockPrisma.liveProduct.deleteMany).toHaveBeenCalledWith({ where: { liveId: "room1" } });
+      expect(mockPrisma.liveProduct.createMany).not.toHaveBeenCalled();
+    });
+
+    it("非房主不能修改商品", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+
+      await expect(svc.updateRoomProducts("other", "room1", ["p1"])).rejects.toThrow(BusinessException);
+
+      expect(mockPrisma.product.findMany).not.toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("下架或不存在商品拒绝整批保存，不破坏原清单", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+      mockPrisma.product.findMany.mockResolvedValue([{ id: "p1" }]);
+
+      await expect(svc.updateRoomProducts("host1", "room1", ["p1", "off"])).rejects.toThrow("部分商品已下架或不存在");
+
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockPrisma.liveProduct.deleteMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateRoom 编辑事务", () => {
+    it("待开播场次可原位更新配置和商品，不会新建直播间", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1", status: "WAITING", circleId: "circle1" });
+      mockPrisma.product.findMany.mockResolvedValue([{ id: "p1" }]);
+      mockPrisma.liveRoom.update.mockResolvedValue({ id: "room1", title: "新标题", status: "WAITING" });
+      mockPrisma.liveProduct.deleteMany.mockResolvedValue({ count: 1 });
+      mockPrisma.liveProduct.createMany.mockResolvedValue({ count: 1 });
+
+      const result: any = await svc.updateRoom("host1", "room1", {
+        title: "新标题", startTime: "2026-08-01 20:00", chargeType: "PAID", chargePrice: 9.9,
+        quality: "hd", orientation: "landscape", productIds: ["p1"],
+      });
+
+      expect(mockPrisma.liveRoom.create).not.toHaveBeenCalled();
+      expect(mockPrisma.liveRoom.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "room1" },
+        data: expect.objectContaining({ title: "新标题", chargeType: "PAID", chargePrice: 9.9, quality: "hd", orientation: "landscape" }),
+      }));
+      expect(mockPrisma.liveProduct.createMany).toHaveBeenCalledWith({ data: [{ liveId: "room1", productId: "p1", sortOrder: 0 }] });
+      expect(result.id).toBe("room1");
+      expect(mockAudit.queueContentModeration).toHaveBeenCalledWith(expect.objectContaining({
+        contentType: "LIVE",
+        contentId: "room1",
+        userId: "host1",
+        circleId: "circle1",
+        text: "新标题",
+      }));
+    });
+
+    it("直播开始后拒绝修改排期配置", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1", status: "LIVING" });
+      await expect(svc.updateRoom("host1", "room1", { quality: "hd" })).rejects.toThrow("直播开始后不能修改");
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("直播收费护栏", () => {
+    it("付费直播缺少有效票价时拒绝更新", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        hostUserId: "host1", status: "WAITING", circleId: "circle1", chargeType: "FREE", chargePrice: null,
+      });
+      await expect(svc.updateRoom("host1", "room1", { chargeType: "PAID", chargePrice: 0 }))
+        .rejects.toThrow("付费直播必须设置大于 0 元的票价");
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getRoom 观看计数", () => {
+    const room = {
+      id: "room1", hostUserId: "host1", userId: "creator1", visibility: "CIRCLE_ONLY",
+      auditStatus: "APPROVED", products: [], user: null, circle: null,
+    };
+
+    it("主播查看自己的管理详情不虚增观看量", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(room);
+      await svc.getRoom("room1", "host1");
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+    });
+
+    it("普通观众查看公开详情仍正常计一次观看", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(room);
+      mockPrisma.liveRoom.update.mockResolvedValue({});
+      await svc.getRoom("room1", "viewer1");
+      expect(mockPrisma.liveRoom.update).toHaveBeenCalledWith({
+        where: { id: "room1" }, data: { viewCount: { increment: 1 } },
+      });
     });
   });
 

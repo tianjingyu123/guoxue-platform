@@ -13,6 +13,7 @@ const mockLiveSvc = {
   listCourseRooms: jest.fn().mockResolvedValue([{ id: "r1", courseId: "c1" }]),
   getRoom: jest.fn().mockResolvedValue({ id: "r1", title: "国学直播", status: "LIVE" }),
   updateRoom: jest.fn().mockResolvedValue({ id: "r1", title: "更新标题" }),
+  updateRoomProducts: jest.fn().mockResolvedValue({ success: true, count: 2, productIds: ["p2", "p1"] }),
   startLive: jest.fn().mockResolvedValue({ pushUrl: "rtmp://...", playUrl: "https://..." }),
   getStreamUrls: jest.fn().mockResolvedValue({ pushUrl: "rtmp://...", playUrl: "https://..." }),
   getPlayUrl: jest.fn().mockResolvedValue({ playUrl: "https://...flv" }),
@@ -103,6 +104,19 @@ describe("LiveController", () => {
     const dto: any = { title: "更新标题" };
     const result: any = await ctrl.updateRoom(req, "r1", dto);
     expect(result.title).toBe("更新标题");
+  });
+
+  it("PUT /live/rooms/:id/products — 房主保存商品顺序", async () => {
+    const req: any = { user: { id: "u1", roles: [] } };
+    const result: any = await ctrl.updateRoomProducts(req, "r1", { productIds: ["p2", "p1"] });
+    expect(result.count).toBe(2);
+    expect(mockLiveSvc.updateRoomProducts).toHaveBeenCalledWith("u1", "r1", ["p2", "p1"], false);
+  });
+
+  it("PUT /live/rooms/:id/products — 管理员权限标记透传 service", async () => {
+    const req: any = { user: { id: "admin1", roles: ["OPERATION_ADMIN"] } };
+    await ctrl.updateRoomProducts(req, "r1", { productIds: [] });
+    expect(mockLiveSvc.updateRoomProducts).toHaveBeenCalledWith("admin1", "r1", [], true);
   });
 
   it("PUT /live/rooms/:id/start — 房主开播（登录即可·房主/管理员校验下沉 service）", async () => {

@@ -22,7 +22,7 @@
       <view class="nav-btn" @tap="goBack">
         <AppIcon name="chevron-left" :size="44" color="#2C2C2C" />
       </view>
-      <text class="nav-title">创建直播</text>
+      <text class="nav-title">{{ isEdit ? '编辑直播' : '创建直播' }}</text>
       <view class="nav-placeholder" />
     </view>
 
@@ -149,11 +149,11 @@
       <!-- 所属圈子 + 开播时间 -->
       <view class="sec">
         <view class="rows">
-          <view class="row" @tap="openCirclePicker">
-            <text class="row-k">所属圈子</text>
+          <view class="row" :class="{ 'row-locked': isEdit }" @tap="isEdit ? undefined : openCirclePicker()">
+            <text class="row-k">所属圈子{{ isEdit ? '（不可更改）' : '' }}</text>
             <view class="row-v">
               <text class="row-v-txt">{{ selectedCircleName || '默认：我的圈子' }}</text>
-              <AppIcon name="chevron-right" :size="32" color="#B8B2A8" />
+              <AppIcon v-if="!isEdit" name="chevron-right" :size="32" color="#B8B2A8" />
             </view>
           </view>
           <view class="row" @tap="toggleTimePicker">
@@ -312,8 +312,10 @@ const loading = ref(true)
 const error = ref('')
 
 // 发布归属圈子：从圈子发布入口带来则默认归该圈子
+const editRoomId = ref('')
+const isEdit = computed(() => !!editRoomId.value)
+const editCircleName = ref('')
 const circleId = ref('')
-onLoad((q) => { circleId.value = (q as Record<string, string> | undefined)?.circleId || '' })
 
 // 直播形态：竖屏手机直播（默认）/ OBS 电脑直播
 const liveMode = ref<'vertical' | 'obs'>('vertical')
@@ -410,7 +412,7 @@ async function onBuySelected() {
 const myCircles = ref<MyCircle[]>([])
 // 仅列我能开播的圈子（owner / admin）
 const myOwnedCircles = computed(() => myCircles.value.filter((c) => c.role === 'owner' || c.role === 'admin'))
-const selectedCircleName = computed(() => myCircles.value.find((c) => c.id === circleId.value)?.name || '')
+const selectedCircleName = computed(() => myCircles.value.find((c) => c.id === circleId.value)?.name || editCircleName.value)
 const showCirclePicker = ref(false)
 function openCirclePicker() { showCirclePicker.value = true }
 function selectCircle(id: string) {
@@ -448,8 +450,14 @@ function onDateChange(e: any) { startDate.value = e.detail.value }
 function onTimeChange(e: any) { startClock.value = e.detail.value }
 function toggleTimePicker() { showTimePicker.value = !showTimePicker.value }
 function clearTime() { startDate.value = ''; startClock.value = ''; showTimePicker.value = false }
-const startTime = computed(() => (startDate.value && startClock.value ? `${startDate.value} ${startClock.value}` : ''))
-const startTimeLabel = computed(() => (startTime.value ? `预约 · ${startDate.value} ${startClock.value}` : '立即开播'))
+const startTime = computed(() => {
+  if (!startDate.value || !startClock.value) return ''
+  const local = new Date(`${startDate.value}T${startClock.value}:00`)
+  return Number.isNaN(local.getTime()) ? '' : local.toISOString()
+})
+const startTimeLabel = computed(() => (
+  startDate.value && startClock.value ? `预约 · ${startDate.value} ${startClock.value}` : '立即开播'
+))
 
 // ── 付费设置 ──
 const isCharge = ref(false)
@@ -512,28 +520,71 @@ function removeProduct(id: string) {
 }
 
 // ── 数据加载 ──
+function fillEditForm(room: Awaited<ReturnType<typeof liveApi.getRoomForEdit>>) {
+  if (room.status !== 'WAITING') throw new Error('仅待开播的直播可以编辑')
+  title.value = room.title
+  cover.value = room.cover
+  circleId.value = room.circleId
+  editCircleName.value = room.circleName
+  liveMode.value = room.orientation === 'landscape' ? 'obs' : 'vertical'
+  quality.value = room.quality
+  isCharge.value = room.chargeType === 'PAID'
+  chargePrice.value = room.chargePrice > 0 ? String(room.chargePrice) : ''
+  selectedProducts.value = room.products
+  if (room.startTime) {
+    const d = new Date(room.startTime)
+    if (!Number.isNaN(d.getTime())) {
+      const pad = (n: number) => String(n).padStart(2, '0')
+      startDate.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+      startClock.value = `${pad(d.getHours())}:${pad(d.getMinutes())}`
+    }
+  }
+}
+
 async function fetchData() {
   loading.value = true
   error.value = ''
-  // 辅助数据一律降级为空，绝不因接口异常把整个表单挡在三态之外
-  quota.value = await liveApi.getQuota().catch(() => ({ hdMinutes: 0, uhdMinutes: 0 }))
-  packages.value = await liveApi.getQualityPackages().catch(() => [])
-  coinBalance.value = await getCoinBalance().catch(() => null)
-  myCircles.value = await circleApi.getMyCircles().catch(() => [])
-  loading.value = false
+  try {
+    // 辅助数据继续 fail-open；编辑主详情失败则进入可重试错误态，避免拿默认值覆盖线上配置。
+    const roomPromise = editRoomId.value ? liveApi.getRoomForEdit(editRoomId.value) : Promise.resolve(null)
+    const [quotaRes, packagesRes, balanceRes, circlesRes, editRoom] = await Promise.all([
+      liveApi.getQuota().catch(() => ({ hdMinutes: 0, uhdMinutes: 0 })),
+      liveApi.getQualityPackages().catch(() => []),
+      getCoinBalance().catch(() => null),
+      circleApi.getMyCircles().catch(() => []),
+      roomPromise,
+    ])
+    quota.value = quotaRes
+    packages.value = packagesRes
+    coinBalance.value = balanceRes
+    myCircles.value = circlesRes
+    if (editRoom) fillEditForm(editRoom)
+  } catch (e) {
+    error.value = (e as Error)?.message || '加载直播信息失败，请重试'
+  } finally {
+    loading.value = false
+  }
 }
-fetchData()
+
+onLoad((q) => {
+  const params = (q || {}) as Record<string, string>
+  editRoomId.value = params.id || ''
+  circleId.value = params.circleId || ''
+  fetchData()
+})
 
 // ── 主按钮：双文案 + 置灰 ──
 const primaryText = computed(() => {
-  if (quality.value !== 'basic' && remainingForSelected.value <= 0) return '余量不足 · 请购买时长包'
+  if (submitting.value) return isEdit.value ? '保存中…' : '创建中…'
+  if (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0) return '余量不足 · 请购买时长包'
+  if (isEdit.value) return '保存修改'
   return liveMode.value === 'obs' || startTime.value ? '创建直播间' : '开始直播'
 })
 const primaryDisabled = computed(() =>
   !title.value.trim() ||
   coverUploading.value ||
   submitting.value ||
-  (quality.value !== 'basic' && remainingForSelected.value <= 0),
+  (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0),
 )
 
 // ── 创建 / 开播（写操作，防重复） ──
@@ -546,7 +597,7 @@ const retrying = ref(false)
 async function onPrimary() {
   if (primaryDisabled.value) {
     if (!title.value.trim()) uni.showToast({ title: '请输入直播标题', icon: 'none' })
-    else if (quality.value !== 'basic' && remainingForSelected.value <= 0) openBuySheet()
+    else if (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0) openBuySheet()
     return
   }
   const price = isCharge.value ? Number(chargePrice.value) : 0
@@ -556,17 +607,32 @@ async function onPrimary() {
   }
   submitting.value = true
   try {
-    const created = await liveApi.createRoom({
-      circleId: circleId.value || undefined,
+    const common = {
       title: title.value.trim(),
       cover: cover.value || undefined,
-      startTime: startTime.value || undefined,
-      chargeType: isCharge.value ? 'PAID' : 'FREE',
-      chargePrice: isCharge.value ? price : undefined,
+      chargeType: (isCharge.value ? 'PAID' : 'FREE') as 'PAID' | 'FREE',
+      chargePrice: isCharge.value ? price : null,
       quality: quality.value,
-      orientation: liveMode.value === 'obs' ? 'landscape' : 'portrait',
+      orientation: (liveMode.value === 'obs' ? 'landscape' : 'portrait') as 'portrait' | 'landscape',
+      productIds: selectedProducts.value.map((p) => p.id),
+    }
+    if (isEdit.value) {
+      await liveApi.updateRoom(editRoomId.value, {
+        ...common,
+        startTime: startTime.value || null,
+      })
+      uni.showToast({ title: '修改已保存', icon: 'success' })
+      setTimeout(() => uni.redirectTo({ url: '/pkg-live/manage/index' }), 700)
+      return
+    }
+
+    const created = await liveApi.createRoom({
+      circleId: circleId.value || undefined,
+      ...common,
+      startTime: startTime.value || undefined,
+      chargePrice: isCharge.value ? price : undefined,
       visibility: visibility.value,
-      productIds: selectedProducts.value.length ? selectedProducts.value.map((p) => p.id) : undefined,
+      productIds: common.productIds.length ? common.productIds : undefined,
     })
     createdId.value = created?.id || ''
     // 审核无感化：创建即生效，机审后台异步完成，无审核提示
@@ -703,6 +769,7 @@ function goManageLater() {
 .row:last-child { border-bottom: none; }
 .row-k { font-size: 28rpx; color: #2C2C2C; }
 .row-v { display: flex; align-items: center; gap: 8rpx; }
+.row-locked { opacity: .72; }
 .row-v-txt { font-size: 26rpx; color: #999; }
 .time-expand { padding: 20rpx 0 24rpx; display: flex; flex-direction: column; gap: 16rpx; border-top: 1rpx solid #F5F1EA; }
 .time-pick-btn { height: 80rpx; border: 1rpx solid #E8E2D8; border-radius: 20rpx; background: #FAF8F5; display: flex; align-items: center; gap: 12rpx; padding: 0 24rpx; }

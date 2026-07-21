@@ -34,7 +34,43 @@ export class LiveService {
     @Optional() private im?: ImService,
   ) {}
 
+  /** 直播挂车统一校验：最多 5 件、保持请求顺序、只允许当前在售且未隔离商品。 */
+  private async validateLiveProductIds(productIds: string[]): Promise<string[]> {
+    if (!Array.isArray(productIds)) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品清单格式错误");
+    const normalized = productIds.map((id) => String(id || "").trim());
+    if (normalized.some((id) => !id)) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品ID不能为空");
+    if (normalized.length > 5) throw new BusinessException(ErrorCode.BAD_REQUEST, "每场直播最多挂载 5 件商品");
+    if (new Set(normalized).size !== normalized.length) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品清单不能包含重复商品");
+    if (!normalized.length) return [];
+
+    const available = await this.prisma.product.findMany({
+      where: {
+        id: { in: normalized, notIn: [...publicQuarantinedIds("product")] },
+        status: "ON_SALE",
+      },
+      select: { id: true },
+    });
+    if (available.length !== normalized.length) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "部分商品已下架或不存在，请刷新商品库后重试");
+    }
+    return normalized;
+  }
+
+  private async replaceLiveProducts(tx: Prisma.TransactionClient, roomId: string, productIds: string[]) {
+    await tx.liveProduct.deleteMany({ where: { liveId: roomId } });
+    if (productIds.length) {
+      await tx.liveProduct.createMany({ data: productIds.map((productId, sortOrder) => ({ liveId: roomId, productId, sortOrder })) });
+    }
+  }
+
   async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false) {
+    const productIds = dto.productIds ? await this.validateLiveProductIds(dto.productIds) : [];
+    const chargeType = dto.chargeType || "FREE";
+    const requestedChargePrice = Number(dto.chargePrice);
+    const chargePrice = chargeType === "PAID" ? requestedChargePrice : null;
+    if (chargeType === "PAID" && (!Number.isFinite(requestedChargePrice) || requestedChargePrice <= 0)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "付费直播必须设置大于 0 元的票价");
+    }
     // 审核无感化（20260711 第八节）：创建即生效，封面/标题机审改异步分级处置（直播实时内容仍走 LiveAuditLog 机审）
     const { visibility, auditStatus } = await this.audit.resolveContentVisibility({
       visibility: dto.visibility,
@@ -53,8 +89,8 @@ export class LiveService {
       coHostIds: dto.coHostIds || [],
       quality: dto.quality || "basic",
       orientation: dto.orientation || "portrait",
-      chargeType: dto.chargeType || "FREE",
-      chargePrice: dto.chargePrice,
+      chargeType,
+      chargePrice,
       status: "WAITING",
       visibility,
       auditStatus,
@@ -63,7 +99,7 @@ export class LiveService {
       ...(dto.startTime ? { startTime: new Date(dto.startTime) } : {}),
       ...(dto.courseId ? { courseId: dto.courseId } : {}),
       ...(dto.stationId ? { stationId: dto.stationId } : {}),
-      ...(dto.productIds?.length ? { products: { create: dto.productIds.map(productId => ({ productId })) } } : {}),
+      ...(productIds.length ? { products: { create: productIds.map((productId, sortOrder) => ({ productId, sortOrder })) } } : {}),
     };
 
     const room = await this.prisma.liveRoom.create({ data: data as Prisma.LiveRoomCreateInput, include: { products: true } });
@@ -85,12 +121,78 @@ export class LiveService {
     return room;
   }
 
+  /** 编辑待开播场次；标题/封面沿用历史可编辑口径，排期/收费/画质仅 WAITING 可改。 */
   async updateRoom(userId: string, id: string, dto: UpdateRoomDto, isAdmin = false) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true } });
+    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true, status: true, circleId: true, chargeType: true, chargePrice: true } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     // 平台管理员豁免归属校验（管理端编辑任意直播间）；普通用户仍只能改自己的
     if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的直播间");
-    return this.prisma.liveRoom.update({ where: { id }, data: dto as unknown as Prisma.LiveRoomUpdateInput });
+
+    const changesWaitingConfig = dto.startTime !== undefined || dto.chargeType !== undefined || dto.chargePrice !== undefined
+      || dto.quality !== undefined || dto.orientation !== undefined;
+    if (changesWaitingConfig && room.status !== "WAITING") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "直播开始后不能修改排期、收费或画质");
+    }
+
+    const data: Prisma.LiveRoomUncheckedUpdateInput = {};
+    if (dto.title !== undefined) {
+      const title = dto.title.trim();
+      if (!title) throw new BusinessException(ErrorCode.BAD_REQUEST, "直播标题不能为空");
+      data.title = title;
+    }
+    if (dto.cover !== undefined) data.cover = dto.cover;
+    if (dto.startTime !== undefined) {
+      if (dto.startTime === null || dto.startTime === "") data.startTime = null;
+      else {
+        const parsed = new Date(dto.startTime);
+        if (Number.isNaN(parsed.getTime())) throw new BusinessException(ErrorCode.BAD_REQUEST, "开播时间格式错误");
+        data.startTime = parsed;
+      }
+    }
+    if (dto.chargeType !== undefined || dto.chargePrice !== undefined) {
+      const targetType = dto.chargeType ?? room.chargeType;
+      const targetPrice = dto.chargePrice !== undefined ? Number(dto.chargePrice) : Number(room.chargePrice);
+      if (targetType === "PAID" && (!Number.isFinite(targetPrice) || targetPrice <= 0)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "付费直播必须设置大于 0 元的票价");
+      }
+      if (dto.chargeType !== undefined) data.chargeType = dto.chargeType;
+      data.chargePrice = targetType === "PAID" ? targetPrice : null;
+    }
+    if (dto.quality !== undefined) data.quality = dto.quality;
+    if (dto.orientation !== undefined) data.orientation = dto.orientation;
+
+    const productIds = dto.productIds === undefined ? undefined : await this.validateLiveProductIds(dto.productIds);
+    const updated = productIds === undefined
+      ? await this.prisma.liveRoom.update({ where: { id }, data })
+      : await this.prisma.$transaction(async (tx) => {
+          const row = await tx.liveRoom.update({ where: { id }, data });
+          await this.replaceLiveProducts(tx, id, productIds);
+          return { ...row, products: productIds.map((productId, sortOrder) => ({ productId, sortOrder })) };
+        });
+
+    // 编辑同样进入异步机审，避免“先发合规标题、再编辑绕审”；审核故障不阻断主播保存。
+    if (dto.title !== undefined || dto.cover !== undefined) {
+      this.audit.queueContentModeration({
+        contentType: "LIVE",
+        contentId: id,
+        userId,
+        circleId: room.circleId || undefined,
+        text: dto.title,
+        images: dto.cover,
+      });
+    }
+    return updated;
+  }
+
+  /** 主播在开播前或直播中维护商品挂车；事务全量替换，排序与请求数组一致。 */
+  async updateRoomProducts(userId: string, roomId: string, productIds: string[], isAdmin = false) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能管理自己的直播间商品");
+
+    const normalized = await this.validateLiveProductIds(productIds);
+    await this.prisma.$transaction(async (tx) => this.replaceLiveProducts(tx, roomId, normalized));
+    return { success: true, count: normalized.length, productIds: normalized };
   }
 
   private static readonly STATE_MACHINE: Record<string, string[]> = {
@@ -617,7 +719,9 @@ export class LiveService {
       throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     }
 
-    await this.prisma.liveRoom.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+    if (!isOwner) {
+      await this.prisma.liveRoom.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+    }
     // #21 回放章节点随详情返回（raw 读绕过 prisma generate；列未就绪/查询失败不阻断详情）
     const replayChapters = await this.getReplayChapters(id);
     return { ...room, replayChapters };

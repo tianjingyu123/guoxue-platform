@@ -1106,12 +1106,28 @@ export interface LiveConfiguredProduct {
   sold: number
   cover: string
 }
+export interface LiveRoomEditData {
+  id: string
+  title: string
+  cover: string
+  status: string
+  circleId: string
+  circleName: string
+  orientation: 'portrait' | 'landscape'
+  quality: 'basic' | 'hd' | 'uhd'
+  chargeType: 'FREE' | 'PAID'
+  chargePrice: number
+  startTime: string
+  products: LivePickerProduct[]
+}
 // 选品层商品池（GET /shop/products?status=ON_SALE 平台在售商品）
 export interface LivePickerProduct {
   id: string
   name: string
   price: number
   cover: string
+  stock?: number
+  sold?: number
 }
 export const liveProducts: LiveProductItem[] = [
   { id: '1', name: '《渊海子平》精装典藏版', price: 168, stock: 200, sold: 86, cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'on' },
@@ -1246,6 +1262,7 @@ interface RawLiveRoomDetail extends RawLiveRoom {
   likeCount?: number
   circleId?: string | null // 发起直播的圈子（佣-V2-P3 内容场景归因：直播购买佣金归圈子）
   user?: (RawLiveUser & { id?: string }) | null
+  visibility?: string | null
   products?: { id?: string; productId?: string }[] | null
   quality?: string | null // 画质档位 basic|hd|uhd（C5 分档）
   replayUrl?: string | null // 回放地址（ENDED/REPLAY 态有回放时返回）
@@ -1513,6 +1530,52 @@ export const liveApi = {
   /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd；orientation 开播方式 portrait=手机竖屏/landscape=OBS横屏；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·创建即生效，机审后台异步；productIds 带货商品挂车，后端落 LiveProduct 关联表） */
   async createRoom(payload: { circleId?: string; title: string; cover?: string; startTime?: string; chargeType?: string; chargePrice?: number; quality?: string; orientation?: 'portrait' | 'landscape'; visibility?: 'CIRCLE_ONLY' | 'PLATFORM'; productIds?: string[] }): Promise<{ id: string }> {
     return await apiPost<{ id: string }>('/live/rooms', payload)
+  },
+
+  /** 待开播场次编辑回填：详情与商品均取真实接口，不使用创建页默认值冒充。 */
+  async getRoomForEdit(roomId: string): Promise<LiveRoomEditData> {
+    const [room, configured] = await Promise.all([
+      apiGet<RawLiveRoomDetail>(`/live/rooms/${roomId}`),
+      liveApi.getRoomProducts(roomId),
+    ])
+    const orientation = room?.orientation === 'landscape' ? 'landscape' : 'portrait'
+    const quality = room?.quality === 'hd' || room?.quality === 'uhd' ? room.quality : 'basic'
+    return {
+      id: String(room?.id || roomId),
+      title: room?.title || '',
+      cover: room?.cover || '',
+      status: room?.status || '',
+      circleId: room?.circleId || '',
+      circleName: room?.circle?.name || '',
+      orientation,
+      quality,
+      chargeType: room?.chargeType === 'PAID' ? 'PAID' : 'FREE',
+      chargePrice: Number(room?.chargePrice) || 0,
+      startTime: room?.startTime || '',
+      products: configured.products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        cover: p.cover,
+        stock: p.stock,
+        sold: p.sold,
+      })),
+    }
+  },
+
+  /** 更新待开播场次；productIds 传空数组会真实清空挂车。 */
+  async updateRoom(roomId: string, payload: {
+    title: string; cover?: string; startTime?: string | null
+    chargeType?: 'FREE' | 'PAID'; chargePrice?: number | null
+    quality?: 'basic' | 'hd' | 'uhd'; orientation?: 'portrait' | 'landscape'
+    productIds?: string[]
+  }): Promise<{ id: string }> {
+    return await apiPut<{ id: string }>(`/live/rooms/${roomId}`, payload)
+  },
+
+  /** 独立保存本场商品及展示顺序，可在直播中调整。 */
+  async saveRoomProducts(roomId: string, productIds: string[]): Promise<{ success: boolean; count: number; productIds: string[] }> {
+    return await apiPut<{ success: boolean; count: number; productIds: string[] }>(`/live/rooms/${roomId}/products`, { productIds })
   },
 
   /** 开始直播（房主本人或管理员） — PUT /live/rooms/:id/start（后端生成推拉流地址+建 IM 弹幕群） */
@@ -1913,6 +1976,8 @@ export const liveApi = {
         name: p.title || '商品',
         cover: (Array.isArray(p.images) && p.images[0]) || p.cover || '',
         price: Number(p.effectivePrice ?? p.price) || 0,
+        stock: p.stock ?? 0,
+        sold: p.salesCount ?? 0,
       }))
     } catch {
       return []

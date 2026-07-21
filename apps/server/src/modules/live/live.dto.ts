@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, IsBoolean, Min, Max, MinLength } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, IsBoolean, Min, Max, MinLength, ArrayMaxSize, ArrayUnique } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -37,15 +37,18 @@ export class CreateRoomDto {
   orientation?: string;
 
   @ApiPropertyOptional({ description: "收费类型: FREE/PAID/CIRCLE_ONLY/MEMBER_FREE" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsString() @IsIn(["FREE", "PAID", "CIRCLE_ONLY", "MEMBER_FREE"])
   chargeType?: string;
 
   @ApiPropertyOptional({ description: "收费价格（元）" })
-  @IsOptional() @IsNumber()
+  @IsOptional() @IsNumber() @Min(0)
   chargePrice?: number;
 
   @ApiPropertyOptional({ description: "关联商品ID列表" })
   @IsOptional() @IsArray()
+  @ArrayMaxSize(5)
+  @ArrayUnique()
+  @IsString({ each: true })
   productIds?: string[];
 
   @ApiPropertyOptional({ description: "关联课程ID，回放将自动同步为课程章节" })
@@ -77,6 +80,43 @@ export class UpdateRoomDto {
   @ApiPropertyOptional({ description: "封面图URL" })
   @IsOptional() @IsString()
   cover?: string;
+
+  @ApiPropertyOptional({ description: "预约开播时间；null 表示改为立即开播", nullable: true })
+  @IsOptional() @IsString()
+  startTime?: string | null;
+
+  @ApiPropertyOptional({ description: "收费类型", enum: ["FREE", "PAID"] })
+  @IsOptional() @IsIn(["FREE", "PAID"])
+  chargeType?: "FREE" | "PAID";
+
+  @ApiPropertyOptional({ description: "收费价格（元）；免费时传 null", nullable: true })
+  @IsOptional() @IsNumber() @Min(0)
+  chargePrice?: number | null;
+
+  @ApiPropertyOptional({ description: "画质档", enum: ["basic", "hd", "uhd"] })
+  @IsOptional() @IsIn(["basic", "hd", "uhd"])
+  quality?: "basic" | "hd" | "uhd";
+
+  @ApiPropertyOptional({ description: "画面方向", enum: ["portrait", "landscape"] })
+  @IsOptional() @IsIn(["portrait", "landscape"])
+  orientation?: "portrait" | "landscape";
+
+  @ApiPropertyOptional({ description: "本场带货商品ID，按数组顺序展示", type: [String], maxItems: 5 })
+  @IsOptional() @IsArray()
+  @ArrayMaxSize(5)
+  @ArrayUnique()
+  @IsString({ each: true })
+  productIds?: string[];
+}
+
+/** 主播单独维护本场商品清单（可在直播中调整） */
+export class UpdateRoomProductsDto {
+  @ApiProperty({ description: "商品ID列表，数组顺序即观众端展示顺序", type: [String], maxItems: 5 })
+  @IsArray()
+  @ArrayMaxSize(5)
+  @ArrayUnique()
+  @IsString({ each: true })
+  productIds: string[];
 }
 
 // ───────── 麦位管理 ─────────

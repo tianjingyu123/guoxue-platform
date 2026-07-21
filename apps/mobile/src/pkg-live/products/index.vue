@@ -2,7 +2,7 @@
   <view class="products-page">
     <!-- 顶部导航（V0：返回在左·标题居中） -->
     <view class="nav-bar">
-      <view class="nav-back" @tap="goBack">
+      <view class="nav-back" @tap="handleBack">
         <AppIcon name="chevron-left" :size="44" color="#2C2C2C" />
       </view>
       <text class="nav-title">带货商品</text>
@@ -34,7 +34,7 @@
       <!-- 当前配置的直播场次名 -->
       <view class="caption">
         <text class="caption-text">
-          正在为「<text class="caption-strong">{{ roomTitle || '本场直播' }}</text>」配置商品 · 已选 {{ products.length }} 件
+          正在为「<text class="caption-strong">{{ roomTitle || '本场直播' }}</text>」配置商品 · 已选 {{ products.length }}/{{ MAX_LIVE_PRODUCTS }} 件
         </text>
       </view>
 
@@ -43,10 +43,10 @@
         <view class="empty-icon">
           <AppIcon name="shopping-bag" :size="80" color="#DDD5C8" />
         </view>
-        <text class="empty-title">还没有商品</text>
-        <text class="empty-desc">添加商品，直播时一键讲解</text>
-        <text class="empty-desc">观众端同步弹出商品卡，边讲边卖</text>
-        <view class="empty-btn" @tap="openPicker">＋ 添加商品</view>
+        <text class="empty-title">{{ roomId ? '还没有商品' : '请先选择直播场次' }}</text>
+        <text class="empty-desc">{{ roomId ? '添加商品后，观众端会同步展示商品卡' : '从“我的直播”进入具体场次后再配置商品' }}</text>
+        <text v-if="roomId" class="empty-desc">最多挂载 {{ MAX_LIVE_PRODUCTS }} 件，可按讲解顺序排列</text>
+        <view class="empty-btn" @tap="roomId ? openPicker() : goManage()">{{ roomId ? '＋ 添加商品' : '去我的直播' }}</view>
       </view>
 
       <!-- 已选商品列表（排序即讲解顺序） -->
@@ -99,12 +99,17 @@
         </view>
 
         <!-- 添加商品（金色虚线引导） -->
-        <view class="addbar" @tap="openPicker">＋ 添加商品</view>
-
-        <!-- 保存清单（当前无排序/增删持久化后端端点 → 诚实降级提示） -->
-        <view class="cta" @tap="saveList">保存商品清单</view>
-        <text class="save-hint">排序与增删为本地预览，暂不支持保存到本场直播</text>
+        <view v-if="products.length < MAX_LIVE_PRODUCTS" class="addbar" @tap="openPicker">＋ 添加商品</view>
       </template>
+
+      <view v-if="roomId" class="save-panel">
+        <view class="cta" :class="{ 'cta-disabled': !dirty || saving }" @tap="saveList">
+          <AppIcon v-if="saving" name="loader-2" :size="28" color="#FFFFFF" class="save-spinner" />
+          <AppIcon v-else-if="!dirty" name="check" :size="28" color="#FFFFFF" />
+          <text>{{ saving ? '保存中…' : dirty ? '保存商品清单' : '商品清单已保存' }}</text>
+        </view>
+        <text class="save-hint">{{ dirty ? '保存后，观众端将按当前顺序展示' : '已与本场直播同步' }}</text>
+      </view>
     </view>
 
     <view v-if="!loading && !error" class="bottom-spacer" />
@@ -126,7 +131,7 @@
             v-model="pickSearch"
             class="search-input"
             type="text"
-            placeholder="搜索我的商品"
+            placeholder="搜索可带货商品"
             placeholder-class="search-ph"
             confirm-type="search"
             @confirm="fetchPool"
@@ -137,6 +142,10 @@
         <scroll-view scroll-y class="pick-scroll">
           <view v-if="pickLoading" class="pick-loading">
             <text class="pick-loading-text">加载商品中…</text>
+          </view>
+          <view v-else-if="pickError" class="pick-empty">
+            <text class="pick-empty-text">{{ pickError }}</text>
+            <view class="pick-retry" @tap="fetchPool">重新加载</view>
           </view>
           <view v-else-if="pool.length === 0" class="pick-empty">
             <text class="pick-empty-text">暂无可选商品</text>
@@ -180,15 +189,19 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { liveApi, type LiveConfiguredProduct, type LivePickerProduct } from '@/lib/live-data'
 import { formatPrice } from '@/utils/format'
 
+const MAX_LIVE_PRODUCTS = 5
 const roomId = ref('')
 const roomTitle = ref('')
 const products = ref<LiveConfiguredProduct[]>([])
+const savedProductIds = ref<string[]>([])
 const loading = ref(true)
 const error = ref('')
+const saving = ref(false)
+const dirty = computed(() => products.value.map((p) => p.id).join('|') !== savedProductIds.value.join('|'))
 
 // ── 已配商品：真连 GET /live/rooms/:id ──
 async function fetchData() {
@@ -204,6 +217,7 @@ async function fetchData() {
     const res = await liveApi.getRoomProducts(roomId.value)
     roomTitle.value = res.roomTitle
     products.value = res.products
+    savedProductIds.value = res.products.map((p) => p.id)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -211,7 +225,7 @@ async function fetchData() {
   }
 }
 
-// ── 本地预览操作（无持久化端点 → 诚实降级，不谎称已保存） ──
+// ── 商品顺序与增删：本地编辑，点击保存后事务写入 LiveProduct ──
 function moveUp(idx: number) {
   if (idx <= 0) return
   const arr = products.value.slice()
@@ -227,9 +241,35 @@ function moveDown(idx: number) {
 function remove(id: string) {
   products.value = products.value.filter((p) => p.id !== id)
 }
-function saveList() {
-  // 后端暂无「保存本场带货清单/排序」端点 → 诚实提示，不做假保存
-  uni.showToast({ title: '功能开发中，暂不能保存', icon: 'none' })
+async function saveList() {
+  if (!roomId.value || !dirty.value || saving.value) return
+  saving.value = true
+  try {
+    const ids = products.value.map((p) => p.id)
+    await liveApi.saveRoomProducts(roomId.value, ids)
+    savedProductIds.value = ids.slice()
+    uni.showToast({ title: '商品清单已保存', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败，请重试', icon: 'none' })
+  } finally {
+    saving.value = false
+  }
+}
+function goManage() {
+  navigateTo('/pkg-live/manage/index')
+}
+function handleBack() {
+  if (!dirty.value) {
+    goBack()
+    return
+  }
+  uni.showModal({
+    title: '放弃未保存的修改？',
+    content: '商品增删或顺序调整尚未保存。',
+    confirmText: '放弃修改',
+    confirmColor: '#C41E3A',
+    success: (res) => { if (res.confirm) goBack() },
+  })
 }
 
 // ── 选品层：真连 GET /shop/products?status=ON_SALE ──
@@ -237,6 +277,7 @@ const pickerOpen = ref(false)
 const pickSearch = ref('')
 const pool = ref<LivePickerProduct[]>([])
 const pickLoading = ref(false)
+const pickError = ref('')
 const checkedIds = ref<string[]>([])
 
 const addedIdSet = computed(() => new Set(products.value.map((p) => p.id)))
@@ -249,14 +290,22 @@ function isChecked(id: string) {
 
 async function fetchPool() {
   pickLoading.value = true
+  pickError.value = ''
   try {
     pool.value = await liveApi.getShopProductPool(pickSearch.value.trim() || undefined)
+  } catch (e) {
+    pool.value = []
+    pickError.value = (e as Error)?.message || '商品库加载失败，请重试'
   } finally {
     pickLoading.value = false
   }
 }
 
 function openPicker() {
+  if (!roomId.value) {
+    goManage()
+    return
+  }
   pickerOpen.value = true
   checkedIds.value = []
   if (pool.value.length === 0) fetchPool()
@@ -268,11 +317,13 @@ function togglePick(id: string) {
   if (isAdded(id)) return // 已在清单中 → 置灰不可再选
   const i = checkedIds.value.indexOf(id)
   if (i >= 0) checkedIds.value.splice(i, 1)
-  else checkedIds.value.push(id)
+  else if (products.value.length + checkedIds.value.length >= MAX_LIVE_PRODUCTS) {
+    uni.showToast({ title: `每场最多添加 ${MAX_LIVE_PRODUCTS} 件商品`, icon: 'none' })
+  } else checkedIds.value.push(id)
 }
 function confirmPick() {
   if (checkedIds.value.length === 0) return
-  // 本地预览加入（无持久化端点）：把选中商品并入已配列表
+  // 商品先并入本地编辑清单，点击“保存商品清单”后统一持久化
   const picked = pool.value
     .filter((p) => checkedIds.value.includes(p.id) && !isAdded(p.id))
     .map<LiveConfiguredProduct>((p) => ({
@@ -280,12 +331,12 @@ function confirmPick() {
       name: p.name,
       price: p.price,
       cover: p.cover,
-      stock: 0, // 选品池不含库存/已售 → 降级 0，保存端点就绪后由后端回补
-      sold: 0,
+      stock: p.stock ?? 0,
+      sold: p.sold ?? 0,
     }))
   products.value = products.value.concat(picked)
   closePicker()
-  uni.showToast({ title: `已加入 ${picked.length} 件（本地预览）`, icon: 'none' })
+  uni.showToast({ title: `已加入 ${picked.length} 件，保存后生效`, icon: 'none' })
 }
 
 onLoad((q) => {
@@ -540,6 +591,7 @@ onLoad((q) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10rpx;
   font-size: 30rpx;
   font-weight: 600;
   margin-top: 12rpx;
@@ -547,11 +599,23 @@ onLoad((q) => {
 .cta-disabled {
   background: #d8d0c5;
 }
+.save-panel {
+  padding-top: 4rpx;
+}
 .save-hint {
   font-size: 22rpx;
   color: #b8b2a8;
   text-align: center;
   margin-top: 8rpx;
+}
+.save-spinner {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .save-spinner { animation: none; }
 }
 
 .bottom-spacer {
@@ -646,6 +710,19 @@ onLoad((q) => {
 .pick-empty-text {
   font-size: 26rpx;
   color: #999;
+}
+.pick-retry {
+  margin-top: 20rpx;
+  min-width: 176rpx;
+  height: 64rpx;
+  padding: 0 24rpx;
+  border: 1px solid #c9a96e;
+  border-radius: 999rpx;
+  color: #9a7434;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .pick {
   display: flex;

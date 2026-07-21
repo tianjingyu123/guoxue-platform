@@ -4,7 +4,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
 import { LiveQualityService } from "./live-quality.service";
-import { CreateRoomDto, UpdateRoomDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, UpdateRoomProductsDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -182,6 +182,19 @@ export class LiveController {
   updateRoom(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpdateRoomDto) {
     // 平台管理员（超管/运营）可编辑任意直播间——与开播/下播「房主或管理员」口径一致
     return this.svc.updateRoom(req.user.id, id, dto, this.isAdmin(req));
+  }
+
+  @Put("rooms/:id/products")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "保存本场带货商品及展示顺序（房主或管理员）" })
+  @ApiResponse({ status: 200, description: "保存成功" })
+  @ApiResponse({ status: 400, description: "商品已下架、数量超限或参数错误" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权管理该直播间" })
+  @ApiResponse({ status: 404, description: "直播间不存在" })
+  @ApiBearerAuth()
+  updateRoomProducts(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpdateRoomProductsDto) {
+    return this.svc.updateRoomProducts(req.user.id, id, dto.productIds, this.isAdmin(req));
   }
 
   @Put("rooms/:id/start")

@@ -149,13 +149,17 @@
       <view class="sheet" @tap.stop>
         <view class="sheet-head">
           <text class="sheet-title">本场商品（{{ products.length }}）</text>
-          <view class="sheet-close" @tap="showProductSheet = false">
-            <AppIcon name="x" :size="32" color="#A89FA8" />
+          <view class="sheet-actions">
+            <view class="sheet-manage" @tap="goManageProducts">管理商品</view>
+            <view class="sheet-close" @tap="showProductSheet = false">
+              <AppIcon name="x" :size="32" color="#A89FA8" />
+            </view>
           </view>
         </view>
         <scroll-view scroll-y class="sheet-body">
           <view v-if="products.length === 0" class="sheet-empty">
             <text class="sheet-empty-txt">本场暂未挂载商品</text>
+            <view class="sheet-empty-btn" @tap="goManageProducts">去添加商品</view>
           </view>
           <view v-for="p in products" :key="p.id" class="prod">
             <view class="prod-img">
@@ -181,9 +185,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
 import { liveApi, type ConsoleDanmaku, type ConsoleProduct } from '@/lib/live-data'
 
@@ -245,9 +249,11 @@ const humanDuration = computed(() => {
 })
 
 // ===== API 数据获取 =====
-async function fetchData() {
-  loading.value = true
-  error.value = ''
+async function fetchData(silent = false) {
+  if (!silent) {
+    loading.value = true
+    error.value = ''
+  }
   try {
     const res = await liveApi.getConsoleData(consoleId.value)
     roomTitle.value = res.title || ''
@@ -257,11 +263,24 @@ async function fetchData() {
     // 剩余时长若后端未提供则保持 0（不显示警示·不编假数字）
     scrollDanmakuToBottom()
   } catch (e) {
-    error.value = (e as Error)?.message || '加载失败，请重试'
+    if (silent) uni.showToast({ title: (e as Error)?.message || '商品刷新失败', icon: 'none' })
+    else error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
+
+const refreshAfterProductEdit = ref(false)
+function goManageProducts() {
+  showProductSheet.value = false
+  refreshAfterProductEdit.value = true
+  navigateTo(`/pkg-live/products/index?id=${consoleId.value}`)
+}
+onShow(() => {
+  if (!refreshAfterProductEdit.value) return
+  refreshAfterProductEdit.value = false
+  fetchData(true)
+})
 
 function scrollDanmakuToBottom() {
   danmakuScrollTop.value = danmakuList.value.length * 9999
@@ -725,6 +744,16 @@ async function onConfirmEnd() {
   padding: 28rpx;
   border-bottom: 2rpx solid #332d3a;
 }
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+.sheet-manage {
+  color: #c9a96e;
+  font-size: 24rpx;
+  font-weight: 600;
+}
 .sheet-title {
   font-size: 30rpx;
   color: #f5f0eb;
@@ -746,10 +775,23 @@ async function onConfirmEnd() {
   padding: 80rpx 0;
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex-direction: column;
 }
 .sheet-empty-txt {
   font-size: 26rpx;
   color: #6e6470;
+}
+.sheet-empty-btn {
+  margin-top: 20rpx;
+  height: 64rpx;
+  padding: 0 28rpx;
+  border-radius: 999rpx;
+  border: 1rpx solid #c9a96e;
+  color: #c9a96e;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
 }
 .prod {
   display: flex;
