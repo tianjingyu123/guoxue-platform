@@ -1,6 +1,6 @@
 #!/bin/bash
 # 国学平台 — 生产部署自动化脚本
-# 用法: ./deploy.sh [--rollback] [--skip-migrate] [--skip-health]
+# 用法: ./deploy.sh [--rollback] [--migrate] [--skip-health]
 #
 # 功能:
 #   1. 部署前自动备份
@@ -25,7 +25,8 @@ info()   { echo -e "${BLUE}[info]${NC} $1"; }
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
-SKIP_MIGRATE="false"
+SKIP_MIGRATE="true"
+MIGRATION_APPLIED="false"
 SKIP_HEALTH="false"
 ROLLBACK_MODE="false"
 
@@ -33,6 +34,7 @@ ROLLBACK_MODE="false"
 while [ $# -gt 0 ]; do
   case "$1" in
     --rollback)      ROLLBACK_MODE="true"; shift ;;
+    --migrate)       SKIP_MIGRATE="false"; shift ;;
     --skip-migrate)  SKIP_MIGRATE="true"; shift ;;
     --skip-health)   SKIP_HEALTH="true"; shift ;;
     *)               err "未知参数: $1"; exit 1 ;;
@@ -40,6 +42,11 @@ while [ $# -gt 0 ]; do
 done
 
 cd "$SCRIPT_DIR"
+if [ "$SKIP_MIGRATE" = "false" ] && [ "${ALLOW_PROD_DB_MIGRATION:-}" != "reviewed" ]; then
+  err "数据库迁移需要双重确认：同时传入 --migrate 并设置 ALLOW_PROD_DB_MIGRATION=reviewed"
+  exit 64
+fi
+
 
 log "════════════════════════════════════════════"
 log "  国学平台 — 部署脚本"
@@ -137,6 +144,21 @@ if [ $BUILD_EXIT -ne 0 ]; then
 fi
 log "  ✓ 镜像构建成功"
 
+# 数据库迁移必须在新服务启动前执行，避免新代码先读取尚未落地的字段。
+# 默认跳过；只有显式双重确认后才会运行。
+if [ "$SKIP_MIGRATE" = "false" ]; then
+  log "▸ 5/7 执行已审查的数据库迁移"
+  MIGRATE_OUTPUT=$(docker compose $COMPOSE_FILES run --rm --no-deps server \
+    sh -c "cd /app/apps/server && npx prisma migrate deploy" 2>&1) || {
+    err "数据库迁移失败，未启动新服务"
+    warn "迁移输出: $MIGRATE_OUTPUT"
+    exit 1
+  }
+  MIGRATION_APPLIED="true"
+  SKIP_MIGRATE="true"
+  log "  ✓ 已审查迁移执行完成"
+fi
+
 # ── 4. 滚动更新 ──
 log "▸ 5/7 滚动更新服务"
 if [ "$RUNNING_BEFORE" -gt 0 ]; then
@@ -175,7 +197,7 @@ if [ "$SKIP_HEALTH" = "false" ]; then
     docker compose $COMPOSE_FILES up -d --no-deps server
 
     # 恢复迁移状态
-    if [ "$SKIP_MIGRATE" = "false" ] && [ -f /tmp/migration-state-before.txt ]; then
+    if [ "$MIGRATION_APPLIED" = "true" ] && [ -f /tmp/migration-state-before.txt ]; then
       warn "  ⚠ 数据库迁移未自动回滚，请手动检查"
     fi
 
@@ -184,30 +206,7 @@ if [ "$SKIP_HEALTH" = "false" ]; then
   fi
 fi
 
-# ── 6. 数据库迁移 ──
-if [ "$SKIP_MIGRATE" = "false" ]; then
-  log "▸ 7/7 数据库迁移"
-  MIGRATE_OUTPUT=$(docker compose $COMPOSE_FILES exec -T server sh -c "cd /app/apps/server && npx prisma migrate deploy" 2>&1) || {
-    err "数据库迁移失败!"
-    warn "迁移输出: $MIGRATE_OUTPUT"
-
-    # 回滚
-    git checkout "$CURRENT_COMMIT"
-    docker compose $COMPOSE_FILES build server
-    docker compose $COMPOSE_FILES up -d --no-deps server
-    err "已回滚到提交 $CURRENT_SHORT"
-    exit 1
-  }
-
-  # 检查是否有实际执行的迁移
-  if echo "$MIGRATE_OUTPUT" | grep -q "applied"; then
-    log "  ✓ 迁移已应用: $(echo "$MIGRATE_OUTPUT" | grep applied)"
-  else
-    log "  ✓ 无新迁移需要执行"
-  fi
-else
-  log "▸ 7/7 数据库迁移 (已跳过)"
-fi
+log "▸ 7/7 数据库迁移 $([ "$MIGRATION_APPLIED" = "true" ] && echo '(已在启动前应用)' || echo '(安全默认：已跳过)')"
 
 # ── 完成 ──
 echo ""

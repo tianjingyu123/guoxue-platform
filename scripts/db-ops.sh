@@ -109,12 +109,16 @@ cmd_restore() {
 
   local end_ts
   end_ts=$(date +%s)
+  local duration=$((end_ts - start_ts))
   echo -e "[$(date '+%H:%M:%S')] ${GREEN}恢复完成 (${duration}s)${NC}"
 
-  # 运行迁移确保 schema 最新
-  echo "[$(date '+%H:%M:%S')] 运行 Prisma 迁移..."
+  # 恢复文件已经包含备份时的完整 schema。这里仅做只读状态核验，
+  # 禁止恢复后自动 db push，否则会删除不在当前 Prisma schema 中的保留对象。
+  echo "[$(date '+%H:%M:%S')] 检查 Prisma 迁移状态（只读）..."
   cd "$ROOT"
-  npx prisma db push --schema=apps/server/prisma/schema.prisma --accept-data-loss 2>&1 | tail -2
+  if ! npx prisma migrate status --schema=apps/server/prisma/schema.prisma; then
+    echo -e "${YELLOW}恢复已完成，但迁移账本需要人工审计；未执行任何自动 schema 修改。${NC}"
+  fi
 }
 
 cmd_verify() {

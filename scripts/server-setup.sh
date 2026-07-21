@@ -137,13 +137,14 @@ cd /opt/guoxue
 docker build -f docker/Dockerfile -t guoxue-server:latest . 2>&1 | tail -3
 ok "镜像构建完成"
 
-log "执行数据库迁移..."
+log "初始化全新空数据库..."
 docker run --rm \
   --network guoxue-net \
   -e DATABASE_URL="$DATABASE_URL" \
+  -e CONFIRM_EMPTY_DATABASE=YES \
   guoxue-server:latest \
-  npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma 2>&1 | tail -3
-ok "数据库迁移完成"
+  sh -c "cd /app/apps/server && sh prisma/migrations-deploy/bootstrap-empty-database.sh" 2>&1 | tail -5
+ok "空数据库初始化完成"
 
 log "启动服务..."
 docker rm -f guoxue-server 2>/dev/null || true

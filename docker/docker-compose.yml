@@ -157,6 +157,7 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-change-me-in-production-32ch}
       BIGSCREEN_SECRET: ${BIGSCREEN_SECRET:-change-me-in-production}
       PORT: 3000
+      RUN_DB_MIGRATIONS: ${RUN_DB_MIGRATIONS:-false}
       NODE_ENV: ${NODE_ENV:-production}
       PRISMA_SLOW_QUERY_MS: ${PRISMA_SLOW_QUERY_MS:-500}
       CORS_ORIGIN: ${CORS_ORIGIN:-}

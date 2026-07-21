@@ -66,7 +66,7 @@ services:
           sleep 2
         done
         echo "[test] 执行数据库迁移..."
-        npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
+        (cd apps/server && CONFIRM_EMPTY_DATABASE=YES sh prisma/migrations-deploy/bootstrap-empty-database.sh)
         echo "[test] 生成 Prisma Client..."
         npx prisma generate --schema=apps/server/prisma/schema.prisma
         echo "[test] 运行测试..."

@@ -216,10 +216,14 @@ sleep 10
 
 ### 4.3 仅数据库迁移（不重建镜像）
 
+生产迁移默认关闭。必须先完成备份、`prisma migrate status`、迁移 SQL 人工审查，再双重确认执行：
+
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml exec server \
-  sh -c "cd /app/apps/server && npx prisma migrate deploy"
+cd /opt/guoxue/docker
+ALLOW_PROD_DB_MIGRATION=reviewed ./deploy.sh --migrate
 ```
+
+普通 `./deploy.sh` 只更新应用，不修改数据库。严禁在生产使用 `prisma db push --accept-data-loss`。
 
 ### 4.4 部署窗口建议
 
@@ -296,9 +300,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d server
 ### 6.1 迁移安全规则
 
 1. **每次部署前必须备份** — `deploy.sh` 已自动执行
-2. **不用 `migrate reset`** — 生产环境永远用 `migrate deploy`
-3. **大表 DDL 在低峰期执行** — 超过 100 万行的表加字段需要特殊处理
-4. **添加索引用 CONCURRENTLY** — 在迁移 SQL 中使用 `CREATE INDEX CONCURRENTLY`
+2. **默认不迁移** — 只有已审查迁移才能用 `ALLOW_PROD_DB_MIGRATION=reviewed ./deploy.sh --migrate`
+3. **不用 `migrate reset` / `db push --accept-data-loss`** — 生产环境只允许已审查的 `migrate deploy`
+4. **大表 DDL 在低峰期执行** — 超过 100 万行的表加字段需要特殊处理
+5. **添加索引用 CONCURRENTLY** — 在迁移 SQL 中使用 `CREATE INDEX CONCURRENTLY`
 
 ### 6.2 常用运维命令
 

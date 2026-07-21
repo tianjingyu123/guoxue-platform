@@ -215,7 +215,21 @@ docker compose \
   -f docker-compose.yml \
   -f docker-compose.prod.yml \
   --env-file .env.production \
-  up -d --build
+  up -d --build postgres redis
+
+# 服务镜像构建完成后，先在一次性容器中初始化空库，再启动业务服务。
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.prod.yml \
+  --env-file .env.production \
+  run --rm --build -e CONFIRM_EMPTY_DATABASE=YES server \
+  sh -c "cd /app/apps/server && sh prisma/migrations-deploy/bootstrap-empty-database.sh"
+
+docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.prod.yml \
+  --env-file .env.production \
+  up -d
 
 # ── 10. 等待健康检查 ──
 log "等待服务就绪..."
@@ -228,9 +242,9 @@ for i in $(seq 1 30); do
   [ "$i" -eq 30 ] && err "服务启动超时，请检查: docker compose logs"
 done
 
-# ── 11. 数据库迁移 ──
-log "执行数据库迁移..."
-docker exec guoxue-server sh -c "cd /app/apps/server && npx prisma migrate deploy" || warn "迁移失败，请检查数据库连接"
+# ── 11. 数据库状态复核 ──
+log "复核数据库迁移账本..."
+docker exec guoxue-server sh -c "cd /app/apps/server && npx prisma migrate status"
 
 # ── 12. 配置自启动 ──
 log "配置服务自启动..."

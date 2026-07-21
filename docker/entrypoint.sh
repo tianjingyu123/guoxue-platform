@@ -1,6 +1,17 @@
 #!/bin/sh
 set -e
 
+# 迁移/诊断容器需要执行显式命令。此路径只要求数据库连接串，
+# 不启动业务服务，也不会隐式执行任何数据库迁移。
+if [ "$#" -gt 0 ]; then
+  if [ -z "${DATABASE_URL:-}" ]; then
+    echo "[entrypoint] 自定义命令缺少 DATABASE_URL"
+    exit 64
+  fi
+  echo "[entrypoint] 执行显式命令: $*"
+  exec "$@"
+fi
+
 echo "[entrypoint] 检查必需环境变量..."
 MISSING=""
 for VAR in JWT_SECRET ENCRYPTION_KEY BIGSCREEN_SECRET DATABASE_URL; do
@@ -57,9 +68,21 @@ if [ -d /app/admin-dist ] && [ -d /app/admin-dist-shared ]; then
   echo "[entrypoint] 管理后台前端同步完成"
 fi
 
-# ── 执行数据库迁移 ──
-echo "[entrypoint] 执行数据库迁移..."
-npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
+# 服务启动默认绝不改数据库。只有部署流程已完成备份与人工复核后，
+# 显式设置 RUN_DB_MIGRATIONS=reviewed 才允许执行迁移。
+case "${RUN_DB_MIGRATIONS:-false}" in
+  reviewed)
+    echo "[entrypoint] 已确认迁移审查，执行数据库迁移..."
+    npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
+    ;;
+  false|0|"")
+    echo "[entrypoint] 跳过数据库迁移（安全默认）"
+    ;;
+  *)
+    echo "[entrypoint] RUN_DB_MIGRATIONS 值无效；仅允许 false 或 reviewed"
+    exit 64
+    ;;
+esac
 
 # ── 启动服务 ──
 echo "[entrypoint] 启动服务..."

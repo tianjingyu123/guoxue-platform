@@ -23,9 +23,13 @@ pm2 restart guoxue-api
 ### 情况 A：全新空库
 ```bash
 cd apps/server
-npx prisma db execute --file prisma/migrations-deploy/full-baseline.sql --schema prisma/schema.prisma
+CONFIRM_EMPTY_DATABASE=YES sh prisma/migrations-deploy/bootstrap-empty-database.sh
 ```
-一次建全部 270 表 + 673 索引。
+脚本会先确认目标库没有任何业务表，再创建当前 336 个 Prisma 模型对应的完整结构，
+并在单个事务中登记 73 条已被基线覆盖的历史迁移。任意非空库都会直接拒绝，不能用此脚本覆盖旧库。
+
+当前基线由 `schema.prisma` 生成：336 张业务表、823 条显式索引、242 个外键；
+连同 `_prisma_migrations` 账本共 337 张表。更新 schema 后必须重新生成并在隔离空库验收基线。
 
 ### 情况 B：已有旧库（★ 当前生产就是这种，推荐）
 只建缺的表、加缺的列，**不动已有数据**：
