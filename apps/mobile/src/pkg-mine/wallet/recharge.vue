@@ -4,23 +4,22 @@ import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import {
-  mineApi,
-  rechargePayMethods,
-  type RechargeOption,
-} from '@/lib/mine-data'
+import { mineApi, type RechargeOption } from '@/lib/mine-data'
 import { formatPrice } from '@/utils/format'
 import { track } from '@/composables/useTrack'
 
 const loading = ref(false)
 const error = ref('')
 const options = ref<RechargeOption[]>([])
+const configuredCoinRate = ref(10)
 
 const retry = () => { error.value = ''; loadData() }
 async function loadData() {
   loading.value = true; error.value = ''
   try {
-    options.value = await mineApi.getRechargeOptions()
+    const config = await mineApi.getRechargeConfig()
+    options.value = config.options
+    configuredCoinRate.value = config.coinRate
     if (!selectedCoins.value) {
       selectedCoins.value = options.value.find((o) => o.popular)?.coins ?? options.value[0]?.coins ?? null
     }
@@ -30,22 +29,12 @@ async function loadData() {
 }
 onMounted(() => { track.custom('recharge_view'); loadData() })
 
-const payMethods = rechargePayMethods
-
 // UI 状态
 const selectedCoins = ref<number | null>(null)
 // 初始值在 loadData 后设置
 const customAmount = ref('')
-const payMethod = ref<string>('wechat')
-const isSubmitting = ref(false)
-
-function selectPayMethod(m: { id: string; name: string; disabled?: boolean }) {
-  if (m.disabled) {
-    uni.showToast({ title: `${m.name}渠道暂未开通，请使用微信支付`, icon: 'none' })
-    return
-  }
-  payMethod.value = m.id
-}
+const navigating = ref(false)
+const maxRechargeCoin = 500_000
 
 function selectOption(coins: number) {
   selectedCoins.value = coins
@@ -66,77 +55,38 @@ const selectedAmount = computed(() => {
   return o?.price || 0
 })
 
+// 自定义充值必须使用服务端权威汇率，不能从可能带特价的营销档位反推。
+const coinRate = computed(() => configuredCoinRate.value)
+const coinRateText = computed(() => Number.isInteger(coinRate.value) ? String(coinRate.value) : coinRate.value.toFixed(2))
+const customAmountValue = computed(() => parseInt(customAmount.value) || 0)
+const customBaseCoin = computed(() => Math.round(customAmountValue.value * coinRate.value))
+const maxCustomAmount = computed(() => Math.max(1, Math.floor(maxRechargeCoin / coinRate.value)))
+const customAmountError = computed(() => customAmountValue.value > maxCustomAmount.value
+  ? `单次最多充值 ¥${maxCustomAmount.value}`
+  : '')
+const canSubmit = computed(() => selectedAmount.value > 0 && !customAmountError.value && !navigating.value)
+
 const totalCoins = computed(() => {
-  if (customAmount.value) return (parseInt(customAmount.value) || 0) * 10
+  if (customAmount.value) return customBaseCoin.value
   const o = options.value.find((x) => x.coins === selectedCoins.value)
   return o ? o.coins + o.bonus : 0
 })
 
-/** 微信小程序真实支付：拿支付参数 → uni.requestPayment（到账由回调异步完成） */
-async function payByWechatMp(amountCoin: number) {
-  const { payParams } = await mineApi.rechargeWechat(amountCoin)
-  await new Promise<void>((resolve, reject) => {
-    uni.requestPayment({
-      provider: 'wxpay',
-      timeStamp: payParams.timeStamp,
-      nonceStr: payParams.nonceStr,
-      package: payParams.package,
-      signType: payParams.signType as 'MD5' | 'HMAC-SHA256' | 'RSA',
-      paySign: payParams.paySign,
-      success: () => resolve(),
-      fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg?.includes('cancel') ? '支付已取消' : (err?.errMsg || '支付失败'))),
-    })
-  })
-  uni.showToast({ title: '支付成功，到账处理中', icon: 'success' })
-}
-
 function goService() {
   navigateTo('/customer-service')
 }
-async function handleSubmit() {
-  if (selectedAmount.value <= 0 || isSubmitting.value) return
-  isSubmitting.value = true
-  try {
-    const selectedOpt = options.value.find(o => o.coins === selectedCoins.value)
-    // 🔴 提交给后端的是「基础充值币数」，不含赠币 —— 赠币只加币不加价，由后端按档位权威发放。
-    //    若把 (基础+赠) 传上去，后端会按总币数/汇率收款，等于让用户为赠币多付钱（反向收费）。
-    const amountCoin = selectedOpt ? selectedOpt.coins : (parseInt(customAmount.value) || 0) * 10
-    // #ifdef MP-WEIXIN
-    // 微信小程序内且选微信支付：走真实微信支付
-    if (payMethod.value === 'wechat') {
-      await payByWechatMp(amountCoin)
-      // 支付调起成功即算充值转化（金额用页面真实 RMB 金额，非币数）
-      track.purchase({ type: 'recharge', amount: selectedAmount.value, method: 'wechat' })
-      return
-    }
-    // 小程序内非微信渠道（理论上已被 selectPayMethod 挡下）：诚实提示，不下死单
-    uni.showToast({ title: '当前仅支持微信支付', icon: 'none' })
+function handleSubmit() {
+  if (!canSubmit.value) {
+    if (customAmountError.value) uni.showToast({ title: customAmountError.value, icon: 'none' })
     return
-    // #endif
-    /*
-     * 🔴 非小程序端（H5/App）诚实处理（W2·2026-07-17 审计修复）：
-     * 后端查证——充值真实支付端点仅有微信小程序 JSAPI（POST /shop/recharge/jsapi，需小程序 openid）；
-     * POST /users/wallet/recharge 只建 VirtualCoinRecharge(PENDING) 单（返回 orderNo，不是 shop Order id），
-     * 统一收银页 /shop/paying 只认 shop Order（pay/jsapi、pay/h5 都按 Order 表查单）→ 无法接续支付。
-     * 原实现「下单 + toast 成功」= 生产环境假成功（生产后端不模拟到账，币压根没到账）。
-     * → 生产：不建死单，直接诚实引导去小程序；开发联调：保留后端演示模式（后端仅非生产环境模拟到账）。
-     * 记后端缺口：需提供 H5/公众号 JSAPI 的充值支付渠道，接通后此处改跳统一收银页。
-     */
-    if (!import.meta.env.DEV) {
-      uni.showModal({
-        title: '暂不支持在当前环境充值',
-        content: '在线充值目前仅支持在微信小程序内完成。请打开本平台微信小程序，进入「我的-钱包-充值」。',
-        showCancel: false,
-      })
-      return
-    }
-    // 开发联调专用：后端演示模式（生产后端会拒绝模拟到账，绝不会走到假成功）
-    const res = await mineApi.recharge(amountCoin, payMethod.value)
-    if (res.success) track.purchase({ type: 'recharge', amount: selectedAmount.value, method: payMethod.value })
-    uni.showToast({ title: res.message, icon: res.success ? 'success' : 'none' })
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '充值失败', icon: 'none' })
-  } finally { isSubmitting.value = false }
+  }
+  const selectedOpt = options.value.find(o => o.coins === selectedCoins.value)
+  // 传基础币，不含赠币；赠币由回调到账时按服务端档位权威发放。
+  const amountCoin = selectedOpt ? selectedOpt.coins : customBaseCoin.value
+  if (amountCoin <= 0) return
+  navigating.value = true
+  navigateTo(`/pkg-shop/paying?scene=recharge&amountCoin=${amountCoin}&amount=${selectedAmount.value}&method=wechat`)
+  setTimeout(() => { navigating.value = false }, 800)
 }
 </script>
 
@@ -151,18 +101,13 @@ async function handleSubmit() {
       <!-- 支付环境提示（W2：删除生产误导的「演示模式」横幅，改诚实说明） -->
       <view class="cs-banner">
         <app-icon name="alert-circle" :size="28" color="#C9A96E" />
-        <!-- #ifdef MP-WEIXIN -->
-        <text class="cs-banner-txt">微信支付：将唤起微信完成真实支付，到账稍有延迟（以支付回调为准）</text>
-        <!-- #endif -->
-        <!-- #ifndef MP-WEIXIN -->
-        <text class="cs-banner-txt">在线充值目前仅支持在微信小程序内完成，请前往本平台微信小程序充值</text>
-        <!-- #endif -->
+        <text class="cs-banner-txt">微信安全支付 · 小程序、微信内和手机浏览器均可完成，到账以支付回调为准</text>
       </view>
 
       <!-- 说明文字 -->
       <view class="intro">
         <text class="intro-main"
-          >国学币与人民币比例为 <text class="ratio">10:1</text></text
+          >国学币与人民币比例为 <text class="ratio">{{ coinRateText }}:1</text></text
         >
         <text class="intro-sub">充值后可用于购买课程、加入圈子、打赏、付费问答等</text>
       </view>
@@ -209,10 +154,12 @@ async function handleSubmit() {
               @input="(e: any) => onCustomInput(e)"
             />
             <text v-if="customAmount" class="custom-coins"
-              >= {{ (parseInt(customAmount) || 0) * 10 }} 币</text
+              >= {{ customBaseCoin }} 币</text
             >
           </view>
-          <text class="custom-tip">最低充值金额 ¥1，最高单次充值 ¥50000</text>
+          <text class="custom-tip" :class="{ error: !!customAmountError }">
+            {{ customAmountError || `最低充值金额 ¥1，最高单次充值 ¥${maxCustomAmount}` }}
+          </text>
         </view>
       </view>
 
@@ -220,26 +167,16 @@ async function handleSubmit() {
       <view class="section">
         <text class="sec-title">支付方式</text>
         <view class="pay-list">
-          <view
-            v-for="m in payMethods"
-            :key="m.id"
-            class="pay-card"
-            :class="{ active: payMethod === m.id && !m.disabled, disabled: m.disabled }"
-            @tap="selectPayMethod(m)"
-          >
+          <view class="pay-card active">
             <view class="pay-left">
-              <view class="pay-badge" :class="m.badgeClass">{{ m.badge }}</view>
-              <text class="pay-name">{{ m.name }}</text>
-              <!-- 渠道未接通诚实标注：后端无该渠道支付端点，点了就是死单 -->
-              <text v-if="m.disabled" class="pay-soon">暂未开通</text>
+              <view class="pay-badge badge-wechat">微</view>
+              <view class="pay-copy">
+                <text class="pay-name">微信支付</text>
+                <text class="pay-desc">微信官方安全收银台</text>
+              </view>
             </view>
-            <view class="pay-radio" :class="{ active: payMethod === m.id && !m.disabled }">
-              <app-icon
-                v-if="payMethod === m.id && !m.disabled"
-                name="check"
-                :size="22"
-                color="#FFFFFF"
-              />
+            <view class="pay-radio active">
+              <app-icon name="check" :size="22" color="#FFFFFF" />
             </view>
           </view>
         </view>
@@ -278,11 +215,11 @@ async function handleSubmit() {
       </view>
       <view
         class="submit-btn"
-        :class="{ disabled: selectedAmount <= 0 }"
+        :class="{ disabled: !canSubmit }"
         @tap="handleSubmit"
       >
-        <text v-if="isSubmitting">支付中...</text>
-        <text v-else-if="selectedAmount > 0">确认充值 ¥{{ formatPrice(selectedAmount) }}</text>
+        <text v-if="navigating">正在进入安全收银台...</text>
+        <text v-else-if="selectedAmount > 0 && !customAmountError">安全充值 ¥{{ formatPrice(selectedAmount) }}</text>
         <text v-else>请选择充值金额</text>
       </view>
     </view>
@@ -470,6 +407,7 @@ async function handleSubmit() {
   color: #8a7a6d;
   margin-top: 16rpx;
 }
+.custom-tip.error { color: #c24138; }
 
 /* 支付方式 */
 .pay-list {
@@ -490,16 +428,6 @@ async function handleSubmit() {
   border-color: #c9a96e;
   background: rgba(201, 169, 110, 0.06);
 }
-.pay-card.disabled {
-  opacity: 0.55;
-}
-.pay-soon {
-  font-size: 20rpx;
-  color: #8a7a6d;
-  background: #f0ede8;
-  padding: 4rpx 14rpx;
-  border-radius: 999rpx;
-}
 .pay-left {
   display: flex;
   align-items: center;
@@ -519,19 +447,19 @@ async function handleSubmit() {
 .badge-wechat {
   background: #22c55e;
 }
-.badge-alipay {
-  background: #3b82f6;
-}
-.badge-unionpay {
-  background: #ef4444;
-}
-.badge-huifu {
-  background: #f97316;
+.pay-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
 }
 .pay-name {
   font-size: 30rpx;
   font-weight: 500;
   color: #2f1810;
+}
+.pay-desc {
+  font-size: 22rpx;
+  color: #8a7a6d;
 }
 .pay-radio {
   width: 40rpx;

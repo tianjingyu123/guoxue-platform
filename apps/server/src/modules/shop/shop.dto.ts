@@ -335,8 +335,28 @@ export class RechargeJsapiDto {
   @Type(() => Number)
   @IsInt()
   @IsPositive()
-  @Max(1000000)
+  @Max(500000)
   amountCoin: number;
+
+  @ApiPropertyOptional({ description: "公众号网页授权 openid（channel=OFFICIAL 时必传）" })
+  @IsOptional() @IsString()
+  openid?: string;
+
+
+  @ApiPropertyOptional({ description: "支付渠道：缺省/MINI=小程序；OFFICIAL=公众号内H5", enum: ["MINI", "OFFICIAL"] })
+  @IsOptional() @IsIn(["MINI", "OFFICIAL"])
+  channel?: "MINI" | "OFFICIAL";
+}
+
+/** 国学币充值 H5 支付（微信外部浏览器 mweb_url） */
+export class RechargeH5Dto {
+  @ApiProperty({ description: "充值国学币数量", maximum: 500000 })
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  @Max(500000)
+  amountCoin: number;
+
 }
 
 export class NativePayDto {

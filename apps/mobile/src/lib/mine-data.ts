@@ -287,6 +287,19 @@ export interface WechatPayParams {
   signType: string
   paySign: string
 }
+export interface RechargePaymentResult {
+  orderNo: string
+  amountRmb: number
+  payParams?: WechatPayParams
+  mwebUrl?: string
+}
+export interface RechargePaymentStatus {
+  orderNo: string
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+  amountCoin: number | null
+  amountRmb: number | null
+  paidAt: string | null
+}
 export type WalletTxType = 'recharge' | 'spend' | 'bonus' | 'refund'
 export interface WalletTransaction {
   id: string
@@ -636,23 +649,6 @@ export const editProfileDefault: EditProfileData = {
   city: '深圳市',
   tags: ['八字命理', '紫微斗数'],
 }
-
-/* —— 钱包充值页：支付方式 —— */
-export interface RechargePayMethod {
-  id: 'wechat' | 'alipay' | 'unionpay' | 'huifu'
-  name: string
-  badge: string
-  badgeClass: string
-  /** true=渠道未接通（后端无该渠道充值支付端点），页面须诚实置灰，不可下死单 */
-  disabled?: boolean
-}
-export const rechargePayMethods: RechargePayMethod[] = [
-  { id: 'wechat', name: '微信支付', badge: '微', badgeClass: 'badge-wechat' },
-  // 🔴 充值真实支付端点仅有微信小程序 JSAPI（POST /shop/recharge/jsapi）。
-  //    支付宝/云闪付后端只能建 PENDING 充值单、没有任何发起支付的端点 —— 点了就是死单假成功，诚实置灰。
-  { id: 'alipay', name: '支付宝', badge: '支', badgeClass: 'badge-alipay', disabled: true },
-  { id: 'unionpay', name: '云闪付', badge: '云', badgeClass: 'badge-unionpay', disabled: true },
-]
 
 /* —— 钱包提现页 —— */
 /**
@@ -1543,23 +1539,38 @@ export const mineApi = {
     }))
   },
 
-  /** 充值 —— POST /users/wallet/recharge（微信/支付宝/云闪付；演示模式下单后模拟到账） */
-  async recharge(_amountCoin: number, _payMethod: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const res = await apiPost<{ message?: string }>('/users/wallet/recharge', { amountCoin: _amountCoin, payMethod: _payMethod })
-      return { success: true, message: res?.message || '充值成功' }
-    } catch (e: any) {
-      return { success: false, message: e?.message || '充值失败' }
-    }
+  /** 充值页配置：服务端同时返回营销档位和自定义充值权威汇率。 */
+  async getRechargeConfig(): Promise<{ options: RechargeOption[]; coinRate: number }> {
+    const res = await apiGet<{ tiers?: RawRechargeOption[]; coinRate?: number }>('/users/wallet/recharge-config')
+    const tiers = Array.isArray(res?.tiers) ? res.tiers : []
+    const options = tiers.map((t: RawRechargeOption, i: number) => ({
+      coins: Number(t.amountCoin ?? t.coins ?? 0),
+      price: Number(t.amountRmb ?? t.price ?? 0),
+      bonus: Number(t.bonus ?? 0),
+      popular: i === 2,
+    }))
+    const coinRate = Number(res?.coinRate)
+    if (!Number.isFinite(coinRate) || coinRate <= 0) throw new Error('充值汇率配置异常，请稍后重试')
+    return { options, coinRate }
   },
 
-  /**
-   * 微信小程序充值下单 —— POST /shop/recharge/jsapi
-   * 返回 uni.requestPayment 所需支付参数；openid 由后端从微信授权查取。
-   * 到账由支付回调异步完成（幂等），支付成功后需刷新余额。错误传播给页面。
-   */
-  async rechargeWechat(amountCoin: number): Promise<{ payParams: WechatPayParams }> {
-    return await apiPost<{ payParams: WechatPayParams }>('/shop/recharge/jsapi', { amountCoin })
+  /** 微信 JSAPI 充值下单（小程序或公众号内 H5）。 */
+  async rechargeWechat(amountCoin: number, opts?: { openid?: string; channel?: 'MINI' | 'OFFICIAL' }): Promise<RechargePaymentResult & { payParams: WechatPayParams }> {
+    return await apiPost<RechargePaymentResult & { payParams: WechatPayParams }>('/shop/recharge/jsapi', {
+      amountCoin,
+      ...(opts?.openid ? { openid: opts.openid } : {}),
+      ...(opts?.channel ? { channel: opts.channel } : {}),
+    })
+  },
+
+  /** 微信外部浏览器 H5 充值下单，返回 mweb_url。 */
+  async rechargeWechatH5(amountCoin: number): Promise<RechargePaymentResult & { mwebUrl: string }> {
+    return await apiPost<RechargePaymentResult & { mwebUrl: string }>('/shop/recharge/h5', { amountCoin })
+  },
+
+  /** 查询本人充值到账状态（支付回跳后轮询）。 */
+  async getRechargePaymentStatus(orderNo: string): Promise<RechargePaymentStatus> {
+    return await apiGet<RechargePaymentStatus>(`/shop/recharge/${encodeURIComponent(orderNo)}/payment-status`)
   },
 
   /**

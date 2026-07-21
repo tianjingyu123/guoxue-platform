@@ -20,6 +20,8 @@ const mockPrisma: any = {
 const mockCoin: any = {
   // 故意把虚拟币余额设得很高：用来证明提现【不再】依赖虚拟币余额
   getBalance: jest.fn().mockResolvedValue({ balance: 999999, totalRecharged: 999999, totalSpent: 0 }),
+  getRechargeTiers: jest.fn().mockResolvedValue([{ amountRmb: 100, amountCoin: 1000, bonus: 0 }]),
+  getCoinRate: jest.fn().mockResolvedValue(10),
 };
 const mockRedis: any = {
   get: jest.fn(),
@@ -55,6 +57,14 @@ describe("WalletService 提现（基于收益）", () => {
     mockRedis.del.mockResolvedValue(undefined);
     mockRedis.get.mockResolvedValue("1"); // 默认已持有支付密码验证凭证
     mockCoin.getBalance.mockResolvedValue({ balance: 999999, totalRecharged: 999999, totalSpent: 0 });
+  });
+
+  it("充值配置同时返回档位和权威汇率", async () => {
+    const result = await svc.getRechargeConfig();
+    expect(result.coinRate).toBe(10);
+    expect(result.tiers[0]).toMatchObject({ amountRmb: 100, amountCoin: 1000 });
+    expect(mockCoin.getRechargeTiers).toHaveBeenCalled();
+    expect(mockCoin.getCoinRate).toHaveBeenCalled();
   });
 
   it("未验证支付密码时拒绝提现（防绕过客户端直接调端点）", async () => {

@@ -1,7 +1,7 @@
 <template>
   <view class="paying">
     <!-- 顶部导航 -->
-    <app-nav-bar title="支付中" back-icon="x" :back-size="44" :title-weight="500" :bar-height="106" custom-back @back="handleCancel" />
+    <app-nav-bar :title="isRecharge ? '充值中' : '支付中'" back-icon="x" :back-size="44" :title-weight="500" :bar-height="106" custom-back @back="handleCancel" />
 
     <view class="main">
       <!-- 加载中 -->
@@ -35,13 +35,13 @@
         <view class="spinner" />
         <text class="title">正在确认支付结果...</text>
         <text class="sub">若已完成支付请稍候，系统正在核对到账状态</text>
-        <text class="cancel-link" @tap="handleCancel">返回订单查看</text>
+        <text class="cancel-link" @tap="handleCancel">{{ isRecharge ? '返回钱包查看' : '返回订单查看' }}</text>
       </block>
 
       <!-- 成功 -->
       <block v-else-if="status === 'success'">
         <view class="result-icon green"><app-icon name="check-circle" :size="72" color="#4CAF50" /></view>
-        <text class="title">支付成功</text>
+        <text class="title">{{ isRecharge ? '充值成功' : '支付成功' }}</text>
         <text class="sub">正在跳转...</text>
       </block>
 
@@ -51,8 +51,8 @@
         <text class="title">支付失败</text>
         <text class="sub">{{ failReason || '请重新尝试' }}</text>
         <view class="btn-row">
-          <view class="btn ghost" @tap="handleCancel"><text>返回订单</text></view>
-          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>重新支付</text></view>
+          <view class="btn ghost" @tap="handleCancel"><text>{{ isRecharge ? '返回钱包' : '返回订单' }}</text></view>
+          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
         </view>
       </block>
 
@@ -62,8 +62,8 @@
         <text class="title">支付超时</text>
         <text class="sub">未收到支付结果，请确认支付状态</text>
         <view class="btn-row">
-          <view class="btn ghost" @tap="goOrder"><text>查看订单</text></view>
-          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>重新支付</text></view>
+          <view class="btn ghost" @tap="goOrder"><text>{{ isRecharge ? '返回钱包' : '查看订单' }}</text></view>
+          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
         </view>
       </block>
 
@@ -72,7 +72,7 @@
         <view class="result-icon gray"><app-icon name="x" :size="72" color="#999999" /></view>
         <text class="title">支付已取消</text>
         <text class="sub">您已取消本次支付</text>
-        <view class="btn primary single" @tap="goOrder"><text>查看订单</text></view>
+        <view class="btn primary single" @tap="goOrder"><text>{{ isRecharge ? '返回钱包' : '查看订单' }}</text></view>
       </block>
     </view>
 
@@ -93,6 +93,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
+import { mineApi } from '@/lib/mine-data'
 import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
@@ -100,8 +101,12 @@ import { formatPrice } from '@/utils/format'
 type Status = 'loading' | 'paying' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
 const orderId = ref('')
+const scene = ref<'order' | 'recharge'>('order')
+const amountCoin = ref(0)
+const rechargeOrderNo = ref('')
 const payMethod = ref('wechat')
 const amount = ref('0')
+const isRecharge = computed(() => scene.value === 'recharge')
 const status = ref<Status>('loading')
 const countdown = ref(180)
 const failReason = ref('')
@@ -130,9 +135,27 @@ const methodColor = computed(() => {
 })
 
 onLoad((q) => {
+  scene.value = q?.scene === 'recharge' ? 'recharge' : 'order'
   orderId.value = (q?.orderId as string) || ''
+  amountCoin.value = Number(q?.amountCoin || 0)
+  rechargeOrderNo.value = (q?.rechargeOrderNo as string) || ''
   payMethod.value = (q?.method as string) || 'wechat'
   amount.value = (q?.amount as string) || '0'
+  if (isRecharge.value) {
+    if (!Number.isInteger(amountCoin.value) || amountCoin.value <= 0) {
+      status.value = 'failed'
+      failReason.value = '缺少有效充值金额'
+      return
+    }
+    if (rechargeOrderNo.value) {
+      status.value = 'confirming'
+      startCountdown()
+      startPolling(300)
+      return
+    }
+    startPaying()
+    return
+  }
   if (!orderId.value) {
     status.value = 'failed'
     failReason.value = '缺少订单信息'
@@ -155,7 +178,15 @@ async function startPaying() {
   // #ifdef MP-WEIXIN
   // 微信小程序内：走 JSAPI 支付，唤起微信收银台（到账以支付回调为准）
   try {
-    const p = await shopApi.payOrderJsapi(orderId.value)
+    let p
+    if (isRecharge.value) {
+      const recharge = await mineApi.rechargeWechat(amountCoin.value)
+      rechargeOrderNo.value = recharge.orderNo
+      amount.value = String(recharge.amountRmb)
+      p = recharge.payParams
+    } else {
+      p = await shopApi.payOrderJsapi(orderId.value)
+    }
     await new Promise<void>((resolve, reject) => {
       uni.requestPayment({
         provider: 'wxpay',
@@ -202,7 +233,15 @@ async function startPaying() {
       try {
         const openid = await ensureOaOpenid()
         if (!openid) return // 已跳转微信授权页，本页即将卸载，回跳后重走 onLoad
-        const p = await shopApi.payOrderJsapi(orderId.value, { openid, channel: 'OFFICIAL' })
+        let p
+        if (isRecharge.value) {
+          const recharge = await mineApi.rechargeWechat(amountCoin.value, { openid, channel: 'OFFICIAL' })
+          rechargeOrderNo.value = recharge.orderNo
+          amount.value = String(recharge.amountRmb)
+          p = recharge.payParams
+        } else {
+          p = await shopApi.payOrderJsapi(orderId.value, { openid, channel: 'OFFICIAL' })
+        }
         await invokeWechatJsapiPay(p)
       } catch (e) {
         const msg = (e as Error)?.message || ''
@@ -216,9 +255,22 @@ async function startPaying() {
       }
     } else {
       // 外部浏览器 → 微信 H5 支付（mweb_url 跳转，redirect_url 回跳本页恢复轮询）
-      const { mwebUrl } = await shopApi.payOrderH5(orderId.value)
+      let mwebUrl = ''
+      let returnUrl = window.location.href
+      if (isRecharge.value) {
+        const recharge = await mineApi.rechargeWechatH5(amountCoin.value)
+        rechargeOrderNo.value = recharge.orderNo
+        amount.value = String(recharge.amountRmb)
+        mwebUrl = recharge.mwebUrl
+        const url = new URL(window.location.href)
+        url.searchParams.set('rechargeOrderNo', recharge.orderNo)
+        returnUrl = url.toString()
+      } else {
+        const result = await shopApi.payOrderH5(orderId.value)
+        mwebUrl = result.mwebUrl || ''
+      }
       if (mwebUrl) {
-        window.location.href = mwebUrl + '&redirect_url=' + encodeURIComponent(window.location.href)
+        window.location.href = mwebUrl + '&redirect_url=' + encodeURIComponent(returnUrl)
       } else {
         throw new Error('支付下单失败，请稍后重试')
       }
@@ -344,9 +396,9 @@ function startCountdown() {
   }, 1000)
 }
 
-// 真实轮询订单支付状态（读订单 status，不依赖微信查单）。
+// 真实轮询支付状态：商城读 Order，充值读本人 VirtualCoinRecharge；都只认服务端 PAID，不认前端调起成功。
 // 首次由支付唤起成功后以短延迟触发；微信回调多在支付后 1~2s 到账，故前几次用 1s 短间隔快探
-// （把「支付完成→成功页」的等待从最多 3s 压到 ~1s），耗尽快探次数后退回 3s 稳态轮询。
+// （把「支付完成→结果页」的等待从最多 3s 压到 ~1s），耗尽快探次数后退回 3s 稳态轮询。
 function startPolling(delayMs?: number) {
   const delay = delayMs ?? (pollCount < 6 ? 1000 : 3000)
   pollTimer = setTimeout(async () => {
@@ -355,17 +407,36 @@ function startPolling(delayMs?: number) {
     if (status.value !== 'paying' && status.value !== 'confirming') return
     pollCount += 1
     try {
-      const st = await shopApi.getOrderPayState(orderId.value)
-      if (st.paid) {
-        await settleCircleIfNeeded(st)
-        status.value = 'success'
-        track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
-        clearTimers('all')
-        setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}`), 900)
-        return
+      if (isRecharge.value) {
+        if (!rechargeOrderNo.value) throw new Error('充值订单尚未创建')
+        const st = await mineApi.getRechargePaymentStatus(rechargeOrderNo.value)
+        if (st.status === 'PAID') {
+          if (st.amountRmb != null) amount.value = String(st.amountRmb)
+          status.value = 'success'
+          track.purchase({ type: 'recharge', orderId: rechargeOrderNo.value, amount: Number(amount.value), method: 'wechat' })
+          clearTimers('all')
+          setTimeout(() => redirectTo('/pkg-mine/wallet/index'), 900)
+          return
+        }
+        if (st.status === 'FAILED' || st.status === 'REFUNDED') {
+          status.value = 'failed'
+          failReason.value = st.status === 'REFUNDED' ? '本次充值已退款' : '本次充值未完成'
+          clearTimers('all')
+          return
+        }
+      } else {
+        const st = await shopApi.getOrderPayState(orderId.value)
+        if (st.paid) {
+          await settleCircleIfNeeded(st)
+          status.value = 'success'
+          track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
+          clearTimers('all')
+          setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}`), 900)
+          return
+        }
       }
     } catch (e) {
-      console.warn('[paying] 查询订单状态失败', e)
+      console.warn('[paying] 查询支付状态失败', e)
     }
     if (pollCount >= maxPolls) {
       status.value = 'timeout'
@@ -381,20 +452,34 @@ function clearTimers(which: 'cd' | 'poll' | 'all') {
   if ((which === 'poll' || which === 'all') && pollTimer) { clearTimeout(pollTimer); pollTimer = null }
 }
 
+function returnTarget() {
+  return isRecharge.value ? '/pkg-mine/wallet/index' : `/orders/${orderId.value}`
+}
+
 function handleCancel() {
   if (cancelling) return
   cancelling = true
   clearTimers('all')
-  navigateTo(`/orders/${orderId.value}`)
+  navigateTo(returnTarget())
   setTimeout(() => { cancelling = false }, 500)
 }
 function handleRetry() {
   if (submitting.value) return
   failReason.value = ''
+  if (isRecharge.value && rechargeOrderNo.value) {
+    // 已创建微信单时只继续查原单，绝不再建第二笔，避免用户晚付导致重复扣款。
+    status.value = 'confirming'
+    countdown.value = 180
+    pollCount = 0
+    clearTimers('all')
+    startCountdown()
+    startPolling(300)
+    return
+  }
   startPaying()
 }
 function goOrder() {
-  navigateTo(`/orders/${orderId.value}`)
+  navigateTo(returnTarget())
 }
 
 onUnmounted(() => clearTimers('all'))

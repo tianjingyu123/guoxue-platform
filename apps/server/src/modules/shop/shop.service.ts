@@ -145,12 +145,26 @@ export class ShopService {
     return this.paymentSvc.createH5Payment(orderId, userId, clientIp, notifyUrl);
   }
 
-  createRechargePayment(userId: string, openid: string, amountCoin: number, notifyUrl?: string) {
-    return this.paymentSvc.createRechargePayment(userId, openid, amountCoin, notifyUrl);
+  createRechargePayment(userId: string, openid: string, amountCoin: number, notifyUrl?: string, appId?: string) {
+    return this.paymentSvc.createRechargePayment(userId, openid, amountCoin, notifyUrl, appId);
   }
 
-  createCoinRechargeJsapi(userId: string, amountCoin: number) {
-    return this.paymentSvc.createCoinRechargeJsapi(userId, amountCoin);
+  createCoinRechargeJsapi(
+    userId: string,
+    amountCoin: number,
+    openid?: string,
+    channel?: "MINI" | "OFFICIAL",
+    notifyUrl?: string,
+  ) {
+    return this.paymentSvc.createCoinRechargeJsapi(userId, amountCoin, openid, channel, notifyUrl);
+  }
+
+  createCoinRechargeH5(userId: string, amountCoin: number, clientIp: string, notifyUrl?: string) {
+    return this.paymentSvc.createCoinRechargeH5(userId, amountCoin, clientIp, notifyUrl);
+  }
+
+  queryCoinRechargeStatus(userId: string, orderNo: string) {
+    return this.paymentSvc.queryCoinRechargeStatus(userId, orderNo);
   }
 
   verifyAndDecryptNotify(signature: string, rawBody: string, timestamp: string, nonce: string, serialNo: string) {

@@ -63,6 +63,15 @@ export class WalletService {
     return this.coin.getRechargeTiers();
   }
 
+  /** 充值页权威配置：档位与自定义充值汇率同一次返回，避免客户端从营销档位猜汇率。 */
+  async getRechargeConfig() {
+    const [tiers, coinRate] = await Promise.all([
+      this.coin.getRechargeTiers(),
+      this.coin.getCoinRate(),
+    ]);
+    return { tiers, coinRate };
+  }
+
   /**
    * 计算用户可提现余额（元）。
    * P2-c 转正后（灰度开关开）：引擎口径 = LedgerEntry 净结算额(USER) − 占用中提现；

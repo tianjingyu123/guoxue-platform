@@ -1,4 +1,5 @@
 import { Injectable, Inject, Logger, Optional, HttpStatus } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
@@ -15,7 +16,7 @@ import { WebhookService } from "../webhook/webhook.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
-import { COIN_TO_RMB, RMB_TO_FEN } from "../../common/constants";
+import { RMB_TO_FEN } from "../../common/constants";
 
 /** 运营商档位高低序（用于开通/续期时「只升不降」判定；对齐 schema enum OperatorLevel） */
 const OPERATOR_LEVEL_RANK: Record<string, number> = {
@@ -24,6 +25,9 @@ const OPERATOR_LEVEL_RANK: Record<string, number> = {
   DIAMOND: 3,
   BLACK_GOLD: 4,
 };
+
+const MAX_COIN_RECHARGE = 500_000;
+const COIN_RECHARGE_INTENT_TTL = 2 * 60 * 60;
 
 /**
  * 商城支付域（从 shop.service 拆出·纯搬家不改逻辑）。
@@ -235,52 +239,170 @@ export class ShopPaymentService {
     return { mwebUrl: result.h5Url, outTradeNo };
   }
 
-  /** 创建虚拟币充值支付订单 */
+  private validateCoinRechargeAmount(amountCoin: number) {
+    if (!Number.isInteger(amountCoin) || amountCoin <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须为正整数");
+    }
+    if (amountCoin > MAX_COIN_RECHARGE) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "单次充值金额超过上限");
+    }
+    if (!this.wechatPay.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
+    }
+  }
+
+  private async resolveCoinRechargeAmount(amountCoin: number) {
+    if (!this.coinSvc) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "国学币服务暂不可用，请稍后再试");
+    }
+    // 精确命中后台充值档位时，档位金额是收款真源（可支持特价档）；自定义币数才按全局汇率换算。
+    const tiers = await this.coinSvc.getRechargeTiers();
+    const tier = Array.isArray(tiers)
+      ? tiers.find((item: { amountCoin?: number }) => Number(item?.amountCoin) === amountCoin)
+      : undefined;
+    const rechargeTier = tier as { amountRmb?: number; bonus?: number } | undefined;
+    const tierAmount = Number(rechargeTier?.amountRmb);
+    let amountRmb: number;
+    let bonusCoin = 0;
+    if (Number.isFinite(tierAmount) && tierAmount > 0) {
+      amountRmb = tierAmount;
+      const configuredBonus = Number(rechargeTier?.bonus);
+      bonusCoin = Number.isInteger(configuredBonus) && configuredBonus > 0 ? configuredBonus : 0;
+    } else {
+      const coinRate = await this.coinSvc.getCoinRate();
+      if (!Number.isFinite(coinRate) || coinRate <= 0) {
+        throw new BusinessException(ErrorCode.PAY_FAILED, "国学币汇率配置异常，请联系平台");
+      }
+      amountRmb = amountCoin / coinRate;
+    }
+    const totalFen = Math.round(amountRmb * RMB_TO_FEN);
+    if (totalFen <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额低于支付渠道最小金额");
+    }
+    return { amountRmb: totalFen / RMB_TO_FEN, totalFen, bonusCoin };
+  }
+
+  private createCoinRechargeOrderNo() {
+    return `RC${Date.now()}${randomUUID().replace(/-/g, "").slice(0, 8)}`;
+  }
+
+  /** 支付意图仅供回跳轮询；缓存失败不得阻断已经创建的真实微信订单。 */
+  private async rememberCoinRechargeIntent(orderNo: string, userId: string) {
+    try {
+      await this.redis.set(`recharge:intent:${orderNo}`, userId, COIN_RECHARGE_INTENT_TTL);
+    } catch (err) {
+      this.logger.warn(`充值支付意图缓存失败（不阻断真实支付）: ${orderNo}`, err);
+    }
+  }
+
+  /** 创建国学币充值微信 JSAPI 订单（小程序/公众号共用）。 */
   async createRechargePayment(
     userId: string,
     openid: string,
     amountCoin: number,
     notifyUrl?: string,
+    appId?: string,
   ) {
-    const amountRmb = amountCoin / COIN_TO_RMB;
-    const totalFen = Math.round(amountRmb * RMB_TO_FEN);
-
-    const orderNo = `RC${Date.now()}${userId.slice(0, 6)}`;
+    this.validateCoinRechargeAmount(amountCoin);
+    const { amountRmb, totalFen, bonusCoin } = await this.resolveCoinRechargeAmount(amountCoin);
+    const orderNo = this.createCoinRechargeOrderNo();
     const result = await this.wechatPay.createJsapiOrder({
       outTradeNo: orderNo,
       description: `${amountCoin}国学币充值`,
       amount: { total: totalFen },
       payer: { openid },
-      attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin }),
+      attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin, amountFen: totalFen, bonusCoin }),
+      notifyUrl,
+      appId,
+    });
+    await this.rememberCoinRechargeIntent(orderNo, userId);
+    return { payParams: result.paySign, orderNo, amountRmb };
+  }
+
+  /** 国学币充值 —— 微信外部浏览器 H5 下单。 */
+  async createCoinRechargeH5(userId: string, amountCoin: number, clientIp: string, notifyUrl?: string) {
+    this.validateCoinRechargeAmount(amountCoin);
+    const { amountRmb, totalFen, bonusCoin } = await this.resolveCoinRechargeAmount(amountCoin);
+    const orderNo = this.createCoinRechargeOrderNo();
+    const result = await this.wechatPay.createH5Order({
+      outTradeNo: orderNo,
+      description: `${amountCoin}国学币充值`,
+      amount: { total: totalFen },
+      sceneInfo: {
+        payerClientIp: clientIp || "127.0.0.1",
+        h5Info: { type: "Wap", appName: "热卜国学", appUrl: process.env.H5_BASE_URL || "https://api.rebugx.cn" },
+      },
+      attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin, amountFen: totalFen, bonusCoin }),
       notifyUrl,
     });
+    await this.rememberCoinRechargeIntent(orderNo, userId);
+    return { mwebUrl: result.h5Url, orderNo, amountRmb };
+  }
 
-    return result.paySign;
+  /** 查询本人充值状态；缓存失效但回调未到时保持 PENDING，避免误报失败。 */
+  async queryCoinRechargeStatus(userId: string, orderNo: string) {
+    if (!orderNo || !/^RC[A-Za-z0-9_-]{8,40}$/.test(orderNo)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值订单号无效");
+    }
+    const recharge = await this.prisma.virtualCoinRecharge.findUnique({ where: { orderNo } });
+    if (recharge) {
+      if (recharge.userId !== userId) {
+        throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "充值订单不存在");
+      }
+      return {
+        orderNo,
+        status: recharge.status,
+        amountCoin: recharge.amountCoin,
+        amountRmb: Number(recharge.amountRmb),
+        paidAt: recharge.paidAt,
+      };
+    }
+    let intentOwner: string | null = null;
+    try {
+      intentOwner = await this.redis.get(`recharge:intent:${orderNo}`);
+    } catch (err) {
+      this.logger.warn(`充值支付意图读取失败（按待确认降级）: ${orderNo}`, err);
+    }
+    if (intentOwner && intentOwner !== userId) {
+      throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "充值订单不存在");
+    }
+    return { orderNo, status: "PENDING", amountCoin: null, amountRmb: null, paidAt: null };
   }
 
   /**
-   * 国学币充值 —— 微信小程序 JSAPI 下单。
-   * openid 从用户的微信授权记录（Auth provider=WECHAT）查取，避免前端处理 openid。
-   * 未绑定微信（如仅手机号登录）时诚实报错，前端据此降级为演示/引导。
+   * 国学币充值 —— 微信 JSAPI 下单。
+   * MINI：openid 可省略并从小程序授权记录读取；OFFICIAL：必须传公众号网页授权 openid。
    * 到账由支付回调 handlePaymentNotify → CoinService.handleRechargeCallback 完成（幂等），此处不预扣不加币。
    */
-  async createCoinRechargeJsapi(userId: string, amountCoin: number) {
-    if (!amountCoin || amountCoin <= 0) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须大于0");
+  async createCoinRechargeJsapi(
+    userId: string,
+    amountCoin: number,
+    openid?: string,
+    channel?: "MINI" | "OFFICIAL",
+    notifyUrl?: string,
+  ) {
+    this.validateCoinRechargeAmount(amountCoin);
+    let payerOpenid = openid;
+    let appId: string | undefined;
+    if (channel === "OFFICIAL") {
+      appId = process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID || "";
+      if (!appId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "公众号支付未配置，请在后台「微信公众号」卡片配置后重试");
+      }
+      if (!payerOpenid) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "缺少微信授权，请刷新页面完成微信授权后重试");
+      }
+    } else if (!payerOpenid) {
+      const wechatAuth = await this.prisma.auth.findFirst({
+        where: { userId, provider: "WECHAT" },
+        select: { openId: true },
+      });
+      if (!wechatAuth?.openId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "未绑定微信，请在微信小程序内使用微信登录后再充值");
+      }
+      payerOpenid = wechatAuth.openId;
     }
-    // 单次充值上限（币）：前端标称 5 万元=50 万币，服务端必须强制，防刷单/误操作/洗钱通道
-    if (amountCoin > 500_000) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "单次充值金额超过上限");
-    }
-    const wechatAuth = await this.prisma.auth.findFirst({
-      where: { userId, provider: "WECHAT" },
-      select: { openId: true },
-    });
-    if (!wechatAuth?.openId) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "未绑定微信，请在微信小程序内使用微信登录后再充值");
-    }
-    const payParams = await this.createRechargePayment(userId, wechatAuth.openId, amountCoin);
-    return { payParams };
+    return this.createRechargePayment(userId, payerOpenid, amountCoin, notifyUrl, appId);
   }
 
   /** 验签+解密支付回调 */

@@ -182,6 +182,104 @@ describe("ShopPaymentService", () => {
     })
   })
 
+  describe("国学币充值支付", () => {
+    beforeEach(() => {
+      mockWechatPay.isConfigured = true
+      mockCoin.getCoinRate.mockReset().mockResolvedValue(10)
+      mockCoin.getRechargeTiers.mockReset().mockResolvedValue([])
+      mockWechatPay.createH5Order.mockReset().mockResolvedValue({ h5Url: "https://wx.tenpay.com/h5/pay/mock" })
+      mockWechatPay.createJsapiOrder.mockReset().mockResolvedValue({ paySign: { appId: "wx-mini", paySign: "signed" } })
+      mockRedis.set.mockReset().mockResolvedValue(undefined)
+      mockRedis.get.mockReset().mockResolvedValue(null)
+      mockPrisma.virtualCoinRecharge.findUnique.mockReset().mockResolvedValue(null)
+      mockPrisma.auth.findFirst.mockReset().mockResolvedValue({ openId: "mini-openid" })
+    })
+
+    it("H5 下单按服务端动态汇率计价，并把应付分快照写入签名回调附加数据", async () => {
+      mockCoin.getCoinRate.mockResolvedValueOnce(20)
+      const result = await svc.createCoinRechargeH5("u1", 1000, "1.2.3.4")
+
+      expect(result.mwebUrl).toContain("wx.tenpay.com")
+      expect(result.amountRmb).toBe(50)
+      expect(result.orderNo).toMatch(/^RC/)
+      const createArg = mockWechatPay.createH5Order.mock.calls[0][0]
+      expect(createArg.amount.total).toBe(5000)
+      expect(createArg.sceneInfo.payerClientIp).toBe("1.2.3.4")
+      expect(JSON.parse(createArg.attach)).toEqual(expect.objectContaining({
+        type: "COIN_RECHARGE", userId: "u1", amountCoin: 1000, amountFen: 5000,
+      }))
+      expect(mockRedis.set).toHaveBeenCalledWith(`recharge:intent:${result.orderNo}`, "u1", 7200)
+    })
+
+    it("精确充值档位以后台档位价格为收款真源，自定义币数才走汇率", async () => {
+      mockCoin.getRechargeTiers.mockResolvedValueOnce([{ amountCoin: 1000, amountRmb: 88, bonus: 50 }])
+      const result = await svc.createCoinRechargeH5("u1", 1000, "1.2.3.4")
+      expect(result.amountRmb).toBe(88)
+      expect(mockWechatPay.createH5Order).toHaveBeenCalledWith(expect.objectContaining({
+        amount: { total: 8800 },
+      }))
+      expect(JSON.parse(mockWechatPay.createH5Order.mock.calls[0][0].attach)).toMatchObject({ bonusCoin: 50 })
+      expect(mockCoin.getCoinRate).not.toHaveBeenCalled()
+    })
+
+    it("公众号 JSAPI 使用公众号 appid 与显式授权 openid，不读取小程序 openid", async () => {
+      const old = process.env.WECHAT_OFFICIAL_APPID
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official"
+      try {
+        const result = await svc.createCoinRechargeJsapi("u1", 1000, "oa-openid", "OFFICIAL")
+        expect(result.payParams.paySign).toBe("signed")
+        expect(mockPrisma.auth.findFirst).not.toHaveBeenCalled()
+        expect(mockWechatPay.createJsapiOrder).toHaveBeenCalledWith(expect.objectContaining({
+          payer: { openid: "oa-openid" },
+          appId: "wx-official",
+        }))
+      } finally {
+        if (old === undefined) delete process.env.WECHAT_OFFICIAL_APPID
+        else process.env.WECHAT_OFFICIAL_APPID = old
+      }
+    })
+
+    it("小程序未显式传 openid 时只从本人微信授权记录读取", async () => {
+      await svc.createCoinRechargeJsapi("u1", 1000)
+      expect(mockPrisma.auth.findFirst).toHaveBeenCalledWith({
+        where: { userId: "u1", provider: "WECHAT" },
+        select: { openId: true },
+      })
+      expect(mockWechatPay.createJsapiOrder).toHaveBeenCalledWith(expect.objectContaining({ payer: { openid: "mini-openid" } }))
+    })
+
+    it("充值状态只允许本人查询", async () => {
+      mockPrisma.virtualCoinRecharge.findUnique.mockResolvedValueOnce({
+        userId: "u1", orderNo: "RC12345678", status: "PAID", amountCoin: 1050, amountRmb: "100", paidAt: new Date(),
+      })
+      const own = await svc.queryCoinRechargeStatus("u1", "RC12345678")
+      expect(own.status).toBe("PAID")
+      expect(own.amountRmb).toBe(100)
+
+      mockPrisma.virtualCoinRecharge.findUnique.mockResolvedValueOnce({
+        userId: "other", orderNo: "RC12345678", status: "PAID", amountCoin: 1000, amountRmb: "100", paidAt: new Date(),
+      })
+      await expect(svc.queryCoinRechargeStatus("u1", "RC12345678")).rejects.toThrow("充值订单不存在")
+    })
+
+    it("回调未到时由本人支付意图返回 PENDING，其他用户不可探测", async () => {
+      mockRedis.get.mockResolvedValue("u1")
+      await expect(svc.queryCoinRechargeStatus("u1", "RC12345678")).resolves.toMatchObject({ status: "PENDING" })
+      await expect(svc.queryCoinRechargeStatus("u2", "RC12345678")).rejects.toThrow("充值订单不存在")
+    })
+
+    it("Redis 暂时不可用时状态查询按 PENDING 降级，不把已调起支付误报失败", async () => {
+      mockRedis.get.mockRejectedValueOnce(new Error("redis down"))
+      await expect(svc.queryCoinRechargeStatus("u1", "RC12345678")).resolves.toMatchObject({ status: "PENDING" })
+    })
+
+    it("服务端强制单次上限且未配置支付时返回结构化错误", async () => {
+      await expect(svc.createCoinRechargeH5("u1", 500001, "1.2.3.4")).rejects.toThrow("超过上限")
+      mockWechatPay.isConfigured = false
+      await expect(svc.createCoinRechargeH5("u1", 1000, "1.2.3.4")).rejects.toMatchObject({ status: 400 })
+    })
+  })
+
   // ═══════════════════ 加盟费支付后处理（分站年租 / 运营商开通）═══════════════════
 
   /** 极简 fake tx：只提供两个处理器实际用到的表 */

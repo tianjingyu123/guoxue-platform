@@ -17,7 +17,7 @@ import {
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
-  CreateSkuDto, JsapiPayDto, NativePayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto,
+  CreateSkuDto, JsapiPayDto, NativePayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto, RechargeH5Dto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
   UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
 } from "./shop.dto";
@@ -297,13 +297,46 @@ export class ShopController {
 
   @Post("recharge/jsapi")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
-  @ApiOperation({ summary: "国学币充值-微信小程序JSAPI下单（openid 由后端从微信授权查取）" })
+  @ApiOperation({ summary: "国学币充值-微信JSAPI下单（小程序/公众号）" })
   @ApiResponse({ status: 201, description: "返回 uni.requestPayment 所需支付参数" })
-  @ApiResponse({ status: 400, description: "金额错误/未绑定微信" })
+  @ApiResponse({ status: 400, description: "金额错误/微信授权缺失/支付未配置" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async rechargeJsapi(@Req() req: AuthRequest, @Body() body: RechargeJsapiDto) {
-    return this.shop.createCoinRechargeJsapi(req.user.id, body.amountCoin);
+    return this.shop.createCoinRechargeJsapi(
+      req.user.id,
+      body.amountCoin,
+      body.openid,
+      body.channel,
+    );
+  }
+
+  @Post("recharge/h5")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "国学币充值-微信H5下单（外部浏览器 mweb_url）" })
+  @ApiResponse({ status: 201, description: "返回 { mwebUrl, orderNo, amountRmb }" })
+  @ApiResponse({ status: 400, description: "金额错误/支付未配置" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  async rechargeH5(@Req() req: AuthRequest, @Body() body: RechargeH5Dto) {
+    const fwd = req.headers["x-forwarded-for"];
+    const clientIp = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0]?.trim() || req.ip || "127.0.0.1";
+    return this.shop.createCoinRechargeH5(
+      req.user.id,
+      body.amountCoin,
+      clientIp,
+    );
+  }
+
+  @Get("recharge/:orderNo/payment-status")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "查询本人国学币充值支付状态" })
+  @ApiResponse({ status: 200, description: "返回 PENDING/PAID/FAILED/REFUNDED" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 404, description: "订单不存在或不属于当前用户" })
+  @ApiBearerAuth()
+  rechargePaymentStatus(@Req() req: AuthRequest, @Param("orderNo") orderNo: string) {
+    return this.shop.queryCoinRechargeStatus(req.user.id, orderNo);
   }
 
   @Post("pay/h5")

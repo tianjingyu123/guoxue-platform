@@ -28,6 +28,9 @@ const mockShopSvc = {
   createJsapiPayment: jest.fn().mockResolvedValue({ prepayId: "prepay123", paySign: {} }),
   createNativePayment: jest.fn().mockResolvedValue({ codeUrl: "weixin://..." }),
   createH5Payment: jest.fn().mockResolvedValue({ mwebUrl: "https://wx.tenpay.com/h5/pay/xxx", outTradeNo: "GX1" }),
+  createCoinRechargeJsapi: jest.fn().mockResolvedValue({ payParams: { paySign: "x" }, orderNo: "RC12345678" }),
+  createCoinRechargeH5: jest.fn().mockResolvedValue({ mwebUrl: "https://wx.tenpay.com/h5/pay/recharge", orderNo: "RC12345678" }),
+  queryCoinRechargeStatus: jest.fn().mockResolvedValue({ orderNo: "RC12345678", status: "PENDING" }),
   estimateOrder: jest.fn().mockResolvedValue({ goodsAmount: 79, couponDiscount: 10, selfDiscount: 13.8, payableAmount: 55.2 }),
   queryPaymentStatus: jest.fn().mockResolvedValue({ status: "PAID" }),
   shipOrder: jest.fn().mockResolvedValue({ id: "o1", status: "SHIPPED" }),
@@ -199,6 +202,33 @@ describe("ShopController", () => {
     const body: any = { openid: "openid123" };
     const result: any = await ctrl.jsapiPay(req, "o1", body);
     expect(result.prepayId).toBe("prepay123");
+  });
+
+  it("POST /shop/recharge/jsapi — 公众号充值参数完整透传", async () => {
+    const req: any = { user: { id: "u1" } };
+    const body: any = { amountCoin: 1000, openid: "oa-openid", channel: "OFFICIAL" };
+    const result: any = await ctrl.rechargeJsapi(req, body);
+    expect(result.orderNo).toBe("RC12345678");
+    expect(mockShopSvc.createCoinRechargeJsapi).toHaveBeenCalledWith("u1", 1000, "oa-openid", "OFFICIAL");
+  });
+
+  it("POST /shop/recharge/h5 — 透传登录用户与代理首段IP", async () => {
+    const req: any = { user: { id: "u1" }, headers: { "x-forwarded-for": "8.8.8.8, 10.0.0.1" }, ip: "10.0.0.1" };
+    const result: any = await ctrl.rechargeH5(req, { amountCoin: 1000 } as any);
+    expect(result.mwebUrl).toContain("wx.tenpay.com");
+    expect(mockShopSvc.createCoinRechargeH5).toHaveBeenCalledWith("u1", 1000, "8.8.8.8");
+  });
+
+  it("POST /shop/recharge/h5 — 无代理头回退连接IP", async () => {
+    const req: any = { user: { id: "u1" }, headers: {}, ip: "127.0.0.1" };
+    await ctrl.rechargeH5(req, { amountCoin: 1000 } as any);
+    expect(mockShopSvc.createCoinRechargeH5).toHaveBeenCalledWith("u1", 1000, "127.0.0.1");
+  });
+
+  it("GET /shop/recharge/:orderNo/payment-status — 只按当前登录用户查询", async () => {
+    const result: any = await ctrl.rechargePaymentStatus({ user: { id: "u1" } } as any, "RC12345678");
+    expect(result.status).toBe("PENDING");
+    expect(mockShopSvc.queryCoinRechargeStatus).toHaveBeenCalledWith("u1", "RC12345678");
   });
 
   it("POST /shop/orders/:id/pay/native — Native支付", async () => {

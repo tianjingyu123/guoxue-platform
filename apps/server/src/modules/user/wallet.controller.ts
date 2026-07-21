@@ -43,6 +43,13 @@ export class WalletController {
     return this.svc.getRechargeOptions();
   }
 
+  @Get("recharge-config")
+  @ApiOperation({ summary: "充值页配置（档位 + 自定义充值汇率）" })
+  @ApiResponse({ status: 200, description: "返回 { tiers, coinRate }" })
+  getRechargeConfig() {
+    return this.svc.getRechargeConfig();
+  }
+
   @Get("withdraw-info")
   @ApiOperation({ summary: "提现信息（余额/费率/已存账户）" })
   @ApiResponse({ status: 200, description: "成功" })

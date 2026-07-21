@@ -36,6 +36,8 @@ export function makeMockUnionpay() {
 
 export function makeMockCoin() {
   return {
+    getCoinRate: jest.fn().mockResolvedValue(10),
+    getRechargeTiers: jest.fn().mockResolvedValue([]),
     getOrCreateAccount: jest.fn(),
     spend: jest.fn(),
     refund: jest.fn(),
@@ -126,6 +128,15 @@ export function makeMockPrisma(): any {
       update: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
+    },
+    auth: {
+      findFirst: jest.fn(),
+    },
+    virtualCoinRecharge: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     configSystem: {
       findUnique: jest.fn(),
