@@ -74,9 +74,6 @@
             <smart-avatar v-if="bot.avatar" class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
             <text v-else class="gc-face-glyph serif">{{ (bot.name || '智')[0] }}</text>
           </view>
-          <view v-if="bot.capabilities.includes('语音对话')" class="gc-mic">
-            <app-icon name="mic" :size="22" color="#ffffff" /><text class="gc-mic-txt">可连麦</text>
-          </view>
           <text class="gc-name">{{ bot.name }}</text>
           <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
           <view class="gc-foot">
@@ -220,7 +217,7 @@
         <view class="cat-grid">
           <!-- 整体渐变卡（2026-07-17 董事长拍板：对齐首页 feed 智能体卡整体效果）：
                整卡流动渐变（名字/简介同底不再"上图下白"像商品）+ 中央毛玻璃圆底楷体大字/头像
-               + 呼吸金晕 + AI 徽标 + 底行「问一问 ›」白胶囊引导对话；语音智能体凸显「可连麦」 -->
+               + 呼吸金晕 + AI 徽标 + 底行「问一问 ›」白胶囊引导对话 -->
           <view v-for="bot in group.bots" :key="bot.id" class="grid-card gc-flow" :style="{ background: botGrad(bot.name) }" @tap="openBot(bot.id)">
             <text class="gc-ai">AI</text>
             <text v-if="bot.isNew" class="gc-new">NEW</text>
@@ -228,9 +225,6 @@
               <view class="gc-halo" />
               <smart-avatar v-if="bot.avatar" class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
               <text v-else class="gc-face-glyph serif">{{ (bot.name || '智')[0] }}</text>
-            </view>
-            <view v-if="bot.capabilities.includes('语音对话')" class="gc-mic">
-              <app-icon name="mic" :size="22" color="#ffffff" /><text class="gc-mic-txt">可连麦</text>
             </view>
             <text class="gc-name">{{ bot.name }}</text>
             <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
@@ -757,14 +751,6 @@ function goBack() {
   text-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.3);
 }
 .gc-avatar-img { width: 136rpx; height: 136rpx; border-radius: 999rpx; overflow: hidden; }
-/* 语音智能体的稀缺能力标识（面下居中胶囊） */
-.gc-mic {
-  margin-top: 14rpx;
-  display: flex; align-items: center; gap: 6rpx;
-  padding: 4rpx 18rpx; border-radius: 999rpx;
-  background: rgba(0, 0, 0, 0.24); border: 2rpx solid rgba(255, 255, 255, 0.28);
-}
-.gc-mic-txt { font-size: 20rpx; color: #ffffff; letter-spacing: 1rpx; }
 .gc-new {
   position: absolute; top: 16rpx; right: 16rpx; z-index: 3;
   padding: 2rpx 10rpx;

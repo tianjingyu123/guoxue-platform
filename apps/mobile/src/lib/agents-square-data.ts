@@ -20,7 +20,6 @@ export interface SquareBot {
   categoryName: string
   isFree: boolean
   price?: number
-  capabilities: string[]
   /** 头像底色 */
   bgColor: string
   /** 上线 7 天内（由 createdAt 真实推导） */
@@ -109,7 +108,7 @@ function formatConvTime(iso?: string): string {
 }
 
 /* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
-interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; voiceEnabled?: boolean; createdAt?: string }
+interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; createdAt?: string }
 interface RawRankingBot { id?: string | number; name?: string; intro?: string; avatar?: string; type?: string; chatCount?: number; userCount?: number }
 interface RawConversation { conversationId?: string; botConfigId?: string; botName?: string; botAvatar?: string; botType?: string; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
 
@@ -122,8 +121,6 @@ function unwrap<T = Record<string, unknown>>(res: unknown): T[] {
 
 function mapSquareBot(b: RawBot, i: number): SquareBot {
   const type = b.type || ''
-  const capabilities: string[] = []
-  if (b.voiceEnabled) capabilities.push('语音对话')
   const price = b.price != null ? Number(b.price) : undefined
   return {
     id: String(b.id),
@@ -134,7 +131,6 @@ function mapSquareBot(b: RawBot, i: number): SquareBot {
     categoryName: botTypeLabel(type),
     isFree: b.isFree !== false && (price == null || price === 0),
     price,
-    capabilities,
     bgColor: PALETTE[i % PALETTE.length],
     isNew: isWithin7Days(b.createdAt),
   }

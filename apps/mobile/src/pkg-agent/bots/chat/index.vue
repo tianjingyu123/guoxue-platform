@@ -26,9 +26,6 @@
           </view>
         </view>
         <view class="nav-actions">
-          <view v-if="botDetail.voiceEnabled" class="nav-btn" @tap="handleVoiceCall">
-            <app-icon name="phone" :size="38" color="#fff" />
-          </view>
           <view class="nav-btn" @tap="toggleMenu">
             <app-icon name="more-vertical" :size="38" color="#fff" />
           </view>
@@ -209,7 +206,6 @@ const conversationId = ref('')
 const botDetail = ref({
   name: '智能体',
   avatar: '',
-  voiceEnabled: false,
   welcomeMessage: '',
 })
 
@@ -232,7 +228,6 @@ async function loadDetail() {
     botDetail.value = {
       name: b.name || '智能体',
       avatar: b.avatar || '',
-      voiceEnabled: !!b.voiceEnabled,
       welcomeMessage: b.intro || `您好！我是${b.name || '智能助手'}，有什么可以帮您的吗？`,
     }
   } catch (e) {
@@ -403,10 +398,6 @@ function typewriter(fullText: string, aiId: string): Promise<void> {
       }
     }, 30)
   })
-}
-
-function handleVoiceCall() {
-  uni.showToast({ title: '语音通话功能开发中', icon: 'none' })
 }
 
 function toggleMenu() {

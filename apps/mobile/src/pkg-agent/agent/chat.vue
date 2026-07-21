@@ -331,11 +331,6 @@ function handleClearContext() {
   showMenu.value = false
 }
 
-// 语音通话（Coze RTC）真机联调下一轮上线，本期诚实提示，不做假壳
-function handleVoiceCall() {
-  uni.showToast({ title: '语音通话即将上线', icon: 'none' })
-}
-
 // 软性导流：同意/拒绝查看推荐
 function consentReco(msg: ChatMessage) {
   msg.recoConsented = true
@@ -385,7 +380,6 @@ onUnmounted(() => {
           </view>
         </view>
         <view class="head-actions">
-          <view class="act" @tap="handleVoiceCall"><AppIcon name="phone" :size="34" color="#c41e3a" /></view>
           <view class="menu-wrap">
             <view class="act" @tap="showMenu = !showMenu"><AppIcon name="more-horizontal" :size="34" color="#999" /></view>
             <view v-if="showMenu" class="menu-mask" @tap="showMenu = false" />
@@ -400,8 +394,6 @@ onUnmounted(() => {
         <view class="usage-left"><AppIcon name="zap" :size="26" color="#c9a96e" /><text class="usage-txt">剩余免费次数：<text class="usage-num">{{ freeRemaining }}</text> 次</text></view>
         <view class="usage-right">
           <text class="usage-price"><AppIcon name="message-square" :size="22" color="#999" />{{ formatPrice(agentDetail.pricePerChat) }}元/次</text>
-          <!-- 通话单价后端无此字段且语音通话未上线 → 诚实隐藏 -->
-          <text v-if="agentDetail.callPrice > 0" class="usage-price"><AppIcon name="phone" :size="22" color="#999" />{{ formatPrice(agentDetail.callPrice) }}元/分钟</text>
         </view>
       </view>
     </view>
