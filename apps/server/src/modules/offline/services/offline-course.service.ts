@@ -29,6 +29,26 @@ export class OfflineCourseService {
     return { status: { in: ["REGISTERED", "SIGNED_IN"] } };
   }
 
+  private parseCourseWindow(startRaw: string, endRaw: string) {
+    const startTime = new Date(startRaw);
+    const endTime = new Date(endRaw);
+    if (Number.isNaN(startTime.getTime()) || Number.isNaN(endTime.getTime())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "课程时间格式无效");
+    }
+    if (endTime.getTime() <= startTime.getTime()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "结束时间必须晚于开始时间");
+    }
+    return { startTime, endTime };
+  }
+
+  private async assertCourseTeacher(stationId: string, teacherId?: string) {
+    if (!teacherId) return;
+    const teacher = await this.prisma.stationTeacher.findFirst({
+      where: { id: teacherId, stationId, status: "ACTIVE" }, select: { id: true },
+    });
+    if (!teacher) throw new BusinessException(ErrorCode.BAD_REQUEST, "所选讲师不属于当前驿站或已停用");
+  }
+
   // ───────── 线下课程 ─────────
 
   // 🔴 契约防再犯（2026-07-17 审计核实）：
@@ -36,12 +56,69 @@ export class OfflineCourseService {
   // 2) 列表返回键 courses（listOfflineCourses 等）为既有前端契约，保持不改名（前端并行对齐）。
   async createOfflineCourse(userId: string, dto: { stationId: string; title: string; cover?: string; intro?: string; teacherId?: string; price?: number; maxStudents: number; startTime: string; endTime: string; location: string }) {
     await this.shared.assertStationOwner(userId, dto.stationId);
+    await this.assertCourseTeacher(dto.stationId, dto.teacherId);
+    const { startTime, endTime } = this.parseCourseWindow(dto.startTime, dto.endTime);
     return this.prisma.offlineCourse.create({
       data: {
         ...dto,
         price: dto.price ?? 0, // 单位=元（Decimal(10,2)）
-        startTime: new Date(dto.startTime),
-        endTime: new Date(dto.endTime),
+        startTime,
+        endTime,
+      },
+    });
+  }
+
+  async updateOfflineCourse(userId: string, courseId: string, dto: {
+    title?: string; cover?: string; intro?: string; teacherId?: string; price?: number;
+    maxStudents?: number; startTime?: string; endTime?: string; location?: string;
+  }) {
+    const course = await this.prisma.offlineCourse.findUnique({
+      where: { id: courseId },
+      include: {
+        station: { select: { ownerUserId: true } },
+        _count: { select: { registrations: { where: this.activeRegWhere } } },
+      },
+    });
+    if (!course) throw new BusinessException(ErrorCode.NOT_FOUND, "课程不存在");
+    if (course.station.ownerUserId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "无权编辑该驿站课程");
+    }
+    if (course.startTime.getTime() <= Date.now()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "课程已开课或已结束，不可编辑");
+    }
+    if (course._count.registrations > 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "课程已有学员报名，为保护学员权益不可编辑");
+    }
+    if (Object.keys(dto).length === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请至少修改一项课程信息");
+    }
+
+    const { startTime, endTime } = this.parseCourseWindow(
+      dto.startTime ?? course.startTime.toISOString(),
+      dto.endTime ?? course.endTime.toISOString(),
+    );
+    if (startTime.getTime() <= Date.now()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "上课时间必须晚于当前时间");
+    }
+    await this.assertCourseTeacher(course.stationId, dto.teacherId);
+
+    return this.prisma.offlineCourse.update({
+      where: { id: courseId },
+      data: {
+        ...(dto.title !== undefined && { title: dto.title }),
+        ...(dto.cover !== undefined && { cover: dto.cover }),
+        ...(dto.intro !== undefined && { intro: dto.intro }),
+        ...(dto.teacherId !== undefined && { teacherId: dto.teacherId }),
+        ...(dto.price !== undefined && { price: dto.price }),
+        ...(dto.maxStudents !== undefined && { maxStudents: dto.maxStudents }),
+        ...(dto.startTime !== undefined && { startTime }),
+        ...(dto.endTime !== undefined && { endTime }),
+        ...(dto.location !== undefined && { location: dto.location }),
+        auditStatus: "PENDING",
+        auditReason: null,
+        status: "DRAFT",
+        isRecommended: false,
+        recommendedAt: null,
       },
     });
   }

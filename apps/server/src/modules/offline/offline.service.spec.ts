@@ -67,6 +67,7 @@ const mockPrisma = {
   stationTeacher: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
   },
   // 佣-V2-P3 驿站开通赠"高级线下运营商"
   operator: {
@@ -351,6 +352,55 @@ describe("OfflineService", () => {
         startTime: "2026-06-01T09:00:00Z", endTime: "2026-06-01T17:00:00Z", location: "地点",
       })).rejects.toThrow(BusinessException);
       expect(mockPrisma.offlineCourse.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateOfflineCourse", () => {
+    const editableCourse = {
+      id: "oc1", stationId: "s1", title: "旧课程",
+      startTime: new Date("2030-06-01T09:00:00Z"), endTime: new Date("2030-06-01T17:00:00Z"),
+      station: { ownerUserId: "u1" }, _count: { registrations: 0 },
+    };
+
+    it("驿站主可编辑未来且无报名课程，修改后强制回到待审核", async () => {
+      mockPrisma.offlineCourse.findUnique.mockResolvedValue(editableCourse);
+      mockPrisma.offlineCourse.update.mockImplementation(({ data }) => Promise.resolve({ id: "oc1", ...data }));
+
+      const result: any = await svc.updateOfflineCourse("u1", "oc1", {
+        title: "新课程", price: 99.5, startTime: "2030-06-02T09:00:00Z", endTime: "2030-06-02T17:00:00Z",
+      });
+
+      expect(result).toEqual(expect.objectContaining({
+        title: "新课程", price: 99.5, auditStatus: "PENDING", status: "DRAFT", auditReason: null,
+      }));
+      expect(mockPrisma.offlineCourse.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "oc1" },
+        data: expect.objectContaining({ isRecommended: false, recommendedAt: null }),
+      }));
+    });
+
+    it("已有有效报名时拒绝编辑，保护学员既有价格与排期", async () => {
+      mockPrisma.offlineCourse.findUnique.mockResolvedValue({
+        ...editableCourse, _count: { registrations: 1 },
+      });
+      await expect(svc.updateOfflineCourse("u1", "oc1", { title: "不可改" }))
+        .rejects.toThrow("课程已有学员报名");
+      expect(mockPrisma.offlineCourse.update).not.toHaveBeenCalled();
+    });
+
+    it("非本驿站主不可编辑", async () => {
+      mockPrisma.offlineCourse.findUnique.mockResolvedValue(editableCourse);
+      await expect(svc.updateOfflineCourse("attacker", "oc1", { title: "越权" }))
+        .rejects.toThrow("无权编辑该驿站课程");
+      expect(mockPrisma.offlineCourse.update).not.toHaveBeenCalled();
+    });
+
+    it("所选讲师必须属于本驿站且有效", async () => {
+      mockPrisma.offlineCourse.findUnique.mockResolvedValue(editableCourse);
+      mockPrisma.stationTeacher.findFirst.mockResolvedValue(null);
+      await expect(svc.updateOfflineCourse("u1", "oc1", { teacherId: "foreign-teacher" }))
+        .rejects.toThrow("所选讲师不属于当前驿站");
+      expect(mockPrisma.offlineCourse.update).not.toHaveBeenCalled();
     });
   });
 

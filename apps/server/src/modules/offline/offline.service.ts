@@ -77,6 +77,13 @@ export class OfflineService {
     return this.courseSvc.createOfflineCourse(userId, dto);
   }
 
+  updateOfflineCourse(userId: string, courseId: string, dto: {
+    title?: string; cover?: string; intro?: string; teacherId?: string; price?: number;
+    maxStudents?: number; startTime?: string; endTime?: string; location?: string;
+  }) {
+    return this.courseSvc.updateOfflineCourse(userId, courseId, dto);
+  }
+
   listOfflineCourses(stationId?: string, rawPage = 1, rawPageSize = 20, userId?: string) {
     return this.courseSvc.listOfflineCourses(stationId, rawPage, rawPageSize, userId);
   }

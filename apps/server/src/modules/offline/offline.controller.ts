@@ -7,7 +7,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import {
-  CreateStationDto, CreateOfflineCourseDto, UpdateMemberDto, AuditStationDto,
+  CreateStationDto, CreateOfflineCourseDto, UpdateOfflineCourseDto, UpdateMemberDto, AuditStationDto,
   SignInCourseDto,
   VerifyByCodeDto,
   CreateProductDto, UpdateProductDto,
@@ -148,6 +148,19 @@ export class OfflineController {
   @ApiBearerAuth()
   createCourse(@Req() req: Request, @Body() dto: CreateOfflineCourseDto) {
     return this.svc.createOfflineCourse(req.user.id, dto);
+  }
+
+  @Put("courses/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "编辑未开课且无有效报名的线下课程（修改后重新审核）" })
+  @ApiResponse({ status: 200, description: "更新成功，课程回到待审核" })
+  @ApiResponse({ status: 400, description: "已开课/已有报名/参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
+  @ApiResponse({ status: 404, description: "课程不存在" })
+  @ApiBearerAuth()
+  updateCourse(@Req() req: Request, @Param("id") id: string, @Body() dto: UpdateOfflineCourseDto) {
+    return this.svc.updateOfflineCourse(req.user.id, id, dto);
   }
 
   @Get("courses")

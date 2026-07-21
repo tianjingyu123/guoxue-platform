@@ -55,12 +55,12 @@ export class CreateOfflineCourseDto {
   @IsOptional() @IsString()
   teacherId?: string;
 
-  @ApiPropertyOptional({ description: "价格（分）", default: 0 })
-  @IsOptional() @Type(() => Number) @IsInt()
+  @ApiPropertyOptional({ description: "价格（元，最多两位小数）", default: 0 })
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
   price?: number;
 
   @ApiProperty({ description: "最大报名人数" })
-  @Type(() => Number) @IsInt()
+  @Type(() => Number) @IsInt() @Min(1) @Max(10000)
   maxStudents: number;
 
   @ApiProperty({ description: "开始时间" })
@@ -77,6 +77,44 @@ export class CreateOfflineCourseDto {
   @IsString()
   @MinLength(1)
   location: string;
+}
+
+export class UpdateOfflineCourseDto {
+  @ApiPropertyOptional({ description: "课程标题" })
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(100)
+  title?: string;
+
+  @ApiPropertyOptional({ description: "封面图" })
+  @IsOptional() @IsString() @MaxLength(500)
+  cover?: string;
+
+  @ApiPropertyOptional({ description: "课程介绍" })
+  @IsOptional() @IsString() @MaxLength(5000)
+  intro?: string;
+
+  @ApiPropertyOptional({ description: "本驿站讲师ID" })
+  @IsOptional() @IsString() @MinLength(1)
+  teacherId?: string;
+
+  @ApiPropertyOptional({ description: "价格（元，最多两位小数）" })
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
+  price?: number;
+
+  @ApiPropertyOptional({ description: "最大报名人数" })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10000)
+  maxStudents?: number;
+
+  @ApiPropertyOptional({ description: "开始时间" })
+  @IsOptional() @IsString() @MinLength(1)
+  startTime?: string;
+
+  @ApiPropertyOptional({ description: "结束时间" })
+  @IsOptional() @IsString() @MinLength(1)
+  endTime?: string;
+
+  @ApiPropertyOptional({ description: "上课地点" })
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(200)
+  location?: string;
 }
 
 export class UpdateMemberDto {

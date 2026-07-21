@@ -13,6 +13,7 @@ const mockOfflineSvc = {
   auditStation: jest.fn().mockResolvedValue({ id: "s1", status: "APPROVED" }),
   getRevenueDashboard: jest.fn().mockResolvedValue({ revenue: 50000, orders: 200 }),
   createOfflineCourse: jest.fn().mockResolvedValue({ id: "oc1", title: "线下国学课" }),
+  updateOfflineCourse: jest.fn().mockResolvedValue({ id: "oc1", title: "更新后的线下课", auditStatus: "PENDING" }),
   listOfflineCourses: jest.fn().mockResolvedValue([{ id: "oc1", title: "线下国学课" }]),
   getOfflineCourse: jest.fn().mockResolvedValue({ id: "oc1", title: "线下国学课", _count: { registrations: 0 } }),
   registerCourse: jest.fn().mockResolvedValue({ id: "reg1", courseId: "oc1" }),
@@ -99,6 +100,14 @@ describe("OfflineController", () => {
     const dto: any = { title: "线下国学课", stationId: "s1" };
     const result: any = await ctrl.createCourse(req, dto);
     expect(result.title).toBe("线下国学课");
+  });
+
+  it("PUT /offline/courses/:id — 驿站主编辑课程并重新提交审核", async () => {
+    const req: any = { user: { id: "u1" } };
+    const dto: any = { title: "更新后的线下课" };
+    const result: any = await ctrl.updateCourse(req, "oc1", dto);
+    expect(result.auditStatus).toBe("PENDING");
+    expect(mockOfflineSvc.updateOfflineCourse).toHaveBeenCalledWith("u1", "oc1", dto);
   });
 
   it("GET /offline/courses — 课程列表", async () => {

@@ -158,12 +158,12 @@
       <app-icon name="plus" :size="26" color="#fff" />
     </view>
 
-    <!-- ========== 态③：新建课程弹层 ========== -->
-    <view v-if="createOpen" class="b3-mask" @tap="createOpen = false">
+    <!-- ========== 态③：新建/编辑课程弹层 ========== -->
+    <view v-if="createOpen" class="b3-mask" @tap="closeSheet">
       <view class="b3-sheet" @tap.stop>
         <view class="b3-sheet-head">
-          <text class="b3-sheet-title serif">新建线下课</text>
-          <view @tap="createOpen = false"><app-icon name="x" :size="20" color="#2C2C2C" /></view>
+          <text class="b3-sheet-title serif">{{ editingCourseId ? '编辑线下课' : '新建线下课' }}</text>
+          <view @tap="closeSheet"><app-icon name="x" :size="20" color="#2C2C2C" /></view>
         </view>
         <scroll-view scroll-y class="b3-sheet-body">
           <view class="b3-field">
@@ -217,9 +217,9 @@
             <text class="b3-label">上课地点 <text class="req">*</text></text>
             <input v-model="form.location" class="b3-input" placeholder="教室A / 大厅 · 详细上课地址" placeholder-class="ph" />
           </view>
-          <view class="b3-tip"><app-icon name="info" :size="13" color="#C41E3A" /><text class="b3-tip-text">提交后进入平台审核，审核通过自动上架至学员端</text></view>
+          <view class="b3-tip"><app-icon name="info" :size="13" color="#C41E3A" /><text class="b3-tip-text">{{ editingCourseId ? '修改后将重新进入平台审核，审核通过后恢复上架' : '提交后进入平台审核，审核通过自动上架至学员端' }}</text></view>
           <view class="b3-submit" :class="{ disabled: !canSubmit || submitting }" @tap="submit">
-            <text class="b3-submit-text">{{ submitting ? '提交中…' : '提交审核' }}</text>
+            <text class="b3-submit-text">{{ submitting ? '提交中…' : editingCourseId ? '保存并重新审核' : '提交审核' }}</text>
           </view>
         </scroll-view>
       </view>
@@ -382,6 +382,7 @@ function itemTagClass(it: CalendarItem): string {
 
 // ========== 创建课程表单（沿用 createCourse·返回 PENDING） ==========
 const createOpen = ref(false)
+const editingCourseId = ref('')
 const submitting = ref(false)
 const form = ref({ title: '', intro: '', teacherId: '', price: '', maxStudents: '', date: '', startTime: '09:00', endTime: '17:00', location: '' })
 
@@ -392,9 +393,11 @@ const canSubmit = computed(() => !!form.value.title && !!form.value.maxStudents 
 function openCreate() { openCreateOn(todayStr.value) }
 function openCreateOn(dateKey: string) {
   const d = /^\d{4}-\d{2}-\d{2}$/.test(dateKey) ? dateKey : todayStr.value
+  editingCourseId.value = ''
   form.value = { title: '', intro: '', teacherId: '', price: '', maxStudents: '', date: d, startTime: '09:00', endTime: '17:00', location: '' }
   createOpen.value = true
 }
+function closeSheet() { createOpen.value = false; editingCourseId.value = '' }
 function onPickTeacher(e: { detail: { value: number } }) { form.value.teacherId = teachers.value[Number(e.detail.value)]?.id || '' }
 function onDateChange(e: { detail: { value: string } }) { form.value.date = e.detail.value }
 function onStartChange(e: { detail: { value: string } }) { form.value.startTime = e.detail.value }
@@ -408,8 +411,7 @@ async function submit() {
   }
   submitting.value = true
   try {
-    await offlineManageApi.createCourse({
-      stationId: stationId.value,
+    const payload = {
       title: form.value.title,
       intro: form.value.intro || undefined,
       teacherId: form.value.teacherId || undefined,
@@ -418,20 +420,41 @@ async function submit() {
       startTime: `${form.value.date}T${form.value.startTime}:00`,
       endTime: `${form.value.date}T${form.value.endTime}:00`,
       location: form.value.location,
-    })
-    uni.showToast({ title: '已提交，待审核', icon: 'success' })
-    createOpen.value = false
+    }
+    const isEdit = !!editingCourseId.value
+    if (isEdit) await offlineManageApi.updateCourse(editingCourseId.value, payload)
+    else await offlineManageApi.createCourse({ stationId: stationId.value, ...payload })
+    uni.showToast({ title: isEdit ? '已修改，待重新审核' : '已提交，待审核', icon: 'success' })
+    closeSheet()
     await Promise.all([loadCourses(), loadCalendar()])
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '创建失败', icon: 'none' })
+    uni.showToast({ title: (e as Error)?.message || (editingCourseId.value ? '修改失败' : '创建失败'), icon: 'none' })
   } finally {
     submitting.value = false
   }
 }
 
-// 编辑降级：后端无 updateCourse 端点 → toast 提示
-function onEdit(_c: OfflineCourse) {
-  uni.showToast({ title: '编辑功能即将开放', icon: 'none' })
+function onEdit(c: OfflineCourse) {
+  if ((c._count?.registrations ?? 0) > 0) {
+    uni.showToast({ title: '已有学员报名，为保护学员权益不可编辑', icon: 'none' })
+    return
+  }
+  const start = new Date(c.startTime)
+  const end = new Date(c.endTime)
+  if (Number.isNaN(start.getTime()) || start.getTime() <= Date.now()) {
+    uni.showToast({ title: '课程已开课或已结束，不可编辑', icon: 'none' })
+    return
+  }
+  editingCourseId.value = c.id
+  form.value = {
+    title: c.title, intro: c.intro || '', teacherId: c.teacherId || '', price: String(num(c.price)),
+    maxStudents: String(c.maxStudents),
+    date: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`,
+    startTime: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+    endTime: `${pad(end.getHours())}:${pad(end.getMinutes())}`,
+    location: c.location,
+  }
+  createOpen.value = true
 }
 
 function goRoster(courseId: string) {

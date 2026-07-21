@@ -632,6 +632,7 @@ export interface CreateCoursePayload {
   location: string
   cover?: string
 }
+export type UpdateCoursePayload = Omit<CreateCoursePayload, 'stationId'>
 
 /** 驿站入驻申请入参（对齐后端 CreateStationDto·四项后端均必填） */
 export interface CreateStationPayload {
@@ -674,6 +675,11 @@ export const offlineManageApi = {
   /** 创建课程 POST /offline/courses */
   createCourse(data: CreateCoursePayload): Promise<OfflineCourse> {
     return apiPost<OfflineCourse>('/offline/courses', data)
+  },
+
+  /** 编辑课程 PUT /offline/courses/:id（仅未开课且无有效报名；修改后重新审核） */
+  updateCourse(courseId: string, data: UpdateCoursePayload): Promise<OfflineCourse> {
+    return apiPut<OfflineCourse>(`/offline/courses/${courseId}`, data)
   },
 
   /** 课程报名名单 GET /offline/courses/:id/registrations（B端·脱敏·含 user 昵称头像·不含核销码） */
