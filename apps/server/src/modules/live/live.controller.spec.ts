@@ -43,6 +43,10 @@ const mockLiveSvc = {
   handleAuditCallback: jest.fn().mockResolvedValue({ success: true }),
   listAuditLogs: jest.fn().mockResolvedValue([{ id: "log1", result: "PASS" }]),
   giftRanking: jest.fn().mockResolvedValue([]),
+  getStreamerSettings: jest.fn().mockResolvedValue({ profile: { name: "直播间" } }),
+  saveStreamerSettings: jest.fn().mockResolvedValue({ success: true }),
+  getHosts: jest.fn().mockResolvedValue({ items: [] }),
+  getPreview: jest.fn().mockResolvedValue({ id: "r1", isBooked: true }),
 };
 
 const mockQualitySvc = {
@@ -85,13 +89,41 @@ describe("LiveController", () => {
     const result: any = await ctrl.listRooms("LIVE", undefined, undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
     // 末位 undefined = scope（非管理员不生效·公共池过滤在 service 层）
-    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20, undefined, undefined, undefined);
+    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20, undefined, undefined, undefined, undefined);
   });
 
   it("GET /live/rooms — 按课程过滤", async () => {
     const result: any = await ctrl.listRooms(undefined, "c1", undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
     expect(mockLiveSvc.listCourseRooms).toHaveBeenCalledWith("c1", 1, 20, undefined);
+  });
+
+  it("GET /live/rooms?followed=1 — 透传当前登录用户", async () => {
+    const req: any = { user: { id: "viewer1", roles: [] } };
+    await ctrl.listRooms(undefined, undefined, undefined, 1 as any, 20 as any, undefined, undefined, req, "1");
+    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith(
+      undefined, 1, 20, undefined, undefined, undefined, "viewer1",
+    );
+  });
+
+  it("PUT /live/settings — 保存主播设置", async () => {
+    const req: any = { user: { id: "u1" } };
+    const body = { profile: { name: "新直播间" }, notify: { reward: true } };
+    const result: any = await ctrl.saveStreamerSettings(req, body);
+    expect(result.success).toBe(true);
+    expect(mockLiveSvc.saveStreamerSettings).toHaveBeenCalledWith("u1", body);
+  });
+
+  it("GET /live/hosts — 可选登录身份透传已关注筛选", async () => {
+    const req: any = { user: { id: "viewer1" } };
+    await ctrl.getHosts("followed", req);
+    expect(mockLiveSvc.getHosts).toHaveBeenCalledWith("followed", "viewer1");
+  });
+
+  it("GET /live/preview/:id — 可选登录身份透传预约状态", async () => {
+    const req: any = { user: { id: "viewer1" } };
+    await ctrl.getPreview("r1", req);
+    expect(mockLiveSvc.getPreview).toHaveBeenCalledWith("r1", "viewer1");
   });
 
   it("GET /live/rooms/:id — 直播间详情", async () => {

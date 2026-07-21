@@ -7,7 +7,7 @@
     </view>
     <view v-else-if="error" class="hlive-state">
       <text class="hlive-state__txt">{{ error }}</text>
-      <view class="hlive-state__retry" @tap="fetchData('1')"><text class="hlive-state__retry-txt">重试</text></view>
+      <view class="hlive-state__retry" @tap="fetchData(currentRoomId)"><text class="hlive-state__retry-txt">重试</text></view>
     </view>
     <template v-else>
     <!-- ============ 横屏主体（仅 ≥1024px 显示，照原型 lg:flex） ============ -->
@@ -343,6 +343,7 @@ import { liveApi } from '@/lib/live-data'
 // ===== 直播间数据 =====
 const loading = ref(true)
 const error = ref('')
+const currentRoomId = ref('')
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
 // 幻灯片/问答/消息/资料列表，元素结构由后端返回，保留 any[]
@@ -479,9 +480,14 @@ function onShare() {}
 function onDownloadFile(_id: string) {}
 
 onLoad((opts) => {
-  const roomId = opts?.id || '1'
-  fetchData(roomId)
-  fetchPlayUrl(roomId)
+  currentRoomId.value = String(opts?.id || '')
+  if (!currentRoomId.value) {
+    loading.value = false
+    error.value = '缺少直播间信息，请返回后重新进入'
+    return
+  }
+  fetchData(currentRoomId.value)
+  fetchPlayUrl(currentRoomId.value)
 })
 
 onUnmounted(() => {

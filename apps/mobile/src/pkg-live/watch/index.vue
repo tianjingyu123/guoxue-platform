@@ -853,8 +853,13 @@ function scrollDanmakuToBottom() {
 }
 
 onLoad((opts) => {
-  const roomId = opts?.id || '1'
-  loadedRoomId.value = roomId // 路由 roomId 独立保存（重试/分享用·不依赖 room.value.id 是否已填充）
+  loadedRoomId.value = String(opts?.id || '') // 路由 roomId 独立保存（重试/分享用·不依赖 room.value.id 是否已填充）
+  if (!loadedRoomId.value) {
+    loading.value = false
+    error.value = '缺少直播间信息，请返回后重新进入'
+    return
+  }
+  const roomId = loadedRoomId.value
   if (opts?.type === 'commerce') room.value.type = 'commerce'
   fetchRoomData(roomId) // 播放地址在 fetchRoomData 内按 LIVING 态条件拉取
   fetchGifts()

@@ -45,23 +45,24 @@
         <text class="section-label">直播间信息</text>
         <view class="card card-pad">
           <!-- 封面 -->
-          <view class="cover-row">
+          <view class="cover-row" @tap="chooseCover">
             <view class="cover-wrap">
-              <image lazy-load class="cover-img" :src="profile.cover" mode="aspectFill" />
+              <image v-if="profile.cover" lazy-load class="cover-img" :src="profile.cover" mode="aspectFill" />
+              <view v-else class="cover-placeholder"><app-icon name="image" :size="36" color="#a99f92" /></view>
               <view class="cover-upload">
-                <app-icon name="upload" :size="24" color="#fff" />
+                <app-icon :name="coverUploading ? 'loader-2' : 'upload'" :size="24" color="#fff" :class="{ spin: coverUploading }" />
               </view>
             </view>
             <view class="cover-info">
-              <text class="cover-title">直播间封面</text>
-              <text class="cover-desc">建议 16:9 比例，不超过 2MB</text>
+              <text class="cover-title">{{ coverUploading ? '封面上传中…' : '直播间封面' }}</text>
+              <text class="cover-desc">点击更换，建议 16:9 比例，不超过 2MB</text>
             </view>
           </view>
 
           <!-- 名称 -->
           <view class="field">
             <text class="field-label">直播间名称</text>
-            <input v-model="profile.name" class="field-input" />
+            <input v-model="profile.name" class="field-input" :maxlength="40" placeholder="请输入直播间名称" />
           </view>
 
           <!-- 简介 -->
@@ -152,7 +153,7 @@
     <view v-if="!loading && !error" class="save-bar">
       <view
         class="save-btn"
-        :class="{ 'save-btn-saved': saved }"
+        :class="{ 'save-btn-saved': saved, 'save-btn-disabled': saving || coverUploading }"
         @tap="handleSave"
       >
         <app-icon v-if="saving" name="loader-2" :size="32" color="#fff" class="spin" />
@@ -166,6 +167,7 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
+import { chooseAndUploadImage } from '@/utils/request'
 import {
   liveApi,
   liveNotifyKeys,
@@ -181,6 +183,9 @@ const privacy = reactive<Record<string, boolean>>({})
 
 const loading = ref(true)
 const error = ref('')
+const coverUploading = ref(false)
+const saving = ref(false)
+const saved = ref(false)
 
 async function fetchData() {
   loading.value = true
@@ -197,17 +202,51 @@ async function fetchData() {
   }
 }
 
-const saving = ref(false)
-const saved = ref(false)
+async function chooseCover() {
+  if (coverUploading.value || saving.value) return
+  coverUploading.value = true
+  try {
+    profile.cover = await chooseAndUploadImage()
+    saved.value = false
+  } catch (e) {
+    const message = (e as Error)?.message || '封面上传失败'
+    if (!message.includes('取消')) uni.showToast({ title: message, icon: 'none' })
+  } finally {
+    coverUploading.value = false
+  }
+}
 
-function handleSave() {
-  if (saving.value) return
+async function handleSave() {
+  if (saving.value || coverUploading.value) return
+  const name = profile.name.trim()
+  const desc = profile.desc.trim()
+  if (!name) {
+    uni.showToast({ title: '请输入直播间名称', icon: 'none' })
+    return
+  }
+  if (name.length > 40 || desc.length > 100) {
+    uni.showToast({ title: '请检查名称和简介字数', icon: 'none' })
+    return
+  }
+
   saving.value = true
-  setTimeout(() => {
-    saving.value = false
+  saved.value = false
+  try {
+    await liveApi.saveSettings({
+      profile: { name, desc, cover: profile.cover },
+      notify: { ...notify },
+      privacy: { ...privacy },
+    })
+    profile.name = name
+    profile.desc = desc
     saved.value = true
+    uni.showToast({ title: '设置已保存', icon: 'success' })
     setTimeout(() => (saved.value = false), 2000)
-  }, 800)
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '保存失败，请重试', icon: 'none' })
+  } finally {
+    saving.value = false
+  }
 }
 
 function goTeam() {
@@ -293,6 +332,7 @@ onMounted(() => { fetchData() })
   position: relative;
   flex-shrink: 0;
 }
+.cover-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: #eee9e1; }
 .cover-img {
   width: 128rpx;
   height: 128rpx;
@@ -476,6 +516,7 @@ onMounted(() => { fetchData() })
   justify-content: center;
   gap: 12rpx;
 }
+.save-btn-disabled { opacity: 0.68; }
 .save-btn-saved {
   background: #22c55e;
 }

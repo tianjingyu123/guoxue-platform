@@ -9,7 +9,7 @@
     <!-- 错误状态 -->
     <view v-else-if="error" class="state-error">
       <text class="state-error__txt">{{ error }}</text>
-      <view class="state-error__retry" @tap="fetchData('1')"><text class="state-error__retry-txt">重试</text></view>
+      <view class="state-error__retry" @tap="fetchData(roomId)"><text class="state-error__retry-txt">重试</text></view>
     </view>
 
     <template v-else>
@@ -47,8 +47,8 @@
         </view>
         <!-- 倒计时 -->
         <view class="countdown">
-          <text class="countdown-label">距开播还有</text>
-          <view class="countdown-row">
+          <text class="countdown-label">{{ scheduledAtMs ? '距开播还有' : '开播时间' }}</text>
+          <view v-if="scheduledAtMs" class="countdown-row">
             <template v-if="countdown.days > 0">
               <view class="cd-box">
                 <text class="cd-num">{{ countdown.days }}</text>
@@ -71,6 +71,7 @@
               <text class="cd-unit">秒</text>
             </view>
           </view>
+          <text v-else class="countdown-pending">等待主播确认</text>
         </view>
       </view>
     </view>
@@ -100,12 +101,12 @@
       </view>
 
       <!-- 标签 -->
-      <view class="tag-row">
+      <view v-if="room.tags?.length" class="tag-row">
         <text v-for="(tag, i) in room.tags" :key="i" class="tag">{{ tag }}</text>
       </view>
 
       <!-- 直播简介 -->
-      <view class="detail-card">
+      <view v-if="descLines.length" class="detail-card">
         <text class="detail-title">直播简介</text>
         <view class="desc">
           <template v-for="(line, i) in descLines" :key="i">
@@ -125,7 +126,7 @@
       <!-- 讲师卡 -->
       <view class="detail-card">
         <text class="detail-title">讲师介绍</text>
-        <view class="teacher-row">
+        <view class="teacher-row" @tap="openHost">
           <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="teacher-avatar" />
           <view class="teacher-info">
             <text class="teacher-name">{{ room.hostName }}</text>
@@ -138,9 +139,9 @@
 
     <!-- 底部预约按钮 -->
     <view class="footer">
-      <view class="book-btn" :class="{ 'book-btn--booked': booked }" @tap="onToggleBook">
-        <AppIcon name="bell" :size="40" color="#fff" />
-        <text class="book-txt">{{ bookingSubmitting ? '提交中…' : booked ? '已预约' : '立即预约' }}</text>
+      <view class="book-btn" :class="{ 'book-btn--booked': booked, 'book-btn--disabled': !booked && !canBook && room.status !== 'LIVING' }" @tap="onToggleBook">
+        <AppIcon :name="room.status === 'LIVING' && !booked ? 'play' : 'bell'" :size="40" color="#fff" />
+        <text class="book-txt">{{ bookingSubmitting ? '提交中…' : booked ? '已预约' : canBook ? '立即预约' : room.status === 'LIVING' ? '进入直播' : '预约已结束' }}</text>
       </view>
     </view>
     </template>
@@ -152,21 +153,24 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
 
 const loading = ref(true)
 const error = ref('')
-// 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
+const roomId = ref('')
 const room = ref<any>({})
+const booked = ref(false)
+const bookingSubmitting = ref(false)
 
 async function fetchData(previewId: string) {
+  if (!previewId) return
   loading.value = true
   error.value = ''
   try {
-    // getPreview 仅在 throw 时兜底示例数据；后端 200 空响应会返回 null，
-    // 若直接落 null 则模板 room.cover/bookedCount 全部读 null 崩页 → 兜到 {}
-    room.value = (await liveApi.getPreview(previewId)) || {}
+    const data = await liveApi.getPreview(previewId)
+    room.value = data
+    booked.value = !!data.isBooked
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -174,43 +178,22 @@ async function fetchData(previewId: string) {
   }
 }
 
-const roomId = ref('')
 onLoad((opts) => {
-  roomId.value = String(opts?.id || '1')
+  roomId.value = String(opts?.id || '')
+  if (!roomId.value) {
+    loading.value = false
+    error.value = '缺少直播预告信息，请返回后重新进入'
+    return
+  }
   fetchData(roomId.value)
 })
 
-// ===== 预约（复用 watch 页 bookRoom 逻辑：POST/DELETE /live/rooms/:id/book·本次会话乐观维护） =====
-const booked = ref(false)
-const bookingSubmitting = ref(false)
-async function onToggleBook() {
-  if (bookingSubmitting.value) return
-  const id = String(room.value?.id || roomId.value)
-  if (!id) return
-  bookingSubmitting.value = true
-  try {
-    if (!booked.value) {
-      await liveApi.bookRoom(id)
-      booked.value = true
-      if (typeof room.value?.bookedCount === 'number') room.value.bookedCount += 1
-      uni.showToast({ title: '预约成功，开播前将提醒你', icon: 'none' })
-    } else {
-      await liveApi.unbookRoom(id)
-      booked.value = false
-      if (typeof room.value?.bookedCount === 'number') room.value.bookedCount = Math.max(0, room.value.bookedCount - 1)
-      uni.showToast({ title: '已取消预约', icon: 'none' })
-    }
-  } catch (e) {
-    // 未登录/非 WAITING 等 → 透传后端错误信息
-    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
-  } finally {
-    bookingSubmitting.value = false
-  }
-}
-
-// 开播时间 = 当前时间 + 2 小时（与原型一致：动态计算 + 实时倒计时）
-const startTime = Date.now() + 2 * 60 * 60 * 1000
 const now = ref(Date.now())
+const scheduledAtMs = computed(() => {
+  const value = Date.parse(String(room.value?.scheduledAt || ''))
+  return Number.isFinite(value) ? value : 0
+})
+const canBook = computed(() => room.value?.status === 'WAITING' && scheduledAtMs.value > now.value)
 let timer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
@@ -222,8 +205,38 @@ onUnmounted(() => {
   if (timer) clearInterval(timer)
 })
 
+async function onToggleBook() {
+  if (bookingSubmitting.value) return
+  const id = String(room.value?.id || roomId.value)
+  if (!id) return
+  if (!booked.value && !canBook.value) {
+    if (room.value?.status === 'LIVING') navigateTo(`/pkg-live/watch/index?id=${id}`)
+    else uni.showToast({ title: '该场直播已无法预约', icon: 'none' })
+    return
+  }
+
+  bookingSubmitting.value = true
+  try {
+    if (!booked.value) {
+      const result = await liveApi.bookRoom(id)
+      booked.value = result.booked
+      room.value.bookedCount = result.bookingCount
+      uni.showToast({ title: '预约成功，开播前将提醒你', icon: 'none' })
+    } else {
+      const result = await liveApi.unbookRoom(id)
+      booked.value = result.booked
+      room.value.bookedCount = result.bookingCount
+      uni.showToast({ title: '已取消预约', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    bookingSubmitting.value = false
+  }
+}
+
 const countdown = computed(() => {
-  const diff = Math.max(0, startTime - now.value)
+  const diff = Math.max(0, scheduledAtMs.value - now.value)
   const totalSec = Math.floor(diff / 1000)
   return {
     days: Math.floor(totalSec / 86400),
@@ -234,19 +247,24 @@ const countdown = computed(() => {
 })
 
 const startDateText = computed(() => {
-  const d = new Date(startTime)
-  return `${d.getMonth() + 1}/${d.getDate()}`
+  if (!scheduledAtMs.value) return '待定'
+  const date = new Date(scheduledAtMs.value)
+  return `${date.getMonth() + 1}/${date.getDate()}`
 })
 const startTimeText = computed(() => {
-  const d = new Date(startTime)
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  if (!scheduledAtMs.value) return '等待主播确认'
+  const date = new Date(scheduledAtMs.value)
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
 })
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
-// markdown 行解析(纯UI渲染)
+function openHost() {
+  if (room.value?.hostId) navigateTo(`/pkg-circle/user/profile?id=${room.value.hostId}`)
+}
+
 const descLines = computed(() => {
   const lines = room.value.descriptionLines || []
   return lines.map((line: string) => {
@@ -380,6 +398,7 @@ const descLines = computed(() => {
   color: rgba(255, 255, 255, 0.7);
   margin-bottom: 16rpx;
 }
+.countdown-pending { font-size: 32rpx; font-weight: 600; color: #fff; }
 .countdown-row {
   display: flex;
   align-items: center;
@@ -594,6 +613,7 @@ const descLines = computed(() => {
   font-weight: 500;
   color: #fff;
 }
+.book-btn--disabled { opacity: 0.58; }
 .book-btn--booked {
   background: #B8B2A8;
 }

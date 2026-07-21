@@ -319,9 +319,14 @@ const isFollowing = ref(false)
 const viewerCount = ref(0)
 const likeCount = ref(0)
 
-const currentRoomId = ref('1')
+const currentRoomId = ref('')
 onLoad((opts) => {
-  currentRoomId.value = opts?.id || '1'
+  currentRoomId.value = String(opts?.id || '')
+  if (!currentRoomId.value) {
+    loading.value = false
+    error.value = '缺少直播间信息，请返回后重新进入'
+    return
+  }
   fetchData(currentRoomId.value)
   fetchPlayUrl(currentRoomId.value)
 })

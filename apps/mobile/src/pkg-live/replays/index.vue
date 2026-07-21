@@ -13,9 +13,17 @@
       </view>
     </view>
 
+    <view v-if="showSearch" class="replay-search">
+      <AppIcon name="search" :size="30" color="#999" />
+      <input v-model="searchQuery" class="replay-search__input" placeholder="搜索标题、主播或分类" placeholder-class="search-ph" :focus="true" />
+      <view v-if="searchQuery" class="replay-search__clear" @tap="searchQuery = ''">
+        <AppIcon name="x" :size="30" color="#999" />
+      </view>
+    </view>
+
     <!-- 排序栏 -->
     <view class="sort-bar">
-      <text class="sort-count">全部回放 {{ replays.length }} 个</text>
+      <text class="sort-count">回放 {{ filteredReplays.length }} 个</text>
       <view class="sort-trigger" @tap="showSort = true">
         <AppIcon name="sliders-horizontal" :size="28" color="#666" />
         <text class="sort-label">{{ currentSortLabel }}</text>
@@ -34,8 +42,8 @@
     </view>
 
     <!-- 回放列表(单列横向卡) -->
-    <view v-else class="list">
-      <view v-for="item in replays" :key="item.id" class="card" @tap="openReplay(item)">
+    <view v-else-if="filteredReplays.length" class="list">
+      <view v-for="item in filteredReplays" :key="item.id" class="card" @tap="openReplay(item)">
         <view class="card-inner">
           <!-- 封面 -->
           <view class="cover">
@@ -53,7 +61,7 @@
               <view class="host-row">
                 <smart-avatar :src="item.hostAvatar" :name="item.hostName" class="host-avatar" />
                 <text class="host-name">{{ item.hostName }}</text>
-                <text class="cat-tag">{{ item.category }}</text>
+                <text v-if="item.category" class="cat-tag">{{ item.category }}</text>
               </view>
               <view class="data-row">
                 <view class="data-views">
@@ -67,6 +75,12 @@
         </view>
       </view>
       <text class="list-end">已显示全部回放</text>
+    </view>
+
+    <view v-else class="empty-state">
+      <AppIcon name="play-circle" :size="68" color="#c8c0b5" />
+      <text class="empty-title">{{ searchQuery.trim() ? '没有找到相关回放' : '暂时还没有直播回放' }}</text>
+      <text class="empty-desc">{{ searchQuery.trim() ? '换个关键词再试试' : '直播结束并生成回放后，会在这里展示' }}</text>
     </view>
 
     <!-- 排序弹层 -->
@@ -110,10 +124,19 @@ const error = ref('')
 const replays = ref<any[]>([])
 const sortBy = ref<string>('latest')
 const showSort = ref(false)
+const showSearch = ref(false)
+const searchQuery = ref('')
 
 const currentSortLabel = computed(
   () => replaySortOptions.find((o) => o.value === sortBy.value)?.label || '最新发布',
 )
+const filteredReplays = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+  if (!keyword) return replays.value
+  return replays.value.filter((item) =>
+    [item.title, item.hostName, item.category].some((value) => String(value || '').toLowerCase().includes(keyword)),
+  )
+})
 
 async function fetchData() {
   loading.value = true
@@ -135,7 +158,10 @@ function selectSort(v: string) {
 
 onMounted(() => { fetchData() })
 
-function onSearch() {}
+function onSearch() {
+  showSearch.value = !showSearch.value
+  if (!showSearch.value) searchQuery.value = ''
+}
 // 回放播放在 watch 页（三态观看页已支持回放态播 replayUrl）
 function openReplay(item: { id: string }) {
   if (!item?.id) return
@@ -177,6 +203,11 @@ function openReplay(item: { id: string }) {
   font-weight: 600;
   color: #2c2c2c;
 }
+
+.replay-search { display: flex; align-items: center; gap: 12rpx; margin: 20rpx 24rpx 0; padding: 14rpx 20rpx; background: #fff; border: 2rpx solid #e8e3db; border-radius: 18rpx; }
+.replay-search__input { flex: 1; min-width: 0; font-size: 27rpx; color: #2c2c2c; }
+.replay-search__clear { display: flex; align-items: center; justify-content: center; width: 44rpx; height: 44rpx; }
+.search-ph { color: #aaa; }
 
 /* 排序栏 */
 .sort-bar {
@@ -334,6 +365,10 @@ function openReplay(item: { id: string }) {
   color: #ccc;
   padding: 16rpx 0;
 }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 150rpx 40rpx; text-align: center; }
+.empty-title { margin-top: 24rpx; font-size: 30rpx; font-weight: 600; color: #4a4540; }
+.empty-desc { margin-top: 12rpx; font-size: 24rpx; line-height: 1.6; color: #999; }
 
 /* 骨架屏 */
 .skeleton { display: flex; flex-direction: column; gap: 24rpx; padding: 0 24rpx; }

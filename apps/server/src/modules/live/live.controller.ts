@@ -56,6 +56,7 @@ export class LiveController {
   @ApiQuery({ name: "courseId", required: false, type: String, description: "按课程ID过滤" })
   @ApiQuery({ name: "circleId", required: false, type: String, description: "按圈子ID过滤" })
   @ApiQuery({ name: "scope", required: false, type: String, description: "all=不限开放范围（仅管理员生效·管理端用）" })
+  @ApiQuery({ name: "followed", required: false, type: Boolean, description: "仅返回当前用户已关注主播的直播" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   listRooms(
@@ -67,12 +68,15 @@ export class LiveController {
     @StationId() stationId?: string,
     @Query("scope") scope?: string,
     @Req() req?: Request,
+    @Query("followed") followed?: string,
   ) {
     if (courseId) return this.svc.listCourseRooms(courseId, +page, +pageSize, stationId);
     // scope=all（不限开放范围）仅管理员生效——防公共端点带参绕过圈内内容隔离
     const roles = (req?.user as { roles?: string[] } | undefined)?.roles || [];
     const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN" || r === "CONTENT_AUDITOR");
-    return this.svc.listRooms(status, +page, +pageSize, circleId, stationId, scope === "all" && isAdmin ? "all" : undefined);
+    const wantsFollowed = followed === "1" || followed === "true";
+    const followedByUserId = wantsFollowed ? (req?.user?.id || null) : undefined;
+    return this.svc.listRooms(status, +page, +pageSize, circleId, stationId, scope === "all" && isAdmin ? "all" : undefined, followedByUserId);
   }
 
   @Get("my-rooms")
@@ -115,6 +119,20 @@ export class LiveController {
   @ApiBearerAuth()
   getStreamerSettings(@Req() req: AuthRequest) {
     return this.svc.getStreamerSettings(req.user.id);
+  }
+
+  @Put("settings")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "保存主播直播间设置" })
+  @ApiResponse({ status: 200, description: "保存成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  saveStreamerSettings(@Req() req: AuthRequest, @Body() body: {
+    profile?: { name?: string; desc?: string; cover?: string };
+    notify?: Record<string, boolean>;
+    privacy?: Record<string, boolean>;
+  }) {
+    return this.svc.saveStreamerSettings(req.user.id, body);
   }
 
   @Get("reviews")
@@ -714,10 +732,11 @@ export class LiveController {
   // ───────── 公开浏览端点 ─────────
 
   @Get("hosts")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "主播列表" })
   @ApiQuery({ name: "filter", required: false })
-  getHosts(@Query("filter") filter?: string) {
-    return this.svc.getHosts(filter);
+  getHosts(@Query("filter") filter?: string, @Req() req?: Request) {
+    return this.svc.getHosts(filter, req?.user?.id);
   }
 
   @Get("replays")
@@ -727,9 +746,10 @@ export class LiveController {
   }
 
   @Get("preview/:id")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "直播预告详情" })
-  getPreview(@Param("id") id: string) {
-    return this.svc.getPreview(id);
+  getPreview(@Param("id") id: string, @Req() req?: Request) {
+    return this.svc.getPreview(id, req?.user?.id);
   }
 
   @Get("replay/:id")

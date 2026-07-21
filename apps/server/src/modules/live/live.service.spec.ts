@@ -60,6 +60,12 @@ const mockPrisma = {
   },
   user: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
+  follow: {
+    findMany: jest.fn(),
+    count: jest.fn(),
   },
   $transaction: jest.fn(),
 };
@@ -68,6 +74,7 @@ const mockRedis = {
   sadd: jest.fn().mockResolvedValue(1),
   srem: jest.fn().mockResolvedValue(1),
   scard: jest.fn().mockResolvedValue(5),
+  sismember: jest.fn().mockResolvedValue(false),
   smembers: jest.fn().mockResolvedValue([]),
 };
 const mockNotification = {
@@ -111,6 +118,158 @@ describe("LiveService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPrisma.$transaction.mockImplementation(async (run: (tx: typeof mockPrisma) => unknown) => run(mockPrisma));
+  });
+
+  describe("streamer settings", () => {
+    it("读取已持久化的直播通知与互动偏好", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        nickname: "清和先生",
+        avatar: "https://img/avatar.webp",
+        bio: "讲解易学经典",
+        notifySettings: { liveNewViewer: false, liveReward: true, liveComment: true, liveOrder: false },
+        creatorSettings: { liveCover: "https://img/cover.webp", livePrivacy: { allowGift: false, autoRecord: false } },
+      });
+
+      const result = await svc.getStreamerSettings("u1");
+
+      expect(result.profile).toEqual({
+        name: "清和先生",
+        desc: "讲解易学经典",
+        cover: "https://img/cover.webp",
+      });
+      expect(result.notify).toEqual({ newViewer: false, reward: true, comment: true, order: false });
+      expect(result.privacy).toEqual({
+        allowComment: true,
+        allowGift: false,
+        showViewCount: true,
+        autoRecord: false,
+      });
+    });
+
+    it("保存时只合并直播白名单键，不覆盖其他模块偏好", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        nickname: "旧名称",
+        bio: "",
+        notifySettings: { message: false, liveReward: false },
+        creatorSettings: { specialty: "易经", livePrivacy: { allowGift: true } },
+      });
+      mockPrisma.user.update.mockResolvedValue({});
+
+      const result = await svc.saveStreamerSettings("u1", {
+        profile: { name: " 新直播间 ", desc: " 新简介 ", cover: "https://img/new.webp" },
+        notify: { reward: true, order: false, unknown: true },
+        privacy: { allowGift: false, showViewCount: false, unknown: true },
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: "u1" },
+        data: expect.objectContaining({
+          nickname: "新直播间",
+          bio: "新简介",
+          notifySettings: expect.objectContaining({ message: false, liveReward: true, liveOrder: false }),
+          creatorSettings: expect.objectContaining({
+            specialty: "易经",
+            liveCover: "https://img/new.webp",
+            livePrivacy: { allowGift: false, showViewCount: false },
+          }),
+        }),
+      });
+      const data = mockPrisma.user.update.mock.calls[0][0].data;
+      expect(data.notifySettings.unknown).toBeUndefined();
+      expect(data.creatorSettings.livePrivacy.unknown).toBeUndefined();
+    });
+
+    it("拒绝空直播间名称", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        nickname: "旧名称", bio: "", notifySettings: {}, creatorSettings: {},
+      });
+      await expect(svc.saveStreamerSettings("u1", {
+        profile: { name: "   ", desc: "", cover: "" },
+      })).rejects.toThrow(BusinessException);
+      expect(mockPrisma.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("public live discovery", () => {
+    it("匿名请求已关注直播时返回真实空列表且不查公共池", async () => {
+      const result = await svc.listRooms(undefined, 1, 20, undefined, undefined, undefined, null);
+      expect(result).toEqual({ rooms: [], total: 0, page: 1, pageSize: 20 });
+      expect(mockPrisma.liveRoom.findMany).not.toHaveBeenCalled();
+    });
+
+    it("已登录关注筛选把关注主播集合下沉到数据库条件", async () => {
+      mockPrisma.follow.findMany.mockResolvedValue([{ followedUserId: "host1" }]);
+      mockPrisma.liveRoom.findMany.mockResolvedValue([]);
+      mockPrisma.liveRoom.count.mockResolvedValue(0);
+
+      await svc.listRooms("LIVING", 1, 20, undefined, undefined, undefined, "viewer1");
+
+      expect(mockPrisma.liveRoom.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ hostUserId: { in: ["host1"] } }),
+      }));
+    });
+
+    it("主播列表按主播去重并返回真实粉丝数，不再生成固定4.5评分", async () => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([
+        { id: "room-ended", cover: "", status: "ENDED", viewCount: 20, hostUserId: "host1" },
+        { id: "room-live", cover: "cover.webp", status: "LIVING", viewCount: 10, hostUserId: "host1" },
+      ]);
+      mockPrisma.user.findMany.mockResolvedValue([
+        { id: "host1", nickname: "主播甲", avatar: "avatar.webp", bio: "专注经典", identityVerified: true },
+      ]);
+      mockPrisma.follow.findMany.mockResolvedValue([
+        { followedUserId: "host1" },
+        { followedUserId: "host1" },
+      ]);
+
+      const result = await svc.getHosts();
+
+      expect(result.total).toBe(1);
+      expect(result.items[0]).toMatchObject({
+        id: "room-live",
+        name: "主播甲",
+        followers: 2,
+        liveCount: 2,
+        rating: 0,
+        isLive: true,
+        verified: true,
+      });
+      expect(mockPrisma.liveRoom.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ visibility: "PLATFORM", auditStatus: "APPROVED" }),
+      }));
+    });
+
+    it("预告详情使用真实排期、预约状态、预约人数和分钟时长", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "room1",
+        userId: "host1",
+        hostUserId: "host1",
+        title: "周易直播",
+        cover: "",
+        status: "WAITING",
+        visibility: "PLATFORM",
+        auditStatus: "APPROVED",
+        startTime: new Date("2026-08-01T12:00:00.000Z"),
+        endTime: new Date("2026-08-01T13:30:00.000Z"),
+        user: { id: "host1", nickname: "主播甲", avatar: "avatar.webp", bio: "讲解周易" },
+      });
+      mockRedis.scard.mockResolvedValue(12);
+      mockRedis.sismember.mockResolvedValue(true);
+      mockPrisma.follow.count.mockResolvedValue(34);
+
+      const result = await svc.getPreview("room1", "viewer1");
+
+      expect(result).toMatchObject({
+        hostId: "host1",
+        hostFollowers: 34,
+        bookedCount: 12,
+        estimatedDuration: 90,
+        scheduledAt: "2026-08-01T12:00:00.000Z",
+        status: "WAITING",
+        isBooked: true,
+      });
+    });
   });
 
   describe("getLiveProducts", () => {

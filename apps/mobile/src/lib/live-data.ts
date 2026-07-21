@@ -439,6 +439,8 @@ export interface LivePreviewRoom {
   descriptionLines: string[]
   isBooked: boolean
   countdown: { days: number; hours: number; minutes: number; seconds: number }
+  scheduledAt?: string
+  status?: string
 }
 export const livePreviewRoom: LivePreviewRoom = {
   id: '1',
@@ -1346,7 +1348,7 @@ function adaptLiveItem(r: RawLiveRoom): LiveItem {
     hostName: r.user?.nickname || '',
     hostAvatar: r.user?.avatar || '',
     viewerCount: r.viewCount ?? 0,
-    type: 'knowledge',
+    type: (r._count?.products ?? 0) > 0 ? 'commerce' : 'knowledge',
     status: mapLiveStatus(r.status || ''),
     orientation: 'horizontal',
     priceType: (r.chargeType && String(r.chargeType).toUpperCase() !== 'FREE') ? 'paid' : 'free',
@@ -1374,62 +1376,43 @@ export const liveApi = {
 
   /** 直播广场列表 — GET /live/rooms（适配）；tab 客户端过滤 */
   async getPlaza(tab?: string): Promise<LiveItem[]> {
-    try {
-      const res = await apiGet<RawLiveRoom[] | RawLiveRoomList>('/live/rooms?pageSize=30')
-      const arr: RawLiveRoom[] = Array.isArray(res) ? res : (res?.rooms ?? res?.data ?? [])
-      let items: LiveItem[] = arr.map(adaptLiveItem)
-      if (tab && tab !== '全部') {
-        const typeMap: Record<string, string> = { '知识授课': 'knowledge', '电商带货': 'commerce' }
-        const t = typeMap[tab]
-        if (t) items = items.filter((i) => i.type === t)
-        else if (tab === '关注的') items = []
-      }
-      return items.length ? items : liveList
-    } catch {
-      return liveList
+    const followed = tab === '关注的' ? '&followed=1' : ''
+    const res = await apiGetOptionalAuth<RawLiveRoom[] | RawLiveRoomList>(`/live/rooms?pageSize=30${followed}`)
+    const arr: RawLiveRoom[] = Array.isArray(res) ? res : (res?.rooms ?? res?.data ?? [])
+    let items: LiveItem[] = arr.map(adaptLiveItem)
+    if (tab && tab !== '全部' && tab !== '关注的') {
+      const typeMap: Record<string, LiveType> = { '知识授课': 'knowledge', '电商带货': 'commerce' }
+      const type = typeMap[tab]
+      if (type) items = items.filter((item) => item.type === type)
     }
+    return items
   },
 
   /** 直播间详情 — GET /live/rooms/:id（适配） */
   async getWatch(id: string): Promise<LiveItem | undefined> {
-    try {
-      return adaptLiveItem(await apiGet<RawLiveRoom>(`/live/rooms/${id}`))
-    } catch {
-      return liveList.find(item => item.id === id)
-    }
+    const room = await apiGetOptionalAuth<RawLiveRoom | null>(`/live/rooms/${id}`)
+    return room ? adaptLiveItem(room) : undefined
   },
 
   /** 主播列表 — GET /live/hosts（后端结构已对齐 LiveHost） */
   async getHosts(filter?: string): Promise<LiveHost[]> {
-    try {
-      const url = filter ? `/live/hosts?filter=${encodeURIComponent(filter)}` : '/live/hosts'
-      const res = await apiGet<RawHostsResp>(url)
-      const arr = res?.items ?? (Array.isArray(res) ? res : [])
-      return (arr.length ? arr : liveHosts) as LiveHost[]
-    } catch {
-      return liveHosts
-    }
+    const url = filter ? `/live/hosts?filter=${encodeURIComponent(filter)}` : '/live/hosts'
+    const res = await apiGetOptionalAuth<RawHostsResp>(url)
+    return (res?.items ?? (Array.isArray(res) ? res : [])) as LiveHost[]
   },
 
   /** 回放列表 — GET /live/replays（后端结构已对齐 LiveReplay） */
   async getReplays(sort?: string): Promise<LiveReplay[]> {
-    try {
-      const url = sort ? `/live/replays?sort=${encodeURIComponent(sort)}` : '/live/replays'
-      const res = await apiGet<RawReplaysResp>(url)
-      const arr = res?.items ?? (Array.isArray(res) ? res : [])
-      return (arr.length ? arr : liveReplays) as LiveReplay[]
-    } catch {
-      return liveReplays
-    }
+    const url = sort ? `/live/replays?sortBy=${encodeURIComponent(sort)}` : '/live/replays'
+    const res = await apiGet<RawReplaysResp>(url)
+    return (res?.items ?? (Array.isArray(res) ? res : [])) as LiveReplay[]
   },
 
   /** 获取回放详情 — GET /live/replay/:id */
   async getReplayDetail(id: string): Promise<ReplayDetail> {
-    try {
-      return await apiGet<ReplayDetail>(`/live/replay/${id}`)
-    } catch {
-      return replayDetail
-    }
+    const detail = await apiGet<ReplayDetail | null>(`/live/replay/${id}`)
+    if (!detail?.id) throw new Error('回放不存在或已下架')
+    return detail
   },
 
   /** 获取回放首页数据 — GET /live/replay-home */
@@ -1459,11 +1442,9 @@ export const liveApi = {
 
   /** 获取直播预告 — GET /live/preview/:id */
   async getPreview(id: string): Promise<LivePreviewRoom> {
-    try {
-      return await apiGet<LivePreviewRoom>(`/live/preview/${id}`)
-    } catch {
-      return livePreviewRoom
-    }
+    const preview = await apiGetOptionalAuth<LivePreviewRoom | null>(`/live/preview/${id}`)
+    if (!preview?.id) throw new Error('直播预告不存在或已取消')
+    return preview
   },
 
   /** 获取直播结束数据 — GET /live/end/:id（真连，含真实峰值/获赞/打赏聚合） */
@@ -1985,12 +1966,20 @@ export const liveApi = {
   }> {
     const data = await apiGet<RawLiveSettings>('/live/settings')
     return {
-      profile: data?.profile || liveSettingProfile,
-      notify: data?.notify || liveSettingNotifyDefault,
-      privacy: data?.privacy || liveSettingPrivacyDefault,
+      profile: { cover: '', name: '', desc: '', ...(data?.profile || {}) },
+      notify: { ...liveSettingNotifyDefault, ...(data?.notify || {}) },
+      privacy: { ...liveSettingPrivacyDefault, ...(data?.privacy || {}) },
     }
   },
 
+  /** 保存主播直播间资料、通知和互动偏好 — PUT /live/settings */
+  async saveSettings(payload: {
+    profile: { name: string; desc: string; cover: string }
+    notify: Record<string, boolean>
+    privacy: Record<string, boolean>
+  }): Promise<{ success: boolean; message?: string }> {
+    return await apiPut<{ success: boolean; message?: string }>('/live/settings', payload)
+  },
   /**
    * 获取竖屏直播间数据 — 前端组装 GET /live/rooms/:id（房间+主播+商品关联）
    * 弹幕(comments)走 TIM 群实时收发·初始为空；商品详情后端关联表无字段 → 降级空(页面商品区隐藏)。
@@ -2222,8 +2211,9 @@ export const liveApi = {
   },
 
   /** 取消预约 — DELETE /live/rooms/:id/book */
-  async unbookRoom(roomId: string): Promise<void> {
-    await apiDelete(`/live/rooms/${roomId}/book`)
+  async unbookRoom(roomId: string): Promise<{ booked: boolean; bookingCount: number }> {
+    const res = await apiDelete<{ booked?: boolean; bookingCount?: number }>(`/live/rooms/${roomId}/book`)
+    return { booked: !!res?.booked, bookingCount: Number(res?.bookingCount) || 0 }
   },
 
   /** 预约人数 — GET /live/rooms/:id/bookings（返回 {roomId, bookingCount}·失败交页面容错） */

@@ -9,7 +9,7 @@
     <!-- 错误状态 -->
     <view v-else-if="error" class="state-error">
       <text class="state-error__txt">{{ error }}</text>
-      <view class="state-error__retry" @tap="fetchData('1')"><text class="state-error__retry-txt">重试</text></view>
+      <view class="state-error__retry" @tap="fetchData(replayId)"><text class="state-error__retry-txt">重试</text></view>
     </view>
 
     <template v-else>
@@ -236,7 +236,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -249,6 +249,7 @@ const statusBarHeight = ref(0)
 // 数据状态
 const loading = ref(true)
 const error = ref('')
+const replayId = ref('')
 // 模板裸访问大量回放字段，保留 any 避免收敛触发大量报错
 const replay = ref<any>({})
 const isPlaying = ref(false)
@@ -282,7 +283,13 @@ async function fetchData(replayId: string) {
 }
 
 onLoad((opts) => {
-  fetchData(opts?.id || '1')
+  replayId.value = String(opts?.id || '')
+  if (!replayId.value) {
+    loading.value = false
+    error.value = '缺少回放信息，请返回后重新进入'
+    return
+  }
+  fetchData(replayId.value)
 })
 </script>
 

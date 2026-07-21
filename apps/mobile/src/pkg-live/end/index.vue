@@ -9,7 +9,7 @@
     <!-- 错误状态 -->
     <view v-else-if="error" class="state-error">
       <text class="state-error__txt">{{ error }}</text>
-      <view class="state-error__retry" @tap="fetchData('1')"><text class="state-error__retry-txt">重试</text></view>
+      <view class="state-error__retry" @tap="fetchData(endId)"><text class="state-error__retry-txt">重试</text></view>
     </view>
 
     <template v-else>
@@ -162,6 +162,7 @@ const statusBarHeight = ref(0)
 // 数据状态
 const loading = ref(true)
 const error = ref('')
+const endId = ref('')
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
 // 推荐直播/课程列表，元素结构由后端返回，保留 any[]
@@ -187,7 +188,13 @@ async function fetchData(endId: string) {
 }
 
 onLoad((opts) => {
-  fetchData(opts?.id || '1')
+  endId.value = String(opts?.id || '')
+  if (!endId.value) {
+    loading.value = false
+    error.value = '缺少直播场次信息，请返回后重新进入'
+    return
+  }
+  fetchData(endId.value)
 })
 
 function goPlaza() { navigateTo('/pkg-live/plaza/index') }
