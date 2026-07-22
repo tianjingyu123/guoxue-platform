@@ -1060,12 +1060,6 @@
           }
         },
         {
-          "path": "circles/calendar",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "circles/badges",
           "style": {
             "navigationStyle": "custom"
@@ -1278,12 +1272,6 @@
         },
         {
           "path": "my-circles/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "rankings/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -2712,17 +2700,6 @@
         },
         {
           "path": "community-rules/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
-      "root": "pkg-activity",
-      "pages": [
-        {
-          "path": "detail/index",
           "style": {
             "navigationStyle": "custom"
           }

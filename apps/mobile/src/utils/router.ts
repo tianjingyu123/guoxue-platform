@@ -317,7 +317,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/circles/create': '/pkg-circle/circles/create',
   '/circles/activities': '/pkg-circle/circles/activities',
   '/circles/badges': '/pkg-circle/circles/badges',
-  '/rankings': '/pkg-circle/rankings/index',
+  '/rankings': '/pages/discover/index', // 全局榜单无真实数据源，历史链接回到真实发现流
   '/articles': '/pkg-circle/articles/index',
   // （/common/scan 已退役 2026-07-14：注释说"从 offline/checkin 扫码入口调起"，实际零入口——
   //   全项目唯一的 uni.scanCode 在 pkg-offline/manage-checkin，它自己走 offlineManageApi.signIn
@@ -536,8 +536,8 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/content\/([^/?]+)$/, '/pkg-common/content/index', 'slug'],
   // 举报结果详情 /report/result/:id（静态 /report、/report/result 已在 ROUTE_MAP 优先命中）
   [/^\/report\/result\/([^/?]+)$/, '/pkg-report/detail/index', 'id'],
-  // 活动详情 /activity/:id
-  [/^\/activity\/([^/?]+)$/, '/pkg-activity/detail/index', 'id'],
+  // 历史活动详情没有真实活动数据源，旧深链接回到真实发现流，避免展示演示商品/券/榜单。
+  [/^\/activity\/([^/?]+)$/, '/pages/discover/index', 'id'],
   // 公告详情 /notices/:id（静态 /notices、/notices/upgrade 已在 ROUTE_MAP 优先命中）
   [/^\/notices\/([^/?]+)$/, '/pkg-notices/detail/index', 'id'],
   // 话题标签聚合 /topic/:tag 与 /topics/:tag（均指向标签聚合页，按话题名取 GET /tags/:name/posts）
