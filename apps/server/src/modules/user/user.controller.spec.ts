@@ -166,9 +166,10 @@ describe("UserController", () => {
     expect(result.items).toHaveLength(0);
   });
 
-  it("POST /users/whitelist — 添加白名单", async () => {
-    const result: any = await ctrl.addWhitelist({ userId: "u1" });
+  it("POST /users/whitelist — 添加白名单并透传原因", async () => {
+    const result: any = await ctrl.addWhitelist({ userId: "u1", reason: "上线联调" });
     expect(result.userId).toBe("u1");
+    expect(mockUserSvc.addWhitelist).toHaveBeenCalledWith("u1", "上线联调");
   });
 
   it("DELETE /users/whitelist/:userId — 移除白名单", async () => {

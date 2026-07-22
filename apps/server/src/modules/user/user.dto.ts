@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsInt, IsArray, ArrayMinSize, ArrayMaxSize, ArrayUnique, Min, MinLength, IsDateString, IsBoolean, IsIn } from "class-validator";
+import { IsString, IsOptional, IsEnum, IsInt, IsArray, ArrayMinSize, ArrayMaxSize, ArrayUnique, Min, MinLength, MaxLength, IsDateString, IsBoolean, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 import { MemberLevel, RoleType, UserStatus } from "@prisma/client";
 
@@ -123,7 +123,13 @@ export class PushByTagDto {
 export class AddWhitelistDto {
   @IsString()
   @MinLength(1)
+  @MaxLength(64)
   userId: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  reason?: string;
 }
 
 export const NOTIFY_SETTING_KEYS = [

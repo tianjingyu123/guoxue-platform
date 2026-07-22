@@ -119,7 +119,7 @@ export class UserController {
   @Get("whitelist")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
-  @ApiOperation({ summary: "白名单用户列表" })
+  @ApiOperation({ summary: "用户附加限流白名单列表" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
@@ -445,19 +445,19 @@ export class UserController {
   @Post("whitelist")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
-  @ApiOperation({ summary: "添加用户到白名单" })
+  @ApiOperation({ summary: "添加用户到附加限流白名单" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   addWhitelist(@Body() body: AddWhitelistDto) {
-    return this.user.addWhitelist(body.userId);
+    return this.user.addWhitelist(body.userId, body.reason);
   }
 
   @Delete("whitelist/:userId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
-  @ApiOperation({ summary: "从白名单移除用户" })
+  @ApiOperation({ summary: "从附加限流白名单移除用户" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })

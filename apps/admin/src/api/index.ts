@@ -445,7 +445,7 @@ export const userApi = {
   getAdminProfile: (id: string) => api.get(`/users/${id}/profile`),
   getInterestStats: () => api.get("/users/stats/interests"),
   pushByTag: (data: { tag: string; title: string; content: string }) => api.post("/users/push/by-tag", data),
-  listWhitelist: () => api.get("/users/whitelist"),
+  listWhitelist: (params?: { page?: number; pageSize?: number }) => api.get("/users/whitelist", { params }),
   addWhitelist: (data: { userId: string; reason?: string }) => api.post("/users/whitelist", data),
   removeWhitelist: (userId: string) => api.delete(`/users/whitelist/${userId}`),
 };

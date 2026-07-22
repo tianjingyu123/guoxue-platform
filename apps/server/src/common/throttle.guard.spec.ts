@@ -1,11 +1,15 @@
 import { ThrottleGuard, StrictThrottleGuard } from "./throttle.guard";
+import { StrictRedisThrottleGuard } from "./redis-throttle.guard";
 import { RedisService } from "../redis/redis.service";
 import { ExecutionContext, HttpException } from "@nestjs/common";
 
-function mockContext(ip?: string): ExecutionContext {
+function mockContext(ip?: string, userId?: string): ExecutionContext {
   return {
     switchToHttp: () => ({
-      getRequest: () => ({ ip: ip ?? "192.168.1.1" }),
+      getRequest: () => ({
+        ip: ip ?? "192.168.1.1",
+        ...(userId ? { user: { id: userId } } : {}),
+      }),
     }),
     getHandler: () => ({}),
     getClass: () => ({}),
@@ -17,6 +21,7 @@ function createFakeRedis() {
   const counters = new Map<string, { count: number; resetAt: number }>();
   return {
     counters,
+    getJson: jest.fn().mockResolvedValue(null),
     incrWithTtl: jest.fn(async (key: string, ttlSeconds: number) => {
       const now = Date.now();
       const entry = counters.get(key);
@@ -96,5 +101,44 @@ describe("StrictThrottleGuard", () => {
     }
     await expect(guard.canActivate(mockContext("10.0.1.1"))).rejects.toThrow(HttpException);
     expect(redis.counters.has("rate:strict:10.0.1.1")).toBe(true);
+  });
+});
+
+describe("StrictRedisThrottleGuard 用户限流白名单", () => {
+  it("兼容历史 string[] 并跳过附加限流计数", async () => {
+    const redis = createFakeRedis();
+    (redis.getJson as jest.Mock).mockResolvedValue(["u1"]);
+    const guard = new StrictRedisThrottleGuard(redis);
+
+    expect(await guard.canActivate(mockContext("10.0.2.1", "u1"))).toBe(true);
+    expect(redis.incrWithTtl).not.toHaveBeenCalled();
+  });
+
+  it("识别结构化名单条目", async () => {
+    const redis = createFakeRedis();
+    (redis.getJson as jest.Mock).mockResolvedValue([{ userId: "u1", reason: "联调" }]);
+    const guard = new StrictRedisThrottleGuard(redis);
+
+    expect(await guard.canActivate(mockContext("10.0.2.2", "u1"))).toBe(true);
+    expect(redis.incrWithTtl).not.toHaveBeenCalled();
+  });
+
+  it("非名单用户继续使用独立的严格限流计数键", async () => {
+    const redis = createFakeRedis();
+    (redis.getJson as jest.Mock).mockResolvedValue([{ userId: "u1" }]);
+    const guard = new StrictRedisThrottleGuard(redis);
+
+    expect(await guard.canActivate(mockContext("10.0.2.3", "u2"))).toBe(true);
+    expect(redis.counters.has("rate:strict:10.0.2.3")).toBe(true);
+    expect(redis.counters.has("rate:10.0.2.3")).toBe(false);
+  });
+
+  it("名单读取异常时不报 500，继续执行正常限流", async () => {
+    const redis = createFakeRedis();
+    (redis.getJson as jest.Mock).mockRejectedValueOnce(new Error("redis unavailable"));
+    const guard = new StrictRedisThrottleGuard(redis);
+
+    expect(await guard.canActivate(mockContext("10.0.2.4", "u1"))).toBe(true);
+    expect(redis.counters.has("rate:strict:10.0.2.4")).toBe(true);
   });
 });

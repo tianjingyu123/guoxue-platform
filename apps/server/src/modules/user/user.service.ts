@@ -12,6 +12,12 @@ import { AuditService } from "../audit/audit.service";
 import { AuthService } from "../auth/auth.service";
 import { PushAudienceService } from "./push-audience.service";
 
+type RateLimitWhitelistEntry = {
+  userId: string;
+  reason: string | null;
+  createdAt: string | null;
+};
+
 @Injectable()
 export class UserService {
   private readonly logger = new Logger(UserService.name);
@@ -596,57 +602,101 @@ export class UserService {
     };
   }
 
-  // ───────── 白名单管理（基于 Redis Set） ─────────
+  // ───────── 用户附加限流白名单（Redis JSON；兼容历史 string[]） ─────────
 
   private getWhitelistKey(): string {
     return "admin:whitelist";
   }
 
-  async getWhitelist(page: number, pageSize: number): Promise<{ users: { id: string; nickname: string | null; avatar: string | null; phone: string | null; createdAt: Date }[]; total: number; page: number; pageSize: number }> {
-    const key = this.getWhitelistKey();
-    const list: string[] = (await this.redis.getJson<string[]>(key)) || [];
-    const total = list.length;
-    const start = (page - 1) * pageSize;
-    const items = list.slice(start, start + pageSize);
+  private normalizeWhitelist(raw: unknown): RateLimitWhitelistEntry[] {
+    if (!Array.isArray(raw)) return [];
 
-    // 获取白名单用户基本信息
-    const users = items.length > 0
-      ? await this.prisma.user.findMany({
-          where: { id: { in: items } },
-          select: { id: true, nickname: true, avatar: true, phone: true, createdAt: true },
-        })
-      : [];
+    const deduped = new Map<string, RateLimitWhitelistEntry>();
+    for (const item of raw.slice(0, 1000)) {
+      const record = item && typeof item === "object" ? item as Record<string, unknown> : null;
+      const rawUserId = typeof item === "string" ? item : record?.userId;
+      if (typeof rawUserId !== "string") continue;
 
-    return { users: users.map(u => ({ ...u, phone: maskPhone(u.phone) })), total, page, pageSize };
+      const userId = rawUserId.trim().slice(0, 64);
+      if (!userId || deduped.has(userId)) continue;
+
+      const rawReason = record?.reason;
+      const reason = typeof rawReason === "string" && rawReason.trim()
+        ? rawReason.trim().slice(0, 200)
+        : null;
+      const rawCreatedAt = record?.createdAt;
+      const createdAt = typeof rawCreatedAt === "string" && Number.isFinite(Date.parse(rawCreatedAt))
+        ? rawCreatedAt
+        : null;
+      deduped.set(userId, { userId, reason, createdAt });
+    }
+    return [...deduped.values()];
   }
 
-  async addWhitelist(userId: string): Promise<{ success: boolean; userId: string }> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  async getWhitelist(page: number, pageSize: number) {
+    const raw = await this.redis.getJson<unknown>(this.getWhitelistKey());
+    const entries = this.normalizeWhitelist(raw);
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safePageSize = Number.isFinite(pageSize)
+      ? Math.min(100, Math.max(1, Math.floor(pageSize)))
+      : 20;
+    const start = (safePage - 1) * safePageSize;
+    const pageEntries = entries.slice(start, start + safePageSize);
+
+    const dbUsers = pageEntries.length > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: pageEntries.map((entry) => entry.userId) } },
+          select: { id: true, nickname: true, avatar: true, phone: true },
+        })
+      : [];
+    const userMap = new Map(dbUsers.map((user) => [user.id, user]));
+    const users = pageEntries.map((entry) => {
+      const user = userMap.get(entry.userId);
+      return {
+        ...entry,
+        user: user ? { ...user, phone: maskPhone(user.phone) } : null,
+      };
+    });
+
+    return { users, total: entries.length, page: safePage, pageSize: safePageSize };
+  }
+
+  async addWhitelist(userId: string, reason?: string): Promise<{ success: boolean; userId: string }> {
+    const normalizedUserId = userId.trim();
+    const user = await this.prisma.user.findUnique({ where: { id: normalizedUserId }, select: { id: true } });
     if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
 
     const key = this.getWhitelistKey();
-    const list: string[] = (await this.redis.getJson<string[]>(key)) || [];
+    const entries = this.normalizeWhitelist(await this.redis.getJson<unknown>(key));
+    const normalizedReason = typeof reason === "string" && reason.trim()
+      ? reason.trim().slice(0, 200)
+      : null;
+    const existing = entries.find((entry) => entry.userId === normalizedUserId);
 
-    if (!list.includes(userId)) {
-      list.push(userId);
-      await this.redis.setJson(key, list);
+    if (!existing) {
+      entries.unshift({ userId: normalizedUserId, reason: normalizedReason, createdAt: new Date().toISOString() });
+      await this.redis.setJson(key, entries);
+    } else if (reason !== undefined && existing.reason !== normalizedReason) {
+      existing.reason = normalizedReason;
+      await this.redis.setJson(key, entries);
     }
 
-    this.logger.log(`添加白名单: userId=${userId}`);
-    return { success: true, userId };
+    this.logger.log("添加用户限流白名单 userId=" + normalizedUserId);
+    return { success: true, userId: normalizedUserId };
   }
 
   async removeWhitelist(userId: string): Promise<{ success: boolean; userId: string }> {
+    const normalizedUserId = userId.trim();
     const key = this.getWhitelistKey();
-    const list: string[] = (await this.redis.getJson<string[]>(key)) || [];
-    const filtered = list.filter((id) => id !== userId);
+    const entries = this.normalizeWhitelist(await this.redis.getJson<unknown>(key));
+    const filtered = entries.filter((entry) => entry.userId !== normalizedUserId);
 
-    if (filtered.length !== list.length) {
+    if (filtered.length !== entries.length) {
       await this.redis.setJson(key, filtered);
     }
 
-    this.logger.log(`移除白名单: userId=${userId}`);
-    return { success: true, userId };
+    this.logger.log("移除用户限流白名单 userId=" + normalizedUserId);
+    return { success: true, userId: normalizedUserId };
   }
 
   // ───────── 用户画像 ─────────

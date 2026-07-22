@@ -5,6 +5,7 @@ import {
   ExecutionContext,
   HttpException,
   HttpStatus,
+  Logger,
 } from "@nestjs/common";
 import { serverConfig } from "../config/server-config";
 import { RedisService } from "../redis/redis.service";
@@ -26,6 +27,28 @@ export class RedisThrottleGuard implements CanActivate {
     @Optional() private readonly keyPrefix: string = "rate",
   ) {}
 
+  private readonly logger = new Logger(RedisThrottleGuard.name);
+
+  private async isUserRateLimitWhitelisted(userId: unknown): Promise<boolean> {
+    if (typeof userId !== "string" || !userId.trim()) return false;
+
+    try {
+      const raw = await this.redis.getJson<unknown>("admin:whitelist");
+      if (!Array.isArray(raw)) return false;
+      return raw.slice(0, 1000).some((entry) => {
+        if (typeof entry === "string") return entry === userId;
+        if (!entry || typeof entry !== "object") return false;
+        return (entry as Record<string, unknown>).userId === userId;
+      });
+    } catch (error) {
+      this.logger.warn(
+        "读取用户限流白名单失败，继续执行正常限流",
+        error instanceof Error ? error.stack : undefined,
+      );
+      return false;
+    }
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // 压测绕过（仅非生产环境生效）
     if (serverConfig.disableRateLimit) return true;
@@ -33,8 +56,12 @@ export class RedisThrottleGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const ip = request.ip || request.connection?.remoteAddress || "unknown";
 
-    // 白名单 IP 不限流
+    // 基础设施 IP 白名单不受限流。
     if (isWhitelisted(ip)) return true;
+
+    // JwtAuthGuard 位于路由附加限流守卫之前时 request.user 已可信；
+    // 这里只豁免附加频率限制，全局基础防护、权限、审核及资金风控仍保留。
+    if (await this.isUserRateLimitWhitelisted(request.user?.id)) return true;
 
     const key = `${this.keyPrefix}:${ip}`;
 
@@ -59,6 +86,6 @@ export class RedisThrottleGuard implements CanActivate {
 @Injectable()
 export class StrictRedisThrottleGuard extends RedisThrottleGuard {
   constructor(redis: RedisService) {
-    super(redis, 10, 60);
+    super(redis, 10, 60, "rate:strict");
   }
 }

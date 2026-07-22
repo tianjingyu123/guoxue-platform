@@ -524,34 +524,51 @@ describe("UserService", () => {
   // ═══════════════════ 白名单管理 ═══════════════════
 
   describe("getWhitelist", () => {
-    it("获取白名单（空列表）", async () => {
+    it("空名单返回标准分页结构", async () => {
       mockRedis.getJson.mockResolvedValue(null);
       const result = await svc.getWhitelist(1, 20);
       expect(result.users).toEqual([]);
-      expect(result.total).toBe(0);
+      expect(result).toMatchObject({ total: 0, page: 1, pageSize: 20 });
     });
 
-    it("获取白名单（有数据含分页）", async () => {
-      mockRedis.getJson.mockResolvedValue(["u1", "u2", "u3", "u4"]);
+    it("兼容历史 string[]，并返回前端所需的用户、原因和添加时间", async () => {
+      mockRedis.getJson.mockResolvedValue(["u1", "u2", "u3"]);
       mockPrisma.user.findMany.mockResolvedValue([
-        { id: "u1", nickname: "用户1", avatar: null, phone: "138****8001", createdAt: new Date() },
-        { id: "u2", nickname: "用户2", avatar: null, phone: "138****8002", createdAt: new Date() },
+        { id: "u2", nickname: "用户2", avatar: null, phone: "13800138002" },
+        { id: "u1", nickname: "用户1", avatar: null, phone: "13800138001" },
       ]);
       const result = await svc.getWhitelist(1, 2);
       expect(result.users).toHaveLength(2);
-      expect(result.total).toBe(4);
+      expect(result.users[0]).toMatchObject({
+        userId: "u1", reason: null, createdAt: null,
+        user: { id: "u1", nickname: "用户1", phone: "138****8001" },
+      });
+      expect(result.total).toBe(3);
       expect(result.pageSize).toBe(2);
+    });
+
+    it("保留结构化名单元数据并过滤非法、重复条目", async () => {
+      mockRedis.getJson.mockResolvedValue([
+        { userId: "u1", reason: "联调", createdAt: "2026-07-22T00:00:00.000Z" },
+        { userId: "u1", reason: "重复", createdAt: "2026-07-22T01:00:00.000Z" },
+        { reason: "无用户" },
+      ]);
+      mockPrisma.user.findMany.mockResolvedValue([{ id: "u1", nickname: "用户1", avatar: null, phone: null }]);
+      const result = await svc.getWhitelist(0, 999);
+      expect(result).toMatchObject({ total: 1, page: 1, pageSize: 100 });
+      expect(result.users[0]).toMatchObject({ userId: "u1", reason: "联调", createdAt: "2026-07-22T00:00:00.000Z" });
     });
   });
 
   describe("addWhitelist", () => {
-    it("添加用户到白名单", async () => {
+    it("新增用户时写入原因与添加时间", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: "u1" });
       mockRedis.getJson.mockResolvedValue([]);
-      const result = await svc.addWhitelist("u1");
-      expect(result.success).toBe(true);
-      expect(result.userId).toBe("u1");
-      expect(mockRedis.setJson).toHaveBeenCalled();
+      const result = await svc.addWhitelist(" u1 ", " 上线联调 ");
+      expect(result).toEqual({ success: true, userId: "u1" });
+      expect(mockRedis.setJson).toHaveBeenCalledWith("admin:whitelist", [
+        expect.objectContaining({ userId: "u1", reason: "上线联调", createdAt: expect.any(String) }),
+      ]);
     });
 
     it("用户不存在抛出异常", async () => {
@@ -559,24 +576,35 @@ describe("UserService", () => {
       await expect(svc.addWhitelist("no-user")).rejects.toThrow(BusinessException);
     });
 
-    it("重复添加不重复写入", async () => {
+    it("重复添加且未修改原因时不重复写入", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: "u1" });
-      mockRedis.getJson.mockResolvedValue(["u1", "u2"]);
+      mockRedis.getJson.mockResolvedValue([{ userId: "u1", reason: "联调", createdAt: "2026-07-22T00:00:00.000Z" }]);
       const result = await svc.addWhitelist("u1");
       expect(result.success).toBe(true);
       expect(mockRedis.setJson).not.toHaveBeenCalled();
     });
+
+    it("重复添加时允许更新原因且保留原添加时间", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1" });
+      mockRedis.getJson.mockResolvedValue([{ userId: "u1", reason: "旧原因", createdAt: "2026-07-22T00:00:00.000Z" }]);
+      await svc.addWhitelist("u1", "新原因");
+      expect(mockRedis.setJson).toHaveBeenCalledWith("admin:whitelist", [
+        { userId: "u1", reason: "新原因", createdAt: "2026-07-22T00:00:00.000Z" },
+      ]);
+    });
   });
 
   describe("removeWhitelist", () => {
-    it("从白名单移除用户", async () => {
+    it("从名单移除用户并把历史格式规范化", async () => {
       mockRedis.getJson.mockResolvedValue(["u1", "u2"]);
       const result = await svc.removeWhitelist("u1");
-      expect(result.success).toBe(true);
-      expect(mockRedis.setJson).toHaveBeenCalledWith("admin:whitelist", ["u2"]);
+      expect(result).toEqual({ success: true, userId: "u1" });
+      expect(mockRedis.setJson).toHaveBeenCalledWith("admin:whitelist", [
+        { userId: "u2", reason: null, createdAt: null },
+      ]);
     });
 
-    it("移除不在白名单中的用户", async () => {
+    it("移除不在名单中的用户不写 Redis", async () => {
       mockRedis.getJson.mockResolvedValue(["u1"]);
       const result = await svc.removeWhitelist("u3");
       expect(result.success).toBe(true);

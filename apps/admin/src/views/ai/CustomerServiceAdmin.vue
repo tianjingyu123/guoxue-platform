@@ -45,13 +45,12 @@
         label="FAQ管理"
         name="faq"
       >
-        <!-- 诚实横幅：后端 grep customer_service_faq 零命中，客服引擎暂不读取该配置 -->
         <el-alert
-          type="warning"
+          type="success"
           :closable="false"
           show-icon
-          title="该配置暂未接入客服引擎（后端待接线），保存仅存档"
-          description="FAQ 内容会保存到系统配置，但智能客服当前回答不会引用这里的条目；后端接线后自动生效。"
+          title="FAQ 已接入智能客服"
+          description="保存后实时生效：高度匹配的问题直接返回审核答案，相关问题会把 FAQ 作为高优先级上下文交给 AI。"
           style="margin-bottom:12px"
         />
         <el-row :gutter="16">
@@ -72,6 +71,8 @@
                 v-for="(entries, cat) in faqData"
                 :key="cat"
                 class="faq-cat-item"
+                :class="{ active: editingCat === cat }"
+                @click="editingCat = cat"
               >
                 <div class="faq-cat-header">
                   <el-input
@@ -85,7 +86,7 @@
                   <el-button
                     size="small"
                     type="primary"
-                    @click="addFaqEntry(cat)"
+                    @click.stop="addFaqEntry(cat)"
                   >
                     + 条目
                   </el-button>
@@ -93,7 +94,7 @@
                     size="small"
                     type="danger"
                     circle
-                    @click="deleteCategory(cat)"
+                    @click.stop="deleteCategory(cat)"
                   >
                     ✕
                   </el-button>
@@ -117,6 +118,7 @@
                       v-model="entry.q"
                       placeholder="问题"
                       size="small"
+                      :maxlength="240"
                       style="margin-bottom:4px"
                     />
                     <el-input
@@ -124,6 +126,7 @@
                       placeholder="答案"
                       type="textarea"
                       :rows="2"
+                      :maxlength="2000"
                       size="small"
                     />
                   </div>
@@ -159,18 +162,17 @@
         label="转人工规则"
         name="rules"
       >
-        <!-- 诚实横幅：后端 grep customer_service_rules 零命中，规则暂不被客服引擎消费 -->
         <el-alert
-          type="warning"
+          type="info"
           :closable="false"
           show-icon
-          title="该配置暂未接入客服引擎（后端待接线），保存仅存档"
-          description="规则会保存到系统配置，但当前转人工行为不受这里控制；后端接线后自动生效。"
+          title="人工协助提示规则已接入"
+          description="命中后 AI 会先回答可确认的信息，再引导用户到「帮助与反馈」提交人工处理；不会虚假声称已经接通人工会话。"
           style="margin-bottom:12px"
         />
         <el-card>
           <template #header>
-            <span>转人工触发条件</span>
+            <span>人工协助提示条件</span>
           </template>
           <el-form
             :model="transferRules"
@@ -182,7 +184,7 @@
                 v-model="transferRules.keywordsStr"
                 placeholder="逗号分隔，如：退款,投诉,举报,人工"
               />
-              <span style="font-size:11px;color:var(--color-text-secondary)">用户消息包含这些关键词时自动转人工</span>
+              <span style="font-size:11px;color:var(--color-text-secondary)">用户消息包含这些关键词时显示人工协助入口</span>
             </el-form-item>
             <el-form-item label="AI置信度低于阈值">
               <el-input-number
@@ -216,12 +218,6 @@
                 v-model="transferRules.offHoursMessage"
                 type="textarea"
                 :rows="2"
-              />
-            </el-form-item>
-            <el-form-item label="转人工后推送卡片">
-              <el-switch
-                v-model="transferRules.pushCard"
-                active-text="推送内容推荐卡片"
               />
             </el-form-item>
           </el-form>
@@ -406,8 +402,38 @@ const transferRules = reactive({
   maxEmptyResponses: 3,
   workHours: [new Date(2024, 0, 1, 9, 0), new Date(2024, 0, 1, 18, 0)] as [Date, Date],
   offHoursMessage: "当前为非工作时间，客服将在工作日9:00-18:00为您服务，请先留言或查看帮助中心。",
-  pushCard: true,
 });
+
+function parseWorkHour(value: unknown, fallbackHour: number): Date {
+  const base = new Date(2024, 0, 1, fallbackHour, 0, 0, 0);
+  if (typeof value === "string") {
+    const clock = value.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+    if (clock) {
+      base.setHours(Number(clock[1]), Number(clock[2]), 0, 0);
+      return base;
+    }
+  }
+  const parsed = new Date(String(value || ""));
+  if (!Number.isNaN(parsed.getTime())) {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Shanghai",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(parsed);
+    base.setHours(
+      Number(parts.find((part) => part.type === "hour")?.value || fallbackHour),
+      Number(parts.find((part) => part.type === "minute")?.value || 0),
+      0,
+      0,
+    );
+  }
+  return base;
+}
+
+function formatWorkHour(value: Date): string {
+  return `${String(value.getHours()).padStart(2, "0")}:${String(value.getMinutes()).padStart(2, "0")}`;
+}
 
 // 测试对话
 const csChatRef = ref<InstanceType<typeof ChatUI>>()
@@ -453,17 +479,17 @@ async function loadFaq() {
     if (Object.keys(faqData.value).length === 0) {
       faqData.value = {
         "平台使用": [
-          { q: "如何注册账号？", a: `打开${BRAND.name}APP，点击「我的」→「立即登录」→输入手机号获取验证码即可注册。` },
+          { q: "如何注册账号？", a: `打开${BRAND.name}，点击「我的」→「立即登录」，输入手机号获取验证码即可注册。` },
           { q: "忘记密码怎么办？", a: "登录页点击「忘记密码」→输入手机号→获取验证码→设置新密码即可。" },
           { q: "如何成为会员？", a: "进入「我的」→「会员中心」→选择适合您的会员等级→完成支付即可享受会员权益。" },
         ],
         "内容学习": [
           { q: "如何搜索古籍内容？", a: "在首页顶部搜索框输入关键词（如作者、篇名、名句）→系统会快速检索并展示相关结果。" },
-          { q: "内容可以离线阅读吗？", a: "部分内容支持缓存，点击内容详情页的「下载」按钮即可离线阅读。会员用户享有更多缓存权限。" },
+          { q: "内容可以离线阅读吗？", a: "部分内容支持缓存；如果详情页显示「下载」入口，可按页面提示缓存后离线阅读。" },
         ],
         "支付退款": [
-          { q: "支持哪些支付方式？", a: `${BRAND.name}平台支持微信支付和汇付天下支付，未来将支持更多支付方式。` },
-          { q: "如何申请退款？", a: "请在订单详情页点击「申请退款」，填写退款原因后提交。退款需人工审核，将在1-3个工作日内处理。" },
+          { q: "支持哪些支付方式？", a: "平台当前支持页面实际展示的支付方式；不同终端和业务可用渠道可能不同，请以下单页为准。" },
+          { q: "如何申请退款？", a: "请进入对应订单详情，点击「申请退款」并填写原因。是否可退及处理进度以订单页面和平台审核结果为准。" },
         ],
       };
       faqCatNames.value = { "平台使用": "平台使用", "内容学习": "内容学习", "支付退款": "支付退款" };
@@ -474,14 +500,48 @@ async function loadFaq() {
 }
 
 async function saveFaq() {
+  const cleaned: Record<string, Array<{ q: string; a: string }>> = {};
+  const seenQuestions = new Set<string>();
+  let totalEntries = 0;
+  for (const [category, entries] of Object.entries(faqData.value)) {
+    cleaned[category] = [];
+    for (const entry of entries) {
+      const q = entry.q.trim();
+      const a = entry.a.trim();
+      if (!q || !a) {
+        editingCat.value = category;
+        ElMessage.warning("每条 FAQ 都必须同时填写问题和答案");
+        return;
+      }
+      const fingerprint = q.normalize("NFKC").toLowerCase().replace(/\s/g, "");
+      if (seenQuestions.has(fingerprint)) {
+        editingCat.value = category;
+        ElMessage.warning(`FAQ 问题重复：${q}`);
+        return;
+      }
+      seenQuestions.add(fingerprint);
+      cleaned[category].push({ q, a });
+      totalEntries += 1;
+    }
+  }
+  if (totalEntries > 100) {
+    ElMessage.warning("FAQ 最多保存 100 条，请先合并或删除重复条目");
+    return;
+  }
+
+  const cleanNames = Object.fromEntries(
+    Object.keys(cleaned).map((category) => [category, faqCatNames.value[category]?.trim() || category]),
+  );
   savingFaq.value = true;
   try {
     await systemApi.setConfig("customer_service_faq", {
-      value: JSON.stringify({ entries: faqData.value, catNames: faqCatNames.value }),
+      value: JSON.stringify({ entries: cleaned, catNames: cleanNames }),
       description: "智能客服FAQ",
     });
-    ElMessage.success("FAQ已保存");
-    stats.faqCount = Object.values(faqData.value).reduce((s, arr) => s + arr.length, 0);
+    faqData.value = cleaned;
+    faqCatNames.value = cleanNames;
+    ElMessage.success("FAQ已保存并实时生效");
+    stats.faqCount = totalEntries;
   } finally { savingFaq.value = false; }
 }
 
@@ -528,9 +588,12 @@ async function loadRules() {
     const cfg = configs.find((c) => c.configKey === "customer_service_rules");
     if (cfg?.configValue) {
       const parsed = JSON.parse(cfg.configValue);
-      Object.assign(transferRules, parsed);
-      if (parsed.workHours) {
-        transferRules.workHours = [new Date(parsed.workHours[0]), new Date(parsed.workHours[1])];
+      if (typeof parsed.keywordsStr === "string") transferRules.keywordsStr = parsed.keywordsStr;
+      if (Number.isFinite(Number(parsed.lowConfidenceThreshold))) transferRules.lowConfidenceThreshold = Number(parsed.lowConfidenceThreshold);
+      if (Number.isInteger(Number(parsed.maxEmptyResponses))) transferRules.maxEmptyResponses = Number(parsed.maxEmptyResponses);
+      if (typeof parsed.offHoursMessage === "string") transferRules.offHoursMessage = parsed.offHoursMessage;
+      if (Array.isArray(parsed.workHours) && parsed.workHours.length >= 2) {
+        transferRules.workHours = [parseWorkHour(parsed.workHours[0], 9), parseWorkHour(parsed.workHours[1], 18)];
       }
     }
   } catch { /* ignore */ }
@@ -543,7 +606,7 @@ async function saveRules() {
     await systemApi.setConfig("customer_service_rules", {
       value: JSON.stringify({
         ...transferRules,
-        workHours: transferRules.workHours?.map((d: Date) => d?.toISOString()),
+        workHours: transferRules.workHours?.map(formatWorkHour),
       }),
       description: "智能客服转人工规则",
     });
@@ -592,6 +655,7 @@ async function fetchStats() {
 
 .faq-cat-item { padding: 8px 12px; margin-bottom: 4px; background: var(--color-bg-page); border-radius: 6px; cursor: pointer; transition: all .2s; }
 .faq-cat-item:hover { background: #ecf5ff; }
+.faq-cat-item.active { background: rgba(196, 30, 58, 0.08); box-shadow: inset 3px 0 0 var(--color-primary); }
 .faq-cat-header { display: flex; align-items: center; gap: 8px; }
 .faq-entry { padding: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--color-border); }
 </style>

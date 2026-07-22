@@ -267,7 +267,7 @@ const routes = [
         path: "users/whitelist",
         name: "WhitelistManage",
         component: () => import("@/views/users/WhitelistManage.vue"),
-        meta: { title: "IP白名单", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+        meta: { title: "用户限流白名单", roles: ["SUPER_ADMIN"] },
       },
       {
         path: "users/interests",
