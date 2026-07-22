@@ -553,7 +553,7 @@ export function getGroupPermissions(myRole: GroupRole): GroupPermissions {
   const isAdmin = myRole === 'admin' || isOwner
   return {
     canInvite: true,
-    canRemoveMember: isAdmin,
+    canRemoveMember: isOwner,
     canSetAdmin: isOwner,
     canUpdateNotice: isAdmin,
     canDismiss: isOwner,
@@ -840,9 +840,39 @@ export const imApi = {
     await useTim().setGroupRead(groupId)
   },
 
-  /** 退出群聊（TIM SDK quitGroup；群主不可退出，需解散） */
+  /** 用户主动退出群聊：严格透传 SDK 错误，禁止失败后仍显示成功 */
   async quitGroup(groupId: string): Promise<void> {
-    await useTim().quitGroup(groupId)
+    await useTim().quitGroupStrict(groupId)
+  },
+
+  /** 修改群名称或公告（TIM SDK） */
+  async updateGroupProfile(groupId: string, profile: { name?: string; notification?: string }): Promise<void> {
+    await useTim().updateGroupProfile(groupId, profile)
+  },
+
+  /** 修改本人群昵称（TIM SDK 群名片） */
+  async setMyGroupNickname(groupId: string, nickname: string): Promise<void> {
+    await useTim().setGroupMemberNameCard(groupId, nickname)
+  },
+
+  /** 设置或取消管理员（TIM SDK，仅群主） */
+  async setGroupMemberAdmin(groupId: string, userId: string, isAdmin: boolean): Promise<void> {
+    await useTim().setGroupMemberAdmin(groupId, userId, isAdmin)
+  },
+
+  /** 转让群主（TIM SDK，仅群主） */
+  async transferGroupOwner(groupId: string, newOwnerId: string): Promise<void> {
+    await useTim().changeGroupOwner(groupId, newOwnerId)
+  },
+
+  /** 移除群成员（TIM SDK，权限由腾讯服务端校验） */
+  async removeGroupMember(groupId: string, userId: string): Promise<void> {
+    await useTim().deleteGroupMember(groupId, userId)
+  },
+
+  /** 解散群聊（TIM SDK，仅群主） */
+  async dismissGroup(groupId: string): Promise<void> {
+    await useTim().dismissGroup(groupId)
   },
 
   /** 群会话置顶（TIM SDK；conversationID=GROUP{groupId}） */

@@ -264,6 +264,13 @@ export function useTim() {
     try { await chat.quitGroup(groupId) } catch { /* ignore */ }
   }
 
+  /** 用户主动退出群聊：错误必须向上抛，页面不得把失败误报为成功 */
+  async function quitGroupStrict(groupId: string): Promise<void> {
+    if (!groupId) throw new Error('群聊信息无效，请返回重试')
+    await ensureLogin()
+    await chat!.quitGroup(groupId)
+  }
+
   /** 发送群弹幕文本，返回 SDK 落地消息对象 */
   async function sendGroupText(groupId: string, text: string): Promise<TimMessage> {
     await ensureLogin()
@@ -295,11 +302,29 @@ export function useTim() {
     return (res.data?.group as unknown) as TimGroup
   }
 
-  /** 拉取群成员列表（单页 count，最多 500；本切片一次拉够，不做深分页） */
+  /** 拉取完整群成员列表：SDK 单页最多 100，自动分页并按 userID 去重 */
   async function getGroupMemberList(groupId: string, offset = 0, count = 100): Promise<TimGroupMember[]> {
     await ensureLogin()
-    const res = await chat!.getGroupMemberList({ groupID: groupId, count, offset })
-    return ((res.data?.memberList || []) as unknown) as TimGroupMember[]
+    const pageSize = Math.min(100, Math.max(1, count))
+    const result: TimGroupMember[] = []
+    const seen = new Set<string>()
+    let currentOffset = offset
+    // 100 页是防御性上限；常规群远低于此值，避免异常服务响应造成死循环
+    for (let page = 0; page < 100; page += 1) {
+      const res = await chat!.getGroupMemberList({ groupID: groupId, count: pageSize, offset: currentOffset })
+      const members = ((res.data?.memberList || []) as unknown) as TimGroupMember[]
+      let added = 0
+      for (const member of members) {
+        if (!seen.has(member.userID)) {
+          seen.add(member.userID)
+          result.push(member)
+          added += 1
+        }
+      }
+      if (members.length < pageSize || added === 0) break
+      currentOffset += members.length
+    }
+    return result
   }
 
   /** 拉取我加入的群名录（不含未读/最后一条，需与会话列表合并补齐） */
@@ -313,6 +338,49 @@ export function useTim() {
   async function setGroupRead(groupId: string): Promise<void> {
     if (!isLoggedIn.value || !chat) return
     try { await chat.setMessageRead({ conversationID: `GROUP${groupId}` }) } catch { /* ignore */ }
+  }
+
+  /** 修改群名称或公告（腾讯权限规则由 SDK 服务端最终校验） */
+  async function updateGroupProfile(
+    groupId: string,
+    profile: { name?: string; notification?: string },
+  ): Promise<void> {
+    await ensureLogin()
+    await chat!.updateGroupProfile({ groupID: groupId, ...profile })
+  }
+
+  /** 修改本人群名片；普通成员也可修改自己的名片 */
+  async function setGroupMemberNameCard(groupId: string, nameCard: string): Promise<void> {
+    await ensureLogin()
+    await chat!.setGroupMemberNameCard({ groupID: groupId, nameCard })
+  }
+
+  /** 设置或取消群管理员；仅群主可操作 */
+  async function setGroupMemberAdmin(groupId: string, userId: string, isAdmin: boolean): Promise<void> {
+    await ensureLogin()
+    await chat!.setGroupMemberRole({
+      groupID: groupId,
+      userID: userId,
+      role: isAdmin ? TIM!.TYPES.GRP_MBR_ROLE_ADMIN : TIM!.TYPES.GRP_MBR_ROLE_MEMBER,
+    })
+  }
+
+  /** 转让群主；仅群主可操作 */
+  async function changeGroupOwner(groupId: string, newOwnerId: string): Promise<void> {
+    await ensureLogin()
+    await chat!.changeGroupOwner({ groupID: groupId, newOwnerID: newOwnerId })
+  }
+
+  /** 移除群成员；仅群主可操作，具体权限由腾讯服务端校验 */
+  async function deleteGroupMember(groupId: string, userId: string): Promise<void> {
+    await ensureLogin()
+    await chat!.deleteGroupMember({ groupID: groupId, userIDList: [userId], reason: '群管理员移除成员' })
+  }
+
+  /** 解散群聊；仅群主可操作 */
+  async function dismissGroup(groupId: string): Promise<void> {
+    await ensureLogin()
+    await chat!.dismissGroup(groupId)
   }
 
   // ───────── 好友申请：腾讯仅在客户端 SDK 提供申请列表拉取 ─────────
@@ -347,8 +415,10 @@ export function useTim() {
   return {
     isReady, isLoggedIn, ensureLogin, sendText, getC2CHistory, setC2CRead, onMessage,
     getConversationList, onConversationsUpdated, pinConversation, setConversationMute, deleteConversation,
-    joinGroup, quitGroup, sendGroupText, getGroupHistory,
+    joinGroup, quitGroup, quitGroupStrict, sendGroupText, getGroupHistory,
     getGroupProfile, getGroupMemberList, getJoinedGroupList, setGroupRead,
+    updateGroupProfile, setGroupMemberNameCard, setGroupMemberAdmin,
+    changeGroupOwner, deleteGroupMember, dismissGroup,
     getFriendApplications, handleFriendApplication, markFriendApplicationsRead,
   }
 }
