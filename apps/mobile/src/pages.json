@@ -1455,12 +1455,6 @@
           }
         },
         {
-          "path": "theme/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "schedule/index",
           "style": {
             "navigationStyle": "custom"
@@ -2765,25 +2759,8 @@
       ]
     },
     {
-      "root": "pkg-ai",
-      "pages": [
-        {
-          "path": "cover-generate/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        }
-      ]
-    },
-    {
       "root": "pkg-common",
       "pages": [
-        {
-          "path": "image-viewer/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
         {
           "path": "content/index",
           "style": {
@@ -2792,12 +2769,6 @@
         },
         {
           "path": "splash/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "poster/index",
           "style": {
             "navigationStyle": "custom"
           }

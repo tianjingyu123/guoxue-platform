@@ -292,8 +292,6 @@ const ROUTE_MAP: Record<string, string> = {
   // 平台公告（列表/版本升级静态；notices/:id 详情走动态路由，须优先于动态匹配）
   '/notices': '/pkg-notices/index/index',
   '/notices/upgrade': '/pkg-notices/upgrade/index',
-  // AI 封面生成（从创作/发帖页带 ?title=&summary=&contentId= query 调起，query 由 resolve 透传）
-  '/ai/cover-generate': '/pkg-ai/cover-generate/index',
   // 创作编辑器（发帖/写文章，接 ?id=&circleId= query，从 creator/submissions 调起）
   '/editor': '/pkg-circle/circles/editor',
   // 草稿箱（从 profile/creator 调起，点击草稿带 ?draft= 跳 publish）
@@ -310,7 +308,6 @@ const ROUTE_MAP: Record<string, string> = {
   '/courses': '/pkg-course/home/index',
   // （死入口大扫除：/admin/user-audit、/admin/batch-coupon-send 两条死映射已删——目标页已从 pkg-mine 路由移除且全库无调用方）
   '/splash': '/pkg-common/splash/index',
-  '/poster': '/pkg-common/poster/index',
   // （/result 已退役 2026-07-14：通用「操作结果」页全项目零入口——各业务流各自处理成功/失败态，
   //   没人跳它，页内还硬编码 /circle/1、/learn/1 等假链。.vue 已删）
   '/publish/video': '/pkg-video/publish/index',
@@ -326,8 +323,6 @@ const ROUTE_MAP: Record<string, string> = {
   // （/common/scan 已退役 2026-07-14：注释说"从 offline/checkin 扫码入口调起"，实际零入口——
   //   全项目唯一的 uni.scanCode 在 pkg-offline/manage-checkin，它自己走 offlineManageApi.signIn
   //   真后端核销，根本不跳这页。页内还硬编码 /pay/transfer、/auth/register 等死链。.vue 已删）
-  // 全屏图片查看器（接 ?images=&index= query，缩放/旋转/切换/手势）
-  '/common/image-viewer': '/pkg-common/image-viewer/index',
   // 交易申诉（3步表单：选订单/选类型/填详情→提交进度时间线，fallback /orders）
   '/appeal': '/pkg-order/appeal/index',
   // 成为合作伙伴（讲师招募：intro权益介绍→apply申请表单→success提交成功）
