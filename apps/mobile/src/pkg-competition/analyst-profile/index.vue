@@ -120,29 +120,6 @@
             </view>
           </view>
 
-          <!-- 挂牌接单 -->
-          <view class="sec">
-            <view class="sec-hd"><text class="sec-title">挂牌接单</text></view>
-            <!-- 已认证 且 资深级 → 已解锁入口 -->
-            <template v-if="canMount">
-              <view class="mount">
-                <view class="mount-hd">
-                  <text class="mount-title">线下驿站达人咨询挂牌</text>
-                  <view class="switch"><view class="switch-knob" /></view>
-                </view>
-                <text class="mount-desc">你的资深分析师认证已具备挂牌资格。用户可在驿站预约你的咨询，交易与履约在驿站板块完成。</text>
-              </view>
-              <view class="btn btn-gold" @tap="goMount"><text class="btn-txt">前往驿站管理咨询挂牌</text></view>
-            </template>
-            <!-- 未解锁 → 引导 -->
-            <view v-else class="locked-box">
-              <view class="locked-hd"><app-icon name="lock" :size="14" color="#8a7d68" /><text class="locked-title">资深分析师专属</text></view>
-              <text class="locked-sub">升至「资深分析师 Lv.5」并通过平台认证后，可挂牌承接线下驿站达人咨询。持续参赛提升段位以解锁。</text>
-              <view v-if="profile.talentScore > 0 && !profile.isCertified" class="locked-link" @tap="goCertify"><text class="locked-link-txt">申请讲师认证 ›</text></view>
-            </view>
-            <text class="note">挂牌接单属线下驿站达人咨询体系，本页仅做段位认证与解锁入口，接单排期/定价/履约/结算均在驿站板块完成。</text>
-          </view>
-
           <view class="safe-bottom" />
         </view>
       </template>
@@ -203,9 +180,6 @@ const badgeWall = computed(() =>
 )
 const unlockedBadgeCount = computed(() => badgeWall.value.filter((b) => b.unlocked).length)
 
-// ─── 挂牌解锁条件：资深级 + 平台认证 ───
-const canMount = computed(() => !!profile.value?.isCertified && isTop.value)
-
 // ─── 战绩条目 ───
 function medalLabel(status: string): string {
   if (status === 'PARTICIPANT') return '完赛'
@@ -238,9 +212,6 @@ async function load() {
 function goBack() { navigateBack() }
 function goHome() { navigateTo('/competition/home') }
 function goLogin() { navigateTo('/login') }
-function goCertify() { navigateTo('/pkg-creator/teacher-certification/index') }
-// 🔻降级：达人咨询挂牌后端未实现，点击提示即将开放，不造假跳转
-function goMount() { uni.showToast({ title: '分析师挂牌接单即将开放', icon: 'none' }) }
 
 onMounted(() => {
   uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0; sysH.value = e.windowHeight || 667 } })
@@ -307,7 +278,6 @@ onMounted(() => {
 .btn { margin-top: 14px; padding: 13px; border-radius: 999px; text-align: center; }
 .btn-txt { font-size: 15px; font-weight: 700; color: #fff; }
 .btn-primary { background: linear-gradient(135deg, #C41E3A, #a01830); }
-.btn-gold { background: linear-gradient(135deg, #C9A96E, #b8975a); }
 
 /* 认证徽章墙 */
 .badge-wall { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
@@ -331,21 +301,6 @@ onMounted(() => {
 .rec-sub { display: block; font-size: 11px; color: #999; margin-top: 2px; }
 .rec-empty { padding: 20px 0; text-align: center; }
 .rec-empty-txt { font-size: 12px; color: #b0a89c; }
-
-/* 挂牌 */
-.mount { background: linear-gradient(135deg, #FBF3E2, #fff); border: 1px solid #ECDCBB; border-radius: 16px; padding: 16px; }
-.mount-hd { display: flex; align-items: center; justify-content: space-between; }
-.mount-title { font-size: 14px; font-weight: 700; color: #A5883F; font-family: 'Songti SC', serif; }
-.switch { width: 46px; height: 26px; border-radius: 999px; background: linear-gradient(135deg, #D8C28A, #C9A96E); position: relative; }
-.switch-knob { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-.mount-desc { display: block; font-size: 12px; color: #6E6E73; margin-top: 8px; line-height: 1.6; }
-.locked-box { background: #F6F2EA; border: 1px dashed #D8CDB8; border-radius: 14px; padding: 16px; text-align: center; }
-.locked-hd { display: flex; align-items: center; justify-content: center; gap: 5px; }
-.locked-title { font-size: 13px; font-weight: 700; color: #8a7d68; }
-.locked-sub { display: block; font-size: 11px; color: #999; margin-top: 5px; line-height: 1.6; }
-.locked-link { display: inline-block; margin-top: 10px; padding: 6px 16px; background: #fff; border: 1px solid #e6b3b8; border-radius: 999px; }
-.locked-link-txt { font-size: 12px; color: #C41E3A; font-weight: 600; }
-.note { display: block; font-size: 11px; color: #999; margin-top: 10px; line-height: 1.6; }
 
 .safe-bottom { height: 30px; }
 </style>

@@ -96,15 +96,13 @@
         <view class="bottom-safe" />
       </scroll-view>
 
-      <!-- 底部栏：报名功能后端暂未开放，诚实降级为状态提示 -->
+      <!-- 底部栏：当前仅展示真实活动状态，不提供未接线的报名操作 -->
       <view class="footer" :style="{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }">
         <view class="footer-status">
           <app-icon name="clock" :size="16" color="#9ca3af" />
           <text class="footer-status-text">{{ eventStatusLabel[event.status] }}</text>
         </view>
-        <view class="enroll-btn enroll-btn-disabled" @tap="onEnrollTip">
-          <text class="enroll-btn-text">{{ event.type === 'LIVE' ? '线上活动 · 报名即将开放' : '线下活动 · 报名即将开放' }}</text>
-        </view>
+        <text class="footer-note">活动安排以研究院最新通知为准</text>
       </view>
     </template>
   </view>
@@ -142,9 +140,6 @@ async function load(id?: string) {
 }
 onLoad((q) => load(q && q.id ? String(q.id) : undefined))
 
-function onEnrollTip() {
-  uni.showToast({ title: '活动报名功能即将开放', icon: 'none' })
-}
 function goInstructor(id: string) {
   navigateTo('/institute/instructors/' + id)
 }
@@ -196,8 +191,6 @@ function goEvents() {
 .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #ececec; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
 .footer-status { display: flex; align-items: center; gap: 4px; }
 .footer-status-text { font-size: 12px; color: #9ca3af; }
-.enroll-btn { flex: 1; background: var(--brand); border-radius: 10px; padding: 12px 0; display: flex; align-items: center; justify-content: center; }
-.enroll-btn-disabled { background: #d1d5db; }
-.enroll-btn-text { font-size: 15px; font-weight: 500; color: #fff; }
+.footer-note { flex: 1; text-align: right; font-size: 12px; color: #6b7280; }
 .bottom-safe { height: 88px; }
 </style>

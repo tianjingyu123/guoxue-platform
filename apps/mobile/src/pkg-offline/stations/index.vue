@@ -1,16 +1,13 @@
 <template>
   <view class="c1-page">
-    <!-- 自定义导航栏（宣纸白·发现驿站·右侧列表/地图视图切换） -->
+    <!-- 自定义导航栏（宣纸白·发现驿站） -->
     <view class="c1-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="c1-nav-row">
         <view class="c1-nav-btn" @tap="goBack">
           <app-icon name="chevron-left" :size="22" color="#2C2C2C" />
         </view>
         <text class="c1-nav-title serif">发现驿站</text>
-        <view class="c1-nav-btn c1-nav-view" @tap="toggleView">
-          <app-icon :name="viewMode === 'list' ? 'map' : 'list'" :size="16" color="#6E6E73" />
-          <text class="c1-nav-view-text">{{ viewMode === 'list' ? '地图' : '列表' }}</text>
-        </view>
+        <view class="c1-nav-btn" />
       </view>
 
       <!-- 城市选择 + 搜索 -->
@@ -49,21 +46,7 @@
       </scroll-view>
     </view>
 
-    <!-- 地图态：后端无坐标 → 诚实降级为占位（不画假地图/假标记） -->
-    <view v-if="viewMode === 'map'" class="c1-mapbox">
-      <view class="c1-map-placeholder">
-        <app-icon name="map" :size="52" color="#d3c9b6" />
-        <text class="c1-map-title serif">地图找驿站即将开放</text>
-        <text class="c1-map-sub">正在接入地图定位能力，当前可先用列表浏览驿站</text>
-        <view class="c1-map-btn" @tap="viewMode = 'list'">
-          <app-icon name="list" :size="15" color="#fff" />
-          <text class="c1-map-btn-text">返回列表</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 列表态 -->
-    <scroll-view v-else scroll-y class="c1-body">
+    <scroll-view scroll-y class="c1-body">
       <!-- 加载态：骨架屏 3 张卡片占位 -->
       <view v-if="loading" class="c1-page-pad">
         <view v-for="i in 3" :key="i" class="c1-skeleton">
@@ -196,7 +179,6 @@ const all = ref<Station[]>([])
 const selectedType = ref<StationType | 'all'>('all')
 const selectedCity = ref('全部')
 const keyword = ref('')
-const viewMode = ref<'list' | 'map'>('list')
 
 // 环境图取值：优先 cover，回退 images 首张，无 → 空串走占位
 function stationCover(s: Station): string {
@@ -242,10 +224,6 @@ const filteredStations = computed(() => {
   }
   return list
 })
-
-function toggleView() {
-  viewMode.value = viewMode.value === 'list' ? 'map' : 'list'
-}
 
 function showCityPicker() {
   const opts = cityOptions.value
@@ -403,49 +381,6 @@ function goDetail(id: string) {
   color: #fff;
   background: #c41e3a;
   border-color: #c41e3a;
-}
-
-/* ===== 地图降级态 ===== */
-.c1-mapbox {
-  flex: 1;
-  height: 0;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 40px;
-}
-.c1-map-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-.c1-map-title {
-  font-size: 17px;
-  font-weight: 700;
-  color: #2c2c2c;
-  margin-top: 16px;
-}
-.c1-map-sub {
-  font-size: 12.5px;
-  color: #6e6e73;
-  line-height: 1.7;
-  margin-top: 10px;
-}
-.c1-map-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 22px;
-  padding: 9px 22px;
-  background: #c41e3a;
-  border-radius: 999px;
-}
-.c1-map-btn-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
 }
 
 /* ===== 列表容器 ===== */

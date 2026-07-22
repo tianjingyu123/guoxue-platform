@@ -54,8 +54,9 @@
       <view v-if="activeTab === 'poster'">
         <view v-if="posters.length === 0" class="mat-empty">
           <view class="mat-empty-ic"><app-icon name="image" :size="60" color="#C9A96E" /></view>
-          <text class="mat-empty-title">暂无海报素材</text>
-          <text class="mat-empty-desc">平台正在筹备中，敬请期待</text>
+          <text class="mat-empty-title">制作专属推广海报</text>
+          <text class="mat-empty-desc">自动带入分站名称和推广码，生成后可保存分享</text>
+          <view class="mat-state-btn hit" @tap="goPoster"><text class="mat-state-btn-txt">去生成海报</text></view>
         </view>
         <view v-else class="mat-pgrid">
           <view v-for="p in posters" :key="p.id" class="mat-pcard">
@@ -70,9 +71,9 @@
             <view class="mat-pfoot">
               <text class="mat-pname">{{ p.title }}</text>
               <text class="mat-puse">已使用 {{ p.usageCount }} 次</text>
-              <view class="mat-pbtn hit" :class="{ disabled: actingId === p.id }" @tap="savePoster(p)">
-                <app-icon name="download" :size="26" color="#C41E3A" />
-                <text class="mat-pbtn-txt">保存 / 分享</text>
+              <view class="mat-pbtn hit" :class="{ disabled: actingId === p.id }" @tap="p.imageUrl ? savePoster(p) : goPoster()">
+                <app-icon :name="p.imageUrl ? 'download' : 'image-plus'" :size="26" color="#C41E3A" />
+                <text class="mat-pbtn-txt">{{ p.imageUrl ? '保存 / 分享' : '生成专属海报' }}</text>
               </view>
             </view>
           </view>
@@ -84,7 +85,7 @@
         <view v-if="copys.length === 0" class="mat-empty">
           <view class="mat-empty-ic"><app-icon name="file-text" :size="60" color="#C9A96E" /></view>
           <text class="mat-empty-title">暂无推广文案</text>
-          <text class="mat-empty-desc">平台正在筹备中，敬请期待</text>
+          <text class="mat-empty-desc">平台尚未配置推广文案，可先分享专属推广码</text>
         </view>
         <view v-else class="mat-tlist">
           <view v-for="c in copys" :key="c.id" class="mat-titem">
@@ -191,6 +192,10 @@ function tagClass(tag: string): string {
   return 'mat-ttag-course'
 }
 
+function goPoster() {
+  navigateTo('/pkg-operator/station-poster/index')
+}
+
 // 专属邀请链接（与 operator-data getDashboardInviteLink 同源规则，用分站 code）
 const inviteUrl = computed(() => {
   return stationCode.value ? buildH5Url('/pages/index/index', { ref: stationCode.value }) : ''
@@ -238,7 +243,7 @@ async function load() {
 async function savePoster(m: PromotionMaterialItem) {
   if (actingId.value) return
   if (!m.imageUrl) {
-    uni.showToast({ title: '该海报图片即将开放', icon: 'none' })
+    goPoster()
     return
   }
   actingId.value = m.id
