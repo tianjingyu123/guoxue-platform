@@ -1,8 +1,10 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
 import { createSign, createVerify, randomInt } from "crypto";
 import { readFileSync } from "fs";
-import { MemoryCache } from "../../common/cache.util";
+
 import { MetricsService } from "../../common/metrics.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 /**
  * 支付宝支付 API 服务（RSA2+SHA256签名，无SDK）
@@ -16,7 +18,7 @@ export class AlipayService {
   private readonly alipayPublicKey: string;
   private readonly gateway: string;
   private readonly notifyUrl: string;
-  private readonly notifyDedup = new MemoryCache<boolean>(10000); // 通知去重，1h TTL
+
 
   constructor(
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
@@ -43,7 +45,12 @@ export class AlipayService {
 
   /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */
   get isConfigured(): boolean {
-    return !!(this.appId && this.privateKey);
+    return !!(this.appId && this.privateKey && this.alipayPublicKey);
+  }
+
+  /** 支付宝网关时间固定使用中国标准时间，避免 UTC 服务器生成相差 8 小时的无效 timestamp。 */
+  private formatGatewayTimestamp(date = new Date()): string {
+    return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 19).replace("T", " ");
   }
 
   // ───────── 签名与请求 ─────────
@@ -76,7 +83,7 @@ export class AlipayService {
       method,
       charset: "utf-8",
       sign_type: "RSA2",
-      timestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
+      timestamp: this.formatGatewayTimestamp(),
       version: "1.0",
       biz_content: JSON.stringify(bizContent),
       notify_url: bizContent.notify_url || this.notifyUrl,
@@ -91,10 +98,107 @@ export class AlipayService {
     params.sign = this.sign(signContent);
 
     // 构造完整URL
-    const queryStr = this.buildParamStr(params) + `&sign=${encodeURIComponent(params.sign)}`;
+    const queryStr = this.encodeParams(params);
     return `${this.gateway}?${queryStr}`;
   }
 
+  /** 按 application/x-www-form-urlencoded 正确编码，避免中文/JSON 中的 & 破坏参数。 */
+  private encodeParams(params: Record<string, any>): string {
+    const encoded = new URLSearchParams();
+    for (const key of Object.keys(params).sort()) {
+      const value = params[key];
+      if (value !== undefined && value !== null && value !== "") encoded.append(key, String(value));
+    }
+    return encoded.toString();
+  }
+
+  /** 取支付宝同步响应中待验签的原始 response JSON 对象。 */
+  private extractResponsePayload(raw: string, responseKey: string): string | null {
+    const marker = `"${responseKey}"`;
+    const markerIndex = raw.indexOf(marker);
+    if (markerIndex < 0) return null;
+    const start = raw.indexOf("{", markerIndex + marker.length);
+    if (start < 0) return null;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let i = start; i < raw.length; i++) {
+      const ch = raw[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === "\\") escaped = true;
+        else if (ch === '"') inString = false;
+        continue;
+      }
+      if (ch === '"') inString = true;
+      else if (ch === "{") depth++;
+      else if (ch === "}" && --depth === 0) return raw.slice(start, i + 1);
+    }
+    return null;
+  }
+
+  private verifyRawResponse(content: string, signature: string): boolean {
+    const verifier = createVerify("sha256WithRSAEncryption");
+    verifier.update(content, "utf8");
+    return verifier.verify(this.alipayPublicKey, signature, "base64");
+  }
+
+  /** 服务端资金 API：真实 POST、HTTP/JSON/业务码/响应签名任一不明确均失败关闭。 */
+  private async callServerApi(
+    method: string,
+    bizContent: Record<string, unknown>,
+    responseKey: string,
+  ): Promise<Record<string, any>> {
+    if (!this.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "支付宝支付配置不完整，无法执行退款");
+    }
+    const params: Record<string, string> = {
+      app_id: this.appId,
+      method,
+      format: "json",
+      charset: "utf-8",
+      sign_type: "RSA2",
+      timestamp: this.formatGatewayTimestamp(),
+      version: "1.0",
+      biz_content: JSON.stringify(bizContent),
+    };
+    params.sign = this.sign(this.buildParamStr(params));
+
+    const start = Date.now();
+    try {
+      const resp = await fetch(this.gateway, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
+        body: this.encodeParams(params),
+        signal: AbortSignal.timeout(15000),
+      });
+      if (resp.ok === false) {
+        throw new BusinessException(ErrorCode.PAY_FAILED, `支付宝网关 HTTP ${resp.status}`);
+      }
+      const raw = await resp.text();
+      let envelope: Record<string, any>;
+      try {
+        envelope = JSON.parse(raw) as Record<string, any>;
+      } catch {
+        throw new BusinessException(ErrorCode.PAY_FAILED, "支付宝网关返回非 JSON 响应");
+      }
+      const payload = envelope[responseKey] as Record<string, any> | undefined;
+      const signature = envelope.sign as string | undefined;
+      const rawPayload = this.extractResponsePayload(raw, responseKey);
+      if (!payload || !signature || !rawPayload || !this.verifyRawResponse(rawPayload, signature)) {
+        throw new BusinessException(ErrorCode.PAY_FAILED, "支付宝响应验签失败");
+      }
+      if (payload.code !== "10000") {
+        const message = String(payload.sub_msg || payload.msg || payload.sub_code || payload.code || "支付宝退款失败");
+        throw new BusinessException(ErrorCode.PAY_FAILED, message);
+      }
+      this.metrics?.recordExternalApi("alipay", method, true, Date.now() - start);
+      return payload;
+    } catch (err) {
+      this.metrics?.recordExternalApi("alipay", method, false, Date.now() - start, (err as Error).message?.slice(0, 50) || "network_error");
+      throw err;
+    }
+  }
   // ───────── 支付接口 ─────────
 
   /** APP支付（返回orderString，客户端SDK调用） */
@@ -118,7 +222,7 @@ export class AlipayService {
       method: "alipay.trade.app.pay",
       charset: "utf-8",
       sign_type: "RSA2",
-      timestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
+      timestamp: this.formatGatewayTimestamp(),
       version: "1.0",
       biz_content: JSON.stringify(bizContent),
       notify_url: this.notifyUrl,
@@ -126,7 +230,7 @@ export class AlipayService {
     const signContent = this.buildParamStr(apiParams);
     apiParams.sign = this.sign(signContent);
 
-    return this.buildParamStr(apiParams) + `&sign=${encodeURIComponent(apiParams.sign)}`;
+    return this.encodeParams(apiParams);
   }
 
   /** 手机网页支付（H5） */
@@ -172,7 +276,7 @@ export class AlipayService {
       method: "alipay.trade.query",
       charset: "utf-8",
       sign_type: "RSA2",
-      timestamp: new Date().toISOString().slice(0, 19).replace("T", " "),
+      timestamp: this.formatGatewayTimestamp(),
       version: "1.0",
       biz_content: JSON.stringify({ out_trade_no: outTradeNo }),
     };
@@ -185,7 +289,7 @@ export class AlipayService {
       const resp = await fetch(this.gateway, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: this.buildParamStr(params) + `&sign=${encodeURIComponent(params.sign)}`,
+        body: this.encodeParams(params),
         signal: AbortSignal.timeout(15000),
       });
       const duration = Date.now() - start;
@@ -207,19 +311,75 @@ export class AlipayService {
     }
   }
 
-  /** 退款 */
+  /** 退款：fund_change=Y 才直接成功；N/缺失必须再查退款结果。 */
   async refund(params: {
     outTradeNo: string;
+    tradeNo?: string;
     refundAmount: number;
     outRefundNo: string;
     reason?: string;
-  }): Promise<string> {
-    return this.callApi("alipay.trade.refund", {
-      out_trade_no: params.outTradeNo,
+  }): Promise<{ status: "SUCCESS" | "PROCESSING"; outRefundNo: string; raw: Record<string, any> }> {
+    const tradeRef = params.tradeNo
+      ? { trade_no: params.tradeNo }
+      : { out_trade_no: params.outTradeNo };
+    const result = await this.callServerApi("alipay.trade.refund", {
+      ...tradeRef,
       refund_amount: params.refundAmount.toFixed(2),
       out_request_no: params.outRefundNo,
       refund_reason: params.reason,
-    });
+    }, "alipay_trade_refund_response");
+    this.assertRefundIdentity(result, params.outTradeNo, params.tradeNo);
+    if (result.fund_change === "Y") {
+      return { status: "SUCCESS", outRefundNo: params.outRefundNo, raw: result };
+    }
+    try {
+      const queried = await this.queryRefund({
+        outTradeNo: params.outTradeNo,
+        tradeNo: params.tradeNo,
+        outRefundNo: params.outRefundNo,
+      });
+      return { ...queried, outRefundNo: params.outRefundNo };
+    } catch (err) {
+      // 请求号稳定，结果暂不明确时保持 PROCESSING，由售后对账任务继续查询，绝不提前本地记账。
+      this.logger.warn(`支付宝退款结果待确认: ${params.outRefundNo}`, (err as Error).message);
+      return { status: "PROCESSING", outRefundNo: params.outRefundNo, raw: result };
+    }
+  }
+
+  /** 查询同一退款请求号，refund_status=REFUND_SUCCESS 才确认成功。 */
+  async queryRefund(params: {
+    outTradeNo: string;
+    tradeNo?: string;
+    outRefundNo: string;
+  }): Promise<{ status: "SUCCESS" | "PROCESSING"; raw: Record<string, any> }> {
+    const tradeRef = params.tradeNo
+      ? { trade_no: params.tradeNo }
+      : { out_trade_no: params.outTradeNo };
+    const result = await this.callServerApi("alipay.trade.fastpay.refund.query", {
+      ...tradeRef,
+      out_request_no: params.outRefundNo,
+    }, "alipay_trade_fastpay_refund_query_response");
+    this.assertRefundIdentity(result, params.outTradeNo, params.tradeNo, params.outRefundNo);
+    return {
+      status: result.refund_status === "REFUND_SUCCESS" ? "SUCCESS" : "PROCESSING",
+      raw: result,
+    };
+  }
+
+  /** 验证退款响应与本次请求确属同一交易/退款单，防有效签名的错单响应被误记账。 */
+  private assertRefundIdentity(
+    result: Record<string, any>,
+    outTradeNo: string,
+    tradeNo?: string,
+    outRefundNo?: string,
+  ): void {
+    const tradeMatches = tradeNo
+      ? String(result.trade_no || "") === tradeNo
+      : String(result.out_trade_no || "") === outTradeNo;
+    const requestMatches = !outRefundNo || String(result.out_request_no || "") === outRefundNo;
+    if (!tradeMatches || !requestMatches) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "支付宝退款响应交易标识不匹配");
+    }
   }
 
   /** 关闭订单 */
@@ -234,7 +394,7 @@ export class AlipayService {
     return `${prefix}${Date.now()}${randomInt(0, 36 ** 6).toString(36).padStart(6, "0").toUpperCase()}`;
   }
 
-  /** 验签回调（含重放攻击防护：验签 + 5分钟时间窗口 + notify_id 去重） */
+  /** 验签回调（签名 + appId；延迟重投由订单状态/CAS 幂等接收） */
   async verifyNotify(params: Record<string, any>): Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string }> {
     const sign = params.sign;
     if (!sign) {
@@ -250,30 +410,29 @@ export class AlipayService {
       this.metrics?.recordPaymentCallback("alipay", false, "verify_failed");
       return { valid: false, error: "RSA2验签失败" };
     }
+    if (!params.app_id || params.app_id !== this.appId) {
+      this.metrics?.recordPaymentCallback("alipay", false, "app_id_mismatch");
+      return { valid: false, error: "支付宝回调应用标识不匹配" };
+    }
 
-    // 2. 重放攻击防护：检查通知时间（5分钟窗口）
-    const notifyTime = params.notify_time;
+    // 2. notify_time 是渠道通知时间，重试可能延迟；只记录异常延迟，不拒绝签名有效的补偿通知。
+    // 安全边界由签名、appId、订单号、金额及数据库 CAS 共同保证，避免首轮本地故障后永久丢单。
+    const notifyTime = String(params.notify_time || "");
     if (notifyTime) {
-      const nt = new Date(notifyTime).getTime();
-      const diff = Math.abs(Date.now() - nt);
-      if (diff > 5 * 60 * 1000) {
-        this.metrics?.recordPaymentCallback("alipay", false, "timeout");
-        this.logger.warn(`支付宝通知超时，时间差${Math.round(diff / 1000)}秒`);
-        return { valid: false, error: "通知时间窗口超时（5分钟）" };
+      const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(notifyTime)
+        ? `${notifyTime.replace(" ", "T")}+08:00`
+        : notifyTime;
+      const nt = new Date(normalized).getTime();
+      if (Number.isFinite(nt)) {
+        const diff = Math.abs(Date.now() - nt);
+        if (diff > 5 * 60 * 1000) {
+          this.logger.warn(`支付宝通知延迟${Math.round(diff / 1000)}秒，仍按订单幂等处理`);
+        }
       }
     }
 
-    // 3. 通知去重：同一 notify_id 只处理一次
-    const notifyId = params.notify_id;
-    if (notifyId) {
-      if (this.notifyDedup.has(notifyId)) {
-        // 重复通知，返回成功避免支付宝重发
-        return { valid: true, data: { tradeStatus: params.trade_status, dedup: true } };
-      }
-      this.notifyDedup.set(notifyId, true, 3600_000); // 1h TTL
-    }
-
-    // 4. 检查交易状态
+    // 3. 只验签与解析，不在这里提前去重。是否已完成必须由订单状态判断；
+    // 否则首次本地入账失败后，渠道重试会被误判为已处理并永久丢单。
     const tradeStatus = params.trade_status;
     if (tradeStatus === "TRADE_SUCCESS" || tradeStatus === "TRADE_FINISHED") {
       this.metrics?.recordPaymentCallback("alipay", true);

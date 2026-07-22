@@ -574,12 +574,12 @@ export class CommissionService {
   async reverseCommission(orderId: string) {
     // 分布式锁串行化同一订单的冲正：两入口（applyRefundedBookkeeping / handleRefundNotify 微信退款回调）
     // 并发到达时，findFirst(earned<0) 幂等判定非原子 → 双份负记录 + totalEarning 双倍 decrement。
-    // 抢不到锁说明另一路正在冲正，直接幂等跳过；锁内保留 findFirst 判定作二次保险。
+    // 抢不到锁说明另一路正在冲正；向调用方报告“待重试”，不能把尚未确认的冲正误当完成。
     const lockKey = `commission:reverse:${orderId}`;
     const locked = await this.redis.setNX(lockKey, "1", 30);
     if (!locked) {
-      this.logger.log(`订单 ${orderId} 冲正处理中（并发跳过）`);
-      return null;
+      this.logger.warn(`订单 ${orderId} 冲正处理中，等待补偿重试`);
+      throw new Error(`订单 ${orderId} 佣金冲正正在处理中`);
     }
     try {
       return await this.doReverseCommission(orderId);
@@ -598,7 +598,9 @@ export class CommissionService {
         where: { sourceId: orderId, type: "REFUND" },
       }));
     if (alreadyReversed) {
-      this.logger.log(`订单 ${orderId} 已冲正，跳过重复冲正`);
+      // 旧表已冲正不代表统一总账一定成功；总账 reverse 自身幂等，重试时必须继续补齐。
+      await this.settlement?.reverse("ORDER", orderId, "订单退款冲正");
+      this.logger.log(`订单 ${orderId} 旧表已冲正，统一总账已核对`);
       return null;
     }
 
@@ -612,10 +614,8 @@ export class CommissionService {
     if (!stationEarning && operatorEarnings.length === 0 && platformFees.length === 0) {
       // 佣-V2-P2：CIRCLE/OFFLINE_STATION 渠道佣金只落 LedgerEntry（无 StationEarning 等旧表记录），
       // 仍须冲正统一总账（reverse 自身幂等·无正向分账时空转无副作用）
-      this.settlement
-        ?.reverse("ORDER", orderId, "订单退款冲正")
-        .catch((e) => this.logger.warn(`统一总账冲正失败(order=${orderId})`, e));
-      this.logger.log(`订单 ${orderId} 无旧表分佣/平台费记录，跳过旧表冲正`);
+      await this.settlement?.reverse("ORDER", orderId, "订单退款冲正");
+      this.logger.log(`订单 ${orderId} 无旧表分佣/平台费记录，统一总账已核对`);
       return null;
     }
 
@@ -675,10 +675,8 @@ export class CommissionService {
       return { reversed: true };
     });
 
-    // T1-P2b 统一总账同步冲正（幂等，失败仅记日志不阻断退款）
-    this.settlement
-      ?.reverse("ORDER", orderId, "订单退款冲正")
-      .catch((e) => this.logger.warn(`统一总账冲正失败(order=${orderId})`, e));
+    // 统一总账冲正幂等；失败必须上抛，由退款 PROCESSING 持久锚点继续补偿。
+    await this.settlement?.reverse("ORDER", orderId, "订单退款冲正");
 
     return result;
   }

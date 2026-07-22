@@ -14,28 +14,33 @@ export function makeMockWechatPay() {
     queryOrder: jest.fn().mockResolvedValue({ trade_state: "SUCCESS" }),
     closeOrder: jest.fn().mockResolvedValue({}),
     refund: jest.fn().mockResolvedValue({ status: "SUCCESS" }),
+    queryRefund: jest.fn().mockResolvedValue({ status: "PROCESSING" }),
     verifyAndDecryptNotify: jest.fn().mockResolvedValue({ valid: true, data: { out_trade_no: "o1" } }),
   };
 }
 
 export function makeMockAlipay() {
   return {
+    isConfigured: true,
     verifyNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "o1", tradeStatus: "TRADE_SUCCESS" } }),
     query: jest.fn().mockResolvedValue({ alipay_trade_query_response: {} }),
-    refund: jest.fn().mockResolvedValue("https://openapi.alipay.com/..."),
+    refund: jest.fn().mockResolvedValue({ status: "SUCCESS", outRefundNo: "RFo1", raw: {} }),
+    queryRefund: jest.fn().mockResolvedValue({ status: "PROCESSING", raw: {} }),
   };
 }
 
 export function makeMockUnionpay() {
   return {
+    isConfigured: true,
     verifyNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "o1", respCode: "00" } }),
     query: jest.fn().mockResolvedValue({ respCode: "00" }),
-    refund: jest.fn().mockResolvedValue({ respCode: "00" }),
+    refund: jest.fn().mockResolvedValue({ status: "PROCESSING", channelRefundNo: "RForder1", raw: { respCode: "00" } }),
   };
 }
 
 export function makeMockCoin() {
   return {
+    handleRechargeCallback: jest.fn().mockResolvedValue(undefined),
     getCoinRate: jest.fn().mockResolvedValue(10),
     getRechargeTiers: jest.fn().mockResolvedValue([]),
     getOrCreateAccount: jest.fn(),
@@ -197,6 +202,18 @@ export function makeMockPrisma(): any {
     liveRoom: {
       findUnique: jest.fn().mockResolvedValue(null),
     },
+    afterSale: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockResolvedValue({ id: "as-created", updatedAt: new Date("2026-07-01T00:00:00.000Z") }),
+      update: jest.fn().mockResolvedValue({ id: "as-updated", updatedAt: new Date("2026-07-01T00:00:00.000Z") }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    huifuSplitRecord: {
+      findUnique: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
   };
   return mockPrisma;
 }
@@ -234,7 +251,11 @@ export function makeMockPaymentFactory() {
 
 export function makeMockHuifu() {
   return {
-    createOrder: jest.fn().mockResolvedValue({ huifuId: "h1" }),
+    isEnabled: jest.fn().mockResolvedValue(true),
+    registerPaymentNotifyHandler: jest.fn(),
+    registerRefundNotifyHandler: jest.fn(),
+    createPayment: jest.fn().mockResolvedValue({ outTradeNo: "HF1" }),
+    createRefund: jest.fn().mockResolvedValue({ outRefundNo: "RForder1", refundStatus: "PROCESSING", raw: {} }),
   };
 }
 

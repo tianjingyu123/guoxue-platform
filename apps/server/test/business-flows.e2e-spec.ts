@@ -369,19 +369,42 @@ describe("核心业务流程 E2E", () => {
 
       expect(payRes.body).toHaveProperty("code_url")
 
-      // Step 4: 支付回调（模拟微信通知）
+      // Step 4: 支付回调。无验签头的伪回调必须拒绝，只有微信 V3 验签解密后的完整流水才能入账。
+      await request(app.getHttpServer())
+        .post("/api/v1/shop/pay/notify")
+        .send({ id: "ord-flow-4", event_type: "TRANSACTION.SUCCESS" })
+        .expect(400)
+
+      const merchantOrderNo = "GXordflow4"
       prisma.order.findUnique.mockResolvedValue({
-        id: "ord-flow-4", userId: "u-flow-4", status: "PENDING", amount: 29900,
+        id: "ord-flow-4", userId: "u-flow-4", type: "PHYSICAL", status: "PENDING",
+        amount: 29900, payTransactionId: merchantOrderNo,
       })
-      prisma.order.update.mockResolvedValue({
-        id: "ord-flow-4", status: "PAID", paidAt: new Date("2026-05-10"),
+      prisma.order.updateMany.mockResolvedValue({ count: 1 })
+      jest.spyOn(wechatPay, "verifyAndDecryptNotify").mockResolvedValue({
+        valid: true,
+        data: {
+          out_trade_no: merchantOrderNo,
+          transaction_id: "WX-FLOW-4",
+          trade_state: "SUCCESS",
+          attach: "ord-flow-4",
+          amount: { total: 2990000 },
+        },
       })
 
       await request(app.getHttpServer())
         .post("/api/v1/shop/pay/notify")
-        .send({ id: "ord-flow-4", event_type: "TRANSACTION.SUCCESS" })
+        .set("Wechatpay-Signature", "signed-flow-4")
+        .set("Wechatpay-Timestamp", String(Math.floor(Date.now() / 1000)))
+        .set("Wechatpay-Nonce", "nonce-flow-4")
+        .set("Wechatpay-Serial", "serial-flow-4")
+        .send({ resource: { ciphertext: "encrypted-flow-4" } })
         .expect(200)
 
+      expect(prisma.order.updateMany).toHaveBeenCalledWith({
+        where: { id: "ord-flow-4", status: "PENDING" },
+        data: expect.objectContaining({ status: "PAID", payMethod: "WECHAT", payTransactionId: "WX-FLOW-4" }),
+      })
       // Step 5: 查询支付状态
       prisma.user.findUnique.mockResolvedValue({ id: "u-flow-4", status: "ACTIVE", roles: [] })
       prisma.order.findUnique.mockResolvedValue({

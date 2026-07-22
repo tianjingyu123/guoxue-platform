@@ -466,6 +466,11 @@ export class WechatPayService {
     return this.callApi("POST", "/v3/refund/domestic/refunds", body);
   }
 
+  /** 按商户退款单号查询退款结果，供异步回调丢失时定时对账收敛。 */
+  async queryRefund(outRefundNo: string) {
+    return this.callApi("GET", "/v3/refund/domestic/refunds/" + encodeURIComponent(outRefundNo));
+  }
+
   // ───────── JSAPI 调起支付签名 ─────────
 
   /** 生成小程序/公众号H5调起支付的 paySign（appId 必须与下单 appid 一致） */
@@ -594,11 +599,16 @@ export class WechatPayService {
 
       const { ciphertext, associated_data, nonce } = notify.resource;
       const decrypted = this.aesGcmDecrypt(associated_data, nonce, ciphertext);
+      const data = JSON.parse(decrypted) as Record<string, unknown>;
+      if (!data.mchid || String(data.mchid) !== this.mchId) {
+        this.metrics?.recordPaymentCallback("wechatpay", false, "mchid_mismatch");
+        return { valid: false, error: "微信回调商户号不匹配" };
+      }
       this.metrics?.recordPaymentCallback("wechatpay", true);
-      return { valid: true, data: JSON.parse(decrypted) };
+      return { valid: true, data };
     } catch (err: unknown) {
       this.metrics?.recordPaymentCallback("wechatpay", false, "decrypt_failed");
-      return { valid: true, error: `解密失败: ${(err as Error).message}` };
+      return { valid: false, error: `解密失败: ${(err as Error).message}` };
     }
   }
 

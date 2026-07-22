@@ -9,6 +9,7 @@ import { AlipayService } from "../src/modules/shop/alipay.service"
 import { UnionpayService } from "../src/modules/shop/unionpay.service"
 import { VodService } from "../src/modules/video/vod.service"
 import { FeatureFlagService } from "../src/modules/feature-flag/feature-flag.service"
+import { ModerationService } from "../src/modules/audit/moderation.service"
 
 const modelMethods = [
   "findUnique", "findUniqueOrThrow", "findFirst", "findMany", "create",
@@ -107,6 +108,8 @@ function createWechatPayMock() {
     queryOrder: jest.fn().mockResolvedValue({ trade_state: "SUCCESS" }),
     closeOrder: jest.fn().mockResolvedValue({}),
     verifyNotify: jest.fn().mockResolvedValue({ event_type: "TRANSACTION.SUCCESS", resource: {} }),
+    // 默认拒绝无验签测试报文；需要模拟真实回调的 E2E 必须显式提供已验签解密 data。
+    verifyAndDecryptNotify: jest.fn().mockResolvedValue({ valid: false, error: "微信支付通知验签失败" }),
   }
 }
 
@@ -174,6 +177,28 @@ function createFeatureFlagMock() {
   }
 }
 
+/** E2E 禁止访问真实腾讯云审核，统一返回安全结果，避免凭证/网络造成超时与不确定性 */
+function createModerationMock() {
+  const pass = { Suggestion: "Pass", LabelResults: [] }
+  return {
+    imageModeration: jest.fn().mockResolvedValue(pass),
+    batchImageModeration: jest.fn().mockResolvedValue(pass),
+    textModeration: jest.fn().mockResolvedValue(pass),
+    createVideoModerationTask: jest.fn().mockResolvedValue({ Results: [{ TaskId: "mock-video-task" }] }),
+    createAudioModerationTask: jest.fn().mockResolvedValue({ Results: [{ TaskId: "mock-audio-task" }] }),
+    describeVmTask: jest.fn().mockResolvedValue({ Status: "FINISH", Suggestion: "Pass" }),
+    describeAmsTask: jest.fn().mockResolvedValue({ Status: "FINISH", Suggestion: "Pass" }),
+    getFirstTaskId: jest.fn().mockReturnValue("mock-task"),
+    getTaskStatus: jest.fn().mockReturnValue("FINISH"),
+    getTaskSuggestion: jest.fn().mockReturnValue("Pass"),
+    isImagePass: jest.fn().mockReturnValue(true),
+    isTextPass: jest.fn().mockReturnValue(true),
+    getTextSuggestion: jest.fn().mockReturnValue("Pass"),
+    getImageSuggestion: jest.fn().mockReturnValue("Pass"),
+    getBlockedLabels: jest.fn().mockReturnValue([]),
+  }
+}
+
 export async function createE2eApp(): Promise<{
   app: INestApplication
   prisma: ReturnType<typeof createPrismaMock>
@@ -188,6 +213,7 @@ export async function createE2eApp(): Promise<{
   const alipay = createAlipayMock()
   const unionpay = createUnionpayMock()
   const featureFlag = createFeatureFlagMock()
+  const moderation = createModerationMock()
 
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
@@ -208,6 +234,8 @@ export async function createE2eApp(): Promise<{
     .useValue(vod)
     .overrideProvider(FeatureFlagService)
     .useValue(featureFlag)
+    .overrideProvider(ModerationService)
+    .useValue(moderation)
     .compile()
 
   const app = moduleFixture.createNestApplication()

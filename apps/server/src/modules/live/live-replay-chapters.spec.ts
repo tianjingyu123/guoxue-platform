@@ -9,6 +9,7 @@ import { BusinessException } from "../../common/business.exception";
 function buildSvc() {
   const prisma = {
     liveRoom: { findUnique: jest.fn(), update: jest.fn() },
+    user: { findUnique: jest.fn().mockResolvedValue(null) },
     $queryRaw: jest.fn(),
     $executeRaw: jest.fn(),
   };

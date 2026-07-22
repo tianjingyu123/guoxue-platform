@@ -19,9 +19,6 @@ import {
   ProductListQueryDto, OrderListQueryDto,
 } from "./shop.dto";
 
-/** 缓存前缀 */
-const CACHE_PREFIX = "shop:";
-
 /**
  * 商城 facade（拆分后·纯委托层）。
  * 商品/订单/支付/退款/归因五域已拆至独立 service；本类保留统一入口(controller/marketing 零改动)，
@@ -187,7 +184,11 @@ export class ShopService {
     return this.paymentSvc.verifyUnionpayNotify(params);
   }
 
-  handleUnionpayNotify(data: Record<string, unknown>) {
+  async handleUnionpayNotify(data: Record<string, unknown>) {
+    if (data.txnType === "04") {
+      await this.refundSvc.handleUnionpayRefundNotify(data);
+      return true;
+    }
     return this.paymentSvc.handleUnionpayNotify(data);
   }
 

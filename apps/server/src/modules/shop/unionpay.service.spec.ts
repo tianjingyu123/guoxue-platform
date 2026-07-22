@@ -26,8 +26,9 @@ describe("UnionpayService", () => {
     process.env.UNIONPAY_SANDBOX = "true";
     process.env.UNIONPAY_NOTIFY_URL = "https://example.com/unionpay/notify";
     delete (global as any).fetch;
-
     jest.clearAllMocks();
+    const { createVerify } = require("crypto");
+    createVerify().verify.mockReturnValue(true);
     service = new UnionpayService();
   });
 
@@ -35,165 +36,166 @@ describe("UnionpayService", () => {
     delete (global as any).fetch;
   });
 
-  // ───────── APP支付 ─────────
-  describe("appPay", () => {
-    it("应请求TN并通过backRequest返回", async () => {
+  describe("支付与查询", () => {
+    it("APP支付应请求并返回TN", async () => {
       (global as any).fetch = jest.fn().mockResolvedValue({
+        ok: true,
         text: () => Promise.resolve("tn=test_tn_12345&respCode=00"),
       });
+      await expect(service.appPay({ outTradeNo: "GXUN001", amount: 100, subject: "测试商品" }))
+        .resolves.toBe("test_tn_12345");
+    });
 
-      const result = await service.appPay({
+    it("网页支付与云闪付H5应返回自动提交表单", async () => {
+      await expect(service.webPay({
+        outTradeNo: "GXUN003", amount: 200, subject: "网页商品", frontUrl: "https://example.com/done",
+      })).resolves.toContain("GXUN003");
+      await expect(service.quickPassPay({
+        outTradeNo: "GXUN004", amount: 300, subject: "云闪付商品",
+      })).resolves.toContain("<!DOCTYPE html>");
+    });
+
+    it("应查询订单并解析键值对响应", async () => {
+      (global as any).fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve("respCode=00&respMsg=Success&txnAmt=100"),
+      });
+      await expect(service.query("GXUN001")).resolves.toEqual(expect.objectContaining({ respCode: "00" }));
+    });
+  });
+
+  describe("refund", () => {
+    it("同步 00 仅表示受理，应返回 PROCESSING 并提交原 queryId/平台订单号", async () => {
+      (global as any).fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve("signature=bW9ja191bmlvbnBheV9zaWdu%3D%3D&merId=test_merchant_123&orderId=RForder001&origQryId=qry123&respCode=00&respMsg=Accepted"),
+      });
+      const result = await service.refund({
         outTradeNo: "GXUN001",
-        amount: 100,
-        subject: "测试商品",
+        outRefundNo: "RF-order-001",
+        amount: 5000,
+        origQryId: "qry123",
+        merchantOrderId: "platform-order-1",
+        requestedAt: new Date("2026-07-22T07:00:00.000Z"),
       });
-      expect(result).toBe("test_tn_12345");
+      expect(result.status).toBe("PROCESSING");
+      expect(result.raw.respCode).toBe("00");
+      const body = new URLSearchParams((global as any).fetch.mock.calls[0][1].body);
+      expect(body.get("txnType")).toBe("04");
+      expect(body.get("origQryId")).toBe("qry123");
+      expect(body.get("reqReserved")).toBe("platform-order-1");
+      expect(body.get("orderId")).toBe("RForder001");
+      expect(body.get("txnTime")).toBe("20260722150000");
+    });
+
+    it("缺少原交易 queryId 必须失败关闭", async () => {
+      await expect(service.refund({
+        outTradeNo: "GXUN001", outRefundNo: "RForder001", amount: 5000,
+      })).rejects.toThrow("银联原交易流水号缺失");
+      expect((global as any).fetch).toBeUndefined();
+    });
+
+    it("响应验签失败或 respCode 非 00 必须拒绝", async () => {
+      const { createVerify } = require("crypto");
+      createVerify().verify.mockReturnValueOnce(false);
+      (global as any).fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve("signature=bad&merId=test_merchant_123&orderId=RForder001&respCode=00"),
+      });
+      await expect(service.refund({
+        outTradeNo: "GXUN001", outRefundNo: "RForder001", amount: 5000, origQryId: "qry123",
+      })).rejects.toThrow("银联退款响应验签失败");
+
+      (global as any).fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve("signature=valid&merId=test_merchant_123&orderId=RForder001&origQryId=qry123&respCode=34&respMsg=Original%20transaction%20missing"),
+      });
+      await expect(service.refund({
+        outTradeNo: "GXUN001", outRefundNo: "RForder001", amount: 5000, origQryId: "qry123",
+      })).rejects.toThrow("Original transaction missing");
     });
   });
 
-  // ───────── 网页支付 ─────────
-  describe("webPay", () => {
-    it("应生成自动提交HTML表单", async () => {
-      const result = await service.webPay({
-        outTradeNo: "GXUN003",
-        amount: 200,
-        subject: "网页商品",
-        frontUrl: "https://example.com/done",
-      });
-      expect(result).toContain("<!DOCTYPE html>");
-      expect(result).toContain("GXUN003");
-    });
+  it("网关时间按 GMT+8 输出，不能把 UTC 字符串冒充中国时间", () => {
+    expect((service as any).formatTxnTime(new Date("2026-07-22T00:00:00.000Z"))).toBe("20260722080000");
   });
 
-  // ───────── 云闪付H5 ─────────
-  describe("quickPassPay", () => {
-    it("应返回HTML表单", async () => {
-      const result = await service.quickPassPay({
-        outTradeNo: "GXUN004",
-        amount: 300,
-        subject: "云闪付商品",
-      });
-      expect(result).toContain("<!DOCTYPE html>");
-    });
-  });
-
-  // ───────── 签名验证 ─────────
-  describe("verifySign", () => {
-    it("应返回 true 当签名有效", () => {
+  describe("签名与工具", () => {
+    it("签名验证应返回真实验证结果", () => {
       expect(service.verifySign("data", "valid-sig")).toBe(true);
-    });
-
-    it("应返回 false 当签名无效", () => {
       const { createVerify } = require("crypto");
       createVerify().verify.mockReturnValueOnce(false);
       expect(service.verifySign("data", "bad-sig")).toBe(false);
     });
-  });
 
-  // ───────── 订单查询 ─────────
-  describe("query", () => {
-    it("应查询订单并解析键值对响应", async () => {
-      (global as any).fetch = jest.fn().mockResolvedValue({
-        text: () => Promise.resolve("respCode=00&respMsg=Success&txnAmt=100"),
-      });
-
-      const result = await service.query("GXUN001");
-      expect(result.respCode).toBe("00");
-    });
-  });
-
-  // ───────── 退款 ─────────
-  describe("refund", () => {
-    it("应发起退款", async () => {
-      (global as any).fetch = jest.fn().mockResolvedValue({
-        text: () => Promise.resolve("respCode=00&respMsg=退款成功"),
-      });
-
-      const result = await service.refund({
-        outTradeNo: "GXUN001",
-        outRefundNo: "RF001",
-        amount: 50,
-        origQryId: "qry123",
-      });
-      expect(result.respCode).toBe("00");
-    });
-  });
-
-  // ───────── genOutTradeNo ─────────
-  describe("genOutTradeNo", () => {
-    it("应生成商户订单号", () => {
-      const no = UnionpayService.genOutTradeNo();
-      expect(no).toMatch(/^GXUN\d+/);
-    });
-  });
-
-  // ───────── buildNotifyResponse ─────────
-  describe("buildNotifyResponse", () => {
-    it("应返回 success", () => {
+    it("应生成商户订单号和标准回调响应", () => {
+      expect(UnionpayService.genOutTradeNo()).toMatch(/^GXUN\d+/);
       expect(UnionpayService.buildNotifyResponse()).toBe("success");
     });
   });
 
-  // ───────── 回调验证 ─────────
   describe("verifyNotify", () => {
-    it("应拒绝无签名的回调", async () => {
-      const result = await service.verifyNotify({ orderId: "o1" });
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain("签名");
-    });
-
-    it("应拒绝验签失败的回调", async () => {
+    it("应拒绝无签名和验签失败，但接收已验签的延迟重投", async () => {
+      expect((await service.verifyNotify({ orderId: "o1" })).valid).toBe(false);
       const { createVerify } = require("crypto");
       createVerify().verify.mockReturnValueOnce(false);
+      expect((await service.verifyNotify({
+        signature: "bad-sign", orderId: "o1", respCode: "00", txnAmt: "100",
+      })).error).toContain("验签失败");
 
-      const result = await service.verifyNotify({
-        signature: "bad-sign",
-        orderId: "o1",
-        respCode: "00",
-        txnAmt: "100",
-      });
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain("验签失败");
-    });
-
-    it("应拒绝超时通知", async () => {
-      const { createVerify } = require("crypto");
-      createVerify().verify.mockReturnValueOnce(true);
-
-      // 北京时间6分钟前
       const oldDate = new Date(Date.now() + 8 * 60 * 60 * 1000 - 6 * 60 * 1000);
       const oldTxnTime = oldDate.toISOString().slice(0, 19).replace(/[-:T]/g, "");
-
-      const result = await service.verifyNotify({
-        signature: "some-sign",
-        orderId: "o1",
-        respCode: "00",
-        txnTime: oldTxnTime,
+      const delayed = await service.verifyNotify({
+        signature: "some-sign", merId: "test_merchant_123", orderId: "o1", respCode: "00", txnTime: oldTxnTime,
+        queryId: "q1", txnAmt: "100",
       });
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain("超时");
+      expect(delayed.valid).toBe(true);
     });
 
-    it("应去重重复通知", async () => {
-      const { createVerify } = require("crypto");
-      createVerify().verify.mockReturnValue(true);
+    it("应拒绝其它商户的已签名回调", async () => {
+      const result = await service.verifyNotify({
+        signature: "some-sign", merId: "other_merchant", orderId: "o1", respCode: "00",
+      });
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("商户号不匹配");
+    });
 
-      // 生成北京时间（UTC+8）避免时区超时
+    it("退款成功和失败回调均应保留路由、订单与金额字段", async () => {
       const now = new Date(Date.now() + 8 * 60 * 60 * 1000);
       const txnTime = now.toISOString().slice(0, 19).replace(/[-:T]/g, "");
-
-      const params = {
+      const common = {
         signature: "some-sign",
-        orderId: "order-dup-1",
-        respCode: "00",
-        queryId: "q-dup-1",
-        txnAmt: "100",
+        merId: "test_merchant_123",
+        orderId: "RForder002",
+        txnType: "04",
+        reqReserved: "platform-order-2",
+        origQryId: "query-2",
+        txnAmt: "8800",
         txnTime,
       };
+      const success = await service.verifyNotify({ ...common, respCode: "00", queryId: "refund-query-2" });
+      expect(success.data).toEqual(expect.objectContaining({
+        txnType: "04", merchantOrderId: "platform-order-2", amount: 8800, respCode: "00",
+      }));
 
-      await service.verifyNotify(params);
+      const failed = await service.verifyNotify({ ...common, orderId: "RForder003", respCode: "34", respMsg: "失败" });
+      expect(failed.data).toEqual(expect.objectContaining({
+        txnType: "04", merchantOrderId: "platform-order-2", amount: 8800, respCode: "34",
+      }));
+    });
+
+    it("验签阶段不提前去重，重复通知交由订单状态幂等", async () => {
+      const now = new Date(Date.now() + 8 * 60 * 60 * 1000);
+      const txnTime = now.toISOString().slice(0, 19).replace(/[-:T]/g, "");
+      const params = {
+        signature: "some-sign", merId: "test_merchant_123", orderId: "order-dup-1", respCode: "00",
+        queryId: "q-dup-1", txnAmt: "100", txnTime,
+      };
+      const first = await service.verifyNotify(params);
       const second = await service.verifyNotify(params);
-      expect(second.data?.dedup).toBe(true);
+      expect(first.data).toEqual(expect.objectContaining({ outTradeNo: "order-dup-1", tradeNo: "q-dup-1", amount: 100 }));
+      expect(second.data).toEqual(expect.objectContaining({ outTradeNo: "order-dup-1", tradeNo: "q-dup-1", amount: 100 }));
+      expect(second.data?.dedup).toBeUndefined();
     });
   });
 });

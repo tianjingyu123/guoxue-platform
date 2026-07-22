@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Req, UseGuards, Headers } from "@nestjs/common";
+import { Controller, Get, Post, Put, Body, Param, Req, UseGuards, Headers, HttpCode } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { HuifuService } from "./huifu.service";
@@ -78,8 +78,9 @@ export class HuifuController {
   }
 
   @Post("notify")
+  @HttpCode(200)
   @ApiOperation({ summary: "汇付斗拱支付异步通知（公开接口·sign 在通知体内）" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleNotify(@Body() body: Record<string, unknown>, @Headers("X-HF-Signature") headerSign?: string) {
     // 斗拱异步通知：POST 表单/JSON 含 resp_data(JSON字符串) 与 sign（兼容旧 header 签名）

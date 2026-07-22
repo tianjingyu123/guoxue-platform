@@ -72,6 +72,8 @@ const realFetch = global.fetch;
 
 describe("HuifuService（斗拱 BsPay v2 协议）", () => {
   let svc: HuifuService;
+  let paymentNotifyHandler: jest.Mock;
+  let refundNotifyHandler: jest.Mock;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -96,6 +98,10 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       ],
     }).compile();
     svc = mod.get(HuifuService);
+    paymentNotifyHandler = jest.fn().mockResolvedValue(undefined);
+    refundNotifyHandler = jest.fn().mockResolvedValue(undefined);
+    svc.registerPaymentNotifyHandler(paymentNotifyHandler);
+    svc.registerRefundNotifyHandler(refundNotifyHandler);
   });
 
   afterAll(() => {
@@ -452,7 +458,6 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       const respDataStr = JSON.stringify({ trans_stat: "S", req_seq_id: "HF001", hf_seq_id: "HFSEQ1" });
       const body = { resp_data: respDataStr, sign: rsaSign(respDataStr) };
       expect(await svc.verifyNotify(body, body.sign)).toBe(true);
-      // 篡改 resp_data 应验签失败
       const tampered = { ...body, resp_data: respDataStr.replace("HF001", "HF002") };
       expect(await svc.verifyNotify(tampered, tampered.sign)).toBe(false);
     });
@@ -461,54 +466,47 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       expect(await svc.verifyNotify({ resp_data: "{}" })).toBe(false);
     });
 
-    it("缺少 req_seq_id 时应忽略", async () => {
-      await svc.handleNotify({ resp_data: JSON.stringify({ trans_stat: "S" }) });
+    it("已验签通知缺少 req_seq_id 或 JSON 损坏时应失败，让渠道重试", async () => {
+      await expect(svc.handleNotify({ resp_data: JSON.stringify({ trans_stat: "S" }) }))
+        .rejects.toThrow("汇付回调缺少商户订单号");
+      await expect(svc.handleNotify({ resp_data: "{bad-json" }))
+        .rejects.toThrow("汇付回调数据格式错误");
       expect(mockRedis.setNX).not.toHaveBeenCalled();
     });
 
-    it("重复回调应被分布式锁拦截", async () => {
+    it("锁冲突时应返回失败让渠道稍后重试", async () => {
       mockRedis.setNX.mockResolvedValue(false);
-      await svc.handleNotify({ resp_data: JSON.stringify({ trans_stat: "S", req_seq_id: "HF001" }) });
-      expect(mockRedis.setNX).toHaveBeenCalled();
+      await expect(svc.handleNotify({ resp_data: JSON.stringify({ trans_stat: "S", req_seq_id: "HF001" }) }))
+        .rejects.toThrow("汇付回调正在处理中");
+      expect(paymentNotifyHandler).not.toHaveBeenCalled();
       expect(mockRedis.del).not.toHaveBeenCalled();
     });
 
-    it("trans_stat 非 S 不处理", async () => {
+    it.each(["P", "S"])("支付回调 trans_stat=%s 均委托商城主链判定", async (transStat) => {
       mockRedis.setNX.mockResolvedValue(true);
-      await svc.handleNotify({ resp_data: JSON.stringify({ trans_stat: "P", req_seq_id: "HF002" }) });
-      expect(mockPrisma.order.findFirst).not.toHaveBeenCalled();
-    });
-
-    it("trans_stat=S 回调应 CAS 更新订单状态并记 hf_seq_id", async () => {
-      mockRedis.setNX.mockResolvedValue(true);
-      mockPrisma.order.findFirst.mockResolvedValue({ id: "order-1", status: "PENDING" });
-      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 });
-      mockPrisma.huifuSplitRecord.updateMany.mockResolvedValue({ count: 1 });
-
-      await svc.handleNotify({
-        resp_data: JSON.stringify({ trans_stat: "S", req_seq_id: "HF003", hf_seq_id: "HUIFU-SEQ-1" }),
-      });
-
-      expect(mockPrisma.order.updateMany).toHaveBeenCalledWith({
-        where: { id: "order-1", status: "PENDING" },
-        data: expect.objectContaining({ status: "PAID", payMethod: "HUIFU", payTransactionId: "HF003" }),
-      });
-      expect(mockPrisma.huifuSplitRecord.updateMany).toHaveBeenCalledWith({
-        where: { outTradeNo: "HF003" },
-        data: expect.objectContaining({ huifuOrderId: "HUIFU-SEQ-1" }),
-      });
-      expect(mockRedis.del).toHaveBeenCalledWith("huifu:cb:HF003");
-    });
-
-    it("回调成功但订单不是PENDING状态应跳过", async () => {
-      mockRedis.setNX.mockResolvedValue(true);
-      mockPrisma.order.findFirst.mockResolvedValue({ id: "order-2", status: "PAID" });
-
-      await svc.handleNotify({
-        resp_data: JSON.stringify({ trans_stat: "S", req_seq_id: "HF004" }),
-      });
-
+      const payload = { trans_stat: transStat, req_seq_id: "HF-PAY-1", hf_seq_id: "HFSEQ1", trans_amt: "99.00" };
+      await svc.handleNotify({ resp_data: JSON.stringify(payload) });
+      expect(paymentNotifyHandler).toHaveBeenCalledWith(payload);
+      expect(refundNotifyHandler).not.toHaveBeenCalled();
       expect(mockPrisma.order.updateMany).not.toHaveBeenCalled();
+      expect(mockRedis.del).toHaveBeenCalledWith("huifu:cb:HF-PAY-1");
+    });
+
+    it("RF 开头且带原交易号的退款回调应只委托退款主链", async () => {
+      mockRedis.setNX.mockResolvedValue(true);
+      const payload = { trans_stat: "S", req_seq_id: "RFORDER1", org_req_seq_id: "HF001", ord_amt: "99.00" };
+      await svc.handleNotify({ resp_data: JSON.stringify(payload) });
+      expect(refundNotifyHandler).toHaveBeenCalledWith(payload);
+      expect(paymentNotifyHandler).not.toHaveBeenCalled();
+    });
+
+    it("支付处理器未注册必须失败关闭，让渠道重试", async () => {
+      mockRedis.setNX.mockResolvedValue(true);
+      (svc as any).paymentNotifyHandler = undefined;
+      await expect(svc.handleNotify({
+        resp_data: JSON.stringify({ trans_stat: "S", req_seq_id: "HF-NO-HANDLER" }),
+      })).rejects.toThrow("汇付支付通知处理器未就绪");
+      expect(mockRedis.del).toHaveBeenCalledWith("huifu:cb:HF-NO-HANDLER");
     });
   });
 
@@ -615,19 +613,20 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
 
     it("scanpay/refund 报文映射：ord_amt 两位小数 + org 回溯", async () => {
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
-        outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100,
+        orderId: "order-1", outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100,
         createdAt: new Date(2026, 6, 1),
         rawRequest: { req_seq_id: "HF123", req_date: "20260701" },
       });
       mockFetchResponse({ resp_code: "00000000", trans_stat: "P" });
 
-      const res = await svc.createRefund({ orderId: "order-1", amount: 50, reason: "多付" });
+      const res = await svc.createRefund({ outTradeNo: "HF123", amount: 100, reason: "整单退款" });
       const { url, body } = lastFetchCall();
+      expect(mockPrisma.huifuSplitRecord.findUnique).toHaveBeenCalledWith({ where: { outTradeNo: "HF123" } });
       expect(url).toBe("https://mock-api.huifu.com/v2/trade/payment/scanpay/refund");
-      expect(body.data.ord_amt).toBe("50.00");
+      expect(body.data.ord_amt).toBe("100.00");
       expect(body.data.org_req_seq_id).toBe("HF123");
       expect(body.data.org_req_date).toBe("20260701");
-      expect(body.data.remark).toBe("多付");
+      expect(body.data.remark).toBe("整单退款");
       expect(res.outRefundNo).toMatch(/^RF/);
       expect(res.refundStatus).toBe("PROCESSING");
       // 加固③：退款写审计留痕
@@ -636,9 +635,22 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       );
     });
 
+    it("退款响应缺签名或业务码失败必须失败关闭", async () => {
+      mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
+        orderId: "order-1", outTradeNo: "HF123", totalAmount: 100, createdAt: new Date(2026, 6, 1),
+        rawRequest: { req_seq_id: "HF123", req_date: "20260701" },
+      });
+      const dataJson = JSON.stringify({ resp_code: "00000000", trans_stat: "S" });
+      (global.fetch as jest.Mock).mockResolvedValue({ text: async () => `{"data":${dataJson}}` });
+      await expect(svc.createRefund({ orderId: "order-1", amount: 100 })).rejects.toThrow("汇付退款响应验签失败");
+
+      mockFetchResponse({ resp_code: "10000000", resp_desc: "原交易不存在" });
+      await expect(svc.createRefund({ orderId: "order-1", amount: 100 })).rejects.toThrow("原交易不存在");
+    });
+
     it("加固①：退款额超过订单已付 → 拒绝(防超额真金退款)", async () => {
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
-        outTradeNo: "HF123", splitStatus: "SUCCESS", totalAmount: 100,
+        orderId: "order-1", outTradeNo: "HF123", splitStatus: "SUCCESS", totalAmount: 100,
         createdAt: new Date(2026, 6, 1), rawRequest: {},
       });
       await expect(
@@ -646,16 +658,26 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       ).rejects.toThrow(/超过订单已付/);
     });
 
+    it("缺少部分退款账务模型时拒绝部分退款，避免少退钱却整单记 REFUNDED", async () => {
+      mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
+        orderId: "order-1", outTradeNo: "HF123", totalAmount: 100,
+        createdAt: new Date(2026, 6, 1), rawRequest: {},
+      });
+      await expect(svc.createRefund({ orderId: "order-1", amount: 50 }))
+        .rejects.toThrow("仅支持整单全额退款");
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
     it("加固②：req_seq_id 由 orderId 确定性派生(幂等·同单两次退款键相同)", async () => {
       const split = {
-        outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100,
+        orderId: "order-1", outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100,
         createdAt: new Date(2026, 6, 1), rawRequest: { req_seq_id: "HF123", req_date: "20260701" },
       };
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue(split);
       mockFetchResponse({ resp_code: "00000000", trans_stat: "P" });
-      const r1 = await svc.createRefund({ orderId: "order-1", amount: 50 });
+      const r1 = await svc.createRefund({ orderId: "order-1", amount: 100 });
       mockFetchResponse({ resp_code: "00000000", trans_stat: "P" });
-      const r2 = await svc.createRefund({ orderId: "order-1", amount: 50 });
+      const r2 = await svc.createRefund({ orderId: "order-1", amount: 100 });
       expect(r1.outRefundNo).toBe(r2.outRefundNo); // 稳定键 → 汇付幂等去重
       expect(r1.outRefundNo.length).toBeLessThanOrEqual(32);
     });

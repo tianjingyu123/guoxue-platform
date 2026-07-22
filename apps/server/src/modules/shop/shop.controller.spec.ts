@@ -40,9 +40,9 @@ const mockShopSvc = {
   verifyAndDecryptNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "o1" } }),
   handlePaymentNotify: jest.fn().mockResolvedValue(true),
   verifyAlipayNotify: jest.fn().mockResolvedValue({ valid: true, data: {} }),
-  handleAlipayNotify: jest.fn().mockResolvedValue(undefined),
+  handleAlipayNotify: jest.fn().mockResolvedValue(true),
   verifyUnionpayNotify: jest.fn().mockResolvedValue({ valid: true, data: {} }),
-  handleUnionpayNotify: jest.fn().mockResolvedValue(undefined),
+  handleUnionpayNotify: jest.fn().mockResolvedValue(true),
   handleRefundNotify: jest.fn().mockResolvedValue(undefined),
   alipayQuery: jest.fn().mockResolvedValue({ tradeStatus: "TRADE_SUCCESS" }),
   alipayRefund: jest.fn().mockResolvedValue({ refundStatus: "SUCCESS" }),
@@ -313,11 +313,16 @@ describe("ShopController", () => {
     expect(result.code).toBe("SUCCESS");
   });
 
-  it("POST /shop/pay/notify — 微信支付回调（验签失败）", async () => {
+  it("POST /shop/pay/notify — 验签失败抛非 2xx，不能用 HTTP 200 + FAIL 停止微信重试", async () => {
     mockShopSvc.verifyAndDecryptNotify.mockResolvedValueOnce({ valid: false, data: null, error: "签名错误" });
     const req: any = { headers: {}, body: "{}" };
-    const result: any = await ctrl.handlePayNotify(req);
-    expect(result.code).toBe("FAIL");
+    await expect(ctrl.handlePayNotify(req)).rejects.toThrow("签名错误");
+  });
+
+  it("POST /shop/pay/notify — 本地未入账抛 503 语义让微信继续重试", async () => {
+    mockShopSvc.handlePaymentNotify.mockResolvedValueOnce(false);
+    const req: any = { headers: {}, body: "{}" };
+    await expect(ctrl.handlePayNotify(req)).rejects.toThrow("尚未完成本地入账");
   });
 
   it("POST /shop/pay/notify — 验签用 req.rawBody 原始字节，而非重构的 JSON（微信 V3 对原文验签）", async () => {
@@ -359,10 +364,27 @@ describe("ShopController", () => {
     expect(result).toBe("fail");
   });
 
+  it("POST /shop/alipay/notify — 本地未入账返回 fail 让渠道重试", async () => {
+    mockShopSvc.handleAlipayNotify.mockResolvedValueOnce(false);
+    const result: any = await ctrl.handleAlipayNotify({ body: {} } as any);
+    expect(result).toBe("fail");
+  });
+
   it("POST /shop/unionpay/notify — 银联回调", async () => {
     const req: any = { body: {} };
     const result: any = await ctrl.handleUnionpayNotify(req);
     expect(result).toBe("success");
+  });
+
+  it("POST /shop/unionpay/notify — 本地未入账返回 fail 让渠道重试", async () => {
+    mockShopSvc.handleUnionpayNotify.mockResolvedValueOnce(false);
+    const result: any = await ctrl.handleUnionpayNotify({ body: {} } as any);
+    expect(result).toBe("fail");
+  });
+
+  it("POST /shop/refund/notify — 验签失败抛非 2xx 让微信重试", async () => {
+    mockShopSvc.verifyAndDecryptNotify.mockResolvedValueOnce({ valid: false, data: null, error: "退款签名错误" });
+    await expect(ctrl.handleRefundNotify({ headers: {}, body: "{}" } as any)).rejects.toThrow("退款签名错误");
   });
 
   it("POST /shop/refund/notify — 退款回调", async () => {

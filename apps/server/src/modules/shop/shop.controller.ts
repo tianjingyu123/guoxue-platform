@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, Req, UseGuards, Logger, ForbiddenException, HttpCode,
+  Body, Param, Query, Req, UseGuards, Logger, ForbiddenException, BadRequestException, ServiceUnavailableException, HttpCode,
 } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
@@ -495,11 +495,12 @@ export class ShopController {
       signHeader, rawBody, timestamp, nonce, serialNo,
     );
     if (!valid || !data) {
-      return { code: "FAIL", message: error || "验签失败" };
+      throw new BadRequestException(error || "微信支付通知验签失败");
     }
-    // 只有确凿处理才回 SUCCESS；未处理(锁竞争等)回 FAIL 让微信重试，避免"已收款未入账却停止重试"
+    // 微信 API v3 只有 HTTP 200/204 才停止重试；本地未入账必须返回非 2xx，不能只在 200 body 中写 FAIL。
     const ack = await this.shop.handlePaymentNotify(data);
-    return ack ? { code: "SUCCESS", message: "OK" } : { code: "FAIL", message: "处理中，请重试" };
+    if (!ack) throw new ServiceUnavailableException("微信支付通知尚未完成本地入账，请重试");
+    return { code: "SUCCESS", message: "OK" };
   }
 
   @Post("alipay/notify")
@@ -513,8 +514,8 @@ export class ShopController {
     const { valid, data } = await this.shop.verifyAlipayNotify(params);
     if (!valid || !data) return "fail";
     if ((data as any).dedup) return "success"; // 重复通知，返回成功避免重发
-    await this.shop.handleAlipayNotify(data);
-    return "success";
+    const handled = await this.shop.handleAlipayNotify(data);
+    return handled ? "success" : "fail";
   }
 
   @Post("unionpay/notify")
@@ -528,8 +529,8 @@ export class ShopController {
     const { valid, data } = await this.shop.verifyUnionpayNotify(params);
     if (!valid || !data) return "fail";
     if ((data as any).dedup) return "success";
-    await this.shop.handleUnionpayNotify(data);
-    return "success";
+    const handled = await this.shop.handleUnionpayNotify(data);
+    return handled ? "success" : "fail";
   }
 
   @Post("refund/notify")
@@ -550,7 +551,7 @@ export class ShopController {
       signHeader, rawBody, timestamp, nonce, serialNo,
     );
     if (!valid || !data) {
-      return { code: "FAIL", message: error || "验签失败" };
+      throw new BadRequestException(error || "微信退款通知验签失败");
     }
     await this.shop.handleRefundNotify(data);
     return { code: "SUCCESS", message: "OK" };

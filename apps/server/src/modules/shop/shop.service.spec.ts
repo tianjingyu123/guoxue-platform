@@ -13,6 +13,7 @@ import { PaymentProviderFactory } from "./payment-factory"
 import { WechatPayService } from "./wechat-pay.service"
 import { AlipayService } from "./alipay.service"
 import { UnionpayService } from "./unionpay.service"
+import { HuifuService } from "../huifu/huifu.service"
 import { CoinService } from "../coin/coin.service"
 import { WebhookService } from "../webhook/webhook.service"
 import { RedisService } from "../../redis/redis.service"
@@ -22,7 +23,7 @@ import { BusinessException } from "../../common/business.exception"
 import {
   makeMockPrisma, makeMockRedis, makeMockCommission, makeMockUnifiedPricing,
   makeMockWechatPay, makeMockAlipay, makeMockUnionpay, makeMockCoin, makeMockWebhook,
-  makeMockPaymentFactory, makeMockMemberBenefit, makeMockAudit,
+  makeMockPaymentFactory, makeMockMemberBenefit, makeMockAudit, makeMockHuifu,
 } from "./shop-test-mocks"
 
 // ShopService 拆分后为 facade + 目录/履约辅助（评价/物流/运费/购物车）。
@@ -39,6 +40,7 @@ const mockWebhook = makeMockWebhook()
 const mockPaymentFactory = makeMockPaymentFactory()
 const mockMemberBenefit = makeMockMemberBenefit()
 const mockAudit = makeMockAudit()
+const mockHuifu = makeMockHuifu()
 
 describe("ShopService（facade·目录/履约辅助）", () => {
   let svc: ShopService
@@ -65,6 +67,7 @@ describe("ShopService（facade·目录/履约辅助）", () => {
         { provide: WebhookService, useValue: mockWebhook },
         { provide: AuditService, useValue: mockAudit },
         { provide: MemberBenefitService, useValue: mockMemberBenefit },
+        { provide: HuifuService, useValue: mockHuifu },
       ],
     }).compile()
     svc = mod.get(ShopService)
@@ -73,6 +76,14 @@ describe("ShopService（facade·目录/履约辅助）", () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
+
+  it("银联 txnType=04 回调应路由退款主链并返回已处理", async () => {
+    const refundSvc = (svc as any).refundSvc;
+    const spy = jest.spyOn(refundSvc, "handleUnionpayRefundNotify").mockResolvedValue(undefined);
+    await expect(svc.handleUnionpayNotify({ txnType: "04", merchantOrderId: "o1", respCode: "00" }))
+      .resolves.toBe(true);
+    expect(spy).toHaveBeenCalled();
+  });
 
   // ═══════════════════ 商品评价 ═══════════════════
 

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { HuifuController } from "./huifu.controller";
 import { HuifuService } from "./huifu.service";
+import { HTTP_CODE_METADATA } from "@nestjs/common/constants";
 
 const mockSvc = {
   createPayment: jest.fn(),
@@ -54,6 +55,11 @@ describe("HuifuController", () => {
   });
 
   describe("回调", () => {
+    it("???????? HTTP 200???????? 201 ????", () => {
+      const code = Reflect.getMetadata(HTTP_CODE_METADATA, HuifuController.prototype.handleNotify);
+      expect(code).toBe(200);
+    });
+
     it("验签通过应返回成功（斗拱 sign 在通知体内）", async () => {
       mockSvc.verifyNotify.mockResolvedValue(true);
       const body = { resp_data: '{"trans_stat":"S","req_seq_id":"HF001"}', sign: "valid-signature" };

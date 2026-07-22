@@ -204,6 +204,13 @@ describe("WechatPayService", () => {
 
       expect(result.status).toBe("SUCCESS");
     });
+
+    it("应按商户退款单号查询退款状态", async () => {
+      mockFetchJson({ status: "SUCCESS", out_refund_no: "RF001" });
+      const result = await service.queryRefund("RF001");
+      expect(result.status).toBe("SUCCESS");
+      expect((global as any).fetch.mock.calls[0][0]).toContain("/v3/refund/domestic/refunds/RF001");
+    });
   });
 
   // ───────── 签名头解析 ─────────
@@ -308,6 +315,40 @@ describe("WechatPayService", () => {
     it("签名头解析失败应返回错误", async () => {
       const result = await service.verifyAndDecryptNotify("bad-header", "{}");
       expect(result.valid).toBe(false);
+    });
+
+    it("已验签通知解密后 mchid 不匹配必须失败关闭", async () => {
+      jest.spyOn(service as any, "verifyNotifySign").mockResolvedValue(true);
+      jest.spyOn(service, "aesGcmDecrypt").mockReturnValue(JSON.stringify({
+        mchid: "other_mch", out_trade_no: "o1", trade_state: "SUCCESS",
+      }));
+      const result = await service.verifyAndDecryptNotify("signed", JSON.stringify({
+        resource: { ciphertext: "x", associated_data: "ad", nonce: "nonce" },
+      }));
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("商户号不匹配");
+    });
+
+    it("已验签通知 mchid 一致才交给支付主链", async () => {
+      jest.spyOn(service as any, "verifyNotifySign").mockResolvedValue(true);
+      jest.spyOn(service, "aesGcmDecrypt").mockReturnValue(JSON.stringify({
+        mchid: "test_mch_123456", out_trade_no: "o1", trade_state: "SUCCESS",
+      }));
+      const result = await service.verifyAndDecryptNotify("signed", JSON.stringify({
+        resource: { ciphertext: "x", associated_data: "ad", nonce: "nonce" },
+      }));
+      expect(result.valid).toBe(true);
+      expect(result.data).toEqual(expect.objectContaining({ mchid: "test_mch_123456", out_trade_no: "o1" }));
+    });
+
+    it("解密异常必须返回 valid=false，不能把异常通知标成已验签成功", async () => {
+      jest.spyOn(service as any, "verifyNotifySign").mockResolvedValue(true);
+      jest.spyOn(service, "aesGcmDecrypt").mockImplementation(() => { throw new Error("decrypt failed"); });
+      const result = await service.verifyAndDecryptNotify("signed", JSON.stringify({
+        resource: { ciphertext: "x", associated_data: "ad", nonce: "nonce" },
+      }));
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("解密失败");
     });
 
     it("应处理无资源字段的通知", async () => {

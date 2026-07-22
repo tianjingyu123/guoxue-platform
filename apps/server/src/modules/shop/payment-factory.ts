@@ -2,15 +2,22 @@ import { Injectable, Logger } from "@nestjs/common";
 import { WechatPayService } from "./wechat-pay.service";
 import { AlipayService } from "./alipay.service";
 import { UnionpayService } from "./unionpay.service";
+import { HuifuService } from "../huifu/huifu.service";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 /** 标准化退款参数 */
 export interface RefundParams {
+  /** 平台订单 ID：汇付退款与异步回调关联必须使用。 */
+  orderId: string;
   outTradeNo: string;
   /** 渠道交易号(微信 transaction_id/支付宝 trade_no)。微信退款优先用它,避免误把 transaction_id 当 out_trade_no。 */
   transactionId?: string;
   outRefundNo: string;
   totalYuan: number;
   totalFen: number;
+  /** 首次进入退款处理的持久化时间；银联用它保持 orderId+txnTime 幂等键稳定。 */
+  refundRequestedAt: Date;
   reason?: string;
 }
 
@@ -34,6 +41,7 @@ export class PaymentProviderFactory {
     private wechatPay: WechatPayService,
     private alipay: AlipayService,
     private unionpay: UnionpayService,
+    private huifu: HuifuService,
   ) {
     this.adapters.set("WECHAT", {
       channel: "WECHAT",
@@ -54,10 +62,11 @@ export class PaymentProviderFactory {
       refund: (p) =>
         this.alipay.refund({
           outTradeNo: p.outTradeNo,
+          tradeNo: p.transactionId,
           outRefundNo: p.outRefundNo,
           refundAmount: p.totalYuan,
           reason: p.reason || "用户申请退款",
-        }) as unknown as Promise<{ status: string }>,
+        }),
     });
 
     this.adapters.set("UNIONPAY", {
@@ -68,26 +77,45 @@ export class PaymentProviderFactory {
           outTradeNo: p.outTradeNo,
           outRefundNo: p.outRefundNo,
           amount: p.totalFen,
-        }) as unknown as Promise<{ status: string }>;
+          origQryId: p.transactionId,
+          merchantOrderId: p.orderId,
+          requestedAt: p.refundRequestedAt,
+        });
       },
     });
 
-    // HUIFU: createRefund 签名差异较大，暂不注册，新增渠道在此补充
+    this.adapters.set("HUIFU", {
+      channel: "HUIFU",
+      refund: async (p) => {
+        const result = await this.huifu.createRefund({
+          orderId: p.orderId,
+          amount: p.totalYuan,
+          reason: p.reason || "用户申请退款",
+        });
+        return { status: result.refundStatus };
+      },
+    });
   }
 
-  /** 根据渠道退款，未匹配到则回退微信 */
+  /** 根据原支付渠道退款；未知渠道必须失败关闭，绝不能误退到微信。 */
   async refund(channel: string, params: RefundParams): Promise<{ status: string }> {
-    const adapter = this.adapters.get(channel) || this.adapters.get("WECHAT")!;
+    const normalized = String(channel || "").toUpperCase();
+    const adapter = this.adapters.get(normalized);
+    if (!adapter) {
+      this.logger.error(`不支持的退款渠道: ${normalized || "EMPTY"}`);
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "原支付渠道暂不支持自动退款");
+    }
     return adapter.refund(params);
   }
 
   /** 指定渠道的支付网关是否已配置密钥（未配置时无法调用网关退款，调用方应降级为线下退款） */
-  isConfigured(channel: string): boolean {
-    switch ((channel || "WECHAT").toUpperCase()) {
+  async isConfigured(channel: string): Promise<boolean> {
+    switch (String(channel || "").toUpperCase()) {
       case "ALIPAY": return this.alipay.isConfigured;
       case "UNIONPAY": return this.unionpay.isConfigured;
-      case "WECHAT":
-      default: return this.wechatPay.isConfigured;
+      case "HUIFU": return this.huifu.isEnabled();
+      case "WECHAT": return this.wechatPay.isConfigured;
+      default: return false;
     }
   }
 }

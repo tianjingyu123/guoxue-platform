@@ -6,6 +6,7 @@ import { RedisService } from "../../redis/redis.service";
 import { UserGrowthService } from "../user-growth/user-growth.service";
 import { SystemService } from "../system/system.service";
 import { PayeeAccountService } from "../payee-account/payee-account.service";
+import { SettlementService } from "../settlement/settlement.service";
 import { BusinessException } from "../../common/business.exception";
 import { encrypt } from "../../common/crypto.util";
 
@@ -73,6 +74,7 @@ const mockRedis = {
 const mockGrowth = { addExp: jest.fn().mockResolvedValue(undefined) };
 // 圈子双轨费率：平台分成由圈子的收款主体决定（无照 50% / 有照自收款 20%）
 const mockPayeeAccount = { resolveSettlement: jest.fn().mockResolvedValue({ status: "NONE" }) };
+const mockSettlement = { reverse: jest.fn().mockResolvedValue({ reversed: true, count: 1 }) };
 
 describe("CommissionService", () => {
   let svc: CommissionService;
@@ -87,6 +89,7 @@ describe("CommissionService", () => {
         { provide: UserGrowthService, useValue: mockGrowth },
         { provide: SystemService, useValue: mockSystemService },
         { provide: PayeeAccountService, useValue: mockPayeeAccount },
+        { provide: SettlementService, useValue: mockSettlement },
       ],
     }).compile();
     svc = mod.get(CommissionService);
@@ -98,10 +101,9 @@ describe("CommissionService", () => {
   });
 
   describe("reverseCommission", () => {
-    it("并发冲正：抢不到分布式锁时幂等跳过，不重复倒扣（防双入口双倍 decrement）", async () => {
+    it("并发冲正：抢不到分布式锁时明确返回待重试，不得误报已完成", async () => {
       mockRedis.setNX.mockResolvedValueOnce(false); // 另一路正在冲正
-      const result = await svc.reverseCommission("order1");
-      expect(result).toBeNull();
+      await expect(svc.reverseCommission("order1")).rejects.toThrow("佣金冲正正在处理中");
       // 未进入锁体：不查记录、不写冲正
       expect(mockPrisma.stationEarning.findFirst).not.toHaveBeenCalled();
       expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
@@ -127,6 +129,13 @@ describe("CommissionService", () => {
       expect(result).toBeNull();
       expect(mockPrisma.stationEarning.create).not.toHaveBeenCalled();
       expect(mockPrisma.operatorEarning.createMany).not.toHaveBeenCalled();
+      expect(mockSettlement.reverse).toHaveBeenCalledWith("ORDER", "order1", "订单退款冲正");
+    });
+
+    it("旧表已冲正但统一总账失败时必须上抛供持久补偿重试", async () => {
+      mockPrisma.stationEarning.findFirst.mockResolvedValue({ id: "se-r", earned: -10 });
+      mockSettlement.reverse.mockRejectedValueOnce(new Error("ledger unavailable"));
+      await expect(svc.reverseCommission("order1")).rejects.toThrow("ledger unavailable");
     });
 
     it("无分佣记录则跳过", async () => {
@@ -136,6 +145,7 @@ describe("CommissionService", () => {
       mockPrisma.platformFeeRecord.findMany.mockResolvedValue([]);
       const result = await svc.reverseCommission("order1");
       expect(result).toBeNull();
+      expect(mockSettlement.reverse).toHaveBeenCalledWith("ORDER", "order1", "订单退款冲正");
     });
 
     it("有正向分佣则创建 REFUND 冲正", async () => {

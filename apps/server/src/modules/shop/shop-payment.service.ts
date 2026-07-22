@@ -52,7 +52,91 @@ export class ShopPaymentService {
     @Optional() private huifu?: HuifuService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
     @Inject(CoinService) private coinSvc?: CoinService,
-  ) {}
+  ) {
+    this.huifu?.registerPaymentNotifyHandler((payload) => this.handleHuifuNotify(payload));
+  }
+
+  /** 同一本地订单的微信 JSAPI / Native / H5 初始化必须串行，避免跨入口生成多笔可支付渠道单。 */
+  private async withWechatPaymentInit<T>(orderId: string, busyMessage: string, task: () => Promise<T>): Promise<T> {
+    const lockKey = "pay:init:wechat:" + orderId;
+    const locked = await this.redis.setNX(lockKey, "1", 60);
+    if (!locked) throw new BusinessException(ErrorCode.BAD_REQUEST, busyMessage);
+    try {
+      return await task();
+    } finally {
+      await this.redis.del(lockKey);
+    }
+  }
+
+  /** 旧渠道单无法明确关停时绝不创建第二笔；若已支付则主动补入账并阻止重复付款。 */
+  private async closePreviousWechatPayment(orderId: string, outTradeNo: string): Promise<void> {
+    try {
+      await this.wechatPay.closeOrder(outTradeNo);
+    } catch (closeError) {
+      try {
+        const queried = await this.wechatPay.queryOrder(outTradeNo);
+        if (queried.trade_state === "SUCCESS") {
+          const handled = await this.handlePaymentNotify({
+            ...queried,
+            out_trade_no: outTradeNo,
+            trade_state: "SUCCESS",
+            attach: orderId,
+          });
+          if (handled) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已支付，请勿重复付款");
+        }
+      } catch (queryError) {
+        if (queryError instanceof BusinessException && queryError.message.includes("订单已支付")) throw queryError;
+        this.logger.warn("旧付款单查单失败 order=" + orderId + ": " + (queryError as Error).message);
+      }
+      this.logger.warn("旧付款单关单失败 order=" + orderId + ": " + (closeError as Error).message);
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "原付款正在处理中，请稍后重试");
+    }
+  }
+
+  private buildWechatOutTradeNo(orderId: string, replacingPrevious: boolean): string {
+    const normalizedOrderId = String(orderId).replace(/[^A-Za-z0-9]/g, "");
+    return replacingPrevious
+      ? "GX" + Date.now() + normalizedOrderId.slice(0, 17)
+      : "GX" + normalizedOrderId.slice(0, 30);
+  }
+
+  /**
+   * 渠道下单后用旧交易号 + PENDING 做 CAS 落库。若订单状态已变，立即关闭刚创建的渠道单，
+   * 避免“本地没记录、微信仍可付款”的孤儿支付单。
+   */
+  private async persistWechatPaymentIntent(order: Order, outTradeNo: string): Promise<void> {
+    try {
+      const updated = await this.prisma.order.updateMany({
+        where: { id: order.id, status: "PENDING", payTransactionId: order.payTransactionId || null },
+        data: { payTransactionId: outTradeNo },
+      });
+      if (updated.count !== 1) {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更，请刷新后重试");
+      }
+    } catch (error) {
+      try {
+        await this.wechatPay.closeOrder(outTradeNo);
+      } catch (closeError) {
+        this.logger.error(
+          "【资金对账·孤儿支付单】本地支付意图落库失败且新微信单关单失败: order=" +
+            order.id + ", outTradeNo=" + outTradeNo + ", error=" + (closeError as Error).message,
+        );
+      }
+      if (error instanceof BusinessException) throw error;
+      this.logger.error("支付意图落库失败 order=" + order.id + ": " + (error as Error).message);
+      throw new BusinessException(ErrorCode.PAY_FAILED, "支付初始化未完成，请稍后重试");
+    }
+    await this.redis.del("shop:order:" + order.id);
+  }
+
+  private async clearWechatPaymentResultCaches(orderId: string): Promise<void> {
+    await Promise.all([
+      this.redis.del("shop:pay:native:" + orderId),
+      this.redis.del("shop:pay:h5:" + orderId),
+      this.redis.del("shop:pay:jsapi:MINI:" + orderId),
+      this.redis.del("shop:pay:jsapi:OFFICIAL:" + orderId),
+    ]);
+  }
 
   /** 创建微信支付JSAPI订单（channel 缺省/MINI=小程序内支付；OFFICIAL=公众号内H5支付） */
   async createJsapiPayment(
@@ -65,6 +149,9 @@ export class ShopPaymentService {
     const order = await this.orderSvc.getOrder(orderId);
     if (!order || order.userId !== userId) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
+    if (!this.wechatPay.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
+    }
 
     // 公众号内 H5（OFFICIAL）：openid 必须来自公众号网页授权（微信要求 openid 与下单 appid 同应用），
     // 不回退查 Auth 表——表里存的是小程序 openid，拿去公众号 appid 下单微信必拒
@@ -92,27 +179,43 @@ export class ShopPaymentService {
       payerOpenid = wechatAuth.openId;
     }
 
-    const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
-    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+    const paymentChannel = channel || "MINI";
+    const cacheKey = "shop:pay:jsapi:" + paymentChannel + ":" + orderId;
+    return this.withWechatPaymentInit(orderId, "支付正在初始化，请稍后重试", async () => {
+      const freshOrder = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!freshOrder || freshOrder.userId !== userId) {
+        throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      }
+      if (freshOrder.status !== "PENDING") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
+      }
 
-    const result = await this.wechatPay.createJsapiOrder({
-      outTradeNo,
-      description: `国学平台订单-${orderId.slice(0, 8)}`,
-      amount: { total: totalFen },
-      payer: { openid: payerOpenid },
-      attach: orderId,
-      notifyUrl,
-      appId: officialAppId,
+      const cached = await this.redis.getJson<{
+        outTradeNo: string;
+        paySign: Awaited<ReturnType<WechatPayService["createJsapiOrder"]>>["paySign"];
+      }>(cacheKey);
+      if (cached?.paySign && cached.outTradeNo === freshOrder.payTransactionId) return cached.paySign;
+
+      const previousOutTradeNo = freshOrder.payTransactionId || "";
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(orderId, previousOutTradeNo);
+      await this.clearWechatPaymentResultCaches(orderId);
+
+      const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
+      const totalFen = Math.round(Number(freshOrder.amount) * RMB_TO_FEN);
+      const result = await this.wechatPay.createJsapiOrder({
+        outTradeNo,
+        description: "国学平台订单-" + orderId.slice(0, 8),
+        amount: { total: totalFen },
+        payer: { openid: payerOpenid },
+        attach: orderId,
+        notifyUrl,
+        appId: officialAppId,
+      });
+
+      await this.persistWechatPaymentIntent(freshOrder, outTradeNo);
+      await this.redis.setJson(cacheKey, { outTradeNo, paySign: result.paySign }, 110 * 60);
+      return result.paySign;
     });
-
-    // 更新订单支付交易号
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { payTransactionId: outTradeNo },
-    });
-    await this.redis.del("shop:order:" + orderId);
-
-    return result.paySign;
   }
 
   /**
@@ -130,53 +233,26 @@ export class ShopPaymentService {
     }
 
     const cacheKey = "shop:pay:native:" + orderId;
-    const cached = await this.redis.getJson<{ codeUrl?: string; raw?: unknown }>(cacheKey);
-    if (cached?.codeUrl) return cached;
-
-    const initLockKey = "pay:init:native:" + orderId;
-    const locked = await this.redis.setNX(initLockKey, "1", 60);
-    if (!locked) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "付款码正在生成，请稍后重试");
-    }
-
-    try {
-      // 双检缓存：另一请求可能刚在抢锁前完成。
-      const cachedAfterLock = await this.redis.getJson<{ codeUrl?: string; raw?: unknown }>(cacheKey);
-      if (cachedAfterLock?.codeUrl) return cachedAfterLock;
-
-      if (order.payTransactionId) {
-        try {
-          await this.wechatPay.closeOrder(order.payTransactionId);
-        } catch (closeError) {
-          // 关单失败可能是用户刚好已支付：主动查单并补入账；其余状态宁可稍后重试，也不创建第二笔。
-          try {
-            const queried = await this.wechatPay.queryOrder(order.payTransactionId);
-            if (queried.trade_state === "SUCCESS") {
-              const handled = await this.handlePaymentNotify({
-                ...queried,
-                out_trade_no: order.payTransactionId,
-                trade_state: "SUCCESS",
-                attach: orderId,
-              });
-              if (handled) {
-                throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单已支付，请勿重复付款");
-              }
-            }
-          } catch (queryError) {
-            if (queryError instanceof BusinessException && queryError.message.includes("订单已支付")) throw queryError;
-            this.logger.warn("旧付款单查单失败 order=" + orderId + ": " + (queryError as Error).message);
-          }
-          this.logger.warn("旧付款单关单失败 order=" + orderId + ": " + (closeError as Error).message);
-          throw new BusinessException(ErrorCode.BAD_REQUEST, "原付款正在处理中，请稍后重试");
-        }
+    return this.withWechatPaymentInit(orderId, "付款码正在生成，请稍后重试", async () => {
+      const freshOrder = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!freshOrder) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      if (freshOrder.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
+      if (freshOrder.status !== "PENDING") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付");
       }
 
-      // 首次发起使用订单 ID 派生的确定性商户号：即使 Redis 完全不可用，多实例并发也只能命中同一微信订单。
-      // 旧单已安全关单后的重新发起才换新商户号。
-      const outTradeNo = order.payTransactionId
-        ? "GX" + Date.now() + orderId.slice(0, 8)
-        : "GX" + String(orderId).replace(/[^A-Za-z0-9]/g, "").slice(0, 30);
-      const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+      const cached = await this.redis.getJson<{
+        outTradeNo: string;
+        result: Awaited<ReturnType<WechatPayService["createNativeOrder"]>>;
+      }>(cacheKey);
+      if (cached?.result?.codeUrl && cached.outTradeNo === freshOrder.payTransactionId) return cached.result;
+
+      const previousOutTradeNo = freshOrder.payTransactionId || "";
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(orderId, previousOutTradeNo);
+      await this.clearWechatPaymentResultCaches(orderId);
+
+      const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
+      const totalFen = Math.round(Number(freshOrder.amount) * RMB_TO_FEN);
       const result = await this.wechatPay.createNativeOrder({
         outTradeNo,
         description: "国学平台订单-" + orderId.slice(0, 8),
@@ -185,17 +261,10 @@ export class ShopPaymentService {
         notifyUrl,
       });
 
-      // 先缓存付款码再写本地交易号：即便数据库瞬时失败，重试也会复用同一码，避免生成第二笔渠道订单。
-      await this.redis.setJson(cacheKey, result, 110 * 60);
-      await this.prisma.order.update({
-        where: { id: orderId },
-        data: { payTransactionId: outTradeNo },
-      });
-      await this.redis.del("shop:order:" + orderId);
+      await this.persistWechatPaymentIntent(freshOrder, outTradeNo);
+      await this.redis.setJson(cacheKey, { outTradeNo, result }, 110 * 60);
       return result;
-    } finally {
-      await this.redis.del(initLockKey);
-    }
+    });
   }
 
   /**
@@ -215,30 +284,42 @@ export class ShopPaymentService {
       throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未配置（缺商户证书/密钥），请联系平台或稍后再试");
     }
 
-    const outTradeNo = `GX${Date.now()}${orderId.slice(0, 8)}`;
-    const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+    const cacheKey = "shop:pay:h5:" + orderId;
+    return this.withWechatPaymentInit(orderId, "支付正在初始化，请稍后重试", async () => {
+      const freshOrder = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!freshOrder) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      if (freshOrder.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
+      if (freshOrder.status !== "PENDING") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付", HttpStatus.BAD_REQUEST);
+      }
 
-    const result = await this.wechatPay.createH5Order({
-      outTradeNo,
-      description: `国学平台订单-${orderId.slice(0, 8)}`,
-      amount: { total: totalFen },
-      sceneInfo: {
-        payerClientIp: clientIp || "127.0.0.1",
-        h5Info: { type: "Wap", appName: "热卜国学", appUrl: process.env.H5_BASE_URL || "https://api.rebugx.cn" },
-      },
-      attach: orderId,
-      notifyUrl,
+      const cached = await this.redis.getJson<{ outTradeNo: string; mwebUrl: string }>(cacheKey);
+      if (cached?.mwebUrl && cached.outTradeNo === freshOrder.payTransactionId) return cached;
+
+      const previousOutTradeNo = freshOrder.payTransactionId || "";
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(orderId, previousOutTradeNo);
+      await this.clearWechatPaymentResultCaches(orderId);
+
+      const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
+      const totalFen = Math.round(Number(freshOrder.amount) * RMB_TO_FEN);
+      const result = await this.wechatPay.createH5Order({
+        outTradeNo,
+        description: "国学平台订单-" + orderId.slice(0, 8),
+        amount: { total: totalFen },
+        sceneInfo: {
+          payerClientIp: clientIp || "127.0.0.1",
+          h5Info: { type: "Wap", appName: "热卜国学", appUrl: process.env.H5_BASE_URL || "https://api.rebugx.cn" },
+        },
+        attach: orderId,
+        notifyUrl,
+      });
+
+      await this.persistWechatPaymentIntent(freshOrder, outTradeNo);
+      const response = { mwebUrl: result.h5Url, outTradeNo };
+      await this.redis.setJson(cacheKey, response, 110 * 60);
+      return response;
     });
-
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { payTransactionId: outTradeNo },
-    });
-    await this.redis.del("shop:order:" + orderId);
-
-    return { mwebUrl: result.h5Url, outTradeNo };
   }
-
   private validateCoinRechargeAmount(amountCoin: number) {
     if (!Number.isInteger(amountCoin) || amountCoin <= 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "充值金额必须为正整数");
@@ -425,7 +506,11 @@ export class ShopPaymentService {
    * 避免"渠道已收款但本地未入账却回 SUCCESS"导致订单卡死。
    */
   async handlePaymentNotify(body: Record<string, unknown>): Promise<boolean> {
-    const outTradeNo = body.out_trade_no as string;
+    const outTradeNo = String(body.out_trade_no || "");
+    if (!outTradeNo) {
+      this.logger.error("【资金对账·商户单号缺失】微信支付回调缺少 out_trade_no");
+      return false;
+    }
     const lockKey = `pay:lock:${outTradeNo}`;
 
     // 分布式锁防并发重复处理：抢不到=另一处理中，让渠道稍后重试（勿谎报成功）
@@ -447,15 +532,19 @@ export class ShopPaymentService {
         attach = {};
       }
 
+      if (body.trade_state !== "SUCCESS") {
+        this.logger.log(`支付未成功: ${outTradeNo}, 状态: ${body.trade_state}`);
+        return true; // 非成功态无需处理，也无需渠道重试
+      }
+      if (!transactionId) {
+        this.logger.error(`【资金对账·流水缺失】微信支付成功回调缺少 transaction_id: ${outTradeNo}`);
+        return false;
+      }
+
       // 虚拟币充值回调 → 转发给 CoinService（其内部幂等）
       if (attach.type === "COIN_RECHARGE" && this.coinSvc) {
         await this.coinSvc.handleRechargeCallback(body);
         return true;
-      }
-
-      if (body.trade_state !== "SUCCESS") {
-        this.logger.log(`支付未成功: ${outTradeNo}, 状态: ${body.trade_state}`);
-        return true; // 非成功态无需处理，也无需渠道重试
       }
 
       // 商城订单回调 — 避免双重查询
@@ -470,9 +559,8 @@ export class ShopPaymentService {
       }
 
       if (!orderId) {
-        // 收到款但找不到订单：重试无益，落错误台账人工对账
         this.logger.error(`【资金对账】收到支付成功回调但找不到订单: ${outTradeNo}, transactionId: ${transactionId}`);
-        return true;
+        return false;
       }
 
       // 只有 attach 提供了 orderId 才需要另外查询（已通过 payTransactionId 查到的直接复用）
@@ -481,24 +569,47 @@ export class ShopPaymentService {
       }
       if (!order) {
         this.logger.error(`【资金对账】回调订单不存在: ${orderId}, outTradeNo: ${outTradeNo}`);
-        return true;
+        return false;
       }
       if (order.status === "CANCELLED") {
         // 关键：订单已被超时 cron 取消却又收到支付成功——钱货两空风险，落错误台账人工/自动退款
         this.logger.error(
-          `【资金对账·需退款】已取消订单收到支付成功回调: order=${orderId}, outTradeNo=${outTradeNo}, transactionId=${transactionId}`,
+          "【资金对账·需退款】已取消订单收到支付成功回调: order=" + orderId +
+            ", outTradeNo=" + outTradeNo + ", transactionId=" + transactionId,
         );
-        return true;
+        return false;
       }
-      if (order.status !== "PENDING") return true; // 已支付等终态，幂等返回
+      if (order.status !== "PENDING") {
+        // processPaidOrder 会把 payTransactionId 原子替换为微信 transaction_id。
+        // 只有同一渠道流水的重投才是幂等；不同流水意味着同一本地订单被重复扣款，必须让渠道重试并进入对账。
+        if (order.payMethod === "WECHAT" && order.payTransactionId === transactionId) return true;
+        this.logger.error(
+          "【资金对账·疑似重复扣款】终态订单收到另一笔微信成功流水: order=" + orderId +
+            ", status=" + order.status + ", stored=" + (order.payTransactionId || "") +
+            ", incoming=" + transactionId + ", outTradeNo=" + outTradeNo,
+        );
+        return false;
+      }
+      if (!order.payTransactionId || order.payTransactionId !== outTradeNo) {
+        // attach 只能定位业务订单，不能替代商户单号校验；否则历史付款码/孤儿渠道单也能给当前订单入账。
+        this.logger.error(
+          "【资金对账·商户单号不符】微信成功回调与当前支付意图不一致: order=" + orderId +
+            ", expected=" + (order.payTransactionId || "") + ", incoming=" + outTradeNo +
+            ", transactionId=" + transactionId,
+        );
+        return false;
+      }
 
-      // M2 金额比对：微信 V3 解密报文 amount.total 单位为分；不符=确定性差异，重试无益，落错误台账人工对账
-      const wxTotal = (body.amount as Record<string, unknown> | undefined)?.total;
-      if (typeof wxTotal === "number" && Math.abs(wxTotal / 100 - Number(order.amount)) >= 0.01) {
+      const wxTotal = Number((body.amount as Record<string, unknown> | undefined)?.total);
+      if (!Number.isFinite(wxTotal) || wxTotal <= 0) {
+        this.logger.error(`【资金对账·金额缺失】微信支付成功回调未携带合法金额: order=${orderId}, outTradeNo=${outTradeNo}`);
+        return false;
+      }
+      if (Math.abs(wxTotal / 100 - Number(order.amount)) >= 0.01) {
         this.logger.error(
           `【资金对账·金额不符】微信回调金额与订单金额不一致，拒绝入账: order=${orderId}, outTradeNo=${outTradeNo}, 回调金额=${wxTotal / 100}, 订单金额=${Number(order.amount)}`,
         );
-        return true;
+        return false;
       }
 
       const orderLockKey = await this.acquireOrderLock(orderId);
@@ -533,9 +644,9 @@ export class ShopPaymentService {
   /** 处理支付宝回调 */
   async handleAlipayNotify(data: Record<string, unknown>) {
     const outTradeNo = data.outTradeNo as string;
-    await this.completePayment(
+    return this.completePayment(
       outTradeNo, "ALIPAY", data.tradeNo as string,
-      data.tradeStatus === "TRADE_SUCCESS",
+      ["TRADE_SUCCESS", "TRADE_FINISHED"].includes(String(data.tradeStatus)),
       Number(data.totalAmount), // 元
     );
   }
@@ -547,66 +658,96 @@ export class ShopPaymentService {
 
   /** 处理银联回调 */
   async handleUnionpayNotify(data: Record<string, unknown>) {
-    if (data.respCode !== "00") return;
+    if (data.respCode !== "00") return true;
     const outTradeNo = data.outTradeNo as string;
-    await this.completePayment(
+    return this.completePayment(
       outTradeNo, "UNIONPAY", data.tradeNo as string, true,
       Number(data.amount) / 100, // 银联回调金额单位为分
     );
   }
 
-  private async completePayment(outTradeNo: string, payMethod: string, tradeNo: string, success: boolean, callbackAmount?: number) {
+  private async completePayment(
+    outTradeNo: string,
+    payMethod: string,
+    tradeNo: string,
+    success: boolean,
+    callbackAmount?: number,
+  ): Promise<boolean> {
     if (!success) {
       this.logger.log(`支付未成功: ${outTradeNo}, 方式: ${payMethod}`);
-      return;
+      return true;
+    }
+    if (!outTradeNo || !tradeNo) {
+      this.logger.error(`【资金对账·流水缺失】${payMethod} 支付成功回调缺少商户单号或渠道流水`);
+      return false;
     }
 
-    // 防重入锁（支付渠道侧）
     const payLockKey = `pay:lock:${outTradeNo}`;
     const payLocked = await this.redis.setNX(payLockKey, "1", 30);
     if (!payLocked) {
       this.logger.warn(`支付回调重复处理被拦截: ${outTradeNo}`);
-      return;
+      return false;
     }
 
     try {
+      // 首次回调按商户单号定位；成功后 payTransactionId 会改存渠道流水，
+      // 后续重投再按渠道流水定位，确保进程重启/缓存失效后仍能幂等应答。
       const order = await this.prisma.order.findFirst({
-        where: { payTransactionId: outTradeNo },
+        where: {
+          OR: [
+            { payTransactionId: outTradeNo },
+            ...(tradeNo ? [{ payMethod, payTransactionId: tradeNo }] : []),
+          ],
+        },
       });
       if (!order) {
         this.logger.error(`找不到对应的订单: ${outTradeNo}`);
-        return;
+        return false;
       }
-      if (order.status !== "PENDING") return;
+      if (order.status !== "PENDING") {
+        // 只有同一渠道、同一渠道流水的终态重投才可幂等确认；已取消订单或第二笔扣款必须进入对账。
+        if (order.payMethod === payMethod && order.payTransactionId === tradeNo) return true;
+        const riskLabel = order.status === "CANCELLED" ? "已取消订单收到成功扣款" : "终态订单收到另一笔成功流水";
+        this.logger.error(
+          "【资金对账·" + riskLabel + "】order=" + order.id +
+            ", status=" + order.status + ", payMethod=" + payMethod +
+            ", storedMethod=" + (order.payMethod || "") +
+            ", storedTradeNo=" + (order.payTransactionId || "") +
+            ", incomingTradeNo=" + tradeNo + ", outTradeNo=" + outTradeNo,
+        );
+        return false;
+      }
 
-      // M2 金额比对：验签只证明报文来自渠道，不证明买家付的是本单应付额（篡改下单金额/换单攻击面）
-      if (callbackAmount !== undefined && Math.abs(callbackAmount - Number(order.amount)) >= 0.01) {
+      if (!Number.isFinite(callbackAmount) || Number(callbackAmount) <= 0) {
+        this.logger.error(
+          `【资金对账·金额缺失】支付成功回调未携带合法金额，拒绝入账: order=${order.id}, outTradeNo=${outTradeNo}, 渠道=${payMethod}`,
+        );
+        return false;
+      }
+      if (Math.abs(Number(callbackAmount) - Number(order.amount)) >= 0.01) {
         this.logger.error(
           `【资金对账·金额不符】回调金额与订单金额不一致，拒绝入账: order=${order.id}, outTradeNo=${outTradeNo}, 渠道=${payMethod}, 回调金额=${callbackAmount}, 订单金额=${Number(order.amount)}`,
         );
-        return;
+        return false;
       }
 
       const orderLockKey = await this.acquireOrderLock(order.id);
-      if (!orderLockKey) return;
+      if (!orderLockKey) return false;
 
       try {
         await this.processPaidOrder(order, payMethod, tradeNo);
       } catch (e: unknown) {
-        if (e instanceof BusinessException && e.message === "订单状态已变更") return;
+        if (e instanceof BusinessException && e.message === "订单状态已变更") return true;
         if (isUniqueConstraintError(e)) {
           this.logger.warn(`支付回调重复处理(DB约束拦截): ${outTradeNo}, payMethod: ${payMethod}`);
-          return;
+          return true;
         }
         throw e;
       } finally {
         await this.redis.del(orderLockKey);
       }
 
-      // 分佣 + 平台费（事务外，失败可重试不影响订单状态；此前支付宝/银联漏记平台费）
       await this.attribution.recordOrderCommissionAndFee(order);
-
-      // 触发 Webhook（fire-and-forget，不阻塞主流程）
       this.webhook.fire("ORDER_PAID", {
         orderId: order.id,
         outTradeNo,
@@ -617,6 +758,7 @@ export class ShopPaymentService {
       }).catch((err) => this.logger.warn("Webhook ORDER_PAID 发送失败", err));
 
       this.logger.log(`订单 ${order.id} 支付成功, ${payMethod}交易号: ${tradeNo}`);
+      return true;
     } finally {
       await this.redis.del(payLockKey);
     }
@@ -836,84 +978,30 @@ export class ShopPaymentService {
     return this.huifu.createPayment(userId, { orderId, payType, openid });
   }
 
-  /** 处理汇付天下支付回调 */
+  /** 处理已由 HuifuService 验签、解析的汇付支付回调，并进入统一订单履约主链。 */
   async handleHuifuNotify(body: Record<string, unknown>) {
-    if (!this.huifu) {
-      this.logger.error("汇付支付回调但服务未配置");
+    const outTradeNo = String(body.req_seq_id || body.out_trade_no || "");
+    if (!outTradeNo) throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付支付回调缺少商户订单号");
+    const tradeStatus = String(body.trans_stat || body.trade_status || body.status || "");
+    if (!["S", "SUCCESS", "TRADE_SUCCESS"].includes(tradeStatus)) {
+      this.logger.log("汇付支付未成功: " + outTradeNo + ", trans_stat=" + (tradeStatus || "UNKNOWN"));
       return;
     }
-
-    const outTradeNo = body.out_trade_no as string;
-    if (!outTradeNo) return;
-
-    const lockKey = `huifu:cb:shop:${outTradeNo}`;
-    const locked = await this.redis.setNX(lockKey, "1", 30);
-    if (!locked) return;
-
-    try {
-      const tradeStatus = body.trade_status || body.status;
-      if (tradeStatus !== "SUCCESS" && tradeStatus !== "TRADE_SUCCESS") return;
-
-      const order = await this.prisma.order.findFirst({
-        where: { payTransactionId: outTradeNo },
-      });
-      if (!order || order.status !== "PENDING") return;
-
-      const transactionId = (body.huifu_order_id || body.transaction_id) as string;
-
-      const orderLockKey = await this.acquireOrderLock(order.id);
-      if (!orderLockKey) return;
-
-      try {
-        await this.processPaidOrder(order, "HUIFU", outTradeNo);
-      } catch (e: unknown) {
-        if (e instanceof BusinessException && e.message === "订单状态已变更") return;
-        if (isUniqueConstraintError(e)) {
-          this.logger.warn(`汇付支付回调重复处理(DB约束拦截): ${outTradeNo}`);
-          return;
-        }
-        throw e;
-      } finally {
-        await this.redis.del(orderLockKey);
-      }
-
-      // 分佣计算（事务外，失败可重试不影响订单状态）
-      if (this.commissionSvc) {
-        try {
-          await this.commissionSvc.calculateAndRecord(
-            order.id, order.type, Number(order.amount),
-            order.referrerId || undefined, order.tempReferrerId || undefined,
-            undefined, order.userId || undefined,
-          );
-        } catch (e) {
-          this.logger.error("汇付支付分佣计算失败", e);
-        }
-        // 平台费记录
-        try {
-          const fee = await this.commissionSvc.calculatePlatformFee(order.type, Number(order.amount));
-          if (fee) {
-            await this.commissionSvc.recordPlatformFee({
-              type: order.type, sourceId: order.id, sourceAmount: Number(order.amount),
-              platformRate: fee.platformRate, platformFee: fee.platformFee,
-            });
-          }
-        } catch (e) {
-          this.logger.error("汇付支付平台费记录失败", e);
-        }
-      }
-
-      // 触发 Webhook（fire-and-forget，不阻塞主流程）
-      this.webhook.fire("ORDER_PAID", {
-        orderId: order.id, outTradeNo, payMethod: "HUIFU", tradeNo: transactionId,
-        amount: Number(order.amount), userId: order.userId,
-      }).catch((err) => this.logger.warn("Webhook ORDER_PAID 发送失败", err));
-
-      this.logger.log(`汇付订单 ${order.id} 支付成功, 交易号: ${transactionId}`);
-    } finally {
-      await this.redis.del(lockKey);
-    }
+    const callbackAmount = Number(body.trans_amt);
+    const transactionId = String(body.hf_seq_id || body.huifu_order_id || "");
+    const handled = await this.completePayment(
+      outTradeNo,
+      "HUIFU",
+      transactionId,
+      true,
+      Number.isFinite(callbackAmount) ? callbackAmount : undefined,
+    );
+    if (!handled) throw new BusinessException(ErrorCode.PAY_FAILED, "汇付支付回调尚未完成本地入账");
+    await this.prisma.huifuSplitRecord.updateMany({
+      where: { outTradeNo },
+      data: { huifuOrderId: transactionId || undefined, rawResponse: body as any },
+    });
   }
-
   /** 查询订单支付状态 */
   async queryPaymentStatus(orderId: string, userId?: string) {
     const order = await this.orderSvc.getOrder(orderId, userId);

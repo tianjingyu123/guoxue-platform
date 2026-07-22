@@ -1,7 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { createSign, createVerify, randomInt } from "crypto";
 import { readFileSync } from "fs";
-import { MemoryCache } from "../../common/cache.util";
+
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 /**
  * 银联支付（含云闪付）API 服务
@@ -16,7 +18,7 @@ export class UnionpayService {
   private readonly publicKey: string;
   private readonly gateway: string;
   private readonly notifyUrl: string;
-  private readonly notifyDedup = new MemoryCache<boolean>(10000); // 通知去重，1h TTL
+
 
   constructor() {
     this.merId = process.env.UNIONPAY_MER_ID || "";
@@ -50,7 +52,12 @@ export class UnionpayService {
 
   /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */
   get isConfigured(): boolean {
-    return !!(this.merId && this.privateKey);
+    return !!(this.merId && this.privateKey && this.publicKey);
+  }
+
+  /** 银联网关时间固定使用中国标准时间；退款可传入持久化时间以保持三要素幂等。 */
+  private formatTxnTime(date = new Date()): string {
+    return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 19).replace(/[-:T]/g, "");
   }
 
   /** 从PFX/P12文件提取私钥（简化实现：OpenSSL提取） */
@@ -95,7 +102,7 @@ export class UnionpayService {
 
   /** 构建待签名字符串（按 key=value& 格式） */
   private buildSignStr(params: Record<string, string>): string {
-    const keys = Object.keys(params).filter((k) => k !== "signature").sort();
+    const keys = Object.keys(params).filter((k) => k !== "signature" && k !== "sign").sort();
     return keys.map((k) => `${k}=${params[k]}`).join("&");
   }
 
@@ -112,15 +119,20 @@ export class UnionpayService {
     const resp = await fetch(this.gateway + "/backTransReq.do", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: this.buildSignStr(params) + `&signature=${encodeURIComponent(params.signature || "")}`,
+      body: new URLSearchParams(params).toString(),
       signal: AbortSignal.timeout(15000),
     });
+    if (resp.ok === false) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, `银联网关 HTTP ${resp.status}`);
+    }
     const text = await resp.text();
     // 解析返回的键值对
     const result: Record<string, string> = {};
     for (const pair of text.split("&")) {
-      const [k, v] = pair.split("=");
-      if (k) result[k] = decodeURIComponent(v || "");
+      const separator = pair.indexOf("=");
+      const k = separator >= 0 ? pair.slice(0, separator) : pair;
+      const v = separator >= 0 ? pair.slice(separator + 1) : "";
+      if (k) result[k] = decodeURIComponent(v.replace(/\+/g, " "));
     }
     return result;
   }
@@ -139,7 +151,7 @@ export class UnionpayService {
       merId: this.merId,
       orderId: outTradeNo,
       txnAmt: String(amount), // 分
-      txnTime: new Date().toISOString().slice(0, 19).replace(/[-:T]/g, ""),
+      txnTime: this.formatTxnTime(),
       backUrl: this.notifyUrl,
       accessType: "0",
       channelType: "07", // PC
@@ -207,7 +219,7 @@ export class UnionpayService {
       bizType: "000000",
       merId: this.merId,
       orderId: outTradeNo,
-      txnTime: new Date().toISOString().slice(0, 19).replace(/[-:T]/g, ""),
+      txnTime: this.formatTxnTime(),
     };
 
     const signStr = this.buildSignStr(params);
@@ -216,13 +228,25 @@ export class UnionpayService {
     return this.backRequest(params);
   }
 
-  /** 退款 */
+  /** 退款：同步 respCode=00 仅代表银联受理，真实资金结果等待验签后台通知。 */
   async refund(params: {
     outTradeNo: string;
     outRefundNo: string;
     amount: number;
-    origQryId?: string; // 原交易查询流水号
-  }) {
+    origQryId?: string; // 原消费交易 queryId
+    merchantOrderId?: string; // 平台订单ID，经 reqReserved 原样回传供回调关联
+    requestedAt?: Date; // 首次退款处理时间，跨重试保持 orderId+txnTime 幂等键稳定
+  }): Promise<{ status: "PROCESSING"; channelRefundNo: string; raw: Record<string, string> }> {
+    if (!this.isConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "银联支付配置不完整，无法执行退款");
+    }
+    if (!params.origQryId) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "银联原交易流水号缺失，无法执行退款");
+    }
+    const channelRefundNo = params.outRefundNo.replace(/[^A-Za-z0-9]/g, "").slice(0, 40);
+    if (channelRefundNo.length < 8) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "银联退款单号不合法");
+    }
     const reqParams: Record<string, string> = {
       version: "5.1.0",
       encoding: "utf-8",
@@ -230,22 +254,39 @@ export class UnionpayService {
       txnType: "04",
       txnSubType: "00",
       bizType: "000201",
+      channelType: "07",
+      accessType: "0",
+      currencyCode: "156",
       merId: this.merId,
-      orderId: params.outRefundNo,
-      origQryId: params.origQryId || "",
+      orderId: channelRefundNo,
+      origQryId: params.origQryId,
       txnAmt: String(params.amount),
+      txnTime: this.formatTxnTime(params.requestedAt),
       backUrl: this.notifyUrl,
+      ...(params.merchantOrderId ? { reqReserved: params.merchantOrderId } : {}),
     };
 
-    const signStr = this.buildSignStr(reqParams);
-    reqParams.signature = this.sign(signStr);
-
-    return this.backRequest(reqParams);
+    reqParams.signature = this.sign(this.buildSignStr(reqParams));
+    const result = await this.backRequest(reqParams);
+    const signature = result.signature || result.sign || "";
+    if (!signature || !this.verifySign(this.buildSignStr(result), signature)) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "银联退款响应验签失败");
+    }
+    if (result.merId !== this.merId || result.orderId !== channelRefundNo) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "银联退款响应商户或退款单号不匹配");
+    }
+    if (result.origQryId && result.origQryId !== params.origQryId) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "银联退款响应原交易流水不匹配");
+    }
+    if (result.respCode !== "00") {
+      throw new BusinessException(ErrorCode.PAY_FAILED, result.respMsg || `银联退款未受理(${result.respCode || "UNKNOWN"})`);
+    }
+    return { status: "PROCESSING", channelRefundNo, raw: result };
   }
 
   // ───────── 回调处理 ─────────
 
-  /** 验证回调签名（含重放攻击防护：验签 + 5分钟时间窗口 + orderId去重） */
+  /** 验证回调签名（签名 + 商户号；延迟重投由订单状态/CAS 幂等接收） */
   async verifyNotify(params: Record<string, string>): Promise<{ valid: boolean; data?: Record<string, unknown>; error?: string }> {
     const signature = params.signature || params.sign || "";
     if (!signature) return { valid: false, error: "缺少签名字段" };
@@ -256,39 +297,41 @@ export class UnionpayService {
     const signStr = this.buildSignStr(rest);
     const valid = this.verifySign(signStr, signature);
     if (!valid) return { valid: false, error: "RSA-SHA256验签失败" };
+    const callbackMerId = params.merId || params.mer_id;
+    if (!callbackMerId || callbackMerId !== this.merId) {
+      return { valid: false, error: "银联回调商户号不匹配" };
+    }
 
-    // 2. 重放攻击防护：检查交易时间（5分钟窗口）
+    // 2. txnTime 是原交易时间而非通知发送时间，渠道重投可能远超 5 分钟。
+    // 只记录延迟，不拒绝已验签通知；订单号、金额、商户号与数据库 CAS 才是最终安全边界。
     const txnTime = params.txnTime || params.txn_time;
     if (txnTime) {
       // 银联时间格式: YYYYMMDDHHmmss
       const y = txnTime.substring(0, 4), m = txnTime.substring(4, 6), d = txnTime.substring(6, 8);
       const h = txnTime.substring(8, 10), min = txnTime.substring(10, 12), s = txnTime.substring(12, 14);
       const nt = new Date(`${y}-${m}-${d}T${h}:${min}:${s}+08:00`).getTime();
-      const diff = Math.abs(Date.now() - nt);
-      if (diff > 5 * 60 * 1000) {
-        this.logger.warn(`银联通知超时，时间差${Math.round(diff / 1000)}秒`);
-        return { valid: false, error: "通知时间窗口超时（5分钟）" };
+      if (Number.isFinite(nt)) {
+        const diff = Math.abs(Date.now() - nt);
+        if (diff > 5 * 60 * 1000) {
+          this.logger.warn(`银联通知对应交易已过去${Math.round(diff / 1000)}秒，仍按订单幂等处理`);
+        }
       }
     }
 
-    // 3. 通知去重：同一 orderId 成功回调只处理一次
+    // 3. 只验签与解析，不在这里提前去重。订单状态/CAS 才是最终幂等真源；
+    // 否则首次本地入账失败后，银联重试会被误判为已处理并永久丢单。
     const orderId = params.orderId || params.order_id;
-    const dedupKey = orderId ? `un:${orderId}` : "";
-    if (dedupKey && this.notifyDedup.has(dedupKey)) {
-      return { valid: true, data: { dedup: true, respCode: "00" } };
-    }
-
     const respCode = params.respCode || params.resp_code;
-    if (respCode === "00" && dedupKey) {
-      this.notifyDedup.set(dedupKey, true, 3600_000); // 1h TTL
-    }
 
     if (respCode === "00") {
       return {
         valid: true,
         data: {
           respCode: "00", // handleUnionpayNotify 以此判定成功，缺失会导致成功回调被拒不入账
+          txnType: params.txnType || params.txn_type,
           outTradeNo: orderId,
+          origQryId: params.origQryId || params.orig_qry_id,
+          merchantOrderId: params.reqReserved || params.req_reserved,
           tradeNo: params.queryId || params.query_id,
           amount: parseInt(params.txnAmt || params.txn_amt || "0"),
           settleDate: params.settleDate || params.settle_date,
@@ -296,7 +339,18 @@ export class UnionpayService {
         },
       };
     }
-    return { valid: true, data: { respCode, respMsg: params.respMsg } };
+    return {
+      valid: true,
+      data: {
+        respCode,
+        txnType: params.txnType || params.txn_type,
+        outTradeNo: orderId,
+        origQryId: params.origQryId || params.orig_qry_id,
+        merchantOrderId: params.reqReserved || params.req_reserved,
+        amount: parseInt(params.txnAmt || params.txn_amt || "0"),
+        respMsg: params.respMsg || params.resp_msg,
+      },
+    };
   }
 
   /** 生成回调响应（必须返回给银联） */
