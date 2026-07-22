@@ -1865,18 +1865,6 @@
           }
         },
         {
-          "path": "station-detail/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "station-teachers/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "station-poster/index",
           "style": {
             "navigationStyle": "custom"
@@ -1919,19 +1907,7 @@
           }
         },
         {
-          "path": "station-live/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "station-assistant/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "announcements/index",
           "style": {
             "navigationStyle": "custom"
           }

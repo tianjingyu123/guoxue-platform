@@ -325,8 +325,8 @@ const ROUTE_MAP: Record<string, string> = {
   // 交易申诉（3步表单：选订单/选类型/填详情→提交进度时间线，fallback /orders）
   '/appeal': '/pkg-order/appeal/index',
   // 成为合作伙伴（讲师招募：intro权益介绍→apply申请表单→success提交成功）
-  // 平台公告（驿站站长面板入口，分类筛选+置顶/普通分组，详情复用 notices 兜底）
-  '/announcements': '/pkg-operator/announcements/index',
+  // 历史分站公告整页占位已退役，旧入口统一落到真实平台公告中心。
+  '/announcements': '/pkg-notices/index/index',
   // 智能体广场（去重：原 pkg-agent/bots/index 纯 mock 页已删除，统一指向真实化的 agents/index）
   '/bots': '/pkg-agent/agents/index',
   // Bot 对话页（接 ?id= query，circles/bots 和广场都跳此）
