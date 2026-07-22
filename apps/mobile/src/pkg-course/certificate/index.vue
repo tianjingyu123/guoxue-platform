@@ -6,6 +6,7 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
+import { drawQrToCanvas } from '@/utils/qrcode'
 import AppIcon from '@/components/common/app-icon.vue'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
 import AppLoading from '@/components/common/app-loading.vue'
@@ -46,6 +47,7 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
+    if (!courseId.value) throw new Error('缺少课程信息，请从学习中心重新进入')
     const res = await courseApi.getCertificate(courseId.value)
     cert.value = res
     // 触点不 await：失败静默不出，绝不阻塞证书展示
@@ -63,7 +65,10 @@ async function loadData() {
 // ============ 分享给好友（裂变核心）============
 // 标题带「炫耀感+召唤感」，path 指向课程详情页；withRef 自动追加当前用户 ref，好友点开即归因
 const shareTitle = computed(() => `我在${BRAND.name}完成了《${cert.value?.courseName || '国学好课'}》结课！`)
-const sharePath = computed(() => `/courses/${cert.value?.courseId || courseId.value}`)
+const sharePath = computed(() => `/pkg-course/detail/index?id=${encodeURIComponent(cert.value?.courseId || courseId.value)}`)
+const shareLink = computed(() => withRef(
+  `${BRAND.h5Url.replace(/\/+$/, '')}${sharePath.value}`,
+))
 
 const { toAppMessage, toTimeline } = useShare()
 // 微信小程序原生转发：底部 open-type="share" 按钮 / 右上角菜单触发
@@ -72,7 +77,7 @@ onShareTimeline(() => toTimeline({ title: shareTitle.value, path: sharePath.valu
 
 /** H5/App 端：复制炫耀文案 + 带 ref 的完整链接到剪贴板（好友点开自动记归因） */
 function copyShareLink() {
-  const link = withRef(`https://api.rebugx.cn/h5${sharePath.value}`)
+  const link = shareLink.value
   const text = `${shareTitle.value} 快来和我一起研习国学吧 👉 ${link}`
   uni.setClipboardData({
     data: text,
@@ -82,7 +87,7 @@ function copyShareLink() {
 }
 
 // ============ 保存到相册（canvas 海报）============
-/** 绘制竖版结业证书海报（主色块 + 白卡信息区 + 底部平台标识/二维码占位） */
+/** 绘制竖版结业证书海报（主色块 + 白卡信息区 + 可扫描课程二维码） */
 function drawPoster() {
   const c = cert.value
   if (!c) return
@@ -154,22 +159,32 @@ function drawPoster() {
   ctx.setTextAlign('right')
   ctx.fillText(`颁发日期：${fmtDate(dateStr.value)}`, cardX + cardW - 16, cardY + 168)
 
-  // ── 底部二维码占位 + 编号 ──
-  const qrSize = 66
+  // ── 底部真实二维码 + 编号 ──
+  // UUID 课程/用户归因链接会生成较高版本二维码，放大模块保证图片压缩后仍可扫描
+  const qrSize = 120
   const qrX = (W - qrSize) / 2
-  const qrY = cardY + cardH + 22
-  ctx.setFillStyle('#eef0f2')
-  ctx.fillRect(qrX, qrY, qrSize, qrSize)
-  ctx.setFillStyle('#9ca3af')
+  const qrY = cardY + cardH + 16
+  const hasQr = drawQrToCanvas(ctx, shareLink.value, qrX, qrY, qrSize, {
+    padding: 10,
+    radius: 5,
+    foreground: '#2c2c2c',
+  })
+  if (!hasQr) {
+    // 编码异常时降级为明确的品牌印章，不画不可扫描的假二维码
+    ctx.setFillStyle('#C9A96E')
+    ctx.fillRect(qrX, qrY, qrSize, qrSize)
+    ctx.setFillStyle('#ffffff')
+    ctx.setFontSize(16)
+    ctx.setTextAlign('center')
+    ctx.fillText(BRAND.nameShort, W / 2, qrY + 39)
+  }
+  ctx.setFillStyle('#9a8b73')
   ctx.setFontSize(10)
   ctx.setTextAlign('center')
-  ctx.fillText('扫码开启国学之旅', W / 2, qrY + qrSize + 16)
-  ctx.setFillStyle('#c4b59a')
-  ctx.setFontSize(8)
-  ctx.fillText('（二维码占位 · 上线后接入）', W / 2, qrY + qrSize + 30)
+  ctx.fillText(hasQr ? BRAND.qrGuide : BRAND.slogan, W / 2, qrY + qrSize + 14)
   ctx.setFillStyle('#b0a48c')
   ctx.setFontSize(9)
-  ctx.fillText(`证书编号：${c.certificateNo || ''}`, W / 2, H - 20)
+  ctx.fillText(`证书编号：${c.certificateNo || ''}`, W / 2, H - 16)
 
   ctx.draw()
 }
@@ -252,14 +267,14 @@ function onSavePoster() {
 }
 
 onLoad((options) => {
-  courseId.value = options?.id || '1'
+  courseId.value = options?.id || ''
   uni.getSystemInfo({
     success: (e) => {
       statusBarHeight.value = e.statusBarHeight || 0
-      // 按屏宽适配画布尺寸（保持 2:3 竖版比例）
+      // 按屏宽适配画布尺寸（保持 1:1.7 竖版比例）
       const w = Math.min(320, Math.max(260, (e.windowWidth || 375) - 80))
       canvasW.value = Math.round(w)
-      canvasH.value = Math.round(w * 1.5)
+      canvasH.value = Math.round(w * 1.7)
     },
   })
 })
