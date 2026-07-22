@@ -48,6 +48,7 @@ const mockPrisma = {
   userTag: { findMany: jest.fn().mockResolvedValue([]) },
   userBehaviorLog: { groupBy: jest.fn(), findMany: jest.fn() },
   order: { aggregate: jest.fn(), groupBy: jest.fn() },
+  afterSale: { count: jest.fn() },
   virtualCoinAccount: { findUnique: jest.fn() },
   userPoints: { findUnique: jest.fn() },
   userCoupon: { count: jest.fn() },
@@ -263,11 +264,11 @@ describe("UserService", () => {
       mockPrisma.virtualCoinAccount.findUnique.mockResolvedValue({ balance: 88.5 });
       mockPrisma.userPoints.findUnique.mockResolvedValue({ balance: 360 });
       mockPrisma.userCoupon.count.mockResolvedValue(3);
+      mockPrisma.afterSale.count.mockResolvedValue(3);
       mockPrisma.order.groupBy.mockResolvedValue([
         { status: "PENDING", _count: { _all: 2 } },
         { status: "PAID", _count: { _all: 4 } },
         { status: "SHIPPED", _count: { _all: 1 } },
-        { status: "REFUNDED", _count: { _all: 5 } },
       ]);
 
       const result = await svc.getMySummary("u1");
@@ -275,7 +276,7 @@ describe("UserService", () => {
       expect(result).toEqual({
         stats: { following: 12, followers: 8, likes: 19 },
         assets: { coins: 88.5, coupons: 3, points: 360 },
-        orders: { pending: 2, shipped: 4, received: 1, refund: 5 },
+        orders: { pending: 2, shipped: 4, received: 1, refund: 3 },
       });
       expect(mockPrisma.userCoupon.count).toHaveBeenCalledWith({
         where: expect.objectContaining({
@@ -283,6 +284,12 @@ describe("UserService", () => {
           used: false,
           coupon: expect.objectContaining({ status: "ACTIVE" }),
         }),
+      });
+      expect(mockPrisma.afterSale.count).toHaveBeenCalledWith({
+        where: {
+          userId: "u1",
+          status: { notIn: ["COMPLETED", "REJECTED", "CANCELLED"] },
+        },
       });
     });
   });

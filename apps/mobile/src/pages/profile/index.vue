@@ -205,9 +205,14 @@ onPullDownRefresh(async () => {
 function go(href?: string) {
   if (href) navigateTo(href)
 }
-/** 我的页订单状态 key → 订单列表页 tab key */
-function orderTabOf(key: 'pending' | 'shipped' | 'received' | 'refund'): string {
-  return { pending: 'pending_pay', shipped: 'pending_ship', received: 'pending_receive', refund: 'after_sale' }[key]
+/** 我的页订单状态入口：售后是独立状态机，进入专属列表；其余进入订单筛选。 */
+function openOrderStatus(key: 'pending' | 'shipped' | 'received' | 'refund') {
+  if (key === 'refund') {
+    navigateTo('/shop/my-after-sales')
+    return
+  }
+  const tab = { pending: 'pending_pay', shipped: 'pending_ship', received: 'pending_receive' }[key]
+  navigateTo('/pkg-order/list/index?tab=' + tab)
 }
 /** 点击已有身份卡 → 进入对应工作台 */
 function openRole(href: string) {
@@ -342,7 +347,7 @@ function applyRole(role: string) {
         <text class="orders-more" @tap="go('/pkg-order/list/index')">全部订单 ›</text>
       </view>
       <view class="orders-row">
-        <view v-for="item in orderStatus" :key="item.key" class="o-item tap-press" @tap="go(`/pkg-order/list/index?tab=${orderTabOf(item.key)}`)">
+        <view v-for="item in orderStatus" :key="item.key" class="o-item tap-press" @tap="openOrderStatus(item.key)">
           <view class="o-icon">
             <AppIcon :name="item.icon" :size="40" color="#2B2620" />
             <text v-if="item.count != null && item.count > 0" class="o-dot">{{ item.count }}</text>

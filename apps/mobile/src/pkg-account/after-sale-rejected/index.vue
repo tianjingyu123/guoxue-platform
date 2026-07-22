@@ -66,14 +66,14 @@
         <view class="info-list">
           <view class="info-item">
             <text class="info-label">售后类型</text>
-            <text class="info-value">{{ detail.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
+            <text class="info-value">{{ afterSaleTypeLabel(detail.type) }}</text>
           </view>
-          <view class="info-item">
+          <view v-if="isRefundAfterSaleType(detail.type)" class="info-item">
             <text class="info-label">退款金额</text>
-            <text class="info-value price">¥{{ detail.amount.toFixed(2) }}</text>
+            <text class="info-value price">¥{{ formatPrice(detail.amount) }}</text>
           </view>
           <view class="info-item">
-            <text class="info-label">退款原因</text>
+            <text class="info-label">申请原因</text>
             <text class="info-value">{{ detail.reason }}</text>
           </view>
           <view class="info-item">
@@ -124,7 +124,7 @@
       <view class="service-card" @tap="contactService">
         <view class="service-left">
           <view class="service-icon">
-            <app-icon name="phone" :size="34" color="#C9A96E" />
+            <app-icon name="message-circle" :size="34" color="#C9A96E" />
           </view>
           <view class="service-text">
             <text class="service-title">联系客服</text>
@@ -161,7 +161,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { accountApi } from '@/pkg-account/lib/account-data'
+import { accountApi, afterSaleTypeLabel, isRefundAfterSaleType } from '@/pkg-account/lib/account-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)
@@ -229,15 +229,23 @@ function previewImage(idx: number) {
 }
 
 function contactService() {
-  uni.showToast({ title: '正在接入客服...', icon: 'none' })
+  navigateTo('/customer-service')
 }
 
 function reApply() {
-  navigateTo(`/shop/after-sale?orderId=${detail.value.orderId}&prefill=true`)
+  if (detail.value.type === 'exchange') {
+    navigateTo('/shop/exchange?orderId=' + detail.value.orderId)
+    return
+  }
+  if (detail.value.type === 'dispute' || detail.value.type === 'other') {
+    navigateTo('/orders/dispute?orderId=' + detail.value.orderId)
+    return
+  }
+  navigateTo('/shop/after-sale?orderId=' + detail.value.orderId + '&prefill=true')
 }
 
 function appeal() {
-  navigateTo(`/orders/dispute?afterSaleId=${detail.value.id}`)
+  navigateTo('/orders/dispute?orderId=' + detail.value.orderId)
 }
 
 function viewOrder() {

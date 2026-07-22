@@ -33,11 +33,13 @@ export type AfterSaleStatus =
   | 'rejected'
   | 'cancelled'
 
+export type AfterSaleViewType = 'refund_only' | 'refund_with_return' | 'exchange' | 'dispute' | 'other'
+
 export interface AfterSaleListItem {
   id: string
   orderId: string
   orderNo: string
-  type: 'refund_only' | 'refund_with_return'
+  type: AfterSaleViewType
   status: AfterSaleStatus
   amount: number
   reason: string
@@ -78,7 +80,7 @@ export interface AfterSaleDetailData {
   id: string
   orderId: string
   orderNo: string
-  type: 'refund_only' | 'refund_with_return'
+  type: AfterSaleViewType
   status: AfterSaleStatus
   reason: string
   amount: number
@@ -215,9 +217,27 @@ const AS_STATUS_MAP: Record<string, AfterSaleStatus> = {
   PENDING: 'pending', PROCESSING: 'refunding', APPROVED: 'approved',
   COMPLETED: 'completed', REJECTED: 'rejected', CANCELLED: 'cancelled',
 }
-/** 后端售后类型字符串（refund/return…）→ 前端两类 */
-function asType(t?: string): 'refund_only' | 'refund_with_return' {
-  return t === 'return' || t === 'refund_with_return' ? 'refund_with_return' : 'refund_only'
+/** 后端售后类型字符串 → 统一视图类型；交易申诉不能冒充退款。 */
+function asType(t?: string): AfterSaleViewType {
+  if (t === 'exchange') return 'exchange'
+  if (t === 'return' || t === 'refund_with_return') return 'refund_with_return'
+  if (!t || t === 'refund' || t === 'refund_only') return 'refund_only'
+  if (['not_received', 'not_as_described', 'quality_issue', 'other'].includes(t)) return 'dispute'
+  return 'other'
+}
+
+export function afterSaleTypeLabel(type: AfterSaleViewType): string {
+  return {
+    refund_only: '仅退款',
+    refund_with_return: '退货退款',
+    exchange: '换货',
+    dispute: '交易申诉',
+    other: '其他售后',
+  }[type]
+}
+
+export function isRefundAfterSaleType(type: AfterSaleViewType): boolean {
+  return type === 'refund_only' || type === 'refund_with_return'
 }
 
 /** 后端 enriched AfterSale → 前端列表项 */

@@ -175,7 +175,7 @@ import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
-import { navigateTo } from '@/utils/router'
+import { navigateTo, redirectTo } from '@/utils/router'
 import { useList } from '@/composables/useList'
 import { orderApi, orderStatusTabs, orderStatusConfig, orderCancelReasons, orderTypeMeta, type OrderListItem } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
@@ -208,6 +208,10 @@ const retry = () => refresh()
 // 支持 ?tab= 深链（我的页四状态入口直达对应筛选）
 onLoad((query?: Record<string, string>) => {
   const tab = query?.tab
+  if (tab === 'after_sale') {
+    redirectTo('/shop/my-after-sales')
+    return
+  }
   if (tab && statusTabs.some((t) => t.key === tab)) activeTab.value = tab
   refresh()
   loadCounts()
@@ -219,6 +223,10 @@ onPullDownRefresh(() => {
 })
 
 function selectTab(key: string) {
+  if (key === 'after_sale') {
+    navigateTo('/shop/my-after-sales')
+    return
+  }
   if (activeTab.value === key) return
   activeTab.value = key
   refresh()

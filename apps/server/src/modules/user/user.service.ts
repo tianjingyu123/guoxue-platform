@@ -285,7 +285,7 @@ export class UserService {
    */
   async getMySummary(userId: string) {
     const now = new Date();
-    const [following, followers, receivedLikes, coinAccount, points, coupons, orderGroups] = await Promise.all([
+    const [following, followers, receivedLikes, coinAccount, points, coupons, orderGroups, activeAfterSales] = await Promise.all([
       this.prisma.follow.count({ where: { userId } }),
       this.prisma.follow.count({ where: { followedUserId: userId } }),
       this.countReceivedLikes(userId),
@@ -307,10 +307,18 @@ export class UserService {
         where: {
           userId,
           status: {
-            in: [OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.SHIPPED, OrderStatus.REFUNDED],
+            in: [OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.SHIPPED],
           },
         },
         _count: { _all: true },
+      }),
+      // 售后是独立状态机，不能用已退款订单冒充“处理中售后”角标。
+      // 排除三种终态，保留 PENDING / PROCESSING / APPROVED 及未来新增的非终态。
+      this.prisma.afterSale.count({
+        where: {
+          userId,
+          status: { notIn: ["COMPLETED", "REJECTED", "CANCELLED"] },
+        },
       }),
     ]);
 
@@ -326,7 +334,7 @@ export class UserService {
         pending: orderCount.get(OrderStatus.PENDING) ?? 0,
         shipped: orderCount.get(OrderStatus.PAID) ?? 0,
         received: orderCount.get(OrderStatus.SHIPPED) ?? 0,
-        refund: orderCount.get(OrderStatus.REFUNDED) ?? 0,
+        refund: activeAfterSales,
       },
     };
   }

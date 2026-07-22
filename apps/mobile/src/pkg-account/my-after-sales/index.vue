@@ -49,7 +49,7 @@
                 <app-icon :name="sCfg(item.status).icon" :size="22" :color="sCfg(item.status).color" />
                 <text class="as-status-text" :style="{ color: sCfg(item.status).color }">{{ sCfg(item.status).label }}</text>
               </view>
-              <text class="as-type">{{ item.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
+              <text class="as-type">{{ afterSaleTypeLabel(item.type) }}</text>
             </view>
             <text class="as-time">{{ item.createdAt }}</text>
           </view>
@@ -60,10 +60,11 @@
               <text class="as-name">{{ item.product.name }}</text>
               <text class="as-sku">{{ item.product.skuName }}</text>
               <view class="as-foot">
-                <view class="as-amount">
+                <view v-if="isRefundAfterSaleType(item.type)" class="as-amount">
                   <text class="amount-label">退款金额：</text>
                   <text class="amount-value">¥{{ formatPrice(item.amount) }}</text>
                 </view>
+                <text v-else class="exchange-hint">{{ afterSaleTypeLabel(item.type) }}</text>
                 <app-icon name="chevron-right" :size="28" color="#999999" />
               </view>
             </view>
@@ -117,7 +118,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
 import SmartCover from '@/components/common/smart-cover.vue'
-import { accountApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/pkg-account/lib/account-data'
+import { accountApi, afterSaleTabs, afterSaleStatusConfig, afterSaleTypeLabel, isRefundAfterSaleType, type AfterSaleListItem } from '@/pkg-account/lib/account-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)
@@ -378,6 +379,10 @@ async function doCancel() {
   font-size: 30rpx;
   font-weight: 600;
   color: var(--brand);
+}
+.exchange-hint {
+  font-size: 24rpx;
+  color: #666666;
 }
 
 .as-actions {

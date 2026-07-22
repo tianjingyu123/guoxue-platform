@@ -35,7 +35,7 @@
           <text v-if="detail.status === 'approved' && detail.type === 'refund_with_return'" class="status-tip">请在7天内寄回商品</text>
           <text v-else-if="detail.status === 'rejected' && detail.rejectReason" class="status-tip reject">原因：{{ detail.rejectReason }}</text>
         </view>
-        <view class="status-amount">
+        <view v-if="isRefundAfterSaleType(detail.type)" class="status-amount">
           <text class="amount-label">退款金额</text>
           <text class="amount-value">¥{{ formatPrice(detail.amount) }}</text>
         </view>
@@ -59,8 +59,8 @@
       <!-- 售后信息 -->
       <view class="card">
         <text class="card-title">售后信息</text>
-        <view class="info-row"><text class="info-label">售后类型</text><text class="info-val">{{ detail.type === 'refund_only' ? '仅退款' : '退货退款' }}</text></view>
-        <view class="info-row"><text class="info-label">退款原因</text><text class="info-val">{{ detail.reason }}</text></view>
+        <view class="info-row"><text class="info-label">售后类型</text><text class="info-val">{{ afterSaleTypeLabel(detail.type) }}</text></view>
+        <view class="info-row"><text class="info-label">申请原因</text><text class="info-val">{{ detail.reason }}</text></view>
         <view class="info-row">
           <text class="info-label">售后单号</text>
           <view class="info-copy">
@@ -170,7 +170,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { accountApi } from '@/pkg-account/lib/account-data'
+import { accountApi, afterSaleTypeLabel, isRefundAfterSaleType } from '@/pkg-account/lib/account-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)
