@@ -5,6 +5,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { chooseAndUploadImage } from '@/utils/request'
 import {
   microPageApi,
   COMPONENT_LIBRARY,
@@ -19,6 +20,7 @@ const loading = ref(true)
 const error = ref('')
 const notOpened = ref(false)
 const submitting = ref(false)
+const imageUploading = ref<number | null>(null)
 
 const page = ref<MicroPage | null>(null)
 const components = ref<MicroComponent[]>([])
@@ -147,8 +149,30 @@ function addBannerImage() {
 function removeBannerImage(i: number) {
   editConfig.value.images.splice(i, 1)
 }
+async function uploadBannerImage(index: number) {
+  if (imageUploading.value !== null) return
+  const images = Array.isArray(editConfig.value.images) ? editConfig.value.images : []
+  const target = images[index]
+  if (!target) return
+  imageUploading.value = index
+  try {
+    const url = await chooseAndUploadImage()
+    if (images.includes(target)) target.url = url
+    uni.showToast({ title: '图片已上传', icon: 'success' })
+  } catch (e) {
+    const message = (e as Error)?.message || ''
+    if (message && message !== '已取消') uni.showToast({ title: message, icon: 'none' })
+  } finally {
+    imageUploading.value = null
+  }
+}
+function previewBannerImage(url: string) {
+  if (url) uni.previewImage({ urls: [url], current: url })
+}
+
 
 async function saveEditor() {
+  if (imageUploading.value !== null) { uni.showToast({ title: '请等待图片上传完成', icon: 'none' }); return }
   if (submitting.value || !page.value || !editing.value) return
   submitting.value = true
   try {
@@ -343,15 +367,22 @@ function summarize(comp: MicroComponent): string {
           <template v-else-if="editing.type === 'banner'">
             <view class="mp-field">
               <view class="mp-banner-head">
-                <text class="mp-flabel">轮播图（图片地址）</text>
+                <text class="mp-flabel">轮播图</text>
                 <text class="mp-banner-add" @tap="addBannerImage">+ 添加</text>
               </view>
               <view v-for="(img, bi) in (editConfig.images || [])" :key="bi" class="mp-banner-item">
-                <input class="mp-input" v-model="img.url" placeholder="图片 URL" />
+                <image v-if="img.url" class="mp-banner-thumb" :src="img.url" mode="aspectFill" @tap="previewBannerImage(img.url)" />
+                <view class="mp-banner-url-row">
+                  <input class="mp-input" v-model="img.url" placeholder="上传图片或粘贴图片 URL" />
+                  <view class="mp-banner-upload" :class="{ disabled: imageUploading !== null }" @tap="uploadBannerImage(bi)">
+                    <app-icon :name="imageUploading === bi ? 'loader-2' : 'upload'" :size="26" color="#C41E3A" :class="{ 'mp-spin': imageUploading === bi }" />
+                    <text>{{ imageUploading === bi ? '上传中' : '上传' }}</text>
+                  </view>
+                  <view class="mp-banner-del" @tap="removeBannerImage(bi)"><app-icon name="trash-2" :size="28" color="#ef4444" /></view>
+                </view>
                 <input class="mp-input" v-model="img.link" placeholder="跳转链接(可选)" />
-                <view class="mp-banner-del" @tap="removeBannerImage(bi)"><app-icon name="trash-2" :size="28" color="#ef4444" /></view>
               </view>
-              <text class="mp-banner-tip">图片上传功能即将开放，当前可先填图片地址</text>
+              <text class="mp-banner-tip">支持直接上传，也可粘贴已有图片地址；建议使用横版图片。</text>
             </view>
           </template>
 
@@ -446,10 +477,17 @@ function summarize(comp: MicroComponent): string {
 .mp-hint-txt { font-size: 26rpx; color: #8a7a5c; text-align: center; line-height: 1.5; }
 .mp-banner-head { display: flex; align-items: center; justify-content: space-between; }
 .mp-banner-add { font-size: 26rpx; color: var(--brand); }
-.mp-banner-item { display: flex; align-items: center; gap: 12rpx; margin-top: 12rpx; }
-.mp-banner-item .mp-input { flex: 1; margin-bottom: 0; }
+.mp-banner-item { margin-top: 16rpx; padding: 16rpx; background: #faf8f5; border-radius: 14rpx; }
+.mp-banner-thumb { width: 100%; height: 180rpx; margin-bottom: 12rpx; border-radius: 12rpx; background: #ede7dc; }
+.mp-banner-url-row { display: flex; align-items: center; gap: 10rpx; }
+.mp-banner-url-row .mp-input { flex: 1; min-width: 0; margin-bottom: 0; }
+.mp-banner-upload { height: 64rpx; padding: 0 14rpx; display: flex; align-items: center; gap: 4rpx; color: #C41E3A; font-size: 22rpx; border: 1rpx solid rgba(196,30,58,.25); border-radius: 10rpx; }
+.mp-banner-upload.disabled { opacity: .55; }
+.mp-banner-item > .mp-input { width: 100%; margin-top: 12rpx; margin-bottom: 0; }
 .mp-banner-del { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .mp-banner-tip { display: block; margin-top: 12rpx; font-size: 22rpx; color: #C9A96E; }
+.mp-spin { animation: mp-spin 1s linear infinite; }
+@keyframes mp-spin { to { transform: rotate(360deg); } }
 
 .mp-edit-foot { padding: 20rpx 32rpx; padding-bottom: calc(20rpx + env(safe-area-inset-bottom)); border-top: 1rpx solid #f5f1ea; }
 .mp-save { height: 88rpx; background: var(--brand); border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
