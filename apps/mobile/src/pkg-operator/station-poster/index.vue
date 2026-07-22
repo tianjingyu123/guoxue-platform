@@ -155,6 +155,7 @@ import { navigateTo, navigateBack } from '@/utils/router'
 import { operatorApi } from '@/pkg-operator/lib/operator-data'
 import { BRAND } from '@/lib/brand'
 import { drawQrToCanvas } from '@/utils/qrcode'
+import { buildH5Url } from '@/utils/share'
 
 const instance = getCurrentInstance()?.proxy
 const statusBarHeight = ref(20)
@@ -244,9 +245,7 @@ const posterBgStyle = computed(() => ({ background: tpl.value.bg }))
 // 推广链接：真实 H5 地址 + 分站 code 作 ref（统一归因参数·注册绑定归属/下单临时归因均识别）
 const promoLink = computed(() => {
   if (!station.value.code) return ''
-  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
-  const base = (import.meta as any).env?.VITE_H5_URL || ''
-  return `${base}/#/pages/index/index?ref=${station.value.code}`
+  return buildH5Url('/pages/index/index', { ref: station.value.code })
 })
 
 // ───────── canvas 海报绘制（真实生成·可保存相册） ─────────

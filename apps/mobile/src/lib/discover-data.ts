@@ -192,9 +192,10 @@ export const discoverApi = {
   async getRecommendations(): Promise<FeedItem[]> {
     try {
       const items = adaptDiscoverFeed(await apiGet<RawDiscoverData>('/discover/recommendations?pageSize=12'))
-      return items.length ? items : feedItems.slice(0, 6)
+      // 推荐内容必须来自真实接口；无数据时由页面展示诚实空态，不回落演示销量/阅读量。
+      return items
     } catch {
-      return feedItems.slice(0, 6)
+      return []
     }
   },
 }

@@ -148,6 +148,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { operatorApi, type PromotionMaterialItem } from '@/pkg-operator/lib/operator-data'
+import { buildH5Url } from '@/utils/share'
 
 const statusBarHeight = ref(20)
 try {
@@ -191,8 +192,7 @@ function tagClass(tag: string): string {
 
 // 专属邀请链接（与 operator-data getDashboardInviteLink 同源规则，用分站 code）
 const inviteUrl = computed(() => {
-  const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
-  return stationCode.value ? `${base}/#/pages/index/index?s=${stationCode.value}` : ''
+  return stationCode.value ? buildH5Url('/pages/index/index', { ref: stationCode.value }) : ''
 })
 
 async function load() {

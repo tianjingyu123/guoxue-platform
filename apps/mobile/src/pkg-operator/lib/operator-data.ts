@@ -1,6 +1,7 @@
 // 分站运营商 - 加入运营商页数据（对齐原型 app/join/operator）
 
 import { apiGet, apiGetOptionalAuth, apiPost, apiPut } from '@/utils/request'
+import { buildH5Url } from '@/utils/share'
 
 export interface PlanCompareRow {
   feature: string
@@ -853,8 +854,7 @@ export const operatorApi = {
   },
   async getDashboardInviteLink(): Promise<string> {
     const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
-    const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || ''
-    return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
+    return buildH5Url('/pkg-operator/join-station/index', { op: op.id })
   },
 
   // === 分站装修/配置 (用于 station-config 页) ===
@@ -934,8 +934,7 @@ export const operatorApi = {
   // 邀请站长加入链接（复用运营商招募口）
   async getTeamInviteLink(): Promise<string> {
     const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
-    const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || ''
-    return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
+    return buildH5Url('/pkg-operator/join-station/index', { op: op.id })
   },
 
   // === 名额管理：名额仅用于邀请归属，不售卖、不私下转赠 ===
@@ -965,8 +964,7 @@ export const operatorApi = {
   },
   async getQuotaSaleLink(): Promise<string> {
     const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
-    const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || ''
-    return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
+    return buildH5Url('/pkg-operator/join-station/index', { op: op.id })
   },
 
   // === 邀请站长 (用于 invite 页·真连名下站长 + 构造邀请入口) ===
@@ -984,8 +982,7 @@ export const operatorApi = {
   },
   async getInviteLinkFull(): Promise<string> {
     const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')
-    const base = (import.meta as unknown as { env?: { VITE_H5_URL?: string } }).env?.VITE_H5_URL || ''
-    return `${base}/#/pkg-operator/join-station/index?op=${op.id}`
+    return buildH5Url('/pkg-operator/join-station/index', { op: op.id })
   },
   async getInviteCode(): Promise<string> {
     const op = await apiGet<RawOperatorDashboard>('/station/operator-dashboard/my')

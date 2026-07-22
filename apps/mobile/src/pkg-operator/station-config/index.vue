@@ -228,6 +228,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { operatorApi, type StationConfigData, type StationTemplateOption } from '@/pkg-operator/lib/operator-data'
+import { buildH5Url } from '@/utils/share'
 
 const statusBarHeight = ref(20)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 20 } })
@@ -334,9 +335,7 @@ async function handleSave() {
 }
 
 function copyShareLink() {
-  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
-  const base = (import.meta as any).env?.VITE_H5_URL || ''
-  const link = `${base}/#/pages/index/index?ref=${config.value.code}`
+  const link = buildH5Url('/pages/index/index', { ref: config.value.code })
   uni.setClipboardData({ data: link, success: () => uni.showToast({ title: '推广链接已复制', icon: 'none' }) })
 }
 

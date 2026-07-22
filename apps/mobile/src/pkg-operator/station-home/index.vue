@@ -5,6 +5,8 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { captureRefFromQuery } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import {
   stationHomeApi,
   deriveFeatures,
@@ -12,6 +14,7 @@ import {
   feedTypeLabel,
   feedTypeIcon,
   formatStatNumber,
+  stationFeedTargetUrl,
   type StationBrandFull,
   type StationFeature,
   type StationFeedCard,
@@ -40,7 +43,9 @@ function isFeedFloor(type: string) { return type === 'recommend' || type === 're
 const recFeed = computed(() => (pinnedList.value.length ? pinnedList.value : feedList.value))
 
 onLoad((q: Record<string, string> = {}) => {
-  stationCode.value = q.s || q.code || q.station || ''
+  // 分享链接统一使用 ref；既加载对应分站品牌，也写入七天临时归因（最近点击优先）。
+  captureRefFromQuery(q)
+  stationCode.value = q.ref || q.s || q.code || q.station || ''
   loadData()
 })
 
@@ -81,17 +86,19 @@ async function retry() { await loadData() }
 function openFeature(f: StationFeature) {
   navigateTo(f.path)
 }
-function openFeed(_item: StationFeedCard) {
-  // 内容详情路由按类型分发（P1-b 先统一进发现页，精准详情路由 P2 深度集成）
-  navigateTo('/pages/discover/index')
+function openFeed(item: StationFeedCard) {
+  const target = stationFeedTargetUrl(item)
+  if (!target) {
+    uni.showToast({ title: '该内容暂不可查看', icon: 'none' })
+    return
+  }
+  navigateTo(target)
 }
 
 // 分享：复制分站推广链接（真实 code；海报图生成 P3 做）
 const showShare = ref(false)
 const shareLink = computed(() => {
-  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
-  const base = (import.meta as any).env?.VITE_H5_URL || ''
-  return `${base}/#/pkg-operator/station-home/index?ref=${stationCode.value}`
+  return buildH5Url('/pkg-operator/station-home/index', { ref: stationCode.value })
 })
 function handleShare() { showShare.value = true }
 function closeShare() { showShare.value = false }

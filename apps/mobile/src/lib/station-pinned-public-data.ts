@@ -30,6 +30,25 @@ export interface PublicPinnedResult {
   label: string
   items: PublicPinnedItem[]
 }
+/** 站长主推内容统一详情路由；C 端主推横轨与分站品牌首页共用，避免同一内容在两处错跳。 */
+export function stationPinnedTargetUrl(contentType: string, id: string | number): string {
+  const sid = encodeURIComponent(String(id || ''))
+  if (!sid) return ''
+  const routes: Record<string, string> = {
+    course: `/course/${sid}`,
+    product: `/mall/product/${sid}`,
+    circle: `/circles/${sid}`,
+    agent: `/agent/${sid}`,
+    ebook: `/classics/${sid}`,
+    classic: `/classics/${sid}`,
+    article: `/articles/${sid}`,
+    video: `/video/${sid}`,
+    live_room: `/live/${sid}`,
+    live: `/live/${sid}`,
+  }
+  return routes[contentType] || ''
+}
+
 
 export const stationPinnedPublicApi = {
   async getCurrent(board: StationPinnedBoard): Promise<PublicPinnedResult> {

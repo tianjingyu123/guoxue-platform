@@ -3,6 +3,7 @@
 
 import { apiGet } from '@/utils/request'
 import { discoverApi, type FeedItem } from '@/lib/discover-data'
+import { stationPinnedTargetUrl } from '@/lib/station-pinned-public-data'
 
 // 分站模板（对齐后端 STATION_TEMPLATES + 站长个性化 templateConfig 合并结果）
 export interface StationTemplate {
@@ -138,6 +139,11 @@ export function formatStatNumber(num: number): string {
   if (n >= 1000) return (n / 1000).toFixed(1) + 'k'
   return String(n)
 }
+/** 分站首页内容卡详情路由（平台推荐与站长主推统一使用真实落地页）。 */
+export function stationFeedTargetUrl(item: StationFeedCard): string {
+  return stationPinnedTargetUrl(item.type, item.id)
+}
+
 
 /* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
 /** getBrandWithTemplate 内嵌模板原始结构 */

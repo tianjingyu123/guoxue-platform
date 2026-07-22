@@ -5,6 +5,28 @@ export interface ShareLinkOptions {
   text?: string
   url?: string
 }
+export type ShareQuery = Record<string, string | number | boolean | undefined | null>
+
+/** 按当前 history 路由模式生成可外部打开的 H5 深链；禁止再拼 /#/ 旧 hash 地址。 */
+export function buildH5Url(route: string, params: ShareQuery = {}): string {
+  let base = (BRAND.h5Url || 'https://api.rebugx.cn/h5/').replace(/\/+$/, '')
+  // #ifdef H5
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    const rawBase = String((import.meta as any).env?.BASE_URL || '/h5/')
+    const basePath = `/${rawBase}`.replace(/\/+/g, '/').replace(/\/+$/, '')
+    base = `${window.location.origin}${basePath}`
+  }
+  // #endif
+
+  const cleanRoute = String(route || '').replace(/^\/+/, '')
+  const query = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && String(value) !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    .join('&')
+  const url = cleanRoute ? `${base}/${cleanRoute}` : base
+  return `${url}${query ? `?${query}` : ''}`
+}
+
 
 /** 生成当前页面的正式 H5 链接；H5 保留浏览器完整 query，App/小程序从页面栈重建。 */
 export function getCurrentShareUrl(): string {
@@ -15,12 +37,7 @@ export function getCurrentShareUrl(): string {
     options?: Record<string, string | number | boolean | undefined | null>
   }
   const route = String(current?.route || 'pages/index/index').replace(/^\//, '')
-  const query = Object.entries(current?.options || {})
-    .filter(([, value]) => value !== undefined && value !== null && String(value) !== '')
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-    .join('&')
-  const base = (BRAND.h5Url || 'https://api.rebugx.cn/h5/').replace(/\/$/, '')
-  return `${base}/${route}${query ? `?${query}` : ''}`
+  return buildH5Url(route, current?.options || {})
 }
 
 function copyLink(url: string): Promise<boolean> {

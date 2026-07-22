@@ -6,6 +6,7 @@ import { navigateTo } from '@/utils/router'
 import { saveTempReferrer } from '@/utils/referral'
 import {
   stationPinnedPublicApi,
+  stationPinnedTargetUrl,
   type PublicPinnedItem,
   type PublicPinnedStation,
   type StationPinnedBoard,
@@ -41,17 +42,7 @@ function coverType(item: PublicPinnedItem) {
 }
 
 function hrefOf(item: PublicPinnedItem): string {
-  const routes: Record<string, string> = {
-    course: `/course/${item.id}`,
-    product: `/mall/product/${item.id}`,
-    circle: `/circles/${item.id}`,
-    agent: `/agent/${item.id}`,
-    ebook: `/classics/${item.id}`,
-    article: `/articles/${item.id}`,
-    video: `/video/${item.id}`,
-    live_room: `/live/${item.id}`,
-  }
-  return routes[item.contentType] || ''
+  return stationPinnedTargetUrl(item.contentType, item.id)
 }
 
 async function load() {
