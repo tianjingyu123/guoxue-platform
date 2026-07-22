@@ -177,7 +177,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/shop/pay-success': '/pkg-shop/pay-success/index',
   '/shop/pay-fail': '/pkg-shop/pay-fail/index',
   '/shop/pay-timeout': '/pkg-shop/pay-timeout/index',
-  '/shop/payment-methods': '/pkg-settings/payment-methods/index', // 无后端死页已删 → 设置-支付方式
+  '/shop/payment-methods': '/pkg-settings/payment-methods/index', // 当前支付能力说明页
   '/payment/result': '/pkg-shop/pay-success/index',
   // 订单中心
   '/orders': '/pkg-order/list/index',
@@ -197,7 +197,7 @@ const ROUTE_MAP: Record<string, string> = {
   /* 设置中心 —— 唯一真源 = pkg-mine（真连后端）。pkg-settings 的账号安全类页是 mock 假页
    * （硬编码 138****8888、假验证码、假黑名单写死 3 个陌生人），本轮（2026-07-14）整批退役剥离。
    * 别名保留并改指真页（而非删除）：防存量分享链接/外部入站链接 404。
-   * pkg-settings 仅保留「无替代」的页：五个法务合规页 + payment-methods + privacy（见下）。 */
+   * pkg-settings 仅保留「无替代」的法务合规页与当前支付能力说明页。 */
   '/settings': '/pkg-mine/settings/index',
   '/settings/notifications': '/pkg-mine/notifications/index',
   '/settings/phone': '/pkg-mine/change-phone/index',
@@ -206,10 +206,9 @@ const ROUTE_MAP: Record<string, string> = {
   '/settings/blacklist': '/pkg-mine/blacklist/index', // 原指假页：写死「用户123456/匿名用户/神秘访客」+unsplash 真人头像
   '/settings/bindaccount': '/pkg-mine/bind-accounts/index',
   '/settings/delete-account': '/pkg-mine/delete-account/index',
-  // ⚠️ 存疑保留：pkg-settings/privacy 是「个人信息可见性」开关（0 个 API，开关不落库=假），
-  //    与 pkg-mine/privacy-authorization（系统权限授权·真连）不是同一功能，无真替代。待拍板：接后端 or 砍入口。
-  '/settings/privacy': '/pkg-settings/privacy/index',
-  '/settings/payment-methods': '/pkg-settings/payment-methods/index', // 无 pkg-mine 替代，暂留
+  // 历史个人信息可见性页没有后端模型，已退役；旧链接统一导向真实的系统授权管理页。
+  '/settings/privacy': '/pkg-mine/privacy-authorization/index',
+  '/settings/payment-methods': '/pkg-settings/payment-methods/index', // 当前支付能力说明页
   /* 个人中心 · 设置与账号安全 —— ✅ 这一套（pkg-mine）才是真连后端的现役唯一真源。
    * 🔴 原注释写的是「第②套，旧版，待废弃」——写反了，是本次审计（2026-07-14）挖出的最危险的雷：
    *    照它清理会删掉真页、留下 pkg-settings 的 mock 假页（硬编码 138****8888 + 假验证码）。

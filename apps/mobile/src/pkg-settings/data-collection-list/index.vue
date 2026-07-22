@@ -291,7 +291,7 @@ const requiredFields = computed(() =>
   dataCategories.reduce((sum, cat) => sum + cat.fields.filter(f => f.isRequired).length, 0)
 )
 
-const goPrivacy = () => navigateTo('/settings/privacy')
+const goPrivacy = () => navigateTo('/mine/privacy-authorization')
 const contactService = () => navigateTo('/customer-service')
 </script>
 
