@@ -3,6 +3,8 @@ import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { SystemService } from "../system/system.service";
 import { RolesGuard } from "../../common/roles.guard";
+import { PersonalDataExportService } from "./personal-data-export.service";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 const mockUserSvc: Record<string, jest.Mock> = {
   updateProfile: jest.fn().mockResolvedValue({ id: "u1", nickname: "新昵称" } as any),
@@ -37,6 +39,10 @@ const mockSystemSvc = {
   logAudit: jest.fn().mockResolvedValue(undefined),
 };
 
+const mockPersonalDataExport = {
+  create: jest.fn().mockResolvedValue({ accountId: "u1", selectedTypes: ["profile"] }),
+};
+
 describe("UserController", () => {
   let ctrl: UserController;
 
@@ -46,9 +52,11 @@ describe("UserController", () => {
       providers: [
         { provide: UserService, useValue: mockUserSvc },
         { provide: SystemService, useValue: mockSystemSvc },
+        { provide: PersonalDataExportService, useValue: mockPersonalDataExport },
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(UserController);
   });
@@ -79,6 +87,12 @@ describe("UserController", () => {
     const result: any = await ctrl.getMySummary(mockReq());
     expect(result.stats.likes).toBe(4);
     expect(mockUserSvc.getMySummary).toHaveBeenCalledWith("u1");
+  });
+
+  it("POST /users/me/data-export — 只导出当前登录用户所选数据", async () => {
+    const result: any = await ctrl.createPersonalDataExport(mockReq(), { types: ["profile"] });
+    expect(result.accountId).toBe("u1");
+    expect(mockPersonalDataExport.create).toHaveBeenCalledWith("u1", ["profile"]);
   });
 
   it("GET /users/:id — 获取用户详情", async () => {

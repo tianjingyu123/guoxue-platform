@@ -21,13 +21,14 @@ import { SmsModule } from "../sms/sms.module";
 import { SettlementModule } from "../settlement/settlement.module";
 import { UserGrowthModule } from "../user-growth/user-growth.module";
 import { AuthModule } from "../auth/auth.module";
+import { PersonalDataExportService } from "./personal-data-export.service";
 
 @Module({
   imports: [SystemModule, CoinModule, InteractionModule, CommentModule, AuditModule, SmsModule, SettlementModule, UserGrowthModule, AuthModule],
   // CreationRankingsController 必须置于 UserController 之前：GET users/creation-rankings 是静态段，
   // 若 users/:id 先注册会将其吞掉（Express 按注册序匹配）
   controllers: [CreationRankingsController, UserController, PaymentPasswordController, PointsController, TeenModeController, FeedbackController, WalletController],
-  providers: [UserService, PushAudienceService, PaymentPasswordService, PointsService, TeenModeService, FeedbackService, WalletService],
+  providers: [UserService, PushAudienceService, PaymentPasswordService, PointsService, TeenModeService, FeedbackService, WalletService, PersonalDataExportService],
   exports: [UserService, PointsService, PushAudienceService],
 })
 export class UserModule {}

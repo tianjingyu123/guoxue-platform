@@ -202,32 +202,25 @@ export interface ExportDataType {
   name: string
   description: string
   icon: string
-  estimatedSize: string
 }
-export type ExportRecordStatus = 'processing' | 'completed' | 'expired' | 'failed'
-export interface ExportRecord {
-  id: string
-  types: string[]
-  status: ExportRecordStatus
-  createdAt: string
-  completedAt?: string
-  expireAt?: string
-  fileSize?: string
+export interface PersonalDataExportPackage {
+  schemaVersion: string
+  exportedAt: string
+  accountId: string
+  selectedTypes: string[]
+  summary: Record<string, number>
+  notice: string
+  sections: Record<string, unknown>
 }
 export const exportDataTypes: ExportDataType[] = [
-  { id: 'profile', name: '个人信息', description: '账号资料、头像、昵称、简介等', icon: 'user', estimatedSize: '< 1MB' },
-  { id: 'posts', name: '帖子内容', description: '发布的圈子帖子、评论、回复', icon: 'file-text', estimatedSize: '约 5MB' },
-  { id: 'comments', name: '评论互动', description: '课程评论、视频评论、点赞记录', icon: 'message-square', estimatedSize: '约 2MB' },
-  { id: 'favorites', name: '收藏内容', description: '收藏的课程、帖子、商品等', icon: 'bookmark', estimatedSize: '约 1MB' },
-  { id: 'orders', name: '订单数据', description: '购买记录、支付信息、发票', icon: 'shopping-bag', estimatedSize: '约 3MB' },
-  { id: 'learning', name: '学习记录', description: '课程进度、学习时长、测验成绩', icon: 'graduation-cap', estimatedSize: '约 2MB' },
-  { id: 'notes', name: '笔记内容', description: '课程笔记、批注、高亮标记', icon: 'book-open', estimatedSize: '约 4MB' },
-  { id: 'follows', name: '关注列表', description: '关注的用户、圈子、讲师', icon: 'users', estimatedSize: '< 1MB' },
-]
-export const exportRecords: ExportRecord[] = [
-  { id: '1', types: ['profile', 'posts', 'comments'], status: 'completed', createdAt: '2026-06-01T10:30:00', completedAt: '2026-06-01T10:35:00', expireAt: '2026-06-08T10:35:00', fileSize: '8.2MB' },
-  { id: '2', types: ['orders', 'learning'], status: 'processing', createdAt: '2026-06-03T08:00:00' },
-  { id: '3', types: ['profile', 'favorites', 'notes', 'follows'], status: 'expired', createdAt: '2026-05-20T14:00:00', completedAt: '2026-05-20T14:10:00', expireAt: '2026-05-27T14:10:00' },
+  { id: 'profile', name: '个人信息', description: '账号资料、会员状态、偏好与角色信息', icon: 'user' },
+  { id: 'posts', name: '创作内容', description: '发布的圈子帖子与原创文章正文', icon: 'file-text' },
+  { id: 'comments', name: '评论互动', description: '评论、点赞及课程、商品与直播评价', icon: 'message-square' },
+  { id: 'favorites', name: '收藏内容', description: '收藏的内容、工具、古籍与电子书', icon: 'bookmark' },
+  { id: 'orders', name: '订单数据', description: '平台订单、会员与电子书购买、发票记录', icon: 'shopping-bag' },
+  { id: 'learning', name: '学习记录', description: '课程、古籍与电子书进度及阅读时长', icon: 'graduation-cap' },
+  { id: 'notes', name: '笔记内容', description: '古籍与电子书的书签、批注和笔记', icon: 'book-open' },
+  { id: 'follows', name: '关注与加入', description: '关注的用户及已加入的圈子', icon: 'users' },
 ]
 
 /* —— 注销账号 —— */
@@ -1499,14 +1492,9 @@ export const mineApi = {
     return exportDataTypes
   },
 
-  /** 导出记录 —— 后端暂无数据导出端点 → 诚实返回空，页面提示即将开放 */
-  async getExportRecords(): Promise<ExportRecord[]> {
-    return []
-  },
-
-  /** 申请数据导出 —— 后端暂无端点 → 诚实降级，不伪造成功 */
-  async requestExport(_typeIds: string[]): Promise<{ success: boolean; message: string }> {
-    return { success: false, message: '数据导出功能即将开放' }
+  /** 即时生成当前登录账号的个人数据包（后端字段白名单，60 秒长请求预算） */
+  async requestExport(typeIds: string[]): Promise<PersonalDataExportPackage> {
+    return apiPost<PersonalDataExportPackage>('/users/me/data-export', { types: typeIds }, undefined, 60000)
   },
 
   /** 获取钱包信息 —— GET /users/wallet/balance（后端返回币/积分/累计；会员等级属成长体系不在此接口→0，页面降级隐藏） */

@@ -269,6 +269,12 @@ function handleLogout() {
             <text class="row-label">黑名单管理</text>
             <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
           </view>
+          <view class="row list-press" @tap="navigateTo('/mine/data-export')">
+            <AppIcon name="download" :size="18" color="#666" />
+            <text class="row-label">导出我的数据</text>
+            <text class="row-sub">JSON</text>
+            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          </view>
           <!-- 隐私开关整组下架：原实现为纯本地 ref 不落库（拨了开关实际什么都没改，个保法层面误导用户）。
                后端用户偏好端点上线后恢复以下两行（连同 script 中注释掉的 collectVisible/historyVisible/openCollect）。
           <view class="row" @tap="openCollect">

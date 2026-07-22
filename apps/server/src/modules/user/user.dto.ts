@@ -1,6 +1,20 @@
-import { IsString, IsOptional, IsEnum, IsInt, IsArray, ArrayMinSize, Min, MinLength, IsDateString, IsBoolean, IsIn } from "class-validator";
+import { IsString, IsOptional, IsEnum, IsInt, IsArray, ArrayMinSize, ArrayMaxSize, ArrayUnique, Min, MinLength, IsDateString, IsBoolean, IsIn } from "class-validator";
 import { Type } from "class-transformer";
 import { MemberLevel, RoleType, UserStatus } from "@prisma/client";
+
+export const PERSONAL_DATA_EXPORT_TYPES = [
+  "profile", "posts", "comments", "favorites", "orders", "learning", "notes", "follows",
+] as const;
+export type PersonalDataExportType = (typeof PERSONAL_DATA_EXPORT_TYPES)[number];
+
+export class PersonalDataExportDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(PERSONAL_DATA_EXPORT_TYPES.length)
+  @ArrayUnique()
+  @IsIn([...PERSONAL_DATA_EXPORT_TYPES], { each: true })
+  types: PersonalDataExportType[];
+}
 
 export class AssignRoleDto {
   @IsEnum(RoleType)

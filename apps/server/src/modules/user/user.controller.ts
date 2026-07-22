@@ -9,9 +9,11 @@ import { Roles } from "../../common/roles.decorator";
 import { RoleType } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto, UpdateNotifySettingsDto, PushByTagDto, AddWhitelistDto } from "./user.dto";
+import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto, UpdateNotifySettingsDto, PushByTagDto, AddWhitelistDto, PersonalDataExportDto } from "./user.dto";
+import { PersonalDataExportService } from "./personal-data-export.service";
 import { Auditable } from "../../common/audit.decorator";
 import { RedLineGate, RedLine } from "../../common/red-lines";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 @ApiTags("用户")
 @ApiBearerAuth()
@@ -21,6 +23,7 @@ export class UserController {
   constructor(
     private user: UserService,
     private systemService: SystemService,
+    private personalDataExport: PersonalDataExportService,
   ) {}
 
   // ───────── 个人资料 ─────────
@@ -99,6 +102,16 @@ export class UserController {
   @ApiResponse({ status: 401, description: "未登录" })
   getMySummary(@Req() req: Request) {
     return this.user.getMySummary(req.user.id);
+  }
+
+  @Post("me/data-export")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "即时导出当前用户所选类别的个人数据" })
+  @ApiResponse({ status: 201, description: "成功生成个人数据包" })
+  @ApiResponse({ status: 400, description: "导出类别无效" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  createPersonalDataExport(@Req() req: Request, @Body() dto: PersonalDataExportDto) {
+    return this.personalDataExport.create(req.user.id, dto.types);
   }
 
   // ───────── 白名单管理（GET 必须在 :id 动态路由之前声明，否则被 :id 遮蔽 → 白名单页必 500·后端审计修复） ─────────
