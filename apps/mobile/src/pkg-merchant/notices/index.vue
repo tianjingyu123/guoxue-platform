@@ -101,13 +101,14 @@
                 <text class="aproduct-title">{{ item.order?.productTitle || '订单商品' }}</text>
                 <text class="aproduct-order">订单 {{ shortOrderId(item.orderId) }} · {{ orderStatusLabel(item.order?.status) }}</text>
               </view>
-              <text class="aamount">¥{{ money(item.amount ?? item.order?.amount) }}</text>
+              <text v-if="isRefundType(item.type)" class="aamount">¥{{ money(item.amount ?? item.order?.amount) }}</text>
+              <text v-else class="aamount muted">非退款售后</text>
             </view>
             <view class="areason">
               <text class="areason-label">申请原因</text>
               <text class="areason-text">{{ item.reason || '用户未填写原因' }}</text>
             </view>
-            <view v-if="item.logistics" class="aremark"><text class="aremark-text">处理记录：{{ item.logistics }}</text></view>
+            <view v-if="afterSaleRecord(item.logistics)" class="aremark"><text class="aremark-text">{{ afterSaleRecord(item.logistics) }}</text></view>
             <view v-if="item.status === 'PROCESSING'" class="aprocessing">
               <app-icon name="clock" :size="15" color="#b45309" />
               <text class="aprocessing-text">资金处理中，请勿重复操作</text>
@@ -118,6 +119,14 @@
               </view>
               <view class="abtn abtn-primary" :class="{ disabled: submittingId === item.id }" @tap="approveAfterSale(item)">
                 <text class="abtn-primary-text">{{ submittingId === item.id ? '处理中…' : approveLabel(item.type) }}</text>
+              </view>
+            </view>
+            <view v-else-if="item.status === 'APPROVED' && isReturnRefundType(item.type)" class="aactions">
+              <view class="abtn abtn-ghost" :class="{ disabled: submittingId === item.id }" @tap="inspectReturnedItem(item, false)">
+                <text class="abtn-ghost-text">验收不合格</text>
+              </view>
+              <view class="abtn abtn-primary" :class="{ disabled: submittingId === item.id }" @tap="inspectReturnedItem(item, true)">
+                <text class="abtn-primary-text">{{ submittingId === item.id ? '处理中…' : '验收入库并退款' }}</text>
               </view>
             </view>
             <view v-else-if="item.status === 'APPROVED' && !isRefundType(item.type)" class="aactions single">
@@ -327,14 +336,59 @@ function openNotice(n: MerchantNotice) {
   if (!n.read) n.read = true
 }
 
+function normalizeAfterSaleType(type?: string | null): string {
+  const value = String(type || '').trim().toLowerCase()
+  if (value === 'refund') return 'refund_only'
+  if (value === 'return') return 'refund_with_return'
+  return value
+}
+
+function isImmediateRefundType(type?: string | null): boolean {
+  return normalizeAfterSaleType(type) === 'refund_only'
+}
+
+function isReturnRefundType(type?: string | null): boolean {
+  return normalizeAfterSaleType(type) === 'refund_with_return'
+}
+
 function isRefundType(type?: string | null): boolean {
-  return /refund/i.test(type || '')
+  return isImmediateRefundType(type) || isReturnRefundType(type)
 }
 
 function afterSaleTypeLabel(type?: string | null): string {
-  if (isRefundType(type)) return '退款'
-  const map: Record<string, string> = { return: '退货', exchange: '换货' }
-  return map[String(type || '').toLowerCase()] || '售后'
+  const value = normalizeAfterSaleType(type)
+  const map: Record<string, string> = {
+    refund_only: '仅退款',
+    refund_with_return: '退货退款',
+    exchange: '换货',
+    not_received: '未收到商品申诉',
+    not_as_described: '描述不符申诉',
+    quality_issue: '质量问题申诉',
+    other: '其他售后',
+  }
+  return map[value] || '售后'
+}
+
+function afterSaleRecord(raw?: string | null): string {
+  if (!raw) return ''
+  try {
+    const data = JSON.parse(raw) as {
+      returnAddress?: string
+      company?: string
+      logisticsNo?: string
+      inspection?: string
+      remark?: string
+    }
+    const parts = [
+      data.returnAddress ? `退货地址：${data.returnAddress}` : '',
+      data.logisticsNo ? `退货运单：${data.company || ''} ${data.logisticsNo}` : '',
+      data.inspection ? `验收：${data.inspection === 'ACCEPTED' ? '合格' : '不合格'}` : '',
+      data.remark || '',
+    ].filter(Boolean)
+    return parts.join(' · ')
+  } catch {
+    return raw
+  }
 }
 
 function afterSaleStatusLabel(status: MerchantAfterSaleStatus): string {
@@ -371,29 +425,56 @@ function money(value?: string | number | null): string {
   return Number(value || 0).toFixed(2)
 }
 
+async function doApproveAfterSale(item: MerchantAfterSale, remark?: string) {
+  submittingId.value = item.id
+  try {
+    await merchantBackendApi.processAfterSale(item.id, 'approve', remark)
+    uni.showToast({
+      title: isImmediateRefundType(item.type) ? '退款已提交' : isReturnRefundType(item.type) ? '已同意退货' : '已同意申请',
+      icon: 'success',
+    })
+    afterSaleState.loaded = false
+    await loadAfterSales()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '处理失败', icon: 'none' })
+  } finally {
+    submittingId.value = ''
+  }
+}
+
 function approveAfterSale(item: MerchantAfterSale) {
   if (submittingId.value) return
-  const refund = isRefundType(item.type)
+  if (isReturnRefundType(item.type)) {
+    uni.showModal({
+      title: '同意退货退款',
+      content: '请输入完整退货地址（收件人、电话和详细地址），买家将按此寄回商品。',
+      editable: true,
+      placeholderText: '收件人 电话 省市区详细地址',
+      confirmText: '确认并发送',
+      confirmColor: '#C41E3A',
+      success: async (r) => {
+        if (!r.confirm) return
+        const address = (r.content || '').trim()
+        if (address.length < 8) {
+          uni.showToast({ title: '请填写完整退货地址', icon: 'none' })
+          return
+        }
+        await doApproveAfterSale(item, address)
+      },
+    })
+    return
+  }
+
+  const refund = isImmediateRefundType(item.type)
   uni.showModal({
     title: refund ? '确认同意退款' : `确认${approveLabel(item.type)}`,
     content: refund
-      ? `确认将 ¥${money(item.amount ?? item.order?.amount)} 按原支付渠道退回买家？提交后不可撤销。`
+      ? `确认将 ¥${money(item.amount ?? item.order?.amount)} 按原支付渠道全额退回买家？提交后不可撤销。`
       : `确认同意该${afterSaleTypeLabel(item.type)}申请？`,
     confirmText: refund ? '确认退款' : '确认同意',
     confirmColor: '#C41E3A',
     success: async (r) => {
-      if (!r.confirm) return
-      submittingId.value = item.id
-      try {
-        await merchantBackendApi.processAfterSale(item.id, 'approve')
-        uni.showToast({ title: refund ? '退款已提交' : '已同意申请', icon: 'success' })
-        afterSaleState.loaded = false
-        await loadAfterSales()
-      } catch (e) {
-        uni.showToast({ title: (e as Error)?.message || '处理失败', icon: 'none' })
-      } finally {
-        submittingId.value = ''
-      }
+      if (r.confirm) await doApproveAfterSale(item)
     },
   })
 }
@@ -421,6 +502,53 @@ function rejectAfterSale(item: MerchantAfterSale) {
         await loadAfterSales()
       } catch (e) {
         uni.showToast({ title: (e as Error)?.message || '处理失败', icon: 'none' })
+      } finally {
+        submittingId.value = ''
+      }
+    },
+  })
+}
+
+const inspectionRequestIds = new Map<string, string>()
+function inspectionRequestId(id: string): string {
+  const existing = inspectionRequestIds.get(id)
+  if (existing) return existing
+  const value = `return-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  inspectionRequestIds.set(id, value)
+  return value
+}
+
+function inspectReturnedItem(item: MerchantAfterSale, accepted: boolean) {
+  if (submittingId.value) return
+  uni.showModal({
+    title: accepted ? '确认退货验收合格' : '标记验收不合格',
+    content: accepted
+      ? '确认商品已经实际退回且验收合格？确认后将回补库存并按原支付渠道全额退款，此操作不可撤销。'
+      : '请填写验收不合格原因，该原因会展示给买家。',
+    editable: !accepted,
+    placeholderText: accepted ? undefined : '如：商品破损、配件不全',
+    confirmText: accepted ? '验收入库并退款' : '确认不合格',
+    confirmColor: '#C41E3A',
+    success: async (r) => {
+      if (!r.confirm) return
+      const remark = (r.content || '').trim()
+      if (!accepted && !remark) {
+        uni.showToast({ title: '请填写验收不合格原因', icon: 'none' })
+        return
+      }
+      submittingId.value = item.id
+      try {
+        await merchantBackendApi.inspectReturn(item.id, {
+          requestId: inspectionRequestId(item.id),
+          accepted,
+          remark: remark || '退货商品验收合格',
+        })
+        inspectionRequestIds.delete(item.id)
+        uni.showToast({ title: accepted ? '已验收入库，退款已提交' : '已记录验收不合格', icon: 'success' })
+        afterSaleState.loaded = false
+        await loadAfterSales()
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '验收处理失败', icon: 'none' })
       } finally {
         submittingId.value = ''
       }

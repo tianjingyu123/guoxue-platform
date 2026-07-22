@@ -15,6 +15,10 @@
             value="PENDING"
           />
           <el-option
+            label="处理中"
+            value="PROCESSING"
+          />
+          <el-option
             label="已同意"
             value="APPROVED"
           />
@@ -47,6 +51,8 @@
             label="退货退款"
             value="refund_with_return"
           />
+          <el-option label="换货" value="exchange" />
+          <el-option label="交易申诉" value="other" />
         </el-select>
         <el-button @click="fetchList">
           刷新
@@ -110,7 +116,7 @@
         align="right"
       >
         <template #default="{ row }">
-          {{ fmtMoney(row.amount ?? row.order?.amount) }}
+          {{ isRefundType(row.type) ? fmtMoney(row.amount ?? row.order?.amount) : '—' }}
         </template>
       </el-table-column>
       <el-table-column
@@ -142,29 +148,47 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="160"
+        width="280"
         fixed="right"
       >
         <template #default="{ row }">
+          <template v-if="row.status === 'PENDING'">
+            <el-button
+              size="small"
+              text
+              type="success"
+              :disabled="submitting"
+              @click="handleAction(row, 'approve')"
+            >
+              同意
+            </el-button>
+            <el-button
+              size="small"
+              text
+              type="danger"
+              :disabled="submitting"
+              @click="handleAction(row, 'reject')"
+            >
+              拒绝
+            </el-button>
+          </template>
+          <template v-else-if="row.status === 'APPROVED' && isReturnType(row.type)">
+            <el-button size="small" text type="danger" :disabled="submitting" @click="handleInspection(row, false)">
+              验收不合格
+            </el-button>
+            <el-button size="small" text type="success" :disabled="submitting" @click="handleInspection(row, true)">
+              验收入库并退款
+            </el-button>
+          </template>
           <el-button
-            v-if="row.status === 'PENDING'"
+            v-else-if="row.status === 'APPROVED' && !isRefundType(row.type)"
             size="small"
             text
             type="success"
             :disabled="submitting"
-            @click="handleAction(row, 'approve')"
+            @click="handleComplete(row)"
           >
-            同意
-          </el-button>
-          <el-button
-            v-if="row.status === 'PENDING'"
-            size="small"
-            text
-            type="danger"
-            :disabled="submitting"
-            @click="handleAction(row, 'reject')"
-          >
-            拒绝
+            确认完成
           </el-button>
           <el-button
             size="small"
@@ -211,7 +235,7 @@
           {{ typeLabel(current.type) }}
         </el-descriptions-item>
         <el-descriptions-item label="退款金额">
-          {{ fmtMoney(current.amount ?? current.order?.amount) }}
+          {{ isRefundType(current.type) ? fmtMoney(current.amount ?? current.order?.amount) : '—' }}
         </el-descriptions-item>
         <el-descriptions-item label="状态">
           {{ statusLabel(current.status) }}
@@ -224,6 +248,9 @@
           :span="2"
         >
           {{ current.reason || "—" }}
+        </el-descriptions-item>
+        <el-descriptions-item v-if="current.logistics" label="处理记录" :span="2">
+          {{ logisticsLabel(current.logistics) }}
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
@@ -248,6 +275,7 @@ interface AfterSalesRow {
   status?: string;
   reason?: string;
   createdAt?: string;
+  logistics?: string | null;
   order?: { id?: string; amount?: number | string; status?: string } | null;
 }
 
@@ -263,16 +291,43 @@ const detailDialog = ref(false);
 const current = ref<AfterSalesRow | null>(null);
 const submitting = ref(false);
 
-/** 类型翻译：覆盖 C 端真实值 + 历史口径 */
+/** 类型翻译：覆盖 C 端 canonical 值与历史别名。 */
 const TYPE_LABELS: Record<string, string> = {
   refund_only: "仅退款",
   refund_with_return: "退货退款",
   refund: "仅退款",
   return: "退货退款",
   exchange: "换货",
+  not_received: "未收到商品申诉",
+  not_as_described: "描述不符申诉",
+  quality_issue: "质量问题申诉",
+  other: "其他售后",
 };
-function typeLabel(t?: string) { return (t && TYPE_LABELS[t]) || t || "—"; }
-function isReturnType(t?: string) { return t === "refund_with_return" || t === "return"; }
+function normalizeAfterSaleType(t?: string) {
+  const value = String(t || "").trim().toLowerCase();
+  if (value === "refund") return "refund_only";
+  if (value === "return") return "refund_with_return";
+  return value;
+}
+function typeLabel(t?: string) { return TYPE_LABELS[normalizeAfterSaleType(t)] || t || "—"; }
+function isReturnType(t?: string) { return normalizeAfterSaleType(t) === "refund_with_return"; }
+function isImmediateRefundType(t?: string) { return normalizeAfterSaleType(t) === "refund_only"; }
+function isRefundType(t?: string) { return isImmediateRefundType(t) || isReturnType(t); }
+
+function logisticsLabel(raw?: string | null): string {
+  if (!raw) return "—";
+  try {
+    const data = JSON.parse(raw) as { returnAddress?: string; company?: string; logisticsNo?: string; inspection?: string; remark?: string };
+    return [
+      data.returnAddress ? `退货地址：${data.returnAddress}` : "",
+      data.logisticsNo ? `运单：${data.company || ""} ${data.logisticsNo}` : "",
+      data.inspection ? `验收：${data.inspection === "ACCEPTED" ? "合格" : "不合格"}` : "",
+      data.remark || "",
+    ].filter(Boolean).join("；") || "—";
+  } catch {
+    return raw;
+  }
+}
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "待处理",
@@ -331,8 +386,7 @@ async function fetchList() {
 function openDetail(row: AfterSalesRow) { current.value = row; detailDialog.value = true; }
 
 async function handleAction(row: AfterSalesRow, action: "approve" | "reject") {
-  if (submitting.value) return; // 防重复提交
-  const label = action === "approve" ? "同意" : "拒绝";
+  if (submitting.value) return;
   let remark = "";
   try {
     if (action === "reject") {
@@ -342,30 +396,122 @@ async function handleAction(row: AfterSalesRow, action: "approve" | "reject") {
         inputValidator: (v: string) => (v && v.trim() ? true : "拒绝必须填写原因"),
       });
       remark = (r.value || "").trim();
-    } else {
-      // L4 资金操作：同意=真金退款，写明金额与影响
+    } else if (isReturnType(row.type)) {
+      const r = await ElMessageBox.prompt(
+        "请输入完整退货地址（收件人、电话和详细地址），买家将按此寄回商品。",
+        "同意退货退款",
+        {
+          inputType: "textarea",
+          inputPlaceholder: "收件人 电话 省市区详细地址",
+          inputValidator: (v: string) => (v && v.trim().length >= 8 ? true : "请填写完整退货地址"),
+          confirmButtonText: "确认并发送地址",
+        },
+      );
+      remark = (r.value || "").trim();
+    } else if (isImmediateRefundType(row.type)) {
       const amountText = fmtMoney(row.amount ?? row.order?.amount);
       await ElMessageBox.confirm(
-        `同意后将真金退款 ${amountText} 原路退回买家，此操作不可撤销。确定同意该售后申请？`,
-        "同意售后确认",
+        `确认将 ${amountText} 按原支付渠道全额退回买家？此操作不可撤销。`,
+        "同意仅退款",
         { type: "warning", confirmButtonText: "确认同意并退款", cancelButtonText: "再想想" },
       );
+    } else {
+      await ElMessageBox.confirm(`确定同意该${typeLabel(row.type)}申请？`, "同意售后确认", {
+        confirmButtonText: "确认同意",
+        cancelButtonText: "再想想",
+      });
     }
   } catch {
-    return; // 用户取消，不发请求
+    return;
   }
+
   submitting.value = true;
   try {
-    // 端点：PUT /merchant-backend/after-sales/:id/process，action 取 approve/reject/complete
     await merchantBackendApi.processAfterSale(row.id, { action, remark });
-    ElMessage.success(action === "approve" ? "已同意，退款将原路退回买家" : "已拒绝该售后申请");
-    fetchList();
+    ElMessage.success(
+      action === "reject"
+        ? "已拒绝该售后申请"
+        : isImmediateRefundType(row.type)
+          ? "退款已提交原支付渠道"
+          : isReturnType(row.type)
+            ? "已同意退货，退货地址已发送"
+            : "已同意售后申请",
+    );
+    await fetchList();
   } catch (e) {
-    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || `${label}失败，请重试`);
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "操作失败，请重试");
   } finally {
     submitting.value = false;
   }
 }
+
+async function handleComplete(row: AfterSalesRow) {
+  try {
+    await ElMessageBox.confirm(`请确认该${typeLabel(row.type)}事项已实际完成。`, "确认售后完成", {
+      confirmButtonText: "确认完成",
+    });
+  } catch {
+    return;
+  }
+  submitting.value = true;
+  try {
+    await merchantBackendApi.processAfterSale(row.id, { action: "complete" });
+    ElMessage.success("售后已完成");
+    await fetchList();
+  } catch (e) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "操作失败，请重试");
+  } finally {
+    submitting.value = false;
+  }
+}
+
+const inspectionRequestIds = new Map<string, string>();
+function inspectionRequestId(id: string) {
+  const existing = inspectionRequestIds.get(id);
+  if (existing) return existing;
+  const value = `return-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  inspectionRequestIds.set(id, value);
+  return value;
+}
+
+async function handleInspection(row: AfterSalesRow, accepted: boolean) {
+  let remark = "";
+  try {
+    if (accepted) {
+      await ElMessageBox.confirm(
+        "请确认退货商品已经实际收到且验收合格。确认后将回补库存并按原支付渠道全额退款，此操作不可撤销。",
+        "退货验收入库",
+        { type: "warning", confirmButtonText: "验收入库并退款" },
+      );
+      remark = "退货商品验收合格";
+    } else {
+      const r = await ElMessageBox.prompt("请输入验收不合格原因，该原因会展示给买家。", "验收不合格", {
+        inputType: "textarea",
+        inputValidator: (v: string) => (v && v.trim() ? true : "请填写验收不合格原因"),
+        confirmButtonText: "确认不合格",
+      });
+      remark = (r.value || "").trim();
+    }
+  } catch {
+    return;
+  }
+  submitting.value = true;
+  try {
+    await merchantBackendApi.inspectReturn(row.id, {
+      requestId: inspectionRequestId(row.id),
+      accepted,
+      remark,
+    });
+    inspectionRequestIds.delete(row.id);
+    ElMessage.success(accepted ? "已验收入库，退款已提交" : "已记录验收不合格");
+    await fetchList();
+  } catch (e) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "验收处理失败");
+  } finally {
+    submitting.value = false;
+  }
+}
+
 </script>
 
 <style scoped>

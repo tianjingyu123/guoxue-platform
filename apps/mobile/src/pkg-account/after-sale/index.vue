@@ -51,20 +51,15 @@
         </view>
       </view>
 
-      <!-- 退款金额 -->
+      <!-- 退款金额：统一退款底座按整单实付退款，禁止页面允许部分退款却后端整单退 -->
       <view class="card">
-        <text class="card-title">退款金额 <text class="req">*</text><text class="sub">最多可退 ¥{{ maxAmount.toFixed(2) }}</text></text>
-        <view class="amount-row" :class="{ error: errors.amount }">
+        <text class="card-title">退款金额 <text class="sub">订单实付</text></text>
+        <view class="amount-row amount-readonly">
           <text class="amount-symbol">¥</text>
-          <input class="amount-input" type="digit" v-model="amount" placeholder="0.00" />
-          <view class="full-btn" @tap="amount = String(maxAmount)">
-            <text class="full-text">全额退款</text>
-          </view>
+          <text class="amount-fixed">{{ maxAmount.toFixed(2) }}</text>
+          <text class="full-text">全额退款</text>
         </view>
-        <view v-if="errors.amount" class="err-tip">
-          <app-icon name="alert-circle" :size="24" color="#E74C3C" />
-          <text class="err-text">{{ errors.amount }}</text>
-        </view>
+        <text class="amount-hint">当前按订单实付金额整单退款，审核通过后原路退回。</text>
       </view>
 
       <!-- 问题描述 -->
@@ -165,14 +160,13 @@ const orderId = ref('')
 const type = ref<'refund_only' | 'refund_with_return'>('refund_only')
 const reason = ref('')
 const showReasonPicker = ref(false)
-const amount = ref('0')
 const description = ref('')
 const images = ref<string[]>([])
 const uploadingCount = ref(0)
 const submitting = ref(false)
 const loading = ref(false)
 const error = ref('')
-const errors = reactive<{ reason?: string; amount?: string }>({})
+const errors = reactive<{ reason?: string }>({})
 
 async function fetchData() {
   if (!orderId.value) return
@@ -181,7 +175,6 @@ async function fetchData() {
   try {
     const ctx = await accountApi.afterSaleApplyContext(orderId.value)
     maxAmount.value = ctx.maxAmount
-    amount.value = String(ctx.maxAmount)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -200,12 +193,7 @@ onLoad((q) => {
     navHeight.value = 64
   }
   if (q && q.orderId) orderId.value = q.orderId
-  if (q && q.maxAmount) {
-    maxAmount.value = parseFloat(q.maxAmount)
-    amount.value = q.maxAmount
-  } else {
-    fetchData()
-  }
+  fetchData()
 })
 
 function selectReason(r: string) {
@@ -240,18 +228,13 @@ function removeImage(i: number) {
 
 function validate() {
   errors.reason = ''
-  errors.amount = ''
   let ok = true
   if (!reason.value) {
     errors.reason = '请选择退款原因'
     ok = false
   }
-  const amt = parseFloat(amount.value)
-  if (!amount.value || amt <= 0) {
-    errors.amount = '请输入退款金额'
-    ok = false
-  } else if (amt > maxAmount.value) {
-    errors.amount = `退款金额不能超过${maxAmount.value}元`
+  if (maxAmount.value <= 0) {
+    uni.showToast({ title: '订单实付金额异常，请稍后重试', icon: 'none' })
     ok = false
   }
   return ok
@@ -266,7 +249,7 @@ async function submit() {
       orderId: orderId.value,
       type: type.value,
       reason: reason.value,
-      amount: parseFloat(amount.value),
+      amount: maxAmount.value,
       description: description.value,
       images: images.value,
     })
@@ -424,11 +407,21 @@ async function submit() {
   font-weight: 700;
   color: var(--brand);
 }
-.amount-input {
+.amount-fixed {
   flex: 1;
   font-size: 40rpx;
   font-weight: 700;
   color: #2C2C2C;
+}
+.amount-readonly {
+  background: #FCFAF7;
+}
+.amount-hint {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: #8A7463;
 }
 .full-btn {
   padding: 8rpx 16rpx;

@@ -111,7 +111,7 @@
         </view>
       </view>
 
-      <!-- 退货地址 -->
+      <!-- 退货地址与真实运单登记 -->
       <view
         v-if="detail.type === 'refund_with_return' && detail.status === 'approved' && detail.logistics"
         class="card"
@@ -123,9 +123,17 @@
         <view class="addr-box">
           <text class="addr-text">{{ detail.logistics.address }}</text>
           <text class="addr-tip">请在7天内将商品寄回以上地址</text>
+          <view v-if="detail.logistics.trackingNo" class="tracking-summary">
+            <text class="tracking-label">已登记运单</text>
+            <text class="tracking-value">{{ detail.logistics.company }} {{ detail.logistics.trackingNo }}</text>
+          </view>
         </view>
-        <view class="addr-btn" @tap="fillLogistics">
+        <view v-if="!detail.logistics.trackingNo" class="addr-btn" @tap="fillLogistics">
           <text class="addr-btn-text">寄出后登记运单号</text>
+        </view>
+        <view v-else class="addr-btn done">
+          <app-icon name="check-circle" :size="26" color="#2E7D32" />
+          <text class="addr-btn-text done">运单已登记，等待商家验收</text>
         </view>
       </view>
 
@@ -163,6 +171,22 @@
         </view>
       </view>
     </view>
+
+    <!-- 登记退货运单 -->
+    <view v-if="showLogistics" class="mask mask-fade-in" @tap="showLogistics = false">
+      <view class="logistics-dialog dialog-pop-in" @tap.stop>
+        <text class="confirm-title">登记退货运单</text>
+        <text class="logistics-desc">请填写真实快递信息，商家验收后系统才会发起退款。</text>
+        <input v-model="returnCompany" class="logistics-input" maxlength="50" placeholder="快递公司，如顺丰速运" />
+        <input v-model="returnTrackingNo" class="logistics-input" maxlength="80" placeholder="退货运单号" />
+        <view class="confirm-actions">
+          <view class="confirm-btn" @tap="showLogistics = false"><text class="confirm-btn-text">取消</text></view>
+          <view class="confirm-btn divider" :class="{ disabled: submittingLogistics }" @tap="submitLogistics">
+            <text class="confirm-btn-text-primary">{{ submittingLogistics ? '提交中…' : '确认登记' }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -181,6 +205,10 @@ const safeBottom = ref(0)
 const detail = ref<any>({})
 const copied = ref(false)
 const showCancel = ref(false)
+const showLogistics = ref(false)
+const returnCompany = ref('')
+const returnTrackingNo = ref('')
+const submittingLogistics = ref(false)
 const loading = ref(false)
 const error = ref('')
 
@@ -242,18 +270,36 @@ function copyId() {
 function previewImage(urls: string[], current: number) {
   uni.previewImage({ urls, current })
 }
-/** 后端暂无用户侧回填退货运单号端点（仅管理员 PUT /shop/orders/:id/logistics）——
- *  给用户活路：引导联系客服登记运单号，待后端补端点后改为真连提交 */
 function fillLogistics() {
-  uni.showModal({
-    title: '登记运单号',
-    content: '商品寄出后，请联系客服登记快递运单号，确保退款及时到账。',
-    confirmText: '联系客服',
-    cancelText: '稍后再说',
-    success: (res) => {
-      if (res.confirm) navigateTo('/customer-service')
-    },
-  })
+  returnCompany.value = detail.value.logistics?.company || ''
+  returnTrackingNo.value = detail.value.logistics?.trackingNo || ''
+  showLogistics.value = true
+}
+
+async function submitLogistics() {
+  if (submittingLogistics.value) return
+  const company = returnCompany.value.trim()
+  const logisticsNo = returnTrackingNo.value.trim()
+  if (!company) {
+    uni.showToast({ title: '请填写快递公司', icon: 'none' })
+    return
+  }
+  if (logisticsNo.length < 4) {
+    uni.showToast({ title: '请填写正确的退货运单号', icon: 'none' })
+    return
+  }
+  submittingLogistics.value = true
+  try {
+    await accountApi.submitReturnLogistics(detail.value.id, company, logisticsNo)
+    detail.value.logistics = { ...detail.value.logistics, company, trackingNo: logisticsNo }
+    showLogistics.value = false
+    uni.showToast({ title: '运单登记成功', icon: 'success' })
+    await fetchData()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '登记失败，请重试', icon: 'none' })
+  } finally {
+    submittingLogistics.value = false
+  }
 }
 const cancelling = ref(false)
 async function doCancel() {
@@ -713,4 +759,43 @@ async function doCancel() {
   font-weight: 500;
   color: var(--brand);
 }
+
+.tracking-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-top: 20rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid #E8E3DB;
+}
+.tracking-label { font-size: 23rpx; color: #8A7463; }
+.tracking-value { flex: 1; text-align: right; font-size: 23rpx; color: #2C2C2C; word-break: break-all; }
+.addr-btn.done { gap: 8rpx; border-color: rgba(46, 125, 50, 0.24); background: rgba(46, 125, 50, 0.06); }
+.addr-btn-text.done { color: #2E7D32; }
+.logistics-dialog {
+  width: 620rpx;
+  padding: 36rpx 32rpx 0;
+  box-sizing: border-box;
+  border-radius: 24rpx;
+  background: #FFFFFF;
+}
+.logistics-desc {
+  display: block;
+  margin: 14rpx 0 24rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #8A7463;
+}
+.logistics-input {
+  height: 84rpx;
+  margin-bottom: 18rpx;
+  padding: 0 22rpx;
+  box-sizing: border-box;
+  border: 1rpx solid #E8E3DB;
+  border-radius: 14rpx;
+  background: #FCFAF7;
+  font-size: 26rpx;
+  color: #2C2C2C;
+}
+.confirm-btn.disabled { opacity: 0.55; pointer-events: none; }
 </style>

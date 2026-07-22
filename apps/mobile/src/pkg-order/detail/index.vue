@@ -82,7 +82,10 @@
           </view>
         </view>
       </view>
-      <view v-if="order.status === 'completed' || order.status === 'pending_receive'" class="quick-acts">
+      <view v-if="order.status === 'pending_ship' && !order.isVirtual" class="quick-acts">
+        <view class="quick ghost" @tap="goAfterSale"><app-icon name="undo-2" :size="30" color="#666666" /><text>申请退款</text></view>
+      </view>
+      <view v-else-if="order.status === 'completed' || order.status === 'pending_receive'" class="quick-acts">
         <view v-if="order.canReview" class="quick primary" @tap="goReview"><app-icon name="star" :size="30" color="#C41E3A" /><text>评价晒单</text></view>
         <view v-if="!order.isVirtual" class="quick ghost" @tap="goAfterSale"><app-icon name="undo-2" :size="30" color="#666666" /><text>申请售后</text></view>
         <!-- 换货挂订单售后（董事长拍板）：带 orderId 进换货页，提交落售后 type=exchange -->
@@ -131,6 +134,9 @@
         <template v-else-if="order.isVirtual && order.status !== 'cancelled'">
           <view v-if="order.canReview" class="fbtn outline" @tap="goReview"><text>去评价</text></view>
           <view v-if="isCourseOrder" class="fbtn primary" @tap="goLearn"><text>立即学习</text></view>
+        </template>
+        <template v-else-if="order.status === 'pending_ship'">
+          <view class="fbtn ghost" @tap="goAfterSale"><text>申请退款</text></view>
         </template>
         <template v-else-if="order.status === 'pending_receive'">
           <view class="fbtn ghost" @tap="goLogistics"><text>查看物流</text></view>

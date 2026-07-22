@@ -7,6 +7,11 @@ import { NotificationService } from "../notification/notification.service";
 import { SystemService } from "../system/system.service";
 import { AuditService } from "../audit/audit.service";
 import { ShopRefundService } from "../shop/shop-refund.service";
+import {
+  isImmediateRefundType,
+  isReturnRefundType,
+  stringifyAfterSaleLogistics,
+} from "../shop/after-sale-type";
 import { MERCHANT_CONFIG_KEYS, MERCHANT_FEATURE_FLAGS } from "./merchant.types";
 import { encrypt, decrypt, maskIdCard, maskPhone, phoneHmac } from "../../common/crypto.util";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
@@ -862,41 +867,39 @@ export class MerchantService {
   }
 
   /**
-   * 退款类售后判定（与 shop-coupon.service.ts 同口径）：type 含 "refund"（不区分大小写）即视为需要退钱。
-   * 覆盖线上实际写法：refund / refund_only / refund_with_return / REFUND。return(仅退货)/exchange(换货) 不含退款动作。
-   */
-  private isRefundType(type?: string | null): boolean {
-    return /refund/i.test(type ?? "");
-  }
-
-  /**
-   * 商家处理售后单（资金语义收敛·修「同意退款却不退钱」命门）：
-   * 原实现 approve 只改 AfterSale.status —— 商家点"通过"后售后单消失，买家被告知批准但钱永远不退。
-   * 现收敛为：approve + 退款类 → 先走 ShopRefundService.refundOrder 真退款（渠道路由 + CAS 置 REFUNDED + 分佣冲正 + 记账），
-   * 退款成功才标 APPROVED；退款抛错则整个 process 失败，售后单保持原状态。
-   * 幂等：订单已 REFUNDED（重复点击/其他链路已退）则跳过退款只标状态；refundOrder 自身另有 redis 锁 + 状态 CAS 兜底。
+   * 商家售后状态机与平台端同口径。退货退款审核只下发退货地址，
+   * 必须经 return-inspection 验收入库后才允许真实退款。
    */
   async processAfterSale(merchantId: string, afterSaleId: string, dto: { action: string; remark?: string }) {
     const record = await this.getAfterSale(merchantId, afterSaleId);
     if (!record) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后单不存在");
 
     if (dto.action === "complete") {
+      if (isReturnRefundType(record.type)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "退货退款请使用退货验收操作，验收入库后系统自动退款");
+      }
+      if (isImmediateRefundType(record.type)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "仅退款在审核通过时已自动完成退款");
+      }
       const changed = await this.prisma.afterSale.updateMany({
         where: { id: afterSaleId, status: "APPROVED" },
-        data: { status: "COMPLETED", ...(dto.remark ? { logistics: dto.remark } : {}) },
+        data: { status: "COMPLETED", ...(dto.remark?.trim() ? { logistics: dto.remark.trim() } : {}) },
       });
       if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已同意的售后可确认完成，请刷新后重试");
       return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
     }
 
     if (record.status !== "PENDING") {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, record.status === "PROCESSING" ? "售后正在处理中，请勿重复操作" : "售后状态已变更，请刷新后重试");
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        record.status === "PROCESSING" ? "售后正在处理中，请勿重复操作" : "售后状态已变更，请刷新后重试",
+      );
     }
 
     if (dto.action === "reject") {
       const changed = await this.prisma.afterSale.updateMany({
         where: { id: afterSaleId, status: "PENDING" },
-        data: { status: "REJECTED", ...(dto.remark ? { logistics: dto.remark } : {}) },
+        data: { status: "REJECTED", ...(dto.remark?.trim() ? { logistics: dto.remark.trim() } : {}) },
       });
       if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变更，请刷新后重试");
       return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
@@ -906,16 +909,27 @@ export class MerchantService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "无效操作: " + dto.action);
     }
 
-    if (!this.isRefundType(record.type)) {
+    if (isReturnRefundType(record.type)) {
+      const returnAddress = dto.remark?.trim();
+      if (!returnAddress) throw new BusinessException(ErrorCode.BAD_REQUEST, "同意退货退款时必须填写退货地址");
       const changed = await this.prisma.afterSale.updateMany({
         where: { id: afterSaleId, status: "PENDING" },
-        data: { status: "APPROVED", ...(dto.remark ? { logistics: dto.remark } : {}) },
+        data: { status: "APPROVED", logistics: stringifyAfterSaleLogistics({ returnAddress }) },
       });
       if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变更，请刷新后重试");
       return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
     }
 
-    // 退款类先以 CAS 抢占 PROCESSING，拒绝/重复点击无法与真实退款并发互踩。
+    if (!isImmediateRefundType(record.type)) {
+      const changed = await this.prisma.afterSale.updateMany({
+        where: { id: afterSaleId, status: "PENDING" },
+        data: { status: "APPROVED", ...(dto.remark?.trim() ? { logistics: dto.remark.trim() } : {}) },
+      });
+      if (changed.count === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变更，请刷新后重试");
+      return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
+    }
+
+    // 仅退款先以 CAS 抢占 PROCESSING，拒绝/重复点击无法与真实退款并发互踩。
     const reserved = await this.prisma.afterSale.updateMany({
       where: { id: afterSaleId, status: "PENDING" },
       data: { status: "PROCESSING" },
@@ -929,21 +943,22 @@ export class MerchantService {
         if (!this.shopRefund) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款服务暂不可用，请稍后重试");
         const refundResult = await this.shopRefund.refundOrder(record.orderId, record.reason || "商家同意售后退款");
         if (refundResult.status === "PROCESSING") {
-          // 渠道仅受理时保持 PROCESSING，成功回调会把订单记 REFUNDED 并同步售后为 APPROVED。
           return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
         }
       }
       const finalized = await this.prisma.afterSale.updateMany({
         where: { id: afterSaleId, status: "PROCESSING" },
-        data: { status: "APPROVED", ...(dto.remark ? { logistics: dto.remark } : {}) },
+        data: { status: "COMPLETED" },
       });
-      if (finalized.count === 0) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款已受理，但售后状态同步失败");
+      if (finalized.count === 0) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款已完成，但售后状态同步失败");
       return this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
     } catch (error) {
-      // 若渠道退款已成功而最终状态写入异常，以资金事实为准强制收敛为 APPROVED；否则退回 PENDING 允许安全重试。
-      const latestOrder = await this.prisma.order.findFirst({ where: { id: record.orderId, merchantId }, select: { status: true } });
+      const latestOrder = await this.prisma.order.findFirst({
+        where: { id: record.orderId, merchantId },
+        select: { status: true },
+      });
       if (latestOrder?.status === "REFUNDED") {
-        return this.prisma.afterSale.update({ where: { id: afterSaleId }, data: { status: "APPROVED" } });
+        return this.prisma.afterSale.update({ where: { id: afterSaleId }, data: { status: "COMPLETED" } });
       }
       await this.prisma.afterSale.updateMany({
         where: { id: afterSaleId, status: "PROCESSING" },

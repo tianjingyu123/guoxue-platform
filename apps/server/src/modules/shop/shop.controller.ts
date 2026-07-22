@@ -19,7 +19,7 @@ import {
   ProductListQueryDto, OrderListQueryDto,
   CreateSkuDto, JsapiPayDto, NativePayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto, RechargeH5Dto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
-  UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
+  UnionpayRefundDto, ApplyAfterSaleDto, SubmitReturnLogisticsDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
 } from "./shop.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -1047,10 +1047,25 @@ export class ShopController {
     return this.couponSvc.cancelAfterSale(id, req.user.id);
   }
 
+  @Put("after-sales/:id/return-logistics")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "买家登记退货运单" })
+  @ApiResponse({ status: 200, description: "登记成功" })
+  @ApiResponse({ status: 400, description: "售后状态不可登记" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  submitReturnLogistics(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body() dto: SubmitReturnLogisticsDto,
+  ) {
+    return this.couponSvc.submitReturnLogistics(id, req.user.id, dto.company, dto.logisticsNo);
+  }
+
   @Get("admin/after-sales")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  // 权限修复(角色断裂)：财务角色处理售后退款，放行 FINANCE_ADMIN。
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
+  // 客服可查看并处理非资金售后；真实退款仍由运营/财务/超级管理员批准。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "获取售后列表（管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -1067,8 +1082,8 @@ export class ShopController {
   @Put("admin/after-sales/:id/process")
   @Auditable({ action: "售后处理", targetType: "AFTER_SALE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  // 权限修复(角色断裂)：财务角色处理售后退款，放行 FINANCE_ADMIN。
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
+  // 客服可查看并处理非资金售后；真实退款仍由运营/财务/超级管理员批准。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "处理售后（管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -1076,8 +1091,16 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  processAfterSale(@Param("id") id: string, @Body("action") action: string, @Body("remark") remark?: string) {
-    return this.couponSvc.processAfterSale(id, action, remark);
+  processAfterSale(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body("action") action: string,
+    @Body("remark") remark?: string,
+  ) {
+    const allowRefundActions = req.user.roles.some((role) =>
+      ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"].includes(role),
+    );
+    return this.couponSvc.processAfterSale(id, action, remark, allowRefundActions);
   }
 
   // ───────── 购物车（Redis） ─────────

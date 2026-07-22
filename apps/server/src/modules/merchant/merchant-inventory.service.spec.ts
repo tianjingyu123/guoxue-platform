@@ -34,7 +34,8 @@ describe("MerchantInventoryService", () => {
       ...tx,
       $transaction: jest.fn((callback) => callback(tx)),
     };
-    return { service: new MerchantInventoryService(prisma), prisma, tx };
+    const shopRefund: any = { refundOrder: jest.fn().mockResolvedValue({ status: "SUCCESS" }) };
+    return { service: new MerchantInventoryService(prisma, shopRefund), prisma, tx, shopRefund };
   }
 
   it("同一 requestId 重放时不重复改变库存", async () => {
@@ -115,9 +116,9 @@ describe("MerchantInventoryService", () => {
   });
 
   it("已发货退货仅在验收合格后回补库存", async () => {
-    const { service, tx } = createService();
-    tx.afterSale.findUnique.mockResolvedValue({ id: "as-1", orderId: "o-1", type: "refund_with_return", status: "APPROVED" });
-    tx.order.findFirst.mockResolvedValue({ id: "o-1", merchantId: "merchant-1", targetId: "product-1", skuId: null, quantity: 2 });
+    const { service, tx, shopRefund } = createService();
+    tx.afterSale.findUnique.mockResolvedValue({ id: "as-1", orderId: "o-1", type: "refund_with_return", status: "APPROVED", reason: "质量问题", logistics: JSON.stringify({ returnAddress: "退货地址", company: "顺丰", logisticsNo: "SF123" }) });
+    tx.order.findFirst.mockResolvedValue({ id: "o-1", merchantId: "merchant-1", targetId: "product-1", skuId: null, quantity: 2, status: "SHIPPED" });
     const result = await service.inspectReturn("merchant-1", "owner-1", "operator-1", "as-1", {
       requestId: "inspect-123", accepted: true, quantity: 2, remark: "商品完好",
     });
@@ -129,17 +130,47 @@ describe("MerchantInventoryService", () => {
       idempotencyKey: "return-inspection:merchant-1:inspect-123",
     }) });
     expect(result.restocked).toBe(true);
+    expect(shopRefund.refundOrder).toHaveBeenCalledWith("o-1", "质量问题");
+    expect(tx.afterSale.updateMany).toHaveBeenLastCalledWith({
+      where: { id: "as-1", status: "PROCESSING" }, data: { status: "COMPLETED" },
+    });
   });
 
-  it("退货验收不合格时完结售后但不增加库存", async () => {
-    const { service, tx } = createService();
-    tx.afterSale.findUnique.mockResolvedValue({ id: "as-2", orderId: "o-2", type: "return", status: "APPROVED" });
-    tx.order.findFirst.mockResolvedValue({ id: "o-2", merchantId: "merchant-1", targetId: "product-1", skuId: null, quantity: 1 });
+  it("退货验收不合格时驳回售后且不增加库存、不退款", async () => {
+    const { service, tx, shopRefund } = createService();
+    tx.afterSale.findUnique.mockResolvedValue({ id: "as-2", orderId: "o-2", type: "return", status: "APPROVED", logistics: JSON.stringify({ returnAddress: "退货地址", company: "圆通", logisticsNo: "YT123" }) });
+    tx.order.findFirst.mockResolvedValue({ id: "o-2", merchantId: "merchant-1", targetId: "product-1", skuId: null, quantity: 1, status: "SHIPPED" });
     const result = await service.inspectReturn("merchant-1", "owner-1", "operator-1", "as-2", {
       requestId: "inspect-456", accepted: false, remark: "商品破损",
     });
     expect(tx.product.updateMany).not.toHaveBeenCalled();
     expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
     expect(result.restocked).toBe(false);
+    expect(shopRefund.refundOrder).not.toHaveBeenCalled();
+    expect(tx.afterSale.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: "REJECTED" }),
+    }));
+  });
+
+  it("验收入库后退款失败回到 APPROVED，使用同一 requestId 重试不重复加库存", async () => {
+    const { service, tx, shopRefund } = createService();
+    const movement = { id: "movement-old", idempotencyKey: "return-inspection:merchant-1:inspect-retry" };
+    tx.afterSale.findUnique.mockResolvedValue({
+      id: "as-3", orderId: "o-3", type: "refund_with_return", status: "APPROVED", reason: "质量问题",
+      logistics: JSON.stringify({ returnAddress: "退货地址", company: "顺丰", logisticsNo: "SF999", inspection: "ACCEPTED" }),
+    });
+    tx.order.findFirst.mockResolvedValue({ id: "o-3", merchantId: "merchant-1", targetId: "product-1", skuId: null, quantity: 1, status: "SHIPPED" });
+    tx.inventoryMovement.findUnique.mockResolvedValue(movement);
+    shopRefund.refundOrder.mockRejectedValue(new Error("渠道故障"));
+
+    await expect(service.inspectReturn("merchant-1", "owner-1", "operator-1", "as-3", {
+      requestId: "inspect-retry", accepted: true,
+    })).rejects.toThrow("渠道故障");
+
+    expect(tx.product.updateMany).not.toHaveBeenCalled();
+    expect(tx.inventoryMovement.create).not.toHaveBeenCalled();
+    expect(tx.afterSale.updateMany).toHaveBeenLastCalledWith({
+      where: { id: "as-3", status: "PROCESSING" }, data: { status: "APPROVED" },
+    });
   });
 });

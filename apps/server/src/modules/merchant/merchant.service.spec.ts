@@ -393,19 +393,19 @@ describe("MerchantService", () => {
       expect(mockPrisma.afterSale.updateMany).toHaveBeenCalledTimes(1);
     });
 
-    it("退款成功后售后由 PROCESSING 收敛为 APPROVED", async () => {
+    it("退款成功后售后由 PROCESSING 收敛为 COMPLETED", async () => {
       mockPrisma.afterSale.findUnique.mockResolvedValueOnce({ id: "a1", orderId: "o1", type: "refund", status: "PENDING", reason: "不想要了" })
-        .mockResolvedValueOnce({ id: "a1", status: "APPROVED" });
+        .mockResolvedValueOnce({ id: "a1", status: "COMPLETED" });
       mockPrisma.afterSale.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 1 });
       mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", merchantId: "m1", status: "PAID" });
 
       const result = await svc.processAfterSale("m1", "a1", { action: "approve" });
 
-      expect(result?.status).toBe("APPROVED");
+      expect(result?.status).toBe("COMPLETED");
       expect(mockShopRefund.refundOrder).toHaveBeenCalledWith("o1", "不想要了");
       expect(mockPrisma.afterSale.updateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
         where: { id: "a1", status: "PROCESSING" },
-        data: { status: "APPROVED" },
+        data: { status: "COMPLETED" },
       }));
     });
 

@@ -9,6 +9,7 @@ import { AlipayService } from "./alipay.service";
 import { UnionpayService } from "./unionpay.service";
 import { PaymentProviderFactory } from "./payment-factory";
 import { WebhookService } from "../webhook/webhook.service";
+import { isReturnRefundType } from "./after-sale-type";
 import { RMB_TO_FEN } from "../../common/constants";
 import { isStocklessOrderType } from "./shop-order-types.constants";
 
@@ -87,7 +88,7 @@ export class ShopRefundService {
     const order = await this.assertRefundAmountValid(params.outTradeNo, params.refundAmount);
     const result = await this.alipay.refund(params);
     // 网关退款成功后统一记账（此前遗漏→退款后订单仍 PAID、佣金不冲正、仍被结算给商家）
-    await this.applyRefundedBookkeeping(order.id, Number(order.amount), params.reason);
+    await this.applyRefundedBookkeeping(order.id, Number(order.payAmount ?? order.amount), params.reason);
     return result;
   }
 
@@ -100,7 +101,7 @@ export class ShopRefundService {
   async unionpayRefund(params: { outTradeNo: string; outRefundNo: string; amount: number; origQryId?: string }) {
     const order = await this.assertRefundAmountValid(params.outTradeNo, params.amount / RMB_TO_FEN);
     const result = await this.unionpay.refund(params);
-    await this.applyRefundedBookkeeping(order.id, Number(order.amount));
+    await this.applyRefundedBookkeeping(order.id, Number(order.payAmount ?? order.amount));
     return result;
   }
 
@@ -121,8 +122,8 @@ export class ShopRefundService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已全额退款，不可重复退款");
     }
     const paid = Number(order.payAmount ?? order.amount);
-    if (refundRmb > paid + 1e-6) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, `退款金额不可超过订单实付金额（${paid.toFixed(2)} 元）`);
+    if (Math.abs(refundRmb - paid) > 0.009) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `当前仅支持整单全额退款（${paid.toFixed(2)} 元）`);
     }
     return order;
   }
@@ -207,7 +208,11 @@ export class ShopRefundService {
         throw new BusinessException(ErrorCode.ORDER_REFUND_DENIED, "订单不可退款");
       }
 
-      const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+      const refundAmount = Number(order.payAmount ?? order.amount);
+      if (!Number.isFinite(refundAmount) || refundAmount <= 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "订单实付金额异常，暂无法退款");
+      }
+      const totalFen = Math.round(refundAmount * RMB_TO_FEN);
       // 稳定退款单号(按订单)：并发/重试时网关据 outRefundNo 幂等去重，防锁超时后二次退款到账
       const outRefundNo = `RF${orderId}`;
 
@@ -229,13 +234,13 @@ export class ShopRefundService {
         outTradeNo,
         transactionId,
         outRefundNo,
-        totalYuan: Number(order.amount),
+        totalYuan: refundAmount,
         totalFen,
         reason: reason || "用户申请退款",
       });
 
       if (result.status === "SUCCESS") {
-        await this.applyRefundedBookkeeping(orderId, Number(order.amount), reason);
+        await this.applyRefundedBookkeeping(orderId, refundAmount, reason);
       } else if (result.status !== "PROCESSING") {
         throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款通道未受理，请稍后重试");
       }
@@ -270,14 +275,19 @@ export class ShopRefundService {
           where: orderIdFromRefundNo
             ? { id: orderIdFromRefundNo }
             : { OR: [{ payTransactionId: transactionId || outTradeNo }, { id: outTradeNo }] },
-          select: { id: true, amount: true },
+          select: { id: true, amount: true, payAmount: true },
         });
 
         if (refundedOrder) {
-          await this.applyRefundedBookkeeping(refundedOrder.id, Number(refundedOrder.amount), "支付渠道退款成功回调");
+          await this.applyRefundedBookkeeping(
+            refundedOrder.id,
+            Number(refundedOrder.payAmount ?? refundedOrder.amount),
+            "支付渠道退款成功回调",
+          );
+          // 只有真实退款动作会把售后置为 PROCESSING；回调成功统一收敛到资金终态 COMPLETED。
           await this.prisma.afterSale.updateMany({
-            where: { orderId: refundedOrder.id, status: "PROCESSING", type: { contains: "refund", mode: "insensitive" } },
-            data: { status: "APPROVED" },
+            where: { orderId: refundedOrder.id, status: "PROCESSING" },
+            data: { status: "COMPLETED" },
           });
         }
 
@@ -287,13 +297,25 @@ export class ShopRefundService {
         }
         this.logger.log(`退款回调: ${outRefundNo} 成功, 订单: ${refundedOrder?.id || outTradeNo}`);
       } else if (refundStatus === "FAIL" || refundStatus === "CLOSED") {
-        // 异步退款未完成时不动订单资金状态，只把本次占用的售后退回 PENDING 允许人工核对后重试。
+        // 异步退款未完成时不动订单资金状态：仅退款退回 PENDING；已验收入库的退货退款回到 APPROVED 安全重试。
         const orderIdFromRefundNo = outRefundNo?.startsWith("RF") ? outRefundNo.slice(2) : "";
         if (orderIdFromRefundNo) {
-          await this.prisma.afterSale.updateMany({
-            where: { orderId: orderIdFromRefundNo, status: "PROCESSING", type: { contains: "refund", mode: "insensitive" } },
-            data: { status: "PENDING", logistics: `退款通道${refundStatus === "FAIL" ? "失败" : "关闭"}，请核对后重试` },
+          const records = await this.prisma.afterSale.findMany({
+            where: { orderId: orderIdFromRefundNo, status: "PROCESSING" },
+            select: { id: true, type: true },
           });
+          for (const record of records) {
+            const returnRefund = isReturnRefundType(record.type);
+            await this.prisma.afterSale.updateMany({
+              where: { id: record.id, status: "PROCESSING" },
+              data: returnRefund
+                ? { status: "APPROVED" }
+                : {
+                    status: "PENDING",
+                    logistics: `退款通道${refundStatus === "FAIL" ? "失败" : "关闭"}，请核对后重试`,
+                  },
+            });
+          }
         }
         this.logger.warn(`退款回调: ${outRefundNo} 失败/关闭, 状态: ${refundStatus}, 订单: ${outTradeNo}`);
       }

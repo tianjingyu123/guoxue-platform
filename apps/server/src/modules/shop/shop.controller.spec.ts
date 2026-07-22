@@ -81,6 +81,8 @@ const mockCouponSvc = {
   claimCoupon: jest.fn().mockResolvedValue({ claimed: true }),
   grantCoupon: jest.fn().mockResolvedValue({ granted: true }),
   getUserCoupons: jest.fn().mockResolvedValue([{ id: "cp1", status: "UNUSED" }]),
+  submitReturnLogistics: jest.fn().mockResolvedValue({ id: "as1" }),
+  processAfterSale: jest.fn().mockResolvedValue({ id: "as1", status: "APPROVED" }),
 };
 
 const mockSystemSvc = {
@@ -113,6 +115,18 @@ describe("ShopController", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
+
+  it("客服处理售后时后端关闭退款资金权限", async () => {
+    const req: any = { user: { id: "cs1", roles: ["CUSTOMER_SERVICE"] } };
+    await ctrl.processAfterSale(req, "as1", "approve", "同意申请");
+    expect(mockCouponSvc.processAfterSale).toHaveBeenCalledWith("as1", "approve", "同意申请", false);
+  });
+
+  it("运营处理售后时保留退款资金权限", async () => {
+    const req: any = { user: { id: "op1", roles: ["OPERATION_ADMIN"] } };
+    await ctrl.processAfterSale(req, "as1", "approve");
+    expect(mockCouponSvc.processAfterSale).toHaveBeenCalledWith("as1", "approve", undefined, true);
+  });
 
   // ─── 商品 ───
   it("POST /shop/products — 创建商品", async () => {

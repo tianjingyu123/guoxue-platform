@@ -5,6 +5,12 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination } from "../../common/pagination";
 import { PrismaService } from "../../prisma/prisma.service";
+import { ShopRefundService } from "../shop/shop-refund.service";
+import {
+  isReturnRefundType,
+  parseAfterSaleLogistics,
+  stringifyAfterSaleLogistics,
+} from "../shop/after-sale-type";
 import {
   CreatePurchaseOrderDto, InventoryAdjustmentDto, InventoryAlertSettingDto,
   InventoryListQueryDto, InventoryMovementQueryDto, PurchaseOrderQueryDto,
@@ -17,7 +23,10 @@ type StockTarget = { productId: string; skuId: string | null; title: string; sku
 
 @Injectable()
 export class MerchantInventoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly shopRefund: ShopRefundService,
+  ) {}
 
   private bad(message: string): never {
     throw new BusinessException(ErrorCode.BAD_REQUEST, message);
@@ -236,37 +245,64 @@ export class MerchantInventoryService {
     afterSaleId: string, dto: ReturnInspectionDto,
   ) {
     const afterSale = await this.prisma.afterSale.findUnique({ where: { id: afterSaleId } });
-    if (!afterSale || afterSale.status !== "APPROVED" || !/return/i.test(afterSale.type)) {
+    if (!afterSale || afterSale.status !== "APPROVED" || !isReturnRefundType(afterSale.type)) {
       return this.bad("退货售后不存在或当前状态不可验收");
     }
     const order = await this.prisma.order.findFirst({ where: { id: afterSale.orderId, merchantId } });
     if (!order || !order.targetId) return this.bad("售后订单不存在或不属于当前店铺");
     const quantity = dto.quantity ?? order.quantity;
     if (quantity > order.quantity) return this.bad("验收入库数量不能超过订单购买数量");
+    const logistics = parseAfterSaleLogistics(afterSale.logistics);
+    if (dto.accepted && (!logistics.company || !logistics.logisticsNo)) {
+      return this.bad("买家尚未登记退货运单，不能确认验收入库");
+    }
     const key = `return-inspection:${merchantId}:${dto.requestId}`;
 
-    return this.prisma.$transaction(async (tx) => {
+    const inspection = await this.prisma.$transaction(async (tx) => {
       const replay = await tx.inventoryMovement.findUnique({ where: { idempotencyKey: key } });
-      if (replay) return { movement: replay, replayed: true };
+      if (replay) {
+        const changed = await tx.afterSale.updateMany({
+          where: { id: afterSaleId, status: "APPROVED" },
+          data: { status: "PROCESSING" },
+        });
+        if (changed.count !== 1) return this.bad("售后状态已变化，请刷新后重试");
+        return { movement: replay, replayed: true, restocked: true };
+      }
       if (!dto.accepted) {
         const changed = await tx.afterSale.updateMany({
           where: { id: afterSaleId, status: "APPROVED" },
-          data: { status: "COMPLETED", logistics: JSON.stringify({ inspection: "REJECTED", remark: dto.remark || "退货验收不合格" }) },
+          data: {
+            status: "REJECTED",
+            logistics: stringifyAfterSaleLogistics({
+              ...logistics,
+              inspection: "REJECTED",
+              remark: dto.remark || "退货验收不合格",
+            }),
+          },
         });
         if (changed.count !== 1) return this.bad("售后状态已变化，请刷新后重试");
         return { movement: null, replayed: false, restocked: false };
       }
+
       const target = await this.resolveTarget(tx, shopUserId, order.targetId, order.skuId);
       const afterStock = target.stock + quantity;
       const stockChanged = target.skuId
         ? await tx.productSku.updateMany({ where: { id: target.skuId, stock: target.stock }, data: { stock: afterStock } })
         : await tx.product.updateMany({ where: { id: target.productId, userId: shopUserId, stock: target.stock }, data: { stock: afterStock } });
       if (stockChanged.count !== 1) return this.bad("库存已被其他操作修改，请刷新后重试");
-      const completed = await tx.afterSale.updateMany({
+      const reserved = await tx.afterSale.updateMany({
         where: { id: afterSaleId, status: "APPROVED" },
-        data: { status: "COMPLETED", logistics: JSON.stringify({ inspection: "ACCEPTED", quantity, remark: dto.remark || "退货验收入库" }) },
+        data: {
+          status: "PROCESSING",
+          logistics: stringifyAfterSaleLogistics({
+            ...logistics,
+            inspection: "ACCEPTED",
+            quantity,
+            remark: dto.remark || "退货验收入库",
+          }),
+        },
       });
-      if (completed.count !== 1) return this.bad("售后状态已变化，请刷新后重试");
+      if (reserved.count !== 1) return this.bad("售后状态已变化，请刷新后重试");
       const movement = await tx.inventoryMovement.create({ data: {
         merchantId, productId: target.productId, skuId: target.skuId,
         type: "REFUND_RETURN", quantity, beforeStock: target.stock, afterStock,
@@ -276,5 +312,37 @@ export class MerchantInventoryService {
       } });
       return { movement, replayed: false, restocked: true };
     });
+
+    if (!dto.accepted) return inspection;
+
+    try {
+      if (order.status !== "REFUNDED") {
+        const refundResult = await this.shopRefund.refundOrder(order.id, afterSale.reason || "退货验收合格退款");
+        if (refundResult.status === "PROCESSING") {
+          return { ...inspection, refundStatus: "PROCESSING" };
+        }
+      }
+      const finalized = await this.prisma.afterSale.updateMany({
+        where: { id: afterSaleId, status: "PROCESSING" },
+        data: { status: "COMPLETED" },
+      });
+      if (finalized.count !== 1) return this.bad("退款已完成，但售后状态同步失败");
+      return { ...inspection, refundStatus: "SUCCESS" };
+    } catch (error) {
+      const latest = await this.prisma.order.findFirst({
+        where: { id: order.id, merchantId },
+        select: { status: true },
+      });
+      if (latest?.status === "REFUNDED") {
+        await this.prisma.afterSale.update({ where: { id: afterSaleId }, data: { status: "COMPLETED" } });
+        return { ...inspection, refundStatus: "SUCCESS" };
+      }
+      // 商品已实际验收入库，退款失败时回到 APPROVED 允许按同一 requestId 安全重试，绝不重复加库存。
+      await this.prisma.afterSale.updateMany({
+        where: { id: afterSaleId, status: "PROCESSING" },
+        data: { status: "APPROVED" },
+      });
+      throw error;
+    }
   }
 }

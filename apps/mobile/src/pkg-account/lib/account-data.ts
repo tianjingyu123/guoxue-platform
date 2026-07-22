@@ -88,7 +88,7 @@ export interface AfterSaleDetailData {
   images: string[]
   product: AfterSaleProduct
   timeline: AfterSaleTimelineNode[]
-  logistics?: { company: string; trackingNo: string; address: string }
+  logistics?: { company: string; trackingNo: string; address: string; inspection?: 'ACCEPTED' | 'REJECTED'; remark?: string }
   rejectReason?: string
   createdAt: string
   canCancel: boolean
@@ -219,11 +219,36 @@ const AS_STATUS_MAP: Record<string, AfterSaleStatus> = {
 }
 /** 后端售后类型字符串 → 统一视图类型；交易申诉不能冒充退款。 */
 function asType(t?: string): AfterSaleViewType {
-  if (t === 'exchange') return 'exchange'
-  if (t === 'return' || t === 'refund_with_return') return 'refund_with_return'
-  if (!t || t === 'refund' || t === 'refund_only') return 'refund_only'
-  if (['not_received', 'not_as_described', 'quality_issue', 'other'].includes(t)) return 'dispute'
+  const value = String(t || '').trim().toLowerCase()
+  if (value === 'exchange') return 'exchange'
+  if (value === 'return' || value === 'refund_with_return') return 'refund_with_return'
+  if (!value || value === 'refund' || value === 'refund_only') return 'refund_only'
+  if (['not_received', 'not_as_described', 'quality_issue', 'other'].includes(value)) return 'dispute'
   return 'other'
+}
+
+interface ParsedAfterSaleLogistics {
+  legacyText?: string
+  returnAddress?: string
+  company?: string
+  logisticsNo?: string
+  inspection?: 'ACCEPTED' | 'REJECTED'
+  quantity?: number
+  remark?: string
+}
+
+function parseAfterSaleLogistics(raw?: string | null): ParsedAfterSaleLogistics {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (typeof parsed === 'string') return parsed.trim() ? { legacyText: parsed.trim() } : {}
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as ParsedAfterSaleLogistics
+      : {}
+  } catch {
+    const legacyText = raw.trim()
+    return legacyText ? { legacyText } : {}
+  }
 }
 
 export function afterSaleTypeLabel(type: AfterSaleViewType): string {
@@ -265,7 +290,11 @@ function adaptAfterSaleListItem(a: RawAfterSale): AfterSaleListItem {
 function buildAfterSaleTimeline(a: RawAfterSale): AfterSaleTimelineNode[] {
   const t0 = fmtTime(a.createdAt)
   const t1 = fmtTime(a.updatedAt || a.createdAt)
-  const submitted: AfterSaleTimelineNode = { status: 'submitted', title: '提交申请', description: '您的售后申请已提交', time: t0, isCurrent: false }
+  const type = asType(a.type)
+  const logistics = parseAfterSaleLogistics(a.logistics)
+  const submitted: AfterSaleTimelineNode = {
+    status: 'submitted', title: '提交申请', description: '您的售后申请已提交', time: t0, isCurrent: false,
+  }
   if (a.status === 'CANCELLED') {
     return [submitted, { status: 'cancelled', title: '已取消', description: '您已撤销本次售后申请', time: t1, isCurrent: true }]
   }
@@ -273,26 +302,54 @@ function buildAfterSaleTimeline(a: RawAfterSale): AfterSaleTimelineNode[] {
     return [
       submitted,
       { status: 'reviewing', title: '商家审核', time: t1, isCurrent: false },
-      { status: 'rejected', title: '申请驳回', description: '商家已驳回您的售后申请', time: t1, isCurrent: true },
+      { status: 'rejected', title: '申请驳回', description: logistics.remark || logistics.legacyText || '本次售后申请未通过', time: t1, isCurrent: true },
     ]
   }
-  if (a.status === 'PENDING' || a.status === 'PROCESSING') {
+  if (a.status === 'PENDING') {
     return [submitted, { status: 'reviewing', title: '商家审核中', description: '商家正在处理您的售后申请', time: t1, isCurrent: true }]
   }
-  // APPROVED / COMPLETED
-  const approved: AfterSaleTimelineNode = { status: 'approved', title: '审核通过', description: '商家已同意您的售后申请', time: t1, isCurrent: a.status === 'APPROVED' }
-  if (a.status === 'APPROVED') return [submitted, { status: 'reviewing', title: '商家审核', time: t1, isCurrent: false }, approved]
+  if (a.status === 'PROCESSING') {
+    return [
+      submitted,
+      { status: 'approved', title: type === 'refund_with_return' ? '退货已验收' : '审核通过', time: t1, isCurrent: false },
+      { status: 'refunding', title: '退款处理中', description: '退款已提交原支付渠道，请耐心等待', time: t1, isCurrent: true },
+    ]
+  }
+  if (a.status === 'APPROVED') {
+    let title = '审核通过'
+    let description = '售后事项正在处理'
+    if (type === 'refund_with_return') {
+      title = logistics.logisticsNo ? '等待商家收货验收' : '等待寄回商品'
+      description = logistics.logisticsNo
+        ? `已登记${logistics.company || '退货快递'} ${logistics.logisticsNo}`
+        : '请按退货地址寄回商品并登记运单号'
+    } else if (type === 'refund_only') {
+      title = '退款已受理'
+      description = '退款正在按原支付渠道处理'
+    } else if (type === 'exchange') {
+      title = '换货处理中'
+      description = '商家已同意换货申请'
+    }
+    return [submitted, { status: 'reviewing', title: '商家审核', time: t1, isCurrent: false }, {
+      status: 'approved', title, description, time: t1, isCurrent: true,
+    }]
+  }
+  const completedTitle = isRefundAfterSaleType(type) ? '退款完成' : '售后完成'
+  const completedDescription = isRefundAfterSaleType(type) ? '退款已原路返回' : '本次售后事项已完成'
   return [
     submitted,
     { status: 'reviewing', title: '商家审核', time: t1, isCurrent: false },
-    { ...approved, isCurrent: false },
-    { status: 'completed', title: '退款完成', description: '退款已原路返回', time: t1, isCurrent: true },
+    { status: 'approved', title: '审核通过', time: t1, isCurrent: false },
+    { status: 'completed', title: completedTitle, description: completedDescription, time: t1, isCurrent: true },
   ]
 }
 
 /** 后端 enriched AfterSale → 前端售后详情 */
 function adaptAfterSaleDetail(a: RawAfterSale): AfterSaleDetailData {
   const isRejected = a.status === 'REJECTED'
+  const type = asType(a.type)
+  const parsedLogistics = parseAfterSaleLogistics(a.logistics)
+  const returnAddress = parsedLogistics.returnAddress || (type === 'refund_with_return' ? parsedLogistics.legacyText : '')
   return {
     id: a.id || '',
     orderId: a.orderId || '',
@@ -301,9 +358,7 @@ function adaptAfterSaleDetail(a: RawAfterSale): AfterSaleDetailData {
     status: AS_STATUS_MAP[a.status || ''] || 'pending',
     reason: a.reason || '',
     amount: _num(a.amount ?? a.order?.amount),
-    // 后端售后单无独立"问题描述"字段（申请时已并入 reason）→ 不重复展示
     description: undefined,
-    // 后端售后单不存凭证图片 → 诚实降级为空，详情页 v-if 隐藏
     images: [],
     product: {
       id: a.product?.id || '',
@@ -314,10 +369,16 @@ function adaptAfterSaleDetail(a: RawAfterSale): AfterSaleDetailData {
       quantity: 1,
     },
     timeline: buildAfterSaleTimeline(a),
-    // 后端无结构化退货地址对象 → 不提供，详情页"退货地址"卡片 v-if 隐藏
-    logistics: undefined,
-    // 驳回备注：后端 processAfterSale 把驳回理由写入 AfterSale.logistics 字段
-    rejectReason: isRejected ? (a.logistics || '商家未通过本次售后申请，如有疑问请联系客服') : undefined,
+    logistics: returnAddress ? {
+      address: returnAddress,
+      company: parsedLogistics.company || '',
+      trackingNo: parsedLogistics.logisticsNo || '',
+      inspection: parsedLogistics.inspection,
+      remark: parsedLogistics.remark,
+    } : undefined,
+    rejectReason: isRejected
+      ? (parsedLogistics.remark || parsedLogistics.legacyText || '商家未通过本次售后申请，如有疑问请联系客服')
+      : undefined,
     createdAt: fmtTime(a.createdAt),
     canCancel: a.status === 'PENDING',
   }
@@ -385,7 +446,7 @@ export const accountApi = {
    */
   async submitAfterSale(data: RawSubmitAfterSale): Promise<{ success: boolean; id?: string }> {
     if (!data?.orderId) throw new Error('缺少订单信息')
-    const type = data.type === 'refund_with_return' ? 'return' : 'refund'
+    const type = data.type === 'refund_with_return' ? 'refund_with_return' : 'refund_only'
     const reason = [data.reason, data.description].filter(Boolean).join('；').slice(0, 500)
     const res = await apiPost<{ id?: string }>(`/shop/orders/${data.orderId}/after-sale`, {
       type,
@@ -399,6 +460,12 @@ export const accountApi = {
   /** 取消售后申请 → PUT /shop/after-sales/:id/cancel */
   async cancelAfterSale(id: string): Promise<boolean> {
     await apiPut(`/shop/after-sales/${id}/cancel`, {})
+    return true
+  },
+
+  /** 买家登记退货运单，商家验收后才触发退款。 */
+  async submitReturnLogistics(id: string, company: string, logisticsNo: string): Promise<boolean> {
+    await apiPut(`/shop/after-sales/${id}/return-logistics`, { company, logisticsNo })
     return true
   },
 

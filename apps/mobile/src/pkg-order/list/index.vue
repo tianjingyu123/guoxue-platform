@@ -116,12 +116,12 @@
             <view class="btn ghost" hover-class="btn-press" @tap="askCancel(order.id)"><text class="btn-t">取消订单</text></view>
             <view class="btn primary" hover-class="btn-press" @tap="goPay(order)"><text class="btn-t btn-t-light">去支付</text></view>
           </template>
-          <template v-else-if="order.status === 'pending_ship'">
-            <view v-if="order.canCancel" class="btn ghost" hover-class="btn-press" @tap="askCancel(order.id)"><text class="btn-t">取消订单</text></view>
+          <template v-else-if="order.status === 'pending_ship' && !order.isVirtual">
+            <view class="btn ghost" hover-class="btn-press" @tap="goAfterSale(order.id)"><text class="btn-t">申请退款</text></view>
             <view class="btn ghost" hover-class="btn-press" @tap="goDetail(order.id)"><text class="btn-t">查看详情</text></view>
           </template>
           <!-- 虚拟订单（课程/会员）：无物流/收货/实物售后操作，课程给学习入口 -->
-          <template v-else-if="order.isVirtual && (order.status === 'pending_receive' || order.status === 'completed')">
+          <template v-else-if="order.isVirtual && (order.status === 'pending_ship' || order.status === 'pending_receive' || order.status === 'completed')">
             <view v-if="order.canReview" class="btn outline" hover-class="btn-press" @tap="goReview(order.id)"><text class="btn-t btn-t-brand">去评价</text></view>
             <view v-if="order.orderType === 'COURSE'" class="btn primary" hover-class="btn-press" @tap="goLearn(order)"><text class="btn-t btn-t-light">立即学习</text></view>
             <view v-else class="btn ghost" hover-class="btn-press" @tap="goDetail(order.id)"><text class="btn-t">查看详情</text></view>

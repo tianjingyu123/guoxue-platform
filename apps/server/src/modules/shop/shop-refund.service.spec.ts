@@ -45,7 +45,12 @@ describe("ShopRefundService", () => {
     mockPaymentFactory.isConfigured.mockReturnValue(true)
     mockPaymentFactory.refund.mockResolvedValue({ status: "SUCCESS" })
     mockPrisma.order.findFirst = mockPrisma.order.findFirst || jest.fn()
-    mockPrisma.afterSale = mockPrisma.afterSale || { updateMany: jest.fn().mockResolvedValue({ count: 1 }) }
+    mockPrisma.afterSale = mockPrisma.afterSale || {
+      findMany: jest.fn().mockResolvedValue([]),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    }
+    mockPrisma.afterSale.findMany = mockPrisma.afterSale.findMany || jest.fn()
+    mockPrisma.afterSale.findMany.mockResolvedValue([])
   })
 
   describe("refundExpiredGroupBuysCron (P1-3)", () => {
@@ -60,11 +65,12 @@ describe("ShopRefundService", () => {
   })
 
   describe("refundOrder", () => {
-    it("已支付订单可退款", async () => {
-      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", amount: "99", payTransactionId: "txn1" })
+    it("已支付订单按实付金额而非标价退款", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", status: "PAID", amount: "99", payAmount: "88", payTransactionId: "txn1" })
       mockPrisma.order.update.mockResolvedValue({ id: "o1", status: "REFUNDED" })
       const result = await svc.refundOrder("o1")
       expect(result.status).toBe("SUCCESS")
+      expect(mockPaymentFactory.refund).toHaveBeenCalledWith("WECHAT", expect.objectContaining({ totalYuan: 88, totalFen: 8800 }))
     })
 
     it("待付款订单不可退款", async () => {
@@ -122,7 +128,7 @@ describe("ShopRefundService", () => {
     })
 
     it("成功回调按 RF{orderId} 定位订单并同步售后", async () => {
-      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", amount: "99" })
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", amount: "99", payAmount: "88" })
       mockPrisma.order.updateMany.mockResolvedValue({ count: 1 })
       mockPrisma.afterSale.updateMany.mockResolvedValue({ count: 1 })
 
@@ -137,11 +143,12 @@ describe("ShopRefundService", () => {
       expect(mockPrisma.order.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: "o1" }) }))
       expect(mockPrisma.afterSale.updateMany).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({ orderId: "o1", status: "PROCESSING" }),
-        data: { status: "APPROVED" },
+        data: { status: "COMPLETED" },
       }))
     })
 
     it("失败回调不改订单资金状态并把售后退回 PENDING", async () => {
+      mockPrisma.afterSale.findMany.mockResolvedValue([{ id: "as1", type: "refund_only" }])
       mockPrisma.afterSale.updateMany.mockResolvedValue({ count: 1 })
 
       await svc.handleRefundNotify({
@@ -152,8 +159,25 @@ describe("ShopRefundService", () => {
 
       expect(mockPrisma.order.updateMany).not.toHaveBeenCalled()
       expect(mockPrisma.afterSale.updateMany).toHaveBeenCalledWith({
-        where: { orderId: "o1", status: "PROCESSING", type: { contains: "refund", mode: "insensitive" } },
+        where: { id: "as1", status: "PROCESSING" },
         data: { status: "PENDING", logistics: "退款通道失败，请核对后重试" },
+      })
+    })
+
+    it("退货退款失败回调保留验收入库结果并退回 APPROVED", async () => {
+      mockPrisma.afterSale.findMany.mockResolvedValue([{ id: "as2", type: "refund_with_return" }])
+      mockPrisma.afterSale.updateMany.mockResolvedValue({ count: 1 })
+
+      await svc.handleRefundNotify({
+        out_refund_no: "RFo2",
+        out_trade_no: "merchant-order-no",
+        refund_status: "CLOSED",
+      })
+
+      expect(mockPrisma.order.updateMany).not.toHaveBeenCalled()
+      expect(mockPrisma.afterSale.updateMany).toHaveBeenCalledWith({
+        where: { id: "as2", status: "PROCESSING" },
+        data: { status: "APPROVED" },
       })
     })
   })
@@ -166,10 +190,17 @@ describe("ShopRefundService", () => {
       expect(mockAlipay.refund).not.toHaveBeenCalled()
     })
 
-    it("支付宝退款金额合法时放行", async () => {
+    it("支付宝整单全额退款时放行", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", payAmount: 100, amount: 100, payTransactionId: "GX1" })
-      await svc.alipayRefund({ outTradeNo: "GX1", refundAmount: 50, outRefundNo: "r1" })
+      await svc.alipayRefund({ outTradeNo: "GX1", refundAmount: 100, outRefundNo: "r1" })
       expect(mockAlipay.refund).toHaveBeenCalled()
+    })
+
+    it("支付宝部分退款被拒绝，避免整单记账和分佣冲正", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", payAmount: 100, amount: 120, payTransactionId: "GX1" })
+      await expect(svc.alipayRefund({ outTradeNo: "GX1", refundAmount: 50, outRefundNo: "r1" }))
+        .rejects.toThrow("仅支持整单全额退款")
+      expect(mockAlipay.refund).not.toHaveBeenCalled()
     })
 
     it("订单不存在时拒绝退款", async () => {
@@ -183,9 +214,9 @@ describe("ShopRefundService", () => {
       expect(mockUnionpay.refund).not.toHaveBeenCalled()
     })
 
-    it("银联退款(分)合法时放行", async () => {
+    it("银联整单全额退款(分)时放行", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o1", payAmount: 100, amount: 100, payTransactionId: "GX1" })
-      await svc.unionpayRefund({ outTradeNo: "GX1", outRefundNo: "r1", amount: 5000 })
+      await svc.unionpayRefund({ outTradeNo: "GX1", outRefundNo: "r1", amount: 10000 })
       expect(mockUnionpay.refund).toHaveBeenCalled()
     })
   })

@@ -699,6 +699,20 @@ export class ApplyAfterSaleDto {
   images?: string[];
 }
 
+export class SubmitReturnLogisticsDto {
+  @ApiProperty({ description: "退货快递公司" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  company: string;
+
+  @ApiProperty({ description: "退货运单号" })
+  @IsString()
+  @MinLength(4)
+  @MaxLength(80)
+  logisticsNo: string;
+}
+
 // ── 商品分类 DTO ──
 
 export class CreateCategoryDto {

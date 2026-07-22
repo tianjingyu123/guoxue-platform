@@ -1081,6 +1081,8 @@ export const merchantBackendApi = {
   getAfterSale: (id: string) => api.get(`/merchant-backend/after-sales/${id}`),
   processAfterSale: (id: string, data: { action: string; remark?: string }) =>
     api.put(`/merchant-backend/after-sales/${id}/process`, data),
+  inspectReturn: (id: string, data: { requestId: string; accepted: boolean; quantity?: number; remark?: string }) =>
+    api.post(`/merchant-backend/after-sales/${id}/return-inspection`, data),
   // 客户
   listCustomers: (params?: { page?: number; pageSize?: number }) =>
     api.get("/merchant-backend/customers", { params }),

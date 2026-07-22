@@ -231,9 +231,12 @@ async function main() {
   });
   await prisma.afterSale.deleteMany({ where: { userId: TEST_USER_ID } }); // 幂等：清旧重建
   const afterSaleTpl = [
-    { type: "refund", reason: "商品与描述不符，香味与介绍有出入，申请仅退款", status: "PENDING" },
-    { type: "return", reason: "礼盒外包装在运输中轻微压损，申请退货退款", status: "APPROVED" },
-    { type: "refund", reason: "重复下单，多拍了一份，申请退款", status: "COMPLETED" },
+    { type: "refund_only", reason: "商品与描述不符，香味与介绍有出入，申请仅退款", status: "PENDING" },
+    {
+      type: "refund_with_return", reason: "礼盒外包装在运输中轻微压损，申请退货退款", status: "APPROVED",
+      logistics: JSON.stringify({ returnAddress: "河北省保定市莲池区热卜国学退货中心" }),
+    },
+    { type: "refund_only", reason: "重复下单，多拍了一份，申请退款", status: "COMPLETED" },
   ];
   let asN = 0;
   for (let i = 0; i < afterSaleOrders.length && i < afterSaleTpl.length; i++) {
@@ -245,7 +248,8 @@ async function main() {
         userId: TEST_USER_ID,
         type: tpl.type,
         reason: tpl.reason,
-        amount: ord.amount,
+        amount: ord.payAmount ?? ord.amount,
+        logistics: tpl.logistics,
         status: tpl.status,
         createdAt: new Date(now.getTime() - (i + 1) * 18 * 3600 * 1000),
       },
