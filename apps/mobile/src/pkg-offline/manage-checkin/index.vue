@@ -5,7 +5,12 @@
       <view class="b4-nav">
         <view class="b4-icon-btn" @tap="onBack"><app-icon name="chevron-left" :size="22" color="#2C2C2C" /></view>
         <text class="b4-nav-title">{{ navTitle }}</text>
-        <text v-if="view === 'list' && selectedCourse" class="b4-nav-action" @tap="onExport">导出名单</text>
+        <text
+          v-if="view === 'list' && selectedCourse"
+          class="b4-nav-action"
+          :class="{ disabled: exporting || roster.length === 0 }"
+          @tap="onExport"
+        >{{ exporting ? '导出中…' : '导出名单' }}</text>
         <view v-else class="b4-icon-btn" />
       </view>
     </view>
@@ -162,6 +167,7 @@ const courses = ref<OfflineCourse[]>([])
 const selectedCourse = ref<OfflineCourse | null>(null)
 const roster = ref<RegistrationRow[]>([])
 const verifying = ref(false)
+const exporting = ref(false)
 
 const view = ref<'list' | 'success' | 'blocked'>('list')
 const blockReason = ref('')
@@ -329,8 +335,98 @@ function backToList(reScan: boolean) {
   view.value = 'list'
   if (reScan) openCodePanel()
 }
-function onExport() {
-  uni.showToast({ title: '名单导出即将开放', icon: 'none' })
+const STATUS_LABEL: Record<string, string> = {
+  REGISTERED: '未到店',
+  SIGNED_IN: '已到店',
+  CANCELLED: '已取消',
+}
+
+function exportDateTime(value?: string | null): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return ''
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+function csvCell(value: unknown): string {
+  let text = String(value ?? '').replace(/[\r\n]+/g, ' ').trim()
+  // 防止昵称等用户输入被 Excel/表格软件当成公式执行。
+  if (/^[=+\-@]/.test(text)) text = `'${text}`
+  return `"${text.replace(/"/g, '""')}"`
+}
+
+function safeFileName(value: string): string {
+  return value.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, '-').slice(0, 60) || '课程'
+}
+
+function compactLocalDate(value = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${value.getFullYear()}${p(value.getMonth() + 1)}${p(value.getDate())}`
+}
+
+async function onExport() {
+  if (exporting.value) return
+  if (!selectedCourse.value || roster.value.length === 0) {
+    uni.showToast({ title: '当前没有可导出的学员', icon: 'none' })
+    return
+  }
+
+  exporting.value = true
+  try {
+    // 导出前重新拉取，确保包含刚完成的核销及全部分页记录。
+    const rows = await offlineManageApi.getRegistrations(selectedCourse.value.id)
+    roster.value = rows
+    if (rows.length === 0) {
+      uni.showToast({ title: '当前没有可导出的学员', icon: 'none' })
+      return
+    }
+
+    const headers = ['序号', '学员昵称', '报名状态', '报名时间', '到店时间', '课程', '场次', '地点']
+    const course = selectedCourse.value
+    const csvRows = rows.map((r, index) => [
+      index + 1,
+      r.user.nickname || '学员',
+      STATUS_LABEL[r.status] || r.status,
+      exportDateTime(r.createdAt),
+      exportDateTime(r.signedAt),
+      course.title,
+      sessionTime(course),
+      course.location || '本驿站',
+    ])
+    const csv = [headers, ...csvRows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+    const day = compactLocalDate()
+    const fileName = `${safeFileName(course.title)}-报名名单-${day}.csv`
+
+    // #ifdef H5
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    link.style.display = 'none'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    uni.showToast({ title: `已导出 ${rows.length} 人`, icon: 'success' })
+    // #endif
+
+    // #ifndef H5
+    await new Promise<void>((resolve, reject) => {
+      uni.setClipboardData({ data: csv, success: () => resolve(), fail: () => reject(new Error('复制失败')) })
+    })
+    uni.showModal({
+      title: '名单已复制',
+      content: `共 ${rows.length} 人。当前设备不支持直接下载文件，请粘贴到表格应用后保存。`,
+      showCancel: false,
+    })
+    // #endif
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '导出失败，请重试', icon: 'none' })
+  } finally {
+    exporting.value = false
+  }
 }
 </script>
 
@@ -341,7 +437,8 @@ function onExport() {
 .b4-nav { display: flex; align-items: center; justify-content: space-between; height: 46px; padding: 0 14px; }
 .b4-icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
 .b4-nav-title { font-size: 16px; font-weight: 600; color: #2C2C2C; }
-.b4-nav-action { font-size: 13px; color: #C41E3A; font-weight: 600; }
+.b4-nav-action { min-width: 64px; min-height: 44px; margin-right: -8px; display: flex; align-items: center; justify-content: flex-end; font-size: 13px; color: #C41E3A; font-weight: 600; }
+.b4-nav-action.disabled { color: #b8b1a7; }
 .b4-body { flex: 1; height: 0; min-height: 0; }
 
 .b4-state { padding-top: 90px; display: flex; flex-direction: column; align-items: center; gap: 12px; }

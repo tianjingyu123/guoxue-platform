@@ -1859,12 +1859,6 @@
           }
         },
         {
-          "path": "station-promote/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "station-materials/index",
           "style": {
             "navigationStyle": "custom"

@@ -144,7 +144,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { operatorApi, type PromotionMaterialItem } from '@/pkg-operator/lib/operator-data'
@@ -364,7 +365,11 @@ function goJoin() {
   navigateTo('/pkg-operator/join-station/index')
 }
 
-onMounted(load)
+onLoad((q: Record<string, string> = {}) => {
+  const tab = q.tab
+  if (tab === 'poster' || tab === 'copy' || tab === 'qrcode') activeTab.value = tab
+  load()
+})
 </script>
 
 <style lang="scss" scoped>

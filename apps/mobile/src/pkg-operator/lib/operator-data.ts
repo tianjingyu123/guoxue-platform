@@ -185,9 +185,9 @@ export interface OperatorQuickAction {
 export const operatorQuickActions: OperatorQuickAction[] = [
   { key: 'team', label: '团队管理', icon: 'users', href: '/operator/dashboard', badge: 3 },
   { key: 'commission', label: '佣金明细', icon: 'wallet', href: '/station/earnings' },
-  { key: 'promote', label: '推广中心', icon: 'megaphone', href: '/station/materials' },
+  { key: 'promote', label: '推广中心', icon: 'megaphone', href: '/station/materials?tab=qrcode' },
   { key: 'customers', label: '客户管理', icon: 'user-check', href: '/operator/dashboard', badge: 12 },
-  { key: 'materials', label: '推广素材', icon: 'image', href: '/station/materials' },
+  { key: 'materials', label: '推广素材', icon: 'image', href: '/station/materials?tab=poster' },
   { key: 'statistics', label: '数据统计', icon: 'bar-chart-3', href: '/operator/dashboard' },
   { key: 'quota', label: '名额管理', icon: 'book-open', href: '/operator/quota' },
   { key: 'settlement', label: '结算申请', icon: 'credit-card', href: '/station/earnings' },
@@ -257,10 +257,10 @@ export const stationActionIconMap: Record<string, string> = {
 }
 
 export const stationPanelQuickActions: StationPanelQuickAction[] = [
-  { id: 'promote', label: '推广中心', icon: 'share', path: '/station/promote', description: '生成推广链接与二维码' },
+  { id: 'promote', label: '推广中心', icon: 'share', path: '/pkg-operator/station-materials/index?tab=qrcode', description: '复制专属链接，保存推广码' },
   { id: 'customers', label: '客户洞察', icon: 'users', path: '/pkg-operator/customers/index', description: '了解客户兴趣，精准跟进' },
   { id: 'team', label: '团队管理', icon: 'users', path: '/station/team', description: '查看和管理团队成员' },
-  { id: 'materials', label: '推广素材', icon: 'image', path: '/station/materials', description: '获取推广海报和文案' },
+  { id: 'materials', label: '推广素材', icon: 'image', path: '/station/materials?tab=poster', description: '获取推广海报和文案' },
   { id: 'config', label: '分站配置', icon: 'settings', path: '/station/config', description: '自定义分站设置' },
   { id: 'income', label: '收益明细', icon: 'wallet', path: '/station/earnings', description: '查看收益和提现记录' },
   { id: 'orders', label: '订单管理', icon: 'list', path: '/orders', description: '查看团队订单' },

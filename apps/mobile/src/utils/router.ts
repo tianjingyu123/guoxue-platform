@@ -345,7 +345,7 @@ const ROUTE_MAP: Record<string, string> = {
    * 只是别名从未登记 → resolve() 原样返回 → navigateTo 失败 → 统一弹「功能开发中」。
    * 站长点九宫格 9 个格子有 5 个点不动，是"流程串不起来"的典型现场。
    * 入口定义见 lib/operator-data.ts stationPanelQuickActions。 */
-  '/station/promote': '/pkg-operator/station-promote/index',
+  '/station/promote': '/pkg-operator/station-materials/index', // 历史别名收敛到真实推广素材库
   '/station/team': '/pkg-operator/team/index', // 注意目标是 team 不是 station-team（后者不存在）
   '/station/materials': '/pkg-operator/station-materials/index',
   '/station/config': '/pkg-operator/station-config/index',

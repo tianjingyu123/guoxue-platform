@@ -684,8 +684,23 @@ export const offlineManageApi = {
 
   /** 课程报名名单 GET /offline/courses/:id/registrations（B端·脱敏·含 user 昵称头像·不含核销码） */
   async getRegistrations(courseId: string): Promise<RegistrationRow[]> {
-    const d = await apiGet<{ registrations?: RegistrationRow[] } | RegistrationRow[]>(`/offline/courses/${courseId}/registrations?pageSize=200`)
-    return Array.isArray(d) ? d : d?.registrations || []
+    const rows: RegistrationRow[] = []
+    const pageSize = 100
+    let page = 1
+    let total = 0
+
+    do {
+      const d = await apiGet<
+        { registrations?: RegistrationRow[]; total?: number; page?: number; pageSize?: number } | RegistrationRow[]
+      >(`/offline/courses/${courseId}/registrations?page=${page}&pageSize=${pageSize}`)
+      const items = Array.isArray(d) ? d : d?.registrations || []
+      rows.push(...items)
+      total = Array.isArray(d) ? rows.length : Number(d?.total || rows.length)
+      page += 1
+      if (items.length < pageSize) break
+    } while (rows.length < total)
+
+    return rows
   },
 
   /** 扫码核销学员报名 POST /offline/courses/sign-in?stationId */
