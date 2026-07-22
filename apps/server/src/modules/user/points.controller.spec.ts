@@ -71,6 +71,17 @@ describe("PointsController", () => {
     });
   });
 
+  describe("GET points/overview", () => {
+    it("透传真实今日与本月获取积分", async () => {
+      mockSvc.getPoints.mockResolvedValue({ balance: 100, totalEarned: 200, todayEarned: 15, monthEarned: 80 });
+      mockSvc.getGrowth.mockResolvedValue({ value: 150, level: 2, nextLevelValue: 300 });
+
+      const result = await ctrl.getPointsOverview(mockReq);
+
+      expect(result.pointsInfo).toMatchObject({ balance: 100, todayEarned: 15, monthEarned: 80, totalEarned: 200 });
+    });
+  });
+
   describe("GET points/records", () => {
     it("获取积分明细分页", async () => {
       mockSvc.getPointsRecords.mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 });

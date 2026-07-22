@@ -117,8 +117,8 @@ export class PointsController {
     return {
       pointsInfo: {
         balance: points.balance,
-        todayEarned: 0,
-        monthEarned: 0,
+        todayEarned: points.todayEarned,
+        monthEarned: points.monthEarned,
         totalEarned: points.totalEarned,
         expiringSoon: 0,
       },
