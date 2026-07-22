@@ -40,7 +40,7 @@
         <text class="cd-stat">·</text>
         <text class="cd-stat">{{ collection.bookCount }}本</text>
         <text class="cd-stat">·</text>
-        <text class="cd-stat">{{ (collection.viewCount / 10000).toFixed(1) }}万人看过</text>
+        <text class="cd-stat">{{ fmtViews(collection.viewCount) }}</text>
       </view>
       <view class="cd-tags">
         <view v-for="(tag, i) in collection.tags" :key="i" class="cd-tag">
@@ -106,7 +106,7 @@
     </view>
 
     <!-- 相关推荐 -->
-    <view class="cd-section cd-section--related">
+    <view v-if="relatedCollections.length" class="cd-section cd-section--related">
       <text class="cd-section-title">相关书单</text>
       <scroll-view scroll-x class="cd-related" :show-scrollbar="false">
         <view class="cd-related-row">
@@ -160,6 +160,10 @@ async function fetchData(id: string) {
   } finally {
     loading.value = false
   }
+}
+
+function fmtViews(value: number) {
+  return value >= 10000 ? `${(value / 10000).toFixed(1)}万人看过` : `${value}人看过`
 }
 
 onLoad((options) => {

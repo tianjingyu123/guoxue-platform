@@ -263,14 +263,14 @@ const ROUTE_MAP: Record<string, string> = {
   '/mine/my-courses': '/pkg-mine/my-courses/index',
   '/mine/learning-dashboard': '/pkg-mine/learning-dashboard/index',
   '/mine/follows': '/pkg-mine/follows/index',
-  '/mine/downloads': '/pkg-mine/downloads/index',
+  '/mine/downloads': '/pkg-mine/my-courses/index', // 离线下载未开放，旧入口回到真实已购课程
   '/mine/submissions': '/pkg-mine/submissions/index',
   // 帮助与反馈 / 关于我们（设置主页"其他"分区）
   '/feedback': '/pkg-mine/feedback/index',
   '/about': '/pkg-mine/about/index',
   // 「我的」个人中心活套（profile 菜单直链顶级路由，与 pkg-mine 旧套物理隔离于 pkg-profile）
   // 旧套 /mine/{downloads,follows,my-courses,edit-profile,memberships,invite-records} 已 deprecated，见 compare/DEPRECATED.md
-  '/downloads': '/pkg-profile/downloads/index',
+  '/downloads': '/pkg-mine/my-courses/index', // 重复下载占位页已退役
   '/follows': '/pkg-profile/follows/index',
   /* 🔴 2026-07-14：/learning 原本指向 pkg-profile/learning —— 那是个**写死三门假课**的死页
    * （"八字入门实战课·周易大师·已学65%"），而个人中心的「我的课程」正是走这个别名。

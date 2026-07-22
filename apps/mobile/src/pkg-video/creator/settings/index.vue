@@ -128,7 +128,7 @@
             </view>
             <text class="cs-goods-txt">带货商品来自平台商品库或你所属店铺，创作者不能自建商品。发布视频时可从商品库选一件挂在视频上。</text>
             <view class="cs-goods-btn" hover-class="cs-hover" @tap="goPickGoods">
-              <text class="cs-goods-btn-txt">去选品</text>
+              <text class="cs-goods-btn-txt">发布视频并选品</text>
             </view>
           </view>
         </view>
@@ -163,7 +163,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { creatorApi } from '@/lib/creator-data'
 
 type Tab = 'profile' | 'notify' | 'privacy' | 'goods' | 'payment'
@@ -206,12 +206,11 @@ const privacyItems = [
 ]
 
 function onEditAvatar() {
-  uni.showToast({ title: '头像更换即将开放', icon: 'none' })
+  navigateTo('/mine/edit-profile')
 }
 
-// 去选品：S-08 跳转目标待拍板（平台商品库页 / 所属店铺选品页未定），先占位提示
 function goPickGoods() {
-  uni.showToast({ title: '选品功能即将开放', icon: 'none' })
+  navigateTo('/videos/publish')
 }
 
 async function load() {

@@ -1401,18 +1401,6 @@
           }
         },
         {
-          "path": "vertical/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "horizontal/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "watch/index",
           "style": {
             "navigationStyle": "custom"
@@ -2324,12 +2312,6 @@
           }
         },
         {
-          "path": "downloads/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "teen-mode-intro/index",
           "style": {
             "navigationStyle": "custom"
@@ -2406,12 +2388,6 @@
     {
       "root": "pkg-profile",
       "pages": [
-        {
-          "path": "downloads/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
         {
           "path": "follows/index",
           "style": {
