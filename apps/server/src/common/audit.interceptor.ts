@@ -25,6 +25,11 @@ export class AuditInterceptor implements NestInterceptor {
     const targetType = auditable?.targetType || req.route?.path?.split("/")[3] || "unknown";
     const userId = req.user?.id;
     const ip = req.ip || req.connection?.remoteAddress;
+    // MerchantGuard 会在拦截器之前注入 merchant。把店铺上下文写入日志前缀，
+    // 让同一操作员服务多家店时仍可严格按店铺隔离查询；只记路径，不落请求体/查询参数。
+    const merchantId = typeof req.merchant?.id === "string" ? req.merchant.id.trim() : "";
+    const requestPath = String(req.originalUrl || req.url || "").split("?", 1)[0].slice(0, 512);
+    const detail = `${merchantId ? `merchant:${merchantId} | ` : ""}${req.method} ${requestPath}`;
 
     return next.handle().pipe(
       tap((result) => {
@@ -34,7 +39,7 @@ export class AuditInterceptor implements NestInterceptor {
           action,
           targetType,
           targetId,
-          detail: `${req.method} ${req.url}`,
+          detail,
           ip,
         }).catch((err) => this.logger.warn("审计日志写入失败", err));
       }),

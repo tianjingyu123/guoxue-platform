@@ -1,7 +1,7 @@
 <!--
   B8 · 操作员管理（新增页 · V0 视觉稿 1:1 还原 · uni-app Vue3）
   规格红线：操作员以【店铺身份】操作，归属仍记店主账户，系统仅做鉴权与审计，不改分佣归属；仅官方旗舰店 / 大商家可用。
-  对应后端 MerchantMember：GET /merchant-backend/members · POST members · DELETE members/:memberId · GET members/audit（未实现则诚实占位）
+  对应后端 MerchantMember：成员管理与本店操作审计均已真实接通；审计按 merchantId 隔离，仅店主可查看。
 -->
 <template>
   <view class="page">
@@ -29,10 +29,12 @@
 
     <template v-else>
       <scroll-view scroll-y class="scroll" :style="{ top: navH + 'px' }">
-        <view class="body">
+        <view class="body" :class="{ 'body-readonly': !isOwner }">
           <!-- 说明条 -->
           <view class="tip">
-            <text class="tip-t">操作员以【店铺身份】发布与管理商品、处理订单，所有操作归属仍记店主账户；系统仅做鉴权与审计，不改变分佣归属。仅官方旗舰店 / 大商家可添加。</text>
+            <text class="tip-t">{{ isOwner
+              ? '操作员以【店铺身份】发布与管理商品、处理订单，所有操作归属仍记店主账户；系统记录关键操作，不改变分佣归属。'
+              : '您正在以操作员身份使用本店后台，可查看成员；增删成员与操作审计仅店主可用。' }}</text>
           </view>
 
           <!-- 成员区标题 + 审计入口 -->
@@ -41,7 +43,7 @@
               <view class="sect-bar" />
               <text class="sect-txt">店铺成员（{{ members.length }}）</text>
             </view>
-            <view class="sect-audit" @tap="openAudit">
+            <view v-if="isOwner" class="sect-audit" @tap="openAudit">
               <text class="sect-audit-t">操作审计</text>
               <AppIcon name="chevron-right" :size="14" color="#c9a96e" />
             </view>
@@ -53,7 +55,7 @@
           </view>
 
           <!-- 成员卡列表 -->
-          <view v-for="m in members" :key="m.id" class="mcard">
+          <view v-for="m in members" :key="m.userId" class="mcard">
             <image v-if="m.avatar" :src="m.avatar" class="mavatar" mode="aspectFill" />
             <view v-else class="mavatar placeholder"><text class="mavatar-ch">{{ firstChar(m.nickname) }}</text></view>
             <view class="minfo">
@@ -69,19 +71,21 @@
                 </view>
               </view>
             </view>
-            <view v-if="m.role !== 'OWNER'" class="mdel" @tap="onRemove(m)">
+            <view v-if="isOwner && m.role !== 'OWNER'" class="mdel" @tap="onRemove(m)">
               <text class="mdel-t">移除</text>
             </view>
           </view>
 
           <view class="note">
-            <text class="note-t">移除为危险操作，需二次确认；操作审计记录谁在何时做了什么。</text>
+            <text class="note-t">{{ isOwner
+              ? '移除为危险操作，需二次确认；操作审计记录谁在何时做了什么。'
+              : '操作员的经营操作仍归属店主账户，并由系统留存审计记录。' }}</text>
           </view>
         </view>
       </scroll-view>
 
       <!-- 底部 CTA -->
-      <view class="cta-bar" :style="{ paddingBottom: 'calc(14px + ' + safeBottom + 'px)' }">
+      <view v-if="isOwner" class="cta-bar" :style="{ paddingBottom: 'calc(14px + ' + safeBottom + 'px)' }">
         <view class="cta" @tap="openAdd">
           <AppIcon name="plus" :size="18" color="#ffffff" />
           <text class="cta-t">添加操作员</text>
@@ -127,13 +131,16 @@
         <text class="sheet-t">操作审计</text>
 
         <view v-if="auditLoading" class="audit-state"><text class="audit-state-t">加载中…</text></view>
-        <view v-else-if="auditUnavailable" class="audit-state">
-          <AppIcon name="info" :size="28" color="#c9a96e" />
-          <text class="audit-state-t">审计明细开发中</text>
-          <text class="audit-state-sub">后端审计接口就绪后此处将展示操作员的操作记录（谁·何时·做了什么）。</text>
+        <view v-else-if="auditError" class="audit-state">
+          <AppIcon name="alert-circle" :size="28" color="#c41e3a" />
+          <text class="audit-state-t">加载操作记录失败</text>
+          <text class="audit-state-sub">{{ auditError }}</text>
+          <view class="state-btn" @tap.stop="openAudit"><text class="state-btn-t">重试</text></view>
         </view>
         <view v-else-if="audits.length === 0" class="audit-state">
+          <AppIcon name="file-text" :size="28" color="#c9a96e" />
           <text class="audit-state-t">暂无操作记录</text>
+          <text class="audit-state-sub">操作日志从当前版本起记录，后续关键经营操作会显示在这里。</text>
         </view>
         <scroll-view v-else scroll-y class="audit-list">
           <view v-for="a in audits" :key="a.id" class="audit-item">
@@ -153,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
@@ -170,6 +177,7 @@ const safeBottom = ref(0)
 const loading = ref(true)
 const error = ref('')
 const members = ref<MerchantMember[]>([])
+const isOwner = computed(() => members.value.some((member) => member.isCurrent && member.role === 'OWNER'))
 
 // —— 添加弹层态（权限勾选已移除：后端只有 OWNER/OPERATOR 两档，勾了不落库＝假动作）——
 const showAdd = ref(false)
@@ -179,7 +187,7 @@ const submitting = ref(false)
 // —— 审计弹层态 ——
 const showAudit = ref(false)
 const auditLoading = ref(false)
-const auditUnavailable = ref(false)
+const auditError = ref('')
 const audits = ref<MerchantMemberAudit[]>([])
 
 function firstChar(t?: string): string {
@@ -212,6 +220,10 @@ async function load() {
 
 // —— 添加 ——
 function openAdd() {
+  if (!isOwner.value) {
+    uni.showToast({ title: '仅店主可添加操作员', icon: 'none' })
+    return
+  }
   account.value = ''
   showAdd.value = true
 }
@@ -242,6 +254,10 @@ async function onConfirmAdd() {
 
 // —— 移除（危险级二次确认） ——
 function onRemove(m: MerchantMember) {
+  if (!isOwner.value) {
+    uni.showToast({ title: '仅店主可移除操作员', icon: 'none' })
+    return
+  }
   uni.showModal({
     title: '移除操作员',
     content: `确定移除「${m.nickname}」？移除后其将无法以店铺身份操作，已产生的记录仍归属店主。`,
@@ -262,16 +278,19 @@ function onRemove(m: MerchantMember) {
 
 // —— 审计 ——
 async function openAudit() {
+  if (!isOwner.value) {
+    uni.showToast({ title: '仅店主可查看操作审计', icon: 'none' })
+    return
+  }
   showAudit.value = true
   auditLoading.value = true
-  auditUnavailable.value = false
+  auditError.value = ''
   audits.value = []
   try {
     const res = await merchantBackendApi.getMemberAudit({ page: 1, pageSize: 50 })
     audits.value = res.items || []
   } catch (e) {
-    // 后端未实现（404/未找到）→ 诚实占位；其余错误也统一降级为占位说明
-    auditUnavailable.value = true
+    auditError.value = (e as Error)?.message || '网络连接失败，请稍后重试'
   } finally {
     auditLoading.value = false
   }
@@ -370,6 +389,9 @@ onLoad(() => {
 }
 .body {
   padding: 30rpx 40rpx 200rpx;
+}
+.body.body-readonly {
+  padding-bottom: 64rpx;
 }
 
 /* 说明条 */

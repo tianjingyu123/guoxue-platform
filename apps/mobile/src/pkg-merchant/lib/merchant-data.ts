@@ -286,6 +286,8 @@ export interface MerchantMember {
   /** 后端 listMembers 返回行没有独立 id，唯一键就是 userId（移除也按 userId） */
   id?: string
   userId: string
+  /** 当前请求操作者；用于前端收敛仅店主可见的管理动作 */
+  isCurrent?: boolean
   nickname: string
   avatar?: string | null
   /** 平台账号（手机号，后端已脱敏 138****6789） */
@@ -303,7 +305,7 @@ export interface MerchantMember {
   createdAt: string
 }
 
-/** 操作审计记录（谁·何时·做了什么；后端未实现时页面诚实占位） */
+/** 操作审计记录（谁·何时·做了什么；后端按 merchantId 强隔离） */
 export interface MerchantMemberAudit {
   id: string
   memberId: string
@@ -505,7 +507,7 @@ export const merchantBackendApi = {
     apiPost<{ success: boolean; userId: string; nickname: string }>('/merchant-backend/members', { phone }),
   /** 移除操作员（软删·不可移除店主；归属仍记店主·仅解除鉴权） */
   removeMember: (userId: string) => apiDelete(`/merchant-backend/members/${userId}`),
-  /** 操作审计（后端未实现时可能 404 → 页面诚实占位「审计明细开发中」） */
+  /** 操作审计（仅店主；后端只返回本店带 merchant 上下文的新日志） */
   getMemberAudit: (params?: { page?: number; pageSize?: number }) =>
     apiGetPaged<MerchantMemberAudit>(
       `/merchant-backend/members/audit?page=${params?.page ?? 1}&pageSize=${params?.pageSize ?? 20}`,

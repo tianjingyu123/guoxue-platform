@@ -216,7 +216,7 @@ export class MerchantService {
   // ─── 操作员管理（多操作员·官方旗舰店等；operator 仅鉴权+审计，归属仍记 owner） ───
 
   /** 列出该商家的成员（店主 + ACTIVE 操作员），手机号脱敏。 */
-  async listMembers(merchantId: string) {
+  async listMembers(merchantId: string, actingUserId?: string) {
     const merchant = await this.prisma.merchant.findUnique({
       where: { id: merchantId },
       select: { userId: true },
@@ -238,6 +238,7 @@ export class MerchantService {
       const u = uMap.get(userId);
       return {
         userId,
+        isCurrent: userId === actingUserId,
         nickname: u?.nickname ?? "",
         avatar: u?.avatar ?? "",
         phone: u?.phone ? maskPhone(u.phone) : "",
@@ -251,6 +252,91 @@ export class MerchantService {
       rows.unshift(rowOf(merchant.userId, "OWNER", "ACTIVE", null));
     }
     return rows;
+  }
+
+  private describeMerchantAudit(action: string, detail: string | null): string {
+    if (!["POST", "PUT", "PATCH", "DELETE"].includes(action)) return action;
+    const requestLine = detail?.includes(" | ") ? detail.split(" | ", 2)[1] : detail || "";
+    const rules: Array<[RegExp, string]> = [
+      [/POST .*\/products\/[^/]+\/skus$/, "添加商品规格"],
+      [/DELETE .*\/skus\/[^/]+$/, "删除商品规格"],
+      [/POST .*\/products\/[^/]+\/list$/, "商品上架"],
+      [/POST .*\/products\/[^/]+\/unlist$/, "商品下架"],
+      [/DELETE .*\/products\/[^/]+$/, "删除商品"],
+      [/POST .*\/products$/, "发布商品"],
+      [/POST .*\/orders\/batch-ship$/, "批量发货"],
+      [/PUT .*\/orders\/[^/]+\/ship$/, "订单发货"],
+      [/PUT .*\/orders\/[^/]+\/shipment$/, "修改物流单号"],
+      [/POST .*\/orders\/[^/]+\/refund\/approve$/, "同意退款"],
+      [/POST .*\/orders\/[^/]+\/refund\/reject$/, "拒绝退款"],
+      [/POST .*\/reviews\/[^/]+\/reply$/, "回复评价"],
+      [/POST .*\/violations\/[^/]+\/appeal$/, "提交违规申诉"],
+      [/PUT .*\/after-sales\/[^/]+\/process$/, "处理售后"],
+      [/POST .*\/after-sales\/[^/]+\/return-inspection$/, "退货验收入库"],
+      [/POST .*\/inventory\/adjustments$/, "调整库存"],
+      [/PUT .*\/inventory\/alerts$/, "设置库存预警"],
+      [/POST .*\/purchase-orders\/[^/]+\/submit$/, "确认采购下单"],
+      [/POST .*\/purchase-orders\/[^/]+\/receive$/, "采购到货入库"],
+      [/POST .*\/purchase-orders\/[^/]+\/cancel$/, "取消采购单"],
+      [/POST .*\/purchase-orders$/, "新建采购单"],
+      [/PUT .*\/profile$/, "更新店铺资料"],
+      [/POST .*\/members$/, "添加操作员"],
+      [/DELETE .*\/members\/[^/]+$/, "移除操作员"],
+    ];
+    return rules.find(([pattern]) => pattern.test(requestLine))?.[1]
+      ?? ({ POST: "新增记录", PUT: "更新记录", PATCH: "更新记录", DELETE: "删除记录" }[action] || action);
+  }
+
+  private describeMerchantAuditTarget(targetType: string | null): string | null {
+    if (!targetType || targetType === "unknown") return null;
+    return ({
+      MERCHANT: "店铺",
+      PRODUCT: "商品",
+      ORDER: "订单",
+      AFTER_SALE: "售后",
+      PURCHASE_ORDER: "采购单",
+    } as Record<string, string>)[targetType] || null;
+  }
+
+  /** 本店操作审计：账号集合命中 userId 索引，merchant 前缀二次隔离，避免跨店串线。 */
+  async listMemberAudit(merchantId: string, q: PaginationDto) {
+    const { page, pageSize, skip } = safePagination(q.page, q.pageSize);
+    const [merchant, memberships] = await Promise.all([
+      this.prisma.merchant.findUnique({ where: { id: merchantId }, select: { userId: true } }),
+      this.prisma.merchantMember.findMany({ where: { merchantId }, select: { userId: true } }),
+    ]);
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+    const actorIds = [...new Set([merchant.userId, ...memberships.map((member) => member.userId)])];
+    const marker = `merchant:${merchantId} | `;
+    const where = {
+      userId: { in: actorIds },
+      detail: { startsWith: marker },
+    };
+    const [logs, total] = await Promise.all([
+      this.prisma.auditLog.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+    const userIds = [...new Set(logs.map((log) => log.userId).filter((id): id is string => Boolean(id)))];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, nickname: true },
+        })
+      : [];
+    const names = new Map(users.map((user) => [user.id, user.nickname || "平台用户"]));
+    return {
+      items: logs.map((log) => ({
+        id: log.id,
+        memberId: log.userId || "SYSTEM",
+        operatorName: log.userId ? names.get(log.userId) || "已注销账号" : "系统",
+        action: this.describeMerchantAudit(log.action, log.detail),
+        target: this.describeMerchantAuditTarget(log.targetType),
+        createdAt: log.createdAt,
+      })),
+      total,
+      page,
+      pageSize,
+    };
   }
 
   /** 按手机号添加操作员（幂等）。手机号以 phoneHash 查用户。 */

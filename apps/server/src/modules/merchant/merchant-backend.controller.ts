@@ -462,7 +462,19 @@ export class MerchantBackendController {
   @ApiOperation({ summary: "本店成员列表（店主 + 操作员·手机号脱敏）" })
   @ApiResponse({ status: 200, description: "成功" })
   listMembers(@Req() req: AuthRequest) {
-    return this.merchantService.listMembers(this.getMerchant(req).id);
+    return this.merchantService.listMembers(
+      this.getMerchant(req).id,
+      (req as unknown as { actingUserId: string }).actingUserId,
+    );
+  }
+
+  @Get("members/audit")
+  @ApiOperation({ summary: "本店操作审计（仅店主）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 403, description: "仅店主可查看" })
+  listMemberAudit(@Req() req: AuthRequest, @Query() q: PaginationDto) {
+    this.assertOwner(req);
+    return this.merchantService.listMemberAudit(this.getMerchant(req).id, q);
   }
 
   @Post("members")

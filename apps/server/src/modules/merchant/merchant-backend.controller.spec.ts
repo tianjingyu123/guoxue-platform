@@ -24,6 +24,8 @@ const mockMerchantSvc = {
   replyReview: jest.fn().mockResolvedValue({ id: "r1" }),
   listViolations: jest.fn().mockResolvedValue({ list: [], total: 0 }),
   appealViolation: jest.fn().mockResolvedValue({ id: "v1" }),
+  listMembers: jest.fn().mockResolvedValue([]),
+  listMemberAudit: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 }),
 };
 
 const mockSettlementSvc = {
@@ -66,6 +68,8 @@ describe("MerchantBackendController", () => {
   const mockReq = () => {
     const req: any = { user: { id: "u1" } };
     req.merchant = { id: "m1", userId: "u1", status: "ACTIVE" };
+    req.merchantRole = "OWNER";
+    req.actingUserId = "u1";
     return req;
   };
 
@@ -116,6 +120,21 @@ describe("MerchantBackendController", () => {
   it("GET /merchant-backend/revenue — 收入概览", async () => {
     const result = await ctrl.getRevenue(mockReq());
     expect(result.merchantShare).toBe(4000);
+  });
+
+  it("GET /merchant-backend/members — 返回当前店铺成员", async () => {
+    await ctrl.listMembers(mockReq());
+    expect(mockMerchantSvc.listMembers).toHaveBeenCalledWith("m1", "u1");
+  });
+
+  it("GET /merchant-backend/members/audit — 仅店主查看本店审计", async () => {
+    const result = await ctrl.listMemberAudit(mockReq(), { page: 1, pageSize: 20 });
+    expect(result.items).toHaveLength(0);
+    expect(mockMerchantSvc.listMemberAudit).toHaveBeenCalledWith("m1", { page: 1, pageSize: 20 });
+
+    const operatorReq = mockReq() as any;
+    operatorReq.merchantRole = "OPERATOR";
+    expect(() => ctrl.listMemberAudit(operatorReq, {})).toThrow("仅店主可管理操作员");
   });
 
   it("GET /merchant-backend/violations — 违规记录", async () => {
