@@ -37,6 +37,7 @@ const mockPrisma = {
   },
   report: {
     create: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
     update: jest.fn(),
@@ -396,19 +397,54 @@ describe("InteractionService", () => {
     })
   })
 
+  describe("getMyReports", () => {
+    it("列表强制按当前举报人隔离并分页", async () => {
+      mockPrisma.report.findMany.mockResolvedValue([{ id: "r1" }])
+      mockPrisma.report.count.mockResolvedValue(1)
+      const result = await svc.getMyReports("u1", 2, 10)
+      expect(result.total).toBe(1)
+      expect(mockPrisma.report.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { reporterId: "u1" },
+        skip: 10,
+        take: 10,
+      }))
+    })
+
+    it("详情只能读取自己的举报", async () => {
+      mockPrisma.report.findFirst.mockResolvedValue({ id: "r1", reporterId: "u1" })
+      await expect(svc.getMyReport("u1", "r1")).resolves.toMatchObject({ id: "r1" })
+      expect(mockPrisma.report.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "r1", reporterId: "u1" },
+      }))
+    })
+
+    it("读取他人或不存在的举报统一返回不存在", async () => {
+      mockPrisma.report.findFirst.mockResolvedValue(null)
+      await expect(svc.getMyReport("u1", "other-report")).rejects.toThrow("举报记录不存在")
+    })
+  })
+
   describe("processReport", () => {
-    it("处理举报", async () => {
-      mockPrisma.report.update.mockResolvedValue({ id: "r1", status: "PROCESSED" })
+    it("处理举报后发送可直达详情的站内信", async () => {
+      mockPrisma.report.update.mockResolvedValue({ id: "r1", reporterId: "u1", status: "PROCESSED" })
       const result = await svc.processReport("r1", "已删除违规内容")
       expect(result.status).toBe("PROCESSED")
+      expect(mockNotification.send).toHaveBeenCalledWith("u1", expect.objectContaining({
+        targetType: "REPORT",
+        targetId: "r1",
+      }))
     })
   })
 
   describe("dismissReport", () => {
-    it("驳回举报", async () => {
-      mockPrisma.report.update.mockResolvedValue({ id: "r1", status: "DISMISSED" })
-      const result = await svc.dismissReport("r1")
+    it("驳回理由单次落库并通知举报人", async () => {
+      mockPrisma.report.update.mockResolvedValue({ id: "r1", reporterId: "u1", status: "DISMISSED" })
+      const result = await svc.dismissReport("r1", "核查未发现违规")
       expect(result.status).toBe("DISMISSED")
+      expect(mockPrisma.report.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ result: "核查未发现违规" }),
+      }))
+      expect(mockNotification.send).toHaveBeenCalledWith("u1", expect.objectContaining({ targetId: "r1" }))
     })
   })
 

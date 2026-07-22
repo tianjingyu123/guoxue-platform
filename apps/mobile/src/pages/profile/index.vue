@@ -401,6 +401,9 @@ function applyRole(role: string) {
       <view class="svc-item tap-press" @tap="go('/agent/customer-service')">
         <AppIcon name="customer-service" :size="40" color="#2B2620" /><text class="svc-label">联系客服</text>
       </view>
+      <view class="svc-item tap-press" @tap="go('/report/result')">
+        <AppIcon name="shield-check" :size="40" color="#2B2620" /><text class="svc-label">我的举报</text>
+      </view>
       <view class="svc-item tap-press" @tap="go('/help')">
         <AppIcon name="help-circle" :size="40" color="#2B2620" /><text class="svc-label">帮助中心</text>
       </view>

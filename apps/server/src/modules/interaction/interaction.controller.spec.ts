@@ -20,6 +20,8 @@ const mockInteractionSvc = {
   getFollowers: jest.fn().mockResolvedValue([{ id: "u2", name: "粉丝A" }]),
   getFollowing: jest.fn().mockResolvedValue([{ id: "u3", name: "关注的人" }]),
   report: jest.fn().mockResolvedValue({ id: "rpt1", status: "PENDING" }),
+  getMyReports: jest.fn().mockResolvedValue({ items: [{ id: "rpt1" }], total: 1 }),
+  getMyReport: jest.fn().mockResolvedValue({ id: "rpt1", status: "PENDING" }),
   listReports: jest.fn().mockResolvedValue([{ id: "rpt1", reason: "违规内容" }]),
   processReport: jest.fn().mockResolvedValue({ id: "rpt1", status: "PROCESSED" }),
   dismissReport: jest.fn().mockResolvedValue({ id: "rpt1", status: "DISMISSED" }),
@@ -147,6 +149,20 @@ describe("InteractionController", () => {
     expect(mockInteractionSvc.report).toHaveBeenCalledWith("u1", dto);
   });
 
+  it("GET /interaction/report/mine — 我的举报列表", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getMyReports(req, 1 as any, 20 as any);
+    expect(result.total).toBe(1);
+    expect(mockInteractionSvc.getMyReports).toHaveBeenCalledWith("u1", 1, 20);
+  });
+
+  it("GET /interaction/report/mine/:id — 我的举报详情", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getMyReport(req, "rpt1");
+    expect(result.id).toBe("rpt1");
+    expect(mockInteractionSvc.getMyReport).toHaveBeenCalledWith("u1", "rpt1");
+  });
+
   it("GET /interaction/report — 举报列表（管理员）", async () => {
     const q: any = { status: "PENDING", page: 1, pageSize: 20 };
     const result: any = await ctrl.listReports(q);
@@ -163,6 +179,6 @@ describe("InteractionController", () => {
   it("PUT /interaction/report/:id/dismiss — 驳回举报", async () => {
     const result: any = await ctrl.dismissReport("rpt1");
     expect(result.status).toBe("DISMISSED");
-    expect(mockInteractionSvc.dismissReport).toHaveBeenCalledWith("rpt1");
+    expect(mockInteractionSvc.dismissReport).toHaveBeenCalledWith("rpt1", undefined);
   });
 });

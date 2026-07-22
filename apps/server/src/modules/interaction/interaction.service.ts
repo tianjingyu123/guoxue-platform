@@ -412,18 +412,61 @@ export class InteractionService {
     return { reports, total, page, pageSize };
   }
 
+  /** 用户侧举报记录：所有查询都绑定 reporterId，绝不允许按裸 id 越权读取。 */
+  async getMyReports(userId: string, rawPage = 1, rawPageSize = 20) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const where: Prisma.ReportWhereInput = { reporterId: userId };
+    const select = {
+      id: true, targetType: true, targetId: true, reason: true,
+      status: true, result: true, createdAt: true, processedAt: true,
+    } as const;
+    const [items, total] = await Promise.all([
+      this.prisma.report.findMany({ where, select, skip, take: pageSize, orderBy: { createdAt: "desc" } }),
+      this.prisma.report.count({ where }),
+    ]);
+    return { items, total, page, pageSize };
+  }
+
+  async getMyReport(userId: string, reportId: string) {
+    const report = await this.prisma.report.findFirst({
+      where: { id: reportId, reporterId: userId },
+      select: {
+        id: true, targetType: true, targetId: true, reason: true,
+        status: true, result: true, createdAt: true, processedAt: true,
+      },
+    });
+    if (!report) throw new BusinessException(ErrorCode.NOT_FOUND, "举报记录不存在");
+    return report;
+  }
+
   async processReport(reportId: string, result?: string) {
-    return this.prisma.report.update({
+    const updated = await this.prisma.report.update({
       where: { id: reportId },
       data: { status: "PROCESSED", result, processedAt: new Date() },
     });
+    this.notifyReportResult(updated.reporterId, reportId, false);
+    return updated;
   }
 
-  async dismissReport(reportId: string) {
-    return this.prisma.report.update({
+  async dismissReport(reportId: string, result?: string) {
+    const updated = await this.prisma.report.update({
       where: { id: reportId },
-      data: { status: "DISMISSED", processedAt: new Date() },
+      data: { status: "DISMISSED", result, processedAt: new Date() },
     });
+    this.notifyReportResult(updated.reporterId, reportId, true);
+    return updated;
+  }
+
+  /** 站内信失败不回滚举报处理；用户仍可从“我的举报”主动查看。 */
+  private notifyReportResult(userId: string | undefined, reportId: string, dismissed: boolean) {
+    if (!userId || !this.notification) return;
+    this.notification.send(userId, {
+      type: "SYSTEM",
+      title: dismissed ? "举报核查已完成" : "举报处理结果已更新",
+      content: dismissed ? "平台已完成核查，点击查看处理说明。" : "你提交的举报已有处理结果，点击查看详情。",
+      targetType: "REPORT",
+      targetId: reportId,
+    }).catch((err) => this.logger.warn(`举报结果通知失败 report=${reportId}`, err));
   }
 
   /**

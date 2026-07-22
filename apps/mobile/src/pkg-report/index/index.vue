@@ -141,9 +141,12 @@
           <app-icon name="check-circle" :size="64" color="#22C55E" />
         </view>
         <text class="rp-success-title">举报已提交</text>
-        <text class="rp-success-desc">感谢你的举报，我们将在24小时内核实处理。如有需要，我们会通过站内信与你联系。</text>
-        <view class="rp-success-btn" @tap="goHome">
-          <text class="rp-success-btn-text">返回首页</text>
+        <text class="rp-success-desc">平台会尽快核实处理。你可以随时查看进度，处理完成后也会收到站内信。</text>
+        <view class="rp-success-btn" @tap="goReportProgress">
+          <text class="rp-success-btn-text">查看处理进度</text>
+        </view>
+        <view class="rp-success-link" @tap="goHome">
+          <text class="rp-success-link-text">返回首页</text>
         </view>
       </view>
     </view>
@@ -232,6 +235,7 @@ const reason = ref('')
 const images = ref<string[]>([])
 const isSubmitting = ref(false)
 const showSuccess = ref(false)
+const submittedReportId = ref('')
 
 const canSubmit = computed(() => {
   return !!selectedType.value && (selectedType.value !== 'other' || reason.value.trim().length > 0)
@@ -282,11 +286,12 @@ async function handleSubmit() {
     const detail = reason.value.trim()
     const reasonText = `【${typeLabel}】${detail ? detail : ''}${evidence}`.trim()
 
-    await reportApi.submit({
+    const submitted = await reportApi.submit({
       targetType: targetType.value,
       targetId: targetId.value,
       reason: reasonText,
     })
+    submittedReportId.value = String(submitted.report?.id || submitted.id || '')
     showSuccess.value = true
   } catch (e) {
     uni.hideLoading()
@@ -294,6 +299,10 @@ async function handleSubmit() {
   } finally {
     isSubmitting.value = false
   }
+}
+
+function goReportProgress() {
+  navigateTo(submittedReportId.value ? `/report/result/${submittedReportId.value}` : '/report/result')
 }
 
 function goHome() {
@@ -704,5 +713,12 @@ function goBack() {
   font-size: 30rpx;
   font-weight: 500;
   color: #fff;
+}
+.rp-success-link {
+  padding: 28rpx 0 0;
+}
+.rp-success-link-text {
+  font-size: 27rpx;
+  color: #8a8578;
 }
 </style>

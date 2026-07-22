@@ -12,17 +12,11 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { Request } from "express";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { PrismaService } from "../../prisma/prisma.service";
 
 @ApiTags("互动")
 @Controller("interaction")
 export class InteractionController {
-  constructor(
-    private svc: InteractionService,
-    // PrismaModule 为 @Global：注入用于驳回举报时补记处理结论(Report.result)，
-    // InteractionService.dismissReport 不收理由参数且该 service 不在本次改动范围
-    private prisma: PrismaService,
-  ) {}
+  constructor(private svc: InteractionService) {}
 
   // ───────── 点赞 ─────────
 
@@ -223,6 +217,26 @@ export class InteractionController {
     return this.svc.report(req.user.id, dto);
   }
 
+  @Get("report/mine")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "获取我的举报记录" })
+  getMyReports(
+    @Req() req: Request,
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.svc.getMyReports(req.user.id, +page, +pageSize);
+  }
+
+  @Get("report/mine/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "获取我的举报详情" })
+  getMyReport(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getMyReport(req.user.id, id);
+  }
+
   @Get("report")
   @UseGuards(JwtAuthGuard, RolesGuard)
   // 权限修复(角色断裂)：客服工作台负责举报处理，放行 CUSTOMER_SERVICE。
@@ -267,18 +281,12 @@ export class InteractionController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async dismissReport(
+  dismissReport(
     @Param("id") id: string,
     @Body("reason") reason?: string,
     @Body("result") result?: string,
   ) {
-    const dismissed = await this.svc.dismissReport(id);
-    // 驳回理由持久化到 Report.result（service.dismissReport 不收理由参数，此处补记）
-    const conclusion = reason ?? result;
-    if (conclusion) {
-      return this.prisma.report.update({ where: { id }, data: { result: conclusion } });
-    }
-    return dismissed;
+    return this.svc.dismissReport(id, reason ?? result);
   }
 
   @Get("report/admin/:id/target")

@@ -36,7 +36,16 @@ export interface ReportRecord {
   targetId: string
   reason: string
   status: string
+  result?: string | null
   createdAt: string
+  processedAt?: string | null
+}
+
+export interface MyReportPage {
+  items: ReportRecord[]
+  total: number
+  page: number
+  pageSize: number
 }
 
 /** 提交举报的返回：重复举报时后端返回 { message, report }，首次返回 report 本身 */
@@ -49,6 +58,14 @@ export const reportApi = {
   /** 提交举报 — POST /audit/reports（同一用户对同一对象重复举报会被后端合并，不会重复入池） */
   submit: (payload: SubmitReportPayload): Promise<SubmitReportResult> =>
     apiPost<SubmitReportResult>('/audit/reports', payload),
+
+  /** 我的举报记录 — 服务端强制按当前登录用户 reporterId 隔离 */
+  mine: (page = 1, pageSize = 100): Promise<MyReportPage> =>
+    apiGet<MyReportPage>(`/interaction/report/mine?page=${page}&pageSize=${pageSize}`),
+
+  /** 我的举报详情 — 裸 id 不可越权读取他人记录 */
+  detail: (id: string): Promise<ReportRecord> =>
+    apiGet<ReportRecord>(`/interaction/report/mine/${encodeURIComponent(id)}`),
 
   /** 查询某内容的举报统计 — GET /audit/reports/stats/:type/:id */
   stats: (targetType: ReportTargetType, targetId: string): Promise<{ count?: number }> =>

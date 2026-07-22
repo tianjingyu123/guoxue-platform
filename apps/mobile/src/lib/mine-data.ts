@@ -1333,6 +1333,7 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
     post: `/post/${targetId}`, circle_post: `/post/${targetId}`,
     circle: `/circle/${targetId}`, order: `/orders/${targetId}`, live: `/live/${targetId}`,
     station: '/pkg-operator/station-home/index',
+    report: `/report/result/${targetId}`,
   }
   return map[t] || ''
 }
