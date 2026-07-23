@@ -142,6 +142,7 @@ describe("FeatureFlagService", () => {
       const result = await svc.upsert("new_key", { enabled: true });
       expect(result.key).toBe("new_key");
       expect(mockRedis.del).toHaveBeenCalledWith("feature:new_key");
+      expect(mockRedis.del).toHaveBeenCalledWith("feature:list");
     });
 
     it("更新现有开关", async () => {
@@ -154,6 +155,7 @@ describe("FeatureFlagService", () => {
       mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "k1" });
       await svc.upsert("k1", {});
       expect(mockRedis.del).toHaveBeenCalledWith("feature:k1");
+      expect(mockRedis.del).toHaveBeenCalledWith("feature:list");
     });
   });
 
@@ -162,6 +164,7 @@ describe("FeatureFlagService", () => {
       mockPrisma.featureFlag.delete.mockResolvedValue({});
       await svc.delete("old_flag");
       expect(mockRedis.del).toHaveBeenCalledWith("feature:old_flag");
+      expect(mockRedis.del).toHaveBeenCalledWith("feature:list");
     });
 
     it("删除不存在开关不抛异常", async () => {

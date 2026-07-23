@@ -76,19 +76,25 @@ export class FeatureFlagService {
       },
     });
 
-    // 失效缓存
-    await this.redis.del(`feature:${key}`);
+    await this.invalidateCaches(key);
 
     return flag;
   }
 
   /** 删除开关 */
   async delete(key: string) {
-    await this.prisma.featureFlag.delete({ where: { key } }).catch((err) => this.logger.warn("缓存写入失败", err));
-    await this.redis.del(`feature:${key}`);
+    await this.prisma.featureFlag.delete({ where: { key } }).catch((err) => this.logger.warn("功能开关删除失败", err));
+    await this.invalidateCaches(key);
   }
 
   // ─── 私有方法 ───
+
+  private async invalidateCaches(key: string) {
+    await Promise.all([
+      this.redis.del(`feature:${key}`),
+      this.redis.del("feature:list"),
+    ]).catch((err) => this.logger.warn("功能开关缓存失效失败", err));
+  }
 
   private async getFlag(key: string) {
     const cacheKey = `feature:${key}`;
