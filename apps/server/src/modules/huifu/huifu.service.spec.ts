@@ -27,8 +27,10 @@ function rsaVerify(str: string, sig: string): boolean {
 
 /** mock fetch 返回一条已按斗拱协议签名的响应 { data, sign } */
 function mockFetchResponse(data: Record<string, unknown>) {
+  const sorted: Record<string, unknown> = {};
+  for (const key of Object.keys(data).sort()) sorted[key] = data[key];
   const dataJson = JSON.stringify(data);
-  const raw = `{"data":${dataJson},"sign":"${rsaSign(dataJson)}"}`;
+  const raw = `{"data":${dataJson},"sign":"${rsaSign(JSON.stringify(sorted))}"}`;
   (global.fetch as jest.Mock).mockResolvedValue({ text: async () => raw });
 }
 
@@ -138,32 +140,28 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
       expect(a).not.toBe(b);
     });
 
-    describe("extractRawJsonField 花括号配平", () => {
-      it("应截取简单对象原文", () => {
-        expect(svc["extractRawJsonField"]('{"data":{"a":1},"sign":"x"}', "data")).toBe('{"a":1}');
-      });
-
-      it("应正确处理嵌套对象与字符串内的花括号/转义引号", () => {
-        const inner = { a: { b: '}"{', note: "含{花括号}和\\反斜杠" }, c: 2 };
-        const raw = `{"sign":"x","data":${JSON.stringify(inner)}}`;
-        expect(svc["extractRawJsonField"](raw, "data")).toBe(JSON.stringify(inner));
-      });
-
-      it("应容忍冒号前后空白", () => {
-        const raw = '{ "data" : { "k" : "v" } , "sign":"x"}';
-        expect(svc["extractRawJsonField"](raw, "data")).toBe('{ "k" : "v" }');
-      });
-
-      it("字段缺失或花括号未配平应返回 null", () => {
-        expect(svc["extractRawJsonField"]('{"sign":"x"}', "data")).toBeNull();
-        expect(svc["extractRawJsonField"]('{"data":{"a":1', "data")).toBeNull();
-      });
+    it("sortedTopLevelCompactJson 只排序第一层并保留内层字段顺序", () => {
+      expect(svc["sortedTopLevelCompactJson"]({
+        z: 1,
+        a: { z: 2, a: 3 },
+      })).toBe('{"a":{"z":2,"a":3},"z":1}');
     });
   });
 
   // ───────── 组包与签名（单测证据） ─────────
 
   describe("callApi 组包与签名", () => {
+    it("同步响应字段乱序时应按 data 第一层字典序验签", async () => {
+      mockFetchResponse({ z_field: "last", a_field: "first", resp_code: "00000000" });
+
+      await expect(
+        svc["callApi"]("/v3/trade/payment/query", { req_seq_id: "seq-sync-sign" }, true),
+      ).resolves.toMatchObject({
+        z_field: "last",
+        a_field: "first",
+        resp_code: "00000000",
+      });
+    });
     it("请求体应为 {sys_id,product_id,sign,data} 且 sign 可用公钥对「去空字段+字母序紧凑JSON」验通", async () => {
       mockFetchResponse({ resp_code: "00000000", resp_desc: "成功" });
       await svc["callApi"]("/v2/merchant/basicdata/query", {

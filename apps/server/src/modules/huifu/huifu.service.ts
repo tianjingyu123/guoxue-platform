@@ -227,44 +227,11 @@ export class HuifuService {
     return value;
   }
 
-  /**
-   * 从响应原文中截取某字段的「原始 JSON 对象子串」（花括号配平·跳过字符串内花括号）。
-   * 斗拱响应验签必须用原文子串（非重排序后的 JSON）。
-   */
-  private extractRawJsonField(rawText: string, field: string): string | null {
-    const keyToken = `"${field}"`;
-    let idx = rawText.indexOf(keyToken);
-    while (idx !== -1) {
-      let i = idx + keyToken.length;
-      while (i < rawText.length && /\s/.test(rawText[i])) i++;
-      if (rawText[i] === ":") {
-        i++;
-        while (i < rawText.length && /\s/.test(rawText[i])) i++;
-        if (rawText[i] === "{") {
-          let depth = 0;
-          let inStr = false;
-          let esc = false;
-          for (let j = i; j < rawText.length; j++) {
-            const ch = rawText[j];
-            if (inStr) {
-              if (esc) esc = false;
-              else if (ch === "\\") esc = true;
-              else if (ch === '"') inStr = false;
-            } else if (ch === '"') {
-              inStr = true;
-            } else if (ch === "{") {
-              depth++;
-            } else if (ch === "}") {
-              depth--;
-              if (depth === 0) return rawText.slice(i, j + 1);
-            }
-          }
-          return null; // 花括号未配平
-        }
-      }
-      idx = rawText.indexOf(keyToken, idx + 1);
-    }
-    return null;
+  /** 同步返参只排序 data 第一层字段；内层复杂值按汇付原值保序。 */
+  private sortedTopLevelCompactJson(data: Record<string, unknown>): string {
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(data).sort()) sorted[key] = data[key];
+    return JSON.stringify(sorted);
   }
 
   // ───────── RSA 签名 ─────────
@@ -378,8 +345,10 @@ export class HuifuService {
 
       // 资金操作 strictVerify=true：缺签名/验签失败必须失败关闭；只读探针仍保留告警降级。
       const respSign = typeof result?.sign === "string" ? result.sign : "";
-      const rawData = this.extractRawJsonField(raw, "data");
-      const signatureValid = !!(respSign && rawData && await this.verifyData(rawData, respSign));
+      // 官方规范：同步返参需按 data 第一层 key 字典序排序后验签；
+      // 异步通知不排序，仍由 verifyNotify 对 resp_data 原串独立验签。
+      const syncSignSrc = this.sortedTopLevelCompactJson(respData);
+      const signatureValid = !!(respSign && await this.verifyData(syncSignSrc, respSign));
       if (strictVerify && !signatureValid) {
         throw new BusinessException(ErrorCode.PAY_FAILED, "汇付资金响应验签失败");
       }
