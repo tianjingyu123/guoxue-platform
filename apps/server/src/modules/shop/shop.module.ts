@@ -33,6 +33,6 @@ import { MemberModule } from "../member/member.module";
   imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule, MemberModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
   providers: [ShopService, ShopAttributionService, ShopProductService, ShopOrderService, ShopOrderLifecycleService, ShopPaymentService, ShopRefundService, ShopCouponService, AfterSaleSlaService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
-  exports: [ShopService, ShopOrderService, ShopCouponService, ShopRefundService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],
+  exports: [ShopService, ShopAttributionService, ShopOrderService, ShopCouponService, ShopRefundService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],
 })
 export class ShopModule {}

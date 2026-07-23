@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -6,6 +6,7 @@ import { Prisma, OrderStatus } from "@prisma/client";
 import { safePagination } from "../../common/pagination";
 import { RedisService } from "../../redis/redis.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
+import { ShopAttributionService } from "../shop/shop-attribution.service";
 import { PurchaseCourseDto } from "./course.dto";
 
 /**
@@ -15,11 +16,54 @@ import { PurchaseCourseDto } from "./course.dto";
  */
 @Injectable()
 export class CoursePurchaseService {
+  private readonly logger = new Logger(CoursePurchaseService.name);
+
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
     private unifiedPricing: UnifiedPricingService,
+    private attribution: ShopAttributionService,
   ) {}
+
+  /**
+   * 课程订单复用商城统一归因口径：
+   * 临时分享链接 / 有效 ChannelClick 优先，永久分站归属兜底。
+   * 任一归因查询失败均 fail-open，不能阻断正常下单。
+   */
+  private async resolveOrderAttribution(userId: string, courseId: string, dto?: PurchaseCourseDto) {
+    let tempReferrerId: string | null = null;
+    let tempRefSubjectType: string | null = null;
+    try {
+      // referrerId 是历史客户端字段，按临时分享推荐人兼容读取；新客户端使用 tempReferrerId。
+      tempReferrerId = await this.attribution.resolveReferrerUserId(
+        dto?.tempReferrerId || dto?.referrerId,
+        userId,
+      );
+      if (await this.attribution.isChannelAttributionEnabled()) {
+        const click = await this.attribution.findLatestChannelClick(userId, courseId);
+        if (click && click.beneficiaryUserId !== userId) {
+          tempReferrerId = click.beneficiaryUserId;
+          tempRefSubjectType = click.subjectType;
+        }
+      }
+    } catch (error) {
+      this.logger.warn("课程临时归因查询失败，回落永久归属或无推荐人", error);
+    }
+
+    let permanentReferrerId: string | null = null;
+    try {
+      const relation = await this.prisma.referralRelation.findFirst({
+        where: { userId, referrerType: "STATION_MASTER", relationStatus: "ACTIVE" },
+        orderBy: { createdAt: "asc" },
+        select: { referrerId: true },
+      });
+      permanentReferrerId = relation?.referrerId ?? null;
+    } catch (error) {
+      this.logger.warn("课程永久归属查询失败，按无永久归属继续下单", error);
+    }
+
+    return { permanentReferrerId, tempReferrerId, tempRefSubjectType };
+  }
 
   /** 创建课程购买订单（Redis 锁防并发重复下单） */
   async purchase(userId: string, courseId: string, dto?: PurchaseCourseDto) {
@@ -62,6 +106,7 @@ export class CoursePurchaseService {
       });
       if (pendingOrder) return pendingOrder;
 
+      const attribution = await this.resolveOrderAttribution(userId, courseId, dto);
       const orderData: any = {
         userId,
         type: "COURSE",
@@ -69,7 +114,9 @@ export class CoursePurchaseService {
         amount: pricing.effectivePrice,
         originalAmount: pricing.originalPrice > pricing.effectivePrice ? pricing.originalPrice : undefined,
         couponId: dto?.couponId,
-        referrerId: dto?.referrerId,
+        referrerId: attribution.permanentReferrerId,
+        tempReferrerId: attribution.tempReferrerId,
+        tempRefSubjectType: attribution.tempRefSubjectType,
         status: "PENDING",
       };
       if (pricing.appliedPromotion) {

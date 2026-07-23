@@ -12,6 +12,7 @@ import { RedisService } from "../../redis/redis.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { UnifiedPricingService } from "../pricing/unified-pricing.service";
 import { AuditService } from "../audit/audit.service";
+import { ShopAttributionService } from "../shop/shop-attribution.service";
 import { BusinessException } from "../../common/business.exception";
 import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
 
@@ -108,6 +109,11 @@ describe("CourseService", () => {
         { provide: RedisService, useValue: mockRedis },
         { provide: AiGatewayService, useValue: mockAiGateway },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
+        { provide: ShopAttributionService, useValue: {
+          resolveReferrerUserId: jest.fn().mockResolvedValue(null),
+          isChannelAttributionEnabled: jest.fn().mockResolvedValue(false),
+          findLatestChannelClick: jest.fn().mockResolvedValue(null),
+        } },
         {
           provide: AuditService,
           useValue: {

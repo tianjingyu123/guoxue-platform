@@ -303,6 +303,10 @@ export class PurchaseCourseDto {
   @ApiPropertyOptional({ description: "推荐人ID" })
   @IsOptional() @IsString()
   referrerId?: string;
+
+  @ApiPropertyOptional({ description: "最近一次分享链接推荐人ID（7天临时归因，优先于永久归属）" })
+  @IsOptional() @IsString()
+  tempReferrerId?: string;
 }
 
 // ═══════════════════ 课程评价 ═══════════════════

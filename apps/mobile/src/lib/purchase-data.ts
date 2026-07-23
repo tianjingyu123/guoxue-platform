@@ -3,6 +3,7 @@
  * 后端 POST /shop/orders 是统一下单接口（CreateOrderDto.type 区分业务）。
  */
 import { apiGet, apiPost } from '@/utils/request'
+import { getTempReferrer } from '@/utils/referral'
 
 /** 业务类型（对齐后端 CreateOrderDto.type） */
 export type PurchaseBizType = 'PRODUCT' | 'COURSE' | 'CIRCLE' | 'MEMBER' | 'BOT'
@@ -74,7 +75,9 @@ export const purchaseApi = {
       return { id: r?.orderId || r?.id || '', orderNo: r?.orderNo, amount: r?.priceYuan, ...r } as OrderResult
     }
     if (params.type === 'COURSE') {
-      const r = await apiPost<RawCoursePurchaseResp>(`/courses/${params.targetId}/purchase`, {})
+      const r = await apiPost<RawCoursePurchaseResp>(`/courses/${params.targetId}/purchase`, {
+        tempReferrerId: getTempReferrer(),
+      })
       return { id: r?.id || r?.orderId || '', orderNo: r?.orderNo, amount: r?.amount, ...r } as OrderResult
     }
     return apiPost<OrderResult>('/shop/orders', params)
