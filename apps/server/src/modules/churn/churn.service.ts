@@ -15,6 +15,7 @@ const SCORE_BATCH_SIZE = 500;
 const DEFAULT_ACTION_COOLDOWN_DAYS = 7;
 const MIN_CHURN_OBSERVATION_DAYS = 7;
 const MAX_ACTION_COOLDOWN_DAYS = 90;
+const EXCLUDED_CHURN_USER_PREFIXES = [COMPETITION_DEMO_PREFIX, "BOT_"] as const;
 
 interface ChurnCandidate {
   userId: string;
@@ -55,7 +56,7 @@ export class ChurnService {
       const users = await this.prisma.user.findMany({
         where: {
           status: "ACTIVE",
-          NOT: { id: { startsWith: COMPETITION_DEMO_PREFIX } },
+          NOT: EXCLUDED_CHURN_USER_PREFIXES.map((prefix) => ({ id: { startsWith: prefix } })),
           ...(cursor ? { id: { gt: cursor } } : {}),
         },
         select: { id: true, createdAt: true },
@@ -187,8 +188,10 @@ export class ChurnService {
 
   /** 批量创建流失干预动作：阈值真实生效，并按规则冷却期去重。 */
   private async batchTriggerActions(pairs: ChurnCandidate[]) {
-    // 竞赛演示账号仅用于后台验收，不属于真实用户，绝不能进入自动召回或发券/短信链路。
-    const eligiblePairs = pairs.filter((pair) => !pair.userId.startsWith(COMPETITION_DEMO_PREFIX));
+    // 竞赛演示账号与 AI 系统账号均不属于真人用户，绝不能进入自动召回或发券/短信链路。
+    const eligiblePairs = pairs.filter((pair) =>
+      !EXCLUDED_CHURN_USER_PREFIXES.some((prefix) => pair.userId.startsWith(prefix)),
+    );
     if (eligiblePairs.length === 0) return;
     const allRules = await this.prisma.churnRule.findMany({
       where: { isActive: true },
@@ -285,7 +288,7 @@ export class ChurnService {
     const actions = await this.prisma.churnAction.findMany({
       where: {
         status: "PENDING",
-        NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } },
+        NOT: EXCLUDED_CHURN_USER_PREFIXES.map((prefix) => ({ userId: { startsWith: prefix } })),
       },
       take: 100,
       orderBy: { createdAt: "asc" },
@@ -400,7 +403,7 @@ export class ChurnService {
   async getPredictions(rawPage = 1, rawPageSize = 20, riskLevel?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.ChurnPredictionWhereInput = {
-      NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } },
+      NOT: EXCLUDED_CHURN_USER_PREFIXES.map((prefix) => ({ userId: { startsWith: prefix } })),
     };
     if (riskLevel) where.riskLevel = riskLevel;
     const [predictions, total] = await Promise.all([
@@ -411,14 +414,14 @@ export class ChurnService {
   }
 
   async getStats() {
-    const withoutDemo: Prisma.ChurnPredictionWhereInput = {
-      NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } },
+    const withoutExcludedUsers: Prisma.ChurnPredictionWhereInput = {
+      NOT: EXCLUDED_CHURN_USER_PREFIXES.map((prefix) => ({ userId: { startsWith: prefix } })),
     };
     const [low, medium, high, critical] = await Promise.all([
-      this.prisma.churnPrediction.count({ where: { ...withoutDemo, riskLevel: "LOW" } }),
-      this.prisma.churnPrediction.count({ where: { ...withoutDemo, riskLevel: "MEDIUM" } }),
-      this.prisma.churnPrediction.count({ where: { ...withoutDemo, riskLevel: "HIGH" } }),
-      this.prisma.churnPrediction.count({ where: { ...withoutDemo, riskLevel: "CRITICAL" } }),
+      this.prisma.churnPrediction.count({ where: { ...withoutExcludedUsers, riskLevel: "LOW" } }),
+      this.prisma.churnPrediction.count({ where: { ...withoutExcludedUsers, riskLevel: "MEDIUM" } }),
+      this.prisma.churnPrediction.count({ where: { ...withoutExcludedUsers, riskLevel: "HIGH" } }),
+      this.prisma.churnPrediction.count({ where: { ...withoutExcludedUsers, riskLevel: "CRITICAL" } }),
     ]);
     return { low, medium, high, critical };
   }
@@ -442,7 +445,7 @@ export class ChurnService {
   async listActions(rawPage = 1, rawPageSize = 20, status?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.ChurnActionWhereInput = {
-      NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } },
+      NOT: EXCLUDED_CHURN_USER_PREFIXES.map((prefix) => ({ userId: { startsWith: prefix } })),
     };
     if (status) where.status = status;
     const [actions, total] = await Promise.all([
