@@ -70,7 +70,7 @@ const mockRedis = {
 
 const realFetch = global.fetch;
 
-describe("HuifuService（斗拱 BsPay v2 协议）", () => {
+describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
   let svc: HuifuService;
   let paymentNotifyHandler: jest.Mock;
   let refundNotifyHandler: jest.Mock;
@@ -375,7 +375,7 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       });
 
       const { url, body } = lastFetchCall();
-      expect(url).toBe("https://mock-api.huifu.com/v2/trade/payment/jspay");
+      expect(url).toBe("https://mock-api.huifu.com/v3/trade/payment/jspay");
       expect(body.data.trade_type).toBe("T_JSAPI");
       expect(body.data.trans_amt).toBe("100.00");
       expect(body.data.huifu_id).toBe("TEST-MCH-001");
@@ -397,23 +397,28 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       });
     });
 
-    it("非微信渠道不应携带 wx_data", async () => {
+    it("支付宝应走 A_NATIVE 正扫、接受 00000100 并返回二维码", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({
         id: "order-2", userId: "user-1", amount: 8.5, status: "PENDING", type: "course",
       });
       mockPrisma.huifuSplitRecord.create.mockResolvedValue({});
       mockPrisma.order.update.mockResolvedValue({});
       mockFetchResponse({
-        resp_code: "00000000",
+        resp_code: "00000100",
+        trans_stat: "P",
         hf_seq_id: "HF-SEQ-002",
-        pay_url: "https://pay.example.com/order-2",
+        qr_code: "https://qr.alipay.com/order-2",
       });
 
-      await svc.createPayment("user-1", { orderId: "order-2", payType: "ALIPAY", openid: "should-ignore" });
+      const result = await svc.createPayment(
+        "user-1",
+        { orderId: "order-2", payType: "ALIPAY", openid: "should-ignore" },
+      );
       const { body } = lastFetchCall();
-      expect(body.data.trade_type).toBe("A_JSAPI");
+      expect(body.data.trade_type).toBe("A_NATIVE");
       expect(body.data.trans_amt).toBe("8.50");
       expect(body.data.wx_data).toBeUndefined();
+      expect(result.qrCode).toBe("https://qr.alipay.com/order-2");
     });
 
     it("汇付业务失败时不得写支付记录或污染订单支付流水", async () => {
@@ -450,6 +455,26 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       expect(mockPrisma.order.update).not.toHaveBeenCalled();
     });
 
+    it("支付响应验签失败必须失败关闭且不得落库", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "order-bad-sign", userId: "user-1", amount: 1, status: "PENDING", type: "COURSE",
+      });
+      const dataJson = JSON.stringify({
+        resp_code: "00000100",
+        trans_stat: "P",
+        qr_code: "https://qr.alipay.com/bad-sign",
+      });
+      (global.fetch as jest.Mock).mockResolvedValue({
+        text: async () => `{"data":${dataJson},"sign":"invalid-sign"}`,
+      });
+
+      await expect(
+        svc.createPayment("user-1", { orderId: "order-bad-sign", payType: "ALIPAY" }),
+      ).rejects.toThrow("汇付资金响应验签失败");
+      expect(mockPrisma.huifuSplitRecord.create).not.toHaveBeenCalled();
+      expect(mockPrisma.order.update).not.toHaveBeenCalled();
+    });
+
     it("查询支付应回溯 org_req_date/org_req_seq_id", async () => {
       mockPrisma.order.findFirst.mockResolvedValue({ userId: "user-1" });
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
@@ -461,7 +486,7 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
 
       const res = await svc.queryPayment("HF-OUT-1", "user-1");
       const { url, body } = lastFetchCall();
-      expect(url).toBe("https://mock-api.huifu.com/v2/trade/payment/scanpay/query");
+      expect(url).toBe("https://mock-api.huifu.com/v3/trade/payment/scanpay/query");
       expect(body.data).toEqual({
         huifu_id: "TEST-MCH-001",
         org_req_date: "20260630",
@@ -710,12 +735,12 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
         createdAt: new Date(2026, 6, 1),
         rawRequest: { req_seq_id: "HF123", req_date: "20260701" },
       });
-      mockFetchResponse({ resp_code: "00000000", trans_stat: "P" });
+      mockFetchResponse({ resp_code: "00000100", trans_stat: "P" });
 
       const res = await svc.createRefund({ outTradeNo: "HF123", amount: 100, reason: "整单退款" });
       const { url, body } = lastFetchCall();
       expect(mockPrisma.huifuSplitRecord.findUnique).toHaveBeenCalledWith({ where: { outTradeNo: "HF123" } });
-      expect(url).toBe("https://mock-api.huifu.com/v2/trade/payment/scanpay/refund");
+      expect(url).toBe("https://mock-api.huifu.com/v3/trade/payment/scanpay/refund");
       expect(body.data.ord_amt).toBe("100.00");
       expect(body.data.org_req_seq_id).toBe("HF123");
       expect(body.data.org_req_date).toBe("20260701");
@@ -735,7 +760,7 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       });
       const dataJson = JSON.stringify({ resp_code: "00000000", trans_stat: "S" });
       (global.fetch as jest.Mock).mockResolvedValue({ text: async () => `{"data":${dataJson}}` });
-      await expect(svc.createRefund({ orderId: "order-1", amount: 100 })).rejects.toThrow("汇付退款响应验签失败");
+      await expect(svc.createRefund({ orderId: "order-1", amount: 100 })).rejects.toThrow("汇付资金响应验签失败");
 
       mockFetchResponse({ resp_code: "10000000", resp_desc: "原交易不存在" });
       await expect(svc.createRefund({ orderId: "order-1", amount: 100 })).rejects.toThrow("原交易不存在");

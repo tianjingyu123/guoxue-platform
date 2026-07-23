@@ -29,6 +29,12 @@ export class HuifuService {
 
   /** 斗拱业务成功码 */
   private static readonly RESP_SUCCESS = "00000000";
+  /** 聚合正扫/退款已受理，渠道处理中 */
+  private static readonly RESP_PROCESSING = "00000100";
+
+  private static isAcceptedTradeRespCode(code: unknown): boolean {
+    return code === HuifuService.RESP_SUCCESS || code === HuifuService.RESP_PROCESSING;
+  }
 
   constructor(
     private prisma: PrismaService,
@@ -310,12 +316,12 @@ export class HuifuService {
     }
   }
 
-  // ───────── HTTP 调用（斗拱 v2 协议） ─────────
+  // ───────── HTTP 调用（斗拱 v2/v3 协议） ─────────
 
   /**
-   * 调用斗拱 v2 接口。
+   * 调用斗拱 v2/v3 接口。
    * 组包 { sys_id, product_id, sign, data } → POST JSON → 验签响应 → 返回响应 data 对象。
-   * 业务码非 00000000 时记录错误但不抛出（调用方可读 resp_code/resp_desc）。
+   * 非已受理业务码时记录错误但不抛出（调用方按具体动作判定 resp_code/trans_stat）。
    */
   private async callApi(
     path: string,
@@ -375,15 +381,15 @@ export class HuifuService {
       const rawData = this.extractRawJsonField(raw, "data");
       const signatureValid = !!(respSign && rawData && await this.verifyData(rawData, respSign));
       if (strictVerify && !signatureValid) {
-        throw new BusinessException(ErrorCode.PAY_FAILED, "汇付退款响应验签失败");
+        throw new BusinessException(ErrorCode.PAY_FAILED, "汇付资金响应验签失败");
       }
       if (!strictVerify && respSign && !signatureValid) {
         this.logger.warn(`汇付API响应验签失败: ${path}`);
       }
 
-      // 业务码判定：00000000 为成功
+      // 聚合交易类 00000100 表示已受理/处理中，不应记成业务失败；具体动作由调用方继续判定。
       const respCode = respData.resp_code as string | undefined;
-      if (respCode && respCode !== HuifuService.RESP_SUCCESS) {
+      if (respCode && !HuifuService.isAcceptedTradeRespCode(respCode)) {
         this.logger.error(`汇付API业务失败: ${path} resp_code=${respCode} resp_desc=${respData.resp_desc}`);
       }
 
@@ -453,7 +459,7 @@ export class HuifuService {
 
   // ───────── 支付 ─────────
 
-  /** 创建汇付支付（JSAPI 聚合下单 /v2/trade/payment/jspay） */
+  /** 创建汇付支付（聚合正扫/JSAPI/H5，下单接口 /v3/trade/payment/jspay） */
   async createPayment(userId: string, dto: HuifuPayDto) {
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },
@@ -471,13 +477,13 @@ export class HuifuService {
     // 商户订单号即斗拱 req_seq_id（查询/退款用 org_req_seq_id 回溯，保持自洽）
     const outTradeNo = `HF${Date.now()}${dto.orderId.slice(0, 8)}`;
 
-    // 渠道 → 斗拱 jspay trade_type（T_MINIAPP 微信小程序预留）
+    // 渠道 → 斗拱聚合正扫/线上支付 trade_type。
     const tradeTypeMap: Record<string, string> = {
-      WECHAT_H5: "T_JSAPI",
+      WECHAT_H5: "T_H5",
       WECHAT_JSAPI: "T_JSAPI",
       WECHAT_MINIAPP: "T_MINIAPP", // 预留
-      ALIPAY: "A_JSAPI",
-      UNIONPAY: "U_JSAPI",
+      ALIPAY: "A_NATIVE",
+      UNIONPAY: "U_NATIVE",
     };
     const tradeType = tradeTypeMap[dto.payType || "WECHAT_JSAPI"] || "T_JSAPI";
 
@@ -495,8 +501,11 @@ export class HuifuService {
       data.wx_data = { sub_openid: dto.openid };
     }
 
-    const result = await this.callApi("/v2/trade/payment/jspay", data);
-    if (result.resp_code !== HuifuService.RESP_SUCCESS) {
+    const result = await this.callApi("/v3/trade/payment/jspay", data, true);
+    if (
+      !HuifuService.isAcceptedTradeRespCode(result.resp_code) ||
+      result.trans_stat === "F"
+    ) {
       throw new BusinessException(
         ErrorCode.PAY_FAILED,
         String(result.resp_desc || `汇付支付未受理(${result.resp_code || "UNKNOWN"})`),
@@ -537,7 +546,7 @@ export class HuifuService {
     };
   }
 
-  /** 查询支付状态（/v2/trade/payment/scanpay/query） */
+  /** 查询支付状态（/v3/trade/payment/scanpay/query） */
   async queryPayment(outTradeNo: string, userId: string) {
     // 校验该支付单归属当前用户，防止越权查询/探测他人订单（userId 必传，fail-closed）
     const order = await this.prisma.order.findFirst({
@@ -559,7 +568,7 @@ export class HuifuService {
       org_req_date: this.orgReqDateOf(record, outTradeNo),
       org_req_seq_id: outTradeNo,
     };
-    return this.callApi("/v2/trade/payment/scanpay/query", data);
+    return this.callApi("/v3/trade/payment/scanpay/query", data);
   }
 
   // ───────── 回调处理 ─────────
@@ -678,7 +687,7 @@ export class HuifuService {
       },
     };
 
-    const result = await this.callApi("/v2/trade/payment/delaytrans/confirm", data);
+    const result = await this.callApi("/v2/trade/payment/delaytrans/confirm", data, true);
 
     const splitFailed =
       result.resp_code !== HuifuService.RESP_SUCCESS || result.trans_stat === "F";
@@ -754,7 +763,7 @@ export class HuifuService {
 
   // ───────── 退款 ─────────
 
-  /** 申请退款（/v2/trade/payment/scanpay/refund） */
+  /** 申请退款（/v3/trade/payment/scanpay/refund） */
   async createRefund(dto: HuifuRefundDto) {
     if (!dto.orderId && !dto.outTradeNo) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或交易号");
 
@@ -791,8 +800,11 @@ export class HuifuService {
       remark: dto.reason || "用户申请退款",
     };
 
-    const result = await this.callApi("/v2/trade/payment/scanpay/refund", data, true);
-    if (result.resp_code !== HuifuService.RESP_SUCCESS) {
+    const result = await this.callApi("/v3/trade/payment/scanpay/refund", data, true);
+    if (
+      !HuifuService.isAcceptedTradeRespCode(result.resp_code) ||
+      result.trans_stat === "F"
+    ) {
       throw new BusinessException(
         ErrorCode.PAY_FAILED,
         String(result.resp_desc || `汇付退款未受理(${result.resp_code || "UNKNOWN"})`),
