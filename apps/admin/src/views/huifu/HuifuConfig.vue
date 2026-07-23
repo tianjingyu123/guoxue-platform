@@ -404,7 +404,7 @@ const configSaving = ref(false);
 
 const statusText = computed(() => (paymentEnabled.value ? "支付已启用" : "支付未启用"));
 const statusTip = computed(() => {
-  if (!paymentEnabled.value) return "商户号(merchantId)或私钥(rsaPrivateKey)未配置，汇付支付不可用";
+  if (!paymentEnabled.value) return "请检查商户号、产品号、商户私钥和汇付平台公钥；平台公钥不能填写成商户公钥";
   return configList.value.length === 0
     ? "已启用：商户号与私钥来自服务器环境变量（后台配置表为空）"
     : "已启用：商户号与私钥已配置";

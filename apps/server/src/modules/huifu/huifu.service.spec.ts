@@ -4,8 +4,13 @@ import { HuifuService } from "./huifu.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 
-// 真实 RSA 密钥对：既当「商户私钥」（请求签名）也当「汇付密钥对」（响应/回调验签），端到端签验
-const { publicKey: PUB_PEM, privateKey: PRIV_PEM } = generateKeyPairSync("rsa", {
+// 两套独立真实 RSA 密钥：商户私钥给请求加签，汇付私钥模拟响应/回调签名。
+const { publicKey: MERCHANT_PUB_PEM, privateKey: MERCHANT_PRIV_PEM } = generateKeyPairSync("rsa", {
+  modulusLength: 2048,
+  publicKeyEncoding: { type: "spki", format: "pem" },
+  privateKeyEncoding: { type: "pkcs8", format: "pem" },
+});
+const { publicKey: HUIFU_PUB_PEM, privateKey: HUIFU_PRIV_PEM } = generateKeyPairSync("rsa", {
   modulusLength: 2048,
   publicKeyEncoding: { type: "spki", format: "pem" },
   privateKeyEncoding: { type: "pkcs8", format: "pem" },
@@ -15,14 +20,14 @@ const { publicKey: PUB_PEM, privateKey: PRIV_PEM } = generateKeyPairSync("rsa", 
 function rsaSign(str: string): string {
   const s = createSign("RSA-SHA256");
   s.update(str, "utf-8");
-  return s.sign(PRIV_PEM, "base64");
+  return s.sign(HUIFU_PRIV_PEM, "base64");
 }
 
 /** 用公钥验证服务产出的请求签名 */
 function rsaVerify(str: string, sig: string): boolean {
   const v = createVerify("RSA-SHA256");
   v.update(str, "utf-8");
-  return v.verify(PUB_PEM, sig, "base64");
+  return v.verify(MERCHANT_PUB_PEM, sig, "base64");
 }
 
 /** mock fetch 返回一条已按斗拱协议签名的响应 { data, sign } */
@@ -86,8 +91,8 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     process.env.HUIFU_APP_ID = "TEST-SYS-001";
     process.env.HUIFU_PRODUCT_ID = "TEST-PRODUCT";
     process.env.HUIFU_SECRET_KEY = "test-secret-key";
-    process.env.HUIFU_RSA_PRIVATE_KEY = PRIV_PEM;
-    process.env.HUIFU_RSA_PUBLIC_KEY = PUB_PEM;
+    process.env.HUIFU_RSA_PRIVATE_KEY = MERCHANT_PRIV_PEM;
+    process.env.HUIFU_RSA_PUBLIC_KEY = HUIFU_PUB_PEM;
 
     mockRedis.get.mockResolvedValue(null);
     mockPrisma.huifuConfig.findUnique.mockResolvedValue(null);
@@ -196,6 +201,14 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     it("product_id 未配置应抛业务异常提示去后台配置", async () => {
       delete process.env.HUIFU_PRODUCT_ID;
       await expect(svc["callApi"]("/v2/x", {})).rejects.toThrow("product_id 未配置");
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it("验签公钥误填商户公钥时应在请求发出前失败关闭", async () => {
+      process.env.HUIFU_RSA_PUBLIC_KEY = MERCHANT_PUB_PEM;
+      await expect(
+        svc["callApi"]("/v3/trade/payment/jspay", { huifu_id: "TEST-MCH-001" }, true),
+      ).rejects.toThrow("当前填入的是商户公钥");
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
@@ -315,6 +328,11 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
       delete process.env.HUIFU_RSA_PRIVATE_KEY;
       const enabled = await svc.isEnabled();
       expect(enabled).toBe(false);
+    });
+
+    it("isEnabled 在验签公钥误填商户公钥时返回false", async () => {
+      process.env.HUIFU_RSA_PUBLIC_KEY = MERCHANT_PUB_PEM;
+      expect(await svc.isEnabled()).toBe(false);
     });
 
     it("getAllConfigs 应对敏感字段脱敏", async () => {

@@ -1,5 +1,5 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
-import { createSign, createVerify, randomUUID } from "crypto";
+import { createPrivateKey, createPublicKey, createSign, createVerify, randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
@@ -183,7 +183,13 @@ export class HuifuService {
       this.getConfig("rsaPrivateKey"),
       this.getConfig("rsaPublicKey"),
     ]);
-    return !!(merchantId && productId && rsaPrivateKey && rsaPublicKey);
+    return !!(
+      merchantId &&
+      productId &&
+      rsaPrivateKey &&
+      rsaPublicKey &&
+      !this.isSameRsaKeyPair(rsaPrivateKey, rsaPublicKey)
+    );
   }
 
   // ───────── 协议工具 ─────────
@@ -252,6 +258,34 @@ export class HuifuService {
     return key;
   }
 
+  /** 检查验签公钥是否误填成了由商户私钥导出的商户公钥。 */
+  private isSameRsaKeyPair(privateRaw: string, publicRaw: string): boolean {
+    try {
+      const derivedPublic = createPublicKey(
+        createPrivateKey(this.normalizePrivateKey(privateRaw)),
+      ).export({ type: "spki", format: "der" });
+      const configuredPublic = createPublicKey(
+        this.normalizePublicKey(publicRaw),
+      ).export({ type: "spki", format: "der" });
+      return Buffer.from(derivedPublic).equals(Buffer.from(configuredPublic));
+    } catch {
+      return false;
+    }
+  }
+
+  private async assertKeyDirection(): Promise<void> {
+    const [privateKey, publicKey] = await Promise.all([
+      this.getConfig("rsaPrivateKey"),
+      this.getConfig("rsaPublicKey"),
+    ]);
+    if (privateKey && publicKey && this.isSameRsaKeyPair(privateKey, publicKey)) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "汇付平台公钥配置错误：当前填入的是商户公钥，请从汇付控台「开发设置→开发者信息」复制汇付公钥",
+      );
+    }
+  }
+
   /** 商户私钥 SHA256withRSA(PKCS1v15) 签名，输出 base64 */
   private async signData(signStr: string): Promise<string> {
     const rawKey = await this.getConfig("rsaPrivateKey");
@@ -301,6 +335,8 @@ export class HuifuService {
     if (!productId) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付产品号 product_id 未配置，请到后台「第三方配置→汇付天下」填写");
     }
+
+    await this.assertKeyDirection();
 
     // ① 删除空字段 ② key 字母序紧凑 JSON ③ RSA-SHA256 签名
     const cleaned = this.removeEmpty(data);
