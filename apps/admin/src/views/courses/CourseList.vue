@@ -66,6 +66,11 @@ const auditLabels: Record<string, { text: string; type: string }> = {
   REJECTED: { text: "已驳回", type: "danger" }, DRAFT: { text: "草稿", type: "info" },
 };
 
+function persistentMediaUrl(value?: string): string | undefined {
+  const url = value?.trim();
+  return url && /^https?:\/\//i.test(url) ? url : undefined;
+}
+
 const { loading, tableData, pagination, filters, fetchList, handleSearch, handleReset } = useTable({
   fetchApi: courseApi.list,
   defaultPageSize: 20,
@@ -75,6 +80,8 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch, handle
     // api 拦截器已把分页数组规范化为 data.items（原后端键 courses）；兼容两者
     items: (data.items || data.courses || []).map((c: CourseRow) => ({
       ...c,
+      // blob:/file: 仅在创建它的浏览器会话中有效，持久化后必须按无图处理，避免列表触发失败请求。
+      cover: persistentMediaUrl(c.cover),
       category: [c.categoryLevel1, c.categoryLevel2].filter(Boolean).join("/") || "-",
       validity: (c.validityDays ?? 0) > 0 ? c.validityDays + "天" : "永久",
       author: c.user?.nickname || "-",

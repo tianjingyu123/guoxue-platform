@@ -7,6 +7,7 @@ import { SmsService } from "../sms/sms.service";
 import { NotificationService } from "../notification/notification.service";
 import { MarketingService } from "../marketing/marketing.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { COMPETITION_DEMO_PREFIX } from "../competition/competition-public.policy";
 
 /** 每批处理的用户数 */
 const SCORE_BATCH_SIZE = 500;
@@ -52,7 +53,11 @@ export class ChurnService {
 
     do {
       const users = await this.prisma.user.findMany({
-        where: { status: "ACTIVE", ...(cursor ? { id: { gt: cursor } } : {}) },
+        where: {
+          status: "ACTIVE",
+          NOT: { id: { startsWith: COMPETITION_DEMO_PREFIX } },
+          ...(cursor ? { id: { gt: cursor } } : {}),
+        },
         select: { id: true, createdAt: true },
         take: SCORE_BATCH_SIZE,
         orderBy: { id: "asc" },
@@ -182,11 +187,14 @@ export class ChurnService {
 
   /** 批量创建流失干预动作：阈值真实生效，并按规则冷却期去重。 */
   private async batchTriggerActions(pairs: ChurnCandidate[]) {
+    // 竞赛演示账号仅用于后台验收，不属于真实用户，绝不能进入自动召回或发券/短信链路。
+    const eligiblePairs = pairs.filter((pair) => !pair.userId.startsWith(COMPETITION_DEMO_PREFIX));
+    if (eligiblePairs.length === 0) return;
     const allRules = await this.prisma.churnRule.findMany({
       where: { isActive: true },
       orderBy: { createdAt: "asc" },
     });
-    if (allRules.length === 0 || pairs.length === 0) return;
+    if (allRules.length === 0) return;
     const rulesByRisk: Record<string, typeof allRules> = {};
     let maxCooldownDays = DEFAULT_ACTION_COOLDOWN_DAYS;
     for (const rule of allRules) {
@@ -198,7 +206,7 @@ export class ChurnService {
 
     const recentActions = await this.prisma.churnAction.findMany({
       where: {
-        userId: { in: [...new Set(pairs.map((pair) => pair.userId))] },
+        userId: { in: [...new Set(eligiblePairs.map((pair) => pair.userId))] },
         createdAt: { gte: new Date(Date.now() - maxCooldownDays * 86400000) },
       },
       select: { userId: true, actionType: true, actionData: true, createdAt: true },
@@ -218,7 +226,7 @@ export class ChurnService {
 
     const actions: Prisma.ChurnActionCreateManyInput[] = [];
     const scheduledActionTypes = new Set<string>();
-    for (const { userId, riskLevel, activityScore, daysSinceActive } of pairs) {
+    for (const { userId, riskLevel, activityScore, daysSinceActive } of eligiblePairs) {
       // 不对新用户或近 7 天仍活跃用户做自动召回，即使误配了低风险规则也不会打扰。
       if (daysSinceActive < MIN_CHURN_OBSERVATION_DAYS) continue;
       for (const rule of rulesByRisk[riskLevel] || []) {
@@ -275,7 +283,10 @@ export class ChurnService {
 
   private async _processChurnActions() {
     const actions = await this.prisma.churnAction.findMany({
-      where: { status: "PENDING" },
+      where: {
+        status: "PENDING",
+        NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } },
+      },
       take: 100,
       orderBy: { createdAt: "asc" },
     });
@@ -388,7 +399,9 @@ export class ChurnService {
 
   async getPredictions(rawPage = 1, rawPageSize = 20, riskLevel?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
-    const where: Prisma.ChurnPredictionWhereInput = {};
+    const where: Prisma.ChurnPredictionWhereInput = {
+      NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } },
+    };
     if (riskLevel) where.riskLevel = riskLevel;
     const [predictions, total] = await Promise.all([
       this.prisma.churnPrediction.findMany({ where, skip, take: pageSize, orderBy: { activityScore: "asc" } }),
@@ -398,11 +411,14 @@ export class ChurnService {
   }
 
   async getStats() {
+    const withoutDemo: Prisma.ChurnPredictionWhereInput = {
+      NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } },
+    };
     const [low, medium, high, critical] = await Promise.all([
-      this.prisma.churnPrediction.count({ where: { riskLevel: "LOW" } }),
-      this.prisma.churnPrediction.count({ where: { riskLevel: "MEDIUM" } }),
-      this.prisma.churnPrediction.count({ where: { riskLevel: "HIGH" } }),
-      this.prisma.churnPrediction.count({ where: { riskLevel: "CRITICAL" } }),
+      this.prisma.churnPrediction.count({ where: { ...withoutDemo, riskLevel: "LOW" } }),
+      this.prisma.churnPrediction.count({ where: { ...withoutDemo, riskLevel: "MEDIUM" } }),
+      this.prisma.churnPrediction.count({ where: { ...withoutDemo, riskLevel: "HIGH" } }),
+      this.prisma.churnPrediction.count({ where: { ...withoutDemo, riskLevel: "CRITICAL" } }),
     ]);
     return { low, medium, high, critical };
   }
@@ -425,7 +441,9 @@ export class ChurnService {
 
   async listActions(rawPage = 1, rawPageSize = 20, status?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
-    const where: any = {};
+    const where: Prisma.ChurnActionWhereInput = {
+      NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } },
+    };
     if (status) where.status = status;
     const [actions, total] = await Promise.all([
       this.prisma.churnAction.findMany({ where, skip, take: pageSize, orderBy: { createdAt: "desc" } }),

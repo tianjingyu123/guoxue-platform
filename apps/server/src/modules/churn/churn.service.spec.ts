@@ -55,6 +55,9 @@ describe("ChurnService", () => {
       const result = await svc.getPredictions(1, 20, "HIGH");
       expect(result.predictions).toHaveLength(1);
       expect(result.total).toBe(1);
+      expect(mockPrisma.churnPrediction.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { NOT: { userId: { startsWith: "comp-demo-" } }, riskLevel: "HIGH" },
+      }));
     });
 
     it("page 传非数字串不产生 NaN skip（P2-4 分页加固）", async () => {
@@ -75,6 +78,9 @@ describe("ChurnService", () => {
       expect(stats.medium).toBe(30);
       expect(stats.high).toBe(15);
       expect(stats.critical).toBe(5);
+      for (const [query] of mockPrisma.churnPrediction.count.mock.calls) {
+        expect(query.where.NOT).toEqual({ userId: { startsWith: "comp-demo-" } });
+      }
     });
   });
 
@@ -116,6 +122,9 @@ describe("ChurnService", () => {
       mockPrisma.churnAction.count.mockResolvedValue(1);
       const result = await svc.listActions(1, 20);
       expect(result.actions).toHaveLength(1);
+      expect(mockPrisma.churnAction.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { NOT: { userId: { startsWith: "comp-demo-" } } },
+      }));
     });
   });
 
@@ -124,6 +133,11 @@ describe("ChurnService", () => {
       mockPrisma.user.findMany.mockResolvedValue([]);
       await svc.dailyChurnCalculation();
       expect(mockPrisma.user.findMany).toHaveBeenCalled();
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: { id: { startsWith: "comp-demo-" } },
+        }),
+      }));
     });
 
     it("处理一批用户", async () => {
@@ -178,6 +192,14 @@ describe("ChurnService", () => {
       await (svc as unknown as { batchTriggerActions: (items: unknown[]) => Promise<void> })
         .batchTriggerActions([candidate]);
 
+      expect(mockPrisma.churnAction.createMany).not.toHaveBeenCalled();
+    });
+
+    it("竞赛演示账号永不创建自动召回动作", async () => {
+      await (svc as unknown as { batchTriggerActions: (items: unknown[]) => Promise<void> })
+        .batchTriggerActions([{ ...candidate, userId: "comp-demo-user-1" }]);
+
+      expect(mockPrisma.churnRule.findMany).not.toHaveBeenCalled();
       expect(mockPrisma.churnAction.createMany).not.toHaveBeenCalled();
     });
 
@@ -252,6 +274,19 @@ describe("ChurnService", () => {
       expect(mockSms.sendRetentionMessage).not.toHaveBeenCalled();
       expect(mockPrisma.churnAction.update).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({ status: "PENDING_MANUAL" }),
+      }));
+    });
+
+    it("待执行队列从查询层排除竞赛演示账号", async () => {
+      mockPrisma.churnAction.findMany.mockResolvedValue([]);
+
+      await (svc as unknown as { _processChurnActions: () => Promise<void> })._processChurnActions();
+
+      expect(mockPrisma.churnAction.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          status: "PENDING",
+          NOT: { userId: { startsWith: "comp-demo-" } },
+        },
       }));
     });
 

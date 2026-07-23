@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, IsIn, Min, Max, MinLength, MaxLength, ValidateIf } from "class-validator";
+import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, IsIn, IsUrl, Min, Max, MinLength, MaxLength, ValidateIf } from "class-validator";
 import { Type, Transform } from "class-transformer";
 
 export enum CourseType {
@@ -9,6 +9,12 @@ export enum CourseType {
   EBOOK = "EBOOK",
   COMBO = "COMBO",
 }
+
+const PERSISTENT_MEDIA_URL_OPTIONS = {
+  protocols: ["http", "https"],
+  require_protocol: true,
+  require_tld: false,
+};
 
 export class CreateCourseDto {
   @ApiPropertyOptional({ description: "关联圈子ID" })
@@ -21,7 +27,10 @@ export class CreateCourseDto {
   title: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @ValidateIf((_o, value) => value !== "")
+  @IsString()
+  @IsUrl(PERSISTENT_MEDIA_URL_OPTIONS, { message: "封面图仅支持持久化 http/https 地址" })
   cover?: string;
 
   @ApiPropertyOptional({ description: "课程简介" })
@@ -66,6 +75,7 @@ export class CreateCourseDto {
 
   @ApiPropertyOptional({ description: "课程介绍详情图（最多6张·展示在课程详情页介绍区）" })
   @IsOptional() @IsArray() @IsString({ each: true })
+  @IsUrl(PERSISTENT_MEDIA_URL_OPTIONS, { each: true, message: "详情图仅支持持久化 http/https 地址" })
   detailImages?: string[];
 
   @ApiPropertyOptional({ description: "定时发布时间" })
@@ -87,7 +97,10 @@ export class UpdateCourseDto {
   title?: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @ValidateIf((_o, value) => value !== "")
+  @IsString()
+  @IsUrl(PERSISTENT_MEDIA_URL_OPTIONS, { message: "封面图仅支持持久化 http/https 地址" })
   cover?: string;
 
   @ApiPropertyOptional({ description: "课程简介" })
@@ -136,6 +149,7 @@ export class UpdateCourseDto {
 
   @ApiPropertyOptional({ description: "课程介绍详情图（最多6张·2026-07-11 编辑器重做：whitelist 会 strip 未声明字段，DTO 必须显式声明）" })
   @IsOptional() @IsArray() @IsString({ each: true })
+  @IsUrl(PERSISTENT_MEDIA_URL_OPTIONS, { each: true, message: "详情图仅支持持久化 http/https 地址" })
   detailImages?: string[];
 
   @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈 / PLATFORM=全平台", enum: ["CIRCLE_ONLY", "PLATFORM"] })
