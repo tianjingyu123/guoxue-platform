@@ -403,13 +403,51 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       });
       mockPrisma.huifuSplitRecord.create.mockResolvedValue({});
       mockPrisma.order.update.mockResolvedValue({});
-      mockFetchResponse({ resp_code: "00000000", hf_seq_id: "HF-SEQ-002" });
+      mockFetchResponse({
+        resp_code: "00000000",
+        hf_seq_id: "HF-SEQ-002",
+        pay_url: "https://pay.example.com/order-2",
+      });
 
       await svc.createPayment("user-1", { orderId: "order-2", payType: "ALIPAY", openid: "should-ignore" });
       const { body } = lastFetchCall();
       expect(body.data.trade_type).toBe("A_JSAPI");
       expect(body.data.trans_amt).toBe("8.50");
       expect(body.data.wx_data).toBeUndefined();
+    });
+
+    it("汇付业务失败时不得写支付记录或污染订单支付流水", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "order-failed", userId: "user-1", amount: 1, status: "PENDING", type: "COURSE",
+      });
+      mockFetchResponse({
+        resp_code: "90000000",
+        resp_desc: "业务执行失败[buyerId与buyerLogonId不能同时为空]",
+        trans_stat: "F",
+      });
+
+      await expect(
+        svc.createPayment("user-1", { orderId: "order-failed", payType: "ALIPAY" }),
+      ).rejects.toThrow("buyerId与buyerLogonId不能同时为空");
+      expect(mockPrisma.huifuSplitRecord.create).not.toHaveBeenCalled();
+      expect(mockPrisma.order.update).not.toHaveBeenCalled();
+    });
+
+    it("汇付成功码但无支付凭证时不得落库", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "order-no-credential", userId: "user-1", amount: 1, status: "PENDING", type: "COURSE",
+      });
+      mockFetchResponse({
+        resp_code: "00000000",
+        resp_desc: "受理成功",
+        trans_stat: "P",
+      });
+
+      await expect(
+        svc.createPayment("user-1", { orderId: "order-no-credential", payType: "ALIPAY" }),
+      ).rejects.toThrow("汇付未返回可调起支付的凭证");
+      expect(mockPrisma.huifuSplitRecord.create).not.toHaveBeenCalled();
+      expect(mockPrisma.order.update).not.toHaveBeenCalled();
     });
 
     it("查询支付应回溯 org_req_date/org_req_seq_id", async () => {
@@ -583,6 +621,61 @@ describe("HuifuService（斗拱 BsPay v2 协议）", () => {
       const { body } = lastFetchCall();
       expect(body.data.acct_split_bunch.acct_infos).toEqual([{ huifu_id: "A1", div_amt: "10.00" }]);
       expect(res.splitStatus).toBe("PROCESSING");
+    });
+
+    it("分账业务失败应落 FAILED 审计并抛错，不得伪装为处理中", async () => {
+      mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
+        outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100,
+        createdAt: new Date(), rawRequest: null,
+      });
+      mockPrisma.huifuSplitRecord.update.mockResolvedValue({});
+      mockFetchResponse({
+        resp_code: "90000000",
+        resp_desc: "分账接收方不存在",
+        trans_stat: "F",
+      });
+
+      await expect(
+        svc.createSplit({
+          orderId: "order-1", amount: 10,
+          receivers: [{ acctId: "A1", amount: 10, name: "张三" }],
+        }),
+      ).rejects.toThrow("分账接收方不存在");
+      expect(mockPrisma.huifuSplitRecord.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            splitStatus: "FAILED",
+            errorMsg: "分账接收方不存在",
+            receivers: [expect.objectContaining({ status: "FAILED" })],
+          }),
+        }),
+      );
+    });
+
+    it("同一订单重复发起分账应使用稳定请求号，防止异常重试重复出款", async () => {
+      const record = {
+        outTradeNo: "HF123", splitStatus: "PENDING", totalAmount: 100,
+        createdAt: new Date(), rawRequest: null,
+      };
+      mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue(record);
+      mockPrisma.huifuSplitRecord.update.mockResolvedValue({});
+      const dto = {
+        orderId: "12345678-1234-1234-1234-123456789abc",
+        amount: 10,
+        receivers: [{ acctId: "A1", amount: 10, name: "张三" }],
+      };
+
+      mockFetchResponse({ resp_code: "00000000", trans_stat: "P" });
+      await svc.createSplit(dto);
+      const firstReqSeqId = lastFetchCall().body.data.req_seq_id;
+
+      mockFetchResponse({ resp_code: "00000000", trans_stat: "P" });
+      await svc.createSplit(dto);
+      const secondReqSeqId = lastFetchCall().body.data.req_seq_id;
+
+      expect(firstReqSeqId).toBe(secondReqSeqId);
+      expect(firstReqSeqId).toBe("SP12345678123412341234123456789a");
+      expect(firstReqSeqId).toHaveLength(32);
     });
 
     it("querySplit 应走 trans/split/query 并按 trans_stat 更新状态", async () => {

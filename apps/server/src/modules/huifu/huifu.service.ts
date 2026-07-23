@@ -496,6 +496,18 @@ export class HuifuService {
     }
 
     const result = await this.callApi("/v2/trade/payment/jspay", data);
+    if (result.resp_code !== HuifuService.RESP_SUCCESS) {
+      throw new BusinessException(
+        ErrorCode.PAY_FAILED,
+        String(result.resp_desc || `汇付支付未受理(${result.resp_code || "UNKNOWN"})`),
+      );
+    }
+    const hasPayCredential = [result.pay_info, result.pay_url, result.h5_url, result.qr_code].some(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    );
+    if (!hasPayCredential) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "汇付未返回可调起支付的凭证");
+    }
 
     // 保存分账记录（hf_seq_id 为汇付全局流水号）
     await this.prisma.huifuSplitRecord.create({
@@ -649,11 +661,13 @@ export class HuifuService {
     }
 
     const merchantId = await this.getConfig("merchantId");
+    // 同一订单固定使用同一个分账请求号：渠道已受理但本地落库失败时，重试不会重复分账。
+    const splitReqSeqId = `SP${dto.orderId.replace(/-/g, "")}`.slice(0, 32);
 
     const data: Record<string, unknown> = {
       huifu_id: merchantId,
       req_date: this.reqDate(),
-      req_seq_id: this.reqSeqId(),
+      req_seq_id: splitReqSeqId,
       org_req_date: this.orgReqDateOf(splitRecord, splitRecord.outTradeNo),
       org_req_seq_id: splitRecord.outTradeNo,
       acct_split_bunch: {
@@ -666,8 +680,11 @@ export class HuifuService {
 
     const result = await this.callApi("/v2/trade/payment/delaytrans/confirm", data);
 
-    const splitStatus =
-      result.resp_code === HuifuService.RESP_SUCCESS && result.trans_stat === "S"
+    const splitFailed =
+      result.resp_code !== HuifuService.RESP_SUCCESS || result.trans_stat === "F";
+    const splitStatus = splitFailed
+      ? "FAILED"
+      : result.trans_stat === "S"
         ? "SUCCESS"
         : "PROCESSING";
 
@@ -680,13 +697,23 @@ export class HuifuService {
           acctId: r.acctId,
           amount: r.amount,
           name: r.name,
-          status: splitStatus === "SUCCESS" ? "SUCCESS" : "PROCESSING",
+          status: splitStatus,
         })),
         rawRequest: data as any,
         rawResponse: result as any,
+        errorMsg: splitFailed
+          ? String(result.resp_desc || `汇付分账失败(${result.resp_code || result.trans_stat || "UNKNOWN"})`)
+          : null,
         splitAt: new Date(),
       },
     });
+
+    if (splitFailed) {
+      throw new BusinessException(
+        ErrorCode.PAY_FAILED,
+        String(result.resp_desc || `汇付分账失败(${result.resp_code || result.trans_stat || "UNKNOWN"})`),
+      );
+    }
 
     return {
       orderId: dto.orderId,
