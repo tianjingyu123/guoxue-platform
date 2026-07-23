@@ -1,5 +1,7 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { CommissionService } from "../commission/commission.service";
 
 /**
@@ -14,6 +16,7 @@ export class ShopAttributionService {
 
   constructor(
     private prisma: PrismaService,
+    private redis: RedisService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
   ) {}
 
@@ -160,6 +163,79 @@ export class ShopAttributionService {
   }
 
   /**
+   * 支付成功账务补偿：每 10 分钟复核近 48 小时已支付订单。
+   * 首次回调若在订单置 PAID 后遇到分佣/平台费瞬时故障，下一轮会自动补齐；
+   * CommissionService 的订单级幂等守卫确保重复复核不重复累计。
+   */
+  @Cron("*/10 * * * *", { name: "reconcilePaidOrderAccounting" })
+  async reconcilePaidOrderAccounting() {
+    // 裁剪测试/降级部署若未装配完整 Redis 能力则安全空转；生产 RedisService 必定提供该方法。
+    if (typeof this.redis?.runExclusive !== "function") return { checked: 0 };
+    return this.redis.runExclusive("shop_paid_order_accounting_reconcile", 540, async () => {
+      const now = Date.now();
+      const offsetKey = "shop_paid_order_accounting_offset";
+      const rawOffset = Number(await this.redis.get(offsetKey));
+      const offset = Number.isSafeInteger(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+      const orders = await this.prisma.order.findMany({
+        where: {
+          status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+          paidAt: {
+            gte: new Date(now - 48 * 60 * 60 * 1000),
+            lte: new Date(now - 2 * 60 * 1000),
+          },
+        },
+        select: {
+          id: true,
+          type: true,
+          amount: true,
+          userId: true,
+          referrerId: true,
+          tempReferrerId: true,
+          tempRefSubjectType: true,
+        },
+        orderBy: { paidAt: "asc" },
+        skip: offset,
+        take: 500,
+      });
+
+      // 普通用户分享成交只发一次成长积分，不能被周期对账重复触发；
+      // 仅现金渠道主体（显式渠道类型或确实存在分站的推荐人）重跑分佣，其他订单只补平台费。
+      const stationRefCandidates = Array.from(
+        new Set(
+          orders
+            .filter((order) => !["STATION", "CIRCLE", "OFFLINE_STATION"].includes(order.tempRefSubjectType || ""))
+            .map((order) => order.tempReferrerId || order.referrerId)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      );
+      const stationOwners = stationRefCandidates.length
+        ? await this.prisma.station.findMany({
+            where: { userId: { in: stationRefCandidates } },
+            select: { userId: true },
+          })
+        : [];
+      const stationOwnerIds = new Set(stationOwners.map((station) => station.userId));
+
+      for (const order of orders) {
+        const effectiveReferrerId = order.tempReferrerId || order.referrerId || "";
+        const isCashChannel =
+          ["STATION", "CIRCLE", "OFFLINE_STATION"].includes(order.tempRefSubjectType || "") ||
+          stationOwnerIds.has(effectiveReferrerId);
+        if (isCashChannel) await this.recordOrderCommissionAndFee(order);
+        else await this.recordOrderPlatformFee(order);
+      }
+      const nextOffset = orders.length < 500 ? 0 : offset + orders.length;
+      await this.redis.set(offsetKey, String(nextOffset), 48 * 60 * 60);
+      if (orders.length > 0) {
+        this.logger.log(
+          `支付账务对账完成：复核 ${orders.length} 笔近 48 小时订单（offset=${offset}，next=${nextOffset}）`,
+        );
+      }
+      return { checked: orders.length, nextOffset };
+    });
+  }
+
+  /**
    * 订单支付成功后统一记账：分佣 + 平台费。
    * 微信/汇付回调已记，此 helper 供支付宝/银联/线下确认(adminPayOrder)复用，避免账目漏记。
    * 事务外执行，失败仅记日志不影响订单状态。
@@ -175,6 +251,12 @@ export class ShopAttributionService {
     } catch (e) {
       this.logger.error("分佣计算失败", e);
     }
+    await this.recordOrderPlatformFee(order);
+  }
+
+  /** 仅补平台费，不触发普通用户分享成长积分。 */
+  private async recordOrderPlatformFee(order: { id: string; type: string; amount: unknown }) {
+    if (!this.commissionSvc) return;
     try {
       const fee = await this.commissionSvc.calculatePlatformFee(order.type, Number(order.amount));
       if (fee) {

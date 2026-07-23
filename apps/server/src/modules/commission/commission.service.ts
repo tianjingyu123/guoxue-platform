@@ -210,6 +210,38 @@ export class CommissionService {
       });
     }
 
+    // 支付回调与定时对账都可能重入。收益旧表尚无数据库唯一键，必须先按订单幂等：
+    // 已有分站收益时不再重复累计，只补齐可能在上一轮中断的管理奖与统一总账。
+    const existingEarning = await this.prisma.stationEarning.findFirst({
+      where: { orderId, earned: { gt: 0 }, type: { not: "REFUND" } },
+    });
+    if (existingEarning) {
+      const existingStation = await this.prisma.station.findUnique({
+        where: { id: existingEarning.stationId },
+      });
+      if (!existingStation) {
+        this.logger.error(
+          `订单 ${orderId} 已有分站收益但分站 ${existingEarning.stationId} 不存在，停止补录以避免错账`,
+        );
+        return existingEarning;
+      }
+      const bonus = await this.calculateOperatorBonus(
+        existingEarning.stationId,
+        orderId,
+        Number(existingEarning.earned),
+      );
+      await this.mirrorStationSettlement({
+        orderId,
+        type,
+        amount,
+        payerId: effectivePayerId,
+        station: existingStation,
+        rate: Number(existingEarning.rate),
+        bonus,
+      });
+      return existingEarning;
+    }
+
     // 查找推荐人的分站（现行 STATION 路径）
     const station = stationId
       ? await this.prisma.station.findUnique({ where: { id: stationId } })
@@ -298,41 +330,60 @@ export class CommissionService {
     // 直接佣金归该临时分站，管理奖同步归该分站所属运营商，不沿用买家的永久锁定关系。
     const bonus = await this.calculateOperatorBonus(station.id, orderId, earned);
 
-    // ───────── T1-P2b 统一总账影子双写（不影响现有资金路径，失败仅记日志）─────────
-    // 过渡期比例以本方法实际使用值 rateOverride 传入，保证总账与实付一致；P2-c 切换后以 SettlementRule 为真源
-    if (this.settlement) {
-      try {
-        await this.settlement.settle({
-          scene: this.mapTypeToScene(type),
-          refType: "ORDER",
-          refId: orderId,
-          amount,
-          payerId: effectivePayerId,
-          parties: {
-            STATION: {
-              type: "STATION",
-              id: station.id,
-              userId: station.userId,
-              rateOverride: rate,
-            },
-            ...(bonus
-              ? {
-                  OPERATOR: {
-                    type: "OPERATOR",
-                    id: bonus.operatorId,
-                    userId: bonus.userId,
-                    rateOverride: bonus.rate,
-                  },
-                }
-              : {}),
-          },
-        });
-      } catch (e) {
-        this.logger.warn(`统一总账影子双写失败(order=${orderId})`, e);
-      }
-    }
+    await this.mirrorStationSettlement({
+      orderId,
+      type,
+      amount,
+      payerId: effectivePayerId,
+      station,
+      rate,
+      bonus,
+    });
 
     return earning;
+  }
+
+  /** 分站旧账写入后的统一总账影子双写；SettlementService 自身按订单幂等。 */
+  private async mirrorStationSettlement(params: {
+    orderId: string;
+    type: string;
+    amount: number;
+    payerId: string;
+    station: { id: string; userId: string };
+    rate: number;
+    bonus: { operatorId: string; userId: string; rate: number; earned: number } | null;
+  }): Promise<void> {
+    if (!this.settlement) return;
+    const { orderId, type, amount, payerId, station, rate, bonus } = params;
+    try {
+      await this.settlement.settle({
+        scene: this.mapTypeToScene(type),
+        refType: "ORDER",
+        refId: orderId,
+        amount,
+        payerId,
+        parties: {
+          STATION: {
+            type: "STATION",
+            id: station.id,
+            userId: station.userId,
+            rateOverride: rate,
+          },
+          ...(bonus
+            ? {
+                OPERATOR: {
+                  type: "OPERATOR",
+                  id: bonus.operatorId,
+                  userId: bonus.userId,
+                  rateOverride: bonus.rate,
+                },
+              }
+            : {}),
+        },
+      });
+    } catch (e) {
+      this.logger.warn(`统一总账影子双写失败(order=${orderId})`, e);
+    }
   }
 
   /**
@@ -1125,6 +1176,33 @@ export class CommissionService {
     orderId: string,
     stationEarned: number,
   ): Promise<{ operatorId: string; userId: string; rate: number; earned: number } | null> {
+    // 支付回调/补偿任务重入时，已存在的管理奖直接复用，不得重复累计运营商收益。
+    const existing = await this.prisma.operatorEarning.findFirst({
+      where: { orderId, source: "MGMT_BONUS", earned: { gt: 0 } },
+    });
+    if (existing) {
+      if (existing.sourceStationId && existing.sourceStationId !== stationId) {
+        this.logger.error(
+          `订单 ${orderId} 已有管理奖来源分站 ${existing.sourceStationId}，与本次 ${stationId} 不一致，停止补录以避免错账`,
+        );
+        return null;
+      }
+      const existingOperator = await this.prisma.operator.findUnique({
+        where: { id: existing.operatorId },
+        select: { userId: true },
+      });
+      if (!existingOperator) {
+        this.logger.error(`订单 ${orderId} 已有管理奖但运营商 ${existing.operatorId} 不存在`);
+        return null;
+      }
+      return {
+        operatorId: existing.operatorId,
+        userId: existingOperator.userId,
+        rate: Number(existing.rate),
+        earned: Number(existing.earned),
+      };
+    }
+
     const station = await this.prisma.station.findUnique({
       where: { id: stationId },
       select: { userId: true, operatorId: true },
@@ -1173,24 +1251,27 @@ export class CommissionService {
     const mgmtEarned = Math.round(stationEarned * mgmtRate * 100) / 100;
     if (mgmtEarned <= 0) return null;
 
-    await this.prisma.operatorEarning.create({
-      data: {
-        operatorId: beneficiary.id,
-        orderId,
-        source: "MGMT_BONUS",
-        // 字段语义（改制前后一致·佣-V2-P1 复核）：amount=计酬基数即站长实得佣金额，
-        // rate=实际管理奖比率，earned=运营商所得
-        amount: stationEarned,
-        rate: mgmtRate,
-        earned: mgmtEarned,
-        sourceStationId: stationId,
-        // 自营分站上浮时记录下级运营商，供审计追溯
-        sourceOperatorId: beneficiary.id !== operator.id ? operator.id : undefined,
-      },
-    });
-    await this.prisma.operator.update({
-      where: { id: beneficiary.id },
-      data: { totalEarning: { increment: mgmtEarned } },
+    // 管理奖记录与运营商累计额必须同事务，避免“有明细但余额没加”的半完成状态。
+    await this.prisma.$transaction(async (tx) => {
+      await tx.operatorEarning.create({
+        data: {
+          operatorId: beneficiary.id,
+          orderId,
+          source: "MGMT_BONUS",
+          // 字段语义（改制前后一致·佣-V2-P1 复核）：amount=计酬基数即站长实得佣金额，
+          // rate=实际管理奖比率，earned=运营商所得
+          amount: stationEarned,
+          rate: mgmtRate,
+          earned: mgmtEarned,
+          sourceStationId: stationId,
+          // 自营分站上浮时记录下级运营商，供审计追溯
+          sourceOperatorId: beneficiary.id !== operator.id ? operator.id : undefined,
+        },
+      });
+      await tx.operator.update({
+        where: { id: beneficiary.id },
+        data: { totalEarning: { increment: mgmtEarned } },
+      });
     });
     this.prisma.notification
       .create({
@@ -1354,6 +1435,15 @@ export class CommissionService {
     circleId?: string;
     circleShare?: number;
   }) {
+    // 支付回调和补偿任务会重入；同一业务凭据同类型平台费只允许一笔正向记录。
+    const existing = await this.prisma.platformFeeRecord.findFirst({
+      where: {
+        type: params.type,
+        sourceId: params.sourceId,
+        platformFee: { gt: 0 },
+      },
+    });
+    if (existing) return existing;
     return this.prisma.platformFeeRecord.create({
       data: {
         type: params.type,
