@@ -27,6 +27,8 @@ const SKIP_FIELDS = new Set([
   "attachments",
   "password", "token", "accessToken", "refreshToken", "hash",
   "secret", "apiKey", "key",
+  // 第三方支付回调签名与原始业务报文必须逐字保持不变，否则验签必然失败。
+  "resp_data", "sign", "sign_type",
   "aliases", "tags", "metadata", "data", "payload",
   // value：系统/第三方配置的数据容器（常为 JSON 文本），HTML 转义会破坏 JSON 结构导致解析失败；
   // 这类值经加密存储或写入配置，不会被当富文本 innerHTML 渲染，渲染侧由前端框架自动转义兜底。

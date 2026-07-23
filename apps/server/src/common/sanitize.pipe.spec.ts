@@ -49,4 +49,17 @@ describe("SanitizePipe", () => {
     expect(out.videoUrl).toBe(url);
     expect(out.title).toBe("a&#x2F;b"); // 非 URL 字段仍正常转义
   });
+  it("支付回调的 resp_data 与 sign 必须原样保留", () => {
+    const body = {
+      resp_data: '{"trans_stat":"S","req_seq_id":"HF/001"}',
+      sign: "a+b/c==",
+      sign_type: "RSA2",
+      nickname: "a/b",
+    };
+    const out = pipe.transform(body, meta("body")) as typeof body;
+    expect(out.resp_data).toBe(body.resp_data);
+    expect(out.sign).toBe(body.sign);
+    expect(out.sign_type).toBe(body.sign_type);
+    expect(out.nickname).toBe("a&#x2F;b");
+  });
 });

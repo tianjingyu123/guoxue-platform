@@ -62,24 +62,24 @@ describe("HuifuController", () => {
 
     it("验签通过应返回成功（斗拱 sign 在通知体内）", async () => {
       mockSvc.verifyNotify.mockResolvedValue(true);
+      mockSvc.handleNotify.mockResolvedValue("HF001");
       const body = { resp_data: '{"trans_stat":"S","req_seq_id":"HF001"}', sign: "valid-signature" };
       const result = await ctrl.handleNotify(body);
-      expect(result.resp_code).toBe("00000000");
-      expect(result.resp_desc).toBe("成功");
+      expect(result).toBe("RECV_ORD_ID_HF001");
       expect(mockSvc.verifyNotify).toHaveBeenCalledWith(body, "valid-signature");
       expect(mockSvc.handleNotify).toHaveBeenCalledWith(body);
     });
 
     it("验签失败应返回失败", async () => {
       mockSvc.verifyNotify.mockResolvedValue(false);
-      const result = await ctrl.handleNotify({ resp_data: "{}", sign: "invalid-signature" });
-      expect(result.resp_code).toBe("FAIL");
+      await expect(ctrl.handleNotify({ resp_data: "{}", sign: "invalid-signature" }))
+        .rejects.toThrow("汇付回调签名验证失败");
       expect(mockSvc.handleNotify).not.toHaveBeenCalled();
     });
 
     it("缺少签名应直接拒绝", async () => {
-      const result = await ctrl.handleNotify({ resp_data: "{}" });
-      expect(result.resp_code).toBe("FAIL");
+      await expect(ctrl.handleNotify({ resp_data: "{}" }))
+        .rejects.toThrow("汇付回调缺少签名");
       expect(mockSvc.verifyNotify).not.toHaveBeenCalled();
     });
   });

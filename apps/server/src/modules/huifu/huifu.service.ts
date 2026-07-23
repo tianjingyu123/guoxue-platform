@@ -573,7 +573,19 @@ export class HuifuService {
       org_req_date: this.orgReqDateOf(record, outTradeNo),
       org_req_seq_id: outTradeNo,
     };
-    return this.callApi("/v3/trade/payment/scanpay/query", data);
+    // 主动查单也是资金入账依据，必须严格验证汇付响应签名。
+    const result = await this.callApi("/v3/trade/payment/scanpay/query", data, true);
+    if (result.trans_stat === "S") {
+      if (!this.paymentNotifyHandler) {
+        throw new BusinessException(ErrorCode.INTERNAL_ERROR, "汇付支付通知处理器未就绪");
+      }
+      await this.paymentNotifyHandler({
+        ...result,
+        req_seq_id: outTradeNo,
+        hf_seq_id: result.hf_seq_id || result.org_hf_seq_id,
+      });
+    }
+    return result;
   }
 
   // ───────── 回调处理 ─────────
@@ -591,7 +603,7 @@ export class HuifuService {
   }
 
   /** 处理支付回调（resp_data 内 trans_stat==="S" 为成功） */
-  async handleNotify(body: Record<string, unknown>): Promise<void> {
+  async handleNotify(body: Record<string, unknown>): Promise<string> {
     // 解析 resp_data（JSON 字符串或对象），兼容平铺字段
     let payload: Record<string, unknown>;
     const respData = body.resp_data ?? body.data;
@@ -629,13 +641,14 @@ export class HuifuService {
           throw new BusinessException(ErrorCode.INTERNAL_ERROR, "汇付退款通知处理器未就绪");
         }
         await this.refundNotifyHandler(payload);
-        return;
+        return outTradeNo;
       }
 
       if (!this.paymentNotifyHandler) {
         throw new BusinessException(ErrorCode.INTERNAL_ERROR, "汇付支付通知处理器未就绪");
       }
       await this.paymentNotifyHandler(payload);
+      return outTradeNo;
     } finally {
       await this.redis.del(lockKey);
     }

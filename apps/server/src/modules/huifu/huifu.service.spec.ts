@@ -498,7 +498,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
         createdAt: new Date(2026, 5, 30),
         rawRequest: { req_seq_id: "HF-OUT-1", req_date: "20260630", trade_type: "T_JSAPI" },
       });
-      mockFetchResponse({ resp_code: "00000000", trans_stat: "S" });
+      mockFetchResponse({ resp_code: "00000000", trans_stat: "S", trans_amt: "1.00", org_hf_seq_id: "HF-CHANNEL-1" });
 
       const res = await svc.queryPayment("HF-OUT-1", "user-1");
       const { url, body } = lastFetchCall();
@@ -509,6 +509,12 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
         org_req_seq_id: "HF-OUT-1",
       });
       expect(res.trans_stat).toBe("S");
+      expect(paymentNotifyHandler).toHaveBeenCalledWith(expect.objectContaining({
+        req_seq_id: "HF-OUT-1",
+        hf_seq_id: "HF-CHANNEL-1",
+        trans_stat: "S",
+        trans_amt: "1.00",
+      }));
     });
 
     it("查询支付：rawRequest 被分账覆写时应回退 createdAt 格式化", async () => {
@@ -564,7 +570,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     it.each(["P", "S"])("支付回调 trans_stat=%s 均委托商城主链判定", async (transStat) => {
       mockRedis.setNX.mockResolvedValue(true);
       const payload = { trans_stat: transStat, req_seq_id: "HF-PAY-1", hf_seq_id: "HFSEQ1", trans_amt: "99.00" };
-      await svc.handleNotify({ resp_data: JSON.stringify(payload) });
+      await expect(svc.handleNotify({ resp_data: JSON.stringify(payload) })).resolves.toBe("HF-PAY-1");
       expect(paymentNotifyHandler).toHaveBeenCalledWith(payload);
       expect(refundNotifyHandler).not.toHaveBeenCalled();
       expect(mockPrisma.order.updateMany).not.toHaveBeenCalled();

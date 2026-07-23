@@ -6,6 +6,9 @@ import { HuifuPayDto, HuifuSplitDto, HuifuRefundDto, UpdateConfigDto } from "./h
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { SkipFormat } from "../../common/skip-format.decorator";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @ApiTags("汇付天下支付")
 @Controller("huifu")
@@ -79,6 +82,7 @@ export class HuifuController {
 
   @Post("notify")
   @HttpCode(200)
+  @SkipFormat()
   @ApiOperation({ summary: "汇付斗拱支付异步通知（公开接口·sign 在通知体内）" })
   @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -86,14 +90,14 @@ export class HuifuController {
     // 斗拱异步通知：POST 表单/JSON 含 resp_data(JSON字符串) 与 sign（兼容旧 header 签名）
     const signature = (typeof body?.sign === "string" ? body.sign : "") || headerSign;
     if (!signature) {
-      return { resp_code: "FAIL", resp_desc: "缺少签名" };
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付回调缺少签名");
     }
     const isValid = await this.svc.verifyNotify(body, signature);
     if (!isValid) {
-      return { resp_code: "FAIL", resp_desc: "签名验证失败" };
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付回调签名验证失败");
     }
-    await this.svc.handleNotify(body);
-    return { resp_code: "00000000", resp_desc: "成功" };
+    const outTradeNo = await this.svc.handleNotify(body);
+    return `RECV_ORD_ID_${outTradeNo}`;
   }
 
   @Post("query")
