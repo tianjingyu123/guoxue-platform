@@ -8,7 +8,8 @@ import FeedCard from '@/components/home/feed-card.vue'
 import BackTop from '@/components/home/back-top.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import { homeApi, type RenderItem } from '@/lib/home-data'
-import { stationDetailApi } from '@/lib/station-detail-data'
+import { stationDetailApi, type StationFeaturedItem } from '@/lib/station-detail-data'
+import { mineApi } from '@/lib/mine-data'
 import { navigateTo } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
@@ -16,6 +17,7 @@ import { formatPrice } from '@/utils/format'
 const loading = ref(true)
 const error = ref('')
 const isEmpty = ref(false)
+const unreadCount = ref(0)
 
 // 分站配置对象，模板裸访问多字段，保留 any
 const station = ref<any>({})
@@ -51,7 +53,11 @@ function retryFeed() {
 }
 
 onMounted(async () => {
-  await loadStationData()
+  const [, unread] = await Promise.all([
+    loadStationData(),
+    mineApi.getUnreadNotifyCount().catch(() => 0),
+  ])
+  unreadCount.value = unread
   fetchFeed()
 })
 
@@ -92,8 +98,16 @@ function backToTop() {
   setTimeout(() => (scrollTopVal.value = 0), 30)
 }
 
-function toastSoon() {
-  uni.showToast({ title: '敬请期待', icon: 'none' })
+function goWorkbench() { navigateTo('/operator/station-master-panel') }
+function goNotifications() { navigateTo('/notifications') }
+function goFeaturedHome() { navigateTo('/pkg-operator/station-home/index') }
+function openFeatured(item: StationFeaturedItem) {
+  const path = item.type === 'article'
+    ? `/articles/${item.id}`
+    : item.type === 'course'
+      ? `/courses/${item.id}`
+      : `/circles/${item.id}`
+  navigateTo(path)
 }
 </script>
 
@@ -108,7 +122,7 @@ function toastSoon() {
           <text class="sd-brand-name">{{ station.name }}</text>
           <text class="sd-brand-tag">{{ BRAND.name }}</text>
         </view>
-        <view class="sd-brandbar-my" @tap="toastSoon"><text class="sd-brandbar-my-txt">我的分站 ›</text></view>
+        <view class="sd-brandbar-my" hover-class="tap-press" @tap="goWorkbench"><text class="sd-brandbar-my-txt">经营工作台 ›</text></view>
       </view>
       <!-- 搜索 Header -->
       <view class="sd-header">
@@ -117,9 +131,9 @@ function toastSoon() {
           <app-icon name="search" :size="32" color="#999" />
           <text class="sd-search-ph">搜索课程、圈子、文章...</text>
         </view>
-        <view class="sd-bell" @tap="toastSoon">
+        <view class="sd-bell" hover-class="tap-press" @tap="goNotifications">
           <app-icon name="bell" :size="40" color="#1f1f1f" />
-          <view class="sd-bell-dot" />
+          <view v-if="unreadCount > 0" class="sd-bell-dot" />
         </view>
       </view>
     </view>
@@ -183,12 +197,11 @@ function toastSoon() {
           </view>
         </view>
         <!-- 站长寄语 -->
-        <view class="sd-welcome" :style="{ background: theme + '1a' }" @tap="toastSoon">
+        <view class="sd-welcome" :style="{ background: theme + '1a' }">
           <view class="sd-welcome-left">
             <app-icon name="sparkles" :size="32" :color="theme" />
-            <text class="sd-welcome-txt" :style="{ color: theme }">欢迎来到{{ station.masterName }}的国学小站</text>
+            <text class="sd-welcome-txt" :style="{ color: theme }">{{ station.masterIntro || `欢迎来到${station.masterName}的国学小站` }}</text>
           </view>
-          <app-icon name="chevron-right" :size="32" color="#999" />
         </view>
       </view>
 
@@ -205,7 +218,7 @@ function toastSoon() {
               <text class="sd-featured-badge-txt" :style="{ color: theme }">站长推荐</text>
             </view>
           </view>
-          <view class="sd-featured-more" @tap="toastSoon">
+          <view class="sd-featured-more" hover-class="tap-press" @tap="goFeaturedHome">
             <text class="sd-featured-more-txt">查看全部</text>
             <app-icon name="chevron-right" :size="24" color="#999" />
           </view>
@@ -217,7 +230,7 @@ function toastSoon() {
             :key="item.id"
             class="sd-fcard"
             :style="{ borderColor: theme + '4d', background: theme + '0d' }"
-            @tap="toastSoon"
+            @tap="openFeatured(item)"
           >
             <view class="sd-fcard-main">
               <view class="sd-fcard-cover">
