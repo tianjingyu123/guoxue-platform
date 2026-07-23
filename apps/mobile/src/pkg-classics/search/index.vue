@@ -440,6 +440,10 @@ function goDetail(id: string) {
   justify-content: space-between;
   padding: 4rpx 0;
 }
+.cs-row-top {
+  min-width: 0;
+  overflow: hidden;
+}
 .cs-row-title-line {
   display: flex;
   align-items: center;
@@ -466,6 +470,8 @@ function goDetail(id: string) {
   color: #047857;
 }
 .cs-row-desc {
+  display: block;
+  max-width: 100%;
   font-size: 24rpx;
   color: var(--muted-foreground);
   margin-top: 8rpx;
@@ -477,9 +483,17 @@ function goDetail(id: string) {
   display: flex;
   align-items: center;
   gap: 20rpx;
+  min-width: 0;
+  overflow: hidden;
   font-size: 22rpx;
   color: var(--muted-foreground);
   margin-top: 8rpx;
+}
+.cs-row-meta > text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cs-row-rating {
   display: flex;
