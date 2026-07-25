@@ -10,6 +10,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import PlatformSupportActions from '@/components/common/platform-support-actions.vue'
 import FeedCard from '@/components/feed/feed-card.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import CoreEntryGrid from '@/components/navigation/core-entry-grid.vue'
@@ -302,6 +303,7 @@ function backToTop() {
       <view class="home-search">
         <search-bar default-tab="all" placeholder="搜古籍 · 课程 · 排盘 · 智能体" />
       </view>
+      <platform-support-actions />
     </view>
 
     <!-- 顶部内容频道：同一套双列瀑布流，仅检索策略不同 -->
@@ -451,10 +453,11 @@ function backToTop() {
   height: auto;
   display: flex;
   align-items: center;
+  gap: 12rpx;
   padding: 12rpx 24rpx 8rpx;
   background-color: #FAF8F5;
 }
-.home-search { width: 100%; }
+.home-search { flex: 1; min-width: 0; }
 .btn-press { opacity: 0.7; }
 
 /* ── 顶部轻 Tab（吸顶胶囊条） ── */

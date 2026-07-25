@@ -21,6 +21,7 @@ import { teacherApi, type TeacherInstituteBadge } from '@/lib/teacher-data'
 import { recommendApi } from '@/lib/recommend-data'
 import { track } from '@/composables/useTrack'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
+import { gotoComplaint } from '@/lib/trust-entry'
 
 const loading = ref(true)
 const error = ref('')
@@ -163,6 +164,9 @@ function goReviews() { navigateTo(`/courses/${courseId.value}/reviews`) }
 function goCustomerService() {
   showConsultPanel.value = false
   navigateTo('/customer-service')
+}
+function complainCourse() {
+  gotoComplaint('课程内容与教学服务', `${course.value?.title || '课程'} · 课程ID ${courseId.value}`)
 }
 /** 讲师公开主页（讲师 userId 缺失时不可点；未认证讲师由主页 404 错误态诚实提示） */
 function goTeacherProfile() {
@@ -505,9 +509,15 @@ onMounted(() => {
     <!-- ══ 区块9 吸底操作栏 ══ -->
     <view class="bottom-bar" :style="{ paddingBottom: 'calc(22rpx + env(safe-area-inset-bottom))' }">
       <!-- 已购态：整栏一个继续学习 -->
-      <view v-if="hasAccess" class="full-btn" hover-class="btn-press" @tap="onContinueLearning">
-        <text class="full-btn-txt">继续学习</text>
-      </view>
+      <template v-if="hasAccess">
+        <view class="mini-act" hover-class="card-press" @tap="complainCourse">
+          <app-icon name="shield-alert" :size="40" color="#6E6E73" />
+          <text class="mini-txt">投诉</text>
+        </view>
+        <view class="full-btn" hover-class="btn-press" @tap="onContinueLearning">
+          <text class="full-btn-txt">继续学习</text>
+        </view>
+      </template>
       <!-- 未购态 / 秒杀态 -->
       <template v-else>
         <view class="mini-act" hover-class="card-press" @tap="toggleFavorite">
@@ -517,6 +527,10 @@ onMounted(() => {
         <view class="mini-act" hover-class="card-press" @tap="showConsultPanel = true">
           <app-icon name="message-circle" :size="40" color="#6E6E73" />
           <text class="mini-txt">客服</text>
+        </view>
+        <view class="mini-act" hover-class="card-press" @tap="complainCourse">
+          <app-icon name="shield-alert" :size="40" color="#6E6E73" />
+          <text class="mini-txt">投诉</text>
         </view>
         <view class="buy-btn" hover-class="btn-press" @tap="onPurchase">
           <text class="buy-btn-main">

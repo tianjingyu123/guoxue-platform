@@ -166,6 +166,14 @@
         </view>
         <text class="vp__act-txt vp__act-txt--num">{{ fmt(currentVideo.shares) }}</text>
       </view>
+
+      <!-- 争议内容出口：直达真实举报表单，避免只能退出或在评论区发泄。 -->
+      <view class="vp__act" @tap.stop="onReport">
+        <view class="vp__act-ico">
+          <AppIcon name="flag" :size="48" color="rgba(255,255,255,0.88)" />
+        </view>
+        <text class="vp__act-txt">举报</text>
+      </view>
     </view>
 
     <!-- 底部信息区（V0 info：作者名 15px 粗体 + 认证金描边徽章 + 标题 14px/1.6 + 推广浮卡） -->
@@ -407,6 +415,7 @@ import { getUserInfo } from '@/utils/storage'
 import { onMounted } from 'vue'
 import { videoApi, formatVideoNumber as fmt, formatCommentTime as timeAgo, type VideoItem, type VideoProduct, type VideoComment } from '@/lib/video-data'
 import { shopApi } from '@/lib/shop-data'
+import { gotoReport } from '@/lib/report-data'
 
 interface CartItem { productId: string; quantity: number; product: VideoProduct }
 
@@ -790,6 +799,11 @@ function goAuthor() {
 // ===== 分享（H5 无原生转发 → 面板：复制链接 + 转发引导；小程序仍走 onShareAppMessage）=====
 const showShare = ref(false)
 function onShare() { showShare.value = true }
+function onReport() {
+  const video = currentVideo.value
+  if (!video) return
+  gotoReport('VIDEO', video.id, video.title, video.author.name)
+}
 function buildShareUrl(): string {
   const vid = currentVideo.value?.id || ''
   // import.meta.env 在 uni-app 下缺少类型声明，保留 as any

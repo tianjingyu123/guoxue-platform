@@ -15,6 +15,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import PlatformSupportActions from '@/components/common/platform-support-actions.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import FeedCard from '@/components/feed/feed-card.vue'
 import { navigateTo } from '@/utils/router'
@@ -198,7 +199,10 @@ function goEntry(href: string) { navigateTo(href) }
 
     <!-- ① 大搜索框：全局搜索主场（框内热词跑马灯 + 点击跳 /search）·padding-top 动态适配状态栏 -->
     <view class="search-row" :style="{ paddingTop: statusBarHeight + 8 + 'px' }">
-      <search-bar default-tab="all" placeholder="搜古籍 · 课程 · 直播 · 掌柜好物" />
+      <view class="discover-search">
+        <search-bar default-tab="all" placeholder="搜古籍 · 课程 · 直播 · 掌柜好物" />
+      </view>
+      <platform-support-actions />
     </view>
 
     <!-- ② 运营楼层（后台平台页面布局·route='discover'·有已发布则渲染，无则不显示） -->
@@ -277,7 +281,8 @@ $ink: #2C2C2C; $sub: #6E6E73; $faint: #999999; $wash: #F6F1E7; $line: #F2EDE4;
 .page { min-height: 100vh; background: $paper; padding-bottom: 140rpx; }
 
 /* ① 搜索：padding-top 由内联 style 按 statusBarHeight 动态计算（此处仅兜底） */
-.search-row { padding: 16rpx 40rpx 8rpx; }
+.search-row { display: flex; align-items: center; gap: 12rpx; padding: 16rpx 24rpx 8rpx; }
+.discover-search { flex: 1; min-width: 0; }
 /* ② 运营楼层（微页面区块） */
 .disc-blocks { padding: 8rpx 0 4rpx; }
 

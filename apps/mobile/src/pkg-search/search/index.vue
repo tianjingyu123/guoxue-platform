@@ -25,6 +25,7 @@
         <view class="search-action" @click="doSearch(keyword)">
           <text class="search-action-text">搜索</text>
         </view>
+        <platform-support-actions compact tone="plain" />
       </view>
     </view>
 
@@ -133,6 +134,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AiSearchModal from '@/components/common/ai-search-modal.vue'
+import PlatformSupportActions from '@/components/common/platform-support-actions.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { searchApi, type HotSearchItem } from '@/lib/search-data'
 import { track } from '@/composables/useTrack'

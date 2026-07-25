@@ -1,7 +1,7 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <app-nav-bar title="意见反馈" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="500" :bar-height="96" title-align="left" />
+    <app-nav-bar :title="pageTitle" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="500" :bar-height="96" title-align="left" />
 
     <!-- Tab切换 -->
     <view class="tabs">
@@ -153,6 +153,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
@@ -171,6 +172,20 @@ const feedbackTypes = ref<FeedbackType[]>([])
 const historyFeedbacks = ref<HistoryFeedbackItem[]>([])
 const loading = ref(true)
 const error = ref('')
+const sourceScene = ref('')
+const sourceReference = ref('')
+const pageTitle = computed(() => selectedType.value === 'complaint' ? '投诉与反馈' : '意见反馈')
+
+onLoad((query) => {
+  if (!query) return
+  if (query.type) selectedType.value = String(query.type)
+  sourceScene.value = decodeURIComponent(String(query.source || ''))
+  sourceReference.value = decodeURIComponent(String(query.reference || ''))
+  if (sourceScene.value && !content.value) {
+    const refText = sourceReference.value ? `（${sourceReference.value}）` : ''
+    content.value = `关于${sourceScene.value}${refText}，我需要投诉/反馈：`
+  }
+})
 
 async function fetchData() {
   loading.value = true

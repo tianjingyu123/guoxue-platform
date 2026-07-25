@@ -124,7 +124,10 @@
 
     <!-- 底部操作 -->
     <view class="footer">
-      <view class="foot-service" @tap="toService"><app-icon name="phone" :size="30" color="#666666" /><text>联系客服</text></view>
+      <view class="foot-support">
+        <view class="foot-service" @tap="toService"><app-icon name="headphones" :size="30" color="#666666" /><text>客服</text></view>
+        <view class="foot-service" @tap="complainOrder"><app-icon name="shield-alert" :size="30" color="#C41E3A" /><text>投诉</text></view>
+      </view>
       <view class="foot-actions">
         <template v-if="order.status === 'pending_pay'">
           <view class="fbtn ghost" @tap="doCancel"><text>取消订单</text></view>
@@ -167,6 +170,7 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
 import { orderApi, detailSteps, virtualDetailSteps, detailStatusConfig, virtualPaidStatus, type OrderDetail } from '@/pkg-order/lib/order-data'
 import { formatPrice } from '@/utils/format'
+import { gotoComplaint } from '@/lib/trust-entry'
 
 const loading = ref(false)
 const error = ref('')
@@ -223,6 +227,10 @@ function goPay() {
 }
 function goShop() { navigateTo('/mall') }
 function toService() { navigateTo('/customer-service') }
+function complainOrder() {
+  if (!order.value) return
+  gotoComplaint('订单支付、履约或售后服务', `订单号 ${order.value.orderNo}`)
+}
 async function confirmReceive() {
   if (!order.value || submitting.value) return; submitting.value = true
   try {
@@ -321,7 +329,8 @@ function doCancel() {
 .ir-value { font-size: 26rpx; color: #2C2C2C; }
 .mono { font-family: monospace; }
 .footer { position: fixed; bottom: 0; left: 0; right: 0; height: 112rpx; background: #FFFFFF; border-top: 1rpx solid #E8E3DB; display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx calc(0px + env(safe-area-inset-bottom)); }
-.foot-service { display: flex; align-items: center; gap: 6rpx; }
+.foot-support { display: flex; align-items: center; gap: 18rpx; flex-shrink: 0; }
+.foot-service { min-width: 64rpx; min-height: 72rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; }
 .foot-service text { font-size: 26rpx; color: #666666; }
 .foot-actions { display: flex; align-items: center; gap: 16rpx; }
 .fbtn { display: flex; align-items: center; gap: 6rpx; padding: 16rpx 32rpx; border-radius: 40rpx; }

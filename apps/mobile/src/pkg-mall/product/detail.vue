@@ -12,6 +12,7 @@ import { track } from '@/composables/useTrack'
 import { recommendApi } from '@/lib/recommend-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { formatPrice } from '@/utils/format'
+import { gotoComplaint } from '@/lib/trust-entry'
 
 const loading = ref(true)
 const error = ref(false)
@@ -182,6 +183,10 @@ function goReviews() {
 }
 function goCart() { navigateTo('/shop/cart') }
 function goService() { navigateTo('/customer-service') }
+function complainProduct() {
+  if (!product.value) return
+  gotoComplaint('商品与商家服务', `${product.value.name || '商品'} · 商品ID ${product.value.id}`)
+}
 
 /** 购物车角标显示（超 99 显示 99+） */
 const cartBadge = computed(() => (cartCount.value > 99 ? '99+' : String(cartCount.value)))
@@ -345,6 +350,10 @@ async function toggleFavorite() {
         <view class="action-ico" hover-class="card-press" @tap="goService">
           <AppIcon name="message-circle" :size="44" color="var(--text-strong)" />
           <text class="action-ico-text">客服</text>
+        </view>
+        <view class="action-ico" hover-class="card-press" @tap="complainProduct">
+          <AppIcon name="shield-alert" :size="42" color="var(--text-strong)" />
+          <text class="action-ico-text">投诉</text>
         </view>
         <view class="action-ico" hover-class="card-press" @tap="goCart">
           <view class="action-ico-wrap">

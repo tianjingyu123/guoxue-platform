@@ -16,6 +16,7 @@ import { botApi, type BotQuota } from '@/lib/bot-data'
 import { formatPrice } from '@/utils/format'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import { agentThemeStyle, resolveAgentExperience } from '@/lib/agent-experience'
+import { gotoComplaint } from '@/lib/trust-entry'
 
 const loading = ref(true)
 const error = ref('')
@@ -450,6 +451,16 @@ function handleClearContext() {
   showMenu.value = false
 }
 
+function openAgentComplaint() {
+  showMenu.value = false
+  gotoComplaint('智能体回答与付费服务', `${agentDetail.value?.name || '智能体'} · 智能体ID ${agentId.value}`)
+}
+
+function openCustomerService() {
+  showMenu.value = false
+  navigateTo('/customer-service')
+}
+
 // 软性导流：同意/拒绝查看推荐
 function consentReco(msg: ChatMessage) {
   msg.recoConsented = true
@@ -510,6 +521,8 @@ onUnmounted(() => {
             <view v-if="showMenu" class="menu-mask" @tap="showMenu = false" />
             <view v-if="showMenu" class="menu">
               <view class="menu-item" @tap="handleClearContext"><AppIcon name="trash-2" :size="28" color="#1a1a1a" /><text class="menu-txt">清除上下文</text></view>
+              <view class="menu-item" @tap="openCustomerService"><AppIcon name="headphones" :size="28" color="#1a1a1a" /><text class="menu-txt">联系平台客服</text></view>
+              <view class="menu-item" @tap="openAgentComplaint"><AppIcon name="shield-alert" :size="28" color="#C41E3A" /><text class="menu-txt">投诉此服务</text></view>
             </view>
           </view>
         </view>
