@@ -7,7 +7,7 @@ describe("MerchantShippingService", () => {
     orderLogistics: { findUnique: jest.fn(), upsert: jest.fn() },
   };
   const orderCache = { invalidateOrderCache: jest.fn().mockResolvedValue(undefined) } as any;
-  const logistics = { queryTrack: jest.fn() } as any;
+  const logistics = { queryTrack: jest.fn(), subscribeTrack: jest.fn().mockResolvedValue({ subscribed: true }) } as any;
   const system = { logAudit: jest.fn().mockResolvedValue(undefined) } as any;
   let service: MerchantShippingService;
 
@@ -15,6 +15,7 @@ describe("MerchantShippingService", () => {
     jest.clearAllMocks();
     prisma.$transaction.mockImplementation((fn: any) => fn(prisma));
     orderCache.invalidateOrderCache.mockResolvedValue(undefined);
+    logistics.subscribeTrack.mockResolvedValue({ subscribed: true });
     system.logAudit.mockResolvedValue(undefined);
     service = new MerchantShippingService(prisma, orderCache, logistics, system);
   });
@@ -37,6 +38,7 @@ describe("MerchantShippingService", () => {
     }));
     expect(orderCache.invalidateOrderCache).toHaveBeenCalledWith("o1", "u1");
     expect(system.logAudit).toHaveBeenCalledWith(expect.objectContaining({ action: "MERCHANT_ORDER_SHIPPED", targetId: "o1" }));
+    expect(logistics.subscribeTrack).toHaveBeenCalledWith("SF123", "顺丰速运");
   });
 
   it("重复提交相同运单幂等返回，不重复改订单和审计", async () => {
@@ -51,6 +53,7 @@ describe("MerchantShippingService", () => {
     expect(prisma.order.updateMany).not.toHaveBeenCalled();
     expect(prisma.orderLogistics.upsert).not.toHaveBeenCalled();
     expect(system.logAudit).not.toHaveBeenCalled();
+    expect(logistics.subscribeTrack).not.toHaveBeenCalled();
   });
 
   it("修改运单仅允许待收货订单并保留旧值审计快照", async () => {
@@ -69,6 +72,7 @@ describe("MerchantShippingService", () => {
       action: "MERCHANT_LOGISTICS_UPDATED",
       rollbackData: { company: "顺丰速运", trackingNo: "OLD" },
     }));
+    expect(logistics.subscribeTrack).toHaveBeenCalledWith("NEW", "中通快递");
   });
 
   it("查询商家订单的快递100真实轨迹并归一 tracks 字段", async () => {

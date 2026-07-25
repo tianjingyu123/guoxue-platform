@@ -257,10 +257,12 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   // ───────── 其他 ─────────
   {
     key: "kuaidi100", label: "快递100（物流）", category: "物流",
-    note: "物流轨迹查询只需前两项（签名=MD5(param+key+customer)）；secret/userid 是寄件、电子面单类接口才用到，平台当前不代发货可留空。",
+    note: "实时查询使用 Key+Customer；自动轨迹推送还需回调地址与独立 Salt。secret/userid 是寄件、电子面单类接口才用到，平台当前不代发货可留空。",
     fields: [
       S("apiKey", "授权 Key", "KUAIDI100_API_KEY", true, "快递100开放平台→我的→授权key（授权码）"),
       S("customer", "Customer", "KUAIDI100_CUSTOMER", true, "快递100→实时查询→customer 参数（轨迹查询必需）"),
+      S("callbackUrl", "订阅回调地址", "KUAIDI100_CALLBACK_URL", false, "快递100订阅推送的公网 HTTPS 地址", "https://api.rebugx.cn/api/v1/shop/logistics/kuaidi100/callback"),
+      S("salt", "推送验签 Salt", "KUAIDI100_SALT", true, "自定义随机密钥；订阅时传给快递100，回调按 MD5(param+salt) 验签"),
       S("secret", "Secret（可选）", "KUAIDI100_SECRET", false, "寄件/电子面单类接口鉴权用；仅做轨迹查询无需填写"),
       S("userid", "UserID（可选）", "KUAIDI100_USERID", false, "快递100云平台账号ID；寄件类接口用，当前可留空"),
     ],

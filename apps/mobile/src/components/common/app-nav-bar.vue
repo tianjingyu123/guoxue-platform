@@ -34,7 +34,7 @@ const props = withDefaults(
     color?: string
     /** 返回图标，原型各页不同：chevron-left(默认) 或 arrow-left */
     backIcon?: string
-    /** 返回图标尺寸(rpx)，chevron 默认 44(=22px)，arrow 建议 40(=20px) */
+    /** 返回图标尺寸(rpx)；AppIcon 会按全站规范保底到 44rpx。 */
     backSize?: number
     /** 标题字号(rpx)，默认 32(=16px text-base)，部分页用 36(=18px text-lg) */
     titleSize?: number

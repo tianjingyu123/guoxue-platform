@@ -29,6 +29,7 @@ import { AbTestService } from "./services/ab-test.service";
 import { AbTestController } from "./ab-test.controller";
 import { SmartFeedService } from "./smart-feed.service";
 import { SmartFeedController } from "./smart-feed.controller";
+import { HomeChannelFeedService } from "./home-channel-feed.service";
 import { SemanticTaggerService } from "./services/semantic-tagger.service";
 import { SemanticTagTask } from "./tasks/semantic-tag.task";
 import { TouchpointService } from "./touchpoint.service";
@@ -76,6 +77,7 @@ import { AuthModule } from "../auth/auth.module";
     ContentVectorizeTask,
     AbTestService,
     SmartFeedService,
+    HomeChannelFeedService,
     SemanticTaggerService,
     SemanticTagTask,
     TouchpointService,

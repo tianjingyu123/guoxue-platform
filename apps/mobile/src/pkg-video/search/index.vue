@@ -106,7 +106,7 @@
                 @tap="goDetail(video.id)"
               >
                 <view class="vs-cover" :style="{ paddingBottom: ratioByIndex(i * 2) }">
-                  <smart-cover class="vs-cover-img" :src="video.cover" :title="video.title" type="video" />
+                  <smart-cover class="vs-cover-img" :src="video.cover" :video-url="video.videoUrl" :title="video.title" type="video" />
                   <view class="vs-cover-shade" />
                   <view class="vs-plays">
                     <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
@@ -133,7 +133,7 @@
                 @tap="goDetail(video.id)"
               >
                 <view class="vs-cover" :style="{ paddingBottom: ratioByIndex(i * 2 + 1) }">
-                  <smart-cover class="vs-cover-img" :src="video.cover" :title="video.title" type="video" />
+                  <smart-cover class="vs-cover-img" :src="video.cover" :video-url="video.videoUrl" :title="video.title" type="video" />
                   <view class="vs-cover-shade" />
                   <view class="vs-plays">
                     <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
@@ -174,7 +174,7 @@
                   @tap="goDetail(video.id)"
                 >
                   <view class="vs-cover" :style="{ paddingBottom: ratioByIndex(i * 2) }">
-                    <smart-cover class="vs-cover-img" :src="video.coverUrl" :title="video.title" type="video" />
+                    <smart-cover class="vs-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" />
                     <view class="vs-cover-shade" />
                     <view class="vs-plays">
                       <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
@@ -204,7 +204,7 @@
                   @tap="goDetail(video.id)"
                 >
                   <view class="vs-cover" :style="{ paddingBottom: ratioByIndex(i * 2 + 1) }">
-                    <smart-cover class="vs-cover-img" :src="video.coverUrl" :title="video.title" type="video" />
+                    <smart-cover class="vs-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" />
                     <view class="vs-cover-shade" />
                     <view class="vs-plays">
                       <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />

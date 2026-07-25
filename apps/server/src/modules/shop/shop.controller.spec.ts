@@ -71,6 +71,8 @@ const mockShopSvc = {
 
 const mockLogisticsSvc = {
   queryTrack: jest.fn().mockResolvedValue({ state: "3", traces: [] }),
+  subscribeTrack: jest.fn().mockResolvedValue({ subscribed: true }),
+  handlePush: jest.fn().mockResolvedValue({ accepted: true, updated: 1 }),
 };
 
 const mockCouponSvc = {
@@ -536,8 +538,17 @@ describe("ShopController", () => {
   });
 
   it("PUT /shop/orders/:id/logistics — 更新物流", async () => {
-    const dto: any = { trackingNo: "SF123", company: "顺丰" };
+    const dto: any = { logisticsNo: "SF123", company: "顺丰" };
     const result: any = await ctrl.updateLogistics("o1", dto);
     expect(result.trackingNo).toBe("SF123");
+    expect(mockLogisticsSvc.subscribeTrack).toHaveBeenCalledWith("SF123", "顺丰");
+  });
+
+  it("POST /shop/logistics/kuaidi100/callback — 原样验签并返回官方成功应答", async () => {
+    const body = { param: '{"lastResult":{"nu":"SF123"}}', sign: "ABC123" };
+    const result = await ctrl.handleKuaidi100Callback(body);
+
+    expect(mockLogisticsSvc.handlePush).toHaveBeenCalledWith(body.param, body.sign);
+    expect(result).toEqual({ result: true, returnCode: "200", message: "成功" });
   });
 });

@@ -2572,7 +2572,7 @@ async function main() {
     { key: "coin_recharge", name: "虚拟币充值", description: "微信/支付宝/银联充值虚拟币", enabled: true, percentage: 100 },
     { key: "member_system", name: "会员系统", description: "会员等级、权益、自动续费", enabled: true, percentage: 100 },
     { key: "shop_feature", name: "商城", description: "商品浏览与购买", enabled: true, percentage: 100 },
-    { key: "recommend_engine", name: "推荐引擎", description: "个性化推荐、冷启动、A/B实验", enabled: true, percentage: 100 },
+    { key: "recommend_algorithm", name: "推荐算法", description: "个性化推荐、冷启动、A/B实验", enabled: true, percentage: 100 },
     { key: "paipan_ziwei", name: "紫微斗数排盘", description: "紫微斗数命盘计算", enabled: true, percentage: 100 },
     { key: "circle_feature", name: "圈子", description: "用户圈子创建与互动", enabled: true, percentage: 100 },
     { key: "same_city_feature", name: "同城推荐", description: "基于LBS的同城内容推荐", enabled: true, percentage: 100 },

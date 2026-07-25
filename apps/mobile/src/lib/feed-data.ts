@@ -12,6 +12,7 @@
 
 import { apiGet, apiGetOptionalAuth, apiPostOptionalAuth } from '@/utils/request'
 import { getCachedUiConfig } from '@/lib/ui-config-data'
+import { resolveAgentTheme } from '@/lib/agent-experience'
 
 // ============================================
 // 统一信封契约（与后端 smart-feed 对齐）
@@ -55,7 +56,7 @@ export interface FeedEnvelope {
   /**
    * 各类型扩展载荷：
    *  course:  { price, originalPrice, free }
-   *  product: { price, originalPrice }
+ *  product: { price, originalPrice, salesCount, stock, tags }
    *  video:   { duration }
    *  live:    { isLive, viewers }
    *  post:    { circleName }
@@ -158,7 +159,7 @@ export function feedTargetUrl(item: FeedEnvelope): string {
 
 // ============================================
 // 智能体卡分类色系（card-system.html §智能体·4 色系）
-//  文案生成=暖金 / 分析报告=冷紫 / 古籍查询=温润棕 / 办公效率=蓝灰
+//  文案生成=雾金 / 分析报告=星紫 / 古籍查询=青瓷 / 办公效率=雾蓝
 //  payload.category 命中关键字 → 对应色系；缺省默认暖金（copy）
 // ============================================
 export type AgentColorScheme = 'copy' | 'analyze' | 'classic' | 'office'
@@ -174,10 +175,10 @@ export interface AgentTheme {
   accent: string
 }
 const AGENT_THEMES: Record<AgentColorScheme, AgentTheme> = {
-  copy:    { scheme: 'copy',    gradient: 'linear-gradient(135deg,#F5EFE0,#E8DFD0,#F0E7D6)', icon: 'edit',       iconStroke: '#8A7A55', accent: '#C9A96E' },
-  analyze: { scheme: 'analyze', gradient: 'linear-gradient(135deg,#F0E8F5,#E8DCF0,#EFE6F6)', icon: 'trending-up',iconStroke: '#7E6B96', accent: '#B49BD1' },
-  classic: { scheme: 'classic', gradient: 'linear-gradient(135deg,#F5F0E8,#EBE0D0,#F1E8DA)', icon: 'book-open',  iconStroke: '#8A7A55', accent: '#C9A96E' },
-  office:  { scheme: 'office',  gradient: 'linear-gradient(135deg,#EEF0F5,#E0E5EE,#EAEDF4)', icon: 'briefcase',  iconStroke: '#6B7896', accent: '#9BAAD1' },
+  copy:    { scheme: 'copy',    gradient: 'linear-gradient(135deg,#FAF8F1,#F2F4FB,#F9F5FC)', icon: 'edit',        iconStroke: '#766B91', accent: '#B89B5E' },
+  analyze: { scheme: 'analyze', gradient: 'linear-gradient(135deg,#F6F3FF,#EAF0FF,#F8FAFF)', icon: 'trending-up', iconStroke: '#616FA8', accent: '#8479CF' },
+  classic: { scheme: 'classic', gradient: 'linear-gradient(135deg,#F4FAFB,#EAF3F4,#FAF8F2)', icon: 'book-open',   iconStroke: '#557C83', accent: '#6AA0A5' },
+  office:  { scheme: 'office',  gradient: 'linear-gradient(135deg,#F3F7FE,#E7EFFA,#F8FAFD)', icon: 'briefcase',   iconStroke: '#5A739B', accent: '#6D8FC4' },
 }
 /**
  * payload.category（或 subtitle 领域）→ 色系主题；无法判定则暖金。
@@ -186,6 +187,24 @@ const AGENT_THEMES: Record<AgentColorScheme, AgentTheme> = {
  */
 export function agentTheme(item: FeedEnvelope): AgentTheme {
   const cat = (payloadStr(item, 'category') || '').toString()
+  const shared = resolveAgentTheme(cat || item.subtitle || item.title)
+  const sharedIcons: Record<string, string> = {
+    CLASSICS_READING: 'book-open',
+    POETRY_ART: 'feather',
+    WRITING_STUDIO: 'edit',
+    RITES_CULTURE: 'landmark',
+    LEARNING_GROWTH: 'graduation-cap',
+    YIJING_STUDY: 'compass',
+  }
+  if (cat || item.subtitle || item.title) {
+    return {
+      scheme: 'analyze',
+      gradient: shared.gradient,
+      icon: sharedIcons[shared.key] || 'sparkles',
+      iconStroke: shared.ink,
+      accent: shared.accent,
+    }
+  }
   // 配置驱动：精确匹配后台 category→色系映射（值形如 'g-copy'/'copy'，归一去 g- 前缀）
   if (cat) {
     const map = getCachedUiConfig().agentCard.categoryColors
@@ -237,23 +256,55 @@ const VALID_TYPES: FeedType[] = [
 /** 原始项 → FeedEnvelope（脏字段容错；非法 type 归一为 article 以走文摘/文章卡不留空白） */
 function adapt(raw: RawFeedItem): FeedEnvelope | null {
   if (!raw || !raw.id) return null
-  const type = (VALID_TYPES.includes(raw.type as FeedType) ? raw.type : 'article') as FeedType
+  // 兼容尚未同步更新的旧推荐接口：首页历史钩子实际承载智能体，
+  // 不应继续以 paipan 类型渲染并跳向排盘页。
+  const source: RawFeedItem = raw.id === 'hook-paipan'
+    ? {
+        ...raw,
+        id: 'b1000001-0000-0000-0000-000000000008',
+        type: 'agent',
+        title: '国学学习规划师',
+        subtitle: '按兴趣、基础和可用时间，制定经典阅读路线与每周学习计划',
+        reason: '学习成长',
+        metric: { kind: 'action', value: '开始规划' },
+        payload: { category: '学习成长', action: '开始对话' },
+      }
+    : raw.id === 'hook-agent'
+      ? {
+          ...raw,
+          id: 'b1000001-0000-0000-0000-000000000001',
+          type: 'agent',
+          title: '古籍句读助手',
+          subtitle: '断句、释词、通译与出处核对，把难读古文拆成可理解的知识卡',
+          reason: '经典研读',
+          metric: { kind: 'action', value: '开始学习' },
+          payload: { category: '经典研读', action: '开始对话' },
+        }
+      : raw
+  const type = (VALID_TYPES.includes(source.type as FeedType) ? source.type : 'article') as FeedType
   return {
-    id: String(raw.id),
+    id: String(source.id),
     type,
-    title: raw.title ?? '',
-    subtitle: raw.subtitle,
-    cover: raw.cover ?? undefined,
-    coverRatio: raw.coverRatio,
-    author: raw.author
-      ? { name: raw.author.name ?? '', avatar: raw.author.avatar }
+    title: source.title ?? '',
+    subtitle: source.subtitle,
+    cover: source.cover ?? undefined,
+    coverRatio: source.coverRatio,
+    author: source.author
+      ? { name: source.author.name ?? '', avatar: source.author.avatar }
       : undefined,
-    metric: raw.metric && raw.metric.kind != null
-      ? { kind: raw.metric.kind, value: raw.metric.value ?? '' }
+    metric: source.metric && source.metric.kind != null
+      ? { kind: source.metric.kind, value: source.metric.value ?? '' }
       : undefined,
-    payload: raw.payload ?? undefined,
-    reason: raw.reason,
+    payload: source.payload ?? undefined,
+    reason: source.reason,
   }
+}
+
+/** 公共内容流展示底线：文章必须有首图，避免旧缓存/旧数据再次渲染无图文摘卡。 */
+export function isRenderablePublicFeedItem(item: FeedEnvelope): boolean {
+  if (item.type === 'post') return false
+  if (item.type === 'article') return !!item.cover?.trim()
+  return true
 }
 
 /**
@@ -265,27 +316,39 @@ function adapt(raw: RawFeedItem): FeedEnvelope | null {
  */
 /**
  * 按类别取内容流（发现页分区用）— GET /recommend/smart-feed/category（公开）。
- * type ∈ course/classic/video/live/article/post/product。返回该类别一页统一信封卡。
+ * type ∈ course/classic/video/live/article/product。圈帖仅在所属圈子内展示，不属于公开分类流。
  */
 export async function getCategoryFeed(type: string, page = 1, size = 6): Promise<FeedEnvelope[]> {
+  // 前端防御：即使旧页面或缓存仍请求 post，也不渲染到发现页。
+  if (type === 'post') return []
   try {
     const data = await apiGet<{ items?: RawFeedItem[] }>(
       `/recommend/smart-feed/category?type=${encodeURIComponent(type)}&page=${page}&size=${size}`,
     )
     const raw = Array.isArray(data?.items) ? data.items : []
-    return raw.map(adapt).filter((x): x is FeedEnvelope => x !== null)
+    return raw
+      .map(adapt)
+      .filter((x): x is FeedEnvelope => x !== null && isRenderablePublicFeedItem(x))
   } catch {
     return []
   }
 }
 
-export async function getSmartFeed(page = 1, pageSize = 20): Promise<FeedEnvelope[]> {
+export type SmartFeedChannel = 'recommend' | 'following' | 'hot'
+
+export async function getSmartFeed(
+  page = 1,
+  pageSize = 20,
+  channel: SmartFeedChannel = 'recommend',
+): Promise<FeedEnvelope[]> {
   // 不再吞异常：请求失败向上抛出，页面据此展示错误态+重试（区别于返回 [] 的"真空"）。
   const data = await apiGetOptionalAuth<{ items?: RawFeedItem[] }>(
-    `/recommend/smart-feed/feed?page=${page}&pageSize=${pageSize}`,
+    `/recommend/smart-feed/feed?page=${page}&pageSize=${pageSize}&channel=${encodeURIComponent(channel)}`,
   )
   const raw = Array.isArray(data?.items) ? data.items : []
-  return raw.map(adapt).filter((x): x is FeedEnvelope => x !== null)
+  return raw
+    .map(adapt)
+    .filter((x): x is FeedEnvelope => x !== null && isRenderablePublicFeedItem(x))
 }
 
 /**

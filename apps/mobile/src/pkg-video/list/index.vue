@@ -1,6 +1,6 @@
 <template>
   <view class="video-list-page">
-    <!-- 顶栏：标题「短视频」+ 搜索圆钮（跳 V3）。已拍板：顶部不放发布按钮（V0·V1 屏1） -->
+    <!-- 公共短视频列表仅保留浏览与搜索；发布入口由具备权限的特定圈子提供 -->
     <view class="vl-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="vl-topbar">
         <text class="vl-title-main">短视频</text>
@@ -65,10 +65,11 @@
           class="vl-card"
           hover-class="vl-card-hover"
           :hover-stay-time="120"
-          @tap="goDetail(video.id)"
+          data-content-card
+          @tap="goDetail(video.id, $event)"
         >
           <view class="vl-cover" :style="{ paddingBottom: COVER_RATIO }">
-            <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" deco :deco-size="72" />
+            <smart-cover class="vl-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" deco :deco-size="72" />
             <view class="vl-cover-shade" />
             <view class="vl-plays">
               <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
@@ -96,10 +97,11 @@
           class="vl-card"
           hover-class="vl-card-hover"
           :hover-stay-time="120"
-          @tap="goDetail(video.id)"
+          data-content-card
+          @tap="goDetail(video.id, $event)"
         >
           <view class="vl-cover" :style="{ paddingBottom: COVER_RATIO }">
-            <smart-cover class="vl-cover-img" :src="video.coverUrl" :title="video.title" type="video" deco :deco-size="72" />
+            <smart-cover class="vl-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" deco :deco-size="72" />
             <view class="vl-cover-shade" />
             <view class="vl-plays">
               <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
@@ -121,13 +123,6 @@
       </view>
     </view>
 
-    <!-- 悬浮发布钮：朱红实心圆钮（唯一发布入口·点击先过权限判断，无权限弹引导层） -->
-    <view class="vl-fab" @tap="goPublish">
-      <AppIcon name="plus" :size="44" color="#ffffff" :stroke-width="2.4" />
-    </view>
-
-    <!-- 无发布权限引导弹层 -->
-    <PublishGuideSheet :open="guideOpen" @close="guideOpen = false" />
   </view>
 </template>
 
@@ -137,10 +132,8 @@ import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
-import PublishGuideSheet from '@/components/video/publish-guide-sheet.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
-import { navigateTo } from '@/utils/router'
-import { checkVideoPublishPermission } from '@/lib/publish-permission'
+import { navigateTo, navigateToContent } from '@/utils/router'
 import {
   videoApi,
   formatVideoNumber,
@@ -214,29 +207,8 @@ const formatNum = formatVideoNumber
 function goSearch() {
   navigateTo('/videos/search')
 }
-// 发布权限拦截（P0 临时口径：管理员/圈主放行，其余弹引导层；拿不到数据降级放行）
-// TODO(P1): CirclePublishGrant 授权接口上线后，checkVideoPublishPermission 内部替换为真授权查询
-const guideOpen = ref(false)
-const permChecking = ref(false)
-let permCache: boolean | null = null // 页面会话内缓存，避免每次点击都拉 /auth/me + /circles/my
-async function goPublish() {
-  if (permChecking.value) return
-  if (permCache === null) {
-    permChecking.value = true
-    try {
-      permCache = await checkVideoPublishPermission()
-    } finally {
-      permChecking.value = false
-    }
-  }
-  if (permCache) {
-    navigateTo('/videos/publish')
-  } else {
-    guideOpen.value = true
-  }
-}
-function goDetail(id: string) {
-  navigateTo(`/video/${id}`)
+function goDetail(id: string, event?: unknown) {
+  navigateToContent(`/video/${id}`, event)
 }
 </script>
 
@@ -387,19 +359,4 @@ function goDetail(id: string) {
   100% { background-position: 0 50%; }
 }
 
-/* 悬浮发布钮：52px 朱红实心圆 */
-.vl-fab {
-  position: fixed;
-  right: 32rpx;
-  bottom: 192rpx;
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: 50%;
-  background-color: #C41E3A;
-  box-shadow: 0 12rpx 32rpx rgba(196, 30, 58, 0.36);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 30;
-}
 </style>

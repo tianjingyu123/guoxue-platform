@@ -185,7 +185,7 @@ export class SemanticSearchService {
     try {
       const [articles, courses, circles, contents, videos] = await Promise.all([
         this.prisma.article.findMany({
-          where: { id: { notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED" },
+          where: { id: { notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED", visibility: "PLATFORM" },
           select: { id: true, title: true, excerpt: true, cover: true },
           take: 100,
         }),

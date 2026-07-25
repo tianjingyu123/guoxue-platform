@@ -317,6 +317,37 @@ describe("LiveService", () => {
       const result = await svc.createRoom("u1", { title: "课程直播", hostUserId: "u1", courseId: "co1" });
       expect(result.courseId).toBe("co1");
     });
+
+    it("发布预约预告时必须同时提供首图和介绍", async () => {
+      await expect(svc.createRoom("u1", {
+        title: "预约直播",
+        startTime: "2026-08-01T12:00:00.000Z",
+        description: "本场介绍",
+      })).rejects.toThrow("发布直播预告前请上传首图");
+      await expect(svc.createRoom("u1", {
+        title: "预约直播",
+        startTime: "2026-08-01T12:00:00.000Z",
+        cover: "https://img/cover.webp",
+      })).rejects.toThrow("发布直播预告前请填写直播介绍");
+      expect(mockPrisma.liveRoom.create).not.toHaveBeenCalled();
+    });
+
+    it("首图和介绍齐全的预约预告可发布并持久化介绍", async () => {
+      mockPrisma.liveRoom.create.mockResolvedValue({ id: "preview1", products: [] });
+      await svc.createRoom("u1", {
+        title: "预约直播",
+        description: "  本场讲解十二宫位  ",
+        cover: "https://img/cover.webp",
+        startTime: "2026-08-01T12:00:00.000Z",
+      });
+      expect(mockPrisma.liveRoom.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          description: "本场讲解十二宫位",
+          cover: "https://img/cover.webp",
+          startTime: new Date("2026-08-01T12:00:00.000Z"),
+        }),
+      }));
+    });
   });
 
   describe("updateRoom", () => {
@@ -380,21 +411,24 @@ describe("LiveService", () => {
 
   describe("updateRoom 编辑事务", () => {
     it("待开播场次可原位更新配置和商品，不会新建直播间", async () => {
-      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1", status: "WAITING", circleId: "circle1" });
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        hostUserId: "host1", status: "WAITING", circleId: "circle1",
+        cover: "https://img/cover.webp", description: "本场介绍", startTime: new Date("2026-08-01T12:00:00.000Z"),
+      });
       mockPrisma.product.findMany.mockResolvedValue([{ id: "p1" }]);
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "room1", title: "新标题", status: "WAITING" });
       mockPrisma.liveProduct.deleteMany.mockResolvedValue({ count: 1 });
       mockPrisma.liveProduct.createMany.mockResolvedValue({ count: 1 });
 
       const result: any = await svc.updateRoom("host1", "room1", {
-        title: "新标题", startTime: "2026-08-01 20:00", chargeType: "PAID", chargePrice: 9.9,
+        title: "新标题", description: "新介绍", startTime: "2026-08-01 20:00", chargeType: "PAID", chargePrice: 9.9,
         quality: "hd", orientation: "landscape", productIds: ["p1"],
       });
 
       expect(mockPrisma.liveRoom.create).not.toHaveBeenCalled();
       expect(mockPrisma.liveRoom.update).toHaveBeenCalledWith(expect.objectContaining({
         where: { id: "room1" },
-        data: expect.objectContaining({ title: "新标题", chargeType: "PAID", chargePrice: 9.9, quality: "hd", orientation: "landscape" }),
+        data: expect.objectContaining({ title: "新标题", description: "新介绍", chargeType: "PAID", chargePrice: 9.9, quality: "hd", orientation: "landscape" }),
       }));
       expect(mockPrisma.liveProduct.createMany).toHaveBeenCalledWith({ data: [{ liveId: "room1", productId: "p1", sortOrder: 0 }] });
       expect(result.id).toBe("room1");
@@ -403,7 +437,7 @@ describe("LiveService", () => {
         contentId: "room1",
         userId: "host1",
         circleId: "circle1",
-        text: "新标题",
+        text: "新标题\n新介绍",
       }));
     });
 

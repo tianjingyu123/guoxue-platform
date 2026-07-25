@@ -317,7 +317,7 @@ function onShare() {
         <!-- ── 上一时 / 下一时 ── -->
         <view class="hour-nav">
           <view class="hour-btn" @tap="prevHour">
-            <app-icon name="chevron-left" :size="30" color="var(--text-ink)" />
+            <app-icon name="chevron-left" :size="30" color="var(--text-ink)" compact />
             <text class="hour-btn-text">上一时</text>
           </view>
           <view class="hour-btn" @tap="nextHour">

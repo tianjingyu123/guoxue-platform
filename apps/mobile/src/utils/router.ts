@@ -10,6 +10,8 @@
  * 与原型 coming-soon 占位语义一致。
  */
 
+import { tryOpenContentDetailLayer } from '@/utils/content-detail-layer'
+
 const MAIN_TABS = ['/pages/index/index', '/pages/circles/index', '/pages/paipan/index', '/pages/discover/index', '/pages/profile/index']
 
 // 原型路径 → uni 实际页面路径（已迁移页面登记于此）
@@ -38,6 +40,7 @@ const ROUTE_MAP: Record<string, string> = {
   '/search/result': '/pkg-search/search/result',
   // 课程 V0 重构（2026-07-11·17→10 页收敛）：列表/市场并入 P1 首页，courses-list 别名重定向到首页（兼容存量入站链接）
   '/courses-list': '/pkg-course/home/index',
+  '/courses/catalog': '/pkg-course/catalog/index',
   // 我的学习 P4（全局·吸收 study-plan）；须优先于动态 /courses/:id
   '/courses/my-learning': '/pkg-course/learn/index',
   // 消息会话列表
@@ -577,6 +580,12 @@ export function navigateTo(url: string) {
   const target = resolve(url)
   const path = target.split('?')[0]
   if (MAIN_TABS.includes(path)) { uni.reLaunch({ url: target }); return }
+  uni.navigateTo({ url: target, fail: () => toastComingSoon() })
+}
+/** 内容卡专用：H5 从来源卡片原位打开详情层；其他终端自动走普通详情页。 */
+export function navigateToContent(url: string, source?: unknown) {
+  const target = resolve(url)
+  if (tryOpenContentDetailLayer(target, source)) return
   uni.navigateTo({ url: target, fail: () => toastComingSoon() })
 }
 export function redirectTo(url: string) { uni.redirectTo({ url: resolve(url), fail: () => toastComingSoon() }) }

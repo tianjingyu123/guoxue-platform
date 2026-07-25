@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 智玄 AI 助手 —— 平台自建主智能体（走 /ai/zhixuan 自建链路·DeepSeek，非 Coze）。
+ * 智玄学习向导 —— 平台自建内容导航智能体（走 /ai/zhixuan 自建链路·DeepSeek，非 Coze）。
  * H5：fetch SSE 流式打字机；识别到生辰时先收到八字盘面卡（bazi-card），再流式输出分析。
  * 非 H5 端：降级调非流式 /ai/zhixuan/chat（富消息一次性返回）。
  */
@@ -71,10 +71,10 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
   </view>
   <SimpleChat
     v-else
-    title="智玄 AI 助手"
-    icon-name="bot"
-    icon-color="#c41e3a"
-    icon-bg="rgba(196,30,58,0.1)"
+    title="智玄 · 国学学习向导"
+    icon-name="compass"
+    icon-color="#5266d4"
+    icon-bg="rgba(82,102,212,0.12)"
     :welcome="welcome"
     :quick-prompts="quickPrompts"
     :resolve-stream="resolveStream"

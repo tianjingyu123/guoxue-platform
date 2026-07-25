@@ -39,7 +39,7 @@
             <text class="perm-title">角色权限说明</text>
           </view>
           <view class="perm-arrow" :class="{ 'perm-arrow-open': showPermissions }">
-            <app-icon name="chevron-left" :size="32" color="#999" />
+            <app-icon name="chevron-left" :size="32" color="#999" compact />
           </view>
         </view>
         <view v-if="showPermissions" class="perm-body">

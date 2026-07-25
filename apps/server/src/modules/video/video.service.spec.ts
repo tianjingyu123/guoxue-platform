@@ -151,6 +151,51 @@ describe("VideoService", () => {
     });
   });
 
+  describe("短视频封面数据", () => {
+    it("瀑布流返回 videoUrl，供无首图时提取第一帧", async () => {
+      mockPrisma.video.findMany.mockResolvedValue([{
+        id: "v1",
+        title: "测试视频",
+        coverUrl: "",
+        videoUrl: "https:&#x2F;&#x2F;cdn.example.com&#x2F;video.mp4",
+        duration: 8,
+        user: { nickname: "作者", avatar: null },
+        likeCount: 1,
+        viewCount: 2,
+        _count: { products: 0 },
+      }]);
+
+      const result = await svc.listItems(1, 10);
+
+      expect(result[0]).toEqual(expect.objectContaining({
+        coverUrl: "",
+        videoUrl: "https://cdn.example.com/video.mp4",
+      }));
+    });
+
+    it("搜索结果返回 videoUrl，保持搜索卡与发现页封面规则一致", async () => {
+      mockPrisma.video.findMany.mockResolvedValue([{
+        id: "v1",
+        title: "测试视频",
+        coverUrl: null,
+        videoUrl: "https:&#x2F;&#x2F;cdn.example.com&#x2F;video.mp4",
+        duration: 8,
+        user: { nickname: "作者", avatar: null },
+        viewCount: 2,
+        categoryLevel1: "国学",
+        createdAt: new Date(),
+      }]);
+      mockPrisma.video.count.mockResolvedValue(1);
+
+      const result = await svc.searchVideos({ page: 1, pageSize: 10 });
+
+      expect(result.items[0]).toEqual(expect.objectContaining({
+        cover: null,
+        videoUrl: "https://cdn.example.com/video.mp4",
+      }));
+    });
+  });
+
   describe("getDetail", () => {
     it("获取视频详情成功", async () => {
       mockPrisma.video.findUnique.mockResolvedValue({

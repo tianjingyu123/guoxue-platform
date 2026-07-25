@@ -25,6 +25,19 @@
     </view>
 
     <view class="content">
+      <!-- 统一订单簿：保留单一入口，用一枚朱印建立页面识别，不另造重复订单中心 -->
+      <view class="ledger">
+        <view class="ledger-seal"><text class="ledger-seal-text">单</text></view>
+        <view class="ledger-copy">
+          <text class="ledger-title">交易有据</text>
+          <text class="ledger-sub">商品、课程与权益统一归档</text>
+        </view>
+        <view class="ledger-pending">
+          <text class="ledger-num">{{ pendingCount }}</text>
+          <text class="ledger-label">待处理</text>
+        </view>
+      </view>
+
       <!-- 骨架屏加载态 -->
       <view v-if="loading" class="sk-list">
         <view v-for="i in 3" :key="i" class="sk-card">
@@ -64,6 +77,7 @@
         hover-class="card-press"
         @tap="goDetail(order.id)"
       >
+        <view class="card-accent" />
         <!-- 卡头：来源 + 状态（语义色右对齐） -->
         <view class="card-head">
           <view class="head-source">
@@ -189,6 +203,10 @@ const cancelReason = ref('')
 const submitting = ref(false)
 /** Tab 角标计数（待付款/待发货/待收货，轻量探测 total） */
 const counts = ref<Record<string, number>>({})
+const pendingCount = computed(() =>
+  ['pending_pay', 'pending_ship', 'pending_receive']
+    .reduce((sum, key) => sum + (counts.value[key] || 0), 0),
+)
 
 // 状态过滤已下沉后端(orderApi.list 传 tab→后端枚举)，切 tab 重载、上拉加载更多
 const { list: orders, loading, error, isEmpty, loadStatus, refresh, loadMore } = useList<OrderListItem>({
@@ -300,13 +318,14 @@ async function doCancel() {
 .btn-press { opacity: 0.8; }
 
 /* ── 顶部：导航 + 状态Tab（角标） ── */
-.header { position: sticky; top: 0; z-index: 20; background: var(--surface, #fff); box-shadow: 0 2rpx 12rpx rgba(44, 44, 44, 0.04); }
+.header { position: sticky; top: 0; z-index: 20; background: rgba(250, 248, 245, 0.97); border-bottom: 1rpx solid rgba(201, 169, 110, 0.24); box-shadow: 0 4rpx 20rpx rgba(63, 43, 28, 0.05); }
 .tabs { white-space: nowrap; }
-.tabs-inner { display: flex; padding: 0 12rpx; }
-.tab { flex: 1; min-width: 140rpx; display: flex; flex-direction: column; align-items: center; padding: 20rpx 8rpx 0; }
+.tabs-inner { display: inline-flex; gap: 12rpx; padding: 10rpx 24rpx 18rpx; }
+.tab { flex-shrink: 0; min-width: 112rpx; display: flex; align-items: center; justify-content: center; padding: 15rpx 22rpx; border-radius: 999rpx; background: rgba(120, 91, 62, 0.07); }
+.tab.active { background: var(--brand); box-shadow: 0 6rpx 16rpx rgba(196, 30, 58, 0.18); }
 .tab-label { position: relative; display: flex; align-items: center; }
-.tab-text { font-size: 28rpx; color: var(--text, #666); line-height: 1.2; transition: color 0.2s; }
-.tab.active .tab-text { color: var(--brand); font-weight: 600; }
+.tab-text { font-size: 26rpx; color: var(--text, #666); line-height: 1.2; transition: color 0.2s; }
+.tab.active .tab-text { color: #fff; font-weight: 600; }
 .tab-badge {
   position: absolute; top: -14rpx; right: -34rpx;
   min-width: 30rpx; height: 30rpx; padding: 0 8rpx; box-sizing: border-box;
@@ -314,15 +333,33 @@ async function doCancel() {
   display: flex; align-items: center; justify-content: center;
 }
 .tab-badge-text { position: relative; z-index: 1; font-size: 18rpx; line-height: 1; color: #fff; }
-.tab-ind { width: 40rpx; height: 6rpx; border-radius: 999rpx; background: transparent; margin-top: 12rpx; }
-.tab-ind.on { background: var(--brand); }
+.tab.active .tab-badge { background: rgba(255, 255, 255, 0.9); }
+.tab.active .tab-badge-text { color: var(--brand); }
+.tab-ind { display: none; }
 
 /* ── 列表 ── */
 .content { padding: 24rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.ledger {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 20rpx;
+  min-height: 128rpx; padding: 22rpx 24rpx; box-sizing: border-box;
+  border: 1rpx solid rgba(201, 169, 110, 0.34); border-radius: 24rpx;
+  background: linear-gradient(118deg, rgba(255,255,255,0.98), rgba(246,239,226,0.92));
+  box-shadow: 0 8rpx 24rpx rgba(83, 58, 34, 0.06);
+}
+.ledger-seal { width: 72rpx; height: 72rpx; flex-shrink: 0; border: 3rpx double var(--brand); border-radius: 14rpx; display: flex; align-items: center; justify-content: center; transform: rotate(-3deg); background: rgba(196,30,58,0.04); }
+.ledger-seal-text { font-family: 'STKaiti', 'KaiTi', serif; font-size: 42rpx; font-weight: 700; color: var(--brand); }
+.ledger-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.ledger-title { font-family: 'Songti SC', 'STSong', serif; font-size: 30rpx; font-weight: 700; letter-spacing: 2rpx; color: var(--text-strong, #2c2c2c); }
+.ledger-sub { font-size: 22rpx; color: var(--text-soft, #999); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ledger-pending { min-width: 72rpx; display: flex; flex-direction: column; align-items: flex-end; }
+.ledger-num { font-family: Georgia, serif; font-size: 40rpx; line-height: 1; font-weight: 700; color: var(--brand); }
+.ledger-label { margin-top: 8rpx; font-size: 20rpx; color: var(--text-soft, #999); }
 
 /* ── 订单卡 ── */
-.order-card { background: var(--surface, #fff); border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 8rpx rgba(44, 44, 44, 0.03); }
-.card-head { display: flex; align-items: center; justify-content: space-between; padding: 22rpx 24rpx; }
+.order-card { position: relative; background: var(--surface, #fff); border: 1rpx solid rgba(201, 169, 110, 0.2); border-radius: 24rpx; overflow: hidden; box-shadow: 0 8rpx 24rpx rgba(68, 47, 31, 0.05); }
+.card-accent { position: absolute; top: 0; left: 0; right: 0; height: 4rpx; z-index: 2; background: linear-gradient(90deg, var(--brand), var(--gold, #c9a96e), transparent 78%); }
+.card-head { display: flex; align-items: center; justify-content: space-between; padding: 26rpx 24rpx 20rpx; background: linear-gradient(180deg, rgba(250,248,245,0.78), rgba(255,255,255,0)); }
 .head-source { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
 .source-ico { width: 44rpx; height: 44rpx; border-radius: 12rpx; background: var(--brand-soft, rgba(196,30,58,0.08)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .source-name { font-size: 26rpx; font-weight: 600; color: var(--text-strong, #2c2c2c); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

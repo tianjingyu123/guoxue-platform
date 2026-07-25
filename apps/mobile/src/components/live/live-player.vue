@@ -14,13 +14,14 @@
       autoplay
       muted
       :controls="false"
-      :object-fit="objectFit"
+      :object-fit="h5ObjectFit"
+      :style="{ objectFit: h5ObjectFit, objectPosition: 'center' }"
       webkit-playsinline
       playsinline
     />
     <!-- H5 静音解除（P1 修复）：video 写死 muted 过 autoplay 策略，此前从未解除→观众全程无声。
          首帧起播后先尝试有声自动播，被浏览器策略拦截才显示此胶囊，点击（手势上下文）解除静音 -->
-    <view v-if="showUnmuteTip" class="lp-unmute" @tap.stop="onUnmuteTap">
+    <view v-if="!mutedOnly && showUnmuteTip" class="lp-unmute" @tap.stop="onUnmuteTap">
       <text class="lp-unmute-txt">🔊 点击开启声音</text>
     </view>
     <!-- #endif -->
@@ -30,7 +31,7 @@
       :src="lpSrc"
       mode="live"
       autoplay
-      :object-fit="objectFit"
+      :object-fit="nativeObjectFit"
       :enable-auto-rotation="false"
       background-mute
       class="lp-media"
@@ -39,7 +40,7 @@
     />
     <!-- #endif -->
 
-    <view v-if="loadError" class="lp-error" @tap="retry">
+    <view v-if="loadError && showError" class="lp-error" @tap="retry">
       <text class="lp-error-txt">直播加载失败，点击重试</text>
     </view>
   </view>
@@ -49,11 +50,22 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, getCurrentInstance } from 'vue'
 
 const props = withDefaults(
-  defineProps<{ flvUrl?: string; hlsUrl?: string; objectFit?: 'contain' | 'fillCrop' | 'cover' }>(),
-  { objectFit: 'contain' },
+  defineProps<{
+    flvUrl?: string
+    hlsUrl?: string
+    objectFit?: 'contain' | 'fillCrop' | 'cover'
+    /** 信息流预览只允许静音，不尝试自动开声，也不显示开声提示。 */
+    mutedOnly?: boolean
+    /** 是否显示播放器自身错误层；信息流卡片关闭后由封面静态兜底。 */
+    showError?: boolean
+  }>(),
+  { objectFit: 'contain', mutedOnly: false, showError: true },
 )
+const emit = defineEmits<{ ready: []; error: [] }>()
 
 const loadError = ref(false)
+const h5ObjectFit = computed(() => props.objectFit === 'fillCrop' ? 'cover' : props.objectFit)
+const nativeObjectFit = computed(() => props.objectFit === 'cover' ? 'fillCrop' : props.objectFit)
 
 // 小程序/App：live-player 优先 FLV（低延时），无则退 HLS
 const lpSrc = computed(() => props.flvUrl || props.hlsUrl || '')
@@ -101,9 +113,11 @@ function onStateChange(e: any) {
   } else if (code === 2004) {
     resetRetry()
     loadError.value = false
+    emit('ready')
   }
 }
 function onLpError() {
+  emit('error')
   // #ifdef MP-WEIXIN || APP-PLUS
   mpReconnect()
   // #endif
@@ -125,6 +139,11 @@ let unmuteAttempted = false
 
 /** 首帧起播（playing 事件）：仍处静音则尝试有声自动播 */
 function onFirstFrame() {
+  emit('ready')
+  if (props.mutedOnly) {
+    showUnmuteTip.value = false
+    return
+  }
   if (mediaEl?.muted) {
     if (unmuteAttempted) return // 已自动尝试过 → 保持胶囊提示，等用户手动点击，不再自动重试
     unmuteAttempted = true

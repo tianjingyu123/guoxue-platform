@@ -241,14 +241,12 @@ export class LiveController {
   }
 
   @Get("rooms/:id/play-url")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "获取观众拉流地址" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "获取公开直播的观众拉流地址（可选登录）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  playUrl(@Param("id") id: string, @Req() req: AuthRequest) {
-    return this.svc.getPlayUrl(id, req.user.id);
+  playUrl(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.getPlayUrl(id, req.user?.id);
   }
 
   @Put("rooms/:id/end")

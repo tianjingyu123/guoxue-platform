@@ -4,7 +4,7 @@ import type { RecommendItem } from '@/components/common/recommend-section.vue'
 /**
  * 全平台统一「相关推荐 / 猜你喜欢」数据层。
  * 后端真源：GET /recommend/:scene（智能推荐模块，按 scene + contentId 召回）。
- * 注意：该端点受功能开关 `recommend_engine` 门禁，未开启时后端返回 404；
+ * 注意：该端点受唯一正式功能开关 `recommend_algorithm` 门禁，未开启时后端返回 404；
  *       本层统一 try/catch 降级为空数组，recommend-section 组件 items 为空时自动不渲染（诚实降级）。
  */
 

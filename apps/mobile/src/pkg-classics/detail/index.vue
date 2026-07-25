@@ -144,12 +144,21 @@
       <view class="cd-sec cd-comments">
         <view class="cd-sec-head">
           <text class="cd-sec-title">书友评论</text>
-          <text v-if="commentCount > 0" class="cd-sec-meta">{{ commentCount }} 条</text>
+          <view class="cd-comment-head-actions">
+            <text v-if="commentCount > 0" class="cd-sec-meta">{{ commentCount }} 条</text>
+            <view class="cd-comment-trigger" hover-class="cd-comment-trigger--press" @click="openCommentInput">
+              <app-icon name="message-circle" :size="26" color="#c41e3a" />
+              <text class="cd-comment-trigger-text">写评论</text>
+            </view>
+          </view>
         </view>
         <view class="cd-card cd-comments-card">
           <comment-section
             target-type="CLASSIC_BOOK"
             :target-id="book.id"
+            deferred-input
+            :open-signal="commentInputSignal"
+            no-pad
             @count-change="commentCount = $event"
           />
         </view>
@@ -210,8 +219,13 @@ const isInBookshelf = ref(false)
 const lastChapterId = ref('')
 // 书友评论总数（由统一评论组件 count-change 回传，用于小节头「N 条」）
 const commentCount = ref(0)
+const commentInputSignal = ref(0)
 const expandedChapters = ref<Set<string>>(new Set())
 const showAllChapters = ref(false)
+
+function openCommentInput() {
+  commentInputSignal.value += 1
+}
 
 const displayedChapters = computed(() =>
   book.value ? (showAllChapters.value ? book.value.chapters : book.value.chapters.slice(0, 6)) : [],
@@ -284,7 +298,10 @@ onShareTimeline(() => toTimeline({
 
 function toggleChapter(id: string) {
   const next = new Set(expandedChapters.value)
-  next.has(id) ? next.delete(id) : next.add(id)
+  if (next.has(id))
+    next.delete(id)
+  else
+    next.add(id)
   expandedChapters.value = next
 }
 
@@ -406,11 +423,12 @@ async function toBook(id: string) {
 
 <style scoped>
 .cd-page {
+  --cd-action-bar-height: 128rpx;
   min-height: 100vh;
   background: var(--classics-bg);
-  /* 底部两层固定条（操作栏 ~128rpx+安全区 + 评论输入条 ~106rpx）都要让出来 */
-  padding-bottom: calc(280rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(280rpx + env(safe-area-inset-bottom));
+  /* 古籍为沉浸式独立板块，仅为自身阅读操作栏和设备安全区留位。 */
+  padding-bottom: calc(var(--cd-action-bar-height) + 48rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(var(--cd-action-bar-height) + 48rpx + env(safe-area-inset-bottom));
 }
 .cd-main {
   max-width: 1280rpx;
@@ -678,6 +696,9 @@ async function toBook(id: string) {
 .cd-related-sec {
   padding-left: 0;
   padding-right: 0;
+  /* 阅读操作栏为 fixed；末段上移时先留出一段缓冲，
+   * 避免「相关推荐」标题及封面顶部贴进固定栏下方而显示不全。 */
+  padding-top: 80rpx;
 }
 .cd-related-title {
   display: block;
@@ -719,17 +740,36 @@ async function toBook(id: string) {
   white-space: nowrap;
 }
 /* ── 统一评论组件与页面固定操作栏共存 ──
- * comment-section 的吸底输入条恒为 fixed（组件未透传 :fixed），而本页已有
- * .cd-bottom 固定操作栏（z-index 40）压在同一 bottom:0 上。
- * 处理：把输入条整体抬到操作栏之上（bottom = 操作栏高 128rpx + 安全区），
- * z-index 39 低于操作栏——「开始阅读/加入书架」始终在最底层完整可点，不被输入条盖住。 */
+ * 评论输入条临时展开时，抬到阅读操作栏上方并留出呼吸间距，避免相互遮挡。 */
 .cd-comments-card {
   padding: 8rpx 28rpx 20rpx;
 }
+.cd-comment-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.cd-comment-trigger {
+  min-height: 64rpx;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, .08);
+  border: 1rpx solid rgba(196, 30, 58, .14);
+}
+.cd-comment-trigger--press { opacity: .72; transform: scale(.98); }
+.cd-comment-trigger-text {
+  color: var(--brand);
+  font-size: 24rpx;
+  font-weight: 600;
+}
 .cd-comments :deep(.cib--fixed) {
-  bottom: calc(128rpx + constant(safe-area-inset-bottom));
-  bottom: calc(128rpx + env(safe-area-inset-bottom));
-  z-index: 39;
+  bottom: calc(var(--cd-action-bar-height) + 16rpx + constant(safe-area-inset-bottom));
+  bottom: calc(var(--cd-action-bar-height) + 16rpx + env(safe-area-inset-bottom));
+  z-index: 46;
   /* 不再贴屏幕底缘，安全区由下方操作栏承担，避免双重加高 */
   padding-bottom: 16rpx;
 }
@@ -744,12 +784,13 @@ async function toBook(id: string) {
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 40;
+  z-index: 45;
   background: color-mix(in srgb, var(--classics-bg) 90%, transparent);
   backdrop-filter: blur(20rpx);
   -webkit-backdrop-filter: blur(20rpx);
   border-top: 2rpx solid var(--border);
   padding: 16rpx 40rpx;
+  padding-bottom: calc(16rpx + constant(safe-area-inset-bottom));
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
 }
 .cd-bottom-row {

@@ -221,7 +221,14 @@ export class AuthService {
   }
 
   async wechatLogin(dto: WechatLoginDto) {
-    if (!process.env.WECHAT_APP_ID || !process.env.WECHAT_APP_SECRET) {
+    const isMiniProgram = dto.loginType === "miniprogram";
+    const appId = isMiniProgram
+      ? process.env.WECHAT_MINI_APP_ID || process.env.MINIPROGRAM_APP_ID || process.env.WECHAT_MP_APP_ID || process.env.WECHAT_APP_ID
+      : process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID;
+    const appSecret = isMiniProgram
+      ? process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET
+      : process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET;
+    if (!appId || !appSecret) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "微信登录未配置，请联系管理员");
     }
 
@@ -230,7 +237,7 @@ export class AuthService {
     let unionId: string | undefined;
 
     try {
-      if (dto.loginType === "miniprogram") {
+      if (isMiniProgram) {
         const session = await this.wechat.exchangeMiniCode(dto.code);
         openId = session.openId;
         unionId = session.unionId;

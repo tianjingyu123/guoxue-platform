@@ -3,7 +3,10 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RecommendService } from "./recommend.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { RedisService } from "../../redis/redis.service";
-import { isPublicContentQuarantined } from "../../common/public-content-quarantine";
+import {
+  isPublicContentQuarantined,
+  publicQuarantinedIds,
+} from "../../common/public-content-quarantine";
 
 /**
  * 首页聚合瀑布流「九类卡统一信封」。
@@ -11,7 +14,7 @@ import { isPublicContentQuarantined } from "../../common/public-content-quaranti
  * 旧字段（id/type/title/subtitle/cover/score/reason）全部保留，向后兼容既有前端消费方；
  * 新增字段（coverRatio/author/metric/payload）均为可选，供九类卡片渲染差异化信息。
  *
- * type 九类：video 短视频 / article 文章 / post 圈子帖 / course 课程 / product 商品 /
+ * type 九类：video 短视频 / article 文章 / post 圈子帖（仅历史兼容，不进入平台流） / course 课程 / product 商品 /
  *   classic 古籍 / live 直播 / paipan 排盘钩子卡 / agent 智能体引导卡。
  * circle、ebook 保留仅作历史兼容（首页帖子统一走 post；电子书板块已下线）。
  */
@@ -99,16 +102,10 @@ const CLASSIC_SELECT = {
   title: true,
   intro: true,
   cover: true,
+  author: true,
+  dynasty: true,
+  category: true,
   viewCount: true,
-} as const;
-
-const POST_SELECT = {
-  id: true,
-  title: true,
-  content: true,
-  images: true,
-  user: { select: { nickname: true, avatar: true } },
-  circle: { select: { name: true } },
 } as const;
 
 const PRODUCT_SELECT = {
@@ -118,7 +115,18 @@ const PRODUCT_SELECT = {
   images: true,
   price: true,
   originalPrice: true,
+  stock: true,
+  salesCount: true,
+  tags: true,
+  sceneTags: true,
 } as const;
+
+/** 当前生产种子商品的项目内方形首图；真实 images 写入后自动优先使用真实数据。 */
+const PRODUCT_SEED_COVERS: Record<string, string> = {
+  "a560eb0f-2c5b-4c90-a10c-025d1738804a": "/h5/static/images/products/wenfang-set.webp",
+  "7722247e-f20f-475e-80dd-33c1ba283568": "/h5/static/images/products/classics-audio-player.webp",
+  "58cae0ba-1dff-4945-b235-d16f5672e8c3": "/h5/static/images/products/zisha-tea-set.webp",
+};
 
 // ─── 规模化缓存参数（抗 10 万 DAU·首页最高频接口·见下方缓存 key 论证） ───
 /**
@@ -243,7 +251,7 @@ export class SmartFeedService {
       items = [...items.filter((i) => !isLow(i)), ...items.filter(isLow)];
     }
 
-    // 运营固定卡注入（paipan 排盘钩子 + agent 智能体引导）：仅在有内容卡时注入，
+    // 运营固定卡注入（真实学习型智能体）：仅在有内容卡时注入，
     // 空 feed（未登录降级/mock 无源）不注入，避免首页只剩两张工具卡。
     if (items.length > 0) {
       items = this.injectHookCards(items);
@@ -270,13 +278,13 @@ export class SmartFeedService {
   async getAnonymousFeed(page = 1, pageSize = 20): Promise<SmartFeedResult> {
     const timeSlot = this.resolveTimeSlot();
     // 广口径池为全平台共享热门（getBroadFeed 无 userId 参数），全局 key 缓存·无串味
-    let items = await this.cached(`smartfeed:pool:broad:${pageSize}`, POOL_TTL, () => this.getBroadFeed(pageSize)); // 广口径 7 类·首页展示全部卡片形态
+    let items = await this.cached(`smartfeed:pool:broad:${pageSize}`, POOL_TTL, () => this.getBroadFeed(pageSize)); // 广口径 6 类公开内容
     items = this.excludePublicQuarantine(items);
     // 游客可见内容控制：后台配置 ConfigSystem.guest.visibleTypes（JSON 类型白名单）·空/未配 = 全部可见
     const allow = await this.getGuestVisibleTypes();
     if (allow) items = items.filter((i) => allow.has(i.type));
     items = this.applyTimeSlotWeight(items, timeSlot);
-    // 钩子卡（排盘/智能体）也受游客白名单约束
+    // 智能体钩子卡也受游客白名单约束
     if (items.length > 0) items = this.injectHookCards(items, allow);
     items = this.enforceMixDiscipline(items);
     return {
@@ -309,19 +317,25 @@ export class SmartFeedService {
   }
 
   /**
-   * 按类别取内容 feed（发现页分区用·统一信封）。type ∈ course/classic/video/live/article/post/product。
+   * 按类别取内容 feed（发现页分区用·统一信封）。公开类型为 course/classic/video/live/article/product。
+   * 历史 post 参数保留兼容，但固定返回空数组。
    * 复用各类型查询与 mapXxx 映射，返回该类别的一页 FeedItem[]（分页）。
    */
   async getCategoryFeed(type: string, page = 1, size = 6): Promise<FeedItem[]> {
     // 分类 feed 为全平台共享热门（按 viewCount/studentCount 排序·无用户私有数据），
     // 全局 key 按 type/page/size 缓存，无跨用户串味。
-    const items = await this.cached(`smartfeed:cat:${type}:${page}:${size}`, CATEGORY_TTL, () => this.computeCategoryFeed(type, page, size));
+    const items = await this.cached(`smartfeed:cat:v4:${type}:${page}:${size}`, CATEGORY_TTL, () => this.computeCategoryFeed(type, page, size));
     return this.excludePublicQuarantine(items);
   }
 
-  /** 统一信封出口兜底：覆盖个性化推荐与旧缓存，未知类型 fail-open。 */
+  /** 平台流统一出口兜底：圈帖永不出圈；同时覆盖个性化推荐与旧缓存。 */
   private excludePublicQuarantine(items: FeedItem[]): FeedItem[] {
-    return items.filter((item) => !isPublicContentQuarantined(item.type, item.id));
+    return items.filter(
+      (item) =>
+        item.type !== "post" &&
+        (item.type !== "article" || Boolean(item.cover?.trim())) &&
+        !isPublicContentQuarantined(item.type, item.id),
+    );
   }
 
   private async computeCategoryFeed(type: string, page = 1, size = 6): Promise<FeedItem[]> {
@@ -337,16 +351,16 @@ export class SmartFeedService {
           return rows.map((b) => this.mapClassic(b, "经典古籍"));
         }
         case "article": {
-          const rows = await this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: ARTICLE_SELECT, orderBy: { viewCount: "desc" }, take: size, skip });
+          const rows = await this.prisma.article.findMany({ where: { id: { notIn: publicQuarantinedIds("article") }, auditStatus: "APPROVED", visibility: "PLATFORM", cover: { not: "" } }, select: ARTICLE_SELECT, orderBy: { viewCount: "desc" }, take: size, skip });
           return rows.map((a) => this.mapArticle(a, "热门文章"));
         }
         case "product": {
-          const rows = await this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: size, skip });
+          const rows = await this.prisma.product.findMany({ where: { id: { notIn: publicQuarantinedIds("product") }, status: "ON_SALE" }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: size, skip });
           return rows.map((p) => this.mapProduct(p, "严选好物"));
         }
         case "post": {
-          const rows = await this.prisma.post.findMany({ where: { status: "PUBLISHED", isEssence: true }, select: POST_SELECT, orderBy: { createdAt: "desc" }, take: size, skip });
-          return rows.map((p) => this.mapPost(p, "圈内精华"));
+          // 保留历史 type 的接口兼容，但圈帖只允许在所属圈子内展示。
+          return [];
         }
         case "video":
           return this.getVideoItems(size, "热门短视频", skip);
@@ -463,7 +477,7 @@ export class SmartFeedService {
     const quarter = Math.floor(size / 4);
     const [articles, courses, classics, videos] = await Promise.all([
       this.prisma.article.findMany({
-        where: { auditStatus: "APPROVED" },
+        where: { auditStatus: "APPROVED", visibility: "PLATFORM", cover: { not: "" } },
         select: ARTICLE_SELECT,
         orderBy: { viewCount: "desc" },
         take: quarter,
@@ -492,14 +506,14 @@ export class SmartFeedService {
   }
 
   /**
-   * 广口径混排（游客/预览首页用）：7 类内容全覆盖（文章/课程/古籍/视频/直播/商品/精华帖），
-   * 确保首页能展示全部卡片形态。仅 getAnonymousFeed 使用，不影响登录分层策略与其测试。
+   * 广口径混排（游客/预览首页用）：6 类公开内容（文章/课程/古籍/视频/直播/商品）。
+   * 圈帖不进入平台混排。仅 getAnonymousFeed 使用，不影响登录分层策略与其测试。
    */
   private async getBroadFeed(size: number): Promise<FeedItem[]> {
     // 圈子帖不出圈：平台混排仅含文章/课程/古籍/视频/直播/商品 6 类（不含 post）
     const per = Math.max(2, Math.floor(size / 6));
     const [articles, courses, classics, videos, lives, products] = await Promise.all([
-      this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: ARTICLE_SELECT, orderBy: { viewCount: "desc" }, take: per }),
+      this.prisma.article.findMany({ where: { auditStatus: "APPROVED", visibility: "PLATFORM", cover: { not: "" } }, select: ARTICLE_SELECT, orderBy: { viewCount: "desc" }, take: per }),
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: COURSE_SELECT, orderBy: { studentCount: "desc" }, take: per }),
       this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: CLASSIC_SELECT, orderBy: { viewCount: "desc" }, take: per }),
       this.getVideoItems(per, "为你推荐"),
@@ -527,7 +541,7 @@ export class SmartFeedService {
         take: quarter,
       }),
       this.prisma.article.findMany({
-        where: { auditStatus: "APPROVED" },
+        where: { auditStatus: "APPROVED", visibility: "PLATFORM", cover: { not: "" } },
         select: ARTICLE_SELECT,
         orderBy: { viewCount: "desc" },
         take: quarter,
@@ -741,23 +755,13 @@ export class SmartFeedService {
       score: 0,
       reason,
       coverRatio: "3:4",
+      author: b.author ? { name: b.author } : undefined,
       metric: { kind: "readers", value: this.toNum(b.viewCount) },
-    };
-  }
-
-  private mapPost(p: any, reason: string): FeedItem {
-    const cover = Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : "";
-    return {
-      id: p.id,
-      type: "post",
-      title: p.title || "精华帖",
-      subtitle: (p.content || "").slice(0, 100),
-      cover,
-      score: 0,
-      reason,
-      coverRatio: "1:1",
-      author: p.user ? { name: p.user.nickname, avatar: p.user.avatar || undefined } : undefined,
-      payload: p.circle?.name ? { circleName: p.circle.name } : undefined,
+      payload: {
+        author: b.author || "",
+        dynasty: b.dynasty || "",
+        category: b.category || "",
+      },
     };
   }
 
@@ -769,12 +773,19 @@ export class SmartFeedService {
       type: "product",
       title: p.title,
       subtitle: p.intro || "",
-      cover: p.images?.[0] || "",
+      cover: p.images?.[0] || PRODUCT_SEED_COVERS[p.id] || "",
       score: 0,
       reason,
       coverRatio: "1:1",
       metric: { kind: "price", value: price },
-      payload: { price, originalPrice },
+      payload: {
+        price,
+        originalPrice,
+        salesCount: this.toNum(p.salesCount),
+        stock: this.toNum(p.stock),
+        // 商品卡标签只展示商家在发布端填写的 tags；sceneTags 仅用于推荐检索，不混入消费者文案。
+        tags: Array.isArray(p.tags) ? p.tags.slice(0, 2) : [],
+      },
     };
   }
 
@@ -836,39 +847,68 @@ export class SmartFeedService {
   private async getLiveItems(take: number, reason: string, skip = 0): Promise<FeedItem[]> {
     if (take <= 0) return [];
     try {
-      const lives = await this.prisma.liveRoom.findMany({
-        where: {
-          status: { in: ["LIVING", "WAITING"] },
-          visibility: "PLATFORM",
-          auditStatus: "APPROVED",
-        },
-        select: {
-          id: true,
-          title: true,
-          cover: true,
-          status: true,
-          viewCount: true,
-          user: { select: { nickname: true, avatar: true } },
-        },
-        orderBy: [{ status: "asc" }, { viewCount: "desc" }],
-        take,
-        skip,
-      });
+      const select = {
+        id: true,
+        title: true,
+        cover: true,
+        status: true,
+        viewCount: true,
+        startTime: true,
+        replayUrl: true,
+        user: { select: { nickname: true, avatar: true } },
+      } as const;
+      const limit = take + skip;
+      const baseWhere = { visibility: "PLATFORM", auditStatus: "APPROVED" } as const;
+      // 按业务优先级分桶查询，避免 Prisma 按 LiveStatus 枚举顺序把 WAITING 排在 LIVING 前面。
+      // 预告进入公共流前必须已有首图和介绍；回放必须已有可播放录像。
+      const [living, waiting, replays] = await Promise.all([
+        this.prisma.liveRoom.findMany({
+          where: { ...baseWhere, status: "LIVING" },
+          select,
+          orderBy: { viewCount: "desc" },
+          take: limit,
+        }),
+        this.prisma.liveRoom.findMany({
+          where: {
+            ...baseWhere,
+            status: "WAITING",
+            cover: { not: "" },
+            description: { not: "" },
+          },
+          select,
+          orderBy: [{ startTime: "asc" }, { viewCount: "desc" }],
+          take: limit,
+        }),
+        this.prisma.liveRoom.findMany({
+          where: { ...baseWhere, status: "REPLAY", replayUrl: { not: "" } },
+          select,
+          orderBy: { viewCount: "desc" },
+          take: limit,
+        }),
+      ]);
+      const lives = [...living, ...waiting, ...replays].slice(skip, skip + take);
       return lives.map((l: any): FeedItem => {
-        const isLive = l.status === "LIVING";
+        const status = l.status === "LIVING" ? "live" : l.status === "REPLAY" ? "replay" : "upcoming";
+        const isLive = status === "live";
         const viewers = this.toNum(l.viewCount);
         return {
           id: l.id,
           type: "live",
           title: l.title,
-          subtitle: isLive ? "正在直播中" : "直播预告",
+          subtitle: isLive ? "正在直播中" : status === "replay" ? "直播回放" : "直播预告",
           cover: l.cover || "",
           score: 0,
           reason,
           coverRatio: "4:3",
           author: l.user ? { name: l.user.nickname, avatar: l.user.avatar || undefined } : undefined,
           metric: { kind: "view", value: viewers },
-          payload: { isLive, viewers },
+          payload: {
+            isLive,
+            status,
+            viewers,
+            scheduledTime: l.startTime?.toISOString?.() || l.startTime || "",
+            replayUrl: status === "replay" ? l.replayUrl || "" : "",
+          },
         };
       });
     } catch (err) {
@@ -880,45 +920,42 @@ export class SmartFeedService {
   /**
    * 注入运营固定卡：paipan 排盘钩子卡（靠前·前三屏必出）+ agent 智能体引导卡。
    *
-   * 非内容表，用常量运营文案（不造假数据）。paipan 插入到列表靠前位置（第 3 位·首屏内），
-   * agent 插入到稍后位置（第 8 位左右），两者错开避免工具卡相邻；后续 enforceMixDiscipline
+   * 使用已上线 BotConfig 的真实 ID，首页卡片点击直接进入对应智能体对话。
+   * 学习规划师插入到列表靠前位置（第 3 位·首屏内），古籍句读助手插入到稍后位置（第 8 位左右）；
+   * 两者错开避免智能体卡相邻，后续 enforceMixDiscipline
    * 再统一保证一屏窗口内工具卡不超过 1 张。
    */
   private injectHookCards(items: FeedItem[], allow?: Set<FeedItem["type"]> | null): FeedItem[] {
-    const paipanCard: FeedItem = {
-      id: "hook-paipan",
-      type: "paipan",
-      title: "今日运势 · 一测便知",
-      subtitle: "结合生辰八字，看看你的今日宜忌与运程",
-      score: 0,
-      reason: "每日一测",
-      coverRatio: "4:3",
-      metric: { kind: "action", value: "测一测" },
-      payload: { hint: "宜忌 · 运程 · 每日更新", action: "测一测" },
-    };
-    const agentCard: FeedItem = {
-      id: "hook-agent",
+    const learningGuideCard: FeedItem = {
+      id: "b1000001-0000-0000-0000-000000000008",
       type: "agent",
-      title: "国学智能体 · 有问必答",
-      subtitle: "「我的本命卦象是什么？」——问问 AI 国学助手",
+      title: "国学学习规划师",
+      subtitle: "按兴趣、基础和可用时间，制定经典阅读路线与每周学习计划",
       score: 0,
-      reason: "智能问答",
+      reason: "学习成长",
       coverRatio: "4:3",
-      metric: { kind: "action", value: "问一问" },
-      payload: { question: "我的本命卦象是什么？", action: "问一问" },
+      metric: { kind: "action", value: "开始规划" },
+      payload: { category: "学习成长", action: "开始对话" },
+    };
+    const classicsAgentCard: FeedItem = {
+      id: "b1000001-0000-0000-0000-000000000001",
+      type: "agent",
+      title: "古籍句读助手",
+      subtitle: "断句、释词、通译与出处核对，把难读古文拆成可理解的知识卡",
+      score: 0,
+      reason: "经典研读",
+      coverRatio: "4:3",
+      metric: { kind: "action", value: "开始学习" },
+      payload: { category: "经典研读", action: "开始对话" },
     };
 
     const result = [...items];
-    // 游客白名单约束：paipan/agent 不在允许类型内则不注入（受"游客可见内容"控制）
-    if (!allow || allow.has("paipan")) {
-      // paipan 靠前：插到第 3 位（首屏内·前三屏必出）；列表过短则追加到末尾。
-      const paipanPos = Math.min(2, result.length);
-      result.splice(paipanPos, 0, paipanCard);
-    }
+    // 游客白名单约束：agent 不在允许类型内则不注入（受“游客可见内容”控制）
     if (!allow || allow.has("agent")) {
-      // agent 稍后：插到第 8 位左右，与 paipan 错开一屏。
-      const agentPos = Math.min(7, result.length);
-      result.splice(agentPos, 0, agentCard);
+      const guidePos = Math.min(2, result.length);
+      result.splice(guidePos, 0, learningGuideCard);
+      const classicsPos = Math.min(7, result.length);
+      result.splice(classicsPos, 0, classicsAgentCard);
     }
     return result;
   }

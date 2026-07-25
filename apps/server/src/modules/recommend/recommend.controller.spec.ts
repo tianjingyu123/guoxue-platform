@@ -7,6 +7,8 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { FEATURE_FLAG_KEY } from "../../common/feature-flag.decorator";
+import { RECOMMEND_FEATURE_FLAG } from "./recommend-feature.constants";
 
 const mockRecommendSvc = {
   logInteractions: jest.fn().mockResolvedValue({ success: true }),
@@ -71,6 +73,19 @@ describe("RecommendController", () => {
     const req: any = { user: { id: "u1" } };
     const result: any = await ctrl.personalized(req);
     expect(result).toHaveLength(1);
+  });
+
+  it("推荐门禁统一使用生产正式开关 recommend_algorithm", () => {
+    const guardedHandlers = [
+      RecommendController.prototype.personalized,
+      RecommendController.prototype.insertContent,
+      RecommendController.prototype.recommend,
+    ];
+
+    for (const handler of guardedHandlers) {
+      expect(Reflect.getMetadata(FEATURE_FLAG_KEY, handler)).toBe(RECOMMEND_FEATURE_FLAG);
+    }
+    expect(RECOMMEND_FEATURE_FLAG).toBe("recommend_algorithm");
   });
 
   it("GET /recommend/interests/defaults — 默认兴趣标签", async () => {

@@ -91,8 +91,6 @@ const labelStyle = computed(() => ({
       </view>
     </view>
 
-    <!-- 右下朱印点缀 -->
-    <view class="fc-seal" />
   </view>
 </template>
 
@@ -264,22 +262,9 @@ const labelStyle = computed(() => ({
 .fc-footer {
   font-size: 20rpx;
   max-width: 100%;
-  padding-right: 26rpx; /* 让出右下朱印位 */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   box-sizing: border-box;
-}
-/* 右下朱印：一方小小的朱红印章点缀 */
-.fc-seal {
-  position: absolute;
-  right: 12rpx;
-  bottom: 12rpx;
-  width: 14rpx;
-  height: 14rpx;
-  border-radius: 3rpx;
-  background: #b23a2a;
-  opacity: 0.85;
-  pointer-events: none;
 }
 </style>

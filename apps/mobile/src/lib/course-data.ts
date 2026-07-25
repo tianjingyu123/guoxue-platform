@@ -185,6 +185,8 @@ function adaptCourseCard(c: RawCourse): Course {
     title: c.title || '',
     cover: c.cover || '',
     coverRatio: '1:1',
+    intro: c.intro || '',
+    category: c.categoryLevel1 || c.circle?.name || '',
     price,
     originalPrice: orig || price,
     free: price === 0,
@@ -193,7 +195,6 @@ function adaptCourseCard(c: RawCourse): Course {
     rating: 0, // 列表无评分，详情页另取
     teacher: c.user?.nickname || '',
     teacherAvatar: c.user?.avatar || '',
-    category: c.categoryLevel1 || c.circle?.name || '',
     isNew: false,
     flashSale: orig > price && price > 0,
   }

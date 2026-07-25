@@ -7,6 +7,7 @@
   "transformPx": false,
   "app-plus": {
     "usingComponents": true,
+    "optimization": { "codeSplitting": true },
     "splashscreen": { "alwaysShowBeforeRender": true, "waiting": true },
     "modules": {},
     "distribute": {

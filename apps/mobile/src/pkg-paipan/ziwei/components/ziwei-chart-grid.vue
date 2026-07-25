@@ -2,9 +2,9 @@
 /**
  * 紫微斗数十二宫盘（自 V0 components/yijing/workspace/ziwei-chart.tsx 还原）
  * 经典 4×4 环形布局：外圈十二宫按地支定位，中宫 2×2 放命主信息 + 四化图例。
- * 交互：专业盘/精简盘切换；点宫高亮三方四正（或飞化落宫），再点弹宫位详情。
- * 取舍：V0 的 SVG 连线层小程序不支持，改为「高亮宫位 + 文字明细条」承载同等信息；
- *       星名竖排禁用 writing-mode（X5 红线），用每字一行的 flex column 实现。
+ * 交互：专业盘/精简盘切换；点宫查看三方四正或宫干飞化，再点弹宫位详情。
+ * H5/App 使用 SVG 呈现宫位关系，小程序保留高亮宫位 + 文字明细的兼容方案。
+ * 星名竖排禁用 writing-mode（X5 红线），用每字一行的 flex column 实现。
  */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -38,12 +38,37 @@ const selected = ref<number | null>(null)
 const detail = ref<ZiweiPalace | null>(null)
 /** 盘面密度：专业盘（全信息）/精简盘（只留主星+宫名，适合截图讲解） */
 const lite = ref(false)
-/** 连线模式：三合=三方四正；飞化=宫干四化落宫 */
+/** 关系模式：三合=三方四正；飞化=宫干四化落宫 */
 const lineMode = ref<'sanhe' | 'feihua'>('sanhe')
+
+interface PalacePoint {
+  x: number
+  y: number
+}
+
+interface PalaceLine extends PalacePoint {
+  key: string
+  x2: number
+  y2: number
+  color: string
+  dashed: boolean
+}
+
+const FEIHUA_LINE_COLORS: Record<(typeof HUA_LIST)[number], string> = {
+  禄: '#2e8b57',
+  权: '#b28a2e',
+  科: '#2c2c2c',
+  忌: '#c41e3a',
+}
 
 /** 三方四正：本宫 + 三合(+4/+8) + 对宫(+6) */
 function sanfangSizheng(i: number): number[] {
   return [i, (i + 4) % 12, (i + 6) % 12, (i + 8) % 12]
+}
+
+function palaceCenter(i: number): PalacePoint {
+  const pos = GRID_POS[i]
+  return { x: pos.c - 0.5, y: pos.r - 0.5 }
 }
 
 const highlightSet = computed<Set<number> | null>(() => {
@@ -52,6 +77,56 @@ const highlightSet = computed<Set<number> | null>(() => {
   const fh = props.chart.palaces[selected.value].feihua ?? []
   return new Set([selected.value, ...fh.map((f) => f.target)])
 })
+
+const relationLines = computed<PalaceLine[]>(() => {
+  const fromIdx = selected.value
+  if (fromIdx === null) return []
+  const from = palaceCenter(fromIdx)
+
+  if (lineMode.value === 'sanhe') {
+    return sanfangSizheng(fromIdx)
+      .filter((target) => target !== fromIdx)
+      .map((target) => {
+        const to = palaceCenter(target)
+        return {
+          key: `sanhe-${fromIdx}-${target}`,
+          ...from,
+          x2: to.x,
+          y2: to.y,
+          color: '#c41e3a',
+          dashed: true,
+        }
+      })
+  }
+
+  return (props.chart.palaces[fromIdx].feihua ?? [])
+    .filter((item) => item.target !== fromIdx)
+    .map((item) => {
+      const to = palaceCenter(item.target)
+      return {
+        key: `feihua-${fromIdx}-${item.hua}-${item.target}`,
+        ...from,
+        x2: to.x,
+        y2: to.y,
+        color: FEIHUA_LINE_COLORS[item.hua],
+        dashed: false,
+      }
+    })
+})
+
+const relationPoints = computed(() => {
+  const seen = new Set<string>()
+  return relationLines.value
+    .map((line) => ({ key: `${line.x2}-${line.y2}-${line.color}`, x: line.x2, y: line.y2, color: line.color }))
+    .filter((point) => {
+      const key = `${point.x}-${point.y}-${point.color}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+})
+
+const selectedPoint = computed(() => (selected.value === null ? null : palaceCenter(selected.value)))
 
 /** 选中提示条文字 */
 const selectedTip = computed(() => {
@@ -160,6 +235,55 @@ const detailIdx = computed(() => (detail.value ? props.chart.palaces.indexOf(det
         </view>
       </view>
 
+      <!-- #ifndef MP-WEIXIN -->
+      <!-- H5/App 宫位关系层；微信小程序使用下方高亮 + 文字明细兼容 -->
+      <svg
+        v-if="selectedPoint"
+        class="relation-layer"
+        viewBox="0 0 4 4"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <g v-for="line in relationLines" :key="line.key">
+          <line
+            :x1="line.x"
+            :y1="line.y"
+            :x2="line.x2"
+            :y2="line.y2"
+            class="relation-halo"
+            vector-effect="non-scaling-stroke"
+          />
+          <line
+            :x1="line.x"
+            :y1="line.y"
+            :x2="line.x2"
+            :y2="line.y2"
+            class="relation-stroke"
+            :class="{ 'relation-stroke-dashed': line.dashed }"
+            :stroke="line.color"
+            vector-effect="non-scaling-stroke"
+          />
+        </g>
+        <circle
+          v-for="point in relationPoints"
+          :key="point.key"
+          :cx="point.x"
+          :cy="point.y"
+          r="0.052"
+          class="relation-endpoint"
+          :fill="point.color"
+          vector-effect="non-scaling-stroke"
+        />
+        <circle
+          :cx="selectedPoint.x"
+          :cy="selectedPoint.y"
+          r="0.09"
+          class="relation-origin"
+          vector-effect="non-scaling-stroke"
+        />
+      </svg>
+      <!-- #endif -->
+
       <!-- 中宫 2×2：命主信息 + 四化图例 -->
       <view class="center" :style="{ gridColumn: '2 / 4', gridRow: '2 / 4' }">
         <text class="c-name">{{ chart.clientName }}<text class="c-gender"> {{ chart.gender }}命</text></text>
@@ -169,11 +293,16 @@ const detailIdx = computed(() => (detail.value ? props.chart.palaces.indexOf(det
         <view class="c-legend">
           <text v-for="h in HUA_LIST" :key="h" class="hua-badge hua-badge-lg" :class="huaClass(h)">{{ h }}</text>
         </view>
-        <text class="c-hint">点宫看三方四正 · 再点看详情</text>
+        <!-- #ifndef MP-WEIXIN -->
+        <text class="c-hint">点宫看连线 · 再点看详情</text>
+        <!-- #endif -->
+        <!-- #ifdef MP-WEIXIN -->
+        <text class="c-hint">点宫看关系 · 再点看详情</text>
+        <!-- #endif -->
       </view>
     </view>
 
-    <!-- 选中提示条：三合/飞化模式切换 + 明细 -->
+    <!-- 选中提示条：所有终端共享，兼顾小程序无 SVG 的关系阅读 -->
     <view v-if="selected !== null" class="tip">
       <view class="tip-head">
         <view class="tip-modes">
@@ -266,6 +395,7 @@ $serif: Georgia, 'Songti SC', serif;
 
 /* 盘面 */
 .grid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   grid-template-rows: repeat(4, 236rpx);
@@ -287,9 +417,42 @@ $serif: Georgia, 'Songti SC', serif;
 }
 .cell-ming { background: rgba(196, 30, 58, 0.06); }
 .cell-shen { background: rgba(201, 169, 110, 0.14); }
-.cell-dim { opacity: 0.3; }
+.cell-dim { opacity: 0.28; }
 .cell-sel { box-shadow: inset 0 0 0 4rpx var(--brand); }
 .cell-dx { box-shadow: inset 0 0 0 2rpx rgba(196, 30, 58, 0.45); }
+
+/* H5/App 关系线：白色描边隔开盘面文字，朱红虚线表三合，四色实线表飞化 */
+.relation-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+.relation-halo {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.94);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.relation-stroke {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.88;
+}
+.relation-stroke-dashed { stroke-dasharray: 7 5; }
+.relation-endpoint {
+  stroke: #fff;
+  stroke-width: 2;
+}
+.relation-origin {
+  fill: #fff;
+  stroke: var(--brand);
+  stroke-width: 3;
+}
 
 /* 星曜区 */
 .stars { display: flex; align-items: flex-start; gap: 8rpx; overflow: hidden; }

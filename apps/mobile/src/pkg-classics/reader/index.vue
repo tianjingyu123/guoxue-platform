@@ -303,11 +303,26 @@ function explainSelection() {
   selectedText.value = ''
   if (t) explain(t)
 }
+
+/** 卡片原位详情层内进入阅读器时，隐藏父页公共导航，给阅读器工具栏完整空间。 */
+function setParentReaderMode(active: boolean) {
+  // #ifdef H5
+  if (typeof window === 'undefined' || window.parent === window) return
+  try {
+    window.parent.document.documentElement.classList.toggle('gx-content-reader-open', active)
+  } catch {
+    // 非同源容器不直接操作父文档，阅读器本身仍可正常使用。
+  }
+  // #endif
+}
+
 onMounted(() => {
   if (typeof document !== 'undefined') document.addEventListener('selectionchange', handleSelection)
+  setParentReaderMode(true)
 })
 onUnmounted(() => {
   if (typeof document !== 'undefined') document.removeEventListener('selectionchange', handleSelection)
+  setParentReaderMode(false)
 })
 
 // ── 查词 ──
@@ -409,6 +424,7 @@ function goBack() {
 onHide(() => saveProgress())
 onUnload(() => {
   saveProgress()
+  setParentReaderMode(false)
   // 抽屉开着直接返回时还原滚动锁（H5 SPA 共享 document，残留会锁死其他页面）
   // #ifdef H5
   document.documentElement.style.overflow = ''
@@ -476,7 +492,7 @@ onLoad((q) => {
         <!-- 章节切换 -->
         <view class="rd-chapter-nav">
           <view class="rd-cn-btn" :class="{ 'rd-cn-disabled': !hasPrev }" @tap="goPrev">
-            <app-icon name="chevron-left" :size="32" :color="hasPrev ? brandColor : subColor" />
+            <app-icon name="chevron-left" :size="32" :color="hasPrev ? brandColor : subColor" compact />
             <text class="rd-cn-txt" :style="{ color: hasPrev ? brandColor : subColor }">上一章</text>
           </view>
           <text class="rd-cn-page">{{ curIndex + 1 }} / {{ chapters.length }}</text>

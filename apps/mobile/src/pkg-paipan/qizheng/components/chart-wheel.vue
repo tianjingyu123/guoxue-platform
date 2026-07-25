@@ -49,10 +49,13 @@ const WX_COLOR: Record<string, string> = {
   金: '#b45309', 木: '#15803d', 水: '#2563eb', 火: '#dc2626', 土: '#92661a', 日: '#dc2626', 月: '#2563eb',
 }
 
-/** 盘面基准显示宽度（px）。放大时 canvas 实际变大，外层 scroll-view 滚动查看 */
-const BASE = 340
+/** 盘面最大基准宽度（px）；窄屏按内容区真实宽度收缩，避免初始盘面被裁切。 */
+const BASE_MAX = 340
+const viewportPx = ref(BASE_MAX)
 const zoom = ref(1)
-const canvasPx = ref(BASE)
+const canvasPx = ref(BASE_MAX)
+const scrollLeft = ref(0)
+const scrollTop = ref(0)
 
 function zoomTo(next: number) {
   const z = Math.max(1, Math.min(3, Math.round(next * 2) / 2))
@@ -367,24 +370,41 @@ function draw(ctx: CanvasRenderingContext2D, px: number) {
 const failed = ref(false)
 
 async function render() {
-  const px = Math.round(BASE * zoom.value)
+  const px = Math.round(viewportPx.value * zoom.value)
+  const centerOffset = Math.max(0, Math.round((px - viewportPx.value) / 2))
   canvasPx.value = px
   await nextTick()
   try {
     await renderToCanvas('#qz-wheel', { width: px, height: px }, (ctx) => draw(ctx, px))
+    // 必须等画布扩宽后再定位；提前设置会被 scroll-view 按旧内容宽度钳回 0。
+    await nextTick()
+    scrollLeft.value = centerOffset
+    scrollTop.value = centerOffset
     failed.value = false
   } catch {
     failed.value = true
   }
 }
 
-onMounted(render)
+onMounted(() => {
+  const { windowWidth } = uni.getSystemInfoSync()
+  // 结果页主体左右各 40rpx；按真实可用宽度绘制 100% 初始盘面。
+  const contentWidth = Math.floor(windowWidth * (1 - 80 / 750))
+  viewportPx.value = Math.max(260, Math.min(BASE_MAX, contentWidth))
+  render()
+})
 watch(() => [props.result, props.highlightYear, zoom.value], render)
 </script>
 
 <template>
   <view class="wheel">
-    <scroll-view scroll-x scroll-y class="wheel-scroll" :style="{ height: BASE + 'px' }">
+    <scroll-view
+      scroll-x scroll-y class="wheel-scroll"
+      :show-scrollbar="false"
+      :scroll-left="scrollLeft"
+      :scroll-top="scrollTop"
+      :style="{ width: viewportPx + 'px', height: viewportPx + 'px' }"
+    >
       <canvas
         id="qz-wheel"
         canvas-id="qz-wheel"
@@ -415,9 +435,18 @@ watch(() => [props.result, props.highlightYear, zoom.value], render)
 </template>
 
 <style scoped lang="scss">
-.wheel { position: relative; }
-.wheel-scroll { width: 100%; }
-.wheel-canvas { display: block; }
+.wheel { position: relative; display: flex; flex-direction: column; align-items: center; }
+.wheel-scroll {
+  display: block;
+  align-self: center;
+  flex-shrink: 0;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1rpx rgba(201, 169, 110, 0.18);
+}
+.wheel-canvas { display: block; max-width: none; }
 
 .wheel-fallback { padding: 32rpx; text-align: center; }
 .wheel-fallback-text { font-size: 24rpx; color: var(--text-soft); }

@@ -194,8 +194,13 @@ export class HealthService {
   }
 
   private async checkWechatOpen(): Promise<HealthCheck> {
-    const appId = process.env.WECHAT_APP_ID;
-    if (!appId) return { status: "unconfigured" };
+    const hasOfficial =
+      !!(process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID) &&
+      !!(process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET);
+    const hasMiniProgram =
+      !!(process.env.WECHAT_MINI_APP_ID || process.env.MINIPROGRAM_APP_ID || process.env.WECHAT_MP_APP_ID || process.env.WECHAT_APP_ID) &&
+      !!(process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET);
+    if (!hasOfficial && !hasMiniProgram) return { status: "unconfigured" };
     try {
       const start = Date.now();
       const res = await fetch("https://api.weixin.qq.com/cgi-bin/token", {

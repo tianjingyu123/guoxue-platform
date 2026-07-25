@@ -9,6 +9,8 @@ describe("LogisticsService", () => {
   afterEach(() => {
     delete process.env.KUAIDI100_API_KEY;
     delete process.env.KUAIDI100_CUSTOMER;
+    delete process.env.KUAIDI100_CALLBACK_URL;
+    delete process.env.KUAIDI100_SALT;
     delete (global as any).fetch;
   });
 
@@ -244,6 +246,91 @@ describe("LogisticsService", () => {
         expect(result.tracks[0].status).toBe("默认文本");
         expect(result.tracks[0].location).toBe("");
       });
+    });
+  });
+
+  describe("轨迹订阅与回调", () => {
+    const prisma = { orderLogistics: { updateMany: jest.fn() } } as any;
+
+    beforeEach(() => {
+      process.env.KUAIDI100_API_KEY = "test-api-key";
+      process.env.KUAIDI100_CALLBACK_URL = "https://api.example.com/callback";
+      process.env.KUAIDI100_SALT = "callback-salt";
+      prisma.orderLogistics.updateMany.mockResolvedValue({ count: 1 });
+      svc = new LogisticsService(prisma);
+      fetchMock = jest.fn();
+      (global as any).fetch = fetchMock;
+      prisma.orderLogistics.updateMany.mockClear();
+    });
+
+    it("按官方协议发起订阅，并将重复订阅 501 视为成功", async () => {
+      fetchMock.mockResolvedValue({
+        json: jest.fn().mockResolvedValue({ result: false, returnCode: "501", message: "重复订阅" }),
+      });
+
+      const result = await svc.subscribeTrack("SF123", "顺丰");
+
+      expect(result).toMatchObject({ subscribed: true, configured: true, returnCode: "501" });
+      const [url, options] = fetchMock.mock.calls[0] as [string, { method: string; body: string }];
+      expect(url).toBe("https://poll.kuaidi100.com/poll");
+      expect(options.method).toBe("POST");
+      const form = new URLSearchParams(options.body);
+      expect(form.get("schema")).toBe("json");
+      expect(JSON.parse(form.get("param") || "{}")).toEqual({
+        company: "shunfeng",
+        number: "SF123",
+        key: "test-api-key",
+        parameters: {
+          callbackurl: "https://api.example.com/callback",
+          salt: "callback-salt",
+          resultv2: "4",
+        },
+      });
+    });
+
+    it("验签通过后持久化轨迹与签收状态", async () => {
+      const param = JSON.stringify({
+        lastResult: {
+          nu: "SF123",
+          state: "3",
+          ischeck: "1",
+          data: [{ time: "2026-07-23 12:00:00", context: "已签收", location: "郑州" }],
+        },
+      });
+      const sign = createHash("md5").update(param + "callback-salt").digest("hex").toUpperCase();
+
+      await expect(svc.handlePush(param, sign)).resolves.toEqual({ accepted: true, updated: 1 });
+      expect(prisma.orderLogistics.updateMany).toHaveBeenCalledWith({
+        where: { logisticsNo: "SF123" },
+        data: {
+          status: "SIGNED",
+          trackingData: [{ time: "2026-07-23 12:00:00", status: "已签收", desc: "已签收", location: "郑州" }],
+        },
+      });
+    });
+
+    it("状态码 5（派送中）仍持久化为运输中", async () => {
+      const param = JSON.stringify({
+        lastResult: {
+          nu: "SF123",
+          state: "5",
+          ischeck: "0",
+          data: [{ time: "2026-07-23 12:00:00", context: "正在派送" }],
+        },
+      });
+      const sign = createHash("md5").update(param + "callback-salt").digest("hex").toUpperCase();
+
+      await svc.handlePush(param, sign);
+
+      expect(prisma.orderLogistics.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: "IN_TRANSIT" }),
+      }));
+    });
+
+    it("签名不匹配时拒绝处理且不写数据库", async () => {
+      const param = JSON.stringify({ lastResult: { nu: "SF123", data: [] } });
+      await expect(svc.handlePush(param, "0".repeat(32))).rejects.toThrow("快递100回调签名验证失败");
+      expect(prisma.orderLogistics.updateMany).not.toHaveBeenCalled();
     });
   });
 });

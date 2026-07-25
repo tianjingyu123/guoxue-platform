@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, IsBoolean, Min, Max, MinLength, ArrayMaxSize, ArrayUnique } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, IsBoolean, Min, Max, MinLength, MaxLength, ArrayMaxSize, ArrayUnique } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -11,6 +11,10 @@ export class CreateRoomDto {
   @IsString()
   @MinLength(1)
   title: string;
+
+  @ApiPropertyOptional({ description: "直播介绍；发布预告时必填", maxLength: 500 })
+  @IsOptional() @IsString() @MaxLength(500)
+  description?: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
   @IsOptional() @IsString()
@@ -76,6 +80,10 @@ export class UpdateRoomDto {
   @ApiPropertyOptional({ description: "直播标题" })
   @IsOptional() @IsString()
   title?: string;
+
+  @ApiPropertyOptional({ description: "直播介绍；发布预告时必填", maxLength: 500 })
+  @IsOptional() @IsString() @MaxLength(500)
+  description?: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
   @IsOptional() @IsString()

@@ -14,7 +14,7 @@
     <!-- 月份选择器 -->
     <view class="month-bar">
       <view class="month-btn" @tap="changeMonth(-1)">
-        <app-icon name="chevron-left" :size="40" color="#1A1A1A" />
+        <app-icon name="chevron-left" :size="40" color="#1A1A1A" compact />
       </view>
       <view class="month-center">
         <app-icon name="calendar" :size="32" color="#C41E3A" />

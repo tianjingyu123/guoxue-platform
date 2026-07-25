@@ -388,7 +388,7 @@ export class StationPinnedService {
           break;
         }
         case "article": {
-          const rows = await this.prisma.article.findMany({ where: { id: { in: ids }, ...(publicOnly ? { auditStatus: "APPROVED", deletedAt: null } : {}) }, select: { id: true, title: true, cover: true } });
+          const rows = await this.prisma.article.findMany({ where: { id: { in: ids }, ...(publicOnly ? { auditStatus: "APPROVED", visibility: "PLATFORM", deletedAt: null } : {}) }, select: { id: true, title: true, cover: true } });
           rows.forEach((r) => map.set(`article:${r.id}`, { id: r.id, title: r.title, cover: r.cover, price: null, contentType: "article", sourceBoard: "article" }));
           break;
         }

@@ -4,13 +4,13 @@ import { ref, computed } from 'vue'
 import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
-import SmartCover from '@/components/common/smart-cover.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import ProductCard from '@/components/cards/product-card.vue'
+import { goBack } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 import type { CategoryTab, CategorySortOption, CategoryProduct } from '@/lib/shop-data'
+import type { ProductCardData } from '@/lib/card-utils'
 import { useList } from '@/composables/useList'
-import { formatPrice } from '@/utils/format'
 
 const categoryTabs = ref<CategoryTab[]>([])
 const categorySortOptions = ref<CategorySortOption[]>([])
@@ -24,6 +24,13 @@ const priceMin = ref(0)
 const priceMax = ref(1000)
 
 const quickPrices: Array<[number, number]> = [[0, 50], [50, 100], [100, 300], [300, 500], [500, 1000]]
+const CATEGORY_LABEL_MAX_LENGTH = 5
+
+function categoryDisplayName(name: string) {
+  return name.length > CATEGORY_LABEL_MAX_LENGTH
+    ? `${name.slice(0, CATEGORY_LABEL_MAX_LENGTH - 1)}…`
+    : name
+}
 
 const sortName = computed(() => categorySortOptions.value.find((s) => s.id === sortBy.value)?.name)
 const hasFilter = computed(() => priceMin.value > 0 || priceMax.value < 1000)
@@ -54,13 +61,26 @@ onReachBottom(() => loadMore())
 
 function selectCategory(id: string) { if (activeCategory.value === id) return; activeCategory.value = id; refresh() }
 function onSearch() { refresh() }
-function formatSales(n: number) { return n > 1000 ? (n / 1000).toFixed(1) + 'k' : String(n) }
+function toProductCard(p: CategoryProduct): ProductCardData {
+  return {
+    id: p.id,
+    title: p.name,
+    subtitle: p.intro,
+    cover: p.cover,
+    coverRatio: '1:1',
+    price: p.price,
+    originalPrice: p.originalPrice,
+    sales: p.sales,
+    stock: p.stock,
+    tags: p.tags,
+    reason: '严选好物',
+  }
+}
 function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false; refresh() }
 function pickQuickPrice(min: number, max: number) { priceMin.value = min; priceMax.value = max }
 function applyFilter() { showFilter.value = false; refresh() }
 function resetFilter() { priceMin.value = 0; priceMax.value = 1000 }
 function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; resetFilter(); refresh() }
-function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 </script>
 
 <template>
@@ -91,6 +111,9 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
       <template v-else>
       <!-- 左侧分类栏 -->
       <scroll-view class="aside" scroll-y>
+        <view class="aside-head">
+          <text class="aside-head-text">商品分类</text>
+        </view>
         <view
           v-for="cat in categoryTabs"
           :key="cat.id"
@@ -99,8 +122,8 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
           @tap="selectCategory(cat.id)"
         >
           <view v-if="activeCategory === cat.id" class="cat-bar" />
-          <text class="cat-name">{{ cat.name }}</text>
-          <text class="cat-count">{{ cat.count }}</text>
+          <text class="cat-name" :aria-label="cat.name">{{ categoryDisplayName(cat.name) }}</text>
+          <text class="cat-count">{{ cat.count }}件</text>
         </view>
       </scroll-view>
 
@@ -134,20 +157,7 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 
         <!-- 商品网格 -->
         <view v-if="categoryProducts.length" class="grid">
-          <view v-for="p in categoryProducts" :key="p.id" class="g-card" hover-class="g-card-press" @tap="openProduct(p.id)">
-            <view class="g-cover">
-              <smart-cover class="g-img" :src="p.cover" :title="p.name" type="product" />
-              <text v-if="p.isMemberFree" class="g-badge">会员免费</text>
-            </view>
-            <view class="g-body">
-              <text class="g-name">{{ p.name }}</text>
-              <view class="g-price-row">
-                <text class="g-price">¥{{ formatPrice(p.price) }}</text>
-                <text v-if="p.originalPrice && p.originalPrice > p.price" class="g-orig">¥{{ formatPrice(p.originalPrice) }}</text>
-              </view>
-              <text class="g-sales">已售{{ formatSales(p.sales) }}</text>
-            </view>
-          </view>
+          <ProductCard v-for="p in categoryProducts" :key="p.id" :data="toProductCard(p)" />
         </view>
         <view v-else class="empty">
           <view class="empty-icon"><AppIcon name="search" :size="56" color="var(--text-soft)" /></view>
@@ -208,13 +218,91 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 .search-ph { color: var(--text-soft); }
 /* 主体 */
 .body { display: flex; }
-.aside { width: 150rpx; flex-shrink: 0; background: rgba(0,0,0,0.02); border-right: 1rpx solid var(--border, #eee); height: calc(100vh - 100rpx - var(--status-bar-height, 0px)); position: sticky; top: calc(100rpx + var(--status-bar-height, 0px)); }
-.cat-item { position: relative; padding: 28rpx 12rpx; text-align: center; }
-.cat-item-on { background: var(--surface); }
-.cat-bar { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 6rpx; height: 44rpx; background: var(--brand); border-radius: 0 6rpx 6rpx 0; }
-.cat-name { display: block; font-size: 24rpx; color: var(--text-soft); }
-.cat-item-on .cat-name { color: var(--brand); font-weight: 500; }
-.cat-count { display: block; font-size: 20rpx; color: var(--text-soft); margin-top: 4rpx; opacity: 0.7; }
+.aside {
+  width: 164rpx;
+  flex-shrink: 0;
+  height: calc(100vh - 100rpx - var(--status-bar-height, 0px));
+  position: sticky;
+  top: calc(100rpx + var(--status-bar-height, 0px));
+  box-sizing: border-box;
+  padding: 0 10rpx 12rpx;
+  background: linear-gradient(180deg, #F8F5EF 0%, #F4F1EB 100%);
+  border-right: 1rpx solid rgba(201, 169, 110, 0.18);
+}
+.aside-head {
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1rpx solid rgba(201, 169, 110, 0.14);
+}
+.aside-head-text {
+  color: #9A9184;
+  font-size: 19rpx;
+  font-weight: 500;
+  letter-spacing: 2rpx;
+}
+.cat-item {
+  position: relative;
+  min-height: 96rpx;
+  margin-top: 8rpx;
+  margin-bottom: 8rpx;
+  padding: 14rpx 10rpx;
+  border: 1rpx solid transparent;
+  border-radius: 18rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  text-align: center;
+}
+.cat-item-on {
+  background: linear-gradient(145deg, #FFFFFF 0%, #FFF9F2 100%);
+  border-color: rgba(196, 30, 58, 0.14);
+  box-shadow: 0 4rpx 14rpx rgba(83, 56, 28, 0.07);
+}
+.cat-bar {
+  position: absolute;
+  left: -1rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6rpx;
+  height: 38rpx;
+  background: var(--brand);
+  border-radius: 0 6rpx 6rpx 0;
+  box-shadow: 0 2rpx 6rpx rgba(196, 30, 58, 0.18);
+}
+.cat-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: #625C52;
+  font-size: 23rpx;
+  font-weight: 500;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cat-item-on .cat-name {
+  color: var(--brand);
+  font-weight: 600;
+}
+.cat-count {
+  display: block;
+  min-width: 44rpx;
+  padding: 1rpx 8rpx;
+  border-radius: 999rpx;
+  background: rgba(120, 100, 72, 0.07);
+  color: #9A9184;
+  font-size: 18rpx;
+  line-height: 1.4;
+}
+.cat-item-on .cat-count {
+  background: rgba(196, 30, 58, 0.08);
+  color: rgba(196, 30, 58, 0.72);
+}
 .main { flex: 1; min-width: 0; }
 /* 排序栏 */
 .sort-bar { position: sticky; top: calc(100rpx + var(--status-bar-height, 0px)); z-index: 30; display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; height: 76rpx; background: var(--surface); border-bottom: 1rpx solid var(--border, #eee); }
@@ -234,17 +322,7 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 .filter-text-on { color: var(--brand); }
 /* 网格 */
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; padding: 16rpx; }
-.g-card { background: var(--surface); border-radius: 16rpx; overflow: hidden; }
 .g-card-press { opacity: 0.85; }
-.g-cover { position: relative; width: 100%; padding-bottom: 100%; background: var(--surface-sunken); }
-.g-img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.g-badge { position: absolute; top: 12rpx; left: 12rpx; font-size: 18rpx; padding: 2rpx 12rpx; border-radius: 8rpx; background: var(--gold, #c9a96e); color: #fff; }
-.g-body { padding: 16rpx; }
-.g-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 24rpx; font-weight: 500; color: var(--text-strong); line-height: 1.4; min-height: 68rpx; }
-.g-price-row { display: flex; align-items: baseline; gap: 8rpx; margin-top: 8rpx; }
-.g-price { font-size: 30rpx; font-weight: 600; color: var(--brand); }
-.g-orig { font-size: 20rpx; color: var(--text-soft); text-decoration: line-through; }
-.g-sales { display: block; font-size: 20rpx; color: var(--text-soft); margin-top: 4rpx; }
 /* 空态 */
 .empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
 .empty-icon { width: 140rpx; height: 140rpx; border-radius: 50%; background: var(--surface-sunken); display: flex; align-items: center; justify-content: center; margin-bottom: 28rpx; }

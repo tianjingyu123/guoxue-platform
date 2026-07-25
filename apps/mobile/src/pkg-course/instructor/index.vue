@@ -125,7 +125,6 @@ onMounted(() => {
             <view class="ratio-169">
               <smart-cover class="card-cover-img" :src="c.cover" :title="c.title" type="course" />
             </view>
-            <text class="type-tag">课程</text>
           </view>
           <view class="card-body">
             <text class="card-title serif">{{ c.title }}</text>
@@ -214,7 +213,6 @@ onMounted(() => {
 .card-cover { position: relative; width: 100%; }
 .ratio-169 { position: relative; width: 100%; padding-top: 56.25%; }
 .card-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.type-tag { position: absolute; top: 20rpx; left: 20rpx; background: rgba(0,0,0,0.55); color: #fff; font-size: 22rpx; padding: 6rpx 16rpx; border-radius: 12rpx; }
 .card-body { padding: 28rpx 32rpx 32rpx; display: flex; flex-direction: column; gap: 18rpx; }
 .card-title { font-size: 34rpx; font-weight: 700; color: #2C2C2C; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .bottom-row { display: flex; align-items: center; justify-content: space-between; }

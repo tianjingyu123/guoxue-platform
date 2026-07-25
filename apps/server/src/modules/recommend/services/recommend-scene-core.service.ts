@@ -60,7 +60,7 @@ export class RecommendSceneCoreService {
     // 并行查询各类型热门内容
     const [courses, articles, products, circles, videos, classics] = await Promise.all([
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED", tags: { hasSome: tags } }, select: this.selectSvc.courseSelect(), take: 6, orderBy: { studentCount: "desc" } }),
-      this.prisma.article.findMany({ where: { auditStatus: "APPROVED", tags: { hasSome: tags } }, select: this.selectSvc.articleSelect(), take: 6, orderBy: { viewCount: "desc" } }),
+      this.prisma.article.findMany({ where: { auditStatus: "APPROVED", visibility: "PLATFORM", tags: { hasSome: tags } }, select: this.selectSvc.articleSelect(), take: 6, orderBy: { viewCount: "desc" } }),
       this.prisma.product.findMany({ where: { status: "ON_SALE", tags: { hasSome: tags } }, select: this.selectSvc.productSelect(), take: 6, orderBy: { salesCount: "desc" } }),
       this.prisma.circle.findMany({ where: { status: "ACTIVE", tags: { hasSome: tags } }, select: this.selectSvc.circleSelect(), take: 6, orderBy: { memberCount: "desc" } }),
       this.prisma.video.findMany({ where: { status: "PUBLISHED", tags: { hasSome: tags } }, select: this.selectSvc.videoSelect(), take: 6, orderBy: { viewCount: "desc" } }),
@@ -84,7 +84,7 @@ export class RecommendSceneCoreService {
 
     // 并行：热度基座 + 用户画像 + 协同过滤 + 向量召回
     const [articles, courses, products, circles, profileItems, collabItems, vectorItems] = await Promise.all([
-      this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: this.selectSvc.articleSelect(), take: 8, orderBy: { viewCount: "desc" } }),
+      this.prisma.article.findMany({ where: { auditStatus: "APPROVED", visibility: "PLATFORM" }, select: this.selectSvc.articleSelect(), take: 8, orderBy: { viewCount: "desc" } }),
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: this.selectSvc.courseSelect(), take: 8, orderBy: { studentCount: "desc" } }),
       this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: this.selectSvc.productSelect(), take: 8, orderBy: { salesCount: "desc" } }),
       this.prisma.circle.findMany({ where: { status: "ACTIVE" }, select: this.selectSvc.circleSelect(), take: 8, orderBy: { memberCount: "desc" } }),
@@ -173,7 +173,7 @@ export class RecommendSceneCoreService {
 
     // 全平台热门内容混排
     const [articles, courses, products, circles, classics] = await Promise.all([
-      this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: this.selectSvc.articleSelect(), take: 6, orderBy: { viewCount: "desc" } }),
+      this.prisma.article.findMany({ where: { auditStatus: "APPROVED", visibility: "PLATFORM" }, select: this.selectSvc.articleSelect(), take: 6, orderBy: { viewCount: "desc" } }),
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: this.selectSvc.courseSelect(), take: 6, orderBy: { studentCount: "desc" } }),
       this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: this.selectSvc.productSelect(), take: 6, orderBy: { salesCount: "desc" } }),
       this.prisma.circle.findMany({ where: { status: "ACTIVE" }, select: this.selectSvc.circleSelect(), take: 6, orderBy: { memberCount: "desc" } }),

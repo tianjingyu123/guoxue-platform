@@ -291,9 +291,12 @@ export const categorySortOptions: CategorySortOption[] = [
 export interface CategoryProduct {
   id: string | number
   name: string
+  intro?: string
   price: number
   originalPrice: number
   sales: number
+  stock?: number
+  tags?: string[]
   category: string
   cover: string
   isMemberFree: boolean
@@ -1440,10 +1443,14 @@ function adaptProductCard(p: RawShopProduct): ProductCardData {
   return {
     id: p.id || '',
     title: p.title || '',
+    subtitle: p.intro || '',
     cover: fixImgUrl(p.images?.[0] || p.cover || ''), // 兼容只传 cover 未传 images 的商品，避免封面空白
     price: shopNum(p.effectivePrice ?? p.price),
     originalPrice: shopNum(p.originalPrice ?? p.price),
     sales: p.salesCount ?? 0,
+    stock: shopNum(p.stock),
+    tags: Array.isArray(p.tags) ? p.tags.slice(0, 2) : [],
+    reason: p.isOfficialSelfOwned ? '官方严选' : '严选好物',
     tag: p.hasPromotion ? (p.promotionTag || '促销') : undefined,
     isOfficialSelfOwned: !!p.isOfficialSelfOwned,
     coverRatio: '1:1', // 商城商品主图规范=1:1（电商通用 800×800）；此处仅商城板块数据源，不影响发现页 feed 的 3:4 容器
@@ -1464,9 +1471,12 @@ function adaptCategoryProduct(p: RawShopProduct): CategoryProduct {
   return {
     id: p.id || '',
     name: p.title || '',
+    intro: p.intro || '',
     price: shopNum(p.effectivePrice ?? p.price),
     originalPrice: shopNum(p.originalPrice ?? p.price),
     sales: p.salesCount ?? 0,
+    stock: shopNum(p.stock),
+    tags: Array.isArray(p.tags) ? p.tags.slice(0, 2) : [],
     category: p.categoryLevel1 || '',
     cover: fixImgUrl(p.images?.[0] || ''),
     isMemberFree: false, // 后端无会员免费标记

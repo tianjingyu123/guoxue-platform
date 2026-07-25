@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * 短视频卡 · 统一 3:4（首帧 cover 填满）· 左上「视」朱红印章 · 右下时长角标（mm:ss ▶）
+ * 短视频卡 · 统一 3:4，优先显示首图，无首图时读取视频首帧。
+ * 播放按钮承担视频类型识别，右下仅保留时长。
  * 去数字化：不显播放量，meta 右侧钩子（subtitle 或「看视频」）
  */
 import { computed } from 'vue'
@@ -18,9 +19,8 @@ const hook = computed(() => props.item.subtitle || '看视频')
 <template>
   <view class="fcard">
     <view class="cov">
-      <smart-cover :src="item.cover" :video-url="videoUrl" :title="item.title" type="default" deco class="cov-img" />
+      <smart-cover :src="item.cover" :video-url="videoUrl" :title="item.title" type="video" deco class="cov-img" />
       <view class="play-btn"><app-icon name="play" :size="34" color="#ffffff" :fill="true" /></view>
-      <text class="seal serif">视</text>
       <!-- 右下时长角标 -->
       <text v-if="duration" class="badge br">{{ duration }} ▶</text>
     </view>
@@ -44,18 +44,11 @@ const hook = computed(() => props.item.subtitle || '看视频')
   width: 72rpx; height: 72rpx; border-radius: 999rpx; background: rgba(0,0,0,.38);
   display: flex; align-items: center; justify-content: center; z-index: 2;
 }
-.seal {
-  position: absolute; top: 16rpx; left: 16rpx; width: 44rpx; height: 44rpx; border-radius: 12rpx;
-  background: rgba(196,30,58,.92); color: #fff; font-size: 24rpx; font-weight: 700;
-  display: flex; align-items: center; justify-content: center; z-index: 3;
-  font-family: var(--font-serif, 'STSong', serif);
-}
 .badge {
   position: absolute; font-size: 20rpx; color: #fff; background: rgba(20,15,10,.55);
   border-radius: 8rpx; padding: 4rpx 12rpx; z-index: 3;
 }
 .badge.br { right: 16rpx; bottom: 16rpx; }
-.serif { font-family: var(--font-serif, 'STSong', serif); }
 .body { padding: 18rpx 20rpx 22rpx; }
 .title {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;

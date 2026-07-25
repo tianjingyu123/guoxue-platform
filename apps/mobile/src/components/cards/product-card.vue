@@ -1,66 +1,101 @@
 <script setup lang="ts">
-/** 商品卡(feed)- 从原型 components/cards/product-card.tsx 迁移 */
+/** 全平台商品卡：与首页/发现页统一为 1:1 首图 + 真实销售信息区。 */
 import { computed } from 'vue'
-import { navigateTo } from '@/utils/router'
+import { navigateToContent } from '@/utils/router'
 import SmartCover from '@/components/common/smart-cover.vue'
-import { type ProductCardData, normalizeRatio, formatCount, productHotKind } from '@/lib/card-utils'
+import { type ProductCardData } from '@/lib/card-utils'
 import { formatPrice } from '@/utils/format'
 
 const props = defineProps<{ data: ProductCardData }>()
-const ratio = computed(() => normalizeRatio(props.data.coverRatio))
-const kind = computed(() => productHotKind(props.data.tag))
-const hotText = computed(() => {
-  switch (kind.value) {
-    case 'seckill': return '秒杀'
-    case 'hot': return '热销'
-    case 'new': return '新品'
-    default: return ''
-  }
+const saving = computed(() => {
+  const price = Number(props.data.price || 0)
+  const original = Number(props.data.originalPrice || 0)
+  return original > price ? original - price : 0
 })
-function open() { navigateTo(`/mall/product/${props.data.id}`) }
+function open(event?: unknown) { navigateToContent(`/mall/product/${props.data.id}`, event) }
 </script>
 
 <template>
-  <view class="card" hover-class="card-press" @tap="open">
-    <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
+  <view class="card sales-card" data-content-card hover-class="card-press" @tap="open">
+    <view class="cover">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="product" />
-      <text class="type-badge" :class="{ 'official-badge': data.isOfficialSelfOwned }">{{ data.isOfficialSelfOwned ? '官方自营' : '好物' }}</text>
-      <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
+      <text v-if="saving > 0" class="saving-badge">立省 ¥{{ formatPrice(saving) }}</text>
     </view>
     <view class="body">
+      <view class="eyebrow">
+        <text class="select-tag">{{ data.reason || (data.isOfficialSelfOwned ? '官方严选' : '严选好物') }}</text>
+        <text v-for="tag in (data.tags || []).slice(0, 2)" :key="tag" class="benefit-tag">{{ tag }}</text>
+      </view>
       <text class="title">{{ data.title }}</text>
+      <text v-if="data.subtitle" class="subtitle">{{ data.subtitle }}</text>
+      <view v-if="data.sales || (data.stock != null && data.stock > 0)" class="sales-proof">
+        <text v-if="data.sales">已售 {{ data.sales }}</text>
+        <text v-if="data.sales && data.stock != null && data.stock > 0" class="proof-dot">·</text>
+        <text v-if="data.stock != null && data.stock > 0">现货</text>
+      </view>
       <view class="foot">
-        <view class="price">
-          <text class="price-cny">¥</text>
-          <text class="price-num">{{ formatPrice(data.price) }}</text>
-          <text v-if="data.originalPrice" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
+        <view class="price-block">
+          <text class="price-prefix">到手价</text>
+          <text class="price"><text class="price-cny">¥</text>{{ formatPrice(data.price) }}</text>
+          <text v-if="data.originalPrice && data.originalPrice > (data.price || 0)" class="price-orig">¥{{ formatPrice(data.originalPrice) }}</text>
         </view>
-        <text v-if="data.sales" class="sales">已售{{ formatCount(data.sales) }}</text>
+        <text class="buy">立即选购</text>
       </view>
     </view>
-
   </view>
 </template>
 
 <style scoped lang="scss">
-/* transition 使 hover-class 按压缩放平滑（X5 安全：仅动 transform） */
-.card { overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); margin-bottom: 12rpx; transition: transform 0.15s ease-out; }
+.card {
+  overflow: hidden;
+  margin-bottom: 12rpx;
+  border: 2rpx solid rgba(201,169,110,.16);
+  border-radius: 24rpx;
+  background: #fff;
+  box-shadow: 0 6rpx 20rpx rgba(74,54,30,.08);
+  transition: transform .15s ease-out, opacity .15s ease-out;
+}
 .card-press { transform: scale(0.98); }
 .cover { position: relative; width: 100%; background: var(--surface-sunken); overflow: hidden; }
-.r-34 { padding-bottom: 133.33%; }
-.r-sq { padding-bottom: 100%; }
+.cover { padding-bottom: 100%; }
 .cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-.type-badge { position: absolute; top: 16rpx; left: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; color: rgba(255,255,255,0.95); font-weight: 500; background: rgba(0,0,0,0.45); }
-.official-badge { background: var(--brand); color: #fff; font-weight: 600; }
-.hot-badge { position: absolute; top: 16rpx; right: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; font-weight: 500; }
-.hot-red { background: var(--brand); color: #fff; }
-.hot-new { background: rgba(0,0,0,0.45); color: rgba(255,255,255,0.95); }
-.body { padding: 18rpx; }
-.title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; font-weight: 500; color: var(--text-strong); line-height: 1.5; margin-bottom: 12rpx; }
-.foot { display: flex; align-items: flex-end; justify-content: space-between; }
-.price { display: flex; align-items: baseline; }
-.price-cny { color: var(--brand); font-weight: 700; font-size: 22rpx; }
-.price-num { color: var(--brand); font-weight: 700; font-size: 32rpx; margin-left: 2rpx; }
-.price-orig { font-size: 22rpx; color: var(--text-soft); text-decoration: line-through; margin-left: 8rpx; }
-.sales { font-size: 22rpx; color: var(--text-soft); }
+.saving-badge {
+  position: absolute; left: 14rpx; bottom: 14rpx;
+  padding: 7rpx 12rpx; border-radius: 8rpx;
+  background: rgba(196,30,58,.92); color: #fff;
+  font-size: 20rpx; font-weight: 700;
+  box-shadow: 0 4rpx 12rpx rgba(196,30,58,.22);
+}
+.body { padding: 18rpx 18rpx 20rpx; background: linear-gradient(180deg,#fff 0%,#fffcf7 100%); }
+.eyebrow { min-height: 32rpx; display: flex; align-items: center; gap: 8rpx; overflow: hidden; }
+.select-tag,.benefit-tag { flex-shrink: 0; padding: 3rpx 8rpx; border-radius: 6rpx; font-size: 18rpx; line-height: 1.3; }
+.select-tag { color: #9d2b3d; background: #fff0f2; }
+.benefit-tag { color: #7b6332; background: #f6eedf; }
+.title {
+  display: -webkit-box; overflow: hidden; margin-top: 10rpx;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  color: #2c2c2c; font-size: 28rpx; font-weight: 650; line-height: 1.4;
+}
+.subtitle {
+  display: -webkit-box; overflow: hidden; margin-top: 8rpx;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  color: #8b8175; font-size: 21rpx; line-height: 1.45;
+}
+.sales-proof { display: flex; align-items: center; gap: 6rpx; margin-top: 10rpx; color: #9b8c78; font-size: 20rpx; }
+.proof-dot { color: #c9a96e; }
+.foot {
+  display: flex; align-items: flex-end; gap: 8rpx;
+  margin-top: 14rpx; padding-top: 14rpx; border-top: 2rpx solid #f3ece2;
+}
+.price-block { min-width: 0; display: flex; align-items: baseline; gap: 6rpx; flex-wrap: wrap; }
+.price-prefix { width: 100%; color: #9d2b3d; font-size: 18rpx; line-height: 1; }
+.price { flex-shrink: 0; color: #c41e3a; font-size: 31rpx; font-weight: 750; line-height: 1.1; }
+.price-cny { font-size: 20rpx; font-weight: 400; }
+.price-orig { color: #aaa096; font-size: 18rpx; text-decoration: line-through; }
+.buy {
+  flex-shrink: 0; margin-left: auto; padding: 9rpx 13rpx; border-radius: 999rpx;
+  color: #fff; font-size: 20rpx; font-weight: 650;
+  background: linear-gradient(135deg,#c41e3a,#a81730);
+  box-shadow: 0 4rpx 12rpx rgba(196,30,58,.18);
+}
 </style>

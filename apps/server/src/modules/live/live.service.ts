@@ -34,6 +34,17 @@ export class LiveService {
     @Optional() private im?: ImService,
   ) {}
 
+  /** 公开预告发布护栏：排期开播的场次必须同时具备首图和介绍。 */
+  private validatePreviewPublish(startTime?: string | Date | null, cover?: string | null, description?: string | null) {
+    if (!startTime) return;
+    if (!String(cover || "").trim()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "发布直播预告前请上传首图");
+    }
+    if (!String(description || "").trim()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "发布直播预告前请填写直播介绍");
+    }
+  }
+
   /** 直播挂车统一校验：最多 5 件、保持请求顺序、只允许当前在售且未隔离商品。 */
   private async validateLiveProductIds(productIds: string[]): Promise<string[]> {
     if (!Array.isArray(productIds)) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品清单格式错误");
@@ -64,6 +75,14 @@ export class LiveService {
   }
 
   async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false) {
+    this.validatePreviewPublish(dto.startTime, dto.cover, dto.description);
+    let parsedStartTime: Date | undefined;
+    if (dto.startTime) {
+      parsedStartTime = new Date(dto.startTime);
+      if (Number.isNaN(parsedStartTime.getTime())) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "开播时间格式错误");
+      }
+    }
     const productIds = dto.productIds ? await this.validateLiveProductIds(dto.productIds) : [];
     const chargeType = dto.chargeType || "FREE";
     const requestedChargePrice = Number(dto.chargePrice);
@@ -82,6 +101,7 @@ export class LiveService {
     const data: Record<string, unknown> = {
       userId,
       title: dto.title,
+      description: dto.description?.trim() || null,
       cover: dto.cover,
       circleId: dto.circleId,
       hostUserId: dto.hostUserId || userId,
@@ -96,7 +116,7 @@ export class LiveService {
       auditStatus,
       replayVisibility: dto.replayVisibility || "CIRCLE_ONLY",
       replayCharge: dto.replayCharge ?? false,
-      ...(dto.startTime ? { startTime: new Date(dto.startTime) } : {}),
+      ...(parsedStartTime ? { startTime: parsedStartTime } : {}),
       ...(dto.courseId ? { courseId: dto.courseId } : {}),
       ...(dto.stationId ? { stationId: dto.stationId } : {}),
       ...(productIds.length ? { products: { create: productIds.map((productId, sortOrder) => ({ productId, sortOrder })) } } : {}),
@@ -114,7 +134,7 @@ export class LiveService {
       contentId: room.id,
       userId,
       circleId: dto.circleId,
-      text: dto.title,
+      text: [dto.title, dto.description].filter(Boolean).join("\n"),
       images: dto.cover,
     });
 
@@ -123,7 +143,19 @@ export class LiveService {
 
   /** 编辑待开播场次；标题/封面沿用历史可编辑口径，排期/收费/画质仅 WAITING 可改。 */
   async updateRoom(userId: string, id: string, dto: UpdateRoomDto, isAdmin = false) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true, status: true, circleId: true, chargeType: true, chargePrice: true } });
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id },
+      select: {
+        hostUserId: true,
+        status: true,
+        circleId: true,
+        chargeType: true,
+        chargePrice: true,
+        startTime: true,
+        cover: true,
+        description: true,
+      },
+    });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     // 平台管理员豁免归属校验（管理端编辑任意直播间）；普通用户仍只能改自己的
     if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的直播间");
@@ -140,6 +172,7 @@ export class LiveService {
       if (!title) throw new BusinessException(ErrorCode.BAD_REQUEST, "直播标题不能为空");
       data.title = title;
     }
+    if (dto.description !== undefined) data.description = dto.description.trim() || null;
     if (dto.cover !== undefined) data.cover = dto.cover;
     if (dto.startTime !== undefined) {
       if (dto.startTime === null || dto.startTime === "") data.startTime = null;
@@ -149,6 +182,10 @@ export class LiveService {
         data.startTime = parsed;
       }
     }
+    const targetStartTime = dto.startTime === undefined ? room.startTime : dto.startTime;
+    const targetCover = dto.cover === undefined ? room.cover : dto.cover;
+    const targetDescription = dto.description === undefined ? room.description : dto.description;
+    this.validatePreviewPublish(targetStartTime, targetCover, targetDescription);
     if (dto.chargeType !== undefined || dto.chargePrice !== undefined) {
       const targetType = dto.chargeType ?? room.chargeType;
       const targetPrice = dto.chargePrice !== undefined ? Number(dto.chargePrice) : Number(room.chargePrice);
@@ -171,13 +208,13 @@ export class LiveService {
         });
 
     // 编辑同样进入异步机审，避免“先发合规标题、再编辑绕审”；审核故障不阻断主播保存。
-    if (dto.title !== undefined || dto.cover !== undefined) {
+    if (dto.title !== undefined || dto.description !== undefined || dto.cover !== undefined) {
       this.audit.queueContentModeration({
         contentType: "LIVE",
         contentId: id,
         userId,
         circleId: room.circleId || undefined,
-        text: dto.title,
+        text: [dto.title, dto.description].filter(Boolean).join("\n") || undefined,
         images: dto.cover,
       });
     }
@@ -329,10 +366,13 @@ export class LiveService {
   }
 
   /** 获取观众拉流地址（可带鉴权） */
-  async getPlayUrl(id: string, userId: string) {
+  async getPlayUrl(id: string, userId?: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
+    if (!userId && (room.visibility !== "PLATFORM" || room.auditStatus !== "APPROVED")) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "该直播仅对已授权用户开放");
+    }
 
     // 分档播放：basic=原流(零转码成本)；hd/uhd=腾讯云转码流(推流后自动产出 {stream}_{模板名})
     // 转码模板已在生产创建并绑定 test.rebugx.com/live：hd720 / hd1080
@@ -340,7 +380,7 @@ export class LiveService {
     const quality = (room as { quality?: string }).quality || "basic";
     const streamKey =
       quality === "hd" ? `${baseKey}_hd720` : quality === "uhd" ? `${baseKey}_hd1080` : baseKey;
-    return { ...this.stream.genPlayUrlWithAuth(streamKey, userId), quality };
+    return { ...this.stream.genPlayUrlWithAuth(streamKey, userId || "guest"), quality };
   }
 
   /** 结束直播（房主本人或管理员） */
@@ -376,6 +416,17 @@ export class LiveService {
     if (!circleId && scope !== "all") {
       where.visibility = "PLATFORM";
       where.auditStatus = "APPROVED";
+      if (status === "WAITING") {
+        where.cover = { not: "" };
+        where.description = { not: "" };
+      } else if (!status) {
+        where.AND = [{
+          OR: [
+            { status: { not: "WAITING" as LiveStatus } },
+            { cover: { not: "" }, description: { not: "" } },
+          ],
+        }];
+      }
     } else if (circleId && scope !== "all") {
       // 圈内列表：机审降级 SELF_ONLY / 严重违规下架(REJECTED) 的直播间不出圈内流
       where.visibility = { not: "SELF_ONLY" };
@@ -880,13 +931,18 @@ export class LiveService {
   @Cacheable({ key: (args: any[]) => `live:scheduled:${args[0]}:${args[1]}:${args[2] || ""}`, ttl: 30 })
   async listScheduled(rawPage = 1, rawPageSize = 10, stationId?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.LiveRoomWhereInput = { status: "WAITING" as LiveStatus, startTime: { gte: new Date() } };
+    const where: Prisma.LiveRoomWhereInput = {
+      status: "WAITING" as LiveStatus,
+      startTime: { gte: new Date() },
+      cover: { not: "" },
+      description: { not: "" },
+    };
     if (stationId) where.stationId = stationId;
     const [rooms, total] = await Promise.all([
       this.prisma.liveRoom.findMany({
         where,
         select: {
-          id: true, title: true, cover: true, startTime: true, endTime: true,
+          id: true, title: true, description: true, cover: true, startTime: true, endTime: true,
           userId: true,
           user: { select: { id: true, nickname: true, avatar: true } },
           circle: { select: { id: true, name: true } },
@@ -1653,11 +1709,11 @@ export class LiveService {
     const rooms = await this.prisma.liveRoom.findMany({
       // 回放列表含「已结束(ENDED)」与「已生成回放(REPLAY)」两态（原仅 ENDED 漏掉 REPLAY 房）
       where: { status: { in: ["ENDED", "REPLAY"] }, replayVisibility: "PLATFORM", auditStatus: "APPROVED" },
-      select: { id: true, title: true, cover: true, viewCount: true, startTime: true, endTime: true, createdAt: true, user: { select: { nickname: true, avatar: true } } },
+      select: { id: true, title: true, cover: true, replayUrl: true, viewCount: true, startTime: true, endTime: true, createdAt: true, user: { select: { nickname: true, avatar: true } } },
       take: 20,
       orderBy: sortBy === 'popular' ? { viewCount: 'desc' } : { createdAt: 'desc' },
     });
-    return { items: rooms.map(r => ({ id: r.id, title: r.title, cover: r.cover || '', hostName: r.user?.nickname || '', hostAvatar: r.user?.avatar || '', category: '', viewers: r.viewCount, duration: this.calcDuration(r.startTime, r.endTime), dateText: r.createdAt.toISOString().slice(0, 10) })), total: rooms.length };
+    return { items: rooms.map(r => ({ id: r.id, title: r.title, cover: r.cover || '', replayUrl: r.replayUrl || '', hostName: r.user?.nickname || '', hostAvatar: r.user?.avatar || '', category: '', viewers: r.viewCount, duration: this.calcDuration(r.startTime, r.endTime), dateText: r.createdAt.toISOString().slice(0, 10) })), total: rooms.length };
   }
 
   async getPreview(id: string, viewerId?: string) {
@@ -1697,7 +1753,9 @@ export class LiveService {
       scheduledAt: room.startTime?.toISOString() || "",
       status: room.status,
       tags: [],
-      descriptionLines: host?.bio ? [host.bio] : [],
+      descriptionLines: room.description
+        ? room.description.split(/\r?\n/).filter(Boolean)
+        : host?.bio ? [host.bio] : [],
       isBooked,
     };
   }

@@ -121,6 +121,8 @@ export interface ArticleListItem {
   id: string
   title: string
   cover?: string | null
+  /** 文章专区资讯流缩略图，按封面、正文图片顺序最多返回三张。 */
+  images?: string[]
   excerpt?: string | null
   tags: string[]
   viewCount: number

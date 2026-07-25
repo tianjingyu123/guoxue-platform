@@ -18,6 +18,8 @@ export interface LiveItem {
   viewerCount: number
   type: LiveType
   status: LiveStatus
+  /** 回放视频地址：回放无首图时由卡片读取第一帧。 */
+  replayUrl?: string
   orientation: LiveOrientation
   priceType: LivePriceType
   scheduledTime?: string
@@ -76,6 +78,7 @@ export interface LiveReplay {
   id: string
   title: string
   cover: string
+  replayUrl?: string
   hostName: string
   hostAvatar: string
   category: string
@@ -120,6 +123,7 @@ export interface ReplayHomeItem {
   id: string
   title: string
   cover: string
+  replayUrl?: string
   hostName: string
   hostAvatar: string
   duration: number
@@ -1054,6 +1058,7 @@ export interface LiveConfiguredProduct {
 export interface LiveRoomEditData {
   id: string
   title: string
+  description: string
   cover: string
   status: string
   circleId: string
@@ -1183,6 +1188,7 @@ interface RawLiveUser { id?: string; nickname?: string; avatar?: string; bio?: s
 interface RawLiveRoom {
   id?: string
   title?: string
+  description?: string | null
   cover?: string | null
   user?: RawLiveUser | null
   viewCount?: number
@@ -1239,7 +1245,7 @@ interface RawHostsResp { items?: LiveHost[] }
 interface RawReplaysResp { items?: LiveReplay[] }
 /** 回放首页条目原始响应 */
 interface RawReplayHomeItem {
-  id?: string | number; title?: string; cover?: string
+  id?: string | number; title?: string; cover?: string; replayUrl?: string
   hostName?: string; hostAvatar?: string; duration?: number | string
   viewers?: number | string; category?: string
 }
@@ -1317,6 +1323,7 @@ function adaptLiveItem(r: RawLiveRoom): LiveItem {
     viewerCount: r.viewCount ?? 0,
     type: (r._count?.products ?? 0) > 0 ? 'commerce' : 'knowledge',
     status: mapLiveStatus(r.status || ''),
+    replayUrl: r.replayUrl || undefined,
     orientation: 'horizontal',
     priceType: (r.chargeType && String(r.chargeType).toUpperCase() !== 'FREE') ? 'paid' : 'free',
     price: r.chargePrice != null ? Number(r.chargePrice) : undefined,
@@ -1389,6 +1396,7 @@ export const liveApi = {
     // 后端无 replay-home 聚合端点、回放也无分类维度 → 用 GET /live/replays 组合「最新+热门」，分类不做假筛选
     const toItem = (r: RawReplayHomeItem): ReplayHomeItem => ({
       id: String(r?.id || ''), title: r?.title || '', cover: r?.cover || '',
+      replayUrl: r?.replayUrl || '',
       hostName: r?.hostName || '', hostAvatar: r?.hostAvatar || '',
       duration: Number(r?.duration) || 0, views: Number(r?.viewers) || 0,
       category: r?.category || '', isHot: false,
@@ -1453,7 +1461,7 @@ export const liveApi = {
   },
 
   /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd；orientation 开播方式 portrait=手机竖屏/landscape=OBS横屏；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·创建即生效，机审后台异步；productIds 带货商品挂车，后端落 LiveProduct 关联表） */
-  async createRoom(payload: { circleId?: string; title: string; cover?: string; startTime?: string; chargeType?: string; chargePrice?: number; quality?: string; orientation?: 'portrait' | 'landscape'; visibility?: 'CIRCLE_ONLY' | 'PLATFORM'; productIds?: string[] }): Promise<{ id: string }> {
+  async createRoom(payload: { circleId?: string; title: string; description?: string; cover?: string; startTime?: string; chargeType?: string; chargePrice?: number; quality?: string; orientation?: 'portrait' | 'landscape'; visibility?: 'CIRCLE_ONLY' | 'PLATFORM'; productIds?: string[] }): Promise<{ id: string }> {
     return await apiPost<{ id: string }>('/live/rooms', payload)
   },
 
@@ -1468,6 +1476,7 @@ export const liveApi = {
     return {
       id: String(room?.id || roomId),
       title: room?.title || '',
+      description: room?.description || '',
       cover: room?.cover || '',
       status: room?.status || '',
       circleId: room?.circleId || '',
@@ -1490,7 +1499,7 @@ export const liveApi = {
 
   /** 更新待开播场次；productIds 传空数组会真实清空挂车。 */
   async updateRoom(roomId: string, payload: {
-    title: string; cover?: string; startTime?: string | null
+    title: string; description?: string; cover?: string; startTime?: string | null
     chargeType?: 'FREE' | 'PAID'; chargePrice?: number | null
     quality?: 'basic' | 'hd' | 'uhd'; orientation?: 'portrait' | 'landscape'
     productIds?: string[]

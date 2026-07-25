@@ -27,6 +27,12 @@ describe("HealthService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200 } as any);
+    delete process.env.WECHAT_APP_ID;
+    delete process.env.WECHAT_APP_SECRET;
+    delete process.env.WECHAT_OFFICIAL_APPID;
+    delete process.env.WECHAT_OFFICIAL_APP_SECRET;
+    delete process.env.WECHAT_MINI_APP_ID;
+    delete process.env.MINIPROGRAM_APP_SECRET;
   });
 
   afterAll(() => { global.fetch = origFetch; });
@@ -75,6 +81,20 @@ describe("HealthService", () => {
       // DB/Redis 总是存在
       expect(result.checks.db.status).toBeDefined();
       expect(result.checks.redis.status).toBeDefined();
+    });
+
+    it("公众号独立配置应出现在微信健康检查中", async () => {
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official";
+      process.env.WECHAT_OFFICIAL_APP_SECRET = "official-secret";
+      const result = await svc.check();
+      expect(result.checks.wechat).toEqual(expect.objectContaining({ status: "ok" }));
+    });
+
+    it("小程序独立配置应出现在微信健康检查中", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-mini";
+      process.env.MINIPROGRAM_APP_SECRET = "mini-secret";
+      const result = await svc.check();
+      expect(result.checks.wechat).toEqual(expect.objectContaining({ status: "ok" }));
     });
 
     it("外部服务故障时状态为 degraded", async () => {

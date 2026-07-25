@@ -466,14 +466,14 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
                 placeholder="请输入商品名称"
               />
             </el-form-item>
-            <el-form-item label="一句话简介">
+            <el-form-item label="一句话简介（卡片小字）">
               <el-input
                 v-model="form.intro"
                 type="textarea"
                 :rows="2"
                 maxlength="200"
                 show-word-limit
-                placeholder="展示在商品标题下方（选填）"
+                placeholder="展示在全平台商品卡片标题下方，建议 18—40 字（选填）"
               />
             </el-form-item>
             <el-row :gutter="16">
@@ -490,7 +490,7 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="标签">
+                <el-form-item label="商品卖点标签">
                   <el-tag
                     v-for="(tag, idx) in form.tags"
                     :key="idx"
@@ -516,6 +516,9 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
                   >
                     + 标签
                   </el-button>
+                  <div class="field-help">
+                    展示在商品卡片顶部，建议填写 1—2 个真实卖点，如“手工制作”“顺丰包邮”。
+                  </div>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -532,7 +535,7 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
               商品封面 <span class="zone-req">*</span>
             </div>
             <div class="zone-desc">
-              1 张 · 展示在商品列表和商城卡片上，同时是商品页轮播的第一张
+              1 张 · 建议 1:1、至少 800×800；展示在全平台商品卡片上，同时是商品页轮播的第一张
             </div>
             <CosImageUpload v-model="form.cover" />
           </div>
@@ -887,6 +890,13 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
   font-size: 15px; font-weight: 600; margin-bottom: 16px;
   padding-left: 10px; border-left: 3px solid var(--el-color-primary, #409eff);
   line-height: 1.2;
+}
+.field-help {
+  width: 100%;
+  margin-top: 6px;
+  color: var(--color-text-secondary, #909399);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* 图片分区 */

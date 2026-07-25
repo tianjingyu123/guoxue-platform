@@ -1,10 +1,12 @@
 import { Test } from "@nestjs/testing";
 import { SmartFeedController } from "./smart-feed.controller";
 import { SmartFeedService, SmartFeedResult } from "./smart-feed.service";
+import { HomeChannelFeedService } from "./home-channel-feed.service";
 
 describe("SmartFeedController", () => {
   let ctrl: SmartFeedController;
   let svc: jest.Mocked<SmartFeedService>;
+  let channels: jest.Mocked<HomeChannelFeedService>;
 
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
@@ -17,10 +19,18 @@ describe("SmartFeedController", () => {
             getAnonymousFeed: jest.fn(),
           },
         },
+        {
+          provide: HomeChannelFeedService,
+          useValue: {
+            getFollowingFeed: jest.fn(),
+            getHotFeed: jest.fn(),
+          },
+        },
       ],
     }).compile();
     ctrl = mod.get(SmartFeedController);
     svc = mod.get(SmartFeedService) as jest.Mocked<SmartFeedService>;
+    channels = mod.get(HomeChannelFeedService) as jest.Mocked<HomeChannelFeedService>;
   });
 
   beforeEach(() => {
@@ -95,6 +105,24 @@ describe("SmartFeedController", () => {
       svc.getFeed.mockResolvedValue(feedResult);
       await ctrl.getSmartFeedOptional(mockReq("u1"), 2, 10);
       expect(svc.getFeed).toHaveBeenCalledWith("u1", 2, 10);
+    });
+
+    it("关注频道只走关注聚合流", async () => {
+      const following = { ...feedResult, userSegment: "following" };
+      channels.getFollowingFeed.mockResolvedValue(following);
+      const result = await ctrl.getSmartFeedOptional(mockReq("u1"), 2, 10, "following");
+      expect(channels.getFollowingFeed).toHaveBeenCalledWith("u1", 2, 10);
+      expect(svc.getFeed).not.toHaveBeenCalled();
+      expect(result.userSegment).toBe("following");
+    });
+
+    it("热门频道走固定全平台榜单，不读取用户画像", async () => {
+      const hot = { ...feedResult, userId: null as unknown as string, userSegment: "hot" };
+      channels.getHotFeed.mockResolvedValue(hot);
+      const result = await ctrl.getSmartFeedOptional(mockReq("u1"), 1, 20, "hot");
+      expect(channels.getHotFeed).toHaveBeenCalledWith(1, 20);
+      expect(svc.getFeed).not.toHaveBeenCalled();
+      expect(result.userSegment).toBe("hot");
     });
   });
 

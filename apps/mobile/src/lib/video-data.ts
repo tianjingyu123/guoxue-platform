@@ -237,6 +237,7 @@ export interface VideoListItem {
   id: string
   title: string
   coverUrl: string
+  videoUrl?: string
   duration: number
   author: { name: string; avatar: string }
   likes: number
@@ -252,6 +253,7 @@ export interface VideoSearchResult {
   author: string
   authorAvatar: string
   cover: string
+  videoUrl?: string
   duration: string
   views: number
   publishedAt: string

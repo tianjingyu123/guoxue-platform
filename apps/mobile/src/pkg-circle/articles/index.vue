@@ -7,7 +7,7 @@
     <view class="header">
       <view class="nav-bar">
         <view class="nav-btn" @tap="goBack">
-          <AppIcon name="arrow-left" :size="20" color="#2C2C2C" />
+          <AppIcon name="arrow-left" :size="44" color="#2C2C2C" />
         </view>
         <text class="nav-title">文章</text>
         <view class="flex-1" />
@@ -94,34 +94,48 @@
             v-for="article in displayArticles"
             :key="article.id"
             class="article-card"
-            @tap="navigateTo(`/articles/${article.id}`)"
+            :class="`article-card--${articleLayout(article)}`"
+            data-content-card
+            @tap="navigateToContent(`/articles/${article.id}`, $event)"
           >
-            <!-- 封面：有图显图，无图/坏图翻书法兜底（不再露破图/无关 stock 空框） -->
-            <view class="article-cover-wrap">
-              <smart-cover :src="article.cover" :title="article.title" type="default" deco :deco-size="56" />
+            <view class="article-main">
+              <view class="article-copy">
+                <text v-if="article.tags?.[0]" class="article-kicker">{{ article.tags[0] }}</text>
+                <view class="article-title-row">
+                  <text class="article-title">{{ article.title }}</text>
+                </view>
+                <text v-if="article.excerpt" class="article-excerpt">{{ article.excerpt }}</text>
+              </view>
+
+              <!-- 单图：头条式右侧横图。 -->
+              <view v-if="articleImages(article).length === 1" class="article-cover-single">
+                <smart-cover
+                  :src="articleImages(article)[0]"
+                  :title="article.title"
+                  type="default"
+                />
+              </view>
             </view>
-            <view class="article-body">
-              <view class="article-title-row">
-                <text class="article-title">{{ article.title }}</text>
+
+            <!-- 多图：按真实图片数量平铺，两图与三图均有独立比例。 -->
+            <view
+              v-if="articleImages(article).length >= 2"
+              class="article-gallery"
+              :class="`article-gallery--${Math.min(articleImages(article).length, 3)}`"
+            >
+              <view
+                v-for="(image, imageIndex) in articleImages(article)"
+                :key="`${article.id}-${imageIndex}`"
+                class="article-gallery-item"
+              >
+                <smart-cover :src="image" :title="article.title" type="default" />
               </view>
-              <text v-if="article.excerpt" class="article-excerpt">{{ article.excerpt }}</text>
-              <view class="article-foot">
-                <view class="article-author">
-                  <smart-avatar class="author-avatar-img" :src="article.user?.avatar" :name="article.user?.nickname || '匿名'" />
-                  <text class="author-name">{{ article.user?.nickname || '匿名' }}</text>
-                </view>
-                <view class="article-stats">
-                  <view class="stat">
-                    <AppIcon name="heart" :size="14" color="#999" />
-                    <text class="stat-text">{{ article.likeCount }}</text>
-                  </view>
-                  <view class="stat">
-                    <AppIcon name="eye" :size="14" color="#999" />
-                    <text class="stat-text">{{ article.viewCount }}</text>
-                  </view>
-                  <text class="stat-text">{{ formatDate(article.createdAt) }}</text>
-                </view>
-              </view>
+            </view>
+
+            <view class="article-foot">
+              <text class="article-source">{{ article.user?.nickname || article.circle?.name || '国学平台' }}</text>
+              <text class="article-meta">{{ formatCount(article.viewCount) }} 阅读</text>
+              <text class="article-meta">{{ formatDate(article.createdAt) }}</text>
             </view>
           </view>
 
@@ -154,9 +168,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import AiSearchModal from '@/components/common/ai-search-modal.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
-import SmartAvatar from '@/components/common/smart-avatar.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import { goBack, navigateToContent } from '@/utils/router'
 import { articleApi, tagApi, type ArticleListItem, type HotTag } from '@/lib/article-data'
 
 const searchQuery = ref('')
@@ -259,6 +272,26 @@ function selectSort(s: 'latest' | 'popular') {
   showSortMenu.value = false
 }
 
+function articleImages(article: ArticleListItem): string[] {
+  const seen = new Set<string>()
+  return [...(article.images || []), article.cover || '']
+    .map((image) => image.trim())
+    .filter((image) => image && !seen.has(image) && !!seen.add(image))
+    .slice(0, 3)
+}
+
+function articleLayout(article: ArticleListItem): 'text' | 'single' | 'multi' {
+  const count = articleImages(article).length
+  if (count === 0) return 'text'
+  if (count === 1) return 'single'
+  return 'multi'
+}
+
+function formatCount(value: number) {
+  if (value >= 10000) return `${(value / 10000).toFixed(value >= 100000 ? 0 : 1)}万`
+  return String(value || 0)
+}
+
 function formatDate(dateStr: string) {
   const date = new Date(dateStr)
   const now = new Date()
@@ -296,8 +329,9 @@ function formatDate(dateStr: string) {
   padding: 0 24rpx;
 }
 .nav-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 72rpx;
+  height: 72rpx;
+  margin-left: -8rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -422,9 +456,10 @@ function formatDate(dateStr: string) {
   flex: 1;
   height: 0;
   min-height: 0;
+  background: #fff;
 }
 .list {
-  padding: 24rpx;
+  padding: 0 28rpx;
 }
 .state {
   display: flex;
@@ -457,89 +492,107 @@ function formatDate(dateStr: string) {
   color: #fff;
 }
 .article-card {
-  display: flex;
-  gap: 24rpx;
-  padding: 24rpx;
-  margin-bottom: 16rpx;
+  padding: 30rpx 4rpx 26rpx;
   background: #fff;
-  border-radius: 20rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  border-bottom: 1rpx solid #e9e6e1;
 }
-/* 4:3 横图缩略图（头条式口径·规范§五修订=文章缩略图横小图·固定 rpx 宽高非 aspect-ratio，X5 安全） */
-.article-cover-wrap {
-  width: 176rpx;
-  height: 132rpx;
-  border-radius: 16rpx;
-  flex-shrink: 0;
-  overflow: hidden;
+.article-main {
+  display: flex;
+  align-items: stretch;
+  gap: 24rpx;
 }
-.article-body {
+.article-copy {
   flex: 1;
   min-width: 0;
-  min-height: 132rpx; /* 与横图齐平兜底：底部作者/数据行 margin-top:auto 沉底 */
   display: flex;
   flex-direction: column;
+}
+.article-kicker {
+  align-self: flex-start;
+  margin-bottom: 10rpx;
+  padding: 3rpx 10rpx;
+  border: 1rpx solid rgba(196, 30, 58, 0.32);
+  border-radius: 4rpx;
+  color: #b51b34;
+  font-size: 20rpx;
+  line-height: 1.35;
+}
+.article-cover-single {
+  width: 220rpx;
+  height: 148rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #f2efe9;
 }
 .article-title-row {
   display: flex;
   align-items: flex-start;
-  gap: 12rpx;
 }
 .article-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-  line-height: 1.4;
+  font-family: var(--font-serif, "Songti SC", "STSong", "SimSun", serif);
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 0.5rpx;
+  color: #24211d;
+  line-height: 1.42;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .article-excerpt {
-  font-size: 22rpx;
-  color: #666;
-  line-height: 1.5;
-  margin-top: 8rpx;
+  margin-top: 12rpx;
+  font-size: 25rpx;
+  color: #6b665f;
+  line-height: 1.6;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.article-card--single .article-excerpt {
+  -webkit-line-clamp: 1;
+}
+.article-card--text .article-excerpt {
+  -webkit-line-clamp: 3;
+}
+.article-gallery {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 20rpx;
+  overflow: hidden;
+}
+.article-gallery-item {
+  flex: 1;
+  min-width: 0;
+  height: 142rpx;
+  overflow: hidden;
+  border-radius: 6rpx;
+  background: #f2efe9;
+}
+.article-gallery--2 .article-gallery-item {
+  height: 196rpx;
+}
 .article-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: auto;
-  padding-top: 16rpx;
+  gap: 16rpx;
+  margin-top: 18rpx;
+  min-width: 0;
 }
-.article-author {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-.author-avatar-img {
-  width: 36rpx;
-  height: 36rpx;
-  border-radius: 999rpx;
-  flex-shrink: 0;
-}
-.author-name {
+.article-source {
+  max-width: 260rpx;
   font-size: 22rpx;
-  color: #666;
+  color: #8a6f3d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.article-stats {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-}
-.stat-text {
+.article-meta {
   font-size: 22rpx;
-  color: #999;
+  color: #a09b94;
+  white-space: nowrap;
 }
 .load-more {
   display: flex;

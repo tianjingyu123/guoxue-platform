@@ -28,6 +28,11 @@ const voiceType = 'yunxi' // 男声叙事，适合经典诵读
 const ttsSupported = computed(() => true) // 后端合成，全端可用
 const audio = uni.createInnerAudioContext()
 let ended = false
+let audioRetryCount = 0
+let audioRetryTimer: ReturnType<typeof setTimeout> | null = null
+let audioLoadVersion = 0
+let audioObjectUrl = ''
+const MAX_AUDIO_RETRIES = 2
 audio.onEnded(() => {
   if (!playing.value || ended) return
   if (curSentence.value < sentences.value.length - 1) {
@@ -41,11 +46,23 @@ audio.onEnded(() => {
     playing.value = false
   }
 })
-audio.onError(() => {
+function handleAudioFailure() {
   if (!playing.value) return
+  // WebView/弱网下媒体首包或 Range 请求偶发失败时，先静默重试当前句。
+  // 重试地址附加短参数，绕过浏览器可能缓存的失败媒体响应；连续失败才提示用户。
+  if (audioRetryCount < MAX_AUDIO_RETRIES) {
+    audioRetryCount++
+    if (audioRetryTimer) clearTimeout(audioRetryTimer)
+    audioRetryTimer = setTimeout(() => {
+      audioRetryTimer = null
+      if (playing.value) speakCurrent(true)
+    }, 350 * audioRetryCount)
+    return
+  }
   playing.value = false
   uni.showToast({ title: '朗读加载失败，请重试', icon: 'none' })
-})
+}
+audio.onError(handleAudioFailure)
 
 const curChapter = computed(() => chapters.value[curIndex.value] || null)
 const hasPrev = computed(() => curIndex.value > 0)
@@ -54,12 +71,37 @@ const progress = computed(() =>
   sentences.value.length ? Math.round(((curSentence.value + 1) / sentences.value.length) * 100) : 0,
 )
 
-/** 章节正文切句（与阅读器一致：优先换行，否则按句读切） */
+/** 章节正文切句：换行和句读都切，且限制单句长度，避免 TTS GET 地址过长。 */
 function splitSentences(text: string): string[] {
   if (!text) return []
-  let parts = text.split(/\n+/).map((s) => s.trim()).filter(Boolean)
-  if (parts.length <= 1) {
-    parts = text.replace(/([。！？；])/g, '$1\n').split('\n').map((s) => s.trim()).filter(Boolean)
+  const clauses = text
+    .replace(/\r/g, '')
+    .replace(/([。！？；])/g, '$1\n')
+    .split(/\n+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const parts: string[] = []
+  for (const clause of clauses) {
+    if (clause.length <= 120) {
+      parts.push(clause)
+      continue
+    }
+    // 过长无句读文本优先在逗号、顿号处切，仍超长时再硬切。
+    const segments = clause.replace(/([，、：,.!?;])/g, '$1\n').split(/\n+/).filter(Boolean)
+    let buffer = ''
+    for (const segment of segments) {
+      if (buffer && buffer.length + segment.length > 120) {
+        parts.push(buffer)
+        buffer = ''
+      }
+      if (segment.length > 120) {
+        if (buffer) { parts.push(buffer); buffer = '' }
+        for (let i = 0; i < segment.length; i += 120) parts.push(segment.slice(i, i + 120))
+      } else {
+        buffer += segment
+      }
+    }
+    if (buffer) parts.push(buffer)
   }
   return parts
 }
@@ -118,13 +160,40 @@ async function loadChapter(idx: number, autoPlay = false, startPct = 0) {
 }
 
 // ── 朗读控制 ──
-function speakCurrent() {
+async function speakCurrent(isRetry = false) {
   if (curSentence.value >= sentences.value.length) { playing.value = false; return }
   const sentence = sentences.value[curSentence.value]
   if (!sentence) { playing.value = false; return }
+  if (!isRetry) audioRetryCount = 0
   // 语速→rate 百分比（后端 Edge/腾讯云均按此解析）
   const rate = `${Math.round((speed.value - 1) * 100)}%`
-  audio.src = `${apiBase}/tts/synthesize?text=${encodeURIComponent(sentence)}&voice=${voiceType}&rate=${encodeURIComponent(rate)}`
+  const retryParam = isRetry ? `&retry=${Date.now()}` : ''
+  const sourceUrl = `${apiBase}/tts/synthesize?text=${encodeURIComponent(sentence)}&voice=${voiceType}&rate=${encodeURIComponent(rate)}${retryParam}`
+  const loadVersion = ++audioLoadVersion
+
+  let shouldUseBlobPlayback = false
+  // #ifdef H5
+  shouldUseBlobPlayback = true
+  // 内置浏览器/WebView 可能拦截把动态接口直接设为媒体 src；
+  // 先走同源 fetch 取回 MP3，再以 blob: 播放，可绕开媒体 URL 策略差异。
+  if (shouldUseBlobPlayback) {
+    try {
+      const response = await fetch(sourceUrl)
+      if (!response.ok) throw new Error(`TTS HTTP ${response.status}`)
+      const data = await response.arrayBuffer()
+      if (!playing.value || loadVersion !== audioLoadVersion) return
+      if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl)
+      audioObjectUrl = URL.createObjectURL(new Blob([data], { type: response.headers.get('content-type') || 'audio/mpeg' }))
+      audio.src = audioObjectUrl
+      audio.play()
+    } catch {
+      if (loadVersion === audioLoadVersion) handleAudioFailure()
+    }
+    return
+  }
+  // #endif
+
+  audio.src = sourceUrl
   audio.play()
 }
 
@@ -137,15 +206,24 @@ function play() {
 }
 function pause() {
   playing.value = false
+  if (audioRetryTimer) { clearTimeout(audioRetryTimer); audioRetryTimer = null }
   audio.pause()
 }
 function stop() {
   playing.value = false
   ended = true
+  audioLoadVersion++
+  audioRetryCount = 0
+  if (audioRetryTimer) { clearTimeout(audioRetryTimer); audioRetryTimer = null }
   audio.stop()
+  if (audioObjectUrl) {
+    URL.revokeObjectURL(audioObjectUrl)
+    audioObjectUrl = ''
+  }
 }
 function togglePlay() {
-  playing.value ? pause() : play()
+  if (playing.value) pause()
+  else play()
 }
 function jumpSentence(i: number) {
   curSentence.value = Math.max(0, Math.min(i, sentences.value.length - 1))

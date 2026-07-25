@@ -1,5 +1,5 @@
 import { Test } from "@nestjs/testing";
-import { ArticleService } from "./article.service";
+import { ArticleService, extractArticleListImages } from "./article.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { RecommendService } from "../recommend/recommend.service";
@@ -35,6 +35,18 @@ const mockRecommend = {
   related: jest.fn(),
 };
 
+describe("extractArticleListImages", () => {
+  it("去重并兼容单双引号图片地址", () => {
+    expect(extractArticleListImages(
+      "https://img.example/cover.jpg",
+      '<img src="https://img.example/cover.jpg"><img src=\'https://img.example/second.jpg\'>',
+    )).toEqual([
+      "https://img.example/cover.jpg",
+      "https://img.example/second.jpg",
+    ]);
+  });
+});
+
 describe("ArticleService", () => {
   let svc: ArticleService;
 
@@ -69,10 +81,18 @@ describe("ArticleService", () => {
       mockRedis.delByPattern.mockResolvedValue(undefined);
 
       const result = await svc.create("c1", "u1", {
-        title: "国学经典", content: "正文", tags: ["儒家"],
+        title: "国学经典", content: "正文", cover: "cover.jpg", tags: ["儒家"],
       });
       expect(result.id).toBe("a1");
       expect(mockRedis.delByPattern).toHaveBeenCalledWith("articles:list:*");
+    });
+
+    it("缺少首图时拒绝发布文章", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValue({ role: "OWNER" });
+
+      await expect(svc.create("c1", "u1", {
+        title: "无图文章", content: "正文", tags: ["儒家"],
+      })).rejects.toThrow("文章必须上传首图后才能发布");
     });
 
     it("非管理员创建文章抛出 ForbiddenException", async () => {
@@ -156,6 +176,30 @@ describe("ArticleService", () => {
   });
 
   describe("listArticles", () => {
+    it("按封面和正文顺序返回最多三张专区缩略图，且不泄露正文", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.article.findMany.mockResolvedValue([{
+        id: "a1",
+        title: "多图文章",
+        cover: "https://img.example/cover.jpg",
+        content: [
+          '<p><img src="https://img.example/first.jpg"></p>',
+          '<img src="https://img.example/second.jpg">',
+          '<img src="https://img.example/fourth.jpg">',
+        ].join(""),
+      }]);
+      mockPrisma.article.count.mockResolvedValue(1);
+
+      const result = await svc.listArticles({ page: 1, pageSize: 20 });
+
+      expect(result.rows[0].images).toEqual([
+        "https://img.example/cover.jpg",
+        "https://img.example/first.jpg",
+        "https://img.example/second.jpg",
+      ]);
+      expect(result.rows[0]).not.toHaveProperty("content");
+    });
+
     it("无缓存时查询并写入缓存", async () => {
       mockRedis.getJson.mockResolvedValue(null);
       mockPrisma.article.findMany.mockResolvedValue([]);
@@ -223,7 +267,7 @@ describe("ArticleService", () => {
 
   describe("auditArticle", () => {
     it("审核文章成功", async () => {
-      mockPrisma.article.findUnique.mockResolvedValue({ id: "a1" });
+      mockPrisma.article.findUnique.mockResolvedValue({ id: "a1", cover: "cover.jpg" });
       mockPrisma.article.update.mockResolvedValue({ id: "a1", auditStatus: "APPROVED" });
       const result = await svc.auditArticle("a1", "APPROVED");
       expect(result.auditStatus).toBe("APPROVED");

@@ -16,6 +16,17 @@ import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { AiMessage } from "../ai-gateway/adapters/base.adapter";
 import { randomUUID } from "crypto";
 
+/** 首发广场不陈列结果预测型智能体；历史会话仍可通过详情继续访问。 */
+const PUBLIC_HIDDEN_BOT_TYPES = [
+  "FORTUNE_TELLER",
+  "RELATIONSHIP",
+  "DIVINATION",
+  "LIFE_CHOICE",
+  "FORTUNE_CHECK",
+  "REPORT_FACTORY",
+  "GOODS_RECOMMENDER",
+] as const;
+
 @Injectable()
 export class BotService {
   private readonly logger = new Logger(BotService.name);
@@ -154,7 +165,8 @@ export class BotService {
 
   /** Coze 凭证是否真实可用：种子占位（botId "coze_xx_001"、apiKey "sk_dev_placeholder"）
    *  能过非空校验但一对话必失败——广场不陈列坏品（董事长 2026-07-17 拍板下架不能用的） */
-  private isConfigured(bot: { botId: string; apiKey: string }): boolean {
+  private isConfigured(bot: { botId: string; apiKey: string; runtime?: string; systemPrompt?: string | null }): boolean {
+    if (bot.runtime === "local") return !!bot.systemPrompt;
     if (!bot.botId) return false;
     // 配了 OAuth 时全平台统一用 OAuth 令牌，单个智能体可不存 PAT；否则要求非空且非占位
     if (!this.coze.isOAuthConfigured()) {
@@ -166,7 +178,11 @@ export class BotService {
   }
 
   async list(type?: string) {
-    const where: Prisma.BotConfigWhereInput = { status: "ACTIVE" };
+    if (type && (PUBLIC_HIDDEN_BOT_TYPES as readonly string[]).includes(type)) return [];
+    const where: Prisma.BotConfigWhereInput = {
+      status: "ACTIVE",
+      type: { notIn: [...PUBLIC_HIDDEN_BOT_TYPES] },
+    };
     if (type) where.type = type;
 
     const bots = await this.prisma.botConfig.findMany({
@@ -967,7 +983,10 @@ export class BotService {
   /** 智能体热度排行 */
   async getRanking(limit = 20) {
     const bots = await this.prisma.botConfig.findMany({
-      where: { status: "ACTIVE" },
+      where: {
+        status: "ACTIVE",
+        type: { notIn: [...PUBLIC_HIDDEN_BOT_TYPES] },
+      },
       select: { id: true, name: true, avatar: true, intro: true, type: true },
       orderBy: { sortOrder: "asc" },
       take: limit,
@@ -995,7 +1014,10 @@ export class BotService {
   /** 信息流智能体卡片（含动态背景色） */
   async getFeedCards(limit = 6) {
     const bots = await this.prisma.botConfig.findMany({
-      where: { status: "ACTIVE" },
+      where: {
+        status: "ACTIVE",
+        type: { notIn: [...PUBLIC_HIDDEN_BOT_TYPES] },
+      },
       select: { id: true, name: true, avatar: true, intro: true, type: true },
       orderBy: { sortOrder: "asc" },
       take: limit,

@@ -12,12 +12,19 @@ describe("Live DTO 校验", () => {
 
     it("带全部可选字段通过", async () => {
       const dto = Object.assign(new CreateRoomDto(), {
-        circleId: "c1", title: "直播", cover: "https://example.com/cover.jpg",
+        circleId: "c1", title: "直播", description: "本场讲解十二宫位", cover: "https://example.com/cover.jpg",
         hostUserId: "u1", coHostIds: ["u2", "u3"], chargeType: "PAID",
         chargePrice: 99, productIds: ["p1", "p2"],
       });
       const errors = await validate(dto);
       expect(errors.length).toBe(0);
+    });
+
+    it("直播介绍超过 500 字时报错", async () => {
+      const dto = Object.assign(new CreateRoomDto(), {
+        title: "直播", description: "介".repeat(501),
+      });
+      expect((await validate(dto)).length).toBeGreaterThan(0);
     });
 
     it("缺 title 报错", async () => {

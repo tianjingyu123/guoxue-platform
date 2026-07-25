@@ -9,7 +9,7 @@
  *   成功后静默 refresh 换取落库真 id；失败移除乐观项、回填输入、toast 后端文案（审核/禁言口径）
  * - 底部自带占位垫片，避免内容被 fixed 输入条遮挡
  */
-import { ref } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import CommentList from '@/components/comment/comment-list.vue'
 import CommentInputBar from '@/components/comment/comment-input-bar.vue'
 import { createComment, type CommentItem, type CommentTargetType } from '@/lib/comment-data'
@@ -23,8 +23,18 @@ interface Props {
   theme?: 'light' | 'dark'
   /** true 时不渲染底部占位垫片（页面自己有底垫时避免双份空白，如文章页 .ad-bottom-pad） */
   noPad?: boolean
+  /** 默认不常驻输入条，由页面入口或回复动作按需唤起 */
+  deferredInput?: boolean
+  /** 页面侧递增此信号，可稳定唤起延迟输入条（避免跨端组件 ref 差异） */
+  openSignal?: number
 }
-const props = withDefaults(defineProps<Props>(), { authorId: '', theme: 'light', noPad: false })
+const props = withDefaults(defineProps<Props>(), {
+  authorId: '',
+  theme: 'light',
+  noPad: false,
+  deferredInput: false,
+  openSignal: 0,
+})
 
 const emit = defineEmits<{
   (e: 'count-change', total: number): void
@@ -41,15 +51,35 @@ const inputRef = ref<{ focus: () => void; clear: () => void; setText: (v: string
 
 const replyTo = ref<{ id: string; nickname: string; rootId: string } | null>(null)
 const sending = ref(false)
+const inputVisible = ref(!props.deferredInput)
 
-function onReply(p: { target: CommentItem; rootId: string }) {
+async function showInput() {
+  inputVisible.value = true
+  await nextTick()
+  inputRef.value?.focus()
+}
+
+watch(
+  () => props.openSignal,
+  (value, previous) => {
+    if (props.deferredInput && value !== previous) void showInput()
+  },
+)
+
+function dismissInput() {
+  if (sending.value) return
+  replyTo.value = null
+  inputVisible.value = false
+}
+
+async function onReply(p: { target: CommentItem; rootId: string }) {
   if (!getToken()) {
     uni.showToast({ title: '请先登录', icon: 'none' })
     return
   }
   if (p.target.id.startsWith('temp-')) return // 未落库的乐观评论还没有真 id，不可回复
   replyTo.value = { id: p.target.id, nickname: p.target.user.nickname, rootId: p.rootId }
-  inputRef.value?.focus()
+  await showInput()
 }
 
 async function onSend(content: string) {
@@ -83,6 +113,7 @@ async function onSend(content: string) {
     // 真连成功：静默刷新换取落库真 id（refresh 非首载不闪骨架）
     await listRef.value?.refresh()
     emit('sent', real)
+    if (props.deferredInput) inputVisible.value = false
   } catch (e) {
     // 失败回滚：移除乐观项 + 回填输入内容与回复态，toast 后端文案（含审核拒绝/禁言口径）
     listRef.value?.removeComment(temp.id)
@@ -97,7 +128,7 @@ async function onSend(content: string) {
 /** 供页面手动刷新（如页面下拉刷新时联动）+ 聚焦输入框（头条式底栏「写评论」入口） */
 defineExpose({
   refresh: () => listRef.value?.refresh(),
-  focusInput: () => inputRef.value?.focus(),
+  focusInput: showInput,
 })
 </script>
 
@@ -113,14 +144,17 @@ defineExpose({
       @count-change="(n) => emit('count-change', n)"
     />
     <!-- 垫片：给 fixed 输入条让位（含安全区）；页面自带底垫时传 no-pad 关掉 -->
-    <view v-if="!noPad" class="csec__pad" />
+    <view v-if="!noPad && inputVisible" class="csec__pad" />
     <comment-input-bar
+      v-if="inputVisible"
       ref="inputRef"
       :theme="theme"
       :reply-to="replyTo"
       :sending="sending"
+      :dismissible="deferredInput"
       @send="onSend"
       @cancel-reply="replyTo = null"
+      @dismiss="dismissInput"
     >
       <!-- 透传页面级右侧动作区（头条式底栏图标排）·不传时输入条保持旧版样式 -->
       <template v-if="$slots['bar-actions']" #actions>

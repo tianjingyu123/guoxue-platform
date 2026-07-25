@@ -78,6 +78,10 @@ export class RecommendSceneService {
           id: { not: article.id },
           auditStatus: "APPROVED",
           tags: { hasSome: tags },
+          OR: [
+            { circleId: article.circleId },
+            { visibility: "PLATFORM" },
+          ],
         },
         select: this.selectSvc.articleSelect(),
         take: 10,
@@ -146,7 +150,7 @@ export class RecommendSceneService {
     // 并行查询：课程 + 圈子 + 文章 + 商品 + 视频 + 古籍
     const [courses, circles, articles, products, videos] = await Promise.all([
       this.prisma.course.findMany({
-        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED" },
+        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
         select: this.selectSvc.courseSelect(), take: 4, orderBy: { studentCount: "desc" },
       }),
       this.prisma.circle.findMany({
@@ -154,7 +158,7 @@ export class RecommendSceneService {
         select: this.selectSvc.circleSelect(), take: 4, orderBy: { memberCount: "desc" },
       }),
       this.prisma.article.findMany({
-        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED" },
+        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
         select: this.selectSvc.articleSelect(), take: 4, orderBy: { viewCount: "desc" },
       }),
       this.prisma.product.findMany({
@@ -263,6 +267,7 @@ export class RecommendSceneService {
         where: {
           OR: cityNames.map((c: string) => ({ title: { contains: c } })),
           auditStatus: "APPROVED",
+          visibility: "PLATFORM",
         },
         select: { id: true, title: true, cover: true, excerpt: true, tags: true, viewCount: true, likeCount: true },
         take: 6,

@@ -1,4 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { createHash, timingSafeEqual } from "crypto";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
+import { PrismaService } from "../../prisma/prisma.service";
 
 interface KuaidiTrackItem {
   time?: string;
@@ -19,6 +24,18 @@ interface KuaidiResponse {
   message?: string;
 }
 
+interface KuaidiPushPayload {
+  status?: string;
+  message?: string;
+  lastResult?: {
+    state?: string;
+    ischeck?: string;
+    com?: string;
+    nu?: string;
+    data?: KuaidiTrackItem[];
+  };
+}
+
 /**
  * 快递物流查询服务（快递100 API）
  * 用于为 OrderLogistics 提供真实物流轨迹
@@ -29,7 +46,7 @@ export class LogisticsService {
   private readonly apiKey: string;
   private readonly customer: string;
 
-  constructor() {
+  constructor(@Optional() private readonly prisma?: PrismaService) {
     this.apiKey = process.env.KUAIDI100_API_KEY || "";
     this.customer = process.env.KUAIDI100_CUSTOMER || "";
 
@@ -56,6 +73,78 @@ export class LogisticsService {
 
     // 无公司时自动识别
     return this.autoDetect(logisticsNo);
+  }
+
+  /** 订阅运单状态推送；未配置订阅参数时不阻断发货。 */
+  async subscribeTrack(logisticsNo: string, company: string) {
+    const callbackUrl = process.env.KUAIDI100_CALLBACK_URL || "";
+    const salt = process.env.KUAIDI100_SALT || "";
+    if (!this.apiKey || !callbackUrl || !salt) {
+      return { subscribed: false, configured: false, message: "快递100订阅参数未配置完整" };
+    }
+
+    const param = JSON.stringify({
+      company: this.normalizeCompanyCode(company),
+      number: logisticsNo,
+      key: this.apiKey,
+      parameters: { callbackurl: callbackUrl, salt, resultv2: "4" },
+    });
+    const response = await fetch("https://poll.kuaidi100.com/poll", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ schema: "json", param }).toString(),
+      signal: AbortSignal.timeout(10000),
+    });
+    const result = await response.json() as { result?: boolean; returnCode?: string; message?: string };
+    const subscribed = result.result === true || result.returnCode === "200" || result.returnCode === "501";
+    if (!subscribed) this.logger.warn(`快递100订阅失败: ${result.returnCode || "unknown"} ${result.message || ""}`);
+    return { subscribed, configured: true, returnCode: result.returnCode, message: result.message };
+  }
+
+  /** 验证并处理快递100推送；签名原文必须保持未转义。 */
+  async handlePush(param: string, sign: string) {
+    const salt = process.env.KUAIDI100_SALT || "";
+    if (!salt || !param || !sign) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "快递100回调参数不完整");
+    }
+    const expected = createHash("md5").update(param + salt).digest("hex").toUpperCase();
+    const actual = sign.toUpperCase();
+    const expectedBuffer = Buffer.from(expected, "utf8");
+    const actualBuffer = Buffer.from(actual, "utf8");
+    if (expectedBuffer.length !== actualBuffer.length || !timingSafeEqual(expectedBuffer, actualBuffer)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "快递100回调签名验证失败");
+    }
+
+    let payload: KuaidiPushPayload;
+    try {
+      payload = JSON.parse(param) as KuaidiPushPayload;
+    } catch {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "快递100回调报文不是有效 JSON");
+    }
+
+    const result = payload.lastResult;
+    if (!result?.nu) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "快递100回调缺少运单号");
+    }
+    const tracks = (result.data || []).map((item) => ({
+      time: item.time || item.ftime || "",
+      status: item.status || item.context || "",
+      desc: item.context || item.status || "",
+      location: item.location || "",
+    }));
+    const state = result.ischeck === "1" || result.state === "3"
+      ? "SIGNED"
+      : "IN_TRANSIT";
+
+    if (!this.prisma) {
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "物流数据库服务不可用");
+    }
+    const updated = await this.prisma.orderLogistics.updateMany({
+      where: { logisticsNo: result.nu },
+      data: { status: state, trackingData: tracks as Prisma.InputJsonValue },
+    });
+    if (updated.count === 0) this.logger.warn(`收到未知运单的快递100推送: ${result.nu}`);
+    return { accepted: true, updated: updated.count };
   }
 
   /** 使用指定快递公司查询 */
@@ -110,7 +199,6 @@ export class LogisticsService {
   }
   /** 快递100签名: MD5(param + key + customer) */
   private sign(param: string): string {
-    const { createHash } = require("crypto");
     return createHash("md5").update(param + this.apiKey + this.customer).digest("hex").toUpperCase();
   }
 

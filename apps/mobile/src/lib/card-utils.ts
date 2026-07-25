@@ -22,11 +22,18 @@ export function formatCount(num?: number): string {
 export interface ProductCardData {
   id: number | string
   title: string
+  /** 商品发布端“一句话简介”，用于全平台商品卡片的小字说明 */
+  subtitle?: string
   cover?: string
   coverRatio?: string
   price?: number
   originalPrice?: number
   sales?: number
+  stock?: number
+  /** 商品发布端标签；仅展示真实录入内容 */
+  tags?: string[]
+  /** 推荐场景文案，例如“平台严选” */
+  reason?: string
   rating?: number
   /** 高转化标:秒杀 / 热销 / 新品 */
   tag?: string
@@ -35,11 +42,15 @@ export interface ProductCardData {
 }
 
 export interface CourseCardData {
-  id: number | string
-  title: string
-  cover?: string
-  coverRatio?: string
-  price?: number
+    id: number | string
+    title: string
+    cover?: string
+    coverRatio?: string
+    /** 课程简介：用于课程卡“你将学到”区域，必须来自发布端 intro 字段 */
+    intro?: string
+    /** 一级分类：用于学习路径标签与分类浏览 */
+    category?: string
+    price?: number
   originalPrice?: number
   free?: boolean
   students?: number
@@ -64,6 +75,7 @@ export interface LiveCardData {
   liveType?: 'knowledge' | 'commerce'
   scheduledTime?: string
   duration?: string
+  replayUrl?: string
 }
 
 export interface AgentCardData {

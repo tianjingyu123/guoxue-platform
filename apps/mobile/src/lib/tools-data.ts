@@ -28,7 +28,6 @@ export interface Agent { id: string; name: string; description: string; avatar: 
 export const tools: Tool[] = [
   // 命理推算
   { id: 'bazi', name: '八字排盘', iconId: 'bazi', href: '/paipan/bazi', category: 'mingli' },
-  { id: 'bazi-analysis', name: '八字解析', iconId: 'bazi-analysis', href: '/paipan/tools/coming-soon?name=八字解析', category: 'mingli', comingSoon: true },
   { id: 'ziwei', name: '紫微斗数', iconId: 'ziwei', href: '/paipan/ziwei', badge: true, category: 'mingli' },
   { id: 'qizheng', name: '七政四余', iconId: 'qizheng', href: '/paipan/qizheng', badge: true, category: 'mingli' },
   { id: 'yangming', name: '阳盘命理', iconId: 'yangming', href: '/paipan/yangpan', category: 'mingli' },

@@ -73,7 +73,17 @@ describe("AuthService", () => {
     svc = mod.get(AuthService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.WECHAT_APP_ID;
+    delete process.env.WECHAT_APP_SECRET;
+    delete process.env.WECHAT_OFFICIAL_APPID;
+    delete process.env.WECHAT_OFFICIAL_APP_SECRET;
+    delete process.env.WECHAT_MINI_APP_ID;
+    delete process.env.MINIPROGRAM_APP_ID;
+    delete process.env.WECHAT_MP_APP_ID;
+    delete process.env.MINIPROGRAM_APP_SECRET;
+  });
 
   describe("phoneRegister", () => {
     it("注册成功", async () => {
@@ -168,8 +178,25 @@ describe("AuthService", () => {
   });
 
   describe("wechatLogin", () => {
-    it("微信登录暂未开放", async () => {
+    it("未配置任何微信应用时拒绝登录", async () => {
       await expect(svc.wechatLogin({ code: "code" })).rejects.toThrow(BusinessException);
+      expect(mockWechat.exchangeOAuthCode).not.toHaveBeenCalled();
+    });
+
+    it("只配置公众号卡片时允许进入 H5 code 换取流程", async () => {
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official";
+      process.env.WECHAT_OFFICIAL_APP_SECRET = "official-secret";
+      mockWechat.exchangeOAuthCode.mockRejectedValueOnce(new Error("测试到此为止"));
+      await expect(svc.wechatLogin({ code: "code", loginType: "h5" })).rejects.toThrow(BusinessException);
+      expect(mockWechat.exchangeOAuthCode).toHaveBeenCalledWith("code");
+    });
+
+    it("只配置小程序卡片时允许进入 code2session 流程", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-mini";
+      process.env.MINIPROGRAM_APP_SECRET = "mini-secret";
+      mockWechat.exchangeMiniCode.mockRejectedValueOnce(new Error("测试到此为止"));
+      await expect(svc.wechatLogin({ code: "code", loginType: "miniprogram" })).rejects.toThrow(BusinessException);
+      expect(mockWechat.exchangeMiniCode).toHaveBeenCalledWith("code");
     });
   });
 

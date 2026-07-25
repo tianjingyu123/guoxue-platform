@@ -2,123 +2,114 @@ import { Test } from "@nestjs/testing";
 import { RecommendationService } from "./recommendation.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
-describe("RecommendationService（软性导流）", () => {
-  let svc: RecommendationService;
+describe("RecommendationService（内容优先向导）", () => {
+  let service: RecommendationService;
   let prisma: any;
 
   beforeEach(async () => {
     prisma = {
-      course: { findMany: jest.fn() },
-      circle: { findMany: jest.fn() },
+      article: { findFirst: jest.fn() },
+      classicBook: { findFirst: jest.fn() },
+      video: { findFirst: jest.fn() },
+      liveRoom: { findFirst: jest.fn() },
+      botConfig: { findFirst: jest.fn() },
+      course: { findFirst: jest.fn() },
+      circle: { findFirst: jest.fn() },
+      product: { findFirst: jest.fn() },
     };
-    const mod = await Test.createTestingModule({
+    const module = await Test.createTestingModule({
       providers: [RecommendationService, { provide: PrismaService, useValue: prisma }],
     }).compile();
-    svc = mod.get(RecommendationService);
+    service = module.get(RecommendationService);
   });
 
-  describe("parseProtocol（解析 Coze RECO 协议 + 剥离标记）", () => {
-    it("解析合法标记并从展示文本剥离", () => {
-      const raw = `学八字先打基础……\n\n<!--RECO:[{"type":"course","query":"八字","reason":"系统入门"}]-->`;
-      const { clean, intents } = svc.parseProtocol(raw);
-      expect(clean).toBe("学八字先打基础……");
-      expect(intents).toEqual([{ type: "course", query: "八字", reason: "系统入门" }]);
-    });
-
-    it("无标记时原样返回、意图为空", () => {
-      const { clean, intents } = svc.parseProtocol("普通回答");
-      expect(clean).toBe("普通回答");
-      expect(intents).toEqual([]);
-    });
-
-    it("标记内非法 JSON：剥离标记但意图为空（退回兜底）", () => {
-      const { clean, intents } = svc.parseProtocol("答案<!--RECO:[不是JSON]-->");
-      expect(clean).toBe("答案");
-      expect(intents).toEqual([]);
-    });
-
-    it("过滤非法 type、最多取 2 条", () => {
-      const raw = `x<!--RECO:[{"type":"course","query":"a"},{"type":"product","query":"b"},{"type":"circle","query":"c"},{"type":"course","query":"d"}]-->`;
-      const { intents } = svc.parseProtocol(raw);
-      expect(intents).toHaveLength(2);
-      expect(intents.map((i) => i.type)).toEqual(["course", "circle"]);
+  it("解析内容与商业两类协议，并从展示文本中移除机器标记", () => {
+    const raw = '先从原文理解。<!--RECO:[{"type":"classic","query":"周易"},{"type":"course","query":"周易"}]-->';
+    expect(service.parseProtocol(raw)).toEqual({
+      clean: "先从原文理解。",
+      intents: [
+        { type: "classic", query: "周易", reason: undefined },
+        { type: "course", query: "周易", reason: undefined },
+      ],
     });
   });
 
-  describe("fallbackIntents（平台兜底意图提取）", () => {
-    it("学习信号 → 课程意图", () => {
-      expect(svc.fallbackIntents("我想系统学一下八字")).toEqual([
-        { type: "course", query: "八字", reason: "系统学习八字" },
-      ]);
+  it("没有明确购买或加入意图时，过滤模型擅自给出的商业推荐", async () => {
+    prisma.article.findFirst.mockResolvedValue({
+      id: "a1",
+      title: "从卦辞读周易",
+      cover: "a.webp",
+      excerpt: "原典导读",
+      viewCount: 8,
     });
+    const raw = '回答<!--RECO:[{"type":"course","query":"周易"},{"type":"article","query":"周易"}]-->';
+    const result = await service.build(raw, "周易里的乾卦是什么意思");
 
-    it("社交信号 → 圈子意图", () => {
-      expect(svc.fallbackIntents("有没有紫微的圈子可以交流")).toEqual([
-        { type: "circle", query: "紫微", reason: "结识紫微同好" },
-      ]);
+    expect(prisma.course.findFirst).not.toHaveBeenCalled();
+    expect(result.recommendation?.items.map((item) => item.type)).toEqual(["article"]);
+    expect(result.recommendation?.consentPrompt).not.toContain("价格");
+  });
+
+  it("默认兜底优先文章，而不是直接推课程", () => {
+    expect(service.fallbackIntents("我想了解八字的基础概念")).toEqual([
+      { type: "article", query: "八字", reason: "先读一篇八字相关内容" },
+    ]);
+  });
+
+  it("明确系统学习时，先给文章再给课程", () => {
+    expect(service.fallbackIntents("我想系统学习八字课程")).toEqual([
+      { type: "article", query: "八字", reason: "先读一篇八字相关内容" },
+      { type: "course", query: "八字", reason: "系统学习八字" },
+    ]);
+  });
+
+  it("文章必须已过审、全平台可见且带首图", async () => {
+    prisma.article.findFirst.mockResolvedValue({
+      id: "a1",
+      title: "周易入门",
+      cover: "cover.webp",
+      excerpt: "从卦象到义理",
+      viewCount: 99,
     });
+    const cards = await service.match([{ type: "article", query: "周易", reason: "先读文章" }]);
 
-    it("无国学主题 → 空", () => {
-      expect(svc.fallbackIntents("今天天气怎么样")).toEqual([]);
+    expect(prisma.article.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        deletedAt: null,
+        auditStatus: "APPROVED",
+        visibility: "PLATFORM",
+        cover: { not: null },
+      }),
+    }));
+    expect(cards[0]).toEqual({
+      type: "article",
+      data: expect.objectContaining({ id: "a1", href: "/articles/a1", reason: "先读文章" }),
     });
   });
 
-  describe("match（匹配真实课程/圈子）", () => {
-    it("课程意图命中 → 课程卡片", async () => {
-      prisma.course.findMany.mockResolvedValue([
-        { id: "c1", title: "八字入门", cover: "x.png", price: 99, studentCount: 200 },
-      ]);
-      const cards = await svc.match([{ type: "course", query: "八字", reason: "系统学习八字" }]);
-      expect(cards).toEqual([
-        { type: "course", data: { id: "c1", title: "八字入门", cover: "x.png", price: 99, studentCount: 200, reason: "系统学习八字" } },
-      ]);
+  it("明确购买意图时允许商品，但征求同意话术透明标注商业内容", async () => {
+    prisma.article.findFirst.mockResolvedValue(null);
+    prisma.product.findFirst.mockResolvedValue({
+      id: "p1",
+      title: "文房套装",
+      images: ["p.webp"],
+      intro: "日常临帖",
+      price: 199,
+      originalPrice: 259,
+      salesCount: 12,
     });
+    const raw = '回答<!--RECO:[{"type":"product","query":"书法"}]-->';
+    const result = await service.build(raw, "练书法想买一套文房用品");
 
-    it("同一实体被多意图命中时去重", async () => {
-      prisma.course.findMany.mockResolvedValue([{ id: "c1", title: "八字", cover: null, price: 0, studentCount: 1 }]);
-      const cards = await svc.match([
-        { type: "course", query: "八字" },
-        { type: "course", query: "命理" },
-      ]);
-      expect(cards).toHaveLength(1);
-    });
+    expect(result.recommendation?.items[0].type).toBe("product");
+    expect(result.recommendation?.consentPrompt).toContain("明确标注价格");
   });
 
-  describe("build（综合：Coze 优先 → 兜底 → 匹配 → 征求同意话术）", () => {
-    it("Coze 协议意图优先于兜底", async () => {
-      prisma.course.findMany.mockResolvedValue([{ id: "c1", title: "风水课", cover: null, price: 10, studentCount: 5 }]);
-      const raw = `答案<!--RECO:[{"type":"course","query":"风水","reason":"学风水"}]-->`;
-      const r = await svc.build(raw, "随便问问八字"); // 用户问八字，但 Coze 指定风水 → 用 Coze
-      expect(prisma.course.findMany).toHaveBeenCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ OR: expect.arrayContaining([{ title: { contains: "风水" } }]) }),
-      }));
-      expect(r.content).toBe("答案");
-      expect(r.recommendation?.items).toHaveLength(1);
-    });
-
-    it("无 Coze 协议时走兜底意图", async () => {
-      prisma.course.findMany.mockResolvedValue([{ id: "c1", title: "八字课", cover: null, price: 0, studentCount: 9 }]);
-      const r = await svc.build("好好回答了八字问题", "怎么学八字");
-      expect(prisma.course.findMany).toHaveBeenCalled();
-      expect(r.recommendation).not.toBeNull();
-      expect(r.recommendation?.consentPrompt).toContain("课程");
-    });
-
-    it("有意图但无匹配实体 → recommendation 为 null", async () => {
-      prisma.course.findMany.mockResolvedValue([]);
-      prisma.circle.findMany.mockResolvedValue([]);
-      const r = await svc.build("回答", "怎么学八字");
-      expect(r.recommendation).toBeNull();
-      expect(r.content).toBe("回答");
-    });
-
-    it("课程+圈子都命中 → 话术含两者", async () => {
-      prisma.course.findMany.mockResolvedValue([{ id: "c1", title: "x", cover: null, price: 0, studentCount: 1 }]);
-      prisma.circle.findMany.mockResolvedValue([{ id: "g1", name: "y", cover: null, memberCount: 1, intro: "" }]);
-      const raw = `答<!--RECO:[{"type":"course","query":"八字"},{"type":"circle","query":"八字"}]-->`;
-      const r = await svc.build(raw, "");
-      expect(r.recommendation?.consentPrompt).toContain("课程");
-      expect(r.recommendation?.consentPrompt).toContain("圈子");
+  it("工具意图返回可直接打开的结构化工具入口", async () => {
+    const result = await service.build("可以使用标准工具查看。", "我想用万年历查节气");
+    expect(result.recommendation?.items[0]).toEqual({
+      type: "tool",
+      data: expect.objectContaining({ title: "万年历", href: "/paipan/wannianli" }),
     });
   });
 });

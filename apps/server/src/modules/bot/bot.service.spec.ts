@@ -179,10 +179,18 @@ describe("BotService", () => {
 
   describe("list", () => {
     it("列出所有活跃智能体（凭证真实可用才下发·2026-07-17 拍板占位=下架）", async () => {
-      mockPrisma.botConfig.findMany.mockResolvedValue([{ id: "b1", name: "助手", botId: "734829102938", apiKey: "sk_real_1234" }]);
+      mockPrisma.botConfig.findMany.mockResolvedValue([{ id: "b1", name: "助手", type: "CLASSICS_READING", botId: "734829102938", apiKey: "sk_real_1234" }]);
       const result = await svc.list();
       expect(result).toHaveLength(1);
       expect(result[0]).not.toHaveProperty("apiKey");
+    });
+
+    it("local 学习型智能体无需 Coze 凭证即可公开", async () => {
+      mockPrisma.botConfig.findMany.mockResolvedValue([
+        { id: "b1", name: "古籍句读助手", type: "CLASSICS_READING", runtime: "local", systemPrompt: "讲解古籍", botId: "local_public_01", apiKey: "" },
+      ]);
+      const result = await svc.list();
+      expect(result).toHaveLength(1);
     });
 
     it("占位凭证（coze_ 前缀 botId / sk_dev_placeholder）在 C 端列表被过滤", async () => {
@@ -197,7 +205,12 @@ describe("BotService", () => {
       mockPrisma.botConfig.findMany.mockResolvedValue([]);
       await svc.list("CHAT");
       expect(mockPrisma.botConfig.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: "ACTIVE", type: "CHAT" } }),
+        expect.objectContaining({
+          where: {
+            status: "ACTIVE",
+            type: "CHAT",
+          },
+        }),
       );
     });
 
@@ -205,7 +218,12 @@ describe("BotService", () => {
       mockPrisma.botConfig.findMany.mockResolvedValue([]);
       await svc.list();
       expect(mockPrisma.botConfig.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { status: "ACTIVE" } }),
+        expect.objectContaining({
+          where: {
+            status: "ACTIVE",
+            type: { notIn: expect.arrayContaining(["FORTUNE_TELLER", "DIVINATION"]) },
+          },
+        }),
       );
     });
   });

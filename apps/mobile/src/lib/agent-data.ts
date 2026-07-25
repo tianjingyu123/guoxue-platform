@@ -28,11 +28,23 @@ export interface ChatMessage {
   isError?: boolean
   /** 失败时暂存原提问，供「重试」直接重发 */
   failedQuery?: string
+  /** 用户通过智能体结构化表单提交的资料，聊天页按资料卡展示 */
+  structuredInput?: {
+    kind: 'bazi'
+    data: {
+      calendar: 'solar' | 'lunar'
+      date: string
+      time: string
+      timeUnknown: boolean
+      gender: '男' | '女'
+      city: string
+    }
+  }
 }
 
 export interface RecommendItem {
-  type: 'course' | 'circle' | 'product' | 'paipan'
-  // 推荐卡片载荷：course/circle/product/paipan 四类结构各异，页面按 type 动态渲染，保留 any
+  type: 'article' | 'classic' | 'video' | 'live' | 'agent' | 'tool' | 'course' | 'circle' | 'product' | 'paipan'
+  // 推荐卡片载荷按 type 动态渲染；服务端同时下发统一 href，旧版 paipan 继续兼容。
   data: any
 }
 
@@ -55,6 +67,8 @@ export interface AgentDetail {
   freeQuota: number
   /** 每分钟通话价格：后端无对应字段 → 0（页面降级隐藏） */
   callPrice: number
+  /** 后端 BotConfig.type，用于区分图文型与语音型智能体 */
+  type: string
   voiceEnabled: boolean
 }
 
@@ -92,17 +106,17 @@ export const chatWelcome = `您好！我是您的国学智能助手，通晓传�
 请告诉我您的需求，我来为您详细梳理。`
 
 // ===== 智玄助手（main）运营文案 =====
-export const zhixuanWelcome = `您好！我是智玄 AI 助手，精通八字命理、奇门遁甲、紫微斗数等传统命理学。
+export const zhixuanWelcome = `你好，我是智玄，平台官方国学学习向导。
 
-您可以向我提问：
-- 八字分析与五行解读
-- 流年运势与注意事项
-- 婚姻、事业、财运预测
-- 风水布局与趋吉避凶
+我不替代下方各领域学伴，而是先了解你的兴趣、基础和可用时间，再帮你：
+- 找到适合的古籍、文章、课程与工具
+- 匹配最合适的垂直智能体
+- 制定能坚持的阅读与学习路线
+- 在需要时解释平台功能与内容之间的关系
 
-请告诉我您的需求，我将竭诚为您服务。`
+你可以直接说“我对诗词感兴趣，但不知道从哪里开始”，我会先问少量必要问题，再给一条清晰路线。`
 
-export const zhixuanQuickPrompts = ['帮我看看1990年3月15日早上8点出生的八字', '帮我分析今年运势', '我的八字五行缺什么', '解读事业宫位走势', '分析近期财运方向']
+export const zhixuanQuickPrompts = ['我第一次学国学，从哪里开始', '按每周两小时制定经典阅读路线', '帮我选择适合的国学智能体', '我想系统学习诗词，请推荐路径']
 
 // ===== 智能客服（customer-service）运营文案 =====
 export const csWelcome = `您好，欢迎联系智玄客服！
@@ -214,6 +228,7 @@ export const agentApi = {
       pricePerChat: b.price != null ? Number(b.price) : 0,
       freeQuota: b.dailyLimit != null ? Number(b.dailyLimit) : 0,
       callPrice: 0,
+      type: b.type || '',
       voiceEnabled: !!b.voiceEnabled,
     }
   },

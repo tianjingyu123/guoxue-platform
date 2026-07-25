@@ -5,6 +5,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import LiveCardMedia from '@/components/live/live-card-media.vue'
+import LiveStatusBadge from '@/components/live/live-status-badge.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
@@ -204,13 +206,10 @@ async function toggleBook(item: LiveItem) {
                 @tap="openLive(live.id)"
               >
                 <view class="cov r34 live">
-                  <smart-cover class="cov-img zoom" :src="live.cover" :title="live.title" type="live" deco :deco-size="64" />
-                  <view class="badge tr live">
-                    <view class="dot" />
-                    <text class="badge-txt">LIVE</text>
-                    <view class="eq"><view class="eq-i" /><view class="eq-i" /><view class="eq-i" /></view>
-                  </view>
-                  <view class="badge bl">
+                    <live-card-media class="cov-img" :room-id="live.id" :cover="live.cover" :title="live.title" status="live" deco />
+                    <view class="live-scan" />
+                    <live-status-badge />
+                    <view class="badge bl">
                     <AppIcon name="eye" :size="20" color="#ffffff" />
                     <text class="badge-txt">{{ formatLiveViews(live.viewerCount) }}</text>
                   </view>
@@ -222,7 +221,7 @@ async function toggleBook(item: LiveItem) {
                       <smart-avatar :src="live.hostAvatar" :name="live.hostName" class="mavatar-img" />
                     </view>
                     <text class="mname">{{ live.hostName }}</text>
-                    <text class="mmetric">直播中</text>
+                    <text class="mmetric">进入直播</text>
                   </view>
                 </view>
               </view>
@@ -236,13 +235,10 @@ async function toggleBook(item: LiveItem) {
                 @tap="openLive(live.id)"
               >
                 <view class="cov r34 live">
-                  <smart-cover class="cov-img zoom" :src="live.cover" :title="live.title" type="live" deco :deco-size="64" />
-                  <view class="badge tr live">
-                    <view class="dot" />
-                    <text class="badge-txt">LIVE</text>
-                    <view class="eq"><view class="eq-i" /><view class="eq-i" /><view class="eq-i" /></view>
-                  </view>
-                  <view class="badge bl">
+                    <live-card-media class="cov-img" :room-id="live.id" :cover="live.cover" :title="live.title" status="live" deco />
+                    <view class="live-scan" />
+                    <live-status-badge />
+                    <view class="badge bl">
                     <AppIcon name="eye" :size="20" color="#ffffff" />
                     <text class="badge-txt">{{ formatLiveViews(live.viewerCount) }}</text>
                   </view>
@@ -254,7 +250,7 @@ async function toggleBook(item: LiveItem) {
                       <smart-avatar :src="live.hostAvatar" :name="live.hostName" class="mavatar-img" />
                     </view>
                     <text class="mname">{{ live.hostName }}</text>
-                    <text class="mmetric">直播中</text>
+                    <text class="mmetric">进入直播</text>
                   </view>
                 </view>
               </view>
@@ -281,7 +277,7 @@ async function toggleBook(item: LiveItem) {
               <view class="feat-mask" />
               <view class="badge tr up">
                 <AppIcon name="clock" :size="20" color="#ffffff" />
-                <text class="badge-txt">{{ featuredUpcoming.scheduledTime || '即将开播' }}</text>
+                <text class="badge-txt">预约</text>
               </view>
               <view class="feat-info">
                 <text class="feat-title">{{ featuredUpcoming.title }}</text>
@@ -554,9 +550,16 @@ async function toggleBook(item: LiveItem) {
   width: 100%;
   height: 100%;
 }
-/* 封面呼吸变焦 14s（直播中） */
-.cov.live .zoom {
-  animation: slowzoom 14s ease-in-out infinite alternate;
+.live-scan {
+  position: absolute;
+  top: -20%;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  height: 20%;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(255,235,224,.18), transparent);
+  animation: live-scan 4.2s ease-in-out infinite;
 }
 
 /* 角标 */
@@ -578,9 +581,6 @@ async function toggleBook(item: LiveItem) {
   bottom: 16rpx;
   left: 16rpx;
 }
-.badge.live {
-  background: #c41e3a;
-}
 .badge.up {
   background: #c41e3a;
 }
@@ -593,41 +593,6 @@ async function toggleBook(item: LiveItem) {
   color: #ffffff;
   font-weight: 500;
   white-space: nowrap;
-}
-.badge.live .badge-txt {
-  font-weight: 700;
-}
-/* 呼吸红点 */
-.dot {
-  width: 10rpx;
-  height: 10rpx;
-  border-radius: 6rpx;
-  background: #ffffff;
-  animation: breathe 1.6s ease-in-out infinite;
-}
-/* 音浪律动条 1.1s 错峰 */
-.eq {
-  display: flex;
-  align-items: flex-end;
-  gap: 3rpx;
-  height: 20rpx;
-}
-.eq-i {
-  width: 4rpx;
-  border-radius: 2rpx;
-  background: #ffffff;
-  animation: eq 1.1s ease-in-out infinite;
-}
-.eq-i:nth-child(1) {
-  height: 8rpx;
-}
-.eq-i:nth-child(2) {
-  height: 18rpx;
-  animation-delay: 0.25s;
-}
-.eq-i:nth-child(3) {
-  height: 12rpx;
-  animation-delay: 0.5s;
 }
 
 /* 卡片信息区 */
@@ -920,33 +885,11 @@ async function toggleBook(item: LiveItem) {
   font-weight: 500;
 }
 
-@keyframes breathe {
-  0%,
-  100% {
-    transform: scale(0.75);
-    opacity: 0.55;
-  }
-  50% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-@keyframes eq {
-  0%,
-  100% {
-    transform: scaleY(0.4);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
-@keyframes slowzoom {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.05);
-  }
+@keyframes live-scan {
+  0%, 18% { transform: translateY(0); opacity: 0; }
+  28% { opacity: 1; }
+  68% { opacity: .7; }
+  82%, 100% { transform: translateY(600%); opacity: 0; }
 }
 @keyframes shimmer {
   0% {
@@ -955,5 +898,9 @@ async function toggleBook(item: LiveItem) {
   100% {
     background-position: -200% 0;
   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-scan,
+  .sk-card { animation: none; }
 }
 </style>

@@ -100,13 +100,13 @@ export class HomeService {
     } catch { return []; }
   }
 
-  /** Feed流：每种类型取固定条数，按时间排序后分页（内存分页可接受，因为总量有上限） */
+  /** 平台 Feed：只聚合公开内容；圈帖仅在所属圈子内展示。 */
   private async getFeed(page: number, pageSize: number): Promise<{ items: FeedItemDto[]; total: number }> {
-    const PER_TYPE = 20; // 每种最多取20条，总共最多100条
+    const PER_TYPE = 20; // 每种最多取20条，总共最多80条
     try {
-      const [articles, courses, lives, posts, videos] = await Promise.all([
+      const [articles, courses, lives, videos] = await Promise.all([
         this.prisma.article.findMany({
-          where: { auditStatus: "APPROVED" },
+          where: { auditStatus: "APPROVED", visibility: "PLATFORM" },
           select: { id: true, title: true, cover: true, excerpt: true, createdAt: true, user: { select: { nickname: true, avatar: true } } },
           orderBy: { createdAt: "desc" },
           take: PER_TYPE,
@@ -123,12 +123,6 @@ export class HomeService {
           orderBy: { createdAt: "desc" },
           take: PER_TYPE,
         }),
-        this.prisma.post.findMany({
-          where: { status: "PUBLISHED" },
-          select: { id: true, title: true, content: true, images: true, createdAt: true, user: { select: { nickname: true, avatar: true } } },
-          orderBy: { createdAt: "desc" },
-          take: PER_TYPE,
-        }),
         this.prisma.video.findMany({
           where: { status: "PUBLISHED" },
           select: { id: true, title: true, coverUrl: true, duration: true, viewCount: true, createdAt: true },
@@ -141,24 +135,21 @@ export class HomeService {
         ...articles.map((a) => ({ id: a.id, type: "article" as const, title: a.title, cover: a.cover ?? undefined, excerpt: a.excerpt ?? undefined, createdAt: a.createdAt.toISOString(), tag: "文章" })),
         ...courses.map((c) => ({ id: c.id, type: "course" as const, title: c.title, cover: c.cover ?? undefined, price: Number(c.price ?? 0), createdAt: c.createdAt.toISOString(), tag: "课程" })),
         ...lives.map((l) => ({ id: l.id, type: "live" as const, title: l.title, cover: l.cover ?? undefined, createdAt: l.createdAt.toISOString(), tag: "直播" })),
-        ...posts.map((p) => ({ id: p.id, type: "circle_post" as const, title: p.title ?? undefined, excerpt: p.content?.slice(0, 100), createdAt: p.createdAt.toISOString(), tag: "圈子" })),
         ...videos.map((v) => ({ id: v.id, type: "video" as const, title: v.title ?? undefined, cover: v.coverUrl ?? undefined, createdAt: v.createdAt.toISOString(), tag: "视频" })),
       ];
 
-      // 质量流量倾斜（T7）：文章/帖子按 AI 质量分调整「等效时间」——A 级 +48h 提权、D 级 -48h 沉底；
+      // 质量流量倾斜（T7）：公开文章按 AI 质量分调整「等效时间」——A 级 +48h 提权、D 级 -48h 沉底；
       // 随后全量按等效时间倒序，形成统一混排（提权失败静默不影响 feed）
       const offsetKey = (type: string, id: string) => `${type}:${id}`;
       let boost = new Map<string, number>();
       if (this.contentQuality) {
         boost = await this.contentQuality.getBoostMap([
           ...articles.map((a) => ({ type: "ARTICLE", id: a.id })),
-          ...posts.map((p) => ({ type: "POST", id: p.id })),
         ]);
       }
       const effectiveTime = (it: FeedItemDto): number => {
         const base = it.createdAt ? new Date(it.createdAt).getTime() : 0;
         if (it.type === "article") return base + (boost.get(offsetKey("ARTICLE", it.id)) ?? 0);
-        if (it.type === "circle_post") return base + (boost.get(offsetKey("POST", it.id)) ?? 0);
         return base;
       };
       items.sort((a, b) => effectiveTime(b) - effectiveTime(a));

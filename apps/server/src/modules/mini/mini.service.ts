@@ -75,7 +75,7 @@ export class MiniService {
 
   private async fetchRecentArticles(stationId: string | undefined, cacheKey: string) {
     const data = await this.prisma.article.findMany({
-      where: { auditStatus: "APPROVED", ...(stationId ? { stationId } : {}) },
+      where: { auditStatus: "APPROVED", visibility: "PLATFORM", ...(stationId ? { stationId } : {}) },
       select: { id: true, title: true, cover: true, excerpt: true, viewCount: true, createdAt: true },
       orderBy: { createdAt: "desc" },
       take: 4,

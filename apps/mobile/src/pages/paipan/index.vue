@@ -44,7 +44,7 @@ MP_HIDDEN_TOOL_IDS = [
   'jinqianke', 'xiaocheng', 'yinqimen', 'mingli-qimen', 'ziwei', 'phone-analysis',
   'name-analysis', 'flying-star', 'bazhai', 'feigong', 'qimen-chuanren', 'shanxiang-qimen', 'direction-map',
 ]
-MP_TOOL_RENAME = { 'bazi': '干支历法', 'bazi-analysis': '干支解析', 'qimen': '奇门研究', 'yangming': '阳盘研究' }
+MP_TOOL_RENAME = { 'bazi': '干支历法', 'qimen': '奇门研究', 'yangming': '阳盘研究' }
 MP_VISIBLE_AGENT_IDS = ['classic-expert', 'study-assistant']
 // #endif
 
@@ -61,12 +61,9 @@ const CATEGORY_ACCENT: Record<ToolCategory, { color: string; label: string }> = 
 
 const byId = new Map(tools.map((t) => [t.id, t]))
 
-/**
- * 正式入口只展示已经交付的工具。
- * comingSoon 项仍保留在配置真源里供后续开发，但不能铺在生产首页让用户逐个点进占位页。
- */
+/** 已上线与开发中工具都展示；开发中项作为可点击预告入口，状态必须清晰标注。 */
 const visibleTools = computed(() => tools
-  .filter((t) => !t.comingSoon && !MP_HIDDEN_TOOL_IDS.includes(t.id))
+  .filter((t) => !MP_HIDDEN_TOOL_IDS.includes(t.id))
   .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)))
 
 const displayTools = computed(() => (showAllTools.value ? visibleTools.value : visibleTools.value.slice(0, COLLAPSED_COUNT)))
@@ -77,6 +74,7 @@ const favTools = computed(() => favIds.value
   .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)))
 
 const availableMedical = computed(() => medicalTools.filter((t) => !t.comingSoon))
+const previewMedical = computed(() => medicalTools.filter((t) => t.comingSoon))
 const MEDICAL_DESCRIPTIONS: Record<string, string> = {
   wuyun: '五运六气节律 · 司天在泉 · 主客气推演',
 }
@@ -98,6 +96,10 @@ function isFav(id: string) {
 
 function openTool(t: Tool) {
   if (editing.value) {
+    if (t.comingSoon) {
+      uni.showToast({ title: '开发中工具暂不支持收藏', icon: 'none' })
+      return
+    }
     // 编辑态：点全部工具格 = 切换收藏
     favIds.value = isFav(t.id) ? removeFavorite(t.id) : addFavorite(t.id)
     return
@@ -263,13 +265,14 @@ onShow(() => { favIds.value = getFavorites() })
             v-for="tool in displayTools"
             :key="tool.id"
             class="cell"
-            :class="{ 'cell-editing': editing }"
+            :class="{ 'cell-editing': editing && !tool.comingSoon, 'cell-coming': tool.comingSoon }"
             @tap="openTool(tool)"
           >
             <view class="cell-icon">
               <tool-icon :icon-id="tool.iconId" :size="88" />
               <view v-if="tool.badge && !editing" class="badge badge-red" />
-              <view v-if="editing" class="cell-fav-mark" :class="{ 'cell-fav-on': isFav(tool.id) }">
+              <text v-if="tool.comingSoon && !editing" class="coming-stamp">开发中</text>
+              <view v-if="editing && !tool.comingSoon" class="cell-fav-mark" :class="{ 'cell-fav-on': isFav(tool.id) }">
                 <app-icon :name="isFav(tool.id) ? 'check' : 'plus'" :size="22" color="#ffffff" />
               </view>
             </view>
@@ -282,8 +285,8 @@ onShow(() => { favIds.value = getFavorites() })
         </view>
       </view>
 
-      <!-- 中医工具：只露出已经交付并验证过的能力，不展示占位工具墙 -->
-      <view v-if="availableMedical.length" class="section-px section-mt">
+      <!-- 中医工具：已上线能力与研发预告分层展示 -->
+      <view v-if="availableMedical.length || previewMedical.length" class="section-px section-mt">
         <view class="sec-head">
           <view class="sec-title-row">
             <app-icon name="stethoscope" :size="32" color="#059669" />
@@ -301,6 +304,27 @@ onShow(() => { favIds.value = getFavorites() })
               <text class="medical-desc">{{ medicalDescription(tool.id) }}</text>
             </view>
             <app-icon name="chevron-right" :size="32" color="#7B9B84" />
+          </view>
+        </view>
+        <view v-if="previewMedical.length" class="medical-preview">
+          <view class="medical-preview-head">
+            <text class="medical-preview-title">研发预告</text>
+            <text class="medical-preview-sub">点击可查看当前开放状态</text>
+          </view>
+          <view class="medical-preview-grid">
+            <view
+              v-for="tool in previewMedical"
+              :key="tool.id"
+              class="medical-preview-cell tap-press"
+              @tap="navigateTo(tool.href)"
+            >
+              <view class="medical-preview-icon">
+                <tool-icon :icon-id="tool.iconId" :size="64" />
+                <view class="preview-dot" />
+              </view>
+              <text class="medical-preview-name">{{ tool.name }}</text>
+              <text class="medical-preview-status">开发中</text>
+            </view>
           </view>
         </view>
       </view>
@@ -538,6 +562,49 @@ onShow(() => { favIds.value = getFavorites() })
 .medical-copy { min-width: 0; flex: 1; }
 .medical-name { display: block; font-size: 29rpx; font-weight: 700; color: #214B3A; }
 .medical-desc { display: block; margin-top: 6rpx; font-size: 22rpx; line-height: 1.45; color: #6D8779; }
+.medical-preview {
+  margin-top: 18rpx;
+  padding: 22rpx 16rpx 18rpx;
+  border: 1rpx solid rgba(184, 152, 95, 0.2);
+  border-radius: 24rpx;
+  background: linear-gradient(145deg, rgba(255, 252, 245, 0.96), rgba(255, 255, 255, 0.98));
+}
+.medical-preview-head { padding: 0 8rpx 18rpx; display: flex; align-items: baseline; justify-content: space-between; }
+.medical-preview-title { font-size: 26rpx; font-weight: 700; color: #665235; }
+.medical-preview-sub { font-size: 20rpx; color: #a08f74; }
+.medical-preview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 22rpx; }
+.medical-preview-cell { min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.medical-preview-icon {
+  position: relative;
+  width: 76rpx;
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(184, 152, 95, 0.22);
+  border-radius: 22rpx;
+  background: rgba(184, 152, 95, 0.06);
+}
+.preview-dot {
+  position: absolute;
+  right: -2rpx;
+  top: -2rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border: 3rpx solid #fff;
+  border-radius: 50%;
+  background: #c9a96e;
+}
+.medical-preview-name {
+  max-width: 100%;
+  margin-top: 9rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 21rpx;
+  color: #4b4439;
+}
+.medical-preview-status { margin-top: 3rpx; font-size: 17rpx; color: #aa8d59; }
 
 /* 为你推荐（收藏夹）：2 列横卡 */
 .fav-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
@@ -588,6 +655,27 @@ onShow(() => { favIds.value = getFavorites() })
 .cell { display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 16rpx 0; }
 .cell-editing { animation: fav-wiggle 0.35s ease-in-out infinite; }
 .cell-icon { position: relative; }
+.cell-coming .cell-icon {
+  padding: 5rpx;
+  border: 1rpx solid rgba(184, 152, 95, 0.2);
+  border-radius: 26rpx;
+  background: rgba(184, 152, 95, 0.05);
+}
+.cell-coming .cell-name { color: #655946; }
+.coming-stamp {
+  position: absolute;
+  right: -12rpx;
+  top: -10rpx;
+  padding: 3rpx 9rpx;
+  border: 2rpx solid #fff;
+  border-radius: 999rpx;
+  background: #c9a96e;
+  box-shadow: 0 4rpx 12rpx rgba(128, 96, 43, 0.18);
+  font-size: 16rpx;
+  line-height: 1.3;
+  color: #fff;
+  white-space: nowrap;
+}
 .badge { position: absolute; top: -4rpx; right: -4rpx; width: 16rpx; height: 16rpx; border-radius: 50%; }
 .badge-red { background: var(--brand); }
 .cell-fav-mark {
@@ -598,7 +686,18 @@ onShow(() => { favIds.value = getFavorites() })
   display: flex; align-items: center; justify-content: center;
 }
 .cell-fav-on { background: #2f9d6a; }
-.cell-name { font-size: 24rpx; color: var(--text-ink, #2c2c2c); text-align: center; line-height: 1.2; }
+.cell-name {
+  min-height: 58rpx;
+  padding: 0 4rpx;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 24rpx;
+  color: var(--text-ink, #2c2c2c);
+  text-align: center;
+  line-height: 1.2;
+}
 
 /* 展开/收起 */
 .toggle {

@@ -97,7 +97,7 @@ function resetTools() {
           </view>
           <view v-if="editing" class="pc-tool-ops">
             <view class="pc-op" @tap="moveTool(t.id, -1)">
-              <AppIcon name="chevron-left" :size="14" color="#7A6C5E" />
+              <AppIcon name="chevron-left" :size="14" color="#7A6C5E" compact />
             </view>
             <view class="pc-op pc-op--del" @tap="removeTool(t.id)">
               <AppIcon name="minus" :size="14" color="#fff" />

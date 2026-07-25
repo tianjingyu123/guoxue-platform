@@ -21,7 +21,7 @@
       <view class="qhead" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="qhead-row">
           <view class="exit" @tap="confirmExit = true">
-            <app-icon name="chevron-left" :size="16" color="#9A9A9A" />
+            <app-icon name="chevron-left" :size="16" color="#9A9A9A" compact />
             <text class="exit-txt">退出</text>
           </view>
           <text class="head-title">在线答题</text>

@@ -32,6 +32,10 @@ export class ShopProductService {
   // ═══════════════════ 商品管理 ═══════════════════
 
   async createProduct(userId: string, dto: CreateProductDto, autoPublish = false) {
+    const productImages = dto.images?.filter((image) => image.trim()) ?? [];
+    if (autoPublish && productImages.length === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品必须上传至少一张首图后才能上架");
+    }
     // 内容审核：商品标题+简介+详情（违规抛异常，写库前拦截）
     await this.audit.moderateTextOrThrow(
       [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
@@ -52,7 +56,7 @@ export class ShopProductService {
     if (rest.circleId) data.circle = { connect: { id: rest.circleId } };
     if (rest.categoryId) data.categoryId = rest.categoryId;
     if (rest.intro) data.intro = rest.intro;
-    if (rest.images) data.images = rest.images;
+    if (productImages.length) data.images = productImages;
     if (rest.videoUrl) data.videoUrl = rest.videoUrl;
     if (rest.sceneTags) data.sceneTags = rest.sceneTags;
     if (rest.stationId) data.station = { connect: { id: rest.stationId } };
@@ -70,6 +74,12 @@ export class ShopProductService {
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
     if (product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的商品");
+    if (
+      dto.status === "ON_SALE" &&
+      !(dto.images ?? product.images).some((image) => image.trim())
+    ) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品必须上传至少一张首图后才能上架");
+    }
 
     // 内容审核：改动的标题+简介+详情（违规抛异常，写库前拦截）
     await this.audit.moderateTextOrThrow(
@@ -112,7 +122,13 @@ export class ShopProductService {
 
   /** 更新商品状态 */
   async updateProductStatus(productId: string, status: string) {
-    await this.prisma.product.findUniqueOrThrow({ where: { id: productId } });
+    const product = await this.prisma.product.findUniqueOrThrow({
+      where: { id: productId },
+      select: { images: true },
+    });
+    if (status === "ON_SALE" && !product.images.some((image) => image.trim())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品必须上传至少一张首图后才能上架");
+    }
     const updated = await this.prisma.product.update({ where: { id: productId }, data: { status } });
     await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
     return updated;

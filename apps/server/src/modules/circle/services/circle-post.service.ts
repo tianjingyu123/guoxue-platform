@@ -21,7 +21,7 @@ import { CircleGovernanceService } from "../governance/circle-governance.service
 /**
  * 圈子-帖子与互动域（从 circle.service 拆出·纯搬家不改逻辑）。
  * 职责：帖子 CRUD/草稿/加精置顶 + 帖子打赏（含扣费分账）+ 排行榜（圈子/成员/热帖）
- * + 全平台热门帖子/今日活动聚合。
+ * + 历史全平台聚合接口兼容（现按“圈帖不出圈”策略返回空）。
  * ⚠️ 含资金/扣费方法（rewardPost），逐字搬迁，跨域调用改注入。
  * 依赖：共享叶子域（ensureMember/checkAdmin）·单向不循环。
  */
@@ -501,83 +501,13 @@ export class CirclePostService {
 
   // ───────── 全局聚合 ─────────
 
-  /** 获取全平台热门帖子（跨圈子） */
-  async getGlobalHotPosts(limit = 10) {
-    const posts = await this.prisma.post.findMany({
-      where: { id: { notIn: publicQuarantinedIds("post") }, status: 'PUBLISHED' },
-      select: {
-        id: true, title: true, content: true,
-        circleId: true,
-        circle: { select: { id: true, name: true, cover: true } },
-        user: { select: { id: true, nickname: true, avatar: true } },
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    });
-
-    if (posts.length === 0) return [];
-
-    const postIds = posts.map((p) => p.id);
-    const [likeCounts, commentCounts] = await Promise.all([
-      this.prisma.like.groupBy({
-        by: ['targetId'],
-        where: { targetType: 'POST', targetId: { in: postIds } },
-        _count: { id: true },
-      }),
-      this.prisma.comment.groupBy({
-        by: ['targetId'],
-        where: { targetType: 'POST', targetId: { in: postIds } },
-        _count: { id: true },
-      }),
-    ]);
-
-    const likeMap = new Map(likeCounts.map((l) => [l.targetId, l._count.id]));
-    const commentMap = new Map(commentCounts.map((c) => [c.targetId, c._count.id]));
-
-    const scored = posts.map((p) => ({
-      ...p,
-      likes: likeMap.get(p.id) || 0,
-      comments: commentMap.get(p.id) || 0,
-      hotScore: (likeMap.get(p.id) || 0) * 2 + (commentMap.get(p.id) || 0) * 3,
-    }));
-
-    scored.sort((a, b) => b.hotScore - a.hotScore);
-    return scored.slice(0, limit);
+  /** 历史兼容：圈帖不进入跨圈热门池。 */
+  async getGlobalHotPosts(_limit = 10) {
+    return [];
   }
 
-  /** 获取今日活动（聚合近期帖子和即将开始的直播） */
-  async getTodayActivities(limit = 5) {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrowStart = new Date(todayStart.getTime() + 86400000);
-
-    // 今日帖子
-    const todayPosts = await this.prisma.post.findMany({
-      where: {
-        id: { notIn: publicQuarantinedIds("post") },
-        status: 'PUBLISHED',
-        createdAt: { gte: todayStart, lt: tomorrowStart },
-      },
-      select: {
-        id: true, title: true,
-        circle: { select: { id: true, name: true } },
-        user: { select: { id: true, nickname: true, avatar: true } },
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    });
-
-    const activities = todayPosts.map((p) => ({
-      id: p.id,
-      type: 'post' as const,
-      title: p.title,
-      circle: p.circle,
-      user: p.user,
-      createdAt: p.createdAt,
-    }));
-
-    return activities;
+  /** 历史兼容：今日活动原先仅聚合跨圈帖子，现不再对外返回。 */
+  async getTodayActivities(_limit = 5) {
+    return [];
   }
 }

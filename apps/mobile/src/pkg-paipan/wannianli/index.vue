@@ -15,7 +15,7 @@
  * 取舍：V0 的「档案 / 养生」两个 tab 在 V0 中即为静态假数据（源码自注"静态假数据"）→ 不还原，不造 mock。
  * 数据全部来自 @/pkg-paipan/lib/{wannianli,zeji}-engine 本地真算，无网络请求。
  */
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -38,11 +38,12 @@ const CALENDAR_VIEWS = [
 /** 底部导航（V0 的 BottomNav；档案/养生为 V0 假数据，不还原） */
 const NAV_ITEMS = [
   { key: 'calendar', label: '黄历', icon: 'calendar' },
-  { key: 'zeji', label: '择日', icon: 'sparkles' },
+  { key: 'zeji', label: '择吉', icon: 'sparkles' },
 ]
 
 const tab = ref<'calendar' | 'zeji'>('calendar')
 const calView = ref<string>('day')
+const bodyScrollTop = ref(0)
 // 纪年转换作为右上入口进入的独立子页
 const showEra = ref(false)
 // 全局选中日期（默认今天），驱动各视图
@@ -61,10 +62,23 @@ const headerSubtitle = computed(() => {
   return `${buildAlmanac(selectedDate.value).day.lunarYear} · 择吉通书`
 })
 
+/**
+ * 内容模式切换后统一回到顶部。
+ * scroll-view 不会自动清空上一个长内容的滚动位置，先写入 1 再归零，
+ * 确保用户从黄历、择吉、月历、年历之间切换时总能看到新页面首屏。
+ */
+function resetBodyScroll() {
+  bodyScrollTop.value = 1
+  nextTick(() => {
+    bodyScrollTop.value = 0
+  })
+}
+
 function onNav(key: string) {
   tab.value = key as 'calendar' | 'zeji'
   // 手动切到择日时清掉上次带入的事项，回到默认事项
   if (key === 'zeji') seedEvent.value = null
+  resetBodyScroll()
 }
 
 /**
@@ -80,6 +94,7 @@ function onPickYiJi(term: string) {
   }
   seedEvent.value = e
   tab.value = 'zeji'
+  resetBodyScroll()
 }
 
 /** 择日结果点「看这天的完整黄历」→ 回黄历日视图并定位到那天 */
@@ -87,6 +102,7 @@ function onOpenDay(d: Date) {
   selectedDate.value = d
   calView.value = 'day'
   tab.value = 'calendar'
+  resetBodyScroll()
 }
 
 const isTodaySelected = computed(() => {
@@ -105,16 +121,24 @@ function goToday() {
 
 function onSegChange(key: string) {
   calView.value = key
+  resetBodyScroll()
+}
+
+function openEra() {
+  showEra.value = true
+  resetBodyScroll()
 }
 
 function handleBack() {
   if (showEra.value) {
     showEra.value = false
+    resetBodyScroll()
     return
   }
   // 在择日页按返回，先回黄历（而不是直接退出工具）
   if (tab.value === 'zeji') {
     tab.value = 'calendar'
+    resetBodyScroll()
     return
   }
   const pages = getCurrentPages()
@@ -133,7 +157,7 @@ function handleBack() {
       @back="handleBack"
     >
       <template #actions>
-        <view v-if="!showEra && tab === 'calendar'" class="hd-btn" @tap="showEra = true">
+        <view v-if="!showEra && tab === 'calendar'" class="hd-btn" @tap="openEra">
           <app-icon name="repeat" :size="36" color="var(--text-ink)" />
         </view>
       </template>
@@ -150,7 +174,13 @@ function handleBack() {
       </view>
     </view>
 
-    <scroll-view scroll-y class="body">
+    <scroll-view
+      scroll-y
+      class="body"
+      :class="{ 'body--with-nav': !showEra }"
+      :scroll-top="bodyScrollTop"
+      :show-scrollbar="false"
+    >
       <era-converter v-if="showEra" :date="selectedDate" />
 
       <zeji-picker v-else-if="tab === 'zeji'" :initial-event="seedEvent" @open-day="onOpenDay" />
@@ -191,6 +221,7 @@ function handleBack() {
         v-for="n in NAV_ITEMS"
         :key="n.key"
         class="nav-item"
+        :class="{ 'nav-item--on': tab === n.key }"
         @tap="onNav(n.key)"
       >
         <app-icon
@@ -206,22 +237,48 @@ function handleBack() {
 
 <style scoped lang="scss">
 .page {
-  min-height: 100vh;
+  height: 100vh;
+  /* #ifdef H5 */
+  height: 100dvh;
+  /* #endif */
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
   background: var(--bg-paper);
   display: flex;
   flex-direction: column;
 }
-.body { flex: 1; min-height: 0; }
+.body {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.body--with-nav {
+  /* fixed 导航脱离文档流，正文必须为导航高度和设备安全区留位。 */
+  padding-bottom: calc(100rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
+}
 
-/* 底部导航（黄历 / 择日）——贴底，含 iOS 安全区 */
+/* 底部导航（黄历 / 择吉）——独立于长内容滚动区，始终固定在当前视口底部 */
 .nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
   display: flex;
-  flex-shrink: 0;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16rpx);
+  -webkit-backdrop-filter: blur(16rpx);
   border-top: 1rpx solid rgba(58, 42, 30, 0.08);
+  box-shadow: 0 -10rpx 28rpx rgba(73, 50, 32, 0.06);
+  padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .nav-item {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -229,9 +286,25 @@ function handleBack() {
   justify-content: center;
   gap: 4rpx;
   height: 100rpx;
+  transition: background-color 160ms ease;
+  &:active { background: rgba(196, 30, 58, 0.06); }
+}
+.nav-item--on {
+  background: linear-gradient(180deg, rgba(196, 30, 58, 0.04), rgba(196, 30, 58, 0.09));
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 48rpx;
+    height: 4rpx;
+    border-radius: 0 0 4rpx 4rpx;
+    background: var(--brand);
+    transform: translateX(-50%);
+  }
 }
 .nav-label {
-  font-size: 21rpx;
+  font-size: 23rpx;
   color: #9a8c7e;
 }
 .nav-label--on {
@@ -278,4 +351,15 @@ function handleBack() {
   color: var(--brand);
 }
 .disc-wrap { padding: 0 32rpx 48rpx; }
+
+/* #ifdef H5 */
+@media screen and (min-width: 600px) {
+  .nav {
+    left: 50%;
+    right: auto;
+    width: 480px;
+    transform: translateX(-50%);
+  }
+}
+/* #endif */
 </style>

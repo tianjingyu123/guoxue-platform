@@ -100,31 +100,12 @@
                 </view>
                 <template v-else>
                   <view class="recommend-head"><app-icon name="sparkles" :size="24" color="#c9a96e" /><text class="recommend-label">为您推荐</text></view>
-                  <view v-for="(rec, i) in msg.recommendation.items" :key="i" class="rec-card" :class="`rec-${rec.type}`" @tap="openRecommend(rec)">
-                    <!-- 课程 -->
-                    <template v-if="rec.type === 'course'">
-                      <view class="rec-icon rec-icon-course"><app-icon name="play" :size="28" color="#C41E3A" /></view>
-                      <view class="rec-info">
-                        <view class="rec-top"><text class="rec-title">{{ rec.data.title }}</text><text class="rec-badge">推荐</text></view>
-                        <text v-if="rec.data.reason" class="rec-sub">{{ rec.data.reason }}</text>
-                        <view class="rec-price-row">
-                          <text class="rec-price">{{ rec.data.price > 0 ? '¥' + formatPrice(rec.data.price) : '免费' }}</text>
-                          <text class="rec-members">{{ rec.data.studentCount }}人已学</text>
-                        </view>
-                      </view>
-                      <app-icon name="chevron-right" :size="28" color="#999" />
-                    </template>
-                    <!-- 圈子 -->
-                    <template v-else-if="rec.type === 'circle'">
-                      <view class="rec-icon rec-icon-circle"><app-icon name="users" :size="26" color="#059669" /></view>
-                      <view class="rec-info">
-                        <view class="rec-top"><text class="rec-title">{{ rec.data.name }}</text></view>
-                        <text class="rec-sub">{{ rec.data.reason || rec.data.intro }}</text>
-                        <view class="rec-price-row"><text class="rec-members">{{ rec.data.memberCount }}成员</text></view>
-                      </view>
-                      <app-icon name="chevron-right" :size="28" color="#999" />
-                    </template>
-                  </view>
+                  <GuidedRecommendCard
+                    v-for="(rec, i) in msg.recommendation.items"
+                    :key="`${rec.type}-${rec.data?.id || i}`"
+                    :item="rec"
+                    @tap="openRecommend"
+                  />
                 </template>
               </view>
 
@@ -173,11 +154,11 @@
 import { ref, getCurrentInstance, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import GuidedRecommendCard from '@/components/agent/guided-recommend-card.vue'
 import { navigateBack, navigateTo, toastComingSoon } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import type { Recommendation, RecommendItem } from '@/lib/agent-data'
-import { formatPrice } from '@/utils/format'
 
 interface ChatMessage {
   id: string
@@ -459,9 +440,15 @@ function declineReco(msg: ChatMessage) {
 }
 // 推荐卡片点击 → 跳转对应板块
 function openRecommend(item: RecommendItem) {
-  if (item.type === 'course') navigateTo(`/courses/${item.data.id}`)
+  if (item.data?.href) navigateTo(item.data.href)
+  else if (item.type === 'course') navigateTo(`/courses/${item.data.id}`)
   else if (item.type === 'circle') navigateTo(`/circles/${item.data.id}`)
-  else if (item.type === 'product') navigateTo(`/shop/${item.data.id}`) // 死入口大扫除：商品推荐 → 商品详情页（真实已注册）
+  else if (item.type === 'product') navigateTo(`/shop/${item.data.id}`)
+  else if (item.type === 'article') navigateTo(`/articles/${item.data.id}`)
+  else if (item.type === 'classic') navigateTo(`/classics/${item.data.id}`)
+  else if (item.type === 'video') navigateTo(`/video/${item.data.id}`)
+  else if (item.type === 'live') navigateTo(`/live/${item.data.id}`)
+  else if (item.type === 'agent') navigateTo(`/agent/${item.data.id}`)
   else if (item.type === 'paipan') navigateTo('/paipan')
   else toastComingSoon()
 }

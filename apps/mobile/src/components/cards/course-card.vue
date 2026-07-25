@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** 课程卡 - 从原型 components/cards/course-card.tsx 迁移(feed/rail/rank/list 四变体) */
 import { computed } from 'vue'
-import { navigateTo } from '@/utils/router'
+import { navigateToContent } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -21,18 +21,17 @@ const rankClass = computed(() => {
   if (r === 3) return 'rk-3'
   return 'rk-n'
 })
-function open() {
+function open(event?: unknown) {
   track.click('course_card', { id: props.data.id })
-  navigateTo(`/course/${props.data.id}`)
+  navigateToContent(`/course/${props.data.id}`, event)
 }
 </script>
 
 <template>
   <!-- ---------- 横滑小卡 rail ---------- -->
-  <view v-if="variant === 'rail'" class="rail" hover-class="card-press" @tap="open">
+  <view v-if="variant === 'rail'" class="rail" data-content-card hover-class="card-press" @tap="open">
     <view class="cover r-169">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco />
-      <text class="type-badge">课程</text>
     </view>
     <view class="rail-body">
       <text class="rail-title">{{ data.title }}</text>
@@ -47,7 +46,7 @@ function open() {
   </view>
 
   <!-- ---------- 榜单卡 rank ---------- -->
-  <view v-else-if="variant === 'rank'" class="rank" hover-class="card-press" @tap="open">
+  <view v-else-if="variant === 'rank'" class="rank" data-content-card hover-class="card-press" @tap="open">
     <text class="rank-badge" :class="rankClass">{{ rank }}</text>
     <view class="rank-cover">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco :deco-size="36" />
@@ -66,7 +65,7 @@ function open() {
   </view>
 
   <!-- ---------- 横向列表卡 list ---------- -->
-  <view v-else-if="variant === 'list'" class="list" hover-class="card-press" @tap="open">
+  <view v-else-if="variant === 'list'" class="list" data-content-card hover-class="card-press" @tap="open">
     <view class="list-cover">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco :deco-size="44" />
     </view>
@@ -88,10 +87,9 @@ function open() {
   </view>
 
   <!-- ---------- 瀑布流竖卡 feed(默认) ---------- -->
-  <view v-else class="card" hover-class="card-press" @tap="open">
+  <view v-else class="card" data-content-card hover-class="card-press" @tap="open">
     <view class="cover r-169">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="course" deco />
-      <text class="type-badge">课程</text>
       <text v-if="kind" class="hot-badge" :class="kind === 'new' ? 'hot-new' : 'hot-red'">{{ hotText }}</text>
     </view>
     <view class="body">
@@ -115,19 +113,21 @@ function open() {
 </template>
 
 <style scoped lang="scss">
-.card { overflow: hidden; background: var(--surface); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); margin-bottom: 12rpx; }
+.card { overflow: hidden; background: var(--surface); border: 1rpx solid rgba(201,169,110,0.18); border-radius: 24rpx; box-shadow: 0 8rpx 24rpx rgba(61,43,29,0.06); margin-bottom: 12rpx; }
 .card-press { transform: scale(0.98); }
 .cover { position: relative; width: 100%; background: var(--surface-sunken); overflow: hidden; }
 .r-169 { padding-bottom: 56.25%; } /* 课程卡容器 16:9（规范§五修订：容器跟随课程素材自然形态·不裁切）·X5 禁 aspect-ratio 用 padding 法 */
 .r-sq { padding-bottom: 100%; }
 .cover-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-.type-badge { position: absolute; top: 16rpx; left: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; color: rgba(255,255,255,0.95); font-weight: 500; background: rgba(0,0,0,0.45); }
 .hot-badge { position: absolute; top: 16rpx; right: 16rpx; z-index: 10; font-size: 20rpx; padding: 2rpx 14rpx; border-radius: 999rpx; font-weight: 500; }
 .hot-red { background: var(--brand); color: #fff; }
 .hot-new { background: rgba(0,0,0,0.45); color: rgba(255,255,255,0.95); }
-.body { padding: 18rpx; }
-.title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; font-weight: 500; color: var(--text-strong); line-height: 1.5; margin-bottom: 12rpx; }
-.price-row { margin-bottom: 12rpx; }
+.body { position: relative; z-index: 2; margin-top: -18rpx; padding: 22rpx 18rpx 18rpx; border-radius: 22rpx 22rpx 0 0; background: linear-gradient(180deg, rgba(255,255,255,0.98), var(--surface)); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14rpx 10rpx; }
+.title { grid-column: 1 / 3; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; font-weight: 600; color: var(--text-strong); line-height: 1.45; margin: 0; }
+.price-row { grid-column: 2; grid-row: 2; margin: 0; flex-shrink: 0; }
+.body > .author { grid-column: 1; grid-row: 2; min-width: 0; padding-top: 12rpx; border-top: 1rpx solid rgba(201,169,110,0.18); }
+.body > .price-row { padding-top: 12rpx; border-top: 1rpx solid rgba(201,169,110,0.18); }
+.body > .price-row .price-orig { display: none; }
 .price { display: flex; align-items: baseline; }
 .price-cny { color: var(--brand); font-weight: 700; font-size: 22rpx; }
 .price-num { color: var(--brand); font-weight: 700; font-size: 32rpx; margin-left: 2rpx; }

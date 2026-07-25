@@ -134,9 +134,18 @@ const grad = computed(() => {
 const hasImg = computed(() => typeof props.src === 'string' && props.src.trim() !== '')
 // 图片加载失败(URL失效/404)时翻到生成封面，避免留空框/破图标；src 变化(列表复用/换页)时重置重试
 const imgError = ref(false)
+// 视频首帧也可能因源失效/CORS/格式不支持而失败；失败后继续落到生成封面，兜底链不中断
+const videoError = ref(false)
 // 图片加载完成渐显（消除硬闪）：初始 false → @load 置 true 触发 content-fade-in
 const imgLoaded = ref(false)
-watch(() => props.src, () => { imgError.value = false; imgLoaded.value = false })
+watch(
+  () => [props.src, props.videoUrl],
+  () => {
+    imgError.value = false
+    imgLoaded.value = false
+    videoError.value = false
+  },
+)
 // H5 真懒加载：uni <image lazy-load> 只在小程序生效，H5/App 是 no-op → 深滚全站封面 eager 撑爆内存。
 // 用 IntersectionObserver 监听：视口外不给 image 赋真实 src（displaySrc 返回空），进入视口(提前一屏)才赋真 src。
 // inView：H5 初始 false（等观察器放行）；小程序/App 恒 true（保留 image 原生 lazy-load，行为不变）。
@@ -168,13 +177,29 @@ onMounted(() => {
 })
 onUnmounted(() => { io && io.disconnect(); io = null })
 // #endif
-// 无封面图但有视频源 → 用视频首帧兜底（#t=0.5 让 H5 定位到第 0.5s 首帧，避免纯黑帧）
-const hasVideoFrame = computed(() => !hasImg.value && typeof props.videoUrl === 'string' && props.videoUrl.trim() !== '')
-const videoFrameSrc = computed(() => (props.videoUrl || '') + '#t=0.5')
+// 无封面图或封面加载失败，但有可用视频源 → 用视频首帧兜底。
+// #t=0.001 让 H5 解码并绘制第一个可显示帧；不取 0.5s，严格保持“视频第一帧”口径。
+const hasVideoFrame = computed(() =>
+  (!hasImg.value || imgError.value)
+  && !videoError.value
+  && typeof props.videoUrl === 'string'
+  && props.videoUrl.trim() !== '',
+)
+const videoFrameSrc = computed(() => {
+  const src = (props.videoUrl || '').trim()
+  if (!src || src.includes('#')) return src
+  return `${src}#t=0.001`
+})
 // 视频首帧同样纳入 inView 懒加载门（照 image 分支 displaySrc 模式）：
 // 此前 video 分支不受门控，视口外的卡片一挂载就给 mp4 真 src 直接拉流——深滚列表多路视频并发下载。
 // 未进视口时给空 src（元素仍在，作为观察目标），进视口才赋真值开始取首帧。
 const displayVideoSrc = computed(() => (hasVideoFrame.value && inView.value ? videoFrameSrc.value : ''))
+// 懒加载未进入视口时 video 的 src 暂为空，部分 H5 内核会立刻派发 error；
+// 只有真实视频地址已经赋值后才记为失败，避免深滚卡片提前退回文字占位。
+function onVideoError() {
+  if (!displayVideoSrc.value) return
+  videoError.value = true
+}
 /** 大字水印模式：deco 或无标题（小缩略图/卡下已有标题） */
 const decoMode = computed(() => props.deco || !props.title)
 /** 水印字：标题首二字（去书名号等标点）→ 类型字 → 雅 */
@@ -186,7 +211,7 @@ const decoChars = computed(() => {
 
 <template>
   <image v-if="hasImg && !imgError" class="sc-full" :class="{ 'content-fade-in': imgLoaded }" :style="imgLoaded ? '' : 'opacity:0'" :src="displaySrc" mode="aspectFill" lazy-load @load="imgLoaded = true" @error="onImgError" />
-  <!-- 首帧兜底：无封面图但有视频源，取视频第一帧（静音·不自动播·不显控件） -->
+  <!-- 首帧兜底：无封面图或封面加载失败时取视频第一帧（静音·不自动播·不显控件） -->
   <video
     v-else-if="hasVideoFrame"
     class="sc-full"
@@ -198,8 +223,9 @@ const decoChars = computed(() => {
     :show-fullscreen-btn="false"
     :enable-progress-gesture="false"
     :muted="true"
-    :initial-time="0.5"
+    :initial-time="0"
     object-fit="cover"
+    @error="onVideoError"
   />
   <view v-else class="sc-full sc-gen" :style="{ background: grad }">
     <!-- 国学底纹：柔和光晕 + 内描边 -->

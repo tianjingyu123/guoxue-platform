@@ -65,6 +65,22 @@
         <input v-model="title" class="input" :class="{ ph: !title }" placeholder="起个吸引人的标题，如「紫微斗数入门第一课」" placeholder-class="input-ph" maxlength="30" />
       </view>
 
+      <!-- 直播介绍：预约预告发布必填，立即开播可选 -->
+      <view class="sec">
+        <view class="label">
+          直播介绍
+          <text class="label-sm">{{ startTime ? '预告必填' : '立即开播可选' }} · {{ description.length }}/500</text>
+        </view>
+        <textarea
+          v-model="description"
+          class="intro-input"
+          placeholder="介绍本场直播的主题、内容亮点和适合人群"
+          placeholder-class="input-ph"
+          maxlength="500"
+          :auto-height="false"
+        />
+      </view>
+
       <!-- 直播形态 -->
       <view class="sec">
         <view class="label">直播形态</view>
@@ -422,6 +438,7 @@ function selectCircle(id: string) {
 
 // ── 标题 / 封面 ──
 const title = ref('')
+const description = ref('')
 const cover = ref('')
 const coverUploading = ref(false)
 const uploadPct = ref(0)
@@ -523,6 +540,7 @@ function removeProduct(id: string) {
 function fillEditForm(room: Awaited<ReturnType<typeof liveApi.getRoomForEdit>>) {
   if (room.status !== 'WAITING') throw new Error('仅待开播的直播可以编辑')
   title.value = room.title
+  description.value = room.description
   cover.value = room.cover
   circleId.value = room.circleId
   editCircleName.value = room.circleName
@@ -582,6 +600,7 @@ const primaryText = computed(() => {
 })
 const primaryDisabled = computed(() =>
   !title.value.trim() ||
+  (!!startTime.value && (!cover.value.trim() || !description.value.trim())) ||
   coverUploading.value ||
   submitting.value ||
   (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0),
@@ -597,6 +616,8 @@ const retrying = ref(false)
 async function onPrimary() {
   if (primaryDisabled.value) {
     if (!title.value.trim()) uni.showToast({ title: '请输入直播标题', icon: 'none' })
+    else if (startTime.value && !cover.value.trim()) uni.showToast({ title: '发布预告前请上传首图', icon: 'none' })
+    else if (startTime.value && !description.value.trim()) uni.showToast({ title: '发布预告前请填写直播介绍', icon: 'none' })
     else if (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0) openBuySheet()
     return
   }
@@ -609,6 +630,7 @@ async function onPrimary() {
   try {
     const common = {
       title: title.value.trim(),
+      description: description.value.trim() || undefined,
       cover: cover.value || undefined,
       chargeType: (isCharge.value ? 'PAID' : 'FREE') as 'PAID' | 'FREE',
       chargePrice: isCharge.value ? price : null,
@@ -734,6 +756,18 @@ function goManageLater() {
 /* 输入框 */
 .input { height: 88rpx; box-sizing: border-box; border: 1rpx solid #E8E2D8; border-radius: 24rpx; padding: 0 28rpx; font-size: 28rpx; color: #2C2C2C; background: #fff; }
 .input-ph { color: #B8B2A8; }
+.intro-input {
+  width: 100%;
+  height: 180rpx;
+  box-sizing: border-box;
+  border: 1rpx solid #E8E2D8;
+  border-radius: 24rpx;
+  padding: 22rpx 28rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #2C2C2C;
+  background: #fff;
+}
 
 /* 胶囊单选 */
 .pills { display: flex; gap: 24rpx; }

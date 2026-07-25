@@ -92,6 +92,8 @@ function adaptCard(c: RawCourse): CourseCardData & { category: string; free: boo
     title: c.title || '',
     cover: c.cover || '',
     coverRatio: '3:4',
+    intro: c.intro || '',
+    category: courseCategory(c),
     price,
     originalPrice: orig || price,
     free: price === 0,
@@ -100,7 +102,6 @@ function adaptCard(c: RawCourse): CourseCardData & { category: string; free: boo
     rating: 0, // 列表无评分，详情页另取
     teacher: c.user?.nickname || '',
     teacherAvatar: c.user?.avatar || '',
-    category: courseCategory(c),
     tag: orig > price && price > 0 ? '优惠' : undefined,
   }
 }

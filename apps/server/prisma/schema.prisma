@@ -1395,6 +1395,7 @@ model LiveRoom {
   userId           String // 发起人
   title            String
   titleEn          String? // 英文标题（国际化预留）
+  description      String?      @db.Text // 直播/预告介绍；公开预告发布时必填
   cover            String?
   hostType         LiveHostType @default(CIRCLE_OWNER)
   hostUserId       String // 主播

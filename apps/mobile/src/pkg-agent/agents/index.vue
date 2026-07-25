@@ -66,56 +66,51 @@
         </view>
       </view>
       <view v-if="searchedBots.length" class="cat-grid">
-        <view v-for="bot in searchedBots" :key="bot.id" class="grid-card gc-flow" :style="{ background: botGrad(bot.name) }" @tap="openBot(bot.id)">
-          <text class="gc-ai">AI</text>
-          <text v-if="bot.isNew" class="gc-new">NEW</text>
-          <view class="gc-face">
-            <view class="gc-halo" />
-            <smart-avatar v-if="bot.avatar" class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
-            <text v-else class="gc-face-glyph serif">{{ (bot.name || '智')[0] }}</text>
-          </view>
-          <text class="gc-name">{{ bot.name }}</text>
-          <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
-          <view class="gc-foot">
-            <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
-            <text v-else class="gc-count">{{ bot.categoryName }}</text>
-            <view class="gc-hook"><text class="gc-hook-txt">问一问 ›</text></view>
-          </view>
-        </view>
+        <square-agent-card
+          v-for="bot in searchedBots"
+          :key="bot.id"
+          :bot="bot"
+          @select="openBot"
+        />
       </view>
       <view v-else class="empty-block"><text class="empty-txt">没有找到相关智能体，试试直接问智玄助手</text></view>
     </view>
 
     <!-- 常规陈列模式 -->
     <template v-else>
-      <!-- ① 平台自有助手区（亲儿子置顶，与 Coze 广场智能体区分） -->
+      <!-- ① 官方学习向导：承担平台内容导航，不与下方垂直学伴重复 -->
       <view class="section-px zx-wrap">
         <view class="zx-card" @tap="navigateTo('/agent/main')">
-          <view class="zx-icon">
-            <app-icon name="bot" :size="52" color="#c41e3a" />
+          <view class="guide-visual">
+            <view class="guide-grid" />
+            <view class="guide-orbit guide-orbit-a" />
+            <view class="guide-orbit guide-orbit-b" />
+            <view class="guide-core">
+              <text class="guide-core-glyph">导</text>
+            </view>
+            <view class="guide-node guide-node-a"><text>书</text></view>
+            <view class="guide-node guide-node-b"><text>课</text></view>
+            <view class="guide-node guide-node-c"><text>伴</text></view>
           </view>
           <view class="zx-info">
             <view class="zx-title-row">
-              <text class="zx-title">智玄 AI 助手</text>
+              <text class="zx-title">智玄 · 国学学习向导</text>
               <view class="zx-official">
                 <app-icon name="crown" :size="22" color="#a8863d" />
                 <text class="zx-official-txt">平台官方</text>
               </view>
             </view>
-            <text class="zx-desc">懂命理文化、通经典 · 会排盘的国学 AI，试试报出生辰起一盘</text>
+            <text class="zx-desc">先了解你的兴趣与基础，再帮你找内容、选学伴、定学习路径。</text>
             <view class="zx-caps">
-              <text class="zx-cap">八字排盘</text>
-              <text class="zx-cap">经典问答</text>
-              <text class="zx-cap">流式对话</text>
+              <text class="zx-cap">内容导航</text>
+              <text class="zx-cap">学伴匹配</text>
+              <text class="zx-cap">路线规划</text>
             </view>
           </view>
-          <view class="zx-go"><text class="zx-go-txt">对话</text></view>
-        </view>
-        <!-- 客服小入口 -->
-        <view class="cs-row" @tap="navigateTo('/agent/customer-service')">
-          <view class="cs-icon"><app-icon name="headphones" :size="30" color="#2563eb" /></view>
-          <text class="cs-txt">平台使用问题？找智能客服</text>
-          <app-icon name="chevron-right" :size="28" color="#cccccc" />
+          <view class="zx-go">
+            <text class="zx-go-txt">帮我规划</text>
+            <app-icon name="arrow-up-right" :size="24" color="#ffffff" />
+          </view>
         </view>
       </view>
 
@@ -140,10 +135,12 @@
                 <smart-avatar class="recent-avatar-img" :src="c.agentAvatar" :name="c.agentName" />
               </view>
               <view class="recent-info">
-                <text class="recent-name">{{ c.agentName }}</text>
-                <text class="recent-msg">{{ c.lastMessage || '继续对话' }}</text>
+                <view class="recent-meta">
+                  <text class="recent-name">{{ c.agentName }}</text>
+                  <text class="recent-time">{{ c.lastTime }}</text>
+                </view>
+                <text class="recent-msg">{{ recentMessageSummary(c.lastMessage) }}</text>
               </view>
-              <text class="recent-time">{{ c.lastTime }}</text>
             </view>
           </view>
         </scroll-view>
@@ -163,15 +160,26 @@
         </view>
         <scroll-view class="top-scroll" scroll-x>
           <view class="top-row">
-            <view v-for="(r, i) in topRanking" :key="r.id" class="top-card" @tap="openBot(r.id)">
+            <view
+              v-for="(r, i) in topRanking"
+              :key="r.id"
+              class="top-card"
+              :style="agentThemeStyle(r.categoryKey || r.category)"
+              @tap="openBot(r.id)"
+            >
               <view class="top-rank" :class="'top-rank-' + i">{{ i + 1 }}</view>
-              <view class="top-avatar">
-                <smart-avatar class="top-avatar-img" :src="r.avatar" :name="r.name" />
+              <view class="top-visual">
+                <view class="top-orbit" />
+                <view class="top-avatar">
+                  <smart-avatar v-if="r.avatar" class="top-avatar-img" :src="r.avatar" :name="r.name" />
+                  <text v-else class="top-avatar-glyph">{{ resolveAgentTheme(r.categoryKey || r.category).glyph }}</text>
+                </view>
               </view>
-              <text class="top-name">{{ r.name }}</text>
-              <text v-if="r.sessions" class="top-heat">{{ formatCount(r.sessions) }}次对话</text>
-              <!-- 分类与名称相同则显示通用标签，避免上下两行重复同一文案 -->
-              <text v-else class="top-heat muted">{{ r.category && r.category !== r.name ? r.category : 'AI 智能体' }}</text>
+              <view class="top-copy">
+                <text class="top-name">{{ r.name }}</text>
+                <text v-if="r.sessions" class="top-heat">{{ formatCount(r.sessions) }}次对话</text>
+                <text v-else class="top-heat muted">{{ r.category && r.category !== r.name ? r.category : 'AI 学伴' }}</text>
+              </view>
             </view>
           </view>
         </scroll-view>
@@ -209,37 +217,35 @@
       <view v-for="group in categoryGroups" :key="group.name" class="section-px section-mt">
         <view class="sec-head">
           <view class="sec-head-left">
-            <view class="cat-dot" />
+            <view class="cat-dot" :style="{ background: resolveAgentTheme(group.key).accent }" />
             <text class="sec-title">{{ group.name }}</text>
             <text class="cat-count">{{ group.bots.length }}</text>
           </view>
         </view>
         <view class="cat-grid">
-          <!-- 整体渐变卡（2026-07-17 董事长拍板：对齐首页 feed 智能体卡整体效果）：
-               整卡流动渐变（名字/简介同底不再"上图下白"像商品）+ 中央毛玻璃圆底楷体大字/头像
-               + 呼吸金晕 + AI 徽标 + 底行「问一问 ›」白胶囊引导对话 -->
-          <view v-for="bot in group.bots" :key="bot.id" class="grid-card gc-flow" :style="{ background: botGrad(bot.name) }" @tap="openBot(bot.id)">
-            <text class="gc-ai">AI</text>
-            <text v-if="bot.isNew" class="gc-new">NEW</text>
-            <view class="gc-face">
-              <view class="gc-halo" />
-              <smart-avatar v-if="bot.avatar" class="gc-avatar-img" :src="bot.avatar" :name="bot.name" />
-              <text v-else class="gc-face-glyph serif">{{ (bot.name || '智')[0] }}</text>
-            </view>
-            <text class="gc-name">{{ bot.name }}</text>
-            <text class="gc-desc">{{ bot.description || '暂无简介' }}</text>
-            <view class="gc-foot">
-              <text v-if="bot.useCount" class="gc-count">{{ formatCount(bot.useCount) }}次对话</text>
-              <text v-else-if="bot.isFree" class="gc-count">免费使用</text>
-              <text v-else class="gc-count">按次计费</text>
-              <view class="gc-hook"><text class="gc-hook-txt">问一问 ›</text></view>
-            </view>
-          </view>
+          <square-agent-card
+            v-for="bot in group.bots"
+            :key="bot.id"
+            :bot="bot"
+            @select="openBot"
+          />
         </view>
       </view>
 
       <view v-if="!hotBots.length" class="empty-block">
         <text class="empty-txt">广场智能体正在上架中，先和智玄助手聊聊吧</text>
+      </view>
+
+      <!-- 客服属于平台工具，不占用首屏的学习内容位置 -->
+      <view class="section-px service-footer">
+        <view class="cs-row" @tap="navigateTo('/agent/customer-service')">
+          <view class="cs-icon"><app-icon name="headphones" :size="30" color="#5b6a86" /></view>
+          <view class="cs-copy">
+            <text class="cs-title">平台使用帮助</text>
+            <text class="cs-txt">账号、购买、功能与反馈问题，联系智能客服</text>
+          </view>
+          <app-icon name="chevron-right" :size="28" color="#a8afbc" />
+        </view>
       </view>
     </template>
 
@@ -259,9 +265,11 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+import SquareAgentCard from './components/square-agent-card.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
+import { agentThemeStyle, resolveAgentTheme } from '@/lib/agent-experience'
 import {
   agentsSquareApi,
   formatCount,
@@ -277,21 +285,6 @@ const statusBarHeight = ref(0)
 const searchQuery = ref('')
 const isListening = ref(false)
 
-/** 智能体卡横幅渐变：雅致国学色系按名称哈希轮换（董事长反馈"卡片无背景无设计感"） */
-const BOT_GRADS = [
-  'linear-gradient(135deg, #6d4f80, #3d2a54)',
-  'linear-gradient(135deg, #3a6b57, #1f3d31)',
-  'linear-gradient(135deg, #8a5c3b, #573620)',
-  'linear-gradient(135deg, #3e6390, #22405f)',
-  'linear-gradient(135deg, #9c4150, #5c2230)',
-  'linear-gradient(135deg, #8a6d3b, #54401e)',
-]
-function botGrad(name: string) {
-  let h = 0
-  const s = name || ''
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
-  return BOT_GRADS[h % BOT_GRADS.length]
-}
 const voiceSupported = ref(false)
 
 // #ifdef H5
@@ -304,6 +297,19 @@ const hotBots = ref<SquareBot[]>([])
 const hotQuestions = ref<SquareQuestion[]>([])
 const ranking = ref<RankingAgent[]>([])
 const recentConvs = ref<AgentConversation[]>([])
+
+/** 最近使用只承担“识别并续聊”：压平长回复、去除 Markdown 噪声并限制摘要长度。 */
+function recentMessageSummary(message?: string): string {
+  const compact = String(message || '')
+    .replace(/\r?\n+/g, ' ')
+    .replace(/[*_`>#]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!compact) return '继续对话'
+
+  const chars = Array.from(compact)
+  return chars.length > 48 ? `${chars.slice(0, 48).join('')}…` : compact
+}
 
 async function loadData() {
   loading.value = true
@@ -327,7 +333,10 @@ async function loadData() {
     // 最近会话是登录态增强项：游客只浏览公开广场，不触发 401 全局登录跳转。
     if (getToken()) {
       agentsSquareApi.getConversations()
-        .then((cs) => { recentConvs.value = (cs || []).slice(0, 6) })
+        .then((cs) => {
+          const publicBotIds = new Set(hotBots.value.map((bot) => bot.id))
+          recentConvs.value = (cs || []).filter((conv) => publicBotIds.has(conv.botConfigId)).slice(0, 6)
+        })
         .catch(() => { recentConvs.value = [] })
     } else {
       recentConvs.value = []
@@ -352,13 +361,13 @@ const topRanking = computed(() => ranking.value.slice(0, 5))
 
 /** 分类分区：按 categoryName 分组（数据里有什么分类用什么），组内保持后端排序 */
 const categoryGroups = computed(() => {
-  const map = new Map<string, SquareBot[]>()
+  const map = new Map<string, { key: string; bots: SquareBot[] }>()
   for (const b of hotBots.value) {
     const key = b.categoryName || '综合助手'
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(b)
+    if (!map.has(key)) map.set(key, { key: b.category, bots: [] })
+    map.get(key)!.bots.push(b)
   }
-  return Array.from(map.entries()).map(([name, bots]) => ({ name, bots }))
+  return Array.from(map.entries()).map(([name, group]) => ({ name, ...group }))
 })
 
 /** 搜索过滤（名称/简介） */
@@ -527,82 +536,182 @@ function goBack() {
 .rank-link { gap: 6rpx; }
 .rank-txt { font-size: 24rpx; color: #a8863d; }
 
-/* ① 平台自有助手区（智玄大卡：宣纸白卡+金线描边，与红头形成留白层次） */
+/* ① 官方学习向导：采用“路线中枢”视觉，与垂直学伴同源但不抢类别身份 */
 .zx-wrap { margin-top: 32rpx; }
 .zx-card {
   position: relative;
-  display: flex; align-items: flex-start; gap: 24rpx;
-  background: #ffffff;
-  border: 2rpx solid rgba(201, 169, 110, 0.5);
+  display: flex; align-items: center; gap: 24rpx;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 14% 12%, rgba(109,143,255,.15), transparent 28%),
+    linear-gradient(145deg, #f7f9ff, #ffffff 58%, #fffaf2);
+  border: 1rpx solid rgba(83, 103, 166, 0.2);
   border-radius: 28rpx;
-  padding: 32rpx 28rpx;
-  box-shadow: 0 8rpx 28rpx rgba(140, 108, 60, 0.10);
+  padding: 28rpx 24rpx 30rpx;
+  box-shadow: 0 12rpx 32rpx rgba(55, 68, 105, 0.1);
 }
-.zx-icon {
-  width: 104rpx; height: 104rpx; border-radius: 26rpx; flex-shrink: 0;
-  background: rgba(196, 30, 58, 0.08);
-  border: 1rpx solid rgba(196, 30, 58, 0.12);
-  display: flex; align-items: center; justify-content: center;
+.guide-visual {
+  position: relative;
+  width: 166rpx;
+  height: 166rpx;
+  flex: 0 0 166rpx;
+  overflow: hidden;
+  border-radius: 28rpx;
+  background: linear-gradient(145deg, #172f6d, #475cd1 56%, #7b6cef);
+  box-shadow: 0 12rpx 28rpx rgba(58, 75, 165, .25);
 }
-.zx-info { flex: 1; min-width: 0; }
-.zx-title-row { display: flex; align-items: center; gap: 14rpx; }
-.zx-title { font-size: 34rpx; font-weight: 700; color: var(--text-ink, #2c2c2c); }
+.guide-grid {
+  position: absolute;
+  inset: 0;
+  opacity: .42;
+  background-image:
+    linear-gradient(rgba(255,255,255,.12) 1rpx, transparent 1rpx),
+    linear-gradient(90deg, rgba(255,255,255,.12) 1rpx, transparent 1rpx);
+  background-size: 28rpx 28rpx;
+}
+.guide-orbit {
+  position: absolute;
+  border: 1rpx solid rgba(255,255,255,.4);
+  border-radius: 999rpx;
+  animation: orbit-turn 16s linear infinite;
+}
+.guide-orbit-a { inset: 22rpx; }
+.guide-orbit-b { inset: 43rpx; border-style: dashed; animation-direction: reverse; animation-duration: 10s; }
+.guide-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 58rpx;
+  height: 58rpx;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid rgba(255,255,255,.85);
+  border-radius: 18rpx;
+  background: rgba(255,255,255,.16);
+  box-shadow: 0 0 26rpx rgba(166,210,255,.6);
+}
+.guide-core-glyph { font-size: 34rpx; font-weight: 700; color: #fff; }
+.guide-node {
+  position: absolute;
+  z-index: 2;
+  width: 32rpx;
+  height: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid rgba(255,255,255,.8);
+  border-radius: 10rpx;
+  background: rgba(22,39,96,.72);
+  box-shadow: 0 0 16rpx rgba(164,213,255,.44);
+}
+.guide-node text { font-size: 17rpx; color: #fff; }
+.guide-node-a { top: 17rpx; right: 28rpx; }
+.guide-node-b { right: 18rpx; bottom: 24rpx; }
+.guide-node-c { bottom: 20rpx; left: 23rpx; }
+.guide-node-a,
+.guide-node-b,
+.guide-node-c { animation: guide-node 2.8s ease-in-out infinite; }
+.guide-node-b { animation-delay: .7s; }
+.guide-node-c { animation-delay: 1.4s; }
+.zx-info {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 54rpx;
+}
+.zx-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8rpx 12rpx; }
+.zx-title { font-size: 31rpx; font-weight: 700; color: #27304f; }
 .zx-official {
   display: flex; align-items: center; gap: 4rpx;
-  padding: 2rpx 14rpx;
-  background: rgba(201, 169, 110, 0.16);
+  padding: 3rpx 12rpx;
+  background: rgba(201, 169, 110, 0.14);
   border-radius: 999rpx;
 }
 .zx-official-txt { font-size: 20rpx; color: #a8863d; }
 .zx-desc {
   display: block;
-  font-size: 24rpx; color: #666666; line-height: 1.5;
+  font-size: 23rpx; color: #69718a; line-height: 1.55;
   margin-top: 10rpx;
 }
-.zx-caps { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 16rpx; }
+.zx-caps { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 14rpx; }
 .zx-cap {
-  padding: 4rpx 16rpx;
-  background: var(--bg-paper, #faf8f5);
-  border: 1rpx solid rgba(201, 169, 110, 0.35);
-  color: #8b7355;
+  padding: 4rpx 12rpx;
+  background: rgba(83, 103, 166, .07);
+  border: 1rpx solid rgba(83, 103, 166, .14);
+  color: #5b668d;
   font-size: 20rpx;
   border-radius: 999rpx;
 }
 .zx-go {
-  flex-shrink: 0; align-self: center;
-  padding: 14rpx 32rpx;
-  background: var(--brand);
+  position: absolute;
+  right: 24rpx;
+  bottom: 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 5rpx;
+  padding: 11rpx 20rpx;
+  background: linear-gradient(135deg, #4358c9, #7868e8);
   border-radius: 999rpx;
-  box-shadow: 0 6rpx 16rpx rgba(196, 30, 58, 0.25);
+  box-shadow: 0 8rpx 20rpx rgba(65, 83, 191, .25);
 }
-.zx-go-txt { font-size: 26rpx; font-weight: 500; color: #ffffff; }
+.zx-go-txt { font-size: 22rpx; font-weight: 600; color: #ffffff; }
 
-/* 客服小入口 */
+/* 客服在末尾作为平台工具，不与学习内容竞争首屏 */
+.service-footer { margin-top: 56rpx; }
 .cs-row {
   display: flex; align-items: center; gap: 16rpx;
-  margin-top: 16rpx;
-  background: #ffffff;
+  background: rgba(255,255,255,.76);
+  border: 1rpx solid rgba(91,106,134,.12);
   border-radius: 20rpx;
   padding: 20rpx 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 .cs-icon {
   width: 56rpx; height: 56rpx; border-radius: 14rpx; flex-shrink: 0;
-  background: rgba(37, 99, 235, 0.10);
+  background: rgba(91,106,134,.09);
   display: flex; align-items: center; justify-content: center;
 }
-.cs-txt { flex: 1; font-size: 26rpx; color: #666666; }
+.cs-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3rpx; }
+.cs-title { font-size: 25rpx; font-weight: 600; color: #485064; }
+.cs-txt { font-size: 21rpx; color: #8a91a0; }
 
-/* ② 最近使用（横滑） */
-.recent-scroll { white-space: nowrap; }
-.recent-row { display: inline-flex; gap: 16rpx; padding: 0 32rpx; }
+/* ② 最近使用：固定高度的横向续聊带，长回复只显示两行摘要 */
+.recent-scroll {
+  width: 100%;
+  height: 144rpx;
+  min-height: 144rpx;
+  max-height: 144rpx;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.recent-row {
+  display: inline-flex;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  gap: 16rpx;
+  height: 144rpx;
+  min-height: 144rpx;
+  max-height: 144rpx;
+  padding: 0 32rpx;
+  box-sizing: border-box;
+  vertical-align: top;
+}
 .recent-card {
-  display: flex; align-items: center; gap: 14rpx;
-  width: 380rpx;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  width: 420rpx;
+  height: 144rpx;
+  min-height: 144rpx;
+  max-height: 144rpx;
+  box-sizing: border-box;
+  align-self: flex-start;
+  flex: 0 0 420rpx;
   background: #ffffff;
   border-radius: 20rpx;
-  padding: 20rpx;
+  padding: 16rpx 18rpx;
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  overflow: hidden;
 }
 .recent-avatar {
   width: 64rpx; height: 64rpx; border-radius: 16rpx; flex-shrink: 0; overflow: hidden;
@@ -610,33 +719,76 @@ function goBack() {
   display: flex; align-items: center; justify-content: center;
 }
 .recent-avatar-img { width: 64rpx; height: 64rpx; }
-.recent-info { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.recent-info {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+.recent-meta {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+  max-width: 100%;
+}
 .recent-name {
-  display: block; max-width: 100%;
-  font-size: 26rpx; font-weight: 600; color: var(--text-ink, #2c2c2c);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: block;
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 26rpx;
+  line-height: 32rpx;
+  font-weight: 600;
+  color: var(--text-ink, #2c2c2c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .recent-msg {
-  display: block; max-width: 100%;
-  font-size: 22rpx; color: #999999; margin-top: 4rpx;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: -webkit-box;
+  width: 100%;
+  max-width: 100%;
+  max-height: 56rpx;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  line-height: 28rpx;
+  color: #888888;
+  white-space: normal;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.recent-time { flex-shrink: 0; font-size: 20rpx; color: #bbbbbb; align-self: flex-start; }
+.recent-time {
+  flex-shrink: 0;
+  font-size: 20rpx;
+  line-height: 28rpx;
+  color: #bbbbbb;
+  white-space: nowrap;
+}
 
-/* ③ 热门 TOP5 横条 */
+/* ③ 热门 TOP5：复用下方分类色与“轨道核心”识别，不再是另一套灰白榜单 */
 .top-scroll { white-space: nowrap; }
 .top-row { display: inline-flex; gap: 16rpx; padding: 0 32rpx; }
 .top-card {
   position: relative;
-  width: 200rpx;
-  display: flex; flex-direction: column; align-items: center;
+  width: 220rpx;
+  overflow: hidden;
+  display: flex; flex-direction: column;
   background: #ffffff;
   border-radius: 20rpx;
-  padding: 28rpx 16rpx 22rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  border: 1rpx solid rgba(93,111,159,.13);
+  box-shadow: 0 6rpx 18rpx rgba(54,68,105,.07);
 }
 .top-rank {
-  position: absolute; top: 12rpx; left: 12rpx;
+  position: absolute; top: 10rpx; left: 10rpx; z-index: 3;
   width: 36rpx; height: 36rpx; border-radius: 999rpx;
   display: flex; align-items: center; justify-content: center;
   font-size: 20rpx; font-weight: 700;
@@ -645,20 +797,48 @@ function goBack() {
 .top-rank-0 { background: #ffd700; color: #5c4400; }
 .top-rank-1 { background: #d9d9d9; color: #555555; }
 .top-rank-2 { background: #e2a06c; color: #5a3312; }
-.top-avatar {
-  width: 84rpx; height: 84rpx; border-radius: 22rpx; overflow: hidden;
-  background: rgba(196, 30, 58, 0.08);
-  display: flex; align-items: center; justify-content: center;
+.top-visual {
+  position: relative;
+  height: 112rpx;
+  flex-shrink: 0;
+  background:
+    radial-gradient(circle at 78% 16%, var(--agent-glow), transparent 42%),
+    linear-gradient(145deg, var(--agent-deep), var(--agent-accent));
 }
-.top-avatar-img { width: 60rpx; height: 60rpx; }
+.top-orbit {
+  position: absolute;
+  top: 20rpx;
+  left: 50%;
+  width: 72rpx;
+  height: 72rpx;
+  transform: translateX(-50%);
+  border: 1rpx dashed rgba(255,255,255,.55);
+  border-radius: 999rpx;
+  animation: top-orbit-turn 12s linear infinite;
+}
+.top-avatar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 58rpx; height: 58rpx; border-radius: 18rpx; overflow: hidden;
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255,.16);
+  border: 2rpx solid rgba(255,255,255,.88);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 20rpx var(--agent-glow);
+}
+.top-avatar-img { width: 54rpx; height: 54rpx; }
+.top-avatar-glyph { font-size: 31rpx; font-weight: 700; color: #fff; }
+.top-copy { min-height: 88rpx; box-sizing: border-box; padding: 13rpx 14rpx 14rpx; }
 .top-name {
+  display: block;
   max-width: 100%;
-  font-size: 24rpx; font-weight: 600; color: var(--text-ink, #2c2c2c);
-  margin-top: 14rpx;
+  font-size: 23rpx; font-weight: 700; color: #273047;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.top-heat { font-size: 20rpx; color: #ff6b35; margin-top: 6rpx; }
-.top-heat.muted { color: #999999; }
+.top-heat { display: block; font-size: 19rpx; color: var(--agent-ink); margin-top: 4rpx; }
+.top-heat.muted { color: #8c94a6; }
 
 /* 热门问答 */
 .q-list { display: flex; flex-direction: column; gap: 16rpx; }
@@ -701,96 +881,27 @@ function goBack() {
 .cat-grid {
   display: flex; flex-wrap: wrap; gap: 20rpx;
 }
-/* 整体渐变卡（同 feed 智能体卡范式）：整卡即渐变主视觉，名字/简介/底行同底一体，
-   高度由内容自然撑（约 1:1.2）。BOT_GRADS 六色系全为深色系 → 全卡统一白字保证对比度。 */
-.grid-card {
-  position: relative;
-  width: calc(50% - 10rpx);
-  box-sizing: border-box;
-  border-radius: 24rpx;
-  overflow: hidden;
-  padding: 34rpx 24rpx 24rpx;
-  display: flex; flex-direction: column; align-items: center;
-  box-shadow: 0 4rpx 16rpx rgba(40, 30, 55, 0.16);
-  transition: transform 0.15s ease;
-}
-.grid-card:active { transform: scale(0.97); }
-/* 渐变流动（X5 安全：只动 background-position，同 feed 智能体卡；
-   !important 盖过内联 background 简写重置的 background-size） */
-.gc-flow {
-  background-size: 200% 200% !important;
-  animation: gcFlow 7s ease-in-out infinite alternate;
-}
-@keyframes gcFlow { 0% { background-position: 0% 0%; } 100% { background-position: 100% 100%; } }
-.serif { font-family: 'STKaiti', 'KaiTi', 'STSong', serif; }
-/* 左上 AI 徽标（深渐变上白描边款） */
-.gc-ai {
-  position: absolute; top: 16rpx; left: 16rpx; z-index: 3;
-  font-size: 20rpx; font-weight: 700; letter-spacing: 1rpx; color: rgba(255, 255, 255, 0.92);
-  background: rgba(255, 255, 255, 0.14); border: 2rpx solid rgba(255, 255, 255, 0.38);
-  border-radius: 8rpx; padding: 2rpx 12rpx;
-}
-/* 中央毛玻璃圆底：楷体大字如一方印面；有真实头像则显示头像
-   （深渐变上圆底降为白 22% 玻璃感，白字大字对比充分） */
-.gc-face {
-  position: relative; flex-shrink: 0;
-  width: 148rpx; height: 148rpx; border-radius: 999rpx; overflow: visible;
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: inset 0 2rpx 6rpx rgba(255, 255, 255, 0.45), 0 4rpx 16rpx rgba(0, 0, 0, 0.18);
-  display: flex; align-items: center; justify-content: center;
-}
-/* 呼吸金晕（只动 opacity） */
-.gc-halo {
-  position: absolute; inset: -4rpx; border-radius: 999rpx;
-  border: 4rpx solid #c9a96e; opacity: 0.3;
-  animation: gcHalo 3.5s ease-in-out infinite;
-}
-@keyframes gcHalo { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
-.gc-face-glyph {
-  font-size: 80rpx; font-weight: 700; line-height: 1; color: #ffffff;
-  text-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.3);
-}
-.gc-avatar-img { width: 136rpx; height: 136rpx; border-radius: 999rpx; overflow: hidden; }
-.gc-new {
-  position: absolute; top: 16rpx; right: 16rpx; z-index: 3;
-  padding: 2rpx 10rpx;
-  background: #52c41a; color: #ffffff;
-  font-size: 18rpx; border-radius: 6rpx;
-}
-.gc-name {
-  margin-top: 18rpx; max-width: 100%; text-align: center;
-  font-size: 30rpx; font-weight: 600; color: #ffffff;
-  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.25);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.gc-desc {
-  font-size: 24rpx; color: rgba(255, 255, 255, 0.85); line-height: 1.55;
-  margin-top: 8rpx; text-align: center;
-  height: 74rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-/* 底行：对话数 + 「问一问 ›」白胶囊（引导对话 hook）
-   margin-top:auto → flex 同行卡片被拉伸时底行仍贴底 */
-.gc-foot {
-  width: 100%;
-  display: flex; align-items: center; justify-content: space-between;
-  margin-top: auto; padding-top: 18rpx;
-}
-.gc-count { font-size: 22rpx; color: rgba(255, 255, 255, 0.7); }
-.gc-hook {
-  flex-shrink: 0;
-  padding: 8rpx 20rpx; border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.2);
-}
-.gc-hook-txt { font-size: 22rpx; font-weight: 600; color: #ffffff; }
 
 /* 空态 */
 .empty-block { padding: 80rpx 32rpx; display: flex; justify-content: center; }
 .empty-txt { font-size: 26rpx; color: #999999; }
 
 .bottom-gap { height: 32rpx; }
+@keyframes orbit-turn {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes guide-node {
+  0%, 100% { transform: translateY(0); opacity: .82; }
+  50% { transform: translateY(-4rpx); opacity: 1; }
+}
+@keyframes top-orbit-turn {
+  from { transform: translateX(-50%) rotate(0deg); }
+  to { transform: translateX(-50%) rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide-orbit,
+  .guide-node,
+  .top-orbit { animation: none; }
+}
 </style>

@@ -578,6 +578,12 @@
           }
         },
         {
+          "path": "catalog/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "detail/index",
           "style": {
             "navigationStyle": "custom"

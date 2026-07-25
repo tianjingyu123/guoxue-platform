@@ -3,7 +3,7 @@
  * H1 首页 · 千人千面内容消费流（留客主场 · 强统一双列瀑布流）
  * 1:1 还原 V0 视觉稿 h1-home.html（A 类逐像素）+ 委托书 P1 首页段（2.5 页面结构 / 2.6 混排纪律）。
  *
- * 结构：品牌行 → 焦点区（编辑式·直播优先） → 顶部轻 Tab（吸顶胶囊条） → 双列瀑布流（feed-card 九类卡分发）。
+ * 结构：搜索栏 → 顶部轻 Tab（吸顶胶囊条） → 2×5 功能分类导航 → 双列瀑布流（feed-card 九类卡分发）。
  * 数据：getSmartFeed（真连 GET /recommend/smart-feed/feed），负反馈 sendFeedback（真连 POST /users/feedback）。
  * 瀑布流卡片一律用 <feed-card>，数据来自 getSmartFeed，不造假。
  * X5 合规：padding-top 撑比例不用 aspect-ratio；吸顶实色+透明度不用毛玻璃；负反馈浮层纯色。
@@ -11,13 +11,18 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import FeedCard from '@/components/feed/feed-card.vue'
-import SmartCover from '@/components/common/smart-cover.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import DailyStudy from '@/components/home/daily-study.vue'
+import CoreEntryGrid from '@/components/navigation/core-entry-grid.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import { navigateTo } from '@/utils/router'
 import { VOICE } from '@/lib/voice'
-import { getSmartFeed, sendFeedback, ratioPadding, feedTargetUrl, type FeedEnvelope } from '@/lib/feed-data'
+import {
+  getSmartFeed,
+  sendFeedback,
+  ratioPadding,
+  type FeedEnvelope,
+  type SmartFeedChannel,
+} from '@/lib/feed-data'
 import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
 import BlockRenderer from '@/components/layout/block-renderer.vue'
 
@@ -25,19 +30,18 @@ import BlockRenderer from '@/components/layout/block-renderer.vue'
 const statusBarHeight = ref(0)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
 
-// ── 顶部轻 Tab（推荐/关注/直播广场/古籍/课程/商城）──
-// 直播广场为胶囊入口（点击跳 H3 直播广场），其余为频道切换（推荐/关注驱动 feed，古籍/课程/商城跳板块）
-type TabId = 'recommend' | 'follow' | 'classic' | 'course' | 'mall'
-// 注：「关注」Tab 已在模板中暂下线（假功能：与推荐同请求同参数），此处配置与 switchTab
-// 的 follow 分支防御性保留，待后端 channel 参数上线后随模板一并恢复。
-const tabs: { id: TabId; label: string }[] = [
+// ── 顶部内容频道：同一套双列瀑布流，只切换数据策略 ──
+type TabId = SmartFeedChannel | 'local'
+const tabs: Array<{ id: TabId; label: string; soon?: boolean }> = [
   { id: 'recommend', label: '推荐' },
-  { id: 'follow', label: '关注' },
-  { id: 'classic', label: '古籍' },
-  { id: 'course', label: '课程' },
-  { id: 'mall', label: '商城' },
+  { id: 'following', label: '关注' },
+  { id: 'hot', label: '热门' },
+  { id: 'local', label: '同城', soon: true },
 ]
 const activeTab = ref<TabId>('recommend')
+const activeChannel = computed<SmartFeedChannel>(() =>
+  activeTab.value === 'local' ? 'recommend' : activeTab.value,
+)
 
 // ── feed 数据 + 三态（+ 错误态）──
 const feed = ref<FeedEnvelope[]>([])
@@ -72,7 +76,7 @@ async function loadFeed(reset = false): Promise<boolean | 'stale'> {
   }
   let items: FeedEnvelope[]
   try {
-    items = await getSmartFeed(page.value, PAGE_SIZE)
+    items = await getSmartFeed(page.value, PAGE_SIZE, activeChannel.value)
   } catch {
     // 过期响应：期间已有更新请求发出，本次结果作废，不碰任何状态
     if (seq !== feedReqSeq) return 'stale'
@@ -83,9 +87,8 @@ async function loadFeed(reset = false): Promise<boolean | 'stale'> {
   // 过期响应：丢弃，避免慢的旧请求覆盖新请求已上屏的结果
   if (seq !== feedReqSeq) return 'stale'
   loadError.value = false
-  // 过滤后端仍在塞的智能体卡：其 targetId 为占位 id（如 hook-agent），点进对话页查真实
-  // agent → "智能体不存在"死链。智能体入口改由金刚区真实入口承载，首页 feed 只排真实内容。
-  const real = items.filter((i) => i.type !== 'agent')
+  // 智能体钩子现已统一转换为真实 BotConfig id，可以与其他内容卡正常混排并直达对话。
+  const real = items
   if (reset) {
     feed.value = real
     // SWR 缓存：只存推荐频道的首页第一页（控制体积），后续页不写
@@ -193,76 +196,32 @@ function retryLoadMore() {
   onLoadMore()
 }
 
-// ── 焦点区（编辑式·直播优先）：取 feed 中首个直播卡，无直播则取首卡兜底 ──
-const focusItem = computed<FeedEnvelope | undefined>(() => {
-  return feed.value.find((i) => i.type === 'live') || feed.value[0]
-})
-// 瀑布流卡池 = 全部 feed 去掉焦点卡（避免重复出现）
-const flowItems = computed<FeedEnvelope[]>(() => {
-  const fid = focusItem.value?.id
-  return fid ? feed.value.filter((i) => i.id !== fid) : feed.value
-})
-const focusIsLive = computed(() => focusItem.value?.type === 'live')
-/** 主推位兜底封面主题：按内容类型取 smart-cover 色系 */
-const focusCoverType = computed(() => {
-  const t = focusItem.value?.type || ''
-  return ['live', 'course', 'classic', 'product', 'circle', 'paipan'].includes(t) ? t : 'default'
-})
+// 首页大焦点卡下线后，全部真实 feed 均进入瀑布流，不再静默扣掉首条直播内容。
+const flowItems = computed<FeedEnvelope[]>(() => feed.value)
 
-function goFocus() {
-  const it = focusItem.value
-  if (!it) return
-  // 与 feed-card 共用 feedTargetUrl 唯一映射：焦点卡可能是 course/product/video 等九类之一，
-  // 原本非 live 一律跳 /articles/:id → 课程/商品焦点卡点进文章详情必错页
-  navigateTo(feedTargetUrl(it))
-}
-
-// ── 双列瀑布流 + 16:9 全宽大卡节奏（董事长 2026-07-17 拍板：仅 live/course 可升大卡）──
-// 数据分段渲染：把 flowItems 切成若干段（段内普通卡走双列，段尾跟一张全宽大卡）。
-// 节奏 = 每累积 ≥8 条普通卡后，遇到的下一条 live/course 且有封面的项升为大卡；
-// feed 里此类项不足时自然没有大卡（不强凑）。段内仍按索引奇偶分左右两列。
-interface FlowSection { items: FeedEnvelope[]; big: FeedEnvelope | null }
-const BIG_INTERVAL = 8
-function canBig(i: FeedEnvelope): boolean {
-  return (i.type === 'live' || i.type === 'course') && !!i.cover
-}
-const flowSections = computed<FlowSection[]>(() => {
-  const sections: FlowSection[] = []
-  let buf: FeedEnvelope[] = []
-  let sinceBig = 0
-  for (const it of flowItems.value) {
-    if (sinceBig >= BIG_INTERVAL && canBig(it)) {
-      sections.push({ items: buf, big: it })
-      buf = []
-      sinceBig = 0
-    } else {
-      buf.push(it)
-      sinceBig++
-    }
-  }
-  if (buf.length) sections.push({ items: buf, big: null })
-  return sections
-})
-/** 段内按索引奇偶分左右两列（等权体量，与原全局分列逻辑一致） */
+/** 首页所有内容统一进入双列瀑布流，不再按内容类型提升为全宽大卡。 */
 function colItems(items: FeedEnvelope[], side: 0 | 1): FeedEnvelope[] {
   return items.filter((_, i) => i % 2 === side)
 }
 
 // ── Tab 切换 ──
 function switchTab(id: TabId) {
-  // 直播广场胶囊在模板内单独走 goPlaza，此处只处理频道 Tab
-  if (id === 'classic') { navigateTo('/pkg-classics/home/index'); return }
-  if (id === 'course') { navigateTo('/pkg-course/home/index'); return }
-  if (id === 'mall') { navigateTo('/pkg-mall/home/index'); return }
+  if (id === 'local') {
+    uni.showToast({ title: '同城频道即将开放', icon: 'none' })
+    return
+  }
   if (id === activeTab.value) return
   activeTab.value = id
-  // 推荐/关注：换一批（后端 feed 已按登录用户个性化，前端照单渲染）
   loading.value = true
   loadFeed(true).finally(() => { loading.value = false })
 }
-function goPlaza() {
-  navigateTo('/pkg-live/plaza/index')
-}
+
+const emptyMessage = computed(() => {
+  if (activeTab.value === 'following') return '关注的圈子、老师和商铺有新动态时会出现在这里'
+  if (activeTab.value === 'hot') return '热门榜单正在更新，请稍后再来看看'
+  return '这里还没有内容，去发现页逛逛'
+})
+const emptyAction = computed(() => activeTab.value === 'following' ? '去发现关注' : '去发现')
 
 // ── 卡片长按 → 负反馈轻浮层 ──
 // 自定义长按：原生 @longpress 阈值太短（滑动中手指稍停就误触），改 touch 计时 700ms，
@@ -345,34 +304,25 @@ function backToTop() {
       </view>
     </view>
 
-    <!-- 顶部轻 Tab：推荐/关注 频道 + 直播广场胶囊 + 古籍/课程/商城 板块入口（吸顶） -->
+    <!-- 顶部内容频道：同一套双列瀑布流，仅检索策略不同 -->
     <scroll-view class="tabs" scroll-x :show-scrollbar="false">
       <view class="tabs-inner">
-        <view class="tab" :class="{ on: activeTab === 'recommend' }" @tap="switchTab('recommend')">
-          <text class="tab-label">推荐</text>
+        <view
+          v-for="tab in tabs"
+          :key="tab.id"
+          class="tab"
+          :class="{ on: activeTab === tab.id, disabled: tab.soon }"
+          @tap="switchTab(tab.id)"
+        >
+          <text class="tab-label">{{ tab.label }}</text>
+          <text v-if="tab.soon" class="tab-soon">即将开放</text>
         </view>
-        <!-- 「关注」Tab 暂下线：当前 getSmartFeed 无频道参数，切"关注"与"推荐"发同一请求同参数，
-             属纯装饰假功能（用户以为在看关注流，实际还是推荐流）。
-             待关注聚合 feed 后端 channel 参数上线后恢复下方节点（switchTab('follow') 逻辑已防御性保留）。
-        <view class="tab" :class="{ on: activeTab === 'follow' }" @tap="switchTab('follow')">
-          <text class="tab-label">关注</text>
-        </view>
-        -->
-
-        <!-- 直播广场胶囊：朱红 8% 底 + 朱红字 + 呼吸红点，点击跳 H3 直播广场 -->
-        <view class="tab-live" hover-class="btn-press" @tap="goPlaza">
-          <view class="tab-live-dot" />
-          <text class="tab-live-txt">直播广场</text>
-        </view>
-        <view class="tab" @tap="switchTab('classic')"><text class="tab-label">古籍</text></view>
-        <view class="tab" @tap="switchTab('course')"><text class="tab-label">课程</text></view>
-        <view class="tab" @tap="switchTab('mall')"><text class="tab-label">商城</text></view>
       </view>
     </scroll-view>
 
-    <!-- 首屏骨架屏（焦点区 + 双列瀑布流骨架态） -->
+    <!-- 首屏骨架屏（功能导航 + 双列瀑布流骨架态） -->
     <scroll-view v-if="loading" scroll-y class="content">
-      <view class="sk-focus" />
+      <core-entry-grid />
       <view class="flow">
         <view class="col">
           <view class="sk-card" style="padding-top: 133.33%" />
@@ -399,13 +349,13 @@ function backToTop() {
     <!-- 空态：feed 为空（未登录/无个性化数据），诚实降级不白屏 -->
     <view v-else-if="feed.length === 0" class="empty">
       <AppIcon name="inbox" :size="120" color="#D8D0C4" />
-      <text class="empty-msg">这里还没有内容，去发现页逛逛</text>
+      <text class="empty-msg">{{ emptyMessage }}</text>
       <view class="empty-btn" hover-class="btn-press" @tap="navigateTo('/discover')">
-        <text class="empty-btn-txt">去发现</text>
+        <text class="empty-btn-txt">{{ emptyAction }}</text>
       </view>
     </view>
 
-    <!-- 正常内容：焦点区 + 双列瀑布流 -->
+    <!-- 正常内容：功能分类导航 + 双列瀑布流 -->
     <scroll-view
       v-else
       scroll-y
@@ -421,80 +371,38 @@ function backToTop() {
       <!-- 运营楼层（后台微页面编辑器·route='home'·有已发布则渲染在最上，无则不显示） -->
       <view v-if="homeBlocks.length" class="home-blocks"><block-renderer :blocks="homeBlocks" /></view>
 
-      <!-- 焦点区（编辑式·直播优先）：16:10 大卡 + 底部渐变衬底 + 直播中动效 -->
-      <!-- 直播态挂全局 live-card-glow（animations.scss·边框呼吸光晕） -->
-      <view v-if="focusItem" class="focus" :class="{ 'live-card-glow': focusIsLive }" hover-class="focus-press" @tap="goFocus">
-        <view class="focus-ratio">
-          <!-- smart-cover：有图显图（404 自动翻兜底），无图出书法水印生成底——主推位不允许空 banner -->
-          <smart-cover
-            class="focus-cov"
-            :class="{ live: focusIsLive }"
-            :src="focusItem.cover"
-            :title="focusItem.title"
-            :type="focusCoverType"
-            deco
-          />
-          <view class="focus-shade" />
-          <!-- 直播中胶囊：呼吸点 + 音浪律动 -->
-          <view v-if="focusIsLive" class="live-chip">
-            <view class="live-chip-dot" />
-            <text class="live-chip-txt">直播中</text>
-            <view class="eq"><view class="eq-i eq1" /><view class="eq-i eq2" /><view class="eq-i eq3" /></view>
-          </view>
-          <view class="focus-txt">
-            <text class="focus-title">{{ focusItem.title }}</text>
-            <text v-if="focusItem.subtitle || focusItem.author" class="focus-sub">
-              {{ focusItem.author?.name }}{{ focusItem.subtitle ? ' · ' + focusItem.subtitle : '' }}
-            </text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 今日学一点：按用户兴趣主题每日推 3 条真实内容（自拉数据·空则整体隐藏，兴趣个性化产物上屏） -->
-      <daily-study />
+      <!-- 与发现页共用同一套 2×5 功能分类导航，替代原首页大幅焦点卡。 -->
+      <core-entry-grid />
 
       <station-pinned-rail board="home" />
 
-      <!-- 双列瀑布流 + 16:9 全宽大卡（董事长 2026-07-17 拍板：每 ~8 条升 1 条 live/course）。
-           数据分段渲染：每段 = 双列区块 + 段尾全宽大卡；长按呼负反馈浮层（大卡同样支持） -->
-      <template v-for="(sec, si) in flowSections" :key="'sec-' + si">
-        <view v-if="sec.items.length" class="flow">
-          <view class="col">
-            <view
-              v-for="item in colItems(sec.items, 0)"
-              :key="item.id"
-              @touchstart="onCardTouchStart(item, $event)"
-              @touchmove="onCardTouchMove"
-              @touchend="onCardTouchEnd"
-              @touchcancel="onCardTouchEnd"
-            >
-              <feed-card :item="item" />
-            </view>
-          </view>
-          <view class="col">
-            <view
-              v-for="item in colItems(sec.items, 1)"
-              :key="item.id"
-              @touchstart="onCardTouchStart(item, $event)"
-              @touchmove="onCardTouchMove"
-              @touchend="onCardTouchEnd"
-              @touchcancel="onCardTouchEnd"
-            >
-              <feed-card :item="item" />
-            </view>
+      <!-- 全类型统一双列瀑布流；横屏直播由卡片媒体层居中裁剪进 3:4 容器。 -->
+      <view v-if="flowItems.length" class="flow">
+        <view class="col">
+          <view
+            v-for="item in colItems(flowItems, 0)"
+            :key="item.id"
+            @touchstart="onCardTouchStart(item, $event)"
+            @touchmove="onCardTouchMove"
+            @touchend="onCardTouchEnd"
+            @touchcancel="onCardTouchEnd"
+          >
+            <feed-card :item="item" />
           </view>
         </view>
-        <view
-          v-if="sec.big"
-          class="big-wrap"
-          @touchstart="onCardTouchStart(sec.big!, $event)"
-          @touchmove="onCardTouchMove"
-          @touchend="onCardTouchEnd"
-          @touchcancel="onCardTouchEnd"
-        >
-          <feed-card :item="sec.big!" big />
+        <view class="col">
+          <view
+            v-for="item in colItems(flowItems, 1)"
+            :key="item.id"
+            @touchstart="onCardTouchStart(item, $event)"
+            @touchmove="onCardTouchMove"
+            @touchend="onCardTouchEnd"
+            @touchcancel="onCardTouchEnd"
+          >
+            <feed-card :item="item" />
+          </view>
         </view>
-      </template>
+      </view>
 
       <!-- 加载更多 / 失败重试 / 到底提示 -->
       <view v-if="loadingMore" class="more-tip"><text class="more-tip-txt">加载中…</text></view>
@@ -558,10 +466,35 @@ function backToTop() {
   white-space: nowrap;
   background-color: #FAF8F5;
 }
-.tabs-inner { display: inline-flex; align-items: center; gap: 44rpx; padding: 8rpx 24rpx 16rpx; }
-.tab { position: relative; padding-bottom: 8rpx; }
+.tabs-inner {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 750rpx;
+  padding: 8rpx 18rpx 16rpx;
+}
+.tab {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  min-width: 0;
+  padding-bottom: 8rpx;
+}
 .tab-label { font-size: 30rpx; color: #8A8578; }
 .tab.on .tab-label { font-size: 32rpx; font-weight: 700; color: #2C2C2C; }
+.tab.disabled .tab-label { color: #A9A397; }
+.tab-soon {
+  padding: 3rpx 7rpx;
+  border: 1rpx solid #DDD4C8;
+  border-radius: 999rpx;
+  font-size: 16rpx;
+  line-height: 1.15;
+  color: #9A9184;
+  background-color: #F4F0EA;
+}
 .tab.on::after {
   content: '';
   position: absolute;
@@ -573,25 +506,6 @@ function backToTop() {
   border-radius: 4rpx;
   background-color: #C41E3A;
 }
-/* 直播广场胶囊 */
-.tab-live {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  height: 56rpx;
-  padding: 0 20rpx;
-  border-radius: 28rpx;
-  background-color: rgba(196, 30, 58, 0.08);
-}
-.tab-live-dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background-color: #C41E3A;
-  animation: breathe 1.6s ease-in-out infinite;
-}
-.tab-live-txt { font-size: 24rpx; font-weight: 500; color: #C41E3A; }
-
 /* ── 内容滚动区 ── */
 .content {
   position: absolute;
@@ -602,78 +516,9 @@ function backToTop() {
   top: calc(184rpx + var(--status-bar-height, 0px));
 }
 
-/* ── 焦点区（16:10 · 编辑式直播优先） ── */
-.focus {
-  margin: 8rpx 24rpx 24rpx;
-  border-radius: 28rpx;
-  overflow: hidden;
-  position: relative;
-  box-shadow: 0 4rpx 20rpx rgba(60, 50, 40, 0.1);
-}
-.focus-press { opacity: 0.94; }
-.focus-ratio { position: relative; width: 100%; height: 0; padding-top: 62.5%; overflow: hidden; }
-.focus-cov { position: absolute; inset: 0; width: 100%; height: 100%; }
-/* 封面呼吸变焦（直播态·缓慢 14s alternate·纯装饰） */
-.focus-cov.live { animation: slowzoom 14s ease-in-out infinite alternate; }
-.focus-shade {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 192rpx;
-  background: linear-gradient(to top, rgba(20, 15, 10, 0.72), rgba(20, 15, 10, 0));
-}
-.live-chip {
-  position: absolute;
-  top: 20rpx;
-  left: 20rpx;
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  height: 44rpx;
-  padding: 0 18rpx;
-  border-radius: 22rpx;
-  background-color: #C41E3A;
-}
-.live-chip-dot {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background-color: #FFFFFF;
-  animation: breathe 1.6s ease-in-out infinite;
-}
-.live-chip-txt { font-size: 22rpx; font-weight: 700; color: #FFFFFF; }
-/* 音浪律动条（3 根错峰 1.1s） */
-.eq { display: inline-flex; align-items: flex-end; gap: 4rpx; height: 20rpx; }
-.eq-i { width: 4rpx; border-radius: 2rpx; background-color: #FFFFFF; animation: eq 1.1s ease-in-out infinite; }
-.eq1 { height: 8rpx; animation-delay: 0s; }
-.eq2 { height: 18rpx; animation-delay: 0.25s; }
-.eq3 { height: 12rpx; animation-delay: 0.5s; }
-.focus-txt { position: absolute; left: 28rpx; right: 28rpx; bottom: 24rpx; display: flex; flex-direction: column; gap: 8rpx; }
-.focus-title {
-  font-family: 'Noto Serif SC', serif;
-  font-size: 36rpx;
-  font-weight: 700;
-  line-height: 1.4;
-  color: #FFFFFF;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-}
-.focus-sub {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.85);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* ── 双列瀑布流 ── */
 .flow { display: flex; gap: 18rpx; padding: 0 24rpx 18rpx; }
 .col { flex: 1; display: flex; flex-direction: column; gap: 18rpx; min-width: 0; }
-/* 16:9 全宽大卡：独占一行，页边距与瀑布流一致 */
-.big-wrap { padding: 0 24rpx 18rpx; }
 /* 运营楼层（微页面区块） */
 .home-blocks { padding: 8rpx 0 12rpx; }
 
@@ -708,15 +553,6 @@ function backToTop() {
 .empty-btn-txt { font-size: 28rpx; color: #FFFFFF; }
 
 /* ── 骨架屏 ── */
-.sk-focus {
-  margin: 8rpx 24rpx 24rpx;
-  height: 0;
-  padding-top: 62.5%;
-  border-radius: 28rpx;
-  background: linear-gradient(90deg, #EFEBE4 25%, #F7F4EF 37%, #EFEBE4 63%);
-  background-size: 400% 100%;
-  animation: sk-shimmer 1.4s ease infinite;
-}
 .sk-card {
   width: 100%;
   height: 0;

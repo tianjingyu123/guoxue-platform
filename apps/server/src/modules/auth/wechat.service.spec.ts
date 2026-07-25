@@ -31,4 +31,29 @@ describe("WechatService", () => {
     const url = svc.buildOAuthUrl("https://example.com/callback?a=1&b=2");
     expect(url).not.toContain("callback?a=1"); // 应该被编码
   });
+
+  it("小程序凭据在后台热更新后立即生效", async () => {
+    const originalFetch = global.fetch;
+    process.env.MINIPROGRAM_APP_ID = "wx-hot-mini";
+    process.env.MINIPROGRAM_APP_SECRET = "hot-secret";
+    const fetchMock = jest.fn().mockResolvedValue({
+      json: jest.fn().mockResolvedValue({
+        openid: "openid",
+        session_key: "session-key",
+      }),
+    });
+    global.fetch = fetchMock as typeof fetch;
+
+    try {
+      await expect(svc.exchangeMiniCode("login-code")).resolves.toEqual({
+        openId: "openid",
+        sessionKey: "session-key",
+      });
+      expect(fetchMock.mock.calls[0][0]).toContain("appid=wx-hot-mini&secret=hot-secret");
+    } finally {
+      delete process.env.MINIPROGRAM_APP_ID;
+      delete process.env.MINIPROGRAM_APP_SECRET;
+      global.fetch = originalFetch;
+    }
+  });
 });

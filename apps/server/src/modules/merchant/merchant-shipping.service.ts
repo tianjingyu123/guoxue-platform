@@ -100,7 +100,11 @@ export class MerchantShippingService {
     });
 
     await this.invalidate(result.order);
-    if (!result.replayed) await this.audit(operatorId, "MERCHANT_ORDER_SHIPPED", orderId, input);
+    if (!result.replayed) {
+      await this.logisticsService.subscribeTrack(input.trackingNo, input.company)
+        .catch((error) => this.logger.warn(`快递100订阅失败 order=${orderId}: ${this.errorMessage(error)}`));
+      await this.audit(operatorId, "MERCHANT_ORDER_SHIPPED", orderId, input);
+    }
     return { success: true, replayed: result.replayed, logistics: this.view(result.logistics) };
   }
 
@@ -152,6 +156,8 @@ export class MerchantShippingService {
 
     await this.invalidate(result.order);
     if (!result.replayed) {
+      await this.logisticsService.subscribeTrack(input.trackingNo, input.company)
+        .catch((error) => this.logger.warn(`快递100订阅失败 order=${orderId}: ${this.errorMessage(error)}`));
       await this.audit(operatorId, "MERCHANT_LOGISTICS_UPDATED", orderId, input, result.previous ? {
         company: result.previous.company,
         trackingNo: result.previous.logisticsNo,

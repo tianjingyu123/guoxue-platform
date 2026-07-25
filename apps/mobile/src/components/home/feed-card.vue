@@ -17,6 +17,7 @@ import {
 } from '@/lib/home-data'
 import { formatPrice } from '@/utils/format'
 import SmartCover from '@/components/common/smart-cover.vue'
+import LiveStatusBadge from '@/components/live/live-status-badge.vue'
 
 const props = defineProps<{ data: RenderItem }>()
 
@@ -116,14 +117,11 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <view v-else-if="item && isVisual" class="card card-press" :class="{ 'live-card-glow': isLiveNow }" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
       <smart-cover :src="item.cover" :title="item.title" :type="cardType" class="cover-img" />
-      <text v-if="badge" class="type-badge" :style="{ background: badge.bg }">{{ badge.label }}</text>
-      <!-- 直播中呼吸灯 -->
-      <view v-if="isLiveNow" class="live-tag live-indicator">
-        <view class="live-dot" /><text class="live-text">直播中</text>
-      </view>
+      <view v-if="isLiveNow" class="live-scan" />
+      <live-status-badge v-if="isLiveNow" />
       <!-- 直播预约时间 -->
       <view v-if="cardType === 'live' && !item.isLive && item.time" class="time-tag">
-        <app-icon name="clock" :size="20" color="#ffffff" /><text class="time-text">{{ item.time }}</text>
+        <app-icon name="clock" :size="20" color="#ffffff" /><text class="time-text">预约</text>
       </view>
       <!-- 商品标签 -->
       <text
@@ -174,7 +172,6 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <view v-else-if="item && isArticle" class="card card-press" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
       <smart-cover :src="item.cover" :title="item.title" :type="cardType" class="cover-img" />
-      <text class="type-badge" :style="{ background: typeConfig.article.bg }">文章</text>
     </view>
     <view class="info">
       <text class="title-serif clamp-2">{{ item.title }}</text>
@@ -294,13 +291,11 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   font-size: 18rpx; color: rgba(255, 255, 255, 0.95); font-weight: 500;
   padding: 4rpx 16rpx; border-radius: 999rpx; letter-spacing: 1rpx;
 }
-.live-tag {
-  position: absolute; top: 16rpx; right: 16rpx;
-  display: flex; align-items: center; gap: 6rpx;
-  padding: 4rpx 12rpx; border-radius: 999rpx; background: var(--brand);
+.live-scan {
+  position: absolute; top: -20%; right: 0; left: 0; z-index: 2; height: 20%;
+  background: linear-gradient(180deg, transparent, rgba(255,235,224,.18), transparent);
+  animation: live-scan 4.2s ease-in-out infinite;
 }
-.live-dot { width: 10rpx; height: 10rpx; border-radius: 999rpx; background: #fff; }
-.live-text { font-size: 18rpx; color: #fff; }
 .time-tag {
   position: absolute; top: 16rpx; right: 16rpx;
   display: flex; align-items: center; gap: 2rpx;
@@ -329,6 +324,15 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   position: absolute; bottom: 16rpx; left: 16rpx;
   display: flex; align-items: center; gap: 2rpx;
   padding: 4rpx 12rpx; border-radius: 8rpx; background: rgba(0, 0, 0, 0.5);
+}
+@keyframes live-scan {
+  0%, 18% { transform: translateY(0); opacity: 0; }
+  28% { opacity: 1; }
+  68% { opacity: .7; }
+  82%, 100% { transform: translateY(600%); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-scan { animation: none; }
 }
 .viewers-text { font-size: 18rpx; color: #fff; }
 .ebook-price {

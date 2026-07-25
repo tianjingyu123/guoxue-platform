@@ -73,11 +73,6 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
     "kind": "tool",
     "viewBox": "0 0 48 48"
   },
-  "bazi-analysis": {
-    "body": "<rect x=\"8\" y=\"8\" width=\"32\" height=\"32\" rx=\"3\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.08\"/> <line x1=\"8\" y1=\"18\" x2=\"40\" y2=\"18\" stroke=\"currentColor\" stroke-width=\"1.5\"/> <line x1=\"8\" y1=\"28\" x2=\"40\" y2=\"28\" stroke=\"currentColor\" stroke-width=\"1.5\"/> <line x1=\"18\" y1=\"8\" x2=\"18\" y2=\"40\" stroke=\"currentColor\" stroke-width=\"1.5\"/> <line x1=\"28\" y1=\"8\" x2=\"28\" y2=\"40\" stroke=\"currentColor\" stroke-width=\"1.5\"/> <circle cx=\"24\" cy=\"24\" r=\"5\" fill=\"currentColor\" fill-opacity=\"0.2\" stroke=\"currentColor\" stroke-width=\"1.5\"/>",
-    "kind": "tool",
-    "viewBox": "0 0 48 48"
-  },
   "qimen": {
     "body": "<rect x=\"6\" y=\"6\" width=\"10\" height=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.06\"/> <rect x=\"19\" y=\"6\" width=\"10\" height=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.12\"/> <rect x=\"32\" y=\"6\" width=\"10\" height=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.06\"/> <rect x=\"6\" y=\"19\" width=\"10\" height=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.12\"/> <rect x=\"19\" y=\"19\" width=\"10\" height=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.2\"/> <rect x=\"32\" y=\"19\" width=\"10\" height=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.12\"/> <rect x=\"6\" y=\"32\" width=\"10\" height=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.06\"/> <rect x=\"19\" y=\"32\" width=\"10\" height=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.12\"/> <rect x=\"32\" y=\"32\" width=\"10\" height=\"10\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.06\"/>",
     "kind": "tool",

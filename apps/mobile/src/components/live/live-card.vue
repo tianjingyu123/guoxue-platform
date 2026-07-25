@@ -2,16 +2,16 @@
 /** 直播广场卡片 - 从原型 components/live/live-card.tsx 迁移（与首页 feed 的 cards/live-card 不同） */
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import SmartCover from '@/components/common/smart-cover.vue'
+import LiveCardMedia from '@/components/live/live-card-media.vue'
+import LiveStatusBadge from '@/components/live/live-status-badge.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
-import { navigateTo } from '@/utils/router'
+import { navigateToContent } from '@/utils/router'
 import type { LiveItem } from '@/lib/live-data'
 import { formatPrice } from '@/utils/format'
 
 const props = defineProps<{ data: LiveItem }>()
 const booked = ref(false)
 
-const typeLabel = computed(() => (props.data.type === 'knowledge' ? '知识授课' : '电商带货'))
 const viewerText = computed(() => {
   const v = props.data.viewerCount
   return v >= 10000 ? `${(v / 10000).toFixed(1)}万` : String(v)
@@ -20,8 +20,8 @@ const showSecondRow = computed(
   () => props.data.circleFree || (props.data.type === 'commerce' && !!props.data.productCount),
 )
 
-function open() {
-  navigateTo(`/live/${props.data.id}`)
+function open(event?: unknown) {
+  navigateToContent(`/live/${props.data.id}`, event)
 }
 function toggleBook() {
   booked.value = !booked.value
@@ -29,22 +29,25 @@ function toggleBook() {
 </script>
 
 <template>
-  <view class="lc" hover-class="lc-press" @tap="open">
+  <view class="lc" data-content-card :class="{ 'is-live': data.status === 'live' }" hover-class="lc-press" @tap="open">
     <!-- 封面 -->
     <view class="cover" :class="data.orientation === 'horizontal' ? 'r-169' : 'r-34'">
-      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="live" />
+      <live-card-media
+        class="cover-img"
+        :room-id="data.id"
+        :cover="data.cover"
+        :title="data.title"
+        :status="data.status"
+        :replay-url="data.replayUrl"
+      />
       <view class="grad" />
-      <!-- 类型标签 左上 -->
-      <text class="type-badge" :class="data.type === 'knowledge' ? 'tb-know' : 'tb-comm'">{{ typeLabel }}</text>
-      <!-- 状态标签 右上 -->
-      <view v-if="data.status === 'live'" class="st-badge st-live">
-        <view class="live-dot" /><text class="st-txt">直播中</text>
-      </view>
+      <view v-if="data.status === 'live'" class="live-scan" />
+      <live-status-badge v-if="data.status === 'live'" />
       <view v-else-if="data.status === 'upcoming'" class="st-badge st-up">
-        <AppIcon name="clock" :size="20" color="#ffffff" /><text class="st-txt">{{ data.scheduledTime }}</text>
+        <AppIcon name="clock" :size="20" color="#ffffff" /><text class="st-txt">预约</text>
       </view>
       <view v-else class="st-badge st-replay">
-        <text class="st-txt">{{ data.duration || '回放' }}</text>
+        <text class="st-txt">回放</text>
       </view>
       <!-- 人数 左下 -->
       <view class="viewers">
@@ -82,21 +85,18 @@ function toggleBook() {
 
 <style scoped lang="scss">
 .lc { overflow: hidden; border-radius: 20rpx; background: #ffffff; box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.08); }
+.lc.is-live { animation: live-aura 2.8s ease-in-out infinite; }
 .lc-press { transform: scale(0.98); }
 .cover { position: relative; width: 100%; background: var(--surface-sunken); overflow: hidden; }
 .r-169 { padding-bottom: 56.25%; }
 .r-34 { padding-bottom: 133.33%; }
 .cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .grad { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent 50%); }
-.type-badge { position: absolute; top: 16rpx; left: 16rpx; z-index: 10; font-size: 20rpx; line-height: 1; padding: 6rpx 12rpx; border-radius: 8rpx; color: #ffffff; font-weight: 500; white-space: nowrap; }
-.tb-know { background: #4a90d9; }
-.tb-comm { background: #c9a96e; }
 .st-badge { position: absolute; top: 16rpx; right: 16rpx; z-index: 10; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx; border-radius: 8rpx; }
-.st-live { background: var(--brand); }
 .st-up { background: #4a90d9; }
 .st-replay { background: rgba(0, 0, 0, 0.6); }
-.live-dot { width: 12rpx; height: 12rpx; background: #ffffff; border-radius: 999rpx; }
 .st-txt { font-size: 20rpx; line-height: 1; color: #ffffff; font-weight: 500; white-space: nowrap; }
+.live-scan { position: absolute; top: -20%; right: 0; left: 0; z-index: 4; height: 20%; pointer-events: none; background: linear-gradient(180deg, transparent, rgba(255,235,224,.18), transparent); animation: live-scan 4.2s ease-in-out infinite; }
 .viewers { position: absolute; left: 16rpx; bottom: 16rpx; z-index: 10; display: flex; align-items: center; gap: 6rpx; padding: 6rpx 12rpx; border-radius: 8rpx; background: rgba(0, 0, 0, 0.5); }
 .viewers-txt { font-size: 20rpx; line-height: 1; color: #ffffff; white-space: nowrap; }
 .book-btn { position: absolute; right: 16rpx; bottom: 16rpx; z-index: 10; display: flex; align-items: center; gap: 6rpx; padding: 8rpx 18rpx; border-radius: 8rpx; }
@@ -115,4 +115,18 @@ function toggleBook() {
 .sub-row { display: flex; align-items: center; gap: 16rpx; margin-top: 12rpx; }
 .circle-free { font-size: 20rpx; line-height: 1; color: var(--gold); padding: 4rpx 10rpx; border-radius: 8rpx; background: rgba(201, 169, 110, 0.1); white-space: nowrap; }
 .goods { font-size: 20rpx; line-height: 1; color: #999999; white-space: nowrap; }
+@keyframes live-aura {
+  0%, 100% { box-shadow: 0 4rpx 24rpx rgba(0,0,0,.08), inset 0 0 0 1rpx rgba(196,30,58,.12); }
+  50% { box-shadow: 0 8rpx 30rpx rgba(196,30,58,.18), inset 0 0 0 2rpx rgba(196,30,58,.32); }
+}
+@keyframes live-scan {
+  0%, 18% { transform: translateY(0); opacity: 0; }
+  28% { opacity: 1; }
+  68% { opacity: .7; }
+  82%, 100% { transform: translateY(600%); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lc.is-live,
+  .live-scan { animation: none; }
+}
 </style>

@@ -14,6 +14,33 @@ import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 import { CreateArticleDto, UpdateArticleDto, AddRecommendDto } from "./article.dto";
 import { Prisma } from "@prisma/client";
 
+/** 文章专区列表只取前三张展示图：封面优先，其次为正文富文本图片。 */
+export function extractArticleListImages(cover?: string | null, content = ""): string[] {
+  const images: string[] = [];
+  const append = (value?: string | null) => {
+    const image = String(value ?? "")
+      .trim()
+      .replace(/&amp;/gi, "&")
+      .replace(/&quot;/gi, "\"")
+      .replace(/&#39;/gi, "'");
+    if (image && !images.includes(image)) images.push(image);
+  };
+
+  append(cover);
+  const imagePattern = /<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))/gi;
+  let match: RegExpExecArray | null;
+  while (images.length < 3 && (match = imagePattern.exec(content))) {
+    append(match[1] || match[2] || match[3]);
+  }
+  return images.slice(0, 3);
+}
+
+function assertArticleCover(cover?: string | null) {
+  if (!String(cover ?? "").trim()) {
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "文章必须上传首图后才能发布");
+  }
+}
+
 @Injectable()
 export class ArticleService {
   private readonly logger = new Logger(ArticleService.name);
@@ -27,6 +54,7 @@ export class ArticleService {
   async create(circleId: string, userId: string, dto: CreateArticleDto, isAdmin = false) {
     // 验证是圈主或管理员
     await this.ensureCircleAdmin(circleId, userId);
+    assertArticleCover(dto.cover);
 
     // 内容审核（标题+正文+摘要）
     await this.audit.moderateTextOrThrow(
@@ -70,6 +98,7 @@ export class ArticleService {
     const article = await this.prisma.article.findUnique({ where: { id: articleId } });
     if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
     if (article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的文章");
+    if (dto.cover !== undefined && article.auditStatus !== "DRAFT") assertArticleCover(dto.cover);
 
     // 内容审核（标题+正文+摘要）
     await this.audit.moderateTextOrThrow(
@@ -167,7 +196,7 @@ export class ArticleService {
     const { circleId, tag, isPushHome, auditStatus, keyword, stationId, isAdmin } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterHash = `${circleId ?? ""}:${tag ?? ""}:${isPushHome ?? ""}:${auditStatus ?? ""}`;
-    const cacheKey = `articles:list:${page}:${pageSize}:${filterHash}`;
+    const cacheKey = `articles:list:v2:${page}:${pageSize}:${filterHash}`;
 
     // 管理端（isAdmin）不走缓存：审核工作台需实时数据，且避免与 C 端共享缓存键互相污染
     if (!isAdmin) {
@@ -188,13 +217,14 @@ export class ArticleService {
     } else {
       where.id = { notIn: publicQuarantinedIds("article") };
       where.auditStatus = "APPROVED"; // 默认只返回审核通过的
+      where.cover = { not: "" }; // 公共文章必须有首图；旧无图数据不再外显
       // 平台公共池（未按圈子过滤）只出「全平台开放」内容；圈内列表（带 circleId）圈内内容全可见
       if (!circleId) where.visibility = "PLATFORM";
     }
     if (stationId) where.stationId = stationId;
 
     const select = {
-      id: true, title: true, cover: true, excerpt: true, tags: true,
+      id: true, title: true, cover: true, content: true, excerpt: true, tags: true,
       viewCount: true, likeCount: true, collectCount: true,
       createdAt: true,
       user: { select: { id: true, nickname: true, avatar: true } },
@@ -214,7 +244,11 @@ export class ArticleService {
       this.prisma.article.count({ where }),
     ]);
 
-    const data = paginated(articles, total, page, pageSize);
+    const listItems = articles.map(({ content, ...article }) => ({
+      ...article,
+      images: extractArticleListImages(article.cover, content),
+    }));
+    const data = paginated(listItems, total, page, pageSize);
     if (!isAdmin) await this.redis.setJson(cacheKey, data, 300);
     return data;
   }
@@ -229,6 +263,7 @@ export class ArticleService {
       isPushHome: true,
       auditStatus: "APPROVED",
       visibility: "PLATFORM",
+      cover: { not: "" },
     };
 
     // 热度加权：浏览量×1 + 点赞×2 + 收藏×3
@@ -263,6 +298,7 @@ export class ArticleService {
       where: {
         id: { not: articleId, notIn: publicQuarantinedIds("article") },
         auditStatus: "APPROVED",
+        cover: { not: "" },
         OR: [
           { circleId: article.circleId }, // 本圈相关：圈内内容全可见
           // 跨圈按标签相关：只出「全平台开放」内容（不外泄他圈封闭内容）
@@ -288,6 +324,7 @@ export class ArticleService {
     }
     const article = await this.prisma.article.findUnique({ where: { id: articleId } });
     if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "文章不存在");
+    if (auditStatus === "APPROVED") assertArticleCover(article.cover);
 
     const updated = await this.prisma.article.update({
       where: { id: articleId },
@@ -409,6 +446,7 @@ export class ArticleService {
     if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "草稿不存在");
     if (article.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能发布自己的草稿");
     if (article.auditStatus !== "DRAFT") throw new BusinessException(ErrorCode.BAD_REQUEST, "该文章不是草稿");
+    assertArticleCover(article.cover);
     const updated = await this.prisma.article.update({
       where: { id },
       data: { auditStatus: "PENDING", createdAt: new Date() },
@@ -467,6 +505,7 @@ export class ArticleService {
     const article = await this.prisma.article.findUnique({ where: { id } });
     if (!article) throw new BusinessException(ErrorCode.ARTICLE_NOT_FOUND, "草稿不存在");
     if (article.auditStatus !== "DRAFT") throw new BusinessException(ErrorCode.BAD_REQUEST, "该文章不是草稿");
+    assertArticleCover(article.cover);
     const updated = await this.prisma.article.update({
       where: { id },
       data: { auditStatus: "PENDING", createdAt: new Date() },

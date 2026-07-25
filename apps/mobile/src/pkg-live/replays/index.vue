@@ -47,7 +47,7 @@
         <view class="card-inner">
           <!-- 封面 -->
           <view class="cover">
-            <smart-cover class="cover-img" :src="item.cover" :title="item.title" type="live" deco :deco-size="48" />
+            <smart-cover class="cover-img" :src="item.cover" :video-url="item.replayUrl" :title="item.title" type="live" deco :deco-size="48" />
             <view class="replay-tag">
               <AppIcon name="play" :size="20" color="#fff" />
               <text class="replay-txt">回放</text>

@@ -1,16 +1,36 @@
 <script setup lang="ts">
 /**
- * 古籍卡 · 统一 3:4（2:3 书封 cover 填满）· 左上「籍」金印章 · hook「附白话译注」
+ * 古籍卡 · 统一 3:4，书封本身承担类型识别，保留阅读钩子。
  * 去数字化：不显共读人数。有扫描封面用真图；无封面用 FlatCover 仿真书封（永不缺图）。
  */
 import { computed } from 'vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { type FeedEnvelope } from '@/lib/feed-data'
+import { type FeedEnvelope, payloadStr } from '@/lib/feed-data'
 
 const props = defineProps<{ item: FeedEnvelope }>()
 const hasCover = computed(() => !!(props.item.cover && props.item.cover.trim()))
 const coverColor = computed(() => coverColorForBook(props.item.title))
+const author = computed(() => props.item.author?.name || payloadStr(props.item, 'author') || '')
+const dynasty = computed(() => payloadStr(props.item, 'dynasty') || '')
+const category = computed(() => {
+  const value = payloadStr(props.item, 'category') || ''
+  const labels: Record<string, string> = {
+    经: '经部',
+    史: '史部',
+    子: '子部',
+    集: '集部',
+    释: '释家',
+    道: '道家',
+    命: '命理',
+  }
+  return labels[value] || value
+})
+const coverLabel = computed(() => dynasty.value || category.value)
+const coverFooter = computed(() => author.value)
+const metaLine = computed(() => (
+  [dynasty.value, author.value, category.value].filter(Boolean).join(' · ') || '经典古籍'
+))
 </script>
 
 <template>
@@ -19,15 +39,20 @@ const coverColor = computed(() => coverColorForBook(props.item.title))
       <!-- 古籍/电子书素材 2:3 装入 3:4 容器：scaleToFill 适度纵向变形保全整幅书封（书名不被裁切），优于 aspectFill 裁边 -->
       <image v-if="hasCover" class="cov-img" :src="item.cover" mode="scaleToFill" lazy-load />
       <view v-else class="cov-img flat-wrap">
-        <flat-cover :title="item.title" :footer="item.author?.name" :cover-color="coverColor" title-size="40rpx" />
+        <flat-cover
+          :title="item.title"
+          :label="coverLabel"
+          :footer="coverFooter"
+          :cover-color="coverColor"
+          title-size="40rpx"
+        />
       </view>
-      <text class="seal gold serif">籍</text>
     </view>
     <view class="body">
       <text class="title serif">{{ item.title }}</text>
       <view class="meta">
-        <text v-if="item.author?.name" class="name">{{ item.author.name }}</text>
-        <text class="hook">附白话译注 ›</text>
+        <text class="name">{{ metaLine }}</text>
+        <text class="hook">AI 智能伴读</text>
       </view>
     </view>
   </view>
@@ -39,13 +64,6 @@ const coverColor = computed(() => coverColorForBook(props.item.title))
 .cov-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .flat-wrap { display: flex; align-items: stretch; justify-content: center; }
 .flat-wrap > :deep(.flat-cover) { width: 100%; }
-.seal {
-  position: absolute; top: 16rpx; left: 16rpx; width: 44rpx; height: 44rpx; border-radius: 12rpx;
-  color: #fff; font-size: 24rpx; font-weight: 700;
-  display: flex; align-items: center; justify-content: center; z-index: 3;
-  font-family: var(--font-serif, 'STSong', serif);
-}
-.seal.gold { background: rgba(180,140,70,.92); }
 .serif { font-family: var(--font-serif, 'STSong', serif); }
 .body { padding: 18rpx 20rpx 22rpx; }
 .title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; line-height: 1.45; font-weight: 500; color: #2c2c2c; }

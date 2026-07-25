@@ -56,7 +56,7 @@
           <view v-for="(item, idx) in hotReplays" :key="item.id" class="hot-card" @tap="openReplay(item)">
             <view class="hot-cover">
               <!-- plain：大卡自身已有居中播放按钮 + 卡底标题栏，兜底封面只出底纹不出文字，防撞按钮/重复标题 -->
-              <smart-cover class="hot-img" :src="item.cover" :title="item.title" type="live" plain />
+              <smart-cover class="hot-img" :src="item.cover" :video-url="item.replayUrl" :title="item.title" type="live" plain />
               <view class="hot-mask" />
               <view class="hot-tag">
                 <text class="hot-tag-emoji">🔥</text>
@@ -95,7 +95,7 @@
         <view v-if="filteredReplays.length" class="grid">
           <view v-for="item in filteredReplays" :key="item.id" class="grid-card" @tap="openReplay(item)">
             <view class="grid-cover">
-              <smart-cover class="grid-img" :src="item.cover" :title="item.title" type="live" />
+              <smart-cover class="grid-img" :src="item.cover" :video-url="item.replayUrl" :title="item.title" type="live" />
               <view class="grid-mask" />
               <view class="grid-replay-tag">
                 <AppIcon name="play" :size="24" color="#fff" />
@@ -159,7 +159,7 @@
           <text class="search-section-title">搜索结果（{{ searchResults.length }}）</text>
           <view v-if="searchResults.length" class="search-results">
             <view v-for="item in searchResults" :key="item.id" class="search-result" @tap="openReplay(item)">
-              <smart-cover class="search-result__cover" :src="item.cover" :title="item.title" type="live" plain />
+              <smart-cover class="search-result__cover" :src="item.cover" :video-url="item.replayUrl" :title="item.title" type="live" plain />
               <view class="search-result__info">
                 <text class="search-result__title">{{ item.title }}</text>
                 <text class="search-result__meta">{{ item.hostName || '主播' }} · {{ formatLiveViews(item.views) }}</text>

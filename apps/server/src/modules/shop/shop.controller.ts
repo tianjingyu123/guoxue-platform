@@ -978,12 +978,23 @@ export class ShopController {
   }
 
   @Get("logistics/track")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "查询物流轨迹（快递100）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "no", required: true, type: String, description: "快递单号" })
   @ApiQuery({ name: "company", required: false, type: String, description: "快递公司" })
+  @ApiBearerAuth()
   trackLogistics(@Query("no") no: string, @Query("company") company?: string) {
     return this.logistics.queryTrack(no, company);
+  }
+
+  @Post("logistics/kuaidi100/callback")
+  @HttpCode(200)
+  @SkipFormat()
+  @ApiOperation({ summary: "快递100轨迹推送回调（公开接口·MD5 salt 验签）" })
+  async handleKuaidi100Callback(@Body() body: { param?: string; sign?: string }) {
+    await this.logistics.handlePush(body.param || "", body.sign || "");
+    return { result: true, returnCode: "200", message: "成功" };
   }
 
   @Put("orders/:id/logistics")
@@ -996,8 +1007,13 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateLogistics(@Param("id") id: string, @Body() dto: UpdateLogisticsDto) {
-    return this.shop.updateLogistics(id, dto);
+  async updateLogistics(@Param("id") id: string, @Body() dto: UpdateLogisticsDto) {
+    const result = await this.shop.updateLogistics(id, dto);
+    if (dto.logisticsNo && dto.company) {
+      await this.logistics.subscribeTrack(dto.logisticsNo, dto.company)
+        .catch((error) => this.logger.warn(`快递100订阅失败 order=${id}: ${(error as Error).message}`));
+    }
+    return result;
   }
 
   // ───────── 售后 ─────────

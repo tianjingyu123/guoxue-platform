@@ -3,14 +3,14 @@
  * 发现页 · 双列瀑布流 · 按类别分区（董事长拍板：便于维护，与首页一致但按类别分区）
  *
  * 结构（自上而下）：
- *  ① 大搜索框 → ② 运营楼层（block-renderer·discoverBlocks） → ③ 金刚区 2×5（十大板块正门）
- *  → ④ 按类别分区（7 类·每区= 标题 + 更多› + 双列瀑布流 4 张 + 查看更多渐进加载）
- *  → ⑤ 事业与合作（B 端折叠区·董事长拍板保留·放最下）
+ *  ① 大搜索框 → ② 运营楼层（block-renderer·discoverBlocks） → ③ 事业生态五入口
+ *  → ④ 按类别分区（6 类·每区= 标题 + 更多› + 双列瀑布流 4 张 + 查看更多渐进加载）
+ *  → ⑤ 底部导航
  *
  * 数据真连：getCategoryFeed(type, page, size=4) → 该类别一页 FeedEnvelope[]，
  * 卡片统一走 <feed-card>（九类通用卡·自带点击/角标/去数字化）。空则隐藏该分区；
  * 追加「有返回但不足一页」才判到底（空返回可能是网络失败，保留按钮可重试）。
- * 首屏三态：骨架（.skeleton 微光）→ 七类全空视为整页错误给重试 → 正常分区。
+ * 首屏三态：骨架（.skeleton 微光）→ 六类全空视为整页错误给重试 → 正常分区。
  */
 import { ref, reactive, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
@@ -21,8 +21,8 @@ import { navigateTo } from '@/utils/router'
 import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
 import BlockRenderer from '@/components/layout/block-renderer.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
-import { getCategoryFeed, type FeedEnvelope } from '@/lib/feed-data'
-import { coreEntries, serviceGroups } from '@/lib/discover-data'
+import BusinessEntryGrid from '@/components/navigation/business-entry-grid.vue'
+import { getCategoryFeed, isRenderablePublicFeedItem, type FeedEnvelope } from '@/lib/feed-data'
 
 // 状态栏适配：照首页模式动态取 statusBarHeight（原来写死 padding-top:96rpx，
 // 刘海屏会顶进状态栏、H5 无状态栏又留大白），搜索行 padding-top = 状态栏高 + 8px 呼吸位
@@ -32,16 +32,8 @@ uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight 
 // 平台微页面运营楼层（后台「平台页面布局」搭 route='discover' 发布 → 此处渲染；无则不显示）
 const discoverBlocks = ref<LayoutBlock[]>([])
 
-// —— 金刚区 2×5：十大板块正门（真跳各板块，href/icon 均来自 coreEntries 真源）——
-const kingGrid = coreEntries
-
-// —— B 端「事业与合作」折叠区（董事长拍板：经营变现下沉，与 C 端分层）——
-const bizGroup = serviceGroups.find((g) => g.title === '经营变现')
-const bizExpanded = ref(false)
-function toggleBiz() { bizExpanded.value = !bizExpanded.value }
-
 // ============================================
-// 按类别分区（7 类）
+// 按类别分区（6 类公开内容；圈帖只在所属圈子内展示）
 // ============================================
 interface CategoryDef {
   type: string   // 后端 category type
@@ -55,7 +47,6 @@ const CATEGORIES: CategoryDef[] = [
   { type: 'live',    title: '正在直播',   more: '/pkg-live/plaza/index' },
   { type: 'article', title: '热门文章',   more: '/pkg-circle/articles/index' },
   { type: 'product', title: '掌柜好物',   more: '/pkg-mall/home/index' },
-  { type: 'post',    title: '圈内精华',   more: '/pages/circles/index' },
 ]
 const SECTION_PAGE_SIZE = 4
 
@@ -84,7 +75,7 @@ function rightCol(type: string): FeedEnvelope[] {
 const firstLoading = ref(true)
 const loadError = ref(false)
 
-// SWR 首屏缓存（照首页 FEED_CACHE_KEY 模式）：只存七分区各自的第一页（4 张）——
+// SWR 首屏缓存（照首页 FEED_CACHE_KEY 模式）：只存六分区各自的第一页（4 张）——
 // 再次进入 tab 先渲染缓存跳过骨架屏，后台 loadFirstPages 静默刷新替换
 const DISCOVER_CACHE_KEY = 'discover:home:cache'
 
@@ -112,10 +103,11 @@ function restoreSectionsCache(): boolean {
         const list = (raw as Record<string, unknown>)[c.type]
         if (Array.isArray(list) && list.length) {
           const s = sections[c.type]
-          s.items = list as FeedEnvelope[]
+          s.items = (list as FeedEnvelope[]).filter(isRenderablePublicFeedItem)
+          if (!s.items.length) return
           s.page = 1
           s.loaded = true
-          s.noMore = list.length < SECTION_PAGE_SIZE
+          s.noMore = s.items.length < SECTION_PAGE_SIZE
           hit = true
         }
       })
@@ -143,8 +135,8 @@ async function loadFirstPages() {
     }),
   )
   firstLoading.value = false
-  // lib 层 getCategoryFeed 吞错返回 []，页面区分不了「全失败」与「七类真的全空」；
-  // 生产上七类同时为空几乎只可能是断网/接口挂 → 视为加载失败给整页重试（部分成功则正常显示成功分区）
+  // lib 层 getCategoryFeed 吞错返回 []，页面区分不了「全失败」与「六类真的全空」；
+  // 生产上六类同时为空几乎只可能是断网/接口挂 → 视为加载失败给整页重试（部分成功则正常显示成功分区）
   loadError.value = CATEGORIES.every((c) => sections[c.type].items.length === 0)
   // SWR：刷新成功（非全空）后落盘各分区首页快照，供下次进 tab 秒开
   if (!loadError.value) writeSectionsCache()
@@ -212,16 +204,8 @@ function goEntry(href: string) { navigateTo(href) }
     <!-- ② 运营楼层（后台平台页面布局·route='discover'·有已发布则渲染，无则不显示） -->
     <view v-if="discoverBlocks.length" class="disc-blocks"><block-renderer :blocks="discoverBlocks" /></view>
 
-    <!-- ③ 金刚区 2×5：十大板块正门 -->
-    <view class="kong">
-      <view
-        v-for="k in kingGrid" :key="k.id"
-        class="k" hover-class="k-press" @tap="goEntry(k.href)"
-      >
-        <view class="k-ic"><AppIcon :name="k.icon" :size="44" color="#C41E3A" /></view>
-        <text class="k-label">{{ k.label }}</text>
-      </view>
-    </view>
+    <!-- ③ 事业生态入口；十大核心功能只保留在首页顶部，避免发现页与首页职责重叠 -->
+    <business-entry-grid />
 
     <station-pinned-rail board="home" />
 
@@ -281,27 +265,6 @@ function goEntry(href: string) { navigateTo(href) }
     </template>
     </template>
 
-    <!-- ⑤ 事业与合作（B 端入口折叠区，与 C 端分层，董事长拍板保留） -->
-    <view v-if="bizGroup" class="biz-section">
-      <view class="biz-head" hover-class="biz-head-press" @tap="toggleBiz">
-        <view class="biz-head-left">
-          <AppIcon name="briefcase" :size="30" color="#8A8578" />
-          <text class="biz-title">事业与合作</text>
-          <text class="biz-sub">{{ bizGroup.items.map((i) => i.label).join(' · ') }}</text>
-        </view>
-        <AppIcon :name="bizExpanded ? 'chevron-up' : 'chevron-down'" :size="28" color="#B0A99A" />
-      </view>
-      <view v-if="bizExpanded" class="biz-grid">
-        <view
-          v-for="item in bizGroup.items" :key="item.id"
-          class="k" hover-class="k-press" @tap="goEntry(item.href)"
-        >
-          <view class="k-ic biz-ic"><AppIcon :name="item.icon" :size="44" color="#8A8578" /></view>
-          <text class="k-label">{{ item.label }}</text>
-        </view>
-      </view>
-    </view>
-
     <bottom-nav active="discover" />
   </view>
 </template>
@@ -317,13 +280,6 @@ $ink: #2C2C2C; $sub: #6E6E73; $faint: #999999; $wash: #F6F1E7; $line: #F2EDE4;
 .search-row { padding: 16rpx 40rpx 8rpx; }
 /* ② 运营楼层（微页面区块） */
 .disc-blocks { padding: 8rpx 0 4rpx; }
-
-/* ③ 金刚区 2×5 */
-.kong { display: flex; flex-wrap: wrap; padding: 24rpx 24rpx 4rpx; }
-.k { width: 20%; display: flex; flex-direction: column; align-items: center; gap: 10rpx; margin-bottom: 24rpx; }
-.k-press { opacity: 0.6; }
-.k-ic { width: 88rpx; height: 88rpx; border-radius: 24rpx; background: linear-gradient(145deg, #FFFFFF, $wash); border: 2rpx solid rgba(201,169,110,0.16); box-shadow: 0 4rpx 14rpx rgba(60,50,40,0.05); display: flex; align-items: center; justify-content: center; }
-.k-label { font-size: 22rpx; color: #6B655B; line-height: 1.2; }
 
 /* ④ 类别分区 */
 .cat-section { margin-top: 12rpx; padding-top: 20rpx; border-top: 2rpx solid $line; }
@@ -355,13 +311,4 @@ $ink: #2C2C2C; $sub: #6E6E73; $faint: #999999; $wash: #F6F1E7; $line: #F2EDE4;
 .disc-error-btn-press { opacity: 0.8; }
 .disc-error-btn-txt { font-size: 28rpx; color: #FFFFFF; }
 
-/* ⑤ 事业与合作（B 端折叠） */
-.biz-section { margin: 32rpx 40rpx 0; border-radius: 24rpx; background: $card; overflow: hidden; box-shadow: 0 2rpx 12rpx rgba(60,50,40,0.06); }
-.biz-head { display: flex; align-items: center; justify-content: space-between; padding: 28rpx; }
-.biz-head-press { background: $wash; }
-.biz-head-left { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
-.biz-title { font-size: 28rpx; font-weight: 600; color: #555; flex-shrink: 0; }
-.biz-sub { font-size: 22rpx; color: $faint; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.biz-grid { display: flex; flex-wrap: wrap; padding: 24rpx 16rpx 0; border-top: 2rpx solid $line; }
-.biz-ic { background: rgba(138,131,120,0.10); }
 </style>

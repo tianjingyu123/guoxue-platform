@@ -24,6 +24,8 @@ interface Props {
   sending?: boolean
   /** 默认 fixed 吸底；放进抽屉/自管布局时传 false 走静态流 */
   fixed?: boolean
+  /** 按需唤起场景显示收起入口，并省略头像为输入区留出空间 */
+  dismissible?: boolean
   placeholder?: string
 }
 const props = withDefaults(defineProps<Props>(), {
@@ -31,12 +33,14 @@ const props = withDefaults(defineProps<Props>(), {
   replyTo: null,
   sending: false,
   fixed: true,
+  dismissible: false,
   placeholder: '说点什么…',
 })
 
 const emit = defineEmits<{
   (e: 'send', content: string): void
   (e: 'cancel-reply'): void
+  (e: 'dismiss'): void
 }>()
 
 const isDark = computed(() => props.theme === 'dark')
@@ -83,7 +87,7 @@ defineExpose({
       </view>
     </view>
     <view class="cib__row">
-      <smart-avatar v-if="!hasActions" class="cib__avatar" :src="myAvatar" :name="myName" />
+      <smart-avatar v-if="!hasActions && !dismissible" class="cib__avatar" :src="myAvatar" :name="myName" />
       <input
         class="cib__field"
         v-model="text"
@@ -101,6 +105,9 @@ defineExpose({
       <!-- 右侧动作区（头条式：点赞/评论/收藏/分享图标排·与发送按钮互斥） -->
       <view v-else class="cib__actions">
         <slot name="actions" />
+      </view>
+      <view v-if="dismissible" class="cib__dismiss" aria-label="收起评论框" @tap="emit('dismiss')">
+        <app-icon name="x" :size="28" :color="cancelIconColor" />
       </view>
     </view>
   </view>
@@ -137,6 +144,17 @@ defineExpose({
 .cib__send { flex-shrink: 0; padding: 16rpx 34rpx; border-radius: 999rpx; background: #e5e2dc; transition: background 0.2s; }
 .cib__send--on { background: var(--brand, #c41e3a); }
 .cib__send-txt { font-size: 26rpx; font-weight: 500; color: #ffffff; }
+.cib__dismiss {
+  width: 64rpx;
+  height: 64rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  background: #f4f2ee;
+}
+.cib--dark .cib__dismiss { background: rgba(255, 255, 255, 0.08); }
 
 /* ───── 深色主题（配色对齐 pkg-video/detail cs-input） ───── */
 .cib--dark { background: rgba(28, 25, 32, 0.97); border-top-color: rgba(255, 255, 255, 0.1); }
