@@ -168,7 +168,9 @@ function back() {
 .ws {
   display: flex;
   flex-direction: column;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background: #F7F3EC;
 }
 
@@ -229,6 +231,7 @@ function back() {
 .ws-main {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .ws-nav {
