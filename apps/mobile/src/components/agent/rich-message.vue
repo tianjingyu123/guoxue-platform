@@ -13,6 +13,7 @@
  * 向前兼容：未注册的 type 自动降级显示 content 文本（旧客户端不至于白屏）。
  */
 import BaziCard from './cards/bazi-card.vue'
+import AgentRouteCard from './cards/agent-route-card.vue'
 
 const props = defineProps<{
   /** 消息类型：text | bazi-card | ...（未知类型降级为文本） */
@@ -24,7 +25,7 @@ const props = defineProps<{
 }>()
 
 /** 已注册卡片类型清单：新增卡片在此登记 + template 加 v-else-if */
-const KNOWN_CARDS = ['bazi-card']
+const KNOWN_CARDS = ['bazi-card', 'agent-route-card']
 
 const isKnownCard = !!props.type && props.type !== 'text' && KNOWN_CARDS.includes(props.type)
 </script>
@@ -32,6 +33,7 @@ const isKnownCard = !!props.type && props.type !== 'text' && KNOWN_CARDS.include
 <template>
   <!-- 已注册卡片：显式分发（新卡片在此追加 v-else-if 分支） -->
   <bazi-card v-if="isKnownCard && type === 'bazi-card'" :payload="payload" />
+  <agent-route-card v-else-if="isKnownCard && type === 'agent-route-card'" :payload="payload" />
   <!-- 文本 / 未知类型降级 -->
   <text v-else class="rm-text">{{ content || '' }}</text>
 </template>

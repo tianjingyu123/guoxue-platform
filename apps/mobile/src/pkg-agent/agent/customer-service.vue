@@ -67,6 +67,8 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
     :welcome="welcome"
     :quick-prompts="quick"
     :resolve-stream="resolveStream"
+    experience-key="SERVICE"
+    agent-name="平台智能客服"
   />
 </template>
 

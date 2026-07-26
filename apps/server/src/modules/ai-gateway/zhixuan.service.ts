@@ -63,7 +63,12 @@ const ZHIXUAN_SYSTEM = `你是「智玄」，热卜国学平台的官方国学�
 3. 推荐平台内容时说明推荐理由，少而精准，不制造销售压力；
 4. 涉及重大人生决策（婚姻/投资/健康）时提醒用户理性看待、咨询专业人士；
 5. 不编造平台不存在的功能、内容或服务，不确定的信息诚实说明；
-6. 用亲切、专业、克制的语气，短段落表达，默认控制在 300 字以内。`;
+6. 用亲切、专业、克制的语气，短段落表达，默认控制在 300 字以内；
+7. 默认按“我理解你的需要 / 建议路线 / 现在可以做”三个短段落组织，便于前端转成文脉罗盘知识卡；
+8. 只承担学习向导职责。专业古籍、诗词、典故、写作、礼乐、节气、蒙学、易经义理与象数知识，推荐到对应专业学伴继续；涉及个人运势、吉凶、婚恋财运、未来结果或提供生辰要求判断时，引导到排盘工具，不在对话中直接预测。`;
+
+const PREDICTION_QUERY_RE = /运势|算命|预测|吉凶|事业运|财运|桃花运|婚姻运|健康运|流年|大运|命运|合婚|何时结婚|能不能发财|未来如何|结果怎么样|看八字|批八字|出生年月|生辰/;
+const LEARNING_QUERY_RE = /学习|原理|历史|经典|文本|知识|含义|怎么理解|如何入门|研究|课程|讲解/;
 
 const BAZI_ANALYSIS_SYSTEM = `你是「智玄」，热卜国学平台的官方 AI 命理助手。用户提供了生辰，系统已用平台排盘引擎完成真实排盘（盘面数据见下方，为唯一事实依据，禁止自行推算或更改干支）。
 请基于该盘面输出一段结构化解读（400-600字）：
@@ -78,6 +83,30 @@ export class ZhixuanService {
   private readonly logger = new Logger(ZhixuanService.name);
 
   constructor(private readonly gateway: AiGatewayService) {}
+
+  private shouldRouteToPaipan(query: string): boolean {
+    const text = String(query || "").trim();
+    if (!text || LEARNING_QUERY_RE.test(text)) return false;
+    return PREDICTION_QUERY_RE.test(text) || !!this.detectBirthIntent(text);
+  }
+
+  private paipanReferral() {
+    return {
+      kind: "paipan",
+      eyebrow: "专业能力转介",
+      title: "这类问题，交给专业排盘更合适",
+      description: "我可以陪你理解相关文化与原理；涉及个人盘面和阶段性趋势时，平台排盘工具会先调用专业算法生成真实盘面，再提供对应解读。",
+      reason: "不是把问题推开，而是把它交给更准确、可核对的工具链。",
+      actionLabel: "进入排盘工具",
+      route: "/pages/paipan/index",
+      glyph: "盘",
+      tone: "crimson",
+    };
+  }
+
+  private async *emptyStream(): AsyncIterable<string> {
+    yield* [];
+  }
 
   /**
    * 轻量生辰意图识别（正则/关键词，识别不出返回 null 走普通对话）。
@@ -218,6 +247,11 @@ export class ZhixuanService {
 
   /** 非流式对话（非 H5 端降级路径）：返回富消息数组 */
   async chat(dto: { query: string; history?: Array<{ role: string; content: string }> }, userId?: string) {
+    if (this.shouldRouteToPaipan(dto.query)) {
+      return {
+        messages: [{ type: "agent-route-card", payload: this.paipanReferral() }],
+      };
+    }
     const intent = this.detectBirthIntent(dto.query);
     const messages: Array<{ type: string; content?: string; payload?: unknown }> = [];
     let bazi: { intent: BirthIntent; result: BaziResult } | undefined;
@@ -249,18 +283,24 @@ export class ZhixuanService {
    * 控制器先 write card 事件，再逐块 write chunk。
    */
   prepareStream(dto: { query: string; history?: Array<{ role: string; content: string }> }, userId?: string): {
-    card?: BaziCardPayload;
+    card?: { cardType: string; payload: unknown };
     stream: AsyncIterable<string>;
   } {
+    if (this.shouldRouteToPaipan(dto.query)) {
+      return {
+        card: { cardType: "agent-route-card", payload: this.paipanReferral() },
+        stream: this.emptyStream(),
+      };
+    }
     const intent = this.detectBirthIntent(dto.query);
     let bazi: { intent: BirthIntent; result: BaziResult } | undefined;
-    let card: BaziCardPayload | undefined;
+    let card: { cardType: string; payload: unknown } | undefined;
 
     if (intent) {
       try {
         const r = this.calcBaziCard(intent);
         bazi = { intent, result: r.result };
-        card = r.payload;
+        card = { cardType: "bazi-card", payload: r.payload };
       } catch (err) {
         this.logger.warn(`智玄内联排盘失败，降级普通对话: ${(err as Error).message}`);
       }

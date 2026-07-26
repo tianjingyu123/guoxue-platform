@@ -42,7 +42,7 @@ export class ZhixuanController {
     return { ...res, disclaimer: RISK_DISCLAIMER };
   }
 
-  /** 流式对话（SSE）：可能先推 bazi-card 卡片事件，再流式推分析文本 */
+  /** 流式对话（SSE）：可能先推专业转介卡，再流式推学习向导文本 */
   @Post("chat/stream")
   @SkipFormat()
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
@@ -62,9 +62,9 @@ export class ZhixuanController {
 
     try {
       const { card, stream } = this.zhixuan.prepareStream(dto, req.user.id);
-      // 富消息：先推结构化卡片（如八字盘面），前端立即渲染，再流式推分析文本
+      // 富消息：先推结构化卡片，前端立即渲染，再流式推文本
       if (card) {
-        res.write(this.sse.encode({ type: "card", cardType: "bazi-card", payload: card }));
+        res.write(this.sse.encode({ type: "card", cardType: card.cardType, payload: card.payload }));
       }
       for await (const chunk of stream) {
         res.write(this.sse.encode({ type: "chunk", content: chunk }));

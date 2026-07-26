@@ -34,6 +34,30 @@ export interface AgentExperience {
 }
 
 const THEMES: Record<string, AgentVisualTheme> = {
+  GUIDE: {
+    key: 'GUIDE',
+    label: '学习向导',
+    glyph: '智',
+    deep: '#263D86',
+    accent: '#6D7FF2',
+    glow: 'rgba(111,132,255,.42)',
+    ink: '#4E61C9',
+    soft: '#EBEEFF',
+    wash: '#F7F8FF',
+    gradient: 'linear-gradient(145deg,#263D86,#6D7FF2)',
+  },
+  SERVICE: {
+    key: 'SERVICE',
+    label: '平台服务',
+    glyph: '答',
+    deep: '#174B59',
+    accent: '#2E9A9A',
+    glow: 'rgba(69,197,190,.34)',
+    ink: '#237A7E',
+    soft: '#E5F7F5',
+    wash: '#F5FCFB',
+    gradient: 'linear-gradient(145deg,#174B59,#2E9A9A)',
+  },
   CLASSICS_READING: {
     key: 'CLASSICS_READING',
     label: '经典研读',
@@ -117,6 +141,8 @@ export function resolveAgentTheme(value?: string): AgentVisualTheme {
   const raw = String(value || '').trim()
   if (THEMES[raw]) return THEMES[raw]
   if (LABEL_TO_KEY[raw]) return THEMES[LABEL_TO_KEY[raw]]
+  if (/智玄|向导|学习入口/.test(raw)) return THEMES.GUIDE
+  if (/客服|平台服务|售后/.test(raw)) return THEMES.SERVICE
   if (/诗词|诗歌|格律/.test(raw)) return THEMES.POETRY_ART
   if (/写作|表达|文案|创作/.test(raw)) return THEMES.WRITING_STUDIO
   if (/礼乐|礼俗|节气|文化生活/.test(raw)) return THEMES.RITES_CULTURE
@@ -126,6 +152,42 @@ export function resolveAgentTheme(value?: string): AgentVisualTheme {
 }
 
 const EXPERIENCE: Record<string, Omit<AgentExperience, 'theme'>> = {
+  GUIDE: {
+    modeLabel: '文脉导航图',
+    welcome: '你好，我是智玄，平台官方国学学习向导。告诉我你的兴趣、基础和可用时间，我会把合适的内容、工具与专业学伴串成一条清晰路线。',
+    quickQuestions: ['我第一次学国学，从哪里开始', '按每周两小时制定经典阅读路线', '帮我选择适合的专业智能体'],
+    taskTitle: '先找到你的起点',
+    taskHint: '少问一步，少走弯路',
+    tasks: [
+      { label: '识兴趣', description: '确认你真正想读懂什么' },
+      { label: '定节奏', description: '按时间拆成可完成任务' },
+      { label: '找学伴', description: '匹配对应领域专业智能体' },
+    ],
+    answerKicker: '智玄导航笺',
+    answerTitle: '为你铺一条学习路',
+    detailOpen: '展开完整路线',
+    detailClose: '收起完整路线',
+    nextLabel: '下一站',
+    nextText: '选择一个方向后，我会带你进入对应内容或专业学伴。',
+  },
+  SERVICE: {
+    modeLabel: '服务解决单',
+    welcome: '你好，我是平台智能客服。请告诉我遇到的具体问题，我会先给可执行的处理步骤；需要人工处理时，也会明确告诉你入口。',
+    quickQuestions: ['账号登录遇到问题', '查询课程退款流程', '我要投诉或举报'],
+    taskTitle: '快速解决问题',
+    taskHint: '说明页面、时间和现象会更快',
+    tasks: [
+      { label: '定位', description: '确认问题发生的页面与场景' },
+      { label: '处理', description: '给出按顺序可执行步骤' },
+      { label: '升级', description: '必要时引导人工或投诉入口' },
+    ],
+    answerKicker: '服务处理单',
+    answerTitle: '先按这几步处理',
+    detailOpen: '展开完整说明',
+    detailClose: '收起完整说明',
+    nextLabel: '仍未解决',
+    nextText: '补充截图或错误提示，我会继续定位并提供人工处理入口。',
+  },
   CLASSICS_READING: {
     modeLabel: '句读知识卡',
     welcome: '把想读懂的古文、典故或成语发给我。我会按“原文—句读—释词—白话—出处”整理成一张易读知识卡。',

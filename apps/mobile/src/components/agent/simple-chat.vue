@@ -11,11 +11,14 @@
  * 文本逐块追加 + 光标闪烁 + 自动滚底（用户上滑阅读时暂停跟随，回到底部恢复）。
  * 未传 resolveStream 时保持旧 resolveReply 行为完全兼容。
  */
-import { ref, nextTick, onMounted, getCurrentInstance } from 'vue'
+import { ref, computed, nextTick, onMounted, getCurrentInstance } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import RichMessage from '@/components/agent/rich-message.vue'
+import AgentAnswerCard from '@/components/agent/cards/agent-answer-card.vue'
 import { goBack } from '@/utils/router'
 import { nowTime } from '@/lib/agent-data'
+import { agentThemeStyle, resolveAgentExperience } from '@/lib/agent-experience'
+import { resolveAgentReferral } from '@/lib/agent-routing'
 
 /** 富消息模型（本组件内部渲染用） */
 interface RichChatMessage {
@@ -50,6 +53,10 @@ const props = defineProps<{
   iconBg: string
   welcome: string
   quickPrompts: string[]
+  /** 智能体专业模板键；GUIDE / SERVICE / 各领域 type */
+  experienceKey?: string
+  /** 用于生成专属题签与跨专业路由 */
+  agentName?: string
   /** 自定义回复解析；返回字符串（兼容旧用法·非流式） */
   resolveReply?: (text: string) => string | Promise<string>
   /**
@@ -62,6 +69,11 @@ const props = defineProps<{
 }>()
 
 const messages = ref<RichChatMessage[]>([{ id: 0, role: 'assistant', content: props.welcome, time: nowTime() }])
+const experience = computed(() => resolveAgentExperience({
+  type: props.experienceKey || '',
+  name: props.agentName || props.title,
+}))
+const experienceStyle = computed(() => agentThemeStyle(experience.value.theme.key))
 const input = ref('')
 const loading = ref(false)
 const scrollId = ref('')
@@ -140,6 +152,21 @@ async function send(text: string) {
   autoFollow.value = true // 新发送强制回底部跟随
   scrollToBottom(true)
 
+  const referral = resolveAgentReferral(t, experience.value.theme.key, props.agentName || props.title)
+  if (referral) {
+    messages.value.push({
+      id: nextId(),
+      role: 'assistant',
+      type: 'agent-route-card',
+      content: '',
+      payload: referral,
+      time: nowTime(),
+    })
+    loading.value = false
+    scrollToBottom(true)
+    return
+  }
+
   if (props.resolveStream) {
     await sendStreaming(t)
   } else {
@@ -206,7 +233,7 @@ function reset() {
 </script>
 
 <template>
-  <view class="page">
+  <view class="page" :style="experienceStyle">
     <!-- 头部 -->
     <view class="header safe-pt">
       <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
@@ -232,6 +259,13 @@ function reset() {
           </view>
 
           <!-- 文本气泡 -->
+          <view v-else-if="msg.role === 'assistant' && !msg.streaming && msg.content" class="answer-wrap">
+            <AgentAnswerCard
+              :content="msg.content"
+              :experience="experience"
+              :agent-name="agentName || title"
+            />
+          </view>
           <view v-else class="bubble" :class="msg.role === 'assistant' ? 'bubble-ai' : 'bubble-user'">
             <text class="bubble-text">{{ msg.content }}<text v-if="msg.streaming && msg.content" class="stream-cursor">▍</text></text>
             <!-- 流式起步（尚无内容）：气泡内三点 -->
@@ -307,6 +341,7 @@ function reset() {
 .msg-row-user { flex-direction: row-reverse; }
 .msg-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 6rpx; }
 .card-wrap { flex: 1; min-width: 0; max-width: 86%; }
+.answer-wrap { flex: 1; min-width: 0; }
 .bubble { max-width: 80%; border-radius: 24rpx; padding: 20rpx 28rpx; }
 .bubble-ai { background: #fff; border: 1rpx solid #ececec; border-top-left-radius: 6rpx; }
 .bubble-user { background: var(--brand); border-top-right-radius: 6rpx; }

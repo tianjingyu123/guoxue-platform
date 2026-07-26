@@ -15,6 +15,9 @@ export interface ChatMessage {
   id: number
   role: 'user' | 'assistant'
   content: string
+  /** 结构化消息类型（如专业转介卡）；缺省为文本 */
+  type?: string
+  payload?: unknown
   time: string
   isStreaming?: boolean
   recommendations?: RecommendItem[]

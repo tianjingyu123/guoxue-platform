@@ -7,6 +7,8 @@
 import { ref, computed, nextTick, onUnmounted, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import GuidedRecommendCard from '@/components/agent/guided-recommend-card.vue'
+import RichMessage from '@/components/agent/rich-message.vue'
+import AgentAnswerCard from '@/components/agent/cards/agent-answer-card.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
 import {
   agentApi, chatWelcome, nowTime,
@@ -16,6 +18,7 @@ import { botApi, type BotQuota } from '@/lib/bot-data'
 import { formatPrice } from '@/utils/format'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import { agentThemeStyle, resolveAgentExperience } from '@/lib/agent-experience'
+import { resolveAgentReferral } from '@/lib/agent-routing'
 import { gotoComplaint } from '@/lib/trust-entry'
 
 const loading = ref(true)
@@ -235,6 +238,19 @@ async function handleSend() {
   if (!text || isTyping.value) return
   messages.value.push({ id: messages.value.length, role: 'user', content: text, time: nowTime() })
   inputValue.value = ''
+  const referral = resolveAgentReferral(text, experience.value.theme.key, agentDetail.value.name)
+  if (referral) {
+    messages.value.push({
+      id: messages.value.length + 1,
+      role: 'assistant',
+      type: 'agent-route-card',
+      payload: referral,
+      content: '',
+      time: nowTime(),
+    })
+    scrollToBottom()
+    return
+  }
   sendCore(text)
 }
 
@@ -543,8 +559,11 @@ onUnmounted(() => {
         <view v-for="msg in messages" :key="msg.id" class="msg-row" :class="{ 'msg-row-user': msg.role === 'user' }">
           <view v-if="msg.role === 'assistant'" class="msg-avatar"><text class="msg-avatar-glyph">{{ experience.theme.glyph }}</text></view>
           <view class="msg-content" :class="{ 'content-user': msg.role === 'user' }">
+            <view v-if="msg.type && msg.type !== 'text'" class="rich-message-wrap">
+              <RichMessage :type="msg.type" :content="msg.content" :payload="msg.payload" />
+            </view>
             <!-- 八字资料通过表格卡提交，避免长段自然语言重复确认 -->
-            <view v-if="msg.role === 'user' && msg.structuredInput?.kind === 'bazi'" class="birth-summary">
+            <view v-else-if="msg.role === 'user' && msg.structuredInput?.kind === 'bazi'" class="birth-summary">
               <view class="birth-summary-head">
                 <AppIcon name="calendar" :size="26" color="#6977c9" />
                 <text class="birth-summary-title">我的出生资料</text>
@@ -558,32 +577,13 @@ onUnmounted(() => {
                 <view class="birth-summary-item birth-summary-wide"><text class="birth-summary-label">出生地</text><text class="birth-summary-value">{{ msg.structuredInput.data.city }}</text></view>
               </view>
             </view>
-            <!-- 长回复默认呈现“命理批注答卷”，先结论后细节，降低阅读压力 -->
-            <view v-else-if="isLongAnswer(msg)" class="answer-card">
-              <view class="answer-card-head">
-                <view>
-                  <text class="answer-kicker">{{ experience.answerKicker }}</text>
-                  <text class="answer-title">{{ experience.answerTitle }}</text>
-                </view>
-                <view class="answer-seal"><text class="answer-seal-text">批</text></view>
-              </view>
-              <text class="answer-lead">{{ answerLead(msg.content) }}</text>
-              <view v-if="answerPoints(msg.content).length" class="answer-points">
-                <view v-for="(point, pointIndex) in answerPoints(msg.content)" :key="pointIndex" class="answer-point">
-                  <text class="answer-point-no">0{{ pointIndex + 1 }}</text>
-                  <text class="answer-point-text">{{ point }}</text>
-                </view>
-              </view>
-              <view class="answer-toggle" @tap="toggleAnswer(msg.id)">
-                <text class="answer-toggle-text">{{ expandedAnswers[msg.id] ? experience.detailClose : experience.detailOpen }}</text>
-                <AppIcon :name="expandedAnswers[msg.id] ? 'chevron-up' : 'chevron-down'" :size="26" :color="experience.theme.ink" />
-              </view>
-              <text v-if="expandedAnswers[msg.id]" class="answer-detail">{{ cleanAnswerText(msg.content) }}</text>
-              <view class="answer-next">
-                <text class="answer-next-label">{{ experience.nextLabel }}</text>
-                <text class="answer-next-text">{{ isBaziAgent ? '完善出生资料后，可继续生成专属盘面与分项解读。' : experience.nextText }}</text>
-              </view>
-            </view>
+            <!-- 完成后的 AI 回复统一转为专业图文模板；流式生成中保持轻量文本，结束后自然“成卡” -->
+            <AgentAnswerCard
+              v-else-if="msg.role === 'assistant' && !msg.isStreaming && !msg.isError && msg.content"
+              :content="msg.content"
+              :experience="experience"
+              :agent-name="agentDetail.name"
+            />
             <view v-else class="bubble" :class="msg.role === 'user' ? 'bubble-user' : msg.isError ? 'bubble-error' : 'bubble-ai'">
               <text class="bubble-text" :class="{ 'streaming-cursor': msg.isStreaming }">{{ msg.content }}</text>
               <view v-if="msg.isError" class="bubble-retry" @tap="retryFailed(msg)">

@@ -27,6 +27,21 @@ const PUBLIC_HIDDEN_BOT_TYPES = [
   "GOODS_RECOMMENDER",
 ] as const;
 
+/**
+ * 平台智能体统一协作协议。
+ * 具体知识仍由各智能体自己的 systemPrompt 决定；这里仅统一角色体验、回答结构和跨专业分流边界。
+ */
+const PLATFORM_AGENT_PROTOCOL = `
+
+【平台智能体协作与呈现协议】
+1. 始终以当前角色的专业身份和情感气质回应：先接住用户的真实需要，再给专业内容，避免通用客服腔。
+2. 回答要便于平台转换成图文知识卡：优先使用“角色回应 / 关键要点 / 下一步”三个短段落；每段聚焦一件事，避免一次堆出长篇大论。
+3. 用户询问个人运势、吉凶、婚恋财运、未来结果、具体预测或要求直接算命时，不在对话中下结论。应委婉说明“排盘工具集合了专业算法和结构化盘面，能提供区别于通用问答的专业分析”，引导用户前往平台排盘工具。
+4. 若用户是在学习易经术数原理、古籍方法、术语或案例方法论，可以继续进行知识讲解；不得把知识学习误判为个人预测。
+5. 只回答本智能体擅长的专业。遇到跨专业问题，简要说明边界并推荐对应学伴：古籍句读助手、诗词鉴赏导师、典故溯源官、国风写作陪练、礼乐文化顾问、节气生活顾问、亲子蒙学陪伴、国学学习规划师、易经义理研习伴或象数思维教练。
+6. 不虚构平台内容、作者、出处、服务能力或价格；不使用“保证、必然、注定”等绝对表述。
+`;
+
 @Injectable()
 export class BotService {
   private readonly logger = new Logger(BotService.name);
@@ -338,9 +353,15 @@ export class BotService {
   private async getBotOrThrow(id: string) {
     const bot = await this.prisma.botConfig.findUnique({ where: { id } });
     if (!bot) throw new BusinessException(ErrorCode.NOT_FOUND, "智能体不存在");
-    if (!bot.botId) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置 Bot ID");
-    // 配了 OAuth 时全平台统一用 OAuth 令牌，单个智能体可不存 PAT；否则仍要求 PAT
-    if (!bot.apiKey && !this.coze.isOAuthConfigured()) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置API密钥");
+    if (bot.runtime === "local") {
+      if (!bot.systemPrompt?.trim()) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "本地智能体未配置角色提示词");
+      }
+    } else {
+      if (!bot.botId) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置 Bot ID");
+      // 配了 OAuth 时全平台统一用 OAuth 令牌，单个智能体可不存 PAT；否则仍要求 PAT
+      if (!bot.apiKey && !this.coze.isOAuthConfigured()) throw new BusinessException(ErrorCode.BAD_REQUEST, "智能体未配置API密钥");
+    }
     const decrypted = bot.apiKey ? decrypt(bot.apiKey) : "";
     // 返回时掩码 apiKey，防止 JSON 序列化/日志输出泄露
     return {
@@ -365,13 +386,15 @@ export class BotService {
     // AI 计费（2026-07-03 拍板）：会员免费/试用/追问包，额度耗尽在此拦截
     await this.consumeQuota(botConfigId, userId);
 
-    const result = await this.coze.chat({
-      botId: bot.botId,
-      apiKey: bot.apiKey,
-      userId,
-      query: dto.query,
-      conversationId: dto.conversationId,
-    });
+    const result = bot.runtime === "local"
+      ? await this.localChat(bot, userId, dto)
+      : await this.coze.chat({
+          botId: bot.botId,
+          apiKey: bot.apiKey,
+          userId,
+          query: dto.query,
+          conversationId: dto.conversationId,
+        });
 
     // 软性导流：解析 Coze 协议意图(优先)/平台兜底 → 匹配真实课程/圈子 → 征求同意推荐
     // content 已剥离协议标记，落库与展示均用净文本
@@ -530,11 +553,16 @@ export class BotService {
           // 组装 messages：system(人设) + 历史 + 当前 query（历史仅续聊时按 conversationId 拉取）
           const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId) : [];
           const messages: AiMessage[] = [
-            ...(bot.systemPrompt ? [{ role: "system" as const, content: bot.systemPrompt }] : []),
+            ...(bot.systemPrompt ? [{ role: "system" as const, content: this.buildAgentSystemPrompt(bot.systemPrompt) }] : []),
             ...history.map((h) => ({ role: h.role as AiMessage["role"], content: h.content })),
             { role: "user" as const, content: dto.query },
           ];
-          for await (const chunk of this.aiGateway.chatStream({ scene: "agent-chat", userId, messages, options: {} })) {
+          for await (const chunk of this.aiGateway.chatStream({
+            scene: "agent-chat",
+            userId,
+            messages,
+            options: { temperature: 0.55, maxTokens: 1000 },
+          })) {
             if (chunk) subscriber.next({ type: "chunk", content: chunk });
           }
           subscriber.complete();
@@ -543,6 +571,39 @@ export class BotService {
         }
       })();
     });
+  }
+
+  /** 本地智能体非流式路径：与流式路径共享角色协议、历史上下文和网关审计。 */
+  private async localChat(
+    bot: { id: string; systemPrompt?: string | null },
+    userId: string,
+    dto: { query: string; conversationId?: string },
+  ) {
+    const conversationId = dto.conversationId || randomUUID();
+    const history = dto.conversationId ? await this.getChatHistory(bot.id, dto.conversationId) : [];
+    const messages: AiMessage[] = [
+      ...(bot.systemPrompt
+        ? [{ role: "system" as const, content: this.buildAgentSystemPrompt(bot.systemPrompt) }]
+        : []),
+      ...history.map((h) => ({ role: h.role as AiMessage["role"], content: h.content })),
+      { role: "user" as const, content: dto.query },
+    ];
+    const result = await this.aiGateway.chat({
+      scene: "agent-chat",
+      userId,
+      messages,
+      options: { temperature: 0.55, maxTokens: 1000 },
+      cacheScopeKey: bot.id,
+    });
+    return {
+      content: result.content,
+      conversationId,
+      chatId: randomUUID(),
+    };
+  }
+
+  private buildAgentSystemPrompt(rolePrompt: string): string {
+    return `${rolePrompt.trim()}${PLATFORM_AGENT_PROTOCOL}`;
   }
 
   /** 获取对话历史 */

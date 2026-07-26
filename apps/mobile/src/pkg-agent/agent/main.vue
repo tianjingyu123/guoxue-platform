@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * 智玄学习向导 —— 平台自建内容导航智能体（走 /ai/zhixuan 自建链路·DeepSeek，非 Coze）。
- * H5：fetch SSE 流式打字机；识别到生辰时先收到八字盘面卡（bazi-card），再流式输出分析。
- * 非 H5 端：降级调非流式 /ai/zhixuan/chat（富消息一次性返回）。
+ * H5：fetch SSE 流式打字机；预测类问题返回排盘工具转介卡。
+ * 非 H5 端：降级调非流式 /ai/zhixuan/chat，保持同一富消息与专业分流规则。
  */
 import { ref, onMounted } from 'vue'
 import SimpleChat, { type SimpleChatStreamHandlers } from '@/components/agent/simple-chat.vue'
@@ -78,6 +78,8 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
     :welcome="welcome"
     :quick-prompts="quickPrompts"
     :resolve-stream="resolveStream"
+    experience-key="GUIDE"
+    agent-name="智玄"
   />
 </template>
 
