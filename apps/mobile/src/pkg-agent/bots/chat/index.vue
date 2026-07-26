@@ -89,9 +89,9 @@
               <!-- AI 风险免责声明（后端下发，仅 assistant 非流式时展示） -->
               <text v-if="msg.role === 'assistant' && msg.disclaimer && !msg.isStreaming" class="ai-disclaimer">{{ msg.disclaimer }}</text>
 
-              <!-- 软性导流推荐（先征求同意，同意才展开真实卡片） -->
+              <!-- 向导式推荐：高相关场景直接展示，低置信商业内容先征求同意 -->
               <view v-if="msg.role === 'assistant' && msg.recommendation && !msg.isStreaming" class="recommend-block">
-                <view v-if="!msg.recoConsented" class="reco-consent">
+                <view v-if="msg.recommendation.presentation !== 'inline' && !msg.recoConsented" class="reco-consent">
                   <text class="reco-consent-text">{{ msg.recommendation.consentPrompt }}</text>
                   <view class="reco-consent-btns">
                     <view class="reco-btn reco-btn-yes" @tap="consentReco(msg)"><text class="reco-btn-yes-text">好的，看看</text></view>
@@ -99,13 +99,20 @@
                   </view>
                 </view>
                 <template v-else>
-                  <view class="recommend-head"><app-icon name="sparkles" :size="24" color="#c9a96e" /><text class="recommend-label">为您推荐</text></view>
+                  <view class="recommend-head">
+                    <view class="recommend-node"><app-icon name="sparkles" :size="22" color="#ffffff" /></view>
+                    <view class="recommend-copy">
+                      <text class="recommend-label">{{ msg.recommendation.title || '接下来可以这样做' }}</text>
+                      <text v-if="msg.recommendation.lead" class="recommend-lead">{{ msg.recommendation.lead }}</text>
+                    </view>
+                  </view>
                   <GuidedRecommendCard
                     v-for="(rec, i) in msg.recommendation.items"
                     :key="`${rec.type}-${rec.data?.id || i}`"
                     :item="rec"
                     @tap="openRecommend"
                   />
+                  <text v-if="msg.recommendation.commercialDisclosure" class="recommend-disclosure">{{ msg.recommendation.commercialDisclosure }}</text>
                 </template>
               </view>
 
@@ -430,7 +437,7 @@ function goBack() {
   navigateBack()
 }
 
-// 软性导流：同意/拒绝查看推荐
+// 低置信商业推荐：同意/拒绝查看
 function consentReco(msg: ChatMessage) {
   msg.recoConsented = true
   scrollToBottom()
@@ -720,9 +727,14 @@ function openRecommend(item: RecommendItem) {
 .ai-disclaimer { display: block; margin-top: 10rpx; font-size: 20rpx; line-height: 1.4; color: #bbb; }
 
 /* 软性导流推荐卡片 */
-.recommend-block { margin-top: 16rpx; display: flex; flex-direction: column; gap: 12rpx; }
-.recommend-head { display: flex; align-items: center; gap: 6rpx; }
-.recommend-label { font-size: 22rpx; color: #999; }
+.recommend-block { position: relative; margin-top: 18rpx; padding-left: 18rpx; display: flex; flex-direction: column; gap: 12rpx; }
+.recommend-block::before { content: ''; position: absolute; left: 5rpx; top: 16rpx; bottom: 20rpx; width: 2rpx; border-radius: 2rpx; background: linear-gradient(180deg, #c9a96e, rgba(201,169,110,0.12)); }
+.recommend-head { display: flex; align-items: flex-start; gap: 12rpx; }
+.recommend-node { position: relative; z-index: 1; width: 38rpx; height: 38rpx; margin-left: -32rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #c9a96e; box-shadow: 0 0 0 7rpx #fff; }
+.recommend-copy { min-width: 0; display: flex; flex-direction: column; gap: 3rpx; }
+.recommend-label { font-size: 25rpx; line-height: 1.35; color: #303641; font-weight: 700; }
+.recommend-lead { font-size: 21rpx; line-height: 1.5; color: #8a8178; }
+.recommend-disclosure { padding-left: 4rpx; font-size: 19rpx; color: #aaa19a; }
 .reco-consent { background: rgba(201, 169, 110, 0.08); border: 2rpx solid rgba(201, 169, 110, 0.3); border-radius: 20rpx; padding: 24rpx; }
 .reco-consent-text { font-size: 26rpx; color: #1a1a1a; line-height: 1.5; }
 .reco-consent-btns { display: flex; gap: 16rpx; margin-top: 20rpx; }

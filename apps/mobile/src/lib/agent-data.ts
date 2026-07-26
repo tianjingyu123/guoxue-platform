@@ -23,7 +23,7 @@ export interface ChatMessage {
   recommendations?: RecommendItem[]
   /** AI 输出风险免责声明（后端下发，仅 assistant 消息有） */
   disclaimer?: string
-  /** 软性导流推荐（征求同意后才展开卡片） */
+  /** 向导式推荐（高相关直展，低置信商业内容先征求同意） */
   recommendation?: Recommendation
   /** 用户是否已同意查看推荐 */
   recoConsented?: boolean
@@ -51,10 +51,17 @@ export interface RecommendItem {
   data: any
 }
 
-/** 软性导流推荐（后端 bot.chat 下发） */
+/** 向导式推荐（后端 bot.chat 下发） */
 export interface Recommendation {
+  /** 高相关场景直接展示，低置信商业内容先征求同意；旧响应缺省按 consent 兼容 */
+  presentation?: 'inline' | 'consent'
+  /** 推荐区标题与承接文案 */
+  title?: string
+  lead?: string
   /** 征求同意话术 */
   consentPrompt: string
+  /** 商业属性透明说明 */
+  commercialDisclosure?: string
   /** 推荐卡片（同意后展示） */
   items: RecommendItem[]
 }

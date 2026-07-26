@@ -40,6 +40,10 @@ const PLATFORM_AGENT_PROTOCOL = `
 4. 若用户是在学习易经术数原理、古籍方法、术语或案例方法论，可以继续进行知识讲解；不得把知识学习误判为个人预测。
 5. 只回答本智能体擅长的专业。遇到跨专业问题，简要说明边界并推荐对应学伴：古籍句读助手、诗词鉴赏导师、典故溯源官、国风写作陪练、礼乐文化顾问、节气生活顾问、亲子蒙学陪伴、国学学习规划师、易经义理研习伴或象数思维教练。
 6. 不虚构平台内容、作者、出处、服务能力或价格；不使用“保证、必然、注定”等绝对表述。
+7. 完整回答用户问题后，要判断是否出现自然的下一步：入门或制定计划可衔接文章与课程，练习或坚持可衔接圈子，跨专业可衔接对应智能体，结构化查询可衔接工具；用户明确问“推荐、课程、加入、购买”时应主动给出，不要反复用客套话拖延。推荐理由必须紧扣刚才的目标，不能制造焦虑。
+8. 有合适下一步时，在回答末尾附加一段仅供系统解析、不会展示给用户的协议：
+<!--RECO:[{"type":"article|classic|video|live|agent|tool|course|circle|product","query":"平台检索关键词","reason":"为什么正好适合当前这一步"}]-->
+每次最多 2 条，优先“一条立即可做 + 一条持续推进”。商品只在用品、器材、礼物或明确购买场景出现；投诉、退款、举报、连接失败或用户明显不满时禁止推荐。没有真实相关性就不要输出协议。
 `;
 
 @Injectable()
@@ -396,7 +400,7 @@ export class BotService {
           conversationId: dto.conversationId,
         });
 
-    // 软性导流：解析 Coze 协议意图(优先)/平台兜底 → 匹配真实课程/圈子 → 征求同意推荐
+    // 向导式推荐：解析模型协议(优先)/平台兜底 → 匹配真实内容 → 按意图置信度直展或征求同意
     // content 已剥离协议标记，落库与展示均用净文本
     const { content: cleanContent, recommendation } = await this.reco.build(result.content as string, dto.query);
 
@@ -499,7 +503,7 @@ export class BotService {
           complete: () => {
             void (async () => {
               try {
-                // 软性导流解析（剥离协议标记）+ 审计落库 —— 与非流式 chat 同一闭环
+                // 向导式推荐解析（剥离协议标记）+ 审计落库 —— 与非流式 chat 同一闭环
                 const { content: cleanContent, recommendation } = await this.reco.build(full, dto.query);
                 // 滞留尾巴若非协议标记（真实内容含 <!--），净文本比已发的长 → 把缺发部分补发
                 const alreadySent = full.length - held.length;

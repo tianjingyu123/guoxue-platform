@@ -2,7 +2,7 @@ import { Test } from "@nestjs/testing";
 import { RecommendationService } from "./recommendation.service";
 import { PrismaService } from "../../prisma/prisma.service";
 
-describe("RecommendationService（内容优先向导）", () => {
+describe("RecommendationService（场景化向导推荐）", () => {
   let service: RecommendationService;
   let prisma: any;
 
@@ -34,7 +34,7 @@ describe("RecommendationService（内容优先向导）", () => {
     });
   });
 
-  it("没有明确购买或加入意图时，过滤模型擅自给出的商业推荐", async () => {
+  it("普通知识问答过滤不合时宜的课程，但直接展示高相关内容", async () => {
     prisma.article.findFirst.mockResolvedValue({
       id: "a1",
       title: "从卦辞读周易",
@@ -47,20 +47,38 @@ describe("RecommendationService（内容优先向导）", () => {
 
     expect(prisma.course.findFirst).not.toHaveBeenCalled();
     expect(result.recommendation?.items.map((item) => item.type)).toEqual(["article"]);
+    expect(result.recommendation?.presentation).toBe("inline");
     expect(result.recommendation?.consentPrompt).not.toContain("价格");
   });
 
-  it("默认兜底优先文章，而不是直接推课程", () => {
-    expect(service.fallbackIntents("我想了解八字的基础概念")).toEqual([
+  it("处在入门学习节点时给立即可做与持续推进两条路径", () => {
+    expect(service.fallbackIntents("我想学习八字的基础概念")).toEqual([
       { type: "article", query: "八字", reason: "先读一篇八字相关内容" },
+      { type: "course", query: "八字", reason: "把零散理解推进为八字学习路线" },
     ]);
   });
 
-  it("明确系统学习时，先给文章再给课程", () => {
+  it("明确询问课程时课程优先，再补购买前的低门槛内容", () => {
     expect(service.fallbackIntents("我想系统学习八字课程")).toEqual([
-      { type: "article", query: "八字", reason: "先读一篇八字相关内容" },
-      { type: "course", query: "八字", reason: "系统学习八字" },
+      { type: "course", query: "八字", reason: "沿着当前目标系统学习八字" },
+      { type: "article", query: "八字", reason: "先用一篇内容判断八字是否适合你" },
     ]);
+  });
+
+  it("学习阶段即使没有说购买，也允许课程以服务延伸直接出现", async () => {
+    prisma.article.findFirst.mockResolvedValue({
+      id: "a1", title: "八字基础十讲", cover: "a.webp", excerpt: "入门内容", viewCount: 8,
+    });
+    prisma.course.findFirst.mockResolvedValue({
+      id: "c1", title: "八字入门课", cover: "c.webp", intro: "四周学习路线", price: 99, studentCount: 20,
+    });
+
+    const result = await service.build("先理解基本结构。", "我想学习八字，从哪里入门");
+
+    expect(result.recommendation?.items.map((item) => item.type)).toEqual(["article", "course"]);
+    expect(result.recommendation?.presentation).toBe("inline");
+    expect(result.recommendation?.title).toBe("把这一步接着走下去");
+    expect(result.recommendation?.commercialDisclosure).toContain("价格与权益");
   });
 
   it("文章必须已过审、全平台可见且带首图", async () => {
@@ -87,7 +105,7 @@ describe("RecommendationService（内容优先向导）", () => {
     });
   });
 
-  it("明确购买意图时允许商品，但征求同意话术透明标注商业内容", async () => {
+  it("明确购买意图时允许商品直接出现，并透明标注商业属性", async () => {
     prisma.article.findFirst.mockResolvedValue(null);
     prisma.product.findFirst.mockResolvedValue({
       id: "p1",
@@ -102,7 +120,38 @@ describe("RecommendationService（内容优先向导）", () => {
     const result = await service.build(raw, "练书法想买一套文房用品");
 
     expect(result.recommendation?.items[0].type).toBe("product");
+    expect(result.recommendation?.presentation).toBe("inline");
+    expect(result.recommendation?.commercialDisclosure).toContain("商业服务");
     expect(result.recommendation?.consentPrompt).toContain("明确标注价格");
+  });
+
+  it("模型给出的弱相关商品仍被过滤，不为了销售强插卡片", async () => {
+    const raw = '回答<!--RECO:[{"type":"product","query":"书法"}]-->';
+    const result = await service.build(raw, "王羲之的书法特点是什么");
+
+    expect(prisma.product.findFirst).not.toHaveBeenCalled();
+    expect(result.recommendation).toBeNull();
+  });
+
+  it("投诉退款等负面场景不插入推荐", async () => {
+    const raw = '我先帮你处理。<!--RECO:[{"type":"course","query":"周易"}]-->';
+    const result = await service.build(raw, "课程加载失败，我要退款");
+
+    expect(prisma.course.findFirst).not.toHaveBeenCalled();
+    expect(result.recommendation).toBeNull();
+  });
+
+  it("续问省略主题时可从本轮回答补足，但只在明确推荐场景启用", async () => {
+    prisma.course.findFirst.mockResolvedValue({
+      id: "c1", title: "八字入门课", cover: "c.webp", intro: "四周路线", price: 99, studentCount: 20,
+    });
+    prisma.article.findFirst.mockResolvedValue(null);
+
+    const result = await service.build("针对八字零基础阶段，可以从四柱结构开始。", "有推荐的课程吗");
+
+    expect(prisma.course.findFirst).toHaveBeenCalled();
+    expect(result.recommendation?.items[0].type).toBe("course");
+    expect(result.recommendation?.presentation).toBe("inline");
   });
 
   it("工具意图返回可直接打开的结构化工具入口", async () => {

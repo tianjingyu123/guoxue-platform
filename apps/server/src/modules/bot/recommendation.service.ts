@@ -7,8 +7,9 @@ import { PrismaService } from "../../prisma/prisma.service";
  * 设计原则：
  * 1. 先解决问题，再给下一步；
  * 2. 默认优先文章、古籍、视频、直播、工具和智能体；
- * 3. 课程、圈子、商品只在用户表达明确意图时出现；
- * 4. 展示前征求同意，价格与商业属性不做隐藏。
+ * 3. 在入门、练习、复盘等自然学习节点主动衔接课程或圈子，不错过合理服务机会；
+ * 4. 明确需求与高相关场景直接展示，低置信商业推荐才先征求同意；
+ * 5. 每次最多两条，价格与商业属性不做隐藏，投诉等负面场景不插入推荐。
  */
 export type RecoType =
   | "article"
@@ -33,13 +34,23 @@ export interface RecoCard {
 }
 
 export interface Recommendation {
+  presentation: "inline" | "consent";
+  title: string;
+  lead: string;
   consentPrompt: string;
+  commercialDisclosure?: string;
   items: RecoCard[];
 }
 
 const CONTENT_TYPES = new Set<RecoType>(["article", "classic", "video", "live", "agent", "tool"]);
 const COMMERCIAL_TYPES = new Set<RecoType>(["course", "circle", "product"]);
 const ALL_TYPES = new Set<RecoType>([...CONTENT_TYPES, ...COMMERCIAL_TYPES]);
+
+const NEGATIVE_SERVICE_RE = /投诉|举报|退款|退费|被骗|欺诈|不满意|垃圾|错误|答非所问|连接失败|加载失败|无法使用|崩溃|卡死|人工客服/;
+const EXPLICIT_RECOMMEND_RE = /推荐|有没有|哪里有|给我找|帮我找|想看|想听|想买|购买|报名|加入|多少钱|价格/;
+const LEARNING_STAGE_RE = /入门|学习|怎么学|如何学|计划|路线|基础|练习|训练|复习|打卡|进阶|系统学|看不懂|讲解|制定|每周|课程/;
+const COMMUNITY_RE = /交流|同好|一起学|讨论|反馈|点评|打卡|社群|圈子|加入/;
+const PRODUCT_RE = /商品|购买|想买|买一|价格|多少钱|用品|材料|器材|设备|礼物|文房|茶具|香具|砚|墨|笔|纸/;
 
 const TOPICS = [
   "八字", "紫微", "风水", "奇门", "六爻", "梅花易数", "择日", "周易", "易经",
@@ -93,6 +104,7 @@ export class RecommendationService {
   /** 平台兜底：即使模型没有输出协议，也优先把用户带到内容与工具。 */
   fallbackIntents(userQuery: string): RecoIntent[] {
     const query = userQuery.trim();
+    if (!query || NEGATIVE_SERVICE_RE.test(query)) return [];
     const toolSignal = /工具|排盘|查询|日历|万年历|怎么排|生成盘面/.test(query);
     const directTool = toolSignal
       ? TOOL_GUIDES.find((item) => item.keys.some((key) => query.includes(key)))
@@ -105,38 +117,83 @@ export class RecommendationService {
     const wantsVideo = /视频|演示|讲解视频|怎么看/.test(query);
     const wantsLive = /直播|开播|直播课|几点开始/.test(query);
     const wantsAgent = /智能体|助手|陪练|问答/.test(query);
-    const wantsCourse = /课程|报名|系统学|系统学习|进阶学习|跟老师学/.test(query);
-    const wantsCircle = /圈子|同好|交流|社群|一起学|加入/.test(query);
-    const wantsProduct = /商品|购买|买|价格|多少钱|文房|茶具|香具/.test(query);
+    const wantsCourse = LEARNING_STAGE_RE.test(query);
+    const wantsCircle = COMMUNITY_RE.test(query);
+    const wantsProduct = PRODUCT_RE.test(query);
+    const explicitCourse = /课程|报名|跟老师学|有推荐的课|推荐.*课/.test(query);
+    const explicitCircle = /圈子|社群|加入|同好|一起学/.test(query);
+    const explicitProduct = PRODUCT_RE.test(query);
 
     const intents: RecoIntent[] = [];
-    if (wantsTool) intents.push({ type: "tool", query: topic, reason: `用工具查看${topic}的结构化信息` });
+    if (explicitCourse) intents.push({ type: "course", query: topic, reason: `沿着当前目标系统学习${topic}` });
+    else if (explicitCircle) intents.push({ type: "circle", query: topic, reason: `在持续交流与反馈中学习${topic}` });
+    else if (explicitProduct) intents.push({ type: "product", query: topic, reason: `与你当前使用场景直接相关` });
+    else if (wantsTool) intents.push({ type: "tool", query: topic, reason: `用工具查看${topic}的结构化信息` });
     else if (wantsClassic) intents.push({ type: "classic", query: topic, reason: `回到原典继续了解${topic}` });
     else if (wantsVideo) intents.push({ type: "video", query: topic, reason: `用短视频快速理解${topic}` });
     else if (wantsLive) intents.push({ type: "live", query: topic, reason: `查看${topic}相关直播与预告` });
     else if (wantsAgent) intents.push({ type: "agent", query: topic, reason: `继续用结构化问答学习${topic}` });
     else intents.push({ type: "article", query: topic, reason: `先读一篇${topic}相关内容` });
 
-    if (wantsCourse) intents.push({ type: "course", query: topic, reason: `系统学习${topic}` });
-    else if (wantsCircle) intents.push({ type: "circle", query: topic, reason: `与${topic}同好继续交流` });
-    else if (wantsProduct) intents.push({ type: "product", query: topic, reason: `查看与当前需求相关的商品` });
+    if (wantsCourse && !explicitCourse) intents.push({ type: "course", query: topic, reason: `把零散理解推进为${topic}学习路线` });
+    else if (wantsCircle && !explicitCircle) intents.push({ type: "circle", query: topic, reason: `与${topic}同好继续交流和复盘` });
+    else if (wantsProduct && !explicitProduct) intents.push({ type: "product", query: topic, reason: `查看与当前使用场景相关的商品` });
+
+    if (explicitCourse) intents.push({ type: "article", query: topic, reason: `先用一篇内容判断${topic}是否适合你` });
+    else if (explicitCircle) intents.push({ type: "article", query: topic, reason: `加入前先了解${topic}圈内常见话题` });
+    else if (explicitProduct) intents.push({ type: "article", query: topic, reason: `购买前先了解相关使用方法` });
 
     return intents.slice(0, 2);
   }
 
-  private hasCommercialIntent(query: string): boolean {
-    return /课程|报名|系统学|购买|买|商品|价格|多少钱|圈子|加入|同好|交流|社群/.test(query);
+  private allowsCommercial(type: RecoType, query: string): boolean {
+    if (type === "course") return LEARNING_STAGE_RE.test(query) || EXPLICIT_RECOMMEND_RE.test(query);
+    if (type === "circle") return COMMUNITY_RE.test(query) || /坚持|互相督促/.test(query);
+    if (type === "product") return PRODUCT_RE.test(query);
+    return true;
   }
 
   private prioritize(intents: RecoIntent[], userQuery: string): RecoIntent[] {
-    const allowed = this.hasCommercialIntent(userQuery)
-      ? intents
-      : intents.filter((item) => !COMMERCIAL_TYPES.has(item.type));
+    if (NEGATIVE_SERVICE_RE.test(userQuery)) return [];
+    const explicit = EXPLICIT_RECOMMEND_RE.test(userQuery);
+    const allowed = intents.filter((item) => !COMMERCIAL_TYPES.has(item.type) || this.allowsCommercial(item.type, userQuery));
     return [...allowed].sort((left, right) => {
-      const leftWeight = CONTENT_TYPES.has(left.type) ? 0 : 1;
-      const rightWeight = CONTENT_TYPES.has(right.type) ? 0 : 1;
+      const leftWeight = explicit && COMMERCIAL_TYPES.has(left.type) ? 0 : CONTENT_TYPES.has(left.type) ? 1 : 2;
+      const rightWeight = explicit && COMMERCIAL_TYPES.has(right.type) ? 0 : CONTENT_TYPES.has(right.type) ? 1 : 2;
       return leftWeight - rightWeight;
     }).slice(0, 2);
+  }
+
+  private presentationFor(userQuery: string, items: RecoCard[]): Recommendation["presentation"] {
+    const hasCommerce = items.some((item) => COMMERCIAL_TYPES.has(item.type));
+    if (!hasCommerce) return "inline";
+    if (EXPLICIT_RECOMMEND_RE.test(userQuery) || LEARNING_STAGE_RE.test(userQuery) || COMMUNITY_RE.test(userQuery)) {
+      return "inline";
+    }
+    return "consent";
+  }
+
+  private recommendationCopy(userQuery: string, items: RecoCard[]) {
+    const labels = [...new Set(items.map((item) => ({
+      article: "文章",
+      classic: "古籍",
+      video: "视频",
+      live: "直播",
+      agent: "智能体",
+      tool: "工具",
+      course: "课程",
+      circle: "圈子",
+      product: "商品",
+    })[item.type]))];
+    const explicit = EXPLICIT_RECOMMEND_RE.test(userQuery);
+    const learningStage = LEARNING_STAGE_RE.test(userQuery);
+    const title = explicit ? "按你的需要找到了" : learningStage ? "把这一步接着走下去" : "顺着这个问题继续";
+    const lead = explicit
+      ? `以下${labels.join("和")}与刚才的需求直接相关，可以立即查看。`
+      : learningStage
+        ? `一条现在就能开始，一条帮助你持续推进；不必一次全部选择。`
+        : `补充一条高相关内容，方便你继续理解，不打断当前对话。`;
+    return { labels, title, lead };
   }
 
   async match(intents: RecoIntent[]): Promise<RecoCard[]> {
@@ -280,29 +337,36 @@ export class RecommendationService {
 
   async build(rawContent: string, userQuery: string): Promise<{ content: string; recommendation: Recommendation | null }> {
     const { clean, intents: protocolIntents } = this.parseProtocol(rawContent);
-    const source = protocolIntents.length ? protocolIntents : this.fallbackIntents(userQuery);
+    let fallback = this.fallbackIntents(userQuery);
+    // “有推荐的课程吗”这类续问常省略上一轮主题；模型未按协议输出时，
+    // 只在明确推荐/学习场景从本轮回答前 300 字补足主题，避免普通闲聊误触发。
+    if (!fallback.length && (EXPLICIT_RECOMMEND_RE.test(userQuery) || LEARNING_STAGE_RE.test(userQuery))) {
+      fallback = this.fallbackIntents(`${userQuery} ${clean.slice(0, 300)}`);
+    }
+    const source = protocolIntents.length ? protocolIntents : fallback;
     const intents = this.prioritize(source, userQuery);
     if (!intents.length) return { content: clean, recommendation: null };
 
     const items = await this.match(intents);
     if (!items.length) return { content: clean, recommendation: null };
 
-    const labels = [...new Set(items.map((item) => ({
-      article: "文章",
-      classic: "古籍",
-      video: "视频",
-      live: "直播",
-      agent: "智能体",
-      tool: "工具",
-      course: "课程",
-      circle: "圈子",
-      product: "商品",
-    })[item.type]))];
+    const presentation = this.presentationFor(userQuery, items);
+    const { labels, title, lead } = this.recommendationCopy(userQuery, items);
     const hasCommerce = items.some((item) => COMMERCIAL_TYPES.has(item.type));
     const consentPrompt = hasCommerce
       ? `我找到${labels.join("、")}，都和你刚才的问题直接相关；其中商业内容会明确标注价格。要继续看看吗？`
       : `我找到${labels.join("、")}，都和你刚才的问题直接相关。要继续看看吗？`;
 
-    return { content: clean, recommendation: { consentPrompt, items } };
+    return {
+      content: clean,
+      recommendation: {
+        presentation,
+        title,
+        lead,
+        consentPrompt,
+        commercialDisclosure: hasCommerce ? "含商业服务，价格与权益均如实标注" : undefined,
+        items,
+      },
+    };
   }
 }
