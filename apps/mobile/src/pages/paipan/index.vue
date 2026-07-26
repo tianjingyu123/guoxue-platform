@@ -9,10 +9,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import ToolIcon from '@/components/paipan/tool-icon.vue'
 import TodayHero from '@/components/paipan/today-hero.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import { AGENT_AVATAR_GRADIENT, type Tool, type ToolCategory, tools, medicalTools, agents } from '@/lib/tools-data'
+import { type Tool, type ToolCategory, tools, medicalTools } from '@/lib/tools-data'
+import { agentsSquareApi, type SquareBot } from '@/lib/agents-square-data'
+import { agentThemeStyle } from '@/lib/agent-experience'
 import { getFavorites, saveFavorites, addFavorite, removeFavorite, recordToolUsage } from '@/lib/paipan/tool-prefs'
 import { navigateTo } from '@/utils/router'
 
@@ -32,7 +35,6 @@ let aiSub = '输入命盘信息，AI 为您深度解析'
 let disclaimerText = '平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。'
 let MP_HIDDEN_TOOL_IDS: string[] = []
 let MP_TOOL_RENAME: Record<string, string> = {}
-let MP_VISIBLE_AGENT_IDS: string[] | null = null
 // #ifdef MP-WEIXIN
 pageTitle = '民俗文化研究'
 secToolsTitle = '传统历法工具'
@@ -45,7 +47,6 @@ MP_HIDDEN_TOOL_IDS = [
   'name-analysis', 'flying-star', 'bazhai', 'feigong', 'qimen-chuanren', 'shanxiang-qimen', 'direction-map',
 ]
 MP_TOOL_RENAME = { 'bazi': '干支历法', 'qimen': '奇门研究', 'yangming': '阳盘研究' }
-MP_VISIBLE_AGENT_IDS = ['classic-expert', 'study-assistant']
 // #endif
 
 // 分类色点（为你推荐卡片角注）
@@ -83,8 +84,31 @@ function medicalDescription(id: string) {
   return MEDICAL_DESCRIPTIONS[id] || '传统中医文化研究工具'
 }
 
-const displayAgents = computed(() =>
-  (MP_VISIBLE_AGENT_IDS ? agents.filter((a) => (MP_VISIBLE_AGENT_IDS as string[]).includes(a.id)) : agents).slice(0, 6))
+const platformAgents = ref<SquareBot[]>([])
+const agentLoading = ref(true)
+const agentError = ref('')
+const displayAgents = computed(() => platformAgents.value.slice(0, 6))
+
+async function loadPlatformAgents() {
+  agentLoading.value = true
+  agentError.value = ''
+  try {
+    platformAgents.value = await agentsSquareApi.getHotBots()
+  } catch (error) {
+    platformAgents.value = []
+    agentError.value = (error as Error)?.message || '智能体加载失败'
+  } finally {
+    agentLoading.value = false
+  }
+}
+
+function openPlatformAgent(id: string) {
+  navigateTo(`/agent/${id}`)
+}
+
+function platformAgentStyle(category: string) {
+  return agentThemeStyle(category)
+}
 
 function accentOf(t: Tool) {
   return CATEGORY_ACCENT[t.category ?? 'service']
@@ -118,12 +142,10 @@ function removeFav(id: string) {
   favIds.value = removeFavorite(id)
 }
 
-function gradientStyle(avatar: string) {
-  const g = AGENT_AVATAR_GRADIENT[avatar] || AGENT_AVATAR_GRADIENT.master
-  return { background: `linear-gradient(135deg, ${g[0]}, ${g[1]})` }
-}
-
-onMounted(() => { favIds.value = getFavorites() })
+onMounted(() => {
+  favIds.value = getFavorites()
+  void loadPlatformAgents()
+})
 onShow(() => { favIds.value = getFavorites() })
 </script>
 
@@ -338,17 +360,54 @@ onShow(() => { favIds.value = getFavorites() })
             <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
         </view>
-        <scroll-view scroll-x class="agents-scroll">
+        <view v-if="agentLoading" class="agents-state">
+          <view class="agents-loading-dot" />
+          <text>正在连接平台智能体…</text>
+        </view>
+        <view v-else-if="agentError" class="agents-state agents-state-error" @tap="loadPlatformAgents">
+          <text>连接失败，点击重试</text>
+          <app-icon name="refresh-cw" :size="26" color="#C41E3A" />
+        </view>
+        <scroll-view v-else-if="displayAgents.length" scroll-x class="agents-scroll">
           <view class="agents-row">
-            <view v-for="agent in displayAgents" :key="agent.id" class="agent-card" @tap="navigateTo(agent.href)">
-              <view class="agent-avatar" :style="gradientStyle(agent.avatar)">
-                <app-icon name="sparkles" :size="40" color="#ffffff" />
+            <view
+              v-for="agent in displayAgents"
+              :key="agent.id"
+              class="agent-card"
+              :style="platformAgentStyle(agent.category)"
+              @tap="openPlatformAgent(agent.id)"
+            >
+              <view class="agent-visual">
+                <view class="agent-grid" />
+                <view class="agent-mark">
+                  <view class="agent-live-dot" />
+                  <text>AI 学伴</text>
+                </view>
+                <view class="agent-orbit">
+                  <view class="agent-orbit-ring" />
+                  <view class="agent-avatar">
+                    <smart-avatar class="agent-avatar-img" :src="agent.avatar" :name="agent.name" />
+                  </view>
+                </view>
+                <text class="agent-category">{{ agent.categoryName || '国学智能体' }}</text>
               </view>
-              <text class="agent-name">{{ agent.name }}</text>
-              <text class="agent-desc">{{ agent.description }}</text>
+              <view class="agent-content">
+                <text class="agent-name">{{ agent.name }}</text>
+                <text class="agent-desc">{{ agent.description || '点击进入，开始智能对话' }}</text>
+                <view class="agent-action">
+                  <text>{{ agent.isFree ? '随时可用' : '按次计费' }}</text>
+                  <view class="agent-action-link">
+                    <text>开始学习</text>
+                    <app-icon name="arrow-up-right" :size="20" color="var(--agent-ink)" />
+                  </view>
+                </view>
+              </view>
             </view>
           </view>
         </scroll-view>
+        <view v-else class="agents-state">
+          <text>暂无可用智能体</text>
+        </view>
       </view>
 
       <!-- 合规提示 -->
@@ -570,14 +629,21 @@ onShow(() => { favIds.value = getFavorites() })
   background: linear-gradient(145deg, rgba(255, 252, 245, 0.96), rgba(255, 255, 255, 0.98));
 }
 .medical-preview-head { padding: 0 8rpx 18rpx; display: flex; align-items: baseline; justify-content: space-between; }
-.medical-preview-title { font-size: 26rpx; font-weight: 700; color: #665235; }
-.medical-preview-sub { font-size: 20rpx; color: #a08f74; }
-.medical-preview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 22rpx; }
-.medical-preview-cell { min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.medical-preview-title { font-size: 30rpx; font-weight: 700; color: #665235; }
+.medical-preview-sub { font-size: 22rpx; color: #8f7c60; }
+.medical-preview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 12rpx; }
+.medical-preview-cell {
+  min-width: 0;
+  min-height: 178rpx;
+  padding: 14rpx 0 10rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
 .medical-preview-icon {
   position: relative;
-  width: 76rpx;
-  height: 76rpx;
+  width: 98rpx;
+  height: 98rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -596,15 +662,28 @@ onShow(() => { favIds.value = getFavorites() })
   background: #c9a96e;
 }
 .medical-preview-name {
+  min-height: 58rpx;
   max-width: 100%;
-  margin-top: 9rpx;
+  margin-top: 10rpx;
+  padding: 0 3rpx;
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 21rpx;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 24rpx;
+  line-height: 1.2;
+  text-align: center;
   color: #4b4439;
 }
-.medical-preview-status { margin-top: 3rpx; font-size: 17rpx; color: #aa8d59; }
+.medical-preview-status {
+  margin-top: 3rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 999rpx;
+  background: rgba(184, 152, 95, 0.1);
+  font-size: 20rpx;
+  line-height: 1.35;
+  color: #967542;
+}
 
 /* 为你推荐（收藏夹）：2 列横卡 */
 .fav-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
@@ -708,22 +787,179 @@ onShow(() => { favIds.value = getFavorites() })
 }
 .toggle-text { font-size: 28rpx; font-weight: 500; color: var(--brand); }
 
-/* 智能体横滚 */
+/* 智能体横滚：数据、类别主题与对话入口和智能体广场保持一致 */
+.agents-state {
+  min-height: 150rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  border: 1rpx solid rgba(93, 111, 159, 0.12);
+  border-radius: 22rpx;
+  background: #fff;
+  font-size: 24rpx;
+  color: #8b91a0;
+}
+.agents-state-error { color: #C41E3A; }
+.agents-loading-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #6C63E8;
+  box-shadow: 0 0 0 8rpx rgba(108, 99, 232, 0.1);
+  animation: agent-loading 1.6s ease-in-out infinite;
+}
 .agents-scroll { width: 100%; white-space: nowrap; }
 .agents-row { display: inline-flex; gap: 24rpx; padding-bottom: 16rpx; }
 .agent-card {
-  display: inline-flex; flex-direction: column;
-  width: 280rpx; padding: 24rpx;
-  background: var(--card, #fff); border-radius: 24rpx;
-  border: 2rpx solid var(--line, #e8e0d5);
+  display: inline-flex;
+  flex-direction: column;
+  width: 304rpx;
+  overflow: hidden;
+  border: 1rpx solid rgba(93, 111, 159, 0.13);
+  border-radius: 24rpx;
+  background: #fff;
+  box-shadow: 0 8rpx 24rpx rgba(54, 68, 105, 0.08);
+}
+.agent-visual {
+  position: relative;
+  height: 170rpx;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 82% 16%, var(--agent-glow), transparent 42%),
+    linear-gradient(145deg, var(--agent-deep), var(--agent-accent));
+}
+.agent-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.38;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.09) 1rpx, transparent 1rpx),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.09) 1rpx, transparent 1rpx);
+  background-size: 28rpx 28rpx;
+}
+.agent-mark {
+  position: absolute;
+  top: 12rpx;
+  left: 12rpx;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 5rpx 10rpx;
+  border: 1rpx solid rgba(255,255,255,.28);
+  border-radius: 999rpx;
+  background: rgba(10,20,52,.26);
+  font-size: 17rpx;
+  font-weight: 700;
+  color: #fff;
+}
+.agent-live-dot {
+  width: 7rpx;
+  height: 7rpx;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12rpx var(--agent-glow);
+  animation: agent-loading 2.4s ease-in-out infinite;
+}
+.agent-orbit {
+  position: absolute;
+  top: 18rpx;
+  left: 50%;
+  width: 126rpx;
+  height: 126rpx;
+  transform: translateX(-50%);
+}
+.agent-orbit-ring {
+  position: absolute;
+  inset: 0;
+  border: 1rpx dashed rgba(255,255,255,.52);
+  border-radius: 50%;
+  animation: agent-orbit 14s linear infinite;
 }
 .agent-avatar {
-  width: 96rpx; height: 96rpx; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 8rpx 20rpx rgba(0,0,0,0.12);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 78rpx;
+  height: 78rpx;
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+  border: 4rpx solid rgba(255,255,255,.92);
+  border-radius: 24rpx;
+  box-shadow: 0 10rpx 24rpx rgba(12,19,55,.24), 0 0 26rpx var(--agent-glow);
 }
-.agent-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2c2c2c); margin-top: 16rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.agent-desc { font-size: 24rpx; color: var(--text-soft, #999); margin-top: 4rpx; white-space: normal; line-height: 1.3; }
+.agent-avatar-img { width: 100%; height: 100%; }
+.agent-category {
+  position: absolute;
+  right: 14rpx;
+  bottom: 12rpx;
+  font-size: 18rpx;
+  color: rgba(255,255,255,.88);
+}
+.agent-content {
+  min-height: 172rpx;
+  padding: 18rpx;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #fff, var(--agent-wash));
+}
+.agent-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 27rpx;
+  font-weight: 700;
+  color: #273047;
+}
+.agent-desc {
+  min-height: 58rpx;
+  margin-top: 6rpx;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  font-size: 21rpx;
+  line-height: 1.4;
+  color: #6b7488;
+}
+.agent-action {
+  margin-top: auto;
+  padding-top: 11rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8rpx;
+  border-top: 1rpx solid rgba(91,108,154,.1);
+  font-size: 19rpx;
+  color: #969dae;
+}
+.agent-action-link {
+  display: flex;
+  align-items: center;
+  gap: 3rpx;
+  padding: 5rpx 9rpx;
+  border-radius: 999rpx;
+  background: var(--agent-soft);
+  font-weight: 600;
+  color: var(--agent-ink);
+}
+@keyframes agent-loading {
+  0%, 100% { opacity: .65; transform: scale(.88); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+@keyframes agent-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-live-dot,
+  .agent-orbit-ring,
+  .agents-loading-dot { animation: none; }
+}
 
 /* 合规提示 */
 .disclaimer { padding-top: 16rpx; padding-bottom: 32rpx; }
