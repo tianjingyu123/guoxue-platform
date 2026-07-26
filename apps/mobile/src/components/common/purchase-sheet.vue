@@ -1,7 +1,7 @@
 <template>
   <!-- 通用购买半屏弹窗：圈子付费/课程/商品共用。选规格→选数量→选支付→确认下单 -->
-  <view v-if="open && product" class="ps-mask" @tap="onClose">
-    <view class="ps-sheet" @tap.stop>
+  <view v-if="open && product" class="ps-mask" @tap="onClose" @touchmove.self.prevent>
+    <view class="ps-sheet" @tap.stop @touchmove.stop>
       <!-- 下单成功态 -->
       <view v-if="paid" class="ps-paid">
         <view class="ps-paid__icon">
@@ -233,7 +233,7 @@ async function onPay() {
 
 <style scoped>
 .ps-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.6); display: flex; flex-direction: column; justify-content: flex-end; }
-.ps-sheet { position: relative; background: #fff; border-radius: 32rpx 32rpx 0 0; max-height: 82vh; display: flex; flex-direction: column; }
+.ps-sheet { position: relative; background: #fff; border-radius: 32rpx 32rpx 0 0; max-height: 82vh; overflow: hidden; display: flex; flex-direction: column; }
 
 /* 成功态 */
 .ps-paid { padding: 96rpx 48rpx; display: flex; flex-direction: column; align-items: center; }
@@ -253,7 +253,9 @@ async function onPay() {
 .ps-head__close { position: absolute; top: 32rpx; right: 32rpx; }
 
 /* body */
-.ps-body { flex: 1; max-height: 50vh; }
+.ps-body { flex: 1; height: 0; min-height: 0; max-height: 50vh; }
+.ps-body :deep(.uni-scroll-view),
+.ps-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .ps-section { padding: 32rpx; border-bottom: 1px solid #f0f0f0; }
 .ps-section__label { font-size: 28rpx; font-weight: 500; color: #1a1a1a; display: block; margin-bottom: 20rpx; }
 .ps-sku-list { display: flex; flex-wrap: wrap; gap: 16rpx; }

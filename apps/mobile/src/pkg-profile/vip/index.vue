@@ -182,8 +182,8 @@
 
     <!-- 支付方式选择 Sheet（V1：确认后创建订单跳统一收银页 /pkg-shop/paying，原 Native 扫码弹层已移除——
          手机端无从扫码属死路；收银页覆盖微信内 JSAPI/外部浏览器 mweb/小程序 requestPayment 全端） -->
-    <view v-if="showPaySheet" class="sheet-mask" @tap="closePaySheet">
-      <view class="sheet" @tap.stop>
+    <view v-if="showPaySheet" class="sheet-mask" @tap="closePaySheet" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view>
           <text class="sheet-title">选择支付方式</text>
           <view v-if="selectedPlan" class="sheet-summary">
@@ -228,8 +228,8 @@
     </view>
 
     <!-- 会员服务协议弹层（真源 GET /system/legal/member） -->
-    <view v-if="showAgreement" class="sheet-mask agreement-mask" @tap="showAgreement = false">
-      <view class="agreement-sheet" @tap.stop>
+    <view v-if="showAgreement" class="sheet-mask agreement-mask" @tap="showAgreement = false" @touchmove.self.prevent>
+      <view class="agreement-sheet" @tap.stop @touchmove.stop>
         <view class="agreement-head">
           <text class="agreement-title">{{ agreement?.title || '会员服务协议' }}</text>
           <text v-if="agreement?.version" class="agreement-version">版本 {{ agreement.version }}</text>
@@ -591,7 +591,9 @@ onShow(() => {
 .agreement-head { text-align: center; padding-bottom: 24rpx; border-bottom: 2rpx solid #E8E3DB; }
 .agreement-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; display: block; }
 .agreement-version { font-size: 22rpx; color: #8A8478; margin-top: 8rpx; display: block; }
-.agreement-scroll { flex: 1; min-height: 0; margin-top: 24rpx; }
+.agreement-scroll { flex: 1; height: 0; min-height: 0; margin-top: 24rpx; }
+.agreement-scroll :deep(.uni-scroll-view),
+.agreement-scroll :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .agreement-content { font-size: 26rpx; color: #4A4A4A; line-height: 1.8; white-space: pre-wrap; word-break: break-all; }
 .agreement-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
 .agreement-state-txt { font-size: 26rpx; color: #8A8478; }

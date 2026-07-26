@@ -504,8 +504,8 @@ onLoad((q) => {
     </template>
 
     <!-- AI 伴读半屏抽屉（打开时 TTS 继续朗读·不打断播放） -->
-    <view v-if="aiOpen" class="ap-mask ap-mask--ai" @tap="aiOpen = false">
-      <view class="ai-sheet" @tap.stop>
+    <view v-if="aiOpen" class="ap-mask ap-mask--ai" @tap="aiOpen = false" @touchmove.self.prevent>
+      <view class="ai-sheet" @tap.stop @touchmove.stop>
         <view class="ai-head">
           <view class="ai-head-left">
             <view class="ai-avatar"><app-icon name="sparkles" :size="32" color="#ffffff" /></view>
@@ -575,8 +575,8 @@ onLoad((q) => {
     </view>
 
     <!-- 目录 -->
-    <view v-if="showChapters" class="ap-mask" @tap="showChapters = false">
-      <view class="ap-sheet" @tap.stop>
+    <view v-if="showChapters" class="ap-mask" @tap="showChapters = false" @touchmove.self.prevent>
+      <view class="ap-sheet" @tap.stop @touchmove.stop>
         <view class="ap-sheet-head">
           <text class="ap-sheet-title">目录 · 共 {{ chapters.length }} 章</text>
           <text class="ap-sheet-close" @tap="showChapters = false">关闭</text>
@@ -773,6 +773,8 @@ onLoad((q) => {
 
 /* 对话流 */
 .ai-body { flex: 1; height: 0; min-height: 0; padding: 16rpx 32rpx; box-sizing: border-box; }
+.ai-body :deep(.uni-scroll-view),
+.ai-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .ai-empty { padding: 48rpx 24rpx; text-align: center; }
 .ai-empty-txt { font-size: 24rpx; color: var(--muted-foreground); line-height: 1.7; }
 .ai-row { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
@@ -841,11 +843,13 @@ onLoad((q) => {
 
 /* 目录 */
 .ap-mask { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.5); }
-.ap-sheet { position: absolute; bottom: 0; left: 0; right: 0; max-height: 70vh; background: var(--card); border-radius: 32rpx 32rpx 0 0; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
+.ap-sheet { position: absolute; bottom: 0; left: 0; right: 0; height: 70vh; max-height: 70vh; overflow: hidden; background: var(--card); border-radius: 32rpx 32rpx 0 0; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); box-sizing: border-box; }
 .ap-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; border-bottom: 1rpx solid var(--border); }
 .ap-sheet-title { font-size: 30rpx; font-weight: 600; color: var(--foreground); }
 .ap-sheet-close { font-size: 28rpx; color: var(--muted-foreground); }
-.ap-sheet-list { max-height: calc(70vh - 100rpx); padding: 12rpx 24rpx; }
+.ap-sheet-list { flex: 1; height: 0; min-height: 0; padding: 12rpx 24rpx; box-sizing: border-box; }
+.ap-sheet-list :deep(.uni-scroll-view),
+.ap-sheet-list :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .ap-sheet-item { display: flex; align-items: center; gap: 20rpx; padding: 24rpx 16rpx; border-bottom: 1rpx solid rgba(150,130,90,0.12); }
 .ap-sheet-item--on { background: #fffbeb; border-radius: 12rpx; }
 .ap-sheet-item-idx { width: 44rpx; text-align: center; font-size: 24rpx; color: var(--muted-foreground); flex-shrink: 0; }

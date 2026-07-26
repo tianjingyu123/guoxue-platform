@@ -1,6 +1,6 @@
 <template>
-  <view v-if="visible" class="assist-mask" @tap="emit('close')">
-    <view class="assist-sheet" @tap.stop>
+  <view v-if="visible" class="assist-mask" @tap="emit('close')" @touchmove.self.prevent>
+    <view class="assist-sheet" @tap.stop @touchmove.stop>
       <!-- 头部 -->
       <view class="sheet-header">
         <view class="header-close" @tap="emit('close')">
@@ -522,7 +522,9 @@ function applyPolish() {
 .tab-text { font-size: 26rpx; color: #8a8a8a; }
 .tab-text.active { color: #C41E3A; font-weight: 600; }
 
-.sheet-body { flex: 1; min-height: 320rpx; max-height: 58vh; }
+.sheet-body { flex: 1; height: 0; min-height: 320rpx; max-height: 58vh; }
+.sheet-body :deep(.uni-scroll-view),
+.sheet-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .tab-pane { padding: 32rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
 /* 三态 */

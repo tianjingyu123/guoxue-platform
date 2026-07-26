@@ -14,8 +14,8 @@ function go(href: string) {
 </script>
 
 <template>
-  <view class="af-mask" @tap="emit('close')">
-    <view class="af-sheet" @tap.stop>
+  <view class="af-mask" @tap="emit('close')" @touchmove.self.prevent>
+    <view class="af-sheet" @tap.stop @touchmove.stop>
       <view class="af-head">
         <text class="af-title">全部功能</text>
         <view class="af-close" @tap="emit('close')"><AppIcon name="x" :size="34" color="#999" /></view>
@@ -66,6 +66,8 @@ function go(href: string) {
 .af-title { font-size: 34rpx; font-weight: 700; color: var(--text-ink, #2c2c2c); }
 .af-close { padding: 8rpx; }
 .af-body { flex: 1; min-height: 0; height: 0; padding: 8rpx 32rpx 40rpx; }
+.af-body :deep(.uni-scroll-view),
+.af-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .af-group { margin-top: 32rpx; }
 .af-group-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 20rpx; }
 .af-bar { width: 8rpx; height: 28rpx; border-radius: 4rpx; background: var(--brand); }

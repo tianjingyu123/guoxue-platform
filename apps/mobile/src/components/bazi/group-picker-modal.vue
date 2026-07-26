@@ -31,8 +31,8 @@ function addGroup() {
 
 <template>
   <view v-if="open" class="gp-root">
-    <view class="gp-mask" @tap="emit('close')" />
-    <view class="gp-panel">
+    <view class="gp-mask" @tap="emit('close')" @touchmove.prevent />
+    <view class="gp-panel" @touchmove.stop>
       <view class="gp-handle-wrap"><view class="gp-handle" /></view>
       <view class="gp-head">
         <view class="gp-x" @tap="emit('close')"><app-icon name="x" :size="36" color="#6b7280" /></view>
@@ -70,7 +70,7 @@ function addGroup() {
 <style scoped lang="scss">
 .gp-root { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
 .gp-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
-.gp-panel { position: relative; width: 100%; background: #fff; border-radius: 48rpx 48rpx 0 0; overflow: hidden; }
+.gp-panel { position: relative; width: 100%; max-height: 78vh; background: #fff; border-radius: 48rpx 48rpx 0 0; overflow: hidden; display: flex; flex-direction: column; }
 .gp-handle-wrap { display: flex; justify-content: center; padding: 24rpx 0 16rpx; }
 .gp-handle { width: 80rpx; height: 8rpx; background: #d1d5db; border-radius: 999rpx; }
 .gp-head { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 40rpx; }
@@ -78,7 +78,9 @@ function addGroup() {
 .gp-title { font-size: 32rpx; font-weight: 600; color: #111827; }
 .gp-confirm { padding: 12rpx 32rpx; background: #111827; border-radius: 999rpx; }
 .gp-confirm-text { font-size: 26rpx; font-weight: 500; color: #fff; }
-.gp-list { padding: 24rpx 32rpx; max-height: 50vh; }
+.gp-list { flex: 1; height: 0; min-height: 0; padding: 24rpx 32rpx; max-height: 50vh; }
+.gp-list :deep(.uni-scroll-view),
+.gp-list :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .gp-item { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 32rpx; border-radius: 24rpx; margin-bottom: 16rpx; background: #f9fafb; border: 4rpx solid transparent; }
 .gp-item-on { background: rgba(196,30,58,0.05); border-color: var(--brand); }
 .gp-item-l { display: flex; align-items: center; gap: 24rpx; }
