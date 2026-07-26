@@ -527,9 +527,20 @@ export class ClassicService {
     return { items, total, page, pageSize };
   }
 
-  async createNote(userId: string, bookId: string, dto: { chapterId: string; content: string }) {
+  async createNote(
+    userId: string,
+    bookId: string,
+    dto: { chapterId: string; content: string; position?: number; originalText?: string },
+  ) {
     return this.prisma.classicReadingNote.create({
-      data: { userId, bookId, chapterId: dto.chapterId, content: dto.content },
+      data: {
+        userId,
+        bookId,
+        chapterId: dto.chapterId,
+        content: dto.content,
+        position: dto.position,
+        originalText: dto.originalText,
+      },
     });
   }
 

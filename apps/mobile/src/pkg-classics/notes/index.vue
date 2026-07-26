@@ -9,7 +9,7 @@
           </view>
           <view class="nt-title-wrap">
             <text class="nt-title">我的笔记</text>
-            <text v-if="!loading && !isGuest && !error && notes.length" class="nt-title-sub">共 {{ notes.length }} 条 · 点卡片回到书中章节</text>
+            <text v-if="!loading && !isGuest && !error && notes.length" class="nt-title-sub">共 {{ notes.length }} 条 · 点卡片回到原文位置</text>
           </view>
         </view>
         <view class="nt-nav-right">
@@ -118,7 +118,7 @@
               </view>
             </view>
             <view v-if="!isSelectMode" class="nt-goto">
-              <text class="nt-goto-text">回到原文</text>
+              <text class="nt-goto-text">{{ typeof note.position === 'number' ? '回到原句' : '回到章节' }}</text>
               <app-icon name="chevron-right" :size="24" color="#c41e3a" />
             </view>
           </view>
@@ -250,6 +250,7 @@ function goReaderAt(note: NoteItem) {
   if (!note.bookId) { uni.showToast({ title: '书籍信息缺失', icon: 'none' }); return }
   let url = `/pkg-classics/reader/index?bookId=${note.bookId}`
   if (note.chapterId) url += `&chapterId=${note.chapterId}`
+  if (typeof note.position === 'number') url += `&pos=${note.position}`
   uni.navigateTo({ url })
 }
 

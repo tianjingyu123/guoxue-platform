@@ -139,7 +139,14 @@ function jumpToNote(n: NoteItem) {
   tocOpen.value = false
   const idx = chapters.value.findIndex((c) => c.id === n.chapterId)
   if (idx < 0) { uni.showToast({ title: '未找到对应章节', icon: 'none' }); return }
-  if (idx !== curIndex.value) loadChapter(idx)
+  const position = typeof n.position === 'number' ? n.position : null
+  if (idx === curIndex.value) {
+    if (position != null) scrollToParagraph(position)
+    return
+  }
+  loadChapter(idx).then(() => {
+    if (position != null) scrollToParagraph(position)
+  })
 }
 function goAllBookmarks() { tocOpen.value = false; uni.navigateTo({ url: '/pkg-classics/bookmarks/index' }) }
 function goAllNotes() { tocOpen.value = false; uni.navigateTo({ url: '/pkg-classics/notes/index' }) }
@@ -160,6 +167,20 @@ const dictError = ref('')
 // ── 笔记 ──
 const noteText = ref('')
 const noteSubmitting = ref(false)
+const notePickMode = ref(false)
+const notePosition = ref<number | null>(null)
+const noteOriginalText = ref('')
+const editingNoteId = ref('')
+
+/** 当前章节中已落点的笔记；旧版章节级笔记没有 position，不在正文误标。 */
+const currentChapterNotes = computed(() =>
+  bookNotes.value.filter((note) =>
+    note.chapterId === curChapter.value?.id && typeof note.position === 'number',
+  ),
+)
+function notesAtPosition(position: number) {
+  return currentChapterNotes.value.filter((note) => note.position === position)
+}
 
 const bookmarking = ref(false)
 
@@ -220,6 +241,7 @@ async function fetchBook(id: string, chapterId?: string) {
       scrollToParagraph(pendingPos.value)
       pendingPos.value = null
     }
+    loadMarksAndNotes()
     loadTouchpoint()
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
@@ -382,21 +404,68 @@ async function addBookmark() {
 // ── 笔记 ──
 function openNote() {
   if (!isLoggedIn()) { needLogin(); return }
-  noteText.value = ''
+  notePickMode.value = true
+  uni.showToast({ title: '请点选要做笔记的原句', icon: 'none' })
+}
+function openNoteAt(position: number, originalText: string) {
+  if (!isLoggedIn()) { needLogin(); return }
+  const existing = notesAtPosition(position)[0]
+  notePosition.value = position
+  noteOriginalText.value = originalText
+  editingNoteId.value = existing?.id || ''
+  noteText.value = existing?.noteContent || ''
+  notePickMode.value = false
   noteOpen.value = true
+}
+function openExistingNote(note: NoteItem) {
+  const position = typeof note.position === 'number' ? note.position : null
+  if (position == null) return
+  notePosition.value = position
+  noteOriginalText.value = note.originalText || paragraphs.value[position] || ''
+  editingNoteId.value = note.id
+  noteText.value = note.noteContent
+  notePickMode.value = false
+  noteOpen.value = true
+}
+function onParagraphTap(text: string, position: number) {
+  if (notePickMode.value) {
+    openNoteAt(position, text)
+    return
+  }
+  explain(text)
+}
+function closeNote() {
+  noteOpen.value = false
+  notePosition.value = null
+  noteOriginalText.value = ''
+  editingNoteId.value = ''
+  noteText.value = ''
 }
 async function submitNote() {
   const c = noteText.value.trim()
-  if (!c || noteSubmitting.value || !curChapter.value) return
+  if (!c || noteSubmitting.value || !curChapter.value || notePosition.value == null) return
   noteSubmitting.value = true
   try {
-    await classicsApi.addNote(bookId.value, { chapterId: curChapter.value.id, content: c })
-    noteOpen.value = false
-    marksLoaded.value = false // 目录抽屉笔记页签下次打开时刷新
+    const wasEditing = !!editingNoteId.value
+    if (editingNoteId.value) {
+      await classicsApi.updateNote(editingNoteId.value, c)
+    } else {
+      await classicsApi.addNote(bookId.value, {
+        chapterId: curChapter.value.id,
+        content: c,
+        position: notePosition.value,
+        originalText: noteOriginalText.value,
+      })
+    }
+    const savedPosition = notePosition.value
+    closeNote()
+    marksLoaded.value = false
+    await loadMarksAndNotes(true)
+    scrollToParagraph(savedPosition)
     // 告知查看入口，避免「写了笔记却找不到在哪」
     uni.showModal({
-      title: '笔记已保存',
-      content: '可在阅读器目录的「笔记」页签或「我的笔记」中查看、编辑和回跳。',
+      title: wasEditing ? '批注已更新' : '批注已保存',
+      content: '原句旁已留下批注标记，可随时点开查看；也可在「我的笔记」中精准回到这里。',
       confirmText: '查看笔记', cancelText: '继续阅读',
       success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-classics/notes/index' }) },
     })
@@ -475,13 +544,23 @@ onLoad((q) => {
           <text class="rd-state-txt">本章暂无正文内容</text>
         </view>
         <view v-else class="rd-content" :style="{ fontSize: fontSize + 'rpx' }">
-          <text
+          <view
             v-for="(p, i) in paragraphs"
             :key="i"
-            class="rd-para"
-            :class="{ 'rd-para-hl': i === highlightIdx }"
-            @tap="explain(p)"
-          >{{ p }}</text>
+            class="rd-para-row"
+            :class="{ 'rd-para-hl': i === highlightIdx, 'rd-para-pick': notePickMode }"
+          >
+            <text class="rd-para" @tap="onParagraphTap(p, i)">{{ p }}</text>
+            <view
+              v-if="notesAtPosition(i).length"
+              class="rd-note-mark"
+              :aria-label="`本句有 ${notesAtPosition(i).length} 条笔记`"
+              @tap.stop="openExistingNote(notesAtPosition(i)[0])"
+            >
+              <text class="rd-note-mark-glyph">笺</text>
+              <text v-if="notesAtPosition(i).length > 1" class="rd-note-mark-count">{{ notesAtPosition(i).length }}</text>
+            </view>
+          </view>
         </view>
         <view class="rd-tip">
           <app-icon name="sparkles" :size="26" :color="subColor" />
@@ -509,6 +588,10 @@ onLoad((q) => {
       <app-icon name="sparkles" :size="30" color="#ffffff" />
       <text class="rd-sel-txt">解读选中内容</text>
     </view>
+    <view v-if="notePickMode" class="rd-note-pick-bar">
+      <text class="rd-note-pick-txt">轻点一句原文，写下批注</text>
+      <view class="rd-note-pick-cancel" @tap="notePickMode = false"><text>取消</text></view>
+    </view>
 
     <!-- 亮度压暗遮罩：盖正文与工具栏（z 50），低于抽屉（z 60），pointer-events:none 不拦截任何点击 -->
     <view v-if="brightness < 100" class="rd-dim" :style="{ opacity: dimOpacity }" />
@@ -520,7 +603,7 @@ onLoad((q) => {
         <view class="rd-tool" @tap="goCompanion"><app-icon name="sparkles" :size="38" :color="brandColor" /><text class="rd-tool-txt" :style="{ color: brandColor }">伴读</text></view>
         <view class="rd-tool" @tap="tocOpen = true"><app-icon name="list" :size="38" :color="iconColor" /><text class="rd-tool-txt">目录</text></view>
         <view class="rd-tool" @tap="addBookmark"><app-icon name="bookmark-plus" :size="38" :color="iconColor" /><text class="rd-tool-txt">书签</text></view>
-        <view class="rd-tool" @tap="openNote"><app-icon name="edit" :size="38" :color="iconColor" /><text class="rd-tool-txt">笔记</text></view>
+        <view class="rd-tool" :class="{ 'rd-tool-on': notePickMode }" @tap="openNote"><app-icon name="edit" :size="38" :color="notePickMode ? brandColor : iconColor" /><text class="rd-tool-txt" :style="{ color: notePickMode ? brandColor : undefined }">笔记</text></view>
         <view class="rd-tool" @tap="setOpen = true"><app-icon name="type" :size="38" :color="iconColor" /><text class="rd-tool-txt">设置</text></view>
       </view>
     </view>
@@ -705,11 +788,15 @@ onLoad((q) => {
     </view>
 
     <!-- 笔记输入 -->
-    <view v-if="noteOpen" class="rd-mask" @tap="noteOpen = false" @touchmove.self.prevent>
+    <view v-if="noteOpen" class="rd-mask" @tap="closeNote" @touchmove.self.prevent>
       <view class="rd-sheet" @tap.stop>
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
-        <view class="rd-sheet-head"><text class="rd-sheet-title">写笔记 · {{ curChapter?.title }}</text></view>
-        <textarea v-model="noteText" class="rd-note-area" placeholder="记下此刻的所思所悟…" :maxlength="2000" />
+        <view class="rd-sheet-head"><text class="rd-sheet-title">{{ editingNoteId ? '编辑批注' : '写批注' }} · {{ curChapter?.title }}</text></view>
+        <view class="rd-note-quote">
+          <text class="rd-note-quote-label">原文</text>
+          <text class="rd-note-quote-text">{{ noteOriginalText }}</text>
+        </view>
+        <textarea v-model="noteText" class="rd-note-area" placeholder="记下你对这句话的理解、疑问或心得…" :maxlength="2000" />
         <view class="rd-note-submit" :class="{ 'rd-note-disabled': !noteText.trim() || noteSubmitting }" @tap="submitNote">
           <text>{{ noteSubmitting ? '保存中…' : '保存笔记' }}</text>
         </view>
@@ -757,17 +844,65 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-chapter-title { display: block; font-family: 'Songti SC','STSong',serif; font-size: 46rpx; font-weight: 700; color: var(--rd-fg); }
 .rd-chapter-from { display: block; margin-top: 12rpx; font-size: 24rpx; color: var(--rd-sub); }
 .rd-content { }
+.rd-para-row {
+  position: relative;
+  margin-bottom: 12rpx;
+  border-radius: 10rpx;
+  transition: background 0.2s, box-shadow 0.2s;
+}
 .rd-para {
   display: block;
   font-family: 'Songti SC','STSong','Noto Serif SC',serif;
   line-height: 2;
   color: var(--rd-fg);
   text-indent: 2em;
-  margin-bottom: 12rpx;
   letter-spacing: 1rpx;
   user-select: text;
   -webkit-user-select: text;
   &:active { background: rgba(160,106,56,0.10); border-radius: 8rpx; }
+}
+.rd-para-pick {
+  box-shadow: inset 4rpx 0 0 rgba(196, 30, 58, 0.28);
+  background: rgba(196, 30, 58, 0.035);
+}
+/* 批注标记取“书页边笺”意象：压在右侧页边，不打断正文行距。 */
+.rd-note-mark {
+  position: absolute;
+  right: -34rpx;
+  top: 2rpx;
+  z-index: 2;
+  width: 38rpx;
+  height: 38rpx;
+  border-radius: 7rpx 7rpx 7rpx 1rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #b5223b;
+  box-shadow: 0 4rpx 12rpx rgba(120, 34, 48, 0.22);
+}
+.rd-note-mark::after {
+  content: '';
+  position: absolute;
+  left: 5rpx;
+  bottom: -7rpx;
+  border-width: 7rpx 7rpx 0 0;
+  border-style: solid;
+  border-color: #b5223b transparent transparent transparent;
+}
+.rd-note-mark-glyph { color: #fff9ed; font-family: 'Songti SC','STSong',serif; font-size: 20rpx; line-height: 1; }
+.rd-note-mark-count {
+  position: absolute;
+  right: -10rpx;
+  top: -12rpx;
+  min-width: 24rpx;
+  height: 24rpx;
+  padding: 0 4rpx;
+  border-radius: 999rpx;
+  background: #f4d49a;
+  color: #6e391b;
+  font-size: 16rpx;
+  line-height: 24rpx;
+  text-align: center;
 }
 .rd-sel-bar {
   position: fixed;
@@ -785,6 +920,30 @@ export default { options: { styleIsolation: 'shared' } }
   box-shadow: 0 6rpx 20rpx rgba(196, 30, 58, 0.35);
 }
 .rd-sel-txt { color: #fff; font-size: 28rpx; font-weight: 600; }
+.rd-note-pick-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 194rpx;
+  transform: translateX(-50%);
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  height: 76rpx;
+  padding: 0 16rpx 0 30rpx;
+  border: 2rpx solid rgba(160, 106, 56, 0.28);
+  border-radius: 999rpx;
+  background: var(--rd-card);
+  box-shadow: 0 8rpx 28rpx rgba(70, 48, 24, 0.18);
+}
+.rd-note-pick-txt { color: var(--rd-fg); font-size: 25rpx; white-space: nowrap; }
+.rd-note-pick-cancel {
+  padding: 12rpx 20rpx;
+  border-radius: 999rpx;
+  background: rgba(150, 130, 90, 0.12);
+  color: var(--rd-brand);
+  font-size: 23rpx;
+}
 .rd-tip { display: flex; align-items: center; justify-content: center; gap: 10rpx; margin: 40rpx 0; opacity: 0.7; }
 .rd-tip-txt { font-size: 22rpx; color: var(--rd-sub); }
 .rd-chapter-nav { display: flex; align-items: center; justify-content: space-between; padding: 32rpx 0 48rpx; border-top: 2rpx solid rgba(150,130,90,0.18); }
@@ -804,6 +963,7 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-prog-fill { height: 100%; background: var(--rd-brand); transition: width 0.3s; }
 .rd-tools { display: flex; }
 .rd-tool { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6rpx; padding: 16rpx 0; &:active { opacity: 0.6; } }
+.rd-tool-on { background: rgba(160, 106, 56, 0.08); }
 .rd-tool-txt { font-size: 20rpx; color: var(--rd-sub); }
 
 /* 抽屉通用 */
@@ -907,6 +1067,15 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-dict-empty { text-align: center; padding: 80rpx 0; color: var(--rd-sub,#999); font-size: 26rpx; }
 
 /* 笔记 */
+.rd-note-quote {
+  margin: 0 40rpx 20rpx;
+  padding: 20rpx 24rpx;
+  border-left: 6rpx solid var(--rd-brand, #a06a38);
+  border-radius: 4rpx 14rpx 14rpx 4rpx;
+  background: rgba(150, 130, 90, 0.08);
+}
+.rd-note-quote-label { display: block; margin-bottom: 8rpx; color: var(--rd-brand, #a06a38); font-size: 20rpx; }
+.rd-note-quote-text { color: var(--rd-fg, #2c2c2c); font-family: 'Songti SC','STSong',serif; font-size: 27rpx; line-height: 1.7; }
 .rd-note-area { margin: 0 40rpx; padding: 24rpx; height: 280rpx; background: rgba(150,130,90,0.08); border-radius: 16rpx; font-size: 28rpx; line-height: 1.7; color: var(--rd-fg,#2c2c2c); width: auto; box-sizing: border-box; }
 .rd-note-submit { margin: 28rpx 40rpx 16rpx; height: 88rpx; border-radius: 20rpx; background: var(--rd-brand,#a06a38); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 30rpx; font-weight: 600; &:active { opacity: 0.85; } }
 .rd-note-disabled { opacity: 0.5; }

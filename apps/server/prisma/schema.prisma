@@ -3459,13 +3459,15 @@ model ClassicAnnotation {
 }
 
 model ClassicReadingNote {
-  id        String   @id @default(uuid())
-  userId    String
-  bookId    String
-  chapterId String
-  content   String   @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  userId       String
+  bookId       String
+  chapterId    String
+  content      String   @db.Text
+  position     Int?
+  originalText String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   book    ClassicBook    @relation(fields: [bookId], references: [id], onDelete: Cascade)
@@ -3474,6 +3476,7 @@ model ClassicReadingNote {
   @@index([userId])
   @@index([userId, bookId])
   @@index([chapterId])
+  @@index([userId, chapterId, position])
 }
 
 // 古籍馆·策划书单（运营内容，bookIds 为 ClassicBook id 数组，无外键便于灵活编排）

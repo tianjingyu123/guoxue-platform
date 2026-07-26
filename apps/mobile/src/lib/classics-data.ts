@@ -600,6 +600,8 @@ export interface NoteItem {
   /** 章节 id（回跳定位用·旧数据可能缺失） */
   chapterId?: string
   chapter: string
+  /** 原文段落索引；为空表示旧版章节级笔记 */
+  position?: number
   originalText: string
   noteContent: string
   tags: string[]
@@ -672,6 +674,8 @@ interface RawNote {
   book?: { title?: string; author?: string; dynasty?: string } | null
   chapter?: { title?: string } | null
   content?: string
+  position?: number | null
+  originalText?: string | null
   createdAt?: string
   updatedAt?: string
 }
@@ -924,14 +928,19 @@ export const classicsApi = {
     return res.items.map((n) => ({
       id: n.id || '', bookId: n.bookId || '', bookTitle: n.book?.title || '',
       bookAuthor: n.book?.author || '', dynasty: n.book?.dynasty || '',
-      chapterId: n.chapterId || '', chapter: n.chapter?.title || '', originalText: '',
+      chapterId: n.chapterId || '', chapter: n.chapter?.title || '',
+      position: typeof n.position === 'number' ? n.position : undefined,
+      originalText: n.originalText || '',
       noteContent: n.content || '', tags: [], page: 0,
       createdAt: (n.createdAt || '').slice(0, 16).replace('T', ' '),
       updatedAt: (n.updatedAt || '').slice(0, 16).replace('T', ' '),
     }))
   },
-  async addNote(bookId: string, payload: { chapterId: string; content: string }) {
-    return await apiPost<unknown>(`/classic/notes/${bookId}`, payload)
+  async addNote(
+    bookId: string,
+    payload: { chapterId: string; content: string; position?: number; originalText?: string },
+  ) {
+    return await apiPost<RawNote>(`/classic/notes/${bookId}`, payload)
   },
   async updateNote(id: string, content: string) {
     return await apiPut<unknown>(`/classic/notes/${id}`, { content })

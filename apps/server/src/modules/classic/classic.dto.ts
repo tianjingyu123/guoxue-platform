@@ -174,6 +174,19 @@ export class CreateNoteDto {
   @ApiProperty({ description: "笔记内容" })
   @IsString()
   content: string;
+
+  @ApiPropertyOptional({ description: "原文段落索引；为空表示旧版章节级笔记", minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  position?: number;
+
+  @ApiPropertyOptional({ description: "做笔记时对应的原句/原段" })
+  @IsOptional()
+  @IsString()
+  @Length(1, 2000)
+  originalText?: string;
 }
 
 export class UpdateNoteDto {
