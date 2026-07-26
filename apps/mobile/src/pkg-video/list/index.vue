@@ -27,18 +27,17 @@
 
     <station-pinned-rail v-if="!loading && !error" board="video" :inset="false" />
 
-    <!-- 骨架态：双列错位微光卡 -->
-    <view v-if="loading" class="vl-feed">
-      <view class="vl-col">
-        <view class="vl-sk vl-sk-cover" style="padding-bottom: 133.33%" />
-        <view class="vl-sk vl-sk-line" style="width: 92%" />
-        <view class="vl-sk vl-sk-line" style="width: 60%" />
-        <view class="vl-sk vl-sk-cover" style="padding-bottom: 133.33%" />
-      </view>
-      <view class="vl-col">
-        <view class="vl-sk vl-sk-cover" style="padding-bottom: 133.33%" />
-        <view class="vl-sk vl-sk-line" style="width: 80%" />
-        <view class="vl-sk vl-sk-cover" style="padding-bottom: 133.33%" />
+    <view v-if="loading" class="vl-loading">
+      <view class="vl-sk vl-sk-feature" />
+      <view class="vl-feed">
+        <view class="vl-col">
+          <view class="vl-sk vl-sk-cover" />
+          <view class="vl-sk vl-sk-line" style="width: 92%" />
+        </view>
+        <view class="vl-col">
+          <view class="vl-sk vl-sk-cover" />
+          <view class="vl-sk vl-sk-line" style="width: 72%" />
+        </view>
       </view>
     </view>
 
@@ -56,66 +55,142 @@
       <view class="vl-ghost-btn" @tap="switchTab('recommend')"><text class="vl-ghost-txt">去看看推荐</text></view>
     </view>
 
-    <!-- 双列瀑布卡流（附录 B 卡片解剖规格） -->
-    <view v-else class="vl-feed">
-      <view class="vl-col">
-        <view
-          v-for="video in leftColumn"
-          :key="video.id"
-          class="vl-card"
-          hover-class="vl-card-hover"
-          :hover-stay-time="120"
-          data-content-card
-          @tap="goDetail(video.id, $event)"
-        >
-          <view class="vl-cover" :style="{ paddingBottom: COVER_RATIO }">
-            <smart-cover class="vl-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" deco :deco-size="72" />
-            <view class="vl-cover-shade" />
-            <view class="vl-plays">
-              <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
-              <text class="vl-plays-txt num">{{ formatNum(video.plays) }}</text>
-            </view>
+    <view v-else class="vl-cinema">
+      <view class="vl-curation-head">
+        <view class="vl-curation-title">
+          <view class="vl-live-wave" aria-hidden="true">
+            <text v-for="n in 4" :key="n" class="vl-live-bar" />
           </view>
-          <view class="vl-info">
-            <text class="vl-card-title">{{ video.title }}</text>
-            <view class="vl-author">
-              <smart-avatar class="vl-avatar" :src="video.author.avatar" :name="video.author.name || ''" />
-              <text class="vl-author-name">{{ video.author.name }}</text>
-              <view class="vl-likes">
-                <AppIcon name="heart" :size="22" color="#999999" :stroke-width="1.6" />
-                <text class="vl-likes-txt num">{{ formatNum(video.likes) }}</text>
-              </view>
-            </view>
+          <text class="vl-curation-name">今日放映</text>
+        </view>
+        <text class="vl-curation-note">从一段画面，进入国学现场</text>
+      </view>
+
+      <view
+        v-if="featuredVideo"
+        class="vl-feature"
+        hover-class="vl-card-hover"
+        :hover-stay-time="120"
+        data-content-card
+        @tap="goDetail(featuredVideo.id, $event)"
+      >
+        <smart-cover
+          class="vl-feature-cover"
+          :src="featuredVideo.coverUrl"
+          :video-url="featuredVideo.videoUrl"
+          :title="featuredVideo.title"
+          type="video"
+          deco
+          :deco-size="120"
+        />
+        <view class="vl-feature-tone" />
+        <view class="vl-film-index">
+          <text class="vl-film-index-kicker">OPENING SHOT</text>
+          <text class="vl-film-index-no">01</text>
+        </view>
+        <view class="vl-play-orbit">
+          <view class="vl-play-orbit-ring" />
+          <view class="vl-play-core">
+            <AppIcon name="play" :size="32" color="#ffffff" :fill="true" />
+          </view>
+        </view>
+        <view class="vl-feature-copy">
+          <view class="vl-feature-tags">
+            <text class="vl-topic-tag">{{ videoTopic(featuredVideo) }}</text>
+            <text class="vl-duration-tag">{{ durationLabel(featuredVideo) }}</text>
+          </view>
+          <text class="vl-feature-title">{{ featuredVideo.title }}</text>
+          <view class="vl-feature-meta">
+            <smart-avatar class="vl-feature-avatar" :src="featuredVideo.author.avatar" :name="featuredVideo.author.name || ''" />
+            <text class="vl-feature-author">{{ featuredVideo.author.name }}</text>
+            <text class="vl-feature-dot">·</text>
+            <text class="vl-feature-plays num">{{ formatNum(featuredVideo.plays) }} 次播放</text>
           </view>
         </view>
       </view>
 
-      <view class="vl-col">
-        <view
-          v-for="video in rightColumn"
-          :key="video.id"
-          class="vl-card"
-          hover-class="vl-card-hover"
-          :hover-stay-time="120"
-          data-content-card
-          @tap="goDetail(video.id, $event)"
-        >
-          <view class="vl-cover" :style="{ paddingBottom: COVER_RATIO }">
-            <smart-cover class="vl-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" deco :deco-size="72" />
-            <view class="vl-cover-shade" />
-            <view class="vl-plays">
-              <AppIcon name="play" :size="20" color="#ffffff" :fill="true" />
-              <text class="vl-plays-txt num">{{ formatNum(video.plays) }}</text>
+      <view v-if="remainingVideos.length" class="vl-reel-head">
+        <view>
+          <text class="vl-reel-title">灵感片场</text>
+          <text class="vl-reel-sub">每一次滑动，换一个观察传统的角度</text>
+        </view>
+        <text class="vl-reel-count num">{{ String(remainingVideos.length).padStart(2, '0') }} 则</text>
+      </view>
+
+      <view v-if="remainingVideos.length" class="vl-feed">
+        <view class="vl-col">
+          <view
+            v-for="(video, index) in leftColumn"
+            :key="video.id"
+            class="vl-card"
+            hover-class="vl-card-hover"
+            :hover-stay-time="120"
+            data-content-card
+            @tap="goDetail(video.id, $event)"
+          >
+            <view class="vl-cover">
+              <smart-cover class="vl-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" deco :deco-size="72" />
+              <view class="vl-cover-shade" />
+              <view class="vl-card-topline">
+                <text class="vl-shot-no">SHOT {{ String(index * 2 + 2).padStart(2, '0') }}</text>
+                <text class="vl-card-duration">{{ durationLabel(video) }}</text>
+              </view>
+              <view class="vl-mini-play">
+                <AppIcon name="play" :size="24" color="#ffffff" :fill="true" />
+              </view>
+              <view class="vl-plays">
+                <text class="vl-topic-on-cover">{{ videoTopic(video) }}</text>
+                <text class="vl-plays-txt num">{{ formatNum(video.plays) }} 播放</text>
+              </view>
+            </view>
+            <view class="vl-info">
+              <text class="vl-card-title">{{ video.title }}</text>
+              <view class="vl-author">
+                <smart-avatar class="vl-avatar" :src="video.author.avatar" :name="video.author.name || ''" />
+                <text class="vl-author-name">{{ video.author.name }}</text>
+                <view class="vl-likes">
+                  <AppIcon name="heart" :size="22" color="#9B6672" :stroke-width="1.6" />
+                  <text class="vl-likes-txt num">{{ formatNum(video.likes) }}</text>
+                </view>
+              </view>
             </view>
           </view>
-          <view class="vl-info">
-            <text class="vl-card-title">{{ video.title }}</text>
-            <view class="vl-author">
-              <smart-avatar class="vl-avatar" :src="video.author.avatar" :name="video.author.name || ''" />
-              <text class="vl-author-name">{{ video.author.name }}</text>
-              <view class="vl-likes">
-                <AppIcon name="heart" :size="22" color="#999999" :stroke-width="1.6" />
-                <text class="vl-likes-txt num">{{ formatNum(video.likes) }}</text>
+        </view>
+
+        <view class="vl-col vl-col-offset">
+          <view
+            v-for="(video, index) in rightColumn"
+            :key="video.id"
+            class="vl-card"
+            hover-class="vl-card-hover"
+            :hover-stay-time="120"
+            data-content-card
+            @tap="goDetail(video.id, $event)"
+          >
+            <view class="vl-cover">
+              <smart-cover class="vl-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" deco :deco-size="72" />
+              <view class="vl-cover-shade" />
+              <view class="vl-card-topline">
+                <text class="vl-shot-no">SHOT {{ String(index * 2 + 3).padStart(2, '0') }}</text>
+                <text class="vl-card-duration">{{ durationLabel(video) }}</text>
+              </view>
+              <view class="vl-mini-play">
+                <AppIcon name="play" :size="24" color="#ffffff" :fill="true" />
+              </view>
+              <view class="vl-plays">
+                <text class="vl-topic-on-cover">{{ videoTopic(video) }}</text>
+                <text class="vl-plays-txt num">{{ formatNum(video.plays) }} 播放</text>
+              </view>
+            </view>
+            <view class="vl-info">
+              <text class="vl-card-title">{{ video.title }}</text>
+              <view class="vl-author">
+                <smart-avatar class="vl-avatar" :src="video.author.avatar" :name="video.author.name || ''" />
+                <text class="vl-author-name">{{ video.author.name }}</text>
+                <view class="vl-likes">
+                  <AppIcon name="heart" :size="22" color="#9B6672" :stroke-width="1.6" />
+                  <text class="vl-likes-txt num">{{ formatNum(video.likes) }}</text>
+                </view>
               </view>
             </view>
           </view>
@@ -137,6 +212,7 @@ import { navigateTo, navigateToContent } from '@/utils/router'
 import {
   videoApi,
   formatVideoNumber,
+  formatDuration,
   type VideoListItem,
 } from '@/lib/video-data'
 
@@ -192,17 +268,25 @@ onPullDownRefresh(async () => {
   }
 })
 
-// 双列瀑布流：原型用 CSS columns-2,按文档顺序顺序填充前后两半(非奇偶交替)
-// 左列=前半[0..3]，右列=后半[4..7]
-const half = computed(() => Math.ceil(videoListItems.value.length / 2))
-const leftColumn = computed(() => videoListItems.value.slice(0, half.value))
-const rightColumn = computed(() => videoListItems.value.slice(half.value))
-
-// 封面统一 3:4 竖卡（小红书口径·董事长拍板）：padding-bottom 百分比法（X5 红线禁 aspect-ratio）
-// 瀑布流错落感由标题行数自然差异承担（与首页 feed 一致），不再按 index 轮换比例随机裁切
-const COVER_RATIO = '133.33%'
-
+const featuredVideo = computed(() => videoListItems.value[0] || null)
+const remainingVideos = computed(() => videoListItems.value.slice(1))
+const leftColumn = computed(() => remainingVideos.value.filter((_, index) => index % 2 === 0))
+const rightColumn = computed(() => remainingVideos.value.filter((_, index) => index % 2 === 1))
 const formatNum = formatVideoNumber
+
+function durationLabel(video: VideoListItem) {
+  return video.duration > 0 ? formatDuration(video.duration) : '短片'
+}
+
+function videoTopic(video: VideoListItem) {
+  const title = video.title || ''
+  if (/诗|词|声律|吟诵/.test(title)) return '诗词雅集'
+  if (/节气|养生|中医|气候/.test(title)) return '时令养生'
+  if (/书法|绘画|篆刻|琴/.test(title)) return '艺文现场'
+  if (/古籍|经典|国学|道法|讲堂/.test(title)) return '经典讲堂'
+  if (/周易|易经|八字|紫微|术数/.test(title)) return '易学研习'
+  return '国学片场'
+}
 
 function goSearch() {
   navigateTo('/videos/search')
@@ -357,6 +441,373 @@ function goDetail(id: string, event?: unknown) {
 @keyframes vl-shimmer {
   0% { background-position: 100% 50%; }
   100% { background-position: 0 50%; }
+}
+
+/* 国学影卷：把独立短视频页做成有编排感的移动放映室 */
+.video-list-page {
+  --vl-ink: #171923;
+  --vl-paper: #F6F4F1;
+  --vl-cinnabar: #D12748;
+  --vl-orchid: #7256D8;
+  --vl-cyan: #62D8D0;
+  --vl-gold: #F2C66D;
+  background:
+    radial-gradient(circle at 8% 2%, rgba(114, 86, 216, 0.08), transparent 30%),
+    linear-gradient(180deg, #FBFAF8 0%, var(--vl-paper) 46%, #F8F5F0 100%);
+}
+.vl-header {
+  background: linear-gradient(180deg, rgba(251, 250, 248, 0.98), rgba(251, 250, 248, 0.94));
+  border-bottom: 1rpx solid rgba(35, 27, 45, 0.06);
+}
+.vl-topbar { padding-bottom: 10rpx; }
+.vl-title-main {
+  color: var(--vl-ink);
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 46rpx;
+  letter-spacing: 4rpx;
+}
+.vl-search-btn {
+  width: 72rpx;
+  height: 72rpx;
+  border-color: rgba(23, 25, 35, 0.08);
+  box-shadow: 0 12rpx 28rpx rgba(36, 24, 51, 0.06);
+}
+.vl-tabs-inner { gap: 16rpx; padding: 8rpx 40rpx 12rpx; }
+.vl-tab {
+  min-width: 102rpx;
+  padding: 14rpx 22rpx;
+  border: 1rpx solid transparent;
+  border-radius: 999rpx;
+  text-align: center;
+}
+.vl-tab-label { font-size: 26rpx; color: #77727E; }
+.vl-tab.on {
+  background: #FFFFFF;
+  border-color: rgba(209, 39, 72, 0.14);
+  box-shadow: 0 8rpx 20rpx rgba(58, 34, 64, 0.06);
+}
+.vl-tab.on .vl-tab-label { color: var(--vl-cinnabar); }
+.vl-tab.on::after { display: none; }
+
+.vl-loading { padding: 28rpx 32rpx 0; }
+.vl-sk-feature {
+  width: 100%;
+  height: 0;
+  padding-bottom: 94%;
+  border-radius: 40rpx;
+}
+.vl-loading .vl-feed { padding-left: 0; padding-right: 0; }
+.vl-sk-cover { padding-bottom: 132%; border-radius: 28rpx; }
+
+.vl-cinema { padding: 26rpx 0 0; }
+.vl-curation-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24rpx;
+  padding: 0 34rpx 22rpx;
+}
+.vl-curation-title { display: flex; align-items: center; gap: 14rpx; }
+.vl-curation-name {
+  color: var(--vl-ink);
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+.vl-curation-note {
+  max-width: 340rpx;
+  color: #928B96;
+  font-size: 20rpx;
+  line-height: 1.4;
+  text-align: right;
+}
+.vl-live-wave {
+  height: 32rpx;
+  display: flex;
+  align-items: center;
+  gap: 5rpx;
+}
+.vl-live-bar {
+  width: 5rpx;
+  height: 12rpx;
+  border-radius: 6rpx;
+  background: var(--vl-cinnabar);
+  animation: vl-wave 1.1s ease-in-out infinite;
+}
+.vl-live-bar:nth-child(2) { height: 28rpx; animation-delay: 0.15s; }
+.vl-live-bar:nth-child(3) { height: 20rpx; animation-delay: 0.3s; }
+.vl-live-bar:nth-child(4) { height: 9rpx; animation-delay: 0.45s; }
+
+.vl-feature {
+  position: relative;
+  height: 0;
+  margin: 0 32rpx;
+  padding-bottom: 94%;
+  overflow: hidden;
+  border-radius: 42rpx;
+  background: #25243B;
+  box-shadow: 0 28rpx 62rpx rgba(35, 24, 51, 0.22);
+}
+.vl-feature::after {
+  content: "";
+  position: absolute;
+  inset: 14rpx;
+  z-index: 3;
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+  border-radius: 32rpx;
+  pointer-events: none;
+}
+.vl-feature-cover { position: absolute; inset: 0; width: 100%; height: 100%; }
+.vl-feature-tone {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(135deg, rgba(48, 39, 92, 0.16), rgba(209, 39, 72, 0.2)),
+    linear-gradient(180deg, rgba(12, 13, 22, 0.08) 12%, rgba(12, 13, 22, 0.14) 42%, rgba(12, 13, 22, 0.9) 100%);
+}
+.vl-film-index {
+  position: absolute;
+  top: 34rpx;
+  left: 36rpx;
+  z-index: 4;
+  display: flex;
+  align-items: baseline;
+  gap: 12rpx;
+}
+.vl-film-index-kicker {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 18rpx;
+  font-weight: 700;
+  letter-spacing: 3rpx;
+}
+.vl-film-index-no {
+  color: var(--vl-gold);
+  font-size: 25rpx;
+  font-weight: 800;
+}
+.vl-play-orbit {
+  position: absolute;
+  top: 37%;
+  left: 50%;
+  z-index: 4;
+  width: 126rpx;
+  height: 126rpx;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vl-play-orbit-ring {
+  position: absolute;
+  inset: 0;
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  animation: vl-orbit 2.6s ease-out infinite;
+}
+.vl-play-orbit-ring::after {
+  content: "";
+  position: absolute;
+  top: 9rpx;
+  left: 16rpx;
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: var(--vl-cyan);
+  box-shadow: 0 0 18rpx rgba(98, 216, 208, 0.9);
+}
+.vl-play-core {
+  width: 82rpx;
+  height: 82rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(255, 255, 255, 0.54);
+  border-radius: 50%;
+  background: rgba(21, 19, 36, 0.48);
+  box-shadow: 0 10rpx 34rpx rgba(10, 8, 19, 0.22);
+}
+.vl-feature-copy {
+  position: absolute;
+  left: 38rpx;
+  right: 38rpx;
+  bottom: 38rpx;
+  z-index: 4;
+}
+.vl-feature-tags { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }
+.vl-topic-tag,
+.vl-duration-tag {
+  padding: 7rpx 13rpx;
+  border-radius: 999rpx;
+  color: #FFFFFF;
+  font-size: 19rpx;
+}
+.vl-topic-tag { background: var(--vl-cinnabar); }
+.vl-duration-tag { background: rgba(255, 255, 255, 0.18); }
+.vl-feature-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #FFFFFF;
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 39rpx;
+  font-weight: 700;
+  line-height: 1.28;
+  text-shadow: 0 4rpx 18rpx rgba(0, 0, 0, 0.22);
+}
+.vl-feature-meta { display: flex; align-items: center; gap: 10rpx; margin-top: 20rpx; }
+.vl-feature-avatar {
+  width: 38rpx;
+  height: 38rpx;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 2rpx solid rgba(255, 255, 255, 0.76);
+  border-radius: 50%;
+}
+.vl-feature-author,
+.vl-feature-dot,
+.vl-feature-plays { color: rgba(255, 255, 255, 0.78); font-size: 21rpx; }
+.vl-feature-author {
+  max-width: 210rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vl-reel-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24rpx;
+  padding: 54rpx 34rpx 12rpx;
+}
+.vl-reel-title {
+  display: block;
+  color: var(--vl-ink);
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+.vl-reel-sub { display: block; margin-top: 6rpx; color: #9A949D; font-size: 20rpx; }
+.vl-reel-count {
+  padding-bottom: 4rpx;
+  color: #A78C67;
+  font-size: 20rpx;
+  letter-spacing: 2rpx;
+}
+
+.vl-cinema .vl-feed {
+  gap: 18rpx;
+  padding: 18rpx 32rpx 24rpx;
+}
+.vl-cinema .vl-col { gap: 20rpx; }
+.vl-col-offset { padding-top: 42rpx; }
+.vl-card {
+  border: 1rpx solid rgba(39, 28, 48, 0.07);
+  border-radius: 30rpx;
+  box-shadow: 0 12rpx 30rpx rgba(43, 29, 50, 0.07);
+}
+.vl-card-hover { transform: translateY(4rpx) scale(0.985); }
+.vl-cover {
+  height: 0;
+  padding-bottom: 132%;
+  background: #282A3A;
+}
+.vl-card:nth-child(2n) .vl-cover { padding-bottom: 116%; }
+.vl-cover-shade {
+  top: 0;
+  height: auto;
+  background:
+    linear-gradient(180deg, rgba(12, 13, 20, 0.42), transparent 28%),
+    linear-gradient(180deg, transparent 54%, rgba(12, 13, 20, 0.74) 100%);
+}
+.vl-card-topline {
+  position: absolute;
+  top: 16rpx;
+  left: 16rpx;
+  right: 16rpx;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8rpx;
+}
+.vl-shot-no {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+.vl-card-duration {
+  padding: 5rpx 9rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.25);
+  border-radius: 999rpx;
+  color: #FFFFFF;
+  font-size: 17rpx;
+  background: rgba(16, 15, 24, 0.28);
+}
+.vl-mini-play {
+  position: absolute;
+  top: 48%;
+  left: 50%;
+  z-index: 3;
+  width: 66rpx;
+  height: 66rpx;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  background: rgba(20, 18, 30, 0.34);
+  box-shadow: 0 8rpx 24rpx rgba(12, 10, 18, 0.18);
+}
+.vl-plays {
+  left: 16rpx;
+  right: 16rpx;
+  bottom: 14rpx;
+  z-index: 3;
+  justify-content: space-between;
+  gap: 8rpx;
+}
+.vl-topic-on-cover {
+  max-width: 150rpx;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 18rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vl-plays-txt { font-size: 18rpx; color: rgba(255, 255, 255, 0.78); }
+.vl-info { gap: 16rpx; padding: 20rpx 20rpx 22rpx; }
+.vl-card-title {
+  min-height: 72rpx;
+  color: #292630;
+  font-family: "STKaiti", "KaiTi", serif;
+  font-size: 27rpx;
+  font-weight: 700;
+  line-height: 1.38;
+}
+.vl-author { gap: 10rpx; padding-top: 14rpx; border-top: 1rpx solid #F0EBE6; }
+.vl-avatar { width: 36rpx; height: 36rpx; }
+.vl-author-name { font-size: 20rpx; color: #817B85; }
+.vl-likes-txt { color: #9B6672; font-size: 20rpx; }
+
+@keyframes vl-wave {
+  0%, 100% { transform: scaleY(0.58); opacity: 0.48; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+@keyframes vl-orbit {
+  0% { transform: scale(0.72) rotate(0deg); opacity: 0.24; }
+  55% { opacity: 0.76; }
+  100% { transform: scale(1.22) rotate(180deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vl-live-bar,
+  .vl-play-orbit-ring { animation: none; }
 }
 
 </style>
