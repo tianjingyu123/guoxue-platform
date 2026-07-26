@@ -819,6 +819,7 @@ async function onRefreshRanking() {
 }
 .ch-hscroll-row {
   display: inline-flex;
+  align-items: flex-start;
   gap: 32rpx;
   padding: 0 40rpx 16rpx;
 }
@@ -962,9 +963,12 @@ async function onRefreshRanking() {
 .ch-audio-card {
   flex-shrink: 0;
   width: 480rpx;
+  height: 248rpx;
   display: flex;
+  align-items: flex-start;
   gap: 24rpx;
   padding: 24rpx;
+  box-sizing: border-box;
   background: var(--card);
   border-radius: 32rpx;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
@@ -978,6 +982,7 @@ async function onRefreshRanking() {
 }
 .ch-audio-info {
   flex: 1;
+  height: 200rpx;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -995,10 +1000,16 @@ async function onRefreshRanking() {
 }
 .ch-audio-desc {
   display: block;
+  display: -webkit-box;
+  height: 70rpx;
   font-size: 24rpx;
   color: var(--muted-foreground);
   margin-top: 4rpx;
-  line-height: 1.5;
+  line-height: 35rpx;
+  overflow: hidden;
+  word-break: break-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .ch-audio-foot {
   display: flex;
@@ -1067,10 +1078,16 @@ async function onRefreshRanking() {
 }
 .ch-featured-desc {
   display: block;
+  display: -webkit-box;
   font-size: 24rpx;
   color: var(--muted-foreground);
   margin-top: 8rpx;
   line-height: 1.5;
+  max-height: 72rpx;
+  overflow: hidden;
+  word-break: break-all;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 .ch-featured-author {
   font-size: 22rpx;
