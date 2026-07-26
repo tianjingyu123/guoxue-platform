@@ -202,7 +202,7 @@ async function finishAppt(a: Appointment) {
       <view class="wh-quick">
         <view v-for="q in QUICK" :key="q.key" class="wh-quick-item" @tap="onQuick(q.key)">
           <view class="wh-quick-icon">
-            <AppIcon :name="q.icon" :size="22" color="#C41E3A" />
+            <AppIcon :name="q.icon" :size="40" color="#C41E3A" />
           </view>
           <text class="wh-quick-label">{{ q.label }}</text>
         </view>
@@ -214,14 +214,14 @@ async function finishAppt(a: Appointment) {
       <view class="wh-head">
         <SectionTitle title="今日日程" :subtitle="`共 ${appts.length} 个预约`" />
         <view class="wh-add-btn" @tap="openAdd">
-          <AppIcon name="plus" :size="14" color="#C41E3A" />
+          <AppIcon name="plus" :size="28" color="#C41E3A" />
           <text class="wh-add-txt">新增</text>
         </view>
       </view>
 
       <view v-if="loading" class="wh-skeleton" />
       <view v-else-if="!appts.length" class="wh-empty">
-        <AppIcon name="calendar-days" :size="36" color="#D5C9B8" />
+        <AppIcon name="calendar-days" :size="52" color="#D5C9B8" />
         <text class="wh-empty-txt">今日无预约</text>
         <text class="wh-empty-sub">点「新增」记下今天的客户</text>
       </view>
@@ -239,7 +239,7 @@ async function finishAppt(a: Appointment) {
             <text class="wh-appt-status" :class="`wh-appt-status--${a.status}`">{{ STATUS_LABEL[a.status] }}</text>
           </view>
           <view v-if="a.status !== 'done' && a.status !== 'cancelled'" class="wh-appt-go" @tap="emit('start-consult', a)">
-            <AppIcon name="play" :size="14" color="#fff" />
+            <AppIcon name="play" :size="28" color="#fff" />
             <text class="wh-appt-go-txt">开始</text>
           </view>
         </view>
@@ -255,13 +255,13 @@ async function finishAppt(a: Appointment) {
       <view v-else class="wh-reminders">
         <view v-for="r in reminders" :key="r.id" class="wh-reminder" @tap="emit('navigate', 'clients')">
           <view class="wh-reminder-icon">
-            <AppIcon :name="REMINDER_ICON[r.kind] || 'bell'" :size="16" color="#C41E3A" />
+            <AppIcon :name="REMINDER_ICON[r.kind] || 'bell'" :size="32" color="#C41E3A" />
           </view>
           <view class="wh-reminder-info">
             <text class="wh-reminder-title">{{ r.client?.name || '客户' }}</text>
             <text class="wh-reminder-desc">{{ r.aiDraft || r.kind }}</text>
           </view>
-          <AppIcon name="chevron-right" :size="16" color="#B8AA9A" />
+          <AppIcon name="chevron-right" :size="32" color="#B8AA9A" />
         </view>
       </view>
     </PaperCard>
@@ -380,13 +380,13 @@ async function finishAppt(a: Appointment) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 104rpx;
-  height: 104rpx;
+  width: 112rpx;
+  height: 112rpx;
   flex-shrink: 0;
   border-radius: 50%;
   background: #C41E3A;
   color: #fff;
-  font-size: 40rpx;
+  font-size: 44rpx;
   font-weight: 700;
 }
 
@@ -402,16 +402,16 @@ async function finishAppt(a: Appointment) {
 }
 
 .wh-me-name {
-  font-size: 32rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: #3A2A1E;
 }
 
 .wh-me-plan {
-  padding: 2rpx 12rpx;
+  padding: 4rpx 14rpx;
   border-radius: 8rpx;
   background: rgba(154, 140, 126, 0.14);
-  font-size: 20rpx;
+  font-size: 22rpx;
   color: #7A6C5E;
 }
 
@@ -423,7 +423,7 @@ async function finishAppt(a: Appointment) {
 .wh-me-title {
   display: block;
   margin-top: 4rpx;
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #9A8C7E;
 }
 
@@ -439,7 +439,7 @@ async function finishAppt(a: Appointment) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4rpx;
+  gap: 6rpx;
 }
 
 .wh-me-stat--mid {
@@ -448,13 +448,13 @@ async function finishAppt(a: Appointment) {
 }
 
 .wh-me-stat-v {
-  font-size: 30rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: #3A2A1E;
 }
 
 .wh-me-stat-l {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #9A8C7E;
 }
 
@@ -468,23 +468,23 @@ async function finishAppt(a: Appointment) {
 .wh-kpi-box {
   display: flex;
   flex-direction: column;
-  gap: 6rpx;
+  gap: 8rpx;
 }
 
 .wh-kpi-label {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #9A8C7E;
 }
 
 .wh-kpi-value {
-  font-size: 42rpx;
+  font-size: 46rpx;
   font-weight: 700;
   color: #3A2A1E;
   line-height: 1.1;
 }
 
 .wh-kpi-hint {
-  font-size: 20rpx;
+  font-size: 22rpx;
   color: #B8860B;
 }
 
@@ -492,7 +492,7 @@ async function finishAppt(a: Appointment) {
 .wh-quick {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12rpx;
+  gap: 16rpx;
   margin-top: 24rpx;
 }
 
@@ -500,22 +500,24 @@ async function finishAppt(a: Appointment) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12rpx;
-  padding: 12rpx 0;
+  gap: 14rpx;
+  min-height: 132rpx;
+  padding: 16rpx 0;
+  box-sizing: border-box;
 }
 
 .wh-quick-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 84rpx;
-  height: 84rpx;
+  width: 92rpx;
+  height: 92rpx;
   border-radius: 50%;
   background: rgba(196, 30, 58, 0.08);
 }
 
 .wh-quick-label {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #3A2A1E;
 }
 
@@ -530,15 +532,15 @@ async function finishAppt(a: Appointment) {
   display: flex;
   align-items: center;
   gap: 6rpx;
-  height: 56rpx;
-  padding: 0 20rpx;
+  height: 64rpx;
+  padding: 0 22rpx;
   border: 1rpx solid rgba(196, 30, 58, 0.4);
-  border-radius: 28rpx;
+  border-radius: 32rpx;
   flex-shrink: 0;
 }
 
 .wh-add-txt {
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 600;
   color: #C41E3A;
 }
@@ -551,7 +553,7 @@ async function finishAppt(a: Appointment) {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding: 20rpx 0;
+  padding: 24rpx 0;
 }
 
 .wh-appt--line {
@@ -570,7 +572,7 @@ async function finishAppt(a: Appointment) {
   width: 88rpx;
   flex-shrink: 0;
   text-align: center;
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: 700;
   color: #C41E3A;
 }
@@ -587,19 +589,19 @@ async function finishAppt(a: Appointment) {
 }
 
 .wh-appt-name {
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: 700;
   color: #3A2A1E;
 }
 
 .wh-appt-service {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #9A8C7E;
 }
 
 .wh-appt-channel {
   display: block;
-  font-size: 20rpx;
+  font-size: 22rpx;
   color: #B8AA9A;
 }
 
@@ -607,7 +609,7 @@ async function finishAppt(a: Appointment) {
   flex-shrink: 0;
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
-  font-size: 20rpx;
+  font-size: 22rpx;
 }
 
 .wh-appt-status--pending {
@@ -630,15 +632,15 @@ async function finishAppt(a: Appointment) {
   display: flex;
   align-items: center;
   gap: 4rpx;
-  height: 56rpx;
-  padding: 0 20rpx;
-  border-radius: 28rpx;
+  height: 64rpx;
+  padding: 0 22rpx;
+  border-radius: 32rpx;
   background: #C41E3A;
   flex-shrink: 0;
 }
 
 .wh-appt-go-txt {
-  font-size: 22rpx;
+  font-size: 24rpx;
   font-weight: 600;
   color: #fff;
 }
@@ -655,7 +657,7 @@ async function finishAppt(a: Appointment) {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding: 20rpx;
+  padding: 24rpx;
   border-radius: 12rpx;
   background: rgba(154, 140, 126, 0.07);
 }
@@ -664,8 +666,8 @@ async function finishAppt(a: Appointment) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
+  width: 72rpx;
+  height: 72rpx;
   flex-shrink: 0;
   border-radius: 50%;
   background: rgba(196, 30, 58, 0.08);
@@ -678,7 +680,7 @@ async function finishAppt(a: Appointment) {
 
 .wh-reminder-title {
   display: block;
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: 700;
   color: #3A2A1E;
 }
@@ -686,7 +688,7 @@ async function finishAppt(a: Appointment) {
 .wh-reminder-desc {
   display: block;
   margin-top: 2rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #9A8C7E;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -698,7 +700,7 @@ async function finishAppt(a: Appointment) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10rpx;
+  gap: 12rpx;
   padding: 56rpx 0;
 }
 
@@ -707,12 +709,12 @@ async function finishAppt(a: Appointment) {
 }
 
 .wh-empty-txt {
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: #9A8C7E;
 }
 
 .wh-empty-sub {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #B8AA9A;
 }
 
@@ -729,7 +731,7 @@ async function finishAppt(a: Appointment) {
 }
 
 .wh-failed-txt {
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: #C41E3A;
 }
 

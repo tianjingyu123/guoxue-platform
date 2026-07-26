@@ -114,14 +114,14 @@ function back() {
     <view class="ws-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="ws-header-bar">
         <view class="ws-back" @tap="session ? (session = null) : back()">
-          <AppIcon name="chevron-left" :size="22" color="#3A2A1E" />
+          <AppIcon name="chevron-left" :size="44" color="#3A2A1E" />
         </view>
         <view class="ws-title-box">
           <text class="ws-title">{{ header.title }}</text>
           <text class="ws-subtitle">{{ header.subtitle }}</text>
         </view>
         <view class="ws-bell" @tap="goNotices">
-          <AppIcon name="bell" :size="20" color="#3A2A1E" />
+          <AppIcon name="bell" :size="40" color="#3A2A1E" />
           <view class="ws-dot" />
         </view>
       </view>
@@ -157,7 +157,7 @@ function back() {
         :class="{ 'ws-nav-item--on': tab === n.key }"
         @tap="tab = n.key"
       >
-        <AppIcon :name="n.icon" :size="22" :color="tab === n.key ? '#C41E3A' : '#9A8C7E'" />
+        <AppIcon :name="n.icon" :size="44" :color="tab === n.key ? '#C41E3A' : '#9A8C7E'" />
         <text class="ws-nav-label">{{ n.label }}</text>
       </view>
     </view>
@@ -181,8 +181,8 @@ function back() {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  height: 96rpx;
-  padding: 0 24rpx;
+  height: 108rpx;
+  padding: 0 28rpx;
 }
 
 .ws-back,
@@ -191,17 +191,17 @@ function back() {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   flex-shrink: 0;
 }
 
 .ws-dot {
   position: absolute;
-  top: 12rpx;
-  right: 12rpx;
-  width: 12rpx;
-  height: 12rpx;
+  top: 14rpx;
+  right: 14rpx;
+  width: 14rpx;
+  height: 14rpx;
   border-radius: 50%;
   background: #C41E3A;
 }
@@ -214,15 +214,15 @@ function back() {
 }
 
 .ws-title {
-  font-size: 32rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: #3A2A1E;
   line-height: 1.2;
 }
 
 .ws-subtitle {
-  margin-top: 2rpx;
-  font-size: 22rpx;
+  margin-top: 4rpx;
+  font-size: 24rpx;
   color: #9A8C7E;
 }
 
@@ -237,6 +237,7 @@ function back() {
   background: #FDFAF4;
   border-top: 1rpx solid rgba(58, 42, 30, 0.08);
   padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -4rpx 20rpx rgba(58, 42, 30, 0.05);
 }
 
 .ws-nav-item {
@@ -245,12 +246,14 @@ function back() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4rpx;
-  height: 100rpx;
+  gap: 6rpx;
+  min-height: 112rpx;
+  padding: 8rpx 0 6rpx;
+  box-sizing: border-box;
 }
 
 .ws-nav-label {
-  font-size: 20rpx;
+  font-size: 22rpx;
   color: #9A8C7E;
 }
 
