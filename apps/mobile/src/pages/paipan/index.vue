@@ -341,7 +341,7 @@ onShow(() => { favIds.value = getFavorites() })
               @tap="navigateTo(tool.href)"
             >
               <view class="medical-preview-icon">
-                <tool-icon :icon-id="tool.iconId" :size="64" />
+                <tool-icon :icon-id="tool.iconId" :size="88" />
                 <view class="preview-dot" />
               </view>
               <text class="medical-preview-name">{{ tool.name }}</text>
