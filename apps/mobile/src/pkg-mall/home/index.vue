@@ -11,19 +11,53 @@ import MarketingZone from '@/pkg-mall/components/marketing-zone.vue'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { shopApi } from '@/lib/shop-data'
-import type { MallQuickEntry, MallBanner, MallLive, MallCategory } from '@/lib/shop-data'
+import type { MallQuickEntry, MallLive, MallCategory } from '@/lib/shop-data'
 import type { ProductCardData } from '@/lib/card-utils'
 
 const loading = ref(true)
 const error = ref(false)
 const mallQuickEntries = ref<MallQuickEntry[]>([])
-const mallBanners = ref<MallBanner[]>([])
 const mallCommerceLives = ref<MallLive[]>([])
 const mallCategories = ref<MallCategory[]>([])
 const mallProducts = ref<ProductCardData[]>([])
 const cartCount = ref(0)
 
-const bannerIndex = ref(0)
+const couponCount = computed(() => {
+  const count = Number(mallQuickEntries.value.find((entry) => entry.id === 'coupons')?.badge || 0)
+  return Number.isFinite(count) ? count : 0
+})
+
+const activePromotion = computed(() => {
+  const flashSale = mallQuickEntries.value.find((entry) => entry.id === 'seckill' && entry.state)
+  if (flashSale) {
+    return {
+      eyebrow: '限时专场',
+      title: '秒杀进行中',
+      subtitle: '好物限时选',
+      icon: 'zap',
+      href: flashSale.href,
+    }
+  }
+
+  const groupBuy = mallQuickEntries.value.find((entry) => entry.id === 'group' && entry.state)
+  if (groupBuy) {
+    return {
+      eyebrow: '多人同享',
+      title: '拼团进行中',
+      subtitle: '邀同好一起选',
+      icon: 'users',
+      href: groupBuy.href,
+    }
+  }
+
+  return {
+    eyebrow: '本周主题',
+    title: '典籍文房',
+    subtitle: '按品类慢慢逛',
+    icon: 'book-open',
+    href: '/mall/category',
+  }
+})
 
 async function fetchData() {
   loading.value = true
@@ -31,7 +65,6 @@ async function fetchData() {
   try {
     const data = await shopApi.getMallHome()
     mallQuickEntries.value = data.quickEntries || []
-    mallBanners.value = data.banners || []
     mallCommerceLives.value = data.lives || []
     mallCategories.value = data.categories || []
     mallProducts.value = data.products || []
@@ -70,8 +103,6 @@ onPullDownRefresh(async () => {
     uni.stopPullDownRefresh()
   }
 })
-
-function onBannerChange(e: { detail: { current: number } }) { bannerIndex.value = e.detail.current }
 
 function goCart() { navigateTo('/shop/cart') }
 function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `/mall/category?cat=${id}`) }
@@ -142,18 +173,47 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
         </scroll-view>
       </view>
 
-      <!-- Banner 轮播（空数据时整块隐藏，不留 220rpx 空白块） -->
-      <view v-if="mallBanners.length" class="banner">
-        <swiper class="banner-swiper" circular autoplay :interval="4000" :duration="500" @change="onBannerChange">
-          <swiper-item v-for="b in mallBanners" :key="b.id">
-            <view class="banner-slide" :style="{ background: `linear-gradient(90deg, ${b.from}, ${b.to})` }" @tap="navigateTo(b.href)">
-              <text class="banner-title">{{ b.title }}</text>
-              <text class="banner-sub">{{ b.subtitle }}</text>
+      <!-- 国学特色促销会场：常驻主题、真实权益、实时活动 -->
+      <view class="promo-hall">
+        <view class="promo-main tap-press" @tap="navigateTo('/mall/category')">
+          <view class="promo-main-copy">
+            <text class="promo-kicker">本期雅集</text>
+            <text class="promo-title">国学好物季</text>
+            <text class="promo-sub">典籍 · 文房 · 茶器 · 国风周边</text>
+            <view class="promo-cta">
+              <text class="promo-cta-text">进入专题会场</text>
+              <AppIcon name="chevron-right" :size="20" color="#6d281f" />
             </view>
-          </swiper-item>
-        </swiper>
-        <view class="dots">
-          <view v-for="(b, i) in mallBanners" :key="b.id" class="dot" :class="i === bannerIndex ? 'dot-on' : ''" />
+          </view>
+          <view class="promo-seal" aria-hidden="true">
+            <text class="promo-seal-char">雅</text>
+            <text class="promo-seal-char">集</text>
+            <text class="promo-seal-mini">开市</text>
+          </view>
+          <view class="promo-orbit promo-orbit-one" />
+          <view class="promo-orbit promo-orbit-two" />
+        </view>
+
+        <view class="promo-side">
+          <view class="promo-tile promo-coupon tap-press" @tap="navigateTo('/shop/coupons')">
+            <view class="promo-tile-head">
+              <view class="promo-tile-icon"><AppIcon name="ticket" :size="28" color="#9d3b31" /></view>
+              <text class="promo-count">{{ couponCount > 0 ? `${couponCount} 张可领` : '查看权益' }}</text>
+            </view>
+            <text class="promo-tile-title">先领券再逛</text>
+            <text class="promo-tile-sub">可用优惠集中看</text>
+          </view>
+
+          <view class="promo-tile promo-active tap-press" @tap="navigateTo(activePromotion.href)">
+            <view class="promo-tile-head">
+              <view class="promo-tile-icon promo-tile-icon-dark">
+                <AppIcon :name="activePromotion.icon" :size="28" color="#e9c98e" />
+              </view>
+              <text class="promo-active-state">{{ activePromotion.eyebrow }}</text>
+            </view>
+            <text class="promo-tile-title promo-tile-title-light">{{ activePromotion.title }}</text>
+            <text class="promo-tile-sub promo-tile-sub-light">{{ activePromotion.subtitle }}</text>
+          </view>
         </view>
       </view>
 
@@ -240,14 +300,150 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 .live-rail-inner { display: flex; gap: 20rpx; padding-bottom: 8rpx; }
 .live-cell { flex-shrink: 0; width: 240rpx; }
 
-/* banner */
-.banner-swiper { width: 100%; height: 220rpx; border-radius: 24rpx; overflow: hidden; }
-.banner-slide { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 32rpx; }
-.banner-title { color: #fff; font-size: 40rpx; font-weight: 700; }
-.banner-sub { color: rgba(255,255,255,0.8); font-size: 26rpx; margin-top: 8rpx; }
-.dots { display: flex; justify-content: center; gap: 12rpx; margin-top: 20rpx; }
-.dot { width: 12rpx; height: 12rpx; border-radius: 999rpx; background: rgba(0,0,0,0.18); transition: all 0.2s; }
-.dot-on { width: 32rpx; background: var(--brand); }
+/* 国学好物雅集：主会场 + 两个可行动权益入口 */
+.promo-hall {
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr);
+  gap: 14rpx;
+  height: 286rpx;
+}
+.promo-main {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding: 28rpx;
+  border: 2rpx solid rgba(239, 205, 147, 0.2);
+  border-radius: 28rpx 10rpx 28rpx 28rpx;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05), transparent 42%),
+    linear-gradient(142deg, #a63d32 0%, #79251f 60%, #5b1e1b 100%);
+  box-shadow: 0 14rpx 32rpx rgba(111, 38, 31, 0.18);
+}
+.promo-main::before,
+.promo-main::after {
+  content: '';
+  position: absolute;
+  right: -10rpx;
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: var(--bg-paper);
+}
+.promo-main::before { top: 48rpx; }
+.promo-main::after { bottom: 48rpx; }
+.promo-main-copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.promo-kicker {
+  padding: 4rpx 12rpx;
+  border: 1rpx solid rgba(250, 226, 178, 0.55);
+  border-radius: 999rpx;
+  color: #f6dfb2;
+  font-size: 18rpx;
+  letter-spacing: 0.14em;
+}
+.promo-title {
+  margin-top: 16rpx;
+  color: #fff9ed;
+  font-family: var(--font-serif);
+  font-size: 42rpx;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+.promo-sub {
+  margin-top: 8rpx;
+  color: rgba(255, 242, 220, 0.74);
+  font-size: 20rpx;
+  white-space: nowrap;
+}
+.promo-cta {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  margin-top: 22rpx;
+  padding: 10rpx 16rpx;
+  border-radius: 999rpx;
+  background: #f3d59d;
+}
+.promo-cta-text { color: #6d281f; font-size: 20rpx; font-weight: 700; }
+.promo-seal {
+  position: absolute;
+  right: 18rpx;
+  bottom: 17rpx;
+  z-index: 2;
+  width: 78rpx;
+  height: 78rpx;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  place-items: center;
+  padding: 8rpx;
+  border: 3rpx double rgba(255, 230, 182, 0.86);
+  color: #f7e4bc;
+  transform: rotate(-5deg);
+}
+.promo-seal-char { font-family: var(--font-serif); font-size: 25rpx; font-weight: 700; line-height: 1; }
+.promo-seal-mini { grid-column: 1 / -1; margin-top: -4rpx; font-size: 13rpx; letter-spacing: 0.35em; }
+.promo-orbit { position: absolute; border: 1rpx solid rgba(255, 226, 177, 0.12); border-radius: 50%; }
+.promo-orbit-one { width: 180rpx; height: 180rpx; right: -54rpx; top: -42rpx; }
+.promo-orbit-two { width: 112rpx; height: 112rpx; right: -20rpx; top: -8rpx; }
+
+.promo-side {
+  display: grid;
+  grid-template-rows: repeat(2, 1fr);
+  gap: 14rpx;
+  min-width: 0;
+}
+.promo-tile {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding: 18rpx 20rpx;
+  border-radius: 10rpx 24rpx 24rpx 10rpx;
+}
+.promo-coupon {
+  border: 1rpx solid #ead8bb;
+  background: radial-gradient(circle at 100% 0, rgba(187, 58, 47, 0.1), transparent 48%), #fff8e9;
+}
+.promo-active {
+  border: 1rpx solid rgba(209, 173, 112, 0.25);
+  background: linear-gradient(135deg, rgba(224, 190, 128, 0.12), transparent 55%), #2f3434;
+}
+.promo-tile-head { display: flex; align-items: center; justify-content: space-between; gap: 8rpx; }
+.promo-tile-icon {
+  width: 46rpx;
+  height: 46rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14rpx;
+  background: #f4dfbe;
+}
+.promo-tile-icon-dark { background: rgba(248, 224, 178, 0.12); }
+.promo-count { color: #9d3b31; font-size: 17rpx; font-weight: 600; white-space: nowrap; }
+.promo-active-state { color: #e9c98e; font-size: 17rpx; white-space: nowrap; }
+.promo-tile-title {
+  display: block;
+  margin-top: 8rpx;
+  color: #5f2a25;
+  font-family: var(--font-serif);
+  font-size: 25rpx;
+  font-weight: 700;
+}
+.promo-tile-sub { display: block; margin-top: 2rpx; color: #9a7a62; font-size: 17rpx; white-space: nowrap; }
+.promo-tile-title-light { color: #fff4dd; }
+.promo-tile-sub-light { color: rgba(255, 239, 209, 0.58); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .promo-seal { animation: promo-seal-arrive 520ms cubic-bezier(.2, .75, .2, 1) both; }
+}
+@keyframes promo-seal-arrive {
+  from { opacity: 0; transform: rotate(-12deg) scale(1.22); }
+  to { opacity: 1; transform: rotate(-5deg) scale(1); }
+}
 
 /* 分类 */
 .cat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24rpx; }
