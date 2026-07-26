@@ -124,6 +124,7 @@ export interface ArticleListItem {
   /** 文章专区资讯流缩略图，按封面、正文图片顺序最多返回三张。 */
   images?: string[]
   excerpt?: string | null
+  layout?: ArticleLayout
   tags: string[]
   viewCount: number
   likeCount: number
@@ -132,6 +133,8 @@ export interface ArticleListItem {
   user?: { id: string; nickname: string; avatar?: string | null } | null
   circle?: { id: string; name: string } | null
 }
+
+export type ArticleLayout = 'AUTO' | 'FEATURE' | 'SINGLE' | 'GALLERY' | 'COLUMN'
 
 /** 热门标签（对齐后端 topicTag 表） */
 export interface HotTag {
@@ -146,6 +149,7 @@ export interface DraftListItem {
   title: string
   cover?: string | null
   excerpt?: string | null
+  layout?: ArticleLayout
   updatedAt: string
 }
 
@@ -190,6 +194,9 @@ export interface ArticleDetail {
   id: string
   title: string
   cover?: string | null
+  excerpt?: string | null
+  layout: ArticleLayout
+  visibility?: 'CIRCLE_ONLY' | 'PLATFORM'
   tags: string[]
   author: { id: string; name: string; avatar: string }
   circleId: string
@@ -229,6 +236,9 @@ interface RawArticleDetail {
   id?: string | number
   title?: string
   cover?: string | null
+  excerpt?: string | null
+  layout?: string | null
+  visibility?: string | null
   tags?: string[]
   user?: RawUserLite | null
   userId?: string
@@ -303,6 +313,11 @@ function adaptArticleDetail(a: RawArticleDetail): ArticleDetail {
     id: String(a?.id || ''),
     title: a?.title || '',
     cover: a?.cover ?? null,
+    excerpt: a?.excerpt ?? null,
+    layout: (['AUTO', 'FEATURE', 'SINGLE', 'GALLERY', 'COLUMN'].includes(a?.layout || '')
+      ? a?.layout
+      : 'AUTO') as ArticleLayout,
+    visibility: a?.visibility === 'PLATFORM' ? 'PLATFORM' : 'CIRCLE_ONLY',
     tags: Array.isArray(a?.tags) ? a.tags : [],
     author: {
       id: String(a?.user?.id || a?.userId || ''),
@@ -364,11 +379,11 @@ export const articleApi = {
   },
 
   /** 创建文章（圈子内） POST /articles/circles/:circleId（visibility 开放范围：CIRCLE_ONLY 默认/PLATFORM 全平台需平台审核·文章是圈子对外窗口，全平台为推荐引导项） */
-  create: (circleId: string, body: { title: string; content: string; cover?: string; excerpt?: string; tags: string[]; isPushHome?: boolean; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
+  create: (circleId: string, body: { title: string; content: string; cover?: string; excerpt?: string; layout?: ArticleLayout; tags: string[]; isPushHome?: boolean; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
     apiPost<{ id: string }>(`/articles/circles/${circleId}`, body),
 
   /** 保存草稿 POST /articles/drafts */
-  saveDraft: (body: { title: string; content: string; cover?: string; excerpt?: string; tags: string[]; circleId?: string }) =>
+  saveDraft: (body: { title: string; content: string; cover?: string; excerpt?: string; layout?: ArticleLayout; tags: string[]; circleId?: string; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
     apiPost<{ id: string }>('/articles/drafts', body),
 
   /** 我的草稿列表 GET /articles/drafts?page=&pageSize=（后端 auditStatus=DRAFT 且归属当前用户） */
@@ -378,7 +393,7 @@ export const articleApi = {
   },
 
   /** 更新草稿 PUT /articles/drafts/:id（续编保存回写，避免每次续编生成新草稿） */
-  updateDraft: (id: string, body: { title?: string; content?: string; cover?: string; excerpt?: string; tags?: string[] }) =>
+  updateDraft: (id: string, body: { title?: string; content?: string; cover?: string; excerpt?: string; layout?: ArticleLayout; tags?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }) =>
     apiPut<{ id: string }>(`/articles/drafts/${id}`, body),
 
   /** 删除草稿 DELETE /articles/drafts/:id */

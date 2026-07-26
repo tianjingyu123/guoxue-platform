@@ -77,6 +77,7 @@ export class ArticleService {
         content: dto.content,
         cover: dto.cover,
         excerpt: dto.excerpt,
+        layout: dto.layout ?? "AUTO",
         tags: dto.tags,
         isPushHome: dto.isPushHome ?? false,
         stationId: dto.stationId || undefined,
@@ -196,7 +197,7 @@ export class ArticleService {
     const { circleId, tag, isPushHome, auditStatus, keyword, stationId, isAdmin } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const filterHash = `${circleId ?? ""}:${tag ?? ""}:${isPushHome ?? ""}:${auditStatus ?? ""}`;
-    const cacheKey = `articles:list:v2:${page}:${pageSize}:${filterHash}`;
+    const cacheKey = `articles:list:v3:${page}:${pageSize}:${filterHash}`;
 
     // 管理端（isAdmin）不走缓存：审核工作台需实时数据，且避免与 C 端共享缓存键互相污染
     if (!isAdmin) {
@@ -224,7 +225,7 @@ export class ArticleService {
     if (stationId) where.stationId = stationId;
 
     const select = {
-      id: true, title: true, cover: true, content: true, excerpt: true, tags: true,
+      id: true, title: true, cover: true, content: true, excerpt: true, layout: true, tags: true,
       viewCount: true, likeCount: true, collectCount: true,
       createdAt: true,
       user: { select: { id: true, nickname: true, avatar: true } },
@@ -271,7 +272,7 @@ export class ArticleService {
       this.prisma.article.findMany({
         where,
         select: {
-          id: true, title: true, cover: true, excerpt: true, tags: true,
+          id: true, title: true, cover: true, excerpt: true, layout: true, tags: true,
           viewCount: true, likeCount: true, collectCount: true,
           createdAt: true,
           user: { select: { id: true, nickname: true, avatar: true } },
@@ -388,7 +389,7 @@ export class ArticleService {
     const [items, total] = await Promise.all([
       this.prisma.article.findMany({
         where,
-        select: { id: true, title: true, cover: true, excerpt: true, updatedAt: true },
+        select: { id: true, title: true, cover: true, excerpt: true, layout: true, updatedAt: true },
         skip,
         take: pageSize,
         orderBy: { updatedAt: "desc" },
@@ -413,7 +414,9 @@ export class ArticleService {
         content: dto.content,
         cover: dto.cover,
         excerpt: dto.excerpt,
+        layout: dto.layout ?? "AUTO",
         tags: dto.tags,
+        visibility: dto.visibility ?? "CIRCLE_ONLY",
         auditStatus: "DRAFT",
       },
     });

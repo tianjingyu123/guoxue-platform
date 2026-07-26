@@ -18,6 +18,10 @@ export class CreateArticleDto {
   @IsOptional()
   excerpt?: string;
 
+  @IsIn(["AUTO", "FEATURE", "SINGLE", "GALLERY", "COLUMN"])
+  @IsOptional()
+  layout?: "AUTO" | "FEATURE" | "SINGLE" | "GALLERY" | "COLUMN";
+
   @IsArray()
   @IsString({ each: true })
   tags: string[];
@@ -55,6 +59,14 @@ export class UpdateArticleDto {
   @IsString()
   @IsOptional()
   excerpt?: string;
+
+  @IsIn(["AUTO", "FEATURE", "SINGLE", "GALLERY", "COLUMN"])
+  @IsOptional()
+  layout?: "AUTO" | "FEATURE" | "SINGLE" | "GALLERY" | "COLUMN";
+
+  @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  @IsOptional()
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
 
   @IsArray()
   @IsOptional()

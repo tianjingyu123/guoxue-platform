@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="700" viewBox="0 0 900 700">
+  <rect width="900" height="700" fill="#d6c49d"/>
+  <path d="M90 560C220 300 345 170 590 80c-55 160-26 271 111 362 59 39 94 89 109 168H90z" fill="#244b49"/>
+  <g fill="none" stroke="#c59e51" stroke-width="10"><circle cx="440" cy="330" r="110"/><path d="M330 330h220M440 220v220M362 252l156 156M518 252L362 408"/></g>
+  <text x="78" y="92" fill="#3e3b32" font-size="30" letter-spacing="6">纹样观察 01</text>
+</svg>

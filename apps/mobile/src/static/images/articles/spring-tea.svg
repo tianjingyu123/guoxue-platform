@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#193f46"/><stop offset="1" stop-color="#d7c18d"/></linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="32"/></filter>
+  </defs>
+  <rect width="1280" height="800" fill="url(#bg)"/>
+  <circle cx="1010" cy="180" r="126" fill="#f2dda7" opacity=".54" filter="url(#blur)"/>
+  <path d="M0 560 Q250 430 470 570 T900 530 T1280 500 V800 H0Z" fill="#102d31" opacity=".82"/>
+  <path d="M0 640 Q250 525 500 650 T1010 600 T1280 580 V800 H0Z" fill="#0a2427"/>
+  <g fill="none" stroke="#e7d7ad" stroke-width="8" opacity=".78">
+    <path d="M780 440c100-80 250-75 350 5"/>
+    <path d="M820 455h245c-8 96-55 155-122 155s-113-59-123-155z"/>
+    <path d="M1060 480c74 2 93 73 25 106"/>
+  </g>
+  <g fill="#f4ead1">
+    <circle cx="274" cy="220" r="5"/><circle cx="310" cy="188" r="4"/><circle cx="340" cy="239" r="3"/>
+  </g>
+  <text x="100" y="170" fill="#f7f1df" font-size="36" letter-spacing="12" font-family="serif">二十四节气 · 清明</text>
+  <text x="95" y="275" fill="#fff" font-size="82" font-weight="700" font-family="serif">一盏春茶里的中国时间</text>
+  <text x="100" y="342" fill="#e7dcc3" font-size="30" letter-spacing="4" font-family="sans-serif">从采青、候火到待客之礼</text>
+</svg>

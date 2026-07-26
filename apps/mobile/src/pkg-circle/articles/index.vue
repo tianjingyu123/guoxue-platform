@@ -94,11 +94,28 @@
             v-for="article in displayArticles"
             :key="article.id"
             class="article-card"
-            :class="`article-card--${articleLayout(article)}`"
+            :class="`article-card--${resolvedLayout(article).toLowerCase()}`"
             data-content-card
             @tap="navigateToContent(`/articles/${article.id}`, $event)"
           >
-            <view class="article-main">
+            <view v-if="resolvedLayout(article) === 'FEATURE'" class="article-feature-cover">
+              <smart-cover
+                :src="articleImages(article)[0]"
+                :title="article.title"
+                type="default"
+              />
+              <view class="article-feature-shade" />
+              <view class="article-feature-label">
+                <text>本期策划</text>
+              </view>
+              <view class="article-feature-copy">
+                <text v-if="article.tags?.[0]" class="article-feature-kicker">{{ article.tags[0] }}</text>
+                <text class="article-feature-title">{{ article.title }}</text>
+                <text v-if="article.excerpt" class="article-feature-excerpt">{{ article.excerpt }}</text>
+              </view>
+            </view>
+
+            <view v-else class="article-main">
               <view class="article-copy">
                 <text v-if="article.tags?.[0]" class="article-kicker">{{ article.tags[0] }}</text>
                 <view class="article-title-row">
@@ -108,7 +125,7 @@
               </view>
 
               <!-- 单图：头条式右侧横图。 -->
-              <view v-if="articleImages(article).length === 1" class="article-cover-single">
+              <view v-if="resolvedLayout(article) === 'SINGLE' || resolvedLayout(article) === 'COLUMN'" class="article-cover-single">
                 <smart-cover
                   :src="articleImages(article)[0]"
                   :title="article.title"
@@ -119,7 +136,7 @@
 
             <!-- 多图：按真实图片数量平铺，两图与三图均有独立比例。 -->
             <view
-              v-if="articleImages(article).length >= 2"
+              v-if="resolvedLayout(article) === 'GALLERY'"
               class="article-gallery"
               :class="`article-gallery--${Math.min(articleImages(article).length, 3)}`"
             >
@@ -135,7 +152,8 @@
             <view class="article-foot">
               <text class="article-source">{{ article.user?.nickname || article.circle?.name || '国学平台' }}</text>
               <text class="article-meta">{{ formatCount(article.viewCount) }} 阅读</text>
-              <text class="article-meta">{{ formatDate(article.createdAt) }}</text>
+              <text class="article-meta">{{ readingMinutes(article.excerpt) }} 分钟读完</text>
+              <text class="article-date">{{ formatDate(article.createdAt) }}</text>
             </view>
           </view>
 
@@ -280,11 +298,16 @@ function articleImages(article: ArticleListItem): string[] {
     .slice(0, 3)
 }
 
-function articleLayout(article: ArticleListItem): 'text' | 'single' | 'multi' {
+function resolvedLayout(article: ArticleListItem): 'FEATURE' | 'SINGLE' | 'GALLERY' | 'COLUMN' {
+  if (article.layout && article.layout !== 'AUTO') return article.layout
   const count = articleImages(article).length
-  if (count === 0) return 'text'
-  if (count === 1) return 'single'
-  return 'multi'
+  if (count >= 3) return 'GALLERY'
+  if (count === 2) return 'FEATURE'
+  return 'SINGLE'
+}
+
+function readingMinutes(excerpt?: string | null) {
+  return Math.max(3, Math.min(12, Math.ceil((excerpt?.length || 80) / 55) + 2))
 }
 
 function formatCount(value: number) {
@@ -492,14 +515,90 @@ function formatDate(dateStr: string) {
   color: #fff;
 }
 .article-card {
-  padding: 30rpx 4rpx 26rpx;
+  position: relative;
+  padding: 32rpx 4rpx 26rpx;
   background: #fff;
   border-bottom: 1rpx solid #e9e6e1;
 }
+.article-card::before {
+  content: "";
+  position: absolute;
+  left: 4rpx;
+  top: 34rpx;
+  width: 3rpx;
+  height: 34rpx;
+  border-radius: 999rpx;
+  background: #c41e3a;
+  opacity: 0;
+}
+.article-card--column {
+  padding-left: 24rpx;
+}
+.article-card--column::before { opacity: 1; }
 .article-main {
   display: flex;
   align-items: stretch;
   gap: 24rpx;
+}
+.article-feature-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 20rpx;
+  background: #202b34;
+  box-shadow: 0 14rpx 34rpx rgba(29, 36, 42, 0.14);
+}
+.article-feature-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(15, 24, 31, 0.02) 26%, rgba(15, 24, 31, 0.9) 100%);
+}
+.article-feature-label {
+  position: absolute;
+  left: 20rpx;
+  top: 20rpx;
+  padding: 7rpx 14rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.56);
+  border-radius: 999rpx;
+  background: rgba(27, 35, 42, 0.46);
+  backdrop-filter: blur(10rpx);
+}
+.article-feature-label text {
+  color: #fff;
+  font-size: 20rpx;
+  letter-spacing: 2rpx;
+}
+.article-feature-copy {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 24rpx;
+  display: flex;
+  flex-direction: column;
+}
+.article-feature-kicker {
+  margin-bottom: 8rpx;
+  color: #efc879;
+  font-size: 21rpx;
+  letter-spacing: 3rpx;
+}
+.article-feature-title {
+  color: #fff;
+  font-family: var(--font-serif, "Songti SC", "STSong", serif);
+  font-size: 38rpx;
+  font-weight: 700;
+  line-height: 1.34;
+  text-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.24);
+}
+.article-feature-excerpt {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 23rpx;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .article-copy {
   flex: 1;
@@ -554,8 +653,20 @@ function formatDate(dateStr: string) {
 .article-card--single .article-excerpt {
   -webkit-line-clamp: 1;
 }
-.article-card--text .article-excerpt {
+.article-card--column .article-excerpt {
   -webkit-line-clamp: 3;
+}
+.article-card--column .article-cover-single {
+  width: 176rpx;
+  height: 204rpx;
+  border-radius: 8rpx 18rpx 18rpx 8rpx;
+}
+.article-card--column .article-kicker {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: #8a6f3d;
+  letter-spacing: 3rpx;
 }
 .article-gallery {
   display: flex;
@@ -592,6 +703,12 @@ function formatDate(dateStr: string) {
 .article-meta {
   font-size: 22rpx;
   color: #a09b94;
+  white-space: nowrap;
+}
+.article-date {
+  margin-left: auto;
+  font-size: 22rpx;
+  color: #aaa49d;
   white-space: nowrap;
 }
 .load-more {

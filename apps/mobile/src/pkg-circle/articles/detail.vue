@@ -36,6 +36,17 @@ const products = ref<ArticleProductCard[]>([])
 const showProducts = ref(false)
 // 内联推荐卡排除 PRODUCT（商品统一走带货抽屉·避免与抽屉重复）
 const inlineRecs = computed(() => (article.value?.recommends || []).filter(c => c.recommendType !== 'PRODUCT'))
+const displayLayout = computed(() => {
+  const layout = article.value?.layout || 'AUTO'
+  if (layout !== 'AUTO') return layout
+  const imageCount = (article.value?.content.match(/<img\b/gi) || []).length
+  if (imageCount >= 3) return 'GALLERY'
+  return article.value?.tags.includes('专栏') ? 'COLUMN' : 'SINGLE'
+})
+const readMinutes = computed(() => {
+  const plain = (article.value?.content || '').replace(/<[^>]+>/g, '')
+  return Math.max(3, Math.ceil(plain.length / 420))
+})
 
 // 互动状态
 const isFollowed = ref(false)
@@ -162,11 +173,11 @@ function focusComment() {
 </script>
 
 <template>
-  <view class="ad">
+  <view class="ad" :class="`ad--${displayLayout.toLowerCase()}`">
     <!-- 顶栏：sticky 毛玻璃（返回 + 文章 + 分享） -->
     <view class="ad-topbar">
       <view class="ad-top-btn ad-top-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
-      <text class="ad-top-title">文章</text>
+      <text class="ad-top-title">{{ article?.tags?.[0] || '文章' }}</text>
       <view class="ad-top-actions">
         <view class="ad-top-btn" aria-label="分享文章" @tap="openShare"><app-icon name="share-2" :size="36" color="#6E6E73" /></view>
         <view class="ad-top-btn" aria-label="举报文章" @tap="reportArticle"><app-icon name="flag" :size="34" color="#6E6E73" /></view>
@@ -201,13 +212,21 @@ function focusComment() {
 
     <scroll-view v-else-if="article" scroll-y scroll-with-animation :scroll-into-view="scrollAnchor" class="ad-body">
       <!-- 封面：16:9 整宽（用 smart-cover：封面URL失效时优雅降级为生成封面，不再留空框） -->
-      <view v-if="article.cover" class="ad-cover">
+      <view v-if="article.cover && displayLayout === 'FEATURE'" class="ad-cover ad-cover--feature">
         <smart-cover :src="article.cover" :title="article.title" type="default" />
+        <view class="ad-cover-shade" />
+        <text class="ad-cover-mark">REBUGX · EDITORIAL</text>
       </view>
 
       <!-- 标题 + 作者元信息 -->
       <view class="ad-head">
+        <view class="ad-rubric">
+          <text>{{ displayLayout === 'FEATURE' ? '本期策划' : displayLayout === 'GALLERY' ? '图像志' : displayLayout === 'COLUMN' ? '国学专栏' : '今日阅读' }}</text>
+          <view class="ad-rubric-line" />
+          <text>{{ readMinutes }} 分钟读完</text>
+        </view>
         <text class="ad-title">{{ article.title }}</text>
+        <text v-if="article.excerpt" class="ad-deck">{{ article.excerpt }}</text>
 
         <!-- tags：后端无话题聚合页 → 纯展示不可点（修死链 /topic/:tag） -->
         <view v-if="article.tags.length" class="ad-tags">
@@ -226,6 +245,11 @@ function focusComment() {
             <text class="ad-follow-t" :class="{ on: isFollowed }">{{ isFollowed ? '已关注' : '关注' }}</text>
           </view>
         </view>
+      </view>
+
+      <view v-if="article.cover && displayLayout !== 'FEATURE'" class="ad-cover ad-cover--inline">
+        <smart-cover :src="article.cover" :title="article.title" type="default" />
+        <text v-if="displayLayout === 'GALLERY'" class="ad-cover-caption">首图 · 本文图片均由作者提供</text>
       </view>
 
       <!-- 正文：后端富文本 HTML·17px/1.9 → 34rpx/1.9 -->
@@ -355,7 +379,18 @@ function focusComment() {
 </template>
 
 <style scoped lang="scss">
-.ad { display: flex; flex-direction: column; height: 100vh; background: var(--bg-page, #faf8f5); }
+.ad {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  --article-ink: #20282d;
+  --article-accent: #b5263f;
+  --article-paper: #fbfaf7;
+  background: var(--article-paper);
+}
+.ad--gallery { --article-accent: #176f78; --article-paper: #f7faf9; }
+.ad--column { --article-accent: #8b6534; --article-paper: #fbf8f1; }
+.ad--feature { --article-accent: #b5263f; --article-paper: #f8f6f1; }
 
 /* 顶栏：sticky 毛玻璃 */
 .ad-topbar {
@@ -409,13 +444,91 @@ function focusComment() {
 .ad-body { flex: 1; overflow: hidden; }
 
 /* 封面：16:9 整宽 */
-.ad-cover { width: 100%; aspect-ratio: 16 / 9; display: block; background: var(--bg-warm, #f8f4ec); }
+.ad-cover { position: relative; width: 100%; display: block; background: var(--bg-warm, #f8f4ec); overflow: hidden; }
+.ad-cover--feature { aspect-ratio: 16 / 10; }
+.ad-cover--inline {
+  width: calc(100% - 88rpx);
+  margin: 36rpx 44rpx 0;
+  aspect-ratio: 16 / 9;
+  border-radius: 22rpx;
+  box-shadow: 0 16rpx 38rpx rgba(34, 39, 42, 0.1);
+}
+.ad--column .ad-cover--inline {
+  aspect-ratio: 4 / 3;
+  border-radius: 4rpx;
+  box-shadow: 12rpx 12rpx 0 rgba(139, 101, 52, 0.12);
+}
+.ad-cover-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(17, 25, 30, 0) 52%, rgba(17, 25, 30, 0.74) 100%);
+}
+.ad-cover-mark {
+  position: absolute;
+  left: 32rpx;
+  bottom: 24rpx;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 18rpx;
+  letter-spacing: 3rpx;
+}
+.ad-cover-caption {
+  position: absolute;
+  right: 16rpx;
+  bottom: 14rpx;
+  padding: 6rpx 12rpx;
+  border-radius: 999rpx;
+  background: rgba(18, 27, 32, 0.62);
+  color: #fff;
+  font-size: 18rpx;
+}
 
 /* 标题与元信息 */
 .ad-head { padding: 40rpx 44rpx 0; }
-.ad-title { display: block; font-size: 46rpx; font-weight: 700; line-height: 1.45; color: var(--text-primary, #2c2c2c); }
+.ad-rubric {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-bottom: 18rpx;
+  color: var(--article-accent);
+  font-size: 21rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+.ad-rubric-line {
+  width: 42rpx;
+  height: 2rpx;
+  background: currentColor;
+  opacity: 0.55;
+}
+.ad-title {
+  display: block;
+  font-family: var(--font-serif, "Songti SC", "STSong", serif);
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 1.42;
+  letter-spacing: 1rpx;
+  color: var(--article-ink);
+}
+.ad-deck {
+  display: block;
+  margin-top: 22rpx;
+  padding-left: 22rpx;
+  border-left: 4rpx solid var(--article-accent);
+  color: #625f59;
+  font-size: 28rpx;
+  line-height: 1.75;
+}
+.ad--feature .ad-head {
+  position: relative;
+  margin: -14rpx 20rpx 0;
+  padding: 42rpx 32rpx 0;
+  border-radius: 24rpx 24rpx 0 0;
+  background: var(--article-paper);
+}
+.ad--gallery .ad-title { font-size: 44rpx; }
+.ad--column .ad-head { padding-left: 58rpx; border-left: 8rpx solid rgba(139, 101, 52, 0.3); }
 .ad-tags { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 24rpx; }
-.ad-tag { padding: 4rpx 18rpx; background: var(--bg-warm, #f8f4ec); border-radius: 999rpx; }
+.ad-tag { padding: 4rpx 18rpx; background: rgba(139, 101, 52, 0.09); border-radius: 999rpx; }
 .ad-tag-t { font-size: 22rpx; color: var(--text-tertiary, #999); }
 .ad-meta { display: flex; align-items: center; gap: 20rpx; margin-top: 28rpx; }
 .ad-avatar { width: 72rpx; height: 72rpx; border-radius: 999rpx; flex-shrink: 0; background: var(--bg-warm, #f8f4ec); }
@@ -428,11 +541,16 @@ function focusComment() {
 .ad-follow-t.on { color: var(--text-tertiary, #999); }
 
 /* 正文：17px/1.9 → 34rpx/1.9 */
-.ad-article { padding: 44rpx 44rpx 0; }
+.ad-article {
+  margin-top: 40rpx;
+  padding: 42rpx 44rpx 0;
+  border-top: 1rpx solid rgba(101, 91, 77, 0.13);
+}
 .ad-rich {
   font-size: 34rpx; line-height: 1.9; letter-spacing: 0.4rpx;
-  color: var(--text-primary, #2c2c2c); word-break: break-word;
+  color: #2b2c2c; word-break: break-word;
 }
+.ad--column .ad-rich { font-family: var(--font-serif, "Songti SC", "STSong", serif); line-height: 2; }
 
 /* 内联推荐卡：白卡语言 */
 .ad-recs { padding: 32rpx 32rpx 0; display: flex; flex-direction: column; gap: 20rpx; }

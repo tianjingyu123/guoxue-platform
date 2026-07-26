@@ -43,6 +43,15 @@
         placeholder="请输入标题"
         placeholder-class="ph"
       />
+      <textarea
+        v-if="type === 'article'"
+        v-model="excerpt"
+        class="excerpt-input"
+        maxlength="140"
+        auto-height
+        placeholder="导语（用于文章列表和详情页开篇，建议 40—80 字）"
+        placeholder-class="ph"
+      />
       <!-- @blur/@input 记录光标位（uni-app textarea 事件 detail 带 cursor·H5/MP 均有；拿不到时退化为末尾插入） -->
       <textarea
         v-model="content"
@@ -124,6 +133,40 @@
           <text class="cover-upload-text">{{ coverUploading ? '上传中…' : '上传封面图' }}</text>
         </view>
         <text class="cover-hint">建议 16:9 横图 · 1280×720 以上，也可用底部「封面」AI 生成</text>
+      </view>
+
+      <view v-if="type === 'article'" class="layout-block">
+        <text class="cover-label">文章展示形式</text>
+        <view class="layout-grid">
+          <view
+            v-for="option in layoutOptions"
+            :key="option.value"
+            class="layout-option"
+            :class="{ active: articleLayout === option.value }"
+            @tap="articleLayout = option.value"
+          >
+            <view class="layout-preview" :class="`layout-preview--${option.value.toLowerCase()}`">
+              <i /><i /><i />
+            </view>
+            <text class="layout-name">{{ option.name }}</text>
+            <text class="layout-desc">{{ option.desc }}</text>
+          </view>
+        </view>
+        <text class="cover-hint">“智能匹配”会按正文配图数量自动选择；专题、图集、专栏可手动指定。</text>
+      </view>
+
+      <view v-if="type === 'article'" class="visibility-block">
+        <text class="cover-label">发布范围</text>
+        <view class="visibility-switch">
+          <view :class="{ active: visibility === 'CIRCLE_ONLY' }" @tap="visibility = 'CIRCLE_ONLY'">
+            <text>仅圈内</text>
+            <text class="visibility-desc">圈子成员可见</text>
+          </view>
+          <view :class="{ active: visibility === 'PLATFORM' }" @tap="visibility = 'PLATFORM'">
+            <text>全平台</text>
+            <text class="visibility-desc">审核后进入文章专区</text>
+          </view>
+        </view>
       </view>
 
       <!-- 关联商品（文章带货作者端·可选·上限3件·帖子模式不显示；发布成功后逐件 POST /articles/:id/recommends 挂载） -->
@@ -399,7 +442,7 @@ import { navigateBack } from '@/utils/router'
 import { VOICE } from '@/lib/voice'
 import { circleApi } from '@/lib/circle-data'
 import { circleDetailApi } from '@/lib/circle-detail-data'
-import { articleApi, tagApi, addArticleRecommend, type ProductLibraryItem } from '@/lib/article-data'
+import { articleApi, tagApi, addArticleRecommend, type ProductLibraryItem, type ArticleLayout } from '@/lib/article-data'
 import { publishAssistApi } from '@/pkg-circle/lib/publish-assist-data'
 import CreationAssistDrawer from '@/pkg-circle/components/creation-assist-drawer.vue'
 
@@ -409,8 +452,17 @@ const statusBarHeight = ref(0)
 
 const type = ref<'post' | 'article'>('post')
 const title = ref('')
+const excerpt = ref('')
 const content = ref('')
 const cover = ref('')                        // 封面图：AI 生成的 base64 data url 或本地临时路径
+const articleLayout = ref<ArticleLayout>('AUTO')
+const visibility = ref<'CIRCLE_ONLY' | 'PLATFORM'>('CIRCLE_ONLY')
+const layoutOptions: { value: ArticleLayout; name: string; desc: string }[] = [
+  { value: 'AUTO', name: '智能匹配', desc: '按配图自动编排' },
+  { value: 'FEATURE', name: '专题大图', desc: '适合深度策划' },
+  { value: 'GALLERY', name: '图集叙事', desc: '适合三图以上' },
+  { value: 'COLUMN', name: '专栏文章', desc: '适合观点长文' },
+]
 const images = ref<string[]>([])             // 已上传成功的图片 URL（选图后即传 COS，发布时直接带 URL）
 const attachments = ref<{ name: string; size: number; url: string }[]>([]) // 文件卡附件（≤3 个·COS /upload/file）
 
@@ -513,6 +565,9 @@ async function loadDraft(draftId: string) {
     content.value = parsed.text
     articleImages.value = parsed.images
     cover.value = d.cover || ''
+    excerpt.value = d.excerpt || ''
+    articleLayout.value = d.layout || 'AUTO'
+    visibility.value = d.visibility || 'CIRCLE_ONLY'
     selectedTopics.value = Array.isArray(d.tags) ? d.tags.slice(0, 3) : []
     if (d.circleId) {
       selectedCircle.value = d.circleId
@@ -532,7 +587,7 @@ function restoreLocalDraft() {
     if (!raw) return
     // 缓存结构由本页写入，字段与表单一一对应
     const c = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
-      type?: 'post' | 'article'; title?: string; content?: string; cover?: string
+      type?: 'post' | 'article'; title?: string; content?: string; cover?: string; excerpt?: string; articleLayout?: ArticleLayout; visibility?: 'CIRCLE_ONLY' | 'PLATFORM'
       images?: string[]; articleImages?: string[]
       attachments?: { name: string; size: number; url: string }[]
       selectedCircle?: string | null; selectedTopics?: string[]
@@ -550,6 +605,9 @@ function restoreLocalDraft() {
           title.value = c.title || ''
           content.value = c.content || ''
           cover.value = c.cover || ''
+          excerpt.value = c.excerpt || ''
+          articleLayout.value = c.articleLayout || 'AUTO'
+          visibility.value = c.visibility || 'CIRCLE_ONLY'
           images.value = Array.isArray(c.images) ? c.images : []
           articleImages.value = Array.isArray(c.articleImages) ? c.articleImages : []
           attachments.value = Array.isArray(c.attachments) ? c.attachments : []
@@ -580,6 +638,9 @@ onUnload(() => {
       title: title.value,
       content: content.value,
       cover: cover.value,
+      excerpt: excerpt.value,
+      articleLayout: articleLayout.value,
+      visibility: visibility.value,
       images: images.value,
       articleImages: articleImages.value,
       attachments: attachments.value,
@@ -945,6 +1006,15 @@ function validateBase(): boolean {
   return true
 }
 
+function buildExcerpt(source: string): string {
+  return source
+    .replace(/\[图\d+\]/g, ' ')
+    .replace(/^#{1,3}\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 100)
+}
+
 async function handleSaveDraft() {
   if (saving.value) return
   if (!validateBase()) return
@@ -960,6 +1030,9 @@ async function handleSaveDraft() {
           title: title.value.trim() || '无标题',
           content: articleHtml,
           cover: cover.value || undefined,
+          excerpt: excerpt.value.trim() || buildExcerpt(content.value),
+          layout: articleLayout.value,
+          visibility: visibility.value,
           tags: selectedTopics.value,
         })
       } else {
@@ -967,6 +1040,9 @@ async function handleSaveDraft() {
           title: title.value.trim() || '无标题',
           content: articleHtml,
           cover: cover.value || undefined,
+          excerpt: excerpt.value.trim() || buildExcerpt(content.value),
+          layout: articleLayout.value,
+          visibility: visibility.value,
           tags: selectedTopics.value,
           circleId: selectedCircle.value!,
         })
@@ -1012,6 +1088,9 @@ async function handlePublish() {
           title: title.value.trim(),
           content: articleHtml,
           cover: cover.value || undefined,
+          excerpt: excerpt.value.trim() || buildExcerpt(content.value),
+          layout: articleLayout.value,
+          visibility: visibility.value,
           tags: selectedTopics.value,
         })
         await articleApi.publishDraft(editingDraftId.value)
@@ -1021,6 +1100,9 @@ async function handlePublish() {
           title: title.value.trim(),
           content: articleHtml,
           cover: cover.value || undefined,
+          excerpt: excerpt.value.trim() || buildExcerpt(content.value),
+          layout: articleLayout.value,
+          visibility: visibility.value,
           tags: selectedTopics.value,
         })
         publishedArticleId = res?.id || null
@@ -1116,6 +1198,19 @@ async function handlePublish() {
   font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 32rpx;
+}
+.excerpt-input {
+  width: 100%;
+  min-height: 92rpx;
+  margin: -8rpx 0 24rpx;
+  padding: 20rpx 24rpx;
+  box-sizing: border-box;
+  border-left: 4rpx solid rgba(196, 30, 58, 0.58);
+  border-radius: 0 14rpx 14rpx 0;
+  background: #faf7f1;
+  color: #5e5851;
+  font-size: 26rpx;
+  line-height: 1.65;
 }
 .content-input {
   width: 100%;
@@ -1267,6 +1362,68 @@ async function handlePublish() {
 .cover-upload-text { font-size: 26rpx; color: #8a8a8a; }
 /* 素材尺寸建议（体验标准 V1.0 五·附节） */
 .cover-hint { display: block; font-size: 22rpx; color: #999; margin-top: 12rpx; }
+
+.layout-block { margin-top: 32rpx; }
+.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+.layout-option {
+  padding: 18rpx;
+  border: 2rpx solid #ece6dc;
+  border-radius: 18rpx;
+  background: #fff;
+}
+.layout-option.active {
+  border-color: rgba(196, 30, 58, 0.72);
+  background: #fff8f6;
+  box-shadow: 0 8rpx 24rpx rgba(115, 37, 45, 0.08);
+}
+.layout-preview {
+  height: 68rpx;
+  margin-bottom: 12rpx;
+  padding: 8rpx;
+  border-radius: 10rpx;
+  background: #f1ede6;
+  display: grid;
+  gap: 5rpx;
+}
+.layout-preview i { display: block; border-radius: 3rpx; background: #9e8465; opacity: 0.72; }
+.layout-preview--auto { grid-template-columns: 1.4fr 0.8fr; grid-template-rows: 1fr 1fr; }
+.layout-preview--auto i:first-child { grid-row: 1 / 3; }
+.layout-preview--feature { grid-template-columns: 1fr; grid-template-rows: 2fr 0.45fr 0.35fr; }
+.layout-preview--gallery { grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr; }
+.layout-preview--column { grid-template-columns: 0.12fr 1fr; grid-template-rows: repeat(2, 1fr); }
+.layout-preview--column i:first-child { grid-row: 1 / 3; background: #ba3148; }
+.layout-name { display: block; color: #28231f; font-size: 25rpx; font-weight: 700; }
+.layout-desc { display: block; margin-top: 3rpx; color: #99918a; font-size: 20rpx; }
+.visibility-block { margin-top: 32rpx; }
+.visibility-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+.visibility-switch > view {
+  padding: 20rpx 22rpx;
+  border: 2rpx solid #ece6dc;
+  border-radius: 16rpx;
+  color: #38332f;
+  font-size: 26rpx;
+  font-weight: 650;
+}
+.visibility-switch > view.active {
+  border-color: rgba(196, 30, 58, 0.65);
+  background: #fff7f5;
+  color: #b51f38;
+}
+.visibility-desc {
+  display: block;
+  margin-top: 4rpx;
+  color: #9a938b;
+  font-size: 20rpx;
+  font-weight: 400;
+}
 
 /* 关联商品（文章带货作者端） */
 .product-block { margin-top: 32rpx; }

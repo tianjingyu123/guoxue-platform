@@ -674,6 +674,7 @@ model Article {
   cover          String?
   excerpt        String?
   excerptEn      String? // 英文摘要（国际化预留）
+  layout         String    @default("AUTO") // AUTO / FEATURE / SINGLE / GALLERY / COLUMN，控制专区陈列与详情阅读编排
   tags           String[]
   isPushHome     Boolean   @default(false)
   auditStatus    String    @default("PENDING") // PENDING, APPROVED, REJECTED
