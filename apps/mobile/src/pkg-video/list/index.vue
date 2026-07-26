@@ -456,7 +456,7 @@ function goDetail(id: string, event?: unknown) {
     linear-gradient(180deg, #FBFAF8 0%, var(--vl-paper) 46%, #F8F5F0 100%);
 }
 .vl-header {
-  background: linear-gradient(180deg, rgba(251, 250, 248, 0.98), rgba(251, 250, 248, 0.94));
+  background: #FBFAF8;
   border-bottom: 1rpx solid rgba(35, 27, 45, 0.06);
 }
 .vl-topbar { padding-bottom: 10rpx; }
