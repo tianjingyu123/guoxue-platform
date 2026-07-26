@@ -192,6 +192,17 @@
       </view>
     </view>
 
+    <content-share-sheet
+      v-if="book"
+      :visible="showShareSheet"
+      kind="classic"
+      :title="book.title"
+      :summary="book.aiSummary || `${book.totalChapters} 篇章节，支持原文阅读与 AI 智能伴读。`"
+      :meta="[dynastyLabel, book.author].filter(Boolean).join(' · ')"
+      :url="buildShareUrl()"
+      @close="showShareSheet = false"
+      @poster="openPoster('classic', book.id)"
+    />
   </view>
   </view>
 </template>
@@ -201,8 +212,10 @@ import { ref, computed } from 'vue'
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
+import { goBack as platformGoBack } from '@/utils/router'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import CommentSection from '@/components/comment/comment-section.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, _mockAI_FEATURES, type BookInfo } from '@/lib/classics-data'
@@ -222,6 +235,7 @@ const commentCount = ref(0)
 const commentInputSignal = ref(0)
 const expandedChapters = ref<Set<string>>(new Set())
 const showAllChapters = ref(false)
+const showShareSheet = ref(false)
 
 function openCommentInput() {
   commentInputSignal.value += 1
@@ -286,7 +300,7 @@ onShow(async () => {
 })
 
 // 微信原生分享（好友 / 朋友圈）；古籍封面为生成色块，无图片字段，故省略 cover
-const { toAppMessage, toTimeline } = useShare()
+const { toAppMessage, toTimeline, openPoster } = useShare()
 onShareAppMessage(() => toAppMessage({
   title: book.value?.title || '古籍典藏',
   path: `/classics/${book.value?.id || bookId.value}`,
@@ -306,7 +320,7 @@ function toggleChapter(id: string) {
 }
 
 function goBack() {
-  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
+  platformGoBack()
 }
 /**
  * 顶栏分享（H5 无原生转发面板·照短视频 buildShareUrl/withRef 范式）：
@@ -324,10 +338,7 @@ function buildShareUrl(): string {
   return withRef(`${base}pkg-classics/detail/index?id=${id}`)
 }
 function onShare() {
-  uni.setClipboardData({
-    data: buildShareUrl(),
-    success: () => uni.showToast({ title: '链接已复制，粘贴给好友吧', icon: 'none' }),
-  })
+  showShareSheet.value = true
 }
 function toSharedReading() {
   if (!book.value) return

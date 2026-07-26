@@ -5,6 +5,61 @@ import { initWebVitals } from '@/composables/useWebVitals'
 import { captureRefFromQuery, captureRefFromUrl } from '@/utils/referral'
 import { hydrateBrandConfig } from '@/lib/brand'
 import { beginAuthHandoff, exchangeHandoff } from '@/utils/request'
+import { requestParentContentLayerClose } from '@/utils/content-detail-layer'
+
+type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
+
+/**
+ * H5 统一返回体验：
+ * 1. 内容详情 iframe 的任何 navigateBack 都先通知父页收起，避免跳到空历史；
+ * 2. 从屏幕左缘右滑可返回，避开内容区横向轮播；
+ * 3. 无页面栈时回首页，保证外部深链永远有退路。
+ */
+function installH5BackExperience() {
+  // #ifdef H5
+  const win = window as GxWindow
+  if (win.__gxBackGestureInstalled) return
+  win.__gxBackGestureInstalled = true
+
+  uni.addInterceptor('navigateBack', {
+    invoke() {
+      if (requestParentContentLayerClose()) return false
+      return undefined
+    },
+  })
+
+  let tracking = false
+  let startX = 0
+  let startY = 0
+  let startedAt = 0
+  const onTouchStart = (event: TouchEvent) => {
+    const touch = event.changedTouches[0]
+    tracking = !!touch && touch.clientX <= 26
+    if (!tracking) return
+    startX = touch.clientX
+    startY = touch.clientY
+    startedAt = Date.now()
+  }
+  const onTouchEnd = (event: TouchEvent) => {
+    if (!tracking) return
+    tracking = false
+    const touch = event.changedTouches[0]
+    if (!touch) return
+    const dx = touch.clientX - startX
+    const dy = Math.abs(touch.clientY - startY)
+    const elapsed = Date.now() - startedAt
+    if (dx < 82 || dy > 56 || elapsed > 850) return
+    if (requestParentContentLayerClose()) return
+    const pages = getCurrentPages()
+    if (pages.length > 1) uni.navigateBack({ delta: 1 })
+    else uni.reLaunch({ url: '/pages/index/index' })
+  }
+  const cancel = () => { tracking = false }
+  document.addEventListener('touchstart', onTouchStart, { passive: true })
+  document.addEventListener('touchend', onTouchEnd, { passive: true })
+  document.addEventListener('touchcancel', cancel, { passive: true })
+  // #endif
+}
 
 /** 从启动参数/URL 取一次性握手码（H5 hash 模式兜底解析 location）。 */
 function readHandoffCode(query?: Record<string, unknown>): string {
@@ -49,6 +104,7 @@ onLaunch((options?: { query?: Record<string, unknown> }) => {
     }
   })
   // #endif
+  installH5BackExperience()
   // 无感登录：URL 带一次性握手码（后台跳转发文链接）→ 换取会话，赶在业务请求之前上闩
   try { bootstrapHandoff(options?.query) } catch { /* 不影响启动 */ }
   // 品牌配置水合（租-T0）：从后端拉取站名/标语/主色等，失败静默用内置默认值

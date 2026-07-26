@@ -11,7 +11,7 @@
       <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="navbar__inner">
           <view class="navbar__btn" @tap="goBack">
-            <AppIcon name="x" :size="44" color="#ffffff" />
+            <AppIcon name="x-circle" :size="44" color="#ffffff" />
           </view>
           <text class="navbar__title">{{ typeTitle }}</text>
           <view class="navbar__btn navbar__btn--placeholder" />
@@ -125,14 +125,27 @@
         </view>
       </view>
     </template>
+
+    <ContentShareSheet
+      v-if="posterData"
+      :visible="showShareSheet"
+      :kind="shareKind"
+      :title="posterData.title"
+      :summary="posterData.desc"
+      :meta="[posterData.subtitle, posterData.author].filter(Boolean).join(' · ')"
+      :url="posterData.link"
+      @close="showShareSheet = false"
+      @poster="handleSave"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import BrandSeal from '@/components/common/brand-seal.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import {
   POSTER_THEMES,
   SHARE_TONES,
@@ -144,6 +157,8 @@ import {
 } from '@/pkg-circle/lib/poster-data'
 import { BRAND } from '@/lib/brand'
 import { drawQrToCanvas } from '@/utils/qrcode'
+import { goBack as platformGoBack } from '@/utils/router'
+import { useShare } from '@/composables/useShare'
 
 const statusBarHeight = ref(0)
 const posterType = ref<PosterType>('invite')
@@ -158,6 +173,8 @@ const themeIndex = ref(0)
 const toneIndex = ref(0)
 const isSaving = ref(false)
 const posterTempPath = ref('')
+const showShareSheet = ref(false)
+const { toAppMessage, toTimeline } = useShare()
 
 // canvas 逻辑尺寸（px，比例 3:4）
 const canvasW = 300
@@ -170,6 +187,34 @@ const activeTheme = computed(() => POSTER_THEMES[themeIndex.value])
 const currentTone = computed(() =>
   posterData.value ? SHARE_TONES[toneIndex.value].build(posterData.value.title) : '',
 )
+const shareKind = computed(() => {
+  const kinds = {
+    invite: 'circle',
+    circle: 'circle',
+    post: 'article',
+    article: 'article',
+    live: 'live',
+    product: 'product',
+    course: 'course',
+    classic: 'classic',
+  } as const
+  return kinds[posterType.value]
+})
+const miniSharePath = computed(() => {
+  const id = encodeURIComponent(targetId.value || '')
+  const circle = encodeURIComponent(circleId.value || '')
+  const paths: Record<PosterType, string> = {
+    invite: '/pages/index/index',
+    circle: `/pkg-circle/circles/detail?id=${id}`,
+    post: `/pkg-circle/circles/post?id=${id}&circleId=${circle}`,
+    article: `/pkg-circle/articles/detail?id=${id}`,
+    live: `/pkg-live/watch/index?id=${id}`,
+    product: `/pkg-mall/product/detail?id=${id}`,
+    course: `/pkg-course/detail/index?id=${id}`,
+    classic: `/pkg-classics/detail/index?id=${id}`,
+  }
+  return paths[posterType.value]
+})
 
 onLoad((q) => {
   if (q?.type) posterType.value = q.type as PosterType
@@ -368,7 +413,7 @@ function wrapText(
 }
 
 function goBack() {
-  uni.navigateBack({ delta: 1, fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
+  platformGoBack()
 }
 
 function copyTone() {
@@ -411,18 +456,21 @@ async function handleSave() {
 }
 
 async function handleShare() {
-  // #ifdef MP-WEIXIN
-  uni.showToast({ title: '请点击右上角分享', icon: 'none' })
-  // #endif
-  // #ifndef MP-WEIXIN
-  uni.showActionSheet({
-    itemList: ['保存海报后分享'],
-    success: () => handleSave(),
-    fail: () => {},
-  })
-  // #endif
+  showShareSheet.value = true
   await recordPosterShare(posterType.value, targetId.value, 'share')
 }
+
+onShareAppMessage(() => toAppMessage({
+  title: posterData.value?.title || BRAND.name,
+  summary: posterData.value?.desc,
+  path: miniSharePath.value,
+}))
+
+onShareTimeline(() => toTimeline({
+  title: posterData.value?.title || BRAND.name,
+  summary: posterData.value?.desc,
+  path: miniSharePath.value,
+}))
 
 onMounted(() => {})
 </script>

@@ -13,11 +13,12 @@ import { articleApi } from '@/lib/article-data'
 import { liveApi } from '@/lib/live-data'
 import { shopApi } from '@/lib/shop-data'
 import { courseApi } from '@/lib/course-data'
+import { classicsApi } from '@/lib/classics-data'
 import { apiGet } from '@/utils/request'
 import { getStorage } from '@/utils/storage'
 import { formatPrice } from '@/utils/format'
 
-export type PosterType = 'invite' | 'circle' | 'post' | 'article' | 'live' | 'product' | 'course'
+export type PosterType = 'invite' | 'circle' | 'post' | 'article' | 'live' | 'product' | 'course' | 'classic'
 
 export interface PosterData {
   type: PosterType
@@ -134,6 +135,7 @@ const TYPE_TITLE: Record<PosterType, string> = {
   live: '分享直播',
   product: '分享商品',
   course: '分享课程',
+  classic: '分享古籍',
 }
 
 export function getPosterTypeTitle(type: PosterType): string {
@@ -273,6 +275,27 @@ export async function getPosterData(type: PosterType, targetId?: string, circleI
         qrLabel: '长按识别，查看课程',
         tag: '课程',
         link: h5Link(`pkg-course/detail/index?id=${targetId}`),
+      },
+    }
+  }
+
+  if (type === 'classic') {
+    const result = await classicsApi.detail(targetId)
+    const b = result.book
+    if (!b) throw new Error('古籍内容不存在或已下架')
+    return {
+      code: 200,
+      data: {
+        type: 'classic',
+        title: b.title,
+        subtitle: [b.dynasty, b.author].filter(Boolean).join(' · '),
+        desc: excerpt(b.aiSummary || `${b.totalChapters} 篇章节，支持原文阅读与 AI 智能伴读。`),
+        author: b.author || '',
+        authorAvatar: '',
+        qrcode: '',
+        qrLabel: '长按识别，打开古籍',
+        tag: '古籍',
+        link: h5Link(`pkg-classics/detail/index?id=${targetId}`),
       },
     }
   }

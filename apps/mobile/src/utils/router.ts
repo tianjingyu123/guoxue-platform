@@ -10,7 +10,7 @@
  * 与原型 coming-soon 占位语义一致。
  */
 
-import { tryOpenContentDetailLayer } from '@/utils/content-detail-layer'
+import { requestParentContentLayerClose, tryOpenContentDetailLayer } from '@/utils/content-detail-layer'
 
 const MAIN_TABS = ['/pages/index/index', '/pages/circles/index', '/pages/paipan/index', '/pages/discover/index', '/pages/profile/index']
 
@@ -590,9 +590,13 @@ export function navigateToContent(url: string, source?: unknown) {
 }
 export function redirectTo(url: string) { uni.redirectTo({ url: resolve(url), fail: () => toastComingSoon() }) }
 export function reLaunch(url: string) { uni.reLaunch({ url: resolve(url) }) }
-export function navigateBack(delta = 1) { uni.navigateBack({ delta }) }
+export function navigateBack(delta = 1) {
+  if (requestParentContentLayerClose()) return
+  uni.navigateBack({ delta })
+}
 /** 返回上一页（语义别名，等价 navigateBack；首页无上一页时回首页兜底） */
 export function goBack() {
+  if (requestParentContentLayerClose()) return
   const pages = getCurrentPages()
   if (pages.length > 1) uni.navigateBack({ delta: 1 })
   else uni.reLaunch({ url: '/pages/index/index' })

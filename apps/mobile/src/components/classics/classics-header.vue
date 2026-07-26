@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useAttrs } from 'vue'
+import { goBack as platformGoBack } from '@/utils/router'
+
 withDefaults(defineProps<{
   title: string
   /** 是否显示右侧搜索入口，默认 true */
@@ -14,16 +17,17 @@ const emit = defineEmits<{
   (e: 'back'): void
   (e: 'right'): void
 }>()
+const attrs = useAttrs()
 
 // AppIcon 把颜色嵌入 SVG data URI，CSS 变量在隔离 SVG 中无效，必须用具体色值。
 const iconColor = '#2c2c2c'
 
 function onBack() {
-  emit('back')
-  // 默认返回行为
-  const pages = getCurrentPages()
-  if (pages.length > 1) uni.navigateBack()
-  else uni.switchTab?.({ url: '/pages/index/index' }).catch?.(() => {})
+  if (attrs.onBack) {
+    emit('back')
+    return
+  }
+  platformGoBack()
 }
 
 function goSearch() {

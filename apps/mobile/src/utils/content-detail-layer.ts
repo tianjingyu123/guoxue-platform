@@ -7,6 +7,24 @@
 
 let closeActiveLayer: (() => void) | null = null
 
+const CONTENT_LAYER_CLOSE_MESSAGE = 'gx-content-layer-close'
+
+/** H5 内嵌详情页通知父级收起；普通 H5、小程序、App 返回 false。 */
+export function requestParentContentLayerClose(): boolean {
+  let handled = false
+  // #ifdef H5
+  if (
+    typeof window !== 'undefined'
+    && window.self !== window.top
+    && new URLSearchParams(window.location.search).has('__contentLayer')
+  ) {
+    window.parent.postMessage({ type: CONTENT_LAYER_CLOSE_MESSAGE }, window.location.origin)
+    handled = true
+  }
+  // #endif
+  return handled
+}
+
 function elementLike(value: unknown): HTMLElement | null {
   if (!value || typeof value !== 'object') return null
   const raw = (value as { $el?: unknown }).$el || value
@@ -170,6 +188,10 @@ export function tryOpenContentDetailLayer(target: string, source?: unknown): boo
         100% { transform: translateX(300%); }
       }
       .gx-content-detail-layer iframe { color-scheme: light; }
+      .gx-content-detail-layer > button:focus-visible {
+        outline: 3px solid rgba(196, 30, 58, 0.35) !important;
+        outline-offset: 2px !important;
+      }
       html.gx-content-reader-open .bottom-nav {
         opacity: 0 !important;
         visibility: hidden !important;
@@ -197,31 +219,35 @@ export function tryOpenContentDetailLayer(target: string, source?: unknown): boo
 
   const closeButton = document.createElement('button')
   closeButton.type = 'button'
-  closeButton.setAttribute('aria-label', '关闭内容详情')
-  closeButton.textContent = '×'
+  closeButton.setAttribute('aria-label', '收起内容详情')
+  closeButton.textContent = '‹'
   Object.assign(closeButton.style, {
     position: 'absolute',
     zIndex: '5',
-    left: '12px',
-    top: 'max(12px, env(safe-area-inset-top))',
-    width: '44px',
-    height: '44px',
-    padding: '0 0 3px',
-    border: '1px solid rgba(44, 44, 44, 0.09)',
-    borderRadius: '50%',
+    left: '-13px',
+    top: '50%',
+    width: '42px',
+    height: '62px',
+    padding: '0 0 2px 10px',
+    border: '1px solid rgba(128, 107, 78, 0.18)',
+    borderLeft: '0',
+    borderRadius: '0 22px 22px 0',
     color: '#2C2C2C',
-    background: 'rgba(255, 253, 249, 0.92)',
-    boxShadow: '0 4px 18px rgba(44, 35, 24, 0.12)',
-    fontSize: '31px',
-    fontWeight: '300',
-    lineHeight: '40px',
+    background: 'rgba(255, 253, 249, 0.88)',
+    boxShadow: '4px 2px 18px rgba(44, 35, 24, 0.10)',
+    backdropFilter: 'blur(10px)',
+    fontSize: '34px',
+    fontFamily: 'Georgia, serif',
+    fontWeight: '400',
+    lineHeight: '58px',
     opacity: '0',
-    transform: 'translateY(-8px)',
+    transform: 'translate(-7px, -50%)',
     transition: `opacity ${Math.max(1, Math.round(duration * 0.38))}ms ease, transform ${Math.max(1, Math.round(duration * 0.38))}ms ${easing}`,
     cursor: 'pointer',
   })
 
   let closing = false
+  let historyEntryActive = false
   const cleanup = () => {
     document.documentElement.classList.remove('gx-content-reader-open')
     layer.remove()
@@ -229,7 +255,9 @@ export function tryOpenContentDetailLayer(target: string, source?: unknown): boo
     sourceNode.style.pointerEvents = previousSourcePointerEvents
     document.body.style.overflow = previousBodyOverflow
     document.removeEventListener('keydown', onKeyDown)
-    if (closeActiveLayer === close) closeActiveLayer = null
+    window.removeEventListener('message', onMessage)
+    window.removeEventListener('popstate', onPopState)
+    if (closeActiveLayer === requestClose) closeActiveLayer = null
   }
 
   const close = () => {
@@ -240,7 +268,7 @@ export function tryOpenContentDetailLayer(target: string, source?: unknown): boo
     cardClone.style.opacity = '1'
     frame.style.opacity = '0'
     closeButton.style.opacity = '0'
-    closeButton.style.transform = 'translateY(-8px)'
+    closeButton.style.transform = 'translate(-7px, -50%)'
     loadingLine.style.opacity = '0'
     Object.assign(layer.style, {
       left: `${currentRect.left - currentShellRect.left}px`,
@@ -253,18 +281,45 @@ export function tryOpenContentDetailLayer(target: string, source?: unknown): boo
     window.setTimeout(cleanup, duration + 40)
   }
 
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') close()
+  const requestClose = () => {
+    if (closing) return
+    if (historyEntryActive) {
+      historyEntryActive = false
+      window.history.back()
+      return
+    }
+    close()
   }
 
-  closeButton.addEventListener('click', close)
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape') requestClose()
+  }
+  const onMessage = (event: MessageEvent) => {
+    if (
+      event.origin === window.location.origin
+      && event.source === frame.contentWindow
+      && event.data?.type === CONTENT_LAYER_CLOSE_MESSAGE
+    ) {
+      requestClose()
+    }
+  }
+  const onPopState = () => {
+    historyEntryActive = false
+    close()
+  }
+
+  closeButton.addEventListener('click', requestClose)
   document.addEventListener('keydown', onKeyDown)
+  window.addEventListener('message', onMessage)
+  window.addEventListener('popstate', onPopState)
+  window.history.pushState({ ...(window.history.state || {}), gxContentLayer: true }, '', window.location.href)
+  historyEntryActive = true
   frame.addEventListener('load', () => {
     loadingLine.style.opacity = '0'
     frame.style.opacity = '1'
     cardClone.style.opacity = '0'
-    closeButton.style.opacity = '1'
-    closeButton.style.transform = 'translateY(0)'
+    closeButton.style.opacity = '0.78'
+    closeButton.style.transform = 'translate(0, -50%)'
   }, { once: true })
 
   layer.append(cardClone, frame, loadingLine, closeButton)
@@ -275,7 +330,7 @@ export function tryOpenContentDetailLayer(target: string, source?: unknown): boo
   sourceNode.style.opacity = '0'
   sourceNode.style.pointerEvents = 'none'
   document.body.style.overflow = 'hidden'
-  closeActiveLayer = close
+  closeActiveLayer = requestClose
 
   window.requestAnimationFrame(() => {
     window.requestAnimationFrame(() => {

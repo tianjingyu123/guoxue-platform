@@ -2841,6 +2841,9 @@
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "热卜国学",
     "navigationBarBackgroundColor": "#FAF8F5",
-    "backgroundColor": "#FAF8F5"
+    "backgroundColor": "#FAF8F5",
+    "app-plus": {
+      "popGesture": "close"
+    }
   }
 }
