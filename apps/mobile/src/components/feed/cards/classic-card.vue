@@ -28,9 +28,13 @@ const category = computed(() => {
 })
 const coverLabel = computed(() => dynasty.value || category.value)
 const coverFooter = computed(() => author.value)
-const metaLine = computed(() => (
-  [dynasty.value, author.value, category.value].filter(Boolean).join(' · ') || '经典古籍'
-))
+const summary = computed(() => {
+  const value = (props.item.subtitle || '').replace(/\s+/g, ' ').trim()
+  if (value && value !== props.item.title) return value
+  return category.value
+    ? `从${category.value}原典入手，支持原文研读与智能伴读。`
+    : '支持原文研读、白话译注与智能伴读。'
+})
 </script>
 
 <template>
@@ -49,10 +53,14 @@ const metaLine = computed(() => (
       </view>
     </view>
     <view class="body">
-      <text class="title serif">{{ item.title }}</text>
-      <view class="meta">
-        <text class="name">{{ metaLine }}</text>
-        <text class="hook">AI 智能伴读</text>
+      <text class="summary">{{ summary }}</text>
+      <view class="study-line">
+        <text class="scope">原文精校 · 白话译注</text>
+        <view class="hook">
+          <view class="hook-dot" />
+          <text class="hook-text">AI 伴读</text>
+          <text class="hook-arrow">›</text>
+        </view>
       </view>
     </view>
   </view>
@@ -64,10 +72,30 @@ const metaLine = computed(() => (
 .cov-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .flat-wrap { display: flex; align-items: stretch; justify-content: center; }
 .flat-wrap > :deep(.flat-cover) { width: 100%; }
-.serif { font-family: var(--font-serif, 'STSong', serif); }
-.body { padding: 18rpx 20rpx 22rpx; }
-.title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 28rpx; line-height: 1.45; font-weight: 500; color: #2c2c2c; }
-.meta { margin-top: 16rpx; display: flex; align-items: center; gap: 10rpx; }
-.name { flex: 1; min-width: 0; font-size: 22rpx; color: #9a9184; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.hook { flex-shrink: 0; margin-left: auto; font-size: 22rpx; color: #8a6420; }
+.body { padding: 18rpx 20rpx 20rpx; }
+.summary {
+  display: -webkit-box;
+  min-height: 68rpx;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: #5f584e;
+  font-size: 24rpx;
+  line-height: 1.45;
+}
+.study-line { margin-top: 14rpx; padding-top: 14rpx; border-top: 1rpx solid #eee8dc; display: flex; align-items: center; gap: 10rpx; }
+.scope { flex: 1; min-width: 0; color: #9a9184; font-size: 21rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.hook {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 7rpx 10rpx;
+  border-radius: 999rpx;
+  background: #f6f0e3;
+  color: #7d5b1d;
+}
+.hook-dot { width: 8rpx; height: 8rpx; border-radius: 50%; background: #c89c45; box-shadow: 0 0 0 5rpx rgba(200, 156, 69, .12); }
+.hook-text, .hook-arrow { font-size: 21rpx; line-height: 1; }
+.hook-arrow { margin-top: -1rpx; }
 </style>
