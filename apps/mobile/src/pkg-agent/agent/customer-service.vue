@@ -5,7 +5,7 @@
  */
 import { ref, onMounted } from 'vue'
 import SimpleChat, { type SimpleChatStreamHandlers } from '@/components/agent/simple-chat.vue'
-import { agentApi, csAiApi, type AiHistoryMsg } from '@/lib/agent-data'
+import { agentApi, csAiApi, type AiHistoryMsg, type Recommendation } from '@/lib/agent-data'
 import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 
 const loading = ref(true)
@@ -41,12 +41,17 @@ async function resolveStream(text: string, handlers: SimpleChatStreamHandlers): 
       { question: text, history: history.slice(-8) },
       {
         onChunk: (t) => { acc += t; handlers.appendText(t) },
-        onMeta: (m) => { if (m.disclaimer) handlers.setDisclaimer(m.disclaimer) },
+        onMeta: (m) => {
+          if (m.disclaimer) handlers.setDisclaimer(m.disclaimer)
+          if (m.recommendation) handlers.setRecommendation(m.recommendation as Recommendation)
+        },
       },
     )
   } else {
-    acc = await csAiApi.ask(text, history)
+    const result = await csAiApi.ask(text, history)
+    acc = result.answer
     if (acc) handlers.appendText(acc)
+    if (result.recommendation) handlers.setRecommendation(result.recommendation)
   }
   history.push({ role: 'user', content: text }, { role: 'assistant', content: acc.slice(0, 2000) })
 }

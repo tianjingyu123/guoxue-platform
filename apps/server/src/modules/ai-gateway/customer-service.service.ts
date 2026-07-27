@@ -3,6 +3,7 @@ import { AiGatewayService } from "./ai-gateway.service";
 import { VectorService } from "./vector.service";
 import { AiMessage } from "./adapters/base.adapter";
 import { SystemService } from "../system/system.service";
+import { RecommendationService, type Recommendation } from "../bot/recommendation.service";
 
 interface CustomerServiceFaqEntry {
   category: string;
@@ -80,6 +81,7 @@ const HUMAN_REPLY_PATTERN = /转人工|人工客服|人工协助|无法确认|�
 const SMALL_TALK_PATTERN = /^(你好|您好|在吗|嗨|hello|hi|谢谢|感谢|再见)[！!。,.，\s]*$/i;
 const MAX_FAQ_ENTRIES = 100;
 const MAX_FAQ_CONTEXT = 6000;
+const RECOMMENDATION_BLOCK_RE = /投诉|举报|退款|退费|被骗|欺诈|不满意|垃圾|错误|答非所问|连接失败|加载失败|无法使用|崩溃|卡死|人工客服/;
 
 /** 客服系统提示词（品牌名走 BrandConfig 注入·其余语义保持稳定） */
 const buildCustomerServicePrompt = (brandName: string) => `你是${brandName}平台的智能客服助手。你的职责是帮助用户解决平台使用问题。
@@ -104,6 +106,7 @@ export class CustomerServiceService {
     private readonly vector: VectorService,
     // SystemModule 为 @Global 导出；@Optional 保证隔离单测仍可使用安全默认值
     @Optional() private readonly systemService?: SystemService,
+    @Optional() private readonly recommendationService?: RecommendationService,
   ) {}
 
   /** 智能客服对话（非流式 + 后台 FAQ + RAG） */
@@ -111,13 +114,16 @@ export class CustomerServiceService {
     question: string,
     userId?: string,
     history?: AiMessage[],
-  ): Promise<{ answer: string; needHuman: boolean; sources?: Array<{ content: string; similarity: number }> }> {
+  ): Promise<{ answer: string; needHuman: boolean; sources?: Array<{ content: string; similarity: number }>; recommendation?: Recommendation }> {
     const prepared = await this.prepareReply(question, history);
     if (prepared.directAnswer) {
+      const answer = this.appendHumanGuidance(prepared.directAnswer, prepared.needHuman, prepared.humanGuidance);
+      const guided = await this.decorateRecommendation(answer, question);
       return {
-        answer: this.appendHumanGuidance(prepared.directAnswer, prepared.needHuman, prepared.humanGuidance),
+        answer: guided.content,
         needHuman: prepared.needHuman,
         sources: prepared.sources,
+        recommendation: guided.recommendation || undefined,
       };
     }
 
@@ -129,11 +135,37 @@ export class CustomerServiceService {
     });
 
     const needHuman = prepared.needHuman || HUMAN_REPLY_PATTERN.test(result.content);
+    const answer = this.appendHumanGuidance(result.content, needHuman, prepared.humanGuidance);
+    const guided = await this.decorateRecommendation(answer, question);
     return {
-      answer: this.appendHumanGuidance(result.content, needHuman, prepared.humanGuidance),
+      answer: guided.content,
       needHuman,
       sources: prepared.sources,
+      recommendation: guided.recommendation || undefined,
     };
+  }
+
+  /**
+   * 流式输出结束后生成结构化推荐元数据。
+   * 客诉、退款、故障与明显不满场景在客服层再次硬拦截，避免只依赖模型或推荐器判断。
+   */
+  async buildRecommendation(answer: string, question: string): Promise<Recommendation | null> {
+    return (await this.decorateRecommendation(answer, question)).recommendation;
+  }
+
+  private async decorateRecommendation(
+    answer: string,
+    question: string,
+  ): Promise<{ content: string; recommendation: Recommendation | null }> {
+    if (!this.recommendationService || RECOMMENDATION_BLOCK_RE.test(question)) {
+      return { content: answer, recommendation: null };
+    }
+    try {
+      return await this.recommendationService.build(answer, question);
+    } catch (error) {
+      this.logger.warn(`智能客服推荐降级：${error instanceof Error ? error.message : String(error)}`);
+      return { content: answer, recommendation: null };
+    }
   }
 
   /** 智能客服流式对话（后台 FAQ 直接命中时免大模型；其余走 RAG 流式） */

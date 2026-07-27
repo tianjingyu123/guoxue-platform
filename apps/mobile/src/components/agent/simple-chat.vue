@@ -15,10 +15,12 @@ import { ref, computed, nextTick, onMounted, getCurrentInstance } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import RichMessage from '@/components/agent/rich-message.vue'
 import AgentAnswerCard from '@/components/agent/cards/agent-answer-card.vue'
-import { goBack } from '@/utils/router'
-import { nowTime } from '@/lib/agent-data'
+import GuidedRecommendCard from '@/components/agent/guided-recommend-card.vue'
+import { goBack, navigateTo } from '@/utils/router'
+import { nowTime, type RecommendItem, type Recommendation } from '@/lib/agent-data'
 import { agentThemeStyle, resolveAgentExperience } from '@/lib/agent-experience'
 import { resolveAgentReferral } from '@/lib/agent-routing'
+import { track } from '@/composables/useTrack'
 
 /** 富消息模型（本组件内部渲染用） */
 interface RichChatMessage {
@@ -34,6 +36,10 @@ interface RichChatMessage {
   streaming?: boolean
   /** AI 免责声明（流末 meta 下发） */
   disclaimer?: string
+  /** 与本轮问题相关的真实平台内容 */
+  recommendation?: Recommendation
+  /** 低置信商业推荐经用户同意后再展开 */
+  recoConsented?: boolean
 }
 
 /** 流式回调（页面 resolveStream 通过它操纵消息列表） */
@@ -44,6 +50,8 @@ export interface SimpleChatStreamHandlers {
   pushCard: (type: string, payload: unknown) => void
   /** 设置当前 AI 消息的免责声明（流末 meta） */
   setDisclaimer: (d: string) => void
+  /** 设置本轮结构化推荐（流末 meta） */
+  setRecommendation: (recommendation: Recommendation) => void
 }
 
 const props = defineProps<{
@@ -147,6 +155,9 @@ async function send(text: string) {
   const t = text.trim()
   if (!t || loading.value) return
   messages.value.push({ id: nextId(), role: 'user', content: t, time: nowTime() })
+  if (props.experienceKey === 'SERVICE') {
+    track.custom('cs_question_submitted', { scene: 'customer_service' })
+  }
   input.value = ''
   loading.value = true
   autoFollow.value = true // 新发送强制回底部跟随
@@ -200,16 +211,36 @@ async function sendStreaming(t: string) {
       const m = live()
       if (m) m.disclaimer = d
     },
+    setRecommendation: (recommendation: Recommendation) => {
+      const m = live()
+      if (!m) return
+      m.recommendation = recommendation
+      if (props.experienceKey === 'SERVICE') {
+        track.custom('cs_recommend_offered', {
+          scene: 'customer_service',
+          presentation: recommendation.presentation || 'inline',
+          itemTypes: recommendation.items.map((item) => item.type),
+          hasCommerce: recommendation.items.some((item) => ['course', 'circle', 'product', 'agent'].includes(item.type)),
+        })
+      }
+      scrollToBottom()
+    },
   }
 
   try {
     await props.resolveStream!(t, handlers)
     const m = live()
     if (m && !m.content.trim()) m.content = '抱歉，本次没有生成内容，请换个问法试试。'
+    if (props.experienceKey === 'SERVICE') {
+      track.custom('cs_reply_completed', { scene: 'customer_service', hasRecommendation: Boolean(m?.recommendation) })
+    }
   } catch (e) {
     const m = live()
     const errText = (e as Error)?.message || '请稍后再试'
     if (m) m.content = m.content ? m.content + `\n\n（连接中断：${errText}）` : `抱歉，回复生成失败：${errText}`
+    if (props.experienceKey === 'SERVICE') {
+      track.custom('cs_reply_failed', { scene: 'customer_service' })
+    }
   } finally {
     const m = live()
     if (m) m.streaming = false
@@ -222,9 +253,47 @@ async function sendLegacy(t: string) {
   try {
     const reply = await props.resolveReply!(t)
     messages.value.push({ id: nextId(), role: 'assistant', content: reply, time: nowTime() })
+    if (props.experienceKey === 'SERVICE') {
+      track.custom('cs_reply_completed', { scene: 'customer_service', hasRecommendation: false })
+    }
   } catch (_e) {
     messages.value.push({ id: nextId(), role: 'assistant', content: '抱歉，回复生成失败，请稍后再试。', time: nowTime() })
+    if (props.experienceKey === 'SERVICE') {
+      track.custom('cs_reply_failed', { scene: 'customer_service' })
+    }
   }
+}
+
+function consentRecommendation(msg: RichChatMessage) {
+  msg.recoConsented = true
+  if (props.experienceKey === 'SERVICE') {
+    track.custom('cs_recommend_consent', { scene: 'customer_service' })
+  }
+  scrollToBottom()
+}
+
+function declineRecommendation(msg: RichChatMessage) {
+  msg.recommendation = undefined
+  if (props.experienceKey === 'SERVICE') {
+    track.custom('cs_recommend_declined', { scene: 'customer_service' })
+  }
+}
+
+function openRecommendation(item: RecommendItem) {
+  if (props.experienceKey === 'SERVICE') {
+    track.custom('cs_recommend_click', {
+      scene: 'customer_service',
+      itemType: item.type,
+      itemId: String(item.data?.id || item.data?.href || ''),
+      hasPrice: Number(item.data?.price || 0) > 0,
+    })
+  }
+  if (item.data?.href) navigateTo(item.data.href)
+  else if (item.type === 'agent') navigateTo('/agents')
+  else if (item.type === 'course') navigateTo('/courses-list')
+  else if (item.type === 'circle') navigateTo('/circles')
+  else if (item.type === 'product') navigateTo('/mall')
+  else navigateTo('/search')
 }
 
 function reset() {
@@ -265,6 +334,32 @@ function reset() {
               :experience="experience"
               :agent-name="agentName || title"
             />
+            <view v-if="msg.recommendation" class="service-recommend">
+              <view v-if="msg.recommendation.presentation !== 'inline' && !msg.recoConsented" class="service-consent">
+                <text class="service-consent__text">{{ msg.recommendation.consentPrompt }}</text>
+                <view class="service-consent__actions">
+                  <view class="service-consent__yes" @tap="consentRecommendation(msg)">看看推荐</view>
+                  <view class="service-consent__no" @tap="declineRecommendation(msg)">暂时不用</view>
+                </view>
+              </view>
+              <template v-else>
+                <view class="service-recommend__head">
+                  <view class="service-recommend__icon"><AppIcon name="compass" :size="24" color="#315f7a" /></view>
+                  <view class="service-recommend__copy">
+                    <text class="service-recommend__eyebrow">本次已处理 · 下一步可选</text>
+                    <text class="service-recommend__title">{{ msg.recommendation.title || '顺着这个问题继续' }}</text>
+                    <text v-if="msg.recommendation.lead" class="service-recommend__lead">{{ msg.recommendation.lead }}</text>
+                  </view>
+                </view>
+                <GuidedRecommendCard
+                  v-for="(item, index) in msg.recommendation.items"
+                  :key="`${item.type}-${item.data?.id || index}`"
+                  :item="item"
+                  @tap="openRecommendation"
+                />
+                <text v-if="msg.recommendation.commercialDisclosure" class="service-recommend__disclosure">{{ msg.recommendation.commercialDisclosure }}</text>
+              </template>
+            </view>
           </view>
           <view v-else class="bubble" :class="msg.role === 'assistant' ? 'bubble-ai' : 'bubble-user'">
             <text class="bubble-text">{{ msg.content }}<text v-if="msg.streaming && msg.content" class="stream-cursor">▍</text></text>
@@ -341,7 +436,34 @@ function reset() {
 .msg-row-user { flex-direction: row-reverse; }
 .msg-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 6rpx; }
 .card-wrap { flex: 1; min-width: 0; max-width: 86%; }
-.answer-wrap { flex: 1; min-width: 0; }
+.answer-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14rpx; }
+.service-recommend {
+  display: flex; flex-direction: column; gap: 12rpx;
+  padding: 18rpx;
+  border: 1rpx solid rgba(49, 95, 122, 0.14);
+  border-radius: 22rpx;
+  background: linear-gradient(145deg, rgba(245, 250, 252, 0.98), rgba(250, 248, 242, 0.98));
+  box-shadow: 0 10rpx 28rpx rgba(37, 61, 76, 0.06);
+}
+.service-recommend__head { display: flex; align-items: flex-start; gap: 14rpx; }
+.service-recommend__icon {
+  width: 52rpx; height: 52rpx; flex-shrink: 0; border-radius: 16rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(49, 95, 122, 0.09);
+}
+.service-recommend__copy { flex: 1; min-width: 0; }
+.service-recommend__eyebrow { display: block; font-size: 19rpx; letter-spacing: 1rpx; color: #6f858f; }
+.service-recommend__title { display: block; margin-top: 3rpx; font-size: 27rpx; font-weight: 700; color: #27343b; }
+.service-recommend__lead { display: block; margin-top: 5rpx; font-size: 22rpx; line-height: 1.45; color: #77838a; }
+.service-recommend__disclosure { font-size: 19rpx; color: #9a8879; }
+.service-consent { padding: 4rpx; }
+.service-consent__text { display: block; font-size: 24rpx; line-height: 1.55; color: #46545b; }
+.service-consent__actions { display: flex; gap: 12rpx; margin-top: 14rpx; }
+.service-consent__yes, .service-consent__no {
+  padding: 11rpx 22rpx; border-radius: 999rpx; font-size: 22rpx;
+}
+.service-consent__yes { color: #fff; background: #315f7a; }
+.service-consent__no { color: #7d8589; background: rgba(49, 95, 122, 0.07); }
 .bubble { max-width: 80%; border-radius: 24rpx; padding: 20rpx 28rpx; }
 .bubble-ai { background: #fff; border: 1rpx solid #ececec; border-top-left-radius: 6rpx; }
 .bubble-user { background: var(--brand); border-top-right-radius: 6rpx; }

@@ -2,6 +2,7 @@ import { SystemService } from "../system/system.service";
 import { AiGatewayService } from "./ai-gateway.service";
 import { CustomerServiceService } from "./customer-service.service";
 import { VectorService } from "./vector.service";
+import { RecommendationService } from "../bot/recommendation.service";
 
 describe("CustomerServiceService", () => {
   const configuredFaq = JSON.stringify({
@@ -21,6 +22,7 @@ describe("CustomerServiceService", () => {
     chunks?: Array<{ id: string; content: string; similarity: number }>;
     chatContent?: string;
     streamChunks?: string[];
+    recommendation?: any;
   }) {
     const settings = options || {};
     const gateway = {
@@ -55,11 +57,23 @@ describe("CustomerServiceService", () => {
         return null;
       }),
     };
+    const recommender = {
+      build: jest.fn(async (content: string) => ({
+        content,
+        recommendation: settings.recommendation || null,
+      })),
+    };
     return {
-      service: new CustomerServiceService(gateway as unknown as AiGatewayService, vector as unknown as VectorService, system as unknown as SystemService),
+      service: new CustomerServiceService(
+        gateway as unknown as AiGatewayService,
+        vector as unknown as VectorService,
+        system as unknown as SystemService,
+        recommender as unknown as RecommendationService,
+      ),
       gateway,
       vector,
       system,
+      recommender,
     };
   }
 
@@ -154,5 +168,33 @@ describe("CustomerServiceService", () => {
 
     expect(result.answer).toContain("输入手机号获取验证码即可注册");
     expect(gateway.chat).not.toHaveBeenCalled();
+  });
+
+  it("学习需求返回真实平台内容的结构化推荐", async () => {
+    const recommendation = {
+      presentation: "inline",
+      title: "把这一步接着走下去",
+      lead: "一条现在就能开始",
+      consentPrompt: "要继续看看吗？",
+      items: [{ type: "classic", data: { id: "c1", title: "论语" } }],
+    };
+    const { service, recommender } = createService({
+      chatContent: "可以先从短篇原典开始。",
+      recommendation,
+    });
+
+    const result = await service.ask("我想学习论语，从哪里开始？", "u1", []);
+
+    expect(recommender.build).toHaveBeenCalledWith("可以先从短篇原典开始。", "我想学习论语，从哪里开始？");
+    expect(result.recommendation).toEqual(recommendation);
+  });
+
+  it("退款投诉与故障场景在客服层硬性禁用推荐", async () => {
+    const { service, recommender } = createService({ chatContent: "我先帮你处理退款。" });
+
+    const recommendation = await service.buildRecommendation("我先帮你处理退款。", "课程无法使用，我要退款");
+
+    expect(recommendation).toBeNull();
+    expect(recommender.build).not.toHaveBeenCalled();
   });
 });

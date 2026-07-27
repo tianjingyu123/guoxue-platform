@@ -369,11 +369,11 @@ export const zhixuanAiApi = {
 
 /** 智能客服（平台自建 RAG 链路）—— POST /ai/customer-service（非流式降级路径） */
 export const csAiApi = {
-  async ask(question: string, history: AiHistoryMsg[]): Promise<string> {
-    const res = await apiPost<{ answer?: string }>('/ai/customer-service', {
+  async ask(question: string, history: AiHistoryMsg[]): Promise<{ answer: string; recommendation?: Recommendation }> {
+    const res = await apiPost<{ answer?: string; recommendation?: Recommendation }>('/ai/customer-service', {
       question,
       history: history.slice(-8),
     })
-    return res?.answer || ''
+    return { answer: res?.answer || '', recommendation: res?.recommendation }
   },
 }

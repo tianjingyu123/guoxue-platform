@@ -3217,12 +3217,12 @@ model UserTag {
 }
 
 /**
- * 转化漏斗日聚合（D-T1·数据运营引擎）：4 条核心漏斗按日按步骤计数·date+funnel+step 唯一幂等
+ * 转化漏斗日聚合（D-T1·数据运营引擎）：5 条核心漏斗按日按步骤计数·date+funnel+step 唯一幂等
  */
 model FunnelDaily {
   id      String @id @default(uuid())
   date    String // YYYY-MM-DD（Asia/Shanghai）
-  funnel  String // F1_activation / F2_member / F3_commerce / F4_practitioner
+  funnel  String // F1_activation / F2_member / F3_commerce / F4_practitioner / F5_customer_service
   step    Int // 步骤序号（1 起）
   stepKey String // 步骤键（register/first_paipan/...）
   count   Int

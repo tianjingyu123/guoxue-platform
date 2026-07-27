@@ -55,6 +55,7 @@ import { TtsModule } from "../tts/tts.module";
 import { MemberModule } from "../member/member.module";
 import { ZhixuanController } from "./zhixuan.controller";
 import { ZhixuanService } from "./zhixuan.service";
+import { RecommendationService } from "../bot/recommendation.service";
 
 @Module({
   imports: [SystemModule, PrismaModule, RedisModule, TtsModule, MemberModule],
@@ -72,6 +73,7 @@ import { ZhixuanService } from "./zhixuan.service";
     RagService,
     KnowledgeSyncService,
     CustomerServiceService,
+    RecommendationService,
     AdminDedupService,
     PublishAssistService,
     MediaAiService,
