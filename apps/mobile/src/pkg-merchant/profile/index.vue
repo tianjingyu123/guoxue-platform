@@ -37,6 +37,31 @@
       <!-- ══════════ 态A · 资料编辑 ══════════ -->
       <scroll-view v-if="mode === 'edit'" scroll-y class="scroll" :style="{ paddingTop: navHeight + 'px' }">
         <view class="body">
+          <view class="qualification-card" :class="`qualification-card--${profile.qualificationStatus || 'DRAFT'}`">
+            <view class="qualification-head">
+              <view>
+                <text class="qualification-kicker">商户风控档案</text>
+                <text class="qualification-title">{{ qualificationTitle }}</text>
+              </view>
+              <view class="qualification-badge"><text>{{ qualificationBadge }}</text></view>
+            </view>
+            <view class="qualification-progress">
+              <view v-for="item in qualificationChecklist" :key="item.label" class="qualification-step">
+                <view class="qualification-dot" :class="{ done: item.done }">
+                  <app-icon :name="item.done ? 'check' : 'clock'" :size="12" :color="item.done ? '#ffffff' : '#9b7b45'" />
+                </view>
+                <text>{{ item.label }}</text>
+              </view>
+            </view>
+            <text v-if="profile.qualificationRejectReason" class="qualification-reason">
+              需补正：{{ profile.qualificationRejectReason }}
+            </text>
+            <text v-else class="qualification-next">{{ qualificationNextReview }}</text>
+            <view class="qualification-action" @tap="openQualification">
+              <text>{{ profile.qualificationStatus === 'APPROVED' ? '查看与更新资质' : '补齐资质并提交审核' }}</text>
+              <app-icon name="chevron-right" :size="15" color="#ffffff" />
+            </view>
+          </view>
 
           <!-- 店铺基本信息 -->
           <view class="group">
@@ -183,7 +208,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { merchantBackendApi, type MerchantProfile, type MerchantProduct } from '@/pkg-merchant/lib/merchant-data'
 import { chooseAndUploadImage } from '@/utils/request'
 
@@ -215,6 +240,37 @@ const form = ref({
 const channels = ['商城', '圈子推荐', '线下驿站', '站长主推位']
 
 const ratingText = computed(() => Number(profile.value?.rating ?? 0).toFixed(1))
+const qualificationBadge = computed(() => ({
+  APPROVED: '已核验',
+  PENDING: '审核中',
+  REJECTED: '待补正',
+  EXPIRED: '已到期',
+  DRAFT: '待完善',
+}[profile.value?.qualificationStatus || 'DRAFT']))
+const qualificationTitle = computed(() => ({
+  APPROVED: '主体资质持续有效',
+  PENDING: '平台正在核验材料',
+  REJECTED: '部分材料需要补正',
+  EXPIRED: '资质到期，请尽快复核',
+  DRAFT: '完成认证后再发布商品',
+}[profile.value?.qualificationStatus || 'DRAFT']))
+const qualificationChecklist = computed(() => {
+  const p = profile.value
+  return [
+    { label: '主体证照', done: !!p?.businessLicense && !!p?.unifiedSocialCreditCode },
+    { label: '经营者核验', done: !!p?.idCardFront && !!p?.idCardBack },
+    { label: '平台复核', done: p?.qualificationStatus === 'APPROVED' },
+  ]
+})
+const qualificationNextReview = computed(() => {
+  const next = profile.value?.qualificationNextReviewAt
+  if (!next) return '完成核验后，平台将每 6 个月提醒复核'
+  return `下次资质复核：${new Date(next).toLocaleDateString('zh-CN')}`
+})
+
+function openQualification() {
+  navigateTo('/pkg-merchant/apply/index')
+}
 
 async function load() {
   loading.value = true
@@ -411,6 +467,36 @@ $line: #edeae4;
 .body {
   padding: 32rpx 40rpx 200rpx;
 }
+.qualification-card {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 38rpx;
+  padding: 30rpx;
+  border: 1rpx solid rgba(172, 129, 55, 0.22);
+  border-radius: 30rpx;
+  color: #fff;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255,255,255,.2), transparent 32%),
+    linear-gradient(135deg, #3d3021, #8b6232 62%, #b88b4f);
+  box-shadow: 0 16rpx 40rpx rgba(74, 50, 24, .16);
+}
+.qualification-card--PENDING { background: linear-gradient(135deg, #173d54, #2d7181 65%, #58a6a6); }
+.qualification-card--REJECTED,
+.qualification-card--EXPIRED { background: linear-gradient(135deg, #611f2b, #a63b4e 65%, #c96b64); }
+.qualification-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
+.qualification-kicker { display: block; font-size: 20rpx; letter-spacing: 4rpx; color: rgba(255,255,255,.65); }
+.qualification-title { display: block; margin-top: 8rpx; font-size: 32rpx; font-weight: 700; }
+.qualification-badge { padding: 8rpx 18rpx; border-radius: 999rpx; background: rgba(255,255,255,.16); border: 1rpx solid rgba(255,255,255,.22); }
+.qualification-badge text { font-size: 22rpx; color: #fff; }
+.qualification-progress { display: flex; margin: 30rpx 0 22rpx; }
+.qualification-step { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8rpx; font-size: 20rpx; color: rgba(255,255,255,.72); }
+.qualification-step:not(:last-child)::after { content: ''; position: absolute; top: 18rpx; left: 64%; width: 72%; height: 1rpx; background: rgba(255,255,255,.28); }
+.qualification-dot { position: relative; z-index: 1; width: 36rpx; height: 36rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f5ead5; }
+.qualification-dot.done { background: #55a678; }
+.qualification-reason,
+.qualification-next { display: block; font-size: 22rpx; line-height: 1.5; color: rgba(255,255,255,.78); }
+.qualification-action { margin-top: 22rpx; height: 72rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; background: rgba(255,255,255,.16); border: 1rpx solid rgba(255,255,255,.2); }
+.qualification-action text { color: #fff; font-size: 24rpx; font-weight: 600; }
 .group {
   margin-bottom: 36rpx;
 }

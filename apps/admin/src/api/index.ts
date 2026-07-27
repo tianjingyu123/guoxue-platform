@@ -992,7 +992,7 @@ export const merchantApi = {
   listMembers: (id: string) => api.get(`/admin/merchants/${id}/members`),
   addMember: (id: string, data: { phone: string }) => api.post(`/admin/merchants/${id}/members`, data),
   removeMember: (id: string, userId: string) => api.delete(`/admin/merchants/${id}/members/${userId}`),
-  approve: (id: string, data: { commissionRate?: number; remark?: string }) =>
+  approve: (id: string, data: { commissionRate?: number; remark?: string; riskLevel?: string; riskFlags?: string[] }) =>
     api.post(`/admin/merchants/${id}/approve`, data),
   reject: (id: string, data: { reason: string }) =>
     api.post(`/admin/merchants/${id}/reject`, data),

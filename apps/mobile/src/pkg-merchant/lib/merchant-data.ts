@@ -22,6 +22,25 @@ export interface MerchantApplication {
   businessLicense?: string | null
   brandAuth?: string | null
   categoryIds: string[]
+  merchantType?: 'ENTERPRISE' | 'INDIVIDUAL'
+  unifiedSocialCreditCode?: string | null
+  registeredAddress?: string | null
+  legalRepresentative?: string | null
+  licenseValidFrom?: string | null
+  licenseValidUntil?: string | null
+  licenseLongTerm?: boolean
+  qualificationFiles?: MerchantQualificationFile[]
+  qualificationStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
+  qualificationSubmittedAt?: string | null
+  qualificationReviewedAt?: string | null
+  qualificationNextReviewAt?: string | null
+  qualificationRejectReason?: string | null
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'BLOCKED'
+  riskFlags?: string[]
+  privacyConsentAt?: string | null
+  complianceDeclarationAt?: string | null
+  privacyConsent?: boolean
+  complianceDeclaration?: boolean
   status: MerchantStatus
   depositAmount?: string | number | null
   depositPaid: boolean
@@ -36,6 +55,13 @@ export interface MerchantApplication {
   closedAt?: string | null
   remark?: string | null
   createdAt: string
+}
+
+export interface MerchantQualificationFile {
+  type: string
+  title: string
+  url: string
+  validUntil?: string
 }
 
 export interface DepositInfo {
@@ -80,6 +106,18 @@ export interface MerchantProfile {
   commissionRate?: string | number | null
   categoryIds?: string[]
   openedAt?: string | null
+  businessLicense?: string | null
+  idCardFront?: string | null
+  idCardBack?: string | null
+  unifiedSocialCreditCode?: string | null
+  legalRepresentative?: string | null
+  registeredAddress?: string | null
+  licenseValidUntil?: string | null
+  licenseLongTerm?: boolean
+  qualificationStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED'
+  qualificationNextReviewAt?: string | null
+  qualificationRejectReason?: string | null
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'BLOCKED'
 }
 
 /** 商品状态（后端枚举） */
@@ -350,8 +388,8 @@ export interface PurchaseOrder {
 export const merchantApi = {
   /** 获取入驻申请（未申请时后端 404 → 抛错，页面据此显示「未申请」态） */
   getApplication: () => apiGet<MerchantApplication>('/merchant/application'),
-  apply: (data: Partial<MerchantApplication>) => apiPost<MerchantApplication>('/merchant/apply', data),
-  updateApplication: (data: Partial<MerchantApplication>) => apiPut<MerchantApplication>('/merchant/application', data),
+  apply: (data: Record<string, unknown>) => apiPost<MerchantApplication>('/merchant/apply', data),
+  updateApplication: (data: Record<string, unknown>) => apiPut<MerchantApplication>('/merchant/application', data),
   submit: () => apiPost('/merchant/submit', {}),
   getDepositInfo: () => apiGet<DepositInfo>('/merchant/deposit-info'),
   getAgreementPreview: () => apiGet<MerchantAgreement>('/merchant/agreement-preview'),

@@ -14,6 +14,29 @@ export class AddMerchantMemberDto {
   phone: string;
 }
 
+export class MerchantQualificationFileDto {
+  @ApiProperty({ description: "资质类型，如 FOOD_LICENSE、BRAND_AUTH、OTHER" })
+  @IsString()
+  @MinLength(1)
+  type: string;
+
+  @ApiProperty({ description: "资质名称" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  title: string;
+
+  @ApiProperty({ description: "资质文件 URL" })
+  @IsString()
+  @MinLength(1)
+  url: string;
+
+  @ApiPropertyOptional({ description: "资质有效期截止日" })
+  @IsOptional()
+  @IsDateString()
+  validUntil?: string;
+}
+
 // ─── 入驻申请 ───
 
 export class CreateMerchantApplyDto {
@@ -80,6 +103,49 @@ export class CreateMerchantApplyDto {
   @ApiPropertyOptional({ description: "经营类目ID列表" })
   @IsOptional() @IsArray() @IsString({ each: true })
   categoryIds?: string[];
+
+  @ApiPropertyOptional({ description: "主体类型", enum: ["ENTERPRISE", "INDIVIDUAL"] })
+  @IsOptional() @IsIn(["ENTERPRISE", "INDIVIDUAL"])
+  merchantType?: string;
+
+  @ApiProperty({ description: "统一社会信用代码" })
+  @IsString()
+  @Matches(/^[0-9A-Z]{18}$/, { message: "统一社会信用代码应为 18 位大写字母或数字" })
+  unifiedSocialCreditCode: string;
+
+  @ApiProperty({ description: "营业执照注册地址" })
+  @IsString() @MinLength(2) @MaxLength(200)
+  registeredAddress: string;
+
+  @ApiProperty({ description: "法定代表人或经营者姓名" })
+  @IsString() @MinLength(2) @MaxLength(50)
+  legalRepresentative: string;
+
+  @ApiPropertyOptional({ description: "营业执照有效期起始日" })
+  @IsOptional() @IsDateString()
+  licenseValidFrom?: string;
+
+  @ApiPropertyOptional({ description: "营业执照有效期截止日" })
+  @IsOptional() @IsDateString()
+  licenseValidUntil?: string;
+
+  @ApiPropertyOptional({ description: "营业执照是否长期有效" })
+  @IsOptional() @IsBoolean()
+  licenseLongTerm?: boolean;
+
+  @ApiPropertyOptional({ description: "行业许可、品牌授权等补充资质", type: [MerchantQualificationFileDto] })
+  @IsOptional() @IsArray() @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => MerchantQualificationFileDto)
+  qualificationFiles?: MerchantQualificationFileDto[];
+
+  @ApiProperty({ description: "同意敏感信息处理及资质核验授权" })
+  @IsBoolean()
+  privacyConsent: boolean;
+
+  @ApiProperty({ description: "确认提交材料真实、完整、持续有效" })
+  @IsBoolean()
+  complianceDeclaration: boolean;
 }
 
 export class UpdateMerchantApplyDto {
@@ -126,6 +192,49 @@ export class UpdateMerchantApplyDto {
   @ApiPropertyOptional({ description: "经营类目ID列表" })
   @IsOptional() @IsArray() @IsString({ each: true })
   categoryIds?: string[];
+
+  @ApiPropertyOptional({ description: "主体类型", enum: ["ENTERPRISE", "INDIVIDUAL"] })
+  @IsOptional() @IsIn(["ENTERPRISE", "INDIVIDUAL"])
+  merchantType?: string;
+
+  @ApiPropertyOptional({ description: "统一社会信用代码" })
+  @IsOptional() @IsString()
+  @Matches(/^[0-9A-Z]{18}$/, { message: "统一社会信用代码应为 18 位大写字母或数字" })
+  unifiedSocialCreditCode?: string;
+
+  @ApiPropertyOptional({ description: "营业执照注册地址" })
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(200)
+  registeredAddress?: string;
+
+  @ApiPropertyOptional({ description: "法定代表人或经营者姓名" })
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(50)
+  legalRepresentative?: string;
+
+  @ApiPropertyOptional({ description: "营业执照有效期起始日" })
+  @IsOptional() @IsDateString()
+  licenseValidFrom?: string;
+
+  @ApiPropertyOptional({ description: "营业执照有效期截止日" })
+  @IsOptional() @IsDateString()
+  licenseValidUntil?: string;
+
+  @ApiPropertyOptional({ description: "营业执照是否长期有效" })
+  @IsOptional() @IsBoolean()
+  licenseLongTerm?: boolean;
+
+  @ApiPropertyOptional({ description: "行业许可、品牌授权等补充资质", type: [MerchantQualificationFileDto] })
+  @IsOptional() @IsArray() @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => MerchantQualificationFileDto)
+  qualificationFiles?: MerchantQualificationFileDto[];
+
+  @ApiPropertyOptional({ description: "同意敏感信息处理及资质核验授权" })
+  @IsOptional() @IsBoolean()
+  privacyConsent?: boolean;
+
+  @ApiPropertyOptional({ description: "确认提交材料真实、完整、持续有效" })
+  @IsOptional() @IsBoolean()
+  complianceDeclaration?: boolean;
 }
 
 // ─── 保证金 ───
@@ -169,6 +278,14 @@ export class ApproveMerchantDto {
   @ApiPropertyOptional({ description: "备注" })
   @IsOptional() @IsString()
   remark?: string;
+
+  @ApiPropertyOptional({ description: "审核后的风险等级", enum: ["LOW", "MEDIUM", "HIGH"] })
+  @IsOptional() @IsIn(["LOW", "MEDIUM", "HIGH"])
+  riskLevel?: string;
+
+  @ApiPropertyOptional({ description: "风险标签" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  riskFlags?: string[];
 }
 
 export class RejectMerchantDto {

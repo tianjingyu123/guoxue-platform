@@ -5047,6 +5047,23 @@ model Merchant {
   /// 见 PayeeAccount / docs/design/资金与分账架构-设计文档-20260714.md
   businessLicense String?
   brandAuth       String? // 品牌授权书（可选）
+  merchantType    String         @default("ENTERPRISE") // ENTERPRISE / INDIVIDUAL
+  unifiedSocialCreditCode String? // 统一社会信用代码
+  registeredAddress String? // 营业执照登记住所/经营场所
+  legalRepresentative String? // 法定代表人/经营者
+  licenseValidFrom DateTime? // 营业执照有效期起
+  licenseValidUntil DateTime? // 营业执照有效期止；长期证照为空
+  licenseLongTerm Boolean        @default(false)
+  qualificationFiles Json? // 专项许可/品牌授权等补充材料 [{type,title,url,validUntil}]
+  qualificationStatus String     @default("DRAFT") // DRAFT/PENDING/APPROVED/REJECTED/EXPIRED
+  qualificationSubmittedAt DateTime?
+  qualificationReviewedAt DateTime?
+  qualificationNextReviewAt DateTime? // 平台至少每六个月复核
+  qualificationRejectReason String?
+  riskLevel       String         @default("MEDIUM") // LOW/MEDIUM/HIGH/BLOCKED
+  riskFlags       Json?
+  privacyConsentAt DateTime? // 敏感信息处理单独同意时间
+  complianceDeclarationAt DateTime? // 商户真实性与合规经营承诺时间
   categoryIds     String[]       @default([]) // 经营类目
   status          MerchantStatus @default(PENDING_REVIEW)
   depositAmount   Decimal?       @db.Decimal(10, 2) // 应缴保证金
@@ -5076,10 +5093,31 @@ model Merchant {
   agreements     MerchantAgreement[]
   settlements    MerchantSettlement[]
   members        MerchantMember[]
+  qualificationReviews MerchantQualificationReview[]
 
   @@index([status])
   @@index([status, createdAt])
+  @@index([qualificationStatus, qualificationNextReviewAt])
+  @@index([riskLevel])
   @@index([shopName])
+}
+
+/// 商户资质审核留痕：每次提交、通过、驳回都保留快照，便于监管协查、申诉与定期复核。
+model MerchantQualificationReview {
+  id         String   @id @default(uuid())
+  merchantId String
+  status     String // PENDING / APPROVED / REJECTED / EXPIRED
+  riskLevel  String   @default("MEDIUM")
+  riskFlags  Json?
+  reason     String?
+  reviewerId String?
+  snapshot   Json
+  createdAt  DateTime @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, createdAt])
+  @@index([status, createdAt])
 }
 
 // 商家操作员：支持一个店铺(尤其官方旗舰店)有多个用户账号以该店铺身份经营。

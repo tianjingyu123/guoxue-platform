@@ -32,6 +32,7 @@ const mockPrisma: any = {
     update: jest.fn(),
     count: jest.fn(),
   },
+  merchantQualificationReview: { create: jest.fn(), findMany: jest.fn() },
   merchantViolation: { count: jest.fn() },
   order: {
     aggregate: jest.fn(), count: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(),
@@ -44,6 +45,26 @@ const mockPrisma: any = {
   merchantMember: { findMany: jest.fn(), upsert: jest.fn(), updateMany: jest.fn() },
   auditLog: { findMany: jest.fn(), count: jest.fn() },
   productReview: { count: jest.fn(), aggregate: jest.fn() },
+};
+
+const completeQualification = {
+  contactName: "张三",
+  contactPhone: "13800138000",
+  idCardNumber: "encrypted-id-card",
+  idCardFront: "https://cdn.example.com/id-front.jpg",
+  idCardBack: "https://cdn.example.com/id-back.jpg",
+  businessLicense: "https://cdn.example.com/license.jpg",
+  unifiedSocialCreditCode: "91110108MA01234567",
+  registeredAddress: "北京市海淀区示例路 1 号",
+  legalRepresentative: "张三",
+  licenseLongTerm: false,
+  licenseValidUntil: new Date("2099-12-31"),
+  categoryIds: ["c1"],
+  privacyConsentAt: new Date(),
+  complianceDeclarationAt: new Date(),
+  qualificationFiles: [],
+  riskFlags: [],
+  riskLevel: "MEDIUM",
 };
 
 describe("MerchantService", () => {
@@ -112,24 +133,31 @@ describe("MerchantService", () => {
       expect(result.shopName).toBe("新名称");
     });
 
-    it("非可修改状态抛出异常", async () => {
+    it("已开店商户可更新资质并进入重新审核草稿", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "ACTIVE" });
-      await expect(svc.updateApplication("u1", { shopName: "新名称" })).rejects.toThrow(BusinessException);
+      mockPrisma.merchant.update.mockResolvedValue({
+        id: "m1", userId: "u1", status: "ACTIVE", qualificationStatus: "DRAFT",
+      });
+      const result = await svc.updateApplication("u1", { shopName: "新名称" });
+      expect(result.qualificationStatus).toBe("DRAFT");
     });
   });
 
   describe("submitForReview", () => {
     it("提交审核成功", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({
-        id: "m1", userId: "u1", status: "PENDING_REVIEW", contactName: "张三",
-        idCardNumber: "123", contactPhone: "13800138000", categoryIds: ["c1", "c2"], depositAmount: 0,
-        businessLicense: "https://cdn.example.com/license.jpg",
+        id: "m1", userId: "u1", status: "PENDING_REVIEW", ...completeQualification,
       });
-      mockPrisma.merchant.update.mockResolvedValue({ id: "m1", status: "PENDING_REVIEW" });
+      mockPrisma.merchant.update.mockResolvedValue({
+        id: "m1", status: "PENDING_REVIEW", qualificationStatus: "PENDING",
+      });
       const result = await svc.submitForReview("u1");
       expect(result.status).toBe("PENDING_REVIEW");
       expect(mockPrisma.merchant.update).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ status: "AGREEMENT_PENDING", depositAmount: 0, depositPaid: false }),
+        data: expect.objectContaining({ status: "PENDING_REVIEW", qualificationStatus: "PENDING" }),
+      }));
+      expect(mockPrisma.merchantQualificationReview.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ merchantId: "m1", status: "PENDING" }),
       }));
     });
 
@@ -147,9 +175,9 @@ describe("MerchantService", () => {
         idCardNumber: "123", contactPhone: "13800138000", categoryIds: ["c1"], businessLicense: null,
       });
 
-      await expect(svc.submitForReview("u1")).rejects.toThrow("请上传营业执照");
+      await expect(svc.submitForReview("u1")).rejects.toThrow("营业执照");
       expect(mockPrisma.merchant.update).not.toHaveBeenCalled();
-      expect(mockFeatureFlag.isEnabled).not.toHaveBeenCalled();
+      expect(mockPrisma.merchantQualificationReview.create).not.toHaveBeenCalled();
     });
   });
 
@@ -210,7 +238,10 @@ describe("MerchantService", () => {
 
   describe("approveApplication", () => {
     it("审核通过直接进入待签约", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "PENDING_REVIEW" });
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "PENDING_REVIEW", qualificationStatus: "PENDING",
+        ...completeQualification,
+      });
       mockPrisma.merchant.update.mockResolvedValue({ id: "m1", status: "AGREEMENT_PENDING", depositAmount: 0 });
       const result = await svc.approveApplication("m1", "admin1", {});
       expect(result.status).toBe("AGREEMENT_PENDING");
@@ -222,7 +253,10 @@ describe("MerchantService", () => {
     });
 
     it("当前免保证金政策拒绝审核人设置正金额", async () => {
-      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1", status: "PENDING_REVIEW" });
+      mockPrisma.merchant.findUnique.mockResolvedValue({
+        id: "m1", userId: "u1", status: "PENDING_REVIEW", qualificationStatus: "PENDING",
+        ...completeQualification,
+      });
       await expect(svc.approveApplication("m1", "admin1", { depositAmount: 2000 })).rejects.toThrow("不可设置保证金金额");
       expect(mockPrisma.merchant.update).not.toHaveBeenCalled();
     });

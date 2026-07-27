@@ -99,10 +99,38 @@
           <h4 style="margin:20px 0 12px">
             资质材料
           </h4>
+          <el-alert
+            :title="`资质状态：${merchant.qualificationStatus || 'DRAFT'}　风险等级：${merchant.riskLevel || 'MEDIUM'}`"
+            :type="merchant.qualificationStatus === 'APPROVED' ? 'success' : merchant.qualificationStatus === 'PENDING' ? 'warning' : 'error'"
+            :closable="false"
+            show-icon
+            style="margin-bottom:12px"
+          />
           <el-descriptions
             :column="3"
             border
           >
+            <el-descriptions-item label="主体类型">
+              {{ merchant.merchantType === 'INDIVIDUAL' ? '个体工商户' : '企业' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="统一社会信用代码">
+              {{ merchant.unifiedSocialCreditCode || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="法定代表人/经营者">
+              {{ merchant.legalRepresentative || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="注册地址" :span="2">
+              {{ merchant.registeredAddress || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="执照有效期">
+              {{ merchant.licenseLongTerm ? '长期有效' : formatDate(merchant.licenseValidUntil) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="下次复核">
+              {{ formatDate(merchant.qualificationNextReviewAt) }}
+            </el-descriptions-item>
+            <el-descriptions-item v-if="merchant.qualificationRejectReason" label="资质补正原因" :span="2">
+              <span style="color:#d03050">{{ merchant.qualificationRejectReason }}</span>
+            </el-descriptions-item>
             <el-descriptions-item label="身份证正面">
               <el-image
                 v-if="merchant.idCardFront"
@@ -187,7 +215,7 @@
           </el-descriptions>
 
           <div style="margin-top:20px">
-            <template v-if="merchant.status === 'PENDING_REVIEW'">
+            <template v-if="merchant.status === 'PENDING_REVIEW' || merchant.qualificationStatus === 'PENDING'">
               <el-button
                 type="success"
                 @click="openApprove"
@@ -856,6 +884,13 @@
             style="width:100%"
           />
         </el-form-item>
+        <el-form-item label="风险等级">
+          <el-select v-model="approveForm.riskLevel" style="width:100%">
+            <el-option label="低风险 · 材料完整且一致" value="LOW" />
+            <el-option label="中风险 · 需持续观察" value="MEDIUM" />
+            <el-option label="高风险 · 限制经营" value="HIGH" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="内部备注">
           <el-input
             v-model="approveForm.remark"
@@ -1143,6 +1178,16 @@ interface MerchantInfo {
   idCardFront?: string
   idCardBack?: string
   businessLicense?: string
+  merchantType?: string
+  unifiedSocialCreditCode?: string
+  legalRepresentative?: string
+  registeredAddress?: string
+  licenseValidUntil?: string
+  licenseLongTerm?: boolean
+  qualificationStatus?: string
+  qualificationNextReviewAt?: string
+  qualificationRejectReason?: string
+  riskLevel?: string
   brandAuth?: string
   agreementUrl?: string
   user?: MerchantUser
@@ -1185,7 +1230,7 @@ const deposits = ref<DepositRow[]>([])
 const approveDialog = ref(false)
 const rejectDialog = ref(false)
 const rejectReason = ref('')
-const approveForm = ref({ commissionRate: undefined as number | undefined, remark: '' })
+const approveForm = ref({ commissionRate: undefined as number | undefined, remark: '', riskLevel: 'LOW' })
 
 const violationDialog = ref(false)
 const violationForm = ref({ type: 'MINOR', title: '', description: '', penalty: undefined as number | undefined, remark: '' })
@@ -1314,7 +1359,7 @@ async function fetchStats() {
 
 // 审核
 function openApprove() {
-  approveForm.value = { commissionRate: undefined, remark: '' }
+  approveForm.value = { commissionRate: undefined, remark: '', riskLevel: 'LOW' }
   approveDialog.value = true
 }
 async function doApprove() {

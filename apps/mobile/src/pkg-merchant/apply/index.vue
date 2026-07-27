@@ -42,6 +42,28 @@
         <view class="m2-group">
           <view class="m2-group-t"><text>主体信息</text></view>
 
+          <view class="m2-trust-card">
+            <view class="m2-trust-icon"><AppIcon name="shield-check" :size="22" color="#FFFFFF" /></view>
+            <view class="m2-trust-copy">
+              <text class="m2-trust-title">一次建档，持续守护经营安全</text>
+              <text class="m2-trust-desc">证件仅用于主体核验、风险审查和监管要求，不在店铺公开展示；通过后每 6 个月复核一次。</text>
+            </view>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">主体类型 <text class="m2-req">*</text></text>
+            <view class="m2-type-row">
+              <view class="m2-type" :class="{ active: form.merchantType === 'ENTERPRISE' }" @tap="form.merchantType = 'ENTERPRISE'">
+                <AppIcon name="building-2" :size="18" :color="form.merchantType === 'ENTERPRISE' ? '#C41E3A' : '#7d7468'" />
+                <text>企业</text>
+              </view>
+              <view class="m2-type" :class="{ active: form.merchantType === 'INDIVIDUAL' }" @tap="form.merchantType = 'INDIVIDUAL'">
+                <AppIcon name="store" :size="18" :color="form.merchantType === 'INDIVIDUAL' ? '#C41E3A' : '#7d7468'" />
+                <text>个体工商户</text>
+              </view>
+            </view>
+          </view>
+
           <view class="m2-field">
             <text class="m2-label">主体名称 / 店铺名 <text class="m2-req">*</text></text>
             <input
@@ -57,6 +79,28 @@
               <AppIcon name="alert-circle" :size="12" color="#C41E3A" />
               <text>{{ fieldErr('shopName') }}</text>
             </view>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">统一社会信用代码 <text class="m2-req">*</text></text>
+            <input class="m2-input" :class="{ 'm2-input-err': fieldErr('unifiedSocialCreditCode') }"
+              placeholder="请输入营业执照上的 18 位代码" placeholder-class="m2-ph" :maxlength="18"
+              v-model="form.unifiedSocialCreditCode" @blur="markTouched('unifiedSocialCreditCode')" />
+            <view v-if="fieldErr('unifiedSocialCreditCode')" class="m2-err">
+              <AppIcon name="alert-circle" :size="12" color="#C41E3A" /><text>{{ fieldErr('unifiedSocialCreditCode') }}</text>
+            </view>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">法定代表人 / 经营者 <text class="m2-req">*</text></text>
+            <input class="m2-input" placeholder="与营业执照保持一致" placeholder-class="m2-ph"
+              v-model="form.legalRepresentative" />
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">注册地址 <text class="m2-req">*</text></text>
+            <textarea class="m2-textarea m2-textarea-address" placeholder="请输入营业执照注册地址"
+              placeholder-class="m2-ph" :maxlength="200" v-model="form.registeredAddress" />
           </view>
         </view>
 
@@ -112,7 +156,21 @@
           </view>
 
           <view class="m2-field">
-            <text class="m2-label">身份证（人像面 / 国徽面）<text class="m2-opt">（选填，可后台补充）</text></text>
+            <text class="m2-label">营业执照有效期 <text class="m2-req">*</text></text>
+            <view class="m2-valid-row">
+              <input v-if="!form.licenseLongTerm" class="m2-input m2-valid-input" type="text"
+                placeholder="YYYY-MM-DD" placeholder-class="m2-ph" :maxlength="10"
+                v-model="form.licenseValidUntil" />
+              <view class="m2-longterm" :class="{ active: form.licenseLongTerm }" @tap="form.licenseLongTerm = !form.licenseLongTerm">
+                <AppIcon :name="form.licenseLongTerm ? 'check-square' : 'square'" :size="17"
+                  :color="form.licenseLongTerm ? '#C41E3A' : '#8b8175'" />
+                <text>长期有效</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">身份证（人像面 / 国徽面）<text class="m2-req">*</text></text>
             <view class="m2-up-row">
               <view
                 class="m2-upload m2-upload-sm"
@@ -138,6 +196,21 @@
                 </view>
                 <text v-if="form.idCardBack" class="m2-upload-badge">已上传 · 点击管理</text>
               </view>
+            </view>
+          </view>
+
+          <view class="m2-field">
+            <text class="m2-label">行业许可 / 品牌授权 <text class="m2-opt">（按经营类目补充）</text></text>
+            <view class="m2-upload m2-upload-license"
+              :class="{ 'm2-upload-done': !!form.industryPermit, 'm2-upload-busy': uploadingKey === 'industryPermit' }"
+              @tap="handleCredential('industryPermit')">
+              <image v-if="form.industryPermit" class="m2-upload-img" :src="form.industryPermit" mode="aspectFill" />
+              <view v-else class="m2-upload-copy">
+                <AppIcon :name="uploadingKey === 'industryPermit' ? 'loader-2' : 'file-plus-2'" :size="22" color="#A57935" />
+                <text class="m2-upload-txt">{{ uploadingKey === 'industryPermit' ? '上传中…' : '上传补充经营资质' }}</text>
+                <text class="m2-upload-sz">食品、出版物、品牌商品等类目需按要求提供</text>
+              </view>
+              <text v-if="form.industryPermit" class="m2-upload-badge">已上传 · 点击管理</text>
             </view>
           </view>
         </view>
@@ -221,6 +294,19 @@
           </view>
         </view>
 
+        <view class="m2-consent-card">
+          <view class="m2-consent" @tap="form.privacyConsent = !form.privacyConsent">
+            <AppIcon :name="form.privacyConsent ? 'check-square' : 'square'" :size="19"
+              :color="form.privacyConsent ? '#C41E3A' : '#8b8175'" />
+            <text>我同意平台为入驻审核、风险控制及监管要求处理上述身份与证照信息，并已阅读隐私说明。</text>
+          </view>
+          <view class="m2-consent" @tap="form.complianceDeclaration = !form.complianceDeclaration">
+            <AppIcon :name="form.complianceDeclaration ? 'check-square' : 'square'" :size="19"
+              :color="form.complianceDeclaration ? '#C41E3A' : '#8b8175'" />
+            <text>我承诺材料真实、完整、持续有效；发生主体、地址、许可或有效期变化时，将及时更新并重新提交审核。</text>
+          </view>
+        </view>
+
         <view class="m2-bottom-ph" />
       </scroll-view>
 
@@ -247,7 +333,7 @@ import { merchantApi, productCategories } from '@/pkg-merchant/lib/merchant-data
 import { chooseAndUploadImage } from '@/utils/request'
 
 const categories = productCategories
-type CredentialKey = 'businessLicense' | 'idCardFront' | 'idCardBack'
+type CredentialKey = 'businessLicense' | 'idCardFront' | 'idCardBack' | 'industryPermit'
 
 const statusBarHeight = ref(0)
 const loading = ref(true)
@@ -267,6 +353,15 @@ const form = reactive({
   businessLicense: '',
   idCardFront: '',
   idCardBack: '',
+  merchantType: 'ENTERPRISE' as 'ENTERPRISE' | 'INDIVIDUAL',
+  unifiedSocialCreditCode: '',
+  legalRepresentative: '',
+  registeredAddress: '',
+  licenseValidUntil: '',
+  licenseLongTerm: false,
+  industryPermit: '',
+  privacyConsent: false,
+  complianceDeclaration: false,
   categories: [] as string[],
 })
 
@@ -299,6 +394,10 @@ const validators: Record<string, (v: any) => string | null> = {
     if (!v) return '请上传清晰、完整的营业执照'
     return null
   },
+  unifiedSocialCreditCode: (v: string) => {
+    if (!/^[0-9A-Z]{18}$/.test(v.trim().toUpperCase())) return '请输入 18 位统一社会信用代码'
+    return null
+  },
   categories: (v: string[]) => {
     if (!v || v.length === 0) return '请至少选择一个经营类目'
     return null
@@ -319,14 +418,21 @@ function markTouched(field: string) {
 // 提交按钮可点判断（态A 必填齐全；态B 至少店名齐全）
 const canSubmit = computed(() => {
   if (isSubmitting.value || !!uploadingKey.value) return false
-  if (isEdit.value) return !!form.shopName.trim() && !!form.businessLicense
   return (
     !!form.shopName.trim() &&
     !!form.businessLicense &&
+    !!form.idCardFront &&
+    !!form.idCardBack &&
+    !!form.unifiedSocialCreditCode.trim() &&
+    !!form.legalRepresentative.trim() &&
+    !!form.registeredAddress.trim() &&
+    (form.licenseLongTerm || /^\d{4}-\d{2}-\d{2}$/.test(form.licenseValidUntil)) &&
     !!form.contactName.trim() &&
-    /^1[3-9]\d{9}$/.test(form.contactPhone.trim()) &&
-    !!form.idNumber.trim() &&
-    form.categories.length > 0
+    (isEdit.value || /^1[3-9]\d{9}$/.test(form.contactPhone.trim())) &&
+    (isEdit.value || !!form.idNumber.trim()) &&
+    form.categories.length > 0 &&
+    form.privacyConsent &&
+    form.complianceDeclaration
   )
 })
 
@@ -346,6 +452,15 @@ async function load() {
     form.businessLicense = app.businessLicense || ''
     form.idCardFront = app.idCardFront || ''
     form.idCardBack = app.idCardBack || ''
+    form.merchantType = app.merchantType || 'ENTERPRISE'
+    form.unifiedSocialCreditCode = app.unifiedSocialCreditCode || ''
+    form.legalRepresentative = app.legalRepresentative || ''
+    form.registeredAddress = app.registeredAddress || ''
+    form.licenseValidUntil = app.licenseValidUntil ? app.licenseValidUntil.slice(0, 10) : ''
+    form.licenseLongTerm = !!app.licenseLongTerm
+    form.industryPermit = app.qualificationFiles?.[0]?.url || ''
+    form.privacyConsent = !!app.privacyConsentAt
+    form.complianceDeclaration = !!app.complianceDeclarationAt
     // 身份证号 / 手机号后端脱敏返回，不回填输入框，留空按需重填（提交时仅覆盖有值字段）
     form.idNumber = ''
     form.contactPhone = ''
@@ -409,8 +524,8 @@ function handleCredential(key: CredentialKey) {
 
 function validateForm(): boolean {
   const fields = isEdit.value
-    ? ['shopName', 'contactPhone', 'idNumber', 'businessLicense', 'categories']  // 态B：脱敏字段留空放行
-    : ['shopName', 'contactName', 'contactPhone', 'idNumber', 'businessLicense', 'categories']
+    ? ['shopName', 'contactPhone', 'idNumber', 'businessLicense', 'unifiedSocialCreditCode', 'categories']
+    : ['shopName', 'contactName', 'contactPhone', 'idNumber', 'businessLicense', 'unifiedSocialCreditCode', 'categories']
   fields.forEach((f) => markTouched(f))
   for (const f of fields) {
     const fn = validators[f]
@@ -420,6 +535,9 @@ function validateForm(): boolean {
     markTouched('categories')
     return false
   }
+  if (!form.idCardFront || !form.idCardBack || !form.legalRepresentative.trim() || !form.registeredAddress.trim()) return false
+  if (!form.licenseLongTerm && !/^\d{4}-\d{2}-\d{2}$/.test(form.licenseValidUntil)) return false
+  if (!form.privacyConsent || !form.complianceDeclaration) return false
   return true
 }
 
@@ -433,13 +551,24 @@ async function handleSubmit() {
   try {
     if (isEdit.value) {
       // 态B：仅提交有值字段（脱敏留空不覆盖原值）
-      const payload: Record<string, string | string[] | undefined> = {
+      const payload: Record<string, unknown> = {
         shopName: form.shopName.trim(),
         shopIntro: form.shopIntro.trim() || undefined,
         categoryIds: form.categories,
         businessLicense: form.businessLicense,
         idCardFront: form.idCardFront || undefined,
         idCardBack: form.idCardBack || undefined,
+        merchantType: form.merchantType,
+        unifiedSocialCreditCode: form.unifiedSocialCreditCode.trim().toUpperCase(),
+        legalRepresentative: form.legalRepresentative.trim(),
+        registeredAddress: form.registeredAddress.trim(),
+        licenseValidUntil: form.licenseLongTerm ? undefined : form.licenseValidUntil,
+        licenseLongTerm: form.licenseLongTerm,
+        qualificationFiles: form.industryPermit
+          ? [{ type: 'INDUSTRY_PERMIT', title: '行业许可 / 品牌授权', url: form.industryPermit }]
+          : [],
+        privacyConsent: form.privacyConsent,
+        complianceDeclaration: form.complianceDeclaration,
       }
       if (form.contactName.trim()) payload.contactName = form.contactName.trim()
       if (form.idNumber.trim()) payload.idCardNumber = form.idNumber.trim()
@@ -457,6 +586,17 @@ async function handleSubmit() {
         businessLicense: form.businessLicense,
         idCardFront: form.idCardFront || undefined,
         idCardBack: form.idCardBack || undefined,
+        merchantType: form.merchantType,
+        unifiedSocialCreditCode: form.unifiedSocialCreditCode.trim().toUpperCase(),
+        legalRepresentative: form.legalRepresentative.trim(),
+        registeredAddress: form.registeredAddress.trim(),
+        licenseValidUntil: form.licenseLongTerm ? undefined : form.licenseValidUntil,
+        licenseLongTerm: form.licenseLongTerm,
+        qualificationFiles: form.industryPermit
+          ? [{ type: 'INDUSTRY_PERMIT', title: '行业许可 / 品牌授权', url: form.industryPermit }]
+          : [],
+        privacyConsent: form.privacyConsent,
+        complianceDeclaration: form.complianceDeclaration,
       })
     }
     // 统一提交审核 → 进入待审核态
@@ -563,6 +703,27 @@ $green: #2E8B57;
 }
 .m2-group-t-between { justify-content: space-between; }
 .m2-cat-count { font-size: 24rpx; font-weight: 400; color: $ink3; }
+.m2-trust-card {
+  display: flex; gap: 20rpx; margin-bottom: 28rpx; padding: 26rpx;
+  border-radius: 26rpx; color: #fff;
+  background: radial-gradient(circle at 92% 10%, rgba(255,255,255,.18), transparent 32%), linear-gradient(135deg, #473423, #9a6e36);
+  box-shadow: 0 12rpx 32rpx rgba(80, 53, 26, .12);
+}
+.m2-trust-icon { width: 54rpx; height: 54rpx; border-radius: 18rpx; flex: none; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.16); }
+.m2-trust-copy { flex: 1; min-width: 0; }
+.m2-trust-title { display: block; font-size: 27rpx; font-weight: 700; }
+.m2-trust-desc { display: block; margin-top: 8rpx; font-size: 21rpx; line-height: 1.6; color: rgba(255,255,255,.72); }
+.m2-type-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18rpx; }
+.m2-type { height: 84rpx; border-radius: 22rpx; border: 1rpx solid $line; background: #fff; display: flex; align-items: center; justify-content: center; gap: 10rpx; color: $ink2; font-size: 25rpx; }
+.m2-type.active { color: $red; border-color: rgba(196,30,58,.35); background: rgba(196,30,58,.04); box-shadow: inset 0 0 0 1rpx rgba(196,30,58,.08); }
+.m2-valid-row { display: flex; gap: 18rpx; align-items: center; }
+.m2-valid-input { flex: 1; min-width: 0; }
+.m2-longterm { flex: none; height: 84rpx; padding: 0 22rpx; border-radius: 22rpx; border: 1rpx solid $line; background: #fff; display: flex; align-items: center; gap: 8rpx; font-size: 23rpx; color: $ink2; }
+.m2-longterm.active { color: $red; border-color: rgba(196,30,58,.28); background: rgba(196,30,58,.04); }
+.m2-textarea-address { height: 112rpx; padding: 22rpx 28rpx; border: 1rpx solid $line; border-radius: 24rpx; background: #fff; }
+.m2-consent-card { margin: 38rpx 40rpx 0; padding: 26rpx; border-radius: 26rpx; background: #fff; border: 1rpx solid $line; }
+.m2-consent { display: flex; align-items: flex-start; gap: 14rpx; padding: 10rpx 0; }
+.m2-consent text { flex: 1; font-size: 22rpx; line-height: 1.65; color: $ink2; }
 
 /* 字段 */
 .m2-field { margin-bottom: 26rpx; }

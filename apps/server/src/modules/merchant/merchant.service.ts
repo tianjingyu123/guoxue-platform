@@ -1,8 +1,8 @@
 import { Injectable, Optional } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
-import { FeatureFlagService } from "../feature-flag/feature-flag.service";
 import { NotificationService } from "../notification/notification.service";
 import { SystemService } from "../system/system.service";
 import { AuditService } from "../audit/audit.service";
@@ -12,7 +12,7 @@ import {
   isReturnRefundType,
   stringifyAfterSaleLogistics,
 } from "../shop/after-sale-type";
-import { MERCHANT_CONFIG_KEYS, MERCHANT_FEATURE_FLAGS } from "./merchant.types";
+import { MERCHANT_CONFIG_KEYS } from "./merchant.types";
 import { encrypt, decrypt, maskIdCard, maskPhone, phoneHmac } from "../../common/crypto.util";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import {
@@ -26,7 +26,6 @@ import {
 export class MerchantService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly featureFlag: FeatureFlagService,
     private readonly notification: NotificationService,
     private readonly systemService: SystemService,
     private readonly audit: AuditService,
@@ -61,9 +60,65 @@ export class MerchantService {
         businessLicense: dto.businessLicense,
         brandAuth: dto.brandAuth,
         categoryIds: dto.categoryIds ?? [],
+        merchantType: dto.merchantType ?? "ENTERPRISE",
+        unifiedSocialCreditCode: dto.unifiedSocialCreditCode,
+        registeredAddress: dto.registeredAddress,
+        legalRepresentative: dto.legalRepresentative,
+        licenseValidFrom: dto.licenseValidFrom ? new Date(dto.licenseValidFrom) : null,
+        licenseValidUntil: dto.licenseValidUntil ? new Date(dto.licenseValidUntil) : null,
+        licenseLongTerm: dto.licenseLongTerm ?? false,
+        qualificationFiles: (dto.qualificationFiles ?? []) as unknown as Prisma.InputJsonValue,
+        qualificationStatus: "DRAFT",
+        riskLevel: "MEDIUM",
+        privacyConsentAt: dto.privacyConsent ? new Date() : null,
+        complianceDeclarationAt: dto.complianceDeclaration ? new Date() : null,
         status: "PENDING_REVIEW",
       },
     });
+  }
+
+  private qualificationSnapshot(merchant: Record<string, any>) {
+    return {
+      merchantType: merchant.merchantType,
+      unifiedSocialCreditCode: merchant.unifiedSocialCreditCode,
+      registeredAddress: merchant.registeredAddress,
+      legalRepresentative: merchant.legalRepresentative,
+      licenseValidFrom: merchant.licenseValidFrom,
+      licenseValidUntil: merchant.licenseValidUntil,
+      licenseLongTerm: merchant.licenseLongTerm,
+      businessLicense: merchant.businessLicense,
+      idCardFront: merchant.idCardFront,
+      idCardBack: merchant.idCardBack,
+      brandAuth: merchant.brandAuth,
+      qualificationFiles: merchant.qualificationFiles,
+      categoryIds: merchant.categoryIds,
+      submittedAt: new Date(),
+    };
+  }
+
+  private assertQualificationComplete(merchant: Record<string, any>) {
+    const required = [
+      ["联系人", merchant.contactName],
+      ["联系电话", merchant.contactPhone],
+      ["身份证号", merchant.idCardNumber],
+      ["身份证人像面", merchant.idCardFront],
+      ["身份证国徽面", merchant.idCardBack],
+      ["营业执照", merchant.businessLicense],
+      ["统一社会信用代码", merchant.unifiedSocialCreditCode],
+      ["注册地址", merchant.registeredAddress],
+      ["法定代表人或经营者", merchant.legalRepresentative],
+      ["敏感信息处理授权", merchant.privacyConsentAt],
+      ["材料真实性承诺", merchant.complianceDeclarationAt],
+    ];
+    const missing = required.filter(([, value]) => !value).map(([label]) => label);
+    if (!merchant.licenseLongTerm && !merchant.licenseValidUntil) missing.push("营业执照有效期");
+    if (!Array.isArray(merchant.categoryIds) || merchant.categoryIds.length === 0) missing.push("经营类目");
+    if (missing.length) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `请先补齐以下资质：${missing.join("、")}`);
+    }
+    if (!merchant.licenseLongTerm && new Date(merchant.licenseValidUntil).getTime() < Date.now()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "营业执照已过有效期，请上传最新证照后再提交");
+    }
   }
 
   /** 出库脱敏：身份证号解密后掩码、联系电话/关联用户手机号掩码，防管理端与本人回显泄露完整 PII。
@@ -87,7 +142,7 @@ export class MerchantService {
   async updateApplication(userId: string, dto: UpdateMerchantApplyDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "未找到入驻申请");
-    if (merchant.status !== "PENDING_REVIEW" && merchant.status !== "REVIEW_FAILED") {
+    if (!["PENDING_REVIEW", "REVIEW_FAILED", "ACTIVE"].includes(merchant.status)) {
       throw new BusinessException(ErrorCode.MERCHANT_STATUS_INVALID, "当前状态不可修改");
     }
 
@@ -98,43 +153,65 @@ export class MerchantService {
     );
 
     // 身份证号若更新则加密入库（其余字段透传）
-    const { idCardNumber, ...rest } = dto;
-    return this.prisma.merchant.update({
+    const {
+      idCardNumber,
+      licenseValidFrom,
+      licenseValidUntil,
+      qualificationFiles,
+      privacyConsent,
+      complianceDeclaration,
+      ...rest
+    } = dto;
+    const updated = await this.prisma.merchant.update({
       where: { userId },
       data: {
         ...rest,
         ...(idCardNumber !== undefined ? { idCardNumber: idCardNumber ? encrypt(idCardNumber) : idCardNumber } : {}),
+        ...(licenseValidFrom !== undefined ? { licenseValidFrom: licenseValidFrom ? new Date(licenseValidFrom) : null } : {}),
+        ...(licenseValidUntil !== undefined ? { licenseValidUntil: licenseValidUntil ? new Date(licenseValidUntil) : null } : {}),
+        ...(qualificationFiles !== undefined
+          ? { qualificationFiles: qualificationFiles as unknown as Prisma.InputJsonValue }
+          : {}),
+        ...(privacyConsent ? { privacyConsentAt: new Date() } : {}),
+        ...(complianceDeclaration ? { complianceDeclarationAt: new Date() } : {}),
+        qualificationStatus: "DRAFT",
+        qualificationRejectReason: null,
         ...(merchant.status === "REVIEW_FAILED" ? { status: "PENDING_REVIEW", rejectReason: null } : {}),
       },
     });
+    return this.maskMerchant(updated);
   }
 
   async submitForReview(userId: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "未找到入驻申请");
-    if (merchant.status !== "PENDING_REVIEW") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可提交");
-
-    if (!merchant.contactName || !merchant.idCardNumber || !merchant.contactPhone) {
-      throw new BusinessException(ErrorCode.BAD_REQUEST, "请完善入驻信息");
+    if (!["PENDING_REVIEW", "REVIEW_FAILED", "ACTIVE"].includes(merchant.status)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可提交资质审核");
     }
-    if (!merchant.businessLicense?.trim()) {
-      throw new BusinessException(
-        ErrorCode.BAD_REQUEST,
-        "请上传营业执照：无有效营业执照无法完成主体核验和商户进件",
-      );
-    }
-
-    // 当前实行免保证金入驻：自动审核通过后直接进入待签约，不制造待缴费状态。
-    const autoApprove = await this.featureFlag.isEnabled(MERCHANT_FEATURE_FLAGS.AUTO_APPROVE);
-
-    return this.prisma.merchant.update({
-      where: { userId },
-      data: {
-        status: autoApprove ? "AGREEMENT_PENDING" : "PENDING_REVIEW",
-        ...(autoApprove ? { depositAmount: 0, depositPaid: false } : {}),
-        reviewedAt: autoApprove ? new Date() : null,
-        rejectReason: null,
-      },
+    this.assertQualificationComplete(merchant);
+    const now = new Date();
+    const isRenewal = merchant.status === "ACTIVE";
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.merchant.update({
+        where: { userId },
+        data: {
+          ...(isRenewal ? {} : { status: "PENDING_REVIEW" }),
+          qualificationStatus: "PENDING",
+          qualificationSubmittedAt: now,
+          qualificationRejectReason: null,
+          rejectReason: null,
+        },
+      });
+      await tx.merchantQualificationReview.create({
+        data: {
+          merchantId: merchant.id,
+          status: "PENDING",
+          riskLevel: merchant.riskLevel || "MEDIUM",
+          riskFlags: merchant.riskFlags ?? [],
+          snapshot: this.qualificationSnapshot(merchant),
+        },
+      });
+      return this.maskMerchant(updated);
     });
   }
 
@@ -212,6 +289,7 @@ export class MerchantService {
         user: { select: { id: true, nickname: true, phone: true, avatar: true } },
         violations: { orderBy: { createdAt: "desc" }, take: 10 },
         depositRecords: { orderBy: { createdAt: "desc" }, take: 10 },
+        qualificationReviews: { orderBy: { createdAt: "desc" }, take: 10 },
       },
     });
     if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
@@ -381,24 +459,43 @@ export class MerchantService {
 
   async approveApplication(merchantId: string, reviewerId: string, dto: ApproveMerchantDto) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
-    if (merchant.status !== "PENDING_REVIEW") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可审核");
-
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商户不存在");
+    this.assertQualificationComplete(merchant);
+    if (merchant.status !== "PENDING_REVIEW" && merchant.qualificationStatus !== "PENDING") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前资质状态不可审核");
+    }
     if (dto.depositAmount != null && dto.depositAmount > 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "当前实行免保证金入驻，不可设置保证金金额");
     }
 
     const updateData: any = {
-      status: "AGREEMENT_PENDING",
+      status: merchant.status === "ACTIVE" ? "ACTIVE" : "AGREEMENT_PENDING",
       depositAmount: 0,
       depositPaid: false,
       reviewedBy: reviewerId,
       reviewedAt: new Date(),
       remark: dto.remark ?? null,
+      qualificationStatus: "APPROVED",
+      qualificationReviewedAt: new Date(),
+      qualificationNextReviewAt: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
+      qualificationRejectReason: null,
+      riskLevel: dto.riskLevel ?? "LOW",
+      riskFlags: dto.riskFlags ?? [],
     };
     if (dto.commissionRate != null) updateData.commissionRate = dto.commissionRate;
 
     const updated = await this.prisma.merchant.update({ where: { id: merchantId }, data: updateData });
+    await this.prisma.merchantQualificationReview.create({
+      data: {
+        merchantId,
+        status: "APPROVED",
+        riskLevel: dto.riskLevel ?? "LOW",
+        riskFlags: dto.riskFlags ?? [],
+        reason: dto.remark ?? null,
+        reviewerId,
+        snapshot: this.qualificationSnapshot(merchant),
+      },
+    });
 
     await this.notification.send(merchant.userId, {
       type: "SYSTEM",
@@ -421,12 +518,34 @@ export class MerchantService {
 
   async rejectApplication(merchantId: string, reviewerId: string, reason: string) {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId } });
-    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
-    if (merchant.status !== "PENDING_REVIEW") throw new BusinessException(ErrorCode.BAD_REQUEST, "当前状态不可审核");
-
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商户不存在");
+    if (merchant.status !== "PENDING_REVIEW" && merchant.qualificationStatus !== "PENDING") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前资质状态不可审核");
+    }
     const updated = await this.prisma.merchant.update({
       where: { id: merchantId },
-      data: { status: "REVIEW_FAILED", rejectReason: reason, reviewedBy: reviewerId, reviewedAt: new Date() },
+      data: {
+        status: merchant.status === "ACTIVE" ? "ACTIVE" : "REVIEW_FAILED",
+        rejectReason: merchant.status === "ACTIVE" ? merchant.rejectReason : reason,
+        qualificationStatus: "REJECTED",
+        qualificationRejectReason: reason,
+        qualificationReviewedAt: new Date(),
+        riskLevel: "HIGH",
+        riskFlags: ["QUALIFICATION_REJECTED"],
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
+      },
+    });
+    await this.prisma.merchantQualificationReview.create({
+      data: {
+        merchantId,
+        status: "REJECTED",
+        riskLevel: "HIGH",
+        riskFlags: ["QUALIFICATION_REJECTED"],
+        reason,
+        reviewerId,
+        snapshot: this.qualificationSnapshot(merchant),
+      },
     });
 
     await this.notification.send(merchant.userId, {
@@ -570,7 +689,39 @@ export class MerchantService {
     return !!m && m.id === cfg.configValue;
   }
 
+  private async assertMerchantQualificationForPublish(userId: string) {
+    const merchant = await this.prisma.merchant.findUnique({ where: { userId } });
+    if (!merchant) throw new BusinessException(ErrorCode.MERCHANT_NOT_FOUND, "商户不存在");
+    const now = Date.now();
+    const licenseExpired = !merchant.licenseLongTerm
+      && !!merchant.licenseValidUntil
+      && merchant.licenseValidUntil.getTime() < now;
+    const reviewExpired = !!merchant.qualificationNextReviewAt
+      && merchant.qualificationNextReviewAt.getTime() < now;
+    if (licenseExpired || reviewExpired) {
+      await this.prisma.merchant.update({
+        where: { id: merchant.id },
+        data: {
+          qualificationStatus: "EXPIRED",
+          riskLevel: "HIGH",
+          riskFlags: licenseExpired ? ["LICENSE_EXPIRED"] : ["PERIODIC_REVIEW_DUE"],
+        },
+      });
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        licenseExpired ? "营业执照已过期，请更新资质并通过复审后再发布" : "商户资质已到复核期，请完成复审后再发布",
+      );
+    }
+    if (merchant.qualificationStatus !== "APPROVED") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商户资质尚未通过审核，暂不能发布或上架商品");
+    }
+    if (merchant.riskLevel === "BLOCKED") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前商户风险状态禁止发布，请联系平台处理");
+    }
+  }
+
   async createProduct(userId: string, dto: MerchantProductDto) {
+    await this.assertMerchantQualificationForPublish(userId);
     const official = await this.isOfficialMerchant(userId);
     return this.prisma.product.create({
       data: {
@@ -629,6 +780,7 @@ export class MerchantService {
   }
 
   async listProduct(userId: string, productId: string) {
+    await this.assertMerchantQualificationForPublish(userId);
     // 🔴 上架前置状态校验：只有「已下架(OFF_SHELF)」的商品可自助重新上架。
     //    PENDING(待审核)商品若允许自助上架 = 商家绕过平台审核直接售卖，属审核旁路漏洞。
     const product = await this.prisma.product.findFirst({ where: { id: productId, userId }, select: { id: true, status: true } });
