@@ -516,13 +516,13 @@ export const merchantBackendApi = {
     q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 100))
     if (params?.keyword) q.set('keyword', params.keyword)
     if (params?.lowStock) q.set('lowStock', 'true')
-    return apiGet<{ items: InventoryStockItem[]; total: number }>(`/merchant-backend/inventory/stocks?${q}`)
+    return apiGetPaged<InventoryStockItem>(`/merchant-backend/inventory/stocks?${q}`)
   },
   getInventoryMovements: (params?: { page?: number; pageSize?: number; productId?: string }) => {
     const q = new URLSearchParams()
     q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 50))
     if (params?.productId) q.set('productId', params.productId)
-    return apiGet<{ items: InventoryMovement[]; total: number }>(`/merchant-backend/inventory/movements?${q}`)
+    return apiGetPaged<InventoryMovement>(`/merchant-backend/inventory/movements?${q}`)
   },
   adjustInventory: (data: { requestId: string; productId: string; skuId?: string; mode: 'INCREASE' | 'DECREASE' | 'SET'; quantity: number; reason: string }) =>
     apiPost('/merchant-backend/inventory/adjustments', data),
@@ -532,7 +532,7 @@ export const merchantBackendApi = {
     const q = new URLSearchParams()
     q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 50))
     if (params?.status) q.set('status', params.status)
-    return apiGet<{ items: PurchaseOrder[]; total: number }>(`/merchant-backend/purchase-orders?${q}`)
+    return apiGetPaged<PurchaseOrder>(`/merchant-backend/purchase-orders?${q}`)
   },
   createPurchaseOrder: (data: { supplierName: string; items: Array<{ productId: string; skuId?: string; quantity: number; unitCost: number }> }) =>
     apiPost<PurchaseOrder>('/merchant-backend/purchase-orders', data),

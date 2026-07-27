@@ -1327,6 +1327,12 @@ const routes = [
         meta: { title: "商品管理" },
       },
       {
+        path: "merchant-backend/inventory",
+        name: "MerchantInventory",
+        component: () => import("@/views/merchant-backend/MerchantInventory.vue"),
+        meta: { title: "库存与采购" },
+      },
+      {
         path: "merchant-backend/orders",
         name: "MerchantOrders",
         component: () => import("@/views/merchant-backend/MerchantOrders.vue"),

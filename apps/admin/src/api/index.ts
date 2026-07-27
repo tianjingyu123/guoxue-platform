@@ -1083,6 +1083,32 @@ export const merchantBackendApi = {
     api.put(`/merchant-backend/after-sales/${id}/process`, data),
   inspectReturn: (id: string, data: { requestId: string; accepted: boolean; quantity?: number; remark?: string }) =>
     api.post(`/merchant-backend/after-sales/${id}/return-inspection`, data),
+  // 进销存：采购、库存、流水与预警共用后端库存账
+  getInventoryOverview: () => api.get("/merchant-backend/inventory/overview"),
+  listInventoryStocks: (params?: { page?: number; pageSize?: number; keyword?: string; lowStock?: boolean }) =>
+    api.get("/merchant-backend/inventory/stocks", { params }),
+  listInventoryMovements: (params?: { page?: number; pageSize?: number; productId?: string; type?: string }) =>
+    api.get("/merchant-backend/inventory/movements", { params }),
+  adjustInventory: (data: { requestId: string; productId: string; skuId?: string; mode: "INCREASE" | "DECREASE" | "SET"; quantity: number; reason: string }) =>
+    api.post("/merchant-backend/inventory/adjustments", data),
+  setInventoryAlert: (data: { productId: string; skuId?: string; lowStockThreshold: number; enabled?: boolean }) =>
+    api.put("/merchant-backend/inventory/alerts", data),
+  listPurchaseOrders: (params?: { page?: number; pageSize?: number; status?: string }) =>
+    api.get("/merchant-backend/purchase-orders", { params }),
+  createPurchaseOrder: (data: {
+    supplierName: string;
+    contactName?: string;
+    contactPhone?: string;
+    expectedAt?: string;
+    remark?: string;
+    items: Array<{ productId: string; skuId?: string; quantity: number; unitCost: number }>;
+  }) => api.post("/merchant-backend/purchase-orders", data),
+  submitPurchaseOrder: (id: string) =>
+    api.post(`/merchant-backend/purchase-orders/${id}/submit`),
+  receivePurchaseOrder: (id: string, data: { requestId: string; items: Array<{ itemId: string; quantity: number }> }) =>
+    api.post(`/merchant-backend/purchase-orders/${id}/receive`, data),
+  cancelPurchaseOrder: (id: string) =>
+    api.post(`/merchant-backend/purchase-orders/${id}/cancel`),
   // 客户
   listCustomers: (params?: { page?: number; pageSize?: number }) =>
     api.get("/merchant-backend/customers", { params }),

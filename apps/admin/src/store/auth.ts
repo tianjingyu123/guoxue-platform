@@ -57,6 +57,7 @@ export const useAuthStore = defineStore("auth", () => {
       children: [
         { title: "数据概览", icon: "DataAnalysis", path: "/merchant-backend/dashboard" },
         { title: "商品管理", icon: "Goods", path: "/merchant-backend/products" },
+        { title: "库存与采购", icon: "Box", path: "/merchant-backend/inventory" },
         { title: "订单管理", icon: "Document", path: "/merchant-backend/orders" },
         { title: "发货管理", icon: "Van", path: "/merchant-backend/shipping" },
         { title: "售后管理", icon: "Service", path: "/merchant-backend/after-sales" },
