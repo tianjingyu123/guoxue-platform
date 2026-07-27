@@ -208,15 +208,27 @@ onShow(() => { favIds.value = getFavorites() })
 
       <!-- 统一排盘案例库：同一真实档案供不同术式交叉研习 -->
       <view class="section-px case-wrap">
-        <view class="case-card" @tap="navigateTo('/paipan/cases')">
-          <view class="case-icon">
-            <app-icon name="book-open" :size="44" color="#C41E3A" />
+        <view class="case-hub">
+          <view class="case-card" @tap="navigateTo('/paipan/cases')">
+            <view class="case-icon">
+              <app-icon name="book-open" :size="44" color="#C41E3A" />
+            </view>
+            <view class="case-text">
+              <text class="case-title">排盘案例库</text>
+              <text class="case-sub">一份真实经历 · 八字 / 紫微 / 命理交叉印证</text>
+            </view>
+            <app-icon name="chevron-right" :size="36" color="#B8AA9A" />
           </view>
-          <view class="case-text">
-            <text class="case-title">排盘案例库</text>
-            <text class="case-sub">一份真实经历 · 八字 / 紫微 / 命理交叉印证</text>
+          <view class="case-actions">
+            <view class="case-action tap-press" @tap="navigateTo('/paipan/cases/submit')">
+              <app-icon name="edit-3" :size="26" color="#8B6A4A" />
+              <text class="case-action-txt">投稿案例</text>
+            </view>
+            <view class="case-action tap-press" @tap="navigateTo('/mine/submissions')">
+              <app-icon name="clipboard-list" :size="26" color="#8B6A4A" />
+              <text class="case-action-txt">我的投稿</text>
+            </view>
           </view>
-          <app-icon name="chevron-right" :size="36" color="#B8AA9A" />
         </view>
       </view>
 
@@ -523,14 +535,17 @@ onShow(() => { favIds.value = getFavorites() })
 /* 双人合盘入口 */
 /* 案例库入口：低调横条，不跟 AI 卡抢视觉 */
 .case-wrap { padding-top: 24rpx; }
+.case-hub {
+  overflow: hidden;
+  border: 1rpx solid rgba(58, 42, 30, 0.08);
+  border-radius: 20rpx;
+  background: #fff;
+}
 .case-card {
   display: flex;
   align-items: center;
   gap: 20rpx;
   padding: 24rpx;
-  border-radius: 16rpx;
-  background: #fff;
-  border: 1rpx solid rgba(58, 42, 30, 0.08);
 }
 .case-icon {
   width: 84rpx;
@@ -554,6 +569,28 @@ onShow(() => { favIds.value = getFavorites() })
   margin-top: 6rpx;
   font-size: 22rpx;
   color: #9A8C7E;
+}
+.case-actions {
+  display: flex;
+  border-top: 1rpx solid rgba(58, 42, 30, 0.08);
+  background: #fcfaf7;
+}
+.case-action {
+  box-sizing: border-box;
+  flex: 1;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+}
+.case-action + .case-action {
+  border-left: 1rpx solid rgba(58, 42, 30, 0.08);
+}
+.case-action-txt {
+  font-size: 23rpx;
+  font-weight: 600;
+  color: #6f5139;
 }
 
 .couple-wrap { padding-top: 24rpx; }

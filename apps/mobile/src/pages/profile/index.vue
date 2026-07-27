@@ -145,7 +145,6 @@ const matrixItems: { icon: string; label: string; href: string; star?: boolean }
   { icon: 'radio', label: '我的直播', href: '/pkg-live/manage/index' },
   { icon: 'award', label: '讲师工作台', href: '/pkg-creator/teacher-dashboard/index' },
   { icon: 'shield-check', label: '我的资质', href: '/pkg-creator/my-qualifications/index' },
-  { icon: 'clipboard-list', label: '我的投稿', href: '/mine/submissions' },
   // 收货地址此前全项目零入口：买了实体商品的用户只能在结算时被动选，改不了地址
   { icon: 'map-pin', label: '收货地址', href: '/shop/addresses' },
 ]
