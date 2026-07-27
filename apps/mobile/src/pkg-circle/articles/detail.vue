@@ -23,6 +23,7 @@ import {
   articleApi, recommendRoute,
   type ArticleDetail, type ArticleRecommendCard, type ArticleProductCard,
 } from '@/lib/article-data'
+import { circleDetailApi } from '@/lib/circle-detail-data'
 import { setOrderSource } from '@/lib/shop-data'
 import { gotoReport } from '@/lib/report-data'
 
@@ -57,6 +58,12 @@ const collectCount = ref(0)
 const likeActing = ref(false)
 const collectActing = ref(false)
 const followActing = ref(false)
+// 来源圈子会员态：null 表示尚未取得权威状态；封面、主体和按钮统一走同一分流。
+const isSourceCircleJoined = ref<boolean | null>(null)
+const circleNavigating = ref(false)
+const circleCtaText = computed(() => (
+  isSourceCircleJoined.value === true ? '进入圈子' : '查看加入'
+))
 
 // 评论计数（初值取文章详情·后续由 CommentSection count-change 联动刷新）
 const commentCount = ref(0)
@@ -78,6 +85,14 @@ async function load() {
     if (a.products.length) {
       articleApi.enrichProducts(a.products).then((ps) => { products.value = ps }).catch(() => {})
     }
+    // 文章详情接口为公开读接口，不含可靠会员态；登录态由鉴权端点权威覆盖，
+    // 未登录或查询失败按未加入处理，统一进入购买/加入引导页。
+    if (a.sourceCircle?.id) {
+      const status = await circleDetailApi.getJoinStatus(a.sourceCircle.id, true)
+      isSourceCircleJoined.value = status.joined
+    } else {
+      isSourceCircleJoined.value = null
+    }
     // 我的互动态（失败不阻断主体·评论列表由 CommentSection 自行拉取）
     const chk = await articleApi.checkInteraction(articleId.value).catch(() => ({ liked: false, collected: false }))
     isLiked.value = chk.liked
@@ -94,8 +109,27 @@ onMounted(load)
 
 /** 相关文章跳转（修死链：原 /articles/:id 依赖别名 → 统一真路径） */
 function openArticle(id: string) { navigateTo('/pkg-circle/articles/detail?id=' + id) }
-/** 来源圈子跳转（修死链：原 /circles/:id 依赖别名 → 统一真路径） */
-function openCircle() { if (article.value?.sourceCircle) navigateTo('/pkg-circle/circles/detail?id=' + article.value.sourceCircle.id) }
+/**
+ * 来源圈子统一分流：
+ * - 已加入：直接进入圈子；
+ * - 未加入：进入购买/加入引导页，由预览页按付费、审批、免费三种模式继续承接。
+ * 三个可点击区域共用此函数，避免封面/文字仍绕过购买引导。
+ */
+async function openCircle() {
+  const circleId = article.value?.sourceCircle?.id
+  if (!circleId || circleNavigating.value) return
+  circleNavigating.value = true
+  try {
+    // 用户可能在页面停留期间从别处完成入圈；点击前再次确认，避免陈旧状态跳错页面。
+    const status = await circleDetailApi.getJoinStatus(circleId, true)
+    isSourceCircleJoined.value = status.joined
+    navigateTo(status.joined
+      ? `/pkg-circle/circles/detail?id=${circleId}`
+      : `/pkg-circle/circles/preview?id=${circleId}`)
+  } finally {
+    circleNavigating.value = false
+  }
+}
 /** 分享 → 海报页（替换原 toastComingSoon 死按钮） */
 function openShare() { if (article.value) navigateTo('/pkg-circle/common/share-poster?type=article&targetId=' + article.value.id) }
 /** 内容举报走审核举报池，与交易投诉工单分开。 */
@@ -295,7 +329,9 @@ function focusComment() {
           <text class="ad-lead-name">{{ article.sourceCircle.name }}</text>
           <text class="ad-lead-sub">{{ article.sourceCircle.members }} 位成员</text>
         </view>
-        <view class="ad-lead-btn" @tap="openCircle"><text class="ad-lead-btn-t">进圈看看</text></view>
+        <view class="ad-lead-btn" @tap="openCircle">
+          <text class="ad-lead-btn-t">{{ circleNavigating ? '正在前往…' : circleCtaText }}</text>
+        </view>
       </view>
 
       <!-- 统一评论区：CommentSection 一站式（列表三态/楼中楼/点赞/分页 + 吸底输入条）
