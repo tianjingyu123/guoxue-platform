@@ -9,7 +9,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { circleApi, formatMembers, isExpertRole, type MyCircle, type MyCircleStats } from '@/lib/circle-data'
+import { circleApi, isExpertRole, type MyCircle, type MyCircleStats } from '@/lib/circle-data'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
 
 const loading = ref(true)
@@ -49,23 +49,6 @@ async function load() {
 
 function go(url: string) { navigateTo(url) }
 function roleLabel(r: MyCircle['role']) { return r === 'owner' ? '圈主' : r === 'admin' ? '管理员' : '成员' }
-
-/**
- * 圈子卡 ··· 菜单（董事长反馈：退出入口从详情页移到这里）
- * 普通成员=进入圈子/退出与退款(跳 exit 引导页)；圈主/管理员一律不显示退出项。
- */
-function openCircleMenu(c: MyCircle) {
-  const items: { label: string; act: () => void }[] = [
-    { label: '进入圈子', act: () => go(`/pkg-circle/circles/detail?id=${c.id}`) },
-  ]
-  if (c.role !== 'owner' && c.role !== 'admin') {
-    items.push({ label: '退出与退款', act: () => go(`/pkg-circle/circles/exit?id=${c.id}`) })
-  }
-  uni.showActionSheet({
-    itemList: items.map((i) => i.label),
-    success: (r) => items[r.tapIndex]?.act(),
-  })
-}
 
 onMounted(load)
 </script>
@@ -132,10 +115,6 @@ onMounted(load)
                   :src="c.cover" :title="c.name" type="circle"
                   class="mine-cover" :class="{ 'owner-ring': c.role === 'owner' }"
                 />
-                <!-- 圈子卡菜单：进入圈子 / 退出与退款（成员）·退出入口从详情页移到这里 -->
-                <view class="mine-menu" @tap.stop="openCircleMenu(c)">
-                  <app-icon name="more-horizontal" :size="26" color="#6E6E73" />
-                </view>
               </view>
               <text class="mine-name">{{ c.name }}</text>
               <text class="mine-role" :class="c.role">{{ roleLabel(c.role) }}</text>
@@ -195,7 +174,7 @@ onMounted(load)
           </view>
           <view class="row" @tap="go('/pkg-circle/circles/my-refunds')">
             <view class="row-icon"><app-icon name="wallet" :size="30" color="#6E6E73" /></view>
-            <text class="row-label">我的圈子退款</text>
+            <text class="row-label">会员与售后</text>
             <text v-if="refundNote" class="row-note" :class="{ 'active-note': activeRefund }">{{ refundNote }}</text>
             <app-icon name="chevron-right" :size="30" color="#999999" />
           </view>
@@ -287,14 +266,6 @@ onMounted(load)
 .mine-card { width: 128rpx; display: inline-flex; flex-direction: column; align-items: center; }
 .mine-cover-wrap { position: relative; width: 120rpx; height: 120rpx; }
 .mine-cover { width: 120rpx; height: 120rpx; border-radius: 36rpx; }
-/* 圈子卡 ··· 按钮（右上角小圆钮·白底带描边保证任意封面上可见） */
-.mine-menu {
-  position: absolute; top: -10rpx; right: -14rpx; z-index: 2;
-  width: 44rpx; height: 44rpx; border-radius: 999rpx;
-  background: var(--bg-card, #fff); box-shadow: 0 0 0 1rpx var(--separator, #ede7dd), 0 2rpx 6rpx rgba(44, 44, 44, 0.1);
-  display: flex; align-items: center; justify-content: center;
-}
-.mine-menu:active { background: var(--bg-warm, #f8f4ec); }
 .mine-cover.owner-ring { box-shadow: 0 0 0 3rpx var(--gold, #c9a96e); }
 .mine-name { margin-top: 14rpx; font-size: 24rpx; color: var(--text-primary, #2c2c2c); max-width: 128rpx; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .mine-role { font-size: 20rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; }

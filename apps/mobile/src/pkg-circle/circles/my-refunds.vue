@@ -9,9 +9,11 @@ import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { refundApi, type RefundRequestItem } from '@/lib/circle-refund-data'
+import { circleApi, type MyCircle } from '@/lib/circle-data'
 import { formatPrice } from '@/utils/format'
 
 const list = ref<RefundRequestItem[]>([])
+const eligibleCircles = ref<MyCircle[]>([])
 const balance = ref(0)
 const loading = ref(true)
 const error = ref('')
@@ -20,9 +22,14 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [refunds, wallet] = await Promise.all([refundApi.myRefunds(), refundApi.wallet()])
+    const [refunds, wallet, circles] = await Promise.all([
+      refundApi.myRefunds(),
+      refundApi.wallet(),
+      circleApi.getMyCircles().catch(() => []),
+    ])
     list.value = refunds
     balance.value = wallet.balance
+    eligibleCircles.value = circles.filter((c) => c.role === 'member')
   } catch {
     error.value = '加载失败'
   } finally {
@@ -126,6 +133,24 @@ function showRules() {
   })
 }
 
+function chooseExitCircle() {
+  if (!eligibleCircles.value.length) {
+    uni.showToast({ title: '暂无可办理的圈子会员', icon: 'none' })
+    return
+  }
+  if (eligibleCircles.value.length === 1) {
+    navigateTo(`/pkg-circle/circles/exit?id=${eligibleCircles.value[0].id}`)
+    return
+  }
+  uni.showActionSheet({
+    itemList: eligibleCircles.value.map((c) => c.name.slice(0, 24)),
+    success: (result) => {
+      const circle = eligibleCircles.value[result.tapIndex]
+      if (circle) navigateTo(`/pkg-circle/circles/exit?id=${circle.id}`)
+    },
+  })
+}
+
 onMounted(load)
 </script>
 
@@ -134,7 +159,7 @@ onMounted(load)
     <!-- 顶栏 -->
     <view class="rf-topbar">
       <view class="rf-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
-      <text class="rf-title">我的退款</text>
+      <text class="rf-title">会员与售后</text>
     </view>
 
     <!-- 余额钱包：退款到账的去处（常驻） -->
@@ -160,7 +185,7 @@ onMounted(load)
     <view v-else-if="!list.length" class="rf-empty">
       <view class="rf-empty-icon"><app-icon name="credit-card" :size="56" color="#999999" /></view>
       <text class="rf-empty-title">暂无退款记录</text>
-      <text class="rf-empty-sub">你在圈子里的每一笔付费都受保障，如需退款可在圈子详情「更多 → 退出圈子」中申请。</text>
+      <text class="rf-empty-sub">你在圈子里的每一笔付费都受保障。退款申请与处理进度会统一记录在这里。</text>
       <view class="rf-empty-btn" @tap="showRules"><text class="rf-empty-btn-t">查看退款规则</text></view>
     </view>
 
@@ -197,6 +222,15 @@ onMounted(load)
       </view>
       <view class="rf-bottom-pad" />
     </template>
+
+    <!-- 退出与退款收敛到二级售后路径，避免圈子卡片快捷菜单误触 -->
+    <view v-if="!loading && eligibleCircles.length" class="rf-member-care" @tap="chooseExitCircle">
+      <view class="rf-member-care-copy">
+        <text class="rf-member-care-title">其他会员事项</text>
+        <text class="rf-member-care-sub">退出已加入的圈子</text>
+      </view>
+      <app-icon name="chevron-right" :size="28" color="#B7B1A8" />
+    </view>
   </view>
 </template>
 
@@ -308,4 +342,23 @@ onMounted(load)
 .rf-reject-b { font-weight: 600; color: var(--text-primary, #2c2c2c); }
 
 .rf-bottom-pad { height: 40rpx; }
+
+.rf-member-care {
+  margin: 28rpx 40rpx 16rpx;
+  padding: 24rpx 4rpx;
+  border-top: 1rpx solid var(--separator, #ede7dd);
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.rf-member-care:active { opacity: 0.72; }
+.rf-member-care-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.rf-member-care-title { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
+.rf-member-care-sub { font-size: 22rpx; color: var(--text-tertiary, #999); }
 </style>
