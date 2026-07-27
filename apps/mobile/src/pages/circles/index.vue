@@ -244,11 +244,12 @@ onShow(() => {
                 v-for="c in minePreview" :key="c.id"
                 class="mine-card tap-press" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
               >
-                <smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="44" class="mine-cover" />
-                <view class="mine-shade" />
-                <view v-if="c.todayActive && c.todayActive > 0" class="mine-badge">
-                  <view class="mine-badge-dot" />
-                  <text class="mine-badge-txt">今日 {{ c.todayActive }} 条</text>
+                <view class="mine-cover-wrap">
+                  <smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="44" class="mine-cover" />
+                  <view v-if="c.todayActive && c.todayActive > 0" class="mine-badge">
+                    <view class="mine-badge-dot" />
+                    <text class="mine-badge-txt">今日 {{ c.todayActive }} 条</text>
+                  </view>
                 </view>
                 <view class="mine-card-copy">
                   <text class="mine-name">{{ c.name }}</text>
@@ -256,7 +257,7 @@ onShow(() => {
                     <text class="mine-members">{{ formatMembers(c.members) }} 圈友</text>
                     <view class="mine-enter">
                       <text class="mine-enter-txt">进入</text>
-                      <app-icon name="chevron-right" :size="20" color="#FFFFFF" />
+                      <app-icon name="chevron-right" :size="20" color="#64766E" />
                     </view>
                   </view>
                 </view>
@@ -496,24 +497,27 @@ onShow(() => {
 .mine-scroll { position: relative; z-index: 1; width: 100%; white-space: nowrap; }
 .mine-row { display: inline-flex; gap: 16rpx; padding: 0 24rpx 28rpx; }
 .mine-card {
-  position: relative;
   width: 232rpx;
-  height: 174rpx;
+  height: 258rpx;
   box-sizing: border-box;
   display: inline-flex;
+  flex-direction: column;
   overflow: hidden;
   border: 1rpx solid rgba(78, 101, 91, 0.18);
   border-radius: 24rpx;
-  background: #5b493a;
+  background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 10rpx 22rpx rgba(38, 58, 49, 0.14);
   vertical-align: top;
 }
-.mine-cover { position: absolute; inset: 0; width: 100%; height: 100%; }
-.mine-shade {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(19, 15, 12, 0.02) 10%, rgba(19, 15, 12, 0.16) 48%, rgba(19, 15, 12, 0.82) 100%);
+.mine-cover-wrap {
+  position: relative;
+  flex: 0 0 174rpx;
+  width: 100%;
+  height: 174rpx;
+  overflow: hidden;
+  background: #e9edea;
 }
+.mine-cover { width: 100%; height: 100%; }
 .mine-badge {
   position: absolute;
   top: 12rpx;
@@ -530,34 +534,32 @@ onShow(() => {
 .mine-badge-dot { width: 8rpx; height: 8rpx; border-radius: 999rpx; background: #e9c477; }
 .mine-badge-txt { font-size: 18rpx; font-weight: 600; color: #fff4da; line-height: 1.2; }
 .mine-card-copy {
-  position: absolute;
-  z-index: 1;
-  right: 14rpx;
-  bottom: 12rpx;
-  left: 14rpx;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  padding: 12rpx 14rpx 13rpx;
+  border-top: 1rpx solid rgba(78, 101, 91, 0.1);
 }
 .mine-name {
-  display: -webkit-box;
+  display: block;
   overflow: hidden;
   font-size: 27rpx;
   font-weight: 650;
-  color: #ffffff;
+  color: #263a32;
   line-height: 1.3;
-  white-space: normal;
-  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.36);
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.mine-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8rpx; margin-top: 8rpx; }
+.mine-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8rpx; margin-top: 7rpx; }
 .mine-members {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 19rpx;
-  color: rgba(255, 255, 255, 0.68);
+  color: #7c8c85;
 }
 .mine-enter { display: flex; align-items: center; flex: 0 0 auto; }
-.mine-enter-txt { font-size: 20rpx; font-weight: 600; color: #ffffff; }
+.mine-enter-txt { font-size: 20rpx; font-weight: 600; color: #53685f; }
 
 /* 区② 发现圈子 */
 .cat-scroll { width: 100%; white-space: nowrap; }
