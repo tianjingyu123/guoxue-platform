@@ -509,7 +509,7 @@ export class MerchantService {
         where: { merchantId: merchant.id, createdAt: { gte: today }, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
         _sum: { amount: true },
       }),
-      this.prisma.product.count({ where: { userId } }),
+      this.prisma.product.count({ where: { userId, status: "ON_SALE" } }),
       this.prisma.productReview.count({ where: { product: { userId }, reply: null } }),
       // 累计口径实时聚合（去规范化字段 merchant.totalSales/totalOrders/rating 全库无 writer·恒为种子值→改实时算）
       this.prisma.order.aggregate({
@@ -652,10 +652,16 @@ export class MerchantService {
   // ─── 订单管理 ───
 
   async listOrders(merchantId: string, q: MerchantOrderQueryDto) {
-    const { status } = q;
+    const { status, startDate, endDate } = q;
     const { page, pageSize, skip } = safePagination(q.page, q.pageSize, NO_PAGE_LIMIT);
     const where: Record<string, unknown> = { merchantId };
     if (status) where.status = status;
+    if (startDate || endDate) {
+      where.createdAt = {
+        ...(startDate ? { gte: new Date(startDate) } : {}),
+        ...(endDate ? { lt: new Date(endDate) } : {}),
+      };
+    }
 
     const [list, total] = await Promise.all([
       this.prisma.order.findMany({

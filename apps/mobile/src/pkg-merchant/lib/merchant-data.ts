@@ -388,9 +388,17 @@ export const merchantBackendApi = {
   deleteSku: (skuId: string) => apiDelete(`/merchant-backend/skus/${skuId}`),
 
   // 订单
-  getOrders: (params?: { status?: MerchantOrderStatus; page?: number; pageSize?: number }) => {
+  getOrders: (params?: {
+    status?: MerchantOrderStatus
+    startDate?: string
+    endDate?: string
+    page?: number
+    pageSize?: number
+  }) => {
     const q = new URLSearchParams()
     if (params?.status) q.set('status', params.status)
+    if (params?.startDate) q.set('startDate', params.startDate)
+    if (params?.endDate) q.set('endDate', params.endDate)
     q.set('page', String(params?.page ?? 1))
     q.set('pageSize', String(params?.pageSize ?? 20))
     return apiGetPaged<MerchantOrder>(`/merchant-backend/orders?${q.toString()}`)

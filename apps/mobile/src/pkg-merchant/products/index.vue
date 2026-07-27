@@ -371,7 +371,10 @@ function go(path: string) {
   navigateTo(path)
 }
 
-onLoad(() => {
+onLoad((opts) => {
+  if (typeof opts?.status === 'string' && tabs.some((t) => t.key === opts.status)) {
+    activeTab.value = opts.status as TabKey
+  }
   try {
     const sys = uni.getSystemInfoSync()
     statusBarH.value = sys.statusBarHeight || 0

@@ -446,6 +446,14 @@ export class MerchantOrderQueryDto {
   @IsOptional() @IsString()
   status?: string;
 
+  @ApiPropertyOptional({ description: "下单时间起点（ISO 日期时间，含）" })
+  @IsOptional() @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: "下单时间终点（ISO 日期时间，不含）" })
+  @IsOptional() @IsDateString()
+  endDate?: string;
+
   @ApiPropertyOptional({ description: "页码", default: 1 })
   @IsOptional() @IsNumber() @Min(1)
   @Type(() => Number)

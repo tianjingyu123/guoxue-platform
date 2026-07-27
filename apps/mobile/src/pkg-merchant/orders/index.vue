@@ -12,8 +12,11 @@
         <view class="nav-back" @tap="go('/merchant/dashboard')">
           <AppIcon name="arrow-left" :size="20" color="#ffffff" />
         </view>
-        <text class="nav-title">订单管理</text>
-        <view v-if="activeTab === 'PAID'" class="nav-action" @tap.stop="go('/merchant/batch-ship')">
+        <text class="nav-title">{{ pageTitle }}</text>
+        <view v-if="startDate || endDate" class="nav-action" @tap.stop="clearDateFilter">
+          <text>全部订单</text>
+        </view>
+        <view v-else-if="activeTab === 'PAID'" class="nav-action" @tap.stop="go('/merchant/batch-ship')">
           <AppIcon name="layers" :size="15" color="#ffffff" />
           <text>批量发货</text>
         </view>
@@ -150,9 +153,22 @@ const orders = ref<MerchantOrder[]>([])
 const loading = ref(true)
 const error = ref('')
 const activeTab = ref<TabKey>('all')
+const startDate = ref('')
+const endDate = ref('')
+const dateScope = ref('')
+
+const pageTitle = computed(() => {
+  if (dateScope.value === 'today') return '今日订单'
+  if (dateScope.value === '7d') return '近 7 日订单'
+  if (dateScope.value === 'day' && startDate.value) return `${startDate.value.slice(5, 10).replace('-', '月')}日订单`
+  return '订单管理'
+})
 
 onLoad((opts) => {
   if (opts?.status && tabs.some((t) => t.key === opts.status)) activeTab.value = opts.status as TabKey
+  startDate.value = typeof opts?.startDate === 'string' ? opts.startDate : ''
+  endDate.value = typeof opts?.endDate === 'string' ? opts.endDate : ''
+  dateScope.value = typeof opts?.scope === 'string' ? opts.scope : ''
   load()
 })
 
@@ -162,6 +178,8 @@ async function load() {
   try {
     const res = await merchantBackendApi.getOrders({
       status: activeTab.value === 'all' ? undefined : activeTab.value,
+      startDate: startDate.value || undefined,
+      endDate: endDate.value || undefined,
       page: 1,
       pageSize: 50,
     })
@@ -176,6 +194,13 @@ async function load() {
 function switchTab(key: TabKey) {
   if (activeTab.value === key) return
   activeTab.value = key
+  load()
+}
+
+function clearDateFilter() {
+  startDate.value = ''
+  endDate.value = ''
+  dateScope.value = ''
   load()
 }
 

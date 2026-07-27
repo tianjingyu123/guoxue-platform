@@ -344,7 +344,15 @@ export class RecommendationService {
       fallback = this.fallbackIntents(`${userQuery} ${clean.slice(0, 300)}`);
     }
     const source = protocolIntents.length ? protocolIntents : fallback;
-    const intents = this.prioritize(source, userQuery);
+    const userTopic = TOPICS.find((topic) => userQuery.includes(topic));
+    const topicAnchoredSource = userTopic
+      ? source.map((intent) => (
+          COMMERCIAL_TYPES.has(intent.type)
+            ? { ...intent, query: userTopic }
+            : intent
+        ))
+      : source;
+    const intents = this.prioritize(topicAnchoredSource, userQuery);
     if (!intents.length) return { content: clean, recommendation: null };
 
     const items = await this.match(intents);

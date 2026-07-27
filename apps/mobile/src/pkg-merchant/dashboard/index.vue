@@ -70,41 +70,41 @@
 
         <!-- 今日：dashboard 真实字段 -->
         <view v-if="tab === 'today'" class="m-row">
-          <view class="m-cell">
+          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openRevenue">
             <text class="mv red">¥{{ money(dashboard.todaySales) }}</text>
-            <text class="ml">今日成交额</text>
+            <text class="ml">今日成交额 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell">
+          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openTodayOrders">
             <text class="mv">{{ dashboard.todayOrders }}</text>
-            <text class="ml">今日订单</text>
+            <text class="ml">今日订单 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell">
+          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openOnSaleProducts">
             <text class="mv">{{ dashboard.totalProducts }}</text>
-            <text class="ml">在售商品</text>
+            <text class="ml">在售商品 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell">
+          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openReviews">
             <text class="mv">{{ Number(dashboard.rating || 0).toFixed(1) }}</text>
-            <text class="ml">店铺评分</text>
+            <text class="ml">店铺评分 <text class="m-arrow">›</text></text>
           </view>
         </view>
 
         <!-- 本月：累计 + 近7日汇总（metrics.summary 真实字段·取不到诚实降级） -->
         <view v-else class="m-row">
-          <view class="m-cell">
+          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openRevenue">
             <text class="mv red">¥{{ money(dashboard.totalSales) }}</text>
-            <text class="ml">累计成交额</text>
+            <text class="ml">累计成交额 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell">
+          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openAllOrders">
             <text class="mv">{{ dashboard.totalOrders }}</text>
-            <text class="ml">累计订单</text>
+            <text class="ml">累计订单 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell">
+          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openRecentOrders">
             <text class="mv">{{ metrics ? metrics.summary.ordersCount : '—' }}</text>
-            <text class="ml">近7日订单</text>
+            <text class="ml">近7日订单 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell">
+          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openReviews">
             <text class="mv">{{ metrics && metrics.summary.avgRating !== null ? Number(metrics.summary.avgRating).toFixed(1) : '—' }}</text>
-            <text class="ml">近7日评分</text>
+            <text class="ml">近7日评分 <text class="m-arrow">›</text></text>
           </view>
         </view>
 
@@ -131,13 +131,20 @@
             </view>
             <view class="plot">
               <view class="bars">
-                <view v-for="(b, i) in trend.bars" :key="i" class="bcol" :class="{ hot: i === trend.bars.length - 1 }">
+                <view
+                  v-for="(b, i) in trend.bars"
+                  :key="b.date"
+                  class="bcol"
+                  :class="{ hot: i === trend.bars.length - 1 }"
+                  hover-class="tap-soft"
+                  @tap="openOrdersForDay(b.date)"
+                >
                   <text class="bval">{{ b.value }}</text>
                   <view class="bar" :style="{ height: b.pct + '%' }" />
                 </view>
               </view>
               <view class="xaxis">
-                <text v-for="(b, i) in trend.bars" :key="i" class="xaxis-t">{{ b.label }}</text>
+                <text v-for="b in trend.bars" :key="b.date" class="xaxis-t">{{ b.label }}</text>
               </view>
             </view>
           </view>
@@ -277,7 +284,7 @@ const statusInfo = computed(() => ({ text: statusTextMap[profile.value?.status ?
 // 近7日订单趋势：由 metrics.items 归一化为柱图（真实数据·无金额字段故取 ordersCount）
 const trend = computed(() => {
   const items = metrics.value?.items ?? []
-  if (!items.length) return { bars: [] as { label: string; value: number; pct: number }[], yMax: 0, total: 0 }
+  if (!items.length) return { bars: [] as { date: string; label: string; value: number; pct: number }[], yMax: 0, total: 0 }
   const vals = items.map((it) => Number(it.ordersCount || 0))
   const max = Math.max(...vals, 1)
   // Y 轴刻度取 max 向上取整到 2 的整倍（保证顶格美观）
@@ -286,6 +293,7 @@ const trend = computed(() => {
     const v = Number(it.ordersCount || 0)
     const isLast = i === items.length - 1
     return {
+      date: it.date,
       label: isLast ? '今日' : weekLabel(it.date),
       value: v,
       pct: Math.round((v / yMax) * 100),
@@ -314,6 +322,59 @@ function deltaClass(log: MerchantCreditLogItem): string {
   if (log.newScore > log.oldScore) return 'pop-up'
   if (log.newScore < log.oldScore) return 'pop-down'
   return ''
+}
+
+function shanghaiDate(offsetDays = 0): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(Date.now() + offsetDays * 86400000))
+}
+
+function nextDate(date: string): string {
+  const start = new Date(`${date}T00:00:00+08:00`)
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(start.getTime() + 86400000))
+}
+
+function orderRangePath(startDate: string, endDate: string, scope: 'today' | 'day' | '7d'): string {
+  const q = new URLSearchParams({
+    startDate: `${startDate}T00:00:00+08:00`,
+    endDate: `${endDate}T00:00:00+08:00`,
+    scope,
+  })
+  return `/pkg-merchant/orders/index?${q.toString()}`
+}
+
+function openRevenue() {
+  go('/pkg-merchant/revenue/index')
+}
+function openAllOrders() {
+  go('/pkg-merchant/orders/index')
+}
+function openTodayOrders() {
+  const today = shanghaiDate()
+  go(orderRangePath(today, nextDate(today), 'today'))
+}
+function openRecentOrders() {
+  const start = trend.value.bars[0]?.date || shanghaiDate(-6)
+  const end = nextDate(trend.value.bars[trend.value.bars.length - 1]?.date || shanghaiDate())
+  go(orderRangePath(start, end, '7d'))
+}
+function openOrdersForDay(date: string) {
+  go(orderRangePath(date, nextDate(date), 'day'))
+}
+function openOnSaleProducts() {
+  go('/pkg-merchant/products/index?status=ON_SALE')
+}
+function openReviews() {
+  go('/pkg-merchant/reviews/index')
 }
 
 async function loadCredit() {
@@ -626,6 +687,15 @@ $wash: #f5f1eb;
   flex-direction: column;
   align-items: center;
 }
+.m-cell-link {
+  min-width: 0;
+  padding: 8rpx 2rpx;
+  border-radius: 16rpx;
+}
+.tap-soft {
+  opacity: 0.72;
+  background: rgba(196, 30, 58, 0.05);
+}
 .mv {
   font-family: 'Songti SC', serif;
   font-size: 44rpx;
@@ -640,6 +710,10 @@ $wash: #f5f1eb;
   font-size: 20rpx;
   color: $ink3;
   margin-top: 8rpx;
+}
+.m-arrow {
+  color: $red;
+  font-weight: 700;
 }
 
 /* 近7日趋势 */
@@ -723,6 +797,7 @@ $wash: #f5f1eb;
   align-items: center;
   justify-content: flex-end;
   height: 100%;
+  border-radius: 8rpx 8rpx 0 0;
 }
 .bval {
   font-size: 16rpx;

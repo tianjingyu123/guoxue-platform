@@ -154,6 +154,27 @@ describe("RecommendationService（场景化向导推荐）", () => {
     expect(result.recommendation?.presentation).toBe("inline");
   });
 
+  it("模型给出泛化商业检索词时，仍以用户明确主题约束候选", async () => {
+    prisma.course.findFirst.mockResolvedValue({
+      id: "c1", title: "八字入门课程", cover: "c.webp", intro: "四周路线", price: 99, studentCount: 20,
+    });
+
+    const raw = '回答<!--RECO:[{"type":"course","query":"系统入门课程"}]-->';
+    const result = await service.build(raw, "我想系统学习八字，请推荐平台内适合的课程");
+
+    expect(prisma.course.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({
+        OR: expect.arrayContaining([
+          { title: expect.objectContaining({ contains: "八字" }) },
+        ]),
+      }),
+    }));
+    expect(result.recommendation?.items[0]).toEqual(expect.objectContaining({
+      type: "course",
+      data: expect.objectContaining({ title: "八字入门课程" }),
+    }));
+  });
+
   it("工具意图返回可直接打开的结构化工具入口", async () => {
     const result = await service.build("可以使用标准工具查看。", "我想用万年历查节气");
     expect(result.recommendation?.items[0]).toEqual({

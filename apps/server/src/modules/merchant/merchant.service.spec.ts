@@ -366,6 +366,30 @@ describe("MerchantService", () => {
     });
   });
 
+  describe("商家订单下钻筛选", () => {
+    it("支持按时间范围查看仪表盘对应订单", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([]);
+      mockPrisma.order.count.mockResolvedValue(0);
+
+      await svc.listOrders("m1", {
+        startDate: "2026-07-25T16:00:00.000Z",
+        endDate: "2026-07-26T16:00:00.000Z",
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          merchantId: "m1",
+          createdAt: {
+            gte: new Date("2026-07-25T16:00:00.000Z"),
+            lt: new Date("2026-07-26T16:00:00.000Z"),
+          },
+        },
+      }));
+    });
+  });
+
   describe("商家发货与售后真实状态", () => {
     it("订单详情返回真实运单信息", async () => {
       mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", merchantId: "m1", userId: "u1", targetId: "p1", status: "SHIPPED" });
