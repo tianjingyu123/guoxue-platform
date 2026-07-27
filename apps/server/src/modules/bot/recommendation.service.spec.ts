@@ -175,6 +175,31 @@ describe("RecommendationService（场景化向导推荐）", () => {
     }));
   });
 
+  it("课程优先按标题和简介匹配，避免历史脏标签把无关热门课程顶上来", async () => {
+    prisma.course.findFirst.mockResolvedValue({
+      id: "c-bazi",
+      title: "八字入门课程",
+      cover: "bazi.webp",
+      intro: "零基础学习八字",
+      price: 99,
+      studentCount: 15,
+    });
+
+    const raw = '<!--RECO:[{"type":"course","query":"系统入门课程"}]-->';
+    const result = await service.build(raw, "请推荐一门平台内与八字直接相关的入门课程，不要推荐中医课程");
+
+    const primaryWhere = prisma.course.findFirst.mock.calls[0][0].where;
+    expect(primaryWhere.OR).toEqual([
+      { title: expect.objectContaining({ contains: "八字" }) },
+      { intro: expect.objectContaining({ contains: "八字" }) },
+    ]);
+    expect(primaryWhere.OR).not.toContainEqual({ tags: { has: "八字" } });
+    expect(result.recommendation?.items[0]).toEqual(expect.objectContaining({
+      type: "course",
+      data: expect.objectContaining({ title: "八字入门课程" }),
+    }));
+  });
+
   it("工具意图返回可直接打开的结构化工具入口", async () => {
     const result = await service.build("可以使用标准工具查看。", "我想用万年历查节气");
     expect(result.recommendation?.items[0]).toEqual({

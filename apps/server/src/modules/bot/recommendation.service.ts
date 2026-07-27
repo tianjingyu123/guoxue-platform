@@ -287,16 +287,31 @@ export class RecommendationService {
     }
 
     if (intent.type === "course") {
-      const row = await this.prisma.course.findFirst({
+      const baseWhere = {
+        deletedAt: null,
+        auditStatus: "APPROVED" as const,
+        visibility: "PLATFORM" as const,
+      };
+      // 标题和简介是课程主题的强信号，标签只用于兜底。
+      // 避免历史脏标签让高热度但主题无关的课程抢占推荐位。
+      let row = await this.prisma.course.findFirst({
         where: {
-          deletedAt: null,
-          auditStatus: "APPROVED",
-          visibility: "PLATFORM",
-          OR: [{ title: common }, { intro: common }, { tags: { has: intent.query } }],
+          ...baseWhere,
+          OR: [{ title: common }, { intro: common }],
         },
         orderBy: [{ studentCount: "desc" }, { createdAt: "desc" }],
         select: { id: true, title: true, cover: true, intro: true, price: true, studentCount: true },
       });
+      if (!row) {
+        row = await this.prisma.course.findFirst({
+          where: {
+            ...baseWhere,
+            tags: { has: intent.query },
+          },
+          orderBy: [{ studentCount: "desc" }, { createdAt: "desc" }],
+          select: { id: true, title: true, cover: true, intro: true, price: true, studentCount: true },
+        });
+      }
       return row ? { type: "course", data: { ...row, price: Number(row.price), href: `/courses/${row.id}`, reason: intent.reason } } : null;
     }
 
