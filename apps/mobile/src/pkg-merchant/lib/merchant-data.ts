@@ -118,6 +118,7 @@ export interface MerchantProfile {
   qualificationNextReviewAt?: string | null
   qualificationRejectReason?: string | null
   riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH' | 'BLOCKED'
+  viewerRole?: 'OWNER' | 'OPERATOR'
 }
 
 /** 商品状态（后端枚举） */

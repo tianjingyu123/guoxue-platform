@@ -57,9 +57,13 @@
               需补正：{{ profile.qualificationRejectReason }}
             </text>
             <text v-else class="qualification-next">{{ qualificationNextReview }}</text>
-            <view class="qualification-action" @tap="openQualification">
+            <view v-if="profile.viewerRole !== 'OPERATOR'" class="qualification-action" @tap="openQualification">
               <text>{{ profile.qualificationStatus === 'APPROVED' ? '查看与更新资质' : '补齐资质并提交审核' }}</text>
               <app-icon name="chevron-right" :size="15" color="#ffffff" />
+            </view>
+            <view v-else class="qualification-action qualification-action--locked">
+              <app-icon name="lock" :size="14" color="#ffffff" />
+              <text>仅店铺主体负责人可更新资质</text>
             </view>
           </view>
 
@@ -497,6 +501,7 @@ $line: #edeae4;
 .qualification-next { display: block; font-size: 22rpx; line-height: 1.5; color: rgba(255,255,255,.78); }
 .qualification-action { margin-top: 22rpx; height: 72rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 8rpx; background: rgba(255,255,255,.16); border: 1rpx solid rgba(255,255,255,.2); }
 .qualification-action text { color: #fff; font-size: 24rpx; font-weight: 600; }
+.qualification-action--locked { opacity: .76; }
 .group {
   margin-bottom: 36rpx;
 }

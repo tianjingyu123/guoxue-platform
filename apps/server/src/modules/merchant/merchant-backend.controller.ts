@@ -58,8 +58,12 @@ export class MerchantBackendController {
   @Get("profile")
   @ApiOperation({ summary: "获取店铺信息" })
   @ApiResponse({ status: 200, description: "成功" })
-  getProfile(@Req() req: AuthRequest) {
-    return this.merchantService.getMerchantById(this.getMerchant(req).id);
+  async getProfile(@Req() req: AuthRequest) {
+    const profile = await this.merchantService.getMerchantById(this.getMerchant(req).id);
+    return {
+      ...profile,
+      viewerRole: (req as any).merchantRole || "OWNER",
+    };
   }
 
   @Put("profile")

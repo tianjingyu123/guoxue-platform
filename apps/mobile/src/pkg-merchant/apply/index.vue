@@ -467,7 +467,7 @@ async function load() {
   } catch (e) {
     // 404 = 未申请 → 态A 首次填写（这是正常路径，非错误）
     const msg = (e as Error)?.message || ''
-    if (msg.includes('404') || msg.includes('未申请') || msg.includes('不存在') || msg.includes('Not Found')) {
+    if (msg.includes('404') || msg.includes('未申请') || msg.includes('未找到') || msg.includes('不存在') || msg.includes('Not Found')) {
       isEdit.value = false
     } else if (msg) {
       // 其他错误才真正报错
