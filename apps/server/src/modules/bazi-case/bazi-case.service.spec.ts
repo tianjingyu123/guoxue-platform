@@ -61,7 +61,7 @@ describe("BaziCaseService", () => {
       },
       commissionConfig: { findUnique: jest.fn(), findMany: jest.fn() },
       user: { findMany: jest.fn().mockResolvedValue([]) },
-      $transaction: jest.fn(async (fn: (tx: any) => Promise<unknown>) => fn(prisma)),
+      $transaction: jest.fn(async (arg: any) => Array.isArray(arg) ? Promise.all(arg) : arg(prisma)),
     };
     coin = { income: jest.fn().mockResolvedValue({}) };
 
@@ -134,6 +134,31 @@ describe("BaziCaseService", () => {
     });
   });
 
+  describe("同一案例跨术式共享", () => {
+    it("资料不完整时只开放八字与命理，不伪造紫微盘", async () => {
+      prisma.baziCase.findFirst.mockResolvedValue({ ...CASE });
+
+      const result: any = await svc.detail("c1");
+
+      expect(result.availableMethods).toEqual(["BAZI", "MINGLI"]);
+    });
+
+    it("完整生辰开放紫微视角，且紫微筛选只查询完整资料", async () => {
+      const complete = { ...CASE, birthYear: 1990, birthMonth: 6, birthDay: 18, birthHour: 9 };
+      prisma.baziCase.findMany.mockResolvedValue([complete]);
+      prisma.baziCase.count.mockResolvedValue(1);
+
+      const result: any = await svc.list({ method: "ZIWEI" });
+
+      expect(result.items[0].availableMethods).toEqual(["BAZI", "ZIWEI", "MINGLI"]);
+      expect(prisma.baziCase.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          birthYear: { not: null }, birthMonth: { not: null },
+          birthDay: { not: null }, birthHour: { not: null },
+        }),
+      }));
+    });
+  });
   describe("三柱匹配（日柱必须同 + 另任意两柱同）", () => {
     const target = { year: "甲子", month: "丙寅", day: "戊辰", hour: "庚申" };
 

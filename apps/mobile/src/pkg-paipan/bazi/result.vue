@@ -13,6 +13,7 @@ import GenerateReportButton from '@/components/paipan/generate-report-button.vue
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import SchoolAnalysis from '../components/school-analysis.vue'
 import SimilarCases from '../components/similar-cases.vue'
+import CaseLibraryEntry from '../components/case-library-entry.vue'
 import { baziApi } from '@/lib/bazi-result-data'
 import { saveBaziHistory } from './bazi-history'
 import { navigateBack } from '@/utils/router'
@@ -293,6 +294,7 @@ function onShare() {
         <analysis-mode v-else :data="data" @edit="openEdit" />
         <!-- 同类八字：案例库里有日柱相同+另两柱相同的，才出现（没命中整块不显示） -->
         <similar-cases :pillars="myPillars" />
+        <case-library-entry method="BAZI" />
         <!-- AI 师徒 · 请师父看盘（流派虚拟师父点评对照，T6 §三） -->
         <school-analysis :input="userInput" :record-id="recordIdFromQuery" />
         <generate-report-button

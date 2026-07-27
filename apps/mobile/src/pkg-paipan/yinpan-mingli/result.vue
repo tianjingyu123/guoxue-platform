@@ -12,6 +12,7 @@ import ParamError from '@/components/paipan/param-error.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import CaseLibraryEntry from '../components/case-library-entry.vue'
 import { navigateTo } from '@/utils/router'
 import {
   computeQimen,
@@ -510,6 +511,8 @@ function goInput() {
             />
           </view>
         </view>
+
+        <case-library-entry method="MINGLI" />
 
         <disclaimer
           variant="custom"

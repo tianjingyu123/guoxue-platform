@@ -13,6 +13,7 @@ import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
 import ZiweiChartGrid from './components/ziwei-chart-grid.vue'
+import CaseLibraryEntry from '../components/case-library-entry.vue'
 import { computeZiwei, toZiweiChart } from '@/pkg-paipan/lib/ziwei-engine'
 import type { ZiweiChart } from '@/pkg-paipan/lib/ziwei-types'
 import { saveZiweiHistory, shichenLabel } from './ziwei-history'
@@ -140,6 +141,8 @@ function onShare() {
             </view>
           </view>
         </paper-card>
+
+        <case-library-entry method="ZIWEI" />
 
         <generate-report-button
           v-if="chart"

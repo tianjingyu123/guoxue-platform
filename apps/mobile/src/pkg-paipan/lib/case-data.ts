@@ -20,6 +20,22 @@ export const LIFE_DIMENSIONS = [
 
 export type LifeKey = (typeof LIFE_DIMENSIONS)[number]['key']
 
+export type CaseMethod = 'ALL' | 'BAZI' | 'ZIWEI' | 'MINGLI'
+
+/** 同一真实案例的不同观察视角；不是三套重复案例。 */
+export const CASE_METHODS: { key: CaseMethod; label: string; short: string; description: string }[] = [
+  { key: 'ALL', label: '综合档案', short: '综合', description: '同一经历，多种术式交叉印证' },
+  { key: 'BAZI', label: '八字视角', short: '八字', description: '以四柱、十神与行运观察' },
+  { key: 'ZIWEI', label: '紫微视角', short: '紫微', description: '以十二宫、星曜与四化观察' },
+  { key: 'MINGLI', label: '命理研习', short: '命理', description: '围绕真实人生经历综合复盘' },
+]
+
+export const METHOD_LABEL: Record<string, string> = {
+  BAZI: '八字',
+  ZIWEI: '紫微',
+  MINGLI: '命理',
+}
+
 export const CASE_SOURCES = [
   { key: '', label: '全部' },
   { key: 'CELEBRITY', label: '名人' },
@@ -56,6 +72,8 @@ export interface BaziCaseItem {
   isPremium: boolean
   viewCount: number
   attemptCount: number
+  /** 这份真实档案可用哪些术式观察；紫微要求完整生辰。 */
+  availableMethods: Exclude<CaseMethod, 'ALL'>[]
   /** 仅同类八字接口返回 */
   samePillars?: string[]
   sameCount?: number
@@ -85,13 +103,14 @@ export interface CaseAnswer {
 }
 
 export const caseApi = {
-  list(q: { page?: number; pageSize?: number; source?: string; keyword?: string; premiumOnly?: boolean } = {}) {
+  list(q: { page?: number; pageSize?: number; source?: string; keyword?: string; premiumOnly?: boolean; method?: CaseMethod } = {}) {
     const p = new URLSearchParams()
     if (q.page) p.set('page', String(q.page))
     if (q.pageSize) p.set('pageSize', String(q.pageSize))
     if (q.source) p.set('source', q.source)
     if (q.keyword) p.set('keyword', q.keyword)
     if (q.premiumOnly) p.set('premiumOnly', 'true')
+    if (q.method && q.method !== 'ALL') p.set('method', q.method)
     return apiGet<{ items: BaziCaseItem[]; total: number }>(`/bazi-cases?${p.toString()}`)
   },
 

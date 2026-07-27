@@ -1,18 +1,26 @@
 <script setup lang="ts">
 /**
- * 八字案例库（爱好者练手 · 同类八字参考）
+ * 排盘案例库（同一真实经历 · 多术式交叉研习）
  *
  * 🔴 案例的「答案」是这个八字的**真实人生经历**，不是断语。
  *    列表页只给八字和身份，看答案得进去先断、再点「公布答案」。
  */
 import { ref, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import { navigateTo } from '@/utils/router'
-import { caseApi, CASE_SOURCES, SOURCE_LABEL, pillarsText, type BaziCaseItem } from '@/pkg-paipan/lib/case-data'
+import {
+  caseApi,
+  CASE_METHODS,
+  CASE_SOURCES,
+  METHOD_LABEL,
+  SOURCE_LABEL,
+  type BaziCaseItem,
+  type CaseMethod,
+} from '@/pkg-paipan/lib/case-data'
 
 const tab = ref<'lib' | 'rank'>('lib')
 
@@ -25,6 +33,7 @@ const failed = ref(false)
 const noMore = ref(false)
 const source = ref('')
 const keyword = ref('')
+const method = ref<CaseMethod>('ALL')
 
 // 贡献榜
 const rank = ref<any[]>([])
@@ -47,6 +56,7 @@ async function load(reset = false) {
       pageSize: 20,
       source: source.value || undefined,
       keyword: keyword.value.trim() || undefined,
+      method: method.value,
     })
     const items = res?.items ?? []
     list.value = reset ? items : [...list.value, ...items]
@@ -87,6 +97,10 @@ onMounted(() => {
 })
 // 投稿回来刷新我的称号
 onShow(loadMine)
+onLoad((q: Record<string, string> = {}) => {
+  const requested = String(q.method || '').toUpperCase() as CaseMethod
+  if (CASE_METHODS.some((item) => item.key === requested)) method.value = requested
+})
 
 function onTab(k: 'lib' | 'rank') {
   tab.value = k
@@ -98,6 +112,11 @@ function onSource(k: string) {
   load(true)
 }
 
+function onMethod(k: CaseMethod) {
+  method.value = k
+  load(true)
+}
+
 function more() {
   if (noMore.value || loading.value) return
   page.value += 1
@@ -105,7 +124,7 @@ function more() {
 }
 
 function open(c: BaziCaseItem) {
-  navigateTo(`/pkg-paipan/cases/detail?id=${c.id}`)
+  navigateTo(`/pkg-paipan/cases/detail?id=${c.id}&method=${method.value}`)
 }
 
 function goSubmit() {
@@ -117,13 +136,13 @@ function goMine() {
 }
 
 const emptyText = computed(() =>
-  keyword.value || source.value ? '没有匹配的案例' : '案例库还在积累中',
+  keyword.value || source.value || method.value !== 'ALL' ? '没有匹配的案例' : '案例库还在积累中',
 )
 </script>
 
 <template>
   <view class="cs">
-    <ToolHeader title="八字案例库" subtitle="练手 · 参考 · 印证" />
+    <ToolHeader title="排盘案例库" subtitle="一份经历 · 多术式交叉印证" />
 
     <view class="cs-tabs">
       <view class="cs-tab" :class="{ 'cs-tab--on': tab === 'lib' }" @tap="onTab('lib')">
@@ -141,9 +160,18 @@ const emptyText = computed(() =>
         <PaperCard padding="lg">
           <view class="cs-intro">
             <AppIcon name="lightbulb" :size="20" color="#C41E3A" />
-            <text class="cs-intro-txt">先自己断，再看真实人生经历。断语和思路只是参考 —— 这个人后来到底怎么样了，才是答案。</text>
+            <text class="cs-intro-txt">同一份真实人生档案，由八字、紫微与命理研习共享。先自己判断，再换一种术式交叉印证；真实经历才是答案。</text>
           </view>
         </PaperCard>
+
+        <scroll-view class="cs-methods" scroll-x :show-scrollbar="false">
+          <view class="cs-methods-inner">
+            <view v-for="item in CASE_METHODS" :key="item.key" class="cs-method" :class="{ 'cs-method--on': method === item.key }" @tap="onMethod(item.key)">
+              <text class="cs-method-name" :class="{ 'cs-method-name--on': method === item.key }">{{ item.label }}</text>
+              <text class="cs-method-desc" :class="{ 'cs-method-desc--on': method === item.key }">{{ item.description }}</text>
+            </view>
+          </view>
+        </scroll-view>
 
         <view class="cs-bar">
           <view class="cs-search">
@@ -217,6 +245,9 @@ const emptyText = computed(() =>
               <text class="cs-pillar">{{ c.monthPillar }}</text>
               <text class="cs-pillar cs-pillar--day">{{ c.dayPillar }}</text>
               <text class="cs-pillar">{{ c.hourPillar }}</text>
+            </view>
+            <view class="cs-method-tags">
+              <text v-for="item in c.availableMethods" :key="item" class="cs-method-tag">{{ METHOD_LABEL[item] || item }}</text>
             </view>
             <view class="cs-item-foot">
               <text class="cs-item-meta">{{ c.gender === 'female' ? '女命' : '男命' }}{{ c.era ? ` · ${c.era}` : '' }}</text>
@@ -322,6 +353,15 @@ const emptyText = computed(() =>
   line-height: 1.7;
   color: #7a6c5e;
 }
+
+.cs-methods { white-space: nowrap; }
+.cs-methods-inner { display: inline-flex; gap: 14rpx; }
+.cs-method { width: 260rpx; padding: 18rpx 20rpx; box-sizing: border-box; border-radius: 16rpx; background: #fff; border: 1rpx solid rgba(58, 42, 30, 0.08); }
+.cs-method--on { background: linear-gradient(135deg, #7f1830, #c41e3a); box-shadow: 0 10rpx 24rpx rgba(127, 24, 48, 0.16); }
+.cs-method-name { display: block; font-size: 25rpx; font-weight: 700; color: #3a2a1e; }
+.cs-method-name--on { color: #fff; }
+.cs-method-desc { display: block; margin-top: 6rpx; font-size: 19rpx; color: #9a8c7e; }
+.cs-method-desc--on { color: rgba(255, 255, 255, 0.76); }
 
 .cs-bar {
   display: flex;
@@ -475,6 +515,9 @@ const emptyText = computed(() =>
   color: #c41e3a;
   font-weight: 700;
 }
+
+.cs-method-tags { display: flex; gap: 8rpx; margin-top: 14rpx; }
+.cs-method-tag { padding: 4rpx 12rpx; border-radius: 999rpx; background: rgba(196, 30, 58, 0.07); border: 1rpx solid rgba(196, 30, 58, 0.14); font-size: 18rpx; color: #9d2c41; }
 
 .cs-item-foot {
   display: flex;

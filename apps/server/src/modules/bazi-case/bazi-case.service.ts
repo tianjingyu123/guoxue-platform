@@ -80,6 +80,7 @@ export class BaziCaseService {
     tag?: string;
     keyword?: string;
     premiumOnly?: boolean;
+    method?: string;
   }) {
     const page = Math.max(1, Number(q.page) || 1);
     const pageSize = Math.min(50, Math.max(1, Number(q.pageSize) || 20));
@@ -88,6 +89,13 @@ export class BaziCaseService {
     if (q.source) where.source = q.source;
     if (q.tag) where.tags = { has: q.tag };
     if (q.premiumOnly) where.isPremium = true;
+    // 同一份真实人生档案供多种术式交叉研习。紫微必须有完整生辰，绝不拿残缺资料伪造盘面。
+    if (q.method?.toUpperCase() === "ZIWEI") {
+      where.birthYear = { not: null };
+      where.birthMonth = { not: null };
+      where.birthDay = { not: null };
+      where.birthHour = { not: null };
+    }
     if (q.keyword) {
       where.OR = [
         { title: { contains: q.keyword, mode: "insensitive" } },
@@ -106,7 +114,12 @@ export class BaziCaseService {
       this.prisma.baziCase.count({ where }),
     ]);
 
-    return { items, total, page, pageSize };
+    return {
+      items: items.map((item) => this.withMethods(item)),
+      total,
+      page,
+      pageSize,
+    };
   }
 
   /**
@@ -119,7 +132,7 @@ export class BaziCaseService {
     if (!c) throw new BusinessException(ErrorCode.NOT_FOUND, "案例不存在或未通过审核");
 
     await this.prisma.baziCase.update({ where: { id }, data: { viewCount: { increment: 1 } } });
-    return c;
+    return this.withMethods(c);
   }
 
   /** 我在此案例的练手状态；只有我已 reveal 过，才把答案一并带回（刷新后回显用） */
@@ -153,6 +166,23 @@ export class BaziCaseService {
 
   private dimensionMeta() {
     return LIFE_DIMENSIONS.map((k) => ({ key: k, label: LIFE_DIMENSION_LABELS[k] }));
+  }
+
+  /**
+   * 案例只存一份真实经历，术式是观察视角而不是复制数据。
+   * 八字与命理综合始终可用；紫微只有在公历年月日时完整时开放。
+   */
+  private withMethods<T extends {
+    birthYear: number | null;
+    birthMonth: number | null;
+    birthDay: number | null;
+    birthHour: number | null;
+  }>(item: T): T & { availableMethods: string[] } {
+    const availableMethods = ["BAZI", "MINGLI"];
+    if ([item.birthYear, item.birthMonth, item.birthDay, item.birthHour].every((value) => value !== null)) {
+      availableMethods.splice(1, 0, "ZIWEI");
+    }
+    return { ...item, availableMethods };
   }
 
   // ────────────────────────── 练手 ──────────────────────────
@@ -246,7 +276,7 @@ export class BaziCaseService {
       .filter((c) => c.sameCount >= 3)
       .sort((a, b) => b.sameCount - a.sameCount || b.quality - a.quality);
 
-    return { total: matched.length, items: matched.slice(0, limit) };
+    return { total: matched.length, items: matched.slice(0, limit).map((item) => this.withMethods(item)) };
   }
 
   // ────────────────────────── 投稿 ──────────────────────────
@@ -359,7 +389,7 @@ export class BaziCaseService {
       orderBy: { createdAt: "desc" },
     });
     const approved = items.filter((i) => i.status === "APPROVED").length;
-    return { items, approved, total: items.length, badge: badgeOf(approved) };
+    return { items: items.map((item) => this.withMethods(item)), approved, total: items.length, badge: badgeOf(approved) };
   }
 
   /** 贡献榜（按审核通过数） */

@@ -39,10 +39,10 @@ watch(
 )
 
 function go(c: BaziCaseItem) {
-  navigateTo(`/pkg-paipan/cases/detail?id=${c.id}`)
+  navigateTo(`/pkg-paipan/cases/detail?id=${c.id}&method=BAZI`)
 }
 function goLib() {
-  navigateTo('/pkg-paipan/cases/index')
+  navigateTo('/pkg-paipan/cases/index?method=BAZI')
 }
 </script>
 

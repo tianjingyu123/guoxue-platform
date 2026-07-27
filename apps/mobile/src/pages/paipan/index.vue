@@ -206,15 +206,15 @@ onShow(() => { favIds.value = getFavorites() })
         </view>
       </view>
 
-      <!-- 八字案例库入口（练手场：先自己断，再看真实人生经历） -->
+      <!-- 统一排盘案例库：同一真实档案供不同术式交叉研习 -->
       <view class="section-px case-wrap">
         <view class="case-card" @tap="navigateTo('/paipan/cases')">
           <view class="case-icon">
             <app-icon name="book-open" :size="44" color="#C41E3A" />
           </view>
           <view class="case-text">
-            <text class="case-title">八字案例库</text>
-            <text class="case-sub">先自己断，再看真实人生经历 · 练手 · 印证</text>
+            <text class="case-title">排盘案例库</text>
+            <text class="case-sub">一份真实经历 · 八字 / 紫微 / 命理交叉印证</text>
           </view>
           <app-icon name="chevron-right" :size="36" color="#B8AA9A" />
         </view>

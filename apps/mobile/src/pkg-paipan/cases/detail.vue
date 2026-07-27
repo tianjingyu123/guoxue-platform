@@ -21,6 +21,7 @@ import {
   SOURCE_LABEL,
   type BaziCaseItem,
   type CaseAnswer,
+  type CaseMethod,
   type LifeKey,
 } from '@/pkg-paipan/lib/case-data'
 
@@ -28,6 +29,9 @@ const id = ref('')
 const loading = ref(true)
 const failed = ref(false)
 const c = ref<BaziCaseItem | null>(null)
+const requestedMethod = ref<CaseMethod>('BAZI')
+const activeMethod = ref<Exclude<CaseMethod, 'ALL'>>('BAZI')
+const availableMethods = computed<Exclude<CaseMethod, 'ALL'>[]>(() => c.value?.availableMethods ?? ['BAZI', 'MINGLI'])
 
 /** 我的断语（六维度） */
 const guess = ref<Record<string, string>>({})
@@ -44,6 +48,8 @@ const guessedCount = computed(() => LIFE_DIMENSIONS.filter((d) => (guess.value[d
 
 onLoad(async (q: Record<string, string> = {}) => {
   id.value = q.id || ''
+  const method = String(q.method || 'BAZI').toUpperCase() as CaseMethod
+  requestedMethod.value = ['BAZI', 'ZIWEI', 'MINGLI'].includes(method) ? method : 'BAZI'
   if (!id.value) {
     failed.value = true
     loading.value = false
@@ -57,6 +63,9 @@ async function load() {
   failed.value = false
   try {
     c.value = await caseApi.detail(id.value)
+    activeMethod.value = availableMethods.value.includes(requestedMethod.value as any)
+      ? requestedMethod.value as Exclude<CaseMethod, 'ALL'>
+      : 'BAZI'
     // 登录用户：拉我的练手状态（已公布过答案的，直接回显答案）
     try {
       const mine = await caseApi.myAttempt(id.value)
@@ -132,17 +141,35 @@ async function setScore(n: number) {
   }
 }
 
-/** 拿这个八字去排盘（看盘再回来对） */
+/** 用当前术式重新起这份真实档案；不同视角共享同一案例答案。 */
 function goPaipan() {
   if (!c.value) return
   const b = c.value
-  if (!b.birthYear) {
-    uni.showToast({ title: '该案例未留确切生辰', icon: 'none' })
+  if (!b.birthYear || !b.birthMonth || !b.birthDay || b.birthHour === null) {
+    uni.showToast({ title: '该案例未留完整生辰', icon: 'none' })
     return
   }
-  navigateTo(
-    `/paipan/bazi/result?gender=${b.gender === 'female' ? '女' : '男'}&year=${b.birthYear}&month=${b.birthMonth ?? 1}&day=${b.birthDay ?? 1}&hour=${b.birthHour ?? 0}&minute=0`,
-  )
+  if (activeMethod.value === 'ZIWEI') {
+    const payload = encodeURIComponent(JSON.stringify({
+      name: b.title, gender: b.gender === 'female' ? '女' : '男',
+      y: b.birthYear, m: b.birthMonth, d: b.birthDay, hour: b.birthHour, minute: 0,
+    }))
+    navigateTo(`/pkg-paipan/ziwei/result?payload=${payload}`)
+    return
+  }
+  if (activeMethod.value === 'MINGLI') {
+    const payload = encodeURIComponent(JSON.stringify({
+      name: b.title, gender: b.gender, year: b.birthYear, month: b.birthMonth,
+      day: b.birthDay, hour: b.birthHour, minute: 0, trueSolar: false, earlyZi: false,
+    }))
+    navigateTo(`/pkg-paipan/yinpan-mingli/result?payload=${payload}`)
+    return
+  }
+  navigateTo(`/paipan/bazi/result?gender=${b.gender === 'female' ? '女' : '男'}&year=${b.birthYear}&month=${b.birthMonth}&day=${b.birthDay}&hour=${b.birthHour}&minute=0`)
+}
+
+function methodLabel(method: string) {
+  return method === 'ZIWEI' ? '紫微视角' : method === 'MINGLI' ? '命理研习' : '八字视角'
 }
 
 function labelOf(k: string) {
@@ -175,7 +202,13 @@ function labelOf(k: string) {
             {{ c.gender === 'female' ? '女命' : '男命' }}{{ c.era ? ` · ${c.era}` : '' }} · {{ c.attemptCount }} 人练过
           </text>
 
-          <view class="cd-pillars">
+          <view class="cd-methods">
+            <view v-for="item in availableMethods" :key="item" class="cd-method" :class="{ 'cd-method--on': activeMethod === item }" @tap="activeMethod = item">
+              <text class="cd-method-txt" :class="{ 'cd-method-txt--on': activeMethod === item }">{{ methodLabel(item) }}</text>
+            </view>
+          </view>
+
+          <view v-if="activeMethod !== 'ZIWEI'" class="cd-pillars">
             <view v-for="p in [
               { k: '年', v: c.yearPillar },
               { k: '月', v: c.monthPillar },
@@ -187,9 +220,14 @@ function labelOf(k: string) {
             </view>
           </view>
 
+          <view v-if="activeMethod === 'ZIWEI'" class="cd-ziwei-note">
+            <text class="cd-ziwei-title">十二宫视角已就绪</text>
+            <text class="cd-ziwei-copy">以同一出生资料重起紫微盘，再与下方真实人生经历交叉印证。</text>
+          </view>
+
           <view v-if="c.birthYear" class="cd-go" @tap="goPaipan">
             <AppIcon name="compass" :size="16" color="#C41E3A" />
-            <text class="cd-go-txt">用排盘工具起这一盘</text>
+            <text class="cd-go-txt">用{{ methodLabel(activeMethod) }}起这一盘</text>
           </view>
         </PaperCard>
 
@@ -350,6 +388,14 @@ function labelOf(k: string) {
   color: #9a8c7e;
 }
 
+.cd-methods { display: flex; gap: 10rpx; margin-top: 20rpx; padding: 8rpx; border-radius: 999rpx; background: #f3ede4; }
+.cd-method { flex: 1; min-width: 0; height: 58rpx; display: flex; align-items: center; justify-content: center; border-radius: 999rpx; }
+.cd-method--on { background: #fff; box-shadow: 0 6rpx 16rpx rgba(58, 42, 30, 0.08); }
+.cd-method-txt { font-size: 22rpx; color: #9a8c7e; }
+.cd-method-txt--on { color: #c41e3a; font-weight: 700; }
+.cd-ziwei-note { margin-top: 20rpx; padding: 22rpx; border-radius: 14rpx; background: linear-gradient(135deg, #edf4ff, #f5eeff); border: 1rpx solid rgba(82, 111, 190, 0.18); }
+.cd-ziwei-title { display: block; font-size: 27rpx; font-weight: 700; color: #374c79; }
+.cd-ziwei-copy { display: block; margin-top: 8rpx; font-size: 22rpx; line-height: 1.6; color: #7180a1; }
 /* 四柱 */
 .cd-pillars {
   display: flex;

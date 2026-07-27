@@ -33,6 +33,7 @@ export class BaziCaseController {
     @Query("tag") tag?: string,
     @Query("keyword") keyword?: string,
     @Query("premiumOnly") premiumOnly?: string,
+    @Query("method") method?: string,
   ) {
     return this.svc.list({
       page: Number(page) || 1,
@@ -41,6 +42,7 @@ export class BaziCaseController {
       tag,
       keyword,
       premiumOnly: premiumOnly === "true",
+      method,
     });
   }
 
