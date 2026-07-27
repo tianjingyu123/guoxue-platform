@@ -31,6 +31,68 @@ const era = ref('')
 
 // 生辰
 const birth = ref({ year: 1990, month: 1, day: 1, hour: 0 })
+const CURRENT_YEAR = new Date().getFullYear()
+const BIRTH_YEARS = Array.from({ length: CURRENT_YEAR - 1900 + 1 }, (_, index) => 1900 + index)
+const BIRTH_MONTHS = Array.from({ length: 12 }, (_, index) => index + 1)
+const BIRTH_HOURS = Array.from({ length: 24 }, (_, index) => index)
+
+function daysInMonth(year: number, month: number) {
+  return new Date(year, month, 0).getDate()
+}
+
+function birthToPickerValue() {
+  const yearIndex = Math.max(0, BIRTH_YEARS.indexOf(birth.value.year))
+  return [
+    yearIndex,
+    Math.max(0, Math.min(11, birth.value.month - 1)),
+    Math.max(0, birth.value.day - 1),
+    Math.max(0, Math.min(23, birth.value.hour)),
+  ]
+}
+
+/** 多列滚轮的临时位置；取消选择时恢复到已确认的生辰。 */
+const birthPickerValue = ref(birthToPickerValue())
+const birthPickerRange = computed(() => {
+  const year = BIRTH_YEARS[birthPickerValue.value[0]] ?? birth.value.year
+  const month = BIRTH_MONTHS[birthPickerValue.value[1]] ?? birth.value.month
+  const days = Array.from({ length: daysInMonth(year, month) }, (_, index) => index + 1)
+  return [
+    BIRTH_YEARS.map((item) => `${item}年`),
+    BIRTH_MONTHS.map((item) => `${item}月`),
+    days.map((item) => `${item}日`),
+    BIRTH_HOURS.map((item) => `${String(item).padStart(2, '0')}时`),
+  ]
+})
+const birthDisplay = computed(() => {
+  const { year, month, day, hour } = birth.value
+  return `${year}年${String(month).padStart(2, '0')}月${String(day).padStart(2, '0')}日 ${String(hour).padStart(2, '0')}:00`
+})
+
+function onBirthPickerColumnChange(event: any) {
+  const next = [...birthPickerValue.value]
+  next[Number(event.detail.column)] = Number(event.detail.value)
+
+  const year = BIRTH_YEARS[next[0]] ?? birth.value.year
+  const month = BIRTH_MONTHS[next[1]] ?? birth.value.month
+  const maxDayIndex = daysInMonth(year, month) - 1
+  next[2] = Math.min(next[2], maxDayIndex)
+  birthPickerValue.value = next
+}
+
+function onBirthPickerChange(event: any) {
+  const value = (event.detail.value as number[]).map(Number)
+  const year = BIRTH_YEARS[value[0]] ?? birth.value.year
+  const month = BIRTH_MONTHS[value[1]] ?? birth.value.month
+  const day = Math.min((value[2] ?? 0) + 1, daysInMonth(year, month))
+  const hour = BIRTH_HOURS[value[3]] ?? birth.value.hour
+
+  birth.value = { year, month, day, hour }
+  birthPickerValue.value = birthToPickerValue()
+}
+
+function resetBirthPicker() {
+  birthPickerValue.value = birthToPickerValue()
+}
 // 四柱（直接填）
 const pillars = ref({ year: '', month: '', day: '', hour: '' })
 
@@ -205,25 +267,29 @@ async function submit() {
 
         <!-- 填生辰 -->
         <template v-if="mode === 'birth'">
-          <view class="sb-births">
-            <view class="sb-birth">
-              <text class="sb-birth-lab">年</text>
-              <input v-model.number="birth.year" class="sb-birth-in" type="number" />
+          <picker
+            mode="multiSelector"
+            :range="birthPickerRange"
+            :value="birthPickerValue"
+            @columnchange="onBirthPickerColumnChange"
+            @change="onBirthPickerChange"
+            @cancel="resetBirthPicker"
+          >
+            <view class="sb-birth-picker">
+              <view class="sb-birth-icon">
+                <AppIcon name="calendar" :size="24" color="#C41E3A" />
+              </view>
+              <view class="sb-birth-copy">
+                <text class="sb-birth-label">公历出生时间</text>
+                <text class="sb-birth-value">{{ birthDisplay }}</text>
+              </view>
+              <view class="sb-birth-action">
+                <text class="sb-birth-action-txt">滚动选择</text>
+                <AppIcon name="chevron-right" :size="20" color="#B8AA9A" />
+              </view>
             </view>
-            <view class="sb-birth">
-              <text class="sb-birth-lab">月</text>
-              <input v-model.number="birth.month" class="sb-birth-in" type="number" />
-            </view>
-            <view class="sb-birth">
-              <text class="sb-birth-lab">日</text>
-              <input v-model.number="birth.day" class="sb-birth-in" type="number" />
-            </view>
-            <view class="sb-birth">
-              <text class="sb-birth-lab">时</text>
-              <input v-model.number="birth.hour" class="sb-birth-in" type="number" />
-            </view>
-          </view>
-          <text class="sb-hint">公历。四柱由排盘引擎自动起（与全站同一套算法）</text>
+          </picker>
+          <text class="sb-hint">上下滚动选择年月日时，月底天数会自动校正。四柱仍由全站同一套排盘引擎计算。</text>
 
           <view v-if="computed4" class="sb-preview">
             <text v-for="(v, k) in computed4" :key="k" class="sb-preview-p">{{ v }}</text>
@@ -451,30 +517,57 @@ async function submit() {
   font-weight: 600;
 }
 
-.sb-births {
+.sb-birth-picker {
   display: flex;
-  gap: 12rpx;
+  align-items: center;
+  min-height: 108rpx;
   margin-top: 20rpx;
-}
-.sb-birth {
-  flex: 1;
-}
-.sb-birth-lab {
-  display: block;
-  font-size: 20rpx;
-  color: #b8aa9a;
-  margin-bottom: 6rpx;
-}
-.sb-birth-in {
-  width: 100%;
-  height: 76rpx;
+  padding: 0 20rpx;
   box-sizing: border-box;
-  padding: 0 16rpx;
-  border-radius: 8rpx;
+  border-radius: 14rpx;
   background: #fdfaf4;
-  border: 1rpx solid rgba(58, 42, 30, 0.1);
-  font-size: 26rpx;
+  border: 1rpx solid rgba(196, 30, 58, 0.16);
+}
+.sb-birth-picker:active {
+  background: rgba(196, 30, 58, 0.04);
+}
+.sb-birth-icon {
+  width: 64rpx;
+  height: 64rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(196, 30, 58, 0.08);
+}
+.sb-birth-copy {
+  flex: 1;
+  min-width: 0;
+  margin-left: 16rpx;
+}
+.sb-birth-label {
+  display: block;
+  font-size: 21rpx;
+  color: #9b8b7c;
+}
+.sb-birth-value {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 29rpx;
+  font-weight: 700;
   color: #3a2a1e;
+  letter-spacing: 0.5rpx;
+}
+.sb-birth-action {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  margin-left: 12rpx;
+}
+.sb-birth-action-txt {
+  font-size: 22rpx;
+  color: #c41e3a;
 }
 .sb-hint {
   display: block;
