@@ -2,7 +2,7 @@
  * 认证数据层 - 登录/注册/找回密码
  * 负责前端 UI 的数据格式与后端 API 响应的适配
  */
-import { apiPost, useMock } from '@/utils/request'
+import { apiPost } from '@/utils/request'
 import { getTempReferrer } from '@/utils/referral'
 
 export interface UserInfo {
@@ -21,14 +21,6 @@ export interface AuthResponse {
     refreshToken?: string
     user: UserInfo
   }
-}
-
-const mockUser: UserInfo = {
-  id: '1',
-  nickname: '国学爱好者',
-  avatar: 'https://api.rebugx.cn/assets/images/default-avatar.webp',
-  phone: '138****8888',
-  token: 'mock-token-xxx',
 }
 
 /* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */

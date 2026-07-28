@@ -517,6 +517,9 @@ export function chooseAndUploadImage(): Promise<string> {
   })
 }
 
-/* mock 开关：默认开启 mock 模式，VITE_USE_MOCK=false 时关闭 */
-const _MOCK_ENABLED = (import.meta as any).env?.VITE_USE_MOCK !== 'false'
+/*
+ * mock 开关必须显式开启。生产构建、环境变量缺失或拼写错误时一律关闭，
+ * 避免迁移新环境后因漏配 VITE_USE_MOCK 而把演示数据带入真实业务。
+ */
+const _MOCK_ENABLED = (import.meta as any).env?.VITE_USE_MOCK === 'true'
 export const useMock = () => _MOCK_ENABLED

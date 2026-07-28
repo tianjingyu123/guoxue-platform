@@ -1,45 +1,95 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('fs')
+const path = require('path')
 
-const srcDir = 'C:/Users/Administrator/Desktop/guoxue-platform/apps/mobile/src';
-const validPaths = JSON.parse(fs.readFileSync(path.join(srcDir, '../.tmp-valid-paths.json'), 'utf8'));
-const validSet = new Set(validPaths);
+const repoRoot = path.resolve(__dirname, '..')
+const srcDir = path.join(repoRoot, 'apps', 'mobile', 'src')
+const pagesFile = path.join(srcDir, 'pages.json')
+const pagesConfig = JSON.parse(fs.readFileSync(pagesFile, 'utf8'))
 
-function findVueFiles(dir) {
-  const files = [];
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    if (e.isDirectory() && e.name !== 'node_modules') files.push(...findVueFiles(full));
-    else if (e.name.endsWith('.vue')) files.push(full);
+const validSet = new Set()
+for (const page of pagesConfig.pages || []) {
+  validSet.add(page.path.replace(/^\/+/, ''))
+}
+for (const pkg of pagesConfig.subPackages || []) {
+  for (const page of pkg.pages || []) {
+    validSet.add(`${pkg.root}/${page.path}`.replace(/^\/+/, ''))
   }
-  return files;
 }
 
-const vueFiles = findVueFiles(path.join(srcDir, 'pages'));
-const urlRegex = /url\s*:\s*['`]([^'`]+)['`]/g;
-const broken = [];
+const routeAliases = new Map()
+const routerFile = path.join(srcDir, 'utils', 'router.ts')
+if (fs.existsSync(routerFile)) {
+  const routerSource = fs.readFileSync(routerFile, 'utf8')
+  const aliasPattern = /['"`](\/(?:pages|pkg-[^/'"`]+|common)\/[^'"`$]+)['"`]\s*:\s*['"`](\/(?:pages|pkg-[^/'"`]+)\/[^'"`$]+)['"`]/g
+  let aliasMatch
+  while ((aliasMatch = aliasPattern.exec(routerSource)) !== null) {
+    routeAliases.set(normalizeRoute(aliasMatch[1]), normalizeRoute(aliasMatch[2]))
+  }
+}
 
-for (const file of vueFiles) {
-  const content = fs.readFileSync(file, 'utf8');
-  let m;
-  while ((m = urlRegex.exec(content)) !== null) {
-    let url = m[1];
-    if (!url.startsWith('/pages/') && !url.startsWith('pages/')) continue;
-    const cleanUrl = url.replace(/^\//, '').split('?')[0].split('#')[0];
-    if (!validSet.has(cleanUrl)) {
-      const lines = content.substring(0, m.index).split('\n');
-      const relPath = path.relative(srcDir, file).replace(/\\/g, '/');
-      broken.push({ file: relPath, line: lines.length, url: m[1], target: cleanUrl });
+function findSourceFiles(dir) {
+  const files = []
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (['node_modules', 'dist', 'unpackage'].includes(entry.name)) continue
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) files.push(...findSourceFiles(full))
+    else if (/\.(vue|ts|js)$/.test(entry.name)) files.push(full)
+  }
+  return files
+}
+
+function lineOf(content, offset) {
+  return content.slice(0, offset).split(/\r?\n/).length
+}
+
+function normalizeRoute(value) {
+  return value.replace(/^\/+/, '').split('?')[0].split('#')[0].replace(/\/+$/, '')
+}
+
+const literalPatterns = [
+  /\burl\s*:\s*['"`](\/?(?:pages|pkg-[^/'"`]+)\/[^'"`$]+)['"`]/g,
+  /\b(?:navigateSmart|navigateTo|redirectTo|reLaunch|switchTab)\s*\(\s*['"`](\/?(?:pages|pkg-[^/'"`]+)\/[^'"`$]+)['"`]/g,
+]
+
+const broken = []
+const checked = []
+for (const file of findSourceFiles(srcDir)) {
+  const content = fs.readFileSync(file, 'utf8')
+  for (const pattern of literalPatterns) {
+    pattern.lastIndex = 0
+    let match
+    while ((match = pattern.exec(content)) !== null) {
+      const raw = match[1]
+      const target = normalizeRoute(raw)
+      const resolvedTarget = routeAliases.get(target) || target
+      const item = {
+        file: path.relative(repoRoot, file).replace(/\\/g, '/'),
+        line: lineOf(content, match.index),
+        url: raw,
+        target,
+        resolvedTarget,
+      }
+      checked.push(item)
+      if (!validSet.has(resolvedTarget)) broken.push(item)
     }
   }
 }
 
-if (broken.length) {
-  console.log('Broken paths: ' + broken.length);
-  for (const b of broken) {
-    console.log('  ' + b.file + ':' + b.line + ' → ' + b.url + ' (target: ' + b.target + ')');
+const result = {
+  registeredRoutes: validSet.size,
+  checkedLiterals: checked.length,
+  broken,
+}
+
+if (process.argv.includes('--json')) {
+  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+} else if (broken.length) {
+  console.error(`发现 ${broken.length} 个未注册的字面量导航路径：`)
+  for (const item of broken) {
+    console.error(`  ${item.file}:${item.line} → ${item.url}（目标：${item.target}）`)
   }
 } else {
-  console.log('All navigation paths valid!');
+  console.log(`导航路径检查通过：已注册 ${validSet.size} 个页面，核对 ${checked.length} 个字面量跳转。`)
 }
+
+process.exitCode = broken.length ? 1 : 0

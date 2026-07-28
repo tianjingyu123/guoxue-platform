@@ -23,6 +23,9 @@
     "typecheck": "pnpm --filter @guoxue/server exec tsc --noEmit",
     "migration:audit-domain": "node scripts/migration/audit-domain.mjs",
     "migration:check-env": "node scripts/migration/check-env.mjs",
+    "release:baseline": "node scripts/release/capture-baseline.mjs",
+    "release:audit": "node scripts/release/audit-launch-readiness.mjs",
+    "release:check-nav": "node scripts/check-nav-paths.js",
     "precommit": "bash scripts/pre-commit.sh",
     "prepare": "npx husky install 2>/dev/null || echo 'husky 初始化跳过（非 git 环境）'"
   },
