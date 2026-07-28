@@ -17,6 +17,7 @@ import { NotificationService } from "../notification/notification.service";
 import { ImService } from "../im/im.service";
 import { safePagination } from "../../common/pagination";
 import { publicQuarantinedIds } from "../../common/public-content-quarantine";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 @Injectable()
 export class LiveService {
@@ -28,6 +29,7 @@ export class LiveService {
     private stream: LiveStreamService,
     private webhook: WebhookService,
     private audit: AuditService,
+    private publishGrants: CirclePublishGrantService,
     @Optional() private coin?: CoinService,
     @Optional() private revenue?: RevenueService,
     @Optional() private notification?: NotificationService,
@@ -76,6 +78,9 @@ export class LiveService {
 
   async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false) {
     this.validatePreviewPublish(dto.startTime, dto.cover, dto.description);
+    if (String(dto.visibility || "").toUpperCase() === "PLATFORM") {
+      await this.publishGrants.assertCanPublish(userId, dto.circleId, "LIVE", isAdmin);
+    }
     let parsedStartTime: Date | undefined;
     if (dto.startTime) {
       parsedStartTime = new Date(dto.startTime);

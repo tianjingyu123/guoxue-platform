@@ -138,7 +138,7 @@
             class="vp-seg-item"
             :class="{ on: visibility === 'PLATFORM' }"
             hover-class="vp-hover"
-            @tap="visibility = 'PLATFORM'"
+            @tap="requestPlatformVisibility"
           >
             <text class="vp-seg-txt" :class="{ on: visibility === 'PLATFORM' }">全平台</text>
           </view>
@@ -301,6 +301,13 @@
         </scroll-view>
       </view>
     </view>
+
+    <PublishGuideSheet
+      :open="showPublishGuide"
+      :circle-id="selectedCircle?.id"
+      @close="showPublishGuide = false"
+      @granted="enablePlatformVisibility"
+    />
   </view>
 </template>
 
@@ -314,6 +321,8 @@ import { videoApi, publishHotTags, type PublishProduct } from '@/lib/video-data'
 import { circleApi, type MyCircle } from '@/lib/circle-data'
 import { formatPrice } from '@/utils/format'
 import { uploadVideo, uploadImage, chooseAndUploadImage } from '@/utils/request'
+import PublishGuideSheet from '@/components/video/publish-guide-sheet.vue'
+import { checkVideoPublishPermission } from '@/lib/publish-permission'
 
 const statusBarHeight = ref(0)
 try {
@@ -335,6 +344,7 @@ function openCircleSheet() {
 function pickCircle(c: MyCircle) {
   selectedCircle.value = c
   circleId.value = c.id
+  if (visibility.value === 'PLATFORM') visibility.value = 'CIRCLE_ONLY'
   showCircleSheet.value = false
 }
 async function loadMyCircles() {
@@ -367,7 +377,8 @@ const description = ref('')
 const tags = ref<string[]>([])
 const isPublic = ref(true)
 // 开放范围（后端 CreateVideoDto.visibility 已收·默认全平台；发布即可见，机审后台异步）
-const visibility = ref<'CIRCLE_ONLY' | 'PLATFORM'>('PLATFORM')
+const visibility = ref<'CIRCLE_ONLY' | 'PLATFORM'>('CIRCLE_ONLY')
+const showPublishGuide = ref(false)
 const titleError = ref('')
 const videoError = ref(false)
 const scrollTarget = ref('')
@@ -406,6 +417,19 @@ const durationText = computed(() => {
 })
 // 必填：视频 + 标题（圈子由后端兜底）
 const canSubmit = computed(() => !!videoTempPath.value && !!title.value.trim())
+
+async function requestPlatformVisibility() {
+  if (await checkVideoPublishPermission(selectedCircle.value?.id)) {
+    visibility.value = 'PLATFORM'
+    return
+  }
+  showPublishGuide.value = true
+}
+
+function enablePlatformVisibility() {
+  visibility.value = 'PLATFORM'
+  showPublishGuide.value = false
+}
 
 function chooseVideo(sourceType: 'album' | 'camera') {
   uni.chooseVideo({
@@ -475,6 +499,13 @@ function searchProducts() {
 
 async function handlePublish() {
   if (uploading.value || submitting.value) return
+  if (
+    visibility.value === 'PLATFORM' &&
+    !(await checkVideoPublishPermission(selectedCircle.value?.id))
+  ) {
+    showPublishGuide.value = true
+    return
+  }
   // 统一校验：滚动定位到第一个错误项，无弹窗打断
   videoError.value = false
   titleError.value = ''

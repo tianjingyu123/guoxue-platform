@@ -58,7 +58,7 @@ const rules = [
     id: 'P1_PUBLISH_GRANT_TODO',
     severity: 'P1',
     title: '圈子发布授权尚未接通',
-    pattern: /CirclePublishGrant|发布权限.*TODO|TODO.*发布权限/i,
+    pattern: /PUBLISH_GRANT_TODO|发布权限.*TODO|TODO.*发布权限|发布授权.*待接入|待接入.*发布授权/i,
     paths: [
       'apps/mobile/src/lib/publish-permission.ts',
       'apps/mobile/src/components/video/publish-guide-sheet.vue',

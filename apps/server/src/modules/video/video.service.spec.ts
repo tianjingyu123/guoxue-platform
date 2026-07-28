@@ -5,6 +5,7 @@ import { VodService } from "./vod.service";
 import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 const mockPrisma = {
   video: {
@@ -59,6 +60,7 @@ describe("VideoService", () => {
         VideoService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: VodService, useValue: mockVod },
+        { provide: CirclePublishGrantService, useValue: { assertCanPublish: jest.fn() } },
         {
           provide: AuditService,
           useValue: {

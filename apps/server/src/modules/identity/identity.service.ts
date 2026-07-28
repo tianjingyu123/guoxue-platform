@@ -6,6 +6,7 @@ import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
 import { RedisService } from "../../redis/redis.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import { decrypt, maskPhone } from "../../common/crypto.util";
+import { createHash } from "node:crypto";
 
 /** 审核列表行（按用户折叠后的最新状态） */
 export interface IdentityAuditRow {
@@ -235,6 +236,7 @@ export class IdentityService {
         data: {
           identityVerified: true,
           identityVerifiedAt: new Date(),
+          identityLevel: "L1",
         },
       });
     }
@@ -251,6 +253,13 @@ export class IdentityService {
   /** 获取人脸核身URL（活体检测 + 身份证比对）*/
   async getFaceIdToken(userId: string, name: string, idCard: string, returnUrl?: string) {
     await this.assertDailyQuota(userId, "face", 3); // 收紧：10→3次/天
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { identityVerified: true },
+    });
+    if (!user?.identityVerified) {
+      throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "请先完成身份证二要素核验");
+    }
     const result = await this.callApi(
       "faceid",
       "GetDetectInfoEnhanced",
@@ -264,15 +273,26 @@ export class IdentityService {
       },
       "2018-03-01",
     );
+    const token = String(result.FaceIdToken || "");
+    if (!token) {
+      throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "人脸核身服务未返回有效凭证");
+    }
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    await this.redis.set(`identity:face-session:${tokenHash}`, userId, 3600);
 
     return {
-      token: result.FaceIdToken,
+      token,
       url: result.DetectUrl,
     };
   }
 
   /** 查询人脸核身结果 */
-  async getFaceIdResult(faceIdToken: string) {
+  async getFaceIdResult(userId: string, faceIdToken: string) {
+    const tokenHash = createHash("sha256").update(faceIdToken).digest("hex");
+    const ownerId = await this.redis.get(`identity:face-session:${tokenHash}`);
+    if (!ownerId || ownerId !== userId) {
+      throw new BusinessException(ErrorCode.IDENTITY_VERIFY_FAILED, "人脸核身凭证无效或已过期");
+    }
     const result = await this.callApi(
       "faceid",
       "GetDetectInfoEnhanced",
@@ -281,10 +301,31 @@ export class IdentityService {
     );
 
     const bestFrame = result?.BestFrame as Record<string, unknown> | undefined;
-    const passed = (bestFrame?.Result as string) === "0";
+    const faceResult = String(bestFrame?.Result ?? "");
+    const passed = faceResult === "0";
+    if (passed) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          identityVerified: true,
+          identityVerifiedAt: new Date(),
+          identityLevel: "L2",
+        },
+      });
+      await this.prisma.auditLog.create({
+        data: {
+          userId,
+          action: "IDENTITY_FACE_VERIFY",
+          targetType: "USER",
+          targetId: userId,
+          detail: "人脸核身通过，实名等级升级为 L2",
+        },
+      }).catch((e) => this.logger.warn("人脸核身审计日志记录失败", e));
+      await this.redis.del(`identity:face-session:${tokenHash}`);
+    }
     return {
       passed,
-      result: bestFrame?.Result as string | undefined,
+      result: faceResult || undefined,
       description: passed ? "活体检测通过" : "活体检测未通过",
       similarity: bestFrame?.Sim as number | undefined,
     };
@@ -473,7 +514,7 @@ export class IdentityService {
     // 同步更新 User 表认证状态
     await this.prisma.user.update({
       where: { id: log.userId },
-      data: { identityVerified: true, identityVerifiedAt: new Date() },
+      data: { identityVerified: true, identityVerifiedAt: new Date(), identityLevel: "L1" },
     });
 
     await this.prisma.auditLog.create({
@@ -498,7 +539,7 @@ export class IdentityService {
     // 拒绝后清除认证状态（如之前误批过）
     await this.prisma.user.update({
       where: { id: log.userId },
-      data: { identityVerified: false, identityVerifiedAt: null },
+      data: { identityVerified: false, identityVerifiedAt: null, identityLevel: "NONE" },
     });
 
     await this.prisma.auditLog.create({

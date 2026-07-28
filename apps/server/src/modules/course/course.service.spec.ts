@@ -15,6 +15,7 @@ import { AuditService } from "../audit/audit.service";
 import { ShopAttributionService } from "../shop/shop-attribution.service";
 import { BusinessException } from "../../common/business.exception";
 import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 const mockPrisma = {
   course: {
@@ -107,6 +108,7 @@ describe("CourseService", () => {
         CourseReviewQaService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
+        { provide: CirclePublishGrantService, useValue: { assertCanPublish: jest.fn() } },
         { provide: AiGatewayService, useValue: mockAiGateway },
         { provide: UnifiedPricingService, useValue: mockUnifiedPricing },
         { provide: ShopAttributionService, useValue: {

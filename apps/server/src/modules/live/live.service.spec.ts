@@ -9,6 +9,7 @@ import { NotificationService } from "../notification/notification.service";
 import { ImService } from "../im/im.service";
 import { BusinessException } from "../../common/business.exception";
 import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 const mockPrisma = {
   liveRoom: {
@@ -108,6 +109,7 @@ describe("LiveService", () => {
         { provide: LiveStreamService, useValue: mockStream },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: AuditService, useValue: mockAudit },
+        { provide: CirclePublishGrantService, useValue: { assertCanPublish: jest.fn() } },
         { provide: NotificationService, useValue: mockNotification },
         { provide: ImService, useValue: mockIm },
       ],

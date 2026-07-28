@@ -44,8 +44,8 @@ export class IdentityController {
   @Get("face/result/:token")
   @ApiOperation({ summary: "查询人脸核身结果" })
   @ApiResponse({ status: 200, description: "成功" })
-  faceResult(@Param("token") token: string) {
-    return this.svc.getFaceIdResult(token);
+  faceResult(@Req() req: AuthRequest, @Param("token") token: string) {
+    return this.svc.getFaceIdResult(req.user.id, token);
   }
 
   // ───────── 审核管理 ─────────

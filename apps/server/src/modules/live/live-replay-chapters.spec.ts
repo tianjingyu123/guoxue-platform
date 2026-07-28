@@ -17,12 +17,14 @@ function buildSvc() {
   const stream = {};
   const webhook = { fire: jest.fn().mockResolvedValue(undefined) };
   const audit = {};
+  const publishGrants = { assertCanPublish: jest.fn() };
   const svc = new LiveService(
     prisma as never,
     redis as never,
     stream as never,
     webhook as never,
     audit as never,
+    publishGrants as never,
   );
   return { svc, prisma };
 }

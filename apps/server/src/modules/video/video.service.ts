@@ -9,6 +9,7 @@ import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { AuditService } from "../audit/audit.service";
 import { safePagination } from "../../common/pagination";
 import { publicQuarantinedIds } from "../../common/public-content-quarantine";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 @Injectable()
 export class VideoService {
@@ -18,6 +19,7 @@ export class VideoService {
     private prisma: PrismaService,
     private vod: VodService,
     private auditService: AuditService,
+    private publishGrants: CirclePublishGrantService,
   ) {}
 
   /** circleId 缺省时兜底为「官方圈子」(id 存 ConfigSystem.official_circle_id·由后台/脚本一次性写入)。未配置则保持 undefined(游离·兼容旧行为)。 */
@@ -59,6 +61,9 @@ export class VideoService {
     const productIds = Array.from(new Set((dto.products ?? []).filter(Boolean))).slice(0, 5);
     // 短视频=圈子内容：未指定圈子时兜底落「官方圈子」(供 AI/后台自动发布种子内容，人工前端在圈子内发时会带上下文 circleId)
     const circleId = await this.resolveCircleId(dto.circleId);
+    if (String(dto.visibility || "").toUpperCase() === "PLATFORM") {
+      await this.publishGrants.assertCanPublish(userId, circleId, "SHORT_VIDEO", isAdmin);
+    }
     // 审核无感化（20260711 第八节）：发布即可见（instantPublish），机审改异步分级处置（pass 不动 / mild 降 SELF_ONLY / severe 下架+通知）
     const { visibility, auditStatus } = await this.auditService.resolveContentVisibility({
       visibility: dto.visibility,

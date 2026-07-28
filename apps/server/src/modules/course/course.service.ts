@@ -21,6 +21,7 @@ import {
   CreateReviewDto, PurchaseCourseDto,
   AskQuestionDto, AnswerQuestionDto, QaListQueryDto,
 } from "./course.dto";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 /**
  * 课程域 facade（P2-5 拆分·shop 范式）：自身保留课程 CRUD / 审核 / 品类树，
@@ -43,6 +44,7 @@ export class CourseService {
     private learningSvc: CourseLearningService,
     private workSvc: CourseWorkService,
     private reviewQaSvc: CourseReviewQaService,
+    private publishGrants: CirclePublishGrantService,
   ) {}
 
   // ═══════════════════ 课程 CRUD ═══════════════════
@@ -56,6 +58,9 @@ export class CourseService {
 
   async create(userId: string, dto: CreateCourseDto, autoApprove = false) {
     const circleId = await this.resolveCircleId(dto.circleId);
+    if (String(dto.visibility || "").toUpperCase() === "PLATFORM") {
+      await this.publishGrants.assertCanPublish(userId, circleId, "COURSE", autoApprove);
+    }
     // 审核无感化（20260711 第八节）：发布即可见（instantPublish），机审改异步分级处置（pass 不动 / mild 降 SELF_ONLY / severe 软删+通知）
     const { visibility, auditStatus } = await this.auditSvc.resolveContentVisibility({
       visibility: dto.visibility,

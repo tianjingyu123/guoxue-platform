@@ -26,34 +26,41 @@ enum MemberLevel {
   LIFETIME
 }
 
+enum IdentityLevel {
+  NONE
+  L1
+  L2
+}
+
 model User {
-  id                   String      @id @default(uuid())
-  phone                String?     @unique
-  phoneHash            String?     @unique // M4 手机号确定性哈希(HMAC-SHA256)，等值查询/唯一约束用
+  id                   String        @id @default(uuid())
+  phone                String?       @unique
+  phoneHash            String?       @unique // M4 手机号确定性哈希(HMAC-SHA256)，等值查询/唯一约束用
   phoneEnc             String? // M4 手机号密文(AES-256-GCM)，展示时 decrypt+maskPhone
-  email                String?     @unique
+  email                String?       @unique
   nickname             String
   avatar               String?
   bio                  String?
   gender               Int?
   birthday             DateTime?
-  memberLevel          MemberLevel @default(NONE)
+  memberLevel          MemberLevel   @default(NONE)
   memberExpire         DateTime?
-  memberAutoRenew      Boolean     @default(false) // 连续包年标记（papay 代扣就绪前=到期提醒按续费价续费）
+  memberAutoRenew      Boolean       @default(false) // 连续包年标记（papay 代扣就绪前=到期提醒按续费价续费）
   paymentPasswordHash  String?
-  interestCategories   String[]    @default([]) // 用户兴趣品类
-  identityVerified     Boolean     @default(false) // 实名认证状态
+  interestCategories   String[]      @default([]) // 用户兴趣品类
+  identityVerified     Boolean       @default(false) // 实名认证状态
   identityVerifiedAt   DateTime? // 实名认证通过时间
-  attributionSource    String      @default("PLATFORM") // 首次登录来源：PLATFORM（总站）/ STATION（分站链接）
+  identityLevel        IdentityLevel @default(NONE) // NONE / L1身份证核验 / L2人脸核身
+  attributionSource    String        @default("PLATFORM") // 首次登录来源：PLATFORM（总站）/ STATION（分站链接）
   attributionStationId String? // 首次锁定分站ID（PLATFORM用户永远为null，STATION用户永久不可改）
-  status               UserStatus  @default(ACTIVE)
-  timezone             String?     @default("Asia/Shanghai") // 时区（国际化预留）
-  preferredCurrency    String?     @default("CNY") // 偏好货币（国际化预留）
+  status               UserStatus    @default(ACTIVE)
+  timezone             String?       @default("Asia/Shanghai") // 时区（国际化预留）
+  preferredCurrency    String?       @default("CNY") // 偏好货币（国际化预留）
   notifySettings       Json? // 通知开关（JSON: {message/course/live/interact/system: bool}）
   creatorSettings      Json? // 创作者中心设置（JSON: {specialty/website/notify/privacy 等创作者偏好，与认证体系解耦）
   deletedAt            DateTime? // 软删除时间（NULL=正常），删除用户时不物理删除，仅标记此字段
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   auths                 Auth[]
   roles                 UserRole[]
@@ -118,6 +125,8 @@ model User {
   ebookReadingSessions  EbookReadingSession[]
   merchant              Merchant?
   teacherCertification  TeacherCertification?
+  circlePublishGrants   CirclePublishGrant[]     @relation("CirclePublishGrantApplicant")
+  reviewedPublishGrants CirclePublishGrant[]     @relation("CirclePublishGrantReviewer")
 
   // 赛事系统关联
   competitionRegistrations CompetitionRegistration[]
@@ -341,6 +350,20 @@ enum CircleMemberRole {
   MEMBER
 }
 
+enum CirclePublishScope {
+  SHORT_VIDEO
+  LIVE
+  COURSE
+}
+
+enum CirclePublishGrantStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  FROZEN
+  REVOKED
+}
+
 model Circle {
   id                  String       @id @default(uuid())
   name                String
@@ -385,11 +408,42 @@ model Circle {
   circleRevenueSplits CircleRevenueSplit[]
   circleGuestEarnings CircleGuestEarning[]
   events              CircleEvent[]
+  publishGrants       CirclePublishGrant[]
 
   @@index([ownerId])
   @@index([status])
   @@index([status, memberCount])
   @@index([stationId])
+}
+
+model CirclePublishGrant {
+  id                    String                   @id @default(uuid())
+  circleId              String
+  applicantId           String
+  reviewerId            String?
+  scopes                CirclePublishScope[]
+  status                CirclePublishGrantStatus @default(PENDING)
+  channel               String                   @default("REGULAR") // REGULAR / FAST_TRACK
+  externalPlatform      String?
+  externalProfileUrl    String?
+  externalFollowerCount Int?
+  evidenceUrls          String[]                 @default([])
+  eligibilitySnapshot   Json
+  rejectReason          String?
+  reviewedAt            DateTime?
+  approvedAt            DateTime?
+  frozenAt              DateTime?
+  revokedAt             DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  circle    Circle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  applicant User   @relation("CirclePublishGrantApplicant", fields: [applicantId], references: [id], onDelete: Cascade)
+  reviewer  User?  @relation("CirclePublishGrantReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([circleId, status, createdAt])
+  @@index([applicantId, createdAt])
+  @@index([status, createdAt])
 }
 
 model CircleMember {
@@ -5032,67 +5086,67 @@ enum ViolationSeverity {
 }
 
 model Merchant {
-  id              String         @id @default(uuid())
-  userId          String         @unique
-  shopName        String // 店铺名称
-  shopLogo        String? // 店铺Logo
-  shopIntro       String? // 店铺简介
-  contactName     String // 联系人姓名
-  contactPhone    String // 联系电话
-  idCardNumber    String // 身份证号（加密存储）
-  idCardFront     String? // 身份证正面照
-  idCardBack      String? // 身份证反面照
+  id                        String         @id @default(uuid())
+  userId                    String         @unique
+  shopName                  String // 店铺名称
+  shopLogo                  String? // 店铺Logo
+  shopIntro                 String? // 店铺简介
+  contactName               String // 联系人姓名
+  contactPhone              String // 联系电话
+  idCardNumber              String // 身份证号（加密存储）
+  idCardFront               String? // 身份证正面照
+  idCardBack                String? // 身份证反面照
   /// 营业执照。DB 列可空仅为兼容存量商家；【新入驻必填】（CreateMerchantApplyDto 强制）。
   /// 硬门槛在进件：无执照 → 办不下商户号 → 进不了件 → 自收不了款 → 只能平台代收 = 二清。
   /// 见 PayeeAccount / docs/design/资金与分账架构-设计文档-20260714.md
-  businessLicense String?
-  brandAuth       String? // 品牌授权书（可选）
-  merchantType    String         @default("ENTERPRISE") // ENTERPRISE / INDIVIDUAL
-  unifiedSocialCreditCode String? // 统一社会信用代码
-  registeredAddress String? // 营业执照登记住所/经营场所
-  legalRepresentative String? // 法定代表人/经营者
-  licenseValidFrom DateTime? // 营业执照有效期起
-  licenseValidUntil DateTime? // 营业执照有效期止；长期证照为空
-  licenseLongTerm Boolean        @default(false)
-  qualificationFiles Json? // 专项许可/品牌授权等补充材料 [{type,title,url,validUntil}]
-  qualificationStatus String     @default("DRAFT") // DRAFT/PENDING/APPROVED/REJECTED/EXPIRED
-  qualificationSubmittedAt DateTime?
-  qualificationReviewedAt DateTime?
+  businessLicense           String?
+  brandAuth                 String? // 品牌授权书（可选）
+  merchantType              String         @default("ENTERPRISE") // ENTERPRISE / INDIVIDUAL
+  unifiedSocialCreditCode   String? // 统一社会信用代码
+  registeredAddress         String? // 营业执照登记住所/经营场所
+  legalRepresentative       String? // 法定代表人/经营者
+  licenseValidFrom          DateTime? // 营业执照有效期起
+  licenseValidUntil         DateTime? // 营业执照有效期止；长期证照为空
+  licenseLongTerm           Boolean        @default(false)
+  qualificationFiles        Json? // 专项许可/品牌授权等补充材料 [{type,title,url,validUntil}]
+  qualificationStatus       String         @default("DRAFT") // DRAFT/PENDING/APPROVED/REJECTED/EXPIRED
+  qualificationSubmittedAt  DateTime?
+  qualificationReviewedAt   DateTime?
   qualificationNextReviewAt DateTime? // 平台至少每六个月复核
   qualificationRejectReason String?
-  riskLevel       String         @default("MEDIUM") // LOW/MEDIUM/HIGH/BLOCKED
-  riskFlags       Json?
-  privacyConsentAt DateTime? // 敏感信息处理单独同意时间
-  complianceDeclarationAt DateTime? // 商户真实性与合规经营承诺时间
-  categoryIds     String[]       @default([]) // 经营类目
-  status          MerchantStatus @default(PENDING_REVIEW)
-  depositAmount   Decimal?       @db.Decimal(10, 2) // 应缴保证金
-  depositPaid     Boolean        @default(false) // 保证金是否已缴纳
-  agreementSigned Boolean        @default(false) // 协议是否已签署
-  agreementUrl    String? // 已签协议文件URL
-  signedAt        DateTime? // 协议签署时间
-  signedIp        String? // 签署IP
-  rejectReason    String? // 驳回原因
-  commissionRate  Decimal?       @db.Decimal(5, 4) // 商家自定义分佣比例
-  totalSales      Decimal        @default(0) @db.Decimal(12, 2) // 累计销售额
-  totalOrders     Int            @default(0) // 累计订单数
-  rating          Decimal        @default(5.0) @db.Decimal(3, 2) // 店铺评分
-  openedAt        DateTime? // 开店时间
-  closedAt        DateTime? // 关店时间
-  reviewedBy      String? // 审核人ID
-  reviewedAt      DateTime? // 审核时间
-  remark          String? // 内部备注
-  creditScore     Int            @default(60) // 信用分（0-100·履-P2 周更 cron 按 30 日 MerchantMetric 算得·新商家 60 分起评）
-  creditGrade     String         @default("B") // 信用等级 A/B/C/D（A≥85/B70-84/C55-69/D<55·默认 B 为设计拍板的新商家起始待遇）
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  riskLevel                 String         @default("MEDIUM") // LOW/MEDIUM/HIGH/BLOCKED
+  riskFlags                 Json?
+  privacyConsentAt          DateTime? // 敏感信息处理单独同意时间
+  complianceDeclarationAt   DateTime? // 商户真实性与合规经营承诺时间
+  categoryIds               String[]       @default([]) // 经营类目
+  status                    MerchantStatus @default(PENDING_REVIEW)
+  depositAmount             Decimal?       @db.Decimal(10, 2) // 应缴保证金
+  depositPaid               Boolean        @default(false) // 保证金是否已缴纳
+  agreementSigned           Boolean        @default(false) // 协议是否已签署
+  agreementUrl              String? // 已签协议文件URL
+  signedAt                  DateTime? // 协议签署时间
+  signedIp                  String? // 签署IP
+  rejectReason              String? // 驳回原因
+  commissionRate            Decimal?       @db.Decimal(5, 4) // 商家自定义分佣比例
+  totalSales                Decimal        @default(0) @db.Decimal(12, 2) // 累计销售额
+  totalOrders               Int            @default(0) // 累计订单数
+  rating                    Decimal        @default(5.0) @db.Decimal(3, 2) // 店铺评分
+  openedAt                  DateTime? // 开店时间
+  closedAt                  DateTime? // 关店时间
+  reviewedBy                String? // 审核人ID
+  reviewedAt                DateTime? // 审核时间
+  remark                    String? // 内部备注
+  creditScore               Int            @default(60) // 信用分（0-100·履-P2 周更 cron 按 30 日 MerchantMetric 算得·新商家 60 分起评）
+  creditGrade               String         @default("B") // 信用等级 A/B/C/D（A≥85/B70-84/C55-69/D<55·默认 B 为设计拍板的新商家起始待遇）
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
 
-  user           User                    @relation(fields: [userId], references: [id])
-  violations     MerchantViolation[]
-  depositRecords MerchantDepositRecord[]
-  agreements     MerchantAgreement[]
-  settlements    MerchantSettlement[]
-  members        MerchantMember[]
+  user                 User                          @relation(fields: [userId], references: [id])
+  violations           MerchantViolation[]
+  depositRecords       MerchantDepositRecord[]
+  agreements           MerchantAgreement[]
+  settlements          MerchantSettlement[]
+  members              MerchantMember[]
   qualificationReviews MerchantQualificationReview[]
 
   @@index([status])
