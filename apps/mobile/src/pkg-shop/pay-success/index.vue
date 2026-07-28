@@ -305,13 +305,6 @@ function goShop() {
   font-size: 28rpx; color: #2C2C2C; font-weight: 500; text-align: right;
 }
 .info-right .info-value { flex: 1; }
-.info-value :deep(span) {
-  display: block;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .copy-btn { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; }
 .copy-text { font-size: 24rpx; color: var(--brand); }
 .actions {

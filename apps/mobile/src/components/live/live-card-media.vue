@@ -107,8 +107,7 @@ onUnmounted(() => {
 .lcm-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
 .lcm-stream { opacity: 0; transition: opacity .22s ease-out; pointer-events: none; }
 .lcm-stream.ready { opacity: 1; }
-.lcm-layer :deep(img),
-.lcm-layer :deep(video),
+.lcm-layer :deep(.sc-full),
 .lcm-layer :deep(.lp-media) {
   width: 100%;
   height: 100%;
