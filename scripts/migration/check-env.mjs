@@ -25,7 +25,25 @@ function parseEnv(content) {
   return result;
 }
 
-const values = parseEnv(await readFile(path.resolve(envFile), "utf8"));
+const resolvedEnvFile = path.resolve(envFile);
+let envContent;
+try {
+  envContent = await readFile(resolvedEnvFile, "utf8");
+} catch (error) {
+  if (error?.code === "ENOENT") {
+    console.error(`错误：找不到环境文件 ${resolvedEnvFile}`);
+    console.error("请先从模板创建环境文件并填写新服务器、数据库、域名和真实密钥：");
+    console.error(`  PowerShell: Copy-Item .env.example ${envFile}`);
+    console.error(`  Linux/macOS: cp .env.example ${envFile}`);
+    console.error(`填写完成后重新运行：pnpm migration:check-env ${envFile}`);
+    process.exit(2);
+  }
+  console.error(`错误：无法读取环境文件 ${resolvedEnvFile}`);
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(2);
+}
+
+const values = parseEnv(envContent);
 const errors = [];
 const warnings = [];
 const required = [
