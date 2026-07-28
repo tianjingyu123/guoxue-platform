@@ -29,6 +29,7 @@ const props = withDefaults(defineProps<Props>(), { authorId: '', theme: 'light' 
 const emit = defineEmits<{
   (e: 'reply', payload: { target: CommentItem; rootId: string }): void
   (e: 'count-change', total: number): void
+  (e: 'empty-tap'): void
 }>()
 
 const isDark = computed(() => props.theme === 'dark')
@@ -207,7 +208,12 @@ defineExpose({ refresh, addOptimistic, addOptimisticReply, removeComment })
     </view>
 
     <!-- 空态 -->
-    <view v-else-if="items.length === 0" class="cl__empty">
+    <view
+      v-else-if="items.length === 0"
+      class="cl__empty"
+      hover-class="cl__empty--press"
+      @tap="emit('empty-tap')"
+    >
       <app-icon name="message-circle" :size="72" :color="isDark ? 'rgba(255,255,255,0.18)' : '#d9d2c7'" />
       <text class="cl__empty-txt">还没有评论，来抢沙发～</text>
     </view>
@@ -255,6 +261,7 @@ defineExpose({ refresh, addOptimistic, addOptimisticReply, removeComment })
 
 /* 空态 */
 .cl__empty { display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 96rpx 0; }
+.cl__empty--press { opacity: 0.72; transform: scale(0.99); }
 .cl__empty-txt { font-size: 26rpx; color: #999999; }
 
 /* 加载更多 / 到底 */

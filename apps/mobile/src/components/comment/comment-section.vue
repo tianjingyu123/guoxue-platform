@@ -141,6 +141,7 @@ defineExpose({
       :author-id="authorId"
       :theme="theme"
       @reply="onReply"
+      @empty-tap="showInput"
       @count-change="(n) => emit('count-change', n)"
     />
     <!-- 垫片：给 fixed 输入条让位（含安全区）；页面自带底垫时传 no-pad 关掉 -->
