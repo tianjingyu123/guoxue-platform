@@ -11,6 +11,10 @@ temp_*
 *.bak
 .pm2-logs
 output
+artifacts
+test-results
+playwright-report
+screenshots
 .claude
 __pycache__
 *.pyc

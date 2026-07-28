@@ -24,7 +24,8 @@ info()   { echo -e "${BLUE}[info]${NC} $1"; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
+ENV_FILE="${ENV_FILE:-$SCRIPT_DIR/.env.production}"
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file "$ENV_FILE")
 SKIP_MIGRATE="true"
 MIGRATION_APPLIED="false"
 SKIP_HEALTH="false"
@@ -42,6 +43,12 @@ while [ $# -gt 0 ]; do
 done
 
 cd "$SCRIPT_DIR"
+if [ ! -f "$ENV_FILE" ]; then
+  err "缺少生产环境文件: $ENV_FILE"
+  info "请先复制并填写: cp .env.production.example .env.production"
+  exit 2
+fi
+
 if [ "$SKIP_MIGRATE" = "false" ] && [ "${ALLOW_PROD_DB_MIGRATION:-}" != "reviewed" ]; then
   err "数据库迁移需要双重确认：同时传入 --migrate 并设置 ALLOW_PROD_DB_MIGRATION=reviewed"
   exit 64
@@ -68,8 +75,23 @@ if ! docker compose version > /dev/null 2>&1; then
   exit 1
 fi
 
+log "  校验生产环境变量与 Compose 配置"
+if command -v node > /dev/null 2>&1; then
+  node "$PROJECT_DIR/scripts/migration/check-env.mjs" "$ENV_FILE" --full
+else
+  ENV_DIR="$(cd "$(dirname "$ENV_FILE")" && pwd)"
+  ENV_NAME="$(basename "$ENV_FILE")"
+  docker run --rm \
+    -v "$PROJECT_DIR:/app:ro" \
+    -v "$ENV_DIR:/runtime-env:ro" \
+    -w /app \
+    node:20-slim \
+    node scripts/migration/check-env.mjs "/runtime-env/$ENV_NAME" --full
+fi
+"${COMPOSE[@]}" config -q
+
 # 检查是否已有运行中的服务
-RUNNING_BEFORE=$(docker compose $COMPOSE_FILES ps --status running -q 2>/dev/null | wc -l || echo 0)
+RUNNING_BEFORE=$("${COMPOSE[@]}" ps --status running -q 2>/dev/null | wc -l || echo 0)
 
 # 记录当前 Git commit（用于回滚）
 cd "$PROJECT_DIR"
@@ -107,8 +129,8 @@ if [ "$ROLLBACK_MODE" = "true" ]; then
   fi
 
   # 重建并启动
-  docker compose $COMPOSE_FILES build server
-  docker compose $COMPOSE_FILES up -d --no-deps server
+  "${COMPOSE[@]}" build server
+  "${COMPOSE[@]}" up -d --no-deps server
 
   sleep 10
   ./health-check.sh
@@ -123,18 +145,25 @@ log "  已记录当前版本为回滚点: $CURRENT_SHORT"
 
 # 记录迁移状态（如果跳过迁移则跳过）
 if [ "$SKIP_MIGRATE" = "false" ]; then
-  docker compose $COMPOSE_FILES exec -T server sh -c "cd /app/apps/server && npx prisma migrate status 2>/dev/null" > /tmp/migration-state-before.txt 2>/dev/null || true
+  "${COMPOSE[@]}" exec -T server sh -c "cd /app/apps/server && npx prisma migrate status 2>/dev/null" > /tmp/migration-state-before.txt 2>/dev/null || true
 fi
 
-# ── 2. 检查是否有新代码 ──
-log "▸ 3/7 检查代码更新"
-git fetch origin "$CURRENT_BRANCH" 2>/dev/null || warn "  无法 fetch remote (继续部署本地代码)"
-NEW_COMMITS=$(git rev-list --count "$CURRENT_BRANCH...origin/$CURRENT_BRANCH" 2>/dev/null || echo "N/A")
-info "  远程新提交数: $NEW_COMMITS"
+# ── 2. 固定发布版本复核 ──
+log "▸ 3/7 复核固定发布版本"
+if [ "$CURRENT_COMMIT" = "unknown" ]; then
+  err "生产部署必须使用包含 Git 提交信息的固定发布包"
+  exit 64
+fi
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  err "检测到已跟踪文件存在未提交改动，拒绝部署非固定版本"
+  git status --short --untracked-files=no
+  exit 64
+fi
+info "  本次只部署当前提交，不自动 fetch / pull: $CURRENT_SHORT"
 
 # ── 3. 构建镜像 ──
 log "▸ 4/7 构建新镜像"
-docker compose $COMPOSE_FILES build server 2>&1 | tail -5
+"${COMPOSE[@]}" build server 2>&1 | tail -5
 BUILD_EXIT=$?
 
 if [ $BUILD_EXIT -ne 0 ]; then
@@ -148,7 +177,7 @@ log "  ✓ 镜像构建成功"
 # 默认跳过；只有显式双重确认后才会运行。
 if [ "$SKIP_MIGRATE" = "false" ]; then
   log "▸ 5/7 执行已审查的数据库迁移"
-  MIGRATE_OUTPUT=$(docker compose $COMPOSE_FILES run --rm --no-deps server \
+  MIGRATE_OUTPUT=$("${COMPOSE[@]}" run --rm --no-deps server \
     sh -c "cd /app/apps/server && npx prisma migrate deploy" 2>&1) || {
     err "数据库迁移失败，未启动新服务"
     warn "迁移输出: $MIGRATE_OUTPUT"
@@ -163,10 +192,10 @@ fi
 log "▸ 5/7 滚动更新服务"
 if [ "$RUNNING_BEFORE" -gt 0 ]; then
   # 零停机更新：仅重建 server 容器
-  docker compose $COMPOSE_FILES up -d --no-deps server
+  "${COMPOSE[@]}" up -d --no-deps server
 else
   # 首次启动
-  docker compose $COMPOSE_FILES up -d
+  "${COMPOSE[@]}" up -d
 fi
 log "  ✓ 服务更新指令已发送"
 
@@ -179,7 +208,9 @@ if [ "$SKIP_HEALTH" = "false" ]; then
     sleep 3
     WAITED=$((WAITED + 3))
 
-    HEALTH=$(curl -sf http://localhost:3000/api/v1/health/live 2>/dev/null || echo "")
+    HEALTH=$("${COMPOSE[@]}" exec -T server node -e \
+      "require('http').get('http://localhost:3000/api/v1/health/live',r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>process.stdout.write(b))}).on('error',()=>process.exit(1))" \
+      2>/dev/null || echo "")
     if [ "$(echo "$HEALTH" | grep -c 'alive' 2>/dev/null || echo 0)" -gt 0 ]; then
       log "  ✓ 服务存活 (${WAITED}s)"
       break
@@ -193,8 +224,8 @@ if [ "$SKIP_HEALTH" = "false" ]; then
 
     # 回滚代码
     git checkout "$CURRENT_COMMIT"
-    docker compose $COMPOSE_FILES build server
-    docker compose $COMPOSE_FILES up -d --no-deps server
+    "${COMPOSE[@]}" build server
+    "${COMPOSE[@]}" up -d --no-deps server
 
     # 恢复迁移状态
     if [ "$MIGRATION_APPLIED" = "true" ] && [ -f /tmp/migration-state-before.txt ]; then
@@ -220,5 +251,5 @@ echo ""
 # 执行完整健康检查
 if [ "$SKIP_HEALTH" = "false" ]; then
   log "执行部署后验证..."
-  ./health-check.sh
+  ENV_FILE="$ENV_FILE" ./health-check.sh
 fi

@@ -46,8 +46,9 @@
 ### 2.2 手动部署
 
 ```bash
-# 1. 拉取最新代码
-cd /opt/guoxue && git pull origin main
+# 1. 上传已通过门禁并记录 SHA 的固定发布包
+cd /opt/guoxue
+git status --short --untracked-files=no
 
 # 2. 数据库备份（生产强制）
 ./docker/pg-backup.sh 30
@@ -55,13 +56,12 @@ cd /opt/guoxue && git pull origin main
 # 3. 拉取/构建镜像
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml build server
 
-# 4. 执行迁移
-docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml \
-  run --rm server \
-  npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
+# 4. 只有迁移 SQL 已审查且确认备份可恢复时才执行迁移
+cd docker
+ALLOW_PROD_DB_MIGRATION=reviewed ./deploy.sh --migrate
 
-# 5. 启动/更新服务
-docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml up -d server
+# 无数据库变更时执行：
+# ./deploy.sh
 ```
 
 ### 2.3 实时监控

@@ -46,7 +46,12 @@ echo "  $(date '+%Y-%m-%d %H:%M:%S')"
 echo "════════════════════════════════════════════"
 echo ""
 
-BASE_URL="${BASE_URL:-http://localhost:3000}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="${ENV_FILE:-$SCRIPT_DIR/.env.production}"
+if [ -z "${BASE_URL:-}" ] && [ -f "$ENV_FILE" ]; then
+  BASE_URL=$(sed -n 's/^PUBLIC_API_URL=//p' "$ENV_FILE" | tail -1 | tr -d '\r')
+fi
+BASE_URL="${BASE_URL:-http://localhost}"
 
 # ═══════════════ 1. 基础存活检查 ═══════════
 echo "── 1. 基础存活 ──"
@@ -91,12 +96,14 @@ echo ""
 # ═══════════════ 3. Docker 容器状态 ═══════════
 echo "── 3. Docker 容器状态 ──"
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml)
+if [ -f "$ENV_FILE" ]; then
+  COMPOSE+=(--env-file "$ENV_FILE")
+fi
 
-CONTAINERS=$(docker compose $COMPOSE_FILES ps --format json 2>/dev/null | grep -o '"Name":"[^"]*"' | cut -d'"' -f4 || echo "")
+CONTAINERS=$("${COMPOSE[@]}" ps --format json 2>/dev/null | grep -o '"Name":"[^"]*"' | cut -d'"' -f4 || echo "")
 for c in $CONTAINERS; do
   HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$c" 2>/dev/null || echo "no-check")
   RUNNING=$(docker inspect --format='{{.State.Running}}' "$c" 2>/dev/null || echo "false")
@@ -131,8 +138,14 @@ check_port() {
   fi
 }
 
-check_port 3000 "NestJS Server"
 check_port 80   "Nginx HTTP"
+if curl -skf -o /dev/null --max-time 3 "https://localhost" 2>/dev/null; then
+  echo -e "  ${GREEN}✓${NC} 端口 443 — Nginx HTTPS"
+  PASS=$((PASS + 1))
+else
+  echo -e "  ${YELLOW}⚠${NC} 端口 443 — Nginx HTTPS (无响应)"
+  WARN=$((WARN + 1))
+fi
 
 echo ""
 

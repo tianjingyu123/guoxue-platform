@@ -76,9 +76,9 @@
 确保以下域名已解析到服务器 IP：
 
 ```
-guoxue.ac.cn        → A 记录 → 服务器IP
-shop.guoxue.ac.cn   → A 记录 → 服务器IP
-live.guoxue.ac.cn   → A 记录 → 服务器IP
+api.example.com     → A 记录 → 服务器IP
+shop.example.com    → A 记录 → 服务器IP
+live.example.com    → A 记录 → 服务器IP
 ```
 
 ### 2.4 必需密钥清单
@@ -104,17 +104,18 @@ live.guoxue.ac.cn   → A 记录 → 服务器IP
 ### 3.1 一键部署（推荐）
 
 ```bash
-# SSH 到服务器，执行一键脚本
-sudo bash docker/setup-server.sh
+# 先上传已经通过门禁、带提交 SHA 的完整固定发布包
+# 然后在项目根目录执行；脚本不会自行拉取远程分支
+sudo DOMAIN=api.example.com LETSENCRYPT_EMAIL=ops@example.com \
+  DATABASE_MODE=prepare bash docker/setup-server.sh
 ```
 
-脚本自动完成：系统优化 → Docker 安装 → 防火墙 → 目录创建 → SSL 证书 → 构建启动 → 定时备份。
+脚本自动完成：系统优化 → Docker 安装 → 防火墙 → 固定发布包复核 → SSL 证书 → 按数据库模式构建启动 → 定时备份。
 
 ### 3.2 手动部署（逐步控制）
 
 ```bash
-# 1. 克隆仓库
-git clone --depth 1 https://github.com/<your-org>/guoxue-platform.git /opt/guoxue
+# 1. 将已通过发布门禁、带提交 SHA 的固定发布包上传到 /opt/guoxue
 cd /opt/guoxue/docker
 
 # 2. 配置环境变量
@@ -147,12 +148,12 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 部署完成后逐项检查：
 
 ```
-□ curl https://guoxue.ac.cn/api/v1/health → status: "ok" 或 "degraded"
-□ curl https://guoxue.ac.cn/api/v1/health/ready → status: "ready"
-□ curl https://guoxue.ac.cn/api/v1/health/live → status: "alive"
+□ curl https://api.example.com/api/v1/health → status: "ok" 或 "degraded"
+□ curl https://api.example.com/api/v1/health/ready → status: "ready"
+□ curl https://api.example.com/api/v1/health/live → status: "alive"
 □ docker compose ps → 所有容器 Up (healthy)
 □ docker compose logs server --tail 50 → 无 ERROR 日志
-□ SSL 证书有效 → curl -vI https://guoxue.ac.cn 2>&1 | grep "subject:"
+□ SSL 证书有效 → curl -vI https://api.example.com 2>&1 | grep "subject:"
 □ 定时备份已配置 → crontab -l | grep pg-backup
 □ Grafana 可访问 → curl http://localhost:3001/api/health
 ```
@@ -166,8 +167,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```bash
 cd /opt/guoxue
 
-# 1. 拉取最新代码
-git pull origin main
+# 1. 运维人员先把已通过门禁的固定提交发布包同步到当前目录
+#    禁止在生产服务器直接拉取未验收分支
 
 # 2. 执行自动化部署（含预检查 + 回滚保护）
 ./docker/deploy.sh
@@ -177,7 +178,7 @@ git pull origin main
 - 备份当前数据库
 - 构建新镜像
 - 滚动更新服务
-- 执行数据库迁移
+- 默认不迁移数据库；只有双重确认后才执行已审查迁移
 - 验证健康检查
 - 失败时自动回滚
 
@@ -193,9 +194,10 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec server sh -
 # 2. 记录当前版本（回滚用）
 git rev-parse HEAD > /tmp/last-good-commit
 
-# 3. 拉取代码
+# 3. 将已通过门禁的固定提交发布包同步到 /opt/guoxue
+#    同步后必须确保已跟踪文件无未提交改动
 cd /opt/guoxue
-git pull origin main
+git status --short --untracked-files=no
 
 # 4. 重新构建
 cd docker
@@ -416,13 +418,13 @@ docker compose up -d
 
 ```bash
 # 完整健康报告（含所有依赖状态）
-curl https://guoxue.ac.cn/api/v1/health | jq
+curl https://api.example.com/api/v1/health | jq
 
 # 就绪检查（仅 DB + Redis）
-curl https://guoxue.ac.cn/api/v1/health/ready | jq
+curl https://api.example.com/api/v1/health/ready | jq
 
 # 存活检查（无依赖检查，仅确认进程存活）
-curl https://guoxue.ac.cn/api/v1/health/live | jq
+curl https://api.example.com/api/v1/health/live | jq
 ```
 
 ---
@@ -530,7 +532,7 @@ docker compose logs server --since 30m | grep -i "pay\|notify\|callback"
 echo $WECHAT_PAY_NOTIFY_URL
 
 # 4. 测试回调 URL 可达性
-curl -X POST https://guoxue.ac.cn/api/v1/shop/pay/notify -H "Content-Type: application/xml" -d "<test/>"
+curl -X POST https://api.example.com/api/v1/shop/pay/notify -H "Content-Type: application/xml" -d "<test/>"
 ```
 
 ---

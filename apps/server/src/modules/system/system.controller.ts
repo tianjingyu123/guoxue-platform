@@ -21,6 +21,7 @@ import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDt
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { Auditable } from "../../common/audit.decorator";
 import { THIRD_PARTY_SERVICES } from "../../config/third-party-services";
+import { serverConfig } from "../../config/server-config";
 
 @ApiTags("系统配置")
 @Controller("system")
@@ -315,7 +316,7 @@ export class SystemController {
       /** 审核期间展示的公告文案 */
       notice: '更多精彩功能，请在浏览器中打开热卜国学 H5 版本体验',
       /** 跳转到 H5 完整版的链接 */
-      h5Url: 'https://m.guoxue.ac.cn',
+      h5Url: serverConfig.publicH5Url,
     };
   }
 

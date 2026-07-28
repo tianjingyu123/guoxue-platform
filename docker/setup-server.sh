@@ -1,7 +1,9 @@
 #!/bin/bash
 # 国学平台 — 云服务器一键初始化脚本
-# 用法: curl -fsSL https://raw.githubusercontent.com/<repo>/main/docker/setup-server.sh | bash -s -- [选项]
-# 或:   chmod +x setup-server.sh && sudo ./setup-server.sh
+# 用法: 将已验收的完整项目上传到服务器后执行：
+#       chmod +x docker/setup-server.sh
+#       sudo DOMAIN=api.example.com LETSENCRYPT_EMAIL=ops@example.com \
+#         DATABASE_MODE=prepare ./docker/setup-server.sh
 #
 # 支持: Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / Rocky 8+
 set -euo pipefail
@@ -15,13 +17,37 @@ warn() { echo -e "${YELLOW}[warn]${NC} $1"; }
 err()  { echo -e "${RED}[err]${NC} $1"; }
 
 # ── 参数解析 ──
-REPO_URL="${REPO_URL:-https://github.com/<user>/guoxue-platform.git}"
-REPO_BRANCH="${REPO_BRANCH:-main}"
-INSTALL_DIR="${INSTALL_DIR:-/opt/guoxue}"
-DOMAIN="${DOMAIN:-guoxue.ac.cn}"
-LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-admin@guoxue.ac.cn}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+INSTALL_DIR="${INSTALL_DIR:-$SOURCE_DIR}"
+DOMAIN="${DOMAIN:-}"
+LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-}"
 SKIP_FIREWALL="${SKIP_FIREWALL:-false}"
 SKIP_SWAP="${SKIP_SWAP:-false}"
+DATABASE_MODE="${DATABASE_MODE:-prepare}"
+
+if [ ! -f "$SOURCE_DIR/package.json" ] || [ ! -f "$SOURCE_DIR/docker/docker-compose.prod.yml" ]; then
+  err "必须从已上传的完整项目目录运行 docker/setup-server.sh"
+  err "禁止通过 curl 管道或远程分支直接执行未验收脚本"
+  exit 64
+fi
+if [ "$(cd "$INSTALL_DIR" 2>/dev/null && pwd || true)" != "$SOURCE_DIR" ]; then
+  err "INSTALL_DIR 必须指向当前已验收的项目目录: $SOURCE_DIR"
+  err "请先把固定发布包上传到目标目录，再从该目录运行脚本"
+  exit 64
+fi
+if [ -z "$DOMAIN" ] || [[ "$DOMAIN" == *"example.com"* ]]; then
+  err "必须通过 DOMAIN 指定已经解析到本机的新 API 域名"
+  exit 64
+fi
+if [ -z "$LETSENCRYPT_EMAIL" ] || [[ "$LETSENCRYPT_EMAIL" != *"@"* ]]; then
+  err "必须通过 LETSENCRYPT_EMAIL 指定证书通知邮箱"
+  exit 64
+fi
+case "$DATABASE_MODE" in
+  prepare|empty|restored) ;;
+  *) err "DATABASE_MODE 仅允许 prepare / empty / restored"; exit 64 ;;
+esac
 
 if [ "$EUID" -ne 0 ]; then
   err "请用 root 权限运行: sudo ./setup-server.sh"
@@ -133,52 +159,40 @@ mkdir -p "$INSTALL_DIR"/{docker/nginx/ssl,docker/backups,docker/monitoring,apps/
 # 静态资源挂载目录
 mkdir -p /var/guoxue/{uploads,static}
 
-# ── 6. 克隆 / 更新仓库 ──
+# ── 6. 固定发布包复核 ──
+log "使用当前已上传并验收的固定发布包: $INSTALL_DIR"
 if [ -d "$INSTALL_DIR/.git" ]; then
-  log "仓库已存在，更新..."
-  cd "$INSTALL_DIR"
-  git fetch origin
-  git checkout "$REPO_BRANCH"
-  git pull origin "$REPO_BRANCH"
-else
-  log "克隆仓库: $REPO_URL ($REPO_BRANCH)"
-  git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$INSTALL_DIR"
+  RELEASE_COMMIT=$(git -C "$INSTALL_DIR" rev-parse --short HEAD 2>/dev/null || true)
+  [ -n "$RELEASE_COMMIT" ] && log "发布提交: $RELEASE_COMMIT"
 fi
 
 # ── 7. 配置环境变量 ──
 ENV_FILE="$INSTALL_DIR/docker/.env.production"
 if [ ! -f "$ENV_FILE" ]; then
-  log "生成 .env.production 模板..."
-  cat > "$ENV_FILE" << 'ENVEOF'
-# ═══════════════════════════════════════════
-# 国学平台 — 生产环境变量
-# ═══════════════════════════════════════════
-# 初始化后请修改所有 <CHANGE_ME> 占位符
-
-# 基础设施
-DB_PASSWORD=<CHANGE_ME>
-JWT_SECRET=<CHANGE_ME>
-ENCRYPTION_KEY=<CHANGE_ME>
-
-# 腾讯云
-TENCENT_SECRET_ID=<CHANGE_ME>
-TENCENT_SECRET_KEY=<CHANGE_ME>
-COS_BUCKET=<CHANGE_ME>
-COS_REGION=ap-guangzhou
-IM_APP_ID=<CHANGE_ME>
-IM_ADMIN_KEY=<CHANGE_ME>
-
-# 微信
-WECHAT_APP_ID=<CHANGE_ME>
-WECHAT_APP_SECRET=<CHANGE_ME>
-
-# 域名
-CORS_ORIGIN=https://<CHANGE_ME>
-DOMAIN=<CHANGE_ME>
-ENVEOF
-  warn "请编辑 $ENV_FILE 填入真实配置后重新运行"
-  warn "或设置环境变量后重新执行本脚本"
+  log "生成完整 .env.production 模板..."
+  cp "$INSTALL_DIR/docker/.env.production.example" "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+  warn "已生成 $ENV_FILE；请填写全部真实配置后重新运行"
+  warn "发布脚本会拒绝占位域名、弱密钥和未形成闭环的核心配置"
+  exit 78
 fi
+
+log "校验生产环境变量与 Compose 配置..."
+docker run --rm \
+  -v "$INSTALL_DIR:/app:ro" \
+  -w /app \
+  node:20-slim \
+  node scripts/migration/check-env.mjs docker/.env.production --full
+
+CONFIG_DOMAIN=$(sed -n 's/^PUBLIC_DOMAIN=//p' "$ENV_FILE" | tail -1 | tr -d '\r')
+if [ "$CONFIG_DOMAIN" != "$DOMAIN" ]; then
+  err "DOMAIN($DOMAIN) 与 .env.production 的 PUBLIC_DOMAIN($CONFIG_DOMAIN) 不一致"
+  exit 64
+fi
+
+cd "$INSTALL_DIR/docker"
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production)
+"${COMPOSE[@]}" config -q
 
 # ── 8. SSL 证书 ──
 SSL_DIR="$INSTALL_DIR/docker/nginx/ssl"
@@ -211,31 +225,34 @@ docker network create guoxue-net 2>/dev/null || true
 docker network create monitoring 2>/dev/null || true
 
 # 构建并启动
-docker compose \
-  -f docker-compose.yml \
-  -f docker-compose.prod.yml \
-  --env-file .env.production \
-  up -d --build postgres redis
+"${COMPOSE[@]}" up -d --build postgres redis
 
-# 服务镜像构建完成后，先在一次性容器中初始化空库，再启动业务服务。
-docker compose \
-  -f docker-compose.yml \
-  -f docker-compose.prod.yml \
-  --env-file .env.production \
-  run --rm --build -e CONFIRM_EMPTY_DATABASE=YES server \
-  sh -c "cd /app/apps/server && sh prisma/migrations-deploy/bootstrap-empty-database.sh"
+# 数据库初始化必须显式选择，禁止把“新服务器”误判成“空数据库”。
+if [ "$DATABASE_MODE" = "prepare" ]; then
+  warn "PostgreSQL / Redis 已启动，但尚未启动业务服务。"
+  warn "若要恢复旧库：先执行 pg-restore.sh，再以 DATABASE_MODE=restored 重跑。"
+  warn "若确认创建全新空库：以 DATABASE_MODE=empty CONFIRM_EMPTY_DATABASE=YES 重跑。"
+  exit 78
+fi
 
-docker compose \
-  -f docker-compose.yml \
-  -f docker-compose.prod.yml \
-  --env-file .env.production \
-  up -d
+if [ "$DATABASE_MODE" = "empty" ]; then
+  if [ "${CONFIRM_EMPTY_DATABASE:-}" != "YES" ]; then
+    err "创建全新空库必须同时设置 CONFIRM_EMPTY_DATABASE=YES"
+    exit 64
+  fi
+  "${COMPOSE[@]}" run --rm --build -e CONFIRM_EMPTY_DATABASE=YES server \
+    sh -c "cd /app/apps/server && sh prisma/migrations-deploy/bootstrap-empty-database.sh"
+fi
+
+"${COMPOSE[@]}" up -d --build
 
 # ── 10. 等待健康检查 ──
 log "等待服务就绪..."
 for i in $(seq 1 30); do
   sleep 2
-  if curl -sf http://localhost:3000/api/v1/health > /dev/null 2>&1; then
+  if "${COMPOSE[@]}" exec -T server node -e \
+    "require('http').get('http://localhost:3000/api/v1/health/ready',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))" \
+    > /dev/null 2>&1; then
     log "✅ 服务已就绪"
     break
   fi
@@ -260,8 +277,8 @@ Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=$INSTALL_DIR/docker
 ExecStart=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production up -d
-ExecStop=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-ExecReload=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.prod.yml restart server
+ExecStop=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production down
+ExecReload=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.production restart server
 StandardOutput=journal
 StandardError=journal
 

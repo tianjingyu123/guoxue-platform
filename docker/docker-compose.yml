@@ -123,12 +123,17 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - uploads_data:/var/www/uploads
       - static_data:/var/www/static
       - certbot_data:/var/www/certbot
       - admin_dist:/var/www/admin
+      - h5_dist:/var/www/h5
+    environment:
+      NGINX_ENVSUBST_FILTER: "^(NGINX_SERVER_NAMES)$"
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx
+      NGINX_SERVER_NAMES: ${NGINX_SERVER_NAMES:-localhost}
     depends_on:
       - server
     healthcheck:
@@ -148,6 +153,7 @@ services:
       - "3000:3000"
     volumes:
       - admin_dist:/app/admin-dist-shared
+      - h5_dist:/app/h5-dist-shared
     environment:
       # ── 基础设施 ──
       DATABASE_URL: postgresql://guoxue:guoxue123@postgres:5432/guoxue?connection_limit=20
@@ -282,3 +288,4 @@ volumes:
   static_data:
   certbot_data:
   admin_dist:
+  h5_dist:

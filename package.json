@@ -29,6 +29,7 @@
     "release:check-nav": "node scripts/check-nav-paths.js",
     "release:gate:code": "pnpm release:audit -- --strict && pnpm release:check-nav && pnpm release:audit-deps",
     "release:gate": "pnpm release:gate:code && pnpm migration:check-env",
+    "release:gate:full": "pnpm release:gate:code && pnpm migration:check-env docker/.env.production --full",
     "precommit": "bash scripts/pre-commit.sh",
     "prepare": "npx husky install 2>/dev/null || echo 'husky 初始化跳过（非 git 环境）'"
   },

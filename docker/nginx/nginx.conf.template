@@ -72,41 +72,18 @@ http {
     server guoxue-grafana:3000;
   }
 
-  # ── 域名映射 (主域名 + 多小程序备用域名) ──
-  # MAIN:   guoxue.ac.cn
-  # SHOP:   shop.guoxue.ac.cn
-  # LIVE:   live.guoxue.ac.cn
-  # BACKUP: guoxue-api.cn, guoxue-platform.cn (备用域名防封)
-
+  # ── 域名类型 ──
+  # 合法域名由 NGINX_SERVER_NAMES 在部署时注入；这里只按常见子域名前缀标记业务类型。
   map $host $domain_type {
-    default                        "MAIN";
-    "guoxue.ac.cn"                 "MAIN";
-    "shop.guoxue.ac.cn"            "SHOP";
-    "live.guoxue.ac.cn"            "LIVE";
-    "guoxue-api.cn"                "BACKUP";
-    "guoxue-platform.cn"           "BACKUP";
-    "api.guoxue-api.cn"            "BACKUP";
-    "api.guoxue-platform.cn"       "BACKUP";
+    default  "MAIN";
+    ~^shop\. "SHOP";
+    ~^live\. "LIVE";
   }
 
-  # 主域名列表 (HTTP 重定向 + SSL)
-  map $host $is_main_domain {
-    default                        0;
-    "guoxue.ac.cn"                 1;
-    "shop.guoxue.ac.cn"            1;
-    "live.guoxue.ac.cn"            1;
-    "guoxue-api.cn"                1;
-    "guoxue-platform.cn"           1;
-    "api.guoxue-api.cn"            1;
-    "api.guoxue-platform.cn"       1;
-  }
-
-  # ── HTTP — ACME 验证 + 重定向到 HTTPS (多域名) ──
+  # ── HTTP — ACME 验证 + 重定向到 HTTPS ──
   server {
     listen 80;
-    server_name guoxue.ac.cn shop.guoxue.ac.cn live.guoxue.ac.cn
-                guoxue-api.cn guoxue-platform.cn
-                api.guoxue-api.cn api.guoxue-platform.cn;
+    server_name ${NGINX_SERVER_NAMES};
 
     # Certbot/ACME 验证路径（不重定向）
     location /.well-known/acme-challenge/ {
@@ -125,12 +102,10 @@ http {
     }
   }
 
-  # ── HTTPS 主站 (含多域名) ──
+  # ── HTTPS 主站 ──
   server {
     listen 443 ssl http2;
-    server_name guoxue.ac.cn shop.guoxue.ac.cn live.guoxue.ac.cn
-                guoxue-api.cn guoxue-platform.cn
-                api.guoxue-api.cn api.guoxue-platform.cn;
+    server_name ${NGINX_SERVER_NAMES};
 
     # SSL 配置
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
@@ -169,6 +144,21 @@ http {
       expires 7d;
       add_header Cache-Control "public";
       limit_req zone=api_limit burst=60;
+    }
+
+    # ── H5 SPA ──
+    location /h5/assets/ {
+      root /var/www;
+      try_files $uri =404;
+      expires 365d;
+      add_header Cache-Control "public, immutable";
+    }
+
+    location /h5/ {
+      root /var/www;
+      try_files $uri $uri/ /h5/index.html;
+      expires -1;
+      add_header Cache-Control "no-cache";
     }
 
     # ── 健康检查 (不限流) ──

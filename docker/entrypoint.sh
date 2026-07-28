@@ -64,8 +64,17 @@ echo "[entrypoint] 数据库已就绪"
 # ── 同步管理后台前端到共享卷（供 Nginx 托管）──
 if [ -d /app/admin-dist ] && [ -d /app/admin-dist-shared ]; then
   echo "[entrypoint] 同步管理后台前端到共享卷..."
-  cp -r /app/admin-dist/* /app/admin-dist-shared/
+  rm -rf /app/admin-dist-shared/*
+  cp -r /app/admin-dist/. /app/admin-dist-shared/
   echo "[entrypoint] 管理后台前端同步完成"
+fi
+
+# ── 同步 H5 到共享卷（供 Nginx 以 /h5/ 托管）──
+if [ -d /app/h5-dist ] && [ -d /app/h5-dist-shared ]; then
+  echo "[entrypoint] 同步 H5 前端到共享卷..."
+  rm -rf /app/h5-dist-shared/*
+  cp -r /app/h5-dist/. /app/h5-dist-shared/
+  echo "[entrypoint] H5 前端同步完成"
 fi
 
 # 服务启动默认绝不改数据库。只有部署流程已完成备份与人工复核后，

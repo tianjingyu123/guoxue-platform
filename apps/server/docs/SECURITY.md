@@ -28,7 +28,7 @@ Nginx 限流只能挡频率型攻击，以下攻击类型需要 WAF：
 ### 接入步骤
 
 1. 登录腾讯云控制台 → Web 应用防火墙
-2. 添加域名 `guoxue.ac.cn`
+2. 添加实际生产域名，例如 `api.example.com`
 3. DNS 解析改为 WAF 提供的 CNAME
 4. WAF 回源指向你的 Nginx 服务器 IP
 5. 开启基础防护规则集 + 自定义规则：
@@ -79,7 +79,7 @@ Nginx `limit_req` 和 `limit_conn` 只能处理应用层，以下场景挡不住
 
 你已有 COS 配置，只需开启 CDN：
 
-1. 腾讯云 CDN 控制台 → 添加域名 `cdn.guoxue.ac.cn`
+1. 腾讯云 CDN 控制台 → 添加实际 CDN 域名，例如 `cdn.example.com`
 2. 回源配置 → COS bucket 作为源站
 3. 上传服务改为写入 COS（而非本地磁盘）
 4. Nginx 中 `/uploads/` 改为反向代理到 CDN，或直接返回 CDN URL

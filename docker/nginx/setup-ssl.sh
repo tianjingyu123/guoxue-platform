@@ -5,9 +5,18 @@
 
 set -e
 
-DOMAIN="${1:-guoxue.ac.cn}"
-EMAIL="${2:-admin@guoxue.ac.cn}"
+DOMAIN="${1:-}"
+EMAIL="${2:-}"
 SSL_DIR="$(cd "$(dirname "$0")" && pwd)/ssl"
+
+if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ]; then
+  echo "用法: $0 <真实域名> <证书通知邮箱>"
+  exit 64
+fi
+if [[ "$DOMAIN" == *"example.com"* ]] || [[ "$EMAIL" != *"@"* ]]; then
+  echo "[ssl] 错误：域名或邮箱仍是占位值"
+  exit 64
+fi
 
 echo "[ssl] 为 $DOMAIN 申请 SSL 证书..."
 
