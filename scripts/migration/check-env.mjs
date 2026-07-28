@@ -156,9 +156,9 @@ if (apiUrl && publicDomain && apiUrl.hostname !== publicDomain) {
 if (
   apiUrl &&
   parsedUrls.get("VITE_API_URL") &&
-  normalizeUrl(parsedUrls.get("VITE_API_URL").href) !== `${normalizeUrl(apiUrl.href)}/api/v1`
+  normalizeUrl(parsedUrls.get("VITE_API_URL").href) !== normalizeUrl(apiUrl.href)
 ) {
-  errors.push("VITE_API_URL 必须等于 PUBLIC_API_URL + /api/v1");
+  errors.push("VITE_API_URL 必须与 PUBLIC_API_URL 一致（客户端请求层会自动追加 /api/v1）");
 }
 if (
   h5Url &&
@@ -187,9 +187,7 @@ if (corsOrigins.includes("*") || wsOrigins.includes("*")) {
   errors.push("生产环境 CORS / WebSocket CORS 不允许使用 *");
 }
 
-const nginxNames = (values.get("NGINX_SERVER_NAMES") || "")
-  .split(/\s+/)
-  .filter(Boolean);
+const nginxNames = (values.get("NGINX_SERVER_NAMES") || "").split(/\s+/).filter(Boolean);
 if (publicDomain && !nginxNames.includes(publicDomain)) {
   errors.push("NGINX_SERVER_NAMES 未包含 PUBLIC_DOMAIN");
 }
@@ -255,17 +253,14 @@ if (fullCheck) {
     },
     {
       name: "快递物流",
-      keys: [
-        "KUAIDI100_API_KEY",
-        "KUAIDI100_CUSTOMER",
-        "KUAIDI100_CALLBACK_URL",
-        "KUAIDI100_SALT",
-      ],
+      keys: ["KUAIDI100_API_KEY", "KUAIDI100_CUSTOMER", "KUAIDI100_CALLBACK_URL", "KUAIDI100_SALT"],
     },
   ];
   for (const group of groups) {
     if (!hasAll(values, group.keys)) {
-      warnings.push(`${group.name}配置不完整：${group.keys.filter((key) => !values.get(key)).join(", ")}`);
+      warnings.push(
+        `${group.name}配置不完整：${group.keys.filter((key) => !values.get(key)).join(", ")}`,
+      );
     }
   }
 

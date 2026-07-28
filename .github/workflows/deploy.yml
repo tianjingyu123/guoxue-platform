@@ -50,6 +50,8 @@ jobs:
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    environment:
+      name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'production' }}
     permissions:
       contents: read
       packages: write
@@ -80,6 +82,20 @@ jobs:
       - name: 设置 Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Validate image public configuration
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_PUBLIC_H5_URL: ${{ vars.VITE_PUBLIC_H5_URL }}
+          VITE_PUBLIC_ASSET_ORIGIN: ${{ vars.VITE_PUBLIC_ASSET_ORIGIN }}
+        run: |
+          test -n "$VITE_API_URL" || { echo "environment variable VITE_API_URL is missing"; exit 1; }
+          test -n "$VITE_PUBLIC_H5_URL" || { echo "environment variable VITE_PUBLIC_H5_URL is missing"; exit 1; }
+          test -n "$VITE_PUBLIC_ASSET_ORIGIN" || { echo "environment variable VITE_PUBLIC_ASSET_ORIGIN is missing"; exit 1; }
+          case "$VITE_API_URL" in https://*) ;; *) echo "VITE_API_URL must use https://"; exit 1;; esac
+          case "$VITE_PUBLIC_H5_URL" in https://*) ;; *) echo "VITE_PUBLIC_H5_URL must use https://"; exit 1;; esac
+          case "$VITE_PUBLIC_ASSET_ORIGIN" in https://*) ;; *) echo "VITE_PUBLIC_ASSET_ORIGIN must use https://"; exit 1;; esac
+          case "$VITE_API_URL" in */api/v1|*/api/v1/) echo "VITE_API_URL must not include /api/v1"; exit 1;; esac
+
       - name: 构建 & 推送镜像
         uses: docker/build-push-action@v6
         with:
@@ -88,6 +104,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL }}
+            VITE_PUBLIC_H5_URL=${{ vars.VITE_PUBLIC_H5_URL }}
+            VITE_PUBLIC_ASSET_ORIGIN=${{ vars.VITE_PUBLIC_ASSET_ORIGIN }}
           no-cache: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -281,23 +301,55 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Validate frontend public configuration
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_PUBLIC_H5_URL: ${{ vars.VITE_PUBLIC_H5_URL }}
+          VITE_PUBLIC_ASSET_ORIGIN: ${{ vars.VITE_PUBLIC_ASSET_ORIGIN }}
+        run: |
+          test -n "$VITE_API_URL" || { echo "production environment variable VITE_API_URL is missing"; exit 1; }
+          test -n "$VITE_PUBLIC_H5_URL" || { echo "production environment variable VITE_PUBLIC_H5_URL is missing"; exit 1; }
+          test -n "$VITE_PUBLIC_ASSET_ORIGIN" || { echo "production environment variable VITE_PUBLIC_ASSET_ORIGIN is missing"; exit 1; }
+          case "$VITE_API_URL" in https://*) ;; *) echo "VITE_API_URL must use https://"; exit 1;; esac
+          case "$VITE_PUBLIC_H5_URL" in https://*) ;; *) echo "VITE_PUBLIC_H5_URL must use https://"; exit 1;; esac
+          case "$VITE_PUBLIC_ASSET_ORIGIN" in https://*) ;; *) echo "VITE_PUBLIC_ASSET_ORIGIN must use https://"; exit 1;; esac
+          case "$VITE_API_URL" in */api/v1|*/api/v1/) echo "VITE_API_URL must not include /api/v1"; exit 1;; esac
 
       - name: Build 移动端 H5
         working-directory: apps/mobile
         run: pnpm build:h5
         env:
-          VITE_API_URL: 'https://api.rebugx.cn'
-          VITE_USE_MOCK: 'false'
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_PUBLIC_H5_URL: ${{ vars.VITE_PUBLIC_H5_URL }}
+          VITE_PUBLIC_ASSET_ORIGIN: ${{ vars.VITE_PUBLIC_ASSET_ORIGIN }}
+          VITE_USE_MOCK: "false"
 
       - name: Build 管理后台
         working-directory: apps/admin
         run: pnpm build
         env:
-          VITE_API_URL: 'https://api.rebugx.cn'
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_PUBLIC_H5_URL: ${{ vars.VITE_PUBLIC_H5_URL }}
+          VITE_PUBLIC_ASSET_ORIGIN: ${{ vars.VITE_PUBLIC_ASSET_ORIGIN }}
+
+      - name: Verify frontend build origins
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_PUBLIC_H5_URL: ${{ vars.VITE_PUBLIC_H5_URL }}
+          VITE_PUBLIC_ASSET_ORIGIN: ${{ vars.VITE_PUBLIC_ASSET_ORIGIN }}
+        run: |
+          pnpm migration:check-client-artifacts apps/mobile/dist/build/h5 \
+            --forbid-origin https://api.rebugx.cn \
+            --expect-origin "$VITE_API_URL" \
+            --expect-origin "$VITE_PUBLIC_ASSET_ORIGIN"
+          pnpm migration:check-client-artifacts apps/admin/dist \
+            --forbid-origin https://api.rebugx.cn \
+            --expect-origin "$VITE_PUBLIC_H5_URL"
 
       - name: 部署到服务器
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
@@ -317,9 +369,9 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: 'dist/build/h5/*'
-          target: '/opt/guoxue/frontend/mobile/'
-          strip_components: 3
+          source: "apps/mobile/dist/build/h5/*"
+          target: "/opt/guoxue/frontend/mobile/"
+          strip_components: 5
           rm: true
 
       - name: 上传管理后台
@@ -329,9 +381,9 @@ jobs:
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          source: 'dist/*'
-          target: '/opt/guoxue/frontend/admin/'
-          strip_components: 1
+          source: "apps/admin/dist/*"
+          target: "/opt/guoxue/frontend/admin/"
+          strip_components: 3
           rm: true
 
       - name: 配置 Nginx + 重载

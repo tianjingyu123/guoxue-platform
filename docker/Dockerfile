@@ -23,6 +23,13 @@ RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
 RUN pnpm build:admin
 RUN pnpm --filter @guoxue/mobile build:h5
+RUN node scripts/migration/check-client-artifacts.mjs apps/mobile/dist/build/h5 \
+  --forbid-origin https://api.rebugx.cn \
+  --expect-origin "$VITE_API_URL" \
+  --expect-origin "$VITE_PUBLIC_ASSET_ORIGIN"
+RUN node scripts/migration/check-client-artifacts.mjs apps/admin/dist \
+  --forbid-origin https://api.rebugx.cn \
+  --expect-origin "$VITE_PUBLIC_H5_URL"
 
 # ── 运行阶段 ──
 FROM node:20-slim
