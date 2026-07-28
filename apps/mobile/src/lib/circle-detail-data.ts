@@ -398,7 +398,7 @@ export const circleDetailApi = {
    * 续费年费圈子·第一步创建现金订单 — POST /circles/:id/renew。
    * 董事长拍板 2026-07-10：入圈与续费都只能人民币（微信/支付宝），不支持虚拟币。
    * #34：折扣开启时后端返回折后 priceYuan + originalPriceYuan（前端展示以此为准，不硬编码折扣文案）。
-   * TODO(#34)：两年档 years=2 后端已支持，档位选择 UI 待做。
+   * years=1/2 均由续费页显式选择并传入，价格以报价接口返回值为准。
    */
   renewPrepare: (id: string, payMethod: 'WECHAT' | 'ALIPAY', years?: number) =>
     apiPost<{ needPayment?: boolean; orderId?: string; priceYuan?: number; originalPriceYuan?: number; discountApplied?: boolean; message?: string }>(

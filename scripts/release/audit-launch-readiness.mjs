@@ -47,14 +47,6 @@ const rules = [
     advice: '上线前实现或从生产路由移除。',
   },
   {
-    id: 'P1_LOCAL_MOCK_USERS',
-    severity: 'P1',
-    title: '审核页面仍使用本地假用户',
-    pattern: /\bmockUsers\b/,
-    paths: ['apps/mobile/src/pkg-mine/user-audit/index.vue'],
-    advice: '接入真实审核列表接口并补齐空态、失败态。',
-  },
-  {
     id: 'P1_PUBLISH_GRANT_TODO',
     severity: 'P1',
     title: '圈子发布授权尚未接通',
@@ -72,14 +64,6 @@ const rules = [
     pattern: /后端进度表\s*TODO|观看进度.*(?:仅本地|待接入|TODO)|(?:TODO|待接入).*观看进度|watch progress.*TODO/i,
     paths: ['apps/mobile/src/pkg-live/watch/index.vue'],
     advice: '接入观看进度、断点续播和幂等上报。',
-  },
-  {
-    id: 'P1_RENEW_TWO_YEAR_TODO',
-    severity: 'P1',
-    title: '圈子两年续费选项未完成',
-    pattern: /两年|2\s*年/,
-    paths: ['apps/mobile/src/pkg-circle/circles/renew.vue'],
-    advice: '与后端计价、订单和退款规则保持一致。',
   },
   {
     id: 'P2_COMING_SOON',

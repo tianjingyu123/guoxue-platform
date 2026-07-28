@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
  * 续费圈子 — V0 circle-renew.html 还原·降级版（2026-07-10 新建）
- * 结构：到期提醒卡 → 续费方案（单档） → 续费规则 → 到期后将暂停 → 保留说明 → 吸底续费栏。
+ * 结构：到期提醒卡 → 一/两年续费方案 → 续费规则 → 到期后将暂停 → 保留说明 → 吸底续费栏。
  * 数据：circleDetailApi.detail + getJoinStatus（到期时间）+ renewPrepare/renewConfirm（现金订单双段）。
  * 董事长拍板 2026-07-10：续费与入圈一样只能人民币（微信/支付宝）——建 CIRCLE_RENEW 订单→拉起聚合支付→确认顺延。
  * #33 年度报告：GET annual-report 真实聚合 →「你的这一年」卡（有数据才渲染·失败不渲染）。
  * #34 老成员折扣：GET renew/quote 真实报价 → 折扣开启时原价划线+折后价（默认关闭无任何变化·不硬编码折扣文案）。
- * TODO(#34)：两年档 years=2 后端已支持（quote.twoYear），档位选择 UI 待做。
+ * #34 两年档：读取 quote.twoYear 真实报价，未取到报价时仅按圈子年费×2 降级展示。
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
@@ -24,6 +24,15 @@ const isLoading = ref(true)
 const error = ref('')
 const submitting = ref(false)
 const renewed = ref(false)
+type RenewYears = 1 | 2
+interface RenewPlan {
+  years: RenewYears
+  name: string
+  desc: string
+  price: number
+  originalPrice: number
+}
+const selectedYears = ref<RenewYears>(1)
 
 const remainingDays = computed(() => {
   if (!expireAt.value) return 0
@@ -42,22 +51,46 @@ function fmtDate(iso: string | null): string {
 /** 续费后新到期日（未过期从原到期日顺延，已过期从今天起算·与后端口径一致） */
 const newExpireDate = computed(() => {
   const base = expireAt.value && !expired.value ? new Date(expireAt.value) : new Date()
-  return fmtDate(new Date(base.getTime() + 365 * 86400000).toISOString())
+  return fmtDate(new Date(base.getTime() + selectedYears.value * 365 * 86400000).toISOString())
 })
 
 // ── #34 续费报价（折扣关闭时 priceYuan===originalPriceYuan → 页面零变化） ──
 const quote = ref<RenewQuote | null>(null)
+const plans = computed<RenewPlan[]>(() => {
+  const basePrice = Number(circle.value?.price ?? 0)
+  return [
+    {
+      years: 1,
+      name: '续费一年',
+      desc: '按年延续，保留灵活选择',
+      price: quote.value?.priceYuan ?? basePrice,
+      originalPrice: quote.value?.originalPriceYuan ?? basePrice,
+    },
+    {
+      years: 2,
+      name: '续费两年',
+      desc: '一次续两年，少一次到期打扰',
+      price: quote.value?.twoYear?.priceYuan ?? basePrice * 2,
+      originalPrice: quote.value?.twoYear?.originalPriceYuan ?? basePrice * 2,
+    },
+  ]
+})
+const selectedPlan = computed(() => plans.value.find((item) => item.years === selectedYears.value) ?? plans.value[0])
 /** 实际应付价（有报价用报价·失败回落圈子标价） */
-const payPrice = computed(() => quote.value?.priceYuan ?? Number(circle.value?.price ?? 0))
+const payPrice = computed(() => selectedPlan.value.price)
 /** 折扣露出条件：报价存在且折后价 < 原价（读后端真实价，不硬编码折扣文案） */
-const hasDiscount = computed(() => !!quote.value && quote.value.priceYuan < quote.value.originalPriceYuan)
+const hasDiscount = computed(() => selectedPlan.value.price < selectedPlan.value.originalPrice)
 /** 折扣标签（由真实价格反推，如 292/365 → 8折） */
 const discountTag = computed(() => {
-  if (!hasDiscount.value || !quote.value) return ''
-  const z = (quote.value.priceYuan / quote.value.originalPriceYuan) * 10
+  if (!hasDiscount.value) return ''
+  const z = (selectedPlan.value.price / selectedPlan.value.originalPrice) * 10
   const txt = (Math.round(z * 10) / 10).toString().replace(/\.0$/, '')
   return `老成员 ${txt} 折`
 })
+const averageYearPrice = computed(() => payPrice.value / selectedYears.value)
+function planHasDiscount(plan: RenewPlan) {
+  return plan.price < plan.originalPrice
+}
 
 // ── #33 年度报告（真实聚合·有数据才渲染） ──
 const report = ref<CircleAnnualReport | null>(null)
@@ -103,7 +136,11 @@ async function doRenew() {
   submitting.value = true
   try {
     // ① 创建现金续费订单
-    const prep = await circleDetailApi.renewPrepare(circleId.value, payMethod.value === 'alipay' ? 'ALIPAY' : 'WECHAT')
+    const prep = await circleDetailApi.renewPrepare(
+      circleId.value,
+      payMethod.value === 'alipay' ? 'ALIPAY' : 'WECHAT',
+      selectedYears.value,
+    )
     const orderId = prep?.orderId
     if (!orderId) throw new Error(prep?.message || '下单失败，请重试')
     // ② 拉起聚合支付（无支付环境时静默失败，订单可在订单中心继续支付）
@@ -119,7 +156,7 @@ async function doRenew() {
       const r = await circleDetailApi.renewConfirm(circleId.value, orderId)
       if (r?.newExpireAt) expireAt.value = r.newExpireAt
       renewed.value = true
-      uni.showToast({ title: '续费成功，有效期已顺延一年', icon: 'none' })
+      uni.showToast({ title: `续费成功，有效期已顺延${selectedYears.value === 2 ? '两年' : '一年'}`, icon: 'none' })
     } catch {
       uni.showToast({ title: '订单已提交，支付完成后有效期自动顺延', icon: 'none' })
     }
@@ -209,21 +246,36 @@ onLoad((q) => {
         </view>
       </template>
 
-      <!-- 续费方案（#34：折扣开启时原价划线+折后价·两年档 UI TODO） -->
+      <!-- 续费方案（#34：一/两年档均使用后端真实报价） -->
       <text class="rn-label">续费方案{{ hasDiscount ? ' · 老成员专享' : '' }}</text>
-      <view class="rn-plan-card">
-        <view class="rn-plan-option">
-          <view class="rn-radio"><view class="rn-radio-dot" /></view>
+      <view class="rn-plan-card rn-plan-list">
+        <view
+          v-for="plan in plans"
+          :key="plan.years"
+          class="rn-plan-option"
+          :class="{ active: selectedYears === plan.years }"
+          @tap="selectedYears = plan.years"
+        >
+          <view v-if="plan.years === 2" class="rn-plan-ribbon">
+            <text class="rn-plan-ribbon-t">两年省心</text>
+          </view>
+          <view class="rn-radio" :class="{ off: selectedYears !== plan.years }">
+            <view v-if="selectedYears === plan.years" class="rn-radio-dot" />
+          </view>
           <view class="rn-plan-main">
             <view class="rn-plan-name-row">
-              <text class="rn-plan-name">续费一年</text>
-              <view v-if="hasDiscount" class="rn-plan-tag"><text class="rn-plan-tag-t">{{ discountTag }}</text></view>
+              <text class="rn-plan-name">{{ plan.name }}</text>
+              <view v-if="planHasDiscount(plan)" class="rn-plan-tag">
+                <text class="rn-plan-tag-t">老成员价</text>
+              </view>
             </view>
-            <text class="rn-plan-desc">有效期顺延至 {{ newExpireDate }}</text>
+            <text class="rn-plan-desc">{{ plan.desc }}</text>
+            <text v-if="selectedYears === plan.years" class="rn-plan-date">有效期顺延至 {{ newExpireDate }}</text>
           </view>
           <view class="rn-plan-price">
-            <text class="rn-plan-now">¥{{ formatPrice(payPrice) }}<text class="rn-plan-unit"> /年</text></text>
-            <text v-if="hasDiscount && quote" class="rn-plan-was">原价 ¥{{ formatPrice(quote.originalPriceYuan) }}</text>
+            <text class="rn-plan-now">¥{{ formatPrice(plan.price) }}</text>
+            <text class="rn-plan-unit"> / {{ plan.years }} 年</text>
+            <text v-if="planHasDiscount(plan)" class="rn-plan-was">原价 ¥{{ formatPrice(plan.originalPrice) }}</text>
           </view>
         </view>
       </view>
@@ -265,11 +317,12 @@ onLoad((q) => {
       <view class="rn-bar">
         <view class="rn-bar-price">
           <text class="rn-bar-num">¥{{ formatPrice(payPrice) }}</text>
-          <text class="rn-bar-unit"> /年</text>
-          <text v-if="hasDiscount && quote" class="rn-bar-was">¥{{ formatPrice(quote.originalPriceYuan) }}</text>
+          <text class="rn-bar-unit"> / {{ selectedYears }} 年</text>
+          <text v-if="selectedYears === 2" class="rn-bar-average">约 ¥{{ formatPrice(averageYearPrice) }}/年</text>
+          <text v-if="hasDiscount" class="rn-bar-was">¥{{ formatPrice(selectedPlan.originalPrice) }}</text>
         </view>
         <view class="rn-bar-btn" :class="{ disabled: submitting || renewed }" @tap="doRenew">
-          <text class="rn-bar-btn-t">{{ submitting ? '处理中…' : renewed ? '已续费' : '立即续费' }}</text>
+          <text class="rn-bar-btn-t">{{ submitting ? '处理中…' : renewed ? '已续费' : `续费${selectedYears === 2 ? '两年' : '一年'}` }}</text>
         </view>
       </view>
     </template>
@@ -357,7 +410,23 @@ onLoad((q) => {
   margin: 0 32rpx; background: var(--bg-card, #fff);
   border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
 }
-.rn-plan-option { display: flex; align-items: center; gap: 24rpx; padding: 30rpx 32rpx; }
+.rn-plan-list { padding: 12rpx; }
+.rn-plan-option {
+  position: relative; display: flex; align-items: center; gap: 24rpx;
+  padding: 30rpx 26rpx; border: 2rpx solid transparent; border-radius: 28rpx;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+.rn-plan-option + .rn-plan-option { margin-top: 6rpx; }
+.rn-plan-option.active {
+  border-color: rgba(196, 30, 58, 0.34);
+  background: linear-gradient(105deg, rgba(196, 30, 58, 0.055), rgba(201, 169, 110, 0.08));
+}
+.rn-plan-ribbon {
+  position: absolute; top: -2rpx; right: 24rpx;
+  padding: 5rpx 16rpx 7rpx; border-radius: 0 0 14rpx 14rpx;
+  background: #8f6f36;
+}
+.rn-plan-ribbon-t { font-size: 19rpx; font-weight: 600; letter-spacing: 1rpx; color: #fff; }
 .rn-radio {
   width: 40rpx; height: 40rpx; border-radius: 999rpx; flex-shrink: 0;
   border: 3rpx solid var(--brand, #c41e3a);
@@ -387,7 +456,8 @@ onLoad((q) => {
 .rn-plan-tag-t { font-size: 20rpx; font-weight: 600; color: var(--brand, #c41e3a); }
 .rn-plan-was { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); text-decoration: line-through; margin-top: 2rpx; text-align: right; }
 .rn-plan-desc { font-size: 23rpx; color: var(--text-tertiary, #999); margin-top: 4rpx; }
-.rn-plan-price { flex-shrink: 0; }
+.rn-plan-date { font-size: 21rpx; color: var(--brand, #c41e3a); margin-top: 5rpx; }
+.rn-plan-price { flex-shrink: 0; text-align: right; }
 .rn-plan-now { font-size: 34rpx; font-weight: 700; color: var(--gold, #c9a96e); }
 .rn-plan-unit { font-size: 22rpx; font-weight: 400; color: var(--text-tertiary, #999); }
 .rn-rule-note { display: block; margin: 20rpx 44rpx 0; font-size: 22rpx; color: var(--text-tertiary, #999); line-height: 1.75; }
@@ -412,9 +482,10 @@ onLoad((q) => {
   border-top: 1rpx solid var(--separator, #ede7dd);
   display: flex; align-items: center; justify-content: space-between; gap: 24rpx;
 }
-.rn-bar-price { display: flex; align-items: baseline; }
+.rn-bar-price { display: flex; align-items: baseline; flex-wrap: wrap; max-width: 390rpx; }
 .rn-bar-num { font-size: 40rpx; font-weight: 700; color: var(--gold, #c9a96e); }
 .rn-bar-unit { font-size: 24rpx; color: var(--text-tertiary, #999); }
+.rn-bar-average { width: 100%; font-size: 20rpx; color: #8f6f36; margin-top: 2rpx; }
 .rn-bar-was { font-size: 24rpx; color: var(--text-tertiary, #999); text-decoration: line-through; margin-left: 12rpx; }
 .rn-bar-btn {
   height: 88rpx; padding: 0 68rpx; border-radius: 44rpx;
