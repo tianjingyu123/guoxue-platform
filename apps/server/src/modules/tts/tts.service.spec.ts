@@ -84,6 +84,29 @@ describe("TtsService", () => {
         expect.objectContaining({ method: "POST" }),
       );
     });
+    it("把古籍朗读情感和断句参数传给腾讯云", async () => {
+      process.env.TENCENT_SECRET_ID = "AKIDtest";
+      process.env.TENCENT_SECRET_KEY = "sk-test";
+      mockRedis.getBuffer.mockResolvedValue(null);
+      mockFetch.mockResolvedValue({
+        json: () => Promise.resolve({ Response: { Audio: Buffer.from("tc-audio").toString("base64") } }),
+      });
+      mockRedis.setBuffer.mockResolvedValue(undefined);
+
+      await svc.synthesize({
+        text: "学而时习之，不亦说乎？",
+        emotion: "poetry",
+        emotionIntensity: 110,
+        segmentRate: 2,
+      });
+
+      const [, init] = mockFetch.mock.calls[0];
+      expect(JSON.parse(init.body)).toEqual(expect.objectContaining({
+        EmotionCategory: "poetry",
+        EmotionIntensity: 110,
+        SegmentRate: 2,
+      }));
+    });
     it("腾讯云失败时降级 Edge TTS", async () => {
       process.env.TENCENT_SECRET_ID = "AKIDtest";
       process.env.TENCENT_SECRET_KEY = "sk-test";

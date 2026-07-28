@@ -82,6 +82,18 @@ export interface AgentDetail {
   voiceEnabled: boolean
 }
 
+/** 服务端创建的实时语音房间凭据。字段由供应商透传，客户端适配器按实际 SDK 取用。 */
+export interface VoiceRoomTicket {
+  roomId?: string
+  room_id?: string
+  token?: string
+  appId?: string | number
+  app_id?: string | number
+  userId?: string
+  botName?: string
+  [key: string]: unknown
+}
+
 // 快捷提问（前端运营文案）
 export const quickQuestions = [
   '帮我看看今年的运势如何？',
@@ -256,6 +268,11 @@ export const agentApi = {
     })
     if (res?.conversationId) _agentConv[agentId] = res.conversationId
     return { text: res?.content || '', disclaimer: res?.disclaimer, recommendation: res?.recommendation || undefined }
+  },
+
+  /** 创建实时语音房间 —— POST /bots/:id/voice-room；仅 voiceEnabled 智能体可用。 */
+  async createVoiceRoom(agentId: string): Promise<VoiceRoomTicket> {
+    return await apiPost<VoiceRoomTicket>(`/bots/${agentId}/voice-room`)
   },
 
   /** 设定某智能体的续聊会话 id（从历史进入时调用） */

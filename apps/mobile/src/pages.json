@@ -1306,6 +1306,13 @@
           }
         },
         {
+          "path": "agent/voice-call",
+          "style": {
+            "navigationStyle": "custom",
+            "disableScroll": true
+          }
+        },
+        {
           "path": "agent/customer-service",
           "style": {
             "navigationStyle": "custom"
