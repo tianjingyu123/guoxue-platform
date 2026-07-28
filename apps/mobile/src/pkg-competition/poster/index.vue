@@ -54,6 +54,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateBack } from '@/utils/router'
 import { getUserInfo } from '@/utils/storage'
 import { drawQrToCanvas } from '@/utils/qrcode'
+import { buildH5Url } from '@/utils/share'
 import { BRAND } from '@/lib/brand'
 import {
   competitionApi, promotionLabel, typeLabel,
@@ -144,9 +145,10 @@ function medalLabel(rank: Ranking): string {
 /** 海报二维码落地链接（赛事详情·带 inviterId 邀请归因=当前 userId·后端 register 支持） */
 function posterQrUrl(): string {
   const uid = getUserInfo<{ id?: string | number }>()?.id
-  let url = `https://api.rebugx.cn/h5/pkg-competition/detail/index?id=${encodeURIComponent(compId.value)}`
-  if (uid != null && String(uid)) url += `&inviterId=${encodeURIComponent(String(uid))}`
-  return url
+  return buildH5Url('pkg-competition/detail/index', {
+    id: compId.value,
+    inviterId: uid != null && String(uid) ? String(uid) : undefined,
+  })
 }
 
 /** 绘制 9:16 荣誉/邀请海报 */

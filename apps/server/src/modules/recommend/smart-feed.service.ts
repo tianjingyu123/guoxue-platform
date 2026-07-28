@@ -129,7 +129,10 @@ const PRODUCT_SELECT = {
  */
 const h5Asset = (path: string): string => {
   const base = (
-    process.env.H5_BASE_URL || "https://api.rebugx.cn/h5"
+    process.env.PUBLIC_ASSET_ORIGIN ||
+    process.env.PUBLIC_H5_URL ||
+    process.env.H5_BASE_URL ||
+    ""
   ).replace(/\/+$/, "");
   return `${base}${path}`;
 };

@@ -212,6 +212,7 @@ import { ref, computed } from 'vue'
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { goBack as platformGoBack } from '@/utils/router'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
@@ -329,13 +330,7 @@ function goBack() {
  */
 function buildShareUrl(): string {
   const id = book.value?.id || bookId.value
-  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
-  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
-  // #ifdef H5
-  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
-  // #endif
-  if (!base.endsWith('/')) base += '/'
-  return withRef(`${base}pkg-classics/detail/index?id=${id}`)
+  return withRef(buildH5Url('pkg-classics/detail/index', { id }))
 }
 function onShare() {
   showShareSheet.value = true

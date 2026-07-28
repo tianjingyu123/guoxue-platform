@@ -161,6 +161,7 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 import { captureRefFromQuery, withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { drawQrToCanvas } from '@/utils/qrcode'
 import { useShare } from '@/composables/useShare'
 import { BRAND } from '@/lib/brand'
@@ -311,7 +312,7 @@ function currentBadge(): string {
 
 /** 节气页分享落地链接（卡面二维码内容·withRef 带我的 ref 归因，与小程序转发路径一致） */
 function shareLink(): string {
-  return withRef('https://api.rebugx.cn/h5/pkg-solar-term/index/index')
+  return withRef(buildH5Url('pkg-solar-term/index/index'))
 }
 
 function openCard() {

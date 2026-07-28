@@ -113,6 +113,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
+import { buildH5Url } from '@/utils/share'
 import { operatorApi, type StationPanelInfo, type StationOverviewItem } from '@/pkg-operator/lib/operator-data'
 import { pinnedApi, type PinnedSummaryItem } from '@/pkg-operator/lib/station-pinned-data'
 
@@ -139,11 +140,7 @@ const quickGrid = [
   { key: 'code', ic: '🔗', label: '推广码' },
 ]
 
-const promoLink = computed(() => `${apiHost()}/s/${info.value.code || ''}`)
-
-function apiHost(): string {
-  return 'https://api.rebugx.cn/h5'
-}
+const promoLink = computed(() => buildH5Url(`s/${info.value.code || ''}`))
 function firstChar(t: string): string {
   return (t || '·').trim().charAt(0)
 }

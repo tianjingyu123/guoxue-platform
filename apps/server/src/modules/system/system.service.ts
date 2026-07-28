@@ -9,6 +9,7 @@ import { AuditService } from "../audit/audit.service";
 import { ThirdPartyConfigLoader } from "./third-party-config.loader";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { serverConfig } from "../../config/server-config";
 
 const CONFIG_CACHE_TTL = 3600; // 1小时
 const CONFIG_CACHE_PREFIX = "sys:config:";
@@ -161,6 +162,15 @@ export class SystemService {
     contactEmail: "",
   };
 
+  /** 公网地址由部署环境最终裁决，避免数据库缓存中的旧域名在切换后继续外发。 */
+  private applyPublicUrlOverrides<T extends { domain: string; h5Url: string }>(config: T): T {
+    return {
+      ...config,
+      domain: serverConfig.publicDomain,
+      h5Url: serverConfig.publicH5Url,
+    };
+  }
+
   /** 公开：获取品牌配置（全端品牌露出的唯一来源·无记录时返回内置默认值） */
   async getBrandConfig() {
     // H5 支付通道开关（pay_h5_provider: 'huifu'=走汇付聚合 / 其它=直连兜底·默认 direct）。
@@ -172,12 +182,20 @@ export class SystemService {
     const cached = await this.redis.getJson<typeof SystemService.DEFAULT_BRAND_CONFIG>(
       CONFIG_CACHE_PREFIX + "brand",
     );
-    if (cached) return { ...cached, payH5Provider };
+    if (cached) {
+      return {
+        ...this.applyPublicUrlOverrides(cached),
+        payH5Provider,
+      };
+    }
     const row = await this.prisma.brandConfig.findUnique({ where: { id: "default" } });
     // merge 默认值：将来新增字段时旧记录也能拿到兜底值
     const result = { ...SystemService.DEFAULT_BRAND_CONFIG, ...(row ?? {}) };
     await this.redis.setJson(CONFIG_CACHE_PREFIX + "brand", result, CONFIG_CACHE_TTL);
-    return { ...result, payH5Provider };
+    return {
+      ...this.applyPublicUrlOverrides(result),
+      payH5Provider,
+    };
   }
 
   /** 管理端：更新品牌配置（只更新传入字段·改一处配置全端生效） */

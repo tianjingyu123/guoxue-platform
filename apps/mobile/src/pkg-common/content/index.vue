@@ -63,6 +63,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
+import { buildH5Url } from '@/utils/share'
 
 interface ContentBlock {
   type: 'heading' | 'paragraph' | 'image' | 'list' | 'quote' | 'divider'
@@ -256,8 +257,7 @@ async function onShare() {
     uni.showToast({ title: '当前内容无法分享', icon: 'none' })
     return
   }
-  const h5Base = (BRAND.h5Url || 'https://api.rebugx.cn/h5/').replace(/\/$/, '')
-  const canonical = `${h5Base}/pkg-common/content/index?slug=${encodeURIComponent(contentSlug.value)}`
+  const canonical = buildH5Url('pkg-common/content/index', { slug: contentSlug.value })
   // #ifdef H5
   const shareUrl = typeof window !== 'undefined' ? window.location.href : canonical
   const nav = navigator as Navigator & { share?: (data: { title?: string; text?: string; url?: string }) => Promise<void> }

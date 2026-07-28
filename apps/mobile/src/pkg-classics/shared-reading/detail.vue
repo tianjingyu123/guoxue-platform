@@ -12,6 +12,7 @@ import { navigateTo, navigateBack } from '@/utils/router'
 import { getToken, getUserInfo } from '@/utils/storage'
 import { useShare } from '@/composables/useShare'
 import { BRAND } from '@/lib/brand'
+import { buildH5Url } from '@/utils/share'
 import {
   sharedReadingApi,
   SHARED_READING_STATUS_LABEL,
@@ -116,7 +117,9 @@ function toReader() {
 
 function copyLink() {
   // 招募态用后端下发的真邀请链接（shareUrl），其余态回落组详情深链
-  const link = detail.value?.shareUrl || `https://api.rebugx.cn/h5${sharePath.value}`
+  const link =
+    detail.value?.shareUrl ||
+    buildH5Url('pkg-classics/shared-reading/detail', { id: groupId.value })
   uni.setClipboardData({
     data: link,
     success: () => uni.showToast({ title: '链接已复制，发给好友', icon: 'none' }),

@@ -10,6 +10,10 @@
 import { reactive } from "vue";
 import { systemApi } from "@/api";
 
+const DEFAULT_H5_URL = String(
+  (import.meta as any).env?.VITE_PUBLIC_H5_URL || "https://api.rebugx.cn/h5/",
+);
+
 export interface BrandConfig {
   /** 站名（全称） */
   name: string;
@@ -76,7 +80,7 @@ export const BRAND = reactive<BrandConfig>({
   qrGuide: "长按识别 · 开启国学之旅",
   logoUrl: "",
   primaryColor: "#c41e3a",
-  h5Url: "https://api.rebugx.cn/h5/",
+  h5Url: DEFAULT_H5_URL,
   servicePhone: "",
   serviceEmail: "support@rebu.com",
   serviceWechat: "rebu_guoxue",

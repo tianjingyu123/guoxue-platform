@@ -200,6 +200,7 @@ import TeacherInfluenceCard from '@/components/common/teacher-influence-card.vue
 import { navigateTo, goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { teacherApi, buildTeacherCardTitle, buildTeacherCardStats, type CertStatus, type TeacherPublicProfile } from '@/lib/teacher-data'
 import { courseApi, type CreatedCourse } from '@/lib/course-data'
 
@@ -255,7 +256,7 @@ const cardStats = computed(() =>
 )
 /** 二维码 = 我的公开主页 H5 链接（withRef 带本人 ref 归因·扫码进页完成推荐闭环） */
 const cardLink = computed(() =>
-  withRef(`https://api.rebugx.cn/h5/pkg-creator/teacher-profile/index?userId=${encodeURIComponent(myUserId.value)}`),
+  withRef(buildH5Url('pkg-creator/teacher-profile/index', { userId: myUserId.value })),
 )
 
 async function openPoster() {

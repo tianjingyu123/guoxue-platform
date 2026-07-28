@@ -52,8 +52,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("serialNo", "证书序列号", "WECHAT_PAY_SERIAL_NO", false, "商户平台→账户中心→API安全→申请API证书后，证书详情里的序列号"),
       S("privateKey", "商户私钥（内容或路径）", "WECHAT_PAY_PRIVATE_KEY", true, "两种填法任选其一：① 用记事本打开 apiclient_key.pem，全选复制内容粘贴进来；② 或直接填服务器上证书文件的完整路径（如 /opt/guoxue/certs/apiclient_key.pem）。系统会自动识别是内容还是路径。", "", true, true),
       S("publicKey", "微信支付公钥（内容或路径）", "WECHAT_PAY_PUBLIC_KEY", true, "2024年后的新商户号用「公钥模式」验回调：商户平台→账户中心→API安全→微信支付公钥→下载 pub_key.pem，粘贴内容进来。若你的商户号显示的是「平台证书」则此项留空。", "", true, true),
-      S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/pay/notify"),
-      S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/refund/notify"),
+      S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/shop/pay/notify"),
+      S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/shop/refund/notify"),
     ],
   },
   {
@@ -63,7 +63,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("appId", "应用 AppID", "ALIPAY_APP_ID", false, "开放平台→控制台→我的应用→APPID（16位数字）"),
       S("privateKey", "应用私钥（内容或路径）", "ALIPAY_PRIVATE_KEY", true, "填『应用私钥』内容（支付宝密钥工具生成，一长串），或服务器上私钥文件的完整路径。系统自动识别。", "", true, true),
       S("publicKey", "支付宝公钥（内容或路径）", "ALIPAY_PUBLIC_KEY", true, "填『支付宝公钥』内容（平台给你的），或服务器上公钥文件的完整路径。系统自动识别。", "", true, true),
-      S("notifyUrl", "异步通知地址", "ALIPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/alipay/notify"),
+      S("notifyUrl", "异步通知地址", "ALIPAY_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/shop/alipay/notify"),
     ],
   },
   {
@@ -76,7 +76,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("secretKey", "密钥", "HUIFU_SECRET_KEY", true, "斗拱走RSA签名·此字段暂留空即可"),
       S("rsaPrivateKey", "商户 RSA 私钥（请求加签）", "HUIFU_RSA_PRIVATE_KEY", true, "填商户私钥内容，或服务器上私钥文件的完整路径。用于给请求加签，切勿填写汇付私钥。", "", true, true),
       S("rsaPublicKey", "汇付平台 RSA 公钥（响应验签）", "HUIFU_RSA_PUBLIC_KEY", true, "必须填写汇付控台「开发设置→开发者信息」中的汇付公钥，用于验证同步响应和异步通知；不是由上方商户私钥导出的商户公钥。", "", true, true),
-      S("notifyUrl", "回调地址", "HUIFU_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/huifu/notify"),
+      S("notifyUrl", "回调地址", "HUIFU_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/huifu/notify"),
     ],
   },
   {
@@ -86,7 +86,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("merId", "商户号", "UNIONPAY_MER_ID", false, "银联分配的商户号（15位）"),
       S("pfxPath", "证书路径(.pfx)", "UNIONPAY_PFX_PATH", true, "银联签名证书 .pfx 文件（需放服务器，路径找技术）"),
       S("pfxPassword", "证书密码", "UNIONPAY_PFX_PASSWORD", true, "申请 .pfx 证书时设置的密码"),
-      S("notifyUrl", "后台通知地址", "UNIONPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/unionpay/notify"),
+      S("notifyUrl", "后台通知地址", "UNIONPAY_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/shop/unionpay/notify"),
     ],
   },
   // ───────── 腾讯云全家桶 ─────────
@@ -194,7 +194,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   // ───────── 微信 ─────────
   {
     key: "wechat_official", label: "微信公众号", category: "微信",
-    note: "公众号内H5支付(JSAPI)+网页授权用。在微信公众平台 mp.weixin.qq.com（公众号后台）→设置与开发→基本配置获取。前置：公众号后台已配网页授权域名/JS安全域名=api.rebugx.cn；商户平台已关联该公众号AppID并配置JSAPI支付授权目录 https://api.rebugx.cn/h5/",
+    note: "公众号内H5支付(JSAPI)+网页授权用。在微信公众平台 mp.weixin.qq.com（公众号后台）→设置与开发→基本配置获取。切换域名时，网页授权域名、JS安全域名和JSAPI支付授权目录必须同步改为当前 PUBLIC_H5_URL。",
     fields: [
       S("appId", "公众号 AppID", "WECHAT_OFFICIAL_APPID", false, "公众号后台→设置与开发→基本配置→开发者ID(AppID)，wx开头"),
       S("appSecret", "公众号 AppSecret", "WECHAT_OFFICIAL_APP_SECRET", true, "公众号后台→基本配置→开发者密码(AppSecret)，需管理员扫码生成，只显示一次"),
@@ -261,7 +261,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     fields: [
       S("apiKey", "授权 Key", "KUAIDI100_API_KEY", true, "快递100开放平台→我的→授权key（授权码）"),
       S("customer", "Customer", "KUAIDI100_CUSTOMER", true, "快递100→实时查询→customer 参数（轨迹查询必需）"),
-      S("callbackUrl", "订阅回调地址", "KUAIDI100_CALLBACK_URL", false, "快递100订阅推送的公网 HTTPS 地址", "https://api.rebugx.cn/api/v1/shop/logistics/kuaidi100/callback"),
+      S("callbackUrl", "订阅回调地址", "KUAIDI100_CALLBACK_URL", false, "当前 PUBLIC_API_URL 下的 /api/v1/shop/logistics/kuaidi100/callback 公网 HTTPS 地址"),
       S("salt", "推送验签 Salt", "KUAIDI100_SALT", true, "自定义随机密钥；订阅时传给快递100，回调按 MD5(param+salt) 验签"),
       S("secret", "Secret（可选）", "KUAIDI100_SECRET", false, "寄件/电子面单类接口鉴权用；仅做轨迹查询无需填写"),
       S("userid", "UserID（可选）", "KUAIDI100_USERID", false, "快递100云平台账号ID；寄件类接口用，当前可留空"),

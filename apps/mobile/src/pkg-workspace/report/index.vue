@@ -11,6 +11,7 @@
  * 老师改过之后 ai 标记就摘掉（那已是他自己的判断，署他的名）。
  */
 import { ref, computed } from 'vue'
+import { buildH5Url } from '@/utils/share'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
@@ -38,9 +39,10 @@ const dirty = ref(false)
  * 不能用 location.origin（小程序里根本没有 location），也不能用局域网调试地址。
  * 与 components/home/daily-verse.vue 的分享链接同一个域。
  */
-const H5_BASE = 'https://api.rebugx.cn/h5'
 const shareUrl = computed(() =>
-  report.value?.shareToken ? `${H5_BASE}/pkg-workspace/shared/index?token=${report.value.shareToken}` : '',
+  report.value?.shareToken
+    ? buildH5Url('pkg-workspace/shared/index', { token: report.value.shareToken })
+    : '',
 )
 
 onLoad((q) => {

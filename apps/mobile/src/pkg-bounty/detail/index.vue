@@ -149,6 +149,7 @@ import CustomerServiceFab from '@/components/common/customer-service-fab.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { BRAND } from '@/lib/brand'
 import {
   bountyApi,
@@ -291,7 +292,7 @@ onShareTimeline(() => toTimeline({ title: shareTitle.value, path: sharePath.valu
 
 /** H5/App 端：复制带 ref 的完整链接 + 外溢文案到剪贴板（好友点开自动记归因） */
 function copyShareLink() {
-  const link = withRef(`https://api.rebugx.cn/h5${sharePath.value}`)
+  const link = withRef(buildH5Url(sharePath.value))
   const text = `${shareTitle.value} 来${BRAND.name}答题赢赏金 👉 ${link}`
   uni.setClipboardData({
     data: text,

@@ -226,6 +226,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { liveApi, type ConsoleDanmaku, type ConsoleProduct, type LiveMutedUserItem } from '@/lib/live-data'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -441,12 +442,7 @@ function confirmUnmute(item: LiveMutedUserItem) {
 }
 
 function buildShareUrl(): string {
-  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
-  // #ifdef H5
-  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
-  // #endif
-  if (!base.endsWith('/')) base += '/'
-  return withRef(`${base}pkg-live/watch/index?id=${consoleId.value}`)
+  return withRef(buildH5Url('pkg-live/watch/index', { id: consoleId.value }))
 }
 
 // ===== 分享直播间：H5 优先系统分享，不支持时复制可归因链接 =====

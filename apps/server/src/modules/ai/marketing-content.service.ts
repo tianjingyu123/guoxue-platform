@@ -25,7 +25,10 @@ import { getTermByName } from "../solar-term/solar-term.constants";
 export const MARKETING_MONTHLY_LIMIT = 100;
 
 /** ref 归因短链模板（生产 H5 落地页） */
-const REF_LINK_BASE = "https://api.rebugx.cn/h5/?ref=";
+const referralLink = (userId: string): string => {
+  const base = (process.env.PUBLIC_H5_URL || process.env.H5_BASE_URL || "").replace(/\/+$/, "");
+  return `${base}/?ref=${encodeURIComponent(userId)}`;
+};
 
 /** 合规定性系统约束（三类生成共用·A级禁词负面约束+B级替换引导） */
 const COMPLIANCE_SYSTEM = `你是国学传统文化平台的资深新媒体文案专家，为平台上的从业者（国学/命理文化老师）创作获客内容。
@@ -215,7 +218,7 @@ export class MarketingContentService {
     await this.audit.moderateTextOrThrow(body, { scene: "MARKETING_CONTENT", userId });
 
     // 4. 尾部自动拼从业者 ref 归因短链（获客内容把客户资产沉淀回平台）
-    const content = `${body}\n\n—— 更多传统文化内容：${REF_LINK_BASE}${userId}`;
+    const content = `${body}\n\n—— 更多传统文化内容：${referralLink(userId)}`;
 
     // 5. 落库留痕（passedAudit=true）
     const record = await this.prisma.marketingContent.create({

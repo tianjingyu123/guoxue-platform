@@ -411,6 +411,7 @@ import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { getUserInfo } from '@/utils/storage'
 import { onMounted } from 'vue'
 import { videoApi, formatVideoNumber as fmt, formatCommentTime as timeAgo, type VideoItem, type VideoProduct, type VideoComment } from '@/lib/video-data'
@@ -806,13 +807,7 @@ function onReport() {
 }
 function buildShareUrl(): string {
   const vid = currentVideo.value?.id || ''
-  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
-  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
-  // #ifdef H5
-  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
-  // #endif
-  if (!base.endsWith('/')) base += '/'
-  return withRef(`${base}pkg-video/detail/index?id=${vid}`) // 携带分享者 ref（推荐归因）
+  return withRef(buildH5Url('pkg-video/detail/index', { id: vid })) // 携带分享者 ref（推荐归因）
 }
 async function copyShareLink() {
   const v = currentVideo.value

@@ -343,6 +343,7 @@ import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack } from '@/utils/router'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { liveApi } from '@/lib/live-data'
 
@@ -486,12 +487,7 @@ async function onSendChat() {
 }
 function onSubmitQuestion() { uni.showToast({ title: '直播问答功能暂未开放', icon: 'none' }) }
 function buildShareUrl(): string {
-  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
-  // #ifdef H5
-  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
-  // #endif
-  if (!base.endsWith('/')) base += '/'
-  return withRef(`${base}pkg-live/horizontal/index?id=${currentRoomId.value}`)
+  return withRef(buildH5Url('pkg-live/horizontal/index', { id: currentRoomId.value }))
 }
 function onShare() {
   uni.setClipboardData({ data: buildShareUrl(), success: () => uni.showToast({ title: '链接已复制，粘贴给好友吧', icon: 'none' }), fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }) })

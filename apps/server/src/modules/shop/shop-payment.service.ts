@@ -308,7 +308,11 @@ export class ShopPaymentService {
         amount: { total: totalFen },
         sceneInfo: {
           payerClientIp: clientIp || "127.0.0.1",
-          h5Info: { type: "Wap", appName: "热卜国学", appUrl: process.env.H5_BASE_URL || "https://api.rebugx.cn" },
+          h5Info: {
+            type: "Wap",
+            appName: "热卜国学",
+            appUrl: process.env.PUBLIC_H5_URL || process.env.H5_BASE_URL || "",
+          },
         },
         attach: orderId,
         notifyUrl,
@@ -411,7 +415,11 @@ export class ShopPaymentService {
       amount: { total: totalFen },
       sceneInfo: {
         payerClientIp: clientIp || "127.0.0.1",
-        h5Info: { type: "Wap", appName: "热卜国学", appUrl: process.env.H5_BASE_URL || "https://api.rebugx.cn" },
+        h5Info: {
+          type: "Wap",
+          appName: "热卜国学",
+          appUrl: process.env.PUBLIC_H5_URL || process.env.H5_BASE_URL || "",
+        },
       },
       attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin, amountFen: totalFen, bonusCoin }),
       notifyUrl,

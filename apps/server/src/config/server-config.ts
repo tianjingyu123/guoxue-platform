@@ -24,12 +24,45 @@ class ServerConfig {
   get port(): number { return parseInt(process.env.PORT || "3000", 10); }
   get host(): string { return process.env.HOST || "0.0.0.0"; }
 
+  // ─── 公网入口（域名迁移时只改环境变量，不改业务代码） ───
+  private normalizedUrl(value: string, fallback: string, trailingSlash = false): string {
+    const normalized = (value || fallback).trim().replace(/\/+$/, "");
+    return trailingSlash ? `${normalized}/` : normalized;
+  }
+  get publicDomain(): string {
+    return (process.env.PUBLIC_DOMAIN || "api.rebugx.cn").trim();
+  }
+  get publicApiUrl(): string {
+    return this.normalizedUrl(process.env.PUBLIC_API_URL || "", `https://${this.publicDomain}`);
+  }
+  get publicH5Url(): string {
+    return this.normalizedUrl(
+      process.env.PUBLIC_H5_URL || process.env.H5_BASE_URL || "",
+      `${this.publicApiUrl}/h5`,
+      true,
+    );
+  }
+  get publicAssetOrigin(): string {
+    return this.normalizedUrl(
+      process.env.PUBLIC_ASSET_ORIGIN || "",
+      this.publicApiUrl,
+    );
+  }
+  get cookieDomain(): string {
+    return (process.env.COOKIE_DOMAIN || "").trim();
+  }
+
   // ─── 大屏 ───
   get bigscreenSecret(): string { return process.env.BIGSCREEN_SECRET || this.required("BIGSCREEN_SECRET"); }
 
   // ─── CORS ───
   get corsOrigin(): string[] {
-    return process.env.CORS_ORIGIN?.split(",") ?? ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"];
+    const configured = (process.env.CORS_ORIGIN || "")
+      .split(",")
+      .map((origin) => origin.trim().replace(/\/+$/, ""))
+      .filter(Boolean);
+    if (configured.length > 0) return [...new Set(configured)];
+    return ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"];
   }
 
   // ─── 限流 ───
@@ -163,6 +196,11 @@ export class ServerConfigService {
   get isProduction() { return serverConfig.isProduction; }
   get port() { return serverConfig.port; }
   get host() { return serverConfig.host; }
+  get publicDomain() { return serverConfig.publicDomain; }
+  get publicApiUrl() { return serverConfig.publicApiUrl; }
+  get publicH5Url() { return serverConfig.publicH5Url; }
+  get publicAssetOrigin() { return serverConfig.publicAssetOrigin; }
+  get cookieDomain() { return serverConfig.cookieDomain; }
   // 业务
   get bigscreenSecret() { return serverConfig.bigscreenSecret; }
   get corsOrigin() { return serverConfig.corsOrigin; }

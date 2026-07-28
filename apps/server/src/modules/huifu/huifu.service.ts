@@ -499,7 +499,9 @@ export class HuifuService {
       trade_type: tradeType,
       trans_amt: Number(order.amount).toFixed(2), // 元·两位小数字符串
       goods_desc: `国学平台-${order.type}`,
-      notify_url: notifyUrl || `${process.env.API_BASE_URL || ""}/api/v1/huifu/notify`,
+      notify_url:
+        notifyUrl ||
+        `${(process.env.PUBLIC_API_URL || process.env.API_BASE_URL || "").replace(/\/+$/, "")}/api/v1/huifu/notify`,
     };
     // 微信 JSAPI/小程序需要 openid
     if (dto.openid && tradeType.startsWith("T_")) {

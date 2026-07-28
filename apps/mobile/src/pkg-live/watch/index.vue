@@ -389,6 +389,7 @@ import { goBack, navigateTo } from '@/utils/router'
 import { gotoReport } from '@/lib/report-data'
 import { getToken, getUserInfo } from '@/utils/storage'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { formatPrice } from '@/utils/format'
 import {
@@ -830,13 +831,7 @@ function openQuickBuy(p: VerticalLiveProduct) {
 /** 分享链接构造（照抄短视频页 buildShareUrl 范式·适配直播观看页路由·withRef 追加分享者 ref 归因） */
 function buildShareUrl(): string {
   const rid = loadedRoomId.value || room.value.id || ''
-  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
-  let base = (import.meta as any).env?.VITE_H5_URL || 'https://api.rebugx.cn/h5'
-  // #ifdef H5
-  base = window.location.origin + ((import.meta as any).env?.BASE_URL || '/h5/')
-  // #endif
-  if (!base.endsWith('/')) base += '/'
-  return withRef(`${base}pkg-live/watch/index?id=${rid}`)
+  return withRef(buildH5Url('pkg-live/watch/index', { id: rid }))
 }
 /**
  * 分享：原三渠道只关面板=空操作。H5 无原生微信转发 → 统一复制链接 +

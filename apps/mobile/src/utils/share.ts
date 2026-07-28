@@ -9,7 +9,8 @@ export type ShareQuery = Record<string, string | number | boolean | undefined | 
 
 /** 按当前 history 路由模式生成可外部打开的 H5 深链；禁止再拼 /#/ 旧 hash 地址。 */
 export function buildH5Url(route: string, params: ShareQuery = {}): string {
-  let base = (BRAND.h5Url || 'https://api.rebugx.cn/h5/').replace(/\/+$/, '')
+  const envH5Url = String((import.meta as any).env?.VITE_PUBLIC_H5_URL || '')
+  let base = (BRAND.h5Url || envH5Url || 'https://api.rebugx.cn/h5/').replace(/\/+$/, '')
   // #ifdef H5
   if (typeof window !== 'undefined' && window.location?.origin) {
     const rawBase = String((import.meta as any).env?.BASE_URL || '/h5/')

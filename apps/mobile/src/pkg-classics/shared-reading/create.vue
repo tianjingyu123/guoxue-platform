@@ -6,6 +6,7 @@
  * 纯学习激励·无资金·R 安全。
  */
 import { ref, computed } from 'vue'
+import { buildH5Url } from '@/utils/share'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
@@ -90,7 +91,7 @@ async function onCreate() {
 function shareLink(): string {
   if (created.value?.shareUrl) return created.value.shareUrl
   const token = created.value?.inviteToken || ''
-  return `https://api.rebugx.cn/h5/pkg-classics/shared-reading/invite?token=${token}`
+  return buildH5Url('pkg-classics/shared-reading/invite', { token })
 }
 function copyLink() {
   const url = shareLink()

@@ -71,6 +71,7 @@ import { ref, computed, getCurrentInstance } from 'vue'
 import { onLoad, onReady } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { buildH5Url } from '@/utils/share'
 import { getUserInfo } from '@/utils/storage'
 import { drawQrToCanvas } from '@/utils/qrcode'
 
@@ -105,9 +106,10 @@ const inviteTag = computed(() => {
 // 邀请链接：落赛事页并携带 inviterId，被邀请人报名时经 register(inviterId) 一次性绑定（仅一级）
 const inviteLink = computed(() => {
   if (!inviterId.value) return '登录后生成专属邀请链接'
-  const base = 'https://api.rebugx.cn/h5/pkg-competition/home/index'
-  const q = `inviterId=${inviterId.value}${compId.value ? `&compId=${compId.value}` : ''}`
-  return `${base}?${q}`
+  return buildH5Url('pkg-competition/home/index', {
+    inviterId: inviterId.value,
+    compId: compId.value || undefined,
+  })
 })
 
 // 二维码渲染（真实绘制邀请链接·登录后才画）

@@ -17,6 +17,7 @@ import { classicsApi } from '@/lib/classics-data'
 import { apiGet } from '@/utils/request'
 import { getStorage } from '@/utils/storage'
 import { formatPrice } from '@/utils/format'
+import { buildH5Url } from '@/utils/share'
 
 export type PosterType = 'invite' | 'circle' | 'post' | 'article' | 'live' | 'product' | 'course' | 'classic'
 
@@ -37,8 +38,7 @@ export interface PosterData {
 
 /** 拼真实 H5 分享链接（生产 H5 是 history 模式，无 # 前缀） */
 function h5Link(path: string): string {
-  const base = (BRAND.h5Url || 'https://api.rebugx.cn/h5/').replace(/\/$/, '')
-  return `${base}/${path.replace(/^\//, '')}`
+  return buildH5Url(path)
 }
 
 /** 富文本/长文取摘要（海报 desc 位有限） */
