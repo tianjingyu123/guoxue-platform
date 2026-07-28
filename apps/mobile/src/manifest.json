@@ -11,8 +11,19 @@
     "splashscreen": { "alwaysShowBeforeRender": true, "waiting": true },
     "modules": {},
     "distribute": {
-      "android": { "permissions": [] },
-      "ios": {},
+      "android": {
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/>",
+          "<uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\"/>"
+        ]
+      },
+      "ios": {
+        "privacyDescription": {
+          "NSMicrophoneUsageDescription": "用于与国学智能体进行实时语音通话，仅在通话期间采集声音。"
+        }
+      },
       "sdkConfigs": {}
     }
   },
@@ -20,6 +31,11 @@
   "mp-weixin": {
     "appid": "wx06397e8ab26bed9e",
     "setting": { "urlCheck": false, "es6": true, "minified": true },
+    "permission": {
+      "scope.record": {
+        "desc": "用于与国学智能体进行实时语音通话"
+      }
+    },
     "usingComponents": true,
     "lazyCodeLoading": "requiredComponents",
     "optimization": { "subPackages": true }

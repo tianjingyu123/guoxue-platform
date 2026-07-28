@@ -31,11 +31,25 @@ const EDGE_TTS_URL =
   "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4"
 
 const CACHE_TTL = 86400 * 7 // 7 天
+const EMOTIONS = new Set([
+  "neutral", "sad", "happy", "angry", "fear", "news", "story", "radio",
+  "poetry", "call", "sajiao", "disgusted", "amaze", "peaceful",
+  "exciting", "aojiao", "jieshuo",
+])
 
 export interface TtsRequest {
   text: string
   voice?: string
   rate?: string  // e.g. "-20%" or "+10%"
+  emotion?: string
+  emotionIntensity?: number
+  segmentRate?: number
+}
+
+interface TtsStyle {
+  emotion?: string
+  emotionIntensity?: number
+  segmentRate: number
 }
 
 @Injectable()
@@ -48,17 +62,18 @@ export class TtsService {
   async synthesize(req: TtsRequest): Promise<{ audio: Buffer; contentType: string }> {
     const voiceKey = req.voice && VOICES[req.voice] ? req.voice : "xiaoxiao"
     const rate = req.rate || "0%"
+    const style = this.normalizeStyle(req)
     const text = req.text.trim().slice(0, 3000) // 上限 3000 字（Edge）；腾讯云单段自动截 150 字
     if (!text) throw new BusinessException(ErrorCode.BAD_REQUEST, "合成文本不能为空")
 
     // 缓存 key：供应商无关（同文本同音色同语速命中同缓存，切供应商不失效）
-    const cacheKey = this.buildCacheKey(text, voiceKey, rate)
+    const cacheKey = this.buildCacheKey(text, voiceKey, rate, style)
     const cached = await this.redis.getBuffer(cacheKey)
     if (cached) {
       return { audio: cached, contentType: "audio/mpeg" }
     }
 
-    const audio = await this.doSynthesize(text, voiceKey, rate)
+    const audio = await this.doSynthesize(text, voiceKey, rate, style)
 
     // 缓存
     await this.redis.setBuffer(cacheKey, audio, CACHE_TTL)
@@ -67,12 +82,12 @@ export class TtsService {
   }
 
   /** 实际合成：腾讯云优先，失败降级 Edge。 */
-  private async doSynthesize(text: string, voiceKey: string, rate: string): Promise<Buffer> {
+  private async doSynthesize(text: string, voiceKey: string, rate: string, style: TtsStyle): Promise<Buffer> {
     const secretId = process.env.TENCENT_SECRET_ID
     const secretKey = process.env.TENCENT_SECRET_KEY
     if (secretId && secretKey) {
       try {
-        return await this.tencentSynthesize(text, voiceKey, rate, secretId, secretKey)
+        return await this.tencentSynthesize(text, voiceKey, rate, style, secretId, secretKey)
       } catch (e: any) {
         this.logger.warn(`腾讯云 TTS 失败，降级 Edge：${e?.message || e}`)
       }
@@ -82,7 +97,7 @@ export class TtsService {
 
   /** 腾讯云 TextToVoice（一句话合成，≤150 汉字/段）。 */
   private async tencentSynthesize(
-    text: string, voiceKey: string, rate: string, secretId: string, secretKey: string,
+    text: string, voiceKey: string, rate: string, style: TtsStyle, secretId: string, secretKey: string,
   ): Promise<Buffer> {
     const voiceType = VOICES[voiceKey].tencent
     const region = process.env.TENCENT_TTS_REGION || "ap-guangzhou"
@@ -99,6 +114,11 @@ export class TtsService {
         SampleRate: 16000,
         Volume: 5,
         Speed: this.rateToTencentSpeed(rate),
+        SegmentRate: style.segmentRate,
+        ...(style.emotion ? {
+          EmotionCategory: style.emotion,
+          EmotionIntensity: style.emotionIntensity,
+        } : {}),
       }
       const signed = tc3Sign({
         secretId, secretKey, service: "tts", action: "TextToVoice",
@@ -178,8 +198,21 @@ export class TtsService {
     return out
   }
 
-  private buildCacheKey(text: string, voice: string, rate: string): string {
-    const hash = createHash("md5").update(`${text}|${voice}|${rate}`).digest("hex")
+  private normalizeStyle(req: TtsRequest): TtsStyle {
+    const emotion = req.emotion && EMOTIONS.has(req.emotion) ? req.emotion : undefined
+    const rawIntensity = Number(req.emotionIntensity)
+    const emotionIntensity = emotion
+      ? Math.max(50, Math.min(200, Number.isFinite(rawIntensity) ? Math.round(rawIntensity) : 100))
+      : undefined
+    const rawSegmentRate = Number(req.segmentRate)
+    const segmentRate = Math.max(0, Math.min(2, Number.isFinite(rawSegmentRate) ? Math.round(rawSegmentRate) : 0))
+    return { emotion, emotionIntensity, segmentRate }
+  }
+
+  private buildCacheKey(text: string, voice: string, rate: string, style: TtsStyle): string {
+    const hash = createHash("md5")
+      .update(`${text}|${voice}|${rate}|${style.emotion || ""}|${style.emotionIntensity || ""}|${style.segmentRate}`)
+      .digest("hex")
     return `tts:${hash}`
   }
 

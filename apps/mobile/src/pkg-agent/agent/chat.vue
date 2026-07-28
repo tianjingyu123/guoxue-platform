@@ -2,7 +2,7 @@
 /**
  * 智能体对话核心页（原型 app/agent/[id]/page.tsx 迁移）
  * 文字对话（真连 /bots/:id/chat）+ 推荐卡片(课程/圈子/商品/排盘·软性导流预留) + 续聊回填。
- * 语音通话(Coze RTC)真机联调下一轮，本期入口诚实提示「即将上线」，不做假壳。
+ * 语音通话进入专用通话页；实时 SDK 未装载时由发布闸门明确拦截，不做假通话。
  */
 import { ref, computed, nextTick, onUnmounted, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -477,6 +477,10 @@ function openCustomerService() {
   navigateTo('/customer-service')
 }
 
+function openVoiceCall() {
+  navigateTo(`/pkg-agent/agent/voice-call?id=${encodeURIComponent(agentId.value)}`)
+}
+
 // 低置信商业推荐：同意/拒绝查看
 function consentReco(msg: ChatMessage) {
   msg.recoConsented = true
@@ -681,16 +685,16 @@ onUnmounted(() => {
     </view>
 
     <!-- 智能体专用资料工具：用结构化表单代替反复追问 -->
-    <view v-if="isBaziAgent" class="compose-tools">
-      <view class="compose-tool" @tap="showBirthForm = !showBirthForm">
+    <view v-if="isBaziAgent || agentDetail.voiceEnabled" class="compose-tools">
+      <view v-if="isBaziAgent" class="compose-tool" @tap="showBirthForm = !showBirthForm">
         <AppIcon name="calendar" :size="25" color="#6977c9" />
         <text class="compose-tool-text">填写出生信息</text>
         <text class="compose-tool-sub">一次填完，直接排盘</text>
       </view>
-      <view v-if="agentDetail.voiceEnabled" class="compose-tool compose-tool-voice" @tap="toastComingSoon()">
+      <view v-if="agentDetail.voiceEnabled" class="compose-tool compose-tool-voice" @tap="openVoiceCall">
         <AppIcon name="phone" :size="24" color="#c41e3a" />
         <text class="compose-tool-text compose-tool-text-voice">语音通话</text>
-        <text class="compose-tool-soon">即将开放</text>
+        <text class="compose-tool-soon">实时对话</text>
       </view>
     </view>
 

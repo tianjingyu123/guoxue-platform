@@ -20,7 +20,7 @@ export class TtsController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBody({ type: Object, description: "TTS 请求参数，包含 text、voice、rate" })
+  @ApiBody({ type: Object, description: "TTS 请求参数，包含 text、voice、rate、emotion、emotionIntensity、segmentRate" })
   async synthesize(@Req() req: Request, @Body() dto: TtsRequestDto, @Res() res: Response) {
     const { audio, contentType } = await this.tts.synthesize(dto)
     res.set({
@@ -42,14 +42,27 @@ export class TtsController {
   @ApiQuery({ name: "text", required: true, type: String, description: "要合成的文本" })
   @ApiQuery({ name: "voice", required: false, type: String, description: "语音类型" })
   @ApiQuery({ name: "rate", required: false, type: String, description: "语速" })
+  @ApiQuery({ name: "emotion", required: false, type: String, description: "情感风格，如 poetry、story、peaceful" })
+  @ApiQuery({ name: "emotionIntensity", required: false, type: Number, description: "情感强度，50-200" })
+  @ApiQuery({ name: "segmentRate", required: false, type: Number, description: "断句敏感阈值，0-2" })
   async synthesizeGet(
     @Req() req: Request,
     @Query("text") text: string,
-    @Query("voice") voice: string,
-    @Query("rate") rate: string,
+    @Query("voice") voice: string | undefined,
+    @Query("rate") rate: string | undefined,
+    @Query("emotion") emotion: string | undefined,
+    @Query("emotionIntensity") emotionIntensity: string | undefined,
+    @Query("segmentRate") segmentRate: string | undefined,
     @Res() res: Response,
   ) {
-    const { audio, contentType } = await this.tts.synthesize({ text, voice, rate })
+    const { audio, contentType } = await this.tts.synthesize({
+      text,
+      voice,
+      rate,
+      emotion,
+      emotionIntensity: emotionIntensity ? Number(emotionIntensity) : undefined,
+      segmentRate: segmentRate ? Number(segmentRate) : undefined,
+    })
     this.sendAudio(req, res, audio, contentType)
   }
 

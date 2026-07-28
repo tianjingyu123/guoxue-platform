@@ -168,7 +168,8 @@ async function speakCurrent(isRetry = false) {
   // 语速→rate 百分比（后端 Edge/腾讯云均按此解析）
   const rate = `${Math.round((speed.value - 1) * 100)}%`
   const retryParam = isRetry ? `&retry=${Date.now()}` : ''
-  const sourceUrl = `${apiBase}/tts/synthesize?text=${encodeURIComponent(sentence)}&voice=${voiceType}&rate=${encodeURIComponent(rate)}${retryParam}`
+  // 古籍朗读默认采用“诗歌”情感和高断句阈值；明确标点优先，避免把古文短语切碎。
+  const sourceUrl = `${apiBase}/tts/synthesize?text=${encodeURIComponent(sentence)}&voice=${voiceType}&rate=${encodeURIComponent(rate)}&emotion=poetry&emotionIntensity=110&segmentRate=2${retryParam}`
   const loadVersion = ++audioLoadVersion
 
   let shouldUseBlobPlayback = false
