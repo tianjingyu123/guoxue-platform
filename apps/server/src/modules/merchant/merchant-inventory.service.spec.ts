@@ -20,14 +20,16 @@ describe("MerchantInventoryService", () => {
       },
       purchaseOrder: {
         findFirst: jest.fn(),
+        findMany: jest.fn().mockResolvedValue([]),
         update: jest.fn(),
       },
       purchaseOrderItem: {
         update: jest.fn(),
         findMany: jest.fn(),
       },
-      afterSale: { findUnique: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
-      order: { findFirst: jest.fn() },
+      afterSale: { findUnique: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }), count: jest.fn().mockResolvedValue(0) },
+      order: { findFirst: jest.fn(), findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+      inventoryAlertSetting: { findMany: jest.fn().mockResolvedValue([]) },
       ...overrides,
     };
     const prisma: any = {
@@ -37,6 +39,48 @@ describe("MerchantInventoryService", () => {
     const shopRefund: any = { refundOrder: jest.fn().mockResolvedValue({ status: "SUCCESS" }) };
     return { service: new MerchantInventoryService(prisma, shopRefund), prisma, tx, shopRefund };
   }
+
+  it("经营总览汇总补货、到货、发货与售后待办", async () => {
+    const { service, prisma } = createService();
+    prisma.product.findMany = jest.fn().mockResolvedValue([
+      { id: "product-1", stock: 2, skus: [] },
+      { id: "product-2", stock: 0, skus: [{ id: "sku-2", stock: 0 }] },
+    ]);
+    prisma.inventoryAlertSetting.findMany.mockResolvedValue([
+      { stockKey: "product-1:PRODUCT", lowStockThreshold: 3 },
+    ]);
+    prisma.inventoryMovement.count = jest.fn().mockResolvedValue(12);
+    prisma.purchaseOrder.findMany.mockResolvedValue([
+      {
+        status: "ORDERED",
+        expectedAt: new Date(Date.now() - 86_400_000),
+        items: [{ quantity: 10, receivedQuantity: 4 }],
+      },
+      {
+        status: "DRAFT",
+        expectedAt: null,
+        items: [{ quantity: 3, receivedQuantity: 0 }],
+      },
+    ]);
+    prisma.order.count.mockResolvedValue(5);
+    prisma.order.findMany.mockResolvedValue([{ id: "order-1" }]);
+    prisma.afterSale.count.mockResolvedValue(2);
+
+    await expect(service.overview("merchant-1", "owner-1")).resolves.toEqual({
+      skuCount: 2,
+      totalStock: 2,
+      lowStockCount: 2,
+      outOfStockCount: 1,
+      stockHealthRate: 0,
+      missingAlertCount: 1,
+      movementCount: 12,
+      pendingPurchaseCount: 2,
+      pendingReceiptUnitCount: 9,
+      overduePurchaseCount: 1,
+      unshippedOrderCount: 5,
+      pendingAfterSaleCount: 2,
+    });
+  });
 
   it("同一 requestId 重放时不重复改变库存", async () => {
     const existing = { id: "old-movement", idempotencyKey: "inventory-adjust:merchant-1:req-12345" };

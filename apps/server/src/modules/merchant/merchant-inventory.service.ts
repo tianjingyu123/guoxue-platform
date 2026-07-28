@@ -68,17 +68,59 @@ export class MerchantInventoryService {
     const stocks = products.flatMap((product) => product.skus.length
       ? product.skus.map((sku) => ({ key: this.stockKey(product.id, sku.id), stock: sku.stock }))
       : [{ key: this.stockKey(product.id), stock: product.stock }]);
-    const [movementCount, pendingPurchaseCount] = await Promise.all([
+    const [movementCount, pendingPurchases, unshippedOrderCount, merchantOrders] = await Promise.all([
       this.prisma.inventoryMovement.count({ where: { merchantId } }),
-      this.prisma.purchaseOrder.count({ where: { merchantId, status: { in: ["DRAFT", "ORDERED", "PARTIALLY_RECEIVED"] } } }),
+      this.prisma.purchaseOrder.findMany({
+        where: { merchantId, status: { in: ["DRAFT", "ORDERED", "PARTIALLY_RECEIVED"] } },
+        select: {
+          status: true,
+          expectedAt: true,
+          items: { select: { quantity: true, receivedQuantity: true } },
+        },
+      }),
+      this.prisma.order.count({ where: { merchantId, type: "PRODUCT", status: "PAID" } }),
+      this.prisma.order.findMany({
+        where: {
+          merchantId,
+          type: "PRODUCT",
+          status: { in: ["PAID", "SHIPPED", "COMPLETED", "REFUNDED"] },
+        },
+        select: { id: true },
+      }),
     ]);
+    const orderIds = merchantOrders.map((order) => order.id);
+    const pendingAfterSaleCount = orderIds.length
+      ? await this.prisma.afterSale.count({
+        where: { orderId: { in: orderIds }, status: { in: ["PENDING", "APPROVED", "PROCESSING"] } },
+      })
+      : 0;
+    const lowStockCount = stocks.filter((item) => item.stock <= (thresholds.get(item.key) ?? 5)).length;
+    const pendingReceiptUnitCount = pendingPurchases.reduce(
+      (total, order) => total + order.items.reduce(
+        (sum, item) => sum + Math.max(0, item.quantity - item.receivedQuantity),
+        0,
+      ),
+      0,
+    );
+    const now = Date.now();
+    const overduePurchaseCount = pendingPurchases.filter((order) =>
+      order.status !== "DRAFT"
+      && order.expectedAt != null
+      && order.expectedAt.getTime() < now,
+    ).length;
     return {
       skuCount: stocks.length,
       totalStock: stocks.reduce((sum, item) => sum + item.stock, 0),
-      lowStockCount: stocks.filter((item) => item.stock <= (thresholds.get(item.key) ?? 5)).length,
+      lowStockCount,
       outOfStockCount: stocks.filter((item) => item.stock === 0).length,
+      stockHealthRate: stocks.length ? Math.round(((stocks.length - lowStockCount) / stocks.length) * 100) : 100,
+      missingAlertCount: stocks.filter((item) => !thresholds.has(item.key)).length,
       movementCount,
-      pendingPurchaseCount,
+      pendingPurchaseCount: pendingPurchases.length,
+      pendingReceiptUnitCount,
+      overduePurchaseCount,
+      unshippedOrderCount,
+      pendingAfterSaleCount,
     };
   }
 

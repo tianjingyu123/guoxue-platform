@@ -365,7 +365,9 @@ export interface MerchantContentStats {
 
 export interface InventoryOverview {
   skuCount: number; totalStock: number; lowStockCount: number; outOfStockCount: number
-  movementCount: number; pendingPurchaseCount: number
+  stockHealthRate: number; missingAlertCount: number
+  movementCount: number; pendingPurchaseCount: number; pendingReceiptUnitCount: number
+  overduePurchaseCount: number; unshippedOrderCount: number; pendingAfterSaleCount: number
 }
 export interface InventoryStockItem {
   productId: string; skuId: string | null; title: string; image?: string | null

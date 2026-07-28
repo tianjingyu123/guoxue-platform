@@ -122,10 +122,22 @@ const PRODUCT_SELECT = {
 } as const;
 
 /** 当前生产种子商品的项目内方形首图；真实 images 写入后自动优先使用真实数据。 */
+/**
+ * 种子商品图由 H5 静态托管统一提供。
+ * 小程序包不再重复携带这些大图，因此始终返回完整 H5 地址；
+ * H5_BASE_URL 允许各环境覆盖，未配置时回退到平台公开生产域名。
+ */
+const h5Asset = (path: string): string => {
+  const base = (
+    process.env.H5_BASE_URL || "https://api.rebugx.cn/h5"
+  ).replace(/\/+$/, "");
+  return `${base}${path}`;
+};
+
 const PRODUCT_SEED_COVERS: Record<string, string> = {
-  "a560eb0f-2c5b-4c90-a10c-025d1738804a": "/h5/static/images/products/wenfang-set.webp",
-  "7722247e-f20f-475e-80dd-33c1ba283568": "/h5/static/images/products/classics-audio-player.webp",
-  "58cae0ba-1dff-4945-b235-d16f5672e8c3": "/h5/static/images/products/zisha-tea-set.webp",
+  "a560eb0f-2c5b-4c90-a10c-025d1738804a": h5Asset("/static/images/products/wenfang-set.webp"),
+  "7722247e-f20f-475e-80dd-33c1ba283568": h5Asset("/static/images/products/classics-audio-player.webp"),
+  "58cae0ba-1dff-4945-b235-d16f5672e8c3": h5Asset("/static/images/products/zisha-tea-set.webp"),
 };
 
 // ─── 规模化缓存参数（抗 10 万 DAU·首页最高频接口·见下方缓存 key 论证） ───
