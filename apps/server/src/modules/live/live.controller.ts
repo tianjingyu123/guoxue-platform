@@ -4,7 +4,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
 import { LiveQualityService } from "./live-quality.service";
-import { CreateRoomDto, UpdateRoomDto, UpdateRoomProductsDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, UpdateRoomProductsDto, UpdateLiveWatchProgressDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -291,6 +291,33 @@ export class LiveController {
     @Body("chapters") chapters: Array<{ t?: number; title?: string }>,
   ) {
     return this.svc.setReplayChapters(req.user.id, id, chapters || []);
+  }
+
+  @Get("rooms/:id/watch-progress")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取当前用户的直播回放观看进度" })
+  @ApiResponse({ status: 200, description: "成功；没有记录时返回零进度" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 404, description: "直播间或回放不存在" })
+  @ApiBearerAuth()
+  getWatchProgress(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.svc.getWatchProgress(req.user.id, id);
+  }
+
+  @Put("rooms/:id/watch-progress")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "幂等保存当前用户的直播回放观看进度" })
+  @ApiResponse({ status: 200, description: "保存成功；重复或乱序请求返回已有进度" })
+  @ApiResponse({ status: 400, description: "当前房间没有可观看回放或参数无效" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 404, description: "直播间不存在" })
+  @ApiBearerAuth()
+  saveWatchProgress(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body() dto: UpdateLiveWatchProgressDto,
+  ) {
+    return this.svc.saveWatchProgress(req.user.id, id, dto);
   }
 
   @Delete("rooms/:id")

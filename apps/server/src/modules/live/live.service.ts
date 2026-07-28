@@ -6,7 +6,7 @@ import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { LiveStreamService } from "./live-stream.service";
 import { createHash } from "crypto";
 import { WebhookService } from "../webhook/webhook.service";
-import { CreateRoomDto, UpdateRoomDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, UpdateLiveWatchProgressDto } from "./live.dto";
 import { Prisma, LiveStatus } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -898,7 +898,7 @@ export class LiveService {
   /**
    * 主播标注回放章节点（PUT /live/rooms/:id/replay-chapters·仅主播本人）。
    * chapters: [{ t: 秒(>=0 整数), title: 1~80 字 }]，按 t 升序存储，上限 100 条；传 [] 即清空。
-   * TODO(#21): AI 自动生成章节（依赖回放转写）暂不做；观看进度记忆当前由前端本地存储，后端进度表待做。
+   * TODO(#21): AI 自动生成章节（依赖回放转写）暂不做；观看进度已由 LiveWatchProgress 跨设备持久化。
    */
   async setReplayChapters(userId: string, roomId: string, chapters: Array<{ t?: unknown; title?: unknown }>) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
@@ -920,6 +920,88 @@ export class LiveService {
       Prisma.sql`UPDATE "LiveRoom" SET "replayChapters" = ${JSON.stringify(normalized)}::jsonb, "updatedAt" = now() WHERE "id" = ${roomId}`,
     );
     return { success: true, count: normalized.length, replayChapters: normalized };
+  }
+
+  /** 校验回放进度接口的最小可见性，避免利用进度接口探测私密或已下架直播间。 */
+  private async assertWatchProgressAccess(userId: string, roomId: string) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: {
+        id: true,
+        hostUserId: true,
+        userId: true,
+        status: true,
+        replayUrl: true,
+        visibility: true,
+        auditStatus: true,
+      },
+    });
+    const isOwner = room?.hostUserId === userId || room?.userId === userId;
+    if (
+      !room
+      || (!isOwner && (room.visibility === "SELF_ONLY" || room.auditStatus === "REJECTED"))
+    ) {
+      throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    }
+    if (!room.replayUrl || !["ENDED", "REPLAY"].includes(String(room.status))) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前直播间暂无可观看回放");
+    }
+    return room;
+  }
+
+  async getWatchProgress(userId: string, roomId: string) {
+    await this.assertWatchProgressAccess(userId, roomId);
+    const progress = await this.prisma.liveWatchProgress.findUnique({
+      where: { userId_liveRoomId: { userId, liveRoomId: roomId } },
+      select: {
+        positionSeconds: true,
+        durationSeconds: true,
+        completed: true,
+        lastWatchedAt: true,
+      },
+    });
+    return progress || {
+      positionSeconds: 0,
+      durationSeconds: 0,
+      completed: false,
+      lastWatchedAt: null,
+    };
+  }
+
+  async saveWatchProgress(userId: string, roomId: string, dto: UpdateLiveWatchProgressDto) {
+    await this.assertWatchProgressAccess(userId, roomId);
+    const existing = await this.prisma.liveWatchProgress.findUnique({
+      where: { userId_liveRoomId: { userId, liveRoomId: roomId } },
+    });
+    // 同一播放会话内，请求序号必须单调递增。重试和迟到请求直接返回当前记录。
+    if (
+      existing
+      && existing.clientSessionId === dto.clientSessionId
+      && dto.clientSequence <= existing.clientSequence
+    ) {
+      return existing;
+    }
+
+    const durationSeconds = Math.max(0, Math.floor(dto.durationSeconds));
+    const positionSeconds = Math.max(
+      0,
+      Math.min(Math.floor(dto.positionSeconds), durationSeconds || 604800),
+    );
+    const completed = durationSeconds > 0
+      && positionSeconds >= Math.max(durationSeconds - 10, Math.floor(durationSeconds * 0.95));
+    const data = {
+      positionSeconds,
+      durationSeconds,
+      completed,
+      clientSessionId: dto.clientSessionId,
+      clientSequence: dto.clientSequence,
+      lastWatchedAt: new Date(),
+    };
+    return this.prisma.liveWatchProgress.upsert({
+      where: { userId_liveRoomId: { userId, liveRoomId: roomId } },
+      create: { userId, liveRoomId: roomId, ...data },
+      update: data,
+    });
   }
 
   async deleteRoom(userId: string, id: string, isAdmin = false) {

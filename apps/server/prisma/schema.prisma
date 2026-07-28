@@ -74,6 +74,7 @@ model User {
   courseReviews         CourseReview[]
   orders                Order[]
   liveRooms             LiveRoom[]
+  liveWatchProgresses   LiveWatchProgress[]
   videos                Video[]
   paipanRecords         PaipanRecord[]
   aiAnalysisRecords     AiAnalysisRecord[]
@@ -1479,17 +1480,18 @@ model LiveRoom {
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
-  circle      Circle?         @relation(fields: [circleId], references: [id])
-  user        User            @relation(fields: [userId], references: [id])
-  course      Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  station     Station?        @relation(fields: [stationId], references: [id])
-  products    LiveProduct[]
-  giftRecords GiftRecord[]
-  mics        LiveMic[]
-  slides      LiveSlide[]
-  mutedUsers  LiveMutedUser[]
-  flashSales  LiveFlashSale[]
-  auditLogs   LiveAuditLog[]
+  circle          Circle?             @relation(fields: [circleId], references: [id])
+  user            User                @relation(fields: [userId], references: [id])
+  course          Course?             @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  station         Station?            @relation(fields: [stationId], references: [id])
+  products        LiveProduct[]
+  giftRecords     GiftRecord[]
+  mics            LiveMic[]
+  slides          LiveSlide[]
+  mutedUsers      LiveMutedUser[]
+  flashSales      LiveFlashSale[]
+  auditLogs       LiveAuditLog[]
+  watchProgresses LiveWatchProgress[]
 
   @@index([userId])
   @@index([status])
@@ -1500,6 +1502,28 @@ model LiveRoom {
   @@index([stationId])
   @@index([status, startTime])
   @@index([hostUserId, status])
+}
+
+/// 直播回放观看进度——支持跨设备断点续播，并用客户端会话与递增序号抵御重复、乱序上报。
+model LiveWatchProgress {
+  id              String   @id @default(uuid())
+  userId          String
+  liveRoomId      String
+  positionSeconds Int      @default(0)
+  durationSeconds Int      @default(0)
+  completed       Boolean  @default(false)
+  clientSessionId String
+  clientSequence  Int      @default(0)
+  lastWatchedAt   DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  liveRoom LiveRoom @relation(fields: [liveRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, liveRoomId])
+  @@index([userId, lastWatchedAt])
+  @@index([liveRoomId, lastWatchedAt])
 }
 
 /// 直播画质时长包 — 主播购买高清/超清转码时长额度（分档商业化 C5·1元=10国学币）

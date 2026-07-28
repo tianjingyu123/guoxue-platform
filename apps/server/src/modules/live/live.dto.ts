@@ -2,6 +2,35 @@ import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, IsBoolean, Min, M
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
+export class UpdateLiveWatchProgressDto {
+  @ApiProperty({ description: "当前播放位置（秒）", minimum: 0, maximum: 604800 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(604800)
+  positionSeconds: number;
+
+  @ApiProperty({ description: "回放总时长（秒）", minimum: 0, maximum: 604800 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(604800)
+  durationSeconds: number;
+
+  @ApiProperty({ description: "本次播放会话ID，用于识别重复上报", minLength: 8, maxLength: 100 })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(100)
+  clientSessionId: string;
+
+  @ApiProperty({ description: "会话内单调递增序号，用于抵御乱序上报", minimum: 1 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  clientSequence: number;
+}
+
 export class CreateRoomDto {
   @ApiPropertyOptional({ description: "圈子ID" })
   @IsOptional() @IsString()

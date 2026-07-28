@@ -20,6 +20,10 @@ const mockPrisma = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  liveWatchProgress: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+  },
   course: {
     findUnique: jest.fn(),
   },
@@ -480,6 +484,76 @@ describe("LiveService", () => {
       expect(mockPrisma.liveRoom.update).toHaveBeenCalledWith({
         where: { id: "room1" }, data: { viewCount: { increment: 1 } },
       });
+    });
+  });
+
+  describe("直播回放观看进度", () => {
+    const replayRoom = {
+      id: "room1",
+      hostUserId: "host1",
+      userId: "creator1",
+      status: "REPLAY",
+      replayUrl: "https://example.com/replay.mp4",
+      visibility: "PLATFORM",
+      auditStatus: "APPROVED",
+    };
+
+    it("没有进度记录时返回可安全续播的零进度", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(replayRoom);
+      mockPrisma.liveWatchProgress.findUnique.mockResolvedValue(null);
+
+      await expect(svc.getWatchProgress("viewer1", "room1")).resolves.toEqual({
+        positionSeconds: 0,
+        durationSeconds: 0,
+        completed: false,
+        lastWatchedAt: null,
+      });
+    });
+
+    it("保存进度时自动钳制播放位置并识别已看完", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(replayRoom);
+      mockPrisma.liveWatchProgress.findUnique.mockResolvedValue(null);
+      mockPrisma.liveWatchProgress.upsert.mockImplementation(({ create }) => Promise.resolve(create));
+
+      const result = await svc.saveWatchProgress("viewer1", "room1", {
+        positionSeconds: 999,
+        durationSeconds: 100,
+        clientSessionId: "session-123",
+        clientSequence: 1,
+      });
+
+      expect(result).toEqual(expect.objectContaining({
+        userId: "viewer1",
+        liveRoomId: "room1",
+        positionSeconds: 100,
+        durationSeconds: 100,
+        completed: true,
+      }));
+    });
+
+    it("同一会话的重复或乱序请求不会覆盖较新进度", async () => {
+      const current = {
+        id: "p1",
+        userId: "viewer1",
+        liveRoomId: "room1",
+        positionSeconds: 80,
+        durationSeconds: 100,
+        completed: false,
+        clientSessionId: "session-123",
+        clientSequence: 8,
+      };
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(replayRoom);
+      mockPrisma.liveWatchProgress.findUnique.mockResolvedValue(current);
+
+      const result = await svc.saveWatchProgress("viewer1", "room1", {
+        positionSeconds: 40,
+        durationSeconds: 100,
+        clientSessionId: "session-123",
+        clientSequence: 7,
+      });
+
+      expect(result).toBe(current);
+      expect(mockPrisma.liveWatchProgress.upsert).not.toHaveBeenCalled();
     });
   });
 

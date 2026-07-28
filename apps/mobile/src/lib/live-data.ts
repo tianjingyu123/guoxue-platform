@@ -354,6 +354,14 @@ export interface LiveWatchRoomInfo {
   replayChapters: { t: number; title: string }[]
   circleName: string
 }
+
+export interface LiveWatchProgress {
+  positionSeconds: number
+  durationSeconds: number
+  completed: boolean
+  lastWatchedAt: string | null
+}
+
 // 原型 mockDanmaku 全部为普通弹幕(type:normal)，无"系统/欢迎"项；系统消息走 liveWatchSystemPool 横幅
 export const liveWatchComments: VerticalLiveComment[] = [
   { id: '2', userName: '紫微爱好者', content: '老师讲得太透彻了！', type: 'text' },
@@ -2112,6 +2120,24 @@ export const liveApi = {
       } catch { return null } // 商品已删/下架 → 跳过该件
     }))
     return { room, comments: [], products: enriched.filter((p): p is VerticalLiveProduct => !!p) }
+  },
+
+  /** 获取登录用户的跨设备回放进度；未产生记录时后端返回零进度。 */
+  async getWatchProgress(roomId: string): Promise<LiveWatchProgress> {
+    return await apiGet<LiveWatchProgress>(`/live/rooms/${roomId}/watch-progress`)
+  },
+
+  /** 幂等上报回放进度；clientSequence 在同一播放会话中只增不减。 */
+  async saveWatchProgress(
+    roomId: string,
+    payload: {
+      positionSeconds: number
+      durationSeconds: number
+      clientSessionId: string
+      clientSequence: number
+    },
+  ): Promise<LiveWatchProgress> {
+    return await apiPut<LiveWatchProgress>(`/live/rooms/${roomId}/watch-progress`, payload)
   },
 
   /**

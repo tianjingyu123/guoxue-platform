@@ -69,7 +69,7 @@ const rules = [
     id: 'P1_LIVE_PROGRESS_TODO',
     severity: 'P1',
     title: '直播观看进度尚未回写后端',
-    pattern: /观看进度|watch progress|progress.*TODO/i,
+    pattern: /后端进度表\s*TODO|观看进度.*(?:仅本地|待接入|TODO)|(?:TODO|待接入).*观看进度|watch progress.*TODO/i,
     paths: ['apps/mobile/src/pkg-live/watch/index.vue'],
     advice: '接入观看进度、断点续播和幂等上报。',
   },

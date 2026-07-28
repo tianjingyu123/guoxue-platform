@@ -57,6 +57,8 @@
           object-fit="contain"
           @play="onReplayPlay"
           @timeupdate="onReplayTimeUpdate"
+          @pause="onReplayPause"
+          @ended="onReplayEnded"
         />
         <template v-else>
           <image v-if="room.cover" lazy-load class="rp__cover" :src="room.cover" mode="aspectFill" />
@@ -508,8 +510,8 @@ async function fetchRoomData(roomId: string) {
     if (getToken() && room.value.circleId) liveApi.reportCircleChannelClick(room.value.circleId)
     // 预约态 → 拉取真实预约人数（失败归零则该行不显示）
     if (isWaiting.value) fetchBookingCount(room.value.id)
-    // 回放态 → 读本地观看进度（#21 续播记忆）
-    if (isReplayState.value) loadReplayPos(room.value.id || roomId)
+    // 回放态 → 合并本地离线缓存和服务端跨设备进度（#21 续播记忆）
+    if (isReplayState.value) await loadReplayPos(room.value.id || roomId)
     // 播放地址只在直播中才拉（预告/回放态请求必被后端 400 拒，白耗一次请求+控制台报错）
     if (roomStatus.value === 'LIVING') fetchPlayUrl(room.value.id || roomId)
   } catch (e) {
@@ -595,12 +597,17 @@ async function onToggleBook() {
 // ===== 回放态：点击封面播放钮后原地渲染点播 video =====
 const replayPlaying = ref(false)
 
-// ===== #21 回放章节点 + 观看进度记忆（本地 uni.setStorageSync·后端进度表 TODO） =====
+// ===== #21 回放章节点 + 观看进度记忆（本地离线兜底 + 服务端跨设备同步） =====
 const REPLAY_POS_PREFIX = 'live_replay_pos_'
 const savedReplayPos = ref(0)
 let replayCtx: UniApp.VideoContext | null = null
 let lastPosSaveAt = 0
+let lastRemoteSaveAt = 0
 let resumeDone = false
+let currentReplayPos = 0
+let replayDuration = 0
+let replaySequence = 0
+const replaySessionId = `replay-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 
 function getReplayCtx(): UniApp.VideoContext | null {
   if (!replayCtx) replayCtx = uni.createVideoContext('replay-video', instance?.proxy || undefined)
@@ -635,17 +642,68 @@ function onReplayPlay() {
 }
 /** 播放进度本地记忆（5 秒节流写 storage）·uni video timeupdate 事件 detail.currentTime */
 function onReplayTimeUpdate(e: Event) {
-  const detail = (e as unknown as { detail?: { currentTime?: number } })?.detail
+  const detail = (e as unknown as { detail?: { currentTime?: number; duration?: number } })?.detail
   const cur = Number(detail?.currentTime) || 0
+  const duration = Number(detail?.duration) || 0
   const now = Date.now()
+  currentReplayPos = cur
+  replayDuration = Math.max(replayDuration, duration)
   if (cur > 5 && now - lastPosSaveAt > 5000) {
     lastPosSaveAt = now
     try { uni.setStorageSync(REPLAY_POS_PREFIX + room.value.id, Math.floor(cur)) } catch { /* storage 满/不可用 → 忽略 */ }
   }
+  if (cur > 5 && now - lastRemoteSaveAt > 15000) {
+    lastRemoteSaveAt = now
+    void reportReplayProgress()
+  }
 }
-/** 读本地进度（fetchRoomData 成功后调用） */
-function loadReplayPos(roomId: string) {
-  try { savedReplayPos.value = Number(uni.getStorageSync(REPLAY_POS_PREFIX + roomId)) || 0 } catch { savedReplayPos.value = 0 }
+
+/** 登录用户上报服务端；失败静默保留本地进度，不干扰播放。 */
+async function reportReplayProgress() {
+  const roomId = room.value.id || loadedRoomId.value
+  if (!roomId || !getToken() || currentReplayPos <= 0) return
+  replaySequence += 1
+  try {
+    await liveApi.saveWatchProgress(roomId, {
+      positionSeconds: Math.max(0, Math.floor(currentReplayPos)),
+      durationSeconds: Math.max(0, Math.floor(replayDuration)),
+      clientSessionId: replaySessionId,
+      clientSequence: replaySequence,
+    })
+  } catch { /* 网络异常时继续依赖本地缓存，下一次播放事件会重试 */ }
+}
+
+function onReplayPause() {
+  void reportReplayProgress()
+}
+
+function onReplayEnded() {
+  currentReplayPos = replayDuration
+  savedReplayPos.value = 0
+  try { uni.removeStorageSync(REPLAY_POS_PREFIX + room.value.id) } catch { /* 忽略 */ }
+  void reportReplayProgress()
+}
+
+/** 先读本地离线进度，再以服务端状态校准跨设备续播位置。 */
+async function loadReplayPos(roomId: string) {
+  let localPos = 0
+  try { localPos = Number(uni.getStorageSync(REPLAY_POS_PREFIX + roomId)) || 0 } catch { localPos = 0 }
+  savedReplayPos.value = localPos
+  currentReplayPos = localPos
+  if (!getToken()) return
+  try {
+    const remote = await liveApi.getWatchProgress(roomId)
+    if (remote.completed) {
+      savedReplayPos.value = 0
+      currentReplayPos = 0
+      try { uni.removeStorageSync(REPLAY_POS_PREFIX + roomId) } catch { /* 忽略 */ }
+      return
+    }
+    const remotePos = Math.max(0, Number(remote.positionSeconds) || 0)
+    savedReplayPos.value = Math.max(localPos, remotePos)
+    currentReplayPos = savedReplayPos.value
+    replayDuration = Math.max(0, Number(remote.durationSeconds) || 0)
+  } catch { /* 未登录态切换或网络异常：保留本地续播 */ }
 }
 
 // 后端礼物清单（真连：完整礼物对象直传 GiftPanel·送礼直接用礼物 uuid，无需再按名映射）
@@ -886,6 +944,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // 离开页面前尽力保存最后位置；请求失败仍有本地缓存兜底。
+  void reportReplayProgress()
   // 退订 TIM 群消息 + 退出弹幕群
   if (offTimMessage) offTimMessage()
   if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
