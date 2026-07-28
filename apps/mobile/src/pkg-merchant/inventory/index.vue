@@ -114,9 +114,13 @@
         </view>
 
         <view v-if="loading" class="state">正在读取真实经营数据…</view>
-        <view v-else-if="error" class="state error" @tap="loadAll">{{ error }}，点击重试</view>
+        <view v-else-if="error && !hasLoadedData" class="state error" @tap="loadAll">{{ error }}，点击重试</view>
+        <view v-else-if="error" class="partial-warning" @tap="loadAll">
+          <text>{{ error }}</text>
+          <text>重试 ›</text>
+        </view>
 
-        <template v-else-if="tab === 'stock'">
+        <template v-if="!loading && hasLoadedData && tab === 'stock'">
           <view class="filter">
             <input v-model="keyword" placeholder="搜索商品或规格" @confirm="loadStocks"/>
             <view class="filter-btn" :class="{ on: lowOnly }" @tap="toggleLowOnly">{{ lowOnly ? '查看全部' : '只看预警' }}</view>
@@ -153,7 +157,7 @@
           </view>
         </template>
 
-        <template v-else-if="tab === 'flow'">
+        <template v-else-if="!loading && hasLoadedData && tab === 'flow'">
           <view class="flow-intro">流水是库存审计底账，来源、原因、操作前后数量均不可覆盖。</view>
           <view v-for="m in movements" :key="m.id" class="flow-card">
             <view class="flow-mark" :class="{ inbound: m.quantity > 0 }">{{ m.quantity > 0 ? '入' : '出' }}</view>
@@ -171,7 +175,7 @@
           <view v-if="!movements.length" class="state empty">暂无库存流水</view>
         </template>
 
-        <template v-else>
+        <template v-else-if="!loading && hasLoadedData">
           <view class="purchase-tip">采购单记录价格与供应约定；实际库存只在到货验收后增加。支持多批到货，不会提前虚增可售库存。</view>
           <view v-for="p in purchases" :key="p.id" class="purchase-card" :class="{ overdue: isOverdue(p) }">
             <view class="purchase-head">
@@ -393,6 +397,12 @@ const taskCount = computed(() => {
     + overview.value.unshippedOrderCount
     + overview.value.pendingAfterSaleCount
 })
+const hasLoadedData = computed(() => Boolean(
+  overview.value
+  || stocks.value.length
+  || movements.value.length
+  || purchases.value.length,
+))
 const purchaseDraftTotal = computed(() => {
   const quantity = Number(purchaseDraft.value.quantity)
   const unitCost = Number(purchaseDraft.value.unitCost)
@@ -420,7 +430,11 @@ const stockState = (item: InventoryStockItem) => {
 }
 
 function back() {
-  uni.navigateBack()
+  if (getCurrentPages().length > 1) {
+    uni.navigateBack()
+    return
+  }
+  uni.redirectTo({ url: '/pkg-merchant/dashboard/index' })
 }
 function go(path: string) {
   navigateTo(path)
@@ -451,12 +465,16 @@ function toggleLowOnly() {
   void loadStocks()
 }
 async function loadStocks() {
-  const result = await merchantBackendApi.getInventoryStocks({
-    keyword: keyword.value,
-    lowStock: lowOnly.value,
-    pageSize: 100,
-  })
-  stocks.value = result.items || []
+  try {
+    const result = await merchantBackendApi.getInventoryStocks({
+      keyword: keyword.value,
+      lowStock: lowOnly.value,
+      pageSize: 100,
+    })
+    stocks.value = result.items || []
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '库存读取失败', icon: 'none' })
+  }
 }
 async function loadAll() {
   loading.value = true
@@ -535,16 +553,20 @@ async function adjust(item: InventoryStockItem, mode: 'INCREASE' | 'DECREASE' | 
   if (!Number.isInteger(quantity) || quantity < 0 || (mode !== 'SET' && quantity === 0)) {
     return uni.showToast({ title: '请输入有效的正整数', icon: 'none' })
   }
-  await merchantBackendApi.adjustInventory({
-    requestId: rid(),
-    productId: item.productId,
-    skuId: item.skuId || undefined,
-    mode,
-    quantity,
-    reason: mode === 'SET' ? '商家盘点调整' : mode === 'DECREASE' ? '破损或损耗报废' : '商家手工补货',
-  })
-  uni.showToast({ title: '库存已更新', icon: 'success' })
-  await loadAll()
+  try {
+    await merchantBackendApi.adjustInventory({
+      requestId: rid(),
+      productId: item.productId,
+      skuId: item.skuId || undefined,
+      mode,
+      quantity,
+      reason: mode === 'SET' ? '商家盘点调整' : mode === 'DECREASE' ? '破损或损耗报废' : '商家手工补货',
+    })
+    uni.showToast({ title: '库存已更新', icon: 'success' })
+    await loadAll()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '库存更新失败', icon: 'none' })
+  }
 }
 async function setThreshold(item: InventoryStockItem) {
   const raw = await prompt('设置库存预警线', '低于或等于该数量时预警')
@@ -553,12 +575,16 @@ async function setThreshold(item: InventoryStockItem) {
   if (!Number.isInteger(threshold) || threshold < 0) {
     return uni.showToast({ title: '请输入非负整数', icon: 'none' })
   }
-  await merchantBackendApi.setInventoryAlert({
-    productId: item.productId,
-    skuId: item.skuId || undefined,
-    lowStockThreshold: threshold,
-  })
-  await loadAll()
+  try {
+    await merchantBackendApi.setInventoryAlert({
+      productId: item.productId,
+      skuId: item.skuId || undefined,
+      lowStockThreshold: threshold,
+    })
+    await loadAll()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '预警线保存失败', icon: 'none' })
+  }
 }
 async function createPurchase(item: InventoryStockItem) {
   purchaseDraft.value = {
@@ -622,12 +648,30 @@ async function submitPurchaseDraft() {
   }
 }
 async function submitPurchase(order: PurchaseOrder) {
-  await merchantBackendApi.submitPurchaseOrder(order.id)
-  await loadAll()
+  try {
+    await merchantBackendApi.submitPurchaseOrder(order.id)
+    uni.showToast({ title: '采购单已确认', icon: 'success' })
+    await loadAll()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '采购单确认失败', icon: 'none' })
+  }
 }
 async function cancelPurchase(order: PurchaseOrder) {
-  await merchantBackendApi.cancelPurchaseOrder(order.id)
-  await loadAll()
+  const confirmed = await new Promise<boolean>((resolve) => uni.showModal({
+    title: '取消采购单',
+    content: `确定取消 ${order.orderNo}？已产生的库存流水不会被覆盖。`,
+    confirmText: '确认取消',
+    success: (result) => resolve(result.confirm),
+    fail: () => resolve(false),
+  }))
+  if (!confirmed) return
+  try {
+    await merchantBackendApi.cancelPurchaseOrder(order.id)
+    uni.showToast({ title: '采购单已取消', icon: 'success' })
+    await loadAll()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '采购单取消失败', icon: 'none' })
+  }
 }
 async function receiveBatch(order: PurchaseOrder) {
   const quantities: Record<string, string> = {}
@@ -682,16 +726,16 @@ onLoad((options) => {
 .page{--red:#c9193f;--red-soft:#fff0f3;--ink:#29251f;--muted:#867a6b;--green:#246a4a;--green-soft:#eaf5ef;--gold:#aa742d;--line:#eadfce;min-height:100vh;background:#f5f0e7;color:var(--ink)}
 .nav{height:104rpx;padding:0 24rpx;display:flex;align-items:center;background:rgba(255,255,255,.97);position:sticky;top:0;z-index:8;border-bottom:1rpx solid #eee5d8;box-sizing:border-box}.nav-side{width:96rpx;flex:none}.back{font-size:54rpx;line-height:1}.refresh{text-align:right;color:#8a5b28;font-size:25rpx}.nav-title{flex:1;min-width:0;text-align:center;display:flex;flex-direction:column}.title{font-size:32rpx;font-weight:750}.nav-sub{margin-top:3rpx;font-size:18rpx;color:#9a9083}.body{height:calc(100vh - 104rpx)}
 .cockpit{margin:22rpx 22rpx 16rpx;padding:26rpx;border:1rpx solid #dfc69f;border-radius:28rpx;background:radial-gradient(circle at 88% 0,rgba(213,165,87,.18),transparent 31%),linear-gradient(135deg,#fffdfa,#fff8ed);box-shadow:0 12rpx 30rpx rgba(80,55,28,.07)}.cockpit-head{display:flex;justify-content:space-between;align-items:center}.cockpit-head>view:first-child{display:flex;flex-direction:column;min-width:0}.eyebrow{font-size:19rpx;color:var(--gold);letter-spacing:.18em}.cockpit-title{margin-top:8rpx;font-size:29rpx;font-weight:720}.health{width:132rpx;height:104rpx;border-radius:22rpx;background:#283f35;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 8rpx 18rpx rgba(36,74,56,.18)}.health-value{font:700 34rpx Georgia,serif}.health-label{margin-top:3rpx;font-size:18rpx;opacity:.72}.health-track{height:8rpx;margin-top:22rpx;background:#eee3d2;border-radius:999rpx;overflow:hidden}.health-bar{height:100%;min-width:4rpx;border-radius:inherit;background:linear-gradient(90deg,#c9193f,#d39a43,#31825a);transition:width .35s ease}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10rpx;margin-top:20rpx}.sum{min-width:0;padding:15rpx 6rpx;text-align:center;border-right:1rpx solid #eee1cf;display:flex;flex-direction:column;color:#756b5e;font-size:20rpx}.sum:last-child{border-right:0}.sum .num{font:700 34rpx Georgia,serif;color:#2d493c;margin-bottom:5rpx}.sum.warn .num{color:var(--red)}.sum-note{margin-top:5rpx;font-size:17rpx;color:#a19688;white-space:nowrap}
-.task-panel,.lifecycle,.workspace{margin:0 22rpx 16rpx;border:1rpx solid var(--line);border-radius:26rpx;background:#fff;box-shadow:0 8rpx 24rpx rgba(61,45,28,.045)}.task-panel{padding:24rpx}.section-head,.life-head,.row-between,.purchase-head,.purchase-meta{display:flex;align-items:center;justify-content:space-between;gap:14rpx}.section-head>view,.life-head>view{display:flex;flex-direction:column}.section-title{font-size:29rpx;font-weight:750}.section-sub{margin-top:5rpx;font-size:20rpx;color:#978c7d}.task-total,.life-mark{padding:7rpx 13rpx;border-radius:999rpx;background:#f5eee4;color:#8f693d;font-size:19rpx}.task-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12rpx;margin-top:20rpx}.task{min-width:0;display:grid;grid-template-columns:50rpx 1fr 20rpx;align-items:center;gap:10rpx;padding:18rpx 14rpx;border:1rpx solid #eee6db;border-radius:18rpx;background:#fbfaf7}.task.urgent{background:#fff6f7;border-color:#efc4cd}.task-glyph{width:48rpx;height:48rpx;border-radius:14rpx;display:flex;align-items:center;justify-content:center;background:#eee6db;color:#765a3c;font-weight:750}.task.urgent .task-glyph{background:var(--red);color:#fff}.task>view{min-width:0;display:flex;flex-direction:column}.task-name{font-size:23rpx;font-weight:700}.task-desc{margin-top:4rpx;font-size:18rpx;color:#94897b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.task-arrow{color:#b2a797}
+.task-panel,.lifecycle,.workspace{margin:0 22rpx 16rpx;border:1rpx solid var(--line);border-radius:26rpx;background:#fff;box-shadow:0 8rpx 24rpx rgba(61,45,28,.045)}.task-panel{padding:24rpx}.section-head,.life-head,.row-between,.purchase-head,.purchase-meta{display:flex;align-items:center;justify-content:space-between;gap:14rpx}.section-head>view,.life-head>view{display:flex;flex-direction:column}.section-title{font-size:29rpx;font-weight:750}.section-sub{margin-top:5rpx;font-size:20rpx;color:#978c7d}.task-total,.life-mark{padding:7rpx 13rpx;border-radius:999rpx;background:#f5eee4;color:#8f693d;font-size:19rpx}.task-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12rpx;margin-top:20rpx}.task{min-width:0;display:grid;grid-template-columns:50rpx minmax(0,1fr) 20rpx;align-items:center;gap:10rpx;padding:18rpx 14rpx;border:1rpx solid #eee6db;border-radius:18rpx;background:#fbfaf7}.task.urgent{background:#fff6f7;border-color:#efc4cd}.task-glyph{width:48rpx;height:48rpx;border-radius:14rpx;display:flex;align-items:center;justify-content:center;background:#eee6db;color:#765a3c;font-weight:750}.task.urgent .task-glyph{background:var(--red);color:#fff}.task>view{min-width:0;display:flex;flex-direction:column}.task-name{font-size:23rpx;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.task-desc{margin-top:4rpx;font-size:18rpx;color:#94897b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.task-arrow{color:#b2a797}
 .lifecycle{padding:23rpx}.life-rail{position:relative;display:grid;grid-template-columns:repeat(4,1fr);margin-top:23rpx}.rail-line{position:absolute;left:11%;right:11%;top:23rpx;height:2rpx;background:#e2d4c1}.rail-pulse{position:absolute;top:17rpx;left:10%;width:14rpx;height:14rpx;border-radius:50%;background:var(--red);box-shadow:0 0 0 8rpx rgba(201,25,63,.1);animation:railMove 4.8s ease-in-out infinite}.life-item{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center}.life-no{width:46rpx;height:46rpx;border-radius:50%;background:#f3ece2;border:5rpx solid #fff;box-shadow:0 0 0 1rpx #e7d9c6;display:flex;align-items:center;justify-content:center;font:19rpx Georgia,serif;color:#9b7650}.life-item.active .life-no{background:#2c5140;color:#fff;box-shadow:0 0 0 1rpx #2c5140}.life-name{margin-top:10rpx;font-size:23rpx;font-weight:700}.life-desc{margin-top:3rpx;font-size:17rpx;color:#9b9083}
 .workspace{overflow:hidden}.tabs{padding:8rpx;background:#eee6da;display:flex}.tab{flex:1;text-align:center;padding:18rpx 8rpx;color:#74695b;font-size:24rpx}.tab.active{background:#fff;border-radius:16rpx;color:var(--red);font-weight:750;box-shadow:0 4rpx 12rpx rgba(62,44,24,.06)}.filter{display:flex;padding:20rpx;gap:12rpx}.filter input{flex:1;height:72rpx;padding:0 22rpx;border-radius:14rpx;background:#f6f3ee;font-size:24rpx}.filter-btn{padding:19rpx 20rpx;border-radius:14rpx;background:#2e5a47;color:#fff;font-size:22rpx}.filter-btn.on{background:#9a6637}.notice,.flow-intro,.purchase-tip{margin:0 20rpx 16rpx;padding:18rpx 20rpx;border-radius:14rpx;background:#fff6e5;color:#876437;font-size:21rpx;line-height:1.55}.flow-intro{background:#eef5f0;color:#52705f}.purchase-tip{background:#f6f1e9;color:#786b5c}
 .stock-card,.flow-card,.purchase-card{margin:0 20rpx 16rpx;padding:20rpx;border:1rpx solid #ece3d7;border-radius:20rpx;background:#fff;box-shadow:0 5rpx 16rpx rgba(64,48,30,.04)}.stock-main{display:flex;gap:18rpx}.cover{width:104rpx;height:104rpx;border-radius:16rpx;background:#eee;flex:none}.fallback{display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#e9dfd2,#f8f4ed);color:#9a7146;font-family:"Songti SC",serif;font-size:34rpx}.main{flex:1;min-width:0;display:flex;flex-direction:column}.name{font-size:27rpx;font-weight:720}.sub{margin-top:6rpx;font-size:21rpx;color:#8e8375}.stock-line{display:flex;align-items:baseline;margin-top:auto}.stock-number{font:700 38rpx Georgia,serif;color:#2d654b}.stock-number.danger,.stock-state.danger{color:var(--red)}.stock-unit{margin-left:5rpx;font-size:19rpx;color:#8b8174}.stock-state{margin-left:auto;font-size:20rpx;color:#33805d}.card-foot{margin-top:17rpx;padding-top:15rpx;border-top:1rpx dashed #e9dfd2;display:flex;align-items:center;justify-content:space-between;gap:12rpx}.threshold{font-size:20rpx;color:#897b6a}.stock-actions,.purchase-actions{display:flex;align-items:center;gap:9rpx}.stock-actions text,.purchase-actions text{padding:10rpx 13rpx;border-radius:11rpx;background:#f4f0e9;color:#6d6255;font-size:20rpx}.stock-actions .primary-action,.purchase-actions .primary-action{background:var(--red);color:#fff}
 .flow-card{display:flex;gap:15rpx;align-items:flex-start}.flow-mark{width:50rpx;height:50rpx;flex:none;border-radius:15rpx;display:flex;align-items:center;justify-content:center;background:#fff0ed;color:#b04a38;font-weight:750}.flow-mark.inbound{background:var(--green-soft);color:var(--green)}.flow-time{font-size:18rpx;color:#a2988c}.flow-reason{margin-top:12rpx;font-size:22rpx;color:#5f574c}.balance{margin-top:7rpx;font-size:19rpx;color:#978d80}.delta{flex:none;font:700 30rpx Georgia,serif;color:#b64d3e}.delta.plus{color:#2e8056}
 .purchase-card.overdue{border-color:#e6a8b4;background:linear-gradient(135deg,#fff,#fff7f8)}.purchase-head>view{display:flex;flex-direction:column}.order-no{font:18rpx ui-monospace,SFMono-Regular,monospace;color:#9a8d7d}.purchase-head .name{margin-top:5rpx}.status{padding:8rpx 13rpx;border-radius:999rpx;background:#f5eee3;color:#875f33;font-size:19rpx}.overdue .status{background:var(--red);color:#fff}.purchase-meta{margin:16rpx 0;padding:14rpx 0;border-block:1rpx dashed #e8ded0;color:#7f7365;font-size:20rpx}.purchase-line{padding:8rpx 0;font-size:21rpx}.progress{height:7rpx;margin-top:9rpx;border-radius:99rpx;background:#eee7dc;overflow:hidden}.progress>view{height:100%;border-radius:inherit;background:linear-gradient(90deg,#b68a4d,#2f7857)}.purchase-actions{justify-content:flex-end;margin-top:15rpx}.purchase-actions .receive{background:#2d704f}.purchase-actions .muted-action{background:#f3eee8;color:#887767}
 .supplier-note{margin:-4rpx 0 12rpx;padding:14rpx 16rpx;border-radius:12rpx;background:#f8f4ed;display:flex;flex-direction:column;gap:6rpx;color:#776c5d;font-size:19rpx;line-height:1.45}
-.state{text-align:center;padding:82rpx 28rpx;color:#887e70}.state.error{color:#b54b3b}.state.empty text{display:block}.empty-title{font-size:26rpx;color:#655d52}.empty-sub{margin-top:12rpx;font-size:21rpx;color:#a09688}.bottom-space{height:calc(110rpx + env(safe-area-inset-bottom))}
+.state{text-align:center;padding:82rpx 28rpx;color:#887e70}.state.error{color:#b54b3b}.state.empty text{display:block}.empty-title{font-size:26rpx;color:#655d52}.empty-sub{margin-top:12rpx;font-size:21rpx;color:#a09688}.partial-warning{margin:16rpx 20rpx 0;padding:14rpx 18rpx;border:1rpx solid #efd5a5;border-radius:14rpx;background:#fff8e9;color:#896832;font-size:20rpx;display:flex;align-items:center;justify-content:space-between;gap:16rpx}.bottom-space{height:calc(110rpx + env(safe-area-inset-bottom))}
 .sheet-mask{position:fixed;inset:0;z-index:30;background:rgba(26,22,17,.48);display:flex;align-items:flex-end;backdrop-filter:blur(5px)}.sheet{width:100%;max-height:88vh;border-radius:32rpx 32rpx 0 0;background:#fbf8f2;box-shadow:0 -18rpx 50rpx rgba(28,20,12,.18);overflow:hidden;display:flex;flex-direction:column}.sheet-handle{width:70rpx;height:7rpx;margin:14rpx auto 2rpx;border-radius:99rpx;background:#d6cabc}.sheet-head{padding:17rpx 26rpx 18rpx;display:flex;align-items:center;justify-content:space-between;border-bottom:1rpx solid #e9dfd2}.sheet-head>view{display:flex;flex-direction:column}.sheet-kicker{font-size:18rpx;color:var(--gold);letter-spacing:.16em}.sheet-title{margin-top:4rpx;font-size:31rpx;font-weight:760}.sheet-close{width:58rpx;height:58rpx;border-radius:50%;background:#eee7dc;display:flex;align-items:center;justify-content:center;color:#776b5c;font-size:36rpx}.goods-brief{margin:18rpx 24rpx 0;padding:16rpx;border-radius:18rpx;background:#fff;display:flex;align-items:center;gap:16rpx;border:1rpx solid #ece1d3}.goods-brief image,.brief-fallback{width:76rpx;height:76rpx;border-radius:13rpx;flex:none}.brief-fallback{display:flex;align-items:center;justify-content:center;background:#efe6da;color:#966b3e}.goods-brief>view:last-child{min-width:0;display:flex;flex-direction:column;gap:6rpx}.goods-brief text:first-child{font-size:25rpx;font-weight:700}.goods-brief text:last-child{font-size:19rpx;color:#8e8375}.sheet-form{max-height:54vh;padding:16rpx 24rpx 10rpx;box-sizing:border-box}.field-pair{display:grid;grid-template-columns:1fr 1fr;gap:12rpx}.field{position:relative;margin-bottom:13rpx;padding:14rpx 16rpx;border:1rpx solid #e7ddd0;border-radius:15rpx;background:#fff;display:flex;flex-direction:column;gap:9rpx}.field>text:first-child{font-size:19rpx;color:#84786a}.field.required>text:first-child::after{content:" *";color:var(--red)}.field input{height:42rpx;font-size:24rpx;color:var(--ink)}.picker-field>text:last-child{min-height:42rpx;font-size:24rpx}.picker-field .placeholder{color:#a89d90}.textarea-field textarea{width:100%;height:96rpx;font-size:23rpx;line-height:1.5}.count{position:absolute;right:14rpx;bottom:10rpx;font-size:17rpx;color:#aaa094}.sheet-assurance{margin:4rpx 0 14rpx;padding:15rpx;border-radius:14rpx;background:#eef5f0;color:#587060;display:flex;align-items:center;gap:12rpx;font-size:19rpx;line-height:1.45}.assurance-mark{width:40rpx;height:40rpx;flex:none;border-radius:12rpx;background:#2d704f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:750}.sheet-actions{padding:16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));background:#fff;display:grid;grid-template-columns:.72fr 1.28fr;gap:12rpx;border-top:1rpx solid #eee5d9}.sheet-secondary,.sheet-primary{height:82rpx;border-radius:17rpx;display:flex;align-items:center;justify-content:center;font-size:24rpx;font-weight:700}.sheet-secondary{background:#f2ede6;color:#74695c}.sheet-primary{background:var(--red);color:#fff;box-shadow:0 8rpx 20rpx rgba(201,25,63,.2)}.sheet-primary.disabled{opacity:.48}.receipt-sheet{max-height:82vh}.receipt-order{margin:17rpx 24rpx 0;padding:17rpx 19rpx;border-radius:16rpx;background:#2d493c;color:#fff;display:flex;justify-content:space-between;gap:16rpx;font-size:20rpx}.receipt-order text:last-child{opacity:.75}.receipt-list{max-height:50vh;padding:16rpx 24rpx;box-sizing:border-box}.receipt-line{padding:17rpx;margin-bottom:11rpx;border:1rpx solid #e8dfd3;border-radius:16rpx;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:18rpx}.receipt-copy{min-width:0;display:flex;flex-direction:column;gap:6rpx}.receipt-copy text:first-child{font-size:24rpx;font-weight:700}.receipt-copy text:last-child{font-size:19rpx;color:#8d8173}.receipt-input{height:60rpx;padding:0 12rpx;border-radius:13rpx;background:#f3eee7;display:flex;align-items:center;gap:6rpx;color:#8a7c6c;font-size:19rpx}.receipt-input input{width:76rpx;text-align:center;font:700 26rpx Georgia,serif;color:var(--ink)}.receive-confirm{background:#2d704f;box-shadow:0 8rpx 20rpx rgba(45,112,79,.2)}
 @keyframes railMove{0%,100%{left:10%;opacity:.6}50%{left:87%;opacity:1}}
-@media (min-width:700px){.page{max-width:960px;margin:0 auto}.task-grid{grid-template-columns:repeat(4,1fr)}.stock-card,.flow-card,.purchase-card{margin-inline:26rpx}.summary{gap:18rpx}.sheet-mask{align-items:center;justify-content:center;padding:32px;box-sizing:border-box}.sheet{width:min(720px,100%);max-height:88vh;border-radius:28px}.sheet-handle{margin-top:10px}.sheet-form,.receipt-list{max-height:52vh}.sheet-actions{padding-bottom:16rpx}}
+@media (min-width:700px){.page{max-width:960px;margin:0 auto}.stock-card,.flow-card,.purchase-card{margin-inline:26rpx}.summary{gap:18rpx}.sheet-mask{align-items:center;justify-content:center;padding:32px;box-sizing:border-box}.sheet{width:min(720px,100%);max-height:88vh;border-radius:28px}.sheet-handle{margin-top:10px}.sheet-form,.receipt-list{max-height:52vh}.sheet-actions{padding-bottom:16rpx}}
 @media (prefers-reduced-motion:reduce){.rail-pulse{animation:none;left:48%}.health-bar{transition:none}}
 </style>

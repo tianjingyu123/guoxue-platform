@@ -2855,6 +2855,9 @@
     "navigationBarTitleText": "热卜国学",
     "navigationBarBackgroundColor": "#FAF8F5",
     "backgroundColor": "#FAF8F5",
+    "rpxCalcMaxDeviceWidth": 480,
+    "rpxCalcBaseDeviceWidth": 375,
+    "rpxCalcIncludeWidth": 750,
     "app-plus": {
       "popGesture": "close"
     }
