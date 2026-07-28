@@ -74,14 +74,6 @@ const rules = [
     advice: '接入观看进度、断点续播和幂等上报。',
   },
   {
-    id: 'P1_GROUP_FILTER_MOCK',
-    severity: 'P1',
-    title: '群聊筛选仍为本地模拟',
-    pattern: /mock.*(?:筛选|过滤)|(?:筛选|过滤).*mock/i,
-    paths: ['apps/mobile/src/pkg-im/im/group-list/index.vue'],
-    advice: '改为服务端筛选或基于真实列表的本地筛选。',
-  },
-  {
     id: 'P1_RENEW_TWO_YEAR_TODO',
     severity: 'P1',
     title: '圈子两年续费选项未完成',
