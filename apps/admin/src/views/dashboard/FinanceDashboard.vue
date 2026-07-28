@@ -6,7 +6,6 @@
 import { ref, onMounted, type Component } from "vue"
 import { useRouter } from "vue-router"
 import { api } from "@/api"
-import * as echarts from "echarts"
 import GreetingHeader from "@/components/GreetingHeader.vue"
 import AnimatedCounter from "@/components/AnimatedCounter.vue"
 import AnomalyAlert from "@/components/AnomalyAlert.vue"

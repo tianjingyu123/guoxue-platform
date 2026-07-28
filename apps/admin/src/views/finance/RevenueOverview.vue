@@ -276,7 +276,8 @@ import { ref, reactive, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { revenueApi } from "@/api";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 
 const router = useRouter();
 
@@ -323,7 +324,7 @@ const trendEmpty = ref(false);
 const trendChart = ref<HTMLElement | null>(null);
 const pieChart = ref<HTMLElement | null>(null);
 
-function chartOf(el: HTMLElement | null): echarts.ECharts | null {
+function chartOf(el: HTMLElement | null): EChartsType | null {
   if (!el) return null;
   return echarts.getInstanceByDom(el) ?? echarts.init(el);
 }

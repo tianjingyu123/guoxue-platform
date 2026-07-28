@@ -220,7 +220,8 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { interactionApi } from "@/api";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 
 /** 互动统计分组（累计/今日/近7天） */
 interface StatsGroup { likes: number; comments: number; follows: number; collects: number; reports: number }
@@ -241,7 +242,7 @@ const stats = reactive({
 
 const topContent = ref<TopContentRow[]>([]);
 const trendChart = ref<HTMLElement | null>(null);
-let chart: echarts.ECharts | null = null;
+let chart: EChartsType | null = null;
 const loading = ref(false);
 const loadError = ref(false);
 

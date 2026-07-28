@@ -141,7 +141,8 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
 import { BRAND } from "@/lib/brand";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 
 const route = useRoute();
 /** 平台综合大屏聚合数据（字段宽松 optional，仅声明模板实际访问字段） */
@@ -168,7 +169,7 @@ let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 
 // 内容资产构成图（填充下半屏·仅有数据时渲染）
 const compChartRef = ref<HTMLElement | null>(null);
-let compChart: echarts.ECharts | null = null;
+let compChart: EChartsType | null = null;
 const hasComposition = ref(false);
 
 function fmt(v: unknown) {

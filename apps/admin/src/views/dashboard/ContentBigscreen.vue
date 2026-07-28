@@ -117,7 +117,8 @@ import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
 import { BRAND } from "@/lib/brand";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 
 /** 创作者贡献项 */
 interface CreatorItem { userId?: string; nickname?: string; articleCount?: number }
@@ -143,7 +144,7 @@ let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 
 // 内容构成图（填充下半屏空白·仅在有数据时渲染，全 0 时诚实空态）
 const compChartRef = ref<HTMLElement | null>(null);
-let compChart: echarts.ECharts | null = null;
+let compChart: EChartsType | null = null;
 const hasComposition = ref(false);
 
 function fmt(v: number | string | null | undefined) { return v != null ? Number(v).toLocaleString() : "0"; }

@@ -310,7 +310,8 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { ElMessage } from "element-plus";
 import { api } from "@/api";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 
 /** GET /ai/usage-stats 真实返回体（ai.service.ts getAiUsageStats） */
 interface UsageStatsResponse {
@@ -365,7 +366,7 @@ const logFilter = reactive({ service: "" });
 const pagination = reactive({ page: 1, pageSize: 20, total: 0 });
 
 const trendChartRef = ref<HTMLElement | null>(null);
-let trendChart: echarts.ECharts | null = null;
+let trendChart: EChartsType | null = null;
 
 function fmtShort(d: string) {
   if (!d) return "—";

@@ -346,7 +346,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, nextTick, onBeforeUnmount } from "vue";
 import { ElMessage } from "element-plus";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 import { api, aiAdminApi, searchApi } from "@/api";
 
 const activeTab = ref("analytics");
@@ -393,7 +394,7 @@ const zeroResultKeywords = ref<ZeroResultRow[]>([]);
 // 搜索量趋势（近7天，真实聚合）
 const trendChartRef = ref<HTMLElement | null>(null);
 const trendHasData = ref(false);
-let trendChart: echarts.ECharts | null = null;
+let trendChart: EChartsType | null = null;
 
 function fmtNum(v: number): string {
   if (!v) return "0";

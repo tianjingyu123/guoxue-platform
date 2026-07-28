@@ -250,7 +250,8 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { ElMessage } from "element-plus";
 import { api } from "@/api";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 
 const stats = reactive({
   totalUsers: 0, usersWithInterests: 0, coverageRate: 0,
@@ -261,7 +262,7 @@ const stats = reactive({
 const loading = ref(false);
 const error = ref(false);
 const pieChartRef = ref<HTMLElement | null>(null);
-let pieChart: echarts.ECharts | null = null;
+let pieChart: EChartsType | null = null;
 
 /** 前三热门品类文案；无数据返回空串（模板走"暂无"分支，杜绝"暂无 是最受欢迎"拼接病句） */
 const topCategories = computed(() => {

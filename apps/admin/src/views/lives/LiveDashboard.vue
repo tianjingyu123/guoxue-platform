@@ -301,11 +301,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import { liveDashboardApi } from "@/api";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 
 /** 概览指标（宽松 optional） */
 interface LiveOverview {
@@ -346,7 +347,7 @@ const kpiCards = computed(() => {
 
 // 趋势图
 const trendsChartRef = ref<HTMLDivElement>();
-let trendsChart: echarts.ECharts | null = null;
+let trendsChart: EChartsType | null = null;
 const trendsData = ref<TrendPoint[]>([]);
 
 function renderTrendsChart() {
@@ -383,32 +384,35 @@ const productData = ref<ProductRow[]>([]);
 
 // 互动
 const interChartRef = ref<HTMLDivElement>();
-let interChart: echarts.ECharts | null = null;
+let interChart: EChartsType | null = null;
 const giftRanking = ref<GiftRankItem[]>([]);
 
 function renderInterChart() {
   if (!interChartRef.value) return;
   if (!interChart) interChart = echarts.init(interChartRef.value);
 
-  // 从打赏排行提取词云
-  const words = (giftRanking.value || []).map((g) => ({
+  // 互动榜直接使用条形图，避免依赖未注册的词云扩展导致图表空白
+  const ranking = (giftRanking.value || []).slice(0, 10).map((g) => ({
     name: g.nickname || g.userId,
     value: g.totalCoin || 0,
-  }));
+  })).sort((a, b) => a.value - b.value);
 
   interChart.setOption({
-    tooltip: { trigger: "item" },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+    grid: { left: 20, right: 28, top: 12, bottom: 12, containLabel: true },
+    xAxis: { type: "value", minInterval: 1, axisLabel: { color: "#909399" } },
+    yAxis: {
+      type: "category",
+      data: ranking.length > 0 ? ranking.map((item) => item.name) : ["暂无数据"],
+      axisLabel: { color: "#606266", width: 96, overflow: "truncate" },
+    },
     series: [{
-      type: "wordCloud",
-      shape: "circle",
-      left: "center", top: "center", width: "80%", height: "80%",
-      right: null, bottom: null,
-      sizeRange: [14, 40],
-      rotationRange: [-30, 30],
-      textStyle: {
-        color: (() => { const p = ['#409eff','#67c23a','#e6a23c','#f56c6c','#909399','#b37feb']; let i = 0; return () => p[i++ % p.length]; })(),
-      },
-      data: words.length > 0 ? words : [{ name: "暂无数据", value: 1 }],
+      name: "打赏热度",
+      type: "bar",
+      data: ranking.length > 0 ? ranking.map((item) => item.value) : [0],
+      barMaxWidth: 20,
+      itemStyle: { color: "#d21f3c", borderRadius: [0, 8, 8, 0] },
+      label: { show: true, position: "right", color: "#909399" },
     }],
   }, true);
 }

@@ -105,7 +105,8 @@
 import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 import { BRAND } from "@/lib/brand";
 
 const route = useRoute();
@@ -126,7 +127,7 @@ const loading = ref(true);
 const loadError = ref(false);
 
 const cityChartRef = ref<HTMLDivElement>();
-let cityChart: echarts.ECharts | null = null;
+let cityChart: EChartsType | null = null;
 let timer: ReturnType<typeof setInterval> | undefined = undefined;
 let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 
