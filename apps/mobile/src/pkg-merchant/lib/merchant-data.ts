@@ -383,6 +383,7 @@ export interface PurchaseOrderItem {
 }
 export interface PurchaseOrder {
   id: string; orderNo: string; supplierName: string
+  contactName?: string | null; contactPhone?: string | null; remark?: string | null
   status: 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED'
   totalAmount: string | number; expectedAt?: string | null; createdAt: string; items: PurchaseOrderItem[]
 }
@@ -536,7 +537,14 @@ export const merchantBackendApi = {
     if (params?.status) q.set('status', params.status)
     return apiGetPaged<PurchaseOrder>(`/merchant-backend/purchase-orders?${q}`)
   },
-  createPurchaseOrder: (data: { supplierName: string; items: Array<{ productId: string; skuId?: string; quantity: number; unitCost: number }> }) =>
+  createPurchaseOrder: (data: {
+    supplierName: string
+    contactName?: string
+    contactPhone?: string
+    expectedAt?: string
+    remark?: string
+    items: Array<{ productId: string; skuId?: string; quantity: number; unitCost: number }>
+  }) =>
     apiPost<PurchaseOrder>('/merchant-backend/purchase-orders', data),
   submitPurchaseOrder: (id: string) => apiPost<PurchaseOrder>(`/merchant-backend/purchase-orders/${id}/submit`, {}),
   cancelPurchaseOrder: (id: string) => apiPost<PurchaseOrder>(`/merchant-backend/purchase-orders/${id}/cancel`, {}),
