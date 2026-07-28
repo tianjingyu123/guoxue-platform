@@ -72,7 +72,7 @@
             <view><text class="task-name">待发订单</text><text class="task-desc">{{ overview.unshippedOrderCount ? `${overview.unshippedOrderCount} 单等待发货` : '暂无待发订单' }}</text></view>
             <text class="task-arrow">›</text>
           </view>
-          <view class="task" :class="{ urgent: overview.pendingAfterSaleCount > 0 }" @tap="go('/pkg-merchant/notices/index?tab=after-sales')">
+          <view class="task" :class="{ urgent: overview.pendingAfterSaleCount > 0 }" @tap="go('/pkg-merchant/after-sales/index')">
             <text class="task-glyph">退</text>
             <view><text class="task-name">售后回仓</text><text class="task-desc">{{ overview.pendingAfterSaleCount ? `${overview.pendingAfterSaleCount} 件等待处理` : '暂无售后待办' }}</text></view>
             <text class="task-arrow">›</text>
@@ -100,7 +100,7 @@
           <view class="life-item" @tap="go('/pkg-merchant/batch-ship/index')">
             <text class="life-no">03</text><text class="life-name">发货</text><text class="life-desc">运单履约</text>
           </view>
-          <view class="life-item" @tap="go('/pkg-merchant/notices/index?tab=after-sales')">
+          <view class="life-item" @tap="go('/pkg-merchant/after-sales/index')">
             <text class="life-no">04</text><text class="life-name">售后</text><text class="life-desc">质检回仓</text>
           </view>
         </view>

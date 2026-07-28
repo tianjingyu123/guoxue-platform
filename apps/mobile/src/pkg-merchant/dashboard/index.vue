@@ -159,7 +159,7 @@
           <text class="tn">{{ pendingShip }}</text>
           <text class="tt">待发货</text>
         </view>
-        <view class="tcard" @tap="go('/pkg-merchant/notices/index?tab=after-sales')">
+        <view class="tcard" @tap="go('/pkg-merchant/after-sales/index')">
           <view v-if="pendingAfterSale > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingAfterSale) }}</text></view>
           <text class="tn">{{ pendingAfterSale }}</text>
           <text class="tt">待处理售后</text>
