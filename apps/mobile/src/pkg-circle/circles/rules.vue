@@ -7,7 +7,7 @@
  * 降级（如实·不造假）：
  * - V0「长按拖动排序」→ ⋯ 菜单上移/下移（PUT reorder 真连·uni-app 拖拽不做）；
  * - 模板 chips 按后端真实内容写（圈规 6 条/三级阶梯/加入须确认/新帖先审 7 天·V0 的成长阶梯五级/续费8折后端无）；
- * - 「新成员发帖先审」「被举报自动隐藏」配置可保存但后端链路本期未接 → 行内如实标注生效范围；
+ * - 「新成员发帖先审」「被举报自动隐藏」已接后端真实治理链路；
  * - 敏感词/刷屏限制已接发帖链路（checkPostGate）→ 正常读写。
  */
 import { ref, computed } from 'vue'
@@ -430,7 +430,7 @@ onLoad((query) => {
           <view class="auto-main">
             <text class="auto-title">新成员发帖先审后发</text>
             <text class="auto-desc">加入不满 {{ cfg?.newMemberReviewDays ?? 7 }} 天的成员，帖子经圈主/管理员审核后展示</text>
-            <text class="auto-scope">生效范围：配置可保存 · 发帖先审链路随圈内审核队列上线后启用</text>
+            <text class="auto-scope">已生效：命中规则的帖子进入待审队列，通过后才会公开展示</text>
           </view>
           <view
             class="switch" :class="{ on: cfg?.newMemberReviewEnabled, locked: !canEdit }"
@@ -461,7 +461,7 @@ onLoad((query) => {
           <view class="auto-main">
             <text class="auto-title">被举报自动隐藏</text>
             <text class="auto-desc">同一内容被 {{ cfg?.reportAutoHideThreshold ?? 3 }} 人以上举报时先隐藏、转人工复核</text>
-            <text class="auto-scope">生效范围：举报入口已开通、举报会进后台处理台；达阈值自动隐藏尚未生效（当前一律人工复核）</text>
+            <text class="auto-scope">已生效：按去重举报人数计数，达到阈值后自动隐藏并通知圈主复核</text>
           </view>
           <view
             class="switch" :class="{ on: cfg?.reportAutoHideEnabled, locked: !canEdit }"

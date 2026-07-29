@@ -577,12 +577,12 @@ model CircleGovernanceConfig {
   warningResetDays        Int      @default(90) // 警告 N 天自动清零
   muteDays                Int      @default(7) // 自动/默认禁言天数（1/3/7/30）
   removeBanRejoin         Boolean  @default(true) // 移出后禁止重新加入（可单独解除）
-  newMemberReviewEnabled  Boolean  @default(false) // 新成员 7 天发帖先审（TODO 发帖链路接入）
+  newMemberReviewEnabled  Boolean  @default(false) // 新成员 N 天发帖先审（已接发帖闸门与待审队列）
   newMemberReviewDays     Int      @default(7)
   sensitiveWordsEnabled   Boolean  @default(true)
   sensitiveWords          Json? // 圈内自定义敏感词 string[]（命中转人工审核 AUDITING）
   postIntervalSeconds     Int      @default(0) // 刷屏限制·同成员发帖最小间隔秒（0=关）
-  reportAutoHideEnabled   Boolean  @default(true) // 被举报满 N 自动隐藏（TODO 举报链路接入）
+  reportAutoHideEnabled   Boolean  @default(true) // 被举报满 N 自动隐藏（按去重举报人数计数）
   reportAutoHideThreshold Int      @default(3)
   rolePermissions         Json? // 权限矩阵覆盖 {ADMIN:{key:bool},PARTNER:{...},GUEST:{...}}·锁定项忽略
   createdAt               DateTime @default(now())

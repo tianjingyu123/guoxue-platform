@@ -140,7 +140,7 @@ export class CircleGovernanceController {
     return this.svc.updatePermissionMatrix(circleId, req.user.id, dto);
   }
 
-  // ───────── 待审帖子队列（TODO#2·新成员先审/敏感词转审·content.review 矩阵位） ─────────
+  // ───────── 待审帖子队列（新成员先审/敏感词转审·content.review 矩阵位） ─────────
 
   @Get(":circleId/posts/pending")
   @ApiOperation({ summary: "待审帖子列表（新成员先审/敏感词转审·按矩阵 content.review 鉴权）" })

@@ -759,7 +759,7 @@ export class CircleGovernanceService {
       }
     }
 
-    // 新成员先审（TODO#2·2026-07-11）：开启后加入不足 N 天的普通成员发帖一律先审后发（AUDITING）
+    // 新成员先审：开启后加入不足 N 天的普通成员发帖一律先审后发（AUDITING）
     if (cfg.newMemberReviewEnabled) {
       const member = await this.prisma.circleMember.findUnique({
         where: { circleId_userId: { circleId, userId } },
@@ -782,7 +782,7 @@ export class CircleGovernanceService {
     return { forceAudit: false, hitWords: [] };
   }
 
-  // ═════════ 待审帖子队列（TODO#2·新成员先审/敏感词转审的圈主审核侧·content.review 矩阵位） ═════════
+  // ═════════ 待审帖子队列（新成员先审/敏感词转审的圈主审核侧·content.review 矩阵位） ═════════
 
   /** 待审帖子列表（status=AUDITING·按矩阵 content.review 鉴权） */
   async listPendingPosts(circleId: string, operatorId: string, rawPage = 1, rawPageSize = 20) {

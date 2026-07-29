@@ -318,7 +318,7 @@ export class InteractionService {
       },
     });
 
-    // 圈子治理 TODO#3（2026-07-11）：圈内帖子被举报满阈值自动隐藏（幂等·失败不影响举报本身落库）
+    // 圈子治理：圈内帖子被举报满阈值自动隐藏（幂等·失败不影响举报本身落库）
     if (String(dto.targetType || "").toUpperCase() === "POST") {
       await this.maybeAutoHideReportedPost(dto.targetId).catch((err) =>
         this.logger.warn(`举报自动隐藏处理失败 post=${dto.targetId}`, err),
@@ -328,7 +328,7 @@ export class InteractionService {
   }
 
   /**
-   * 举报满 N 自动隐藏（治理 TODO#3）：帖子属于圈子、圈子开启 reportAutoHide 且
+   * 举报满 N 自动隐藏：帖子属于圈子、圈子开启 reportAutoHide 且
    * 待处理举报的**去重举报人数**达到阈值时，自动把帖子置 HIDDEN 并通知圈主处理。
    * 已隐藏的不重复处理；配置未落库时回落治理默认值（开·阈值 3）。
    */
