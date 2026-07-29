@@ -228,7 +228,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { merchantBackendApi } from "@/api";
 
@@ -239,6 +239,8 @@ type Purchase = { id:string; orderNo:string; supplierName:string; contactName?:s
 type PurchaseDraftItem = { stockKey:string; productId:string; skuId?:string; quantity:number; unitCost:number };
 
 const router = useRouter();
+const route = useRoute();
+const isVisualPreview = import.meta.env.DEV && route.meta.devPreview === true;
 const active = ref<"stock"|"movement"|"purchase">("stock");
 const loading = ref(false); const submitting = ref(false);
 const overview = reactive({
@@ -273,14 +275,44 @@ function canCancel(order:Purchase){ return ["DRAFT","ORDERED"].includes(order.st
 function isOverdue(order:Purchase){ return canReceive(order) && Boolean(order.expectedAt) && new Date(order.expectedAt as string).getTime() < Date.now(); }
 const taskCount=computed(()=>overview.lowStockCount+overview.overduePurchaseCount+overview.unshippedOrderCount+overview.pendingAfterSaleCount);
 
-async function loadOverview(){ Object.assign(overview,dataOf(await merchantBackendApi.getInventoryOverview())); }
+function previewImage(label:string,from:string,to:string){
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="320" height="320" rx="36" fill="url(#g)"/><circle cx="160" cy="132" r="74" fill="none" stroke="rgba(255,255,255,.26)" stroke-width="2"/><circle cx="160" cy="132" r="52" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2"/><text x="160" y="151" text-anchor="middle" fill="#fff" font-size="58" font-family="serif">${label}</text><text x="160" y="246" text-anchor="middle" fill="rgba(255,255,255,.72)" font-size="19" letter-spacing="6">热卜严选</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+function loadVisualPreview(){
+  Object.assign(overview,{
+    totalStock:384,skuCount:18,lowStockCount:4,outOfStockCount:1,stockHealthRate:78,
+    missingAlertCount:2,movementCount:36,pendingPurchaseCount:3,pendingReceiptUnitCount:42,
+    overduePurchaseCount:1,unshippedOrderCount:5,pendingAfterSaleCount:2,
+  });
+  stocks.value=[
+    {productId:"preview-ink",skuId:"gift",title:"文房四宝精品套装",image:previewImage("墨","#7d4a2b","#2d211b"),skuLabel:"礼盒装 · 墨色",stock:3,threshold:8,lowStock:true,stockKey:"preview-ink:gift"},
+    {productId:"preview-audio",skuId:"walnut",title:"国学经典诵读机",image:previewImage("听","#b56a37","#61311f"),skuLabel:"胡桃木 · 128G",stock:42,threshold:10,lowStock:false,stockKey:"preview-audio:walnut"},
+    {productId:"preview-tea",skuId:"six",title:"宜兴紫砂品茗套装",image:previewImage("茶","#9c4f36","#4a2723"),skuLabel:"一壶六杯",stock:0,threshold:5,lowStock:true,stockKey:"preview-tea:six"},
+    {productId:"preview-paper",skuId:null,title:"手工半生熟宣纸",image:previewImage("纸","#4c6570","#263d47"),skuLabel:"四尺 · 100 张",stock:86,threshold:null,lowStock:false,stockKey:"preview-paper:PRODUCT"},
+  ];
+  movements.value=[
+    {id:"move-1",type:"PURCHASE_IN",quantity:12,beforeStock:30,afterStock:42,reason:"采购单 CG202607280018 首批到货",metadata:{title:"国学经典诵读机",skuLabel:"胡桃木 · 128G"},createdAt:"2026-07-28T09:16:00.000Z"},
+    {id:"move-2",type:"SALE_OUT",quantity:-2,beforeStock:5,afterStock:3,reason:"订单批量发货出库",metadata:{title:"文房四宝精品套装",skuLabel:"礼盒装 · 墨色"},createdAt:"2026-07-28T08:48:00.000Z"},
+    {id:"move-3",type:"STOCKTAKE_LOSS",quantity:-1,beforeStock:1,afterStock:0,reason:"仓库盘点发现杯盖破损",metadata:{title:"宜兴紫砂品茗套装",skuLabel:"一壶六杯"},createdAt:"2026-07-27T16:35:00.000Z"},
+    {id:"move-4",type:"REFUND_RETURN",quantity:1,beforeStock:2,afterStock:3,reason:"售后质检合格，重新入库",metadata:{title:"文房四宝精品套装",skuLabel:"礼盒装 · 墨色"},createdAt:"2026-07-27T14:20:00.000Z"},
+  ];
+  purchases.value=[
+    {id:"purchase-1",orderNo:"CG202607280018",supplierName:"临安文房供应社",contactName:"陈掌柜",contactPhone:"138****2608",status:"PARTIALLY_RECEIVED",totalAmount:2466,expectedAt:"2026-07-30T10:00:00.000Z",createdAt:"2026-07-27T10:00:00.000Z",items:[{id:"purchase-item-1",productId:"preview-ink",skuId:"gift",productTitle:"文房四宝精品套装",skuLabel:"礼盒装 · 墨色",quantity:36,receivedQuantity:12,unitCost:68.5}]},
+    {id:"purchase-2",orderNo:"CG202607260011",supplierName:"宜兴清和陶作",contactName:"周老师",contactPhone:"139****1820",status:"ORDERED",totalAmount:5280,expectedAt:"2026-07-27T10:00:00.000Z",createdAt:"2026-07-26T03:30:00.000Z",items:[{id:"purchase-item-2",productId:"preview-tea",skuId:"six",productTitle:"宜兴紫砂品茗套装",skuLabel:"一壶六杯",quantity:24,receivedQuantity:0,unitCost:220}]},
+    {id:"purchase-3",orderNo:"CG202607250006",supplierName:"泾县古法纸坊",status:"DRAFT",totalAmount:1560,createdAt:"2026-07-25T05:20:00.000Z",items:[{id:"purchase-item-3",productId:"preview-paper",productTitle:"手工半生熟宣纸",skuLabel:"四尺 · 100 张",quantity:20,receivedQuantity:0,unitCost:78}]},
+  ];
+}
+
+async function loadOverview(){ if(isVisualPreview)return; Object.assign(overview,dataOf(await merchantBackendApi.getInventoryOverview())); }
 async function loadStocks(){
+  if(isVisualPreview)return;
   loading.value=true;
   try{ const p=pageOf<any>(await merchantBackendApi.listInventoryStocks({page:1,pageSize:100,keyword:keyword.value||undefined,lowStock:lowOnly.value||undefined})); stocks.value=p.items.map((s:any)=>({...s,stockKey:`${s.productId}:${s.skuId||"PRODUCT"}`})); }
   catch(e:any){ stocks.value=[]; ElMessage.error(e?.message||"库存加载失败"); } finally{loading.value=false;}
 }
-async function loadMovements(){ loading.value=true; try{ movements.value=pageOf<Movement>(await merchantBackendApi.listInventoryMovements({page:1,pageSize:100,type:movementType.value||undefined})).items; }catch(e:any){ElMessage.error(e?.message||"流水加载失败");}finally{loading.value=false;} }
-async function loadPurchases(){ loading.value=true; try{ purchases.value=pageOf<Purchase>(await merchantBackendApi.listPurchaseOrders({page:1,pageSize:100,status:purchaseStatus.value||undefined})).items; }catch(e:any){ElMessage.error(e?.message||"采购单加载失败");}finally{loading.value=false;} }
+async function loadMovements(){ if(isVisualPreview)return; loading.value=true; try{ movements.value=pageOf<Movement>(await merchantBackendApi.listInventoryMovements({page:1,pageSize:100,type:movementType.value||undefined})).items; }catch(e:any){ElMessage.error(e?.message||"流水加载失败");}finally{loading.value=false;} }
+async function loadPurchases(){ if(isVisualPreview)return; loading.value=true; try{ purchases.value=pageOf<Purchase>(await merchantBackendApi.listPurchaseOrders({page:1,pageSize:100,status:purchaseStatus.value||undefined})).items; }catch(e:any){ElMessage.error(e?.message||"采购单加载失败");}finally{loading.value=false;} }
 async function loadActive(){ await Promise.allSettled([loadOverview(), active.value==="stock"?loadStocks():active.value==="movement"?loadMovements():loadPurchases()]); }
 function activate(tab:typeof active.value){ active.value=tab; loadActive(); }
 function showLowStock(){ lowOnly.value=true; activate("stock"); }
@@ -309,7 +341,13 @@ const receiveVisible=ref(false); const receiveOrder=ref<Purchase|null>(null); co
 function openReceive(order:Purchase){receiveOrder.value=order;receiveForm.value=order.items.map(i=>({itemId:i.id,label:`${i.productTitle}${i.skuLabel?` · ${i.skuLabel}`:""}`,remaining:i.quantity-i.receivedQuantity,quantity:i.quantity-i.receivedQuantity})).filter(i=>i.remaining>0);receiveVisible.value=true;}
 async function receivePurchase(){if(!receiveOrder.value)return;const items=receiveForm.value.filter(i=>i.quantity>0).map(i=>({itemId:i.itemId,quantity:i.quantity}));if(!items.length)return ElMessage.warning("请填写本批到货数量");submitting.value=true;try{await merchantBackendApi.receivePurchaseOrder(receiveOrder.value.id,{requestId:rid(),items});ElMessage.success("本批到货已入库");receiveVisible.value=false;await loadActive();}catch(e:any){ElMessage.error(e?.message||"入库失败");}finally{submitting.value=false;}}
 
-onMounted(async()=>{await Promise.allSettled([loadOverview(),loadStocks()]);});
+onMounted(async()=>{
+  if(isVisualPreview){
+    loadVisualPreview();
+    return;
+  }
+  await Promise.allSettled([loadOverview(),loadStocks()]);
+});
 </script>
 
 <style scoped>

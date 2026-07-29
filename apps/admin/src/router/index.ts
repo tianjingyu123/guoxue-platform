@@ -1403,6 +1403,14 @@ const routes = [
       },
     ],
   },
+  ...(import.meta.env.DEV
+    ? [{
+        path: "/__qa/merchant-inventory",
+        name: "MerchantInventoryPreview",
+        component: () => import("@/views/merchant-backend/MerchantInventory.vue"),
+        meta: { hidden: true, title: "库存与履约视觉验收", devPreview: true },
+      }]
+    : []),
   // === 404 ===
   {
     path: "/:pathMatch(.*)*",
@@ -1419,6 +1427,9 @@ const router = createRouter({
 
 // 全局路由守卫
 router.beforeEach((to, _from, next) => {
+  // 仅开发环境的真实数据态视觉验收页，不进入生产路由表。
+  if (import.meta.env.DEV && to.meta?.devPreview === true) return next();
+
   const token = localStorage.getItem("token");
 
   // 登录页：已登录则跳转首页
