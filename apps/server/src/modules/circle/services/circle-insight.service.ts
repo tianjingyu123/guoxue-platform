@@ -30,8 +30,8 @@ export class CircleInsightService {
    * 数据口径（全真实·无编造）：
    * - posts：Post(circleId, userId, PUBLISHED, createdAt≥since)
    * - questions：PaidQuestion(circleId, askerId=本人, createdAt≥since)
-   * - liveCount：本圈期内直播间中，本人有「上麦 LiveMic / 打赏 GiftRecord / Redis 预约 live:bookings:*」
-   *   任一参与痕迹的房间数（平台无逐用户观看记录表——观看进度目前是前端本地存储，后端进度表 TODO）
+   * - liveCount：本圈内本人有「观看 LiveWatchProgress / 上麦 LiveMic / 打赏 GiftRecord /
+   *   Redis 预约 live:bookings:*」任一参与痕迹的期内去重房间数
    * - likesReceived：期内他人对本人本圈帖子的点赞（Like ⋈ Post）
    * - earningsRmb：UserEarning 中能关联回本圈的分成（问答/围观⋈PaidQuestion、连麦⋈AudioCallRecord、
    *   打赏⋈GiftRecord⋈LiveRoom）·期内无任何关联记录则不返回该项
@@ -86,28 +86,49 @@ export class CircleInsightService {
     return report;
   }
 
-  /** 参与直播数：期内本圈直播间 ∩（上麦/打赏/Redis 预约）去重房间数 */
+  /** 参与直播数：期内本圈直播间中，观看/上麦/打赏/预约任一行为的去重房间数。 */
   private async countLiveParticipation(circleId: string, userId: string, since: Date): Promise<number> {
-    const rooms = await this.prisma.liveRoom.findMany({
-      where: { circleId, createdAt: { gte: since } },
-      select: { id: true },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-    if (rooms.length === 0) return 0;
-    const roomIds = rooms.map((r) => r.id);
-
     const participated = new Set<string>();
-    const [mics, gifts] = await Promise.all([
-      this.prisma.liveMic.findMany({ where: { userId, liveRoomId: { in: roomIds } }, select: { liveRoomId: true } }),
-      this.prisma.giftRecord.findMany({ where: { userId, liveRoomId: { in: roomIds } }, select: { liveRoomId: true } }),
+    const [watchProgress, mics, gifts, bookingRooms] = await Promise.all([
+      this.prisma.liveWatchProgress.findMany({
+        where: {
+          userId,
+          lastWatchedAt: { gte: since },
+          liveRoom: { is: { circleId } },
+        },
+        select: { liveRoomId: true },
+      }),
+      this.prisma.liveMic.findMany({
+        where: {
+          userId,
+          joinedAt: { gte: since },
+          liveRoom: { is: { circleId } },
+        },
+        select: { liveRoomId: true },
+      }),
+      this.prisma.giftRecord.findMany({
+        where: {
+          userId,
+          createdAt: { gte: since },
+          liveRoom: { is: { circleId } },
+        },
+        select: { liveRoomId: true },
+      }),
+      // Redis 预约集合没有行为时间，候选范围只取期内本圈最近的直播间。
+      this.prisma.liveRoom.findMany({
+        where: { circleId, createdAt: { gte: since } },
+        select: { id: true },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      }),
     ]);
+    watchProgress.forEach((row) => participated.add(row.liveRoomId));
     mics.forEach((m) => participated.add(m.liveRoomId));
     gifts.forEach((g) => participated.add(g.liveRoomId));
 
     // Redis 预约记录（live.service.bookRoom 写 live:bookings:{roomId} set）·失败静默不阻断
     try {
-      const toCheck = roomIds.filter((id) => !participated.has(id)).slice(0, 100);
+      const toCheck = bookingRooms.map((room) => room.id).filter((id) => !participated.has(id)).slice(0, 100);
       const flags = await Promise.all(toCheck.map((id) => this.redis.sismember(`live:bookings:${id}`, userId).catch(() => false)));
       toCheck.forEach((id, i) => { if (flags[i]) participated.add(id); });
     } catch { /* redis 不可用 → 仅按 DB 痕迹统计 */ }

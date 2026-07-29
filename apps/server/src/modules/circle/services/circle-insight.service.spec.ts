@@ -10,9 +10,10 @@ function buildMocks() {
     circleMember: { findUnique: jest.fn(), findMany: jest.fn() },
     post: { count: jest.fn() },
     paidQuestion: { count: jest.fn() },
-    liveRoom: { findMany: jest.fn() },
-    liveMic: { findMany: jest.fn() },
-    giftRecord: { findMany: jest.fn() },
+    liveRoom: { findMany: jest.fn().mockResolvedValue([]) },
+    liveWatchProgress: { findMany: jest.fn().mockResolvedValue([]) },
+    liveMic: { findMany: jest.fn().mockResolvedValue([]) },
+    giftRecord: { findMany: jest.fn().mockResolvedValue([]) },
     circle: { findMany: jest.fn() },
     $queryRaw: jest.fn(),
   };
@@ -29,7 +30,7 @@ describe("CircleInsightService · #33 年度报告", () => {
     await expect(svc.annualReport("c1", "u1")).rejects.toThrow(BusinessException);
   });
 
-  it("真实聚合：发帖/提问/获赞/参与直播（上麦+打赏去重）·有分成则含 earningsRmb", async () => {
+  it("真实聚合：发帖/提问/获赞/参与直播（观看+上麦+打赏去重）·有分成则含 earningsRmb", async () => {
     const { svc, prisma } = buildMocks();
     prisma.circleMember.findUnique.mockResolvedValue({ joinedAt: new Date(Date.now() - 100 * 86400000) });
     prisma.post.count.mockResolvedValue(12);
@@ -39,6 +40,7 @@ describe("CircleInsightService · #33 年度报告", () => {
       .mockResolvedValueOnce([{ n: BigInt(34) }])
       .mockResolvedValueOnce([{ s: "36.5", n: BigInt(3) }]);
     prisma.liveRoom.findMany.mockResolvedValue([{ id: "r1" }, { id: "r2" }, { id: "r3" }]);
+    prisma.liveWatchProgress.findMany.mockResolvedValue([{ liveRoomId: "r3" }]);
     prisma.liveMic.findMany.mockResolvedValue([{ liveRoomId: "r1" }]);
     prisma.giftRecord.findMany.mockResolvedValue([{ liveRoomId: "r1" }, { liveRoomId: "r2" }]); // r1 与上麦重复 → 去重
 
@@ -46,7 +48,7 @@ describe("CircleInsightService · #33 年度报告", () => {
     expect(r.posts).toBe(12);
     expect(r.questions).toBe(5);
     expect(r.likesReceived).toBe(34);
-    expect(r.liveCount).toBe(2); // r1、r2 去重
+    expect(r.liveCount).toBe(3); // r1 上麦、r2 打赏、r3 实际观看
     expect(r.earningsRmb).toBe(36.5);
     expect(r.joinedDays).toBeGreaterThanOrEqual(100);
   });
