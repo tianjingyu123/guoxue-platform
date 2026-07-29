@@ -84,7 +84,8 @@
       "files": [
         "apps/mobile/scripts/**/*.ts",
         "apps/server/prisma/**/*.ts",
-        "apps/server/scripts/**/*.ts"
+        "apps/server/scripts/**/*.ts",
+        "packages/*/scripts/**/*.ts"
       ],
       "rules": {
         "no-console": "off"

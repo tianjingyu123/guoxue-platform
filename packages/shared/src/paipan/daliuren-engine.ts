@@ -222,7 +222,7 @@ function sheHaiDepth(shen: Zhi, lin: Zhi, isShangKe: boolean): number {
   const shenWX = ZHI_WUXING[shen]
   let i = zIdx(lin)
   const home = zIdx(shen)
-  while (true) {
+  for (let steps = 0; steps < 12; steps++) {
     const gong = zi(i)
     // 本位藏干 + 寄宫干
     for (const g of ZHI_CANG_LOCAL[gong]) {
@@ -234,7 +234,6 @@ function sheHaiDepth(shen: Zhi, lin: Zhi, isShangKe: boolean): number {
     }
     if (i === home) break
     i = (i + 1) % 12
-    if (i === zIdx(lin)) break // 保护
   }
   return depth
 }

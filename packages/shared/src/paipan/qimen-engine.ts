@@ -12,7 +12,7 @@
 // → 八门 → 八神/九神 → 暗干 → 马星/空亡/入墓/击刑/门迫
 // 复用 lib/ganzhi.ts（节气校准四柱）与 lib/jieqi.ts（太阳黄经节气）
 
-import { fourPillars, kongWangOf, GANS, ZHIS, dayGanzhi, type FourPillars } from "./ganzhi"
+import { fourPillars, GANS, ZHIS, dayGanzhi, type FourPillars } from "./ganzhi"
 import { getJieqiRange, findTerm } from "./jieqi"
 
 // ─── 基础常量 ───
@@ -210,9 +210,13 @@ export function determineJu(
   let termName: string
   let yuan: number
   if (startMethod === "maoshan") {
-    ;({ termName, yuan } = maoshanYuan(date))
+    const resolved = maoshanYuan(date)
+    termName = resolved.termName
+    yuan = resolved.yuan
   } else if (startMethod === "zhirun") {
-    ;({ termName, yuan } = zhirunJu(date))
+    const resolved = zhirunJu(date)
+    termName = resolved.termName
+    yuan = resolved.yuan
   } else {
     // 拆补：节气用当前节气，元用日柱符头
     termName = getJieqiRange(date).prev.name
@@ -356,7 +360,6 @@ export function computeQimen(date: Date, options: QimenOptions = {}): QimenResul
     for (let p = 1; p <= 9; p++) if (dipan[p] === xun.yi) return p
     return 5
   })()
-  const xunPalace = xunPalaceRaw === 5 ? 2 : xunPalaceRaw
   const zhifuStar = PALACE_STAR[xunPalaceRaw === 5 ? 5 : xunPalaceRaw] // 旬首原宫之星
   const zhishiMen = xunPalaceRaw === 5 ? "死门" : PALACE_MEN[xunPalaceRaw] // 中宫值使寄死门
 
