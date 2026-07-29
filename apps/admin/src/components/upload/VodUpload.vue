@@ -8,7 +8,6 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { uploadApi } from '@/api'
-// @ts-ignore vod-js-sdk-v6 无类型声明
 import TcVod from 'vod-js-sdk-v6'
 
 withDefaults(

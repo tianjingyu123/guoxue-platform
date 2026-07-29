@@ -9,7 +9,7 @@ import { useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import { orderApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
-// @ts-ignore uqrcodejs 为纯 JS 编码库，无类型声明（下方 UQRCodeInstance 收口实例类型）
+// @ts-expect-error uqrcodejs 为纯 JS 编码库，无类型声明（下方 UQRCodeInstance 收口实例类型）
 import UQRCode from "uqrcodejs";
 
 /** uqrcodejs 实例（仅声明本页用到的成员·与 mobile utils/qrcode.ts 同款收口） */

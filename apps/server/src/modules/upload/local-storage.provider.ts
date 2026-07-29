@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { extname, join } from "path";
+import { join } from "path";
 import { randomUUID } from "crypto";
 import { writeFile, mkdir } from "fs/promises";
 import { StorageProvider, UploadResult } from "./storage.interface";

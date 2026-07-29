@@ -5,7 +5,6 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CoinService } from "../coin/coin.service";
 import { RedisService } from "../../redis/redis.service";
 import { LedgerBalanceService } from "../settlement/ledger-balance.service";
-import { Prisma } from "@prisma/client";
 import { COIN_TO_RMB } from "../../common/constants";
 import { encryptAccountInfo, resolveAccountInfo } from "../../common/crypto.util";
 

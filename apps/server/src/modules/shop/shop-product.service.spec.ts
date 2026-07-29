@@ -163,7 +163,7 @@ describe("ShopProductService", () => {
 
   describe("getStore", () => {
     it("店铺主页商品列表排除精确隔离商品", async () => {
-      ;(mockPrisma.merchant as any).findFirst = jest.fn().mockResolvedValue({
+      (mockPrisma.merchant as any).findFirst = jest.fn().mockResolvedValue({
         id: "merchant-1",
         userId: "merchant-user",
         shopName: "国学雅集",

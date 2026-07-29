@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { SystemService } from "./system.service";
-import { OPS_ACTIONS, findOpsAction, OpsActionDef } from "./ops-action.registry";
+import { OPS_ACTIONS, findOpsAction } from "./ops-action.registry";
 import { AUTONOMY_META } from "../../common/autonomy";
 import { assertHumanForRedLine, ExecutorType, RED_LINE_META } from "../../common/red-lines";
 import { BusinessException } from "../../common/business.exception";

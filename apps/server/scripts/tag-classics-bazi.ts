@@ -85,9 +85,7 @@ function tagsOf(title: string, content: string): Hit[] {
 
   // ── 2. 多字词：标题命中即打；正文需出现 ≥2 次 ──
   const countIn = (s: string, w: string) => s.split(w).length - 1;
-  for (const [list, kind] of [
-    [GE_JU, "格局"], [SHI_SHEN, "十神"], [SHEN_SHA, "神煞"], [TOPIC, "主题"],
-  ] as const) {
+  for (const list of [GE_JU, SHI_SHEN, SHEN_SHA, TOPIC] as const) {
     for (const w of list) {
       if (title.includes(w)) { add(w, `标题含「${w}」`); continue; }
       const n = countIn(content, w);

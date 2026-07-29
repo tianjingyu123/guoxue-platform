@@ -402,8 +402,8 @@ async function sendPush() {
   try {
     await ElMessageBox.confirm(
       isAll
-        ? `即将向全平台约 ${estimatedCount} 名用户发送「${form.title.trim()}」，全员推送不可撤回，确定发送？`
-        : `即将向「${tagLabel(form.tag)}」等筛选条件下约 ${estimatedCount} 名用户发送「${form.title.trim()}」，确定发送？`,
+        ? `即将向全平台约 ${estimatedCount.value} 名用户发送「${form.title.trim()}」，全员推送不可撤回，确定发送？`
+        : `即将向「${tagLabel(form.tag)}」等筛选条件下约 ${estimatedCount.value} 名用户发送「${form.title.trim()}」，确定发送？`,
       isAll ? '全员推送确认' : '发送确认',
       {
         type: 'warning',

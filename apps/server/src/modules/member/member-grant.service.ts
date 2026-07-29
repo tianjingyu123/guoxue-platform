@@ -51,7 +51,11 @@ export class MemberGrantService {
       for (const m of members) {
         try {
           const ok = await this.benefit.grantMonthlyBenefits(m.id, m.memberLevel);
-          ok ? granted++ : skipped++;
+          if (ok) {
+            granted++;
+          } else {
+            skipped++;
+          }
         } catch (err) {
           skipped++;
           this.logger.warn(`会员月度发放失败 userId=${m.id}`, err as Error);

@@ -76,7 +76,33 @@
       "files": ["*.spec.ts", "*.test.ts"],
       "rules": {
         "@typescript-eslint/no-explicit-any": "warn",
-        "@typescript-eslint/no-unused-vars": "off"
+        "@typescript-eslint/no-unused-vars": "off",
+        "no-console": "off"
+      }
+    },
+    {
+      "files": [
+        "apps/server/prisma/**/*.ts",
+        "apps/server/scripts/**/*.ts"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": [
+        "apps/server/test/**/*.ts",
+        "apps/server/test-*.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/no-unused-vars": "off",
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["apps/server/prisma/seeds/legal-documents.seed.ts"],
+      "rules": {
+        "no-irregular-whitespace": "off"
       }
     },
     {

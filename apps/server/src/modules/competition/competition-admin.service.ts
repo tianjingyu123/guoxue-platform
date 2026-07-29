@@ -184,7 +184,11 @@ export class CompetitionAdminService {
         create: { competitionId, seq, ...data },
         update: data,
       });
-      old ? updated++ : created++;
+      if (old) {
+        updated++;
+      } else {
+        created++;
+      }
     }
 
     // 配置缩减：删除超出配置范围的 PENDING 阶段

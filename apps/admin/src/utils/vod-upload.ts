@@ -3,7 +3,6 @@
  * 抽出此工具，供 VodUpload 组件与富文本编辑器(RichEditor)的视频插入共用同一套成熟签名逻辑，
  * 避免"签名格式异常/split is not a function"类历史坑重复出现。
  */
-// @ts-ignore vod-js-sdk-v6 无类型声明
 import TcVod from 'vod-js-sdk-v6'
 import { uploadApi } from '@/api'
 

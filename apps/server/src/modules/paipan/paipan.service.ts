@@ -7,7 +7,7 @@ import { RedisService } from "../../redis/redis.service";
 import { BaziInputDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, DaLiuRenInputDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
 import { calcBazi, calcSiZhu, calcTrueSolarTime, calcAllJieQi, type BaziInput, type BaziResult } from "@guoxue/bazi-engine";
 import { calcZiwei, type ZiweiInput, type ZiweiResult } from "@guoxue/ziwei-engine";
-import { calculateQimenYang, calculateQimenYin } from "../tool-registry/calculators/qimen.calculator";
+import { calculateQimenYang } from "../tool-registry/calculators/qimen.calculator";
 import type { QimenResult } from "@guoxue/shared";
 import { createHash } from "node:crypto";
 import { encrypt, decrypt, maskPhone } from "../../common/crypto.util";

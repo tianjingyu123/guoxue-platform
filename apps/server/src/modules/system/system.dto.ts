@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, IsArray, IsIn, Min, Max, MinLength, MaxLength } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsBoolean, IsArray, IsIn, Min, Max, MinLength, MaxLength } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 /** 更新角色权限入参（防止裸内联类型绕过校验） */

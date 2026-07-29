@@ -412,7 +412,7 @@ export class VideoService {
    * sort: recommend(默认)=播放量优先 / hot=点赞优先 / follow=已关注作者(需登录，未登录或未关注→空)
    */
   async listItems(rawPage: number, rawPageSize: number, opts?: { sort?: string; followerId?: string }) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const { pageSize, skip } = safePagination(rawPage, rawPageSize);
     // 瀑布流=平台公共池：只出「全平台开放+审核通过+非私密」内容（圈内封闭作品不外泄）
     const where: Prisma.VideoWhereInput = {
       id: { notIn: publicQuarantinedIds("video") },
