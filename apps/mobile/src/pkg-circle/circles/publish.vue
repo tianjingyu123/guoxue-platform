@@ -261,7 +261,10 @@ function clearLocalDraft() {
 onUnload(() => {
   if (submittedClean) return
   const hasContent = a.title.trim() || a.content.trim() || c.title.trim() || c.description.trim()
-  if (!hasContent) { try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ } ; return }
+  if (!hasContent) {
+    try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+    return
+  }
   try {
     uni.setStorageSync(LOCAL_DRAFT_KEY, JSON.stringify({ selectedType: selectedType.value, a: { ...a }, c: { ...c } }))
   } catch { /* 存储失败静默 */ }

@@ -190,7 +190,7 @@ async function switchLesson(id: string) {
     resumeAt.value = next.currentProgress || 0 // 续播定位：换课时后起播跳到上次进度
     playError.value = false
     lastSaveTs = 0
-    started.value = !!next.videoUrl ? started.value : true
+    started.value = next.videoUrl ? started.value : true
     // 换源后立即续播（用户已有交互，程序化播放不被拦截）
     if (next.videoUrl) setTimeout(() => playerCtx().play(), 60)
   } catch (e) {

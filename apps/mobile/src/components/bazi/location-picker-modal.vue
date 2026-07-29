@@ -44,10 +44,10 @@ function initFromProps() {
   if (p < 0) p = 0
   pIdx.value = p
   const cs = Object.keys(chinaData[all[p]] || {})
-  let c = init?.city ? cs.indexOf(init.city) : 0
+  const c = init?.city ? cs.indexOf(init.city) : 0
   cIdx.value = c < 0 ? 0 : c
   const ds = chinaData[all[p]]?.[cs[cIdx.value]] || []
-  let d = init?.district ? ds.indexOf(init.district) : 0
+  const d = init?.district ? ds.indexOf(init.district) : 0
   dIdx.value = d < 0 ? 0 : d
 }
 watch(() => props.open, (v) => { if (v) initFromProps() })

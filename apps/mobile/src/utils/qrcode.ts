@@ -9,7 +9,7 @@
  * 铁律：任何一步失败（编码异常/文本为空）静默降级返回 false，
  * 调用方据此决定是否绘制配文——无二维码也能保存原卡。
  */
-// @ts-ignore uqrcodejs 为纯 JS 库，无类型声明（下方以 UQRCodeInstance 收口实例类型）
+// @ts-expect-error uqrcodejs 为纯 JS 库，无类型声明（下方以 UQRCodeInstance 收口实例类型）
 import UQRCode from 'uqrcodejs'
 
 /** uqrcodejs 实例（仅声明本工具用到的成员） */

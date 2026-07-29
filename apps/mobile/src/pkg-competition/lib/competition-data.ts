@@ -241,7 +241,7 @@ const TYPE_LABELS: Record<string, string> = {
 export const typeLabel = (t: string) => TYPE_LABELS[t] || '综合'
 
 /** 赛事级别 → 标签与归类（platform/circle/joint 用于徽章配色） */
-export function levelInfo(level: string, organizerType?: string | null): { label: string; kind: 'platform' | 'circle' | 'joint' } {
+export function levelInfo(level: string, _organizerType?: string | null): { label: string; kind: 'platform' | 'circle' | 'joint' } {
   if (level === 'S') return { label: '平台赛事', kind: 'platform' }
   if (level === 'A') return { label: '联合主办', kind: 'joint' }
   return { label: '圈子赛事', kind: 'circle' }

@@ -118,7 +118,8 @@ onLaunch((options?: { query?: Record<string, unknown> }) => {
     /* 归因失败不影响启动 */
   }
   // 全局路由埋点：拦截四类跳转，统一上报 page_view（一处接入、全局覆盖，无需逐页改）
-  ;['navigateTo', 'redirectTo', 'reLaunch', 'switchTab'].forEach((api) => {
+  const routeApis = ['navigateTo', 'redirectTo', 'reLaunch', 'switchTab']
+  routeApis.forEach((api) => {
     uni.addInterceptor(api, {
       invoke(args: { url?: string }) {
         // 埋点/归因拦截器自身异常绝不能影响跳转放行

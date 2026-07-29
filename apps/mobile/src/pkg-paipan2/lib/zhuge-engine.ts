@@ -84,7 +84,7 @@ export function cnSignNumber(n: number): string {
   }
   const h = Math.floor(n / 100)
   const rest = n % 100
-  let s = `${digits[h]}百`
+  const s = `${digits[h]}百`
   if (rest === 0) return s
   if (rest < 10) return `${s}零${digits[rest]}`
   if (rest < 20) return `${s}一十${rest % 10 ? digits[rest % 10] : ""}`

@@ -42,7 +42,7 @@ const kindInfo = computed(() => {
 
 async function shareFriend() {
   // #ifdef APP-PLUS
-  ;(uni as any).share({
+  (uni as any).share({
     provider: 'weixin',
     scene: 'WXSceneSession',
     type: 0,
@@ -64,7 +64,7 @@ async function shareFriend() {
 
 function shareTimeline() {
   // #ifdef APP-PLUS
-  ;(uni as any).share({
+  (uni as any).share({
     provider: 'weixin',
     scene: 'WXSceneTimeline',
     type: 0,

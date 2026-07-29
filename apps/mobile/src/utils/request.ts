@@ -394,7 +394,7 @@ export function uploadImage(filePath: string, _retried = false): Promise<string>
           } else {
             reject(new Error(body?.message || `上传失败(${res.statusCode})`))
           }
-        } catch (e) {
+        } catch (_e) {
           reject(new Error('上传响应解析失败'))
         }
       },
@@ -438,7 +438,7 @@ export function uploadVideo(filePath: string, onProgress?: (percent: number) => 
           } else {
             reject(new Error(body?.message || `上传失败(${res.statusCode})`))
           }
-        } catch (e) {
+        } catch (_e) {
           reject(new Error('上传响应解析失败'))
         }
       },
@@ -485,7 +485,7 @@ export function uploadDocument(filePath: string, _retried = false): Promise<stri
           } else {
             reject(new Error(body?.message || `上传失败(${res.statusCode})`))
           }
-        } catch (e) {
+        } catch (_e) {
           reject(new Error('上传响应解析失败'))
         }
       },

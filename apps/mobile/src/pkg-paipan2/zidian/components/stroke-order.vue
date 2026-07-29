@@ -177,7 +177,8 @@ function play() {
         drawFrame(idx, 0)
       }
     }
-    raf ? raf(step) : setTimeout(step, 16)
+    if (raf) raf(step)
+    else setTimeout(step, 16)
   }
   step()
 }

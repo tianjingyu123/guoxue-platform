@@ -19,7 +19,7 @@
  * - 恩用仇难＝度主五行生克（生我恩/我生用/克我难/我克仇）
  */
 
-import { AstroTime, Body, GeoVector, Ecliptic, Observer, SearchRiseSet, SiderealTime } from "./astronomy/index.js"
+import { AstroTime, Body, GeoVector, Ecliptic, Observer, SearchRiseSet } from "./astronomy/index.js"
 import { Solar } from "./lunar/index.js"
 import { jieqiRangeAt, type JieqiMoment } from "./jieqi-engine"
 
@@ -317,21 +317,6 @@ function allLons(date: Date): Record<string, number> {
   }
 }
 
-/** 真上升点（东地平黄道升度，of-date）——供参考注记 */
-function ascendantLon(date: Date, longitude: number, latitude: number): number {
-  const t = new AstroTime(date)
-  const gastHours = SiderealTime(t)
-  const ramc = norm(gastHours * 15 + longitude) // 中天赤经（度）
-  const T = julianCenturies(date)
-  const eps = ((23.4392911 - 0.0130042 * T) * Math.PI) / 180
-  const ramcR = (ramc * Math.PI) / 180
-  const phiR = (latitude * Math.PI) / 180
-  const y = Math.cos(ramcR)
-  const x = -(Math.sin(ramcR) * Math.cos(eps) + Math.tan(phiR) * Math.sin(eps))
-  const asc = (Math.atan2(y, x) * 180) / Math.PI
-  return norm(asc)
-}
-
 /**
  * 立命（果老日躔起时法，与竞品一致）：
  * 以太阳所躔宫起生时支，按支序顺移至寅位安命，命度照搬日躔宫内度。
@@ -539,9 +524,6 @@ export function computeQizheng(input: QizhengInput): QizhengResult {
   const mingZhi = palaceZhiOf(mingLon)
   const mingIdx = ZHI.indexOf(mingZhi)
   const mingMansion = mansionOf(mingLon, local)
-  // 真上升点仅作参考注记
-  const ascLon = ascendantLon(local, longitude, latitude)
-
   // 安身：昼生随日、夜生随月
   const shenLon = dayNight === "昼生" ? sunLon : lons.moon
   const shenZhi = palaceZhiOf(shenLon)

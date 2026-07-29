@@ -130,7 +130,6 @@ export function tailAnalysis(raw: string): { tail: string; hits: StarHit[]; summ
   const hits = analyzeStars(tail, false)
   if (hits.length === 0) return { tail, hits, summary: "尾号组合以 0 与伏位为主，气场偏静，性格上倾向低调蓄力。" }
   const names = [...new Set(hits.map((h) => STAR_INFO[h.star].alias))].join("、")
-  const traits = hits.map((h) => STAR_INFO[h.star].trait.split("，")[0].replace(/^组合中带.*的人/, "")).join("")
   return { tail, hits, summary: `尾号四位是与你日常接触最频繁的数字，主气场为${names}。${STAR_INFO[hits[hits.length - 1].star].trait}` }
 }
 
@@ -251,7 +250,7 @@ export function lifeNumber(raw: string): LifeNumberResult | null {
   const digits = raw.replace(/\D/g, "")
   if (digits.length === 0) return null
   const steps: string[] = []
-  let cur = digits.split("").map(Number)
+  const cur = digits.split("").map(Number)
   let sum = cur.reduce((a, b) => a + b, 0)
   steps.push(`${cur.join("+")} = ${sum}`)
   while (sum >= 10 && sum !== 11 && sum !== 22 && sum !== 33) {

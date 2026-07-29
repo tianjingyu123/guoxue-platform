@@ -36,7 +36,7 @@ const results: { name: string; ok: boolean; tail: string }[] = []
 for (const s of SUITES) {
   process.stdout.write(`▶ ${s.file.replace(/^verify-|\.ts$/g, '').padEnd(16)} ${s.desc}\n`)
   try {
-    const out = execFileSync('npx', ['tsx', resolve(HERE, s.file)], {
+    const out = execFileSync('pnpm', ['exec', 'tsx', resolve(HERE, s.file)], {
       encoding: 'utf8',
       shell: process.platform === 'win32',
     })

@@ -170,12 +170,15 @@ onMounted(() => {
   io.relativeToViewport({ top: 200, bottom: 200 }).observe('.sc-full', (res: any) => {
     if (res.intersectionRatio > 0) {
       inView.value = true
-      io && io.disconnect()
+      if (io) io.disconnect()
       io = null
     }
   })
 })
-onUnmounted(() => { io && io.disconnect(); io = null })
+onUnmounted(() => {
+  if (io) io.disconnect()
+  io = null
+})
 // #endif
 // 无封面图或封面加载失败，但有可用视频源 → 用视频首帧兜底。
 // #t=0.001 让 H5 解码并绘制第一个可显示帧；不取 0.5s，严格保持“视频第一帧”口径。

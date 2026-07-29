@@ -372,7 +372,10 @@ function clearLocalDraft() {
 
 onUnload(() => {
   if (submittedClean) return
-  if (!form.title.trim() && !form.intro.trim()) { try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ } ; return }
+  if (!form.title.trim() && !form.intro.trim()) {
+    try { uni.removeStorageSync(LOCAL_DRAFT_KEY) } catch { /* noop */ }
+    return
+  }
   try {
     uni.setStorageSync(LOCAL_DRAFT_KEY, JSON.stringify({
       form: { ...form }, typeIndex: typeIndex.value, categoryIndex: categoryIndex.value, scope: scope.value,

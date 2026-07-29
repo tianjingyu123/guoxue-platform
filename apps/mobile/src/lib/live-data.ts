@@ -1910,26 +1910,22 @@ export const liveApi = {
    * 真连；search 走后端 keyword 过滤。失败/未登录 → 空列表（页面空态，不回退假商品）。
    */
   async getShopProductPool(search?: string): Promise<LivePickerProduct[]> {
-    try {
-      const q = search ? `&keyword=${encodeURIComponent(search)}` : ''
-      const r = await apiGet<unknown>(`/shop/products?status=ON_SALE&pageSize=50${q}`)
-      const arr: RawLiveShopProduct[] = Array.isArray(r)
-        ? (r as RawLiveShopProduct[])
-        : ((r as { products?: RawLiveShopProduct[]; items?: RawLiveShopProduct[]; data?: RawLiveShopProduct[] })?.products
-            ?? (r as { items?: RawLiveShopProduct[] })?.items
-            ?? (r as { data?: RawLiveShopProduct[] })?.data
-            ?? [])
-      return arr.map((p) => ({
-        id: String(p.id ?? ''),
-        name: p.title || '商品',
-        cover: (Array.isArray(p.images) && p.images[0]) || p.cover || '',
-        price: Number(p.effectivePrice ?? p.price) || 0,
-        stock: p.stock ?? 0,
-        sold: p.salesCount ?? 0,
-      }))
-    } catch (error) {
-      throw error
-    }
+    const q = search ? `&keyword=${encodeURIComponent(search)}` : ''
+    const r = await apiGet<unknown>(`/shop/products?status=ON_SALE&pageSize=50${q}`)
+    const arr: RawLiveShopProduct[] = Array.isArray(r)
+      ? (r as RawLiveShopProduct[])
+      : ((r as { products?: RawLiveShopProduct[]; items?: RawLiveShopProduct[]; data?: RawLiveShopProduct[] })?.products
+          ?? (r as { items?: RawLiveShopProduct[] })?.items
+          ?? (r as { data?: RawLiveShopProduct[] })?.data
+          ?? [])
+    return arr.map((p) => ({
+      id: String(p.id ?? ''),
+      name: p.title || '商品',
+      cover: (Array.isArray(p.images) && p.images[0]) || p.cover || '',
+      price: Number(p.effectivePrice ?? p.price) || 0,
+      stock: p.stock ?? 0,
+      sold: p.salesCount ?? 0,
+    }))
   },
 
   /** 获取评价列表 — GET /live/reviews */

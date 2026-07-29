@@ -1,5 +1,4 @@
 /** 八字结果页示例数据（从原型 result/page.tsx 1:1 迁移） */
-import { GAN_SHI_SHEN } from './bazi-constants'
 import { apiGet, apiPost, apiPostOptionalAuth } from '@/utils/request'
 
 const _mockBaziData = {

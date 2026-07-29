@@ -415,7 +415,7 @@ function renderMarkdown(content: string): string {
   return content
     .split('\n')
     .map((line) => {
-      let l = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      const l = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       if (l.startsWith('# ')) return `<div style="font-size:30rpx;font-weight:bold;margin:8rpx 0;">${l.slice(2)}</div>`
       if (l.startsWith('## ')) return `<div style="font-size:28rpx;font-weight:bold;margin:8rpx 0;">${l.slice(3)}</div>`
       if (/^\d+\.\s/.test(l)) return `<div style="margin-left:24rpx;">${l}</div>`

@@ -108,7 +108,7 @@
           <text class="card-sub">从访问到付费的转化路径</text>
           <view class="funnel">
             <view
-              v-for="(f, i) in funnelStages"
+              v-for="f in funnelStages"
               :key="f.key"
               class="fn-row"
             >

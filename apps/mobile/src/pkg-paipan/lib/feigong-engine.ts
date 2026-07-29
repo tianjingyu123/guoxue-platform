@@ -19,7 +19,6 @@ import { jieqiRangeAt, type JieqiMoment } from "./jieqi-engine"
 import {
   GANS,
   ZHIS,
-  type Gan,
   type Zhi,
   dayGanzhi,
   yearGanzhi,
@@ -37,8 +36,6 @@ const HUANGDAO_JI = new Set(["青龙", "明堂", "金匮", "天德", "玉堂", "
 
 /** 建除十二神（建起，顺行） */
 const JIANCHU_12 = ["建", "除", "满", "平", "定", "执", "破", "危", "成", "收", "开", "闭"]
-const JIANCHU_JI = new Set(["除", "定", "执", "危", "成", "开"])
-
 /** 八门（休起，顺布） */
 const MEN_8 = ["休门", "生门", "伤门", "杜门", "景门", "死门", "惊门", "开门"]
 const MEN_JI = new Set(["休门", "生门", "开门"])

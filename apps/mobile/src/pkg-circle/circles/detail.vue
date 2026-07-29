@@ -262,7 +262,8 @@ async function handleLikePost(postId: string) {
   likingPosts.add(postId)
   const next = new Set(likedPosts.value)
   const wasLiked = next.has(postId)
-  wasLiked ? next.delete(postId) : next.add(postId)
+  if (wasLiked) next.delete(postId)
+  else next.add(postId)
   likedPosts.value = next
   posts.value = posts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? -1 : 1) } : p))
   try {
@@ -270,7 +271,8 @@ async function handleLikePost(postId: string) {
   } catch {
     // 失败回滚
     const back = new Set(likedPosts.value)
-    wasLiked ? back.add(postId) : back.delete(postId)
+    if (wasLiked) back.add(postId)
+    else back.delete(postId)
     likedPosts.value = back
     posts.value = posts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? 1 : -1) } : p))
     uni.showToast({ title: '操作失败，请重试', icon: 'none' })

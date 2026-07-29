@@ -423,7 +423,6 @@ export function computeZiwei(input: ZiweiInput): ZiweiResult {
   const csDir = forward ? 1 : -1
   const changshengAt = (zhi: number) => CHANGSHENG_SEQ[M((zhi - ju.changsheng) * csDir)]
   const boshiAt = (zhi: number) => BOSHI_SEQ[M((zhi - lucun) * csDir)]
-  const jiangxing = [xianchi + 6, xianchi + 6, xianchi + 6, xianchi + 6][0] // 三合旺位=咸池+6? 校准:将星=三合局旺地
   const jiangBase = [0, 9, 6, 3, 0, 9, 6, 3, 0, 9, 6, 3][yearZhiIdx] // 申子辰将星子 巳酉丑酉 寅午戌午 亥卯未卯
   const jiangqianAt = (zhi: number) => JIANGQIAN_SEQ[M(zhi - jiangBase)]
   const suiqianAt = (zhi: number) => SUIQIAN_SEQ[M(zhi - yearZhiIdx)]
@@ -455,7 +454,8 @@ export function computeZiwei(input: ZiweiInput): ZiweiResult {
 
   const minorsAt: Record<number, string[]> = {}
   const addMinor = (zhi: number, star: string) => {
-    ;(minorsAt[zhi] ||= []).push(star)
+    const bucket = (minorsAt[zhi] ||= [])
+    bucket.push(star)
   }
   addMinor(wenchang, "文昌"); addMinor(wenqu, "文曲"); addMinor(zuofu, "左辅"); addMinor(youbi, "右弼")
   addMinor(tiankui, "天魁"); addMinor(tianyue, "天钺"); addMinor(lucun, "禄存"); addMinor(tianma, "天马")
@@ -464,7 +464,8 @@ export function computeZiwei(input: ZiweiInput): ZiweiResult {
 
   const miscAt: Record<number, string[]> = {}
   const addMisc = (zhi: number, star: string) => {
-    ;(miscAt[zhi] ||= []).push(star)
+    const bucket = (miscAt[zhi] ||= [])
+    bucket.push(star)
   }
   addMisc(TIANGUAN[lunar.yearGan], "天官"); addMisc(TIANFU_STAR[lunar.yearGan], "天福"); addMisc(TIANCHU[lunar.yearGan], "天厨")
   addMisc(hongluan, "红鸾"); addMisc(tianxi, "天喜"); addMisc(longchi, "龙池"); addMisc(fengge, "凤阁")
