@@ -82,6 +82,7 @@
     },
     {
       "files": [
+        "apps/mobile/scripts/**/*.ts",
         "apps/server/prisma/**/*.ts",
         "apps/server/scripts/**/*.ts"
       ],

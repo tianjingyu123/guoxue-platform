@@ -108,11 +108,6 @@ const F_MINORS: Record<number, string> = {
   9: "文曲庙化忌", 10: "", 11: "天马平", 0: "天魁旺", 1: "左辅庙,右弼庙", 2: "", 3: "铃星利", 4: "地劫陷",
 }
 for (const [zhi, want] of Object.entries(F_MINORS)) {
-  const got = minorNames(f, +zhi)
-    .split(",")
-    .map((s) => s)
-    .sort()
-    .join(",")
   const gotWithHua = palaceByZhi(f, +zhi).minors.map((s) => s.name + s.bright + (s.hua ? `化${s.hua}` : "")).sort().join(",")
   const w = want ? want.split(",").sort().join(",") : ""
   ok(gotWithHua === w, `吉煞@${ZW_ZHI[+zhi]}`, gotWithHua, w)
