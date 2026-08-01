@@ -13,6 +13,7 @@ let infrastructureIntake = "";
 let reportDirectory = "release-evidence";
 let expectedBranch = "";
 let expectedCommit = "";
+let releaseId = "";
 let stage = "launch";
 
 for (let index = 0; index < args.length; index += 1) {
@@ -75,6 +76,15 @@ for (let index = 0; index < args.length; index += 1) {
     index += 1;
     continue;
   }
+  if (arg === "--release-id") {
+    if (!next || next.startsWith("--")) {
+      console.error("错误：--release-id 后必须提供 8-80 位发布标识");
+      process.exit(2);
+    }
+    releaseId = next.trim();
+    index += 1;
+    continue;
+  }
   if (arg === "--stage") {
     if (!next || next.startsWith("--")) {
       console.error("错误：--stage 后必须提供 predeploy 或 launch");
@@ -110,6 +120,14 @@ if (!/^[a-f0-9]{40}$/iu.test(expectedCommit)) {
 }
 if (!["predeploy", "launch"].includes(stage)) {
   console.error("错误：--stage 仅允许 predeploy 或 launch");
+  process.exit(2);
+}
+if (releaseId && !/^[A-Za-z0-9._-]{8,80}$/u.test(releaseId)) {
+  console.error("错误：--release-id 必须是 8-80 位字母、数字、点、下划线或短横线");
+  process.exit(2);
+}
+if (stage === "launch" && !releaseId) {
+  console.error("错误：launch 阶段必须显式传入 --release-id，以绑定构建、验真与固定包证据");
   process.exit(2);
 }
 
@@ -210,8 +228,33 @@ run("使用同一份正式公开配置重建五类客户端", ["release:build:cl
 run("审计五类客户端正式域名、源码映射与配置残留", [
   "release:audit-client-artifacts",
   resolvedEnvFile,
+  "--release-id",
+  releaseId,
+  "--source-commit",
+  expectedCommit,
   "--report",
   path.join(resolvedReportDirectory, "client-artifact-audit.json"),
+]);
+
+run("独立复验五类客户端成品文件数、字节数与内容指纹", [
+  "release:verify-client-artifacts",
+  path.join(resolvedReportDirectory, "client-artifact-audit.json"),
+  "--expected-release-id",
+  releaseId,
+  "--expected-commit",
+  expectedCommit,
+  "--output",
+  path.join(resolvedReportDirectory, "client-artifact-verification.json"),
+]);
+run("生成与发布标识、源提交绑定的客户端公开配置指纹", [
+  "release:create-client-config-binding",
+  resolvedEnvFile,
+  "--release-id",
+  releaseId,
+  "--source-commit",
+  expectedCommit,
+  "--output",
+  path.join(resolvedReportDirectory, "client-config-binding.json"),
 ]);
 
 console.log("\n[full-gate] 完整上线门禁通过");

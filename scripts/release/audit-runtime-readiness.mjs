@@ -189,7 +189,7 @@ add(
 add(
   "运行时命令已进入发布工具与迁移手册",
   packageJson.includes('"release:verify:runtime": "node scripts/release/verify-runtime.mjs"') &&
-    runbook.includes("pnpm release:verify:runtime docker/.env.production") &&
+    runbook.includes("pnpm release:verify:runtime /opt/guoxue/shared/.env.production") &&
     runbook.includes("正常生产切流不得使用 `--allow-degraded`"),
   "值班人员必须能从统一命令执行，并明确预览降级不能冒充上线通过",
 );
