@@ -495,9 +495,11 @@ const definitions = [
           dnsObservationMaps.every(({ byHost }) =>
             applicationHosts.every((hostname) => {
               const record = byHost.get(hostname);
+              const recordAddresses = Array.isArray(record?.addresses) ? record.addresses : [];
               return (
                 record &&
-                ((record.addresses || []).some((address) => clbVips.has(address)) ||
+                ((recordAddresses.length > 0 &&
+                  recordAddresses.every((address) => clbVips.has(address))) ||
                   (clbDomain && dnsRecordTargets(record, clbDomain)))
               );
             }),

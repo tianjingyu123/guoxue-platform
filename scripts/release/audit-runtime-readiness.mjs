@@ -211,6 +211,7 @@ add(
       "公网 DNS 多解析器一致性证据无效",
       "系统 DNS 快照与多解析器证据不一致",
       '"system", "dnspod", "alidns"',
+      "recordAddresses.every",
       "腾讯云 CLB/CDN 目标",
       "loadBalancerVips",
       "cdnCname",

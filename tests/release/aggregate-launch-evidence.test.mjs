@@ -467,6 +467,28 @@ test("系统 DNS 兼容快照与多解析器证据不一致时阻断上线", asy
   );
 });
 
+test("直连域名混入旧地址时即使同时命中新 CLB 也阻断上线", async (t) => {
+  const mixedEndpoints = validDnsEndpoints();
+  mixedEndpoints[0] = {
+    hostname: "api.new-guoxue.test",
+    terminalHostname: "api.new-guoxue.test",
+    cnameChain: [],
+    addresses: ["43.132.1.9", "43.132.9.9"],
+  };
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": {
+      dnsEndpoints: mixedEndpoints,
+      dnsObservations: dnsObservations(mixedEndpoints),
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
+    /公网 DNS 未指向本次腾讯云 CLB\/CDN 目标/u,
+  );
+});
+
 test("现场环境证据过期时阻断上线", async (t) => {
   const { result, decision } = await runScenario(t, {
     "environment-readiness.json": { generatedAt: freshTime(-30) },
