@@ -14,6 +14,14 @@ function normalizeHostname(value) {
   return String(value || "").trim().toLowerCase().replace(/\.$/u, "");
 }
 
+function normalizeAddressRecords(records) {
+  return (records || []).map((record) =>
+    typeof record === "string"
+      ? { address: record, ttl: null }
+      : { address: String(record?.address || ""), ttl: Number(record?.ttl) },
+  );
+}
+
 function isPublicIpv4(address) {
   const parts = address.split(".").map(Number);
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
@@ -84,6 +92,8 @@ export async function probePublicDns(hostname, options = {}) {
   const resolver = options.resolver ?? dns;
   const start = normalizeHostname(hostname);
   assert(start && isIP(start) === 0, "公网 DNS 探测必须使用域名，不能使用 IP");
+  const maximumTtlSeconds = Number(options.maximumTtlSeconds);
+  const verifyTtl = Number.isInteger(maximumTtlSeconds) && maximumTtlSeconds > 0;
 
   const cnameChain = [];
   const visited = new Set([start]);
@@ -104,17 +114,79 @@ export async function probePublicDns(hostname, options = {}) {
   }
 
   const [ipv4, ipv6] = await Promise.all([
-    optionalResolve(() => resolver.resolve4(start), ["ENODATA", "ENOTFOUND", "ENOENT"]),
-    optionalResolve(() => resolver.resolve6(start), ["ENODATA", "ENOTFOUND", "ENOENT"]),
+    optionalResolve(
+      () => resolver.resolve4(start, verifyTtl ? { ttl: true } : undefined),
+      ["ENODATA", "ENOTFOUND", "ENOENT"],
+    ),
+    optionalResolve(
+      () => resolver.resolve6(start, verifyTtl ? { ttl: true } : undefined),
+      ["ENODATA", "ENOTFOUND", "ENOENT"],
+    ),
   ]);
-  const addresses = [...new Set([...ipv4, ...ipv6].map(String))].sort();
+  const addressRecords = normalizeAddressRecords([...ipv4, ...ipv6]);
+  const addresses = [...new Set(addressRecords.map((record) => record.address))].sort();
   assert(addresses.length > 0, `域名 ${start} 未解析到公网地址`);
   assert(addresses.every(isPublicAddress), `域名 ${start} 解析到私网、回环或保留地址`);
+
+  let ttlSeconds;
+  if (verifyTtl) {
+    const ttls = addressRecords.map((record) => record.ttl);
+    assert(
+      ttls.length > 0 && ttls.every((ttl) => Number.isInteger(ttl) && ttl >= 0),
+      `域名 ${start} 未返回可核验的 A/AAAA TTL`,
+    );
+    ttlSeconds = { minimum: Math.min(...ttls), maximum: Math.max(...ttls) };
+    assert(
+      ttlSeconds.maximum <= maximumTtlSeconds,
+      `域名 ${start} 的剩余 TTL ${ttlSeconds.maximum}s 超过切流上限 ${maximumTtlSeconds}s`,
+    );
+  }
 
   return {
     hostname: start,
     terminalHostname: current,
     cnameChain,
     addresses,
+    ...(ttlSeconds ? { ttlSeconds } : {}),
+  };
+}
+
+export async function probeAuthoritativeDns(hostname, options = {}) {
+  const resolver = options.resolver ?? dns;
+  const start = normalizeHostname(hostname);
+  assert(start && isIP(start) === 0, "权威 DNS 探测必须使用域名，不能使用 IP");
+  const expectedNameServers = [...new Set(
+    (options.expectedNameServers || []).map(normalizeHostname).filter(Boolean),
+  )].sort();
+  assert(expectedNameServers.length >= 2, "权威 DNS 探测至少需要两个期望 NS");
+
+  const labels = start.split(".");
+  let zone = "";
+  let soa;
+  for (let index = 0; index <= labels.length - 2; index += 1) {
+    const candidate = labels.slice(index).join(".");
+    try {
+      soa = await resolver.resolveSoa(candidate);
+      zone = candidate;
+      break;
+    } catch (error) {
+      if (!["ENODATA", "ENOTFOUND", "ENOENT", "ENODOMAIN"].includes(error?.code)) throw error;
+    }
+  }
+  assert(zone && soa, `域名 ${start} 未找到可核验的权威 SOA`);
+  const nameServers = [...new Set(
+    (await resolver.resolveNs(zone)).map(normalizeHostname).filter(Boolean),
+  )].sort();
+  assert(nameServers.length >= 2, `DNS 区域 ${zone} 的权威 NS 少于两个`);
+  assert(
+    JSON.stringify(nameServers) === JSON.stringify(expectedNameServers),
+    `DNS 区域 ${zone} 的权威 NS 与接入清单不一致`,
+  );
+
+  return {
+    hostname: start,
+    zone,
+    soaPrimary: normalizeHostname(soa.nsname),
+    nameServers,
   };
 }

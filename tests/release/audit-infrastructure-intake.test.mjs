@@ -57,6 +57,7 @@ function completeIntake() {
       assetOrigin: "https://static.guoxue.cn",
       dnsProvider: "DNSPod",
       ttlSeconds: 300,
+      authoritativeNameServers: ["ns1.dnspod.net", "ns2.dnspod.net"],
       certificateProvider: "腾讯云 SSL",
       certificateType: "free",
       certificateValidationMode: "dns-auto",
@@ -469,6 +470,34 @@ test("腾讯云证书使用第三方 DNS 时不得登记自动 DNS 验证", asyn
   } finally {
     await rm(invalid.root, { recursive: true, force: true });
     await rm(manual.root, { recursive: true, force: true });
+  }
+});
+
+test("权威 DNS 缺少双 NS 或仍是占位值时阻断", async () => {
+  const missingIntake = completeIntake();
+  missingIntake.domains.authoritativeNameServers = ["ns1.dnspod.net"];
+  const missing = await runAudit(missingIntake, "procurement");
+  const placeholderIntake = completeIntake();
+  placeholderIntake.domains.authoritativeNameServers = [
+    "pending-ns1.example.com",
+    "pending-ns2.example.com",
+  ];
+  const placeholder = await runAudit(placeholderIntake, "procurement");
+  try {
+    assert.notEqual(missing.result.status, 0);
+    assert.notEqual(placeholder.result.status, 0);
+    for (const audit of [missing, placeholder]) {
+      assert.match(
+        audit.report.checks
+          .filter((item) => !item.pass)
+          .map((item) => `${item.name} ${item.detail}`)
+          .join("\n"),
+        /权威 DNS 双 NS 委派已规划/u,
+      );
+    }
+  } finally {
+    await rm(missing.root, { recursive: true, force: true });
+    await rm(placeholder.root, { recursive: true, force: true });
   }
 });
 

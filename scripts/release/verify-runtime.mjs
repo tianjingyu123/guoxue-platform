@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import {
   createPublicDnsResolver,
   defaultPublicDnsResolvers,
+  probeAuthoritativeDns,
   probePublicDns,
 } from "./public-dns.mjs";
 import { probePublicTls } from "./public-tls.mjs";
@@ -18,6 +20,11 @@ const expectedReleaseFlag = args.indexOf("--expected-release-id");
 const expectedReleaseId =
   expectedReleaseFlag >= 0 && args[expectedReleaseFlag + 1]
     ? args[expectedReleaseFlag + 1].trim()
+    : null;
+const infrastructureIntakeFlag = args.indexOf("--infrastructure-intake");
+const infrastructureIntakeFile =
+  infrastructureIntakeFlag >= 0 && args[infrastructureIntakeFlag + 1]
+    ? path.resolve(args[infrastructureIntakeFlag + 1])
     : null;
 if (expectedReleaseFlag >= 0 && !expectedReleaseId) {
   console.error("运行时验收失败：--expected-release-id 后必须提供发布标识");
@@ -32,7 +39,8 @@ const positionalArgs = args.filter((arg, index) => {
   if (arg.startsWith("--")) return false;
   return (
     (reportFlag < 0 || index !== reportFlag + 1) &&
-    (expectedReleaseFlag < 0 || index !== expectedReleaseFlag + 1)
+    (expectedReleaseFlag < 0 || index !== expectedReleaseFlag + 1) &&
+    (infrastructureIntakeFlag < 0 || index !== infrastructureIntakeFlag + 1)
   );
 });
 const envFile = path.resolve(positionalArgs[0] || "docker/.env.production");
@@ -95,7 +103,18 @@ const results = [];
 let observedReleaseId = null;
 let dnsEndpoints = [];
 let dnsObservations = [];
+let dnsAuthorityObservations = [];
 let tlsCertificates = [];
+const uniquePublicHostnames = [...new Set(
+  [apiUrl, h5Url, new URL(adminHref), assetUrl].map((url) => url.hostname),
+)];
+const dnsResolvers = [
+  { id: "system", resolver: undefined },
+  ...defaultPublicDnsResolvers.map((item) => ({
+    id: item.id,
+    resolver: createPublicDnsResolver(item.servers),
+  })),
+];
 
 async function request(url, options = {}) {
   const startedAt = Date.now();
@@ -137,25 +156,56 @@ function unwrapPayload(payload) {
   }
   return payload;
 }
+if (!infrastructureIntakeFile || !fs.existsSync(infrastructureIntakeFile)) {
+  console.error(
+    "运行时验收失败：必须通过 --infrastructure-intake 提供实际新基础设施接入清单",
+  );
+  process.exit(2);
+}
+
+let infrastructureIntakeRaw;
+let infrastructureIntake;
+try {
+  infrastructureIntakeRaw = fs.readFileSync(infrastructureIntakeFile, "utf8");
+  infrastructureIntake = JSON.parse(infrastructureIntakeRaw);
+} catch (error) {
+  console.error(`运行时验收失败：无法读取新基础设施接入清单：${error.message}`);
+  process.exit(2);
+}
+const plannedDnsTtlSeconds = Number(infrastructureIntake?.domains?.ttlSeconds);
+const authoritativeNameServers = [...new Set(
+  (Array.isArray(infrastructureIntake?.domains?.authoritativeNameServers)
+    ? infrastructureIntake.domains.authoritativeNameServers
+    : [])
+    .map((value) => String(value || "").trim().toLowerCase().replace(/\.$/u, ""))
+    .filter(Boolean),
+)].sort();
+if (
+  !Number.isInteger(plannedDnsTtlSeconds) ||
+  plannedDnsTtlSeconds < 60 ||
+  plannedDnsTtlSeconds > 600 ||
+  authoritativeNameServers.length < 2
+) {
+  console.error("运行时验收失败：接入清单缺少有效的 60-600 秒 TTL 或双权威 NS");
+  process.exit(2);
+}
+const infrastructureIntakeSha256 = createHash("sha256")
+  .update(infrastructureIntakeRaw)
+  .digest("hex");
 
 await check("公网 DNS 解析与地址安全", async () => {
-  const hostnames = [apiUrl, h5Url, new URL(adminHref), assetUrl]
-    .map((url) => url.hostname);
-  const uniqueHostnames = [...new Set(hostnames)];
-  const resolvers = [
-    { id: "system", resolver: undefined },
-    ...defaultPublicDnsResolvers.map((item) => ({
-      id: item.id,
-      resolver: createPublicDnsResolver(item.servers),
-    })),
-  ];
   dnsObservations = await Promise.all(
-    resolvers.map(async ({ id, resolver }) => {
+    dnsResolvers.map(async ({ id, resolver }) => {
       try {
         return {
           resolver: id,
           endpoints: await Promise.all(
-            uniqueHostnames.map((hostname) => probePublicDns(hostname, { resolver })),
+            uniquePublicHostnames.map((hostname) =>
+              probePublicDns(hostname, {
+                resolver,
+                maximumTtlSeconds: plannedDnsTtlSeconds,
+              }),
+            ),
           ),
         };
       } catch (error) {
@@ -165,6 +215,29 @@ await check("公网 DNS 解析与地址安全", async () => {
   );
   dnsEndpoints = dnsObservations.find((item) => item.resolver === "system")?.endpoints || [];
   return `${dnsObservations.length} 路独立解析器均覆盖 ${dnsEndpoints.length} 个唯一域名并返回安全公网地址`;
+});
+
+await check("权威 DNS 委派与切流 TTL 收敛", async () => {
+  dnsAuthorityObservations = await Promise.all(
+    dnsResolvers.map(async ({ id, resolver }) => {
+      try {
+        return {
+          resolver: id,
+          endpoints: await Promise.all(
+            uniquePublicHostnames.map((hostname) =>
+              probeAuthoritativeDns(hostname, {
+                resolver,
+                expectedNameServers: authoritativeNameServers,
+              }),
+            ),
+          ),
+        };
+      } catch (error) {
+        throw new Error(`${id} 权威 DNS 验收失败：${error.message}`);
+      }
+    }),
+  );
+  return `${dnsAuthorityObservations.length} 路解析器均确认双 NS 委派，A/AAAA TTL 不高于 ${plannedDnsTtlSeconds}s`;
 });
 
 await check("公网 TLS 证书链、域名与有效期", async () => {
@@ -320,9 +393,13 @@ const report = {
   allowDegraded,
   expectedReleaseId,
   observedReleaseId,
-  dnsObservationMode: "system-plus-public-v1",
+  infrastructureIntakeSha256,
+  dnsObservationMode: "system-plus-public-authority-v2",
+  dnsTtlPolicy: { maximumSeconds: plannedDnsTtlSeconds },
+  authoritativeNameServers,
   dnsEndpoints,
   dnsObservations,
+  dnsAuthorityObservations,
   tlsCertificates,
   summary: { passed: results.length - failed.length, failed: failed.length, total: results.length },
   results,

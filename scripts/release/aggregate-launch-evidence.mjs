@@ -75,14 +75,32 @@ function dnsRecordTargets(record, expected) {
     .includes(target);
 }
 
-function isValidDnsRecord(record) {
+function isValidDnsRecord(record, maximumTtlSeconds = 600) {
   return (
     Boolean(normalizeHostname(record?.hostname)) &&
     Boolean(normalizeHostname(record?.terminalHostname)) &&
     Array.isArray(record?.cnameChain) &&
     Array.isArray(record?.addresses) &&
     record.addresses.length > 0 &&
-    record.addresses.every((address) => isPublicAddress(address))
+    record.addresses.every((address) => isPublicAddress(address)) &&
+    Number.isInteger(record?.ttlSeconds?.minimum) &&
+    record.ttlSeconds.minimum >= 0 &&
+    Number.isInteger(record?.ttlSeconds?.maximum) &&
+    record.ttlSeconds.maximum >= record.ttlSeconds.minimum &&
+    record.ttlSeconds.maximum <= maximumTtlSeconds
+  );
+}
+
+function isValidDnsAuthority(record, expectedNameServers) {
+  const nameservers = [...new Set(
+    (record?.nameServers || []).map(normalizeHostname).filter(Boolean),
+  )].sort();
+  return (
+    Boolean(normalizeHostname(record?.hostname)) &&
+    Boolean(normalizeHostname(record?.zone)) &&
+    Boolean(normalizeHostname(record?.soaPrimary)) &&
+    nameservers.length >= 2 &&
+    JSON.stringify(nameservers) === JSON.stringify(expectedNameServers)
   );
 }
 
@@ -94,6 +112,20 @@ function dnsEvidenceFingerprint(entries) {
         terminalHostname: normalizeHostname(record?.terminalHostname),
         cnameChain: (record?.cnameChain || []).map(normalizeHostname),
         addresses: [...(record?.addresses || [])].sort(),
+        ttlSeconds: record?.ttlSeconds,
+      }))
+      .sort((left, right) => left.hostname.localeCompare(right.hostname)),
+  );
+}
+
+function dnsAuthorityFingerprint(entries) {
+  return JSON.stringify(
+    entries
+      .map((record) => ({
+        hostname: normalizeHostname(record?.hostname),
+        zone: normalizeHostname(record?.zone),
+        soaPrimary: normalizeHostname(record?.soaPrimary),
+        nameServers: [...(record?.nameServers || [])].map(normalizeHostname).sort(),
       }))
       .sort((left, right) => left.hostname.localeCompare(right.hostname)),
   );
@@ -416,6 +448,26 @@ const definitions = [
         .map((key) => endpointHostname(data.endpoints?.[key]))
         .filter(Boolean);
       const uniqueEndpointHosts = [...new Set(endpointHosts)];
+      const maximumTtlSeconds = Number(data.dnsTtlPolicy?.maximumSeconds);
+      const expectedNameServers = [...new Set(
+        (Array.isArray(data.authoritativeNameServers) ? data.authoritativeNameServers : [])
+          .map(normalizeHostname)
+          .filter(Boolean),
+      )].sort();
+      if (
+        !Number.isInteger(maximumTtlSeconds) ||
+        maximumTtlSeconds < 60 ||
+        maximumTtlSeconds > 600 ||
+        expectedNameServers.length < 2
+      ) {
+        problems.push("公网 DNS TTL 或权威 NS 策略证据无效");
+      }
+      if (
+        !/^[a-f0-9]{64}$/u.test(String(data.infrastructureIntakeSha256 || "")) ||
+        data.infrastructureIntakeSha256 !== sourceData.infrastructureIntake?.inputSha256
+      ) {
+        problems.push("运行时 DNS 验收未绑定本次新基础设施接入清单");
+      }
       const dnsEntries = Array.isArray(data.dnsEndpoints) ? data.dnsEndpoints : [];
       const dnsByHost = new Map(
         dnsEntries.map((item) => [normalizeHostname(item?.hostname), item]),
@@ -424,7 +476,7 @@ const definitions = [
         dnsEntries.length === 0 ||
         dnsByHost.size !== dnsEntries.length ||
         uniqueEndpointHosts.some((hostname) => !dnsByHost.has(hostname)) ||
-        dnsEntries.some((item) => !isValidDnsRecord(item))
+        dnsEntries.some((item) => !isValidDnsRecord(item, maximumTtlSeconds))
       ) {
         problems.push("公网 DNS 解析、CNAME 链或地址安全证据无效");
       }
@@ -440,7 +492,7 @@ const definitions = [
       });
       const resolverIds = dnsObservationMaps.map((item) => item.resolver);
       if (
-        data.dnsObservationMode !== "system-plus-public-v1" ||
+        data.dnsObservationMode !== "system-plus-public-authority-v2" ||
         resolverIds.length !== expectedDnsResolvers.length ||
         new Set(resolverIds).size !== resolverIds.length ||
         expectedDnsResolvers.some((resolver) => !resolverIds.includes(resolver)) ||
@@ -449,7 +501,7 @@ const definitions = [
             entries.length === 0 ||
             byHost.size !== entries.length ||
             uniqueEndpointHosts.some((hostname) => !byHost.has(hostname)) ||
-            entries.some((item) => !isValidDnsRecord(item)),
+            entries.some((item) => !isValidDnsRecord(item, maximumTtlSeconds)),
         )
       ) {
         problems.push("公网 DNS 多解析器一致性证据无效");
@@ -462,6 +514,36 @@ const definitions = [
         dnsEvidenceFingerprint(systemDnsObservation.entries) !== dnsEvidenceFingerprint(dnsEntries)
       ) {
         problems.push("系统 DNS 快照与多解析器证据不一致");
+      }
+      const dnsAuthorityObservations = Array.isArray(data.dnsAuthorityObservations)
+        ? data.dnsAuthorityObservations
+        : [];
+      const authorityMaps = dnsAuthorityObservations.map((observation) => {
+        const entries = Array.isArray(observation?.endpoints) ? observation.endpoints : [];
+        return {
+          resolver: String(observation?.resolver || ""),
+          entries,
+          byHost: new Map(entries.map((item) => [normalizeHostname(item?.hostname), item])),
+        };
+      });
+      const authorityResolverIds = authorityMaps.map((item) => item.resolver);
+      const authorityFingerprints = authorityMaps.map((item) =>
+        dnsAuthorityFingerprint(item.entries),
+      );
+      if (
+        authorityResolverIds.length !== expectedDnsResolvers.length ||
+        new Set(authorityResolverIds).size !== authorityResolverIds.length ||
+        expectedDnsResolvers.some((resolver) => !authorityResolverIds.includes(resolver)) ||
+        authorityMaps.some(
+          ({ entries, byHost }) =>
+            entries.length === 0 ||
+            byHost.size !== entries.length ||
+            uniqueEndpointHosts.some((hostname) => !byHost.has(hostname)) ||
+            entries.some((item) => !isValidDnsAuthority(item, expectedNameServers)),
+        ) ||
+        new Set(authorityFingerprints).size !== 1
+      ) {
+        problems.push("权威 DNS 委派或多解析器一致性证据无效");
       }
       if (
         !Array.isArray(data.tlsCertificates) ||

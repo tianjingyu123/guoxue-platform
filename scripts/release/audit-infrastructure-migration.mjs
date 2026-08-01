@@ -166,16 +166,24 @@ const publicDnsProbe = read("scripts/release/public-dns.mjs");
 const publicDnsTest = read("tests/release/public-dns.test.mjs");
 const publicRuntimeVerifier = read("scripts/release/verify-runtime.mjs");
 const dnsEvidenceAggregator = read("scripts/release/aggregate-launch-evidence.mjs");
+const infrastructureIntakeAuditor = read("scripts/release/audit-infrastructure-intake.mjs");
+const infrastructureIntakeExample = read("config/release/infrastructure-intake.example.json");
+const productionCutoverDnsVerifier = read("scripts/release/verify-production-cutover.sh");
 add(
   "公网 DNS 必须绑定本次 CLB 与 CDN 目标",
   hasAll(publicDnsProbe, [
     "defaultPublicDnsResolvers",
     "createPublicDnsResolver",
+    "probeAuthoritativeDns",
     'id: "dnspod"',
     'id: "alidns"',
     "resolveCname",
+    "resolveSoa",
+    "resolveNs",
     "resolve4",
     "resolve6",
+    "maximumTtlSeconds",
+    "ttlSeconds",
     "isPublicAddress",
     "cnameChain",
   ]) &&
@@ -184,13 +192,29 @@ add(
       "公网 DNS 解析与地址安全",
       "dnsEndpoints",
       "dnsObservations",
-      'dnsObservationMode: "system-plus-public-v1"',
+      "dnsAuthorityObservations",
+      "infrastructureIntakeSha256",
+      "authoritativeNameServers",
+      'dnsObservationMode: "system-plus-public-authority-v2"',
+      "权威 DNS 委派与切流 TTL 收敛",
+    ]) &&
+    hasAll(infrastructureIntakeAuditor, [
+      "authoritativeNameServers",
+      "权威 DNS 双 NS 委派已规划",
+    ]) &&
+    infrastructureIntakeExample.includes('"authoritativeNameServers"') &&
+    hasAll(productionCutoverDnsVerifier, [
+      '--infrastructure-intake "$INFRASTRUCTURE_INTAKE_FILE"',
+      'verify-runtime.mjs" "$ENV_FILE"',
     ]) &&
     hasAll(dnsEvidenceAggregator, [
       "loadBalancerVips",
       "cdnCname",
       "公网 DNS 多解析器一致性证据无效",
       "系统 DNS 快照与多解析器证据不一致",
+      "公网 DNS TTL 或权威 NS 策略证据无效",
+      "运行时 DNS 验收未绑定本次新基础设施接入清单",
+      "权威 DNS 委派或多解析器一致性证据无效",
       '"system", "dnspod", "alidns"',
       "recordAddresses.every",
       "公网 DNS 未指向本次腾讯云 CLB/CDN 目标",
@@ -200,9 +224,11 @@ add(
       "多路公网解析器使用受控 IP 并拒绝无效服务器",
       "DNS 探测保留 CNAME 链和去重后的公网地址",
       "DNS 探测阻断私网解析、IP 入口和 CNAME 循环",
+      "切流 DNS 探测记录真实 TTL 并阻断尚未收敛的旧高 TTL",
+      "权威 DNS 探测从子域向上定位区域并严格核对双 NS 委派",
     ]) &&
     read("package.json").includes('"release:test-public-dns"'),
-  "域名能访问不足以证明切流成功；上线证据必须把公网解析结果与腾讯云返回的 CLB 公网 VIP、分配域名及 CDN CNAME 交叉校验",
+  "域名能访问不足以证明切流成功；上线证据必须核对双 NS 委派与真实 TTL，并把公网解析结果与本次接入清单及 CLB/CDN 目标交叉校验",
 );
 
 const bootstrap = read(shellScripts[0]);
@@ -1369,6 +1395,7 @@ add(
       '--expected-commit "$SOURCE_COMMIT"',
       "check-env.mjs",
       "verify-runtime.mjs",
+      '--infrastructure-intake "$INFRASTRUCTURE_INTAKE_FILE"',
       "--expected-release-id",
       "audit-release-retention.mjs",
       "aggregate-launch-evidence.mjs",

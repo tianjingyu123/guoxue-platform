@@ -90,6 +90,7 @@ $NODE_BIN -- "$RELEASE_DIR/scripts/release/audit-host-preflight.mjs" \
   --release-id "$RELEASE_ID" --allow-occupied-ports \
   --report "$REPORT_DIR/host-preflight-readiness.json"
 $NODE_BIN "$RELEASE_DIR/scripts/release/verify-runtime.mjs" "$ENV_FILE" \
+  --infrastructure-intake "$INFRASTRUCTURE_INTAKE_FILE" \
   --expected-release-id "$RELEASE_ID" \
   --report "$REPORT_DIR/runtime-verification.json"
 $NODE_BIN "$RELEASE_DIR/scripts/release/audit-release-retention.mjs" \

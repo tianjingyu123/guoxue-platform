@@ -46,6 +46,10 @@
     "assetOrigin": "https://static.example.com",
     "dnsProvider": "DNSPod",
     "ttlSeconds": 300,
+    "authoritativeNameServers": [
+      "pending-ns1.example.com",
+      "pending-ns2.example.com"
+    ],
     "certificateProvider": "pending",
     "certificateType": "pending",
     "certificateValidationMode": "pending",

@@ -18,6 +18,7 @@ const verifier = read("scripts/release/verify-runtime.mjs");
 const publicDns = read("scripts/release/public-dns.mjs");
 const publicTls = read("scripts/release/public-tls.mjs");
 const evidenceAggregator = read("scripts/release/aggregate-launch-evidence.mjs");
+const productionCutover = read("scripts/release/verify-production-cutover.sh");
 const packageJson = read("package.json");
 const runbook = read("docs/operations/服务器数据库域名迁移手册-20260728.md");
 const compose = read("docker/docker-compose.yml");
@@ -193,30 +194,46 @@ add(
     hasAll(publicDns, [
       "defaultPublicDnsResolvers",
       "createPublicDnsResolver",
+      "probeAuthoritativeDns",
       "resolveCname",
+      "resolveSoa",
+      "resolveNs",
       "resolve4",
       "resolve6",
       "cnameChain",
       "terminalHostname",
+      "maximumTtlSeconds",
+      "ttlSeconds",
       "isPublicAddress",
     ]) &&
     hasAll(verifier, [
-      'dnsObservationMode: "system-plus-public-v1"',
+      'dnsObservationMode: "system-plus-public-authority-v2"',
       "dnsObservations",
+      "dnsAuthorityObservations",
+      "infrastructureIntakeSha256",
+      "authoritativeNameServers",
+      "权威 DNS 委派与切流 TTL 收敛",
       'id: "system"',
       "defaultPublicDnsResolvers",
+    ]) &&
+    hasAll(productionCutover, [
+      '--infrastructure-intake "$INFRASTRUCTURE_INTAKE_FILE"',
+      'verify-runtime.mjs" "$ENV_FILE"',
     ]) &&
     hasAll(evidenceAggregator, [
       "公网 DNS 解析、CNAME 链或地址安全证据无效",
       "公网 DNS 多解析器一致性证据无效",
       "系统 DNS 快照与多解析器证据不一致",
+      "公网 DNS TTL 或权威 NS 策略证据无效",
+      "运行时 DNS 验收未绑定本次新基础设施接入清单",
+      "权威 DNS 委派或多解析器一致性证据无效",
       '"system", "dnspod", "alidns"',
       "recordAddresses.every",
       "腾讯云 CLB/CDN 目标",
       "loadBalancerVips",
       "cdnCname",
     ]),
-  "最终上线必须证明所有公网端点解析到安全公网地址，并将 API/H5/后台和静态资源分别绑定本次 CLB 与 CDN，而不是误验旧环境",
+  "最终上线必须证明所有公网端点解析到安全公网地址、三路解析器看到相同双 NS 委派且 TTL 已收敛，并把报告绑定本次接入清单与 CLB/CDN，不能误验旧环境",
 );
 
 add(
@@ -253,6 +270,7 @@ add(
   "运行时命令已进入发布工具与迁移手册",
   packageJson.includes('"release:verify:runtime": "node scripts/release/verify-runtime.mjs"') &&
     runbook.includes("pnpm release:verify:runtime /opt/guoxue/shared/.env.production") &&
+    runbook.includes("--infrastructure-intake /opt/guoxue/shared/infrastructure-intake.json") &&
     runbook.includes("正常生产切流不得使用 `--allow-degraded`"),
   "值班人员必须能从统一命令执行，并明确预览降级不能冒充上线通过",
 );

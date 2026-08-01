@@ -76,6 +76,7 @@ const normalizeUrl = (value) => {
     return "";
   }
 };
+const normalizeHostname = (value) => text(value).toLowerCase().replace(/\.$/u, "");
 const parseEnv = (content) => {
   const values = new Map();
   for (const rawLine of content.split(/\r?\n/u)) {
@@ -207,6 +208,22 @@ add(
     Number(domains.ttlSeconds) <= 600,
   "切流前 TTL 应设置为 60-600 秒并明确 DNS 服务商",
 );
+const authoritativeNameServers = [...new Set(
+  (Array.isArray(domains.authoritativeNameServers) ? domains.authoritativeNameServers : [])
+    .map(normalizeHostname)
+    .filter(Boolean),
+)].sort();
+add(
+  "权威 DNS 双 NS 委派已规划",
+  authoritativeNameServers.length >= 2 &&
+    authoritativeNameServers.every(
+      (hostname) =>
+        hostname.includes(".") &&
+        !isPlaceholder(hostname) &&
+        !/[^a-z0-9.-]/u.test(hostname),
+    ),
+  "必须登记至少两个真实、互不重复的权威 NS；最终切流将从公网逐路核验实际委派",
+);
 const certificateType = text(domains.certificateType).toLowerCase();
 const certificateValidationMode = text(domains.certificateValidationMode).toLowerCase();
 const certificateDeploymentMode = text(domains.certificateDeploymentMode).toLowerCase();
@@ -287,6 +304,7 @@ if (resourceReady) {
       domains.h5Url,
       domains.adminUrl,
       domains.assetOrigin,
+      ...authoritativeNameServers,
       domains.certificateProvider,
       domains.certificateType,
       domains.certificateValidationMode,

@@ -22,14 +22,32 @@ function validDnsEndpoints() {
       terminalHostname: "lb.new-guoxue.test",
       cnameChain: ["lb.new-guoxue.test"],
       addresses: ["43.132.1.9"],
+      ttlSeconds: { minimum: 180, maximum: 240 },
     },
     {
       hostname: "assets.new-guoxue.test",
       terminalHostname: "assets.new-guoxue.test.cdn.dnsv1.com",
       cnameChain: ["assets.new-guoxue.test.cdn.dnsv1.com"],
       addresses: ["43.132.2.9"],
+      ttlSeconds: { minimum: 120, maximum: 180 },
     },
   ];
+}
+
+function validDnsAuthorities() {
+  return ["api.new-guoxue.test", "assets.new-guoxue.test"].map((hostname) => ({
+    hostname,
+    zone: "new-guoxue.test",
+    soaPrimary: "ns1.dnspod.net",
+    nameServers: ["ns1.dnspod.net", "ns2.dnspod.net"],
+  }));
+}
+
+function dnsAuthorityObservations(endpoints = validDnsAuthorities()) {
+  return ["system", "dnspod", "alidns"].map((resolver) => ({
+    resolver,
+    endpoints: structuredClone(endpoints),
+  }));
 }
 
 function dnsObservations(endpoints = validDnsEndpoints()) {
@@ -177,9 +195,13 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
         admin: "https://api.new-guoxue.test/admin/",
         asset: "https://assets.new-guoxue.test",
       },
-      dnsObservationMode: "system-plus-public-v1",
+      infrastructureIntakeSha256: "9".repeat(64),
+      dnsObservationMode: "system-plus-public-authority-v2",
+      dnsTtlPolicy: { maximumSeconds: 300 },
+      authoritativeNameServers: ["ns1.dnspod.net", "ns2.dnspod.net"],
       dnsEndpoints: validDnsEndpoints(),
       dnsObservations: dnsObservations(),
+      dnsAuthorityObservations: dnsAuthorityObservations(),
       summary: { failed: 0 },
       results: [{ name: "health", status: "PASS", detail: "ok" }],
       tlsCertificates: [
@@ -486,6 +508,49 @@ test("直连域名混入旧地址时即使同时命中新 CLB 也阻断上线", 
   assert.match(
     decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
     /公网 DNS 未指向本次腾讯云 CLB\/CDN 目标/u,
+  );
+});
+
+test("任一路公网解析仍保留高 TTL 时阻断切流", async (t) => {
+  const highTtlEndpoints = validDnsEndpoints();
+  highTtlEndpoints[0].ttlSeconds = { minimum: 720, maximum: 900 };
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": {
+      dnsEndpoints: highTtlEndpoints,
+      dnsObservations: dnsObservations(highTtlEndpoints),
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
+    /公网 DNS 解析、CNAME 链或地址安全证据无效|公网 DNS 多解析器一致性证据无效/u,
+  );
+});
+
+test("任一路仍看到旧权威 NS 委派时阻断切流", async (t) => {
+  const observations = dnsAuthorityObservations();
+  observations[2].endpoints[0].nameServers = ["old1.example.net", "old2.example.net"];
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": { dnsAuthorityObservations: observations },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
+    /权威 DNS 委派或多解析器一致性证据无效/u,
+  );
+});
+
+test("运行时 DNS 报告使用另一份接入清单时阻断切流", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": { infrastructureIntakeSha256: "8".repeat(64) },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
+    /运行时 DNS 验收未绑定本次新基础设施接入清单/u,
   );
 });
 

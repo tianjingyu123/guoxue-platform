@@ -4,6 +4,7 @@ import {
   createPublicDnsResolver,
   defaultPublicDnsResolvers,
   isPublicAddress,
+  probeAuthoritativeDns,
   probePublicDns,
 } from "../../scripts/release/public-dns.mjs";
 
@@ -14,11 +15,23 @@ function resolver(records) {
       if (!value) throw Object.assign(new Error("no cname"), { code: "ENODATA" });
       return value;
     },
-    async resolve4(hostname) {
-      return records.ipv4?.[hostname] || [];
+    async resolve4(hostname, options) {
+      const values = records.ipv4?.[hostname] || [];
+      return options?.ttl ? values.map((address) => ({ address, ttl: records.ttl ?? 300 })) : values;
     },
-    async resolve6(hostname) {
-      return records.ipv6?.[hostname] || [];
+    async resolve6(hostname, options) {
+      const values = records.ipv6?.[hostname] || [];
+      return options?.ttl ? values.map((address) => ({ address, ttl: records.ttl ?? 300 })) : values;
+    },
+    async resolveSoa(hostname) {
+      const value = records.soa?.[hostname];
+      if (!value) throw Object.assign(new Error("no soa"), { code: "ENODATA" });
+      return value;
+    },
+    async resolveNs(hostname) {
+      const value = records.ns?.[hostname];
+      if (!value) throw Object.assign(new Error("no ns"), { code: "ENODATA" });
+      return value;
     },
   };
 }
@@ -91,5 +104,44 @@ test("DNS 探测阻断私网解析、IP 入口和 CNAME 循环", async () => {
       }),
     }),
     /CNAME 链存在循环/u,
+  );
+});
+
+test("切流 DNS 探测记录真实 TTL 并阻断尚未收敛的旧高 TTL", async () => {
+  const accepted = await probePublicDns("api.example.test", {
+    resolver: resolver({ ipv4: { "api.example.test": ["43.132.1.9"] }, ttl: 180 }),
+    maximumTtlSeconds: 300,
+  });
+  assert.deepEqual(accepted.ttlSeconds, { minimum: 180, maximum: 180 });
+  await assert.rejects(
+    probePublicDns("api.example.test", {
+      resolver: resolver({ ipv4: { "api.example.test": ["43.132.1.9"] }, ttl: 900 }),
+      maximumTtlSeconds: 300,
+    }),
+    /剩余 TTL 900s 超过切流上限 300s/u,
+  );
+});
+
+test("权威 DNS 探测从子域向上定位区域并严格核对双 NS 委派", async () => {
+  const records = {
+    soa: { "example.test": { nsname: "Ns1.DnsPod.Net." } },
+    ns: { "example.test": ["ns2.dnspod.net.", "ns1.dnspod.net."] },
+  };
+  const accepted = await probeAuthoritativeDns("api.example.test", {
+    resolver: resolver(records),
+    expectedNameServers: ["ns1.dnspod.net", "ns2.dnspod.net"],
+  });
+  assert.deepEqual(accepted, {
+    hostname: "api.example.test",
+    zone: "example.test",
+    soaPrimary: "ns1.dnspod.net",
+    nameServers: ["ns1.dnspod.net", "ns2.dnspod.net"],
+  });
+  await assert.rejects(
+    probeAuthoritativeDns("api.example.test", {
+      resolver: resolver(records),
+      expectedNameServers: ["old1.example.net", "old2.example.net"],
+    }),
+    /权威 NS 与接入清单不一致/u,
   );
 });
