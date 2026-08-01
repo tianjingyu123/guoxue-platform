@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isPublicAddress, probePublicDns } from "../../scripts/release/public-dns.mjs";
+import {
+  createPublicDnsResolver,
+  defaultPublicDnsResolvers,
+  isPublicAddress,
+  probePublicDns,
+} from "../../scripts/release/public-dns.mjs";
 
 function resolver(records) {
   return {
@@ -36,6 +41,16 @@ test("公网地址拒绝私网、回环、保留和文档地址", () => {
   ]) {
     assert.equal(isPublicAddress(address), false, address);
   }
+});
+
+test("多路公网解析器使用受控 IP 并拒绝无效服务器", () => {
+  assert.deepEqual(defaultPublicDnsResolvers, [
+    { id: "dnspod", servers: ["119.29.29.29"] },
+    { id: "alidns", servers: ["223.5.5.5"] },
+  ]);
+  assert.doesNotThrow(() => createPublicDnsResolver(["119.29.29.29"]));
+  assert.throws(() => createPublicDnsResolver([]), /至少需要一个服务器地址/u);
+  assert.throws(() => createPublicDnsResolver(["dns.example.test"]), /必须使用 IP 地址/u);
 });
 
 test("DNS 探测保留 CNAME 链和去重后的公网地址", async () => {

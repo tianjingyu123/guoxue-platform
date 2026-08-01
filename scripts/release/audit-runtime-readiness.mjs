@@ -191,6 +191,8 @@ add(
     "dnsEndpoints",
   ]) &&
     hasAll(publicDns, [
+      "defaultPublicDnsResolvers",
+      "createPublicDnsResolver",
       "resolveCname",
       "resolve4",
       "resolve6",
@@ -198,8 +200,17 @@ add(
       "terminalHostname",
       "isPublicAddress",
     ]) &&
+    hasAll(verifier, [
+      'dnsObservationMode: "system-plus-public-v1"',
+      "dnsObservations",
+      'id: "system"',
+      "defaultPublicDnsResolvers",
+    ]) &&
     hasAll(evidenceAggregator, [
       "公网 DNS 解析、CNAME 链或地址安全证据无效",
+      "公网 DNS 多解析器一致性证据无效",
+      "系统 DNS 快照与多解析器证据不一致",
+      '"system", "dnspod", "alidns"',
       "腾讯云 CLB/CDN 目标",
       "loadBalancerVips",
       "cdnCname",

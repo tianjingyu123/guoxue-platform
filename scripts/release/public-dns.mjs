@@ -1,6 +1,11 @@
 import dns from "node:dns/promises";
 import { isIP } from "node:net";
 
+export const defaultPublicDnsResolvers = [
+  { id: "dnspod", servers: ["119.29.29.29"] },
+  { id: "alidns", servers: ["223.5.5.5"] },
+];
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -53,6 +58,17 @@ export function isPublicAddress(address) {
   if (family === 4) return isPublicIpv4(address);
   if (family === 6) return isPublicIpv6(address);
   return false;
+}
+
+export function createPublicDnsResolver(servers, options = {}) {
+  assert(Array.isArray(servers) && servers.length > 0, "公网 DNS 解析器至少需要一个服务器地址");
+  assert(servers.every((server) => isIP(server) !== 0), "公网 DNS 解析器服务器必须使用 IP 地址");
+  const resolver = new dns.Resolver({
+    timeout: options.timeoutMs ?? 5_000,
+    tries: options.tries ?? 2,
+  });
+  resolver.setServers(servers);
+  return resolver;
 }
 
 async function optionalResolve(callback, notFoundCodes) {

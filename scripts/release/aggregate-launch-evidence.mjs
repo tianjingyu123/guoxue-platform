@@ -75,6 +75,30 @@ function dnsRecordTargets(record, expected) {
     .includes(target);
 }
 
+function isValidDnsRecord(record) {
+  return (
+    Boolean(normalizeHostname(record?.hostname)) &&
+    Boolean(normalizeHostname(record?.terminalHostname)) &&
+    Array.isArray(record?.cnameChain) &&
+    Array.isArray(record?.addresses) &&
+    record.addresses.length > 0 &&
+    record.addresses.every((address) => isPublicAddress(address))
+  );
+}
+
+function dnsEvidenceFingerprint(entries) {
+  return JSON.stringify(
+    entries
+      .map((record) => ({
+        hostname: normalizeHostname(record?.hostname),
+        terminalHostname: normalizeHostname(record?.terminalHostname),
+        cnameChain: (record?.cnameChain || []).map(normalizeHostname),
+        addresses: [...(record?.addresses || [])].sort(),
+      }))
+      .sort((left, right) => left.hostname.localeCompare(right.hostname)),
+  );
+}
+
 function validateGeneratedAt(data, name, requireFresh) {
   const timestamp = Date.parse(data.generatedAt);
   if (!Number.isFinite(timestamp)) return `${name}缺少有效 generatedAt`;
@@ -398,18 +422,46 @@ const definitions = [
       );
       if (
         dnsEntries.length === 0 ||
+        dnsByHost.size !== dnsEntries.length ||
         uniqueEndpointHosts.some((hostname) => !dnsByHost.has(hostname)) ||
-        dnsEntries.some(
-          (item) =>
-            !normalizeHostname(item?.hostname) ||
-            !normalizeHostname(item?.terminalHostname) ||
-            !Array.isArray(item?.cnameChain) ||
-            !Array.isArray(item?.addresses) ||
-            item.addresses.length === 0 ||
-            item.addresses.some((address) => !isPublicAddress(address)),
-        )
+        dnsEntries.some((item) => !isValidDnsRecord(item))
       ) {
         problems.push("公网 DNS 解析、CNAME 链或地址安全证据无效");
+      }
+      const expectedDnsResolvers = ["system", "dnspod", "alidns"];
+      const dnsObservations = Array.isArray(data.dnsObservations) ? data.dnsObservations : [];
+      const dnsObservationMaps = dnsObservations.map((observation) => {
+        const entries = Array.isArray(observation?.endpoints) ? observation.endpoints : [];
+        return {
+          resolver: String(observation?.resolver || ""),
+          entries,
+          byHost: new Map(entries.map((item) => [normalizeHostname(item?.hostname), item])),
+        };
+      });
+      const resolverIds = dnsObservationMaps.map((item) => item.resolver);
+      if (
+        data.dnsObservationMode !== "system-plus-public-v1" ||
+        resolverIds.length !== expectedDnsResolvers.length ||
+        new Set(resolverIds).size !== resolverIds.length ||
+        expectedDnsResolvers.some((resolver) => !resolverIds.includes(resolver)) ||
+        dnsObservationMaps.some(
+          ({ entries, byHost }) =>
+            entries.length === 0 ||
+            byHost.size !== entries.length ||
+            uniqueEndpointHosts.some((hostname) => !byHost.has(hostname)) ||
+            entries.some((item) => !isValidDnsRecord(item)),
+        )
+      ) {
+        problems.push("公网 DNS 多解析器一致性证据无效");
+      }
+      const systemDnsObservation = dnsObservationMaps.find(
+        (observation) => observation.resolver === "system",
+      );
+      if (
+        systemDnsObservation &&
+        dnsEvidenceFingerprint(systemDnsObservation.entries) !== dnsEvidenceFingerprint(dnsEntries)
+      ) {
+        problems.push("系统 DNS 快照与多解析器证据不一致");
       }
       if (
         !Array.isArray(data.tlsCertificates) ||
@@ -438,20 +490,25 @@ const definitions = [
           endpointHostname(data.endpoints?.h5),
           endpointHostname(data.endpoints?.admin),
         ].filter(Boolean))];
-        const applicationsBound = applicationHosts.every((hostname) => {
-          const record = dnsByHost.get(hostname);
-          return (
-            record &&
-            ((record.addresses || []).some((address) => clbVips.has(address)) ||
-              (clbDomain && dnsRecordTargets(record, clbDomain)))
+        const applicationsBound =
+          dnsObservationMaps.length === expectedDnsResolvers.length &&
+          dnsObservationMaps.every(({ byHost }) =>
+            applicationHosts.every((hostname) => {
+              const record = byHost.get(hostname);
+              return (
+                record &&
+                ((record.addresses || []).some((address) => clbVips.has(address)) ||
+                  (clbDomain && dnsRecordTargets(record, clbDomain)))
+              );
+            }),
           );
-        });
         const cdnCname = normalizeHostname(cloud.cdn?.data?.domains?.[0]?.cname);
-        const assetRecord = dnsByHost.get(assetHost);
         const assetBound =
-          assetRecord &&
           normalizeHostname(cloud.targetBinding?.cdnDomain) === assetHost &&
-          dnsRecordTargets(assetRecord, cdnCname);
+          dnsObservationMaps.length === expectedDnsResolvers.length &&
+          dnsObservationMaps.every(({ byHost }) =>
+            dnsRecordTargets(byHost.get(assetHost), cdnCname),
+          );
         if (!applicationsBound || !assetBound) {
           problems.push("公网 DNS 未指向本次腾讯云 CLB/CDN 目标");
         }

@@ -3,7 +3,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { probePublicDns } from "./public-dns.mjs";
+import {
+  createPublicDnsResolver,
+  defaultPublicDnsResolvers,
+  probePublicDns,
+} from "./public-dns.mjs";
 import { probePublicTls } from "./public-tls.mjs";
 
 const args = process.argv.slice(2);
@@ -90,6 +94,7 @@ const expectedOrigin = h5Url.origin;
 const results = [];
 let observedReleaseId = null;
 let dnsEndpoints = [];
+let dnsObservations = [];
 let tlsCertificates = [];
 
 async function request(url, options = {}) {
@@ -137,8 +142,29 @@ await check("公网 DNS 解析与地址安全", async () => {
   const hostnames = [apiUrl, h5Url, new URL(adminHref), assetUrl]
     .map((url) => url.hostname);
   const uniqueHostnames = [...new Set(hostnames)];
-  dnsEndpoints = await Promise.all(uniqueHostnames.map((hostname) => probePublicDns(hostname)));
-  return `${dnsEndpoints.length} 个唯一域名均解析到公网地址并保留 CNAME 链`;
+  const resolvers = [
+    { id: "system", resolver: undefined },
+    ...defaultPublicDnsResolvers.map((item) => ({
+      id: item.id,
+      resolver: createPublicDnsResolver(item.servers),
+    })),
+  ];
+  dnsObservations = await Promise.all(
+    resolvers.map(async ({ id, resolver }) => {
+      try {
+        return {
+          resolver: id,
+          endpoints: await Promise.all(
+            uniqueHostnames.map((hostname) => probePublicDns(hostname, { resolver })),
+          ),
+        };
+      } catch (error) {
+        throw new Error(`${id} 解析器验收失败：${error.message}`);
+      }
+    }),
+  );
+  dnsEndpoints = dnsObservations.find((item) => item.resolver === "system")?.endpoints || [];
+  return `${dnsObservations.length} 路独立解析器均覆盖 ${dnsEndpoints.length} 个唯一域名并返回安全公网地址`;
 });
 
 await check("公网 TLS 证书链、域名与有效期", async () => {
@@ -294,7 +320,9 @@ const report = {
   allowDegraded,
   expectedReleaseId,
   observedReleaseId,
+  dnsObservationMode: "system-plus-public-v1",
   dnsEndpoints,
+  dnsObservations,
   tlsCertificates,
   summary: { passed: results.length - failed.length, failed: failed.length, total: results.length },
   results,

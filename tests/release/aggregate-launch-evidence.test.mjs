@@ -15,6 +15,30 @@ function freshTime(offsetHours = 0) {
   return new Date(Date.now() + offsetHours * 3_600_000).toISOString();
 }
 
+function validDnsEndpoints() {
+  return [
+    {
+      hostname: "api.new-guoxue.test",
+      terminalHostname: "lb.new-guoxue.test",
+      cnameChain: ["lb.new-guoxue.test"],
+      addresses: ["43.132.1.9"],
+    },
+    {
+      hostname: "assets.new-guoxue.test",
+      terminalHostname: "assets.new-guoxue.test.cdn.dnsv1.com",
+      cnameChain: ["assets.new-guoxue.test.cdn.dnsv1.com"],
+      addresses: ["43.132.2.9"],
+    },
+  ];
+}
+
+function dnsObservations(endpoints = validDnsEndpoints()) {
+  return ["system", "dnspod", "alidns"].map((resolver) => ({
+    resolver,
+    endpoints: structuredClone(endpoints),
+  }));
+}
+
 async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
   const reports = {
     "host-preflight-readiness.json": {
@@ -153,20 +177,9 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
         admin: "https://api.new-guoxue.test/admin/",
         asset: "https://assets.new-guoxue.test",
       },
-      dnsEndpoints: [
-        {
-          hostname: "api.new-guoxue.test",
-          terminalHostname: "lb.new-guoxue.test",
-          cnameChain: ["lb.new-guoxue.test"],
-          addresses: ["43.132.1.9"],
-        },
-        {
-          hostname: "assets.new-guoxue.test",
-          terminalHostname: "assets.new-guoxue.test.cdn.dnsv1.com",
-          cnameChain: ["assets.new-guoxue.test.cdn.dnsv1.com"],
-          addresses: ["43.132.2.9"],
-        },
-      ],
+      dnsObservationMode: "system-plus-public-v1",
+      dnsEndpoints: validDnsEndpoints(),
+      dnsObservations: dnsObservations(),
       summary: { failed: 0 },
       results: [{ name: "health", status: "PASS", detail: "ok" }],
       tlsCertificates: [
@@ -373,22 +386,17 @@ test("公网证书剩余不足 14 天或缺少可信指纹时阻断上线", asyn
 });
 
 test("公网 API 域名仍指向旧地址时阻断上线", async (t) => {
+  const staleEndpoints = validDnsEndpoints();
+  staleEndpoints[0] = {
+    hostname: "api.new-guoxue.test",
+    terminalHostname: "old.example.test",
+    cnameChain: ["old.example.test"],
+    addresses: ["43.132.9.9"],
+  };
   const { result, decision } = await runScenario(t, {
     "runtime-verification.json": {
-      dnsEndpoints: [
-        {
-          hostname: "api.new-guoxue.test",
-          terminalHostname: "old.example.test",
-          cnameChain: ["old.example.test"],
-          addresses: ["43.132.9.9"],
-        },
-        {
-          hostname: "assets.new-guoxue.test",
-          terminalHostname: "assets.new-guoxue.test.cdn.dnsv1.com",
-          cnameChain: ["assets.new-guoxue.test.cdn.dnsv1.com"],
-          addresses: ["43.132.2.9"],
-        },
-      ],
+      dnsEndpoints: staleEndpoints,
+      dnsObservations: dnsObservations(staleEndpoints),
     },
   });
   assert.equal(result.status, 1);
@@ -400,22 +408,17 @@ test("公网 API 域名仍指向旧地址时阻断上线", async (t) => {
 });
 
 test("公网静态资源域名未指向腾讯云分配 CNAME 时阻断上线", async (t) => {
+  const staleEndpoints = validDnsEndpoints();
+  staleEndpoints[1] = {
+    hostname: "assets.new-guoxue.test",
+    terminalHostname: "old-cdn.example.test",
+    cnameChain: ["old-cdn.example.test"],
+    addresses: ["43.132.2.9"],
+  };
   const { result, decision } = await runScenario(t, {
     "runtime-verification.json": {
-      dnsEndpoints: [
-        {
-          hostname: "api.new-guoxue.test",
-          terminalHostname: "lb.new-guoxue.test",
-          cnameChain: ["lb.new-guoxue.test"],
-          addresses: ["43.132.1.9"],
-        },
-        {
-          hostname: "assets.new-guoxue.test",
-          terminalHostname: "old-cdn.example.test",
-          cnameChain: ["old-cdn.example.test"],
-          addresses: ["43.132.2.9"],
-        },
-      ],
+      dnsEndpoints: staleEndpoints,
+      dnsObservations: dnsObservations(staleEndpoints),
     },
   });
   assert.equal(result.status, 1);
@@ -423,6 +426,44 @@ test("公网静态资源域名未指向腾讯云分配 CNAME 时阻断上线", a
   assert.match(
     decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
     /公网 DNS 未指向本次腾讯云 CLB\/CDN 目标/u,
+  );
+});
+
+test("任一公网解析器仍命中旧入口时阻断上线", async (t) => {
+  const observations = dnsObservations();
+  observations[2].endpoints[0] = {
+    hostname: "api.new-guoxue.test",
+    terminalHostname: "old.example.test",
+    cnameChain: ["old.example.test"],
+    addresses: ["43.132.9.9"],
+  };
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": { dnsObservations: observations },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
+    /公网 DNS 未指向本次腾讯云 CLB\/CDN 目标/u,
+  );
+});
+
+test("系统 DNS 兼容快照与多解析器证据不一致时阻断上线", async (t) => {
+  const staleEndpoints = validDnsEndpoints();
+  staleEndpoints[0] = {
+    hostname: "api.new-guoxue.test",
+    terminalHostname: "old.example.test",
+    cnameChain: ["old.example.test"],
+    addresses: ["43.132.9.9"],
+  };
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": { dnsEndpoints: staleEndpoints },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
+    /系统 DNS 快照与多解析器证据不一致/u,
   );
 });
 

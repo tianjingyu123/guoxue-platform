@@ -169,6 +169,10 @@ const dnsEvidenceAggregator = read("scripts/release/aggregate-launch-evidence.mj
 add(
   "公网 DNS 必须绑定本次 CLB 与 CDN 目标",
   hasAll(publicDnsProbe, [
+    "defaultPublicDnsResolvers",
+    "createPublicDnsResolver",
+    'id: "dnspod"',
+    'id: "alidns"',
     "resolveCname",
     "resolve4",
     "resolve6",
@@ -179,14 +183,20 @@ add(
       "probePublicDns",
       "公网 DNS 解析与地址安全",
       "dnsEndpoints",
+      "dnsObservations",
+      'dnsObservationMode: "system-plus-public-v1"',
     ]) &&
     hasAll(dnsEvidenceAggregator, [
       "loadBalancerVips",
       "cdnCname",
+      "公网 DNS 多解析器一致性证据无效",
+      "系统 DNS 快照与多解析器证据不一致",
+      '"system", "dnspod", "alidns"',
       "公网 DNS 未指向本次腾讯云 CLB/CDN 目标",
     ]) &&
     hasAll(publicDnsTest, [
       "公网地址拒绝私网、回环、保留和文档地址",
+      "多路公网解析器使用受控 IP 并拒绝无效服务器",
       "DNS 探测保留 CNAME 链和去重后的公网地址",
       "DNS 探测阻断私网解析、IP 入口和 CNAME 循环",
     ]) &&
