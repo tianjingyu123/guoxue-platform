@@ -175,7 +175,7 @@ add(
   hasAll(verifier, [
     "HTTP 强制跳转 HTTPS",
     "[301, 302, 307, 308]",
-    'location.startsWith("https://")',
+    '/^https:\\/\\//iu.test(location)',
   ]),
   "非本地生产入口不得接受明文 URL，80 端口必须跳转 HTTPS",
 );

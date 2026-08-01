@@ -257,7 +257,7 @@ groups:
           description: "API、H5 或管理后台入口连续 1 分钟拨测失败，请检查 Nginx、静态成品与后端健康状态"
           runbook: "先检查 docker compose ps 与 Nginx/Server 日志；若新版本引起，按迁移手册回滚应用，不得回滚数据库数据"
 
-      # 3.7 自有公网证书进入 60 天长期证书采购与替换窗口
+      # 3.7 自有公网证书进入 60 天续期与替换准备窗口
       - alert: TLSCertificateReplacementPlanning
         expr: |
           ((probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time()) < 60 * 24 * 60 * 60)
@@ -268,9 +268,9 @@ groups:
           severity: warning
           category: certificate
         annotations:
-          summary: "公网证书进入长期证书替换窗口：{{ $labels.instance }}"
-          description: "剩余有效期约 {{ $value | humanizeDuration }}，请启动长期证书采购、签发和变更窗口安排"
-          runbook: "确认长期证书覆盖对应域名；先签发，再分别替换 CLB/CDN 绑定，最后以公网握手证书有效期验收"
+          summary: "公网证书进入续期与替换准备窗口：{{ $labels.instance }}"
+          description: "剩余有效期约 {{ $value | humanizeDuration }}，请确认续期方案、证书控制台与 DNS 权限、部署责任人和告警接收人均已就绪"
+          runbook: "核对证书类型、域名覆盖、DNS 托管方和部署目标；免费证书通常需在到期前 30 天进入快速续期后重新申请，不得把尚未验真的自动化能力当作已完成续期"
 
       # 3.8 自有公网证书将在 30 天内到期
       - alert: TLSCertificateExpiringSoon
@@ -284,8 +284,8 @@ groups:
           category: certificate
         annotations:
           summary: "公网证书将在 30 天内到期：{{ $labels.instance }}"
-          description: "剩余有效期约 {{ $value | humanizeDuration }}，请立即确认续期与部署计划"
-          runbook: "在证书控制台完成续期，分别部署到 CLB/CDN；部署后复核证书链、域名覆盖和公网健康检查"
+          description: "剩余有效期约 {{ $value | humanizeDuration }}，请立即完成重新申请或续费、域名验证、签发和部署"
+          runbook: "免费证书需主动走快速续期；DNS 不在证书供应商托管时必须人工完成 DNS 验证。签发后更新 CLB/CDN 或目标入口，并以公网握手复核域名覆盖、证书链与到期时间"
 
       # 3.9 自有公网证书将在 14 天内到期
       - alert: TLSCertificateExpiringCritical
@@ -297,7 +297,7 @@ groups:
         annotations:
           summary: "公网证书将在 14 天内到期：{{ $labels.instance }}"
           description: "剩余有效期约 {{ $value | humanizeDuration }}，必须立即完成续期和部署"
-          runbook: "立即续期并部署到 CLB/CDN；不得只签发未部署，完成后以公网实际证书到期时间验收"
+          runbook: "立即启用人工签发与部署兜底；不得只续费未验证、只签发未部署或只看控制台状态。完成后以公网实际证书到期时间验收，再排查自动续费或证书托管失效原因"
 
   # ═══════════ 四、数据库 ═══════════
   - name: guoxue-database

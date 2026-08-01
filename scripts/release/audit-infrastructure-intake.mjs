@@ -126,8 +126,8 @@ if (envFileArg) {
 
 add(
   "接入清单契约有效",
-  intake.schemaVersion === 1 && intake.kind === "guoxue-new-infrastructure-intake",
-  "schemaVersion 必须为 1，kind 必须为 guoxue-new-infrastructure-intake",
+  intake.schemaVersion === 2 && intake.kind === "guoxue-new-infrastructure-intake",
+  "schemaVersion 必须为 2，kind 必须为 guoxue-new-infrastructure-intake；旧清单需从最新模板重新生成并逐项复核",
 );
 add(
   "部署架构明确",
@@ -207,6 +207,43 @@ add(
     Number(domains.ttlSeconds) <= 600,
   "切流前 TTL 应设置为 60-600 秒并明确 DNS 服务商",
 );
+const certificateType = text(domains.certificateType).toLowerCase();
+const certificateValidationMode = text(domains.certificateValidationMode).toLowerCase();
+const certificateDeploymentMode = text(domains.certificateDeploymentMode).toLowerCase();
+const dnsProvider = text(domains.dnsProvider).toLowerCase();
+const dnsHostedByTencent = /(?:dnspod|腾讯云|tencent)/iu.test(dnsProvider);
+add(
+  "新域名证书生命周期方案与责任人已规划",
+  isFilled(domains.certificateProvider) &&
+    !isPlaceholder(domains.certificateProvider) &&
+    ["letsencrypt", "free", "paid"].includes(certificateType) &&
+    ["http-01", "dns-auto", "dns-manual"].includes(certificateValidationMode) &&
+    ["local-nginx", "clb-cdn-managed", "clb-cdn-manual"].includes(
+      certificateDeploymentMode,
+    ) &&
+    isFilled(domains.certificateRenewalOwner) &&
+    !isPlaceholder(domains.certificateRenewalOwner) &&
+    isFilled(domains.certificateFallbackOwner) &&
+    !isPlaceholder(domains.certificateFallbackOwner),
+  "采购前必须明确证书供应商、类型、验证方式、部署位置、续期责任人和失败兜底责任人",
+);
+if (deployTarget === "standard") {
+  add(
+    "standard 证书方案与本地 Nginx 入口一致",
+    certificateDeploymentMode === "local-nginx" &&
+      ["http-01", "dns-manual"].includes(certificateValidationMode),
+    "standard 架构证书必须部署到本地 Nginx；验证仅允许 HTTP-01 或人工 DNS",
+  );
+}
+if (deployTarget === "tencent") {
+  add(
+    "腾讯云证书方案与 CLB/CDN 入口一致",
+    ["clb-cdn-managed", "clb-cdn-manual"].includes(certificateDeploymentMode) &&
+      ["dns-auto", "dns-manual"].includes(certificateValidationMode) &&
+      (certificateValidationMode !== "dns-auto" || dnsHostedByTencent),
+    "腾讯云入口证书必须部署到 CLB/CDN；只有腾讯云 DNS/DNSPod 才能登记自动 DNS 验证，第三方 DNS 必须使用人工验证与人工部署",
+  );
+}
 add(
   "对象存储使用私有读",
   ["cos", "s3", "oss"].includes(text(storage.provider).toLowerCase()) &&
@@ -250,6 +287,12 @@ if (resourceReady) {
       domains.h5Url,
       domains.adminUrl,
       domains.assetOrigin,
+      domains.certificateProvider,
+      domains.certificateType,
+      domains.certificateValidationMode,
+      domains.certificateDeploymentMode,
+      domains.certificateRenewalOwner,
+      domains.certificateFallbackOwner,
       storage.bucket,
       storage.region,
       operations.backupOwner,
@@ -268,10 +311,11 @@ if (resourceReady) {
     "禁止直接信任首次网络连接返回的指纹",
   );
   add(
-    "安全组与正式证书已完成",
+    "安全组与正式证书签发部署已完成",
     server.securityGroupReviewed === true &&
-      text(domains.certificateStatus).toLowerCase() === "issued",
-    "切流前必须完成人工安全组复核并签发正式证书",
+      text(domains.certificateStatus).toLowerCase() === "issued" &&
+      domains.certificateDeploymentVerified === true,
+    "预部署前必须完成人工安全组复核、正式证书签发并实测已部署到目标入口",
   );
   add(
     "对象存储跨域、生命周期与签名链接已实测",
@@ -283,6 +327,12 @@ if (resourceReady) {
 }
 
 if (launch) {
+  add(
+    "证书续期兜底与公网握手已现场验证",
+    domains.certificateRenewalProcedureVerified === true &&
+      domains.certificatePublicHandshakeVerified === true,
+    "正式切流前必须演练续期/替换步骤，并从公网核验证书链、域名匹配和有效期",
+  );
   add(
     "监控、告警和恢复演练已完成",
     operations.monitoringConfigured === true &&

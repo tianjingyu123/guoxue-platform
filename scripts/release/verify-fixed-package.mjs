@@ -322,6 +322,7 @@ try {
       "docker/health-check.sh",
       "docker/pg-backup.sh",
       "docker/pg-restore.sh",
+      "docker/renew-ssl.sh",
       "docker/setup-server.sh",
       "scripts/migration/run-prisma-migrations.sh",
       "scripts/migration/verify-postgres.sh",

@@ -253,7 +253,7 @@ if (apiUrl.protocol === "https:") {
     const { response } = await request(httpUrl.href, { redirect: "manual" });
     assert([301, 302, 307, 308].includes(response.status), `HTTP ${response.status}`);
     const location = response.headers.get("location") || "";
-    assert(location.startsWith("https://"), `Location=${location || "缺失"}`);
+    assert(/^https:\/\//iu.test(location), `Location=${location || "缺失"}`);
     return `HTTP ${response.status} → HTTPS`;
   });
 }

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "guoxue-new-infrastructure-intake",
   "deployTarget": "tencent",
   "server": {
@@ -46,7 +46,16 @@
     "assetOrigin": "https://static.example.com",
     "dnsProvider": "DNSPod",
     "ttlSeconds": 300,
-    "certificateStatus": "pending"
+    "certificateProvider": "pending",
+    "certificateType": "pending",
+    "certificateValidationMode": "pending",
+    "certificateDeploymentMode": "pending",
+    "certificateStatus": "pending",
+    "certificateDeploymentVerified": false,
+    "certificateRenewalOwner": "待填写",
+    "certificateFallbackOwner": "待填写",
+    "certificateRenewalProcedureVerified": false,
+    "certificatePublicHandshakeVerified": false
   },
   "storage": {
     "provider": "cos",

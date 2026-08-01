@@ -43,6 +43,8 @@ const shellScripts = [
   "scripts/migration/smoke-test.sh",
   "docker/pg-backup.sh",
   "docker/pg-restore.sh",
+  "docker/renew-ssl.sh",
+  "docker/nginx/setup-ssl.sh",
   "docker/setup-server.sh",
   "docker/deploy.sh",
   "scripts/release/activate-fixed-release.sh",
@@ -76,6 +78,36 @@ for (const relativePath of shellScripts) {
 const nginxClbDeploy = read("scripts/operations/deploy-nginx-clb-config.sh");
 const clbFailoverProbe = read("scripts/operations/probe-clb-failover.sh");
 const tencentCloudAudit = read("scripts/operations/audit-tencent-cloud-readiness.py");
+const setupServer = read("docker/setup-server.sh");
+const standardTlsRenewal = read("docker/renew-ssl.sh");
+const standardTlsBootstrap = read("docker/nginx/setup-ssl.sh");
+add(
+  "standard 架构证书续期可演练、可串行并在失败时恢复入口",
+  hasAll(standardTlsRenewal, [
+    'DEPLOY_TARGET" != "standard"',
+    "flock -n 9",
+    'openssl x509 -checkend "$RENEW_BEFORE_SECONDS"',
+    'certbot_args+=(--dry-run)',
+    'certbot/certbot:v3.2.0',
+    'trap restore_nginx EXIT INT TERM',
+    'mv -f "$tmp_fullchain" "$SSL_DIR/fullchain.pem"',
+    'docker exec "$NGINX_CONTAINER" nginx -t',
+  ]) &&
+    hasAll(setupServer, [
+      "TLS_RENEW_SCRIPT=\"$RUNTIME_DIR/docker/renew-ssl.sh\"",
+      "guoxue-tls-renewal.log",
+      "certbot renew.*guoxue-nginx",
+      "DEPLOY_TARGET=standard PLATFORM_ROOT=$PLATFORM_ROOT",
+    ]) &&
+    hasAll(standardTlsBootstrap, [
+      'CERTBOT_IMAGE="certbot/certbot:v3.2.0"',
+      "flock -n 9",
+      'RENEW_SCRIPT="$PLATFORM_ROOT/current/docker/renew-ssl.sh"',
+      "guoxue-tls-renewal.log",
+    ]) &&
+    !standardTlsBootstrap.includes("certbot renew --quiet --post-hook"),
+  "自建入口必须安装互斥的证书续期任务，支持 dry-run，并在续期失败时恢复原 Nginx 与旧证书",
+);
 add(
   "CLB 部署与故障切换探测跟随目标环境域名",
   hasAll(nginxClbDeploy, [
@@ -308,7 +340,6 @@ add(
   "校验和、归档目录验证、精确库名确认和恢复前快照必须先于 dropdb",
 );
 
-const setupServer = read("docker/setup-server.sh");
 const retiredServerSetup = read("scripts/server-setup.sh");
 const productionEnvTemplate = read("docker/.env.production.example");
 const operationalRunbook = read("docker/RUNBOOK.md");

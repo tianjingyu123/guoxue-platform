@@ -42,6 +42,12 @@ if (deployTarget === "standard") {
   intake.cache.topology = "self-hosted";
   intake.cache.endpointHost = "redis";
   intake.cache.tls = false;
+  intake.domains.certificateType = "letsencrypt";
+  intake.domains.certificateValidationMode = "http-01";
+  intake.domains.certificateDeploymentMode = "local-nginx";
+} else {
+  intake.domains.certificateValidationMode = "dns-auto";
+  intake.domains.certificateDeploymentMode = "clb-cdn-managed";
 }
 
 copyFileSync(templatePath, outputPath);

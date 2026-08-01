@@ -507,11 +507,14 @@ fi
 
 # ── 14. 仅由运维节点执行数据库备份与镜像清理 ──
 BACKUP_SCRIPT="$RUNTIME_DIR/docker/pg-backup.sh"
+TLS_RENEW_SCRIPT="$RUNTIME_DIR/docker/renew-ssl.sh"
 EXISTING_CRON="$(crontab -l 2>/dev/null || true)"
 FILTERED_CRON="$(
   printf '%s\n' "$EXISTING_CRON" \
     | grep -v '/var/log/guoxue-backup.log' \
     | grep -v '/var/log/guoxue-cleanup.log' \
+    | grep -v '/var/log/guoxue-tls-renewal.log' \
+    | grep -v 'certbot renew.*guoxue-nginx' \
     || true
 )"
 if [ "$NODE_ROLE" = "operations" ]; then
@@ -521,10 +524,18 @@ if [ "$NODE_ROLE" = "operations" ]; then
     echo "0 3 * * * DEPLOY_TARGET=$DEPLOY_TARGET ENV_FILE=$ENV_FILE BACKUP_DIR=$BACKUP_DIR bash $BACKUP_SCRIPT 30 >> /var/log/guoxue-backup.log 2>&1"
     # 只清理悬空镜像和过期构建缓存；禁止 system prune -a 删除旧版回滚镜像。
     echo "0 4 * * 0 ( docker image prune -f && docker builder prune -f --filter 'until=168h' ) >> /var/log/guoxue-cleanup.log 2>&1"
+    if [ "$DEPLOY_TARGET" = "standard" ]; then
+      echo "17 3 * * * DEPLOY_TARGET=standard PLATFORM_ROOT=$PLATFORM_ROOT ENV_FILE=$ENV_FILE DOMAIN=$DOMAIN bash $TLS_RENEW_SCRIPT >> /var/log/guoxue-tls-renewal.log 2>&1"
+    fi
   } | sed '/^[[:space:]]*$/d' | crontab -
 else
   log "业务节点：移除重复数据库备份计划，保留其他既有定时任务"
-  printf '%s\n' "$FILTERED_CRON" | sed '/^[[:space:]]*$/d' | crontab -
+  {
+    printf '%s\n' "$FILTERED_CRON"
+    if [ "$DEPLOY_TARGET" = "standard" ]; then
+      echo "17 3 * * * DEPLOY_TARGET=standard PLATFORM_ROOT=$PLATFORM_ROOT ENV_FILE=$ENV_FILE DOMAIN=$DOMAIN bash $TLS_RENEW_SCRIPT >> /var/log/guoxue-tls-renewal.log 2>&1"
+    fi
+  } | sed '/^[[:space:]]*$/d' | crontab -
 fi
 
 # ── 15. 显示状态 ──

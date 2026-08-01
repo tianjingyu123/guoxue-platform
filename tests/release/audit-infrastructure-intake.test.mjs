@@ -10,7 +10,7 @@ const auditor = path.join(projectRoot, "scripts/release/audit-infrastructure-int
 
 function completeIntake() {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     kind: "guoxue-new-infrastructure-intake",
     deployTarget: "tencent",
     server: {
@@ -57,7 +57,16 @@ function completeIntake() {
       assetOrigin: "https://static.guoxue.cn",
       dnsProvider: "DNSPod",
       ttlSeconds: 300,
+      certificateProvider: "腾讯云 SSL",
+      certificateType: "free",
+      certificateValidationMode: "dns-auto",
+      certificateDeploymentMode: "clb-cdn-managed",
       certificateStatus: "issued",
+      certificateDeploymentVerified: true,
+      certificateRenewalOwner: "证书续期负责人",
+      certificateFallbackOwner: "证书兜底负责人",
+      certificateRenewalProcedureVerified: true,
+      certificatePublicHandshakeVerified: true,
     },
     storage: {
       provider: "cos",
@@ -182,6 +191,24 @@ test("采购阶段阻断低配服务器和未启用恢复保护的数据库", as
   }
 });
 
+test("旧版接入清单必须从最新模板重新生成", async () => {
+  const intake = completeIntake();
+  intake.schemaVersion = 1;
+  const audit = await runAudit(intake, "procurement");
+  try {
+    assert.notEqual(audit.result.status, 0);
+    assert.match(
+      audit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /接入清单契约有效/,
+    );
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
 test("采购阶段接受腾讯云仍受支持的 Redis 6.x，并拒绝更旧主版本", async () => {
   const supported = completeIntake();
   supported.cache.versionMajor = 6;
@@ -230,6 +257,52 @@ test("采购可接受待签证书，但 predeploy 和 launch 阶段必须完成�
     assert.notEqual(launch.result.status, 0);
     assert.equal(launch.report.success, false);
     assert.ok(launch.report.summary.failed >= 4);
+  } finally {
+    await rm(procurement.root, { recursive: true, force: true });
+    await rm(predeploy.root, { recursive: true, force: true });
+    await rm(launch.root, { recursive: true, force: true });
+  }
+});
+
+test("证书方案缺少责任人、目标入口部署或公网续期验收时按阶段阻断", async () => {
+  const unplanned = completeIntake();
+  unplanned.domains.certificateProvider = "pending";
+  unplanned.domains.certificateRenewalOwner = "待填写";
+  const procurement = await runAudit(unplanned, "procurement");
+
+  const notDeployed = completeIntake();
+  notDeployed.domains.certificateDeploymentVerified = false;
+  const predeploy = await runAudit(notDeployed, "predeploy");
+
+  const notOperationallyVerified = completeIntake();
+  notOperationallyVerified.domains.certificateRenewalProcedureVerified = false;
+  notOperationallyVerified.domains.certificatePublicHandshakeVerified = false;
+  const launch = await runAudit(notOperationallyVerified, "launch");
+  try {
+    assert.notEqual(procurement.result.status, 0);
+    assert.match(
+      procurement.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /新域名证书生命周期方案与责任人已规划/,
+    );
+    assert.notEqual(predeploy.result.status, 0);
+    assert.match(
+      predeploy.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /安全组与正式证书签发部署已完成/,
+    );
+    assert.notEqual(launch.result.status, 0);
+    assert.match(
+      launch.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /证书续期兜底与公网握手已现场验证/,
+    );
   } finally {
     await rm(procurement.root, { recursive: true, force: true });
     await rm(predeploy.root, { recursive: true, force: true });
@@ -369,6 +442,33 @@ test("接入清单部署架构与完整门禁不一致时阻断", async () => {
     );
   } finally {
     await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("腾讯云证书使用第三方 DNS 时不得登记自动 DNS 验证", async () => {
+  const invalidIntake = completeIntake();
+  invalidIntake.domains.dnsProvider = "阿里云 DNS";
+  const invalid = await runAudit(invalidIntake, "procurement");
+
+  const manualIntake = completeIntake();
+  manualIntake.domains.dnsProvider = "阿里云 DNS";
+  manualIntake.domains.certificateValidationMode = "dns-manual";
+  manualIntake.domains.certificateDeploymentMode = "clb-cdn-manual";
+  const manual = await runAudit(manualIntake, "procurement");
+
+  try {
+    assert.notEqual(invalid.result.status, 0);
+    assert.match(
+      invalid.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => `${item.name} ${item.detail}`)
+        .join("\n"),
+      /腾讯云证书方案与 CLB\/CDN 入口一致.*第三方 DNS 必须使用人工验证与人工部署/,
+    );
+    assert.equal(manual.result.status, 0);
+  } finally {
+    await rm(invalid.root, { recursive: true, force: true });
+    await rm(manual.root, { recursive: true, force: true });
   }
 });
 
