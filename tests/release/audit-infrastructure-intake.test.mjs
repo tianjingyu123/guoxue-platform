@@ -182,6 +182,33 @@ test("采购阶段阻断低配服务器和未启用恢复保护的数据库", as
   }
 });
 
+test("采购阶段接受腾讯云仍受支持的 Redis 6.x，并拒绝更旧主版本", async () => {
+  const supported = completeIntake();
+  supported.cache.versionMajor = 6;
+  const supportedAudit = await runAudit(supported, "procurement");
+  const obsolete = completeIntake();
+  obsolete.cache.versionMajor = 5;
+  const obsoleteAudit = await runAudit(obsolete, "procurement");
+  try {
+    assert.equal(
+      supportedAudit.result.status,
+      0,
+      supportedAudit.result.stderr || supportedAudit.result.stdout,
+    );
+    assert.notEqual(obsoleteAudit.result.status, 0);
+    assert.match(
+      obsoleteAudit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /Redis 规格与持久化策略满足要求/,
+    );
+  } finally {
+    await rm(supportedAudit.root, { recursive: true, force: true });
+    await rm(obsoleteAudit.root, { recursive: true, force: true });
+  }
+});
+
 test("采购可接受待签证书，但 predeploy 和 launch 阶段必须完成资源实测", async () => {
   const intake = completeIntake();
   intake.server.sshHostFingerprint = "pending";

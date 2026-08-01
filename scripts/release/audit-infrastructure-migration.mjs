@@ -12,7 +12,9 @@ const checks = [];
 const add = (name, pass, detail) => checks.push({ name, pass, detail });
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
+  return fs
+    .readFileSync(path.join(repoRoot, relativePath), "utf8")
+    .replace(/\r\n?/gu, "\n");
 }
 
 function hasAll(source, snippets) {

@@ -178,11 +178,11 @@ add(
 add(
   "Redis 规格与持久化策略满足要求",
   text(cache.engine).toLowerCase() === "redis" &&
-    Number(cache.versionMajor) >= 7 &&
+    Number(cache.versionMajor) >= 6 &&
     ["managed", "self-hosted"].includes(text(cache.topology).toLowerCase()) &&
     cache.privateNetwork === true &&
     cache.persistenceEnabled === true,
-  "Redis 7+ 必须走私网并启用持久化",
+  "Redis 6+ 必须走私网并启用持久化",
 );
 if (deployTarget === "tencent") {
   add(
