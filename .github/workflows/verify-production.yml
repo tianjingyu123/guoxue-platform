@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   verify-production-cutover:
-    name: 公网切流后九证据验收
+    name: 公网切流后机器证据验收
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
@@ -52,6 +52,7 @@ jobs:
           PRODUCTION_CONFIRMATION: ${{ inputs.production_confirmation }}
           RUN_MIGRATION: "false"
           MIGRATION_CONFIRMATION: ""
+          DISPATCH_OPERATION: verify
           MAX_AGE_HOURS: ${{ inputs.max_age_hours }}
           PRODUCTION_DEPLOY_READY: ${{ vars.PRODUCTION_DEPLOY_READY }}
           PRODUCTION_DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
@@ -80,7 +81,7 @@ jobs:
             BODY="$(curl -fsS --max-time 10 http://127.0.0.1/api/v1/health/live)"
             node -e 'const body=JSON.parse(process.argv[1]); const data=body&&body.data&&typeof body.data==="object"?body.data:body; if(data.releaseId!==process.argv[2]) process.exit(1)' "$BODY" "$RELEASE_ID"
 
-      - name: 在运维节点 B 重新生成易过期证据并汇总九证据上线判定
+      - name: 在运维节点 B 重新生成易过期证据并汇总上线判定
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{ secrets.PROD_HOST_B }}

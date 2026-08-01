@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 
-set -u
+set -Eeuo pipefail
 
 duration_seconds="${1:-90}"
-base_url="${BASE_URL:-https://pre-api.rebugx.cn}"
+: "${BASE_URL:?必须通过 BASE_URL 指定本次切换要探测的公网入口}"
+base_url="${BASE_URL%/}"
+if [[ ! "${base_url}" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]] \
+  || [[ "${base_url}" == *".example.com"* ]]; then
+  echo "BASE_URL 必须是无路径、非占位符的 HTTPS 公网根地址：${base_url}" >&2
+  exit 2
+fi
 paths=(
   "/h5/"
   "/api/v1/health/ready"
@@ -17,13 +23,16 @@ failed=0
 
 while (( SECONDS < end_seconds )); do
   for path in "${paths[@]}"; do
-    code="$(curl -ksS \
+    if code="$(curl -ksS \
       --connect-timeout 3 \
       --max-time 10 \
       -o /dev/null \
       -w '%{http_code}' \
-      "${base_url}${path}")"
-    rc=$?
+      "${base_url}${path}")"; then
+      rc=0
+    else
+      rc=$?
+    fi
     total=$((total + 1))
 
     if (( rc != 0 )) || [[ "$code" != "200" ]]; then

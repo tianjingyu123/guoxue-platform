@@ -1,5 +1,5 @@
 #!/bin/bash
-# DNS 已切向新环境后，重建易过期证据并汇总九证据上线判定。
+# DNS 已切向新环境后，重建易过期证据并汇总上线判定。
 # 本脚本不启动/停止容器、不执行数据库迁移、不修改 DNS，只写发布证据目录。
 set -euo pipefail
 
@@ -78,6 +78,13 @@ $NODE_BIN -- "$RELEASE_DIR/scripts/release/audit-infrastructure-intake.mjs" \
   --expected-deploy-target "$DEPLOY_TARGET" \
   --env-file "$ENV_FILE" \
   --report "$REPORT_DIR/infrastructure-intake-readiness.json"
+if [ "$DEPLOY_TARGET" = "tencent" ]; then
+  command -v python3 >/dev/null 2>&1 || die "腾讯云现场审计缺少 Python 3 运行时"
+  python3 "$RELEASE_DIR/scripts/operations/audit-tencent-cloud-readiness.py" \
+    --env-file "$ENV_FILE" \
+    --release-id "$RELEASE_ID" \
+    --report "$REPORT_DIR/tencent-cloud-readiness.json"
+fi
 $NODE_BIN -- "$RELEASE_DIR/scripts/release/audit-host-preflight.mjs" \
   --project-dir "$RELEASE_DIR" --env-file "$ENV_FILE" \
   --release-id "$RELEASE_ID" --allow-occupied-ports \

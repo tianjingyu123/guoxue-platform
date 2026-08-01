@@ -133,6 +133,11 @@ sudo DOMAIN=api.example.com DEPLOY_TARGET=tencent \
 
 双节点部署时，节点 A 改用 `NODE_ROLE=app`，节点 B 使用 `NODE_ROLE=operations`；监控、告警、镜像清理和数据库定时备份只运行在 B。
 
+如果两台节点仍运行临时预部署目录，这是“首次固定版本引导”，不是日常更新。必须按
+`docs/operations/服务器数据库域名迁移手册-20260728.md` 第 2.1 节在 CLB 逐台摘除/恢复；首次引导
+不设置 `EXPECTED_CURRENT_RELEASE_ID`，也不得把临时目录伪造成可回滚版本。A/B 首次形成同一固定版本后，
+后续一律使用 GitHub 双节点滚动工作流。
+
 脚本自动完成：系统优化 → Docker 安装 → 防火墙 → 固定发布包复核 → SSL 证书 → 按数据库模式构建启动 → 定时备份。
 
 ### 3.2 手动部署（逐步控制）
@@ -184,6 +189,12 @@ DEPLOY_TARGET="$DEPLOY_TARGET" ENV_FILE="$ENV_FILE" bash ./health-check.sh
 ---
 
 ## 4. 日常更新部署
+
+> 本节仅适用于 A/B 已经运行同一个固定版本。触发生产工作流时必须把该版本填入
+> `expected_current_release_id`。工作流会在更新 A 前同时验真两台节点的共同基线及其恢复链；若本次包含
+> 数据库迁移，还必须完成旧应用向后兼容评审并填写
+> `schema_compatibility_confirmation=schema-compatible:<新发布标识>`。任何后续步骤失败时先恢复 B、再恢复 A，
+> 任务保持失败状态以便排查，不能把自动恢复误当成发布成功。
 
 ### 4.1 标准部署流程
 

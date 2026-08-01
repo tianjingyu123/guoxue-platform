@@ -22,6 +22,7 @@ function completeIntake() {
       memoryMb: 8192,
       diskGb: 100,
       ingressMode: "clb",
+      clbId: "lb-NewTarget123",
       sshUser: "deploy",
       sshHostFingerprint: "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
       securityGroupReviewed: true,
@@ -102,6 +103,10 @@ function completeEnvironment(overrides = {}) {
     STORAGE_PROVIDER: "cos",
     COS_BUCKET: "guoxue-prod-1250000000",
     COS_REGION: "ap-beijing",
+    TENCENT_REGION: "ap-beijing",
+    TENCENT_CLB_ID: "lb-NewTarget123",
+    TENCENT_CDN_DOMAIN: "static.guoxue.cn",
+    TENCENT_CERTIFICATE_DOMAIN: "api.guoxue.cn",
     ...overrides,
   };
 }
@@ -137,7 +142,7 @@ async function runAudit(
     "--report",
     report,
   ];
-  if (stage === "launch") commandArgs.push("--env-file", envFile);
+  if (stage !== "procurement") commandArgs.push("--env-file", envFile);
   const result = spawnSync(process.execPath, commandArgs, { cwd: projectRoot, encoding: "utf8" });
   const parsed = JSON.parse(await readFile(report, "utf8"));
   return { root, result, report: parsed };
@@ -177,7 +182,7 @@ test("采购阶段阻断低配服务器和未启用恢复保护的数据库", as
   }
 });
 
-test("采购可接受待签证书但 launch 阶段必须完成全部实测", async () => {
+test("采购可接受待签证书，但 predeploy 和 launch 阶段必须完成资源实测", async () => {
   const intake = completeIntake();
   intake.server.sshHostFingerprint = "pending";
   intake.server.securityGroupReviewed = false;
@@ -185,6 +190,7 @@ test("采购可接受待签证书但 launch 阶段必须完成全部实测", asy
   intake.storage.signedUrlVerified = false;
   intake.operations.restoreDrillCompleted = false;
   const procurement = await runAudit(intake, "procurement");
+  const predeploy = await runAudit(intake, "predeploy");
   const launch = await runAudit(intake, "launch");
   try {
     assert.equal(
@@ -192,12 +198,113 @@ test("采购可接受待签证书但 launch 阶段必须完成全部实测", asy
       0,
       procurement.result.stderr || procurement.result.stdout,
     );
+    assert.notEqual(predeploy.result.status, 0);
+    assert.equal(predeploy.report.success, false);
     assert.notEqual(launch.result.status, 0);
     assert.equal(launch.report.success, false);
     assert.ok(launch.report.summary.failed >= 4);
   } finally {
     await rm(procurement.root, { recursive: true, force: true });
+    await rm(predeploy.root, { recursive: true, force: true });
     await rm(launch.root, { recursive: true, force: true });
+  }
+});
+
+test("predeploy 阶段可在迁移演练前验证真实资源和正式环境绑定", async () => {
+  const intake = completeIntake();
+  intake.operations.monitoringConfigured = false;
+  intake.operations.alertTested = false;
+  intake.operations.restoreDrillCompleted = false;
+  intake.migration.sourceDatabaseAccessVerified = false;
+  intake.migration.targetDatabaseAccessVerified = false;
+  intake.migration.dnsChangeAccessVerified = false;
+  intake.migration.rehearsalCompleted = false;
+  intake.migration.oldEnvironmentRetentionConfirmed = false;
+  const predeploy = await runAudit(intake, "predeploy");
+  const launch = await runAudit(intake, "launch");
+  try {
+    assert.equal(
+      predeploy.result.status,
+      0,
+      predeploy.result.stderr || predeploy.result.stdout,
+    );
+    assert.equal(predeploy.report.success, true);
+    assert.equal(predeploy.report.configurationBinding.success, true);
+    assert.notEqual(launch.result.status, 0);
+    assert.match(
+      launch.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /监控、告警和恢复演练已完成|源库、目标库与 DNS 变更权限已现场验证|数据库迁移演练和旧环境回退保留已完成/,
+    );
+  } finally {
+    await rm(predeploy.root, { recursive: true, force: true });
+    await rm(launch.root, { recursive: true, force: true });
+  }
+});
+
+test("predeploy 阶段拒绝占位资源或正式环境错绑且报告不泄露凭据", async () => {
+  const placeholderIntake = completeIntake();
+  placeholderIntake.server.clbId = "pending";
+  const placeholder = await runAudit(placeholderIntake, "predeploy");
+  const mismatched = await runAudit(
+    completeIntake(),
+    "predeploy",
+    "tencent",
+    completeEnvironment({
+      DATABASE_URL:
+        "postgresql://guoxue:predeploy-secret@wrong-predeploy.internal.guoxue.cn:5432/guoxue?sslmode=require",
+    }),
+  );
+  try {
+    assert.notEqual(placeholder.result.status, 0);
+    assert.match(
+      placeholder.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /接入清单不含占位值/,
+    );
+    assert.notEqual(mismatched.result.status, 0);
+    assert.equal(mismatched.report.configurationBinding.success, false);
+    const serialized = JSON.stringify(mismatched.report);
+    assert.equal(serialized.includes("wrong-predeploy.internal.guoxue.cn"), false);
+    assert.equal(serialized.includes("predeploy-secret"), false);
+  } finally {
+    await rm(placeholder.root, { recursive: true, force: true });
+    await rm(mismatched.root, { recursive: true, force: true });
+  }
+});
+
+test("launch 阶段拒绝 CLB 资源 ID 缺失或与正式环境错绑", async () => {
+  const intake = completeIntake();
+  intake.server.clbId = "pending";
+  const missing = await runAudit(intake, "launch");
+  const mismatched = await runAudit(
+    { ...completeIntake(), server: { ...completeIntake().server, clbId: "lb-OtherTarget456" } },
+    "launch",
+  );
+  try {
+    assert.notEqual(missing.result.status, 0);
+    assert.match(
+      missing.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /接入清单不含占位值/,
+    );
+    assert.notEqual(mismatched.result.status, 0);
+    assert.match(
+      mismatched.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /正式环境与新基础设施接入清单完全绑定/,
+    );
+  } finally {
+    await rm(missing.root, { recursive: true, force: true });
+    await rm(mismatched.root, { recursive: true, force: true });
   }
 });
 

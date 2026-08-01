@@ -62,7 +62,9 @@ CURRENT_RELEASE_ID="$(tr -d '\r\n' < "$CURRENT_DIR/.release-id")"
   || fail "当前发布标识格式无效，拒绝在异常发布状态下回滚"
 [ "$CURRENT_DIR" = "$(realpath -e "$RELEASES_DIR/$CURRENT_RELEASE_ID")" ] \
   || fail "current 软链接与当前发布目录标识不一致，拒绝在异常发布状态下回滚"
-[ "$CURRENT_RELEASE_ID" != "$TARGET_RELEASE_ID" ] || fail "目标版本已经是当前版本"
+if [ "$CURRENT_RELEASE_ID" = "$TARGET_RELEASE_ID" ] && [ "$VERIFY_ONLY" != "true" ]; then
+  fail "目标版本已经是当前版本"
+fi
 SCRIPT_DIR_REAL="$(realpath -e "$SCRIPT_DIR")"
 [ "$SCRIPT_DIR_REAL" = "$CURRENT_DIR/scripts/release" ] \
   || fail "回滚入口不是当前可信版本内的脚本，拒绝使用临时或旧脚本执行生产回滚"
@@ -109,6 +111,16 @@ if [ "$VERIFY_ONLY" = "true" ]; then
   exit 0
 fi
 
+restore_current_monitoring() {
+  node "$CURRENT_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE" || return 1
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+    docker compose -f "$CURRENT_DIR/docker/monitoring/docker-compose.yml" \
+      --env-file "$SHARED_ENV_FILE" config -q || return 1
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+    docker compose -f "$CURRENT_DIR/docker/monitoring/docker-compose.yml" \
+      --env-file "$SHARED_ENV_FILE" up -d
+}
+
 if [ "$NODE_ROLE" = "operations" ]; then
   log "运维节点：渲染并复核目标版本监控配置"
   node "$TARGET_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE"
@@ -116,21 +128,31 @@ if [ "$NODE_ROLE" = "operations" ]; then
   COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
     docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
       --env-file "$SHARED_ENV_FILE" config -q
-  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+  if ! COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
     docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
-      --env-file "$SHARED_ENV_FILE" up -d
+      --env-file "$SHARED_ENV_FILE" up -d; then
+    restore_current_monitoring \
+      || fail "目标版本监控栈启动失败，且无法恢复当前版本监控配置"
+    fail "目标版本监控栈启动失败；已恢复当前版本监控配置"
+  fi
 else
   log "业务节点：跳过监控栈回滚，避免重复告警和复制运维密钥"
 fi
 
 log "健康部署目标版本：$TARGET_RELEASE_ID"
-ENV_FILE="$SHARED_ENV_FILE" \
-BACKUP_DIR="$BACKUP_DIR" \
-RELEASE_ID="$TARGET_RELEASE_ID" \
-DEPLOY_TARGET="$DEPLOY_TARGET" \
-NODE_ROLE="$NODE_ROLE" \
-COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
-  bash "$TARGET_DIR/docker/deploy.sh" --skip-migrate
+if ! ENV_FILE="$SHARED_ENV_FILE" \
+  BACKUP_DIR="$BACKUP_DIR" \
+  RELEASE_ID="$TARGET_RELEASE_ID" \
+  DEPLOY_TARGET="$DEPLOY_TARGET" \
+  NODE_ROLE="$NODE_ROLE" \
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+    bash "$TARGET_DIR/docker/deploy.sh" --skip-migrate; then
+  if [ "$NODE_ROLE" = "operations" ]; then
+    restore_current_monitoring \
+      || fail "应用回滚失败，且无法恢复当前版本监控配置；保持发布阻断并人工处置"
+  fi
+  fail "应用回滚失败；当前版本与监控配置已保持或恢复"
+fi
 
 CURRENT_ID_NEXT="$ROOT_DIR/current-release-id.next"
 rm -f -- "$CURRENT_ID_NEXT"

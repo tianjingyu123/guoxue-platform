@@ -40,6 +40,20 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
       summary: { passed: 18, failed: 0, total: 18 },
       checks: [{ name: "新基础设施接入", pass: true, detail: "ok" }],
     },
+    "tencent-cloud-readiness.json": {
+      schemaVersion: 1,
+      kind: "guoxue-tencent-cloud-readiness",
+      generatedAt: freshTime(),
+      releaseId,
+      targetBinding: {
+        region: "ap-guangzhou",
+        clbId: "lb-NewTarget123",
+        cdnDomain: "assets.new-guoxue.test",
+        certificateDomain: "new-guoxue.test",
+      },
+      success: true,
+      summary: { failed: 0, failures: [] },
+    },
     "package-verification.json": {
       schemaVersion: 1,
       generatedAt: freshTime(),
@@ -151,12 +165,52 @@ async function runScenario(t, overrides = {}, extraArgs = [], omittedFiles = [])
   return { result, decision };
 }
 
-test("九份证据一致且有效时给出 GO", async (t) => {
+test("腾讯部署十份证据一致且有效时给出 GO", async (t) => {
   const { result, decision } = await runScenario(t);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(decision.decision, "GO");
-  assert.deepEqual(decision.summary, { passed: 9, failed: 0, total: 9 });
+  assert.deepEqual(decision.summary, { passed: 10, failed: 0, total: 10 });
   assert.match(decision.sources.runtime.sha256, /^[a-f0-9]{64}$/u);
+});
+
+test("标准部署无需腾讯云证据且九份证据有效时给出 GO", async (t) => {
+  const { result, decision } = await runScenario(
+    t,
+    { "infrastructure-intake-readiness.json": { deployTarget: "standard" } },
+    [],
+    ["tencent-cloud-readiness.json"],
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(decision.decision, "GO");
+  assert.deepEqual(decision.summary, { passed: 9, failed: 0, total: 9 });
+  assert.equal(decision.sources.tencentCloud, undefined);
+});
+
+test("腾讯部署缺少云资源现场审计时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(
+    t,
+    {},
+    [],
+    ["tencent-cloud-readiness.json"],
+  );
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.equal(decision.sources.tencentCloud.sha256, null);
+});
+
+test("腾讯云资源现场审计失败时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "tencent-cloud-readiness.json": {
+      success: false,
+      summary: { failed: 1, failures: ["CLB 未找到监听器"] },
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.equal(
+    decision.checks.find((item) => item.source === "tencent-cloud-readiness.json")?.pass,
+    false,
+  );
 });
 
 test("主机预检未通过时阻断上线", async (t) => {

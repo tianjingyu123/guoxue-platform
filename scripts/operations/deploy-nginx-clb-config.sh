@@ -9,6 +9,46 @@ backup_root="${BACKUP_ROOT:-/opt/guoxue/backups}"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 backup_dir="${backup_root}/nginx-clb-config-${timestamp}"
 
+if [[ ! -r "${env_file}" ]]; then
+  echo "生产环境配置不可读：${env_file}" >&2
+  exit 2
+fi
+
+read_env_value() {
+  local key="$1"
+  awk -F= -v wanted="$key" '
+    $1 == wanted {
+      if (seen++) exit 2
+      print substr($0, index($0, "=") + 1)
+    }
+    END { if (seen != 1) exit 3 }
+  ' "${env_file}"
+}
+
+nginx_server_names="${NGINX_SERVER_NAMES:-}"
+if [[ -z "${nginx_server_names}" ]]; then
+  nginx_server_names="$(read_env_value NGINX_SERVER_NAMES)" || {
+    echo "NGINX_SERVER_NAMES 缺失或重复" >&2
+    exit 2
+  }
+fi
+nginx_server_names="${nginx_server_names//$'\r'/}"
+nginx_server_names="${nginx_server_names#\"}"
+nginx_server_names="${nginx_server_names%\"}"
+nginx_server_names="${nginx_server_names#\'}"
+nginx_server_names="${nginx_server_names%\'}"
+
+probe_host="${CLB_PROBE_HOST:-}"
+if [[ -z "${probe_host}" ]]; then
+  read -r probe_host _ <<<"${nginx_server_names}"
+fi
+if [[ ! "${probe_host}" =~ ^[A-Za-z0-9.-]+$ ]] \
+  || [[ "${probe_host}" == "localhost" ]] \
+  || [[ "${probe_host}" == *.example.com ]]; then
+  echo "CLB 探测域名无效：${probe_host:-<empty>}" >&2
+  exit 2
+fi
+
 declare -A incoming=(
   [docker-compose.tencent.yml]="/tmp/docker-compose.tencent.new.yml"
   [nginx/nginx.clb.conf.template]="/tmp/nginx.clb.conf.new.template"
@@ -33,10 +73,11 @@ fi
 
 docker run --rm \
   --network docker_default \
+  -e NGINX_SERVER_NAMES="${nginx_server_names}" \
   -v "${incoming[nginx/nginx.clb.conf.template]}:/tmp/nginx.clb.conf.template:ro" \
   -v "${incoming[nginx/security-headers.conf]}:/etc/nginx/snippets/security-headers.conf:ro" \
   nginx:1.27-alpine \
-  sh -ec 'NGINX_SERVER_NAMES=pre-api.rebugx.cn; export NGINX_SERVER_NAMES; envsubst '\''$NGINX_SERVER_NAMES'\'' < /tmp/nginx.clb.conf.template > /etc/nginx/nginx.conf; nginx -t'
+  sh -ec 'envsubst '\''$NGINX_SERVER_NAMES'\'' < /tmp/nginx.clb.conf.template > /etc/nginx/nginx.conf; nginx -t'
 
 install -d -m 0750 "${backup_dir}/nginx"
 for name in "${!incoming[@]}"; do
@@ -85,7 +126,7 @@ docker network inspect monitoring >/dev/null 2>&1 || docker network create monit
 )
 
 for attempt in $(seq 1 30); do
-  if curl -fsS -H 'Host: pre-api.rebugx.cn' http://127.0.0.1/nginx-health >/dev/null; then
+  if curl -fsS -H "Host: ${probe_host}" http://127.0.0.1/nginx-health >/dev/null; then
     break
   fi
   if [[ "${attempt}" == "30" ]]; then
@@ -95,7 +136,7 @@ for attempt in $(seq 1 30); do
   sleep 2
 done
 
-headers="$(curl -fsSI -H 'Host: pre-api.rebugx.cn' http://127.0.0.1/h5/)"
+headers="$(curl -fsSI -H "Host: ${probe_host}" http://127.0.0.1/h5/)"
 for expected in strict-transport-security x-frame-options x-content-type-options referrer-policy permissions-policy; do
   if ! grep -qi "^${expected}:" <<<"${headers}"; then
     echo "H5 缺少安全响应头：${expected}" >&2

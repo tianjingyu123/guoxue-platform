@@ -32,12 +32,6 @@ if [[ ! -s "${monitoring_dir}/.generated/alertmanager.yml" ]]; then
   exit 2
 fi
 
-docker run --rm --entrypoint /bin/promtool \
-  -v "${incoming[prometheus.yml]}:/etc/prometheus/prometheus.yml:ro" \
-  -v "${incoming[alert-rules.yml]}:/etc/prometheus/alert-rules.yml:ro" \
-  prom/prometheus:v2.55.1 \
-  check config /etc/prometheus/prometheus.yml
-
 install -d -m 0750 "${backup_dir}"
 for name in "${!incoming[@]}"; do
   install -m 0640 "${monitoring_dir}/${name}" "${backup_dir}/${name}"
@@ -45,10 +39,15 @@ done
 
 rollback() {
   local status=$?
+  trap - ERR
   echo "监控配置更新失败，正在恢复：${backup_dir}" >&2
   for name in "${!incoming[@]}"; do
     install -m 0644 "${backup_dir}/${name}" "${monitoring_dir}/${name}"
   done
+  node "${project_root}/scripts/release/render-monitoring-config.mjs" "${env_file}" || {
+    echo "旧监控配置重新渲染失败，必须人工恢复：${backup_dir}" >&2
+    exit 3
+  }
   (
     cd "${monitoring_dir}"
     docker compose --env-file "${env_file}" -f docker-compose.yml up -d
@@ -62,6 +61,13 @@ trap rollback ERR
 for name in "${!incoming[@]}"; do
   install -m 0644 "${incoming[$name]}" "${monitoring_dir}/${name}"
 done
+
+node "${project_root}/scripts/release/render-monitoring-config.mjs" "${env_file}"
+docker run --rm --entrypoint /bin/promtool \
+  -v "${monitoring_dir}/.generated/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+  -v "${monitoring_dir}/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro" \
+  prom/prometheus:v2.55.1 \
+  check config /etc/prometheus/prometheus.yml
 
 docker network inspect monitoring >/dev/null 2>&1 || docker network create monitoring >/dev/null
 

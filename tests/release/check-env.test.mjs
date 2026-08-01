@@ -29,6 +29,10 @@ function createEnvironment({
     "CORS_ORIGIN=https://api.guoxue.test",
     "WS_CORS_ORIGIN=https://api.guoxue.test",
     "NGINX_SERVER_NAMES=api.guoxue.test",
+    "TENCENT_REGION=ap-beijing",
+    "TENCENT_CLB_ID=lb-NewTarget123",
+    "TENCENT_CDN_DOMAIN=static.guoxue.test",
+    "TENCENT_CERTIFICATE_DOMAIN=api.guoxue.test",
     "VITE_API_URL=https://api.guoxue.test",
     "VITE_PUBLIC_H5_URL=https://api.guoxue.test/h5/",
     "VITE_PUBLIC_ASSET_ORIGIN=https://static.guoxue.test",
@@ -47,6 +51,9 @@ function createFullEnvironment(options = {}) {
   return [
     createEnvironment(options),
     `DEEPSEEK_API_KEY=${"D".repeat(48)}`,
+    "WECHAT_MINI_APP_ID=wx06397e8ab26bed9e",
+    `MINIPROGRAM_APP_SECRET=${"M".repeat(32)}`,
+    "WECHAT_PAY_APP_ID=wx06397e8ab26bed9e",
     "WECHAT_PAY_MCH_ID=1900000109",
     `WECHAT_PAY_SERIAL_NO=${"A".repeat(40)}`,
     `WECHAT_PAY_API_V3_KEY=${"V".repeat(32)}`,
@@ -111,6 +118,31 @@ test("tencent 架构接受托管私网地址并强制使用 COS", async () => {
   );
   assert.equal(localStorage.status, 1, `${localStorage.stdout}\n${localStorage.stderr}`);
   assert.match(localStorage.stderr, /STORAGE_PROVIDER 必须为 cos/);
+});
+
+test("完整腾讯云上线拒绝缺失或错绑 CLB、CDN 与证书目标", async () => {
+  const invalid = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  })
+    .replace("TENCENT_CLB_ID=lb-NewTarget123", "TENCENT_CLB_ID=")
+    .replace("TENCENT_CDN_DOMAIN=static.guoxue.test", "TENCENT_CDN_DOMAIN=other.guoxue.test")
+    .replace(
+      "TENCENT_CERTIFICATE_DOMAIN=api.guoxue.test",
+      "TENCENT_CERTIFICATE_DOMAIN=other.guoxue.test",
+    );
+  const result = await runChecker(
+    invalid,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /TENCENT_CLB_ID 未配置/);
+  assert.match(result.stderr, /TENCENT_CDN_DOMAIN 必须与 PUBLIC_ASSET_ORIGIN 主机名一致/);
+  assert.match(result.stderr, /TENCENT_CERTIFICATE_DOMAIN 必须与 PUBLIC_DOMAIN 一致/);
 });
 
 test("未知部署架构直接阻断", async () => {
@@ -184,4 +216,58 @@ test("未知节点角色直接阻断", async () => {
   const result = await runChecker(createEnvironment(), "--node-role", "database");
   assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stderr, /NODE_ROLE 仅允许 app 或 operations/);
+});
+
+test("完整上线拒绝正式环境指向旧小程序", async () => {
+  const environment = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  }).replace("WECHAT_MINI_APP_ID=wx06397e8ab26bed9e", "WECHAT_MINI_APP_ID=wx-old-mini-app");
+  const result = await runChecker(
+    environment,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /正式环境的小程序 AppID 与受控商店发布基线不一致/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /wx-old-mini-app/);
+});
+
+test("完整上线拒绝微信支付绑定到其他 AppID", async () => {
+  const environment = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  }).replace("WECHAT_PAY_APP_ID=wx06397e8ab26bed9e", "WECHAT_PAY_APP_ID=wx-wrong-pay-app");
+  const result = await runChecker(
+    environment,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /微信支付绑定 AppID 与受控商店发布基线不一致/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /wx-wrong-pay-app/);
+});
+
+test("完整上线拒绝多个小程序 AppID 别名互相冲突", async () => {
+  const environment = `${createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  })}MINIPROGRAM_APP_ID=wx-another-mini-app\n`;
+  const result = await runChecker(
+    environment,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /微信小程序 AppID 别名配置不一致/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /wx-another-mini-app/);
 });

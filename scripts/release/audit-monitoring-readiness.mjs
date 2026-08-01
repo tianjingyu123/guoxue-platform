@@ -67,8 +67,9 @@ add(
   "自有公网证书到期提前告警",
   hasAll(prometheus, [
     'job_name: "blackbox-tls"',
-    "https://pre-api.rebugx.cn/api/v1/health/live",
-    "https://pre-static.rebugx.cn/",
+    '"${PUBLIC_API_URL}/api/v1/health/live"',
+    '"${PUBLIC_ASSET_ORIGIN}/"',
+    'env: "production"',
   ]) &&
     hasAll(alerts, [
       'probe_ssl_earliest_cert_expiry{job="blackbox-tls"}',
@@ -119,8 +120,12 @@ add(
   "Alertmanager 使用渲染后的私密配置",
   monitoringCompose.includes(
     "./.generated/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro",
-  ) && !fs.existsSync(path.join(repoRoot, "docker/monitoring/alertmanager.yml")),
-  "禁止把含占位符的模板直接交给 Alertmanager",
+  ) &&
+    monitoringCompose.includes(
+      "./.generated/prometheus.yml:/etc/prometheus/prometheus.yml:ro",
+    ) &&
+    !fs.existsSync(path.join(repoRoot, "docker/monitoring/alertmanager.yml")),
+  "禁止把含占位符的模板直接交给 Alertmanager 或 Prometheus",
 );
 
 add(
@@ -130,6 +135,10 @@ add(
     "WEWORK_AGENT_ID",
     "WEWORK_AGENT_SECRET",
     "DBA_WEWORK_USER_IDS",
+    "PUBLIC_API_URL",
+    "PUBLIC_ASSET_ORIGIN",
+    "prometheusOutputFile",
+    "normalizePublicHttpsUrl",
     "escapeYamlDoubleQuoted",
     "mode: 0o600",
     "chmod(outputFile, 0o600)",
@@ -175,6 +184,8 @@ add(
   hasAll(deployMonitoring, [
     "promtool",
     "trap rollback ERR",
+    "render-monitoring-config.mjs",
+    ".generated/prometheus.yml",
     "up -d --force-recreate prometheus blackbox-exporter",
     "业务指标采集",
     "TLS 到期指标",

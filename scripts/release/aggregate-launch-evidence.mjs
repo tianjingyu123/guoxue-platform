@@ -155,6 +155,34 @@ const definitions = [
     },
   },
   {
+    id: "tencentCloud",
+    name: "腾讯云目标资源现场审计",
+    file: "tencent-cloud-readiness.json",
+    requireFresh: true,
+    when: () => sourceData.infrastructureIntake?.deployTarget === "tencent",
+    validate: (data) => {
+      const problems = [];
+      if (data.schemaVersion !== 1) problems.push("schemaVersion 不是 1");
+      if (data.kind !== "guoxue-tencent-cloud-readiness") {
+        problems.push("腾讯云审计证据类型无效");
+      }
+      if (data.releaseId !== releaseId) {
+        problems.push(`腾讯云审计发布标识为 ${String(data.releaseId)}`);
+      }
+      if (
+        data.success !== true ||
+        data.summary?.failed !== 0 ||
+        !data.targetBinding?.region ||
+        !data.targetBinding?.clbId ||
+        !data.targetBinding?.cdnDomain ||
+        !data.targetBinding?.certificateDomain
+      ) {
+        problems.push("腾讯云监控、CLB、CDN 或证书现场审计未全部通过");
+      }
+      return problems;
+    },
+  },
+  {
     id: "package",
     name: "固定发布包验真",
     file: "package-verification.json",
@@ -332,7 +360,10 @@ const definitions = [
   },
 ];
 
-for (const definition of definitions) await loadSource(definition);
+for (const definition of definitions) {
+  if (definition.when && !definition.when()) continue;
+  await loadSource(definition);
+}
 
 const failed = checks.filter((item) => !item.pass);
 const report = {

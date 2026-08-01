@@ -110,11 +110,11 @@ scrape_configs:
       module: ["http_2xx"]
     static_configs:
       - targets:
-          - "https://pre-api.rebugx.cn/api/v1/health/live"
-          - "https://pre-static.rebugx.cn/"
+          - "${PUBLIC_API_URL}/api/v1/health/live"
+          - "${PUBLIC_ASSET_ORIGIN}/"
         labels:
           category: "certificate"
-          env: "preproduction"
+          env: "production"
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

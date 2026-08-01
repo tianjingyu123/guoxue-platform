@@ -12,6 +12,9 @@ function validInput(overrides = {}) {
     confirmation: releaseId,
     runMigration: "false",
     migrationConfirmation: "",
+    schemaCompatibilityConfirmation: "",
+    expectedCurrentReleaseId: "release-20260730-001",
+    operation: "deploy",
     productionDeployReady: "true",
     deployTarget: "tencent",
     productionNodeAConfigured: "true",
@@ -52,10 +55,43 @@ test("生产迁移缺少独立确认时被阻断", () => {
 
 test("生产迁移具备独立确认时通过", () => {
   const result = validateProductionDispatch(
-    validInput({ runMigration: "true", migrationConfirmation: `migrate:${releaseId}` }),
+    validInput({
+      runMigration: "true",
+      migrationConfirmation: `migrate:${releaseId}`,
+      schemaCompatibilityConfirmation: `schema-compatible:${releaseId}`,
+    }),
   );
   assert.equal(result.success, true);
   assert.equal(result.runMigration, true);
+});
+
+test("双节点迁移发布缺少旧应用向后兼容评审时被阻断", () => {
+  const result = validateProductionDispatch(
+    validInput({ runMigration: "true", migrationConfirmation: `migrate:${releaseId}` }),
+  );
+  assert.equal(result.success, false);
+  assert.match(result.errors.join("\n"), new RegExp(`schema-compatible:${releaseId}`));
+});
+
+test("双节点滚动发布缺少当前版本基线时被阻断", () => {
+  const result = validateProductionDispatch(validInput({ expectedCurrentReleaseId: "" }));
+  assert.equal(result.success, false);
+  assert.match(result.errors.join("\n"), /EXPECTED_CURRENT_RELEASE_ID/);
+});
+
+test("双节点滚动发布的当前版本不得等于待发布版本", () => {
+  const result = validateProductionDispatch(
+    validInput({ expectedCurrentReleaseId: releaseId }),
+  );
+  assert.equal(result.success, false);
+  assert.match(result.errors.join("\n"), /不得与待发布标识相同/);
+});
+
+test("切流复核不要求提供滚动发布前版本", () => {
+  const result = validateProductionDispatch(
+    validInput({ operation: "verify", expectedCurrentReleaseId: "" }),
+  );
+  assert.equal(result.success, true);
 });
 
 test("源提交不是完整 SHA 时被阻断", () => {

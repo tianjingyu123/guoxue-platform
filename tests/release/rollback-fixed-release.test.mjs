@@ -49,6 +49,14 @@ test("回滚确认值与目标版本不一致时被阻断", () => {
   assert.match(result.stderr, /回滚确认值必须与目标发布标识完全一致/);
 });
 
+test("只读演练允许复核当前版本作为滚动发布恢复基线", async () => {
+  const source = await readFile(rollbackSource, "utf8");
+  assert.match(
+    source,
+    /CURRENT_RELEASE_ID" = "\$TARGET_RELEASE_ID" \] && \[ "\$VERIFY_ONLY" != "true"/,
+  );
+});
+
 async function createFixture({ laterMigration = false } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "gx-rollback-"));
   const targetId = "release-20260731-001";

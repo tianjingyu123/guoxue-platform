@@ -3,6 +3,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
+
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(scriptDir, "..", "..");
 
 const args = process.argv.slice(2);
 let envFile = ".env";
@@ -156,6 +160,14 @@ const required = [
   "PAIPAN_LEGACY_MODE",
   "PAIPAN_H5_BASE",
 ];
+if (fullCheck && deployTarget === "tencent") {
+  required.push(
+    "TENCENT_REGION",
+    "TENCENT_CLB_ID",
+    "TENCENT_CDN_DOMAIN",
+    "TENCENT_CERTIFICATE_DOMAIN",
+  );
+}
 
 for (const key of required) {
   if (!values.get(key)) errors.push(`${key} 未配置`);
@@ -283,6 +295,32 @@ if (deployTarget === "tencent") {
   }
   if (storageProvider && storageProvider !== "cos") {
     errors.push("DEPLOY_TARGET=tencent 时 STORAGE_PROVIDER 必须为 cos，禁止本地盘静默兜底");
+  }
+  const tencentRegion = (values.get("TENCENT_REGION") || "").trim().toLowerCase();
+  const tencentClbId = (values.get("TENCENT_CLB_ID") || "").trim();
+  const tencentCdnDomain = (values.get("TENCENT_CDN_DOMAIN") || "")
+    .trim()
+    .toLowerCase();
+  const tencentCertificateDomain = (values.get("TENCENT_CERTIFICATE_DOMAIN") || "")
+    .trim()
+    .toLowerCase();
+  if (tencentRegion && !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$/u.test(tencentRegion)) {
+    errors.push("TENCENT_REGION 格式无效");
+  }
+  if (tencentClbId && !/^lb-[A-Za-z0-9]+$/u.test(tencentClbId)) {
+    errors.push("TENCENT_CLB_ID 格式无效");
+  }
+  if (
+    tencentCdnDomain &&
+    tencentCdnDomain !== (parsedUrls.get("PUBLIC_ASSET_ORIGIN")?.hostname || "").toLowerCase()
+  ) {
+    errors.push("TENCENT_CDN_DOMAIN 必须与 PUBLIC_ASSET_ORIGIN 主机名一致");
+  }
+  if (
+    tencentCertificateDomain &&
+    tencentCertificateDomain !== (values.get("PUBLIC_DOMAIN") || "").trim().toLowerCase()
+  ) {
+    errors.push("TENCENT_CERTIFICATE_DOMAIN 必须与 PUBLIC_DOMAIN 一致");
   }
 }
 
@@ -483,8 +521,34 @@ if (fullCheck) {
 
   const miniAppIds = ["WECHAT_MINI_APP_ID", "MINIPROGRAM_APP_ID", "WECHAT_MP_APP_ID"];
   const miniAppSecrets = ["MINIPROGRAM_APP_SECRET", "WECHAT_APP_SECRET"];
+  const configuredMiniAppIds = miniAppIds
+    .map((key) => values.get(key))
+    .filter(Boolean);
   if (!hasAny(values, miniAppIds) || !hasAny(values, miniAppSecrets)) {
-    warnings.push("微信小程序登录配置不完整：需小程序 AppId 与 MINIPROGRAM_APP_SECRET");
+    errors.push("微信小程序登录配置不完整：需显式配置小程序 AppID 与 MINIPROGRAM_APP_SECRET");
+  }
+  if (new Set(configuredMiniAppIds).size > 1) {
+    errors.push("微信小程序 AppID 别名配置不一致：WECHAT_MINI_APP_ID、MINIPROGRAM_APP_ID 与 WECHAT_MP_APP_ID 不得指向不同应用");
+  }
+
+  try {
+    const storeBaseline = JSON.parse(
+      await readFile(path.join(repoRoot, "config/release/store-baseline.json"), "utf8"),
+    );
+    const expectedMiniAppId = String(storeBaseline.wechatMiniAppId || "").trim();
+    if (!expectedMiniAppId) {
+      errors.push("商店发布基线缺少 wechatMiniAppId，无法核对正式小程序身份");
+    } else {
+      if (configuredMiniAppIds.some((appId) => appId !== expectedMiniAppId)) {
+        errors.push("正式环境的小程序 AppID 与受控商店发布基线不一致");
+      }
+      const paymentAppId = values.get("WECHAT_PAY_APP_ID");
+      if (paymentAppId && paymentAppId !== expectedMiniAppId) {
+        errors.push("微信支付绑定 AppID 与受控商店发布基线不一致");
+      }
+    }
+  } catch {
+    errors.push("无法读取受控商店发布基线，不能核对正式小程序与支付身份");
   }
   if (
     !hasAny(values, [

@@ -24,12 +24,14 @@ if (!inputArg) {
   console.error("错误：必须通过 --input 提供新基础设施接入清单");
   process.exit(2);
 }
-if (!["procurement", "launch"].includes(stage)) {
-  console.error("错误：--stage 仅允许 procurement 或 launch");
+if (!["procurement", "predeploy", "launch"].includes(stage)) {
+  console.error("错误：--stage 仅允许 procurement、predeploy 或 launch");
   process.exit(2);
 }
-if (stage === "launch" && !envFileArg) {
-  console.error("错误：launch 阶段必须通过 --env-file 提供正式环境文件以绑定新基础设施配置");
+if (stage !== "procurement" && !envFileArg) {
+  console.error(
+    `错误：${stage} 阶段必须通过 --env-file 提供正式环境文件以绑定新基础设施配置`,
+  );
   process.exit(2);
 }
 
@@ -100,6 +102,7 @@ const parseServiceUrl = (value) => {
   }
 };
 const fingerprint = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const resourceReady = stage === "predeploy" || stage === "launch";
 const launch = stage === "launch";
 const server = intake.server || {};
 const database = intake.database || {};
@@ -155,6 +158,11 @@ add(
   "入口方式与受控 SSH 用户明确",
   ["direct", "clb"].includes(text(server.ingressMode).toLowerCase()) && isFilled(server.sshUser),
   "入口仅允许 direct 或 clb，禁止依赖 root 临时口令作为交接方案",
+);
+add(
+  "负载均衡入口已登记目标资源",
+  text(server.ingressMode).toLowerCase() !== "clb" || isFilled(server.clbId),
+  "使用 CLB 时必须登记本次新购负载均衡资源 ID；采购阶段可填 pending，launch 阶段必须填实",
 );
 add(
   "PostgreSQL 规格与保护策略满足要求",
@@ -224,12 +232,13 @@ add(
   "至少保留 72 小时旧环境回退窗口，并明确停写责任人与维护窗口",
 );
 
-if (launch) {
+if (resourceReady) {
   add(
     "接入清单不含占位值",
     [
       server.provider,
       server.region,
+      ...(text(server.ingressMode).toLowerCase() === "clb" ? [server.clbId] : []),
       server.sshUser,
       server.sshHostFingerprint,
       database.provider,
@@ -251,7 +260,7 @@ if (launch) {
       migration.writeFreezeOwner,
       migration.maintenanceWindowUtc,
     ].every((value) => isFilled(value) && !isPlaceholder(value)),
-    "launch 阶段禁止 example、pending、change-me 或待填写值",
+    `${stage} 阶段禁止 example、pending、change-me 或待填写值`,
   );
   add(
     "SSH 主机指纹已从可信控制台核验",
@@ -271,6 +280,9 @@ if (launch) {
       storage.signedUrlVerified === true,
     "对象存储三项验收必须来自新 Bucket 实测",
   );
+}
+
+if (launch) {
   add(
     "监控、告警和恢复演练已完成",
     operations.monitoringConfigured === true &&
@@ -292,7 +304,9 @@ if (launch) {
       Number(migration.rollbackRetentionHours) >= 72,
     "正式迁移前必须完成同版本演练，并确认旧环境在回退窗口内不被释放或覆盖",
   );
+}
 
+if (resourceReady) {
   const databaseUrl = parseServiceUrl(environmentValues.get("DATABASE_URL"));
   const redisUrl = parseServiceUrl(environmentValues.get("REDIS_URL"));
   const databaseTls = databaseUrl
@@ -303,6 +317,9 @@ if (launch) {
   const cacheTls = redisUrl?.protocol === "rediss:";
   const intakeBinding = {
     deployTarget,
+    region: text(server.region).toLowerCase(),
+    clbId:
+      text(server.ingressMode).toLowerCase() === "clb" ? text(server.clbId) : "direct",
     databaseHost: text(database.endpointHost).toLowerCase(),
     databaseTls: database.tls === true,
     cacheHost: text(cache.endpointHost).toLowerCase(),
@@ -319,6 +336,14 @@ if (launch) {
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
     deployTarget: expectedDeployTarget || deployTarget,
+    region:
+      text(server.ingressMode).toLowerCase() === "clb"
+        ? text(environmentValues.get("TENCENT_REGION")).toLowerCase()
+        : text(server.region).toLowerCase(),
+    clbId:
+      text(server.ingressMode).toLowerCase() === "clb"
+        ? text(environmentValues.get("TENCENT_CLB_ID"))
+        : "direct",
     databaseHost: text(databaseUrl?.hostname).toLowerCase(),
     databaseTls,
     cacheHost: text(redisUrl?.hostname).toLowerCase(),

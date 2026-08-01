@@ -29,6 +29,14 @@ on:
         description: "仅执行生产迁移时填写 migrate:<release_id>"
         required: false
         type: string
+      expected_current_release_id:
+        description: "双节点当前共同固定版本；发布前会在 A/B 两端核对"
+        required: false
+        type: string
+      schema_compatibility_confirmation:
+        description: "仅执行生产迁移时，完成旧应用向后兼容评审后填写 schema-compatible:<release_id>"
+        required: false
+        type: string
 
 concurrency:
   group: deploy-${{ inputs.environment }}
@@ -70,6 +78,9 @@ jobs:
           PRODUCTION_CONFIRMATION: ${{ inputs.production_confirmation }}
           RUN_MIGRATION: ${{ inputs.run_migration }}
           MIGRATION_CONFIRMATION: ${{ inputs.migration_confirmation }}
+          SCHEMA_COMPATIBILITY_CONFIRMATION: ${{ inputs.schema_compatibility_confirmation }}
+          EXPECTED_CURRENT_RELEASE_ID: ${{ inputs.expected_current_release_id }}
+          DISPATCH_OPERATION: deploy
           PRODUCTION_DEPLOY_READY: ${{ vars.PRODUCTION_DEPLOY_READY }}
           PRODUCTION_DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
           PROD_NODE_A_CONFIGURED: ${{ secrets.PROD_HOST_A != '' && secrets.PROD_SSH_FINGERPRINT_A != '' }}
@@ -114,6 +125,9 @@ jobs:
             --release-id "$RELEASE_ID" \
             --source-commit "$SOURCE_COMMIT" \
             --output release-evidence/client-config-binding.json
+          node scripts/release/audit-store-readiness.mjs \
+            --release-id "$RELEASE_ID" \
+            --report release-evidence/store-readiness.json
           rm -f "$CLIENT_ENV"
 
       - name: 保存正式配置客户端成品与审计证据
@@ -129,6 +143,7 @@ jobs:
             release-evidence/client-artifact-audit.json
             release-evidence/client-artifact-verification.json
             release-evidence/client-config-binding.json
+            release-evidence/store-readiness.json
           if-no-files-found: error
           retention-days: 14
 
@@ -243,6 +258,41 @@ jobs:
             test -f /opt/guoxue/shared/.env.production
             MODE="$(stat -c '%a' /opt/guoxue/shared/.env.production)"
             [ "$MODE" = "600" ] || [ "$MODE" = "400" ]
+            test -f /opt/guoxue/current/.release-id
+            test "$(tr -d '\r\n' < /opt/guoxue/current/.release-id)" = '${{ inputs.expected_current_release_id }}'
+            ROOT_DIR=/opt/guoxue \
+            ENV_FILE=/opt/guoxue/shared/.env.production \
+            DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+            NODE_ROLE=app \
+            COMPOSE_PROJECT_NAME=guoxue \
+            ROLLBACK_VERIFY_ONLY=true \
+              bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh \
+                '${{ inputs.expected_current_release_id }}' '${{ inputs.expected_current_release_id }}'
+
+      - name: 发布前核验运维节点 B 当前版本基线
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
+          script: |
+            set -euo pipefail
+            install -d -m 0750 /opt/guoxue/incoming /opt/guoxue/releases /opt/guoxue/release-evidence
+            test -f /opt/guoxue/shared/.env.production
+            MODE="$(stat -c '%a' /opt/guoxue/shared/.env.production)"
+            [ "$MODE" = "600" ] || [ "$MODE" = "400" ]
+            test -f /opt/guoxue/current/.release-id
+            test "$(tr -d '\r\n' < /opt/guoxue/current/.release-id)" = '${{ inputs.expected_current_release_id }}'
+            ROOT_DIR=/opt/guoxue \
+            ENV_FILE=/opt/guoxue/shared/.env.production \
+            DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+            NODE_ROLE=operations \
+            COMPOSE_PROJECT_NAME=guoxue \
+            ROLLBACK_VERIFY_ONLY=true \
+              bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh \
+                '${{ inputs.expected_current_release_id }}' '${{ inputs.expected_current_release_id }}'
 
       - name: 上传固定包到业务节点 A
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
@@ -258,6 +308,7 @@ jobs:
           overwrite: true
 
       - name: 业务节点 A 二次验真并激活
+        id: activate_node_a
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{ secrets.PROD_HOST_A }}
@@ -276,6 +327,7 @@ jobs:
             ENV_FILE=/opt/guoxue/shared/.env.production \
             EXPECTED_RELEASE_ID="$RELEASE_ID" \
             EXPECTED_COMMIT='${{ github.sha }}' \
+            EXPECTED_CURRENT_RELEASE_ID='${{ inputs.expected_current_release_id }}' \
             DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
             NODE_ROLE=app \
             COMPOSE_PROJECT_NAME=guoxue \
@@ -291,21 +343,6 @@ jobs:
           export BASE_URL="$(node -e 'process.stdout.write(new URL(process.env.PUBLIC_H5_URL).origin)')"
           bash scripts/operations/probe-clb-failover.sh 30
 
-      - name: 准备运维节点 B 接收目录
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
-        with:
-          host: ${{ secrets.PROD_HOST_B }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
-          script: |
-            set -euo pipefail
-            install -d -m 0750 /opt/guoxue/incoming /opt/guoxue/releases /opt/guoxue/release-evidence
-            test -f /opt/guoxue/shared/.env.production
-            MODE="$(stat -c '%a' /opt/guoxue/shared/.env.production)"
-            [ "$MODE" = "600" ] || [ "$MODE" = "400" ]
-
       - name: 上传固定包到运维节点 B
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
         with:
@@ -320,6 +357,7 @@ jobs:
           overwrite: true
 
       - name: 运维节点 B 二次验真并激活
+        id: activate_node_b
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{ secrets.PROD_HOST_B }}
@@ -338,6 +376,7 @@ jobs:
             ENV_FILE=/opt/guoxue/shared/.env.production \
             EXPECTED_RELEASE_ID="$RELEASE_ID" \
             EXPECTED_COMMIT='${{ github.sha }}' \
+            EXPECTED_CURRENT_RELEASE_ID='${{ inputs.expected_current_release_id }}' \
             DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
             NODE_ROLE=operations \
             COMPOSE_PROJECT_NAME=guoxue \
@@ -346,6 +385,97 @@ jobs:
               bash /opt/guoxue/incoming/activate-fixed-release.sh "$ARCHIVE" "$CHECKSUM"
 
       - name: 确认双节点激活后 CLB 持续可用
+        env:
+          PUBLIC_H5_URL: ${{ vars.PUBLIC_H5_URL }}
+        run: |
+          set -euo pipefail
+          export BASE_URL="$(node -e 'process.stdout.write(new URL(process.env.PUBLIC_H5_URL).origin)')"
+          bash scripts/operations/probe-clb-failover.sh 45
+
+      - name: 发布失败时恢复运维节点 B 的旧应用与监控
+        id: recover_node_b
+        if: ${{ failure() && steps.activate_node_a.outcome == 'success' }}
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            TARGET='${{ inputs.expected_current_release_id }}'
+            CURRENT="$(tr -d '\r\n' < /opt/guoxue/current/.release-id)"
+            if [ "$CURRENT" = '${{ inputs.release_id }}' ]; then
+              SCHEMA_ROLLBACK=false
+              if [ '${{ inputs.run_migration }}' = 'true' ]; then
+                test '${{ inputs.schema_compatibility_confirmation }}' = 'schema-compatible:${{ inputs.release_id }}'
+                SCHEMA_ROLLBACK=reviewed
+              fi
+              ROOT_DIR=/opt/guoxue \
+              ENV_FILE=/opt/guoxue/shared/.env.production \
+              DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+              NODE_ROLE=operations \
+              COMPOSE_PROJECT_NAME=guoxue \
+              ALLOW_SCHEMA_COMPATIBLE_ROLLBACK="$SCHEMA_ROLLBACK" \
+                bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh "$TARGET" "$TARGET"
+            else
+              test "$CURRENT" = "$TARGET"
+              ENV_FILE=/opt/guoxue/shared/.env.production \
+              BACKUP_DIR=/opt/guoxue/backups \
+              RELEASE_ID="$TARGET" \
+              DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+              NODE_ROLE=operations \
+              COMPOSE_PROJECT_NAME=guoxue \
+                bash /opt/guoxue/current/docker/deploy.sh --skip-migrate
+              node /opt/guoxue/current/scripts/release/render-monitoring-config.mjs /opt/guoxue/shared/.env.production
+              COMPOSE_PROJECT_NAME=guoxue docker compose \
+                -f /opt/guoxue/current/docker/monitoring/docker-compose.yml \
+                --env-file /opt/guoxue/shared/.env.production up -d
+            fi
+
+      - name: 发布失败时恢复业务节点 A
+        id: recover_node_a
+        if: ${{ failure() && (steps.activate_node_a.outcome == 'success' || steps.activate_node_a.outcome == 'failure') }}
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_A }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            TARGET='${{ inputs.expected_current_release_id }}'
+            CURRENT="$(tr -d '\r\n' < /opt/guoxue/current/.release-id)"
+            if [ "$CURRENT" = '${{ inputs.release_id }}' ]; then
+              SCHEMA_ROLLBACK=false
+              if [ '${{ inputs.run_migration }}' = 'true' ]; then
+                test '${{ inputs.schema_compatibility_confirmation }}' = 'schema-compatible:${{ inputs.release_id }}'
+                SCHEMA_ROLLBACK=reviewed
+              fi
+              ROOT_DIR=/opt/guoxue \
+              ENV_FILE=/opt/guoxue/shared/.env.production \
+              DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+              NODE_ROLE=app \
+              COMPOSE_PROJECT_NAME=guoxue \
+              ALLOW_SCHEMA_COMPATIBLE_ROLLBACK="$SCHEMA_ROLLBACK" \
+                bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh "$TARGET" "$TARGET"
+            else
+              test "$CURRENT" = "$TARGET"
+              ENV_FILE=/opt/guoxue/shared/.env.production \
+              BACKUP_DIR=/opt/guoxue/backups \
+              RELEASE_ID="$TARGET" \
+              DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+              NODE_ROLE=app \
+              COMPOSE_PROJECT_NAME=guoxue \
+                bash /opt/guoxue/current/docker/deploy.sh --skip-migrate
+            fi
+
+      - name: 恢复后确认 CLB 已重新承接旧版本
+        if: ${{ failure() && steps.recover_node_a.outcome == 'success' }}
         env:
           PUBLIC_H5_URL: ${{ vars.PUBLIC_H5_URL }}
         run: |

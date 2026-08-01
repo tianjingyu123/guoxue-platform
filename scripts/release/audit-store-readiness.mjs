@@ -50,6 +50,12 @@ const baselinePath = valueOf(
   "--baseline",
   process.env.STORE_BASELINE_FILE || defaultBaseline,
 );
+const reportArgument = valueOf("--report", process.env.STORE_READINESS_REPORT || "");
+const releaseId = valueOf("--release-id", process.env.RELEASE_ID || "").trim();
+
+if (reportArgument && !/^[A-Za-z0-9._-]{8,80}$/u.test(releaseId)) {
+  throw new Error("生成商店正式审计报告时，必须通过 --release-id 提供 8-80 位发布标识");
+}
 const appPlus = manifest["app-plus"] || {};
 const distribute = appPlus.distribute || {};
 const android = distribute.android || {};
@@ -103,6 +109,7 @@ add(
   Object.keys(appPlus.nativePlugins || {}).length > 0 ||
     Object.keys(distribute.sdkConfigs || {}).length > 0,
   "语音/实时音视频能力需在正式真机包中注册原生插件或 SDK",
+  "外部",
 );
 add(
   "鸿蒙 App 编译器与构建命令已接入",
@@ -222,6 +229,39 @@ if (!baselinePath) {
 }
 
 const failed = checks.filter((item) => !item.pass);
+const report = {
+  schemaVersion: 1,
+  kind: "guoxue-store-readiness",
+  generatedAt: new Date().toISOString(),
+  releaseId: releaseId || null,
+  success: failed.length === 0,
+  strict,
+  summary: {
+    total: checks.length,
+    passed: checks.length - failed.length,
+    failed: failed.length,
+    externalBlockers: failed.filter((item) => item.kind === "外部").length,
+    configurationBlockers: failed.filter((item) => item.kind === "配置").length,
+    codeBlockers: failed.filter((item) => item.kind === "代码").length,
+  },
+  checks,
+};
+
+if (reportArgument) {
+  const reportPath = path.resolve(repoRoot, reportArgument);
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  try {
+    fs.chmodSync(reportPath, 0o600);
+  } catch {
+    // Windows 不支持完整 POSIX 权限语义，写入成功即可。
+  }
+  console.log(`商店审计报告：${reportPath}`);
+}
+
 console.log("应用商店覆盖升级门禁");
 for (const item of checks) {
   console.log(`${item.pass ? "通过" : "阻断"}：[${item.kind}] ${item.name} —— ${item.detail}`);

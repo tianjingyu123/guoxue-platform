@@ -112,13 +112,23 @@ test("可在发布证据目录安全初始化待签字验收表且拒绝覆盖",
   assert.match(second.stderr, /拒绝覆盖/u);
 });
 
-test("机器九证据与双负责人九项验收完整时给出最终 GO", async (t) => {
+test("标准部署机器九证据与双负责人九项验收完整时给出最终 GO", async (t) => {
   const { result, report } = await runScenario(t);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(report.decision, "GO");
   assert.equal(report.summary.requiredManualChecks, 9);
   assert.equal(report.summary.archivedEvidenceFiles, 9);
   assert.match(report.sources.manualAcceptance.sha256, /^[a-f0-9]{64}$/u);
+});
+
+test("腾讯部署机器十证据与双负责人九项验收完整时给出最终 GO", async (t) => {
+  const { result, report } = await runScenario(t, ({ machineDecision }) => {
+    machineDecision.summary = { passed: 10, failed: 0, total: 10 };
+    machineDecision.sources.source9 = { sha256: "b".repeat(64) };
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(report.decision, "GO");
+  assert.equal(report.sources.machineDecision.sha256.length, 64);
 });
 
 test("机器上线判定不是 GO 时阻断最终上线", async (t) => {

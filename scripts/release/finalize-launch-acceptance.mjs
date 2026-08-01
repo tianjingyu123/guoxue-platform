@@ -194,7 +194,7 @@ if (machine.data) {
     machine.data.summary?.passed !== machine.data.summary?.total ||
     machine.data.summary?.total < 9
   ) {
-    errors.push("机器上线判定未包含全部通过的九证据");
+    errors.push("机器上线判定未包含全部通过的架构必需证据");
   }
   const sourceHashes = Object.values(machine.data.sources || {}).map((item) => item?.sha256);
   if (

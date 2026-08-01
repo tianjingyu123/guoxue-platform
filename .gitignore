@@ -54,6 +54,10 @@ eslint-report.json
 .eslint-output.json
 failing-tests.txt
 
+# Python 审计脚本运行缓存
+__pycache__/
+*.py[cod]
+
 # 本地构建包、截图、迁移演练与发布验收证据（不进入源码或固定发布包）
 /artifacts/
 

@@ -49,6 +49,9 @@ const shellScripts = [
   "scripts/release/validate-release-layout.sh",
   "scripts/release/verify-production-cutover.sh",
   "scripts/release/current-compose.sh",
+  "scripts/operations/deploy-nginx-clb-config.sh",
+  "scripts/operations/deploy-monitoring-config.sh",
+  "scripts/operations/probe-clb-failover.sh",
   "scripts/db-ops.sh",
   "scripts/backup-db.sh",
   "scripts/restore-db.sh",
@@ -67,6 +70,60 @@ for (const relativePath of shellScripts) {
       : (result.stderr || result.error?.message || "语法检查失败").trim(),
   );
 }
+
+const nginxClbDeploy = read("scripts/operations/deploy-nginx-clb-config.sh");
+const clbFailoverProbe = read("scripts/operations/probe-clb-failover.sh");
+const tencentCloudAudit = read("scripts/operations/audit-tencent-cloud-readiness.py");
+add(
+  "CLB 部署与故障切换探测跟随目标环境域名",
+  hasAll(nginxClbDeploy, [
+    "read_env_value NGINX_SERVER_NAMES",
+    'CLB_PROBE_HOST:-',
+    '-e NGINX_SERVER_NAMES="${nginx_server_names}"',
+    '-H "Host: ${probe_host}"',
+  ]) &&
+    hasAll(clbFailoverProbe, [
+      '${BASE_URL:?必须通过 BASE_URL 指定本次切换要探测的公网入口}',
+      'base_url="${BASE_URL%/}"',
+      "https://[A-Za-z0-9.-]+",
+    ]) &&
+    !nginxClbDeploy.includes("pre-api.rebugx.cn") &&
+    !clbFailoverProbe.includes("pre-api.rebugx.cn"),
+  "Nginx Host 校验和 CLB 连续探测必须绑定本次生产配置，禁止静默回退到旧预发布域名",
+);
+add(
+  "腾讯云验收脚本显式绑定本次目标资源",
+  hasAll(tencentCloudAudit, [
+    '"--region"',
+    '"--clb-id"',
+    '"--cdn-domain"',
+    '"--certificate-domain"',
+    '"--validate-input-only"',
+    "validate_target_binding(arguments)",
+    'payload={"LoadBalancerId": clb_id}',
+    'payload={"Offset": 0, "Limit": 100, "SearchKey": certificate_domain}',
+    'lambda: summarize_cdn(credentials, target["cdnDomain"])',
+    "evaluate_readiness(result)",
+    'if not readiness["success"]:',
+    "raise SystemExit(1)",
+  ]) &&
+    hasAll(read("docker/.env.production.example"), [
+      "TENCENT_REGION=",
+      "TENCENT_CLB_ID=",
+      "TENCENT_CDN_DOMAIN=",
+      "TENCENT_CERTIFICATE_DOMAIN=",
+    ]) &&
+    hasAll(read("scripts/migration/check-env.mjs"), [
+      'required.push(\n    "TENCENT_REGION"',
+      "TENCENT_CDN_DOMAIN 必须与 PUBLIC_ASSET_ORIGIN 主机名一致",
+      "TENCENT_CERTIFICATE_DOMAIN 必须与 PUBLIC_DOMAIN 一致",
+    ]) &&
+    read("package.json").includes('"release:test-tencent-cloud-audit"') &&
+    read("package.json").includes("pnpm release:test-tencent-cloud-audit") &&
+    !tencentCloudAudit.includes("lb-kifcf99d") &&
+    !tencentCloudAudit.includes("pre-static.rebugx.cn"),
+  "购买新 CLB、CDN 和证书后必须由显式资源标识驱动审计，禁止误查旧预发布资源",
+);
 
 const bootstrap = read(shellScripts[0]);
 add(
@@ -746,6 +803,53 @@ add(
   "A/B 节点激活和回滚必须把同一角色传入环境检查与部署，业务节点不得意外启动第二套监控和告警",
 );
 add(
+  "双节点滚动发布固定共同基线并在失败时逆序恢复",
+  hasAll(deploymentWorkflow, [
+    "expected_current_release_id:",
+    "EXPECTED_CURRENT_RELEASE_ID: ${{ inputs.expected_current_release_id }}",
+    "发布前核验运维节点 B 当前版本基线",
+    "id: activate_node_a",
+    "id: activate_node_b",
+    "发布失败时恢复运维节点 B 的旧应用与监控",
+    "发布失败时恢复业务节点 A",
+    "failure() && steps.activate_node_a.outcome == 'success'",
+    "steps.activate_node_a.outcome == 'failure'",
+    "schema-compatible:${{ inputs.release_id }}",
+    "ROLLBACK_VERIFY_ONLY=true",
+    "恢复后确认 CLB 已重新承接旧版本",
+    "rollback-fixed-release.sh",
+  ]) &&
+    deploymentWorkflow.indexOf("发布前核验运维节点 B 当前版本基线") <
+      deploymentWorkflow.indexOf("业务节点 A 二次验真并激活") &&
+    deploymentWorkflow.indexOf("发布失败时恢复运维节点 B 的旧应用与监控") <
+      deploymentWorkflow.indexOf("发布失败时恢复业务节点 A") &&
+    hasAll(productionDispatchGate, [
+      'operation === "deploy"',
+      "EXPECTED_CURRENT_RELEASE_ID",
+      "schema-compatible:",
+    ]) &&
+    hasAll(productionDispatchGateTest, [
+      "双节点迁移发布缺少旧应用向后兼容评审时被阻断",
+      "双节点滚动发布缺少当前版本基线时被阻断",
+      "切流复核不要求提供滚动发布前版本",
+    ]),
+  "A/B 必须从同一已验真固定版本开始；任一后续步骤失败时先恢复 B 再恢复 A，迁移发布必须先证明旧应用兼容新结构",
+);
+add(
+  "运维节点监控切换与应用激活保持失败可恢复",
+  hasAll(releaseActivator, [
+    "restore_current_monitoring()",
+    "新监控栈启动失败，且无法恢复当前版本监控配置",
+    "部署失败，且无法恢复当前版本监控配置",
+  ]) &&
+    hasAll(releaseRollback, [
+      "restore_current_monitoring()",
+      "目标版本监控栈启动失败，且无法恢复当前版本监控配置",
+      "应用回滚失败，且无法恢复当前版本监控配置",
+    ]),
+  "运维节点先更新监控再部署应用时，任一阶段失败都必须恢复 current 对应的监控配置，不能留下新监控与旧应用的分裂状态",
+);
+add(
   "上线缺口审计覆盖未忽略的未跟踪生产源码并纳入总门禁",
   hasAll(launchReadinessAudit, [
     "ls-files', '--cached'",
@@ -845,6 +949,7 @@ add(
       "回滚确认值与目标版本不一致时被阻断",
       "目标版本早于最近数据库迁移时默认阻断回滚",
       "只读回滚演练复核固定包和目录且不改变 current 与发布历史",
+      "只读演练允许复核当前版本作为滚动发布恢复基线",
     ]) &&
     releasePackageJson.includes("release:test-rollback") &&
     releasePackageJson.includes("pnpm release:test-rollback") &&
@@ -879,6 +984,7 @@ add(
   "上线证据聚合器统一给出 GO 或 BLOCK",
   hasAll(launchEvidenceAggregator, [
     "infrastructure-intake-readiness.json",
+    "tencent-cloud-readiness.json",
     "host-preflight-readiness.json",
     "package-verification.json",
     "release-directory-verification.json",
@@ -899,7 +1005,10 @@ add(
     'createHash("sha256")',
   ]) &&
     hasAll(launchEvidenceTest, [
-      "九份证据一致且有效时给出 GO",
+      "腾讯部署十份证据一致且有效时给出 GO",
+      "标准部署无需腾讯云证据且九份证据有效时给出 GO",
+      "腾讯部署缺少云资源现场审计时阻断上线",
+      "腾讯云资源现场审计失败时阻断上线",
       "主机预检未通过时阻断上线",
       "新基础设施接入未达到 launch 阶段时阻断上线",
       "数据库核验不是 final 模式时阻断上线",
@@ -913,7 +1022,7 @@ add(
     ]) &&
     releasePackageJson.includes("pnpm release:test-evidence") &&
     releasePackageJson.includes('"release:aggregate-evidence"'),
-  "主机预检、新基础设施接入、包、已部署目录、客户端配置绑定、数据库迁移对账、完整环境、公网运行时和版本保留证据必须同版、有效且不可降级，并记录来源哈希供签字复盘",
+  "主机预检、新基础设施接入、包、已部署目录、客户端配置绑定、数据库迁移对账、完整环境、公网运行时和版本保留证据必须同版、有效且不可降级；腾讯部署还必须包含现场云资源审计，并记录来源哈希供签字复盘",
 );
 add(
   "最终上线必须同时通过机器九证据与双人签核门禁",
@@ -930,7 +1039,8 @@ add(
     "--init",
   ]) &&
     hasAll(launchAcceptanceTest, [
-      "机器九证据与双负责人九项验收完整时给出最终 GO",
+      "标准部署机器九证据与双负责人九项验收完整时给出最终 GO",
+      "腾讯部署机器十证据与双负责人九项验收完整时给出最终 GO",
       "机器上线判定不是 GO 时阻断最终上线",
       "缺少任一人工检查项时阻断最终上线",
       "技术与业务负责人是同一人时阻断最终上线",
@@ -955,6 +1065,42 @@ add(
       "--client-artifact-verification artifacts/client-evidence/client-artifact-verification.json",
     ]),
   "生产打包任务消费的客户端审计、独立验真与配置绑定三份证据，必须由同一个专用 Artifact 完整上传后再下载",
+);
+add(
+  "生产五端成品同步生成并归档商店阻断报告",
+  hasAll(deploymentWorkflow, [
+    "scripts/release/audit-store-readiness.mjs",
+    '--release-id "$RELEASE_ID"',
+    "--report release-evidence/store-readiness.json",
+    "release-evidence/store-readiness.json",
+  ]) &&
+    hasAll(releasePackageJson, [
+      '"release:test-store-audit"',
+      "pnpm release:test-store-audit",
+    ]) &&
+    hasAll(read("scripts/release/audit-store-readiness.mjs"), [
+      'kind: "guoxue-store-readiness"',
+      "externalBlockers",
+      "configurationBlockers",
+      "codeBlockers",
+    ]),
+  "生产工作流必须随正式五端成品归档结构化商店报告，即使外部 SDK 或签名未补齐也不得丢失阻断证据",
+);
+add(
+  "迁移现场手册的固定包命令完整传入四份生产证据",
+  [
+    "docs/operations/新基础设施与正式凭据交接清单-20260731.md",
+    "docs/operations/服务器数据库域名迁移手册-20260728.md",
+  ].every((document) =>
+    hasAll(read(document), [
+      'pnpm release:package "$RELEASE_ID"',
+      "--client-config-binding release-evidence/client-config-binding.json",
+      "--client-artifact-audit release-evidence/client-artifact-audit.json",
+      "--client-artifact-verification release-evidence/client-artifact-verification.json",
+      "--source-freeze-audit release-evidence/source-freeze-readiness.json",
+    ]),
+  ),
+  "值班人员复制文档命令时必须同时提供配置绑定、客户端审计、客户端独立验真与源码冻结证据，不能在打包阶段才因缺参中断",
 );
 add(
   "GitHub 生产发布绑定默认分支、源提交与迁移二次确认",
@@ -1031,9 +1177,9 @@ add(
       "probe-clb-failover.sh",
     ]) &&
     (productionDeployJob.match(/fingerprint:\s*\$\{\{ secrets\.PROD_SSH_FINGERPRINT_A \}\}/g)
-      ?.length ?? 0) === 3 &&
+      ?.length ?? 0) === 4 &&
     (productionDeployJob.match(/fingerprint:\s*\$\{\{ secrets\.PROD_SSH_FINGERPRINT_B \}\}/g)
-      ?.length ?? 0) === 3 &&
+      ?.length ?? 0) === 4 &&
     hasAll(deploymentWorkflow, [
       "STAGING_SSH_FINGERPRINT",
       "fingerprint: ${{ secrets.STAGING_SSH_FINGERPRINT }}",
@@ -1045,7 +1191,7 @@ add(
   "普通提交、标签和非默认分支不得触碰生产；迁移需独立确认，固定包提交必须与本次 GitHub 源提交在 CI 和服务器两端一致",
 );
 add(
-  "公网切流后可独立重跑九证据并机器判定 GO",
+  "公网切流后可按部署架构独立重跑机器证据并判定 GO",
   hasAll(productionVerificationWorkflow, [
     "workflow_dispatch:",
     "production_confirmation:",
@@ -1078,6 +1224,9 @@ add(
       "infrastructure-intake.json",
       "audit-infrastructure-intake.mjs",
       "infrastructure-intake-readiness.json",
+      "audit-tencent-cloud-readiness.py",
+      "tencent-cloud-readiness.json",
+      'DEPLOY_TARGET" = "tencent"',
       "audit-host-preflight.mjs",
       "host-preflight-readiness.json",
       '--expected-commit "$SOURCE_COMMIT"',
@@ -1146,6 +1295,10 @@ const infrastructureHandoff = read("docs/release/新基础设施上线移交总�
 const infrastructureIntakeTemplate = read("config/release/infrastructure-intake.example.json");
 const infrastructureIntakeAudit = read("scripts/release/audit-infrastructure-intake.mjs");
 const infrastructureIntakePreparer = read("scripts/release/prepare-infrastructure-intake.mjs");
+const infrastructureIntakeTest = read("tests/release/audit-infrastructure-intake.test.mjs");
+const infrastructureOperationsGuide = read(
+  "docs/operations/新基础设施与正式凭据交接清单-20260731.md",
+);
 add(
   "新基础设施接入门禁覆盖迁移权限、演练与旧环境回退保留",
   hasAll(infrastructureIntakeTemplate, [
@@ -1169,6 +1322,22 @@ add(
   "正式 launch 不仅要证明新环境可用，还必须证明源库/目标库/DNS 权限、同版迁移演练、停写窗口和旧环境回退保留均已落实",
 );
 add(
+  "新基础设施接入门禁区分采购、预接入与最终上线三阶段",
+  hasAll(infrastructureIntakeAudit, [
+    '["procurement", "predeploy", "launch"]',
+    'stage !== "procurement"',
+    'const resourceReady = stage === "predeploy" || stage === "launch"',
+    "if (launch)",
+  ]) &&
+    hasAll(infrastructureIntakeTest, [
+      "predeploy 阶段可在迁移演练前验证真实资源和正式环境绑定",
+      "predeploy 阶段拒绝占位资源或正式环境错绑且报告不泄露凭据",
+    ]) &&
+    hasAll(infrastructureOperationsGuide, ["--stage predeploy", "预接入门禁"]) &&
+    hasAll(infrastructureHandoff, ["--stage predeploy", "预接入审计"]),
+  "采购只锁定规格与责任人，预接入验证真实资源和正式环境绑定，最终 launch 再强制迁移、告警、恢复与回退演练",
+);
+add(
   "新基础设施私有接入清单可按架构安全初始化且拒绝覆盖",
   hasAll(infrastructureIntakePreparer, [
     'valueOf("--deploy-target")',
@@ -1187,12 +1356,18 @@ add(
 );
 add(
   "正式环境必须与新数据库、缓存、域名和对象存储接入清单逐项绑定",
-  hasAll(infrastructureIntakeTemplate, ['"endpointHost"', '"bucket"', '"region"']) &&
+  hasAll(infrastructureIntakeTemplate, [
+    '"endpointHost"',
+    '"bucket"',
+    '"region"',
+    '"clbId"',
+  ]) &&
     hasAll(infrastructureIntakeAudit, [
       'valueOf("--env-file")',
       'environmentValues.get("DATABASE_URL")',
       'environmentValues.get("REDIS_URL")',
       'environmentValues.get("PUBLIC_API_URL")',
+      'environmentValues.get("TENCENT_CLB_ID")',
       'environmentValues.get("COS_BUCKET")',
       'environmentValues.get("COS_REGION")',
       "正式环境与新基础设施接入清单完全绑定",
@@ -1207,11 +1382,11 @@ add(
       '--env-file "$ENV_FILE"',
     ]) &&
     setupServer.includes('node -- "$INSTALL_DIR/scripts/release/audit-host-preflight.mjs"') &&
-    hasAll(read("docs/operations/新基础设施与正式凭据交接清单-20260731.md"), [
+    hasAll(infrastructureOperationsGuide, [
       "node -- /opt/guoxue/current/scripts/release/audit-infrastructure-intake.mjs",
       "node -- /opt/guoxue/current/scripts/release/audit-host-preflight.mjs",
     ]) &&
-    read("tests/release/audit-infrastructure-intake.test.mjs").includes(
+    infrastructureIntakeTest.includes(
       "正式环境连接到另一套数据库或对象存储时阻断且报告不泄露地址与凭据",
     ),
   "两份各自合法但指向不同资源的配置必须在预部署和公网复核阶段被机器阻断，报告不得落原始地址或凭据",
@@ -1220,8 +1395,11 @@ add(
   "新基础设施移交总览区分已验收资源与最终上线阻断",
   hasAll(infrastructureHandoff, [
     "当前不能标记为正式上线",
-    "已配置并演练",
-    "预发布已通；长期证书/合规待办",
+    "这些结果只作为流程、容量和回滚演练基线",
+    "不得直接作为新目标资源的上线验收证据",
+    "旧预发布已演练；新资源待采购并重验",
+    "旧预发布已通；新域名待采购并重验",
+    "是否沿用待确认；目标资源必须重验",
     "干净候选已形成；待默认分支复核/固定包",
     "正式发布仍须完成人工变更复核、默认分支合并与固定包生成",
     "launch-decision.json",
@@ -1234,7 +1412,47 @@ add(
   "已完成资源必须记录实测证据，未完成的固定发布、支付、迁移、合规与签核仍须保持阻断；历史环境只能作为迁移源或回滚保留环境",
 );
 
+const storeBaseline = JSON.parse(read("config/release/store-baseline.json"));
+const mobileManifest = JSON.parse(read("apps/mobile/src/manifest.json"));
+const productionCompose = read("docker/docker-compose.yml");
+const productionComposeOverride = read("docker/docker-compose.prod.yml");
+const expectedWechatMiniAppId = String(storeBaseline.wechatMiniAppId || "").trim();
+add(
+  "微信小程序、服务端与微信支付发布身份由同一商店基线锁定",
+  expectedWechatMiniAppId.length > 0 &&
+    mobileManifest?.["mp-weixin"]?.appid === expectedWechatMiniAppId &&
+    productionEnvTemplate.includes(`WECHAT_MINI_APP_ID=${expectedWechatMiniAppId}`) &&
+    productionEnvTemplate.includes(`WECHAT_PAY_APP_ID=${expectedWechatMiniAppId}`) &&
+    hasAll(productionCompose, [
+      "WECHAT_MINI_APP_ID: ${WECHAT_MINI_APP_ID:-}",
+      "WECHAT_PAY_APP_ID: ${WECHAT_PAY_APP_ID:-}",
+    ]) &&
+    hasAll(productionComposeOverride, [
+      "WECHAT_MINI_APP_ID: ${WECHAT_MINI_APP_ID:-}",
+      "WECHAT_PAY_APP_ID: ${WECHAT_PAY_APP_ID:-}",
+    ]),
+  "客户端发布 AppID、正式环境模板和两套 Compose 必须统一绑定热卜星火商店基线，禁止回退到历史第三方小程序或错绑支付应用",
+);
+
 const environmentChecker = read("scripts/migration/check-env.mjs");
+const environmentCheckerTest = read("tests/release/check-env.test.mjs");
+add(
+  "正式环境门禁阻断小程序身份回退、别名冲突与支付错绑",
+  hasAll(environmentChecker, [
+    '"WECHAT_MINI_APP_ID", "MINIPROGRAM_APP_ID", "WECHAT_MP_APP_ID"',
+    'config/release/store-baseline.json',
+    'values.get("WECHAT_PAY_APP_ID")',
+    "正式环境的小程序 AppID 与受控商店发布基线不一致",
+    "微信支付绑定 AppID 与受控商店发布基线不一致",
+  ]) &&
+    hasAll(environmentCheckerTest, [
+      "完整上线拒绝正式环境指向旧小程序",
+      "完整上线拒绝微信支付绑定到其他 AppID",
+      "完整上线拒绝多个小程序 AppID 别名互相冲突",
+      "assert.doesNotMatch",
+    ]),
+  "完整上线检查必须以商店发布基线为唯一身份源，并通过回归测试证明错误报告不泄露真实 AppID",
+);
 add(
   "正式凭据验收可审计且不泄露密钥",
   hasAll(environmentChecker, [
