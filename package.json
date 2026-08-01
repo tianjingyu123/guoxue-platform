@@ -59,7 +59,7 @@
     "release:audit-retention": "node scripts/release/audit-release-retention.mjs",
     "release:validate-dispatch": "node scripts/release/validate-production-dispatch.mjs",
     "release:test-dispatch-gate": "node --test tests/release/validate-production-dispatch.test.mjs",
-    "release:test-package-verifier": "node --test tests/release/verify-fixed-package.test.mjs",
+    "release:test-package-verifier": "node --test tests/release/verify-fixed-package.test.mjs tests/release/client-evidence-consistency.test.mjs",
     "release:test-retention": "node --test tests/release/audit-release-retention.test.mjs",
     "release:test-client-artifacts": "node --test tests/release/audit-client-artifacts.test.mjs tests/release/verify-client-artifacts.test.mjs",
     "release:aggregate-evidence": "node scripts/release/aggregate-launch-evidence.mjs",

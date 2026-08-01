@@ -1522,6 +1522,12 @@ const clientConfigBindingTest = read("tests/release/client-config-binding.test.m
 const packageCreator = read("scripts/release/create-fixed-package.mjs");
 const packageVerifier = read("scripts/release/verify-fixed-package.mjs");
 const packageVerifierTest = read("tests/release/verify-fixed-package.test.mjs");
+const clientEvidenceConsistency = read(
+  "scripts/release/lib/client-evidence-consistency.mjs",
+);
+const clientEvidenceConsistencyTest = read(
+  "tests/release/client-evidence-consistency.test.mjs",
+);
 const sourceFreezeAudit = read("scripts/release/audit-source-freeze.mjs");
 const sourceFreezeTest = read("tests/release/audit-source-freeze.test.mjs");
 const fullGateTest = read("tests/release/run-full-gate.test.mjs");
@@ -1872,6 +1878,28 @@ add(
     ]) &&
     packageVerifierTest.includes("客户端成品独立验真报告与固定包发布标识不一致时阻断"),
   "固定包不得只携带构建侧审计声明，必须同时携带下载后重算得到的独立验真证据并逐目标核对",
+);
+add(
+  "固定包生成阶段提前交叉核对客户端审计与独立验真明细",
+  hasAll(packageCreator, [
+    "assertClientEvidenceConsistency",
+    "clientArtifactAudit",
+    "clientArtifactVerification",
+  ]) &&
+    hasAll(clientEvidenceConsistency, [
+      "客户端目标文件数不一致",
+      "客户端目标字节数不一致",
+      "客户端目标内容指纹不一致",
+      "客户端独立验真报告缺少目标",
+      "客户端独立验真报告包含审计范围外目标",
+    ]) &&
+    hasAll(clientEvidenceConsistencyTest, [
+      "五端审计与独立验真明细完全一致时通过",
+      "同一发布批次混入其他客户端内容指纹时阻断",
+      "目标缺失、重复或聚合计数漂移时阻断",
+    ]) &&
+    packageJson.includes("tests/release/client-evidence-consistency.test.mjs"),
+  "打包器必须在归档前逐端比较文件数、字节数与内容 SHA-256，不能只相信两份报告各自声明成功",
 );
 add(
   "CI 客户端审计配置与服务器实际构建配置使用不可伪造的发布指纹绑定",

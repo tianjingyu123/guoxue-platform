@@ -5,6 +5,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { copyFile, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { assertClientEvidenceConsistency } from "./lib/client-evidence-consistency.mjs";
 
 const projectRoot = process.cwd();
 const releaseRoot = path.resolve(projectRoot, "artifacts", "releases");
@@ -232,6 +233,7 @@ async function includeReleaseEvidence(sourceArg, destinationPath, validate) {
     bytes: sourceStat.size,
     sha256: await sha256File(source),
   });
+  return parsed;
 }
 
 await includeReleaseEvidence(
@@ -249,7 +251,7 @@ await includeReleaseEvidence(
     }
   },
 );
-await includeReleaseEvidence(
+const clientArtifactAudit = await includeReleaseEvidence(
   clientArtifactAuditArg,
   "release-evidence/client-artifact-audit.json",
   (audit) => {
@@ -273,7 +275,7 @@ await includeReleaseEvidence(
     }
   },
 );
-await includeReleaseEvidence(
+const clientArtifactVerification = await includeReleaseEvidence(
   clientArtifactVerificationArg,
   "release-evidence/client-artifact-verification.json",
   (verification) => {
@@ -300,6 +302,7 @@ await includeReleaseEvidence(
     }
   },
 );
+assertClientEvidenceConsistency(clientArtifactAudit, clientArtifactVerification);
 await includeReleaseEvidence(
   sourceFreezeAuditArg,
   "release-evidence/source-freeze-readiness.json",
