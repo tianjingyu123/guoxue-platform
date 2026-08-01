@@ -686,6 +686,7 @@ add(
 );
 
 const releaseActivator = read("scripts/release/activate-fixed-release.sh");
+const releaseActivationBehaviorTest = read("tests/release/verify-fixed-package.test.mjs");
 const ciWorkflow = read(".github/workflows/ci.yml");
 const deploymentWorkflow = read(".github/workflows/deploy.yml");
 const productionVerificationWorkflow = read(".github/workflows/verify-production.yml");
@@ -771,6 +772,26 @@ add(
     releaseActivator.indexOf('bash "$FINAL_DIR/docker/deploy.sh"') <
       releaseActivator.indexOf('mv -Tf "$CURRENT_NEXT" "$ROOT_DIR/current"'),
   "服务器必须串行执行包级哈希、路径、类型和逐文件复核；同一固定包失败后可复核正式目录并安全重试，部署成功后才切换权威 current，兼容版本指针稳定跟随 current/.release-id",
+);
+add(
+  "成功激活后清理传输副本且失败包可继续安全重试",
+  hasAll(releaseActivator, [
+    'INCOMING_DIR="$ROOT_DIR/incoming"',
+    "cleanup_successful_incoming_transfer",
+    'archive_parent="$(realpath -e "$(dirname "$ARCHIVE")")"',
+    'checksum_parent="$(realpath -e "$(dirname "$CHECKSUM")")"',
+    'rm -f -- "$ARCHIVE" "$CHECKSUM"',
+    "正式回滚包保留在 $PACKAGES_DIR",
+  ]) &&
+    releaseActivator.indexOf("cleanup_successful_incoming_transfer") >
+      releaseActivator.indexOf('chmod 0640 "$ROOT_DIR/release-history.tsv"') &&
+    hasAll(releaseActivationBehaviorTest, [
+      "同一固定包首次部署失败后可复核正式目录并安全重试",
+      "await access(incomingArchive)",
+      "await assert.rejects(access(incomingArchive))",
+      'path.join(hostRoot, "release-packages"',
+    ]),
+  "失败发布必须保留 incoming 原包供可重入恢复；成功发布只清理已校验处于 incoming 根目录的重复传输副本，release-packages 回滚包不得被删除",
 );
 const releaseRollback = read("scripts/release/rollback-fixed-release.sh");
 const releaseRollbackTest = read("tests/release/rollback-fixed-release.test.mjs");

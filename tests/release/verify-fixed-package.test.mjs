@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import {
   access,
   chmod,
+  copyFile,
   mkdtemp,
   mkdir,
   readFile,
@@ -439,9 +440,15 @@ test(
       const sharedSslDir = path.join(sharedDir, "nginx-ssl");
       const envFile = path.join(sharedDir, ".env.production");
       const fakeBin = path.join(fixture.root, "fake-bin");
+      const incomingDir = path.join(hostRoot, "incoming");
+      const incomingArchive = path.join(incomingDir, path.basename(fixture.archivePath));
+      const incomingChecksum = path.join(incomingDir, path.basename(fixture.checksumPath));
       const retryMarker = path.join(fixture.root, "deploy-failed-once.marker");
       await mkdir(sharedSslDir, { recursive: true });
       await mkdir(fakeBin, { recursive: true });
+      await mkdir(incomingDir, { recursive: true });
+      await copyFile(fixture.archivePath, incomingArchive);
+      await copyFile(fixture.checksumPath, incomingChecksum);
       await writeFile(
         envFile,
         Object.entries(fixture.publicClientConfig)
@@ -468,8 +475,8 @@ test(
       assert.equal(bashPath.status, 0, bashPath.stderr || bashPath.stdout);
       const activationArgs = [
         path.join(projectRoot, "scripts/release/activate-fixed-release.sh"),
-        fixture.archivePath,
-        fixture.checksumPath,
+        incomingArchive,
+        incomingChecksum,
       ];
       const activationEnv = {
         ...process.env,
@@ -491,6 +498,8 @@ test(
       assert.equal(first.error, undefined, String(first.error));
       assert.notEqual(first.status, 0, first.stdout);
       assert.match(`${first.stdout}\n${first.stderr}`, /部署失败；当前版本软链保持不变/);
+      await access(incomingArchive);
+      await access(incomingChecksum);
 
       const finalDirectory = path.join(hostRoot, "releases", releaseId);
       await access(finalDirectory);
@@ -517,6 +526,10 @@ test(
       );
       const history = await readFile(path.join(hostRoot, "release-history.tsv"), "utf8");
       assert.equal(history.split(`\tactivate\t${releaseId}\t`).length - 1, 1);
+      await assert.rejects(access(incomingArchive));
+      await assert.rejects(access(incomingChecksum));
+      await access(path.join(hostRoot, "release-packages", path.basename(fixture.archivePath)));
+      await access(path.join(hostRoot, "release-packages", path.basename(fixture.checksumPath)));
     } finally {
       await rm(fixture.root, { recursive: true, force: true });
     }

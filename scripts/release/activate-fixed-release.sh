@@ -16,6 +16,7 @@ ROOT_DIR="${ROOT_DIR:-/opt/guoxue}"
 RELEASES_DIR="$ROOT_DIR/releases"
 PACKAGES_DIR="$ROOT_DIR/release-packages"
 EVIDENCE_DIR="$ROOT_DIR/release-evidence"
+INCOMING_DIR="$ROOT_DIR/incoming"
 SHARED_ENV_FILE="${ENV_FILE:-$ROOT_DIR/shared/.env.production}"
 SHARED_SSL_DIR="${SHARED_SSL_DIR:-$ROOT_DIR/shared/nginx-ssl}"
 BACKUP_DIR="${BACKUP_DIR:-$ROOT_DIR/backups}"
@@ -278,6 +279,27 @@ printf '%s\tactivate\t%s\t%s\t%s\t%s\n' \
   "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$RELEASE_ID" "${PREVIOUS_RELEASE_ID:--}" \
   "$RUN_MIGRATION" "$PACKAGE_HASH" >> "$ROOT_DIR/release-history.tsv"
 chmod 0640 "$ROOT_DIR/release-history.tsv"
+
+# 上传暂存区只承担传输职责。失败时保留原包便于同一固定包重试；只有已经完成
+# 正式目录验真、健康部署、current 原子切换和发布历史落盘后，才清理位于
+# incoming 根目录的重复传输副本。来自其他目录的人工激活材料一律不删除。
+cleanup_successful_incoming_transfer() {
+  [ -d "$INCOMING_DIR" ] || return 0
+  local incoming_real archive_parent checksum_parent
+  incoming_real="$(realpath -e "$INCOMING_DIR")" || return 0
+  archive_parent="$(realpath -e "$(dirname "$ARCHIVE")")" || return 0
+  checksum_parent="$(realpath -e "$(dirname "$CHECKSUM")")" || return 0
+  if [ "$archive_parent" = "$incoming_real" ] && [ "$checksum_parent" = "$incoming_real" ]; then
+    if rm -f -- "$ARCHIVE" "$CHECKSUM"; then
+      log "已清理成功发布的 incoming 传输副本；正式回滚包保留在 $PACKAGES_DIR"
+    else
+      log "警告：发布已成功，但 incoming 传输副本清理失败，请由值班人员复核"
+    fi
+  fi
+  return 0
+}
+
+cleanup_successful_incoming_transfer
 trap - EXIT
 
 log "发布激活完成：$RELEASE_ID"
