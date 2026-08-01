@@ -51,3 +51,24 @@ test("完整上线门禁拒绝缺失或非法的四十位源提交", () => {
     assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /\[full-gate\]/u);
   }
 });
+
+test("预接入与完整上线门禁拒绝未知阶段且不会启动子门禁", () => {
+  const result = run([
+    "--stage",
+    "preview",
+    "--env-file",
+    "not-needed.env",
+    "--deploy-target",
+    "standard",
+    "--infrastructure-intake",
+    "not-needed.json",
+    "--expected-branch",
+    "main",
+    "--expected-commit",
+    validCommit,
+  ]);
+
+  assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
+  assert.match(`${result.stdout}\n${result.stderr}`, /--stage 仅允许 predeploy 或 launch/u);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /\[full-gate\]/u);
+});

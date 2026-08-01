@@ -92,6 +92,7 @@
     "release:gate": "pnpm release:gate:code && pnpm migration:check-env",
     "release:verify:local": "pnpm release:gate:code && pnpm lint:all && pnpm typecheck:all && pnpm test:engines && pnpm test:algorithms && pnpm test:server && pnpm build:server && pnpm build:admin && pnpm build:mobile:all",
     "release:build:clients": "node scripts/release/build-clients-with-env.mjs",
+    "release:gate:predeploy": "node -- scripts/release/run-full-gate.mjs --stage predeploy",
     "release:gate:full": "node -- scripts/release/run-full-gate.mjs",
     "precommit": "bash scripts/pre-commit.sh",
     "prepare": "npx husky install 2>/dev/null || echo 'husky 初始化跳过（非 git 环境）'"

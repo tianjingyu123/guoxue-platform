@@ -13,6 +13,7 @@ let infrastructureIntake = "";
 let reportDirectory = "release-evidence";
 let expectedBranch = "";
 let expectedCommit = "";
+let stage = "launch";
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
@@ -74,6 +75,15 @@ for (let index = 0; index < args.length; index += 1) {
     index += 1;
     continue;
   }
+  if (arg === "--stage") {
+    if (!next || next.startsWith("--")) {
+      console.error("错误：--stage 后必须提供 predeploy 或 launch");
+      process.exit(2);
+    }
+    stage = next.trim().toLowerCase();
+    index += 1;
+    continue;
+  }
   console.error(`错误：未知参数 ${arg}`);
   process.exit(2);
 }
@@ -98,6 +108,10 @@ if (!/^[a-f0-9]{40}$/iu.test(expectedCommit)) {
   console.error("错误：完整上线门禁必须显式传入 40 位 --expected-commit");
   process.exit(2);
 }
+if (!["predeploy", "launch"].includes(stage)) {
+  console.error("错误：--stage 仅允许 predeploy 或 launch");
+  process.exit(2);
+}
 
 const resolvedEnvFile = path.resolve(envFile);
 if (!existsSync(resolvedEnvFile)) {
@@ -111,6 +125,10 @@ if (!existsSync(resolvedInfrastructureIntake)) {
 }
 
 const resolvedReportDirectory = path.resolve(reportDirectory);
+const infrastructureReportName =
+  stage === "launch"
+    ? "infrastructure-intake-readiness.json"
+    : "infrastructure-intake-predeploy.json";
 const pnpm = resolvePnpmInvocation();
 if (!pnpm) {
   console.error("错误：Windows 构建机找不到可由 Node 直接运行的 pnpm 或 Corepack CLI");
@@ -149,13 +167,13 @@ run("新基础设施接入与责任人检查", [
   "--input",
   resolvedInfrastructureIntake,
   "--stage",
-  "launch",
+  stage,
   "--expected-deploy-target",
   deployTarget,
   "--env-file",
   resolvedEnvFile,
   "--report",
-  path.join(resolvedReportDirectory, "infrastructure-intake-readiness.json"),
+  path.join(resolvedReportDirectory, infrastructureReportName),
 ]);
 run("正式环境与部署架构检查", [
   "migration:check-env",
@@ -166,6 +184,14 @@ run("正式环境与部署架构检查", [
   "--report",
   path.join(resolvedReportDirectory, "environment-readiness.json"),
 ]);
+
+if (stage === "predeploy") {
+  console.log(
+    "\n[full-gate] 正式资源预接入门禁通过；尚未执行耗时构建、客户端重建或 launch 现场验收",
+  );
+  process.exit(0);
+}
+
 run("当前工作树全量代码、测试与六端构建验证", ["release:verify:local"]);
 run("使用同一份正式公开配置重建五类客户端", ["release:build:clients", resolvedEnvFile]);
 run("审计五类客户端正式域名、源码映射与配置残留", [

@@ -1496,6 +1496,22 @@ const packageJson = read("package.json");
 const fullGateRunner = read("scripts/release/run-full-gate.mjs");
 const productionDeployWorkflow = read(".github/workflows/deploy.yml");
 add(
+  "正式资源到位后可在耗时构建前执行单命令预接入门禁",
+  packageJson.includes(
+    '"release:gate:predeploy": "node -- scripts/release/run-full-gate.mjs --stage predeploy"',
+  ) &&
+    hasAll(fullGateRunner, [
+      'arg === "--stage"',
+      '["predeploy", "launch"]',
+      'stage === "predeploy"',
+      "尚未执行耗时构建、客户端重建或 launch 现场验收",
+      '"infrastructure-intake-predeploy.json"',
+      '"infrastructure-intake-readiness.json"',
+    ]) &&
+    fullGateTest.includes("预接入与完整上线门禁拒绝未知阶段且不会启动子门禁"),
+  "新域名、数据库、Redis、对象存储和证书到位后先校验源码身份、资源清单、正式环境及逐项绑定，避免等完整多端构建结束才暴露配置错误",
+);
+add(
   "Windows 构建机重启或换机后可通过 Corepack 运行完整门禁",
   hasAll(pnpmInvocationResolver, [
     'path.join(path.dirname(nodeExecutable), "node_modules", "corepack", "dist", "pnpm.js")',
