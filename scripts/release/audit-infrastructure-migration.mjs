@@ -1095,6 +1095,9 @@ add(
     "docs/operations/服务器数据库域名迁移手册-20260728.md",
   ].every((document) =>
     hasAll(read(document), [
+      "--report-dir release-evidence",
+      "pnpm release:verify-client-artifacts release-evidence/client-artifact-audit.json",
+      "--output release-evidence/client-artifact-verification.json",
       'pnpm release:package "$RELEASE_ID"',
       "--client-config-binding release-evidence/client-config-binding.json",
       "--client-artifact-audit release-evidence/client-artifact-audit.json",
@@ -1103,6 +1106,24 @@ add(
     ]),
   ),
   "值班人员复制文档命令时必须同时提供配置绑定、客户端审计、客户端独立验真与源码冻结证据，不能在打包阶段才因缺参中断",
+);
+add(
+  "迁移现场命令动态绑定获批分支并只读取共享正式环境",
+  [
+    "docs/operations/新基础设施与正式凭据交接清单-20260731.md",
+    "docs/operations/服务器数据库域名迁移手册-20260728.md",
+  ].every((document) => {
+    const content = read(document);
+    return (
+      content.includes('SOURCE_BRANCH="$(git branch --show-current)"') &&
+      !content.includes("SOURCE_BRANCH='main'") &&
+      content.includes(
+        "pnpm release:verify:runtime /opt/guoxue/shared/.env.production",
+      ) &&
+      !content.includes("pnpm release:verify:runtime docker/.env.production")
+    );
+  }),
+  "复制命令不得猜测 main/master，也不得在服务器误读仓库内环境文件；正式分支取当前获批工作树，运行时只读取共享私有配置",
 );
 add(
   "GitHub 生产发布绑定默认分支、源提交与迁移二次确认",
@@ -1563,7 +1584,7 @@ add(
       "过期证据即使内容通过也判定 BLOCK",
     ]) &&
     hasAll(infrastructureHandoffChecklist, [
-      "必须运行统一预接入门禁",
+      "统一预接入门禁",
       "release:gate:predeploy",
       "predeploy-decision.json",
       "只用于排查单项失败，不能代替统一门禁",
