@@ -41,7 +41,7 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
       checks: [{ name: "新基础设施接入", pass: true, detail: "ok" }],
     },
     "tencent-cloud-readiness.json": {
-      schemaVersion: 1,
+      schemaVersion: 2,
       kind: "guoxue-tencent-cloud-readiness",
       generatedAt: freshTime(),
       releaseId,
@@ -50,6 +50,31 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
         clbId: "lb-NewTarget123",
         cdnDomain: "assets.new-guoxue.test",
         certificateDomain: "new-guoxue.test",
+      },
+      clb: {
+        status: "ok",
+        data: {
+          instances: [
+            {
+              loadBalancerId: "lb-NewTarget123",
+              loadBalancerVips: ["43.132.1.9"],
+              domain: "lb.new-guoxue.test",
+            },
+          ],
+          listeners: [{ listenerId: "lbl-1" }],
+        },
+      },
+      cdn: {
+        status: "ok",
+        data: {
+          targetFound: true,
+          domains: [
+            {
+              domain: "assets.new-guoxue.test",
+              cname: "assets.new-guoxue.test.cdn.dnsv1.com",
+            },
+          ],
+        },
       },
       success: true,
       summary: { failed: 0, failures: [] },
@@ -122,6 +147,26 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
       allowDegraded: false,
       expectedReleaseId: releaseId,
       observedReleaseId: releaseId,
+      endpoints: {
+        api: "https://api.new-guoxue.test",
+        h5: "https://api.new-guoxue.test/h5/",
+        admin: "https://api.new-guoxue.test/admin/",
+        asset: "https://assets.new-guoxue.test",
+      },
+      dnsEndpoints: [
+        {
+          hostname: "api.new-guoxue.test",
+          terminalHostname: "lb.new-guoxue.test",
+          cnameChain: ["lb.new-guoxue.test"],
+          addresses: ["43.132.1.9"],
+        },
+        {
+          hostname: "assets.new-guoxue.test",
+          terminalHostname: "assets.new-guoxue.test.cdn.dnsv1.com",
+          cnameChain: ["assets.new-guoxue.test.cdn.dnsv1.com"],
+          addresses: ["43.132.2.9"],
+        },
+      ],
       summary: { failed: 0 },
       results: [{ name: "health", status: "PASS", detail: "ok" }],
       tlsCertificates: [
@@ -324,6 +369,60 @@ test("公网证书剩余不足 14 天或缺少可信指纹时阻断上线", asyn
   assert.match(
     decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
     /公网 TLS 证书链、域名、有效期或指纹证据无效/u,
+  );
+});
+
+test("公网 API 域名仍指向旧地址时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": {
+      dnsEndpoints: [
+        {
+          hostname: "api.new-guoxue.test",
+          terminalHostname: "old.example.test",
+          cnameChain: ["old.example.test"],
+          addresses: ["43.132.9.9"],
+        },
+        {
+          hostname: "assets.new-guoxue.test",
+          terminalHostname: "assets.new-guoxue.test.cdn.dnsv1.com",
+          cnameChain: ["assets.new-guoxue.test.cdn.dnsv1.com"],
+          addresses: ["43.132.2.9"],
+        },
+      ],
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
+    /公网 DNS 未指向本次腾讯云 CLB\/CDN 目标/u,
+  );
+});
+
+test("公网静态资源域名未指向腾讯云分配 CNAME 时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": {
+      dnsEndpoints: [
+        {
+          hostname: "api.new-guoxue.test",
+          terminalHostname: "lb.new-guoxue.test",
+          cnameChain: ["lb.new-guoxue.test"],
+          addresses: ["43.132.1.9"],
+        },
+        {
+          hostname: "assets.new-guoxue.test",
+          terminalHostname: "old-cdn.example.test",
+          cnameChain: ["old-cdn.example.test"],
+          addresses: ["43.132.2.9"],
+        },
+      ],
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
+    /公网 DNS 未指向本次腾讯云 CLB\/CDN 目标/u,
   );
 });
 

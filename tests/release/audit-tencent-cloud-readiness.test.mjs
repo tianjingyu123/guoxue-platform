@@ -62,6 +62,27 @@ function evaluateFixture(fixture) {
   });
 }
 
+function summarizeClbFixture(fixture) {
+  const python = pythonCommand();
+  const program = [
+    "import importlib.util, json, pathlib, sys",
+    "path = pathlib.Path(r'scripts/operations/audit-tencent-cloud-readiness.py')",
+    "spec = importlib.util.spec_from_file_location('cloud_audit', path)",
+    "module = importlib.util.module_from_spec(spec)",
+    "spec.loader.exec_module(module)",
+    "responses = json.loads(sys.stdin.read())",
+    "module.tc3_request = lambda *args, **kwargs: responses[kwargs['action']]",
+    "print(json.dumps(module.summarize_clb({}, 'ap-guangzhou', 'lb-NewTarget123'), ensure_ascii=False))",
+  ].join("; ");
+  return spawnSync(python.command, [...python.prefix, "-c", program], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+    windowsHide: true,
+    input: JSON.stringify(fixture),
+    env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+  });
+}
+
 test("腾讯云审计显式绑定新环境资源后可在离线模式通过", () => {
   const result = runAudit([
     "--validate-input-only",
@@ -170,7 +191,16 @@ test("腾讯云资源查询被拒绝或目标资源为空时不得假通过", ()
   const readyCall = (data) => ({ status: "ok", data });
   const ready = evaluateFixture({
     monitor: readyCall({ policies: [{ policyId: "policy-1" }] }),
-    clb: readyCall({ listeners: [{ listenerId: "lbl-1" }] }),
+    clb: readyCall({
+      instances: [
+        {
+          loadBalancerId: "lb-NewTarget123",
+          loadBalancerVips: ["43.132.1.9"],
+          domain: "lb.new-guoxue.test",
+        },
+      ],
+      listeners: [{ listenerId: "lbl-1" }],
+    }),
     cdn: readyCall({ targetFound: true, domains: [{ domain: "assets.new-guoxue.test" }] }),
     ssl: readyCall({ certificates: [{ certificateId: "cert-1" }] }),
   });
@@ -179,12 +209,47 @@ test("腾讯云资源查询被拒绝或目标资源为空时不得假通过", ()
 
   const blocked = evaluateFixture({
     monitor: { status: "denied-or-failed", error: "AuthFailure" },
-    clb: readyCall({ listeners: [] }),
+    clb: readyCall({ instances: [], listeners: [] }),
     cdn: readyCall({ targetFound: false, domains: [] }),
     ssl: readyCall({ certificates: [] }),
   });
   assert.equal(blocked.status, 0, blocked.stderr);
   const report = JSON.parse(blocked.stdout);
   assert.equal(report.success, false);
-  assert.match(report.failures.join("\n"), /云监控策略查询失败|CLB 未找到监听器|CDN 域名未找到|未找到证书/u);
+  assert.match(
+    report.failures.join("\n"),
+    /云监控策略查询失败|CLB 未找到监听器|CLB 实例或公网 VIP 未找到|CDN 域名未找到|未找到证书/u,
+  );
+});
+
+test("腾讯云 CLB 摘要保留目标实例公网 VIP 和分配域名", () => {
+  const result = summarizeClbFixture({
+    DescribeLoadBalancers: {
+      TotalCount: 1,
+      LoadBalancerSet: [
+        {
+          LoadBalancerId: "lb-NewTarget123",
+          LoadBalancerVips: ["43.132.1.9"],
+          Domain: "lb.new-guoxue.test",
+          Status: 1,
+          StatusTime: "2026-08-01 10:00:00",
+        },
+      ],
+    },
+    DescribeListeners: {
+      Listeners: [{ ListenerId: "lbl-1", Protocol: "HTTPS", Port: 443 }],
+    },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse(result.stdout);
+  assert.deepEqual(summary.instances, [
+    {
+      loadBalancerId: "lb-NewTarget123",
+      loadBalancerVips: ["43.132.1.9"],
+      domain: "lb.new-guoxue.test",
+      status: 1,
+      statusTime: "2026-08-01 10:00:00",
+    },
+  ]);
+  assert.equal(summary.listeners[0].listenerId, "lbl-1");
 });

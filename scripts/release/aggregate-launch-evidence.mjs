@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import { isPublicAddress } from "./public-dns.mjs";
 
 const args = process.argv.slice(2);
 let releaseId = "";
@@ -52,6 +53,26 @@ function addCheck(name, pass, detail, source) {
 
 function isEmptyArray(value) {
   return Array.isArray(value) && value.length === 0;
+}
+
+function normalizeHostname(value) {
+  return String(value || "").trim().toLowerCase().replace(/\.$/u, "");
+}
+
+function endpointHostname(value) {
+  try {
+    return normalizeHostname(new URL(String(value || "")).hostname);
+  } catch {
+    return "";
+  }
+}
+
+function dnsRecordTargets(record, expected) {
+  const target = normalizeHostname(expected);
+  if (!target) return false;
+  return [record?.terminalHostname, ...(record?.cnameChain || [])]
+    .map(normalizeHostname)
+    .includes(target);
 }
 
 function validateGeneratedAt(data, name, requireFresh) {
@@ -162,7 +183,7 @@ const definitions = [
     when: () => sourceData.infrastructureIntake?.deployTarget === "tencent",
     validate: (data) => {
       const problems = [];
-      if (data.schemaVersion !== 1) problems.push("schemaVersion 不是 1");
+      if (data.schemaVersion !== 2) problems.push("schemaVersion 不是 2");
       if (data.kind !== "guoxue-tencent-cloud-readiness") {
         problems.push("腾讯云审计证据类型无效");
       }
@@ -178,6 +199,30 @@ const definitions = [
         !data.targetBinding?.certificateDomain
       ) {
         problems.push("腾讯云监控、CLB、CDN 或证书现场审计未全部通过");
+      }
+      const clbInstances = data.clb?.data?.instances;
+      if (
+        !Array.isArray(clbInstances) ||
+        clbInstances.length !== 1 ||
+        clbInstances.some(
+          (item) =>
+            item.loadBalancerId !== data.targetBinding?.clbId ||
+            !Array.isArray(item.loadBalancerVips) ||
+            item.loadBalancerVips.length === 0 ||
+            item.loadBalancerVips.some((address) => !isPublicAddress(address)),
+        )
+      ) {
+        problems.push("腾讯云 CLB 实例或公网 VIP 证据无效");
+      }
+      const cdnDomains = data.cdn?.data?.domains;
+      if (
+        !Array.isArray(cdnDomains) ||
+        cdnDomains.length !== 1 ||
+        normalizeHostname(cdnDomains[0]?.domain) !==
+          normalizeHostname(data.targetBinding?.cdnDomain) ||
+        !normalizeHostname(cdnDomains[0]?.cname)
+      ) {
+        problems.push("腾讯云 CDN 域名或分配 CNAME 证据无效");
       }
       return problems;
     },
@@ -336,6 +381,37 @@ const definitions = [
         problems.push("公网运行时验收未全部通过");
       }
       if (
+        !data.endpoints ||
+        ["api", "h5", "admin", "asset"].some(
+          (key) => !endpointHostname(data.endpoints?.[key]),
+        )
+      ) {
+        problems.push("公网运行时端点证据无效");
+      }
+      const endpointHosts = ["api", "h5", "admin", "asset"]
+        .map((key) => endpointHostname(data.endpoints?.[key]))
+        .filter(Boolean);
+      const uniqueEndpointHosts = [...new Set(endpointHosts)];
+      const dnsEntries = Array.isArray(data.dnsEndpoints) ? data.dnsEndpoints : [];
+      const dnsByHost = new Map(
+        dnsEntries.map((item) => [normalizeHostname(item?.hostname), item]),
+      );
+      if (
+        dnsEntries.length === 0 ||
+        uniqueEndpointHosts.some((hostname) => !dnsByHost.has(hostname)) ||
+        dnsEntries.some(
+          (item) =>
+            !normalizeHostname(item?.hostname) ||
+            !normalizeHostname(item?.terminalHostname) ||
+            !Array.isArray(item?.cnameChain) ||
+            !Array.isArray(item?.addresses) ||
+            item.addresses.length === 0 ||
+            item.addresses.some((address) => !isPublicAddress(address)),
+        )
+      ) {
+        problems.push("公网 DNS 解析、CNAME 链或地址安全证据无效");
+      }
+      if (
         !Array.isArray(data.tlsCertificates) ||
         data.tlsCertificates.length === 0 ||
         data.tlsCertificates.some(
@@ -349,6 +425,36 @@ const definitions = [
         )
       ) {
         problems.push("公网 TLS 证书链、域名、有效期或指纹证据无效");
+      }
+
+      const cloud = sourceData.tencentCloud;
+      if (sourceData.infrastructureIntake?.deployTarget === "tencent" && cloud) {
+        const clbInstance = cloud.clb?.data?.instances?.[0] || {};
+        const clbVips = new Set(clbInstance.loadBalancerVips || []);
+        const clbDomain = normalizeHostname(clbInstance.domain);
+        const assetHost = endpointHostname(data.endpoints?.asset);
+        const applicationHosts = [...new Set([
+          endpointHostname(data.endpoints?.api),
+          endpointHostname(data.endpoints?.h5),
+          endpointHostname(data.endpoints?.admin),
+        ].filter(Boolean))];
+        const applicationsBound = applicationHosts.every((hostname) => {
+          const record = dnsByHost.get(hostname);
+          return (
+            record &&
+            ((record.addresses || []).some((address) => clbVips.has(address)) ||
+              (clbDomain && dnsRecordTargets(record, clbDomain)))
+          );
+        });
+        const cdnCname = normalizeHostname(cloud.cdn?.data?.domains?.[0]?.cname);
+        const assetRecord = dnsByHost.get(assetHost);
+        const assetBound =
+          assetRecord &&
+          normalizeHostname(cloud.targetBinding?.cdnDomain) === assetHost &&
+          dnsRecordTargets(assetRecord, cdnCname);
+        if (!applicationsBound || !assetBound) {
+          problems.push("公网 DNS 未指向本次腾讯云 CLB/CDN 目标");
+        }
       }
       return problems;
     },

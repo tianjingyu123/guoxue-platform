@@ -135,6 +135,9 @@ add(
     '"--validate-input-only"',
     "validate_target_binding(arguments)",
     'payload={"LoadBalancerId": clb_id}',
+    'action="DescribeLoadBalancers"',
+    'payload={"LoadBalancerIds": [clb_id]}',
+    '"loadBalancerVips"',
     'payload={"Offset": 0, "Limit": 100, "SearchKey": certificate_domain}',
     'lambda: summarize_cdn(credentials, target["cdnDomain"])',
     "evaluate_readiness(result)",
@@ -157,6 +160,38 @@ add(
     !tencentCloudAudit.includes("lb-kifcf99d") &&
     !tencentCloudAudit.includes("pre-static.rebugx.cn"),
   "购买新 CLB、CDN 和证书后必须由显式资源标识驱动审计，禁止误查旧预发布资源",
+);
+
+const publicDnsProbe = read("scripts/release/public-dns.mjs");
+const publicDnsTest = read("tests/release/public-dns.test.mjs");
+const publicRuntimeVerifier = read("scripts/release/verify-runtime.mjs");
+const dnsEvidenceAggregator = read("scripts/release/aggregate-launch-evidence.mjs");
+add(
+  "公网 DNS 必须绑定本次 CLB 与 CDN 目标",
+  hasAll(publicDnsProbe, [
+    "resolveCname",
+    "resolve4",
+    "resolve6",
+    "isPublicAddress",
+    "cnameChain",
+  ]) &&
+    hasAll(publicRuntimeVerifier, [
+      "probePublicDns",
+      "公网 DNS 解析与地址安全",
+      "dnsEndpoints",
+    ]) &&
+    hasAll(dnsEvidenceAggregator, [
+      "loadBalancerVips",
+      "cdnCname",
+      "公网 DNS 未指向本次腾讯云 CLB/CDN 目标",
+    ]) &&
+    hasAll(publicDnsTest, [
+      "公网地址拒绝私网、回环、保留和文档地址",
+      "DNS 探测保留 CNAME 链和去重后的公网地址",
+      "DNS 探测阻断私网解析、IP 入口和 CNAME 循环",
+    ]) &&
+    read("package.json").includes('"release:test-public-dns"'),
+  "域名能访问不足以证明切流成功；上线证据必须把公网解析结果与腾讯云返回的 CLB 公网 VIP、分配域名及 CDN CNAME 交叉校验",
 );
 
 const bootstrap = read(shellScripts[0]);
@@ -1069,6 +1104,8 @@ add(
       "Prisma 迁移状态未通过时阻断上线",
       "客户端配置指纹不一致时阻断上线",
       "运行实例版本不一致时阻断上线",
+      "公网 API 域名仍指向旧地址时阻断上线",
+      "公网静态资源域名未指向腾讯云分配 CNAME 时阻断上线",
       "现场环境证据过期时阻断上线",
       "固定包验真允许 dirty 时阻断上线",
       "版本保留审计执行破坏性操作时阻断上线",

@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { probePublicDns } from "./public-dns.mjs";
 import { probePublicTls } from "./public-tls.mjs";
 
 const args = process.argv.slice(2);
@@ -88,6 +89,7 @@ const adminHref = new URL("/admin/", apiUrl.origin).href;
 const expectedOrigin = h5Url.origin;
 const results = [];
 let observedReleaseId = null;
+let dnsEndpoints = [];
 let tlsCertificates = [];
 
 async function request(url, options = {}) {
@@ -130,6 +132,14 @@ function unwrapPayload(payload) {
   }
   return payload;
 }
+
+await check("公网 DNS 解析与地址安全", async () => {
+  const hostnames = [apiUrl, h5Url, new URL(adminHref), assetUrl]
+    .map((url) => url.hostname);
+  const uniqueHostnames = [...new Set(hostnames)];
+  dnsEndpoints = await Promise.all(uniqueHostnames.map((hostname) => probePublicDns(hostname)));
+  return `${dnsEndpoints.length} 个唯一域名均解析到公网地址并保留 CNAME 链`;
+});
 
 await check("公网 TLS 证书链、域名与有效期", async () => {
   const origins = [apiUrl, h5Url, new URL(adminHref), assetUrl]
@@ -284,6 +294,7 @@ const report = {
   allowDegraded,
   expectedReleaseId,
   observedReleaseId,
+  dnsEndpoints,
   tlsCertificates,
   summary: { passed: results.length - failed.length, failed: failed.length, total: results.length },
   results,

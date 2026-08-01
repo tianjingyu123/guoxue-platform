@@ -306,6 +306,11 @@ def evaluate_readiness(result: dict[str, Any]) -> dict[str, Any]:
         "listeners"
     ):
         failures.append("目标 CLB 未找到监听器")
+    if (result.get("clb") or {}).get("status") == "ok" and (
+        len(clb_data.get("instances") or []) != 1
+        or not (clb_data.get("instances") or [{}])[0].get("loadBalancerVips")
+    ):
+        failures.append("目标 CLB 实例或公网 VIP 未找到")
     if (result.get("cdn") or {}).get("status") == "ok" and not cdn_data.get(
         "targetFound"
     ):
@@ -351,7 +356,36 @@ def summarize_monitor(credentials: dict[str, Any], region: str) -> dict[str, Any
 def summarize_clb(
     credentials: dict[str, Any], region: str, clb_id: str
 ) -> dict[str, Any]:
-    response = tc3_request(
+    instance_response = tc3_request(
+        credentials,
+        service="clb",
+        host="clb.tencentcloudapi.com",
+        action="DescribeLoadBalancers",
+        version="2018-03-17",
+        region=region,
+        payload={"LoadBalancerIds": [clb_id]},
+    )
+    instances = []
+    for instance in instance_response.get("LoadBalancerSet") or []:
+        if str(instance.get("LoadBalancerId") or "") != clb_id:
+            continue
+        instances.append(
+            {
+                "loadBalancerId": instance.get("LoadBalancerId"),
+                "loadBalancerVips": sorted(
+                    {
+                        str(value).strip()
+                        for value in instance.get("LoadBalancerVips") or []
+                        if str(value).strip()
+                    }
+                ),
+                "domain": instance.get("Domain"),
+                "status": instance.get("Status"),
+                "statusTime": instance.get("StatusTime"),
+            }
+        )
+
+    listener_response = tc3_request(
         credentials,
         service="clb",
         host="clb.tencentcloudapi.com",
@@ -361,7 +395,7 @@ def summarize_clb(
         payload={"LoadBalancerId": clb_id},
     )
     listeners = []
-    for listener in response.get("Listeners") or []:
+    for listener in listener_response.get("Listeners") or []:
         certificate = listener.get("Certificate") or {}
         health_check = listener.get("HealthCheck") or {}
         listeners.append(
@@ -376,7 +410,11 @@ def summarize_clb(
                 "unhealthyThreshold": health_check.get("UnHealthNum"),
             }
         )
-    return {"totalCount": response.get("TotalCount"), "listeners": listeners}
+    return {
+        "totalCount": instance_response.get("TotalCount"),
+        "instances": instances,
+        "listeners": listeners,
+    }
 
 
 def summarize_cdn(credentials: dict[str, Any], cdn_domain: str) -> dict[str, Any]:
@@ -510,7 +548,7 @@ def main() -> None:
         ),
     }
     readiness = evaluate_readiness(result)
-    result["schemaVersion"] = 1
+    result["schemaVersion"] = 2
     result["kind"] = "guoxue-tencent-cloud-readiness"
     result["generatedAt"] = dt.datetime.now(dt.timezone.utc).isoformat().replace(
         "+00:00", "Z"

@@ -15,6 +15,7 @@ const add = (name, pass, detail) => checks.push({ name, pass, detail });
 const healthService = read("apps/server/src/modules/health/health.service.ts");
 const healthSpec = read("apps/server/src/modules/health/health.service.spec.ts");
 const verifier = read("scripts/release/verify-runtime.mjs");
+const publicDns = read("scripts/release/public-dns.mjs");
 const publicTls = read("scripts/release/public-tls.mjs");
 const evidenceAggregator = read("scripts/release/aggregate-launch-evidence.mjs");
 const packageJson = read("package.json");
@@ -180,6 +181,30 @@ add(
     '/^https:\\/\\//iu.test(location)',
   ]),
   "非本地生产入口不得接受明文 URL，80 端口必须跳转 HTTPS",
+);
+
+add(
+  "公网 DNS 解析与目标资源形成机器证据",
+  hasAll(verifier, [
+    "probePublicDns",
+    "公网 DNS 解析与地址安全",
+    "dnsEndpoints",
+  ]) &&
+    hasAll(publicDns, [
+      "resolveCname",
+      "resolve4",
+      "resolve6",
+      "cnameChain",
+      "terminalHostname",
+      "isPublicAddress",
+    ]) &&
+    hasAll(evidenceAggregator, [
+      "公网 DNS 解析、CNAME 链或地址安全证据无效",
+      "腾讯云 CLB/CDN 目标",
+      "loadBalancerVips",
+      "cdnCname",
+    ]),
+  "最终上线必须证明所有公网端点解析到安全公网地址，并将 API/H5/后台和静态资源分别绑定本次 CLB 与 CDN，而不是误验旧环境",
 );
 
 add(
