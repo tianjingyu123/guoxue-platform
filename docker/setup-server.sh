@@ -28,6 +28,7 @@ SKIP_FIREWALL="${SKIP_FIREWALL:-false}"
 SKIP_SWAP="${SKIP_SWAP:-false}"
 DATABASE_MODE="${DATABASE_MODE:-prepare}"
 DEPLOY_TARGET="${DEPLOY_TARGET:-}"
+NODE_ROLE="${NODE_ROLE:-operations}"
 POSTGRES_CLIENT_MAJOR="${POSTGRES_CLIENT_MAJOR:-16}"
 PLATFORM_ROOT="${PLATFORM_ROOT:-/opt/guoxue}"
 RUNTIME_DIR="$PLATFORM_ROOT/current"
@@ -64,6 +65,10 @@ esac
 case "$DEPLOY_TARGET" in
   standard|tencent) ;;
   *) err "DEPLOY_TARGET 仅允许 standard / tencent"; exit 64 ;;
+esac
+case "$NODE_ROLE" in
+  app|operations) ;;
+  *) err "NODE_ROLE 仅允许 app / operations"; exit 64 ;;
 esac
 
 if [ "$EUID" -ne 0 ]; then
@@ -290,6 +295,7 @@ docker run --rm \
   node:20-slim \
   node scripts/migration/check-env.mjs "/runtime-env/$ENV_NAME" --full \
     --deploy-target "$DEPLOY_TARGET" \
+    --node-role "$NODE_ROLE" \
     --report /evidence/environment-readiness.json
 chmod 600 "$INSTALL_DIR/release-evidence/environment-readiness.json"
 
@@ -401,37 +407,41 @@ log "复核数据库迁移账本..."
 docker exec guoxue-server \
   pnpm --dir /app/apps/server exec prisma migrate status
 
-# ── 12. 启动生产监控与值班告警 ──
-log "渲染 Alertmanager 私密配置..."
-docker run --rm \
-  -v "$INSTALL_DIR:/app" \
-  -v "$ENV_DIR:/runtime-env:ro" \
-  -w /app \
-  node:20-slim \
-  node scripts/release/render-monitoring-config.mjs "/runtime-env/$ENV_NAME"
+# ── 12. 仅在运维节点启动生产监控与值班告警 ──
+if [ "$NODE_ROLE" = "operations" ]; then
+  log "运维节点：渲染 Alertmanager 私密配置..."
+  docker run --rm \
+    -v "$INSTALL_DIR:/app" \
+    -v "$ENV_DIR:/runtime-env:ro" \
+    -w /app \
+    node:20-slim \
+    node scripts/release/render-monitoring-config.mjs "/runtime-env/$ENV_NAME"
 
-MONITORING_COMPOSE=(
-  docker compose
-  -f monitoring/docker-compose.yml
-  --env-file "$ENV_FILE"
-)
-"${MONITORING_COMPOSE[@]}" config -q
-"${MONITORING_COMPOSE[@]}" up -d
+  MONITORING_COMPOSE=(
+    docker compose
+    -f monitoring/docker-compose.yml
+    --env-file "$ENV_FILE"
+  )
+  "${MONITORING_COMPOSE[@]}" config -q
+  "${MONITORING_COMPOSE[@]}" up -d
 
-log "等待监控栈就绪..."
-for i in $(seq 1 30); do
-  sleep 2
-  if curl -fsS http://127.0.0.1:9090/-/ready >/dev/null 2>&1 \
-    && curl -fsS http://127.0.0.1:9093/-/ready >/dev/null 2>&1 \
-    && curl -fsS http://127.0.0.1:3001/api/health >/dev/null 2>&1; then
-    log "✅ Prometheus、Alertmanager、Grafana 已就绪"
-    break
-  fi
-  if [ "$i" -eq 30 ]; then
-    err "监控栈启动超时，请检查 docker compose -f monitoring/docker-compose.yml logs"
-    exit 1
-  fi
-done
+  log "等待监控栈就绪..."
+  for i in $(seq 1 30); do
+    sleep 2
+    if curl -fsS http://127.0.0.1:9090/-/ready >/dev/null 2>&1 \
+      && curl -fsS http://127.0.0.1:9093/-/ready >/dev/null 2>&1 \
+      && curl -fsS http://127.0.0.1:3001/api/health >/dev/null 2>&1; then
+      log "✅ Prometheus、Alertmanager、Grafana 已就绪"
+      break
+    fi
+    if [ "$i" -eq 30 ]; then
+      err "监控栈启动超时，请检查 docker compose -f monitoring/docker-compose.yml logs"
+      exit 1
+    fi
+  done
+else
+  log "业务节点：跳过监控栈，避免重复告警和复制运维密钥"
+fi
 
 # ── 13. 配置自启动 ──
 log "配置服务自启动..."
@@ -449,6 +459,7 @@ Type=oneshot
 RemainAfterExit=yes
 Environment=COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME
 Environment=DEPLOY_TARGET=$DEPLOY_TARGET
+Environment=NODE_ROLE=$NODE_ROLE
 Environment="PLATFORM_ROOT=$PLATFORM_ROOT"
 Environment="RUNTIME_DIR=$RUNTIME_DIR"
 Environment="ENV_FILE=$ENV_FILE"
@@ -463,7 +474,8 @@ StandardError=journal
 WantedBy=multi-user.target
 SERVEOF
 
-cat > /etc/systemd/system/guoxue-monitoring.service << SERVEOF
+if [ "$NODE_ROLE" = "operations" ]; then
+  cat > /etc/systemd/system/guoxue-monitoring.service << SERVEOF
 [Unit]
 Description=国学平台生产监控与告警服务
 Requires=docker.service guoxue.service
@@ -484,22 +496,36 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 SERVEOF
+fi
 systemctl daemon-reload
-systemctl enable guoxue.service guoxue-monitoring.service
+systemctl enable guoxue.service
+if [ "$NODE_ROLE" = "operations" ]; then
+  systemctl enable guoxue-monitoring.service
+else
+  systemctl disable --now guoxue-monitoring.service >/dev/null 2>&1 || true
+fi
 
-  # ── 14. 配置定时任务 ──
-  log "配置定时备份..."
-  BACKUP_SCRIPT="$RUNTIME_DIR/docker/pg-backup.sh"
-  EXISTING_CRON="$(crontab -l 2>/dev/null || true)"
+# ── 14. 仅由运维节点执行数据库备份与镜像清理 ──
+BACKUP_SCRIPT="$RUNTIME_DIR/docker/pg-backup.sh"
+EXISTING_CRON="$(crontab -l 2>/dev/null || true)"
+FILTERED_CRON="$(
+  printf '%s\n' "$EXISTING_CRON" \
+    | grep -v '/var/log/guoxue-backup.log' \
+    | grep -v '/var/log/guoxue-cleanup.log' \
+    || true
+)"
+if [ "$NODE_ROLE" = "operations" ]; then
+  log "运维节点：配置定时备份与安全镜像清理..."
   {
-    printf '%s\n' "$EXISTING_CRON" \
-      | grep -v '/var/log/guoxue-backup.log' \
-      | grep -v '/var/log/guoxue-cleanup.log' \
-      || true
+    printf '%s\n' "$FILTERED_CRON"
     echo "0 3 * * * DEPLOY_TARGET=$DEPLOY_TARGET ENV_FILE=$ENV_FILE BACKUP_DIR=$BACKUP_DIR bash $BACKUP_SCRIPT 30 >> /var/log/guoxue-backup.log 2>&1"
     # 只清理悬空镜像和过期构建缓存；禁止 system prune -a 删除旧版回滚镜像。
     echo "0 4 * * 0 ( docker image prune -f && docker builder prune -f --filter 'until=168h' ) >> /var/log/guoxue-cleanup.log 2>&1"
   } | sed '/^[[:space:]]*$/d' | crontab -
+else
+  log "业务节点：移除重复数据库备份计划，保留其他既有定时任务"
+  printf '%s\n' "$FILTERED_CRON" | sed '/^[[:space:]]*$/d' | crontab -
+fi
 
 # ── 15. 显示状态 ──
 echo ""
@@ -508,7 +534,10 @@ log "部署完成！"
 echo "══════════════════════════════════════════════════════"
 echo "  API:       https://$DOMAIN/api/v1/health"
 echo "  Swagger:   https://$DOMAIN/api-docs"
-echo "  Grafana:   https://$DOMAIN/grafana/ (内网)"
+if [ "$NODE_ROLE" = "operations" ]; then
+  echo "  Grafana:   https://$DOMAIN/grafana/ (内网)"
+fi
+echo "  节点角色:  $NODE_ROLE"
 echo ""
 echo "  管理命令:"
 echo "    systemctl status guoxue       # 查看服务状态"
@@ -520,6 +549,8 @@ else
 fi
 echo ""
 echo "  当前版本: $RUNTIME_DIR -> $INSTALL_DIR"
-echo "  备份: $BACKUP_DIR/"
+if [ "$NODE_ROLE" = "operations" ]; then
+  echo "  备份: $BACKUP_DIR/"
+fi
 echo "  环境变量: $ENV_FILE"
 echo "══════════════════════════════════════════════════════"

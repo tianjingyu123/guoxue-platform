@@ -221,10 +221,12 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml do
 
 | Secret 名称 | 说明 |
 |-------------|------|
-| `PROD_HOST` | 生产服务器 IP |
+| `PROD_HOST_A` | 生产业务节点 A IP |
+| `PROD_HOST_B` | 生产业务兼运维节点 B IP |
 | `PROD_USER` | SSH 用户名 |
 | `PROD_SSH_KEY` | SSH 私钥 (PEM) |
-| `PROD_SSH_FINGERPRINT` | 生产服务器 SSH 主机公钥 SHA-256 指纹（须从可信控制台独立核对） |
+| `PROD_SSH_FINGERPRINT_A` | 节点 A SSH 主机公钥 SHA-256 指纹（须从可信控制台独立核对） |
+| `PROD_SSH_FINGERPRINT_B` | 节点 B SSH 主机公钥 SHA-256 指纹（须从可信控制台独立核对） |
 | `WEWORK_WEBHOOK_URL` | 企业微信机器人 Webhook (部署通知) |
 
 ### 5.3 通用 Secrets

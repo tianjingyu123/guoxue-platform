@@ -55,7 +55,8 @@ jobs:
           MAX_AGE_HOURS: ${{ inputs.max_age_hours }}
           PRODUCTION_DEPLOY_READY: ${{ vars.PRODUCTION_DEPLOY_READY }}
           PRODUCTION_DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
-          PROD_SSH_FINGERPRINT_CONFIGURED: ${{ secrets.PROD_SSH_FINGERPRINT != '' }}
+          PROD_NODE_A_CONFIGURED: ${{ secrets.PROD_HOST_A != '' && secrets.PROD_SSH_FINGERPRINT_A != '' }}
+          PROD_NODE_B_CONFIGURED: ${{ secrets.PROD_HOST_B != '' && secrets.PROD_SSH_FINGERPRINT_B != '' }}
           SOURCE_REF: ${{ github.ref }}
           SOURCE_SHA: ${{ github.sha }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -64,14 +65,29 @@ jobs:
           node scripts/release/validate-production-dispatch.mjs
           case "$MAX_AGE_HOURS" in 12|24|48) ;; *) echo "证据有效期仅允许 12、24 或 48 小时"; exit 64 ;; esac
 
-      - name: 重新生成易过期证据并汇总九证据上线判定
+      - name: 确认业务节点 A 与当前固定版本一致
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
-          host: ${{ secrets.PROD_HOST }}
+          host: ${{ secrets.PROD_HOST_A }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}
+          script: |
+            set -euo pipefail
+            RELEASE_ID='${{ inputs.release_id }}'
+            test "$(cat /opt/guoxue/current/.release-id)" = "$RELEASE_ID"
+            BODY="$(curl -fsS --max-time 10 http://127.0.0.1/api/v1/health/live)"
+            node -e 'const body=JSON.parse(process.argv[1]); const data=body&&body.data&&typeof body.data==="object"?body.data:body; if(data.releaseId!==process.argv[2]) process.exit(1)' "$BODY" "$RELEASE_ID"
+
+      - name: 在运维节点 B 重新生成易过期证据并汇总九证据上线判定
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
           command_timeout: 15m
           script: |
             set -euo pipefail
@@ -79,4 +95,5 @@ jobs:
             export RELEASE_ID='${{ inputs.release_id }}'
             export MAX_AGE_HOURS='${{ inputs.max_age_hours }}'
             export DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}'
+            export NODE_ROLE=operations
             bash "$PLATFORM_ROOT/current/scripts/release/verify-production-cutover.sh"

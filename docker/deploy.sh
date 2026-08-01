@@ -34,12 +34,17 @@ COMPOSE=(
   --env-file "$ENV_FILE"
 )
 DEPLOY_TARGET="${DEPLOY_TARGET:-}"
+NODE_ROLE="${NODE_ROLE:-operations}"
 if [ "$DEPLOY_TARGET" = "tencent" ]; then
   COMPOSE+=( -f "$SCRIPT_DIR/docker-compose.tencent.yml" )
 elif [ "$DEPLOY_TARGET" != "standard" ]; then
   err "DEPLOY_TARGET 仅允许 standard 或 tencent"
   exit 64
 fi
+case "$NODE_ROLE" in
+  app|operations) ;;
+  *) err "NODE_ROLE 仅允许 app 或 operations"; exit 64 ;;
+esac
 SKIP_MIGRATE="true"
 MIGRATION_APPLIED="false"
 SKIP_HEALTH="false"
@@ -84,6 +89,7 @@ log "  国学平台 — 部署脚本"
 log "════════════════════════════════════════════"
 info "  项目目录: $PROJECT_DIR"
 info "  部署架构: $DEPLOY_TARGET"
+info "  节点角色: $NODE_ROLE"
 info "  当前时间: $(date '+%Y-%m-%d %H:%M:%S')"
 echo ""
 
@@ -105,7 +111,7 @@ mkdir -p "$PROJECT_DIR/release-evidence"
 ENV_REPORT="$PROJECT_DIR/release-evidence/environment-readiness.json"
 if command -v node > /dev/null 2>&1; then
   node "$PROJECT_DIR/scripts/migration/check-env.mjs" "$ENV_FILE" --full \
-    --deploy-target "$DEPLOY_TARGET" --report "$ENV_REPORT"
+    --deploy-target "$DEPLOY_TARGET" --node-role "$NODE_ROLE" --report "$ENV_REPORT"
 else
   ENV_DIR="$(cd "$(dirname "$ENV_FILE")" && pwd)"
   ENV_NAME="$(basename "$ENV_FILE")"
@@ -117,6 +123,7 @@ else
     node:20-slim \
     node scripts/migration/check-env.mjs "/runtime-env/$ENV_NAME" --full \
       --deploy-target "$DEPLOY_TARGET" \
+      --node-role "$NODE_ROLE" \
       --report /evidence/environment-readiness.json
 fi
 chmod 600 "$ENV_REPORT"

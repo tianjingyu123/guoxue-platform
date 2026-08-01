@@ -22,11 +22,13 @@ BACKUP_DIR="${BACKUP_DIR:-$ROOT_DIR/backups}"
 EXPECTED_RELEASE_ID="${EXPECTED_RELEASE_ID:-}"
 EXPECTED_COMMIT="${EXPECTED_COMMIT:-}"
 DEPLOY_TARGET="${DEPLOY_TARGET:-}"
+NODE_ROLE="${NODE_ROLE:-operations}"
 RUN_MIGRATION="${RUN_MIGRATION:-false}"
 MIGRATION_DEPLOY_CONFIRM="${MIGRATION_DEPLOY_CONFIRM:-}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guoxue}"
 
 case "$DEPLOY_TARGET" in standard|tencent) ;; *) fail "DEPLOY_TARGET 仅允许 standard 或 tencent" ;; esac
+case "$NODE_ROLE" in app|operations) ;; *) fail "NODE_ROLE 仅允许 app 或 operations" ;; esac
 case "$RUN_MIGRATION" in true|false) ;; *) fail "RUN_MIGRATION 仅允许 true 或 false" ;; esac
 [[ "$COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "COMPOSE_PROJECT_NAME 格式无效"
 [[ "$EXPECTED_COMMIT" =~ ^[a-fA-F0-9]{40}$ ]] || fail "EXPECTED_COMMIT 必须是完整的 40 位提交 SHA，正式激活不得省略源提交身份"
@@ -179,15 +181,19 @@ node "$FINAL_DIR/scripts/release/verify-release-directory.mjs" \
   --report "$REPORT_DIR/release-directory-verification.json"
 chmod 0600 "$REPORT_DIR/release-directory-verification.json"
 
-log "渲染并复核监控告警配置"
-node "$FINAL_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE"
-docker network create monitoring >/dev/null 2>&1 || true
-COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
-  docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
-    --env-file "$SHARED_ENV_FILE" config -q
-COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
-  docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
-    --env-file "$SHARED_ENV_FILE" up -d
+if [ "$NODE_ROLE" = "operations" ]; then
+  log "运维节点：渲染并复核监控告警配置"
+  node "$FINAL_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE"
+  docker network create monitoring >/dev/null 2>&1 || true
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+    docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
+      --env-file "$SHARED_ENV_FILE" config -q
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+    docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
+      --env-file "$SHARED_ENV_FILE" up -d
+else
+  log "业务节点：跳过监控栈，避免重复告警和复制运维密钥"
+fi
 
 # 在启动新容器前预制权威 current 的候选软链。部署失败时 cleanup 会删除该候选，
 # 部署成功后只需一次同文件系统原子重命名；已有正式目录可由同一固定包安全重试。
@@ -210,6 +216,7 @@ if ! ENV_FILE="$SHARED_ENV_FILE" \
   BACKUP_DIR="$BACKUP_DIR" \
   RELEASE_ID="$RELEASE_ID" \
   DEPLOY_TARGET="$DEPLOY_TARGET" \
+  NODE_ROLE="$NODE_ROLE" \
   COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
   MIGRATION_DEPLOY_CONFIRM="$MIGRATION_DEPLOY_CONFIRM" \
   bash "$FINAL_DIR/docker/deploy.sh" "${DEPLOY_ARGS[@]}"; then

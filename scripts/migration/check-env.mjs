@@ -11,6 +11,7 @@ let hasEnvFile = false;
 let allowPlaceholders = false;
 let fullCheck = false;
 let deployTarget = "";
+let nodeRole = "operations";
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
@@ -29,6 +30,16 @@ for (let index = 0; index < args.length; index += 1) {
       process.exit(2);
     }
     deployTarget = value.trim().toLowerCase();
+    index += 1;
+    continue;
+  }
+  if (arg === "--node-role") {
+    const value = args[index + 1];
+    if (!value || value.startsWith("--")) {
+      console.error("错误：--node-role 后必须提供 app 或 operations");
+      process.exit(2);
+    }
+    nodeRole = value.trim().toLowerCase();
     index += 1;
     continue;
   }
@@ -101,7 +112,7 @@ try {
     console.error(`错误：找不到环境文件 ${resolvedEnvFile}`);
     console.error("请先把生产模板复制到仓库外的受控路径，并填写新服务器、数据库、域名和真实密钥。");
     console.error(
-      "填写完成后运行：pnpm migration:check-env <受控环境文件> --full --deploy-target standard|tencent",
+      "填写完成后运行：pnpm migration:check-env <受控环境文件> --full --deploy-target standard|tencent --node-role app|operations",
     );
     process.exit(2);
   }
@@ -119,6 +130,9 @@ if (deployTarget && !["standard", "tencent"].includes(deployTarget)) {
 }
 if (fullCheck && !deployTarget) {
   errors.push("完整上线检查必须通过 --deploy-target 显式指定 standard 或 tencent");
+}
+if (!new Set(["app", "operations"]).has(nodeRole)) {
+  errors.push("NODE_ROLE 仅允许 app 或 operations");
 }
 const required = [
   "NODE_ENV",
@@ -398,23 +412,25 @@ if (cookieDomain && publicDomain && !publicDomain.endsWith(cookieDomain)) {
 }
 
 if (fullCheck) {
-  const monitoringEnabled = (values.get("MONITORING_ENABLED") || "").trim().toLowerCase();
-  if (monitoringEnabled !== "true") {
-    errors.push("完整上线模式要求 MONITORING_ENABLED=true");
-  }
-  const monitoringKeys = [
-    "GF_ADMIN_PASSWORD",
-    "WEWORK_CORP_ID",
-    "WEWORK_AGENT_ID",
-    "WEWORK_AGENT_SECRET",
-    "DBA_WEWORK_USER_IDS",
-  ];
-  if (!hasAll(values, monitoringKeys)) {
-    errors.push(
-      `生产监控与企业微信告警配置不完整：${monitoringKeys
-        .filter((key) => !values.get(key))
-        .join(", ")}`,
-    );
+  if (nodeRole === "operations") {
+    const monitoringEnabled = (values.get("MONITORING_ENABLED") || "").trim().toLowerCase();
+    if (monitoringEnabled !== "true") {
+      errors.push("完整上线模式要求 MONITORING_ENABLED=true");
+    }
+    const monitoringKeys = [
+      "GF_ADMIN_PASSWORD",
+      "WEWORK_CORP_ID",
+      "WEWORK_AGENT_ID",
+      "WEWORK_AGENT_SECRET",
+      "DBA_WEWORK_USER_IDS",
+    ];
+    if (!hasAll(values, monitoringKeys)) {
+      errors.push(
+        `生产监控与企业微信告警配置不完整：${monitoringKeys
+          .filter((key) => !values.get(key))
+          .join(", ")}`,
+      );
+    }
   }
 
   const groups = [
@@ -492,7 +508,7 @@ if (fullCheck) {
 }
 
 console.log(
-  `环境检查：读取 ${values.size} 个键（未输出任何值；模式：${fullCheck ? "完整上线" : "核心"}；架构：${deployTarget || "未指定"}）`,
+  `环境检查：读取 ${values.size} 个键（未输出任何值；模式：${fullCheck ? "完整上线" : "核心"}；架构：${deployTarget || "未指定"}；节点角色：${nodeRole}）`,
 );
 warnings.forEach((message) => console.log(`警告：${message}`));
 errors.forEach((message) => console.error(`错误：${message}`));
@@ -509,6 +525,7 @@ if (reportFile) {
       path.basename(resolvedEnvFile),
     fullCheck,
     deployTarget: deployTarget || null,
+    nodeRole,
     success: errors.length === 0,
     counts: {
       configuredKeys: values.size,

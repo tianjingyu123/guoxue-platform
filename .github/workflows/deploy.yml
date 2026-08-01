@@ -72,7 +72,8 @@ jobs:
           MIGRATION_CONFIRMATION: ${{ inputs.migration_confirmation }}
           PRODUCTION_DEPLOY_READY: ${{ vars.PRODUCTION_DEPLOY_READY }}
           PRODUCTION_DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
-          PROD_SSH_FINGERPRINT_CONFIGURED: ${{ secrets.PROD_SSH_FINGERPRINT != '' }}
+          PROD_NODE_A_CONFIGURED: ${{ secrets.PROD_HOST_A != '' && secrets.PROD_SSH_FINGERPRINT_A != '' }}
+          PROD_NODE_B_CONFIGURED: ${{ secrets.PROD_HOST_B != '' && secrets.PROD_SSH_FINGERPRINT_B != '' }}
           SOURCE_REF: ${{ github.ref }}
           SOURCE_SHA: ${{ github.sha }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -205,11 +206,11 @@ jobs:
           retention-days: 14
 
   deploy-production:
-    name: 固定包部署到新生产环境
+    name: 固定包双节点滚动部署
     if: inputs.environment == 'production'
     needs: package-production
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 80
     environment:
       name: production
       url: ${{ vars.PUBLIC_H5_URL }}
@@ -228,14 +229,14 @@ jobs:
       - name: 汇总待上传文件
         run: cp scripts/release/activate-fixed-release.sh release-input/activate-fixed-release.sh
 
-      - name: 准备服务器接收目录
+      - name: 准备业务节点 A 接收目录
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
-          host: ${{ secrets.PROD_HOST }}
+          host: ${{ secrets.PROD_HOST_A }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}
           script: |
             set -euo pipefail
             install -d -m 0750 /opt/guoxue/incoming /opt/guoxue/releases /opt/guoxue/release-evidence
@@ -243,27 +244,27 @@ jobs:
             MODE="$(stat -c '%a' /opt/guoxue/shared/.env.production)"
             [ "$MODE" = "600" ] || [ "$MODE" = "400" ]
 
-      - name: 上传固定包、校验文件和激活器
+      - name: 上传固定包到业务节点 A
         uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
         with:
-          host: ${{ secrets.PROD_HOST }}
+          host: ${{ secrets.PROD_HOST_A }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}
           source: "release-input/gx-deploy-91-${{ inputs.release_id }}.tar.gz,release-input/gx-deploy-91-${{ inputs.release_id }}.tar.gz.sha256,release-input/activate-fixed-release.sh"
           target: "/opt/guoxue/incoming/"
           strip_components: 1
           overwrite: true
 
-      - name: 服务器二次验真并原子激活
+      - name: 业务节点 A 二次验真并激活
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
-          host: ${{ secrets.PROD_HOST }}
+          host: ${{ secrets.PROD_HOST_A }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}
           command_timeout: 40m
           script: |
             set -euo pipefail
@@ -276,10 +277,81 @@ jobs:
             EXPECTED_RELEASE_ID="$RELEASE_ID" \
             EXPECTED_COMMIT='${{ github.sha }}' \
             DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+            NODE_ROLE=app \
             COMPOSE_PROJECT_NAME=guoxue \
             RUN_MIGRATION='${{ inputs.run_migration }}' \
             MIGRATION_DEPLOY_CONFIRM='${{ inputs.migration_confirmation }}' \
               bash /opt/guoxue/incoming/activate-fixed-release.sh "$ARCHIVE" "$CHECKSUM"
+
+      - name: 确认节点 A 激活后 CLB 持续可用
+        env:
+          PUBLIC_H5_URL: ${{ vars.PUBLIC_H5_URL }}
+        run: |
+          set -euo pipefail
+          export BASE_URL="$(node -e 'process.stdout.write(new URL(process.env.PUBLIC_H5_URL).origin)')"
+          bash scripts/operations/probe-clb-failover.sh 30
+
+      - name: 准备运维节点 B 接收目录
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
+          script: |
+            set -euo pipefail
+            install -d -m 0750 /opt/guoxue/incoming /opt/guoxue/releases /opt/guoxue/release-evidence
+            test -f /opt/guoxue/shared/.env.production
+            MODE="$(stat -c '%a' /opt/guoxue/shared/.env.production)"
+            [ "$MODE" = "600" ] || [ "$MODE" = "400" ]
+
+      - name: 上传固定包到运维节点 B
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
+          source: "release-input/gx-deploy-91-${{ inputs.release_id }}.tar.gz,release-input/gx-deploy-91-${{ inputs.release_id }}.tar.gz.sha256,release-input/activate-fixed-release.sh"
+          target: "/opt/guoxue/incoming/"
+          strip_components: 1
+          overwrite: true
+
+      - name: 运维节点 B 二次验真并激活
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
+          command_timeout: 40m
+          script: |
+            set -euo pipefail
+            RELEASE_ID='${{ inputs.release_id }}'
+            ARCHIVE="/opt/guoxue/incoming/gx-deploy-91-$RELEASE_ID.tar.gz"
+            CHECKSUM="$ARCHIVE.sha256"
+            test -f "$ARCHIVE" && test -f "$CHECKSUM"
+            ROOT_DIR=/opt/guoxue \
+            ENV_FILE=/opt/guoxue/shared/.env.production \
+            EXPECTED_RELEASE_ID="$RELEASE_ID" \
+            EXPECTED_COMMIT='${{ github.sha }}' \
+            DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+            NODE_ROLE=operations \
+            COMPOSE_PROJECT_NAME=guoxue \
+            RUN_MIGRATION=false \
+            MIGRATION_DEPLOY_CONFIRM='' \
+              bash /opt/guoxue/incoming/activate-fixed-release.sh "$ARCHIVE" "$CHECKSUM"
+
+      - name: 确认双节点激活后 CLB 持续可用
+        env:
+          PUBLIC_H5_URL: ${{ vars.PUBLIC_H5_URL }}
+        run: |
+          set -euo pipefail
+          export BASE_URL="$(node -e 'process.stdout.write(new URL(process.env.PUBLIC_H5_URL).origin)')"
+          bash scripts/operations/probe-clb-failover.sh 45
 
   build-staging-image:
     name: 构建 Staging 镜像

@@ -14,7 +14,8 @@ function validInput(overrides = {}) {
     migrationConfirmation: "",
     productionDeployReady: "true",
     deployTarget: "tencent",
-    sshHostFingerprintConfigured: "true",
+    productionNodeAConfigured: "true",
+    productionNodeBConfigured: "true",
     sourceRef: "refs/heads/main",
     sourceSha,
     defaultBranch: "main",
@@ -69,12 +70,16 @@ test("生产就绪开关未开启时被阻断", () => {
   assert.match(result.errors.join("\n"), /PRODUCTION_DEPLOY_READY=true/);
 });
 
-test("生产服务器 SSH 主机指纹未配置时被阻断", () => {
-  const result = validateProductionDispatch(
-    validInput({ sshHostFingerprintConfigured: "false" }),
-  );
+test("生产节点 A 的主机或 SSH 指纹未配置时被阻断", () => {
+  const result = validateProductionDispatch(validInput({ productionNodeAConfigured: "false" }));
   assert.equal(result.success, false);
-  assert.match(result.errors.join("\n"), /PROD_SSH_FINGERPRINT/);
+  assert.match(result.errors.join("\n"), /PROD_HOST_A.*PROD_SSH_FINGERPRINT_A/);
+});
+
+test("生产节点 B 的主机或 SSH 指纹未配置时被阻断", () => {
+  const result = validateProductionDispatch(validInput({ productionNodeBConfigured: "false" }));
+  assert.equal(result.success, false);
+  assert.match(result.errors.join("\n"), /PROD_HOST_B.*PROD_SSH_FINGERPRINT_B/);
 });
 
 test("生产部署架构未配置时被阻断", () => {

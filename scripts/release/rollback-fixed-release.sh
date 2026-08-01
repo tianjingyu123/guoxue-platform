@@ -23,6 +23,7 @@ SHARED_ENV_FILE="${ENV_FILE:-$ROOT_DIR/shared/.env.production}"
 SHARED_SSL_DIR="${SHARED_SSL_DIR:-$ROOT_DIR/shared/nginx-ssl}"
 BACKUP_DIR="${BACKUP_DIR:-$ROOT_DIR/backups}"
 DEPLOY_TARGET="${DEPLOY_TARGET:-}"
+NODE_ROLE="${NODE_ROLE:-operations}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guoxue}"
 SCHEMA_COMPATIBILITY="${ALLOW_SCHEMA_COMPATIBLE_ROLLBACK:-false}"
 VERIFY_ONLY="${ROLLBACK_VERIFY_ONLY:-false}"
@@ -30,6 +31,7 @@ VERIFY_ONLY="${ROLLBACK_VERIFY_ONLY:-false}"
 [[ "$TARGET_RELEASE_ID" =~ ^[A-Za-z0-9._-]{8,80}$ ]] || fail "目标发布标识格式无效"
 [ "$CONFIRMATION" = "$TARGET_RELEASE_ID" ] || fail "回滚确认值必须与目标发布标识完全一致"
 case "$DEPLOY_TARGET" in standard|tencent) ;; *) fail "DEPLOY_TARGET 仅允许 standard 或 tencent" ;; esac
+case "$NODE_ROLE" in app|operations) ;; *) fail "NODE_ROLE 仅允许 app 或 operations" ;; esac
 case "$SCHEMA_COMPATIBILITY" in false|reviewed) ;; *) fail "ALLOW_SCHEMA_COMPATIBLE_ROLLBACK 仅允许 false 或 reviewed" ;; esac
 case "$VERIFY_ONLY" in true|false) ;; *) fail "ROLLBACK_VERIFY_ONLY 仅允许 true 或 false" ;; esac
 [[ "$COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "COMPOSE_PROJECT_NAME 格式无效"
@@ -107,21 +109,26 @@ if [ "$VERIFY_ONLY" = "true" ]; then
   exit 0
 fi
 
-log "渲染并复核目标版本监控配置"
-node "$TARGET_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE"
-docker network create monitoring >/dev/null 2>&1 || true
-COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
-  docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
-    --env-file "$SHARED_ENV_FILE" config -q
-COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
-  docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
-    --env-file "$SHARED_ENV_FILE" up -d
+if [ "$NODE_ROLE" = "operations" ]; then
+  log "运维节点：渲染并复核目标版本监控配置"
+  node "$TARGET_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE"
+  docker network create monitoring >/dev/null 2>&1 || true
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+    docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
+      --env-file "$SHARED_ENV_FILE" config -q
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+    docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
+      --env-file "$SHARED_ENV_FILE" up -d
+else
+  log "业务节点：跳过监控栈回滚，避免重复告警和复制运维密钥"
+fi
 
 log "健康部署目标版本：$TARGET_RELEASE_ID"
 ENV_FILE="$SHARED_ENV_FILE" \
 BACKUP_DIR="$BACKUP_DIR" \
 RELEASE_ID="$TARGET_RELEASE_ID" \
 DEPLOY_TARGET="$DEPLOY_TARGET" \
+NODE_ROLE="$NODE_ROLE" \
 COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
   bash "$TARGET_DIR/docker/deploy.sh" --skip-migrate
 

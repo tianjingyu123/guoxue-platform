@@ -282,6 +282,8 @@ add(
   "服务器初始化严格分离自建与托管数据服务",
   hasAll(setupServer, [
     'DEPLOY_TARGET="${DEPLOY_TARGET:-}"',
+    'NODE_ROLE="${NODE_ROLE:-operations}"',
+    'case "$NODE_ROLE" in',
     "COMPOSE+=( -f docker-compose.tencent.yml )",
     'if [ "$DEPLOY_TARGET" = "standard" ]; then',
     "Environment=DEPLOY_TARGET=$DEPLOY_TARGET",
@@ -289,6 +291,18 @@ add(
     "托管架构：不启动本地 PostgreSQL / Redis",
   ]),
   "托管架构不得因显式点名 profile 服务而误启动本地空 PostgreSQL/Redis",
+);
+add(
+  "双应用节点按角色隔离单例运维组件",
+  hasAll(setupServer, [
+    'if [ "$NODE_ROLE" = "operations" ]; then',
+    "Environment=NODE_ROLE=$NODE_ROLE",
+    "guoxue-monitoring.service",
+    "systemctl disable --now guoxue-monitoring.service",
+    "节点角色:",
+  ]) &&
+    hasAll(productionDeploy, ['NODE_ROLE="${NODE_ROLE:-operations}"', '--node-role "$NODE_ROLE"']),
+  "业务节点不得复制 Grafana、Prometheus、企业微信告警和数据库定时备份；运维节点集中承载单例任务",
 );
 add(
   "服务器现场指引不再遗漏部署架构",
@@ -464,7 +478,7 @@ add(
     "hostIdentitySha256",
     "preflightScriptSha256",
     "sourceOutputSha256",
-    'mode: 0o600',
+    "mode: 0o600",
   ]) &&
     !hostPreflightAudit.includes("detail: match[2]") &&
     hasAll(hostPreflightTest, [
@@ -556,7 +570,7 @@ add(
     !setupServer.includes("docker system prune -af") &&
     hasAll(productionBackup, [
       'BACKUP_LOCK_FILE="${BACKUP_LOCK_FILE:-$BACKUP_DIR/.backup.lock}"',
-      'flock -n 9',
+      "flock -n 9",
       "已有数据库备份任务正在执行",
     ]),
   "磁盘清理必须保留有标签的旧版镜像，备份任务必须以文件锁拒绝并发归档",
@@ -715,6 +729,22 @@ const launchAcceptanceTest = read("tests/release/finalize-launch-acceptance.test
 const launchReadinessAudit = read("scripts/release/audit-launch-readiness.mjs");
 const launchReadinessTest = read("tests/release/audit-launch-readiness.test.mjs");
 const releasePackageJson = read("package.json");
+add(
+  "固定包激活与回滚保持节点角色一致",
+  hasAll(releaseActivator, [
+    'NODE_ROLE="${NODE_ROLE:-operations}"',
+    'if [ "$NODE_ROLE" = "operations" ]; then',
+    "业务节点：跳过监控栈",
+    'NODE_ROLE="$NODE_ROLE"',
+  ]) &&
+    hasAll(releaseRollback, [
+      'NODE_ROLE="${NODE_ROLE:-operations}"',
+      'if [ "$NODE_ROLE" = "operations" ]; then',
+      "业务节点：跳过监控栈回滚",
+      'NODE_ROLE="$NODE_ROLE"',
+    ]),
+  "A/B 节点激活和回滚必须把同一角色传入环境检查与部署，业务节点不得意外启动第二套监控和告警",
+);
 add(
   "上线缺口审计覆盖未忽略的未跟踪生产源码并纳入总门禁",
   hasAll(launchReadinessAudit, [
@@ -934,7 +964,8 @@ add(
     "migration_confirmation:",
     "PRODUCTION_DEPLOY_READY",
     "PRODUCTION_DEPLOY_TARGET",
-    "PROD_SSH_FINGERPRINT_CONFIGURED",
+    "PROD_NODE_A_CONFIGURED",
+    "PROD_NODE_B_CONFIGURED",
     "PRODUCTION_CONFIRMATION",
     "validate-production-dispatch.mjs",
     "create-fixed-package.mjs",
@@ -967,7 +998,8 @@ add(
       "GitHub 源提交 SHA 必须是完整的 40 位十六进制值",
       "PRODUCTION_DEPLOY_READY=true",
       "PRODUCTION_DEPLOY_TARGET=standard 或 tencent",
-      "PROD_SSH_FINGERPRINT",
+      "PROD_HOST_A 与 PROD_SSH_FINGERPRINT_A",
+      "PROD_HOST_B 与 PROD_SSH_FINGERPRINT_B",
       "RUN_MIGRATION 仅允许 true 或 false",
       "执行生产数据库迁移必须填写",
     ]) &&
@@ -979,6 +1011,8 @@ add(
       "生产迁移具备独立确认时通过",
       "源提交不是完整 SHA 时被阻断",
       "生产就绪开关未开启时被阻断",
+      "生产节点 A 的主机或 SSH 指纹未配置时被阻断",
+      "生产节点 B 的主机或 SSH 指纹未配置时被阻断",
       "生产部署架构未配置时被阻断",
       "生产部署架构不是受支持值时被阻断",
     ]) &&
@@ -989,9 +1023,16 @@ add(
       "contents: read",
       "PROD_SSH_KEY",
       "EXPECTED_COMMIT='${{ github.sha }}'",
-      "PROD_SSH_FINGERPRINT",
+      "PROD_SSH_FINGERPRINT_A",
+      "PROD_SSH_FINGERPRINT_B",
+      "NODE_ROLE=app",
+      "NODE_ROLE=operations",
+      "RUN_MIGRATION=false",
+      "probe-clb-failover.sh",
     ]) &&
-    (productionDeployJob.match(/fingerprint:\s*\$\{\{ secrets\.PROD_SSH_FINGERPRINT \}\}/g)
+    (productionDeployJob.match(/fingerprint:\s*\$\{\{ secrets\.PROD_SSH_FINGERPRINT_A \}\}/g)
+      ?.length ?? 0) === 3 &&
+    (productionDeployJob.match(/fingerprint:\s*\$\{\{ secrets\.PROD_SSH_FINGERPRINT_B \}\}/g)
       ?.length ?? 0) === 3 &&
     hasAll(deploymentWorkflow, [
       "STAGING_SSH_FINGERPRINT",
@@ -1010,41 +1051,46 @@ add(
     "production_confirmation:",
     "PRODUCTION_DEPLOY_READY",
     "PRODUCTION_DEPLOY_TARGET",
-    "PROD_SSH_FINGERPRINT_CONFIGURED",
+    "PROD_NODE_A_CONFIGURED",
+    "PROD_NODE_B_CONFIGURED",
     "permissions:",
     "contents: read",
     "validate-production-dispatch.mjs",
     "SOURCE_REF: ${{ github.ref }}",
     "SOURCE_SHA: ${{ github.sha }}",
     "DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}",
-    "fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}",
+    "host: ${{ secrets.PROD_HOST_A }}",
+    "fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}",
+    "host: ${{ secrets.PROD_HOST_B }}",
+    "fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}",
     "export PLATFORM_ROOT=/opt/guoxue",
     "export RELEASE_ID='${{ inputs.release_id }}'",
     "export MAX_AGE_HOURS='${{ inputs.max_age_hours }}'",
     "export DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}'",
+    "export NODE_ROLE=operations",
     "verify-production-cutover.sh",
   ]) &&
     hasAll(productionCutoverVerifier, [
-    "current-release-id",
-    "verify-client-config-binding.mjs",
-    "client-config-binding-verification.json",
-    "database-migration-verification.json",
-    "infrastructure-intake.json",
-    "audit-infrastructure-intake.mjs",
-    "infrastructure-intake-readiness.json",
-    "audit-host-preflight.mjs",
-    "host-preflight-readiness.json",
-    '--expected-commit "$SOURCE_COMMIT"',
-    "check-env.mjs",
-    "verify-runtime.mjs",
-    "--expected-release-id",
-    "audit-release-retention.mjs",
-    "aggregate-launch-evidence.mjs",
-    "launch-decision.json",
-    'report.decision !== "GO"',
-    "生产环境文件权限必须为 600 或 400",
-    "新基础设施接入清单权限必须为 600 或 400",
-  ]) &&
+      "current-release-id",
+      "verify-client-config-binding.mjs",
+      "client-config-binding-verification.json",
+      "database-migration-verification.json",
+      "infrastructure-intake.json",
+      "audit-infrastructure-intake.mjs",
+      "infrastructure-intake-readiness.json",
+      "audit-host-preflight.mjs",
+      "host-preflight-readiness.json",
+      '--expected-commit "$SOURCE_COMMIT"',
+      "check-env.mjs",
+      "verify-runtime.mjs",
+      "--expected-release-id",
+      "audit-release-retention.mjs",
+      "aggregate-launch-evidence.mjs",
+      "launch-decision.json",
+      'report.decision !== "GO"',
+      "生产环境文件权限必须为 600 或 400",
+      "新基础设施接入清单权限必须为 600 或 400",
+    ]) &&
     !productionVerificationWorkflow.includes("contents: write") &&
     !productionCutoverVerifier.includes("docker compose up") &&
     !productionCutoverVerifier.includes("prisma migrate"),
@@ -1160,9 +1206,7 @@ add(
       '$NODE_BIN -- "$RELEASE_DIR/scripts/release/audit-host-preflight.mjs"',
       '--env-file "$ENV_FILE"',
     ]) &&
-    setupServer.includes(
-      'node -- "$INSTALL_DIR/scripts/release/audit-host-preflight.mjs"',
-    ) &&
+    setupServer.includes('node -- "$INSTALL_DIR/scripts/release/audit-host-preflight.mjs"') &&
     hasAll(read("docs/operations/新基础设施与正式凭据交接清单-20260731.md"), [
       "node -- /opt/guoxue/current/scripts/release/audit-infrastructure-intake.mjs",
       "node -- /opt/guoxue/current/scripts/release/audit-host-preflight.mjs",
@@ -1178,7 +1222,8 @@ add(
     "当前不能标记为正式上线",
     "已配置并演练",
     "预发布已通；长期证书/合规待办",
-    "待冻结/待复核",
+    "干净候选已形成；待默认分支复核/固定包",
+    "正式发布仍须完成人工变更复核、默认分支合并与固定包生成",
     "launch-decision.json",
     "生产包必须由干净工作树生成",
     "禁止在切流后用旧库覆盖新库",
@@ -1195,15 +1240,18 @@ add(
   hasAll(environmentChecker, [
     'arg === "--report"',
     'arg === "--deploy-target"',
+    'arg === "--node-role"',
     "完整上线检查必须通过 --deploy-target 显式指定",
     "configuredKeys: values.size",
     "success: errors.length === 0",
+    "nodeRole,",
     "不含任何配置值",
     "mode: 0o600",
     '"MINIPROGRAM_APP_SECRET"',
     'errors.push("尚未形成一条完整支付通道',
     "DEPLOY_TARGET=tencent 时必须使用已验收的托管服务私网地址",
     "DEPLOY_TARGET=tencent 时 STORAGE_PROVIDER 必须为 cos",
+    'if (nodeRole === "operations")',
   ]) && !environmentChecker.includes("Object.fromEntries(values)"),
   "完整上线必须至少具备一条支付通道，小程序密钥别名要与服务端一致，验收报告只能记录字段名级错误和计数",
 );

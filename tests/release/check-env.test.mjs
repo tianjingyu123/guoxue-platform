@@ -43,6 +43,24 @@ function createEnvironment({
   ].join("\n");
 }
 
+function createFullEnvironment(options = {}) {
+  return [
+    createEnvironment(options),
+    `DEEPSEEK_API_KEY=${"D".repeat(48)}`,
+    "WECHAT_PAY_MCH_ID=1900000109",
+    `WECHAT_PAY_SERIAL_NO=${"A".repeat(40)}`,
+    `WECHAT_PAY_API_V3_KEY=${"V".repeat(32)}`,
+    "WECHAT_PAY_NOTIFY_URL=https://api.guoxue.test/api/v1/shop/pay/notify",
+    "MONITORING_ENABLED=true",
+    `GF_ADMIN_PASSWORD=${"G".repeat(32)}`,
+    "WEWORK_CORP_ID=ww1234567890abcdef",
+    "WEWORK_AGENT_ID=1000006",
+    `WEWORK_AGENT_SECRET=${"W".repeat(48)}`,
+    "DBA_WEWORK_USER_IDS=OpsUserA|OpsUserB",
+    "",
+  ].join("\n");
+}
+
 async function runChecker(content, ...args) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "guoxue-env-check-"));
   const envFile = path.join(directory, ".env.production");
@@ -115,4 +133,55 @@ test("数据库与缓存连接协议错误时直接阻断", async () => {
   assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stderr, /DATABASE_URL 必须使用 PostgreSQL 连接协议/);
   assert.match(result.stderr, /REDIS_URL 必须使用 redis:\/\/ 或 rediss:\/\//);
+});
+
+test("完整上线的业务节点不要求复制监控与企业微信密钥", async () => {
+  const appEnvironment = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  })
+    .split("\n")
+    .filter(
+      (line) =>
+        !/^(MONITORING_ENABLED|GF_ADMIN_PASSWORD|WEWORK_CORP_ID|WEWORK_AGENT_ID|WEWORK_AGENT_SECRET|DBA_WEWORK_USER_IDS)=/.test(
+          line,
+        ),
+    )
+    .join("\n");
+  const result = await runChecker(
+    appEnvironment,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+  );
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /节点角色：app/);
+});
+
+test("完整上线的运维节点缺少监控密钥时保持阻断", async () => {
+  const operationsEnvironment = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  })
+    .split("\n")
+    .filter((line) => !/^GF_ADMIN_PASSWORD=/.test(line))
+    .join("\n");
+  const result = await runChecker(
+    operationsEnvironment,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "operations",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /生产监控与企业微信告警配置不完整：GF_ADMIN_PASSWORD/);
+});
+
+test("未知节点角色直接阻断", async () => {
+  const result = await runChecker(createEnvironment(), "--node-role", "database");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /NODE_ROLE 仅允许 app 或 operations/);
 });

@@ -12,6 +12,7 @@ PLATFORM_ROOT="${PLATFORM_ROOT:-/opt/guoxue}"
 RELEASE_ID="${RELEASE_ID:-${1:-}}"
 MAX_AGE_HOURS="${MAX_AGE_HOURS:-24}"
 DEPLOY_TARGET="${DEPLOY_TARGET:-}"
+NODE_ROLE="${NODE_ROLE:-operations}"
 ENV_FILE="${ENV_FILE:-$PLATFORM_ROOT/shared/.env.production}"
 INFRASTRUCTURE_INTAKE_FILE="${INFRASTRUCTURE_INTAKE_FILE:-$PLATFORM_ROOT/shared/infrastructure-intake.json}"
 NODE_BIN="${NODE_BIN:-node}"
@@ -70,6 +71,7 @@ $NODE_BIN "$RELEASE_DIR/scripts/release/verify-client-config-binding.mjs" \
   --report "$REPORT_DIR/client-config-binding-verification.json"
 $NODE_BIN "$RELEASE_DIR/scripts/migration/check-env.mjs" "$ENV_FILE" --full \
   --deploy-target "$DEPLOY_TARGET" \
+  --node-role "$NODE_ROLE" \
   --report "$REPORT_DIR/environment-readiness.json"
 $NODE_BIN -- "$RELEASE_DIR/scripts/release/audit-infrastructure-intake.mjs" \
   --input "$INFRASTRUCTURE_INTAKE_FILE" --stage launch \

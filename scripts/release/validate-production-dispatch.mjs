@@ -15,7 +15,8 @@ export function validateProductionDispatch(input) {
     migrationConfirmation: String(input.migrationConfirmation || ""),
     productionDeployReady: String(input.productionDeployReady || "").toLowerCase(),
     deployTarget: String(input.deployTarget || "").toLowerCase(),
-    sshHostFingerprintConfigured: String(input.sshHostFingerprintConfigured || "").toLowerCase(),
+    productionNodeAConfigured: String(input.productionNodeAConfigured || "").toLowerCase(),
+    productionNodeBConfigured: String(input.productionNodeBConfigured || "").toLowerCase(),
     sourceRef: String(input.sourceRef || ""),
     sourceSha: String(input.sourceSha || ""),
     defaultBranch: String(input.defaultBranch || ""),
@@ -31,8 +32,11 @@ export function validateProductionDispatch(input) {
   if (!new Set(["standard", "tencent"]).has(values.deployTarget)) {
     errors.push("production Environment 必须显式配置 PRODUCTION_DEPLOY_TARGET=standard 或 tencent");
   }
-  if (values.sshHostFingerprintConfigured !== "true") {
-    errors.push("production Environment 尚未配置 PROD_SSH_FINGERPRINT，拒绝连接未绑定身份的新服务器");
+  if (values.productionNodeAConfigured !== "true") {
+    errors.push("production Environment 尚未完整配置 PROD_HOST_A 与 PROD_SSH_FINGERPRINT_A");
+  }
+  if (values.productionNodeBConfigured !== "true") {
+    errors.push("production Environment 尚未完整配置 PROD_HOST_B 与 PROD_SSH_FINGERPRINT_B");
   }
   if (values.confirmation !== values.releaseId) {
     errors.push("生产确认值必须与发布标识完全一致");
@@ -78,7 +82,8 @@ function readEnvironment() {
     migrationConfirmation: process.env.MIGRATION_CONFIRMATION,
     productionDeployReady: process.env.PRODUCTION_DEPLOY_READY,
     deployTarget: process.env.PRODUCTION_DEPLOY_TARGET,
-    sshHostFingerprintConfigured: process.env.PROD_SSH_FINGERPRINT_CONFIGURED,
+    productionNodeAConfigured: process.env.PROD_NODE_A_CONFIGURED,
+    productionNodeBConfigured: process.env.PROD_NODE_B_CONFIGURED,
     sourceRef: process.env.SOURCE_REF,
     sourceSha: process.env.SOURCE_SHA,
     defaultBranch: process.env.DEFAULT_BRANCH,

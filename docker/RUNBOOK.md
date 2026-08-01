@@ -122,14 +122,16 @@ live.example.com    → A 记录 → 服务器IP
 cd /opt/guoxue/releases/release-20260731-001
 # 在这个唯一受管版本目录执行；脚本不会自行拉取远程分支
 sudo DOMAIN=api.example.com LETSENCRYPT_EMAIL=ops@example.com \
-  DEPLOY_TARGET=standard DATABASE_MODE=prepare \
+  DEPLOY_TARGET=standard NODE_ROLE=operations DATABASE_MODE=prepare \
   ENV_FILE=/opt/guoxue/shared/.env.production bash docker/setup-server.sh
 
 # 腾讯云托管数据库、Redis、CLB/TLS 模式（不会启动本机 PostgreSQL / Redis）
 sudo DOMAIN=api.example.com DEPLOY_TARGET=tencent \
-  DATABASE_MODE=prepare ENV_FILE=/opt/guoxue/shared/.env.production \
+  NODE_ROLE=operations DATABASE_MODE=prepare ENV_FILE=/opt/guoxue/shared/.env.production \
   bash docker/setup-server.sh
 ```
+
+双节点部署时，节点 A 改用 `NODE_ROLE=app`，节点 B 使用 `NODE_ROLE=operations`；监控、告警、镜像清理和数据库定时备份只运行在 B。
 
 脚本自动完成：系统优化 → Docker 安装 → 防火墙 → 固定发布包复核 → SSL 证书 → 按数据库模式构建启动 → 定时备份。
 
@@ -271,6 +273,7 @@ ALLOW_PROD_DB_MIGRATION=reviewed bash ./deploy.sh --migrate
 TARGET_RELEASE_ID='release-previous-stable'
 sudo ROOT_DIR=/opt/guoxue \
   DEPLOY_TARGET="$DEPLOY_TARGET" \
+  NODE_ROLE="${NODE_ROLE:?请指定 app 或 operations}" \
   ENV_FILE="$ENV_FILE" \
   bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh \
   "$TARGET_RELEASE_ID" "$TARGET_RELEASE_ID"
@@ -397,6 +400,8 @@ docker exec guoxue-postgres-test psql -U guoxue -d guoxue_test -c "SELECT count(
 ## 8. 监控与告警
 
 ### 8.1 启动监控栈
+
+以下命令只允许在 `NODE_ROLE=operations` 的节点 B 执行；业务节点 A 不运行监控栈。
 
 ```bash
 cd /opt/guoxue/docker/monitoring

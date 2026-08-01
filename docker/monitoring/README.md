@@ -19,7 +19,8 @@ Exporter，以及 API、H5、管理后台和第三方依赖的黑盒拨测。
 从项目根目录执行：
 
 ```bash
-pnpm migration:check-env "$PRODUCTION_ENV_FILE" --full --deploy-target "$DEPLOY_TARGET"
+pnpm migration:check-env "$PRODUCTION_ENV_FILE" --full \
+  --deploy-target "$DEPLOY_TARGET" --node-role operations
 pnpm release:audit-monitoring
 pnpm release:render-monitoring "$PRODUCTION_ENV_FILE"
 docker network create monitoring 2>/dev/null || true

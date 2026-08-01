@@ -53,6 +53,7 @@
 # 整场变更统一使用同一架构和共享环境文件；托管库用 tencent，自建库用 standard
 export DEPLOY_TARGET='standard'
 export ENV_FILE='/opt/guoxue/shared/.env.production'
+export NODE_ROLE='operations' # 节点 A 改为 app，节点 B 使用 operations
 
 # 1. 上传已通过门禁并记录 SHA 的固定发布包
 cd /opt/guoxue
@@ -68,11 +69,11 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml bu
 cd docker
 RELEASE_ID='<固定发布标识>' \
 MIGRATION_DEPLOY_CONFIRM='migrate:<固定发布标识>' \
-DEPLOY_TARGET="$DEPLOY_TARGET" ENV_FILE="$ENV_FILE" \
+DEPLOY_TARGET="$DEPLOY_TARGET" NODE_ROLE="$NODE_ROLE" ENV_FILE="$ENV_FILE" \
 ALLOW_PROD_DB_MIGRATION=reviewed bash ./deploy.sh --migrate
 
 # 无数据库变更时执行：
-# DEPLOY_TARGET="$DEPLOY_TARGET" ENV_FILE="$ENV_FILE" bash ./deploy.sh
+# DEPLOY_TARGET="$DEPLOY_TARGET" NODE_ROLE="$NODE_ROLE" ENV_FILE="$ENV_FILE" bash ./deploy.sh
 ```
 
 ### 2.3 实时监控
