@@ -3,6 +3,7 @@ import { ServerOptions } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import Redis from "ioredis";
 import { Logger } from "@nestjs/common";
+import { buildRedisTlsOptions } from "../redis/redis-tls";
 
 /**
  * socket.io Redis adapter — cluster 多实例下跨实例房间广播的前提（H2）。
@@ -20,7 +21,12 @@ export class RedisIoAdapter extends IoAdapter {
       return false;
     }
     try {
-      const pubClient = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 3 });
+      const tls = buildRedisTlsOptions(url);
+      const pubClient = new Redis(url, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 3,
+        ...(tls ? { tls } : {}),
+      });
       const subClient = pubClient.duplicate();
       await Promise.all([pubClient.connect(), subClient.connect()]);
       this.adapterConstructor = createAdapter(pubClient, subClient);

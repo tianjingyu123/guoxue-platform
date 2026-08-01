@@ -186,8 +186,21 @@ run("正式环境与部署架构检查", [
 ]);
 
 if (stage === "predeploy") {
+  run("聚合预接入证据并生成脱敏 GO/BLOCK 判定", [
+    "release:aggregate-predeploy",
+    "--evidence-dir",
+    resolvedReportDirectory,
+    "--expected-branch",
+    expectedBranch,
+    "--expected-commit",
+    expectedCommit,
+    "--deploy-target",
+    deployTarget,
+    "--report",
+    path.join(resolvedReportDirectory, "predeploy-decision.json"),
+  ]);
   console.log(
-    "\n[full-gate] 正式资源预接入门禁通过；尚未执行耗时构建、客户端重建或 launch 现场验收",
+    "\n[full-gate] 正式资源预接入门禁通过并生成 predeploy-decision.json；尚未执行耗时构建、客户端重建或 launch 现场验收",
   );
   process.exit(0);
 }

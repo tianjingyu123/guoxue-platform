@@ -33,6 +33,7 @@ function createEnvironment({
     "TENCENT_CLB_ID=lb-NewTarget123",
     "TENCENT_CDN_DOMAIN=static.guoxue.test",
     "TENCENT_CERTIFICATE_DOMAIN=api.guoxue.test",
+    "TENCENTDB_CA_CERT_PATH=/opt/guoxue/shared/tencentdb-ca.pem",
     "VITE_API_URL=https://api.guoxue.test",
     "VITE_PUBLIC_H5_URL=https://api.guoxue.test/h5/",
     "VITE_PUBLIC_ASSET_ORIGIN=https://static.guoxue.test",
@@ -143,6 +144,29 @@ test("完整腾讯云上线拒绝缺失或错绑 CLB、CDN 与证书目标", asy
   assert.match(result.stderr, /TENCENT_CLB_ID 未配置/);
   assert.match(result.stderr, /TENCENT_CDN_DOMAIN 必须与 PUBLIC_ASSET_ORIGIN 主机名一致/);
   assert.match(result.stderr, /TENCENT_CERTIFICATE_DOMAIN 必须与 PUBLIC_DOMAIN 一致/);
+});
+
+test("完整腾讯云上线强制使用受控的数据库 CA 证书绝对路径", async () => {
+  const base = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  });
+  for (const caPath of ["", "../tencentdb-ca.pem", "/opt/guoxue/shared/tencentdb-ca.txt"]) {
+    const invalid = base.replace(
+      "TENCENTDB_CA_CERT_PATH=/opt/guoxue/shared/tencentdb-ca.pem",
+      `TENCENTDB_CA_CERT_PATH=${caPath}`,
+    );
+    const result = await runChecker(
+      invalid,
+      "--full",
+      "--deploy-target",
+      "tencent",
+      "--node-role",
+      "app",
+    );
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stderr, /TENCENTDB_CA_CERT_PATH/u);
+  }
 });
 
 test("未知部署架构直接阻断", async () => {

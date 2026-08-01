@@ -46,8 +46,12 @@ services:
     ports: !reset []
     environment:
       NODE_OPTIONS: "--max-old-space-size=3072"
+      # 腾讯云托管数据库/Redis TLS 证书链；禁止用 rejectUnauthorized=false 绕过校验。
+      NODE_EXTRA_CA_CERTS: /run/secrets/tencentdb-ca.pem
       # 双节点不能使用节点本地盘；配置不完整时让应用失败启动，避免上传文件随机丢失。
       STORAGE_PROVIDER: ${STORAGE_PROVIDER:-cos}
+    volumes:
+      - ${TENCENTDB_CA_CERT_PATH:?必须提供腾讯云数据库 CA 证书路径}:/run/secrets/tencentdb-ca.pem:ro
     deploy:
       resources:
         limits:

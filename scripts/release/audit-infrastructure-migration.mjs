@@ -1490,6 +1490,31 @@ const packageVerifierTest = read("tests/release/verify-fixed-package.test.mjs");
 const sourceFreezeAudit = read("scripts/release/audit-source-freeze.mjs");
 const sourceFreezeTest = read("tests/release/audit-source-freeze.test.mjs");
 const fullGateTest = read("tests/release/run-full-gate.test.mjs");
+const predeployEvidenceAggregator = read(
+  "scripts/release/aggregate-predeploy-evidence.mjs",
+);
+
+const baseProductionCompose = read("docker/docker-compose.prod.yml");
+const tencentProductionCompose = read("docker/docker-compose.tencent.yml");
+const productionEnvironmentTemplate = read("docker/.env.production.example");
+add(
+  "托管数据库 CA 证书仅在腾讯云架构注入且保持只读",
+  !baseProductionCompose.includes("TENCENTDB_CA_CERT_PATH") &&
+    !baseProductionCompose.includes("NODE_EXTRA_CA_CERTS") &&
+    hasAll(tencentProductionCompose, [
+      "NODE_EXTRA_CA_CERTS: /run/secrets/tencentdb-ca.pem",
+      "${TENCENTDB_CA_CERT_PATH:?必须提供腾讯云数据库 CA 证书路径}:/run/secrets/tencentdb-ca.pem:ro",
+    ]) &&
+    productionEnvironmentTemplate.includes("TENCENTDB_CA_CERT_PATH=") &&
+    hasAll(read("scripts/migration/check-env.mjs"), [
+      '"TENCENTDB_CA_CERT_PATH"',
+      "TENCENTDB_CA_CERT_PATH 必须是 Linux 宿主机上的 PEM/CRT 绝对路径且不得包含 ..",
+    ]),
+  "standard 自建架构不得被腾讯云证书路径阻断；tencent 完整门禁必须要求受控宿主机 CA 证书，并以只读方式注入 Node 信任链",
+);
+const predeployEvidenceTest = read(
+  "tests/release/aggregate-predeploy-evidence.test.mjs",
+);
 const pnpmInvocationResolver = read("scripts/release/resolve-pnpm-invocation.mjs");
 const pnpmInvocationTest = read("tests/release/resolve-pnpm-invocation.test.mjs");
 const packageJson = read("package.json");
@@ -1500,6 +1525,9 @@ add(
   packageJson.includes(
     '"release:gate:predeploy": "node -- scripts/release/run-full-gate.mjs --stage predeploy"',
   ) &&
+    packageJson.includes('"release:aggregate-predeploy"') &&
+    packageJson.includes('"release:test-predeploy-evidence"') &&
+    packageJson.includes("pnpm release:test-predeploy-evidence") &&
     hasAll(fullGateRunner, [
       'arg === "--stage"',
       '["predeploy", "launch"]',
@@ -1507,9 +1535,29 @@ add(
       "尚未执行耗时构建、客户端重建或 launch 现场验收",
       '"infrastructure-intake-predeploy.json"',
       '"infrastructure-intake-readiness.json"',
+      '"release:aggregate-predeploy"',
+      '"predeploy-decision.json"',
+    ]) &&
+    hasAll(predeployEvidenceAggregator, [
+      'kind: "guoxue-predeploy-decision"',
+      'decision = failed.length === 0 ? "GO" : "BLOCK"',
+      '"source-freeze-readiness.json"',
+      '"infrastructure-intake-predeploy.json"',
+      '"environment-readiness.json"',
+      'createHash("sha256")',
+      'freeze.sourceCommit === expectedCommit',
+      'infrastructure.stage === "predeploy"',
+      'environment.deployTarget === deployTarget',
+    ]) &&
+    hasAll(predeployEvidenceTest, [
+      "三份有效证据聚合为脱敏 GO 判定",
+      "源码提交或分支身份不一致时判定 BLOCK",
+      "基础设施报告不是 predeploy 阶段时判定 BLOCK",
+      "正式环境失败或部署架构不一致时判定 BLOCK",
+      "过期证据即使内容通过也判定 BLOCK",
     ]) &&
     fullGateTest.includes("预接入与完整上线门禁拒绝未知阶段且不会启动子门禁"),
-  "新域名、数据库、Redis、对象存储和证书到位后先校验源码身份、资源清单、正式环境及逐项绑定，避免等完整多端构建结束才暴露配置错误",
+  "新域名、数据库、Redis、对象存储和证书到位后先校验源码身份、资源清单、正式环境及逐项绑定，再聚合为不含连接串或凭据的单一 GO/BLOCK 判定，避免等完整多端构建结束才暴露配置错误",
 );
 add(
   "Windows 构建机重启或换机后可通过 Corepack 运行完整门禁",

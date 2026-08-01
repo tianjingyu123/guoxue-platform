@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy, Logger } from "@nestjs/common";
 import Redis from "ioredis";
+import { buildRedisTlsOptions } from "./redis-tls";
 
 /** 脱敏 Redis URL，隐藏密码部分 */
 function maskRedisUrl(url: string): string {
@@ -49,9 +50,11 @@ export class RedisService implements OnModuleDestroy {
         },
       });
     } else if (process.env.REDIS_URL) {
+      const tls = buildRedisTlsOptions(process.env.REDIS_URL);
       this.client = new Redis(process.env.REDIS_URL, {
         lazyConnect: true,
         maxRetriesPerRequest: 3,
+        ...(tls ? { tls } : {}),
         retryStrategy(times: number) {
           if (times > 5) return null;
           return Math.min(times * 200, 2000);

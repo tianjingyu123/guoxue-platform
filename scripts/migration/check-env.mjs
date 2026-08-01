@@ -166,6 +166,7 @@ if (fullCheck && deployTarget === "tencent") {
     "TENCENT_CLB_ID",
     "TENCENT_CDN_DOMAIN",
     "TENCENT_CERTIFICATE_DOMAIN",
+    "TENCENTDB_CA_CERT_PATH",
   );
 }
 
@@ -304,6 +305,7 @@ if (deployTarget === "tencent") {
   const tencentCertificateDomain = (values.get("TENCENT_CERTIFICATE_DOMAIN") || "")
     .trim()
     .toLowerCase();
+  const tencentDatabaseCaPath = (values.get("TENCENTDB_CA_CERT_PATH") || "").trim();
   if (tencentRegion && !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$/u.test(tencentRegion)) {
     errors.push("TENCENT_REGION 格式无效");
   }
@@ -321,6 +323,14 @@ if (deployTarget === "tencent") {
     tencentCertificateDomain !== (values.get("PUBLIC_DOMAIN") || "").trim().toLowerCase()
   ) {
     errors.push("TENCENT_CERTIFICATE_DOMAIN 必须与 PUBLIC_DOMAIN 一致");
+  }
+  if (
+    fullCheck &&
+    tencentDatabaseCaPath &&
+    (!/^\/[A-Za-z0-9._/-]+\.(?:pem|crt)$/u.test(tencentDatabaseCaPath) ||
+      tencentDatabaseCaPath.split("/").includes(".."))
+  ) {
+    errors.push("TENCENTDB_CA_CERT_PATH 必须是 Linux 宿主机上的 PEM/CRT 绝对路径且不得包含 ..");
   }
 }
 
