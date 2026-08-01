@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { probePublicTls } from "./public-tls.mjs";
 
 const args = process.argv.slice(2);
 const reportFlag = args.indexOf("--report");
@@ -71,9 +72,11 @@ if (!fs.existsSync(envFile)) {
 const env = parseEnv(fs.readFileSync(envFile, "utf8"));
 let apiUrl;
 let h5Url;
+let assetUrl;
 try {
   apiUrl = requireUrl(env.PUBLIC_API_URL, "PUBLIC_API_URL");
   h5Url = requireUrl(env.PUBLIC_H5_URL, "PUBLIC_H5_URL");
+  assetUrl = requireUrl(env.PUBLIC_ASSET_ORIGIN, "PUBLIC_ASSET_ORIGIN");
 } catch (error) {
   console.error(`运行时验收失败：${error.message}`);
   process.exit(2);
@@ -85,6 +88,7 @@ const adminHref = new URL("/admin/", apiUrl.origin).href;
 const expectedOrigin = h5Url.origin;
 const results = [];
 let observedReleaseId = null;
+let tlsCertificates = [];
 
 async function request(url, options = {}) {
   const startedAt = Date.now();
@@ -126,6 +130,18 @@ function unwrapPayload(payload) {
   }
   return payload;
 }
+
+await check("公网 TLS 证书链、域名与有效期", async () => {
+  const origins = [apiUrl, h5Url, new URL(adminHref), assetUrl]
+    .filter((url) => url.protocol === "https:")
+    .map((url) => url.origin);
+  const uniqueOrigins = [...new Set(origins)];
+  tlsCertificates = await Promise.all(
+    uniqueOrigins.map((origin) => probePublicTls(origin, { minimumRemainingDays: 14 })),
+  );
+  const minimumDays = Math.min(...tlsCertificates.map((item) => item.daysRemaining));
+  return `${tlsCertificates.length} 个公网入口证书链可信、域名匹配，最短剩余 ${minimumDays} 天`;
+});
 
 await check("API 存活探针", async () => {
   const { response, body, latencyMs } = await request(`${apiBase}/api/v1/health/live`);
@@ -260,12 +276,15 @@ if (apiUrl.protocol === "https:") {
 
 const failed = results.filter((item) => item.status === "FAIL");
 const report = {
+  schemaVersion: 1,
+  kind: "guoxue-runtime-verification",
   generatedAt: new Date().toISOString(),
   environmentFile: path.relative(process.cwd(), envFile),
-  endpoints: { api: apiUrl.origin, h5: h5Href, admin: adminHref },
+  endpoints: { api: apiUrl.origin, h5: h5Href, admin: adminHref, asset: assetUrl.origin },
   allowDegraded,
   expectedReleaseId,
   observedReleaseId,
+  tlsCertificates,
   summary: { passed: results.length - failed.length, failed: failed.length, total: results.length },
   results,
 };

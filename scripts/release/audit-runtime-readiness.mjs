@@ -15,6 +15,8 @@ const add = (name, pass, detail) => checks.push({ name, pass, detail });
 const healthService = read("apps/server/src/modules/health/health.service.ts");
 const healthSpec = read("apps/server/src/modules/health/health.service.spec.ts");
 const verifier = read("scripts/release/verify-runtime.mjs");
+const publicTls = read("scripts/release/public-tls.mjs");
+const evidenceAggregator = read("scripts/release/aggregate-launch-evidence.mjs");
 const packageJson = read("package.json");
 const runbook = read("docs/operations/服务器数据库域名迁移手册-20260728.md");
 const compose = read("docker/docker-compose.yml");
@@ -178,6 +180,30 @@ add(
     '/^https:\\/\\//iu.test(location)',
   ]),
   "非本地生产入口不得接受明文 URL，80 端口必须跳转 HTTPS",
+);
+
+add(
+  "公网证书链、域名匹配与剩余有效期形成机器证据",
+  hasAll(verifier, [
+    "PUBLIC_ASSET_ORIGIN",
+    "probePublicTls",
+    "公网 TLS 证书链、域名与有效期",
+    "tlsCertificates",
+  ]) &&
+    hasAll(publicTls, [
+      "tls.connect",
+      "rejectUnauthorized: true",
+      "servername: url.hostname",
+      "getPeerCertificate(true)",
+      "minimumRemainingDays",
+      "fingerprintSha256",
+    ]) &&
+    hasAll(evidenceAggregator, [
+      "tlsCertificates",
+      "item.daysRemaining < 14",
+      "公网 TLS 证书链、域名、有效期或指纹证据无效",
+    ]),
+  "最终上线必须直接握手新域名，验证系统信任链、域名、至少 14 天剩余有效期和 SHA-256 指纹，不能仅依赖人工勾选",
 );
 
 add(

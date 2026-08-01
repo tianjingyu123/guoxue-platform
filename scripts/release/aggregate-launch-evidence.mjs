@@ -316,6 +316,10 @@ const definitions = [
     requireFresh: true,
     validate: (data) => {
       const problems = [];
+      if (data.schemaVersion !== 1) problems.push("schemaVersion 不是 1");
+      if (data.kind !== "guoxue-runtime-verification") {
+        problems.push("运行时验收证据类型无效");
+      }
       if (data.allowDegraded !== false) problems.push("运行时验收允许降级");
       if (data.expectedReleaseId !== releaseId) {
         problems.push(`期望发布标识为 ${String(data.expectedReleaseId)}`);
@@ -330,6 +334,21 @@ const definitions = [
         data.results.some((item) => item.status !== "PASS")
       ) {
         problems.push("公网运行时验收未全部通过");
+      }
+      if (
+        !Array.isArray(data.tlsCertificates) ||
+        data.tlsCertificates.length === 0 ||
+        data.tlsCertificates.some(
+          (item) =>
+            item.chainAuthorized !== true ||
+            item.hostnameMatched !== true ||
+            !Number.isInteger(item.daysRemaining) ||
+            item.daysRemaining < 14 ||
+            !Number.isFinite(Date.parse(item.validTo)) ||
+            !/^[a-f0-9]{64}$/u.test(String(item.fingerprintSha256 || "")),
+        )
+      ) {
+        problems.push("公网 TLS 证书链、域名、有效期或指纹证据无效");
       }
       return problems;
     },

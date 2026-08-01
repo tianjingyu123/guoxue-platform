@@ -116,12 +116,24 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
       errors: [],
     },
     "runtime-verification.json": {
+      schemaVersion: 1,
+      kind: "guoxue-runtime-verification",
       generatedAt: freshTime(),
       allowDegraded: false,
       expectedReleaseId: releaseId,
       observedReleaseId: releaseId,
       summary: { failed: 0 },
       results: [{ name: "health", status: "PASS", detail: "ok" }],
+      tlsCertificates: [
+        {
+          origin: "https://new-guoxue.test",
+          chainAuthorized: true,
+          hostnameMatched: true,
+          validTo: freshTime(24 * 30),
+          daysRemaining: 30,
+          fingerprintSha256: "a".repeat(64),
+        },
+      ],
     },
     "retention-audit.json": {
       schemaVersion: 1,
@@ -290,6 +302,29 @@ test("运行实例版本不一致时阻断上线", async (t) => {
   assert.equal(result.status, 1);
   assert.equal(decision.decision, "BLOCK");
   assert.equal(decision.checks.find((item) => item.name.includes("运行时"))?.pass, false);
+});
+
+test("公网证书剩余不足 14 天或缺少可信指纹时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": {
+      tlsCertificates: [
+        {
+          origin: "https://new-guoxue.test",
+          chainAuthorized: true,
+          hostnameMatched: true,
+          validTo: freshTime(24 * 7),
+          daysRemaining: 7,
+          fingerprintSha256: "invalid",
+        },
+      ],
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
+    /公网 TLS 证书链、域名、有效期或指纹证据无效/u,
+  );
 });
 
 test("现场环境证据过期时阻断上线", async (t) => {
