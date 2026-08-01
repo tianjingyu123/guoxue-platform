@@ -88,6 +88,24 @@ function completeIntake() {
       rollbackRetentionHours: 168,
       oldEnvironmentRetentionConfirmed: true,
     },
+    externalEndpoints: {
+      owner: "第三方平台配置负责人",
+      clientDomainAllowlistOwner: "客户端域名负责人",
+      callbackUrls: [
+        "https://api.guoxue.cn/api/v1/shop/pay/notify",
+        "https://api.guoxue.cn/api/v1/shop/refund/notify",
+        "https://api.guoxue.cn/api/v1/shop/alipay/notify",
+        "https://api.guoxue.cn/api/v1/shop/unionpay/notify",
+        "https://api.guoxue.cn/api/v1/huifu/notify",
+        "https://api.guoxue.cn/api/v1/shop/logistics/kuaidi100/callback",
+      ],
+      controlPlaneInventoryVerified: true,
+      callbackReachabilityVerified: true,
+      callbackAuthenticationVerified: true,
+      callbackRetryIdempotencyVerified: true,
+      clientDomainAllowlistVerified: true,
+      evidenceReference: "CHANGE-20260802-001",
+    },
     operations: {
       backupOwner: "备份负责人",
       cutoverOwner: "切流负责人",
@@ -117,6 +135,13 @@ function completeEnvironment(overrides = {}) {
     TENCENT_CLB_ID: "lb-NewTarget123",
     TENCENT_CDN_DOMAIN: "static.guoxue.cn",
     TENCENT_CERTIFICATE_DOMAIN: "api.guoxue.cn",
+    WECHAT_PAY_NOTIFY_URL: "https://api.guoxue.cn/api/v1/shop/pay/notify",
+    WECHAT_PAY_REFUND_NOTIFY_URL: "https://api.guoxue.cn/api/v1/shop/refund/notify",
+    ALIPAY_NOTIFY_URL: "https://api.guoxue.cn/api/v1/shop/alipay/notify",
+    UNIONPAY_NOTIFY_URL: "https://api.guoxue.cn/api/v1/shop/unionpay/notify",
+    HUIFU_NOTIFY_URL: "https://api.guoxue.cn/api/v1/huifu/notify",
+    KUAIDI100_CALLBACK_URL:
+      "https://api.guoxue.cn/api/v1/shop/logistics/kuaidi100/callback",
     ...overrides,
   };
 }
@@ -440,6 +465,56 @@ test("接入清单部署架构与完整门禁不一致时阻断", async () => {
         .map((item) => item.name)
         .join("\n"),
       /接入清单与完整门禁部署架构一致/,
+    );
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("第三方回调仍指向旧域名或与正式环境登记不一致时阻断", async () => {
+  const wrongPlan = completeIntake();
+  wrongPlan.externalEndpoints.callbackUrls[0] =
+    "https://old.guoxue.cn/api/v1/shop/pay/notify";
+  const plannedOldDomain = await runAudit(wrongPlan, "predeploy");
+  const environmentOldDomain = await runAudit(
+    completeIntake(),
+    "predeploy",
+    "tencent",
+    completeEnvironment({
+      WECHAT_PAY_NOTIFY_URL: "https://old.guoxue.cn/api/v1/shop/pay/notify",
+    }),
+  );
+  try {
+    assert.notEqual(plannedOldDomain.result.status, 0);
+    assert.match(
+      plannedOldDomain.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => `${item.name} ${item.detail}`)
+        .join("\n"),
+      /第三方回调地址规划只指向新 API 入口/u,
+    );
+    assert.notEqual(environmentOldDomain.result.status, 0);
+    assert.equal(environmentOldDomain.report.configurationBinding.success, false);
+    assert.equal(JSON.stringify(environmentOldDomain.report).includes("old.guoxue.cn"), false);
+  } finally {
+    await rm(plannedOldDomain.root, { recursive: true, force: true });
+    await rm(environmentOldDomain.root, { recursive: true, force: true });
+  }
+});
+
+test("launch 阶段未完成第三方控制台与客户端白名单验收时阻断", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.callbackRetryIdempotencyVerified = false;
+  intake.externalEndpoints.clientDomainAllowlistVerified = false;
+  const audit = await runAudit(intake, "launch");
+  try {
+    assert.notEqual(audit.result.status, 0);
+    assert.match(
+      audit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /第三方控制台、回调安全与客户端白名单已现场验收/u,
     );
   } finally {
     await rm(audit.root, { recursive: true, force: true });

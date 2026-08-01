@@ -231,6 +231,33 @@ add(
   "域名能访问不足以证明切流成功；上线证据必须核对双 NS 委派与真实 TTL，并把公网解析结果与本次接入清单及 CLB/CDN 目标交叉校验",
 );
 
+const productionEnvAuditor = read("scripts/migration/check-env.mjs");
+const paymentControlPlaneGuide = read("docs/operations/支付小程序人工配置清单-20260731.md");
+const financeControlPlaneGuide = read("docs/operations/发给财务的支付后台变更提示词-20260731.md");
+add(
+  "第三方回调和客户端域名白名单必须绑定本次新域名",
+  hasAll(infrastructureIntakeAuditor, [
+    "externalEndpoints",
+    "第三方回调地址规划只指向新 API 入口",
+    "第三方控制台、回调安全与客户端白名单已现场验收",
+    "callbackUrlsFingerprint",
+  ]) &&
+    infrastructureIntakeExample.includes('"externalEndpoints"') &&
+    hasAll(productionEnvAuditor, [
+      "必须与 PUBLIC_API_URL 同源，禁止第三方平台继续回调旧域名",
+      "WECHAT_PAY_REFUND_NOTIFY_URL",
+      "KUAIDI100_CALLBACK_URL",
+    ]) &&
+    hasAll(paymentControlPlaneGuide, [
+      "PUBLIC_API_URL",
+      "PUBLIC_H5_URL",
+      "不得从历史预发布或旧生产文档复制域名",
+    ]) &&
+    !paymentControlPlaneGuide.includes("pre-api.rebugx.cn") &&
+    !financeControlPlaneGuide.includes("pre-api.rebugx.cn"),
+  "迁移门禁必须阻断旧回调域名，并要求支付/物流控制台、回调验签重放和小程序/App 域名白名单留下受控证据",
+);
+
 const bootstrap = read(shellScripts[0]);
 add(
   "空库初始化具备硬保护",

@@ -112,6 +112,7 @@ const domains = intake.domains || {};
 const storage = intake.storage || {};
 const migration = intake.migration || {};
 const operations = intake.operations || {};
+const externalEndpoints = intake.externalEndpoints || {};
 const deployTarget = text(intake.deployTarget).toLowerCase();
 let environmentValues = new Map();
 let reportBinding = null;
@@ -286,6 +287,55 @@ add(
   "至少保留 72 小时旧环境回退窗口，并明确停写责任人与维护窗口",
 );
 
+const knownCallbackPaths = new Map([
+  ["WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"],
+  ["WECHAT_PAY_REFUND_NOTIFY_URL", "/api/v1/shop/refund/notify"],
+  ["ALIPAY_NOTIFY_URL", "/api/v1/shop/alipay/notify"],
+  ["UNIONPAY_NOTIFY_URL", "/api/v1/shop/unionpay/notify"],
+  ["HUIFU_NOTIFY_URL", "/api/v1/huifu/notify"],
+  ["KUAIDI100_CALLBACK_URL", "/api/v1/shop/logistics/kuaidi100/callback"],
+]);
+const plannedCallbackUrls = [...new Set(
+  (Array.isArray(externalEndpoints.callbackUrls) ? externalEndpoints.callbackUrls : [])
+    .map(normalizeUrl)
+    .filter(Boolean),
+)].sort();
+const apiOrigin = (() => {
+  try {
+    return new URL(text(domains.apiUrl)).origin.toLowerCase();
+  } catch {
+    return "";
+  }
+})();
+const callbackPaths = new Set(knownCallbackPaths.values());
+const callbackPlanValid = plannedCallbackUrls.every((value) => {
+  try {
+    const parsed = new URL(value);
+    return (
+      parsed.protocol === "https:" &&
+      parsed.origin.toLowerCase() === apiOrigin &&
+      callbackPaths.has(parsed.pathname.replace(/\/+$/u, ""))
+    );
+  } catch {
+    return false;
+  }
+});
+add(
+  "第三方回调与客户端域名切换责任已登记",
+  isFilled(externalEndpoints.owner) &&
+    !isPlaceholder(externalEndpoints.owner) &&
+    isFilled(externalEndpoints.clientDomainAllowlistOwner) &&
+    !isPlaceholder(externalEndpoints.clientDomainAllowlistOwner) &&
+    isFilled(externalEndpoints.evidenceReference) &&
+    !isPlaceholder(externalEndpoints.evidenceReference),
+  "必须明确第三方控制台、客户端域名白名单责任人和受控变更证据编号",
+);
+add(
+  "第三方回调地址规划只指向新 API 入口",
+  callbackPlanValid,
+  "已登记回调必须使用 PUBLIC_API_URL 同源 HTTPS 地址和受控固定路径；未启用渠道可不登记",
+);
+
 if (resourceReady) {
   add(
     "接入清单不含占位值",
@@ -320,6 +370,10 @@ if (resourceReady) {
       operations.businessApprover,
       migration.writeFreezeOwner,
       migration.maintenanceWindowUtc,
+      externalEndpoints.owner,
+      externalEndpoints.clientDomainAllowlistOwner,
+      externalEndpoints.evidenceReference,
+      ...plannedCallbackUrls,
     ].every((value) => isFilled(value) && !isPlaceholder(value)),
     `${stage} 阶段禁止 example、pending、change-me 或待填写值`,
   );
@@ -372,6 +426,15 @@ if (launch) {
       Number(migration.rollbackRetentionHours) >= 72,
     "正式迁移前必须完成同版本演练，并确认旧环境在回退窗口内不被释放或覆盖",
   );
+  add(
+    "第三方控制台、回调安全与客户端白名单已现场验收",
+    externalEndpoints.controlPlaneInventoryVerified === true &&
+      externalEndpoints.callbackReachabilityVerified === true &&
+      externalEndpoints.callbackAuthenticationVerified === true &&
+      externalEndpoints.callbackRetryIdempotencyVerified === true &&
+      externalEndpoints.clientDomainAllowlistVerified === true,
+    "切流前必须完成已启用支付/物流/直播等控制台换址、回调可达性与验签重放、客户端 request/upload/download/socket/业务域名验收",
+  );
 }
 
 if (resourceReady) {
@@ -400,6 +463,7 @@ if (resourceReady) {
     storageProvider: text(storage.provider).toLowerCase(),
     storageBucket: text(storage.bucket),
     storageRegion: text(storage.region).toLowerCase(),
+    callbackUrlsFingerprint: fingerprint(plannedCallbackUrls),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -424,6 +488,13 @@ if (resourceReady) {
     storageProvider: text(environmentValues.get("STORAGE_PROVIDER")).toLowerCase(),
     storageBucket: text(environmentValues.get("COS_BUCKET")),
     storageRegion: text(environmentValues.get("COS_REGION")).toLowerCase(),
+    callbackUrlsFingerprint: fingerprint(
+      [...new Set(
+        [...knownCallbackPaths.keys()]
+          .map((key) => normalizeUrl(environmentValues.get(key)))
+          .filter(Boolean),
+      )].sort(),
+    ),
   };
   const bindingFields = Object.keys(intakeBinding);
   const mismatchedBindingFields = bindingFields.filter(

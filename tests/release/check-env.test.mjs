@@ -278,6 +278,26 @@ test("完整上线拒绝微信支付绑定到其他 AppID", async () => {
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /wx-wrong-pay-app/);
 });
 
+test("支付或物流回调仍指向旧域名时直接阻断", async () => {
+  const environment = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  }).replace(
+    "WECHAT_PAY_NOTIFY_URL=https://api.guoxue.test/api/v1/shop/pay/notify",
+    "WECHAT_PAY_NOTIFY_URL=https://old.guoxue.test/api/v1/shop/pay/notify",
+  );
+  const result = await runChecker(
+    environment,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /必须与 PUBLIC_API_URL 同源，禁止第三方平台继续回调旧域名/u);
+});
+
 test("完整上线拒绝多个小程序 AppID 别名互相冲突", async () => {
   const environment = `${createFullEnvironment({
     databaseHost: "postgres.internal",

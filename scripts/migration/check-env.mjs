@@ -416,7 +416,7 @@ const callbackPaths = new Map([
 for (const [key, expectedPath] of callbackPaths) {
   const url = parsedUrls.get(key);
   if (apiOrigin && url && url.origin !== apiOrigin) {
-    warnings.push(`${key} 与 PUBLIC_API_URL 不同源，请确认第三方平台回调白名单`);
+    errors.push(`${key} 必须与 PUBLIC_API_URL 同源，禁止第三方平台继续回调旧域名`);
   }
   if (url && url.pathname.replace(/\/+$/, "") !== expectedPath) {
     errors.push(`${key} 路径必须为 ${expectedPath}`);

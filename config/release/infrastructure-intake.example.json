@@ -80,6 +80,17 @@
     "rollbackRetentionHours": 168,
     "oldEnvironmentRetentionConfirmed": false
   },
+  "externalEndpoints": {
+    "owner": "待填写",
+    "clientDomainAllowlistOwner": "待填写",
+    "callbackUrls": [],
+    "controlPlaneInventoryVerified": false,
+    "callbackReachabilityVerified": false,
+    "callbackAuthenticationVerified": false,
+    "callbackRetryIdempotencyVerified": false,
+    "clientDomainAllowlistVerified": false,
+    "evidenceReference": "pending-change-ticket"
+  },
   "operations": {
     "backupOwner": "待填写",
     "cutoverOwner": "待填写",
