@@ -3,7 +3,14 @@
     <!-- 顶部导航 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="navbar-inner">
-        <view class="back-btn" @tap="handleBack">
+        <view
+          class="back-btn"
+          role="button"
+          aria-label="返回上一步"
+          tabindex="0"
+          @tap="handleBack"
+          @keydown="activateOnKeyboard($event, handleBack)"
+        >
           <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
         </view>
         <text class="navbar-title">注册账号</text>
@@ -51,12 +58,22 @@
             inputmode="numeric"
             :value="phone"
             maxlength="11"
+            aria-label="注册手机号"
             placeholder="请输入手机号"
             placeholder-class="input-ph"
             @input="onPhoneInput"
           />
         </view>
-        <view class="btn" :class="{ 'btn-disabled': phone.length !== 11 || isSendingCode }" @tap="sendCode">
+        <view
+          class="btn"
+          :class="{ 'btn-disabled': phone.length !== 11 || isSendingCode }"
+          role="button"
+          :aria-busy="isSendingCode ? 'true' : 'false'"
+          :aria-disabled="phone.length !== 11 || isSendingCode ? 'true' : 'false'"
+          tabindex="0"
+          @tap="sendCode"
+          @keydown="activateOnKeyboard($event, sendCode)"
+        >
           <text class="btn-text">{{ isSendingCode ? '发送中...' : '获取验证码' }}</text>
         </view>
       </view>
@@ -75,6 +92,7 @@
             inputmode="numeric"
             :value="code"
             maxlength="6"
+            aria-label="注册短信验证码"
             placeholder="请输入6位验证码"
             placeholder-class="input-ph"
             @input="onCodeInput"
@@ -82,9 +100,26 @@
         </view>
         <view class="resend-row">
           <text class="resend-tip">{{ countdown > 0 ? countdown + '秒后可重发' : '没有收到验证码？' }}</text>
-          <text class="resend-btn" :class="{ 'resend-disabled': countdown > 0 || isSendingCode }" @tap="sendCode">{{ isSendingCode ? '发送中...' : '重新发送' }}</text>
+          <text
+            class="resend-btn"
+            :class="{ 'resend-disabled': countdown > 0 || isSendingCode }"
+            role="button"
+            :aria-disabled="countdown > 0 || isSendingCode ? 'true' : 'false'"
+            tabindex="0"
+            @tap="sendCode"
+            @keydown="activateOnKeyboard($event, sendCode)"
+          >{{ isSendingCode ? '发送中...' : '重新发送' }}</text>
         </view>
-        <view class="btn" :class="{ 'btn-disabled': code.length !== 6 || isVerifying }" @tap="verifyCode">
+        <view
+          class="btn"
+          :class="{ 'btn-disabled': code.length !== 6 || isVerifying }"
+          role="button"
+          :aria-busy="isVerifying ? 'true' : 'false'"
+          :aria-disabled="code.length !== 6 || isVerifying ? 'true' : 'false'"
+          tabindex="0"
+          @tap="verifyCode"
+          @keydown="activateOnKeyboard($event, verifyCode)"
+        >
           <text class="btn-text">{{ isVerifying ? '校验中...' : '下一步' }}</text>
         </view>
       </view>
@@ -102,6 +137,7 @@
             class="input"
             :value="nickname"
             maxlength="20"
+            aria-label="昵称"
             placeholder="请输入昵称"
             placeholder-class="input-ph"
             @input="onNicknameInput"
@@ -114,16 +150,24 @@
             class="input input-pwd"
             :password="!showPassword"
             :value="password"
+            aria-label="注册密码"
             placeholder="请设置密码（6-20位）"
             placeholder-class="input-ph"
             @input="onPasswordInput"
           />
-          <view class="eye-btn" @tap="showPassword = !showPassword">
+          <view
+            class="eye-btn"
+            role="button"
+            :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+            tabindex="0"
+            @tap="showPassword = !showPassword"
+            @keydown="activateOnKeyboard($event, () => showPassword = !showPassword)"
+          >
             <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
           </view>
         </view>
         <!-- 密码字段级校验提示 -->
-        <text v-if="passwordError" class="error-text">{{ passwordError }}</text>
+        <text v-if="passwordError" class="error-text" role="alert" aria-live="polite">{{ passwordError }}</text>
         <!-- 确认密码 -->
         <view class="input-wrap">
           <view class="input-icon"><AppIcon name="lock" :size="20" color="#999999" /></view>
@@ -131,36 +175,83 @@
             class="input input-pwd"
             :password="!showConfirmPassword"
             :value="confirmPassword"
+            aria-label="确认注册密码"
             placeholder="请再次输入密码"
             placeholder-class="input-ph"
             @input="onConfirmInput"
           />
-          <view class="eye-btn" @tap="showConfirmPassword = !showConfirmPassword">
+          <view
+            class="eye-btn"
+            role="button"
+            :aria-label="showConfirmPassword ? '隐藏确认密码' : '显示确认密码'"
+            tabindex="0"
+            @tap="showConfirmPassword = !showConfirmPassword"
+            @keydown="activateOnKeyboard($event, () => showConfirmPassword = !showConfirmPassword)"
+          >
             <AppIcon :name="showConfirmPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
           </view>
         </view>
         <!-- 密码不一致提示 -->
-        <text v-if="confirmPassword && password !== confirmPassword" class="error-text">两次输入的密码不一致</text>
+        <text
+          v-if="confirmPassword && password !== confirmPassword"
+          class="error-text"
+          role="alert"
+          aria-live="polite"
+        >两次输入的密码不一致</text>
         <!-- 协议 -->
         <!-- 整行可点切换勾选（协议链接 .stop 仍跳协议页）；checkbox 视觉不变，热区=整行 ≥88rpx -->
-        <view class="terms-row" @tap="agreed = !agreed">
+        <view
+          class="terms-row"
+          role="checkbox"
+          :aria-checked="agreed ? 'true' : 'false'"
+          tabindex="0"
+          @tap="agreed = !agreed"
+          @keydown="activateOnKeyboard($event, () => agreed = !agreed)"
+        >
           <view class="checkbox" :class="{ 'checkbox-checked': agreed }">
             <AppIcon v-if="agreed" name="check" :size="12" color="#ffffff" />
           </view>
           <view class="terms-text">
             <text class="terms-normal">我已阅读并同意</text>
-            <text class="terms-link" @tap.stop="navigateTo('/legal/user-agreement')">《用户协议》</text>
+            <text
+              class="terms-link"
+              role="link"
+              tabindex="0"
+              @tap.stop="navigateTo('/legal/user-agreement')"
+              @keydown.stop="activateOnKeyboard($event, () => navigateTo('/legal/user-agreement'))"
+            >《用户协议》</text>
             <text class="terms-normal">和</text>
-            <text class="terms-link" @tap.stop="navigateTo('/legal/privacy-policy')">《隐私政策》</text>
+            <text
+              class="terms-link"
+              role="link"
+              tabindex="0"
+              @tap.stop="navigateTo('/legal/privacy-policy')"
+              @keydown.stop="activateOnKeyboard($event, () => navigateTo('/legal/privacy-policy'))"
+            >《隐私政策》</text>
           </view>
         </view>
-        <view class="btn" :class="{ 'btn-disabled': !canRegister || isLoading }" @tap="handleRegister">
+        <view
+          class="btn"
+          :class="{ 'btn-disabled': !canRegister || isLoading }"
+          role="button"
+          :aria-busy="isLoading ? 'true' : 'false'"
+          :aria-disabled="!canRegister || isLoading ? 'true' : 'false'"
+          tabindex="0"
+          @tap="handleRegister"
+          @keydown="activateOnKeyboard($event, handleRegister)"
+        >
           <text class="btn-text">{{ isLoading ? '注册中...' : '完成注册' }}</text>
         </view>
       </view>
 
       <!-- 底部链接 -->
-      <view class="bottom-link" @tap="goLogin">
+      <view
+        class="bottom-link"
+        role="link"
+        tabindex="0"
+        @tap="goLogin"
+        @keydown="activateOnKeyboard($event, goLogin)"
+      >
         <text class="bottom-normal">已有账号？</text>
         <text class="bottom-strong">立即登录</text>
       </view>
@@ -200,6 +291,12 @@ const isSendingCode = ref(false)
 const API_BASE = `${(import.meta as any).env?.VITE_API_URL || ''}/api/v1`
 
 let timer: ReturnType<typeof setInterval> | null = null
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 
 const currentStepIndex = computed(() => steps.indexOf(step.value))
 const maskedPhone = computed(() => phone.value.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'))

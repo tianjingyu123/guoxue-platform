@@ -1,3 +1,4 @@
+# 由 scripts/release/render-monitoring-config.mjs 渲染，禁止直接作为运行配置挂载。
 # ═══════════════════════════════════════════════════════════════
 # 国学平台 — Alertmanager 告警路由配置
 # ═══════════════════════════════════════════════════════════════
@@ -9,34 +10,34 @@ global:
 route:
   receiver: "default"
   group_by: ["alertname", "category", "severity"]
-  group_wait: 10s        # 首次告警等待，合并同组通知
-  group_interval: 5m     # 同组后续告警间隔
-  repeat_interval: 4h    # 已解决告警重复通知间隔
+  group_wait: 10s # 首次告警等待，合并同组通知
+  group_interval: 5m # 同组后续告警间隔
+  repeat_interval: 4h # 已解决告警重复通知间隔
 
   routes:
     # ── 支付告警 — 立即通知 ──
-    - match:
-        category: payment
-      group_wait: 5s      # 支付告警 5s 极速通知
+    - matchers:
+        - category = payment
+      group_wait: 5s # 支付告警 5s 极速通知
       repeat_interval: 10m
       receiver: "payment-critical"
 
-    # ── Critical 级别 — 企业微信 + 电话 ──
-    - match:
-        severity: critical
+    # ── 数据库告警 — 优先路由到 DBA 群组 ──
+    - matchers:
+        - category = database
+      receiver: "dba-team"
+
+    # ── Critical 级别 — 企业微信紧急群 ──
+    - matchers:
+        - severity = critical
       group_wait: 10s
       receiver: "critical"
 
     # ── Warning 级别 — 企业微信 ──
-    - match:
-        severity: warning
+    - matchers:
+        - severity = warning
       group_wait: 30s
       receiver: "warning"
-
-    # ── 数据库告警 — DBA 群组 ──
-    - match:
-        category: database
-      receiver: "dba-team"
 
 # 接收者配置
 receivers:
@@ -44,7 +45,7 @@ receivers:
   - name: "default"
     wechat_configs:
       - corp_id: "${WEWORK_CORP_ID}"
-        to_party: "2"
+        to_user: "${DBA_WEWORK_USER_IDS}"
         agent_id: "${WEWORK_AGENT_ID}"
         api_secret: "${WEWORK_AGENT_SECRET}"
         message: |
@@ -54,11 +55,11 @@ receivers:
           级别: {{ .CommonLabels.severity }}
           时间: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
 
-  # 支付相关 — 企业微信 + 短信
+  # 支付相关 — 企业微信紧急群
   - name: "payment-critical"
     wechat_configs:
       - corp_id: "${WEWORK_CORP_ID}"
-        to_party: "3"
+        to_user: "${DBA_WEWORK_USER_IDS}"
         agent_id: "${WEWORK_AGENT_ID}"
         api_secret: "${WEWORK_AGENT_SECRET}"
         message: |
@@ -72,7 +73,7 @@ receivers:
   - name: "critical"
     wechat_configs:
       - corp_id: "${WEWORK_CORP_ID}"
-        to_party: "1"
+        to_user: "${DBA_WEWORK_USER_IDS}"
         agent_id: "${WEWORK_AGENT_ID}"
         api_secret: "${WEWORK_AGENT_SECRET}"
         message: |
@@ -86,7 +87,7 @@ receivers:
   - name: "warning"
     wechat_configs:
       - corp_id: "${WEWORK_CORP_ID}"
-        to_party: "2"
+        to_user: "${DBA_WEWORK_USER_IDS}"
         agent_id: "${WEWORK_AGENT_ID}"
         api_secret: "${WEWORK_AGENT_SECRET}"
         message: |
@@ -111,15 +112,15 @@ receivers:
 # 抑制规则
 inhibit_rules:
   # 实例宕机时，抑制该实例的其他告警
-  - source_match:
-      alertname: "InstanceDown"
-    target_match_re:
-      alertname: "^(HighErrorRate|HighLatency|RedisDown).*"
+  - source_matchers:
+      - alertname = InstanceDown
+    target_matchers:
+      - alertname =~ "^(HighErrorRate|HighLatency|RedisDown).*"
     equal: ["instance"]
 
   # 数据库宕机时，抑制 API 延迟告警
-  - source_match:
-      alertname: "DBConnectionPoolExhausted"
-    target_match:
-      category: "api"
+  - source_matchers:
+      - alertname = DBConnectionPoolExhausted
+    target_matchers:
+      - category = api
     equal: ["instance"]

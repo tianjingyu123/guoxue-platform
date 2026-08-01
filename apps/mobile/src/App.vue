@@ -6,6 +6,7 @@ import { captureRefFromQuery, captureRefFromUrl } from '@/utils/referral'
 import { hydrateBrandConfig } from '@/lib/brand'
 import { beginAuthHandoff, exchangeHandoff } from '@/utils/request'
 import { requestParentContentLayerClose } from '@/utils/content-detail-layer'
+import { checkForAppUpdate } from '@/lib/app-update'
 
 type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
 
@@ -142,6 +143,9 @@ onShow((options?: { query?: Record<string, unknown> }) => {
   } catch {
     /* 归因失败不影响显示 */
   }
+  // 仅 App 正式包会执行；H5/小程序编译时为空操作。
+  // 网络失败不阻断启动，强制更新由服务端版本策略控制。
+  void checkForAppUpdate()
 })
 // 切后台主动 flush 埋点队列，避免残留事件丢失
 onHide(() => { track.flushNow() })
@@ -224,6 +228,25 @@ uni-scroll-view .uni-scroll-view::-webkit-scrollbar {
   width: 0;
   height: 0;
   display: none;
+}
+
+/* H5 键盘焦点：为 PC、平板外接键盘和无障碍用户保留清晰的操作位置。
+   仅 focus-visible 时出现，不影响触摸点击后的视觉。 */
+:where(
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  [role='button'],
+  [role='link'],
+  [role='tab'],
+  [role='radio'],
+  [tabindex]
+):focus-visible {
+  outline: 3px solid rgba(196, 30, 58, 0.72);
+  outline-offset: 3px;
+  border-radius: 8px;
 }
 
 /* 桌面浏览器打开 H5 时限宽居中（移动优先产品的业界标准壳）。

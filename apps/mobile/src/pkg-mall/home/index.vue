@@ -106,6 +106,11 @@ onPullDownRefresh(async () => {
 
 function goCart() { navigateTo('/shop/cart') }
 function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `/mall/category?cat=${id}`) }
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 </script>
 
 <template>
@@ -114,7 +119,15 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
     <!-- 顶部搜索栏 -->
     <view class="topbar">
       <search-bar default-tab="product" placeholder="搜索商品..." />
-      <view class="cart-btn" hover-class="card-press" @tap="goCart">
+      <view
+        class="cart-btn"
+        role="link"
+        :aria-label="cartCount > 0 ? `购物车，共 ${cartCount} 件商品` : '购物车'"
+        tabindex="0"
+        hover-class="card-press"
+        @tap="goCart"
+        @keydown="activateOnKeyboard($event, goCart)"
+      >
         <AppIcon name="shopping-cart" :size="40" color="var(--brand)" />
         <text class="cart-btn-label">购物车</text>
         <text v-if="cartCount > 0" class="cart-badge">{{ cartBadge }}</text>
@@ -123,20 +136,38 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 
     <view class="body">
       <!-- 加载中 -->
-      <view v-if="loading" class="state-wrap">
+      <view v-if="loading" class="state-wrap" role="status" aria-live="polite" aria-label="商城加载中">
         <AppLoading />
       </view>
       <!-- 加载失败 -->
-      <view v-else-if="error" class="state-wrap">
+      <view v-else-if="error" class="state-wrap" role="alert" aria-live="assertive">
         <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
         <text class="state-text">加载失败，请重试</text>
-        <view class="state-retry" @tap="fetchData"><text class="state-retry-text">点击重试</text></view>
+        <view
+          class="state-retry"
+          role="button"
+          aria-label="重新加载商城"
+          tabindex="0"
+          @tap="fetchData"
+          @keydown="activateOnKeyboard($event, fetchData)"
+        >
+          <text class="state-retry-text">点击重试</text>
+        </view>
       </view>
       <!-- 内容 -->
       <template v-else>
       <!-- 核心功能快捷入口 -->
       <view class="quick-grid">
-        <view v-for="entry in mallQuickEntries" :key="entry.id" class="quick-item tap-press" @tap="navigateTo(entry.href)">
+        <view
+          v-for="entry in mallQuickEntries"
+          :key="entry.id"
+          class="quick-item tap-press"
+          role="link"
+          :aria-label="entry.label"
+          tabindex="0"
+          @tap="navigateTo(entry.href)"
+          @keydown="activateOnKeyboard($event, () => navigateTo(entry.href))"
+        >
           <view class="quick-icon"><AppIcon :name="entry.icon" :size="36" color="#c41e3a" /></view>
           <text class="quick-label">{{ entry.label }}</text>
           <text v-if="entry.state" class="quick-state">{{ entry.state }}</text>
@@ -155,7 +186,14 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
             <view class="live-dot" />
           </view>
           <!-- 死入口大扫除：更多直播 → 直播广场（真实已注册页） -->
-          <view class="sec-more" @tap="navigateTo('/pkg-live/plaza/index')">
+          <view
+            class="sec-more"
+            role="link"
+            aria-label="查看更多直播带货"
+            tabindex="0"
+            @tap="navigateTo('/pkg-live/plaza/index')"
+            @keydown="activateOnKeyboard($event, () => navigateTo('/pkg-live/plaza/index'))"
+          >
             <text class="sec-more-txt">更多</text>
             <AppIcon name="chevron-right" :size="24" color="#999999" />
           </view>
@@ -175,7 +213,14 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
 
       <!-- 国学特色促销会场：常驻主题、真实权益、实时活动 -->
       <view class="promo-hall">
-        <view class="promo-main tap-press" @tap="navigateTo('/mall/category')">
+        <view
+          class="promo-main tap-press"
+          role="link"
+          aria-label="进入国学好物季专题会场"
+          tabindex="0"
+          @tap="navigateTo('/mall/category')"
+          @keydown="activateOnKeyboard($event, () => navigateTo('/mall/category'))"
+        >
           <view class="promo-main-copy">
             <text class="promo-kicker">本期雅集</text>
             <text class="promo-title">国学好物季</text>
@@ -195,7 +240,14 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
         </view>
 
         <view class="promo-side">
-          <view class="promo-tile promo-coupon tap-press" @tap="navigateTo('/shop/coupons')">
+          <view
+            class="promo-tile promo-coupon tap-press"
+            role="link"
+            aria-label="查看优惠券权益"
+            tabindex="0"
+            @tap="navigateTo('/shop/coupons')"
+            @keydown="activateOnKeyboard($event, () => navigateTo('/shop/coupons'))"
+          >
             <view class="promo-tile-head">
               <view class="promo-tile-icon"><AppIcon name="ticket" :size="28" color="#9d3b31" /></view>
               <text class="promo-count">{{ couponCount > 0 ? `${couponCount} 张可领` : '查看权益' }}</text>
@@ -204,7 +256,14 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
             <text class="promo-tile-sub">可用优惠集中看</text>
           </view>
 
-          <view class="promo-tile promo-active tap-press" @tap="navigateTo(activePromotion.href)">
+          <view
+            class="promo-tile promo-active tap-press"
+            role="link"
+            :aria-label="`进入活动：${activePromotion.title}`"
+            tabindex="0"
+            @tap="navigateTo(activePromotion.href)"
+            @keydown="activateOnKeyboard($event, () => navigateTo(activePromotion.href))"
+          >
             <view class="promo-tile-head">
               <view class="promo-tile-icon promo-tile-icon-dark">
                 <AppIcon :name="activePromotion.icon" :size="28" color="#e9c98e" />
@@ -224,13 +283,29 @@ function goCategory(id: string) { navigateTo(id === 'all' ? '/mall/category' : `
       <view class="section">
         <view class="sec-head">
           <text class="sec-title">商品分类</text>
-          <view class="sec-more" @tap="navigateTo('/mall/category')">
+          <view
+            class="sec-more"
+            role="link"
+            aria-label="查看全部商品分类"
+            tabindex="0"
+            @tap="navigateTo('/mall/category')"
+            @keydown="activateOnKeyboard($event, () => navigateTo('/mall/category'))"
+          >
             <text class="sec-more-txt">全部分类</text>
             <AppIcon name="chevron-right" :size="24" color="#999999" />
           </view>
         </view>
         <view class="cat-grid">
-          <view v-for="cat in mallCategories" :key="cat.id" class="cat-item tap-press" @tap="goCategory(cat.id)">
+          <view
+            v-for="cat in mallCategories"
+            :key="cat.id"
+            class="cat-item tap-press"
+            role="link"
+            :aria-label="`浏览商品分类：${cat.name}`"
+            tabindex="0"
+            @tap="goCategory(cat.id)"
+            @keydown="activateOnKeyboard($event, () => goCategory(cat.id))"
+          >
             <view class="cat-emoji"><AppIcon :name="cat.icon" :size="40" color="#c41e3a" /></view>
             <text class="cat-name">{{ cat.name }}</text>
           </view>

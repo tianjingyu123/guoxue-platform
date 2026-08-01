@@ -1,4 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
+import {
+  getTencentCredentialMode,
+  getTencentInstanceRoleCredentialProvider,
+} from "../../common/tencent-instance-role-credentials";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 
@@ -13,6 +17,7 @@ export interface HealthReport {
   uptime: number;
   timestamp: number;
   version: string;
+  releaseId: string;
   memory: { rss: string; heapUsed: string; heapTotal: string; external: string };
   checks: Record<string, HealthCheck>;
 }
@@ -33,20 +38,41 @@ export class HealthService {
     await Promise.allSettled([
       this.checkDb().then((r) => (checks.db = r)),
       this.checkRedis().then((r) => (checks.redis = r)),
-      this.checkDeepSeek().then((r) => { if (r.status !== "unconfigured") checks.ai = r; }),
-      this.checkTencentCloud().then((r) => { if (r.status !== "unconfigured") checks.cloud = r; }),
-      this.checkSms().then((r) => { if (r.status !== "unconfigured") checks.sms = r; }),
-      this.checkCos().then((r) => { if (r.status !== "unconfigured") checks.storage = r; }),
-      this.checkWechatPay().then((r) => { if (r.status !== "unconfigured") checks.payment = r; }),
-      this.checkWechatOpen().then((r) => { if (r.status !== "unconfigured") checks.wechat = r; }),
-      this.checkLiveService().then((r) => { if (r.status !== "unconfigured") checks.live = r; }),
-      this.checkIm().then((r) => { if (r.status !== "unconfigured") checks.im = r; }),
-      this.checkVod().then((r) => { if (r.status !== "unconfigured") checks.vod = r; }),
+      this.checkDeepSeek().then((r) => {
+        if (r.status !== "unconfigured") checks.ai = r;
+      }),
+      this.checkTencentCloud().then((r) => {
+        if (r.status !== "unconfigured") checks.cloud = r;
+      }),
+      this.checkSms().then((r) => {
+        if (r.status !== "unconfigured") checks.sms = r;
+      }),
+      this.checkCos().then((r) => {
+        if (r.status !== "unconfigured" || process.env.STORAGE_PROVIDER === "cos")
+          checks.storage = r;
+      }),
+      this.checkWechatPay().then((r) => {
+        if (r.status !== "unconfigured") checks.payment = r;
+      }),
+      this.checkWechatOpen().then((r) => {
+        if (r.status !== "unconfigured") checks.wechat = r;
+      }),
+      this.checkLiveService().then((r) => {
+        if (r.status !== "unconfigured") checks.live = r;
+      }),
+      this.checkIm().then((r) => {
+        if (r.status !== "unconfigured") checks.im = r;
+      }),
+      this.checkVod().then((r) => {
+        if (r.status !== "unconfigured") checks.vod = r;
+      }),
     ]);
 
     // 汇总状态
     const hasFail = Object.values(checks).some((c) => c.status === "fail");
-    const hasDegraded = Object.values(checks).some((c) => c.status === "degraded" || c.status === "unconfigured");
+    const hasDegraded = Object.values(checks).some(
+      (c) => c.status === "degraded" || c.status === "unconfigured",
+    );
     const status = hasFail ? "fail" : hasDegraded ? "degraded" : "ok";
 
     const mem = process.memoryUsage();
@@ -56,6 +82,7 @@ export class HealthService {
       uptime: process.uptime(),
       timestamp: Date.now(),
       version: "1.0",
+      releaseId: process.env.RELEASE_ID?.trim() || "unversioned",
       memory: {
         rss: this.fmt(mem.rss),
         heapUsed: this.fmt(mem.heapUsed),
@@ -72,15 +99,19 @@ export class HealthService {
     const dbOk = db.status === "fulfilled" && db.value.status === "ok";
     const redisOk = redis.status === "fulfilled" && redis.value.status === "ok";
     return {
-      status: dbOk ? "ready" : "not_ready",
+      status: dbOk && redisOk ? "ready" : "not_ready",
       db: dbOk ? "ok" : "fail",
       redis: redisOk ? "ok" : "fail",
     };
   }
 
   /** 获取简洁的存活检查（K8s liveness probe 用，不做任何外部依赖检查） */
-  liveness(): { status: string; uptime: number } {
-    return { status: "alive", uptime: process.uptime() };
+  liveness(): { status: string; uptime: number; releaseId: string } {
+    return {
+      status: "alive",
+      uptime: process.uptime(),
+      releaseId: process.env.RELEASE_ID?.trim() || "unversioned",
+    };
   }
 
   // ═══════════ 私有检查方法 ═══════════
@@ -158,11 +189,23 @@ export class HealthService {
   }
 
   private async checkCos(): Promise<HealthCheck> {
+    const secretId = process.env.COS_SECRET_ID;
+    const secretKey = process.env.COS_SECRET_KEY;
     const bucket = process.env.COS_BUCKET;
     const region = process.env.COS_REGION;
-    if (!bucket || !region) return { status: "unconfigured" };
+    const credentialMode = getTencentCredentialMode();
+    const hasCredentials =
+      credentialMode === "instance-role"
+        ? Boolean(process.env.TENCENT_CVM_ROLE_NAME)
+        : Boolean(secretId && secretKey);
+    if (!hasCredentials || !bucket || !region) {
+      return { status: "unconfigured", error: "COS 配置不完整" };
+    }
     try {
       const start = Date.now();
+      if (credentialMode === "instance-role") {
+        await getTencentInstanceRoleCredentialProvider().getCredentials();
+      }
       const url = `https://${bucket}.cos.${region}.myqcloud.com`;
       const res = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(5000) });
       // COS 无权限返回 403，说明 bucket 存在可达
@@ -198,8 +241,12 @@ export class HealthService {
       !!(process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID) &&
       !!(process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET);
     const hasMiniProgram =
-      !!(process.env.WECHAT_MINI_APP_ID || process.env.MINIPROGRAM_APP_ID || process.env.WECHAT_MP_APP_ID || process.env.WECHAT_APP_ID) &&
-      !!(process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET);
+      !!(
+        process.env.WECHAT_MINI_APP_ID ||
+        process.env.MINIPROGRAM_APP_ID ||
+        process.env.WECHAT_MP_APP_ID ||
+        process.env.WECHAT_APP_ID
+      ) && !!(process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET);
     if (!hasOfficial && !hasMiniProgram) return { status: "unconfigured" };
     try {
       const start = Date.now();

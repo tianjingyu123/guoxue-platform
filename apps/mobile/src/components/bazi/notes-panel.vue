@@ -7,10 +7,12 @@
 import { ref, reactive, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AttachmentBar from './attachment-bar.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { useMediaNotes } from '@/composables/use-media-notes'
 
 /** recordId：本盘的落盘标识（后端记录 id 或本地生辰指纹），笔记按盘隔离存取 */
 const props = defineProps<{ open: boolean; recordId?: string }>()
+useOverlayScrollLock(() => props.open)
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const media = useMediaNotes()
@@ -258,8 +260,8 @@ function onSave() {
     </view>
 
     <!-- 显示设置弹窗 -->
-    <view v-if="showSettings" class="np-mask" @tap="showSettings = false">
-      <view class="np-sheet" @tap.stop>
+    <view v-if="showSettings" class="np-mask" @tap="showSettings = false" @touchmove.self.prevent>
+      <view class="np-sheet" @tap.stop @touchmove.stop>
         <view class="np-sheet-head">
           <text class="np-sheet-title">显示设置</text>
           <view class="np-sheet-done" @tap="showSettings = false"><text class="np-sheet-done-text">完成</text></view>

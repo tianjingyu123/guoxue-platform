@@ -13,6 +13,7 @@ import { recommendApi } from '@/lib/recommend-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { formatPrice } from '@/utils/format'
 import { gotoComplaint } from '@/lib/trust-entry'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const loading = ref(true)
 const error = ref(false)
@@ -23,6 +24,7 @@ const swiperIndex = ref(0)
 const isFavorite = ref(false)
 const cartCount = ref(0)
 const showSpecPanel = ref(false)
+const showVideo = ref(false)
 const specAction = ref<'cart' | 'buy'>('cart')
 // SKU 选择（R4 P1-1）：选项即 SKU（option.id = skuId），多规格必须选中后才能加购/下单
 const selectedSkuId = ref('')
@@ -30,6 +32,8 @@ const selectedSkuId = ref('')
 const quantity = ref(1)
 const submitting = ref(false)
 const recItems = ref<RecommendItem[]>([])
+
+useOverlayScrollLock(() => showSpecPanel.value || showVideo.value)
 
 // 当前商品 id（P1-12：重试必须传回真实 id，禁 || '1' 兜底跳到别的商品）
 const currentId = ref('')
@@ -192,7 +196,6 @@ function complainProduct() {
 const cartBadge = computed(() => (cartCount.value > 99 ? '99+' : String(cartCount.value)))
 
 /** 商品视频播放（P2-10：原播放按钮无任何处理是死按钮）——uni video 组件全屏遮罩层，H5/小程序通用 */
-const showVideo = ref(false)
 function openVideo() {
   if (!product.value?.videoUrl) {
     uni.showToast({ title: '视频暂不可用', icon: 'none' })
@@ -374,7 +377,7 @@ async function toggleFavorite() {
     </view>
 
     <!-- 商品视频全屏播放层 -->
-    <view v-if="showVideo" class="video-mask" @tap="showVideo = false">
+    <view v-if="showVideo" class="video-mask" @tap="showVideo = false" @touchmove.self.prevent>
       <video
         v-if="product.videoUrl"
         class="video-player"
@@ -383,13 +386,14 @@ async function toggleFavorite() {
         controls
         object-fit="contain"
         @tap.stop
+        @touchmove.stop
       />
       <view class="video-close" @tap.stop="showVideo = false"><AppIcon name="x" :size="40" color="#ffffff" /></view>
     </view>
 
     <!-- 规格面板 -->
-    <view v-if="showSpecPanel" class="mask" @tap="showSpecPanel = false" />
-    <view v-if="showSpecPanel" class="spec-panel">
+    <view v-if="showSpecPanel" class="mask" @tap="showSpecPanel = false" @touchmove.self.prevent />
+    <view v-if="showSpecPanel" class="spec-panel" @touchmove.stop>
       <view class="sp-head">
         <view class="sp-thumb"><smart-cover class="sp-thumb-img" :src="product.images && product.images[0]" :title="product.title" type="product" deco :deco-size="36" /></view>
         <view class="sp-info">
@@ -437,7 +441,7 @@ async function toggleFavorite() {
 .card-press { opacity: 0.85; }
 /* 轮播 */
 .carousel { position: relative; }
-.nav-btn { position: absolute; top: calc(28rpx + var(--status-bar-height, 0px)); z-index: 20; width: 64rpx; height: 64rpx; border-radius: 50%; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; }
+.nav-btn { position: absolute; top: calc(28rpx + var(--status-bar-height, 0px)); z-index: 20; width: 88rpx; height: 88rpx; border-radius: 50%; background: rgba(255,255,255,0.88); display: flex; align-items: center; justify-content: center; }
 .nav-back { left: 28rpx; }
 .nav-share { right: 28rpx; }
 .swiper { width: 100%; height: 750rpx; }

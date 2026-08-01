@@ -39,6 +39,8 @@ export interface CreatorVideo {
   id: string
   title: string
   cover: string
+  /** 无独立首图时供作品卡读取第一帧。 */
+  videoUrl?: string
   views: number
   likes: number
   comments: number

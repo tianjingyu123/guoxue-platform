@@ -236,8 +236,8 @@
     </template>
 
     <!-- 评论面板（小红书/抖音式半屏抽屉·深色与播放页一致） -->
-    <view v-if="showComments" class="cs-mask" @tap="closeComments">
-      <view class="cs" @tap.stop>
+    <view v-if="showComments" class="cs-mask" @tap="closeComments" @touchmove.self.prevent>
+      <view class="cs" @tap.stop @touchmove.stop>
         <view class="cs__grabber" />
         <view class="cs__head">
           <text class="cs__title">共 {{ fmt(commentTotal) }} 条评论</text>
@@ -323,8 +323,8 @@
     </view>
 
     <!-- 分享面板（深色·复制链接 + 微信内转发引导） -->
-    <view v-if="showShare" class="cs-mask" @tap="showShare = false">
-      <view class="cs cs--share" @tap.stop>
+    <view v-if="showShare" class="cs-mask" @tap="showShare = false" @touchmove.self.prevent>
+      <view class="cs cs--share" @tap.stop @touchmove.stop>
         <view class="cs__grabber" />
         <view class="cs__head">
           <text class="cs__title">分享给朋友</text>
@@ -341,8 +341,8 @@
     </view>
 
     <!-- 商品弹层 -->
-    <view v-if="showProducts" class="sheet-mask" @tap="showProducts = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showProducts" class="sheet-mask" @tap="showProducts = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view class="sheet__head">
           <text class="sheet__title">视频同款</text>
           <view @tap="showProducts = false"><AppIcon name="x" :size="36" color="#999" /></view>
@@ -369,8 +369,8 @@
     </view>
 
     <!-- 购物车弹层 -->
-    <view v-if="showCart" class="sheet-mask" @tap="showCart = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showCart" class="sheet-mask" @tap="showCart = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view class="sheet__head">
           <text class="sheet__title">购物车 ({{ cartTotal }})</text>
           <view @tap="showCart = false"><AppIcon name="x" :size="36" color="#999" /></view>
@@ -417,6 +417,7 @@ import { onMounted } from 'vue'
 import { videoApi, formatVideoNumber as fmt, formatCommentTime as timeAgo, type VideoItem, type VideoProduct, type VideoComment } from '@/lib/video-data'
 import { shopApi } from '@/lib/shop-data'
 import { gotoReport } from '@/lib/report-data'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 interface CartItem { productId: string; quantity: number; product: VideoProduct }
 
@@ -799,6 +800,9 @@ function goAuthor() {
 
 // ===== 分享（H5 无原生转发 → 面板：复制链接 + 转发引导；小程序仍走 onShareAppMessage）=====
 const showShare = ref(false)
+useOverlayScrollLock(() =>
+  showComments.value || showShare.value || showProducts.value || showCart.value,
+)
 function onShare() { showShare.value = true }
 function onReport() {
   const video = currentVideo.value

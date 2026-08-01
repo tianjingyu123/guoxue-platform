@@ -21,6 +21,7 @@ const mockSystemService = {
 };
 
 const mockPrisma: any = {
+  $queryRawUnsafe: jest.fn(),
   $transaction: jest.fn((arg: any) => {
     if (typeof arg === "function") return arg(mockPrisma);
     return Promise.all(arg);
@@ -38,9 +39,13 @@ const mockPrisma: any = {
     aggregate: jest.fn(), count: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(),
     updateMany: jest.fn(),
   },
-  orderLogistics: { findUnique: jest.fn(), upsert: jest.fn() },
-  afterSale: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+  orderLogistics: { findUnique: jest.fn(), findMany: jest.fn(), upsert: jest.fn() },
+  afterSale: {
+    findUnique: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(),
+    count: jest.fn(), update: jest.fn(), updateMany: jest.fn(),
+  },
   product: { count: jest.fn(), findMany: jest.fn() },
+  article: { count: jest.fn(), aggregate: jest.fn() },
   user: { findMany: jest.fn(), findFirst: jest.fn() },
   merchantMember: { findMany: jest.fn(), upsert: jest.fn(), updateMany: jest.fn() },
   auditLog: { findMany: jest.fn(), count: jest.fn() },
@@ -88,6 +93,7 @@ describe("MerchantService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockShopRefund.refundOrder.mockResolvedValue({ status: "SUCCESS" });
+    mockPrisma.orderLogistics.findMany.mockResolvedValue([]);
   });
 
   // ─── 入驻申请 ───
@@ -322,6 +328,98 @@ describe("MerchantService", () => {
     });
   });
 
+  describe("内容资产统计", () => {
+    it("按商家绑定用户聚合真实商品与审核通过文章数据", async () => {
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1" });
+      mockPrisma.product.count
+        .mockResolvedValueOnce(8)
+        .mockResolvedValueOnce(5);
+      mockPrisma.article.count.mockResolvedValue(3);
+      mockPrisma.article.aggregate.mockResolvedValue({
+        _sum: { viewCount: 1260, likeCount: 84 },
+      });
+
+      const result = await svc.getContentStats("m1");
+
+      expect(mockPrisma.article.count).toHaveBeenCalledWith({
+        where: { userId: "u1", auditStatus: "APPROVED", deletedAt: null },
+      });
+      expect(mockPrisma.article.aggregate).toHaveBeenCalledWith({
+        where: { userId: "u1", auditStatus: "APPROVED", deletedAt: null },
+        _sum: { viewCount: true, likeCount: true },
+      });
+      expect(result).toEqual({
+        totalProducts: 8,
+        publishedProducts: 5,
+        draftProducts: 3,
+        publishedArticles: 3,
+        totalViews: 1260,
+        totalLikes: 84,
+      });
+    });
+  });
+
+  describe("客户交易档案", () => {
+    it("按有效交易统计并返回脱敏手机号与最近订单", async () => {
+      const firstOrderAt = new Date("2026-06-01T08:00:00.000Z");
+      const lastOrderAt = new Date("2026-07-20T09:30:00.000Z");
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: "u-customer",
+        nickname: "林女士",
+        avatar: null,
+        phone: "13800138000",
+        createdAt: new Date("2026-05-01T00:00:00.000Z"),
+      });
+      mockPrisma.order.aggregate.mockResolvedValue({
+        _sum: { amount: 360 },
+        _count: { _all: 2 },
+        _min: { createdAt: firstOrderAt },
+        _max: { createdAt: lastOrderAt },
+      });
+      mockPrisma.order.count
+        .mockResolvedValueOnce(2)
+        .mockResolvedValueOnce(1);
+      mockPrisma.order.findMany.mockResolvedValue([
+        {
+          id: "o1",
+          userId: "u-customer",
+          targetId: "p1",
+          amount: 200,
+          status: "COMPLETED",
+          createdAt: lastOrderAt,
+        },
+      ]);
+      mockPrisma.product.findMany.mockResolvedValue([{ id: "p1", title: "文房套装", images: ["cover.jpg"] }]);
+      mockPrisma.user.findMany.mockResolvedValue([{ id: "u-customer", nickname: "林女士", phone: "13800138000" }]);
+
+      const result = await svc.getCustomerDetail("m1", "u-customer");
+
+      expect(mockPrisma.user.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "u-customer", orders: { some: { merchantId: "m1" } } },
+      }));
+      expect(mockPrisma.order.aggregate).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          merchantId: "m1",
+          userId: "u-customer",
+          status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+        },
+      }));
+      expect(result).toMatchObject({
+        id: "u-customer",
+        phone: "138****8000",
+        orderCount: 2,
+        totalSpent: 360,
+        averageOrderValue: 180,
+        refundedOrderCount: 1,
+      });
+      expect(result.recentOrders[0]).toMatchObject({
+        id: "o1",
+        productTitle: "文房套装",
+        buyerPhone: "138****8000",
+      });
+    });
+  });
+
   describe("操作员与本店审计", () => {
     it("成员列表标记当前操作者，供前端收敛店主专属操作", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "owner-1" });
@@ -422,9 +520,72 @@ describe("MerchantService", () => {
         },
       }));
     });
+
+    it("客户档案下钻订单时只返回当前商家的指定客户订单", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([]);
+      mockPrisma.order.count.mockResolvedValue(0);
+
+      await svc.listOrders("m1", {
+        customerId: "customer-1",
+        page: 1,
+        pageSize: 20,
+      });
+
+      const expectedWhere = {
+        merchantId: "m1",
+        userId: "customer-1",
+      };
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expectedWhere,
+      }));
+      expect(mockPrisma.order.count).toHaveBeenCalledWith({
+        where: expectedWhere,
+      });
+    });
   });
 
   describe("商家发货与售后真实状态", () => {
+    it("订单列表批量补齐真实运单，发货页无需逐行查询", async () => {
+      mockPrisma.order.findMany.mockResolvedValue([
+        { id: "o1", merchantId: "m1", userId: "u1", targetId: "p1", status: "SHIPPED" },
+        { id: "o2", merchantId: "m1", userId: "u2", targetId: "p2", status: "PAID" },
+      ]);
+      mockPrisma.order.count.mockResolvedValue(2);
+      mockPrisma.product.findMany.mockResolvedValue([
+        { id: "p1", title: "文房套装", images: ["p1.jpg"] },
+        { id: "p2", title: "宣纸", images: ["p2.jpg"] },
+      ]);
+      mockPrisma.user.findMany.mockResolvedValue([
+        { id: "u1", nickname: "甲", phone: null },
+        { id: "u2", nickname: "乙", phone: null },
+      ]);
+      mockPrisma.orderLogistics.findMany.mockResolvedValue([
+        {
+          orderId: "o1",
+          company: "顺丰速运",
+          logisticsNo: "SF123",
+          status: "SHIPPED",
+          updatedAt: new Date("2026-07-29T08:00:00.000Z"),
+        },
+      ]);
+
+      const result = await svc.listOrders("m1", { status: "SHIPPED", page: 1, pageSize: 20 });
+
+      expect(mockPrisma.orderLogistics.findMany).toHaveBeenCalledWith({
+        where: { orderId: { in: ["o1", "o2"] } },
+        select: { orderId: true, company: true, logisticsNo: true, status: true, updatedAt: true },
+      });
+      expect(result.list[0]).toEqual(expect.objectContaining({
+        shipCompany: "顺丰速运",
+        trackingNo: "SF123",
+        logisticsStatus: "SHIPPED",
+      }));
+      expect(result.list[1]).toEqual(expect.objectContaining({
+        shipCompany: null,
+        trackingNo: null,
+      }));
+    });
+
     it("订单详情返回真实运单信息", async () => {
       mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", merchantId: "m1", userId: "u1", targetId: "p1", status: "SHIPPED" });
       mockPrisma.product.findMany.mockResolvedValue([{ id: "p1", title: "测试商品", images: ["cover.jpg"] }]);
@@ -435,6 +596,43 @@ describe("MerchantService", () => {
 
       expect(result.logistics).toEqual(expect.objectContaining({ company: "顺丰速运", logisticsNo: "SF123" }));
       expect((result as any).productTitle).toBe("测试商品");
+    });
+
+    it("旧订单退款端点必须先命中真实的仅退款售后单", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", merchantId: "m1", status: "PAID" });
+      mockPrisma.afterSale.findFirst.mockResolvedValue({
+        id: "a1", orderId: "o1", type: "refund_only", status: "PENDING",
+      });
+      const processSpy = jest.spyOn(svc, "processAfterSale")
+        .mockResolvedValueOnce({ id: "a1", status: "COMPLETED" } as any);
+
+      const result = await svc.approveRefund("m1", "o1");
+
+      expect(mockPrisma.afterSale.findFirst).toHaveBeenCalledWith({
+        where: { orderId: "o1", status: "PENDING", type: { contains: "refund", mode: "insensitive" } },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(processSpy).toHaveBeenCalledWith("m1", "a1", { action: "approve" });
+      expect(result).toEqual({ success: true, afterSaleId: "a1", refundStatus: "COMPLETED" });
+      processSpy.mockRestore();
+    });
+
+    it("旧订单退款端点禁止绕过退货验收入库", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", merchantId: "m1", status: "SHIPPED" });
+      mockPrisma.afterSale.findFirst.mockResolvedValue({
+        id: "a1", orderId: "o1", type: "refund_with_return", status: "PENDING",
+      });
+
+      await expect(svc.approveRefund("m1", "o1")).rejects.toThrow("退货退款请到售后管理");
+      expect(mockShopRefund.refundOrder).not.toHaveBeenCalled();
+    });
+
+    it("旧订单退款端点禁止无售后申请直接退款", async () => {
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o1", merchantId: "m1", status: "PAID" });
+      mockPrisma.afterSale.findFirst.mockResolvedValue(null);
+
+      await expect(svc.approveRefund("m1", "o1")).rejects.toThrow("没有待处理的退款申请");
+      expect(mockShopRefund.refundOrder).not.toHaveBeenCalled();
     });
 
 

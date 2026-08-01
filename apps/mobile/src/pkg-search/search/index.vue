@@ -284,8 +284,9 @@ function doSearch(kw: string) {
   padding: 16rpx 24rpx;
 }
 .back-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 -16rpx;
   display: flex;
   align-items: center;
   justify-content: center;

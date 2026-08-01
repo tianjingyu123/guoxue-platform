@@ -290,8 +290,9 @@ function roleColor(role: MyCircleRole) {
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 .nav-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -16rpx;
   display: flex;
   align-items: center;
   justify-content: center;

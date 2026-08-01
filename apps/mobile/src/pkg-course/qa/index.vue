@@ -230,7 +230,7 @@ async function submitAsk() {
 .nav-title { font-size: 40rpx; font-weight: 700; letter-spacing: 2rpx; color: #2C2C2C; }
 
 /* ── 内容主体 ── */
-.body-pad { padding: 24rpx 40rpx 200rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.body-pad { padding: 24rpx 40rpx calc(200rpx + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 24rpx; }
 
 /* ── 问答卡 ── */
 .card { background: #FFFFFF; border-radius: 36rpx; padding: 32rpx; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); display: flex; flex-direction: column; gap: 20rpx; }
@@ -257,7 +257,7 @@ async function submitAsk() {
 .bottom-bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
   background: #FFFFFF; border-top: 2rpx solid #EDE7DD;
-  padding: 24rpx 40rpx;
+  padding: 24rpx 40rpx calc(24rpx + env(safe-area-inset-bottom));
 }
 .btn-ask {
   display: flex; align-items: center; justify-content: center; gap: 12rpx;
@@ -291,7 +291,7 @@ async function submitAsk() {
 
 /* ── 提问半屏弹层 ── */
 .mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.45); display: flex; flex-direction: column; justify-content: flex-end; }
-.sheet { background: #FFFFFF; border-radius: 36rpx 36rpx 0 0; padding: 40rpx 40rpx 28rpx; display: flex; flex-direction: column; gap: 28rpx; }
+.sheet { background: #FFFFFF; border-radius: 36rpx 36rpx 0 0; padding: 40rpx 40rpx calc(28rpx + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 28rpx; }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; }
 .sheet-title { font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
 .sheet-close { width: 56rpx; height: 56rpx; border-radius: 50%; background: #F8F4EC; display: flex; align-items: center; justify-content: center; }

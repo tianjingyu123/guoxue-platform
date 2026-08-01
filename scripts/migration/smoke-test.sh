@@ -23,6 +23,18 @@ curl --fail --silent --show-error \
   --connect-timeout 10 --max-time 30 \
   "$h5_url" >/dev/null
 
+# Socket.IO 握手必须穿过反向代理；仅验证协议入口，不携带用户凭据。
+socket_response="$(curl --fail --silent --show-error \
+  --connect-timeout 10 --max-time 30 \
+  "${api_base}/socket.io/?EIO=4&transport=polling")"
+case "$socket_response" in
+  0*) ;;
+  *)
+    echo "WebSocket/Socket.IO 握手失败：未收到 Engine.IO open packet" >&2
+    exit 1
+    ;;
+esac
+
 curl --fail --silent --show-error \
   --connect-timeout 10 --max-time 30 \
   -H "Origin: ${EXPECTED_ORIGIN}" \
@@ -34,4 +46,4 @@ if ! grep -qi "^access-control-allow-origin: ${EXPECTED_ORIGIN}\r\?$" "$headers_
   exit 1
 fi
 
-echo "冒烟检查通过：API、H5、CORS"
+echo "冒烟检查通过：API、H5、CORS、Socket.IO"

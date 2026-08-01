@@ -8,6 +8,9 @@ CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'DISABLED', 'BANNED');
 CREATE TYPE "MemberLevel" AS ENUM ('NONE', 'MONTHLY', 'QUARTERLY', 'YEARLY', 'LIFETIME');
 
 -- CreateEnum
+CREATE TYPE "IdentityLevel" AS ENUM ('NONE', 'L1', 'L2');
+
+-- CreateEnum
 CREATE TYPE "RoleType" AS ENUM ('SUPER_ADMIN', 'OPERATION_ADMIN', 'CONTENT_AUDITOR', 'FINANCE_ADMIN', 'CUSTOMER_SERVICE', 'GOODS_AUDITOR', 'CIRCLE_OWNER', 'LECTURER', 'STATION_MASTER', 'OPERATOR', 'STATION_OFFLINE_OWNER', 'INSTITUTE_MEMBER', 'INSTITUTE_ADMIN');
 
 -- CreateEnum
@@ -21,6 +24,12 @@ CREATE TYPE "CircleStatus" AS ENUM ('ACTIVE', 'DISABLED', 'PENDING');
 
 -- CreateEnum
 CREATE TYPE "CircleMemberRole" AS ENUM ('OWNER', 'PARTNER', 'ADMIN', 'GUEST', 'VOLUNTEER', 'MEMBER');
+
+-- CreateEnum
+CREATE TYPE "CirclePublishScope" AS ENUM ('SHORT_VIDEO', 'LIVE', 'COURSE');
+
+-- CreateEnum
+CREATE TYPE "CirclePublishGrantStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'FROZEN', 'REVOKED');
 
 -- CreateEnum
 CREATE TYPE "PostType" AS ENUM ('TEXT', 'IMAGE', 'VIDEO', 'FILE', 'LINK', 'AUDIO');
@@ -41,7 +50,7 @@ CREATE TYPE "SupplierType" AS ENUM ('PLATFORM', 'CIRCLE_OWNER', 'STATION_OFFLINE
 CREATE TYPE "InventoryMovementType" AS ENUM ('PURCHASE_IN', 'SALE_OUT', 'ORDER_CANCEL_RETURN', 'REFUND_RETURN', 'ADJUST_IN', 'ADJUST_OUT', 'STOCKTAKE_GAIN', 'STOCKTAKE_LOSS');
 
 -- CreateEnum
-CREATE TYPE "InventoryReferenceType" AS ENUM ('PURCHASE_ORDER', 'ORDER', 'ADJUSTMENT', 'STOCKTAKE', 'RETURN');
+CREATE TYPE "InventoryReferenceType" AS ENUM ('PURCHASE_ORDER', 'PURCHASE_RECEIPT', 'ORDER', 'ADJUSTMENT', 'STOCKTAKE', 'RETURN');
 
 -- CreateEnum
 CREATE TYPE "PurchaseOrderStatus" AS ENUM ('DRAFT', 'ORDERED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CANCELLED');
@@ -164,6 +173,7 @@ CREATE TABLE "User" (
     "interestCategories" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "identityVerified" BOOLEAN NOT NULL DEFAULT false,
     "identityVerifiedAt" TIMESTAMP(3),
+    "identityLevel" "IdentityLevel" NOT NULL DEFAULT 'NONE',
     "attributionSource" TEXT NOT NULL DEFAULT 'PLATFORM',
     "attributionStationId" TEXT,
     "status" "UserStatus" NOT NULL DEFAULT 'ACTIVE',
@@ -194,6 +204,38 @@ CREATE TABLE "Auth" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Auth_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LegacyMigrationBatch" (
+    "id" TEXT NOT NULL,
+    "sourceSystem" TEXT NOT NULL,
+    "batchKey" TEXT NOT NULL,
+    "cutoffAt" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'PREPARED',
+    "sourceManifest" JSONB NOT NULL,
+    "resultReport" JSONB,
+    "startedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LegacyMigrationBatch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LegacyMigrationMap" (
+    "id" TEXT NOT NULL,
+    "batchId" TEXT NOT NULL,
+    "sourceSystem" TEXT NOT NULL,
+    "entityType" TEXT NOT NULL,
+    "legacyId" TEXT NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "sourceChecksum" TEXT,
+    "metadata" JSONB,
+    "migratedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LegacyMigrationMap_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -315,6 +357,31 @@ CREATE TABLE "Circle" (
     "recommendedEbookIds" JSONB,
 
     CONSTRAINT "Circle_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CirclePublishGrant" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "applicantId" TEXT NOT NULL,
+    "reviewerId" TEXT,
+    "scopes" "CirclePublishScope"[],
+    "status" "CirclePublishGrantStatus" NOT NULL DEFAULT 'PENDING',
+    "channel" TEXT NOT NULL DEFAULT 'REGULAR',
+    "externalPlatform" TEXT,
+    "externalProfileUrl" TEXT,
+    "externalFollowerCount" INTEGER,
+    "evidenceUrls" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "eligibilitySnapshot" JSONB NOT NULL,
+    "rejectReason" TEXT,
+    "reviewedAt" TIMESTAMP(3),
+    "approvedAt" TIMESTAMP(3),
+    "frozenAt" TIMESTAMP(3),
+    "revokedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CirclePublishGrant_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -543,6 +610,7 @@ CREATE TABLE "Article" (
     "cover" TEXT,
     "excerpt" TEXT,
     "excerptEn" TEXT,
+    "layout" TEXT NOT NULL DEFAULT 'AUTO',
     "tags" TEXT[],
     "isPushHome" BOOLEAN NOT NULL DEFAULT false,
     "auditStatus" TEXT NOT NULL DEFAULT 'PENDING',
@@ -833,6 +901,7 @@ CREATE TABLE "PurchaseOrder" (
     "id" TEXT NOT NULL,
     "merchantId" TEXT NOT NULL,
     "orderNo" TEXT NOT NULL,
+    "supplierId" TEXT,
     "supplierName" TEXT NOT NULL,
     "contactName" TEXT,
     "contactPhone" TEXT,
@@ -857,11 +926,45 @@ CREATE TABLE "PurchaseOrderItem" (
     "skuLabel" TEXT,
     "quantity" INTEGER NOT NULL,
     "receivedQuantity" INTEGER NOT NULL DEFAULT 0,
+    "rejectedQuantity" INTEGER NOT NULL DEFAULT 0,
     "unitCost" DECIMAL(10,2) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "PurchaseOrderItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PurchaseReceipt" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "purchaseOrderId" TEXT NOT NULL,
+    "receiptNo" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "warehouseName" TEXT,
+    "operatorId" TEXT NOT NULL,
+    "remark" TEXT,
+    "receivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PurchaseReceipt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PurchaseReceiptItem" (
+    "id" TEXT NOT NULL,
+    "receiptId" TEXT NOT NULL,
+    "purchaseOrderItemId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "skuId" TEXT,
+    "productTitle" TEXT NOT NULL,
+    "skuLabel" TEXT,
+    "acceptedQuantity" INTEGER NOT NULL DEFAULT 0,
+    "rejectedQuantity" INTEGER NOT NULL DEFAULT 0,
+    "rejectionReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PurchaseReceiptItem_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1015,6 +1118,7 @@ CREATE TABLE "LiveRoom" (
     "userId" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "titleEn" TEXT,
+    "description" TEXT,
     "cover" TEXT,
     "hostType" "LiveHostType" NOT NULL DEFAULT 'CIRCLE_OWNER',
     "hostUserId" TEXT NOT NULL,
@@ -1044,6 +1148,23 @@ CREATE TABLE "LiveRoom" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "LiveRoom_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveWatchProgress" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "liveRoomId" TEXT NOT NULL,
+    "positionSeconds" INTEGER NOT NULL DEFAULT 0,
+    "durationSeconds" INTEGER NOT NULL DEFAULT 0,
+    "completed" BOOLEAN NOT NULL DEFAULT false,
+    "clientSessionId" TEXT NOT NULL,
+    "clientSequence" INTEGER NOT NULL DEFAULT 0,
+    "lastWatchedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LiveWatchProgress_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -2585,6 +2706,8 @@ CREATE TABLE "ClassicReadingNote" (
     "bookId" TEXT NOT NULL,
     "chapterId" TEXT NOT NULL,
     "content" TEXT NOT NULL,
+    "position" INTEGER,
+    "originalText" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -2949,6 +3072,26 @@ CREATE TABLE "WebhookSubscription" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "WebhookSubscription_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WebhookDelivery" (
+    "id" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "event" "WebhookEvent" NOT NULL,
+    "eventKey" TEXT NOT NULL,
+    "payload" JSONB NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "nextAttemptAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastAttemptAt" TIMESTAMP(3),
+    "lastStatus" INTEGER,
+    "lastError" TEXT,
+    "deliveredAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WebhookDelivery_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -3867,6 +4010,23 @@ CREATE TABLE "Merchant" (
     "idCardBack" TEXT,
     "businessLicense" TEXT,
     "brandAuth" TEXT,
+    "merchantType" TEXT NOT NULL DEFAULT 'ENTERPRISE',
+    "unifiedSocialCreditCode" TEXT,
+    "registeredAddress" TEXT,
+    "legalRepresentative" TEXT,
+    "licenseValidFrom" TIMESTAMP(3),
+    "licenseValidUntil" TIMESTAMP(3),
+    "licenseLongTerm" BOOLEAN NOT NULL DEFAULT false,
+    "qualificationFiles" JSONB,
+    "qualificationStatus" TEXT NOT NULL DEFAULT 'DRAFT',
+    "qualificationSubmittedAt" TIMESTAMP(3),
+    "qualificationReviewedAt" TIMESTAMP(3),
+    "qualificationNextReviewAt" TIMESTAMP(3),
+    "qualificationRejectReason" TEXT,
+    "riskLevel" TEXT NOT NULL DEFAULT 'MEDIUM',
+    "riskFlags" JSONB,
+    "privacyConsentAt" TIMESTAMP(3),
+    "complianceDeclarationAt" TIMESTAMP(3),
     "categoryIds" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "status" "MerchantStatus" NOT NULL DEFAULT 'PENDING_REVIEW',
     "depositAmount" DECIMAL(10,2),
@@ -3891,6 +4051,42 @@ CREATE TABLE "Merchant" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Merchant_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MerchantSupplier" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "contactName" TEXT,
+    "contactPhone" TEXT,
+    "address" TEXT,
+    "settlementTerms" TEXT,
+    "leadTimeDays" INTEGER,
+    "remark" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "purchaseCount" INTEGER NOT NULL DEFAULT 0,
+    "totalPurchaseAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "lastPurchasedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MerchantSupplier_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MerchantQualificationReview" (
+    "id" TEXT NOT NULL,
+    "merchantId" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "riskLevel" TEXT NOT NULL DEFAULT 'MEDIUM',
+    "riskFlags" JSONB,
+    "reason" TEXT,
+    "reviewerId" TEXT,
+    "snapshot" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MerchantQualificationReview_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -5799,6 +5995,24 @@ CREATE UNIQUE INDEX "Auth_openId_key" ON "Auth"("openId");
 CREATE INDEX "Auth_userId_provider_idx" ON "Auth"("userId", "provider");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "LegacyMigrationBatch_batchKey_key" ON "LegacyMigrationBatch"("batchKey");
+
+-- CreateIndex
+CREATE INDEX "LegacyMigrationBatch_sourceSystem_status_idx" ON "LegacyMigrationBatch"("sourceSystem", "status");
+
+-- CreateIndex
+CREATE INDEX "LegacyMigrationBatch_createdAt_idx" ON "LegacyMigrationBatch"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "LegacyMigrationMap_batchId_entityType_idx" ON "LegacyMigrationMap"("batchId", "entityType");
+
+-- CreateIndex
+CREATE INDEX "LegacyMigrationMap_sourceSystem_entityType_targetId_idx" ON "LegacyMigrationMap"("sourceSystem", "entityType", "targetId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LegacyMigrationMap_sourceSystem_entityType_legacyId_key" ON "LegacyMigrationMap"("sourceSystem", "entityType", "legacyId");
+
+-- CreateIndex
 CREATE INDEX "UserRole_roleType_idx" ON "UserRole"("roleType");
 
 -- CreateIndex
@@ -5863,6 +6077,15 @@ CREATE INDEX "Circle_status_memberCount_idx" ON "Circle"("status", "memberCount"
 
 -- CreateIndex
 CREATE INDEX "Circle_stationId_idx" ON "Circle"("stationId");
+
+-- CreateIndex
+CREATE INDEX "CirclePublishGrant_circleId_status_createdAt_idx" ON "CirclePublishGrant"("circleId", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CirclePublishGrant_applicantId_createdAt_idx" ON "CirclePublishGrant"("applicantId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "CirclePublishGrant_status_createdAt_idx" ON "CirclePublishGrant"("status", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "CircleMember_userId_idx" ON "CircleMember"("userId");
@@ -6156,10 +6379,34 @@ CREATE INDEX "PurchaseOrder_merchantId_status_createdAt_idx" ON "PurchaseOrder"(
 CREATE INDEX "PurchaseOrder_merchantId_supplierName_idx" ON "PurchaseOrder"("merchantId", "supplierName");
 
 -- CreateIndex
+CREATE INDEX "PurchaseOrder_supplierId_createdAt_idx" ON "PurchaseOrder"("supplierId", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "PurchaseOrderItem_purchaseOrderId_idx" ON "PurchaseOrderItem"("purchaseOrderId");
 
 -- CreateIndex
 CREATE INDEX "PurchaseOrderItem_productId_skuId_idx" ON "PurchaseOrderItem"("productId", "skuId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PurchaseReceipt_receiptNo_key" ON "PurchaseReceipt"("receiptNo");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceipt_merchantId_receivedAt_idx" ON "PurchaseReceipt"("merchantId", "receivedAt");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceipt_purchaseOrderId_receivedAt_idx" ON "PurchaseReceipt"("purchaseOrderId", "receivedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PurchaseReceipt_merchantId_requestId_key" ON "PurchaseReceipt"("merchantId", "requestId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceiptItem_receiptId_idx" ON "PurchaseReceiptItem"("receiptId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceiptItem_purchaseOrderItemId_idx" ON "PurchaseReceiptItem"("purchaseOrderItemId");
+
+-- CreateIndex
+CREATE INDEX "PurchaseReceiptItem_productId_skuId_idx" ON "PurchaseReceiptItem"("productId", "skuId");
 
 -- CreateIndex
 CREATE INDEX "Order_userId_createdAt_idx" ON "Order"("userId", "createdAt");
@@ -6256,6 +6503,15 @@ CREATE INDEX "LiveRoom_status_startTime_idx" ON "LiveRoom"("status", "startTime"
 
 -- CreateIndex
 CREATE INDEX "LiveRoom_hostUserId_status_idx" ON "LiveRoom"("hostUserId", "status");
+
+-- CreateIndex
+CREATE INDEX "LiveWatchProgress_userId_lastWatchedAt_idx" ON "LiveWatchProgress"("userId", "lastWatchedAt");
+
+-- CreateIndex
+CREATE INDEX "LiveWatchProgress_liveRoomId_lastWatchedAt_idx" ON "LiveWatchProgress"("liveRoomId", "lastWatchedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LiveWatchProgress_userId_liveRoomId_key" ON "LiveWatchProgress"("userId", "liveRoomId");
 
 -- CreateIndex
 CREATE INDEX "LiveQualityPackage_status_quality_idx" ON "LiveQualityPackage"("status", "quality");
@@ -6996,6 +7252,9 @@ CREATE INDEX "ClassicReadingNote_userId_bookId_idx" ON "ClassicReadingNote"("use
 CREATE INDEX "ClassicReadingNote_chapterId_idx" ON "ClassicReadingNote"("chapterId");
 
 -- CreateIndex
+CREATE INDEX "ClassicReadingNote_userId_chapterId_position_idx" ON "ClassicReadingNote"("userId", "chapterId", "position");
+
+-- CreateIndex
 CREATE INDEX "ClassicBookList_status_sortOrder_idx" ON "ClassicBookList"("status", "sortOrder");
 
 -- CreateIndex
@@ -7165,6 +7424,15 @@ CREATE INDEX "WebhookSubscription_event_isActive_idx" ON "WebhookSubscription"("
 
 -- CreateIndex
 CREATE INDEX "WebhookSubscription_url_idx" ON "WebhookSubscription"("url");
+
+-- CreateIndex
+CREATE INDEX "WebhookDelivery_status_nextAttemptAt_idx" ON "WebhookDelivery"("status", "nextAttemptAt");
+
+-- CreateIndex
+CREATE INDEX "WebhookDelivery_subscriptionId_createdAt_idx" ON "WebhookDelivery"("subscriptionId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WebhookDelivery_subscriptionId_eventKey_key" ON "WebhookDelivery"("subscriptionId", "eventKey");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "FeatureFlag_key_key" ON "FeatureFlag"("key");
@@ -7500,7 +7768,28 @@ CREATE INDEX "Merchant_status_idx" ON "Merchant"("status");
 CREATE INDEX "Merchant_status_createdAt_idx" ON "Merchant"("status", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "Merchant_qualificationStatus_qualificationNextReviewAt_idx" ON "Merchant"("qualificationStatus", "qualificationNextReviewAt");
+
+-- CreateIndex
+CREATE INDEX "Merchant_riskLevel_idx" ON "Merchant"("riskLevel");
+
+-- CreateIndex
 CREATE INDEX "Merchant_shopName_idx" ON "Merchant"("shopName");
+
+-- CreateIndex
+CREATE INDEX "MerchantSupplier_merchantId_status_updatedAt_idx" ON "MerchantSupplier"("merchantId", "status", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "MerchantSupplier_merchantId_lastPurchasedAt_idx" ON "MerchantSupplier"("merchantId", "lastPurchasedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MerchantSupplier_merchantId_name_key" ON "MerchantSupplier"("merchantId", "name");
+
+-- CreateIndex
+CREATE INDEX "MerchantQualificationReview_merchantId_createdAt_idx" ON "MerchantQualificationReview"("merchantId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "MerchantQualificationReview_status_createdAt_idx" ON "MerchantQualificationReview"("status", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "MerchantMember_userId_status_idx" ON "MerchantMember"("userId", "status");
@@ -8244,6 +8533,9 @@ ALTER TABLE "User" ADD CONSTRAINT "User_competitionInviteCodeId_fkey" FOREIGN KE
 ALTER TABLE "Auth" ADD CONSTRAINT "Auth_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "LegacyMigrationMap" ADD CONSTRAINT "LegacyMigrationMap_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "LegacyMigrationBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -8278,6 +8570,15 @@ ALTER TABLE "Circle" ADD CONSTRAINT "Circle_ownerId_fkey" FOREIGN KEY ("ownerId"
 
 -- AddForeignKey
 ALTER TABLE "Circle" ADD CONSTRAINT "Circle_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CirclePublishGrant" ADD CONSTRAINT "CirclePublishGrant_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CirclePublishGrant" ADD CONSTRAINT "CirclePublishGrant_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CirclePublishGrant" ADD CONSTRAINT "CirclePublishGrant_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CircleMember" ADD CONSTRAINT "CircleMember_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -8382,7 +8683,19 @@ ALTER TABLE "Product" ADD CONSTRAINT "Product_stationId_fkey" FOREIGN KEY ("stat
 ALTER TABLE "ProductSku" ADD CONSTRAINT "ProductSku_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "PurchaseOrder_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "MerchantSupplier"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "PurchaseOrderItem" ADD CONSTRAINT "PurchaseOrderItem_purchaseOrderId_fkey" FOREIGN KEY ("purchaseOrderId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseReceipt" ADD CONSTRAINT "PurchaseReceipt_purchaseOrderId_fkey" FOREIGN KEY ("purchaseOrderId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseReceiptItem" ADD CONSTRAINT "PurchaseReceiptItem_receiptId_fkey" FOREIGN KEY ("receiptId") REFERENCES "PurchaseReceipt"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PurchaseReceiptItem" ADD CONSTRAINT "PurchaseReceiptItem_purchaseOrderItemId_fkey" FOREIGN KEY ("purchaseOrderItemId") REFERENCES "PurchaseOrderItem"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -8413,6 +8726,12 @@ ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_courseId_fkey" FOREIGN KEY ("cou
 
 -- AddForeignKey
 ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveWatchProgress" ADD CONSTRAINT "LiveWatchProgress_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveWatchProgress" ADD CONSTRAINT "LiveWatchProgress_liveRoomId_fkey" FOREIGN KEY ("liveRoomId") REFERENCES "LiveRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LiveProduct" ADD CONSTRAINT "LiveProduct_liveId_fkey" FOREIGN KEY ("liveId") REFERENCES "LiveRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -8730,6 +9049,9 @@ ALTER TABLE "GiftRecord" ADD CONSTRAINT "GiftRecord_liveRoomId_fkey" FOREIGN KEY
 ALTER TABLE "GiftRecord" ADD CONSTRAINT "GiftRecord_giftId_fkey" FOREIGN KEY ("giftId") REFERENCES "Gift"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "WebhookDelivery" ADD CONSTRAINT "WebhookDelivery_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "WebhookSubscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Ebook" ADD CONSTRAINT "Ebook_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "EbookCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -8809,6 +9131,12 @@ ALTER TABLE "BountyQuestion" ADD CONSTRAINT "BountyQuestion_stationId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "Merchant" ADD CONSTRAINT "Merchant_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MerchantSupplier" ADD CONSTRAINT "MerchantSupplier_merchantId_fkey" FOREIGN KEY ("merchantId") REFERENCES "Merchant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MerchantQualificationReview" ADD CONSTRAINT "MerchantQualificationReview_merchantId_fkey" FOREIGN KEY ("merchantId") REFERENCES "Merchant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MerchantMember" ADD CONSTRAINT "MerchantMember_merchantId_fkey" FOREIGN KEY ("merchantId") REFERENCES "Merchant"("id") ON DELETE CASCADE ON UPDATE CASCADE;

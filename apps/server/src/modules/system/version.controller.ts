@@ -4,9 +4,10 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { CreateAppVersionDto, UpdateAppVersionDto } from "./dto/version.dto";
+import { CheckAppVersionDto, CreateAppVersionDto, UpdateAppVersionDto } from "./dto/version.dto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { isAppUpdateAvailable, isValidDownloadUrl } from "./version.util";
 
 @ApiTags("版本更新")
 @Controller("system/version")
@@ -18,14 +19,20 @@ export class VersionController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "platform", required: true, description: "ios/android" })
   @ApiQuery({ name: "version", required: true, description: "当前版本号 如 1.0.0" })
-  async check(@Query("platform") platform: string, @Query("version") version: string) {
+  @ApiQuery({ name: "buildNumber", required: false, description: "当前构建号" })
+  async check(@Query() query: CheckAppVersionDto) {
     const latest = await this.prisma.appVersion.findFirst({
-      where: { platform },
+      where: { platform: query.platform },
       orderBy: { publishedAt: "desc" },
     });
-    if (!latest) return { hasUpdate: false };
+    if (!latest) return { hasUpdate: false, latest: null };
 
-    const hasUpdate = latest.version !== version;
+    const hasUpdate = isAppUpdateAvailable(
+      latest.version,
+      query.version,
+      latest.buildNumber,
+      query.buildNumber,
+    );
     return {
       hasUpdate,
       latest: hasUpdate ? {
@@ -47,7 +54,21 @@ export class VersionController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  adminCreate(@Body() dto: CreateAppVersionDto) {
+  async adminCreate(@Body() dto: CreateAppVersionDto) {
+    this.assertDownloadUrl(dto.forceUpdate, dto.downloadUrl);
+    const latest = await this.prisma.appVersion.findFirst({
+      where: { platform: dto.platform },
+      orderBy: { publishedAt: "desc" },
+    });
+    if (
+      latest &&
+      !isAppUpdateAvailable(dto.version, latest.version, dto.buildNumber, latest.buildNumber)
+    ) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `新版本必须高于当前已发布版本 ${latest.version}${latest.buildNumber ? ` (${latest.buildNumber})` : ""}`,
+      );
+    }
     return this.prisma.appVersion.create({ data: dto });
   }
 
@@ -64,6 +85,10 @@ export class VersionController {
   async adminUpdate(@Param("id") id: string, @Body() dto: UpdateAppVersionDto) {
     const existing = await this.prisma.appVersion.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "版本记录不存在");
+    this.assertDownloadUrl(
+      dto.forceUpdate ?? existing.forceUpdate,
+      dto.downloadUrl ?? existing.downloadUrl,
+    );
     return this.prisma.appVersion.update({ where: { id }, data: dto });
   }
 
@@ -95,5 +120,14 @@ export class VersionController {
     const where: any = {};
     if (platform) where.platform = platform;
     return this.prisma.appVersion.findMany({ where, orderBy: { publishedAt: "desc" } });
+  }
+
+  private assertDownloadUrl(forceUpdate?: boolean, downloadUrl?: string | null) {
+    if (forceUpdate && !isValidDownloadUrl(downloadUrl)) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "强制更新必须配置有效下载地址（https、应用市场或 App Store）",
+      );
+    }
   }
 }

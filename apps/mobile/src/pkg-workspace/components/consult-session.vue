@@ -7,6 +7,7 @@
  * 并可顺手记一笔收入 —— 这两件事老师做完咨询最容易忘。
  */
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -25,6 +26,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 
 /* 完结弹层：顺手记账 */
 const finishOpen = ref(false)
+useOverlayScrollLock(() => finishOpen.value)
 const fFee = ref('')
 const fPay = ref('现金')
 const PAYS = ['现金', '微信', '支付宝', '转账']
@@ -173,8 +175,8 @@ async function finish() {
     </view>
 
     <!-- 完结 + 记账 -->
-    <view v-if="finishOpen" class="cs-mask" @tap="finishOpen = false">
-      <view class="cs-sheet" @tap.stop>
+    <view v-if="finishOpen" class="cs-mask" @tap="finishOpen = false" @touchmove.self.prevent>
+      <view class="cs-sheet" @tap.stop @touchmove.stop>
         <text class="cs-sheet-title">结束咨询</text>
         <text class="cs-sheet-sub">顺手记一笔，账本才对得上（不收费就留空）</text>
 

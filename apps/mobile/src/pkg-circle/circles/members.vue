@@ -96,7 +96,7 @@ function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) 
   padding-top: var(--status-bar-height, 0px);
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(20rpx);
 }
-.nav-back { width: 60rpx; height: 60rpx; display: flex; align-items: center; justify-content: center; margin-left: -8rpx; }
+.nav-back { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; margin-left: -16rpx; }
 .nav-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 .nav-count { font-size: 26rpx; font-weight: 400; color: var(--text-tertiary, #999); }
 

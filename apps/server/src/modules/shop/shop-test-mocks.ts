@@ -40,7 +40,7 @@ export function makeMockUnionpay() {
 
 export function makeMockCoin() {
   return {
-    handleRechargeCallback: jest.fn().mockResolvedValue(undefined),
+    handleRechargeCallback: jest.fn().mockResolvedValue(true),
     getCoinRate: jest.fn().mockResolvedValue(10),
     getRechargeTiers: jest.fn().mockResolvedValue([]),
     getOrCreateAccount: jest.fn(),

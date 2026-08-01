@@ -6,6 +6,7 @@ SERVER_DIR="${SERVER_DIR_OVERRIDE:-$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)}"
 SCHEMA="$SERVER_DIR/prisma/schema.prisma"
 BASELINE="$SCRIPT_DIR/full-baseline.sql"
 MIGRATIONS_DIR="$SERVER_DIR/prisma/migrations"
+OPERATIONAL_DDL="$MIGRATIONS_DIR/20260730100000_repair_operational_database_objects/migration.sql"
 
 if [ "${CONFIRM_EMPTY_DATABASE:-}" != "YES" ]; then
   echo "[db-bootstrap] 拒绝执行：必须显式设置 CONFIRM_EMPTY_DATABASE=YES"
@@ -17,10 +18,15 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 64
 fi
 
-if [ ! -f "$SCHEMA" ] || [ ! -f "$BASELINE" ]; then
-  echo "[db-bootstrap] 缺少 schema.prisma 或 full-baseline.sql"
+if [ ! -f "$SCHEMA" ] || [ ! -f "$BASELINE" ] || [ ! -f "$OPERATIONAL_DDL" ]; then
+  echo "[db-bootstrap] 缺少 schema.prisma、full-baseline.sql 或 operational DDL"
   exit 66
 fi
+
+command -v psql >/dev/null 2>&1 || {
+  echo "[db-bootstrap] 缺少 psql，无法保证全量基线在单一事务中执行"
+  exit 69
+}
 
 cd "$SERVER_DIR"
 
@@ -53,8 +59,13 @@ main()
   .finally(() => prisma.$disconnect());
 NODE
 
-echo "[db-bootstrap] 应用当前全量基线..."
-npx prisma db execute --file "$BASELINE" --schema "$SCHEMA"
+echo "[db-bootstrap] 在单一事务中应用全量基线与 Prisma 外部运维对象..."
+psql "$DATABASE_URL" \
+  -X \
+  -v ON_ERROR_STOP=1 \
+  --single-transaction \
+  --file="$BASELINE" \
+  --file="$OPERATIONAL_DDL"
 
 echo "[db-bootstrap] 在单个事务中登记全量基线覆盖的历史迁移..."
 MIGRATIONS_DIR="$MIGRATIONS_DIR" node <<'NODE'

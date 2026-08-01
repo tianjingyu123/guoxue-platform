@@ -136,6 +136,8 @@ const hasImg = computed(() => typeof props.src === 'string' && props.src.trim() 
 const imgError = ref(false)
 // 视频首帧也可能因源失效/CORS/格式不支持而失败；失败后继续落到生成封面，兜底链不中断
 const videoError = ref(false)
+// 视频数据尚未解码时不能直接暴露原生 video 的黑底；首帧真正可绘制前继续展示生成封面。
+const videoFrameReady = ref(false)
 // 图片加载完成渐显（消除硬闪）：初始 false → @load 置 true 触发 content-fade-in
 const imgLoaded = ref(false)
 watch(
@@ -144,6 +146,7 @@ watch(
     imgError.value = false
     imgLoaded.value = false
     videoError.value = false
+    videoFrameReady.value = false
   },
 )
 // H5 真懒加载：uni <image lazy-load> 只在小程序生效，H5/App 是 no-op → 深滚全站封面 eager 撑爆内存。
@@ -202,6 +205,11 @@ const displayVideoSrc = computed(() => (hasVideoFrame.value && inView.value ? vi
 function onVideoError() {
   if (!displayVideoSrc.value) return
   videoError.value = true
+  videoFrameReady.value = false
+}
+function onVideoFrameReady() {
+  if (!displayVideoSrc.value) return
+  videoFrameReady.value = true
 }
 /** 大字水印模式：deco 或无标题（小缩略图/卡下已有标题） */
 const decoMode = computed(() => props.deco || !props.title)
@@ -215,21 +223,31 @@ const decoChars = computed(() => {
 <template>
   <image v-if="hasImg && !imgError" class="sc-full" :class="{ 'content-fade-in': imgLoaded }" :style="imgLoaded ? '' : 'opacity:0'" :src="displaySrc" mode="aspectFill" lazy-load @load="imgLoaded = true" @error="onImgError" />
   <!-- 首帧兜底：无封面图或封面加载失败时取视频第一帧（静音·不自动播·不显控件） -->
-  <video
-    v-else-if="hasVideoFrame"
-    class="sc-full"
-    :src="displayVideoSrc"
-    preload="metadata"
-    :controls="false"
-    :show-center-play-btn="false"
-    :show-play-btn="false"
-    :show-fullscreen-btn="false"
-    :enable-progress-gesture="false"
-    :muted="true"
-    :initial-time="0"
-    object-fit="cover"
-    @error="onVideoError"
-  />
+  <view v-else-if="hasVideoFrame" class="sc-full sc-video-frame">
+    <!-- 首帧解码前先给用户完整的国学封面，不暴露原生 video 黑屏；解码成功后渐显真实第一帧。 -->
+    <view class="sc-full sc-gen sc-video-fallback" :style="{ background: grad }">
+      <view class="sc-pattern" />
+      <view class="sc-frame" />
+      <text v-if="!plain" class="sc-deco serif" :style="{ fontSize: decoSize + 'rpx' }">{{ decoChars }}</text>
+    </view>
+    <video
+      class="sc-full sc-video-el"
+      :class="{ 'sc-video-el--ready': videoFrameReady }"
+      :src="displayVideoSrc"
+      preload="auto"
+      :controls="false"
+      :show-center-play-btn="false"
+      :show-play-btn="false"
+      :show-fullscreen-btn="false"
+      :enable-progress-gesture="false"
+      :muted="true"
+      :initial-time="0"
+      object-fit="cover"
+      @loadeddata="onVideoFrameReady"
+      @canplay="onVideoFrameReady"
+      @error="onVideoError"
+    />
+  </view>
   <view v-else class="sc-full sc-gen" :style="{ background: grad }">
     <!-- 国学底纹：柔和光晕 + 内描边 -->
     <view class="sc-pattern" />
@@ -248,6 +266,16 @@ const decoChars = computed(() => {
 
 <style scoped>
 .sc-full { width: 100%; height: 100%; display: block; }
+.sc-video-frame { position: relative; overflow: hidden; }
+.sc-video-fallback { position: absolute; inset: 0; }
+.sc-video-el {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.24s ease;
+}
+.sc-video-el--ready { opacity: 1; }
 .sc-gen {
   position: relative;
   display: flex; flex-direction: column;
@@ -293,5 +321,8 @@ const decoChars = computed(() => {
   border: 2rpx solid rgba(255,255,255,0.55); border-radius: 6rpx;
   font-size: 20rpx; line-height: 1.1; color: rgba(255,255,255,0.9);
   text-align: center; letter-spacing: 1rpx;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sc-video-el { transition: none; }
 }
 </style>

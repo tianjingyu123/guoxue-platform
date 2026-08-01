@@ -9,8 +9,11 @@ const acceptedAdvisories = new Map([
     {
       moduleName: "vite",
       titleIncludes: "server.fs.deny",
-      pathPrefix:
+      allowedPaths: [
+        "apps__mobile>vite",
         "apps__mobile>@dcloudio/uni-app-plus>@dcloudio/uni-app-vite>@vitejs/plugin-vue>vite",
+        "apps__mobile>@dcloudio/uni-app-harmony>@dcloudio/uni-app-vite>@vitejs/plugin-vue>vite",
+      ],
       reason:
         "当前 DCloud 构建链固定使用 Vite 5，此漏洞仅影响 Vite 开发服务器的文件访问控制；生产环境只允许部署构建产物，严禁将 Vite dev/preview 暴露到公网。待 DCloud 支持 Vite >= 6.4.3 后立即移除例外。",
     },
@@ -56,7 +59,10 @@ function isAccepted(advisory) {
   if (!String(advisory.title || "").includes(rule.titleIncludes)) return false;
 
   const paths = (advisory.findings || []).flatMap((finding) => finding.paths || []);
-  return paths.length > 0 && paths.every((item) => item === rule.pathPrefix);
+  return (
+    paths.length > 0 &&
+    paths.every((item) => rule.allowedPaths.includes(item))
+  );
 }
 
 const audit = runAudit();

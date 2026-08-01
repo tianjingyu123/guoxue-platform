@@ -13,8 +13,8 @@
           <AppIcon name="arrow-left" :size="20" color="#ffffff" />
         </view>
         <text class="nav-title">{{ pageTitle }}</text>
-        <view v-if="startDate || endDate" class="nav-action" @tap.stop="clearDateFilter">
-          <text>全部订单</text>
+        <view v-if="customerId || startDate || endDate" class="nav-action" @tap.stop="clearScopeFilter">
+          <text>{{ customerId ? '全部客户' : '全部订单' }}</text>
         </view>
         <view v-else-if="activeTab === 'PAID'" class="nav-action" @tap.stop="go('/merchant/batch-ship')">
           <AppIcon name="layers" :size="15" color="#ffffff" />
@@ -156,11 +156,14 @@ const activeTab = ref<TabKey>('all')
 const startDate = ref('')
 const endDate = ref('')
 const dateScope = ref('')
+const customerId = ref('')
+const customerName = ref('')
 
 const pageTitle = computed(() => {
   if (dateScope.value === 'today') return '今日订单'
   if (dateScope.value === '7d') return '近 7 日订单'
   if (dateScope.value === 'day' && startDate.value) return `${startDate.value.slice(5, 10).replace('-', '月')}日订单`
+  if (customerId.value) return `${customerName.value || '该客户'}的订单`
   return '订单管理'
 })
 
@@ -169,6 +172,8 @@ onLoad((opts) => {
   startDate.value = typeof opts?.startDate === 'string' ? opts.startDate : ''
   endDate.value = typeof opts?.endDate === 'string' ? opts.endDate : ''
   dateScope.value = typeof opts?.scope === 'string' ? opts.scope : ''
+  customerId.value = typeof opts?.customerId === 'string' ? opts.customerId : ''
+  customerName.value = typeof opts?.customerName === 'string' ? decodeURIComponent(opts.customerName) : ''
   load()
 })
 
@@ -178,6 +183,7 @@ async function load() {
   try {
     const res = await merchantBackendApi.getOrders({
       status: activeTab.value === 'all' ? undefined : activeTab.value,
+      customerId: customerId.value || undefined,
       startDate: startDate.value || undefined,
       endDate: endDate.value || undefined,
       page: 1,
@@ -202,6 +208,14 @@ function clearDateFilter() {
   endDate.value = ''
   dateScope.value = ''
   load()
+}
+
+function clearScopeFilter() {
+  if (customerId.value) {
+    customerId.value = ''
+    customerName.value = ''
+  }
+  clearDateFilter()
 }
 
 const filteredOrders = computed(() => orders.value)

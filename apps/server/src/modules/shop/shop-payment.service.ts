@@ -550,9 +550,12 @@ export class ShopPaymentService {
       }
 
       // 虚拟币充值回调 → 转发给 CoinService（其内部幂等）
-      if (attach.type === "COIN_RECHARGE" && this.coinSvc) {
-        await this.coinSvc.handleRechargeCallback(body);
-        return true;
+      if (attach.type === "COIN_RECHARGE") {
+        if (!this.coinSvc) {
+          this.logger.error(`国学币充值处理器未就绪，拒绝确认微信回调: ${outTradeNo}`);
+          return false;
+        }
+        return this.coinSvc.handleRechargeCallback(body);
       }
 
       // 商城订单回调 — 避免双重查询
@@ -590,7 +593,11 @@ export class ShopPaymentService {
       if (order.status !== "PENDING") {
         // processPaidOrder 会把 payTransactionId 原子替换为微信 transaction_id。
         // 只有同一渠道流水的重投才是幂等；不同流水意味着同一本地订单被重复扣款，必须让渠道重试并进入对账。
-        if (order.payMethod === "WECHAT" && order.payTransactionId === transactionId) return true;
+        if (order.payMethod === "WECHAT" && order.payTransactionId === transactionId) {
+          // 订单已入账但首次外发箱落库失败时，渠道重投必须补建事件；唯一键会拦截正常重复通知。
+          await this.emitOrderPaidEvent(order, outTradeNo, "WECHAT", transactionId);
+          return true;
+        }
         this.logger.error(
           "【资金对账·疑似重复扣款】终态订单收到另一笔微信成功流水: order=" + orderId +
             ", status=" + order.status + ", stored=" + (order.payTransactionId || "") +
@@ -636,6 +643,7 @@ export class ShopPaymentService {
         await this.redis.del(orderLockKey);
       }
       await this.attribution.recordOrderCommissionAndFee({ ...order, id: orderId });
+      await this.emitOrderPaidEvent(order, outTradeNo, "WECHAT", transactionId);
 
       this.logger.log(`订单 ${orderId} 支付成功, 微信交易号: ${transactionId}`);
       return true;
@@ -714,7 +722,10 @@ export class ShopPaymentService {
       }
       if (order.status !== "PENDING") {
         // 只有同一渠道、同一渠道流水的终态重投才可幂等确认；已取消订单或第二笔扣款必须进入对账。
-        if (order.payMethod === payMethod && order.payTransactionId === tradeNo) return true;
+        if (order.payMethod === payMethod && order.payTransactionId === tradeNo) {
+          await this.emitOrderPaidEvent(order, outTradeNo, payMethod, tradeNo);
+          return true;
+        }
         const riskLabel = order.status === "CANCELLED" ? "已取消订单收到成功扣款" : "终态订单收到另一笔成功流水";
         this.logger.error(
           "【资金对账·" + riskLabel + "】order=" + order.id +
@@ -756,20 +767,38 @@ export class ShopPaymentService {
       }
 
       await this.attribution.recordOrderCommissionAndFee(order);
-      this.webhook.fire("ORDER_PAID", {
-        orderId: order.id,
-        outTradeNo,
-        payMethod,
-        tradeNo,
-        amount: Number(order.amount),
-        userId: order.userId,
-      }).catch((err) => this.logger.warn("Webhook ORDER_PAID 发送失败", err));
+      await this.emitOrderPaidEvent(order, outTradeNo, payMethod, tradeNo);
 
       this.logger.log(`订单 ${order.id} 支付成功, ${payMethod}交易号: ${tradeNo}`);
       return true;
     } finally {
       await this.redis.del(payLockKey);
     }
+  }
+
+  /**
+   * 统一发送支付成功事件。
+   * 网关回调与管理员线下确认收款都必须走这里，避免微信/人工确认路径漏掉下游发货、CRM 与数据通知。
+   * 事件投递失败不回滚已完成的资金事务；WebhookService 负责单订阅重试。
+   */
+  emitOrderPaidEvent(
+    order: Pick<Order, "id" | "amount" | "userId">,
+    outTradeNo: string,
+    payMethod: string,
+    tradeNo: string,
+  ): Promise<void> {
+    return this.webhook.fire("ORDER_PAID", {
+      orderId: order.id,
+      outTradeNo,
+      payMethod,
+      tradeNo,
+      amount: Number(order.amount),
+      userId: order.userId,
+    }).catch((err) => {
+      // 外发箱都未能落库时必须让支付渠道重投，不能吞掉这类本地持久化故障。
+      this.logger.error("Webhook ORDER_PAID 外发箱写入失败", err);
+      throw err;
+    });
   }
 
   /** 获取订单互斥锁，失败时重试一次，返回 lockKey 或 null */

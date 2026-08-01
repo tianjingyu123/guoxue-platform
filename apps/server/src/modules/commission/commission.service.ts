@@ -911,7 +911,7 @@ export class CommissionService {
         },
       });
 
-      this.webhook
+      await this.webhook
         .fire("WITHDRAWAL_REQUESTED", {
         withdrawalId: withdrawal.id,
         userId,
@@ -1078,7 +1078,7 @@ export class CommissionService {
       );
     }
 
-    this.webhook
+    await this.webhook
       .fire("WITHDRAWAL_PAID", {
         withdrawalId: id,
         userId: w.userId,

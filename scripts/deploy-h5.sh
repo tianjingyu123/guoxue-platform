@@ -10,7 +10,7 @@ cat >&2 <<EOF
 
 请使用统一发布入口，它会同时验证服务端、管理端与 H5：
   cd "${PROJECT_DIR}/docker"
-  ./deploy.sh
+  DEPLOY_TARGET=standard ENV_FILE=/opt/guoxue/shared/.env.production bash ./deploy.sh
 EOF
 
 exit 78

@@ -282,7 +282,7 @@ const descLines = computed(() => {
 .page {
   min-height: 100vh;
   background: #FAF8F5;
-  padding-bottom: 192rpx;
+  padding-bottom: calc(192rpx + env(safe-area-inset-bottom));
 }
 
 /* 加载骨架 */
@@ -593,7 +593,7 @@ const descLines = computed(() => {
   right: 0;
   background: #fff;
   border-top: 1rpx solid #E8E3DB;
-  padding: 32rpx;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   gap: 24rpx;

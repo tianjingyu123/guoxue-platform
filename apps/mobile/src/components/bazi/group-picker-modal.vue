@@ -2,9 +2,19 @@
 /** 分组选择器弹窗——从原型 group-picker-modal.tsx 迁移 */
 import { ref, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const props = withDefaults(defineProps<{ open: boolean; initialGroup?: string }>(), { initialGroup: '全部' })
 const emit = defineEmits<{ (e: 'close'): void; (e: 'confirm', v: string): void }>()
+
+useOverlayScrollLock(
+  () => props.open,
+  {
+    onEscape: () => emit('close'),
+    focusContainerSelector: '.gp-panel',
+    initialFocusSelector: '.gp-confirm',
+  },
+)
 
 const groups = ref([
   { name: '全部', count: 11 },
@@ -27,23 +37,44 @@ function addGroup() {
   newName.value = ''
   showAddInput.value = false
 }
+
+function cancelAddGroup() {
+  showAddInput.value = false
+  newName.value = ''
+}
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
 </script>
 
 <template>
   <view v-if="open" class="gp-root">
-    <view class="gp-mask" @tap="emit('close')" @touchmove.prevent />
-    <view class="gp-panel" @touchmove.stop>
+    <view class="gp-mask" @tap="emit('close')" @touchmove.self.prevent />
+    <view
+      class="gp-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="选择客户分组"
+      tabindex="-1"
+      @touchmove.stop
+    >
       <view class="gp-handle-wrap"><view class="gp-handle" /></view>
       <view class="gp-head">
-        <view class="gp-x" @tap="emit('close')"><app-icon name="x" :size="36" color="#6b7280" /></view>
+        <view class="gp-x" role="button" aria-label="关闭分组选择" tabindex="0"
+          @tap="emit('close')" @keydown="activateOnKeyboard($event, () => emit('close'))"><app-icon name="x" :size="36" color="#6b7280" /></view>
         <text class="gp-title">选择分组</text>
-        <view class="gp-confirm" @tap="confirm"><text class="gp-confirm-text">确定</text></view>
+        <view class="gp-confirm" role="button" tabindex="0" @tap="confirm" @keydown="activateOnKeyboard($event, confirm)"><text class="gp-confirm-text">确定</text></view>
       </view>
       <scroll-view scroll-y class="gp-list">
         <view
           v-for="g in groups" :key="g.name"
           class="gp-item" :class="{ 'gp-item-on': selected === g.name }"
+          role="radio" :aria-checked="selected === g.name" tabindex="0"
           @tap="selected = g.name"
+          @keydown="activateOnKeyboard($event, () => selected = g.name)"
         >
           <view class="gp-item-l">
             <text class="gp-name" :class="{ 'gp-name-on': selected === g.name }">{{ g.name }}</text>
@@ -54,10 +85,14 @@ function addGroup() {
 
         <view v-if="showAddInput" class="gp-add-input">
           <input v-model="newName" class="gp-input" placeholder="输入分组名称" confirm-type="done" @confirm="addGroup" />
-          <view class="gp-add-btn" :class="{ 'gp-add-btn-off': !newName.trim() }" @tap="addGroup"><text class="gp-add-btn-text">添加</text></view>
-          <view class="gp-cancel" @tap="showAddInput = false; newName = ''"><text class="gp-cancel-text">取消</text></view>
+          <view class="gp-add-btn" :class="{ 'gp-add-btn-off': !newName.trim() }"
+            role="button" :aria-disabled="!newName.trim()" tabindex="0"
+            @tap="addGroup" @keydown="activateOnKeyboard($event, addGroup)"><text class="gp-add-btn-text">添加</text></view>
+          <view class="gp-cancel" role="button" tabindex="0"
+            @tap="cancelAddGroup" @keydown="activateOnKeyboard($event, cancelAddGroup)"><text class="gp-cancel-text">取消</text></view>
         </view>
-        <view v-else class="gp-add" @tap="showAddInput = true">
+        <view v-else class="gp-add" role="button" tabindex="0"
+          @tap="showAddInput = true" @keydown="activateOnKeyboard($event, () => showAddInput = true)">
           <app-icon name="plus" :size="28" color="#c41e3a" />
           <text class="gp-add-text">添加新分组</text>
         </view>

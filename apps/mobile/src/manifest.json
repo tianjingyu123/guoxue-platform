@@ -1,9 +1,9 @@
 {
   "name": "热卜国学",
-  "appid": "",
+  "appid": "__UNI__277B108",
   "description": "国学知识平台 · 探寻东方智慧",
-  "versionName": "0.1.0",
-  "versionCode": "100",
+  "versionName": "1.1.0",
+  "versionCode": "200",
   "transformPx": false,
   "app-plus": {
     "usingComponents": true,
@@ -12,6 +12,7 @@
     "modules": {},
     "distribute": {
       "android": {
+        "packagename": "com.rebu.apprebu",
         "permissions": [
           "<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/>",
           "<uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>",
@@ -20,6 +21,7 @@
         ]
       },
       "ios": {
+        "appid": "com.rebu.iosapprebu",
         "privacyDescription": {
           "NSMicrophoneUsageDescription": "用于与国学智能体进行实时语音通话，仅在通话期间采集声音。"
         }
@@ -28,9 +30,14 @@
     }
   },
   "quickapp": {},
+  "app-harmony": {
+    "distribute": {
+      "bundleName": "com.rebu.apprebu"
+    }
+  },
   "mp-weixin": {
-    "appid": "wx06397e8ab26bed9e",
-    "setting": { "urlCheck": false, "es6": true, "minified": true },
+    "appid": "wx07a95ead2bb66d04",
+    "setting": { "urlCheck": true, "es6": true, "minified": true },
     "permission": {
       "scope.record": {
         "desc": "用于与国学智能体进行实时语音通话"

@@ -334,13 +334,13 @@ onLoad((options) => {
 
 /* ── 自定义导航栏 ── */
 .nav { display: flex; align-items: center; gap: 20rpx; padding: 20rpx 32rpx 16rpx; background: #FAF8F5; }
-.nav-back { width: 68rpx; height: 68rpx; flex-shrink: 0; border-radius: 999rpx; background: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.nav-back { width: 88rpx; height: 88rpx; flex-shrink: 0; border-radius: 999rpx; background: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
 .nav-titles { flex: 1; min-width: 0; }
 .nav-title { display: block; font-size: 38rpx; font-weight: 700; color: #2C2C2C; letter-spacing: 2rpx; }
 .nav-sub { display: block; font-size: 24rpx; color: #999; margin-top: 4rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 /* ── 内容区 ── */
-.body-pad { padding: 12rpx 40rpx 180rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.body-pad { padding: 12rpx 40rpx calc(180rpx + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 24rpx; }
 .card { background: #FFFFFF; border-radius: 36rpx; padding: 32rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
 
 /* ── 讲师视角提示条 ── */
@@ -397,7 +397,7 @@ onLoad((options) => {
 .reply-send-txt { font-size: 26rpx; font-weight: 600; color: #FFFFFF; }
 
 /* ── 吸底写评价按钮 ── */
-.bottom-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; padding: 20rpx 40rpx; z-index: 50; }
+.bottom-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; padding: 20rpx 40rpx calc(20rpx + env(safe-area-inset-bottom)); z-index: 50; }
 .btn-write { height: 92rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
 .btn-write-txt { font-size: 30rpx; font-weight: 600; color: #FFFFFF; }
 

@@ -135,14 +135,16 @@ const checks = [
     file: "apps/server/src/modules/tts/tts.controller.ts",
   },
   {
-    name: "发布脚本覆盖 H5、微信小程序和 App 三端构建",
+    name: "发布脚本覆盖 H5、微信小程序、App 和 Harmony 四端构建",
     pass:
       Boolean(scripts["build:mobile:h5"]) &&
       Boolean(scripts["build:mobile:mp-weixin"]) &&
       Boolean(scripts["build:mobile:app"]) &&
+      Boolean(scripts["build:mobile:app-harmony"]) &&
       has(scripts["build:mobile:all"] || "", "build:mobile:h5") &&
       has(scripts["build:mobile:all"] || "", "build:mobile:mp-weixin") &&
-      has(scripts["build:mobile:all"] || "", "build:mobile:app"),
+      has(scripts["build:mobile:all"] || "", "build:mobile:app") &&
+      has(scripts["build:mobile:all"] || "", "build:mobile:app-harmony"),
     file: "package.json",
   },
 ];
@@ -160,7 +162,9 @@ if (Object.keys(manifest["app-plus"]?.distribute?.sdkConfigs || {}).length === 0
 const bridgeRegistrationPattern =
   /(?:__GUOXUE_VOICE_AGENT_RUNTIME__\s*=|defineProperty\([^)]*__GUOXUE_VOICE_AGENT_RUNTIME__)/;
 if (!bridgeRegistrationPattern.test(collectSource("apps/mobile/src"))) {
-  warnings.push("仓库内未发现语音运行时 bridge 注册；当前样板会诚实阻断，待供应商 SDK 开通后接入。");
+  warnings.push(
+    "仓库内未发现语音运行时 bridge 注册；当前样板会诚实阻断，待供应商 SDK 开通后接入。",
+  );
 }
 
 const failed = checks.filter((item) => !item.pass);

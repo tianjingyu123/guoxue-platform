@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 营销活动区(限时秒杀 + 超值拼团) - 从原型 components/mall/marketing-zone.tsx 1:1 迁移 */
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
@@ -20,6 +20,8 @@ const m = ref('00')
 const s = ref('00')
 let endTime = 0 // 真实场次结束时间戳(ms)，0=未加载/无场次
 let timer: ReturnType<typeof setInterval> | null = null
+const seckillLabel = computed(() => `进入限时秒杀会场，距结束 ${h.value} 小时 ${m.value} 分 ${s.value} 秒`)
+const groupLabel = computed(() => `进入超值拼团会场，共 ${groupItems.value.length} 个活动`)
 
 function tick() {
   const remain = endTime ? Math.max(0, Math.floor((endTime - Date.now()) / 1000)) : 0
@@ -53,12 +55,27 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 function off(price: number, original: number) {
   return Math.round((1 - price / original) * 100)
 }
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 </script>
 
 <template>
   <view class="mz">
     <!-- 限时秒杀（无在售秒杀品则整卡隐藏，不留空白条） -->
-    <view v-if="seckillItems.length" class="mz-card" hover-class="mz-press" @tap="navigateTo('/shop/flash-sale')">
+    <view
+      v-if="seckillItems.length"
+      class="mz-card"
+      role="link"
+      :aria-label="seckillLabel"
+      tabindex="0"
+      hover-class="mz-press"
+      @tap="navigateTo('/shop/flash-sale')"
+      @keydown="activateOnKeyboard($event, () => navigateTo('/shop/flash-sale'))"
+    >
       <view class="mz-head mz-head-red">
         <view class="mz-head-l">
           <AppIcon name="zap" :size="28" color="#ffffff" :fill="true" />
@@ -92,7 +109,16 @@ function off(price: number, original: number) {
     </view>
 
     <!-- 超值拼团（无进行中团则整卡隐藏） -->
-    <view v-if="groupItems.length" class="mz-card" hover-class="mz-press" @tap="navigateTo('/shop/group-buy')">
+    <view
+      v-if="groupItems.length"
+      class="mz-card"
+      role="link"
+      :aria-label="groupLabel"
+      tabindex="0"
+      hover-class="mz-press"
+      @tap="navigateTo('/shop/group-buy')"
+      @keydown="activateOnKeyboard($event, () => navigateTo('/shop/group-buy'))"
+    >
       <view class="mz-head mz-head-amber">
         <view class="mz-head-l">
           <AppIcon name="users" :size="28" color="#ffffff" />

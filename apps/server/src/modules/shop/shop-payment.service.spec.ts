@@ -258,6 +258,12 @@ describe("ShopPaymentService", () => {
         data: expect.objectContaining({ status: "PAID", payMethod: "WECHAT", payTransactionId: "WX-CHANNEL-OK" }),
       })
       expect(attribution).toHaveBeenCalledWith(expect.objectContaining({ id: "o-wx-ok" }))
+      expect(mockWebhook.fire).toHaveBeenCalledWith("ORDER_PAID", expect.objectContaining({
+        orderId: "o-wx-ok",
+        outTradeNo: "WX-MERCHANT-OK",
+        payMethod: "WECHAT",
+        tradeNo: "WX-CHANNEL-OK",
+      }))
     })
 
     it("微信成功回调的商户单号不属于当前支付意图时拒绝入账", async () => {
@@ -302,6 +308,12 @@ describe("ShopPaymentService", () => {
       expect(replay).toBe(true)
       expect(duplicate).toBe(false)
       expect(mockPrisma.order.updateMany).not.toHaveBeenCalled()
+      expect(mockWebhook.fire).toHaveBeenCalledTimes(1)
+      expect(mockWebhook.fire).toHaveBeenCalledWith("ORDER_PAID", expect.objectContaining({
+        orderId: "o-wx-paid",
+        payMethod: "WECHAT",
+        tradeNo: "WX-CHANNEL-ORIGINAL",
+      }))
     })
 
     it("微信充值非成功态不得触发到账", async () => {
@@ -313,6 +325,23 @@ describe("ShopPaymentService", () => {
       });
       expect(handled).toBe(true);
       expect(mockCoin.handleRechargeCallback).not.toHaveBeenCalled();
+    });
+
+    it("国学币充值尚未完成本地入账时必须让微信重投", async () => {
+      mockCoin.handleRechargeCallback.mockResolvedValueOnce(false);
+
+      const handled = await svc.handlePaymentNotify({
+        out_trade_no: "RC12345676",
+        transaction_id: "WX-CHANNEL-RC-PENDING",
+        trade_state: "SUCCESS",
+        attach: JSON.stringify({
+          type: "COIN_RECHARGE", userId: "u1", amountCoin: 1000, amountFen: 10000,
+        }),
+        amount: { total: 10000 },
+      });
+
+      expect(handled).toBe(false);
+      expect(mockCoin.handleRechargeCallback).toHaveBeenCalledTimes(1);
     });
   });
 

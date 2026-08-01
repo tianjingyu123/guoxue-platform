@@ -229,8 +229,8 @@ function onItemTap(item: TagContentItem) { navigateTo(`/content/${item.id}`) }
   height: 112rpx;
 }
 .nav-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;

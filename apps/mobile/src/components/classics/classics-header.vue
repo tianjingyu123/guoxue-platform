@@ -79,8 +79,8 @@ function goSearch() {
   height: 96rpx;
 }
 .ch-btn {
-  width: 72rpx;
-  height: 72rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -99,7 +99,7 @@ function goSearch() {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-width: 72rpx;
+  min-width: 88rpx;
 }
 .ch-title {
   font-size: 34rpx;

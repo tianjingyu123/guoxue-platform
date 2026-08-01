@@ -38,6 +38,17 @@ export class SystemController {
   @ApiOperation({ summary: "第三方密钥配置 schema（驱动后台动态渲染，不含值）" })
   @ApiBearerAuth()
   getThirdPartySchema() {
+    const publicApiUrl = serverConfig.publicApiUrl.replace(/\/+$/, "");
+    const callbackRecommendations: Record<string, Record<string, string>> = {
+      wechat_pay: {
+        notifyUrl: `${publicApiUrl}/api/v1/shop/pay/notify`,
+        refundNotifyUrl: `${publicApiUrl}/api/v1/shop/refund/notify`,
+      },
+      alipay: { notifyUrl: `${publicApiUrl}/api/v1/shop/alipay/notify` },
+      huifu: { notifyUrl: `${publicApiUrl}/api/v1/huifu/notify` },
+      unionpay: { notifyUrl: `${publicApiUrl}/api/v1/shop/unionpay/notify` },
+      kuaidi100: { callbackUrl: `${publicApiUrl}/api/v1/shop/logistics/kuaidi100/callback` },
+    };
     return {
       services: THIRD_PARTY_SERVICES.map((s) => ({
         key: s.key,
@@ -52,6 +63,7 @@ export class SystemController {
           placeholder: f.placeholder ?? "",
           hint: f.hint ?? "",
           multiline: !!f.multiline,
+          recommendedValue: callbackRecommendations[s.key]?.[f.key] ?? "",
         })),
       })),
     };

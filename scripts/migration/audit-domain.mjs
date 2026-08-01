@@ -12,6 +12,7 @@ const valueOf = (name, fallback = "") => {
 
 const target = valueOf("--domain", "api.rebugx.cn").toLowerCase();
 const strict = args.includes("--strict");
+const verbose = args.includes("--verbose") || strict;
 const root = process.cwd();
 const scanRoots = ["apps", "docker", "scripts", ".env.example"];
 const ignoredParts = new Set([
@@ -62,6 +63,10 @@ const demoDataPatterns = [
 
 const normalize = (file) => path.relative(root, file).replaceAll("\\", "/");
 const isIgnored = (file) => normalize(file).split("/").some((part) => ignoredParts.has(part));
+const targetPattern = new RegExp(
+  `(^|[^a-z0-9.-])${target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[^a-z0-9.-])`,
+  "i",
+);
 
 async function collect(entry, files) {
   const absolute = path.resolve(root, entry);
@@ -115,7 +120,7 @@ for (const file of files) {
   const relative = normalize(file);
   const content = await readFile(file, "utf8");
   content.split(/\r?\n/).forEach((line, index) => {
-    if (line.toLowerCase().includes(target)) {
+    if (targetPattern.test(line)) {
       hits.push({
         relative,
         line: index + 1,
@@ -131,11 +136,11 @@ if (hits.length === 0) {
   process.exit(0);
 }
 
-for (const hit of hits) {
+const runtime = hits.filter((hit) => hit.kind === "运行时");
+for (const hit of verbose ? hits : runtime) {
   console.log(`[${hit.kind}] ${hit.relative}:${hit.line} ${hit.preview}`);
 }
 
-const runtime = hits.filter((hit) => hit.kind === "运行时");
 const count = (kind) => hits.filter((hit) => hit.kind === kind).length;
 console.log(
   `审计汇总：运行时 ${runtime.length}，兼容兜底 ${count("兼容兜底")}，` +

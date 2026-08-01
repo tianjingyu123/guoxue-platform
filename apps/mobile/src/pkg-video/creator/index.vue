@@ -168,7 +168,7 @@
             >
               <text class="cc-rank-no num" :class="{ 'cc-rank-no-plain': idx > 1 }">{{ idx + 1 }}</text>
               <view class="cc-rank-cover">
-                <smart-cover class="cc-rank-img" :src="v.cover" :title="v.title" type="video" />
+                <smart-cover class="cc-rank-img" :src="v.cover" :video-url="v.videoUrl" :title="v.title" type="video" />
               </view>
               <view class="cc-rank-body">
                 <text class="cc-rank-title">{{ v.title }}</text>
@@ -218,7 +218,7 @@
             class="cc-work"
           >
             <view class="cc-work-cover" hover-class="cc-hover" @tap="go('/video/' + video.id)">
-              <smart-cover class="cc-work-img" :src="video.cover" :title="video.title" type="video" />
+              <smart-cover class="cc-work-img" :src="video.cover" :video-url="video.videoUrl" :title="video.title" type="video" />
             </view>
             <view class="cc-work-body">
               <text class="cc-work-title">{{ video.title }}</text>
@@ -343,10 +343,18 @@ const rankList = computed(() => {
         id: m.id,
         title: m.title,
         cover: videos.value.find((v) => v.id === m.id)?.cover || '',
+        videoUrl: videos.value.find((v) => v.id === m.id)?.videoUrl || '',
         views: m.views,
         likes: m.likes,
       }))
-    : videos.value.map((v) => ({ id: v.id, title: v.title, cover: v.cover, views: v.views, likes: v.likes }))
+    : videos.value.map((v) => ({
+        id: v.id,
+        title: v.title,
+        cover: v.cover,
+        videoUrl: v.videoUrl,
+        views: v.views,
+        likes: v.likes,
+      }))
   const metricVal = (o: { views: number; likes: number }) => (metric.value === 'likes' ? o.likes : o.views)
   return [...source].sort((a, b) => metricVal(b) - metricVal(a)).slice(0, 10)
 })

@@ -215,6 +215,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml do
 | `STAGING_HOST` | Staging 服务器 IP |
 | `STAGING_USER` | SSH 用户名 |
 | `STAGING_SSH_KEY` | SSH 私钥 (PEM) |
+| `STAGING_SSH_FINGERPRINT` | Staging 服务器 SSH 主机公钥 SHA-256 指纹 |
 
 ### 5.2 Production 环境
 
@@ -223,6 +224,7 @@ docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml do
 | `PROD_HOST` | 生产服务器 IP |
 | `PROD_USER` | SSH 用户名 |
 | `PROD_SSH_KEY` | SSH 私钥 (PEM) |
+| `PROD_SSH_FINGERPRINT` | 生产服务器 SSH 主机公钥 SHA-256 指纹（须从可信控制台独立核对） |
 | `WEWORK_WEBHOOK_URL` | 企业微信机器人 Webhook (部署通知) |
 
 ### 5.3 通用 Secrets

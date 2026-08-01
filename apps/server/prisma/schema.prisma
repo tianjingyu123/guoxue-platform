@@ -185,6 +185,47 @@ model Auth {
   @@index([userId, provider])
 }
 
+// ─────────────────────────────────────────────────
+// 旧系统迁移审计与幂等映射
+// ─────────────────────────────────────────────────
+
+model LegacyMigrationBatch {
+  id             String    @id @default(uuid())
+  sourceSystem   String
+  batchKey       String    @unique
+  cutoffAt       DateTime?
+  status         String    @default("PREPARED") // PREPARED / DRY_RUN / IMPORTING / VERIFIED / FAILED / ROLLED_BACK
+  sourceManifest Json
+  resultReport   Json?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  mappings LegacyMigrationMap[]
+
+  @@index([sourceSystem, status])
+  @@index([createdAt])
+}
+
+model LegacyMigrationMap {
+  id             String   @id @default(uuid())
+  batchId        String
+  sourceSystem   String
+  entityType     String // USER / AUTH / MEMBER / WALLET / ORDER / STATION / COURSE_ENTITLEMENT / WITHDRAWAL
+  legacyId       String
+  targetId       String
+  sourceChecksum String?
+  metadata       Json?
+  migratedAt     DateTime @default(now())
+
+  batch LegacyMigrationBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceSystem, entityType, legacyId])
+  @@index([batchId, entityType])
+  @@index([sourceSystem, entityType, targetId])
+}
+
 enum RoleType {
   SUPER_ADMIN
   OPERATION_ADMIN
@@ -1061,6 +1102,7 @@ enum InventoryMovementType {
 
 enum InventoryReferenceType {
   PURCHASE_ORDER
+  PURCHASE_RECEIPT
   ORDER
   ADJUSTMENT
   STOCKTAKE
@@ -1178,6 +1220,7 @@ model PurchaseOrder {
   id           String              @id @default(uuid())
   merchantId   String
   orderNo      String              @unique
+  supplierId   String?
   supplierName String
   contactName  String?
   contactPhone String?
@@ -1189,9 +1232,12 @@ model PurchaseOrder {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   items        PurchaseOrderItem[]
+  receipts     PurchaseReceipt[]
+  supplier     MerchantSupplier?   @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   @@index([merchantId, status, createdAt])
   @@index([merchantId, supplierName])
+  @@index([supplierId, createdAt])
 }
 
 model PurchaseOrderItem {
@@ -1203,12 +1249,54 @@ model PurchaseOrderItem {
   skuLabel         String?
   quantity         Int
   receivedQuantity Int           @default(0)
+  rejectedQuantity Int           @default(0)
   unitCost         Decimal       @db.Decimal(10, 2)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
   purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  receiptItems     PurchaseReceiptItem[]
 
   @@index([purchaseOrderId])
+  @@index([productId, skuId])
+}
+
+/// 采购到货质检批次：每次验收都独立留痕，requestId 保证重复提交不会二次入库。
+model PurchaseReceipt {
+  id              String                @id @default(uuid())
+  merchantId      String
+  purchaseOrderId String
+  receiptNo       String                @unique
+  requestId       String
+  warehouseName   String?
+  operatorId      String
+  remark          String?
+  receivedAt      DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+  purchaseOrder   PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  items           PurchaseReceiptItem[]
+
+  @@unique([merchantId, requestId])
+  @@index([merchantId, receivedAt])
+  @@index([purchaseOrderId, receivedAt])
+}
+
+model PurchaseReceiptItem {
+  id                  String            @id @default(uuid())
+  receiptId           String
+  purchaseOrderItemId String
+  productId           String
+  skuId               String?
+  productTitle        String
+  skuLabel            String?
+  acceptedQuantity    Int               @default(0)
+  rejectedQuantity    Int               @default(0)
+  rejectionReason     String?
+  createdAt           DateTime          @default(now())
+  receipt             PurchaseReceipt   @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItem   PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Restrict)
+
+  @@index([receiptId])
+  @@index([purchaseOrderItemId])
   @@index([productId, skuId])
 }
 
@@ -1420,7 +1508,7 @@ model OrderLogistics {
   district     String? // 区
   address      String? // 详细地址
   zipCode      String? // 邮编
-  status       String   @default("PENDING") // PENDING, SHIPPED, IN_TRANSIT, DELIVERED, SIGNED
+  status       String   @default("PENDING") // PENDING, SHIPPED, PICKED_UP, IN_TRANSIT, OUT_FOR_DELIVERY, EXCEPTION, SIGNED, RETURNING, RETURNED, TRANSFERRED, CUSTOMS_CLEARANCE, CUSTOMS_RELEASED, REJECTED
   trackingData Json? // 物流追踪轨迹 [{time, status, desc}]
   remark       String? // 备注
   createdAt    DateTime @default(now())
@@ -4050,9 +4138,33 @@ model WebhookSubscription {
   maxRetries  Int          @default(3)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  deliveries  WebhookDelivery[]
 
   @@index([event, isActive])
   @@index([url])
+}
+
+/// Webhook 事务外发箱：先持久化业务事件，再异步投递；服务重启后由定时任务继续补偿。
+model WebhookDelivery {
+  id             String              @id @default(uuid())
+  subscriptionId String
+  event          WebhookEvent
+  eventKey       String
+  payload        Json
+  status         String              @default("PENDING") // PENDING / PROCESSING / DELIVERED / FAILED
+  attempts       Int                 @default(0)
+  nextAttemptAt  DateTime            @default(now())
+  lastAttemptAt  DateTime?
+  lastStatus     Int?
+  lastError      String?
+  deliveredAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  subscription   WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, eventKey])
+  @@index([status, nextAttemptAt])
+  @@index([subscriptionId, createdAt])
 }
 
 model FeatureFlag {
@@ -5171,6 +5283,7 @@ model Merchant {
   agreements           MerchantAgreement[]
   settlements          MerchantSettlement[]
   members              MerchantMember[]
+  suppliers            MerchantSupplier[]
   qualificationReviews MerchantQualificationReview[]
 
   @@index([status])
@@ -5178,6 +5291,33 @@ model Merchant {
   @@index([qualificationStatus, qualificationNextReviewAt])
   @@index([riskLevel])
   @@index([shopName])
+}
+
+/// 商家供应商档案：采购单保留名称与联系人快照，档案负责复用、停用和经营统计。
+/// 与 Product.userId 的平台供货归属无关，仅服务商家自己的采购协作。
+model MerchantSupplier {
+  id                  String          @id @default(uuid())
+  merchantId          String
+  name                String
+  contactName         String?
+  contactPhone        String?
+  address             String?
+  settlementTerms     String?
+  leadTimeDays        Int?
+  remark              String?
+  status              String          @default("ACTIVE") // ACTIVE / INACTIVE
+  purchaseCount       Int             @default(0)
+  totalPurchaseAmount Decimal         @default(0) @db.Decimal(12, 2)
+  lastPurchasedAt     DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  merchant      Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([merchantId, name])
+  @@index([merchantId, status, updatedAt])
+  @@index([merchantId, lastPurchasedAt])
 }
 
 /// 商户资质审核留痕：每次提交、通过、驳回都保留快照，便于监管协查、申诉与定期复核。
@@ -5890,7 +6030,7 @@ model LegalDocument {
 
 model AppVersion {
   id          String   @id @default(uuid())
-  platform    String // ios / android
+  platform    String // ios / android / harmony
   version     String
   buildNumber String?
   changelog   String?

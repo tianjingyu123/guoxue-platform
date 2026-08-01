@@ -144,6 +144,7 @@ export class HuifuService {
     // 回退到环境变量
     const envMap: Record<string, string | undefined> = {
       merchantId: process.env.HUIFU_MERCHANT_ID,
+      upperHuifuId: process.env.HUIFU_UPPER_HUIFU_ID,
       appId: process.env.HUIFU_APP_ID,
       productId: process.env.HUIFU_PRODUCT_ID,
       secretKey: process.env.HUIFU_SECRET_KEY,
@@ -889,7 +890,9 @@ export class HuifuService {
    * 返回渠道申请单号与（若同步返回的）huifu_id；多数情况下审核异步，需轮询 queryMerchantApply。
    */
   async applyEntMerchant(payload: HuifuEntApplyPayload) {
-    const upperHuifuId = await this.getConfig("merchantId"); // 服务商自身 huifu_id = 进件的上级
+    // 上级渠道号与平台实际收款 huifu_id 由汇付合同决定，不能在代码里假定相同。
+    // 旧环境尚未拆分时保留 merchantId 回退，完成正式参数交接后应显式配置 upperHuifuId。
+    const upperHuifuId = (await this.getConfig("upperHuifuId")) || await this.getConfig("merchantId");
     if (!upperHuifuId) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付服务商商户号未配置，请到后台「第三方配置→汇付天下」填写");
     }
@@ -960,7 +963,7 @@ export class HuifuService {
    * 汇付审核异步，进件后需轮询直到拿到 huifu_id 或被拒。
    */
   async queryMerchantApply(applyId: string, originalReqDate: string) {
-    const upperHuifuId = await this.getConfig("merchantId");
+    const upperHuifuId = (await this.getConfig("upperHuifuId")) || await this.getConfig("merchantId");
     const result = await this.callApi("/v2/merchant/basicdata/query", {
       req_date: this.reqDate(),
       req_seq_id: this.reqSeqId(),

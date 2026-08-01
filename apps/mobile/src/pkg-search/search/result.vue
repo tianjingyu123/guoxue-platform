@@ -588,8 +588,9 @@ function formatNumber(num: number) {
   padding: 16rpx 24rpx;
 }
 .back-btn {
-  width: 52rpx;
-  height: 52rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 -18rpx;
   display: flex;
   align-items: center;
   justify-content: center;

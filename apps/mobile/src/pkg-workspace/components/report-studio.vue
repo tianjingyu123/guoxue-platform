@@ -8,6 +8,7 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -32,6 +33,7 @@ const list = ref<ReportRecord[]>([])
 const quota = ref<{ used: number; limit: number | null; unlimited: boolean }>({ used: 0, limit: null, unlimited: false })
 
 const newOpen = ref(false)
+useOverlayScrollLock(() => newOpen.value)
 const nType = ref(REPORT_TYPES[0].key)
 const nClient = ref('')
 const nBirth = ref('')
@@ -210,8 +212,8 @@ function dateText(iso?: string): string {
     </view>
 
     <!-- 新建报告 -->
-    <view v-if="newOpen" class="rs-mask" @tap="newOpen = false">
-      <view class="rs-sheet" @tap.stop>
+    <view v-if="newOpen" class="rs-mask" @tap="newOpen = false" @touchmove.self.prevent>
+      <view class="rs-sheet" @tap.stop @touchmove.stop>
         <text class="rs-sheet-title">新建报告</text>
 
         <text class="rs-label">报告类型</text>

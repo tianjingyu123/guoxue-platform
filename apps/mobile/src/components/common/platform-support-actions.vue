@@ -24,6 +24,12 @@ async function loadUnread() {
   unreadCount.value = await mineApi.getUnreadNotifyCount()
 }
 
+function activateOnKeyboard(event: KeyboardEvent, target: string) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  navigateTo(target)
+}
+
 onMounted(() => {
   loadUnread()
   uni.$on('notify:refresh', loadUnread)
@@ -43,7 +49,7 @@ onUnmounted(() => {
       tabindex="0"
       hover-class="support-action--pressed"
       @tap="navigateTo('/customer-service')"
-      @keyup.enter="navigateTo('/customer-service')"
+      @keydown="activateOnKeyboard($event, '/customer-service')"
     >
       <AppIcon name="headphones" :size="compact ? 30 : 34" color="#5E5147" />
       <text class="support-action__label">客服</text>
@@ -55,7 +61,7 @@ onUnmounted(() => {
       tabindex="0"
       hover-class="support-action--pressed"
       @tap="navigateTo('/notifications')"
-      @keyup.enter="navigateTo('/notifications')"
+      @keydown="activateOnKeyboard($event, '/notifications')"
     >
       <AppIcon name="bell" :size="compact ? 30 : 34" color="#5E5147" />
       <text class="support-action__label">消息</text>

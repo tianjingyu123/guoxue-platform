@@ -5,7 +5,14 @@
 
     <!-- 返回按钮 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="back-btn" @tap="goBack">
+      <view
+        class="back-btn"
+        role="button"
+        aria-label="返回上一页"
+        tabindex="0"
+        @tap="goBack"
+        @keydown="activateOnKeyboard($event, goBack)"
+      >
         <AppIcon name="chevron-left" :size="24" color="#2c2c2c" />
       </view>
     </view>
@@ -21,11 +28,27 @@
       </view>
 
       <!-- 登录方式：手机验证码 + 密码 -->
-      <view class="tabs">
-        <view class="tab" :class="{ active: loginType === 'phone' }" @tap="switchType('phone')">
+      <view class="tabs" role="tablist" aria-label="选择登录方式">
+        <view
+          class="tab"
+          :class="{ active: loginType === 'phone' }"
+          role="tab"
+          :aria-selected="loginType === 'phone' ? 'true' : 'false'"
+          :tabindex="loginType === 'phone' ? 0 : -1"
+          @tap="switchType('phone')"
+          @keydown="onLoginTypeKeydown($event, 'phone')"
+        >
           <text class="tab-text" :class="{ 'tab-text-active': loginType === 'phone' }">验证码登录</text>
         </view>
-        <view class="tab" :class="{ active: loginType === 'password' }" @tap="switchType('password')">
+        <view
+          class="tab"
+          :class="{ active: loginType === 'password' }"
+          role="tab"
+          :aria-selected="loginType === 'password' ? 'true' : 'false'"
+          :tabindex="loginType === 'password' ? 0 : -1"
+          @tap="switchType('password')"
+          @keydown="onLoginTypeKeydown($event, 'password')"
+        >
           <text class="tab-text" :class="{ 'tab-text-active': loginType === 'password' }">密码登录</text>
         </view>
       </view>
@@ -43,6 +66,7 @@
             inputmode="numeric"
             :value="phone"
             maxlength="11"
+            aria-label="手机号"
             placeholder="请输入手机号"
             placeholder-class="input-ph"
             @input="onPhoneInput"
@@ -60,6 +84,7 @@
             inputmode="numeric"
             :value="code"
             maxlength="6"
+            aria-label="短信验证码"
             placeholder="请输入验证码"
             placeholder-class="input-ph"
             @input="onCodeInput"
@@ -67,7 +92,12 @@
           <view
             class="code-btn"
             :class="{ 'code-btn-disabled': countdown > 0 || !isPhoneValid || isSendingCode }"
+            role="button"
+            :aria-label="countdown > 0 ? `${countdown}秒后可重新获取验证码` : '获取验证码'"
+            :aria-disabled="countdown > 0 || !isPhoneValid || isSendingCode ? 'true' : 'false'"
+            tabindex="0"
             @tap="handleSendCode"
+            @keydown="activateOnKeyboard($event, handleSendCode)"
           >
             <AppIcon v-if="isSendingCode" name="loader-2" :size="16" color="#999999" class="spin" />
             <text v-else class="code-btn-text" :class="{ 'code-btn-text-disabled': countdown > 0 || !isPhoneValid }">
@@ -85,39 +115,81 @@
             class="input input-pwd"
             :password="!showPassword"
             :value="password"
+            aria-label="登录密码"
             placeholder="请输入密码"
             placeholder-class="input-ph"
             @input="onPasswordInput"
           />
-          <view class="eye-btn" @tap="showPassword = !showPassword">
+          <view
+            class="eye-btn"
+            role="button"
+            :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+            tabindex="0"
+            @tap="showPassword = !showPassword"
+            @keydown="activateOnKeyboard($event, () => showPassword = !showPassword)"
+          >
             <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
           </view>
         </view>
 
         <!-- 错误提示 -->
-        <text v-if="error" class="error-text">{{ error }}</text>
+        <text v-if="error" class="error-text" role="alert" aria-live="polite">{{ error }}</text>
 
         <!-- 忘记密码 -->
         <view v-if="loginType === 'password'" class="forgot-row">
-          <text class="forgot-link" @tap="goForgot">忘记密码？</text>
+          <text
+            class="forgot-link"
+            role="link"
+            tabindex="0"
+            @tap="goForgot"
+            @keydown="activateOnKeyboard($event, goForgot)"
+          >忘记密码？</text>
         </view>
 
         <!-- 协议勾选 -->
         <!-- 整行可点切换勾选（协议链接 .stop 仍跳协议页）；checkbox 视觉不变，热区=整行 ≥88rpx -->
-        <view class="terms-row" @tap="agreedTerms = !agreedTerms">
+        <view
+          class="terms-row"
+          role="checkbox"
+          :aria-checked="agreedTerms ? 'true' : 'false'"
+          tabindex="0"
+          @tap="agreedTerms = !agreedTerms"
+          @keydown="activateOnKeyboard($event, () => agreedTerms = !agreedTerms)"
+        >
           <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
             <AppIcon v-if="agreedTerms" name="check" :size="12" color="#ffffff" />
           </view>
           <view class="terms-text">
             <text class="terms-normal">我已阅读并同意</text>
-            <text class="terms-link" @tap.stop="navigateTo('/legal/user-agreement')">《用户服务协议》</text>
+            <text
+              class="terms-link"
+              role="link"
+              tabindex="0"
+              @tap.stop="navigateTo('/legal/user-agreement')"
+              @keydown.stop="activateOnKeyboard($event, () => navigateTo('/legal/user-agreement'))"
+            >《用户服务协议》</text>
             <text class="terms-normal">和</text>
-            <text class="terms-link" @tap.stop="navigateTo('/legal/privacy-policy')">《隐私政策》</text>
+            <text
+              class="terms-link"
+              role="link"
+              tabindex="0"
+              @tap.stop="navigateTo('/legal/privacy-policy')"
+              @keydown.stop="activateOnKeyboard($event, () => navigateTo('/legal/privacy-policy'))"
+            >《隐私政策》</text>
           </view>
         </view>
 
         <!-- 登录按钮 -->
-        <view class="submit-btn" :class="{ 'submit-btn-disabled': !canSubmit || isLoading }" @tap="handleLogin">
+        <view
+          class="submit-btn"
+          :class="{ 'submit-btn-disabled': !canSubmit || isLoading }"
+          role="button"
+          :aria-busy="isLoading ? 'true' : 'false'"
+          :aria-disabled="isLoading ? 'true' : 'false'"
+          tabindex="0"
+          @tap="handleLogin"
+          @keydown="activateOnKeyboard($event, handleLogin)"
+        >
           <AppIcon v-if="isLoading" name="loader-2" :size="16" color="#ffffff" class="spin" />
           <text class="submit-text">{{ isLoading ? '登录中...' : '登录' }}</text>
         </view>
@@ -125,7 +197,13 @@
         <!-- 注册入口 -->
         <view class="register-row">
           <text class="register-normal">还没有账号？</text>
-          <text class="register-link" @tap="goRegister">立即注册</text>
+          <text
+            class="register-link"
+            role="link"
+            tabindex="0"
+            @tap="goRegister"
+            @keydown="activateOnKeyboard($event, goRegister)"
+          >立即注册</text>
         </view>
       </view>
 
@@ -138,7 +216,14 @@
           <view class="divider-line" />
         </view>
         <view class="third-icons">
-          <view class="third-item" @tap="handleThirdParty('wechat')">
+          <view
+            class="third-item"
+            role="button"
+            aria-label="使用微信登录"
+            tabindex="0"
+            @tap="handleThirdParty('wechat')"
+            @keydown="activateOnKeyboard($event, () => handleThirdParty('wechat'))"
+          >
             <view class="third-circle wechat-circle">
               <AppIcon name="wechat" :size="28" color="#07C160" />
             </view>
@@ -157,7 +242,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
@@ -190,6 +275,26 @@ const canSubmit = computed(() =>
     ? isPhoneValid.value && isCodeValid.value && agreedTerms.value
     : isPhoneValid.value && isPasswordValid.value && agreedTerms.value,
 )
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+function onLoginTypeKeydown(event: KeyboardEvent, type: 'phone' | 'password') {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    switchType(type)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  switchType(type === 'phone' ? 'password' : 'phone')
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('.tab[aria-selected="true"]')?.focus()
+  })
+}
 
 function switchType(t: 'phone' | 'password') {
   loginType.value = t

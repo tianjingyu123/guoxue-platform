@@ -23,24 +23,40 @@ const isDryRun = process.argv.includes("--dry-run");
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 const REPLAY_URL = "https://player.alicdn.com/video/aliyunmedia.mp4";
+const PUBLIC_ASSET_ORIGIN = (
+  process.env.PUBLIC_ASSET_ORIGIN ||
+  process.env.PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000")
+)
+  .trim()
+  .replace(/\/+$/, "");
+
+if (!PUBLIC_ASSET_ORIGIN) {
+  throw new Error(
+    "直播广场种子写入前必须配置 PUBLIC_ASSET_ORIGIN 或 PUBLIC_API_URL，避免把旧域名写入新数据库",
+  );
+}
+
+const publicAsset = (pathname: string) =>
+  `${PUBLIC_ASSET_ORIGIN}/${pathname.replace(/^\/+/, "")}`;
 
 const hosts = [
   {
     id: "7b240000-0000-4000-8000-000000000001",
     nickname: "国学公开课",
-    avatar: "https://api.rebugx.cn/assets/experts/expert-1.webp",
+    avatar: publicAsset("assets/experts/expert-1.webp"),
     bio: "平台国学知识公开课主讲团队",
   },
   {
     id: "7b240000-0000-4000-8000-000000000002",
     nickname: "文房雅集",
-    avatar: "https://api.rebugx.cn/assets/experts/expert-2.webp",
+    avatar: publicAsset("assets/experts/expert-2.webp"),
     bio: "分享文房器物、传统雅生活与使用方法",
   },
   {
     id: "7b240000-0000-4000-8000-000000000003",
     nickname: "节气养生堂",
-    avatar: "https://api.rebugx.cn/assets/live/live-h1.webp",
+    avatar: publicAsset("assets/live/live-h1.webp"),
     bio: "讲解节气文化与日常养生常识",
   },
 ] as const;
@@ -69,7 +85,7 @@ function createRooms(now: Date): RoomSeed[] {
       hostId: hosts[0].id,
       title: "周易六十四卦·乾坤入门公开课",
       description: "从卦象结构、阴阳变化到生活应用，带你建立清晰的《周易》入门框架。",
-      cover: "https://api.rebugx.cn/assets/live/live-1.webp",
+      cover: publicAsset("assets/live/live-1.webp"),
       status: LiveStatus.LIVING,
       orientation: "landscape",
       viewCount: 36,
@@ -85,7 +101,7 @@ function createRooms(now: Date): RoomSeed[] {
       hostId: hosts[1].id,
       title: "文房雅器甄选·砚墨纸笔专场",
       description: "边讲边看文房器物的材质、工艺与使用场景，理性选购适合自己的雅物。",
-      cover: "https://api.rebugx.cn/assets/live/live-2.webp",
+      cover: publicAsset("assets/live/live-2.webp"),
       status: LiveStatus.LIVING,
       orientation: "portrait",
       viewCount: 18,
@@ -101,7 +117,7 @@ function createRooms(now: Date): RoomSeed[] {
       hostId: hosts[0].id,
       title: "紫微斗数十二宫基础讲解",
       description: "认识十二宫位的基本含义与阅读顺序，适合刚开始接触紫微斗数的学习者。",
-      cover: "https://api.rebugx.cn/assets/live/live-3.webp",
+      cover: publicAsset("assets/live/live-3.webp"),
       status: LiveStatus.WAITING,
       orientation: "landscape",
       viewCount: 0,
@@ -117,7 +133,7 @@ function createRooms(now: Date): RoomSeed[] {
       hostId: hosts[1].id,
       title: "国学经典听读设备体验专场",
       description: "现场演示经典听读、章节检索与长辈模式，讲清功能差异和适用人群。",
-      cover: "https://api.rebugx.cn/assets/live/live-h1.webp",
+      cover: publicAsset("assets/live/live-h1.webp"),
       status: LiveStatus.WAITING,
       orientation: "portrait",
       viewCount: 0,
@@ -133,7 +149,7 @@ function createRooms(now: Date): RoomSeed[] {
       hostId: hosts[2].id,
       title: "小暑到大暑·夏季养心公开课",
       description: "结合节气特点讲解作息、饮食与情志调养，内容仅作传统文化与生活常识分享。",
-      cover: "https://api.rebugx.cn/assets/live/live-2.webp",
+      cover: publicAsset("assets/live/live-2.webp"),
       status: LiveStatus.WAITING,
       orientation: "landscape",
       viewCount: 0,
@@ -149,7 +165,7 @@ function createRooms(now: Date): RoomSeed[] {
       hostId: hosts[2].id,
       title: "二十四节气与夏季养心",
       description: "回顾夏季节气的文化源流与日常调养要点，附分段章节，方便按主题观看。",
-      cover: "https://api.rebugx.cn/assets/live/live-3.webp",
+      cover: publicAsset("assets/live/live-3.webp"),
       status: LiveStatus.REPLAY,
       orientation: "landscape",
       viewCount: 128,
@@ -169,7 +185,7 @@ function createRooms(now: Date): RoomSeed[] {
       hostId: hosts[0].id,
       title: "《论语》中的修身次第",
       description: "从学而、为政到里仁，串联经典原文与现代生活中的自我修养。",
-      cover: "https://api.rebugx.cn/assets/live/live-1.webp",
+      cover: publicAsset("assets/live/live-1.webp"),
       status: LiveStatus.REPLAY,
       orientation: "landscape",
       viewCount: 96,
@@ -189,7 +205,7 @@ function createRooms(now: Date): RoomSeed[] {
       hostId: hosts[1].id,
       title: "文房清供搭配与使用",
       description: "从书写、阅读与桌面陈设三个场景，介绍常见文房器物的搭配和养护方法。",
-      cover: "https://api.rebugx.cn/assets/live/live-h1.webp",
+      cover: publicAsset("assets/live/live-h1.webp"),
       status: LiveStatus.REPLAY,
       orientation: "portrait",
       viewCount: 74,

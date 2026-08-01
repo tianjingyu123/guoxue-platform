@@ -1,7 +1,7 @@
 <template>
   <!-- 通用购买半屏弹窗：圈子付费/课程/商品共用。选规格→选数量→选支付→确认下单 -->
-  <view v-if="open && product" class="ps-mask" @tap="onClose" @touchmove.self.prevent>
-    <view class="ps-sheet" @tap.stop @touchmove.stop>
+  <view v-if="open && product" class="ps-mask" role="dialog" aria-modal="true" aria-label="确认购买" @tap="onClose" @touchmove.self.prevent>
+    <view class="ps-sheet" tabindex="-1" @tap.stop @touchmove.stop>
       <!-- 下单成功态 -->
       <view v-if="paid" class="ps-paid">
         <view class="ps-paid__icon">
@@ -23,7 +23,14 @@
             </view>
             <text v-if="product.stock !== undefined" class="ps-head__stock">库存 {{ product.stock }} 件</text>
           </view>
-          <view class="ps-head__close" @tap="onClose">
+          <view
+            class="ps-head__close"
+            role="button"
+            aria-label="关闭购买面板"
+            tabindex="0"
+            @tap="onClose"
+            @keydown="activateOnKeyboard($event, onClose)"
+          >
             <AppIcon name="x" :size="20" color="#999" />
           </view>
         </view>
@@ -38,7 +45,11 @@
                 :key="sku"
                 class="ps-sku"
                 :class="{ 'ps-sku--on': selectedSku === sku }"
+                role="radio"
+                :aria-checked="selectedSku === sku"
+                tabindex="0"
                 @tap="onSelectSku(sku)"
+                @keydown="activateOnKeyboard($event, () => onSelectSku(sku))"
               >
                 <text class="ps-sku__txt">{{ sku }}</text>
               </view>
@@ -49,11 +60,27 @@
           <view v-if="allowQty" class="ps-qty">
             <text class="ps-section__label">购买数量</text>
             <view class="ps-qty__ctrl">
-              <view class="ps-qty__btn" :class="{ 'ps-qty__btn--off': quantity <= 1 }" @tap="onMinus">
+              <view
+                class="ps-qty__btn"
+                :class="{ 'ps-qty__btn--off': quantity <= 1 }"
+                role="button"
+                aria-label="减少购买数量"
+                :aria-disabled="quantity <= 1"
+                :tabindex="quantity <= 1 ? -1 : 0"
+                @tap="onMinus"
+                @keydown="activateOnKeyboard($event, onMinus)"
+              >
                 <AppIcon name="minus" :size="16" color="#333" />
               </view>
               <text class="ps-qty__num">{{ quantity }}</text>
-              <view class="ps-qty__btn" @tap="onPlus">
+              <view
+                class="ps-qty__btn"
+                role="button"
+                aria-label="增加购买数量"
+                tabindex="0"
+                @tap="onPlus"
+                @keydown="activateOnKeyboard($event, onPlus)"
+              >
                 <AppIcon name="plus" :size="16" color="#333" />
               </view>
             </view>
@@ -68,7 +95,11 @@
                 :key="m.id"
                 class="ps-pay"
                 :class="{ 'ps-pay--on': payMethod === m.id }"
+                role="radio"
+                :aria-checked="payMethod === m.id"
+                tabindex="0"
                 @tap="onSelectPay(m.id)"
+                @keydown="activateOnKeyboard($event, () => onSelectPay(m.id))"
               >
                 <view class="ps-pay__left">
                   <view class="ps-pay__badge" :style="{ backgroundColor: m.color }">
@@ -101,7 +132,12 @@
             <view
               class="ps-foot__pay"
               :class="{ 'ps-foot__pay--off': paying || (hasSku && !selectedSku) }"
+              role="button"
+              :aria-label="payButtonText"
+              :aria-disabled="paying || (hasSku && !selectedSku)"
+              :tabindex="paying || (hasSku && !selectedSku) ? -1 : 0"
               @tap="onPay"
+              @keydown="activateOnKeyboard($event, onPay)"
             >
               <text class="ps-foot__pay-txt">{{ payButtonText }}</text>
             </view>
@@ -116,6 +152,7 @@
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { navigateTo } from '@/utils/router'
 import { purchaseApi, type PurchaseProduct, type PurchaseBizType, type PayChannel } from '@/lib/purchase-data'
 
@@ -129,6 +166,15 @@ const props = withDefaults(defineProps<{
 }>(), { allowQty: true })
 
 const emit = defineEmits<{ (e: 'close'): void; (e: 'paid', orderId: string): void }>()
+
+useOverlayScrollLock(
+  () => props.open && Boolean(props.product),
+  {
+    onEscape: onClose,
+    focusContainerSelector: '.ps-sheet',
+    initialFocusSelector: '.ps-head__close',
+  },
+)
 
 const ALL_PAY_METHODS = [
   { id: 'wechat', name: '微信支付', badge: '微', color: '#07C160' },
@@ -167,6 +213,11 @@ function onMinus() { if (quantity.value > 1) quantity.value-- }
 function onPlus() {
   const max = props.product?.stock ?? 99
   if (quantity.value < max) quantity.value++
+}
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<void>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
 }
 function reset() {
   selectedSku.value = null

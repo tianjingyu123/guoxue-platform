@@ -3,7 +3,14 @@
     <!-- 顶部导航 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="navbar-inner">
-        <view class="back-btn" @tap="onBack">
+        <view
+          class="back-btn"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="onBack"
+          @keydown="activateOnKeyboard($event, onBack)"
+        >
           <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
         </view>
         <text class="navbar-title">找回密码</text>
@@ -19,7 +26,14 @@
 
       <view class="card-list">
         <!-- 手机号找回 -->
-        <view class="rec-card" @tap="onPhone">
+        <view
+          class="rec-card"
+          role="button"
+          aria-label="手机号找回，当前由客服协助处理"
+          tabindex="0"
+          @tap="onPhone"
+          @keydown="activateOnKeyboard($event, onPhone)"
+        >
           <view class="rec-icon icon-phone"><AppIcon name="phone" :size="24" color="#c9a96e" /></view>
           <view class="rec-main">
             <text class="rec-title">手机号找回</text>
@@ -29,7 +43,14 @@
         </view>
 
         <!-- 邮箱找回 -->
-        <view class="rec-card" @tap="onEmail">
+        <view
+          class="rec-card"
+          role="button"
+          aria-label="邮箱找回，当前由客服协助处理"
+          tabindex="0"
+          @tap="onEmail"
+          @keydown="activateOnKeyboard($event, onEmail)"
+        >
           <view class="rec-icon icon-mail"><AppIcon name="mail" :size="24" color="#3b82f6" /></view>
           <view class="rec-main">
             <text class="rec-title">邮箱找回</text>
@@ -39,7 +60,14 @@
         </view>
 
         <!-- 联系客服 -->
-        <view class="rec-card" @tap="onFeedback">
+        <view
+          class="rec-card"
+          role="button"
+          aria-label="联系人工客服找回账号"
+          tabindex="0"
+          @tap="onFeedback"
+          @keydown="activateOnKeyboard($event, onFeedback)"
+        >
           <view class="rec-icon icon-service"><AppIcon name="message-circle" :size="24" color="#d4a017" /></view>
           <view class="rec-main">
             <text class="rec-title">联系客服</text>
@@ -68,6 +96,12 @@ try {
   statusBarHeight.value = sysInfo.statusBarHeight || 0
 } catch (e) {
   statusBarHeight.value = 0
+}
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
 }
 
 function onBack() {
@@ -125,12 +159,12 @@ function onFeedback() {
   padding: 0 32rpx;
 }
 .back-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: -8rpx;
+  margin-left: -16rpx;
 }
 .navbar-title {
   font-size: 34rpx;

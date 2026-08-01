@@ -30,6 +30,29 @@ export class WebhookController {
     return this.svc.list(event);
   }
 
+  @Get("deliveries")
+  @ApiOperation({ summary: "查询 Webhook 逐笔投递审计" })
+  @ApiQuery({ name: "subscriptionId", required: false, description: "按订阅筛选" })
+  @ApiQuery({ name: "status", required: false, description: "PENDING / PROCESSING / DELIVERED / FAILED" })
+  @ApiQuery({ name: "take", required: false, description: "返回数量，1-200" })
+  listDeliveries(
+    @Query("subscriptionId") subscriptionId?: string,
+    @Query("status") status?: string,
+    @Query("take") take?: string,
+  ) {
+    return this.svc.listDeliveries({
+      subscriptionId,
+      status,
+      take: take ? Number(take) : undefined,
+    });
+  }
+
+  @Post("deliveries/:id/retry")
+  @ApiOperation({ summary: "人工重试一笔失败的 Webhook 投递" })
+  retryDelivery(@Param("id") id: string) {
+    return this.svc.retryDelivery(id);
+  }
+
   @Put(":id")
   @ApiOperation({ summary: "编辑 Webhook 订阅" })
   @ApiResponse({ status: 200, description: "更新成功" })

@@ -14,10 +14,24 @@ const usageText = computed(() => {
   if (props.bot.useCount) return `${formatCount(props.bot.useCount)}次对话`
   return props.bot.isFree ? '随时可用' : '按次计费'
 })
+
+function selectByKeyboard(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  emit('select', props.bot.id)
+}
 </script>
 
 <template>
-  <view class="agent-square-card" :style="cardStyle" @tap="emit('select', bot.id)">
+  <view
+    class="agent-square-card"
+    :style="cardStyle"
+    role="link"
+    tabindex="0"
+    :aria-label="`${bot.name}，${bot.description || '智能学习助手'}，${usageText}，开始学习`"
+    @tap="emit('select', bot.id)"
+    @keydown="selectByKeyboard"
+  >
     <view class="visual">
       <view class="visual-grid" />
       <view class="visual-scan" />

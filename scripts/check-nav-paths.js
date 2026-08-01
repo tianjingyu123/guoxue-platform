@@ -7,14 +7,27 @@ const pagesFile = path.join(srcDir, 'pages.json')
 const pagesConfig = JSON.parse(fs.readFileSync(pagesFile, 'utf8'))
 
 const validSet = new Set()
+const duplicateRoutes = []
+function registerRoute(route) {
+  const normalized = route.replace(/^\/+/, '')
+  if (validSet.has(normalized)) duplicateRoutes.push(normalized)
+  validSet.add(normalized)
+}
 for (const page of pagesConfig.pages || []) {
-  validSet.add(page.path.replace(/^\/+/, ''))
+  registerRoute(page.path)
 }
 for (const pkg of pagesConfig.subPackages || []) {
   for (const page of pkg.pages || []) {
-    validSet.add(`${pkg.root}/${page.path}`.replace(/^\/+/, ''))
+    registerRoute(`${pkg.root}/${page.path}`)
   }
 }
+
+const missingPageFiles = [...validSet].filter(
+  (route) =>
+    !['.vue', '.nvue', '.uvue'].some((extension) =>
+      fs.existsSync(path.join(srcDir, `${route}${extension}`)),
+    ),
+)
 
 const routeAliases = new Map()
 const routerFile = path.join(srcDir, 'utils', 'router.ts')
@@ -79,17 +92,31 @@ const result = {
   registeredRoutes: validSet.size,
   checkedLiterals: checked.length,
   broken,
+  missingPageFiles,
+  duplicateRoutes,
 }
 
 if (process.argv.includes('--json')) {
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
-} else if (broken.length) {
-  console.error(`发现 ${broken.length} 个未注册的字面量导航路径：`)
-  for (const item of broken) {
-    console.error(`  ${item.file}:${item.line} → ${item.url}（目标：${item.target}）`)
+} else if (broken.length || missingPageFiles.length || duplicateRoutes.length) {
+  if (broken.length) {
+    console.error(`发现 ${broken.length} 个未注册的字面量导航路径：`)
+    for (const item of broken) {
+      console.error(`  ${item.file}:${item.line} → ${item.url}（目标：${item.target}）`)
+    }
+  }
+  if (missingPageFiles.length) {
+    console.error(`发现 ${missingPageFiles.length} 个已注册但源码文件不存在的页面：`)
+    for (const route of missingPageFiles) console.error(`  /${route}`)
+  }
+  if (duplicateRoutes.length) {
+    console.error(`发现 ${duplicateRoutes.length} 个重复注册的页面路径：`)
+    for (const route of duplicateRoutes) console.error(`  /${route}`)
   }
 } else {
-  console.log(`导航路径检查通过：已注册 ${validSet.size} 个页面，核对 ${checked.length} 个字面量跳转。`)
+  console.log(
+    `导航路径检查通过：已注册 ${validSet.size} 个页面、源码文件全部存在，核对 ${checked.length} 个字面量跳转且无重复路由。`,
+  )
 }
 
-process.exitCode = broken.length ? 1 : 0
+process.exitCode = broken.length || missingPageFiles.length || duplicateRoutes.length ? 1 : 0

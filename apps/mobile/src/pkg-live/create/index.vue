@@ -207,8 +207,8 @@
     </view>
 
     <!-- 时长包购买半屏弹层 -->
-    <view v-if="showBuySheet" class="mask" @tap="showBuySheet = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showBuySheet" class="mask" @tap="showBuySheet = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view class="sheet-h">
           <text class="sheet-title">购买直播时长包</text>
           <text class="sheet-x" @tap="showBuySheet = false">×</text>
@@ -238,8 +238,8 @@
     </view>
 
     <!-- 圈子选择弹层 -->
-    <view v-if="showCirclePicker" class="mask" @tap="showCirclePicker = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showCirclePicker" class="mask" @tap="showCirclePicker = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view class="sheet-h">
           <text class="sheet-title">选择所属圈子</text>
           <text class="sheet-x" @tap="showCirclePicker = false">×</text>
@@ -265,8 +265,8 @@
     </view>
 
     <!-- 带货选品抽屉（半屏 · 多选 · 上限 5 件） -->
-    <view v-if="showProductSheet" class="mask" @tap="showProductSheet = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showProductSheet" class="mask" @tap="showProductSheet = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view class="sheet-h">
           <text class="sheet-title">选择带货商品</text>
           <text class="sheet-x" @tap="showProductSheet = false">×</text>
@@ -316,6 +316,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi, type LiveQuota, type LiveQualityPackage, type LivePickerProduct } from '@/lib/live-data'
@@ -484,6 +485,9 @@ const chargePrice = ref('')
 const MAX_LIVE_PRODUCTS = 5
 const selectedProducts = ref<LivePickerProduct[]>([]) // 已确认挂车的商品
 const showProductSheet = ref(false)
+useOverlayScrollLock(() =>
+  showBuySheet.value || showCirclePicker.value || showProductSheet.value,
+)
 const pendingProducts = ref<LivePickerProduct[]>([]) // 抽屉内暂选（确认才生效）
 const productPool = ref<LivePickerProduct[]>([]) // 商品库列表（GET /shop/products?status=ON_SALE）
 const poolLoading = ref(false)
@@ -732,9 +736,9 @@ function goManageLater() {
 
 /* 导航 */
 .nav { flex-shrink: 0; background: #FAF8F5; height: 96rpx; padding: 0 32rpx; display: flex; align-items: center; justify-content: space-between; }
-.nav-btn { margin-left: -8rpx; width: 48rpx; height: 48rpx; display: flex; align-items: center; }
+.nav-btn { margin-left: -20rpx; width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; }
 .nav-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
-.nav-placeholder { width: 48rpx; }
+.nav-placeholder { width: 88rpx; }
 
 .scroll { flex: 1; }
 

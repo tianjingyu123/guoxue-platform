@@ -326,7 +326,7 @@ export class LiveService {
     // fail-open：IM 未配置/建群失败只记 warn，不阻断开播（前端有 if(imGroupId) 守卫自动降级为轮询弹幕）。
     const imGroupId = await this.createLiveImGroup(id, room.title, room.hostUserId);
 
-    this.webhook.fire("LIVE_STARTED", {
+    await this.webhook.fire("LIVE_STARTED", {
       roomId: id,
       title: room.title,
       hostUserId: room.hostUserId,
@@ -399,7 +399,7 @@ export class LiveService {
     }
     const result = await this.updateStatus(id, "ENDED");
 
-    this.webhook.fire("LIVE_ENDED", {
+    await this.webhook.fire("LIVE_ENDED", {
       roomId: id,
       title: room?.title,
     }).catch((e: unknown) => this.logger.warn("LIVE_ENDED webhook 发送失败", e instanceof Error ? e.message : String(e)));

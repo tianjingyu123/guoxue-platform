@@ -563,6 +563,10 @@ export class MerchantOrderQueryDto {
   @IsOptional() @IsString()
   status?: string;
 
+  @ApiPropertyOptional({ description: "客户ID（商家客户档案下钻）" })
+  @IsOptional() @IsString()
+  customerId?: string;
+
   @ApiPropertyOptional({ description: "下单时间起点（ISO 日期时间，含）" })
   @IsOptional() @IsDateString()
   startDate?: string;
@@ -753,7 +757,7 @@ export class InventoryAdjustmentDto {
   @ApiProperty({ description: "调整方式", enum: ["INCREASE", "DECREASE", "SET"] })
   @IsString() @IsIn(["INCREASE", "DECREASE", "SET"])
   mode: "INCREASE" | "DECREASE" | "SET";
-  @ApiProperty({ description: "数量；SET时为目标库存" })
+  @ApiProperty({ description: "数量；SET 时为仓库实物总数（含待付款、待发货订单占用）" })
   @IsNumber() @Min(0) @Type(() => Number)
   quantity: number;
   @ApiProperty({ description: "调整原因" })
@@ -791,7 +795,50 @@ export class PurchaseOrderItemDto {
   unitCost: number;
 }
 
+export class SupplierQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "供应商名称或联系人搜索" })
+  @IsOptional() @IsString() @MaxLength(100)
+  keyword?: string;
+
+  @ApiPropertyOptional({ description: "档案状态", enum: ["ACTIVE", "INACTIVE"] })
+  @IsOptional() @IsString() @IsIn(["ACTIVE", "INACTIVE"])
+  status?: "ACTIVE" | "INACTIVE";
+}
+
+export class UpsertSupplierDto {
+  @ApiProperty({ description: "供应商名称" })
+  @IsString() @MinLength(1) @MaxLength(100)
+  name: string;
+  @ApiPropertyOptional({ description: "联系人" })
+  @IsOptional() @IsString() @MaxLength(50)
+  contactName?: string;
+  @ApiPropertyOptional({ description: "联系电话" })
+  @IsOptional() @IsString() @MaxLength(30)
+  contactPhone?: string;
+  @ApiPropertyOptional({ description: "发货或经营地址" })
+  @IsOptional() @IsString() @MaxLength(200)
+  address?: string;
+  @ApiPropertyOptional({ description: "结算约定" })
+  @IsOptional() @IsString() @MaxLength(100)
+  settlementTerms?: string;
+  @ApiPropertyOptional({ description: "常规交付周期（天）" })
+  @IsOptional() @IsNumber() @Min(0) @Max(365) @Type(() => Number)
+  leadTimeDays?: number;
+  @ApiPropertyOptional({ description: "内部备注" })
+  @IsOptional() @IsString() @MaxLength(500)
+  remark?: string;
+}
+
+export class SupplierStatusDto {
+  @ApiProperty({ description: "档案状态", enum: ["ACTIVE", "INACTIVE"] })
+  @IsString() @IsIn(["ACTIVE", "INACTIVE"])
+  status: "ACTIVE" | "INACTIVE";
+}
+
 export class CreatePurchaseOrderDto {
+  @ApiPropertyOptional({ description: "供应商档案ID；传入后会校验归属并保存采购快照" })
+  @IsOptional() @IsString()
+  supplierId?: string;
   @ApiProperty({ description: "供应商名称" })
   @IsString() @MinLength(1) @MaxLength(100)
   supplierName: string;
@@ -816,9 +863,15 @@ export class ReceivePurchaseItemDto {
   @ApiProperty({ description: "采购明细ID" })
   @IsString()
   itemId: string;
-  @ApiProperty({ description: "本次收货数量" })
-  @IsNumber() @Min(1) @Type(() => Number)
+  @ApiProperty({ description: "本次验收合格并入可售库存的数量" })
+  @IsNumber() @Min(0) @Type(() => Number)
   quantity: number;
+  @ApiPropertyOptional({ description: "本次验收不合格、拒收入库的数量" })
+  @IsOptional() @IsNumber() @Min(0) @Type(() => Number)
+  rejectedQuantity?: number;
+  @ApiPropertyOptional({ description: "不合格原因；存在拒收数量时必填" })
+  @IsOptional() @IsString() @MaxLength(200)
+  rejectionReason?: string;
 }
 
 export class ReceivePurchaseOrderDto {
@@ -828,6 +881,12 @@ export class ReceivePurchaseOrderDto {
   @ApiProperty({ description: "本次到货明细", type: [ReceivePurchaseItemDto] })
   @IsArray() @ValidateNested({ each: true }) @Type(() => ReceivePurchaseItemDto)
   items: ReceivePurchaseItemDto[];
+  @ApiPropertyOptional({ description: "本次收货仓库或库位" })
+  @IsOptional() @IsString() @MaxLength(80)
+  warehouseName?: string;
+  @ApiPropertyOptional({ description: "本批验收备注" })
+  @IsOptional() @IsString() @MaxLength(300)
+  remark?: string;
 }
 
 export class PurchaseOrderQueryDto extends PaginationDto {

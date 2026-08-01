@@ -1,6 +1,8 @@
 # 热卜国学平台 — 快速回滚预案
 
-> 更新时间：2026-05-11
+> 更新时间：2026-07-31
+>
+> 本文的生产标准入口是固定发布包回滚脚本。旧的镜像手工替换示例仅用于理解历史方案，不得用于当前生产。
 
 ## 一、回滚决策树
 
@@ -26,78 +28,50 @@
   └──────────────────────
 ```
 
-### 自动回滚触发条件
+### 部署失败保护条件
 
-CI/CD 部署流水线在以下情况**自动触发回滚**：
+生产发布在以下情况会终止，且不会切换 `current`：
 
-1. 健康检查 90 秒内未通过（`deploy.yml` 内建）
-2. `prisma migrate deploy` 执行失败
-3. 容器启动失败 (CrashLoopBackOff)
+1. 固定发布包或逐文件清单验真失败。
+2. `prisma migrate deploy` 执行失败。
+3. 容器启动或健康检查失败。
+
+生产环境不自动猜测回滚目标。值班人员必须选择一个有成功历史且保留包完整的目标版本，并执行同值确认。
 
 ### 手动回滚触发条件
 
 运维人员应在以下情况手动执行回滚：
 
-| 级别 | 现象 | 响应时间 |
-|------|------|---------|
-| **P0** | 用户无法登录、支付回调丢失、首页 5xx | **立即回滚** |
-| **P1** | 某个模块不可用（IM消息发送失败等） | 15 分钟内决策 |
-| **P2** | 非核心功能异常、性能轻微下降 | 评估后决定修复或回滚 |
+| 级别   | 现象                                 | 响应时间             |
+| ------ | ------------------------------------ | -------------------- |
+| **P0** | 用户无法登录、支付回调丢失、首页 5xx | **立即回滚**         |
+| **P1** | 某个模块不可用（IM消息发送失败等）   | 15 分钟内决策        |
+| **P2** | 非核心功能异常、性能轻微下降         | 评估后决定修复或回滚 |
 
 ---
 
 ## 二、回滚操作流程
 
-### 2.1 代码回滚（Docker 镜像回滚）
+### 2.1 应用版本回滚（当前标准流程）
 
 ```bash
-#!/bin/bash
-# 紧急回滚脚本 — 回滚到上一个稳定版本
-set -e
-
-# 配置
-CONTAINER="guoxue-server"
-ROLLBACK_TAG="${1}"  # 回滚目标版本 Tag 或 Commit SHA
-
-if [ -z "$ROLLBACK_TAG" ]; then
-  echo "用法: $0 <target-tag>"
-  echo "示例: $0 v1.2.3"
-  echo ""
-  echo "最近的镜像版本:"
-  docker images ghcr.io/*/guoxue-platform --format "{{.Tag}} {{.CreatedAt}}" | head -10
-  exit 1
-fi
-
-REGISTRY="ghcr.io"
-REPO="guoxue-platform"  # 替换为实际仓库名
-
-echo "⚠️  即将回滚到版本: $ROLLBACK_TAG"
-echo "按 Ctrl+C 取消，或等待 5 秒继续..."
-sleep 5
-
-# Step 1: 拉取目标版本镜像
-echo "[rollback] 拉取镜像 $REGISTRY/$REPO:$ROLLBACK_TAG..."
-docker pull "$REGISTRY/$REPO:$ROLLBACK_TAG"
-
-# Step 2: 更新容器
-echo "[rollback] 更新容器..."
-cd /opt/guoxue
-TAG=$ROLLBACK_TAG docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml \
-  up -d --no-deps server
-
-# Step 3: 等待健康检查
-echo "[rollback] 等待健康检查..."
-for i in $(seq 1 30); do
-  if curl -sf http://localhost:3000/api/v1/health; then
-    echo "[rollback] ✅ 回滚成功! 当前版本: $ROLLBACK_TAG"
-    exit 0
-  fi
-  sleep 3
-done
-
-echo "[rollback] ❌ 回滚后健康检查仍失败，请介入排查!"
-exit 1
+TARGET_RELEASE_ID='release-20260731-001'
+DEPLOY_TARGET='tencent' # 自建 PostgreSQL/Redis 时改为 standard；必须与初始化一致
+sudo ROOT_DIR=/opt/guoxue \
+  DEPLOY_TARGET="$DEPLOY_TARGET" \
+  ENV_FILE=/opt/guoxue/shared/.env.production \
+  bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh \
+  "$TARGET_RELEASE_ID" "$TARGET_RELEASE_ID"
 ```
+
+回滚脚本会复核保留固定包、已部署目录、成功发布历史、当前软链接和数据库迁移边界，并以
+`--skip-migrate` 健康部署目标版本；成功后才原子切换唯一权威 `current`，兼容指针 `current-release-id` 始终跟随 `current/.release-id`。不得手工改软链接、从 Git 重建旧包，
+也不得用目标目录内未经验证的脚本自证完整性。
+
+健康部署必须同时满足存活接口返回 `alive` 和运行实例 `releaseId` 等于目标发布标识。旧容器仍可响应但版本不符时不得切换 `current`，应由部署脚本超时后恢复原镜像并保留现场证据。
+
+目标版本早于最近数据库迁移时，必须先完成架构兼容评审；确认兼容后才允许设置
+`ALLOW_SCHEMA_COMPATIBLE_ROLLBACK=reviewed`。发布历史、保留包或验真证据缺失时不得绕过。
 
 ### 2.2 数据库回滚
 
@@ -115,37 +89,34 @@ if [ -z "$BACKUP_FILE" ]; then
   exit 1
 fi
 
-echo "⚠️  即将从备份恢复数据库: $BACKUP_FILE"
-echo "⚠️  此操作会覆盖当前数据库所有数据!"
-echo "按 Ctrl+C 取消，或等待 10 秒继续..."
-sleep 10
+echo "⚠️  即将从备份恢复本机容器数据库: $BACKUP_FILE"
+echo "⚠️  此操作会覆盖当前数据库所有数据；脚本将先验证校验和与归档并保存现场快照。"
+echo "托管/独立数据库必须改用 scripts/migration/restore-postgres.sh。"
 
 # Step 1: 停止应用（避免写入冲突）
 echo "[restore] 暂停应用服务..."
 docker compose -f /opt/guoxue/docker-compose.yml -f /opt/guoxue/docker-compose.prod.yml \
   stop server
 
-# Step 2: 删除当前数据库并重建
-echo "[restore] 重建数据库..."
-docker exec guoxue-postgres psql -U guoxue -d postgres -c "DROP DATABASE IF EXISTS guoxue;"
-docker exec guoxue-postgres psql -U guoxue -d postgres -c "CREATE DATABASE guoxue OWNER guoxue;"
+# Step 2: 通过统一安全入口恢复
+echo "[restore] 校验并恢复数据..."
+RESTORE_CONFIRM=guoxue /opt/guoxue/docker/pg-restore.sh "$BACKUP_FILE"
 
-# Step 3: 恢复备份
-echo "[restore] 恢复数据..."
-gunzip -c "$BACKUP_FILE" | docker exec -i guoxue-postgres psql -U guoxue -d guoxue
-
-# Step 4: 重新执行当前代码级别的迁移
+# Step 3: 通过当前固定发布包和实际生产镜像重新执行迁移
 echo "[restore] 执行迁移..."
-docker compose -f /opt/guoxue/docker-compose.yml -f /opt/guoxue/docker-compose.prod.yml \
-  run --rm server \
-  npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
+export TARGET_DATABASE_URL="$DATABASE_URL"
+export TARGET_RELEASE_ID="$(cat /opt/guoxue/current/.release-id)"
+export PRISMA_COMPOSE_ENV_FILE=/opt/guoxue/shared/.env.production
+export MIGRATION_DEPLOY_CONFIRM="migrate:${TARGET_RELEASE_ID}"
+bash /opt/guoxue/current/scripts/migration/run-prisma-migrations.sh deploy
+bash /opt/guoxue/current/scripts/migration/verify-postgres.sh
 
-# Step 5: 重启应用
+# Step 4: 重启应用
 echo "[restore] 重启应用..."
 docker compose -f /opt/guoxue/docker-compose.yml -f /opt/guoxue/docker-compose.prod.yml \
   up -d server
 
-# Step 6: 验证
+# Step 5: 验证
 echo "[restore] 验证健康检查..."
 for i in $(seq 1 30); do
   if curl -sf http://localhost:3000/api/v1/health; then
@@ -259,14 +230,14 @@ docker run -d --name guoxue-server-canary \
 
 ### 5.2 变更分级
 
-| 变更类型 | 回滚策略 | 灰度要求 |
-|---------|---------|---------|
-| 新增页面/API | 代码回滚即可 | 不需要 |
-| 数据库新增字段/表 | 代码回滚（新字段不影响旧代码） | 不需要 |
-| 数据库修改字段类型/删字段 | 数据库回滚或补偿迁移 | **需要灰度** |
-| 支付/财务相关 | 沙箱充分验证 | **需要灰度** |
-| 权限/认证修改 | 代码回滚 | **需要灰度** |
-| 第三方 SDK 升级 | 代码回滚 | 不需要 |
+| 变更类型                  | 回滚策略                       | 灰度要求     |
+| ------------------------- | ------------------------------ | ------------ |
+| 新增页面/API              | 代码回滚即可                   | 不需要       |
+| 数据库新增字段/表         | 代码回滚（新字段不影响旧代码） | 不需要       |
+| 数据库修改字段类型/删字段 | 数据库回滚或补偿迁移           | **需要灰度** |
+| 支付/财务相关             | 沙箱充分验证                   | **需要灰度** |
+| 权限/认证修改             | 代码回滚                       | **需要灰度** |
+| 第三方 SDK 升级           | 代码回滚                       | 不需要       |
 
 ### 5.3 数据库变更安全原则
 

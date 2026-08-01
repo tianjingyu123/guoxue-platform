@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { shareLink } from '@/utils/share'
 
 type ShareKind = 'classic' | 'article' | 'video' | 'live' | 'course' | 'product' | 'circle' | 'agent' | 'tool'
@@ -24,6 +25,15 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'poster'): void
 }>()
+
+useOverlayScrollLock(
+  () => props.visible,
+  {
+    onEscape: () => emit('close'),
+    focusContainerSelector: '.css-sheet',
+    initialFocusSelector: '.css-close',
+  },
+)
 
 const kindInfo = computed(() => {
   const map: Record<ShareKind, { label: string; glyph: string; gradient: string }> = {
@@ -104,18 +114,31 @@ function copyUrl() {
     fail: () => uni.showToast({ title: '复制失败，请稍后重试', icon: 'none' }),
   })
 }
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<void>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 </script>
 
 <template>
-  <view v-if="visible" class="css-mask" role="dialog" aria-modal="true" aria-label="分享内容" @tap="emit('close')">
-    <view class="css-sheet" @tap.stop>
+  <view v-if="visible" class="css-mask" role="dialog" aria-modal="true" aria-label="分享内容" @tap="emit('close')" @touchmove.self.prevent>
+    <view class="css-sheet" tabindex="-1" @tap.stop @touchmove.stop>
       <view class="css-grip" />
       <view class="css-head">
         <view>
           <text class="css-kicker">分享这份内容</text>
           <text class="css-hint">对方打开即可看到完整内容</text>
         </view>
-        <view class="css-close" aria-label="关闭分享面板" @tap="emit('close')">
+        <view
+          class="css-close"
+          role="button"
+          aria-label="关闭分享面板"
+          tabindex="0"
+          @tap="emit('close')"
+          @keydown="activateOnKeyboard($event, () => emit('close'))"
+        >
           <app-icon name="x-circle" :size="32" color="#77716a" />
         </view>
       </view>
@@ -144,7 +167,14 @@ function copyUrl() {
         </button>
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
-        <view class="css-action" @tap="shareFriend">
+        <view
+          class="css-action"
+          role="button"
+          aria-label="分享到微信好友"
+          tabindex="0"
+          @tap="shareFriend"
+          @keydown="activateOnKeyboard($event, shareFriend)"
+        >
           <view class="css-action-icon css-action-icon--wechat">
             <app-icon name="message-circle" :size="40" color="#ffffff" />
           </view>
@@ -152,21 +182,42 @@ function copyUrl() {
         </view>
         <!-- #endif -->
 
-        <view class="css-action" @tap="shareTimeline">
+        <view
+          class="css-action"
+          role="button"
+          aria-label="分享到朋友圈"
+          tabindex="0"
+          @tap="shareTimeline"
+          @keydown="activateOnKeyboard($event, shareTimeline)"
+        >
           <view class="css-action-icon css-action-icon--moments">
             <view class="css-moments-ring"><view class="css-moments-dot" /></view>
           </view>
           <text class="css-action-label">朋友圈</text>
         </view>
 
-        <view class="css-action" @tap="openPoster">
+        <view
+          class="css-action"
+          role="button"
+          aria-label="生成分享海报"
+          tabindex="0"
+          @tap="openPoster"
+          @keydown="activateOnKeyboard($event, openPoster)"
+        >
           <view class="css-action-icon css-action-icon--poster">
             <app-icon name="image" :size="40" color="#ffffff" />
           </view>
           <text class="css-action-label">分享海报</text>
         </view>
 
-        <view class="css-action" @tap="copyUrl">
+        <view
+          class="css-action"
+          role="button"
+          aria-label="复制分享链接"
+          tabindex="0"
+          @tap="copyUrl"
+          @keydown="activateOnKeyboard($event, copyUrl)"
+        >
           <view class="css-action-icon css-action-icon--link">
             <app-icon name="link-2" :size="40" color="#ffffff" />
           </view>

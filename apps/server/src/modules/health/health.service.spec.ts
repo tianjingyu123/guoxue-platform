@@ -33,15 +33,20 @@ describe("HealthService", () => {
     delete process.env.WECHAT_OFFICIAL_APP_SECRET;
     delete process.env.WECHAT_MINI_APP_ID;
     delete process.env.MINIPROGRAM_APP_SECRET;
+    delete process.env.RELEASE_ID;
   });
 
-  afterAll(() => { global.fetch = origFetch; });
+  afterAll(() => {
+    global.fetch = origFetch;
+  });
 
   describe("liveness", () => {
     it("返回存活状态和运行时间", () => {
+      process.env.RELEASE_ID = "release-liveness-test";
       const result = svc.liveness();
       expect(result.status).toBe("alive");
       expect(result.uptime).toBeGreaterThan(0);
+      expect(result.releaseId).toBe("release-liveness-test");
     });
   });
 
@@ -59,13 +64,23 @@ describe("HealthService", () => {
       expect(result.status).toBe("not_ready");
       expect(result.db).toBe("fail");
     });
+
+    it("Redis 异常时返回 not_ready", async () => {
+      mockRedis.get.mockRejectedValueOnce(new Error("redis down"));
+      const result = await svc.readiness();
+      expect(result.status).toBe("not_ready");
+      expect(result.db).toBe("ok");
+      expect(result.redis).toBe("fail");
+    });
   });
 
   describe("check", () => {
     it("返回包含所有检查项的完整报告", async () => {
       (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 200 });
+      process.env.RELEASE_ID = "release-unit-test";
       const result = await svc.check();
       expect(result.status).toBeDefined();
+      expect(result.releaseId).toBe("release-unit-test");
       expect(result.checks).toHaveProperty("db");
       expect(result.checks).toHaveProperty("redis");
       // 已配置的外部服务应存在

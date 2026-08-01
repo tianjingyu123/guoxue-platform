@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "kind": "guoxue-new-infrastructure-intake",
+  "deployTarget": "tencent",
+  "server": {
+    "provider": "腾讯云",
+    "region": "ap-beijing",
+    "osFamily": "linux",
+    "architecture": "x86_64",
+    "cpuCores": 4,
+    "memoryMb": 8192,
+    "diskGb": 100,
+    "ingressMode": "clb",
+    "sshUser": "deploy",
+    "sshHostFingerprint": "pending",
+    "securityGroupReviewed": false
+  },
+  "database": {
+    "provider": "腾讯云 PostgreSQL",
+    "engine": "postgresql",
+    "endpointHost": "pending",
+    "versionMajor": 16,
+    "topology": "managed",
+    "privateNetwork": true,
+    "tls": true,
+    "backupEnabled": true,
+    "pitrEnabled": true,
+    "retentionDays": 14
+  },
+  "cache": {
+    "provider": "腾讯云 Redis",
+    "engine": "redis",
+    "endpointHost": "pending",
+    "versionMajor": 7,
+    "topology": "managed",
+    "privateNetwork": true,
+    "tls": true,
+    "persistenceEnabled": true
+  },
+  "domains": {
+    "publicDomain": "api.example.com",
+    "apiUrl": "https://api.example.com",
+    "h5Url": "https://api.example.com/h5/",
+    "adminUrl": "https://api.example.com/admin/",
+    "assetOrigin": "https://static.example.com",
+    "dnsProvider": "DNSPod",
+    "ttlSeconds": 300,
+    "certificateStatus": "pending"
+  },
+  "storage": {
+    "provider": "cos",
+    "bucket": "pending",
+    "region": "pending",
+    "privateRead": true,
+    "corsConfigured": false,
+    "lifecycleConfigured": false,
+    "signedUrlVerified": false
+  },
+  "migration": {
+    "sourceDatabaseAccessVerified": false,
+    "targetDatabaseAccessVerified": false,
+    "dnsChangeAccessVerified": false,
+    "rehearsalCompleted": false,
+    "writeFreezeOwner": "待填写",
+    "maintenanceWindowUtc": "pending",
+    "rollbackRetentionHours": 168,
+    "oldEnvironmentRetentionConfirmed": false
+  },
+  "operations": {
+    "backupOwner": "待填写",
+    "cutoverOwner": "待填写",
+    "rollbackOwner": "待填写",
+    "technicalApprover": "待填写",
+    "businessApprover": "待填写",
+    "monitoringConfigured": false,
+    "alertTested": false,
+    "restoreDrillCompleted": false
+  }
+}

@@ -322,9 +322,9 @@ function previewImage(urls: string[], current: string) {
   padding: 20rpx 40rpx 16rpx;
   background: #FAF8F5;
 }
-.nav-back { width: 72rpx; height: 72rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; background: #FFFFFF; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
+.nav-back { width: 88rpx; height: 88rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; background: #FFFFFF; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
 .nav-title { font-size: 40rpx; font-weight: 700; letter-spacing: 2rpx; color: #2C2C2C; }
-.nav-ph { width: 72rpx; }
+.nav-ph { width: 88rpx; }
 
 /* ── 内容主体 ── */
 .body-pad { padding: 24rpx 40rpx 220rpx; display: flex; flex-direction: column; gap: 24rpx; }

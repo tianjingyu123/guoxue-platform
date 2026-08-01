@@ -12,11 +12,34 @@ const saving = computed(() => {
   const original = Number(props.data.originalPrice || 0)
   return original > price ? original - price : 0
 })
+
+const accessibilityLabel = computed(() => {
+  const subtitle = props.data.subtitle ? `，${props.data.subtitle}` : ''
+  const sales = props.data.sales ? `，已售 ${props.data.sales}` : ''
+  const stock = props.data.stock != null && props.data.stock > 0 ? '，现货' : ''
+  return `选购商品：${props.data.title}${subtitle}${sales}${stock}，到手价 ${formatPrice(props.data.price)} 元`
+})
+
 function open(event?: unknown) { navigateToContent(`/mall/product/${props.data.id}`, event) }
+
+function openOnKeyboard(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  open(event)
+}
 </script>
 
 <template>
-  <view class="card sales-card" data-content-card hover-class="card-press" @tap="open">
+  <view
+    class="card sales-card"
+    data-content-card
+    role="link"
+    :aria-label="accessibilityLabel"
+    tabindex="0"
+    hover-class="card-press"
+    @tap="open"
+    @keydown="openOnKeyboard"
+  >
     <view class="cover">
       <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="product" />
       <text v-if="saving > 0" class="saving-badge">立省 ¥{{ formatPrice(saving) }}</text>

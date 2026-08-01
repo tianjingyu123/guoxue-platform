@@ -12,11 +12,6 @@ import { MetricsService } from "../../common/metrics.service";
 @Injectable()
 export class WechatPayService {
   private readonly logger = new Logger(WechatPayService.name);
-  private readonly mchId: string;
-  private readonly serialNo: string;
-  private readonly privateKey: string;
-  private readonly apiV3Key: string;
-  private readonly appId: string;
   private readonly baseUrl = "https://api.mch.weixin.qq.com";
   // 平台证书序列号 → { pem, expireAt }
   private platformCerts: Map<string, { pem: string; expireAt: number }> = new Map();
@@ -24,24 +19,40 @@ export class WechatPayService {
   constructor(
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
   ) {
-    this.mchId = process.env.WECHAT_PAY_MCH_ID || "";
-    this.serialNo = process.env.WECHAT_PAY_SERIAL_NO || "";
-    this.apiV3Key = process.env.WECHAT_PAY_API_V3_KEY || "";
-    // AppID 回退链：支付专用 → 小程序 → 开放平台（微信支付必须携带与商户号绑定的 AppID）
-    this.appId = process.env.WECHAT_PAY_APP_ID || process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "";
-
-    // 私钥可以从文件路径读取或直接环境变量
-    const keyPath = process.env.WECHAT_PAY_PRIVATE_KEY_PATH || "";
-    const keyContent = process.env.WECHAT_PAY_PRIVATE_KEY || "";
-    if (keyPath) {
-      this.privateKey = readFileSync(keyPath, "utf-8");
-    } else {
-      this.privateKey = keyContent.replace(/\\n/g, "\n");
-    }
-
     if (!this.mchId || !this.privateKey) {
       this.logger.warn("微信支付未配置，请在 .env 中设置 WECHAT_PAY_* 相关变量");
     }
+  }
+
+  // 后台第三方配置保存后会同步到当前实例的 process.env。这里不能在构造阶段缓存，
+  // 否则连处理保存请求的实例也会继续使用旧商户号/密钥；其他实例仍需滚动重启同步。
+  private get mchId(): string {
+    return process.env.WECHAT_PAY_MCH_ID || "";
+  }
+
+  private get serialNo(): string {
+    return process.env.WECHAT_PAY_SERIAL_NO || "";
+  }
+
+  private get apiV3Key(): string {
+    return process.env.WECHAT_PAY_API_V3_KEY || "";
+  }
+
+  private get appId(): string {
+    return process.env.WECHAT_PAY_APP_ID || process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "";
+  }
+
+  private get privateKey(): string {
+    const keyPath = process.env.WECHAT_PAY_PRIVATE_KEY_PATH || "";
+    if (keyPath) return readFileSync(keyPath, "utf-8");
+    return (process.env.WECHAT_PAY_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+  }
+
+  private callbackUrl(envKey: "WECHAT_PAY_NOTIFY_URL" | "WECHAT_PAY_REFUND_NOTIFY_URL", path: string): string {
+    const configured = process.env[envKey]?.trim();
+    if (configured) return configured;
+    const publicApiUrl = (process.env.PUBLIC_API_URL || process.env.API_BASE_URL || "").replace(/\/+$/, "");
+    return publicApiUrl ? `${publicApiUrl}${path}` : "";
   }
 
   /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */
@@ -321,7 +332,7 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total, // 分
         currency: params.amount.currency || "CNY",
@@ -352,7 +363,7 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
@@ -377,7 +388,7 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
@@ -403,7 +414,7 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
@@ -459,7 +470,7 @@ export class WechatPayService {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
       },
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_REFUND_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_REFUND_NOTIFY_URL", "/api/v1/shop/refund/notify"),
     };
     if (params.reason) body.reason = params.reason;
 

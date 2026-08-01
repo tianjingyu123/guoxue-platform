@@ -804,10 +804,11 @@ export class MerchantService {
   // ─── 订单管理 ───
 
   async listOrders(merchantId: string, q: MerchantOrderQueryDto) {
-    const { status, startDate, endDate } = q;
+    const { status, startDate, endDate, customerId } = q;
     const { page, pageSize, skip } = safePagination(q.page, q.pageSize, NO_PAGE_LIMIT);
     const where: Record<string, unknown> = { merchantId };
     if (status) where.status = status;
+    if (customerId) where.userId = customerId;
     if (startDate || endDate) {
       where.createdAt = {
         ...(startDate ? { gte: new Date(startDate) } : {}),
@@ -829,19 +830,26 @@ export class MerchantService {
    * 白标贺卡（供-P2）：订单行自带 giftCardMeta（{fromName,blessing,qrRef}·发货时打印随包裹放入），
    * 此处补 hasGiftCard 布尔位供列表视图轻量露出贺卡任务标记。
    */
-  private async enrichOrders<T extends { targetId: string; userId: string }>(orders: T[]) {
+  private async enrichOrders<T extends { id: string; targetId: string; userId: string }>(orders: T[]) {
     if (orders.length === 0) return orders;
+    const orderIds = orders.map((o) => o.id);
     const productIds = [...new Set(orders.map((o) => o.targetId))];
     const userIds = [...new Set(orders.map((o) => o.userId))];
-    const [products, users] = await Promise.all([
+    const [products, users, logisticsRows] = await Promise.all([
       this.prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, title: true, images: true } }),
       this.prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, nickname: true, phone: true } }),
+      this.prisma.orderLogistics.findMany({
+        where: { orderId: { in: orderIds } },
+        select: { orderId: true, company: true, logisticsNo: true, status: true, updatedAt: true },
+      }),
     ]);
     const pm = new Map(products.map((p) => [p.id, p]));
     const um = new Map(users.map((u) => [u.id, u]));
+    const lm = new Map(logisticsRows.map((row) => [row.orderId, row]));
     return orders.map((o) => {
       const prod = pm.get(o.targetId);
       const usr = um.get(o.userId);
+      const logistics = lm.get(o.id);
       return {
         ...o,
         productTitle: prod?.title ?? "商品",
@@ -851,6 +859,11 @@ export class MerchantService {
         hasGiftCard: Boolean((o as { giftCardMeta?: unknown }).giftCardMeta), // 白标贺卡任务标记（供-P2）
         // 收货地址快照显式透传（Order.shippingInfo Json·下单时落库），供商家端发货视图直接读；Order 无 orderNo 列，前端以 id 为单号
         shippingInfo: (o as { shippingInfo?: unknown }).shippingInfo ?? null,
+        // 列表一次批量补齐运单，避免 PC 发货页对每一行发 N+1 请求，也避免“已发货但看不到运单”。
+        shipCompany: logistics?.company ?? null,
+        trackingNo: logistics?.logisticsNo ?? null,
+        logisticsStatus: logistics?.status ?? null,
+        shipmentUpdatedAt: logistics?.updatedAt ?? null,
       };
     });
   }
@@ -869,14 +882,30 @@ export class MerchantService {
     const order = await this.prisma.order.findFirst({ where: { id: orderId, merchantId } });
     if (!order) throw new BusinessException(ErrorCode.BAD_REQUEST, "订单不存在");
     if (order.status === "REFUNDED") throw new BusinessException(ErrorCode.BAD_REQUEST, "订单已退款");
-    // 🔴 绝不能只把状态改成 REFUNDED：那样买家的钱不会退、已发的分佣不冲正，
-    //    还会把订单锁死在终态、令正规退款路径(refundOrder)因 status!==REFUNDED 永久失效。
-    //    必须委托统一退款服务：真实渠道退款（未配置则降级线下打款）+ CAS 置 REFUNDED + 冲正分佣 + webhook。
-    if (!this.shopRefund) {
-      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款服务暂不可用，请稍后重试");
+    // 兼容旧订单退款端点，但绝不允许它跳过售后申请、退货地址和验收入库。
+    // 新界面统一进入售后管理；旧调用仅可审批真实存在的「仅退款」申请。
+    const afterSale = await this.prisma.afterSale.findFirst({
+      where: { orderId, status: "PENDING", type: { contains: "refund", mode: "insensitive" } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!afterSale) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单没有待处理的退款申请，请到售后管理核对");
     }
-    const result = await this.shopRefund.refundOrder(orderId, "商家同意退款");
-    return { success: true, refundStatus: result.status };
+    if (isReturnRefundType(afterSale.type)) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "退货退款请到售后管理填写退货地址，并在收到退货后完成验收入库",
+      );
+    }
+    if (!isImmediateRefundType(afterSale.type)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该售后类型不能通过订单退款端点处理，请到售后管理操作");
+    }
+    const result = await this.processAfterSale(merchantId, afterSale.id, { action: "approve" });
+    return {
+      success: true,
+      afterSaleId: afterSale.id,
+      refundStatus: result?.status ?? "PROCESSING",
+    };
   }
 
   async rejectRefund(merchantId: string, orderId: string, reason: string) {
@@ -1151,7 +1180,9 @@ export class MerchantService {
         COALESCE(SUM(o."amount"), 0)::decimal as "totalSpent",
         MAX(o."createdAt") as "lastOrderAt"
       FROM "User" u
-      JOIN "Order" o ON o."userId" = u.id AND o."merchantId" = $1
+      JOIN "Order" o ON o."userId" = u.id
+        AND o."merchantId" = $1
+        AND o.status IN ('PAID', 'SHIPPED', 'COMPLETED')
       WHERE 1=1 ${keywordCond}
       GROUP BY u.id, u.nickname, u.avatar, u.phone, u."createdAt"
       ORDER BY "totalSpent" DESC
@@ -1174,12 +1205,64 @@ export class MerchantService {
       SELECT COUNT(DISTINCT o."userId")::int as cnt
       FROM "Order" o
       JOIN "User" u ON u.id = o."userId"
-      WHERE o."merchantId" = $1 ${countCond}
+      WHERE o."merchantId" = $1
+        AND o.status IN ('PAID', 'SHIPPED', 'COMPLETED')
+        ${countCond}
     `, ...countParams);
 
     // PII 脱敏：商家(非平台管理员)不应看到客户完整手机号，与 enrichOrders 的 buyerPhone 一致
     const masked = result.map((r) => ({ ...r, phone: r.phone ? maskPhone(r.phone) : null }));
     return { list: masked, total: countResult[0]?.cnt || 0, page, pageSize };
+  }
+
+  /**
+   * 客户详情只基于当前商家的真实交易关系生成。
+   * 消费口径排除待付款、取消和已退款订单；手机号始终脱敏，避免商家侧泄露买家 PII。
+   */
+  async getCustomerDetail(merchantId: string, customerId: string) {
+    const customer = await this.prisma.user.findFirst({
+      where: { id: customerId, orders: { some: { merchantId } } },
+      select: { id: true, nickname: true, avatar: true, phone: true, createdAt: true },
+    });
+    if (!customer) throw new BusinessException(ErrorCode.NOT_FOUND, "客户不存在");
+
+    const validWhere: Prisma.OrderWhereInput = {
+      merchantId,
+      userId: customerId,
+      status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+    };
+    const tradeArgs = Prisma.validator<Prisma.OrderAggregateArgs>()({
+      where: validWhere,
+      _sum: { amount: true },
+      _min: { createdAt: true },
+      _max: { createdAt: true },
+    });
+    const [trade, validOrderCount, refundedOrderCount, recentOrders] = await Promise.all([
+      this.prisma.order.aggregate(tradeArgs),
+      this.prisma.order.count({ where: validWhere }),
+      this.prisma.order.count({ where: { merchantId, userId: customerId, status: "REFUNDED" } }),
+      this.prisma.order.findMany({
+        where: { merchantId, userId: customerId },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+      }),
+    ]);
+
+    const totalSpent = Number(trade._sum.amount ?? 0);
+    return {
+      id: customer.id,
+      nickname: customer.nickname,
+      avatar: customer.avatar,
+      phone: customer.phone ? maskPhone(customer.phone) : null,
+      createdAt: customer.createdAt,
+      orderCount: validOrderCount,
+      totalSpent,
+      averageOrderValue: validOrderCount > 0 ? Math.round((totalSpent / validOrderCount) * 100) / 100 : 0,
+      firstOrderAt: trade._min.createdAt,
+      lastOrderAt: trade._max.createdAt,
+      refundedOrderCount,
+      recentOrders: await this.enrichOrders(recentOrders),
+    };
   }
 
   /** 平台通知 — 返回活跃站点公告 */
@@ -1214,18 +1297,25 @@ export class MerchantService {
     const merchant = await this.prisma.merchant.findUnique({ where: { id: merchantId }, select: { userId: true } });
     const userId = merchant?.userId;
 
-    const [productCount, publishedCount] = userId ? await Promise.all([
+    const [productCount, publishedCount, publishedArticles, articleEngagement] = userId ? await Promise.all([
       this.prisma.product.count({ where: { userId, deletedAt: null } }),
       this.prisma.product.count({ where: { userId, status: "ON_SALE", deletedAt: null } }),
-    ]) : [0, 0];
+      this.prisma.article.count({
+        where: { userId, auditStatus: "APPROVED", deletedAt: null },
+      }),
+      this.prisma.article.aggregate({
+        where: { userId, auditStatus: "APPROVED", deletedAt: null },
+        _sum: { viewCount: true, likeCount: true },
+      }),
+    ]) : [0, 0, 0, { _sum: { viewCount: 0, likeCount: 0 } }];
 
     return {
       totalProducts: productCount,
       publishedProducts: publishedCount,
       draftProducts: productCount - publishedCount,
-      publishedArticles: 0,
-      totalViews: 0,
-      totalLikes: 0,
+      publishedArticles,
+      totalViews: articleEngagement._sum.viewCount || 0,
+      totalLikes: articleEngagement._sum.likeCount || 0,
     };
   }
 }

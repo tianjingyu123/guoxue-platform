@@ -513,12 +513,14 @@ function openRecommend(item: RecommendItem) {
   flex-shrink: 0;
 }
 .nav-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+.nav-bar > .nav-btn:first-child { margin-left: -12rpx; }
+.nav-bar > .nav-btn:last-child { margin-right: -12rpx; }
 .nav-bot {
   flex: 1;
   display: flex;

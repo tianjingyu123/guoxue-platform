@@ -2,7 +2,7 @@
 /** 直播广场页 — H3 视觉稿 A 类逐像素还原（首页直播 Tab 进入）
  * 真连保留：直播中/预告 = liveApi.getPlaza(按 status 分组)；回放 = liveApi.getReplays；预约 = bookRoom/unbookRoom
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import LiveCardMedia from '@/components/live/live-card-media.vue'
@@ -21,7 +21,9 @@ import {
   type LiveReplay,
 } from '@/lib/live-data'
 
-const activeTab = ref<string>('全部')
+type LiveTab = (typeof liveTabs)[number]
+
+const activeTab = ref<LiveTab>('全部')
 const loading = ref(true)
 const error = ref('')
 const list = ref<LiveItem[]>([])
@@ -92,9 +94,53 @@ async function fetchData() {
   }
 }
 
-function onTabChange(tab: string) {
+function onTabChange(tab: LiveTab) {
   activeTab.value = tab
-  fetchData()
+  void fetchData()
+}
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+async function onTabKeydown(event: KeyboardEvent, currentTab: LiveTab) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    onTabChange(currentTab)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const currentIndex = liveTabs.indexOf(currentTab)
+  if (currentIndex < 0) return
+  const offset = event.key === 'ArrowRight' ? 1 : -1
+  const nextIndex = (currentIndex + offset + liveTabs.length) % liveTabs.length
+  onTabChange(liveTabs[nextIndex])
+  await nextTick()
+  if (typeof document === 'undefined') return
+  document.querySelector<HTMLElement>('.tab[aria-selected="true"]')?.focus()
+}
+
+function liveAccessibilityLabel(item: LiveItem) {
+  return `正在直播：${item.title}，主播${item.hostName}，${formatLiveViews(item.viewerCount)}人观看`
+}
+
+function upcomingAccessibilityLabel(item?: LiveItem) {
+  if (!item) return '直播预约'
+  return `直播预约：${item.title}，主播${item.hostName}，${item.scheduledTime || '开播时间待定'}`
+}
+
+function replayAccessibilityLabel(item: LiveReplay) {
+  return `观看直播回放：${item.title}，主播${item.hostName}，时长${formatLiveDuration(item.duration)}`
+}
+
+function bookingAccessibilityLabel(item?: LiveItem) {
+  if (!item) return '预约直播'
+  return bookedMap.value[item.id]
+    ? `取消预约：${item.title}`
+    : `预约直播：${item.title}，${item.scheduledTime || '开播时间待定'}`
 }
 
 onMounted(() => {
@@ -146,23 +192,43 @@ async function toggleBook(item: LiveItem) {
 
     <!-- 固定头部：返回 + 页题 + 搜索 -->
     <view class="header">
-      <view class="nav-back" hover-class="tap" @tap="goBack">
+      <view
+        class="nav-back"
+        role="button"
+        aria-label="返回上一页"
+        tabindex="0"
+        hover-class="tap"
+        @tap="goBack"
+        @keydown="activateOnKeyboard($event, goBack)"
+      >
         <AppIcon name="chevron-left" :size="36" color="#2B2620" />
       </view>
       <text class="nav-title">直播广场</text>
-      <view class="nav-search" hover-class="tap" @tap="onSearch">
+      <view
+        class="nav-search"
+        role="link"
+        aria-label="搜索直播"
+        tabindex="0"
+        hover-class="tap"
+        @tap="onSearch"
+        @keydown="activateOnKeyboard($event, onSearch)"
+      >
         <AppIcon name="search" :size="34" color="#8A8578" />
       </view>
     </view>
 
     <!-- 分类 tabs（下划线风格） -->
-    <view class="tabs">
+    <view class="tabs" role="tablist" aria-label="直播分类">
       <view
         v-for="tab in liveTabs"
         :key="tab"
         class="tab"
         :class="activeTab === tab && 'tab-on'"
+        role="tab"
+        :aria-selected="activeTab === tab"
+        :tabindex="activeTab === tab ? 0 : -1"
         @tap="onTabChange(tab)"
+        @keydown="onTabKeydown($event, tab)"
       >
         <text class="tab-txt">{{ tab }}</text>
         <view v-if="activeTab === tab" class="tab-line" />
@@ -170,19 +236,27 @@ async function toggleBook(item: LiveItem) {
     </view>
 
     <!-- 内容区 -->
-    <scroll-view scroll-y class="content">
+    <scroll-view scroll-y class="content" role="region" aria-label="直播广场内容">
       <!-- 骨架 -->
-      <view v-if="loading" class="skeleton">
+      <view v-if="loading" class="skeleton" role="status" aria-live="polite" aria-label="直播广场加载中">
         <view class="sk-grid">
           <view v-for="i in 4" :key="i" class="sk-card" />
         </view>
       </view>
 
       <!-- 错误 -->
-      <view v-else-if="error" class="state">
+      <view v-else-if="error" class="state" role="alert" aria-live="assertive">
         <view class="state-icon"><AppIcon name="alert-circle" :size="48" color="#B0A99A" /></view>
         <text class="state-txt">{{ error }}</text>
-        <view class="retry-btn" hover-class="tap" @tap="fetchData">
+        <view
+          class="retry-btn"
+          role="button"
+          aria-label="重新加载直播广场"
+          tabindex="0"
+          hover-class="tap"
+          @tap="fetchData"
+          @keydown="activateOnKeyboard($event, fetchData)"
+        >
           <text class="retry-txt">重新加载</text>
         </view>
       </view>
@@ -202,8 +276,12 @@ async function toggleBook(item: LiveItem) {
                 v-for="live in liveCols[0]"
                 :key="live.id"
                 class="card live-card-glow"
+                role="link"
+                :aria-label="liveAccessibilityLabel(live)"
+                tabindex="0"
                 hover-class="card-press"
                 @tap="openLive(live.id)"
+                @keydown="activateOnKeyboard($event, () => openLive(live.id))"
               >
                 <view class="cov r34 live">
                     <live-card-media class="cov-img" :room-id="live.id" :cover="live.cover" :title="live.title" status="live" deco />
@@ -231,8 +309,12 @@ async function toggleBook(item: LiveItem) {
                 v-for="live in liveCols[1]"
                 :key="live.id"
                 class="card live-card-glow"
+                role="link"
+                :aria-label="liveAccessibilityLabel(live)"
+                tabindex="0"
                 hover-class="card-press"
                 @tap="openLive(live.id)"
+                @keydown="activateOnKeyboard($event, () => openLive(live.id))"
               >
                 <view class="cov r34 live">
                     <live-card-media class="cov-img" :room-id="live.id" :cover="live.cover" :title="live.title" status="live" deco />
@@ -269,15 +351,19 @@ async function toggleBook(item: LiveItem) {
           <view
             v-if="featuredUpcoming"
             class="feat-card"
+            role="link"
+            :aria-label="upcomingAccessibilityLabel(featuredUpcoming)"
+            tabindex="0"
             hover-class="card-press"
             @tap="openLive(featuredUpcoming.id)"
+            @keydown="activateOnKeyboard($event, () => featuredUpcoming && openLive(featuredUpcoming.id))"
           >
             <view class="feat-cov r169">
               <smart-cover class="cov-img" :src="featuredUpcoming.cover" :title="featuredUpcoming.title" type="live" deco :deco-size="80" />
               <view class="feat-mask" />
               <view class="badge tr up">
                 <AppIcon name="clock" :size="20" color="#ffffff" />
-                <text class="badge-txt">预约</text>
+                <text class="badge-txt">预约 · {{ featuredUpcoming.scheduledTime || '时间待定' }}</text>
               </view>
               <view class="feat-info">
                 <text class="feat-title">{{ featuredUpcoming.title }}</text>
@@ -285,7 +371,17 @@ async function toggleBook(item: LiveItem) {
               </view>
             </view>
             <view class="feat-bar">
-              <view class="feat-book" @tap.stop="toggleBook(featuredUpcoming)">
+              <view
+                class="feat-book"
+                role="button"
+                :aria-label="bookingAccessibilityLabel(featuredUpcoming)"
+                :aria-pressed="bookedMap[featuredUpcoming.id]"
+                :aria-busy="booking[featuredUpcoming.id]"
+                :aria-disabled="booking[featuredUpcoming.id]"
+                :tabindex="booking[featuredUpcoming.id] ? -1 : 0"
+                @tap.stop="toggleBook(featuredUpcoming)"
+                @keydown.stop="activateOnKeyboard($event, () => featuredUpcoming && toggleBook(featuredUpcoming))"
+              >
                 <view
                   class="rsv"
                   :class="bookedMap[featuredUpcoming.id] ? 'rsv-yes' : 'rsv-no'"
@@ -309,8 +405,12 @@ async function toggleBook(item: LiveItem) {
               :key="item.id"
               class="tl-row"
               :class="idx > 0 && 'tl-divider'"
+              role="link"
+              :aria-label="upcomingAccessibilityLabel(item)"
+              tabindex="0"
               hover-class="tl-press"
               @tap="openLive(item.id)"
+              @keydown="activateOnKeyboard($event, () => openLive(item.id))"
             >
               <view class="tl-node" :class="isTomorrow(item.scheduledTime) && 'tl-node-tmr'" />
               <view class="tl-time" :class="isTomorrow(item.scheduledTime) && 'tl-time-tmr'">
@@ -324,7 +424,14 @@ async function toggleBook(item: LiveItem) {
               <view
                 class="rsv rsv-sm"
                 :class="bookedMap[item.id] ? 'rsv-yes' : 'rsv-no'"
+                role="button"
+                :aria-label="bookingAccessibilityLabel(item)"
+                :aria-pressed="bookedMap[item.id]"
+                :aria-busy="booking[item.id]"
+                :aria-disabled="booking[item.id]"
+                :tabindex="booking[item.id] ? -1 : 0"
                 @tap.stop="toggleBook(item)"
+                @keydown.stop="activateOnKeyboard($event, () => toggleBook(item))"
               >
                 <text class="rsv-txt">{{ bookedMap[item.id] ? '已预约' : '预约' }}</text>
               </view>
@@ -344,8 +451,12 @@ async function toggleBook(item: LiveItem) {
                 v-for="rp in replayCols[0]"
                 :key="rp.id"
                 class="card"
+                role="link"
+                :aria-label="replayAccessibilityLabel(rp)"
+                tabindex="0"
                 hover-class="card-press"
                 @tap="openReplay(rp.id)"
+                @keydown="activateOnKeyboard($event, () => openReplay(rp.id))"
               >
                 <view class="cov r34">
                   <smart-cover class="cov-img" :src="rp.cover" :title="rp.title" type="live" deco :deco-size="64" />
@@ -369,8 +480,12 @@ async function toggleBook(item: LiveItem) {
                 v-for="rp in replayCols[1]"
                 :key="rp.id"
                 class="card"
+                role="link"
+                :aria-label="replayAccessibilityLabel(rp)"
+                tabindex="0"
                 hover-class="card-press"
                 @tap="openReplay(rp.id)"
+                @keydown="activateOnKeyboard($event, () => openReplay(rp.id))"
               >
                 <view class="cov r34">
                   <smart-cover class="cov-img" :src="rp.cover" :title="rp.title" type="live" deco :deco-size="64" />
@@ -397,6 +512,8 @@ async function toggleBook(item: LiveItem) {
         <view
           v-if="livesNow.length === 0 && livesUpcoming.length === 0 && replays.length === 0"
           class="empty"
+          role="status"
+          aria-live="polite"
         >
           <view class="empty-icon"><AppIcon name="calendar" :size="56" color="#B0A99A" /></view>
           <text class="empty-txt">这个分类还没有直播，去看看全部直播或精彩回放</text>
@@ -583,6 +700,11 @@ async function toggleBook(item: LiveItem) {
 }
 .badge.up {
   background: #c41e3a;
+  max-width: calc(100% - 32rpx);
+}
+.badge.up .badge-txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .badge.rep {
   background: rgba(0, 0, 0, 0.55);

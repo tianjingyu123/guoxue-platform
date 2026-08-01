@@ -1,6 +1,6 @@
 <template>
-  <view v-if="open" class="gp-mask" @tap="onClose">
-    <view class="gp-sheet" @tap.stop>
+  <view v-if="open" class="gp-mask" role="dialog" aria-modal="true" aria-label="直播送礼" @tap="onClose" @touchmove.self.prevent>
+    <view class="gp-sheet" tabindex="-1" @tap.stop @touchmove.stop>
       <!-- 拖拽条（V0 panel-grabber） -->
       <view class="gp-grabber" />
 
@@ -17,7 +17,11 @@
           :key="gift.id"
           class="gp-cell"
           :class="{ 'gp-cell--sel': gift.id === selectedId }"
+          role="radio"
+          :aria-checked="gift.id === selectedId"
+          tabindex="0"
           @tap="onSelect(gift.id)"
+          @keydown="activateOnKeyboard($event, () => onSelect(gift.id))"
         >
           <view class="gp-icon">
             <image v-if="isImageIcon(gift.icon)" lazy-load class="gp-icon-img" :src="gift.icon" mode="aspectFill" />
@@ -36,12 +40,37 @@
       <!-- 数量与合计（扣费前明示·选中礼物后浮出） -->
       <view v-if="selected" class="gp-send-bar">
         <view class="gp-qty">
-          <view class="gp-qty-btn" @tap="changeQty(-1)"><text class="gp-qty-btn-txt">−</text></view>
+          <view
+            class="gp-qty-btn"
+            role="button"
+            aria-label="减少礼物数量"
+            :aria-disabled="quantity <= 1"
+            :tabindex="quantity <= 1 ? -1 : 0"
+            @tap="changeQty(-1)"
+            @keydown="activateOnKeyboard($event, () => changeQty(-1))"
+          ><text class="gp-qty-btn-txt">−</text></view>
           <text class="gp-qty-num">{{ quantity }}</text>
-          <view class="gp-qty-btn" @tap="changeQty(1)"><text class="gp-qty-btn-txt">＋</text></view>
+          <view
+            class="gp-qty-btn"
+            role="button"
+            aria-label="增加礼物数量"
+            :aria-disabled="quantity >= 99"
+            :tabindex="quantity >= 99 ? -1 : 0"
+            @tap="changeQty(1)"
+            @keydown="activateOnKeyboard($event, () => changeQty(1))"
+          ><text class="gp-qty-btn-txt">＋</text></view>
         </view>
         <text class="gp-total">{{ selected.name }} × {{ quantity }} = <text class="gp-total-b">{{ totalCoin }} 金币</text></text>
-        <view class="gp-send" :class="{ 'gp-send--disabled': insufficient }" @tap="handleSend">
+        <view
+          class="gp-send"
+          :class="{ 'gp-send--disabled': insufficient }"
+          role="button"
+          aria-label="送出礼物"
+          :aria-disabled="insufficient"
+          :tabindex="insufficient ? -1 : 0"
+          @tap="handleSend"
+          @keydown="activateOnKeyboard($event, handleSend)"
+        >
           <text class="gp-send-txt">送出 · 扣 {{ totalCoin }} 金币</text>
         </view>
       </view>
@@ -52,7 +81,14 @@
           <text class="gp-balance-txt">余额 <text class="gp-balance-b">{{ balance }} 金币</text></text>
           <text v-if="selected && insufficient" class="gp-balance-warn">余额不足本次送出，还差 {{ shortfall }} 金币</text>
         </view>
-        <view class="gp-recharge" @tap="goRecharge"><text class="gp-recharge-txt">去充值</text></view>
+        <view
+          class="gp-recharge"
+          role="button"
+          aria-label="去充值"
+          tabindex="0"
+          @tap="goRecharge"
+          @keydown="activateOnKeyboard($event, goRecharge)"
+        ><text class="gp-recharge-txt">去充值</text></view>
       </view>
 
       <!-- 脚注：扣费与合规提示 -->
@@ -65,6 +101,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { navigateTo } from '@/utils/router'
 import type { LiveGift } from '@/lib/live-data'
 
@@ -75,6 +112,15 @@ const props = defineProps<{
   gifts: LiveGift[]
 }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'send', gift: LiveGift, quantity: number): void }>()
+
+useOverlayScrollLock(
+  () => props.open,
+  {
+    onEscape: onClose,
+    focusContainerSelector: '.gp-sheet',
+    initialFocusSelector: '.gp-cell',
+  },
+)
 
 const selectedId = ref<string | null>(null)
 const quantity = ref(1)
@@ -106,7 +152,13 @@ function handleSend() {
   if (!selected.value || insufficient.value) return // 余额不足 → 按钮禁用不响应
   emit('send', selected.value, quantity.value)
 }
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
 function goRecharge() {
+  onClose()
   navigateTo('/pkg-mine/wallet/recharge')
 }
 </script>

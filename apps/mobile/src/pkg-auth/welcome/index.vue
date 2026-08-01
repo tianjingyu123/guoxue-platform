@@ -23,8 +23,12 @@
       <view
         class="explore-btn"
         :class="{ 'fade-in': showButton }"
+        role="button"
+        :aria-label="`开始探索，${countdown}秒后自动进入`"
+        tabindex="0"
         hover-class="btn-hover"
         @tap="handleNavigate"
+        @keydown="activateOnKeyboard($event, handleNavigate)"
       >
         <text class="btn-text">开始探索</text>
         <AppIcon name="arrow-right" :size="16" color="#ffffff" />
@@ -66,6 +70,12 @@ const showButton = ref(false)
 const timers: ReturnType<typeof setTimeout>[] = []
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let navigated = false
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 
 function handleNavigate() {
   if (navigated) return
@@ -252,5 +262,18 @@ onUnmounted(() => {
 .footer-text {
   font-size: 22rpx;
   color: rgba(122, 111, 96, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-wrap,
+  .title-wrap,
+  .slogan,
+  .explore-btn,
+  .divider {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 </style>

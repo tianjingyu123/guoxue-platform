@@ -236,8 +236,8 @@
 
 
     <!-- 发货弹窗 -->
-    <view v-if="showShip" class="mask" @tap="showShip = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showShip" class="mask" @tap="showShip = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <text class="sheet-title">{{ shipmentMode === 'edit' ? '修改物流信息' : '填写物流信息' }}</text>
         <view class="field">
           <text class="field-label">快递公司 <text class="req">*</text></text>
@@ -284,8 +284,8 @@
     </view>
 
     <!-- 快递选择浮层 -->
-    <view v-if="showExpress" class="mask" @tap="showExpress = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showExpress" class="mask" @tap="showExpress = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <text class="sheet-title">选择快递公司</text>
         <scroll-view scroll-y class="express-list">
           <view
@@ -308,6 +308,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import {
   merchantBackendApi,
   orderStatusConfig,
@@ -334,6 +335,8 @@ const shipmentLoading = ref(false)
 const expressCompany = ref('')
 const trackingNo = ref('')
 const submitting = ref(false)
+
+useOverlayScrollLock(() => showShip.value || showExpress.value)
 
 const footStyle = 'padding-bottom: calc(24rpx + env(safe-area-inset-bottom));'
 
@@ -404,6 +407,19 @@ const shipmentStatusText = computed(() => {
     '5': '派送中',
     '6': '退回中',
     '7': '转投中',
+    '10': '清关中',
+    '11': '已清关',
+    PICKED_UP: '已揽收',
+    IN_TRANSIT: '运输中',
+    OUT_FOR_DELIVERY: '派送中',
+    EXCEPTION: '物流异常',
+    SIGNED: '已签收',
+    RETURNING: '退回中',
+    RETURNED: '已退回',
+    TRANSFERRED: '转投中',
+    CUSTOMS_CLEARANCE: '清关中',
+    CUSTOMS_RELEASED: '已清关',
+    REJECTED: '已拒收',
     unknown: '等待物流更新',
   }
   return map[state] || shipment.value?.logistics?.status || '等待物流更新'

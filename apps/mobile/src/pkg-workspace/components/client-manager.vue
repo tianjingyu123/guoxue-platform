@@ -15,6 +15,7 @@
  */
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import { wsApi } from '../lib/workspace-api'
@@ -30,6 +31,7 @@ const detailLoading = ref(false)
 
 /** 建档/编辑弹层 */
 const formOpen = ref(false)
+useOverlayScrollLock(() => formOpen.value || Boolean(detail.value))
 const editingId = ref('')
 const fName = ref('')
 const fPhone = ref('')
@@ -249,8 +251,8 @@ function dateText(iso?: string | null): string {
     </view>
 
     <!-- 客户详情 -->
-    <view v-if="detail" class="cm-mask" @tap="detail = null">
-      <view class="cm-sheet" @tap.stop>
+    <view v-if="detail" class="cm-mask" @tap="detail = null" @touchmove.self.prevent>
+      <view class="cm-sheet" @tap.stop @touchmove.stop>
         <view v-if="detailLoading" class="cm-sheet-loading">
           <text class="cm-sheet-loading-txt">载入中…</text>
         </view>
@@ -313,8 +315,8 @@ function dateText(iso?: string | null): string {
     </view>
 
     <!-- 建档 / 编辑 -->
-    <view v-if="formOpen" class="cm-mask" @tap="formOpen = false">
-      <view class="cm-sheet" @tap.stop>
+    <view v-if="formOpen" class="cm-mask" @tap="formOpen = false" @touchmove.self.prevent>
+      <view class="cm-sheet" @tap.stop @touchmove.stop>
         <text class="cm-sheet-title">{{ editingId ? '编辑客户' : '新建客户档案' }}</text>
 
         <text class="cm-label">称呼 *</text>

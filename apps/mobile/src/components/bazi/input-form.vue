@@ -78,6 +78,12 @@ function toggleOpt(k: string) {
   else useDaylightSaving.value = !useDaylightSaving.value
 }
 
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
+
 // 与 date-picker-modal 的 confirm 事件载荷结构一致
 function onDateConfirm(d: { year: number; month: number; day: number; hour: number | null; minute: number | null; isLunar: boolean }) {
   birthDate.value = { year: d.year, month: d.month, day: d.day, hour: d.hour ?? 12, minute: d.minute ?? 0, isLunar: d.isLunar }
@@ -123,12 +129,17 @@ function handleSubmit() {
       <view class="bf-row bf-bd">
         <text class="bf-label">性别</text>
         <view class="bf-gender">
-          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'male' }" @tap="gender = 'male'"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'male' }">男</text></view>
-          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'female' }" @tap="gender = 'female'"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'female' }">女</text></view>
+          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'male' }"
+            role="radio" :aria-checked="gender === 'male'" tabindex="0"
+            @tap="gender = 'male'" @keydown="activateOnKeyboard($event, () => gender = 'male')"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'male' }">男</text></view>
+          <view class="bf-gbtn" :class="{ 'bf-gbtn-on': gender === 'female' }"
+            role="radio" :aria-checked="gender === 'female'" tabindex="0"
+            @tap="gender = 'female'" @keydown="activateOnKeyboard($event, () => gender = 'female')"><text class="bf-gtext" :class="{ 'bf-gtext-on': gender === 'female' }">女</text></view>
         </view>
       </view>
       <!-- 出生时间 -->
-      <view class="bf-link bf-bd" @tap="showDatePicker = true">
+      <view class="bf-link bf-bd" role="button" tabindex="0"
+        @tap="showDatePicker = true" @keydown="activateOnKeyboard($event, () => showDatePicker = true)">
         <view class="bf-link-l">
           <view class="bf-icon"><app-icon name="clock" :size="28" color="#2d5a87" /></view>
           <text class="bf-label">出生时间<text class="bf-star">*</text></text>
@@ -139,7 +150,8 @@ function handleSubmit() {
         </view>
       </view>
       <!-- 出生地区 -->
-      <view class="bf-link bf-bd" @tap="showLocationPicker = true">
+      <view class="bf-link bf-bd" role="button" tabindex="0"
+        @tap="showLocationPicker = true" @keydown="activateOnKeyboard($event, () => showLocationPicker = true)">
         <view class="bf-link-l">
           <view class="bf-icon"><app-icon name="map-pin" :size="28" color="#2d5a87" /></view>
           <text class="bf-label">出生地区</text>
@@ -150,7 +162,8 @@ function handleSubmit() {
         </view>
       </view>
       <!-- 分组 -->
-      <view class="bf-link bf-bd" @tap="showGroupPicker = true">
+      <view class="bf-link bf-bd" role="button" tabindex="0"
+        @tap="showGroupPicker = true" @keydown="activateOnKeyboard($event, () => showGroupPicker = true)">
         <view class="bf-link-l">
           <view class="bf-icon"><app-icon name="folder" :size="28" color="#2d5a87" /></view>
           <text class="bf-label">分组</text>
@@ -162,7 +175,9 @@ function handleSubmit() {
       </view>
       <!-- 时间选项 -->
       <view class="bf-opts bf-bd">
-        <view v-for="o in options" :key="o.key" class="bf-opt" @tap="toggleOpt(o.key)">
+        <view v-for="o in options" :key="o.key" class="bf-opt"
+          role="checkbox" :aria-checked="optState[o.key]" tabindex="0"
+          @tap="toggleOpt(o.key)" @keydown="activateOnKeyboard($event, () => toggleOpt(o.key))">
           <view class="bf-check" :class="{ 'bf-check-on': optState[o.key] }">
             <app-icon v-if="optState[o.key]" name="check" :size="20" color="#ffffff" />
           </view>
@@ -173,14 +188,17 @@ function handleSubmit() {
       <view class="bf-solar bf-bd">
         <view class="bf-save">
           <text class="bf-save-label">保存</text>
-          <view class="bf-switch" :class="{ 'bf-switch-on': saveRecord }" @tap="saveRecord = !saveRecord">
+          <view class="bf-switch" :class="{ 'bf-switch-on': saveRecord }"
+            role="switch" :aria-checked="saveRecord" tabindex="0"
+            @tap="saveRecord = !saveRecord" @keydown="activateOnKeyboard($event, () => saveRecord = !saveRecord)">
             <view class="bf-switch-dot" :class="{ 'bf-switch-dot-on': saveRecord }" />
           </view>
         </view>
       </view>
       <!-- 开始排盘 -->
       <view class="bf-submit-wrap">
-        <view class="bf-submit" @tap="handleSubmit"><text class="bf-submit-text">开始排盘</text></view>
+        <view class="bf-submit" role="button" tabindex="0"
+          @tap="handleSubmit" @keydown="activateOnKeyboard($event, handleSubmit)"><text class="bf-submit-text">开始排盘</text></view>
       </view>
     </view>
 

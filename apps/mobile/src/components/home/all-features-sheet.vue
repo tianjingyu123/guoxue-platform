@@ -4,28 +4,60 @@
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { coreEntries, serviceGroups } from '@/lib/discover-data'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const emit = defineEmits<{ close: [] }>()
+
+useOverlayScrollLock(
+  () => true,
+  {
+    onEscape: () => emit('close'),
+    focusContainerSelector: '.af-sheet',
+    initialFocusSelector: '.af-close',
+  },
+)
 
 function go(href: string) {
   emit('close')
   navigateTo(href)
 }
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
 </script>
 
 <template>
-  <view class="af-mask" @tap="emit('close')" @touchmove.self.prevent>
-    <view class="af-sheet" @tap.stop @touchmove.stop>
+  <view class="af-mask" role="dialog" aria-modal="true" aria-label="全部功能" @tap="emit('close')" @touchmove.self.prevent>
+    <view class="af-sheet" tabindex="-1" @tap.stop @touchmove.stop>
       <view class="af-head">
         <text class="af-title">全部功能</text>
-        <view class="af-close" @tap="emit('close')"><AppIcon name="x" :size="34" color="#999" /></view>
+        <view
+          class="af-close"
+          role="button"
+          aria-label="关闭全部功能"
+          tabindex="0"
+          @tap="emit('close')"
+          @keydown="activateOnKeyboard($event, () => emit('close'))"
+        ><AppIcon name="x" :size="34" color="#999" /></view>
       </view>
       <scroll-view scroll-y class="af-body">
         <!-- 常用功能（核心入口） -->
         <view class="af-group">
           <view class="af-group-head"><view class="af-bar" /><text class="af-group-title">常用功能</text></view>
           <view class="af-grid">
-            <view v-for="e in coreEntries" :key="e.id" class="af-item" @tap="go(e.href)">
+            <view
+              v-for="e in coreEntries"
+              :key="e.id"
+              class="af-item"
+              role="link"
+              :aria-label="e.label"
+              tabindex="0"
+              @tap="go(e.href)"
+              @keydown="activateOnKeyboard($event, () => go(e.href))"
+            >
               <view class="af-icon"><AppIcon :name="e.icon" :size="42" color="#c41e3a" /></view>
               <text class="af-label">{{ e.label }}</text>
             </view>
@@ -35,7 +67,16 @@ function go(href: string) {
         <view v-for="g in serviceGroups" :key="g.title" class="af-group">
           <view class="af-group-head"><view class="af-bar" /><text class="af-group-title">{{ g.title }}</text></view>
           <view class="af-grid">
-            <view v-for="item in g.items" :key="item.id" class="af-item" @tap="go(item.href)">
+            <view
+              v-for="item in g.items"
+              :key="item.id"
+              class="af-item"
+              role="link"
+              :aria-label="item.label"
+              tabindex="0"
+              @tap="go(item.href)"
+              @keydown="activateOnKeyboard($event, () => go(item.href))"
+            >
               <view class="af-icon"><AppIcon :name="item.icon" :size="42" color="#c41e3a" /></view>
               <text class="af-label">{{ item.label }}</text>
             </view>

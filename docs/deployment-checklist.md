@@ -1,6 +1,10 @@
 # 热卜国学平台 — 线上部署检查清单
 
 > 更新时间：2026-05-11
+>
+> **历史检查表，仅作项目项点参考。** 2026-07-31 起，生产上线以
+> `docs/operations/新基础设施与正式凭据交接清单-20260731.md` 为唯一现场清单；本文中
+> 直接 Git、裸 Compose 或手工部署示例不得替代固定发布包激活、九证据聚合和最终双签。
 
 ## 一、部署前检查 (Pre-Deploy)
 
@@ -46,22 +50,29 @@
 ### 2.2 手动部署
 
 ```bash
+# 整场变更统一使用同一架构和共享环境文件；托管库用 tencent，自建库用 standard
+export DEPLOY_TARGET='standard'
+export ENV_FILE='/opt/guoxue/shared/.env.production'
+
 # 1. 上传已通过门禁并记录 SHA 的固定发布包
 cd /opt/guoxue
 git status --short --untracked-files=no
 
 # 2. 数据库备份（生产强制）
-./docker/pg-backup.sh 30
+DEPLOY_TARGET="$DEPLOY_TARGET" ENV_FILE="$ENV_FILE" bash ./docker/pg-backup.sh 30
 
 # 3. 拉取/构建镜像
 docker compose -f docker/docker-compose.yml -f docker/docker-compose.prod.yml build server
 
 # 4. 只有迁移 SQL 已审查且确认备份可恢复时才执行迁移
 cd docker
-ALLOW_PROD_DB_MIGRATION=reviewed ./deploy.sh --migrate
+RELEASE_ID='<固定发布标识>' \
+MIGRATION_DEPLOY_CONFIRM='migrate:<固定发布标识>' \
+DEPLOY_TARGET="$DEPLOY_TARGET" ENV_FILE="$ENV_FILE" \
+ALLOW_PROD_DB_MIGRATION=reviewed bash ./deploy.sh --migrate
 
 # 无数据库变更时执行：
-# ./deploy.sh
+# DEPLOY_TARGET="$DEPLOY_TARGET" ENV_FILE="$ENV_FILE" bash ./deploy.sh
 ```
 
 ### 2.3 实时监控
@@ -179,19 +190,22 @@ docker logs guoxue-server --since 5m | grep -i error
 ### 5.1 迁移前
 
 ```bash
-# 查看待执行的迁移
-npx prisma migrate status --schema=apps/server/prisma/schema.prisma
-
-# 预览迁移 SQL（不实际执行）
-npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma --dry-run
+# 固定包不携带宿主机 node_modules；通过实际生产镜像查看迁移状态
+export TARGET_DATABASE_URL='由受控凭据注入'
+export TARGET_RELEASE_ID='<本次固定发布标识>'
+export PRISMA_COMPOSE_ENV_FILE=/opt/guoxue/shared/.env.production
+bash scripts/migration/run-prisma-migrations.sh status
 ```
 
 ### 5.2 迁移后
 
 ```bash
-# 确认迁移已应用
-npx prisma migrate status --schema=apps/server/prisma/schema.prisma
-# 预期: "Database is up to date"
+# 执行迁移必须使用发布标识二次确认
+export MIGRATION_DEPLOY_CONFIRM="migrate:${TARGET_RELEASE_ID}"
+bash scripts/migration/run-prisma-migrations.sh deploy
+
+# 迁移后生成逐表计数、业务完整性与 Prisma 状态证据
+bash scripts/migration/verify-postgres.sh
 
 # 检查新增表/字段
 docker exec guoxue-postgres psql -U guoxue -d guoxue -c "\dt"
@@ -236,7 +250,7 @@ check() {
   local url="$2"
   local expect="${3:-200}"
   local code
-  
+
   code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
   if [ "$code" = "$expect" ]; then
     echo "✅ $name"

@@ -1,0 +1,82 @@
+name: Verify Production Cutover
+
+# 新服务器激活和 DNS/证书切换是两个独立阶段。本工作流只在公网已经指向目标版本后执行，
+# 重新生成易过期证据并汇总机器可判定的 GO/BLOCK，不修改数据库、DNS 或容器。
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: "已激活且完成公网切换的固定发布标识"
+        required: true
+        type: string
+      production_confirmation:
+        description: "再次输入完全相同的发布标识"
+        required: true
+        type: string
+      max_age_hours:
+        description: "环境、运行时与保留证据最大有效小时数"
+        required: true
+        default: "24"
+        type: choice
+        options:
+          - "12"
+          - "24"
+          - "48"
+
+concurrency:
+  group: verify-production-cutover
+  cancel-in-progress: false
+
+jobs:
+  verify-production-cutover:
+    name: 公网切流后九证据验收
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: ${{ vars.PUBLIC_H5_URL }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 验证默认分支、源提交与人工确认
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+          PRODUCTION_CONFIRMATION: ${{ inputs.production_confirmation }}
+          RUN_MIGRATION: "false"
+          MIGRATION_CONFIRMATION: ""
+          MAX_AGE_HOURS: ${{ inputs.max_age_hours }}
+          PRODUCTION_DEPLOY_READY: ${{ vars.PRODUCTION_DEPLOY_READY }}
+          PRODUCTION_DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
+          PROD_SSH_FINGERPRINT_CONFIGURED: ${{ secrets.PROD_SSH_FINGERPRINT != '' }}
+          SOURCE_REF: ${{ github.ref }}
+          SOURCE_SHA: ${{ github.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          node scripts/release/validate-production-dispatch.mjs
+          case "$MAX_AGE_HOURS" in 12|24|48) ;; *) echo "证据有效期仅允许 12、24 或 48 小时"; exit 64 ;; esac
+
+      - name: 重新生成易过期证据并汇总九证据上线判定
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            export PLATFORM_ROOT=/opt/guoxue
+            export RELEASE_ID='${{ inputs.release_id }}'
+            export MAX_AGE_HOURS='${{ inputs.max_age_hours }}'
+            export DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}'
+            bash "$PLATFORM_ROOT/current/scripts/release/verify-production-cutover.sh"

@@ -33,13 +33,52 @@ export function rewriteLegacyPublicAssets(publicAssetOrigin: string): Plugin {
   };
 }
 
+/**
+ * DCloud 的 App-Harmony 编译器使用 IIFE 页面脚本；当前版本的编译插件会在
+ * 合并用户 Vite 配置时覆盖 output 对象，因此需要在 post 阶段重新声明内联动态导入。
+ */
+export function harmonyIifeBuildCompatibility(): Plugin {
+  return {
+    name: "harmony-iife-build-compatibility",
+    apply: "build",
+    enforce: "post",
+    config() {
+      if (process.env.UNI_PLATFORM !== "app-harmony") return;
+      return {
+        build: {
+          rollupOptions: {
+            output: {
+              inlineDynamicImports: true,
+            },
+          },
+        },
+      };
+    },
+    configResolved(config) {
+      if (process.env.UNI_PLATFORM !== "app-harmony") return;
+      const output = config.build.rollupOptions.output;
+      const outputs = Array.isArray(output) ? output : output ? [output] : [];
+      for (const item of outputs) {
+        delete item.manualChunks;
+        item.inlineDynamicImports = true;
+      }
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "");
+  const isHarmonyApp = process.env.UNI_PLATFORM === "app-harmony";
   const publicAssetOrigin =
     env.VITE_PUBLIC_ASSET_ORIGIN || env.VITE_API_URL || LEGACY_PUBLIC_ORIGIN;
+  const devProxyTarget = normalizeOrigin(env.VITE_DEV_PROXY_TARGET || "http://localhost:3000");
 
   return {
-    plugins: [rewriteLegacyPublicAssets(publicAssetOrigin), uni()],
+    plugins: [
+      rewriteLegacyPublicAssets(publicAssetOrigin),
+      uni(),
+      harmonyIifeBuildCompatibility(),
+    ],
     resolve: {
       alias: {
         "@": resolve(__dirname, "src"),
@@ -85,6 +124,15 @@ export default defineConfig(({ mode }) => {
       // preload 失败会导致整个分包 import 被 reject → 懒加载页(如设置页)在 iOS 白屏(安卓正常)。
       // 关闭 modulePreload：__vitePreload 不再注入会失败的 preload link，改用浏览器原生 import() 直接加载分包。
       modulePreload: false,
+      // App-Harmony 的页面脚本使用 IIFE 输出，Rollup 不允许 IIFE 与动态代码拆分同时启用。
+      // 仅鸿蒙 App 内联动态导入；H5、微信小程序与 Android/iOS 仍保留原有分包策略。
+      rollupOptions: isHarmonyApp
+        ? {
+            output: {
+              inlineDynamicImports: true,
+            },
+          }
+        : undefined,
     },
     base: "/h5/",
     server: {
@@ -92,7 +140,7 @@ export default defineConfig(({ mode }) => {
       allowedHosts: ["api.rebugx.cn", ".rebugx.cn"],
       proxy: {
         "/api": {
-          target: "http://localhost:3000",
+          target: devProxyTarget,
           changeOrigin: true,
         },
       },

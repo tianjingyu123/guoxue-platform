@@ -1,0 +1,30 @@
+{
+  "android": {
+    "packageName": "com.rebu.apprebu",
+    "versionName": "1.0.8",
+    "versionCode": 127,
+    "versionCodeEvidenceVersion": "1.0.8",
+    "signatureSha256": "737C54A45E710BCE7C6875A41A5A5C0C228C09BD31FC08DF8E016364B61B9D67",
+    "apkSha256": "B8899C2B564F4FE6562C77860BF0264F7BE11498974FBEE63236EB0E5CD9F744",
+    "apkMd5": "EF282ABDB302E3C88C8C60D51B0CD6D9",
+    "publicStore": "Xiaomi App Store",
+    "publicStoreAppId": "1711667"
+  },
+  "ios": {
+    "bundleId": "com.rebu.iosapprebu",
+    "versionName": "1.0.5",
+    "buildNumber": 128,
+    "appStoreId": "6756602923"
+  },
+  "harmony": {
+    "bundleName": "com.rebu.apprebu",
+    "versionName": "1.0.3",
+    "versionCode": 127,
+    "appGalleryUrl": "store://appgallery.huawei.com/app/detail?id=com.rebu.apprebu",
+    "signingProfileVerified": false
+  },
+  "dcloudAppId": "__UNI__277B108",
+  "wechatMiniAppId": "wx06397e8ab26bed9e",
+  "verifiedAt": "2026-07-30",
+  "verifiedBy": "公开商店页面、Apple Lookup API、旧版正式更新接口及其 Android 1.0.8 APK（包名、版本号、签名证书）"
+}

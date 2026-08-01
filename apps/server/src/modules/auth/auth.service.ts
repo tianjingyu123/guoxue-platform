@@ -134,7 +134,7 @@ export class AuthService {
       await this.bindReferral(user.id, dto.referrerCode);
     }
 
-    this.fireUserRegistered(user.id, user.nickname, user.phone!);
+    await this.fireUserRegistered(user.id, user.nickname, user.phone!);
     this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
   }
@@ -209,7 +209,7 @@ export class AuthService {
       if (dto.referrerCode) {
         await this.bindReferral(registered.id, dto.referrerCode);
       }
-      this.fireUserRegistered(registered.id, registered.nickname, registered.phone!);
+      await this.fireUserRegistered(registered.id, registered.nickname, registered.phone!);
     }
 
     this.importToIm(user!.id, user!.nickname);
@@ -320,7 +320,7 @@ export class AuthService {
       await this.bindReferral(user.id, dto.referrerCode);
     }
 
-    this.fireUserRegistered(user.id, user.nickname);
+    await this.fireUserRegistered(user.id, user.nickname);
     this.importToIm(user.id, user.nickname, user.avatar || undefined);
     return this.buildLoginResult(user.id);
   }
@@ -398,7 +398,7 @@ export class AuthService {
       if (dto.referrerCode) {
         await this.bindReferral(user.id, dto.referrerCode);
       }
-      this.fireUserRegistered(user.id, user.nickname, user.phone!);
+      await this.fireUserRegistered(user.id, user.nickname, user.phone!);
     }
 
     this.importToIm(user.id, user.nickname);
@@ -576,8 +576,10 @@ export class AuthService {
   // ───────── 私有方法 ─────────
 
   /** 触发用户注册 Webhook（异步，失败不影响注册流程） */
-  private fireUserRegistered(userId: string, nickname: string, phone?: string) {
-    this.webhook.fire("USER_REGISTERED", { userId, nickname, phone }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+  private async fireUserRegistered(userId: string, nickname: string, phone?: string) {
+    await this.webhook
+      .fire("USER_REGISTERED", { userId, nickname, phone })
+      .catch((err) => this.logger.warn("Webhook 外发箱写入失败", err));
   }
 
   /** 异步导入用户到 IM（失败不影响登录） */

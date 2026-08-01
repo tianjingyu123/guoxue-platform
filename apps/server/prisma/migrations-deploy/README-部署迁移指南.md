@@ -1,22 +1,27 @@
-# 部署 & 数据库迁移指南
+# 数据库迁移执行指南
 
-> 给运维/CICD。目标：把 CNB 上的新代码安全部署到生产，数据库补齐缺的表结构而**不碰已有数据**。
+> 给运维/CICD。目标：在已经锁定并通过发布门禁的代码版本上，安全初始化或迁移数据库。
+> 完整服务器、数据库、域名切换流程以
+> `docs/operations/服务器数据库域名迁移手册-20260728.md` 为准。
 
-## 一、每次更新代码的部署 4 步
+## 一、先锁定部署版本
 
 ```bash
-# 1. 拉最新代码
-git pull cnb master
+# 1. 在构建机记录并核对固定提交，不允许生产机直接拉取不确定分支
+git rev-parse HEAD
 
-# 2. 装依赖（关键！node_modules 不在仓库，必须装；有新依赖如 sharp）
-pnpm install
+# 2. 安装锁文件指定的依赖
+pnpm install --frozen-lockfile
 
-# 3. 数据库迁移（见第二节，选对应情况）
+# 3. 代码与空库基线门禁
+pnpm release:gate:code
+pnpm release:audit-db-baseline
 
-# 4. 编译 + 重启
-pnpm --filter @guoxue/server build
-pm2 restart guoxue-api
+# 4. 记录本次部署提交 SHA、构建产物校验值和回滚版本
 ```
+
+生产环境只接收上述固定版本的构建产物。数据库迁移完成并通过核对前，不得启动新版 API，
+不得用 `git pull master`、`latest` 标签或服务器现场修改代替可追溯发布。
 
 ## 二、数据库迁移（二选一）
 
@@ -25,11 +30,12 @@ pm2 restart guoxue-api
 cd apps/server
 CONFIRM_EMPTY_DATABASE=YES sh prisma/migrations-deploy/bootstrap-empty-database.sh
 ```
-脚本会先确认目标库没有任何业务表，再创建当前 336 个 Prisma 模型对应的完整结构，
-并在单个事务中登记 73 条已被基线覆盖的历史迁移。任意非空库都会直接拒绝，不能用此脚本覆盖旧库。
+脚本会先确认目标库没有任何业务表，再创建当前 343 个 Prisma 模型对应的完整结构，
+并在单个事务中登记 82 条已被基线覆盖的历史迁移。任意非空库都会直接拒绝，不能用此脚本覆盖旧库。
 
-当前基线由 `schema.prisma` 生成：336 张业务表、823 条显式索引、242 个外键；
-连同 `_prisma_migrations` 账本共 337 张表。更新 schema 后必须重新生成并在隔离空库验收基线。
+当前基线由 `schema.prisma` 生成：343 张业务表、848 条显式索引、254 个外键；
+连同 `_prisma_migrations` 账本共 344 张表。更新 schema 后必须重新生成并在隔离空库验收基线。
+仓库发布门禁会自动执行 `pnpm release:audit-db-baseline`，确保完整基线与当前 Prisma 模型一致。
 
 ### 情况 B：已有旧库（★ 当前生产就是这种，推荐）
 只建缺的表、加缺的列，**不动已有数据**：

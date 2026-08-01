@@ -121,8 +121,8 @@
     </view>
 
     <!-- ── 下播二次确认弹窗（不透明纯色卡·X5安全） ── -->
-    <view v-if="showEndDialog" class="mask" @tap="showEndDialog = false">
-      <view class="dialog" @tap.stop>
+    <view v-if="showEndDialog" class="mask" @tap="showEndDialog = false" @touchmove.self.prevent>
+      <view class="dialog" @tap.stop @touchmove.stop>
         <text class="dialog-title">确认结束本场直播？</text>
         <text class="dialog-desc">已直播 {{ humanDuration }} · 累计 {{ formatNum(stats.totalViews) }} 人观看{{ '\n' }}结束后将自动生成回放</text>
         <view class="dialog-btns">
@@ -137,8 +137,8 @@
     </view>
 
     <!-- ── 商品半屏列表 ── -->
-    <view v-if="showProductSheet" class="mask sheet-mask" @tap="showProductSheet = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showProductSheet" class="mask sheet-mask" @tap="showProductSheet = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view class="sheet-head">
           <text class="sheet-title">本场商品（{{ products.length }}）</text>
           <view class="sheet-actions">
@@ -174,8 +174,8 @@
     </view>
 
     <!-- ── 禁言管理半屏列表 ── -->
-    <view v-if="showMutedSheet" class="mask sheet-mask" @tap="showMutedSheet = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showMutedSheet" class="mask sheet-mask" @tap="showMutedSheet = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view class="sheet-head">
           <text class="sheet-title">禁言名单（{{ mutedUsers.length }}）</text>
           <view class="sheet-close" @tap="showMutedSheet = false">
@@ -222,6 +222,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
@@ -258,6 +259,9 @@ const danmakuScrollTop = ref(0)
 const showEndDialog = ref(false)
 const showProductSheet = ref(false)
 const showMutedSheet = ref(false)
+useOverlayScrollLock(() =>
+  showEndDialog.value || showProductSheet.value || showMutedSheet.value,
+)
 const mutedUsers = ref<LiveMutedUserItem[]>([])
 const mutedLoading = ref(false)
 const mutedError = ref('')

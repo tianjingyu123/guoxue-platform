@@ -7,6 +7,7 @@
 import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { chinaData, overseasData } from '@/lib/region-data'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 interface InitLoc { province: string; city: string; district: string }
 const props = defineProps<{ open: boolean; initialLocation?: InitLoc }>()
@@ -15,10 +16,28 @@ const emit = defineEmits<{
   (e: 'confirm', v: { province: string; city: string; district: string; timezone: string; convertToBeijing?: boolean }): void
 }>()
 
+useOverlayScrollLock(
+  () => props.open,
+  {
+    onEscape: () => emit('close'),
+    focusContainerSelector: '.lp-panel',
+    initialFocusSelector: '.lp-confirm',
+  },
+)
+
 const region = ref<'domestic' | 'overseas'>('domestic')
 const searchQuery = ref('')
 const convertToBeijing = ref(false)
 const showExplain = ref(false)
+
+useOverlayScrollLock(
+  () => props.open && showExplain.value,
+  {
+    onEscape: () => { showExplain.value = false },
+    focusContainerSelector: '.lp-explain-card',
+    initialFocusSelector: '.lp-explain-ok',
+  },
+)
 
 const data = computed(() => (region.value === 'domestic' ? chinaData : overseasData))
 const provinces = computed(() => {
@@ -69,18 +88,35 @@ function confirm() {
   })
   emit('close')
 }
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
 </script>
 
 <template>
   <view v-if="open" class="lp-root">
-    <view class="lp-mask" @tap="emit('close')" />
-    <view class="lp-panel">
+    <view class="lp-mask" @tap="emit('close')" @touchmove.self.prevent />
+    <view
+      class="lp-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="选择出生地点"
+      tabindex="-1"
+      @touchmove.stop
+    >
       <view class="lp-top">
         <view class="lp-region">
-          <view class="lp-rbtn" :class="{ 'lp-rbtn-on': region === 'domestic' }" @tap="region = 'domestic'"><text class="lp-rtext" :class="{ 'lp-rtext-on': region === 'domestic' }">国内</text></view>
-          <view class="lp-rbtn" :class="{ 'lp-rbtn-on': region === 'overseas' }" @tap="region = 'overseas'"><text class="lp-rtext" :class="{ 'lp-rtext-on': region === 'overseas' }">海外</text></view>
+          <view class="lp-rbtn" :class="{ 'lp-rbtn-on': region === 'domestic' }"
+            role="radio" :aria-checked="region === 'domestic'" tabindex="0"
+            @tap="region = 'domestic'" @keydown="activateOnKeyboard($event, () => region = 'domestic')"><text class="lp-rtext" :class="{ 'lp-rtext-on': region === 'domestic' }">国内</text></view>
+          <view class="lp-rbtn" :class="{ 'lp-rbtn-on': region === 'overseas' }"
+            role="radio" :aria-checked="region === 'overseas'" tabindex="0"
+            @tap="region = 'overseas'" @keydown="activateOnKeyboard($event, () => region = 'overseas')"><text class="lp-rtext" :class="{ 'lp-rtext-on': region === 'overseas' }">海外</text></view>
         </view>
-        <view class="lp-confirm" @tap="confirm"><text class="lp-confirm-text">确定</text></view>
+        <view class="lp-confirm" role="button" tabindex="0" @tap="confirm" @keydown="activateOnKeyboard($event, confirm)"><text class="lp-confirm-text">确定</text></view>
       </view>
 
       <view class="lp-search">
@@ -114,9 +150,13 @@ function confirm() {
         <view class="lp-os-row">
           <view class="lp-os-l">
             <text class="lp-os-label">换算北京时间</text>
-            <view class="lp-os-info" @tap="showExplain = true"><app-icon name="info" :size="28" color="#9ca3af" /></view>
+            <view class="lp-os-info" role="button" aria-label="查看北京时间换算说明" tabindex="0"
+              @tap="showExplain = true" @keydown="activateOnKeyboard($event, () => showExplain = true)"><app-icon name="info" :size="28" color="#9ca3af" /></view>
           </view>
-          <view class="lp-switch" :class="{ 'lp-switch-on': convertToBeijing }" @tap="convertToBeijing = !convertToBeijing">
+          <view class="lp-switch" :class="{ 'lp-switch-on': convertToBeijing }"
+            role="switch" :aria-checked="convertToBeijing" tabindex="0"
+            @tap="convertToBeijing = !convertToBeijing"
+            @keydown="activateOnKeyboard($event, () => convertToBeijing = !convertToBeijing)">
             <view class="lp-switch-dot" :class="{ 'lp-switch-dot-on': convertToBeijing }" />
           </view>
         </view>
@@ -125,15 +165,18 @@ function confirm() {
         </view>
       </view>
 
-      <view class="lp-cancel" @tap="emit('close')"><text class="lp-cancel-text">取消</text></view>
+      <view class="lp-cancel" role="button" tabindex="0"
+        @tap="emit('close')" @keydown="activateOnKeyboard($event, () => emit('close'))"><text class="lp-cancel-text">取消</text></view>
     </view>
 
     <!-- 北京时间说明 -->
-    <view v-if="showExplain" class="lp-explain" @tap="showExplain = false">
-      <view class="lp-explain-card" @tap.stop>
+    <view v-if="showExplain" class="lp-explain" @tap="showExplain = false" @touchmove.self.prevent>
+      <view class="lp-explain-card" role="dialog" aria-modal="true" aria-label="北京时间换算说明"
+        tabindex="-1" @tap.stop @touchmove.stop>
         <text class="lp-explain-title">换算北京时间</text>
         <text class="lp-explain-body">海外出生者排盘时，可选择将当地时间换算为北京时间。开启后系统按经度差自动折算，仅支持北半球地区。</text>
-        <view class="lp-explain-ok" @tap="showExplain = false"><text class="lp-explain-ok-text">我知道了</text></view>
+        <view class="lp-explain-ok" role="button" tabindex="0"
+          @tap="showExplain = false" @keydown="activateOnKeyboard($event, () => showExplain = false)"><text class="lp-explain-ok-text">我知道了</text></view>
       </view>
     </view>
   </view>

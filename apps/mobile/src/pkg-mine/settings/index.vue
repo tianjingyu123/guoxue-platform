@@ -6,12 +6,8 @@ import { navigateTo } from '@/utils/router'
 import { clearToken, clearRefreshToken, clearUserInfo } from '@/utils/storage'
 import { mineApi, type SettingNotifyItem } from '@/lib/mine-data'
 
-/**
- * 应用版本号。与 src/manifest.json 的 versionName 保持一致。
- * uni-app 无现成的编译期常量注入机制（tsconfig 未开 resolveJsonModule，无法直接 import manifest.json），
- * 🔴 发版时改 manifest.json versionName 必须同步改这里。
- */
-const APP_VERSION = 'v0.1.0'
+/** 运行时读取正式包版本，避免发版时出现“商店已升级、设置页仍显示旧版本”。 */
+const APP_VERSION = ref('v1.1.0')
 
 const loading = ref(true)
 const error = ref('')
@@ -78,6 +74,12 @@ function retry() {
 }
 
 onMounted(() => {
+  try {
+    const version = String(uni.getAppBaseInfo().appVersion || '').trim()
+    if (version) APP_VERSION.value = `v${version.replace(/^v/i, '')}`
+  } catch {
+    // H5/旧运行时取不到时保留开发期兜底显示。
+  }
   fetchData()
   calcCacheSize()
 })

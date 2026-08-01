@@ -8,6 +8,7 @@
  * 平台结算的条目 editable=false —— 平台算出来的钱不能让老师自己改，否则对账失去意义。
  */
 import { ref, computed, onMounted } from 'vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -38,6 +39,7 @@ const stats = ref<LedgerStats>({ total: 0, manualTotal: 0, platformTotal: 0, cou
 const byService = ref<ServiceSlice[]>([])
 
 const addOpen = ref(false)
+useOverlayScrollLock(() => addOpen.value)
 const saving = ref(false)
 const fService = ref('')
 const fAmount = ref('')
@@ -272,8 +274,8 @@ function confirmDelete(en: LedgerEntry) {
     </view>
 
     <!-- 记一笔 -->
-    <view v-if="addOpen" class="lg-mask" @tap="addOpen = false">
-      <view class="lg-sheet" @tap.stop>
+    <view v-if="addOpen" class="lg-mask" @tap="addOpen = false" @touchmove.self.prevent>
+      <view class="lg-sheet" @tap.stop @touchmove.stop>
         <text class="lg-sheet-title">记一笔</text>
         <text class="lg-sheet-sub">线下收的钱，记下来账才是全的</text>
 

@@ -333,4 +333,11 @@ onUnmounted(() => {
 @keyframes breathe { 0%,100% { transform: scale(.94); opacity: .35; } 50% { transform: scale(1.06); opacity: .8; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes wave { from { height: 16rpx; } to { height: 40rpx; } }
+@media (prefers-reduced-motion: reduce) {
+  .orb-wrap.active .ring-one,
+  .orb-wrap.active .ring-two,
+  .orb-wrap.active .sound-bar {
+    animation: none !important;
+  }
+}
 </style>

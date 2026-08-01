@@ -88,6 +88,48 @@ describe("MerchantShippingService", () => {
     expect((result.track as any).tracks).toHaveLength(1);
   });
 
+  it("实时物流不可用时回退到数据库已同步轨迹，且保留签收状态", async () => {
+    prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "SHIPPED" });
+    prisma.orderLogistics.findUnique.mockResolvedValue({
+      id: "lg1",
+      orderId: "o1",
+      company: "顺丰速运",
+      logisticsNo: "SF123",
+      status: "SIGNED",
+      trackingData: [{ time: "2026-07-23", status: "已签收", location: "郑州" }],
+      updatedAt: new Date(),
+    });
+    logistics.queryTrack.mockResolvedValue({ state: "unknown", track: [], message: "物流服务未配置" });
+
+    const result = await service.getShipment("m1", "o1");
+
+    expect(result.track).toMatchObject({
+      state: "SIGNED",
+      tracks: [{ status: "已签收" }],
+    });
+  });
+
+  it("实时物流查询异常时仍展示数据库最近一次轨迹", async () => {
+    prisma.order.findFirst.mockResolvedValue({ id: "o1", status: "SHIPPED" });
+    prisma.orderLogistics.findUnique.mockResolvedValue({
+      id: "lg1",
+      orderId: "o1",
+      company: "顺丰速运",
+      logisticsNo: "SF123",
+      status: "EXCEPTION",
+      trackingData: [{ time: "2026-07-23", status: "地址异常" }],
+      updatedAt: new Date(),
+    });
+    logistics.queryTrack.mockRejectedValue(new Error("timeout"));
+
+    const result = await service.getShipment("m1", "o1");
+
+    expect(result.track).toMatchObject({
+      state: "EXCEPTION",
+      tracks: [{ status: "地址异常" }],
+    });
+  });
+
   it("批量发货逐单隔离失败并汇总结果", async () => {
     jest.spyOn(service, "shipOrder")
       .mockResolvedValueOnce({ success: true, replayed: false, logistics: {} as any })

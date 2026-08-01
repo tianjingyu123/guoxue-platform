@@ -84,8 +84,8 @@
     </view>
 
     <!-- 排序弹层 -->
-    <view v-if="showSort" class="sheet-mask" @tap="showSort = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showSort" class="sheet-mask" @tap="showSort = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
         <view class="sheet-header">
           <text class="sheet-title">排序方式</text>
           <view class="sheet-close" @tap="showSort = false">
@@ -110,6 +110,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
@@ -124,6 +125,7 @@ const error = ref('')
 const replays = ref<any[]>([])
 const sortBy = ref<string>('latest')
 const showSort = ref(false)
+useOverlayScrollLock(() => showSort.value)
 const showSearch = ref(false)
 const searchQuery = ref('')
 

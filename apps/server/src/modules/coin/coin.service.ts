@@ -462,15 +462,18 @@ export class CoinService {
   // 充值支付由商城模块统一处理，支付回调通过 ShopService.handlePaymentNotify → CoinService.handleRechargeCallback
 
   /** 处理充值支付回调（由支付通知中心调用） */
-  async handleRechargeCallback(body: Record<string, unknown>) {
-    if (body.trade_state !== "SUCCESS") return;
+  async handleRechargeCallback(body: Record<string, unknown>): Promise<boolean> {
+    if (body.trade_state !== "SUCCESS") return true;
 
     let attach: Record<string, unknown> = {};
     try {
       attach = typeof body.attach === "string" ? JSON.parse(body.attach) : (body.attach as Record<string, unknown>) || {};
-    } catch (err) { this.logger.warn("解析充值回调attach失败", err); }
+    } catch (err) {
+      this.logger.warn("解析充值回调attach失败", err);
+      return false;
+    }
 
-    if (attach.type !== "COIN_RECHARGE") return;
+    if (attach.type !== "COIN_RECHARGE") return false;
 
     const userId = attach.userId as string;
     // 🔴 attach.amountCoin 是用户实付对应的「基础币数」，不含赠币。
@@ -484,7 +487,7 @@ export class CoinService {
       || typeof orderNo !== "string" || !/^RC[A-Za-z0-9_-]{8,40}$/.test(orderNo)
     ) {
       this.logger.error("充值回调参数缺失", attach);
-      return;
+      return false;
     }
 
     const lockKey = `recharge:lock:${orderNo}`;
@@ -493,7 +496,8 @@ export class CoinService {
     const locked = await this.redis.setNX(lockKey, "1", 30);
     if (!locked) {
       this.logger.warn(`充值回调重复处理被拦截: ${orderNo}`);
-      return;
+      // 不能向微信确认成功：持锁的首轮处理仍可能失败，必须让渠道稍后重投。
+      return false;
     }
 
     try {
@@ -503,7 +507,7 @@ export class CoinService {
       });
       if (existing?.status === "PAID") {
         await this.redis.del(`recharge:intent:${orderNo}`);
-        return;
+        return true;
       }
 
       // 新单在下单时把应付「分」快照写进微信 attach，避免支付过程中后台改汇率导致已付款却拒绝入账。
@@ -520,7 +524,7 @@ export class CoinService {
         this.logger.error(
           `【资金对账·金额不符】充值回调实付金额与应付金额不一致，拒绝入账: orderNo=${orderNo}, userId=${userId}, 实付分=${String(wxTotal)}, 应付=${amountRmb}`,
         );
-        return;
+        return false;
       }
 
       // 新单使用下单时的赠币快照，避免支付过程中运营配置变化导致到账数量漂移；旧单按当前档位兼容。
@@ -539,6 +543,7 @@ export class CoinService {
 
       await this.redis.del(`recharge:intent:${orderNo}`);
       this.logger.log(`用户 ${userId} 充值 ${creditCoin} 币成功（实付${amountRmb}元）, 微信订单: ${orderNo}`);
+      return true;
     } finally {
       await this.redis.del(lockKey);
     }

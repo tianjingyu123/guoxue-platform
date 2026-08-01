@@ -4,20 +4,31 @@
     <view class="vl-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="vl-topbar">
         <text class="vl-title-main">短视频</text>
-        <view class="vl-search-btn" @tap="goSearch">
+        <view
+          class="vl-search-btn"
+          role="button"
+          aria-label="搜索短视频"
+          tabindex="0"
+          @tap="goSearch"
+          @keydown="activateOnKeyboard($event, goSearch)"
+        >
           <AppIcon name="search" :size="34" color="#2C2C2C" :stroke-width="2" />
         </view>
       </view>
 
       <!-- 分类 Tab：横滑左对齐；激活=朱红 700 + 18×3px 短横线（分类接口口径 S-09 待拍板，暂用真实 sort 三 Tab） -->
       <scroll-view class="vl-tabs" scroll-x :show-scrollbar="false">
-        <view class="vl-tabs-inner">
+        <view class="vl-tabs-inner" role="tablist" aria-label="短视频内容筛选">
           <view
             v-for="tab in tabs"
             :key="tab.id"
             class="vl-tab"
             :class="{ on: activeTab === tab.id }"
+            role="tab"
+            :aria-selected="activeTab === tab.id ? 'true' : 'false'"
+            :tabindex="activeTab === tab.id ? 0 : -1"
             @tap="switchTab(tab.id)"
+            @keydown="onTabKeydown($event, tab.id)"
           >
             <text class="vl-tab-label">{{ tab.label }}</text>
           </view>
@@ -27,7 +38,7 @@
 
     <station-pinned-rail v-if="!loading && !error" board="video" :inset="false" />
 
-    <view v-if="loading" class="vl-loading">
+    <view v-if="loading" class="vl-loading" role="status" aria-live="polite" aria-label="正在加载短视频">
       <view class="vl-sk vl-sk-feature" />
       <view class="vl-feed">
         <view class="vl-col">
@@ -42,17 +53,29 @@
     </view>
 
     <!-- 错误态 -->
-    <view v-else-if="error" class="vl-empty">
+    <view v-else-if="error" class="vl-empty" role="alert" aria-live="polite">
       <AppIcon name="alert-circle" :size="120" color="#D8D0C4" />
       <text class="vl-empty-msg">{{ errorMsg }}</text>
-      <view class="vl-ghost-btn" @tap="reload"><text class="vl-ghost-txt">重试</text></view>
+      <view
+        class="vl-ghost-btn"
+        role="button"
+        tabindex="0"
+        @tap="reload"
+        @keydown="activateOnKeyboard($event, reload)"
+      ><text class="vl-ghost-txt">重试</text></view>
     </view>
 
     <!-- 空态：水墨留白调性 + 白底描边胶囊次要动作 -->
-    <view v-else-if="videoListItems.length === 0" class="vl-empty">
+    <view v-else-if="videoListItems.length === 0" class="vl-empty" role="status" aria-live="polite">
       <AppIcon name="video" :size="120" color="#D8D0C4" />
       <text class="vl-empty-msg">{{ activeTab === 'follow' ? '还没有关注的创作者' : '这里还没有内容' }}</text>
-      <view class="vl-ghost-btn" @tap="switchTab('recommend')"><text class="vl-ghost-txt">去看看推荐</text></view>
+      <view
+        class="vl-ghost-btn"
+        role="button"
+        tabindex="0"
+        @tap="switchTab('recommend')"
+        @keydown="activateOnKeyboard($event, () => switchTab('recommend'))"
+      ><text class="vl-ghost-txt">去看看推荐</text></view>
     </view>
 
     <view v-else class="vl-cinema">
@@ -72,7 +95,11 @@
         hover-class="vl-card-hover"
         :hover-stay-time="120"
         data-content-card
+        role="link"
+        :aria-label="`播放短视频：${featuredVideo.title}`"
+        tabindex="0"
         @tap="goDetail(featuredVideo.id, $event)"
+        @keydown="openVideoOnKeyboard($event, featuredVideo.id)"
       >
         <smart-cover
           class="vl-feature-cover"
@@ -126,7 +153,11 @@
             hover-class="vl-card-hover"
             :hover-stay-time="120"
             data-content-card
+            role="link"
+            :aria-label="`播放短视频：${video.title}`"
+            tabindex="0"
             @tap="goDetail(video.id, $event)"
+            @keydown="openVideoOnKeyboard($event, video.id)"
           >
             <view class="vl-cover">
               <smart-cover class="vl-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" deco :deco-size="72" />
@@ -165,7 +196,11 @@
             hover-class="vl-card-hover"
             :hover-stay-time="120"
             data-content-card
+            role="link"
+            :aria-label="`播放短视频：${video.title}`"
+            tabindex="0"
             @tap="goDetail(video.id, $event)"
+            @keydown="openVideoOnKeyboard($event, video.id)"
           >
             <view class="vl-cover">
               <smart-cover class="vl-cover-img" :src="video.coverUrl" :video-url="video.videoUrl" :title="video.title" type="video" deco :deco-size="72" />
@@ -202,7 +237,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -226,6 +261,30 @@ const tabs: { id: TabId; label: string }[] = [
   { id: 'hot', label: '热门' },
 ]
 const activeTab = ref<TabId>('recommend')
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+function onTabKeydown(event: KeyboardEvent, current: TabId) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    switchTab(current)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const currentIndex = tabs.findIndex((tab) => tab.id === current)
+  const direction = event.key === 'ArrowRight' ? 1 : -1
+  const nextTab = tabs[(currentIndex + direction + tabs.length) % tabs.length]
+  if (!nextTab) return
+  switchTab(nextTab.id)
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('.vl-tab[aria-selected="true"]')?.focus()
+  })
+}
 
 // 瀑布流数据 + 三态：真实接口 GET /videos/items?sort=（三 tab 各驱动不同查询）
 const videoListItems = ref<VideoListItem[]>([])
@@ -293,6 +352,12 @@ function goSearch() {
 }
 function goDetail(id: string, event?: unknown) {
   navigateToContent(`/video/${id}`, event)
+}
+
+function openVideoOnKeyboard(event: KeyboardEvent, id: string) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  goDetail(id, event)
 }
 </script>
 

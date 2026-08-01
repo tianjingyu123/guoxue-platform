@@ -204,6 +204,14 @@ onPullDownRefresh(async () => {
 function go(href?: string) {
   if (href) navigateTo(href)
 }
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<unknown>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+function toggleRoles() {
+  rolesExpanded.value = !rolesExpanded.value
+}
 /** 我的页订单状态入口：售后是独立状态机，进入专属列表；其余进入订单筛选。 */
 function openOrderStatus(key: 'pending' | 'shipped' | 'received' | 'refund') {
   if (key === 'refund') {
@@ -228,7 +236,7 @@ function applyRole(role: string) {
     <app-network-bar />
     <customer-service-fab />
     <!-- 骨架屏 -->
-    <view v-if="loading" class="skeleton">
+    <view v-if="loading" class="skeleton" role="status" aria-live="polite">
       <view class="skeleton-hero" />
       <view class="skeleton-sec" />
       <view class="skeleton-sec" />
@@ -236,9 +244,16 @@ function applyRole(role: string) {
       <text class="skeleton-text">加载中...</text>
     </view>
     <!-- 错误态 -->
-    <view v-else-if="error" class="error-state">
+    <view v-else-if="error" class="error-state" role="alert" aria-live="assertive">
       <text class="error-text">{{ error }}</text>
-      <view class="retry-btn" @tap="fetchData">
+      <view
+        class="retry-btn"
+        role="button"
+        tabindex="0"
+        aria-label="重新加载个人中心"
+        @tap="fetchData"
+        @keydown="activateOnKeyboard($event, fetchData)"
+      >
         <text>重试</text>
       </view>
     </view>
@@ -247,25 +262,54 @@ function applyRole(role: string) {
     <view class="id-area" :style="{ paddingTop: statusBarHeight + 14 + 'px' }">
       <!-- 右上角操作：消息（带未读红点）+ 设置 -->
       <view class="top-acts" :style="{ top: statusBarHeight + 6 + 'px' }">
-        <view class="top-act tap-press" @tap="go('/notifications')">
+        <view
+          class="top-act tap-press"
+          role="link"
+          tabindex="0"
+          :aria-label="unreadNotify > 0 ? `消息通知，${unreadNotify}条未读` : '消息通知'"
+          @tap="go('/notifications')"
+          @keydown="activateOnKeyboard($event, () => go('/notifications'))"
+        >
           <AppIcon name="message-circle" :size="44" color="#2B2620" />
           <view v-if="unreadNotify > 0" class="dot" />
         </view>
-        <view class="top-act tap-press" @tap="go('/pkg-mine/settings/index')">
+        <view
+          class="top-act tap-press"
+          role="link"
+          tabindex="0"
+          aria-label="打开设置"
+          @tap="go('/pkg-mine/settings/index')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-mine/settings/index'))"
+        >
           <AppIcon name="settings" :size="44" color="#2B2620" />
         </view>
       </view>
 
       <view class="id-row">
-        <view class="id-avatar" @tap="go('/mine/edit-profile')">
+        <view
+          class="id-avatar"
+          role="link"
+          tabindex="0"
+          aria-label="编辑个人资料"
+          @tap="go('/mine/edit-profile')"
+          @keydown="activateOnKeyboard($event, () => go('/mine/edit-profile'))"
+        >
           <!-- smart-avatar：头像 URL 失效自动翻昵称首字色块（原 image 裂图时是纯红空圈） -->
           <smart-avatar class="avatar-img" :src="userData.avatar" :name="userData.name || '国'" />
         </view>
         <view class="id-info">
           <view class="id-name-row">
-            <text class="id-name">{{ userData.name }}</text>
+            <text class="id-name" role="heading" aria-level="1">{{ userData.name }}</text>
             <AppIcon v-if="userData.isVerified" name="shield" :size="28" color="#4A90D9" />
-            <view v-if="equippedTitle" class="title-chip" @tap="go('/pkg-mine/achievements/index')">
+            <view
+              v-if="equippedTitle"
+              class="title-chip"
+              role="link"
+              tabindex="0"
+              :aria-label="`查看称号与成就：${equippedTitle.name}`"
+              @tap="go('/pkg-mine/achievements/index')"
+              @keydown="activateOnKeyboard($event, () => go('/pkg-mine/achievements/index'))"
+            >
               <text class="title-chip-txt">{{ equippedTitle.name }}</text>
             </view>
           </view>
@@ -275,14 +319,36 @@ function applyRole(role: string) {
 
       <!-- 三数据：关注/粉丝/获赞 -->
       <view class="id-stats">
-        <view class="st" @tap="go('/pkg-mine/follows/index')"><text class="st-b">{{ metricText(userData.stats.following) }}</text><text class="st-l">关注</text></view>
-        <view class="st" @tap="go('/pkg-mine/follows/index?tab=followers')"><text class="st-b">{{ metricText(userData.stats.followers) }}</text><text class="st-l">粉丝</text></view>
+        <view
+          class="st"
+          role="link"
+          tabindex="0"
+          :aria-label="`我的关注，${metricText(userData.stats.following)}`"
+          @tap="go('/pkg-mine/follows/index')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-mine/follows/index'))"
+        ><text class="st-b">{{ metricText(userData.stats.following) }}</text><text class="st-l">关注</text></view>
+        <view
+          class="st"
+          role="link"
+          tabindex="0"
+          :aria-label="`我的粉丝，${metricText(userData.stats.followers)}`"
+          @tap="go('/pkg-mine/follows/index?tab=followers')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-mine/follows/index?tab=followers'))"
+        ><text class="st-b">{{ metricText(userData.stats.followers) }}</text><text class="st-l">粉丝</text></view>
         <!-- “获赞”是内容收到的赞；现有 likes 页是主动点赞，二者不可混跳。 -->
         <view class="st"><text class="st-b">{{ metricText(userData.stats.likes) }}</text><text class="st-l">获赞</text></view>
       </view>
 
       <!-- 会员金卡条：会员=暖金渐变金底深字 / 非会员=宣纸衬底金描边 -->
-      <view v-if="userData.isVip" class="gold-bar gold-bar--member card-press" @tap="go('/vip')">
+      <view
+        v-if="userData.isVip"
+        class="gold-bar gold-bar--member card-press"
+        role="link"
+        tabindex="0"
+        aria-label="查看书院会员权益与续费"
+        @tap="go('/vip')"
+        @keydown="activateOnKeyboard($event, () => go('/vip'))"
+      >
         <view class="gb-crown"><AppIcon name="crown" :size="34" color="#8A6B38" /></view>
         <view class="gb-txt">
           <text class="gb-title gb-title--member">书院会员 · {{ userData.vipLevel || '专属权益' }}</text>
@@ -290,7 +356,15 @@ function applyRole(role: string) {
         </view>
         <view class="gb-cta gb-cta--member"><text class="gb-cta-txt gb-cta-txt--member">续费</text></view>
       </view>
-      <view v-else class="gold-bar gold-bar--guest card-press" @tap="go('/vip')">
+      <view
+        v-else
+        class="gold-bar gold-bar--guest card-press"
+        role="link"
+        tabindex="0"
+        aria-label="查看并开通书院会员"
+        @tap="go('/vip')"
+        @keydown="activateOnKeyboard($event, () => go('/vip'))"
+      >
         <view class="gb-crown"><AppIcon name="crown" :size="34" color="#C9A96E" /></view>
         <view class="gb-txt">
           <text class="gb-title gb-title--guest">开通书院会员</text>
@@ -302,10 +376,17 @@ function applyRole(role: string) {
 
     <!-- ===== ② 继续区（复访钩子·横滑）：谁有进行中出谁，全无则推荐引导卡 ===== -->
     <template v-if="userData.continueLearning">
-      <view class="sec-title"><text class="sec-h">继续</text><text class="sec-more" @tap="go('/courses/my-learning')">接着上次 ›</text></view>
+      <view class="sec-title"><text class="sec-h">继续</text><text class="sec-more" role="link" tabindex="0" aria-label="查看我的全部学习课程" @tap="go('/courses/my-learning')" @keydown="activateOnKeyboard($event, () => go('/courses/my-learning'))">接着上次 ›</text></view>
       <scroll-view scroll-x class="cont-row" :show-scrollbar="false">
         <view class="cont-row-inner">
-          <view class="cont-card tap-press" @tap="go(`/pkg-course/detail/index?id=${userData.continueLearning?.id}`)">
+          <view
+            class="cont-card tap-press"
+            role="link"
+            tabindex="0"
+            :aria-label="`继续学习${userData.continueLearning.title}，当前进度${userData.continueLearning.progress}%`"
+            @tap="go(`/pkg-course/detail/index?id=${userData.continueLearning?.id}`)"
+            @keydown="activateOnKeyboard($event, () => go(`/pkg-course/detail/index?id=${userData.continueLearning?.id}`))"
+          >
             <text class="cont-tag">继续学习</text>
             <view class="cont-main">
               <view class="cont-th"><AppIcon name="book-open" :size="34" color="#C9A96E" /></view>
@@ -321,7 +402,14 @@ function applyRole(role: string) {
     </template>
     <template v-else>
       <view class="sec-title"><text class="sec-h">继续</text></view>
-      <view class="empty-lead card-press" @tap="go('/paipan')">
+      <view
+        class="empty-lead card-press"
+        role="link"
+        tabindex="0"
+        aria-label="前往排盘工具，开始国学探索"
+        @tap="go('/paipan')"
+        @keydown="activateOnKeyboard($event, () => go('/paipan'))"
+      >
         <view class="empty-th"><AppIcon name="compass" :size="40" color="#C9A96E" /></view>
         <view class="el-txt">
           <text class="el-t">从一盘开始你的国学之旅</text>
@@ -333,7 +421,16 @@ function applyRole(role: string) {
 
     <!-- ===== ③ 资产四宫格 ===== -->
     <view class="assets">
-      <view v-for="c in assetCells" :key="c.key" class="asset tap-press" @tap="go(c.href)">
+      <view
+        v-for="c in assetCells"
+        :key="c.key"
+        class="asset tap-press"
+        role="link"
+        tabindex="0"
+        :aria-label="`${c.label}，${c.value}`"
+        @tap="go(c.href)"
+        @keydown="activateOnKeyboard($event, () => go(c.href))"
+      >
         <text class="asset-b">{{ c.value }}</text>
         <text class="asset-s">{{ c.label }}</text>
       </view>
@@ -343,10 +440,19 @@ function applyRole(role: string) {
     <view class="orders">
       <view class="orders-head">
         <text class="orders-title">我的订单</text>
-        <text class="orders-more" @tap="go('/pkg-order/list/index')">全部订单 ›</text>
+        <text class="orders-more" role="link" tabindex="0" aria-label="查看全部订单" @tap="go('/pkg-order/list/index')" @keydown="activateOnKeyboard($event, () => go('/pkg-order/list/index'))">全部订单 ›</text>
       </view>
       <view class="orders-row">
-        <view v-for="item in orderStatus" :key="item.key" class="o-item tap-press" @tap="openOrderStatus(item.key)">
+        <view
+          v-for="item in orderStatus"
+          :key="item.key"
+          class="o-item tap-press"
+          role="link"
+          tabindex="0"
+          :aria-label="`${item.label}订单，${item.count == null ? '数量未加载' : `${item.count}笔`}`"
+          @tap="openOrderStatus(item.key)"
+          @keydown="activateOnKeyboard($event, () => openOrderStatus(item.key))"
+        >
           <view class="o-icon">
             <AppIcon :name="item.icon" :size="40" color="#2B2620" />
             <text v-if="item.count != null && item.count > 0" class="o-dot">{{ item.count }}</text>
@@ -358,7 +464,17 @@ function applyRole(role: string) {
 
     <!-- ===== ⑤ 我的内容矩阵（4 列 × 4 行·个人中心的入口集散地） ===== -->
     <view class="matrix">
-      <view v-for="m in matrixItems" :key="m.label" class="m-item tap-press" :class="{ star: m.star }" @tap="go(m.href)">
+      <view
+        v-for="m in matrixItems"
+        :key="m.label"
+        class="m-item tap-press"
+        :class="{ star: m.star }"
+        role="link"
+        tabindex="0"
+        :aria-label="m.label"
+        @tap="go(m.href)"
+        @keydown="activateOnKeyboard($event, () => go(m.href))"
+      >
         <view class="m-icon">
           <AppIcon :name="m.icon" :size="40" :color="m.star ? '#B4884A' : '#2B2620'" />
           <view v-if="m.star" class="m-star-dot" />
@@ -378,7 +494,11 @@ function applyRole(role: string) {
         :key="row.applyType"
         class="role-row list-press"
         :class="{ joined: row.joined, pending: !row.joined }"
+        role="link"
+        tabindex="0"
+        :aria-label="row.joined ? `进入${row.name}工作台` : `申请加入${row.name}：${row.benefit}`"
         @tap="row.joined ? openRole(row.href) : applyRole(row.applyType)"
+        @keydown="activateOnKeyboard($event, () => row.joined ? openRole(row.href) : applyRole(row.applyType))"
       >
         <text class="role-seal">{{ row.seal }}</text>
         <view class="role-txt">
@@ -391,7 +511,16 @@ function applyRole(role: string) {
         </view>
         <view v-else class="role-apply"><text class="role-apply-txt">申请加入</text></view>
       </view>
-      <view v-if="hasMoreRoles" class="role-more list-press" @tap="rolesExpanded = !rolesExpanded">
+      <view
+        v-if="hasMoreRoles"
+        class="role-more list-press"
+        role="button"
+        tabindex="0"
+        :aria-expanded="rolesExpanded"
+        :aria-label="rolesExpanded ? '收起更多身份' : '展开更多身份'"
+        @tap="toggleRoles"
+        @keydown="activateOnKeyboard($event, toggleRoles)"
+      >
         <text class="role-more-txt">{{ rolesExpanded ? '收起更多身份' : '更多身份' }}</text>
         <AppIcon :name="rolesExpanded ? 'chevron-up' : 'chevron-down'" :size="22" color="#B0A99A" />
       </view>
@@ -399,16 +528,16 @@ function applyRole(role: string) {
 
     <!-- ===== ⑦ 服务与设置 ===== -->
     <view class="svc">
-      <view class="svc-item tap-press" @tap="go('/agents/history')">
+      <view class="svc-item tap-press" role="link" tabindex="0" aria-label="查看AI会话记录" @tap="go('/agents/history')" @keydown="activateOnKeyboard($event, () => go('/agents/history'))">
         <AppIcon name="message-circle" :size="40" color="#2B2620" /><text class="svc-label">AI会话</text>
       </view>
-      <view class="svc-item tap-press" @tap="go('/agent/customer-service')">
+      <view class="svc-item tap-press" role="link" tabindex="0" aria-label="联系智能客服" @tap="go('/agent/customer-service')" @keydown="activateOnKeyboard($event, () => go('/agent/customer-service'))">
         <AppIcon name="customer-service" :size="40" color="#2B2620" /><text class="svc-label">联系客服</text>
       </view>
-      <view class="svc-item tap-press" @tap="go('/report/result')">
+      <view class="svc-item tap-press" role="link" tabindex="0" aria-label="查看我的举报记录" @tap="go('/report/result')" @keydown="activateOnKeyboard($event, () => go('/report/result'))">
         <AppIcon name="shield-check" :size="40" color="#2B2620" /><text class="svc-label">我的举报</text>
       </view>
-      <view class="svc-item tap-press" @tap="go('/help')">
+      <view class="svc-item tap-press" role="link" tabindex="0" aria-label="打开帮助中心" @tap="go('/help')" @keydown="activateOnKeyboard($event, () => go('/help'))">
         <AppIcon name="help-circle" :size="40" color="#2B2620" /><text class="svc-label">帮助中心</text>
       </view>
     </view>

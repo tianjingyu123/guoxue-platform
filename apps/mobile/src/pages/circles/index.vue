@@ -5,7 +5,7 @@
  * 顶栏：标题 + 搜索 + 创建 + 「圈子·我的」头像入口（板块门户 4.3）
  * 数据层沿用原实现：circleApi.list/my/getHotPosts/getMyStats/join + joinedIds 标记 + onShow 刷新
  */
-import { computed, ref, onMounted } from 'vue'
+import { computed, nextTick, ref, onMounted } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
@@ -144,6 +144,25 @@ function selectCategory(id: string) {
   loadCircles()
 }
 
+function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  action()
+}
+
+async function onCategoryKeydown(event: KeyboardEvent, id: string) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const currentIndex = circleCategories.findIndex((item) => item.id === id)
+  if (currentIndex < 0) return
+  const direction = event.key === 'ArrowRight' ? 1 : -1
+  const nextIndex = (currentIndex + direction + circleCategories.length) % circleCategories.length
+  selectCategory(circleCategories[nextIndex].id)
+  await nextTick()
+  const tabs = document.querySelectorAll<HTMLElement>('.cat-chip[role="tab"]')
+  tabs[nextIndex]?.focus()
+}
+
 function formatPostTime(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
@@ -205,25 +224,46 @@ onShow(() => {
 
     <!-- 顶栏：标题 + 搜索 + 创建 + 圈子·我的入口 -->
     <view class="topbar">
-      <text class="title">圈子</text>
-      <view class="actions">
-        <view class="icon-btn" @tap="go('/pkg-circle/circles/search')">
+      <text class="title" role="heading" aria-level="1">圈子</text>
+      <view class="actions" role="navigation" aria-label="圈子广场快捷操作">
+        <view
+          class="icon-btn"
+          role="link"
+          tabindex="0"
+          aria-label="搜索圈子"
+          @tap="go('/pkg-circle/circles/search')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/search'))"
+        >
           <app-icon name="search" :size="36" color="#2C2C2C" />
         </view>
-        <view class="create-btn" @tap="go('/pkg-circle/circles/create')">
+        <view
+          class="create-btn"
+          role="link"
+          tabindex="0"
+          aria-label="创建圈子"
+          @tap="go('/pkg-circle/circles/create')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/create'))"
+        >
           <app-icon name="plus" :size="28" color="#ffffff" />
           <text class="create-btn-txt">创建</text>
         </view>
         <!-- 「圈子·我的」板块门户入口（非全局个人中心） -->
-        <view class="me-entry" @tap="go('/pkg-circle/circles/me')">
+        <view
+          class="me-entry"
+          role="link"
+          tabindex="0"
+          aria-label="打开我的圈子"
+          @tap="go('/pkg-circle/circles/me')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/me'))"
+        >
           <app-icon name="user" :size="34" color="#666666" />
         </view>
       </view>
     </view>
 
-    <scroll-view scroll-y class="body">
+    <scroll-view scroll-y class="body" aria-label="圈子广场内容">
       <!-- ════ 区① 我的圈子 · 私域书斋 ════ -->
-      <view v-if="myCircles.length" class="section mine-section">
+      <view v-if="myCircles.length" class="section mine-section" aria-label="我的圈子">
         <view class="mine-shell">
           <view class="mine-shell-head">
             <view class="mine-heading">
@@ -233,7 +273,14 @@ onShow(() => {
               </view>
                 <text class="mine-subtitle">常逛的圈子，轻点即可进入</text>
             </view>
-            <view class="mine-more" @tap="go('/pkg-circle/circles/me')">
+            <view
+              class="mine-more"
+              role="link"
+              tabindex="0"
+              aria-label="查看全部我的圈子"
+              @tap="go('/pkg-circle/circles/me')"
+              @keydown="activateOnKeyboard($event, () => go('/pkg-circle/circles/me'))"
+            >
               <text class="mine-more-txt">全部</text>
               <app-icon name="chevron-right" :size="22" color="#64766E" />
             </view>
@@ -242,7 +289,12 @@ onShow(() => {
             <view class="mine-row">
               <view
                 v-for="c in minePreview" :key="c.id"
-                class="mine-card tap-press" @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
+                class="mine-card tap-press"
+                role="link"
+                tabindex="0"
+                :aria-label="`进入圈子：${c.name}，${formatMembers(c.members)}位圈友${c.todayActive ? `，今日${c.todayActive}条动态` : ''}`"
+                @tap="go(`/pkg-circle/circles/detail?id=${c.id}`)"
+                @keydown="activateOnKeyboard($event, () => go(`/pkg-circle/circles/detail?id=${c.id}`))"
               >
                 <view class="mine-cover-wrap">
                   <smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="44" class="mine-cover" />
@@ -272,25 +324,31 @@ onShow(() => {
         <view class="sec-head"><text class="sec-title">发现圈子</text></view>
         <!-- 分类筛选 -->
         <scroll-view scroll-x class="cat-scroll">
-          <view class="cat-row">
+          <view class="cat-row" role="tablist" aria-label="发现圈子分类">
             <!-- 分类含首项 { id:'', name:'推荐' } 作为「全部/推荐」，勿再额外硬编码一枚，否则重复两个「推荐」 -->
             <view
               v-for="cat in circleCategories" :key="cat.id"
               class="cat-chip" :class="{ on: category === cat.id }"
+              role="tab"
+              :aria-selected="category === cat.id"
+              :tabindex="category === cat.id ? 0 : -1"
               @tap="selectCategory(cat.id)"
+              @keydown="onCategoryKeydown($event, cat.id)"
             ><text class="cat-text" :class="{ on: category === cat.id }">{{ cat.name }}</text></view>
           </view>
         </scroll-view>
 
         <!-- 加载态：骨架 -->
-        <view v-if="loading" class="discover-list">
+        <view v-if="loading" class="discover-list" role="status" aria-live="polite" aria-label="圈子列表加载中">
           <view v-for="i in 4" :key="i" class="sk-card">
             <view class="sk-cover" />
             <view class="sk-body"><view class="sk-line w3" /><view class="sk-line w2" /></view>
           </view>
         </view>
         <!-- 错误态 -->
-        <app-error v-else-if="error" title="圈子加载失败" desc="网络异常，请稍后重试" @retry="loadCircles" />
+        <view v-else-if="error" role="alert" aria-live="assertive">
+          <app-error title="圈子加载失败" desc="网络异常，请稍后重试" @retry="loadCircles" />
+        </view>
         <!-- 列表 -->
         <!-- animate-fade-in 挂列表容器：进入渐入；不挂卡片（forwards 动画会压掉卡片 :active 缩放） -->
         <view v-else-if="visibleDiscoverCircles.length" class="discover-list animate-fade-in">
@@ -298,7 +356,12 @@ onShow(() => {
                卡上不再「无感即加入」，加入/购买动作在详情页完成（董事长 #24） -->
           <view
             v-for="c in visibleDiscoverCircles" :key="c.id"
-            class="circle-card" @tap="openCircle(c)"
+            class="circle-card"
+            role="link"
+            tabindex="0"
+            :aria-label="`${c.name}，${c.description}，${formatMembers(c.members)}位圈友，${c.type === 'YEARLY' ? `${c.price}元每年` : c.type === 'PAID' || (!c.type && c.isPaid) ? `${c.price}元` : '免费加入'}，查看圈子详情`"
+            @tap="openCircle(c)"
+            @keydown="activateOnKeyboard($event, () => openCircle(c))"
           >
             <!-- 圈子封面统一按 4:3 横向裁剪：兼容既有竖图，也更适合圈子发现卡与动态流复用 -->
             <view class="card-cover">
@@ -344,21 +407,28 @@ onShow(() => {
           </view>
           <view v-if="discoverBatchCount > 1" class="discover-pager">
             <text class="discover-pager-count">{{ discoverBatch + 1 }} / {{ discoverBatchCount }}</text>
-            <view class="discover-pager-btn" @tap="nextDiscoverBatch">
+            <view
+              class="discover-pager-btn"
+              role="button"
+              tabindex="0"
+              aria-label="换一批发现圈子"
+              @tap="nextDiscoverBatch"
+              @keydown="activateOnKeyboard($event, nextDiscoverBatch)"
+            >
               <app-icon name="refresh-cw" :size="24" color="#7A5634" />
               <text class="discover-pager-txt">换一批</text>
             </view>
           </view>
         </view>
         <!-- 空态 -->
-        <view v-else class="empty">
+        <view v-else class="empty" role="status" aria-live="polite">
           <view class="empty-icon"><app-icon name="users" :size="56" color="#999999" /></view>
           <text class="empty-text">没找到相关圈子，换个分类看看吧</text>
         </view>
       </view>
 
       <!-- ════ 区③ 动态 · 已加入圈子聚合 ════ -->
-      <view v-if="hotPosts.length" class="section activity-section">
+      <view v-if="hotPosts.length" class="section activity-section" aria-label="来自已加入圈子的最新动态">
         <view class="sec-head activity-head">
           <view class="sec-title-wrap">
             <text class="sec-title">圈内新鲜事</text>
@@ -369,7 +439,12 @@ onShow(() => {
         <view class="feed-list activity-shell">
           <view
             v-for="post in hotPosts" :key="post.id"
-            class="feed-item list-press" @tap="go(`/pkg-circle/circles/post?id=${post.id}&circleId=${post.circleId}`)"
+            class="feed-item list-press"
+            role="link"
+            tabindex="0"
+            :aria-label="`${post.circleName}，${post.author.name}发布：${post.content}，${post.likes || 0}次点赞，${post.comments || 0}条评论`"
+            @tap="go(`/pkg-circle/circles/post?id=${post.id}&circleId=${post.circleId}`)"
+            @keydown="activateOnKeyboard($event, () => go(`/pkg-circle/circles/post?id=${post.id}&circleId=${post.circleId}`))"
           >
             <view class="feed-author-col">
               <smart-avatar :src="post.author.avatar" :name="post.author.name" class="feed-avatar" />
@@ -377,7 +452,14 @@ onShow(() => {
             </view>
             <view class="feed-body">
               <view class="feed-source">
-                <text class="feed-circle" @tap.stop="go(`/pkg-circle/circles/detail?id=${post.circleId}`)">{{ post.circleName }}</text>
+                <text
+                  class="feed-circle"
+                  role="link"
+                  tabindex="0"
+                  :aria-label="`进入圈子：${post.circleName}`"
+                  @tap.stop="go(`/pkg-circle/circles/detail?id=${post.circleId}`)"
+                  @keydown.stop="activateOnKeyboard($event, () => go(`/pkg-circle/circles/detail?id=${post.circleId}`))"
+                >{{ post.circleName }}</text>
                 <text class="feed-author">{{ post.author.name }}</text>
                 <text class="feed-time">{{ post.time }}</text>
                 <text v-if="post.isPinned" class="tag-featured">置顶</text>

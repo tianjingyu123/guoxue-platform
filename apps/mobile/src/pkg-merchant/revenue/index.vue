@@ -54,7 +54,7 @@
                 <text class="rv-ov-t">累计已结算</text>
               </view>
               <view class="rv-ov-cell">
-                <text class="rv-ov-n">{{ commissionPct }}</text>
+                <text class="rv-ov-n">{{ platformFeePct }}</text>
                 <text class="rv-ov-t">平台费率</text>
               </view>
             </view>
@@ -95,7 +95,7 @@
                     <text class="rv-kv-v">¥{{ money(s.totalRevenue) }}</text>
                   </view>
                   <view class="rv-kv">
-                    <text class="rv-kv-k">平台服务费（{{ commissionPct }}）</text>
+                    <text class="rv-kv-k">平台服务费（{{ platformFeePct }}）</text>
                     <text class="rv-kv-v minus">− ¥{{ money(s.commission) }}</text>
                   </view>
                   <view class="rv-kv total">
@@ -170,21 +170,27 @@ const revenue = ref<RevenueOverview>({ totalSales: 0, totalOrders: 0, merchantSh
 const settlements = ref<MerchantSettlement[]>([])
 const expandedId = ref('')
 
-// 待结算金额：PENDING 状态结算单金额汇总
-const pendingAmount = computed(() =>
-  settlements.value.filter((s) => s.status === 'PENDING').reduce((sum, s) => sum + (Number(s.settlementAmount) || 0), 0),
-)
-// 累计已结算金额：PAID 状态结算单金额汇总
-const settledAmount = computed(() =>
-  settlements.value.filter((s) => s.status === 'PAID').reduce((sum, s) => sum + (Number(s.settlementAmount) || 0), 0),
-)
-
-// 平台费率：后端可能返回小数(0.05)或百分数(5)，统一归一为百分比展示
-const commissionPct = computed(() => {
-  const rate = Number(revenue.value.commissionRate) || 0
-  const pct = rate <= 1 ? rate * 100 : rate
-  return `${Number(pct.toFixed(2))}%`
+// 聚合总额由后端对全量结算单计算；旧接口缺少聚合字段时才回落到当前列表求和。
+const pendingAmount = computed(() => {
+  if (revenue.value.pendingSettlement != null) return Number(revenue.value.pendingSettlement) || 0
+  return settlements.value
+    .filter((s) => s.status === 'PENDING')
+    .reduce((sum, s) => sum + (Number(s.settlementAmount) || 0), 0)
 })
+const settledAmount = computed(() => {
+  if (revenue.value.settledAmount != null) return Number(revenue.value.settledAmount) || 0
+  return settlements.value
+    .filter((s) => s.status === 'PAID')
+    .reduce((sum, s) => sum + (Number(s.settlementAmount) || 0), 0)
+})
+
+// commissionRate 是兼容旧字段，实际语义为“商家留成比例”；平台服务费应显示 1 - 留成比例。
+const merchantShareRate = computed(() => {
+  const raw = Number(revenue.value.merchantShareRate ?? revenue.value.commissionRate)
+  if (!Number.isFinite(raw)) return 0.85
+  return Math.min(1, Math.max(0, raw > 1 ? raw / 100 : raw))
+})
+const platformFeePct = computed(() => `${Number(((1 - merchantShareRate.value) * 100).toFixed(2))}%`)
 
 function money(v: number | string | null | undefined) {
   return (Number(v) || 0).toFixed(2)

@@ -226,3 +226,60 @@
   letter-spacing: 0.25em;
   line-height: 2.2;
 }
+
+/* 尊重系统“减少动态”设置：保留状态和层级，只关闭循环、位移与闪烁。 */
+@media (prefers-reduced-motion: reduce) {
+  .taiji-slow-rotate,
+  .taiji-breathing-glow,
+  .animate-spin-slow,
+  .taiji-rotate,
+  .taiji-rotate-fast,
+  .live-indicator,
+  .live-card-glow,
+  .gold-glow,
+  .gradient-flow,
+  .agent-gradient-warm,
+  .agent-gradient-cool,
+  .agent-gradient-earth,
+  .agent-gradient-sky,
+  .agent-icon-glow,
+  .animate-online-glow,
+  .badge-flash,
+  .animate-soundwave,
+  .streaming-cursor::after,
+  .typing-dot,
+  .ring-spin-slow,
+  .animate-ping-ring,
+  .skeleton,
+  .progress-flow,
+  .bar-wave-1,
+  .bar-wave-2,
+  .bar-wave-3,
+  .bar-wave-4,
+  .bar-wave-5,
+  .ai-cursor::after {
+    animation: none !important;
+  }
+
+  .animate-fade-in,
+  .content-fade-in,
+  .mask-fade-in,
+  .mask-fade-out,
+  .sheet-slide-up,
+  .sheet-slide-down,
+  .dialog-pop-in,
+  .dialog-pop-out,
+  .fly-to-cart {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .card-press,
+  .tap-press,
+  .list-press,
+  .btn-press,
+  .switch-track,
+  .switch-thumb {
+    transition-duration: 0.01ms !important;
+  }
+}

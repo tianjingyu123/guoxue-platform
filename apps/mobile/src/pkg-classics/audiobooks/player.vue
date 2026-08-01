@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { classicsApi } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
 import AiThinking from '@/components/classics/ai-thinking.vue'
@@ -279,6 +280,20 @@ function goBack() {
 // ── AI 伴读（复用识典伴读 /classic/companion/chat·半屏抽屉·不打断播放） ──
 interface AiMessage { id: string; role: 'user' | 'assistant'; content: string; disclaimer?: string }
 const aiOpen = ref(false)
+function openChapters() { showChapters.value = true }
+function closeChapters() { showChapters.value = false }
+function closeAi() { aiOpen.value = false }
+
+useOverlayScrollLock(() => showChapters.value, {
+  onEscape: closeChapters,
+  focusContainerSelector: '.ap-sheet',
+  initialFocusSelector: '.ap-sheet-close',
+})
+useOverlayScrollLock(() => aiOpen.value, {
+  onEscape: closeAi,
+  focusContainerSelector: '.ai-sheet',
+  initialFocusSelector: '.ai-close',
+})
 const aiMessages = ref<AiMessage[]>([])
 const aiInput = ref('')
 const aiLoading = ref(false)
@@ -427,7 +442,15 @@ onLoad((q) => {
       <view class="ap-header-inner">
         <view class="ap-circle-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#78350f" /></view>
         <text class="ap-header-title">听书 · AI 朗读</text>
-        <view class="ap-circle-btn" @tap="showChapters = true"><app-icon name="list" :size="38" color="#78350f" /></view>
+        <view
+          class="ap-circle-btn"
+          role="button"
+          tabindex="0"
+          aria-label="打开听书目录"
+          @tap="openChapters"
+          @keydown.enter.prevent="openChapters"
+          @keydown.space.prevent="openChapters"
+        ><app-icon name="list" :size="38" color="#78350f" /></view>
       </view>
     </view>
 
@@ -505,8 +528,16 @@ onLoad((q) => {
     </template>
 
     <!-- AI 伴读半屏抽屉（打开时 TTS 继续朗读·不打断播放） -->
-    <view v-if="aiOpen" class="ap-mask ap-mask--ai" @tap="aiOpen = false" @touchmove.self.prevent>
-      <view class="ai-sheet" @tap.stop @touchmove.stop>
+    <view v-if="aiOpen" class="ap-mask ap-mask--ai" @tap="closeAi" @touchmove.self.prevent>
+      <view
+        class="ai-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI 伴读"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="ai-head">
           <view class="ai-head-left">
             <view class="ai-avatar"><app-icon name="sparkles" :size="32" color="#ffffff" /></view>
@@ -521,7 +552,15 @@ onLoad((q) => {
               <app-icon :name="playing ? 'pause' : 'play'" :size="28" color="#92400e" :fill="true" />
               <text class="ai-mini-play-txt">{{ playing ? '暂停朗读' : '继续朗读' }}</text>
             </view>
-            <text class="ai-close" @tap="aiOpen = false">关闭</text>
+            <text
+              class="ai-close"
+              role="button"
+              tabindex="0"
+              aria-label="关闭 AI 伴读"
+              @tap="closeAi"
+              @keydown.enter.prevent="closeAi"
+              @keydown.space.prevent="closeAi"
+            >关闭</text>
           </view>
         </view>
 
@@ -576,11 +615,27 @@ onLoad((q) => {
     </view>
 
     <!-- 目录 -->
-    <view v-if="showChapters" class="ap-mask" @tap="showChapters = false" @touchmove.self.prevent>
-      <view class="ap-sheet" @tap.stop @touchmove.stop>
+    <view v-if="showChapters" class="ap-mask" @tap="closeChapters" @touchmove.self.prevent>
+      <view
+        class="ap-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="听书目录"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="ap-sheet-head">
           <text class="ap-sheet-title">目录 · 共 {{ chapters.length }} 章</text>
-          <text class="ap-sheet-close" @tap="showChapters = false">关闭</text>
+          <text
+            class="ap-sheet-close"
+            role="button"
+            tabindex="0"
+            aria-label="关闭听书目录"
+            @tap="closeChapters"
+            @keydown.enter.prevent="closeChapters"
+            @keydown.space.prevent="closeChapters"
+          >关闭</text>
         </view>
         <scroll-view scroll-y class="ap-sheet-list">
           <view
@@ -588,7 +643,11 @@ onLoad((q) => {
             :key="ch.id"
             class="ap-sheet-item"
             :class="{ 'ap-sheet-item--on': idx === curIndex }"
+            role="button"
+            tabindex="0"
             @tap="pickChapter(idx)"
+            @keydown.enter.prevent="pickChapter(idx)"
+            @keydown.space.prevent="pickChapter(idx)"
           >
             <text class="ap-sheet-item-idx">{{ idx + 1 }}</text>
             <text class="ap-sheet-item-title" :class="{ 'ap-sheet-item-title--on': idx === curIndex }">{{ ch.title }}</text>
@@ -619,6 +678,11 @@ onLoad((q) => {
 .ap-wave-bar { width: 8rpx; height: 16rpx; border-radius: 999rpx; background: #d97706; }
 .ap-wave--on .ap-wave-bar { animation: ap-wave 0.8s ease-in-out infinite; }
 @keyframes ap-wave { 0%, 100% { height: 16rpx; } 50% { height: 48rpx; } }
+@media (prefers-reduced-motion: reduce) {
+  .ap-wave--on .ap-wave-bar {
+    animation: none !important;
+  }
+}
 .ap-title { display: block; font-family: var(--font-serif); font-size: 46rpx; font-weight: 700; color: #78350f; }
 .ap-sub { display: block; font-size: 24rpx; color: var(--muted-foreground); margin-top: 8rpx; }
 .ap-chapter { display: block; font-size: 28rpx; color: #92400e; margin-top: 16rpx; font-weight: 500; }

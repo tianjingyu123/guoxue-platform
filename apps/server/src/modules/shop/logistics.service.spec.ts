@@ -323,7 +323,55 @@ describe("LogisticsService", () => {
       await svc.handlePush(param, sign);
 
       expect(prisma.orderLogistics.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-        data: expect.objectContaining({ status: "IN_TRANSIT" }),
+        data: expect.objectContaining({ status: "OUT_FOR_DELIVERY" }),
+      }));
+    });
+
+    it("异常与退回状态保留业务语义，不再统一压成运输中", async () => {
+      const samples = [
+        { code: "2", status: "EXCEPTION" },
+        { code: "4", status: "RETURNED" },
+        { code: "6", status: "RETURNING" },
+      ];
+
+      for (const sample of samples) {
+        prisma.orderLogistics.updateMany.mockClear();
+        const param = JSON.stringify({
+          lastResult: {
+            nu: "SF123",
+            state: sample.code,
+            ischeck: "0",
+            data: [{ time: "2026-07-23 12:00:00", context: sample.status }],
+          },
+        });
+        const sign = createHash("md5").update(param + "callback-salt").digest("hex").toUpperCase();
+
+        await svc.handlePush(param, sign);
+
+        expect(prisma.orderLogistics.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+          data: expect.objectContaining({ status: sample.status }),
+        }));
+      }
+    });
+
+    it("非终态延迟回调不得把已签收或已退回运单倒退", async () => {
+      const param = JSON.stringify({
+        lastResult: {
+          nu: "SF123",
+          state: "0",
+          ischeck: "0",
+          data: [{ time: "2026-07-22 12:00:00", context: "运输中" }],
+        },
+      });
+      const sign = createHash("md5").update(param + "callback-salt").digest("hex").toUpperCase();
+
+      await svc.handlePush(param, sign);
+
+      expect(prisma.orderLogistics.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          logisticsNo: "SF123",
+          status: { notIn: ["SIGNED", "RETURNED", "REJECTED"] },
+        },
       }));
     });
 

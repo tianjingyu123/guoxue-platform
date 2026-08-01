@@ -22,7 +22,7 @@ http {
                   'rt=$request_time uct="$upstream_connect_time" '
                   'uht="$upstream_header_time" urt="$upstream_response_time"';
 
-  access_log /var/log/nginx/access.log main buffer=16k;
+  access_log /var/log/nginx/access.log main buffer=16k flush=5s;
   error_log /var/log/nginx/error.log warn;
 
   # 性能调优
@@ -94,6 +94,7 @@ http {
     location /nginx-health {
       return 200 'ok';
       add_header Content-Type text/plain;
+      include /etc/nginx/snippets/security-headers.conf;
     }
 
     # 其余全部重定向到 HTTPS
@@ -119,12 +120,8 @@ http {
     ssl_stapling_verify on;
     resolver 8.8.8.8 114.114.114.114 valid=300s;
 
-    # 安全头
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    # 安全头。带自定义 add_header 的 location 需再次 include，避免 Nginx 继承规则吞掉安全头。
+    include /etc/nginx/snippets/security-headers.conf;
 
     # 全局连接数限制
     limit_conn conn_limit 20;
@@ -135,6 +132,7 @@ http {
       alias /var/www/uploads/;
       expires 30d;
       add_header Cache-Control "public, immutable";
+      include /etc/nginx/snippets/security-headers.conf;
       limit_req zone=api_limit burst=60;
     }
 
@@ -143,15 +141,21 @@ http {
       alias /var/www/static/;
       expires 7d;
       add_header Cache-Control "public";
+      include /etc/nginx/snippets/security-headers.conf;
       limit_req zone=api_limit burst=60;
     }
 
     # ── H5 SPA ──
+    location = /h5 {
+      return 301 $scheme://$host/h5/;
+    }
+
     location /h5/assets/ {
       root /var/www;
       try_files $uri =404;
       expires 365d;
       add_header Cache-Control "public, immutable";
+      include /etc/nginx/snippets/security-headers.conf;
     }
 
     location /h5/ {
@@ -159,6 +163,7 @@ http {
       try_files $uri $uri/ /h5/index.html;
       expires -1;
       add_header Cache-Control "no-cache";
+      include /etc/nginx/snippets/security-headers.conf;
     }
 
     # ── 健康检查 (不限流) ──
@@ -172,6 +177,23 @@ http {
       proxy_set_header X-Real-IP $remote_addr;
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── Socket.IO / WebSocket ──
+    # 直连 HTTPS 部署也必须保留实时通话、消息与状态推送能力。
+    location /socket.io/ {
+      limit_req off;
+      proxy_pass http://server_backend;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_read_timeout 86400s;
+      proxy_send_timeout 86400s;
+      proxy_buffering off;
     }
 
     # ── API ──
@@ -204,8 +226,7 @@ http {
     }
 
     # ── 管理后台 SPA ──
-    location /admin {
-      # 精确匹配 /admin → 重定向到 /admin/
+    location = /admin {
       return 301 $scheme://$host/admin/;
     }
 
@@ -214,12 +235,14 @@ http {
       try_files /admin/assets/$1 =404;
       expires 365d;
       add_header Cache-Control "public, immutable";
+      include /etc/nginx/snippets/security-headers.conf;
     }
 
     location = /admin/index.html {
       root /var/www;
       expires -1;
       add_header Cache-Control "no-cache";
+      include /etc/nginx/snippets/security-headers.conf;
     }
 
     location /admin/ {
@@ -227,6 +250,7 @@ http {
       try_files $uri $uri/ /admin/index.html;
       expires -1;
       add_header Cache-Control "no-cache";
+      include /etc/nginx/snippets/security-headers.conf;
 
       # 管理后台 API 和静态资源不限流
       limit_req zone=api_limit burst=60 nodelay;
@@ -266,6 +290,7 @@ http {
     location / {
       return 200 '{"status":"ok","message":"国学平台 API"}';
       add_header Content-Type application/json;
+      include /etc/nginx/snippets/security-headers.conf;
     }
   }
 

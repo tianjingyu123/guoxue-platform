@@ -15,7 +15,7 @@ import {
   AddMerchantMemberDto,
   InventoryListQueryDto, InventoryMovementQueryDto, InventoryAdjustmentDto,
   InventoryAlertSettingDto, CreatePurchaseOrderDto, PurchaseOrderQueryDto,
-  ReceivePurchaseOrderDto,
+  ReceivePurchaseOrderDto, SupplierQueryDto, SupplierStatusDto, UpsertSupplierDto,
   ReturnInspectionDto,
   BatchShipOrdersDto,
 } from "./merchant.dto";
@@ -324,6 +324,14 @@ export class MerchantBackendController {
     });
   }
 
+  @Get("customers/:id")
+  @ApiOperation({ summary: "客户详情（交易画像与最近订单）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "客户不存在或不属于当前商家" })
+  getCustomerDetail(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.merchantService.getCustomerDetail(this.getMerchant(req).id, id);
+  }
+
   // ── 平台通知 / 客户咨询 / 内容统计 ──
 
   @Get("notices")
@@ -406,6 +414,33 @@ export class MerchantBackendController {
     return this.inventoryService.setAlert(this.getMerchant(req).id, this.shopUserId(req), dto);
   }
 
+  @Get("suppliers")
+  @ApiOperation({ summary: "供应商档案列表" })
+  listSuppliers(@Req() req: AuthRequest, @Query() q: SupplierQueryDto) {
+    return this.inventoryService.listSuppliers(this.getMerchant(req).id, q);
+  }
+
+  @Post("suppliers")
+  @Auditable({ action: "商家创建供应商档案", targetType: "MERCHANT_SUPPLIER" })
+  @ApiOperation({ summary: "创建供应商档案" })
+  createSupplier(@Req() req: AuthRequest, @Body() dto: UpsertSupplierDto) {
+    return this.inventoryService.createSupplier(this.getMerchant(req).id, dto);
+  }
+
+  @Put("suppliers/:id")
+  @Auditable({ action: "商家更新供应商档案", targetType: "MERCHANT_SUPPLIER" })
+  @ApiOperation({ summary: "更新供应商档案" })
+  updateSupplier(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpsertSupplierDto) {
+    return this.inventoryService.updateSupplier(this.getMerchant(req).id, id, dto);
+  }
+
+  @Put("suppliers/:id/status")
+  @Auditable({ action: "商家变更供应商状态", targetType: "MERCHANT_SUPPLIER" })
+  @ApiOperation({ summary: "启用或停用供应商档案" })
+  setSupplierStatus(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: SupplierStatusDto) {
+    return this.inventoryService.setSupplierStatus(this.getMerchant(req).id, id, dto);
+  }
+
   @Post("purchase-orders")
   @ApiOperation({ summary: "创建采购单" })
   createPurchaseOrder(@Req() req: AuthRequest, @Body() dto: CreatePurchaseOrderDto) {
@@ -425,6 +460,12 @@ export class MerchantBackendController {
   @ApiOperation({ summary: "采购单详情" })
   getPurchaseOrder(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.inventoryService.getPurchaseOrder(this.getMerchant(req).id, id);
+  }
+
+  @Get("purchase-orders/:id/receipts")
+  @ApiOperation({ summary: "采购单到货质检批次记录" })
+  listPurchaseReceipts(@Req() req: AuthRequest, @Param("id") id: string) {
+    return this.inventoryService.listPurchaseReceipts(this.getMerchant(req).id, id);
   }
 
   @Post("purchase-orders/:id/submit")

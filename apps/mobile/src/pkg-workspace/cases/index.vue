@@ -7,6 +7,7 @@
  * 所以分类 + 关键词检索是这页的骨架，不是装饰。
  */
 import { ref, onMounted } from 'vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import ToolHeader from '@/components/paipan/tool-header.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
@@ -31,6 +32,7 @@ const failed = ref(false)
 const list = ref<CaseRecord[]>([])
 
 const editOpen = ref(false)
+useOverlayScrollLock(() => editOpen.value)
 const saving = ref(false)
 /** 非空即编辑态，空即新建态 —— 新建与编辑共用一个弹层，字段完全一样 */
 const editingId = ref<string | null>(null)
@@ -260,8 +262,8 @@ function confirmDelete(c: CaseRecord) {
     </view>
 
     <!-- 新建 / 编辑 -->
-    <view v-if="editOpen" class="cs-mask" @tap="editOpen = false">
-      <view class="cs-sheet" @tap.stop>
+    <view v-if="editOpen" class="cs-mask" @tap="editOpen = false" @touchmove.self.prevent>
+      <view class="cs-sheet" @tap.stop @touchmove.stop>
         <text class="cs-sheet-title">{{ editingId ? '编辑案例' : '新建案例' }}</text>
 
         <text class="cs-label">案例标题</text>

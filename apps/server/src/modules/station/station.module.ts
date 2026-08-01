@@ -28,6 +28,7 @@ import { NotificationModule } from "../notification/notification.module";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { StationAssistantController } from "./station-assistant.controller";
 import { StationAssistantService } from "./station-assistant.service";
+import { LegacyPaipanController } from "./legacy-paipan.controller";
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { StationAssistantService } from "./station-assistant.service";
     StationPinnedPublicController,
     StationPinnedController,
     StationAssistantController,
+    LegacyPaipanController,
   ],
   providers: [
     StationService,

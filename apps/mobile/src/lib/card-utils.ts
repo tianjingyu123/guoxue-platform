@@ -103,6 +103,8 @@ export interface VideoCardData {
   id: number | string
   title: string
   cover?: string
+  /** 无独立首图时由 SmartCover 读取视频第一帧。 */
+  videoUrl?: string
   coverRatio?: string
   author?: string
   plays?: number

@@ -291,8 +291,8 @@
     <!-- ===== 弹窗层 ===== -->
 
     <!-- 弹幕输入 -->
-    <view v-if="showCommentInput" class="modal-mask modal-mask--bottom" @tap="showCommentInput = false">
-      <view class="comment-input" @tap.stop>
+    <view v-if="showCommentInput" class="modal-mask modal-mask--bottom" @tap="showCommentInput = false" @touchmove.self.prevent>
+      <view class="comment-input" @tap.stop @touchmove.stop>
         <input
           class="comment-input__field"
           v-model="commentText"
@@ -309,8 +309,8 @@
     </view>
 
     <!-- 榜单 -->
-    <view v-if="showRank" class="modal-mask modal-mask--bottom" @tap="showRank = false">
-      <view class="rank-sheet" @tap.stop>
+    <view v-if="showRank" class="modal-mask modal-mask--bottom" @tap="showRank = false" @touchmove.self.prevent>
+      <view class="rank-sheet" @tap.stop @touchmove.stop>
         <view class="rank-sheet__head">
           <text class="rank-sheet__title">打赏榜</text>
           <view @tap="showRank = false"><AppIcon name="x" :size="40" color="#999" /></view>
@@ -329,8 +329,8 @@
     </view>
 
     <!-- 商品列表 -->
-    <view v-if="showProductList" class="modal-mask modal-mask--bottom" @tap="showProductList = false">
-      <view class="product-sheet" @tap.stop>
+    <view v-if="showProductList" class="modal-mask modal-mask--bottom" @tap="showProductList = false" @touchmove.self.prevent>
+      <view class="product-sheet" @tap.stop @touchmove.stop>
         <view class="product-sheet__head">
           <text class="product-sheet__title">全部商品（{{ products.length }}）</text>
           <view @tap="showProductList = false"><AppIcon name="x" :size="40" color="#999" /></view>
@@ -362,8 +362,8 @@
     -->
 
     <!-- 分享 -->
-    <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false">
-      <view class="share-sheet" @tap.stop>
+    <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false" @touchmove.self.prevent>
+      <view class="share-sheet" @tap.stop @touchmove.stop>
         <text class="share-sheet__title">分享直播间</text>
         <view class="share-sheet__grid">
           <view v-for="s in shareChannels" :key="s.key" class="share-item" @tap="onShare(s.key)">
@@ -383,6 +383,7 @@ import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
 // import MicConnectSheet from '@/components/live/mic-connect-sheet.vue' // 🔴假连麦下线：TRTC 链路接通后恢复
@@ -740,6 +741,13 @@ const showProductList = ref(false)
 const showGiftPanel = ref(false)
 // const showMicSheet = ref(false) // 🔴假连麦下线：TRTC 链路接通后恢复
 const showShare = ref(false)
+useOverlayScrollLock(() =>
+  showCommentInput.value ||
+  showRank.value ||
+  showProductList.value ||
+  showGiftPanel.value ||
+  showShare.value,
+)
 
 const danmakuScrollTop = ref(0)
 const floatingHearts = ref<Array<{ id: number; left: number; duration: number }>>([])

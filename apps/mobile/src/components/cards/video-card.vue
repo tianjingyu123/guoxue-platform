@@ -18,7 +18,7 @@ function open(event?: unknown) {
 <template>
   <view class="card" data-content-card hover-class="card-press" @tap="open">
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
-      <smart-cover class="cover-img" :src="data.cover" :title="data.title" type="video" />
+      <smart-cover class="cover-img" :src="data.cover" :video-url="data.videoUrl" :title="data.title" type="video" />
       <!-- 播放按钮 -->
       <view class="play"><AppIcon name="play" :size="40" color="#ffffff" :fill="true" /></view>
       <text v-if="data.duration" class="duration">{{ data.duration }}</text>

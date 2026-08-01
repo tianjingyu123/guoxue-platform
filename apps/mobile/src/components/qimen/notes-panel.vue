@@ -7,9 +7,11 @@
 import { ref, reactive, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AttachmentBar from '@/components/bazi/attachment-bar.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { useMediaNotes } from '@/composables/use-media-notes'
 
 const props = defineProps<{ open: boolean }>()
+useOverlayScrollLock(() => props.open)
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const media = useMediaNotes()
@@ -73,8 +75,8 @@ function deleteNoteItem(key: string) {
     </scroll-view>
 
     <!-- 设置弹窗 -->
-    <view v-if="showSettings" class="np-mask" @tap="showSettings = false">
-      <view class="np-sheet" @tap.stop>
+    <view v-if="showSettings" class="np-mask" @tap="showSettings = false" @touchmove.self.prevent>
+      <view class="np-sheet" @tap.stop @touchmove.stop>
         <view class="np-sheet-head">
           <text class="np-sheet-title">管理笔记项</text>
           <view class="np-icon" @tap="showSettings = false"><app-icon name="x" :size="34" color="#666666" /></view>

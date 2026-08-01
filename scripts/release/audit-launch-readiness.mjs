@@ -4,23 +4,46 @@ import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
-const repoRoot = path.resolve(scriptDir, '..', '..')
+const repoRootArgIndex = process.argv.indexOf('--repo-root')
+if (
+  repoRootArgIndex >= 0 &&
+  (!process.argv[repoRootArgIndex + 1] || process.argv[repoRootArgIndex + 1].startsWith('--'))
+) {
+  throw new Error('--repo-root 必须提供仓库路径')
+}
+const repoRoot = path.resolve(
+  repoRootArgIndex >= 0 && process.argv[repoRootArgIndex + 1]
+    ? process.argv[repoRootArgIndex + 1]
+    : path.resolve(scriptDir, '..', '..'),
+)
 const sourceRoots = ['apps/mobile/src/', 'apps/server/src/', 'apps/admin/src/']
 
-function gitLines(args) {
+function gitPaths(args) {
   const output = execFileSync('git', args, {
     cwd: repoRoot,
-    encoding: 'utf8',
+    encoding: 'buffer',
     windowsHide: true,
-  }).trim()
-  return output ? output.split(/\r?\n/) : []
+  })
+  return output.length
+    ? output
+        .toString('utf8')
+        .split('\0')
+        .filter(Boolean)
+        .map((file) => file.replaceAll('\\', '/'))
+    : []
 }
 
-const trackedFiles = gitLines(['ls-files'])
+// 必须同时扫描已跟踪文件和未被 .gitignore 排除的未跟踪文件。
+// 上线前的大型工作树往往仍在整理正式提交；只使用 `git ls-files`
+// 会让新源码中的假令牌、501 或未接通标记绕过发布门禁。
+const trackedPathSet = new Set(gitPaths(['ls-files', '--cached', '-z']))
+const untrackedPathSet = new Set(gitPaths(['ls-files', '--others', '--exclude-standard', '-z']))
+const discoveredSourceFiles = [...new Set([...trackedPathSet, ...untrackedPathSet])]
   .filter((file) => sourceRoots.some((root) => file.startsWith(root)))
   .filter((file) => !/\.(spec|test)\.[cm]?[jt]sx?$/.test(file))
   .filter((file) => !file.includes('/__tests__/'))
   .filter((file) => /\.(vue|ts|tsx|js|jsx|mjs|cjs)$/.test(file))
+const sourceFiles = discoveredSourceFiles.filter((file) => fs.existsSync(path.join(repoRoot, file)))
 
 const rules = [
   {
@@ -92,8 +115,11 @@ function lineNumber(content, offset) {
 }
 
 const findings = []
-for (const file of trackedFiles) {
+for (const file of sourceFiles) {
   const absolutePath = path.join(repoRoot, file)
+  // 工作树中已删除但尚未提交的追踪文件不应让审计脚本自身崩溃；
+  // 这些路径是否应存在由专门的路由/业务门禁判断。
+  if (!fs.existsSync(absolutePath)) continue
   const content = fs.readFileSync(absolutePath, 'utf8')
   for (const rule of rules) {
     if (!pathMatches(file, rule.paths)) continue
@@ -119,7 +145,11 @@ findings.sort((a, b) => order[a.severity] - order[b.severity] || a.file.localeCo
 
 const summary = {
   generatedAt: new Date().toISOString(),
-  scannedFiles: trackedFiles.length,
+  scannedFiles: sourceFiles.length,
+  coverage: {
+    tracked: sourceFiles.filter((file) => trackedPathSet.has(file)).length,
+    untracked: sourceFiles.filter((file) => untrackedPathSet.has(file)).length,
+  },
   counts: {
     P0: findings.filter((item) => item.severity === 'P0').length,
     P1: findings.filter((item) => item.severity === 'P1').length,
@@ -136,6 +166,8 @@ if (process.argv.includes('--json')) {
     '',
     `- 生成时间：${summary.generatedAt}`,
     `- 扫描生产源码：${summary.scannedFiles} 个文件`,
+    `- 已跟踪源码：${summary.coverage.tracked} 个`,
+    `- 未忽略的未跟踪源码：${summary.coverage.untracked} 个`,
     `- P0 阻断：${summary.counts.P0}`,
     `- P1 上线前完成：${summary.counts.P1}`,
     `- P2 已知延期/研发预告：${summary.counts.P2}`,

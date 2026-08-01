@@ -1,6 +1,8 @@
 FROM node:20-slim AS builder
-RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates curl && rm -rf /var/lib/apt/lists/*
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list 2>/dev/null; \
+    apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 
 # H5 的公网地址属于构建时配置，生产构建必须由 Compose 显式注入。
@@ -16,10 +18,12 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 
 # 构建
-RUN cd apps/server && npx prisma generate
+RUN pnpm --dir apps/server exec prisma generate
 RUN pnpm --filter @guoxue/shared build
 RUN pnpm --filter @guoxue/bazi-engine build
 RUN pnpm --filter @guoxue/ziwei-engine build
+# nest build 编译大型项目需要更多堆内存（默认 2GB 会 OOM）
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN pnpm build:server
 RUN pnpm build:admin
 RUN pnpm --filter @guoxue/mobile build:h5
@@ -33,10 +37,12 @@ RUN node scripts/migration/check-client-artifacts.mjs apps/admin/dist \
 
 # ── 运行阶段 ──
 FROM node:20-slim
-RUN corepack enable && corepack prepare pnpm@10 --activate
+RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
+    sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list 2>/dev/null; \
+    apt-get update && apt-get install -y --no-install-recommends wget ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/server/node_modules ./apps/server/node_modules

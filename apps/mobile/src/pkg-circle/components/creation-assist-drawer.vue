@@ -243,8 +243,8 @@
       </scroll-view>
 
       <!-- 发布前脱敏确认（R3）：命盘卡插入二次确认 -->
-      <view v-if="showDesenConfirm" class="confirm-mask" @tap="showDesenConfirm = false">
-        <view class="confirm-box" @tap.stop>
+      <view v-if="showDesenConfirm" class="confirm-mask" @tap="showDesenConfirm = false" @touchmove.self.prevent>
+        <view class="confirm-box" @tap.stop @touchmove.stop>
           <view class="confirm-head">
             <app-icon name="shield-check" :size="20" color="#C41E3A" />
             <text class="confirm-title">脱敏确认</text>
@@ -282,6 +282,7 @@ import {
   type BaziRecordItem,
 } from '@/lib/creation-assist-data'
 import { publishAssistApi } from '@/pkg-circle/lib/publish-assist-data'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const props = defineProps<{
   visible: boolean
@@ -296,6 +297,8 @@ const emit = defineEmits<{
   (e: 'insert', text: string): void
   (e: 'apply-polish', text: string): void
 }>()
+
+useOverlayScrollLock(() => props.visible)
 
 type TabKey = 'quotes' | 'paipan' | 'cases' | 'polish'
 const TABS: { key: TabKey; label: string; icon: string }[] = [

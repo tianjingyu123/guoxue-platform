@@ -30,6 +30,8 @@ export interface FeedItem {
   author?: string
   authorAvatar?: string
   cover?: string | null
+  /** 短视频在未配置首图时用于读取第一帧；其他内容类型忽略。 */
+  videoUrl?: string
   coverRatio?: string
   // 各类型扩展字段
   price?: number

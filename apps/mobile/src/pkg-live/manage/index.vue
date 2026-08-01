@@ -273,9 +273,9 @@ function showRemovedTip() {
 /* 页面 */
 .page { display: flex; flex-direction: column; height: 100vh; background: #FAF8F5; }
 .nav { flex-shrink: 0; background: #FAF8F5; height: 96rpx; padding: 0 32rpx; display: flex; align-items: center; justify-content: space-between; }
-.nav-btn { margin-left: -8rpx; width: 48rpx; height: 48rpx; display: flex; align-items: center; }
+.nav-btn { margin-left: -20rpx; width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; }
 .nav-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
-.nav-placeholder { width: 48rpx; }
+.nav-placeholder { width: 88rpx; }
 .scroll { flex: 1; }
 
 /* 汇总条 */

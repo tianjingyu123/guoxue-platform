@@ -486,6 +486,12 @@ function reset() {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+@media (prefers-reduced-motion: reduce) {
+  .stream-cursor,
+  .typing-dot {
+    animation: none !important;
+  }
+}
 /* AI 免责声明（流末下发的小字） */
 .msg-disclaimer { display: block; font-size: 20rpx; line-height: 1.4; color: #bbb; margin-top: 10rpx; }
 

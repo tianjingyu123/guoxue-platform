@@ -5,7 +5,15 @@
     <view class="nav-content" :style="{ height: barHeight + 'rpx' }">
       <!-- 左侧：返回 -->
       <view class="nav-side nav-left">
-        <view v-if="showBack" class="nav-back" @tap="onBack">
+        <view
+          v-if="showBack"
+          class="nav-back"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="onBack"
+          @keydown="onBackKeydown"
+        >
           <app-icon :name="backIcon" :size="backSize" :color="color" />
         </view>
         <slot name="left" />
@@ -76,6 +84,12 @@ const barStyle = computed(() => ({ background: props.background }))
 function onBack() {
   emit('back')
   if (!props.customBack) goBack()
+}
+
+function onBackKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  onBack()
 }
 </script>
 

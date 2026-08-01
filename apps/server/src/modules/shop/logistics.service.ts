@@ -36,6 +36,8 @@ interface KuaidiPushPayload {
   };
 }
 
+const TERMINAL_LOGISTICS_STATUSES = ["SIGNED", "RETURNED", "REJECTED"] as const;
+
 /**
  * 快递物流查询服务（快递100 API）
  * 用于为 OrderLogistics 提供真实物流轨迹
@@ -132,18 +134,24 @@ export class LogisticsService {
       desc: item.context || item.status || "",
       location: item.location || "",
     }));
-    const state = result.ischeck === "1" || result.state === "3"
-      ? "SIGNED"
-      : "IN_TRANSIT";
+    const state = this.normalizePushState(result.state, result.ischeck);
 
     if (!this.prisma) {
       throw new BusinessException(ErrorCode.INTERNAL_ERROR, "物流数据库服务不可用");
     }
+    // 快递平台可能延迟或乱序重投历史节点。已签收/已退回等终态不能被较旧的
+    // “运输中”回调倒退；终态回调仍可覆盖非终态，确保最终状态可以收敛。
+    const where: Prisma.OrderLogisticsWhereInput = {
+      logisticsNo: result.nu,
+      ...(TERMINAL_LOGISTICS_STATUSES.includes(state as (typeof TERMINAL_LOGISTICS_STATUSES)[number])
+        ? {}
+        : { status: { notIn: [...TERMINAL_LOGISTICS_STATUSES] } }),
+    };
     const updated = await this.prisma.orderLogistics.updateMany({
-      where: { logisticsNo: result.nu },
+      where,
       data: { status: state, trackingData: tracks as Prisma.InputJsonValue },
     });
-    if (updated.count === 0) this.logger.warn(`收到未知运单的快递100推送: ${result.nu}`);
+    if (updated.count === 0) this.logger.warn(`物流推送未更新记录（未知运单或终态防倒退）: ${result.nu}`);
     return { accepted: true, updated: updated.count };
   }
 
@@ -197,6 +205,28 @@ export class LogisticsService {
       })),
     };
   }
+
+  /**
+   * 快递100 state 归一为平台物流状态。
+   * 保留异常、派送、退回等业务语义，不能把所有非签收状态都压成运输中。
+   */
+  private normalizePushState(state?: string, ischeck?: string): string {
+    if (ischeck === "1" || state === "3") return "SIGNED";
+    const map: Record<string, string> = {
+      "0": "IN_TRANSIT",
+      "1": "PICKED_UP",
+      "2": "EXCEPTION",
+      "4": "RETURNED",
+      "5": "OUT_FOR_DELIVERY",
+      "6": "RETURNING",
+      "7": "TRANSFERRED",
+      "10": "CUSTOMS_CLEARANCE",
+      "11": "CUSTOMS_RELEASED",
+      "14": "REJECTED",
+    };
+    return map[state || ""] || "IN_TRANSIT";
+  }
+
   /** 快递100签名: MD5(param + key + customer) */
   private sign(param: string): string {
     return createHash("md5").update(param + this.apiKey + this.customer).digest("hex").toUpperCase();

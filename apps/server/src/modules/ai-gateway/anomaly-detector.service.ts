@@ -285,6 +285,17 @@ export class AnomalyDetectorService {
     ];
   }
 
+  private async getRevenueBetween(start: Date, end: Date): Promise<number> {
+    const result = await this.prisma.order.aggregate({
+      where: {
+        createdAt: { gte: start, lt: end },
+        status: { in: ["PAID", "COMPLETED"] },
+      },
+      _sum: { amount: true },
+    });
+    return Number(result._sum.amount ?? 0);
+  }
+
   private async getCurrentValue(
     rule: AnomalyRule,
   ): Promise<number | null> {
@@ -296,12 +307,7 @@ export class AnomalyDetectorService {
       switch (rule.id) {
         case "revenue-daily-drop": {
           // 从订单表统计今日营收（简化版，实际需接入真实数据源）
-          const result = await this.prisma.$queryRawUnsafe<Array<{ total: number }>>(
-            `SELECT COALESCE(SUM(amount), 0)::float as total FROM "Order" WHERE "createdAt" >= $1 AND "createdAt" < $2 AND status = 'paid'`,
-            today.toISOString(),
-            tomorrow.toISOString(),
-          );
-          return result[0]?.total || 0;
+          return this.getRevenueBetween(today, tomorrow);
         }
         case "user-registration-spike":
         case "user-registration-drop": {
@@ -361,14 +367,7 @@ export class AnomalyDetectorService {
         let value = 0;
         switch (rule.id) {
           case "revenue-daily-drop": {
-            const result = await this.prisma.$queryRawUnsafe<
-              Array<{ total: number }>
-            >(
-              `SELECT COALESCE(SUM(amount), 0)::float as total FROM "Order" WHERE "createdAt" >= $1 AND "createdAt" < $2 AND status = 'paid'`,
-              dayStart.toISOString(),
-              dayEnd.toISOString(),
-            );
-            value = result[0]?.total || 0;
+            value = await this.getRevenueBetween(dayStart, dayEnd);
             break;
           }
           case "user-registration-spike":

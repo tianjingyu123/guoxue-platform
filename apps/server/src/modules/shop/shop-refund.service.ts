@@ -153,7 +153,14 @@ export class ShopRefundService {
   private async applyRefundedBookkeeping(orderId: string, amount: number, reason?: string): Promise<boolean> {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) return false;
-    if (order.status === "REFUNDED") return true;
+    if (order.status === "REFUNDED") {
+      await this.webhook.fire("ORDER_REFUNDED", {
+        orderId,
+        amount,
+        reason: reason || "用户申请退款",
+      });
+      return true;
+    }
     if (!["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) return false;
     const changed = await this.prisma.$transaction(async (tx) => {
       const res = await tx.order.updateMany({
@@ -162,7 +169,7 @@ export class ShopRefundService {
       });
       if (res.count === 0) return false;
       // 未发货退款自动回补；已发货/已完成必须等退货验收，避免货未回却虚增库存。
-      if (order.status === "PAID" && order.merchantId && !isStocklessOrderType(order.type)) {
+      if (order.status === "PAID" && !isStocklessOrderType(order.type)) {
         let beforeStock: number | null = null;
         let productId = order.targetId;
         if (order.skuId) {
@@ -187,7 +194,7 @@ export class ShopRefundService {
             beforeStock = productAfter ? productAfter.stock - order.quantity : null;
           }
         }
-        if (productId && beforeStock !== null) {
+        if (order.merchantId && productId && beforeStock !== null) {
           await tx.inventoryMovement.create({ data: {
             merchantId: order.merchantId, productId, skuId: order.skuId,
             type: "REFUND_RETURN", quantity: order.quantity,
@@ -206,8 +213,11 @@ export class ShopRefundService {
       return current?.status === "REFUNDED";
     }
     await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
-    this.webhook.fire("ORDER_REFUNDED", { orderId, amount, reason: reason || "用户申请退款" })
-      .catch((err) => this.logger.warn("Webhook ORDER_REFUNDED 发送失败", err));
+    await this.webhook.fire("ORDER_REFUNDED", {
+      orderId,
+      amount,
+      reason: reason || "用户申请退款",
+    });
     return true;
   }
 

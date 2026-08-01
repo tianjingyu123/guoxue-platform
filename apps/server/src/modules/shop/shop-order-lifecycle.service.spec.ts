@@ -15,7 +15,10 @@ const mockRedis = makeMockRedis()
 const mockUnifiedPricing = makeMockUnifiedPricing()
 const mockCommission = makeMockCommission()
 // adminPayOrder 现在会在事务内跑支付后处理器（会员开通/分站激活/运营商建号）
-const mockPayment = { runPaidPostProcessors: jest.fn() }
+const mockPayment = {
+  runPaidPostProcessors: jest.fn(),
+  emitOrderPaidEvent: jest.fn(),
+}
 
 describe("ShopOrderLifecycleService", () => {
   let svc: ShopOrderLifecycleService
@@ -124,6 +127,15 @@ describe("ShopOrderLifecycleService", () => {
       await svc.adminPayOrder("o9", "TX-001", "admin")
 
       expect(mockPayment.runPaidPostProcessors).toHaveBeenCalledWith(order, expect.anything())
+      expect(mockPrisma.order.updateMany).toHaveBeenCalledWith({
+        where: { id: "o9", status: "PENDING" },
+        data: expect.objectContaining({
+          status: "PAID",
+          payMethod: "MANUAL",
+          payTransactionId: "TX-001",
+        }),
+      })
+      expect(mockPayment.emitOrderPaidEvent).toHaveBeenCalledWith(order, "o9", "MANUAL", "TX-001")
     })
 
     it("CAS 落空（并发重复确认）：不跑后处理器，防重复开通", async () => {
@@ -132,12 +144,28 @@ describe("ShopOrderLifecycleService", () => {
 
       await expect(svc.adminPayOrder("o9", "TX-002", "admin")).rejects.toThrow(BusinessException)
       expect(mockPayment.runPaidPostProcessors).not.toHaveBeenCalled()
+      expect(mockPayment.emitOrderPaidEvent).not.toHaveBeenCalled()
     })
 
     it("非待支付订单：直接拒绝", async () => {
       mockPrisma.order.findUnique.mockResolvedValue({ id: "o9", type: "MEMBER", status: "PAID" })
       await expect(svc.adminPayOrder("o9", "TX-003", "admin")).rejects.toThrow("仅待支付订单可确认支付")
       expect(mockPayment.runPaidPostProcessors).not.toHaveBeenCalled()
+    })
+
+    it("同一人工流水重试：补齐支付事件但不重复翻状态或开通权益", async () => {
+      const order = {
+        id: "o9", type: "MEMBER", userId: "u1", amount: 299,
+        status: "PAID", payMethod: "MANUAL", payTransactionId: "TX-REPLAY",
+      }
+      mockPrisma.order.findUnique.mockResolvedValue(order)
+
+      const result = await svc.adminPayOrder("o9", "TX-REPLAY", "admin")
+
+      expect(result).toEqual(expect.objectContaining({ success: true, replayed: true }))
+      expect(mockPrisma.order.updateMany).not.toHaveBeenCalled()
+      expect(mockPayment.runPaidPostProcessors).not.toHaveBeenCalled()
+      expect(mockPayment.emitOrderPaidEvent).toHaveBeenCalledWith(order, "o9", "MANUAL", "TX-REPLAY")
     })
 
     it("缺流水号：拒绝（资金操作须可追溯）", async () => {

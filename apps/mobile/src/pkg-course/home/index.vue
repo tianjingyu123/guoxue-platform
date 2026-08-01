@@ -17,11 +17,20 @@ import { courseApi } from '@/lib/course-data'
 import { coursesListApi, courseSortOptions } from '@/lib/courses-list-data'
 import { useList } from '@/composables/useList'
 import type { CourseCardData } from '@/lib/card-utils'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const statusBarHeight = ref(0)
 const categoryTabs = ref<{ id: string; name: string }[]>([])
 const newCourses = ref<CourseCardData[]>([])
 const showSortSheet = ref(false)
+useOverlayScrollLock(
+  () => showSortSheet.value,
+  {
+    onEscape: () => { showSortSheet.value = false },
+    focusContainerSelector: '.course-sort-sheet',
+    initialFocusSelector: '.course-sort-sheet [aria-checked="true"]',
+  },
+)
 const activeSort = ref('recommend')
 const activeSortName = computed(() =>
   courseSortOptions.find((item) => item.id === activeSort.value)?.name || '综合推荐',
@@ -113,6 +122,28 @@ function selectSort(id: string) {
   refresh()
 }
 
+function isKeyboardActivation(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return false
+  event.preventDefault()
+  return true
+}
+
+function openSortByKeyboard(event: KeyboardEvent) {
+  if (isKeyboardActivation(event)) showSortSheet.value = true
+}
+
+function closeSortByKeyboard(event: KeyboardEvent) {
+  if (isKeyboardActivation(event)) showSortSheet.value = false
+}
+
+function selectSortByKeyboard(event: KeyboardEvent, id: string) {
+  if (isKeyboardActivation(event)) selectSort(id)
+}
+
+function runActionByKeyboard(event: KeyboardEvent, action: () => void) {
+  if (isKeyboardActivation(event)) action()
+}
+
 function openSearch() { navigateTo('/search') }
 function openMyLearning() { navigateTo('/courses/my-learning') }
 </script>
@@ -125,22 +156,47 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
         <text class="nav-subtitle">找到适合自己的学习主线</text>
       </view>
       <view class="nav-icons">
-        <view class="nav-btn" hover-class="btn-press" @tap="openSearch">
+        <view
+          class="nav-btn"
+          role="button"
+          aria-label="搜索课程"
+          tabindex="0"
+          hover-class="btn-press"
+          @tap="openSearch"
+          @keydown="runActionByKeyboard($event, openSearch)"
+        >
           <app-icon name="search" :size="38" color="#2B2723" />
         </view>
-        <view class="nav-btn" hover-class="btn-press" @tap="openMyLearning">
+        <view
+          class="nav-btn"
+          role="button"
+          aria-label="我的学习"
+          tabindex="0"
+          hover-class="btn-press"
+          @tap="openMyLearning"
+          @keydown="runActionByKeyboard($event, openMyLearning)"
+        >
           <app-icon name="book-open" :size="38" color="#2B2723" />
         </view>
       </view>
     </view>
 
-    <view v-if="error" class="state-wrap">
+    <view v-if="error" class="state-wrap" role="alert" aria-live="assertive">
       <app-icon name="alert-circle" :size="56" color="#C41E3A" />
       <text class="state-text">{{ error }}</text>
-      <view class="retry-btn" @tap="refresh"><text class="retry-text">重新加载</text></view>
+      <view
+        class="retry-btn"
+        role="button"
+        aria-label="重新加载课程"
+        tabindex="0"
+        @tap="refresh"
+        @keydown="runActionByKeyboard($event, refresh)"
+      >
+        <text class="retry-text">重新加载</text>
+      </view>
     </view>
 
-    <view v-else-if="loading" class="body">
+    <view v-else-if="loading" class="body" role="status" aria-live="polite" aria-label="课程加载中">
       <view class="quick-skeleton">
         <view v-for="n in 5" :key="n" class="quick-skeleton-item">
           <view class="skeleton skeleton-icon" />
@@ -168,8 +224,12 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
             v-for="entry in quickEntries"
             :key="entry.id"
             class="quick-item"
+            role="link"
+            :aria-label="`浏览课程：${entry.name}`"
+            tabindex="0"
             hover-class="btn-press"
             @tap="openCatalog(entry)"
+            @keydown="runActionByKeyboard($event, () => openCatalog(entry))"
           >
             <view class="quick-icon" :class="{ hot: entry.id === 'popular' }">
               <app-icon :name="entry.icon" :size="40" :color="entry.id === 'popular' ? '#C41E3A' : '#2D7C6F'" />
@@ -182,7 +242,14 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
       <view v-if="newCourses.length" class="section">
         <view class="section-heading">
           <section-header icon="sparkles" title="新上架" subtitle="新内容 · 新方法" icon-color="#2D7C6F" />
-          <view class="section-more" @tap="openCatalog({ id: 'newest', name: '新上架', icon: 'sparkles', sort: 'newest' })">
+          <view
+            class="section-more"
+            role="link"
+            aria-label="查看全部新上架课程"
+            tabindex="0"
+            @tap="openCatalog({ id: 'newest', name: '新上架', icon: 'sparkles', sort: 'newest' })"
+            @keydown="runActionByKeyboard($event, () => openCatalog({ id: 'newest', name: '新上架', icon: 'sparkles', sort: 'newest' }))"
+          >
             <text>查看全部</text><app-icon name="arrow-right" :size="22" color="#8B7B64" />
           </view>
         </view>
@@ -204,13 +271,22 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
             <text class="all-title serif">全部课程</text>
             <text class="all-subtitle">按自己的节奏，选一门真正学完</text>
           </view>
-          <view class="sort-button" hover-class="btn-press" @tap="showSortSheet = true">
+          <view
+            class="sort-button"
+            role="button"
+            aria-label="选择课程排序"
+            :aria-expanded="showSortSheet ? 'true' : 'false'"
+            tabindex="0"
+            hover-class="btn-press"
+            @tap="showSortSheet = true"
+            @keydown="openSortByKeyboard"
+          >
             <text>{{ activeSortName }}</text>
             <app-icon name="chevron-down" :size="23" color="#6C6257" />
           </view>
         </view>
 
-        <view v-if="!courses.length" class="empty">
+        <view v-if="!courses.length" class="empty" role="status" aria-live="polite">
           <app-icon name="book-open" :size="58" color="#B88A44" />
           <text class="empty-title serif">暂时没有可展示的课程</text>
           <text class="empty-desc">新课程正在整理，稍后再来看看</text>
@@ -228,23 +304,44 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
       </view>
     </view>
 
-    <view v-if="showSortSheet" class="sheet-mask" @tap="showSortSheet = false">
-      <view class="sheet" @tap.stop>
+    <view v-if="showSortSheet" class="sheet-mask" @tap="showSortSheet = false" @touchmove.self.prevent>
+      <view
+        class="sheet course-sort-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="选择课程排序"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="sheet-head">
           <text class="sheet-title serif">选择课程排序</text>
-          <view class="sheet-close" @tap="showSortSheet = false">
+          <view
+            class="sheet-close"
+            role="button"
+            aria-label="关闭课程排序"
+            tabindex="0"
+            @tap="showSortSheet = false"
+            @keydown="closeSortByKeyboard"
+          >
             <app-icon name="x" :size="30" color="#8B7B64" />
           </view>
         </view>
-        <view
-          v-for="option in courseSortOptions"
-          :key="option.id"
-          class="sheet-option"
-          :class="{ active: activeSort === option.id }"
-          @tap="selectSort(option.id)"
-        >
-          <text>{{ option.name }}</text>
-          <app-icon v-if="activeSort === option.id" name="check" :size="28" color="#C41E3A" />
+        <view role="radiogroup" aria-label="课程排序方式">
+          <view
+            v-for="option in courseSortOptions"
+            :key="option.id"
+            class="sheet-option"
+            :class="{ active: activeSort === option.id }"
+            role="radio"
+            :aria-checked="activeSort === option.id ? 'true' : 'false'"
+            tabindex="0"
+            @tap="selectSort(option.id)"
+            @keydown="selectSortByKeyboard($event, option.id)"
+          >
+            <text>{{ option.name }}</text>
+            <app-icon v-if="activeSort === option.id" name="check" :size="28" color="#C41E3A" />
+          </view>
         </view>
       </view>
     </view>
@@ -269,10 +366,10 @@ function openMyLearning() { navigateTo('/courses/my-learning') }
 }
 .nav-title { display: block; color: #24211f; font-size: 43rpx; font-weight: 800; letter-spacing: 2rpx; }
 .nav-subtitle { display: block; margin-top: 3rpx; color: #8c8278; font-size: 21rpx; }
-.nav-icons { display: flex; align-items: center; gap: 16rpx; }
+.nav-icons { display: flex; align-items: center; gap: 12rpx; }
 .nav-btn {
-  width: 72rpx;
-  height: 72rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;

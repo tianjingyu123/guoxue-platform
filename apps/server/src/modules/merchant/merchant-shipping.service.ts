@@ -63,6 +63,13 @@ export class MerchantShippingService {
     return error instanceof Error ? error.message : String(error);
   }
 
+  private persistedTracks(trackingData: Prisma.JsonValue | null): Array<Record<string, unknown>> {
+    if (!Array.isArray(trackingData)) return [];
+    return trackingData.filter((item) =>
+      typeof item === "object" && item !== null && !Array.isArray(item),
+    ) as Array<Record<string, unknown>>;
+  }
+
   async shipOrder(merchantId: string, operatorId: string, orderId: string, dto: ShipOrderDto) {
     const input = this.clean(dto);
     const result = await this.prisma.$transaction(async (tx) => {
@@ -177,15 +184,27 @@ export class MerchantShippingService {
 
     let track: Record<string, unknown> | null = null;
     if (logistics.logisticsNo) {
+      const persistedTracks = this.persistedTracks(logistics.trackingData);
       try {
         const raw = await this.logisticsService.queryTrack(logistics.logisticsNo, logistics.company || undefined) as Record<string, unknown>;
+        const freshTracks = Array.isArray(raw.tracks) ? raw.tracks : Array.isArray(raw.track) ? raw.track : [];
         track = {
           ...raw,
-          tracks: Array.isArray(raw.tracks) ? raw.tracks : Array.isArray(raw.track) ? raw.track : [],
+          state: raw.state && raw.state !== "unknown" ? raw.state : logistics.status,
+          tracks: freshTracks.length ? freshTracks : persistedTracks,
+          ...(freshTracks.length || !persistedTracks.length
+            ? {}
+            : { message: raw.message || "当前展示最近一次已同步的物流轨迹" }),
         };
       } catch (error) {
         this.logger.warn(`快递100查询失败 order=${orderId}: ${this.errorMessage(error)}`);
-        track = { state: "unknown", tracks: [], message: "物流轨迹暂时不可用，请稍后刷新" };
+        track = {
+          state: logistics.status,
+          tracks: persistedTracks,
+          message: persistedTracks.length
+            ? "实时物流暂时不可用，当前展示最近一次已同步的轨迹"
+            : "物流轨迹暂时不可用，请稍后刷新",
+        };
       }
     }
     return { logistics: this.view(logistics), track };

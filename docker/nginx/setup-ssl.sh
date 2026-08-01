@@ -1,6 +1,6 @@
 #!/bin/bash
 # 国学平台 — SSL 证书自动申请脚本 (Let's Encrypt)
-# 用法: ./setup-ssl.sh example.com admin@example.com
+# 用法: bash setup-ssl.sh example.com admin@example.com
 # 证书通过 Certbot standalone 获取后放置到 docker/nginx/ssl/
 
 set -e

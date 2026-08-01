@@ -151,6 +151,24 @@ describe("ShopRefundService", () => {
       }) })
     })
 
+    it("平台自营未发货订单退款：同样回补库存但不伪造商家流水", async () => {
+      const order = {
+        id: "o-platform", userId: "buyer", merchantId: null, type: "PRODUCT",
+        targetId: "p-platform", skuId: null, quantity: 3, status: "PAID", amount: 129,
+      }
+      mockPrisma.order.findUnique.mockResolvedValue(order)
+      mockPrisma.product.findUnique.mockResolvedValue({ stock: 12 })
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 })
+
+      await (svc as any).applyRefundedBookkeeping("o-platform", 129, "未发货退款")
+
+      expect(mockPrisma.product.updateMany).toHaveBeenCalledWith({
+        where: { id: "p-platform" },
+        data: { stock: { increment: 3 } },
+      })
+      expect(mockPrisma.inventoryMovement.create).not.toHaveBeenCalled()
+    })
+
     it("已发货订单退款：只退钱不自动回补库存", async () => {
       const order = { id: "o3", userId: "buyer", merchantId: "m1", type: "PRODUCT", targetId: "p1", skuId: null, quantity: 1, status: "SHIPPED", amount: 99 }
       mockPrisma.order.findUnique.mockResolvedValue(order)

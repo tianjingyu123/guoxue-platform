@@ -269,6 +269,10 @@ export interface RevenueOverview {
   merchantShare: number
   platformShare: number
   commissionRate: number
+  merchantShareRate?: number
+  totalRevenue?: number
+  pendingSettlement?: number
+  settledAmount?: number
 }
 
 export interface MerchantSettlement {
@@ -305,6 +309,14 @@ export interface MerchantCustomer {
   orderCount: number
   totalSpent: string | number
   lastOrderAt?: string | null
+  createdAt?: string | null
+}
+
+export interface MerchantCustomerDetail extends MerchantCustomer {
+  averageOrderValue: string | number
+  firstOrderAt?: string | null
+  refundedOrderCount: number
+  recentOrders: MerchantOrder[]
 }
 
 export interface MerchantNotice {
@@ -365,27 +377,49 @@ export interface MerchantContentStats {
 
 export interface InventoryOverview {
   skuCount: number; totalStock: number; lowStockCount: number; outOfStockCount: number
+  availableStock: number; physicalOnHandStock: number
+  unpaidReservedUnitCount: number; unshippedUnitCount: number
   stockHealthRate: number; missingAlertCount: number
   movementCount: number; pendingPurchaseCount: number; pendingReceiptUnitCount: number
   overduePurchaseCount: number; unshippedOrderCount: number; pendingAfterSaleCount: number
 }
 export interface InventoryStockItem {
   productId: string; skuId: string | null; title: string; image?: string | null
-  skuLabel?: string | null; stock: number; threshold: number | null; lowStock: boolean
+  skuLabel?: string | null; stock: number; availableStock: number; physicalOnHandStock: number
+  unpaidReservedUnitCount: number; unshippedUnitCount: number
+  threshold: number | null; lowStock: boolean
 }
 export interface InventoryMovement {
   id: string; type: string; quantity: number; beforeStock: number; afterStock: number
+  productId?: string; skuId?: string | null; referenceType?: string | null; referenceId?: string | null
   reason?: string | null; metadata?: { title?: string; skuLabel?: string } | null; createdAt: string
 }
 export interface PurchaseOrderItem {
   id: string; productId: string; skuId?: string | null; productTitle: string; skuLabel?: string | null
-  quantity: number; receivedQuantity: number; unitCost: string | number
+  quantity: number; receivedQuantity: number; rejectedQuantity: number; unitCost: string | number
 }
 export interface PurchaseOrder {
-  id: string; orderNo: string; supplierName: string
+  id: string; orderNo: string; supplierId?: string | null; supplierName: string
   contactName?: string | null; contactPhone?: string | null; remark?: string | null
   status: 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED'
   totalAmount: string | number; expectedAt?: string | null; createdAt: string; items: PurchaseOrderItem[]
+}
+export interface PurchaseReceiptItem {
+  id: string; purchaseOrderItemId: string; productId: string; skuId?: string | null
+  productTitle: string; skuLabel?: string | null; acceptedQuantity: number
+  rejectedQuantity: number; rejectionReason?: string | null; createdAt: string
+}
+export interface PurchaseReceipt {
+  id: string; purchaseOrderId: string; receiptNo: string; warehouseName?: string | null
+  operatorId: string; remark?: string | null; receivedAt: string; createdAt: string
+  items: PurchaseReceiptItem[]
+}
+export interface MerchantSupplier {
+  id: string; name: string; contactName?: string | null; contactPhone?: string | null
+  address?: string | null; settlementTerms?: string | null; leadTimeDays?: number | null
+  remark?: string | null; status: 'ACTIVE' | 'INACTIVE'
+  purchaseCount: number; totalPurchaseAmount: string | number; lastPurchasedAt?: string | null
+  createdAt?: string; updatedAt?: string
 }
 
 // ───────── 入驻链路 API（/merchant） ─────────
@@ -432,6 +466,7 @@ export const merchantBackendApi = {
   // 订单
   getOrders: (params?: {
     status?: MerchantOrderStatus
+    customerId?: string
     startDate?: string
     endDate?: string
     page?: number
@@ -439,6 +474,7 @@ export const merchantBackendApi = {
   }) => {
     const q = new URLSearchParams()
     if (params?.status) q.set('status', params.status)
+    if (params?.customerId) q.set('customerId', params.customerId)
     if (params?.startDate) q.set('startDate', params.startDate)
     if (params?.endDate) q.set('endDate', params.endDate)
     q.set('page', String(params?.page ?? 1))
@@ -509,6 +545,8 @@ export const merchantBackendApi = {
     if (params?.keyword?.trim()) q.set('keyword', params.keyword.trim())
     return apiGetPaged<MerchantCustomer>(`/merchant-backend/customers?${q.toString()}`)
   },
+  getCustomerDetail: (id: string) =>
+    apiGet<MerchantCustomerDetail>(`/merchant-backend/customers/${encodeURIComponent(id)}`),
   getNotices: () => apiGet<MerchantNotice[]>('/merchant-backend/notices'),
   getContentStats: () => apiGet<MerchantContentStats>('/merchant-backend/content-stats'),
 
@@ -531,6 +569,23 @@ export const merchantBackendApi = {
     apiPost('/merchant-backend/inventory/adjustments', data),
   setInventoryAlert: (data: { productId: string; skuId?: string; lowStockThreshold: number; enabled?: boolean }) =>
     apiPut('/merchant-backend/inventory/alerts', data),
+  getSuppliers: (params?: { page?: number; pageSize?: number; keyword?: string; status?: 'ACTIVE' | 'INACTIVE' }) => {
+    const q = new URLSearchParams()
+    q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 100))
+    if (params?.keyword) q.set('keyword', params.keyword)
+    if (params?.status) q.set('status', params.status)
+    return apiGetPaged<MerchantSupplier>(`/merchant-backend/suppliers?${q}`)
+  },
+  createSupplier: (data: {
+    name: string; contactName?: string; contactPhone?: string; address?: string
+    settlementTerms?: string; leadTimeDays?: number; remark?: string
+  }) => apiPost<MerchantSupplier>('/merchant-backend/suppliers', data),
+  updateSupplier: (id: string, data: {
+    name: string; contactName?: string; contactPhone?: string; address?: string
+    settlementTerms?: string; leadTimeDays?: number; remark?: string
+  }) => apiPut<MerchantSupplier>(`/merchant-backend/suppliers/${id}`, data),
+  setSupplierStatus: (id: string, status: 'ACTIVE' | 'INACTIVE') =>
+    apiPut<MerchantSupplier>(`/merchant-backend/suppliers/${id}/status`, { status }),
   getPurchaseOrders: (params?: { page?: number; pageSize?: number; status?: string }) => {
     const q = new URLSearchParams()
     q.set('page', String(params?.page ?? 1)); q.set('pageSize', String(params?.pageSize ?? 50))
@@ -538,6 +593,7 @@ export const merchantBackendApi = {
     return apiGetPaged<PurchaseOrder>(`/merchant-backend/purchase-orders?${q}`)
   },
   createPurchaseOrder: (data: {
+    supplierId?: string
     supplierName: string
     contactName?: string
     contactPhone?: string
@@ -548,7 +604,14 @@ export const merchantBackendApi = {
     apiPost<PurchaseOrder>('/merchant-backend/purchase-orders', data),
   submitPurchaseOrder: (id: string) => apiPost<PurchaseOrder>(`/merchant-backend/purchase-orders/${id}/submit`, {}),
   cancelPurchaseOrder: (id: string) => apiPost<PurchaseOrder>(`/merchant-backend/purchase-orders/${id}/cancel`, {}),
-  receivePurchaseOrder: (id: string, data: { requestId: string; items: Array<{ itemId: string; quantity: number }> }) =>
+  getPurchaseReceipts: (id: string) =>
+    apiGet<PurchaseReceipt[]>(`/merchant-backend/purchase-orders/${id}/receipts`),
+  receivePurchaseOrder: (id: string, data: {
+    requestId: string
+    warehouseName?: string
+    remark?: string
+    items: Array<{ itemId: string; quantity: number; rejectedQuantity?: number; rejectionReason?: string }>
+  }) =>
     apiPost(`/merchant-backend/purchase-orders/${id}/receive`, data),
   inspectReturn: (afterSaleId: string, data: { requestId: string; accepted: boolean; quantity?: number; remark?: string }) =>
     apiPost(`/merchant-backend/after-sales/${afterSaleId}/return-inspection`, data),

@@ -6,162 +6,288 @@
  * 收藏与频次本地持久化（lib/paipan/tool-prefs），拖拽交互降级为「管理」编辑模式（uni-app 多端稳妥）。
  * R4 合规（微信小程序无占卜类目）：占卜类工具 MP 端隐藏入口，八字类改历法表述——仅展示层，路由/逻辑不变。
  */
-import { ref, computed, onMounted } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
-import AppIcon from '@/components/common/app-icon.vue'
-import SmartAvatar from '@/components/common/smart-avatar.vue'
-import ToolIcon from '@/components/paipan/tool-icon.vue'
-import TodayHero from '@/components/paipan/today-hero.vue'
-import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import { type Tool, type ToolCategory, tools, medicalTools } from '@/lib/tools-data'
-import { agentsSquareApi, type SquareBot } from '@/lib/agents-square-data'
-import { agentThemeStyle } from '@/lib/agent-experience'
-import { getFavorites, saveFavorites, addFavorite, removeFavorite, recordToolUsage } from '@/lib/paipan/tool-prefs'
-import { navigateTo } from '@/utils/router'
+import { ref, computed, onMounted } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+import AppIcon from "@/components/common/app-icon.vue";
+import SmartAvatar from "@/components/common/smart-avatar.vue";
+import ToolIcon from "@/components/paipan/tool-icon.vue";
+import TodayHero from "@/components/paipan/today-hero.vue";
+import BottomNav from "@/components/bottom-nav/bottom-nav.vue";
+import { type Tool, type ToolCategory, tools, medicalTools } from "@/lib/tools-data";
+import { agentsSquareApi, type SquareBot } from "@/lib/agents-square-data";
+import { agentThemeStyle } from "@/lib/agent-experience";
+import {
+  getFavorites,
+  saveFavorites,
+  addFavorite,
+  removeFavorite,
+  recordToolUsage,
+} from "@/lib/paipan/tool-prefs";
+import { legacyPaipanApi } from "@/lib/legacy-paipan-data";
+import { navigateTo } from "@/utils/router";
 
-const GRID_COLS = 4
-const COLLAPSED_ROWS = 3
-const COLLAPSED_COUNT = GRID_COLS * COLLAPSED_ROWS // 收起时显示 3 排
+const GRID_COLS = 4;
+const COLLAPSED_ROWS = 3;
+const COLLAPSED_COUNT = GRID_COLS * COLLAPSED_ROWS; // 收起时显示 3 排
 
-const showAllTools = ref(false)
-const editing = ref(false)
-const favIds = ref<string[]>([])
+const showAllTools = ref(false);
+const editing = ref(false);
+const favIds = ref<string[]>([]);
+const entryLoading = ref(true);
+const entryError = ref("");
+const legacyEntryUrl = ref("");
 
 // ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
-let pageTitle = '排盘工具'
-let secToolsTitle = '全部工具'
-let aiTitle = 'AI 智能解盘'
-let aiSub = '输入命盘信息，AI 为您深度解析'
-let disclaimerText = '平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。'
-let MP_HIDDEN_TOOL_IDS: string[] = []
-let MP_TOOL_RENAME: Record<string, string> = {}
+let pageTitle = "排盘工具";
+let secToolsTitle = "全部工具";
+let aiTitle = "AI 智能解盘";
+let aiSub = "输入命盘信息，AI 为您深度解析";
+let disclaimerText = "平台命理工具仅供传统文化爱好者研究学习，排盘与分析结果不构成任何决策建议。";
+let MP_HIDDEN_TOOL_IDS: string[] = [];
+let MP_TOOL_RENAME: Record<string, string> = {};
 // #ifdef MP-WEIXIN
-pageTitle = '民俗文化研究'
-secToolsTitle = '传统历法工具'
-aiTitle = 'AI 文化解读'
-aiSub = '输入干支信息，AI 为您做传统文化解读'
-disclaimerText = '平台民俗文化工具仅供传统文化爱好者研究学习，结果不构成任何决策建议。'
+pageTitle = "民俗文化研究";
+secToolsTitle = "传统历法工具";
+aiTitle = "AI 文化解读";
+aiSub = "输入干支信息，AI 为您做传统文化解读";
+disclaimerText = "平台民俗文化工具仅供传统文化爱好者研究学习，结果不构成任何决策建议。";
 MP_HIDDEN_TOOL_IDS = [
-  'liuyao', 'meihua', 'daliuren', 'xiaoliuren', 'jinkoujue', 'zhuge', 'kongming', 'taiyi',
-  'jinqianke', 'xiaocheng', 'yinqimen', 'mingli-qimen', 'ziwei', 'phone-analysis',
-  'name-analysis', 'flying-star', 'bazhai', 'feigong', 'qimen-chuanren', 'shanxiang-qimen', 'direction-map',
-]
-MP_TOOL_RENAME = { 'bazi': '干支历法', 'qimen': '奇门研究', 'yangming': '阳盘研究' }
+  "liuyao",
+  "meihua",
+  "daliuren",
+  "xiaoliuren",
+  "jinkoujue",
+  "zhuge",
+  "kongming",
+  "taiyi",
+  "jinqianke",
+  "xiaocheng",
+  "yinqimen",
+  "mingli-qimen",
+  "ziwei",
+  "phone-analysis",
+  "name-analysis",
+  "flying-star",
+  "bazhai",
+  "feigong",
+  "qimen-chuanren",
+  "shanxiang-qimen",
+  "direction-map",
+];
+MP_TOOL_RENAME = { bazi: "干支历法", qimen: "奇门研究", yangming: "阳盘研究" };
 // #endif
 
 // 分类色点（为你推荐卡片角注）
 const CATEGORY_ACCENT: Record<ToolCategory, { color: string; label: string }> = {
-  mingli: { color: '#c41e3a', label: '命理' },
-  bushi: { color: '#4f5d95', label: '占卜' },
-  qimen: { color: '#b8985f', label: '奇门' },
-  fengshui: { color: '#2f9d6a', label: '风水' },
-  xingming: { color: '#a0522d', label: '姓名' },
-  lifa: { color: '#8a8a8a', label: '历法' },
-  service: { color: '#8a8a8a', label: '服务' },
-}
+  mingli: { color: "#c41e3a", label: "命理" },
+  bushi: { color: "#4f5d95", label: "占卜" },
+  qimen: { color: "#b8985f", label: "奇门" },
+  fengshui: { color: "#2f9d6a", label: "风水" },
+  xingming: { color: "#a0522d", label: "姓名" },
+  lifa: { color: "#8a8a8a", label: "历法" },
+  service: { color: "#8a8a8a", label: "服务" },
+};
 
-const byId = new Map(tools.map((t) => [t.id, t]))
+const byId = new Map(tools.map((t) => [t.id, t]));
 
 /** 已上线与开发中工具都展示；开发中项作为可点击预告入口，状态必须清晰标注。 */
-const visibleTools = computed(() => tools
-  .filter((t) => !MP_HIDDEN_TOOL_IDS.includes(t.id))
-  .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)))
+const visibleTools = computed(() =>
+  tools
+    .filter((t) => !MP_HIDDEN_TOOL_IDS.includes(t.id))
+    .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)),
+);
 
-const displayTools = computed(() => (showAllTools.value ? visibleTools.value : visibleTools.value.slice(0, COLLAPSED_COUNT)))
+const displayTools = computed(() =>
+  showAllTools.value ? visibleTools.value : visibleTools.value.slice(0, COLLAPSED_COUNT),
+);
 
-const favTools = computed(() => favIds.value
-  .map((id) => byId.get(id))
-  .filter((t): t is Tool => !!t && !t.comingSoon && !MP_HIDDEN_TOOL_IDS.includes(t.id))
-  .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)))
+const favTools = computed(() =>
+  favIds.value
+    .map((id) => byId.get(id))
+    .filter((t): t is Tool => !!t && !t.comingSoon && !MP_HIDDEN_TOOL_IDS.includes(t.id))
+    .map((t) => (MP_TOOL_RENAME[t.id] ? { ...t, name: MP_TOOL_RENAME[t.id] } : t)),
+);
 
-const availableMedical = computed(() => medicalTools.filter((t) => !t.comingSoon))
-const previewMedical = computed(() => medicalTools.filter((t) => t.comingSoon))
+const availableMedical = computed(() => medicalTools.filter((t) => !t.comingSoon));
+const previewMedical = computed(() => medicalTools.filter((t) => t.comingSoon));
 const MEDICAL_DESCRIPTIONS: Record<string, string> = {
-  wuyun: '五运六气节律 · 司天在泉 · 主客气推演',
-}
+  wuyun: "五运六气节律 · 司天在泉 · 主客气推演",
+};
 
 function medicalDescription(id: string) {
-  return MEDICAL_DESCRIPTIONS[id] || '传统中医文化研究工具'
+  return MEDICAL_DESCRIPTIONS[id] || "传统中医文化研究工具";
 }
 
-const platformAgents = ref<SquareBot[]>([])
-const agentLoading = ref(true)
-const agentError = ref('')
-const displayAgents = computed(() => platformAgents.value.slice(0, 6))
+const platformAgents = ref<SquareBot[]>([]);
+const agentLoading = ref(true);
+const agentError = ref("");
+const displayAgents = computed(() => platformAgents.value.slice(0, 6));
 
 async function loadPlatformAgents() {
-  agentLoading.value = true
-  agentError.value = ''
+  agentLoading.value = true;
+  agentError.value = "";
   try {
-    platformAgents.value = await agentsSquareApi.getHotBots()
+    platformAgents.value = await agentsSquareApi.getHotBots();
   } catch (error) {
-    platformAgents.value = []
-    agentError.value = (error as Error)?.message || '智能体加载失败'
+    platformAgents.value = [];
+    agentError.value = (error as Error)?.message || "智能体加载失败";
   } finally {
-    agentLoading.value = false
+    agentLoading.value = false;
   }
 }
 
 function openPlatformAgent(id: string) {
-  navigateTo(`/agent/${id}`)
+  navigateTo(`/agent/${id}`);
 }
 
 function platformAgentStyle(category: string) {
-  return agentThemeStyle(category)
+  return agentThemeStyle(category);
+}
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<unknown>) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  void action();
+}
+
+function toolAriaLabel(tool: Tool) {
+  if (tool.comingSoon) return `${tool.name}，开发中，查看开放状态`;
+  if (editing.value)
+    return `${tool.name}，${isFav(tool.id) ? "已加入常用，按下可移除" : "未加入常用，按下可添加"}`;
+  return `打开${tool.name}`;
+}
+
+function agentAriaLabel(agent: SquareBot) {
+  return `${agent.name}，${agent.categoryName || "国学智能体"}，${agent.isFree ? "免费使用" : "按次计费"}，开始学习`;
 }
 
 function accentOf(t: Tool) {
-  return CATEGORY_ACCENT[t.category ?? 'service']
+  return CATEGORY_ACCENT[t.category ?? "service"];
 }
 
 function isFav(id: string) {
-  return favIds.value.includes(id)
+  return favIds.value.includes(id);
 }
 
 function openTool(t: Tool) {
   if (editing.value) {
     if (t.comingSoon) {
-      uni.showToast({ title: '开发中工具暂不支持收藏', icon: 'none' })
-      return
+      uni.showToast({ title: "开发中工具暂不支持收藏", icon: "none" });
+      return;
     }
     // 编辑态：点全部工具格 = 切换收藏
-    favIds.value = isFav(t.id) ? removeFavorite(t.id) : addFavorite(t.id)
-    return
+    favIds.value = isFav(t.id) ? removeFavorite(t.id) : addFavorite(t.id);
+    return;
   }
-  recordToolUsage(t.id)
-  navigateTo(t.href)
+  recordToolUsage(t.id);
+  navigateTo(t.href);
 }
 
 function openFav(t: Tool) {
-  if (editing.value) return
-  recordToolUsage(t.id)
-  navigateTo(t.href)
+  if (editing.value) return;
+  recordToolUsage(t.id);
+  navigateTo(t.href);
 }
 
 function removeFav(id: string) {
-  favIds.value = removeFavorite(id)
+  favIds.value = removeFavorite(id);
+}
+
+async function loadPaipanEntry() {
+  entryLoading.value = true;
+  entryError.value = "";
+  legacyEntryUrl.value = "";
+  try {
+    const entry = await legacyPaipanApi.entry();
+    if (entry.mode === "legacy") {
+      if (!entry.url || !entry.url.startsWith("https://")) {
+        throw new Error("排盘服务地址未正确配置");
+      }
+      legacyEntryUrl.value = entry.url;
+      // #ifdef H5
+      window.location.replace(entry.url);
+      // #endif
+      return;
+    }
+    favIds.value = getFavorites();
+    await loadPlatformAgents();
+  } catch (error) {
+    entryError.value = (error as Error)?.message || "排盘服务暂时不可用";
+    // 迁移或短时网络故障不应阻断本地排盘能力，保留工具入口并降级提示。
+    favIds.value = getFavorites();
+    await loadPlatformAgents();
+  } finally {
+    entryLoading.value = false;
+  }
 }
 
 onMounted(() => {
-  favIds.value = getFavorites()
-  void loadPlatformAgents()
-})
-onShow(() => { favIds.value = getFavorites() })
+  void loadPaipanEntry();
+});
+onShow(() => {
+  favIds.value = getFavorites();
+});
 </script>
 
 <template>
-  <view class="paipan">
+  <view v-if="entryLoading" class="entry-gate" role="status" aria-live="polite">
+    <view class="entry-gate-spinner" />
+    <text class="entry-gate-title">正在进入排盘工具</text>
+    <text class="entry-gate-desc">正在安全连接原有排盘记录与服务</text>
+  </view>
+
+  <!-- H5 端拿到地址后会整页跳转；跳转完成前保持遮罩，绝不闪现自研排盘入口。 -->
+  <!-- #ifdef H5 -->
+  <view v-else-if="legacyEntryUrl" class="entry-gate" role="status">
+    <view class="entry-gate-spinner" />
+    <text class="entry-gate-title">正在打开排盘服务</text>
+  </view>
+  <!-- #endif -->
+
+  <!-- App / 小程序沿用旧系统的内嵌 H5 形态；小程序正式发布前须配置业务域名。 -->
+  <!-- #ifndef H5 -->
+  <!-- eslint-disable-next-line vue/no-dupe-v-else-if -- uni-app condition compilation makes this branch mutually exclusive with the H5 branch -->
+  <web-view v-else-if="legacyEntryUrl" :src="legacyEntryUrl" />
+  <!-- #endif -->
+
+  <view v-else class="paipan">
     <app-network-bar />
     <customer-service-fab />
     <!-- 顶部标题栏 -->
     <view class="header">
       <text class="header-title">{{ pageTitle }}</text>
-      <view class="header-action" @tap="navigateTo('/paipan/history?name=%E5%8E%86%E5%8F%B2%E8%AE%B0%E5%BD%95')">
+      <view
+        class="header-action"
+        role="link"
+        tabindex="0"
+        aria-label="查看排盘历史记录"
+        @tap="navigateTo('/paipan/history?name=%E5%8E%86%E5%8F%B2%E8%AE%B0%E5%BD%95')"
+        @keydown="
+          activateOnKeyboard($event, () =>
+            navigateTo('/paipan/history?name=%E5%8E%86%E5%8F%B2%E8%AE%B0%E5%BD%95'),
+          )
+        "
+      >
         <app-icon name="history" :size="40" color="#999999" />
       </view>
     </view>
 
-    <scroll-view scroll-y class="content">
+    <scroll-view scroll-y class="content" role="main" aria-label="排盘工具与国学服务">
+      <view v-if="entryError" class="section-px degraded-wrap" role="status" aria-live="polite">
+        <view class="degraded-notice">
+          <view class="degraded-icon">
+            <app-icon name="wifi-off" :size="30" color="#9A6B12" />
+          </view>
+          <view class="degraded-copy">
+            <text class="degraded-title">核心工具仍可使用</text>
+            <text class="degraded-desc">联网服务暂未连接，排盘与本地工具不受影响</text>
+          </view>
+          <button class="degraded-retry" aria-label="重新连接联网服务" @tap="loadPaipanEntry">
+            重试
+          </button>
+        </view>
+      </view>
+
       <!-- 今日时刻 Hero -->
       <view class="section-px hero-wrap">
         <today-hero />
@@ -170,7 +296,14 @@ onShow(() => { favIds.value = getFavorites() })
       <!-- 从业者工作台入口（对应 V0 workspace-entry.tsx）
            所有登录用户可见，功能分级：免费用排盘/客户/账本/案例 + 3 份报告草稿 -->
       <view class="section-px">
-        <view class="ws-entry" @tap="navigateTo('/workspace')">
+        <view
+          class="ws-entry"
+          role="link"
+          tabindex="0"
+          aria-label="进入从业者工作台，排盘、出报告、管理客户"
+          @tap="navigateTo('/workspace')"
+          @keydown="activateOnKeyboard($event, () => navigateTo('/workspace'))"
+        >
           <view class="ws-entry-icon">
             <app-icon name="crown" :size="36" color="#ffffff" />
           </view>
@@ -187,7 +320,18 @@ onShow(() => { favIds.value = getFavorites() })
 
       <!-- AI 智能解盘入口 -->
       <view class="section-px ai-wrap">
-        <view class="ai-card" @tap="navigateTo('/paipan/ai?name=AI%E6%99%BA%E8%83%BD%E8%A7%A3%E7%9B%98')">
+        <view
+          class="ai-card"
+          role="link"
+          tabindex="0"
+          :aria-label="`${aiTitle}，${aiSub}`"
+          @tap="navigateTo('/paipan/ai?name=AI%E6%99%BA%E8%83%BD%E8%A7%A3%E7%9B%98')"
+          @keydown="
+            activateOnKeyboard($event, () =>
+              navigateTo('/paipan/ai?name=AI%E6%99%BA%E8%83%BD%E8%A7%A3%E7%9B%98'),
+            )
+          "
+        >
           <view class="ai-blob ai-blob-1" />
           <view class="ai-blob ai-blob-2" />
           <view class="ai-row">
@@ -209,7 +353,14 @@ onShow(() => { favIds.value = getFavorites() })
       <!-- 统一排盘案例库：同一真实档案供不同术式交叉研习 -->
       <view class="section-px case-wrap">
         <view class="case-hub">
-          <view class="case-card" @tap="navigateTo('/paipan/cases')">
+          <view
+            class="case-card"
+            role="link"
+            tabindex="0"
+            aria-label="进入统一排盘案例库，跨术式研习真实案例"
+            @tap="navigateTo('/paipan/cases')"
+            @keydown="activateOnKeyboard($event, () => navigateTo('/paipan/cases'))"
+          >
             <view class="case-icon">
               <app-icon name="book-open" :size="44" color="#C41E3A" />
             </view>
@@ -220,11 +371,25 @@ onShow(() => { favIds.value = getFavorites() })
             <app-icon name="chevron-right" :size="36" color="#B8AA9A" />
           </view>
           <view class="case-actions">
-            <view class="case-action tap-press" @tap="navigateTo('/paipan/cases/submit')">
+            <view
+              class="case-action tap-press"
+              role="link"
+              tabindex="0"
+              aria-label="投稿真实排盘案例"
+              @tap="navigateTo('/paipan/cases/submit')"
+              @keydown="activateOnKeyboard($event, () => navigateTo('/paipan/cases/submit'))"
+            >
               <app-icon name="edit-3" :size="26" color="#8B6A4A" />
               <text class="case-action-txt">投稿案例</text>
             </view>
-            <view class="case-action tap-press" @tap="navigateTo('/mine/submissions')">
+            <view
+              class="case-action tap-press"
+              role="link"
+              tabindex="0"
+              aria-label="查看我的案例投稿"
+              @tap="navigateTo('/mine/submissions')"
+              @keydown="activateOnKeyboard($event, () => navigateTo('/mine/submissions'))"
+            >
               <app-icon name="clipboard-list" :size="26" color="#8B6A4A" />
               <text class="case-action-txt">我的投稿</text>
             </view>
@@ -235,7 +400,14 @@ onShow(() => { favIds.value = getFavorites() })
       <!-- 双人合盘入口（合婚裂变）· R4 合规：小程序端隐藏（页面保留） -->
       <!-- #ifndef MP-WEIXIN -->
       <view class="section-px couple-wrap">
-        <view class="couple-card" @tap="navigateTo('/pkg-paipan/couple/invite')">
+        <view
+          class="couple-card"
+          role="link"
+          tabindex="0"
+          aria-label="进入双人合盘，需要对方授权"
+          @tap="navigateTo('/pkg-paipan/couple/invite')"
+          @keydown="activateOnKeyboard($event, () => navigateTo('/pkg-paipan/couple/invite'))"
+        >
           <view class="couple-icon">
             <app-icon name="heart" :size="48" color="#ffffff" />
           </view>
@@ -252,11 +424,23 @@ onShow(() => { favIds.value = getFavorites() })
       <!-- #endif -->
 
       <!-- 为你推荐（收藏夹） -->
-      <view class="section-px section-tools">
+      <view class="section-px section-tools" role="region" aria-label="常用工具">
         <view class="sec-head">
           <text class="sec-title">为你推荐</text>
-          <view class="sec-link" @tap="editing = !editing">
-            <text class="sec-link-text">{{ editing ? '完成' : '管理' }}</text>
+          <view
+            class="sec-link"
+            role="button"
+            tabindex="0"
+            :aria-label="editing ? '完成常用工具管理' : '管理常用工具'"
+            :aria-pressed="editing"
+            @tap="editing = !editing"
+            @keydown="
+              activateOnKeyboard($event, () => {
+                editing = !editing;
+              })
+            "
+          >
+            <text class="sec-link-text">{{ editing ? "完成" : "管理" }}</text>
             <app-icon :name="editing ? 'check' : 'settings'" :size="28" color="#c41e3a" />
           </view>
         </view>
@@ -266,7 +450,11 @@ onShow(() => { favIds.value = getFavorites() })
             :key="t.id"
             class="fav-card"
             :class="{ 'fav-card-editing': editing }"
+            role="link"
+            tabindex="0"
+            :aria-label="editing ? `${t.name}，管理模式` : `打开常用工具${t.name}`"
             @tap="openFav(t)"
+            @keydown="activateOnKeyboard($event, () => openFav(t))"
           >
             <view class="fav-icon">
               <tool-icon :icon-id="t.iconId" :size="64" />
@@ -275,21 +463,32 @@ onShow(() => { favIds.value = getFavorites() })
               <text class="fav-name">{{ t.name }}</text>
               <view class="fav-cat">
                 <view class="fav-cat-dot" :style="{ background: accentOf(t).color }" />
-                <text class="fav-cat-label" :style="{ color: accentOf(t).color }">{{ accentOf(t).label }}</text>
+                <text class="fav-cat-label" :style="{ color: accentOf(t).color }">{{
+                  accentOf(t).label
+                }}</text>
               </view>
             </view>
-            <view v-if="editing" class="fav-remove" @tap.stop="removeFav(t.id)">
+            <view
+              v-if="editing"
+              class="fav-remove"
+              role="button"
+              tabindex="0"
+              :aria-label="`从常用工具移除${t.name}`"
+              @tap.stop="removeFav(t.id)"
+              @keydown.enter.stop="removeFav(t.id)"
+              @keydown.space.stop.prevent="removeFav(t.id)"
+            >
               <app-icon name="x" :size="24" color="#ffffff" />
             </view>
           </view>
         </view>
-        <view v-else class="fav-empty">
+        <view v-else class="fav-empty" role="status">
           <text class="fav-empty-text">点「管理」后在下方全部工具中选择常用工具</text>
         </view>
       </view>
 
       <!-- 全部工具（收起 3 排 / 展开全部） -->
-      <view class="section-px section-tools">
+      <view class="section-px section-tools" role="region" :aria-label="secToolsTitle">
         <view class="sec-head">
           <text class="sec-title">{{ secToolsTitle }}</text>
           <text v-if="editing" class="sec-hint">点选工具加入/移出推荐</text>
@@ -300,27 +499,60 @@ onShow(() => { favIds.value = getFavorites() })
             :key="tool.id"
             class="cell"
             :class="{ 'cell-editing': editing && !tool.comingSoon, 'cell-coming': tool.comingSoon }"
+            role="button"
+            tabindex="0"
+            :aria-label="toolAriaLabel(tool)"
+            :aria-disabled="false"
             @tap="openTool(tool)"
+            @keydown="activateOnKeyboard($event, () => openTool(tool))"
           >
             <view class="cell-icon">
               <tool-icon :icon-id="tool.iconId" :size="88" />
               <view v-if="tool.badge && !editing" class="badge badge-red" />
               <text v-if="tool.comingSoon && !editing" class="coming-stamp">开发中</text>
-              <view v-if="editing && !tool.comingSoon" class="cell-fav-mark" :class="{ 'cell-fav-on': isFav(tool.id) }">
+              <view
+                v-if="editing && !tool.comingSoon"
+                class="cell-fav-mark"
+                :class="{ 'cell-fav-on': isFav(tool.id) }"
+              >
                 <app-icon :name="isFav(tool.id) ? 'check' : 'plus'" :size="22" color="#ffffff" />
               </view>
             </view>
             <text class="cell-name">{{ tool.name }}</text>
           </view>
         </view>
-        <view v-if="visibleTools.length > COLLAPSED_COUNT" class="toggle" @tap="showAllTools = !showAllTools">
-          <text class="toggle-text">{{ showAllTools ? '收起' : `展开全部 ${visibleTools.length} 个工具` }}</text>
-          <app-icon :name="showAllTools ? 'chevron-up' : 'chevron-down'" :size="32" color="#c41e3a" />
+        <view
+          v-if="visibleTools.length > COLLAPSED_COUNT"
+          class="toggle"
+          role="button"
+          tabindex="0"
+          :aria-expanded="showAllTools"
+          :aria-label="showAllTools ? '收起全部工具' : `展开全部${visibleTools.length}个工具`"
+          @tap="showAllTools = !showAllTools"
+          @keydown="
+            activateOnKeyboard($event, () => {
+              showAllTools = !showAllTools;
+            })
+          "
+        >
+          <text class="toggle-text">{{
+            showAllTools ? "收起" : `展开全部 ${visibleTools.length} 个工具`
+          }}</text>
+          <app-icon
+            :name="showAllTools ? 'chevron-up' : 'chevron-down'"
+            :size="32"
+            color="#c41e3a"
+          />
         </view>
       </view>
 
       <!-- 中医工具：已上线能力与研发预告分层展示 -->
-      <view v-if="availableMedical.length || previewMedical.length" class="section-px section-mt">
+      <view
+        v-if="availableMedical.length || previewMedical.length"
+        class="section-px section-mt"
+        role="region"
+        aria-label="中医工具"
+      >
         <view class="sec-head">
           <view class="sec-title-row">
             <app-icon name="stethoscope" :size="32" color="#059669" />
@@ -329,7 +561,16 @@ onShow(() => { favIds.value = getFavorites() })
           <text class="sec-live">已上线</text>
         </view>
         <view class="medical-list">
-          <view v-for="tool in availableMedical" :key="tool.id" class="medical-card tap-press" @tap="navigateTo(tool.href)">
+          <view
+            v-for="tool in availableMedical"
+            :key="tool.id"
+            class="medical-card tap-press"
+            role="link"
+            tabindex="0"
+            :aria-label="`打开${tool.name}，${medicalDescription(tool.id)}`"
+            @tap="navigateTo(tool.href)"
+            @keydown="activateOnKeyboard($event, () => navigateTo(tool.href))"
+          >
             <view class="medical-icon">
               <tool-icon :icon-id="tool.iconId" :size="72" />
             </view>
@@ -350,7 +591,11 @@ onShow(() => { favIds.value = getFavorites() })
               v-for="tool in previewMedical"
               :key="tool.id"
               class="medical-preview-cell tap-press"
+              role="button"
+              tabindex="0"
+              :aria-label="`${tool.name}，开发中，查看开放状态`"
               @tap="navigateTo(tool.href)"
+              @keydown="activateOnKeyboard($event, () => navigateTo(tool.href))"
             >
               <view class="medical-preview-icon">
                 <tool-icon :icon-id="tool.iconId" :size="88" />
@@ -364,19 +609,34 @@ onShow(() => { favIds.value = getFavorites() })
       </view>
 
       <!-- AI 智能体 -->
-      <view class="section-px section-mt">
+      <view class="section-px section-mt" role="region" aria-label="AI 智能体">
         <view class="sec-head">
           <text class="sec-title">AI 智能体</text>
-          <view class="sec-link" @tap="navigateTo('/agents')">
+          <view
+            class="sec-link"
+            role="link"
+            tabindex="0"
+            aria-label="查看全部智能体"
+            @tap="navigateTo('/agents')"
+            @keydown="activateOnKeyboard($event, () => navigateTo('/agents'))"
+          >
             <text class="sec-link-text">查看全部</text>
             <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
         </view>
-        <view v-if="agentLoading" class="agents-state">
+        <view v-if="agentLoading" class="agents-state" role="status" aria-live="polite">
           <view class="agents-loading-dot" />
           <text>正在连接平台智能体…</text>
         </view>
-        <view v-else-if="agentError" class="agents-state agents-state-error" @tap="loadPlatformAgents">
+        <view
+          v-else-if="agentError"
+          class="agents-state agents-state-error"
+          role="button"
+          tabindex="0"
+          aria-label="智能体连接失败，重新加载"
+          @tap="loadPlatformAgents"
+          @keydown="activateOnKeyboard($event, loadPlatformAgents)"
+        >
           <text>连接失败，点击重试</text>
           <app-icon name="refresh-cw" :size="26" color="#C41E3A" />
         </view>
@@ -387,7 +647,11 @@ onShow(() => { favIds.value = getFavorites() })
               :key="agent.id"
               class="agent-card"
               :style="platformAgentStyle(agent.category)"
+              role="link"
+              tabindex="0"
+              :aria-label="agentAriaLabel(agent)"
               @tap="openPlatformAgent(agent.id)"
+              @keydown="activateOnKeyboard($event, () => openPlatformAgent(agent.id))"
             >
               <view class="agent-visual">
                 <view class="agent-grid" />
@@ -401,13 +665,13 @@ onShow(() => { favIds.value = getFavorites() })
                     <smart-avatar class="agent-avatar-img" :src="agent.avatar" :name="agent.name" />
                   </view>
                 </view>
-                <text class="agent-category">{{ agent.categoryName || '国学智能体' }}</text>
+                <text class="agent-category">{{ agent.categoryName || "国学智能体" }}</text>
               </view>
               <view class="agent-content">
                 <text class="agent-name">{{ agent.name }}</text>
-                <text class="agent-desc">{{ agent.description || '点击进入，开始智能对话' }}</text>
+                <text class="agent-desc">{{ agent.description || "点击进入，开始智能对话" }}</text>
                 <view class="agent-action">
-                  <text>{{ agent.isFree ? '随时可用' : '按次计费' }}</text>
+                  <text>{{ agent.isFree ? "随时可用" : "按次计费" }}</text>
                   <view class="agent-action-link">
                     <text>开始学习</text>
                     <app-icon name="arrow-up-right" :size="20" color="var(--agent-ink)" />
@@ -417,7 +681,7 @@ onShow(() => { favIds.value = getFavorites() })
             </view>
           </view>
         </scroll-view>
-        <view v-else class="agents-state">
+        <view v-else class="agents-state" role="status">
           <text>暂无可用智能体</text>
         </view>
       </view>
@@ -433,21 +697,169 @@ onShow(() => { favIds.value = getFavorites() })
 </template>
 
 <style scoped lang="scss">
-.paipan { min-height: 100vh; background: var(--bg-paper, #faf8f5); }
+.paipan {
+  min-height: 100vh;
+  background: var(--bg-paper, #faf8f5);
+}
+.entry-gate {
+  min-height: 100vh;
+  padding: 0 56rpx 150rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18rpx;
+  box-sizing: border-box;
+  background: var(--bg-paper, #faf8f5);
+  text-align: center;
+}
+.entry-gate-spinner {
+  width: 52rpx;
+  height: 52rpx;
+  border: 5rpx solid rgba(196, 30, 58, 0.16);
+  border-top-color: var(--brand, #c41e3a);
+  border-radius: 50%;
+  animation: entry-spin 0.8s linear infinite;
+}
+.entry-gate-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--text-ink, #2c2723);
+}
+.entry-gate-desc {
+  max-width: 560rpx;
+  font-size: 25rpx;
+  line-height: 1.6;
+  color: var(--text-soft, #777);
+}
+.entry-gate-actions {
+  margin-top: 12rpx;
+  display: flex;
+  gap: 16rpx;
+}
+.entry-gate-btn {
+  min-width: 190rpx;
+  height: 76rpx;
+  padding: 0 28rpx;
+  border: 1rpx solid var(--line, #ddd4ca);
+  border-radius: 38rpx;
+  background: #fff;
+  font-size: 25rpx;
+  line-height: 74rpx;
+  color: var(--text-ink, #2c2723);
+}
+.entry-gate-btn::after {
+  border: 0;
+}
+.entry-gate-btn.primary {
+  border-color: var(--brand, #c41e3a);
+  background: var(--brand, #c41e3a);
+  color: #fff;
+}
+@keyframes entry-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* 顶栏 */
 .header {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 40;
-  height: 88rpx; padding: 0 32rpx;
-  display: flex; align-items: center; justify-content: space-between;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  height: 88rpx;
+  padding: 0 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: var(--bg-paper, #faf8f5);
   border-bottom: 2rpx solid var(--line, #e8e0d5);
 }
-.header-title { font-size: 36rpx; font-weight: 700; color: var(--text-ink, #2c2c2c); }
-.header-action { padding: 16rpx; margin-right: -16rpx; }
+.header-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: var(--text-ink, #2c2c2c);
+}
+.header-action {
+  padding: 16rpx;
+  margin-right: -16rpx;
+}
 
-.content { position: absolute; top: 88rpx; bottom: 112rpx; left: 0; right: 0; }
-.section-px { padding-left: 32rpx; padding-right: 32rpx; }
+.content {
+  position: absolute;
+  top: 88rpx;
+  bottom: 112rpx;
+  left: 0;
+  right: 0;
+}
+.section-px {
+  padding-left: 32rpx;
+  padding-right: 32rpx;
+}
+
+.degraded-wrap {
+  padding-top: 20rpx;
+}
+.degraded-notice {
+  min-height: 86rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 14rpx 16rpx;
+  border: 1rpx solid rgba(180, 131, 42, 0.28);
+  border-radius: 18rpx;
+  background: linear-gradient(135deg, #fffaf0 0%, #fffdf8 100%);
+  box-shadow: 0 8rpx 24rpx rgba(86, 58, 17, 0.05);
+}
+.degraded-icon {
+  width: 52rpx;
+  height: 52rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16rpx;
+  background: rgba(180, 131, 42, 0.1);
+}
+.degraded-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.degraded-title {
+  font-size: 25rpx;
+  font-weight: 700;
+  color: #5f451b;
+}
+.degraded-desc {
+  overflow: hidden;
+  font-size: 21rpx;
+  line-height: 1.35;
+  color: #8f7445;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.degraded-retry {
+  min-width: 86rpx;
+  height: 54rpx;
+  margin: 0;
+  padding: 0 18rpx;
+  border: 0;
+  border-radius: 27rpx;
+  background: #fff;
+  color: #9a6b12;
+  font-size: 22rpx;
+  font-weight: 600;
+  line-height: 54rpx;
+  box-shadow: inset 0 0 0 1rpx rgba(180, 131, 42, 0.28);
+}
+.degraded-retry::after {
+  border: 0;
+}
 
 /* 今日时刻 */
 /* 从业者工作台入口 */
@@ -470,7 +882,7 @@ onShow(() => { favIds.value = getFavorites() })
   height: 88rpx;
   flex-shrink: 0;
   border-radius: 20rpx;
-  background: #C41E3A;
+  background: #c41e3a;
 }
 
 .ws-entry-body {
@@ -487,7 +899,7 @@ onShow(() => { favIds.value = getFavorites() })
 .ws-entry-title {
   font-size: 30rpx;
   font-weight: 700;
-  color: #3A2A1E;
+  color: #3a2a1e;
 }
 
 .ws-entry-tag {
@@ -495,46 +907,102 @@ onShow(() => { favIds.value = getFavorites() })
   border-radius: 6rpx;
   background: rgba(196, 30, 58, 0.1);
   font-size: 20rpx;
-  color: #C41E3A;
+  color: #c41e3a;
 }
 
 .ws-entry-desc {
   display: block;
   margin-top: 6rpx;
   font-size: 23rpx;
-  color: #9A8C7E;
+  color: #9a8c7e;
 }
 
-.hero-wrap { padding-top: 32rpx; }
+.hero-wrap {
+  padding-top: 32rpx;
+}
 
 /* AI 解盘卡 */
-.ai-wrap { padding-top: 24rpx; }
+.ai-wrap {
+  padding-top: 24rpx;
+}
 .ai-card {
-  position: relative; overflow: hidden;
-  border-radius: 32rpx; padding: 32rpx;
-  background: linear-gradient(to right, var(--brand), rgba(196,30,58,0.9), rgba(196,30,58,0.8));
+  position: relative;
+  overflow: hidden;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  background: linear-gradient(
+    to right,
+    var(--brand),
+    rgba(196, 30, 58, 0.9),
+    rgba(196, 30, 58, 0.8)
+  );
 }
-.ai-blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.1); }
-.ai-blob-1 { right: 0; top: 0; width: 256rpx; height: 256rpx; transform: translate(25%, -50%); }
-.ai-blob-2 { right: 64rpx; bottom: 0; width: 160rpx; height: 160rpx; transform: translateY(50%); }
-.ai-row { position: relative; display: flex; align-items: center; gap: 32rpx; }
+.ai-blob {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+.ai-blob-1 {
+  right: 0;
+  top: 0;
+  width: 256rpx;
+  height: 256rpx;
+  transform: translate(25%, -50%);
+}
+.ai-blob-2 {
+  right: 64rpx;
+  bottom: 0;
+  width: 160rpx;
+  height: 160rpx;
+  transform: translateY(50%);
+}
+.ai-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 32rpx;
+}
 .ai-icon {
-  width: 112rpx; height: 112rpx; border-radius: 24rpx;
-  background: rgba(255,255,255,0.2);
-  display: flex; align-items: center; justify-content: center;
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.ai-text { flex: 1; }
-.ai-title-row { display: flex; align-items: center; gap: 16rpx; }
-.ai-title { font-size: 36rpx; font-weight: 700; color: #fff; }
+.ai-text {
+  flex: 1;
+}
+.ai-title-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.ai-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #fff;
+}
 .ai-badge {
-  padding: 2rpx 16rpx; font-size: 20rpx; color: #fff;
-  background: rgba(255,255,255,0.2); border-radius: 999rpx;
+  padding: 2rpx 16rpx;
+  font-size: 20rpx;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999rpx;
 }
-.ai-sub { display: block; font-size: 28rpx; color: rgba(255,255,255,0.8); margin-top: 4rpx; }
+.ai-sub {
+  display: block;
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 4rpx;
+}
 
 /* 双人合盘入口 */
 /* 案例库入口：低调横条，不跟 AI 卡抢视觉 */
-.case-wrap { padding-top: 24rpx; }
+.case-wrap {
+  padding-top: 24rpx;
+}
 .case-hub {
   overflow: hidden;
   border: 1rpx solid rgba(58, 42, 30, 0.08);
@@ -557,18 +1025,21 @@ onShow(() => { favIds.value = getFavorites() })
   border-radius: 14rpx;
   background: rgba(196, 30, 58, 0.08);
 }
-.case-text { flex: 1; min-width: 0; }
+.case-text {
+  flex: 1;
+  min-width: 0;
+}
 .case-title {
   display: block;
   font-size: 30rpx;
   font-weight: 700;
-  color: #3A2A1E;
+  color: #3a2a1e;
 }
 .case-sub {
   display: block;
   margin-top: 6rpx;
   font-size: 22rpx;
-  color: #9A8C7E;
+  color: #9a8c7e;
 }
 .case-actions {
   display: flex;
@@ -593,36 +1064,93 @@ onShow(() => { favIds.value = getFavorites() })
   color: #6f5139;
 }
 
-.couple-wrap { padding-top: 24rpx; }
+.couple-wrap {
+  padding-top: 24rpx;
+}
 .couple-card {
-  position: relative; overflow: hidden;
-  border-radius: 32rpx; padding: 28rpx 32rpx;
-  display: flex; align-items: center; gap: 24rpx;
+  position: relative;
+  overflow: hidden;
+  border-radius: 32rpx;
+  padding: 28rpx 32rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
   background: linear-gradient(135deg, #d1477a, #c41e3a);
 }
 .couple-icon {
-  width: 96rpx; height: 96rpx; border-radius: 24rpx;
-  background: rgba(255,255,255,0.2);
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
-.couple-text { flex: 1; min-width: 0; }
-.couple-title-row { display: flex; align-items: center; gap: 16rpx; }
-.couple-title { font-size: 32rpx; font-weight: 700; color: #fff; }
+.couple-text {
+  flex: 1;
+  min-width: 0;
+}
+.couple-title-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.couple-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #fff;
+}
 .couple-badge {
-  padding: 2rpx 16rpx; font-size: 20rpx; color: #fff;
-  background: rgba(255,255,255,0.2); border-radius: 999rpx;
+  padding: 2rpx 16rpx;
+  font-size: 20rpx;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999rpx;
 }
-.couple-sub { display: block; font-size: 26rpx; color: rgba(255,255,255,0.85); margin-top: 6rpx; }
+.couple-sub {
+  display: block;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.85);
+  margin-top: 6rpx;
+}
 
 /* 分区标题 */
-.section-tools { padding-top: 48rpx; }
-.section-mt { padding-top: 32rpx; }
-.sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.sec-title { font-size: 32rpx; font-weight: 600; color: var(--text-ink, #2c2c2c); }
-.sec-title-row { display: flex; align-items: center; gap: 16rpx; }
-.sec-link { display: flex; align-items: center; gap: 4rpx; }
-.sec-link-text { font-size: 24rpx; color: var(--brand); }
-.sec-hint { font-size: 22rpx; color: var(--text-soft, #999); }
+.section-tools {
+  padding-top: 48rpx;
+}
+.section-mt {
+  padding-top: 32rpx;
+}
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+.sec-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--text-ink, #2c2c2c);
+}
+.sec-title-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.sec-link {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+.sec-link-text {
+  font-size: 24rpx;
+  color: var(--brand);
+}
+.sec-hint {
+  font-size: 22rpx;
+  color: var(--text-soft, #999);
+}
 .sec-live {
   padding: 6rpx 16rpx;
   border-radius: 999rpx;
@@ -633,7 +1161,11 @@ onShow(() => { favIds.value = getFavorites() })
 }
 
 /* 中医工具：已上线能力用完整信息卡呈现，避免单个工具留在四列网格里显得残缺 */
-.medical-list { display: flex; flex-direction: column; gap: 16rpx; }
+.medical-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
 .medical-card {
   min-height: 120rpx;
   display: flex;
@@ -655,9 +1187,23 @@ onShow(() => { favIds.value = getFavorites() })
   border-radius: 24rpx;
   background: rgba(5, 150, 105, 0.08);
 }
-.medical-copy { min-width: 0; flex: 1; }
-.medical-name { display: block; font-size: 29rpx; font-weight: 700; color: #214B3A; }
-.medical-desc { display: block; margin-top: 6rpx; font-size: 22rpx; line-height: 1.45; color: #6D8779; }
+.medical-copy {
+  min-width: 0;
+  flex: 1;
+}
+.medical-name {
+  display: block;
+  font-size: 29rpx;
+  font-weight: 700;
+  color: #214b3a;
+}
+.medical-desc {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  line-height: 1.45;
+  color: #6d8779;
+}
 .medical-preview {
   margin-top: 18rpx;
   padding: 22rpx 16rpx 18rpx;
@@ -665,10 +1211,26 @@ onShow(() => { favIds.value = getFavorites() })
   border-radius: 24rpx;
   background: linear-gradient(145deg, rgba(255, 252, 245, 0.96), rgba(255, 255, 255, 0.98));
 }
-.medical-preview-head { padding: 0 8rpx 18rpx; display: flex; align-items: baseline; justify-content: space-between; }
-.medical-preview-title { font-size: 30rpx; font-weight: 700; color: #665235; }
-.medical-preview-sub { font-size: 22rpx; color: #8f7c60; }
-.medical-preview-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); row-gap: 12rpx; }
+.medical-preview-head {
+  padding: 0 8rpx 18rpx;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.medical-preview-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #665235;
+}
+.medical-preview-sub {
+  font-size: 22rpx;
+  color: #8f7c60;
+}
+.medical-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  row-gap: 12rpx;
+}
 .medical-preview-cell {
   min-width: 0;
   min-height: 178rpx;
@@ -723,61 +1285,125 @@ onShow(() => { favIds.value = getFavorites() })
 }
 
 /* 为你推荐（收藏夹）：2 列横卡 */
-.fav-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; }
+.fav-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+}
 .fav-card {
   position: relative;
-  display: flex; align-items: center; gap: 20rpx;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
   padding: 24rpx;
   border-radius: 24rpx;
   background: var(--card, #fff);
   border: 2rpx solid var(--line, #e8e0d5);
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
 }
-.fav-card-editing { animation: fav-wiggle 0.35s ease-in-out infinite; }
+.fav-card-editing {
+  animation: fav-wiggle 0.35s ease-in-out infinite;
+}
 @keyframes fav-wiggle {
-  0%, 100% { transform: rotate(-0.6deg); }
-  50% { transform: rotate(0.6deg); }
+  0%,
+  100% {
+    transform: rotate(-0.6deg);
+  }
+  50% {
+    transform: rotate(0.6deg);
+  }
 }
 .fav-icon {
-  width: 80rpx; height: 80rpx; flex-shrink: 0;
-  border-radius: 20rpx; background: rgba(0, 0, 0, 0.03);
-  display: flex; align-items: center; justify-content: center;
+  width: 80rpx;
+  height: 80rpx;
+  flex-shrink: 0;
+  border-radius: 20rpx;
+  background: rgba(0, 0, 0, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.fav-texts { min-width: 0; flex: 1; }
+.fav-texts {
+  min-width: 0;
+  flex: 1;
+}
 .fav-name {
   display: block;
-  font-family: Georgia, 'Songti SC', serif;
-  font-size: 28rpx; font-weight: 700; color: var(--text-ink, #2c2c2c);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: Georgia, "Songti SC", serif;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-ink, #2c2c2c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.fav-cat { margin-top: 6rpx; display: flex; align-items: center; gap: 8rpx; }
-.fav-cat-dot { width: 12rpx; height: 12rpx; border-radius: 50%; }
-.fav-cat-label { font-size: 22rpx; }
+.fav-cat {
+  margin-top: 6rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+.fav-cat-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+}
+.fav-cat-label {
+  font-size: 22rpx;
+}
 .fav-remove {
-  position: absolute; right: -10rpx; top: -10rpx; z-index: 5;
-  width: 40rpx; height: 40rpx; border-radius: 50%;
+  position: absolute;
+  right: -10rpx;
+  top: -10rpx;
+  z-index: 5;
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
   background: var(--brand);
   border: 4rpx solid var(--card, #fff);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .fav-empty {
-  padding: 48rpx 0; text-align: center;
-  border: 2rpx dashed var(--line, #e8e0d5); border-radius: 24rpx;
+  padding: 48rpx 0;
+  text-align: center;
+  border: 2rpx dashed var(--line, #e8e0d5);
+  border-radius: 24rpx;
 }
-.fav-empty-text { font-size: 24rpx; color: var(--text-soft, #999); }
+.fav-empty-text {
+  font-size: 24rpx;
+  color: var(--text-soft, #999);
+}
 
 /* 工具网格 4 列 */
-.grid { display: grid; grid-template-columns: repeat(4, 1fr); row-gap: 24rpx; }
-.cell { display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 16rpx 0; }
-.cell-editing { animation: fav-wiggle 0.35s ease-in-out infinite; }
-.cell-icon { position: relative; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  row-gap: 24rpx;
+}
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 0;
+}
+.cell-editing {
+  animation: fav-wiggle 0.35s ease-in-out infinite;
+}
+.cell-icon {
+  position: relative;
+}
 .cell-coming .cell-icon {
   padding: 5rpx;
   border: 1rpx solid rgba(184, 152, 95, 0.2);
   border-radius: 26rpx;
   background: rgba(184, 152, 95, 0.05);
 }
-.cell-coming .cell-name { color: #655946; }
+.cell-coming .cell-name {
+  color: #655946;
+}
 .coming-stamp {
   position: absolute;
   right: -12rpx;
@@ -792,16 +1418,33 @@ onShow(() => { favIds.value = getFavorites() })
   color: #fff;
   white-space: nowrap;
 }
-.badge { position: absolute; top: -4rpx; right: -4rpx; width: 16rpx; height: 16rpx; border-radius: 50%; }
-.badge-red { background: var(--brand); }
+.badge {
+  position: absolute;
+  top: -4rpx;
+  right: -4rpx;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+}
+.badge-red {
+  background: var(--brand);
+}
 .cell-fav-mark {
-  position: absolute; top: -8rpx; right: -8rpx;
-  width: 36rpx; height: 36rpx; border-radius: 50%;
+  position: absolute;
+  top: -8rpx;
+  right: -8rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 50%;
   background: rgba(0, 0, 0, 0.35);
   border: 3rpx solid var(--card, #fff);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.cell-fav-on { background: #2f9d6a; }
+.cell-fav-on {
+  background: #2f9d6a;
+}
 .cell-name {
   min-height: 58rpx;
   padding: 0 4rpx;
@@ -817,12 +1460,21 @@ onShow(() => { favIds.value = getFavorites() })
 
 /* 展开/收起 */
 .toggle {
-  display: flex; align-items: center; justify-content: center; gap: 8rpx;
-  margin-top: 20rpx; padding: 20rpx 0;
-  border: 2rpx solid rgba(196, 30, 58, 0.3); border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  margin-top: 20rpx;
+  padding: 20rpx 0;
+  border: 2rpx solid rgba(196, 30, 58, 0.3);
+  border-radius: 999rpx;
   background: rgba(196, 30, 58, 0.05);
 }
-.toggle-text { font-size: 28rpx; font-weight: 500; color: var(--brand); }
+.toggle-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--brand);
+}
 
 /* 智能体横滚：数据、类别主题与对话入口和智能体广场保持一致 */
 .agents-state {
@@ -837,17 +1489,26 @@ onShow(() => { favIds.value = getFavorites() })
   font-size: 24rpx;
   color: #8b91a0;
 }
-.agents-state-error { color: #C41E3A; }
+.agents-state-error {
+  color: #c41e3a;
+}
 .agents-loading-dot {
   width: 14rpx;
   height: 14rpx;
   border-radius: 50%;
-  background: #6C63E8;
+  background: #6c63e8;
   box-shadow: 0 0 0 8rpx rgba(108, 99, 232, 0.1);
   animation: agent-loading 1.6s ease-in-out infinite;
 }
-.agents-scroll { width: 100%; white-space: nowrap; }
-.agents-row { display: inline-flex; gap: 24rpx; padding-bottom: 16rpx; }
+.agents-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+.agents-row {
+  display: inline-flex;
+  gap: 24rpx;
+  padding-bottom: 16rpx;
+}
 .agent-card {
   display: inline-flex;
   flex-direction: column;
@@ -884,9 +1545,9 @@ onShow(() => { favIds.value = getFavorites() })
   align-items: center;
   gap: 6rpx;
   padding: 5rpx 10rpx;
-  border: 1rpx solid rgba(255,255,255,.28);
+  border: 1rpx solid rgba(255, 255, 255, 0.28);
   border-radius: 999rpx;
-  background: rgba(10,20,52,.26);
+  background: rgba(10, 20, 52, 0.26);
   font-size: 17rpx;
   font-weight: 700;
   color: #fff;
@@ -910,7 +1571,7 @@ onShow(() => { favIds.value = getFavorites() })
 .agent-orbit-ring {
   position: absolute;
   inset: 0;
-  border: 1rpx dashed rgba(255,255,255,.52);
+  border: 1rpx dashed rgba(255, 255, 255, 0.52);
   border-radius: 50%;
   animation: agent-orbit 14s linear infinite;
 }
@@ -922,17 +1583,22 @@ onShow(() => { favIds.value = getFavorites() })
   height: 78rpx;
   overflow: hidden;
   transform: translate(-50%, -50%);
-  border: 4rpx solid rgba(255,255,255,.92);
+  border: 4rpx solid rgba(255, 255, 255, 0.92);
   border-radius: 24rpx;
-  box-shadow: 0 10rpx 24rpx rgba(12,19,55,.24), 0 0 26rpx var(--agent-glow);
+  box-shadow:
+    0 10rpx 24rpx rgba(12, 19, 55, 0.24),
+    0 0 26rpx var(--agent-glow);
 }
-.agent-avatar-img { width: 100%; height: 100%; }
+.agent-avatar-img {
+  width: 100%;
+  height: 100%;
+}
 .agent-category {
   position: absolute;
   right: 14rpx;
   bottom: 12rpx;
   font-size: 18rpx;
-  color: rgba(255,255,255,.88);
+  color: rgba(255, 255, 255, 0.88);
 }
 .agent-content {
   min-height: 172rpx;
@@ -970,7 +1636,7 @@ onShow(() => { favIds.value = getFavorites() })
   align-items: center;
   justify-content: space-between;
   gap: 8rpx;
-  border-top: 1rpx solid rgba(91,108,154,.1);
+  border-top: 1rpx solid rgba(91, 108, 154, 0.1);
   font-size: 19rpx;
   color: #969dae;
 }
@@ -985,20 +1651,41 @@ onShow(() => { favIds.value = getFavorites() })
   color: var(--agent-ink);
 }
 @keyframes agent-loading {
-  0%, 100% { opacity: .65; transform: scale(.88); }
-  50% { opacity: 1; transform: scale(1.15); }
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: scale(0.88);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 @keyframes agent-orbit {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .agent-live-dot,
   .agent-orbit-ring,
-  .agents-loading-dot { animation: none; }
+  .agents-loading-dot {
+    animation: none;
+  }
 }
 
 /* 合规提示 */
-.disclaimer { padding-top: 16rpx; padding-bottom: 32rpx; }
-.disclaimer-text { font-size: 22rpx; color: var(--text-soft, #999); line-height: 1.5; text-align: center; }
+.disclaimer {
+  padding-top: 16rpx;
+  padding-bottom: 32rpx;
+}
+.disclaimer-text {
+  font-size: 22rpx;
+  color: var(--text-soft, #999);
+  line-height: 1.5;
+  text-align: center;
+}
 </style>

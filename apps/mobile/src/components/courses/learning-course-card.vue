@@ -21,8 +21,22 @@ const learningCopy = computed(() => {
 
 const categoryText = computed(() => String(props.data.category || '精品课程'))
 
+const accessibilityLabel = computed(() => {
+  const priceText = props.data.free
+    ? '免费'
+    : `价格 ${formatPrice(props.data.price)} 元`
+  const studentsText = props.data.students ? `，${formatCount(props.data.students)} 人在学` : ''
+  return `查看课程：${props.data.title}，${learningCopy.value}${studentsText}，${priceText}`
+})
+
 function open(event?: unknown) {
   navigateToContent(`/course/${props.data.id}`, event)
+}
+
+function openOnKeyboard(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  open(event)
 }
 </script>
 
@@ -31,8 +45,12 @@ function open(event?: unknown) {
     class="learning-card"
     :class="`learning-card--${variant}`"
     data-content-card
+    role="link"
+    :aria-label="accessibilityLabel"
+    tabindex="0"
     hover-class="card-press"
     @tap="open"
+    @keydown="openOnKeyboard"
   >
     <view class="cover">
       <smart-cover class="cover-image" :src="data.cover" :title="data.title" type="course" deco />

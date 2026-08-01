@@ -33,7 +33,7 @@ export class ContentService {
       },
     });
 
-    this.webhook.fire("CONTENT_PUBLISHED", {
+    await this.webhook.fire("CONTENT_PUBLISHED", {
       contentId: content.id,
       title: content.title,
       type: content.type,

@@ -13,15 +13,35 @@ const props = defineProps<{ data: LiveCardData }>()
 const booked = ref(false)
 const ratio = computed(() => normalizeRatio(props.data.coverRatio))
 const status = computed(() => props.data.status ?? 'live')
+const accessibilityLabel = computed(() => {
+  const stateText = status.value === 'live' ? '正在直播' : status.value === 'upcoming' ? '直播预约' : '直播回放'
+  const hostText = props.data.host ? `，主播 ${props.data.host}` : ''
+  return `观看${stateText}：${props.data.title}${hostText}`
+})
 function open(event?: unknown) {
   track.click('live_card', { id: props.data.id })
   navigateToContent(`/live/${props.data.id}`, event)
 }
 function toggleBook() { booked.value = !booked.value }
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 </script>
 
 <template>
-  <view class="card" data-content-card :class="status === 'live' && 'card-live'" hover-class="card-press" @tap="open">
+  <view
+    class="card"
+    data-content-card
+    :class="status === 'live' && 'card-live'"
+    role="link"
+    :aria-label="accessibilityLabel"
+    tabindex="0"
+    hover-class="card-press"
+    @tap="open"
+    @keydown="activateOnKeyboard($event, () => open($event))"
+  >
     <view class="cover" :class="ratio === '1:1' ? 'r-sq' : 'r-34'">
       <live-card-media
         class="cover-img"
@@ -44,7 +64,17 @@ function toggleBook() { booked.value = !booked.value }
         <text class="viewers-txt">{{ status === 'upcoming' ? formatCount(data.reservations) + '预约' : formatCount(data.viewers) + (status === 'replay' ? '次观看' : '') }}</text>
       </view>
       <!-- 预约按钮 -->
-      <view v-if="status === 'upcoming'" class="book-btn" :class="booked ? 'book-on' : 'book-off'" @tap.stop="toggleBook">
+      <view
+        v-if="status === 'upcoming'"
+        class="book-btn"
+        :class="booked ? 'book-on' : 'book-off'"
+        role="button"
+        :aria-label="booked ? `取消预约：${data.title}` : `预约直播：${data.title}`"
+        :aria-pressed="booked ? 'true' : 'false'"
+        tabindex="0"
+        @tap.stop="toggleBook"
+        @keydown.stop="activateOnKeyboard($event, toggleBook)"
+      >
         <AppIcon name="bell" :size="20" :color="booked ? '#ffffff' : '#ffffff'" /><text class="book-txt">{{ booked ? '已约' : '预约' }}</text>
       </view>
     </view>

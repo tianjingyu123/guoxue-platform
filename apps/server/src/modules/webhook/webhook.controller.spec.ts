@@ -7,6 +7,8 @@ import { RolesGuard } from "../../common/roles.guard";
 const mockWebhookSvc = {
   register: jest.fn().mockResolvedValue({ id: "w1", event: "ORDER_PAID", url: "https://..." }),
   list: jest.fn().mockResolvedValue([{ id: "w1", event: "ORDER_PAID" }]),
+  listDeliveries: jest.fn().mockResolvedValue([{ id: "d1", status: "FAILED" }]),
+  retryDelivery: jest.fn().mockResolvedValue({ success: true, id: "d1" }),
   toggleActive: jest.fn().mockResolvedValue({ id: "w1", isActive: false }),
   unregister: jest.fn().mockResolvedValue({ success: true }),
 };
@@ -38,6 +40,22 @@ describe("WebhookController", () => {
     const result: any = await ctrl.list("ORDER_PAID" as any);
     expect(result).toHaveLength(1);
     expect(mockWebhookSvc.list).toHaveBeenCalledWith("ORDER_PAID");
+  });
+
+  it("GET /webhooks/deliveries — 投递审计", async () => {
+    const result: any = await ctrl.listDeliveries("w1", "FAILED", "20");
+    expect(result).toHaveLength(1);
+    expect(mockWebhookSvc.listDeliveries).toHaveBeenCalledWith({
+      subscriptionId: "w1",
+      status: "FAILED",
+      take: 20,
+    });
+  });
+
+  it("POST /webhooks/deliveries/:id/retry — 人工重试", async () => {
+    const result: any = await ctrl.retryDelivery("d1");
+    expect(result.success).toBe(true);
+    expect(mockWebhookSvc.retryDelivery).toHaveBeenCalledWith("d1");
   });
 
   it("POST /webhooks/:id/toggle — 启用/禁用", async () => {

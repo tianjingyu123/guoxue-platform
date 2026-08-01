@@ -166,8 +166,8 @@
       </view>
     </view>
     <!-- 编辑笔记 -->
-    <view v-if="editing" class="nt-edit-mask" @tap="editing = false">
-      <view class="nt-edit-sheet" @tap.stop>
+    <view v-if="editing" class="nt-edit-mask" @tap="editing = false" @touchmove.self.prevent>
+      <view class="nt-edit-sheet" @tap.stop @touchmove.stop>
         <text class="nt-edit-title">编辑笔记</text>
         <textarea v-model="editText" class="nt-edit-area" :maxlength="2000" />
         <view class="nt-edit-save" :class="{ 'nt-edit-disabled': !editText.trim() || editSubmitting }" @tap="saveEdit">
@@ -182,6 +182,7 @@
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, type NoteItem } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
@@ -195,6 +196,7 @@ const loading = ref(true)
 const error = ref('')
 const isGuest = ref(false)
 const editing = ref(false)
+useOverlayScrollLock(() => editing.value)
 const editId = ref('')
 const editText = ref('')
 const editSubmitting = ref(false)

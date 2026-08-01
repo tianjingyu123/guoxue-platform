@@ -371,9 +371,9 @@ onMounted(() => {
 
 /* ── 顶部导航（深底白字）── */
 .nav { display: flex; align-items: center; justify-content: space-between; padding: 32rpx 40rpx; }
-.nav-back { width: 72rpx; height: 72rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
+.nav-back { width: 88rpx; height: 88rpx; border-radius: 999rpx; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; }
 .nav-title { color: rgba(255,255,255,0.85); font-size: 32rpx; font-weight: 600; letter-spacing: 4rpx; }
-.nav-right { width: 72rpx; }
+.nav-right { width: 88rpx; }
 
 /* ── 舞台 ── */
 .stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24rpx 72rpx 48rpx; gap: 56rpx; }

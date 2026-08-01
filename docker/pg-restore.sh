@@ -1,16 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # 国学平台 PostgreSQL 恢复脚本
-# 用法: ./pg-restore.sh <备份文件路径>
-# 示例: ./pg-restore.sh ./backups/guoxue_20260509_030000.sql.gz
+# 用法: bash pg-restore.sh <备份文件路径>
+# 仅用于本机 guoxue-postgres 容器；托管数据库请使用 scripts/migration/restore-postgres.sh。
 
-set -e
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONTAINER_NAME="${CONTAINER_NAME:-guoxue-postgres}"
 DB_USER="${DB_USER:-guoxue}"
 DB_NAME="${DB_NAME:-guoxue}"
 
-BACKUP_FILE="$1"
+BACKUP_FILE="${1:-}"
 
 if [ -z "$BACKUP_FILE" ]; then
   echo "用法: $0 <备份文件路径>"
@@ -19,36 +19,76 @@ if [ -z "$BACKUP_FILE" ]; then
   exit 1
 fi
 
-if [ ! -f "$BACKUP_FILE" ]; then
+if [[ ! -f "$BACKUP_FILE" ]]; then
   echo "错误: 备份文件不存在: $BACKUP_FILE"
   exit 1
 fi
 
-echo "警告: 此操作将覆盖当前数据库 '$DB_NAME' 的所有数据!"
-echo "备份文件: $BACKUP_FILE"
-echo "目标容器: $CONTAINER_NAME"
-read -p "确认执行恢复? (输入 yes 继续): " CONFIRM
+command -v docker >/dev/null || {
+  echo "缺少命令：docker" >&2
+  exit 1
+}
+command -v sha256sum >/dev/null || {
+  echo "缺少命令：sha256sum" >&2
+  exit 1
+}
+docker inspect "$CONTAINER_NAME" >/dev/null 2>&1 || {
+  echo "目标 PostgreSQL 容器不可用：$CONTAINER_NAME" >&2
+  exit 1
+}
 
-if [ "$CONFIRM" != "yes" ]; then
-  echo "已取消"
-  exit 0
+CHECKSUM_FILE="${BACKUP_FILE}.sha256"
+[[ -f "$CHECKSUM_FILE" ]] || {
+  echo "缺少校验文件：$CHECKSUM_FILE" >&2
+  exit 1
+}
+(
+  cd "$(dirname "$BACKUP_FILE")"
+  sha256sum --check "$(basename "$CHECKSUM_FILE")"
+)
+docker exec -i "$CONTAINER_NAME" pg_restore --list <"$BACKUP_FILE" >/dev/null
+
+confirm="${RESTORE_CONFIRM:-}"
+if [[ -z "$confirm" ]]; then
+  echo "警告：此操作将删除并重建本机容器数据库 '$DB_NAME'。"
+  echo "备份文件：$BACKUP_FILE"
+  read -r -p "请输入目标数据库名 '$DB_NAME' 继续：" confirm
+fi
+if [[ "$confirm" != "$DB_NAME" ]]; then
+  echo "确认值与目标数据库名不一致，拒绝恢复" >&2
+  exit 64
 fi
 
 echo "[$(date '+%Y-%m-%d %H:%M:%S')] 开始恢复..."
 
-# 如果是 .gz 文件需要解压
-if [[ "$BACKUP_FILE" == *.gz ]]; then
-  gunzip -c "$BACKUP_FILE" | docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -d "$DB_NAME"
-else
-  docker exec -i "$CONTAINER_NAME" psql -U "$DB_USER" -d "$DB_NAME" < "$BACKUP_FILE"
+# 销毁前再留一份当前库快照；若当前库已经不可备份，可显式设置
+# SKIP_PRE_RESTORE_BACKUP=YES，但必须由操作者承担该风险。
+if [[ "${SKIP_PRE_RESTORE_BACKUP:-NO}" != "YES" ]]; then
+  BACKUP_DIR="${PRE_RESTORE_BACKUP_DIR:-$SCRIPT_DIR/backups/pre-restore}" \
+    DATABASE_URL="" \
+    ENV_FILE=/dev/null \
+    bash "$SCRIPT_DIR/pg-backup.sh" 30
 fi
 
-echo "[$(date '+%Y-%m-%d %H:%M:%S')] 恢复完成"
+docker exec "$CONTAINER_NAME" psql -U "$DB_USER" -d postgres -v ON_ERROR_STOP=1 -c \
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB_NAME' AND pid <> pg_backend_pid();" \
+  >/dev/null
+docker exec "$CONTAINER_NAME" dropdb -U "$DB_USER" --if-exists "$DB_NAME"
+docker exec "$CONTAINER_NAME" createdb -U "$DB_USER" "$DB_NAME"
+docker exec -i "$CONTAINER_NAME" pg_restore \
+  -U "$DB_USER" \
+  -d "$DB_NAME" \
+  --exit-on-error \
+  --no-owner \
+  --no-privileges \
+  <"$BACKUP_FILE"
 
-# 迁移回滚说明:
-# Prisma 迁移回滚步骤:
-# 1. 查看迁移状态: npx prisma migrate status
-# 2. 回滚到指定迁移: npx prisma migrate resolve --rolled-back <migration_name>
-#    或者手动执行 SQL: psql -U guoxue -d guoxue -c "DELETE FROM _prisma_migrations WHERE migration_name='xxx';"
-# 3. 重新部署目标版本
-# 4. 注意: Prisma migrate 不直接支持 rollback，通常做法是新建正向迁移来撤销变更
+table_count="$(docker exec "$CONTAINER_NAME" psql -U "$DB_USER" -d "$DB_NAME" -X -Atqc \
+  "select count(*) from pg_tables where schemaname='public'")"
+if [[ "$table_count" == "0" ]]; then
+  echo "恢复后 public schema 没有业务表，恢复失败" >&2
+  exit 1
+fi
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] 恢复完成（public 表：$table_count）。"
+echo "下一步：执行 prisma migrate deploy、verify-postgres.sh 和应用冒烟检查；本脚本不会擅自修改迁移账本。"

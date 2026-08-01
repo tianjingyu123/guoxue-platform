@@ -42,7 +42,7 @@
     <el-tabs
       v-model="activeTab"
     >
-      <!-- 配置管理 -->
+      <!-- 配置统一在系统第三方配置维护，避免两个入口互相覆盖密钥 -->
       <el-tab-pane
         label="支付配置"
         name="config"
@@ -64,80 +64,19 @@
         </el-result>
         <template v-else>
           <el-alert
-            v-if="paymentEnabled && configList.length === 0"
             type="info"
             :closable="false"
             show-icon
-            title="当前商户号/密钥来自服务器环境变量"
-            description="后台配置表为空，但支付仍可用（读取服务器 .env）。在此新增配置后将优先生效于环境变量。"
+            title="汇付凭据已统一到“系统 → 第三方配置 → 汇付天下”维护"
+            description="统一配置页会加密保存私钥和平台公钥、自动给出当前环境回调地址，并提供真实商户信息连通测试。这里仅保留支付、分账、退款和对账操作，避免从旧入口误覆盖脱敏密钥。"
             style="margin-bottom:12px"
           />
-          <el-table
-            v-loading="loading"
-            :data="configList"
-            stripe
-            size="small"
+          <el-button
+            type="primary"
+            @click="router.push('/system/third-party')"
           >
-            <template #empty>
-              <el-empty
-                description="后台暂无支付配置（可能使用服务器环境变量）"
-                :image-size="80"
-              />
-            </template>
-            <el-table-column
-              label="配置项"
-              prop="key"
-              width="220"
-            />
-            <el-table-column
-              label="值"
-              prop="value"
-            >
-              <template #default="{ row }">
-                <template v-if="editingKey === row.key">
-                  <el-input
-                    v-model="editValue"
-                    size="small"
-                    style="width:300px"
-                  />
-                  <el-button
-                    size="small"
-                    type="primary"
-                    style="margin-left:8px"
-                    :loading="configSaving"
-                    @click="saveConfig(row)"
-                  >
-                    保存
-                  </el-button>
-                  <el-button
-                    size="small"
-                    @click="editingKey = ''"
-                  >
-                    取消
-                  </el-button>
-                </template>
-                <span v-else>{{ maskValue(row) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column
-              label="说明"
-              prop="description"
-              min-width="200"
-            />
-            <el-table-column
-              label="操作"
-              width="100"
-            >
-              <template #default="{ row }">
-                <el-button
-                  size="small"
-                  @click="startEdit(row)"
-                >
-                  编辑
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+            前往统一第三方配置
+          </el-button>
         </template>
       </el-tab-pane>
 
@@ -394,20 +333,10 @@ const paymentEnabled = ref(false);
 const loading = ref(false);
 const loadError = ref(false);
 
-// 支付配置项（按列配置与模板访问字段定义的宽松本地类型）
-interface ConfigRow { key: string; value: string; description?: string }
-
-const configList = ref<ConfigRow[]>([]);
-const editingKey = ref("");
-const editValue = ref("");
-const configSaving = ref(false);
-
 const statusText = computed(() => (paymentEnabled.value ? "支付已启用" : "支付未启用"));
 const statusTip = computed(() => {
   if (!paymentEnabled.value) return "请检查商户号、产品号、商户私钥和汇付平台公钥；平台公钥不能填写成商户公钥";
-  return configList.value.length === 0
-    ? "已启用：商户号与私钥来自服务器环境变量（后台配置表为空）"
-    : "已启用：商户号与私钥已配置";
+  return "已启用：商户号、产品号和RSA密钥方向检查通过";
 });
 
 // 商户余额：queryBalance 返回汇付渠道原始报文，字段解析不保证可靠 → 解析失败诚实显示 "—"
@@ -435,14 +364,6 @@ const refundVisible = ref(false);
 const refundSubmitting = ref(false);
 const refundForm = reactive({ outTradeNo: "", amount: "", reason: "" });
 
-function maskValue(row: ConfigRow) {
-  const v = row.value || "";
-  if (row.key?.toLowerCase().includes("secret") || row.key?.toLowerCase().includes("key")) {
-    return v.slice(0, 4) + "****" + v.slice(-4);
-  }
-  return v;
-}
-
 function splitStatusLabel(s?: string) {
   const m: Record<string, string> = {
     SUCCESS: "分账成功", PROCESSING: "处理中", PENDING: "待处理", FAIL: "失败", FAILED: "失败", INIT: "未发起",
@@ -460,32 +381,13 @@ async function refreshAll() {
   loading.value = true;
   loadError.value = false;
   try {
-    const [statusRes, configRes, balanceRes] = await Promise.all([
+    const [statusRes, balanceRes] = await Promise.all([
       huifuApi.getStatus(),
-      huifuApi.getConfigs(),
       huifuApi.getBalance().catch(() => ({ data: null })),
     ]);
     paymentEnabled.value = !!(statusRes.data as any)?.enabled;
-    const cfg = configRes.data as any;
-    configList.value = cfg?.configs ?? (Array.isArray(cfg) ? cfg : []);
     balanceRaw.value = (balanceRes.data as Record<string, any> | null) ?? null;
   } catch { loadError.value = true; } finally { loading.value = false; }
-}
-
-function startEdit(row: ConfigRow) {
-  editingKey.value = row.key;
-  editValue.value = row.value;
-}
-
-async function saveConfig(row: ConfigRow) {
-  if (configSaving.value) return;
-  configSaving.value = true;
-  try {
-    await huifuApi.updateConfig({ key: row.key, value: editValue.value, description: row.description });
-    ElMessage.success("配置已更新");
-    editingKey.value = "";
-    refreshAll();
-  } catch { /* 拦截器已提示 */ } finally { configSaving.value = false; }
 }
 
 async function querySplitResult() {

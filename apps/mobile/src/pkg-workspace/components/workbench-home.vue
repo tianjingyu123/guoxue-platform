@@ -8,6 +8,7 @@
  */
 import { ref, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import PaperCard from '@/components/paipan/paper-card.vue'
 import SectionTitle from '@/components/paipan/section-title.vue'
@@ -41,6 +42,7 @@ const saving = ref(false)
 
 /* 预约详情弹层 */
 const detail = ref<Appointment | null>(null)
+useOverlayScrollLock(() => addOpen.value || Boolean(detail.value))
 
 const SERVICES = ['八字精批', '流年运势', '八字合婚', '开业择日', '阳宅风水', '六爻问事', '宝宝起名']
 const CHANNELS = ['到店', '线上语音', '线上视频', '线上文字', '上门堪舆']
@@ -271,8 +273,8 @@ async function finishAppt(a: Appointment) {
     </view>
 
     <!-- 预约详情 -->
-    <view v-if="detail" class="wh-mask" @tap="detail = null">
-      <view class="wh-sheet" @tap.stop>
+    <view v-if="detail" class="wh-mask" @tap="detail = null" @touchmove.self.prevent>
+      <view class="wh-sheet" @tap.stop @touchmove.stop>
         <text class="wh-sheet-title">预约详情</text>
         <view class="wh-detail-head">
           <view>
@@ -303,8 +305,8 @@ async function finishAppt(a: Appointment) {
     </view>
 
     <!-- 新增预约 -->
-    <view v-if="addOpen" class="wh-mask" @tap="addOpen = false">
-      <view class="wh-sheet" @tap.stop>
+    <view v-if="addOpen" class="wh-mask" @tap="addOpen = false" @touchmove.self.prevent>
+      <view class="wh-sheet" @tap.stop @touchmove.stop>
         <text class="wh-sheet-title">新增预约</text>
 
         <text class="wh-field-label">客户</text>

@@ -116,7 +116,13 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 视觉卡：课程/商品/直播/视频/电子书 ============ -->
   <view v-else-if="item && isVisual" class="card card-press" :class="{ 'live-card-glow': isLiveNow }" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <smart-cover :src="item.cover" :title="item.title" :type="cardType" class="cover-img" />
+      <smart-cover
+        :src="item.cover"
+        :video-url="cardType === 'video' ? item.videoUrl : ''"
+        :title="item.title"
+        :type="cardType"
+        class="cover-img"
+      />
       <view v-if="isLiveNow" class="live-scan" />
       <live-status-badge v-if="isLiveNow" />
       <!-- 直播预约时间 -->

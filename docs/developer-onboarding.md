@@ -273,8 +273,11 @@ pnpm --filter @guoxue-server exec npx prisma migrate dev --name "描述变更内
 # 仅重新生成 Prisma Client（不改迁移）
 pnpm db:generate
 
-# 在 Staging/Production 执行迁移
-npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
+# 在 Staging/Production 执行迁移（固定包通过生产镜像执行，不使用宿主机 npx）
+TARGET_DATABASE_URL='由受控凭据注入' \
+TARGET_RELEASE_ID='<固定发布标识>' \
+MIGRATION_DEPLOY_CONFIRM='migrate:<固定发布标识>' \
+bash scripts/migration/run-prisma-migrations.sh deploy
 
 # 打开 Prisma Studio（可视化数据库）
 pnpm --filter @guoxue-server exec npx prisma studio

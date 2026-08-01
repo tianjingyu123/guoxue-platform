@@ -1,6 +1,6 @@
 #!/bin/bash
 # 国学平台 — 部署后健康检查验证脚本
-# 用法: ./health-check.sh [--verbose]
+# 用法: bash health-check.sh [--verbose]
 # 退出码: 0=全部通过, 1=存在失败项
 set -euo pipefail
 
@@ -48,6 +48,7 @@ echo ""
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_FILE="${ENV_FILE:-$SCRIPT_DIR/.env.production}"
+DEPLOY_TARGET="${DEPLOY_TARGET:-}"
 if [ -z "${BASE_URL:-}" ] && [ -f "$ENV_FILE" ]; then
   BASE_URL=$(sed -n 's/^PUBLIC_API_URL=//p' "$ENV_FILE" | tail -1 | tr -d '\r')
 fi
@@ -83,9 +84,14 @@ for svc in db redis deepseek tencentCloud sms cos wechatPay wechatOpen liveStrea
     SVC_STATUS=$(echo "$SVCS" | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
     case "$SVC_STATUS" in
       ok)         check_ok "$svc" "$SVC_STATUS" ;;
-      degraded)   check_ok "$svc" "$SVC_STATUS" ;;
-      unconfigured) check_ok "$svc" "$SVC_STATUS" ;;
-      fail)       check_ok "$svc" "$SVC_STATUS" ;;
+      degraded|unconfigured)
+        echo -e "  ${YELLOW}⚠${NC} $svc: $SVC_STATUS"
+        WARN=$((WARN + 1))
+        ;;
+      fail)
+        echo -e "  ${RED}✗${NC} $svc: $SVC_STATUS"
+        FAIL=$((FAIL + 1))
+        ;;
       *)          echo -e "  ${YELLOW}?${NC} $svc: $SVC_STATUS" ;;
     esac
   fi
@@ -99,6 +105,12 @@ echo "── 3. Docker 容器状态 ──"
 cd "$SCRIPT_DIR"
 
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml)
+if [ "$DEPLOY_TARGET" = "tencent" ]; then
+  COMPOSE+=( -f docker-compose.tencent.yml )
+elif [ "$DEPLOY_TARGET" != "standard" ]; then
+  echo -e "  ${RED}✗${NC} 未知部署架构: $DEPLOY_TARGET"
+  exit 64
+fi
 if [ -f "$ENV_FILE" ]; then
   COMPOSE+=(--env-file "$ENV_FILE")
 fi
@@ -139,12 +151,17 @@ check_port() {
 }
 
 check_port 80   "Nginx HTTP"
-if curl -skf -o /dev/null --max-time 3 "https://localhost" 2>/dev/null; then
-  echo -e "  ${GREEN}✓${NC} 端口 443 — Nginx HTTPS"
+if [ "$DEPLOY_TARGET" = "tencent" ]; then
+  echo -e "  ${GREEN}✓${NC} 端口 443 — 由腾讯云 CLB 终止 TLS，本机无需监听"
   PASS=$((PASS + 1))
 else
-  echo -e "  ${YELLOW}⚠${NC} 端口 443 — Nginx HTTPS (无响应)"
-  WARN=$((WARN + 1))
+  if curl -skf -o /dev/null --max-time 3 "https://localhost" 2>/dev/null; then
+    echo -e "  ${GREEN}✓${NC} 端口 443 — Nginx HTTPS"
+    PASS=$((PASS + 1))
+  else
+    echo -e "  ${YELLOW}⚠${NC} 端口 443 — Nginx HTTPS (无响应)"
+    WARN=$((WARN + 1))
+  fi
 fi
 
 echo ""
@@ -152,7 +169,10 @@ echo ""
 # ═══════════════ 5. 定时任务 ─═ ═════════════
 echo "── 5. 定时任务 ──"
 
-if crontab -l 2>/dev/null | grep -q "pg-backup"; then
+if [ "$DEPLOY_TARGET" = "tencent" ]; then
+  echo -e "  ${GREEN}✓${NC} 数据库备份 — 使用腾讯云托管数据库自动备份"
+  PASS=$((PASS + 1))
+elif crontab -l 2>/dev/null | grep -q "pg-backup"; then
   echo -e "  ${GREEN}✓${NC} 数据库备份定时任务已配置"
   PASS=$((PASS + 1))
 else

@@ -20,7 +20,14 @@
             <text class="shop-st">{{ statusInfo.text }}</text>
           </view>
         </view>
-        <view class="bell" @tap="go('/pkg-merchant/notices/index')">
+        <view
+          class="bell"
+          role="link"
+          tabindex="0"
+          :aria-label="hasNotice ? '打开商家消息中心，有未读消息' : '打开商家消息中心'"
+          @tap="go('/pkg-merchant/notices/index')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-merchant/notices/index'))"
+        >
           <AppIcon name="bell" :size="44" color="#ffffff" :stroke-width="1.8" />
           <view v-if="hasNotice" class="bell-rd" />
         </view>
@@ -28,26 +35,48 @@
     </view>
 
     <!-- 全局加载态 -->
-    <view v-if="loading" class="state">
+    <view v-if="loading" class="state" role="status" aria-live="polite">
       <text class="state-t">加载中…</text>
     </view>
     <!-- 全局错误态 -->
-    <view v-else-if="error" class="state">
+    <view v-else-if="error" class="state" role="alert" aria-live="assertive">
       <AppIcon name="alert-circle" :size="80" color="#c41e3a" />
       <text class="state-t">{{ error }}</text>
-      <view class="state-btn" @tap="load"><text>重试</text></view>
+      <view
+        class="state-btn"
+        role="button"
+        tabindex="0"
+        aria-label="重新加载商家经营后台"
+        @tap="load"
+        @keydown="activateOnKeyboard($event, load)"
+      ><text>重试</text></view>
     </view>
 
-    <scroll-view v-else scroll-y class="scroll">
+    <scroll-view v-else scroll-y class="scroll" role="main" aria-label="商家经营后台">
       <!-- 信用分金色卡（叠品牌头下缘·独立三态不阻塞主数据） -->
-      <view class="credit" @tap="creditPopupOpen = credit && credit.logs.length ? true : creditPopupOpen">
+      <view
+        class="credit"
+        :role="credit && credit.logs.length ? 'button' : undefined"
+        :tabindex="credit && credit.logs.length ? 0 : -1"
+        :aria-label="credit && credit.logs.length ? `店铺信用分${credit.creditScore}，${gradeUi.label}，查看信用变动明细` : '店铺信用分'"
+        @tap="creditPopupOpen = credit && credit.logs.length ? true : creditPopupOpen"
+        @keydown="activateOnKeyboard($event, openCreditDetails)"
+      >
         <template v-if="creditLoading">
           <view><text class="credit-l">店铺信用分</text><text class="credit-v">…</text></view>
           <view class="credit-g"><text class="credit-g-txt">加载中</text></view>
         </template>
         <template v-else-if="creditError">
           <view><text class="credit-l">店铺信用分</text><text class="credit-v">—</text></view>
-          <view class="credit-g" @tap.stop="loadCredit"><text class="credit-g-txt">重试</text></view>
+          <view
+            class="credit-g"
+            role="button"
+            tabindex="0"
+            aria-label="重新加载店铺信用数据"
+            @tap.stop="loadCredit"
+            @keydown.enter.stop="loadCredit"
+            @keydown.space.stop.prevent="loadCredit"
+          ><text class="credit-g-txt">重试</text></view>
         </template>
         <template v-else-if="credit">
           <view>
@@ -63,26 +92,42 @@
       <!-- 数据概览 -->
       <view class="sect-t"><text class="sect-t-txt">数据概览</text></view>
       <view v-if="dashboard" class="card metrics">
-        <view class="m-head">
-          <view class="m-tab" :class="{ on: tab === 'today' }" @tap="tab = 'today'"><text class="m-tab-txt">今日</text></view>
-          <view class="m-tab" :class="{ on: tab === 'month' }" @tap="tab = 'month'"><text class="m-tab-txt">本月</text></view>
+        <view class="m-head" role="tablist" aria-label="经营数据周期">
+          <view
+            class="m-tab"
+            :class="{ on: tab === 'today' }"
+            role="tab"
+            :tabindex="tab === 'today' ? 0 : -1"
+            :aria-selected="tab === 'today'"
+            @tap="tab = 'today'"
+            @keydown="onMetricTabKeydown($event, 'today')"
+          ><text class="m-tab-txt">今日</text></view>
+          <view
+            class="m-tab"
+            :class="{ on: tab === 'month' }"
+            role="tab"
+            :tabindex="tab === 'month' ? 0 : -1"
+            :aria-selected="tab === 'month'"
+            @tap="tab = 'month'"
+            @keydown="onMetricTabKeydown($event, 'month')"
+          ><text class="m-tab-txt">本月</text></view>
         </view>
 
         <!-- 今日：dashboard 真实字段 -->
         <view v-if="tab === 'today'" class="m-row">
-          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openRevenue">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`今日成交额${money(dashboard.todaySales)}元，查看结算收入`" hover-class="tap-soft" @tap="openRevenue" @keydown="activateOnKeyboard($event, openRevenue)">
             <text class="mv red">¥{{ money(dashboard.todaySales) }}</text>
             <text class="ml">今日成交额 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openTodayOrders">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`今日订单${dashboard.todayOrders}单，查看订单`" hover-class="tap-soft" @tap="openTodayOrders" @keydown="activateOnKeyboard($event, openTodayOrders)">
             <text class="mv">{{ dashboard.todayOrders }}</text>
             <text class="ml">今日订单 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openOnSaleProducts">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`在售商品${dashboard.totalProducts}件，查看商品管理`" hover-class="tap-soft" @tap="openOnSaleProducts" @keydown="activateOnKeyboard($event, openOnSaleProducts)">
             <text class="mv">{{ dashboard.totalProducts }}</text>
             <text class="ml">在售商品 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openReviews">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`店铺评分${Number(dashboard.rating || 0).toFixed(1)}，查看评价管理`" hover-class="tap-soft" @tap="openReviews" @keydown="activateOnKeyboard($event, openReviews)">
             <text class="mv">{{ Number(dashboard.rating || 0).toFixed(1) }}</text>
             <text class="ml">店铺评分 <text class="m-arrow">›</text></text>
           </view>
@@ -90,19 +135,19 @@
 
         <!-- 本月：累计 + 近7日汇总（metrics.summary 真实字段·取不到诚实降级） -->
         <view v-else class="m-row">
-          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openRevenue">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`累计成交额${money(dashboard.totalSales)}元，查看结算收入`" hover-class="tap-soft" @tap="openRevenue" @keydown="activateOnKeyboard($event, openRevenue)">
             <text class="mv red">¥{{ money(dashboard.totalSales) }}</text>
             <text class="ml">累计成交额 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openAllOrders">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`累计订单${dashboard.totalOrders}单，查看全部订单`" hover-class="tap-soft" @tap="openAllOrders" @keydown="activateOnKeyboard($event, openAllOrders)">
             <text class="mv">{{ dashboard.totalOrders }}</text>
             <text class="ml">累计订单 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openRecentOrders">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`近7日订单${metrics ? metrics.summary.ordersCount : '数据加载中'}，查看订单`" hover-class="tap-soft" @tap="openRecentOrders" @keydown="activateOnKeyboard($event, openRecentOrders)">
             <text class="mv">{{ metrics ? metrics.summary.ordersCount : '—' }}</text>
             <text class="ml">近7日订单 <text class="m-arrow">›</text></text>
           </view>
-          <view class="m-cell m-cell-link" hover-class="tap-soft" @tap="openReviews">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" aria-label="查看近7日店铺评分与评价" hover-class="tap-soft" @tap="openReviews" @keydown="activateOnKeyboard($event, openReviews)">
             <text class="mv">{{ metrics && metrics.summary.avgRating !== null ? Number(metrics.summary.avgRating).toFixed(1) : '—' }}</text>
             <text class="ml">近7日评分 <text class="m-arrow">›</text></text>
           </view>
@@ -115,12 +160,12 @@
             <text class="tl-r">本周合计 <text class="tl-b">{{ trend.total }}</text> 单</text>
           </view>
 
-          <view v-if="metricsLoading" class="trend-state"><text class="trend-state-t">加载中…</text></view>
-          <view v-else-if="metricsError" class="trend-state">
+          <view v-if="metricsLoading" class="trend-state" role="status" aria-live="polite"><text class="trend-state-t">加载中…</text></view>
+          <view v-else-if="metricsError" class="trend-state" role="alert">
             <text class="trend-state-t">{{ metricsError }}</text>
-            <view class="trend-retry" @tap="loadMetrics"><text>重试</text></view>
+            <view class="trend-retry" role="button" tabindex="0" aria-label="重新加载近7日订单趋势" @tap="loadMetrics" @keydown="activateOnKeyboard($event, loadMetrics)"><text>重试</text></view>
           </view>
-          <view v-else-if="!trend.bars.length" class="trend-state">
+          <view v-else-if="!trend.bars.length" class="trend-state" role="status">
             <text class="trend-state-t">暂无趋势数据，指标每日凌晨聚合生成</text>
           </view>
           <view v-else class="chart">
@@ -134,10 +179,14 @@
                 <view
                   v-for="(b, i) in trend.bars"
                   :key="b.date"
-                  class="bcol"
-                  :class="{ hot: i === trend.bars.length - 1 }"
-                  hover-class="tap-soft"
-                  @tap="openOrdersForDay(b.date)"
+                   class="bcol"
+                   :class="{ hot: i === trend.bars.length - 1 }"
+                   role="link"
+                   tabindex="0"
+                   :aria-label="`${b.date}，${b.value}单，查看当日订单`"
+                   hover-class="tap-soft"
+                   @tap="openOrdersForDay(b.date)"
+                   @keydown="activateOnKeyboard($event, () => openOrdersForDay(b.date))"
                 >
                   <text class="bval">{{ b.value }}</text>
                   <view class="bar" :style="{ height: b.pct + '%' }" />
@@ -154,17 +203,17 @@
       <!-- 待办事项 -->
       <view class="sect-t"><text class="sect-t-txt">待办事项</text></view>
       <view class="todo">
-        <view class="tcard" @tap="go('/pkg-merchant/orders/index')">
+        <view class="tcard" role="link" tabindex="0" :aria-label="`${pendingShip}笔待发货订单，进入处理`" @tap="go('/pkg-merchant/orders/index')" @keydown="activateOnKeyboard($event, () => go('/pkg-merchant/orders/index'))">
           <view v-if="pendingShip > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingShip) }}</text></view>
           <text class="tn">{{ pendingShip }}</text>
           <text class="tt">待发货</text>
         </view>
-        <view class="tcard" @tap="go('/pkg-merchant/after-sales/index')">
+        <view class="tcard" role="link" tabindex="0" :aria-label="`${pendingAfterSale}笔待处理售后，进入处理`" @tap="go('/pkg-merchant/after-sales/index')" @keydown="activateOnKeyboard($event, () => go('/pkg-merchant/after-sales/index'))">
           <view v-if="pendingAfterSale > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingAfterSale) }}</text></view>
           <text class="tn">{{ pendingAfterSale }}</text>
           <text class="tt">待处理售后</text>
         </view>
-        <view class="tcard" @tap="go('/pkg-merchant/reviews/index')">
+        <view class="tcard" role="link" tabindex="0" :aria-label="`${pendingReviews}条待回复评价，进入处理`" @tap="go('/pkg-merchant/reviews/index')" @keydown="activateOnKeyboard($event, () => go('/pkg-merchant/reviews/index'))">
           <view v-if="pendingReviews > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingReviews) }}</text></view>
           <text class="tn">{{ pendingReviews }}</text>
           <text class="tt">待回复评价</text>
@@ -174,7 +223,16 @@
       <!-- 快捷入口 -->
       <view class="sect-t"><text class="sect-t-txt">快捷入口</text></view>
       <view class="quick">
-        <view v-for="q in quickItems" :key="q.label" class="qi" @tap="go(q.path)">
+        <view
+          v-for="q in quickItems"
+          :key="q.label"
+          class="qi"
+          role="link"
+          tabindex="0"
+          :aria-label="`打开${q.label}`"
+          @tap="go(q.path)"
+          @keydown="activateOnKeyboard($event, () => go(q.path))"
+        >
           <view class="qc">
             <AppIcon :name="q.icon" :size="40" color="#c41e3a" :stroke-width="2" />
           </view>
@@ -186,11 +244,18 @@
     </scroll-view>
 
     <!-- 信用变动明细弹层 -->
-    <view v-if="creditPopupOpen" class="pop-mask" @tap="creditPopupOpen = false">
-      <view class="pop" @tap.stop>
+    <view v-if="creditPopupOpen" class="pop-mask" role="presentation" @tap="creditPopupOpen = false" @touchmove.self.prevent>
+      <view class="pop credit-pop" role="dialog" aria-modal="true" aria-label="信用变动明细" @tap.stop @touchmove.stop>
         <view class="pop-head">
           <text class="pop-title">信用变动明细</text>
-          <view class="pop-close" @tap="creditPopupOpen = false">
+          <view
+            class="pop-close"
+            role="button"
+            tabindex="0"
+            aria-label="关闭信用变动明细"
+            @tap="creditPopupOpen = false"
+            @keydown="activateOnKeyboard($event, () => { creditPopupOpen = false })"
+          >
             <AppIcon name="x" :size="40" color="#6e6e73" />
           </view>
         </view>
@@ -218,6 +283,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import {
   merchantBackendApi,
   type MerchantDashboard,
@@ -254,6 +320,12 @@ const creditLoading = ref(true)
 const creditError = ref('')
 const credit = ref<MerchantCreditResp | null>(null)
 const creditPopupOpen = ref(false)
+
+useOverlayScrollLock(() => creditPopupOpen.value, {
+  onEscape: () => { creditPopupOpen.value = false },
+  focusContainerSelector: '.credit-pop',
+  initialFocusSelector: '.pop-close',
+})
 const gradeUi = computed(() => creditGradeConfig[credit.value?.creditGrade ?? 'B'] ?? creditGradeConfig.B)
 
 // 快捷入口：B2 商品 / B4 订单 / B5 结算 / B6 评价 / B7 店铺 / B8 操作员 / B9 消息
@@ -280,6 +352,27 @@ const statusTextMap: Record<MerchantStatus, string> = {
   AGREEMENT_PENDING: '待签协议',
 }
 const statusInfo = computed(() => ({ text: statusTextMap[profile.value?.status ?? 'ACTIVE'] ?? '官方认证' }))
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<unknown>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+function onMetricTabKeydown(event: KeyboardEvent, target: 'today' | 'month') {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    tab.value = target
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  tab.value = tab.value === 'today' ? 'month' : 'today'
+}
+
+function openCreditDetails() {
+  if (credit.value?.logs.length) creditPopupOpen.value = true
+}
 
 // 近7日订单趋势：由 metrics.items 归一化为柱图（真实数据·无金额字段故取 ordersCount）
 const trend = computed(() => {

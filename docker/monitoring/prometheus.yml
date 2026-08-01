@@ -3,9 +3,9 @@
 # ═══════════════════════════════════════════════════════════════
 
 global:
-  scrape_interval: 15s        # 默认采集间隔
-  scrape_timeout: 10s         # 采集超时
-  evaluation_interval: 15s    # 告警规则评估间隔
+  scrape_interval: 15s # 默认采集间隔
+  scrape_timeout: 10s # 采集超时
+  evaluation_interval: 15s # 告警规则评估间隔
 
 # 告警规则文件
 rule_files:
@@ -20,13 +20,12 @@ alerting:
 
 # 采集目标
 scrape_configs:
-
   # ───── 1. 国学平台应用（NestJS metrics 端点） ─────
   - job_name: "guoxue-server"
-    metrics_path: "/metrics"
+    metrics_path: "/api/v1/metrics"
     static_configs:
       - targets:
-          - "host.docker.internal:3000"
+          - "guoxue-server:3000"
         labels:
           service: "guoxue-server"
           env: "production"
@@ -62,12 +61,32 @@ scrape_configs:
           service: "redis"
           env: "production"
 
-  # ───── 5. Blackbox Exporter（第三方服务拨测） ─────
-  # 需要单独部署 blackbox_exporter
-  - job_name: "blackbox-external"
+  # ───── 5. 平台真实入口拨测（API、H5、管理后台） ─────
+  - job_name: "blackbox-platform"
     metrics_path: "/probe"
     params:
       module: ["http_2xx"]
+    static_configs:
+      - targets:
+          - "http://guoxue-nginx/api/v1/health/ready"
+          - "http://guoxue-nginx/h5/"
+          - "http://guoxue-nginx/admin/"
+        labels:
+          category: "platform"
+          env: "production"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"
+
+  # ───── 6. 第三方服务网络、DNS 与 TLS 可达性拨测 ─────
+  - job_name: "blackbox-external"
+    metrics_path: "/probe"
+    params:
+      module: ["http_reachable"]
     static_configs:
       - targets:
           - "https://api.weixin.qq.com"
@@ -76,6 +95,26 @@ scrape_configs:
           - "https://cos.ap-guangzhou.myqcloud.com"
         labels:
           category: "third-party"
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: "blackbox-exporter:9115"
+
+  # ───── 7. 自有公网证书有效期拨测 ─────
+  - job_name: "blackbox-tls"
+    metrics_path: "/probe"
+    params:
+      module: ["http_2xx"]
+    static_configs:
+      - targets:
+          - "https://pre-api.rebugx.cn/api/v1/health/live"
+          - "https://pre-static.rebugx.cn/"
+        labels:
+          category: "certificate"
+          env: "preproduction"
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target

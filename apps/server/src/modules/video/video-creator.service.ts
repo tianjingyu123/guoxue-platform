@@ -13,6 +13,14 @@ export class VideoCreatorService {
     private audit: AuditService,
   ) {}
 
+  /** 兼容旧版 SanitizePipe 把媒体 URL 中的斜杠和 & 写成 HTML 实体的存量数据。 */
+  private static normalizeMediaUrl(url?: string | null): string {
+    return (url ?? "")
+      .replace(/&#x2F;/gi, "/")
+      .replace(/&#47;/g, "/")
+      .replace(/&amp;/gi, "&");
+  }
+
   /** 创作者概览 — 汇总用户视频的播放/互动/带货数据 */
   async getOverview(userId: string) {
     const videos = await this.prisma.video.findMany({
@@ -74,6 +82,7 @@ export class VideoCreatorService {
         id: true,
         title: true,
         coverUrl: true,
+        videoUrl: true,
         viewCount: true,
         likeCount: true,
         commentCount: true,
@@ -88,7 +97,8 @@ export class VideoCreatorService {
     return videos.map((v) => ({
       id: v.id,
       title: v.title,
-      cover: v.coverUrl,
+      cover: VideoCreatorService.normalizeMediaUrl(v.coverUrl),
+      videoUrl: VideoCreatorService.normalizeMediaUrl(v.videoUrl),
       views: v.viewCount,
       likes: v.likeCount,
       comments: v.commentCount,
@@ -533,6 +543,7 @@ export class VideoCreatorService {
           id: true,
           title: true,
           coverUrl: true,
+          videoUrl: true,
           viewCount: true,
           likeCount: true,
           commentCount: true,
@@ -571,7 +582,8 @@ export class VideoCreatorService {
       videos: videos.map((v) => ({
         id: v.id,
         title: v.title ?? "未命名视频",
-        cover: v.coverUrl ?? "",
+        cover: VideoCreatorService.normalizeMediaUrl(v.coverUrl),
+        videoUrl: VideoCreatorService.normalizeMediaUrl(v.videoUrl),
         views: v.viewCount,
         likes: v.likeCount,
         comments: v.commentCount,

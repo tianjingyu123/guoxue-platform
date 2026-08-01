@@ -1,8 +1,15 @@
 <template>
-  <view v-if="loading" class="load-state"><text class="load-state-text">加载中...</text></view>
-  <view v-else-if="error" class="load-state">
+  <view v-if="loading" class="load-state" role="status" aria-live="polite"><text class="load-state-text">加载中...</text></view>
+  <view v-else-if="error" class="load-state" role="alert" aria-live="assertive">
     <text class="load-state-text">{{ error }}</text>
-    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
+    <view
+      class="retry-btn"
+      role="button"
+      tabindex="0"
+      aria-label="重新加载智能体广场"
+      @tap="loadData"
+      @keydown="activateOnKeyboard($event, loadData)"
+    ><text class="retry-text">重试</text></view>
   </view>
   <view v-else class="square">
     <!-- 顶部搜索区（红色，sticky） -->
@@ -10,23 +17,37 @@
       <view class="topbar-inner">
         <view class="tb-row">
           <view class="tb-left">
-            <view class="tb-back" @tap="goBack">
+            <view
+              class="tb-back"
+              role="button"
+              tabindex="0"
+              aria-label="返回上一页"
+              @tap="goBack"
+              @keydown="activateOnKeyboard($event, goBack)"
+            >
               <app-icon name="arrow-left" :size="40" color="#ffffff" />
             </view>
-            <text class="tb-title">智能体广场</text>
+            <text class="tb-title" role="heading" aria-level="1">智能体广场</text>
             <view class="tb-badge">
               <app-icon name="zap" :size="22" color="rgba(255,255,255,0.9)" />
               <text class="tb-badge-txt">{{ hotBots.length + 1 }}个在线</text>
             </view>
           </view>
-          <view class="tb-history" @tap="navigateTo('/agents/history')">
+          <view
+            class="tb-history"
+            role="link"
+            tabindex="0"
+            aria-label="打开智能体对话记录"
+            @tap="navigateTo('/agents/history')"
+            @keydown="activateOnKeyboard($event, () => navigateTo('/agents/history'))"
+          >
             <app-icon name="clock" :size="28" color="rgba(255,255,255,0.8)" />
             <text class="tb-history-txt">对话记录</text>
           </view>
         </view>
 
         <!-- 搜索框 -->
-        <view class="search-box">
+        <view class="search-box" role="search" aria-label="搜索智能体">
           <app-icon name="search" :size="36" color="#999999" />
           <input
             v-model="searchQuery"
@@ -35,19 +56,37 @@
             placeholder="搜索智能体或直接提问..."
             placeholder-class="search-ph"
             :disabled="isListening"
+            aria-label="输入智能体名称或问题"
           />
-          <view v-if="searchQuery" class="search-clear" @tap="searchQuery = ''">
+          <view
+            v-if="searchQuery"
+            class="search-clear"
+            role="button"
+            tabindex="0"
+            aria-label="清空智能体搜索"
+            @tap="searchQuery = ''"
+            @keydown="activateOnKeyboard($event, () => { searchQuery = '' })"
+          >
             <app-icon name="x" :size="28" color="#999999" />
           </view>
           <!-- 语音搜索：仅 H5 端用 Web Speech 真实识别，其余端不支持则隐藏入口 -->
           <template v-if="voiceSupported">
             <view class="search-divider" />
-            <view class="voice-btn" :class="{ listening: isListening }" @tap="handleVoiceSearch">
+            <view
+              class="voice-btn"
+              :class="{ listening: isListening }"
+              role="button"
+              tabindex="0"
+              :aria-label="isListening ? '停止语音搜索' : '开始语音搜索'"
+              :aria-pressed="isListening"
+              @tap="handleVoiceSearch"
+              @keydown="activateOnKeyboard($event, handleVoiceSearch)"
+            >
               <app-icon name="mic" :size="30" :color="isListening ? '#ffffff' : '#666666'" />
             </view>
           </template>
           <!-- 聆听遮罩 -->
-          <view v-if="isListening" class="listening-mask">
+          <view v-if="isListening" class="listening-mask" role="status" aria-live="polite">
             <view class="dot" />
             <view class="dot dot-2" />
             <view class="dot dot-3" />
@@ -58,7 +97,7 @@
     </view>
 
     <!-- 搜索结果模式：命中的智能体平铺 -->
-    <view v-if="searchQuery.trim()" class="section-px section-mt">
+    <view v-if="searchQuery.trim()" class="section-px section-mt" aria-label="智能体搜索结果">
       <view class="sec-head">
         <view class="sec-head-left">
           <app-icon name="search" :size="32" color="#c41e3a" />
@@ -73,14 +112,21 @@
           @select="openBot"
         />
       </view>
-      <view v-else class="empty-block"><text class="empty-txt">没有找到相关智能体，试试直接问智玄助手</text></view>
+      <view v-else class="empty-block" role="status" aria-live="polite"><text class="empty-txt">没有找到相关智能体，试试直接问智玄助手</text></view>
     </view>
 
     <!-- 常规陈列模式 -->
     <template v-else>
       <!-- ① 官方学习向导：承担平台内容导航，不与下方垂直学伴重复 -->
       <view class="section-px zx-wrap">
-        <view class="zx-card" @tap="navigateTo('/agent/main')">
+        <view
+          class="zx-card"
+          role="link"
+          tabindex="0"
+          aria-label="打开智玄国学学习向导，规划内容、学伴和学习路线"
+          @tap="navigateTo('/agent/main')"
+          @keydown="activateOnKeyboard($event, () => navigateTo('/agent/main'))"
+        >
           <view class="guide-visual">
             <view class="guide-grid" />
             <view class="guide-orbit guide-orbit-a" />
@@ -123,14 +169,30 @@
             <app-icon name="history" :size="34" color="#8b7355" />
             <text class="sec-title">最近使用</text>
           </view>
-          <view class="sec-link" @tap="navigateTo('/agents/history')">
+          <view
+            class="sec-link"
+            role="link"
+            tabindex="0"
+            aria-label="查看全部最近使用的智能体"
+            @tap="navigateTo('/agents/history')"
+            @keydown="activateOnKeyboard($event, () => navigateTo('/agents/history'))"
+          >
             <text class="sec-link-txt">全部</text>
             <app-icon name="chevron-right" :size="28" color="#999999" />
           </view>
         </view>
         <scroll-view class="recent-scroll" scroll-x>
           <view class="recent-row">
-            <view v-for="c in recentConvs" :key="c.id" class="recent-card" @tap="resumeConv(c)">
+            <view
+              v-for="c in recentConvs"
+              :key="c.id"
+              class="recent-card"
+              role="link"
+              tabindex="0"
+              :aria-label="`继续与${c.agentName}对话：${recentMessageSummary(c.lastMessage)}`"
+              @tap="resumeConv(c)"
+              @keydown="activateOnKeyboard($event, () => resumeConv(c))"
+            >
               <view class="recent-avatar">
                 <smart-avatar class="recent-avatar-img" :src="c.agentAvatar" :name="c.agentName" />
               </view>
@@ -153,7 +215,14 @@
             <app-icon name="flame" :size="34" color="#ff6b35" />
             <text class="sec-title">热门 TOP{{ topRanking.length }}</text>
           </view>
-          <view class="sec-link rank-link" @tap="navigateTo('/agents/ranking')">
+          <view
+            class="sec-link rank-link"
+            role="link"
+            tabindex="0"
+            aria-label="查看完整智能体热度榜"
+            @tap="navigateTo('/agents/ranking')"
+            @keydown="activateOnKeyboard($event, () => navigateTo('/agents/ranking'))"
+          >
             <app-icon name="crown" :size="26" color="#c9a96e" />
             <text class="rank-txt">完整热度榜</text>
           </view>
@@ -165,7 +234,11 @@
               :key="r.id"
               class="top-card"
               :style="agentThemeStyle(r.categoryKey || r.category)"
+              role="link"
+              tabindex="0"
+              :aria-label="`热度第${i + 1}名，${r.name}，${r.sessions ? `${formatCount(r.sessions)}次对话` : r.category || 'AI学伴'}`"
               @tap="openBot(r.id)"
+              @keydown="activateOnKeyboard($event, () => openBot(r.id))"
             >
               <view class="top-rank" :class="'top-rank-' + i">{{ i + 1 }}</view>
               <view class="top-visual">
@@ -192,13 +265,29 @@
             <app-icon name="message-circle" :size="34" color="#ff6b35" />
             <text class="sec-title">大家都在问</text>
           </view>
-          <view class="sec-link" @tap="navigateTo('/agents/questions')">
+          <view
+            class="sec-link"
+            role="link"
+            tabindex="0"
+            aria-label="查看更多热门问题"
+            @tap="navigateTo('/agents/questions')"
+            @keydown="activateOnKeyboard($event, () => navigateTo('/agents/questions'))"
+          >
             <text class="sec-link-txt">更多</text>
             <app-icon name="chevron-right" :size="28" color="#999999" />
           </view>
         </view>
         <view class="q-list">
-          <view v-for="(q, index) in hotQuestions.slice(0, 3)" :key="q.id" class="q-item" @tap="goAsk(q)">
+          <view
+            v-for="(q, index) in hotQuestions.slice(0, 3)"
+            :key="q.id"
+            class="q-item"
+            role="link"
+            tabindex="0"
+            :aria-label="`向${q.botName}提问：${q.question}`"
+            @tap="goAsk(q)"
+            @keydown="activateOnKeyboard($event, () => goAsk(q))"
+          >
             <view class="q-rank" :class="'q-rank-' + index">{{ index + 1 }}</view>
             <view class="q-body">
               <text class="q-text">{{ q.question }}</text>
@@ -232,13 +321,20 @@
         </view>
       </view>
 
-      <view v-if="!hotBots.length" class="empty-block">
+      <view v-if="!hotBots.length" class="empty-block" role="status" aria-live="polite">
         <text class="empty-txt">广场智能体正在上架中，先和智玄助手聊聊吧</text>
       </view>
 
       <!-- 客服属于平台工具，不占用首屏的学习内容位置 -->
       <view class="section-px service-footer">
-        <view class="cs-row" @tap="navigateTo('/agent/customer-service')">
+        <view
+          class="cs-row"
+          role="link"
+          tabindex="0"
+          aria-label="联系智能客服，处理账号、购买、功能与反馈问题"
+          @tap="navigateTo('/agent/customer-service')"
+          @keydown="activateOnKeyboard($event, () => navigateTo('/agent/customer-service'))"
+        >
           <view class="cs-icon"><app-icon name="headphones" :size="30" color="#5b6a86" /></view>
           <view class="cs-copy">
             <text class="cs-title">平台使用帮助</text>
@@ -286,6 +382,12 @@ const searchQuery = ref('')
 const isListening = ref(false)
 
 const voiceSupported = ref(false)
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<unknown>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 
 // #ifdef H5
 // window.SpeechRecognition 为浏览器宿主 API，uni 类型无定义，保留 as any

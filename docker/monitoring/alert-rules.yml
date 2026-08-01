@@ -4,704 +4,759 @@
 # ═══════════════════════════════════════════════════════════════
 
 groups:
+  # ═══════════ 一、接口质量 ═══════════
+  - name: guoxue-api-quality
+    rules:
+      # 1.1 接口错误率 >1%（5分钟窗口）
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(guoxue_http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(guoxue_http_requests_total[5m]))
+          ) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+          category: api
+        annotations:
+          summary: "API 5xx 错误率超过 1%"
+          description: "当前 5xx 错误率 {{ $value | humanizePercentage }}，阈值 1%"
+          runbook: "检查应用日志中的错误堆栈，确认 DB/Redis 连接状态，回滚最近部署"
 
-# ═══════════ 一、接口质量 ═══════════
-- name: guoxue-api-quality
-  rules:
+      # 1.2 接口 4xx 错误率 >10%
+      - alert: HighClientErrorRate
+        expr: |
+          (
+            sum(rate(guoxue_http_requests_total{status=~"4.."}[5m]))
+            /
+            sum(rate(guoxue_http_requests_total[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          category: api
+        annotations:
+          summary: "API 4xx 错误率超过 10%"
+          description: "当前 4xx 错误率 {{ $value | humanizePercentage }}，可能是前端 bug 或被攻击"
 
-  # 1.1 接口错误率 >1%（5分钟窗口）
-  - alert: HighErrorRate
-    expr: |
-      (
-        sum(rate(guoxue_http_requests_total{status=~"5.."}[5m]))
-        /
-        sum(rate(guoxue_http_requests_total[5m]))
-      ) > 0.01
-    for: 2m
-    labels:
-      severity: critical
-      category: api
-    annotations:
-      summary: "API 5xx 错误率超过 1%"
-      description: "当前 5xx 错误率 {{ $value | humanizePercentage }}，阈值 1%"
-      runbook: "检查应用日志中的错误堆栈，确认 DB/Redis 连接状态，回滚最近部署"
+      # 1.3 P95 延迟超过 2s
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(guoxue_http_request_duration_seconds_bucket[5m])) by (le, path)
+          ) > 2
+        for: 3m
+        labels:
+          severity: warning
+          category: api
+        annotations:
+          summary: "{{ $labels.path }} P95 延迟超过 2s"
+          description: "{{ $labels.path }} P95 延迟 = {{ $value }}s"
+          runbook: "检查慢查询日志、Redis 命中率、DB 连接池状态"
 
-  # 1.2 接口 4xx 错误率 >10%
-  - alert: HighClientErrorRate
-    expr: |
-      (
-        sum(rate(guoxue_http_requests_total{status=~"4.."}[5m]))
-        /
-        sum(rate(guoxue_http_requests_total[5m]))
-      ) > 0.10
-    for: 5m
-    labels:
-      severity: warning
-      category: api
-    annotations:
-      summary: "API 4xx 错误率超过 10%"
-      description: "当前 4xx 错误率 {{ $value | humanizePercentage }}，可能是前端 bug 或被攻击"
+      # 1.4 P99 延迟超过 5s
+      - alert: CriticalLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(guoxue_http_request_duration_seconds_bucket[5m])) by (le, path)
+          ) > 5
+        for: 2m
+        labels:
+          severity: critical
+          category: api
+        annotations:
+          summary: "{{ $labels.path }} P99 延迟超过 5s"
+          description: "{{ $labels.path }} P99 延迟 = {{ $value }}s，用户体验严重恶化"
 
-  # 1.3 P95 延迟超过 2s
-  - alert: HighLatency
-    expr: |
-      histogram_quantile(0.95,
-        sum(rate(guoxue_http_request_duration_seconds_bucket[5m])) by (le, path)
-      ) > 2
-    for: 3m
-    labels:
-      severity: warning
-      category: api
-    annotations:
-      summary: "{{ $labels.path }} P95 延迟超过 2s"
-      description: "{{ $labels.path }} P95 延迟 = {{ $value }}s"
-      runbook: "检查慢查询日志、Redis 命中率、DB 连接池状态"
+      # 1.5 首页延迟超过 1.5s
+      - alert: HomePageSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(guoxue_http_request_duration_seconds_bucket{path="/api/content/home"}[5m])) by (le)
+          ) > 1.5
+        for: 3m
+        labels:
+          severity: warning
+          category: api
+        annotations:
+          summary: "首页 P95 延迟 > 1.5s"
+          description: "首页 P95 延迟 = {{ $value }}s"
 
-  # 1.4 P99 延迟超过 5s
-  - alert: CriticalLatency
-    expr: |
-      histogram_quantile(0.99,
-        sum(rate(guoxue_http_request_duration_seconds_bucket[5m])) by (le, path)
-      ) > 5
-    for: 2m
-    labels:
-      severity: critical
-      category: api
-    annotations:
-      summary: "{{ $labels.path }} P99 延迟超过 5s"
-      description: "{{ $labels.path }} P99 延迟 = {{ $value }}s，用户体验严重恶化"
+      # 1.6 排盘延迟超过 2s
+      - alert: PaipanSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(guoxue_http_request_duration_seconds_bucket{path=~"/api/paipan/.*"}[5m])) by (le, path)
+          ) > 2
+        for: 3m
+        labels:
+          severity: warning
+          category: api
+        annotations:
+          summary: "排盘接口 P95 延迟 > 2s"
+          description: "{{ $labels.path }} P95 延迟 = {{ $value }}s"
 
-  # 1.5 首页延迟超过 1.5s
-  - alert: HomePageSlow
-    expr: |
-      histogram_quantile(0.95,
-        sum(rate(guoxue_http_request_duration_seconds_bucket{path="/api/content/home"}[5m])) by (le)
-      ) > 1.5
-    for: 3m
-    labels:
-      severity: warning
-      category: api
-    annotations:
-      summary: "首页 P95 延迟 > 1.5s"
-      description: "首页 P95 延迟 = {{ $value }}s"
+      # 1.7 搜索延迟超过 200ms
+      - alert: SearchSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(guoxue_http_request_duration_seconds_bucket{path=~"/api/search.*"}[5m])) by (le)
+          ) > 0.2
+        for: 3m
+        labels:
+          severity: warning
+          category: api
+        annotations:
+          summary: "搜索接口 P95 延迟 > 200ms"
+          description: "搜索 P95 延迟 = {{ $value }}s"
 
-  # 1.6 排盘延迟超过 2s
-  - alert: PaipanSlow
-    expr: |
-      histogram_quantile(0.95,
-        sum(rate(guoxue_http_request_duration_seconds_bucket{path=~"/api/paipan/.*"}[5m])) by (le, path)
-      ) > 2
-    for: 3m
-    labels:
-      severity: warning
-      category: api
-    annotations:
-      summary: "排盘接口 P95 延迟 > 2s"
-      description: "{{ $labels.path }} P95 延迟 = {{ $value }}s"
+      # 1.8 请求量突增（可能的攻击或流量异常）
+      - alert: RequestSurge
+        expr: |
+          sum(rate(guoxue_http_requests_total[5m])) > 200
+        for: 2m
+        labels:
+          severity: warning
+          category: api
+        annotations:
+          summary: "请求量突增 > 200 QPS"
+          description: "当前 QPS = {{ $value }}，可能是营销活动或 DDoS 攻击"
 
-  # 1.7 搜索延迟超过 200ms
-  - alert: SearchSlow
-    expr: |
-      histogram_quantile(0.95,
-        sum(rate(guoxue_http_request_duration_seconds_bucket{path=~"/api/search.*"}[5m])) by (le)
-      ) > 0.2
-    for: 3m
-    labels:
-      severity: warning
-      category: api
-    annotations:
-      summary: "搜索接口 P95 延迟 > 200ms"
-      description: "搜索 P95 延迟 = {{ $value }}s"
+  # ═══════════ 二、支付监控（最高优先级） ═══════════
+  - name: guoxue-payment
+    rules:
+      # 2.1 支付回调超过 30s 未收到
+      # 由应用代码暴露 guoxue_payment_callback_delay_seconds gauge 指标
+      - alert: PaymentCallbackDelayed
+        expr: guoxue_payment_callback_delay_seconds > 30
+        for: 30s
+        labels:
+          severity: critical
+          category: payment
+        annotations:
+          summary: "支付回调延迟超过 30 秒"
+          description: "订单 {{ $labels.orderId }} 支付后 {{ $value }}s 未收到回调"
+          runbook: "检查微信支付/支付宝回调 URL 可达性，查看 Nginx 日志确认回调是否到达"
 
-  # 1.8 请求量突增（可能的攻击或流量异常）
-  - alert: RequestSurge
-    expr: |
-      sum(rate(guoxue_http_requests_total[5m])) > 200
-    for: 2m
-    labels:
-      severity: warning
-      category: api
-    annotations:
-      summary: "请求量突增 > 200 QPS"
-      description: "当前 QPS = {{ $value }}，可能是营销活动或 DDoS 攻击"
+      # 2.2 支付回调失败率 >5%
+      - alert: PaymentCallbackFailure
+        expr: |
+          (
+            sum(rate(guoxue_payment_callback_failures_total[5m]))
+            /
+            sum(rate(guoxue_payment_callback_total[5m]))
+          ) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+          category: payment
+        annotations:
+          summary: "支付回调失败率 > 5%"
+          description: "当前失败率 {{ $value | humanizePercentage }}"
+          runbook: "检查验签逻辑、证书有效期、微信支付 API 状态"
 
-# ═══════════ 二、支付监控（最高优先级） ═══════════
-- name: guoxue-payment
-  rules:
+      # 2.3 支付成功率 <95%
+      - alert: LowPaymentSuccessRate
+        expr: |
+          (
+            sum(rate(guoxue_http_requests_total{path=~"/api/shop/pay/notify.*", status=~"2.."}[10m]))
+            /
+            sum(rate(guoxue_http_requests_total{path=~"/api/shop/pay.*"}[10m]))
+          ) < 0.95
+        for: 5m
+        labels:
+          severity: critical
+          category: payment
+        annotations:
+          summary: "支付成功率低于 95%"
+          description: "当前支付成功率 {{ $value | humanizePercentage }}"
 
-  # 2.1 支付回调超过 30s 未收到
-  # 由应用代码暴露 guoxue_payment_callback_delay_seconds gauge 指标
-  - alert: PaymentCallbackDelayed
-    expr: guoxue_payment_callback_delay_seconds > 30
-    for: 30s
-    labels:
-      severity: critical
-      category: payment
-    annotations:
-      summary: "支付回调延迟超过 30 秒"
-      description: "订单 {{ $labels.orderId }} 支付后 {{ $value }}s 未收到回调"
-      runbook: "检查微信支付/支付宝回调 URL 可达性，查看 Nginx 日志确认回调是否到达"
+      # 2.4 待处理订单堆积
+      - alert: PendingOrderBuildup
+        expr: guoxue_orders_pending_count > 50
+        for: 10m
+        labels:
+          severity: warning
+          category: payment
+        annotations:
+          summary: "待支付订单堆积 > 50 单"
+          description: "当前待支付订单数 = {{ $value }}，可能支付流程阻塞"
 
-  # 2.2 支付回调失败率 >5%
-  - alert: PaymentCallbackFailure
-    expr: |
-      (
-        sum(rate(guoxue_payment_callback_failures_total[5m]))
-        /
-        sum(rate(guoxue_payment_callback_total[5m]))
-      ) > 0.05
-    for: 3m
-    labels:
-      severity: critical
-      category: payment
-    annotations:
-      summary: "支付回调失败率 > 5%"
-      description: "当前失败率 {{ $value | humanizePercentage }}"
-      runbook: "检查验签逻辑、证书有效期、微信支付 API 状态"
+  # ═══════════ 三、第三方服务 ═══════════
+  - name: guoxue-third-party
+    rules:
+      # 3.1 DeepSeek API 异常
+      - alert: DeepSeekDown
+        expr: |
+          sum(rate(guoxue_external_api_failures_total{service="deepseek"}[5m])) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          category: third-party
+        annotations:
+          summary: "DeepSeek API 调用异常"
+          description: "DeepSeek 最近 5 分钟失败率 {{ $value | humanizePercentage }}"
 
-  # 2.3 支付成功率 <95%
-  - alert: LowPaymentSuccessRate
-    expr: |
-      (
-        sum(rate(guoxue_http_requests_total{path=~"/api/shop/pay/notify.*", status=~"2.."}[10m]))
-        /
-        sum(rate(guoxue_http_requests_total{path=~"/api/shop/pay.*"}[10m]))
-      ) < 0.95
-    for: 5m
-    labels:
-      severity: critical
-      category: payment
-    annotations:
-      summary: "支付成功率低于 95%"
-      description: "当前支付成功率 {{ $value | humanizePercentage }}"
+      # 3.2 腾讯云 COS 异常
+      - alert: COSDown
+        expr: |
+          sum(rate(guoxue_external_api_failures_total{service="cos"}[5m])) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          category: third-party
+        annotations:
+          summary: "腾讯云 COS 调用异常（文件上传/下载受影响）"
+          description: "COS 最近 5 分钟失败率 {{ $value | humanizePercentage }}"
 
-  # 2.4 待处理订单堆积
-  - alert: PendingOrderBuildup
-    expr: guoxue_orders_pending_count > 50
-    for: 10m
-    labels:
-      severity: warning
-      category: payment
-    annotations:
-      summary: "待支付订单堆积 > 50 单"
-      description: "当前待支付订单数 = {{ $value }}，可能支付流程阻塞"
+      # 3.3 微信支付 API 异常
+      - alert: WechatPayDown
+        expr: |
+          sum(rate(guoxue_external_api_failures_total{service="wechat_pay"}[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          category: third-party
+        annotations:
+          summary: "微信支付 API 异常（支付功能受影响）"
+          description: "微信支付最近 5 分钟失败率 {{ $value | humanizePercentage }}"
 
-# ═══════════ 三、第三方服务 ═══════════
-- name: guoxue-third-party
-  rules:
+      # 3.4 腾讯云 IM 异常
+      - alert: IMDown
+        expr: |
+          sum(rate(guoxue_external_api_failures_total{service="im"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: third-party
+        annotations:
+          summary: "腾讯云 IM 异常（聊天/直播受影响）"
+          description: "IM 最近 5 分钟失败率 {{ $value | humanizePercentage }}"
 
-  # 3.1 DeepSeek API 异常
-  - alert: DeepSeekDown
-    expr: |
-      sum(rate(guoxue_external_api_failures_total{service="deepseek"}[5m])) > 0.1
-    for: 3m
-    labels:
-      severity: warning
-      category: third-party
-    annotations:
-      summary: "DeepSeek API 调用异常"
-      description: "DeepSeek 最近 5 分钟失败率 {{ $value | humanizePercentage }}"
+      # 3.5 第三方域名可达性
+      - alert: ExternalServiceUnreachable
+        expr: probe_success{job="blackbox-external"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          category: third-party
+        annotations:
+          summary: "{{ $labels.instance }} 不可达"
+          description: "{{ $labels.instance }} blackbox 探测失败"
 
-  # 3.2 腾讯云 COS 异常
-  - alert: COSDown
-    expr: |
-      sum(rate(guoxue_external_api_failures_total{service="cos"}[5m])) > 0.05
-    for: 3m
-    labels:
-      severity: warning
-      category: third-party
-    annotations:
-      summary: "腾讯云 COS 调用异常（文件上传/下载受影响）"
-      description: "COS 最近 5 分钟失败率 {{ $value | humanizePercentage }}"
+      # 3.6 平台 API、H5 或管理后台真实入口不可达
+      - alert: PlatformEntryUnreachable
+        expr: probe_success{job="blackbox-platform"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: platform
+        annotations:
+          summary: "平台入口 {{ $labels.instance }} 不可达"
+          description: "API、H5 或管理后台入口连续 1 分钟拨测失败，请检查 Nginx、静态成品与后端健康状态"
+          runbook: "先检查 docker compose ps 与 Nginx/Server 日志；若新版本引起，按迁移手册回滚应用，不得回滚数据库数据"
 
-  # 3.3 微信支付 API 异常
-  - alert: WechatPayDown
-    expr: |
-      sum(rate(guoxue_external_api_failures_total{service="wechat_pay"}[5m])) > 0.05
-    for: 2m
-    labels:
-      severity: critical
-      category: third-party
-    annotations:
-      summary: "微信支付 API 异常（支付功能受影响）"
-      description: "微信支付最近 5 分钟失败率 {{ $value | humanizePercentage }}"
+      # 3.7 自有公网证书进入 60 天长期证书采购与替换窗口
+      - alert: TLSCertificateReplacementPlanning
+        expr: |
+          ((probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time()) < 60 * 24 * 60 * 60)
+          and
+          ((probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time()) >= 30 * 24 * 60 * 60)
+        for: 10m
+        labels:
+          severity: warning
+          category: certificate
+        annotations:
+          summary: "公网证书进入长期证书替换窗口：{{ $labels.instance }}"
+          description: "剩余有效期约 {{ $value | humanizeDuration }}，请启动长期证书采购、签发和变更窗口安排"
+          runbook: "确认长期证书覆盖对应域名；先签发，再分别替换 CLB/CDN 绑定，最后以公网握手证书有效期验收"
 
-  # 3.4 腾讯云 IM 异常
-  - alert: IMDown
-    expr: |
-      sum(rate(guoxue_external_api_failures_total{service="im"}[5m])) > 0.1
-    for: 5m
-    labels:
-      severity: warning
-      category: third-party
-    annotations:
-      summary: "腾讯云 IM 异常（聊天/直播受影响）"
-      description: "IM 最近 5 分钟失败率 {{ $value | humanizePercentage }}"
+      # 3.8 自有公网证书将在 30 天内到期
+      - alert: TLSCertificateExpiringSoon
+        expr: |
+          ((probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time()) < 30 * 24 * 60 * 60)
+          and
+          ((probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time()) >= 14 * 24 * 60 * 60)
+        for: 10m
+        labels:
+          severity: warning
+          category: certificate
+        annotations:
+          summary: "公网证书将在 30 天内到期：{{ $labels.instance }}"
+          description: "剩余有效期约 {{ $value | humanizeDuration }}，请立即确认续期与部署计划"
+          runbook: "在证书控制台完成续期，分别部署到 CLB/CDN；部署后复核证书链、域名覆盖和公网健康检查"
 
-  # 3.5 第三方域名可达性
-  - alert: ExternalServiceUnreachable
-    expr: probe_success{job="guoxue-external-probes"} == 0
-    for: 2m
-    labels:
-      severity: critical
-      category: third-party
-    annotations:
-      summary: "{{ $labels.instance }} 不可达"
-      description: "{{ $labels.instance }} blackbox 探测失败"
+      # 3.9 自有公网证书将在 14 天内到期
+      - alert: TLSCertificateExpiringCritical
+        expr: (probe_ssl_earliest_cert_expiry{job="blackbox-tls"} - time()) < 14 * 24 * 60 * 60
+        for: 5m
+        labels:
+          severity: critical
+          category: certificate
+        annotations:
+          summary: "公网证书将在 14 天内到期：{{ $labels.instance }}"
+          description: "剩余有效期约 {{ $value | humanizeDuration }}，必须立即完成续期和部署"
+          runbook: "立即续期并部署到 CLB/CDN；不得只签发未部署，完成后以公网实际证书到期时间验收"
 
-# ═══════════ 四、数据库 ═══════════
-- name: guoxue-database
-  rules:
+  # ═══════════ 四、数据库 ═══════════
+  - name: guoxue-database
+    rules:
+      # 4.1 DB 连接池使用率 >80%
+      - alert: DBConnectionPoolHigh
+        expr: |
+          (
+            pg_stat_activity_count{datname="guoxue"}
+            /
+            pg_settings_max_connections{datname="guoxue"}
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "数据库连接池使用率 > 80%"
+          description: "当前 {{ $value | humanizePercentage }}，共 {{ $labels.pg_stat_activity_count }} 个活跃连接"
 
-  # 4.1 DB 连接池使用率 >80%
-  - alert: DBConnectionPoolHigh
-    expr: |
-      (
-        pg_stat_activity_count{datname="guoxue"}
-        /
-        pg_settings_max_connections{datname="guoxue"}
-      ) > 0.8
-    for: 5m
-    labels:
-      severity: warning
-      category: database
-    annotations:
-      summary: "数据库连接池使用率 > 80%"
-      description: "当前 {{ $value | humanizePercentage }}，共 {{ $labels.pg_stat_activity_count }} 个活跃连接"
+      # 4.2 DB 连接池耗尽
+      - alert: DBConnectionPoolExhausted
+        expr: |
+          (
+            pg_stat_activity_count{datname="guoxue"}
+            /
+            pg_settings_max_connections{datname="guoxue"}
+          ) > 0.95
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "数据库连接池即将耗尽 > 95%"
+          description: "当前 {{ $value | humanizePercentage }}"
+          runbook: "立即检查是否有未释放的连接、卡住的查询，考虑扩容连接数"
 
-  # 4.2 DB 连接池耗尽
-  - alert: DBConnectionPoolExhausted
-    expr: |
-      (
-        pg_stat_activity_count{datname="guoxue"}
-        /
-        pg_settings_max_connections{datname="guoxue"}
-      ) > 0.95
-    for: 1m
-    labels:
-      severity: critical
-      category: database
-    annotations:
-      summary: "数据库连接池即将耗尽 > 95%"
-      description: "当前 {{ $value | humanizePercentage }}"
-      runbook: "立即检查是否有未释放的连接、卡住的查询，考虑扩容连接数"
+      # 4.3 流复制延迟 > 5s
+      - alert: ReplicationLag
+        expr: pg_stat_replication_flush_lag_seconds > 5
+        for: 2m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL 流复制延迟 > 5 秒"
+          description: "当前延迟 {{ $value }}s"
 
-  # 4.3 流复制延迟 > 5s
-  - alert: ReplicationLag
-    expr: pg_stat_replication_flush_lag_seconds > 5
-    for: 2m
-    labels:
-      severity: warning
-      category: database
-    annotations:
-      summary: "PostgreSQL 流复制延迟 > 5 秒"
-      description: "当前延迟 {{ $value }}s"
+      # 4.4 流复制中断
+      - alert: ReplicationDown
+        expr: pg_stat_replication_status == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "PostgreSQL 流复制中断"
+          description: "Standby 节点未连接，数据无冗余保护"
 
-  # 4.4 流复制中断
-  - alert: ReplicationDown
-    expr: pg_stat_replication_status == 0
-    for: 1m
-    labels:
-      severity: critical
-      category: database
-    annotations:
-      summary: "PostgreSQL 流复制中断"
-      description: "Standby 节点未连接，数据无冗余保护"
+      # 4.5 死锁发生
+      - alert: DeadlockDetected
+        expr: rate(pg_stat_database_deadlocks{datname="guoxue"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "数据库出现死锁"
+          description: "最近 5 分钟发生 {{ $value }} 次死锁"
 
-  # 4.5 死锁发生
-  - alert: DeadlockDetected
-    expr: rate(pg_stat_database_deadlocks{datname="guoxue"}[5m]) > 0
-    for: 1m
-    labels:
-      severity: warning
-      category: database
-    annotations:
-      summary: "数据库出现死锁"
-      description: "最近 5 分钟发生 {{ $value }} 次死锁"
+      # 4.6 慢查询数量 >50/小时
+      - alert: SlowQueriesSpike
+        expr: rate(guoxue_slow_query_total[1h]) > 50
+        for: 10m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "数据库慢查询激增 > 50/h"
+          description: "最近 1 小时慢查询速率 {{ $value }}/s"
 
-  # 4.6 慢查询数量 >50/小时
-  - alert: SlowQueriesSpike
-    expr: rate(guoxue_slow_query_total[1h]) > 50
-    for: 10m
-    labels:
-      severity: warning
-      category: database
-    annotations:
-      summary: "数据库慢查询激增 > 50/h"
-      description: "最近 1 小时慢查询速率 {{ $value }}/s"
+      # 4.7 Prisma 连接池使用率 >80%（应用层指标）
+      - alert: PrismaPoolHigh
+        expr: guoxue_db_connection_pool_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Prisma 连接池使用率 > 80%"
+          description: "Prisma 连接池 {{ $value | humanizePercentage }} 已使用，接近连接数上限"
+          runbook: "检查连接泄露（未关闭的事务/长查询），调整 connection_limit 或扩容 DB"
 
-  # 4.7 Prisma 连接池使用率 >80%（应用层指标）
-  - alert: PrismaPoolHigh
-    expr: guoxue_db_connection_pool_usage > 0.8
-    for: 5m
-    labels:
-      severity: warning
-      category: database
-    annotations:
-      summary: "Prisma 连接池使用率 > 80%"
-      description: "Prisma 连接池 {{ $value | humanizePercentage }} 已使用，接近连接数上限"
-      runbook: "检查连接泄露（未关闭的事务/长查询），调整 connection_limit 或扩容 DB"
+      # 4.8 Prisma 连接池耗尽 >95%
+      - alert: PrismaPoolExhausted
+        expr: guoxue_db_connection_pool_usage > 0.95
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "Prisma 连接池即将耗尽 > 95%"
+          description: "Prisma 连接池 {{ $value | humanizePercentage }}，新请求将阻塞"
+          runbook: "紧急扩容连接池或重启服务；排查是否有未释放的长事务"
 
-  # 4.8 Prisma 连接池耗尽 >95%
-  - alert: PrismaPoolExhausted
-    expr: guoxue_db_connection_pool_usage > 0.95
-    for: 1m
-    labels:
-      severity: critical
-      category: database
-    annotations:
-      summary: "Prisma 连接池即将耗尽 > 95%"
-      description: "Prisma 连接池 {{ $value | humanizePercentage }}，新请求将阻塞"
-      runbook: "紧急扩容连接池或重启服务；排查是否有未释放的长事务"
+  # ═══════════ 五、Redis ═══════════
+  - name: guoxue-redis
+    rules:
+      # 5.1 Redis 不可用
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: cache
+        annotations:
+          summary: "Redis 服务不可用"
+          description: "Redis 实例 {{ $labels.instance }} 宕机，缓存全面降级为内存"
+          runbook: "检查 Redis 进程、内存、磁盘，必要时重启 Redis"
 
-# ═══════════ 五、Redis ═══════════
-- name: guoxue-redis
-  rules:
+      # 5.2 Redis 内存使用率 >80%
+      - alert: RedisMemoryHigh
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Redis 内存使用率 > 80%"
+          description: "当前 {{ $value | humanizePercentage }}，已用 {{ $labels.redis_memory_used_bytes }}"
 
-  # 5.1 Redis 不可用
-  - alert: RedisDown
-    expr: redis_up == 0
-    for: 30s
-    labels:
-      severity: critical
-      category: cache
-    annotations:
-      summary: "Redis 服务不可用"
-      description: "Redis 实例 {{ $labels.instance }} 宕机，缓存全面降级为内存"
-      runbook: "检查 Redis 进程、内存、磁盘，必要时重启 Redis"
+      # 5.3 Redis 内存即将满
+      - alert: RedisMemoryCritical
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          category: cache
+        annotations:
+          summary: "Redis 内存即将满 > 95%"
+          description: "当前 {{ $value | humanizePercentage }}，驱逐风险极高"
 
-  # 5.2 Redis 内存使用率 >80%
-  - alert: RedisMemoryHigh
-    expr: |
-      (redis_memory_used_bytes / redis_memory_max_bytes) > 0.8
-    for: 5m
-    labels:
-      severity: warning
-      category: cache
-    annotations:
-      summary: "Redis 内存使用率 > 80%"
-      description: "当前 {{ $value | humanizePercentage }}，已用 {{ $labels.redis_memory_used_bytes }}"
+      # 5.4 Redis 缓存命中率 <80%
+      - alert: RedisCacheHitRateLow
+        expr: |
+          (
+            rate(redis_keyspace_hits_total[5m])
+            /
+            (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))
+          ) < 0.8
+        for: 10m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Redis 缓存命中率 < 80%"
+          description: "当前命中率 {{ $value | humanizePercentage }}"
 
-  # 5.3 Redis 内存即将满
-  - alert: RedisMemoryCritical
-    expr: |
-      (redis_memory_used_bytes / redis_memory_max_bytes) > 0.95
-    for: 2m
-    labels:
-      severity: critical
-      category: cache
-    annotations:
-      summary: "Redis 内存即将满 > 95%"
-      description: "当前 {{ $value | humanizePercentage }}，驱逐风险极高"
+      # 5.5 Redis 连接数 > 80%
+      - alert: RedisConnectionsHigh
+        expr: redis_connected_clients / redis_config_maxclients > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Redis 连接数使用率 > 80%"
+          description: "当前连接数 {{ $value }}"
 
-  # 5.4 Redis 缓存命中率 <80%
-  - alert: RedisCacheHitRateLow
-    expr: |
-      (
-        rate(redis_keyspace_hits_total[5m])
-        /
-        (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))
-      ) < 0.8
-    for: 10m
-    labels:
-      severity: warning
-      category: cache
-    annotations:
-      summary: "Redis 缓存命中率 < 80%"
-      description: "当前命中率 {{ $value | humanizePercentage }}"
+  # ═══════════ 六、系统资源 ═══════════
+  - name: guoxue-system
+    rules:
+      # 6.1 应用进程 CPU > 80%
+      - alert: HighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total{job="guoxue-server"}[1m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "应用 CPU 使用率 > 80%"
+          description: "当前 CPU {{ $value }}%"
 
-  # 5.5 Redis 连接数 > 80%
-  - alert: RedisConnectionsHigh
-    expr: redis_connected_clients / redis_config_maxclients > 0.8
-    for: 5m
-    labels:
-      severity: warning
-      category: cache
-    annotations:
-      summary: "Redis 连接数使用率 > 80%"
-      description: "当前连接数 {{ $value }}"
+      # 6.2 应用内存 > 80%
+      - alert: HighMemoryUsage
+        expr: |
+          process_resident_memory_bytes{job="guoxue-server"}
+          / node_memory_MemTotal_bytes > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "应用内存使用 > 80%"
+          description: "当前内存 {{ $value | humanizePercentage }}"
 
-# ═══════════ 六、系统资源 ═══════════
-- name: guoxue-system
-  rules:
+      # 6.3 磁盘使用 > 85%
+      - alert: DiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 5m
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "磁盘可用空间 < 15%"
+          description: "根分区可用空间仅 {{ $value | humanizePercentage }}"
 
-  # 6.1 应用进程 CPU > 80%
-  - alert: HighCPUUsage
-    expr: |
-      rate(process_cpu_seconds_total{job="guoxue-server"}[1m]) * 100 > 80
-    for: 5m
-    labels:
-      severity: warning
-      category: system
-    annotations:
-      summary: "应用 CPU 使用率 > 80%"
-      description: "当前 CPU {{ $value }}%"
+      # 6.4 应用实例突然减少
+      - alert: InstanceDown
+        expr: up{job="guoxue-server"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: system
+        annotations:
+          summary: "应用实例 {{ $labels.instance }} 宕机"
+          description: "实例 {{ $labels.instance }} 停止响应"
 
-  # 6.2 应用内存 > 80%
-  - alert: HighMemoryUsage
-    expr: |
-      process_resident_memory_bytes{job="guoxue-server"}
-      / node_memory_MemTotal_bytes > 0.8
-    for: 5m
-    labels:
-      severity: warning
-      category: system
-    annotations:
-      summary: "应用内存使用 > 80%"
-      description: "当前内存 {{ $value | humanizePercentage }}"
+      # 6.5 任意监控采集目标失联
+      - alert: PrometheusTargetDown
+        expr: up{job!="blackbox-platform",job!="blackbox-external",job!="blackbox-tls"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: monitoring
+        annotations:
+          summary: "监控目标 {{ $labels.job }}/{{ $labels.instance }} 失联"
+          description: "Prometheus 连续 2 分钟无法采集该目标，需检查容器网络、目标进程或监控配置"
 
-  # 6.3 磁盘使用 > 85%
-  - alert: DiskSpaceLow
-    expr: |
-      (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
-    for: 5m
-    labels:
-      severity: critical
-      category: system
-    annotations:
-      summary: "磁盘可用空间 < 15%"
-      description: "根分区可用空间仅 {{ $value | humanizePercentage }}"
+      # 6.5 Event Loop 阻塞
+      - alert: EventLoopLag
+        expr: nodejs_eventloop_lag_seconds > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "Node.js Event Loop 阻塞 > 100ms"
+          description: "当前 Event Loop 延迟 {{ $value }}s，可能影响吞吐量"
 
-  # 6.4 应用实例突然减少
-  - alert: InstanceDown
-    expr: up{job="guoxue-server"} == 0
-    for: 30s
-    labels:
-      severity: critical
-      category: system
-    annotations:
-      summary: "应用实例 {{ $labels.instance }} 宕机"
-      description: "实例 {{ $labels.instance }} 停止响应"
+      # 6.6 Pod 频繁重启
+      - alert: FrequentRestarts
+        expr: rate(kube_pod_container_status_restarts_total{container="guoxue-server"}[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          category: system
+        annotations:
+          summary: "应用容器频繁重启"
+          description: "最近 15 分钟内 Pod {{ $labels.pod }} 重启 {{ $value }} 次"
 
-  # 6.5 Event Loop 阻塞
-  - alert: EventLoopLag
-    expr: nodejs_eventloop_lag_seconds > 0.1
-    for: 3m
-    labels:
-      severity: warning
-      category: system
-    annotations:
-      summary: "Node.js Event Loop 阻塞 > 100ms"
-      description: "当前 Event Loop 延迟 {{ $value }}s，可能影响吞吐量"
+  # ═══════════ 七、AI 服务 ═══════════
+  - name: guoxue-ai
+    rules:
+      # 7.1 AI 调用错误率 > 5%
+      - alert: AiHighErrorRate
+        expr: |
+          (
+            sum(rate(guoxue_ai_call_total{status="error"}[5m]))
+            /
+            sum(rate(guoxue_ai_call_total[5m]))
+          ) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          category: ai
+        annotations:
+          summary: "AI 调用错误率 > 5%"
+          description: "当前 AI 错误率 {{ $value | humanizePercentage }}"
+          runbook: "检查 DeepSeek API 状态、API Key 有效性、模型配额"
 
-  # 6.6 Pod 频繁重启
-  - alert: FrequentRestarts
-    expr: rate(kube_pod_container_status_restarts_total{container="guoxue-server"}[15m]) > 0
-    for: 5m
-    labels:
-      severity: warning
-      category: system
-    annotations:
-      summary: "应用容器频繁重启"
-      description: "最近 15 分钟内 Pod {{ $labels.pod }} 重启 {{ $value }} 次"
+      # 7.2 AI 调用延迟 P95 > 15s
+      - alert: AiHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(guoxue_ai_call_duration_seconds_bucket[5m])) by (le, scene)
+          ) > 15
+        for: 3m
+        labels:
+          severity: warning
+          category: ai
+        annotations:
+          summary: "{{ $labels.scene }} AI 调用 P95 延迟 > 15s"
+          description: "当前 {{ $labels.scene }} P95 延迟 = {{ $value }}s"
 
-# ═══════════ 七、AI 服务 ═══════════
-- name: guoxue-ai
-  rules:
+      # 7.3 场景月度预算消耗 > 80%
+      - alert: AiBudgetWarning
+        expr: guoxue_ai_budget_usage_ratio > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: ai
+        annotations:
+          summary: "AI 场景月度预算消耗 > 80%"
+          description: "场景 {{ $labels.scene }} 预算使用率 {{ $value | humanizePercentage }}"
 
-  # 7.1 AI 调用错误率 > 5%
-  - alert: AiHighErrorRate
-    expr: |
-      (
-        sum(rate(guoxue_ai_call_total{status="error"}[5m]))
-        /
-        sum(rate(guoxue_ai_call_total[5m]))
-      ) > 0.05
-    for: 3m
-    labels:
-      severity: warning
-      category: ai
-    annotations:
-      summary: "AI 调用错误率 > 5%"
-      description: "当前 AI 错误率 {{ $value | humanizePercentage }}"
-      runbook: "检查 DeepSeek API 状态、API Key 有效性、模型配额"
+      # 7.4 场景月度预算耗尽
+      - alert: AiBudgetExhausted
+        expr: guoxue_ai_budget_usage_ratio >= 1
+        for: 1m
+        labels:
+          severity: critical
+          category: ai
+        annotations:
+          summary: "AI 场景月度预算已耗尽"
+          description: "场景 {{ $labels.scene }} 已触发降级，使用轻量模型"
 
-  # 7.2 AI 调用延迟 P95 > 15s
-  - alert: AiHighLatency
-    expr: |
-      histogram_quantile(0.95,
-        sum(rate(guoxue_ai_call_duration_seconds_bucket[5m])) by (le, scene)
-      ) > 15
-    for: 3m
-    labels:
-      severity: warning
-      category: ai
-    annotations:
-      summary: "{{ $labels.scene }} AI 调用 P95 延迟 > 15s"
-      description: "当前 {{ $labels.scene }} P95 延迟 = {{ $value }}s"
+      # 7.5 语义缓存命中率 < 30%
+      - alert: AiCacheHitRateLow
+        expr: |
+          (
+            sum(rate(guoxue_ai_semantic_cache_hits_total[15m]))
+            /
+            sum(rate(guoxue_ai_call_total[15m]))
+          ) < 0.3
+        for: 10m
+        labels:
+          severity: info
+          category: ai
+        annotations:
+          summary: "AI 语义缓存命中率 < 30%"
+          description: "当前命中率 {{ $value | humanizePercentage }}，建议优化缓存策略"
 
-  # 7.3 场景月度预算消耗 > 80%
-  - alert: AiBudgetWarning
-    expr: guoxue_ai_budget_usage_ratio > 0.8
-    for: 5m
-    labels:
-      severity: warning
-      category: ai
-    annotations:
-      summary: "AI 场景月度预算消耗 > 80%"
-      description: "场景 {{ $labels.scene }} 预算使用率 {{ $value | humanizePercentage }}"
+      # 7.6 AI 内容自动审核通过率异常（>95% 或 <50%）
+      - alert: AiAutoApproveAnomaly
+        expr: |
+          (
+            sum(rate(guoxue_ai_content_auto_approved_total[30m]))
+            /
+            sum(rate(guoxue_ai_content_auto_tagged_total[30m]))
+          ) > 0.95
+          or
+          (
+            sum(rate(guoxue_ai_content_auto_approved_total[30m]))
+            /
+            sum(rate(guoxue_ai_content_auto_tagged_total[30m]))
+          ) < 0.5
+        for: 15m
+        labels:
+          severity: warning
+          category: ai
+        annotations:
+          summary: "AI 自动审核通过率异常"
+          description: "当前通过率 {{ $value | humanizePercentage }}，需人工介入检查"
 
-  # 7.4 场景月度预算耗尽
-  - alert: AiBudgetExhausted
-    expr: guoxue_ai_budget_usage_ratio >= 1
-    for: 1m
-    labels:
-      severity: critical
-      category: ai
-    annotations:
-      summary: "AI 场景月度预算已耗尽"
-      description: "场景 {{ $labels.scene }} 已触发降级，使用轻量模型"
+      # 7.7 用户 AI 满意度负面反馈 > 30%
+      - alert: AiUserDissatisfied
+        expr: |
+          (
+            sum(rate(guoxue_ai_user_feedback_total{rating="negative"}[30m]))
+            /
+            sum(rate(guoxue_ai_user_feedback_total[30m]))
+          ) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          category: ai
+        annotations:
+          summary: "用户 AI 满意度负面反馈 > 30%"
+          description: "当前负面反馈率 {{ $value | humanizePercentage }}"
 
-  # 7.5 语义缓存命中率 < 30%
-  - alert: AiCacheHitRateLow
-    expr: |
-      (
-        sum(rate(guoxue_ai_semantic_cache_hits_total[15m]))
-        /
-        sum(rate(guoxue_ai_call_total[15m]))
-      ) < 0.3
-    for: 10m
-    labels:
-      severity: info
-      category: ai
-    annotations:
-      summary: "AI 语义缓存命中率 < 30%"
-      description: "当前命中率 {{ $value | humanizePercentage }}，建议优化缓存策略"
+  # ═══════════ 八、消息队列（BullMQ） ═══════════
+  - name: guoxue-queue
+    rules:
+      # 8.1 队列等待任务堆积 > 100
+      - alert: QueueBacklog
+        expr: bullmq_queue_waiting_count > 100
+        for: 5m
+        labels:
+          severity: warning
+          category: queue
+        annotations:
+          summary: "{{ $labels.queue }} 队列等待任务堆积 > 100"
+          description: "当前等待数 {{ $value }}，需检查 worker 是否存活"
 
-  # 7.6 AI 内容自动审核通过率异常（>95% 或 <50%）
-  - alert: AiAutoApproveAnomaly
-    expr: |
-      (
-        sum(rate(guoxue_ai_content_auto_approved_total[30m]))
-        /
-        sum(rate(guoxue_ai_content_auto_tagged_total[30m]))
-      ) > 0.95
-      or
-      (
-        sum(rate(guoxue_ai_content_auto_approved_total[30m]))
-        /
-        sum(rate(guoxue_ai_content_auto_tagged_total[30m]))
-      ) < 0.5
-    for: 15m
-    labels:
-      severity: warning
-      category: ai
-    annotations:
-      summary: "AI 自动审核通过率异常"
-      description: "当前通过率 {{ $value | humanizePercentage }}，需人工介入检查"
+      # 8.2 队列失败任务堆积 > 20
+      - alert: QueueFailedBuildup
+        expr: bullmq_queue_failed_count > 20
+        for: 5m
+        labels:
+          severity: warning
+          category: queue
+        annotations:
+          summary: "{{ $labels.queue }} 队列失败任务堆积 > 20"
+          description: "当前失败数 {{ $value }}，需排查失败原因并手动处理"
 
-  # 7.7 用户 AI 满意度负面反馈 > 30%
-  - alert: AiUserDissatisfied
-    expr: |
-      (
-        sum(rate(guoxue_ai_user_feedback_total{rating="negative"}[30m]))
-        /
-        sum(rate(guoxue_ai_user_feedback_total[30m]))
-      ) > 0.3
-    for: 10m
-    labels:
-      severity: warning
-      category: ai
-    annotations:
-      summary: "用户 AI 满意度负面反馈 > 30%"
-      description: "当前负面反馈率 {{ $value | humanizePercentage }}"
+      # 8.3 任务失败率 > 10%
+      - alert: QueueJobFailureRate
+        expr: |
+          (
+            sum(rate(bullmq_queue_failed_total[10m]))
+            /
+            sum(rate(bullmq_queue_completed_total[10m]) + rate(bullmq_queue_failed_total[10m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: queue
+        annotations:
+          summary: "BullMQ 任务失败率 > 10%"
+          description: "当前失败率 {{ $value | humanizePercentage }}"
 
-# ═══════════ 八、消息队列（BullMQ） ═══════════
-- name: guoxue-queue
-  rules:
+      # 8.4 Worker 数量为 0
+      - alert: NoWorkers
+        expr: bullmq_worker_count == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: queue
+        annotations:
+          summary: "无活跃 Worker 进程"
+          description: "所有队列 Worker 已停止，任务将无限堆积"
 
-  # 8.1 队列等待任务堆积 > 100
-  - alert: QueueBacklog
-    expr: bullmq_queue_waiting_count > 100
-    for: 5m
-    labels:
-      severity: warning
-      category: queue
-    annotations:
-      summary: "{{ $labels.queue }} 队列等待任务堆积 > 100"
-      description: "当前等待数 {{ $value }}，需检查 worker 是否存活"
+  # ═══════════ 九、业务指标 ═══════════
+  - name: guoxue-business
+    rules:
+      # 9.1 订单量骤降（对比昨日同时段下降 >50%）
+      - alert: OrderVolumeDrop
+        expr: |
+          (
+            sum(rate(guoxue_http_requests_total{path=~"/api/shop/orders/create.*"}[30m]))
+            /
+            sum(rate(guoxue_http_requests_total{path=~"/api/shop/orders/create.*"}[30m] offset 1d))
+          ) < 0.5
+        for: 15m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "订单量骤降 > 50%"
+          description: "当前订单量仅为昨日同时段的 {{ $value | humanizePercentage }}"
 
-  # 8.2 队列失败任务堆积 > 20
-  - alert: QueueFailedBuildup
-    expr: bullmq_queue_failed_count > 20
-    for: 5m
-    labels:
-      severity: warning
-      category: queue
-    annotations:
-      summary: "{{ $labels.queue }} 队列失败任务堆积 > 20"
-      description: "当前失败数 {{ $value }}，需排查失败原因并手动处理"
+      # 9.2 支付转化率 < 60%
+      - alert: PaymentConversionLow
+        expr: |
+          (
+            sum(rate(guoxue_payment_callback_total{status="success"}[30m]))
+            /
+            sum(rate(guoxue_http_requests_total{path=~"/api/shop/orders/create.*"}[30m]))
+          ) < 0.6
+        for: 15m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "支付转化率 < 60%"
+          description: "当前支付转化率 {{ $value | humanizePercentage }}"
 
-  # 8.3 任务失败率 > 10%
-  - alert: QueueJobFailureRate
-    expr: |
-      (
-        sum(rate(bullmq_queue_failed_total[10m]))
-        /
-        sum(rate(bullmq_queue_completed_total[10m]) + rate(bullmq_queue_failed_total[10m]))
-      ) > 0.1
-    for: 5m
-    labels:
-      severity: warning
-      category: queue
-    annotations:
-      summary: "BullMQ 任务失败率 > 10%"
-      description: "当前失败率 {{ $value | humanizePercentage }}"
-
-  # 8.4 Worker 数量为 0
-  - alert: NoWorkers
-    expr: bullmq_worker_count == 0
-    for: 1m
-    labels:
-      severity: critical
-      category: queue
-    annotations:
-      summary: "无活跃 Worker 进程"
-      description: "所有队列 Worker 已停止，任务将无限堆积"
-
-# ═══════════ 九、业务指标 ═══════════
-- name: guoxue-business
-  rules:
-
-  # 9.1 订单量骤降（对比昨日同时段下降 >50%）
-  - alert: OrderVolumeDrop
-    expr: |
-      (
-        sum(rate(guoxue_http_requests_total{path=~"/api/shop/orders/create.*"}[30m]))
-        /
-        sum(rate(guoxue_http_requests_total{path=~"/api/shop/orders/create.*"}[30m] offset 1d))
-      ) < 0.5
-    for: 15m
-    labels:
-      severity: warning
-      category: business
-    annotations:
-      summary: "订单量骤降 > 50%"
-      description: "当前订单量仅为昨日同时段的 {{ $value | humanizePercentage }}"
-
-  # 9.2 支付转化率 < 60%
-  - alert: PaymentConversionLow
-    expr: |
-      (
-        sum(rate(guoxue_payment_callback_total{status="success"}[30m]))
-        /
-        sum(rate(guoxue_http_requests_total{path=~"/api/shop/orders/create.*"}[30m]))
-      ) < 0.6
-    for: 15m
-    labels:
-      severity: warning
-      category: business
-    annotations:
-      summary: "支付转化率 < 60%"
-      description: "当前支付转化率 {{ $value | humanizePercentage }}"
-
-  # 9.3 推荐系统 CTR < 1%
-  - alert: RecommendCTRLow
-    expr: guoxue_recommend_ctr < 0.01
-    for: 30m
-    labels:
-      severity: info
-      category: business
-    annotations:
-      summary: "推荐系统 CTR < 1%"
-      description: "当前 CTR {{ $value | humanizePercentage }}，建议调整推荐策略"
+      # 9.3 推荐系统 CTR < 1%
+      - alert: RecommendCTRLow
+        expr: guoxue_recommend_ctr < 0.01
+        for: 30m
+        labels:
+          severity: info
+          category: business
+        annotations:
+          summary: "推荐系统 CTR < 1%"
+          description: "当前 CTR {{ $value | humanizePercentage }}，建议调整推荐策略"

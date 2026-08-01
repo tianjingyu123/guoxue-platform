@@ -1,13 +1,20 @@
 <template>
-  <view v-if="open" class="pgs-mask" @tap="onClose">
-    <view class="pgs-sheet" @tap.stop>
+  <view v-if="open" class="pgs-mask" role="dialog" aria-modal="true" aria-label="短视频发布资格" @tap="onClose" @touchmove.self.prevent>
+    <view class="pgs-sheet" tabindex="-1" @tap.stop @touchmove.stop>
       <view class="pgs-handle" />
       <view class="pgs-head">
         <view>
           <text class="pgs-kicker">全平台创作者通行证</text>
           <text class="pgs-title">让优质内容走出圈子</text>
         </view>
-        <view class="pgs-close" @tap="onClose">
+        <view
+          class="pgs-close"
+          role="button"
+          aria-label="关闭发布资格面板"
+          tabindex="0"
+          @tap="onClose"
+          @keydown="activateOnKeyboard($event, onClose)"
+        >
           <AppIcon name="x" :size="32" color="#8D8780" />
         </view>
       </view>
@@ -59,10 +66,26 @@
         </view>
 
         <view class="pgs-foot">
-          <view class="pgs-btn pgs-btn-ghost" @tap="onClose">
+          <view
+            class="pgs-btn pgs-btn-ghost"
+            role="button"
+            aria-label="先发到圈内"
+            tabindex="0"
+            @tap="onClose"
+            @keydown="activateOnKeyboard($event, onClose)"
+          >
             <text>先发到圈内</text>
           </view>
-          <view class="pgs-btn pgs-btn-primary" :class="{ disabled: actionBusy }" @tap="handleAction">
+          <view
+            class="pgs-btn pgs-btn-primary"
+            :class="{ disabled: actionBusy }"
+            role="button"
+            :aria-label="actionText"
+            :aria-disabled="actionBusy"
+            :tabindex="actionBusy ? -1 : 0"
+            @tap="handleAction"
+            @keydown="activateOnKeyboard($event, handleAction)"
+          >
             <text>{{ actionText }}</text>
           </view>
         </view>
@@ -74,6 +97,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import {
   applyCirclePublishGrant,
   getCirclePublishGrantStatus,
@@ -84,6 +108,15 @@ import { navigateTo } from '@/utils/router'
 
 const props = defineProps<{ open: boolean; circleId?: string }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'granted'): void }>()
+
+useOverlayScrollLock(
+  () => props.open,
+  {
+    onEscape: onClose,
+    focusContainerSelector: '.pgs-sheet',
+    initialFocusSelector: '.pgs-close',
+  },
+)
 
 const loading = ref(false)
 const actionBusy = ref(false)
@@ -164,6 +197,12 @@ watch(
 
 function onClose() {
   emit('close')
+}
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<void>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
 }
 
 async function handleAction() {

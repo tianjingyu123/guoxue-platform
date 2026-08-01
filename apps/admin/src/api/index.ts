@@ -38,7 +38,13 @@ function showError(msg: string | string[]) {
 api.interceptors.response.use(
   (res) => {
     // 后端 ResponseInterceptor 包装为 {code, data, message}，自动解包
-    if (res.data && typeof res.data === "object" && "code" in res.data && res.data.code === 200 && "data" in res.data) {
+    if (
+      res.data &&
+      typeof res.data === "object" &&
+      "code" in res.data &&
+      res.data.code === 200 &&
+      "data" in res.data
+    ) {
       const envelope = res.data;
       if (envelope.pagination) {
         res.data = { items: envelope.data, ...envelope.pagination };
@@ -52,8 +58,13 @@ api.interceptors.response.use(
     const status = err.response?.status;
     const original = err.config;
 
-    if (status === 401 && original && !original._retry
-        && !original.url?.includes("/auth/login") && !original.url?.includes("/auth/refresh")) {
+    if (
+      status === 401 &&
+      original &&
+      !original._retry &&
+      !original.url?.includes("/auth/login") &&
+      !original.url?.includes("/auth/refresh")
+    ) {
       original._retry = true;
 
       // 已有刷新在进行：排队等新 token 后重试（避免并发把一次性 refreshToken 用废）
@@ -111,9 +122,10 @@ api.interceptors.response.use(
 
     // 网络错误：服务器不可达、超时、DNS 解析失败等
     if (!err.response) {
-      const networkMsg = err.code === "ECONNABORTED"
-        ? "请求超时，请检查网络后重试"
-        : "无法连接到服务器，请确认后端服务是否正常运行";
+      const networkMsg =
+        err.code === "ECONNABORTED"
+          ? "请求超时，请检查网络后重试"
+          : "无法连接到服务器，请确认后端服务是否正常运行";
       ElMessage.error(networkMsg);
       return Promise.reject(err);
     }
@@ -126,8 +138,7 @@ api.interceptors.response.use(
 
 // 认证
 export const authApi = {
-  login: (data: { phone: string; password: string }) =>
-    api.post("/auth/login/phone", data),
+  login: (data: { phone: string; password: string }) => api.post("/auth/login/phone", data),
   getProfile: () => api.get("/auth/me"),
   getMenus: () => api.get("/auth/menus"),
 };
@@ -137,42 +148,35 @@ export const imApi = {
   getUserSig: (userId?: string) => api.post("/im/user-sig", userId ? { userId } : {}),
   importAccount: (data: { userId: string; nickname?: string; avatar?: string }) =>
     api.post("/im/account/import", data),
-  queryAccountState: (userIds: string) =>
-    api.get("/im/account/state", { params: { userIds } }),
+  queryAccountState: (userIds: string) => api.get("/im/account/state", { params: { userIds } }),
   updateProfile: (userId: string, data: { nickname?: string; avatar?: string }) =>
     api.post(`/im/account/${userId}/profile`, data),
   createGroup: (data: { groupId: string; name: string; type?: string; ownerId?: string }) =>
     api.post("/im/groups", data),
   destroyGroup: (groupId: string) => api.delete(`/im/groups/${groupId}`),
-  getGroupInfo: (groupId: string) =>
-    api.get(`/im/groups/${groupId}/detail`),
-  getGroupMembers: (groupId: string) =>
-    api.get(`/im/groups/${groupId}/members`),
+  getGroupInfo: (groupId: string) => api.get(`/im/groups/${groupId}/detail`),
+  getGroupMembers: (groupId: string) => api.get(`/im/groups/${groupId}/members`),
   addGroupMembers: (groupId: string, memberIds: string[]) =>
     api.post(`/im/groups/${groupId}/members`, { memberIds }),
   deleteGroupMembers: (groupId: string, memberIds: string[]) =>
     api.delete(`/im/groups/${groupId}/members`, { data: { memberIds } }),
-  sendGroupMsg: (groupId: string, text: string) =>
-    api.post(`/im/groups/${groupId}/msg`, { text }),
+  sendGroupMsg: (groupId: string, text: string) => api.post(`/im/groups/${groupId}/msg`, { text }),
   getGroupHistory: (groupId: string, page?: number, pageSize?: number) =>
-    api.get(`/im/groups/${groupId}/history`, { params: { page: page || 1, pageSize: pageSize || 20 } }),
-  sendC2CMsg: (toUserId: string, text: string) =>
-    api.post("/im/c2c/send", { toUserId, text }),
+    api.get(`/im/groups/${groupId}/history`, {
+      params: { page: page || 1, pageSize: pageSize || 20 },
+    }),
+  sendC2CMsg: (toUserId: string, text: string) => api.post("/im/c2c/send", { toUserId, text }),
   getC2CHistory: (toUserId: string, count?: number) =>
     api.get("/im/c2c/history", { params: { toUserId, count } }),
   withdrawMsg: (toUserId: string, msgKey: string) =>
     api.post("/im/msg/withdraw", { toUserId, msgKey }),
   // 好友管理
-  addFriend: (toUserId: string, remark?: string) =>
-    api.post("/im/friends", { toUserId, remark }),
-  deleteFriend: (toUserId: string) =>
-    api.delete(`/im/friends/${toUserId}`),
+  addFriend: (toUserId: string, remark?: string) => api.post("/im/friends", { toUserId, remark }),
+  deleteFriend: (toUserId: string) => api.delete(`/im/friends/${toUserId}`),
   getFriendList: () => api.get("/im/friends"),
   // 黑名单
-  addBlacklist: (toUserId: string) =>
-    api.post("/im/blacklist", { toUserId }),
-  removeBlacklist: (toUserId: string) =>
-    api.post("/im/blacklist/remove", { toUserId }),
+  addBlacklist: (toUserId: string) => api.post("/im/blacklist", { toUserId }),
+  removeBlacklist: (toUserId: string) => api.post("/im/blacklist/remove", { toUserId }),
   getBlacklist: () => api.get("/im/blacklist"),
 };
 
@@ -183,7 +187,8 @@ export const contentApi = {
   create: (data: Record<string, unknown>) => api.post("/contents", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/contents/${id}`, data),
   remove: (id: string) => api.delete(`/contents/${id}`),
-  batchStatus: (ids: string[], status: string) => api.put("/contents/batch/status", { ids, status }),
+  batchStatus: (ids: string[], status: string) =>
+    api.put("/contents/batch/status", { ids, status }),
   stats: () => api.get("/contents/stats/overview"),
   // 专用审核端点（仅改状态+理由·CONTENT_AUDITOR 可用·2026-07-18 Z1 批）
   audit: (id: string, status: string, reason?: string) =>
@@ -197,45 +202,62 @@ export const courseApi = {
   create: (data: Record<string, unknown>) => api.post("/courses", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/courses/${id}`, data),
   remove: (id: string) => api.delete(`/courses/${id}`),
-  audit: (id: string, status: string, reason?: string) => api.put(`/courses/${id}/audit`, { status, reason }),
+  audit: (id: string, status: string, reason?: string) =>
+    api.put(`/courses/${id}/audit`, { status, reason }),
   batchAudit: (ids: string[], status: string) => api.put("/courses/batch/audit", { ids, status }),
   forceDelete: (id: string) => api.delete(`/courses/${id}/force`),
   forceStatus: (id: string, status: string) => api.put(`/courses/${id}/status`, { status }),
   // 会员精品课标记（平台运营专属·2026-07-03 会员权益拍板）
-  setMemberFree: (id: string, memberFree: boolean) => api.put(`/courses/${id}/member-free`, { memberFree }),
+  setMemberFree: (id: string, memberFree: boolean) =>
+    api.put(`/courses/${id}/member-free`, { memberFree }),
   // 章节
   getChapters: (id: string) => api.get(`/courses/${id}/chapters`),
-  addChapter: (id: string, data: Record<string, unknown>) => api.post(`/courses/${id}/chapters`, data),
-  updateChapter: (id: string, chapterId: string, data: Record<string, unknown>) => api.put(`/courses/${id}/chapters/${chapterId}`, data),
-  deleteChapter: (id: string, chapterId: string) => api.delete(`/courses/${id}/chapters/${chapterId}`),
+  addChapter: (id: string, data: Record<string, unknown>) =>
+    api.post(`/courses/${id}/chapters`, data),
+  updateChapter: (id: string, chapterId: string, data: Record<string, unknown>) =>
+    api.put(`/courses/${id}/chapters/${chapterId}`, data),
+  deleteChapter: (id: string, chapterId: string) =>
+    api.delete(`/courses/${id}/chapters/${chapterId}`),
   // 学员
-  getStudents: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/students`, { params }),
+  getStudents: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/courses/${id}/students`, { params }),
   getStudentProgress: (id: string, userId: string) => api.get(`/courses/${id}/students/${userId}`),
   // 作业
-  getWorks: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/works`, { params }),
-  scoreWork: (workId: string, score: number, feedback?: string) => api.put(`/courses/works/${workId}/score`, { score, feedback }),
+  getWorks: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/courses/${id}/works`, { params }),
+  scoreWork: (workId: string, score: number, feedback?: string) =>
+    api.put(`/courses/works/${workId}/score`, { score, feedback }),
   aiScoreWork: (workId: string) => api.post(`/courses/works/${workId}/ai-score`),
-  aiBatchScoreWorks: (courseId: string, chapterId?: string) => api.post(`/courses/${courseId}/works/ai-batch`, { chapterId }),
+  aiBatchScoreWorks: (courseId: string, chapterId?: string) =>
+    api.post(`/courses/${courseId}/works/ai-batch`, { chapterId }),
   // 评价
-  getReviews: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/reviews`, { params }),
-  getAllReviews: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/reviews/all`, { params }),
-  replyReview: (reviewId: string, reply: string) => api.put(`/courses/reviews/${reviewId}/reply`, { reply }),
-  toggleReview: (reviewId: string, status: string) => api.put(`/courses/reviews/${reviewId}/toggle`, { status }),
+  getReviews: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/courses/${id}/reviews`, { params }),
+  getAllReviews: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/courses/${id}/reviews/all`, { params }),
+  replyReview: (reviewId: string, reply: string) =>
+    api.put(`/courses/reviews/${reviewId}/reply`, { reply }),
+  toggleReview: (reviewId: string, status: string) =>
+    api.put(`/courses/reviews/${reviewId}/toggle`, { status }),
   // 问答
-  getQuestions: (id: string, params?: Record<string, unknown>) => api.get(`/courses/${id}/questions`, { params }),
+  getQuestions: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/courses/${id}/questions`, { params }),
   getQuestionTags: (id: string) => api.get(`/courses/${id}/questions/tags`),
-  answerQuestion: (qaId: string, answer: string) => api.put(`/courses/questions/${qaId}/answer`, { answer }),
+  answerQuestion: (qaId: string, answer: string) =>
+    api.put(`/courses/questions/${qaId}/answer`, { answer }),
   closeQuestion: (qaId: string) => api.put(`/courses/questions/${qaId}/close`),
   aiSuggestAnswer: (qaId: string) => api.post(`/courses/questions/${qaId}/ai-suggest`),
   // 统计
   getStats: (id: string) => api.get(`/courses/${id}/stats`),
   // 相关课程
-  getRelated: (id: string, limit?: number, useAi?: boolean) => api.get(`/courses/${id}/related`, { params: { limit, useAi: useAi ? 'true' : 'false' } }),
+  getRelated: (id: string, limit?: number, useAi?: boolean) =>
+    api.get(`/courses/${id}/related`, { params: { limit, useAi: useAi ? "true" : "false" } }),
   // 分类
   getCategories: () => api.get("/courses/categories"),
   listDrafts: (params?: Record<string, unknown>) => api.get("/courses/drafts", { params }),
   createDraft: (data: Record<string, unknown>) => api.post("/courses/drafts", data),
-  updateDraft: (id: string, data: Record<string, unknown>) => api.put(`/courses/drafts/${id}`, data),
+  updateDraft: (id: string, data: Record<string, unknown>) =>
+    api.put(`/courses/drafts/${id}`, data),
   deleteDraft: (id: string) => api.delete(`/courses/drafts/${id}`),
   publishDraft: (id: string) => api.post(`/courses/drafts/${id}/publish`),
   getLiveRooms: (id: string) => api.get(`/courses/${id}/live-rooms`),
@@ -260,17 +282,20 @@ export const paipanApi = {
   // 阳盘命理
   yangpanPreview: (data: Record<string, unknown>) => api.post("/paipan/yangpan", data),
   yangpanSave: (data: Record<string, unknown>) => api.post("/paipan/yangpan/save", data),
-  yangpanHistory: (params?: Record<string, unknown>) => api.get("/paipan/yangpan/history", { params }),
+  yangpanHistory: (params?: Record<string, unknown>) =>
+    api.get("/paipan/yangpan/history", { params }),
   yangpanDetail: (id: string) => api.get(`/paipan/yangpan/${id}`),
   // 六爻
   liuyaoPreview: (data: Record<string, unknown>) => api.post("/paipan/liuyao", data),
   liuyaoSave: (data: Record<string, unknown>) => api.post("/paipan/liuyao/save", data),
-  liuyaoHistory: (params?: Record<string, unknown>) => api.get("/paipan/liuyao/history", { params }),
+  liuyaoHistory: (params?: Record<string, unknown>) =>
+    api.get("/paipan/liuyao/history", { params }),
   liuyaoDetail: (id: string) => api.get(`/paipan/liuyao/${id}`),
   // 大六壬
   daliurenPreview: (data: Record<string, unknown>) => api.post("/paipan/daliuren", data),
   daliurenSave: (data: Record<string, unknown>) => api.post("/paipan/daliuren/save", data),
-  daliurenHistory: (params?: Record<string, unknown>) => api.get("/paipan/daliuren/history", { params }),
+  daliurenHistory: (params?: Record<string, unknown>) =>
+    api.get("/paipan/daliuren/history", { params }),
   daliurenDetail: (id: string) => api.get(`/paipan/daliuren/${id}`),
   // 管理员
   adminRecords: (params?: Record<string, unknown>) => api.get("/paipan/admin/records", { params }),
@@ -300,7 +325,8 @@ export const dashboardApi = {
   // 运营看板（看-P1·DashboardDaily 天级聚合）
   daily: (days = 30) => api.get("/dashboard/daily", { params: { days } }),
   today: () => api.get("/dashboard/today"),
-  rebuild: (date?: string) => api.post("/dashboard/rebuild", null, { params: date ? { date } : {} }),
+  rebuild: (date?: string) =>
+    api.post("/dashboard/rebuild", null, { params: date ? { date } : {} }),
 };
 
 // 圈子
@@ -317,7 +343,8 @@ export const circleApi = {
   removeMember: (circleId: string, userId: string) =>
     api.delete(`/circles/${circleId}/members/${userId}`),
   // 帖子管理
-  createPost: (circleId: string, data: Record<string, unknown>) => api.post(`/circles/${circleId}/posts`, data),
+  createPost: (circleId: string, data: Record<string, unknown>) =>
+    api.post(`/circles/${circleId}/posts`, data),
   getPosts: (circleId: string, params?: Record<string, unknown>) =>
     api.get(`/circles/${circleId}/posts`, { params }),
   getPostDetail: (circleId: string, postId: string) =>
@@ -343,16 +370,22 @@ export const circleApi = {
   listExperts: (circleId: string) => api.get(`/circles/${circleId}/experts`),
   getExpertConfig: (circleId: string, userId: string) =>
     api.get(`/circles/${circleId}/expert/${userId}`),
-  setExpertConfig: (circleId: string, data: { userId?: string; questionPriceCoin?: number; callPricePerMinuteCoin?: number }) =>
-    api.post(`/circles/${circleId}/expert/config`, data),
+  setExpertConfig: (
+    circleId: string,
+    data: { userId?: string; questionPriceCoin?: number; callPricePerMinuteCoin?: number },
+  ) => api.post(`/circles/${circleId}/expert/config`, data),
   // 付费入圈
-  prepareJoin: (circleId: string, data?: Record<string, unknown>) => api.post(`/circles/${circleId}/join/prepare`, data),
-  confirmJoin: (circleId: string, data?: Record<string, unknown>) => api.post(`/circles/${circleId}/join/confirm`, data),
+  prepareJoin: (circleId: string, data?: Record<string, unknown>) =>
+    api.post(`/circles/${circleId}/join/prepare`, data),
+  confirmJoin: (circleId: string, data?: Record<string, unknown>) =>
+    api.post(`/circles/${circleId}/join/confirm`, data),
   getJoinStatus: (circleId: string) => api.get(`/circles/${circleId}/join/status`),
-  renew: (circleId: string, data?: Record<string, unknown>) => api.post(`/circles/${circleId}/renew`, data),
+  renew: (circleId: string, data?: Record<string, unknown>) =>
+    api.post(`/circles/${circleId}/renew`, data),
   // 公告
   getAnnouncement: (circleId: string) => api.get(`/circles/${circleId}/announcement`),
-  setAnnouncement: (circleId: string, content: string, isTop?: boolean) => api.put(`/circles/${circleId}/announcement`, { content, isTop }),
+  setAnnouncement: (circleId: string, content: string, isTop?: boolean) =>
+    api.put(`/circles/${circleId}/announcement`, { content, isTop }),
   listAnnouncements: (circleId: string, page?: number, pageSize?: number) =>
     api.get(`/circles/${circleId}/announcements`, { params: { page, pageSize } }),
   deleteAnnouncement: (circleId: string, announcementId: string) =>
@@ -361,17 +394,24 @@ export const circleApi = {
   getInvitationStats: (circleId: string) => api.get(`/circles/${circleId}/invitation-stats`),
   // 分组
   listGroups: (circleId: string) => api.get(`/circles/${circleId}/member-groups`),
-  createGroup: (circleId: string, data: Record<string, unknown>) => api.post(`/circles/${circleId}/member-groups`, data),
-  updateGroup: (circleId: string, groupId: string, data: Record<string, unknown>) => api.put(`/circles/${circleId}/member-groups/${groupId}`, data),
-  deleteGroup: (circleId: string, groupId: string) => api.delete(`/circles/${circleId}/member-groups/${groupId}`),
+  createGroup: (circleId: string, data: Record<string, unknown>) =>
+    api.post(`/circles/${circleId}/member-groups`, data),
+  updateGroup: (circleId: string, groupId: string, data: Record<string, unknown>) =>
+    api.put(`/circles/${circleId}/member-groups/${groupId}`, data),
+  deleteGroup: (circleId: string, groupId: string) =>
+    api.delete(`/circles/${circleId}/member-groups/${groupId}`),
   addMembersToGroup: (circleId: string, groupId: string, userIds: string[]) =>
     api.post(`/circles/${circleId}/member-groups/${groupId}/members`, { userIds }),
   removeMemberFromGroup: (circleId: string, groupId: string, userId: string) =>
     api.delete(`/circles/${circleId}/member-groups/${groupId}/members/${userId}`),
-  getGroupMembers: (circleId: string, groupId: string, params?: { page?: number; pageSize?: number }) =>
-    api.get(`/circles/${circleId}/member-groups/${groupId}/members`, { params }),
+  getGroupMembers: (
+    circleId: string,
+    groupId: string,
+    params?: { page?: number; pageSize?: number },
+  ) => api.get(`/circles/${circleId}/member-groups/${groupId}/members`, { params }),
   // 收益
-  getRevenue: (circleId: string, params?: Record<string, unknown>) => api.get(`/circles/${circleId}/dashboard/revenue-breakdown`, { params }),
+  getRevenue: (circleId: string, params?: Record<string, unknown>) =>
+    api.get(`/circles/${circleId}/dashboard/revenue-breakdown`, { params }),
 };
 
 // 视频
@@ -382,13 +422,16 @@ export const videoApi = {
   update: (id: string, data: Record<string, unknown>) => api.put(`/videos/${id}`, data),
   remove: (id: string) => api.delete(`/videos/${id}`),
   // VOD 上传签名
-  getUploadSignature: (data?: Record<string, unknown>) => api.post("/videos/vod/upload-signature", data),
+  getUploadSignature: (data?: Record<string, unknown>) =>
+    api.post("/videos/vod/upload-signature", data),
   // VOD 播放鉴权签名
-  getPlaySignature: (fileId: string, expire?: number) => api.get(`/videos/vod/play-signature/${fileId}`, { params: { expire } }),
+  getPlaySignature: (fileId: string, expire?: number) =>
+    api.get(`/videos/vod/play-signature/${fileId}`, { params: { expire } }),
   // VOD URL拉取上传
   pullUpload: (data: Record<string, unknown>) => api.post("/videos/vod/pull-upload", data),
   // VOD 媒资处理（转码+截图+水印）
-  processMedia: (fileId: string, data?: Record<string, unknown>) => api.post(`/videos/vod/process/${fileId}`, data),
+  processMedia: (fileId: string, data?: Record<string, unknown>) =>
+    api.post(`/videos/vod/process/${fileId}`, data),
   // VOD 视频剪辑
   clipVideo: (data: Record<string, unknown>) => api.post("/videos/vod/clip", data),
   // VOD 媒资信息
@@ -398,16 +441,21 @@ export const videoApi = {
   // VOD 媒资搜索
   searchVodMedia: (params?: Record<string, unknown>) => api.get("/videos/vod/search", { params }),
   // VOD 播放统计
-  getPlaybackStats: (fileId: string, params: { startDate: string; endDate: string }) => api.get(`/videos/vod/playback-stats/${fileId}`, { params }),
+  getPlaybackStats: (fileId: string, params: { startDate: string; endDate: string }) =>
+    api.get(`/videos/vod/playback-stats/${fileId}`, { params }),
   // VOD 播放统计概览
-  getPlaybackSummary: (params: { startDate: string; endDate: string }) => api.get("/videos/vod/playback-summary", { params }),
+  getPlaybackSummary: (params: { startDate: string; endDate: string }) =>
+    api.get("/videos/vod/playback-summary", { params }),
   // 收藏管理
-  getCollectedList: (params?: Record<string, unknown>) => api.get("/videos/collected/mine", { params }),
+  getCollectedList: (params?: Record<string, unknown>) =>
+    api.get("/videos/collected/mine", { params }),
   // 分享记录
   recordShare: (id: string) => api.post(`/videos/${id}/share`),
   // 商品关联
-  addProduct: (videoId: string, productId: string) => api.post(`/videos/${videoId}/products/${productId}`),
-  removeProduct: (videoId: string, productId: string) => api.delete(`/videos/${videoId}/products/${productId}`),
+  addProduct: (videoId: string, productId: string) =>
+    api.post(`/videos/${videoId}/products/${productId}`),
+  removeProduct: (videoId: string, productId: string) =>
+    api.delete(`/videos/${videoId}/products/${productId}`),
 };
 
 // 直播
@@ -426,7 +474,8 @@ export const liveApi = {
   // 秒杀管理
   flashSales: (roomId: string) => api.get(`/live/rooms/${roomId}/flash-sales`),
   // 审核日志
-  auditLogs: (roomId: string, params?: Record<string, unknown>) => api.get(`/live/rooms/${roomId}/audit-logs`, { params }),
+  auditLogs: (roomId: string, params?: Record<string, unknown>) =>
+    api.get(`/live/rooms/${roomId}/audit-logs`, { params }),
   // 预约统计
   bookings: (roomId: string) => api.get(`/live/rooms/${roomId}/bookings`),
 };
@@ -436,16 +485,21 @@ export const userApi = {
   list: (params?: Record<string, unknown>) => api.get("/users", { params }),
   detail: (id: string) => api.get(`/users/${id}`),
   assignRole: (id: string, data: Record<string, unknown>) => api.post(`/users/${id}/roles`, data),
-  removeRole: (id: string, roleType: string, bindId?: string) => api.delete(`/users/${id}/roles/${roleType}`, { data: { bindId } }),
+  removeRole: (id: string, roleType: string, bindId?: string) =>
+    api.delete(`/users/${id}/roles/${roleType}`, { data: { bindId } }),
   updateStatus: (id: string, status: string) => api.put(`/users/${id}/status`, { status }),
-  ban: (id: string, reason?: string) => api.put(`/users/${id}/status`, { status: 'DISABLED', reason }),
-  unban: (id: string) => api.put(`/users/${id}/status`, { status: 'ACTIVE' }),
+  ban: (id: string, reason?: string) =>
+    api.put(`/users/${id}/status`, { status: "DISABLED", reason }),
+  unban: (id: string) => api.put(`/users/${id}/status`, { status: "ACTIVE" }),
   getUserStats: (id: string) => api.get(`/users/${id}/stats`),
-  getUserPurchases: (id: string, params?: Record<string, unknown>) => api.get(`/users/${id}/purchases`, { params }),
+  getUserPurchases: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/users/${id}/purchases`, { params }),
   getAdminProfile: (id: string) => api.get(`/users/${id}/profile`),
   getInterestStats: () => api.get("/users/stats/interests"),
-  pushByTag: (data: { tag: string; title: string; content: string }) => api.post("/users/push/by-tag", data),
-  listWhitelist: (params?: { page?: number; pageSize?: number }) => api.get("/users/whitelist", { params }),
+  pushByTag: (data: { tag: string; title: string; content: string }) =>
+    api.post("/users/push/by-tag", data),
+  listWhitelist: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/users/whitelist", { params }),
   addWhitelist: (data: { userId: string; reason?: string }) => api.post("/users/whitelist", data),
   removeWhitelist: (userId: string) => api.delete(`/users/whitelist/${userId}`),
 };
@@ -466,14 +520,24 @@ export const classicApi = {
   update: (id: string, data: Record<string, unknown>) => api.put(`/classic/books/${id}`, data),
   remove: (id: string) => api.delete(`/classic/books/${id}`),
   getChapters: (bookId: string) => api.get(`/classic/books/${bookId}/chapters`),
-  addChapter: (bookId: string, data: Record<string, unknown>) => api.post(`/classic/books/${bookId}/chapters`, data),
-  updateChapter: (id: string, data: Record<string, unknown>) => api.put(`/classic/chapters/${id}`, data),
+  addChapter: (bookId: string, data: Record<string, unknown>) =>
+    api.post(`/classic/books/${bookId}/chapters`, data),
+  updateChapter: (id: string, data: Record<string, unknown>) =>
+    api.put(`/classic/chapters/${id}`, data),
   deleteChapter: (id: string) => api.delete(`/classic/chapters/${id}`),
   // 注疏管理
-  listAnnotations: (bookId: string, params?: { chapterId?: string; page?: number; pageSize?: number }) =>
-    api.get(`/classic/books/${bookId}/annotations`, { params }),
-  createAnnotation: (data: { bookId: string; chapterId?: string; text: string; note: string; startPos?: number; endPos?: number }) =>
-    api.post("/classic/annotations", data),
+  listAnnotations: (
+    bookId: string,
+    params?: { chapterId?: string; page?: number; pageSize?: number },
+  ) => api.get(`/classic/books/${bookId}/annotations`, { params }),
+  createAnnotation: (data: {
+    bookId: string;
+    chapterId?: string;
+    text: string;
+    note: string;
+    startPos?: number;
+    endPos?: number;
+  }) => api.post("/classic/annotations", data),
   deleteAnnotation: (id: string) => api.delete(`/classic/annotations/${id}`),
   // 版本与引用
   getBookVersions: (bookId: string) => api.get(`/classic/books/${bookId}/versions`),
@@ -485,7 +549,8 @@ export const classicApi = {
   syncKnowledge: () => api.post("/classic/admin/sync-knowledge"),
   vectorize: () => api.post("/classic/admin/vectorize"),
   clearCache: () => api.post("/classic/admin/clear-cache"),
-  setStatus: (id: string, status: string) => api.patch(`/classic/books/${id}/status`, null, { params: { status } }),
+  setStatus: (id: string, status: string) =>
+    api.patch(`/classic/books/${id}/status`, null, { params: { status } }),
   // 笔记管理
   getAllNotes: (params?: { bookId?: string; page?: number; pageSize?: number }) =>
     api.get("/classic/admin/notes", { params }),
@@ -513,8 +578,10 @@ export const botApi = {
   unbindCircle: (id: string, circleId: string) =>
     api.delete(`/bots/${id}/unbind-circle/${circleId}`),
   getCircleBot: (circleId: string) => api.get(`/bots/circle/${circleId}`),
-  addKnowledge: (id: string, data: { title: string; content: string; sourceType?: string; sourceId?: string }) =>
-    api.post(`/bots/${id}/knowledge`, data),
+  addKnowledge: (
+    id: string,
+    data: { title: string; content: string; sourceType?: string; sourceId?: string },
+  ) => api.post(`/bots/${id}/knowledge`, data),
   deleteKnowledge: (knowledgeId: string) => api.delete(`/bots/knowledge/${knowledgeId}`),
   getRanking: (limit?: number) => api.get("/bots/ranking", { params: { limit: limit || 20 } }),
   syncFromCoze: () => api.post("/bots/sync/coze"),
@@ -526,52 +593,72 @@ export const botApi = {
   approveBot: (circleId: string) => api.post(`/bots/manage/approvals/${circleId}/approve`),
   getBotKnowledgeList: (circleId: string, params?: { page?: number; pageSize?: number }) =>
     api.get(`/bots/manage/knowledge/${circleId}`, { params }),
-  addBotKnowledge: (circleId: string, data: { title: string; content: string; sourceType?: string }) =>
-    api.post(`/bots/manage/knowledge/${circleId}`, data),
+  addBotKnowledge: (
+    circleId: string,
+    data: { title: string; content: string; sourceType?: string },
+  ) => api.post(`/bots/manage/knowledge/${circleId}`, data),
   updateBotKnowledge: (knowledgeId: string, data: { title?: string; content?: string }) =>
     api.put(`/bots/manage/knowledge/${knowledgeId}`, data),
   deleteBotKnowledge: (knowledgeId: string) => api.delete(`/bots/manage/knowledge/${knowledgeId}`),
   getBotUsageData: (circleId: string) => api.get(`/bots/manage/usage/${circleId}`),
-  marketplaceList: (params?: { keyword?: string; category?: string; page?: number; pageSize?: number }) =>
-    api.get("/ai/marketplace/agents", { params }),
+  marketplaceList: (params?: {
+    keyword?: string;
+    category?: string;
+    page?: number;
+    pageSize?: number;
+  }) => api.get("/ai/marketplace/agents", { params }),
   marketplaceDetail: (id: string) => api.get(`/ai/marketplace/agents/${id}`),
 };
 
 // 研究院
 export const instituteApi = {
-  listMembers: (params?: Record<string, unknown>) => api.get("/institute/admin/members", { params }),
+  listMembers: (params?: Record<string, unknown>) =>
+    api.get("/institute/admin/members", { params }),
   getMember: (id: string) => api.get(`/institute/members/${id}`),
-  updateMember: (id: string, data: Record<string, unknown>) => api.put(`/institute/members/${id}`, data),
+  updateMember: (id: string, data: Record<string, unknown>) =>
+    api.put(`/institute/members/${id}`, data),
   // 特邀席位：名师破格引入（跳过准入门槛·可设永久免会费·T9-P1 §3.2 V6）
-  inviteMember: (data: Record<string, unknown>) => api.post("/institute/admin/members/invite", data),
-  setLecturerLevel: (id: string, lecturerLevel: string) => api.put(`/institute/members/${id}/lecturer-level`, { lecturerLevel }),
+  inviteMember: (data: Record<string, unknown>) =>
+    api.post("/institute/admin/members/invite", data),
+  setLecturerLevel: (id: string, lecturerLevel: string) =>
+    api.put(`/institute/members/${id}/lecturer-level`, { lecturerLevel }),
   verifyTask: (taskId: string) => api.post(`/institute/tasks/${taskId}/verify`),
   createEvent: (data: Record<string, unknown>) => api.post("/institute/events", data),
-  updateEvent: (id: string, data: Record<string, unknown>) => api.put(`/institute/events/${id}`, data),
+  updateEvent: (id: string, data: Record<string, unknown>) =>
+    api.put(`/institute/events/${id}`, data),
   // 管理层
   getOverview: () => api.get("/institute/manage/overview"),
   getPendingMembers: () => api.get("/institute/manage/pending-members"),
-  approveMember: (id: string, data: Record<string, unknown>) => api.put(`/institute/manage/members/${id}/approve`, data),
-  assignRole: (id: string, data: Record<string, unknown>) => api.put(`/institute/manage/members/${id}/role`, data),
+  approveMember: (id: string, data: Record<string, unknown>) =>
+    api.put(`/institute/manage/members/${id}/approve`, data),
+  assignRole: (id: string, data: Record<string, unknown>) =>
+    api.put(`/institute/manage/members/${id}/role`, data),
   getFinance: (period?: string) => api.get("/institute/manage/finance", { params: { period } }),
   createDividend: (data: Record<string, unknown>) => api.post("/institute/manage/dividends", data),
-  recommendToTalent: (id: string, lecturerLevel: string) => api.put(`/institute/manage/members/${id}/recommend`, { lecturerLevel }),
+  recommendToTalent: (id: string, lecturerLevel: string) =>
+    api.put(`/institute/manage/members/${id}/recommend`, { lecturerLevel }),
   // 任务模板
   listTaskTemplates: () => api.get("/institute/task-templates"),
-  createTaskTemplate: (data: Record<string, unknown>) => api.post("/institute/task-templates", data),
-  updateTaskTemplate: (id: string, data: Record<string, unknown>) => api.put(`/institute/task-templates/${id}`, data),
+  createTaskTemplate: (data: Record<string, unknown>) =>
+    api.post("/institute/task-templates", data),
+  updateTaskTemplate: (id: string, data: Record<string, unknown>) =>
+    api.put(`/institute/task-templates/${id}`, data),
   // 人才库
   getCandidates: () => api.get("/institute/candidates"),
   // 内容
-  listContents: (params?: Record<string, unknown>) => api.get("/admin/institute/contents", { params }),
+  listContents: (params?: Record<string, unknown>) =>
+    api.get("/admin/institute/contents", { params }),
   createContent: (data: Record<string, unknown>) => api.post("/admin/institute/contents", data),
   getContent: (id: string) => api.get(`/admin/institute/contents/${id}`),
-  updateContent: (id: string, data: Record<string, unknown>) => api.put(`/admin/institute/contents/${id}`, data),
+  updateContent: (id: string, data: Record<string, unknown>) =>
+    api.put(`/admin/institute/contents/${id}`, data),
   deleteContent: (id: string) => api.delete(`/admin/institute/contents/${id}`),
   getContentStats: () => api.get("/admin/institute/contents/stats"),
-  getContentPurchases: (id: string, params?: Record<string, unknown>) => api.get(`/admin/institute/contents/${id}/purchases`, { params }),
+  getContentPurchases: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/admin/institute/contents/${id}/purchases`, { params }),
   // 分红
-  getDividends: (params?: Record<string, unknown>) => api.get("/institute/my/dividends", { params }),
+  getDividends: (params?: Record<string, unknown>) =>
+    api.get("/institute/my/dividends", { params }),
 };
 
 // 分站管理（推广分站）
@@ -581,33 +668,45 @@ export const stationApi = {
   create: (data: Record<string, unknown>) => api.post("/station", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/station/${id}`, data),
   remove: (id: string) => api.delete(`/station/${id}`),
-  earnings: (id: string, params?: Record<string, unknown>) => api.get(`/station/${id}/earnings`, { params }),
+  earnings: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/station/${id}/earnings`, { params }),
   operatorList: (params?: Record<string, unknown>) => api.get("/station/operator/list", { params }),
   createOperator: (data: Record<string, unknown>) => api.post("/station/operator", data),
   // 模版
   getTemplates: () => api.get("/station/templates/list"),
   getTemplateConfig: (id: string) => api.get(`/station/templates/${id}`),
-  setTemplate: (stationId: string, data: { templateId: string; templateConfig?: Record<string, unknown> }) =>
-    api.put(`/station/${stationId}/template`, data),
+  setTemplate: (
+    stationId: string,
+    data: { templateId: string; templateConfig?: Record<string, unknown> },
+  ) => api.put(`/station/${stationId}/template`, data),
   getBrand: (id: string) => api.get(`/station/${id}/brand`),
   getMiniConfig: (id: string) => api.get(`/station/${id}/mini-config`),
   getRevenueDashboard: (id: string) => api.get(`/station/${id}/revenue-dashboard`),
   getOperatorMiniConfig: (id: string) => api.get(`/station/operator/${id}/mini-config`),
-  updateOperatorBrand: (id: string, data: Record<string, unknown>) => api.put(`/station/operator/${id}/brand`, data),
-  getTeamMembers: (params?: Record<string, unknown>) => api.get("/station/team/members", { params }),
-  getTeamLeaderboard: (params?: Record<string, unknown>) => api.get("/station/team/leaderboard", { params }),
-  getTeamActivity: (params?: Record<string, unknown>) => api.get("/station/team/activity", { params }),
-  getTeamSuccessCases: (params?: Record<string, unknown>) => api.get("/station/team/success-cases", { params }),
-  listPromotionMaterials: (params?: Record<string, unknown>) => api.get("/station/promotion/materials", { params }),
+  updateOperatorBrand: (id: string, data: Record<string, unknown>) =>
+    api.put(`/station/operator/${id}/brand`, data),
+  getTeamMembers: (params?: Record<string, unknown>) =>
+    api.get("/station/team/members", { params }),
+  getTeamLeaderboard: (params?: Record<string, unknown>) =>
+    api.get("/station/team/leaderboard", { params }),
+  getTeamActivity: (params?: Record<string, unknown>) =>
+    api.get("/station/team/activity", { params }),
+  getTeamSuccessCases: (params?: Record<string, unknown>) =>
+    api.get("/station/team/success-cases", { params }),
+  listPromotionMaterials: (params?: Record<string, unknown>) =>
+    api.get("/station/promotion/materials", { params }),
   getPromotionMaterial: (id: string) => api.get(`/station/promotion/materials/${id}`),
-  createPromotionMaterial: (data: Record<string, unknown>) => api.post("/station/promotion/materials", data),
+  createPromotionMaterial: (data: Record<string, unknown>) =>
+    api.post("/station/promotion/materials", data),
   deletePromotionMaterial: (id: string) => api.delete(`/station/promotion/materials/${id}`),
   listReferralConfigs: () => api.get("/admin/referral/temp-configs"),
   getActiveReferralConfig: () => api.get("/admin/referral/temp-configs/active"),
   getReferralConfigHistory: () => api.get("/admin/referral/temp-configs/history"),
   getReferralConfig: (id: string) => api.get(`/admin/referral/temp-configs/${id}`),
-  createReferralConfig: (data: Record<string, unknown>) => api.post("/admin/referral/temp-configs", data),
-  updateReferralConfig: (id: string, data: Record<string, unknown>) => api.put(`/admin/referral/temp-configs/${id}`, data),
+  createReferralConfig: (data: Record<string, unknown>) =>
+    api.post("/admin/referral/temp-configs", data),
+  updateReferralConfig: (id: string, data: Record<string, unknown>) =>
+    api.put(`/admin/referral/temp-configs/${id}`, data),
   deleteReferralConfig: (id: string) => api.delete(`/admin/referral/temp-configs/${id}`),
 };
 
@@ -620,31 +719,46 @@ export const offlineApi = {
   courses: (params?: Record<string, unknown>) => api.get("/offline/courses", { params }),
   createCourse: (data: Record<string, unknown>) => api.post("/offline/courses", data),
   members: (params?: Record<string, unknown>) => api.get("/offline/institute/members", { params }),
-  updateMember: (id: string, data: Record<string, unknown>) => api.put(`/offline/institute/members/${id}`, data),
+  updateMember: (id: string, data: Record<string, unknown>) =>
+    api.put(`/offline/institute/members/${id}`, data),
   getRevenueDashboard: (id: string) => api.get(`/offline/stations/${id}/revenue-dashboard`),
-  getPendingCourses: (params?: Record<string, unknown>) => api.get("/offline/admin/courses/pending", { params }),
-  auditCourse: (id: string, status: string) => api.put(`/offline/admin/courses/${id}/audit`, { status }),
-  recommendCourse: (id: string, data?: Record<string, unknown>) => api.put(`/offline/admin/courses/${id}/recommend`, data),
+  getPendingCourses: (params?: Record<string, unknown>) =>
+    api.get("/offline/admin/courses/pending", { params }),
+  auditCourse: (id: string, status: string) =>
+    api.put(`/offline/admin/courses/${id}/audit`, { status }),
+  recommendCourse: (id: string, data?: Record<string, unknown>) =>
+    api.put(`/offline/admin/courses/${id}/recommend`, data),
   getRecommendedCourses: () => api.get("/offline/admin/courses/recommended"),
-  getCourseRegistrations: (id: string, params?: Record<string, unknown>) => api.get(`/offline/courses/${id}/registrations`, { params }),
-  addProduct: (stationId: string, data: Record<string, unknown>) => api.post(`/offline/stations/${stationId}/products`, data),
-  updateProduct: (productId: string, data: Record<string, unknown>) => api.put(`/offline/products/${productId}`, data),
+  getCourseRegistrations: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/offline/courses/${id}/registrations`, { params }),
+  addProduct: (stationId: string, data: Record<string, unknown>) =>
+    api.post(`/offline/stations/${stationId}/products`, data),
+  updateProduct: (productId: string, data: Record<string, unknown>) =>
+    api.put(`/offline/products/${productId}`, data),
   getProducts: (stationId: string) => api.get(`/offline/stations/${stationId}/products`),
   deleteProduct: (productId: string) => api.delete(`/offline/products/${productId}`),
-  getStationOrders: (stationId: string, params?: Record<string, unknown>) => api.get(`/offline/stations/${stationId}/orders`, { params }),
-  updateOrder: (orderId: string, data: Record<string, unknown>) => api.put(`/offline/orders/${orderId}`, data),
+  getStationOrders: (stationId: string, params?: Record<string, unknown>) =>
+    api.get(`/offline/stations/${stationId}/orders`, { params }),
+  updateOrder: (orderId: string, data: Record<string, unknown>) =>
+    api.put(`/offline/orders/${orderId}`, data),
   getSettlements: (stationId: string) => api.get(`/offline/stations/${stationId}/settlements`),
-  createSettlement: (stationId: string, data: Record<string, unknown>) => api.post(`/offline/stations/${stationId}/settlements`, data),
-  settleSettlement: (settlementId: string) => api.put(`/offline/settlements/${settlementId}/settle`),
+  createSettlement: (stationId: string, data: Record<string, unknown>) =>
+    api.post(`/offline/stations/${stationId}/settlements`, data),
+  settleSettlement: (settlementId: string) =>
+    api.put(`/offline/settlements/${settlementId}/settle`),
   createTeacher: (data: Record<string, unknown>) => api.post("/offline/admin/teachers", data),
-  listTeachers: (params?: Record<string, unknown>) => api.get("/offline/admin/teachers", { params }),
+  listTeachers: (params?: Record<string, unknown>) =>
+    api.get("/offline/admin/teachers", { params }),
   getTeacher: (id: string) => api.get(`/offline/admin/teachers/${id}`),
-  updateTeacher: (id: string, data: Record<string, unknown>) => api.put(`/offline/admin/teachers/${id}`, data),
+  updateTeacher: (id: string, data: Record<string, unknown>) =>
+    api.put(`/offline/admin/teachers/${id}`, data),
   deleteTeacher: (id: string) => api.delete(`/offline/admin/teachers/${id}`),
   getTeacherSchedule: (id: string) => api.get(`/offline/admin/teachers/${id}/schedule`),
-  setTeacherAvailability: (id: string, data: Record<string, unknown>) => api.post(`/offline/admin/teachers/${id}/availability`, data),
+  setTeacherAvailability: (id: string, data: Record<string, unknown>) =>
+    api.post(`/offline/admin/teachers/${id}/availability`, data),
   getScheduleConflicts: () => api.get("/offline/admin/schedule/conflicts"),
-  getTeacherBookings: (stationId: string, params?: Record<string, unknown>) => api.get(`/offline/stations/${stationId}/teacher-bookings`, { params }),
+  getTeacherBookings: (stationId: string, params?: Record<string, unknown>) =>
+    api.get(`/offline/stations/${stationId}/teacher-bookings`, { params }),
   confirmBooking: (bookingId: string) => api.put(`/offline/teacher-bookings/${bookingId}/confirm`),
   cancelBooking: (bookingId: string) => api.put(`/offline/teacher-bookings/${bookingId}/cancel`),
 };
@@ -665,15 +779,21 @@ export const uploadApi = {
 // 分佣管理
 export const commissionApi = {
   getConfigs: () => api.get("/commission/configs"),
-  updateConfig: (key: string, data: Record<string, unknown>) => api.put(`/commission/configs/${key}`, data),
-  stationEarnings: (stationId: string, params?: Record<string, unknown>) => api.get(`/commission/station-earnings/${stationId}`, { params }),
+  updateConfig: (key: string, data: Record<string, unknown>) =>
+    api.put(`/commission/configs/${key}`, data),
+  stationEarnings: (stationId: string, params?: Record<string, unknown>) =>
+    api.get(`/commission/station-earnings/${stationId}`, { params }),
   stationBalance: (stationId: string) => api.get(`/commission/station-balance/${stationId}`),
-  listWithdrawals: (params?: Record<string, unknown>) => api.get("/commission/admin/withdrawals", { params }),
-  auditWithdrawal: (id: string, data: { status: string; remark?: string }) => api.put(`/commission/admin/withdrawals/${id}`, data),
+  listWithdrawals: (params?: Record<string, unknown>) =>
+    api.get("/commission/admin/withdrawals", { params }),
+  auditWithdrawal: (id: string, data: { status: string; remark?: string }) =>
+    api.put(`/commission/admin/withdrawals/${id}`, data),
   // 打款专用：取完整收款账户（唯一返回明文卡号的接口·每次调用后端强制写审计日志）
-  revealPayoutAccount: (id: string) => api.get(`/commission/admin/withdrawals/${id}/payout-account`),
+  revealPayoutAccount: (id: string) =>
+    api.get(`/commission/admin/withdrawals/${id}/payout-account`),
   // 确认已线下打款：payoutRef=银行/支付宝转账流水号（必填·唯一·防重复打款）
-  confirmPayout: (id: string, payoutRef: string) => api.post(`/commission/admin/withdrawals/${id}/payout`, { payoutRef }),
+  confirmPayout: (id: string, payoutRef: string) =>
+    api.post(`/commission/admin/withdrawals/${id}/payout`, { payoutRef }),
   getQuickConfig: () => api.get("/commission/config"),
   updateQuickConfig: (data: Record<string, unknown>) => api.put("/commission/config", data),
   getPlatformFeeSummary: () => api.get("/commission/platform-fee/summary"),
@@ -687,12 +807,21 @@ export const auditApi = {
     api.post("/audit/moderate/image", { imageUrl, context }),
   moderateText: (text: string, context?: string) =>
     api.post("/audit/moderate/text", { text, context }),
-  getOperationLogs: (params?: { page?: number; pageSize?: number; action?: string; userId?: string }) =>
-    api.get("/audit/operation-logs", { params }),
+  getOperationLogs: (params?: {
+    page?: number;
+    pageSize?: number;
+    action?: string;
+    userId?: string;
+  }) => api.get("/audit/operation-logs", { params }),
   getOperationLog: (id: string) => api.get(`/audit/operation-logs/${id}`),
   // 平台内容审核队列（向全平台开放必审·ARTICLE/POST/COURSE/VIDEO/LIVE 统一台账）
-  listContentAudits: (params?: { finalStatus?: string; contentType?: string; circleId?: string; page?: number; pageSize?: number }) =>
-    api.get("/audit/content-audits", { params }),
+  listContentAudits: (params?: {
+    finalStatus?: string;
+    contentType?: string;
+    circleId?: string;
+    page?: number;
+    pageSize?: number;
+  }) => api.get("/audit/content-audits", { params }),
   reviewContentAudit: (id: string, data: { action: "approve" | "reject"; reason?: string }) =>
     api.put(`/audit/content-audits/${id}/review`, data),
 };
@@ -715,8 +844,13 @@ export const callDisputeApi = {
 
 // 业务哨兵（O-T1·告警查看/处置）
 export const sentinelApi = {
-  listAlerts: (params?: { page?: number; pageSize?: number; status?: string; level?: string; rule?: string }) =>
-    api.get("/sentinel/alerts", { params }),
+  listAlerts: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    level?: string;
+    rule?: string;
+  }) => api.get("/sentinel/alerts", { params }),
   resolveAlert: (id: string) => api.post(`/sentinel/alerts/${id}/resolve`),
   patrol: () => api.post("/sentinel/patrol"),
 };
@@ -728,14 +862,17 @@ export const creationRankingApi = {
 
 // 转化漏斗（D-T1·FunnelDaily 日聚合）
 export const funnelApi = {
-  daily: (funnel: string, days = 14) => api.get("/dashboard/funnels/daily", { params: { funnel, days } }),
-  rebuild: (date?: string) => api.post("/dashboard/funnels/daily/rebuild", null, { params: date ? { date } : {} }),
+  daily: (funnel: string, days = 14) =>
+    api.get("/dashboard/funnels/daily", { params: { funnel, days } }),
+  rebuild: (date?: string) =>
+    api.post("/dashboard/funnels/daily/rebuild", null, { params: date ? { date } : {} }),
 };
 
 // 用户标签（D-T2·分布/圈人。R2红线：标签禁用于差异化定价）
 export const userTagApi = {
   distribution: () => api.get("/user-tags/distribution"),
-  byTag: (tag: string, page = 1, pageSize = 20) => api.get("/user-tags/by-tag", { params: { tag, page, pageSize } }),
+  byTag: (tag: string, page = 1, pageSize = 20) =>
+    api.get("/user-tags/by-tag", { params: { tag, page, pageSize } }),
   ofUser: (userId: string) => api.get(`/user-tags/user/${userId}`),
   recompute: () => api.post("/user-tags/recompute"),
 };
@@ -759,23 +896,36 @@ export const auditReportApi = {
 export const featureFlagApi = {
   list: () => api.get("/admin/feature-flags"),
   detail: (key: string) => api.get(`/admin/feature-flags/${key}`),
-  create: (data: { key: string; name: string; description?: string; enabled: boolean; percentage?: number; whitelist?: string[] }) =>
-    api.post("/admin/feature-flags", data),
-  update: (key: string, data: Record<string, unknown>) => api.put(`/admin/feature-flags/${key}`, data),
+  create: (data: {
+    key: string;
+    name: string;
+    description?: string;
+    enabled: boolean;
+    percentage?: number;
+    whitelist?: string[];
+  }) => api.post("/admin/feature-flags", data),
+  update: (key: string, data: Record<string, unknown>) =>
+    api.put(`/admin/feature-flags/${key}`, data),
   delete: (key: string) => api.delete(`/admin/feature-flags/${key}`),
 };
 
 // 任务池管理
 export const taskApi = {
-  list: (params?: { status?: string; type?: string; assignee?: string; page?: number; pageSize?: number }) =>
-    api.get("/tasks", { params }),
+  list: (params?: {
+    status?: string;
+    type?: string;
+    assignee?: string;
+    page?: number;
+    pageSize?: number;
+  }) => api.get("/tasks", { params }),
   detail: (id: string) => api.get(`/tasks/${id}`),
   create: (data: Record<string, unknown>) => api.post("/tasks", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/tasks/${id}`, data),
   claim: (id: string) => api.post(`/tasks/${id}/claim`),
   transfer: (id: string, data: { assignee: string }) => api.post(`/tasks/${id}/transfer`, data),
   forceReclaim: (id: string) => api.post(`/tasks/${id}/force-reclaim`),
-  approve: (id: string, data: { status: string; note?: string }) => api.post(`/tasks/${id}/approve`, data),
+  approve: (id: string, data: { status: string; note?: string }) =>
+    api.post(`/tasks/${id}/approve`, data),
   rollback: (id: string) => api.post(`/tasks/${id}/rollback`),
   pendingCount: () => api.get("/tasks/stats/pending"),
 };
@@ -795,7 +945,8 @@ export const systemApi = {
   getConfigVersions: (params?: { page?: number; pageSize?: number }) =>
     api.get("/system/config-versions", { params }),
   getConfigVersion: (id: string) => api.get(`/system/config-versions/${id}`),
-  rollbackConfig: (data: { configKey: string; version: number }) => api.post("/system/config-versions/rollback", data),
+  rollbackConfig: (data: { configKey: string; version: number }) =>
+    api.post("/system/config-versions/rollback", data),
   getConfigDiff: (params: { versionId1: string; versionId2: string }) =>
     api.get("/system/config-diff", { params }),
   // 系统运维
@@ -807,21 +958,23 @@ export const systemApi = {
   toggleAutomation: (data: { enabled: boolean }) => api.post("/system/automation/toggle", data),
   // 品类树
   getCategoryTree: () => api.get("/system/category-tree"),
-  updateCategoryTree: (tree: Record<string, string[]>) =>
-    api.put("/system/category-tree", tree),
+  updateCategoryTree: (tree: Record<string, string[]>) => api.put("/system/category-tree", tree),
   getCourseCategoryTree: () => api.get("/system/course-category-tree"),
-  updateCourseCategoryTree: (tree: Record<string, string[]>) => api.put("/system/course-category-tree", tree),
+  updateCourseCategoryTree: (tree: Record<string, string[]>) =>
+    api.put("/system/course-category-tree", tree),
   // 全站公告
   listSiteNotices: (params?: { page?: number; pageSize?: number }) =>
     api.get("/system/site-notices", { params }),
   createSiteNotice: (data: { title: string; content: string; level?: string }) =>
     api.post("/system/site-notices", data),
-  updateSiteNotice: (id: string, data: Record<string, unknown>) => api.put(`/system/site-notices/${id}`, data),
+  updateSiteNotice: (id: string, data: Record<string, unknown>) =>
+    api.put(`/system/site-notices/${id}`, data),
   deleteSiteNotice: (id: string) => api.delete(`/system/site-notices/${id}`),
   // 会员配置
   getMemberConfigs: () => api.get("/system/member-configs"),
   createMemberConfig: (data: Record<string, unknown>) => api.post("/system/member-configs", data),
-  updateMemberConfig: (id: string, data: Record<string, unknown>) => api.put(`/system/member-configs/${id}`, data),
+  updateMemberConfig: (id: string, data: Record<string, unknown>) =>
+    api.put(`/system/member-configs/${id}`, data),
   deleteMemberConfig: (id: string) => api.delete(`/system/member-configs/${id}`),
   // Cron调度
   getCronStatus: () => api.get("/system/cron-status"),
@@ -843,7 +996,8 @@ export const legalApi = {
 // 版本管理
 export const versionApi = {
   list: () => api.get("/system/version"),
-  check: (current: string) => api.get("/system/version/check", { params: { current } }),
+  check: (platform: "ios" | "android", version: string, buildNumber?: string) =>
+    api.get("/system/version/check", { params: { platform, version, buildNumber } }),
   create: (data: Record<string, unknown>) => api.post("/system/version", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/system/version/${id}`, data),
   delete: (id: string) => api.delete(`/system/version/${id}`),
@@ -855,8 +1009,10 @@ export const commentApi = {
   count: (params?: Record<string, unknown>) => api.get("/comment/count", { params }),
   hide: (id: string) => api.put(`/comment/${id}/hide`),
   remove: (id: string) => api.delete(`/comment/${id}`),
-  getReplies: (id: string, params?: Record<string, unknown>) => api.get(`/comment/${id}/replies`, { params }),
-  getModerationList: (params?: Record<string, unknown>) => api.get("/comment/moderation/list", { params }),
+  getReplies: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/comment/${id}/replies`, { params }),
+  getModerationList: (params?: Record<string, unknown>) =>
+    api.get("/comment/moderation/list", { params }),
   batchHide: (ids: string[]) => api.put("/comment/moderation/batch-hide", { ids }),
 };
 
@@ -867,13 +1023,17 @@ export const shopApi = {
   createCoupon: (data: Record<string, unknown>) => api.post("/shop/coupons", data),
   updateCoupon: (id: string, data: Record<string, unknown>) => api.put(`/shop/coupons/${id}`, data),
   deleteCoupon: (id: string) => api.delete(`/shop/coupons/${id}`),
-  updateCouponStatus: (id: string, status: string) => api.put(`/shop/coupons/${id}/status`, { status }),
-  batchGrantCoupon: (id: string, userIds: string[]) => api.post(`/shop/coupons/${id}/batch-grant`, { userIds }),
+  updateCouponStatus: (id: string, status: string) =>
+    api.put(`/shop/coupons/${id}/status`, { status }),
+  batchGrantCoupon: (id: string, userIds: string[]) =>
+    api.post(`/shop/coupons/${id}/batch-grant`, { userIds }),
   // 物流
   getLogistics: (orderId: string) => api.get(`/shop/orders/${orderId}/logistics`),
-  updateLogistics: (orderId: string, data: Record<string, unknown>) => api.put(`/shop/orders/${orderId}/logistics`, data),
+  updateLogistics: (orderId: string, data: Record<string, unknown>) =>
+    api.put(`/shop/orders/${orderId}/logistics`, data),
   // 评价
-  listReviews: (productId: string, params?: Record<string, unknown>) => api.get(`/shop/products/${productId}/reviews`, { params }),
+  listReviews: (productId: string, params?: Record<string, unknown>) =>
+    api.get(`/shop/products/${productId}/reviews`, { params }),
 };
 
 // 虚拟币管理
@@ -882,8 +1042,13 @@ export const coinApi = {
   getRecharges: (page: number, pageSize: number, userId?: string) =>
     api.get("/coin/admin/recharges", { params: { page, pageSize, userId } }),
   /** 管理员查看所有交易流水 */
-  getAdminTransactions: (params?: { page?: number; pageSize?: number; userId?: string; type?: string; scene?: string }) =>
-    api.get("/coin/admin/transactions", { params }),
+  getAdminTransactions: (params?: {
+    page?: number;
+    pageSize?: number;
+    userId?: string;
+    type?: string;
+    scene?: string;
+  }) => api.get("/coin/admin/transactions", { params }),
   /** 管理员充值 */
   adminRecharge: (data: { userId: string; coins: number; remark?: string }) =>
     api.post("/coin/admin/recharge", data),
@@ -914,32 +1079,51 @@ export const questionApi = {
 
 // 通知管理
 export const notificationApi = {
-  list: (params?: { page?: number; pageSize?: number }) =>
-    api.get("/notifications", { params }),
-  send: (data: { userId?: string; type: string; title: string; content: string; targetType?: string; targetId?: string }) =>
-    api.post("/notifications", data),
-  batchSend: (data: { userIds: string[]; type: string; title: string; content: string; targetType?: string; targetId?: string }) =>
-    api.post("/notifications/batch", data),
+  list: (params?: { page?: number; pageSize?: number }) => api.get("/notifications", { params }),
+  send: (data: {
+    userId?: string;
+    type: string;
+    title: string;
+    content: string;
+    targetType?: string;
+    targetId?: string;
+  }) => api.post("/notifications", data),
+  batchSend: (data: {
+    userIds: string[];
+    type: string;
+    title: string;
+    content: string;
+    targetType?: string;
+    targetId?: string;
+  }) => api.post("/notifications/batch", data),
   delete: (id: string) => api.delete(`/notifications/${id}`),
   unreadCount: () => api.get("/notifications/unread-count"),
   markRead: (id: string) => api.put(`/notifications/${id}/read`),
   markAllRead: () => api.put("/notifications/read-all"),
   getPreferences: () => api.get("/notifications/preferences"),
-  updatePreferences: (prefs: Record<string, boolean>) => api.put("/notifications/preferences", prefs),
+  updatePreferences: (prefs: Record<string, boolean>) =>
+    api.put("/notifications/preferences", prefs),
 };
 
 // 举报管理
 export const reportApi = {
   list: (params?: { page?: number; pageSize?: number; targetType?: string; status?: string }) =>
     api.get("/interaction/report", { params }),
-  process: (id: string, result?: string) => api.put(`/interaction/report/${id}/process`, { result }),
-  dismiss: (id: string, reason?: string) => api.put(`/interaction/report/${id}/dismiss`, { reason }),
+  process: (id: string, result?: string) =>
+    api.put(`/interaction/report/${id}/process`, { result }),
+  dismiss: (id: string, reason?: string) =>
+    api.put(`/interaction/report/${id}/dismiss`, { reason }),
 };
 
 // 商品管理（管理后台）
 export const productApi = {
-  list: (params?: { page?: number; pageSize?: number; status?: string; categoryId?: string; keyword?: string }) =>
-    api.get("/shop/products", { params }),
+  list: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    categoryId?: string;
+    keyword?: string;
+  }) => api.get("/shop/products", { params }),
   detail: (id: string) => api.get(`/shop/products/${id}`),
   create: (data: Record<string, unknown>) => api.post("/shop/products", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/shop/products/${id}`, data),
@@ -949,8 +1133,16 @@ export const productApi = {
     api.put(`/shop/products/${id}/commission-rate`, rate == null ? {} : { commissionRate: rate }),
   delete: (id: string) => api.delete(`/shop/products/${id}`),
   // SKU
-  addSku: (productId: string, data: { name: string; price: number; stock: number; image?: string; attrs?: Record<string, string> }) =>
-    api.post(`/shop/products/${productId}/skus`, data),
+  addSku: (
+    productId: string,
+    data: {
+      name: string;
+      price: number;
+      stock: number;
+      image?: string;
+      attrs?: Record<string, string>;
+    },
+  ) => api.post(`/shop/products/${productId}/skus`, data),
   deleteSku: (skuId: string) => api.delete(`/shop/skus/${skuId}`),
   // 分类树
   getCategoryTree: () => api.get("/shop/categories/tree"),
@@ -958,25 +1150,42 @@ export const productApi = {
 
 // 订单管理（管理后台）
 export const orderApi = {
-  list: (params?: { page?: number; pageSize?: number; status?: string; type?: string; orderNo?: string; userId?: string; startDate?: string; endDate?: string }) =>
-    api.get("/shop/orders", { params }),
+  list: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    type?: string;
+    orderNo?: string;
+    userId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => api.get("/shop/orders", { params }),
   detail: (id: string) => api.get(`/shop/orders/${id}`),
   // 管理员确认支付（测试通道）：后端强制要求流水号，未显式传入时自动生成手动确认流水号
   pay: (id: string, payTransactionId?: string) =>
-    api.put(`/shop/orders/${id}/pay`, { payTransactionId: payTransactionId || `MANUAL-${Date.now()}` }),
+    api.put(`/shop/orders/${id}/pay`, {
+      payTransactionId: payTransactionId || `MANUAL-${Date.now()}`,
+    }),
   ship: (id: string) => api.put(`/shop/orders/${id}/ship`),
   refund: (id: string) => api.put(`/shop/orders/${id}/refund`),
   complete: (id: string) => api.put(`/shop/orders/${id}/complete`),
   cancel: (id: string) => api.put(`/shop/orders/${id}/cancel`),
   getLogistics: (id: string) => api.get(`/shop/orders/${id}/logistics`),
-  updateLogistics: (id: string, data: Record<string, unknown>) => api.put(`/shop/orders/${id}/logistics`, data),
+  updateLogistics: (id: string, data: Record<string, unknown>) =>
+    api.put(`/shop/orders/${id}/logistics`, data),
 };
 
 // 搜索统计
 export const searchApi = {
   getStats: () => api.get("/search/stats"),
-  getWeights: (entityType?: string) => api.get("/search/weights", { params: entityType ? { entityType } : {} }),
-  upsertWeight: (data: { entityType: string; fieldName: string; weight: number; enabled?: boolean }) => api.post("/search/weights", data),
+  getWeights: (entityType?: string) =>
+    api.get("/search/weights", { params: entityType ? { entityType } : {} }),
+  upsertWeight: (data: {
+    entityType: string;
+    fieldName: string;
+    weight: number;
+    enabled?: boolean;
+  }) => api.post("/search/weights", data),
   deleteWeight: (id: string) => api.delete(`/search/weights/${id}`),
   seedWeights: () => api.post("/search/weights/seed"),
   hot: (limit?: number) => api.get("/search/hot", { params: { limit } }),
@@ -990,18 +1199,30 @@ export const merchantApi = {
   stats: (id: string) => api.get(`/admin/merchants/${id}/stats`),
   // 操作员管理（多操作员·官方旗舰店）
   listMembers: (id: string) => api.get(`/admin/merchants/${id}/members`),
-  addMember: (id: string, data: { phone: string }) => api.post(`/admin/merchants/${id}/members`, data),
-  removeMember: (id: string, userId: string) => api.delete(`/admin/merchants/${id}/members/${userId}`),
-  approve: (id: string, data: { commissionRate?: number; remark?: string; riskLevel?: string; riskFlags?: string[] }) =>
-    api.post(`/admin/merchants/${id}/approve`, data),
-  reject: (id: string, data: { reason: string }) =>
-    api.post(`/admin/merchants/${id}/reject`, data),
+  addMember: (id: string, data: { phone: string }) =>
+    api.post(`/admin/merchants/${id}/members`, data),
+  removeMember: (id: string, userId: string) =>
+    api.delete(`/admin/merchants/${id}/members/${userId}`),
+  approve: (
+    id: string,
+    data: { commissionRate?: number; remark?: string; riskLevel?: string; riskFlags?: string[] },
+  ) => api.post(`/admin/merchants/${id}/approve`, data),
+  reject: (id: string, data: { reason: string }) => api.post(`/admin/merchants/${id}/reject`, data),
   updateStatus: (id: string, data: { status: string; reason?: string }) =>
     api.put(`/admin/merchants/${id}/status`, data),
   getViolations: (id: string, params?: { page?: number; pageSize?: number }) =>
     api.get(`/admin/merchants/${id}/violations`, { params }),
-  createViolation: (id: string, data: { type: string; title: string; description: string; penalty?: number; evidence?: unknown; remark?: string }) =>
-    api.post(`/admin/merchants/${id}/violations`, data),
+  createViolation: (
+    id: string,
+    data: {
+      type: string;
+      title: string;
+      description: string;
+      penalty?: number;
+      evidence?: unknown;
+      remark?: string;
+    },
+  ) => api.post(`/admin/merchants/${id}/violations`, data),
   handleViolation: (id: string, violationId: string, data: { status: string; note?: string }) =>
     api.put(`/admin/merchants/${id}/violations/${violationId}`, data),
   getDeposits: (id: string, params?: { page?: number; pageSize?: number }) =>
@@ -1026,10 +1247,20 @@ export const merchantApi = {
   cancelSettlement: (id: string, settlementId: string) =>
     api.post(`/admin/merchants/${id}/settlements/${settlementId}/cancel`),
   // 处罚（履-P3）
-  listPunishments: (params?: { merchantId?: string; status?: string; type?: string; page?: number; pageSize?: number }) =>
-    api.get("/admin/merchants/punishments", { params }),
-  createPunishment: (data: { merchantId: string; type: string; reason: string; evidence?: Record<string, unknown>; expiresAt?: string }) =>
-    api.post("/admin/merchants/punishments", data),
+  listPunishments: (params?: {
+    merchantId?: string;
+    status?: string;
+    type?: string;
+    page?: number;
+    pageSize?: number;
+  }) => api.get("/admin/merchants/punishments", { params }),
+  createPunishment: (data: {
+    merchantId: string;
+    type: string;
+    reason: string;
+    evidence?: Record<string, unknown>;
+    expiresAt?: string;
+  }) => api.post("/admin/merchants/punishments", data),
   revokePunishment: (punishmentId: string, data?: { reason?: string }) =>
     api.put(`/admin/merchants/punishments/${punishmentId}/revoke`, data || {}),
 };
@@ -1044,7 +1275,8 @@ export const merchantBackendApi = {
   listProducts: (params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get("/merchant-backend/products", { params }),
   createProduct: (data: Record<string, unknown>) => api.post("/merchant-backend/products", data),
-  updateProduct: (id: string, data: Record<string, unknown>) => api.put(`/merchant-backend/products/${id}`, data),
+  updateProduct: (id: string, data: Record<string, unknown>) =>
+    api.put(`/merchant-backend/products/${id}`, data),
   deleteProduct: (id: string) => api.delete(`/merchant-backend/products/${id}`),
   listProduct: (id: string) => api.post(`/merchant-backend/products/${id}/list`),
   unlistProduct: (id: string) => api.post(`/merchant-backend/products/${id}/unlist`),
@@ -1053,11 +1285,22 @@ export const merchantBackendApi = {
     api.post(`/merchant-backend/products/${productId}/skus`, data),
   deleteSku: (skuId: string) => api.delete(`/merchant-backend/skus/${skuId}`),
   // 订单
-  listOrders: (params?: { page?: number; pageSize?: number; status?: string }) =>
-    api.get("/merchant-backend/orders", { params }),
+  listOrders: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+    customerId?: string;
+  }) => api.get("/merchant-backend/orders", { params }),
   getOrder: (id: string) => api.get(`/merchant-backend/orders/${id}`),
   shipOrder: (id: string, data: { company: string; trackingNo: string }) =>
     api.put(`/merchant-backend/orders/${id}/ship`, data),
+  batchShipOrders: (items: Array<{ orderId: string; company: string; trackingNo: string }>) =>
+    api.post("/merchant-backend/orders/batch-ship", { items }),
+  getShipment: (id: string) => api.get(`/merchant-backend/orders/${id}/shipment`),
+  updateShipment: (id: string, data: { company: string; trackingNo: string }) =>
+    api.put(`/merchant-backend/orders/${id}/shipment`, data),
   approveRefund: (id: string) => api.post(`/merchant-backend/orders/${id}/refund/approve`),
   rejectRefund: (id: string, data: { reason: string }) =>
     api.post(`/merchant-backend/orders/${id}/refund/reject`, data),
@@ -1081,21 +1324,71 @@ export const merchantBackendApi = {
   getAfterSale: (id: string) => api.get(`/merchant-backend/after-sales/${id}`),
   processAfterSale: (id: string, data: { action: string; remark?: string }) =>
     api.put(`/merchant-backend/after-sales/${id}/process`, data),
-  inspectReturn: (id: string, data: { requestId: string; accepted: boolean; quantity?: number; remark?: string }) =>
-    api.post(`/merchant-backend/after-sales/${id}/return-inspection`, data),
+  inspectReturn: (
+    id: string,
+    data: { requestId: string; accepted: boolean; quantity?: number; remark?: string },
+  ) => api.post(`/merchant-backend/after-sales/${id}/return-inspection`, data),
   // 进销存：采购、库存、流水与预警共用后端库存账
   getInventoryOverview: () => api.get("/merchant-backend/inventory/overview"),
-  listInventoryStocks: (params?: { page?: number; pageSize?: number; keyword?: string; lowStock?: boolean }) =>
-    api.get("/merchant-backend/inventory/stocks", { params }),
-  listInventoryMovements: (params?: { page?: number; pageSize?: number; productId?: string; type?: string }) =>
-    api.get("/merchant-backend/inventory/movements", { params }),
-  adjustInventory: (data: { requestId: string; productId: string; skuId?: string; mode: "INCREASE" | "DECREASE" | "SET"; quantity: number; reason: string }) =>
-    api.post("/merchant-backend/inventory/adjustments", data),
-  setInventoryAlert: (data: { productId: string; skuId?: string; lowStockThreshold: number; enabled?: boolean }) =>
-    api.put("/merchant-backend/inventory/alerts", data),
+  listInventoryStocks: (params?: {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    lowStock?: boolean;
+  }) => api.get("/merchant-backend/inventory/stocks", { params }),
+  listInventoryMovements: (params?: {
+    page?: number;
+    pageSize?: number;
+    productId?: string;
+    type?: string;
+  }) => api.get("/merchant-backend/inventory/movements", { params }),
+  adjustInventory: (data: {
+    requestId: string;
+    productId: string;
+    skuId?: string;
+    mode: "INCREASE" | "DECREASE" | "SET";
+    quantity: number;
+    reason: string;
+  }) => api.post("/merchant-backend/inventory/adjustments", data),
+  setInventoryAlert: (data: {
+    productId: string;
+    skuId?: string;
+    lowStockThreshold: number;
+    enabled?: boolean;
+  }) => api.put("/merchant-backend/inventory/alerts", data),
+  listSuppliers: (params?: {
+    page?: number;
+    pageSize?: number;
+    keyword?: string;
+    status?: "ACTIVE" | "INACTIVE";
+  }) => api.get("/merchant-backend/suppliers", { params }),
+  createSupplier: (data: {
+    name: string;
+    contactName?: string;
+    contactPhone?: string;
+    address?: string;
+    settlementTerms?: string;
+    leadTimeDays?: number;
+    remark?: string;
+  }) => api.post("/merchant-backend/suppliers", data),
+  updateSupplier: (
+    id: string,
+    data: {
+      name: string;
+      contactName?: string;
+      contactPhone?: string;
+      address?: string;
+      settlementTerms?: string;
+      leadTimeDays?: number;
+      remark?: string;
+    },
+  ) => api.put(`/merchant-backend/suppliers/${id}`, data),
+  setSupplierStatus: (id: string, status: "ACTIVE" | "INACTIVE") =>
+    api.put(`/merchant-backend/suppliers/${id}/status`, { status }),
   listPurchaseOrders: (params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get("/merchant-backend/purchase-orders", { params }),
   createPurchaseOrder: (data: {
+    supplierId?: string;
     supplierName: string;
     contactName?: string;
     contactPhone?: string;
@@ -1103,22 +1396,36 @@ export const merchantBackendApi = {
     remark?: string;
     items: Array<{ productId: string; skuId?: string; quantity: number; unitCost: number }>;
   }) => api.post("/merchant-backend/purchase-orders", data),
-  submitPurchaseOrder: (id: string) =>
-    api.post(`/merchant-backend/purchase-orders/${id}/submit`),
-  receivePurchaseOrder: (id: string, data: { requestId: string; items: Array<{ itemId: string; quantity: number }> }) =>
-    api.post(`/merchant-backend/purchase-orders/${id}/receive`, data),
-  cancelPurchaseOrder: (id: string) =>
-    api.post(`/merchant-backend/purchase-orders/${id}/cancel`),
+  submitPurchaseOrder: (id: string) => api.post(`/merchant-backend/purchase-orders/${id}/submit`),
+  listPurchaseReceipts: (id: string) => api.get(`/merchant-backend/purchase-orders/${id}/receipts`),
+  receivePurchaseOrder: (
+    id: string,
+    data: {
+      requestId: string;
+      warehouseName?: string;
+      remark?: string;
+      items: Array<{
+        itemId: string;
+        quantity: number;
+        rejectedQuantity?: number;
+        rejectionReason?: string;
+      }>;
+    },
+  ) => api.post(`/merchant-backend/purchase-orders/${id}/receive`, data),
+  cancelPurchaseOrder: (id: string) => api.post(`/merchant-backend/purchase-orders/${id}/cancel`),
   // 客户
-  listCustomers: (params?: { page?: number; pageSize?: number }) =>
+  listCustomers: (params?: { page?: number; pageSize?: number; keyword?: string }) =>
     api.get("/merchant-backend/customers", { params }),
+  getCustomerDetail: (id: string) => api.get(`/merchant-backend/customers/${id}`),
 };
 
 // 敏感词管理
 export const sensitiveWordApi = {
   list: () => api.get("/audit/sensitive-words"),
-  add: (data: { word: string; scopes?: string[]; level?: string }) => api.post("/audit/sensitive-words", data),
-  batchAdd: (data: { words: string[]; scopes?: string[]; level?: string }) => api.post("/audit/sensitive-words/batch", data),
+  add: (data: { word: string; scopes?: string[]; level?: string }) =>
+    api.post("/audit/sensitive-words", data),
+  batchAdd: (data: { words: string[]; scopes?: string[]; level?: string }) =>
+    api.post("/audit/sensitive-words/batch", data),
   delete: (word: string) => api.delete(`/audit/sensitive-words/${encodeURIComponent(word)}`),
   check: (text: string) => api.post("/audit/sensitive-words/check", { text }),
 };
@@ -1126,8 +1433,14 @@ export const sensitiveWordApi = {
 // 合规违禁词扫描（合-P1）
 export const complianceScanApi = {
   trigger: () => api.post("/audit/compliance-scan"),
-  records: (params?: { level?: string; status?: string; targetType?: string; word?: string; page?: number; pageSize?: number }) =>
-    api.get("/audit/compliance-scan/records", { params }),
+  records: (params?: {
+    level?: string;
+    status?: string;
+    targetType?: string;
+    word?: string;
+    page?: number;
+    pageSize?: number;
+  }) => api.get("/audit/compliance-scan/records", { params }),
   stats: () => api.get("/audit/compliance-scan/stats"),
   updateStatus: (id: string, status: "RESOLVED" | "IGNORED" | "OPEN") =>
     api.put(`/audit/compliance-scan/records/${id}/status`, { status }),
@@ -1135,19 +1448,32 @@ export const complianceScanApi = {
 
 // 数字员工运营 OS — 任务池（OS-P1）
 export const opsTaskApi = {
-  list: (params?: { status?: string; type?: string; priority?: string; page?: number; pageSize?: number }) =>
-    api.get("/ops/tasks", { params }),
-  create: (data: { type: string; title: string; priority?: string; payload?: Record<string, unknown>; needsApproval?: boolean }) =>
-    api.post("/ops/tasks", data),
-  claim: (id: string, executor?: string) => api.put(`/ops/tasks/${id}/claim`, executor ? { executor } : {}),
-  complete: (id: string, result?: Record<string, unknown>) => api.put(`/ops/tasks/${id}/complete`, { result }),
+  list: (params?: {
+    status?: string;
+    type?: string;
+    priority?: string;
+    page?: number;
+    pageSize?: number;
+  }) => api.get("/ops/tasks", { params }),
+  create: (data: {
+    type: string;
+    title: string;
+    priority?: string;
+    payload?: Record<string, unknown>;
+    needsApproval?: boolean;
+  }) => api.post("/ops/tasks", data),
+  claim: (id: string, executor?: string) =>
+    api.put(`/ops/tasks/${id}/claim`, executor ? { executor } : {}),
+  complete: (id: string, result?: Record<string, unknown>) =>
+    api.put(`/ops/tasks/${id}/complete`, { result }),
   review: (id: string, reason: string) => api.put(`/ops/tasks/${id}/review`, { reason }),
 };
 
 // Webhook管理
 export const webhookApi = {
   list: (event?: string) => api.get("/webhooks", { params: event ? { event } : {} }),
-  register: (data: { event: string; url: string; secret?: string; description?: string }) => api.post("/webhooks", data),
+  register: (data: { event: string; url: string; secret?: string; description?: string }) =>
+    api.post("/webhooks", data),
   toggle: (id: string, isActive: boolean) => api.post(`/webhooks/${id}/toggle`, { isActive }),
   unregister: (id: string) => api.delete(`/webhooks/${id}`),
 };
@@ -1157,7 +1483,9 @@ export const importApi = {
   importCsv: (type: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return api.post(`/system/import/${type}`, form, { headers: { "Content-Type": "multipart/form-data" } });
+    return api.post(`/system/import/${type}`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
   },
 };
 
@@ -1166,7 +1494,8 @@ export const abTestApi = {
   list: () => api.get("/admin/recommend/ab-tests"),
   detail: (id: string) => api.get(`/admin/recommend/ab-tests/${id}`),
   create: (data: Record<string, unknown>) => api.post("/admin/recommend/ab-tests", data),
-  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/recommend/ab-tests/${id}`, data),
+  update: (id: string, data: Record<string, unknown>) =>
+    api.put(`/admin/recommend/ab-tests/${id}`, data),
   delete: (id: string) => api.delete(`/admin/recommend/ab-tests/${id}`),
   start: (id: string) => api.post(`/admin/recommend/ab-tests/${id}/start`),
   pause: (id: string) => api.post(`/admin/recommend/ab-tests/${id}/pause`),
@@ -1178,10 +1507,12 @@ export const abTestApi = {
 
 // 推荐规则管理
 export const recommendRuleApi = {
-  list: (params?: { page?: number; pageSize?: number; scene?: string }) => api.get("/admin/recommend/rules", { params }),
+  list: (params?: { page?: number; pageSize?: number; scene?: string }) =>
+    api.get("/admin/recommend/rules", { params }),
   detail: (id: string) => api.get(`/admin/recommend/rules/${id}`),
   create: (data: Record<string, unknown>) => api.post("/admin/recommend/rules", data),
-  update: (id: string, data: Record<string, unknown>) => api.put(`/admin/recommend/rules/${id}`, data),
+  update: (id: string, data: Record<string, unknown>) =>
+    api.put(`/admin/recommend/rules/${id}`, data),
   delete: (id: string) => api.delete(`/admin/recommend/rules/${id}`),
 };
 
@@ -1200,11 +1531,14 @@ export const recommendStatsApi = {
 
 // ───────── 发现页管理 ─────────
 export const discoverApi = {
-  getDiscover: (params?: { page?: number; pageSize?: number; type?: string; categoryLevel1?: string }) =>
-    api.get("/discover", { params }),
+  getDiscover: (params?: {
+    page?: number;
+    pageSize?: number;
+    type?: string;
+    categoryLevel1?: string;
+  }) => api.get("/discover", { params }),
   getCategories: () => api.get("/discover/categories"),
-  getHot: (params?: { page?: number; pageSize?: number }) =>
-    api.get("/discover/hot", { params }),
+  getHot: (params?: { page?: number; pageSize?: number }) => api.get("/discover/hot", { params }),
   getRecommendations: (params?: { page?: number; pageSize?: number }) =>
     api.get("/discover/recommendations", { params }),
 };
@@ -1218,7 +1552,8 @@ export const churnApi = {
   listRules: (params?: { page?: number; pageSize?: number }) =>
     api.get("/admin/churn/rules", { params }),
   createRule: (data: Record<string, unknown>) => api.post("/admin/churn/rules", data),
-  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/admin/churn/rules/${id}`, data),
+  updateRule: (id: string, data: Record<string, unknown>) =>
+    api.put(`/admin/churn/rules/${id}`, data),
   deleteRule: (id: string) => api.delete(`/admin/churn/rules/${id}`),
   getActions: (params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get("/admin/churn/actions", { params }),
@@ -1227,11 +1562,14 @@ export const churnApi = {
 // 平台营收
 export const revenueApi = {
   summary: (userId: string) => api.get(`/revenue/summary?userId=${userId}`),
-  earnings: (params?: { page?: number; pageSize?: number; userId?: string }) => api.get("/revenue/earnings", { params }),
+  earnings: (params?: { page?: number; pageSize?: number; userId?: string }) =>
+    api.get("/revenue/earnings", { params }),
   platformOverview: () => api.get("/revenue/platform/overview"),
   platformTrends: (params?: { days?: number }) => api.get("/revenue/platform/trends", { params }),
-  stats: (params?: { startDate?: string; endDate?: string }) => api.get("/revenue/stats", { params }),
-  breakdown: (params?: { startDate?: string; endDate?: string }) => api.get("/revenue/breakdown", { params }),
+  stats: (params?: { startDate?: string; endDate?: string }) =>
+    api.get("/revenue/stats", { params }),
+  breakdown: (params?: { startDate?: string; endDate?: string }) =>
+    api.get("/revenue/breakdown", { params }),
 };
 
 // 邮件管理
@@ -1244,64 +1582,87 @@ export const emailApi = {
 // AI用量统计
 export const aiUsageApi = {
   getStats: () => api.get("/ai/media/tasks"), // AiLoggerService.query
-  getCallLogs: (params?: { page?: number; pageSize?: number }) => api.get("/ai/media/tasks", { params }),
+  getCallLogs: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/ai/media/tasks", { params }),
   getAbnormalAlerts: () => api.get("/ai/media/tasks", { params: { scene: "abnormal" } }),
 };
 
 // ───────── 营销管理 ─────────
 export const marketingApi = {
   // 秒杀
-  listFlashSales: (params?: Record<string, unknown>) => api.get("/marketing/flash-sales", { params }),
+  listFlashSales: (params?: Record<string, unknown>) =>
+    api.get("/marketing/flash-sales", { params }),
   createFlashSale: (data: Record<string, unknown>) => api.post("/marketing/flash-sales", data),
-  updateFlashSale: (id: string, data: Record<string, unknown>) => api.put(`/marketing/flash-sales/${id}`, data),
+  updateFlashSale: (id: string, data: Record<string, unknown>) =>
+    api.put(`/marketing/flash-sales/${id}`, data),
   deleteFlashSale: (id: string) => api.delete(`/marketing/flash-sales/${id}`),
-  addFlashSaleItem: (id: string, data: Record<string, unknown>) => api.post(`/marketing/flash-sales/${id}/items`, data),
-  updateFlashSaleItem: (id: string, itemId: string, data: Record<string, unknown>) => api.put(`/marketing/flash-sales/${id}/items/${itemId}`, data),
-  deleteFlashSaleItem: (id: string, itemId: string) => api.delete(`/marketing/flash-sales/${id}/items/${itemId}`),
+  addFlashSaleItem: (id: string, data: Record<string, unknown>) =>
+    api.post(`/marketing/flash-sales/${id}/items`, data),
+  updateFlashSaleItem: (id: string, itemId: string, data: Record<string, unknown>) =>
+    api.put(`/marketing/flash-sales/${id}/items/${itemId}`, data),
+  deleteFlashSaleItem: (id: string, itemId: string) =>
+    api.delete(`/marketing/flash-sales/${id}/items/${itemId}`),
   startFlashSale: (id: string) => api.post(`/marketing/flash-sales/${id}/start`),
   endFlashSale: (id: string) => api.post(`/marketing/flash-sales/${id}/end`),
   // 拼团
   listGroupBuys: (params?: Record<string, unknown>) => api.get("/marketing/group-buys", { params }),
   createGroupBuy: (data: Record<string, unknown>) => api.post("/marketing/group-buys", data),
-  updateGroupBuy: (id: string, data: Record<string, unknown>) => api.put(`/marketing/group-buys/${id}`, data),
+  updateGroupBuy: (id: string, data: Record<string, unknown>) =>
+    api.put(`/marketing/group-buys/${id}`, data),
   deleteGroupBuy: (id: string) => api.delete(`/marketing/group-buys/${id}`),
   getGroupBuyParticipants: (id: string) => api.get(`/marketing/group-buys/${id}/participants`),
   // 优惠券
   listCoupons: (params?: Record<string, unknown>) => api.get("/marketing/coupons", { params }),
   createCoupon: (data: Record<string, unknown>) => api.post("/marketing/coupons", data),
-  updateCoupon: (id: string, data: Record<string, unknown>) => api.put(`/marketing/coupons/${id}`, data),
+  updateCoupon: (id: string, data: Record<string, unknown>) =>
+    api.put(`/marketing/coupons/${id}`, data),
   deleteCoupon: (id: string) => api.delete(`/marketing/coupons/${id}`),
-  grantCoupon: (id: string, data: Record<string, unknown>) => api.post(`/marketing/coupons/${id}/grant`, data),
-  batchGrantCoupon: (id: string, data: Record<string, unknown>) => api.post(`/marketing/coupons/${id}/batch-grant`, data),
-  getCouponRecords: (id: string, params?: Record<string, unknown>) => api.get(`/marketing/coupons/${id}/records`, { params }),
+  grantCoupon: (id: string, data: Record<string, unknown>) =>
+    api.post(`/marketing/coupons/${id}/grant`, data),
+  batchGrantCoupon: (id: string, data: Record<string, unknown>) =>
+    api.post(`/marketing/coupons/${id}/batch-grant`, data),
+  getCouponRecords: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/marketing/coupons/${id}/records`, { params }),
   // 限时折扣
   listDiscounts: (params?: Record<string, unknown>) => api.get("/marketing/discounts", { params }),
   createDiscount: (data: Record<string, unknown>) => api.post("/marketing/discounts", data),
-  updateDiscount: (id: string, data: Record<string, unknown>) => api.put(`/marketing/discounts/${id}`, data),
+  updateDiscount: (id: string, data: Record<string, unknown>) =>
+    api.put(`/marketing/discounts/${id}`, data),
   deleteDiscount: (id: string) => api.delete(`/marketing/discounts/${id}`),
   // 微页面
   listPages: () => api.get("/marketing/pages"),
   getPage: (id: string) => api.get(`/marketing/pages/${id}`),
   createPage: (data: Record<string, unknown>) => api.post("/marketing/pages", data),
-  updatePage: (id: string, data: Record<string, unknown>) => api.put(`/marketing/pages/${id}`, data),
+  updatePage: (id: string, data: Record<string, unknown>) =>
+    api.put(`/marketing/pages/${id}`, data),
   deletePage: (id: string) => api.delete(`/marketing/pages/${id}`),
   publishPage: (id: string) => api.post(`/marketing/pages/${id}/publish`),
   getPageVersions: (id: string) => api.get(`/marketing/pages/${id}/versions`),
-  rollbackPage: (id: string, versionId: string) => api.post(`/marketing/pages/${id}/rollback/${versionId}`),
-  addPageComponent: (pageId: string, data: Record<string, unknown>) => api.post(`/marketing/pages/${pageId}/components`, data),
-  updatePageComponent: (pageId: string, compId: string, data: Record<string, unknown>) => api.put(`/marketing/pages/${pageId}/components/${compId}`, data),
-  deletePageComponent: (pageId: string, compId: string) => api.delete(`/marketing/pages/${pageId}/components/${compId}`),
-  sortPageComponents: (pageId: string, data: { componentIds: string[] }) => api.put(`/marketing/pages/${pageId}/components/sort`, data),
+  rollbackPage: (id: string, versionId: string) =>
+    api.post(`/marketing/pages/${id}/rollback/${versionId}`),
+  addPageComponent: (pageId: string, data: Record<string, unknown>) =>
+    api.post(`/marketing/pages/${pageId}/components`, data),
+  updatePageComponent: (pageId: string, compId: string, data: Record<string, unknown>) =>
+    api.put(`/marketing/pages/${pageId}/components/${compId}`, data),
+  deletePageComponent: (pageId: string, compId: string) =>
+    api.delete(`/marketing/pages/${pageId}/components/${compId}`),
+  sortPageComponents: (pageId: string, data: { componentIds: string[] }) =>
+    api.put(`/marketing/pages/${pageId}/components/sort`, data),
   // 活动
-  listActivities: (params?: Record<string, unknown>) => api.get("/marketing/activities", { params }),
+  listActivities: (params?: Record<string, unknown>) =>
+    api.get("/marketing/activities", { params }),
   createActivity: (data: Record<string, unknown>) => api.post("/marketing/activities", data),
-  updateActivity: (id: string, data: Record<string, unknown>) => api.put(`/marketing/activities/${id}`, data),
+  updateActivity: (id: string, data: Record<string, unknown>) =>
+    api.put(`/marketing/activities/${id}`, data),
   deleteActivity: (id: string) => api.delete(`/marketing/activities/${id}`),
   getActivityMetrics: (id: string) => api.get(`/marketing/activities/${id}/metrics`),
   // 满减送
-  listFullReductions: (params?: Record<string, unknown>) => api.get("/marketing/full-reductions", { params }),
-  createFullReduction: (data: Record<string, unknown>) => api.post("/marketing/full-reductions", data),
-  updateFullReduction: (id: string, data: Record<string, unknown>) => api.put(`/marketing/full-reductions/${id}`, data),
+  listFullReductions: (params?: Record<string, unknown>) =>
+    api.get("/marketing/full-reductions", { params }),
+  createFullReduction: (data: Record<string, unknown>) =>
+    api.post("/marketing/full-reductions", data),
+  updateFullReduction: (id: string, data: Record<string, unknown>) =>
+    api.put(`/marketing/full-reductions/${id}`, data),
   deleteFullReduction: (id: string) => api.delete(`/marketing/full-reductions/${id}`),
   getFullReduction: (id: string) => api.get(`/marketing/full-reductions/${id}`),
 };
@@ -1309,23 +1670,32 @@ export const marketingApi = {
 // ───────── 财务管理 ─────────
 export const financeApi = {
   // 对账中心
-  listReconciliations: (params?: Record<string, unknown>) => api.get("/finance/reconciliation", { params }),
-  createReconciliation: (data: Record<string, unknown>) => api.post("/finance/reconciliation", data),
+  listReconciliations: (params?: Record<string, unknown>) =>
+    api.get("/finance/reconciliation", { params }),
+  createReconciliation: (data: Record<string, unknown>) =>
+    api.post("/finance/reconciliation", data),
   getReconciliationDetail: (id: string) => api.get(`/finance/reconciliation/${id}`),
   // 发票管理
   listInvoices: (params?: Record<string, unknown>) => api.get("/finance/invoices", { params }),
   createInvoice: (data: Record<string, unknown>) => api.post("/finance/invoices", data),
-  issueInvoice: (id: string, invoiceUrl: string) => api.put(`/finance/invoices/${id}/issue`, { invoiceUrl }),
-  mailInvoice: (id: string, expressNo: string) => api.put(`/finance/invoices/${id}/mail`, { expressNo }),
+  issueInvoice: (id: string, invoiceUrl: string) =>
+    api.put(`/finance/invoices/${id}/issue`, { invoiceUrl }),
+  mailInvoice: (id: string, expressNo: string) =>
+    api.put(`/finance/invoices/${id}/mail`, { expressNo }),
   // 结算单
-  listSettlements: (params?: Record<string, unknown>) => api.get("/finance/settlements", { params }),
-  generateSettlement: (data: Record<string, unknown>) => api.post("/finance/settlements/generate", data),
+  listSettlements: (params?: Record<string, unknown>) =>
+    api.get("/finance/settlements", { params }),
+  generateSettlement: (data: Record<string, unknown>) =>
+    api.post("/finance/settlements/generate", data),
   approveSettlement: (id: string) => api.put(`/finance/settlements/${id}/approve`),
   paySettlement: (id: string) => api.put(`/finance/settlements/${id}/pay`),
   // 提现审批
-  listWithdrawals: (params?: Record<string, unknown>) => api.get("/finance/withdrawals", { params }),
-  approveWithdrawal: (id: string, reviewNote?: string) => api.put(`/finance/withdrawals/${id}/approve`, { reviewNote }),
-  rejectWithdrawal: (id: string, reviewNote: string) => api.put(`/finance/withdrawals/${id}/reject`, { reviewNote }),
+  listWithdrawals: (params?: Record<string, unknown>) =>
+    api.get("/finance/withdrawals", { params }),
+  approveWithdrawal: (id: string, reviewNote?: string) =>
+    api.put(`/finance/withdrawals/${id}/approve`, { reviewNote }),
+  rejectWithdrawal: (id: string, reviewNote: string) =>
+    api.put(`/finance/withdrawals/${id}/reject`, { reviewNote }),
   /** 人工打款兜底：只标记状态，不真的出款。银行卡/支付宝暂时只能走这条。 */
   payWithdrawal: (id: string) => api.post(`/finance/withdrawals/${id}/pay`),
   /**
@@ -1342,7 +1712,8 @@ export const financeApi = {
   listFreezes: (params?: Record<string, unknown>) => api.get("/finance/freeze-records", { params }),
   // 财务报表
   getMonthlyReport: (period: string) => api.get("/finance/reports/monthly", { params: { period } }),
-  generateMonthlyReport: (period: string) => api.post(`/finance/reports/monthly/generate`, null, { params: { period } }),
+  generateMonthlyReport: (period: string) =>
+    api.post(`/finance/reports/monthly/generate`, null, { params: { period } }),
 };
 
 // ───────── 风控管理 ─────────
@@ -1350,23 +1721,28 @@ export const riskApi = {
   // 预警规则
   listRules: (params?: Record<string, unknown>) => api.get("/risk-control/rules", { params }),
   createRule: (data: Record<string, unknown>) => api.post("/risk-control/rules", data),
-  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/risk-control/rules/${id}`, data),
+  updateRule: (id: string, data: Record<string, unknown>) =>
+    api.put(`/risk-control/rules/${id}`, data),
   deleteRule: (id: string) => api.delete(`/risk-control/rules/${id}`),
   toggleRule: (id: string, enabled: boolean) => api.put(`/risk-control/rules/${id}`, { enabled }),
   // 预警列表
   listAlerts: (params?: Record<string, unknown>) => api.get("/risk-control/alerts", { params }),
-  handleAlert: (id: string, note?: string) => api.put(`/risk-control/alerts/${id}/handle`, { note }),
+  handleAlert: (id: string, note?: string) =>
+    api.put(`/risk-control/alerts/${id}/handle`, { note }),
   dismissAlert: (id: string) => api.put(`/risk-control/alerts/${id}/dismiss`),
   // 刷单检测
-  listFraudDetections: (params?: Record<string, unknown>) => api.get("/risk-control/fraud-detections", { params }),
+  listFraudDetections: (params?: Record<string, unknown>) =>
+    api.get("/risk-control/fraud-detections", { params }),
   confirmFraud: (id: string) => api.put(`/risk-control/fraud-detections/${id}/confirm`),
   dismissFraud: (id: string) => api.put(`/risk-control/fraud-detections/${id}/dismiss`),
   // 行为轨迹
-  getUserTimeline: (userId: string, params?: Record<string, unknown>) => api.get(`/risk-control/user-timeline/${userId}`, { params }),
+  getUserTimeline: (userId: string, params?: Record<string, unknown>) =>
+    api.get(`/risk-control/user-timeline/${userId}`, { params }),
   // 申诉处理
   listAppeals: (params?: Record<string, unknown>) => api.get("/risk-control/appeals", { params }),
   approveAppeal: (id: string) => api.put(`/risk-control/appeals/${id}/approve`),
-  rejectAppeal: (id: string, reviewNote: string) => api.put(`/risk-control/appeals/${id}/reject`, { reviewNote }),
+  rejectAppeal: (id: string, reviewNote: string) =>
+    api.put(`/risk-control/appeals/${id}/reject`, { reviewNote }),
 };
 
 // ───────── AI 管理 ─────────
@@ -1374,35 +1750,51 @@ export const aiAdminApi = {
   // 对话日志（后端 AiLoggerService，路由 /ai/media/tasks）
   listChatLogs: (params?: Record<string, unknown>) => api.get("/ai/media/tasks", { params }),
   // 调用统计
-  getCallStats: (period?: string) => api.get("/ai/media/tasks", { params: { period: period || "day" } }),
+  getCallStats: (period?: string) =>
+    api.get("/ai/media/tasks", { params: { period: period || "day" } }),
   getCallLogs: (params?: Record<string, unknown>) => api.get("/ai/media/tasks", { params }),
   getAbnormalCalls: () => api.get("/ai/media/tasks", { params: { scene: "abnormal" } }),
   // 圈主助理审批（后端 /bots/manage/approvals）
-  listCircleAssistants: (params?: Record<string, unknown>) => api.get("/bots/manage/approvals", { params }),
-  updateCircleAssistant: (id: string, data: Record<string, unknown>) => api.put(`/bots/${id}`, data),
-  approveCircleAssistant: (circleId: string) => api.post(`/bots/manage/approvals/${circleId}/approve`),
-  rejectCircleAssistant: (circleId: string, reason?: string) => api.post(`/bots/manage/approvals/${circleId}/reject`, { reason }),
+  listCircleAssistants: (params?: Record<string, unknown>) =>
+    api.get("/bots/manage/approvals", { params }),
+  updateCircleAssistant: (id: string, data: Record<string, unknown>) =>
+    api.put(`/bots/${id}`, data),
+  approveCircleAssistant: (circleId: string) =>
+    api.post(`/bots/manage/approvals/${circleId}/approve`),
+  rejectCircleAssistant: (circleId: string, reason?: string) =>
+    api.post(`/bots/manage/approvals/${circleId}/reject`, { reason }),
   // 知识库管理（后端 /bots/manage/knowledge）
   getKnowledgeBase: (circleId: string) => api.get(`/bots/manage/knowledge/${circleId}`),
-  createKnowledgeEntry: (circleId: string, data: Record<string, unknown>) => api.post(`/bots/manage/knowledge/${circleId}`, data),
-  updateKnowledgeEntry: (id: string, data: Record<string, unknown>) => api.put(`/bots/manage/knowledge/${id}`, data),
+  createKnowledgeEntry: (circleId: string, data: Record<string, unknown>) =>
+    api.post(`/bots/manage/knowledge/${circleId}`, data),
+  updateKnowledgeEntry: (id: string, data: Record<string, unknown>) =>
+    api.put(`/bots/manage/knowledge/${id}`, data),
   deleteKnowledgeEntry: (id: string) => api.delete(`/bots/manage/knowledge/${id}`),
   getUsageData: (circleId: string) => api.get(`/bots/manage/usage/${circleId}`),
 };
 
 // ───────── 文章管理 ─────────
 export const articleApi = {
-  list: (params?: { page?: number; pageSize?: number; circleId?: string; tag?: string; isPushHome?: string; status?: string; keyword?: string }) =>
-    api.get("/articles", { params }),
+  list: (params?: {
+    page?: number;
+    pageSize?: number;
+    circleId?: string;
+    tag?: string;
+    isPushHome?: string;
+    status?: string;
+    keyword?: string;
+  }) => api.get("/articles", { params }),
   stats: () => api.get("/articles/stats"),
   detail: (id: string) => api.get(`/articles/${id}`),
-  create: (circleId: string, data: Record<string, unknown>) => api.post(`/articles/circles/${circleId}`, data),
+  create: (circleId: string, data: Record<string, unknown>) =>
+    api.post(`/articles/circles/${circleId}`, data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/articles/${id}`, data),
   remove: (id: string) => api.delete(`/articles/${id}`),
   audit: (id: string, status: string) => api.put(`/articles/${id}/audit`, { status }),
   addRecommend: (articleId: string, data: { itemId: string; itemType: string; sort?: number }) =>
     api.post(`/articles/${articleId}/recommends`, data),
-  removeRecommend: (articleId: string, recId: string) => api.delete(`/articles/${articleId}/recommends/${recId}`),
+  removeRecommend: (articleId: string, recId: string) =>
+    api.delete(`/articles/${articleId}/recommends/${recId}`),
   // 草稿管理
   listDrafts: (params?: { page?: number; pageSize?: number; circleId?: string }) =>
     api.get("/articles/admin/drafts", { params }),
@@ -1427,7 +1819,8 @@ export const contentGenerationApi = {
 // ───────── 汇付支付管理 ─────────
 export const huifuApi = {
   getConfigs: () => api.get("/huifu/configs"),
-  updateConfig: (data: { key: string; value: string; description?: string }) => api.put("/huifu/config", data),
+  updateConfig: (data: { key: string; value: string; description?: string }) =>
+    api.put("/huifu/config", data),
   getStatus: () => api.get("/huifu/status"),
   queryPayment: (outTradeNo: string) => api.post("/huifu/query", { outTradeNo }),
   createSplit: (data: Record<string, unknown>) => api.post("/huifu/split", data),
@@ -1449,8 +1842,12 @@ export const memberAdminApi = {
 
 // ───────── 智能定价管理 ─────────
 export const pricingApi = {
-  getDemand: (params?: { page?: number; pageSize?: number; targetType?: string; demandLevel?: string }) =>
-    api.get("/pricing/admin/demand", { params }),
+  getDemand: (params?: {
+    page?: number;
+    pageSize?: number;
+    targetType?: string;
+    demandLevel?: string;
+  }) => api.get("/pricing/admin/demand", { params }),
 };
 
 // ───────── 短信管理 ─────────
@@ -1463,10 +1860,16 @@ export const smsApi = {
 // ───────── 互动管理 ─────────
 export const interactionApi = {
   getAdminStats: () => api.get("/interaction/admin/stats"),
-  getAdminTrends: (days?: number) => api.get("/interaction/admin/trends", { params: { days: days || 7 } }),
-  getAdminTopContent: (limit?: number) => api.get("/interaction/admin/top-content", { params: { limit: limit || 10 } }),
-  listComments: (params?: { page?: number; pageSize?: number; targetType?: string; targetId?: string }) =>
-    api.get("/interaction/comment", { params }),
+  getAdminTrends: (days?: number) =>
+    api.get("/interaction/admin/trends", { params: { days: days || 7 } }),
+  getAdminTopContent: (limit?: number) =>
+    api.get("/interaction/admin/top-content", { params: { limit: limit || 10 } }),
+  listComments: (params?: {
+    page?: number;
+    pageSize?: number;
+    targetType?: string;
+    targetId?: string;
+  }) => api.get("/interaction/comment", { params }),
   hideComment: (id: string) => api.put(`/interaction/comment/${id}/hide`),
 };
 
@@ -1474,8 +1877,12 @@ export const interactionApi = {
 export const knowledgeApi = {
   syncCircle: (circleId: string) => api.post(`/circle-knowledge/sync/${circleId}`),
   syncAll: () => api.post("/circle-knowledge/sync-all"),
-  addToKnowledge: (data: { circleId: string; userId: string; targetType: string; targetId: string }) =>
-    api.post("/circle-knowledge/add", data),
+  addToKnowledge: (data: {
+    circleId: string;
+    userId: string;
+    targetType: string;
+    targetId: string;
+  }) => api.post("/circle-knowledge/add", data),
   removeFromKnowledge: (knowledgeId: string, circleId: string, userId: string) =>
     api.post(`/circle-knowledge/remove/${knowledgeId}`, { circleId, userId }),
   adminRemoveKnowledge: (knowledgeId: string, circleId: string) =>
@@ -1501,15 +1908,20 @@ export const cockpitApi = {
 // ───────── 对外数字大屏 ─────────
 export const bigscreenApi = {
   platform: (token?: string) => api.get("/bigscreen/platform", { params: token ? { token } : {} }),
-  transactions: (token?: string) => api.get("/bigscreen/transactions", { params: token ? { token } : {} }),
-  contentEco: (token?: string) => api.get("/bigscreen/content-eco", { params: token ? { token } : {} }),
-  aiCapability: (token?: string) => api.get("/bigscreen/ai-capability", { params: token ? { token } : {} }),
-  offlineMap: (token?: string) => api.get("/bigscreen/offline-map", { params: token ? { token } : {} }),
+  transactions: (token?: string) =>
+    api.get("/bigscreen/transactions", { params: token ? { token } : {} }),
+  contentEco: (token?: string) =>
+    api.get("/bigscreen/content-eco", { params: token ? { token } : {} }),
+  aiCapability: (token?: string) =>
+    api.get("/bigscreen/ai-capability", { params: token ? { token } : {} }),
+  offlineMap: (token?: string) =>
+    api.get("/bigscreen/offline-map", { params: token ? { token } : {} }),
 };
 
 // ───────── 对外大屏Token管理 ─────────
 export const bigscreenTokenApi = {
-  list: (params?: { page?: number; pageSize?: number }) => api.get("/admin/bigscreen-tokens", { params }),
+  list: (params?: { page?: number; pageSize?: number }) =>
+    api.get("/admin/bigscreen-tokens", { params }),
   create: (data: { type: string; validHours: number; ipWhitelist?: string; remark?: string }) =>
     api.post("/admin/bigscreen-tokens", data),
   approve: (id: string) => api.post(`/admin/bigscreen-tokens/${id}/approve`),
@@ -1521,14 +1933,39 @@ export const bigscreenTokenApi = {
 
 // ───────── RAG Prompt模板管理 ─────────
 export const ragTemplateApi = {
-  list: (params?: { scene?: string; status?: string }) => api.get("/admin/rag/templates", { params }),
+  list: (params?: { scene?: string; status?: string }) =>
+    api.get("/admin/rag/templates", { params }),
   detail: (id: string) => api.get(`/admin/rag/templates/${id}`),
-  create: (data: { scene: string; templateName: string; systemPrompt: string; userPromptTemplate?: string; variables?: unknown[] }) =>
-    api.post("/admin/rag/templates", data),
-  update: (id: string, data: { scene?: string; templateName?: string; systemPrompt?: string; userPromptTemplate?: string; variables?: unknown[]; status?: string }) =>
-    api.put(`/admin/rag/templates/${id}`, data),
+  create: (data: {
+    scene: string;
+    templateName: string;
+    systemPrompt: string;
+    userPromptTemplate?: string;
+    variables?: unknown[];
+  }) => api.post("/admin/rag/templates", data),
+  update: (
+    id: string,
+    data: {
+      scene?: string;
+      templateName?: string;
+      systemPrompt?: string;
+      userPromptTemplate?: string;
+      variables?: unknown[];
+      status?: string;
+    },
+  ) => api.put(`/admin/rag/templates/${id}`, data),
   delete: (id: string) => api.delete(`/admin/rag/templates/${id}`),
-  preview: (idOrData: string | { systemPrompt: string; userPromptTemplate?: string; variables?: Record<string, string>; testQuestion?: string }, data?: Record<string, unknown>) =>
+  preview: (
+    idOrData:
+      | string
+      | {
+          systemPrompt: string;
+          userPromptTemplate?: string;
+          variables?: Record<string, string>;
+          testQuestion?: string;
+        },
+    data?: Record<string, unknown>,
+  ) =>
     typeof idOrData === "string"
       ? api.post(`/admin/rag/templates/preview`, { id: idOrData, ...data })
       : api.post("/admin/rag/templates/preview", idOrData),
@@ -1536,8 +1973,12 @@ export const ragTemplateApi = {
 
 // ───────── 知识库去重审核 ─────────
 export const dedupApi = {
-  listCandidates: (params?: { page?: number; pageSize?: number; minSimilarity?: number; status?: string }) =>
-    api.get("/admin/knowledge/dedup/candidates", { params }),
+  listCandidates: (params?: {
+    page?: number;
+    pageSize?: number;
+    minSimilarity?: number;
+    status?: string;
+  }) => api.get("/admin/knowledge/dedup/candidates", { params }),
   getCandidate: (id: string) => api.get(`/admin/knowledge/dedup/candidates/${id}`),
   decide: (id: string, data: { decision: string; reason?: string }) =>
     api.post(`/admin/knowledge/dedup/candidates/${id}/decide`, data),
@@ -1550,8 +1991,10 @@ export const dedupApi = {
 export const aiRoutingApi = {
   getConfig: () => api.get("/admin/ai/routing/config"),
   updateConfig: (data: Record<string, unknown>) => api.put("/admin/ai/routing/config", data),
-  updateScene: (scene: string, data: Record<string, unknown>) => api.put(`/admin/ai/routing/scenes/${scene}`, data),
-  validateConfig: (data: Record<string, unknown>) => api.post("/admin/ai/routing/config/validate", data),
+  updateScene: (scene: string, data: Record<string, unknown>) =>
+    api.put(`/admin/ai/routing/scenes/${scene}`, data),
+  validateConfig: (data: Record<string, unknown>) =>
+    api.post("/admin/ai/routing/config/validate", data),
   getHistory: () => api.get("/admin/ai/routing/config/history"),
   getBudgets: () => api.get("/admin/ai/routing/budgets"),
 };
@@ -1634,13 +2077,16 @@ export const offlineDashboardApi = {
 export const circleDashboardApi = {
   overview: (circleId: string) => api.get(`/circles/${circleId}/dashboard/overview`),
   trends: (circleId: string) => api.get(`/circles/${circleId}/dashboard/trends`),
-  revenueBreakdown: (circleId: string) => api.get(`/circles/${circleId}/dashboard/revenue-breakdown`),
+  revenueBreakdown: (circleId: string) =>
+    api.get(`/circles/${circleId}/dashboard/revenue-breakdown`),
   topContributors: (circleId: string) => api.get(`/circles/${circleId}/dashboard/top-contributors`),
   hotContent: (circleId: string) => api.get(`/circles/${circleId}/dashboard/hot-content`),
   recentMembers: (circleId: string) => api.get(`/circles/${circleId}/dashboard/recent-members`),
   churnWarning: (circleId: string) => api.get(`/circles/${circleId}/dashboard/churn-warning`),
-  pendingQuestions: (circleId: string) => api.get(`/circles/${circleId}/dashboard/pending-questions`),
-  knowledgeCandidates: (circleId: string) => api.get(`/circles/${circleId}/dashboard/knowledge-candidates`),
+  pendingQuestions: (circleId: string) =>
+    api.get(`/circles/${circleId}/dashboard/pending-questions`),
+  knowledgeCandidates: (circleId: string) =>
+    api.get(`/circles/${circleId}/dashboard/knowledge-candidates`),
 };
 
 // ───────── 竞赛管理 ─────────
@@ -1655,24 +2101,41 @@ export const competitionApi = {
   // 二期·赛事创建系统：阶段与AI组卷
   getStages: (id: string) => api.get(`/admin/competitions/${id}/stages`),
   generateStages: (id: string) => api.post(`/admin/competitions/${id}/stages/generate`),
-  generatePaper: (id: string, data: { count: number; difficultyMix?: { easy?: number; medium?: number; hard?: number }; categories?: string[] }) =>
-    api.post(`/admin/competitions/${id}/generate-paper`, data),
-  createRound: (id: string, data: Record<string, unknown>) => api.post(`/admin/competitions/${id}/rounds`, data),
+  generatePaper: (
+    id: string,
+    data: {
+      count: number;
+      difficultyMix?: { easy?: number; medium?: number; hard?: number };
+      categories?: string[];
+    },
+  ) => api.post(`/admin/competitions/${id}/generate-paper`, data),
+  createRound: (id: string, data: Record<string, unknown>) =>
+    api.post(`/admin/competitions/${id}/rounds`, data),
   listRounds: (id: string) => api.get(`/admin/competitions/${id}/rounds`),
-  addQuestion: (id: string, data: Record<string, unknown>) => api.post(`/admin/competitions/${id}/questions`, data),
-  batchQuestions: (id: string, data: Record<string, unknown>) => api.post(`/admin/competitions/${id}/questions/batch`, data),
-  listQuestions: (id: string, params?: Record<string, unknown>) => api.get(`/admin/competitions/${id}/questions`, { params }),
-  listRegistrations: (id: string, params?: Record<string, unknown>) => api.get(`/admin/competitions/${id}/registrations`, { params }),
-  updateRegistration: (id: string, regId: string, data: Record<string, unknown>) => api.put(`/admin/competitions/${id}/registrations/${regId}`, data),
-  getRankings: (id: string, params?: Record<string, unknown>) => api.get(`/admin/competitions/${id}/rankings`, { params }),
+  addQuestion: (id: string, data: Record<string, unknown>) =>
+    api.post(`/admin/competitions/${id}/questions`, data),
+  batchQuestions: (id: string, data: Record<string, unknown>) =>
+    api.post(`/admin/competitions/${id}/questions/batch`, data),
+  listQuestions: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/admin/competitions/${id}/questions`, { params }),
+  listRegistrations: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/admin/competitions/${id}/registrations`, { params }),
+  updateRegistration: (id: string, regId: string, data: Record<string, unknown>) =>
+    api.put(`/admin/competitions/${id}/registrations/${regId}`, data),
+  getRankings: (id: string, params?: Record<string, unknown>) =>
+    api.get(`/admin/competitions/${id}/rankings`, { params }),
   calculateRanking: (id: string) => api.post(`/admin/competitions/${id}/calculate-ranking`),
   gradeAnswer: (answerId: string, data: { score: number; comment?: string }) =>
     api.post(`/competitions/judge/answers/${answerId}/grade`, data),
   delete: (id: string) => api.delete(`/admin/competitions/${id}`),
-  deleteRound: (id: string, roundId: string) => api.delete(`/admin/competitions/${id}/rounds/${roundId}`),
-  deleteQuestion: (id: string, questionId: string) => api.delete(`/admin/competitions/${id}/questions/${questionId}`),
-  updateRound: (id: string, roundId: string, data: Record<string, unknown>) => api.put(`/admin/competitions/${id}/rounds/${roundId}`, data),
-  updateQuestion: (id: string, questionId: string, data: Record<string, unknown>) => api.put(`/admin/competitions/${id}/questions/${questionId}`, data),
+  deleteRound: (id: string, roundId: string) =>
+    api.delete(`/admin/competitions/${id}/rounds/${roundId}`),
+  deleteQuestion: (id: string, questionId: string) =>
+    api.delete(`/admin/competitions/${id}/questions/${questionId}`),
+  updateRound: (id: string, roundId: string, data: Record<string, unknown>) =>
+    api.put(`/admin/competitions/${id}/rounds/${roundId}`, data),
+  updateQuestion: (id: string, questionId: string, data: Record<string, unknown>) =>
+    api.put(`/admin/competitions/${id}/questions/${questionId}`, data),
 };
 
 // ───────── 品类管理 ─────────
@@ -1704,10 +2167,21 @@ export const backupApi = {
 
 // ───────── AI事件总线 ─────────
 export const aiEventApi = {
-  publish: (data: { type: string; source: string; severity?: string; payload?: unknown; context?: unknown }) =>
-    api.post("/ai/events/publish", data),
-  list: (params?: { page?: number; pageSize?: number; type?: string; source?: string; severity?: string; status?: string }) =>
-    api.get("/ai/events", { params }),
+  publish: (data: {
+    type: string;
+    source: string;
+    severity?: string;
+    payload?: unknown;
+    context?: unknown;
+  }) => api.post("/ai/events/publish", data),
+  list: (params?: {
+    page?: number;
+    pageSize?: number;
+    type?: string;
+    source?: string;
+    severity?: string;
+    status?: string;
+  }) => api.get("/ai/events", { params }),
   stats: () => api.get("/ai/events/stats"),
   process: (id: string) => api.post(`/ai/events/${id}/process`),
 };
@@ -1719,13 +2193,19 @@ export const aiCapabilityApi = {
   byScene: (scene: string) => api.get("/ai/capabilities/by-scene", { params: { scene } }),
   health: () => api.get("/ai/capabilities/health"),
   getByName: (name: string) => api.get(`/ai/capabilities/${name}`),
-  updateStatus: (name: string, status: string) => api.put(`/ai/capabilities/${name}/status`, { status }),
+  updateStatus: (name: string, status: string) =>
+    api.put(`/ai/capabilities/${name}/status`, { status }),
 };
 
 // ───────── AI决策账本 ─────────
 export const aiDecisionApi = {
-  list: (params?: { page?: number; pageSize?: number; agentId?: string; riskLevel?: string; humanAction?: string }) =>
-    api.get("/ai/decisions", { params }),
+  list: (params?: {
+    page?: number;
+    pageSize?: number;
+    agentId?: string;
+    riskLevel?: string;
+    humanAction?: string;
+  }) => api.get("/ai/decisions", { params }),
   overview: () => api.get("/ai/decisions/overview"),
   trace: (id: string) => api.get(`/ai/decisions/trace/${id}`),
   retrospective: (id: string) => api.get(`/ai/decisions/retrospective/${id}`),
@@ -1739,15 +2219,23 @@ export const aiDecisionApi = {
 
 // ───────── 人机协作审核 ─────────
 export const aiCollaborationApi = {
-  list: (params?: { limit?: number; offset?: number; status?: string; type?: string; riskLevel?: string }) =>
-    api.get("/ai/collaborations", { params }),
+  list: (params?: {
+    limit?: number;
+    offset?: number;
+    status?: string;
+    type?: string;
+    riskLevel?: string;
+  }) => api.get("/ai/collaborations", { params }),
   pending: () => api.get("/ai/collaborations/pending"),
   overview: () => api.get("/ai/collaborations/overview"),
   detail: (id: string) => api.get(`/ai/collaborations/${id}`),
-  review: (id: string, data: { action: string; reviewer?: string; note?: string; modifications?: unknown }) =>
-    api.post(`/ai/collaborations/${id}/review`, data),
+  review: (
+    id: string,
+    data: { action: string; reviewer?: string; note?: string; modifications?: unknown },
+  ) => api.post(`/ai/collaborations/${id}/review`, data),
   execute: (id: string) => api.post(`/ai/collaborations/${id}/execute`),
-  rollback: (id: string, reason?: string) => api.post(`/ai/collaborations/${id}/rollback`, { reason }),
+  rollback: (id: string, reason?: string) =>
+    api.post(`/ai/collaborations/${id}/rollback`, { reason }),
   feedback: (id: string, data: { rating: number; comment?: string }) =>
     api.post(`/ai/collaborations/${id}/feedback`, data),
 };
@@ -1760,8 +2248,13 @@ export const aiAnomalyApi = {
   toggleRule: (ruleId: string, enabled: boolean) =>
     api.post(`/ai/anomalies/rules/${ruleId}/toggle`, { enabled }),
   addRule: (data: {
-    id: string; metric: string; dimension: string; baselineWindow: number;
-    deviationThreshold: number; severity: string; enabled: boolean;
+    id: string;
+    metric: string;
+    dimension: string;
+    baselineWindow: number;
+    deviationThreshold: number;
+    severity: string;
+    enabled: boolean;
   }) => api.post("/ai/anomalies/rules", data),
 };
 
@@ -1782,11 +2275,14 @@ export const bundleApi = {
 
 // ───────── 续费管理 ─────────
 export const renewalApi = {
-  getEntitlements: (params?: Record<string, unknown>) => api.get("/renewal/my/entitlements", { params }),
+  getEntitlements: (params?: Record<string, unknown>) =>
+    api.get("/renewal/my/entitlements", { params }),
   getHistory: (params?: Record<string, unknown>) => api.get("/renewal/my/history", { params }),
   // 管理员
-  getExpiringUsers: (days?: number) => api.get("/renewal/admin/expiring-users", { params: { days } }),
-  getAdminHistory: (params?: Record<string, unknown>) => api.get("/renewal/admin/history", { params }),
+  getExpiringUsers: (days?: number) =>
+    api.get("/renewal/admin/expiring-users", { params: { days } }),
+  getAdminHistory: (params?: Record<string, unknown>) =>
+    api.get("/renewal/admin/history", { params }),
 };
 
 // ───────── 统一订单中心 ─────────
@@ -1798,11 +2294,15 @@ export const orderCenterApi = {
 
 // ───────── 驿站老师邀约 ─────────
 export const teacherRequestApi = {
-  create: (stationId: string, data: Record<string, unknown>) => api.post(`/offline/stations/${stationId}/teacher-requests`, data),
-  list: (stationId: string, params?: Record<string, unknown>) => api.get(`/offline/stations/${stationId}/teacher-requests`, { params }),
-  respond: (id: string, data: Record<string, unknown>) => api.put(`/offline/teacher-requests/${id}/respond`, data),
+  create: (stationId: string, data: Record<string, unknown>) =>
+    api.post(`/offline/stations/${stationId}/teacher-requests`, data),
+  list: (stationId: string, params?: Record<string, unknown>) =>
+    api.get(`/offline/stations/${stationId}/teacher-requests`, { params }),
+  respond: (id: string, data: Record<string, unknown>) =>
+    api.put(`/offline/teacher-requests/${id}/respond`, data),
   // 管理员
-  adminList: (params?: Record<string, unknown>) => api.get("/offline/admin/teacher-requests", { params }),
+  adminList: (params?: Record<string, unknown>) =>
+    api.get("/offline/admin/teacher-requests", { params }),
 };
 
 // ───────── 圈子后台管理 ─────────
@@ -1810,23 +2310,31 @@ export const circleBackendApi = {
   overview: () => api.get("/circle-backend/overview"),
   members: (params?: Record<string, unknown>) => api.get("/circle-backend/members", { params }),
   guests: () => api.get("/circle-backend/guests"),
-  setGuestShareRate: (userId: string, shareRate: number) => api.put(`/circle-backend/guests/${userId}/share-rate`, { shareRate }),
+  setGuestShareRate: (userId: string, shareRate: number) =>
+    api.put(`/circle-backend/guests/${userId}/share-rate`, { shareRate }),
   revenue: (period?: string) => api.get("/circle-backend/revenue", { params: { period } }),
   // 管理员
-  adminCircles: (params?: Record<string, unknown>) => api.get("/circle-backend/admin/circles", { params }),
-  adminOverview: (circleId: string) => api.get(`/circle-backend/admin/circles/${circleId}/overview`),
+  adminCircles: (params?: Record<string, unknown>) =>
+    api.get("/circle-backend/admin/circles", { params }),
+  adminOverview: (circleId: string) =>
+    api.get(`/circle-backend/admin/circles/${circleId}/overview`),
 };
 
 // ───────── 赏金问答管理 ─────────
 export const bountyApi = {
-  listQuestions: (params?: { page?: number; pageSize?: number; category?: string; status?: string }) =>
-    api.get("/admin/bounty/questions", { params }),
+  listQuestions: (params?: {
+    page?: number;
+    pageSize?: number;
+    category?: string;
+    status?: string;
+  }) => api.get("/admin/bounty/questions", { params }),
   // 后端为 @Post("questions/:id/close")（bounty-admin.controller），此前误写为 PUT 导致 404
   closeQuestion: (id: string) => api.post(`/admin/bounty/questions/${id}/close`),
   listReviews: (params?: { page?: number; pageSize?: number }) =>
     api.get("/admin/bounty/reviews", { params }),
   approveReview: (id: string) => api.put(`/admin/bounty/reviews/${id}/approve`),
-  rejectReview: (id: string, reason: string) => api.put(`/admin/bounty/reviews/${id}/reject`, { reason }),
+  rejectReview: (id: string, reason: string) =>
+    api.put(`/admin/bounty/reviews/${id}/reject`, { reason }),
 };
 
 // ───────── 运营商管理 ─────────
@@ -1835,8 +2343,17 @@ export const bountyApi = {
 export const operatorAdminApi = {
   list: (params?: { page?: number; pageSize?: number }) =>
     api.get("/station/operator/list", { params }),
-  updateBrand: (id: string, data: { brandName?: string; brandLogo?: string; brandThemeColor?: string; miniAppId?: string; mpAppId?: string; miniPages?: Record<string, string> }) =>
-    api.put(`/station/operator/${id}/brand`, data),
+  updateBrand: (
+    id: string,
+    data: {
+      brandName?: string;
+      brandLogo?: string;
+      brandThemeColor?: string;
+      miniAppId?: string;
+      mpAppId?: string;
+      miniPages?: Record<string, string>;
+    },
+  ) => api.put(`/station/operator/${id}/brand`, data),
 };
 
 // ───────── 租户管理 ─────────
@@ -1847,9 +2364,12 @@ export const tenantAdminApi = {
   create: (data: Record<string, unknown>) => api.post("/admin/tenants", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/admin/tenants/${id}`, data),
   delete: (id: string) => api.delete(`/admin/tenants/${id}`),
-  recharge: (id: string, data: { amount: number }) => api.post(`/admin/tenants/${id}/recharge`, data),
-  getUsage: (id: string, params?: { page?: number; pageSize?: number; startDate?: string; endDate?: string }) =>
-    api.get(`/admin/tenants/${id}/usage`, { params }),
+  recharge: (id: string, data: { amount: number }) =>
+    api.post(`/admin/tenants/${id}/recharge`, data),
+  getUsage: (
+    id: string,
+    params?: { page?: number; pageSize?: number; startDate?: string; endDate?: string },
+  ) => api.get(`/admin/tenants/${id}/usage`, { params }),
   getLogs: (id: string, params?: { page?: number; pageSize?: number }) =>
     api.get(`/admin/tenants/${id}/logs`, { params }),
 };
@@ -1860,7 +2380,8 @@ export const settlementRuleApi = {
   listRules: () => api.get("/settlement/rules"),
   createRule: (data: Record<string, unknown>) => api.post("/settlement/rules", data),
   // PUT body 不含 scene（后端禁改场景标识）
-  updateRule: (id: string, data: Record<string, unknown>) => api.put(`/settlement/rules/${id}`, data),
+  updateRule: (id: string, data: Record<string, unknown>) =>
+    api.put(`/settlement/rules/${id}`, data),
 };
 
 // ───────── 智能顾问规则（C7 规则管理） ─────────
@@ -1869,7 +2390,8 @@ export const teacherCertApi = {
   // GET /teacher/certifications?status=&page=&pageSize= → { items, total, page, pageSize }
   list: (params?: Record<string, unknown>) => api.get("/teacher/certifications", { params }),
   // PUT /teacher/certifications/:id/review body { action: "APPROVE"|"REJECT", verifiedTitle?, rejectReason? }
-  review: (id: string, data: Record<string, unknown>) => api.put(`/teacher/certifications/${id}/review`, data),
+  review: (id: string, data: Record<string, unknown>) =>
+    api.put(`/teacher/certifications/${id}/review`, data),
 };
 
 export const advisorRuleApi = {
@@ -1891,11 +2413,21 @@ export const trackErrorApi = {
 export const adminAssistantApi = {
   chat: (data: { message: string; page?: string; history?: { role: string; content: string }[] }) =>
     api.post("/admin-assistant/chat", data),
-  createFeedback: (data: { page?: string; category?: string; title: string; detail: string; source?: string; images?: string[] }) =>
-    api.post("/admin-assistant/feedback", data),
+  createFeedback: (data: {
+    page?: string;
+    category?: string;
+    title: string;
+    detail: string;
+    source?: string;
+    images?: string[];
+  }) => api.post("/admin-assistant/feedback", data),
   myFeedback: () => api.get("/admin-assistant/my-feedback"),
-  listFeedback: (params?: { page?: number; pageSize?: number; status?: string; category?: string }) =>
-    api.get("/admin-assistant/feedback", { params }),
+  listFeedback: (params?: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    category?: string;
+  }) => api.get("/admin-assistant/feedback", { params }),
   summary: () => api.get("/admin-assistant/feedback/summary"),
   updateFeedback: (id: string, data: { status?: string; reply?: string }) =>
     api.put(`/admin-assistant/feedback/${id}`, data),

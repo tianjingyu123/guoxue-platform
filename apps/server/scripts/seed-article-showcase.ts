@@ -1,7 +1,25 @@
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const ASSET = "https://api.rebugx.cn/h5/static/images/articles";
+const PUBLIC_H5_URL = (
+  process.env.PUBLIC_H5_URL ||
+  process.env.VITE_PUBLIC_H5_URL ||
+  (process.env.PUBLIC_ASSET_ORIGIN
+    ? `${process.env.PUBLIC_ASSET_ORIGIN.replace(/\/+$/, "")}/h5`
+    : "") ||
+  (process.env.PUBLIC_API_URL ? `${process.env.PUBLIC_API_URL.replace(/\/+$/, "")}/h5` : "") ||
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:5173")
+)
+  .trim()
+  .replace(/\/+$/, "");
+
+if (!PUBLIC_H5_URL) {
+  throw new Error(
+    "文章展示种子写入前必须配置 PUBLIC_H5_URL，避免把旧域名写入新数据库",
+  );
+}
+
+const ASSET = `${PUBLIC_H5_URL}/static/images/articles`;
 
 const articles = [
   {

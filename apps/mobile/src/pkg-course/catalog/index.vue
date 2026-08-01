@@ -3,7 +3,7 @@
  * 课程分类浏览：左侧固定分类、右侧课程列表。
  * “全部课程 / 热门排行 / 首页分类图标”统一进入此页，避免首页重复承担检索职责。
  */
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { onLoad, onReachBottom, onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
@@ -91,13 +91,52 @@ function selectSort(id: string) {
   showSort.value = false
   refresh()
 }
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    selectCategory(currentId)
+    return
+  }
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+  event.preventDefault()
+  const currentIndex = Math.max(0, categories.value.findIndex((item) => item.id === currentId))
+  const direction = event.key === 'ArrowDown' ? 1 : -1
+  const nextCategory = categories.value[
+    (currentIndex + direction + categories.value.length) % categories.value.length
+  ]
+  if (!nextCategory) return
+  selectCategory(nextCategory.id)
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('.category[aria-selected="true"]')?.focus()
+  })
+}
+
+function toggleSortOnKeyboard(event: KeyboardEvent) {
+  activateOnKeyboard(event, () => { showSort.value = !showSort.value })
+}
 </script>
 
 <template>
-  <view class="page">
+  <view class="page" @keydown.esc="showSort = false">
     <view class="header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="header-row">
-        <view class="back" @tap="goBack"><app-icon name="arrow-left" :size="42" color="#292522" /></view>
+        <view
+          class="back"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="goBack"
+          @keydown="activateOnKeyboard($event, goBack)"
+        >
+          <app-icon name="arrow-left" :size="42" color="#292522" />
+        </view>
         <view class="header-copy">
           <text class="header-title serif">课程分类</text>
           <text class="header-subtitle">按主题找到一条学习主线</text>
@@ -108,26 +147,47 @@ function selectSort(id: string) {
         <input
           v-model="keyword"
           class="search-input"
+          aria-label="搜索课程名称或内容"
           confirm-type="search"
           placeholder="搜索课程名称或内容"
           placeholder-class="search-placeholder"
           @confirm="refresh"
         >
-        <view v-if="keyword" class="search-clear" @tap="keyword = ''; refresh()">
+        <view
+          v-if="keyword"
+          class="search-clear"
+          role="button"
+          aria-label="清空课程搜索"
+          tabindex="0"
+          @tap="keyword = ''; refresh()"
+          @keydown="activateOnKeyboard($event, () => { keyword = ''; refresh() })"
+        >
           <app-icon name="x" :size="24" color="#978D82" />
         </view>
       </view>
     </view>
 
     <view class="catalog-body" :style="{ top: `calc(${statusBarHeight}px + 180rpx)` }">
-      <scroll-view class="sidebar" scroll-y :show-scrollbar="false">
+      <scroll-view
+        class="sidebar"
+        scroll-y
+        :show-scrollbar="false"
+        role="tablist"
+        aria-label="课程主题"
+        aria-orientation="vertical"
+      >
         <view class="sidebar-label"><text>课程主题</text></view>
         <view
           v-for="category in categories"
           :key="category.id"
           class="category"
           :class="{ active: activeCategory === category.id }"
+          role="tab"
+          :aria-label="category.id === 'all' ? '全部课程' : category.name"
+          :aria-selected="activeCategory === category.id ? 'true' : 'false'"
+          :tabindex="activeCategory === category.id ? 0 : -1"
           @tap="selectCategory(category.id)"
+          @keydown="onCategoryKeydown($event, category.id)"
         >
           <view v-if="activeCategory === category.id" class="category-line" />
           <text class="category-text" :aria-label="category.name">
@@ -142,26 +202,39 @@ function selectSort(id: string) {
             <text class="toolbar-title serif">{{ activeCategoryName === '全部' ? '全部课程' : activeCategoryName }}</text>
             <text class="toolbar-subtitle">循序学习，慢慢积累</text>
           </view>
-          <view class="sort-trigger" @tap="showSort = !showSort">
+          <view
+            class="sort-trigger"
+            role="button"
+            aria-label="选择课程排序"
+            aria-haspopup="true"
+            :aria-expanded="showSort ? 'true' : 'false'"
+            tabindex="0"
+            @tap="showSort = !showSort"
+            @keydown="toggleSortOnKeyboard"
+          >
             <text>{{ activeSortName }}</text>
             <app-icon name="chevron-down" :size="22" color="#70665C" />
           </view>
         </view>
 
-        <view v-if="showSort" class="sort-popover">
+        <view v-if="showSort" class="sort-popover" role="radiogroup" aria-label="课程排序方式">
           <view
             v-for="option in courseSortOptions"
             :key="option.id"
             class="sort-option"
             :class="{ active: activeSort === option.id }"
+            role="radio"
+            :aria-checked="activeSort === option.id ? 'true' : 'false'"
+            :tabindex="activeSort === option.id ? 0 : -1"
             @tap="selectSort(option.id)"
+            @keydown="activateOnKeyboard($event, () => selectSort(option.id))"
           >
             <text>{{ option.name }}</text>
             <app-icon v-if="activeSort === option.id" name="check" :size="23" color="#C41E3A" />
           </view>
         </view>
 
-        <view v-if="loading" class="loading">
+        <view v-if="loading" class="loading" role="status" aria-live="polite" aria-label="课程加载中">
           <view v-for="n in 3" :key="n" class="loading-card">
             <view class="loading-cover shimmer" />
             <view class="loading-copy">
@@ -171,13 +244,22 @@ function selectSort(id: string) {
           </view>
         </view>
 
-        <view v-else-if="error" class="state">
+        <view v-else-if="error" class="state" role="alert" aria-live="assertive">
           <app-icon name="alert-circle" :size="52" color="#C41E3A" />
           <text class="state-title">课程加载失败</text>
-          <text class="state-action" @tap="refresh">点击重试</text>
+          <text
+            class="state-action"
+            role="button"
+            aria-label="重新加载课程"
+            tabindex="0"
+            @tap="refresh"
+            @keydown="activateOnKeyboard($event, refresh)"
+          >
+            点击重试
+          </text>
         </view>
 
-        <view v-else-if="!list.length" class="state">
+        <view v-else-if="!list.length" class="state" role="status" aria-live="polite">
           <app-icon name="book-open" :size="56" color="#B88A44" />
           <text class="state-title">这里暂时还没有课程</text>
           <text class="state-desc">换个分类或关键词再看看</text>
@@ -206,7 +288,7 @@ function selectSort(id: string) {
   background: rgba(252, 250, 246, .97); backdrop-filter: blur(18px);
 }
 .header-row { height: 92rpx; display: flex; align-items: center; padding: 0 28rpx; }
-.back { width: 72rpx; height: 72rpx; margin-left: -12rpx; display: flex; align-items: center; justify-content: center; }
+.back { width: 88rpx; height: 88rpx; margin-left: -20rpx; display: flex; align-items: center; justify-content: center; }
 .header-copy { display: flex; flex-direction: column; }
 .header-title { color: #282421; font-size: 34rpx; font-weight: 800; }
 .header-subtitle { margin-top: 2rpx; color: #9a9187; font-size: 19rpx; }

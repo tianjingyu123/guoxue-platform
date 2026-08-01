@@ -1,0 +1,104 @@
+# 腾讯云托管数据库架构专用覆盖配置
+# 用法: docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.tencent.yml --env-file .env.production up -d
+#
+# 与自建 PG/Redis 架构的核心差异:
+# - 不启动本地 postgres / redis 容器（使用腾讯云托管 PostgreSQL / Redis）
+# - Nginx 仅监听 HTTP 80（CLB 在上游终止 HTTPS，通过 HTTP 回源）
+# - 清除 server 对本地 postgres / redis 的 depends_on
+# - 新增 Socket.IO WebSocket Upgrade 支持
+# - 适配 CLB 回源架构的 Header 透传
+
+services:
+  # ── 禁用本地 PostgreSQL ──
+  postgres:
+    profiles: ["local-only"]
+    ports: !reset []
+
+  postgres-replica:
+    profiles: ["local-only"]
+    ports: !reset []
+
+  # ── 禁用本地 Redis ──
+  redis:
+    profiles: ["local-only"]
+    ports: !reset []
+
+  redis-secondary:
+    profiles: ["local-only"]
+    ports: !reset []
+
+  redis-sentinel-1:
+    profiles: ["local-only"]
+    ports: !reset []
+
+  redis-sentinel-2:
+    profiles: ["local-only"]
+    ports: !reset []
+
+  redis-sentinel-3:
+    profiles: ["local-only"]
+    ports: !reset []
+
+  # ── 后端服务 ──
+  server:
+    # 腾讯云架构不依赖本地 postgres / redis 容器
+    depends_on: !reset {}
+    ports: !reset []
+    environment:
+      NODE_OPTIONS: "--max-old-space-size=3072"
+      # 双节点不能使用节点本地盘；配置不完整时让应用失败启动，避免上传文件随机丢失。
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-cos}
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 512M
+
+  # ── Nginx（CLB 回源模式：仅 HTTP 80，不终止 HTTPS）──
+  nginx:
+    ports: !override
+      - "80:80"
+    volumes: !override # CLB 架构：容器启动时从模板生成完整 nginx.conf，避免依赖服务器上的未跟踪文件
+      - ./nginx/nginx.clb.conf.template:/etc/nginx/templates/nginx.clb.conf.template:ro
+      - ./nginx/security-headers.conf:/etc/nginx/snippets/security-headers.conf:ro
+      # CLB 架构不需要本地 SSL 证书目录
+      - uploads_data:/var/www/uploads:ro
+      - static_data:/var/www/static:ro
+      - admin_dist:/var/www/admin:ro
+      - h5_dist:/var/www/h5:ro
+      - /var/log/guoxue/nginx:/var/log/nginx
+    environment: !override
+      NGINX_SERVER_NAMES: ${NGINX_SERVER_NAMES:-localhost}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1/nginx-health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    # 完整模板不能写入 conf.d；启动前只替换 server_name，再以前台模式启动 Nginx
+    entrypoint: !override ["/bin/sh", "-c"]
+    command: !override
+      - >-
+        envsubst '$$NGINX_SERVER_NAMES'
+        < /etc/nginx/templates/nginx.clb.conf.template
+        > /etc/nginx/nginx.conf
+        && exec nginx -g 'daemon off;'
+    # 继承 prod.yml 的 default + monitoring 网络。监控栈可只部署在一个节点，
+    # 但被观测的 Nginx 必须保留共享网络，否则内部入口拨测会失去容器 DNS。
+
+# 腾讯云架构定义 monitoring 网络（prod.yml nginx 引用此网络，避免 undefined）
+networks:
+  monitoring:
+    external: true
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads_data:
+    driver: local
+  static_data:
+    driver: local
+  admin_dist:
+    driver: local
+  h5_dist:
+    driver: local

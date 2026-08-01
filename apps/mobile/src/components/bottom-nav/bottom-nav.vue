@@ -47,6 +47,12 @@ function go(url: string, id: string) {
   if (isActive(id)) return
   reLaunch(url)
 }
+
+function onNavKeydown(event: KeyboardEvent, url: string, id: string) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  go(url, id)
+}
 </script>
 
 <template>
@@ -54,13 +60,18 @@ function go(url: string, id: string) {
   <!-- #ifdef H5 -->
   <Teleport to="body">
   <!-- #endif -->
-  <view v-if="visible" class="bottom-nav">
+  <view v-if="visible" class="bottom-nav" role="navigation" aria-label="主导航">
     <view class="nav-inner">
       <view
         v-for="tab in tabs"
         :key="tab.id"
         class="nav-item"
+        role="link"
+        :aria-label="tab.label"
+        :aria-current="isActive(tab.id) ? 'page' : undefined"
+        tabindex="0"
         @tap="go(tab.url, tab.id)"
+        @keydown="onNavKeydown($event, tab.url, tab.id)"
       >
         <!-- 排盘居中凸起太极按钮 -->
         <view v-if="tab.id === 'paipan'" class="paipan">

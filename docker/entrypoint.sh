@@ -82,7 +82,8 @@ fi
 case "${RUN_DB_MIGRATIONS:-false}" in
   reviewed)
     echo "[entrypoint] 已确认迁移审查，执行数据库迁移..."
-    npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
+    pnpm --dir /app/apps/server exec prisma migrate deploy \
+      --schema=/app/apps/server/prisma/schema.prisma
     ;;
   false|0|"")
     echo "[entrypoint] 跳过数据库迁移（安全默认）"

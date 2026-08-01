@@ -43,7 +43,16 @@ export class ShopOrderLifecycleService {
   async adminPayOrder(orderId: string, payTransactionId: string, operatorId: string) {
     if (!payTransactionId) throw new BusinessException(ErrorCode.BAD_REQUEST, "必须提供支付流水号");
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order || order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待支付订单可确认支付");
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.status === "PAID" && order.payMethod === "MANUAL" && order.payTransactionId === payTransactionId) {
+      // 首次确认已翻状态但外发箱落库失败时，后台用同一流水重试即可补齐通知；分佣记录自身幂等。
+      await this.attribution.recordOrderCommissionAndFee(order);
+      await this.paymentSvc.emitOrderPaidEvent(order, order.id, "MANUAL", payTransactionId);
+      await this.orderSvc.settleGroupBuyIfNeeded(orderId)
+        .catch((e) => this.logger.error(`拼团成团结算失败 order=${orderId}`, e));
+      return { success: true, orderId, payTransactionId, replayed: true };
+    }
+    if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待支付订单可确认支付");
 
     // CAS 状态翻转防并发重复确认 + 同事务跑支付后处理器。
     // ⚠️ 后处理器不可省：它负责会员开通/分站激活/运营商建号。此前本方法绕过了它，
@@ -51,7 +60,7 @@ export class ShopOrderLifecycleService {
     await this.prisma.$transaction(async (tx) => {
       const flipped = await tx.order.updateMany({
         where: { id: orderId, status: "PENDING" },
-        data: { status: "PAID", paidAt: new Date(), payTransactionId },
+        data: { status: "PAID", paidAt: new Date(), payMethod: "MANUAL", payTransactionId },
       });
       if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
       await this.paymentSvc.runPaidPostProcessors(order, tx);
@@ -59,6 +68,7 @@ export class ShopOrderLifecycleService {
     await this.orderSvc.invalidateOrderCache(orderId, order.userId);
     // 线下确认收款同样记分佣 + 平台费（与网关支付路径一致，避免账目漏记）
     await this.attribution.recordOrderCommissionAndFee(order);
+    await this.paymentSvc.emitOrderPaidEvent(order, order.id, "MANUAL", payTransactionId);
     // 拼团订单：管理员确认支付后同样触发成团结算（本地无微信证书时用此路径验证闭环）
     await this.orderSvc.settleGroupBuyIfNeeded(orderId).catch((e) => this.logger.error(`拼团成团结算失败 order=${orderId}`, e));
     this.logger.log(`管理员 ${operatorId} 手动确认支付: ${orderId}, 流水号: ${payTransactionId}`);

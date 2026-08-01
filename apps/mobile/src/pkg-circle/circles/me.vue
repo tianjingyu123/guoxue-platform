@@ -211,7 +211,7 @@ onMounted(load)
   padding-top: calc(var(--status-bar-height, 0px) + 16rpx);
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(20rpx);
 }
-.nav-back { width: 64rpx; height: 64rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
+.nav-back { width: 88rpx; height: 88rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
 .nav-back:active { background: var(--separator, #ede7dd); }
 .nav-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
 

@@ -2,8 +2,12 @@ import { createRouter, createWebHistory } from "vue-router";
 
 // 所有管理角色
 const ALL_ADMIN = [
-  "SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR",
-  "FINANCE_ADMIN", "CUSTOMER_SERVICE", "GOODS_AUDITOR",
+  "SUPER_ADMIN",
+  "OPERATION_ADMIN",
+  "CONTENT_AUDITOR",
+  "FINANCE_ADMIN",
+  "CUSTOMER_SERVICE",
+  "GOODS_AUDITOR",
 ];
 
 const routes = [
@@ -68,19 +72,30 @@ const routes = [
         path: "contents",
         name: "ContentList",
         component: () => import("@/views/ContentList.vue"),
-        meta: { title: "内容库（旧CMS）", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          title: "内容库（旧CMS）",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "contents/create",
         name: "ContentCreate",
         component: () => import("@/views/ContentEdit.vue"),
-        meta: { hidden: true, title: "新建内容", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "新建内容",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "contents/:id/edit",
         name: "ContentEdit",
         component: () => import("@/views/ContentEdit.vue"),
-        meta: { hidden: true, title: "编辑内容", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "编辑内容",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "contents/audit",
@@ -136,7 +151,11 @@ const routes = [
         path: "circles/:id",
         name: "CircleDetail",
         component: () => import("@/views/circles/CircleDetail.vue"),
-        meta: { hidden: true, title: "圈子详情", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "圈子详情",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "videos",
@@ -217,20 +236,32 @@ const routes = [
         name: "CourseCreate",
         // 2026-07-11 课程编辑器重做：新建/编辑走可视化分区块编辑器（CourseEditor·无富文本）
         component: () => import("@/views/courses/CourseEditor.vue"),
-        meta: { hidden: true, title: "发布课程", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "发布课程",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "courses/:id/edit",
         name: "CourseEdit",
         component: () => import("@/views/courses/CourseEditor.vue"),
-        meta: { hidden: true, title: "编辑课程", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "编辑课程",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "courses/:id/manage",
         name: "CourseManage",
         // 课程运营（学员/作业/评价/问答/统计）：原 CourseEdit 页下线编辑器后保留的运营部分
         component: () => import("@/views/courses/CourseEdit.vue"),
-        meta: { hidden: true, title: "课程运营", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          hidden: true,
+          title: "课程运营",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       {
         path: "courses/categories",
@@ -242,7 +273,10 @@ const routes = [
         path: "teacher/certifications",
         name: "TeacherCertificationAudit",
         component: () => import("@/views/teacher/TeacherCertificationAudit.vue"),
-        meta: { title: "讲师认证审核", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          title: "讲师认证审核",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       // === 用户管理 ===
       {
@@ -279,7 +313,11 @@ const routes = [
         path: "users/:id",
         name: "UserDetail",
         component: () => import("@/views/users/UserDetail.vue"),
-        meta: { hidden: true, title: "用户详情", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+        meta: {
+          hidden: true,
+          title: "用户详情",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"],
+        },
       },
       // === 课程组合包 ===
       {
@@ -345,7 +383,10 @@ const routes = [
         path: "orders",
         name: "OrderList",
         component: () => import("@/views/shop/OrderList.vue"),
-        meta: { title: "订单管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "GOODS_AUDITOR"] },
+        meta: {
+          title: "订单管理",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "GOODS_AUDITOR"],
+        },
       },
       {
         path: "orders/gift-card-print",
@@ -499,7 +540,10 @@ const routes = [
         path: "coin-transactions",
         name: "CoinTransactionList",
         component: () => import("@/views/coin/TransactionList.vue"),
-        meta: { title: "虚拟币流水", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE"] },
+        meta: {
+          title: "虚拟币流水",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE"],
+        },
       },
       // === 财务 ===
       {
@@ -697,7 +741,10 @@ const routes = [
         path: "ai/customer-service",
         name: "CustomerServiceAdmin",
         component: () => import("@/views/ai/CustomerServiceAdmin.vue"),
-        meta: { title: "智能客服管理", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"] },
+        meta: {
+          title: "智能客服管理",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE"],
+        },
       },
       {
         path: "ai/agent-marketplace",
@@ -790,25 +837,37 @@ const routes = [
         path: "dashboard/overview",
         name: "OpsDashboardOverview",
         component: () => import("@/views/dashboard/Overview.vue"),
-        meta: { title: "运营看板·总览", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: {
+          title: "运营看板·总览",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"],
+        },
       },
       {
         path: "dashboard/growth",
         name: "OpsDashboardGrowth",
         component: () => import("@/views/dashboard/Growth.vue"),
-        meta: { title: "运营看板·增长", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: {
+          title: "运营看板·增长",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"],
+        },
       },
       {
         path: "dashboard/revenue",
         name: "OpsDashboardRevenue",
         component: () => import("@/views/dashboard/Revenue.vue"),
-        meta: { title: "运营看板·收入", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: {
+          title: "运营看板·收入",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"],
+        },
       },
       {
         path: "dashboard/health",
         name: "OpsDashboardHealth",
         component: () => import("@/views/dashboard/Health.vue"),
-        meta: { title: "运营看板·健康", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: {
+          title: "运营看板·健康",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"],
+        },
       },
       // === 数据运营引擎（D-T1 漏斗 / D-T2 标签）+ 业务哨兵（O-T1） ===
       {
@@ -1272,7 +1331,10 @@ const routes = [
         path: "interactions",
         name: "InteractionDashboard",
         component: () => import("@/views/interaction/InteractionDashboard.vue"),
-        meta: { title: "互动数据看板", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"] },
+        meta: {
+          title: "互动数据看板",
+          roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"],
+        },
       },
       // === 自动化运营 ===
       {
@@ -1404,12 +1466,50 @@ const routes = [
     ],
   },
   ...(import.meta.env.DEV
-    ? [{
-        path: "/__qa/merchant-inventory",
-        name: "MerchantInventoryPreview",
-        component: () => import("@/views/merchant-backend/MerchantInventory.vue"),
-        meta: { hidden: true, title: "库存与履约视觉验收", devPreview: true },
-      }]
+    ? [
+        {
+          path: "/__qa/merchant-dashboard",
+          name: "MerchantDashboardPreview",
+          component: () => import("@/views/merchant-backend/MerchantDashboard.vue"),
+          meta: { hidden: true, title: "经营驾驶舱视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-inventory",
+          name: "MerchantInventoryPreview",
+          component: () => import("@/views/merchant-backend/MerchantInventory.vue"),
+          meta: { hidden: true, title: "库存与履约视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-shipping",
+          name: "MerchantShippingPreview",
+          component: () => import("@/views/merchant-backend/MerchantShipping.vue"),
+          meta: { hidden: true, title: "发货履约视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-orders",
+          name: "MerchantOrdersPreview",
+          component: () => import("@/views/merchant-backend/MerchantOrders.vue"),
+          meta: { hidden: true, title: "订单中枢视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-customers",
+          name: "MerchantCustomersPreview",
+          component: () => import("@/views/merchant-backend/MerchantCustomers.vue"),
+          meta: { hidden: true, title: "客户关系视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-after-sales",
+          name: "MerchantAfterSalesPreview",
+          component: () => import("@/views/merchant-backend/MerchantAfterSales.vue"),
+          meta: { hidden: true, title: "售后质检视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/merchant-revenue",
+          name: "MerchantRevenuePreview",
+          component: () => import("@/views/merchant-backend/MerchantRevenue.vue"),
+          meta: { hidden: true, title: "资金对账视觉验收", devPreview: true },
+        },
+      ]
     : []),
   // === 404 ===
   {

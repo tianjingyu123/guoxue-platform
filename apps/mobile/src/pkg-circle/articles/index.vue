@@ -6,12 +6,26 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="nav-bar">
-        <view class="nav-btn" @tap="goBack">
+        <view
+          class="nav-btn"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="goBack"
+          @keydown="activateOnKeyboard($event, goBack)"
+        >
           <AppIcon name="arrow-left" :size="44" color="#2C2C2C" />
         </view>
         <text class="nav-title">文章</text>
         <view class="flex-1" />
-        <view class="ai-btn" @tap="aiOpen = true">
+        <view
+          class="ai-btn"
+          role="button"
+          aria-label="打开文章 AI 搜索"
+          tabindex="0"
+          @tap="aiOpen = true"
+          @keydown="activateOnKeyboard($event, () => aiOpen = true)"
+        >
           <AppIcon name="sparkles" :size="18" color="#C41E3A" />
           <text class="ai-btn-text">AI搜索</text>
         </view>
@@ -24,10 +38,19 @@
           <input
             v-model="searchQuery"
             class="search-input"
+            aria-label="搜索文章标题或内容"
             placeholder="搜索文章标题或内容"
             placeholder-class="search-ph"
           />
-          <view v-if="searchQuery" class="search-clear" @tap="searchQuery = ''">
+          <view
+            v-if="searchQuery"
+            class="search-clear"
+            role="button"
+            aria-label="清空文章搜索"
+            tabindex="0"
+            @tap="searchQuery = ''"
+            @keydown="activateOnKeyboard($event, () => searchQuery = '')"
+          >
             <AppIcon name="x" :size="16" color="#999" />
           </view>
         </view>
@@ -35,11 +58,15 @@
 
       <!-- 分类 Tab（全部 + 热门标签真连） -->
       <scroll-view scroll-x class="cat-scroll">
-        <view class="cat-row">
+        <view class="cat-row" role="tablist" aria-label="文章分类">
           <view
             class="cat-chip"
             :class="{ active: activeTag === '' }"
+            role="tab"
+            :aria-selected="activeTag === '' ? 'true' : 'false'"
+            :tabindex="activeTag === '' ? 0 : -1"
             @tap="selectTag('')"
+            @keydown="onCategoryKeydown($event, '')"
           >
             <text class="cat-label" :class="{ active: activeTag === '' }">全部</text>
           </view>
@@ -48,7 +75,11 @@
             :key="tag.id"
             class="cat-chip"
             :class="{ active: activeTag === tag.name }"
+            role="tab"
+            :aria-selected="activeTag === tag.name ? 'true' : 'false'"
+            :tabindex="activeTag === tag.name ? 0 : -1"
             @tap="selectTag(tag.name)"
+            @keydown="onCategoryKeydown($event, tag.name)"
           >
             <text class="cat-label" :class="{ active: activeTag === tag.name }">{{ tag.name }}</text>
           </view>
@@ -60,13 +91,37 @@
     <view class="sort-bar">
       <text class="sort-count">共 {{ total }} 篇文章</text>
       <view class="sort-wrap">
-        <view class="sort-trigger" @tap="showSortMenu = !showSortMenu">
+        <view
+          class="sort-trigger"
+          role="button"
+          aria-haspopup="true"
+          :aria-expanded="showSortMenu ? 'true' : 'false'"
+          tabindex="0"
+          @tap="showSortMenu = !showSortMenu"
+          @keydown="activateOnKeyboard($event, () => showSortMenu = !showSortMenu)"
+        >
           <text class="sort-text">{{ sortBy === 'latest' ? '最新发布' : '最受欢迎' }}</text>
           <AppIcon name="chevron-down" :size="16" color="#2C2C2C" :class="{ flip: showSortMenu }" />
         </view>
-        <view v-if="showSortMenu" class="sort-menu">
-          <view class="sort-option" :class="{ active: sortBy === 'latest' }" @tap="selectSort('latest')">最新发布</view>
-          <view class="sort-option" :class="{ active: sortBy === 'popular' }" @tap="selectSort('popular')">最受欢迎</view>
+        <view v-if="showSortMenu" class="sort-menu" role="radiogroup" aria-label="文章排序方式">
+          <view
+            class="sort-option"
+            :class="{ active: sortBy === 'latest' }"
+            role="radio"
+            :aria-checked="sortBy === 'latest' ? 'true' : 'false'"
+            tabindex="0"
+            @tap="selectSort('latest')"
+            @keydown="activateOnKeyboard($event, () => selectSort('latest'))"
+          >最新发布</view>
+          <view
+            class="sort-option"
+            :class="{ active: sortBy === 'popular' }"
+            role="radio"
+            :aria-checked="sortBy === 'popular' ? 'true' : 'false'"
+            tabindex="0"
+            @tap="selectSort('popular')"
+            @keydown="activateOnKeyboard($event, () => selectSort('popular'))"
+          >最受欢迎</view>
         </view>
       </view>
     </view>
@@ -77,15 +132,21 @@
         <station-pinned-rail board="article" :inset="false" />
 
         <!-- loading -->
-        <view v-if="loading" class="state">
+        <view v-if="loading" class="state" role="status" aria-live="polite" aria-label="正在加载文章">
           <AppLoading />
         </view>
 
         <!-- error -->
-        <view v-else-if="error" class="state">
+        <view v-else-if="error" class="state" role="alert" aria-live="polite">
           <view class="state-icon"><AppIcon name="alert-circle" :size="32" color="#C41E3A" /></view>
           <text class="state-text">{{ error }}</text>
-          <view class="retry-btn" @tap="loadList"><text class="retry-text">重试</text></view>
+          <view
+            class="retry-btn"
+            role="button"
+            tabindex="0"
+            @tap="loadList"
+            @keydown="activateOnKeyboard($event, loadList)"
+          ><text class="retry-text">重试</text></view>
         </view>
 
         <!-- 列表 -->
@@ -96,7 +157,11 @@
             class="article-card"
             :class="`article-card--${resolvedLayout(article).toLowerCase()}`"
             data-content-card
+            role="link"
+            :aria-label="`阅读文章：${article.title}`"
+            tabindex="0"
             @tap="navigateToContent(`/articles/${article.id}`, $event)"
+            @keydown="openArticleOnKeyboard($event, article.id)"
           >
             <view v-if="resolvedLayout(article) === 'FEATURE'" class="article-feature-cover">
               <smart-cover
@@ -157,16 +222,25 @@
             </view>
           </view>
 
-          <view v-if="hasMore" class="load-more" @tap="loadMore">
+          <view
+            v-if="hasMore"
+            class="load-more"
+            role="button"
+            :aria-busy="loadingMore ? 'true' : 'false'"
+            :aria-disabled="loadingMore ? 'true' : 'false'"
+            tabindex="0"
+            @tap="loadMore"
+            @keydown="activateOnKeyboard($event, loadMore)"
+          >
             <text class="load-more-text">{{ loadingMore ? '加载中...' : '点击加载更多' }}</text>
           </view>
-          <view v-else class="load-more">
+          <view v-else class="load-more" role="status">
             <text class="load-more-text">没有更多了</text>
           </view>
         </template>
 
         <!-- empty -->
-        <view v-else class="empty">
+        <view v-else class="empty" role="status" aria-live="polite">
           <view class="empty-icon">
             <AppIcon name="file-text" :size="32" color="#999" />
           </view>
@@ -180,7 +254,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
@@ -207,6 +281,30 @@ const page = ref(1)
 const pageSize = 20
 const hasMore = ref(false)
 const loadingMore = ref(false)
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+function onCategoryKeydown(event: KeyboardEvent, current: string) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    selectTag(current)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const categories = ['', ...hotTags.value.map((tag) => tag.name)]
+  const currentIndex = Math.max(0, categories.indexOf(current))
+  const direction = event.key === 'ArrowRight' ? 1 : -1
+  const nextCategory = categories[(currentIndex + direction + categories.length) % categories.length] ?? ''
+  selectTag(nextCategory)
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('.cat-chip[aria-selected="true"]')?.focus()
+  })
+}
 
 onLoad((q) => {
   if (q?.circleId) circleId.value = q.circleId
@@ -290,6 +388,12 @@ function selectSort(s: 'latest' | 'popular') {
   showSortMenu.value = false
 }
 
+function openArticleOnKeyboard(event: KeyboardEvent, id: string) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  navigateToContent(`/articles/${id}`, event)
+}
+
 function articleImages(article: ArticleListItem): string[] {
   const seen = new Set<string>()
   return [...(article.images || []), article.cover || '']
@@ -352,9 +456,9 @@ function formatDate(dateStr: string) {
   padding: 0 24rpx;
 }
 .nav-btn {
-  width: 72rpx;
-  height: 72rpx;
-  margin-left: -8rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -16rpx;
   display: flex;
   align-items: center;
   justify-content: center;

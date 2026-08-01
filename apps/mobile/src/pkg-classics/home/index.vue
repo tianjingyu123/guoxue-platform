@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import FlatCover from '@/components/classics/flat-cover.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
@@ -91,6 +91,32 @@ function goBack() {
   if (pages.length > 1) uni.navigateBack()
   else uni.switchTab?.({ url: '/pages/index/index' }).catch?.(() => {})
 }
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+function selectType(id: string) {
+  activeType.value = id
+}
+async function onTypeKeydown(event: KeyboardEvent, currentId: string) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    selectType(currentId)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const currentIndex = filterTypes.findIndex((item) => item.id === currentId)
+  if (currentIndex < 0) return
+  const offset = event.key === 'ArrowRight' ? 1 : -1
+  const nextIndex = (currentIndex + offset + filterTypes.length) % filterTypes.length
+  selectType(filterTypes[nextIndex].id)
+  await nextTick()
+  if (typeof document === 'undefined') return
+  const selected = document.querySelector<HTMLElement>('.ch-type-chip[aria-selected="true"]')
+  selected?.focus()
+}
 async function onRefreshRanking() {
   if (refreshingRanking.value) return
   refreshingRanking.value = true
@@ -132,23 +158,55 @@ async function onRefreshRanking() {
     <view class="ch-topbar">
       <view class="ch-statusbar" />
       <view class="ch-topbar-inner">
-        <view class="ch-circle-btn" @tap="goBack">
+        <view
+          class="ch-circle-btn"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="goBack"
+          @keydown="activateOnKeyboard($event, goBack)"
+        >
           <app-icon name="arrow-left" :size="44" color="#2c2c2c" />
         </view>
         <text class="ch-topbar-title">古籍馆</text>
-        <view class="ch-circle-btn" @tap="goBookshelf">
+        <view
+          class="ch-circle-btn"
+          role="link"
+          aria-label="打开我的书架"
+          tabindex="0"
+          @tap="goBookshelf"
+          @keydown="activateOnKeyboard($event, goBookshelf)"
+        >
           <app-icon name="book-marked" :size="44" color="#2c2c2c" />
         </view>
       </view>
     </view>
 
     <view class="ch-main">
-      <view v-if="loading" style="text-align:center;padding:128rpx 0;">
+      <view
+        v-if="loading"
+        role="status"
+        aria-live="polite"
+        aria-label="古籍馆加载中"
+        style="text-align:center;padding:128rpx 0;"
+      >
         <text style="color:var(--muted-foreground);font-size:28rpx;">加载中...</text>
       </view>
-      <view v-else-if="error" style="text-align:center;padding:128rpx 0;">
+      <view
+        v-else-if="error"
+        role="alert"
+        aria-live="assertive"
+        style="text-align:center;padding:128rpx 0;"
+      >
         <text style="color:#c41e3a;font-size:28rpx;">{{ error }}</text>
-        <view style="margin-top:24rpx;" @tap="fetchData()">
+        <view
+          role="button"
+          aria-label="重新加载古籍馆"
+          tabindex="0"
+          style="margin-top:24rpx;"
+          @tap="fetchData()"
+          @keydown="activateOnKeyboard($event, fetchData)"
+        >
           <text style="color:var(--muted-foreground);">重试</text>
         </view>
       </view>
@@ -168,7 +226,14 @@ async function onRefreshRanking() {
 
       <!-- 搜索栏 -->
       <view class="ch-sec">
-        <view class="ch-searchbar" @tap="goSearch">
+        <view
+          class="ch-searchbar"
+          role="search"
+          aria-label="搜索古籍"
+          tabindex="0"
+          @tap="goSearch"
+          @keydown="activateOnKeyboard($event, goSearch)"
+        >
           <app-icon name="search" :size="36" color="#999999" />
           <text class="ch-search-ph">搜书名、作者、朝代或门类</text>
         </view>
@@ -178,7 +243,14 @@ async function onRefreshRanking() {
 
       <!-- 今日导读 -->
       <view class="ch-sec">
-        <view class="ch-today" @tap="goDetail(todayFeature.id)">
+        <view
+          class="ch-today"
+          role="link"
+          :aria-label="`阅读今日导读：${todayFeature.title}`"
+          tabindex="0"
+          @tap="goDetail(todayFeature.id)"
+          @keydown="activateOnKeyboard($event, () => goDetail(todayFeature.id))"
+        >
           <view class="ch-today-bg" />
           <view class="ch-today-inner">
             <view>
@@ -210,7 +282,14 @@ async function onRefreshRanking() {
 
       <!-- 继续阅读（仅登录且有阅读记录时显示） -->
       <view v-if="lastReading" class="ch-sec">
-        <view class="ch-continue" @tap="goDetail(lastReading.id)">
+        <view
+          class="ch-continue"
+          role="link"
+          :aria-label="`继续阅读${lastReading.title}，当前进度${lastReading.progress}%`"
+          tabindex="0"
+          @tap="goDetail(lastReading.id)"
+          @keydown="activateOnKeyboard($event, () => goDetail(lastReading.id))"
+        >
           <FlatCover
             :title="lastReading.title"
             :cover-color="coverColorForBook(lastReading.title)"
@@ -245,7 +324,11 @@ async function onRefreshRanking() {
             :key="cat.id"
             class="ch-cat-tile"
             :style="{ background: `linear-gradient(150deg, ${cat.from}, ${cat.to})` }"
+            role="link"
+            :aria-label="`浏览${cat.name}分类，${cat.count}`"
+            tabindex="0"
             @tap="goCategory(cat.id)"
+            @keydown="activateOnKeyboard($event, () => goCategory(cat.id))"
           >
             <view class="ch-cat-top">
               <text class="ch-cat-name">{{ cat.name }}</text>
@@ -266,7 +349,14 @@ async function onRefreshRanking() {
             <text class="ch-sec-title">经典书单</text>
             <text class="ch-sec-sub">名家精选，循路而读</text>
           </view>
-          <view class="ch-sec-link" @tap="goLists">
+          <view
+            class="ch-sec-link"
+            role="link"
+            aria-label="查看全部经典书单"
+            tabindex="0"
+            @tap="goLists"
+            @keydown="activateOnKeyboard($event, goLists)"
+          >
             <text class="ch-sec-link-txt">全部书单</text>
             <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
@@ -277,7 +367,11 @@ async function onRefreshRanking() {
               v-for="list in bookLists"
               :key="list.id"
               class="ch-list-card"
+              role="link"
+              :aria-label="`打开书单：${list.title}，共${list.count}本`"
+              tabindex="0"
               @tap="goCollection(list.id)"
+              @keydown="activateOnKeyboard($event, () => goCollection(list.id))"
             >
               <text class="ch-list-title">{{ list.title }}</text>
               <text class="ch-list-desc">{{ list.desc }} · {{ list.count }} 本</text>
@@ -303,19 +397,30 @@ async function onRefreshRanking() {
             <text class="ch-sec-title">推荐榜</text>
             <text class="ch-sec-sub">读者公认的传世经典</text>
           </view>
-          <view class="ch-sec-link" @tap="goRanking">
+          <view
+            class="ch-sec-link"
+            role="link"
+            aria-label="查看古籍完整榜单"
+            tabindex="0"
+            @tap="goRanking"
+            @keydown="activateOnKeyboard($event, goRanking)"
+          >
             <text class="ch-sec-link-txt">完整榜单</text>
             <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
         </view>
         <scroll-view scroll-x class="ch-type-scroll" :show-scrollbar="false">
-          <view class="ch-type-row">
+          <view class="ch-type-row" role="tablist" aria-label="古籍榜单分类">
             <view
               v-for="t in filterTypes"
               :key="t.id"
               class="ch-type-chip"
               :class="{ 'ch-type-chip--on': activeType === t.id }"
-              @tap="activeType = t.id"
+              role="tab"
+              :aria-selected="activeType === t.id"
+              :tabindex="activeType === t.id ? 0 : -1"
+              @tap="selectType(t.id)"
+              @keydown="onTypeKeydown($event, t.id)"
             >
               {{ t.name }}
             </view>
@@ -328,7 +433,11 @@ async function onRefreshRanking() {
               :key="book.id"
               class="ch-rank-row"
               :class="{ 'ch-rank-row--border': index > 0 }"
+              role="link"
+              :aria-label="`榜单第${index + 1}名，阅读${book.title}，${book.author}`"
+              tabindex="0"
               @tap="goDetail(book.id)"
+              @keydown="activateOnKeyboard($event, () => goDetail(book.id))"
             >
               <text class="ch-rank-num" :class="{ 'ch-rank-num--top': index < 3 }">{{ index + 1 }}</text>
               <FlatCover
@@ -345,7 +454,17 @@ async function onRefreshRanking() {
               <app-icon name="chevron-right" :size="36" color="rgba(0,0,0,0.2)" />
             </view>
           </view>
-          <view class="ch-refresh" :class="{ 'ch-refresh--loading': refreshingRanking }" @tap="onRefreshRanking">
+          <view
+            class="ch-refresh"
+            :class="{ 'ch-refresh--loading': refreshingRanking }"
+            role="button"
+            :aria-label="refreshingRanking ? '正在更新榜单' : '换一批古籍榜单'"
+            :aria-busy="refreshingRanking"
+            :aria-disabled="refreshingRanking"
+            :tabindex="refreshingRanking ? -1 : 0"
+            @tap="onRefreshRanking"
+            @keydown="activateOnKeyboard($event, onRefreshRanking)"
+          >
             {{ refreshingRanking ? '换批中…' : '换一批' }}
           </view>
         </view>
@@ -358,7 +477,14 @@ async function onRefreshRanking() {
             <text class="ch-sec-title">听书</text>
             <text class="ch-sec-sub">轻松听，不啃厚书</text>
           </view>
-          <view class="ch-sec-link" @tap="goAudioList">
+          <view
+            class="ch-sec-link"
+            role="link"
+            aria-label="查看更多有声书"
+            tabindex="0"
+            @tap="goAudioList"
+            @keydown="activateOnKeyboard($event, goAudioList)"
+          >
             <text class="ch-sec-link-txt">更多</text>
             <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
@@ -369,7 +495,11 @@ async function onRefreshRanking() {
               v-for="book in audioBooks"
               :key="book.id"
               class="ch-audio-card"
+              role="link"
+              :aria-label="`播放有声书：${book.title}，朗读者${book.narrator}`"
+              tabindex="0"
               @tap="goAudio(book.id)"
+              @keydown="activateOnKeyboard($event, () => goAudio(book.id))"
             >
               <FlatCover
                 :title="book.title"
@@ -401,7 +531,14 @@ async function onRefreshRanking() {
             <text class="ch-sec-title">精选古籍</text>
             <text class="ch-sec-sub">编辑甄选，值得细读</text>
           </view>
-          <view class="ch-sec-link" @tap="goLists">
+          <view
+            class="ch-sec-link"
+            role="link"
+            aria-label="查看更多精选古籍"
+            tabindex="0"
+            @tap="goLists"
+            @keydown="activateOnKeyboard($event, goLists)"
+          >
             <text class="ch-sec-link-txt">更多</text>
             <app-icon name="chevron-right" :size="28" color="#c41e3a" />
           </view>
@@ -411,7 +548,11 @@ async function onRefreshRanking() {
             v-for="book in featuredBooks"
             :key="book.id"
             class="ch-featured-card"
+            role="link"
+            :aria-label="`阅读精选古籍：${book.title}，${book.author}`"
+            tabindex="0"
             @tap="goDetail(book.id)"
+            @keydown="activateOnKeyboard($event, () => goDetail(book.id))"
           >
             <FlatCover
               :title="book.title"
@@ -435,7 +576,14 @@ async function onRefreshRanking() {
 
       <!-- 底部 AI 入口 -->
       <view class="ch-sec ch-ai-sec">
-        <view class="ch-ai-entry" @tap="goAI">
+        <view
+          class="ch-ai-entry"
+          role="link"
+          aria-label="打开AI国学助手，白话解读古籍疑难"
+          tabindex="0"
+          @tap="goAI"
+          @keydown="activateOnKeyboard($event, goAI)"
+        >
           <view class="ch-ai-icon">
             <app-icon name="sparkles" :size="40" color="#fff" />
           </view>
@@ -478,8 +626,8 @@ async function onRefreshRanking() {
   height: 96rpx;
 }
 .ch-circle-btn {
-  width: 72rpx;
-  height: 72rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;

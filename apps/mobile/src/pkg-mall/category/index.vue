@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 商品分类页 - 分类/搜索/价格/排序全下沉后端，useList 管理列表分页 */
-import { ref, computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
@@ -11,6 +11,7 @@ import { shopApi } from '@/lib/shop-data'
 import type { CategoryTab, CategorySortOption, CategoryProduct } from '@/lib/shop-data'
 import type { ProductCardData } from '@/lib/card-utils'
 import { useList } from '@/composables/useList'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const categoryTabs = ref<CategoryTab[]>([])
 const categorySortOptions = ref<CategorySortOption[]>([])
@@ -22,6 +23,23 @@ const showFilter = ref(false)
 const searchQuery = ref('')
 const priceMin = ref(0)
 const priceMax = ref(1000)
+
+useOverlayScrollLock(
+  () => showSortMenu.value,
+  {
+    onEscape: () => { showSortMenu.value = false },
+    focusContainerSelector: '.sort-menu',
+    initialFocusSelector: '.sort-menu [aria-checked="true"]',
+  },
+)
+useOverlayScrollLock(
+  () => showFilter.value,
+  {
+    onEscape: () => { showFilter.value = false },
+    focusContainerSelector: '.filter-panel',
+    initialFocusSelector: '.filter-panel [aria-label="关闭商品筛选"]',
+  },
+)
 
 const quickPrices: Array<[number, number]> = [[0, 50], [50, 100], [100, 300], [300, 500], [500, 1000]]
 const CATEGORY_LABEL_MAX_LENGTH = 5
@@ -81,36 +99,93 @@ function pickQuickPrice(min: number, max: number) { priceMin.value = min; priceM
 function applyFilter() { showFilter.value = false; refresh() }
 function resetFilter() { priceMin.value = 0; priceMax.value = 1000 }
 function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; resetFilter(); refresh() }
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    selectCategory(currentId)
+    return
+  }
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+  event.preventDefault()
+  const currentIndex = Math.max(0, categoryTabs.value.findIndex((item) => item.id === currentId))
+  const direction = event.key === 'ArrowDown' ? 1 : -1
+  const nextCategory = categoryTabs.value[
+    (currentIndex + direction + categoryTabs.value.length) % categoryTabs.value.length
+  ]
+  if (!nextCategory) return
+  selectCategory(nextCategory.id)
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('.cat-item[aria-selected="true"]')?.focus()
+  })
+}
 </script>
 
 <template>
-  <view class="page">
+  <view class="page" @keydown.esc="showSortMenu = false; showFilter = false">
     <!-- 顶部搜索栏 -->
     <view class="header">
       <view class="header-inner">
-        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+        <view
+          class="back-btn"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="goBack"
+          @keydown="activateOnKeyboard($event, goBack)"
+        >
+          <AppIcon name="arrow-left" :size="44" color="#1A1A1A" />
+        </view>
         <view class="search-box">
           <view class="search-icon"><AppIcon name="search" :size="32" color="var(--text-soft)" /></view>
-          <input v-model="searchQuery" class="search-input" type="text" confirm-type="search" placeholder="搜索商品后回车" placeholder-class="search-ph" @confirm="onSearch" />
+          <input
+            v-model="searchQuery"
+            class="search-input"
+            aria-label="搜索商品名称或内容"
+            type="text"
+            confirm-type="search"
+            placeholder="搜索商品后回车"
+            placeholder-class="search-ph"
+            @confirm="onSearch"
+          />
         </view>
       </view>
     </view>
 
     <view class="body">
       <!-- 加载中 -->
-      <view v-if="loading" class="state-wrap">
+      <view v-if="loading" class="state-wrap" role="status" aria-live="polite" aria-label="商品加载中">
         <AppLoading />
       </view>
       <!-- 加载失败 -->
-      <view v-else-if="error" class="state-wrap">
+      <view v-else-if="error" class="state-wrap" role="alert" aria-live="assertive">
         <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
         <text class="state-text">加载失败，请重试</text>
-        <view class="state-retry" @tap="refresh"><text class="state-retry-text">点击重试</text></view>
+        <view
+          class="state-retry"
+          role="button"
+          aria-label="重新加载商品"
+          tabindex="0"
+          @tap="refresh"
+          @keydown="activateOnKeyboard($event, refresh)"
+        >
+          <text class="state-retry-text">点击重试</text>
+        </view>
       </view>
       <!-- 内容 -->
       <template v-else>
       <!-- 左侧分类栏 -->
-      <scroll-view class="aside" scroll-y>
+      <scroll-view
+        class="aside"
+        scroll-y
+        role="tablist"
+        aria-label="商品分类"
+        aria-orientation="vertical"
+      >
         <view class="aside-head">
           <text class="aside-head-text">商品分类</text>
         </view>
@@ -119,7 +194,12 @@ function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; rese
           :key="cat.id"
           class="cat-item"
           :class="{ 'cat-item-on': activeCategory === cat.id }"
+          role="tab"
+          :aria-label="`${cat.name}，${cat.count} 件商品`"
+          :aria-selected="activeCategory === cat.id ? 'true' : 'false'"
+          :tabindex="activeCategory === cat.id ? 0 : -1"
           @tap="selectCategory(cat.id)"
+          @keydown="onCategoryKeydown($event, cat.id)"
         >
           <view v-if="activeCategory === cat.id" class="cat-bar" />
           <text class="cat-name" :aria-label="cat.name">{{ categoryDisplayName(cat.name) }}</text>
@@ -132,24 +212,47 @@ function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; rese
         <!-- 排序栏 -->
         <view class="sort-bar">
           <view class="sort-dropdown">
-            <view class="sort-trigger" @tap="showSortMenu = !showSortMenu">
+            <view
+              class="sort-trigger"
+              role="button"
+              aria-label="选择商品排序"
+              aria-haspopup="true"
+              :aria-expanded="showSortMenu ? 'true' : 'false'"
+              tabindex="0"
+              @tap="showSortMenu = !showSortMenu"
+              @keydown="activateOnKeyboard($event, () => { showSortMenu = !showSortMenu })"
+            >
               <text class="sort-text">{{ sortName }}</text>
               <view class="sort-arrow" :class="{ 'sort-arrow-up': showSortMenu }"><AppIcon name="chevron-down" :size="28" color="var(--text-strong)" /></view>
             </view>
-            <view v-if="showSortMenu" class="sort-mask" @tap="showSortMenu = false" />
-            <view v-if="showSortMenu" class="sort-menu">
+            <view v-if="showSortMenu" class="sort-mask" aria-hidden="true" @tap="showSortMenu = false" />
+            <view v-if="showSortMenu" class="sort-menu" role="radiogroup" aria-label="商品排序方式">
               <view
                 v-for="opt in categorySortOptions"
                 :key="opt.id"
                 class="sort-opt"
                 :class="{ 'sort-opt-on': sortBy === opt.id }"
+                role="radio"
+                :aria-checked="sortBy === opt.id ? 'true' : 'false'"
+                :tabindex="sortBy === opt.id ? 0 : -1"
                 @tap="pickSort(opt.id)"
+                @keydown="activateOnKeyboard($event, () => pickSort(opt.id))"
               >
                 <text class="sort-opt-text" :class="{ 'sort-opt-text-on': sortBy === opt.id }">{{ opt.name }}</text>
               </view>
             </view>
           </view>
-          <view class="filter-btn" :class="{ 'filter-btn-on': hasFilter }" @tap="showFilter = true">
+          <view
+            class="filter-btn"
+            :class="{ 'filter-btn-on': hasFilter }"
+            role="button"
+            :aria-label="hasFilter ? '调整商品筛选，当前已启用价格条件' : '打开商品筛选'"
+            aria-haspopup="dialog"
+            :aria-expanded="showFilter ? 'true' : 'false'"
+            tabindex="0"
+            @tap="showFilter = true"
+            @keydown="activateOnKeyboard($event, () => { showFilter = true })"
+          >
             <AppIcon name="filter" :size="28" :color="hasFilter ? 'var(--brand)' : 'var(--text-soft)'" />
             <text class="filter-text" :class="{ 'filter-text-on': hasFilter }">筛选</text>
           </view>
@@ -159,10 +262,17 @@ function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; rese
         <view v-if="categoryProducts.length" class="grid">
           <ProductCard v-for="p in categoryProducts" :key="p.id" :data="toProductCard(p)" />
         </view>
-        <view v-else class="empty">
+        <view v-else class="empty" role="status" aria-live="polite">
           <view class="empty-icon"><AppIcon name="search" :size="56" color="var(--text-soft)" /></view>
           <text class="empty-text">暂无相关商品</text>
-          <text class="empty-reset" @tap="resetAll">重置筛选条件</text>
+          <text
+            class="empty-reset"
+            role="button"
+            aria-label="重置商品分类、搜索和价格筛选"
+            tabindex="0"
+            @tap="resetAll"
+            @keydown="activateOnKeyboard($event, resetAll)"
+          >重置筛选条件</text>
         </view>
 
         <app-load-more v-if="categoryProducts.length" :status="loadStatus" />
@@ -171,27 +281,46 @@ function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; rese
     </view>
 
     <!-- 筛选面板 -->
-    <view v-if="showFilter" class="mask mask-fade-in" @tap="showFilter = false" />
-    <view v-if="showFilter" class="filter-panel">
+    <view v-if="showFilter" class="mask mask-fade-in" aria-hidden="true" @tap="showFilter = false" />
+    <view
+      v-if="showFilter"
+      class="filter-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="商品筛选"
+    >
       <view class="fp-head">
         <text class="fp-title">筛选</text>
-        <view @tap="showFilter = false"><AppIcon name="x" :size="36" color="var(--text-soft)" /></view>
+        <view
+          role="button"
+          aria-label="关闭商品筛选"
+          tabindex="0"
+          @tap="showFilter = false"
+          @keydown="activateOnKeyboard($event, () => { showFilter = false })"
+        >
+          <AppIcon name="x" :size="36" color="var(--text-soft)" />
+        </view>
       </view>
       <view class="fp-body">
         <view class="fp-group">
           <text class="fp-label">价格区间</text>
           <view class="fp-price-row">
-            <input v-model.number="priceMin" class="fp-input" type="number" placeholder="最低价" placeholder-class="search-ph" />
+            <input v-model.number="priceMin" class="fp-input" aria-label="最低价格" type="number" placeholder="最低价" placeholder-class="search-ph" />
             <text class="fp-dash">-</text>
-            <input v-model.number="priceMax" class="fp-input" type="number" placeholder="最高价" placeholder-class="search-ph" />
+            <input v-model.number="priceMax" class="fp-input" aria-label="最高价格" type="number" placeholder="最高价" placeholder-class="search-ph" />
           </view>
-          <view class="fp-quick">
+          <view class="fp-quick" role="radiogroup" aria-label="快捷价格区间">
             <view
               v-for="([min, max]) in quickPrices"
               :key="`${min}-${max}`"
               class="fp-quick-tag"
               :class="{ 'fp-quick-tag-on': priceMin === min && priceMax === max }"
+              role="radio"
+              :aria-label="`${min} 元至 ${max} 元`"
+              :aria-checked="priceMin === min && priceMax === max ? 'true' : 'false'"
+              tabindex="0"
               @tap="pickQuickPrice(min, max)"
+              @keydown="activateOnKeyboard($event, () => pickQuickPrice(min, max))"
             >
               <text class="fp-quick-text" :class="{ 'fp-quick-text-on': priceMin === min && priceMax === max }">¥{{ min }}-{{ max }}</text>
             </view>
@@ -199,8 +328,24 @@ function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; rese
         </view>
       </view>
       <view class="fp-actions">
-        <view class="fp-btn-reset" hover-class="g-card-press" @tap="resetFilter"><text class="fp-btn-reset-text">重置</text></view>
-        <view class="fp-btn-ok" hover-class="g-card-press" @tap="applyFilter"><text class="fp-btn-ok-text">确定</text></view>
+        <view
+          class="fp-btn-reset"
+          role="button"
+          aria-label="重置价格筛选"
+          tabindex="0"
+          hover-class="g-card-press"
+          @tap="resetFilter"
+          @keydown="activateOnKeyboard($event, resetFilter)"
+        ><text class="fp-btn-reset-text">重置</text></view>
+        <view
+          class="fp-btn-ok"
+          role="button"
+          aria-label="应用商品筛选"
+          tabindex="0"
+          hover-class="g-card-press"
+          @tap="applyFilter"
+          @keydown="activateOnKeyboard($event, applyFilter)"
+        ><text class="fp-btn-ok-text">确定</text></view>
       </view>
     </view>
   </view>

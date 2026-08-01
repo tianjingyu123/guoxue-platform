@@ -1,6 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import COS from "cos-nodejs-sdk-v5";
+import {
+  getTencentCredentialMode,
+  getTencentInstanceRoleCredentialProvider,
+  TencentInstanceRoleCredentialProvider,
+} from "../../common/tencent-instance-role-credentials";
 import { StorageProvider, UploadResult } from "./storage.interface";
 
 @Injectable()
@@ -11,19 +16,48 @@ export class CosStorageProvider implements StorageProvider {
   private readonly region: string;
   private readonly cdnBase?: string;
 
-  constructor() {
+  constructor(
+    instanceRoleCredentials?: TencentInstanceRoleCredentialProvider,
+  ) {
     const secretId = process.env.COS_SECRET_ID || "";
     const secretKey = process.env.COS_SECRET_KEY || "";
+    const credentialMode = getTencentCredentialMode();
     this.bucket = process.env.COS_BUCKET || "";
     this.region = process.env.COS_REGION || "ap-guangzhou";
     this.cdnBase = process.env.COS_CDN_BASE || "";
 
-    if (!secretId || !secretKey) {
-      this.logger.warn(
-        "COS 凭证未配置，COS 上传将不可用。请在 .env 中设置 COS_SECRET_ID 和 COS_SECRET_KEY。",
-      );
+    if (credentialMode === "instance-role") {
+      const provider =
+        instanceRoleCredentials || getTencentInstanceRoleCredentialProvider();
+      this.cos = new COS({
+        getAuthorization: (_options, callback) => {
+          provider
+            .getCredentials()
+            .then((credentials) => callback(credentials))
+            .catch((error: unknown) => {
+              this.logger.error(
+                "获取 CVM 实例角色临时凭据失败",
+                error instanceof Error ? error.message : String(error),
+              );
+              // 让 COS SDK 把当前请求转换为明确失败，绝不静默回退到匿名上传。
+              callback({
+                TmpSecretId: "",
+                TmpSecretKey: "",
+                SecurityToken: "",
+                StartTime: Math.floor(Date.now() / 1000),
+                ExpiredTime: Math.floor(Date.now() / 1000) + 60,
+              });
+            });
+        },
+      });
+      return;
     }
 
+    if (!secretId || !secretKey) {
+      this.logger.warn(
+        "COS 静态凭据未配置，COS 上传将不可用。生产环境建议使用 CVM 实例角色。",
+      );
+    }
     this.cos = new COS({ SecretId: secretId, SecretKey: secretKey });
   }
 

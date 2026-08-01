@@ -22,6 +22,7 @@ import { recommendApi } from '@/lib/recommend-data'
 import { track } from '@/composables/useTrack'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { gotoComplaint } from '@/lib/trust-entry'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const loading = ref(true)
 const error = ref('')
@@ -49,6 +50,8 @@ const showGroupPanel = ref(false)
 const hasAccess = ref(false)
 const showPurchase = ref(false)
 const isLiked = ref(false)
+
+useOverlayScrollLock(() => showConsultPanel.value || showGroupPanel.value)
 // onShow 回刷防抖：首次 onShow（进页）跳过，仅从收银台/其他页返回时回刷购买态
 let firstShowDone = false
 // 播放页「写个评价」跳来（?tab=review）→ 加载完成后滚动定位到评价区
@@ -555,8 +558,8 @@ onMounted(() => {
 
     <!-- 课程咨询弹窗 -->
     <view v-if="showConsultPanel" class="modal">
-      <view class="modal-mask" @tap="showConsultPanel = false" />
-      <view class="sheet">
+      <view class="modal-mask" @tap="showConsultPanel = false" @touchmove.self.prevent />
+      <view class="sheet" @touchmove.stop>
         <view class="sheet-handle" />
         <view class="sheet-hdr">
           <text class="sheet-title serif">课程咨询</text>
@@ -579,8 +582,8 @@ onMounted(() => {
 
     <!-- 学习群弹窗 -->
     <view v-if="showGroupPanel" class="modal">
-      <view class="modal-mask" @tap="showGroupPanel = false" />
-      <view class="sheet">
+      <view class="modal-mask" @tap="showGroupPanel = false" @touchmove.self.prevent />
+      <view class="sheet" @touchmove.stop>
         <view class="sheet-handle" />
         <view class="sheet-hdr">
           <text class="sheet-title serif">加入学习群</text>
@@ -597,7 +600,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page { min-height: 100vh; background: #FAF8F5; padding-bottom: 200rpx; }
+.page {
+  min-height: 100vh;
+  background: #FAF8F5;
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
+}
 
 /* ── 头图 16:9 ── */
 .hero { position: relative; }
@@ -716,7 +723,7 @@ onMounted(() => {
 .rich-img { width: 100%; display: block; }
 
 /* ── 吸底操作栏 ── */
-.bottom-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; display: flex; align-items: center; gap: 16rpx; padding: 20rpx 24rpx; z-index: 50; }
+.bottom-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; display: flex; align-items: center; gap: 16rpx; padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom)); z-index: 50; }
 .mini-act { flex-shrink: 0; min-width: 96rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6rpx; }
 .mini-txt { font-size: 20rpx; line-height: 1; color: #6E6E73; }
 .buy-btn { flex: 1; height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; }
@@ -728,7 +735,7 @@ onMounted(() => {
 /* ── 弹窗 ── */
 .modal { position: fixed; inset: 0; z-index: 60; }
 .modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.45); }
-.sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #FFFFFF; border-radius: 36rpx 36rpx 0 0; padding: 20rpx 32rpx 64rpx; }
+.sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #FFFFFF; border-radius: 36rpx 36rpx 0 0; padding: 20rpx 32rpx calc(64rpx + env(safe-area-inset-bottom)); }
 .sheet-handle { width: 72rpx; height: 8rpx; border-radius: 4rpx; background: #EDE7DD; margin: 0 auto 24rpx; }
 .sheet-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28rpx; }
 .sheet-title { font-size: 36rpx; font-weight: 700; color: #2C2C2C; }

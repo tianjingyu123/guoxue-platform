@@ -1,15 +1,20 @@
 # 热卜国学平台 — 灾备与备份方案
 
 > 更新时间：2026-05-11 | SOP 级别文档
+>
+> 2026-07-31 现场恢复入口以
+> `docs/operations/服务器数据库域名迁移手册-20260728.md` 和
+> `docs/operations/新基础设施与正式凭据交接清单-20260731.md` 为准。本文描述策略目标；
+> 任何旧路径、示例 Bucket 或直接恢复命令都必须在隔离环境演练后，按当前清单替换为真实受控值。
 
 ## 一、RPO / RTO 定义
 
-| 指标 | 目标值 | 说明 |
-|------|--------|------|
-| **RPO** (数据恢复点) | < 1 小时 | 数据库每小时增量备份，最多丢失 1 小时数据 |
-| **RTO** (服务恢复时间) | < 30 分钟 | 从发现故障到服务恢复的总时长 |
-| **备份保留** | 30 天本地 + 90 天异地 | 本地日备份保留 30 天，异地周备份保留 90 天 |
-| **恢复演练** | 每季度 1 次 | 至少每 3 个月完整演练一次恢复流程 |
+| 指标                   | 目标值                | 说明                                                         |
+| ---------------------- | --------------------- | ------------------------------------------------------------ |
+| **RPO** (数据恢复点)   | < 1 小时              | 依赖托管数据库 PITR/WAL 连续归档；`pg_dump` 不能提供增量恢复 |
+| **RTO** (服务恢复时间) | < 30 分钟             | 从发现故障到服务恢复的总时长                                 |
+| **备份保留**           | 30 天本地 + 90 天异地 | 本地日备份保留 30 天，异地周备份保留 90 天                   |
+| **恢复演练**           | 每季度 1 次           | 至少每 3 个月完整演练一次恢复流程                            |
 
 ## 二、数据库备份策略
 
@@ -24,10 +29,10 @@
 │  ├─ RPO: < 5 分钟                            │
 │  └─ 用途: 时间点恢复 (PITR)                   │
 │                                              │
-│  Level 2: 增量备份 (pg_dump 差异)             │
-│  ├─ 频率: 每 1 小时                           │
+│  Level 2: 临时小时级完整归档 (pg_dump custom) │
+│  ├─ 频率: 每 1 小时（仅 PITR 未开通时）         │
 │  ├─ RPO: < 1 小时                            │
-│  └─ 用途: 快速恢复到最近 1 小时                │
+│  └─ 用途: 过渡期恢复点，不等同于增量/PITR       │
 │                                              │
 │  Level 3: 全量备份 (pg_dump 完整)             │
 │  ├─ 频率: 每日 03:00 (业务低峰)               │
@@ -46,10 +51,10 @@
 ```bash
 # 在服务器执行: crontab -e
 # 每日全量备份 — 凌晨 3:00
-0 3 * * * /opt/guoxue/docker/pg-backup.sh 30 >> /var/log/guoxue-backup.log 2>&1
+0 3 * * * DEPLOY_TARGET=tencent ENV_FILE=/opt/guoxue/shared/.env.production BACKUP_DIR=/opt/guoxue/backups /opt/guoxue/current/docker/pg-backup.sh 30 >> /var/log/guoxue-backup.log 2>&1
 
-# 每小时增量备份 — 整点后 5 分钟
-5 * * * * /opt/guoxue/docker/pg-backup-hourly.sh >> /var/log/guoxue-backup-hourly.log 2>&1
+# 无托管数据库 PITR 时的临时小时级全量归档 — 整点后 5 分钟
+5 * * * * DEPLOY_TARGET=tencent ENV_FILE=/opt/guoxue/shared/.env.production BACKUP_DIR=/opt/guoxue/backups/hourly /opt/guoxue/current/docker/pg-backup.sh 3 >> /var/log/guoxue-backup-hourly.log 2>&1
 
 # 每周日异地同步 — 凌晨 4:00
 0 4 * * 0 /opt/guoxue/docker/sync-to-cos.sh >> /var/log/guoxue-sync.log 2>&1
@@ -58,51 +63,15 @@
 0 5 * * * /opt/guoxue/docker/cleanup-backups.sh >> /var/log/guoxue-cleanup.log 2>&1
 ```
 
-### 2.3 每小时增量备份脚本
+### 2.3 小时级恢复点
 
-```bash
-#!/bin/bash
-# docker/pg-backup-hourly.sh — 每小时增量备份
-set -e
+`pg_dump` 不提供真正的增量恢复能力，不能通过筛选带 `updatedAt` 的表来伪造增量备份；
+那种文件无法重建数据库。生产环境优先开通数据库厂商的连续归档/PITR，并至少保留
+7 天恢复窗口。PITR 尚未开通前，临时使用同一套 `pg-backup.sh` 每小时生成完整
+custom archive，归档、manifest 和 SHA-256 边车文件共同保留 3 天。
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKUP_DIR="${BACKUP_DIR:-$SCRIPT_DIR/backups/hourly}"
-CONTAINER_NAME="${CONTAINER_NAME:-guoxue-postgres}"
-DB_USER="${DB_USER:-guoxue}"
-DB_NAME="${DB_NAME:-guoxue}"
-
-mkdir -p "$BACKUP_DIR"
-
-TIMESTAMP=$(date +%Y%m%d_%H%M)
-BACKUP_FILE="$BACKUP_DIR/guoxue_hourly_${TIMESTAMP}.sql.gz"
-
-# 只备份最近 2 小时内变更的行（增量）
-TWO_HOURS_AGO=$(date -d '2 hours ago' +'%Y-%m-%d %H:%M:%S')
-
-# 获取有 updatedAt/createdAt 的表进行增量备份
-docker exec "$CONTAINER_NAME" psql -U "$DB_USER" -d "$DB_NAME" -t -c "
-  SELECT tablename FROM pg_catalog.pg_tables
-  WHERE schemaname = 'public'
-  AND tablename != '_prisma_migrations';
-" | while read -r table; do
-  [ -z "$table" ] && continue
-  COLUMN_EXISTS=$(docker exec "$CONTAINER_NAME" psql -U "$DB_USER" -d "$DB_NAME" -t -c "
-    SELECT COUNT(*) FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = '$table' AND column_name IN ('updatedAt', 'createdAt');
-  ")
-  if [ "$COLUMN_EXISTS" -gt 0 ]; then
-    echo "-- 增量: $table (近2小时变更)" >> "$BACKUP_FILE.tmp"
-  fi
-done
-
-gzip "$BACKUP_FILE.tmp" 2>/dev/null || true
-mv "$BACKUP_FILE.tmp.gz" "$BACKUP_FILE" 2>/dev/null || true
-
-# 保留最近 48 份小时级备份
-find "$BACKUP_DIR" -name "guoxue_hourly_*.sql.gz" -mmin +2880 -delete 2>/dev/null || true
-
-echo "[$(date)] 小时级备份完成: $BACKUP_FILE"
-```
+每月必须在隔离数据库执行一次“下载 → 校验 → 恢复 → 行数与业务抽样”演练，
+不能以控制台显示“备份成功”代替可恢复性验证。
 
 ### 2.4 异地备份同步脚本
 
@@ -127,7 +96,9 @@ fi
 echo "[$(date)] 开始异地备份同步..."
 
 # 同步最近 7 天的全量备份
-find "$BACKUP_DIR" -name "guoxue_*.sql.gz" -mtime -7 | while read -r f; do
+find "$BACKUP_DIR" -type f \
+  \( -name "guoxue_*.dump" -o -name "guoxue_*.dump.sha256" -o -name "guoxue_*.dump.manifest" \) \
+  -mtime -7 -print0 | while IFS= read -r -d '' f; do
   BASENAME=$(basename "$f")
   # 上传前加密
   gpg --symmetric --batch --passphrase "${BACKUP_ENCRYPTION_KEY}" "$f"
@@ -193,19 +164,20 @@ find "$BACKUP_DIR" -name "redis_*.rdb" -mtime +7 -delete
 ### 4.1 COS 跨地域复制
 
 腾讯云 COS 控制台配置：
+
 1. **存储桶复制**：`guoxue-prod`（广州）→ `guoxue-prod-dr`（上海）
 2. **复制规则**：所有对象（包含历史数据）
 3. **存储类型**：目标桶使用低频存储（降低成本）
 
 ### 4.2 关键静态资源清单
 
-| 资源类型 | 存储位置 | 备份策略 |
-|---------|---------|---------|
-| 用户上传图片 | COS `guoxue-prod/images/` | 跨地域复制 + 版本控制 |
-| 视频文件 | COS `guoxue-prod/videos/` | 跨地域复制 |
-| 电子书 PDF | COS `guoxue-prod/ebooks/` | 跨地域复制 + 版本控制 |
-| 系统导出的 Excel | COS `guoxue-prod/exports/` | 7 天生命周期自动过期 |
-| 备份文件 | COS `guoxue-backup/` | 跨地域复制 |
+| 资源类型         | 存储位置                   | 备份策略              |
+| ---------------- | -------------------------- | --------------------- |
+| 用户上传图片     | COS `guoxue-prod/images/`  | 跨地域复制 + 版本控制 |
+| 视频文件         | COS `guoxue-prod/videos/`  | 跨地域复制            |
+| 电子书 PDF       | COS `guoxue-prod/ebooks/`  | 跨地域复制 + 版本控制 |
+| 系统导出的 Excel | COS `guoxue-prod/exports/` | 7 天生命周期自动过期  |
+| 备份文件         | COS `guoxue-backup/`       | 跨地域复制            |
 
 ## 五、灾难恢复流程
 
@@ -289,24 +261,19 @@ echo "阶段 4: 数据库恢复"
 read -p "⚠️  即将覆盖当前数据库，确认? (输入 'YES' 继续): " FINAL_CONFIRM
 
 if [ "$FINAL_CONFIRM" = "YES" ]; then
-  # 先备份当前状态（即使已损坏，保留现场）
-  CURRENT_BACKUP="/opt/guoxue/docker/backups/PRE_RECOVERY_$(date +%Y%m%d_%H%M%S).sql.gz"
-  docker exec guoxue-postgres pg_dump -U guoxue -d guoxue --no-owner | gzip > "$CURRENT_BACKUP"
-  echo "已保存当前数据库快照: $CURRENT_BACKUP"
+  # 统一恢复入口会先校验 SHA-256 与 custom archive、要求精确库名确认，
+  # 并在销毁目标库前生成现场快照。
+  RESTORE_CONFIRM=guoxue \
+    /opt/guoxue/docker/pg-restore.sh \
+    "/opt/guoxue/docker/backups/$BACKUP_FILE"
 
-  # 清空数据库
-  docker exec guoxue-postgres psql -U guoxue -d postgres -c "DROP DATABASE IF EXISTS guoxue;"
-  docker exec guoxue-postgres psql -U guoxue -d postgres -c "CREATE DATABASE guoxue OWNER guoxue;"
-
-  # 恢复
-  echo "恢复中..."
-  gunzip -c "/opt/guoxue/docker/backups/$BACKUP_FILE" | \
-    docker exec -i guoxue-postgres psql -U guoxue -d guoxue
-
-  # 应用迁移（确保 schema 与代码一致）
-  docker compose -f /opt/guoxue/docker-compose.yml -f /opt/guoxue/docker-compose.prod.yml \
-    run --rm server \
-    npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
+  # 应用迁移（复用当前固定发布包与实际生产 server 镜像）
+  export TARGET_DATABASE_URL="$DATABASE_URL"
+  export TARGET_RELEASE_ID="$(cat /opt/guoxue/current/.release-id)"
+  export PRISMA_COMPOSE_ENV_FILE=/opt/guoxue/shared/.env.production
+  export MIGRATION_DEPLOY_CONFIRM="migrate:${TARGET_RELEASE_ID}"
+  bash /opt/guoxue/current/scripts/migration/run-prisma-migrations.sh deploy
+  bash /opt/guoxue/current/scripts/migration/verify-postgres.sh
 
   echo "数据库恢复完成"
 else
@@ -380,7 +347,7 @@ echo "============================================"
 - [ ] 服务恢复后可正常处理请求
 - [ ] 数据库关键表行数符合预期
 - [ ] 恢复总时长 < RTO 目标 (30 分钟)
-- [ ] 记录实际 RTO: _______
+- [ ] 记录实际 RTO: **\_\_\_**
 
 ## 七、灾备监控与告警
 
@@ -391,7 +358,8 @@ echo "============================================"
 # docker/check-backup-health.sh — 备份健康检查（建议 crontab 每小时执行）
 
 BACKUP_DIR="/opt/guoxue/docker/backups"
-LATEST=$(find "$BACKUP_DIR" -name "guoxue_*.sql.gz" -mmin -1440 | tail -1)
+LATEST=$(find "$BACKUP_DIR" -name "guoxue_*.dump" -mmin -1440 -print0 \
+  | xargs -0 -r ls -1t | head -1)
 
 if [ -z "$LATEST" ]; then
   # 最近 24 小时无备份 → 告警
@@ -410,18 +378,24 @@ if [ "$SIZE" -lt 1024 ]; then
   exit 1
 fi
 
+(
+  cd "$(dirname "$LATEST")"
+  sha256sum --check "$(basename "${LATEST}.sha256")"
+)
+docker exec -i guoxue-postgres pg_restore --list <"$LATEST" >/dev/null
+
 echo "✅ 备份健康: $LATEST ($SIZE bytes)"
 ```
 
 ### 7.2 告警规则汇总
 
-| 告警项 | 条件 | 级别 | 通知方式 |
-|--------|------|------|---------|
+| 告警项              | 条件                     | 级别   | 通知方式        |
+| ------------------- | ------------------------ | ------ | --------------- |
 | 备份超过 24h 未执行 | 最新备份文件 mtime > 24h | **P0** | 企业微信 + 电话 |
-| 备份文件异常小 | 文件 < 1KB | **P0** | 企业微信 |
-| 异地同步失败 | coscli 返回非 0 | **P1** | 企业微信 |
-| Redis RDB 损坏 | redis-check-rdb 失败 | **P1** | 企业微信 |
-| 磁盘使用 > 80% | df -h | **P1** | 企业微信 |
+| 备份文件异常小      | 文件 < 1KB               | **P0** | 企业微信        |
+| 异地同步失败        | coscli 返回非 0          | **P1** | 企业微信        |
+| Redis RDB 损坏      | redis-check-rdb 失败     | **P1** | 企业微信        |
+| 磁盘使用 > 80%      | df -h                    | **P1** | 企业微信        |
 
 ## 八、备份加密策略
 

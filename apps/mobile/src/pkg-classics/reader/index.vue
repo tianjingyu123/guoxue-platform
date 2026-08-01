@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { onLoad, onUnload, onHide } from '@dcloudio/uni-app'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { classicsApi, type BookmarkItem, type NoteItem } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
@@ -153,6 +154,36 @@ function goAllNotes() { tocOpen.value = false; uni.navigateTo({ url: '/pkg-class
 
 // ── AI 文白对照抽屉 ──
 const aiOpen = ref(false)
+function closeToc() { tocOpen.value = false }
+function closeSettings() { setOpen.value = false }
+function closeDictionary() { dictOpen.value = false }
+function closeAi() { aiOpen.value = false }
+
+useOverlayScrollLock(() => tocOpen.value, {
+  onEscape: closeToc,
+  focusContainerSelector: '.rd-sheet--toc',
+  initialFocusSelector: '.rd-sheet--toc .rd-sheet-close',
+})
+useOverlayScrollLock(() => setOpen.value, {
+  onEscape: closeSettings,
+  focusContainerSelector: '.rd-sheet--settings',
+  initialFocusSelector: '.rd-sheet--settings .rd-sheet-close',
+})
+useOverlayScrollLock(() => dictOpen.value, {
+  onEscape: closeDictionary,
+  focusContainerSelector: '.rd-sheet--dict',
+  initialFocusSelector: '.rd-sheet--dict .rd-sheet-close',
+})
+useOverlayScrollLock(() => aiOpen.value, {
+  onEscape: closeAi,
+  focusContainerSelector: '.rd-sheet--ai',
+  initialFocusSelector: '.rd-sheet--ai .rd-sheet-close',
+})
+useOverlayScrollLock(() => noteOpen.value, {
+  onEscape: closeNote,
+  focusContainerSelector: '.rd-sheet--note',
+  initialFocusSelector: '.rd-sheet--note .rd-sheet-close',
+})
 const aiSeg = ref('')
 const aiLoading = ref(false)
 const aiError = ref('')
@@ -183,14 +214,6 @@ function notesAtPosition(position: number) {
 }
 
 const bookmarking = ref(false)
-
-// 任一抽屉打开时锁底层页面滚动（H5）：抽屉把手/标题等非滚动区上滑动时，
-// touchmove 默认行为会直接滚底层原文页（scroll-view 内滚区之外 overscroll 拦不住）
-watch([aiOpen, tocOpen, setOpen, dictOpen, noteOpen], (vals) => {
-  // #ifdef H5
-  document.documentElement.style.overflow = vals.some(Boolean) ? 'hidden' : ''
-  // #endif
-})
 
 function isLoggedIn() {
   return !!getToken()
@@ -524,7 +547,15 @@ onLoad((q) => {
           <text class="rd-top-title">{{ bookTitle }}</text>
           <text v-if="curChapter" class="rd-top-sub">{{ curChapter.title }}</text>
         </view>
-        <view class="rd-icon-btn" @tap="dictOpen = true"><app-icon name="search" :size="36" :color="iconColor" /></view>
+        <view
+          class="rd-icon-btn"
+          role="button"
+          tabindex="0"
+          aria-label="打开古汉语查词"
+          @tap="dictOpen = true"
+          @keydown.enter.prevent="dictOpen = true"
+          @keydown.space.prevent="dictOpen = true"
+        ><app-icon name="search" :size="36" :color="iconColor" /></view>
       </view>
     </view>
 
@@ -601,20 +632,54 @@ onLoad((q) => {
       <view class="rd-prog"><view class="rd-prog-fill" :style="{ width: progressPct + '%' }" /></view>
       <view class="rd-tools">
         <view class="rd-tool" @tap="goCompanion"><app-icon name="sparkles" :size="38" :color="brandColor" /><text class="rd-tool-txt" :style="{ color: brandColor }">伴读</text></view>
-        <view class="rd-tool" @tap="tocOpen = true"><app-icon name="list" :size="38" :color="iconColor" /><text class="rd-tool-txt">目录</text></view>
+        <view
+          class="rd-tool"
+          role="button"
+          tabindex="0"
+          aria-label="打开目录、书签和笔记"
+          @tap="tocOpen = true"
+          @keydown.enter.prevent="tocOpen = true"
+          @keydown.space.prevent="tocOpen = true"
+        ><app-icon name="list" :size="38" :color="iconColor" /><text class="rd-tool-txt">目录</text></view>
         <view class="rd-tool" @tap="addBookmark"><app-icon name="bookmark-plus" :size="38" :color="iconColor" /><text class="rd-tool-txt">书签</text></view>
         <view class="rd-tool" :class="{ 'rd-tool-on': notePickMode }" @tap="openNote"><app-icon name="edit" :size="38" :color="notePickMode ? brandColor : iconColor" /><text class="rd-tool-txt" :style="{ color: notePickMode ? brandColor : undefined }">笔记</text></view>
-        <view class="rd-tool" @tap="setOpen = true"><app-icon name="type" :size="38" :color="iconColor" /><text class="rd-tool-txt">设置</text></view>
+        <view
+          class="rd-tool"
+          role="button"
+          tabindex="0"
+          aria-label="打开阅读设置"
+          @tap="setOpen = true"
+          @keydown.enter.prevent="setOpen = true"
+          @keydown.space.prevent="setOpen = true"
+        ><app-icon name="type" :size="38" :color="iconColor" /><text class="rd-tool-txt">设置</text></view>
       </view>
     </view>
 
     <!-- AI 文白对照抽屉 -->
-    <view v-if="aiOpen" class="rd-mask" @tap="aiOpen = false" @touchmove.self.prevent>
-      <view class="rd-sheet" @tap.stop>
+    <view v-if="aiOpen" class="rd-mask" @tap="closeAi" @touchmove.self.prevent>
+      <view
+        class="rd-sheet rd-sheet--ai"
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI 白话对照"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
         <view class="rd-sheet-head">
-          <view class="rd-ai-badge"><app-icon name="sparkles" :size="24" color="#fff" /></view>
-          <text class="rd-sheet-title">AI 白话对照</text>
+          <view class="rd-sheet-head-main">
+            <view class="rd-ai-badge"><app-icon name="sparkles" :size="24" color="#fff" /></view>
+            <text class="rd-sheet-title">AI 白话对照</text>
+          </view>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeAi"
+            @keydown.enter.prevent="closeAi"
+            @keydown.space.prevent="closeAi"
+          >关闭</text>
         </view>
         <scroll-view scroll-y class="rd-sheet-body">
           <view class="rd-orig"><text class="rd-orig-txt">{{ aiSeg }}</text></view>
@@ -640,17 +705,63 @@ onLoad((q) => {
     </view>
 
     <!-- 目录抽屉（目录 / 书签 / 笔记） -->
-    <view v-if="tocOpen" class="rd-mask" @tap="tocOpen = false" @touchmove.self.prevent>
-      <view class="rd-sheet rd-sheet-tall" @tap.stop>
+    <view v-if="tocOpen" class="rd-mask" @tap="closeToc" @touchmove.self.prevent>
+      <view
+        class="rd-sheet rd-sheet-tall rd-sheet--toc"
+        role="dialog"
+        aria-modal="true"
+        aria-label="目录、书签和笔记"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
+        <view class="rd-sheet-head rd-sheet-head--compact">
+          <text class="rd-sheet-title">目录与摘记</text>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeToc"
+            @keydown.enter.prevent="closeToc"
+            @keydown.space.prevent="closeToc"
+          >关闭</text>
+        </view>
         <view class="rd-toc-tabs">
-          <view class="rd-toc-tab" :class="{ 'rd-toc-tab-on': tocTab === 'toc' }" @tap="tocTab = 'toc'">
+          <view
+            class="rd-toc-tab"
+            :class="{ 'rd-toc-tab-on': tocTab === 'toc' }"
+            role="tab"
+            tabindex="0"
+            :aria-selected="tocTab === 'toc'"
+            @tap="tocTab = 'toc'"
+            @keydown.enter.prevent="tocTab = 'toc'"
+            @keydown.space.prevent="tocTab = 'toc'"
+          >
             <text class="rd-toc-tab-txt" :style="{ color: tocTab === 'toc' ? brandColor : subColor }">目录</text>
           </view>
-          <view class="rd-toc-tab" :class="{ 'rd-toc-tab-on': tocTab === 'marks' }" @tap="tocTab = 'marks'">
+          <view
+            class="rd-toc-tab"
+            :class="{ 'rd-toc-tab-on': tocTab === 'marks' }"
+            role="tab"
+            tabindex="0"
+            :aria-selected="tocTab === 'marks'"
+            @tap="tocTab = 'marks'"
+            @keydown.enter.prevent="tocTab = 'marks'"
+            @keydown.space.prevent="tocTab = 'marks'"
+          >
             <text class="rd-toc-tab-txt" :style="{ color: tocTab === 'marks' ? brandColor : subColor }">书签</text>
           </view>
-          <view class="rd-toc-tab" :class="{ 'rd-toc-tab-on': tocTab === 'notes' }" @tap="tocTab = 'notes'">
+          <view
+            class="rd-toc-tab"
+            :class="{ 'rd-toc-tab-on': tocTab === 'notes' }"
+            role="tab"
+            tabindex="0"
+            :aria-selected="tocTab === 'notes'"
+            @tap="tocTab = 'notes'"
+            @keydown.enter.prevent="tocTab = 'notes'"
+            @keydown.space.prevent="tocTab = 'notes'"
+          >
             <text class="rd-toc-tab-txt" :style="{ color: tocTab === 'notes' ? brandColor : subColor }">笔记</text>
           </view>
         </view>
@@ -662,7 +773,11 @@ onLoad((q) => {
             :key="c.id"
             class="rd-toc-item"
             :class="{ 'rd-toc-active': i === curIndex }"
+            role="button"
+            tabindex="0"
             @tap="jumpTo(i)"
+            @keydown.enter.prevent="jumpTo(i)"
+            @keydown.space.prevent="jumpTo(i)"
           >
             <text class="rd-toc-idx">{{ i + 1 }}</text>
             <text class="rd-toc-name">{{ c.title }}</text>
@@ -715,10 +830,28 @@ onLoad((q) => {
     </view>
 
     <!-- 设置抽屉 -->
-    <view v-if="setOpen" class="rd-mask" @tap="setOpen = false" @touchmove.self.prevent>
-      <view class="rd-sheet" @tap.stop>
+    <view v-if="setOpen" class="rd-mask" @tap="closeSettings" @touchmove.self.prevent>
+      <view
+        class="rd-sheet rd-sheet--settings"
+        role="dialog"
+        aria-modal="true"
+        aria-label="阅读设置"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
-        <view class="rd-sheet-head"><text class="rd-sheet-title">阅读设置</text></view>
+        <view class="rd-sheet-head">
+          <text class="rd-sheet-title">阅读设置</text>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeSettings"
+            @keydown.enter.prevent="closeSettings"
+            @keydown.space.prevent="closeSettings"
+          >关闭</text>
+        </view>
         <view class="rd-set-row">
           <text class="rd-set-label">字号</text>
           <view class="rd-set-font">
@@ -752,10 +885,28 @@ onLoad((q) => {
     </view>
 
     <!-- 查词抽屉 -->
-    <view v-if="dictOpen" class="rd-mask" @tap="dictOpen = false" @touchmove.self.prevent>
-      <view class="rd-sheet rd-sheet-tall" @tap.stop>
+    <view v-if="dictOpen" class="rd-mask" @tap="closeDictionary" @touchmove.self.prevent>
+      <view
+        class="rd-sheet rd-sheet-tall rd-sheet--dict"
+        role="dialog"
+        aria-modal="true"
+        aria-label="古汉语查词"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
-        <view class="rd-sheet-head"><text class="rd-sheet-title">古汉语查词</text></view>
+        <view class="rd-sheet-head">
+          <text class="rd-sheet-title">古汉语查词</text>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeDictionary"
+            @keydown.enter.prevent="closeDictionary"
+            @keydown.space.prevent="closeDictionary"
+          >关闭</text>
+        </view>
         <view class="rd-dict-input">
           <input v-model="dictWord" class="rd-dict-field" placeholder="输入要查的字或词，如「仁」「逍遥」" confirm-type="search" @confirm="doLookup" />
           <view class="rd-dict-go" @tap="doLookup"><text>查询</text></view>
@@ -789,9 +940,27 @@ onLoad((q) => {
 
     <!-- 笔记输入 -->
     <view v-if="noteOpen" class="rd-mask" @tap="closeNote" @touchmove.self.prevent>
-      <view class="rd-sheet" @tap.stop>
+      <view
+        class="rd-sheet rd-sheet--note"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="editingNoteId ? '编辑批注' : '写批注'"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
-        <view class="rd-sheet-head"><text class="rd-sheet-title">{{ editingNoteId ? '编辑批注' : '写批注' }} · {{ curChapter?.title }}</text></view>
+        <view class="rd-sheet-head">
+          <text class="rd-sheet-title">{{ editingNoteId ? '编辑批注' : '写批注' }} · {{ curChapter?.title }}</text>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeNote"
+            @keydown.enter.prevent="closeNote"
+            @keydown.space.prevent="closeNote"
+          >关闭</text>
+        </view>
         <view class="rd-note-quote">
           <text class="rd-note-quote-label">原文</text>
           <text class="rd-note-quote-text">{{ noteOriginalText }}</text>
@@ -972,8 +1141,21 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-sheet-tall { max-height: 82vh; }
 .rd-sheet-bar { display: flex; justify-content: center; padding: 16rpx 0 8rpx; }
 .rd-sheet-handle { width: 64rpx; height: 8rpx; border-radius: 999rpx; background: rgba(150,130,90,0.3); }
-.rd-sheet-head { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 40rpx 20rpx; }
+.rd-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 12rpx 40rpx 20rpx; }
+.rd-sheet-head--compact { padding-bottom: 8rpx; }
+.rd-sheet-head-main { min-width: 0; display: flex; align-items: center; gap: 16rpx; }
 .rd-sheet-title { font-size: 32rpx; font-weight: 700; color: var(--rd-fg, #2c2c2c); }
+.rd-sheet-close {
+  min-width: 88rpx;
+  min-height: 72rpx;
+  margin: -16rpx -16rpx -16rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rd-sub, #8f8068);
+  font-size: 28rpx;
+  border-radius: 999rpx;
+}
 .rd-ai-badge { width: 44rpx; height: 44rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(150deg,#c8324c,#9e1b30); }
 /* 滚动穿透修复（照 .rd-toc-body 已验证模式）：AI 对照/查词抽屉共用此类，
    原无约束高度 → scroll-view 不产生内滚，在 AI 内容上滑动滚的是底层原文页 */

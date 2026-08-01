@@ -46,6 +46,8 @@ describe("WechatPayService", () => {
     process.env.WECHAT_PAY_PRIVATE_KEY = "mock-private-key-content";
     process.env.WECHAT_APP_ID = "wx_test_app_id";
     process.env.WECHAT_PAY_NOTIFY_URL = "https://example.com/wxpay/notify";
+    process.env.WECHAT_PAY_REFUND_NOTIFY_URL = "https://example.com/wxpay/refund-notify";
+    delete process.env.PUBLIC_API_URL;
     delete (global as any).fetch;
 
     jest.clearAllMocks();
@@ -150,6 +152,35 @@ describe("WechatPayService", () => {
 
       expect(result.codeUrl).toBe("weixin://wxpay/bizpayurl?pr=abc123");
     });
+
+    it("未显式配置回调时应使用当前 PUBLIC_API_URL", async () => {
+      delete process.env.WECHAT_PAY_NOTIFY_URL;
+      process.env.PUBLIC_API_URL = "https://pre-api.rebugx.cn/";
+      mockFetchJson({ code_url: "weixin://wxpay/bizpayurl?pr=fallback" });
+
+      await service.createNativeOrder({
+        outTradeNo: "GX_NATIVE_FALLBACK",
+        description: "回调兜底测试",
+        amount: { total: 1 },
+      });
+
+      const body = JSON.parse(((global as any).fetch as jest.Mock).mock.calls[0][1].body as string);
+      expect(body.notify_url).toBe("https://pre-api.rebugx.cn/api/v1/shop/pay/notify");
+    });
+
+    it("后台热更新环境变量后不应继续使用构造时旧商户号", async () => {
+      process.env.WECHAT_PAY_MCH_ID = "hot_updated_mch";
+      mockFetchJson({ code_url: "weixin://wxpay/bizpayurl?pr=hot" });
+
+      await service.createNativeOrder({
+        outTradeNo: "GX_NATIVE_HOT",
+        description: "热更新测试",
+        amount: { total: 1 },
+      });
+
+      const body = JSON.parse(((global as any).fetch as jest.Mock).mock.calls[0][1].body as string);
+      expect(body.mchid).toBe("hot_updated_mch");
+    });
   });
 
   // ───────── H5 支付 ─────────
@@ -191,6 +222,21 @@ describe("WechatPayService", () => {
       });
 
       expect(result.status).toBe("PROCESSING");
+    });
+
+    it("未显式配置退款回调时应使用当前 PUBLIC_API_URL", async () => {
+      delete process.env.WECHAT_PAY_REFUND_NOTIFY_URL;
+      process.env.PUBLIC_API_URL = "https://pre-api.rebugx.cn";
+      mockFetchJson({ status: "PROCESSING", out_refund_no: "RF_FALLBACK" });
+
+      await service.refund({
+        outTradeNo: "GX_FALLBACK",
+        outRefundNo: "RF_FALLBACK",
+        amount: { refund: 1, total: 1 },
+      });
+
+      const body = JSON.parse(((global as any).fetch as jest.Mock).mock.calls[0][1].body as string);
+      expect(body.notify_url).toBe("https://pre-api.rebugx.cn/api/v1/shop/refund/notify");
     });
 
     it("应按交易单号退款", async () => {
