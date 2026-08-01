@@ -1520,6 +1520,12 @@ const pnpmInvocationTest = read("tests/release/resolve-pnpm-invocation.test.mjs"
 const packageJson = read("package.json");
 const fullGateRunner = read("scripts/release/run-full-gate.mjs");
 const productionDeployWorkflow = read(".github/workflows/deploy.yml");
+const infrastructureHandoffChecklist = read(
+  "docs/operations/新基础设施与正式凭据交接清单-20260731.md",
+);
+const infrastructureMigrationManual = read(
+  "docs/operations/服务器数据库域名迁移手册-20260728.md",
+);
 add(
   "正式资源到位后可在耗时构建前执行单命令预接入门禁",
   packageJson.includes(
@@ -1556,8 +1562,29 @@ add(
       "正式环境失败或部署架构不一致时判定 BLOCK",
       "过期证据即使内容通过也判定 BLOCK",
     ]) &&
+    hasAll(infrastructureHandoffChecklist, [
+      "必须运行统一预接入门禁",
+      "release:gate:predeploy",
+      "predeploy-decision.json",
+      "只用于排查单项失败，不能代替统一门禁",
+    ]) &&
     fullGateTest.includes("预接入与完整上线门禁拒绝未知阶段且不会启动子门禁"),
   "新域名、数据库、Redis、对象存储和证书到位后先校验源码身份、资源清单、正式环境及逐项绑定，再聚合为不含连接串或凭据的单一 GO/BLOCK 判定，避免等完整多端构建结束才暴露配置错误",
+);
+add(
+  "迁移现场文档区分公网 TLS 与托管数据服务证书链",
+  hasAll(infrastructureHandoffChecklist, [
+    "TENCENTDB_CA_CERT_PATH",
+    "/opt/guoxue/shared/tencentdb-ca.pem",
+    "由 Compose 只读注入应用信任链",
+    "禁止提交证书正文、使用相对路径或关闭证书校验",
+  ]) &&
+    hasAll(infrastructureMigrationManual, [
+      "公网 HTTPS 由 CLB 承担，托管数据服务独立校验证书链",
+      "TENCENTDB_CA_CERT_PATH=/opt/guoxue/shared/tencentdb-ca.pem",
+      "不得用 `rejectUnauthorized=false` 绕过验证",
+    ]),
+  "CLB 只负责公网 HTTPS；腾讯云 PostgreSQL/Redis 必须使用受控 CA 严格校验，迁移手册不得把两条 TLS 链路混为一谈",
 );
 add(
   "Windows 构建机重启或换机后可通过 Corepack 运行完整门禁",
