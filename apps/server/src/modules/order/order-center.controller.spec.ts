@@ -120,17 +120,36 @@ describe("OrderCenterController", () => {
       expect(prisma.memberPurchase.findMany).toHaveBeenCalled();
     });
 
-    it("按类型+关键词筛选", async () => {
+    it("按类型+关键词筛选（SHOP=Order 表全部但排除 MEMBER 防与 MemberPurchase 重复计）", async () => {
       prisma.order.findMany.mockResolvedValue([]);
       await ctrl.adminAllOrders("SHOP", "PAID", "testUser");
       expect(prisma.order.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { status: "PAID", OR: [
+          where: { type: { not: "MEMBER" }, status: "PAID", OR: [
             { id: { contains: "testUser" } },
             { user: { nickname: { contains: "testUser" } } },
           ]},
         }),
       );
+    });
+
+    it("type 支持真实 OrderType 枚举值（如 COURSE）并透传 orderType", async () => {
+      const now = new Date();
+      prisma.order.findMany.mockResolvedValue([
+        { id: "o1", type: "COURSE", status: "PAID", amount: 100, payAmount: 99, user: { id: "u1", nickname: "n" }, createdAt: now },
+      ]);
+      const result = await ctrl.adminAllOrders("COURSE");
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { type: "COURSE" } }),
+      );
+      expect(result.orders[0].orderType).toBe("COURSE"); // 不再硬打 "SHOP"
+      expect(prisma.memberPurchase.findMany).not.toHaveBeenCalled();
+    });
+
+    it("status 筛选透传到 MEMBER 分支（MemberPurchase 全为 PAID，非 PAID 状态时该分支为空）", async () => {
+      prisma.order.findMany.mockResolvedValue([]);
+      await ctrl.adminAllOrders("MEMBER", "PENDING");
+      expect(prisma.memberPurchase.findMany).not.toHaveBeenCalled();
     });
 
     it("MEMBER类型带关键词", async () => {

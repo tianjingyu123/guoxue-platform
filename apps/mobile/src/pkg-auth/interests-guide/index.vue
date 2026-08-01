@@ -17,7 +17,15 @@
     </view>
 
     <!-- 右上角跳过 -->
-    <view class="ig-skip" hover-class="ig-skip-hover" @tap="handleSkip">
+    <view
+      class="ig-skip"
+      role="button"
+      aria-label="跳过兴趣选择"
+      tabindex="0"
+      hover-class="ig-skip-hover"
+      @tap="handleSkip"
+      @keydown="activateOnKeyboard($event, handleSkip)"
+    >
       <text class="ig-skip-text">跳过</text>
     </view>
 
@@ -32,14 +40,19 @@
 
     <!-- 六张主题大卡（2 列 3 行） -->
     <scroll-view scroll-y class="ig-cards-wrap">
-      <view class="ig-cards">
+      <view class="ig-cards" role="group" aria-label="国学兴趣主题，最多选择三个">
         <view
           v-for="theme in themes"
           :key="theme.key"
           class="ig-card"
           :class="{ 'is-selected': isSelected(theme.key) }"
+          role="checkbox"
+          :aria-label="`${theme.label}，${theme.desc}`"
+          :aria-checked="isSelected(theme.key) ? 'true' : 'false'"
+          tabindex="0"
           hover-class="ig-card-hover"
           @tap="toggleTheme(theme.key)"
+          @keydown="activateOnKeyboard($event, () => toggleTheme(theme.key))"
         >
           <view class="ig-card-icon" :class="{ 'is-selected': isSelected(theme.key) }">
             <AppIcon :name="theme.icon" :size="48" :color="isSelected(theme.key) ? '#FFFFFF' : '#C41E3A'" />
@@ -59,14 +72,18 @@
       <view
         class="ig-submit"
         :class="{ 'is-active': selected.length > 0 }"
+        role="button"
+        :aria-disabled="selected.length === 0 ? 'true' : 'false'"
+        tabindex="0"
         @tap="handleSubmit"
+        @keydown="activateOnKeyboard($event, handleSubmit)"
       >
         <text class="ig-submit-text" :class="{ 'is-active': selected.length > 0 }">
           {{ selected.length > 0 ? '开启我的国学之旅' : '至少选 1 个' }}
         </text>
         <AppIcon v-if="selected.length > 0" name="arrow-right" :size="32" color="#FFFFFF" />
       </view>
-      <text class="ig-count-tip">已选 {{ selected.length }}/{{ MAX_SELECT }} 个主题</text>
+      <text class="ig-count-tip" aria-live="polite">已选 {{ selected.length }}/{{ MAX_SELECT }} 个主题</text>
     </view>
   </view>
 </template>
@@ -75,7 +92,7 @@
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { reLaunch } from '@/utils/router'
-import { INTEREST_THEMES, saveInterestThemes } from '@/utils/interests'
+import { INTEREST_THEMES, markInterestGuideSkipped, saveInterestThemes } from '@/utils/interests'
 
 const DECO_SYMBOLS = ['☯', '☷', '☵', '☳', '☴']
 const MAX_SELECT = 3
@@ -86,6 +103,12 @@ const themes = INTEREST_THEMES
 const selected = ref<string[]>([])
 // 防重复：提交/跳过后不再响应任何操作
 let navigated = false
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 
 function isSelected(key: string) {
   return selected.value.includes(key)
@@ -110,14 +133,16 @@ function handleSubmit() {
   if (selected.value.length === 0) return
   navigated = true
   saveInterestThemes(selected.value)
-  reLaunch('/')
+  // 用完整页面路径（'/' 在 ROUTE_MAP 无映射会原样透传，小程序端不可达）
+  reLaunch('/pages/index/index')
 }
 
 // 跳过：不保存，直接进首页
 function handleSkip() {
   if (navigated) return
   navigated = true
-  reLaunch('/')
+  markInterestGuideSkipped()
+  reLaunch('/pages/index/index')
 }
 </script>
 
@@ -158,7 +183,13 @@ function handleSkip() {
   top: 88rpx;
   right: 40rpx;
   z-index: 20;
-  padding: 8rpx 28rpx;
+  min-width: 104rpx;
+  min-height: 88rpx;
+  padding: 0 28rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999rpx;
   border: 2rpx solid #e8e0d5;
   background: rgba(255, 255, 255, 0.7);
@@ -303,5 +334,17 @@ function handleSkip() {
   font-size: 24rpx;
   color: #bbbbbb;
   margin-top: 20rpx;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ig-card,
+  .ig-card-icon,
+  .ig-submit {
+    transition: none !important;
+  }
+
+  .ig-card-hover {
+    transform: none;
+  }
 }
 </style>

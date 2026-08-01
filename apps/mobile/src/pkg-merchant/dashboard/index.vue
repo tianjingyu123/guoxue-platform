@@ -1,241 +1,274 @@
+<!--
+  B1 · 商家工作台（V0 还原·合并 dashboard + analytics + content-stats 概览/图表）
+  结构：店铺头(朱红) → 信用分金色卡 → 数据概览(今日/本月·真实字段) → 近7日订单趋势(metrics.items)
+        → 待办三卡(待发货/待处理售后/待回评·可点跳) → 快捷入口(B2/B4/B5/B6/B7/B8/B9)
+  硬约束：纯 uni-app · rpx · @tap · padding-top 比例框（无 aspect-ratio）· 实色卡片 · 真实数据接线 · 三态
+-->
 <template>
-  <view class="dash">
-    <!-- 顶部店铺信息 -->
-    <view class="dash-hero" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="dash-hero-top">
-        <text class="dash-hero-title">商家工作台</text>
-        <view class="dash-hero-actions">
-          <view class="dash-hero-btn" @tap="go('/merchant/shop-preview')">
-            <AppIcon name="eye" :size="20" color="rgba(255,255,255,0.85)" />
+  <view class="page">
+    <!-- 店铺头（朱红品牌头） -->
+    <view class="head" :style="{ paddingTop: statusBarH + 'px' }">
+      <text class="head-wm">铺</text>
+      <view class="head-top">
+        <view class="shop">
+          <view class="shop-logo">
+            <image v-if="profile?.shopLogo" :src="profile.shopLogo" class="shop-logo-img" mode="aspectFill" />
+            <text v-else class="shop-logo-txt">店招</text>
           </view>
-          <view class="dash-hero-btn" @tap="go('/notifications')">
-            <AppIcon name="bell" :size="20" color="rgba(255,255,255,0.85)" />
+          <view class="shop-info">
+            <text class="shop-nm">{{ profile?.shopName || '我的店铺' }}</text>
+            <text class="shop-st">{{ statusInfo.text }}</text>
           </view>
         </view>
-      </view>
-      <view class="dash-shop">
-        <view class="dash-shop-avatar">
-          <image lazy-load v-if="profile?.shopLogo" :src="profile.shopLogo" class="dash-shop-logo" mode="aspectFill" />
-          <AppIcon v-else name="store" :size="28" color="#fff" />
-        </view>
-        <view class="dash-shop-info">
-          <text class="dash-shop-name">{{ profile?.shopName || '我的店铺' }}</text>
-          <view class="dash-shop-status">
-            <view class="dash-shop-dot" :style="{ background: statusInfo.dot }" />
-            <text class="dash-shop-status-txt">{{ statusInfo.text }}</text>
-          </view>
+        <view
+          class="bell"
+          role="link"
+          tabindex="0"
+          :aria-label="hasNotice ? '打开商家消息中心，有未读消息' : '打开商家消息中心'"
+          @tap="go('/pkg-merchant/notices/index')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-merchant/notices/index'))"
+        >
+          <AppIcon name="bell" :size="44" color="#ffffff" :stroke-width="1.8" />
+          <view v-if="hasNotice" class="bell-rd" />
         </view>
       </view>
     </view>
 
-    <!-- Loading -->
-    <view v-if="loading" class="dash-state">
-      <text class="dash-state-txt">加载中…</text>
+    <!-- 全局加载态 -->
+    <view v-if="loading" class="state" role="status" aria-live="polite">
+      <text class="state-t">加载中…</text>
     </view>
-    <!-- Error -->
-    <view v-else-if="error" class="dash-state">
-      <AppIcon name="alert-circle" :size="44" color="#dc2626" />
-      <text class="dash-state-txt">{{ error }}</text>
-      <view class="dash-retry" @tap="load"><text>重试</text></view>
+    <!-- 全局错误态 -->
+    <view v-else-if="error" class="state" role="alert" aria-live="assertive">
+      <AppIcon name="alert-circle" :size="80" color="#c41e3a" />
+      <text class="state-t">{{ error }}</text>
+      <view
+        class="state-btn"
+        role="button"
+        tabindex="0"
+        aria-label="重新加载商家经营后台"
+        @tap="load"
+        @keydown="activateOnKeyboard($event, load)"
+      ><text>重试</text></view>
     </view>
 
-    <template v-else-if="dashboard">
-      <!-- 今日数据 -->
-      <view class="dash-section dash-overview">
-        <view class="dash-card dash-shadow">
-          <text class="dash-card-title dash-mb">今日数据</text>
-          <view class="dash-main-grid">
-            <view class="dash-main-cell">
-              <text class="dash-main-label">今日订单</text>
-              <text class="dash-main-value">{{ dashboard.todayOrders }}</text>
-            </view>
-            <view class="dash-main-cell">
-              <text class="dash-main-label">今日销售额</text>
-              <text class="dash-main-value">¥{{ money(dashboard.todaySales) }}</text>
-            </view>
+    <scroll-view v-else scroll-y class="scroll" role="main" aria-label="商家经营后台">
+      <!-- 信用分金色卡（叠品牌头下缘·独立三态不阻塞主数据） -->
+      <view
+        class="credit"
+        :role="credit && credit.logs.length ? 'button' : undefined"
+        :tabindex="credit && credit.logs.length ? 0 : -1"
+        :aria-label="credit && credit.logs.length ? `店铺信用分${credit.creditScore}，${gradeUi.label}，查看信用变动明细` : '店铺信用分'"
+        @tap="creditPopupOpen = credit && credit.logs.length ? true : creditPopupOpen"
+        @keydown="activateOnKeyboard($event, openCreditDetails)"
+      >
+        <template v-if="creditLoading">
+          <view><text class="credit-l">店铺信用分</text><text class="credit-v">…</text></view>
+          <view class="credit-g"><text class="credit-g-txt">加载中</text></view>
+        </template>
+        <template v-else-if="creditError">
+          <view><text class="credit-l">店铺信用分</text><text class="credit-v">—</text></view>
+          <view
+            class="credit-g"
+            role="button"
+            tabindex="0"
+            aria-label="重新加载店铺信用数据"
+            @tap.stop="loadCredit"
+            @keydown.enter.stop="loadCredit"
+            @keydown.space.stop.prevent="loadCredit"
+          ><text class="credit-g-txt">重试</text></view>
+        </template>
+        <template v-else-if="credit">
+          <view>
+            <text class="credit-l">店铺信用分</text>
+            <text class="credit-v">{{ credit.creditScore }}</text>
           </view>
-        </view>
+          <view class="credit-g">
+            <text class="credit-g-txt">{{ gradeUi.label }} ›</text>
+          </view>
+        </template>
       </view>
 
-      <!-- 经营概况 -->
-      <view class="dash-section">
-        <view class="dash-card">
-          <text class="dash-card-title dash-mb">经营概况</text>
-          <view class="dash-stat-grid">
-            <view class="dash-stat-cell">
-              <text class="dash-stat-value">{{ dashboard.totalProducts }}</text>
-              <text class="dash-stat-label">商品数</text>
-            </view>
-            <view class="dash-stat-cell">
-              <text class="dash-stat-value">{{ dashboard.totalOrders }}</text>
-              <text class="dash-stat-label">累计订单</text>
-            </view>
-            <view class="dash-stat-cell">
-              <text class="dash-stat-value">¥{{ money(dashboard.totalSales) }}</text>
-              <text class="dash-stat-label">累计销售额</text>
-            </view>
-            <view class="dash-stat-cell">
-              <text class="dash-stat-value">{{ Number(dashboard.rating).toFixed(1) }}</text>
-              <text class="dash-stat-label">店铺评分</text>
-            </view>
+      <!-- 数据概览 -->
+      <view class="sect-t"><text class="sect-t-txt">数据概览</text></view>
+      <view v-if="dashboard" class="card metrics">
+        <view class="m-head" role="tablist" aria-label="经营数据周期">
+          <view
+            class="m-tab"
+            :class="{ on: tab === 'today' }"
+            role="tab"
+            :tabindex="tab === 'today' ? 0 : -1"
+            :aria-selected="tab === 'today'"
+            @tap="tab = 'today'"
+            @keydown="onMetricTabKeydown($event, 'today')"
+          ><text class="m-tab-txt">今日</text></view>
+          <view
+            class="m-tab"
+            :class="{ on: tab === 'month' }"
+            role="tab"
+            :tabindex="tab === 'month' ? 0 : -1"
+            :aria-selected="tab === 'month'"
+            @tap="tab = 'month'"
+            @keydown="onMetricTabKeydown($event, 'month')"
+          ><text class="m-tab-txt">本月</text></view>
+        </view>
+
+        <!-- 今日：dashboard 真实字段 -->
+        <view v-if="tab === 'today'" class="m-row">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`今日成交额${money(dashboard.todaySales)}元，查看结算收入`" hover-class="tap-soft" @tap="openRevenue" @keydown="activateOnKeyboard($event, openRevenue)">
+            <text class="mv red">¥{{ money(dashboard.todaySales) }}</text>
+            <text class="ml">今日成交额 <text class="m-arrow">›</text></text>
+          </view>
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`今日订单${dashboard.todayOrders}单，查看订单`" hover-class="tap-soft" @tap="openTodayOrders" @keydown="activateOnKeyboard($event, openTodayOrders)">
+            <text class="mv">{{ dashboard.todayOrders }}</text>
+            <text class="ml">今日订单 <text class="m-arrow">›</text></text>
+          </view>
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`在售商品${dashboard.totalProducts}件，查看商品管理`" hover-class="tap-soft" @tap="openOnSaleProducts" @keydown="activateOnKeyboard($event, openOnSaleProducts)">
+            <text class="mv">{{ dashboard.totalProducts }}</text>
+            <text class="ml">在售商品 <text class="m-arrow">›</text></text>
+          </view>
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`店铺评分${Number(dashboard.rating || 0).toFixed(1)}，查看评价管理`" hover-class="tap-soft" @tap="openReviews" @keydown="activateOnKeyboard($event, openReviews)">
+            <text class="mv">{{ Number(dashboard.rating || 0).toFixed(1) }}</text>
+            <text class="ml">店铺评分 <text class="m-arrow">›</text></text>
           </view>
         </view>
-      </view>
 
-      <!-- 履约健康（近7日·独立三态，不阻塞主数据） -->
-      <view class="dash-section">
-        <view class="dash-card">
-          <view class="dash-card-head dash-mb">
-            <text class="dash-card-title">履约健康</text>
-            <text class="dash-metric-sub">近 7 日</text>
+        <!-- 本月：累计 + 近7日汇总（metrics.summary 真实字段·取不到诚实降级） -->
+        <view v-else class="m-row">
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`累计成交额${money(dashboard.totalSales)}元，查看结算收入`" hover-class="tap-soft" @tap="openRevenue" @keydown="activateOnKeyboard($event, openRevenue)">
+            <text class="mv red">¥{{ money(dashboard.totalSales) }}</text>
+            <text class="ml">累计成交额 <text class="m-arrow">›</text></text>
           </view>
-          <view v-if="metricsLoading" class="dash-metric-state">
-            <text class="dash-metric-state-txt">加载中…</text>
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`累计订单${dashboard.totalOrders}单，查看全部订单`" hover-class="tap-soft" @tap="openAllOrders" @keydown="activateOnKeyboard($event, openAllOrders)">
+            <text class="mv">{{ dashboard.totalOrders }}</text>
+            <text class="ml">累计订单 <text class="m-arrow">›</text></text>
           </view>
-          <view v-else-if="metricsError" class="dash-metric-state">
-            <text class="dash-metric-state-txt">{{ metricsError }}</text>
-            <view class="dash-metric-retry" @tap="loadMetrics"><text>重试</text></view>
+          <view class="m-cell m-cell-link" role="link" tabindex="0" :aria-label="`近7日订单${metrics ? metrics.summary.ordersCount : '数据加载中'}，查看订单`" hover-class="tap-soft" @tap="openRecentOrders" @keydown="activateOnKeyboard($event, openRecentOrders)">
+            <text class="mv">{{ metrics ? metrics.summary.ordersCount : '—' }}</text>
+            <text class="ml">近7日订单 <text class="m-arrow">›</text></text>
           </view>
-          <view v-else-if="!metrics || metrics.items.length === 0" class="dash-metric-state">
-            <text class="dash-metric-state-txt">暂无履约数据，指标于每日凌晨聚合生成</text>
-          </view>
-          <view v-else class="dash-metric-grid">
-            <view class="dash-metric-cell">
-              <text class="dash-metric-value" :class="rateClass(metrics.summary.shipOnTimeRate, 0.9, true)">
-                {{ pct(metrics.summary.shipOnTimeRate) }}
-              </text>
-              <text class="dash-metric-label">按时发货率</text>
-            </view>
-            <view class="dash-metric-cell">
-              <text class="dash-metric-value" :class="rateClass(metrics.summary.refundRate, 0.15, false)">
-                {{ pct(metrics.summary.refundRate) }}
-              </text>
-              <text class="dash-metric-label">退款率</text>
-            </view>
-            <view class="dash-metric-cell">
-              <text class="dash-metric-value">
-                {{ metrics.summary.avgRating === null ? '—' : Number(metrics.summary.avgRating).toFixed(1) }}
-              </text>
-              <text class="dash-metric-label">评价均分</text>
-            </view>
+          <view class="m-cell m-cell-link" role="link" tabindex="0" aria-label="查看近7日店铺评分与评价" hover-class="tap-soft" @tap="openReviews" @keydown="activateOnKeyboard($event, openReviews)">
+            <text class="mv">{{ metrics && metrics.summary.avgRating !== null ? Number(metrics.summary.avgRating).toFixed(1) : '—' }}</text>
+            <text class="ml">近7日评分 <text class="m-arrow">›</text></text>
           </view>
         </view>
-      </view>
 
-      <!-- 信用评级（履-P2·独立三态，不阻塞主数据） -->
-      <view class="dash-section">
-        <view class="dash-card">
-          <view class="dash-card-head dash-mb">
-            <text class="dash-card-title">信用评级</text>
-            <text v-if="credit && credit.logs.length" class="dash-more-txt" @tap="creditPopupOpen = true">变动明细</text>
+        <!-- 近7日订单趋势（metrics.items 真实数据·带Y轴刻度柱图） -->
+        <view class="trend">
+          <view class="tl">
+            <text class="tl-l">近 7 日订单数</text>
+            <text class="tl-r">本周合计 <text class="tl-b">{{ trend.total }}</text> 单</text>
           </view>
-          <view v-if="creditLoading" class="dash-metric-state">
-            <text class="dash-metric-state-txt">加载中…</text>
+
+          <view v-if="metricsLoading" class="trend-state" role="status" aria-live="polite"><text class="trend-state-t">加载中…</text></view>
+          <view v-else-if="metricsError" class="trend-state" role="alert">
+            <text class="trend-state-t">{{ metricsError }}</text>
+            <view class="trend-retry" role="button" tabindex="0" aria-label="重新加载近7日订单趋势" @tap="loadMetrics" @keydown="activateOnKeyboard($event, loadMetrics)"><text>重试</text></view>
           </view>
-          <view v-else-if="creditError" class="dash-metric-state">
-            <text class="dash-metric-state-txt">{{ creditError }}</text>
-            <view class="dash-metric-retry" @tap="loadCredit"><text>重试</text></view>
+          <view v-else-if="!trend.bars.length" class="trend-state" role="status">
+            <text class="trend-state-t">暂无趋势数据，指标每日凌晨聚合生成</text>
           </view>
-          <template v-else-if="credit">
-            <view class="dash-credit-row">
-              <view class="dash-credit-score-wrap">
-                <text class="dash-credit-score">{{ credit.creditScore }}</text>
-                <text class="dash-credit-score-unit">分</text>
+          <view v-else class="chart">
+            <view class="yaxis">
+              <text class="yaxis-t">{{ trend.yMax }}</text>
+              <text class="yaxis-t">{{ Math.round(trend.yMax / 2) }}</text>
+              <text class="yaxis-t">0</text>
+            </view>
+            <view class="plot">
+              <view class="bars">
+                <view
+                  v-for="(b, i) in trend.bars"
+                  :key="b.date"
+                   class="bcol"
+                   :class="{ hot: i === trend.bars.length - 1 }"
+                   role="link"
+                   tabindex="0"
+                   :aria-label="`${b.date}，${b.value}单，查看当日订单`"
+                   hover-class="tap-soft"
+                   @tap="openOrdersForDay(b.date)"
+                   @keydown="activateOnKeyboard($event, () => openOrdersForDay(b.date))"
+                >
+                  <text class="bval">{{ b.value }}</text>
+                  <view class="bar" :style="{ height: b.pct + '%' }" />
+                </view>
               </view>
-              <view class="dash-credit-grade" :style="{ color: gradeUi.color, background: gradeUi.bg }">
-                <text class="dash-credit-grade-txt">{{ gradeUi.label }}</text>
+              <view class="xaxis">
+                <text v-for="b in trend.bars" :key="b.date" class="xaxis-t">{{ b.label }}</text>
               </view>
-            </view>
-            <view class="dash-credit-benefits">
-              <text class="dash-credit-benefit">结算 T+{{ credit.benefits.settlementCycleDays }}</text>
-              <text class="dash-credit-benefit">抽检{{ credit.benefits.qcFrequency }}</text>
-              <text v-if="credit.benefits.selectedBadge" class="dash-credit-benefit dash-credit-benefit-hl">严选标</text>
-            </view>
-            <text v-if="credit.observation" class="dash-credit-obs">新店观察期（开店 30 天内）：正常计分，暂不参与流量加权</text>
-            <text v-else-if="!credit.logs.length" class="dash-credit-obs">信用分每周一凌晨按近 30 日履约数据更新</text>
-          </template>
-        </view>
-      </view>
-
-      <!-- 待处理事项 -->
-      <view class="dash-section">
-        <view class="dash-card">
-          <text class="dash-card-title dash-mb">待处理事项</text>
-          <view class="dash-pending-row" @tap="go('/merchant/reviews')">
-            <view class="dash-pending-left">
-              <view class="dash-pending-icon">
-                <AppIcon name="star" :size="22" color="#d97706" />
-              </view>
-              <text class="dash-pending-label">待回复评价</text>
-            </view>
-            <view class="dash-pending-right">
-              <text class="dash-pending-num" :class="{ active: dashboard.pendingReviews > 0 }">{{ dashboard.pendingReviews }}</text>
-              <AppIcon name="chevron-right" :size="16" color="#9ca3af" />
             </view>
           </view>
         </view>
       </view>
 
-      <!-- 常用功能 -->
-      <view class="dash-section">
-        <view class="dash-card">
-          <text class="dash-card-title dash-mb">常用功能</text>
-          <view class="dash-action-grid">
-            <view v-for="a in actions" :key="a.label" class="dash-action-cell" @tap="go(a.path)">
-              <view class="dash-action-icon" :style="{ background: a.bg }">
-                <AppIcon :name="a.icon" :size="20" :color="a.color" />
-              </view>
-              <text class="dash-action-label">{{ a.label }}</text>
-            </view>
-          </view>
+      <!-- 待办事项 -->
+      <view class="sect-t"><text class="sect-t-txt">待办事项</text></view>
+      <view class="todo">
+        <view class="tcard" role="link" tabindex="0" :aria-label="`${pendingShip}笔待发货订单，进入处理`" @tap="go('/pkg-merchant/orders/index')" @keydown="activateOnKeyboard($event, () => go('/pkg-merchant/orders/index'))">
+          <view v-if="pendingShip > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingShip) }}</text></view>
+          <text class="tn">{{ pendingShip }}</text>
+          <text class="tt">待发货</text>
+        </view>
+        <view class="tcard" role="link" tabindex="0" :aria-label="`${pendingAfterSale}笔待处理售后，进入处理`" @tap="go('/pkg-merchant/after-sales/index')" @keydown="activateOnKeyboard($event, () => go('/pkg-merchant/after-sales/index'))">
+          <view v-if="pendingAfterSale > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingAfterSale) }}</text></view>
+          <text class="tn">{{ pendingAfterSale }}</text>
+          <text class="tt">待处理售后</text>
+        </view>
+        <view class="tcard" role="link" tabindex="0" :aria-label="`${pendingReviews}条待回复评价，进入处理`" @tap="go('/pkg-merchant/reviews/index')" @keydown="activateOnKeyboard($event, () => go('/pkg-merchant/reviews/index'))">
+          <view v-if="pendingReviews > 0" class="badge"><text class="badge-t">{{ badgeNum(pendingReviews) }}</text></view>
+          <text class="tn">{{ pendingReviews }}</text>
+          <text class="tt">待回复评价</text>
         </view>
       </view>
 
-      <!-- 平台公告 -->
-      <view class="dash-section dash-pb">
-        <view class="dash-card">
-          <view class="dash-card-head dash-mb">
-            <text class="dash-card-title">平台公告</text>
-            <text class="dash-more-txt" @tap="go('/merchant/notices')">更多</text>
+      <!-- 快捷入口 -->
+      <view class="sect-t"><text class="sect-t-txt">快捷入口</text></view>
+      <view class="quick">
+        <view
+          v-for="q in quickItems"
+          :key="q.label"
+          class="qi"
+          role="link"
+          tabindex="0"
+          :aria-label="`打开${q.label}`"
+          @tap="go(q.path)"
+          @keydown="activateOnKeyboard($event, () => go(q.path))"
+        >
+          <view class="qc">
+            <AppIcon :name="q.icon" :size="40" color="#c41e3a" :stroke-width="2" />
           </view>
-          <view v-if="notices.length" class="dash-notice-list">
-            <view v-for="n in notices" :key="n.id" class="dash-notice" @tap="go('/merchant/notices')">
-              <text class="dash-notice-type">{{ n.category || n.type }}</text>
-              <view class="dash-notice-body">
-                <text class="dash-notice-title">{{ n.title }}</text>
-                <text class="dash-notice-time">{{ n.time }}</text>
-              </view>
-              <AppIcon name="chevron-right" :size="16" color="#9ca3af" />
-            </view>
-          </view>
-          <view v-else class="dash-notice-empty">
-            <text class="dash-notice-empty-txt">暂无平台公告</text>
-          </view>
+          <text class="qi-t">{{ q.label }}</text>
         </view>
       </view>
-    </template>
 
-    <!-- 信用变动明细弹层（周更 log·因子透明可复算） -->
-    <view v-if="creditPopupOpen" class="dash-pop-mask" @tap="creditPopupOpen = false">
-      <view class="dash-pop" @tap.stop>
-        <view class="dash-pop-head">
-          <text class="dash-pop-title">信用变动明细</text>
-          <view class="dash-pop-close" @tap="creditPopupOpen = false">
-            <AppIcon name="x" :size="20" color="#6b7280" />
+      <view class="foot-gap" />
+    </scroll-view>
+
+    <!-- 信用变动明细弹层 -->
+    <view v-if="creditPopupOpen" class="pop-mask" role="presentation" @tap="creditPopupOpen = false" @touchmove.self.prevent>
+      <view class="pop credit-pop" role="dialog" aria-modal="true" aria-label="信用变动明细" @tap.stop @touchmove.stop>
+        <view class="pop-head">
+          <text class="pop-title">信用变动明细</text>
+          <view
+            class="pop-close"
+            role="button"
+            tabindex="0"
+            aria-label="关闭信用变动明细"
+            @tap="creditPopupOpen = false"
+            @keydown="activateOnKeyboard($event, () => { creditPopupOpen = false })"
+          >
+            <AppIcon name="x" :size="40" color="#6e6e73" />
           </view>
         </view>
-        <scroll-view scroll-y class="dash-pop-body">
-          <view v-for="log in credit?.logs ?? []" :key="log.id" class="dash-pop-log">
-            <view class="dash-pop-log-head">
-              <text class="dash-pop-log-week">{{ log.factors?.weekKey || fmtDate(log.createdAt) }} 周评估</text>
-              <text class="dash-pop-log-delta" :class="deltaClass(log)">
-                {{ log.oldScore }} → {{ log.newScore }}
-              </text>
+        <scroll-view scroll-y class="pop-body">
+          <view v-for="log in credit?.logs ?? []" :key="log.id" class="pop-log">
+            <view class="pop-log-head">
+              <text class="pop-log-week">{{ log.factors?.weekKey || fmtDate(log.createdAt) }} 周评估</text>
+              <text class="pop-log-delta" :class="deltaClass(log)">{{ log.oldScore }} → {{ log.newScore }}</text>
             </view>
-            <view v-if="log.factors?.factors" class="dash-pop-factors">
-              <view v-for="(fd, key) in log.factors.factors" :key="key" class="dash-pop-factor">
-                <text class="dash-pop-factor-name">{{ creditFactorNames[key] || key }}</text>
-                <text class="dash-pop-factor-score">{{ fd.score }}/{{ fd.weight }}{{ fd.neutral ? '（中性）' : '' }}</text>
+            <view v-if="log.factors?.factors" class="pop-factors">
+              <view v-for="(fd, key) in log.factors.factors" :key="key" class="pop-factor">
+                <text class="pop-factor-name">{{ creditFactorNames[key] || key }}</text>
+                <text class="pop-factor-score">{{ fd.score }}/{{ fd.weight }}{{ fd.neutral ? '（中性）' : '' }}</text>
               </view>
             </view>
           </view>
@@ -246,88 +279,195 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import {
   merchantBackendApi,
   type MerchantDashboard,
   type MerchantProfile,
-  type MerchantNotice,
   type MerchantStatus,
   type MerchantMetricsResp,
   type MerchantCreditResp,
   type MerchantCreditLogItem,
   creditGradeConfig,
   creditFactorNames,
-} from '@/lib/merchant-data'
+} from '@/pkg-merchant/lib/merchant-data'
 
-const statusBarHeight = ref(0)
+const statusBarH = ref(0)
 const loading = ref(true)
 const error = ref('')
 const dashboard = ref<MerchantDashboard | null>(null)
 const profile = ref<MerchantProfile | null>(null)
-const notices = ref<MerchantNotice[]>([])
+const hasNotice = ref(false)
 
-// 履约健康卡（独立三态，失败不阻塞工作台主数据）
+const tab = ref<'today' | 'month'>('today')
+
+// 待办计数（待发货来自订单 PAID·待售后来自 AfterSale.PENDING·待回评来自 dashboard）
+const pendingShip = ref(0)
+const pendingAfterSale = ref(0)
+const pendingReviews = computed(() => dashboard.value?.pendingReviews ?? 0)
+
+// 履约趋势卡（近7日·独立三态不阻塞主数据）
 const metricsLoading = ref(true)
 const metricsError = ref('')
 const metrics = ref<MerchantMetricsResp | null>(null)
 
-// 信用评级卡（履-P2·独立三态，失败不阻塞工作台主数据）
+// 信用评级卡（独立三态·周更变动 log）
 const creditLoading = ref(true)
 const creditError = ref('')
 const credit = ref<MerchantCreditResp | null>(null)
 const creditPopupOpen = ref(false)
+
+useOverlayScrollLock(() => creditPopupOpen.value, {
+  onEscape: () => { creditPopupOpen.value = false },
+  focusContainerSelector: '.credit-pop',
+  initialFocusSelector: '.pop-close',
+})
 const gradeUi = computed(() => creditGradeConfig[credit.value?.creditGrade ?? 'B'] ?? creditGradeConfig.B)
 
-const actions = [
-  { label: '商品管理', icon: 'package', color: '#c41e3a', bg: '#fee2e2', path: '/merchant/products' },
-  { label: '订单管理', icon: 'shopping-cart', color: '#2563eb', bg: '#dbeafe', path: '/merchant/orders' },
-  { label: '评价管理', icon: 'star', color: '#d97706', bg: '#fef3c7', path: '/merchant/reviews' },
-  { label: '营收结算', icon: 'credit-card', color: '#16a34a', bg: '#dcfce7', path: '/merchant/revenue' },
-  { label: '经营分析', icon: 'trending-up', color: '#9333ea', bg: '#f3e8ff', path: '/merchant/analytics' },
-  { label: '发布商品', icon: 'plus', color: '#0891b2', bg: '#cffafe', path: '/merchant/product-edit' },
+// 快捷入口：B2 商品 / B4 订单 / B5 结算 / B6 评价 / B7 店铺 / B8 操作员 / B9 消息
+const quickItems = [
+  { label: '新建商品', icon: 'plus', path: '/pkg-merchant/product-edit/index' },
+  { label: '商品管理', icon: 'package', path: '/pkg-merchant/products/index' },
+  { label: '库存采购', icon: 'archive', path: '/pkg-merchant/inventory/index' },
+  { label: '订单管理', icon: 'shopping-cart', path: '/pkg-merchant/orders/index' },
+  { label: '结算收入', icon: 'credit-card', path: '/pkg-merchant/revenue/index' },
+  { label: '评价管理', icon: 'star', path: '/pkg-merchant/reviews/index' },
+  { label: '客户管理', icon: 'user-check', path: '/pkg-merchant/customers/index' },
+  { label: '店铺资料', icon: 'store', path: '/pkg-merchant/profile/index' },
+  { label: '操作员', icon: 'users', path: '/pkg-merchant/operators/index' },
+  { label: '消息中心', icon: 'message-square', path: '/pkg-merchant/notices/index' },
 ]
 
-const statusTextMap: Record<MerchantStatus, { text: string; dot: string }> = {
-  ACTIVE: { text: '营业中', dot: '#4ade80' },
-  SUSPENDED: { text: '已暂停', dot: '#f97316' },
-  CLOSED: { text: '已关闭', dot: '#9ca3af' },
-  PENDING_REVIEW: { text: '审核中', dot: '#fbbf24' },
-  REVIEW_FAILED: { text: '审核未通过', dot: '#ef4444' },
-  DEPOSIT_PENDING: { text: '待缴保证金', dot: '#fbbf24' },
-  AGREEMENT_PENDING: { text: '待签协议', dot: '#fbbf24' },
+const statusTextMap: Record<MerchantStatus, string> = {
+  ACTIVE: '官方认证 · 营业中',
+  SUSPENDED: '已暂停营业',
+  CLOSED: '已关闭',
+  PENDING_REVIEW: '审核中',
+  REVIEW_FAILED: '审核未通过',
+  DEPOSIT_PENDING: '保证金待处理',
+  AGREEMENT_PENDING: '待签协议',
 }
-const statusInfo = computed(() => statusTextMap[profile.value?.status ?? 'ACTIVE'] ?? statusTextMap.ACTIVE)
+const statusInfo = computed(() => ({ text: statusTextMap[profile.value?.status ?? 'ACTIVE'] ?? '官方认证' }))
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<unknown>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+function onMetricTabKeydown(event: KeyboardEvent, target: 'today' | 'month') {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    tab.value = target
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  tab.value = tab.value === 'today' ? 'month' : 'today'
+}
+
+function openCreditDetails() {
+  if (credit.value?.logs.length) creditPopupOpen.value = true
+}
+
+// 近7日订单趋势：由 metrics.items 归一化为柱图（真实数据·无金额字段故取 ordersCount）
+const trend = computed(() => {
+  const items = metrics.value?.items ?? []
+  if (!items.length) return { bars: [] as { date: string; label: string; value: number; pct: number }[], yMax: 0, total: 0 }
+  const vals = items.map((it) => Number(it.ordersCount || 0))
+  const max = Math.max(...vals, 1)
+  // Y 轴刻度取 max 向上取整到 2 的整倍（保证顶格美观）
+  const yMax = Math.max(2, Math.ceil(max / 2) * 2)
+  const bars = items.map((it, i) => {
+    const v = Number(it.ordersCount || 0)
+    const isLast = i === items.length - 1
+    return {
+      date: it.date,
+      label: isLast ? '今日' : weekLabel(it.date),
+      value: v,
+      pct: Math.round((v / yMax) * 100),
+    }
+  })
+  return { bars, yMax, total: vals.reduce((a, b) => a + b, 0) }
+})
+
+function weekLabel(dateStr: string): string {
+  const names = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const d = new Date((dateStr || '').replace(/-/g, '/'))
+  const idx = d.getDay()
+  return isNaN(idx) ? (dateStr || '').slice(5) : names[idx]
+}
 
 function money(v: string | number): string {
   return Number(v ?? 0).toFixed(2)
 }
-
-/** 率 → 百分比展示；null（数据取不到）诚实显示 — */
-function pct(v: string | number | null): string {
-  if (v === null || v === undefined) return '—'
-  return `${(Number(v) * 100).toFixed(1)}%`
+function badgeNum(n: number): string {
+  return n > 99 ? '99+' : String(n)
 }
-
-/** 指标着色：higherBetter=true 时低于阈值标红（如按时发货率）；false 时高于阈值标红（如退款率） */
-function rateClass(v: string | number | null, threshold: number, higherBetter: boolean): string {
-  if (v === null || v === undefined) return ''
-  const n = Number(v)
-  const bad = higherBetter ? n < threshold : n > threshold
-  return bad ? 'dash-metric-bad' : 'dash-metric-good'
-}
-
 function fmtDate(iso: string): string {
   return (iso || '').slice(0, 10)
 }
-
-/** 分数变动着色：升绿降红，持平默认 */
 function deltaClass(log: MerchantCreditLogItem): string {
-  if (log.newScore > log.oldScore) return 'dash-pop-up'
-  if (log.newScore < log.oldScore) return 'dash-pop-down'
+  if (log.newScore > log.oldScore) return 'pop-up'
+  if (log.newScore < log.oldScore) return 'pop-down'
   return ''
+}
+
+function shanghaiDate(offsetDays = 0): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(Date.now() + offsetDays * 86400000))
+}
+
+function nextDate(date: string): string {
+  const start = new Date(`${date}T00:00:00+08:00`)
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(start.getTime() + 86400000))
+}
+
+function orderRangePath(startDate: string, endDate: string, scope: 'today' | 'day' | '7d'): string {
+  const q = new URLSearchParams({
+    startDate: `${startDate}T00:00:00+08:00`,
+    endDate: `${endDate}T00:00:00+08:00`,
+    scope,
+  })
+  return `/pkg-merchant/orders/index?${q.toString()}`
+}
+
+function openRevenue() {
+  go('/pkg-merchant/revenue/index')
+}
+function openAllOrders() {
+  go('/pkg-merchant/orders/index')
+}
+function openTodayOrders() {
+  const today = shanghaiDate()
+  go(orderRangePath(today, nextDate(today), 'today'))
+}
+function openRecentOrders() {
+  const start = trend.value.bars[0]?.date || shanghaiDate(-6)
+  const end = nextDate(trend.value.bars[trend.value.bars.length - 1]?.date || shanghaiDate())
+  go(orderRangePath(start, end, '7d'))
+}
+function openOrdersForDay(date: string) {
+  go(orderRangePath(date, nextDate(date), 'day'))
+}
+function openOnSaleProducts() {
+  go('/pkg-merchant/products/index?status=ON_SALE')
+}
+function openReviews() {
+  go('/pkg-merchant/reviews/index')
 }
 
 async function loadCredit() {
@@ -354,6 +494,18 @@ async function loadMetrics() {
   }
 }
 
+// 待办侧栏计数（失败静默·不阻塞主数据）
+async function loadTodo() {
+  try {
+    const paid = await merchantBackendApi.getOrders({ status: 'PAID', page: 1, pageSize: 1 })
+    pendingShip.value = paid.total
+  } catch { pendingShip.value = 0 }
+  try {
+    const afterSale = await merchantBackendApi.getAfterSales({ status: 'PENDING', page: 1, pageSize: 1 })
+    pendingAfterSale.value = afterSale.total
+  } catch { pendingAfterSale.value = 0 }
+}
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -364,12 +516,11 @@ async function load() {
     ])
     dashboard.value = d
     profile.value = p
-    // 公告为可选展示，失败不阻塞主数据
+    // 公告小红点（可选·失败静默）
     try {
-      notices.value = await merchantBackendApi.getNotices()
-    } catch {
-      notices.value = []
-    }
+      const notices = await merchantBackendApi.getNotices()
+      hasNotice.value = notices.some((n) => !n.read)
+    } catch { hasNotice.value = false }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -381,113 +532,566 @@ function go(path: string) {
   navigateTo(path)
 }
 
-onMounted(() => {
-  uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
+onLoad(() => {
+  try {
+    statusBarH.value = uni.getSystemInfoSync().statusBarHeight || 0
+  } catch {
+    statusBarH.value = 0
+  }
   load()
   loadMetrics()
   loadCredit()
+  loadTodo()
 })
 </script>
 
-<style scoped>
-.dash { min-height: 100vh; background: #f5f5f7; }
-.dash-hero { background: linear-gradient(135deg, var(--brand), #a01830); padding-left: 16px; padding-right: 16px; padding-bottom: 64px; }
-.dash-hero-top { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; margin-bottom: 16px; }
-.dash-hero-title { font-size: 18px; font-weight: 600; color: #fff; }
-.dash-hero-actions { display: flex; align-items: center; gap: 8px; }
-.dash-hero-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
-.dash-shop { display: flex; align-items: center; gap: 12px; }
-.dash-shop-avatar { width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.dash-shop-logo { width: 56px; height: 56px; border-radius: 50%; }
-.dash-shop-name { font-size: 18px; font-weight: 600; color: #fff; }
-.dash-shop-status { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
-.dash-shop-dot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
-.dash-shop-status-txt { font-size: 13px; color: rgba(255,255,255,0.85); }
+<style lang="scss" scoped>
+$paper: #faf8f5;
+$card: #ffffff;
+$red: #c41e3a;
+$gold: #c9a96e;
+$ink: #2c2c2c;
+$ink2: #6e6e73;
+$ink3: #9a9a9a;
+$line: #ece7e0;
+$wash: #f5f1eb;
 
-.dash-section { padding: 0 16px; margin-top: 16px; }
-.dash-overview { margin-top: -48px; }
-.dash-pb { padding-bottom: 24px; }
-.dash-card { background: #fff; border-radius: 12px; padding: 16px; }
-.dash-shadow { box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-.dash-card-head { display: flex; align-items: center; justify-content: space-between; }
-.dash-card-title { font-size: 14px; font-weight: 600; color: #1a1a1a; }
-.dash-mb { margin-bottom: 12px; display: block; }
-.dash-more-txt { font-size: 12px; color: var(--brand); }
+.page {
+  min-height: 100vh;
+  background: $paper;
+  display: flex;
+  flex-direction: column;
+}
 
-.dash-main-grid { display: flex; gap: 16px; }
-.dash-main-cell { flex: 1; background: #f5f5f7; border-radius: 12px; padding: 14px; }
-.dash-main-label { font-size: 12px; color: #6b7280; display: block; margin-bottom: 6px; }
-.dash-main-value { font-size: 24px; font-weight: 700; color: #1a1a1a; }
+/* 店铺头（朱红品牌头） */
+.head {
+  background: linear-gradient(140deg, #c41e3a, #9e1830);
+  padding: 0 40rpx 40rpx;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.head-wm {
+  position: absolute;
+  right: -12rpx;
+  bottom: -60rpx;
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 220rpx;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.08);
+  line-height: 1;
+}
+.head-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 28rpx;
+  position: relative;
+  z-index: 1;
+}
+.shop {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+}
+.shop-logo {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1rpx solid rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.shop-logo-img {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 22rpx;
+}
+.shop-logo-txt {
+  font-size: 20rpx;
+  color: rgba(255, 255, 255, 0.7);
+}
+.shop-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.shop-nm {
+  font-family: 'Songti SC', serif;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #fff;
+}
+.shop-st {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.8);
+}
+.bell {
+  position: relative;
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bell-rd {
+  position: absolute;
+  top: 6rpx;
+  right: 6rpx;
+  width: 16rpx;
+  height: 16rpx;
+  background: $gold;
+  border-radius: 50%;
+  border: 3rpx solid #b01b34;
+}
 
-.dash-stat-grid { display: flex; flex-wrap: wrap; }
-.dash-stat-cell { width: 50%; display: flex; flex-direction: column; align-items: center; padding: 12px 0; }
-.dash-stat-value { font-size: 20px; font-weight: 700; color: #1a1a1a; }
-.dash-stat-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+/* 全局三态 */
+.state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  padding-top: 200rpx;
+}
+.state-t {
+  font-size: 27rpx;
+  color: $ink3;
+  text-align: center;
+  padding: 0 60rpx;
+}
+.state-btn {
+  padding: 14rpx 44rpx;
+  border: 1rpx solid $red;
+  border-radius: 999rpx;
+}
+.state-btn text {
+  font-size: 27rpx;
+  color: $red;
+}
 
-.dash-pending-row { display: flex; align-items: center; justify-content: space-between; }
-.dash-pending-left { display: flex; align-items: center; gap: 12px; }
-.dash-pending-icon { width: 40px; height: 40px; border-radius: 50%; background: #fef3c7; display: flex; align-items: center; justify-content: center; }
-.dash-pending-label { font-size: 14px; color: #1a1a1a; }
-.dash-pending-right { display: flex; align-items: center; gap: 6px; }
-.dash-pending-num { font-size: 16px; font-weight: 600; color: #9ca3af; }
-.dash-pending-num.active { color: var(--brand); }
+.scroll {
+  flex: 1;
+  height: 0; /* flex 子项内滚动 */
+}
 
-.dash-action-grid { display: flex; flex-wrap: wrap; }
-.dash-action-cell { width: 33.33%; display: flex; flex-direction: column; align-items: center; padding: 12px 0; }
-.dash-action-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.dash-action-label { font-size: 12px; color: #1a1a1a; margin-top: 8px; }
+/* 信用分金色卡（叠品牌头下缘） */
+.credit {
+  margin: -20rpx 40rpx 0;
+  position: relative;
+  z-index: 2;
+  border: 1rpx solid $gold;
+  border-radius: 32rpx;
+  background: linear-gradient(135deg, #fdf9f0, #f5ead3);
+  padding: 28rpx 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 12rpx 36rpx rgba(150, 120, 60, 0.15);
+}
+.credit-l {
+  font-size: 22rpx;
+  color: #96814f;
+  display: block;
+}
+.credit-v {
+  font-family: 'Songti SC', serif;
+  font-size: 56rpx;
+  font-weight: 700;
+  color: #8a6d2f;
+  line-height: 1.15;
+}
+.credit-g {
+  border: 1rpx solid $gold;
+  border-radius: 999rpx;
+  padding: 8rpx 22rpx;
+  background: rgba(255, 255, 255, 0.5);
+}
+.credit-g-txt {
+  font-size: 22rpx;
+  color: #8a6d2f;
+}
 
-.dash-notice-list { display: flex; flex-direction: column; gap: 12px; }
-.dash-notice { display: flex; align-items: flex-start; gap: 12px; }
-.dash-notice-type { font-size: 10px; color: #6b7280; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; margin-top: 2px; }
-.dash-notice-body { flex: 1; min-width: 0; }
-.dash-notice-title { font-size: 14px; color: #1a1a1a; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dash-notice-time { font-size: 12px; color: #9ca3af; margin-top: 2px; }
-.dash-notice-empty { padding: 24px 0; display: flex; justify-content: center; }
-.dash-notice-empty-txt { font-size: 13px; color: #9ca3af; }
+/* 章节标题（朱红竖条） */
+.sect-t {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 40rpx 40rpx 24rpx;
+}
+.sect-t::before {
+  content: '';
+  width: 8rpx;
+  height: 32rpx;
+  background: $red;
+  border-radius: 4rpx;
+}
+.sect-t-txt {
+  font-family: 'Songti SC', serif;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: $ink;
+}
 
-.dash-metric-sub { font-size: 12px; color: #9ca3af; }
-.dash-metric-grid { display: flex; }
-.dash-metric-cell { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px 0; }
-.dash-metric-value { font-size: 20px; font-weight: 700; color: #1a1a1a; }
-.dash-metric-value.dash-metric-good { color: #16a34a; }
-.dash-metric-value.dash-metric-bad { color: #dc2626; }
-.dash-metric-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
-.dash-metric-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 0; }
-.dash-metric-state-txt { font-size: 13px; color: #9ca3af; text-align: center; }
-.dash-metric-retry { padding: 4px 16px; border: 1px solid #d1d5db; border-radius: 6px; }
-.dash-metric-retry text { font-size: 12px; color: #1a1a1a; }
+.card {
+  margin: 0 40rpx;
+  background: $card;
+  border: 1rpx solid $line;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 20rpx rgba(80, 60, 40, 0.04);
+}
 
-.dash-credit-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.dash-credit-score-wrap { display: flex; align-items: baseline; gap: 4px; }
-.dash-credit-score { font-size: 32px; font-weight: 700; color: #1a1a1a; }
-.dash-credit-score-unit { font-size: 12px; color: #6b7280; }
-.dash-credit-grade { padding: 4px 12px; border-radius: 999px; }
-.dash-credit-grade-txt { font-size: 14px; font-weight: 600; color: inherit; }
-.dash-credit-benefits { display: flex; flex-wrap: wrap; gap: 8px; }
-.dash-credit-benefit { font-size: 11px; color: #6b7280; background: #f3f4f6; padding: 3px 8px; border-radius: 4px; }
-.dash-credit-benefit-hl { color: #b45309; background: #fef3c7; font-weight: 600; }
-.dash-credit-obs { display: block; font-size: 11px; color: #9ca3af; margin-top: 10px; }
+/* 数据概览 */
+.m-head {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 28rpx;
+}
+.m-tab {
+  border: 1rpx solid $line;
+  border-radius: 999rpx;
+  padding: 8rpx 28rpx;
+  background: $card;
+}
+.m-tab-txt {
+  font-size: 24rpx;
+  color: $ink2;
+}
+.m-tab.on {
+  background: $red;
+  border-color: $red;
+}
+.m-tab.on .m-tab-txt {
+  color: #fff;
+  font-weight: 700;
+}
+.m-row {
+  display: flex;
+  justify-content: space-between;
+}
+.m-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.m-cell-link {
+  min-width: 0;
+  padding: 8rpx 2rpx;
+  border-radius: 16rpx;
+}
+.tap-soft {
+  opacity: 0.72;
+  background: rgba(196, 30, 58, 0.05);
+}
+.mv {
+  font-family: 'Songti SC', serif;
+  font-size: 44rpx;
+  font-weight: 700;
+  color: $ink;
+  line-height: 1.1;
+}
+.mv.red {
+  color: $red;
+}
+.ml {
+  font-size: 20rpx;
+  color: $ink3;
+  margin-top: 8rpx;
+}
+.m-arrow {
+  color: $red;
+  font-weight: 700;
+}
 
-.dash-pop-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999; display: flex; align-items: flex-end; }
-.dash-pop { width: 100%; background: #fff; border-radius: 16px 16px 0 0; padding: 16px; max-height: 70vh; display: flex; flex-direction: column; }
-.dash-pop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.dash-pop-title { font-size: 16px; font-weight: 600; color: #1a1a1a; }
-.dash-pop-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
-.dash-pop-body { flex: 1; overflow: hidden; max-height: 56vh; }
-.dash-pop-log { border: 1px solid #f3f4f6; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-.dash-pop-log-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-.dash-pop-log-week { font-size: 13px; font-weight: 600; color: #1a1a1a; }
-.dash-pop-log-delta { font-size: 13px; font-weight: 600; color: #6b7280; }
-.dash-pop-log-delta.dash-pop-up { color: #16a34a; }
-.dash-pop-log-delta.dash-pop-down { color: #dc2626; }
-.dash-pop-factors { display: flex; flex-direction: column; gap: 4px; }
-.dash-pop-factor { display: flex; align-items: center; justify-content: space-between; }
-.dash-pop-factor-name { font-size: 12px; color: #6b7280; }
-.dash-pop-factor-score { font-size: 12px; color: #1a1a1a; }
+/* 近7日趋势 */
+.trend {
+  margin-top: 32rpx;
+  border-top: 1rpx dashed $line;
+  padding-top: 28rpx;
+}
+.tl {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+.tl-l {
+  font-size: 22rpx;
+  color: $ink3;
+}
+.tl-r {
+  font-size: 22rpx;
+  color: $ink3;
+}
+.tl-b {
+  color: $ink2;
+  font-weight: 600;
+}
+.trend-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  padding: 32rpx 0;
+}
+.trend-state-t {
+  font-size: 24rpx;
+  color: $ink3;
+  text-align: center;
+}
+.trend-retry {
+  padding: 8rpx 32rpx;
+  border: 1rpx solid $line;
+  border-radius: 12rpx;
+}
+.trend-retry text {
+  font-size: 22rpx;
+  color: $ink;
+}
 
-.dash-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 64px 24px; }
-.dash-state-txt { font-size: 14px; color: #9ca3af; text-align: center; }
-.dash-retry { margin-top: 4px; padding: 8px 24px; border: 1px solid #d1d5db; border-radius: 8px; }
-.dash-retry text { font-size: 14px; color: #1a1a1a; }
+.chart {
+  display: flex;
+  gap: 16rpx;
+}
+.yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 176rpx;
+  padding-bottom: 32rpx;
+}
+.yaxis-t {
+  font-size: 18rpx;
+  color: $ink3;
+  text-align: right;
+}
+.plot {
+  flex: 1;
+}
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 14rpx;
+  height: 176rpx;
+  border-left: 1rpx solid $line;
+  border-bottom: 1rpx solid $line;
+  padding: 0 4rpx;
+}
+.bcol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  border-radius: 8rpx 8rpx 0 0;
+}
+.bval {
+  font-size: 16rpx;
+  color: $ink3;
+  margin-bottom: 4rpx;
+}
+.bcol.hot .bval {
+  color: $red;
+  font-weight: 700;
+}
+.bar {
+  width: 100%;
+  background: #e8dfd0;
+  border-radius: 6rpx 6rpx 0 0;
+  min-height: 4rpx;
+}
+.bcol.hot .bar {
+  background: $red;
+}
+.xaxis {
+  display: flex;
+  gap: 14rpx;
+  margin-top: 10rpx;
+  padding: 0 4rpx;
+}
+.xaxis-t {
+  flex: 1;
+  text-align: center;
+  font-size: 18rpx;
+  color: $ink3;
+}
+
+/* 待办三卡 */
+.todo {
+  margin: 0 40rpx;
+  display: flex;
+  gap: 22rpx;
+}
+.tcard {
+  flex: 1;
+  background: $card;
+  border: 1rpx solid $line;
+  border-radius: 28rpx;
+  padding: 28rpx 16rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  box-shadow: 0 4rpx 16rpx rgba(80, 60, 40, 0.04);
+}
+.badge {
+  position: absolute;
+  top: 16rpx;
+  right: 20rpx;
+  background: $red;
+  border-radius: 999rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  padding: 0 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.badge-t {
+  font-size: 18rpx;
+  color: #fff;
+  line-height: 1;
+}
+.tn {
+  font-family: 'Songti SC', serif;
+  font-size: 48rpx;
+  font-weight: 700;
+  color: $ink;
+  line-height: 1.1;
+}
+.tt {
+  font-size: 20rpx;
+  color: $ink2;
+  margin-top: 8rpx;
+}
+
+/* 快捷入口 */
+.quick {
+  margin: 0 40rpx;
+  display: flex;
+  flex-wrap: wrap;
+}
+.qi {
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 32rpx;
+}
+.qc {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 28rpx;
+  background: $wash;
+  border: 1rpx solid $line;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+}
+.qi-t {
+  font-size: 22rpx;
+  color: $ink2;
+}
+
+.foot-gap {
+  height: 40rpx;
+}
+
+/* 信用变动明细弹层 */
+.pop-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 999;
+  display: flex;
+  align-items: flex-end;
+}
+.pop {
+  width: 100%;
+  background: #fff;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 32rpx;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+.pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+.pop-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: $ink;
+}
+.pop-close {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pop-body {
+  flex: 1;
+  max-height: 56vh;
+}
+.pop-log {
+  border: 1rpx solid $line;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+.pop-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+.pop-log-week {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: $ink;
+}
+.pop-log-delta {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: $ink2;
+}
+.pop-log-delta.pop-up {
+  color: #16a34a;
+}
+.pop-log-delta.pop-down {
+  color: $red;
+}
+.pop-factors {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.pop-factor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pop-factor-name {
+  font-size: 24rpx;
+  color: $ink2;
+}
+.pop-factor-score {
+  font-size: 24rpx;
+  color: $ink;
+}
 </style>

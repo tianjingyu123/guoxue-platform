@@ -40,7 +40,7 @@
         <text class="cd-stat">·</text>
         <text class="cd-stat">{{ collection.bookCount }}本</text>
         <text class="cd-stat">·</text>
-        <text class="cd-stat">{{ (collection.viewCount / 10000).toFixed(1) }}万人看过</text>
+        <text class="cd-stat">{{ fmtViews(collection.viewCount) }}</text>
       </view>
       <view class="cd-tags">
         <view v-for="(tag, i) in collection.tags" :key="i" class="cd-tag">
@@ -58,7 +58,7 @@
           class="cd-stack-cover"
           :style="{ zIndex: 5 - i }"
         >
-          <text class="cd-stack-text">{{ book.title.slice(0, 2) }}</text>
+          <flat-cover :title="book.title" :cover-color="coverColorForBook(book.title)" title-size="20rpx" />
         </view>
         <view v-if="collection.books.length > 5" class="cd-stack-more">
           <text class="cd-stack-more-text">+{{ collection.books.length - 5 }}</text>
@@ -85,8 +85,7 @@
             <text class="cd-book-num-text" :class="{ 'cd-book-num-text--top': i < 3 }">{{ i + 1 }}</text>
           </view>
           <view class="cd-book-cover">
-            <view class="cd-book-spine" />
-            <text class="cd-book-cover-text">{{ book.title.slice(0, 2) }}</text>
+            <flat-cover :title="book.title" :cover-color="coverColorForBook(book.title)" title-size="20rpx" />
             <view v-if="book.hasAI" class="cd-book-ai">
               <app-icon name="sparkles" :size="16" color="#ffffff" />
             </view>
@@ -107,7 +106,7 @@
     </view>
 
     <!-- 相关推荐 -->
-    <view class="cd-section cd-section--related">
+    <view v-if="relatedCollections.length" class="cd-section cd-section--related">
       <text class="cd-section-title">相关书单</text>
       <scroll-view scroll-x class="cd-related" :show-scrollbar="false">
         <view class="cd-related-row">
@@ -137,6 +136,8 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import FlatCover from '@/components/classics/flat-cover.vue'
+import { coverColorForBook } from '@/lib/classics-cover'
 import { classicsApi, type CollectionDetail } from '@/lib/classics-data'
 
 const collectionId = ref('1')
@@ -159,6 +160,10 @@ async function fetchData(id: string) {
   } finally {
     loading.value = false
   }
+}
+
+function fmtViews(value: number) {
+  return value >= 10000 ? `${(value / 10000).toFixed(1)}万人看过` : `${value}人看过`
 }
 
 onLoad((options) => {
@@ -292,14 +297,10 @@ function startReading() {
   display: flex;
   margin-bottom: 32rpx;
 }
+/* 堆叠书封：flat-cover 仿真书（只给宽度，高度由组件内部 3:4 撑出） */
 .cd-stack-cover {
   width: 80rpx;
-  height: 112rpx;
-  border-radius: 6rpx;
-  background: #f5f0e1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 12rpx;
   border: 4rpx solid var(--card);
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.12);
   margin-left: -16rpx;
@@ -307,16 +308,9 @@ function startReading() {
 .cd-stack-cover:first-child {
   margin-left: 0;
 }
-.cd-stack-text {
-  writing-mode: vertical-rl;
-  font-size: 22rpx;
-  font-weight: 700;
-  color: #4a3f2f;
-  font-family: 'Noto Serif SC', serif;
-}
 .cd-stack-more {
   width: 80rpx;
-  height: 112rpx;
+  /* 高度随 flex 行 stretch 与书封等高（X5 兼容） */
   border-radius: 6rpx;
   background: var(--secondary);
   display: flex;
@@ -425,34 +419,11 @@ function startReading() {
 .cd-book-num-text--top {
   color: #ffffff;
 }
+/* 书目行书封：flat-cover 仿真书（只给宽度，高度由组件内部 3:4 撑出） */
 .cd-book-cover {
   width: 80rpx;
-  height: 112rpx;
-  border-radius: 6rpx;
-  background: #f5f0e1;
-  border: 1rpx solid rgba(201, 184, 150, 0.5);
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   position: relative;
   flex-shrink: 0;
-}
-.cd-book-spine {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 8rpx;
-  background: #d4c4a8;
-  border-radius: 6rpx 0 0 6rpx;
-}
-.cd-book-cover-text {
-  writing-mode: vertical-rl;
-  font-size: 24rpx;
-  font-weight: 700;
-  color: #4a3f2f;
-  font-family: 'Noto Serif SC', serif;
 }
 .cd-book-ai {
   position: absolute;

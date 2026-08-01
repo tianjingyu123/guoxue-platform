@@ -1,11 +1,13 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { HuifuController } from "./huifu.controller";
 import { HuifuService } from "./huifu.service";
+import { HTTP_CODE_METADATA } from "@nestjs/common/constants";
 
 const mockSvc = {
   createPayment: jest.fn(),
   queryPayment: jest.fn(),
   createSplit: jest.fn(),
+  requestSplit: jest.fn(),
   querySplit: jest.fn(),
   requestRefund: jest.fn(),
   verifyNotify: jest.fn(),
@@ -53,26 +55,31 @@ describe("HuifuController", () => {
   });
 
   describe("回调", () => {
+    it("???????? HTTP 200???????? 201 ????", () => {
+      const code = Reflect.getMetadata(HTTP_CODE_METADATA, HuifuController.prototype.handleNotify);
+      expect(code).toBe(200);
+    });
+
     it("验签通过应返回成功（斗拱 sign 在通知体内）", async () => {
       mockSvc.verifyNotify.mockResolvedValue(true);
+      mockSvc.handleNotify.mockResolvedValue("HF001");
       const body = { resp_data: '{"trans_stat":"S","req_seq_id":"HF001"}', sign: "valid-signature" };
       const result = await ctrl.handleNotify(body);
-      expect(result.resp_code).toBe("00000000");
-      expect(result.resp_desc).toBe("成功");
+      expect(result).toBe("RECV_ORD_ID_HF001");
       expect(mockSvc.verifyNotify).toHaveBeenCalledWith(body, "valid-signature");
       expect(mockSvc.handleNotify).toHaveBeenCalledWith(body);
     });
 
     it("验签失败应返回失败", async () => {
       mockSvc.verifyNotify.mockResolvedValue(false);
-      const result = await ctrl.handleNotify({ resp_data: "{}", sign: "invalid-signature" });
-      expect(result.resp_code).toBe("FAIL");
+      await expect(ctrl.handleNotify({ resp_data: "{}", sign: "invalid-signature" }))
+        .rejects.toThrow("汇付回调签名验证失败");
       expect(mockSvc.handleNotify).not.toHaveBeenCalled();
     });
 
     it("缺少签名应直接拒绝", async () => {
-      const result = await ctrl.handleNotify({ resp_data: "{}" });
-      expect(result.resp_code).toBe("FAIL");
+      await expect(ctrl.handleNotify({ resp_data: "{}" }))
+        .rejects.toThrow("汇付回调缺少签名");
       expect(mockSvc.verifyNotify).not.toHaveBeenCalled();
     });
   });
@@ -87,10 +94,16 @@ describe("HuifuController", () => {
   });
 
   describe("分账", () => {
-    it("发起分账", async () => {
-      mockSvc.createSplit.mockResolvedValue({ splitStatus: "PROCESSING" });
-      const result = await ctrl.createSplit({ orderId: "order-1", amount: 100, receivers: [{ acctId: "A1", amount: 10, name: "张三" }] });
-      expect(result.splitStatus).toBe("PROCESSING");
+    // 🔴 四眼收口：/huifu/split 不再直接执行渠道分账，而是提交 FundApproval 审批
+    it("发起分账 → 提交资金审批（不直接执行）", async () => {
+      mockSvc.requestSplit.mockResolvedValue({ submitted: true, approvalId: "fa-split", status: "PENDING" });
+      const result: any = await ctrl.createSplit(
+        { orderId: "order-1", amount: 100, receivers: [{ acctId: "A1", amount: 10, name: "张三" }] },
+        mockRequest("admin1"),
+      );
+      expect(result.submitted).toBe(true);
+      expect(mockSvc.requestSplit).toHaveBeenCalledWith(expect.any(Object), "admin1");
+      expect(mockSvc.createSplit).not.toHaveBeenCalled();
     });
 
     it("查询分账结果", async () => {

@@ -23,6 +23,24 @@ const TAG_PROMPT = `你是一个内容分类专家。请为以下文章内容推
 3. 适合国学分类体系
 4. 输出格式：以逗号分隔的标签列表`;
 
+const TYPESET_PROMPT = `你是专业的文章排版工具。用户会给你一段纯文字，你唯一的任务是给它添加 Markdown 排版格式，让它结构清晰、易读。
+严格规则（必须遵守）：
+1. 【绝对不改文字】逐字保留原文每一个字，禁止增加、删除、修改、润色任何文字内容——你只能添加格式标记。
+2. 允许添加的格式：## 标题层级、段落之间空行、- 或 1. 列表、> 引用、**关键词加粗**。
+3. 原文若含图片标记（如 [图1]）保留在合理位置；没有则不添加。
+4. 只输出排版后的 Markdown，不要任何解释、开场白或总结。
+记住：你是排版工具不是编辑，一个字都不能改，只能加格式。`;
+
+/** 去 Markdown 格式标记与空白，只留纯文字——用于"排版不改内容"的一致性校验 */
+function stripToPlain(s: string): string {
+  return s
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "") // 图片
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1") // 链接保留可见文字
+    .replace(/[#>*`~_\-|]/g, "") // 常见格式标记
+    .replace(/\s+/g, "") // 所有空白
+    .trim();
+}
+
 @Injectable()
 export class PublishAssistService {
   private readonly logger = new Logger(PublishAssistService.name);
@@ -54,6 +72,28 @@ export class PublishAssistService {
       options: { temperature: 0.3, maxTokens: 2048 },
     });
     return { polished: result.content };
+  }
+
+  /**
+   * AI 一键排版——只加 Markdown 格式、绝不改文字。
+   * 🔑硬保障"不改内容"：排版结果去掉格式后的纯文字，与输入逐字比对；不一致=AI 动了内容 → 拒绝该结果、回退原文。
+   */
+  async typesetText(text: string, userId?: string) {
+    const result = await this.safeChat({
+      scene: "publish_assist",
+      userId,
+      messages: [
+        { role: "system", content: TYPESET_PROMPT },
+        { role: "user", content: text },
+      ],
+      options: { temperature: 0.2, maxTokens: 4096 },
+    });
+    const formatted = (result.content || "").trim();
+    if (!formatted || stripToPlain(formatted) !== stripToPlain(text)) {
+      this.logger.warn("AI排版内容一致性校验未通过·回退原文（AI 可能改动了文字）");
+      return { formatted: text, changed: false, warning: "AI 排版时可能改动了文字，已为你保留原文，可再试一次" };
+    }
+    return { formatted, changed: true };
   }
 
   /** AI标题优化 */
@@ -100,6 +140,8 @@ export class PublishAssistService {
           service: "aiart",
           action: "TextToImage",
           version: "2022-12-29",
+          // 腾讯云要求 Region，漏传则恒报 missing required parameter `Region`（同 2026-07-14 短信事故）
+          region: process.env.TENCENT_AIART_REGION || process.env.COS_REGION || "ap-guangzhou",
           payload: {
             Prompt: enhancedPrompt,
             NegativePrompt: "lowres, bad anatomy, extra fingers, blurry, ugly, text, watermark",

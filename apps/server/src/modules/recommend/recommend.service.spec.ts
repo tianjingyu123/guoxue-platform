@@ -9,6 +9,7 @@ import { ScoringService } from "./services/scoring.service";
 import { VectorRecallStrategy } from "./strategies/vector-recall.strategy";
 import { TfidfVectorProvider } from "./strategies/tfidf-vector.provider";
 import { OpenAIEmbeddingProvider } from "./strategies/openai-embedding.provider";
+import { HunyuanEmbeddingProvider } from "./strategies/hunyuan-embedding.provider";
 import { AbTestService } from "./services/ab-test.service";
 import { StationPickService } from "../station-pick/station-pick.service";
 import { RecommendSceneService } from "./services/recommend-scene.service";
@@ -31,6 +32,7 @@ const mockScoring = { score: jest.fn().mockImplementation((items: any[]) => Prom
 const mockVectorRecall = { recommend: jest.fn().mockResolvedValue([]), setProvider: jest.fn() };
 const mockTfidf = { ensureBuilt: jest.fn(), embed: jest.fn(), search: jest.fn(), buildUserVector: jest.fn() };
 const mockEmbedding = { isEnabled: false, embed: jest.fn(), search: jest.fn(), buildUserVector: jest.fn() };
+const mockHunyuan = { isEnabled: false, embed: jest.fn(), search: jest.fn(), buildUserVector: jest.fn() };
 const mockAbTest = { getOverrides: jest.fn().mockResolvedValue([]), getAssignments: jest.fn().mockResolvedValue([]) };
 const mockStationPick = { fetchContentItems: jest.fn().mockResolvedValue([]) };
 
@@ -50,6 +52,7 @@ describe("RecommendService", () => {
         { provide: VectorRecallStrategy, useValue: mockVectorRecall },
         { provide: TfidfVectorProvider, useValue: mockTfidf },
         { provide: OpenAIEmbeddingProvider, useValue: mockEmbedding },
+        { provide: HunyuanEmbeddingProvider, useValue: mockHunyuan },
         { provide: AbTestService, useValue: mockAbTest },
         { provide: StationPickService, useValue: mockStationPick },
         RecommendSceneService,

@@ -107,7 +107,7 @@
               </view>
             </view>
           </view>
-          <text class="rank-price">¥{{ item.price }}</text>
+          <text class="rank-price">¥{{ formatPrice(item.price) }}</text>
         </view>
       </view>
 
@@ -128,7 +128,7 @@
               </view>
             </view>
           </view>
-          <text class="rank-price">¥{{ item.price }}</text>
+          <text class="rank-price">¥{{ formatPrice(item.price) }}</text>
         </view>
       </view>
 
@@ -166,6 +166,7 @@ import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
+import { formatPrice } from '@/utils/format'
 
 const activeCategory = ref('circles')
 const timeRange = ref<'week' | 'month' | 'total'>('week')
@@ -241,7 +242,8 @@ function coverColor(name: string) {
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+  height: 100vh;
   background: #faf8f5;
   display: flex;
   flex-direction: column;
@@ -254,8 +256,9 @@ function coverColor(name: string) {
   background: linear-gradient(90deg, #f59e0b, #f97316);
 }
 .nav-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 -16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -326,6 +329,7 @@ function coverColor(name: string) {
 .rank-scroll {
   flex: 1;
   height: 0;
+  min-height: 0;
 }
 .rank-list {
   padding: 0 24rpx;

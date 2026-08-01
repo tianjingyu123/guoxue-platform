@@ -311,8 +311,7 @@ export class CompetitionPublicController {
   @ApiOperation({ summary: "赛事列表（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
   list(@Query() query: QueryCompetitionDto) {
-    // 公开只展示已发布及之后状态的赛事
-    return this.service.listCompetitions({ ...query, status: query.status || undefined });
+    return this.service.listPublicCompetitions({ ...query, status: query.status || undefined });
   }
 
   // ── 人才库（二期·赛-P4）——静态路径须先于 :id 声明，否则被详情通配吞掉 ──
@@ -339,18 +338,29 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   get(@Param("id") id: string) {
-    return this.service.getCompetition(id);
+    return this.service.getPublicCompetition(id);
   }
 
   @Get(":id/rankings")
   @ApiOperation({ summary: "排名（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  getRankings(
+  async getRankings(
     @Param("id") id: string,
     @Query() query: QueryRankingDto,
   ) {
+    await this.service.assertPublicCompetition(id);
     return this.service.getRankings({ ...query, competitionId: id });
+  }
+
+  @Get(":id/questions/disclosure")
+  @ApiOperation({ summary: "赛后题目公示（公开·仅已结束赛事·含答案解析·A16 高透明）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "赛事未结束，题目不公开" })
+  @ApiResponse({ status: 404, description: "赛事不存在" })
+  async disclosureQuestions(@Param("id") id: string) {
+    await this.service.assertPublicCompetition(id);
+    return this.service.disclosureQuestions(id);
   }
 
   @Post(":id/register")
@@ -360,11 +370,12 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  register(
+  async register(
     @Param("id") id: string,
     @Body() body: RegisterCompetitionDto,
     @Req() req: Request,
   ) {
+    await this.service.assertPublicCompetition(id);
     return this.service.register(id, req.user.id, body.inviterId, body.inviteCode);
   }
 
@@ -375,7 +386,8 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getMyRegistration(@Param("id") id: string, @Req() req: Request) {
+  async getMyRegistration(@Param("id") id: string, @Req() req: Request) {
+    await this.service.assertPublicCompetition(id);
     return this.service.getRegistration(id, req.user.id);
   }
 
@@ -386,7 +398,8 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getMyResults(@Param("id") id: string, @Req() req: Request) {
+  async getMyResults(@Param("id") id: string, @Req() req: Request) {
+    await this.service.assertPublicCompetition(id);
     return this.service.getMyResults(id, req.user.id);
   }
 
@@ -397,7 +410,8 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  submitAnswer(@Param("roundId") roundId: string, @Body() dto: SubmitAnswerDto, @Req() req: Request) {
+  async submitAnswer(@Param("roundId") roundId: string, @Body() dto: SubmitAnswerDto, @Req() req: Request) {
+    await this.service.assertPublicRound(roundId);
     return this.service.submitAnswer(dto, req.user.id);
   }
 
@@ -408,11 +422,12 @@ export class CompetitionPublicController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
-  batchSubmit(
+  async batchSubmit(
     @Param("roundId") roundId: string,
     @Body() dto: BatchSubmitAnswerDto,
     @Req() req: Request,
   ) {
+    await this.service.assertPublicRound(roundId);
     return this.service.batchSubmitAnswers({ ...dto, roundId }, req.user.id);
   }
 
@@ -422,7 +437,8 @@ export class CompetitionPublicController {
   @ApiOperation({ summary: "获取试卷（题目乱序）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getPaper(@Param("roundId") roundId: string, @Query("count") count?: string) {
+  async getPaper(@Param("roundId") roundId: string, @Query("count") count?: string) {
+    await this.service.assertPublicRound(roundId);
     return this.service.generatePaper(roundId, Number(count) || 30);
   }
 
@@ -430,6 +446,7 @@ export class CompetitionPublicController {
   @ApiOperation({ summary: "查看电子证书HTML" })
   @ApiResponse({ status: 200, description: "成功" })
   async viewCertificate(@Param("rankingId") rankingId: string) {
+    await this.service.assertPublicRanking(rankingId);
     return this.service.getCertificateHtml(rankingId);
   }
 }

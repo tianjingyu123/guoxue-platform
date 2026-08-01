@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { RequireAutomation } from "../../common/require-automation.decorator";
+import { Autonomy, AutonomyLevel } from "../../common/autonomy";
 import { OpsService } from "./ops.service";
 import { InspectionService } from "./inspection.service";
 import { ClaimOpsTaskDto, CompleteOpsTaskDto, CreateOpsTaskDto, QueryOpsTaskDto, ReviewOpsTaskDto } from "./ops.dto";
@@ -23,6 +24,7 @@ export class OpsController {
 
   @Post("inspect")
   @Roles("SUPER_ADMIN")
+  @Autonomy(AutonomyLevel.L3_AUTO_ROLLBACK) // 巡检+分级自动处置（白名单内自动修复+落台账）
   @ApiOperation({ summary: "手动触发每日巡检（五项检查+分级处置，返回巡检报告·SUPER_ADMIN）" })
   @ApiResponse({ status: 201, description: "巡检完成，返回巡检报告（同时落一条 completed 巡检日志任务）" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -63,6 +65,7 @@ export class OpsController {
 
   @Put("tasks/:id/complete")
   @RequireAutomation() // 一键接管示范：automation_enabled=false 时本写操作 403
+  @Autonomy(AutonomyLevel.L2_ONE_CLICK) // 人点/AI 执行的一键动作
   @ApiOperation({ summary: "完成任务（in_progress → completed，落 result；受一键接管开关约束）" })
   @ApiResponse({ status: 200, description: "完成成功" })
   @ApiResponse({ status: 400, description: "状态不可完成" })

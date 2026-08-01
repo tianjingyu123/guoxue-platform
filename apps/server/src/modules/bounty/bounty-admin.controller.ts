@@ -35,13 +35,14 @@ export class BountyAdminController {
   }
 
   @Get("reviews")
-  @ApiOperation({ summary: "悬赏审核列表（管理端）" })
+  @ApiOperation({ summary: "悬赏审核列表（管理端·可按状态过滤）" })
   @ApiResponse({ status: 200, description: "成功" })
   listReviews(
     @Query("page") page?: string,
     @Query("pageSize") pageSize?: string,
+    @Query("status") status?: string,
   ) {
-    return this.svc.listReviews(page ? +page : 1, pageSize ? +pageSize : 20);
+    return this.svc.listReviews(page ? +page : 1, pageSize ? +pageSize : 20, status);
   }
 
   @Put("reviews/:id/approve")

@@ -81,7 +81,35 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column
+          label="操作"
+          width="110"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              v-if="row.userId"
+              size="small"
+              link
+              type="primary"
+              :loading="remindingId === row.userId"
+              @click="sendReminder(row)"
+            >
+              发送提醒
+            </el-button>
+            <el-tooltip
+              v-else
+              content="该记录未关联用户ID，无法站内提醒"
+              placement="top"
+            >
+              <span class="muted">—</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
       </el-table>
+      <p class="scope-note">
+        当前覆盖：分站 / 研究院 / VIP 会员到期。圈子会员与运营商到期数据后端暂未提供（已记后端待办清单）。
+      </p>
     </el-card>
 
     <!-- 续费记录 -->
@@ -182,7 +210,7 @@
           align="right"
         >
           <template #default="{ row }">
-            ¥{{ row.amount || 0 }}
+            {{ fmtAmount(row.amount) }}
           </template>
         </el-table-column>
         <el-table-column
@@ -235,7 +263,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { renewalApi } from "@/api";
+import { ElMessage, ElMessageBox } from "element-plus";
+import axios from "axios";
+import { renewalApi, notificationApi } from "@/api";
 
 // 即将到期项 / 续费记录（按列配置与模板访问字段定义的宽松本地类型）
 interface ExpiringRow {
@@ -245,7 +275,16 @@ interface ExpiringRow {
   memberLevel?: string;
   expireAt?: string;
   daysLeft: number;
+  userId?: string;
 }
+
+/** 免全局拦截器请求：broadcast 契约 404 时静默降级到已存在的单发端点 */
+const probe = axios.create({ baseURL: "/api/v1", timeout: 15000, validateStatus: () => true });
+probe.interceptors.request.use((c) => {
+  const t = localStorage.getItem("token");
+  if (t) c.headers.Authorization = `Bearer ${t}`;
+  return c;
+});
 interface HistoryRow {
   user?: { nickname?: string };
   targetType: string;
@@ -271,9 +310,15 @@ const historyTotal = ref(0);
 function typeLabel(t: string) {
   const m: Record<string,string> = {
     STATION: "分站", CIRCLE_MEMBER: "圈子", INSTITUTE_MEMBER: "研究院",
-    VIP_MEMBER: "VIP会员", OPERATOR: "运营商",
+    VIP_MEMBER: "VIP会员", VIP: "VIP会员", OPERATOR: "运营商",
   };
   return m[t] || t;
+}
+
+/** 金额：千分位两位小数（后端 renewal 金额为元） */
+function fmtAmount(a?: number | string) {
+  const n = Number(a || 0);
+  return "¥" + n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 onMounted(() => { fetchExpiring(); fetchHistory(); });
@@ -284,9 +329,10 @@ async function fetchExpiring() {
   try {
     const { data } = await renewalApi.getExpiringUsers();
     const items: ExpiringRow[] = [];
-    (data.expiringStations || []).forEach((s: any) => items.push({ _type: "STATION", name: s.name, expireAt: s.expireAt, daysLeft: calcDays(s.expireAt) }));
-    (data.expiringInstituteMembers || []).forEach((m: any) => items.push({ _type: "INSTITUTE_MEMBER", name: m.institute?.name || m.id, expireAt: m.expireAt, daysLeft: calcDays(m.expireAt) }));
-    (data.expiringVip || []).forEach((u: any) => items.push({ _type: "VIP", nickname: u.nickname, memberLevel: u.memberLevel, expireAt: u.memberExpire, daysLeft: calcDays(u.memberExpire) }));
+    // userId 供「发送提醒」用：分站/研究院记录带 userId 字段，VIP 即用户本身（已亲核 renewal.service.ts select）
+    (data.expiringStations || []).forEach((s: any) => items.push({ _type: "STATION", name: s.name, expireAt: s.expireAt, daysLeft: calcDays(s.expireAt), userId: s.userId }));
+    (data.expiringInstituteMembers || []).forEach((m: any) => items.push({ _type: "INSTITUTE_MEMBER", name: m.institute?.name || m.id, expireAt: m.expireAt, daysLeft: calcDays(m.expireAt), userId: m.userId }));
+    (data.expiringVip || []).forEach((u: any) => items.push({ _type: "VIP", nickname: u.nickname, memberLevel: u.memberLevel, expireAt: u.memberExpire, daysLeft: calcDays(u.memberExpire), userId: u.id }));
     expiringData.value = items.sort((a, b) => (a.daysLeft || 999) - (b.daysLeft || 999));
   } catch {
     expiringData.value = [];
@@ -297,6 +343,43 @@ async function fetchExpiring() {
 function calcDays(date: string | null) {
   if (!date) return 0;
   return Math.ceil((new Date(date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+}
+
+// ───────── 到期提醒（broadcast 单发契约·404 降级到已存在的 POST /notifications 单发） ─────────
+const remindingId = ref("");
+
+async function sendReminder(row: ExpiringRow) {
+  if (!row.userId || remindingId.value) return;
+  const who = row.name || row.nickname || "该用户";
+  const expireText = row.expireAt ? new Date(row.expireAt).toLocaleDateString("zh-CN") : "近期";
+  try {
+    await ElMessageBox.confirm(
+      `向「${who}」发送站内续费提醒？内容：您的${typeLabel(row._type)}权益将于 ${expireText} 到期（剩余 ${row.daysLeft} 天），请及时续费。`,
+      "发送提醒",
+      { confirmButtonText: "发送", cancelButtonText: "取消", type: "info" },
+    );
+  } catch { return; }
+  remindingId.value = row.userId;
+  const payload = {
+    type: "SYSTEM",
+    title: "续费提醒",
+    content: `您的${typeLabel(row._type)}权益将于 ${expireText} 到期（剩余 ${row.daysLeft} 天），请及时续费以免影响使用。`,
+  };
+  try {
+    const res = await probe.post("/notifications/admin/broadcast", { ...payload, userIds: [row.userId] });
+    if (res.status === 404) {
+      // 广播端点待部署 → 走已存在的单发端点
+      await notificationApi.send({ userId: row.userId, ...payload });
+      ElMessage.success(`已向「${who}」发送续费提醒`);
+    } else if (res.status >= 400) {
+      const msg = res.data?.message;
+      ElMessage.error(Array.isArray(msg) ? msg.join("；") : (msg || "提醒发送失败，请重试"));
+    } else {
+      ElMessage.success(`已向「${who}」发送续费提醒`);
+    }
+  } catch {
+    ElMessage.error("提醒发送失败，请重试");
+  } finally { remindingId.value = ""; }
 }
 
 async function fetchHistory() {
@@ -323,4 +406,6 @@ async function fetchHistory() {
 .search-row { display: flex; gap: 8px; align-items: center; }
 .section-card { margin-bottom: 16px; }
 .pagination { margin-top: 12px; display: flex; justify-content: flex-end; }
+.muted { color: var(--color-text-secondary); }
+.scope-note { margin: 12px 0 0; font-size: 13px; color: var(--color-text-secondary); }
 </style>

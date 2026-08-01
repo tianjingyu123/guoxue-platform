@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="search-page">
     <!-- 顶部搜索栏 -->
     <view class="search-header" :style="{ paddingTop: statusBarHeight + 'px' }">
@@ -11,23 +11,38 @@
           <input
             class="search-input"
             v-model="keyword"
-            placeholder="搜索国学课程、文章、命理师"
+            placeholder="搜索课程、文章、古籍、达人"
             placeholder-class="search-input-ph"
             confirm-type="search"
             :focus="autoFocus"
+            @input="onInput"
             @confirm="doSearch(keyword)"
           />
-          <view v-if="keyword" class="clear-btn" @click="keyword = ''">
+          <view v-if="keyword" class="clear-btn" @click="keyword = ''; suggestList = []">
             <app-icon name="x" :size="28" color="var(--text-soft)" />
           </view>
         </view>
         <view class="search-action" @click="doSearch(keyword)">
           <text class="search-action-text">搜索</text>
         </view>
+        <platform-support-actions compact tone="plain" />
       </view>
     </view>
 
     <scroll-view scroll-y class="search-body">
+      <!-- 输入联想（250ms 防抖拉 /search/suggest；点击回填并触发搜索） -->
+      <view v-if="suggestList.length" class="suggest-list">
+        <view
+          v-for="(sug, i) in suggestList"
+          :key="i"
+          class="suggest-item"
+          @click="doSearch(sug)"
+        >
+          <app-icon name="search" :size="28" color="var(--text-soft)" />
+          <text class="suggest-text">{{ sug }}</text>
+        </view>
+      </view>
+
       <!-- AI 智能搜索入口 -->
       <view class="ai-entry" @click="aiModalOpen = true">
         <view class="ai-entry-icon">
@@ -56,12 +71,15 @@
             @click="doSearch(h)"
           >
             <text class="tag-text">{{ h }}</text>
+            <view class="tag-del" @click.stop="removeHistory(i)">
+              <app-icon name="x" :size="22" color="var(--text-soft)" />
+            </view>
           </view>
         </view>
       </view>
 
       <!-- 热门搜索 -->
-      <view class="sec">
+      <view v-if="hotList.length" class="sec">
         <view class="sec-head">
           <view class="sec-title-row">
             <app-icon name="flame" :size="32" color="#e8743b" />
@@ -86,8 +104,8 @@
         </view>
       </view>
 
-      <!-- 猜你想搜 -->
-      <view class="sec">
+      <!-- 猜你想搜（无推荐时整栏隐藏，不露空标题） -->
+      <view v-if="guessList.length" class="sec">
         <view class="sec-head">
           <text class="sec-title">猜你想搜</text>
         </view>
@@ -116,35 +134,63 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AiSearchModal from '@/components/common/ai-search-modal.vue'
+import PlatformSupportActions from '@/components/common/platform-support-actions.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
+import { searchApi, type HotSearchItem } from '@/lib/search-data'
 import { track } from '@/composables/useTrack'
+import { getToken } from '@/utils/storage'
 
 // ===== UI 状态 =====
 const statusBarHeight = ref(0)
 const autoFocus = ref(false)
 const aiModalOpen = ref(false)
 const keyword = ref('')
+// 来源板块默认 Tab（如商城搜索入口带 ?tab=product）：此前 onLoad 直接丢弃，
+// 从商城进搜索页最终落到「综合」Tab。现存下来，所有跳结果页路径统一透传。
+const entryTab = ref('')
 
-// ===== Mock 数据（照抄原型 lib/api/search.ts，交接后由 Claude Code 接入接口）=====
-// @data-needs: GET /api/search/history → string[]
-const historyList = ref<string[]>(['八字命理', '紫微斗数', '风水布局', '梅花易数'])
+/**
+ * 🔴 2026-07-14 真连：这三块原来全是写死的假数据（「八字入门教程 12.8万」等 8 条假热搜、
+ *    4 条假历史、6 条假"猜你想搜"），而后端 /search/hot、/search/history、/search/suggest 一直都在。
+ *    最荒唐的是历史：doSearch 一直在往后端 saveHistory 写，前端却从来不读 —— 写进去的永远看不见，
+ *    用户看到的始终是那 4 个假词。
+ */
+const historyList = ref<string[]>([])
+const hotList = ref<HotSearchItem[]>([])
+const guessList = ref<string[]>([])
 
-// @data-needs: GET /api/search/hot → { keyword, count, hot }[]
-const hotList = ref([
-  { keyword: '八字入门教程', count: '12.8万', hot: true },
-  { keyword: '紫微斗数排盘', count: '9.6万', hot: true },
-  { keyword: '六爻预测', count: '7.2万', hot: true },
-  { keyword: '奇门遁甲', count: '5.4万', hot: false },
-  { keyword: '风水罗盘使用', count: '4.1万', hot: false },
-  { keyword: '手相面相', count: '3.5万', hot: false },
-  { keyword: '塔罗牌占卜', count: '2.9万', hot: false },
-  { keyword: '黄历择吉', count: '2.3万', hot: false },
-])
+// 输入联想（防抖）：/search/suggest 已封装，原本只用来取热搜首词做「猜你想搜」，
+// 这里给输入框接上实时联想下拉
+const suggestList = ref<string[]>([])
+let suggestTimer: ReturnType<typeof setTimeout> | null = null
 
-// @data-needs: GET /api/search/guess → string[]
-const guessList = ref<string[]>([
-  '今日运势', '生肖配对', '姓名测试', '周公解梦', '星座运程', '财运分析',
-])
+function onInput() {
+  if (suggestTimer) clearTimeout(suggestTimer)
+  const q = keyword.value.trim()
+  if (!q) { suggestList.value = []; return }
+  suggestTimer = setTimeout(async () => {
+    // 防抖窗口内关键词可能又变，落地前再校验一次，避免旧词覆盖
+    if (keyword.value.trim() !== q) return
+    const list = await searchApi.getSuggestions(q, 8).catch(() => [])
+    // 弱网慢响应晚到：请求期间输入词已变（或已清空），旧词联想不落地
+    if (keyword.value.trim() !== q) return
+    suggestList.value = list
+  }, 250)
+}
+
+/** 热搜 + 历史并行拉取；任一失败都不阻断页面（搜索框本身要能用） */
+async function loadPanels() {
+  const [hot, history] = await Promise.all([
+    searchApi.getHot(8).catch(() => [] as HotSearchItem[]),
+    getToken() ? searchApi.getHistory().catch(() => [] as string[]) : Promise.resolve([] as string[]),
+  ])
+  hotList.value = hot
+  historyList.value = history
+  // 「猜你想搜」按热搜首词做语义相似推荐；没有热搜就不显示这一栏（不再编 6 个假词）
+  if (hot.length) {
+    guessList.value = await searchApi.getSuggestions(hot[0].keyword, 6).catch(() => [])
+  }
+}
 
 onLoad((opt) => {
   try {
@@ -153,30 +199,68 @@ onLoad((opt) => {
   } catch (e) {
     statusBarHeight.value = 0
   }
+  if (opt && opt.tab) {
+    entryTab.value = opt.tab
+  }
   if (opt && opt.keyword) {
-    keyword.value = decodeURIComponent(opt.keyword)
+    // 安全解码：外部拼的 URL 可能带裸 "%"（如「涨50%」），裸 decode 抛 URIError 会中断 onLoad 白屏，失败时原样使用
+    try {
+      keyword.value = decodeURIComponent(opt.keyword)
+    } catch {
+      keyword.value = opt.keyword
+    }
   } else {
     autoFocus.value = true
   }
+  loadPanels()
 })
 
 function goBack() {
   navigateBack()
 }
 
+/** 全清历史：加二次确认（垃圾桶误触会一把清光，showModal 拦一道），确认后先清 UI 失败回滚 */
 function clearHistory() {
-  historyList.value = []
+  uni.showModal({
+    title: '清空搜索历史',
+    content: '确定清空全部搜索历史吗？',
+    confirmColor: '#C41E3A',
+    success: async (res) => {
+      if (!res.confirm) return
+      const list = historyList.value
+      historyList.value = [] // 先清 UI，失败再回滚（清历史是高频轻操作，不该等一个 loading）
+      try {
+        await searchApi.clearHistory()
+      } catch (e) {
+        historyList.value = list
+        uni.showToast({ title: (e as Error)?.message || '清空失败', icon: 'none' })
+      }
+    },
+  })
+}
+
+/**
+ * 单条删除：后端只有整体清空端点（DELETE /search/history），没有单条删除 → 仅本地移除展示。
+ * 后端行保留恰好继续喂热搜词频；代价是刷新/重进页面后该词会重新出现（如实取舍）。
+ */
+function removeHistory(i: number) {
+  historyList.value = historyList.value.filter((_, idx) => idx !== i)
 }
 
 function doSearch(kw: string) {
   const q = (kw || '').trim()
   if (!q) return
+  suggestList.value = [] // 收起联想下拉（点词或回车搜索后）
   track.search(q) // 搜索词埋点（搜索词分析）
-  // 记录历史（UI 临时，交接后由后端持久化）
+  // 真持久化历史（后端 SearchHistory 表 —— 也是热搜词频的数据源）；本地先插一条让用户立刻看见
   if (!historyList.value.includes(q)) {
     historyList.value = [q, ...historyList.value].slice(0, 10)
   }
-  navigateTo(`/search/result?keyword=${encodeURIComponent(q)}`)
+  // 搜索本身允许游客使用；历史是登录态增强项，游客不发私有请求，避免 401 抢走结果页跳转。
+  if (getToken()) searchApi.saveHistory(q) // fire-and-forget：失败不该挡住跳转
+  // 透传来源板块 Tab（商城入口带 tab=product → 结果页直落「商品」Tab）
+  const tabQ = entryTab.value ? `&tab=${encodeURIComponent(entryTab.value)}` : ''
+  navigateTo(`/search/result?keyword=${encodeURIComponent(q)}${tabQ}`)
 }
 </script>
 
@@ -200,8 +284,9 @@ function doSearch(kw: string) {
   padding: 16rpx 24rpx;
 }
 .back-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 -16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -248,6 +333,30 @@ function doSearch(kw: string) {
 .search-body {
   flex: 1;
   overflow: hidden;
+}
+
+/* 输入联想下拉 */
+.suggest-list {
+  background: var(--surface);
+  border-bottom: 2rpx solid var(--line);
+}
+.suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 32rpx;
+  border-bottom: 2rpx solid var(--line);
+}
+.suggest-item:last-child {
+  border-bottom: none;
+}
+.suggest-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: var(--text-main);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* AI 入口 */
@@ -326,6 +435,22 @@ function doSearch(kw: string) {
   border-radius: 32rpx;
   background: var(--surface);
   border: 2rpx solid var(--line);
+}
+.tag--history {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding-right: 16rpx;
+}
+.tag-del {
+  /* 删除热区撑到 60×60rpx 防误触词身：负 margin 抵消超出部分，标签视觉尺寸不变；
+     icon 居中后与词身的可视间距同步拉开约 10rpx */
+  width: 60rpx;
+  height: 60rpx;
+  margin: -10rpx -10rpx -10rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .tag--guess {
   background: rgba(201, 169, 110, 0.08);

@@ -1,7 +1,35 @@
 <template>
-  <view class="pay-success">
+  <view class="pay-success" :class="{ verified: viewState === 'success' }">
+    <view v-if="viewState === 'loading'" class="verify-state">
+      <view class="verify-spinner" />
+      <text class="verify-title">正在核验支付结果</text>
+      <text class="verify-desc">请稍候，正在读取订单最新状态</text>
+    </view>
+
+    <view v-else-if="viewState === 'error'" class="verify-state">
+      <view class="verify-mark">!</view>
+      <text class="verify-title">暂时无法确认支付成功</text>
+      <text class="verify-desc">{{ errorMessage }}</text>
+      <view class="verify-actions">
+        <view class="action-btn primary" @tap="goOrders">
+          <app-icon name="shopping-bag" :size="36" color="#fff" />
+          <text>查看订单</text>
+        </view>
+        <view class="action-btn ghost" @tap="goHome">
+          <app-icon name="home" :size="36" color="#2C2C2C" />
+          <text>返回首页</text>
+        </view>
+      </view>
+      <text class="verify-help">若已完成付款，请稍后在订单中心刷新状态；请勿重复支付。</text>
+    </view>
+
+    <template v-else>
     <!-- 成功动画区域 -->
     <view class="hero" :style="{ paddingTop: 'calc(120rpx + var(--status-bar-height, 0px))' }">
+      <!-- 品牌朱印「成」盖章入场（视觉签名批1·一屏仅此一枚·斜置于成功勾右上侧） -->
+      <view class="hero-seal">
+        <brand-seal chars="成" :size="120" variant="zhu" stamped />
+      </view>
       <view class="check-wrap" :class="{ show: showAnim }">
         <view class="check-bg" />
         <view class="check-icon" :class="{ show: showAnim }">
@@ -70,34 +98,61 @@
         <text class="tip2">感谢您的支持，祝您学习愉快！</text>
       </view>
     </view>
+    </template>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import BrandSeal from '@/components/common/brand-seal.vue'
 import { navigateTo, reLaunch } from '@/utils/router'
+import { shopApi } from '@/lib/shop-data'
 
 const orderInfo = reactive({
-  orderId: '202401150001',
-  amount: 344,
-  payMethod: '微信支付',
+  orderId: '',
+  amount: 0,
+  payMethod: '在线支付',
   paidAt: '',
-  itemCount: 2,
+  itemCount: 1,
 })
 const copied = ref(false)
 const showAnim = ref(false)
 const submitting = ref(false)
+const viewState = ref<'loading' | 'success' | 'error'>('loading')
+const errorMessage = ref('')
 
-onLoad((q) => {
-  if (q?.orderId) orderInfo.orderId = q.orderId as string
-  const d = new Date()
-  orderInfo.paidAt = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  setTimeout(() => { showAnim.value = true }, 100)
+onLoad(async (q) => {
+  orderInfo.orderId = String(q?.orderId || '').trim()
+  if (!orderInfo.orderId) {
+    viewState.value = 'error'
+    errorMessage.value = '缺少订单信息，无法核验支付结果。'
+    return
+  }
+  try {
+    // 同一次订单查询同时返回摘要和真实状态，只有已支付状态才能进入成功页。
+    const s = await shopApi.getOrderSummary(orderInfo.orderId)
+    if (!s.paid) {
+      viewState.value = 'error'
+      errorMessage.value = '订单尚未支付完成，请到订单中心查看最新状态。'
+      return
+    }
+    orderInfo.orderId = s.orderId
+    orderInfo.amount = s.amount
+    orderInfo.payMethod = s.payMethod
+    orderInfo.paidAt = s.paidAt || '支付时间待同步'
+    orderInfo.itemCount = s.itemCount
+    viewState.value = 'success'
+    setTimeout(() => { showAnim.value = true }, 100)
+  } catch (e) {
+    console.warn('[pay-success] 支付结果核验失败', e)
+    viewState.value = 'error'
+    errorMessage.value = '订单状态查询失败，请到订单中心确认后再继续。'
+  }
 })
 
 function handleCopy() {
-  if (copied.value) return
+  if (copied.value || !orderInfo.orderId) return
   uni.setClipboardData({
     data: orderInfo.orderId,
     success: () => {
@@ -109,7 +164,14 @@ function handleCopy() {
 function goOrder() {
   if (submitting.value) return
   submitting.value = true
-  navigateTo(`/shop/orders/${orderInfo.orderId}`)
+  // 走订单详情真路由 /orders/:id（原 /shop/orders/:id 无映射为死链）
+  navigateTo(`/orders/${orderInfo.orderId}`)
+  setTimeout(() => { submitting.value = false }, 500)
+}
+function goOrders() {
+  if (submitting.value) return
+  submitting.value = true
+  navigateTo('/orders')
   setTimeout(() => { submitting.value = false }, 500)
 }
 function goHome() {
@@ -120,7 +182,7 @@ function goHome() {
 function goShop() {
   if (submitting.value) return
   submitting.value = true
-  navigateTo('/shop')
+  navigateTo('/mall')
   setTimeout(() => { submitting.value = false }, 500)
 }
 </script>
@@ -128,13 +190,30 @@ function goShop() {
 <style lang="scss" scoped>
 .pay-success {
   min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  background: #FAF8F5;
+}
+.pay-success.verified {
   background: linear-gradient(180deg, #4CAF50 0%, #45a049 100%);
 }
 .hero {
+  position: relative;
   padding-bottom: 64rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+/* 朱印定位：成功勾右侧留白处，微斜似手工钤印；旋转放外层容器，
+   不与内层 seal-stamp-in 的 transform 动画互相覆盖 */
+.hero-seal {
+  position: absolute;
+  right: 64rpx;
+  top: calc(96rpx + var(--status-bar-height, 0px));
+  transform: rotate(9deg);
+  z-index: 1;
 }
 .check-wrap {
   position: relative;
@@ -218,10 +297,15 @@ function goShop() {
   padding: 28rpx 0;
   &.bordered { border-bottom: 1rpx solid #E8E3DB; }
 }
-.info-label { font-size: 28rpx; color: #666666; }
-.info-right { display: flex; align-items: center; gap: 16rpx; }
-.info-value { font-size: 28rpx; color: #2C2C2C; font-weight: 500; }
-.copy-btn { display: flex; align-items: center; gap: 6rpx; }
+.info-label { flex-shrink: 0; font-size: 28rpx; color: #666666; }
+.info-right { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 16rpx; }
+.info-value {
+  display: block;
+  min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 28rpx; color: #2C2C2C; font-weight: 500; text-align: right;
+}
+.info-right .info-value { flex: 1; }
+.copy-btn { flex-shrink: 0; display: flex; align-items: center; gap: 6rpx; }
 .copy-text { font-size: 24rpx; color: var(--brand); }
 .actions {
   display: flex;
@@ -281,4 +365,50 @@ function goShop() {
   gap: 8rpx;
 }
 .bottom-tip text { font-size: 22rpx; color: #999999; }
+.verify-state {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: calc(180rpx + var(--status-bar-height, 0px)) 48rpx 80rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.verify-spinner {
+  width: 72rpx;
+  height: 72rpx;
+  border: 6rpx solid #eadfe0;
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: verify-spin .8s linear infinite;
+}
+.verify-mark {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 50%;
+  background: #fff1f2;
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+  font-weight: 700;
+  font-family: Georgia, serif;
+}
+.verify-title {
+  margin-top: 36rpx;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #2C2C2C;
+}
+.verify-desc {
+  margin-top: 20rpx;
+  max-width: 600rpx;
+  font-size: 28rpx;
+  color: #6E6E73;
+  line-height: 1.7;
+}
+.verify-actions { width: 100%; margin-top: 56rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.verify-help { margin-top: 32rpx; font-size: 24rpx; color: #999; line-height: 1.6; }
+@keyframes verify-spin { to { transform: rotate(360deg); } }
 </style>

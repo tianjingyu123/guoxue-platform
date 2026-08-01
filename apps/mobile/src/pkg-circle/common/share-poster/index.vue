@@ -11,7 +11,7 @@
       <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="navbar__inner">
           <view class="navbar__btn" @tap="goBack">
-            <AppIcon name="x" :size="44" color="#ffffff" />
+            <AppIcon name="x-circle" :size="44" color="#ffffff" />
           </view>
           <text class="navbar__title">{{ typeTitle }}</text>
           <view class="navbar__btn navbar__btn--placeholder" />
@@ -40,9 +40,16 @@
                     <text class="poster-card__author-from" :style="{ color: activeTheme.sub }">来自 {{ BRAND.name }}</text>
                   </view>
                 </view>
-                <view class="poster-card__qr">
-                  <image lazy-load :src="posterData.qrcode" class="poster-card__qr-img" mode="aspectFit" />
-                  <text class="poster-card__qr-label" :style="{ color: activeTheme.sub }">{{ posterData.qrLabel }}</text>
+                <!-- 品牌朱印 + 二维码（印章与 canvas 导出版同构·drawSealOnCanvas） -->
+                <view class="poster-card__stamp-area">
+                  <view class="poster-card__seal">
+                    <brand-seal :chars="sealChars" :size="96" />
+                  </view>
+                  <!-- 预览区二维码：与导出图同源（都按 data.link 现画），避免"看到的和存下来的不一致" -->
+                  <view class="poster-card__qr">
+                    <canvas canvas-id="previewQr" id="previewQr" class="poster-card__qr-img" />
+                    <text class="poster-card__qr-label" :style="{ color: activeTheme.sub }">{{ posterData.qrLabel }}</text>
+                  </view>
                 </view>
               </view>
             </view>
@@ -118,13 +125,27 @@
         </view>
       </view>
     </template>
+
+    <ContentShareSheet
+      v-if="posterData"
+      :visible="showShareSheet"
+      :kind="shareKind"
+      :title="posterData.title"
+      :summary="posterData.desc"
+      :meta="[posterData.subtitle, posterData.author].filter(Boolean).join(' · ')"
+      :url="posterData.link"
+      @close="showShareSheet = false"
+      @poster="handleSave"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import BrandSeal from '@/components/common/brand-seal.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import {
   POSTER_THEMES,
   SHARE_TONES,
@@ -133,12 +154,18 @@ import {
   recordPosterShare,
   type PosterType,
   type PosterData,
-} from '@/lib/poster-data'
+} from '@/pkg-circle/lib/poster-data'
 import { BRAND } from '@/lib/brand'
+import { drawQrToCanvas } from '@/utils/qrcode'
+import { goBack as platformGoBack } from '@/utils/router'
+import { useShare } from '@/composables/useShare'
 
 const statusBarHeight = ref(0)
 const posterType = ref<PosterType>('invite')
-const targetId = ref<number | undefined>(undefined)
+/** 🔴 原为 number：圈子/文章 id 是 uuid，Number() 会得到 NaN → 真连后拿不到任何内容 */
+const targetId = ref<string | undefined>(undefined)
+/** 仅 type=post 需要（后端帖子详情端点要 circleId + postId） */
+const circleId = ref<string | undefined>(undefined)
 
 const isLoading = ref(true)
 const posterData = ref<PosterData | null>(null)
@@ -146,35 +173,73 @@ const themeIndex = ref(0)
 const toneIndex = ref(0)
 const isSaving = ref(false)
 const posterTempPath = ref('')
+const showShareSheet = ref(false)
+const { toAppMessage, toTimeline } = useShare()
 
 // canvas 逻辑尺寸（px，比例 3:4）
 const canvasW = 300
 const canvasH = 420
 
 const typeTitle = computed(() => getPosterTypeTitle(posterType.value))
+/** 印面文字：品牌名前二字（nameShort 缺省时回退全名取前二字） */
+const sealChars = computed(() => Array.from(BRAND.nameShort || BRAND.name).slice(0, 2).join(''))
 const activeTheme = computed(() => POSTER_THEMES[themeIndex.value])
 const currentTone = computed(() =>
   posterData.value ? SHARE_TONES[toneIndex.value].build(posterData.value.title) : '',
 )
+const shareKind = computed(() => {
+  const kinds = {
+    invite: 'circle',
+    circle: 'circle',
+    post: 'article',
+    article: 'article',
+    live: 'live',
+    product: 'product',
+    course: 'course',
+    classic: 'classic',
+  } as const
+  return kinds[posterType.value]
+})
+const miniSharePath = computed(() => {
+  const id = encodeURIComponent(targetId.value || '')
+  const circle = encodeURIComponent(circleId.value || '')
+  const paths: Record<PosterType, string> = {
+    invite: '/pages/index/index',
+    circle: `/pkg-circle/circles/detail?id=${id}`,
+    post: `/pkg-circle/circles/post?id=${id}&circleId=${circle}`,
+    article: `/pkg-circle/articles/detail?id=${id}`,
+    live: `/pkg-live/watch/index?id=${id}`,
+    product: `/pkg-mall/product/detail?id=${id}`,
+    course: `/pkg-course/detail/index?id=${id}`,
+    classic: `/pkg-classics/detail/index?id=${id}`,
+  }
+  return paths[posterType.value]
+})
 
 onLoad((q) => {
   if (q?.type) posterType.value = q.type as PosterType
-  if (q?.targetId) targetId.value = Number(q.targetId)
+  if (q?.targetId) targetId.value = String(q.targetId)
+  if (q?.circleId) circleId.value = String(q.circleId)
   const sys = uni.getSystemInfoSync()
   statusBarHeight.value = sys.statusBarHeight || 0
   loadData()
 })
 
+const loadError = ref('')
+
 async function loadData() {
   isLoading.value = true
+  loadError.value = ''
   try {
-    const res = await getPosterData(posterType.value, targetId.value)
+    const res = await getPosterData(posterType.value, targetId.value, circleId.value)
     if (res.code === 200 && res.data) {
       posterData.value = res.data
       setTimeout(() => drawPoster(), 100)
     }
-  } catch {
-    uni.showToast({ title: '加载失败', icon: 'none' })
+  } catch (e) {
+    // 绝不回退成假数据：错误的海报会被用户发到朋友圈
+    loadError.value = (e as Error)?.message || '内容加载失败，请重试'
+    uni.showToast({ title: loadError.value, icon: 'none' })
   } finally {
     isLoading.value = false
   }
@@ -225,11 +290,22 @@ function drawPoster() {
   ctx.setFontSize(12)
   wrapText(ctx, data.desc, 32, 208, W - 64, 20, 3)
 
-  // 底部二维码 + 作者
+  // 底部作者
   ctx.setFillStyle(theme.sub)
   ctx.setFontSize(11)
-  ctx.fillText(data.author, 32, H - 60)
+  if (data.author) ctx.fillText(data.author, 32, H - 60)
   ctx.fillText(`来自 ${BRAND.name}`, 32, H - 42)
+
+  /* 真二维码（2026-07-14 补）：原代码注释写「底部二维码 + 作者」，但只画了作者文字 ——
+   * 导出的海报根本没有二维码，用户发出去别人连扫都没得扫，分享零转化。
+   * 现按 data.link 用 uqrcodejs 现画指向真实内容的码（失败静默降级，不影响存图）。 */
+  const QR = 72
+  drawQrToCanvas(ctx, data.link, W - 32 - QR, H - 32 - QR, QR, { padding: 4 })
+
+  /* 品牌朱印（视觉签名批1）：与预览区 brand-seal 同构，画在二维码左侧、底边对齐——
+   * 预览 96rpx=48px、间距 12px，绝不与二维码/作者行重叠 */
+  const SEAL = 48
+  drawSealOnCanvas(ctx, sealChars.value, W - 32 - QR - 12 - SEAL, H - 32 - SEAL, SEAL)
 
   ctx.draw(false, () => {
     setTimeout(() => {
@@ -242,12 +318,62 @@ function drawPoster() {
       })
     }, 150)
   })
+
+  // 预览区的小二维码（与导出图同一 link，保证所见即所存）
+  const pctx = uni.createCanvasContext('previewQr')
+  drawQrToCanvas(pctx, data.link, 0, 0, 56, { padding: 2 })
+  pctx.draw()
 }
 
 // 重绘随主题切换
 watch(themeIndex, () => {
   if (posterData.value) drawPoster()
 })
+
+/**
+ * canvas 版品牌朱印：与预览区 brand-seal.vue（variant=zhu）同构复刻——
+ * 印泥红圆角方印面 + 距边 7% 白细内框 + 白楷竖排二字，保证「所见即所存」。
+ * 圆角用 lineTo+arc 拼四角（uni 各端 canvas 均支持，不依赖 arcTo/roundRect）。
+ */
+function drawSealOnCanvas(ctx: UniApp.CanvasContext, chars: string, x: number, y: number, size: number) {
+  const list = Array.from(chars).slice(0, 2)
+  if (!list.length) return
+  const r = Math.round(size * 0.1)
+  // 圆角方形印面（印泥红取 --seal-gradient 中值，小尺寸下渐变差异不可见）
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + size - r, y)
+  ctx.arc(x + size - r, y + r, r, -Math.PI / 2, 0)
+  ctx.lineTo(x + size, y + size - r)
+  ctx.arc(x + size - r, y + size - r, r, 0, Math.PI / 2)
+  ctx.lineTo(x + r, y + size)
+  ctx.arc(x + r, y + size - r, r, Math.PI / 2, Math.PI)
+  ctx.lineTo(x, y + r)
+  ctx.arc(x + r, y + r, r, Math.PI, Math.PI * 1.5)
+  ctx.closePath()
+  ctx.setFillStyle('#c41e3a')
+  ctx.fill()
+  // 白细内框（距边 7%，印章的"格"感）
+  const inset = size * 0.07
+  ctx.setStrokeStyle('rgba(255,255,255,0.55)')
+  ctx.setLineWidth(1)
+  ctx.strokeRect(x + inset, y + inset, size - inset * 2, size - inset * 2)
+  // 白楷竖排字（楷体 fallback 与组件一致；MP 端忽略 font 时降级默认字体，可接受）
+  const fs = Math.round(size * (list.length === 1 ? 0.52 : 0.36))
+  ctx.setFillStyle('#ffffff')
+  ctx.setFontSize(fs)
+  ctx.font = `600 ${fs}px "Kaiti SC", STKaiti, KaiTi, serif`
+  ctx.setTextAlign('center')
+  const cx = x + size / 2
+  if (list.length === 1) {
+    ctx.fillText(list[0], cx, y + size * 0.5 + fs * 0.35)
+  } else {
+    // 双字竖排：上下两格中心 30% / 70%，baseline 按字高 0.35 微调至视觉居中
+    ctx.fillText(list[0], cx, y + size * 0.3 + fs * 0.35)
+    ctx.fillText(list[1], cx, y + size * 0.7 + fs * 0.35)
+  }
+  ctx.setTextAlign('left') // 还原对齐，避免污染后续绘制
+}
 
 function wrapText(
   ctx: UniApp.CanvasContext,
@@ -287,7 +413,7 @@ function wrapText(
 }
 
 function goBack() {
-  uni.navigateBack({ delta: 1, fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
+  platformGoBack()
 }
 
 function copyTone() {
@@ -330,18 +456,21 @@ async function handleSave() {
 }
 
 async function handleShare() {
-  // #ifdef MP-WEIXIN
-  uni.showToast({ title: '请点击右上角分享', icon: 'none' })
-  // #endif
-  // #ifndef MP-WEIXIN
-  uni.showActionSheet({
-    itemList: ['保存海报后分享'],
-    success: () => handleSave(),
-    fail: () => {},
-  })
-  // #endif
+  showShareSheet.value = true
   await recordPosterShare(posterType.value, targetId.value, 'share')
 }
+
+onShareAppMessage(() => toAppMessage({
+  title: posterData.value?.title || BRAND.name,
+  summary: posterData.value?.desc,
+  path: miniSharePath.value,
+}))
+
+onShareTimeline(() => toTimeline({
+  title: posterData.value?.title || BRAND.name,
+  summary: posterData.value?.desc,
+  path: miniSharePath.value,
+}))
 
 onMounted(() => {})
 </script>
@@ -491,6 +620,15 @@ onMounted(() => {})
 }
 .poster-card__author-from {
   font-size: 20rpx;
+}
+/* 印章+二维码组：印章底边与二维码图对齐（二维码下方还有 label，故印章抬起 label 高度） */
+.poster-card__stamp-area {
+  display: flex;
+  align-items: flex-end;
+  gap: 24rpx;
+}
+.poster-card__seal {
+  margin-bottom: 34rpx;
 }
 .poster-card__qr {
   display: flex;

@@ -13,6 +13,16 @@
     <p class="desc">
       Token 用于对外数字大屏的安全访问控制。创建后需超级管理员审核才能生效，支持 IP 白名单和自动过期。
     </p>
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      class="four-eyes-tip"
+    >
+      <template #title>
+        四眼原则：<b>审批人不得为创建人本人</b>。审批自己创建的 Token 会被系统拒绝（提示「不能审批自己创建的大屏令牌」），请由另一位管理员审批。
+      </template>
+    </el-alert>
 
     <!-- 错误态 -->
     <el-result
@@ -173,12 +183,25 @@
       <template #header>
         <span>访问日志</span>
       </template>
+      <!-- 后端契约 available:false → 访问日志表尚未建立，诚实标注「功能待建」而非假装展示空表 -->
+      <el-empty
+        v-if="!logsAvailable"
+        :image-size="80"
+        description="访问日志功能待建（后端 BigScreenAccessLog 埋点表尚未上线）"
+      />
       <el-table
+        v-else
         :data="logs"
         stripe
         size="small"
         max-height="400"
       >
+        <template #empty>
+          <el-empty
+            description="暂无访问记录"
+            :image-size="60"
+          />
+        </template>
         <el-table-column
           prop="id"
           label="ID"
@@ -342,6 +365,8 @@ const loading = ref(false);
 const loadError = ref(false);
 const tokens = ref<TokenRow[]>([]);
 const logs = ref<LogRow[]>([]);
+// 访问日志后端契约 available：false 表示功能未建（BigScreenAccessLog 表未上线）
+const logsAvailable = ref(true);
 const creating = ref(false);
 const showCreate = ref(false);
 
@@ -384,7 +409,15 @@ async function load() {
 async function fetchLogs() {
   try {
     const { data } = await bigscreenTokenApi.logs({ pageSize: 50 });
-    logs.value = (data as LogRow[]) || [];
+    // 后端返回 { items, total, available }：识别 available:false（功能待建）与数组两种形态
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+      const d = data as { items?: LogRow[]; available?: boolean };
+      logsAvailable.value = d.available !== false;
+      logs.value = d.items || [];
+    } else {
+      logs.value = (data as LogRow[]) || [];
+      logsAvailable.value = true;
+    }
   } catch { /* ignore */ }
 }
 
@@ -408,10 +441,25 @@ async function doCreate() {
 
 async function approve(id: string) {
   try {
+    await ElMessageBox.confirm(
+      "审核通过后该 Token 将立即生效，可对外访问大屏。注意：按四眼原则，不能审批自己创建的 Token，需由另一位管理员操作。确认审核通过？",
+      "确认审核",
+      { type: "warning", confirmButtonText: "审核通过", cancelButtonText: "取消" },
+    );
+  } catch {
+    return; // 用户取消
+  }
+  try {
     await bigscreenTokenApi.approve(id);
     ElMessage.success("Token 已审核通过");
     await fetchTokens();
-  } catch { /* ignore */ }
+  } catch (e: unknown) {
+    // 后端四眼校验 403：审批人=创建人本人。给出人话提示（api 拦截器也会弹后端 message 兜底）
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    if (status === 403) {
+      ElMessage.error("不能审批自己创建的 Token，请由另一位管理员审批（四眼原则）");
+    }
+  }
 }
 
 async function revoke(id: string) {
@@ -441,7 +489,8 @@ onMounted(() => {
 .bigscreen-token { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .page-header h2 { margin: 0; font-size: 20px; }
-.desc { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 16px; }
+.desc { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 8px; }
+.four-eyes-tip { margin-bottom: 16px; }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .token-cell { display: flex; align-items: center; gap: 8px; }

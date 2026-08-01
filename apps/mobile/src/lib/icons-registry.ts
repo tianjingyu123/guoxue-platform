@@ -63,8 +63,13 @@ export const ICON_REGISTRY: Record<string, IconEntry> = {
     "kind": "tool",
     "viewBox": "0 0 48 48"
   },
-  "bazi-analysis": {
-    "body": "<rect x=\"8\" y=\"8\" width=\"32\" height=\"32\" rx=\"3\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.08\"/> <line x1=\"8\" y1=\"18\" x2=\"40\" y2=\"18\" stroke=\"currentColor\" stroke-width=\"1.5\"/> <line x1=\"8\" y1=\"28\" x2=\"40\" y2=\"28\" stroke=\"currentColor\" stroke-width=\"1.5\"/> <line x1=\"18\" y1=\"8\" x2=\"18\" y2=\"40\" stroke=\"currentColor\" stroke-width=\"1.5\"/> <line x1=\"28\" y1=\"8\" x2=\"28\" y2=\"40\" stroke=\"currentColor\" stroke-width=\"1.5\"/> <circle cx=\"24\" cy=\"24\" r=\"5\" fill=\"currentColor\" fill-opacity=\"0.2\" stroke=\"currentColor\" stroke-width=\"1.5\"/>",
+  "hepan": {
+    "body": "<circle cx=\"18\" cy=\"24\" r=\"11\" stroke=\"currentColor\" stroke-width=\"2.5\" fill=\"currentColor\" fill-opacity=\"0.1\"/> <circle cx=\"30\" cy=\"24\" r=\"11\" stroke=\"currentColor\" stroke-width=\"2.5\" fill=\"currentColor\" fill-opacity=\"0.1\"/> <path d=\"M24 15.5 A11 11 0 0 1 24 32.5 A11 11 0 0 1 24 15.5\" fill=\"currentColor\" fill-opacity=\"0.25\"/> <line x1=\"14\" y1=\"20\" x2=\"14\" y2=\"28\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/> <line x1=\"34\" y1=\"20\" x2=\"34\" y2=\"28\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/>",
+    "kind": "tool",
+    "viewBox": "0 0 48 48"
+  },
+  "qizheng": {
+    "body": "<circle cx=\"24\" cy=\"24\" r=\"18\" stroke=\"currentColor\" stroke-width=\"2\" fill=\"currentColor\" fill-opacity=\"0.06\"/> <circle cx=\"24\" cy=\"24\" r=\"11\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-opacity=\"0.5\"/> <circle cx=\"24\" cy=\"24\" r=\"3.5\" fill=\"currentColor\" fill-opacity=\"0.25\" stroke=\"currentColor\" stroke-width=\"1.5\"/> <line x1=\"24\" y1=\"6\" x2=\"24\" y2=\"13\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-opacity=\"0.4\"/> <line x1=\"24\" y1=\"35\" x2=\"24\" y2=\"42\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-opacity=\"0.4\"/> <line x1=\"6\" y1=\"24\" x2=\"13\" y2=\"24\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-opacity=\"0.4\"/> <line x1=\"35\" y1=\"24\" x2=\"42\" y2=\"24\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-opacity=\"0.4\"/> <circle cx=\"24\" cy=\"13\" r=\"2.5\" fill=\"currentColor\"/> <circle cx=\"33.5\" cy=\"30\" r=\"2.5\" fill=\"currentColor\" fill-opacity=\"0.55\"/> <circle cx=\"14.5\" cy=\"30\" r=\"2\" fill=\"currentColor\" fill-opacity=\"0.35\"/> <circle cx=\"15\" cy=\"16\" r=\"1.5\" fill=\"currentColor\" fill-opacity=\"0.7\"/>",
     "kind": "tool",
     "viewBox": "0 0 48 48"
   },

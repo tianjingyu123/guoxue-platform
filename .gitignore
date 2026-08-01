@@ -4,6 +4,8 @@ dist/
 .env
 .env.*
 .env.local
+!.env.example
+!docker/.env.production.example
 *.log
 .turbo
 .cache
@@ -35,6 +37,7 @@ uploads/
 *.p12
 *.pfx
 docker/nginx/ssl/
+docker/monitoring/.generated/
 
 # TypeScript build info
 *.tsbuildinfo
@@ -50,6 +53,13 @@ docker/nginx/ssl/
 eslint-report.json
 .eslint-output.json
 failing-tests.txt
+
+# Python 审计脚本运行缓存
+__pycache__/
+*.py[cod]
+
+# 本地构建包、截图、迁移演练与发布验收证据（不进入源码或固定发布包）
+/artifacts/
 
 # 古籍采集临时数据（不可提交到 git，太大）
 temp_*
@@ -76,3 +86,11 @@ v0-compare/
 apps/server/scripts/classics-prod-payload.json*
 
 *.bundle
+
+# 运行时迁移验收证据与本机只读探测配置（可能包含真实域名，不纳入版本库）
+release-evidence/*.json
+docker/.runtime-current.env
+config/release/infrastructure-intake.json
+
+# 本机 WorkBuddy/KIKI 云资源操作提示（保留文件，不进入源码基线）
+/kiki-prompt*.md

@@ -2,17 +2,25 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ChurnService } from "./churn.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { SmsService } from "../sms/sms.service";
+import { MarketingService } from "../marketing/marketing.service";
 
 const mockPrisma = {
-  user: { findMany: jest.fn() },
+  user: { findMany: jest.fn(), findUnique: jest.fn() },
   userBehavior: { groupBy: jest.fn() },
   order: { groupBy: jest.fn() },
   comment: { groupBy: jest.fn() },
-  userBehaviorLog: { groupBy: jest.fn() },
+  trackEvent: { groupBy: jest.fn() },
   churnPrediction: { upsert: jest.fn().mockResolvedValue({}), findMany: jest.fn(), count: jest.fn() },
   churnRule: { findMany: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
-  churnAction: { createMany: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+  churnAction: { createMany: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn() },
   $transaction: jest.fn((ops) => Promise.all(ops)),
+};
+const mockSms = {
+  sendRetentionMessage: jest.fn(),
+};
+const mockMarketing = {
+  grantCoupon: jest.fn(),
 };
 
 describe("ChurnService", () => {
@@ -24,12 +32,21 @@ describe("ChurnService", () => {
         ChurnService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: { runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
+        { provide: SmsService, useValue: mockSms },
+        { provide: MarketingService, useValue: mockMarketing },
       ],
     }).compile();
     svc = mod.get(ChurnService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrisma.churnRule.findMany.mockResolvedValue([]);
+    mockPrisma.churnAction.findMany.mockResolvedValue([]);
+    mockPrisma.churnAction.update.mockResolvedValue({});
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+    mockSms.sendRetentionMessage.mockResolvedValue({ ok: true, disposition: "SENT", message: "召回短信已发送" });
+  });
 
   describe("getPredictions", () => {
     it("分页返回流失预测", async () => {
@@ -38,6 +55,15 @@ describe("ChurnService", () => {
       const result = await svc.getPredictions(1, 20, "HIGH");
       expect(result.predictions).toHaveLength(1);
       expect(result.total).toBe(1);
+      expect(mockPrisma.churnPrediction.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          NOT: [
+            { userId: { startsWith: "comp-demo-" } },
+            { userId: { startsWith: "BOT_" } },
+          ],
+          riskLevel: "HIGH",
+        },
+      }));
     });
 
     it("page 传非数字串不产生 NaN skip（P2-4 分页加固）", async () => {
@@ -58,6 +84,12 @@ describe("ChurnService", () => {
       expect(stats.medium).toBe(30);
       expect(stats.high).toBe(15);
       expect(stats.critical).toBe(5);
+      for (const [query] of mockPrisma.churnPrediction.count.mock.calls) {
+        expect(query.where.NOT).toEqual([
+          { userId: { startsWith: "comp-demo-" } },
+          { userId: { startsWith: "BOT_" } },
+        ]);
+      }
     });
   });
 
@@ -99,6 +131,14 @@ describe("ChurnService", () => {
       mockPrisma.churnAction.count.mockResolvedValue(1);
       const result = await svc.listActions(1, 20);
       expect(result.actions).toHaveLength(1);
+      expect(mockPrisma.churnAction.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          NOT: [
+            { userId: { startsWith: "comp-demo-" } },
+            { userId: { startsWith: "BOT_" } },
+          ],
+        },
+      }));
     });
   });
 
@@ -107,18 +147,184 @@ describe("ChurnService", () => {
       mockPrisma.user.findMany.mockResolvedValue([]);
       await svc.dailyChurnCalculation();
       expect(mockPrisma.user.findMany).toHaveBeenCalled();
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: [
+            { id: { startsWith: "comp-demo-" } },
+            { id: { startsWith: "BOT_" } },
+          ],
+        }),
+      }));
     });
 
     it("处理一批用户", async () => {
       mockPrisma.user.findMany
-        .mockResolvedValueOnce([{ id: "u1", updatedAt: new Date() }])
+        .mockResolvedValueOnce([{ id: "u1", createdAt: new Date() }])
         .mockResolvedValueOnce([]);
       mockPrisma.userBehavior.groupBy.mockResolvedValue([]);
       mockPrisma.order.groupBy.mockResolvedValue([]);
       mockPrisma.comment.groupBy.mockResolvedValue([]);
-      mockPrisma.userBehaviorLog.groupBy.mockResolvedValue([]);
+      mockPrisma.trackEvent.groupBy.mockResolvedValue([]);
       await svc.dailyChurnCalculation();
       expect(mockPrisma.$transaction).toHaveBeenCalled();
+    });
+
+    it("用行为日志而不是资料更新时间计算最近活跃", async () => {
+      const createdAt = new Date("2026-01-01T00:00:00.000Z");
+      const activeAt = new Date();
+      mockPrisma.user.findMany
+        .mockResolvedValueOnce([{ id: "u1", createdAt }])
+        .mockResolvedValueOnce([]);
+      mockPrisma.userBehavior.groupBy.mockResolvedValue([]);
+      mockPrisma.order.groupBy.mockResolvedValue([]);
+      mockPrisma.comment.groupBy.mockResolvedValue([]);
+      mockPrisma.trackEvent.groupBy
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ userId: "u1", _max: { occurredAt: activeAt } }]);
+
+      await svc.dailyChurnCalculation();
+
+      const upsert = mockPrisma.churnPrediction.upsert.mock.calls[0][0];
+      expect(upsert.create.lastActiveAt).toEqual(activeAt);
+      expect(upsert.create.daysSinceActive).toBe(0);
+      expect(upsert.create.riskLevel).toBe("LOW");
+      expect(mockPrisma.churnAction.createMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("规则阈值与冷却", () => {
+    const candidate = {
+      userId: "u1",
+      riskLevel: "CRITICAL",
+      activityScore: 8,
+      daysSinceActive: 30,
+    };
+
+    it("评分或天数未达到规则条件时不创建动作", async () => {
+      mockPrisma.churnRule.findMany.mockResolvedValue([{
+        id: "r1", riskLevel: "CRITICAL", scoreThreshold: 5, daysThreshold: 40,
+        actionType: "SMS", actionConfig: { cooldownDays: 7 },
+      }]);
+
+      await (svc as unknown as { batchTriggerActions: (items: unknown[]) => Promise<void> })
+        .batchTriggerActions([candidate]);
+
+      expect(mockPrisma.churnAction.createMany).not.toHaveBeenCalled();
+    });
+
+    it.each(["comp-demo-user-1", "BOT_comment_bot"])(
+      "非真人账号 %s 永不创建自动召回动作",
+      async (userId) => {
+        await (svc as unknown as { batchTriggerActions: (items: unknown[]) => Promise<void> })
+          .batchTriggerActions([{ ...candidate, userId }]);
+
+        expect(mockPrisma.churnRule.findMany).not.toHaveBeenCalled();
+        expect(mockPrisma.churnAction.createMany).not.toHaveBeenCalled();
+      },
+    );
+
+    it("同一规则仍在冷却期时不重复创建动作", async () => {
+      mockPrisma.churnRule.findMany.mockResolvedValue([{
+        id: "r1", riskLevel: "CRITICAL", scoreThreshold: 10, daysThreshold: 14,
+        actionType: "SMS", actionConfig: { cooldownDays: 7 },
+      }]);
+      mockPrisma.churnAction.findMany.mockResolvedValue([{
+        userId: "u1", actionType: "SMS", actionData: { _ruleId: "r1" },
+        createdAt: new Date(Date.now() - 86400000),
+      }]);
+
+      await (svc as unknown as { batchTriggerActions: (items: unknown[]) => Promise<void> })
+        .batchTriggerActions([candidate]);
+
+      expect(mockPrisma.churnAction.createMany).not.toHaveBeenCalled();
+    });
+
+    it("满足条件且冷却已结束时创建带规则来源的动作", async () => {
+      mockPrisma.churnRule.findMany.mockResolvedValue([{
+        id: "r1", riskLevel: "CRITICAL", scoreThreshold: 10, daysThreshold: 14,
+        actionType: "SMS", actionConfig: { cooldownDays: 7, templateParams: [] },
+      }]);
+
+      await (svc as unknown as { batchTriggerActions: (items: unknown[]) => Promise<void> })
+        .batchTriggerActions([candidate]);
+
+      expect(mockPrisma.churnAction.createMany).toHaveBeenCalledWith({
+        data: [expect.objectContaining({
+          userId: "u1",
+          actionData: expect.objectContaining({ _ruleId: "r1", _cooldownDays: 7 }),
+        })],
+      });
+    });
+
+    it("同一用户命中多条同通道规则时只创建一个动作", async () => {
+      mockPrisma.churnRule.findMany.mockResolvedValue([
+        {
+          id: "r1", riskLevel: "CRITICAL", scoreThreshold: 10, daysThreshold: 14,
+          actionType: "SMS", actionConfig: { cooldownDays: 7 }, createdAt: new Date("2026-01-01"),
+        },
+        {
+          id: "r2", riskLevel: "CRITICAL", scoreThreshold: 10, daysThreshold: 14,
+          actionType: "SMS", actionConfig: { cooldownDays: 7 }, createdAt: new Date("2026-01-02"),
+        },
+      ]);
+
+      await (svc as unknown as { batchTriggerActions: (items: unknown[]) => Promise<void> })
+        .batchTriggerActions([candidate]);
+
+      const payload = mockPrisma.churnAction.createMany.mock.calls[0][0];
+      expect(payload.data).toHaveLength(1);
+      expect(payload.data[0].actionData._ruleId).toBe("r1");
+    });
+  });
+
+  describe("合规召回执行", () => {
+    const pendingAction = {
+      id: "a1", userId: "u1", actionType: "SMS",
+      actionData: { _cooldownDays: 7 }, status: "PENDING", createdAt: new Date(),
+    };
+
+    it("用户未主动同意营销短信时转人工且不发送", async () => {
+      mockPrisma.churnAction.findMany.mockResolvedValue([pendingAction]);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        phone: "13800138000", notifySettings: { marketingSms: false },
+      });
+
+      await (svc as unknown as { _processChurnActions: () => Promise<void> })._processChurnActions();
+
+      expect(mockSms.sendRetentionMessage).not.toHaveBeenCalled();
+      expect(mockPrisma.churnAction.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: "PENDING_MANUAL" }),
+      }));
+    });
+
+    it("待执行队列从查询层排除非真人账号", async () => {
+      mockPrisma.churnAction.findMany.mockResolvedValue([]);
+
+      await (svc as unknown as { _processChurnActions: () => Promise<void> })._processChurnActions();
+
+      expect(mockPrisma.churnAction.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          status: "PENDING",
+          NOT: [
+            { userId: { startsWith: "comp-demo-" } },
+            { userId: { startsWith: "BOT_" } },
+          ],
+        },
+      }));
+    });
+
+    it("用户主动同意后才调用专用召回发送器并标记完成", async () => {
+      mockPrisma.churnAction.findMany.mockResolvedValue([pendingAction]);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        phone: "13800138000", notifySettings: { marketingSms: true },
+      });
+
+      await (svc as unknown as { _processChurnActions: () => Promise<void> })._processChurnActions();
+
+      expect(mockSms.sendRetentionMessage).toHaveBeenCalledWith("13800138000", [], 7);
+      expect(mockPrisma.churnAction.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: "COMPLETED", result: "召回短信已发送" }),
+      }));
     });
   });
 });

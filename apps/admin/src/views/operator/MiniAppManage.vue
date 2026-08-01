@@ -1,8 +1,20 @@
 <template>
   <div class="page">
     <div class="header">
-      <h2>小程序管理</h2>
+      <h2>多小程序管理</h2>
     </div>
+
+    <!-- 分工说明：与「运营商管理」职责区分（两页合并已入拍板清单·菜单暂不动） -->
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom:16px"
+    >
+      <template #title>
+        本页管理各运营商小程序 / 公众号 AppID 配置；运营商的品牌与站长配额请前往「运营商管理」。
+      </template>
+    </el-alert>
 
     <el-table
       v-loading="loading"
@@ -150,8 +162,8 @@ async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const res = await operatorAdminApi.listMiniApps({ page: page.value, pageSize: pageSize.value });
-    list.value = res.data.items || res.data.list || res.data.rows || [];
+    const res = await operatorAdminApi.list({ page: page.value, pageSize: pageSize.value });
+    list.value = res.data.operators || res.data.items || res.data.list || [];
     total.value = res.data.total || 0;
   } catch {
     loadError.value = true;
@@ -173,7 +185,7 @@ async function handleSubmit() {
   if (!currentRow.value) return;
   submitting.value = true;
   try {
-    await operatorAdminApi.updateMiniApp(currentRow.value.id, {
+    await operatorAdminApi.updateBrand(currentRow.value.id, {
       miniAppId: form.miniAppId,
       mpAppId: form.mpAppId,
     });

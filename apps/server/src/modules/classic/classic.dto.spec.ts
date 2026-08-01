@@ -3,7 +3,7 @@ import { validate } from "class-validator";
 import {
   CreateBookDto, UpdateBookDto, CreateChapterDto,
   UpdateChapterDto, UpdateProgressDto, CreateBookmarkDto, BookListQueryDto,
-  DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto,
+  DictionaryLookupDto, TranslateDto, ContinueReadingQueryDto, CreateNoteDto,
 } from "./classic.dto";
 
 describe("Classic DTO 校验", () => {
@@ -96,6 +96,25 @@ describe("Classic DTO 校验", () => {
     });
     it("缺 position 报错", async () => {
       const dto = Object.assign(new CreateBookmarkDto(), { chapterId: "ch-1" });
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+  });
+  describe("CreateNoteDto", () => {
+    it("句子锚点笔记通过", async () => {
+      const dto = Object.assign(new CreateNoteDto(), {
+        chapterId: "ch-1",
+        content: "这里值得反复读。",
+        position: 3,
+        originalText: "学而时习之，不亦说乎？",
+      });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("兼容不带锚点的旧版章节笔记", async () => {
+      const dto = Object.assign(new CreateNoteDto(), { chapterId: "ch-1", content: "章节心得" });
+      const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+    it("负数段落索引报错", async () => {
+      const dto = Object.assign(new CreateNoteDto(), { chapterId: "ch-1", content: "笔记", position: -1 });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
   });

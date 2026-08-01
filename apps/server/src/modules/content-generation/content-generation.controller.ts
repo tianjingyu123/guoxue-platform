@@ -1,10 +1,15 @@
 import { Controller, Post, Get, Put, Body, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { ContentGenerationService } from "./content-generation.service";
+import { OperationalSeedService } from "./operational-seed.service";
+import { SeedForm } from "./operational-seed.registry";
 import { GenerateContentDto, UpdateContentGenParamsDto } from "./content-generation.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { Autonomy, AutonomyLevel } from "../../common/autonomy";
+import { Req } from "@nestjs/common";
+import { Request } from "express";
 
 @ApiTags("AI内容生成")
 @ApiBearerAuth()
@@ -12,7 +17,10 @@ import { Roles } from "../../common/roles.decorator";
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 export class ContentGenerationController {
-  constructor(private readonly service: ContentGenerationService) {}
+  constructor(
+    private readonly service: ContentGenerationService,
+    private readonly seed: OperationalSeedService,
+  ) {}
 
   @Post("generate")
   @ApiOperation({ summary: "手动触发生成品类种子内容" })
@@ -96,5 +104,26 @@ export class ContentGenerationController {
     @Body() body: UpdateContentGenParamsDto,
   ) {
     return this.service.updateParams(body);
+  }
+
+  // ── 运营种子内容（介绍平台玩法/招运营商/教操作·接真实平台知识·生成即草稿·发布走人工闸）──
+
+  @Get("seed-topics")
+  @ApiOperation({ summary: "运营种子选题库（真实平台知识·多形式·招运营商/教操作/讲愿景）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  listSeedTopics() {
+    return this.seed.listTopics();
+  }
+
+  @Post("seed-draft")
+  @Autonomy(AutonomyLevel.L2_ONE_CLICK)
+  @ApiOperation({ summary: "生成一条运营种子内容草稿（L2·落 DRAFT 待人工审核发布·发布是 EXTERNAL_PUBLISH 红线）" })
+  @ApiResponse({ status: 201, description: "草稿生成成功" })
+  @ApiResponse({ status: 404, description: "未知选题" })
+  @ApiResponse({ status: 502, description: "AI 生成服务异常" })
+  generateSeedDraft(@Body() body: { topic: string; form?: SeedForm }, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    const operator = u?.nickname || u?.id || "ADMIN";
+    return this.seed.generateDraft(body.topic, body.form, operator);
   }
 }

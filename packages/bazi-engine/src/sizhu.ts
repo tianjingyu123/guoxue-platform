@@ -19,10 +19,10 @@ import { getYueZhiIndex, getNianZhuYear } from './jieqi'
  * @param day 公历日，用于判定立春前后
  * @param hour 小时（可选），用于精确判定
  */
-export function calcNianZhu(year: number, month?: number, day?: number, hour?: number): { ganZhi: string; gan: Gan; zhi: Zhi } {
-  // 按立春分界确定年柱所用的农历年
+export function calcNianZhu(year: number, month?: number, day?: number, hour?: number, minute = 0): { ganZhi: string; gan: Gan; zhi: Zhi } {
+  // 按立春分界确定年柱所用的农历年（分钟级）
   const nianYear = (month !== undefined && day !== undefined)
-    ? getNianZhuYear(year, month, day, hour)
+    ? getNianZhuYear(year, month, day, hour, minute)
     : year
 
   const abs = Math.abs(nianYear - 1984)
@@ -234,14 +234,14 @@ export function calcSiZhu(input: BaziInput): SiZhu {
     effectiveHour = hour
   }
 
-  // 年柱按立春分界
-  const nian = calcNianZhu(year, month, day, hour)
+  // 年柱按立春分界（分钟级）
+  const nian = calcNianZhu(year, month, day, hour, input.minute ?? 0)
 
   // 日柱（纯数学计算，无时区问题）
   const ri = calcRiZhu(year, month, day, dayOffset)
 
-  // 月柱（使用精准节气）
-  const yueIdx = getYueZhiIndex(month, day, year)
+  // 月柱（使用精准节气·分钟级：节气交界当天按时刻判月令，2026-07-11 修复）
+  const yueIdx = getYueZhiIndex(month, day, year, hour, input.minute ?? 0)
   const yue = calcYueZhu(nian.gan, yueIdx)
 
   // 时柱（五鼠遁用日干）

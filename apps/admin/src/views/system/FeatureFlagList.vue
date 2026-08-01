@@ -2,6 +2,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import { createConfirmMessage } from '@/lib/confirm-message'
 
 interface FeatureFlagRow {
   id?: string
@@ -76,8 +77,26 @@ async function save() {
 }
 
 async function toggleEnabled(row: FeatureFlagRow) {
+  // L3：功能开关一键影响全平台，确认框写明 flag 名与影响，有备注（含红线说明）则一并展示
+  const target = !row.enabled
+  try {
+    await ElMessageBox.confirm(
+      createConfirmMessage({
+        headline: `即将${target ? '开启' : '关闭'}功能开关`,
+        headlineTone: target ? 'success' : 'danger',
+        rows: [
+          { label: '功能', value: row.name || row.key },
+          { label: '标识键', value: row.key },
+        ],
+        description: `该操作立即对全平台所有用户生效，${target ? '相关功能入口将对用户开放' : '相关功能入口将立即对用户隐藏或不可用'}。`,
+        warning: row.description ? `备注：${row.description}` : undefined,
+      }),
+      '开关切换确认',
+      { type: 'warning', confirmButtonText: target ? '确认开启' : '确认关闭' },
+    )
+  } catch { return }
   const oldVal = row.enabled
-  row.enabled = !row.enabled
+  row.enabled = target
   try {
     await api.put(`${BASE}/${row.key}`, { ...row, enabled: row.enabled })
     ElMessage.success(row.enabled ? '已开启' : '已关闭')
@@ -86,10 +105,15 @@ async function toggleEnabled(row: FeatureFlagRow) {
   }
 }
 
-async function del(id: string) {
+async function del(row: FeatureFlagRow) {
   try {
-    await ElMessageBox.confirm('确定删除此功能开关？', '提示', { type: 'warning' })
-    await api.delete(`${BASE}/${id}`)
+    // L3：删除开关后读取该 flag 的代码将回落默认值，影响不可预期
+    await ElMessageBox.confirm(
+      `确定删除功能开关「${row.name || row.key}」（${row.key}）？删除后所有读取该开关的业务将回落代码默认值，可能与当前线上行为不一致。`,
+      '删除开关确认',
+      { type: 'warning', confirmButtonText: '确定删除' },
+    )
+    await api.delete(`${BASE}/${row.id || row.key}`)
     ElMessage.success('已删除')
     fetchList()
   } catch { /* cancelled */ }
@@ -151,7 +175,7 @@ async function del(id: string) {
             :model-value="row.enabled"
             @change="toggleEnabled(row)"
           />
-          <span :style="{ color: row.enabled ? 'var(--color-success)' : 'var(--color-error)', marginLeft: '6px', fontSize: '12px' }">{{ row.enabled ? 'ON' : 'OFF' }}</span>
+          <span :style="{ color: row.enabled ? 'var(--color-success)' : 'var(--color-error)', marginLeft: '6px', fontSize: '12px' }">{{ row.enabled ? '开启' : '关闭' }}</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -183,7 +207,7 @@ async function del(id: string) {
           <el-button
             size="small"
             type="danger"
-            @click="del(row.id || row.key)"
+            @click="del(row)"
           >
             删除
           </el-button>

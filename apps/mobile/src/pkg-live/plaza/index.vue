@@ -1,16 +1,36 @@
 <script setup lang="ts">
-/** 直播广场页 - 从原型 app/live/page.tsx 迁移 */
-import { ref, computed, onMounted } from 'vue'
+/** 直播广场页 — H3 视觉稿 A 类逐像素还原（首页直播 Tab 进入）
+ * 真连保留：直播中/预告 = liveApi.getPlaza(按 status 分组)；回放 = liveApi.getReplays；预约 = bookRoom/unbookRoom
+ */
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import LiveCard from '@/components/live/live-card.vue'
+import LiveCardMedia from '@/components/live/live-card-media.vue'
+import LiveStatusBadge from '@/components/live/live-status-badge.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import DegradedBanner from '@/components/degraded-banner.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { liveApi, liveTabs, type LiveItem } from '@/lib/live-data'
+import {
+  liveApi,
+  liveTabs,
+  formatLiveDuration,
+  formatLiveViews,
+  type LiveItem,
+  type LiveReplay,
+} from '@/lib/live-data'
 
-const activeTab = ref<string>('全部')
+type LiveTab = (typeof liveTabs)[number]
+
+const activeTab = ref<LiveTab>('全部')
 const loading = ref(true)
 const error = ref('')
 const list = ref<LiveItem[]>([])
+const replays = ref<LiveReplay[]>([])
+// 预约态本地会话乐观维护（后端无「我是否已约」查询）
+const bookedMap = ref<Record<string, boolean>>({})
+const booking = ref<Record<string, boolean>>({})
 
 const filtered = computed<LiveItem[]>(() => {
   return list.value.filter((live) => {
@@ -22,11 +42,51 @@ const filtered = computed<LiveItem[]>(() => {
   })
 })
 
+// 直播中：观看数倒序
+const livesNow = computed(() =>
+  filtered.value
+    .filter((l) => l.status === 'live')
+    .slice()
+    .sort((a, b) => (b.viewerCount || 0) - (a.viewerCount || 0)),
+)
+// 预告只留未过期场次：预定时间已过 10 分钟仍未开播 = 过期噪音，不再向用户展示（无时间的「待定」保留）
+const livesUpcoming = computed(() => filtered.value.filter((l) =>
+  l.status === 'upcoming'
+  && (!l.scheduledAtRaw || new Date(l.scheduledAtRaw).getTime() > Date.now() - 10 * 60 * 1000)
+))
+
+// 空态规则：直播中 0 场 → 预告首场放大为 16:9 大卡
+const noLive = computed(() => livesNow.value.length === 0)
+const featuredUpcoming = computed(() => (noLive.value ? livesUpcoming.value[0] : undefined))
+const restUpcoming = computed(() =>
+  noLive.value ? livesUpcoming.value.slice(1) : livesUpcoming.value,
+)
+
+// 双列均分（保持等高网格·左右两列）
+function splitCols<T>(arr: T[]): [T[], T[]] {
+  const l: T[] = []
+  const r: T[] = []
+  arr.forEach((it, i) => (i % 2 === 0 ? l : r).push(it))
+  return [l, r]
+}
+const liveCols = computed(() => splitCols(livesNow.value))
+const replayCols = computed(() => splitCols(replays.value))
+
+// 预告「明日」判定（scheduledTime 含「明天/明日」→ 金色节点）
+function isTomorrow(t?: string): boolean {
+  return !!t && (t.includes('明天') || t.includes('明日'))
+}
+
 async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    list.value = await liveApi.getPlaza(activeTab.value)
+    const [plaza, rp] = await Promise.all([
+      liveApi.getPlaza(activeTab.value),
+      liveApi.getReplays(),
+    ])
+    list.value = plaza
+    replays.value = rp
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -34,153 +94,935 @@ async function fetchData() {
   }
 }
 
-function onTabChange(tab: string) {
+function onTabChange(tab: LiveTab) {
   activeTab.value = tab
-  fetchData()
+  void fetchData()
 }
 
-onMounted(() => { fetchData() })
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 
-const livesNow = computed(() => filtered.value.filter((l) => l.status === 'live'))
-const livesUpcoming = computed(() => filtered.value.filter((l) => l.status === 'upcoming'))
+async function onTabKeydown(event: KeyboardEvent, currentTab: LiveTab) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    onTabChange(currentTab)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const currentIndex = liveTabs.indexOf(currentTab)
+  if (currentIndex < 0) return
+  const offset = event.key === 'ArrowRight' ? 1 : -1
+  const nextIndex = (currentIndex + offset + liveTabs.length) % liveTabs.length
+  onTabChange(liveTabs[nextIndex])
+  await nextTick()
+  if (typeof document === 'undefined') return
+  document.querySelector<HTMLElement>('.tab[aria-selected="true"]')?.focus()
+}
+
+function liveAccessibilityLabel(item: LiveItem) {
+  return `正在直播：${item.title}，主播${item.hostName}，${formatLiveViews(item.viewerCount)}人观看`
+}
+
+function upcomingAccessibilityLabel(item?: LiveItem) {
+  if (!item) return '直播预约'
+  return `直播预约：${item.title}，主播${item.hostName}，${item.scheduledTime || '开播时间待定'}`
+}
+
+function replayAccessibilityLabel(item: LiveReplay) {
+  return `观看直播回放：${item.title}，主播${item.hostName}，时长${formatLiveDuration(item.duration)}`
+}
+
+function bookingAccessibilityLabel(item?: LiveItem) {
+  if (!item) return '预约直播'
+  return bookedMap.value[item.id]
+    ? `取消预约：${item.title}`
+    : `预约直播：${item.title}，${item.scheduledTime || '开播时间待定'}`
+}
+
+onMounted(() => {
+  fetchData()
+})
+
+// 下拉刷新：重拉直播广场
+onPullDownRefresh(async () => {
+  try {
+    await fetchData()
+  } finally {
+    uni.stopPullDownRefresh()
+  }
+})
 
 function onSearch() {
   navigateTo('/search')
+}
+
+function openLive(id: string) {
+  navigateTo(`/live/${id}`)
+}
+function openReplay(id: string) {
+  navigateTo(`/live/replay/${id}`)
+}
+
+// 预约真连（乐观切换·失败回滚 + toast）
+async function toggleBook(item: LiveItem) {
+  const id = item.id
+  if (booking.value[id]) return
+  const next = !bookedMap.value[id]
+  booking.value[id] = true
+  bookedMap.value[id] = next
+  try {
+    if (next) await liveApi.bookRoom(id)
+    else await liveApi.unbookRoom(id)
+  } catch (e) {
+    bookedMap.value[id] = !next // 回滚
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    booking.value[id] = false
+  }
 }
 </script>
 
 <template>
   <view class="page">
     <DegradedBanner dep="live" text="直播服务临时维护中，观看可能不稳定，请稍后再试" />
-    <!-- 固定头部 -->
+
+    <!-- 固定头部：返回 + 页题 + 搜索 -->
     <view class="header">
-      <view class="title-bar">
-        <view class="nav-back" @tap="goBack">
-          <AppIcon name="chevron-left" :size="88" color="#2c2c2c" />
-        </view>
-        <text class="nav-title">直播广场</text>
-        <view class="nav-search" @tap="onSearch">
-          <AppIcon name="search" :size="80" color="#666666" />
-        </view>
+      <view
+        class="nav-back"
+        role="button"
+        aria-label="返回上一页"
+        tabindex="0"
+        hover-class="tap"
+        @tap="goBack"
+        @keydown="activateOnKeyboard($event, goBack)"
+      >
+        <AppIcon name="chevron-left" :size="36" color="#2B2620" />
       </view>
-      <!-- 分类 tabs（下划线风格） -->
-      <view class="tabs">
-        <view
-          v-for="tab in liveTabs"
-          :key="tab"
-          class="tab"
-          :class="activeTab === tab && 'tab-on'"
-          @tap="onTabChange(tab)"
-        >
-          <text class="tab-txt">{{ tab }}</text>
-          <view v-if="activeTab === tab" class="tab-line" />
-        </view>
+      <text class="nav-title">直播广场</text>
+      <view
+        class="nav-search"
+        role="link"
+        aria-label="搜索直播"
+        tabindex="0"
+        hover-class="tap"
+        @tap="onSearch"
+        @keydown="activateOnKeyboard($event, onSearch)"
+      >
+        <AppIcon name="search" :size="34" color="#8A8578" />
+      </view>
+    </view>
+
+    <!-- 分类 tabs（下划线风格） -->
+    <view class="tabs" role="tablist" aria-label="直播分类">
+      <view
+        v-for="tab in liveTabs"
+        :key="tab"
+        class="tab"
+        :class="activeTab === tab && 'tab-on'"
+        role="tab"
+        :aria-selected="activeTab === tab"
+        :tabindex="activeTab === tab ? 0 : -1"
+        @tap="onTabChange(tab)"
+        @keydown="onTabKeydown($event, tab)"
+      >
+        <text class="tab-txt">{{ tab }}</text>
+        <view v-if="activeTab === tab" class="tab-line" />
       </view>
     </view>
 
     <!-- 内容区 -->
-    <scroll-view scroll-y class="content">
-      <!-- 加载骨架 -->
-      <view v-if="loading" class="skeleton">
-        <view v-for="i in 4" :key="i" class="sk-card" />
+    <scroll-view scroll-y class="content" role="region" aria-label="直播广场内容">
+      <!-- 骨架 -->
+      <view v-if="loading" class="skeleton" role="status" aria-live="polite" aria-label="直播广场加载中">
+        <view class="sk-grid">
+          <view v-for="i in 4" :key="i" class="sk-card" />
+        </view>
       </view>
 
-      <!-- 错误状态 -->
-      <view v-else-if="error" class="error-state">
-        <view class="error-icon"><AppIcon name="alert-circle" :size="96" color="#999999" /></view>
-        <text class="error-txt">{{ error }}</text>
-        <view class="retry-btn" @tap="fetchData"><text class="retry-btn-txt">重新加载</text></view>
+      <!-- 错误 -->
+      <view v-else-if="error" class="state" role="alert" aria-live="assertive">
+        <view class="state-icon"><AppIcon name="alert-circle" :size="48" color="#B0A99A" /></view>
+        <text class="state-txt">{{ error }}</text>
+        <view
+          class="retry-btn"
+          role="button"
+          aria-label="重新加载直播广场"
+          tabindex="0"
+          hover-class="tap"
+          @tap="fetchData"
+          @keydown="activateOnKeyboard($event, fetchData)"
+        >
+          <text class="retry-txt">重新加载</text>
+        </view>
       </view>
 
-      <!-- 正常内容 -->
       <template v-else>
-      <!-- 正在直播 -->
-      <view v-if="livesNow.length > 0" class="section">
-        <view class="sec-head">
-          <view class="radio-dot"><AppIcon name="radio" :size="48" color="#ffffff" /></view>
-          <text class="sec-title">正在直播</text>
-          <text class="sec-count">({{ livesNow.length }})</text>
-        </view>
-        <view class="grid">
-          <view
-            v-for="live in livesNow"
-            :key="live.id"
-            class="grid-item"
-            :class="live.orientation === 'horizontal' && 'span-2'"
-          >
-            <LiveCard :data="live" />
-          </view>
-        </view>
-      </view>
+        <station-pinned-rail board="live" :inset="false" />
 
-      <!-- 直播预告 -->
-      <view v-if="livesUpcoming.length > 0" class="section">
-        <view class="sec-head">
-          <text class="sec-title">直播预告</text>
-          <text class="sec-count">({{ livesUpcoming.length }})</text>
-        </view>
-        <view class="grid">
-          <view
-            v-for="live in livesUpcoming"
-            :key="live.id"
-            class="grid-item"
-            :class="live.orientation === 'horizontal' && 'span-2'"
-          >
-            <LiveCard :data="live" />
+        <!-- ══ 直播中 ══（0 场时整区收起） -->
+        <block v-if="livesNow.length > 0">
+          <view class="sec">
+            <text class="sec-h">直播中</text>
+            <text class="sec-count">{{ livesNow.length }} 场</text>
           </view>
-        </view>
-      </view>
+          <view class="grid">
+            <view class="gcol">
+              <view
+                v-for="live in liveCols[0]"
+                :key="live.id"
+                class="card live-card-glow"
+                role="link"
+                :aria-label="liveAccessibilityLabel(live)"
+                tabindex="0"
+                hover-class="card-press"
+                @tap="openLive(live.id)"
+                @keydown="activateOnKeyboard($event, () => openLive(live.id))"
+              >
+                <view class="cov r34 live">
+                    <live-card-media class="cov-img" :room-id="live.id" :cover="live.cover" :title="live.title" status="live" deco />
+                    <view class="live-scan" />
+                    <live-status-badge />
+                    <view class="badge bl">
+                    <AppIcon name="eye" :size="20" color="#ffffff" />
+                    <text class="badge-txt">{{ formatLiveViews(live.viewerCount) }}</text>
+                  </view>
+                </view>
+                <view class="cbody">
+                  <text class="ctitle">{{ live.title }}</text>
+                  <view class="cmeta">
+                    <view class="mavatar">
+                      <smart-avatar :src="live.hostAvatar" :name="live.hostName" class="mavatar-img" />
+                    </view>
+                    <text class="mname">{{ live.hostName }}</text>
+                    <text class="mmetric">进入直播</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <view class="gcol">
+              <view
+                v-for="live in liveCols[1]"
+                :key="live.id"
+                class="card live-card-glow"
+                role="link"
+                :aria-label="liveAccessibilityLabel(live)"
+                tabindex="0"
+                hover-class="card-press"
+                @tap="openLive(live.id)"
+                @keydown="activateOnKeyboard($event, () => openLive(live.id))"
+              >
+                <view class="cov r34 live">
+                    <live-card-media class="cov-img" :room-id="live.id" :cover="live.cover" :title="live.title" status="live" deco />
+                    <view class="live-scan" />
+                    <live-status-badge />
+                    <view class="badge bl">
+                    <AppIcon name="eye" :size="20" color="#ffffff" />
+                    <text class="badge-txt">{{ formatLiveViews(live.viewerCount) }}</text>
+                  </view>
+                </view>
+                <view class="cbody">
+                  <text class="ctitle">{{ live.title }}</text>
+                  <view class="cmeta">
+                    <view class="mavatar">
+                      <smart-avatar :src="live.hostAvatar" :name="live.hostName" class="mavatar-img" />
+                    </view>
+                    <text class="mname">{{ live.hostName }}</text>
+                    <text class="mmetric">进入直播</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+        </block>
 
-      <!-- 空态 -->
-      <view v-if="filtered.length === 0" class="empty">
-        <view class="empty-icon"><AppIcon name="radio" :size="128" color="#999999" /></view>
-        <text class="empty-txt">暂无相关直播</text>
-      </view>
+        <!-- ══ 直播预告 ══ 时间轴 + 预约钮双态 -->
+        <block v-if="livesUpcoming.length > 0">
+          <view class="sec">
+            <text class="sec-h">直播预告</text>
+            <text class="sec-count">{{ livesUpcoming.length }} 场</text>
+          </view>
+
+          <!-- 空态规则：直播中 0 场 → 首场预告放大为 16:9 大卡 -->
+          <view
+            v-if="featuredUpcoming"
+            class="feat-card"
+            role="link"
+            :aria-label="upcomingAccessibilityLabel(featuredUpcoming)"
+            tabindex="0"
+            hover-class="card-press"
+            @tap="openLive(featuredUpcoming.id)"
+            @keydown="activateOnKeyboard($event, () => featuredUpcoming && openLive(featuredUpcoming.id))"
+          >
+            <view class="feat-cov r169">
+              <smart-cover class="cov-img" :src="featuredUpcoming.cover" :title="featuredUpcoming.title" type="live" deco :deco-size="80" />
+              <view class="feat-mask" />
+              <view class="badge tr up">
+                <AppIcon name="clock" :size="20" color="#ffffff" />
+                <text class="badge-txt">预约 · {{ featuredUpcoming.scheduledTime || '时间待定' }}</text>
+              </view>
+              <view class="feat-info">
+                <text class="feat-title">{{ featuredUpcoming.title }}</text>
+                <text class="feat-host">{{ featuredUpcoming.hostName }}</text>
+              </view>
+            </view>
+            <view class="feat-bar">
+              <view
+                class="feat-book"
+                role="button"
+                :aria-label="bookingAccessibilityLabel(featuredUpcoming)"
+                :aria-pressed="bookedMap[featuredUpcoming.id]"
+                :aria-busy="booking[featuredUpcoming.id]"
+                :aria-disabled="booking[featuredUpcoming.id]"
+                :tabindex="booking[featuredUpcoming.id] ? -1 : 0"
+                @tap.stop="toggleBook(featuredUpcoming)"
+                @keydown.stop="activateOnKeyboard($event, () => featuredUpcoming && toggleBook(featuredUpcoming))"
+              >
+                <view
+                  class="rsv"
+                  :class="bookedMap[featuredUpcoming.id] ? 'rsv-yes' : 'rsv-no'"
+                >
+                  <AppIcon
+                    v-if="!bookedMap[featuredUpcoming.id]"
+                    name="bell"
+                    :size="22"
+                    color="#C41E3A"
+                  />
+                  <text class="rsv-txt">{{ bookedMap[featuredUpcoming.id] ? '已预约' : '预约' }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 时间轴列表 -->
+          <view v-if="restUpcoming.length > 0" class="tl">
+            <view
+              v-for="(item, idx) in restUpcoming"
+              :key="item.id"
+              class="tl-row"
+              :class="idx > 0 && 'tl-divider'"
+              role="link"
+              :aria-label="upcomingAccessibilityLabel(item)"
+              tabindex="0"
+              hover-class="tl-press"
+              @tap="openLive(item.id)"
+              @keydown="activateOnKeyboard($event, () => openLive(item.id))"
+            >
+              <view class="tl-node" :class="isTomorrow(item.scheduledTime) && 'tl-node-tmr'" />
+              <view class="tl-time" :class="isTomorrow(item.scheduledTime) && 'tl-time-tmr'">
+                <text class="tl-time-b">{{ item.scheduledTime || '待定' }}</text>
+                <text class="tl-time-s">{{ item.viewerCount }} 人预约</text>
+              </view>
+              <view class="tl-main">
+                <text class="tl-t">{{ item.title }}</text>
+                <text class="tl-a">{{ item.hostName }}</text>
+              </view>
+              <view
+                class="rsv rsv-sm"
+                :class="bookedMap[item.id] ? 'rsv-yes' : 'rsv-no'"
+                role="button"
+                :aria-label="bookingAccessibilityLabel(item)"
+                :aria-pressed="bookedMap[item.id]"
+                :aria-busy="booking[item.id]"
+                :aria-disabled="booking[item.id]"
+                :tabindex="booking[item.id] ? -1 : 0"
+                @tap.stop="toggleBook(item)"
+                @keydown.stop="activateOnKeyboard($event, () => toggleBook(item))"
+              >
+                <text class="rsv-txt">{{ bookedMap[item.id] ? '已预约' : '预约' }}</text>
+              </view>
+            </view>
+          </view>
+        </block>
+
+        <!-- ══ 直播回放 ══ 双列网格 -->
+        <block v-if="replays.length > 0">
+          <view class="sec">
+            <text class="sec-h">直播回放</text>
+            <text class="sec-count">结束时间倒序</text>
+          </view>
+          <view class="grid">
+            <view class="gcol">
+              <view
+                v-for="rp in replayCols[0]"
+                :key="rp.id"
+                class="card"
+                role="link"
+                :aria-label="replayAccessibilityLabel(rp)"
+                tabindex="0"
+                hover-class="card-press"
+                @tap="openReplay(rp.id)"
+                @keydown="activateOnKeyboard($event, () => openReplay(rp.id))"
+              >
+                <view class="cov r34">
+                  <smart-cover class="cov-img" :src="rp.cover" :title="rp.title" type="live" deco :deco-size="64" />
+                  <view class="badge tr rep"><text class="badge-txt">回放</text></view>
+                  <view class="badge bl"><text class="badge-txt">{{ formatLiveDuration(rp.duration) }}</text></view>
+                </view>
+                <view class="cbody">
+                  <text class="ctitle">{{ rp.title }}</text>
+                  <view class="cmeta">
+                    <view class="mavatar">
+                      <smart-avatar :src="rp.hostAvatar" :name="rp.hostName" class="mavatar-img" />
+                    </view>
+                    <text class="mname">{{ rp.hostName }}</text>
+                    <text class="mmetric">{{ formatLiveViews(rp.viewers) }}次</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+            <view class="gcol">
+              <view
+                v-for="rp in replayCols[1]"
+                :key="rp.id"
+                class="card"
+                role="link"
+                :aria-label="replayAccessibilityLabel(rp)"
+                tabindex="0"
+                hover-class="card-press"
+                @tap="openReplay(rp.id)"
+                @keydown="activateOnKeyboard($event, () => openReplay(rp.id))"
+              >
+                <view class="cov r34">
+                  <smart-cover class="cov-img" :src="rp.cover" :title="rp.title" type="live" deco :deco-size="64" />
+                  <view class="badge tr rep"><text class="badge-txt">回放</text></view>
+                  <view class="badge bl"><text class="badge-txt">{{ formatLiveDuration(rp.duration) }}</text></view>
+                </view>
+                <view class="cbody">
+                  <text class="ctitle">{{ rp.title }}</text>
+                  <view class="cmeta">
+                    <view class="mavatar">
+                      <smart-avatar :src="rp.hostAvatar" :name="rp.hostName" class="mavatar-img" />
+                    </view>
+                    <text class="mname">{{ rp.hostName }}</text>
+                    <text class="mmetric">{{ formatLiveViews(rp.viewers) }}次</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+          <view class="foot-tip"><text class="foot-tip-txt">上滑加载更多回放</text></view>
+        </block>
+
+        <!-- 全空态 -->
+        <view
+          v-if="livesNow.length === 0 && livesUpcoming.length === 0 && replays.length === 0"
+          class="empty"
+          role="status"
+          aria-live="polite"
+        >
+          <view class="empty-icon"><AppIcon name="calendar" :size="56" color="#B0A99A" /></view>
+          <text class="empty-txt">这个分类还没有直播，去看看全部直播或精彩回放</text>
+        </view>
       </template>
     </scroll-view>
   </view>
 </template>
 
 <style scoped lang="scss">
-.page { min-height: 100vh; background: var(--surface-sunken); }
+.page {
+  min-height: 100vh;
+  background: #faf8f5;
+  display: flex;
+  flex-direction: column;
+}
 
-/* 头部 */
-.header { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20rpx); border-bottom: 2rpx solid var(--border, #ebe6de); }
-.title-bar { display: flex; align-items: center; justify-content: space-between; height: 96rpx; padding: 0 24rpx; }
-.nav-back, .nav-search { display: flex; align-items: center; justify-content: center; width: 56rpx; height: 56rpx; }
-.nav-search { margin-right: -8rpx; }
-.nav-title { font-family: var(--font-serif); font-weight: 700; font-size: 36rpx; color: #2c2c2c; }
-.tabs { display: flex; align-items: center; height: 80rpx; padding: 0 24rpx; gap: 48rpx; border-top: 2rpx solid rgba(235, 230, 222, 0.3); }
-.tab { position: relative; display: flex; align-items: center; height: 100%; }
-.tab-txt { font-size: 28rpx; color: #666666; white-space: nowrap; }
-.tab-on .tab-txt { color: var(--brand); font-weight: 600; }
-.tab-line { position: absolute; left: 0; right: 0; bottom: 12rpx; height: 6rpx; background: var(--brand); border-radius: 999rpx; }
+/* ── 头部 ── 导航行高 96rpx（48px）*/
+.header {
+  display: flex;
+  align-items: center;
+  height: 96rpx;
+  padding: 0 24rpx;
+  background: rgba(250, 248, 245, 0.94);
+  backdrop-filter: blur(20rpx);
+}
+.nav-back,
+.nav-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 32rpx;
+  background: #ffffff;
+  box-shadow: 0 2rpx 6rpx rgba(60, 50, 40, 0.08);
+}
+.nav-title {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #2b2620;
+}
+.tap {
+  opacity: 0.6;
+}
 
-/* 内容 */
-.content { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 176rpx 24rpx 64rpx; box-sizing: border-box; }
-.section { margin-bottom: 48rpx; }
-.sec-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 24rpx; }
-.radio-dot { display: flex; align-items: center; justify-content: center; width: 40rpx; height: 40rpx; border-radius: 999rpx; background: var(--brand); }
-.sec-title { font-family: var(--font-serif); font-weight: 600; font-size: 30rpx; color: #2c2c2c; }
-.sec-count { font-size: 22rpx; color: #999999; }
+/* ── tabs 下划线 ── */
+.tabs {
+  display: flex;
+  align-items: center;
+  height: 80rpx;
+  padding: 0 24rpx;
+  gap: 48rpx;
+  background: #faf8f5;
+}
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+.tab-txt {
+  font-size: 28rpx;
+  color: #8a8578;
+  white-space: nowrap;
+}
+.tab-on .tab-txt {
+  color: #c41e3a;
+  font-weight: 700;
+}
+.tab-line {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 12rpx;
+  width: 40rpx;
+  height: 6rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
 
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; align-items: start; }
-.grid-item { min-width: 0; }
-.span-2 { grid-column: span 2; }
+/* ── 内容 ── */
+.content {
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+  padding-bottom: 48rpx;
+}
 
-.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
-.empty-icon { display: flex; align-items: center; justify-content: center; width: 160rpx; height: 160rpx; border-radius: 999rpx; background: #ffffff; margin-bottom: 32rpx; }
-.empty-txt { font-size: 28rpx; color: #999999; }
+/* 区块头：上 36 下 20（18/10px），题 34rpx 衬线 700 + 计数右对齐 */
+.sec {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 36rpx 24rpx 20rpx;
+}
+.sec-h {
+  font-family: var(--font-serif);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #2b2620;
+}
+.sec-count {
+  font-size: 24rpx;
+  color: #b0a99a;
+}
 
-/* 骨架屏 */
-.skeleton { display: flex; flex-direction: column; gap: 32rpx; padding: 32rpx 0; }
-.sk-card { height: 320rpx; border-radius: 16rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+/* 双列网格 */
+.grid {
+  display: flex;
+  gap: 18rpx;
+  padding: 0 24rpx;
+}
+.gcol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+  min-width: 0;
+}
+.card {
+  background: #ffffff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(60, 50, 40, 0.06);
+  /* 补过渡使 hover-class 按压缩放平滑（X5 安全：仅动 transform） */
+  transition: transform 0.15s ease-out;
+}
+.card-press {
+  transform: scale(0.98);
+}
 
-/* 错误状态 */
-.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }
-.error-icon { display: flex; align-items: center; justify-content: center; width: 160rpx; height: 160rpx; border-radius: 999rpx; background: #ffffff; margin-bottom: 32rpx; }
-.error-txt { font-size: 28rpx; color: #999999; margin-bottom: 32rpx; }
-.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
-.retry-btn-txt { font-size: 28rpx; color: #ffffff; font-weight: 500; }
+.cov {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #f6f1e7;
+}
+.r34 {
+  padding-top: 133.33%;
+}
+.r169 {
+  padding-top: 56.25%;
+}
+.cov-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.live-scan {
+  position: absolute;
+  top: -20%;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  height: 20%;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(255,235,224,.18), transparent);
+  animation: live-scan 4.2s ease-in-out infinite;
+}
+
+/* 角标 */
+.badge {
+  position: absolute;
+  height: 40rpx;
+  padding: 0 12rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  background: rgba(0, 0, 0, 0.55);
+}
+.badge.tr {
+  top: 16rpx;
+  right: 16rpx;
+}
+.badge.bl {
+  bottom: 16rpx;
+  left: 16rpx;
+}
+.badge.up {
+  background: #c41e3a;
+  max-width: calc(100% - 32rpx);
+}
+.badge.up .badge-txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.badge.rep {
+  background: rgba(0, 0, 0, 0.55);
+}
+.badge-txt {
+  font-size: 22rpx;
+  line-height: 1;
+  color: #ffffff;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* 卡片信息区 */
+.cbody {
+  padding: 20rpx;
+}
+.ctitle {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 28rpx;
+  line-height: 1.45;
+  font-weight: 500;
+  color: #2b2620;
+}
+.cmeta {
+  margin-top: 16rpx;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.mavatar {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 18rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #f6f1e7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mavatar-img {
+  width: 100%;
+  height: 100%;
+}
+.mavatar-ph {
+  font-size: 20rpx;
+  color: #8a8578;
+}
+.mname {
+  flex: 1;
+  font-size: 24rpx;
+  color: #8a8578;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mmetric {
+  flex-shrink: 0;
+  font-size: 22rpx;
+  color: #b0a99a;
+}
+
+/* ── 预告放大大卡（空态规则）── */
+.feat-card {
+  margin: 0 24rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(60, 50, 40, 0.06);
+  transition: transform 0.15s ease-out;
+}
+.feat-cov {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #f6f1e7;
+}
+.feat-mask {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent 55%);
+}
+.feat-info {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 20rpx;
+}
+.feat-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.4;
+}
+.feat-host {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.85);
+}
+.feat-bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 20rpx 24rpx;
+}
+.feat-book {
+  display: flex;
+}
+
+/* ── 预告时间轴 ── */
+.tl {
+  margin: 0 24rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(60, 50, 40, 0.06);
+  padding: 8rpx 0;
+}
+.tl-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 28rpx;
+}
+.tl-divider {
+  border-top: 2rpx solid #f2ede4;
+}
+.tl-press {
+  background: #faf8f5;
+}
+.tl-node {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 8rpx;
+  background: #c41e3a;
+  flex-shrink: 0;
+}
+.tl-node-tmr {
+  background: #c9a96e;
+}
+.tl-time {
+  width: 148rpx;
+  flex-shrink: 0;
+}
+.tl-time-b {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #c41e3a;
+}
+.tl-time-tmr .tl-time-b {
+  color: #c9a96e;
+}
+.tl-time-s {
+  font-size: 20rpx;
+  color: #b0a99a;
+}
+.tl-main {
+  flex: 1;
+  min-width: 0;
+}
+.tl-t {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 28rpx;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #2b2620;
+}
+.tl-a {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #8a8578;
+}
+
+/* 预约钮双态 */
+.rsv {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  padding: 0 24rpx;
+  height: 56rpx;
+  border-radius: 28rpx;
+}
+.rsv-sm {
+  min-width: 120rpx;
+  padding: 0 20rpx;
+}
+.rsv-no {
+  border: 2rpx solid #c41e3a;
+  background: transparent;
+}
+.rsv-no .rsv-txt {
+  color: #c41e3a;
+  font-weight: 500;
+}
+.rsv-yes {
+  background: #efeae2;
+}
+.rsv-yes .rsv-txt {
+  color: #8a8578;
+}
+.rsv-txt {
+  font-size: 24rpx;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* 底部提示 */
+.foot-tip {
+  padding: 32rpx 0 40rpx;
+  text-align: center;
+}
+.foot-tip-txt {
+  font-size: 22rpx;
+  color: #b0a99a;
+}
+
+/* 空态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 0;
+}
+.empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+  box-shadow: 0 2rpx 8rpx rgba(60, 50, 40, 0.06);
+  margin-bottom: 32rpx;
+}
+.empty-txt {
+  font-size: 28rpx;
+  color: #b0a99a;
+}
+
+/* 骨架 */
+.skeleton {
+  padding: 36rpx 24rpx;
+}
+.sk-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18rpx;
+}
+.sk-card {
+  height: 420rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(90deg, #efeae2 25%, #f6f1e7 50%, #efeae2 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* 错误/重试 */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 0;
+}
+.state-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 999rpx;
+  background: #ffffff;
+  margin-bottom: 32rpx;
+}
+.state-txt {
+  font-size: 28rpx;
+  color: #8a8578;
+  margin-bottom: 32rpx;
+}
+.retry-btn {
+  padding: 16rpx 48rpx;
+  background: #c41e3a;
+  border-radius: 999rpx;
+}
+.retry-txt {
+  font-size: 28rpx;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+@keyframes live-scan {
+  0%, 18% { transform: translateY(0); opacity: 0; }
+  28% { opacity: 1; }
+  68% { opacity: .7; }
+  82%, 100% { transform: translateY(600%); opacity: 0; }
+}
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-scan,
+  .sk-card { animation: none; }
+}
 </style>

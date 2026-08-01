@@ -41,8 +41,7 @@
     <view v-if="tab === 'all'" class="list">
       <!-- 加载中 -->
       <view v-if="loading" class="state-box">
-        <view class="state-spin" />
-        <text class="state-text">加载中...</text>
+        <AppLoading />
       </view>
       <!-- 加载失败 -->
       <view v-else-if="error" class="state-box">
@@ -59,13 +58,16 @@
         <view class="state-icon">
           <app-icon name="users" :size="72" color="#b8ab94" />
         </view>
-        <text class="state-text">暂无拼团商品</text>
+        <text class="state-text">拼团活动正在筹备，先去商城逛逛精选好物</text>
+        <view class="state-retry" @tap="navigateTo('/mall')">
+          <text class="state-retry-text">去商城逛逛</text>
+        </view>
       </view>
       <!-- 数据列表 -->
       <view v-for="item in groupBuyList" :key="item.id" class="card">
         <view class="card-main">
           <view class="card-img-wrap">
-            <image lazy-load class="card-img" :src="item.cover" mode="aspectFill" />
+            <smart-cover class="card-img" :src="item.cover" :title="item.title" type="product" deco :deco-size="52" />
             <view class="badge-team">{{ item.minMembers }}人团</view>
             <view v-if="item.status === 'success'" class="mask-done">
               <text class="mask-done-text">已成团</text>
@@ -74,8 +76,8 @@
           <view class="card-info">
             <text class="card-title">{{ item.title }}</text>
             <view class="card-price">
-              <text class="price-now"><text class="price-unit">¥</text>{{ item.price }}</text>
-              <text class="price-old">单买¥{{ item.originalPrice }}</text>
+              <text class="price-now"><text class="price-unit">¥</text>{{ formatPrice(item.price) }}</text>
+              <text class="price-old">单买¥{{ formatPrice(item.originalPrice) }}</text>
             </view>
             <view class="save-tag">拼团省{{ saveAmount(item) }}元</view>
             <view class="prog-meta">
@@ -115,8 +117,7 @@
     <view v-else class="list">
       <!-- 加载中 -->
       <view v-if="loading" class="state-box">
-        <view class="state-spin" />
-        <text class="state-text">加载中...</text>
+        <AppLoading />
       </view>
       <!-- 空数据 -->
       <view v-else-if="!myGroups.length" class="empty">
@@ -134,10 +135,10 @@
           <text v-if="item.isOwner" class="my-owner">团长</text>
         </view>
         <view class="card-main">
-          <image lazy-load class="my-cover" :src="item.productCover" mode="aspectFill" />
+          <smart-cover class="my-cover" :src="item.productCover" :title="item.productName" type="product" deco :deco-size="48" />
           <view class="card-info">
             <text class="card-title">{{ item.productName }}</text>
-            <text class="price-now my-price"><text class="price-unit">¥</text>{{ item.price }}</text>
+            <text class="price-now my-price"><text class="price-unit">¥</text>{{ formatPrice(item.price) }}</text>
             <view class="member-stack">
               <view v-for="n in item.memberCount" :key="'mm' + n" class="m-avatar m-avatar--on">
                 <app-icon name="users" :size="20" color="#fff" />
@@ -175,10 +176,10 @@
         <text class="share-title">邀请好友参团</text>
         <text class="share-sub">还差 <text class="share-num">{{ shareTarget.minMembers - shareTarget.currentMembers }}</text> 人即可成团</text>
         <view class="share-product">
-          <image lazy-load class="share-cover" :src="shareTarget.productCover" mode="aspectFill" />
+          <smart-cover class="share-cover" :src="shareTarget.productCover" :title="shareTarget.productName" type="product" deco :deco-size="40" />
           <view class="share-pinfo">
             <text class="share-pname">{{ shareTarget.productName }}</text>
-            <text class="price-now">¥{{ shareTarget.price }}</text>
+            <text class="price-now">¥{{ formatPrice(shareTarget.price) }}</text>
           </view>
         </view>
         <text class="share-label">分享至</text>
@@ -210,8 +211,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import SmartCover from '@/components/common/smart-cover.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 interface GroupBuyItem {
   id: string
@@ -685,6 +689,7 @@ function endMapCleanup() {
   height: 160rpx;
   flex-shrink: 0;
   border-radius: 16rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .my-price {
@@ -777,6 +782,7 @@ function endMapCleanup() {
   width: 96rpx;
   height: 96rpx;
   border-radius: 12rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .share-pinfo {
@@ -850,17 +856,6 @@ function endMapCleanup() {
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-}
-.state-spin {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #e8e3db;
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 .state-icon {
   width: 120rpx;

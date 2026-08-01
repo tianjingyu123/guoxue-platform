@@ -246,7 +246,8 @@ export class RiskControlController {
 
   @Get("appeals")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：客服工作台负责用户申诉受理，放行 CUSTOMER_SERVICE。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "获取申诉列表" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -258,7 +259,8 @@ export class RiskControlController {
 
   @Put("appeals/:id/approve")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN")
+  // 权限修复(角色断裂)：申诉裁决原仅 SUPER_ADMIN，路由放行的运营/客服全 403，对齐为三角色。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "批准申诉" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -272,7 +274,8 @@ export class RiskControlController {
 
   @Put("appeals/:id/reject")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN")
+  // 权限修复(角色断裂)：申诉裁决原仅 SUPER_ADMIN，路由放行的运营/客服全 403，对齐为三角色。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "驳回申诉" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

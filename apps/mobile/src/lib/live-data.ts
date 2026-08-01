@@ -1,7 +1,7 @@
 // ============ 直播板块(live) mock 数据（从原型 app/live 迁移） ============
 // 说明：原型封面/头像为 mock 配图，dev 下回退占位；此处统一用 /marketing 占位路径，比对时会被中和
 
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost, apiPostOptionalAuth, apiPut, apiDelete } from '@/utils/request'
 
 export type LiveStatus = 'live' | 'upcoming' | 'replay'
 export type LiveType = 'knowledge' | 'commerce'
@@ -18,9 +18,13 @@ export interface LiveItem {
   viewerCount: number
   type: LiveType
   status: LiveStatus
+  /** 回放视频地址：回放无首图时由卡片读取第一帧。 */
+  replayUrl?: string
   orientation: LiveOrientation
   priceType: LivePriceType
   scheduledTime?: string
+  /** 原始预定开播时间(ISO)：预告列表用于过滤已过期场次 */
+  scheduledAtRaw?: string
   duration?: string
   price?: number
   circleFree?: boolean
@@ -69,11 +73,12 @@ export const liveHosts: LiveHost[] = [
 ]
 
 // ============ 直播回放列表(live/replays) ============
-// @data-needs: 回放列表, 参数 sortBy(latest|popular|duration)+search, 返回 LiveReplay[]
+// @data-needs: 回放列表, 参数 sortBy(latest|popular)+search, 返回 LiveReplay[]
 export interface LiveReplay {
   id: string
   title: string
   cover: string
+  replayUrl?: string
   hostName: string
   hostAvatar: string
   category: string
@@ -85,7 +90,6 @@ export interface LiveReplay {
 export const replaySortOptions = [
   { value: 'latest', label: '最新发布' },
   { value: 'popular', label: '最多播放' },
-  { value: 'duration', label: '时长最长' },
 ] as const
 
 export const liveReplays: LiveReplay[] = [
@@ -119,6 +123,7 @@ export interface ReplayHomeItem {
   id: string
   title: string
   cover: string
+  replayUrl?: string
   hostName: string
   hostAvatar: string
   duration: number
@@ -156,24 +161,20 @@ export const replayHotSearches = ['易经入门', '风水布局', '八字排盘'
 export interface HostLiveStats {
   totalViews: number
   totalRevenue: number
-  avgDuration: number
-  fansGrowth: number
   totalRooms: number
-  totalGifts: number
-  viewsGrowthRate: number
-  revenueGrowthRate: number
+  endedRooms: number
+  viewsGrowthRate: number | null
+  revenueGrowthRate: number | null
 }
 // @data-needs: 主播直播记录, 返回 HostLiveRoom[]
 export interface HostLiveRoom {
   id: string
   title: string
   cover: string
-  status: 'ended' | 'preview'
+  status: 'live' | 'ended' | 'preview'
   dateText: string
   duration: number
   views: number
-  gifts: number
-  revenue: number
 }
 export interface HostLiveTrend {
   dateLabel: string
@@ -181,36 +182,6 @@ export interface HostLiveTrend {
   revenue: number
 }
 
-export const hostLiveStats: HostLiveStats = {
-  totalViews: 125680,
-  totalRevenue: 8960,
-  avgDuration: 125,
-  fansGrowth: 1280,
-  totalRooms: 48,
-  totalGifts: 3250,
-  viewsGrowthRate: 15.2,
-  revenueGrowthRate: 8.5,
-}
-
-export const hostLiveRooms: HostLiveRoom[] = [
-  { id: '1', title: '八字命理入门精讲（第12期）', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'ended', dateText: '1/15 19:00', duration: 150, views: 3280, gifts: 280, revenue: 560 },
-  { id: '2', title: '紫微斗数实战案例分析', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'ended', dateText: '1/12 20:00', duration: 120, views: 2560, gifts: 180, revenue: 380 },
-  { id: '3', title: '六爻占卜基础教学', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'ended', dateText: '1/10 19:30', duration: 90, views: 1980, gifts: 120, revenue: 240 },
-  { id: '4', title: '梅花易数快速入门', cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'preview', dateText: '1/20 19:00', duration: 0, views: 0, gifts: 0, revenue: 0 },
-]
-
-// 固定的30天趋势(避免随机数破坏比对稳定性)
-const _viewsSeq = [1820, 2360, 1540, 2890, 2100, 1680, 3200, 2450, 1920, 2780, 1450, 3050, 2200, 1760, 2640, 1980, 3380, 2120, 1580, 2900, 2460, 1840, 3120, 2280, 1660, 2740, 2040, 3300, 2380, 2860]
-const _revSeq = [220, 380, 160, 480, 320, 200, 560, 420, 260, 500, 140, 540, 360, 240, 460, 300, 580, 340, 180, 520, 400, 260, 540, 380, 220, 480, 320, 560, 420, 500]
-export const hostLiveTrend: HostLiveTrend[] = Array.from({ length: 30 }, (_, i) => {
-  // 与原型一致：近30天(以今天为最后一天)
-  const d = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000)
-  return {
-    dateLabel: `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-    views: _viewsSeq[i],
-    revenue: _revSeq[i],
-  }
-})
 
 export function formatHostNumber(num: number): string {
   if (num >= 10000) return (num / 10000).toFixed(1) + '万'
@@ -317,6 +288,7 @@ export const verticalLiveRoom = {
   title: '开光吉祥物专场：招财貔貅限时特惠',
   hostName: '福缘阁主',
   hostAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp',
+  hostId: '', // 主播 userId（关注主播用·真连时由后端房间返回）
   hostLevel: 5,
   followers: 12800,
   viewerCount: 8920,
@@ -351,6 +323,45 @@ export const liveWatchRoom = {
   imGroupId: '', // TIM 弹幕群 ID
   circleId: '', // 发起直播的圈子 ID（佣-V2-P3：进房上报圈子渠道点击/购买带 LIVE 来源）
 }
+
+/** 观看页房间数据（getWatchRoom 适配后的完整形状·三态改造：预约/直播中/回放共用） */
+export interface LiveWatchRoomInfo {
+  id: string
+  type: 'knowledge' | 'commerce'
+  title: string
+  hostName: string
+  hostAvatar: string
+  hostId: string
+  /** 主播粉丝数：房间接口不返回该字段 → null（页面隐藏该行，不再写死 0 误导观众） */
+  followers: number | null
+  viewerCount: number
+  likeCount: number
+  isFollowing: boolean
+  onlineAvatars: string[]
+  imGroupId: string
+  circleId: string
+  /** 房间状态 WAITING/LIVING/ENDED/REPLAY（大写原样透传） */
+  status: string
+  cover: string
+  startTime: string
+  /** 收费类型（大写）：FREE | 其他=付费 */
+  chargeType: string
+  chargePrice: number
+  /** 画质档位：basic | hd | uhd（空=未知） */
+  quality: string
+  replayUrl: string
+  /** #21 回放章节点（主播标注·无则空数组） */
+  replayChapters: { t: number; title: string }[]
+  circleName: string
+}
+
+export interface LiveWatchProgress {
+  positionSeconds: number
+  durationSeconds: number
+  completed: boolean
+  lastWatchedAt: string | null
+}
+
 // 原型 mockDanmaku 全部为普通弹幕(type:normal)，无"系统/欢迎"项；系统消息走 liveWatchSystemPool 横幅
 export const liveWatchComments: VerticalLiveComment[] = [
   { id: '2', userName: '紫微爱好者', content: '老师讲得太透彻了！', type: 'text' },
@@ -405,6 +416,8 @@ export interface LivePreviewRoom {
   descriptionLines: string[]
   isBooked: boolean
   countdown: { days: number; hours: number; minutes: number; seconds: number }
+  scheduledAt?: string
+  status?: string
 }
 export const livePreviewRoom: LivePreviewRoom = {
   id: '1',
@@ -597,7 +610,7 @@ export const replayCommentTagsByRating: Record<number, string[]> = {
 export const replayCommentLabels = ['', '很差', '较差', '一般', '不错', '非常好']
 
 // ============ 横屏直播间(live/horizontal) ============
-// @data-needs: 横屏直播间详情, 参数 id, 返回 HorizontalLiveRoom + 课件/问答/聊天/资料
+// @data-needs: 横屏直播间详情, 参数 id, 返回 HorizontalLiveRoom + 课件/TIM聊天；无后端数据源的问答与资料由页面隐藏
 export interface HorizontalLiveRoom {
   id: string
   title: string
@@ -605,6 +618,7 @@ export interface HorizontalLiveRoom {
   hostAvatar: string
   hostTitle: string
   followers: number
+  hostBio: string
   viewers: number
   likes: number
   duration: string
@@ -631,6 +645,7 @@ export const horizontalLiveRoom: HorizontalLiveRoom = {
   hostName: '张明远',
   hostAvatar: 'https://api.rebugx.cn/assets/marketing/course.webp',
   hostTitle: '易学研究员',
+  hostBio: '',
   followers: 12800,
   viewers: 1856,
   likes: 4520,
@@ -692,67 +707,43 @@ export interface LiveQuota {
 }
 
 // ============ 创作者后台 · 直播中控制台 (/creator/live/console) ============
-// @data-needs: 直播实时数据流（在线/观看/打赏/带货等），由后端 WebSocket 推送
-export const consoleLiveStats = {
-  onlineCount: 1258,
-  totalViews: 8560,
-  newFollowers: 86,
-  totalGift: 2680,
-  totalSales: 12800,
-  peakOnline: 1580,
-  avgWatchTime: '8:32',
-  interactionRate: '12.5%',
+export interface ConsoleLiveStats {
+  onlineCount: number
+  totalViews: number
+  newFollowers: number
+  totalGift: number
+  totalSales: number
+  peakOnline: number
+  avgWatchTime: string
+  interactionRate: string
+}
+function emptyConsoleLiveStats(): ConsoleLiveStats {
+  return {
+    onlineCount: 0,
+    totalViews: 0,
+    newFollowers: 0,
+    totalGift: 0,
+    totalSales: 0,
+    peakOnline: 0,
+    avgWatchTime: '--',
+    interactionRate: '0%',
+  }
 }
 
-// @data-needs: 实时弹幕流，后端推送追加；含等级/VIP 标记
-export interface ConsoleDanmaku { id: number; user: string; content: string; time: string; level: number; isVip: boolean }
-export const consoleDanmaku: ConsoleDanmaku[] = [
-  { id: 1, user: '易学小白', content: '老师讲得真好！', time: '10:23:15', level: 3, isVip: false },
-  { id: 2, user: '命理爱好者', content: '这个八字怎么看财运？', time: '10:23:18', level: 5, isVip: true },
-  { id: 3, user: '紫微迷', content: '老师能讲讲紫微斗数吗', time: '10:23:22', level: 2, isVip: false },
-  { id: 4, user: '风水先生', content: '支持老师！', time: '10:23:25', level: 8, isVip: true },
-  { id: 5, user: '新用户001', content: '刚来，老师在讲什么？', time: '10:23:30', level: 1, isVip: false },
-  { id: 6, user: '道法自然', content: '八字日主分析很到位', time: '10:23:35', level: 6, isVip: false },
-  { id: 7, user: '学易人', content: '请问今天有抽奖吗？', time: '10:23:40', level: 4, isVip: false },
-  { id: 8, user: '命理大师粉丝', content: '已购买课程，非常棒！', time: '10:23:45', level: 7, isVip: true },
-]
-
-// @data-needs: 连麦申请列表，观众发起后入列；接受/拒绝走后端
+// 实时数据均由 GET /live/console/:id 返回；缺失字段只显示零值，不回退原型样例。
+export interface ConsoleDanmaku { id: number; userId?: string; user: string; content: string; time: string; level: number; isVip: boolean }
+export interface LiveMutedUserItem {
+  id: string
+  userId: string
+  nickname: string
+  avatar: string | null
+  mutedAt: string
+  expiresAt: string | null
+  isPermanent: boolean
+}
 export interface ConsoleConnectRequest { id: number; user: string; avatar: string; reason: string; waitTime: string }
-export const consoleConnectRequests: ConsoleConnectRequest[] = [
-  { id: 1, user: '命理爱好者', avatar: '', reason: '想请教老师关于日主偏弱的问题', waitTime: '2:30' },
-  { id: 2, user: '紫微迷', avatar: '', reason: '我的命盘有疑问想请老师解答', waitTime: '1:15' },
-  { id: 3, user: '风水先生', avatar: '', reason: '交流风水布局心得', waitTime: '0:45' },
-]
-
-// @data-needs: 直播间挂载商品；isLive 表示正在讲解；上架/结束讲解走后端
 export interface ConsoleProduct { id: number; name: string; price: number; stock: number; sold: number; isLive: boolean; isHot: boolean }
-export const consoleProducts: ConsoleProduct[] = [
-  { id: 1, name: '八字命理精讲课程', price: 199, stock: 100, sold: 58, isLive: true, isHot: true },
-  { id: 2, name: '紫微斗数入门到精通', price: 299, stock: 50, sold: 32, isLive: false, isHot: false },
-  { id: 3, name: '开光貔貅摆件', price: 168, stock: 15, sold: 85, isLive: false, isHot: true },
-  { id: 4, name: '专业罗盘（铜制）', price: 398, stock: 8, sold: 42, isLive: false, isHot: false },
-  { id: 5, name: '五帝钱套装', price: 88, stock: 3, sold: 97, isLive: false, isHot: false },
-]
-
-// @data-needs: 提词器脚本，主播预先配置；isCurrent 标记当前进度
 export interface ConsoleScript { id: number; time: string; content: string; done: boolean; isCurrent?: boolean }
-export const consoleScript: ConsoleScript[] = [
-  { id: 1, time: '00:00', content: '开场白：欢迎各位来到今天的八字命理课堂', done: true },
-  { id: 2, time: '05:00', content: '第一部分：八字的基本概念和四柱含义', done: true },
-  { id: 3, time: '15:00', content: '第二部分：十天干的特性与作用关系', done: false, isCurrent: true },
-  { id: 4, time: '30:00', content: '第三部分：十二地支的藏干与刑冲合害', done: false },
-  { id: 5, time: '45:00', content: '第四部分：日主强弱的判断方法', done: false },
-  { id: 6, time: '55:00', content: '互动环节：观众提问与命盘分析', done: false },
-  { id: 7, time: '58:00', content: '结尾：课程推荐和下期预告', done: false },
-]
-
-// 优惠券选项（发放优惠券弹窗，照抄原型）
-export const consoleCoupons = [
-  { name: '满100减10', count: 100 },
-  { name: '满200减30', count: 50 },
-  { name: '课程8折券', count: 30 },
-]
 
 // ============ creator/live/obs 推流设置(竖屏,含实时推流统计) ============
 export const obsStreamData = {
@@ -794,12 +785,12 @@ export const obsPageFaq = [
 
 // ============ creator/live/theme 直播间装修(竖屏) ============
 export const themeTemplates = [
-  { id: 'default', name: '默认主题', desc: '简洁大气，适合日常直播', primaryColor: '#8B5CF6', secondaryColor: '#A78BFA', bg1: '#111827', bg2: '#1f2937', preview: '🎯', isFree: true, isUsing: true },
+  { id: 'default', name: '默认主题', desc: '简洁大气，适合日常直播', primaryColor: '#C41E3A', secondaryColor: '#C9A96E', bg1: '#2a1215', bg2: '#160b0d', preview: '📜', isFree: true, isUsing: true },
   { id: 'chinese', name: '新中式', desc: '古典韵味，国学文化氛围', primaryColor: '#DC2626', secondaryColor: '#F59E0B', bg1: '#450a0a', bg2: '#451a03', preview: '🏮', isFree: true, isUsing: false },
   { id: 'spring', name: '春节喜庆', desc: '红红火火，节日氛围拉满', primaryColor: '#EF4444', secondaryColor: '#FCD34D', bg1: '#dc2626', bg2: '#7f1d1d', preview: '🧧', isFree: false, isUsing: false },
-  { id: 'mid-autumn', name: '中秋团圆', desc: '月圆人圆，温馨典雅', primaryColor: '#F59E0B', secondaryColor: '#FDE68A', bg1: '#78350f', bg2: '#431407', preview: '🥮', isFree: false, isUsing: false },
+  { id: 'mid-autumn', name: '中秋团圆', desc: '月圆人圆，温馨典雅', primaryColor: '#F59E0B', secondaryColor: '#FDE68A', bg1: '#78350f', bg2: '#431407', preview: '🌕', isFree: false, isUsing: false },
   { id: 'minimalist', name: '极简白', desc: '干净清爽，专注内容', primaryColor: '#6366F1', secondaryColor: '#818CF8', bg1: '#f1f5f9', bg2: '#e2e8f0', preview: '⬜', isFree: true, isUsing: false },
-  { id: 'ink', name: '水墨风', desc: '淡雅水墨，文人气质', primaryColor: '#374151', secondaryColor: '#9CA3AF', bg1: '#292524', bg2: '#1c1917', preview: '🖌️', isFree: false, isUsing: false },
+  { id: 'ink', name: '水墨风', desc: '淡雅水墨，文人气质', primaryColor: '#374151', secondaryColor: '#9CA3AF', bg1: '#292524', bg2: '#1c1917', preview: '🖋️', isFree: false, isUsing: false },
 ]
 export const themePendants = [
   { id: 1, name: '福字', icon: '福', position: '左上', isActive: true },
@@ -1063,6 +1054,39 @@ export interface LiveProductItem {
   cover: string
   status: 'on' | 'off'
 }
+// 本场已配商品（GET /live/rooms/:id 关联 productId → /shop/products/:id 充实）
+export interface LiveConfiguredProduct {
+  id: string
+  name: string
+  price: number
+  stock: number
+  sold: number
+  cover: string
+}
+export interface LiveRoomEditData {
+  id: string
+  title: string
+  description: string
+  cover: string
+  status: string
+  circleId: string
+  circleName: string
+  orientation: 'portrait' | 'landscape'
+  quality: 'basic' | 'hd' | 'uhd'
+  chargeType: 'FREE' | 'PAID'
+  chargePrice: number
+  startTime: string
+  products: LivePickerProduct[]
+}
+// 选品层商品池（GET /shop/products?status=ON_SALE 平台在售商品）
+export interface LivePickerProduct {
+  id: string
+  name: string
+  price: number
+  cover: string
+  stock?: number
+  sold?: number
+}
 export const liveProducts: LiveProductItem[] = [
   { id: '1', name: '《渊海子平》精装典藏版', price: 168, stock: 200, sold: 86, cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'on' },
   { id: '2', name: '紫微斗数入门教程（平装）', price: 88, stock: 150, sold: 142, cover: 'https://api.rebugx.cn/assets/marketing/course.webp', status: 'on' },
@@ -1125,8 +1149,14 @@ export const liveManageStats: LiveManageStat[] = [
 export interface LiveManageItem {
   id: number | string
   title: string
+  cover: string // 封面（9:16 小图）
   type: 'knowledge' | 'commerce'
   status: 'preview' | 'live' | 'ended' | 'draft'
+  orientation: 'portrait' | 'landscape' // 竖屏 / OBS横屏（场次卡形态标签）
+  quality: string // 画质档 basic|hd|uhd
+  priceType: 'free' | 'paid'
+  price: number // 付费金额（元）
+  replayUrl: string // 已结束有回放时展示「查看回放」
   scheduledTime: string
   duration: string
   viewers: number
@@ -1134,25 +1164,26 @@ export interface LiveManageItem {
   income: number
   likes: number
   previewCount?: number
+  selfOnly?: boolean // 机审降级仅自己可见（管理列表灰色小标·点击看说明与申诉指引）
+  removed?: boolean // 严重违规已下架
 }
+// 兜底展示样例（getManageList 走真实 my-rooms，异常仅回退空列表，此常量不用于线上渲染）
+const _mDefault = { cover: '', orientation: 'portrait' as const, quality: 'basic', priceType: 'free' as const, price: 0, replayUrl: '' }
 export const liveManageList: LiveManageItem[] = [
-  { id: 1, title: '八字命理入门：如何快速解读四柱八字', type: 'knowledge', status: 'live', scheduledTime: '2024-01-15 20:00', duration: '进行中', viewers: 1258, peakViewers: 2100, income: 680, likes: 3200 },
-  { id: 2, title: '开光貔貅专场：招财转运好物推荐', type: 'commerce', status: 'preview', scheduledTime: '2024-01-16 19:30', duration: '-', viewers: 0, peakViewers: 0, income: 0, likes: 0, previewCount: 328 },
-  { id: 3, title: '紫微斗数命盘实战解析', type: 'knowledge', status: 'ended', scheduledTime: '2024-01-14 20:00', duration: '2小时15分', viewers: 5680, peakViewers: 3200, income: 1280, likes: 8900 },
-  { id: 4, title: '风水布局直播：家居风水调整指南', type: 'knowledge', status: 'ended', scheduledTime: '2024-01-12 19:00', duration: '1小时45分', viewers: 4200, peakViewers: 2800, income: 960, likes: 6500 },
-  { id: 5, title: '新品预告直播（未发布）', type: 'commerce', status: 'draft', scheduledTime: '', duration: '-', viewers: 0, peakViewers: 0, income: 0, likes: 0 },
+  { id: 1, title: '八字命理入门：如何快速解读四柱八字', ..._mDefault, type: 'knowledge', status: 'live', scheduledTime: '2024-01-15 20:00', duration: '进行中', viewers: 1258, peakViewers: 2100, income: 680, likes: 3200 },
+  { id: 2, title: '开光貔貅专场：招财转运好物推荐', ..._mDefault, type: 'commerce', status: 'preview', scheduledTime: '2024-01-16 19:30', duration: '-', viewers: 0, peakViewers: 0, income: 0, likes: 0, previewCount: 328 },
+  { id: 3, title: '紫微斗数命盘实战解析', ..._mDefault, type: 'knowledge', status: 'ended', scheduledTime: '2024-01-14 20:00', duration: '2小时15分', viewers: 5680, peakViewers: 3200, income: 1280, likes: 8900 },
 ]
 
 export const liveManageTabs = [
   { key: 'all', label: '全部' },
-  { key: 'preview', label: '预告中' },
+  { key: 'preview', label: '待开播' },
   { key: 'live', label: '直播中' },
   { key: 'ended', label: '已结束' },
-  { key: 'draft', label: '草稿' },
 ]
 export const liveManageStatusConfig: Record<string, { label: string; color: string }> = {
-  preview: { label: '预告中', color: '#3b6fd4' },
-  live: { label: '直播中', color: '#ef4444' },
+  preview: { label: '待开播', color: '#3b6fd4' },
+  live: { label: '直播中', color: '#C41E3A' },
   ended: { label: '已结束', color: '#9ca3af' },
   draft: { label: '草稿', color: '#d99423' },
 }
@@ -1160,11 +1191,12 @@ export const liveManageStatusConfig: Record<string, { label: string; color: stri
 // ============ API 层 ============
 
 /* —— 后端原始响应类型（容错适配用，字段宽松，仅声明 adapter 实际访问到的字段；不 export） —— */
-interface RawLiveUser { nickname?: string; avatar?: string }
+interface RawLiveUser { id?: string; nickname?: string; avatar?: string; bio?: string; _count?: { followers?: number } }
 /** 后端直播间原始响应 */
 interface RawLiveRoom {
   id?: string
   title?: string
+  description?: string | null
   cover?: string | null
   user?: RawLiveUser | null
   viewCount?: number
@@ -1174,6 +1206,12 @@ interface RawLiveRoom {
   startTime?: string
   endTime?: string
   hasProducts?: boolean
+  productCount?: number // my-rooms 返回：本场商品数
+  orientation?: string | null // my-rooms 返回：portrait 竖屏 / landscape OBS横屏
+  quality?: string | null // my-rooms 返回：画质档 basic|hd|uhd
+  replayUrl?: string | null // my-rooms 返回：已结束有回放时
+  selfOnly?: boolean // my-rooms 返回：机审降级仅自己可见
+  removed?: boolean // my-rooms 返回：严重违规已下架
   _count?: { products?: number } | null
 }
 /** GET /live/rooms/:id 详情（getRoom·含 imGroupId/products 关联/主播资料） */
@@ -1183,7 +1221,12 @@ interface RawLiveRoomDetail extends RawLiveRoom {
   likeCount?: number
   circleId?: string | null // 发起直播的圈子（佣-V2-P3 内容场景归因：直播购买佣金归圈子）
   user?: (RawLiveUser & { id?: string }) | null
+  visibility?: string | null
   products?: { id?: string; productId?: string }[] | null
+  quality?: string | null // 画质档位 basic|hd|uhd（C5 分档）
+  replayUrl?: string | null // 回放地址（ENDED/REPLAY 态有回放时返回）
+  replayChapters?: { t?: number; title?: string }[] | null // #21 回放章节点（主播标注·[{t 秒, title}]）
+  circle?: { id?: string; name?: string } | null // 圈子关联（观看页展示「来自圈子」）
 }
 /** GET /shop/products/:id 精简形状（直播带货商品充实用·仅声明访问到的字段） */
 interface RawLiveShopProduct {
@@ -1203,14 +1246,14 @@ interface RawQualityPackage { id?: string; name?: string; quality?: string; minu
 /** GET /live/rooms 列表（裸数组或包装对象） */
 interface RawLiveRoomList { rooms?: RawLiveRoom[]; data?: RawLiveRoom[] }
 /** GET /live/my-rooms 经营聚合 */
-interface RawMyRoomsStats { monthCount?: number; totalViews?: number; endedCount?: number }
+interface RawMyRoomsStats { monthCount?: number; totalViews?: number; endedCount?: number; totalCount?: number }
 interface RawMyRooms { stats?: RawMyRoomsStats; rooms?: RawLiveRoom[] }
 /** 主播/回放列表包装（Array.isArray 守卫在运行时处理裸数组分支） */
 interface RawHostsResp { items?: LiveHost[] }
 interface RawReplaysResp { items?: LiveReplay[] }
 /** 回放首页条目原始响应 */
 interface RawReplayHomeItem {
-  id?: string | number; title?: string; cover?: string
+  id?: string | number; title?: string; cover?: string; replayUrl?: string
   hostName?: string; hostAvatar?: string; duration?: number | string
   viewers?: number | string; category?: string
 }
@@ -1225,7 +1268,8 @@ interface RawEndRoom {
 interface RawEndResp { room?: RawEndRoom; recommendLives?: LiveEndRecommendLive[]; recommendCourses?: typeof liveEndRecommendCourses }
 /** GET /live/console/:id */
 interface RawConsole {
-  title?: string; stats?: typeof consoleLiveStats; danmaku?: ConsoleDanmaku[]
+  title?: string; quality?: string
+  stats?: Partial<ConsoleLiveStats>; danmaku?: ConsoleDanmaku[]
   requests?: ConsoleConnectRequest[]; products?: ConsoleProduct[]; script?: ConsoleScript[]
 }
 /** GET /live/stream-config */
@@ -1285,13 +1329,15 @@ function adaptLiveItem(r: RawLiveRoom): LiveItem {
     hostName: r.user?.nickname || '',
     hostAvatar: r.user?.avatar || '',
     viewerCount: r.viewCount ?? 0,
-    type: 'knowledge',
+    type: (r._count?.products ?? 0) > 0 ? 'commerce' : 'knowledge',
     status: mapLiveStatus(r.status || ''),
+    replayUrl: r.replayUrl || undefined,
     orientation: 'horizontal',
     priceType: (r.chargeType && String(r.chargeType).toUpperCase() !== 'FREE') ? 'paid' : 'free',
     price: r.chargePrice != null ? Number(r.chargePrice) : undefined,
     productCount: r._count?.products ?? undefined,
     scheduledTime: fmtLiveTime(r.startTime),
+    scheduledAtRaw: r.startTime || undefined,
   }
 }
 
@@ -1312,62 +1358,43 @@ export const liveApi = {
 
   /** 直播广场列表 — GET /live/rooms（适配）；tab 客户端过滤 */
   async getPlaza(tab?: string): Promise<LiveItem[]> {
-    try {
-      const res = await apiGet<RawLiveRoom[] | RawLiveRoomList>('/live/rooms?pageSize=30')
-      const arr: RawLiveRoom[] = Array.isArray(res) ? res : (res?.rooms ?? res?.data ?? [])
-      let items: LiveItem[] = arr.map(adaptLiveItem)
-      if (tab && tab !== '全部') {
-        const typeMap: Record<string, string> = { '知识授课': 'knowledge', '电商带货': 'commerce' }
-        const t = typeMap[tab]
-        if (t) items = items.filter((i) => i.type === t)
-        else if (tab === '关注的') items = []
-      }
-      return items.length ? items : liveList
-    } catch {
-      return liveList
+    const followed = tab === '关注的' ? '&followed=1' : ''
+    const res = await apiGetOptionalAuth<RawLiveRoom[] | RawLiveRoomList>(`/live/rooms?pageSize=30${followed}`)
+    const arr: RawLiveRoom[] = Array.isArray(res) ? res : (res?.rooms ?? res?.data ?? [])
+    let items: LiveItem[] = arr.map(adaptLiveItem)
+    if (tab && tab !== '全部' && tab !== '关注的') {
+      const typeMap: Record<string, LiveType> = { '知识授课': 'knowledge', '电商带货': 'commerce' }
+      const type = typeMap[tab]
+      if (type) items = items.filter((item) => item.type === type)
     }
+    return items
   },
 
   /** 直播间详情 — GET /live/rooms/:id（适配） */
   async getWatch(id: string): Promise<LiveItem | undefined> {
-    try {
-      return adaptLiveItem(await apiGet<RawLiveRoom>(`/live/rooms/${id}`))
-    } catch {
-      return liveList.find(item => item.id === id)
-    }
+    const room = await apiGetOptionalAuth<RawLiveRoom | null>(`/live/rooms/${id}`)
+    return room ? adaptLiveItem(room) : undefined
   },
 
   /** 主播列表 — GET /live/hosts（后端结构已对齐 LiveHost） */
   async getHosts(filter?: string): Promise<LiveHost[]> {
-    try {
-      const url = filter ? `/live/hosts?filter=${encodeURIComponent(filter)}` : '/live/hosts'
-      const res = await apiGet<RawHostsResp>(url)
-      const arr = res?.items ?? (Array.isArray(res) ? res : [])
-      return (arr.length ? arr : liveHosts) as LiveHost[]
-    } catch {
-      return liveHosts
-    }
+    const url = filter ? `/live/hosts?filter=${encodeURIComponent(filter)}` : '/live/hosts'
+    const res = await apiGetOptionalAuth<RawHostsResp>(url)
+    return (res?.items ?? (Array.isArray(res) ? res : [])) as LiveHost[]
   },
 
   /** 回放列表 — GET /live/replays（后端结构已对齐 LiveReplay） */
   async getReplays(sort?: string): Promise<LiveReplay[]> {
-    try {
-      const url = sort ? `/live/replays?sort=${encodeURIComponent(sort)}` : '/live/replays'
-      const res = await apiGet<RawReplaysResp>(url)
-      const arr = res?.items ?? (Array.isArray(res) ? res : [])
-      return (arr.length ? arr : liveReplays) as LiveReplay[]
-    } catch {
-      return liveReplays
-    }
+    const url = sort ? `/live/replays?sortBy=${encodeURIComponent(sort)}` : '/live/replays'
+    const res = await apiGet<RawReplaysResp>(url)
+    return (res?.items ?? (Array.isArray(res) ? res : [])) as LiveReplay[]
   },
 
   /** 获取回放详情 — GET /live/replay/:id */
   async getReplayDetail(id: string): Promise<ReplayDetail> {
-    try {
-      return await apiGet<ReplayDetail>(`/live/replay/${id}`)
-    } catch {
-      return replayDetail
-    }
+    const detail = await apiGet<ReplayDetail | null>(`/live/replay/${id}`)
+    if (!detail?.id) throw new Error('回放不存在或已下架')
+    return detail
   },
 
   /** 获取回放首页数据 — GET /live/replay-home */
@@ -1377,13 +1404,14 @@ export const liveApi = {
     // 后端无 replay-home 聚合端点、回放也无分类维度 → 用 GET /live/replays 组合「最新+热门」，分类不做假筛选
     const toItem = (r: RawReplayHomeItem): ReplayHomeItem => ({
       id: String(r?.id || ''), title: r?.title || '', cover: r?.cover || '',
+      replayUrl: r?.replayUrl || '',
       hostName: r?.hostName || '', hostAvatar: r?.hostAvatar || '',
       duration: Number(r?.duration) || 0, views: Number(r?.viewers) || 0,
       category: r?.category || '', isHot: false,
     })
     const [latest, popular] = await Promise.all([
-      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays').catch(() => ({ items: [] as RawReplayHomeItem[] })),
-      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays?sortBy=popular').catch(() => ({ items: [] as RawReplayHomeItem[] })),
+      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays'),
+      apiGet<{ items?: RawReplayHomeItem[] }>('/live/replays?sortBy=popular'),
     ])
     const list = (Array.isArray(latest?.items) ? latest.items : []).map(toItem)
     const hotItems = (Array.isArray(popular?.items) ? popular.items : []).slice(0, 5).map((r: RawReplayHomeItem) => ({ ...toItem(r), isHot: true }))
@@ -1397,11 +1425,9 @@ export const liveApi = {
 
   /** 获取直播预告 — GET /live/preview/:id */
   async getPreview(id: string): Promise<LivePreviewRoom> {
-    try {
-      return await apiGet<LivePreviewRoom>(`/live/preview/${id}`)
-    } catch {
-      return livePreviewRoom
-    }
+    const preview = await apiGetOptionalAuth<LivePreviewRoom | null>(`/live/preview/${id}`)
+    if (!preview?.id) throw new Error('直播预告不存在或已取消')
+    return preview
   },
 
   /** 获取直播结束数据 — GET /live/end/:id（真连，含真实峰值/获赞/打赏聚合） */
@@ -1442,9 +1468,109 @@ export const liveApi = {
     return liveCreateCategories
   },
 
-  /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd） */
-  async createRoom(payload: { title: string; cover?: string; startTime?: string; chargeType?: string; quality?: string }): Promise<{ id: string }> {
+  /** 创建直播间 — POST /live/rooms（预约直播，status=WAITING；quality 画质档 basic/hd/uhd；orientation 开播方式 portrait=手机竖屏/landscape=OBS横屏；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·创建即生效，机审后台异步；productIds 带货商品挂车，后端落 LiveProduct 关联表） */
+  async createRoom(payload: { circleId?: string; title: string; description?: string; cover?: string; startTime?: string; chargeType?: string; chargePrice?: number; quality?: string; orientation?: 'portrait' | 'landscape'; visibility?: 'CIRCLE_ONLY' | 'PLATFORM'; productIds?: string[] }): Promise<{ id: string }> {
     return await apiPost<{ id: string }>('/live/rooms', payload)
+  },
+
+  /** 待开播场次编辑回填：详情与商品均取真实接口，不使用创建页默认值冒充。 */
+  async getRoomForEdit(roomId: string): Promise<LiveRoomEditData> {
+    const [room, configured] = await Promise.all([
+      apiGet<RawLiveRoomDetail>(`/live/rooms/${roomId}`),
+      liveApi.getRoomProducts(roomId),
+    ])
+    const orientation = room?.orientation === 'landscape' ? 'landscape' : 'portrait'
+    const quality = room?.quality === 'hd' || room?.quality === 'uhd' ? room.quality : 'basic'
+    return {
+      id: String(room?.id || roomId),
+      title: room?.title || '',
+      description: room?.description || '',
+      cover: room?.cover || '',
+      status: room?.status || '',
+      circleId: room?.circleId || '',
+      circleName: room?.circle?.name || '',
+      orientation,
+      quality,
+      chargeType: room?.chargeType === 'PAID' ? 'PAID' : 'FREE',
+      chargePrice: Number(room?.chargePrice) || 0,
+      startTime: room?.startTime || '',
+      products: configured.products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        cover: p.cover,
+        stock: p.stock,
+        sold: p.sold,
+      })),
+    }
+  },
+
+  /** 更新待开播场次；productIds 传空数组会真实清空挂车。 */
+  async updateRoom(roomId: string, payload: {
+    title: string; description?: string; cover?: string; startTime?: string | null
+    chargeType?: 'FREE' | 'PAID'; chargePrice?: number | null
+    quality?: 'basic' | 'hd' | 'uhd'; orientation?: 'portrait' | 'landscape'
+    productIds?: string[]
+  }): Promise<{ id: string }> {
+    return await apiPut<{ id: string }>(`/live/rooms/${roomId}`, payload)
+  },
+
+  /** 独立保存本场商品及展示顺序，可在直播中调整。 */
+  async saveRoomProducts(roomId: string, productIds: string[]): Promise<{ success: boolean; count: number; productIds: string[] }> {
+    return await apiPut<{ success: boolean; count: number; productIds: string[] }>(`/live/rooms/${roomId}/products`, { productIds })
+  },
+
+  /** 开始直播（房主本人或管理员） — PUT /live/rooms/:id/start（后端生成推拉流地址+建 IM 弹幕群） */
+  async startLive(roomId: string): Promise<{ id: string; status?: string; imGroupId?: string }> {
+    return await apiPut<{ id: string; status?: string; imGroupId?: string }>(`/live/rooms/${roomId}/start`)
+  },
+
+  /** 结束直播（房主本人或管理员） — PUT /live/rooms/:id/end */
+  async endLive(roomId: string): Promise<{ id: string; status?: string }> {
+    return await apiPut<{ id: string; status?: string }>(`/live/rooms/${roomId}/end`)
+  },
+
+  /** 删除直播间（房主本人或管理员） — DELETE /live/rooms/:id */
+  async deleteRoom(roomId: string): Promise<void> {
+    await apiDelete(`/live/rooms/${roomId}`)
+  },
+
+  /** 禁言用户（房主或管理员） — POST /live/rooms/:id/mute */
+  async muteUser(roomId: string, userId: string, durationMinutes?: number): Promise<void> {
+    await apiPost(`/live/rooms/${roomId}/mute`, { userId, ...(durationMinutes ? { durationMinutes } : {}) })
+  },
+
+  /** 当前有效禁言名单（仅房主或管理员） — GET /live/rooms/:id/muted-users */
+  async getMutedUsers(roomId: string): Promise<LiveMutedUserItem[]> {
+    return await apiGet<LiveMutedUserItem[]>(`/live/rooms/${roomId}/muted-users`)
+  },
+
+  /** 解除禁言 — DELETE /live/rooms/:id/mute/:userId */
+  async unmuteUser(roomId: string, userId: string): Promise<void> {
+    await apiDelete(`/live/rooms/${roomId}/mute/${userId}`)
+  },
+
+  /** 回复直播评价（仅房主） — POST /live/reviews/:id/reply */
+  async replyReview(reviewId: string, reply: string): Promise<void> {
+    await apiPost(`/live/reviews/${reviewId}/reply`, { reply })
+  },
+
+  // ───────── 关注主播（复用平台用户关注端点·与短视频批同一套）─────────
+
+  /** 是否已关注主播 — GET /users/:id/is-following */
+  async isFollowingHost(userId: string): Promise<boolean> {
+    const res = await apiGet<{ isFollowing?: boolean; following?: boolean }>(`/users/${userId}/is-following`)
+    return !!(res?.isFollowing ?? res?.following)
+  },
+
+  /** 关注主播 — POST /users/:id/follow */
+  async followHost(userId: string): Promise<void> {
+    await apiPost(`/users/${userId}/follow`)
+  },
+
+  /** 取关主播 — DELETE /users/:id/follow */
+  async unfollowHost(userId: string): Promise<void> {
+    await apiDelete(`/users/${userId}/follow`)
   },
 
   // ───────── 画质分档商业化（C5·时长包/额度）─────────
@@ -1493,11 +1619,18 @@ export const liveApi = {
         const mins = Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 60000)
         if (mins > 0) duration = mins >= 60 ? `${Math.floor(mins / 60)}小时${mins % 60}分` : `${mins}分钟`
       }
+      const price = Number(r.chargePrice ?? 0)
       return {
         id: r.id || '',
         title: r.title || '',
+        cover: r.cover || '',
         type: r.hasProducts ? 'commerce' : 'knowledge',
         status,
+        orientation: r.orientation === 'landscape' ? 'landscape' : 'portrait',
+        quality: r.quality || 'basic',
+        priceType: r.chargeType === 'PAID' && price > 0 ? 'paid' : 'free',
+        price,
+        replayUrl: r.replayUrl || '',
         scheduledTime: fmtLiveTime(r.startTime) || '',
         duration,
         viewers: r.viewCount || 0,
@@ -1505,6 +1638,8 @@ export const liveApi = {
         income: 0, // 同上，收益依赖运行时订单/打赏
         likes: 0,
         previewCount: status === 'preview' ? 0 : undefined, // 预约数后端暂未聚合
+        selfOnly: !!r.selfOnly,
+        removed: !!r.removed,
       }
     }
     try {
@@ -1518,14 +1653,15 @@ export const liveApi = {
 
   /** 获取直播控制台数据 — GET /live/console/:id */
   async getConsoleData(id: string): Promise<{
-    title: string; stats: typeof consoleLiveStats; danmaku: ConsoleDanmaku[]; requests: ConsoleConnectRequest[]
+    title: string; quality: 'basic' | 'hd' | 'uhd'; stats: ConsoleLiveStats; danmaku: ConsoleDanmaku[]; requests: ConsoleConnectRequest[]
     products: ConsoleProduct[]; script: ConsoleScript[]
   }> {
     try {
       const data = await apiGet<RawConsole>(`/live/console/${id}`)
       return {
         title: data?.title || '',
-        stats: data?.stats || consoleLiveStats,
+        quality: data?.quality === 'uhd' ? 'uhd' : data?.quality === 'hd' ? 'hd' : 'basic',
+        stats: { ...emptyConsoleLiveStats(), ...(data?.stats || {}) },
         danmaku: data?.danmaku || [],
         requests: data?.requests || [],
         products: data?.products || [],
@@ -1736,6 +1872,62 @@ export const liveApi = {
     }
   },
 
+  /**
+   * 本场已配带货商品 — GET /live/rooms/:id（关联表仅存 productId → 逐个拉 /shop/products/:id 充实）。
+   * 真连：房间标题 + 已配商品列表（排序即讲解顺序·后端关联表当前无排序/讲解中字段，前端按返回顺序展示）。
+   * 单件失败跳过；房间不存在/未登录 → 抛错交页面三态。
+   */
+  async getRoomProducts(roomId: string): Promise<{ roomTitle: string; products: LiveConfiguredProduct[] }> {
+    const r = await apiGet<RawLiveRoomDetail>(`/live/rooms/${roomId}`)
+    const rawProds = Array.isArray(r?.products) ? r.products.slice(0, 30) : []
+    const enriched = await Promise.all(
+      rawProds.map(async (lp): Promise<LiveConfiguredProduct | null> => {
+        const pid = lp.productId || ''
+        if (!pid) return null
+        try {
+          const p = await apiGet<RawLiveShopProduct>(`/shop/products/${pid}`)
+          return {
+            id: pid,
+            name: p?.title || '商品',
+            cover: (Array.isArray(p?.images) && p.images[0]) || p?.cover || '',
+            price: Number(p?.effectivePrice ?? p?.price) || 0,
+            stock: p?.stock ?? 0,
+            sold: p?.salesCount ?? 0,
+          }
+        } catch {
+          return null // 商品已删/下架 → 跳过
+        }
+      }),
+    )
+    return {
+      roomTitle: r?.title || '',
+      products: enriched.filter((p): p is LiveConfiguredProduct => !!p),
+    }
+  },
+
+  /**
+   * 选品层商品池 — GET /shop/products?status=ON_SALE（平台在售商品·多选加入直播间）。
+   * 真连；search 走后端 keyword 过滤。失败/未登录 → 空列表（页面空态，不回退假商品）。
+   */
+  async getShopProductPool(search?: string): Promise<LivePickerProduct[]> {
+    const q = search ? `&keyword=${encodeURIComponent(search)}` : ''
+    const r = await apiGet<unknown>(`/shop/products?status=ON_SALE&pageSize=50${q}`)
+    const arr: RawLiveShopProduct[] = Array.isArray(r)
+      ? (r as RawLiveShopProduct[])
+      : ((r as { products?: RawLiveShopProduct[]; items?: RawLiveShopProduct[]; data?: RawLiveShopProduct[] })?.products
+          ?? (r as { items?: RawLiveShopProduct[] })?.items
+          ?? (r as { data?: RawLiveShopProduct[] })?.data
+          ?? [])
+    return arr.map((p) => ({
+      id: String(p.id ?? ''),
+      name: p.title || '商品',
+      cover: (Array.isArray(p.images) && p.images[0]) || p.cover || '',
+      price: Number(p.effectivePrice ?? p.price) || 0,
+      stock: p.stock ?? 0,
+      sold: p.salesCount ?? 0,
+    }))
+  },
+
   /** 获取评价列表 — GET /live/reviews */
   async getReviews(filter?: string): Promise<{ dist: LiveReviewDist[]; reviews: LiveReview[] }> {
     try {
@@ -1754,12 +1946,20 @@ export const liveApi = {
   }> {
     const data = await apiGet<RawLiveSettings>('/live/settings')
     return {
-      profile: data?.profile || liveSettingProfile,
-      notify: data?.notify || liveSettingNotifyDefault,
-      privacy: data?.privacy || liveSettingPrivacyDefault,
+      profile: { cover: '', name: '', desc: '', ...(data?.profile || {}) },
+      notify: { ...liveSettingNotifyDefault, ...(data?.notify || {}) },
+      privacy: { ...liveSettingPrivacyDefault, ...(data?.privacy || {}) },
     }
   },
 
+  /** 保存主播直播间资料、通知和互动偏好 — PUT /live/settings */
+  async saveSettings(payload: {
+    profile: { name: string; desc: string; cover: string }
+    notify: Record<string, boolean>
+    privacy: Record<string, boolean>
+  }): Promise<{ success: boolean; message?: string }> {
+    return await apiPut<{ success: boolean; message?: string }>('/live/settings', payload)
+  },
   /**
    * 获取竖屏直播间数据 — 前端组装 GET /live/rooms/:id（房间+主播+商品关联）
    * 弹幕(comments)走 TIM 群实时收发·初始为空；商品详情后端关联表无字段 → 降级空(页面商品区隐藏)。
@@ -1774,8 +1974,9 @@ export const liveApi = {
       title: r.title || '',
       hostName: r.user?.nickname || '',
       hostAvatar: r.user?.avatar || '',
+      hostId: r.user?.id || r.hostUserId || '', // 关注主播用
       hostLevel: 0, // 后端无主播等级 → 降级
-      followers: 0, // 后端房间未聚合粉丝数 → 降级
+      followers: r.user?._count?.followers ?? 0,
       viewerCount: r.viewCount ?? 0,
       likeCount: r.likeCount ?? 0,
       onlineAvatars: [], // 后端无在线头像列表 → 降级(页面 v-for 不渲染)
@@ -1802,8 +2003,9 @@ export const liveApi = {
       title: r.title || '',
       hostName: r.user?.nickname || '',
       hostAvatar: r.user?.avatar || '',
-      hostTitle: '', // 后端房间无主播头衔 → 降级
-      followers: 0,
+      hostTitle: '', // 后端房间无主播头衔 → 页面隐藏
+      hostBio: r.user?.bio || '',
+      followers: r.user?._count?.followers ?? 0,
       viewers: r.viewCount ?? 0,
       likes: r.likeCount ?? 0,
       duration: '', // 时长依赖运行时 → 降级
@@ -1829,8 +2031,12 @@ export const liveApi = {
     ])
     const s = my?.stats
     const totalRevenue = Number(earn?.stats?.total) || 0
+    const revenueGrowthRate = earn?.stats?.trend != null && Number.isFinite(Number(earn.stats.trend))
+      ? Number(earn.stats.trend)
+      : null
     const rooms: HostLiveRoom[] = (my?.rooms || []).map((r: RawLiveRoom): HostLiveRoom => {
-      const ended = String(r.status || '').toUpperCase() === 'ENDED' || String(r.status || '').toUpperCase() === 'REPLAY'
+      const rawStatus = String(r.status || '').toUpperCase()
+      const ended = rawStatus === 'ENDED' || rawStatus === 'REPLAY'
       let duration = 0
       if (r.startTime && r.endTime) {
         const m = Math.round((new Date(r.endTime).getTime() - new Date(r.startTime).getTime()) / 60000)
@@ -1838,22 +2044,18 @@ export const liveApi = {
       }
       return {
         id: r.id || '', title: r.title || '', cover: r.cover || '',
-        status: ended ? 'ended' : 'preview',
+        status: ended ? 'ended' : rawStatus === 'LIVING' ? 'live' : 'preview',
         dateText: fmtLiveTime(r.startTime) || '',
         duration, views: r.viewCount || 0,
-        gifts: 0, // 单场打赏依赖运行时聚合 → 降级
-        revenue: 0,
       }
     })
     const stats: HostLiveStats = {
       totalViews: s?.totalViews ?? 0,
       totalRevenue,
-      avgDuration: 0,
-      fansGrowth: 0,
-      totalRooms: (my?.rooms || []).length,
-      totalGifts: 0,
-      viewsGrowthRate: 0,
-      revenueGrowthRate: Number(earn?.stats?.trend) || 0,
+      totalRooms: s?.totalCount ?? rooms.length,
+      endedRooms: s?.endedCount ?? rooms.filter((room) => room.status === 'ended').length,
+      viewsGrowthRate: null, // 后端暂无观看量分期对比源 → 页面显示“暂无同比数据”
+      revenueGrowthRate,
     }
     return { stats, rooms, trend: [] }
   },
@@ -1863,17 +2065,17 @@ export const liveApi = {
    * 弹幕(comments)走 TIM 群·初始空；商品详情关联表无字段 → 降级空。
    */
   async getWatchRoom(id: string): Promise<{
-    room: typeof liveWatchRoom & { status: string }; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
+    room: LiveWatchRoomInfo; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
   }> {
     const r = await apiGet<RawLiveRoomDetail>(`/live/rooms/${id}`)
-    const room: typeof liveWatchRoom & { status: string } = {
+    const room: LiveWatchRoomInfo = {
       id: r.id || id,
       type: (Array.isArray(r.products) && r.products.length ? 'commerce' : 'knowledge'),
       title: r.title || '',
       hostName: r.user?.nickname || '',
       hostAvatar: r.user?.avatar || '',
       hostId: r.user?.id || r.hostUserId || '',
-      followers: 0,
+      followers: r.user?._count?.followers ?? null,
       viewerCount: r.viewCount ?? 0,
       likeCount: r.likeCount ?? 0,
       isFollowing: false, // 后端房间未返回关注态 → 降级(页面按钮默认未关注)
@@ -1881,6 +2083,17 @@ export const liveApi = {
       imGroupId: r.imGroupId || '',
       circleId: r.circleId || '', // 佣-V2-P3：进房渠道点击上报 + 购买 LIVE 来源归因
       status: r.status || '', // 房间状态(WAITING/LIVING/ENDED/REPLAY)→供未开播占位文案精确判断
+      cover: r.cover || '', // 封面（预约态压暗展示/回放态封面）
+      startTime: r.startTime || '', // 开播时间（预约态倒计时/时间行）
+      chargeType: String(r.chargeType || 'FREE').toUpperCase(), // FREE|付费（付费场如实展示票价，不做假支付）
+      chargePrice: Number(r.chargePrice) || 0,
+      quality: String(r.quality || ''), // basic|hd|uhd（LIVING 态画质角标）
+      replayUrl: r.replayUrl || '', // 回放地址（ENDED/REPLAY 态点播）
+      // #21 回放章节点：仅收有效项（t 数字秒 + 非空标题），后端未标注/列未就绪 → 空数组不渲染
+      replayChapters: (Array.isArray(r.replayChapters) ? r.replayChapters : [])
+        .map((c) => ({ t: Math.max(0, Math.floor(Number(c?.t)) || 0), title: String(c?.title || '').trim() }))
+        .filter((c) => c.title),
+      circleName: r.circle?.name || '', // 来源圈子名（「来自圈子」一行小字）
     }
     // 带货商品充实（佣-V2-P3 顺带修通）：关联表仅存 productId → 逐个拉商品详情组装带货列表
     // （限 10 件·单件失败跳过·全部失败=空态与此前降级一致，不阻断直播间加载）
@@ -1905,6 +2118,24 @@ export const liveApi = {
     return { room, comments: [], products: enriched.filter((p): p is VerticalLiveProduct => !!p) }
   },
 
+  /** 获取登录用户的跨设备回放进度；未产生记录时后端返回零进度。 */
+  async getWatchProgress(roomId: string): Promise<LiveWatchProgress> {
+    return await apiGet<LiveWatchProgress>(`/live/rooms/${roomId}/watch-progress`)
+  },
+
+  /** 幂等上报回放进度；clientSequence 在同一播放会话中只增不减。 */
+  async saveWatchProgress(
+    roomId: string,
+    payload: {
+      positionSeconds: number
+      durationSeconds: number
+      clientSessionId: string
+      clientSequence: number
+    },
+  ): Promise<LiveWatchProgress> {
+    return await apiPut<LiveWatchProgress>(`/live/rooms/${roomId}/watch-progress`, payload)
+  },
+
   /**
    * 直播间渠道点击上报（佣-V2-P3）— POST /commission/channel-click。
    * 进直播间 ≈ 该圈子全店(SHOP_ALL)渠道点击（7天窗 last-click 归因）；
@@ -1912,7 +2143,7 @@ export const liveApi = {
    */
   async reportCircleChannelClick(circleId: string): Promise<void> {
     if (!circleId) return
-    try { await apiPost('/commission/channel-click', { subjectType: 'CIRCLE', subjectId: circleId, targetType: 'SHOP_ALL' }) } catch { /* 静默 */ }
+    try { await apiPostOptionalAuth('/commission/channel-click', { subjectType: 'CIRCLE', subjectId: circleId, targetType: 'SHOP_ALL' }) } catch { /* 静默 */ }
   },
 
   /**
@@ -1922,7 +2153,7 @@ export const liveApi = {
   async getGifts(): Promise<{ gifts: LiveGift[]; balance: number }> {
     const [rawGifts, bal] = await Promise.all([
       apiGet<RawGift[] | { items?: RawGift[]; gifts?: RawGift[] }>('/live/gifts').catch(() => [] as RawGift[]),
-      apiGet<RawCoinBalance>('/coin/balance').catch(() => null),
+      apiGetOptionalAuth<RawCoinBalance>('/coin/balance').catch(() => null),
     ])
     const arr = Array.isArray(rawGifts) ? rawGifts : (rawGifts?.items ?? rawGifts?.gifts ?? [])
     return { gifts: arr.map(adaptGift), balance: Number(bal?.balance) || 0 }
@@ -1968,6 +2199,26 @@ export const liveApi = {
   /** 直播点赞 — POST /live/rooms/:id/like */
   async likeRoom(roomId: string): Promise<void> {
     await apiPost(`/live/rooms/${roomId}/like`)
+  },
+
+  // ───────── 开播预约（仅 WAITING 可约；后端无「我是否已预约」查询 → 已预约态由页面本次会话乐观维护）─────────
+
+  /** 预约直播 — POST /live/rooms/:id/book（返回 {booked, bookingCount}·未登录/非 WAITING 抛错给页面 toast） */
+  async bookRoom(roomId: string): Promise<{ booked: boolean; bookingCount: number }> {
+    const res = await apiPost<{ booked?: boolean; bookingCount?: number }>(`/live/rooms/${roomId}/book`)
+    return { booked: !!res?.booked, bookingCount: Number(res?.bookingCount) || 0 }
+  },
+
+  /** 取消预约 — DELETE /live/rooms/:id/book */
+  async unbookRoom(roomId: string): Promise<{ booked: boolean; bookingCount: number }> {
+    const res = await apiDelete<{ booked?: boolean; bookingCount?: number }>(`/live/rooms/${roomId}/book`)
+    return { booked: !!res?.booked, bookingCount: Number(res?.bookingCount) || 0 }
+  },
+
+  /** 预约人数 — GET /live/rooms/:id/bookings（返回 {roomId, bookingCount}·失败交页面容错） */
+  async getBookingCount(roomId: string): Promise<number> {
+    const res = await apiGet<{ bookingCount?: number }>(`/live/rooms/${roomId}/bookings`)
+    return Number(res?.bookingCount) || 0
   },
 
   /** 发送直播评论/弹幕（业务侧持久化，与 TIM 群实时下发并行） — POST /live/rooms/:id/comment */

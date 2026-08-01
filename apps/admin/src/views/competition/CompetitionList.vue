@@ -48,7 +48,7 @@ const columns = [
   { prop: "scoringModel", label: "评分模型", width: 90, slot: "scoringModel" },
   { prop: "status", label: "状态", width: 90, slot: "status" },
   { prop: "_count.registrations", label: "报名数", width: 80, slot: "regCount" },
-  { prop: "totalPrize", label: "奖金池", width: 100, slot: "prize" },
+  { prop: "totalPrize", label: "奖金池", width: 110, slot: "prize", align: "right" },
   { prop: "createdAt", label: "创建时间", width: 160, slot: "createdAt" },
 ];
 
@@ -66,7 +66,7 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch, handle
   },
   defaultPageSize: 20,
   transformResponse: (data: any) => ({
-    items: data.data || [],
+    items: data.items ?? data.data ?? [],
     total: data.total || 0,
   }),
 });
@@ -80,9 +80,10 @@ function formatDate(d?: string) {
   return new Date(d).toLocaleString("zh-CN");
 }
 
-function formatPrize(v: number) {
-  if (!v) return "-";
-  return v >= 100 ? "¥" + (v / 100).toFixed(0) : v + "分";
+/** 奖金池：后端以「分」存储（prisma Competition.totalPrize），统一转元、千分位两位小数 */
+function formatPrize(v?: number) {
+  if (!v) return "—";
+  return "¥" + (v / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 const actingId = ref<string | null>(null);
@@ -104,6 +105,9 @@ async function handleDelete(id: string) {
 
 async function handlePublish(id: string) {
   if (actingId.value) return;
+  try {
+    await ElMessageBox.confirm("发布后赛事将对全平台用户可见并开放报名，确定发布？", "发布确认", { type: "warning" });
+  } catch { return; /* 用户取消 */ }
   actingId.value = id;
   try {
     await competitionApi.publish(id);
@@ -116,6 +120,9 @@ async function handlePublish(id: string) {
 
 async function handleStart(id: string) {
   if (actingId.value) return;
+  try {
+    await ElMessageBox.confirm("开始后赛事进入进行中状态，报名截止、选手开始比赛，确定开始？", "开始确认", { type: "warning" });
+  } catch { return; /* 用户取消 */ }
   actingId.value = id;
   try {
     await competitionApi.start(id);
@@ -155,6 +162,7 @@ function exportData() {
       typeLabel: typeLabels[c.type ?? ""] || c.type,
       statusLabel: statusLabels[c.status ?? ""]?.text || c.status,
       regCount: c._count?.registrations || 0,
+      totalPrize: formatPrize(c.totalPrize),
       createdAt: formatDate(c.createdAt),
     })),
   );

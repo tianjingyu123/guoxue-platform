@@ -2,9 +2,11 @@ import { Test } from "@nestjs/testing";
 import { MarketingService } from "./marketing.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ShopService } from "../shop/shop.service";
+import { ShopCouponService } from "../shop/shop-coupon.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockShop = { createGroupBuyOrder: jest.fn() };
+const mockShopCoupon = { grantCoupon: jest.fn(), batchGrantCoupon: jest.fn() };
 const makeMockPrisma = () => {
   const mock: any = {
     $transaction: jest.fn((arg: any) => {
@@ -28,6 +30,8 @@ const makeMockPrisma = () => {
       update: jest.fn(), updateMany: jest.fn(), count: jest.fn(),
     },
     couponRecord: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
+    coupon: { findUnique: jest.fn() },
+    userCoupon: { findFirst: jest.fn() },
     discountActivity: {
       create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
       update: jest.fn(), delete: jest.fn(), count: jest.fn(),
@@ -64,6 +68,7 @@ describe("MarketingService", () => {
         MarketingService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: ShopService, useValue: mockShop },
+        { provide: ShopCouponService, useValue: mockShopCoupon },
       ],
     }).compile();
     svc = mod.get(MarketingService);
@@ -72,6 +77,8 @@ describe("MarketingService", () => {
   beforeEach(() => {
     const fresh = makeMockPrisma();
     Object.assign(mockPrisma, fresh);
+    mockShopCoupon.grantCoupon.mockReset();
+    mockShopCoupon.batchGrantCoupon.mockReset();
   });
 
   // ─── 秒杀管理 ───
@@ -204,29 +211,45 @@ describe("MarketingService", () => {
     });
   });
 
-  describe("grantCoupon", () => {
-    it("发放优惠券成功", async () => {
-      mockPrisma.couponTemplate.findUnique.mockResolvedValue({ id: "ct1", totalCount: 0, claimedCount: 0 });
-      mockPrisma.couponRecord.create.mockResolvedValue({ id: "cr1", couponId: "ct1", userId: "u1", status: "UNUSED" });
-      const result = await svc.grantCoupon("ct1", { userId: "u1" });
-      expect(result.status).toBe("UNUSED");
+  describe("grantCoupon（券体系已统一→建可核销 UserCoupon）", () => {
+    const future = () => new Date(Date.now() + 86_400_000);
+
+    it("发放成功：委托商城发放口建 UserCoupon", async () => {
+      mockPrisma.coupon.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", validEnd: future() });
+      mockPrisma.userCoupon.findFirst.mockResolvedValue(null);
+      mockShopCoupon.grantCoupon.mockResolvedValue({ id: "uc1", userId: "u1", couponId: "c1", used: false });
+      const result = await svc.grantCoupon("c1", { userId: "u1" });
+      expect(mockShopCoupon.grantCoupon).toHaveBeenCalledWith("c1", "u1");
+      expect(result.used).toBe(false);
     });
 
-    it("已领完抛出异常", async () => {
-      mockPrisma.couponTemplate.findUnique.mockResolvedValue({ id: "ct1", totalCount: 100, claimedCount: 100 });
-      await expect(svc.grantCoupon("ct1", { userId: "u1" })).rejects.toThrow(BusinessException);
+    it("券不存在抛出异常（旧模板ID/无效ID）", async () => {
+      mockPrisma.coupon.findUnique.mockResolvedValue(null);
+      await expect(svc.grantCoupon("c1", { userId: "u1" })).rejects.toThrow(BusinessException);
+      expect(mockShopCoupon.grantCoupon).not.toHaveBeenCalled();
+    });
+
+    it("券已过期抛出异常", async () => {
+      mockPrisma.coupon.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", validEnd: new Date(Date.now() - 1000) });
+      await expect(svc.grantCoupon("c1", { userId: "u1" })).rejects.toThrow(BusinessException);
+      expect(mockShopCoupon.grantCoupon).not.toHaveBeenCalled();
+    });
+
+    it("幂等：已持有该券未使用则跳过重复发放", async () => {
+      mockPrisma.coupon.findUnique.mockResolvedValue({ id: "c1", status: "ACTIVE", validEnd: future() });
+      mockPrisma.userCoupon.findFirst.mockResolvedValue({ id: "uc-existing", used: false });
+      const result = await svc.grantCoupon("c1", { userId: "u1" });
+      expect(mockShopCoupon.grantCoupon).not.toHaveBeenCalled();
+      expect(result.id).toBe("uc-existing");
     });
   });
 
-  describe("batchGrantCoupon", () => {
-    it("批量发放优惠券", async () => {
-      mockPrisma.couponTemplate.findUnique
-        .mockResolvedValueOnce({ id: "ct1", totalCount: 0, claimedCount: 0 })
-        .mockResolvedValue({ id: "ct1", claimedCount: 0 });
-      mockPrisma.couponTemplate.update.mockResolvedValue({ id: "ct1", claimedCount: 2 });
-      mockPrisma.couponRecord.createMany.mockResolvedValue({ count: 2 });
-      const result = await svc.batchGrantCoupon("ct1", { userIds: ["u1", "u2"] });
-      expect(result.success).toBe(2);
+  describe("batchGrantCoupon（委托商城统一批量发放口）", () => {
+    it("批量发放委托 ShopCouponService.batchGrantCoupon", async () => {
+      mockShopCoupon.batchGrantCoupon.mockResolvedValue({ granted: 2, skipped: 0 });
+      const result = await svc.batchGrantCoupon("c1", { userIds: ["u1", "u2"] });
+      expect(mockShopCoupon.batchGrantCoupon).toHaveBeenCalledWith("c1", ["u1", "u2"]);
+      expect(result.granted).toBe(2);
     });
   });
 
@@ -420,6 +443,25 @@ describe("MarketingService", () => {
     });
   });
 
+  describe("getPublishedPageByRoute", () => {
+    it("未配置页面返回 null，C 端使用内建布局且不产生 404", async () => {
+      mockPrisma.marketingPage.findUnique.mockResolvedValue(null);
+      await expect(svc.getPublishedPageByRoute("home")).resolves.toBeNull();
+    });
+
+    it("草稿页面返回 null，不向 C 端泄露未发布配置", async () => {
+      mockPrisma.marketingPage.findUnique.mockResolvedValue({ id: "mp1", route: "home", status: "DRAFT", components: [] });
+      await expect(svc.getPublishedPageByRoute("home")).resolves.toBeNull();
+    });
+
+    it("已发布页面只返回展示时间范围内的组件", async () => {
+      const active = { id: "c1", startTime: null, endTime: null };
+      const future = { id: "c2", startTime: new Date(Date.now() + 60_000), endTime: null };
+      mockPrisma.marketingPage.findUnique.mockResolvedValue({ id: "mp1", route: "home", status: "PUBLISHED", components: [active, future] });
+      const result: any = await svc.getPublishedPageByRoute("home");
+      expect(result.components).toEqual([active]);
+    });
+  });
   describe("addPageComponent", () => {
     it("添加页面组件成功", async () => {
       mockPrisma.marketingPage.findUnique.mockResolvedValue({ id: "mp1" });

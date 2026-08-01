@@ -1,46 +1,81 @@
 <script setup lang="ts">
 /**
- * 圈子详情页（从原型 app/circles/[id]/page.tsx 843 行高保真迁移）
- * 封面+导航 / 信息卡 / 公告 / 6Tab(首页/帖子/文章/精华/专栏/成员) / 底部操作栏 / 会员权益弹窗
+ * 圈子详情页 — V0 门控骨架重构（2026-07-10）+ UX 重排批（2026-07-10 董事长真机反馈）
+ * 结构：导航 → 身份区(成员头像入口+管理入口) → 公告 → AI助理入口 → 增值内容带(门控点亮) → Tab(动态/精华/文章) → 动态流
+ * 门控：增值模块 v-if="xxx.length" 天然实现——未开通(无数据)=不存在，开通=融入。核心互动(帖子)恒为主体。
+ * 底部：游客=加入通栏（转化关键）/ 已加入=无底栏，右下角 FAB 悬浮创作按钮 → 自定义发布 Sheet（V0 publish-sheet 稿）
+ * 退出入口已移至「圈子·我的」(me.vue) 圈子卡 ···；管理入口移至身份区（仅圈主/管理员可见）
+ * 数据层沿用原实现（circleDetailApi 全套 + 角色/加入/审批/付费/弹窗逻辑），不改后端契约。
  */
 import { ref, computed } from 'vue'
-import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { onLoad, onShow, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
 import AppIcon from '@/components/common/app-icon.vue'
-import PostCard from '@/components/circle/post-card.vue'
-import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
+import PostCard from '@/pkg-circle/components/post-card.vue'
+import { goBack, navigateTo } from '@/utils/router'
+import { VOICE } from '@/lib/voice'
 import { getToken } from '@/utils/storage'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
 import {
   circleDetailApi, memberBenefits,
-  type CircleDetail, type CirclePost, type CircleMember, type CircleColumn, type CircleArticle, type CircleActivity,
+  type CircleDetail, type CirclePost, type CircleMember, type CircleArticle, type CircleCourse, type CircleLive, type CircleProduct,
 } from '@/lib/circle-detail-data'
-import { recommendApi } from '@/lib/recommend-data'
-import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { track } from '@/composables/useTrack'
+import { formatPrice } from '@/utils/format'
+import { liveApi } from '@/lib/live-data'
+import { consultApi, type ConsultExpert } from '@/lib/circle-consult-data'
+import { postDetailApi } from '@/pkg-circle/lib/post-detail-data'
+import { gotoReport } from '@/lib/report-data'
+import { growthApi } from '@/lib/circle-growth-data'
 
 const circleId = ref('1')
 const circle = ref<CircleDetail | null>(null)
 const posts = ref<CirclePost[]>([])
 const members = ref<CircleMember[]>([])
-const columns = ref<CircleColumn[]>([])
 const circleArticles = ref<CircleArticle[]>([])
-const activities = ref<CircleActivity[]>([])
+const courses = ref<CircleCourse[]>([])
+const lives = ref<CircleLive[]>([])
+const circleProducts = ref<CircleProduct[]>([])
+const postedArticles = ref<CircleArticle[]>([])
 const isLoading = ref(true)
 const error = ref('')
-const activeTab = ref<'home' | 'posts' | 'articles' | 'essence' | 'columns' | 'members'>('home')
-const showAnnouncement = ref(true)
+const activeTab = ref<'home' | 'essence' | 'articles' | 'qa'>('home')
+const showAnnouncement = ref(false)
 const isJoined = ref(false)
-const applied = ref(false) // 需审批圈：本次会话已提交申请，按钮转「审核中」
-// 角色权限：按当前用户在该圈的真实角色判断（圈主=OWNER，管理入口仅圈主可见）
+const applied = ref(false)
+// 年费圈会员到期信息（用于续费提醒·2026-07-14 接线：此前 getJoinStatus 的 expireAt 被丢弃，
+// 导致续费页 circles/renew 全项目零入口——年费圈到期了成员根本找不到地方续费）
+const memberExpireAt = ref<string | null>(null)
+const memberExpired = ref(false)
+/** 续费提醒：仅年费圈已加入成员·已过期或 15 天内到期时露出 */
+const renewInfo = computed(() => {
+  if (!isJoined.value || circle.value?.type !== 'YEARLY' || !memberExpireAt.value) return null
+  const days = Math.ceil((new Date(memberExpireAt.value).getTime() - Date.now()) / 86400000)
+  if (!memberExpired.value && days > 15) return null
+  return {
+    text: memberExpired.value ? '会员已到期，续费后继续查看圈内内容' : `会员将于 ${days} 天后到期`,
+    urgent: memberExpired.value,
+  }
+})
+// 角色权限
 const isOwner = computed(() => circle.value?.myRole === 'OWNER')
+const canCreate = computed(() => ['OWNER', 'PARTNER', 'ADMIN'].includes(circle.value?.myRole || ''))
+const canManage = computed(() => ['OWNER', 'ADMIN'].includes(circle.value?.myRole || ''))
 const isLoggedIn = () => !!getToken()
 const likedPosts = ref<Set<string>>(new Set())
 const showBenefits = ref(false)
 const showPurchase = ref(false)
-const recItems = ref<RecommendItem[]>([])
+const showPublish = ref(false)
+// FAB 滚动半透明：滚动中降不透明度，停止 400ms 恢复
+const fabDim = ref(false)
+let fabTimer: ReturnType<typeof setTimeout> | null = null
+// 进行中的直播（增值带优先浮出）
+const liveNow = computed(() => lives.value.find((l) => l.status === 'live'))
 
-/** 底部加入按钮文案：按圈子类型/价格/加入态展示真实信息 */
+/** 底部加入按钮文案 */
 const joinButtonText = computed(() => {
   const c = circle.value
   if (!c) return '加入圈子'
@@ -51,24 +86,62 @@ const joinButtonText = computed(() => {
   return `¥${c.price} 加入圈子`
 })
 
+// 「成员」Tab 已去（与顶部成员信息重复·董事长反馈）→ 顶部成员数即入口，跳独立成员列表页
+// 董事长 #25：默认落「推荐」（原「动态」流即推荐流·改名）；「达人问答」从卡片降为内容分类 tab
 const tabs = [
-  { id: 'home', label: '首页' },
-  { id: 'posts', label: '帖子' },
-  { id: 'articles', label: '文章' },
+  { id: 'home', label: '推荐' },
   { id: 'essence', label: '精华' },
-  { id: 'columns', label: '专栏' },
-  { id: 'members', label: '成员' },
+  { id: 'articles', label: '文章' },
+  { id: 'qa', label: '问答' },
 ] as const
 
-const pinnedPosts = computed(() => posts.value.filter(p => p.isPinned))
-const essencePosts = computed(() => posts.value.filter(p => p.isEssence))
+const essencePosts = computed(() => posts.value.filter((p) => p.isEssence))
+
+// 「问答」Tab：本圈达人付费问答（董事长 #25 达人咨询降为内容分类 tab 后，此前 v-else 误落文章列表——2026-07-15 修）
+const qaExperts = ref<ConsultExpert[]>([])
+const qaLoading = ref(false)
+const qaLoaded = ref(false)
+async function loadQaExperts() {
+  if (qaLoaded.value || qaLoading.value) return
+  qaLoading.value = true
+  try {
+    qaExperts.value = await consultApi.listExperts(circleId.value)
+  } catch { qaExperts.value = [] }
+  finally { qaLoading.value = false; qaLoaded.value = true }
+}
+function onTabTap(id: typeof activeTab.value) {
+  activeTab.value = id
+  if (id === 'qa') loadQaExperts()
+}
+/** 图文提问：跳付费提问页（与达人咨询页同参数契约） */
+function goAskExpert(e: ConsultExpert) {
+  if (!e.questionPrice) return
+  navigateTo(`/pkg-circle/circles/consult-ask?circleId=${circleId.value}&answererId=${e.id}&priceCoin=${e.questionPrice}&peekPriceCoin=${e.peekPrice}&expertName=${encodeURIComponent(e.name)}&expertAvatar=${encodeURIComponent(e.avatar || '')}`)
+}
 
 onLoad((q) => {
   if (q?.id) circleId.value = q.id
   loadData()
+  // 发帖页发布成功广播 → 立即重拉（配合后端 createPost 缓存失效，新帖即时可见）
+  uni.$on('circle:refresh', onCircleRefresh)
 })
+onUnload(() => {
+  uni.$off('circle:refresh', onCircleRefresh)
+  if (fabTimer) clearTimeout(fabTimer)
+})
+// 返回本页（发帖返回/其他页回来）也重拉；首次 onShow 被 isLoading 防抖天然跳过
+onShow(() => { if (circle.value) refresh() })
 
-// 微信原生分享（好友 / 朋友圈）
+function onCircleRefresh(id?: string) {
+  if (!id || id === circleId.value) refresh()
+}
+// 防抖重拉：加载中或 1 秒内已拉过则跳过
+let lastLoadAt = 0
+function refresh() {
+  if (isLoading.value || Date.now() - lastLoadAt < 1000) return
+  loadData()
+}
+
 const { toAppMessage, toTimeline } = useShare()
 onShareAppMessage(() => toAppMessage({
   title: circle.value?.name || '国学圈子',
@@ -83,26 +156,44 @@ onShareTimeline(() => toTimeline({
 
 async function loadData() {
   isLoading.value = true
+  lastLoadAt = Date.now()
   error.value = ''
   try {
-    const [c, p, m, cols, arts, acts] = await Promise.all([
-      circleDetailApi.detail(circleId.value),
+    // 主请求（圈子本体）失败才整页报错；子模块各自降级为空——防单个子接口抖动拖垮整页（董事长 2026-07-11 真机反馈修复）
+    const c = await circleDetailApi.detail(circleId.value)
+    circle.value = c
+    isJoined.value = c.isJoined
+
+    const [p, m, arts, crs, lvs, prds, pas, st, jr] = await Promise.allSettled([
       circleDetailApi.posts(circleId.value),
       circleDetailApi.listMembers(circleId.value),
-      circleDetailApi.columns(circleId.value),
       circleDetailApi.articles(circleId.value),
-      circleDetailApi.activities(circleId.value),
+      circleDetailApi.courses(circleId.value),
+      circleDetailApi.lives(circleId.value),
+      circleDetailApi.products(circleId.value),
+      circleDetailApi.postedArticles(circleId.value),
+      isLoggedIn() ? circleDetailApi.getJoinStatus(circleId.value, true) : Promise.reject(new Error('未登录')),
+      // 我的入圈申请（GET /circles/my-join-requests）：待审核态跨会话回填——此前 applied 仅会话内，重进页面按钮退回"申请加入"
+      isLoggedIn() ? growthApi.myJoinRequests(true) : Promise.reject(new Error('未登录')),
     ])
-    circle.value = c
-    posts.value = p.data
-    members.value = m.data
-    columns.value = cols
-    circleArticles.value = arts
-    activities.value = acts
-    isJoined.value = c.isJoined
-    likedPosts.value = new Set(p.data.filter(x => x.isLiked).map(x => x.id))
-    // 相关圈子推荐（getForScene 已内置降级，无需 try/catch）
-    recItems.value = await recommendApi.getForScene('guess_like', String(circleId.value))
+    posts.value = p.status === 'fulfilled' ? p.value.data : []
+    members.value = m.status === 'fulfilled' ? m.value.data : []
+    circleArticles.value = arts.status === 'fulfilled' ? arts.value : []
+    courses.value = crs.status === 'fulfilled' ? crs.value : []
+    lives.value = lvs.status === 'fulfilled' ? lvs.value : []
+    circleProducts.value = prds.status === 'fulfilled' ? prds.value : []
+    postedArticles.value = pas.status === 'fulfilled' ? pas.value : []
+    if (st.status === 'fulfilled') {
+      isJoined.value = st.value.joined
+      memberExpireAt.value = st.value.expireAt
+      memberExpired.value = st.value.expired
+      if (circle.value) circle.value.myRole = st.value.role
+    }
+    // 待审核态回填：未加入且有本圈 PENDING 申请 → 按钮持久展示「审核中 · 查看进度」；拉取失败保持会话内状态
+    if (jr.status === 'fulfilled' && !isJoined.value) {
+      applied.value = jr.value.some((r) => r.status === 'PENDING' && String(r.circleId) === String(circleId.value))
+    }
+    likedPosts.value = new Set((p.status === 'fulfilled' ? p.value.data : []).filter((x) => x.isLiked).map((x) => x.id))
   } catch {
     error.value = '加载失败，请重试'
   } finally {
@@ -111,31 +202,8 @@ async function loadData() {
 }
 
 function handleJoin() {
-  // 已提交申请：点击进「我的入圈申请」查看审核进度
-  if (applied.value) {
-    navigateTo('/pkg-circle/circles/my-join-requests')
-    return
-  }
-  if (isJoined.value) {
-    const c = circle.value
-    if (c && c.type !== 'FREE') {
-      // 付费圈退出 → 退款引导流程（引导页强调虚拟产品不退款，引导继续使用 / 申诉退款）
-      navigateTo(`/pkg-circle/circles/exit?id=${circleId.value}`)
-    } else {
-      // 免费圈退出 → 二次确认后直接退出
-      uni.showModal({
-        title: '退出圈子',
-        content: '确定退出该圈子吗？退出后将失去成员身份。',
-        confirmColor: '#C41E3A',
-        success: (r) => {
-          if (!r.confirm) return
-          isJoined.value = false
-          circleDetailApi.leave(circleId.value).catch(() => { isJoined.value = true; uni.showToast({ title: '退出失败', icon: 'none' }) })
-        },
-      })
-    }
-    return
-  }
+  if (applied.value) { navigateTo('/pkg-circle/circles/my-join-requests'); return }
+  if (isJoined.value) return
   if (!isLoggedIn()) {
     uni.showToast({ title: '请先登录', icon: 'none' })
     setTimeout(() => navigateTo('/pkg-auth/login/index'), 600)
@@ -143,18 +211,13 @@ function handleJoin() {
   }
   const c = circle.value
   if (!c) return
-  if (c.type === 'FREE') {
-    doJoin() // 免费圈直接加入
-  } else {
-    showBenefits.value = true // 付费圈先展示权益，确认后走购买
-  }
+  if (c.type === 'FREE') doJoin()
+  else showBenefits.value = true
 }
 const joining = ref(false)
-/** 免费圈加入：需审批圈→提交申请等审核（不直接进）；普通免费圈→乐观更新+失败回滚 */
 async function doJoin() {
   const c = circle.value
   if (!c || joining.value) return
-  // 需审批的免费圈：提交申请，不直接成为成员
   if (c.needApproval) {
     joining.value = true
     try {
@@ -163,361 +226,438 @@ async function doJoin() {
       uni.showToast({ title: r?.message || '申请已提交，等待圈主审核', icon: 'none' })
     } catch {
       uni.showToast({ title: '申请提交失败，请重试', icon: 'none' })
-    } finally {
-      joining.value = false
-    }
+    } finally { joining.value = false }
     return
   }
-  // 普通免费圈：乐观加入
+  // 本地即时置已加入（乐观），成功后重拉解锁成员态内容；失败回滚
   isJoined.value = true
-  circleDetailApi.join(circleId.value).catch(() => {
-    isJoined.value = false
-    uni.showToast({ title: '加入失败，请重试', icon: 'none' })
-  })
+  circleDetailApi.join(circleId.value)
+    .then(() => { lastLoadAt = 0; refresh() })
+    .catch(() => {
+      isJoined.value = false
+      uni.showToast({ title: '加入失败，请重试', icon: 'none' })
+    })
 }
-function confirmJoin() {
-  showBenefits.value = false
-  showPurchase.value = true // 打开购买弹窗（现金支付，统一下单 POST /shop/orders type=CIRCLE）
-}
-/** 购买下单成功 → 标记已加入 */
-function onPurchased() {
+function confirmJoin() { showBenefits.value = false; showPurchase.value = true }
+async function onPurchased() {
   showPurchase.value = false
-  isJoined.value = true
   track.purchase({ type: 'circle', id: circle.value?.id, amount: circle.value?.price })
-  uni.showToast({ title: '加入成功', icon: 'success' })
+  const st = await circleDetailApi.getJoinStatus(circleId.value)
+  isJoined.value = st.joined
+  memberExpireAt.value = st.expireAt
+  memberExpired.value = st.expired
+  if (circle.value) circle.value.myRole = st.role
+  if (st.joined) {
+    uni.showToast({ title: '加入成功', icon: 'success' })
+    // 付费加入成功即时重拉：解锁成员态内容
+    lastLoadAt = 0
+    refresh()
+  } else uni.showToast({ title: '订单已提交，支付完成后自动加入', icon: 'none' })
 }
-function handleLikePost(postId: string) {
+// 详情流内点赞：乐观更新 + 真调后端（照 post.vue toggleLike 范式）。
+// 此前只改本地 Set 不发请求，刷新全部回滚——流内点赞从未落库。
+const likingPosts = new Set<string>() // 防重复点击（非渲染态，无需响应式）
+async function handleLikePost(postId: string) {
+  if (likingPosts.has(postId)) return
+  likingPosts.add(postId)
   const next = new Set(likedPosts.value)
   const wasLiked = next.has(postId)
-  wasLiked ? next.delete(postId) : next.add(postId)
+  if (wasLiked) next.delete(postId)
+  else next.add(postId)
   likedPosts.value = next
-  posts.value = posts.value.map(p => p.id === postId ? { ...p, likes: p.likes + (wasLiked ? -1 : 1) } : p)
+  posts.value = posts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? -1 : 1) } : p))
+  try {
+    await postDetailApi.toggleLike(postId)
+  } catch {
+    // 失败回滚
+    const back = new Set(likedPosts.value)
+    if (wasLiked) back.add(postId)
+    else back.delete(postId)
+    likedPosts.value = back
+    posts.value = posts.value.map((p) => (p.id === postId ? { ...p, likes: p.likes + (wasLiked ? 1 : -1) } : p))
+    uni.showToast({ title: '操作失败，请重试', icon: 'none' })
+  } finally {
+    likingPosts.delete(postId)
+  }
+}
+/** 流内帖子举报（post-card ··· 菜单）：复用 pkg-report 统一入口（与 post.vue reportPost 同路由） */
+function handleReportPost(postId: string) {
+  const p = posts.value.find((x) => x.id === postId)
+  gotoReport('POST', postId, p?.content, p?.author.name)
 }
 
 function fmt(n: number) { return n.toLocaleString() }
 function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=circle&targetId=${circleId.value}`) }
 function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?circleId=${circleId.value}&id=${id}`) }
-function openPublish() { navigateTo(`/pkg-circle/circles/publish?circleId=${circleId.value}`) }
-function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?id=1&circleId=${circleId.value}`) }
+function openQuickPost() { navigateTo(`/pkg-circle/circles/editor?circleId=${circleId.value}`) }
+/**
+ * 统一发布入口（V0 publish-sheet 稿·自定义底部弹层）：发动态永远置顶最轻，创作形式随权限展开。
+ * 颗粒化授权（谁能发什么）后端待建，本版 canCreate 为真即列全部创作形式；圈主多「发公告」。
+ * 文章/课程走 publish 表单页，短视频/直播走各自独立发布页。
+ * 退出入口已移至「圈子·我的」圈子卡 ···（管理员/圈主不显示退出·董事长反馈）。
+ */
+// 打开发布面板时顺带查一下是否有正在进行的直播（有则「发直播」→「我的直播」）
+const hasActiveLive = ref(false)
+function openCreate() {
+  // 普通成员只有「发动态」一种创作形式，弹单选项面板=纯多一次点击（最短路径标准：发帖≤2击）
+  // 直接进编辑页；圈主/合伙人/管理员保留多形式创作面板。权限已由页面加载时的 myRole 静默取回
+  if (!canCreate.value) { openQuickPost(); return }
+  showPublish.value = true
+  liveApi.getManageList()
+    .then(({ list }) => { hasActiveLive.value = list.some((r) => r.status === 'live') })
+    .catch(() => { hasActiveLive.value = false })
+}
+const createItems = computed(() => {
+  if (!canCreate.value) return []
+  // 有正在进行的直播 → 入口变「我的直播」(去管理/下播)；下播后无直播 → 「发直播」(去创建)
+  const liveEntry = hasActiveLive.value
+    ? { icon: 'radio', title: '我的直播', desc: '你有正在进行的直播 · 点击进入管理', url: '/pkg-live/manage/index' }
+    : { icon: 'radio', title: '发直播', desc: '立即或预约开播', url: `/pkg-live/create/index?circleId=${circleId.value}` }
+  return [
+    // 双轨合并（2026-07-17）：原指 publish.vue 老表单（无插图/无关联商品/无草稿/无AI）·
+    // 统一切到 editor（图文穿插+关联商品+封面必选+草稿+AI 标题封面标签全在这条轨）
+    { icon: 'file-text', title: '写文章', desc: '图文长文，可挂商品、可向全平台开放', url: `/pkg-circle/circles/editor?circleId=${circleId.value}&type=article` },
+    { icon: 'video', title: '发短视频', desc: '竖屏视频，可关联商品', url: `/pkg-video/publish/index?circleId=${circleId.value}` },
+    { icon: 'graduation-cap', title: '发课程', desc: '图文 / 音视频', url: `/pkg-circle/circles/publish?circleId=${circleId.value}&type=course` },
+    liveEntry,
+  ]
+})
+function pickPublish(url: string) {
+  showPublish.value = false
+  navigateTo(url)
+}
+function pickQuickPost() {
+  showPublish.value = false
+  openQuickPost()
+}
+function onBodyScroll() {
+  fabDim.value = true
+  if (fabTimer) clearTimeout(fabTimer)
+  fabTimer = setTimeout(() => { fabDim.value = false }, 400)
+}
+function openManage() { navigateTo(`/pkg-circle/circles/dashboard?id=${circleId.value}`) }
+function goRenew() { navigateTo(`/pkg-circle/circles/renew?id=${circleId.value}`) }
+function openMembers() { navigateTo(`/pkg-circle/circles/members?id=${circleId.value}`) }
+// 公告页只消费 circleId（announcements.vue onLoad 仅读 q.circleId）；此前硬编码 id=1 是无效死参，去掉
+function openAnnouncement() { navigateTo(`/pkg-circle/circles/announcements?circleId=${circleId.value}`) }
 function openUser(id: string) { navigateTo(`/pkg-circle/user/profile?id=${id}`) }
-function openRecommendEbook() { navigateTo(`/pkg-circle/circles/recommend-ebook?id=${circleId.value}`) }
 function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${circleId.value}&name=${encodeURIComponent(circle.value?.name || '')}`) }
+function openConsult() { navigateTo(`/pkg-circle/circles/consult-experts?circleId=${circleId.value}`) }
+// 增值带跳转（此前课堂/橱窗都误跳全平台活动页 activities——无课无货还跨圈）：
+// 课堂→课程首页（pkg-course/home 不收 circleId 过滤参数·圈内课程聚合页后端待建，先跳真实课程板块）
+// 橱窗→商城首页（圈内商品聚合页不存在，跳商城比错跳活动页诚实；计数来自 ?circleId= 圈内接口，口径不符记后端配合项）
+function openLive(id: string) { navigateTo(`/live/${id}`) }
+function openCourses() { navigateTo('/pkg-course/home/index') }
+function openShowcase() { navigateTo('/pkg-mall/home/index') }
 </script>
 
 <template>
-  <customer-service-fab />
-  <view class="cd" v-if="!isLoading && !error && circle">
-    <!-- 顶部封面 -->
-    <view class="cd-cover">
-      <image lazy-load :src="circle.cover" class="cd-cover-img" mode="aspectFill" />
-      <view class="cd-cover-mask" />
-      <view class="cd-nav">
-        <view class="cd-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" color="#ffffff" /></view>
-        <view class="cd-nav-right">
-          <!-- 死入口大扫除：铃铛 → 圈子公告页（真实已注册页，复用 openAnnouncement） -->
-          <view class="cd-nav-btn" @tap="openAnnouncement"><app-icon name="bell" :size="40" color="#ffffff" /></view>
-          <view class="cd-nav-btn" @tap="openShare"><app-icon name="share-2" :size="40" color="#ffffff" /></view>
-        </view>
-      </view>
-      <view class="cd-level"><app-icon name="star" :size="26" color="#ffffff" :fill="true" /><text class="cd-level-txt">优质圈子</text></view>
+  <view class="cd-page" v-if="!isLoading && !error && circle">
+    <!-- 顶部导航 -->
+    <view class="nav">
+      <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <text class="nav-title">{{ circle.name }}</text>
+      <view class="nav-action" @tap="openShare"><app-icon name="share-2" :size="34" color="#6E6E73" /></view>
     </view>
 
-    <!-- 圈子信息卡 -->
-    <view class="cd-info-wrap">
-      <view class="cd-info">
-        <view class="cd-info-top">
-          <view class="cd-avatar"><image lazy-load :src="circle.owner.avatar" class="cd-avatar-img" mode="aspectFill" /></view>
-          <view class="cd-info-main">
-            <view class="cd-name-row">
-              <text class="cd-name">{{ circle.name }}</text>
-              <text v-if="circle.type !== 'FREE'" class="cd-paid">{{ circle.type === 'YEARLY' ? '年费' : '付费' }}</text>
+    <scroll-view scroll-y class="body" @scroll="onBodyScroll">
+      <!-- A. 头部·身份区 -->
+      <view class="header">
+        <view class="identity">
+          <view class="identity-top">
+            <smart-cover :src="circle.cover" :title="circle.name" type="circle" class="identity-cover" />
+            <view class="identity-info">
+              <text class="identity-name">{{ circle.name }}</text>
+              <text class="identity-desc">{{ circle.description }}</text>
             </view>
-            <view class="cd-stats">
-              <view class="cd-stat"><app-icon name="users" :size="26" color="#999999" /><text class="cd-stat-txt">{{ fmt(circle.members) }} 成员</text></view>
-              <view class="cd-stat"><app-icon name="file-text" :size="26" color="#999999" /><text class="cd-stat-txt">{{ fmt(circle.posts) }} 帖子</text></view>
-              <view v-if="circle.todayActive" class="cd-stat"><app-icon name="flame" :size="26" color="#f97316" /><text class="cd-stat-txt">今日{{ circle.todayActive }}</text></view>
+            <!-- 管理入口：角色专属，移出底栏（仅圈主/管理员可见·董事长反馈） -->
+            <view v-if="canManage" class="manage-chip" @tap="openManage">
+              <app-icon name="settings" :size="24" color="#C41E3A" />
+              <text class="manage-chip-txt">管理</text>
             </view>
           </view>
-        </view>
-        <text class="cd-desc">{{ circle.description }}</text>
-        <view v-if="circle.tags && circle.tags.length" class="cd-tags">
-          <text v-for="tag in circle.tags" :key="tag" class="cd-tag">#{{ tag }}</text>
-        </view>
-        <view class="cd-owner" @tap="openUser(circle.owner.id)">
-          <image lazy-load :src="circle.owner.avatar" class="cd-owner-avatar" mode="aspectFill" />
-          <view class="cd-owner-info">
-            <view class="cd-owner-name-row">
-              <text class="cd-owner-name">{{ circle.owner.name }}</text>
-              <app-icon name="crown" :size="26" color="#C9A96E" />
+          <view class="identity-meta">
+            <!-- 成员入口：数字+已加入成员真实头像叠排，点击进成员列表（原成员 Tab 移独立页） -->
+            <view class="meta-members" @tap="openMembers">
+              <text class="meta-stat"><text class="meta-num">{{ fmt(circle.members) }}</text>成员</text>
+              <view v-if="members.length" class="meta-avatars">
+                <smart-avatar
+                  v-for="m in members.slice(0, 4)" :key="m.id"
+                  :src="m.avatar" :name="m.name" class="meta-avatar"
+                />
+              </view>
+              <app-icon name="chevron-right" :size="22" color="#999999" />
             </view>
-            <text class="cd-owner-role">圈主</text>
+            <text v-if="circle.todayActive" class="meta-stat"><text class="meta-num">{{ circle.todayActive }}</text>今日新帖</text>
+            <view class="meta-owner" @tap="openUser(circle.owner.id)">
+              <smart-avatar :src="circle.owner.avatar" :name="circle.owner.name" class="meta-owner-avatar" />
+              <text class="meta-owner-txt">{{ circle.owner.name }} · 圈主</text>
+            </view>
           </view>
-          <app-icon name="chevron-right" :size="28" color="#cccccc" />
+          <!-- 年费圈到期续费提醒（临期/已过期才露出·点击进续费页 circles/renew） -->
+          <view v-if="renewInfo" class="renew-bar" :class="{ urgent: renewInfo.urgent }" @tap="goRenew">
+            <app-icon name="alert-circle" :size="30" :color="renewInfo.urgent ? '#C41E3A' : '#B4884A'" />
+            <text class="renew-txt">{{ renewInfo.text }}</text>
+            <view class="renew-btn"><text class="renew-btn-txt">立即续费</text></view>
+          </view>
+          <!-- 置顶公告（收起态可展开） -->
+          <view v-if="circle.announcement" class="announce" @tap="showAnnouncement = !showAnnouncement">
+            <text class="announce-tag">公告</text>
+            <text class="announce-text" :class="{ open: showAnnouncement }">{{ circle.announcement }}</text>
+            <app-icon :name="showAnnouncement ? 'chevron-up' : 'chevron-down'" :size="24" color="#999999" />
+          </view>
+          <view v-if="showAnnouncement && circle.announcement" class="announce-more" @tap="openAnnouncement">
+            <text class="announce-more-txt">查看完整公告</text>
+            <app-icon name="chevron-right" :size="22" color="#C41E3A" />
+          </view>
+
+          <!-- 董事长 #25：圈主助理 → 右下角智能客服式浮层（见页面底部 assistant-fab）；
+               达人咨询 → 「问答」内容分类 tab（见下）·两者不再占用身份区卡片 -->
         </view>
       </view>
-    </view>
 
-    <!-- 公告栏 -->
-    <view v-if="circle.announcement" class="cd-ann">
-      <view class="cd-ann-box">
-        <view class="cd-ann-head" @tap="showAnnouncement = !showAnnouncement">
-          <view class="cd-ann-title">
-            <view class="cd-ann-icon"><app-icon name="bell" :size="20" color="#ffffff" /></view>
-            <text class="cd-ann-label">圈子公告</text>
+      <!-- 增值内容带（门控点亮：有直播/课程/好物才出现，无则整条不存在） -->
+      <scroll-view
+        v-if="liveNow || courses.length || circleProducts.length"
+        scroll-x class="value-strip"
+      >
+        <view class="value-row">
+          <!-- 直播中卡：优先浮出 -->
+          <view v-if="liveNow" class="live-card" @tap="openLive(liveNow.id)">
+            <image lazy-load :src="liveNow.cover" class="live-thumb" mode="aspectFill" />
+            <view class="live-info">
+              <view class="live-badge"><view class="live-dot" /><text class="live-badge-txt">直播中</text></view>
+              <text class="live-name">{{ liveNow.title }}</text>
+              <text class="live-count">{{ liveNow.hostName }}</text>
+            </view>
           </view>
-          <app-icon :name="showAnnouncement ? 'chevron-up' : 'chevron-down'" :size="28" color="#999999" />
-        </view>
-        <view v-if="showAnnouncement" class="cd-ann-body">
-          <text class="cd-ann-text">{{ circle.announcement }}</text>
-          <view class="cd-ann-more" @tap="openAnnouncement">
-            <text class="cd-ann-more-t">查看完整公告</text>
-            <app-icon name="chevron-right" :size="24" color="#C41E3A" />
+          <!-- 课堂入口 -->
+          <view v-if="courses.length" class="mini-entry" @tap="openCourses">
+            <view class="mini-head"><text class="mini-title">课堂</text><app-icon name="chevron-right" :size="22" color="#999999" /></view>
+            <text class="mini-sub">{{ courses.length }} 门圈内课程</text>
+            <view class="mini-thumbs">
+              <image v-for="crs in courses.slice(0, 3)" :key="crs.id" lazy-load :src="crs.cover" class="mini-thumb" mode="aspectFill" />
+            </view>
           </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 圈主助理入口 -->
-    <view class="cd-assistant" @tap="openAssistant">
-      <view class="cd-assistant-icon"><app-icon name="sparkles" :size="32" color="#ffffff" /></view>
-      <view class="cd-assistant-main">
-        <text class="cd-assistant-title">圈主助理</text>
-        <text class="cd-assistant-sub">圈子专属 AI 助手，有问题随时问</text>
-      </view>
-      <app-icon name="chevron-right" :size="28" color="#C9A96E" />
-    </view>
-
-    <!-- Tab 切换 -->
-    <view class="cd-tabs">
-      <scroll-view scroll-x class="cd-tabs-scroll">
-        <view class="cd-tabs-row">
-          <view v-for="tab in tabs" :key="tab.id" class="cd-tab" @tap="activeTab = tab.id">
-            <text class="cd-tab-txt" :class="{ on: activeTab === tab.id }">{{ tab.label }}<text v-if="tab.id === 'members'">({{ circle.members }})</text></text>
-            <view v-if="activeTab === tab.id" class="cd-tab-line" />
+          <!-- 橱窗入口 -->
+          <view v-if="circleProducts.length" class="mini-entry" @tap="openShowcase">
+            <view class="mini-head"><text class="mini-title">橱窗</text><app-icon name="chevron-right" :size="22" color="#999999" /></view>
+            <text class="mini-sub">{{ circleProducts.length }} 件圈内好物</text>
+            <view class="mini-thumbs">
+              <image v-for="pr in circleProducts.slice(0, 3)" :key="pr.id" lazy-load :src="pr.cover" class="mini-thumb" mode="aspectFill" />
+            </view>
           </view>
         </view>
       </scroll-view>
-    </view>
 
-    <!-- 内容区 -->
-    <view class="cd-content">
-      <!-- 首页 Tab -->
-      <view v-if="activeTab === 'home'" class="cd-home">
-        <!-- 近期活动 -->
-        <view v-if="activities.length" class="cd-sec">
-          <view class="cd-sec-head">
-            <view class="cd-sec-title"><app-icon name="zap" :size="28" color="#FF6B35" /><text class="cd-sec-label">近期活动</text></view>
-            <!-- 死入口大扫除：全部/条目 → 活动广场页（真实已注册页，聚合圈子活动） -->
-            <view class="cd-sec-more" @tap="navigateTo('/pkg-circle/circles/activities')"><text class="cd-more-txt">全部</text><app-icon name="chevron-right" :size="26" color="#999999" /></view>
-          </view>
-          <view class="cd-acts">
-            <view v-for="act in activities.slice(0, 2)" :key="act.id" class="cd-act" @tap="navigateTo('/pkg-circle/circles/activities')">
-              <view class="cd-act-icon" :class="act.type">
-                <app-icon :name="act.type === 'live' ? 'play' : act.type === 'checkin' ? 'check-circle' : 'book-open'" :size="32" :color="act.type === 'live' ? '#ef4444' : act.type === 'checkin' ? '#22c55e' : '#f97316'" />
-              </view>
-              <view class="cd-act-main">
-                <text class="cd-act-title">{{ act.title }}</text>
-                <view class="cd-act-meta"><text class="cd-act-time">{{ act.time }}</text><text v-if="act.participants" class="cd-act-time">{{ act.participants }}人参与</text></view>
-              </view>
-              <view v-if="act.status === 'upcoming'" class="cd-act-btn red"><text class="cd-act-btn-txt">预约</text></view>
-              <view v-else class="cd-act-btn green"><text class="cd-act-btn-txt">参与</text></view>
-            </view>
-          </view>
+      <!-- B. 内容区 Tab -->
+      <view class="tabs">
+        <view v-for="tab in tabs" :key="tab.id" class="tab" @tap="onTabTap(tab.id)">
+          <text class="tab-txt" :class="{ on: activeTab === tab.id }">{{ tab.label }}</text>
+          <view v-if="activeTab === tab.id" class="tab-line" />
         </view>
-
-        <!-- 置顶内容 -->
-        <view v-if="pinnedPosts.length" class="cd-sec">
-          <view class="cd-sec-title mb"><app-icon name="pin" :size="28" color="#C41E3A" /><text class="cd-sec-label">置顶内容</text></view>
-          <view class="cd-pinned-list">
-            <view v-for="post in pinnedPosts" :key="post.id" class="cd-pinned" @tap="openPost(post.id)">
-              <image lazy-load :src="post.author.avatar" class="cd-pinned-avatar" mode="aspectFill" />
-              <view class="cd-pinned-main">
-                <view class="cd-pinned-tags">
-                  <app-icon name="pin" :size="24" color="#C41E3A" /><text class="cd-pinned-pin">置顶</text>
-                  <text v-if="post.isEssence" class="pc-essence">精华</text>
-                </view>
-                <text class="cd-pinned-content">{{ post.content }}</text>
-                <view class="cd-pinned-meta">
-                  <text class="cd-pinned-meta-txt">{{ post.author.name }}</text>
-                  <view class="cd-pinned-stat"><app-icon name="heart" :size="22" color="#999999" /><text class="cd-pinned-meta-txt">{{ post.likes }}</text></view>
-                  <view class="cd-pinned-stat"><app-icon name="message-circle" :size="22" color="#999999" /><text class="cd-pinned-meta-txt">{{ post.comments }}</text></view>
-                </view>
-              </view>
-              <image lazy-load v-if="post.images && post.images.length" :src="post.images[0]" class="cd-pinned-img" mode="aspectFill" />
-            </view>
-          </view>
-        </view>
-
-        <!-- 专栏推荐 -->
-        <view v-if="columns.length" class="cd-sec">
-          <view class="cd-sec-head">
-            <view class="cd-sec-title"><app-icon name="book-open" :size="28" color="#C9A96E" /><text class="cd-sec-label">专栏推荐</text></view>
-            <view class="cd-sec-more" @tap="toastComingSoon"><text class="cd-more-txt">全部</text><app-icon name="chevron-right" :size="26" color="#999999" /></view>
-          </view>
-          <scroll-view scroll-x class="cd-cols-scroll">
-            <view class="cd-cols-row">
-              <view v-for="col in columns" :key="col.id" class="cd-col" @tap="toastComingSoon">
-                <view class="cd-col-cover">
-                  <image lazy-load :src="col.cover" class="cd-col-img" mode="aspectFill" />
-                  <view v-if="col.isPremium" class="cd-col-lock"><app-icon name="lock" :size="20" color="#ffffff" /></view>
-                </view>
-                <view class="cd-col-body">
-                  <text class="cd-col-title">{{ col.title }}</text>
-                  <text class="cd-col-meta">{{ col.articles }}篇 · {{ col.views }}阅读</text>
-                </view>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-
-        <!-- 圈主推荐电子书（仅圈主可见管理入口；无数据时隐藏，不展示空壳） -->
-        <view v-if="isOwner && circleArticles.length" class="cd-sec">
-          <view class="cd-sec-head">
-            <view class="cd-sec-title">
-              <app-icon name="book-open" :size="28" color="#2563eb" />
-              <text class="cd-sec-label">推荐电子书</text>
-              <text class="cd-ebook-hint">（仅圈主可见管理入口）</text>
-            </view>
-            <view class="cd-sec-more" @tap="openRecommendEbook">
-              <text class="cd-ebook-manage">管理</text>
-              <app-icon name="chevron-right" :size="26" color="#2563eb" />
-            </view>
-          </view>
-          <scroll-view scroll-x class="cd-ebook-scroll">
-            <view class="cd-ebook-row">
-              <view v-for="a in circleArticles.slice(0, 3)" :key="a.id" class="cd-ebook" @tap="openRecommendEbook">
-                <view class="cd-ebook-cover"><app-icon name="book-open" :size="48" color="rgba(255,255,255,0.4)" /></view>
-                <text class="cd-ebook-title">{{ a.title }}</text>
-              </view>
-            </view>
-          </scroll-view>
-        </view>
-
-        <!-- 最新动态 -->
-        <view class="cd-sec">
-          <text class="cd-sec-label mb">最新动态</text>
-          <view class="cd-post-list">
-            <post-card v-for="post in posts.slice(0, 3)" :key="post.id" :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" @like="handleLikePost" />
-          </view>
-        </view>
+        <view class="tab-search" @tap="navigateTo('/pkg-circle/circles/search')"><app-icon name="search" :size="32" color="#999999" /></view>
       </view>
 
-      <!-- 帖子 Tab -->
-      <view v-else-if="activeTab === 'posts'" class="cd-post-list">
-        <post-card v-for="post in posts" :key="post.id" :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" @like="handleLikePost" />
+      <!-- 动态 Tab：核心互动为主体，增值内容(课程/短视频/文章)以同一卡片语言穿插 -->
+      <view v-if="activeTab === 'home'" class="feed">
+        <post-card
+          v-for="post in posts" :key="post.id"
+          :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)"
+          @like="handleLikePost" @report="handleReportPost"
+        />
+
+        <!-- 圈内课程卡（门控·融入流） -->
+        <view v-if="courses.length" class="inline-card course-card" @tap="openCourses">
+          <image lazy-load :src="courses[0].cover" class="course-cover" mode="aspectFill" />
+          <view class="course-main">
+            <text class="course-kind">课程</text>
+            <text class="course-title">{{ courses[0].title }}</text>
+            <view class="course-meta">
+              <text v-if="courses[0].price > 0" class="course-price">¥{{ formatPrice(courses[0].price) }}</text>
+              <text v-else class="course-price">免费</text>
+              <text class="course-teacher">{{ courses[0].teacher }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 圈内文章卡（展示层默认·对外窗口） -->
+        <view v-if="postedArticles.length" class="inline-card article-card" @tap="navigateTo(`/pkg-circle/articles/detail?id=${postedArticles[0].id}`)">
+          <view class="article-main">
+            <text class="article-kind">文章</text>
+            <text class="article-title">{{ postedArticles[0].title }}</text>
+            <text class="article-byline">{{ postedArticles[0].author }}<text v-if="postedArticles[0].views"> · 阅读 {{ postedArticles[0].views }}</text></text>
+          </view>
+          <image v-if="postedArticles[0].cover" lazy-load :src="postedArticles[0].cover" class="article-cover" mode="aspectFill" />
+        </view>
+
+        <!-- 卷尾（品牌签名·墨线由全局 .scroll-end 画）。诚实前提不变：posts 接口无分页、
+             页面也无 scrolltolower 处理，此处即真实结尾，"上拉加载更多"是假承诺（分页留后端配合项） -->
+        <view class="scroll-end"><text>{{ VOICE.END }}</text></view>
       </view>
 
       <!-- 精华 Tab -->
-      <view v-else-if="activeTab === 'essence'" class="cd-post-list">
+      <view v-else-if="activeTab === 'essence'" class="feed">
         <template v-if="essencePosts.length">
-          <post-card v-for="post in essencePosts" :key="post.id" :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" :show-essence="true" @like="handleLikePost" />
+          <post-card
+            v-for="post in essencePosts" :key="post.id"
+            :post="post" :circle-id="circleId" :liked="likedPosts.has(post.id)" :show-essence="true"
+            @like="handleLikePost" @report="handleReportPost"
+          />
         </template>
-        <view v-else class="cd-empty">
-          <app-icon name="star" :size="96" color="#E8E3DB" />
-          <text class="cd-empty-txt">暂无精华内容</text>
+        <view v-else class="empty">
+          <app-icon name="star" :size="88" color="#E8E3DB" />
+          <text class="empty-txt">暂无精华内容</text>
+        </view>
+      </view>
+
+      <!-- 问答 Tab：本圈达人付费问答（提问入口+担保说明），不再误落文章列表 -->
+      <view v-else-if="activeTab === 'qa'" class="feed">
+        <view class="qa-trust">
+          <!-- 托管担保=交易保障信息非荣誉场景，盾牌随品牌朱红（金色纪律纠偏） -->
+          <app-icon name="shield" :size="28" color="#C41E3A" />
+          <text class="qa-trust-t">平台托管：48 小时未回复自动全额退还</text>
+        </view>
+        <view v-if="qaLoading" class="empty"><AppLoading /></view>
+        <template v-else-if="qaExperts.length">
+          <view v-for="e in qaExperts" :key="e.id" class="qa-card">
+            <smart-avatar :src="e.avatar" :name="e.name || ''" class="qa-avatar" />
+            <view class="qa-main">
+              <view class="qa-name-line">
+                <text class="qa-name">{{ e.name }}</text>
+                <text v-if="e.roleLabel" class="qa-role">{{ e.roleLabel }}</text>
+              </view>
+              <text class="qa-price">图文提问 {{ e.questionPrice }} 金币<text v-if="e.responseHours"> · {{ e.responseHours }}小时内回复</text></text>
+            </view>
+            <view class="qa-ask-btn" @tap.stop="goAskExpert(e)"><text class="qa-ask-txt">提问</text></view>
+          </view>
+          <view class="qa-links">
+            <text class="qa-link" @tap="openConsult">全部达人服务</text>
+            <text class="qa-link-sep">|</text>
+            <text class="qa-link" @tap="navigateTo(`/pkg-circle/circles/my-questions?circleId=${circleId}`)">我的提问</text>
+          </view>
+        </template>
+        <view v-else class="empty">
+          <app-icon name="message-circle" :size="88" color="#E8E3DB" />
+          <text class="empty-txt">本圈暂无开通问答的达人</text>
         </view>
       </view>
 
       <!-- 文章 Tab -->
-      <view v-else-if="activeTab === 'articles'" class="cd-post-list">
-        <template v-if="circleArticles.length">
-          <!-- 死入口大扫除：文章条目 → 文章详情页（真实已注册页，onLoad 接 ?id=） -->
-          <view v-for="a in circleArticles" :key="a.id" class="cd-article" @tap="navigateTo(`/pkg-circle/articles/detail?id=${a.id}`)">
-            <image lazy-load v-if="a.cover" :src="a.cover" class="cd-article-cover" mode="aspectFill" />
-            <view class="cd-article-main">
-              <view class="cd-article-title-row">
-                <text v-if="a.isFeatured" class="cd-article-feat">精选</text>
-                <text class="cd-article-title">{{ a.title }}</text>
+      <view v-else class="feed">
+        <template v-if="postedArticles.length">
+          <view
+            v-for="a in postedArticles" :key="a.id"
+            class="inline-card article-card" @tap="navigateTo(`/pkg-circle/articles/detail?id=${a.id}`)"
+          >
+            <view class="article-main">
+              <text class="article-kind">文章</text>
+              <text class="article-title">{{ a.title }}</text>
+              <text class="article-byline">{{ a.author }}<text v-if="a.views"> · 阅读 {{ a.views }}</text></text>
+            </view>
+            <image v-if="a.cover" lazy-load :src="a.cover" class="article-cover" mode="aspectFill" />
+          </view>
+        </template>
+        <view v-else class="empty">
+          <app-icon name="file-text" :size="88" color="#E8E3DB" />
+          <text class="empty-txt">暂无文章</text>
+        </view>
+      </view>
+
+      <view class="bottom-spacer" />
+    </scroll-view>
+
+    <!-- C. 底部：仅游客保留加入通栏（转化关键）；已加入无底栏，改右下角 FAB（董事长反馈：发帖按钮不占底部） -->
+    <view v-if="!isJoined" class="bottombar">
+      <view class="btn-join" @tap="handleJoin"><text class="btn-join-txt">{{ joinButtonText }}</text></view>
+    </view>
+
+    <!-- 已加入：悬浮创作按钮（朱红圆形+笔图标·滚动时半透明） -->
+    <view v-else class="fab" :class="{ dim: fabDim }" @tap="openCreate">
+      <app-icon name="pen-line" :size="44" color="#ffffff" />
+    </view>
+
+    <!-- 圈主助理·智能客服式悬浮球（董事长 #25）：常驻右下角，点击进圈子专属 AI 对话。
+         错层于发帖 FAB / 加入通栏之上（isJoined 时抬更高避开 FAB） -->
+    <view class="assistant-fab" :class="{ raised: isJoined, dim: fabDim }" @tap="openAssistant">
+      <view class="assistant-orb"><app-icon name="sparkles" :size="34" color="#ffffff" /></view>
+      <view class="assistant-tag"><text class="assistant-tag-txt">助理</text></view>
+    </view>
+
+    <!-- 发布 Sheet（V0 circle-publish-sheet 稿）：遮罩+圆角面板+grabber+图标卡片 -->
+    <view v-if="showPublish" class="pub-mask" @tap="showPublish = false">
+      <view class="pub-sheet" @tap.stop>
+        <view class="pub-grabber" />
+        <text class="pub-title">发布</text>
+        <text class="pub-sub">在 {{ circle.name }}</text>
+
+        <!-- 首选项：发动态（所有成员都有，永远第一、最大） -->
+        <view class="pub-post" @tap="pickQuickPost">
+          <view class="pub-icon post"><app-icon name="pen-line" :size="36" color="#C41E3A" /></view>
+          <view class="pub-main">
+            <text class="pub-name">发动态</text>
+            <text class="pub-desc">图文 · 文件 · 语音，发布后即刻生效</text>
+          </view>
+          <app-icon name="chevron-right" :size="26" color="#999999" />
+        </view>
+
+        <!-- 创作形式：按角色 canCreate 过滤，未授权不出现 -->
+        <template v-if="createItems.length">
+          <text class="pub-label">创作</text>
+          <view class="pub-group">
+            <view v-for="it in createItems" :key="it.title" class="pub-row" @tap="pickPublish(it.url)">
+              <view class="pub-icon gold"><app-icon :name="it.icon" :size="34" color="#C9A96E" /></view>
+              <view class="pub-main">
+                <text class="pub-name">{{ it.title }}</text>
+                <text class="pub-desc">{{ it.desc }}</text>
               </view>
-              <view class="cd-article-meta">
-                <text class="cd-article-meta-txt">{{ a.author }}</text>
-                <view class="cd-article-stat"><app-icon name="eye" :size="22" color="#999999" /><text class="cd-article-meta-txt">{{ a.views }}</text></view>
-                <view class="cd-article-stat"><app-icon name="heart" :size="22" color="#999999" /><text class="cd-article-meta-txt">{{ a.likes }}</text></view>
-              </view>
+              <app-icon name="chevron-right" :size="26" color="#999999" />
             </view>
           </view>
         </template>
-        <view v-else class="cd-empty"><text class="cd-empty-txt">圈主还没有发布文章</text></view>
-      </view>
 
-      <!-- 专栏 Tab -->
-      <view v-else-if="activeTab === 'columns'" class="cd-col-grid">
-        <view v-for="col in columns" :key="col.id" class="cd-col-card" @tap="toastComingSoon">
-          <view class="cd-col-cover">
-            <image lazy-load :src="col.cover" class="cd-col-card-img" mode="aspectFill" />
-            <view v-if="col.isPremium" class="cd-col-lock"><app-icon name="lock" :size="20" color="#ffffff" /></view>
+        <!-- 圈主专属：发公告（V0 owner 稿·弱层级放列表底部） -->
+        <view v-if="isOwner" class="pub-manage" @tap="pickPublish(`/pkg-circle/circles/manage?id=${circleId}&tab=settings`)">
+          <view class="pub-icon plain"><app-icon name="megaphone" :size="32" color="#6E6E73" /></view>
+          <view class="pub-main">
+            <text class="pub-name light">发公告</text>
+            <text class="pub-desc">全体成员将收到通知，显示在圈子头部</text>
           </view>
-          <view class="cd-col-body">
-            <text class="cd-col-title">{{ col.title }}</text>
-            <text class="cd-col-meta">{{ col.articles }}篇文章 · {{ col.views }}阅读</text>
-          </view>
+          <app-icon name="chevron-right" :size="26" color="#999999" />
         </view>
-      </view>
 
-      <!-- 成员 Tab -->
-      <view v-else-if="activeTab === 'members'" class="cd-member-list">
-        <view v-for="m in members" :key="m.id" class="cd-member" @tap="openUser(m.id)">
-          <image lazy-load :src="m.avatar" class="cd-member-avatar" mode="aspectFill" />
-          <view class="cd-member-main">
-            <view class="cd-member-name-row">
-              <text class="cd-member-name">{{ m.name }}</text>
-              <view v-if="m.role === 'owner'" class="cd-role owner"><app-icon name="crown" :size="22" color="#C9A96E" /><text class="cd-role-txt owner">圈主</text></view>
-              <view v-else-if="m.role === 'admin'" class="cd-role admin"><app-icon name="shield" :size="22" color="#4A90D9" /><text class="cd-role-txt admin">管理员</text></view>
-            </view>
-            <view class="cd-member-meta">
-              <text v-if="m.title" class="cd-member-meta-txt">{{ m.title }}</text>
-              <text class="cd-member-meta-txt">发帖 {{ m.posts }}</text>
-            </view>
-          </view>
-        </view>
+        <view class="pub-cancel" @tap="showPublish = false"><text class="pub-cancel-txt">取消</text></view>
       </view>
     </view>
 
-    <!-- 相关圈子推荐 -->
-    <recommend-section title="相关圈子" :items="recItems" />
-
-    <!-- 底部操作栏 -->
-    <view class="cd-foot">
-      <view class="cd-join" :class="{ joined: isJoined }" @tap="handleJoin">
-        <text class="cd-join-txt" :class="{ joined: isJoined }">{{ joinButtonText }}</text>
-      </view>
-      <view v-if="isJoined" class="cd-post-btn" @tap="openPublish">
-        <app-icon name="plus" :size="28" color="#ffffff" /><text class="cd-post-btn-txt">发帖</text>
-      </view>
-    </view>
-
-    <!-- 购买弹窗（圈子付费入圈，统一下单 type=CIRCLE） -->
+    <!-- 购买弹窗 -->
     <purchase-sheet
       :open="showPurchase"
       :product="circle ? { id: circle.id, name: circle.name, cover: circle.cover, price: circle.price } : null"
-      biz-type="CIRCLE"
-      :allow-qty="false"
-      @close="showPurchase = false"
-      @paid="onPurchased"
+      biz-type="CIRCLE" :allow-qty="false"
+      @close="showPurchase = false" @paid="onPurchased"
     />
 
     <!-- 会员权益弹窗 -->
-    <view v-if="showBenefits" class="cd-mask" @tap="showBenefits = false">
-      <view class="cd-sheet" @tap.stop>
-        <view class="cd-sheet-body">
-          <view class="cd-sheet-head">
-            <view class="cd-sheet-icon"><app-icon name="sparkles" :size="44" color="#ffffff" /></view>
-            <text class="cd-sheet-title">加入「{{ circle.name }}」</text>
-            <text class="cd-sheet-sub">{{ circle.type === 'YEARLY' ? '¥' + circle.price + '/年' : '¥' + circle.price }}，解锁以下专属权益</text>
-          </view>
-          <view class="cd-benefits">
-            <view v-for="(b, i) in memberBenefits" :key="i" class="cd-benefit">
-              <view class="cd-benefit-icon"><app-icon :name="b.icon" :size="28" color="#C41E3A" /></view>
-              <view class="cd-benefit-main">
-                <text class="cd-benefit-title">{{ b.title }}</text>
-                <text class="cd-benefit-desc">{{ b.desc }}</text>
-              </view>
+    <view v-if="showBenefits" class="mask" @tap="showBenefits = false">
+      <view class="sheet" @tap.stop>
+        <view class="sheet-head">
+          <view class="sheet-icon"><app-icon name="sparkles" :size="44" color="#ffffff" /></view>
+          <text class="sheet-title">加入「{{ circle.name }}」</text>
+          <text class="sheet-sub">{{ circle.type === 'YEARLY' ? '¥' + formatPrice(circle.price) + '/年' : '¥' + formatPrice(circle.price) }}，解锁以下专属权益</text>
+        </view>
+        <view class="benefits">
+          <view v-for="(b, i) in memberBenefits" :key="i" class="benefit">
+            <view class="benefit-icon"><app-icon :name="b.icon" :size="28" color="#C41E3A" /></view>
+            <view class="benefit-main">
+              <text class="benefit-title">{{ b.title }}</text>
+              <text class="benefit-desc">{{ b.desc }}</text>
             </view>
           </view>
-          <view class="cd-sheet-actions">
-            <view class="cd-sheet-btn cancel" @tap="showBenefits = false"><text class="cd-sheet-btn-txt cancel">再想想</text></view>
-            <view class="cd-sheet-btn confirm" @tap="confirmJoin"><text class="cd-sheet-btn-txt confirm">立即加入</text></view>
-          </view>
+        </view>
+        <view class="sheet-actions">
+          <view class="sheet-btn cancel" @tap="showBenefits = false"><text class="sheet-btn-txt cancel">再想想</text></view>
+          <view class="sheet-btn confirm" @tap="confirmJoin"><text class="sheet-btn-txt confirm">立即加入</text></view>
         </view>
       </view>
     </view>
@@ -525,207 +665,308 @@ function openAssistant() { navigateTo(`/pkg-circle/circles/assistant?circleId=${
 
   <!-- 骨架屏 -->
   <view v-else-if="isLoading" class="cd-skeleton">
-    <view class="sk-cover" />
-    <view class="sk-info"><view class="sk-card" /></view>
+    <view class="sk-header" />
+    <view class="sk-card" /><view class="sk-card" />
   </view>
 
   <!-- 错误态 -->
-  <view v-else-if="error" class="cd-skeleton cd-err">
-    <text class="cd-err-txt">{{ error }}</text>
+  <view v-else class="cd-skeleton cd-err">
+    <text class="cd-err-txt">{{ error || '加载失败' }}</text>
     <view class="cd-err-retry" @tap="loadData"><text class="cd-err-retry-t">重试</text></view>
-  </view>
-
-  <!-- 兜底骨架 -->
-  <view v-else class="cd-skeleton">
-    <view class="sk-cover" />
-    <view class="sk-info"><view class="sk-card" /></view>
   </view>
 </template>
 
 <style scoped lang="scss">
-.cd { min-height: 100vh; background: var(--bg-paper, #FAF8F5); padding-bottom: 180rpx; }
-/* 封面 */
-.cd-cover { position: relative; height: 384rpx; }
-.cd-cover-img { width: 100%; height: 100%; }
-.cd-cover-mask { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.6), transparent); }
-.cd-nav { position: absolute; top: 0; left: 0; right: 0; padding: 32rpx; padding-top: calc(32rpx + var(--status-bar-height, 0px)); display: flex; align-items: center; justify-content: space-between; }
-.cd-nav-right { display: flex; gap: 16rpx; }
-.cd-nav-btn { width: 72rpx; height: 72rpx; border-radius: 999rpx; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; }
-.cd-level { position: absolute; bottom: 24rpx; right: 24rpx; padding: 8rpx 20rpx; background: linear-gradient(to right, #C9A96E, #E8D5B5); border-radius: 999rpx; display: flex; align-items: center; gap: 8rpx; }
-.cd-level-txt { font-size: 22rpx; color: #fff; font-weight: 500; }
-/* 信息卡 */
-.cd-info-wrap { padding: 0 32rpx; margin-top: -96rpx; position: relative; z-index: 10; }
-.cd-info { background: var(--card, #fff); border-radius: 32rpx; padding: 32rpx; box-shadow: 0 8rpx 40rpx rgba(0,0,0,0.08); }
-.cd-info-top { display: flex; align-items: flex-start; gap: 24rpx; }
-.cd-avatar { width: 128rpx; height: 128rpx; border-radius: 999rpx; border: 8rpx solid #fff; box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.1); overflow: hidden; flex-shrink: 0; background: #FAF8F5; }
-.cd-avatar-img { width: 100%; height: 100%; }
-.cd-info-main { flex: 1; min-width: 0; }
-.cd-name-row { display: flex; align-items: center; gap: 16rpx; }
-.cd-name { font-size: 36rpx; font-weight: 700; color: var(--text-ink, #2C2C2C); }
-.cd-paid { font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(196,30,58,0.1); color: var(--brand, var(--brand)); border-radius: 6rpx; }
-.cd-stats { display: flex; align-items: center; gap: 24rpx; margin-top: 8rpx; }
-.cd-stat { display: flex; align-items: center; gap: 6rpx; flex-shrink: 0; }
-.cd-stat-txt { font-size: 24rpx; color: #999; white-space: nowrap; }
-.cd-desc { display: block; font-size: 26rpx; color: #666; line-height: 1.7; margin-top: 24rpx; }
-.cd-tags { display: flex; flex-wrap: wrap; gap: 16rpx; margin-top: 24rpx; }
-.cd-tag { font-size: 22rpx; padding: 4rpx 16rpx; background: #F5F0E8; color: #999; border-radius: 999rpx; }
-.cd-owner { display: flex; align-items: center; gap: 16rpx; margin-top: 24rpx; padding-top: 24rpx; border-top: 2rpx solid #F5F0E8; }
-.cd-owner-avatar { width: 64rpx; height: 64rpx; border-radius: 999rpx; }
-.cd-owner-info { flex: 1; }
-.cd-owner-name-row { display: flex; align-items: center; gap: 8rpx; }
-.cd-owner-name { font-size: 26rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }
-.cd-owner-role { font-size: 22rpx; color: #999; }
-/* 公告 */
-.cd-ann { margin: 24rpx 32rpx 0; }
-.cd-ann-box { background: linear-gradient(to right, #FFF8E7, #FFFBF0); border-radius: 24rpx; border: 2rpx solid #F0E6D3; overflow: hidden; }
-.cd-ann-head { padding: 24rpx 32rpx; display: flex; align-items: center; justify-content: space-between; }
-.cd-ann-title { display: flex; align-items: center; gap: 16rpx; }
-.cd-ann-icon { width: 40rpx; height: 40rpx; border-radius: 8rpx; background: #C9A96E; display: flex; align-items: center; justify-content: center; }
-.cd-ann-label { font-size: 26rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }
-.cd-ann-body { padding: 0 32rpx 24rpx; }
-.cd-ann-text { font-size: 24rpx; color: #666; line-height: 1.7; }
-.cd-ann-more { display: flex; align-items: center; gap: 4rpx; margin-top: 16rpx; }
-.cd-ann-more-t { font-size: 24rpx; color: var(--brand); font-weight: 500; }
-/* 圈主助理入口 */
-.cd-assistant { display: flex; align-items: center; gap: 20rpx; margin: 24rpx 32rpx 0; padding: 24rpx 28rpx; border-radius: 24rpx; background: linear-gradient(135deg, #FFF8E7, #FFFBF0); border: 2rpx solid #F0E6D3; }
-.cd-assistant-icon { width: 72rpx; height: 72rpx; border-radius: 20rpx; background: linear-gradient(135deg, #C9A96E, #B8935A); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cd-assistant-main { flex: 1; min-width: 0; }
-.cd-assistant-title { display: block; font-size: 28rpx; font-weight: 600; color: var(--text-ink, #2C2C2C); }
-.cd-assistant-sub { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
+.cd-page { min-height: 100vh; background: var(--bg-page, #faf8f5); display: flex; flex-direction: column; }
 
-/* Tabs */
-.cd-tabs { margin-top: 32rpx; padding: 0 32rpx; border-bottom: 2rpx solid #E8E3DB; }
-.cd-tabs-scroll { white-space: nowrap; }
-.cd-tabs-row { display: inline-flex; gap: 8rpx; }
-  .cd-tab { padding: 0 32rpx 24rpx; position: relative; flex-shrink: 0; }
-  .cd-tab-txt { font-size: 28rpx; font-weight: 500; color: #999; white-space: nowrap; }
-.cd-tab-txt.on { color: var(--brand, var(--brand)); }
-.cd-tab-line { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 40rpx; height: 4rpx; background: var(--brand, var(--brand)); border-radius: 999rpx; }
-/* 内容 */
-.cd-content { padding: 32rpx; }
-.cd-home { display: flex; flex-direction: column; gap: 32rpx; }
-.cd-sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.cd-sec-title { display: flex; align-items: center; gap: 16rpx; }
-.cd-sec-title.mb { margin-bottom: 24rpx; }
-.cd-sec-label { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }
-.cd-sec-label.mb { display: block; margin-bottom: 24rpx; }
-.cd-sec-more { display: flex; align-items: center; gap: 4rpx; }
-.cd-more-txt { font-size: 24rpx; color: #999; }
-/* 活动 */
-.cd-acts { display: flex; flex-direction: column; gap: 16rpx; }
-.cd-act { display: flex; align-items: center; gap: 24rpx; background: var(--card, #fff); border-radius: 24rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.cd-act-icon { width: 80rpx; height: 80rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cd-act-icon.live { background: rgba(239,68,68,0.1); }
-.cd-act-icon.checkin { background: rgba(34,197,94,0.1); }
-.cd-act-icon.homework { background: rgba(249,115,22,0.1); }
-.cd-act-main { flex: 1; min-width: 0; }
-.cd-act-title { font-size: 26rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }
-.cd-act-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 4rpx; }
-.cd-act-time { font-size: 22rpx; color: #999; }
-.cd-act-btn { padding: 12rpx 24rpx; border-radius: 999rpx; flex-shrink: 0; }
-.cd-act-btn.red { background: var(--brand, var(--brand)); }
-.cd-act-btn.green { background: #52C41A; }
-.cd-act-btn-txt { font-size: 22rpx; color: #fff; }
-/* 置顶 */
-.cd-pinned-list { display: flex; flex-direction: column; gap: 16rpx; }
-.cd-pinned { display: flex; align-items: flex-start; gap: 24rpx; background: linear-gradient(to right, #FFF8E7, #FFFBF0); border-radius: 24rpx; padding: 24rpx; border: 2rpx solid #F0E6D3; }
-.cd-pinned-avatar { width: 80rpx; height: 80rpx; border-radius: 999rpx; flex-shrink: 0; }
-.cd-pinned-main { flex: 1; min-width: 0; }
-.cd-pinned-tags { display: flex; align-items: center; gap: 8rpx; margin-bottom: 8rpx; }
-.cd-pinned-pin { font-size: 22rpx; color: var(--brand, var(--brand)); font-weight: 500; }
-.cd-pinned-content { display: block; font-size: 24rpx; color: var(--text-ink, #2C2C2C); line-height: 1.6; }
-.cd-pinned-meta { display: flex; align-items: center; gap: 24rpx; margin-top: 12rpx; }
-.cd-pinned-stat { display: flex; align-items: center; gap: 6rpx; }
-.cd-pinned-meta-txt { font-size: 22rpx; color: #999; }
-.cd-pinned-img { width: 96rpx; height: 96rpx; border-radius: 16rpx; flex-shrink: 0; }
-.pc-essence { font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(201,169,110,0.1); color: #C9A96E; border-radius: 6rpx; }
-/* 专栏横滚 */
-.cd-cols-scroll { white-space: nowrap; }
-.cd-cols-row { display: inline-flex; gap: 24rpx; }
-.cd-col { width: 320rpx; background: var(--card, #fff); border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.cd-col-cover { position: relative; }
-.cd-col-img { width: 100%; height: 160rpx; }
-.cd-col-lock { position: absolute; top: 16rpx; right: 16rpx; width: 40rpx; height: 40rpx; background: #C9A96E; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; }
-.cd-col-body { padding: 20rpx; }
-.cd-col-title { display: block; font-size: 26rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cd-col-meta { display: block; font-size: 22rpx; color: #999; margin-top: 8rpx; }
-/* 圈主推荐电子书 */
-.cd-ebook-hint { font-size: 22rpx; color: #999; }
-.cd-ebook-manage { font-size: 24rpx; color: #2563eb; }
-.cd-ebook-scroll { white-space: nowrap; }
-.cd-ebook-row { display: inline-flex; gap: 24rpx; padding-bottom: 8rpx; }
-.cd-ebook { width: 160rpx; display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
-.cd-ebook-cover { width: 128rpx; height: 176rpx; border-radius: 16rpx; background: #1e3a5f; display: flex; align-items: center; justify-content: center; }
-.cd-ebook-title { width: 100%; font-size: 20rpx; text-align: center; color: #555; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-/* 专栏网格 */
-.cd-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; }
-.cd-col-card { background: var(--card, #fff); border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.cd-col-card-img { width: 100%; height: 192rpx; }
-/* 文章列表 */
-.cd-post-list { display: flex; flex-direction: column; gap: 24rpx; }
-.cd-article { display: flex; gap: 24rpx; background: var(--card, #fff); border-radius: 24rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.cd-article-cover { width: 192rpx; height: 192rpx; border-radius: 16rpx; flex-shrink: 0; background: #F5F0E8; }
-.cd-article-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.cd-article-title-row { display: flex; align-items: flex-start; gap: 12rpx; }
-.cd-article-feat { margin-top: 4rpx; flex-shrink: 0; font-size: 20rpx; padding: 2rpx 12rpx; background: rgba(196,30,58,0.1); color: var(--brand, var(--brand)); border-radius: 6rpx; }
-.cd-article-title { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); line-height: 1.4; }
-.cd-article-meta { margin-top: auto; display: flex; align-items: center; gap: 24rpx; padding-top: 16rpx; }
-.cd-article-stat { display: flex; align-items: center; gap: 6rpx; }
-.cd-article-meta-txt { font-size: 22rpx; color: #999; }
-/* 成员 */
-.cd-member-list { display: flex; flex-direction: column; gap: 16rpx; }
-.cd-member { display: flex; align-items: center; gap: 24rpx; background: var(--card, #fff); border-radius: 24rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04); }
-.cd-member-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; }
-.cd-member-main { flex: 1; min-width: 0; }
-.cd-member-name-row { display: flex; align-items: center; gap: 16rpx; }
-.cd-member-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }
-.cd-role { display: flex; align-items: center; gap: 4rpx; padding: 2rpx 12rpx; border-radius: 6rpx; }
-.cd-role.owner { background: rgba(201,169,110,0.1); }
-.cd-role.admin { background: rgba(74,144,217,0.1); }
-.cd-role-txt { font-size: 20rpx; }
-.cd-role-txt.owner { color: #C9A96E; }
-.cd-role-txt.admin { color: #4A90D9; }
-.cd-member-meta { display: flex; align-items: center; gap: 16rpx; margin-top: 4rpx; }
-.cd-member-meta-txt { font-size: 22rpx; color: #999; }
+/* 顶部导航 */
+.nav {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 16rpx; height: 88rpx; padding: 0 24rpx;
+  padding-top: var(--status-bar-height, 0px);
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(20rpx);
+}
+.nav-back { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; margin-left: -16rpx; }
+.nav-title { flex: 1; font-size: 32rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-action { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; }
+
+.body { flex: 1; }
+
+/* A. 身份区 */
+.header { padding: 8rpx 32rpx 0; }
+.identity { background: var(--bg-card, #fff); border-radius: 32rpx; padding: 32rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
+.identity-top { display: flex; gap: 24rpx; align-items: flex-start; }
+.identity-cover { width: 112rpx; height: 112rpx; border-radius: 28rpx; flex-shrink: 0; }
+.identity-info { flex: 1; min-width: 0; }
+.identity-name { display: block; font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
+.identity-desc { display: -webkit-box; font-size: 25rpx; color: var(--text-secondary, #6e6e73); margin-top: 6rpx; line-height: 1.5; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* 管理入口（角色专属·小 chip） */
+.manage-chip {
+  flex-shrink: 0; display: flex; align-items: center; gap: 6rpx;
+  padding: 10rpx 18rpx; border-radius: 999rpx;
+  background: var(--brand-soft, rgba(196, 30, 58, 0.08));
+}
+.manage-chip:active { opacity: 0.85; }
+.manage-chip-txt { font-size: 23rpx; color: var(--brand, #c41e3a); font-weight: 600; }
+.identity-meta { display: flex; align-items: center; gap: 24rpx; margin-top: 24rpx; padding-top: 24rpx; border-top: 1rpx solid var(--separator, #ede7dd); }
+.meta-stat { font-size: 24rpx; color: var(--text-tertiary, #999); }
+/* 成员入口：数字+头像叠排 */
+.meta-members { display: flex; align-items: center; gap: 8rpx; }
+.meta-members:active { opacity: 0.8; }
+.meta-avatars { display: flex; align-items: center; }
+.meta-avatar {
+  width: 40rpx; height: 40rpx; border-radius: 999rpx; flex-shrink: 0;
+  border: 2rpx solid var(--bg-card, #fff); box-sizing: border-box;
+  /* 头像缺失/加载失败时兜底暖色圆盘，避免叠排出现空洞 */
+  background: var(--gold-soft, rgba(201, 169, 110, 0.25));
+}
+.meta-avatar + .meta-avatar { margin-left: -12rpx; }
+.meta-num { font-size: 26rpx; color: var(--text-primary, #2c2c2c); font-weight: 600; margin-right: 4rpx; }
+.meta-owner { display: flex; align-items: center; gap: 10rpx; margin-left: auto; }
+.meta-owner-avatar { width: 40rpx; height: 40rpx; border-radius: 999rpx; box-shadow: 0 0 0 2rpx var(--gold, #c9a96e); }
+.meta-owner-txt { font-size: 24rpx; color: var(--gold, #c9a96e); }
+
+/* 年费圈续费提醒条 */
+.renew-bar { display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; padding: 20rpx 24rpx; border-radius: 16rpx; background: #FBF5EA; border: 1rpx solid #E8D8B8; }
+.renew-bar.urgent { background: #FDECEE; border-color: #F3C6CE; }
+.renew-txt { flex: 1; font-size: 24rpx; color: #6E5A32; }
+.renew-bar.urgent .renew-txt { color: #A32432; }
+.renew-btn { flex-shrink: 0; padding: 10rpx 24rpx; border-radius: 999rpx; background: #B4884A; }
+.renew-bar.urgent .renew-btn { background: #C41E3A; }
+.renew-btn-txt { font-size: 22rpx; color: #fff; font-weight: 500; }
+
+/* 公告 */
+.announce { display: flex; align-items: center; gap: 16rpx; margin-top: 20rpx; padding: 20rpx 24rpx; background: var(--bg-warm, #f8f4ec); border-radius: 28rpx; }
+.announce-tag { flex-shrink: 0; font-size: 22rpx; color: var(--brand, #c41e3a); font-weight: 600; }
+.announce-text { flex: 1; font-size: 25rpx; color: var(--text-secondary, #6e6e73); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.announce-text.open { white-space: normal; }
+.announce-more { display: flex; align-items: center; gap: 4rpx; margin-top: 12rpx; padding-left: 24rpx; }
+.announce-more-txt { font-size: 24rpx; color: var(--brand, #c41e3a); }
+
+/* AI 助理入口·金色描边 */
+.ai-entry {
+  display: flex; align-items: center; gap: 20rpx; margin-top: 20rpx; padding: 22rpx 24rpx;
+  border-radius: 28rpx; background: var(--bg-card, #fff);
+  border: 1rpx solid rgba(201, 169, 110, 0.5);
+}
+.consult-entry { margin-top: 16rpx; }
+.ai-entry:active { opacity: 0.9; }
+.ai-orb { width: 60rpx; height: 60rpx; border-radius: 999rpx; flex-shrink: 0; background: var(--gold-soft, rgba(201, 169, 110, 0.14)); display: flex; align-items: center; justify-content: center; }
+.ai-text { flex: 1; min-width: 0; }
+.ai-title { display: block; font-size: 27rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.ai-sub { display: block; font-size: 23rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 「去对话」是动作链接非荣誉标识，随品牌朱红（金色纪律纠偏·入口描边/圆底弱金氛围保留） */
+.ai-go { flex-shrink: 0; font-size: 24rpx; color: var(--brand, #c41e3a); font-weight: 500; }
+
+/* 增值内容带 */
+.value-strip { width: 100%; white-space: nowrap; margin-top: 24rpx; }
+.value-row { display: inline-flex; gap: 20rpx; padding: 0 32rpx; }
+.live-card { flex-shrink: 0; width: 400rpx; display: inline-flex; gap: 20rpx; align-items: center; background: var(--bg-card, #fff); border-radius: 28rpx; padding: 20rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
+.live-thumb { width: 128rpx; height: 96rpx; border-radius: 16rpx; flex-shrink: 0; }
+.live-info { min-width: 0; flex: 1; }
+.live-badge { display: flex; align-items: center; gap: 8rpx; }
+.live-dot { width: 12rpx; height: 12rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
+.live-badge-txt { font-size: 21rpx; color: var(--brand, #c41e3a); font-weight: 600; }
+.live-name { display: block; font-size: 25rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-count { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; }
+.mini-entry { flex-shrink: 0; width: 256rpx; background: var(--bg-card, #fff); border-radius: 28rpx; padding: 20rpx 24rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
+.mini-head { display: flex; align-items: center; justify-content: space-between; }
+.mini-title { font-size: 25rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.mini-sub { display: block; font-size: 22rpx; color: var(--text-tertiary, #999); margin-top: 4rpx; }
+.mini-thumbs { display: flex; gap: 8rpx; margin-top: 16rpx; }
+.mini-thumb { width: 60rpx; height: 60rpx; border-radius: 12rpx; }
+
+/* B. Tab */
+.tabs {
+  position: sticky; top: 88rpx; z-index: 19;
+  display: flex; align-items: center; gap: 48rpx; padding: 0 40rpx; height: 88rpx; margin-top: 12rpx;
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(20rpx);
+  border-bottom: 1rpx solid var(--separator, #ede7dd);
+}
+.tab { position: relative; height: 100%; display: flex; align-items: center; }
+.tab-txt { font-size: 30rpx; color: var(--text-secondary, #6e6e73); }
+.tab-txt.on { color: var(--text-primary, #2c2c2c); font-weight: 600; }
+.tab-line { position: absolute; left: 50%; bottom: 12rpx; transform: translateX(-50%); width: 36rpx; height: 6rpx; border-radius: 3rpx; background: var(--brand, #c41e3a); }
+.tab-search { margin-left: auto; display: flex; align-items: center; }
+
+/* 动态流 */
+.feed { padding: 24rpx 32rpx 0; display: flex; flex-direction: column; gap: 24rpx; }
+/* 到底提示改用全局 .scroll-end（signature.scss 卷尾墨线） */
+
+/* 内联卡片（课程/文章） */
+.inline-card { background: var(--bg-card, #fff); border-radius: 32rpx; padding: 28rpx 32rpx; box-shadow: 0 2rpx 4rpx rgba(44, 44, 44, 0.04); }
+.course-card { display: flex; gap: 24rpx; }
+.course-cover { width: 232rpx; height: 148rpx; border-radius: 20rpx; flex-shrink: 0; }
+.course-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.course-kind { font-size: 22rpx; color: var(--text-tertiary, #999); letter-spacing: 2rpx; }
+.course-title { font-size: 29rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); margin-top: 6rpx; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.course-meta { display: flex; align-items: center; gap: 16rpx; margin-top: auto; padding-top: 12rpx; }
+/* 价格=交易信息走品牌朱红（金色纪律：金只留给会员/成就/精华/认证/圈主/评分/收藏选中） */
+.course-price { font-size: 26rpx; font-weight: 600; color: var(--brand, #c41e3a); }
+.course-teacher { font-size: 23rpx; color: var(--text-tertiary, #999); }
+.article-card { display: flex; gap: 24rpx; align-items: stretch; }
+.article-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.article-kind { font-size: 22rpx; color: var(--text-tertiary, #999); letter-spacing: 2rpx; }
+.article-title { font-size: 30rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); margin-top: 8rpx; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.article-byline { margin-top: auto; padding-top: 12rpx; font-size: 22rpx; color: var(--text-tertiary, #999); }
+.article-cover { width: 176rpx; height: 176rpx; border-radius: 20rpx; flex-shrink: 0; align-self: center; }
+
 /* 空态 */
-.cd-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 0; gap: 24rpx; }
-.cd-empty-txt { font-size: 28rpx; color: #999; }
-/* 底部操作栏 */
-.cd-foot { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card, #fff); border-top: 2rpx solid #E8E3DB; padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 24rpx; z-index: 50; }
-.cd-join { flex: 1; padding: 24rpx 0; border-radius: 999rpx; text-align: center; background: linear-gradient(to right, var(--brand), #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
-.cd-join.joined { background: #F5F0E8; box-shadow: none; }
-.cd-join-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
-.cd-join-txt.joined { color: #666; }
-.cd-post-btn { flex: 1; padding: 24rpx 0; border-radius: 999rpx; background: linear-gradient(to right, var(--brand), #E74C3C); box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); display: flex; align-items: center; justify-content: center; gap: 8rpx; }
-.cd-post-btn-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
-/* 会员弹窗 */
-.cd-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; }
-.cd-sheet { width: 100%; background: var(--card, #fff); border-radius: 48rpx 48rpx 0 0; overflow: hidden; }
-.cd-sheet-body { padding: 48rpx; }
-.cd-sheet-head { text-align: center; margin-bottom: 48rpx; }
-.cd-sheet-icon { width: 128rpx; height: 128rpx; margin: 0 auto 24rpx; border-radius: 999rpx; background: linear-gradient(135deg, #C9A96E, #E8D5B5); display: flex; align-items: center; justify-content: center; }
-.cd-sheet-title { display: block; font-size: 36rpx; font-weight: 700; color: var(--text-ink, #2C2C2C); }
-.cd-sheet-sub { display: block; font-size: 28rpx; color: #999; margin-top: 8rpx; }
-.cd-benefits { display: grid; grid-template-columns: 1fr 1fr; gap: 24rpx; margin-bottom: 48rpx; }
-.cd-benefit { background: #FAF8F5; border-radius: 24rpx; padding: 24rpx; display: flex; align-items: flex-start; gap: 16rpx; }
-.cd-benefit-icon { width: 64rpx; height: 64rpx; border-radius: 16rpx; background: rgba(196,30,58,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cd-benefit-title { display: block; font-size: 26rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); }
-.cd-benefit-desc { display: block; font-size: 22rpx; color: #999; }
-.cd-sheet-actions { display: flex; gap: 24rpx; }
-.cd-sheet-btn { flex: 1; padding: 24rpx 0; border-radius: 999rpx; text-align: center; }
-.cd-sheet-btn.cancel { background: #F5F0E8; }
-.cd-sheet-btn.confirm { background: linear-gradient(to right, var(--brand), #E74C3C); }
-.cd-sheet-btn-txt { font-size: 28rpx; font-weight: 500; }
-.cd-sheet-btn-txt.cancel { color: #666; }
-.cd-sheet-btn-txt.confirm { color: #fff; }
-/* 骨架 */
-.cd-skeleton { min-height: 100vh; background: var(--bg-paper, #FAF8F5); }
-.sk-cover { height: 384rpx; background: #E8E3DB; }
-.sk-info { padding: 0 32rpx; margin-top: -96rpx; }
-.sk-card { height: 280rpx; background: #fff; border-radius: 32rpx; }
-/* 错误态 */
-.cd-err { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 32rpx; }
-.cd-err-txt { font-size: 28rpx; color: #999; margin-bottom: 24rpx; }
-.cd-err-retry { padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }
-.cd-err-retry-t { font-size: 26rpx; color: #fff; }
+.empty { display: flex; flex-direction: column; align-items: center; gap: 20rpx; padding: 120rpx 0; }
+.empty-txt { font-size: 27rpx; color: var(--text-tertiary, #999); }
+
+.bottom-spacer { height: 180rpx; }
+
+/* C. 底部（仅游客加入通栏） */
+.bottombar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20rpx);
+  border-top: 1rpx solid var(--separator, #ede7dd);
+}
+.btn-join { flex: 1; height: 88rpx; border-radius: 44rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; justify-content: center; }
+.btn-join-txt { font-size: 30rpx; color: #fff; font-weight: 600; }
+
+/* 悬浮创作按钮（FAB·朱红圆形+笔图标·滚动半透明） */
+.fab {
+  position: fixed; right: 32rpx; bottom: calc(64rpx + env(safe-area-inset-bottom)); z-index: 30;
+  width: 108rpx; height: 108rpx; border-radius: 999rpx;
+  background: var(--brand, #c41e3a);
+  box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.35);
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.25s ease;
+}
+.fab.dim { opacity: 0.5; }
+.fab:active { transform: scale(0.95); }
+
+/* 圈主助理·智能客服式悬浮球（董事长 #25）：常驻右下角。
+   未加入=在加入通栏上方；已加入(raised)=错层于发帖 FAB 之上 */
+.assistant-fab {
+  position: fixed; right: 32rpx; bottom: calc(160rpx + env(safe-area-inset-bottom)); z-index: 31;
+  display: flex; flex-direction: column; align-items: center;
+  transition: opacity 0.25s ease;
+}
+.assistant-fab.raised { bottom: calc(200rpx + env(safe-area-inset-bottom)); }
+.assistant-fab.dim { opacity: 0.5; }
+.assistant-fab:active { transform: scale(0.95); }
+.assistant-orb {
+  width: 96rpx; height: 96rpx; border-radius: 999rpx;
+  background: linear-gradient(135deg, #d4af37, #c9a96e 55%, #b8860b);
+  box-shadow: 0 8rpx 24rpx rgba(201, 169, 110, 0.45);
+  display: flex; align-items: center; justify-content: center;
+}
+.assistant-tag {
+  margin-top: -14rpx; padding: 2rpx 14rpx; border-radius: 999rpx;
+  background: #ffffff; border: 1rpx solid var(--separator, #ede7dd);
+  box-shadow: 0 2rpx 8rpx rgba(44, 44, 44, 0.12);
+}
+.assistant-tag-txt { font-size: 20rpx; color: #8a6d3b; font-weight: 600; line-height: 1.4; }
+
+/* 问答 Tab（达人付费问答） */
+/* 托管担保条随盾牌一并离金归朱（浅朱底+中性文字，同处纠偏保持整条协调） */
+.qa-trust {
+  display: flex; align-items: center; gap: 10rpx;
+  padding: 16rpx 24rpx; border-radius: 16rpx;
+  background: rgba(196, 30, 58, 0.06);
+}
+.qa-trust-t { font-size: 24rpx; color: var(--text-secondary, #6e6e73); }
+.qa-card {
+  display: flex; align-items: center; gap: 20rpx;
+  background: #ffffff; border-radius: 24rpx; padding: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(44, 44, 44, 0.04);
+}
+.qa-avatar { width: 88rpx; height: 88rpx; border-radius: 999rpx; overflow: hidden; flex-shrink: 0; }
+.qa-main { flex: 1; min-width: 0; }
+.qa-name-line { display: flex; align-items: center; gap: 12rpx; }
+.qa-name { font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.qa-role {
+  padding: 2rpx 12rpx; border-radius: 8rpx; font-size: 20rpx;
+  color: #8a6d3b; background: rgba(201, 169, 110, 0.15);
+}
+.qa-price { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.qa-ask-btn {
+  flex-shrink: 0; padding: 14rpx 36rpx; border-radius: 999rpx;
+  background: var(--brand, #c41e3a);
+}
+.qa-ask-txt { font-size: 26rpx; color: #ffffff; font-weight: 600; }
+.qa-links { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 20rpx 0 8rpx; }
+.qa-link { font-size: 26rpx; color: #8a6d3b; }
+.qa-link-sep { font-size: 22rpx; color: var(--separator, #ede7dd); }
+
+/* 发布 Sheet（V0 circle-publish-sheet 稿） */
+.pub-mask { position: fixed; inset: 0; z-index: 100; background: rgba(44, 44, 44, 0.35); display: flex; align-items: flex-end; }
+.pub-sheet {
+  width: 100%; background: var(--bg-page, #faf8f5);
+  border-radius: 36rpx 36rpx 0 0;
+  padding: 16rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -16rpx 64rpx rgba(44, 44, 44, 0.12);
+}
+.pub-grabber { width: 72rpx; height: 8rpx; border-radius: 4rpx; background: var(--separator, #ede7dd); margin: 8rpx auto 28rpx; }
+.pub-title { display: block; font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); }
+.pub-sub { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); margin: 4rpx 0 28rpx; }
+.pub-post {
+  display: flex; align-items: center; gap: 24rpx;
+  padding: 32rpx; border-radius: 36rpx;
+  background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.pub-post:active { opacity: 0.9; }
+.pub-icon {
+  width: 88rpx; height: 88rpx; border-radius: 28rpx; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.pub-icon.post { background: var(--brand-soft, rgba(196, 30, 58, 0.08)); }
+.pub-icon.gold { width: 80rpx; height: 80rpx; background: var(--bg-warm, #f8f4ec); }
+.pub-icon.plain { width: 72rpx; height: 72rpx; border-radius: 20rpx; background: var(--bg-warm, #f8f4ec); }
+.pub-main { flex: 1; min-width: 0; }
+.pub-name { display: block; font-size: 30rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); }
+.pub-name.light { font-weight: 500; font-size: 28rpx; }
+.pub-desc { display: block; font-size: 24rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pub-label { display: block; margin: 32rpx 4rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.pub-group { background: var(--bg-card, #fff); border-radius: 36rpx; overflow: hidden; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); }
+.pub-row { display: flex; align-items: center; gap: 24rpx; padding: 28rpx 32rpx; }
+.pub-row + .pub-row { border-top: 1rpx solid var(--separator, #ede7dd); }
+.pub-row:active { background: var(--bg-warm, #f8f4ec); }
+.pub-manage {
+  display: flex; align-items: center; gap: 20rpx; margin-top: 24rpx;
+  padding: 26rpx 32rpx; background: var(--bg-card, #fff);
+  border-radius: 36rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.pub-manage:active { background: var(--bg-warm, #f8f4ec); }
+.pub-cancel {
+  margin-top: 24rpx; padding: 28rpx; border-radius: 36rpx;
+  background: var(--bg-card, #fff); box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+  display: flex; align-items: center; justify-content: center;
+}
+.pub-cancel:active { background: var(--bg-warm, #f8f4ec); }
+.pub-cancel-txt { font-size: 30rpx; color: var(--text-secondary, #6e6e73); }
+
+/* 弹窗 */
+.mask { position: fixed; inset: 0; z-index: 100; background: rgba(0, 0, 0, 0.5); display: flex; align-items: flex-end; }
+.sheet { width: 100%; background: var(--bg-card, #fff); border-radius: 40rpx 40rpx 0 0; padding: 40rpx 32rpx calc(40rpx + env(safe-area-inset-bottom)); }
+.sheet-head { display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
+.sheet-icon { width: 96rpx; height: 96rpx; border-radius: 999rpx; background: linear-gradient(135deg, var(--brand, #c41e3a), #a01530); display: flex; align-items: center; justify-content: center; }
+.sheet-title { font-size: 34rpx; font-weight: 700; color: var(--text-primary, #2c2c2c); margin-top: 8rpx; }
+.sheet-sub { font-size: 24rpx; color: var(--text-secondary, #6e6e73); text-align: center; }
+.benefits { display: flex; flex-direction: column; gap: 20rpx; margin: 32rpx 0; }
+.benefit { display: flex; align-items: center; gap: 20rpx; }
+.benefit-icon { width: 64rpx; height: 64rpx; border-radius: 18rpx; background: var(--brand-soft, rgba(196, 30, 58, 0.08)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.benefit-title { display: block; font-size: 27rpx; font-weight: 500; color: var(--text-primary, #2c2c2c); }
+.benefit-desc { display: block; font-size: 23rpx; color: var(--text-tertiary, #999); margin-top: 2rpx; }
+.sheet-actions { display: flex; gap: 20rpx; }
+.sheet-btn { flex: 1; height: 88rpx; border-radius: 44rpx; display: flex; align-items: center; justify-content: center; }
+.sheet-btn.cancel { background: var(--bg-page, #faf8f5); }
+.sheet-btn.confirm { background: var(--brand, #c41e3a); }
+.sheet-btn-txt { font-size: 29rpx; font-weight: 600; }
+.sheet-btn-txt.cancel { color: var(--text-secondary, #6e6e73); }
+.sheet-btn-txt.confirm { color: #fff; }
+
+/* 骨架/错误 */
+.cd-skeleton { min-height: 100vh; background: var(--bg-page, #faf8f5); padding: 120rpx 32rpx; }
+.sk-header { height: 200rpx; background: #f2efea; border-radius: 32rpx; margin-bottom: 24rpx; }
+.sk-card { height: 180rpx; background: #f2efea; border-radius: 32rpx; margin-bottom: 24rpx; }
+.cd-err { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32rpx; }
+.cd-err-txt { font-size: 28rpx; color: var(--text-tertiary, #999); }
+.cd-err-retry { padding: 20rpx 64rpx; background: var(--brand, #c41e3a); border-radius: 24rpx; }
+.cd-err-retry-t { font-size: 28rpx; color: #fff; }
 </style>

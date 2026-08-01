@@ -1,766 +1,336 @@
 <template>
   <!-- 加载骨架屏 -->
-  <view v-if="loading" class="skeleton-page">
-    <view class="skeleton-nav" />
-    <view class="skeleton-stats" />
-    <view class="skeleton-card" />
-    <view class="skeleton-card skeleton-card-sm" />
+  <view v-if="loading" class="sk-page">
+    <view class="sk-sec"><view class="sk-block sk-h96" /></view>
+    <view class="sk-sec sk-tabs"><view class="sk-line sk-w60" /><view class="sk-line sk-w60" /><view class="sk-line sk-w60" /><view class="sk-line sk-w60" /></view>
+    <view class="sk-sec"><view class="sk-block sk-h180" /><view class="sk-block sk-h180" /></view>
   </view>
+
   <!-- 错误状态 -->
   <view v-else-if="error" class="error-state">
     <text class="error-text">{{ error }}</text>
     <view class="retry-btn" @tap="fetchData">重试</view>
   </view>
+
   <!-- 正常内容 -->
-  <view v-else class="manage-page">
+  <view v-else class="page">
     <!-- 顶部导航 -->
-    <view class="nav-bar">
-      <view class="nav-left">
-        <view class="nav-back" @tap="goBack">
-          <app-icon name="arrow-left" :size="40" color="#1a1a1a" />
-        </view>
-        <text class="nav-title">直播管理</text>
+    <view class="nav">
+      <view class="nav-btn" @tap="goBack">
+        <AppIcon name="chevron-left" :size="44" color="#2C2C2C" />
       </view>
-      <view class="nav-right">
-        <view class="nav-icon-btn">
-          <app-icon name="bell" :size="40" color="#666" />
-        </view>
-        <view class="nav-icon-btn">
-          <app-icon name="settings" :size="40" color="#666" />
-        </view>
-      </view>
+      <text class="nav-title">我的直播</text>
+      <view class="nav-placeholder" />
     </view>
 
-    <view class="page-body">
-      <!-- 数据概览卡片 横向滑动 -->
-      <scroll-view scroll-x class="stats-scroll" :show-scrollbar="false">
-        <view class="stats-row">
-          <view
-            v-for="stat in stats"
-            :key="stat.id"
-            class="stat-card"
-            :style="{ background: stat.color }"
-          >
-            <app-icon :name="stat.icon" :size="40" color="rgba(255,255,255,0.85)" />
-            <view class="stat-value">
-              {{ stat.value }}<text class="stat-unit">{{ stat.unit }}</text>
-            </view>
-            <text class="stat-label">{{ stat.label }}</text>
-          </view>
+    <scroll-view scroll-y class="scroll">
+      <!-- 汇总条 -->
+      <view class="summary">
+        <view class="sum-it">
+          <text class="sum-n">{{ stat.monthCount }}</text>
+          <text class="sum-l">本月场次</text>
         </view>
-      </scroll-view>
-
-      <!-- 创建直播按钮 -->
-      <view class="create-btn" @tap="goCreate">
-        <app-icon name="plus" :size="40" color="#fff" />
-        <text class="create-btn-text">创建直播</text>
-      </view>
-
-      <!-- 快捷入口 -->
-      <view class="quick-grid">
-        <view class="quick-item" @tap="goCreate">
-          <view class="quick-icon" style="background: rgba(59,111,212,0.1)">
-            <app-icon name="book-open" :size="40" color="#3b6fd4" />
-          </view>
-          <text class="quick-label">知识授课</text>
+        <view class="sum-it">
+          <text class="sum-n">{{ viewsText }}</text>
+          <text class="sum-l">总观看</text>
         </view>
-        <view class="quick-item" @tap="goCreate">
-          <view class="quick-icon" style="background: rgba(217,148,35,0.1)">
-            <app-icon name="shopping-bag" :size="40" color="#d99423" />
-          </view>
-          <text class="quick-label">电商带货</text>
-        </view>
-        <view class="quick-item" @tap="goCreate">
-          <view class="quick-icon" style="background: rgba(124,91,212,0.1)">
-            <app-icon name="radio" :size="40" color="#7c5bd4" />
-          </view>
-          <text class="quick-label">快速开播</text>
+        <view class="sum-it" @tap="goEarnings">
+          <text class="sum-n gold">{{ endedCount }}</text>
+          <text class="sum-l">已结束 · 收益 ›</text>
         </view>
       </view>
 
-      <!-- Tab切换 -->
-      <scroll-view scroll-x class="tab-scroll" :show-scrollbar="false">
-        <view class="tab-row">
-          <view
-            v-for="tab in tabs"
-            :key="tab.key"
-            class="tab-chip"
-            :class="{ 'tab-chip-active': activeTab === tab.key }"
-            @tap="activeTab = tab.key"
-          >
-            {{ tab.label }}
-            <text
-              v-if="tabCount(tab.key) > 0"
-              class="tab-count"
-              :class="{ 'tab-count-active': activeTab === tab.key }"
-            >{{ tabCount(tab.key) }}</text>
-          </view>
-        </view>
-      </scroll-view>
-
-      <!-- 直播列表 -->
-      <view v-if="filteredList.length > 0" class="live-list">
+      <!-- Tab -->
+      <view class="tabs">
         <view
-          v-for="item in filteredList"
-          :key="item.id"
-          class="live-card"
-          :class="{ 'live-card-live': item.status === 'live' }"
-        >
-          <view class="live-main">
-            <!-- 封面 -->
-            <view class="live-cover">
-              <app-icon name="video" :size="64" color="rgba(0,0,0,0.18)" />
-              <view class="status-badge" :style="{ background: statusConfig[item.status].color }">
-                <view v-if="item.status === 'live'" class="live-dot" />
-                {{ statusConfig[item.status].label }}
-              </view>
-              <view class="type-badge">{{ item.type === 'knowledge' ? '知识' : '带货' }}</view>
-            </view>
+          v-for="t in tabs"
+          :key="t.key"
+          class="tab"
+          :class="{ sel: activeTab === t.key }"
+          @tap="activeTab = t.key"
+        >{{ t.label }}<text v-if="tabCount(t.key)" class="tab-c">{{ tabCount(t.key) }}</text></view>
+      </view>
 
-            <!-- 信息 -->
-            <view class="live-info">
-              <text class="live-title">{{ item.title }}</text>
-              <view v-if="item.scheduledTime" class="live-time">
-                <app-icon name="calendar" :size="24" color="#999" />
-                <text class="live-time-text">{{ item.scheduledTime }}</text>
-              </view>
-              <view class="live-stats">
-                <template v-if="item.status === 'preview'">
-                  <view class="live-stat">
-                    <app-icon name="bell" :size="24" color="#999" />
-                    <text class="live-stat-text">{{ item.previewCount }}人预约</text>
-                  </view>
-                </template>
-                <template v-else-if="item.status !== 'draft'">
-                  <view class="live-stat">
-                    <app-icon name="eye" :size="24" color="#999" />
-                    <text class="live-stat-text">{{ formatNum(item.viewers) }}</text>
-                  </view>
-                  <view class="live-stat">
-                    <app-icon name="clock" :size="24" color="#999" />
-                    <text class="live-stat-text">{{ item.duration }}</text>
-                  </view>
-                  <view v-if="item.income > 0" class="live-stat">
-                    <app-icon name="gift" :size="24" color="#d99423" />
-                    <text class="live-stat-text live-stat-income">¥{{ item.income }}</text>
-                  </view>
-                </template>
-              </view>
+      <!-- 场次列表 -->
+      <view v-if="filtered.length" class="list">
+        <view v-for="item in filtered" :key="item.id" class="lcard">
+          <view class="lmain">
+            <!-- 封面 9:16 -->
+            <view class="cover">
+              <image v-if="item.cover" class="cover-img" :src="item.cover" mode="aspectFill" />
+              <view v-else class="cover-ph"><AppIcon name="video" :size="48" color="#C9B99A" /></view>
             </view>
-
-            <!-- 操作 -->
-            <view class="live-actions">
-              <view class="more-btn" @tap="toggleActions(item.id)">
-                <app-icon name="more-horizontal" :size="40" color="#999" />
+            <view class="linfo">
+              <text class="ltitle">{{ item.title }}</text>
+              <view class="ltags">
+                <text class="tag">{{ item.orientation === 'landscape' ? 'OBS' : '竖屏' }}</text>
+                <text class="tag gold">{{ qualityLabel(item.quality) }}</text>
+                <text v-if="item.priceType === 'paid'" class="tag gold">付费 ¥{{ item.price }}</text>
+                <text v-if="item.selfOnly" class="tag warn" @tap.stop="showSelfOnlyTip">仅自己可见</text>
+                <text v-else-if="item.removed" class="tag danger" @tap.stop="showRemovedTip">已下架</text>
               </view>
-              <view
-                v-if="item.status === 'live'"
-                class="act-btn act-btn-live"
-                @tap="enterLive(item)"
-              >
-                <app-icon name="play" :size="24" color="#fff" />
-                <text class="act-btn-text">进入直播</text>
-              </view>
-              <view
-                v-else-if="item.status === 'preview'"
-                class="act-btn act-btn-outline"
-                @tap="goCreate"
-              >
-                <app-icon name="edit-3" :size="24" color="#1a1a1a" />
-                <text class="act-btn-text act-btn-text-dark">编辑</text>
-              </view>
-              <view
-                v-else-if="item.status === 'draft'"
-                class="act-btn act-btn-solid"
-                @tap="goCreate"
-              >
-                <text class="act-btn-text">继续编辑</text>
-              </view>
-              <view
-                v-else
-                class="act-btn act-btn-ghost"
-                @tap="viewData(item)"
-              >
-                <app-icon name="bar-chart-2" :size="24" color="#999" />
-                <text class="act-btn-text act-btn-text-muted">数据</text>
+              <!-- 状态元信息 -->
+              <view class="lmeta">
+                <template v-if="item.status === 'live'">
+                  <view class="dot" /><text class="meta-red">直播中</text><text class="meta-t"> · {{ formatNum(item.viewers) }} 人观看</text>
+                </template>
+                <template v-else-if="item.status === 'preview'">
+                  <text class="meta-t">待开播 · </text><text class="meta-b">{{ item.scheduledTime || '立即可开' }}</text>
+                </template>
+                <template v-else>
+                  <text class="meta-t">已结束 · 时长 {{ item.duration }} · 观看 {{ formatNum(item.viewers) }}</text>
+                  <text v-if="item.status === 'ended' && !item.replayUrl" class="meta-gen"> · 回放生成中…</text>
+                </template>
               </view>
             </view>
           </view>
 
-          <!-- 展开操作菜单 -->
-          <view v-if="showActions === item.id" class="action-menu">
-            <view class="menu-item" @tap="goCreate">
-              <app-icon name="edit-3" :size="28" color="#666" />
-              <text class="menu-text">编��</text>
-            </view>
-            <view class="menu-item" @tap="viewData(item)">
-              <app-icon name="bar-chart-2" :size="28" color="#666" />
-              <text class="menu-text">数据详情</text>
-            </view>
-            <view class="menu-item" @tap="showActions = null">
-              <app-icon name="trash-2" :size="28" color="#C41E3A" />
-              <text class="menu-text menu-text-danger">删除</text>
-            </view>
+          <!-- 操作栏（按状态） -->
+          <view class="lops">
+            <template v-if="item.status === 'live'">
+              <view class="lbtn pri" @tap="enterConsole(item)">进入控制台</view>
+            </template>
+            <template v-else-if="item.status === 'preview'">
+              <view class="lbtn txt" @tap="confirmDelete(item)">删除</view>
+              <view class="lbtn" @tap="editRoom(item)">编辑</view>
+              <view class="lbtn pri" @tap="startLive(item)">开始直播</view>
+            </template>
+            <template v-else>
+              <view class="lbtn txt" @tap="confirmDelete(item)">删除</view>
+              <view v-if="item.replayUrl" class="lbtn" @tap="viewReplay(item)">查看回放</view>
+              <view class="lbtn" @tap="viewData(item)">数据复盘</view>
+            </template>
           </view>
         </view>
       </view>
 
-      <!-- 空状态 -->
-      <view v-else class="empty-box">
-        <view class="empty-icon">
-          <app-icon name="video" :size="128" color="rgba(0,0,0,0.15)" />
-        </view>
-        <text class="empty-title">暂无直播记录</text>
-        <text class="empty-desc">开始你的第一场直播，与粉丝实时互动</text>
-        <view class="empty-btn" @tap="goCreate">
-          <app-icon name="plus" :size="32" color="#fff" />
-          <text class="empty-btn-text">创建直播</text>
-        </view>
+      <!-- 空态（按 Tab 文案） -->
+      <view v-else class="empty">
+        <view class="empty-ic"><AppIcon name="video" :size="88" color="#D8D0C4" /></view>
+        <text class="empty-t">{{ emptyText.title }}</text>
+        <text class="empty-d">{{ emptyText.desc }}</text>
+        <view v-if="activeTab === 'all'" class="empty-cta" @tap="goCreate">立即创建直播</view>
       </view>
-    </view>
 
-    <!-- 悬浮快速开播按钮 -->
+      <view class="foot-space" />
+    </scroll-view>
+
+    <!-- 悬浮创建 -->
     <view class="fab" @tap="goCreate">
-      <app-icon name="radio" :size="48" color="#fff" />
+      <AppIcon name="plus" :size="34" color="#fff" />
+      <text class="fab-t">创建直播</text>
     </view>
-
-    <view class="bottom-pad" />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { goBack } from '@/utils/router'
-import {
-  liveApi,
-  liveManageTabs,
-  liveManageStatusConfig,
-  type LiveManageItem,
-  type LiveManageStat,
-} from '@/lib/live-data'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import AppIcon from '@/components/common/app-icon.vue'
+import { goBack, navigateTo } from '@/utils/router'
+import { liveApi, liveManageTabs, type LiveManageItem } from '@/lib/live-data'
 
-// 三态UI
+// 三态 UI
 const loading = ref(true)
 const error = ref('')
 
-const stats = ref<LiveManageStat[]>([])
-const list = ref<LiveManageItem[]>([])
 const tabs = liveManageTabs
-const statusConfig = liveManageStatusConfig
-
 const activeTab = ref('all')
-const showActions = ref<number | string | null>(null)
+const stat = ref<{ monthCount: number; totalViews: number; endedCount: number }>({ monthCount: 0, totalViews: 0, endedCount: 0 })
+const list = ref<LiveManageItem[]>([])
 
-const filteredList = computed(() =>
+const viewsText = computed(() => {
+  const v = stat.value.totalViews
+  return v >= 10000 ? (v / 10000).toFixed(1) + '万' : String(v)
+})
+const endedCount = computed(() => stat.value.endedCount)
+
+const filtered = computed(() =>
   activeTab.value === 'all' ? list.value : list.value.filter((i) => i.status === activeTab.value),
 )
-
 function tabCount(key: string): number {
   return key === 'all' ? list.value.length : list.value.filter((i) => i.status === key).length
 }
-
-function formatNum(num: number): string {
-  if (num >= 10000) return (num / 10000).toFixed(1) + '万'
-  return num.toLocaleString()
+function formatNum(n: number): string {
+  if (n >= 10000) return (n / 10000).toFixed(1) + '万'
+  return n.toLocaleString()
+}
+function qualityLabel(q: string): string {
+  return q === 'hd' ? '高清 720P' : q === 'uhd' ? '超清 1080P' : '标清'
 }
 
+// 空态文案按 Tab
+const emptyText = computed(() => {
+  switch (activeTab.value) {
+    case 'preview': return { title: '还没有预约中的直播', desc: '提前预约能让粉丝蹲守你的开播' }
+    case 'live': return { title: '当前没有进行中的直播', desc: '去创建一场，与你的圈子实时互动' }
+    case 'ended': return { title: '还没有已结束的直播', desc: '播过的每一场，都会在这里留下足迹' }
+    default: return { title: '你的第一场直播，就差一个开始', desc: '开播即推送给你的圈子成员，讲课、聊天、带货都可以' }
+  }
+})
+
+// ── 数据加载 ──（onShow 每次回到本页刷新，开播/删除后列表即时更新）
 async function fetchData() {
   loading.value = true
   error.value = ''
   try {
     const res = await liveApi.getManageList()
-    stats.value = res.stats
     list.value = res.list
+    // monthCount 取真实聚合（stats[0].value）；总观看用列表 viewers 聚合（stats[1] 是格式化串）
+    stat.value = {
+      monthCount: Number(res.stats[0]?.value ?? 0),
+      totalViews: res.list.reduce((s, i) => s + i.viewers, 0),
+      endedCount: res.list.filter((i) => i.status === 'ended').length,
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     loading.value = false
   }
 }
+onShow(() => { fetchData() })
 
-onMounted(() => { fetchData() })
+// ── 操作 ──
+function goCreate() { navigateTo('/pkg-live/create/index') }
+function goEarnings() { navigateTo('/pkg-live/earnings/index') }
+function enterConsole(item: LiveManageItem) { navigateTo(`/pkg-live/console/index?id=${item.id}`) }
+function editRoom(item: LiveManageItem) { navigateTo(`/pkg-live/create/index?id=${item.id}`) }
+function viewData(item: LiveManageItem) { navigateTo(`/pkg-live/analytics/index?id=${item.id}`) }
+function viewReplay(item: LiveManageItem) { navigateTo(`/pkg-live/watch/index?id=${item.id}`) }
 
-function toggleActions(id: number | string) {
-  showActions.value = showActions.value === id ? null : id
+// 开始直播（房主本人放开·317041e0）→ 成功进控制台
+const starting = ref(false)
+function startLive(item: LiveManageItem) {
+  if (starting.value) return
+  uni.showModal({
+    title: '开始直播', content: `确定现在开播「${item.title}」吗？`, confirmText: '开播',
+    success: async (res) => {
+      if (!res.confirm) return
+      starting.value = true
+      uni.showLoading({ title: '开播中…' })
+      try {
+        await liveApi.startLive(String(item.id))
+        uni.hideLoading()
+        navigateTo(`/pkg-live/console/index?id=${item.id}`)
+      } catch (e) {
+        uni.hideLoading()
+        uni.showToast({ title: (e as Error)?.message || '开播失败，请重试', icon: 'none' })
+      } finally {
+        starting.value = false
+      }
+    },
+  })
 }
 
-function goCreate() {
-  uni.navigateTo({ url: '/pkg-live/create/index' })
+// 删除直播间（真删除·DELETE /live/rooms/:id·二次确认）
+const deleting = ref(false)
+function confirmDelete(item: LiveManageItem) {
+  if (deleting.value) return
+  uni.showModal({
+    title: '删除直播', content: `确定删除「${item.title}」吗？删除后不可恢复。`, confirmText: '删除', confirmColor: '#C41E3A',
+    success: async (res) => {
+      if (!res.confirm) return
+      deleting.value = true
+      try {
+        await liveApi.deleteRoom(String(item.id))
+        list.value = list.value.filter((i) => i.id !== item.id)
+        uni.showToast({ title: '已删除', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '删除失败', icon: 'none' })
+      } finally {
+        deleting.value = false
+      }
+    },
+  })
 }
 
-function enterLive(_item: LiveManageItem) {
-  uni.navigateTo({ url: '/pkg-live/console/index' })
+// 审核无感化说明
+function showSelfOnlyTip() {
+  uni.showModal({ title: '仅自己可见', content: '该直播间经系统复核暂时调整为仅自己可见，不影响您查看和管理。如有疑问请联系客服申诉。', showCancel: false, confirmText: '知道了' })
 }
-
-function viewData(item: LiveManageItem) {
-  uni.navigateTo({ url: `/pkg-live/analytics/index?id=${item.id}` })
+function showRemovedTip() {
+  uni.showModal({ title: '已下架', content: '该直播间因涉及违规内容已被下架，具体原因可在消息中心查看。如有疑问请联系客服申诉。', showCancel: false, confirmText: '知道了' })
 }
 </script>
 
 <style scoped>
 /* 骨架屏 */
-.skeleton-page {
-  min-height: 100vh;
-  background: #faf8f5;
-  padding: 24rpx;
-}
-.skeleton-nav {
-  height: 88rpx;
-  background: #fff;
-  border-radius: 16rpx;
-  margin-bottom: 24rpx;
-}
-.skeleton-stats {
-  height: 160rpx;
-  background: #fff;
-  border-radius: 24rpx;
-  margin-bottom: 24rpx;
-}
-.skeleton-card {
-  height: 200rpx;
-  background: #fff;
-  border-radius: 20rpx;
-  margin-bottom: 20rpx;
-}
-.skeleton-card-sm {
-  height: 120rpx;
-}
+.sk-page { min-height: 100vh; background: #FAF8F5; padding-top: 96rpx; }
+.sk-sec { padding: 24rpx 32rpx 0; }
+.sk-tabs { display: flex; gap: 32rpx; }
+.sk-line { height: 28rpx; border-radius: 8rpx; background: #EFEAE1; }
+.sk-w60 { width: 96rpx; }
+.sk-block { border-radius: 24rpx; background: linear-gradient(90deg, #EFEAE1 25%, #F7F4EE 50%, #EFEAE1 75%); background-size: 200% 100%; animation: sk 1.4s infinite; margin-bottom: 20rpx; }
+@keyframes sk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.sk-h96 { height: 96rpx; }
+.sk-h180 { height: 180rpx; }
 
 /* 错误状态 */
-.error-state {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: #faf8f5;
-  padding: 48rpx;
-}
-.error-text {
-  font-size: 28rpx;
-  color: #999;
-  margin-bottom: 32rpx;
-}
-.retry-btn {
-  padding: 20rpx 64rpx;
-  background: var(--brand);
-  color: #fff;
-  border-radius: 24rpx;
-  font-size: 28rpx;
-}
+.error-state { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #FAF8F5; padding: 48rpx; }
+.error-text { font-size: 28rpx; color: #999; margin-bottom: 32rpx; }
+.retry-btn { padding: 20rpx 64rpx; background: #C41E3A; color: #fff; border-radius: 24rpx; font-size: 28rpx; }
 
-.manage-page {
-  min-height: 100vh;
-  background: #faf8f5;
-}
+/* 页面 */
+.page { display: flex; flex-direction: column; height: 100vh; background: #FAF8F5; }
+.nav { flex-shrink: 0; background: #FAF8F5; height: 96rpx; padding: 0 32rpx; display: flex; align-items: center; justify-content: space-between; }
+.nav-btn { margin-left: -20rpx; width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; }
+.nav-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
+.nav-placeholder { width: 88rpx; }
+.scroll { flex: 1; }
 
-/* 顶部导航 */
-.nav-bar {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 88rpx;
-  padding: 0 24rpx;
-  background: rgba(250, 248, 245, 0.95);
-  backdrop-filter: blur(12rpx);
-  border-bottom: 2rpx solid #efe9e1;
-}
-.nav-left {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.nav-back {
-  width: 56rpx;
-  height: 56rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.nav-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-.nav-icon-btn {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
+/* 汇总条 */
+.summary { margin: 24rpx 32rpx 0; background: #fff; border: 1rpx solid #F0EBE2; border-radius: 28rpx; display: flex; padding: 24rpx 0; }
+.sum-it { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6rpx; border-right: 1rpx solid #F5F1EA; }
+.sum-it:last-child { border-right: none; }
+.sum-n { font-size: 36rpx; font-weight: 700; color: #2C2C2C; font-family: "SF Mono", Menlo, Consolas, monospace; }
+.sum-n.gold { color: #C9A96E; }
+.sum-l { font-size: 22rpx; color: #999; }
 
-.page-body {
-  padding: 24rpx;
-}
+/* Tab（下划线式） */
+.tabs { display: flex; margin: 24rpx 0 0; padding: 0 16rpx; border-bottom: 1rpx solid #F0EBE2; }
+.tab { flex: 1; height: 80rpx; display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: #999; position: relative; }
+.tab.sel { color: #C41E3A; font-weight: 600; }
+.tab.sel::after { content: ''; position: absolute; bottom: 0; left: 50%; margin-left: -28rpx; width: 56rpx; height: 6rpx; background: #C41E3A; border-radius: 6rpx; }
+.tab-c { font-size: 22rpx; color: #B8B2A8; margin-left: 6rpx; }
 
-/* 数据概览卡片 */
-.stats-scroll {
-  width: 100%;
-  white-space: nowrap;
-  margin-bottom: 24rpx;
-}
-.stats-row {
-  display: inline-flex;
-  gap: 20rpx;
-  padding-bottom: 8rpx;
-}
-.stat-card {
-  flex-shrink: 0;
-  width: 224rpx;
-  padding: 24rpx;
-  border-radius: 24rpx;
-  display: flex;
-  flex-direction: column;
-}
-.stat-value {
-  font-size: 40rpx;
-  font-weight: 700;
-  color: #fff;
-  margin-top: 16rpx;
-  line-height: 1.1;
-}
-.stat-unit {
-  font-size: 24rpx;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.85);
-  margin-left: 4rpx;
-}
-.stat-label {
-  font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.85);
-  margin-top: 6rpx;
-}
+/* 场次卡 */
+.list { padding: 24rpx 32rpx 0; display: flex; flex-direction: column; gap: 20rpx; }
+.lcard { background: #fff; border: 1rpx solid #F0EBE2; border-radius: 28rpx; padding: 24rpx; }
+.lmain { display: flex; gap: 20rpx; }
+.cover { width: 128rpx; height: 172rpx; border-radius: 16rpx; overflow: hidden; background: #F0EBE2; flex-shrink: 0; }
+.cover-img { width: 100%; height: 100%; }
+.cover-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.linfo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ltitle { font-size: 28rpx; font-weight: 600; color: #2C2C2C; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ltags { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 12rpx; }
+.tag { font-size: 20rpx; line-height: 1; padding: 6rpx 12rpx; border: 1rpx solid #E8E2D8; color: #999; background: #FAF8F5; border-radius: 8rpx; }
+.tag.gold { border-color: #EDDFC6; color: #C9A96E; background: #FBF6EC; }
+.tag.warn { border-color: #E0E0E0; color: #8C8C8C; background: #F2F2F2; }
+.tag.danger { border-color: #F3D6D3; color: #C4443A; background: #FDF0EF; }
+.lmeta { margin-top: auto; padding-top: 12rpx; font-size: 22rpx; color: #999; display: flex; align-items: center; flex-wrap: wrap; }
+.dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: #C41E3A; margin-right: 8rpx; animation: breath 1.6s ease-in-out infinite; }
+@keyframes breath { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.meta-red { color: #C41E3A; font-weight: 600; }
+.meta-t { color: #999; }
+.meta-b { color: #2C2C2C; font-weight: 600; }
+.meta-gen { color: #B8B2A8; }
 
-/* 创建直播按钮 */
-.create-btn {
-  height: 96rpx;
-  border-radius: 24rpx;
-  background: linear-gradient(to right, var(--brand), #C9A96E);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.25);
-}
-.create-btn-text {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #fff;
-}
+/* 操作栏 */
+.lops { display: flex; justify-content: flex-end; gap: 16rpx; margin-top: 20rpx; padding-top: 20rpx; border-top: 1rpx solid #F5F1EA; }
+.lbtn { height: 60rpx; padding: 0 28rpx; border: 1rpx solid #DDD5C8; border-radius: 999rpx; font-size: 24rpx; color: #6E6E73; background: #fff; display: flex; align-items: center; }
+.lbtn.pri { background: #C41E3A; color: #fff; border-color: #C41E3A; font-weight: 600; }
+.lbtn.txt { border: none; color: #999; padding: 0 12rpx; background: transparent; }
 
-/* 快捷入口 */
-.quick-grid {
-  display: flex;
-  gap: 20rpx;
-  margin-top: 24rpx;
-}
-.quick-item {
-  flex: 1;
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 24rpx 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12rpx;
-  border: 2rpx solid #efe9e1;
-}
-.quick-icon {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.quick-label {
-  font-size: 24rpx;
-  color: #666;
-}
+/* 空态 */
+.empty { display: flex; flex-direction: column; align-items: center; padding: 112rpx 48rpx 64rpx; }
+.empty-ic { width: 160rpx; height: 160rpx; border-radius: 50%; background: #F0EBE2; display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
+.empty-t { font-size: 30rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 12rpx; }
+.empty-d { font-size: 24rpx; color: #999; text-align: center; line-height: 1.7; margin-bottom: 32rpx; }
+.empty-cta { height: 88rpx; padding: 0 56rpx; border-radius: 999rpx; background: #C41E3A; color: #fff; font-size: 28rpx; font-weight: 600; display: flex; align-items: center; box-shadow: 0 8rpx 24rpx rgba(196,30,58,.25); }
 
-/* Tab */
-.tab-scroll {
-  width: 100%;
-  white-space: nowrap;
-  margin-top: 32rpx;
-  margin-bottom: 24rpx;
-}
-.tab-row {
-  display: inline-flex;
-  gap: 12rpx;
-}
-.tab-chip {
-  flex-shrink: 0;
-  padding: 14rpx 32rpx;
-  border-radius: 999rpx;
-  font-size: 26rpx;
-  font-weight: 500;
-  color: #888;
-  background: #f0ebe3;
-}
-.tab-chip-active {
-  background: var(--brand);
-  color: #fff;
-}
-.tab-count {
-  font-size: 22rpx;
-  color: #999;
-  margin-left: 8rpx;
-}
-.tab-count-active {
-  color: rgba(255, 255, 255, 0.8);
-}
+.foot-space { height: 180rpx; }
 
-/* 直播列表 */
-.live-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20rpx;
-}
-.live-card {
-  background: #fff;
-  border-radius: 20rpx;
-  border: 2rpx solid #efe9e1;
-  overflow: hidden;
-}
-.live-card-live {
-  border-color: rgba(196, 30, 58, 0.3);
-  box-shadow: 0 0 0 2rpx rgba(196, 30, 58, 0.2);
-}
-.live-main {
-  display: flex;
-  gap: 20rpx;
-  padding: 20rpx;
-}
-.live-cover {
-  position: relative;
-  width: 200rpx;
-  height: 144rpx;
-  border-radius: 16rpx;
-  background: #f0ebe3;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.status-badge {
-  position: absolute;
-  top: 10rpx;
-  left: 10rpx;
-  display: flex;
-  align-items: center;
-  height: 32rpx;
-  padding: 0 12rpx;
-  border-radius: 8rpx;
-  font-size: 18rpx;
-  color: #fff;
-}
-.live-dot {
-  width: 10rpx;
-  height: 10rpx;
-  border-radius: 50%;
-  background: #fff;
-  margin-right: 8rpx;
-}
-.type-badge {
-  position: absolute;
-  bottom: 10rpx;
-  right: 10rpx;
-  height: 32rpx;
-  padding: 0 12rpx;
-  border-radius: 8rpx;
-  font-size: 18rpx;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-}
-.live-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.live-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #1a1a1a;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.live-time {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  margin-top: 8rpx;
-}
-.live-time-text {
-  font-size: 22rpx;
-  color: #999;
-}
-.live-stats {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  margin-top: 8rpx;
-}
-.live-stat {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-}
-.live-stat-text {
-  font-size: 22rpx;
-  color: #999;
-}
-.live-stat-income {
-  color: #d99423;
-}
-.live-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: space-between;
-}
-.more-btn {
-  width: 48rpx;
-  height: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-.act-btn {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  height: 52rpx;
-  padding: 0 20rpx;
-  border-radius: 12rpx;
-}
-.act-btn-live {
-  background: var(--brand);
-}
-.act-btn-outline {
-  border: 2rpx solid #dcd3c7;
-}
-.act-btn-solid {
-  background: var(--brand);
-}
-.act-btn-ghost {
-  background: transparent;
-}
-.act-btn-text {
-  font-size: 22rpx;
-  color: #fff;
-  white-space: nowrap;
-}
-.act-btn-text-dark {
-  color: #1a1a1a;
-}
-.act-btn-text-muted {
-  color: #999;
-}
-
-/* 展开操作菜单 */
-.action-menu {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12rpx;
-  padding: 16rpx 20rpx;
-  border-top: 2rpx solid #efe9e1;
-}
-.menu-item {
-  display: flex;
-  align-items: center;
-  gap: 6rpx;
-  height: 56rpx;
-  padding: 0 16rpx;
-}
-.menu-text {
-  font-size: 24rpx;
-  color: #666;
-}
-.menu-text-danger {
-  color: var(--brand);
-}
-
-/* 空状态 */
-.empty-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 96rpx 0;
-}
-.empty-icon {
-  width: 200rpx;
-  height: 200rpx;
-  border-radius: 50%;
-  background: #f0ebe3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 24rpx;
-}
-.empty-title {
-  font-size: 32rpx;
-  font-weight: 500;
-  color: #1a1a1a;
-  margin-bottom: 12rpx;
-}
-.empty-desc {
-  font-size: 26rpx;
-  color: #999;
-  margin-bottom: 40rpx;
-}
-.empty-btn {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  height: 80rpx;
-  padding: 0 40rpx;
-  border-radius: 16rpx;
-  background: var(--brand);
-}
-.empty-btn-text {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #fff;
-}
-
-/* 悬浮按钮 */
-.fab {
-  position: fixed;
-  bottom: 48rpx;
-  right: 24rpx;
-  z-index: 30;
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: 50%;
-  background: var(--brand);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(196, 30, 58, 0.3);
-}
-
-.bottom-pad {
-  height: 120rpx;
-}
+/* 悬浮创建 */
+.fab { position: fixed; right: 32rpx; bottom: calc(48rpx + env(safe-area-inset-bottom)); height: 92rpx; padding: 0 36rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; gap: 10rpx; box-shadow: 0 8rpx 24rpx rgba(196,30,58,.35); z-index: 30; }
+.fab-t { font-size: 28rpx; font-weight: 600; color: #fff; }
 </style>

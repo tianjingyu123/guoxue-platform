@@ -2,6 +2,8 @@
 /** 主播列表 - 从原型 app/live/hosts/page.tsx 迁移 */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi, type LiveHost } from '@/lib/live-data'
 
@@ -18,14 +20,14 @@ const loading = ref(true)
 const error = ref('')
 const list = ref<LiveHost[]>([])
 
-const filtered = computed<LiveHost[]>(() =>
-  list.value.filter((h) => {
-    const matchFilter = filter.value === 'all' ? true : filter.value === 'live' ? h.isLive : false
-    const kw = search.value.trim()
-    const matchSearch = !kw || h.name.includes(kw) || h.specialty.includes(kw) || h.tags.some((t) => t.includes(kw))
+const filtered = computed<LiveHost[]>(() => {
+  const kw = search.value.trim()
+  return list.value.filter((host) => {
+    const matchFilter = filter.value !== 'live' || host.isLive
+    const matchSearch = !kw || host.name.includes(kw) || host.specialty.includes(kw) || host.tags.some((tag) => tag.includes(kw))
     return matchFilter && matchSearch
-  }),
-)
+  })
+})
 
 async function fetchData() {
   loading.value = true
@@ -39,16 +41,29 @@ async function fetchData() {
   }
 }
 
+function onFilterChange(next: FilterKey) {
+  if (next === filter.value) return
+  filter.value = next
+  fetchData()
+}
+
 onMounted(() => { fetchData() })
 
 function open(id: string) {
   navigateTo(`/live/${id}`)
 }
 function fmtFollowers(n: number) {
-  return (n / 1000).toFixed(0) + 'k'
+  if (!n || n < 0) return '0'
+  return n < 1000 ? String(n) : (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
 }
 function fmtLikes(n: number) {
-  return (n / 10000).toFixed(0) + 'w'
+  if (!n || n < 0) return '0'
+  return n < 10000 ? String(n) : (n / 10000).toFixed(1).replace(/\.0$/, '') + 'w'
+}
+function fmtViewers(n?: number) {
+  const value = Math.max(0, Number(n) || 0)
+  if (value < 1000) return String(value)
+  return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
 }
 </script>
 
@@ -56,7 +71,7 @@ function fmtLikes(n: number) {
   <view class="page">
     <!-- 头部 -->
     <view class="header">
-      <view class="nav-back" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="#2c2c2c" /></view>
+      <view class="nav-back" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="nav-title">主播列表</text>
     </view>
 
@@ -96,40 +111,47 @@ function fmtLikes(n: number) {
           :key="f.key"
           class="chip"
           :class="filter === f.key ? 'chip-on' : 'chip-off'"
-          @tap="filter = f.key"
+          @tap="onFilterChange(f.key)"
         >
           <text class="chip-txt">{{ f.label }}</text>
         </view>
       </view>
 
+      <view v-if="!filtered.length" class="empty-state">
+        <AppIcon name="radio" :size="64" color="#c8c0b5" />
+        <text class="empty-title">{{ search.trim() ? '没有找到相关主播' : filter === 'followed' ? '还没有关注主播' : filter === 'live' ? '暂时没有主播开播' : '暂无可展示的主播' }}</text>
+        <text class="empty-desc">{{ search.trim() ? '换个关键词再试试' : filter === 'followed' ? '关注喜欢的主播后，会在这里集中展示' : '有新直播时会第一时间出现在这里' }}</text>
+      </view>
+
       <!-- 主播卡片列表 -->
-      <view class="list">
+      <view v-else class="list">
         <view v-for="host in filtered" :key="host.id" class="host-card" @tap="open(host.id)">
           <view class="cover">
-            <image lazy-load class="cover-img" :src="host.cover" mode="aspectFill" />
+            <smart-cover class="cover-img" :src="host.cover" :title="host.name" type="live" />
             <view v-if="host.isLive" class="cover-mask">
               <view class="live-tag">
                 <AppIcon name="radio" :size="20" color="#ffffff" /><text class="tag-txt">直播中</text>
               </view>
               <view class="watch-tag">
-                <AppIcon name="users" :size="20" color="#ffffff" /><text class="tag-txt">{{ (host.viewerCount! / 1000).toFixed(1) }}k 在看</text>
+                <AppIcon name="users" :size="20" color="#ffffff" /><text class="tag-txt">{{ fmtViewers(host.viewerCount) }} 在看</text>
               </view>
             </view>
           </view>
           <view class="host-info">
             <view class="avatar">
-              <image lazy-load class="avatar-img" :src="host.avatar" mode="aspectFill" />
+              <smart-avatar :src="host.avatar" :name="host.name" class="avatar-img" />
             </view>
             <view class="meta">
               <view class="name-row">
                 <text class="name">{{ host.name }}</text>
                 <text v-if="host.verified" class="verified">认证</text>
               </view>
-              <text class="specialty">{{ host.specialty }}</text>
+              <text v-if="host.specialty" class="specialty">{{ host.specialty }}</text>
               <view class="stats">
                 <view class="stat"><AppIcon name="users" :size="24" color="#999999" /><text class="stat-txt">{{ fmtFollowers(host.followers) }} 粉丝</text></view>
-                <view class="stat"><AppIcon name="heart" :size="24" color="#999999" /><text class="stat-txt">{{ fmtLikes(host.likes) }} 获赞</text></view>
-                <view class="stat"><AppIcon name="star" :size="24" color="#fbbf24" /><text class="stat-txt">{{ host.rating }}</text></view>
+                <view v-if="host.likes > 0" class="stat"><AppIcon name="heart" :size="24" color="#999999" /><text class="stat-txt">{{ fmtLikes(host.likes) }} 获赞</text></view>
+                <view v-if="host.rating > 0" class="stat"><AppIcon name="star" :size="24" color="#fbbf24" /><text class="stat-txt">{{ host.rating }}</text></view>
+                <view v-if="host.liveCount > 0" class="stat"><AppIcon name="video" :size="24" color="#999999" /><text class="stat-txt">{{ host.liveCount }} 场直播</text></view>
               </view>
             </view>
           </view>
@@ -195,6 +217,10 @@ function fmtLikes(n: number) {
 .sk-line--short { width: 50%; }
 .sk-line--long { width: 80%; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 128rpx 32rpx; text-align: center; }
+.empty-title { margin-top: 24rpx; font-size: 30rpx; font-weight: 600; color: #4a4540; }
+.empty-desc { margin-top: 12rpx; font-size: 24rpx; line-height: 1.6; color: #999; }
 
 /* 错误状态 */
 .error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 0; }

@@ -25,6 +25,26 @@ export class CircleBackendController {
     return membership;
   }
 
+  /** 平台管理角色判定（SUPER_ADMIN/OPERATION_ADMIN） */
+  private isPlatformAdmin(req: Request): boolean {
+    const roles: string[] = (req.user?.roles as string[]) || [];
+    return roles.includes("SUPER_ADMIN") || roles.includes("OPERATION_ADMIN");
+  }
+
+  /**
+   * 圈子定位：管理角色且显式传 circleId 时按该圈操作（跳过 getMyCircle）；
+   * 否则回落原逻辑（取调用者自己是圈主/管理员的圈子）——C 端行为零变化。
+   */
+  private async resolveCircle(req: Request, circleId?: string) {
+    if (circleId && this.isPlatformAdmin(req)) {
+      const circle = await this.prisma.circle.findUnique({ where: { id: circleId } });
+      if (!circle) throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND, "圈子不存在");
+      return circle;
+    }
+    const { circle } = await this.getMyCircle(req.user.id);
+    return circle;
+  }
+
   @Get("overview")
   @ApiOperation({ summary: "圈主仪表盘概览" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -77,9 +97,10 @@ export class CircleBackendController {
 
   @Get("guests")
   @ApiOperation({ summary: "嘉宾列表（含分账比例）" })
+  @ApiQuery({ name: "circleId", required: false, description: "管理角色（SUPER_ADMIN/OPERATION_ADMIN）跨圈查看时传入" })
   @ApiResponse({ status: 200, description: "成功" })
-  async getGuests(@Req() req: Request) {
-    const { circle } = await this.getMyCircle(req.user.id);
+  async getGuests(@Req() req: Request, @Query("circleId") circleId?: string) {
+    const circle = await this.resolveCircle(req, circleId);
     const guests = await this.prisma.circleMember.findMany({
       where: { circleId: circle.id, role: "GUEST" },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
@@ -99,13 +120,18 @@ export class CircleBackendController {
     });
     const earningsMap = new Map(earnings.map(e => [e.guestId, e._sum.earned || 0]));
 
-    return guests.map(g => ({
-      id: g.id,
-      userId: g.userId,
-      user: g.user,
-      shareRate: Number(splitMap.get(g.userId) || 0),
-      totalEarned: Number(earningsMap.get(g.userId) || 0),
-    }));
+    return guests.map(g => {
+      // splitRate 库内规范语义为 0-1 小数（schema.prisma:5849 如 0.3=30%），对外统一还原成 0-100 百分比；
+      // 兼容修正前旧代码把百分比原样写入的存量脏数据：>1 的值只可能是旧写入（新写入恒 ≤1），直接按百分比返回
+      const raw = Number(splitMap.get(g.userId) || 0);
+      return {
+        id: g.id,
+        userId: g.userId,
+        user: g.user,
+        shareRate: raw > 1 ? raw : raw * 100,
+        totalEarned: Number(earningsMap.get(g.userId) || 0),
+      };
+    });
   }
 
   @Put("guests/:userId/share-rate")
@@ -113,7 +139,7 @@ export class CircleBackendController {
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async setGuestShareRate(@Req() req: Request, @Param("userId") userId: string, @Body() body: SetGuestShareRateDto) {
-    const { circle } = await this.getMyCircle(req.user.id);
+    const circle = await this.resolveCircle(req, body.circleId);
 
     // 验证目标用户是当前圈子的嘉宾
     const isGuest = await this.prisma.circleMember.findFirst({
@@ -121,17 +147,21 @@ export class CircleBackendController {
     });
     if (!isGuest) throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户不是本圈子的嘉宾");
 
+    // 资金修正：DTO 收 0-100 百分比，DB CircleRevenueSplit.splitRate 为 Decimal(5,4)、语义 0-1 小数
+    // （schema.prisma:5849 「如 0.3 = 30%」）。修正前把百分比原样写入 → >9.9999 直接溢出报错、≤9.9999 单位错 100 倍。
+    const splitRateFraction = body.shareRate / 100;
+
     const existing = await this.prisma.circleRevenueSplit.findFirst({
       where: { circleId: circle.id, guestId: userId },
     });
     if (existing) {
       await this.prisma.circleRevenueSplit.update({
         where: { id: existing.id },
-        data: { splitRate: body.shareRate },
+        data: { splitRate: splitRateFraction },
       });
     } else {
       await this.prisma.circleRevenueSplit.create({
-        data: { circleId: circle.id, guestId: userId, splitRate: body.shareRate },
+        data: { circleId: circle.id, guestId: userId, splitRate: splitRateFraction },
       });
     }
     return { success: true };
@@ -141,8 +171,9 @@ export class CircleBackendController {
   @ApiOperation({ summary: "圈主收益概览" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "period", required: false, description: "月份 如 2026-06" })
-  async getRevenue(@Req() req: Request, @Query("period") period?: string) {
-    const { circle } = await this.getMyCircle(req.user.id);
+  @ApiQuery({ name: "circleId", required: false, description: "管理角色（SUPER_ADMIN/OPERATION_ADMIN）跨圈查看时传入" })
+  async getRevenue(@Req() req: Request, @Query("period") period?: string, @Query("circleId") circleId?: string) {
+    const circle = await this.resolveCircle(req, circleId);
     const now = new Date();
     const monthStart = period ? new Date(period + "-01") : new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = period

@@ -10,11 +10,13 @@ import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { captureRefFromQuery, withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import AppIcon from '@/components/common/app-icon.vue'
 import TeacherCertBadge from '@/components/common/teacher-cert-badge.vue'
 import NameCardPoster from '@/components/common/name-card-poster.vue'
 import TeacherInfluenceCard from '@/components/common/teacher-influence-card.vue'
 import { teacherApi, buildTeacherCardTitle, buildTeacherCardStats, type TeacherPublicProfile } from '@/lib/teacher-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -62,7 +64,7 @@ const cardStats = computed(() => (profile.value ? buildTeacherCardStats(profile.
 
 /** 名片二维码内容 = 本名片页 H5 链接（withRef 追加分享者 ref·本页 onLoad captureRef 完成归因闭环） */
 const cardLink = computed(() =>
-  withRef(`https://api.rebugx.cn/h5/#/pkg-creator/teacher-profile/index?userId=${encodeURIComponent(userId.value)}`),
+  withRef(buildH5Url('pkg-creator/teacher-profile/index', { userId: userId.value })),
 )
 
 // 微信原生分享（好友/朋友圈），toAppMessage/toTimeline 内部自动携带分享者 ref（推荐归因）
@@ -185,7 +187,7 @@ onLoad((options) => {
           <view class="course-info">
             <text class="course-title">{{ c.title }}</text>
             <view class="course-bottom">
-              <text class="course-price">{{ c.price === 0 ? '免费' : '¥' + c.price }}</text>
+              <text class="course-price">{{ c.price === 0 ? '免费' : '¥' + formatPrice(c.price) }}</text>
               <view class="course-students">
                 <app-icon name="users" :size="22" color="#9CA3AF" />
                 <text class="course-students-txt">{{ fmtCount(c.studentCount) }}人学习</text>

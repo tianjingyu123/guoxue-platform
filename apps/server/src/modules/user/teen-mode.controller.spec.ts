@@ -1,8 +1,8 @@
-import { Test } from "@nestjs/testing";
 import { CanActivate } from "@nestjs/common";
+import { Test } from "@nestjs/testing";
+import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { TeenModeController } from "./teen-mode.controller";
 import { TeenModeService } from "./teen-mode.service";
-import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 
 const mockService: Record<string, jest.Mock> = {
   getSettings: jest.fn(),
@@ -28,26 +28,25 @@ describe("TeenModeController", () => {
 
   it("应被定义", () => expect(ctrl).toBeDefined());
 
-  it("获取青少年模式设置", async () => {
-    mockService.getSettings.mockResolvedValue({ enabled: true, bedtimeStart: "22:00", dailyLimitMinutes: 60 });
+  it("获取未成年人模式可用状态", async () => {
+    mockService.getSettings.mockResolvedValue({ available: false, enabled: false, settings: null });
+
     const result: any = await ctrl.getSettings({ user: { id: "u1" } } as any);
-    expect(result.enabled).toBe(true);
-    expect(result.dailyLimitMinutes).toBe(60);
-  });
 
-  it("获取青少年模式设置——未开启", async () => {
-    mockService.getSettings.mockResolvedValue({ enabled: false });
-    const result: any = await ctrl.getSettings({ user: { id: "u2" } } as any);
+    expect(result.available).toBe(false);
     expect(result.enabled).toBe(false);
+    expect(mockService.getSettings).toHaveBeenCalledWith("u1");
   });
 
-  it("更新青少年模式设置", async () => {
-    mockService.updateSettings.mockResolvedValue({ enabled: true, bedtimeStart: "21:00", dailyLimitMinutes: 45 });
+  it("关闭旧状态时原样委托服务层", async () => {
+    mockService.updateSettings.mockResolvedValue({ available: false, enabled: false, settings: null });
+
     const result: any = await ctrl.updateSettings(
       { user: { id: "u1" } } as any,
-      { enabled: true, bedtimeStart: "21:00", dailyLimitMinutes: 45 } as any,
+      { enabled: false },
     );
-    expect(result.bedtimeStart).toBe("21:00");
-    expect(mockService.updateSettings).toHaveBeenCalledWith("u1", expect.objectContaining({ bedtimeStart: "21:00" }));
+
+    expect(result.enabled).toBe(false);
+    expect(mockService.updateSettings).toHaveBeenCalledWith("u1", { enabled: false });
   });
 });

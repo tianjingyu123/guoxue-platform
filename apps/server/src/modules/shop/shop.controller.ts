@@ -1,6 +1,6 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, Req, UseGuards, Logger, ForbiddenException,
+  Body, Param, Query, Req, UseGuards, Logger, ForbiddenException, BadRequestException, ServiceUnavailableException, HttpCode,
 } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
@@ -17,9 +17,9 @@ import {
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
-  CreateSkuDto, JsapiPayDto, NativePayDto, RefundOrderDto, RechargeJsapiDto,
+  CreateSkuDto, JsapiPayDto, NativePayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto, RechargeH5Dto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
-  UnionpayRefundDto, ApplyAfterSaleDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
+  UnionpayRefundDto, ApplyAfterSaleDto, SubmitReturnLogisticsDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
 } from "./shop.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -33,6 +33,7 @@ import { Auditable } from "../../common/audit.decorator";
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
   user: { id: string; roles: string[]; nickname?: string; [key: string]: unknown };
+  rawBody?: Buffer; // main.ts rawBody:true 注入的请求原始字节（支付回调验签用）
 };
 
 @ApiTags("商城")
@@ -57,14 +58,20 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   createProduct(@Req() req: AuthRequest, @Body() dto: CreateProductDto) {
-    return this.shop.createProduct(req.user.id, dto);
+    // 管理员/运营建的商品直接上架（跳过 PENDING 审核），避免"保存后列表看不到"
+    const isAdmin = (req.user.roles || []).some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+    return this.shop.createProduct(req.user.id, dto, isAdmin);
   }
 
   @Get("products")
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取商品列表" })
   @ApiResponse({ status: 200, description: "成功" })
-  listProducts(@Query() q: ProductListQueryDto) {
-    return this.shop.listProducts(q);
+  listProducts(@Query() q: ProductListQueryDto, @Req() req?: Request) {
+    // 状态筛选仅管理角色可用；游客即使手工传 ALL/PENDING/OFF_SHELF 也强制回到公开在售口径。
+    const roles = ((req?.user as { roles?: string[] } | undefined)?.roles) || [];
+    const isAdmin = roles.some((r) => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(r));
+    return this.shop.listProducts(isAdmin ? q : { ...q, status: undefined });
   }
 
   @Get("products/category-tabs")
@@ -285,18 +292,78 @@ export class ShopController {
     @Param("id") id: string,
     @Body() body: JsapiPayDto,
   ) {
-    return this.shop.createJsapiPayment(req.user.id, body.openid, id, body.notifyUrl);
+    return this.shop.createJsapiPayment(req.user.id, body.openid, id, body.notifyUrl, body.channel);
   }
 
   @Post("recharge/jsapi")
   @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
-  @ApiOperation({ summary: "国学币充值-微信小程序JSAPI下单（openid 由后端从微信授权查取）" })
+  @ApiOperation({ summary: "国学币充值-微信JSAPI下单（小程序/公众号）" })
   @ApiResponse({ status: 201, description: "返回 uni.requestPayment 所需支付参数" })
-  @ApiResponse({ status: 400, description: "金额错误/未绑定微信" })
+  @ApiResponse({ status: 400, description: "金额错误/微信授权缺失/支付未配置" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   async rechargeJsapi(@Req() req: AuthRequest, @Body() body: RechargeJsapiDto) {
-    return this.shop.createCoinRechargeJsapi(req.user.id, body.amountCoin);
+    return this.shop.createCoinRechargeJsapi(
+      req.user.id,
+      body.amountCoin,
+      body.openid,
+      body.channel,
+    );
+  }
+
+  @Post("recharge/h5")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "国学币充值-微信H5下单（外部浏览器 mweb_url）" })
+  @ApiResponse({ status: 201, description: "返回 { mwebUrl, orderNo, amountRmb }" })
+  @ApiResponse({ status: 400, description: "金额错误/支付未配置" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  async rechargeH5(@Req() req: AuthRequest, @Body() body: RechargeH5Dto) {
+    const fwd = req.headers["x-forwarded-for"];
+    const clientIp = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0]?.trim() || req.ip || "127.0.0.1";
+    return this.shop.createCoinRechargeH5(
+      req.user.id,
+      body.amountCoin,
+      clientIp,
+    );
+  }
+
+  @Get("recharge/:orderNo/payment-status")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "查询本人国学币充值支付状态" })
+  @ApiResponse({ status: 200, description: "返回 PENDING/PAID/FAILED/REFUNDED" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 404, description: "订单不存在或不属于当前用户" })
+  @ApiBearerAuth()
+  rechargePaymentStatus(@Req() req: AuthRequest, @Param("orderNo") orderNo: string) {
+    return this.shop.queryCoinRechargeStatus(req.user.id, orderNo);
+  }
+
+  @Post("pay/h5")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "H5支付（外部浏览器·返回 mwebUrl 跳转微信收银台）" })
+  @ApiResponse({ status: 201, description: "创建成功，返回 { mwebUrl }" })
+  @ApiResponse({ status: 400, description: "订单状态不可支付 / 微信支付未配置" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "只能支付自己的订单" })
+  @ApiResponse({ status: 404, description: "订单不存在" })
+  @ApiBearerAuth()
+  async h5Pay(@Req() req: AuthRequest, @Body() body: H5PayDto) {
+    // 微信 H5 下单要求 payer_client_ip：优先代理头（生产 nginx 转发），否则连接 IP
+    const fwd = req.headers["x-forwarded-for"];
+    const clientIp = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0]?.trim() || req.ip || "127.0.0.1";
+    return this.shop.createH5Payment(body.orderId, req.user.id, clientIp, body.notifyUrl);
+  }
+
+  @Post("orders/estimate")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "订单试算（结算页价格明细·与下单定价引擎同口径·不落库不占券）" })
+  @ApiResponse({ status: 201, description: "返回 { goodsAmount, couponDiscount, selfDiscount, payableAmount }" })
+  @ApiResponse({ status: 400, description: "商品不可购买/优惠券无效" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  estimateOrder(@Req() req: AuthRequest, @Body() dto: EstimateOrderDto) {
+    return this.shop.estimateOrder(req.user.id, dto);
   }
 
   @Post("orders/:id/pay/native")
@@ -352,6 +419,16 @@ export class ShopController {
   @ApiBearerAuth()
   adminPayOrder(@Req() req: AuthRequest, @Param("id") id: string, @Body() body: AdminPayOrderDto) {
     const u = req.user;
+    // 超管测试端点保留（H5 真实支付已接线，前端 mockPayForTest 调用点已删）：
+    // 显式落 AuditLog 记录谁用了（@Auditable 拦截器之外再落一条明细，防止测试通道被滥用无迹可查）
+    this.systemService.logAudit({
+      userId: u.id,
+      action: "ADMIN_MARK_PAID",
+      targetType: "ORDER",
+      targetId: id,
+      detail: `管理员确认支付（测试通道）: order=${id}, tx=${body.payTransactionId}, operator=${u.nickname || u.id}`,
+      ip: req.ip,
+    }).catch((err) => this.logger.warn("审计日志写入失败", err));
     return this.shop.adminPayOrder(id, body.payTransactionId, u.nickname || u.id);
   }
 
@@ -372,7 +449,8 @@ export class ShopController {
   @Put("orders/:id/refund")
   @Auditable({ action: "订单退款", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 权限修复(角色断裂)：财务角色前端路由放行退款页(/orders/refund)，后端对齐放行 FINANCE_ADMIN。仅加角色，逻辑不动。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "退款（管理员），对接微信支付退款" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -400,73 +478,80 @@ export class ShopController {
   // ───────── 支付回调（微信/支付宝/银联） ─────────
 
   @Post("pay/notify")
+  @HttpCode(200) // 微信V3仅认 200/204 为成功，Nest默认201会被判失败导致无限重试
   @SkipFormat()
   @ApiOperation({ summary: "微信支付回调通知" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handlePayNotify(@Req() req: AuthRequest) {
     const signHeader = (req.headers["wechatpay-signature"] as string) || "";
     const timestamp = (req.headers["wechatpay-timestamp"] as string) || "";
     const nonce = (req.headers["wechatpay-nonce"] as string) || "";
     const serialNo = (req.headers["wechatpay-serial"] as string) || "";
-    const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    // 微信 V3 对原始报文字节验签：优先用 rawBody(main.ts rawBody:true)，JSON.stringify 会改变字节序/空白致验签失败
+    const rawBody = req.rawBody?.toString("utf8") ?? (typeof req.body === "string" ? req.body : JSON.stringify(req.body));
 
     const { valid, data, error } = await this.shop.verifyAndDecryptNotify(
       signHeader, rawBody, timestamp, nonce, serialNo,
     );
     if (!valid || !data) {
-      return { code: "FAIL", message: error || "验签失败" };
+      throw new BadRequestException(error || "微信支付通知验签失败");
     }
-    // 只有确凿处理才回 SUCCESS；未处理(锁竞争等)回 FAIL 让微信重试，避免"已收款未入账却停止重试"
+    // 微信 API v3 只有 HTTP 200/204 才停止重试；本地未入账必须返回非 2xx，不能只在 200 body 中写 FAIL。
     const ack = await this.shop.handlePaymentNotify(data);
-    return ack ? { code: "SUCCESS", message: "OK" } : { code: "FAIL", message: "处理中，请重试" };
+    if (!ack) throw new ServiceUnavailableException("微信支付通知尚未完成本地入账，请重试");
+    return { code: "SUCCESS", message: "OK" };
   }
 
   @Post("alipay/notify")
+  @HttpCode(200) // 支付宝要求 HTTP 200 + body "success"
   @SkipFormat()
   @ApiOperation({ summary: "支付宝支付回调通知" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleAlipayNotify(@Req() req: AuthRequest) {
     const params = req.body;
     const { valid, data } = await this.shop.verifyAlipayNotify(params);
     if (!valid || !data) return "fail";
     if ((data as any).dedup) return "success"; // 重复通知，返回成功避免重发
-    await this.shop.handleAlipayNotify(data);
-    return "success";
+    const handled = await this.shop.handleAlipayNotify(data);
+    return handled ? "success" : "fail";
   }
 
   @Post("unionpay/notify")
+  @HttpCode(200) // 银联要求 HTTP 200 为成功应答
   @SkipFormat()
   @ApiOperation({ summary: "银联支付回调通知" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleUnionpayNotify(@Req() req: AuthRequest) {
     const params = req.body;
     const { valid, data } = await this.shop.verifyUnionpayNotify(params);
     if (!valid || !data) return "fail";
     if ((data as any).dedup) return "success";
-    await this.shop.handleUnionpayNotify(data);
-    return "success";
+    const handled = await this.shop.handleUnionpayNotify(data);
+    return handled ? "success" : "fail";
   }
 
   @Post("refund/notify")
+  @HttpCode(200) // 微信V3仅认 200/204 为成功
   @SkipFormat()
   @ApiOperation({ summary: "微信退款回调通知" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleRefundNotify(@Req() req: AuthRequest) {
     const signHeader = (req.headers["wechatpay-signature"] as string) || "";
     const timestamp = (req.headers["wechatpay-timestamp"] as string) || "";
     const nonce = (req.headers["wechatpay-nonce"] as string) || "";
     const serialNo = (req.headers["wechatpay-serial"] as string) || "";
-    const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    // 微信 V3 退款回调同样对原始报文验签，优先用 rawBody 原始字节
+    const rawBody = req.rawBody?.toString("utf8") ?? (typeof req.body === "string" ? req.body : JSON.stringify(req.body));
 
     const { valid, data, error } = await this.shop.verifyAndDecryptNotify(
       signHeader, rawBody, timestamp, nonce, serialNo,
     );
     if (!valid || !data) {
-      return { code: "FAIL", message: error || "验签失败" };
+      throw new BadRequestException(error || "微信退款通知验签失败");
     }
     await this.shop.handleRefundNotify(data);
     return { code: "SUCCESS", message: "OK" };
@@ -825,6 +910,49 @@ export class ShopController {
     return this.shop.deleteProductReview(id);
   }
 
+  // ───────── 评价治理（管理员） ─────────
+
+  @Put("admin/reviews/:id/hide")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @Auditable({ action: "评价隐藏", targetType: "PRODUCT_REVIEW" })
+  @ApiOperation({ summary: "管理员隐藏评价（C端不可见，可恢复，区别于删除）" })
+  @ApiResponse({ status: 200, description: "隐藏成功" })
+  @ApiResponse({ status: 404, description: "评价不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  hideReview(@Param("id") id: string) {
+    return this.shop.setProductReviewStatus(id, "HIDDEN");
+  }
+
+  @Put("admin/reviews/:id/show")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @Auditable({ action: "评价恢复展示", targetType: "PRODUCT_REVIEW" })
+  @ApiOperation({ summary: "管理员恢复已隐藏评价" })
+  @ApiResponse({ status: 200, description: "恢复成功" })
+  @ApiResponse({ status: 404, description: "评价不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  showReview(@Param("id") id: string) {
+    return this.shop.setProductReviewStatus(id, "PUBLISHED");
+  }
+
+  @Get("admin/reviews")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
+  @ApiOperation({ summary: "管理员评价列表（聚合全部商品评价·默认含已隐藏·支持状态筛选）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiQuery({ name: "page", required: false, type: Number, description: "页码" })
+  @ApiQuery({ name: "pageSize", required: false, type: Number, description: "每页数量" })
+  @ApiQuery({ name: "status", required: false, type: String, description: "状态筛选: PUBLISHED / HIDDEN，不传=全部" })
+  @ApiBearerAuth()
+  listAdminReviews(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("status") status?: string) {
+    return this.shop.listShopReviewsAdmin(+page, +pageSize, status);
+  }
+
   // ───────── 店铺评价 ─────────
 
   @Get("reviews")
@@ -850,12 +978,23 @@ export class ShopController {
   }
 
   @Get("logistics/track")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
   @ApiOperation({ summary: "查询物流轨迹（快递100）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "no", required: true, type: String, description: "快递单号" })
   @ApiQuery({ name: "company", required: false, type: String, description: "快递公司" })
+  @ApiBearerAuth()
   trackLogistics(@Query("no") no: string, @Query("company") company?: string) {
     return this.logistics.queryTrack(no, company);
+  }
+
+  @Post("logistics/kuaidi100/callback")
+  @HttpCode(200)
+  @SkipFormat()
+  @ApiOperation({ summary: "快递100轨迹推送回调（公开接口·MD5 salt 验签）" })
+  async handleKuaidi100Callback(@Body() body: { param?: string; sign?: string }) {
+    await this.logistics.handlePush(body.param || "", body.sign || "");
+    return { result: true, returnCode: "200", message: "成功" };
   }
 
   @Put("orders/:id/logistics")
@@ -868,8 +1007,13 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  updateLogistics(@Param("id") id: string, @Body() dto: UpdateLogisticsDto) {
-    return this.shop.updateLogistics(id, dto);
+  async updateLogistics(@Param("id") id: string, @Body() dto: UpdateLogisticsDto) {
+    const result = await this.shop.updateLogistics(id, dto);
+    if (dto.logisticsNo && dto.company) {
+      await this.logistics.subscribeTrack(dto.logisticsNo, dto.company)
+        .catch((error) => this.logger.warn(`快递100订阅失败 order=${id}: ${(error as Error).message}`));
+    }
+    return result;
   }
 
   // ───────── 售后 ─────────
@@ -882,7 +1026,7 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   applyAfterSale(@Req() req: AuthRequest, @Param("id") orderId: string, @Body() dto: ApplyAfterSaleDto) {
-    return this.couponSvc.applyAfterSale(req.user.id, orderId, dto.type, dto.reason, dto.amount);
+    return this.couponSvc.applyAfterSale(req.user.id, orderId, dto.type, dto.reason, dto.amount, dto.images);
   }
 
   @Get("after-sales")
@@ -920,9 +1064,25 @@ export class ShopController {
     return this.couponSvc.cancelAfterSale(id, req.user.id);
   }
 
+  @Put("after-sales/:id/return-logistics")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "买家登记退货运单" })
+  @ApiResponse({ status: 200, description: "登记成功" })
+  @ApiResponse({ status: 400, description: "售后状态不可登记" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  submitReturnLogistics(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body() dto: SubmitReturnLogisticsDto,
+  ) {
+    return this.couponSvc.submitReturnLogistics(id, req.user.id, dto.company, dto.logisticsNo);
+  }
+
   @Get("admin/after-sales")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 客服可查看并处理非资金售后；真实退款仍由运营/财务/超级管理员批准。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "获取售后列表（管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -939,7 +1099,8 @@ export class ShopController {
   @Put("admin/after-sales/:id/process")
   @Auditable({ action: "售后处理", targetType: "AFTER_SALE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  // 客服可查看并处理非资金售后；真实退款仍由运营/财务/超级管理员批准。
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN", "CUSTOMER_SERVICE")
   @ApiOperation({ summary: "处理售后（管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -947,8 +1108,16 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  processAfterSale(@Param("id") id: string, @Body("action") action: string, @Body("remark") remark?: string) {
-    return this.couponSvc.processAfterSale(id, action, remark);
+  processAfterSale(
+    @Req() req: AuthRequest,
+    @Param("id") id: string,
+    @Body("action") action: string,
+    @Body("remark") remark?: string,
+  ) {
+    const allowRefundActions = req.user.roles.some((role) =>
+      ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"].includes(role),
+    );
+    return this.couponSvc.processAfterSale(id, action, remark, allowRefundActions);
   }
 
   // ───────── 购物车（Redis） ─────────

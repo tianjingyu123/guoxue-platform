@@ -66,7 +66,8 @@ export class BotController {
     onboarding?: Record<string, unknown>; voiceId?: string;
   }) {
     const apiKey = process.env.COZE_API_KEY || "";
-    if (!apiKey) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "COZE_API_KEY 未配置");
+    // 配了 Coze OAuth 时令牌由 CozeService 内部换取，无需全局 PAT
+    if (!apiKey && !this.cozeSvc.isOAuthConfigured()) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "COZE_API_KEY 未配置且未配置 Coze OAuth");
 
     // 1. 在 Coze 平台创建智能体
     const botData = await this.cozeSvc.createBot({
@@ -101,6 +102,19 @@ export class BotController {
   @ApiQuery({ name: "type", required: false, type: String, description: "智能体类型" })
   list(@Query("type") type?: string) {
     return this.svc.list(type);
+  }
+
+  @Get("admin/list")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理端智能体列表（含占位凭证/全状态·apiKey 只回掩码 sk_***后4位 + isConfigured）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "type", required: false, type: String, description: "智能体类型" })
+  adminList(@Query("type") type?: string) {
+    return this.svc.adminList(type);
   }
 
   @Get("ranking")
@@ -180,6 +194,17 @@ export class BotController {
   bindToCircle(@Req() req: Request, @Param("id") id: string, @Body() dto: BindBotToCircleDto) {
     // 安全：service 内校验当前用户为目标圈子圈主
     return this.svc.bindToCircle(id, dto, req.user.id);
+  }
+
+  @Delete(":id/unbind-circle/:circleId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "解绑智能体与圈子（管理端）" })
+  @ApiResponse({ status: 200, description: "解绑成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  unbindFromCircle(@Param("circleId") circleId: string) {
+    return this.svc.unbindCircle(circleId);
   }
 
   @Get("circle/:circleId")
@@ -264,25 +289,22 @@ export class BotController {
     @Param("id") id: string,
     @Body() dto: ChatDto,
   ) {
-    // AI 计费：额度检查先于 SSE 头，耗尽时以普通错误响应返回购买引导
-    await this.svc.consumeQuota(id, req.user.id);
-    const bot = await this.svc.getBotForChat(id);
+    // 门控与非流式 chat 完全同参（每日限次 + AI 计费额度），且先于 SSE 头发送，
+    // 额度耗尽时以普通错误响应返回购买引导
+    const bot = await this.svc.precheckChat(id, req.user.id);
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // 生产 nginx 反代禁缓冲，保证逐块下发
+    res.flushHeaders();
 
-    const obs = this.svc.chatStream(
-      bot.botId,
-      bot.apiKey,
-      req.user.id,
-      dto.query,
-      dto.conversationId,
-    );
+    // 富事件流：chunk 文本增量 + meta（conversationId 续聊/免责声明/软性导流），审计落库在 service 内闭环
+    const obs = this.svc.chatStreamRich(bot, req.user.id, dto);
 
     obs.subscribe({
-      next: (chunk: string) => {
-        res.write(this.sse.encode({ type: "chunk", content: chunk }));
+      next: (ev) => {
+        res.write(this.sse.encode(ev));
       },
       error: (err: Error) => {
         this.logger.warn(`智能体SSE流错误 [${id}]: ${err.message}`);
@@ -425,6 +447,19 @@ export class BotController {
   @ApiBearerAuth()
   approveBot(@Param("circleId") circleId: string) {
     return this.svc.approveBot(circleId);
+  }
+
+  @Post("manage/approvals/:circleId/reject")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "驳回圈主助理开通" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  rejectBot(@Param("circleId") circleId: string, @Body() body: { reason?: string }) {
+    return this.svc.rejectBot(circleId, body?.reason);
   }
 
   @Get("manage/knowledge/:circleId")

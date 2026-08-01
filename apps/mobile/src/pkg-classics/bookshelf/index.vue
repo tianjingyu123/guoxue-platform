@@ -56,12 +56,38 @@
           class="bs-tab"
           :class="{ 'bs-tab-active': activeTab === 'shelf' }"
           @tap="activeTab = 'shelf'"
-        >书架</view>
+        >
+          <app-icon name="book-open" :size="28" :color="activeTab === 'shelf' ? '#ffffff' : '#8a8074'" />
+          <text>书架</text>
+        </view>
         <view
           class="bs-tab"
           :class="{ 'bs-tab-active': activeTab === 'history' }"
           @tap="activeTab = 'history'"
-        >浏览历史</view>
+        >
+          <app-icon name="clock" :size="28" :color="activeTab === 'history' ? '#ffffff' : '#8a8074'" />
+          <text>浏览历史</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 书签/笔记快捷入口（读书痕迹从这里找回） -->
+    <view class="bs-marks-row">
+      <view class="bs-marks-card" @tap="goBookmarks">
+        <view class="bs-marks-icon"><app-icon name="bookmark" :size="34" color="#c41e3a" /></view>
+        <view class="bs-marks-info">
+          <text class="bs-marks-title">我的书签</text>
+          <text class="bs-marks-sub">一键回到书中位置</text>
+        </view>
+        <app-icon name="chevron-right" :size="28" color="#a89e8c" />
+      </view>
+      <view class="bs-marks-card" @tap="goNotes">
+        <view class="bs-marks-icon"><app-icon name="file-text" :size="34" color="#c41e3a" /></view>
+        <view class="bs-marks-info">
+          <text class="bs-marks-title">我的笔记</text>
+          <text class="bs-marks-sub">读书心得随时回看</text>
+        </view>
+        <app-icon name="chevron-right" :size="28" color="#a89e8c" />
       </view>
     </view>
 
@@ -134,10 +160,13 @@
             </view>
           </view>
 
-          <!-- 添加更多 -->
+          <!-- 添加更多（padding-top 撑 3:4 比例，与书封精确等高·X5 兼容） -->
           <view class="bs-add" @tap="goHome">
-            <app-icon name="plus" :size="48" color="#999999" />
-            <text class="bs-add-text">添加</text>
+            <view class="bs-add-ratio" />
+            <view class="bs-add-inner">
+              <app-icon name="plus" :size="48" color="#999999" />
+              <text class="bs-add-text">添加</text>
+            </view>
           </view>
         </view>
 
@@ -150,12 +179,14 @@
             :class="{ 'bs-list-selected': isSelectMode && selectedIds.includes(book.id) }"
             @tap="onListTap(book)"
           >
-            <view class="bs-spine">
-              <view class="bs-spine-edge" />
-              <text class="bs-spine-title">{{ book.title.slice(0, 3) }}</text>
-            </view>
+            <flat-cover
+              :title="book.title"
+              :cover-color="coverColorForBook(book.title)"
+              title-size="24rpx"
+              class="bs-list-cover"
+            />
             <text class="bs-list-title">{{ book.title }}</text>
-            <text class="bs-list-meta">[{{ book.dynasty }}] {{ book.author }}</text>
+            <text class="bs-list-meta">{{ book.dynasty ? `[${book.dynasty}] ` : '' }}{{ book.author }}</text>
             <view class="bs-list-progress">
               <view class="bs-progress-track">
                 <view class="bs-progress-fill bs-progress-fill-soft" :style="{ width: book.progress + '%' }" />
@@ -178,10 +209,12 @@
         class="bs-history-card"
         @tap="goReader(item.id)"
       >
-        <view class="bs-spine bs-spine-sm">
-          <view class="bs-spine-edge" />
-          <text class="bs-spine-title bs-spine-title-sm">{{ item.title.slice(0, 2) }}</text>
-        </view>
+        <flat-cover
+          :title="item.title"
+          :cover-color="coverColorForBook(item.title)"
+          title-size="20rpx"
+          class="bs-hist-cover"
+        />
         <view class="bs-hist-info">
           <text class="bs-hist-title">{{ item.title }}</text>
           <text class="bs-hist-chapter">{{ item.chapter }}</text>
@@ -259,6 +292,12 @@ function goBack() {
 }
 function goSearch() {
   uni.navigateTo({ url: '/pkg-classics/search/index' })
+}
+function goBookmarks() {
+  uni.navigateTo({ url: '/pkg-classics/bookmarks/index' })
+}
+function goNotes() {
+  uni.navigateTo({ url: '/pkg-classics/notes/index' })
 }
 function goHome() {
   uni.navigateTo({ url: '/pkg-classics/home/index' })
@@ -348,7 +387,8 @@ function onClearHistory() {
 <style scoped>
 .bs-page {
   min-height: 100vh;
-  background: var(--card);
+  /* 宣纸暖底：与古籍板块家族一致 */
+  background: var(--classics-bg);
   padding-bottom: 48rpx;
 }
 
@@ -357,8 +397,7 @@ function onClearHistory() {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: var(--card);
-  border-bottom: 1rpx solid var(--border);
+  background: var(--classics-bg);
 }
 .bs-nav {
   display: flex;
@@ -432,32 +471,37 @@ function onClearHistory() {
   border-radius: 12rpx;
 }
 
-/* Tabs */
+/* Tabs：古籍家族分段控件（同榜单页 rk-tabs 语言：白卡药丸底 + 故宫红实底白字选中态） */
 .bs-tabs {
   padding: 24rpx 32rpx 16rpx;
-  border-bottom: 1rpx solid var(--border);
 }
 .bs-tablist {
-  display: flex;
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: 16rpx;
-  padding: 4rpx;
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  background: var(--card);
+  border-radius: 999rpx;
+  padding: 6rpx;
+  box-shadow:
+    inset 0 0 0 1rpx rgba(0, 0, 0, 0.04),
+    0 2rpx 8rpx rgba(62, 40, 18, 0.06);
 }
 .bs-tab {
-  flex: 1;
-  height: 64rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 24rpx;
+  gap: 10rpx;
+  height: 64rpx;
+  padding: 0 36rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  font-weight: 500;
   color: var(--muted-foreground);
-  border-radius: 12rpx;
 }
 .bs-tab-active {
-  background: var(--card);
-  color: var(--foreground);
-  font-weight: 500;
-  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+  background: var(--brand);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4rpx 12rpx rgba(196, 30, 58, 0.25);
 }
 
 /* 分组筛选 */
@@ -526,6 +570,56 @@ function onClearHistory() {
 }
 
 /* 视图栏 */
+/* 书签/笔记快捷入口 */
+.bs-marks-row {
+  display: flex;
+  gap: 20rpx;
+  padding: 8rpx 32rpx 24rpx;
+}
+.bs-marks-card {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 20rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+.bs-marks-card:active {
+  box-shadow: 0 2rpx 16rpx rgba(0, 0, 0, 0.08);
+}
+.bs-marks-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.bs-marks-info {
+  flex: 1;
+  min-width: 0;
+}
+.bs-marks-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #2c2c2c;
+}
+.bs-marks-sub {
+  display: block;
+  font-size: 20rpx;
+  color: #a89e8c;
+  margin-top: 2rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .bs-viewbar {
   padding: 0 32rpx 24rpx;
   display: flex;
@@ -701,9 +795,22 @@ function onClearHistory() {
   font-variant-numeric: tabular-nums;
 }
 .bs-add {
-  aspect-ratio: 3 / 4;
+  position: relative;
+  /* 防 grid cell stretch：高度只由内部 3:4 比例撑出，与书封精确等高 */
+  align-self: start;
   border-radius: 24rpx;
   background: rgba(0, 0, 0, 0.04);
+}
+/* 3:4 比例撑高（padding-top 方案·替代 aspect-ratio·X5 兼容） */
+.bs-add-ratio {
+  padding-top: 133.34%;
+}
+.bs-add-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -743,41 +850,10 @@ function onClearHistory() {
   height: 56rpx;
   margin-top: 4rpx;
 }
-.bs-spine {
-  position: relative;
-  width: 96rpx;
-  height: 128rpx;
-  border-radius: 6rpx;
+/* 列表视图书封：统一用 flat-cover 仿真书（只给宽度，高度由组件内部 3:4 撑出） */
+.bs-list-cover {
+  width: 120rpx;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f0e1;
-  border: 1rpx solid rgba(201, 184, 150, 0.5);
-  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.08);
-}
-.bs-spine-sm {
-  width: 80rpx;
-  height: 112rpx;
-}
-.bs-spine-edge {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 12rpx;
-  background: #d4c4a8;
-  border-radius: 6rpx 0 0 6rpx;
-}
-.bs-spine-title {
-  writing-mode: vertical-rl;
-  font-size: 22rpx;
-  font-weight: 700;
-  color: #4a3f2f;
-  font-family: 'Songti SC', 'STSong', serif;
-}
-.bs-spine-title-sm {
-  font-size: 18rpx;
 }
 .bs-list-info {
   flex: 1;
@@ -821,6 +897,11 @@ function onClearHistory() {
   align-items: center;
   gap: 24rpx;
 }
+/* 浏览历史书封：与古籍板块 flat-cover 仿真书样式统一 */
+.bs-hist-cover {
+  width: 88rpx;
+  flex-shrink: 0;
+}
 .bs-hist-info {
   flex: 1;
   min-width: 0;
@@ -832,7 +913,10 @@ function onClearHistory() {
   color: var(--foreground);
 }
 .bs-hist-chapter {
-  display: block;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   font-size: 22rpx;
   color: var(--muted-foreground);
   margin-top: 2rpx;

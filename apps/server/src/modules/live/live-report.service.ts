@@ -5,13 +5,14 @@ import { PrismaService } from "../../prisma/prisma.service";
 export class LiveReportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getReport(roomId: string, userId: string) {
+  async getReport(roomId: string, userId: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
       select: { id: true, title: true, hostUserId: true, viewCount: true, startTime: true, endTime: true, status: true },
     });
     if (!room) throw new NotFoundException("直播间不存在");
-    if (room.hostUserId !== userId) throw new ForbiddenException("无权访问该直播间数据");
+    // 平台管理员豁免归属校验——管理端可查看任意直播复盘
+    if (!isAdmin && room.hostUserId !== userId) throw new ForbiddenException("无权访问该直播间数据");
 
     const duration = room.startTime && room.endTime
       ? Math.round((room.endTime.getTime() - room.startTime.getTime()) / 60000)
@@ -66,13 +67,14 @@ export class LiveReportService {
     };
   }
 
-  async getCompare(roomId: string, userId: string) {
+  async getCompare(roomId: string, userId: string, isAdmin = false) {
     const current = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
       select: { id: true, hostUserId: true, viewCount: true, startTime: true, endTime: true },
     });
     if (!current) throw new NotFoundException("直播间不存在");
-    if (current.hostUserId !== userId) throw new ForbiddenException("无权访问该直播间数据");
+    // 平台管理员豁免归属校验——管理端可查看任意直播复盘
+    if (!isAdmin && current.hostUserId !== userId) throw new ForbiddenException("无权访问该直播间数据");
 
     const previous = await this.prisma.liveRoom.findFirst({
       where: { hostUserId: current.hostUserId, id: { not: roomId }, status: "ENDED" },

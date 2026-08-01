@@ -91,6 +91,20 @@ export class CommentController {
     return this.comment.hide(id);
   }
 
+  @Put(":id/show")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleType.SUPER_ADMIN, RoleType.OPERATION_ADMIN, RoleType.CONTENT_AUDITOR)
+  @ApiOperation({ summary: "恢复显示评论（管理员·与隐藏对称）" })
+  @ApiResponse({ status: 200, description: "更新成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  show(@Param("id") id: string) {
+    return this.comment.show(id);
+  }
+
   @Get("count")
   @ApiOperation({ summary: "获取评论数量" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -112,15 +126,17 @@ export class CommentController {
   @ApiBearerAuth()
   @ApiQuery({ name: "status", required: false })
   @ApiQuery({ name: "targetType", required: false })
+  @ApiQuery({ name: "keyword", required: false })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   moderationList(
     @Query("status") status?: string,
     @Query("targetType") targetType?: string,
+    @Query("keyword") keyword?: string,
     @Query("page") page = 1,
     @Query("pageSize") pageSize = 20,
   ) {
-    return this.comment.getModerationList({ status, targetType, page: +page, pageSize: +pageSize });
+    return this.comment.getModerationList({ status, targetType, keyword, page: +page, pageSize: +pageSize });
   }
 
   @Put("moderation/batch-hide")

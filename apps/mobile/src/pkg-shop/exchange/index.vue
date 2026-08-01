@@ -6,8 +6,7 @@
     <view class="content">
       <!-- 加载中 -->
       <view v-if="loading" class="state-box">
-        <view class="state-spin" />
-        <text class="state-text">加载中...</text>
+        <AppLoading />
       </view>
       <!-- 加载失败 -->
       <view v-else-if="error" class="state-box">
@@ -24,7 +23,7 @@
         <view class="state-icon">
           <app-icon name="package" :size="72" color="#b8ab94" />
         </view>
-        <text class="state-text">暂无商品数据</text>
+        <text class="state-text">没有可换货的商品，如有疑问请联系客服</text>
       </view>
       <template v-else>
         <!-- 选择换货商品 -->
@@ -53,7 +52,7 @@
               <text class="prod-name">{{ p.name }}</text>
               <text class="prod-sku">{{ p.skuName }}</text>
               <view class="prod-bottom">
-                <text class="prod-price">¥{{ p.price }}</text>
+                <text class="prod-price">¥{{ formatPrice(p.price) }}</text>
                 <text class="prod-qty">x{{ p.quantity }}</text>
               </view>
             </view>
@@ -115,7 +114,7 @@
               hover-class="opt-hover"
               @tap="newSkuId = sku.id"
             >
-              {{ sku.name }} ¥{{ sku.price }}
+              {{ sku.name }} ¥{{ formatPrice(sku.price) }}
             </view>
           </view>
           <text v-else class="no-sku">该商品暂无其他可换规格</text>
@@ -248,11 +247,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import {
   shopApi,
   type ShopExchangeProduct,
   type ShopExchangeAddress,
 } from '@/lib/shop-data'
+import { uploadImage } from '@/utils/request'
+import { formatPrice } from '@/utils/format'
 
 const safeBottom = ref(0)
 const orderId = ref('')
@@ -327,9 +329,24 @@ function pickAddress(a: ShopExchangeAddress) {
   selectedAddress.value = a
   showAddressPicker.value = false
 }
+// 选图 → 真实上传 COS（uploadImage 返回可访问 URL），失败提示不落假图
 function addImage() {
   if (images.value.length >= 5) return
-  images.value.push(`https://picsum.photos/200/200?random=${Date.now()}`)
+  uni.chooseImage({
+    count: 5 - images.value.length,
+    success: async (res) => {
+      const paths = res.tempFilePaths as string[]
+      for (const p of paths) {
+        if (images.value.length >= 5) break
+        try {
+          const url = await uploadImage(p)
+          images.value.push(url)
+        } catch (e) {
+          uni.showToast({ title: (e as Error)?.message || '图片上传失败', icon: 'none' })
+        }
+      }
+    },
+  })
 }
 function removeImage(idx: number) {
   images.value.splice(idx, 1)
@@ -353,13 +370,15 @@ async function handleSubmit() {
     const newSku = exchangeType.value === 'different'
       ? availableSkus.value.find((s) => s.id === newSkuId.value)?.name
       : ''
+    const addr = selectedAddress.value
     const parts = [
       `换货商品：${selectedProduct.value?.name || ''}`,
       `换货方式：${typeLabel}${newSku ? `（${newSku}）` : ''}`,
       `原因：${reasons.value.find((r) => r.value === reason.value)?.label || reason.value}`,
+      addr ? `取件地址：${addr.name} ${addr.phone} ${fullAddress(addr)}` : '',
       description.value ? `补充：${description.value}` : '',
     ].filter(Boolean)
-    await shopApi.submitExchange(orderId.value, parts.join('；').slice(0, 500))
+    await shopApi.submitExchange(orderId.value, parts.join('；').slice(0, 500), images.value)
     uni.showToast({ title: '换货申请已提交', icon: 'success' })
     setTimeout(() => navigateTo('/shop/my-after-sales'), 1200)
   } catch (e) {
@@ -837,17 +856,6 @@ async function retryLoad() {
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-}
-.state-spin {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #e8e3db;
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 .state-icon {
   width: 120rpx;

@@ -48,10 +48,14 @@ async function fetchList() {
     const items: any[] = []
     const raw = data?.configs ?? data?.data ?? []
     // item 为后端配置原始结构（value 为序列化 JSON），结构动态，保留 any
+    // 后端字段为 configKey/configValue（非 key/value）——旧写法 item.key 恒 undefined 致"保存后看不到"
     ;(Array.isArray(raw) ? raw : []).forEach((item: any) => {
-      if (item.key?.startsWith('operator.level.')) {
-        const val = typeof item.value === 'string' ? JSON.parse(item.value) : item.value
-        items.push({ ...val, _key: item.key, _id: item.id, createdAt: item.createdAt || val.createdAt })
+      if (item.configKey?.startsWith('operator.level.')) {
+        let val: any = {}
+        try {
+          val = typeof item.configValue === 'string' ? JSON.parse(item.configValue) : (item.configValue || {})
+        } catch { val = {} }
+        items.push({ ...val, _key: item.configKey, _id: item.id, createdAt: item.updatedAt || item.createdAt || val.createdAt })
       }
     })
     list.value = items

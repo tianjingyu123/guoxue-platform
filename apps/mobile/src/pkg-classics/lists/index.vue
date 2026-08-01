@@ -34,12 +34,8 @@ function toggleLike(id: string) {
 
 function goDetail(id: string) {
   uni.navigateTo({ url: `/pkg-classics/collection/index?id=${id}` }).catch(() => {
-    uni.showToast({ title: '书单详情即将上线', icon: 'none' })
+    uni.showToast({ title: '页面打开失败，请重试', icon: 'none' })
   })
-}
-
-function onCreate() {
-  uni.showToast({ title: '创建书单即将上线', icon: 'none' })
 }
 
 // 对齐原型 list.likes.toLocaleString()
@@ -69,6 +65,11 @@ function fmtLikes(n: number): string {
         <view style="margin-top:16rpx;" @tap="fetchData">
           <text style="color:var(--muted-foreground);">重试</text>
         </view>
+      </view>
+      <!-- 真实空态：当前没有已发布书单 -->
+      <view v-else-if="!lists.length" class="lp-card" style="text-align:center;padding:80rpx 48rpx;">
+        <text style="display:block;font-size:30rpx;font-weight:600;color:var(--foreground);">暂无已发布书单</text>
+        <text style="display:block;margin-top:16rpx;font-size:26rpx;line-height:1.6;color:var(--muted-foreground);">主题书单发布后将在这里展示。</text>
       </view>
       <view v-else v-for="list in lists" :key="list.id" class="lp-card">
         <!-- 卡片主体（可点击进入详情） -->
@@ -200,7 +201,8 @@ function fmtLikes(n: number): string {
 /* 书封堆叠 */
 .lp-covers {
   display: flex;
-  align-items: flex-end;
+  /* 默认 stretch：封面高度由 flat-cover 内部 3:4 撑出（不受 stretch 影响），
+     「+N本」占位块无固有高度，跟随行高与封面精确等高（替代 aspect-ratio·X5 兼容） */
   gap: 20rpx;
   margin-top: 32rpx;
 }
@@ -211,7 +213,7 @@ function fmtLikes(n: number): string {
 .lp-cover-more {
   flex: 1;
   max-width: 144rpx;
-  aspect-ratio: 3 / 4;
+  /* 高度随 flex 行 stretch 与封面等高（去 aspect-ratio：X5 老内核塌陷） */
   border-radius: 32rpx;
   background: var(--muted);
   display: flex;

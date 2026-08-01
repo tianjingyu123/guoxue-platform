@@ -21,7 +21,7 @@ export class TrendCalcTask {
     this.logger.log("刷新全平台热度排行...");
 
     const [articles, courses, products, circles] = await Promise.all([
-      this.prisma.article.findMany({ where: { auditStatus: "APPROVED" }, select: { id: true, viewCount: true, likeCount: true }, take: 20, orderBy: { viewCount: "desc" } }),
+      this.prisma.article.findMany({ where: { auditStatus: "APPROVED", visibility: "PLATFORM" }, select: { id: true, viewCount: true, likeCount: true }, take: 20, orderBy: { viewCount: "desc" } }),
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: { id: true, studentCount: true }, take: 20, orderBy: { studentCount: "desc" } }),
       this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: { id: true, salesCount: true }, take: 20, orderBy: { salesCount: "desc" } }),
       this.prisma.circle.findMany({ where: { status: "ACTIVE" }, select: { id: true, memberCount: true }, take: 20, orderBy: { memberCount: "desc" } }),

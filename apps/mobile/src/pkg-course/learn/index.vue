@@ -1,82 +1,70 @@
 <script setup lang="ts">
-/** 课程学习中心页 - 从原型 app/courses/[id]/learn/page.tsx 迁移 */
-import { ref, computed, onMounted } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+/**
+ * P4 我的学习（学习中心）— 已购用户的家，被「接着学」驱动
+ * 视觉：V0 阶段二视觉稿 p4-my-learning.html / p4-my-learning-states.html
+ * 合并：原 learn（课程学习中心）+ study-plan（学习计划）能力并入本页
+ * 真连：courseApi.getStudyPlan() → 从已购课 + 进度派生（在学课程/已完成/连续学习），需登录
+ *   - 顶部数据条：连续学习 streak（真实）/ 已学课时（各课程 completedLessons 累加，真实）/ 已完成门数（进度满 100%，真实）
+ *   - 在学课程：进度 <100% 的课，按 order 排序，逐课时进度真连
+ *   - 已完成：进度 100% 的课，带「查看证书」入口
+ * 说明：全局「累计学习小时」后端暂无该看板字段 → 中格诚实降级为「已学 X 节」（各课程已完成课时累加，真实可计），不臆造时长
+ */
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { navigateTo, goBack } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
-import { courseApi, type LearnChapter, type LearnLesson } from '@/lib/course-data'
+import SmartCover from '@/components/common/smart-cover.vue'
+import { courseApi, type PlannedCourse } from '@/lib/course-data'
+
+// 自定义导航状态栏高度
+const statusBarHeight = ref(0)
 
 const loading = ref(true)
 const error = ref('')
-const courseId = ref('')
 
-// 课程详情对象，模板 v-else 裸访问字段，保留 any 避免 null 链式报错
-const course = ref<any>(null)
-// 学习进度详情对象，模板裸访问字段，保留 any 避免 null 链式报错
-const progress = ref<any>(null)
-// 章节列表，模板裸访问 lessons 等字段，保留 any
-const chapters = ref<any[]>([])
-// 笔记列表，模板裸访问 chapterTitle 等字段，保留 any
-const notes = ref<any[]>([])
-// 问答列表，模板裸访问 author 等字段，保留 any
-const questions = ref<any[]>([])
+// 学习计划中的课程（已购 + 进度派生），模板裸访问字段用具体类型
+const courses = ref<PlannedCourse[]>([])
+// 连续学习天数（真实）
+const streak = ref(0)
+// 已完成区块折叠态（默认展开）
+const doneExpanded = ref(true)
 
-type TabKey = 'catalog' | 'notes' | 'questions'
-const activeTab = ref<TabKey>('catalog')
-const expanded = ref<Record<string, boolean>>({ c1: true, c2: true })
-const showAskModal = ref(false)
-const askContent = ref('')
-const submittingAsk = ref(false)
+// 完成判定：已购且进度 100%
+function isDone(c: PlannedCourse) { return c.totalLessons > 0 && c.completedLessons >= c.totalLessons }
+function coursePct(c: PlannedCourse) { return c.totalLessons > 0 ? Math.round((c.completedLessons / c.totalLessons) * 100) : 0 }
 
-// 进度环参数
-const ringSize = 80
-const ringStroke = 6
-const ringRadius = (ringSize - ringStroke) / 2
-const ringCircumference = ringRadius * 2 * Math.PI
-const ringOffset = computed(() => ringCircumference - ((progress.value?.progressPercent ?? 0) / 100) * ringCircumference)
+// 在学课程：进度 <100%，按 order 排序
+const learningCourses = computed(() => courses.value.filter((c) => !isDone(c)).sort((a, b) => a.order - b.order))
+// 已完成课程
+const doneCourses = computed(() => courses.value.filter((c) => isDone(c)))
 
-const tabs = computed(() => [
-  { id: 'catalog' as TabKey, label: '目录', icon: 'book-open', count: chapters.value.length },
-  { id: 'notes' as TabKey, label: '笔记', icon: 'file-text', count: notes.value.length },
-  { id: 'questions' as TabKey, label: '问答', icon: 'message-circle', count: questions.value.length },
-])
+// 顶部三格数据（全部真实可计）
+const doneCount = computed(() => doneCourses.value.length)
+// 已学课时 = 各课程已完成课时累加（后端无全局累计学习小时看板字段，此为诚实可计的等价指标）
+const learnedLessons = computed(() => courses.value.reduce((s, c) => s + c.completedLessons, 0))
 
-function toggleChapter(id: string) { expanded.value[id] = !expanded.value[id] }
-function chapterDone(c: LearnChapter) { return c.lessons.filter((l) => l.isCompleted).length }
-function onLessonClick(lessonId: string) { navigateTo(`/courses/${course.value?.id}/player?lesson=${lessonId}`) }
-function fmtTimestamp(s: number) { return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}` }
-function fmtStudyTime(min: number) { return `${Math.floor(min / 60)}小时${min % 60}分钟` }
-async function submitQuestion() {
-  if (!askContent.value.trim() || submittingAsk.value) return
-  submittingAsk.value = true
-  try {
-    await courseApi.askQuestion(courseId.value, askContent.value.trim())
-    uni.showToast({ title: '问题已提交', icon: 'success' })
-    askContent.value = ''
-    showAskModal.value = false
-    loadData() // 刷新问答列表让新问题立即可见
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '提交失败，请重试', icon: 'none' })
-  } finally {
-    submittingAsk.value = false
-  }
+// 空态：无任何已购课程
+const isEmpty = computed(() => courses.value.length === 0)
+
+function toEnrolledSame(c: PlannedCourse) {
+  // 整卡 / 继续学 → 学习中心（播放页续播位置由播放页据进度定位）
+  navigateTo(`/courses/${c.courseId}/player`)
 }
-function lessonIcon(chapter: LearnChapter, lesson: LearnLesson) {
-  if (lesson.isCompleted) return { name: 'check-circle', color: '#C41E3A' }
-  if (!chapter.isFree && !lesson.isFree) return { name: 'lock', color: '#999999' }
-  return { name: 'play', color: '#666666' }
-}
+function viewCertificate(c: PlannedCourse) { navigateTo(`/courses/${c.courseId}/certificate`) }
+// 🔴 别名表里没有 /course/home —— 该入口原本点了没反应。真实别名：/courses（课程首页）
+function goExplore() { navigateTo('/courses') }
+// 🔴「我的收藏」此前误跳 /history（浏览历史）——正确别名 /favorites → pkg-mine/favorites/index
+function goFavorites() { navigateTo('/favorites') }
+function goReviews() { navigateTo('/mine/my-comments') }
+function goWorks() { navigateTo('/mine/submissions') }
 
 async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const res = await courseApi.getLearnData(courseId.value)
-    course.value = res.course
-    progress.value = res.progress
-    chapters.value = res.chapters
-    notes.value = res.notes
-    questions.value = res.questions
+    const res = await courseApi.getStudyPlan()
+    courses.value = res.courses
+    streak.value = res.streak
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -84,302 +72,273 @@ async function loadData() {
   }
 }
 
-onLoad((options) => {
-  courseId.value = options?.id || '1'
-})
-
-onMounted(() => {
+onShow(() => {
+  uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0 } })
   loadData()
 })
 </script>
 
 <template>
-  <!-- Loading -->
-  <view v-if="loading" class="loading-wrap">
-    <text class="loading-text">加载中...</text>
-  </view>
-  <!-- Error -->
-  <view v-else-if="error" class="error-wrap">
-    <text class="error-text">{{ error }}</text>
-    <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
-  </view>
-  <!-- Content -->
-  <view v-else class="page">
-    <!-- 顶部导航 -->
-    <view class="topnav">
-      <view class="topnav-btn" @tap="goBack">
-        <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
+  <view class="page">
+    <!-- ══ 顶部导航 ══ -->
+    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="nav-back" hover-class="btn-press" @tap="goBack">
+        <app-icon name="arrow-left" :size="34" color="#2C2C2C" />
       </view>
-      <text class="topnav-title">{{ course.title }}</text>
-      <view class="topnav-spacer" />
+      <text class="nav-title serif">我的学习</text>
     </view>
 
-    <!-- 课程信息 + 进度环 -->
-    <view class="info-card">
-      <view class="ring-wrap">
-        <!-- #ifndef MP -->
-        <view class="ring-svg">
-          <view class="ring-bg" />
-          <view class="ring-track" :style="{ background: `conic-gradient(#C41E3A ${progress.progressPercent}%, transparent 0)` }" />
-          <view class="ring-hole" />
-          <text class="ring-pct">{{ progress.progressPercent }}%</text>
-        </view>
-        <!-- #endif -->
+    <!-- ══ Error 态 ══ -->
+    <view v-if="error" class="state-wrap">
+      <text class="state-text">{{ error }}</text>
+      <view class="retry-btn" hover-class="btn-press" @tap="loadData"><text class="retry-text">重试</text></view>
+    </view>
+
+    <!-- ══ Loading 骨架屏（对应正常态结构：数据条 / 标题 / 在学卡×2 / 标题 / 次入口）══ -->
+    <view v-else-if="loading" class="body-pad">
+      <view class="sk sk-stats" />
+      <view class="sk sk-title" />
+      <view class="sk sk-hcard" />
+      <view class="sk sk-hcard" />
+      <view class="sk sk-title" />
+      <view class="sk sk-hcard" />
+      <view class="sk sk-entries" />
+    </view>
+
+    <!-- ══ 空态（无任何已购课程）══ -->
+    <view v-else-if="isEmpty" class="empty">
+      <view class="empty-illus">
+        <app-icon name="book-open" :size="52" color="#C9A96E" />
       </view>
-      <view class="info-meta">
-        <text class="info-title">{{ course.title }}</text>
-        <view class="info-inst">
-          <image lazy-load class="info-avatar" :src="course.instructor.avatar" mode="aspectFill" />
-          <text class="info-inst-name">{{ course.instructor.name }}</text>
-        </view>
-        <view class="info-stats">
-          <text class="info-stat">已学 {{ progress.completedLessons.length }}/{{ progress.totalLessons }} 节</text>
-          <text class="info-dot">·</text>
-          <view class="info-stat-time">
-            <app-icon name="clock" :size="22" color="#999999" />
-            <text class="info-stat">{{ fmtStudyTime(progress.studyTime) }}</text>
-          </view>
-        </view>
+      <text class="empty-title serif">开始你的国学之旅</text>
+      <text class="empty-desc">还没有课程，去发现感兴趣的{{ '\n' }}易学与国学好课吧</text>
+      <view class="empty-btn" hover-class="btn-press" @tap="goExplore">
+        <text class="empty-btn-txt">去逛逛课程</text>
       </view>
     </view>
 
-    <!-- Tab 切换 -->
-    <view class="tabs">
-      <view
-        v-for="tab in tabs" :key="tab.id"
-        class="tab-item" :class="{ active: activeTab === tab.id }"
-        @tap="activeTab = tab.id"
-      >
-        <app-icon :name="tab.icon" :size="28" :color="activeTab === tab.id ? '#C41E3A' : '#666666'" />
-        <text class="tab-label">{{ tab.label }}</text>
-        <text class="tab-count" :class="{ active: activeTab === tab.id }">{{ tab.count }}</text>
+    <!-- ══ Content ══ -->
+    <view v-else class="body-pad">
+      <!-- ── 区块1 顶部数据条（三格·全部真实）── -->
+      <view class="stats">
+        <view class="stat">
+          <view class="stat-num">{{ streak }}<text class="stat-unit">天</text></view>
+          <text class="stat-label">连续学习</text>
+        </view>
+        <view class="stat">
+          <view class="stat-num">{{ learnedLessons }}<text class="stat-unit">节</text></view>
+          <text class="stat-label">已学课时</text>
+        </view>
+        <view class="stat">
+          <view class="stat-num">{{ doneCount }}<text class="stat-unit">门</text></view>
+          <text class="stat-label">已完成</text>
+        </view>
       </view>
-    </view>
 
-    <!-- Tab 内容 -->
-    <view class="content">
-      <!-- 目录 -->
-      <view v-if="activeTab === 'catalog'" class="catalog-card">
-        <view v-for="chapter in chapters" :key="chapter.id" class="cat-chapter">
-          <view class="cat-hdr" @tap="toggleChapter(chapter.id)">
-            <view class="cat-hdr-left">
-              <view
-                class="cat-badge"
-                :class="chapterDone(chapter) === chapter.lessons.length ? 'done' : 'partial'"
-              >
-                <app-icon v-if="chapterDone(chapter) === chapter.lessons.length" name="check-circle" :size="26" color="#C41E3A" />
-                <text v-else class="cat-badge-txt">{{ chapterDone(chapter) }}/{{ chapter.lessons.length }}</text>
-              </view>
-              <view class="cat-meta">
-                <text class="cat-title">{{ chapter.title }}</text>
-                <text class="cat-sub">{{ chapter.lessons.length }}节 · {{ chapter.duration }}分钟</text>
-              </view>
-            </view>
-            <app-icon :name="expanded[chapter.id] ? 'chevron-up' : 'chevron-down'" :size="36" color="#999999" />
-          </view>
-          <view v-if="expanded[chapter.id]" class="cat-lessons">
-            <view
-              v-for="(lesson, idx) in chapter.lessons" :key="lesson.id"
-              class="cat-lesson" @tap="onLessonClick(lesson.id)"
-            >
-              <view class="cat-lesson-ico">
-                <app-icon :name="lessonIcon(chapter, lesson).name" :size="28" :color="lessonIcon(chapter, lesson).color" />
-              </view>
-              <text class="cat-lesson-title" :class="{ completed: lesson.isCompleted }">{{ idx + 1 }}. {{ lesson.title }}</text>
-              <view class="cat-lesson-right">
-                <text v-if="lesson.isFree" class="cat-free">试看</text>
-                <text class="cat-lesson-dur">{{ lesson.duration }}分钟</text>
-              </view>
+      <!-- ── 区块2 在学课程（主体）── -->
+      <text class="section-title serif">在学课程</text>
+      <template v-if="learningCourses.length">
+        <view
+          v-for="c in learningCourses" :key="c.id"
+          class="learn-card" hover-class="card-press" @tap="toEnrolledSame(c)"
+        >
+          <view class="learn-cover">
+            <view class="ratio-169">
+              <smart-cover class="learn-cover-img" :src="c.cover" :title="c.title" type="course" />
             </view>
           </view>
+          <view class="learn-info">
+            <text class="learn-title">{{ c.title }}</text>
+            <view class="progress-track"><view class="progress-fill" :style="{ width: coursePct(c) + '%' }" /></view>
+            <text class="learn-meta">已学 {{ coursePct(c) }}% · 上次学到第 {{ Math.min(c.completedLessons + 1, c.totalLessons || 1) }} 讲</text>
+          </view>
+          <view class="btn-continue" hover-class="btn-press" @tap.stop="toEnrolledSame(c)">
+            <text class="btn-continue-txt">继续学</text>
+          </view>
         </view>
+      </template>
+      <view v-else class="mini-empty">
+        <text class="mini-empty-txt">在学课程都学完啦，去发现更多好课</text>
       </view>
 
-      <!-- 笔记 -->
-      <view v-else-if="activeTab === 'notes'" class="notes">
-        <view v-if="notes.length" class="notes-list">
-          <view v-for="note in notes" :key="note.id" class="note-card">
-            <view class="note-hdr">
-              <app-icon name="file-text" :size="28" color="#C9A96E" />
-              <view class="note-hdr-meta">
-                <text class="note-chapter">{{ note.chapterTitle }}</text>
-                <text class="note-lesson">{{ note.lessonTitle }}{{ note.timestamp ? ` · ${fmtTimestamp(note.timestamp)}` : '' }}</text>
+      <!-- ── 区块3 已完成（次区块·可折叠·默认展开）── -->
+      <template v-if="doneCourses.length">
+        <view class="done-head" hover-class="tab-press" @tap="doneExpanded = !doneExpanded">
+          <text class="section-title serif done-title">已完成</text>
+          <view class="done-count">
+            <text class="done-count-txt">{{ doneCourses.length }} 门</text>
+            <app-icon :name="doneExpanded ? 'chevron-down' : 'chevron-right'" :size="24" color="#999999" />
+          </view>
+        </view>
+        <template v-if="doneExpanded">
+          <view v-for="c in doneCourses" :key="c.id" class="done-card">
+            <view class="learn-cover">
+              <view class="ratio-169">
+                <smart-cover class="learn-cover-img" :src="c.cover" :title="c.title" type="course" />
               </view>
             </view>
-            <text class="note-content">{{ note.content }}</text>
-            <text class="note-date">{{ note.createdAt }}</text>
-          </view>
-        </view>
-        <view v-else class="empty">
-          <app-icon name="file-text" :size="96" color="#E8E3DB" />
-          <text class="empty-title">暂无笔记</text>
-          <text class="empty-sub">学习时可以随时记录笔记</text>
-        </view>
-      </view>
-
-      <!-- 问答 -->
-      <view v-else class="questions">
-        <view class="ask-btn" @tap="showAskModal = true">
-          <app-icon name="message-circle" :size="28" color="#C41E3A" />
-          <text class="ask-btn-txt">我要提问</text>
-        </view>
-        <view v-for="q in questions" :key="q.id" class="q-card">
-          <image lazy-load class="q-avatar" :src="q.author.avatar" mode="aspectFill" />
-          <view class="q-body">
-            <view class="q-hdr">
-              <text class="q-name">{{ q.author.name }}</text>
-              <text class="q-date">{{ q.createdAt }}</text>
+            <view class="learn-info">
+              <text class="learn-title">{{ c.title }}</text>
+              <view class="done-check">
+                <app-icon name="check-circle" :size="26" color="#34A853" />
+                <text class="done-check-txt">已完成全部 {{ c.totalLessons }} 讲</text>
+              </view>
             </view>
-            <text class="q-content">{{ q.content }}</text>
-            <view class="q-foot">
-              <text class="q-chapter">{{ q.chapterTitle }}</text>
-              <text class="q-answers">{{ q.answers }}条回答</text>
-              <text v-if="q.isAnswered" class="q-answered">已解答</text>
+            <view class="btn-cert" hover-class="btn-press" @tap="viewCertificate(c)">
+              <text class="btn-cert-txt">查看证书</text>
             </view>
           </view>
-        </view>
-      </view>
-    </view>
+        </template>
+      </template>
 
-    <!-- 底部继续学习 -->
-    <view class="bottom-bar">
-      <view class="continue-btn" @tap="onLessonClick(progress.lastLesson.id)">
-        <app-icon name="play" :size="36" color="#ffffff" :fill="true" />
-        <text class="continue-txt">继续学习 · {{ progress.lastLesson.title }}</text>
-      </view>
-    </view>
-
-    <!-- 提问弹窗 -->
-    <view v-if="showAskModal" class="modal">
-      <view class="modal-mask" @tap="showAskModal = false" />
-      <view class="sheet">
-        <view class="sheet-hdr">
-          <text class="sheet-title">我要提问</text>
-          <view @tap="showAskModal = false"><app-icon name="x" :size="40" color="#999999" /></view>
+      <!-- ── 区块4 底部次入口（我的收藏 / 我的评价 / 我的作业）── -->
+      <view class="entries">
+        <view class="entry" hover-class="tab-press" @tap="goFavorites">
+          <view class="entry-icon"><app-icon name="heart" :size="30" color="#C41E3A" /></view>
+          <text class="entry-name">我的收藏</text>
+          <app-icon name="chevron-right" :size="30" color="#999999" />
         </view>
-        <textarea
-          v-model="askContent" class="ask-input" placeholder="请输入您的问题..."
-          placeholder-class="ask-ph" :maxlength="-1"
-        />
-        <view class="submit-btn" :class="{ disabled: !askContent.trim() || submittingAsk }" @tap="submitQuestion">
-          <app-icon name="send" :size="28" color="#ffffff" />
-          <text class="submit-txt">{{ submittingAsk ? '提交中...' : '提交问题' }}</text>
+        <view class="entry" hover-class="tab-press" @tap="goReviews">
+          <view class="entry-icon"><app-icon name="star" :size="30" color="#C9A96E" :fill="true" /></view>
+          <text class="entry-name">我的评价</text>
+          <app-icon name="chevron-right" :size="30" color="#999999" />
+        </view>
+        <view class="entry" hover-class="tab-press" @tap="goWorks">
+          <view class="entry-icon"><app-icon name="edit" :size="30" color="#6E6E73" /></view>
+          <text class="entry-name">我的作业</text>
+          <app-icon name="chevron-right" :size="30" color="#999999" />
         </view>
       </view>
     </view>
   </view>
 </template>
 
-<style scoped>
-.page { min-height: 100vh; background: #FAF8F5; padding-bottom: 192rpx; }
+<style scoped lang="scss">
+/* ── 视觉 token（V0 委托书第七节）── */
+.page { min-height: 100vh; background: #FAF8F5; }
+.serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
+.btn-press { opacity: 0.6; }
+.card-press { transform: scale(0.98); }
+.tab-press { opacity: 0.7; }
 
-/* 顶部导航 */
-.topnav { position: sticky; top: 0; z-index: 40; background: #fff; border-bottom: 1rpx solid #E8E3DB; height: 88rpx; padding: 0 32rpx; display: flex; align-items: center; }
-.topnav-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; }
-.topnav-title { flex: 1; text-align: center; font-size: 32rpx; font-weight: 500; color: #2C2C2C; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 16rpx; }
-.topnav-spacer { width: 48rpx; }
+/* ── 顶部导航 ── */
+.nav {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 24rpx 40rpx 20rpx;
+  background: #FAF8F5;
+}
+.nav-back {
+  width: 68rpx; height: 68rpx; border-radius: 999rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: #FFFFFF; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
+}
+.nav-title { font-size: 40rpx; font-weight: 700; letter-spacing: 2rpx; color: #2C2C2C; }
 
-/* 信息卡 + 进度环 */
-.info-card { background: #fff; padding: 32rpx; border-bottom: 1rpx solid #E8E3DB; display: flex; align-items: center; gap: 32rpx; }
-.ring-wrap { width: 160rpx; height: 160rpx; flex-shrink: 0; }
-.ring-svg { position: relative; width: 160rpx; height: 160rpx; }
-.ring-bg { position: absolute; inset: 0; border-radius: 50%; background: #E8E3DB; }
-.ring-track { position: absolute; inset: 0; border-radius: 50%; }
-.ring-hole { position: absolute; inset: 12rpx; border-radius: 50%; background: #fff; }
-.ring-pct { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 32rpx; font-weight: 700; color: var(--brand); }
-.info-meta { flex: 1; min-width: 0; }
-.info-title { display: block; font-size: 30rpx; font-weight: 700; color: #2C2C2C; margin-bottom: 8rpx; }
-.info-inst { display: flex; align-items: center; gap: 8rpx; margin-bottom: 16rpx; }
-.info-avatar { width: 40rpx; height: 40rpx; border-radius: 50%; background: #F2EFEA; }
-.info-inst-name { font-size: 24rpx; color: #666; }
-.info-stats { display: flex; align-items: center; gap: 12rpx; }
-.info-stat { font-size: 22rpx; color: #999; }
-.info-dot { font-size: 22rpx; color: #999; }
-.info-stat-time { display: flex; align-items: center; gap: 4rpx; }
+/* ── 内容主体间距 ── */
+.body-pad { padding: 24rpx 40rpx 64rpx; display: flex; flex-direction: column; gap: 24rpx; }
 
-/* Tabs */
-.tabs { background: #fff; border-bottom: 1rpx solid #E8E3DB; position: sticky; top: 88rpx; z-index: 30; display: flex; }
-.tab-item { flex: 1; padding: 24rpx 0; display: flex; align-items: center; justify-content: center; gap: 8rpx; border-bottom: 4rpx solid transparent; }
-.tab-item.active { border-bottom-color: var(--brand); }
-.tab-label { font-size: 26rpx; font-weight: 500; color: #666; }
-.tab-item.active .tab-label { color: var(--brand); }
-.tab-count { font-size: 22rpx; padding: 2rpx 12rpx; border-radius: 999rpx; background: #F5F0E8; color: #666; }
-.tab-count.active { background: rgba(196,30,58,0.1); color: var(--brand); }
+/* ── 区块1 顶部数据条 ── */
+.stats {
+  background: #FFFFFF; border-radius: 36rpx; padding: 36rpx 32rpx;
+  display: flex; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
+}
+.stat { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
+.stat + .stat { border-left: 2rpx solid #EDE7DD; }
+.stat-num {
+  font-size: 48rpx; font-weight: 700; color: #2C2C2C; line-height: 1;
+  font-variant-numeric: tabular-nums; font-family: "SF Mono", "Roboto Mono", monospace, serif;
+  display: flex; align-items: baseline;
+}
+.stat-unit { font-size: 26rpx; font-weight: 500; color: #6E6E73; margin-left: 4rpx; font-family: -apple-system, sans-serif; }
+.stat-label { font-size: 26rpx; color: #999999; }
 
-.content { padding: 32rpx; }
+/* ── 区块标题 ── */
+.section-title { font-size: 34rpx; font-weight: 700; color: #2C2C2C; margin-top: 12rpx; }
 
-/* 目录 */
-.catalog-card { background: #fff; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); }
-.cat-chapter { border-bottom: 1rpx solid #E8E3DB; }
-.cat-chapter:last-child { border-bottom: none; }
-.cat-hdr { padding: 24rpx 32rpx; display: flex; align-items: center; justify-content: space-between; }
-.cat-hdr-left { display: flex; align-items: center; gap: 24rpx; }
-.cat-badge { width: 48rpx; height: 48rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cat-badge.done { background: rgba(196,30,58,0.1); }
-.cat-badge.partial { background: #E8E3DB; }
-.cat-badge-txt { font-size: 20rpx; font-weight: 700; color: #666; }
-.cat-title { display: block; font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
-.cat-sub { display: block; font-size: 24rpx; color: #999; margin-top: 2rpx; }
-.cat-lessons { background: #FAFAFA; padding: 0 32rpx 16rpx; }
-.cat-lesson { padding: 20rpx 0; display: flex; align-items: center; gap: 24rpx; border-bottom: 1rpx solid rgba(232,227,219,0.5); }
-.cat-lesson:last-child { border-bottom: none; }
-.cat-lesson-ico { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.cat-lesson-title { flex: 1; font-size: 26rpx; color: #2C2C2C; }
-.cat-lesson-title.completed { color: #999; }
-.cat-lesson-right { display: flex; align-items: center; gap: 16rpx; flex-shrink: 0; }
-.cat-free { font-size: 20rpx; color: #52c41a; background: rgba(82,196,26,0.1); padding: 2rpx 12rpx; border-radius: 6rpx; }
-.cat-lesson-dur { font-size: 22rpx; color: #999; }
+/* ── 通用横排封面（100px 小图·16:9）── */
+.learn-cover { width: 200rpx; flex-shrink: 0; border-radius: 16rpx; overflow: hidden; }
+.ratio-169 { position: relative; width: 100%; padding-top: 56.25%; }
+.learn-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; }
 
-/* 笔记 */
-.notes-list { display: flex; flex-direction: column; gap: 24rpx; }
-.note-card { background: #fff; border-radius: 16rpx; padding: 24rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); }
-.note-hdr { display: flex; align-items: flex-start; gap: 16rpx; margin-bottom: 16rpx; }
-.note-hdr-meta { flex: 1; }
-.note-chapter { display: block; font-size: 24rpx; color: var(--brand); }
-.note-lesson { display: block; font-size: 22rpx; color: #999; }
-.note-content { display: block; font-size: 26rpx; color: #2C2C2C; line-height: 1.6; padding-left: 44rpx; }
-.note-date { display: block; font-size: 22rpx; color: #999; margin-top: 16rpx; padding-left: 44rpx; }
-.empty { text-align: center; padding: 96rpx 0; }
-.empty-title { display: block; font-size: 28rpx; color: #999; margin-top: 24rpx; }
-.empty-sub { display: block; font-size: 24rpx; color: #BBB; margin-top: 8rpx; }
+/* ── 区块2 在学课程卡 ── */
+.learn-card {
+  background: #FFFFFF; border-radius: 36rpx; padding: 28rpx;
+  display: flex; gap: 24rpx; align-items: center;
+  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
+}
+.learn-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14rpx; }
+.learn-title {
+  font-size: 30rpx; font-weight: 600; color: #2C2C2C; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.progress-track { height: 8rpx; border-radius: 4rpx; background: #F8F4EC; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 4rpx; background: #C41E3A; }
+.learn-meta {
+  font-size: 24rpx; color: #999999;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.btn-continue {
+  flex-shrink: 0; background: #C41E3A; border-radius: 999rpx;
+  padding: 16rpx 28rpx; display: flex; align-items: center; justify-content: center;
+}
+.btn-continue-txt { font-size: 26rpx; font-weight: 600; color: #FFFFFF; }
 
-/* 问答 */
-.questions { display: flex; flex-direction: column; gap: 24rpx; }
-.ask-btn { padding: 24rpx 0; background: #fff; border-radius: 24rpx; border: 1rpx dashed var(--brand); display: flex; align-items: center; justify-content: center; gap: 16rpx; }
-.ask-btn-txt { font-size: 26rpx; font-weight: 500; color: var(--brand); }
-.q-card { background: #fff; border-radius: 16rpx; padding: 24rpx; display: flex; align-items: flex-start; gap: 20rpx; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04); }
-.q-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #F2EFEA; flex-shrink: 0; }
-.q-body { flex: 1; min-width: 0; }
-.q-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
-.q-name { font-size: 24rpx; font-weight: 500; color: #2C2C2C; }
-.q-date { font-size: 22rpx; color: #999; }
-.q-content { display: block; font-size: 26rpx; color: #2C2C2C; line-height: 1.6; margin-bottom: 16rpx; }
-.q-foot { display: flex; align-items: center; gap: 24rpx; }
-.q-chapter { font-size: 22rpx; color: #999; }
-.q-answers { font-size: 22rpx; color: var(--brand); }
-.q-answered { font-size: 20rpx; color: #fff; background: #52c41a; padding: 2rpx 12rpx; border-radius: 6rpx; }
+/* ── 在学为空的轻提示 ── */
+.mini-empty { padding: 48rpx 0; text-align: center; }
+.mini-empty-txt { font-size: 26rpx; color: #BBBBBB; }
 
-/* 底部 */
-.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1rpx solid #E8E3DB; padding: 32rpx 32rpx 64rpx; z-index: 40; }
-.continue-btn { width: 100%; height: 88rpx; background: linear-gradient(to right, var(--brand), #E74C3C); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; box-shadow: 0 8rpx 24rpx rgba(196,30,58,0.3); }
-.continue-txt { font-size: 30rpx; font-weight: 700; color: #fff; }
+/* ── 区块3 已完成 ── */
+.done-head { display: flex; align-items: center; justify-content: space-between; margin-top: 12rpx; }
+.done-title { margin-top: 0; }
+.done-count { display: flex; align-items: center; gap: 8rpx; }
+.done-count-txt { font-size: 26rpx; color: #999999; }
+.done-card {
+  background: #FFFFFF; border-radius: 36rpx; padding: 28rpx;
+  display: flex; gap: 24rpx; align-items: center;
+  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04);
+}
+.done-check { display: flex; align-items: center; gap: 10rpx; }
+.done-check-txt { font-size: 24rpx; color: #34A853; }
+.btn-cert {
+  flex-shrink: 0; background: rgba(201,169,110,0.14); border-radius: 999rpx;
+  padding: 16rpx 28rpx; display: flex; align-items: center; justify-content: center;
+}
+.btn-cert-txt { font-size: 26rpx; font-weight: 600; color: #8A6D3B; }
 
-/* 提问弹窗 */
-.modal { position: fixed; inset: 0; z-index: 50; }
-.modal-mask { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
-.sheet { position: absolute; bottom: 0; left: 0; right: 0; background: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx 64rpx; }
-.sheet-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32rpx; }
-.sheet-title { font-size: 32rpx; font-weight: 700; color: #2C2C2C; }
-.ask-input { width: 100%; height: 256rpx; padding: 24rpx; background: #F5F0E8; border-radius: 16rpx; font-size: 28rpx; color: #2C2C2C; box-sizing: border-box; }
-.ask-ph { color: #999; }
-.submit-btn { margin-top: 32rpx; height: 88rpx; background: var(--brand); border-radius: 999rpx; display: flex; align-items: center; justify-content: center; gap: 16rpx; }
-.submit-btn.disabled { background: #E8E3DB; }
-.submit-txt { font-size: 28rpx; font-weight: 700; color: #fff; }
-.submit-btn.disabled .submit-txt { color: #999; }
+/* ── 区块4 底部次入口 ── */
+.entries {
+  background: #FFFFFF; border-radius: 36rpx; overflow: hidden;
+  box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); margin-top: 12rpx;
+}
+.entry { display: flex; align-items: center; gap: 24rpx; padding: 30rpx 32rpx; }
+.entry + .entry { border-top: 2rpx solid #EDE7DD; }
+.entry-icon {
+  width: 64rpx; height: 64rpx; border-radius: 16rpx; flex-shrink: 0;
+  background: #F8F4EC; display: flex; align-items: center; justify-content: center;
+}
+.entry-name { flex: 1; font-size: 30rpx; font-weight: 500; color: #2C2C2C; }
 
-/* 加载 / 错误 */
-.loading-wrap, .error-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24rpx; }
-.loading-text, .error-text { font-size: 28rpx; color: var(--text-soft); }
-.retry-btn { padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
-.retry-text { font-size: 28rpx; color: #fff; }
+/* ── 空态 ── */
+.empty { display: flex; flex-direction: column; align-items: center; gap: 32rpx; padding: 160rpx 80rpx; text-align: center; }
+.empty-illus { width: 240rpx; height: 240rpx; border-radius: 50%; background: #F8F4EC; display: flex; align-items: center; justify-content: center; }
+.empty-title { font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
+.empty-desc { font-size: 28rpx; color: #999999; line-height: 1.6; white-space: pre-line; }
+.empty-btn { margin-top: 12rpx; height: 88rpx; padding: 0 72rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; }
+.empty-btn-txt { font-size: 30rpx; font-weight: 600; color: #FFFFFF; }
+
+/* ── 错误态 ── */
+.state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 200rpx 0; gap: 24rpx; }
+.state-text { font-size: 28rpx; color: #6E6E73; }
+.retry-btn { padding: 16rpx 48rpx; background: #C41E3A; border-radius: 999rpx; }
+.retry-text { font-size: 28rpx; color: #FFFFFF; }
+
+/* ── 骨架屏（#F0EBE2 微光 1.4s）── */
+.sk { position: relative; overflow: hidden; background: #F0EBE2; border-radius: 12rpx; }
+.sk::after { content: ""; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent); animation: shine 1.4s infinite; }
+@keyframes shine { 100% { transform: translateX(100%); } }
+.sk-stats { height: 176rpx; border-radius: 36rpx; }
+.sk-title { height: 40rpx; width: 180rpx; border-radius: 12rpx; margin-top: 12rpx; }
+.sk-hcard { height: 184rpx; border-radius: 36rpx; }
+.sk-entries { height: 300rpx; border-radius: 36rpx; margin-top: 12rpx; }
 </style>

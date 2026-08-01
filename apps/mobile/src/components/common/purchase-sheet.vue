@@ -1,7 +1,7 @@
 <template>
   <!-- 通用购买半屏弹窗：圈子付费/课程/商品共用。选规格→选数量→选支付→确认下单 -->
-  <view v-if="open && product" class="ps-mask" @tap="onClose">
-    <view class="ps-sheet" @tap.stop>
+  <view v-if="open && product" class="ps-mask" role="dialog" aria-modal="true" aria-label="确认购买" @tap="onClose" @touchmove.self.prevent>
+    <view class="ps-sheet" tabindex="-1" @tap.stop @touchmove.stop>
       <!-- 下单成功态 -->
       <view v-if="paid" class="ps-paid">
         <view class="ps-paid__icon">
@@ -14,7 +14,7 @@
       <template v-else>
         <!-- 头部：商品信息 -->
         <view class="ps-head">
-          <image lazy-load class="ps-head__img" :src="product.cover" mode="aspectFill" />
+          <smart-cover class="ps-head__img" :src="product.cover" :title="product.name" type="product" deco :deco-size="40" />
           <view class="ps-head__info">
             <text class="ps-head__name">{{ product.name }}</text>
             <view class="ps-head__price-row">
@@ -23,7 +23,14 @@
             </view>
             <text v-if="product.stock !== undefined" class="ps-head__stock">库存 {{ product.stock }} 件</text>
           </view>
-          <view class="ps-head__close" @tap="onClose">
+          <view
+            class="ps-head__close"
+            role="button"
+            aria-label="关闭购买面板"
+            tabindex="0"
+            @tap="onClose"
+            @keydown="activateOnKeyboard($event, onClose)"
+          >
             <AppIcon name="x" :size="20" color="#999" />
           </view>
         </view>
@@ -38,7 +45,11 @@
                 :key="sku"
                 class="ps-sku"
                 :class="{ 'ps-sku--on': selectedSku === sku }"
+                role="radio"
+                :aria-checked="selectedSku === sku"
+                tabindex="0"
                 @tap="onSelectSku(sku)"
+                @keydown="activateOnKeyboard($event, () => onSelectSku(sku))"
               >
                 <text class="ps-sku__txt">{{ sku }}</text>
               </view>
@@ -49,11 +60,27 @@
           <view v-if="allowQty" class="ps-qty">
             <text class="ps-section__label">购买数量</text>
             <view class="ps-qty__ctrl">
-              <view class="ps-qty__btn" :class="{ 'ps-qty__btn--off': quantity <= 1 }" @tap="onMinus">
+              <view
+                class="ps-qty__btn"
+                :class="{ 'ps-qty__btn--off': quantity <= 1 }"
+                role="button"
+                aria-label="减少购买数量"
+                :aria-disabled="quantity <= 1"
+                :tabindex="quantity <= 1 ? -1 : 0"
+                @tap="onMinus"
+                @keydown="activateOnKeyboard($event, onMinus)"
+              >
                 <AppIcon name="minus" :size="16" color="#333" />
               </view>
               <text class="ps-qty__num">{{ quantity }}</text>
-              <view class="ps-qty__btn" @tap="onPlus">
+              <view
+                class="ps-qty__btn"
+                role="button"
+                aria-label="增加购买数量"
+                tabindex="0"
+                @tap="onPlus"
+                @keydown="activateOnKeyboard($event, onPlus)"
+              >
                 <AppIcon name="plus" :size="16" color="#333" />
               </view>
             </view>
@@ -68,7 +95,11 @@
                 :key="m.id"
                 class="ps-pay"
                 :class="{ 'ps-pay--on': payMethod === m.id }"
+                role="radio"
+                :aria-checked="payMethod === m.id"
+                tabindex="0"
                 @tap="onSelectPay(m.id)"
+                @keydown="activateOnKeyboard($event, () => onSelectPay(m.id))"
               >
                 <view class="ps-pay__left">
                   <view class="ps-pay__badge" :style="{ backgroundColor: m.color }">
@@ -101,7 +132,12 @@
             <view
               class="ps-foot__pay"
               :class="{ 'ps-foot__pay--off': paying || (hasSku && !selectedSku) }"
+              role="button"
+              :aria-label="payButtonText"
+              :aria-disabled="paying || (hasSku && !selectedSku)"
+              :tabindex="paying || (hasSku && !selectedSku) ? -1 : 0"
               @tap="onPay"
+              @keydown="activateOnKeyboard($event, onPay)"
             >
               <text class="ps-foot__pay-txt">{{ payButtonText }}</text>
             </view>
@@ -115,6 +151,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
+import { navigateTo } from '@/utils/router'
 import { purchaseApi, type PurchaseProduct, type PurchaseBizType, type PayChannel } from '@/lib/purchase-data'
 
 const props = withDefaults(defineProps<{
@@ -127,6 +166,15 @@ const props = withDefaults(defineProps<{
 }>(), { allowQty: true })
 
 const emit = defineEmits<{ (e: 'close'): void; (e: 'paid', orderId: string): void }>()
+
+useOverlayScrollLock(
+  () => props.open && Boolean(props.product),
+  {
+    onEscape: onClose,
+    focusContainerSelector: '.ps-sheet',
+    initialFocusSelector: '.ps-head__close',
+  },
+)
 
 const ALL_PAY_METHODS = [
   { id: 'wechat', name: '微信支付', badge: '微', color: '#07C160' },
@@ -149,7 +197,8 @@ const paid = ref(false)
 const paidSub = ref('请在订单中心完成支付')
 
 const hasSku = computed(() => !!props.product?.skus && props.product.skus.length > 0)
-const total = computed(() => (props.product ? props.product.price * quantity.value : 0))
+// 金额乘法用 Math.round(×100)/100 消除浮点误差(如 19.9×3=59.699999...)，避免小数点多位
+const total = computed(() => (props.product ? Math.round(props.product.price * quantity.value * 100) / 100 : 0))
 const tipText = computed(() => (props.bizType === 'PRODUCT' ? '正品保障 · 7天无理由退换' : '官方正版 · 购买后立即可用'))
 const payButtonText = computed(() => {
   if (paying.value) return '提交中…'
@@ -165,6 +214,11 @@ function onPlus() {
   const max = props.product?.stock ?? 99
   if (quantity.value < max) quantity.value++
 }
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<void>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 function reset() {
   selectedSku.value = null
   quantity.value = 1
@@ -177,7 +231,13 @@ function onClose() {
   emit('close')
 }
 
-/** 确认下单：创建订单 → 按所选渠道拉起聚合支付（本地/未配支付时止于订单创建） */
+/**
+ * 确认下单（2026-07-16 真支付接线）：
+ * - 微信渠道 → 创建订单后跳统一收银页 /pkg-shop/paying（微信内公众号JSAPI/外部浏览器mweb/小程序requestPayment
+ *   全端真支付+轮询到账，圈子/课程订单与商品同在 Order 表，pay/jsapi 可直接支付）。
+ * - 支付宝/云闪付 → 仍走汇付聚合；未接通时**诚实降级**引导订单中心，
+ *   不再吞异常后显示"成功"绿勾（原实现会误导用户以为已付款，实际订单还是 PENDING）。
+ */
 async function onPay() {
   if (paying.value || !props.product) return
   if (hasSku.value && !selectedSku.value) return
@@ -191,17 +251,30 @@ async function onPay() {
       skuId: selectedSku.value || undefined,
       channel,
     })
-    // 按所选渠道拉起支付（汇付聚合）；无支付环境时静默失败，订单已创建可在订单中心继续支付
+    if (channel === 'wechat') {
+      // 真支付：跳统一收银页（到账由支付回调驱动，入圈/开课等后处理自动完成）
+      const payAmount = Number(order.amount ?? total.value) || total.value
+      onClose()
+      navigateTo(`/pkg-shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
+      return
+    }
+    // 支付宝/云闪付：汇付聚合通道
     try {
       const pay = await purchaseApi.payByChannel(order.id, channel)
       const jumpUrl = pay?.h5Url || pay?.payUrl
       // #ifdef H5
       if (jumpUrl) { window.location.href = jumpUrl; return }
       // #endif
-      if (pay?.qrCode || pay?.codeUrl) paidSub.value = '请使用所选方式扫码完成支付'
-    } catch { /* 无支付环境，止于下单 */ }
-    paid.value = true
-    setTimeout(() => { emit('paid', order.id); onClose() }, 1800)
+      if (pay?.qrCode || pay?.codeUrl) {
+        paidSub.value = '请使用所选方式扫码完成支付'
+        paid.value = true
+        setTimeout(() => { emit('paid', order.id); onClose() }, 1800)
+        return
+      }
+    } catch { /* 聚合支付未接通 → 走下方诚实降级 */ }
+    // 诚实降级：订单已创建但支付未发起，引导订单中心继续支付（不显示成功态）
+    uni.showToast({ title: '订单已创建，请到「我的-我的订单」完成支付', icon: 'none', duration: 3000 })
+    onClose()
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })
     paying.value = false
@@ -211,7 +284,7 @@ async function onPay() {
 
 <style scoped>
 .ps-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.6); display: flex; flex-direction: column; justify-content: flex-end; }
-.ps-sheet { position: relative; background: #fff; border-radius: 32rpx 32rpx 0 0; max-height: 82vh; display: flex; flex-direction: column; }
+.ps-sheet { position: relative; background: #fff; border-radius: 32rpx 32rpx 0 0; max-height: 82vh; overflow: hidden; display: flex; flex-direction: column; }
 
 /* 成功态 */
 .ps-paid { padding: 96rpx 48rpx; display: flex; flex-direction: column; align-items: center; }
@@ -231,7 +304,9 @@ async function onPay() {
 .ps-head__close { position: absolute; top: 32rpx; right: 32rpx; }
 
 /* body */
-.ps-body { flex: 1; max-height: 50vh; }
+.ps-body { flex: 1; height: 0; min-height: 0; max-height: 50vh; }
+.ps-body :deep(.uni-scroll-view),
+.ps-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .ps-section { padding: 32rpx; border-bottom: 1px solid #f0f0f0; }
 .ps-section__label { font-size: 28rpx; font-weight: 500; color: #1a1a1a; display: block; margin-bottom: 20rpx; }
 .ps-sku-list { display: flex; flex-wrap: wrap; gap: 16rpx; }

@@ -1,9 +1,8 @@
 name: Deploy
 
+# 迁移期间禁止 push/tag 自动触碰任何服务器。生产发布只能手动发起，且必须通过
+# production Environment 审批、新基础设施就绪开关和发布标识同值确认。
 on:
-  push:
-    branches: [main, master]
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       environment:
@@ -13,381 +12,581 @@ on:
         options:
           - staging
           - production
-      service:
-        description: "部署服务"
+      release_id:
+        description: "固定发布标识（8-80 位字母、数字、点、下划线或短横线）"
         required: true
-        default: "server"
-        type: choice
-        options:
-          - server
-          - frontend
-          - admin
-          - all
-      image_tag:
-        description: "Docker 镜像标签（留空则用 git SHA）"
+        type: string
+      production_confirmation:
+        description: "生产环境必须再次输入完全相同的发布标识"
         required: false
         type: string
       run_migration:
-        description: "执行数据库迁移"
+        description: "执行已审查的数据库迁移（默认关闭）"
         required: false
-        default: true
+        default: false
         type: boolean
+      migration_confirmation:
+        description: "仅执行生产迁移时填写 migrate:<release_id>"
+        required: false
+        type: string
+      expected_current_release_id:
+        description: "双节点当前共同固定版本；发布前会在 A/B 两端核对"
+        required: false
+        type: string
+      schema_compatibility_confirmation:
+        description: "仅执行生产迁移时，完成旧应用向后兼容评审后填写 schema-compatible:<release_id>"
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
 
 env:
   NODE_VERSION: "20"
-  PNPM_VERSION: "10"
+  PNPM_VERSION: "10.33.3"
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # ──────────────────────────────────────────────
-  # 构建并推送 Docker 镜像
-  # ──────────────────────────────────────────────
-  build-and-push:
-    name: 构建 & 推送镜像
-    if: |
-      startsWith(github.ref, 'refs/tags/v') ||
-      github.event_name == 'workflow_dispatch'
+  gate-production:
+    name: 生产确认、代码门禁与正式配置客户端成品
+    if: inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: 验证默认分支、新基础设施与人工确认
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+          PRODUCTION_CONFIRMATION: ${{ inputs.production_confirmation }}
+          RUN_MIGRATION: ${{ inputs.run_migration }}
+          MIGRATION_CONFIRMATION: ${{ inputs.migration_confirmation }}
+          SCHEMA_COMPATIBILITY_CONFIRMATION: ${{ inputs.schema_compatibility_confirmation }}
+          EXPECTED_CURRENT_RELEASE_ID: ${{ inputs.expected_current_release_id }}
+          DISPATCH_OPERATION: deploy
+          PRODUCTION_DEPLOY_READY: ${{ vars.PRODUCTION_DEPLOY_READY }}
+          PRODUCTION_DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
+          PROD_NODE_A_CONFIGURED: ${{ secrets.PROD_HOST_A != '' && secrets.PROD_SSH_FINGERPRINT_A != '' }}
+          PROD_NODE_B_CONFIGURED: ${{ secrets.PROD_HOST_B != '' && secrets.PROD_SSH_FINGERPRINT_B != '' }}
+          SOURCE_REF: ${{ github.ref }}
+          SOURCE_SHA: ${{ github.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: node scripts/release/validate-production-dispatch.mjs
+
+      - name: 安装锁定依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 执行代码审计、测试、服务端与五端构建
+        run: pnpm release:verify:local
+
+      - name: 使用正式公开配置重建并审计各端成品
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+          SOURCE_COMMIT: ${{ github.sha }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_PUBLIC_H5_URL: ${{ vars.VITE_PUBLIC_H5_URL }}
+          VITE_PUBLIC_ASSET_ORIGIN: ${{ vars.VITE_PUBLIC_ASSET_ORIGIN }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p release-evidence
+          CLIENT_ENV=release-evidence/production-client.env
+          printf 'VITE_API_URL=%s\n' "$VITE_API_URL" > "$CLIENT_ENV"
+          printf 'VITE_PUBLIC_H5_URL=%s\n' "$VITE_PUBLIC_H5_URL" >> "$CLIENT_ENV"
+          printf 'VITE_PUBLIC_ASSET_ORIGIN=%s\n' "$VITE_PUBLIC_ASSET_ORIGIN" >> "$CLIENT_ENV"
+          node scripts/release/build-clients-with-env.mjs "$CLIENT_ENV"
+          node scripts/release/audit-client-artifacts.mjs "$CLIENT_ENV" \
+            --release-id "$RELEASE_ID" \
+            --source-commit "$SOURCE_COMMIT" \
+            --report release-evidence/client-artifact-audit.json
+          node scripts/release/verify-client-artifacts.mjs \
+            release-evidence/client-artifact-audit.json \
+            --expected-release-id "$RELEASE_ID" \
+            --expected-commit "$SOURCE_COMMIT" \
+            --output release-evidence/client-artifact-verification.json
+          node scripts/release/create-client-config-binding.mjs "$CLIENT_ENV" \
+            --release-id "$RELEASE_ID" \
+            --source-commit "$SOURCE_COMMIT" \
+            --output release-evidence/client-config-binding.json
+          node scripts/release/audit-store-readiness.mjs \
+            --release-id "$RELEASE_ID" \
+            --report release-evidence/store-readiness.json
+          rm -f "$CLIENT_ENV"
+
+      - name: 保存正式配置客户端成品与审计证据
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-clients-${{ inputs.release_id }}
+          path: |
+            apps/admin/dist
+            apps/mobile/dist/build/h5
+            apps/mobile/dist/build/mp-weixin
+            apps/mobile/dist/build/app
+            apps/mobile/dist/build/app-harmony
+            release-evidence/client-artifact-audit.json
+            release-evidence/client-artifact-verification.json
+            release-evidence/client-config-binding.json
+            release-evidence/store-readiness.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 保存固定包所需的客户端配置证据
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-client-evidence-${{ inputs.release_id }}
+          path: |
+            release-evidence/client-artifact-audit.json
+            release-evidence/client-artifact-verification.json
+            release-evidence/client-config-binding.json
+          if-no-files-found: error
+          retention-days: 14
+
+  package-production:
+    name: 生成并验真固定发布包
+    if: inputs.environment == 'production'
+    needs: gate-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: production-client-evidence-${{ inputs.release_id }}
+          path: artifacts/client-evidence
+
+      - name: 生成打包工作树冻结证据
+        run: |
+          node scripts/release/audit-source-freeze.mjs --strict \
+            --expected-branch "${{ github.event.repository.default_branch }}" \
+            --expected-commit "${{ github.sha }}" \
+            --report artifacts/client-evidence/source-freeze-readiness.json
+
+      - name: 生成固定发布包
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+        run: |
+          node scripts/release/create-fixed-package.mjs "$RELEASE_ID" \
+            --client-config-binding artifacts/client-evidence/client-config-binding.json \
+            --client-artifact-audit artifacts/client-evidence/client-artifact-audit.json \
+            --client-artifact-verification artifacts/client-evidence/client-artifact-verification.json \
+            --source-freeze-audit artifacts/client-evidence/source-freeze-readiness.json
+
+      - name: 上传前逐文件验真
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+          SOURCE_COMMIT: ${{ github.sha }}
+        run: |
+          mkdir -p release-evidence
+          node scripts/release/verify-fixed-package.mjs \
+            "artifacts/releases/gx-deploy-91-$RELEASE_ID.tar.gz" \
+            "artifacts/releases/gx-deploy-91-$RELEASE_ID.tar.gz.sha256" \
+            --expected-commit "$SOURCE_COMMIT" \
+            --report release-evidence/package-verification.json
+
+      - name: 保存发布包与验真证据
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed-release-${{ inputs.release_id }}
+          path: |
+            artifacts/releases/gx-deploy-91-${{ inputs.release_id }}.tar.gz
+            artifacts/releases/gx-deploy-91-${{ inputs.release_id }}.tar.gz.sha256
+            release-evidence/package-verification.json
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy-production:
+    name: 固定包双节点滚动部署
+    if: inputs.environment == 'production'
+    needs: package-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    environment:
+      name: production
+      url: ${{ vars.PUBLIC_H5_URL }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: fixed-release-${{ inputs.release_id }}
+          path: release-input
+
+      - name: 汇总待上传文件
+        run: cp scripts/release/activate-fixed-release.sh release-input/activate-fixed-release.sh
+
+      - name: 准备业务节点 A 接收目录
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_A }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}
+          script: |
+            set -euo pipefail
+            install -d -m 0750 /opt/guoxue/incoming /opt/guoxue/releases /opt/guoxue/release-evidence
+            test -f /opt/guoxue/shared/.env.production
+            MODE="$(stat -c '%a' /opt/guoxue/shared/.env.production)"
+            [ "$MODE" = "600" ] || [ "$MODE" = "400" ]
+            test -f /opt/guoxue/current/.release-id
+            test "$(tr -d '\r\n' < /opt/guoxue/current/.release-id)" = '${{ inputs.expected_current_release_id }}'
+            ROOT_DIR=/opt/guoxue \
+            ENV_FILE=/opt/guoxue/shared/.env.production \
+            DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+            NODE_ROLE=app \
+            COMPOSE_PROJECT_NAME=guoxue \
+            ROLLBACK_VERIFY_ONLY=true \
+              bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh \
+                '${{ inputs.expected_current_release_id }}' '${{ inputs.expected_current_release_id }}'
+
+      - name: 发布前核验运维节点 B 当前版本基线
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
+          script: |
+            set -euo pipefail
+            install -d -m 0750 /opt/guoxue/incoming /opt/guoxue/releases /opt/guoxue/release-evidence
+            test -f /opt/guoxue/shared/.env.production
+            MODE="$(stat -c '%a' /opt/guoxue/shared/.env.production)"
+            [ "$MODE" = "600" ] || [ "$MODE" = "400" ]
+            test -f /opt/guoxue/current/.release-id
+            test "$(tr -d '\r\n' < /opt/guoxue/current/.release-id)" = '${{ inputs.expected_current_release_id }}'
+            ROOT_DIR=/opt/guoxue \
+            ENV_FILE=/opt/guoxue/shared/.env.production \
+            DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+            NODE_ROLE=operations \
+            COMPOSE_PROJECT_NAME=guoxue \
+            ROLLBACK_VERIFY_ONLY=true \
+              bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh \
+                '${{ inputs.expected_current_release_id }}' '${{ inputs.expected_current_release_id }}'
+
+      - name: 上传固定包到业务节点 A
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
+        with:
+          host: ${{ secrets.PROD_HOST_A }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}
+          source: "release-input/gx-deploy-91-${{ inputs.release_id }}.tar.gz,release-input/gx-deploy-91-${{ inputs.release_id }}.tar.gz.sha256,release-input/activate-fixed-release.sh"
+          target: "/opt/guoxue/incoming/"
+          strip_components: 1
+          overwrite: true
+
+      - name: 业务节点 A 二次验真并激活
+        id: activate_node_a
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_A }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}
+          command_timeout: 40m
+          script: |
+            set -euo pipefail
+            RELEASE_ID='${{ inputs.release_id }}'
+            ARCHIVE="/opt/guoxue/incoming/gx-deploy-91-$RELEASE_ID.tar.gz"
+            CHECKSUM="$ARCHIVE.sha256"
+            test -f "$ARCHIVE" && test -f "$CHECKSUM"
+            ROOT_DIR=/opt/guoxue \
+            ENV_FILE=/opt/guoxue/shared/.env.production \
+            EXPECTED_RELEASE_ID="$RELEASE_ID" \
+            EXPECTED_COMMIT='${{ github.sha }}' \
+            EXPECTED_CURRENT_RELEASE_ID='${{ inputs.expected_current_release_id }}' \
+            DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+            NODE_ROLE=app \
+            COMPOSE_PROJECT_NAME=guoxue \
+            RUN_MIGRATION='${{ inputs.run_migration }}' \
+            MIGRATION_DEPLOY_CONFIRM='${{ inputs.migration_confirmation }}' \
+              bash /opt/guoxue/incoming/activate-fixed-release.sh "$ARCHIVE" "$CHECKSUM"
+
+      - name: 确认节点 A 激活后 CLB 持续可用
+        env:
+          PUBLIC_H5_URL: ${{ vars.PUBLIC_H5_URL }}
+        run: |
+          set -euo pipefail
+          export BASE_URL="$(node -e 'process.stdout.write(new URL(process.env.PUBLIC_H5_URL).origin)')"
+          bash scripts/operations/probe-clb-failover.sh 30
+
+      - name: 上传固定包到运维节点 B
+        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
+          source: "release-input/gx-deploy-91-${{ inputs.release_id }}.tar.gz,release-input/gx-deploy-91-${{ inputs.release_id }}.tar.gz.sha256,release-input/activate-fixed-release.sh"
+          target: "/opt/guoxue/incoming/"
+          strip_components: 1
+          overwrite: true
+
+      - name: 运维节点 B 二次验真并激活
+        id: activate_node_b
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
+          command_timeout: 40m
+          script: |
+            set -euo pipefail
+            RELEASE_ID='${{ inputs.release_id }}'
+            ARCHIVE="/opt/guoxue/incoming/gx-deploy-91-$RELEASE_ID.tar.gz"
+            CHECKSUM="$ARCHIVE.sha256"
+            test -f "$ARCHIVE" && test -f "$CHECKSUM"
+            ROOT_DIR=/opt/guoxue \
+            ENV_FILE=/opt/guoxue/shared/.env.production \
+            EXPECTED_RELEASE_ID="$RELEASE_ID" \
+            EXPECTED_COMMIT='${{ github.sha }}' \
+            EXPECTED_CURRENT_RELEASE_ID='${{ inputs.expected_current_release_id }}' \
+            DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+            NODE_ROLE=operations \
+            COMPOSE_PROJECT_NAME=guoxue \
+            RUN_MIGRATION=false \
+            MIGRATION_DEPLOY_CONFIRM='' \
+              bash /opt/guoxue/incoming/activate-fixed-release.sh "$ARCHIVE" "$CHECKSUM"
+
+      - name: 确认双节点激活后 CLB 持续可用
+        env:
+          PUBLIC_H5_URL: ${{ vars.PUBLIC_H5_URL }}
+        run: |
+          set -euo pipefail
+          export BASE_URL="$(node -e 'process.stdout.write(new URL(process.env.PUBLIC_H5_URL).origin)')"
+          bash scripts/operations/probe-clb-failover.sh 45
+
+      - name: 发布失败时恢复运维节点 B 的旧应用与监控
+        id: recover_node_b
+        if: ${{ failure() && steps.activate_node_a.outcome == 'success' }}
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_B }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_B }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            TARGET='${{ inputs.expected_current_release_id }}'
+            CURRENT="$(tr -d '\r\n' < /opt/guoxue/current/.release-id)"
+            if [ "$CURRENT" = '${{ inputs.release_id }}' ]; then
+              SCHEMA_ROLLBACK=false
+              if [ '${{ inputs.run_migration }}' = 'true' ]; then
+                test '${{ inputs.schema_compatibility_confirmation }}' = 'schema-compatible:${{ inputs.release_id }}'
+                SCHEMA_ROLLBACK=reviewed
+              fi
+              ROOT_DIR=/opt/guoxue \
+              ENV_FILE=/opt/guoxue/shared/.env.production \
+              DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+              NODE_ROLE=operations \
+              COMPOSE_PROJECT_NAME=guoxue \
+              ALLOW_SCHEMA_COMPATIBLE_ROLLBACK="$SCHEMA_ROLLBACK" \
+                bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh "$TARGET" "$TARGET"
+            else
+              test "$CURRENT" = "$TARGET"
+              ENV_FILE=/opt/guoxue/shared/.env.production \
+              BACKUP_DIR=/opt/guoxue/backups \
+              RELEASE_ID="$TARGET" \
+              DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+              NODE_ROLE=operations \
+              COMPOSE_PROJECT_NAME=guoxue \
+                bash /opt/guoxue/current/docker/deploy.sh --skip-migrate
+              node /opt/guoxue/current/scripts/release/render-monitoring-config.mjs /opt/guoxue/shared/.env.production
+              COMPOSE_PROJECT_NAME=guoxue docker compose \
+                -f /opt/guoxue/current/docker/monitoring/docker-compose.yml \
+                --env-file /opt/guoxue/shared/.env.production up -d
+            fi
+
+      - name: 发布失败时恢复业务节点 A
+        id: recover_node_a
+        if: ${{ failure() && (steps.activate_node_a.outcome == 'success' || steps.activate_node_a.outcome == 'failure') }}
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.PROD_HOST_A }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          fingerprint: ${{ secrets.PROD_SSH_FINGERPRINT_A }}
+          command_timeout: 20m
+          script: |
+            set -euo pipefail
+            TARGET='${{ inputs.expected_current_release_id }}'
+            CURRENT="$(tr -d '\r\n' < /opt/guoxue/current/.release-id)"
+            if [ "$CURRENT" = '${{ inputs.release_id }}' ]; then
+              SCHEMA_ROLLBACK=false
+              if [ '${{ inputs.run_migration }}' = 'true' ]; then
+                test '${{ inputs.schema_compatibility_confirmation }}' = 'schema-compatible:${{ inputs.release_id }}'
+                SCHEMA_ROLLBACK=reviewed
+              fi
+              ROOT_DIR=/opt/guoxue \
+              ENV_FILE=/opt/guoxue/shared/.env.production \
+              DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+              NODE_ROLE=app \
+              COMPOSE_PROJECT_NAME=guoxue \
+              ALLOW_SCHEMA_COMPATIBLE_ROLLBACK="$SCHEMA_ROLLBACK" \
+                bash /opt/guoxue/current/scripts/release/rollback-fixed-release.sh "$TARGET" "$TARGET"
+            else
+              test "$CURRENT" = "$TARGET"
+              ENV_FILE=/opt/guoxue/shared/.env.production \
+              BACKUP_DIR=/opt/guoxue/backups \
+              RELEASE_ID="$TARGET" \
+              DEPLOY_TARGET='${{ vars.PRODUCTION_DEPLOY_TARGET }}' \
+              NODE_ROLE=app \
+              COMPOSE_PROJECT_NAME=guoxue \
+                bash /opt/guoxue/current/docker/deploy.sh --skip-migrate
+            fi
+
+      - name: 恢复后确认 CLB 已重新承接旧版本
+        if: ${{ failure() && steps.recover_node_a.outcome == 'success' }}
+        env:
+          PUBLIC_H5_URL: ${{ vars.PUBLIC_H5_URL }}
+        run: |
+          set -euo pipefail
+          export BASE_URL="$(node -e 'process.stdout.write(new URL(process.env.PUBLIC_H5_URL).origin)')"
+          bash scripts/operations/probe-clb-failover.sh 45
+
+  build-staging-image:
+    name: 构建 Staging 镜像
+    if: inputs.environment == 'staging'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    environment:
+      name: staging
     permissions:
       contents: read
       packages: write
-      actions: write
     outputs:
       version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: 登录 GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 提取镜像元数据
-        id: meta
+      - id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=tag
-            type=sha,prefix=,format=short
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
-
-      - name: 设置 Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 构建 & 推送镜像
-        uses: docker/build-push-action@v6
+          tags: type=raw,value=${{ inputs.release_id }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          no-cache: true
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL }}
+            VITE_PUBLIC_H5_URL=${{ vars.VITE_PUBLIC_H5_URL }}
+            VITE_PUBLIC_ASSET_ORIGIN=${{ vars.VITE_PUBLIC_ASSET_ORIGIN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ──────────────────────────────────────────────
-  # 部署到 Staging
-  # ──────────────────────────────────────────────
   deploy-staging:
     name: 部署到 Staging
-    needs: build-and-push
-    continue-on-error: true
-    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'staging'
+    if: inputs.environment == 'staging'
+    needs: build-staging-image
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment:
       name: staging
-      url: https://staging.guoxue.ac.cn
+      url: ${{ vars.PUBLIC_H5_URL }}
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - name: SSH 部署
-        id: deploy
+      - name: 校验 Staging SSH 主机指纹
+        env:
+          STAGING_SSH_FINGERPRINT: ${{ secrets.STAGING_SSH_FINGERPRINT }}
+        run: test -n "$STAGING_SSH_FINGERPRINT"
+
+      - name: 拉取镜像并健康切换
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         with:
           host: ${{ secrets.STAGING_HOST }}
           port: ${{ secrets.DEPLOY_PORT || 22 }}
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
+          fingerprint: ${{ secrets.STAGING_SSH_FINGERPRINT }}
           script: |
-            set -e
-            TAG="${{ needs.build-and-push.outputs.version || github.sha }}"
-            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG"
-
-            # 拉取镜像
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ github.actor }}" --password-stdin
+            set -euo pipefail
+            IMAGE='${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ inputs.release_id }}'
+            ENV_FILE=/opt/guoxue/.env.staging
+            test -f "$ENV_FILE"
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login '${{ env.REGISTRY }}' \
+              -u '${{ github.actor }}' --password-stdin
             docker pull "$IMAGE"
-
-            # 备份旧容器
-            if docker ps -q --filter "name=guoxue-server" | grep -q .; then
-              OLD_IMAGE=$(docker inspect --format='{{.Config.Image}}' guoxue-server)
-              echo "OLD_IMAGE=$OLD_IMAGE" > /tmp/deploy-backup.env
-            fi
-
-            # 数据库迁移（host网络模式：PostgreSQL在宿主机监听localhost）
-            if [ "${{ inputs.run_migration }}" != "false" ]; then
-              docker run --rm \
-                --network host \
-                -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-                "$IMAGE" \
-                npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
-            fi
-
-            # 更新容器
-            ENV_FILE="/opt/guoxue/.env.staging"
             docker rm -f guoxue-server-old 2>/dev/null || true
-            docker rename guoxue-server guoxue-server-old 2>/dev/null || true
-
-            docker run -d \
-              --name guoxue-server \
-              --restart unless-stopped \
-              --network host \
-              --env-file "$ENV_FILE" \
-              "$IMAGE"
-
-            # 健康检查
-            for i in $(seq 1 15); do
-              sleep 2
-              if curl -sf http://localhost:3000/api/v1/health > /dev/null 2>&1; then
-                echo "✅ Staging 健康检查通过"
-                docker rm -f guoxue-server-old 2>/dev/null || true
-                exit 0
-              fi
-            done
-
-            # 回滚
-            echo "❌ 健康检查失败，回滚..."
-            docker rm -f guoxue-server
-            docker rename guoxue-server-old guoxue-server 2>/dev/null || true
-            exit 1
-
-  # ──────────────────────────────────────────────
-  # 部署到 Production
-  # ──────────────────────────────────────────────
-  deploy-production:
-    name: 部署到 Production
-    needs: build-and-push
-    if: |
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.environment == 'production')
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    environment:
-      name: production
-      url: https://guoxue.ac.cn
-    steps:
-      - name: SSH 部署
-        id: deploy
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            set -e
-            TAG="${{ needs.build-and-push.outputs.version || github.ref_name }}"
-            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$TAG"
-            echo "[deploy] 生产部署 — 版本: $TAG"
-
-            # 登录 GHCR
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u "${{ github.actor }}" --password-stdin
-
-            # 拉取镜像
-            docker pull "$IMAGE"
-
-            # 备份旧容器
-            if docker ps -q --filter "name=guoxue-server" | grep -q .; then
-              OLD_IMAGE=$(docker inspect --format='{{.Config.Image}}' guoxue-server)
-              echo "OLD_IMAGE=$OLD_IMAGE" > /tmp/deploy-backup.env
+            if docker inspect guoxue-server >/dev/null 2>&1; then
+              docker stop guoxue-server
+              docker rename guoxue-server guoxue-server-old
             fi
-
-            # 数据库备份
-            echo "[deploy] 数据库备份..."
-            /opt/guoxue/docker/pg-backup.sh 30
-
-            # 数据库迁移
-            if [ "${{ inputs.run_migration }}" != "false" ]; then
-              echo "[deploy] 执行数据库迁移..."
-              docker run --rm \
-                --network guoxue-net \
-                -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-                "$IMAGE" \
-                npx prisma migrate deploy --schema=apps/server/prisma/schema.prisma
-            fi
-
-            # 零停机滚动更新
-            echo "[deploy] 滚动更新..."
-            docker rm -f guoxue-server-old 2>/dev/null || true
-            docker rename guoxue-server guoxue-server-old 2>/dev/null || true
-
-            ENV_FILE="/opt/guoxue/.env.production"
-            docker run -d \
-              --name guoxue-server \
-              --restart unless-stopped \
-              --network host \
-              --env-file "$ENV_FILE" \
-              --memory 512M \
-              --memory-reservation 256M \
-              --cap-drop ALL \
-              --cap-add NET_BIND_SERVICE \
-              "$IMAGE"
-
-            # 健康检查 (最长 90s)
-            echo "[deploy] 健康检查..."
-            for i in $(seq 1 30); do
+            docker run -d --name guoxue-server --restart unless-stopped \
+              --network host --env-file "$ENV_FILE" "$IMAGE"
+            for attempt in $(seq 1 30); do
               sleep 3
-              if curl -sf http://localhost:3000/api/v1/health > /dev/null 2>&1; then
-                echo "✅ 生产部署成功 — $TAG"
+              curl -sf http://127.0.0.1:3000/api/v1/health/ready >/dev/null && {
                 docker rm -f guoxue-server-old 2>/dev/null || true
-                docker image prune -f --filter "until=72h"
                 exit 0
-              fi
+              }
+              [ "$attempt" -lt 30 ] || {
+                docker rm -f guoxue-server
+                docker rename guoxue-server-old guoxue-server 2>/dev/null || true
+                docker start guoxue-server 2>/dev/null || true
+                exit 1
+              }
             done
 
-            # 自动回滚
-            echo "❌ 健康检查超时 — 自动回滚..."
-            docker rm -f guoxue-server
-            docker rename guoxue-server-old guoxue-server 2>/dev/null || true
-            exit 1
-
-  # ──────────────────────────────────────────────
-  # 前端静态文件部署（自托管）
-  # ──────────────────────────────────────────────
-  deploy-frontend:
-    name: 部署前端静态文件
-    # 仅手动触发：push 触发已移除——GitHub runner 到国内服务器网络不通必失败刷邮件；
-    # 且真实部署走 bundle+scp 流程（见 docs/knowledge/项目Prompt知识库.md §四），双通道会互相覆盖。
-    if: |
-      github.event_name == 'workflow_dispatch' && (inputs.service == 'frontend' || inputs.service == 'all')
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment:
-      name: production
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
-        with:
-          version: ${{ env.PNPM_VERSION }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build 移动端 H5
-        working-directory: apps/mobile
-        run: pnpm build:h5
-        env:
-          VITE_API_URL: 'https://api.rebugx.cn'
-          VITE_USE_MOCK: 'false'
-
-      - name: Build 管理后台
-        working-directory: apps/admin
-        run: pnpm build
-        env:
-          VITE_API_URL: 'https://api.rebugx.cn'
-
-      - name: 部署到服务器
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            FRONTEND_BASE="/opt/guoxue/frontend"
-            mkdir -p "$FRONTEND_BASE"/{mobile,admin}
-
-      - name: 上传移动端
-        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          source: 'dist/build/h5/*'
-          target: '/opt/guoxue/frontend/mobile/'
-          strip_components: 3
-          rm: true
-
-      - name: 上传管理后台
-        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          source: 'dist/*'
-          target: '/opt/guoxue/frontend/admin/'
-          strip_components: 1
-          rm: true
-
-      - name: 配置 Nginx + 重载
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          username: ${{ secrets.PROD_USER }}
-          key: ${{ secrets.PROD_SSH_KEY }}
-          script: |
-            # 首次部署时拷贝 nginx 配置并启用
-            if [ ! -f /etc/nginx/sites-enabled/guoxue-frontend ]; then
-              cp /opt/guoxue/guoxue-platform/docker/nginx-frontend.conf /etc/nginx/sites-available/guoxue-frontend
-              ln -s /etc/nginx/sites-available/guoxue-frontend /etc/nginx/sites-enabled/guoxue-frontend
-            fi
-            nginx -t && systemctl reload nginx
-            echo "✅ 前端部署完成"
-
-  # ──────────────────────────────────────────────
-  # 部署通知
-  # ──────────────────────────────────────────────
   notify:
-    name: 部署结果通知
-    needs: [deploy-staging, deploy-production, deploy-frontend]
+    name: 部署结果
     if: always()
+    needs: [deploy-production, deploy-staging]
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 2
     steps:
-      - name: 企业微信通知
-        if: env.WEWORK_WEBHOOK_URL != ''
-        env:
-          STAGING_RESULT: ${{ needs.deploy-staging.result }}
-          PROD_RESULT: ${{ needs.deploy-production.result }}
+      - name: 输出结果（不回显任何凭据）
         run: |
-          if [ "$PROD_RESULT" = "success" ]; then
-            ENV_LABEL="生产环境"
-            STATUS="✅ 部署成功"
-          elif [ "$STAGING_RESULT" = "success" ]; then
-            ENV_LABEL="预发布环境"
-            STATUS="✅ 部署成功"
-          elif [ "$PROD_RESULT" = "failure" ]; then
-            ENV_LABEL="生产环境"
-            STATUS="❌ 部署失败（已自动回滚）"
-          elif [ "$STAGING_RESULT" = "failure" ]; then
-            ENV_LABEL="预发布环境"
-            STATUS="⚠️ Staging 不可达，已跳过（检查服务器/SSH密钥）"
-          else
-            ENV_LABEL="—"
-            STATUS="⏭️ 跳过"
-          fi
-
-          curl -s -X POST "${{ secrets.WEWORK_WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"msgtype\": \"markdown\",
-              \"markdown\": {
-                \"content\": \"## 国学平台部署通知\n> 环境: **${ENV_LABEL}**\n> 版本: \`${{ github.ref_name }}\`\n> 状态: ${STATUS}\n> 提交: ${{ github.event.head_commit.message }}\"
-              }
-            }" || true
+          echo "目标环境：${{ inputs.environment }}"
+          echo "发布标识：${{ inputs.release_id }}"
+          echo "生产结果：${{ needs.deploy-production.result }}"
+          echo "预发布结果：${{ needs.deploy-staging.result }}"

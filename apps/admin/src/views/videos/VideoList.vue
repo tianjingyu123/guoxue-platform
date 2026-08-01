@@ -1,26 +1,22 @@
 <template>
   <div class="page">
-    <PageHeader title="视频管理">
+    <PageHeader title="短视频管理">
       <template #actions>
         <div style="display:flex;gap:8px">
+          <!-- 后端 status 为空时固定按"已发布"过滤（video.service.list），故不提供假的"全部"选项 -->
           <el-select
             v-model="statusFilter"
             placeholder="状态筛选"
-            clearable
-            style="width:120px"
-            @change="fetchList"
+            style="width:140px"
+            @change="handleSearch"
           >
             <el-option
-              label="全部"
+              label="已发布（默认）"
               value=""
             />
             <el-option
               label="待审核"
               value="AUDITING"
-            />
-            <el-option
-              label="已发布"
-              value="PUBLISHED"
             />
             <el-option
               label="已驳回"
@@ -80,10 +76,13 @@
         width="100"
       />
       <el-table-column
-        prop="duration"
         label="时长"
         width="80"
-      />
+      >
+        <template #default="{ row }">
+          {{ formatDuration(row.duration) }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="状态"
         width="90"
@@ -159,6 +158,21 @@
       </el-table-column>
     </el-table>
 
+    <div
+      v-if="!loadError"
+      class="pagination"
+    >
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="fetchList"
+        @size-change="handleSearch"
+      />
+    </div>
+
     <el-dialog
       v-model="detailVisible"
       title="视频详情"
@@ -172,11 +186,31 @@
           v-if="detail.url"
           :src="detail.url"
           controls
+          :poster="detail.cover || detail.coverUrl || undefined"
           style="width:100%;max-height:360px;border-radius:8px;margin-bottom:12px"
         />
         <p><b>标题：</b>{{ detail.title }}</p>
-        <p><b>作者：</b>{{ detail.user?.nickname }}</p>
-        <p><b>时长：</b>{{ detail.duration || '-' }}</p>
+        <p
+          v-if="detail.cover || detail.coverUrl"
+          style="display:flex;align-items:center;gap:8px"
+        >
+          <b>封面：</b>
+          <el-image
+            :src="detail.cover || detail.coverUrl"
+            :preview-src-list="[detail.cover || detail.coverUrl]"
+            preview-teleported
+            fit="cover"
+            style="width:96px;height:54px;border-radius:6px"
+          >
+            <template #error>
+              <div style="width:96px;height:54px;border-radius:6px;background:#f5f5f5;color:#999;font-size:12px;display:flex;align-items:center;justify-content:center">
+                封面加载失败
+              </div>
+            </template>
+          </el-image>
+        </p>
+        <p><b>作者：</b>{{ detail.user?.nickname || '—' }}</p>
+        <p><b>时长：</b>{{ formatDuration(detail.duration) }}</p>
         <p v-if="detail.description">
           <b>描述：</b>{{ detail.description }}
         </p>
@@ -203,24 +237,26 @@
             placeholder="视频标题"
           />
         </el-form-item>
-        <el-form-item label="封面">
-          <el-input
-            v-model="form.cover"
-            placeholder="封面图片URL"
+        <el-form-item label="视频">
+          <VodUpload
+            v-model="form.videoUrl"
+            @update:duration="form.duration = $event"
+            @update:cover="v => { if (v) form.cover = v }"
           />
         </el-form-item>
-        <el-form-item label="视频地址">
-          <el-input
-            v-model="form.videoUrl"
-            placeholder="视频播放URL"
+        <el-form-item label="封面">
+          <CosImageUpload
+            v-model="form.cover"
+            tip="上传视频后自动取第一帧，如需更换可点击"
           />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="时长">
               <el-input
-                v-model="form.duration"
-                placeholder="如 15:30"
+                :model-value="form.duration ? form.duration + ' 秒' : ''"
+                disabled
+                placeholder="上传视频后自动获取"
               />
             </el-form-item>
           </el-col>
@@ -261,12 +297,17 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
+import VodUpload from "@/components/upload/VodUpload.vue";
+import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import { videoApi, api } from "@/api";
 
 const list = ref<any[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const statusFilter = ref("");
+const page = ref(1);
+const pageSize = ref(20);
+const total = ref(0);
 const detailVisible = ref(false);
 const detail = ref<any>(null);
 const auditingId = ref("");
@@ -286,6 +327,18 @@ function statusType(s: string) {
   return STATUS_MAP[s]?.type ?? "info";
 }
 
+/** 秒 → mm:ss（超过1小时为 h:mm:ss），无值显示 — */
+function formatDuration(seconds?: number | string) {
+  const s = Number(seconds);
+  if (!s || isNaN(s) || s <= 0) return "—";
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = Math.floor(s % 60);
+  const mm = String(m).padStart(2, "0");
+  const ss = String(sec).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
 // 创建/编辑弹窗
 const dialogVisible = ref(false);
 const editingId = ref('');
@@ -294,7 +347,7 @@ const form = reactive({
   title: '',
   cover: '',
   videoUrl: '',
-  duration: '',
+  duration: 0, // 秒·由 VodUpload 选视频后自动读取
   description: '',
   tags: '',
 });
@@ -305,18 +358,28 @@ async function fetchList() {
   loading.value = true;
   loadError.value = false;
   try {
-    const params: any = { pageSize: 100 };
+    // scope=all：管理端可见全部开放范围（仅圈内/全平台）的视频，公共池过滤只作用于 C 端
+    // 真分页：后端 VideoListQueryDto 支持 page/pageSize（返回 { videos, total }）
+    const params: any = { page: page.value, pageSize: pageSize.value, scope: "all" };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await videoApi.list(params);
     list.value = data.items || data.videos || [];
+    total.value = data.total || 0;
   } catch {
     loadError.value = true;
     list.value = [];
+    total.value = 0;
   } finally { loading.value = false; }
 }
 
+/** 筛选/页容量变化时重置回第一页再查询 */
+function handleSearch() {
+  page.value = 1;
+  fetchList();
+}
+
 function resetForm() {
-  Object.assign(form, { title: '', cover: '', videoUrl: '', duration: '', description: '', tags: '' });
+  Object.assign(form, { title: '', cover: '', videoUrl: '', duration: 0, description: '', tags: '' });
   editingId.value = '';
 }
 
@@ -332,7 +395,7 @@ function openEdit(row: any) {
     title: row.title || '',
     cover: row.cover || '',
     videoUrl: row.videoUrl || row.url || '',
-    duration: row.duration || '',
+    duration: row.duration || 0,
     description: row.description || '',
     tags: Array.isArray(row.tags) ? row.tags.join(',') : (row.tags || ''),
   });
@@ -346,6 +409,7 @@ async function saveVideo() {
     if (typeof payload.tags === 'string') {
       payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
     }
+    if (!payload.duration) delete payload.duration; // 未识别到时长则不传（后端可选）
     if (editingId.value) {
       await videoApi.update(editingId.value, payload);
       ElMessage.success('已更新');
@@ -420,4 +484,5 @@ function del(id: string) {
 <style scoped>
 .page { padding: 0; }
 .detail p { margin: 6px 0; font-size: 14px; color: var(--color-text-title); }
+.pagination { margin-top: 12px; display: flex; justify-content: flex-end; }
 </style>

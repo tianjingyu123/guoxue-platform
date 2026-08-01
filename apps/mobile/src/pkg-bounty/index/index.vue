@@ -81,7 +81,7 @@
 
           <!-- Content -->
           <text class="bp-card-title">{{ bounty.title }}</text>
-          <text class="bp-card-desc">{{ bounty.description }}</text>
+          <text v-if="bounty.description && bounty.description.trim() !== bounty.title.trim()" class="bp-card-desc">{{ bounty.description }}</text>
 
           <!-- Footer -->
           <view class="bp-card-foot">
@@ -117,7 +117,7 @@ import {
   BOUNTY_STATUS_TABS,
   type BountyQuestion,
   type BountyStatus,
-} from '@/lib/bounty-data'
+} from '@/pkg-bounty/lib/bounty-data'
 
 const statusTabs = BOUNTY_STATUS_TABS
 

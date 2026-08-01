@@ -136,10 +136,18 @@
         </view>
       </view>
 
-      <!-- 联系方式 -->
+      <!-- 联系方式：未配置对外邮箱时统一进入真实平台客服，不展示占位地址 -->
       <view class="contact">
-        <text class="contact-tip">如有疑问，请联系我们</text>
-        <text class="contact-email" @tap="contactEmail">privacy@rebu.com</text>
+        <text class="contact-tip">对信息收集或授权管理有疑问？</text>
+        <view
+          class="contact-service"
+          role="button"
+          aria-label="联系平台客服"
+          @tap="contactService"
+        >
+          <app-icon name="message-square" :size="18" color="#ffffff" />
+          <text>联系平台客服</text>
+        </view>
       </view>
     </view>
 
@@ -283,15 +291,17 @@ const requiredFields = computed(() =>
   dataCategories.reduce((sum, cat) => sum + cat.fields.filter(f => f.isRequired).length, 0)
 )
 
-const goPrivacy = () => navigateTo('/settings/privacy')
-const contactEmail = () => {}
+const goPrivacy = () => navigateTo('/mine/privacy-authorization')
+const contactService = () => navigateTo('/customer-service')
 </script>
 
 <style scoped>
 .page {
   min-height: 100vh;
   background-color: #faf8f5;
-  padding-bottom: 192rpx;
+  /* 固定底部 CTA 实际高度 = 32rpx padding-top + 88rpx 按钮 + 32rpx padding-bottom + 安全区，
+     原 192rpx 在有安全区的机型上不够，末行「联系我们」会被固定栏遮挡，故留足底部空间 */
+  padding-bottom: calc(224rpx + env(safe-area-inset-bottom));
 }
 
 /* 导航栏 */
@@ -580,9 +590,22 @@ const contactEmail = () => {}
   display: block;
   margin-bottom: 16rpx;
 }
-.contact-email {
-  font-size: 28rpx;
-  color: var(--brand);
+.contact-service {
+  min-height: 88rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  padding: 0 36rpx;
+  border-radius: 18rpx;
+  background: var(--brand);
+  font-size: 27rpx;
+  font-weight: 600;
+  color: #ffffff;
+}
+.contact-service:active {
+  opacity: 0.86;
+  transform: scale(0.985);
 }
 
 /* 底部按钮 */

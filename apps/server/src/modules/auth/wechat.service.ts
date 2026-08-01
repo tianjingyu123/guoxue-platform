@@ -83,16 +83,23 @@ export class WechatService {
   constructor(
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
   ) {
-    this.appId = process.env.WECHAT_APP_ID || "";
-    this.appSecret = process.env.WECHAT_APP_SECRET || "";
-    // 小程序独立凭证，未配置时回退到公众号凭证
-    this.miniAppId = process.env.WECHAT_MINI_APP_ID || this.appId;
-    this.miniAppSecret = process.env.WECHAT_APP_SECRET || "";
+    // 公众号与小程序配置卡已拆分后，不能再要求旧 WECHAT_APP_* 变量必须存在。
+    this.appId = process.env.WECHAT_APP_ID || process.env.WECHAT_OFFICIAL_APPID || "";
+    this.appSecret = process.env.WECHAT_APP_SECRET || process.env.WECHAT_OFFICIAL_APP_SECRET || "";
+    // 小程序独立凭证，未配置时回退到公众号/开放平台凭证
+    // miniAppSecret 优先读「微信小程序」卡片配的 MINIPROGRAM_APP_SECRET（后台第三方配置），
+    // 修复原先误读开放平台 WECHAT_APP_SECRET 导致小程序卡片配的密钥不生效的问题。
+    this.miniAppId =
+      process.env.WECHAT_MINI_APP_ID ||
+      process.env.MINIPROGRAM_APP_ID ||
+      process.env.WECHAT_MP_APP_ID ||
+      this.appId;
+    this.miniAppSecret = process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET || this.appSecret;
 
     if (!this.appId || !this.appSecret) {
       this.logger.warn("微信 AppId/AppSecret 未配置，微信登录暂不可用。");
     }
-    if (process.env.WECHAT_MINI_APP_ID) {
+    if (process.env.WECHAT_MINI_APP_ID || process.env.MINIPROGRAM_APP_ID || process.env.WECHAT_MP_APP_ID) {
       this.logger.log(`小程序独立AppId已配置: ${this.miniAppId.slice(0, 6)}***`);
     }
   }
@@ -112,7 +119,7 @@ export class WechatService {
     if (this.miniAccessToken !== "" && Date.now() < this.miniAccessTokenExpireAt) {
       return this.miniAccessToken;
     }
-    this.miniAccessToken = await this.fetchAccessToken(this.miniAppId, this.miniAppSecret);
+    this.miniAccessToken = await this.fetchAccessToken(this.currentMiniAppId, this.currentMiniAppSecret);
     this.miniAccessTokenExpireAt = Date.now() + 7100 * 1000;
     return this.miniAccessToken;
   }
@@ -156,15 +163,34 @@ export class WechatService {
     return data.access_token;
   }
 
-  /** 生成 H5 微信 OAuth 授权 URL */
-  buildOAuthUrl(redirectUri: string, scope: "snsapi_base" | "snsapi_userinfo" = "snsapi_userinfo"): string {
-    const encoded = encodeURIComponent(redirectUri);
-    return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${this.appId}&redirect_uri=${encoded}&response_type=code&scope=${scope}&state=wechat#wechat_redirect`;
+  /**
+   * 公众号凭据（网页授权/JSAPI支付用）。
+   * 现读 env 而非构造器缓存：后台「微信公众号」卡片保存后 syncToEnv 写回 process.env 即热生效，无需重启。
+   * 回退 WECHAT_APP_ID/WECHAT_APP_SECRET 兼容历史配置。
+   */
+  private get officialAppId(): string {
+    return process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID || this.appId;
+  }
+  private get officialAppSecret(): string {
+    return process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET || this.appSecret;
+  }
+  private get currentMiniAppId(): string {
+    return process.env.WECHAT_MINI_APP_ID || process.env.MINIPROGRAM_APP_ID || process.env.WECHAT_MP_APP_ID || process.env.WECHAT_APP_ID || this.miniAppId;
+  }
+  private get currentMiniAppSecret(): string {
+    return process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET || this.miniAppSecret;
   }
 
-  /** H5 OAuth: 用 code 换取 access_token 和 openId */
+
+  /** 生成 H5 微信 OAuth 授权 URL（公众号网页授权，appid 必须为公众号的） */
+  buildOAuthUrl(redirectUri: string, scope: "snsapi_base" | "snsapi_userinfo" = "snsapi_userinfo"): string {
+    const encoded = encodeURIComponent(redirectUri);
+    return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${this.officialAppId}&redirect_uri=${encoded}&response_type=code&scope=${scope}&state=wechat#wechat_redirect`;
+  }
+
+  /** H5 OAuth: 用 code 换取 access_token 和 openId（公众号网页授权） */
   async exchangeOAuthCode(code: string): Promise<{ openId: string; unionId?: string }> {
-    const url = `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${this.appId}&secret=${this.appSecret}&code=${code}&grant_type=authorization_code`;
+    const url = `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${this.officialAppId}&secret=${this.officialAppSecret}&code=${code}&grant_type=authorization_code`;
     const data = await this.callWechatApi<WechatTokenResponse>("sns/oauth2/access_token", url);
 
     if (data.errcode || !data.openid) {
@@ -177,7 +203,7 @@ export class WechatService {
 
   /** 小程序登录: 用 code 换取 session_key 和 openId（使用小程序独立AppId） */
   async exchangeMiniCode(code: string): Promise<{ openId: string; sessionKey: string; unionId?: string }> {
-    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${this.miniAppId}&secret=${this.miniAppSecret}&js_code=${code}&grant_type=authorization_code`;
+    const url = `https://api.weixin.qq.com/sns/jscode2session?appid=${this.currentMiniAppId}&secret=${this.currentMiniAppSecret}&js_code=${code}&grant_type=authorization_code`;
     const data = await this.callWechatApi<WechatSessionResponse>("sns/jscode2session", url);
 
     if (data.errcode || !data.openid) {

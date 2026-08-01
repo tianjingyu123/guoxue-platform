@@ -8,7 +8,7 @@
  * - 后端无对应端点的（热门问答 / 对话历史 / 常见问题）→ 返回空数组走空态，禁止返回 mock。
  * - 请求失败直接 throw，让页面走 error 态，禁止 catch 返回假数据兜底。
  */
-import { apiGet } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth } from '@/utils/request'
 import { botTypeLabel } from './bot-data'
 
 export interface SquareBot {
@@ -20,7 +20,6 @@ export interface SquareBot {
   categoryName: string
   isFree: boolean
   price?: number
-  capabilities: string[]
   /** 头像底色 */
   bgColor: string
   /** 上线 7 天内（由 createdAt 真实推导） */
@@ -74,15 +73,26 @@ export interface RankingAgent {
   name: string
   description: string
   avatar: string
+  categoryKey: string
   category: string
-  // ↓ 后端无、降级隐藏字段
+  /** 真实使用人数（后端按 BotChatLog 去重 userId 聚合） */
   users?: number
+  /** 真实对话次数（后端按 BotChatLog 聚合） */
   sessions?: number
+  // ↓ 后端无、降级隐藏字段
   rating?: number
   verified?: boolean
 }
 
-const PALETTE = ['#c41e3a', '#7c3aed', '#059669', '#ea580c', '#6366f1', '#0891b2']
+const CATEGORY_COLOR: Record<string, string> = {
+  CLASSICS_READING: '#168BD2',
+  POETRY_ART: '#B640E2',
+  WRITING_STUDIO: '#E74C92',
+  RITES_CULTURE: '#ED8B2D',
+  LEARNING_GROWTH: '#16A58A',
+  YIJING_STUDY: '#6C63E8',
+}
+const PALETTE = ['#168BD2', '#B640E2', '#E74C92', '#ED8B2D', '#16A58A', '#6C63E8']
 
 function isWithin7Days(createdAt?: string): boolean {
   if (!createdAt) return false
@@ -107,8 +117,8 @@ function formatConvTime(iso?: string): string {
 }
 
 /* —— 后端原始响应类型（容错适配用，字段全 optional，仅声明 adapter 访问到的） —— */
-interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; voiceEnabled?: boolean; createdAt?: string }
-interface RawRankingBot { id?: string | number; name?: string; intro?: string; avatar?: string; type?: string }
+interface RawBot { id?: string | number; name?: string; avatar?: string; intro?: string; type?: string; isFree?: boolean; price?: number | string; createdAt?: string }
+interface RawRankingBot { id?: string | number; name?: string; intro?: string; avatar?: string; type?: string; chatCount?: number; userCount?: number }
 interface RawConversation { conversationId?: string; botConfigId?: string; botName?: string; botAvatar?: string; botType?: string; lastMessage?: string; lastQuery?: string; lastTime?: string; messageCount?: number }
 
 /** 兼容数组 / 分页信封返回 */
@@ -120,8 +130,6 @@ function unwrap<T = Record<string, unknown>>(res: unknown): T[] {
 
 function mapSquareBot(b: RawBot, i: number): SquareBot {
   const type = b.type || ''
-  const capabilities: string[] = []
-  if (b.voiceEnabled) capabilities.push('语音对话')
   const price = b.price != null ? Number(b.price) : undefined
   return {
     id: String(b.id),
@@ -132,8 +140,7 @@ function mapSquareBot(b: RawBot, i: number): SquareBot {
     categoryName: botTypeLabel(type),
     isFree: b.isFree !== false && (price == null || price === 0),
     price,
-    capabilities,
-    bgColor: PALETTE[i % PALETTE.length],
+    bgColor: CATEGORY_COLOR[type] || PALETTE[i % PALETTE.length],
     isNew: isWithin7Days(b.createdAt),
   }
 }
@@ -156,13 +163,17 @@ export const agentsSquareApi = {
   /** 智能体热度榜 —— GET /bots/ranking */
   async getRanking(): Promise<RankingAgent[]> {
     const res = await apiGet<unknown>('/bots/ranking')
-    return unwrap<RawRankingBot>(res).map((b: RawRankingBot) => ({
+    const rows = unwrap<RawRankingBot>(res)
+    return rows.map((b: RawRankingBot) => ({
       id: String(b.id),
       name: b.name || '未命名智能体',
       description: b.intro || '',
       avatar: b.avatar || '',
+      categoryKey: b.type || '',
       category: botTypeLabel(b.type || ''),
-      // users/sessions/rating/verified 后端无 → 不赋值，页面隐藏
+      // 真实热度（BotChatLog 聚合）；rating/verified 后端无 → 不赋值，页面隐藏
+      sessions: b.chatCount != null ? Number(b.chatCount) : undefined,
+      users: b.userCount != null ? Number(b.userCount) : undefined,
     }))
   },
 
@@ -173,7 +184,7 @@ export const agentsSquareApi = {
 
   /** 对话历史 —— GET /bots/my-conversations（按 conversationId 聚合的我的会话） */
   async getConversations(): Promise<AgentConversation[]> {
-    const res = await apiGet<unknown>('/bots/my-conversations')
+    const res = await apiGetOptionalAuth<unknown>('/bots/my-conversations')
     return unwrap<RawConversation>(res).map((c: RawConversation) => ({
       id: String(c.conversationId),
       conversationId: String(c.conversationId),

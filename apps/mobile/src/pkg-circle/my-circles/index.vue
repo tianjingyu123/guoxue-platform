@@ -13,11 +13,8 @@
       <!-- 数据概览卡片 -->
       <view class="overview-card">
         <view class="overview-head">
-          <text class="overview-title">我的圈子数据</text>
-          <view class="overview-detail" @tap="navigateTo('/circles/stats')">
-            <text class="overview-detail-text">详情</text>
-            <AppIcon name="chevron-right" :size="14" color="rgba(255,255,255,0.7)" />
-          </view>
+          <!-- 语义澄清：这是「我在所有圈子的参与聚合」，不是某个具体圈子的数据（单圈数据在圈主管理里看） -->
+          <text class="overview-title">我的参与概览</text>
         </view>
         <view class="overview-stats">
           <view class="stat-item">
@@ -155,9 +152,9 @@
 
           <view class="circle-right">
             <view
-              v-if="circle.role === 'owner'"
+              v-if="circle.role === 'owner' || circle.role === 'admin'"
               class="manage-btn"
-              @tap.stop="navigateTo(`/circles/${circle.id}/manage`)"
+              @tap.stop="navigateTo(`/pkg-circle/circles/dashboard?id=${circle.id}`)"
             >
               <AppIcon name="settings" :size="16" color="#666" />
             </view>
@@ -274,7 +271,8 @@ function roleColor(role: MyCircleRole) {
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+  height: 100vh;
   background: #faf8f5;
   display: flex;
   flex-direction: column;
@@ -292,8 +290,9 @@ function roleColor(role: MyCircleRole) {
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 .nav-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -310,6 +309,7 @@ function roleColor(role: MyCircleRole) {
 .scroll-area {
   flex: 1;
   height: 0;
+  min-height: 0;
 }
 .overview-card {
   margin: 24rpx;
@@ -419,6 +419,8 @@ function roleColor(role: MyCircleRole) {
   border-radius: 999rpx;
   background: #fff;
   border: 2rpx solid #e8e3db;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .filter-chip.active {
   background: var(--brand);
@@ -428,6 +430,7 @@ function roleColor(role: MyCircleRole) {
   font-size: 24rpx;
   font-weight: 500;
   color: #666;
+  white-space: nowrap;
 }
 .filter-chip.active .filter-label {
   color: #fff;

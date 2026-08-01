@@ -4,6 +4,15 @@
       <h3>邮件管理</h3>
     </div>
 
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      title="本页为邮件测试工具"
+      description="「模板管理」与「发送历史」仅保存在当前浏览器本机（localStorage），不会同步到服务器，换电脑/清缓存即丢失，也不代表服务端真实发信记录。「发送邮件 / 测试 SMTP」会真实调用服务端邮件服务。"
+      style="margin-bottom:12px"
+    />
+
     <el-tabs v-model="activeTab">
       <el-tab-pane
         label="发送邮件"

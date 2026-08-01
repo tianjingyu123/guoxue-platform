@@ -105,7 +105,9 @@ echo "  正在生成 Prisma Client..."
 npx prisma generate --schema=apps/server/prisma/schema.prisma 2>&1 | tail -1
 
 echo "  正在执行数据库迁移..."
-npx prisma db push --schema=apps/server/prisma/schema.prisma --accept-data-loss 2>&1 | tail -3
+# 本地开发库也默认拒绝破坏性变更；如检测到数据丢失风险，命令会失败并要求人工处理。
+npx prisma db push --schema=apps/server/prisma/schema.prisma \
+  --skip-generate 2>&1 | tail -3
 
 if [ "$NO_SEED" = false ]; then
   echo "  正在填充种子数据..."

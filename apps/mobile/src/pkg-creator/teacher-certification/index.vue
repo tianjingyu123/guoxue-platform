@@ -215,9 +215,9 @@ async function loadContext() {
   }
 }
 
-/** 跳转实名认证（账号安全中心） */
+/** 跳转实名认证页（直达二要素核验，不再绕账号安全中心） */
 function goToVerify() {
-  navigateTo('/pkg-mine/security/index')
+  navigateTo('/pkg-mine/verification/index')
 }
 
 async function handleSubmit() {

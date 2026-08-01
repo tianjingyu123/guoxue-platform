@@ -16,7 +16,12 @@
       style="margin-bottom:12px"
     >
       <template #title>
-        <span style="font-size:13px">展示位置：通过路径（如 <b>/promo/spring</b>）在小程序中独立展示。可嵌入轮播、秒杀、拼团、商品等组件。发布后用户可见。</span>
+        <div style="font-size:13px;line-height:1.7">
+          <div><b>微页面 = 独立的促销/活动页</b>，通过路径（如 <b>/promo/spring</b>）在小程序中独立展示，可嵌入轮播、秒杀、拼团、商品、大卡等区块。</div>
+          <div style="color:#8b4513">
+            使用流程：① 点「创建微页面」填名称与路径 → ② 进入「编辑」拖入组件 → ③ 点「预览」查看效果 → ④ 点「发布」用户即可见；如需临时隐藏点「下线」回到草稿。
+          </div>
+        </div>
       </template>
     </el-alert>
     <el-alert
@@ -55,15 +60,28 @@
       </el-table-column>
       <el-table-column
         label="状态"
-        width="90"
+        width="110"
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.status === 'PUBLISHED' ? 'success' : 'info'"
+            v-if="row.status === 'PUBLISHED'"
+            type="success"
             size="small"
           >
-            {{ row.status === 'PUBLISHED' ? '已发布' : '草稿' }}
+            已发布 · 用户可见
           </el-tag>
+          <el-tooltip
+            v-else
+            content="草稿状态用户不可见。曾发布后「下线」也会回到草稿状态。点「发布」即可上线。"
+            placement="top"
+          >
+            <el-tag
+              type="info"
+              size="small"
+            >
+              草稿 · 未上线
+            </el-tag>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column
@@ -96,18 +114,11 @@
             编辑
           </el-button>
           <el-button
-            v-if="row.status === 'PUBLISHED'"
             size="small"
             type="warning"
             @click="openPreview(row)"
           >
             预览
-          </el-button>
-          <el-button
-            size="small"
-            @click="openVersions(row)"
-          >
-            版本
           </el-button>
           <el-button
             v-if="row.status !== 'PUBLISHED'"
@@ -116,6 +127,26 @@
             @click="doPublish(row)"
           >
             发布
+          </el-button>
+          <el-popconfirm
+            v-if="row.status === 'PUBLISHED'"
+            title="下线后用户将无法访问此页面，确定下线？"
+            @confirm="doUnpublish(row)"
+          >
+            <template #reference>
+              <el-button
+                size="small"
+                type="info"
+              >
+                下线
+              </el-button>
+            </template>
+          </el-popconfirm>
+          <el-button
+            size="small"
+            @click="openVersions(row)"
+          >
+            版本
           </el-button>
           <el-popconfirm
             title="确定删除此页面？"
@@ -931,9 +962,203 @@
                 />
               </el-form-item>
 
+              <!-- ═══ 首页原生块：公告条 ═══ -->
+              <template v-if="vePropForm.type === 'notice'">
+                <el-form-item label="公告文字">
+                  <el-input
+                    v-model="vePropForm.noticeText"
+                    type="textarea"
+                    :rows="2"
+                    placeholder="公告内容（留空则用上方标题）"
+                  />
+                </el-form-item>
+                <el-form-item label="跳转链接">
+                  <el-input
+                    v-model="vePropForm.noticeLink"
+                    placeholder="可选，如 /pages/xxx 或 https://"
+                  />
+                </el-form-item>
+              </template>
+
+              <!-- ═══ 首页原生块：金刚区（图标导航·可增删项）═══ -->
+              <template v-if="vePropForm.type === 'kingkong'">
+                <el-form-item label="图标项">
+                  <div style="width:100%">
+                    <div
+                      v-for="(it, i) in vePropForm.kkItems"
+                      :key="i"
+                      style="border:1px solid #eee;border-radius:6px;padding:8px;margin-bottom:8px;position:relative"
+                    >
+                      <div style="display:flex;gap:6px;margin-bottom:6px">
+                        <el-select
+                          v-model="it.icon"
+                          filterable
+                          allow-create
+                          placeholder="图标名"
+                          size="small"
+                          style="flex:1"
+                        >
+                          <el-option
+                            v-for="ic in KINGKONG_ICONS"
+                            :key="ic"
+                            :label="ic"
+                            :value="ic"
+                          />
+                        </el-select>
+                        <el-color-picker
+                          v-model="it.color"
+                          size="small"
+                        />
+                        <el-button
+                          size="small"
+                          type="danger"
+                          @click="vePropForm.kkItems.splice(i, 1)"
+                        >
+                          删
+                        </el-button>
+                      </div>
+                      <el-input
+                        v-model="it.label"
+                        placeholder="文字标签"
+                        size="small"
+                        style="margin-bottom:6px"
+                      />
+                      <el-input
+                        v-model="it.link"
+                        placeholder="跳转链接，如 /pages/xxx"
+                        size="small"
+                      />
+                    </div>
+                    <el-button
+                      size="small"
+                      type="primary"
+                      plain
+                      style="width:100%"
+                      @click="vePropForm.kkItems.push({ icon: 'grid', label: '', color: '#C41E3A', link: '' })"
+                    >
+                      + 添加图标
+                    </el-button>
+                  </div>
+                </el-form-item>
+              </template>
+
+              <!-- ═══ 首页原生块：横滑专栏（可增删卡片）═══ -->
+              <template v-if="vePropForm.type === 'rail'">
+                <el-form-item label="更多链接">
+                  <el-input
+                    v-model="vePropForm.railMoreLink"
+                    placeholder="可选，专栏右上角「更多」跳转"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="专栏卡片">
+                  <div style="width:100%">
+                    <div
+                      v-for="(it, i) in vePropForm.railItems"
+                      :key="i"
+                      style="border:1px solid #eee;border-radius:6px;padding:8px;margin-bottom:8px"
+                    >
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                        <span style="font-size:12px;color:#999">卡片 {{ i + 1 }}</span>
+                        <el-button
+                          size="small"
+                          type="danger"
+                          @click="vePropForm.railItems.splice(i, 1)"
+                        >
+                          删
+                        </el-button>
+                      </div>
+                      <el-input
+                        v-model="it.cover"
+                        placeholder="封面图 URL"
+                        size="small"
+                        style="margin-bottom:6px"
+                      />
+                      <el-input
+                        v-model="it.title"
+                        placeholder="卡片标题"
+                        size="small"
+                        style="margin-bottom:6px"
+                      />
+                      <div style="display:flex;gap:6px;margin-bottom:6px">
+                        <el-input
+                          v-model="it.sub"
+                          placeholder="副标题（可选）"
+                          size="small"
+                        />
+                        <el-input
+                          v-model="it.price"
+                          placeholder="价格（可选）"
+                          size="small"
+                        />
+                      </div>
+                      <el-input
+                        v-model="it.link"
+                        placeholder="跳转链接"
+                        size="small"
+                      />
+                    </div>
+                    <el-button
+                      size="small"
+                      type="primary"
+                      plain
+                      style="width:100%"
+                      @click="vePropForm.railItems.push({ cover: '', title: '', sub: '', price: '', link: '' })"
+                    >
+                      + 添加卡片
+                    </el-button>
+                  </div>
+                </el-form-item>
+              </template>
+
+              <!-- ═══ 首页原生块：2:1 大卡 ═══ -->
+              <template v-if="vePropForm.type === 'bigCard'">
+                <el-form-item label="封面图">
+                  <el-input
+                    v-model="vePropForm.bigCover"
+                    placeholder="封面图 URL"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="副标题">
+                  <el-input
+                    v-model="vePropForm.bigSubtitle"
+                    placeholder="可选"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="价格">
+                  <el-input
+                    v-model="vePropForm.bigPrice"
+                    placeholder="可选，如 99"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="角标">
+                  <el-input
+                    v-model="vePropForm.bigTag"
+                    placeholder="可选，如 限时"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-form-item label="跳转链接">
+                  <el-input
+                    v-model="vePropForm.bigLink"
+                    placeholder="点击大卡跳转"
+                    size="small"
+                  />
+                </el-form-item>
+                <el-alert
+                  title="大卡主标题使用上方「标题」字段"
+                  type="info"
+                  :closable="false"
+                  style="margin-bottom:8px"
+                />
+              </template>
+
               <!-- 其他类型：保留JSON配置 -->
               <el-form-item
-                v-if="!['FLASHSALE','GROUPBUY','COUPON','PRODUCT_LIST','FLASHSALE_INDEPENDENT','GROUPBUY_INDEPENDENT'].includes(vePropForm.type)"
+                v-if="!['FLASHSALE','GROUPBUY','COUPON','PRODUCT_LIST','FLASHSALE_INDEPENDENT','GROUPBUY_INDEPENDENT','notice','kingkong','rail','bigCard'].includes(vePropForm.type)"
                 label="配置JSON"
               >
                 <el-input
@@ -1331,7 +1556,14 @@ const compTitlePlaceholder = computed(() => {
 })
 
 const compConfigPlaceholder = computed(() => {
-  const m: Record<string, string> = { CAROUSEL: '{"images":[{"url":"...","link":"..."}]}', COUNTDOWN: '{"targetTime":"2026-12-31 23:59:59"}', IMAGE: '{"url":"...","link":"..."}', TEXT: '{"content":"HTML内容"}', TABS: '{"tabs":[{"title":"标签1","type":"PRODUCT_LIST"}]}', RECOMMEND: '{"algorithm":"popular","limit":10}' }
+  const m: Record<string, string> = {
+    CAROUSEL: '{"images":[{"url":"...","link":"..."}]}', COUNTDOWN: '{"targetTime":"2026-12-31 23:59:59"}', IMAGE: '{"url":"...","link":"..."}', TEXT: '{"content":"HTML内容"}', TABS: '{"tabs":[{"title":"标签1","type":"PRODUCT_LIST"}]}', RECOMMEND: '{"algorithm":"popular","limit":10}',
+    // 首页原生块建议在可视化编辑器中配置，此处为 JSON 结构参考
+    notice: '{"text":"公告文字","link":"/pages/xxx"}',
+    kingkong: '{"items":[{"icon":"book-open","label":"课程","color":"#C41E3A","link":"/pages/xxx"}]}',
+    rail: '{"moreLink":"","items":[{"cover":"图URL","title":"标题","sub":"","price":"","link":""}]}',
+    bigCard: '{"cover":"图URL","subtitle":"","price":"","tag":"","link":""}',
+  }
   return m[compForm.type] || '{}'
 })
 
@@ -1367,7 +1599,19 @@ const previewPageVis = ref(false); const previewPageTitle = ref(''); const previ
 // 可视化编辑器状态
 const veVis = ref(false); const veSaving = ref(false); const vePageTitle = ref('')
 const veComponents = ref<PageComponent[]>([]); const veSelectedIdx = ref<number | null>(null); const dragOver = ref(false)
-const vePropForm = reactive({ type: 'CAROUSEL', title: '', configStr: '{}', activityIds: [] as string[], productIds: [] as string[], startTime: '' as string, endTime: '' as string, audienceStr: '', independentProductId: '', independentPrice: 9.9, independentStock: 100, independentLimit: 1 })
+// 首页块子项类型
+interface KingkongItem { icon: string; label: string; color: string; link: string }
+interface RailItem { cover: string; title: string; sub: string; price: string; link: string }
+const vePropForm = reactive({
+  type: 'CAROUSEL', title: '', configStr: '{}', activityIds: [] as string[], productIds: [] as string[],
+  startTime: '' as string, endTime: '' as string, audienceStr: '',
+  independentProductId: '', independentPrice: 9.9, independentStock: 100, independentLimit: 1,
+  // ── 首页原生块字段 ──
+  noticeText: '', noticeLink: '',                                   // notice
+  kkItems: [] as KingkongItem[],                                   // kingkong
+  railMoreLink: '', railItems: [] as RailItem[],                   // rail
+  bigCover: '', bigSubtitle: '', bigPrice: '', bigTag: '', bigLink: '', // bigCard（title 复用 vePropForm.title）
+})
 
 const routePresets = [
   { label: '促销活动 /promo/sale', value: '/promo/sale' },
@@ -1387,13 +1631,24 @@ const compTypeMap: Record<string, string> = {
   GROUPBUY: '拼团专区', COUPON: '优惠券', PRODUCT_LIST: '商品列表',
   RECOMMEND: '推荐', IMAGE: '图片', TEXT: '文本', TABS: '选项卡',
   FLASHSALE_INDEPENDENT: '独立秒杀', GROUPBUY_INDEPENDENT: '独立拼团',
+  // ── 首页原生块（type 为小写，与 H5 block-renderer 对齐）──
+  notice: '公告条', kingkong: '金刚区', rail: '横滑专栏', bigCard: '大卡2:1',
 }
+
+// 首页原生块类型集合（走专属配置表单，config 直接产出 H5 期望结构）
+const HOME_BLOCK_TYPES = ['notice', 'kingkong', 'rail', 'bigCard']
+// 金刚区可选图标（H5 app-icon 支持的图标名）
+const KINGKONG_ICONS = [
+  'graduation-cap', 'book-open', 'shopping-bag', 'video', 'radio',
+  'users', 'bot', 'compass', 'grid', 'star', 'gift', 'heart',
+]
 
 function compIcon(type: string): string {
   const icons: Record<string, string> = {
     CAROUSEL: '🖼️', COUNTDOWN: '⏰', FLASHSALE: '⚡', GROUPBUY: '👥',
     COUPON: '🎫', PRODUCT_LIST: '🛍️', RECOMMEND: '⭐', IMAGE: '📷',
     TEXT: '📝', TABS: '📑', FLASHSALE_INDEPENDENT: '⚡', GROUPBUY_INDEPENDENT: '👥',
+    notice: '📢', kingkong: '🔯', rail: '🎠', bigCard: '🖼',
   }
   return icons[type] || '📦'
 }
@@ -1406,7 +1661,13 @@ function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 async function fetchList() {
   loading.value = true
   error.value = false
-  try { const { data } = await marketingApi.listPages(); list.value = data.items || data.pages || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
+  try {
+    const { data } = await marketingApi.listPages()
+    // 后端 listPages 返回裸数组（经拦截器解包后 data 即数组）；同时兼容分页包裹结构
+    const rows = Array.isArray(data) ? data : (data.items || data.pages || data.data || [])
+    list.value = rows
+    total.value = Array.isArray(data) ? rows.length : (data.total || rows.length)
+  } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', route: '', description: '', entryVisible: false, entryTitle: '', entryIcon: '', entrySort: 0 }); vis.value = true }
@@ -1565,7 +1826,7 @@ async function doSort() {
 // ───────── 可视化编辑器 ─────────
 async function openVisualEditor(row: PageRow) {
   currentPageId.value = row.id
-  vePageTitle.value = row.title ?? ''
+  vePageTitle.value = row.title ?? row.name ?? ''
   try {
     const { data } = await marketingApi.getPage(row.id)
     veComponents.value = ((data.components || []) as PageComponent[]).map((c: PageComponent) => ({ ...c, _key: `comp_${veCompKey++}` }))
@@ -1597,6 +1858,21 @@ function veSelectComp(idx: number) {
     independentPrice: cfg.flashPrice || cfg.groupPrice || 9.9,
     independentStock: cfg.stock || 100,
     independentLimit: cfg.limitPerUser || cfg.minMembers || 1,
+    // ── 首页原生块回填 ──
+    noticeText: cfg.text || '',
+    noticeLink: cfg.link || '',
+    kkItems: Array.isArray(cfg.items)
+      ? cfg.items.map((it: any) => ({ icon: it.icon || 'grid', label: it.label || '', color: it.color || '#C41E3A', link: it.link || '' }))
+      : [],
+    railMoreLink: cfg.moreLink || '',
+    railItems: Array.isArray(cfg.items)
+      ? cfg.items.map((it: any) => ({ cover: it.cover || it.image || '', title: it.title || '', sub: it.sub || it.subtitle || '', price: it.price || '', link: it.link || '' }))
+      : [],
+    bigCover: cfg.cover || cfg.image || '',
+    bigSubtitle: cfg.subtitle || '',
+    bigPrice: cfg.price || '',
+    bigTag: cfg.tag || '',
+    bigLink: cfg.link || '',
   })
   fetchActivityOptions()
 }
@@ -1616,6 +1892,11 @@ function veSyncProps() {
   else if (t === 'PRODUCT_LIST') comp.config = { productIds: vePropForm.productIds }
   else if (t === 'FLASHSALE_INDEPENDENT') comp.config = { productId: vePropForm.independentProductId, flashPrice: vePropForm.independentPrice, stock: vePropForm.independentStock, limitPerUser: vePropForm.independentLimit }
   else if (t === 'GROUPBUY_INDEPENDENT') comp.config = { productId: vePropForm.independentProductId, groupPrice: vePropForm.independentPrice, stock: vePropForm.independentStock, minMembers: vePropForm.independentLimit }
+  // ── 首页原生块：产出与 H5 block-renderer 对齐的 config ──
+  else if (t === 'notice') comp.config = { text: vePropForm.noticeText, link: vePropForm.noticeLink }
+  else if (t === 'kingkong') comp.config = { items: vePropForm.kkItems.map(it => ({ icon: it.icon, label: it.label, color: it.color, link: it.link })) }
+  else if (t === 'rail') comp.config = { moreLink: vePropForm.railMoreLink, items: vePropForm.railItems.map(it => ({ cover: it.cover, title: it.title, sub: it.sub, price: it.price, link: it.link })) }
+  else if (t === 'bigCard') comp.config = { cover: vePropForm.bigCover, title: vePropForm.title, subtitle: vePropForm.bigSubtitle, price: vePropForm.bigPrice, tag: vePropForm.bigTag, link: vePropForm.bigLink }
   else { try { comp.config = JSON.parse(vePropForm.configStr) } catch { /* keep old */ } }
   comp.startTime = vePropForm.startTime || null
   comp.endTime = vePropForm.endTime || null
@@ -1628,9 +1909,14 @@ watch([() => vePropForm.type, () => vePropForm.title, () => vePropForm.configStr
   () => vePropForm.activityIds, () => vePropForm.productIds,
   () => vePropForm.startTime, () => vePropForm.endTime, () => vePropForm.audienceStr,
   () => vePropForm.independentProductId, () => vePropForm.independentPrice,
-  () => vePropForm.independentStock, () => vePropForm.independentLimit], () => {
+  () => vePropForm.independentStock, () => vePropForm.independentLimit,
+  // ── 首页原生块字段（深度监听 items 数组）──
+  () => vePropForm.noticeText, () => vePropForm.noticeLink,
+  () => vePropForm.kkItems, () => vePropForm.railMoreLink, () => vePropForm.railItems,
+  () => vePropForm.bigCover, () => vePropForm.bigSubtitle, () => vePropForm.bigPrice,
+  () => vePropForm.bigTag, () => vePropForm.bigLink], () => {
   veSyncProps()
-})
+}, { deep: true })
 
 function veDeleteComp(idx: number) {
   veComponents.value.splice(idx, 1)
@@ -1692,12 +1978,25 @@ async function veSave() {
       })
     }
     ElMessage.success('已保存')
+    // 保存组件后刷新列表，使「组件数」等信息立即更新
+    fetchList()
   } catch { ElMessage.error('保存失败') } finally { veSaving.value = false }
 }
 
 async function vePublish() {
   await veSave()
   try { await marketingApi.publishPage(currentPageId.value); ElMessage.success('已发布'); fetchList() } catch { ElMessage.error('发布失败') }
+}
+
+// 下线/停用：把已发布页改回草稿态，用户即不可见
+async function doUnpublish(row: PageRow) {
+  try {
+    await marketingApi.updatePage(row.id, { status: 'DRAFT' })
+    ElMessage.success('已下线，用户不再可见')
+    fetchList()
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '下线失败')
+  }
 }
 
 // 渲染预览组件
@@ -1710,7 +2009,74 @@ function veRenderComp(comp: PageComponent) {
   if (type === 'TABS') return veTabsComp
   if (type === 'FLASHSALE_INDEPENDENT') return veFlashIndependentComp
   if (type === 'GROUPBUY_INDEPENDENT') return veGroupIndependentComp
+  if (type === 'notice') return veNoticeComp
+  if (type === 'kingkong') return veKingkongComp
+  if (type === 'rail') return veRailComp
+  if (type === 'bigCard') return veBigCardComp
   return veGenericComp
+}
+
+// ── 首页原生块预览 ──
+const veNoticeComp: any = {
+  props: ['comp'],
+  render(ctx: any) {
+    const cfg = ctx.comp?.config || {}
+    return h('div', { style: { margin: '8px 12px', padding: '10px 14px', background: 'rgba(201,169,110,0.14)', borderRadius: '8px', color: '#8A6D3B', fontSize: '13px' } },
+      `📢 ${ctx.comp?.title || cfg.text || '公告文字'}`)
+  },
+}
+const veKingkongComp: any = {
+  props: ['comp'],
+  render(ctx: any) {
+    const cfg = ctx.comp?.config || {}
+    const items = Array.isArray(cfg.items) ? cfg.items : []
+    return h('div', { style: { padding: '12px 8px' } }, [
+      ctx.comp?.title ? h('div', { style: { fontSize: '13px', fontWeight: 700, padding: '0 8px 8px' } }, ctx.comp.title) : null,
+      h('div', { style: { display: 'flex', flexWrap: 'wrap' } },
+        (items.length ? items : [null, null, null, null, null]).map((it: any) =>
+          h('div', { style: { width: '20%', textAlign: 'center', marginBottom: '10px', fontSize: '11px' } }, [
+            h('div', { style: { width: '38px', height: '38px', margin: '0 auto 4px', borderRadius: '10px', background: (it?.color || '#C41E3A') + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: it?.color || '#C41E3A' } }, it?.icon ? '●' : ''),
+            h('div', { style: { color: '#333' } }, it?.label || '图标'),
+          ])
+        )
+      ),
+    ])
+  },
+}
+const veRailComp: any = {
+  props: ['comp'],
+  render(ctx: any) {
+    const cfg = ctx.comp?.config || {}
+    const items = Array.isArray(cfg.items) ? cfg.items : []
+    return h('div', { style: { padding: '8px 0' } }, [
+      h('div', { style: { fontSize: '13px', fontWeight: 700, padding: '0 12px 8px' } }, ctx.comp?.title || '横滑专栏'),
+      h('div', { style: { display: 'flex', gap: '8px', overflowX: 'auto', padding: '0 12px' } },
+        (items.length ? items : [null, null]).map((it: any) =>
+          h('div', { style: { flexShrink: 0, width: '110px', background: '#fff', borderRadius: '8px', boxShadow: '0 1px 6px rgba(0,0,0,0.08)', overflow: 'hidden' } }, [
+            h('div', { style: { width: '100%', height: '80px', background: '#f2efea', backgroundImage: it?.cover ? `url(${it.cover})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' } }),
+            h('div', { style: { padding: '6px 8px', fontSize: '12px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, it?.title || '卡片标题'),
+            it?.price ? h('div', { style: { padding: '0 8px 6px', fontSize: '12px', color: '#C41E3A', fontWeight: 700 } }, `¥${it.price}`) : null,
+          ])
+        )
+      ),
+    ])
+  },
+}
+const veBigCardComp: any = {
+  props: ['comp'],
+  render(ctx: any) {
+    const cfg = ctx.comp?.config || {}
+    const cover = cfg.cover || cfg.image || ''
+    return h('div', { style: { margin: '8px 12px', position: 'relative', borderRadius: '10px', overflow: 'hidden', height: '120px', background: '#f2efea', backgroundImage: cover ? `url(${cover})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center' } }, [
+      h('div', { style: { position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(20,15,10,0.7), transparent 60%)' } }),
+      cfg.tag ? h('span', { style: { position: 'absolute', top: '8px', left: '8px', fontSize: '11px', color: '#fff', background: 'rgba(180,140,70,0.95)', borderRadius: '5px', padding: '2px 8px' } }, cfg.tag) : null,
+      h('div', { style: { position: 'absolute', left: '12px', right: '12px', bottom: '10px', color: '#fff' } }, [
+        h('div', { style: { fontSize: '16px', fontWeight: 700 } }, ctx.comp?.title || cfg.title || '大卡标题'),
+        cfg.price ? h('span', { style: { fontSize: '15px', fontWeight: 700, color: '#FFD98A' } }, `¥${cfg.price}`) : null,
+        cfg.subtitle ? h('span', { style: { fontSize: '12px', marginLeft: '8px', opacity: 0.9 } }, cfg.subtitle) : null,
+      ]),
+    ])
+  },
 }
 
 const veFlashIndependentComp: any = {
@@ -1772,7 +2138,7 @@ async function doRollback(versionId: string) {
 
 // ───────── 用户端预览 ─────────
 async function openPreview(row: PageRow) {
-  previewPageTitle.value = row.title ?? ''
+  previewPageTitle.value = row.title ?? row.name ?? ''
   previewPageComps.value = []
   previewPageVis.value = true
   try {

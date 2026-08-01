@@ -10,12 +10,13 @@ const DAY_MS = 86_400_000;
 /**
  * 核心转化漏斗日聚合（D-T1·设计真源 docs/design/数据运营引擎-看板漏斗标签周报-20260705.md §二）
  *
- * 四条漏斗（distinct 用户口径·当日窗口）：
+ * 五条漏斗（distinct 用户口径·当日窗口）：
  * - F1_activation  注册 → 当日首次排盘 → 次日回访（cohort=注册日；step3 依赖 D+1 数据，
  *   每日 cron 同时重算 昨日+前日 两天，前日行幂等修正为完整值）
  * - F2_member      会员页曝光(member_page_view) → 支付点击(member_pay_click) → 会员购买(MemberPurchase)
  * - F3_commerce    商详曝光(page_view path 含课程/商品详情) → 购买点击(buy_click) → 支付成功(Order)
  * - F4_practitioner 工具使用(PaipanRecord) → B端入口曝光 → 认证申请(TeacherCertification) → 出佣(LedgerEntry)
+ * - F5_customer_service 提问 → 问题已处理 → 推荐展示 → 推荐点击 → 点击后支付
  *
  * 事件源最小化：仅 member_page_view / member_pay_click / buy_click 三个前端新埋点，
  * 其余全部复用现有表与 page_view 的 path（勿再加埋点）。
@@ -73,7 +74,7 @@ export class FunnelDailyService {
     });
   }
 
-  /** 聚合指定日期 4 条漏斗并 upsert（幂等） */
+  /** 聚合指定日期 5 条漏斗并 upsert（幂等） */
   async rebuildDate(date: string): Promise<void> {
     if (!this.isValidDate(date)) {
       throw new BusinessException(ErrorCode.VALIDATION_ERROR, "日期格式须为 YYYY-MM-DD");
@@ -172,6 +173,42 @@ export class FunnelDailyService {
       ["b_entry_view", bEntryView],
       ["cert_apply", certApply],
       ["commission_earned", earnUsers],
+    ]);
+
+    // ── F5 智能客服（只统计登录用户，不记录对话正文） ──
+    const [askedUsers, resolvedUsers, offeredUsers] = await Promise.all([
+      this.distinctEventUsers("cs_question_submitted", range),
+      this.distinctEventUsers("cs_reply_completed", range),
+      this.distinctEventUsers("cs_recommend_offered", range),
+    ]);
+    const clickRows = await this.prisma.trackEvent.findMany({
+      where: { action: "cs_recommend_click", userId: { not: null }, createdAt: range },
+      select: { userId: true, occurredAt: true },
+      orderBy: { occurredAt: "asc" },
+    });
+    const firstClickByUser = new Map<string, Date>();
+    for (const row of clickRows) {
+      if (row.userId && !firstClickByUser.has(row.userId)) firstClickByUser.set(row.userId, row.occurredAt);
+    }
+    const clickedIds = [...firstClickByUser.keys()];
+    const paidAfterService = clickedIds.length
+      ? await this.prisma.order.findMany({
+          where: {
+            userId: { in: clickedIds },
+            status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+            paidAt: range,
+          },
+          select: { userId: true, paidAt: true },
+        }).then((rows) => new Set(rows
+          .filter((row) => row.paidAt && row.paidAt >= firstClickByUser.get(row.userId)!)
+          .map((row) => row.userId)).size)
+      : 0;
+    await this.upsertSteps(date, "F5_customer_service", [
+      ["cs_question", askedUsers],
+      ["cs_resolved", resolvedUsers],
+      ["cs_recommend_offered", offeredUsers],
+      ["cs_recommend_clicked", clickedIds.length],
+      ["cs_attributed_paid", paidAfterService],
     ]);
   }
 

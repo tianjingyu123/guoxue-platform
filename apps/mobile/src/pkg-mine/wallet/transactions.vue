@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   mineApi,
@@ -12,6 +15,20 @@ const loading = ref(true)
 const error = ref('')
 const balance = ref({ coin: 0, points: 0, frozen: 0 })
 const allRecords = ref<WalletTxRecord[]>([])
+
+/**
+ * W3 服务端分页（原实现只拉后端默认第一页 20 条，老用户第 21 条起的流水永远看不到，
+ * 月份筛选也只在这残缺的 20 条里过滤——等于查不了账）。
+ * 后端契约（wallet.controller:22-37 亲核）：page/pageSize 真分页；type=CoinTransType 枚举
+ * （「支出」精确对应 SPEND；「收入」是 RECHARGE/REFUND/GRANT/INCOME 并集，单值参数表达不了）；
+ * month 参数 controller 声明了但 wallet.service 未透传给查询（后端缺口）→ 仍拼上（后端补齐即生效），
+ * 客户端过滤兜底，配合分页加载全部数据后语义完整。
+ */
+const PAGE_SIZE = 20
+const page = ref(1)
+const total = ref(0)
+const loadingMore = ref(false)
+const hasMore = computed(() => allRecords.value.length < total.value)
 
 // 筛选状态
 const filterType = ref<'' | 'income' | 'expense'>('')
@@ -62,22 +79,52 @@ const catClass: Record<WalletTxCategory, string> = {
   other: 'cat-gray',
 }
 
+/** 组装服务端筛选参数：支出→type=SPEND 精确下推；收入无法单参表达→客户端过滤；month 透传（后端补齐即生效） */
+function serverParams() {
+  return {
+    type: filterType.value === 'expense' ? 'SPEND' : undefined,
+    month: selectedMonth.value || undefined,
+  }
+}
+
 async function fetchData() {
   loading.value = true
   error.value = ''
+  page.value = 1
   try {
     const [wallet, records] = await Promise.all([
       mineApi.getWallet(),
-      mineApi.getTransactions(),
+      mineApi.getTransactions({ page: 1, pageSize: PAGE_SIZE, ...serverParams() }),
     ])
-    balance.value = { coin: wallet.balance, points: wallet.points, frozen: 0 }
-    allRecords.value = records
+    // W6 冻结透传：后端一直返回 frozen，原来硬编码 0 → 冻结中的币对用户不可见
+    balance.value = { coin: wallet.balance, points: wallet.points, frozen: wallet.frozen }
+    allRecords.value = records.list
+    total.value = records.total
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
+
+/** 上拉加载更多（追加下一页；单页失败不清已有数据） */
+async function loadMore() {
+  if (loading.value || loadingMore.value || !hasMore.value) return
+  loadingMore.value = true
+  try {
+    const next = page.value + 1
+    const res = await mineApi.getTransactions({ page: next, pageSize: PAGE_SIZE, ...serverParams() })
+    page.value = next
+    allRecords.value = [...allRecords.value, ...res.list]
+    total.value = res.total
+  } catch {
+    uni.showToast({ title: '加载失败，请重试', icon: 'none' })
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+onReachBottom(loadMore)
 
 function retry() {
   fetchData()
@@ -120,21 +167,31 @@ function formatTime(dateStr: string) {
   return dateStr.slice(5).replace('-', '月').replace(' ', '日 ')
 }
 
+// 筛选切换：重置分页、按新条件从第 1 页重拉（支出下推 type=SPEND，其余客户端过滤兜底）
 function selectMonth(v: string) {
-  selectedMonth.value = v
+  if (selectedMonth.value !== v) {
+    selectedMonth.value = v
+    fetchData()
+  }
   showMonthPicker.value = false
 }
 function selectType(v: '' | 'income' | 'expense') {
-  filterType.value = v
+  if (filterType.value !== v) {
+    filterType.value = v
+    fetchData()
+  }
   showTypePicker.value = false
 }
 function closePickers() {
   showMonthPicker.value = false
   showTypePicker.value = false
 }
-function openDetail(id: string) {
-  navigateTo(`/wallet/transactions/${id}`)
-}
+/**
+ * 🔴 原来每条流水都可点，跳 `/wallet/transactions/:id` —— **这个详情页根本不存在**，
+ *    后端也没有流水详情端点，点了就是没反应。
+ *    而流水行本身已经展示了类型/标题/时间/金额（后端返回的就这几个字段），没有更多可看的。
+ *    → 去掉点击，不留死交互。将来后端补了流水详情（含关联订单/对手方）再加回来。
+ */
 </script>
 
 <template>
@@ -150,7 +207,7 @@ function openDetail(id: string) {
     <!-- 余额卡 -->
     <view class="balance-card">
       <view class="bal-left">
-        <text class="bal-label">学习币余额</text>
+        <text class="bal-label">国学币余额</text>
         <text class="bal-coin">{{ balance.coin.toLocaleString() }}</text>
         <text v-if="balance.frozen > 0" class="bal-frozen">冻结: {{ balance.frozen }}</text>
       </view>
@@ -210,7 +267,7 @@ function openDetail(id: string) {
     </view>
 
     <!-- 加载/错误/列表 -->
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="retry">重试</view>
@@ -220,7 +277,14 @@ function openDetail(id: string) {
         <view class="empty-icon">
           <app-icon name="wallet" :size="56" color="#d1d1d1" />
         </view>
-        <text class="empty-txt">暂无交易记录</text>
+        <text class="empty-txt">{{ filterType || selectedMonth ? '当前筛选下暂无记录' : '还没有交易记录' }}</text>
+        <!-- 收入/月份是客户端过滤：已拉到的页里没有 ≠ 更早没有，给继续翻页的出口 -->
+        <view v-if="hasMore" class="empty-btn" @tap="loadMore">
+          <text class="empty-btn-text">{{ loadingMore ? '加载中...' : '加载更早记录' }}</text>
+        </view>
+        <view v-else-if="!filterType && !selectedMonth" class="empty-btn" @tap="navigateTo('/pkg-mine/wallet/recharge')">
+          <text class="empty-btn-text">去充值</text>
+        </view>
       </view>
 
       <view v-else class="groups">
@@ -232,7 +296,6 @@ function openDetail(id: string) {
               :key="t.id"
               class="tx-item"
               :class="{ bordered: idx > 0 }"
-              @tap="openDetail(t.id)"
             >
               <view class="tx-icon" :class="catClass[t.category]">
                 <app-icon :name="catIcon[t.category]" :size="28" />
@@ -259,6 +322,12 @@ function openDetail(id: string) {
           </view>
         </view>
       </view>
+
+      <!-- W3 分页尾巴：上拉自动加载下一页（onReachBottom），到底显示卷尾 -->
+      <app-load-more
+        v-if="grouped.length > 0"
+        :status="loadingMore ? 'loading' : hasMore ? 'more' : 'nomore'"
+      />
     </view>
 
     <!-- 点击外部关闭 -->
@@ -524,6 +593,16 @@ function openDetail(id: string) {
 .empty-txt {
   font-size: 28rpx;
   color: #999999;
+}
+.empty-btn {
+  margin-top: 32rpx;
+  padding: 16rpx 48rpx;
+  background: var(--brand);
+  border-radius: 999rpx;
+}
+.empty-btn-text {
+  font-size: 28rpx;
+  color: #ffffff;
 }
 
 .picker-mask {

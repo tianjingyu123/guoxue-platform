@@ -12,10 +12,14 @@
     </view>
 
     <scroll-view scroll-y class="scroll-area" :style="{ paddingTop: navHeight + 'px' }">
-      <view v-if="loading" class="loading-state">加载中...</view>
-      <view v-else-if="error" class="error-state">
-        <text>{{ error }}</text>
-        <view @tap="fetchData">重试</view>
+      <view v-if="loading" class="page-state">
+        <app-icon name="loader-2" :size="40" color="#C41E3A" class="state-spin" />
+        <text class="page-state-text">加载中...</text>
+      </view>
+      <view v-else-if="error" class="page-state">
+        <view class="page-state-icon"><app-icon name="alert-circle" :size="48" color="#C41E3A" /></view>
+        <text class="page-state-text">{{ error }}</text>
+        <view class="page-state-btn" @tap="fetchData"><text class="page-state-btn-text">重试</text></view>
       </view>
       <template v-else>
       <!-- 结果横幅 -->
@@ -53,7 +57,7 @@
             <text class="product-name">{{ detail.product.name }}</text>
             <text class="product-sku">{{ detail.product.skuName }}</text>
             <view class="product-foot">
-              <text class="product-price">¥{{ detail.product.price }}</text>
+              <text class="product-price">¥{{ formatPrice(detail.product.price) }}</text>
               <text class="product-qty">x{{ detail.product.quantity }}</text>
             </view>
           </view>
@@ -62,14 +66,14 @@
         <view class="info-list">
           <view class="info-item">
             <text class="info-label">售后类型</text>
-            <text class="info-value">{{ detail.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
+            <text class="info-value">{{ afterSaleTypeLabel(detail.type) }}</text>
           </view>
-          <view class="info-item">
+          <view v-if="isRefundAfterSaleType(detail.type)" class="info-item">
             <text class="info-label">退款金额</text>
-            <text class="info-value price">¥{{ detail.amount.toFixed(2) }}</text>
+            <text class="info-value price">¥{{ formatPrice(detail.amount) }}</text>
           </view>
           <view class="info-item">
-            <text class="info-label">退款原因</text>
+            <text class="info-label">申请原因</text>
             <text class="info-value">{{ detail.reason }}</text>
           </view>
           <view class="info-item">
@@ -120,7 +124,7 @@
       <view class="service-card" @tap="contactService">
         <view class="service-left">
           <view class="service-icon">
-            <app-icon name="phone" :size="34" color="#C9A96E" />
+            <app-icon name="message-circle" :size="34" color="#C9A96E" />
           </view>
           <view class="service-text">
             <text class="service-title">联系客服</text>
@@ -134,8 +138,8 @@
       </template>
     </scroll-view>
 
-    <!-- 底部按钮 -->
-    <view class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
+    <!-- 底部按钮（加载/错误态隐藏，避免空页浮出操作栏） -->
+    <view v-if="!loading && !error" class="footer" :style="{ paddingBottom: safeBottom + 'px' }">
       <view class="footer-row">
         <view class="footer-btn ghost" @tap="reApply">
           <app-icon name="refresh-cw" :size="30" color="#C41E3A" />
@@ -157,7 +161,8 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { accountApi } from '@/lib/account-data'
+import { accountApi, afterSaleTypeLabel, isRefundAfterSaleType } from '@/pkg-account/lib/account-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(64)
@@ -224,15 +229,23 @@ function previewImage(idx: number) {
 }
 
 function contactService() {
-  uni.showToast({ title: '正在接入客服...', icon: 'none' })
+  navigateTo('/customer-service')
 }
 
 function reApply() {
-  navigateTo(`/shop/after-sale?orderId=${detail.value.orderId}&prefill=true`)
+  if (detail.value.type === 'exchange') {
+    navigateTo('/shop/exchange?orderId=' + detail.value.orderId)
+    return
+  }
+  if (detail.value.type === 'dispute' || detail.value.type === 'other') {
+    navigateTo('/orders/dispute?orderId=' + detail.value.orderId)
+    return
+  }
+  navigateTo('/shop/after-sale?orderId=' + detail.value.orderId + '&prefill=true')
 }
 
 function appeal() {
-  navigateTo(`/orders/dispute?afterSaleId=${detail.value.id}`)
+  navigateTo('/orders/dispute?orderId=' + detail.value.orderId)
 }
 
 function viewOrder() {
@@ -279,6 +292,46 @@ function viewOrder() {
 .scroll-area {
   height: 100vh;
   box-sizing: border-box;
+}
+
+/* 统一居中卡片式加载/错误态 */
+.page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 200rpx 48rpx;
+}
+.page-state-icon {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.page-state-text {
+  font-size: 28rpx;
+  color: #999999;
+  text-align: center;
+}
+.page-state-btn {
+  margin-top: 8rpx;
+  padding: 16rpx 56rpx;
+  background: var(--brand);
+  border-radius: 999rpx;
+}
+.page-state-btn-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+.state-spin {
+  animation: state-spin 1s linear infinite;
+}
+@keyframes state-spin {
+  to { transform: rotate(360deg); }
 }
 
 .result-banner {

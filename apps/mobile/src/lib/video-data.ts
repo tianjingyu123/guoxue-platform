@@ -3,7 +3,7 @@
  * @data-needs: 视频流，参数 id(来自 onLoad 定位起始视频)，GET 返回 VideoItem[]
  */
 
-import { apiGet, apiPost, apiPut, apiDelete, useMock } from '@/utils/request'
+import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 export interface VideoProduct {
   id: string
@@ -20,14 +20,17 @@ export interface VideoHotComment {
   likes: number
 }
 
-/** 视频评论（真连通用 comment 端点·targetType=VIDEO） */
+/** 视频评论（真连通用 comment 端点·targetType=VIDEO·含楼中楼 replies） */
 export interface VideoComment {
   id: string
+  userId: string
   user: string
   avatar: string
   content: string
   likes: number
   createdAt: string
+  /** 楼中楼回复（后端 findByTarget 内联返回·递归结构） */
+  replies: VideoComment[]
 }
 
 export interface VideoAuthor {
@@ -53,6 +56,14 @@ export interface VideoItem {
   music: string
   products: VideoProduct[]
   hotComments: VideoHotComment[]
+  /** 来源圈子（内容圈子化：每条视频标明出处，顶栏来源胶囊可点跳圈子详情） */
+  circle?: { id: string; name: string }
+  /**
+   * 「仅自己可见」灰标（内容被机审降级时仅作者可见的展示标识）。
+   * 纯前瞻声明：当前列表/详情接口尚未下发该字段，故 UI 恒不显示；
+   * 后端补字段后自动生效。不参与任何交互/数据组装逻辑。
+   */
+  selfOnly?: boolean
 }
 
 export const mockVideos: VideoItem[] = [
@@ -226,6 +237,7 @@ export interface VideoListItem {
   id: string
   title: string
   coverUrl: string
+  videoUrl?: string
   duration: number
   author: { name: string; avatar: string }
   likes: number
@@ -241,6 +253,7 @@ export interface VideoSearchResult {
   author: string
   authorAvatar: string
   cover: string
+  videoUrl?: string
   duration: string
   views: number
   publishedAt: string
@@ -300,11 +313,55 @@ interface RawVideo {
   coverUrl?: string; videoUrl?: string
   likeCount?: number; likes?: number; commentCount?: number; comments?: number; shareCount?: number; shares?: number
   products?: RawVideoProduct[]
+  /** 来源圈子（后端 /videos 与 /videos/:id 均 include circle:{id,name}） */
+  circle?: { id?: string; name?: string } | null
 }
-/** 通用评论原始响应（GET /comment·targetType=VIDEO） */
+/** 通用评论原始响应（GET /comment·targetType=VIDEO·replies 为后端内联楼中楼） */
 interface RawComment {
-  id?: string; content?: string; likeCount?: number; createdAt?: string
+  id?: string; content?: string; likeCount?: number; createdAt?: string; parentId?: string | null
   user?: { id?: string; nickname?: string; avatar?: string } | null
+  replies?: RawComment[]
+}
+
+/** 后端评论 → 前端 VideoComment（递归映射楼中楼） */
+function adaptComment(c: RawComment): VideoComment {
+  return {
+    id: c.id || '',
+    userId: c.user?.id || '',
+    user: c.user?.nickname || '匿名用户',
+    avatar: c.user?.avatar || '',
+    content: c.content || '',
+    likes: c.likeCount ?? 0,
+    createdAt: c.createdAt || '',
+    replies: Array.isArray(c.replies) ? c.replies.map(adaptComment) : [],
+  }
+}
+
+/** 评论时间 → 相对时间（刚刚/x分钟前/x小时前/x天前/日期） */
+export function formatCommentTime(iso: string): string {
+  if (!iso) return ''
+  const t = new Date(iso).getTime()
+  if (!Number.isFinite(t)) return ''
+  const diff = Date.now() - t
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}分钟前`
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}小时前`
+  if (diff < 30 * 86_400_000) return `${Math.floor(diff / 86_400_000)}天前`
+  const d = new Date(t)
+  return `${d.getMonth() + 1}-${d.getDate()}`
+}
+
+/**
+ * 反转义历史坏数据：后端旧版 SanitizePipe 曾把 URL 存成 HTML 实体（https:&#x2F;&#x2F;…），
+ * 导致 <video src> 无效播不了。后端读取路径已归一化，此处前端再兜底一层（独立部署也生效）。
+ */
+function unescapeUrl(s?: string): string {
+  if (!s || !s.includes('&')) return s || ''
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&#x2F;/g, '/')
+    .replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"')
 }
 
 /** 后端视频 → 前端 VideoItem（全屏流；followers/verified/music/hotComments 后端无→默认） */
@@ -320,8 +377,8 @@ function adaptVideoItem(v: RawVideo): VideoItem {
       followers: 0,
       verified: false,
     },
-    coverUrl: v.coverUrl || '',
-    videoUrl: v.videoUrl || '',
+    coverUrl: unescapeUrl(v.coverUrl),
+    videoUrl: unescapeUrl(v.videoUrl),
     likes: v.likeCount ?? v.likes ?? 0,
     comments: v.commentCount ?? v.comments ?? 0,
     shares: v.shareCount ?? v.shares ?? 0,
@@ -333,21 +390,38 @@ function adaptVideoItem(v: RawVideo): VideoItem {
       ? v.products.map((p: RawVideoProduct) => ({ id: String(p.productId ?? p.id ?? ''), name: p.title || p.name || '', price: Number(p.price) || 0, originalPrice: Number(p.originalPrice) || 0, image: (Array.isArray(p.images) && p.images[0]) || p.image || '', sales: p.salesCount ?? p.sales ?? 0 }))
       : [],
     hotComments: [],
+    // 来源圈子：仅当后端确实返回圈子关联时映射（无圈子 → undefined，顶栏胶囊不渲染）
+    circle: v.circle?.id ? { id: v.circle.id, name: v.circle.name || '' } : undefined,
   }
 }
 
 export const videoApi = {
-  /** 发布视频 — POST /videos（错误传播给页面） */
-  async publish(data: Record<string, unknown>): Promise<unknown> {
+  /** 发布视频 — POST /videos（错误传播给页面；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·发布即可见，机审后台异步） */
+  async publish(data: { circleId?: string; title: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; products?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }): Promise<unknown> {
     return await apiPost('/videos', data)
   },
 
-  /** 视频列表（全屏流）— GET /videos（错误传播给页面三态，不回退假 mock） */
-  async list(_params?: Record<string, unknown>): Promise<VideoItem[]> {
-    const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>('/videos?pageSize=50')
+  /**
+   * 视频列表（全屏流）— GET /videos（错误传播给页面三态，不回退假 mock）
+   * 后端已支持分页（video.controller @Get() → svc.list({page,pageSize})·返回 {videos,total,page,pageSize}）。
+   * page 从 1 起。去重以 id 为准（同名视频是合法数据，纯按 title 去重会误杀·与页面跨页去重同口径）；
+   * title 去重仅作为 seed 种子数据防线保留（种子曾把同一条内容用不同 id 反复灌入）——
+   * 深链目标若被本防线滤掉，由详情页 pendingId→getById 单拉插队兜底，不会「静默换片」。
+   */
+  async list(params?: { page?: number; pageSize?: number }): Promise<VideoItem[]> {
+    const page = params?.page ?? 1
+    const pageSize = params?.pageSize ?? 50
+    const res = await apiGet<RawVideo[] | { videos?: RawVideo[]; data?: RawVideo[] }>(`/videos?page=${page}&pageSize=${pageSize}`)
     const arr = Array.isArray(res) ? res : (res?.videos ?? res?.data ?? [])
-    const seen = new Set<string>()
-    return arr.map(adaptVideoItem).filter((v: VideoItem) => { if (seen.has(v.title)) return false; seen.add(v.title); return true })
+    const seenIds = new Set<string>()
+    const seenTitles = new Set<string>()
+    return arr.map(adaptVideoItem).filter((v: VideoItem) => {
+      if (v.id && seenIds.has(v.id)) return false
+      if (v.title && seenTitles.has(v.title)) return false // seed 防线（见上方注释）
+      if (v.id) seenIds.add(v.id)
+      if (v.title) seenTitles.add(v.title)
+      return true
+    })
   },
 
   /** 视频详情 — GET /videos/:id（错误传播） */
@@ -452,23 +526,16 @@ export const videoApi = {
 
   // ───────── 评论子系统（P2·复用通用 comment 端点·targetType=VIDEO）─────────
 
-  /** 视频评论列表 — GET /comment?targetType=VIDEO&targetId=（错误传播三态） */
-  async getComments(videoId: string, page = 1, pageSize = 20): Promise<VideoComment[]> {
-    const res = await apiGet<{ data?: RawComment[] } | RawComment[]>(`/comment?targetType=VIDEO&targetId=${videoId}&page=${page}&pageSize=${pageSize}`)
-    const arr = Array.isArray(res) ? res : (res?.data ?? [])
-    return arr.map((c: RawComment): VideoComment => ({
-      id: c.id || '',
-      user: c.user?.nickname || '匿名用户',
-      avatar: c.user?.avatar || '',
-      content: c.content || '',
-      likes: c.likeCount ?? 0,
-      createdAt: c.createdAt || '',
-    }))
+  /** 视频评论列表 — GET /comment?targetType=VIDEO&targetId=（错误传播三态·apiGetPaged 保留 pagination.total·含楼中楼） */
+  async getComments(videoId: string, page = 1, pageSize = 20): Promise<{ items: VideoComment[]; total: number }> {
+    const res = await apiGetPaged<RawComment>(`/comment?targetType=VIDEO&targetId=${videoId}&page=${page}&pageSize=${pageSize}`)
+    return { items: res.items.map(adaptComment), total: res.total }
   },
 
-  /** 发表视频评论 — POST /comment（后端过内容审核·返回新评论） */
-  async postComment(videoId: string, content: string): Promise<void> {
-    await apiPost('/comment', { targetType: 'VIDEO', targetId: videoId, content })
+  /** 发表视频评论 — POST /comment（后端过内容审核·返回新评论供乐观插入·parentId=楼中楼回复） */
+  async postComment(videoId: string, content: string, parentId?: string): Promise<VideoComment> {
+    const res = await apiPost<RawComment>('/comment', { targetType: 'VIDEO', targetId: videoId, content, ...(parentId ? { parentId } : {}) })
+    return adaptComment(res || {})
   },
 
   /** 点赞评论 — POST /comment/:id/like */

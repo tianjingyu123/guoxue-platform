@@ -68,12 +68,47 @@ function maskId(id?: string): string {
   return id.slice(0, 4) + '****' + id.slice(-4)
 }
 
-// 行为描述：UserBehaviorLog 无 description 字段，由 targetType/targetId/meta 拼装
+// 行为动作词表（与 users/UserDetail.vue 的 BEHAVIOR_MAP 保持一致）
+const BEHAVIOR_MAP: Record<string, string> = {
+  LOGIN: '登录', LOGOUT: '退出', REGISTER: '注册',
+  VIEW_ARTICLE: '查看文章', VIEW_COURSE: '查看课程', VIEW_CLASSIC: '阅读古籍',
+  SEARCH: '搜索', LIKE: '点赞', COLLECT: '收藏', COMMENT: '评论',
+  PURCHASE: '购买', RECHARGE: '充值', PAIPAN: '排盘',
+  FOLLOW: '关注', JOIN_CIRCLE: '加入圈子', CHECK_IN: '签到',
+  ORDER: '下单', PAYMENT: '支付', CONTENT: '内容操作', PROFILE: '修改资料',
+}
+
+const TARGET_MAP: Record<string, string> = {
+  ARTICLE: '文章', COURSE: '课程', CLASSIC: '古籍', CIRCLE: '圈子',
+  PRODUCT: '商品', ORDER: '订单', USER: '用户', POST: '帖子',
+}
+
+// meta 常见键的人话映射（未知键显示原键名）
+const META_KEY_MAP: Record<string, string> = {
+  keyword: '关键词', page: '页面', path: '路径', orderId: '订单号',
+  amount: '金额', duration: '时长', source: '来源', channel: '渠道',
+  courseId: '课程', articleId: '文章', productId: '商品', circleId: '圈子',
+}
+
+function behaviorLabel(a?: string): string {
+  if (!a) return '-'
+  return BEHAVIOR_MAP[a] || a
+}
+
+// 行为描述：UserBehaviorLog 无 description 字段，由 targetType/targetId/meta 拼装成人话
 function behaviorDesc(item: BehaviorLog): string {
   const parts: string[] = []
-  if (item.targetType) parts.push(`${item.targetType}${item.targetId ? '#' + item.targetId : ''}`)
-  if (item.meta && Object.keys(item.meta).length) parts.push(JSON.stringify(item.meta))
-  return parts.join(' ') || '-'
+  if (item.targetType) {
+    const t = TARGET_MAP[item.targetType] || item.targetType
+    parts.push(item.targetId ? `${t} ${maskId(item.targetId)}` : t)
+  }
+  if (item.meta && Object.keys(item.meta).length) {
+    const metaParts = Object.entries(item.meta)
+      .slice(0, 5)
+      .map(([k, v]) => `${META_KEY_MAP[k] || k}：${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+    parts.push(metaParts.join(' · '))
+  }
+  return parts.join(' · ') || '-'
 }
 
 // 筛选条件变化：回到第一页重新查询（后端过滤/分页）
@@ -124,6 +159,7 @@ function exportTimeline() {
     [
       { label: '时间', key: 'createdAt' },
       { label: '行为类型', key: 'action' },
+      { label: '行为', key: 'actionLabel' },
       { label: '描述', key: 'desc' },
       { label: '目标类型', key: 'targetType' },
       { label: '目标ID', key: 'targetId' },
@@ -133,6 +169,7 @@ function exportTimeline() {
     list.value.map((item: BehaviorLog) => ({
       createdAt: item.createdAt ? new Date(item.createdAt).toLocaleString() : '-',
       action: item.action || '-',
+      actionLabel: behaviorLabel(item.action),
       desc: behaviorDesc(item),
       targetType: item.targetType || '-',
       targetId: item.targetId || '-',
@@ -149,17 +186,18 @@ function exportTimeline() {
       <h3>用户行为轨迹</h3>
       <el-button
         :disabled="!searched || list.length === 0"
+        title="仅导出当前页展示的行为记录"
         @click="exportTimeline"
       >
-        导出
+        导出当前页
       </el-button>
     </div>
 
     <div class="search-bar">
       <el-input
         v-model="searchUserId"
-        placeholder="输入用户ID"
-        style="width:200px"
+        placeholder="输入完整用户ID"
+        style="width:220px"
         clearable
         @keyup.enter="searchTimeline"
       />
@@ -194,6 +232,9 @@ function exportTimeline() {
       >
         查询
       </el-button>
+    </div>
+    <div class="search-hint">
+      用户ID可在「用户管理」列表中点击复制获得，粘贴完整ID后查询该用户的行为轨迹
     </div>
 
     <!-- 用户信息卡片（后端联表返回，手机号已脱敏） -->
@@ -262,8 +303,9 @@ function exportTimeline() {
               <el-tag
                 size="small"
                 :type="(item.action || '').includes('LOGIN') || (item.action || '').includes('LOGOUT') ? '' : (item.action || '').includes('ORDER') || (item.action || '').includes('PAYMENT') ? 'success' : 'warning'"
+                :title="item.action"
               >
-                {{ item.action || '-' }}
+                {{ behaviorLabel(item.action) }}
               </el-tag>
               <span class="timeline-desc">{{ behaviorDesc(item) }}</span>
             </div>
@@ -293,7 +335,7 @@ function exportTimeline() {
 
     <el-empty
       v-else-if="!loading && searched && !error"
-      description="未查询到该用户的行为记录"
+      description="该用户暂无行为记录——行为采集依赖前端埋点上报，若确认该用户近期活跃，请检查埋点采集链路是否正常"
     />
   </div>
 </template>
@@ -302,7 +344,8 @@ function exportTimeline() {
 .page { padding: 16px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.search-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+.search-bar { display: flex; gap: 12px; margin-bottom: 6px; align-items: center; flex-wrap: wrap; }
+.search-hint { font-size: 12px; color: var(--color-text-secondary, #909399); margin-bottom: 16px; }
 .user-card { margin-bottom: 20px; }
 .timeline-container { margin-top: 8px; }
 .timeline-item { padding: 4px 0; }

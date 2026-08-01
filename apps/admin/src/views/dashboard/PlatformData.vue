@@ -8,7 +8,6 @@ import { ref, onMounted } from 'vue'
 import type { Component } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
-import * as echarts from 'echarts'
 import ChartCard from '@/components/ChartCard.vue'
 import { User, Document, Goods, Money, Plus, Coin, ChatDotRound, View } from '@element-plus/icons-vue'
 
@@ -119,10 +118,10 @@ async function fetchData() {
   loading.value = true
   loadError.value = false
   try {
-    const [statsRes, trendsRes, _revenueRes, chartsRes] = await Promise.all([
+    // 冗余的 /dashboard/revenue 请求已删除（其返回值从未被使用，白白多打一次财务端点）
+    const [statsRes, trendsRes, chartsRes] = await Promise.all([
       api.get('/dashboard/stats'),
       api.get('/dashboard/trends'),
-      api.get('/dashboard/revenue'),
       api.get('/dashboard/charts'),
     ])
     const s = statsRes.data ?? {}

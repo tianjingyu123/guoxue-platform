@@ -50,4 +50,15 @@ export class AnomalyDetectorController {
     this.detector.registerRule(body);
     return { success: true };
   }
+
+  @Post("rules/:ruleId/toggle")
+  @ApiOperation({ summary: "启用/停用检测规则" })
+  @ApiResponse({ status: 201, description: "操作成功" })
+  @ApiResponse({ status: 404, description: "规则不存在" })
+  async toggleRule(
+    @Param("ruleId") ruleId: string,
+    @Body() body: { enabled?: boolean },
+  ) {
+    return this.detector.toggleRule(ruleId, body?.enabled);
+  }
 }

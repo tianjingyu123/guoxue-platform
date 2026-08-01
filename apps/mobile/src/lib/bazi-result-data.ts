@@ -1,6 +1,5 @@
 /** 八字结果页示例数据（从原型 result/page.tsx 1:1 迁移） */
-import { GAN_SHI_SHEN } from './bazi-constants'
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiPost, apiPostOptionalAuth } from '@/utils/request'
 
 const _mockBaziData = {
   name: '未知', gender: '男', zodiac: '猪', qianKun: '乾造', birthYear: 1983,
@@ -55,35 +54,6 @@ const _mockBaziData = {
   wuxingState: { 木: '旺', 火: '相', 土: '休', 金: '囚', 水: '死' } as Record<string, string>,
 }
 
-export const classics = [
-  { id: 'qiong', name: '穷通宝鉴' },
-  { id: 'di', name: '滴天髓' },
-  { id: 'san', name: '三命通会' },
-  { id: 'bazi', name: '八字提要' },
-]
-
-const _mockClassicsContent: Record<string, { title: string; original: string; translation: string }> = {
-  qiong: {
-    title: '论丁生午月',
-    original: '五月丁火建禄，正值火旺之时，火当令而旺，以金水为用神为宜。用壬不可少甲，最为紧要。丙丁并透，又加支中火多，无壬水制之，其人必操屠宰业。用壬者，金妻水子。若得庚辛壬三者齐透，科甲功名。',
-    translation: '五月丁火处于建禄之位，正值火势最旺的时候，火在当令之时非常旺盛，应该以金水作为用神。使用壬水时不能缺少甲木的配合，这是最关键的要点。如果丙丁都透出天干，再加上地支火多，没有壬水来制约，此人必定从事屠宰行业。用壬水为用神的，娶金命之妻、生水命之子。若庚辛壬三者都透出天干，可得科举功名。',
-  },
-  di: {
-    title: '论丁火',
-    original: '丁火柔中，内性昭融。抱乙而孝，合壬而忠。旺而不烈，衰而不穷。如有嫡母，可秋可冬。',
-    translation: '丁火属阴，性质柔和而内在光明通达。与乙木相依是慈孝之象，与壬水相合是忠义之征。丁火旺盛时不会过于猛烈，衰弱时也不会走投无路。如果命中有甲木正印来生助，即使在秋冬失令之时也能自立。丁火犹如灯烛之光，虽小而能照亮四方。',
-  },
-  san: {
-    title: '丁丑日柱论',
-    original: '丁丑坐墓库，为金神格局。丁火坐丑中己土食神、辛金偏财、癸水七杀。若身旺能任财杀，主富贵。丁火日主坐墓地，逢冲则发。丑中暗藏三奇：己辛癸，食神生偏财，偏财引七杀，一路顺生有情。',
-    translation: '丁丑日柱是丁火坐在墓库之上，属于金神格局。丑土中暗藏己土（食神）、辛金（偏财）、癸水（七杀）。如果日主身旺能够承担财杀，主人富贵。丁火日主坐在墓地，遇到冲击就会发达。丑土中暗藏食神、偏财、七杀三种元素，食神生偏财、偏财引七杀，形成一路顺生的有情组合。',
-  },
-  bazi: {
-    title: '五月提要（午月）',
-    original: '午月丁火建禄，火势炎上。宜壬水高透以制火，庚金佐之发水源。甲木不可少，引丁成文明之象。午月火旺土燥，金水为调候急需。若壬甲两透，定主科甲。壬透甲藏，亦可功名。无壬用癸，格局稍次。',
-    translation: '午月丁火正当建禄之时，火势极为旺盛向上。适宜壬水在天干高透来制约火势，庚金辅助壬水以发其源头。甲木不可缺少，引导丁火成为文明之象。午月火旺土燥，金水是调候的急切需要。如果壬水和甲木都透出天干，必定主科举功名。壬水透出而甲木暗藏在地支，也可以取得功名。没有壬水而用癸水代替，格局稍差一些。',
-  },
-}
 
 // ───────── 后端真实算法输出 → 前端组件结构适配 ─────────
 // 后端 GET /paipan/bazi/calculate（calcBaziPreview，真实排盘算法）输出结构与组件期望(_mockBaziData)不同，
@@ -126,9 +96,10 @@ interface RawBaziResponse {
   shenGong?: RawPalace
   fenXiTiShi?: Record<string, string[]> | null
   geJu?: unknown
+  /** 真太阳时校正信息（开启 useTrueSolarTime 时引擎返回） */
+  taiYangShi?: { adjustedHour?: number; adjustedMinute?: number; desc?: string } | null
 }
 /** 八字古籍参考内容原始响应 */
-interface RawClassicContent { title?: string; original?: string; translation?: string }
 
 const _PILLAR_BE = { year: 'nian', month: 'yue', day: 'ri', hour: 'shi' } as const
 const _SS_PILLAR_FE: Record<string, string> = { nian: 'year', yue: 'month', ri: 'day', shi: 'hour' }
@@ -191,11 +162,16 @@ export function adaptBazi(raw: RawBaziResponse) {
     diZhi: fxArr('sanHe', 'sanHui', 'liuChong', 'liuHe', 'liuHai', 'sanXing', 'ziXing'), // 地支三合/三会/冲/合/害/刑/自刑
     zhengZhu: fxArr('anHe', 'xiangPo', 'anJue'), // 暗合/相破/暗绝
   }
+  // 真太阳时（开启校正时引擎返回 taiYangShi；未开启为空 → 组件 v-if 隐藏）
+  const ts = raw?.taiYangShi
+  const realSolarTime = (ts && ts.adjustedHour !== undefined)
+    ? `${String(Math.floor(Number(ts.adjustedHour))).padStart(2, '0')}时${String(Number(ts.adjustedMinute) || 0).padStart(2, '0')}分${ts.desc ? `（${ts.desc}）` : ''}`
+    : ''
   return {
     relations,
     zodiac: raw?.shengXiao || '',
     lunarDate: raw?.lunarDate || '',
-    realSolarTime: '', // 后端未启用真太阳时换算 → 降级（组件 v-if 隐藏）
+    realSolarTime,
     jieQi: '', // 后端无节气字段 → 降级
     siZhu,
     shenSha,
@@ -273,25 +249,51 @@ export interface BaziCalcInput {
   hour: number
   minute?: number
   place?: string
+  /** 出生城市（真太阳时按城市经度校正；后端 BaziInputDto.city） */
+  city?: string
+  /** 真太阳时校正（后端 BaziInputDto.useTrueSolarTime，引擎 calcTrueSolarTime 真消费） */
+  useTrueSolarTime?: boolean
+  /** 夏令时校正（后端 BaziInputDto.useDaylightSaving，1986-1991 出生适用） */
+  useDaylightSaving?: boolean
+  /**
+   * 早晚子时：true → ziShiMode='modern'（晚子时日柱不换、时柱用次日干），
+   * false/缺省 → 'traditional'（23 点后日柱用次日）。与引擎 sizhu.ts 口径一致。
+   */
+  earlyZi?: boolean
 }
 
 export const baziApi = {
-  /** 八字排盘结果（真连 GET /paipan/bazi/calculate，真实算法 + adaptBazi 适配，失败抛错走页面 error 态） */
+  /**
+   * 八字排盘结果（真连 POST /paipan/bazi/preview，真实算法 + adaptBazi 适配，失败抛错走页面 error 态）。
+   *
+   * 2026-07-17 从 GET /paipan/bazi/calculate 改走 POST preview：GET 版只收
+   * year/month/day/hour/minute/gender，真太阳时/早晚子时/夏令时/出生地在前端采集了
+   * 却传不过去（假开关）。POST preview 走完整 BaziInputDto
+   * （city/useTrueSolarTime/useDaylightSaving/ziShiMode），引擎逐项真消费
+   * （buildInput → calcBazi，已亲核 apps/server paipan.service.ts + bazi-engine）。
+   * 两端点同为免登录 + 限流，返回结构一致（均为 calcBaziPreview 的 BaziResult）。
+   */
   async calculate(input: BaziCalcInput) {
-    const params = new URLSearchParams({
-      year: String(input.year), month: String(input.month), day: String(input.day),
-      hour: String(input.hour), minute: String(input.minute ?? 0),
+    return adaptBazi(await apiPost<RawBaziResponse>('/paipan/bazi/preview', {
+      name: input.name || undefined,
       gender: input.gender,
-    }).toString()
-    return adaptBazi(await apiGet<RawBaziResponse>('/paipan/bazi/calculate?' + params))
+      year: input.year, month: input.month, day: input.day,
+      hour: input.hour, minute: input.minute ?? 0,
+      city: input.city || undefined,
+      useTrueSolarTime: input.useTrueSolarTime === true,
+      useDaylightSaving: input.useDaylightSaving === true,
+      ziShiMode: input.earlyZi ? 'modern' : 'traditional',
+    }))
   },
 
   /**
    * 排盘并保存记录（POST /paipan/bazi，需登录）——流派点评的前置步骤：拿 paipanRecordId。
-   * 未登录时 401 由 request 层统一跳登录（与页面既有 AI 分析行为一致）。
+   * 默认用于主动 AI 分析，失效时回登录；结果页后台自动保存传 optionalAuth=true，
+   * 失效时仅保留本地盘，不打断用户查看结果。
    */
-  async createRecord(input: BaziCalcInput): Promise<{ id: string }> {
-    const res = await apiPost<{ id?: string }>('/paipan/bazi', {
+  async createRecord(input: BaziCalcInput, optionalAuth = false): Promise<{ id: string }> {
+    const create = optionalAuth ? apiPostOptionalAuth<{ id?: string }> : apiPost<{ id?: string }>
+    const res = await create('/paipan/bazi', {
       name: input.name || undefined,
       gender: input.gender,
       year: input.year,
@@ -299,6 +301,12 @@ export const baziApi = {
       day: input.day,
       hour: input.hour,
       minute: input.minute ?? 0,
+      // 与 calculate 同口径透传（POST /paipan/bazi 同为 BaziInputDto），
+      // 否则落库的盘与用户看到的盘会因校正项不同而两样
+      city: input.city || undefined,
+      useTrueSolarTime: input.useTrueSolarTime === true,
+      useDaylightSaving: input.useDaylightSaving === true,
+      ziShiMode: input.earlyZi ? 'modern' : 'traditional',
     })
     if (!res?.id) throw new Error('保存排盘记录失败')
     return { id: res.id }
@@ -307,9 +315,14 @@ export const baziApi = {
   /**
    * 请流派虚拟师父看盘（POST /paipan/bazi/analyze + school）。
    * 业务异常（限额「今日请师父看盘次数已用完」/计费「国学币不足，追加师父点评需 X 币」）message 直接 toast 展示。
+   *
+   * 🔴 必须传足超时：AI 写一份点评要 30–60 秒，而 request 的默认超时只有 15 秒。
+   *    不传的话必然超时 —— 用户看到的是 uni 抛的「request:fail timeout」这种错误码，
+   *    而后端其实还在跑、会写库、会扣币：**失败提示 + 币照扣**，比单纯报错更伤。
+   *    （AI 智能解盘页同样给了 90s，两处口径要一致。）
    */
   async analyzeSchool(recordId: string, school: BaziSchoolId): Promise<SchoolAnalysisRecord> {
-    return apiPost<SchoolAnalysisRecord>('/paipan/bazi/analyze', { recordId, school })
+    return apiPost<SchoolAnalysisRecord>('/paipan/bazi/analyze', { recordId, school }, undefined, 90000)
   },
 
   /** 该盘全部分析记录 + 计费元数据（GET /paipan/records/:id/analyses，回显已请过的师父点评） */
@@ -319,21 +332,39 @@ export const baziApi = {
     return { items: Array.isArray(res?.items) ? res.items : [], pricing: res?.pricing ?? null }
   },
 
-  /** 古籍参考内容（返回确定的视图模型，供页面直接渲染） */
-  async classicsRef(bookId: string): Promise<{ title: string; original: string; translation: string } | null> {
-    if (true) return _mockClassicsContent[bookId] || null
-    try {
-      const data = await apiGet<RawClassicContent>(`/paipan/bazi/classics/${bookId}`)
-      return data
-        ? { title: data.title || '', original: data.original || '', translation: data.translation || '' }
-        : (_mockClassicsContent[bookId] || null)
-    } catch { return _mockClassicsContent[bookId] || null }
+  /**
+   * 按【当前八字】检索古籍（POST /bazi/knowledge/for-bazi）。
+   *
+   * 🔴 2026-07-14 改真检索。此前这一块是 4 段硬编码原文（「论丁火」「论丁生午月」），
+   *    **不管用户排的是什么盘都给同一份内容**，页面上却标着《滴天髓》——
+   *    那不是兜底，是假的针对性：让用户以为这是为他这一盘检索出来的。比空着更糟。
+   *
+   *    后端其实一直有 BaziKnowledge 知识库（带 tags/出处/分类），只是前端从没调过。
+   *    现按格局/用神/日主/月令/神煞打分召回，每条都说得出为什么推它（matchedOn）。
+   *    命中不了就返回空 —— 宁可不显示，也不塞不相干的原文冒充「参考」。
+   */
+  async classicsForBazi(input: {
+    dayGan?: string
+    dayZhi?: string
+    monthZhi?: string
+    geju?: string
+    shenSha?: string[]
+  }): Promise<ClassicRef[]> {
+    return apiPost<ClassicRef[]>('/bazi/knowledge/for-bazi', { ...input, limit: 6 })
   },
+}
 
-  /** 保存排盘记录 */
-  async save(input: Record<string, unknown>) {
-    if (true) return { id: 'mock-bazi-id' }
-    try { return await apiGet<{ id?: string }>('/paipan/bazi/save') }
-    catch { return { id: 'mock-bazi-id' } }
-  },
+/** 按八字检索出的古籍条目 */
+export interface ClassicRef {
+  id: string
+  title: string
+  category: string
+  tags: string[]
+  content: string
+  /** 出处古籍（《滴天髓》《渊海子平》…） */
+  source?: string | null
+  /** 相关度（供排序，前端不显示数字） */
+  score: number
+  /** 为什么推它：如「格局「正官格」」「日主「丁」」—— 不做黑箱召回 */
+  matchedOn: string[]
 }

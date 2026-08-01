@@ -1,5 +1,5 @@
 import type { CoverColor } from '@/lib/classics-cover'
-import { apiGet, apiGetPaged, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiGetPaged, apiPost, apiPut, apiPutOptionalAuth, apiDelete } from '@/utils/request'
 import { BRAND } from '@/lib/brand'
 
 // ===================== 首页 classics/home =====================
@@ -408,6 +408,8 @@ export interface RankBook {
   views: string
   rating: number
   category: string
+  desc?: string
+  reads?: number
 }
 const _mockRankingPageBooks: RankBook[] = [
   { id: '1', rank: 1, title: '周易', author: '伏羲、周文王', dynasty: '先秦', views: '128.5万', rating: 4.9, category: '易经' },
@@ -461,7 +463,7 @@ const _mockListsPageData: BookListFull[] = [
     books: [{ title: '周易', color: 'cream' }, { title: '易传', color: 'brown' }, { title: '梅花易数', color: 'red' }],
   },
   {
-    id: '4', title: '国学文化综合推荐', author: '儒布官方', bookCount: 20, likes: 5678,
+    id: '4', title: '国学文化综合推荐', author: '热卜官方', bookCount: 20, likes: 5678,
     desc: '国学文化爱好者必读的综合书单', tags: ['国学', '文化'], liked: true, color: 'red',
     books: [{ title: '论语', color: 'red' }, { title: '道德经', color: 'green' }, { title: '庄子', color: 'cream' }],
   },
@@ -570,8 +572,13 @@ export interface BookmarkItem {
   bookTitle: string
   bookAuthor: string
   dynasty: string
+  /** 章节 id（回跳定位用·旧数据可能缺失） */
+  chapterId?: string
   chapter: string
+  /** 摘录（创建时写入后端 note 字段·旧书签可能为空） */
   content: string
+  /** 段落索引（新书签）或旧数据的滚动位置·作为 reader ?pos= 参数 */
+  position?: number
   page: number
   createdAt: string
   color: 'amber' | 'blue' | 'green' | 'purple'
@@ -590,7 +597,11 @@ export interface NoteItem {
   bookTitle: string
   bookAuthor: string
   dynasty: string
+  /** 章节 id（回跳定位用·旧数据可能缺失） */
+  chapterId?: string
   chapter: string
+  /** 原文段落索引；为空表示旧版章节级笔记 */
+  position?: number
   originalText: string
   noteContent: string
   tags: string[]
@@ -648,7 +659,8 @@ interface RawContinueItem {
 interface RawBookmark {
   id?: string
   bookId?: string
-  book?: { title?: string } | null
+  chapterId?: string
+  book?: { title?: string; author?: string; dynasty?: string } | null
   chapter?: { title?: string } | null
   note?: string
   position?: number
@@ -658,9 +670,12 @@ interface RawBookmark {
 interface RawNote {
   id?: string
   bookId?: string
-  book?: { title?: string } | null
+  chapterId?: string
+  book?: { title?: string; author?: string; dynasty?: string } | null
   chapter?: { title?: string } | null
   content?: string
+  position?: number | null
+  originalText?: string | null
   createdAt?: string
   updatedAt?: string
 }
@@ -766,7 +781,7 @@ export const classicsApi = {
     return await apiDelete<unknown>(`/classic/favorites/${bookId}`)
   },
   async favoriteStatus(bookId: string): Promise<{ favorited: boolean }> {
-    return await apiGet<{ favorited: boolean }>(`/classic/favorites/${bookId}/status`)
+    return await apiGetOptionalAuth<{ favorited: boolean }>(`/classic/favorites/${bookId}/status`)
   },
 
   /** 合集详情（后端暂无数据源→null 走空态） */
@@ -792,9 +807,11 @@ export const classicsApi = {
   },
 
   // ── AI 赋能（需登录） ──
-  /** 文白翻译：{ original, translation, notes[], source } */
+  /** 文白翻译：{ original, translation, notes[], source }
+   *  长句/整段翻译走大模型生成，常超全局 15s 超时（20-60s），与 companionChat 同理放宽到 90s，
+   *  否则前端必超时误报「AI 翻译暂不可用」而后端实际正在正常生成 */
   async translate(text: string, context?: string) {
-    return await apiPost<RawTranslate>('/classic/translate', { text, context })
+    return await apiPost<RawTranslate>('/classic/translate', { text, context }, undefined, 90000)
   },
   /** 古汉语查词：{ word, pinyin, radicals, meanings[], classicalUsages[], commonPhrases[], explanation } */
   async lookupWord(word: string) {
@@ -816,7 +833,9 @@ export const classicsApi = {
     question: string,
     history?: { role: string; content: string }[],
   ): Promise<{ answer: string; disclaimer: string }> {
-    return await apiPost<{ answer: string; disclaimer: string }>('/classic/companion/chat', { chapterId, question, history })
+    // AI 生成长回答常超过全局 15s 超时（大模型 20-60s），单独放宽到 90s，
+    // 否则前端必超时误报「AI 暂不可用」而后端实际正在正常生成。
+    return await apiPost<{ answer: string; disclaimer: string }>('/classic/companion/chat', { chapterId, question, history }, undefined, 90000)
   },
   /** 伴读会话恢复（E3 带记忆·需登录）：本书近期历史，跨章节/跨登录续聊 */
   async companionSession(chapterId: string): Promise<{
@@ -825,7 +844,7 @@ export const classicsApi = {
     messageCount?: number
     messages: { role: string; content: string; chapterId?: string | null; createdAt?: string }[]
   }> {
-    return await apiGet<{
+    return await apiGetOptionalAuth<{
       bookId: string
       hasMemory: boolean
       messageCount?: number
@@ -838,11 +857,14 @@ export const classicsApi = {
   },
 
   // ── 阅读进度（需登录） ──
-  async getProgress(bookId: string) {
-    return await apiGet<unknown>(`/classic/progress/${bookId}`)
+  async getProgress(bookId: string, optionalAuth = false) {
+    const path = `/classic/progress/${bookId}`
+    return optionalAuth ? await apiGetOptionalAuth<unknown>(path) : await apiGet<unknown>(path)
   },
-  async saveProgress(bookId: string, chapterId: string, progress: number) {
-    return await apiPut<unknown>(`/classic/progress/${bookId}`, { chapterId, progress })
+  async saveProgress(bookId: string, chapterId: string, progress: number, optionalAuth = false) {
+    const path = `/classic/progress/${bookId}`
+    const data = { chapterId, progress }
+    return optionalAuth ? await apiPutOptionalAuth<unknown>(path, data) : await apiPut<unknown>(path, data)
   },
   async continueReading(limit = 20) {
     return await apiGet<unknown>(`/classic/continue-reading?limit=${limit}`)
@@ -882,9 +904,11 @@ export const classicsApi = {
     const res = await apiGetPaged<RawBookmark>(path)
     const colors = ['amber', 'blue', 'green', 'purple'] as const
     return res.items.map((b, i) => ({
-      id: b.id || '', bookId: b.bookId || '', bookTitle: b.book?.title || '', bookAuthor: '',
-      dynasty: '', chapter: b.chapter?.title || '', content: b.note || '',
-      page: b.position || 0, createdAt: (b.createdAt || '').slice(0, 10),
+      id: b.id || '', bookId: b.bookId || '', bookTitle: b.book?.title || '',
+      bookAuthor: b.book?.author || '', dynasty: b.book?.dynasty || '',
+      chapterId: b.chapterId || '', chapter: b.chapter?.title || '', content: b.note || '',
+      position: b.position ?? 0,
+      page: b.position || 0, createdAt: (b.createdAt || '').slice(0, 16).replace('T', ' '),
       color: colors[i % colors.length],
     }))
   },
@@ -902,15 +926,21 @@ export const classicsApi = {
       : '/classic/notes?pageSize=100'
     const res = await apiGetPaged<RawNote>(path)
     return res.items.map((n) => ({
-      id: n.id || '', bookId: n.bookId || '', bookTitle: n.book?.title || '', bookAuthor: '',
-      dynasty: '', chapter: n.chapter?.title || '', originalText: '',
+      id: n.id || '', bookId: n.bookId || '', bookTitle: n.book?.title || '',
+      bookAuthor: n.book?.author || '', dynasty: n.book?.dynasty || '',
+      chapterId: n.chapterId || '', chapter: n.chapter?.title || '',
+      position: typeof n.position === 'number' ? n.position : undefined,
+      originalText: n.originalText || '',
       noteContent: n.content || '', tags: [], page: 0,
       createdAt: (n.createdAt || '').slice(0, 16).replace('T', ' '),
       updatedAt: (n.updatedAt || '').slice(0, 16).replace('T', ' '),
     }))
   },
-  async addNote(bookId: string, payload: { chapterId: string; content: string }) {
-    return await apiPost<unknown>(`/classic/notes/${bookId}`, payload)
+  async addNote(
+    bookId: string,
+    payload: { chapterId: string; content: string; position?: number; originalText?: string },
+  ) {
+    return await apiPost<RawNote>(`/classic/notes/${bookId}`, payload)
   },
   async updateNote(id: string, content: string) {
     return await apiPut<unknown>(`/classic/notes/${id}`, { content })

@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing"
 import { QuestionService } from "./question.service"
 import { PrismaService } from "../../prisma/prisma.service"
+import { RedisService } from "../../redis/redis.service"
 import { CoinService } from "../coin/coin.service"
 import { RevenueService } from "../revenue/revenue.service"
 import { AuditService } from "../audit/audit.service"
@@ -14,6 +15,8 @@ const mockPrisma: any = {
   $transaction: jest.fn((arg: any) => typeof arg === "function" ? arg(txProxy) : Promise.all(Array.isArray(arg) ? arg : [arg])),
   circle: { findUnique: jest.fn() },
   circleMember: { findFirst: jest.fn() },
+  // 圈子治理 #10：发起提问前禁言直查（默认无禁言）
+  circleViolation: { findFirst: jest.fn().mockResolvedValue(null) },
   paidQuestion: {
     create: jest.fn(),
     findUnique: jest.fn(),
@@ -31,6 +34,7 @@ const mockCoin = {
 
 const mockRevenue = {
   record: jest.fn().mockResolvedValue({ id: "e1" }),
+  settleLedger: jest.fn().mockResolvedValue(undefined),
 }
 
 const mockAudit = {
@@ -46,6 +50,7 @@ describe("QuestionService", () => {
       providers: [
         QuestionService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: { runExclusive: (_n: string, _t: number, fn: () => Promise<unknown>) => fn() } },
         { provide: CoinService, useValue: mockCoin },
         { provide: RevenueService, useValue: mockRevenue },
         { provide: AuditService, useValue: mockAudit },
@@ -78,12 +83,52 @@ describe("QuestionService", () => {
 
     it("提问成功", async () => {
       mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
-      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
       mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
       const result = await svc.ask("u1", askDto)
       expect(result.status).toBe("PENDING")
       // coin.spend 在事务内调用，传入了 tx 参数
       expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ scene: "PAID_QUESTION" }), expect.any(Object))
+    })
+
+    // 🔴 定价以达人配置为准，忽略客户端传入 priceCoin —— 防提问者压低达人收入
+    it("扣费与围观价以达人(answerer)配置为准，不信客户端 priceCoin", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
+      mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
+      // 客户端恶意传 priceCoin=1 想只花 1 币
+      await svc.ask("u1", { ...askDto, priceCoin: 1, peekPriceCoin: 1 })
+      expect(mockCoin.spend).toHaveBeenCalledWith("u1", expect.objectContaining({ amountCoin: 50 }), expect.any(Object))
+      const created = mockPrisma.paidQuestion.create.mock.calls[0][0].data
+      expect(created.priceCoin).toBe(50)     // 达人提问价
+      expect(created.peekPriceCoin).toBe(10) // 达人围观价
+    })
+
+    it("达人未开放付费提问(questionPriceCoin=0)时拒绝且不扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 0, peekPriceCoin: 0 })
+      await expect(svc.ask("u1", askDto)).rejects.toThrow(BusinessException)
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+    })
+
+    // 圈子治理 #10（2026-07-11）：被禁言成员在该圈内不能发起付费提问
+    it("圈内禁言中：发起提问被拦且不扣币", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
+      mockPrisma.circleViolation.findFirst.mockResolvedValueOnce({ expiresAt: new Date(Date.now() + 86400000) })
+      await expect(svc.ask("u1", askDto)).rejects.toThrow("禁言")
+      expect(mockCoin.spend).not.toHaveBeenCalled()
+      expect(mockPrisma.paidQuestion.create).not.toHaveBeenCalled()
+    })
+
+    it("禁言查询限定本圈生效禁言（circleId+MUTE+ACTIVE+未到期）·无禁言正常提问", async () => {
+      mockPrisma.circle.findUnique.mockResolvedValue({ id: "c1" })
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "m1", questionPriceCoin: 50, peekPriceCoin: 10 })
+      mockPrisma.paidQuestion.create.mockResolvedValue({ id: "q1", status: "PENDING" })
+      await svc.ask("u1", askDto)
+      const where = mockPrisma.circleViolation.findFirst.mock.calls[0][0].where
+      expect(where).toMatchObject({ circleId: "c1", userId: "u1", type: "MUTE", status: "ACTIVE" })
+      expect(where.expiresAt).toHaveProperty("gt")
     })
   })
 
@@ -147,6 +192,42 @@ describe("QuestionService", () => {
       expect(result.id).toBe("q1")
       // coin.spend 在事务内调用，传入了 tx 参数
       expect(mockCoin.spend).toHaveBeenCalledWith("u3", expect.objectContaining({ scene: "PEEK_ANSWER" }), expect.any(Object))
+    })
+
+    // 引擎口径转正前置：围观必须落统一总账，且「每人每次一笔交易」
+    it("围观落总账：refId 带围观者 userId —— 否则幂等守卫会吃掉第二个围观者的分成", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 10, askerId: "u1", answererId: "u2" })
+      mockPrisma.paidQuestion.update.mockResolvedValue({})
+      mockPrisma.virtualCoinTransaction = { findFirst: jest.fn().mockResolvedValue(null) }
+
+      await svc.peek("u3", "q1")
+      await svc.peek("u4", "q1") // 第二个围观者
+
+      // settle() 的幂等守卫按 (refType, refId, scene) 去重。若 refId 只用 questionId，
+      // u4 这笔会被判为「已入账」整个丢弃 —— 达人和提问者都拿不到 u4 的围观分成。
+      expect(mockRevenue.settleLedger).toHaveBeenNthCalledWith(1, expect.objectContaining({ refId: "q1:u3" }))
+      expect(mockRevenue.settleLedger).toHaveBeenNthCalledWith(2, expect.objectContaining({ refId: "q1:u4" }))
+    })
+
+    // 围观是「一次交易、两个受益人」：必须一次 settle 传全 parties。
+    // 若拆成两次调用（如塞进 record() 里），第二次会被幂等守卫拦掉，ASKER 条目永远落不了账。
+    it("围观落总账：一次 settle 同时带达人(PROVIDER)与提问者(ASKER)", async () => {
+      mockPrisma.paidQuestion.findUnique.mockResolvedValue({ id: "q1", status: "ANSWERED", peekPriceCoin: 10, askerId: "u1", answererId: "u2" })
+      mockPrisma.paidQuestion.update.mockResolvedValue({})
+      mockPrisma.virtualCoinTransaction = { findFirst: jest.fn().mockResolvedValue(null) }
+
+      await svc.peek("u3", "q1")
+
+      expect(mockRevenue.settleLedger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scene: "PEEK",
+          payerId: "u3",
+          parties: {
+            PROVIDER: { type: "USER", id: "u2", userId: "u2" },
+            ASKER: { type: "USER", id: "u1", userId: "u1" },
+          },
+        }),
+      )
     })
   })
 

@@ -4,6 +4,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
 import { ImPolicyService, ImMediaPerms } from "./im-policy.service";
+import { AuditService } from "../audit/audit.service";
 
 export interface TimApiResponse {
   ErrorCode: number;
@@ -19,15 +20,6 @@ export interface ImFriend {
   remark: string;
 }
 
-/** 归一化待处理好友申请（来自 friend_get_pendency + 资料补全） */
-export interface ImPendingRequest {
-  userId: string;
-  nick: string;
-  avatar: string;
-  wording: string;
-  addTime: number;
-}
-
 @Injectable()
 export class ImService {
   private readonly logger = new Logger(ImService.name);
@@ -35,9 +27,13 @@ export class ImService {
   private readonly adminId: string;
   private readonly baseUrl = "https://console.tim.qq.com";
 
+  /** 私信深审采样率（0~1·默认全量·本地快拦不受此影响始终全量） */
+  private readonly C2C_AUDIT_SAMPLE = Math.min(1, Math.max(0, Number(process.env.IM_AUDIT_SAMPLE ?? 1)));
+
   constructor(
     private tlsSig: TlsSigService,
     private policy: ImPolicyService,
+    private audit: AuditService,
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
   ) {
     this.appId = this.tlsSig.getAppId();
@@ -95,6 +91,7 @@ export class ImService {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10000), // 防腾讯 IM 无响应挂死请求线程
       });
 
       const duration = Date.now() - start;
@@ -154,7 +151,7 @@ export class ImService {
 
   // ───────── 群组管理 ─────────
 
-  /** 创建 IM 群组 */
+  /** 创建 IM 群组（AVChatRoom 直播大群不支持 ApplyJoinOption·加群本就自由进出） */
   async createGroup(
     groupId: string,
     name: string,
@@ -166,7 +163,7 @@ export class ImService {
       Type: type,
       Name: name,
       Owner_Account: ownerId || this.adminId,
-      ApplyJoinOption: type === "Public" ? "FreeAccess" : "NeedPermission",
+      ...(type === "AVChatRoom" ? {} : { ApplyJoinOption: type === "Public" ? "FreeAccess" : "NeedPermission" }),
     });
   }
 
@@ -224,9 +221,23 @@ export class ImService {
 
   // ───────── 单聊消息 ─────────
 
-  /** 发送单聊消息 */
+  /**
+   * 发送单聊消息。
+   *
+   * 内容审核（私信是导流/诈骗高发渠道·高频·实时性权衡）：
+   * 1. **本地词库同步快拦**（<1ms·零网络）：命中"加微信/加QQ/私聊"等导流话术、诈骗话术即拦，不发送；
+   * 2. 发送成功后 **异步深审**（腾讯云 TMS + DeepSeek·可采样）：判 severe 则调 admin_msgwithdraw 撤回已发消息。
+   * fail-open：密钥未配时本地快拦仍生效，TMS/DeepSeek 降级放行不阻断私信。
+   */
   async sendC2CMsg(fromUserId: string, toUserId: string, text: string) {
     await this.assertC2CAllowed(fromUserId, toUserId);
+
+    // ① 本地词库同步快拦（导流/诈骗话术零网络硬拦·敏感内容不落日志正文）
+    const localHits = this.audit.hasLocalViolation(text);
+    if (localHits.length > 0) {
+      throw new BusinessException(ErrorCode.CONTENT_MODERATION_BLOCKED, "消息包含违规信息，无法发送");
+    }
+
     const res = await this.callImApi("openim/sendmsg", {
       SyncOtherMachine: 1,
       From_Account: fromUserId,
@@ -244,7 +255,25 @@ export class ImService {
     // 发送成功：累加我→对方的待回计数；并清零对方→我的待回计数（本次相当于我回复了对方）
     await this.policy.incrementSent(fromUserId, toUserId);
     await this.policy.resetOnReply(fromUserId, toUserId);
+
+    // ② 异步深审（采样·不阻塞发送响应）：severe → 撤回已发消息
+    if (this.C2C_AUDIT_SAMPLE >= 1 || Math.random() < this.C2C_AUDIT_SAMPLE) {
+      const msgKey = (res as TimApiResponse).MsgKey;
+      void this.auditC2CMsgAsync(fromUserId, toUserId, text, typeof msgKey === "string" ? msgKey : undefined);
+    }
     return res;
+  }
+
+  /** 私信事后深审：命中 severe 即撤回已发消息（需 MsgKey）。全程 catch·不抛出·不影响已发送结果。 */
+  private async auditC2CMsgAsync(fromUserId: string, toUserId: string, text: string, msgKey?: string): Promise<void> {
+    try {
+      const risk = await this.audit.classifyTextRisk(text, { scene: "IM_C2C", userId: fromUserId, dataId: toUserId });
+      if (risk.verdict !== "severe") return; // mild/uncertain 私信不自动撤回，仅 severe 硬撤回（已由审计日志留痕）
+      if (!msgKey) return; // 无 MsgKey 无法定位撤回（腾讯 IM 未回传）
+      await this.withdrawMsg(fromUserId, toUserId, msgKey);
+    } catch (err) {
+      this.logger.warn(`私信深审/撤回异常（fail-open·不影响已发送）`, err instanceof Error ? err.message : err);
+    }
   }
 
   /** 获取单聊历史消息 */
@@ -369,63 +398,6 @@ export class ImService {
     return this.callImApi("sns/black_list_get", {
       From_Account: userId,
     });
-  }
-
-  // ───────── 好友申请 ─────────
-
-  /** 审批好友申请 */
-  async approveFriendRequest(userId: string, fromUserId: string) {
-    return this.callImApi("sns/friend_add_response", {
-      From_Account: userId,
-      ResponseItem: [
-        {
-          To_Account: fromUserId,
-          ResponseAction: "Response_Action_Agree",
-        },
-      ],
-    });
-  }
-
-  /** 拒绝好友申请 */
-  async rejectFriendRequest(userId: string, fromUserId: string) {
-    return this.callImApi("sns/friend_add_response", {
-      From_Account: userId,
-      ResponseItem: [
-        {
-          To_Account: fromUserId,
-          ResponseAction: "Response_Action_Reject",
-        },
-      ],
-    });
-  }
-
-  /** 获取待处理好友申请（拉取待处理申请 + 批量补全申请人昵称/头像，归一化返回） */
-  async listPendingFriendRequests(userId: string): Promise<{ pending: ImPendingRequest[] }> {
-    const resp = (await this.callImApi("sns/friend_get_pendency", {
-      From_Account: userId,
-      PendencyType: "Pendency_Type_ComeIn",
-      StartTime: 0,
-    })) as TimApiResponse;
-    const items =
-      (resp.PendencyItem as Array<{
-        To_Account?: string;
-        AddWording?: string;
-        AddTime?: number;
-      }>) || [];
-    const accounts = items
-      .map((it) => it.To_Account)
-      .filter((a): a is string => !!a);
-    const profiles = await this.getProfiles(accounts);
-    const pending: ImPendingRequest[] = items
-      .filter((it): it is { To_Account: string; AddWording?: string; AddTime?: number } => !!it.To_Account)
-      .map((it) => ({
-        userId: it.To_Account,
-        nick: profiles[it.To_Account]?.nick || "",
-        avatar: profiles[it.To_Account]?.avatar || "",
-        wording: it.AddWording || "",
-        addTime: typeof it.AddTime === "number" ? it.AddTime : 0,
-      }));
-    return { pending };
   }
 
   // ───────── 群组详情 ─────────

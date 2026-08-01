@@ -270,6 +270,12 @@ export class CourseLearningService {
   private async ensureOwner(courseId: string, userId: string) {
     const course = await this.prisma.course.findUnique({ where: { id: courseId } });
     if (!course) throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
-    if (course.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的课程");
+    if (course.userId === userId) return;
+    // 平台运营可管理任意课程章节（后台课程编辑器·与 course.service.update 同口径）
+    const admin = await this.prisma.userRole.findFirst({
+      where: { userId, roleType: { in: ["SUPER_ADMIN", "OPERATION_ADMIN"] } },
+      select: { id: true },
+    });
+    if (!admin) throw new BusinessException(ErrorCode.FORBIDDEN, "只能编辑自己的课程");
   }
 }

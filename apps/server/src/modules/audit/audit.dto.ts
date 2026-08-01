@@ -7,6 +7,14 @@ export class AuditListQueryDto {
   @IsOptional() @IsString()
   userId?: string;
 
+  @ApiPropertyOptional({ description: "操作人ID（等价于 userId，前端字段兼容）" })
+  @IsOptional() @IsString()
+  operatorId?: string;
+
+  @ApiPropertyOptional({ description: "关键词（模糊匹配 detail/action）" })
+  @IsOptional() @IsString()
+  keyword?: string;
+
   @ApiPropertyOptional({ description: "操作类型" })
   @IsOptional() @IsString()
   action?: string;
@@ -129,9 +137,45 @@ export class CheckSensitiveDto {
   text: string;
 }
 
+export class ContentAuditListQueryDto {
+  @ApiPropertyOptional({ description: "最终状态（ALL=不过滤）", enum: ["PENDING", "APPROVED", "REJECTED", "WITHDRAWN", "ALL"], default: "PENDING" })
+  @IsOptional() @IsIn(["PENDING", "APPROVED", "REJECTED", "WITHDRAWN", "ALL"])
+  finalStatus?: string;
+
+  @ApiPropertyOptional({ description: "内容类型", enum: ["ARTICLE", "POST", "COURSE", "VIDEO", "LIVE"] })
+  @IsOptional() @IsIn(["ARTICLE", "POST", "COURSE", "VIDEO", "LIVE"])
+  contentType?: string;
+
+  @ApiPropertyOptional({ description: "来源圈子ID" })
+  @IsOptional() @IsString()
+  circleId?: string;
+
+  @ApiPropertyOptional({ description: "页码", default: 1 })
+  @IsOptional() @Type(() => Number) @IsInt()
+  page?: number;
+
+  @ApiPropertyOptional({ description: "每页条数", default: 20 })
+  @IsOptional() @Type(() => Number) @IsInt()
+  pageSize?: number;
+}
+
+export class ContentAuditReviewDto {
+  @ApiProperty({ description: "审核动作", enum: ["approve", "reject"] })
+  @IsIn(["approve", "reject"])
+  action: "approve" | "reject";
+
+  @ApiPropertyOptional({ description: "审核评语/驳回原因（驳回时发布者可见）" })
+  @IsOptional() @IsString()
+  reason?: string;
+}
+
 export class OperationLogListQueryDto {
   @ApiPropertyOptional({ description: "用户ID" })
   @IsOptional() @IsString() userId?: string;
+  @ApiPropertyOptional({ description: "操作人ID（等价于 userId，前端字段兼容）" })
+  @IsOptional() @IsString() operatorId?: string;
+  @ApiPropertyOptional({ description: "关键词（模糊匹配 action/targetType/targetId）" })
+  @IsOptional() @IsString() keyword?: string;
   @ApiPropertyOptional({ description: "操作类型" })
   @IsOptional() @IsString() action?: string;
   @ApiPropertyOptional({ description: "目标类型" })

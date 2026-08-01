@@ -31,6 +31,30 @@ export class BaziKnowledgeController {
     return this.svc.search(keyword, category);
   }
 
+  /**
+   * 按当前八字检索古籍 —— 八字结果页「古籍参考」用（公开：看盘不必登录）。
+   * 每条返回 matchedOn，说得出为什么推它；一条都命中不了就返回空数组
+   * （宁可不显示，也不塞一段不相干的原文冒充「参考」）。
+   */
+  @Post("for-bazi")
+  @ApiOperation({ summary: "按当前八字检索相关古籍（格局/用神/日主/月令/神煞打分排序）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  forBazi(
+    @Body()
+    dto: {
+      dayGan?: string;
+      dayZhi?: string;
+      monthZhi?: string;
+      geju?: string;
+      yongshen?: string;
+      shenSha?: string[];
+      wuxing?: string;
+      limit?: number;
+    },
+  ) {
+    return this.svc.forBazi(dto ?? {});
+  }
+
   @Get("category/:category")
   @ApiOperation({ summary: "按分类列出知识条目" })
   @ApiResponse({ status: 200, description: "成功" })

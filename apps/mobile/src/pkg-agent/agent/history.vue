@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { agentApi, historyGroups, type HistoryItem } from '@/lib/agent-data'
 
@@ -50,7 +51,7 @@ function openChat(item: HistoryItem) {
     <!-- 顶部导航 -->
     <view class="header safe-pt">
       <view class="head-bar">
-        <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="40" color="#1a1a1a" /></view>
+        <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="title">对话历史</text>
         <view class="head-placeholder" />
       </view>
@@ -78,7 +79,7 @@ function openChat(item: HistoryItem) {
               <!-- 卡片 -->
               <view class="row" @tap="openChat(item)">
                 <view class="avatar-wrap">
-                  <image lazy-load class="avatar" :src="item.agentAvatar" mode="aspectFill" />
+                  <smart-avatar class="avatar" :src="item.agentAvatar" :name="item.agentName || ''" />
                   <view v-if="item.unread > 0" class="unread"><text class="unread-txt">{{ item.unread }}</text></view>
                 </view>
                 <view class="row-info">

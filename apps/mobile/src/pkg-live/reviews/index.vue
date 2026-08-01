@@ -218,11 +218,23 @@ function cancelReply() {
   replyId.value = null
   replyText.value = ''
 }
-function submitReply(id: string) {
-  if (!replyText.value.trim()) return
-  replies.value = { ...replies.value, [id]: replyText.value }
-  replyId.value = null
-  replyText.value = ''
+// 发布回复 — POST /live/reviews/:id/reply（房主校验·真落库）
+const replySubmitting = ref(false)
+async function submitReply(id: string) {
+  const text = replyText.value.trim()
+  if (!text || replySubmitting.value) return
+  replySubmitting.value = true
+  try {
+    await liveApi.replyReview(id, text)
+    replies.value = { ...replies.value, [id]: text }
+    replyId.value = null
+    replyText.value = ''
+    uni.showToast({ title: '回复已发布', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '回复失败，请重试', icon: 'none' })
+  } finally {
+    replySubmitting.value = false
+  }
 }
 
 watch(filter, () => { fetchData() })

@@ -1,4 +1,4 @@
-import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsBoolean, IsObject, IsArray, MinLength, MaxLength } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsInt, IsNumber, IsBoolean, IsArray, IsIn, Min, Max, MinLength, MaxLength } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 /** 更新角色权限入参（防止裸内联类型绕过校验） */
@@ -273,27 +273,89 @@ export class SetPermissionsDto {
   permissions: string[];
 }
 
+export const MEMBER_PLAN_LEVELS = ["MONTHLY", "QUARTERLY", "YEARLY", "YEARLY_AUTO", "LIFETIME"] as const;
+
 export class UpsertMemberConfigDto {
+  @ApiProperty({ description: "套餐标识", enum: MEMBER_PLAN_LEVELS })
   @IsString()
-  @MinLength(1)
+  @IsIn(MEMBER_PLAN_LEVELS)
   level: string;
 
+  @ApiProperty({ description: "展示名称" })
   @IsString()
   @MinLength(1)
+  @MaxLength(50)
   name: string;
 
+  @ApiProperty({ description: "售价（元）", minimum: 0, maximum: 999999.99 })
   @IsNumber()
+  @Min(0)
+  @Max(999999.99)
   price: number;
 
-  @IsOptional() @IsInt()
+  @ApiProperty({ description: "兼容国学币赠送数", required: false, minimum: 0 })
+  @IsOptional() @IsInt() @Min(0) @Max(1000000)
   coinBonus?: number;
 
-  @IsOptional() @IsObject()
-  benefits?: Record<string, any>;
+  @ApiProperty({ description: "每月赠送积分", required: false, minimum: 0 })
+  @IsOptional() @IsInt() @Min(0) @Max(1000000)
+  monthlyPoints?: number;
 
-  @IsOptional() @IsInt()
+  @ApiProperty({ description: "每月赠券模板 ID", required: false, nullable: true })
+  @IsOptional() @IsString() @MaxLength(100)
+  monthlyCouponId?: string | null;
+
+  @ApiProperty({ description: "C 端展示排序", required: false, minimum: 0 })
+  @IsOptional() @IsInt() @Min(0) @Max(9999)
+  sort?: number;
+
+  @ApiProperty({ description: "权益文案列表", required: false, type: [String] })
+  @IsOptional() @IsArray() @IsString({ each: true }) @MaxLength(200, { each: true })
+  benefits?: string[];
+
+  @ApiProperty({ description: "电子书最大借阅天数", required: false, minimum: 1 })
+  @IsOptional() @IsInt() @Min(1) @Max(3650)
   maxBorrowDays?: number;
 
+  @ApiProperty({ description: "是否在 C 端售卖", required: false })
+  @IsOptional() @IsBoolean()
+  isActive?: boolean;
+}
+
+export class UpdateMemberConfigDto {
+  @ApiProperty({ description: "展示名称", required: false })
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(50)
+  name?: string;
+
+  @ApiProperty({ description: "售价（元）", required: false, minimum: 0, maximum: 999999.99 })
+  @IsOptional() @IsNumber() @Min(0) @Max(999999.99)
+  price?: number;
+
+  @ApiProperty({ description: "兼容国学币赠送数", required: false, minimum: 0 })
+  @IsOptional() @IsInt() @Min(0) @Max(1000000)
+  coinBonus?: number;
+
+  @ApiProperty({ description: "每月赠送积分", required: false, minimum: 0 })
+  @IsOptional() @IsInt() @Min(0) @Max(1000000)
+  monthlyPoints?: number;
+
+  @ApiProperty({ description: "每月赠券模板 ID", required: false, nullable: true })
+  @IsOptional() @IsString() @MaxLength(100)
+  monthlyCouponId?: string | null;
+
+  @ApiProperty({ description: "C 端展示排序", required: false, minimum: 0 })
+  @IsOptional() @IsInt() @Min(0) @Max(9999)
+  sort?: number;
+
+  @ApiProperty({ description: "权益文案列表", required: false, type: [String] })
+  @IsOptional() @IsArray() @IsString({ each: true }) @MaxLength(200, { each: true })
+  benefits?: string[];
+
+  @ApiProperty({ description: "电子书最大借阅天数", required: false, minimum: 1 })
+  @IsOptional() @IsInt() @Min(1) @Max(3650)
+  maxBorrowDays?: number;
+
+  @ApiProperty({ description: "是否在 C 端售卖", required: false })
   @IsOptional() @IsBoolean()
   isActive?: boolean;
 }

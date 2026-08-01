@@ -312,18 +312,19 @@
       width="450px"
     >
       <el-form label-width="80px">
+        <!-- 审核人自动取当前登录管理员（原为可手输任意 ID·留痕可伪造·已改只读） -->
         <el-form-item label="审核人">
-          <el-input
-            v-model="reviewForm.reviewedBy"
-            placeholder="审核人ID（可选）"
-          />
+          <span>{{ currentReviewerLabel }}</span>
         </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item :required="reviewAction === 'reject'">
+          <template #label>
+            {{ reviewAction === 'approve' ? '备注' : '驳回原因' }}
+          </template>
           <el-input
             v-model="reviewForm.note"
             type="textarea"
             :rows="3"
-            :placeholder="reviewAction === 'approve' ? '批准备注（可选）' : '驳回原因'"
+            :placeholder="reviewAction === 'approve' ? '批准备注（可选）' : '驳回原因（必填）'"
           />
         </el-form-item>
       </el-form>
@@ -467,9 +468,10 @@
 
 <script setup lang="ts">
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { aiCollaborationApi } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useAuthStore } from '@/store/auth'
 
 /** axios 错误结构（用于提取后端 message） */
 type ApiError = { response?: { data?: { message?: string } } }
@@ -510,10 +512,16 @@ const filterStatus = ref(''); const filterRisk = ref('')
 const overview = ref<Overview>({})
 const pendingLoading = ref(false)
 
-// 审核
+// 审核（审核人 = 当前登录管理员·不可手输伪造）
+const auth = useAuthStore()
+const currentReviewerLabel = computed(() => {
+  const u = auth.user as { id?: string; nickname?: string } | null
+  if (!u?.id) return '当前登录管理员'
+  return u.nickname ? `${u.nickname}（${String(u.id).slice(0, 8)}）` : String(u.id)
+})
 const reviewVis = ref(false); const reviewAction = ref(''); const reviewLoading = ref(false)
 const currentItem = ref<ProposalRow | null>(null)
-const reviewForm = reactive({ reviewedBy: '', note: '' })
+const reviewForm = reactive({ note: '' })
 
 // 详情
 const detailVis = ref(false); const detail = ref<ProposalRow | null>(null)
@@ -573,25 +581,32 @@ async function fetchPending() {
 
 function approve(item: ProposalRow) {
   currentItem.value = item; reviewAction.value = 'approve'
-  reviewForm.reviewedBy = ''; reviewForm.note = ''
+  reviewForm.note = ''
   reviewVis.value = true
 }
 
 function reject(item: ProposalRow) {
   currentItem.value = item; reviewAction.value = 'reject'
-  reviewForm.reviewedBy = ''; reviewForm.note = ''
+  reviewForm.note = ''
   reviewVis.value = true
 }
 
 async function confirmReview() {
   if (!currentItem.value) return
+  // L2：驳回理由必填（体验标准第七节）
+  if (reviewAction.value === 'reject' && !reviewForm.note.trim()) {
+    ElMessage.warning('请填写驳回原因')
+    return
+  }
   reviewLoading.value = true
   try {
     const action = reviewAction.value === 'approve' ? 'approved' : 'rejected'
+    const u = auth.user as { id?: string } | null
     await aiCollaborationApi.review(currentItem.value.id, {
       action,
-      reviewer: reviewForm.reviewedBy || undefined,
-      note: reviewForm.note || undefined,
+      // 审核人固定为当前登录管理员（原可手输任意 ID 留痕可伪造）
+      reviewer: u?.id || undefined,
+      note: reviewForm.note.trim() || undefined,
     })
     ElMessage.success(reviewAction.value === 'approve' ? '已批准' : '已驳回')
     reviewVis.value = false

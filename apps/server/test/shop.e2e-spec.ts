@@ -2,6 +2,7 @@ import { INestApplication } from "@nestjs/common"
 import { JwtService } from "@nestjs/jwt"
 import request from "supertest"
 import { createE2eApp } from "./e2e-setup"
+import { WechatPayService } from "../src/modules/shop/wechat-pay.service"
 
 describe("Shop E2E", () => {
   let app: INestApplication
@@ -162,12 +163,21 @@ describe("Shop E2E", () => {
       prisma.order.findUnique.mockResolvedValue({
         id: "o1", userId: "u1", status: "PENDING", amount: "99",
       })
+      // 测试环境无商户证书 → isConfigured 恒 false，会被前置检查拦成 400（这是产品的正确防护，
+      // 见 shop-payment.service.ts createNativePayment）。此处 stub 掉配置与下单，才测得到本用例真正的目标：
+      // 已配置时 Native 支付返回二维码链接。
+      const wechatPay: any = app.get(WechatPayService)
+      // isConfigured 是 prototype 上的 getter，jest.spyOn 在实例上找不到 → 直接在实例上覆盖定义
+      Object.defineProperty(wechatPay, "isConfigured", { get: () => true, configurable: true })
+      jest.spyOn(wechatPay, "createNativeOrder").mockResolvedValue({ code_url: "weixin://wxpay/bizpayurl?pr=test" })
 
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .post("/api/v1/shop/orders/o1/pay/native")
         .set("Authorization", `Bearer ${token}`)
         .send({})
         .expect(201)
+
+      expect(res.body.code_url).toContain("weixin://")
     })
   })
 })

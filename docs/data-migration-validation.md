@@ -54,34 +54,20 @@ WHERE table_schema = 'public' AND table_name = 'User'
 ORDER BY ordinal_position;
 ```
 
-### 2.3 Prisma Schema vs 实际数据库校验
+### 2.3 Prisma 迁移状态与数据库证据校验
+
+固定发布包不携带宿主机 `node_modules`，生产服务器不得临时执行 `npx prisma`，也不得用 `prisma db pull --force` 改写发布包。统一通过实际生产 `server` 镜像检查迁移状态，并由只读核验脚本生成脱敏机器证据：
 
 ```bash
-#!/bin/bash
-# scripts/validate-schema.sh — 校验 Prisma schema 与数据库一致性
+export TARGET_DATABASE_URL='由受控凭据注入，不写入文档或命令历史'
+export TARGET_RELEASE_ID='<本次固定发布标识>'
+export PRISMA_COMPOSE_ENV_FILE=/opt/guoxue/shared/.env.production
 
-echo "=== Prisma Schema 校验 ==="
-
-# 检查迁移状态
-npx prisma migrate status --schema=apps/server/prisma/schema.prisma
-
-# 检查是否有未应用的迁移
-UNAPPLIED=$(npx prisma migrate status --schema=apps/server/prisma/schema.prisma 2>&1 | grep -c "pending")
-if [ "$UNAPPLIED" -gt 0 ]; then
-  echo "❌ 存在 $UNAPPLIED 个未应用的迁移"
-  npx prisma migrate status --schema=apps/server/prisma/schema.prisma
-  exit 1
-fi
-
-# 校验 Prisma schema 与数据库的一致性（type diff）
-npx prisma db pull --schema=apps/server/prisma/schema.prisma --force 2>/dev/null
-git diff --exit-code apps/server/prisma/schema.prisma
-if [ $? -ne 0 ]; then
-  echo "⚠️  数据库与 Prisma schema 存在差异，请检查"
-else
-  echo "✅ Schema 与数据库一致"
-fi
+bash scripts/migration/run-prisma-migrations.sh status
+bash scripts/migration/verify-postgres.sh
 ```
+
+只有逐表计数、核心业务完整性和 `prisma migrate status` 全部通过，核验报告才会写入 `prismaMigrationStatusPassed: true`。
 
 ## 三、数据完整性校验
 

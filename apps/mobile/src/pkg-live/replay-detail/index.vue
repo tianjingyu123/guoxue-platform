@@ -9,7 +9,7 @@
     <!-- 错误状态 -->
     <view v-else-if="error" class="state-error">
       <text class="state-error__txt">{{ error }}</text>
-      <view class="state-error__retry" @tap="fetchData('1')"><text class="state-error__retry-txt">重试</text></view>
+      <view class="state-error__retry" @tap="fetchData(replayId)"><text class="state-error__retry-txt">重试</text></view>
     </view>
 
     <template v-else>
@@ -79,7 +79,7 @@
     <view class="info">
       <text class="info-title">{{ replay.title }}</text>
       <view class="info-host">
-        <image lazy-load class="host-avatar" :src="replay.hostAvatar" mode="aspectFill" />
+        <smart-avatar :src="replay.hostAvatar" :name="replay.hostName" class="host-avatar" />
         <view class="host-meta">
           <view class="host-name-row">
             <text class="host-name">{{ replay.hostName }}</text>
@@ -87,7 +87,7 @@
               <text class="host-v-txt">V</text>
             </view>
           </view>
-          <text class="host-fans">{{ replay.hostFollowers.toLocaleString() }} 粉丝</text>
+          <text class="host-fans">{{ (replay.hostFollowers ?? 0).toLocaleString() }} 粉丝</text>
         </view>
         <view class="follow-btn">
           <text class="follow-txt">+ 关注</text>
@@ -100,11 +100,11 @@
         </view>
         <view class="stat">
           <AppIcon name="eye" :size="28" color="#999999" />
-          <text class="stat-txt">{{ replay.viewerCount.toLocaleString() }} 观看</text>
+          <text class="stat-txt">{{ (replay.viewerCount ?? 0).toLocaleString() }} 观看</text>
         </view>
         <view class="stat">
           <AppIcon name="heart" :size="28" color="#999999" />
-          <text class="stat-txt">{{ replay.likeCount.toLocaleString() }} 点赞</text>
+          <text class="stat-txt">{{ (replay.likeCount ?? 0).toLocaleString() }} 点赞</text>
         </view>
       </view>
     </view>
@@ -202,8 +202,8 @@
             <text class="prod-jump">跳转到 {{ p.mentionTimeDisplay }}</text>
             <view class="prod-foot">
               <view class="prod-price-row">
-                <text class="prod-price">{{ p.price }}</text>
-                <text class="prod-original">{{ p.originalPrice }}</text>
+                <text class="prod-price">{{ formatPrice(p.price) }}</text>
+                <text class="prod-original">{{ formatPrice(p.originalPrice) }}</text>
               </view>
               <text class="prod-sales">{{ p.sales }}人购买</text>
             </view>
@@ -227,7 +227,7 @@
       </view>
       <view class="bottom-main">
         <view class="bottom-cta">
-          <text class="bottom-cta-txt">加入「{{ replay.circleName }}」</text>
+          <text class="bottom-cta-txt">{{ replay.circleName ? '加入「' + replay.circleName + '」' : '加入圈子' }}</text>
         </view>
       </view>
     </view>
@@ -236,17 +236,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 
 // 数据状态
 const loading = ref(true)
 const error = ref('')
+const replayId = ref('')
 // 模板裸访问大量回放字段，保留 any 避免收敛触发大量报错
 const replay = ref<any>({})
 const isPlaying = ref(false)
@@ -280,7 +283,13 @@ async function fetchData(replayId: string) {
 }
 
 onLoad((opts) => {
-  fetchData(opts?.id || '1')
+  replayId.value = String(opts?.id || '')
+  if (!replayId.value) {
+    loading.value = false
+    error.value = '缺少回放信息，请返回后重新进入'
+    return
+  }
+  fetchData(replayId.value)
 })
 </script>
 

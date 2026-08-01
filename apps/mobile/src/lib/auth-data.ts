@@ -2,7 +2,7 @@
  * 认证数据层 - 登录/注册/找回密码
  * 负责前端 UI 的数据格式与后端 API 响应的适配
  */
-import { apiPost, useMock } from '@/utils/request'
+import { apiPost } from '@/utils/request'
 import { getTempReferrer } from '@/utils/referral'
 
 export interface UserInfo {
@@ -18,22 +18,16 @@ export interface AuthResponse {
   message: string
   data?: {
     token: string
+    refreshToken?: string
     user: UserInfo
   }
-}
-
-const mockUser: UserInfo = {
-  id: '1',
-  nickname: '国学爱好者',
-  avatar: 'https://api.rebugx.cn/assets/images/default-avatar.webp',
-  phone: '138****8888',
-  token: 'mock-token-xxx',
 }
 
 /* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
 /** 后端 login/register 原始响应 */
 interface RawAuthData {
   accessToken?: string
+  refreshToken?: string
   token?: string
   user?: Partial<UserInfo> & Record<string, unknown>
 }
@@ -47,6 +41,7 @@ function adaptAuthResult(data?: RawAuthData | null): AuthResponse {
     message: 'ok',
     data: {
       token,
+      refreshToken: data.refreshToken || '',
       // 后端返回完整 user 对象，运行时字段齐全；类型层用 as UserInfo 收口宽松 Raw
       user: { ...data.user, token } as UserInfo,
     },
@@ -83,6 +78,21 @@ export const authApi = {
       return adaptAuthResult(data)
     } catch (e: any) {
       return { success: false, message: e?.message || '登录失败' }
+    }
+  },
+
+  /** 微信登录（小程序）— POST /auth/login/wechat，code 由 uni.login 获取，后端 code2session 换 openId */
+  async wechatLogin(code: string): Promise<AuthResponse> {
+    try {
+      const data = await apiPost<RawAuthData>('/auth/login/wechat', {
+        code,
+        loginType: 'miniprogram',
+        // 新用户自动注册时绑定最近分享者作为归属
+        referrerCode: getTempReferrer(),
+      })
+      return adaptAuthResult(data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '微信登录失败' }
     }
   },
 

@@ -28,8 +28,8 @@
       <AppIcon name="chevron-right" :size="16" color="#d97706" />
     </view>
 
-    <!-- 消息列表 -->
-    <scroll-view class="msg-scroll" scroll-y :scroll-into-view="'msg-end'">
+    <!-- 消息列表（scrollAnchor 清空再置回触发重新滚底，常量不会重触发） -->
+    <scroll-view class="msg-scroll" scroll-y :scroll-into-view="scrollAnchor">
       <view class="msg-list">
         <view v-for="(message, index) in messages" :key="message.id">
           <!-- 时间标签 -->
@@ -121,31 +121,17 @@
             @confirm="handleSend"
           />
         </view>
+        <!-- 语音消息未实现：空输入时不再展示无响应的话筒占位按钮 -->
         <view v-if="inputText.trim()" class="send-btn" :class="{ 'send-btn-disabled': submitting }" @tap="handleSend">
           <AppIcon name="send" :size="20" color="#ffffff" />
         </view>
-        <view v-else class="icon-btn">
-          <AppIcon name="mic" :size="20" color="#2c2c2c" />
-        </view>
       </view>
 
-      <!-- 更多功能面板 -->
+      <!-- 更多功能面板（相册/拍照/语音未实现已隐藏，只保留已实现的 @成员） -->
       <view v-if="showMorePanel" class="more-panel">
-        <view class="more-item" @tap="toast('相册功能开发中')">
-          <view class="more-icon"><AppIcon name="image" :size="20" color="#16a34a" /></view>
-          <text class="more-label">相册</text>
-        </view>
-        <view class="more-item" @tap="toast('拍照功能开发中')">
-          <view class="more-icon"><AppIcon name="camera" :size="20" color="#3b82f6" /></view>
-          <text class="more-label">拍照</text>
-        </view>
         <view class="more-item" @tap="openAtFromPanel">
           <view class="more-icon"><AppIcon name="at-sign" :size="20" color="#9333ea" /></view>
           <text class="more-label">@成员</text>
-        </view>
-        <view class="more-item" @tap="toast('语音功能开发中')">
-          <view class="more-icon"><AppIcon name="mic" :size="20" color="#ea580c" /></view>
-          <text class="more-label">语音</text>
         </view>
       </view>
     </view>
@@ -179,7 +165,7 @@
           <view class="sheet-section">
             <view class="sheet-section-head">
               <text class="sheet-section-label">群成员</text>
-              <text class="sheet-section-more">查看全部 ></text>
+              <text class="sheet-section-more" @tap="openGroupDetail">查看全部 ></text>
             </view>
             <view class="member-grid">
               <view v-for="member in members.slice(0, 10)" :key="member.id" class="member-cell">
@@ -236,9 +222,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import {
   imApi,
   searchGroupMembersForAt,
@@ -277,6 +263,14 @@ const showAtList = ref(false)
 const atSearchKeyword = ref('')
 const selectedAtMembers = ref<string[]>([])
 const selectedMessage = ref<GroupChatMessage | null>(null)
+
+// scroll-into-view 需变化才触发滚动：清空一帧再置回锚点值，实现"新消息自动滚底"
+const scrollAnchor = ref('msg-end')
+async function scrollToBottom() {
+  scrollAnchor.value = ''
+  await nextTick()
+  scrollAnchor.value = 'msg-end'
+}
 
 let unsubscribe: (() => void) | null = null
 
@@ -322,8 +316,12 @@ async function loadData() {
     if (!mine.length) return
     messages.value.push(...mine.map(timToGroupChatMessage).map(enrichRole))
     imApi.markGroupRead(gid.value)
+    scrollToBottom()
   })
   loading.value = false
+  // 初次拉历史后滚到底部：消息列表在 loading=false 后才渲染，先等一帧让列表渲染完再触发滚底
+  await nextTick()
+  scrollToBottom()
 }
 
 onMounted(() => {
@@ -364,6 +362,11 @@ function openNoticeFromMembers() {
   showMembersSheet.value = false
   showNoticeSheet.value = true
 }
+/** 群成员"查看全部" → 群聊设置页（DYNAMIC_ROUTES /im/group-detail/:id → pkg-im/im/group-detail，onLoad 收 id） */
+function openGroupDetail() {
+  showMembersSheet.value = false
+  navigateTo(`/im/group-detail/${gid.value}`)
+}
 
 function handleSelectAtMember(member: GroupMember) {
   if (!selectedAtMembers.value.includes(member.id)) {
@@ -401,6 +404,7 @@ async function handleSend() {
   try {
     const msg = await imApi.sendGroupMessage(gid.value, content)
     messages.value.push(enrichRole(msg))
+    scrollToBottom()
   } catch (e) {
     inputText.value = content // 发送失败回填输入框
     toast((e as Error)?.message || '发送失败，请重试')

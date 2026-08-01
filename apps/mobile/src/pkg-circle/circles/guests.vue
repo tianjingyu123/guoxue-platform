@@ -12,19 +12,28 @@
  *  - article/course/live/qa 细粒度发布权限（后端无此模型）
  *  - 待审核嘉宾 Tab/通过·拒绝（后端无嘉宾申请审核端点，嘉宾即 role=GUEST 直接存在）
  *  - 文章/课程/直播/本月收益 四宫格统计（后端 getGuests 不返回这些字段）
- *  - 二维码邀请 → 保留 toastComingSoon 占位
+ *  - 邀请嘉宾 → 复用圈子真实邀请码页
  * 真实展示：头像/昵称、分账比例(shareRate%)、累计收益(totalEarned，单位元)。
  */
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, toastComingSoon } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
+import { goBack, navigateTo } from '@/utils/router'
 import { circleGuestsApi, type CircleGuest } from '@/lib/circle-guests-data'
 
 // onLoad 取 circleId（仅用于「移除嘉宾」端点；列表接口不需要）。拿不到则隐藏移除操作。
 const circleId = ref('')
 onLoad((opt) => { circleId.value = (opt?.id || opt?.circleId || '') as string })
 const canRemove = computed(() => !!circleId.value)
+
+function openInvite() {
+  if (!circleId.value) {
+    uni.showToast({ title: '缺少圈子信息，请从圈子后台进入', icon: 'none' })
+    return
+  }
+  navigateTo(`/pkg-circle/circles/invite-codes?id=${circleId.value}`)
+}
 
 // ─── 列表三态 ───
 const guests = ref<CircleGuest[]>([])
@@ -123,9 +132,9 @@ async function doRemove(g: CircleGuest) {
     <!-- Header -->
     <view class="gt-nav">
       <view class="gt-nav-bar">
-        <view class="gt-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#2C2C2C" /></view>
+        <view class="gt-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="gt-title">嘉宾管理</text>
-        <view class="gt-invite-btn" @tap="toastComingSoon()"><app-icon name="user-plus" :size="40" color="#C41E3A" /></view>
+        <view class="gt-invite-btn" @tap="openInvite"><app-icon name="user-plus" :size="40" color="#C41E3A" /></view>
       </view>
       <!-- 搜索 -->
       <view class="gt-search-wrap">
@@ -140,7 +149,7 @@ async function doRemove(g: CircleGuest) {
     <view class="gt-list">
       <!-- loading -->
       <view v-if="loading" class="gt-empty">
-        <text class="gt-empty-text">加载中…</text>
+        <AppLoading />
       </view>
 
       <!-- error -->

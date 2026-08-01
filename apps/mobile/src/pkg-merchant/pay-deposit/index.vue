@@ -1,176 +1,217 @@
 <template>
-  <view class="pd-page">
-    <!-- 顶部导航 -->
-    <view class="pd-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="pd-header-inner">
-        <view class="pd-back" @tap="go('/merchant/application-status')">
-          <AppIcon name="arrow-left" :size="20" color="#1a1a1a" />
+  <view class="deposit-page">
+    <view
+      class="deposit-nav"
+      :style="{ paddingTop: statusBarHeight + 'px' }"
+    >
+      <view class="deposit-nav-inner">
+        <view
+          class="deposit-back"
+          @tap="go('/merchant/application-status')"
+        >
+          <AppIcon
+            name="arrow-left"
+            :size="19"
+            color="#2c2722"
+          />
         </view>
-        <text class="pd-title">缴纳保证金</text>
+        <text class="deposit-nav-title">
+          入驻保证金
+        </text>
       </view>
     </view>
 
-    <!-- 成功态 -->
-    <view v-if="isPaid" class="pd-content" :style="{ paddingTop: statusBarHeight + 44 + 16 + 'px' }">
-      <view class="pd-success-card">
-        <view class="pd-success-icon">
-          <AppIcon name="check-circle-2" :size="48" color="#22c55e" />
+    <view
+      class="deposit-main"
+      :style="{ paddingTop: statusBarHeight + 76 + 'px' }"
+    >
+      <view
+        v-if="loading"
+        class="state-card"
+      >
+        <view class="state-spinner" />
+        <text class="state-text">
+          正在核验保证金状态…
+        </text>
+      </view>
+
+      <view
+        v-else-if="error"
+        class="state-card"
+      >
+        <view class="state-icon state-icon-error">
+          <AppIcon
+            name="alert-circle"
+            :size="30"
+            color="#b45309"
+          />
         </view>
-        <text class="pd-success-title">支付成功</text>
-        <text class="pd-success-sub">保证金已缴纳，即将跳转...</text>
-        <view class="pd-success-info">
-          <view class="pd-info-row">
-            <text class="pd-info-label">缴纳金额</text>
-            <text class="pd-info-val pd-text-red">¥{{ totalDeposit }}.00</text>
-          </view>
-          <view class="pd-info-row">
-            <text class="pd-info-label">缴纳时间</text>
-            <text class="pd-info-val">{{ paidInfo.paidAt }}</text>
-          </view>
-          <view class="pd-info-row">
-            <text class="pd-info-label">交易流水号</text>
-            <text class="pd-info-mono">{{ paidInfo.transactionId }}</text>
-          </view>
+        <text class="state-title">
+          暂时无法核验
+        </text>
+        <text class="state-text">
+          {{ error }}
+        </text>
+        <view
+          class="state-action"
+          @tap="load"
+        >
+          <text>重新核验</text>
         </view>
       </view>
+
+      <template v-else-if="info">
+        <view
+          class="hero-card"
+          :class="{ 'hero-card-blocked': !canContinue }"
+        >
+          <view class="hero-orbit">
+            <view class="hero-icon">
+              <AppIcon
+                :name="canContinue ? 'shield-check' : 'shield'"
+                :size="34"
+                :color="canContinue ? '#a5843f' : '#b45309'"
+              />
+            </view>
+          </view>
+          <text class="hero-kicker">
+            商家入驻权益
+          </text>
+          <text class="hero-title serif">
+            {{ canContinue ? '当前免缴保证金' : '保证金待平台核验' }}
+          </text>
+          <text class="hero-desc">
+            {{ canContinue
+              ? '本平台当前实行免保证金入驻，你无需支付任何费用，可直接继续签署合作协议。'
+              : `系统记录应缴 ¥${formatAmount(info.depositAmount)}，但在线收款尚未开放，平台不会要求你在此页面付款。` }}
+          </text>
+          <view class="amount-pill">
+            <text class="amount-label">
+              本次应付
+            </text>
+            <text class="amount-value">
+              ¥{{ canContinue ? '0.00' : formatAmount(info.depositAmount) }}
+            </text>
+          </view>
+        </view>
+
+        <view class="policy-card">
+          <view class="policy-head">
+            <text class="policy-title serif">
+              你需要知道
+            </text>
+            <text class="policy-badge">
+              资金安全
+            </text>
+          </view>
+          <view
+            v-for="item in policyItems"
+            :key="item.title"
+            class="policy-row"
+          >
+            <view class="policy-number">
+              <text>{{ item.no }}</text>
+            </view>
+            <view class="policy-copy">
+              <text class="policy-row-title">
+                {{ item.title }}
+              </text>
+              <text class="policy-row-desc">
+                {{ item.desc }}
+              </text>
+            </view>
+          </view>
+        </view>
+
+        <view
+          v-if="!canContinue"
+          class="warning-card"
+        >
+          <AppIcon
+            name="info"
+            :size="20"
+            color="#b45309"
+          />
+          <view class="warning-copy">
+            <text class="warning-title">
+              不会在未核验到账时开通店铺
+            </text>
+            <text class="warning-desc">
+              请联系平台客服核对历史记录。真实支付与原路退款能力上线前，系统不会生成“支付成功”或“退款成功”流水。
+            </text>
+          </view>
+        </view>
+      </template>
     </view>
 
-    <!-- 缴费态 -->
-    <template v-else>
-      <scroll-view scroll-y class="pd-scroll" :style="{ paddingTop: statusBarHeight + 44 + 'px' }">
-        <view class="pd-body">
-          <!-- 金额卡 -->
-          <view class="pd-amount-card">
-            <text class="pd-amount-label">应缴保证金</text>
-            <view class="pd-amount-row">
-              <text class="pd-amount-sym">¥</text>
-              <text class="pd-amount-num">{{ totalDeposit }}</text>
-              <text class="pd-amount-cents">.00</text>
-            </view>
-            <view class="pd-amount-detail">
-              <view class="pd-detail-row">
-                <text class="pd-detail-label">基础保证金</text>
-                <text class="pd-detail-val">¥{{ baseDeposit }}.00</text>
-              </view>
-              <view class="pd-detail-row">
-                <text class="pd-detail-label">类目保证金</text>
-                <text class="pd-detail-val">¥{{ categoryDeposit }}.00</text>
-              </view>
-            </view>
-          </view>
-
-          <!-- 说明 -->
-          <view class="pd-card pd-tip-card">
-            <AppIcon name="shield" :size="20" color="#22c55e" />
-            <view class="pd-tip-text">
-              <text class="pd-tip-title">保证金说明</text>
-              <text class="pd-tip-desc">保证金用于保障消费者权益和平台交易安全。在您退出经营且无违规记录的情况下，保证金将全额退还。</text>
-            </view>
-          </view>
-
-          <!-- 支付方式 -->
-          <view class="pd-card">
-            <text class="pd-card-title">选择支付方式</text>
-            <view class="pd-methods">
-              <view
-                v-for="method in paymentMethods"
-                :key="method.id"
-                class="pd-method"
-                :class="{ 'pd-method-on': selectedMethod === method.id }"
-                @tap="selectedMethod = method.id"
-              >
-                <view class="pd-method-left">
-                  <AppIcon :name="method.icon" :size="24" :color="method.color" />
-                  <text class="pd-method-name">{{ method.name }}</text>
-                </view>
-                <view class="pd-radio" :class="{ 'pd-radio-on': selectedMethod === method.id }">
-                  <AppIcon v-if="selectedMethod === method.id" name="check" :size="12" color="#ffffff" />
-                </view>
-              </view>
-            </view>
-          </view>
-
-        </view>
-        <view class="pd-bottom-placeholder" />
-      </scroll-view>
-
-      <!-- 底部支付 -->
-      <view class="pd-footer">
-        <view class="pd-pay-btn" :class="{ 'pd-pay-btn-disabled': isPaying }" @tap="handlePay">
-          <template v-if="isPaying">
-            <view class="pd-spin"><AppIcon name="loader-2" :size="18" color="#ffffff" /></view>
-            <text>支付中...</text>
-          </template>
-          <template v-else>
-            <AppIcon name="credit-card" :size="18" color="#ffffff" />
-            <text>确认支付 ¥{{ totalDeposit }}.00</text>
-          </template>
-        </view>
+    <view
+      v-if="!loading && !error && info"
+      class="deposit-footer"
+      :style="{ paddingBottom: 18 + safeBottom + 'px' }"
+    >
+      <view class="footer-note">
+        <AppIcon
+          name="lock"
+          :size="13"
+          color="#8a8178"
+        />
+        <text>{{ canContinue ? '本次无需支付，不会调起收银台' : '资金状态未核验前不可签约' }}</text>
       </view>
-    </template>
+      <view
+        class="footer-button"
+        :class="{ 'footer-button-help': !canContinue }"
+        @tap="handleContinue"
+      >
+        <AppIcon
+          :name="canContinue ? 'check-circle-2' : 'customer-service'"
+          :size="19"
+          color="#ffffff"
+        />
+        <text>{{ canContinue ? '继续签署入驻协议' : '联系平台客服' }}</text>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { merchantApi } from '@/lib/merchant-data'
-
-// 后端 PayDepositDto 仅支持微信/支付宝（银行转账无对应支付能力）
-const paymentMethods = [
-  { id: 'WECHAT' as const, name: '微信支付', icon: 'smartphone', color: '#22c55e' },
-  { id: 'ALIPAY' as const, name: '支付宝', icon: 'smartphone', color: '#3b82f6' },
-]
-
-const baseDeposit = 1000 // 基础保证金（与后端 merchant_deposit_base 配置一致）
+import { merchantApi, type DepositInfo } from '@/pkg-merchant/lib/merchant-data'
 
 const loading = ref(true)
-const totalDeposit = ref(0)
-const selectedMethod = ref<'WECHAT' | 'ALIPAY'>('WECHAT')
-const isPaying = ref(false)
-const isPaid = ref(false)
-const paidInfo = ref({ paidAt: '', transactionId: '' })
+const error = ref('')
+const info = ref<DepositInfo | null>(null)
 const statusBarHeight = ref(0)
+const safeBottom = ref(0)
 
-// 类目保证金 = 总额 - 基础（拆分明细，总额来自后端真实计算）
-const categoryDeposit = computed(() => Math.max(0, totalDeposit.value - baseDeposit))
+const canContinue = computed(() => !!info.value && (info.value.waived || info.value.depositPaid))
 
-function formatNow(): string {
-  const d = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+const policyItems = [
+  { no: '01', title: '当前政策', desc: '平台现阶段免收商家入驻保证金，不设置隐藏收费。' },
+  { no: '02', title: '真实凭证', desc: '只有经支付渠道核验的成功流水才会被认定为到账。' },
+  { no: '03', title: '政策变更', desc: '未来如调整，将提前通知并以届时生效的协议为准。' },
+]
+
+function formatAmount(value: number): string {
+  return Number(value || 0).toFixed(2)
 }
 
 async function load() {
   loading.value = true
+  error.value = ''
+  info.value = null
   try {
-    const info = await merchantApi.getDepositInfo()
-    totalDeposit.value = Math.round(Number(info.depositAmount || 0))
-    if (info.depositPaid || info.status !== 'DEPOSIT_PENDING') {
-      uni.showToast({ title: '当前无需缴纳保证金', icon: 'none' })
-      setTimeout(() => navigateTo('/merchant/application-status'), 800)
-    }
+    info.value = await merchantApi.getDepositInfo()
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '加载失败', icon: 'none' })
+    error.value = (e as Error)?.message || '保证金状态加载失败，请稍后重试'
   } finally {
     loading.value = false
   }
 }
 
-async function handlePay() {
-  if (isPaying.value) return
-  isPaying.value = true
-  try {
-    const res = await merchantApi.payDeposit(selectedMethod.value) as { depositRecordId?: string }
-    paidInfo.value = { paidAt: formatNow(), transactionId: res?.depositRecordId || '' }
-    isPaid.value = true
-    setTimeout(() => navigateTo('/merchant/application-status'), 2000)
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '支付失败', icon: 'none' })
-  } finally {
-    isPaying.value = false
-  }
+function handleContinue() {
+  navigateTo(canContinue.value ? '/merchant/sign-agreement' : '/customer-service')
 }
 
 function go(url: string) {
@@ -178,82 +219,75 @@ function go(url: string) {
 }
 
 onMounted(() => {
-  uni.getSystemInfo({ success: (res) => { statusBarHeight.value = res.statusBarHeight || 0 } })
+  uni.getSystemInfo({
+    success: (res) => {
+      statusBarHeight.value = res.statusBarHeight || 0
+      safeBottom.value = res.safeAreaInsets?.bottom || 0
+    },
+  })
   load()
 })
 </script>
 
-<style scoped>
-.pd-page { min-height: 100vh; background: #f5f5f5; display: flex; flex-direction: column; }
+<style lang="scss" scoped>
+$paper: #f7f3ec;
+$card: #fffdf9;
+$ink: #2c2722;
+$muted: #776f66;
+$gold: #a5843f;
+$red: #b82b42;
+$line: rgba(83, 68, 51, 0.1);
 
-.pd-header { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: #fff; border-bottom: 1px solid rgba(0,0,0,0.06); }
-.pd-header-inner { display: flex; align-items: center; height: 44px; padding: 0 16px; }
-.pd-back { margin-right: 12px; }
-.pd-title { font-size: 18px; font-weight: 600; color: #1a1a1a; }
+.serif { font-family: "Songti SC", "STSong", serif; }
+.deposit-page { min-height: 100vh; background: $paper; color: $ink; }
+.deposit-nav { position: fixed; inset: 0 0 auto; z-index: 20; background: rgba(247, 243, 236, 0.94); border-bottom: 1rpx solid $line; backdrop-filter: blur(18px); }
+.deposit-nav-inner { position: relative; height: 52px; display: flex; align-items: center; justify-content: center; }
+.deposit-back { position: absolute; left: 28rpx; width: 68rpx; height: 68rpx; border: 1rpx solid $line; border-radius: 50%; background: rgba(255,255,255,.78); display: flex; align-items: center; justify-content: center; }
+.deposit-nav-title { font-size: 32rpx; font-weight: 700; }
+.deposit-main { padding-left: 32rpx; padding-right: 32rpx; padding-bottom: 260rpx; box-sizing: border-box; }
 
-/* 成功态 */
-.pd-content { padding: 16px; }
-.pd-success-card { background: #f0fdf4; border-radius: 12px; padding: 32px; display: flex; flex-direction: column; align-items: center; text-align: center; }
-.pd-success-icon { width: 80px; height: 80px; border-radius: 50%; background: #dcfce7; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
-.pd-success-title { font-size: 20px; font-weight: 700; color: #16a34a; margin-bottom: 8px; }
-.pd-success-sub { font-size: 14px; color: #999; margin-bottom: 16px; }
-.pd-success-info { width: 100%; background: #fff; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-.pd-info-row { display: flex; align-items: center; justify-content: space-between; }
-.pd-info-label { font-size: 14px; color: #999; }
-.pd-info-val { font-size: 14px; font-weight: 500; color: #1a1a1a; }
-.pd-info-mono { font-size: 12px; font-family: monospace; color: #1a1a1a; }
-.pd-text-red { color: var(--brand); }
+.state-card { min-height: 440rpx; padding: 60rpx 42rpx; border: 1rpx solid $line; border-radius: 36rpx; background: $card; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; }
+.state-spinner { width: 48rpx; height: 48rpx; border: 5rpx solid rgba(165,132,63,.18); border-top-color: $gold; border-radius: 50%; animation: spin .8s linear infinite; margin-bottom: 24rpx; }
+.state-icon { width: 92rpx; height: 92rpx; border-radius: 28rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
+.state-icon-error { background: #fff7ed; }
+.state-title { font-size: 34rpx; font-weight: 700; margin-bottom: 12rpx; }
+.state-text { font-size: 25rpx; color: $muted; line-height: 1.7; }
+.state-action { margin-top: 34rpx; padding: 20rpx 48rpx; border-radius: 999px; background: $red; }
+.state-action text { color: #fff; font-size: 26rpx; font-weight: 600; }
 
-.pd-scroll { flex: 1; height: 100vh; box-sizing: border-box; }
-.pd-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.hero-card { position: relative; overflow: hidden; padding: 54rpx 42rpx 42rpx; border: 1rpx solid rgba(165,132,63,.24); border-radius: 40rpx; background: radial-gradient(circle at 82% 4%, rgba(207,178,116,.26), transparent 34%), linear-gradient(145deg, #fffdf8 0%, #f5ead2 100%); box-shadow: 0 22rpx 70rpx rgba(91,70,35,.1); text-align: center; }
+.hero-card-blocked { border-color: rgba(180,83,9,.22); background: radial-gradient(circle at 82% 4%, rgba(245,158,11,.18), transparent 34%), linear-gradient(145deg, #fffdf9 0%, #fff7ed 100%); }
+.hero-orbit { width: 128rpx; height: 128rpx; margin: 0 auto 24rpx; border: 1rpx solid rgba(165,132,63,.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.hero-icon { width: 94rpx; height: 94rpx; border-radius: 32rpx; background: rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; box-shadow: 0 12rpx 34rpx rgba(98,75,35,.12); }
+.hero-kicker { display: block; color: $gold; font-size: 21rpx; letter-spacing: 6rpx; margin-bottom: 14rpx; }
+.hero-title { display: block; font-size: 44rpx; font-weight: 700; letter-spacing: 2rpx; }
+.hero-desc { display: block; margin-top: 18rpx; color: $muted; font-size: 25rpx; line-height: 1.75; }
+.amount-pill { margin: 34rpx auto 0; padding: 18rpx 26rpx; max-width: 360rpx; border: 1rpx solid rgba(165,132,63,.16); border-radius: 22rpx; background: rgba(255,255,255,.62); display: flex; justify-content: space-between; align-items: baseline; }
+.amount-label { font-size: 22rpx; color: $muted; }
+.amount-value { font-size: 33rpx; font-weight: 800; color: $red; }
 
-/* 金额卡 */
-.pd-amount-card { background: linear-gradient(135deg, rgba(196,30,58,0.05), rgba(196,30,58,0.1)); border-radius: 12px; padding: 24px; }
-.pd-amount-label { display: block; font-size: 14px; color: #999; text-align: center; margin-bottom: 8px; }
-.pd-amount-row { display: flex; align-items: baseline; justify-content: center; }
-.pd-amount-sym { font-size: 14px; color: var(--brand); }
-.pd-amount-num { font-size: 36px; font-weight: 700; color: var(--brand); }
-.pd-amount-cents { font-size: 14px; color: var(--brand); }
-.pd-amount-detail { margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; }
-.pd-detail-row { display: flex; align-items: center; justify-content: space-between; }
-.pd-detail-label { font-size: 14px; color: #999; }
-.pd-detail-val { font-size: 14px; color: #444; }
+.policy-card { margin-top: 28rpx; padding: 36rpx 34rpx 12rpx; border: 1rpx solid $line; border-radius: 36rpx; background: $card; }
+.policy-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14rpx; }
+.policy-title { font-size: 31rpx; font-weight: 700; }
+.policy-badge { padding: 8rpx 16rpx; border-radius: 999px; background: #f4eddd; color: $gold; font-size: 20rpx; }
+.policy-row { display: flex; gap: 22rpx; padding: 26rpx 0; border-bottom: 1rpx solid $line; }
+.policy-row:last-child { border-bottom: 0; }
+.policy-number { width: 52rpx; height: 52rpx; border-radius: 18rpx; background: #f4eddd; display: flex; align-items: center; justify-content: center; flex: none; }
+.policy-number text { color: $gold; font-size: 19rpx; font-weight: 700; }
+.policy-copy { flex: 1; min-width: 0; }
+.policy-row-title { display: block; font-size: 26rpx; font-weight: 700; margin-bottom: 7rpx; }
+.policy-row-desc { display: block; color: $muted; font-size: 23rpx; line-height: 1.6; }
+.warning-card { margin-top: 28rpx; padding: 28rpx; border: 1rpx solid rgba(180,83,9,.2); border-radius: 30rpx; background: #fff8ed; display: flex; align-items: flex-start; gap: 18rpx; }
+.warning-copy { flex: 1; }
+.warning-title { display: block; color: #92400e; font-size: 25rpx; font-weight: 700; margin-bottom: 8rpx; }
+.warning-desc { display: block; color: #a16207; font-size: 22rpx; line-height: 1.65; }
 
-/* Card */
-.pd-card { background: #fff; border-radius: 12px; padding: 16px; }
-.pd-card-title { display: block; font-size: 15px; font-weight: 500; color: #1a1a1a; margin-bottom: 16px; }
-.pd-tip-card { display: flex; align-items: flex-start; gap: 12px; }
-.pd-tip-text { flex: 1; }
-.pd-tip-title { display: block; font-size: 15px; font-weight: 500; color: #1a1a1a; margin-bottom: 4px; }
-.pd-tip-desc { font-size: 14px; color: #999; line-height: 1.5; }
+.deposit-footer { position: fixed; inset: auto 0 0; z-index: 15; padding: 22rpx 32rpx 34rpx; border-top: 1rpx solid $line; background: rgba(255,253,249,.96); backdrop-filter: blur(18px); }
+.footer-note { display: flex; align-items: center; justify-content: center; gap: 9rpx; margin-bottom: 15rpx; }
+.footer-note text { color: #8a8178; font-size: 20rpx; }
+.footer-button { height: 94rpx; border-radius: 28rpx; background: $red; box-shadow: 0 16rpx 34rpx rgba(184,43,66,.25); display: flex; align-items: center; justify-content: center; gap: 14rpx; }
+.footer-button-help { background: #9a5a16; box-shadow: 0 16rpx 34rpx rgba(154,90,22,.22); }
+.footer-button text { color: #fff; font-size: 29rpx; font-weight: 700; }
 
-/* 支付方式 */
-.pd-methods { display: flex; flex-direction: column; gap: 12px; }
-.pd-method { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-radius: 12px; border: 2px solid #eee; }
-.pd-method-on { border-color: var(--brand); background: rgba(196,30,58,0.05); }
-.pd-method-left { display: flex; align-items: center; gap: 12px; }
-.pd-method-name { font-size: 15px; font-weight: 500; color: #1a1a1a; }
-.pd-radio { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #999; display: flex; align-items: center; justify-content: center; }
-.pd-radio-on { background: var(--brand); border-color: var(--brand); }
-
-/* 银行 */
-.pd-bank { display: flex; flex-direction: column; gap: 16px; }
-.pd-bank-item { flex: 1; }
-.pd-bank-label { display: block; font-size: 12px; color: #999; margin-bottom: 4px; }
-.pd-bank-val { font-size: 14px; font-weight: 500; color: #1a1a1a; }
-.pd-bank-mono { font-size: 14px; font-weight: 500; font-family: monospace; color: #1a1a1a; }
-.pd-bank-row { display: flex; align-items: center; justify-content: space-between; }
-.pd-copy-btn { width: 36px; height: 36px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.pd-bank-remark { padding: 12px; background: #fffbeb; border-radius: 8px; }
-.pd-remark-txt { font-size: 14px; color: #d97706; }
-
-.pd-bottom-placeholder { height: 96px; }
-
-/* Footer */
-.pd-footer { position: fixed; bottom: 0; left: 0; right: 0; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid rgba(0,0,0,0.06); }
-.pd-pay-btn { height: 48px; background: var(--brand); border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.pd-pay-btn text { font-size: 16px; font-weight: 500; color: #fff; }
-.pd-pay-btn-disabled { opacity: 0.5; }
-.pd-spin { display: inline-flex; animation: pd-spin 1s linear infinite; }
-@keyframes pd-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

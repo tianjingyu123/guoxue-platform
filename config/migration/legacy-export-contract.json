@@ -1,0 +1,249 @@
+{
+  "contractVersion": 1,
+  "sourceSystem": "choofine_rebuguoxue",
+  "format": "UTF-8 CSV（带表头；时间必须含时区；手机号按文本导出）",
+  "files": [
+    {
+      "name": "users.csv",
+      "required": true,
+      "minRows": 1,
+      "keyColumns": ["legacy_user_id"],
+      "retainColumns": ["legacy_user_id"],
+      "requiredColumns": [
+        "legacy_user_id",
+        "phone",
+        "nickname",
+        "avatar",
+        "status",
+        "created_at",
+        "updated_at"
+      ],
+      "oneOfColumns": [["phone", "nickname"]],
+      "optionalPatternColumns": {
+        "phone": "^1\\d{10}$"
+      },
+      "timestampColumns": ["created_at", "updated_at"],
+      "allowedValues": {
+        "status": ["ACTIVE", "DISABLED", "BANNED"]
+      }
+    },
+    {
+      "name": "wechat_auth.csv",
+      "required": true,
+      "minRows": 0,
+      "keyColumns": ["legacy_auth_id"],
+      "requiredColumns": [
+        "legacy_auth_id",
+        "legacy_user_id",
+        "openid",
+        "unionid",
+        "app_context",
+        "created_at",
+        "updated_at"
+      ],
+      "oneOfColumns": [["openid", "unionid"]],
+      "timestampColumns": ["created_at", "updated_at"],
+      "foreignKeys": [
+        {
+          "column": "legacy_user_id",
+          "targetFile": "users.csv",
+          "targetColumn": "legacy_user_id"
+        }
+      ]
+    },
+    {
+      "name": "members.csv",
+      "required": true,
+      "minRows": 0,
+      "keyColumns": ["legacy_membership_id"],
+      "requiredColumns": [
+        "legacy_membership_id",
+        "legacy_user_id",
+        "member_level",
+        "member_expire",
+        "amount",
+        "order_no",
+        "paid_at",
+        "updated_at"
+      ],
+      "timestampColumns": ["member_expire", "paid_at", "updated_at"],
+      "nonNegativeDecimalColumns": ["amount"],
+      "allowedValues": {
+        "member_level": ["MONTHLY", "QUARTERLY", "YEARLY", "LIFETIME"]
+      },
+      "foreignKeys": [
+        {
+          "column": "legacy_user_id",
+          "targetFile": "users.csv",
+          "targetColumn": "legacy_user_id"
+        }
+      ]
+    },
+    {
+      "name": "wallet_balances.csv",
+      "required": true,
+      "minRows": 0,
+      "keyColumns": ["legacy_user_id"],
+      "requiredColumns": ["legacy_user_id", "balance", "updated_at"],
+      "nonNegativeDecimalColumns": ["balance"],
+      "timestampColumns": ["updated_at"],
+      "foreignKeys": [
+        {
+          "column": "legacy_user_id",
+          "targetFile": "users.csv",
+          "targetColumn": "legacy_user_id"
+        }
+      ]
+    },
+    {
+      "name": "wallet_transactions.csv",
+      "required": true,
+      "minRows": 0,
+      "keyColumns": ["legacy_transaction_id"],
+      "requiredColumns": [
+        "legacy_transaction_id",
+        "legacy_user_id",
+        "type",
+        "amount",
+        "balance_after",
+        "order_no",
+        "occurred_at",
+        "updated_at"
+      ],
+      "decimalColumns": ["amount", "balance_after"],
+      "timestampColumns": ["occurred_at", "updated_at"],
+      "foreignKeys": [
+        {
+          "column": "legacy_user_id",
+          "targetFile": "users.csv",
+          "targetColumn": "legacy_user_id"
+        }
+      ]
+    },
+    {
+      "name": "withdrawals.csv",
+      "required": true,
+      "minRows": 0,
+      "keyColumns": ["legacy_withdrawal_id"],
+      "requiredColumns": [
+        "legacy_withdrawal_id",
+        "legacy_user_id",
+        "amount",
+        "status",
+        "payout_reference",
+        "requested_at",
+        "processed_at",
+        "updated_at"
+      ],
+      "nonNegativeDecimalColumns": ["amount"],
+      "timestampColumns": ["requested_at", "processed_at", "updated_at"],
+      "allowedValues": {
+        "status": ["PENDING", "APPROVED", "PAID", "REJECTED", "CANCELLED"]
+      },
+      "foreignKeys": [
+        {
+          "column": "legacy_user_id",
+          "targetFile": "users.csv",
+          "targetColumn": "legacy_user_id"
+        }
+      ]
+    },
+    {
+      "name": "stations.csv",
+      "required": true,
+      "minRows": 0,
+      "keyColumns": ["legacy_station_id"],
+      "requiredColumns": [
+        "legacy_station_id",
+        "legacy_owner_user_id",
+        "station_code",
+        "station_name",
+        "status",
+        "expire_at",
+        "paipan_link",
+        "paipan_user_id",
+        "updated_at"
+      ],
+      "timestampColumns": ["expire_at", "updated_at"],
+      "allowedValues": {
+        "status": ["ACTIVE", "DISABLED", "EXPIRED"]
+      },
+      "foreignKeys": [
+        {
+          "column": "legacy_owner_user_id",
+          "targetFile": "users.csv",
+          "targetColumn": "legacy_user_id"
+        }
+      ]
+    },
+    {
+      "name": "orders.csv",
+      "required": true,
+      "minRows": 0,
+      "keyColumns": ["legacy_order_id"],
+      "retainColumns": ["legacy_order_id"],
+      "requiredColumns": [
+        "legacy_order_id",
+        "order_no",
+        "legacy_user_id",
+        "order_type",
+        "target_legacy_id",
+        "amount",
+        "pay_amount",
+        "status",
+        "pay_method",
+        "pay_transaction_id",
+        "paid_at",
+        "refunded_at",
+        "updated_at"
+      ],
+      "nonNegativeDecimalColumns": ["amount", "pay_amount"],
+      "timestampColumns": ["paid_at", "refunded_at", "updated_at"],
+      "allowedValues": {
+        "order_type": ["MEMBER", "COURSE", "OTHER"],
+        "status": ["PENDING", "PAID", "COMPLETED", "REFUNDED", "CANCELLED"]
+      },
+      "foreignKeys": [
+        {
+          "column": "legacy_user_id",
+          "targetFile": "users.csv",
+          "targetColumn": "legacy_user_id"
+        }
+      ]
+    },
+    {
+      "name": "course_entitlements.csv",
+      "required": true,
+      "minRows": 0,
+      "keyColumns": ["legacy_entitlement_id"],
+      "requiredColumns": [
+        "legacy_entitlement_id",
+        "legacy_user_id",
+        "legacy_course_id",
+        "legacy_order_id",
+        "course_title",
+        "paid_at",
+        "expires_at",
+        "status",
+        "updated_at"
+      ],
+      "timestampColumns": ["paid_at", "expires_at", "updated_at"],
+      "allowedValues": {
+        "status": ["ACTIVE", "EXPIRED", "REFUNDED", "CANCELLED"]
+      },
+      "foreignKeys": [
+        {
+          "column": "legacy_user_id",
+          "targetFile": "users.csv",
+          "targetColumn": "legacy_user_id"
+        },
+        {
+          "column": "legacy_order_id",
+          "targetFile": "orders.csv",
+          "targetColumn": "legacy_order_id",
+          "allowEmpty": true
+        }
+      ]
+    }
+  ]
+}

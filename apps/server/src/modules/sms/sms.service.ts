@@ -9,9 +9,22 @@ import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
 import { MetricsService } from "../../common/metrics.service";
 import { safePagination } from "../../common/pagination";
 
+interface TencentSendStatus {
+  Code?: string;
+  Message?: string;
+  PhoneNumber?: string;
+  SerialNo?: string;
+}
+
+export interface RetentionSmsResult {
+  ok: boolean;
+  disposition: "SENT" | "MANUAL" | "SKIPPED" | "FAILED";
+  message: string;
+}
+
 /**
  * 腾讯云短信 SMS 服务（纯原生API，不依赖SDK）
- * 用于发送手机验证码，支持登录/注册/找回密码等场景
+ * 验证码与业务短信共用底层签名调用，但模板、频控和业务方法严格隔离。
  */
 @Injectable()
 export class SmsService {
@@ -20,9 +33,12 @@ export class SmsService {
   private readonly secretKey: string;
   private readonly appId: string;
   private readonly signName: string;
+  private readonly churnTemplateId: string;
   private readonly templateId: string;
   private readonly host = "sms.tencentcloudapi.com";
   private readonly apiVersion = "2021-01-11";
+  /** 腾讯云短信必需 Region（与短信应用 SdkAppId 所在地域一致；默认广州） */
+  private readonly region: string;
 
   constructor(
     private redis: RedisService,
@@ -33,7 +49,9 @@ export class SmsService {
     this.secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
     this.appId = process.env.SMS_APP_ID || "";
     this.signName = process.env.SMS_SIGN_NAME || "国学平台";
+    this.churnTemplateId = process.env.SMS_CHURN_TEMPLATE_ID || "";
     this.templateId = process.env.SMS_TEMPLATE_ID || "";
+    this.region = process.env.SMS_REGION || process.env.COS_REGION || "ap-guangzhou";
 
     if (!this.secretId || !this.secretKey) {
       this.logger.warn("腾讯云密钥未配置，短信服务将不可用");
@@ -49,6 +67,10 @@ export class SmsService {
       action,
       version: this.apiVersion,
       payload: params,
+      // 🔴 2026-07-14 生产实测修复：漏传 region → 腾讯云恒返回
+      //    "The request is missing the required parameter `Region`" → 短信 100% 发不出去
+      //    → 真实用户收不到验证码 → 注册/登录整条路断死（其余 tc3 调用方都传了，唯独短信漏了）
+      region: this.region,
     });
 
     const start = Date.now();
@@ -57,6 +79,7 @@ export class SmsService {
         method: "POST",
         headers,
         body: payloadStr,
+        signal: AbortSignal.timeout(10000), // 防腾讯短信无响应挂死请求线程
       });
 
       const duration = Date.now() - start;
@@ -69,8 +92,22 @@ export class SmsService {
         throw new BusinessException(ErrorCode.THIRD_SMS_FAILED, `短信发送失败: ${data.Response.Error.Message}`);
       }
 
+      const response = data.Response!;
+      if (action === "SendSms") {
+        const statuses = (response as typeof response & { SendStatusSet?: TencentSendStatus[] }).SendStatusSet;
+        const rejected = !Array.isArray(statuses) || statuses.length === 0
+          ? { Code: "EMPTY_STATUS", Message: "短信服务未返回号码受理结果" }
+          : statuses.find((status) => String(status.Code).toLowerCase() !== "ok");
+        if (rejected) {
+          const reason = rejected.Code || "recipient_rejected";
+          this.metrics?.recordExternalApi("sms", action, false, duration, reason);
+          this.logger.error(`SMS 号码未受理 [${reason}] ${rejected.PhoneNumber ?? ""}: ${rejected.Message ?? "未知原因"}`);
+          throw new BusinessException(ErrorCode.THIRD_SMS_FAILED, `短信发送失败: ${rejected.Message || reason}`);
+        }
+      }
+
       this.metrics?.recordExternalApi("sms", action, true, duration);
-      return data.Response!;
+      return response;
     } catch (err) {
       const duration = Date.now() - start;
       if (err instanceof BusinessException) throw err;
@@ -88,6 +125,10 @@ export class SmsService {
 
   /** 发送短信验证码 */
   async sendVerifyCode(phone: string, scene: string = "LOGIN"): Promise<{ ok: boolean; message: string }> {
+    // 🔴 scene 归一化为大写：H5 发码传小写(login/register/reset)，而校验侧硬编码大写(LOGIN/RESET)，
+    // 大小写不一致导致 Redis key(sms:code:{scene}:{phone}) 存读错位 → 码永远读不到 → "刚发就过期"
+    // （2026-07-18 生产短信接通后首次真正走验证码登录时暴露）。
+    scene = scene.toUpperCase();
     // 频率限制：60秒内只能发一次
     const rateKey = `sms:rate:${phone}`;
     const lastSent = await this.redis.get(rateKey);
@@ -159,8 +200,71 @@ export class SmsService {
     }
   }
 
+  /**
+   * 发送流失召回短信。与验证码彻底隔离：不生成/存储验证码，只使用经审核的专用模板。
+   * 未配置模板时返回 MANUAL，由流失动作转入人工待办，绝不借用验证码模板伪装成功。
+   */
+  async sendRetentionMessage(
+    phone: string,
+    templateParams: string[] = [],
+    cooldownDays = 7,
+  ): Promise<RetentionSmsResult> {
+    if (!this.secretId || !this.secretKey || !this.appId || !process.env.SMS_SIGN_NAME?.trim() || !this.churnTemplateId) {
+      return {
+        ok: false,
+        disposition: "MANUAL",
+        message: "召回短信专用模板未配置或短信基础配置不完整，待人工处理",
+      };
+    }
+    if (!/^1\d{10}$/.test(phone)) {
+      return { ok: false, disposition: "FAILED", message: "目标用户手机号格式无效" };
+    }
+    if (templateParams.length > 6 || templateParams.some((value) => typeof value !== "string" || value.length > 32)) {
+      return { ok: false, disposition: "FAILED", message: "召回短信模板参数不合法" };
+    }
+
+    const safeCooldownDays = Math.min(90, Math.max(1, Math.trunc(cooldownDays) || 7));
+    const cooldownKey = `sms:retention:cooldown:${phone}`;
+    if (await this.redis.get(cooldownKey)) {
+      return {
+        ok: false,
+        disposition: "SKIPPED",
+        message: `用户仍在 ${safeCooldownDays} 天短信冷却期内，本次未重复发送`,
+      };
+    }
+
+    try {
+      await this.callApi("SendSms", {
+        PhoneNumberSet: [`+86${phone}`],
+        SmsSdkAppId: this.appId,
+        SignName: this.signName,
+        TemplateId: this.churnTemplateId,
+        TemplateParamSet: templateParams,
+      });
+      await this.redis.set(cooldownKey, "1", safeCooldownDays * 86400);
+      this.prisma.smsLog.create({
+        data: { phone: maskPhone(phone), scene: "CHURN_RETENTION", status: "SUCCESS" },
+      }).catch((err) => this.logger.warn("SMS日志写入失败", err));
+      this.logger.log(`召回短信已发送到 ${maskPhone(phone)}`);
+      return { ok: true, disposition: "SENT", message: "召回短信已发送" };
+    } catch (err) {
+      const message = (err as Error).message || "召回短信发送失败";
+      this.prisma.smsLog.create({
+        data: {
+          phone: maskPhone(phone),
+          scene: "CHURN_RETENTION",
+          status: "FAIL",
+          errorMsg: message.substring(0, 200),
+        },
+      }).catch((logErr) => this.logger.warn("SMS日志写入失败", logErr));
+      this.logger.error(`召回短信发送失败: ${maskPhone(phone)}`, message);
+      return { ok: false, disposition: "FAILED", message };
+    }
+  }
+
   /** 验证短信验证码（含爆破防护：5次失败后锁定30分钟） */
   async verifyCode(phone: string, code: string, scene: string = "LOGIN"): Promise<boolean> {
+    scene = scene.toUpperCase(); // 与 sendVerifyCode 一致归一化，杜绝发码/校验大小写错位
     const codeKey = `sms:code:${scene}:${phone}`;
     const failKey = `sms:fail:${scene}:${phone}`;
 
@@ -226,7 +330,60 @@ export class SmsService {
       }),
       this.prisma.smsLog.count({ where }),
     ]);
-    return { logs, total, page, pageSize };
+    // 出口兜底脱敏：新日志写入时已 maskPhone，但历史记录可能存过明文；
+    // maskPhone 幂等（已脱敏的串再过一遍结果不变），管理端一律不吐完整手机号。
+    return { logs: logs.map((l) => ({ ...l, phone: maskPhone(l.phone) })), total, page, pageSize };
+  }
+
+  /**
+   * 短信配置状态（管理端只读·运营页判断"短信是否已配置可用"）。
+   * 🔴 绝不返回密钥明文——密钥类字段只返回是否已配置的布尔值。
+   * 现读 process.env：启动时与后台第三方配置保存后 ThirdPartyConfigLoader.syncToEnv 都会写回 env，
+   * 此处实时读取即反映最新配置（不用构造器缓存的旧值）。
+   * 注意：SendSms 仍用构造器缓存的密钥，改配置后需重启/reload 才对发送生效——ready 仅表示"配置已齐"。
+   */
+  async getConfigStatus() {
+    const secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "";
+    const secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
+    const appId = process.env.SMS_APP_ID || "";
+    const signName = process.env.SMS_SIGN_NAME || "";
+    const templateId = process.env.SMS_TEMPLATE_ID || "";
+    const region = process.env.SMS_REGION || process.env.COS_REGION || "ap-guangzhou";
+
+    const [lastSuccess, lastSend] = await Promise.all([
+      this.prisma.smsLog.findFirst({
+        where: { status: "SUCCESS" },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      }),
+      this.prisma.smsLog.findFirst({
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true, status: true },
+      }),
+    ]);
+
+    const churnTemplateId = process.env.SMS_CHURN_TEMPLATE_ID || "";
+    const verificationItems = {
+      secretId: !!secretId,
+      secretKey: !!secretKey,
+      sdkAppId: !!appId,
+      signName: !!signName,
+      templateId: !!templateId,
+    };
+    const ready = Object.values(verificationItems).every(Boolean);
+    const retentionReady = !!secretId && !!secretKey && !!appId && !!signName && !!churnTemplateId;
+
+    return {
+      ready,
+      retentionReady,
+      devMode: this.isDevMode(),
+      items: { ...verificationItems, churnTemplateId: !!churnTemplateId },
+      signName: signName || null, // 签名内容非密钥·运营可读
+      region,
+      lastSuccessAt: lastSuccess?.createdAt ?? null,
+      lastSendAt: lastSend?.createdAt ?? null,
+      lastSendStatus: lastSend?.status ?? null,
+    };
   }
 
   async getAdminStats() {

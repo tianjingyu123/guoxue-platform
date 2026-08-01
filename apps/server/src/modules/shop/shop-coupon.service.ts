@@ -1,15 +1,27 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { safePagination } from "../../common/pagination";
 import { CreateCouponV2Dto } from "./shop.dto";
+import { ShopRefundService } from "./shop-refund.service";
+import {
+  isImmediateRefundType,
+  isRefundAfterSaleType,
+  isReturnRefundType,
+  isSupportedAfterSaleType,
+  normalizeAfterSaleType,
+  parseAfterSaleLogistics,
+  stringifyAfterSaleLogistics,
+} from "./after-sale-type";
 
 @Injectable()
 export class ShopCouponService {
-  private readonly logger = new Logger(ShopCouponService.name);
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private refundSvc: ShopRefundService,
+  ) {}
 
   // ═══════════════════ 优惠券管理 ═══════════════════
 
@@ -102,55 +114,94 @@ export class ShopCouponService {
 
   async claimCoupon(userId: string, couponId: string) {
     return this.prisma.$transaction(async (tx) => {
+      await this.lockCouponIssuance(tx, couponId);
       const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
       if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
-      if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
-      if (new Date() > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
-      if (coupon.totalCount !== -1 && coupon.usedCount >= coupon.totalCount) {
-        throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已被领完");
-      }
+      this.assertCouponIssuable(coupon);
 
       const existing = await tx.userCoupon.findFirst({
         where: { userId, couponId, used: false },
       });
       if (existing) throw new BusinessException(ErrorCode.COUPON_INVALID, "已领取过该优惠券");
 
-      await tx.coupon.update({
-        where: { id: couponId },
-        data: { usedCount: { increment: 1 } },
-      });
-
+      await this.incrementIssuedCount(tx, couponId, 1);
       return tx.userCoupon.create({ data: { userId, couponId } });
     });
   }
 
+  /** 管理员/召回单发：与用户领取共用库存、状态和事务锁；已持有未用券时幂等返回。 */
   async grantCoupon(couponId: string, userId: string) {
-    return this.prisma.userCoupon.create({ data: { userId, couponId } });
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockCouponIssuance(tx, couponId);
+      const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
+      if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
+      this.assertCouponIssuable(coupon);
+
+      const existing = await tx.userCoupon.findFirst({ where: { userId, couponId, used: false } });
+      if (existing) return existing;
+
+      await this.incrementIssuedCount(tx, couponId, 1);
+      return tx.userCoupon.create({ data: { userId, couponId } });
+    });
   }
 
   /**
    * 批量发放优惠券（券体系统一后 admin 唯一批量发放口，替代 marketing 模板 batch-grant）。
-   * 每人一张；已持有该券未使用的用户跳过；返回发放/跳过统计。
+   * 每人一张；已持有未使用的用户跳过；库存不足整批失败，不做部分发放。
    */
   async batchGrantCoupon(couponId: string, userIds: string[]) {
-    const coupon = await this.prisma.coupon.findUnique({ where: { id: couponId } });
-    if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
-    if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
-    if (new Date() > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
+    return this.prisma.$transaction(async (tx) => {
+      await this.lockCouponIssuance(tx, couponId);
+      const coupon = await tx.coupon.findUnique({ where: { id: couponId } });
+      if (!coupon) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券不存在");
+      this.assertCouponIssuable(coupon);
 
-    const unique = [...new Set(userIds)];
-    const holders = await this.prisma.userCoupon.findMany({
-      where: { couponId, used: false, userId: { in: unique } },
-      select: { userId: true },
-    });
-    const holderSet = new Set(holders.map((h) => h.userId));
-    const targets = unique.filter((id) => !holderSet.has(id));
-    if (targets.length) {
-      await this.prisma.userCoupon.createMany({
-        data: targets.map((userId) => ({ userId, couponId })),
+      const unique = [...new Set(userIds)];
+      const holders = await tx.userCoupon.findMany({
+        where: { couponId, used: false, userId: { in: unique } },
+        select: { userId: true },
       });
+      const holderSet = new Set(holders.map((holder) => holder.userId));
+      const targets = unique.filter((id) => !holderSet.has(id));
+      if (coupon.totalCount !== -1 && targets.length > coupon.totalCount - coupon.usedCount) {
+        throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券库存不足，批量发放已取消");
+      }
+      if (targets.length) {
+        await this.incrementIssuedCount(tx, couponId, targets.length);
+        await tx.userCoupon.createMany({ data: targets.map((userId) => ({ userId, couponId })) });
+      }
+      return { granted: targets.length, skipped: unique.length - targets.length };
+    });
+  }
+
+  private async lockCouponIssuance(tx: Prisma.TransactionClient, couponId: string) {
+    await tx.$queryRawUnsafe(
+      "SELECT pg_advisory_xact_lock(hashtext($1))",
+      `coupon-issue:${couponId}`,
+    );
+  }
+
+  private assertCouponIssuable(coupon: {
+    status: string;
+    validStart: Date;
+    validEnd: Date;
+    totalCount: number;
+    usedCount: number;
+  }) {
+    const now = new Date();
+    if (coupon.status !== "ACTIVE") throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已失效");
+    if (coupon.validStart && now < coupon.validStart) throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券尚未生效");
+    if (now > coupon.validEnd) throw new BusinessException(ErrorCode.COUPON_EXPIRED, "优惠券已过期");
+    if (coupon.totalCount !== -1 && coupon.usedCount >= coupon.totalCount) {
+      throw new BusinessException(ErrorCode.COUPON_INVALID, "优惠券已被领完");
     }
-    return { granted: targets.length, skipped: unique.length - targets.length };
+  }
+
+  private async incrementIssuedCount(tx: Prisma.TransactionClient, couponId: string, count: number) {
+    await tx.coupon.update({
+      where: { id: couponId },
+      data: { usedCount: { increment: count } },
+    });
   }
 
   async getUserCoupons(userId: string) {
@@ -162,18 +213,45 @@ export class ShopCouponService {
 
   // ═══════════════════ 售后管理 ═══════════════════
 
-  async applyAfterSale(userId: string, orderId: string, type: string, reason: string, amount?: number) {
-    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
-    if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能对自己的订单申请售后");
-    if (!["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
-      throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "当前订单状态不可申请售后");
+  async applyAfterSale(userId: string, orderId: string, type: string, reason: string, amount?: number, images?: string[]) {
+    const canonicalType = normalizeAfterSaleType(type);
+    if (!isSupportedAfterSaleType(canonicalType)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的售后类型");
     }
-    // 退款金额上限=订单实付：防客户端传超额金额（一旦接自动退款即成资金损失，现在就 clamp）
-    const orderAmount = Number(order.amount);
-    const refundAmount = amount != null ? Math.min(amount, orderAmount) : orderAmount;
-    return this.prisma.afterSale.create({
-      data: { orderId, userId, type, reason, amount: refundAmount, status: "PENDING" },
+    // 凭证图（前端已上传 COS 的真实 URL）：AfterSale 无独立 images 列，服务端并入 reason 存档。
+    const fullReason = images?.length ? `${reason}\n[凭证图片] ${images.slice(0, 5).join(" ")}` : reason;
+
+    return this.prisma.$transaction(async (tx) => {
+      // 同一订单串行申请，避免双击/双端并发创建两张可退款售后单。
+      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(hashtext($1))", `after-sale:${orderId}`);
+      const order = await tx.order.findUnique({ where: { id: orderId } });
+      if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能对自己的订单申请售后");
+      if (!["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "当前订单状态不可申请售后");
+      }
+      const active = await tx.afterSale.findFirst({
+        where: { orderId, status: { in: ["PENDING", "PROCESSING", "APPROVED"] } },
+        select: { id: true },
+      });
+      if (active) throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已有处理中售后，请勿重复申请");
+
+      let refundAmount: number | null = null;
+      if (isRefundAfterSaleType(canonicalType)) {
+        const paidAmount = Number(order.payAmount ?? order.amount);
+        if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "订单实付金额异常，暂无法申请退款");
+        }
+        // 统一退款底座目前是整单退款与整单分佣冲正；禁止前端显示部分退款、后端却整单退。
+        if (amount != null && Math.abs(Number(amount) - paidAmount) > 0.009) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "当前仅支持整单全额退款，请按订单实付金额提交");
+        }
+        refundAmount = paidAmount;
+      }
+
+      return tx.afterSale.create({
+        data: { orderId, userId, type: canonicalType, reason: fullReason, amount: refundAmount, status: "PENDING" },
+      });
     });
   }
 
@@ -244,6 +322,37 @@ export class ShopCouponService {
     return this.prisma.afterSale.update({ where: { id }, data: { status: "CANCELLED" } });
   }
 
+  async submitReturnLogistics(id: string, userId: string, company: string, logisticsNo: string) {
+    const record = await this.prisma.afterSale.findUnique({ where: { id } });
+    if (!record) throw new BusinessException(ErrorCode.NOT_FOUND, "售后记录不存在");
+    if (record.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能登记自己的退货运单");
+    if (!isReturnRefundType(record.type)) throw new BusinessException(ErrorCode.BAD_REQUEST, "该售后无需登记退货运单");
+    if (record.status !== "APPROVED") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅审核通过且待退货的售后可登记运单");
+    const normalizedCompany = company.trim();
+    const normalizedLogisticsNo = logisticsNo.trim();
+    if (!normalizedCompany || normalizedLogisticsNo.length < 4) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写有效的快递公司和退货运单号");
+    }
+    const current = parseAfterSaleLogistics(record.logistics);
+    const returnAddress = current.returnAddress || current.legacyText;
+    if (!returnAddress) throw new BusinessException(ErrorCode.BAD_REQUEST, "商家尚未提供退货地址，请先联系客服");
+    if (current.inspection) throw new BusinessException(ErrorCode.BAD_REQUEST, "退货已验收，不能修改运单");
+    const changed = await this.prisma.afterSale.updateMany({
+      where: { id, userId, status: "APPROVED" },
+      data: {
+        logistics: stringifyAfterSaleLogistics({
+          ...current,
+          legacyText: undefined,
+          returnAddress,
+          company: normalizedCompany,
+          logisticsNo: normalizedLogisticsNo,
+        }),
+      },
+    });
+    if (changed.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变化，请刷新后重试");
+    return this.prisma.afterSale.findUnique({ where: { id } });
+  }
+
   async listAfterSales(rawPage = 1, rawPageSize = 20, status?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.AfterSaleWhereInput = {};
@@ -255,12 +364,109 @@ export class ShopCouponService {
     return { items, total, page, pageSize };
   }
 
-  async processAfterSale(id: string, action: string, remark?: string) {
+  /**
+   * 平台售后状态机：
+   * - 仅退款：同意后立即走统一全额退款，渠道处理中保持 PROCESSING，成功后 COMPLETED。
+   * - 退货退款：先同意并下发退货地址；登记运单且验收入库后才触发真实退款。
+   * - 换货/争议：只流转售后状态，不触碰资金。
+   */
+  async processAfterSale(id: string, action: string, remark?: string, allowRefundActions = true) {
     const existing = await this.prisma.afterSale.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "售后单不存在");
-    const status = action === "approve" ? "APPROVED" : action === "reject" ? "REJECTED" : "PROCESSING";
-    const data: any = { status };
-    if (remark) data.logistics = remark;
-    return this.prisma.afterSale.update({ where: { id }, data });
+    if (!allowRefundActions && isRefundAfterSaleType(existing.type) && action !== "reject") {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "退款审批需要运营或财务权限");
+    }
+
+    if (action === "reject") {
+      if (existing.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅待处理售后可拒绝");
+      const changed = await this.prisma.afterSale.updateMany({
+        where: { id, status: "PENDING" },
+        data: { status: "REJECTED", ...(remark?.trim() ? { logistics: remark.trim() } : {}) },
+      });
+      if (changed.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变化，请刷新后重试");
+      return this.prisma.afterSale.findUnique({ where: { id } });
+    }
+
+    if (action === "approve") {
+      if (existing.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅待处理售后可同意");
+      if (isReturnRefundType(existing.type)) {
+        const returnAddress = remark?.trim();
+        if (!returnAddress) throw new BusinessException(ErrorCode.BAD_REQUEST, "同意退货退款时必须填写退货地址");
+        const changed = await this.prisma.afterSale.updateMany({
+          where: { id, status: "PENDING" },
+          data: { status: "APPROVED", logistics: stringifyAfterSaleLogistics({ returnAddress }) },
+        });
+        if (changed.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变化，请刷新后重试");
+        return this.prisma.afterSale.findUnique({ where: { id } });
+      }
+      if (!isImmediateRefundType(existing.type)) {
+        const changed = await this.prisma.afterSale.updateMany({
+          where: { id, status: "PENDING" },
+          data: { status: "APPROVED", ...(remark?.trim() ? { logistics: remark.trim() } : {}) },
+        });
+        if (changed.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变化，请刷新后重试");
+        return this.prisma.afterSale.findUnique({ where: { id } });
+      }
+      return this.executeFullRefund(existing, "PENDING");
+    }
+
+    if (action === "complete") {
+      if (existing.status !== "APPROVED") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已同意售后可确认完成");
+      if (isReturnRefundType(existing.type)) {
+        const logistics = parseAfterSaleLogistics(existing.logistics);
+        if (!logistics.company || !logistics.logisticsNo || logistics.inspection !== "ACCEPTED") {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "退货必须登记运单并验收入库后才能退款");
+        }
+        return this.executeFullRefund(existing, "APPROVED");
+      }
+      if (isImmediateRefundType(existing.type)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "仅退款在审核通过时已自动完成退款");
+      }
+      const changed = await this.prisma.afterSale.updateMany({
+        where: { id, status: "APPROVED" },
+        data: { status: "COMPLETED", ...(remark?.trim() ? { logistics: remark.trim() } : {}) },
+      });
+      if (changed.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变化，请刷新后重试");
+      return this.prisma.afterSale.findUnique({ where: { id } });
+    }
+
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "无效售后操作");
+  }
+
+  private async executeFullRefund(
+    existing: { id: string; orderId: string; reason: string; status: string },
+    expectedStatus: string,
+  ) {
+    const reserved = await this.prisma.afterSale.updateMany({
+      where: { id: existing.id, status: expectedStatus },
+      data: { status: "PROCESSING" },
+    });
+    if (reserved.count !== 1) throw new BusinessException(ErrorCode.BAD_REQUEST, "售后状态已变化，请刷新后重试");
+    try {
+      const order = await this.prisma.order.findUnique({ where: { id: existing.orderId } });
+      if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "售后关联订单不存在，无法退款");
+      if (order.status !== "REFUNDED") {
+        const result = await this.refundSvc.refundOrder(existing.orderId, existing.reason || "售后退款");
+        if (result.status === "PROCESSING") {
+          return this.prisma.afterSale.findUnique({ where: { id: existing.id } });
+        }
+      }
+      const finalized = await this.prisma.afterSale.updateMany({
+        where: { id: existing.id, status: "PROCESSING" },
+        data: { status: "COMPLETED" },
+      });
+      if (finalized.count !== 1) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "退款已完成，但售后状态同步失败");
+      return this.prisma.afterSale.findUnique({ where: { id: existing.id } });
+    } catch (error) {
+      const order = await this.prisma.order.findUnique({ where: { id: existing.orderId }, select: { status: true } });
+      if (order?.status === "REFUNDED") {
+        return this.prisma.afterSale.update({ where: { id: existing.id }, data: { status: "COMPLETED" } });
+      }
+      await this.prisma.afterSale.updateMany({
+        where: { id: existing.id, status: "PROCESSING" },
+        data: { status: expectedStatus },
+      });
+      throw error;
+    }
   }
 }

@@ -180,15 +180,18 @@ html, body, #app {
   border-radius: var(--radius-md);
   transition: all var(--transition-base);
 }
-.el-button--primary {
+/* ⚠️ 渐变底仅限实底主按钮：plain/text/link 变体文字色=主题红，
+   若被渐变 background-image 命中会变"红底红字"（董事长 2026-07-11 评论管理页真机反馈），必须豁免 */
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link) {
   background: var(--gradient-primary);
   border: none;
+  color: #fff;
 }
-.el-button--primary:hover {
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link):hover {
   background: linear-gradient(135deg, #d43550 0%, #e04560 100%);
   box-shadow: 0 4px 12px rgba(196,30,58,0.3);
 }
-.el-button--primary:active {
+.el-button--primary:not(.is-plain):not(.is-text):not(.is-link):active {
   background: linear-gradient(135deg, #9d1830 0%, #b01d38 100%);
 }
 .el-button--default {

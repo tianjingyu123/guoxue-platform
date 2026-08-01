@@ -8,6 +8,8 @@ export interface UseTableOptions<T = any> {
   immediate?: boolean;
   transformResponse?: (res: any) => { items: T[]; total: number };
   exportFileName?: string;
+  /** 初始筛选值（在首次 immediate 拉取前预填入 filters，如管理端默认查看全部状态） */
+  initialFilters?: Record<string, any>;
 }
 
 export function useTable<T = any>(options: UseTableOptions<T>) {
@@ -17,6 +19,7 @@ export function useTable<T = any>(options: UseTableOptions<T>) {
     immediate = true,
     transformResponse,
     exportFileName = "导出数据",
+    initialFilters,
   } = options;
 
   const loading = ref(false);
@@ -29,7 +32,7 @@ export function useTable<T = any>(options: UseTableOptions<T>) {
     total: 0,
   });
 
-  const filters = reactive<Record<string, any>>({});
+  const filters = reactive<Record<string, any>>({ ...(initialFilters ?? {}) });
 
   const totalPages = computed(() => Math.ceil(pagination.total / pagination.pageSize));
 

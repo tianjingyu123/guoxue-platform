@@ -1,13 +1,46 @@
 <template>
   <div class="page">
     <div class="toolbar">
-      <h3>营销活动</h3><el-button
-        type="primary"
-        @click="openCreate"
-      >
-        创建活动
-      </el-button>
+      <h3>营销活动</h3>
+      <div style="display:flex;align-items:center;gap:12px">
+        <el-select
+          v-model="filterStatus"
+          placeholder="全部状态"
+          clearable
+          style="width:140px"
+          @change="onFilterChange"
+        >
+          <el-option
+            label="草稿"
+            value="DRAFT"
+          />
+          <el-option
+            label="进行中"
+            value="ACTIVE"
+          />
+          <el-option
+            label="已结束"
+            value="ENDED"
+          />
+        </el-select>
+        <el-button
+          type="primary"
+          @click="openCreate"
+        >
+          创建活动
+        </el-button>
+      </div>
     </div>
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+    >
+      <template #title>
+        <span style="font-size:13px">创建后为<b>草稿</b>，需点「启用」才对用户生效。</span>
+      </template>
+    </el-alert>
     <el-alert
       v-if="error"
       type="error"
@@ -36,10 +69,17 @@
       />
       <el-table-column
         label="类型"
-        width="100"
+        width="110"
       >
         <template #default="{ row }">
-          {{ row.type }}
+          <el-tag
+            v-if="row.type"
+            size="small"
+            effect="plain"
+          >
+            {{ typeLabel(row.type) }}
+          </el-tag>
+          <span v-else>—</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -48,10 +88,10 @@
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.status === 'ACTIVE' ? 'success' : 'info'"
+            :type="row.status === 'ACTIVE' ? 'success' : row.status === 'ENDED' ? 'warning' : 'info'"
             size="small"
           >
-            {{ row.status === 'ACTIVE' ? '进行中' : '已停用' }}
+            {{ row.status === 'ACTIVE' ? '进行中' : row.status === 'ENDED' ? '已结束' : '草稿' }}
           </el-tag>
         </template>
       </el-table-column>
@@ -73,7 +113,7 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="160"
+        width="230"
         fixed="right"
       >
         <template #default="{ row }">
@@ -83,6 +123,20 @@
           >
             编辑
           </el-button><el-button
+            v-if="row.status !== 'ACTIVE'"
+            size="small"
+            type="success"
+            @click="activate(row)"
+          >
+            启用
+          </el-button><el-button
+            v-if="row.status === 'ACTIVE'"
+            size="small"
+            type="warning"
+            @click="deactivate(row)"
+          >
+            停用
+          </el-button><el-button
             size="small"
             @click="viewMetrics(row)"
           >
@@ -90,7 +144,7 @@
           </el-button><el-button
             size="small"
             type="danger"
-            @click="del(row.id)"
+            @click="del(row)"
           >
             删除
           </el-button>
@@ -135,17 +189,10 @@
             style="width:100%"
           >
             <el-option
-              label="满减送"
-              value="FULL_REDUCTION"
-            /><el-option
-              label="限量抢购"
-              value="LIMITED_PURCHASE"
-            /><el-option
-              label="节日活动"
-              value="HOLIDAY"
-            /><el-option
-              label="自定义"
-              value="CUSTOM"
+              v-for="(label, value) in ACTIVITY_TYPE_MAP"
+              :key="value"
+              :label="label"
+              :value="value"
             />
           </el-select>
         </el-form-item>
@@ -241,7 +288,12 @@ interface ActivityMetrics {
   conversionRate?: number | string
 }
 
+// 类型枚举中文映射（列表列与创建/编辑弹窗共用一处）
+const ACTIVITY_TYPE_MAP: Record<string, string> = { FULL_REDUCTION: '满减送', LIMITED_PURCHASE: '限量抢购', HOLIDAY: '节日活动', CUSTOM: '自定义' }
+function typeLabel(t: string) { return ACTIVITY_TYPE_MAP[t] || t }
+
 const loading = ref(false); const error = ref(false); const saving = ref(false); const list = ref<ActivityRow[]>([]); const total = ref(0); const page = ref(1)
+const filterStatus = ref('')
 const vis = ref(false); const editingId = ref('')
 const form = reactive({ name: '', type: '', description: '', startTime: '', endTime: '' })
 const metricsVis = ref(false); const metrics = ref<ActivityMetrics | null>(null)
@@ -249,19 +301,49 @@ const metricsVis = ref(false); const metrics = ref<ActivityMetrics | null>(null)
 onMounted(() => fetchList())
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
+function onFilterChange() { page.value = 1; fetchList() }
+
 async function fetchList() {
   loading.value = true; error.value = false
-  try { const { data } = await marketingApi.listActivities({ page: page.value, pageSize: 20 }); list.value = data.items || data.activities || data.data || []; total.value = data.total || 0 } catch { list.value = []; error.value = true } finally { loading.value = false }
+  try {
+    const params: Record<string, unknown> = { page: page.value, pageSize: 20 }
+    if (filterStatus.value) params.status = filterStatus.value // 后端 ActivityFilterDto 支持 status 筛选
+    const { data } = await marketingApi.listActivities(params)
+    list.value = data.items || data.activities || data.data || []; total.value = data.total || 0
+  } catch { list.value = []; error.value = true } finally { loading.value = false }
 }
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', type: '', description: '', startTime: '', endTime: '' }); vis.value = true }
 function openEdit(row: ActivityRow) { editingId.value = row.id; Object.assign(form, { name: row.name, type: row.type || '', description: row.description || '', startTime: row.startTime || '', endTime: row.endTime || '' }); vis.value = true }
 async function save() {
+  if (!form.name.trim()) { ElMessage.warning('请输入活动名称'); return }
+  if (!form.startTime || !form.endTime) { ElMessage.warning('请选择活动起止时间'); return }
   saving.value = true
-  try { if (editingId.value) { await marketingApi.updateActivity(editingId.value, form) } else { await marketingApi.createActivity(form) } ElMessage.success('已保存'); vis.value = false; fetchList() } catch { } finally { saving.value = false }
+  try {
+    if (editingId.value) { await marketingApi.updateActivity(editingId.value, form); ElMessage.success('已保存') }
+    else { await marketingApi.createActivity(form); ElMessage.success('活动已创建（草稿），点「启用」后对用户生效') }
+    vis.value = false; fetchList()
+  } catch { } finally { saving.value = false }
+}
+/** 启用：DRAFT/ENDED → ACTIVE（后端 UpdateActivityDto 支持 status） */
+async function activate(row: ActivityRow) {
+  try {
+    await ElMessageBox.confirm(`启用后活动「${row.name || ''}」立即对用户生效。确定启用？`, '启用活动', { type: 'warning', confirmButtonText: '确认启用', cancelButtonText: '取消' })
+  } catch { return }
+  try { await marketingApi.updateActivity(row.id, { status: 'ACTIVE' }); ElMessage.success('已启用'); fetchList() } catch { ElMessage.error('启用失败') }
+}
+/** 停用：ACTIVE → ENDED */
+async function deactivate(row: ActivityRow) {
+  try {
+    await ElMessageBox.confirm(`停用后活动「${row.name || ''}」在用户端立即失效。确定停用？`, '停用活动', { type: 'warning', confirmButtonText: '确认停用', cancelButtonText: '取消' })
+  } catch { return }
+  try { await marketingApi.updateActivity(row.id, { status: 'ENDED' }); ElMessage.success('已停用'); fetchList() } catch { ElMessage.error('停用失败') }
 }
 async function viewMetrics(row: ActivityRow) {
   try { const { data } = await marketingApi.getActivityMetrics(row.id); metrics.value = data; metricsVis.value = true } catch { }
 }
-async function del(id: string) { try { await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' }); await marketingApi.deleteActivity(id); ElMessage.success('已删除'); fetchList() } catch {} }
+async function del(row: ActivityRow) {
+  const warn = row.status === 'ACTIVE' ? '该活动正在进行中，删除后用户端立即失效。' : '删除后不可恢复。'
+  try { await ElMessageBox.confirm(`${warn}确定删除？`, '删除活动', { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' }); await marketingApi.deleteActivity(row.id); ElMessage.success('已删除'); fetchList() } catch {}
+}
 </script>
 <style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>

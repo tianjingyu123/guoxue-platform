@@ -30,13 +30,13 @@
         <!-- 主播信息 -->
         <view class="host-pill">
           <view class="host-avatar-wrap">
-            <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+            <smart-avatar :src="room.hostAvatar" :name="room.hostName" class="host-avatar" />
             <view class="live-tag">LIVE</view>
           </view>
           <view class="host-text">
             <view class="host-name-row">
               <text class="host-name">{{ room.hostName }}</text>
-              <view class="host-level">
+              <view v-if="room.hostLevel > 0" class="host-level">
                 <AppIcon name="crown" :size="20" color="#fff" />
                 <text class="host-level-txt">Lv.{{ room.hostLevel }}</text>
               </view>
@@ -63,7 +63,7 @@
       <!-- 在线观众头像 -->
       <view class="online-row">
         <view v-for="(avatar, i) in room.onlineAvatars" :key="i" class="online-avatar" :class="{ 'online-avatar-first': i === 0 }">
-          <image lazy-load class="online-img" :src="avatar" mode="aspectFill" />
+          <smart-avatar :src="avatar" :name="''" class="online-img" />
         </view>
         <text class="online-more">+{{ formatCount(viewerCount - 3) }}</text>
       </view>
@@ -129,8 +129,8 @@
         <view class="pf-info">
           <text class="pf-name">{{ currentProduct.name }}</text>
           <view class="pf-price-row">
-            <text class="pf-price">¥{{ currentProduct.price }}</text>
-            <text class="pf-origin">¥{{ currentProduct.originalPrice }}</text>
+            <text class="pf-price">¥{{ formatPrice(currentProduct.price) }}</text>
+            <text class="pf-origin">¥{{ formatPrice(currentProduct.originalPrice) }}</text>
           </view>
         </view>
         <view class="pf-buy">立即购买</view>
@@ -217,8 +217,8 @@
             <view class="pl-info">
               <text class="pl-name">{{ product.name }}</text>
               <view class="pl-price-row">
-                <text class="pl-price">¥{{ product.price }}</text>
-                <text class="pl-origin">¥{{ product.originalPrice }}</text>
+                <text class="pl-price">¥{{ formatPrice(product.price) }}</text>
+                <text class="pl-origin">¥{{ formatPrice(product.originalPrice) }}</text>
               </view>
               <text class="pl-sold">已售 {{ product.sold }}</text>
             </view>
@@ -236,9 +236,13 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack, navigateTo } from '@/utils/router'
+import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { useTim, type TimMessage } from '@/composables/useTim'
+import { formatPrice } from '@/utils/format'
 import {
   liveApi,
   type VerticalLiveProduct,
@@ -301,6 +305,10 @@ async function fetchData(roomId: string) {
     likeCount.value = roomData.room.likeCount || 0
     // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
     if (room.value.imGroupId) joinDanmaku(room.value.imGroupId)
+    // 关注态初始化（未登录/失败降级为未关注，不阻断）
+    if (room.value.hostId) {
+      liveApi.isFollowingHost(room.value.hostId).then((v) => { isFollowing.value = v }).catch(() => {})
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -313,9 +321,14 @@ const isFollowing = ref(false)
 const viewerCount = ref(0)
 const likeCount = ref(0)
 
-const currentRoomId = ref('1')
+const currentRoomId = ref('')
 onLoad((opts) => {
-  currentRoomId.value = opts?.id || '1'
+  currentRoomId.value = String(opts?.id || '')
+  if (!currentRoomId.value) {
+    loading.value = false
+    error.value = '缺少直播间信息，请返回后重新进入'
+    return
+  }
   fetchData(currentRoomId.value)
   fetchPlayUrl(currentRoomId.value)
 })
@@ -346,19 +359,49 @@ function formatCount(count: number) {
 }
 
 // ===== 交互 =====
-// @data-needs: 关注/取关主播接口（后端未提供，UI 本地态占位）
-function onToggleFollow() { isFollowing.value = !isFollowing.value }
-// @data-needs: 分享直播间（uni.share 待接入）
-function onShare() {}
-// 双击点赞 + 飘心动画（点赞计数 fire-and-forget 上报，失败不影响动画）
-function onDoubleTap() {
+// 关注/取关主播 — 复用平台用户关注端点 POST/DELETE /users/:id/follow（与短视频批同一套）
+const followSubmitting = ref(false)
+async function onToggleFollow() {
+  const hostId = room.value.hostId
+  if (!hostId) {
+    uni.showToast({ title: '暂无法关注该主播', icon: 'none' })
+    return
+  }
+  if (followSubmitting.value) return
+  followSubmitting.value = true
+  const prev = isFollowing.value
+  isFollowing.value = !prev // 乐观切换，失败回滚
+  try {
+    if (prev) await liveApi.unfollowHost(hostId)
+    else await liveApi.followHost(hostId)
+  } catch (e) {
+    isFollowing.value = prev
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    followSubmitting.value = false
+  }
+}
+function buildShareUrl(): string {
+  return withRef(buildH5Url('pkg-live/vertical/index', { id: currentRoomId.value }))
+}
+function onShare() {
+  uni.setClipboardData({ data: buildShareUrl(), success: () => uni.showToast({ title: '链接已复制，粘贴给好友吧', icon: 'none' }), fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }) })
+}
+// 双击点赞保留即时动画；服务端失败时回滚计数并明确提示。
+async function onDoubleTap() {
   likeCount.value++
   const id = Date.now() + Math.random()
   floatingHearts.value.push({ id, x: Math.random() * 60 - 30, scale: 0.8 + Math.random() * 0.4 })
   setTimeout(() => {
     floatingHearts.value = floatingHearts.value.filter((h) => h.id !== id)
   }, 1500)
-  if (room.value.id) liveApi.likeRoom(room.value.id).catch(() => {})
+  if (!room.value.id) return
+  try {
+    await liveApi.likeRoom(room.value.id)
+  } catch (e) {
+    likeCount.value = Math.max(0, likeCount.value - 1)
+    uni.showToast({ title: (e as Error)?.message || '点赞失败，请重试', icon: 'none' })
+  }
 }
 function onOpenCommentInput() { showCommentInput.value = true }
 function onCloseCommentInput() { showCommentInput.value = false }
@@ -366,16 +409,28 @@ function onCloseCommentInput() { showCommentInput.value = false }
 let sendingComment = false
 async function onSendComment() {
   const text = commentInput.value.trim()
-  if (!text || sendingComment) { showCommentInput.value = false; return }
+  if (!text || sendingComment) return
   sendingComment = true
-  comments.value.push({ id: 'local-' + Date.now(), userName: '我', content: text, type: 'text' })
+  const localId = 'local-' + Date.now()
+  comments.value.push({ id: localId, userName: '我', content: text, type: 'text' })
   commentInput.value = ''
   showCommentInput.value = false
   try {
-    if (danmakuGroupId) await tim.sendGroupText(danmakuGroupId, text)
-    liveApi.sendComment(room.value.id, text).catch(() => {})
-  } catch { /* TIM 发送失败 → 已本地上屏，静默降级 */ }
-  finally { sendingComment = false }
+    let delivered = false
+    if (danmakuGroupId) {
+      try { await tim.sendGroupText(danmakuGroupId, text); delivered = true } catch { /* 继续尝试服务端 */ }
+    }
+    try { await liveApi.sendComment(room.value.id, text); delivered = true } catch { /* 由统一失败态处理 */ }
+    if (!delivered) throw new Error('消息发送失败')
+  } catch (e) {
+    const index = comments.value.findIndex((item) => item.id === localId)
+    if (index >= 0) comments.value.splice(index, 1)
+    commentInput.value = text
+    showCommentInput.value = true
+    uni.showToast({ title: (e as Error)?.message || '消息发送失败，请重试', icon: 'none' })
+  } finally {
+    sendingComment = false
+  }
 }
 function onOpenGiftPanel() { showGiftPanel.value = true }
 function onCloseGiftPanel() { showGiftPanel.value = false }
@@ -420,8 +475,8 @@ async function onSendGift(gift: LiveGift) {
     sendingGift = false
   }
 }
-// @data-needs: 跳转充值页/充值弹窗
-function onRecharge() {}
+// @data-needs: 统一钱包真实充值入口
+function onRecharge() { navigateTo('/wallet/recharge') }
 function onOpenProductList() { showProductList.value = true }
 function onCloseProductList() { showProductList.value = false }
 /**

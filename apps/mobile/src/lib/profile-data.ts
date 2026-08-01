@@ -1,7 +1,7 @@
 // 我的主页数据层（1:1 迁移自原型 app/profile/page.tsx）
 import { apiGet, apiPost } from '@/utils/request'
 
-export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator'
+export type UserRole = 'user' | 'circle_owner' | 'teacher' | 'station_owner' | 'streamer' | 'creator' | 'merchant' | 'operator' | 'offline_station' | 'institute'
 
 export interface RoleEntry {
   type: UserRole
@@ -30,11 +30,11 @@ export interface ProfileData {
   roles: RoleEntry[]
   messages: { system: number; interaction: number; transaction: number }
   checkIn: { todayChecked: boolean; continuousDays: number; totalPoints: number }
-  stats: { following: number; followers: number; likes: number }
-  coins: number
-  coupons: number
-  points: number
-  orders: { pending: number; shipped: number; received: number; refund: number }
+  stats: { following: number | null; followers: number | null; likes: number | null }
+  coins: number | null
+  coupons: number | null
+  points: number | null
+  orders: { pending: number | null; shipped: number | null; received: number | null; refund: number | null }
   continueLearning: { id: number; title: string; progress: number; lastLesson: string } | null
 }
 
@@ -55,30 +55,15 @@ export const roleConfig: Record<UserRole, { label: string; icon: string; color: 
   station_owner: { label: '站长后台', icon: 'award', color: '#52C41A', bgColor: 'rgba(82,196,26,0.1)' },
   streamer: { label: '主播中心', icon: 'radio', color: '#C41E3A', bgColor: 'rgba(196,30,58,0.1)' },
   creator: { label: '创作中心', icon: 'video', color: '#722ED1', bgColor: 'rgba(114,46,209,0.1)' },
+  merchant: { label: '商家管理台', icon: 'store', color: '#FA8C16', bgColor: 'rgba(250,140,22,0.1)' },
+  operator: { label: '运营中心', icon: 'trending-up', color: '#B8860B', bgColor: 'rgba(184,134,11,0.1)' },
+  offline_station: { label: '驿站工作台', icon: 'store', color: '#B45309', bgColor: 'rgba(180,83,9,0.1)' },
+  institute: { label: '研究院', icon: 'graduation-cap', color: '#0E7490', bgColor: 'rgba(14,116,144,0.1)' },
 }
 
-// 常用功能入口
-export const quickFunctions: { icon: string; label: string; href: string; color: string }[] = [
-  { icon: 'compass', label: '排盘记录', href: '/paipan', color: '#C41E3A' },
-  { icon: 'book-open', label: '我的课程', href: '/learning', color: '#4A90D9' },
-  { icon: 'award', label: '讲师工作台', href: '/pkg-creator/teacher-dashboard/index', color: '#C41E3A' },
-  { icon: 'shield-check', label: '我的资质', href: '/pkg-creator/my-qualifications/index', color: '#16A34A' },
-  { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/mine', color: '#722ED1' },
-  { icon: 'sticky-note', label: '我的笔记', href: '/ebook/notes', color: '#C9A96E' },
-  { icon: 'heart', label: '我的收藏', href: '/favorites', color: '#C41E3A' },
-  { icon: 'file-text', label: '我的电子书', href: '/ebook/bookshelf', color: '#52C41A' },
-  { icon: 'clipboard-list', label: '我的申请', href: '/mine/applications', color: '#FA8C16' },
-  { icon: 'history', label: '浏览历史', href: '/history', color: '#64748B' },
-  { icon: 'help-circle', label: '帮助中心', href: '/help', color: '#999999' },
-]
-
-// 全部可开通角色
-export const allRoleTypes: { type: UserRole; applyHref: string }[] = [
-  { type: 'circle_owner', applyHref: '/pkg-circle/circles/create' },
-  { type: 'teacher', applyHref: '/institute/apply' },
-  { type: 'station_owner', applyHref: '/join/station' },
-  { type: 'streamer', applyHref: '/creator/live/console' },
-]
+// 🔴 2026-07-14 删除 quickFunctions：它是个**死常量**，导出后没有任何页面 import 它。
+//    个人中心真正渲染的是 pages/profile/index.vue 里的 matrixItems —— 入口要加就加那里。
+//    （曾经往这个数组里加入口，结果线上毫无变化，白改一轮。）
 
 // 已开通身份点击进入的后台路由
 export function roleHref(type: UserRole, id: string | number): string {
@@ -88,6 +73,10 @@ export function roleHref(type: UserRole, id: string | number): string {
     case 'streamer': return '/creator/live/console'
     case 'creator': return '/videos/creator'
     case 'station_owner': return '/operator/station-master-panel'
+    case 'merchant': return '/pkg-merchant/dashboard/index'
+    case 'operator': return '/operator/dashboard'
+    case 'offline_station': return '/offline/manage'
+    case 'institute': return '/institute/manage'
     default: return '/pages/profile/index'
   }
 }
@@ -99,6 +88,12 @@ const _roleTypeMap: Record<string, UserRole> = {
   CIRCLE_OWNER: 'circle_owner',
   LECTURER: 'teacher',
   STATION_MASTER: 'station_owner',
+  MERCHANT: 'merchant', // 商家/官方旗舰店操作员：后端 getProfile 在 ACTIVE 商家身份时注入
+  // 后端 /auth/me 原样返回 UserRoleBinding 全部 roleType（auth.service mergedRoles 无过滤），
+  // 以下三类此前未映射 → 已开通运营商/驿站/研究院的用户在身份区恒显「申请加入」，现补齐进工作台
+  OPERATOR: 'operator',
+  STATION_OFFLINE_OWNER: 'offline_station',
+  INSTITUTE_MEMBER: 'institute',
 }
 
 // 会员等级标签（书院会员·2026-07-03 档位改版）
@@ -129,8 +124,20 @@ interface RawCheckin {
   totalPoints?: number
 }
 
+interface RawProfileSummary {
+  stats?: { following?: number | string; followers?: number | string; likes?: number | string }
+  assets?: { coins?: number | string; coupons?: number | string; points?: number | string }
+  orders?: { pending?: number | string; shipped?: number | string; received?: number | string; refund?: number | string }
+}
+
+function asMetric(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) && n >= 0 ? n : null
+}
+
 /** /auth/me + 签到状态 → 个人中心主页数据 */
-function adaptProfile(me: RawMe, checkin: RawCheckin | null): ProfileData {
+function adaptProfile(me: RawMe, checkin: RawCheckin | null, summary: RawProfileSummary | null): ProfileData {
   const level = String(me?.memberLevel ?? 'NONE')
   let vipExpiry = ''
   let vipDaysLeft = 0
@@ -168,25 +175,35 @@ function adaptProfile(me: RawMe, checkin: RawCheckin | null): ProfileData {
       continuousDays: checkin?.continuousDays ?? 0,
       totalPoints: checkin?.totalPoints ?? 0,
     },
-    // 关注/资产/订单暂无聚合端点 → 0（真实默认值，非伪造）
-    stats: { following: 0, followers: 0, likes: 0 },
-    coins: 0,
-    coupons: 0,
-    points: 0,
-    orders: { pending: 0, shipped: 0, received: 0, refund: 0 },
+    // 聚合请求失败时显示“—”，绝不把未知状态冒充真实 0。
+    stats: {
+      following: asMetric(summary?.stats?.following),
+      followers: asMetric(summary?.stats?.followers),
+      likes: asMetric(summary?.stats?.likes),
+    },
+    coins: asMetric(summary?.assets?.coins),
+    coupons: asMetric(summary?.assets?.coupons),
+    points: asMetric(summary?.assets?.points),
+    orders: {
+      pending: asMetric(summary?.orders?.pending),
+      shipped: asMetric(summary?.orders?.shipped),
+      received: asMetric(summary?.orders?.received),
+      refund: asMetric(summary?.orders?.refund),
+    },
     continueLearning: null,
   }
 }
 
 export const profileApi = {
-  /** 获取用户主页数据 —— GET /auth/me + GET /users/me/checkin/status 并行聚合 */
+  /** 获取用户主页数据 —— 资料、签到与真实统计摘要并行聚合 */
   async getProfile(): Promise<ProfileData> {
-    const [me, checkin] = await Promise.all([
+    const [me, checkin, summary] = await Promise.all([
       apiGet<RawMe>('/auth/me'),
       // 签到状态非主资料，失败不阻断主页加载
       apiGet<RawCheckin>('/users/me/checkin/status').catch(() => null),
+      apiGet<RawProfileSummary>('/users/me/summary').catch(() => null),
     ])
-    return adaptProfile(me, checkin)
+    return adaptProfile(me, checkin, summary)
   },
 
   /** 每日签到 —— POST /users/me/checkin（返回连续天数+本次积分；失败由页面三态处理） */

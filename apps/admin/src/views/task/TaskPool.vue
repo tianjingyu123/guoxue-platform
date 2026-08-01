@@ -15,11 +15,12 @@
       :gutter="16"
       class="stats-row"
     >
+      <!-- 统计卡点击 = 状态筛选：原来只改 filters 不刷新列表（点了没反应），现统一走 setStatusFilter -->
       <el-col :span="6">
         <div
           class="stat-card"
           :class="{ active: !filters.status }"
-          @click="filters.status = ''"
+          @click="setStatusFilter('')"
         >
           <span class="value">{{ stats.total }}</span><span class="label">全部任务</span>
         </div>
@@ -28,7 +29,7 @@
         <div
           class="stat-card pending"
           :class="{ active: filters.status === 'PENDING' }"
-          @click="filters.status = 'PENDING'"
+          @click="setStatusFilter('PENDING')"
         >
           <span class="value">{{ stats.pending }}</span><span class="label">待处理</span>
         </div>
@@ -37,7 +38,7 @@
         <div
           class="stat-card in-progress"
           :class="{ active: filters.status === 'IN_PROGRESS' }"
-          @click="filters.status = 'IN_PROGRESS'"
+          @click="setStatusFilter('IN_PROGRESS')"
         >
           <span class="value">{{ stats.inProgress }}</span><span class="label">进行中</span>
         </div>
@@ -46,7 +47,7 @@
         <div
           class="stat-card review"
           :class="{ active: filters.status === 'NEEDS_REVIEW' }"
-          @click="filters.status = 'NEEDS_REVIEW'"
+          @click="setStatusFilter('NEEDS_REVIEW')"
         >
           <span class="value">{{ stats.needsReview }}</span><span class="label">待审批</span>
         </div>
@@ -181,11 +182,21 @@
         />
       </template>
       <el-table-column
-        prop="id"
         label="ID"
-        width="80"
-        :show-overflow-tooltip="true"
-      />
+        width="100"
+      >
+        <template #default="{ row }">
+          <el-tooltip
+            :content="row.id"
+            placement="top"
+          >
+            <span
+              class="id-cell"
+              @click.stop="copyId(row.id)"
+            >{{ String(row.id).slice(0, 8) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
       <el-table-column
         label="优先级"
         width="80"
@@ -700,20 +711,34 @@ const filters = reactive({ status: "", type: "", priority: "", executorType: "",
 const stats = reactive({ total: 0, pending: 0, inProgress: 0, needsReview: 0 });
 
 async function fetchStats() {
+  // 去重：原来 /tasks/stats/pending 被重复请求两次（第二次结果 inProg 还没被使用），
+  // IN_PROGRESS 又串行补一发；现四个统计一次并行取齐
   const [{ data: all }, { data: pending }, { data: inProg }, { data: review }] = await Promise.all([
     api.get("/tasks", { params: { page: 1, pageSize: 1 } }),
     api.get("/tasks/stats/pending"),
-    api.get("/tasks/stats/pending").catch(() => ({ data: { count: 0 } })),
+    api.get("/tasks", { params: { page: 1, pageSize: 1, status: "IN_PROGRESS" } }).catch(() => ({ data: { total: 0 } })),
     api.get("/tasks", { params: { page: 1, pageSize: 1, status: "NEEDS_REVIEW" } }),
   ]);
   stats.total = all?.total ?? 0;
   stats.pending = pending?.count ?? 0;
+  stats.inProgress = inProg?.total ?? 0;
   stats.needsReview = review?.total ?? 0;
-  // inProgress count estimate from total minus known
+}
+
+/** 统计卡点击 = 设置状态筛选并刷新列表（修"点了没反应"） */
+function setStatusFilter(status: string) {
+  filters.status = status;
+  page.value = 1;
+  fetchList();
+}
+
+async function copyId(id: string) {
   try {
-    const { data: ip } = await api.get("/tasks", { params: { page: 1, pageSize: 1, status: "IN_PROGRESS" } });
-    stats.inProgress = ip?.total ?? 0;
-  } catch { stats.inProgress = 0; }
+    await navigator.clipboard.writeText(id);
+    ElMessage.success("已复制");
+  } catch {
+    ElMessage.error("复制失败，请手动选择");
+  }
 }
 
 async function fetchList() {
@@ -893,6 +918,7 @@ onMounted(() => {
 
 <style scoped>
 .task-pool { padding: 0; }
+.id-cell { cursor: pointer; color: var(--el-color-primary); font-family: monospace; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-header h2 { margin: 0; font-size: 20px; }
 

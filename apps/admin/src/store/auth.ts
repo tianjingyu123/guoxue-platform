@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { authApi } from "@/api";
 import { ElMessage } from "element-plus";
+import { buildMenus } from "@/lib/menu-structure";
 
 export interface MenuItem {
   title: string;
@@ -23,6 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
   OPERATOR: "运营商",
   STATION_OFFLINE_OWNER: "驿站主",
   INSTITUTE_MEMBER: "研究院成员",
+  MERCHANT: "商家",
 };
 
 export const useAuthStore = defineStore("auth", () => {
@@ -55,6 +57,7 @@ export const useAuthStore = defineStore("auth", () => {
       children: [
         { title: "数据概览", icon: "DataAnalysis", path: "/merchant-backend/dashboard" },
         { title: "商品管理", icon: "Goods", path: "/merchant-backend/products" },
+        { title: "库存与采购", icon: "Box", path: "/merchant-backend/inventory" },
         { title: "订单管理", icon: "Document", path: "/merchant-backend/orders" },
         { title: "发货管理", icon: "Van", path: "/merchant-backend/shipping" },
         { title: "售后管理", icon: "Service", path: "/merchant-backend/after-sales" },
@@ -97,22 +100,36 @@ export const useAuthStore = defineStore("auth", () => {
   }
 
   async function fetchMenus() {
+    // 目录重构批（2026-07-11）：菜单改为前端按员工工作流分组生成（lib/menu-structure.ts·可见性以路由 meta.roles 为准），
+    // 后端 /auth/menus 仅作兜底（前端构建异常/为空时回退旧菜单·后端不动可随时回滚）
+    let base: MenuItem[] = [];
     try {
-      const { data } = await authApi.getMenus();
-      const base = data || [];
-      // 商家用户追加商家后台菜单
-      menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
+      base = buildMenus(roles.value);
     } catch {
-      menus.value = [];
+      base = [];
     }
+    if (base.length === 0) {
+      try {
+        const { data } = await authApi.getMenus();
+        base = data || [];
+      } catch {
+        base = [];
+      }
+    }
+    // 商家用户追加商家后台菜单
+    menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
   }
 
   function logout() {
     token.value = null;
     user.value = null;
     menus.value = [];
-    localStorage.removeItem("token");
-    localStorage.removeItem("user_roles");
+    // 会话键全量清理（与全仓 localStorage.setItem 写入点一一对应·防止凭证/会话残留被下一个登录者复用）
+    localStorage.removeItem("token"); // login / api 拦截器刷新时写入
+    localStorage.removeItem("refresh_token"); // login / api 拦截器刷新时写入（此前漏删·安全修复）
+    localStorage.removeItem("user_roles"); // fetchProfile 写入（路由守卫用）
+    localStorage.removeItem("redirect_after_login"); // api 401 时写入·防止换号登录后被带回上一账号的页面
+    localStorage.removeItem("admin_assistant_chat"); // 运营助手对话记录·含上一账号的会话内容
     ElMessage.success("已退出登录");
   }
 

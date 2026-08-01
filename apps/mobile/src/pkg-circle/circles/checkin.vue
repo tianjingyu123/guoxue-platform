@@ -3,7 +3,7 @@
     <!-- 顶部 -->
     <view class="ck-head" :style="{ paddingTop: statusBarH + 'px' }">
       <view class="ck-nav">
-        <view class="ck-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="36" color="#ffffff" /></view>
+        <view class="ck-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="ck-nav-title">共读签到</text>
         <view style="width: 72rpx" />
       </view>
@@ -17,7 +17,7 @@
     </view>
 
     <!-- 加载/错误态 -->
-    <view v-if="isLoading" class="ck-state"><text class="ck-state-t">加载中...</text></view>
+    <view v-if="isLoading" class="ck-state"><AppLoading /></view>
     <view v-else-if="loadError" class="ck-state">
       <app-icon name="alert-circle" :size="72" color="#CCCCCC" />
       <text class="ck-state-t">加载失败</text>
@@ -114,6 +114,7 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { goBack } from '@/utils/router'
 import { growthApi, type RankItem } from '@/lib/circle-growth-data'
 

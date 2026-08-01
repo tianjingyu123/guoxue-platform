@@ -108,11 +108,11 @@ export class ClassicCompanionService {
     return { reset: true };
   }
 
-  /** 伴读对话：注入当前章节正文 + 持久记忆（摘要+近期历史） */
-  async chat(
+  /** 组装伴读上下文（chat / chatStream 共用）：章节正文 + 持久记忆 + 近期历史 */
+  private async prepareContext(
     dto: { chapterId: string; question: string; history?: { role: string; content: string }[] },
     userId?: string,
-  ): Promise<{ answer: string; disclaimer: string }> {
+  ) {
     const ch = await this.loadChapter(dto.chapterId);
     const meta = [ch.book?.dynasty, ch.book?.author].filter(Boolean).join("·");
     // 章节正文可能很长，截断注入控制 token
@@ -158,6 +158,49 @@ export class ClassicCompanionService {
       { role: "user", content: dto.question },
     ];
 
+    return { ch, session, messages };
+  }
+
+  /** 持久化一轮对话 + 触发记忆压缩（chat / chatStream 共用，失败自吞不影响回答） */
+  private async persistRound(
+    session: { id: string; messageCount: number } | null,
+    dto: { chapterId: string; question: string },
+    answer: string,
+    bookTitle: string,
+    userId?: string,
+  ) {
+    if (!userId || !session) return;
+    try {
+      await this.prisma.$transaction([
+        this.prisma.classicCompanionMessage.createMany({
+          data: [
+            { sessionId: session.id, role: "user", content: dto.question.slice(0, 2000), chapterId: dto.chapterId },
+            { sessionId: session.id, role: "assistant", content: answer.slice(0, 4000), chapterId: dto.chapterId },
+          ],
+        }),
+        this.prisma.classicCompanionSession.update({
+          where: { id: session.id },
+          data: { messageCount: { increment: 2 } },
+        }),
+      ]);
+      const newCount = session.messageCount + 2;
+      if (newCount % SUMMARY_EVERY === 0) {
+        void this.compressMemory(session.id, bookTitle).catch((e) =>
+          this.logger.warn(`伴读记忆压缩失败(session=${session.id})`, e as Error),
+        );
+      }
+    } catch (e) {
+      this.logger.warn(`伴读消息持久化失败(session=${session.id})`, e as Error);
+    }
+  }
+
+  /** 伴读对话（非流式）：注入当前章节正文 + 持久记忆（摘要+近期历史） */
+  async chat(
+    dto: { chapterId: string; question: string; history?: { role: string; content: string }[] },
+    userId?: string,
+  ): Promise<{ answer: string; disclaimer: string }> {
+    const { ch, session, messages } = await this.prepareContext(dto, userId);
+
     const result = await this.gateway.chat({
       scene: "classic_companion",
       userId,
@@ -166,33 +209,33 @@ export class ClassicCompanionService {
     });
     const answer = result.content?.trim() || "抱歉，我暂时无法回答，请换个角度再问问。";
 
-    // 持久化本轮（失败自吞不影响回答）；到批量阈值异步压缩记忆
-    if (userId && session) {
-      try {
-        await this.prisma.$transaction([
-          this.prisma.classicCompanionMessage.createMany({
-            data: [
-              { sessionId: session.id, role: "user", content: dto.question.slice(0, 2000), chapterId: dto.chapterId },
-              { sessionId: session.id, role: "assistant", content: answer.slice(0, 4000), chapterId: dto.chapterId },
-            ],
-          }),
-          this.prisma.classicCompanionSession.update({
-            where: { id: session.id },
-            data: { messageCount: { increment: 2 } },
-          }),
-        ]);
-        const newCount = session.messageCount + 2;
-        if (newCount % SUMMARY_EVERY === 0) {
-          void this.compressMemory(session.id, ch.book?.title ?? "本书").catch((e) =>
-            this.logger.warn(`伴读记忆压缩失败(session=${session!.id})`, e as Error),
-          );
-        }
-      } catch (e) {
-        this.logger.warn(`伴读消息持久化失败(session=${session.id})`, e as Error);
-      }
-    }
+    await this.persistRound(session, dto, answer, ch.book?.title ?? "本书", userId);
 
     return { answer, disclaimer: RISK_DISCLAIMER };
+  }
+
+  /** 伴读对话（流式）：同一套上下文/记忆闭环，文本增量逐块下发，完整回答落库 */
+  async *chatStream(
+    dto: { chapterId: string; question: string; history?: { role: string; content: string }[] },
+    userId?: string,
+  ): AsyncIterable<string> {
+    const { ch, session, messages } = await this.prepareContext(dto, userId);
+
+    let full = "";
+    for await (const chunk of this.gateway.chatStream({
+      scene: "classic_companion",
+      userId,
+      messages,
+      options: { temperature: 0.6, maxTokens: 1500 },
+    })) {
+      full += chunk;
+      yield chunk;
+    }
+
+    const answer = full.trim();
+    if (answer) {
+      await this.persistRound(session, dto, answer, ch.book?.title ?? "本书", userId);
+    }
   }
 
   /** 滚动记忆压缩：旧摘要 + 最近一批对话 → 新摘要（低温小额度，成本可控） */

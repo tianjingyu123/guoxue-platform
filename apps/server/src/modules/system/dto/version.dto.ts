@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsIn, MinLength } from "class-validator";
+import { IsString, IsOptional, IsBoolean, IsIn, Matches } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -8,11 +8,13 @@ export class CreateAppVersionDto {
   platform: string;
 
   @ApiProperty({ description: "版本号 如 1.0.0" })
-  @IsString() @MinLength(1)
+  @IsString() @Matches(/^v?\d+(?:\.\d+){0,3}(?:-[0-9A-Za-z.-]+)?$/, {
+    message: "version 必须是数字点分版本号，如 1.2.0",
+  })
   version: string;
 
   @ApiPropertyOptional({ description: "构建号" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsString() @Matches(/^\d+$/, { message: "buildNumber 必须是非负整数" })
   buildNumber?: string;
 
   @ApiPropertyOptional({ description: "更新日志" })
@@ -30,11 +32,13 @@ export class CreateAppVersionDto {
 
 export class UpdateAppVersionDto {
   @ApiPropertyOptional({ description: "版本号" })
-  @IsOptional() @IsString() @MinLength(1)
+  @IsOptional() @IsString() @Matches(/^v?\d+(?:\.\d+){0,3}(?:-[0-9A-Za-z.-]+)?$/, {
+    message: "version 必须是数字点分版本号，如 1.2.0",
+  })
   version?: string;
 
   @ApiPropertyOptional({ description: "构建号" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsString() @Matches(/^\d+$/, { message: "buildNumber 必须是非负整数" })
   buildNumber?: string;
 
   @ApiPropertyOptional({ description: "更新日志" })
@@ -48,4 +52,20 @@ export class UpdateAppVersionDto {
   @ApiPropertyOptional({ description: "下载地址" })
   @IsOptional() @IsString()
   downloadUrl?: string;
+}
+
+export class CheckAppVersionDto {
+  @ApiProperty({ description: "平台: ios/android" })
+  @IsString() @IsIn(["ios", "android"])
+  platform: string;
+
+  @ApiProperty({ description: "当前展示版本号，如 1.0.0" })
+  @IsString() @Matches(/^v?\d+(?:\.\d+){0,3}(?:-[0-9A-Za-z.-]+)?$/, {
+    message: "version 必须是数字点分版本号，如 1.2.0",
+  })
+  version: string;
+
+  @ApiPropertyOptional({ description: "当前构建号" })
+  @IsOptional() @IsString() @Matches(/^\d+$/, { message: "buildNumber 必须是非负整数" })
+  buildNumber?: string;
 }

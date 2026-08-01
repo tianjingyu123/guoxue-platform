@@ -79,17 +79,23 @@
           </view>
           <view v-else class="cp-assist-wrap">
             <view class="cp-card">
-              <text class="cp-card-text">{{ m.content }}</text>
+              <text v-if="m.content" class="cp-card-text">{{ m.content }}</text>
+              <!-- 流式空气泡：首个 chunk 到达前的研读动画（内容到来后即被替换） -->
+              <view v-else-if="m.isStreaming" class="cp-loading">
+                <view class="cp-dots"><view class="cp-dot" /><view class="cp-dot" /><view class="cp-dot" /></view>
+                <text class="cp-loading-text">正在研读本章…</text>
+              </view>
               <text v-if="m.disclaimer" class="cp-disclaimer">{{ m.disclaimer }}</text>
             </view>
-            <view class="cp-card-ops">
+            <!-- 复制：流式进行中隐藏（内容未完整），完成后展示 -->
+            <view v-if="!m.isStreaming" class="cp-card-ops">
               <view class="cp-op" @tap="copyMsg(m.content)"><app-icon name="copy" :size="28" color="#999999" /></view>
             </view>
           </view>
         </view>
 
-        <!-- 加载状态 -->
-        <view v-if="isLoading" class="cp-msg-row">
+        <!-- 加载状态（降级模式：等待完整回复时显示；流式模式空气泡已自带研读动画，故仅在最后一条是用户消息时显示） -->
+        <view v-if="isLoading && messages[messages.length - 1]?.role === 'user'" class="cp-msg-row">
           <view class="cp-avatar">
             <app-icon name="sparkles" :size="32" color="#ffffff" />
           </view>
@@ -149,12 +155,15 @@ import { classicsApi } from '@/lib/classics-data'
 import { vipApi } from '@/lib/vip-data'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
+import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 
 interface CompanionMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
   disclaimer?: string
+  // 流式增量填充中（H5 真流式：空气泡→逐块追加；完成/降级时为 false）
+  isStreaming?: boolean
 }
 
 const chapterId = ref('')
@@ -162,6 +171,14 @@ const bookTitle = ref('')
 const chapterTitle = ref('')
 const guidingPrompts = ref<string[]>([])
 const promptsLoading = ref(true)
+
+// 后端未按章节生成引导问题时的通用兜底（章节无关，任何篇目都成立）
+const FALLBACK_PROMPTS = [
+  '这一章主要讲了什么？',
+  '帮我把本章原文翻译成白话',
+  '本章有哪些值得记住的名句？',
+  '这一章对今天的我们有什么启发？',
+]
 
 const messages = ref<CompanionMessage[]>([])
 const inputValue = ref('')
@@ -175,7 +192,7 @@ const quotaExhausted = ref(false)
 async function loadQuota() {
   if (!getToken()) return // 未登录不打扰，发送时才引导登录
   try {
-    const q = await vipApi.getAiQuota()
+    const q = await vipApi.getAiQuota(true)
     quota.value = { isMember: q.isMember, dailyLimit: q.dailyLimit, remaining: q.remaining }
     quotaExhausted.value = !q.isMember && q.remaining <= 0
   } catch {
@@ -228,9 +245,11 @@ async function loadPrompts() {
     const r = await classicsApi.companionPrompts(chapterId.value)
     bookTitle.value = r.bookTitle || bookTitle.value
     chapterTitle.value = r.chapterTitle || chapterTitle.value
-    guidingPrompts.value = Array.isArray(r.prompts) ? r.prompts : []
+    const list = Array.isArray(r.prompts) ? r.prompts.filter((p) => !!p && p.trim()) : []
+    // 后端没给（或全空）时用通用兜底，保证开场必有引导气泡
+    guidingPrompts.value = list.length ? list : FALLBACK_PROMPTS
   } catch {
-    guidingPrompts.value = []
+    guidingPrompts.value = FALLBACK_PROMPTS
   } finally {
     promptsLoading.value = false
   }
@@ -284,7 +303,7 @@ async function handleSend() {
   if (!chapterId.value) { uni.showToast({ title: '缺少章节信息', icon: 'none' }); return }
   if (!ensureLogin()) return
 
-  // 发送前的对话作为多轮历史
+  // 发送前的对话作为多轮历史（与非流式 companionChat 完全一致的入参）
   const history = messages.value.map((m) => ({ role: m.role, content: m.content }))
 
   messages.value.push({ id: Date.now().toString(), role: 'user', content: text })
@@ -292,6 +311,58 @@ async function handleSend() {
   isLoading.value = true
   scrollToBottom()
 
+  // H5 走真流式 SSE（chunk 增量上屏，根治长回答超时）；小程序/App 端不支持 fetch 流 → 降级原非流式接口
+  if (streamChatSupported()) await sendCoreStream(text, history)
+  else await sendCoreFallback(text, history)
+}
+
+/**
+ * H5 真流式：POST /classic/companion/chat/stream。
+ * 先 push 一条空 assistant 气泡，onChunk 逐块追加、onMeta 挂免责声明。
+ * 章节上下文靠 chapterId 透传（与非流式 companionChat 同构），后端据此注入本章原文，AI 才知道在读哪一章。
+ */
+async function sendCoreStream(text: string, history: { role: string; content: string }[]) {
+  const msgId = (Date.now() + 1).toString()
+  messages.value.push({ id: msgId, role: 'assistant', content: '', isStreaming: true })
+  const live = () => messages.value.find((m) => m.id === msgId)
+  try {
+    await streamChat(
+      '/classic/companion/chat/stream',
+      // 与 companionChat 原样透传：chapterId=章节上下文（后端注入本章原文）、question=用户问题、history=多轮历史
+      { chapterId: chapterId.value, question: text, history },
+      {
+        onChunk: (t) => {
+          const m = live()
+          if (m) m.content += t
+          scrollToBottom()
+        },
+        onMeta: (meta) => {
+          const m = live()
+          // disclaimer 为后端下发的 AI 风险免责声明（合规要求）
+          if (m && meta.disclaimer) m.disclaimer = meta.disclaimer
+        },
+      },
+    )
+    // 成功：收尾流式态 + 免费用户本地额度同步减 1
+    const done = live()
+    if (done) done.isStreaming = false
+    consumeQuotaLocal()
+  } catch (e) {
+    // 移除刚 push 的空流式气泡（若仍无内容）；已有部分内容则保留并收尾流式态
+    const m = live()
+    if (m) {
+      if (!m.content) messages.value = messages.value.filter((x) => x !== m)
+      else m.isStreaming = false
+    }
+    handleSendError(e)
+  } finally {
+    isLoading.value = false
+    scrollToBottom()
+  }
+}
+
+/** 非 H5 降级：原非流式接口 companionChat（一次性完整返回，保留原有逻辑） */
+async function sendCoreFallback(text: string, history: { role: string; content: string }[]) {
   try {
     const r = await classicsApi.companionChat(chapterId.value, text, history)
     messages.value.push({
@@ -300,23 +371,32 @@ async function handleSend() {
       content: r?.answer || '抱歉，我暂时无法回答，请换个角度再问问。',
       disclaimer: r?.disclaimer,
     })
-    // 免费用户成功一次消耗一次额度，本地同步减
-    if (quota.value && !quota.value.isMember) {
-      quota.value = { ...quota.value, remaining: Math.max(0, quota.value.remaining - 1) }
-      quotaExhausted.value = quota.value.remaining <= 0
-    }
+    consumeQuotaLocal()
   } catch (e) {
-    const msg = (e as Error)?.message || 'AI 暂时无法回答，请稍后重试。'
-    // 后端限次错误（引导语含“书院会员”）→ 展示会员引导卡而非裸错误
-    if (msg.includes('已用完') || msg.includes('书院会员')) {
-      quotaExhausted.value = true
-      if (quota.value) quota.value = { ...quota.value, remaining: 0 }
-    }
-    messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: msg })
+    handleSendError(e)
   } finally {
     isLoading.value = false
     scrollToBottom()
   }
+}
+
+/** 发送成功后免费用户本地额度同步减 1（流式与降级共用） */
+function consumeQuotaLocal() {
+  if (quota.value && !quota.value.isMember) {
+    quota.value = { ...quota.value, remaining: Math.max(0, quota.value.remaining - 1) }
+    quotaExhausted.value = quota.value.remaining <= 0
+  }
+}
+
+/** 统一错误处理（流式与降级共用）：后端限次错误 → 会员引导卡；其余 → 错误气泡 */
+function handleSendError(e: unknown) {
+  const msg = (e as Error)?.message || 'AI 暂时无法回答，请稍后重试。'
+  // 后端限次错误（引导语含“书院会员”）→ 展示会员引导卡而非裸错误
+  if (msg.includes('已用完') || msg.includes('书院会员')) {
+    quotaExhausted.value = true
+    if (quota.value) quota.value = { ...quota.value, remaining: 0 }
+  }
+  messages.value.push({ id: (Date.now() + 1).toString(), role: 'assistant', content: msg })
 }
 
 function copyMsg(content: string) {

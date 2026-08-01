@@ -1,5 +1,15 @@
 <template>
   <div class="content-page">
+    <!-- 目录重构批（2026-07-11）：双入口收敛（方案块E前置）侦察结论——Content 表仍有 C 端活消费方
+         （发现页瀑布流 GET /discover 聚合 Content·PUBLISHED），故本页功能保留不动，仅加说明条。 -->
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom:12px"
+      title="旧版通用内容库（Content 表）· 双入口收敛观察期"
+      description="该库仍被 C 端「发现页」瀑布流聚合展示，暂不停写。请勿在此新录入文章/古籍（文章→C 端圈子编辑器发布·古籍→AI 数字员工采集维护），本页仅用于存量内容与 AI 种子内容的管理。"
+    />
     <el-alert
       v-if="error"
       type="error"
@@ -30,6 +40,7 @@
     >
       <template #toolbar>
         <SearchFilter
+          :filters="initialFilters"
           :custom-filters="filterDefs"
           :show-keyword="true"
           placeholder="搜索标题/作者"
@@ -43,10 +54,10 @@
         >
           导出CSV
         </el-button>
+        <!-- 观察期口径：本页为旧CMS，新建入口降级为次要样式并先确认 -->
         <el-button
-          type="primary"
           size="small"
-          @click="$router.push('/contents/create')"
+          @click="handleCreate"
         >
           新建内容
         </el-button>
@@ -150,6 +161,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { contentApi } from '@/api'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { exportCSV } from '@/utils/export'
@@ -171,6 +183,9 @@ interface ContentRow {
   cover?: string
 }
 
+const route = useRoute()
+const router = useRouter()
+
 const list = ref<ContentRow[]>([])
 const loading = ref(false)
 const error = ref(false)
@@ -178,7 +193,10 @@ const page = ref(1)
 const total = ref(0)
 const pageSize = 12
 const selectedIds = ref<string[]>([])
-const searchParams = ref<Record<string, string>>({})
+// 支持从品类管理页带 keyword 跳入的真实筛选（后端 content list 支持 keyword：标题/作者 contains）
+const initialKeyword = typeof route.query.keyword === 'string' ? route.query.keyword : ''
+const initialFilters = { keyword: initialKeyword }
+const searchParams = ref<Record<string, string>>(initialKeyword ? { keyword: initialKeyword } : {})
 
 const filterDefs = [
   { key: "type", label: "内容类型", type: "select" as const, options: [
@@ -228,8 +246,9 @@ async function fetchList() {
   try {
     const params: Record<string, string | number> = { page: page.value, pageSize, ...searchParams.value }
     const { data } = await contentApi.list(params)
-    list.value = data.data
-    total.value = data.total
+    // api 拦截器把分页数组规范化为 data.items；兼容旧写法 data.data
+    list.value = data.items ?? data.data ?? []
+    total.value = data.total ?? list.value.length
   } catch {
     error.value = true
     list.value = []
@@ -264,8 +283,22 @@ async function batchUnpublish() {
 }
 
 async function handleDelete(id: string) {
-  await ElMessageBox.confirm('确定删除？', '提示', { type: 'warning' })
-  try { await contentApi.remove(id); ElMessage.success('已删除'); fetchList() } catch { /* */ }
+  try {
+    await ElMessageBox.confirm('确定删除该内容？删除后不可恢复。', '删除确认', { type: 'warning', confirmButtonClass: 'el-button--danger' })
+  } catch { return /* 用户取消 */ }
+  try { await contentApi.remove(id); ElMessage.success('已删除'); fetchList() } catch { /* 拦截器已提示 */ }
+}
+
+/** 观察期口径：本页为旧CMS，新录入前先确认（文章应从 C 端圈子编辑器发布） */
+async function handleCreate() {
+  try {
+    await ElMessageBox.confirm(
+      '本页为旧CMS观察期，新内容请从文章管理（C 端圈子编辑器）发布；此处仅用于存量与 AI 种子内容维护。确定继续新建？',
+      '旧CMS新建确认',
+      { type: 'warning', confirmButtonText: '继续新建' },
+    )
+  } catch { return /* 用户取消 */ }
+  router.push('/contents/create')
 }
 
 function exportData() {

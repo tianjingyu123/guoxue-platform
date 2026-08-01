@@ -47,7 +47,7 @@ function voiceList() { return props.media.voiceNotes[props.noteKey] || [] }
     <view v-if="imgList().length" class="img-grid">
       <view v-for="(url, i) in imgList()" :key="i" class="img-cell">
         <image lazy-load :src="url" class="img" mode="aspectFill" @tap="media.previewImage(imgList(), url)" />
-        <view class="img-del" @tap.stop="media.deleteImage(noteKey, i)"><app-icon name="x" :size="18" color="#ffffff" /></view>
+        <view class="img-del" @tap.stop="media.deleteImage(noteKey, i)"><view class="img-del-btn"><app-icon name="x" :size="18" color="#ffffff" /></view></view>
       </view>
     </view>
   </view>
@@ -73,5 +73,7 @@ function voiceList() { return props.media.voiceNotes[props.noteKey] || [] }
 .img-grid { display: flex; flex-wrap: wrap; gap: 16rpx; margin-bottom: 16rpx; }
 .img-cell { position: relative; width: 128rpx; height: 128rpx; border-radius: 12rpx; overflow: hidden; border: 2rpx solid var(--border, rgba(0,0,0,0.08)); }
 .img { width: 100%; height: 100%; }
-.img-del { position: absolute; top: 6rpx; right: 6rpx; width: 32rpx; height: 32rpx; border-radius: 999rpx; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; }
+/* 热区：向内(下/左)撑到 88rpx≈44px 可点区域，圆点视觉仍贴右上 6rpx、大小不变（.img-cell 有 overflow:hidden，向外扩会被裁剪，故向内扩） */
+.img-del { position: absolute; top: 0; right: 0; padding: 6rpx 6rpx 50rpx 50rpx; display: flex; align-items: flex-start; justify-content: flex-end; }
+.img-del-btn { width: 32rpx; height: 32rpx; border-radius: 999rpx; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; }
 </style>

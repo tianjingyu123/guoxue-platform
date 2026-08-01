@@ -146,7 +146,7 @@ export class RejectAppealDto {
 
 // ─── 设备指纹 ───
 
-export class DeviceFingerprintQueryDto {
+export class DeviceFingerprintQueryDto extends PaginationDto {
   @IsOptional() @IsString()
   userId?: string;
 

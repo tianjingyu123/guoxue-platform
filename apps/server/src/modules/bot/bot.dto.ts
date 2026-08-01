@@ -43,8 +43,13 @@ export class CreateBotDto {
 }
 
 export class UpdateBotDto {
+  /** 传空串/缺省 = 保留原值（service 内过滤），改价格排序无需重输令牌 */
   @IsOptional() @IsString()
   apiKey?: string;
+
+  /** Coze bot_id（换发新令牌时与 apiKey 一并更新；传空串/缺省 = 保留原值） */
+  @IsOptional() @IsString()
+  botId?: string;
 
   @IsOptional() @IsString()
   name?: string;

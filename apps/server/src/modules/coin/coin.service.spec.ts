@@ -187,12 +187,113 @@ describe("CoinService", () => {
   })
 
   describe("getRechargeTiers", () => {
-    it("返回充值档位", async () => {
+    it("返回充值档位（董事长拍板 2026-07-10：100/200/500 三档+自定义）", async () => {
       const tiers = await svc.getRechargeTiers()
-      expect(tiers).toHaveLength(5)
-      expect(tiers[0].amountRmb).toBe(6)
+      expect(tiers).toHaveLength(3)
+      expect(tiers[0].amountRmb).toBe(100)
+      expect(tiers[0].amountCoin).toBe(1000)
     })
   })
+
+  describe("handleRechargeCallback — 赠币只加币不加价（反向收费修复）", () => {
+    beforeEach(() => {
+      (mockPrisma.virtualCoinRecharge as any).findUnique = jest.fn().mockResolvedValue(null);
+      (mockPrisma.virtualCoinRecharge as any).update = jest.fn().mockResolvedValue({});
+      (mockRedis as any).setNX = jest.fn().mockResolvedValue(true);
+      (mockRedis as any).del = jest.fn().mockResolvedValue(undefined);
+    });
+
+    it("实付按基础币核对通过，到账=基础币+档位赠币（用户不为赠币多付）", async () => {
+      jest.spyOn(svc as any, "getRechargeTiers").mockResolvedValue([{ amountRmb: 100, amountCoin: 1000, bonus: 50 }]);
+      const rechargeSpy = jest.spyOn(svc, "recharge").mockResolvedValue({} as any);
+      const handled = await svc.handleRechargeCallback({
+        trade_state: "SUCCESS",
+        attach: JSON.stringify({ type: "COIN_RECHARGE", userId: "u1", amountCoin: 1000 }),
+        amount: { total: 10000 }, // 实付 100 元（分）= 基础币 1000 / 汇率 10
+        out_trade_no: "RC12345671",
+      });
+      expect(handled).toBe(true);
+      expect(rechargeSpy).toHaveBeenCalled();
+      expect(rechargeSpy.mock.calls[0][1].amountCoin).toBe(1050); // 到账含 50 赠币
+      expect(rechargeSpy.mock.calls[0][1].amountRmb).toBe(100); // 落账人民币只记真实实付，不含赠币
+    });
+
+    it("渠道实付与基础币应付不符时拒绝入账（不给币）", async () => {
+      jest.spyOn(svc as any, "getRechargeTiers").mockResolvedValue([{ amountRmb: 100, amountCoin: 1000, bonus: 50 }]);
+      const rechargeSpy = jest.spyOn(svc, "recharge").mockResolvedValue({} as any);
+      const handled = await svc.handleRechargeCallback({
+        trade_state: "SUCCESS",
+        attach: JSON.stringify({ type: "COIN_RECHARGE", userId: "u1", amountCoin: 1000 }),
+        amount: { total: 10500 }, // 实付 105 ≠ 应付 100（基础币口径）
+        out_trade_no: "RC12345672",
+      });
+      expect(handled).toBe(false);
+      expect(rechargeSpy).not.toHaveBeenCalled();
+    });
+
+    it("渠道回调缺少实付金额时拒绝入账（不能只凭 attach 给币）", async () => {
+      const rechargeSpy = jest.spyOn(svc, "recharge").mockResolvedValue({} as any);
+      const handled = await svc.handleRechargeCallback({
+        trade_state: "SUCCESS",
+        attach: JSON.stringify({ type: "COIN_RECHARGE", userId: "u1", amountCoin: 1000, amountFen: 10000 }),
+        out_trade_no: "RC12345678",
+      });
+      expect(handled).toBe(false);
+      expect(rechargeSpy).not.toHaveBeenCalled();
+    });
+
+    it("下单后汇率变化仍按签名回调中的应付分快照入账", async () => {
+      jest.spyOn(svc, "getCoinRate").mockResolvedValueOnce(20); // 当前已变为 20币/元
+      jest.spyOn(svc as any, "getRechargeTiers").mockResolvedValue([]);
+      const rechargeSpy = jest.spyOn(svc, "recharge").mockResolvedValue({} as any);
+      await svc.handleRechargeCallback({
+        trade_state: "SUCCESS",
+        attach: JSON.stringify({
+          type: "COIN_RECHARGE", userId: "u1", amountCoin: 1000, amountFen: 10000, bonusCoin: 50,
+        }),
+        amount: { total: 10000 },
+        out_trade_no: "RC12345673",
+      });
+      expect(rechargeSpy).toHaveBeenCalledWith("u1", expect.objectContaining({
+        amountCoin: 1050,
+        amountRmb: 100,
+      }));
+    });
+
+    it("并发锁冲突时返回未处理，让微信重投而不是误报到账成功", async () => {
+      (mockRedis as any).setNX.mockResolvedValueOnce(false);
+      const rechargeSpy = jest.spyOn(svc, "recharge").mockResolvedValue({} as any);
+
+      const handled = await svc.handleRechargeCallback({
+        trade_state: "SUCCESS",
+        attach: JSON.stringify({
+          type: "COIN_RECHARGE", userId: "u1", amountCoin: 1000, amountFen: 10000,
+        }),
+        amount: { total: 10000 },
+        out_trade_no: "RC12345674",
+      });
+
+      expect(handled).toBe(false);
+      expect(rechargeSpy).not.toHaveBeenCalled();
+    });
+
+    it("已入账的渠道重投返回成功，不重复加币", async () => {
+      (mockPrisma.virtualCoinRecharge as any).findUnique.mockResolvedValueOnce({ status: "PAID" });
+      const rechargeSpy = jest.spyOn(svc, "recharge").mockResolvedValue({} as any);
+
+      const handled = await svc.handleRechargeCallback({
+        trade_state: "SUCCESS",
+        attach: JSON.stringify({
+          type: "COIN_RECHARGE", userId: "u1", amountCoin: 1000, amountFen: 10000,
+        }),
+        amount: { total: 10000 },
+        out_trade_no: "RC12345675",
+      });
+
+      expect(handled).toBe(true);
+      expect(rechargeSpy).not.toHaveBeenCalled();
+    });
+  });
 
   describe("sendGift", () => {
     it("打赏成功", async () => {

@@ -24,7 +24,7 @@ on:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '10'
+  PNPM_VERSION: '10.33.3'
   DATABASE_URL: 'postgresql://guoxue:guoxue123@localhost:5432/guoxue'
   REDIS_URL: 'redis://localhost:6379'
   ENCRYPTION_KEY: 'perf-test-key-32bytes-long!!'

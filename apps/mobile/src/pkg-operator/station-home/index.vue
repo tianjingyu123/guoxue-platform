@@ -5,6 +5,8 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { captureRefFromQuery } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import {
   stationHomeApi,
   deriveFeatures,
@@ -12,11 +14,13 @@ import {
   feedTypeLabel,
   feedTypeIcon,
   formatStatNumber,
+  stationFeedTargetUrl,
   type StationBrandFull,
   type StationFeature,
   type StationFeedCard,
   type MicroPageView,
-} from '@/lib/station-home-data'
+} from '@/pkg-operator/lib/station-home-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
@@ -26,6 +30,7 @@ const stationCode = ref('')
 const brand = ref<StationBrandFull>({} as StationBrandFull)
 const features = ref<StationFeature[]>([])
 const feedList = ref<StationFeedCard[]>([])
+const pinnedList = ref<StationFeedCard[]>([]) // 站长在后台锁定的主推位（站长严选）
 const microPage = ref<MicroPageView | null>(null)
 
 const primary = computed(() => brand.value.themeColor || '#C41E3A')
@@ -33,11 +38,14 @@ const template = computed(() => brand.value.template)
 const showFeed = computed(() => sectionVisible(template.value, 'recommend') || sectionVisible(template.value, 'course'))
 // 站长发布了微页面 → 优先渲染微页面楼层；否则回退模板默认楼层
 const useMicroPage = computed(() => !!microPage.value && microPage.value.components.length > 0)
-// 微页面里的「内容推荐」类楼层复用平台精选 feed 渲染
+// 微页面里的「内容推荐」类楼层复用精选 feed 渲染：站长有锁定主推位则优先展示，否则回退平台推荐流
 function isFeedFloor(type: string) { return type === 'recommend' || type === 'recommend-course' || type === 'recommend-agent' }
+const recFeed = computed(() => (pinnedList.value.length ? pinnedList.value : feedList.value))
 
 onLoad((q: Record<string, string> = {}) => {
-  stationCode.value = q.s || q.code || q.station || ''
+  // 分享链接统一使用 ref；既加载对应分站品牌，也写入七天临时归因（最近点击优先）。
+  captureRefFromQuery(q)
+  stationCode.value = q.ref || q.s || q.code || q.station || ''
   loadData()
 })
 
@@ -54,14 +62,16 @@ async function loadData() {
     }
     if (!code) { notFound.value = true; return }
 
-    const [b, feeds, mp] = await Promise.all([
+    const [b, feeds, mp, pinned] = await Promise.all([
       stationHomeApi.getBrand(code),
       stationHomeApi.getFeed(),
       stationHomeApi.getMicroPage(code),
+      stationHomeApi.getPinnedBoards(code),
     ])
     brand.value = b
     features.value = deriveFeatures(b.template?.modules || [])
     feedList.value = Array.isArray(feeds) ? feeds : []
+    pinnedList.value = Array.isArray(pinned) ? pinned : []
     microPage.value = mp
   } catch (e) {
     const msg = (e as Error)?.message || ''
@@ -76,17 +86,19 @@ async function retry() { await loadData() }
 function openFeature(f: StationFeature) {
   navigateTo(f.path)
 }
-function openFeed(_item: StationFeedCard) {
-  // 内容详情路由按类型分发（P1-b 先统一进发现页，精准详情路由 P2 深度集成）
-  navigateTo('/pages/discover/index')
+function openFeed(item: StationFeedCard) {
+  const target = stationFeedTargetUrl(item)
+  if (!target) {
+    uni.showToast({ title: '该内容暂不可查看', icon: 'none' })
+    return
+  }
+  navigateTo(target)
 }
 
 // 分享：复制分站推广链接（真实 code；海报图生成 P3 做）
 const showShare = ref(false)
 const shareLink = computed(() => {
-  // import.meta.env 在 uni-app 下缺少类型声明，保留 as any
-  const base = (import.meta as any).env?.VITE_H5_URL || ''
-  return `${base}/#/pkg-operator/station-home/index?ref=${stationCode.value}`
+  return buildH5Url('/pkg-operator/station-home/index', { ref: stationCode.value })
 })
 function handleShare() { showShare.value = true }
 function closeShare() { showShare.value = false }
@@ -104,7 +116,7 @@ function goBack() {
     <!-- 品牌导航栏 -->
     <view class="sh-header" :style="{ background: primary, paddingTop: 'var(--status-bar-height, 0px)' }">
       <view class="sh-header-inner">
-        <view class="sh-back" @tap="goBack"><app-icon name="chevron-left" :size="40" color="#ffffff" /></view>
+        <view class="sh-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <view class="sh-brand">
           <image lazy-load v-if="brand.logo" class="sh-logo" :src="brand.logo" mode="aspectFill" />
           <text class="sh-brand-name">{{ brand.name || '分站' }}</text>
@@ -171,10 +183,10 @@ function goBack() {
             <view v-else-if="isFeedFloor(comp.type)" class="sh-mp-rec">
               <text class="sh-mp-rec-title">{{ comp.title || '精选推荐' }}</text>
               <view class="sh-mp-grid">
-                <view v-for="item in feedList.slice(0, 6)" :key="item.id" class="sh-mp-gcard" @tap="openFeed(item)">
+                <view v-for="item in recFeed.slice(0, 6)" :key="item.id" class="sh-mp-gcard" @tap="openFeed(item)">
                   <image lazy-load class="sh-mp-gcover" :src="item.cover || ''" mode="aspectFill" />
                   <text class="sh-mp-gname">{{ item.title }}</text>
-                  <text v-if="item.price !== undefined && item.price > 0" class="sh-mp-gprice" :style="{ color: primary }">¥{{ item.price }}</text>
+                  <text v-if="item.price !== undefined && item.price > 0" class="sh-mp-gprice" :style="{ color: primary }">¥{{ formatPrice(item.price) }}</text>
                 </view>
               </view>
             </view>
@@ -193,10 +205,45 @@ function goBack() {
           </view>
         </view>
 
-        <!-- 精选内容 Feed（平台真实推荐流） -->
+        <!-- 站长严选（站长后台锁定的主推位·真实露出选品价值） -->
+        <view v-if="pinnedList.length" class="sh-feed">
+          <view class="sh-feed-head">
+            <text class="sh-feed-title">站长严选</text>
+            <text class="sh-feed-sub">{{ brand.name || '本站' }}为你甄选的国学好课好物</text>
+          </view>
+          <view class="sh-feed-list">
+            <view v-for="item in pinnedList" :key="'pin-' + item.type + '-' + item.id" class="sh-feed-card" @tap="openFeed(item)">
+              <view class="sh-feed-cover-wrap">
+                <image lazy-load class="sh-feed-cover" :src="item.cover || ''" mode="aspectFill" />
+                <view v-if="item.isLive" class="sh-feed-live">
+                  <view class="sh-feed-live-dot" /><text class="sh-feed-live-txt">直播中</text>
+                </view>
+                <view v-else-if="item.type === 'video'" class="sh-feed-play"><app-icon name="play" :size="56" color="#ffffff" /></view>
+              </view>
+              <view class="sh-feed-info">
+                <view class="sh-feed-type">
+                  <app-icon :name="feedTypeIcon(item.type)" :size="24" color="#999" />
+                  <text class="sh-feed-type-txt">{{ feedTypeLabel(item.type) }}</text>
+                </view>
+                <text class="sh-feed-name">{{ item.title }}</text>
+                <view class="sh-feed-bottom">
+                  <view class="sh-feed-author">
+                    <text class="sh-feed-author-name">{{ item.author || '热卜国学' }}</text>
+                  </view>
+                  <view class="sh-feed-stats">
+                    <view v-if="item.viewers" class="sh-feed-stat"><app-icon name="eye" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.viewers) }}</text></view>
+                  </view>
+                </view>
+                <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ formatPrice(item.price) }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 更多推荐 Feed（平台真实推荐流·站长严选之外的补充） -->
         <view v-if="showFeed" class="sh-feed">
           <view class="sh-feed-head">
-            <text class="sh-feed-title">精选内容</text>
+            <text class="sh-feed-title">{{ pinnedList.length ? '更多推荐' : '精选内容' }}</text>
             <text class="sh-feed-sub">为你优选的国学好课好物</text>
           </view>
           <view v-if="feedList.length" class="sh-feed-list">
@@ -216,14 +263,14 @@ function goBack() {
                 <text class="sh-feed-name">{{ item.title }}</text>
                 <view class="sh-feed-bottom">
                   <view class="sh-feed-author">
-                    <text class="sh-feed-author-name">{{ item.author || '国学平台' }}</text>
+                    <text class="sh-feed-author-name">{{ item.author || '热卜国学' }}</text>
                   </view>
                   <view class="sh-feed-stats">
                     <view v-if="item.viewers" class="sh-feed-stat"><app-icon name="eye" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.viewers) }}</text></view>
                     <view v-if="item.likes" class="sh-feed-stat"><app-icon name="heart" :size="24" color="#999" /><text class="sh-feed-stat-txt">{{ formatStatNumber(item.likes) }}</text></view>
                   </view>
                 </view>
-                <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ item.price }}</text>
+                <text v-if="item.price !== undefined && item.price > 0" class="sh-feed-price" :style="{ color: primary }">¥{{ formatPrice(item.price) }}</text>
               </view>
             </view>
           </view>

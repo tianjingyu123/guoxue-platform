@@ -38,11 +38,20 @@ export class WithdrawalApplyDto {
 }
 
 export class WithdrawalAuditDto {
-  @IsString() @IsIn(["APPROVED", "PAID", "REJECTED"])
+  // PAID 已移除：打款是独立动作（POST admin/withdrawals/:id/payout），必须带转账流水号。
+  // 此前允许审核时一步 PENDING→PAID，等于「没看卡号、没转账、没流水号」就把提现标成已打款。
+  @IsString() @IsIn(["APPROVED", "REJECTED"])
   status: string;
 
   @IsOptional() @IsString()
   remark?: string;
+}
+
+/** 确认打款：payoutRef = 银行/支付宝转账流水号，出款幂等键（唯一约束防重复打款） */
+export class ConfirmPayoutDto {
+  @IsString()
+  @MinLength(4)
+  payoutRef: string;
 }
 
 export class CreateReferralDto {

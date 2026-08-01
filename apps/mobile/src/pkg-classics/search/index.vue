@@ -429,6 +429,8 @@ function goDetail(id: string) {
 .cs-row-cover {
   width: 112rpx;
   flex-shrink: 0;
+  /* 防 flex stretch 拉高封面（.cs-result-row 未设 align-items，默认 stretch 会拉长变形） */
+  align-self: flex-start;
 }
 .cs-row-info {
   flex: 1;
@@ -438,17 +440,28 @@ function goDetail(id: string) {
   justify-content: space-between;
   padding: 4rpx 0;
 }
+.cs-row-top {
+  min-width: 0;
+  overflow: hidden;
+}
 .cs-row-title-line {
   display: flex;
   align-items: center;
   gap: 16rpx;
+  min-width: 0;
 }
 .cs-row-title {
+  flex: 1;
+  min-width: 0;
   font-size: 32rpx;
   font-weight: 600;
   color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cs-free {
+  flex-shrink: 0;
   font-size: 20rpx;
   font-weight: 500;
   padding: 2rpx 12rpx;
@@ -457,6 +470,8 @@ function goDetail(id: string) {
   color: #047857;
 }
 .cs-row-desc {
+  display: block;
+  max-width: 100%;
   font-size: 24rpx;
   color: var(--muted-foreground);
   margin-top: 8rpx;
@@ -468,9 +483,17 @@ function goDetail(id: string) {
   display: flex;
   align-items: center;
   gap: 20rpx;
+  min-width: 0;
+  overflow: hidden;
   font-size: 22rpx;
   color: var(--muted-foreground);
   margin-top: 8rpx;
+}
+.cs-row-meta > text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cs-row-rating {
   display: flex;

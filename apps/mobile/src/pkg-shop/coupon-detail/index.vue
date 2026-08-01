@@ -6,7 +6,7 @@
     <view class="body">
       <!-- 加载中 -->
       <view v-if="loading" class="state-wrap">
-        <text class="state-text">加载中...</text>
+        <AppLoading />
       </view>
       <!-- 错误 -->
       <view v-else-if="error" class="state-wrap">
@@ -68,7 +68,7 @@
               <text class="apply-type-text">{{ item.type === 'product' ? '商品' : '课程' }}</text>
             </view>
             <text class="apply-name">{{ item.name }}</text>
-            <text class="apply-price">￥{{ item.price }}</text>
+            <text class="apply-price">￥{{ formatPrice(item.price) }}</text>
           </view>
         </view>
       </view>
@@ -87,7 +87,9 @@ import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
 import CouponItem from '@/components/shop/coupon-item.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { shopApi, type CouponApplicableItem } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const couponId = ref('')
 // 优惠券详情对象：{} 初值 + 模板 v-else 块裸访问 coupon.value/minAmount 等，收敛触发大量 possibly-undefined，保留 any
@@ -145,7 +147,7 @@ function goItem(item: CouponApplicableItem) {
 function goUse() {
   if (submitting.value) return
   submitting.value = true
-  navigateTo('/shop')
+  navigateTo('/mall')
   setTimeout(() => (submitting.value = false), 500)
 }
 </script>

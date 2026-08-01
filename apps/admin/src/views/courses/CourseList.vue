@@ -2,6 +2,8 @@
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+// 修复：ArrowDown 此前未导入（本项目无全局图标注册），"更多"按钮处渲染出空白元素
+import { ArrowDown } from "@element-plus/icons-vue";
 import { courseApi } from "@/api";
 import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
@@ -25,6 +27,8 @@ interface CourseRow {
   author?: string;
   categoryLevel1?: string;
   categoryLevel2?: string;
+  scheduledOnAt?: string | null;
+  scheduledOffAt?: string | null;
   user?: { nickname?: string };
   _count?: { chapters?: number };
 }
@@ -62,12 +66,22 @@ const auditLabels: Record<string, { text: string; type: string }> = {
   REJECTED: { text: "已驳回", type: "danger" }, DRAFT: { text: "草稿", type: "info" },
 };
 
+function persistentMediaUrl(value?: string): string | undefined {
+  const url = value?.trim();
+  return url && /^https?:\/\//i.test(url) ? url : undefined;
+}
+
 const { loading, tableData, pagination, filters, fetchList, handleSearch, handleReset } = useTable({
   fetchApi: courseApi.list,
   defaultPageSize: 20,
+  // 管理端默认查看全部状态（含待审核/草稿/驳回），否则新建的 PENDING 课程不显示
+  initialFilters: { auditStatus: "ALL" },
   transformResponse: (data: any) => ({
-    items: (data.courses || []).map((c: CourseRow) => ({
+    // api 拦截器已把分页数组规范化为 data.items（原后端键 courses）；兼容两者
+    items: (data.items || data.courses || []).map((c: CourseRow) => ({
       ...c,
+      // blob:/file: 仅在创建它的浏览器会话中有效，持久化后必须按无图处理，避免列表触发失败请求。
+      cover: persistentMediaUrl(c.cover),
       category: [c.categoryLevel1, c.categoryLevel2].filter(Boolean).join("/") || "-",
       validity: (c.validityDays ?? 0) > 0 ? c.validityDays + "天" : "永久",
       author: c.user?.nickname || "-",
@@ -85,41 +99,119 @@ function onSearch(f: Record<string, string | undefined>) {
 
 function onReset() {
   Object.keys(filters).forEach(k => { filters[k] = undefined })
-  handleReset()
+  // 状态筛选重置回"全部"，与管理端默认一致（否则回落后端 APPROVED 默认，看不到待审核课程）
+  handleReset({ auditStatus: "ALL" })
 }
 
 function onSelectionChange(rows: CourseRow[]) {
   selectedIds.value = rows.map((r) => r.id);
 }
 
-async function handleDelete(id: string) {
+// 删除（DELETE /courses/:id）：后端为物理删除且仅限课程作者本人（他人课程返回 403）
+async function handleDelete(row: CourseRow) {
   try {
-    await ElMessageBox.confirm("确定删除该课程？此操作不可撤销。", "提示", { type: "warning" });
-    await courseApi.remove(id);
+    await ElMessageBox.confirm(
+      `将永久删除课程「${row.title || row.id}」及其章节数据，不可恢复。注意：此入口仅能删除自己创建的课程；删除他人课程请用"更多 → 永久删除（管理员）"。`,
+      "删除课程",
+      { type: "warning", confirmButtonText: "永久删除", confirmButtonClass: "el-button--danger" },
+    );
+  } catch { return; }
+  try {
+    await courseApi.remove(row.id);
     ElMessage.success("已删除");
     fetchList();
-  } catch { /* */ }
+  } catch (e: any) {
+    if (e?.response?.status === 403) {
+      ElMessage.error("只能删除自己创建的课程；删除他人课程请用「更多 → 永久删除（管理员）」");
+    } else {
+      ElMessage.error("删除失败，请重试");
+    }
+  }
 }
 
-async function handleForceDelete(id: string) {
+// 永久删除（DELETE /courses/:id/force）：SUPER_ADMIN 专属·任意课程·物理删除（L3 红色确认）
+async function handleForceDelete(row: CourseRow) {
   try {
-    await ElMessageBox.confirm("【管理员】强制删除该课程？所有数据将被清除。", "警告", { type: "error", confirmButtonClass: "el-button--danger" });
-    await courseApi.forceDelete(id);
-    ElMessage.success("已强制删除");
+    await ElMessageBox.confirm(
+      `【管理员操作】将永久删除课程「${row.title || row.id}」及其全部章节、学员记录、作业与评价数据，${row.studentCount ? `影响 ${row.studentCount} 名学员，` : ""}不可恢复！`,
+      "永久删除（不可恢复）",
+      { type: "error", confirmButtonText: "我已知晓，永久删除", cancelButtonText: "取消", confirmButtonClass: "el-button--danger" },
+    );
+  } catch { return; }
+  try {
+    await courseApi.forceDelete(row.id);
+    ElMessage.success("已永久删除");
     fetchList();
-  } catch { /* */ }
+  } catch {
+    ElMessage.error("删除失败：需要超级管理员权限或课程不存在");
+  }
 }
 
 async function handleAudit(id: string, status: string) {
-  await courseApi.audit(id, status);
-  ElMessage.success(status === "APPROVED" ? "已通过" : "已驳回");
-  fetchList();
+  let reason: string | undefined;
+  if (status === "REJECTED") {
+    // 驳回理由必填（记入审计日志留痕）
+    try {
+      const { value } = await ElMessageBox.prompt("请填写驳回理由（讲师可见，将记入操作日志）", "驳回课程", {
+        inputPlaceholder: "如：封面含违规内容 / 课程介绍与实际内容不符",
+        inputValidator: (v: string) => (v && v.trim() ? true : "驳回理由不能为空"),
+        confirmButtonText: "确认驳回",
+        cancelButtonText: "取消",
+        type: "warning",
+      });
+      reason = value.trim();
+    } catch { return; }
+  }
+  try {
+    await courseApi.audit(id, status, reason);
+    ElMessage.success(status === "APPROVED" ? "已通过" : "已驳回");
+    fetchList();
+  } catch {
+    ElMessage.error("审核操作失败，请重试");
+  }
 }
 
 async function handleBatchAudit(status: string) {
-  if (selectedIds.value.length === 0) { ElMessage.warning("请先勾选课程"); return; }
-  await courseApi.batchAudit(selectedIds.value, status);
-  ElMessage.success(`已批量${status === "APPROVED" ? "通过" : "驳回"} ${selectedIds.value.length} 门课程`);
+  const count = selectedIds.value.length;
+  if (count === 0) { ElMessage.warning("请先勾选课程"); return; }
+  if (status === "REJECTED") {
+    // 批量驳回：理由必填（L3 影响预告 + 理由）；后端批量端点不收理由，逐条走单审端点以便理由留痕
+    let reason = "";
+    try {
+      const { value } = await ElMessageBox.prompt(
+        `将批量驳回 ${count} 门课程，讲师将收到驳回结果。请填写驳回理由（记入操作日志）：`,
+        "批量驳回确认",
+        {
+          inputPlaceholder: "如：内容不符合平台规范",
+          inputValidator: (v: string) => (v && v.trim() ? true : "驳回理由不能为空"),
+          confirmButtonText: `确认驳回 ${count} 门`,
+          cancelButtonText: "取消",
+          type: "warning",
+        },
+      );
+      reason = value.trim();
+    } catch { return; }
+    const results = await Promise.allSettled(selectedIds.value.map((id) => courseApi.audit(id, "REJECTED", reason)));
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    const fail = count - ok;
+    if (fail === 0) ElMessage.success(`已批量驳回 ${ok} 门课程`);
+    else ElMessage.warning(`已驳回 ${ok} 门，${fail} 门失败（可能已被审核过），列表已刷新`);
+  } else {
+    // 批量通过：L3 影响预告确认
+    try {
+      await ElMessageBox.confirm(`将批量通过 ${count} 门课程，通过后立即对用户可见。确定继续？`, "批量通过确认", {
+        type: "warning", confirmButtonText: `确认通过 ${count} 门`, cancelButtonText: "取消",
+      });
+    } catch { return; }
+    try {
+      const { data } = await courseApi.batchAudit(selectedIds.value, status);
+      const affected = data?.affectedCount ?? count;
+      ElMessage.success(`已批量通过 ${affected} 门课程${affected < count ? `（${count - affected} 门非待审核状态，已跳过）` : ""}`);
+    } catch {
+      ElMessage.error("批量通过失败，请重试");
+      return;
+    }
+  }
   selectedIds.value = [];
   fetchList();
 }
@@ -175,9 +267,11 @@ function exportData() {
       @selection-change="onSelectionChange"
     >
       <template #toolbar>
-        <el-button @click="exportData">
-          导出CSV
-        </el-button>
+        <el-tooltip content="导出当前页展示的数据（含筛选条件）">
+          <el-button @click="exportData">
+            导出CSV（当前页）
+          </el-button>
+        </el-tooltip>
         <el-button
           v-if="hasSelection"
           type="success"
@@ -204,11 +298,13 @@ function exportData() {
           <el-select
             v-model="filters.auditStatus"
             placeholder="审核状态"
-            clearable
             style="width:130px"
             @change="handleSearch"
           >
             <el-option
+              label="全部状态"
+              value="ALL"
+            /><el-option
               label="草稿"
               value="DRAFT"
             /><el-option
@@ -255,13 +351,22 @@ function exportData() {
         <el-image
           v-if="row.cover"
           :src="row.cover"
+          :preview-src-list="[row.cover]"
+          preview-teleported
           style="width:42px;height:28px;border-radius:4px"
           fit="cover"
-        />
+        >
+          <!-- 坏图占位：el-image 默认 error 显示英文，替换为中文占位 -->
+          <template #error>
+            <div style="width:42px;height:28px;border-radius:4px;background:#f5f5f5;color:#999;font-size:10px;display:flex;align-items:center;justify-content:center">
+              图裂
+            </div>
+          </template>
+        </el-image>
         <span
           v-else
           style="color:#ccc"
-        >-</span>
+        >—</span>
       </template>
       <template #type="{ row }">
         {{ typeLabels[row.type] || row.type }}
@@ -288,6 +393,33 @@ function exportData() {
         >
           {{ auditLabels[row.auditStatus]?.text || row.auditStatus }}
         </el-tag>
+        <!-- 定时上下架标记（编辑器"上架控制"块设置·cron 到点自动翻转） -->
+        <el-tooltip
+          v-if="row.scheduledOnAt"
+          :content="'定时上架：' + new Date(row.scheduledOnAt).toLocaleString()"
+        >
+          <el-tag
+            type="success"
+            size="small"
+            effect="plain"
+            style="margin-left:4px"
+          >
+            定时上架
+          </el-tag>
+        </el-tooltip>
+        <el-tooltip
+          v-if="row.scheduledOffAt"
+          :content="'定时下架：' + new Date(row.scheduledOffAt).toLocaleString()"
+        >
+          <el-tag
+            type="warning"
+            size="small"
+            effect="plain"
+            style="margin-left:4px"
+          >
+            定时下架
+          </el-tag>
+        </el-tooltip>
       </template>
       <template #author="{ row }">
         {{ row.author }}
@@ -326,8 +458,12 @@ function exportData() {
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
+              <el-dropdown-item @click="router.push(`/courses/${row.id}/manage`)">
+                课程运营（学员/作业/评价/问答）
+              </el-dropdown-item>
               <el-dropdown-item
                 v-if="row.auditStatus !== 'APPROVED'"
+                divided
                 @click="handleForceStatus(row.id, 'APPROVED')"
               >
                 强制上架
@@ -341,9 +477,9 @@ function exportData() {
               <el-dropdown-item
                 divided
                 style="color:#C41E3A"
-                @click="handleForceDelete(row.id)"
+                @click="handleForceDelete(row)"
               >
-                强制删除
+                永久删除（管理员·不可恢复）
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -351,7 +487,7 @@ function exportData() {
         <el-button
           size="small"
           type="danger"
-          @click="handleDelete(row.id)"
+          @click="handleDelete(row)"
         >
           删除
         </el-button>

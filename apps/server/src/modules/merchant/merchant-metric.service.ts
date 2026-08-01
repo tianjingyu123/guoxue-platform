@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { NotificationService } from "../notification/notification.service";
+import { normalizeAfterSaleType } from "../shop/after-sale-type";
 
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -187,8 +188,10 @@ export class MerchantMetricService {
     const refundBy = new Map<string, number>();
     const returnBy = new Map<string, number>();
     for (const row of afterSaleRows) {
-      if (row.type === "refund") refundBy.set(row.merchantId, Number(row.count));
-      if (row.type === "return") returnBy.set(row.merchantId, Number(row.count));
+      const type = normalizeAfterSaleType(row.type);
+      if (type === "refund_only") refundBy.set(row.merchantId, (refundBy.get(row.merchantId) ?? 0) + Number(row.count));
+      if (type === "refund_with_return")
+        returnBy.set(row.merchantId, (returnBy.get(row.merchantId) ?? 0) + Number(row.count));
     }
     const ratingsByUser = new Map<string, number[]>();
     for (const r of reviews) {
@@ -385,7 +388,7 @@ export class MerchantMetricService {
                COUNT(*) FILTER (WHERE a."createdAt" < ${curStart})::int AS "prev"
         FROM "AfterSale" a
         JOIN "Order" o ON o."id" = a."orderId"
-        WHERE a."type" = 'refund'
+        WHERE LOWER(a."type") IN ('refund', 'refund_only', 'return', 'refund_with_return')
           AND a."createdAt" >= ${prevStart} AND a."createdAt" < ${now}
           AND o."merchantId" IS NOT NULL
         GROUP BY o."merchantId"

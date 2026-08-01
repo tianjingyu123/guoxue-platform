@@ -1,13 +1,22 @@
 #!/bin/bash
 # 国学平台 — SSL 证书自动申请脚本 (Let's Encrypt)
-# 用法: ./setup-ssl.sh example.com admin@example.com
+# 用法: bash setup-ssl.sh example.com admin@example.com
 # 证书通过 Certbot standalone 获取后放置到 docker/nginx/ssl/
 
 set -e
 
-DOMAIN="${1:-guoxue.ac.cn}"
-EMAIL="${2:-admin@guoxue.ac.cn}"
+DOMAIN="${1:-}"
+EMAIL="${2:-}"
 SSL_DIR="$(cd "$(dirname "$0")" && pwd)/ssl"
+
+if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ]; then
+  echo "用法: $0 <真实域名> <证书通知邮箱>"
+  exit 64
+fi
+if [[ "$DOMAIN" == *"example.com"* ]] || [[ "$EMAIL" != *"@"* ]]; then
+  echo "[ssl] 错误：域名或邮箱仍是占位值"
+  exit 64
+fi
 
 echo "[ssl] 为 $DOMAIN 申请 SSL 证书..."
 

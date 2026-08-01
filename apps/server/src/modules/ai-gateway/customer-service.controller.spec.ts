@@ -29,7 +29,7 @@ describe("CustomerServiceController", () => {
         { provide: StreamUnifierService, useValue: mockSSE },
         {
           provide: CustomerServiceService,
-          useValue: { ask: jest.fn(), askStream: jest.fn() },
+          useValue: { ask: jest.fn(), askStream: jest.fn(), buildRecommendation: jest.fn().mockResolvedValue(null) },
         },
       ],
     })
@@ -100,6 +100,27 @@ describe("CustomerServiceController", () => {
       expect(res.write).toHaveBeenCalledWith('data: {"type":"chunk","content":"段"}\n\n');
       expect(res.write).toHaveBeenCalledWith('data: {"type":"done"}\n\n');
       expect(res.end).toHaveBeenCalled();
+    });
+
+    it("流末发送与本轮问题相关的结构化推荐元数据", async () => {
+      async function* gen() {
+        yield "已为你解决。";
+      }
+      const recommendation = {
+        presentation: "inline",
+        title: "顺着这个问题继续",
+        lead: "相关内容",
+        consentPrompt: "要看看吗？",
+        items: [{ type: "article", data: { id: "a1", title: "相关文章" } }],
+      } as any;
+      svc.askStream.mockReturnValue(gen());
+      svc.buildRecommendation.mockResolvedValue(recommendation);
+      const res = mockRes();
+
+      await ctrl.askStream({ question: "我想学习周易", history: [] }, mockReq, res);
+
+      expect(svc.buildRecommendation).toHaveBeenCalledWith("已为你解决。", "我想学习周易");
+      expect(res.write).toHaveBeenCalledWith(`data: ${JSON.stringify({ type: "meta", recommendation })}\n\n`);
     });
 
     it("流中发生错误时发送 error 事件并结束", async () => {

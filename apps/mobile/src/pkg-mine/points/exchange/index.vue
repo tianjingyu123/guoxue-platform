@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import { navigateTo } from '@/utils/router'
 import {
   pointsApi,
   exchangeTypeLabels,
@@ -57,14 +59,36 @@ onMounted(() => {
 function goBack() {
   uni.navigateBack()
 }
+// 统一走 @/utils/router 的 navigateTo（自带失败兜底 toast），替代裸 uni.navigateTo
 function go(url: string) {
-  uni.navigateTo({ url })
+  navigateTo(url)
 }
 function typeLabel(t: ExchangeType) {
   return exchangeTypeLabels[t]
 }
-async function handleExchange(item: PointsExchangeItem) {
-  if (submitting.value || info.value.balance < item.points || exchanging.value !== null) return
+function fmt(n: number) {
+  return n.toLocaleString()
+}
+/* —— 兑换确认弹窗（对齐 points 首页范式）——
+ * 兑换说明写明「不支持退换」，原实现单击立即扣积分无确认，且失败静默吞错。
+ * 现改为：点卡片按钮 → 确认弹窗 → 确认后调后端；失败 toast 后端 message（兜底「兑换失败，请重试」）。 */
+const showExchangeModal = ref(false)
+const selectedItem = ref<PointsExchangeItem | null>(null)
+const exchangeSuccess = ref(false)
+
+function handleExchange(item: PointsExchangeItem) {
+  if (submitting.value || info.value.balance < item.points) return
+  selectedItem.value = item
+  showExchangeModal.value = true
+}
+function closeExchangeModal() {
+  if (exchangeSuccess.value || submitting.value) return
+  showExchangeModal.value = false
+  selectedItem.value = null
+}
+async function confirmExchange() {
+  const item = selectedItem.value
+  if (!item || submitting.value) return
   exchanging.value = item.id
   submitting.value = true
   try {
@@ -72,11 +96,23 @@ async function handleExchange(item: PointsExchangeItem) {
     if (res.success) {
       info.value.balance -= item.points
       info.value.totalSpent += item.points
+      exchangeSuccess.value = true
       successId.value = item.id
-      setTimeout(() => (successId.value = null), 2000)
+      setTimeout(() => {
+        showExchangeModal.value = false
+        exchangeSuccess.value = false
+        selectedItem.value = null
+        successId.value = null
+      }, 2000)
+    } else {
+      showExchangeModal.value = false
+      selectedItem.value = null
+      uni.showToast({ title: res.message || '兑换失败，请重试', icon: 'none' })
     }
-  } catch {
-    // 兑换失败静默处理
+  } catch (e) {
+    showExchangeModal.value = false
+    selectedItem.value = null
+    uni.showToast({ title: (e as Error)?.message || '兑换失败，请重试', icon: 'none' })
   } finally {
     exchanging.value = null
     submitting.value = false
@@ -91,10 +127,10 @@ async function handleExchange(item: PointsExchangeItem) {
         <AppIcon name="arrow-left" :size="44" color="#2D2A26" />
       </view>
       <text class="nav-title">积分兑换</text>
-      <text class="nav-link" @tap="go('/pkg-mine/points/history')">记录</text>
+      <text class="nav-link" @tap="go('/pkg-mine/points/history/index')">记录</text>
     </view>
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="retry">重试</view>
@@ -107,7 +143,7 @@ async function handleExchange(item: PointsExchangeItem) {
           <text class="balance-label">当前积分</text>
           <text class="balance-num">{{ info.balance.toLocaleString() }}</text>
         </view>
-        <view class="balance-btn" @tap="go('/pkg-mine/points/tasks')">
+        <view class="balance-btn" @tap="go('/pkg-mine/points/tasks/index')">
           <text class="balance-btn-text">去做任务获取积分</text>
         </view>
       </view>
@@ -141,7 +177,7 @@ async function handleExchange(item: PointsExchangeItem) {
           <text class="card-title">{{ item.title }}</text>
           <text class="card-type">{{ typeLabel(item.type) }}</text>
           <text class="card-points">{{ item.points.toLocaleString() }} 积分</text>
-          <text class="card-stock">库存 {{ item.stock > 100 ? '充足' : item.stock }}</text>
+          <text class="card-stock">{{ item.stock < 0 ? '不限量' : `库存 ${item.stock > 100 ? '充足' : item.stock}` }}</text>
           <view
             class="card-btn"
             :class="{
@@ -170,6 +206,38 @@ async function handleExchange(item: PointsExchangeItem) {
       </view>
       <view class="bottom-space" />
     </scroll-view>
+
+    <!-- 兑换确认弹窗（对齐 points 首页同功能范式） -->
+    <view v-if="showExchangeModal && selectedItem" class="modal-mask" @tap="closeExchangeModal">
+      <view class="modal" @tap.stop>
+        <template v-if="!exchangeSuccess">
+          <view class="modal-icon">
+            <AppIcon name="gift" :size="32" color="#c9a96e" />
+          </view>
+          <text class="modal-title">确认兑换</text>
+          <text class="modal-sub">使用 {{ selectedItem.points }}积分 兑换，兑换后不支持退换</text>
+          <view class="modal-card">
+            <text class="modal-card-text">{{ selectedItem.title }}</text>
+          </view>
+          <text class="modal-balance">兑换后积分余额：{{ fmt(info.balance - selectedItem.points) }}</text>
+          <view class="modal-actions">
+            <view class="modal-btn modal-btn-cancel" @tap="closeExchangeModal">
+              <text class="modal-btn-text">取消</text>
+            </view>
+            <view class="modal-btn modal-btn-confirm" @tap="confirmExchange">
+              <text class="modal-btn-text modal-btn-text-light">{{ submitting ? '兑换中...' : '确认兑换' }}</text>
+            </view>
+          </view>
+        </template>
+        <template v-else>
+          <view class="modal-icon modal-icon-success">
+            <AppIcon name="check-circle" :size="32" color="#22c55e" />
+          </view>
+          <text class="modal-title">兑换成功</text>
+          <text class="modal-sub">{{ selectedItem.title }} 已发放至您的账户</text>
+        </template>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -200,7 +268,8 @@ async function handleExchange(item: PointsExchangeItem) {
 .nav-link {
   font-size: 28rpx;
   color: #9a2e22;
-  width: 48rpx;
+  min-width: 48rpx;
+  white-space: nowrap;
   text-align: right;
 }
 .scroll {
@@ -366,4 +435,95 @@ async function handleExchange(item: PointsExchangeItem) {
 .error-state text { font-size: 28rpx; color: #8a8178; }
 .retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
 .empty { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+
+/* 兑换确认弹窗（样式对齐 points 首页） */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  width: 85%;
+  max-width: 560rpx;
+  background: #fff;
+  border-radius: 28rpx;
+  padding: 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.modal-icon {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 50%;
+  background: rgba(201, 169, 110, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24rpx;
+}
+.modal-icon-success {
+  background: rgba(34, 197, 94, 0.1);
+}
+.modal-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #2d2a26;
+}
+.modal-sub {
+  font-size: 26rpx;
+  color: #8a8178;
+  margin-top: 8rpx;
+  text-align: center;
+}
+.modal-card {
+  width: 100%;
+  background: rgba(236, 231, 223, 0.5);
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin: 28rpx 0;
+}
+.modal-card-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2d2a26;
+  text-align: center;
+  display: block;
+}
+.modal-balance {
+  font-size: 22rpx;
+  color: #8a8178;
+  margin-bottom: 28rpx;
+}
+.modal-actions {
+  display: flex;
+  gap: 24rpx;
+  width: 100%;
+}
+.modal-btn {
+  flex: 1;
+  padding: 22rpx 0;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-btn-cancel {
+  background: #ece7df;
+}
+.modal-btn-confirm {
+  background: #9a2e22;
+}
+.modal-btn-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #2d2a26;
+}
+.modal-btn-text-light {
+  color: #fff;
+}
 </style>

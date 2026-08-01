@@ -64,7 +64,11 @@ export class SemanticCacheService {
     private readonly vector: VectorService,
   ) {}
 
-  async lookup(scene: string, query: string): Promise<string | null> {
+  async lookup(scene: string, query: string, scopeKey?: string): Promise<string | null> {
+    // 数据隔离修复(后端审计P1)：圈主助理等按实体隔离的场景传 scopeKey(如 circleId)，
+    // 将其并入缓存作用域，使 L0/L0.5/L1 三级全部按实体分区，杜绝 A 圈答案命中返回给 B 圈。
+    // 路由仍用原始 scene(不含 scopeKey)，故不影响模型选路。
+    if (scopeKey) scene = `${scene}#${scopeKey}`;
     const normalized = normalizeQuery(query);
     if (normalized.length < 4) return null;
 
@@ -124,7 +128,10 @@ export class SemanticCacheService {
     response: string,
     model?: string,
     tokenUsage?: Record<string, number>,
+    scopeKey?: string,
   ): Promise<void> {
+    // 与 lookup 对称：写入时同样并入 scopeKey，保证按实体分区存储。
+    if (scopeKey) scene = `${scene}#${scopeKey}`;
     const normalized = normalizeQuery(query);
     if (normalized.length < 4) return;
 

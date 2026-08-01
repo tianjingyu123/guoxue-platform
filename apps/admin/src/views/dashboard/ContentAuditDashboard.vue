@@ -95,7 +95,6 @@ async function load() {
       { label: '内容管理', path: '/contents', icon: Files },
       { label: '评论管理', path: '/comments', icon: ChatLineSquare },
       { label: '短视频审核', path: '/videos', icon: VideoCamera },
-      { label: '公开笔记审核', path: '/social/notes-audit', icon: Notebook },
       { label: '文章管理', path: '/articles', icon: Document },
     ]
 

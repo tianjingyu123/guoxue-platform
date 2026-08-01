@@ -1,8 +1,10 @@
-import { Controller, Get, Put, Param, Body, UseGuards } from "@nestjs/common";
+import { Controller, Get, Put, Param, Body, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiResponse } from "@nestjs/swagger";
+import type { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { Auditable } from "../../common/audit.decorator";
 import { PermissionService } from "./permission.service";
 import { SetRolePermissionsDto } from "./system.dto";
 
@@ -24,6 +26,7 @@ export class PermissionController {
   }
 
   @Put(":role/permissions")
+  @Auditable({ action: "更新角色权限", targetType: "ROLE" })
   @ApiOperation({ summary: "更新角色权限" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -31,8 +34,9 @@ export class PermissionController {
   async setRolePermissions(
     @Param("role") role: string,
     @Body() body: SetRolePermissionsDto,
+    @Req() req: Request,
   ) {
-    const result = await this.permSvc.setRolePermissions(role, body.permissions || []);
+    const result = await this.permSvc.setRolePermissions(role, body.permissions || [], req.user?.id);
     return { permissions: result.permissions, data: result.permissions };
   }
 }

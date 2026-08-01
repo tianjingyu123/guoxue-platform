@@ -22,6 +22,51 @@ export class CourseSchedulerService {
     );
   }
 
+  /** 每分钟检查定时上架/下架的课程（后台课程编辑器·2026-07-11·分布式锁防多实例重复） */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async flipScheduledOnOff() {
+    await this.redis.runExclusive("course_flip_scheduled_on_off", 600, () =>
+      this._flipScheduledOnOff(),
+    );
+  }
+
+  private async _flipScheduledOnOff() {
+    try {
+      const now = new Date();
+      // 先下架后上架：同一门课两者同时到点时以最终写入（上架）为准的歧义交给运营，正常场景不并存
+      const offDue = await this.prisma.course.findMany({
+        where: { scheduledOffAt: { lte: now } },
+        select: { id: true },
+      });
+      if (offDue.length > 0) {
+        await this.prisma.course.updateMany({
+          where: { id: { in: offDue.map((c) => c.id) } },
+          data: { auditStatus: "DRAFT", scheduledOffAt: null },
+        });
+        this.logger.log(`定时下架: ${offDue.length} 门课程 → DRAFT`);
+      }
+      const onDue = await this.prisma.course.findMany({
+        where: { scheduledOnAt: { lte: now } },
+        select: { id: true },
+      });
+      if (onDue.length > 0) {
+        await this.prisma.course.updateMany({
+          where: { id: { in: onDue.map((c) => c.id) } },
+          data: { auditStatus: "APPROVED", scheduledOnAt: null },
+        });
+        this.logger.log(`定时上架: ${onDue.length} 门课程 → APPROVED`);
+      }
+      if (offDue.length > 0 || onDue.length > 0) {
+        await this.redis.delByPattern("courses:list:*");
+        await Promise.all(
+          [...offDue, ...onDue].map((c) => this.redis.del(`courses:detail:${c.id}`)),
+        );
+      }
+    } catch (err) {
+      this.logger.error("定时上下架翻转失败", err);
+    }
+  }
+
   private async _publishScheduledCourses() {
     try {
       const now = new Date();

@@ -10,6 +10,7 @@ const mockPrisma = {
     createMany: jest.fn(),
   },
   userRole: { findMany: jest.fn() },
+  auditLog: { create: jest.fn().mockResolvedValue({ id: "log1" }) },
   $transaction: jest.fn().mockImplementation((fn: (prisma: typeof mockPrisma) => unknown) => fn(mockPrisma)),
 };
 
@@ -48,19 +49,33 @@ describe("PermissionService", () => {
   });
 
   describe("setRolePermissions", () => {
-    it("设置角色权限", async () => {
+    it("设置角色权限并写变更审计(含旧/新集合+rollbackData)", async () => {
+      // 旧权限快照（getRolePermissions 调用）
+      mockPrisma.rolePermission.findMany.mockResolvedValue([{ permission: { key: "content:read" } }]);
       mockPrisma.permission.findMany.mockResolvedValue([
         { id: "p1", key: "content:read" },
         { id: "p2", key: "content:write" },
       ]);
-      const result = await svc.setRolePermissions("EDITOR", ["content:read", "content:write"]);
+      const result = await svc.setRolePermissions("EDITOR", ["content:read", "content:write"], "admin1");
       expect(result.permissions).toEqual(["content:read", "content:write"]);
       expect(mockPrisma.rolePermission.deleteMany).toHaveBeenCalledWith(
         { where: { roleType: "EDITOR" } },
       );
+      // 审计：action=ROLE_PERMISSION_CHANGE，含 added=content:write，rollbackData=旧集合
+      expect(mockPrisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: "ROLE_PERMISSION_CHANGE",
+            targetId: "EDITOR",
+            userId: "admin1",
+            rollbackData: { roleType: "EDITOR", permissionKeys: ["content:read"] },
+          }),
+        }),
+      );
     });
 
     it("清空角色权限", async () => {
+      mockPrisma.rolePermission.findMany.mockResolvedValue([]);
       mockPrisma.permission.findMany.mockResolvedValue([]);
       const result = await svc.setRolePermissions("EDITOR", []);
       expect(result.permissions).toEqual([]);

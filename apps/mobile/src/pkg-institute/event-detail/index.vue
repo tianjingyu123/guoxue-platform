@@ -4,7 +4,7 @@
     <view v-if="loading" class="not-found-page">
       <view class="nav-simple" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="nav-bar">
-          <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#1a1a1a" /></view>
+          <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
           <text class="nav-title">活动详情</text>
         </view>
       </view>
@@ -18,7 +18,7 @@
     <view v-else-if="!event" class="not-found-page">
       <view class="nav-simple" :style="{ paddingTop: statusBarHeight + 'px' }">
         <view class="nav-bar">
-          <view class="nav-back" @tap="goBack"><app-icon name="chevron-left" :size="22" color="#1a1a1a" /></view>
+          <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
           <text class="nav-title">活动详情</text>
         </view>
       </view>
@@ -36,7 +36,7 @@
           <view class="cover-img"><app-icon name="calendar" :size="48" color="#d1d5db" /></view>
           <view class="cover-mask" />
           <view class="cover-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-            <view class="round-btn" @tap="goBack"><app-icon name="chevron-left" :size="20" color="#fff" /></view>
+            <view class="round-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#fff" /></view>
           </view>
           <view class="cover-tags">
             <text class="cover-tag" :style="{ color: eventTypeColor[event.type].color, background: eventTypeColor[event.type].bg }">{{ eventTypeLabel[event.type] }}</text>
@@ -96,15 +96,13 @@
         <view class="bottom-safe" />
       </scroll-view>
 
-      <!-- 底部栏：报名功能后端暂未开放，诚实降级为状态提示 -->
+      <!-- 底部栏：当前仅展示真实活动状态，不提供未接线的报名操作 -->
       <view class="footer" :style="{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom))' }">
         <view class="footer-status">
           <app-icon name="clock" :size="16" color="#9ca3af" />
           <text class="footer-status-text">{{ eventStatusLabel[event.status] }}</text>
         </view>
-        <view class="enroll-btn enroll-btn-disabled" @tap="onEnrollTip">
-          <text class="enroll-btn-text">{{ event.type === 'LIVE' ? '线上活动 · 报名即将开放' : '线下活动 · 报名即将开放' }}</text>
-        </view>
+        <text class="footer-note">活动安排以研究院最新通知为准</text>
       </view>
     </template>
   </view>
@@ -115,7 +113,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instituteApi, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor, fmtDateTime, memberName, type InstituteEvent } from '@/lib/institute-data'
+import { instituteApi, eventTypeLabel, eventTypeColor, eventStatusLabel, eventStatusColor, fmtDateTime, memberName, type InstituteEvent } from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -142,9 +140,6 @@ async function load(id?: string) {
 }
 onLoad((q) => load(q && q.id ? String(q.id) : undefined))
 
-function onEnrollTip() {
-  uni.showToast({ title: '活动报名功能即将开放', icon: 'none' })
-}
 function goInstructor(id: string) {
   navigateTo('/institute/instructors/' + id)
 }
@@ -159,7 +154,7 @@ function goEvents() {
 
 .nav-simple { position: fixed; top: 0; left: 0; right: 0; z-index: 20; background: #fff; border-bottom: 1px solid #ececec; }
 .nav-bar { height: 44px; display: flex; align-items: center; padding: 0 12px; gap: 8px; }
-.nav-back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -4px; }
+.nav-back { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin: 0 -6px 0 -10px; } /* 触控热区≥44px：容器扩大+负margin保持视觉位置 */
 .nav-title { font-size: 17px; font-weight: 600; color: #1a1a1a; }
 .not-found { display: flex; flex-direction: column; align-items: center; padding-top: 120px; gap: 12px; }
 .not-found-text { font-size: 14px; color: #9ca3af; }
@@ -196,8 +191,6 @@ function goEvents() {
 .footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #ececec; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
 .footer-status { display: flex; align-items: center; gap: 4px; }
 .footer-status-text { font-size: 12px; color: #9ca3af; }
-.enroll-btn { flex: 1; background: var(--brand); border-radius: 10px; padding: 12px 0; display: flex; align-items: center; justify-content: center; }
-.enroll-btn-disabled { background: #d1d5db; }
-.enroll-btn-text { font-size: 15px; font-weight: 500; color: #fff; }
+.footer-note { flex: 1; text-align: right; font-size: 12px; color: #6b7280; }
 .bottom-safe { height: 88px; }
 </style>

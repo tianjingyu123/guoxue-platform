@@ -1,103 +1,65 @@
 <template>
   <view class="detail-page">
-    <!-- 顶部导航 -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-row">
         <view class="nav-back" @tap="goBack">
           <app-icon name="chevron-left" :size="44" color="#1F2937" />
         </view>
         <text class="nav-title">公告详情</text>
-        <view class="nav-share" @tap="handleShare">
-          <app-icon name="share-2" :size="40" color="#6B7280" />
+        <view class="nav-share" :class="{ disabled: !notice }" @tap="handleShare">
+          <app-icon name="share-2" :size="40" :color="notice ? '#6B7280' : '#D1D5DB'" />
         </view>
       </view>
     </view>
 
-    <view class="detail-main">
-      <!-- 封面 -->
-      <image lazy-load v-if="notice.cover" :src="notice.cover" class="detail-cover" mode="aspectFill" />
+    <view v-if="loading" class="state-main">
+      <app-icon name="megaphone" :size="88" color="#D1D5DB" />
+      <text class="state-title">正在加载公告</text>
+    </view>
+    <view v-else-if="error || !notice" class="state-main">
+      <app-icon name="alert-circle" :size="88" color="#C41E3A" />
+      <text class="state-title">公告暂不可用</text>
+      <text class="state-desc">{{ error || '该公告不存在或已结束展示' }}</text>
+      <view class="state-action" @tap="retry"><text class="state-action-text">重新加载</text></view>
+    </view>
 
-      <!-- 标题区 -->
+    <view v-else class="detail-main">
+      <smart-cover class="detail-cover" :src="''" :title="notice.title" type="default" deco :deco-size="88" />
       <view class="title-block">
         <view class="badge-row">
-          <view v-if="notice.isPinned" class="badge badge-pinned">
-            <text class="badge-pinned-text">置顶</text>
-          </view>
-          <view
-            class="badge badge-type"
-            :style="{ backgroundColor: typeColor(notice.type) + '20' }"
-          >
+          <view class="badge badge-type" :style="{ backgroundColor: typeColor(notice.type) + '20' }">
             <app-icon :name="typeIcon(notice.type)" :size="24" :color="typeColor(notice.type)" />
             <text class="badge-type-text" :style="{ color: typeColor(notice.type) }">{{ typeLabel(notice.type) }}</text>
           </view>
         </view>
-
         <text class="detail-title">{{ notice.title }}</text>
-
         <view class="meta-row">
           <view class="meta-item">
             <app-icon name="calendar" :size="28" color="#9CA3AF" />
-            <text class="meta-text">{{ notice.publishedAt }}</text>
-          </view>
-          <view class="meta-item">
-            <app-icon name="eye" :size="28" color="#9CA3AF" />
-            <text class="meta-text">{{ notice.viewCount }} 次阅读</text>
+            <text class="meta-text">{{ formatDate(notice.createdAt) }}</text>
           </view>
         </view>
       </view>
 
       <view class="divider" />
-
-      <!-- 正文 -->
       <view class="content-card">
-        <view v-for="(block, idx) in notice.content" :key="idx" class="content-block">
+        <view v-for="(block, index) in contentBlocks" :key="index" class="content-block">
           <text v-if="block.type === 'h'" class="content-h">{{ block.text }}</text>
           <text v-else-if="block.type === 'p'" class="content-p">{{ block.text }}</text>
-          <view v-else-if="block.type === 'li'" class="content-li">
+          <view v-else class="content-li">
             <text class="content-li-dot">•</text>
             <text class="content-li-text">{{ block.text }}</text>
           </view>
         </view>
       </view>
 
-      <!-- 相关链接 -->
-      <view v-if="notice.link" class="link-card">
-        <text class="link-title">相关链接</text>
-        <view class="link-row" @tap="handleLink">
-          <text class="link-text">查看详情</text>
-          <text class="link-arrow">→</text>
-        </view>
-      </view>
-
-      <!-- 附件 -->
-      <view v-if="notice.attachments && notice.attachments.length" class="attach-card">
-        <text class="attach-title">附件</text>
-        <view
-          v-for="(att, idx) in notice.attachments"
-          :key="idx"
-          class="attach-item"
-          @tap="handleDownload(att)"
-        >
-          <view class="attach-icon">
-            <app-icon name="file-text" :size="36" color="#C41E3A" />
-          </view>
-          <view class="attach-info">
-            <text class="attach-name">{{ att.name }}</text>
-            <text v-if="att.size" class="attach-size">{{ (att.size / 1024).toFixed(1) }} KB</text>
-          </view>
-          <text class="attach-download">下载</text>
-        </view>
-      </view>
-
-      <!-- 发布信息 -->
       <view class="publish-info">
-        <text class="publish-text">由 {{ BRAND.nameShort }}平台 发布</text>
-        <text class="publish-text">发布时间：{{ notice.publishedAt }}</text>
+        <text class="publish-text">由 {{ BRAND.nameShort }}平台发布</text>
+        <text class="publish-text">发布时间：{{ formatDate(notice.createdAt, true) }}</text>
       </view>
     </view>
 
-    <!-- 底部操作栏 -->
-    <view class="bottom-bar">
+    <view v-if="notice" class="bottom-bar">
       <view class="bottom-btn bottom-btn-outline" @tap="goBack">
         <text class="bottom-btn-outline-text">返回列表</text>
       </view>
@@ -110,71 +72,88 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateBack } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
-
-type NoticeType = 'system' | 'update' | 'activity' | 'maintenance' | 'policy'
-
-const statusBarHeight = ref(20)
-
-const TYPE_LABELS: Record<string, string> = {
-  system: '系统', update: '更新', activity: '活动', maintenance: '维护', policy: '政策',
-  announcement: '系统', warning: '提醒',
-}
-const TYPE_COLORS: Record<string, string> = {
-  system: '#2563EB', update: '#16A34A', activity: '#EA580C', maintenance: '#CA8A04', policy: '#C41E3A',
-  announcement: '#2563EB', warning: '#DC2626',
-}
-const TYPE_ICONS: Record<string, string> = {
-  system: 'megaphone', announcement: 'megaphone', activity: 'gift', update: 'settings', warning: 'alert-circle',
-  maintenance: 'wrench', policy: 'shield',
-}
-function typeLabel(t: string) { return TYPE_LABELS[t] || '系统' }
-function typeColor(t: string) { return TYPE_COLORS[t] || '#2563EB' }
-function typeIcon(t: string) { return TYPE_ICONS[t] || 'megaphone' }
+import { noticesApi, type PublicNotice } from '@/lib/notices-data'
 
 interface ContentBlock { type: 'h' | 'p' | 'li'; text: string }
-interface Attachment { name: string; url: string; size?: number }
 
-const notice = ref({
-  id: 1,
-  type: 'system' as NoticeType,
-  title: '关于平台账号实名认证升级的通知',
-  cover: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&q=80',
-  isPinned: true,
-  publishedAt: '2025-11-08 10:30',
-  viewCount: 23568,
-  link: 'https://example.com',
-  content: [
-    { type: 'p', text: '尊敬的各位用户：' },
-    { type: 'p', text: '为进一步保障用户账号安全、营造健康有序的平台环境，根据相关法律法规要求，平台将于近期对实名认证体系进行全面升级。现将有关事项通知如下：' },
-    { type: 'h', text: '一、升级内容' },
-    { type: 'li', text: '新增人脸识别认证环节，提升认证准确性与安全性。' },
-    { type: 'li', text: '优化身份信息核验流程，认证更便捷高效。' },
-    { type: 'li', text: '完善未成年人保护机制，严格落实实名制要求。' },
-    { type: 'h', text: '二、升级时间' },
-    { type: 'p', text: '本次升级将于 2025 年 11 月 15 日正式生效，请尚未完成实名认证的用户及时前往「我的-账号设置」完成认证。' },
-    { type: 'h', text: '三、温馨提示' },
-    { type: 'p', text: '未完成实名认证的账号将无法使用付费咨询、提现等核心功能。如在认证过程中遇到问题，可联系在线客服获取帮助。' },
-    { type: 'p', text: '感谢您一直以来对平台的支持与信任！' },
-  ] as ContentBlock[],
-  attachments: [
-    { name: '实名认证操作指引.pdf', url: '#', size: 256000 },
-  ] as Attachment[],
+const statusBarHeight = ref(20)
+const noticeId = ref('')
+const notice = ref<PublicNotice | null>(null)
+const loading = ref(true)
+const error = ref('')
+
+const TYPE_LABELS: Record<string, string> = { INFO: '通知', WARNING: '提醒', FORCE: '重要' }
+const TYPE_COLORS: Record<string, string> = { INFO: '#2563EB', WARNING: '#CA8A04', FORCE: '#C41E3A' }
+const TYPE_ICONS: Record<string, string> = { INFO: 'megaphone', WARNING: 'alert-circle', FORCE: 'shield' }
+function typeLabel(type: string) { return TYPE_LABELS[type.toUpperCase()] || '公告' }
+function typeColor(type: string) { return TYPE_COLORS[type.toUpperCase()] || '#6B7280' }
+function typeIcon(type: string) { return TYPE_ICONS[type.toUpperCase()] || 'megaphone' }
+
+const contentBlocks = computed<ContentBlock[]>(() => {
+  const content = notice.value?.content || ''
+  const blocks: ContentBlock[] = []
+  for (const rawLine of content.replace(/\r\n/g, '\n').split('\n')) {
+    const line = rawLine.trim()
+    if (!line || line === '```') continue
+    const heading = line.match(/^#{1,6}\s+(.+)$/)
+    if (heading) { blocks.push({ type: 'h', text: heading[1] }); continue }
+    const list = line.match(/^(?:[-*+]\s+|\d+[.、]\s*)(.+)$/)
+    if (list) { blocks.push({ type: 'li', text: list[1] }); continue }
+    blocks.push({ type: 'p', text: line.replace(/\*\*|__/g, '') })
+  }
+  return blocks.length ? blocks : [{ type: 'p', text: '公告暂无正文内容' }]
 })
 
-function goBack() { navigateBack() }
-function handleShare() { uni.showToast({ title: '链接已复制', icon: 'none' }) }
-function handleLink() { uni.showToast({ title: '打开相关链接', icon: 'none' }) }
-function handleDownload(att: Attachment) { uni.showToast({ title: '开始下载 ' + att.name, icon: 'none' }) }
+function formatDate(value: string, withTime = false) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const day = `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
+  if (!withTime) return day
+  return `${day} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
 
-onLoad(() => {
+async function loadNotice() {
+  if (!noticeId.value) {
+    loading.value = false
+    error.value = '缺少公告编号'
+    return
+  }
+  loading.value = true
+  error.value = ''
   try {
-    const info = uni.getSystemInfoSync()
-    statusBarHeight.value = info.statusBarHeight || 20
-  } catch (e) {}
+    notice.value = await noticesApi.detail(noticeId.value)
+  } catch (e) {
+    notice.value = null
+    error.value = (e as Error)?.message || '该公告不存在或已结束展示'
+  } finally {
+    loading.value = false
+  }
+}
+
+function goBack() { navigateBack() }
+function retry() { loadNotice() }
+function handleShare() {
+  if (!notice.value) return
+  let shareText = `${notice.value.title}\n${BRAND.nameShort}平台公告`
+  // #ifdef H5
+  shareText = window.location.href
+  // #endif
+  uni.setClipboardData({
+    data: shareText,
+    success: () => uni.showToast({ title: '公告链接已复制', icon: 'success' }),
+    fail: () => uni.showToast({ title: '复制失败，请稍后重试', icon: 'none' }),
+  })
+}
+
+onLoad((options?: Record<string, string>) => {
+  try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 20 } catch {}
+  noticeId.value = String(options?.id || '')
+  loadNotice()
 })
 </script>
 
@@ -182,7 +161,7 @@ onLoad(() => {
 .detail-page {
   min-height: 100vh;
   background-color: #F9FAFB;
-  padding-bottom: 160rpx;
+  padding-bottom: calc(200rpx + env(safe-area-inset-bottom));
 }
 
 .nav-bar {
@@ -215,11 +194,26 @@ onLoad(() => {
 .detail-main {
   padding: 32rpx;
 }
+.state-main {
+  min-height: 65vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  text-align: center;
+}
+.state-title { margin-top: 24rpx; font-size: 30rpx; font-weight: 600; color: #374151; }
+.state-desc { margin-top: 12rpx; font-size: 24rpx; line-height: 1.6; color: #9CA3AF; }
+.state-action { margin-top: 28rpx; padding: 16rpx 36rpx; border-radius: 999rpx; background: var(--brand); }
+.state-action-text { font-size: 26rpx; color: #FFFFFF; }
+.nav-share.disabled { opacity: 0.55; }
 
 .detail-cover {
   width: 100%;
   height: 320rpx;
   border-radius: 20rpx;
+  overflow: hidden;
   background-color: #F3F4F6;
   margin-bottom: 32rpx;
 }

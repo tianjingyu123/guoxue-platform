@@ -1,4 +1,4 @@
-import { MinLength,  IsOptional, IsString, IsDateString, IsNumber, IsIn, Min } from "class-validator";
+import { MinLength, MaxLength, IsOptional, IsString, IsDateString, IsNumber, IsIn, IsUrl, Min } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -27,7 +27,7 @@ export class ReconciliationQueryDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(["PENDING", "MATCHED", "MISMATCH"])
+  @IsIn(["PENDING", "MATCHED", "MISMATCHED"])
   status?: string;
 
   @IsOptional()
@@ -64,6 +64,26 @@ export class CreateInvoiceDto {
   amount: number;
 }
 
+export class CreateMyInvoiceDto {
+  @IsString()
+  @MinLength(1)
+  orderId: string;
+
+  @IsString()
+  @IsIn(["PERSONAL", "COMPANY"])
+  type: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  title: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  taxNo?: string;
+}
+
 export class InvoiceQueryDto {
   @IsOptional()
   @IsString()
@@ -82,8 +102,9 @@ export class InvoiceQueryDto {
 }
 
 export class IssueInvoiceDto {
-  @IsString()
-  @MinLength(1)
+  @IsUrl({ protocols: ["http", "https"], require_protocol: true }, {
+    message: "发票文件链接格式不合法（仅支持 http/https）",
+  })
   invoiceUrl: string;
 }
 
@@ -174,6 +195,22 @@ export class RejectWithdrawalDto {
   @IsString()
   @MinLength(1)
   reviewNote: string;
+}
+
+/** 提现打款：payoutRef=银行/微信/支付宝转账流水号，必填（出款幂等键·替代 MANUAL-占位） */
+export class PayWithdrawalDto {
+  @ApiProperty({ description: "打款流水号（银行/微信/支付宝转账凭证号），必填且全局唯一" })
+  @IsString()
+  @MinLength(1)
+  payoutRef: string;
+}
+
+/** 结算单打款：payoutRef 必填，存入 detail JSON 并全局查重 */
+export class PaySettlementDto {
+  @ApiProperty({ description: "打款流水号（银行/支付宝转账凭证号），必填且全局唯一" })
+  @IsString()
+  @MinLength(1)
+  payoutRef: string;
 }
 
 // ───────── 财务报表 ─────────

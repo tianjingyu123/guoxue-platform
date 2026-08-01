@@ -39,9 +39,9 @@
         <view class="countdown-card">
           <view class="cd-left">
             <app-icon name="clock" :size="36" color="#C41E3A" />
-            <text class="cd-label">距离活动结束</text>
+            <text class="cd-label">{{ ended ? '活动已结束' : '距离活动结束' }}</text>
           </view>
-          <view class="cd-right">
+          <view v-if="!ended" class="cd-right">
             <text class="cd-box">{{ countdown.days }}</text>
             <text class="cd-unit">天</text>
             <text class="cd-box">{{ pad(countdown.hours) }}</text>
@@ -50,6 +50,7 @@
             <text class="cd-colon">:</text>
             <text class="cd-box">{{ pad(countdown.seconds) }}</text>
           </view>
+          <text v-else class="cd-ended-txt">感谢参与</text>
         </view>
       </view>
 
@@ -61,7 +62,7 @@
             <app-icon :name="rulesExpanded ? 'chevron-up' : 'chevron-down'" :size="32" color="#999" />
           </view>
           <view v-if="rulesExpanded" class="rules-body">
-            <text class="rule-line">1. 活动时间：2024年11月1日00:00 - 11月11日23:59</text>
+            <text class="rule-line">1. 活动时间：以页面顶部倒计时为准</text>
             <text class="rule-line">2. 活动期间，全场课程低至5折，部分商品参与满减活动</text>
             <text class="rule-line">3. 新用户注册即送100国学币，可抵扣任意订单</text>
             <text class="rule-line">4. 分享活动页面给好友，好友注册成功后双方各得50国学币</text>
@@ -77,7 +78,8 @@
             <app-icon name="ticket" :size="40" color="#C9A96E" />
             <text class="block-title">优惠券专区</text>
           </view>
-          <view class="block-more" @tap="go('/coupons')">
+          <!-- 真别名是 /shop/coupons（原来写的 /coupons 没登记 → 点了没反应） -->
+          <view class="block-more" @tap="go('/shop/coupons')">
             <text class="more-txt">我的券</text>
             <app-icon name="chevron-right" :size="24" color="#999" />
           </view>
@@ -92,7 +94,7 @@
             >
               <view class="coupon-body">
                 <text class="coupon-amount" :class="{ gray: c.claimed }">
-                  <text class="coupon-yen">¥</text>{{ c.amount }}
+                  <text class="coupon-yen">¥</text>{{ formatPrice(c.amount) }}
                 </text>
                 <text class="coupon-cond">{{ c.condition }}</text>
                 <text class="coupon-scope">{{ c.scope }}</text>
@@ -109,15 +111,15 @@
         </scroll-view>
       </view>
 
-      <!-- 限时秒杀 -->
-      <view class="block">
+      <!-- 限时秒杀（活动结束后隐藏，避免过期仍显"抢购中"） -->
+      <view v-if="!ended" class="block">
         <view class="block-head">
           <view class="block-title-wrap">
             <app-icon name="flame" :size="40" color="#C41E3A" />
             <text class="block-title">限时秒杀</text>
             <view class="hot-badge"><text class="hot-txt">抢购中</text></view>
           </view>
-          <view class="block-more" @tap="go('/seckill')">
+          <view class="block-more" @tap="go('/shop/flash-sale')">
             <text class="more-txt">更多</text>
             <app-icon name="chevron-right" :size="24" color="#999" />
           </view>
@@ -137,8 +139,8 @@
               <view class="sk-info">
                 <text class="sk-title">{{ p.title }}</text>
                 <view class="sk-price-row">
-                  <text class="sk-price">¥{{ p.seckillPrice }}</text>
-                  <text class="sk-origin">¥{{ p.originalPrice }}</text>
+                  <text class="sk-price">¥{{ formatPrice(p.seckillPrice) }}</text>
+                  <text class="sk-origin">¥{{ formatPrice(p.originalPrice) }}</text>
                 </view>
                 <view class="sk-progress">
                   <view class="sk-bar"><view class="sk-bar-fill" :style="{ width: soldPercent(p) + '%' }" /></view>
@@ -174,8 +176,8 @@
             <view class="prod-info">
               <text class="prod-title">{{ p.title }}</text>
               <view class="prod-price-row">
-                <text class="prod-price">¥{{ p.price }}</text>
-                <text class="prod-origin">¥{{ p.originalPrice }}</text>
+                <text class="prod-price">¥{{ formatPrice(p.price) }}</text>
+                <text class="prod-origin">¥{{ formatPrice(p.originalPrice) }}</text>
               </view>
               <text class="prod-sales">{{ p.sales }}人已购</text>
             </view>
@@ -213,10 +215,11 @@
               <view class="rank-no" :class="'rank-' + (i + 1)"><text class="rank-no-txt">{{ i + 1 }}</text></view>
               <view class="rank-avatar"><text class="rank-avatar-txt">{{ u.name[0] }}</text></view>
               <text class="rank-name">{{ u.name }}</text>
-              <text class="rank-amount">{{ rankingType === 'consume' ? '¥' + u.amount.toLocaleString() : u.amount + '人' }}</text>
+              <text class="rank-amount">{{ rankingType === 'consume' ? '¥' + formatPrice(u.amount).toLocaleString() : u.amount + '人' }}</text>
             </view>
           </view>
-          <view class="rank-foot" @tap="go('/ranking')">
+          <!-- 真别名是 /rankings（复数）—— 原来写的 /ranking 点了没反应 -->
+          <view class="rank-foot" @tap="go('/rankings')">
             <text class="rank-foot-txt">查看完整榜单</text>
             <app-icon name="chevron-right" :size="24" color="#999" />
           </view>
@@ -264,13 +267,15 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 const navH = ref(44)
 
 const config = {
   title: '双十一国学节',
-  endTime: '2024-11-11T23:59:59',
+  // 演示活动无后端数据源，结束时间按当前时间滚动（+10 天），避免硬编码过期年份穿帮
+  endTime: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
   banners: [
     { id: 1, title: '双十一国学节', subtitle: '全场课程5折起' },
     { id: 2, title: '新用户专享', subtitle: '注册即送100国学币' },
@@ -315,6 +320,12 @@ const coupons = ref([
   { id: 4, amount: 111, condition: '满1111可用', scope: '双11专享', claimed: false },
 ])
 const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+// 活动是否已结束（倒计时归零）：结束后改文案并隐藏秒杀，避免"过期还显抢购中"
+// 【必须同步初始化】否则首帧 ended=false 会挂载秒杀区的 scroll-view(scroll-x)，
+// 随后 onMounted 里 tickCountdown() 把 ended 翻 true 又立刻卸载它，
+// uni scroll-view 排在 nextTick 的 _scrollLeftChanged 执行时 main ref 已为 null
+// → "Cannot set properties of null (setting 'scrollLeft')"。同步定态即杜绝该竞态。
+const ended = ref(new Date(config.endTime).getTime() <= Date.now())
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let bannerTimer: ReturnType<typeof setInterval> | null = null
@@ -360,12 +371,18 @@ function tickCountdown() {
   const end = new Date(config.endTime).getTime()
   const diff = end - now
   if (diff > 0) {
+    ended.value = false
     countdown.value = {
       days: Math.floor(diff / 86400000),
       hours: Math.floor((diff % 86400000) / 3600000),
       minutes: Math.floor((diff % 3600000) / 60000),
       seconds: Math.floor((diff % 60000) / 1000),
     }
+  } else {
+    // 已结束：归零 + 置结束态，并停止滴答
+    ended.value = true
+    countdown.value = { days: 0, hours: 0, minutes: 0, seconds: 0 }
+    if (cdTimer) { clearInterval(cdTimer); cdTimer = null }
   }
 }
 
@@ -521,6 +538,11 @@ onUnmounted(() => {
 .cd-unit, .cd-colon {
   font-size: 28rpx;
   color: #1A1A1A;
+}
+.cd-ended-txt {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--brand);
 }
 .rules-card {
   border-radius: 16rpx;
@@ -906,21 +928,27 @@ onUnmounted(() => {
   color: #999;
 }
 .bottom-space {
-  height: 140rpx;
+  height: calc(160rpx + env(safe-area-inset-bottom));
 }
 .share-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
+  /* z-index 必须给：uni-app 的 scroll-view 用 transform 实现滚动会建立堆叠上下文，
+     无 z-index 的 fixed 底栏会被 scroll-view 内容(商品价格)盖过 → 视觉像"透明重叠" */
+  z-index: 55;
   height: 112rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 32rpx;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  /* 不透明实底，杜绝与页面商品价格文字穿插 */
+  background: #FFFFFF;
   border-top: 2rpx solid #EEEEEE;
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.05);
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: content-box;
 }
 .share-bar-sub {
   font-size: 22rpx;

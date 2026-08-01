@@ -185,9 +185,7 @@ function daYunYears(idx: number) {
       </view>
     </view>
 
-    <classics-section />
-
-    <view class="ai-btn"><app-icon name="sparkles" :size="36" color="#ffffff" /><text class="ai-btn-text">AI辅助分析</text></view>
+    <classics-section :data="data" />
 
   </view>
 </template>
@@ -256,7 +254,4 @@ function daYunYears(idx: number) {
 .dy-cell-year { font-size: 20rpx; color: var(--text-soft); }
 .dy-cell-char { font-size: 30rpx; font-weight: 700; }
 .dy-cell-age { font-size: 20rpx; color: var(--text-soft); margin-top: 2rpx; }
-/* AI按钮 */
-.ai-btn { display: flex; align-items: center; justify-content: center; gap: 12rpx; padding: 24rpx; background: var(--brand); border-radius: 16rpx; box-shadow: 0 2rpx 6rpx rgba(196,30,58,0.15); }
-.ai-btn-text { font-size: 28rpx; font-weight: 500; color: #fff; }
 </style>

@@ -71,6 +71,19 @@ export class KnowledgeSyncController {
     return this.syncService.removeFromKnowledge(body.circleId, req.user.id, knowledgeId);
   }
 
+  @Post("admin/remove/:knowledgeId")
+  @UseGuards(RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "管理端从知识库移除内容（超管/运营·后台管理任意圈子）" })
+  @ApiResponse({ status: 201, description: "移除成功" })
+  async adminRemoveFromKnowledge(
+    @Req() req: Request,
+    @Param("knowledgeId") knowledgeId: string,
+    @Body() body: { circleId: string },
+  ) {
+    return this.syncService.adminRemoveFromKnowledge(body.circleId, req.user.id, knowledgeId);
+  }
+
   @Get("candidates/:circleId")
   @ApiOperation({ summary: "获取候选内容列表" })
   @ApiResponse({ status: 200, description: "成功" })

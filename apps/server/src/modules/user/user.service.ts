@@ -1,14 +1,22 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
-import { MemberLevel, Prisma, RoleType, UserStatus } from "@prisma/client";
+import { MemberLevel, OrderStatus, Prisma, RoleType, UserStatus } from "@prisma/client";
 import { maskPhone } from "../../common/crypto.util";
 import { safePagination } from "../../common/pagination";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { AuditService } from "../audit/audit.service";
 import { AuthService } from "../auth/auth.service";
+import { PushAudienceService } from "./push-audience.service";
+
+type RateLimitWhitelistEntry = {
+  userId: string;
+  reason: string | null;
+  createdAt: string | null;
+};
 
 @Injectable()
 export class UserService {
@@ -19,6 +27,7 @@ export class UserService {
     private redis: RedisService,
     private audit: AuditService,
     private auth: AuthService,
+    private audience: PushAudienceService,
   ) {}
 
   async getUserById(userId: string) {
@@ -156,6 +165,8 @@ export class UserService {
       [dto.nickname, dto.bio].filter(Boolean).join(" "),
       { scene: "USER_PROFILE", userId },
     );
+    // 头像图片审核（高曝光 UGC；未改头像时 dto.avatar 为 undefined 自动跳过）
+    await this.audit.moderateImageOrThrow(dto.avatar, { scene: "USER_AVATAR", userId });
 
     return this.prisma.user.update({
       where: { id: userId },
@@ -172,7 +183,31 @@ export class UserService {
 
   // ───────── 用户状态管理 ─────────
 
-  async updateUserStatus(userId: string, status: string) {
+  /** 状态变更的用户侧通知文案（封禁给理由·解封告知恢复） */
+  private buildStatusNotice(status: string, reason?: string): { title: string; content: string } {
+    if (status === "DISABLED") {
+      return {
+        title: "账号已被封禁",
+        content: reason
+          ? `你的账号因「${reason}」被平台封禁。如有异议请联系客服申诉。`
+          : "你的账号因违反平台规范被封禁。如有异议请联系客服申诉。",
+      };
+    }
+    return {
+      title: "账号状态变更",
+      content: status === "ACTIVE"
+        ? `你的账号已恢复正常使用。${reason ? `说明：${reason}` : ""}`.trim()
+        : `你的账号状态已变更为 ${status}。${reason ? `原因：${reason}` : ""}`.trim(),
+    };
+  }
+
+  /**
+   * 更新用户状态（封禁/解封）。
+   * 2026-07-17 审计修复：reason 此前无处落地——封禁完全查不到理由。现落两处：
+   * ① AuditLog（全局 AuditInterceptor 只记 method+url，理由必须在 service 层补）；② 站内通知告知用户。
+   * 两处留痕失败都不阻断状态变更本身（状态已改，宁可少一条痕也不能回滚成"没封"假象）。
+   */
+  async updateUserStatus(userId: string, status: string, reason?: string, operatorId?: string, ip?: string) {
     const existing = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
     const updated = await this.prisma.user.update({
@@ -182,10 +217,28 @@ export class UserService {
     });
     // 封禁即踢下线：撤销全部 refreshToken + 已签发 accessToken（M1）
     if (status === "DISABLED") await this.auth.revokeAllRefreshTokens(userId);
+
+    // 理由落 AuditLog
+    await this.audit.log({
+      userId: operatorId,
+      action: "USER_STATUS_CHANGE",
+      targetType: "USER",
+      targetId: userId,
+      detail: `用户状态 ${existing.status} → ${status}${reason ? `；理由：${reason}` : "（未填写理由）"}`,
+      ip,
+    }).catch((err) => this.logger.warn("用户状态变更审计写入失败", err));
+
+    // 站内通知用户（封禁用户解封后可见；通知失败不回滚状态）
+    const notice = this.buildStatusNotice(status, reason);
+    await this.prisma.notification.create({
+      data: { userId, type: "SYSTEM", title: notice.title, content: notice.content },
+    }).catch((err) => this.logger.warn("用户状态变更通知写入失败", err));
+
     return updated;
   }
 
-  async batchUpdateStatus(ids: string[], status: string) {
+  /** 批量更新用户状态（理由落 AuditLog + 逐用户站内通知·同 updateUserStatus 口径） */
+  async batchUpdateStatus(ids: string[], status: string, reason?: string, operatorId?: string, ip?: string) {
     const result = await this.prisma.user.updateMany({
       where: { id: { in: ids } },
       data: { status: status as UserStatus },
@@ -193,10 +246,104 @@ export class UserService {
     if (status === "DISABLED") {
       for (const id of ids) await this.auth.revokeAllRefreshTokens(id);
     }
+
+    await this.audit.log({
+      userId: operatorId,
+      action: "USER_STATUS_BATCH_CHANGE",
+      targetType: "USER",
+      targetId: ids.length === 1 ? ids[0] : undefined,
+      detail: `批量用户状态 → ${status}（${result.count}人：${ids.slice(0, 20).join(",")}${ids.length > 20 ? `…等${ids.length}人` : ""}）${reason ? `；理由：${reason}` : "（未填写理由）"}`,
+      ip,
+    }).catch((err) => this.logger.warn("批量状态变更审计写入失败", err));
+
+    const notice = this.buildStatusNotice(status, reason);
+    await this.prisma.notification.createMany({
+      data: ids.map((userId) => ({ userId, type: "SYSTEM", title: notice.title, content: notice.content })),
+    }).catch((err) => this.logger.warn("批量状态变更通知写入失败", err));
+
     return { updated: result.count };
   }
 
   // ───────── 用户统计 ─────────
+
+  /** 用户收到的赞：按内容作者反查 Like，不能把“我点过的赞”冒充“我获赞”。 */
+  private async countReceivedLikes(userId: string): Promise<number> {
+    const rows = await this.prisma.$queryRaw<Array<{ count: bigint | number | string }>>(Prisma.sql`
+      SELECT COUNT(*)::bigint AS "count"
+      FROM "Like" l
+      WHERE
+        (l."targetType" IN ('POST', 'CIRCLE_POST') AND EXISTS (
+          SELECT 1 FROM "Post" p WHERE p."id" = l."targetId" AND p."userId" = ${userId}
+        ))
+        OR (l."targetType" = 'ARTICLE' AND EXISTS (
+          SELECT 1 FROM "Article" a WHERE a."id" = l."targetId" AND a."userId" = ${userId}
+        ))
+        OR (l."targetType" = 'VIDEO' AND EXISTS (
+          SELECT 1 FROM "Video" v WHERE v."id" = l."targetId" AND v."userId" = ${userId}
+        ))
+    `);
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  /**
+   * 个人中心首屏摘要：一次请求返回真实社交、资产和订单角标。
+   * 纯只读聚合，不修改余额、积分、优惠券或订单状态。
+   */
+  async getMySummary(userId: string) {
+    const now = new Date();
+    const [following, followers, receivedLikes, coinAccount, points, coupons, orderGroups, activeAfterSales] = await Promise.all([
+      this.prisma.follow.count({ where: { userId } }),
+      this.prisma.follow.count({ where: { followedUserId: userId } }),
+      this.countReceivedLikes(userId),
+      this.prisma.virtualCoinAccount.findUnique({ where: { userId }, select: { balance: true } }),
+      this.prisma.userPoints.findUnique({ where: { userId }, select: { balance: true } }),
+      this.prisma.userCoupon.count({
+        where: {
+          userId,
+          used: false,
+          coupon: {
+            status: "ACTIVE",
+            validStart: { lte: now },
+            validEnd: { gte: now },
+          },
+        },
+      }),
+      this.prisma.order.groupBy({
+        by: ["status"],
+        where: {
+          userId,
+          status: {
+            in: [OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.SHIPPED],
+          },
+        },
+        _count: { _all: true },
+      }),
+      // 售后是独立状态机，不能用已退款订单冒充“处理中售后”角标。
+      // 排除三种终态，保留 PENDING / PROCESSING / APPROVED 及未来新增的非终态。
+      this.prisma.afterSale.count({
+        where: {
+          userId,
+          status: { notIn: ["COMPLETED", "REJECTED", "CANCELLED"] },
+        },
+      }),
+    ]);
+
+    const orderCount = new Map(orderGroups.map((row) => [row.status, row._count._all]));
+    return {
+      stats: { following, followers, likes: receivedLikes },
+      assets: {
+        coins: Number(coinAccount?.balance ?? 0),
+        coupons,
+        points: Number(points?.balance ?? 0),
+      },
+      orders: {
+        pending: orderCount.get(OrderStatus.PENDING) ?? 0,
+        shipped: orderCount.get(OrderStatus.PAID) ?? 0,
+        received: orderCount.get(OrderStatus.SHIPPED) ?? 0,
+        refund: activeAfterSales,
+      },
+    };
+  }
 
   async getUserStats(userId: string) {
     const [articles, courses, circles, followers, following, likes, collects] = await Promise.all([
@@ -205,7 +352,7 @@ export class UserService {
       this.prisma.circle.count({ where: { ownerId: userId } }),
       this.prisma.follow.count({ where: { followedUserId: userId } }),
       this.prisma.follow.count({ where: { userId } }),
-      this.prisma.like.count({ where: { userId } }),
+      this.countReceivedLikes(userId),
       this.prisma.collect.count({ where: { userId } }),
     ]);
 
@@ -390,61 +537,27 @@ export class UserService {
   }
 
   // ───────── 用户分群推送 ─────────
-
-  /**
-   * 构建分群筛选条件（会员等级 + 活跃天数）。
-   * pushByTag 与 estimateByTag 共用，保证「预估人数」与「实际推送人数」口径一致。
-   * 注：tag 维度当前后端未落地具体筛选规则，仅 memberLevel/activeDays 生效。
-   */
-  private async buildTagWhere(memberLevel: string, activeDays: number): Promise<Prisma.UserWhereInput> {
-    const where: Prisma.UserWhereInput = {};
-
-    // 按会员等级筛选
-    if (memberLevel && memberLevel !== "ALL") {
-      where.memberLevel = memberLevel as MemberLevel;
-    }
-
-    // 按活跃天数筛选（通过 UserBehaviorLog）
-    if (activeDays > 0) {
-      const activeSince = new Date();
-      activeSince.setDate(activeSince.getDate() - activeDays);
-
-      const activeUserIds = await this.prisma.userBehaviorLog.groupBy({
-        by: ["userId"],
-        where: { createdAt: { gte: activeSince } },
-      });
-      const activeIds = activeUserIds.map((u) => u.userId).filter((id): id is string => id !== null);
-      where.id = { in: activeIds };
-    }
-
-    return where;
-  }
+  // 圈人口径唯一真源 = PushAudienceService（2026-07-17 审计修复：tag 此前是假参数从不生效，
+  // 现按 UserTag 表真实标签匹配；estimate 与 push 共用同一条件构建，保证预估=实发）。
 
   /** 分群推送预估人数（dry-run，不发送） */
   async estimateByTag(
+    tag: string | undefined,
     memberLevel: string,
     activeDays: number,
-  ): Promise<{ count: number; memberLevel: string; activeDays: number }> {
-    const where = await this.buildTagWhere(memberLevel, activeDays);
-    const count = await this.prisma.user.count({ where });
-    return { count, memberLevel, activeDays };
+  ): Promise<{ count: number; tag: string; memberLevel: string; activeDays: number }> {
+    const count = await this.audience.estimate(tag, memberLevel, activeDays);
+    return { count, tag: tag ?? "", memberLevel, activeDays };
   }
 
   async pushByTag(
-    tag: string,
+    tag: string | undefined,
     memberLevel: string,
     activeDays: number,
     title: string,
     content: string,
   ): Promise<{ matchedCount: number; tag: string; memberLevel: string; activeDays: number }> {
-    const where = await this.buildTagWhere(memberLevel, activeDays);
-
-    // 查询匹配用户
-    const matchedUsers = await this.prisma.user.findMany({
-      where,
-      select: { id: true },
-    });
-    const userIds = matchedUsers.map((u) => u.id);
+    const userIds = await this.audience.resolveUserIds(tag, memberLevel, activeDays);
 
     // 写入通知
     if (userIds.length > 0) {
@@ -459,60 +572,131 @@ export class UserService {
     }
 
     this.logger.log(`按标签推送: tag=${tag}, memberLevel=${memberLevel}, activeDays=${activeDays}, 匹配=${userIds.length}人`);
-    return { matchedCount: userIds.length, tag, memberLevel, activeDays };
+    return { matchedCount: userIds.length, tag: tag ?? "", memberLevel, activeDays };
   }
 
-  // ───────── 白名单管理（基于 Redis Set） ─────────
+  // ───────── 用户圈子关系（admin 用户详情页） ─────────
+
+  /** 用户加入的全部圈子（含角色/加入时间·管理员用户详情页真数据） */
+  async getUserCircles(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+    if (!user) throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+    const members = await this.prisma.circleMember.findMany({
+      where: { userId },
+      orderBy: { joinedAt: "desc" },
+      select: {
+        role: true,
+        joinedAt: true,
+        expireAt: true,
+        circle: { select: { id: true, name: true, cover: true, type: true, status: true } },
+      },
+    });
+    return {
+      items: members.map((m) => ({
+        circle: m.circle,
+        role: m.role,
+        joinedAt: m.joinedAt,
+        expireAt: m.expireAt,
+      })),
+      total: members.length,
+    };
+  }
+
+  // ───────── 用户附加限流白名单（Redis JSON；兼容历史 string[]） ─────────
 
   private getWhitelistKey(): string {
     return "admin:whitelist";
   }
 
-  async getWhitelist(page: number, pageSize: number): Promise<{ users: { id: string; nickname: string | null; avatar: string | null; phone: string | null; createdAt: Date }[]; total: number; page: number; pageSize: number }> {
-    const key = this.getWhitelistKey();
-    const list: string[] = (await this.redis.getJson<string[]>(key)) || [];
-    const total = list.length;
-    const start = (page - 1) * pageSize;
-    const items = list.slice(start, start + pageSize);
+  private normalizeWhitelist(raw: unknown): RateLimitWhitelistEntry[] {
+    if (!Array.isArray(raw)) return [];
 
-    // 获取白名单用户基本信息
-    const users = items.length > 0
-      ? await this.prisma.user.findMany({
-          where: { id: { in: items } },
-          select: { id: true, nickname: true, avatar: true, phone: true, createdAt: true },
-        })
-      : [];
+    const deduped = new Map<string, RateLimitWhitelistEntry>();
+    for (const item of raw.slice(0, 1000)) {
+      const record = item && typeof item === "object" ? item as Record<string, unknown> : null;
+      const rawUserId = typeof item === "string" ? item : record?.userId;
+      if (typeof rawUserId !== "string") continue;
 
-    return { users: users.map(u => ({ ...u, phone: maskPhone(u.phone) })), total, page, pageSize };
+      const userId = rawUserId.trim().slice(0, 64);
+      if (!userId || deduped.has(userId)) continue;
+
+      const rawReason = record?.reason;
+      const reason = typeof rawReason === "string" && rawReason.trim()
+        ? rawReason.trim().slice(0, 200)
+        : null;
+      const rawCreatedAt = record?.createdAt;
+      const createdAt = typeof rawCreatedAt === "string" && Number.isFinite(Date.parse(rawCreatedAt))
+        ? rawCreatedAt
+        : null;
+      deduped.set(userId, { userId, reason, createdAt });
+    }
+    return [...deduped.values()];
   }
 
-  async addWhitelist(userId: string): Promise<{ success: boolean; userId: string }> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  async getWhitelist(page: number, pageSize: number) {
+    const raw = await this.redis.getJson<unknown>(this.getWhitelistKey());
+    const entries = this.normalizeWhitelist(raw);
+    const safePage = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
+    const safePageSize = Number.isFinite(pageSize)
+      ? Math.min(100, Math.max(1, Math.floor(pageSize)))
+      : 20;
+    const start = (safePage - 1) * safePageSize;
+    const pageEntries = entries.slice(start, start + safePageSize);
+
+    const dbUsers = pageEntries.length > 0
+      ? await this.prisma.user.findMany({
+          where: { id: { in: pageEntries.map((entry) => entry.userId) } },
+          select: { id: true, nickname: true, avatar: true, phone: true },
+        })
+      : [];
+    const userMap = new Map(dbUsers.map((user) => [user.id, user]));
+    const users = pageEntries.map((entry) => {
+      const user = userMap.get(entry.userId);
+      return {
+        ...entry,
+        user: user ? { ...user, phone: maskPhone(user.phone) } : null,
+      };
+    });
+
+    return { users, total: entries.length, page: safePage, pageSize: safePageSize };
+  }
+
+  async addWhitelist(userId: string, reason?: string): Promise<{ success: boolean; userId: string }> {
+    const normalizedUserId = userId.trim();
+    const user = await this.prisma.user.findUnique({ where: { id: normalizedUserId }, select: { id: true } });
     if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
 
     const key = this.getWhitelistKey();
-    const list: string[] = (await this.redis.getJson<string[]>(key)) || [];
+    const entries = this.normalizeWhitelist(await this.redis.getJson<unknown>(key));
+    const normalizedReason = typeof reason === "string" && reason.trim()
+      ? reason.trim().slice(0, 200)
+      : null;
+    const existing = entries.find((entry) => entry.userId === normalizedUserId);
 
-    if (!list.includes(userId)) {
-      list.push(userId);
-      await this.redis.setJson(key, list);
+    if (!existing) {
+      entries.unshift({ userId: normalizedUserId, reason: normalizedReason, createdAt: new Date().toISOString() });
+      await this.redis.setJson(key, entries);
+    } else if (reason !== undefined && existing.reason !== normalizedReason) {
+      existing.reason = normalizedReason;
+      await this.redis.setJson(key, entries);
     }
 
-    this.logger.log(`添加白名单: userId=${userId}`);
-    return { success: true, userId };
+    this.logger.log("添加用户限流白名单 userId=" + normalizedUserId);
+    return { success: true, userId: normalizedUserId };
   }
 
   async removeWhitelist(userId: string): Promise<{ success: boolean; userId: string }> {
+    const normalizedUserId = userId.trim();
     const key = this.getWhitelistKey();
-    const list: string[] = (await this.redis.getJson<string[]>(key)) || [];
-    const filtered = list.filter((id) => id !== userId);
+    const entries = this.normalizeWhitelist(await this.redis.getJson<unknown>(key));
+    const filtered = entries.filter((entry) => entry.userId !== normalizedUserId);
 
-    if (filtered.length !== list.length) {
+    if (filtered.length !== entries.length) {
       await this.redis.setJson(key, filtered);
     }
 
-    this.logger.log(`移除白名单: userId=${userId}`);
-    return { success: true, userId };
+    this.logger.log("移除用户限流白名单 userId=" + normalizedUserId);
+    return { success: true, userId: normalizedUserId };
   }
 
   // ───────── 用户画像 ─────────
@@ -715,6 +899,37 @@ export class UserService {
   }
 
   /** 执行账号注销：匿名化个人数据、禁用账号、保留交易记录用于审计 */
+  /**
+   * 每日凌晨扫描冷静期已过的注销申请并自动执行（分布式锁防多实例·批量上限防跑飞）。
+   * 修复(后端审计#7)：deleteScheduledAt 原只被 admin 手动端点消费,无 Cron→「7天后自动注销」永不发生。
+   * 安全:executeAccountDeletion 是软匿名化(置 DISABLED+清 PII+审计)非硬删除;扫描条件带 status!=DISABLED
+   * 天然幂等(已注销的下轮不再命中);单轮上限 200 防异常批量;逐个 try/catch 单条失败不连累其余。
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_1AM)
+  async autoExecuteScheduledDeletions() {
+    await this.redis.runExclusive("account_auto_deletion", 600, async () => {
+      const due = await this.prisma.user.findMany({
+        where: {
+          deleteScheduledAt: { lte: new Date() },
+          deleteRequestedAt: { not: null },
+          status: { not: "DISABLED" }, // 已匿名化(DISABLED)的不重复处理
+        },
+        select: { id: true },
+        take: 200,
+      });
+      let done = 0;
+      for (const u of due) {
+        try {
+          await this.executeAccountDeletion(u.id);
+          done++;
+        } catch (err) {
+          this.logger.warn(`自动注销失败 [${u.id}]`, err instanceof Error ? err.message : err);
+        }
+      }
+      if (done > 0) this.logger.log(`冷静期到期自动注销: ${done}/${due.length} 个账号`);
+    });
+  }
+
   async executeAccountDeletion(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { deleteRequestedAt: true, status: true } });
     if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
@@ -784,23 +999,32 @@ export class UserService {
 
   // ───────── 通知设置 ─────────
 
-  async getNotifySettings(userId: string) {
+  async getNotifySettings(userId: string, scope?: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { notifySettings: true } });
     const saved = (user?.notifySettings as Record<string, boolean>) ?? {};
+    if (scope === "operator") {
+      return [
+        { key: "operatorTeam", label: "团队事件通知", icon: "users", value: saved.operatorTeam ?? true },
+        { key: "operatorReport", label: "业绩报告推送", icon: "bar-chart-3", value: saved.operatorReport ?? true },
+        { key: "operatorDormant", label: "沉寂预警提醒", icon: "alert-triangle", value: saved.operatorDormant ?? true },
+        { key: "operatorSystem", label: "系统通知", icon: "bell", value: saved.operatorSystem ?? false },
+      ];
+    }
     return [
       { key: "message", label: "新消息通知", icon: "bell", value: saved.message ?? true },
       { key: "course", label: "课程提醒", icon: "book-open", value: saved.course ?? true },
       { key: "live", label: "直播提醒", icon: "radio", value: saved.live ?? false },
       { key: "interact", label: "互动提醒", icon: "message-square", value: saved.interact ?? true },
       { key: "system", label: "系统通知", icon: "settings", value: saved.system ?? true },
+      { key: "marketingSms", label: "活动与福利短信", icon: "gift", value: saved.marketingSms ?? false },
     ];
   }
 
-  async updateNotifySettings(userId: string, dto: { key?: string; value?: boolean | string }) {
+  async updateNotifySettings(userId: string, dto: { key: string; value: boolean }) {
     if (!dto.key) throw new BusinessException(ErrorCode.BAD_REQUEST, "key 不能为空");
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { notifySettings: true } });
     const current = (user?.notifySettings as Record<string, boolean>) ?? {};
-    const updated = { ...current, [dto.key]: Boolean(dto.value) };
+    const updated = { ...current, [dto.key]: dto.value };
     await this.prisma.user.update({ where: { id: userId }, data: { notifySettings: updated as any } });
     return { success: true };
   }

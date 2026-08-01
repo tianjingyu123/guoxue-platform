@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { riskApi } from '@/api'
 
@@ -16,6 +17,8 @@ interface Appeal {
   reviewNote?: string
   evidence: string[]
 }
+
+const router = useRouter()
 
 const loading = ref(false)
 const error = ref(false)
@@ -43,8 +46,41 @@ const appealTypeOptions = [
 
 onMounted(() => fetchList())
 
+// 后端 listAppeals 返回裸 AppealRecord（无用户昵称字段·risk-control.service.ts），
+// 故 userId 以「截断+复制+跳用户详情」呈现（标准第四节-4/5）
+const emptyText = computed(() =>
+  statusFilter.value || typeFilter.value
+    ? '没有符合条件的申诉，换个筛选条件试试'
+    : '暂无申诉记录',
+)
+
 function formatDate(d?: string) {
-  return d ? new Date(d).toLocaleString() : '-'
+  return d ? new Date(d).toLocaleString() : '—'
+}
+
+function shortId(id?: string) {
+  if (!id) return '—'
+  return id.length > 8 ? `${id.slice(0, 8)}…` : id
+}
+
+async function copyText(text?: string) {
+  if (!text) return
+  try {
+    await navigator.clipboard.writeText(text)
+    ElMessage.success('已复制')
+  } catch {
+    ElMessage.warning('复制失败，请手动选择复制')
+  }
+}
+
+function goUser(userId?: string) {
+  if (!userId) return
+  router.push(`/users/${userId}`)
+}
+
+function onFilterChange() {
+  page.value = 1
+  fetchList()
 }
 
 function getTypeLabel(type = ''): string {
@@ -70,8 +106,7 @@ async function fetchList() {
     list.value = items
     total.value = data.total ?? items.length
   } catch {
-    list.value = []
-    total.value = 0
+    // 拦截器已 toast 具体原因；给错误态但不清 total/list，保留上下文
     error.value = true
   } finally {
     loading.value = false
@@ -80,16 +115,18 @@ async function fetchList() {
 
 async function approve(id: string) {
   try {
-    await ElMessageBox.confirm('确认通过该申诉？', '提示', {
-      type: 'info',
-      confirmButtonText: '确认通过',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      '确认通过该申诉？通过后将按申诉类型恢复相应权益。',
+      '通过申诉',
+      { type: 'info', confirmButtonText: '确认通过', cancelButtonText: '取消' },
+    )
+  } catch { return /* 用户取消 */ }
+  try {
     await riskApi.approveAppeal(id)
     ElMessage.success('已通过')
     fetchList()
   } catch {
-    // cancelled
+    // 接口错误已由 api 拦截器统一提示
   }
 }
 
@@ -112,6 +149,7 @@ async function reject() {
     rejectDialogVisible.value = false
     fetchList()
   } catch {
+    // 接口错误已由 api 拦截器统一提示
   } finally {
     saving.value = false
   }
@@ -135,7 +173,7 @@ function showDetail(row: Appeal) {
         placeholder="申诉类型"
         clearable
         style="width:160px"
-        @change="fetchList"
+        @change="onFilterChange"
       >
         <el-option
           v-for="t in appealTypeOptions"
@@ -149,7 +187,7 @@ function showDetail(row: Appeal) {
         placeholder="状态"
         clearable
         style="width:120px"
-        @change="fetchList"
+        @change="onFilterChange"
       >
         <el-option
           label="待处理"
@@ -185,13 +223,36 @@ function showDetail(row: Appeal) {
       v-loading="loading"
       :data="list"
       stripe
+      :empty-text="emptyText"
     >
       <el-table-column
-        prop="userId"
-        label="申诉人ID"
-        width="160"
-        show-overflow-tooltip
-      />
+        label="申诉人"
+        width="200"
+      >
+        <template #default="{ row }">
+          <el-tooltip
+            :content="row.userId || '—'"
+            placement="top"
+          >
+            <el-link
+              type="primary"
+              :underline="false"
+              @click="copyText(row.userId)"
+            >
+              {{ shortId(row.userId) }}
+            </el-link>
+          </el-tooltip>
+          <el-button
+            link
+            type="primary"
+            size="small"
+            style="margin-left:8px"
+            @click="goUser(row.userId)"
+          >
+            查看用户
+          </el-button>
+        </template>
+      </el-table-column>
       <el-table-column
         label="申诉类型"
         width="140"
@@ -279,8 +340,28 @@ function showDetail(row: Appeal) {
           :column="2"
           border
         >
-          <el-descriptions-item label="申诉人ID">
-            {{ detailData.userId || '-' }}
+          <el-descriptions-item label="申诉人">
+            <el-tooltip
+              :content="detailData.userId || '—'"
+              placement="top"
+            >
+              <el-link
+                type="primary"
+                :underline="false"
+                @click="copyText(detailData.userId)"
+              >
+                {{ shortId(detailData.userId) }}
+              </el-link>
+            </el-tooltip>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              style="margin-left:8px"
+              @click="goUser(detailData.userId)"
+            >
+              查看用户
+            </el-button>
           </el-descriptions-item>
           <el-descriptions-item label="申诉类型">
             {{ getTypeLabel(detailData.type) }}

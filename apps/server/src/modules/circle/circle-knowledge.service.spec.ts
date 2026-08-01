@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { VectorService } from "../ai-gateway/vector.service";
+import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockPrisma = {
@@ -27,6 +28,9 @@ const mockPrisma = {
   paidQuestion: { findMany: jest.fn() },
   comment: { findMany: jest.fn() },
   circle: { findUnique: jest.fn() },
+  // 治理 #8：knowledge.manage 矩阵位鉴权（assertManager）
+  circleMember: { findUnique: jest.fn() },
+  circleGovernanceConfig: { findUnique: jest.fn() },
 };
 
 const mockVector = {
@@ -35,6 +39,8 @@ const mockVector = {
   deleteCircleKnowledge: jest.fn(),
   searchCircleKnowledge: jest.fn(),
 };
+
+const mockAiGateway = { chat: jest.fn() };
 
 describe("CircleKnowledgeService", () => {
   let svc: CircleKnowledgeService;
@@ -45,6 +51,7 @@ describe("CircleKnowledgeService", () => {
         CircleKnowledgeService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: VectorService, useValue: mockVector },
+        { provide: AiGatewayService, useValue: mockAiGateway },
       ],
     }).compile();
     svc = mod.get(CircleKnowledgeService);
@@ -53,6 +60,41 @@ describe("CircleKnowledgeService", () => {
   beforeEach(() => jest.clearAllMocks());
 
   it("应被定义", () => expect(svc).toBeDefined());
+
+  // 治理 #8（2026-07-11）：知识库管理接入权限矩阵 knowledge.manage
+  describe("assertManager（knowledge.manage 矩阵位）", () => {
+    it("圈主/默认矩阵管理员放行·嘉宾默认被拒", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "OWNER" });
+      await expect(svc.assertManager("c1", "owner")).resolves.toBeUndefined();
+
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "ADMIN" });
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValueOnce(null); // 无覆盖位 → 默认矩阵 ADMIN✓
+      await expect(svc.assertManager("c1", "admin1")).resolves.toBeUndefined();
+
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "GUEST" });
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValueOnce(null); // 默认矩阵 GUEST✗
+      await expect(svc.assertManager("c1", "guest1")).rejects.toThrow("无知识库管理权限");
+    });
+
+    it("矩阵覆盖位生效：圈主可收回管理员/授予嘉宾知识库管理权", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "ADMIN" });
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValueOnce({
+        rolePermissions: { ADMIN: { "knowledge.manage": false } },
+      });
+      await expect(svc.assertManager("c1", "admin1")).rejects.toThrow("无知识库管理权限");
+
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce({ role: "GUEST" });
+      mockPrisma.circleGovernanceConfig.findUnique.mockResolvedValueOnce({
+        rolePermissions: { GUEST: { "knowledge.manage": true } },
+      });
+      await expect(svc.assertManager("c1", "guest1")).resolves.toBeUndefined();
+    });
+
+    it("非成员一律拒绝", async () => {
+      mockPrisma.circleMember.findUnique.mockResolvedValueOnce(null);
+      await expect(svc.assertManager("c1", "outsider")).rejects.toThrow(BusinessException);
+    });
+  });
 
   describe("add", () => {
     it("手动添加知识条目", async () => {

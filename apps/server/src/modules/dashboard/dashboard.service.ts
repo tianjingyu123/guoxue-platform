@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { PAID_ORDER_STATUSES } from "./order-status.constants";
 
 @Injectable()
 export class DashboardService {
@@ -84,7 +85,7 @@ export class DashboardService {
 
     const [todayRevenue, activeUsersToday, poemCount, todayNewCourses, todayAuditedCourses, refundedOrders, orderStatusDist, totalPaidAmount, , payingUsersResult] = await Promise.all([
       this.prisma.order.aggregate({
-        where: { createdAt: { gte: today }, status: { in: ["PAID", "COMPLETED"] } },
+        where: { createdAt: { gte: today }, status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
       }),
       this.prisma.post.groupBy({ by: ["userId"], where: { createdAt: { gte: today } } }).then((r) => r.length),
@@ -93,9 +94,9 @@ export class DashboardService {
       this.prisma.course.count({ where: { auditStatus: { not: "PENDING" }, updatedAt: { gte: today } } }),
       this.prisma.order.count({ where: { status: "REFUNDED" } }),
       this.prisma.order.groupBy({ by: ["status"], _count: true }),
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } }),
       this.prisma.order.aggregate({ where: { status: "REFUNDED" }, _sum: { amount: true } }),
-      this.prisma.order.groupBy({ by: ["userId"], where: { status: { in: ["PAID", "COMPLETED"] } } }).then((r) => r.length),
+      this.prisma.order.groupBy({ by: ["userId"], where: { status: { in: PAID_ORDER_STATUSES } } }).then((r) => r.length),
     ]);
 
     const todayNewArticles = await this.prisma.article.count({ where: { createdAt: { gte: today } } });
@@ -119,7 +120,7 @@ export class DashboardService {
     ] = await Promise.all([
       this.prisma.user.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
       this.prisma.order.aggregate({
-        where: { createdAt: { gte: yesterday, lt: today }, status: { in: ["PAID", "COMPLETED"] } },
+        where: { createdAt: { gte: yesterday, lt: today }, status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
       }),
       this.prisma.article.count({ where: { createdAt: { gte: yesterday, lt: today } } }),
@@ -348,20 +349,20 @@ export class DashboardService {
       paidOrderTotal,
     ] = await Promise.all([
       this.prisma.order.aggregate({
-        where: { status: { in: ["PAID", "COMPLETED"] } },
+        where: { status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
       }),
       this.prisma.order.aggregate({
-        where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: thisMonth } },
+        where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: thisMonth } },
         _sum: { amount: true },
       }),
       this.prisma.order.aggregate({
-        where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: lastMonth, lt: thisMonth } },
+        where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: lastMonth, lt: thisMonth } },
         _sum: { amount: true },
       }),
       this.prisma.order.groupBy({
         by: ["type"],
-        where: { status: { in: ["PAID", "COMPLETED"] } },
+        where: { status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
         _count: true,
       }),
@@ -369,8 +370,8 @@ export class DashboardService {
       this.prisma.stationOffline.count({ where: { status: "ACTIVE" } }),
       this.prisma.withdrawal.count({ where: { status: "PENDING" } }),
       this.prisma.order.count({ where: { status: "REFUNDED" } }),
-      this.prisma.order.groupBy({ by: ["userId"], where: { status: { in: ["PAID", "COMPLETED"] } } }).then(r => r.length),
-      this.prisma.order.count({ where: { status: { in: ["PAID", "COMPLETED"] } } }),
+      this.prisma.order.groupBy({ by: ["userId"], where: { status: { in: PAID_ORDER_STATUSES } } }).then(r => r.length),
+      this.prisma.order.count({ where: { status: { in: PAID_ORDER_STATUSES } } }),
     ]);
 
     const monthRev = Number(monthRevenue._sum.amount || 0);
@@ -390,7 +391,7 @@ export class DashboardService {
       const dEnd = new Date(d);
       dEnd.setHours(23, 59, 59, 999);
       const dayRev = await this.prisma.order.aggregate({
-        where: { createdAt: { gte: d, lte: dEnd }, status: { in: ["PAID", "COMPLETED"] } },
+        where: { createdAt: { gte: d, lte: dEnd }, status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
       });
       trendDates.push(`${d.getMonth() + 1}/${d.getDate()}`);
@@ -404,7 +405,7 @@ export class DashboardService {
       const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const mEnd = new Date(m.getFullYear(), m.getMonth() + 1, 0, 23, 59, 59, 999);
       const mRev = await this.prisma.order.aggregate({
-        where: { createdAt: { gte: m, lte: mEnd }, status: { in: ["PAID", "COMPLETED"] } },
+        where: { createdAt: { gte: m, lte: mEnd }, status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
       });
       monthLabels.push(`${m.getMonth() + 1}月`);
@@ -446,7 +447,7 @@ export class DashboardService {
       this.prisma.order.count({ where: { createdAt: { gte: today } } }),
       this.prisma.user.count({ where: { createdAt: { gte: today } } }),
       this.prisma.order.aggregate({
-        where: { createdAt: { gte: today }, status: { in: ["PAID", "COMPLETED"] } },
+        where: { createdAt: { gte: today }, status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
       }),
       this.redis.get("ws:online_count").then(v => parseInt(v || "0") || 0).catch((err) => { this.logger.warn("获取在线人数失败", err); return 0; }),
@@ -477,7 +478,7 @@ export class DashboardService {
       this.prisma.user.count({ where: { createdAt: { gte: today } } }),
       this.prisma.order.count({ where: { createdAt: { gte: today } } }),
       this.prisma.order.aggregate({
-        where: { createdAt: { gte: today }, status: { in: ["PAID", "COMPLETED"] } },
+        where: { createdAt: { gte: today }, status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
       }),
       this.prisma.article.count({ where: { createdAt: { gte: today }, auditStatus: "APPROVED" } }),
@@ -485,7 +486,7 @@ export class DashboardService {
       this.prisma.paipanRecord.count({ where: { createdAt: { gte: today } } }),
       this.redis.get("ws:online_count").then(v => parseInt(v || "0") || 0).catch((err) => { this.logger.warn("获取在线人数失败", err); return 0; }),
       this.prisma.order.aggregate({
-        where: { createdAt: { gte: new Date(today.getFullYear(), today.getMonth(), 1) }, status: { in: ["PAID", "COMPLETED"] } },
+        where: { createdAt: { gte: new Date(today.getFullYear(), today.getMonth(), 1) }, status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
       }),
       this.prisma.article.count({ where: { auditStatus: "PENDING" } }),
@@ -586,7 +587,7 @@ export class DashboardService {
       this.prisma.paipanRecord.groupBy({ by: ["userId"], where: { createdAt: { gte: startDate } } }).then((r) => r.length),
       this.prisma.aiAnalysisRecord.count({ where: { createdAt: { gte: startDate } } }).catch((err) => { this.logger.warn("获取AI分析记录数失败", err); return 0; }),
       this.prisma.user.count({ where: { createdAt: { gte: startDate }, memberLevel: { not: "NONE" } } }),
-      this.prisma.order.count({ where: { createdAt: { gte: startDate }, status: { in: ["PAID", "COMPLETED"] } } }),
+      this.prisma.order.count({ where: { createdAt: { gte: startDate }, status: { in: PAID_ORDER_STATUSES } } }),
     ]);
 
     const steps = [
@@ -623,7 +624,7 @@ export class DashboardService {
       this.prisma.user.count({ where: { createdAt: { gte: today } } }),
       this.prisma.order.count({ where: { createdAt: { gte: today } } }),
       this.prisma.order.aggregate({
-        where: { createdAt: { gte: today }, status: { in: ["PAID", "COMPLETED"] } },
+        where: { createdAt: { gte: today }, status: { in: PAID_ORDER_STATUSES } },
         _sum: { amount: true },
       }),
       this.prisma.post
@@ -645,7 +646,7 @@ export class DashboardService {
       this.prisma.order.findMany({
         where: {
           createdAt: { gte: sevenDaysAgo, lte: sevenDaysEnd },
-          status: { in: ["PAID", "COMPLETED"] },
+          status: { in: PAID_ORDER_STATUSES },
         },
         select: { createdAt: true, amount: true },
         orderBy: { createdAt: "asc" },
@@ -746,9 +747,11 @@ export class DashboardService {
       ? { status: "ok" }
       : { status: "degraded", detail: "WECHAT_PAY_MCH_ID 未配置" };
 
-    services.coze = process.env.COZE_API_KEY
+    // Coze：个人令牌(PAT) 或 OAuth（client_id+公钥指纹+私钥）任一齐备即视为已配置
+    services.coze = (process.env.COZE_API_KEY ||
+      (process.env.COZE_OAUTH_CLIENT_ID && process.env.COZE_OAUTH_PUBLIC_KEY_ID && process.env.COZE_OAUTH_PRIVATE_KEY))
       ? { status: "ok" }
-      : { status: "degraded", detail: "COZE_API_KEY 未配置" };
+      : { status: "degraded", detail: "Coze 未配置（个人令牌或 OAuth 均可）" };
 
     services.deepSeek = process.env.DEEPSEEK_API_KEY
       ? { status: "ok" }
@@ -790,9 +793,9 @@ export class DashboardService {
       this.prisma.product.count({ where: { status: "ON_SALE" } }),
       this.prisma.order.count(),
       this.prisma.order.count({ where: { status: "PAID" } }),
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } }),
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: thisMonth } }, _sum: { amount: true } }),
-      this.prisma.order.aggregate({ where: { status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: lastMonth, lt: thisMonth } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: thisMonth } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: lastMonth, lt: thisMonth } }, _sum: { amount: true } }),
       Promise.all([
         this.prisma.article.count({ where: { auditStatus: "PENDING" } }),
         this.prisma.course.count({ where: { auditStatus: "PENDING" } }),
@@ -801,7 +804,7 @@ export class DashboardService {
       this.prisma.riskAlert.count({ where: { status: "OPEN" } }),
       this.prisma.order.groupBy({
         by: ["type"],
-        where: { status: { in: ["PAID", "COMPLETED"] } },
+        where: { status: { in: PAID_ORDER_STATUSES } },
         _count: true,
         _sum: { amount: true },
       }),
@@ -855,7 +858,7 @@ export class DashboardService {
         this.prisma.user.count({ where: { createdAt: { gte: targetDate, lt: nextDay } } }),
         this.prisma.order.count({ where: { createdAt: { gte: targetDate, lt: nextDay } } }),
         this.prisma.order.aggregate({
-          where: { createdAt: { gte: targetDate, lt: nextDay }, status: { in: ["PAID", "COMPLETED"] } },
+          where: { createdAt: { gte: targetDate, lt: nextDay }, status: { in: PAID_ORDER_STATUSES } },
           _sum: { amount: true },
         }),
         this.prisma.post.groupBy({

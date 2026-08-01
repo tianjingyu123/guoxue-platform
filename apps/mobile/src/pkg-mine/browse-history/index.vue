@@ -6,7 +6,9 @@
         <app-icon name="arrow-left" :size="20" color="#2c2c2c" />
       </view>
       <text class="nav-title">浏览历史</text>
-      <view class="nav-right" />
+      <view class="nav-right" :class="{ disabled: clearing }" @click="clearAll">
+        <text v-if="totalCount > 0" class="nav-clear">{{ clearing ? '清除中' : '清空' }}</text>
+      </view>
     </view>
 
     <!-- 加载骨架 -->
@@ -46,7 +48,7 @@
           v-for="item in group.items"
           :key="item.id"
           class="card"
-          @click="openItem"
+          @click="openItem(item)"
         >
           <!-- 类型图标 -->
           <view class="type-icon" :style="{ background: cfg(item.type).color }">
@@ -79,16 +81,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { goBack } from '@/utils/router'
+import { apiGet } from '@/utils/request'
 import {
   mineApi,
   historyTypeConfig,
   type HistoryGroup,
+  type HistoryItem,
   type HistoryItemType,
 } from '@/lib/mine-data'
 
 const loading = ref(true)
 const error = ref('')
 const groups = ref<HistoryGroup[]>([])
+const clearing = ref(false)
 
 const totalCount = computed(() => groups.value.reduce((s, g) => s + g.items.length, 0))
 
@@ -113,8 +118,64 @@ function retry() {
   loadData()
 }
 
-function openItem() {
-  uni.showToast({ title: '内容详情开发中', icon: 'none' })
+/** 跳原内容页（原为"开发中"toast）。
+ * HistoryItem.id 是浏览记录 cuid 而非内容 id（adaptHistory 未透传 targetId）
+ * → 首次点击时拉一次原始记录建 记录id→{targetType,targetId} 映射，用原始 targetType 判跳转 */
+interface RawHistoryRow { id?: string | number; targetType?: string; targetId?: string }
+let rawMapPromise: Promise<Map<string, { targetType: string; targetId: string }>> | null = null
+function loadRawMap() {
+  if (!rawMapPromise) {
+    rawMapPromise = apiGet<{ items?: RawHistoryRow[] } | RawHistoryRow[]>('/users/history?page=1&pageSize=50')
+      .then((res) => {
+        const items = Array.isArray(res) ? res : (res?.items ?? [])
+        return new Map(items.map((r) => [
+          String(r.id),
+          { targetType: String(r.targetType || '').toLowerCase(), targetId: String(r.targetId || '') },
+        ]))
+      })
+      .catch(() => { rawMapPromise = null; return new Map<string, { targetType: string; targetId: string }>() })
+  }
+  return rawMapPromise
+}
+function contentUrl(type: string, id: string): string {
+  return type === 'article' ? `/pkg-circle/articles/detail?id=${id}`
+    : type === 'course' ? `/pkg-course/detail/index?id=${id}`
+    : type === 'video' ? `/pkg-video/detail/index?id=${id}`
+    : type === 'product' ? `/pkg-mall/product/detail?id=${id}`
+    : type === 'live' ? `/pkg-live/watch/index?id=${id}`
+    : type === 'circle' ? `/pkg-circle/circles/detail?id=${id}`
+    : type === 'post' || type === 'circle_post' ? `/pkg-circle/circles/post?id=${id}`
+    : '' // classic·ebook·poetry·content 等无对应映射 → 保持提示
+}
+async function openItem(item: HistoryItem) {
+  const raw = (await loadRawMap()).get(item.id)
+  const url = raw && raw.targetId ? contentUrl(raw.targetType, raw.targetId) : ''
+  if (!url) { uni.showToast({ title: '该内容暂不支持跳转', icon: 'none' }); return }
+  uni.navigateTo({ url, fail: () => uni.showToast({ title: '打开失败', icon: 'none' }) })
+}
+
+function clearAll() {
+  if (clearing.value || totalCount.value === 0) return
+  uni.showModal({
+    title: '清空浏览历史',
+    content: `将删除全部 ${totalCount.value} 条浏览记录，此操作无法撤销。`,
+    confirmText: '确认清空',
+    confirmColor: '#C41E3A',
+    success: async (result) => {
+      if (!result.confirm || clearing.value) return
+      clearing.value = true
+      try {
+        await mineApi.clearHistory()
+        groups.value = []
+        rawMapPromise = null
+        uni.showToast({ title: '浏览历史已清空', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '清空失败，请重试', icon: 'none' })
+      } finally {
+        clearing.value = false
+      }
+    },
+  })
 }
 
 onMounted(loadData)
@@ -151,7 +212,19 @@ onMounted(loadData)
   color: #2c2c2c;
 }
 .nav-right {
-  width: 64rpx;
+  min-width: 80rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+.nav-right.disabled {
+  opacity: 0.55;
+}
+.nav-clear {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: var(--brand);
 }
 
 .content {

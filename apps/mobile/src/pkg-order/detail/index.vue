@@ -72,19 +72,24 @@
     <view class="card products">
       <view class="card-title-row"><text class="card-title">商品清单</text></view>
       <view v-for="p in order.products" :key="p.id" class="product">
-        <image lazy-load class="p-cover" :src="p.cover" mode="aspectFill" />
+        <smart-cover class="p-cover" :src="p.cover" :title="p.name" type="product" deco :deco-size="44" />
         <view class="p-info">
           <text class="p-name">{{ p.name }}</text>
           <text class="p-sku">{{ p.skuName }}</text>
           <view class="p-bottom">
-            <text class="p-price">¥{{ p.price }}</text>
+            <text class="p-price">¥{{ formatPrice(p.price) }}</text>
             <text class="p-qty">x{{ p.quantity }}</text>
           </view>
         </view>
       </view>
-      <view v-if="order.status === 'completed' || order.status === 'pending_receive'" class="quick-acts">
+      <view v-if="order.status === 'pending_ship' && !order.isVirtual" class="quick-acts">
+        <view class="quick ghost" @tap="goAfterSale"><app-icon name="undo-2" :size="30" color="#666666" /><text>申请退款</text></view>
+      </view>
+      <view v-else-if="order.status === 'completed' || order.status === 'pending_receive'" class="quick-acts">
         <view v-if="order.canReview" class="quick primary" @tap="goReview"><app-icon name="star" :size="30" color="#C41E3A" /><text>评价晒单</text></view>
         <view v-if="!order.isVirtual" class="quick ghost" @tap="goAfterSale"><app-icon name="undo-2" :size="30" color="#666666" /><text>申请售后</text></view>
+        <!-- 换货挂订单售后（董事长拍板）：带 orderId 进换货页，提交落售后 type=exchange -->
+        <view v-if="!order.isVirtual" class="quick ghost" @tap="goExchange"><app-icon name="refresh-cw" :size="30" color="#666666" /><text>申请换货</text></view>
       </view>
     </view>
 
@@ -119,16 +124,22 @@
 
     <!-- 底部操作 -->
     <view class="footer">
-      <view class="foot-service" @tap="toService"><app-icon name="phone" :size="30" color="#666666" /><text>联系客服</text></view>
+      <view class="foot-support">
+        <view class="foot-service" @tap="toService"><app-icon name="headphones" :size="30" color="#666666" /><text>客服</text></view>
+        <view class="foot-service" @tap="complainOrder"><app-icon name="shield-alert" :size="30" color="#C41E3A" /><text>投诉</text></view>
+      </view>
       <view class="foot-actions">
         <template v-if="order.status === 'pending_pay'">
-          <view class="fbtn ghost"><text>取消订单</text></view>
+          <view class="fbtn ghost" @tap="doCancel"><text>取消订单</text></view>
           <view class="fbtn primary" @tap="goPay"><text>去支付</text></view>
         </template>
         <!-- 虚拟订单（课程/会员）：付款即交付，无物流/收货操作；课程给学习入口 -->
         <template v-else-if="order.isVirtual && order.status !== 'cancelled'">
           <view v-if="order.canReview" class="fbtn outline" @tap="goReview"><text>去评价</text></view>
           <view v-if="isCourseOrder" class="fbtn primary" @tap="goLearn"><text>立即学习</text></view>
+        </template>
+        <template v-else-if="order.status === 'pending_ship'">
+          <view class="fbtn ghost" @tap="goAfterSale"><text>申请退款</text></view>
         </template>
         <template v-else-if="order.status === 'pending_receive'">
           <view class="fbtn ghost" @tap="goLogistics"><text>查看物流</text></view>
@@ -155,8 +166,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { navigateTo } from '@/utils/router'
-import { orderApi, detailSteps, virtualDetailSteps, detailStatusConfig, virtualPaidStatus, type OrderDetail } from '@/lib/order-data'
+import { orderApi, detailSteps, virtualDetailSteps, detailStatusConfig, virtualPaidStatus, type OrderDetail } from '@/pkg-order/lib/order-data'
+import { formatPrice } from '@/utils/format'
+import { gotoComplaint } from '@/lib/trust-entry'
 
 const loading = ref(false)
 const error = ref('')
@@ -181,7 +195,7 @@ const status = computed(() => {
 const isCourseOrder = computed(() => order.value?.orderType === 'COURSE')
 function goLearn() {
   const cid = order.value?.products[0]?.id
-  if (cid) navigateTo(`/courses/${cid}/learn`)
+  if (cid) navigateTo(`/courses/${cid}/player`)
 }
 
 const retry = () => { error.value = ''; loadData() }
@@ -202,9 +216,21 @@ function copyNo() {
 function goLogistics() { if (!order.value) return; navigateTo(`/orders/logistics?orderId=${order.value.id}`) }
 function goReview() { if (!order.value) return; navigateTo(`/orders/${order.value.id}/review`) }
 function goAfterSale() { if (!order.value) return; navigateTo(`/shop/after-sale?orderId=${order.value.id}`) }
-function goPay() { if (!order.value) return; navigateTo(`/shop/paying?orderId=${order.value.id}`) }
-function goShop() { navigateTo('/shop') }
+// 换货入口：挂订单售后（换货页读该订单商品/SKU/地址，提交走 after-sale type=exchange）
+function goExchange() { if (!order.value) return; navigateTo(`/shop/exchange?orderId=${order.value.id}`) }
+function goPay() {
+  if (!order.value) return
+  // 带上真实实付金额，避免收银页显示 ¥0.00；payMethod 为展示串，反映射为收银页可识别的 key（未支付订单通常无，缺省微信）
+  const m = order.value.payMethod === '微信支付' ? 'wechat' : order.value.payMethod === '支付宝' ? 'alipay' : ''
+  const q = `orderId=${order.value.id}&amount=${order.value.payAmount}${m ? `&method=${m}` : ''}`
+  navigateTo(`/shop/paying?${q}`)
+}
+function goShop() { navigateTo('/mall') }
 function toService() { navigateTo('/customer-service') }
+function complainOrder() {
+  if (!order.value) return
+  gotoComplaint('订单支付、履约或售后服务', `订单号 ${order.value.orderNo}`)
+}
 async function confirmReceive() {
   if (!order.value || submitting.value) return; submitting.value = true
   try {
@@ -213,8 +239,28 @@ async function confirmReceive() {
       order.value = { ...order.value, status: 'completed' as const, canConfirm: false, canReview: true }
       uni.showToast({ title: '确认收货成功', icon: 'none' })
     }
-  } catch { uni.showToast({ title: '操作失败', icon: 'none' }) }
+  } catch (e) { uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' }) }
   finally { submitting.value = false }
+}
+// 取消订单（仅待付款可取消，后端校验）：确认后直接调用，成功刷新本页状态为已取消
+function doCancel() {
+  if (!order.value || submitting.value) return
+  uni.showModal({
+    title: '取消订单', content: '确定要取消该订单吗？',
+    confirmText: '取消订单', cancelText: '再想想',
+    success: async (r) => {
+      if (!r.confirm || !order.value || submitting.value) return
+      submitting.value = true
+      try {
+        const ok = await orderApi.cancel(order.value.id)
+        if (ok && order.value) {
+          order.value = { ...order.value, status: 'cancelled' as const, canCancel: false }
+          uni.showToast({ title: '订单已取消', icon: 'none' })
+        }
+      } catch { uni.showToast({ title: '取消失败', icon: 'none' }) }
+      finally { submitting.value = false }
+    },
+  })
 }
 </script>
 
@@ -257,7 +303,7 @@ async function confirmReceive() {
 .card-title { font-size: 28rpx; font-weight: 500; color: #2C2C2C; }
 .card-title-row { padding-bottom: 20rpx; border-bottom: 1rpx solid #E8E3DB; margin-bottom: 20rpx; }
 .product { display: flex; gap: 20rpx; padding: 20rpx 0; border-bottom: 1rpx solid #F0EBE3; }
-.p-cover { width: 120rpx; height: 120rpx; border-radius: 12rpx; background: #FAF8F5; flex-shrink: 0; }
+.p-cover { width: 120rpx; height: 120rpx; border-radius: 12rpx; overflow: hidden; background: #FAF8F5; flex-shrink: 0; }
 .p-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .p-name { font-size: 28rpx; color: #2C2C2C; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .p-sku { font-size: 24rpx; color: #999999; margin-top: 8rpx; }
@@ -283,7 +329,8 @@ async function confirmReceive() {
 .ir-value { font-size: 26rpx; color: #2C2C2C; }
 .mono { font-family: monospace; }
 .footer { position: fixed; bottom: 0; left: 0; right: 0; height: 112rpx; background: #FFFFFF; border-top: 1rpx solid #E8E3DB; display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx calc(0px + env(safe-area-inset-bottom)); }
-.foot-service { display: flex; align-items: center; gap: 6rpx; }
+.foot-support { display: flex; align-items: center; gap: 18rpx; flex-shrink: 0; }
+.foot-service { min-width: 64rpx; min-height: 72rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; }
 .foot-service text { font-size: 26rpx; color: #666666; }
 .foot-actions { display: flex; align-items: center; gap: 16rpx; }
 .fbtn { display: flex; align-items: center; gap: 6rpx; padding: 16rpx 32rpx; border-radius: 40rpx; }

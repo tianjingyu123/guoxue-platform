@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsHexColor, IsObject, MaxLength, IsInt, MinLength } from "class-validator";
+import { ArrayMaxSize, ArrayNotEmpty, ArrayUnique, IsArray, IsString, IsOptional, IsHexColor, IsObject, MaxLength, IsInt, MinLength } from "class-validator";
 
 export class CreateStationDto {
   @IsString()
@@ -120,6 +120,12 @@ export class ApplyStationDto {
   @IsOptional()
   @IsString()
   logo?: string;
+
+  /** 运营商邀请归属；只接受后端真实存在且仍有名额的 Operator.id */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  operatorId?: string;
 }
 
 export class UpdateOperatorBrandDto {
@@ -164,6 +170,16 @@ export class UpdateMyOperatorDto {
   @IsOptional()
   @IsHexColor()
   brandThemeColor?: string;
+}
+
+export class RemindDormantStationsDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(20)
+  @ArrayUnique()
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  stationIds: string[];
 }
 
 // 站长创建分站微页面（route 由后端生成、stationId 强制本分站，故站长只需传名称）

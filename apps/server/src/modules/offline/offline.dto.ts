@@ -55,12 +55,12 @@ export class CreateOfflineCourseDto {
   @IsOptional() @IsString()
   teacherId?: string;
 
-  @ApiPropertyOptional({ description: "价格（分）", default: 0 })
-  @IsOptional() @Type(() => Number) @IsInt()
+  @ApiPropertyOptional({ description: "价格（元，最多两位小数）", default: 0 })
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
   price?: number;
 
   @ApiProperty({ description: "最大报名人数" })
-  @Type(() => Number) @IsInt()
+  @Type(() => Number) @IsInt() @Min(1) @Max(10000)
   maxStudents: number;
 
   @ApiProperty({ description: "开始时间" })
@@ -77,6 +77,44 @@ export class CreateOfflineCourseDto {
   @IsString()
   @MinLength(1)
   location: string;
+}
+
+export class UpdateOfflineCourseDto {
+  @ApiPropertyOptional({ description: "课程标题" })
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(100)
+  title?: string;
+
+  @ApiPropertyOptional({ description: "封面图" })
+  @IsOptional() @IsString() @MaxLength(500)
+  cover?: string;
+
+  @ApiPropertyOptional({ description: "课程介绍" })
+  @IsOptional() @IsString() @MaxLength(5000)
+  intro?: string;
+
+  @ApiPropertyOptional({ description: "本驿站讲师ID" })
+  @IsOptional() @IsString() @MinLength(1)
+  teacherId?: string;
+
+  @ApiPropertyOptional({ description: "价格（元，最多两位小数）" })
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
+  price?: number;
+
+  @ApiPropertyOptional({ description: "最大报名人数" })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10000)
+  maxStudents?: number;
+
+  @ApiPropertyOptional({ description: "开始时间" })
+  @IsOptional() @IsString() @MinLength(1)
+  startTime?: string;
+
+  @ApiPropertyOptional({ description: "结束时间" })
+  @IsOptional() @IsString() @MinLength(1)
+  endTime?: string;
+
+  @ApiPropertyOptional({ description: "上课地点" })
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(200)
+  location?: string;
 }
 
 export class UpdateMemberDto {
@@ -108,6 +146,19 @@ export class SignInCourseDto {
   @IsString()
   @MinLength(1)
   qrCode: string;
+}
+
+export class VerifyByCodeDto {
+  @ApiProperty({ description: "课程ID" })
+  @IsString()
+  @MinLength(1)
+  courseId: string;
+
+  @ApiProperty({ description: "学员口报的6位到店核销码" })
+  @IsString()
+  @MinLength(6)
+  @MaxLength(6)
+  code: string;
 }
 
 // ───────── 驿站商品 ─────────
@@ -217,27 +268,37 @@ export class AuditCourseDto {
 // ───────── 订单状态更新 ─────────
 
 export class UpdateOrderStatusDto {
+  // ⚠️ 必须带 class-validator 装饰器，否则 ValidationPipe(whitelist:true) 会 strip 掉 status→改状态失效
   @ApiProperty({ description: "订单状态" })
+  @IsString() @MinLength(1)
   status: string;
 }
 
 // ───────── 老师邀约 ─────────
 
 export class CreateTeacherRequestDto {
+  // ⚠️ 每个字段必须带 class-validator 装饰器，否则 whitelist:true 会静默 strip→创建丢字段
   @ApiProperty({ description: "教师ID", required: false })
+  @IsOptional() @IsString()
   teacherId?: string;
   @ApiProperty({ description: "课程标题", required: false })
+  @IsOptional() @IsString()
   courseTitle?: string;
   @ApiProperty({ description: "课程简介", required: false })
+  @IsOptional() @IsString()
   courseIntro?: string;
   @ApiProperty({ description: "建议费用", required: false })
+  @IsOptional() @IsNumber()
   proposedFee?: number;
   @ApiProperty({ description: "建议日期", required: false })
+  @IsOptional() @IsString()
   proposeDate?: string;
 }
 
 export class RespondTeacherRequestDto {
+  // ⚠️ 需 class-validator 装饰器，否则 whitelist:true 会 strip 掉 status→讲师邀约响应失效
   @ApiProperty({ description: "响应状态" })
+  @IsString() @MinLength(1)
   status: string;
 }
 

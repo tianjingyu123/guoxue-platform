@@ -20,7 +20,8 @@ async function exportCsv(type: string) {
   exporting.value = type;
   try {
     const { api } = await import("@/api");
-    const res = await api.get(`/system/export/${type}`, { responseType: "blob" });
+    // 后端导出端点均为 POST（system.controller @Post("export/users") 等），此前误写为 GET 导致 404
+    const res = await api.post(`/system/export/${type}`, {}, { responseType: "blob" });
     downloadBlob(res.data, `${type}-${Date.now()}.csv`);
     ElMessage.success("导出成功");
   } catch {
@@ -59,6 +60,15 @@ function downloadBlob(data: Blob, filename: string) {
     <div class="header">
       <h2>数据导出中心</h2>
     </div>
+
+    <el-alert
+      type="warning"
+      :closable="false"
+      show-icon
+      title="导出口径：全量导出"
+      description="本页所有导出均为「全量导出」——不带任何筛选条件，导出对应数据表的全部记录。数据量大时文件较大、耗时较长，且可能包含手机号等敏感字段，请遵守数据安全规范，导出后妥善保管、勿外传。如需按条件筛选导出，请到对应业务列表页（如订单、用户）使用页内导出。"
+      style="margin-bottom:16px"
+    />
 
     <el-row :gutter="16">
       <el-col

@@ -7,7 +7,7 @@ import { RedisService } from "../../redis/redis.service";
 import { BaziInputDto, ZiweiInputDto, QimenInputDto, YangpanInputDto, LiuYaoInputDto, DaLiuRenInputDto, CreateGroupDto, RenameGroupDto, DeleteGroupDto, CaseQueryDto } from "./paipan.dto";
 import { calcBazi, calcSiZhu, calcTrueSolarTime, calcAllJieQi, type BaziInput, type BaziResult } from "@guoxue/bazi-engine";
 import { calcZiwei, type ZiweiInput, type ZiweiResult } from "@guoxue/ziwei-engine";
-import { calculateQimenYang, calculateQimenYin } from "../tool-registry/calculators/qimen.calculator";
+import { calculateQimenYang } from "../tool-registry/calculators/qimen.calculator";
 import type { QimenResult } from "@guoxue/shared";
 import { createHash } from "node:crypto";
 import { encrypt, decrypt, maskPhone } from "../../common/crypto.util";
@@ -293,10 +293,12 @@ export class PaipanService {
       trueSolar: trueSolarInfo,
     };
 
-    // 飞盘委托阴盘引擎，转盘用阳盘引擎；均附占时 meta
-    const baseResult = dto.panMethod === "fei"
-      ? calculateQimenYin(input)
-      : calculateQimenYang(input);
+    // 2026-07-14 修：此前「飞盘」被委托给 calculateQimenYin（阴盘奇门）——
+    // 飞盘/转盘是同一套时家奇门的两种布盘法，阴盘是王凤麟另一流派（以月柱推局），起局法根本不同，
+    // 属流派错配。后端 calculateQimenYang 仅实现转盘法，故此处一律按转盘算；
+    // 飞盘由前端 pkg-paipan/lib/qimen-engine 本地排（转盘/飞盘俱全，84/84 黄金测试通过），
+    // 本端点仅用于记录保存与 AI 解读的数据底稿。
+    const baseResult = calculateQimenYang(input);
     const result = { ...baseResult, meta };
 
     await this.redis.setJson(cacheKey, result, CACHE_TTL);

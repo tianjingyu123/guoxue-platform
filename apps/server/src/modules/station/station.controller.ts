@@ -20,7 +20,7 @@ export class StationController {
   @Post("apply")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "用户自助申请开通分站" })
-  @ApiResponse({ status: 201, description: "申请成功，等待审核" })
+  @ApiResponse({ status: 201, description: "申请成功，待支付开通" })
   @ApiResponse({ status: 400, description: "参数校验失败或已开通分站" })
   @ApiResponse({ status: 401, description: "未登录" })
   applyStation(@Req() req: Request, @Body() dto: ApplyStationDto) {
@@ -49,6 +49,30 @@ export class StationController {
     return { ...station, lockedUsers, monthOrders, monthEarning, selfPurchaseSaved };
   }
 
+  @Get("station-plan")
+  @ApiOperation({ summary: "公开获取站长当前方案（价格/服务期真源）" })
+  @ApiResponse({ status: 200, description: "方案可用" })
+  @ApiResponse({ status: 400, description: "方案配置缺失" })
+  getStationPlan() {
+    return this.svc.getStationPlan();
+  }
+
+  @Get("operator-plan")
+  @ApiOperation({ summary: "公开获取运营商当前方案（价格/名额/服务期真源）" })
+  @ApiResponse({ status: 200, description: "方案可用" })
+  @ApiResponse({ status: 400, description: "方案配置缺失" })
+  getOperatorPlan() {
+    return this.svc.getOperatorPlan();
+  }
+
+  @Get("operator-invite/:id")
+  @ApiOperation({ summary: "公开校验运营商邀请与剩余名额" })
+  @ApiResponse({ status: 200, description: "邀请有效" })
+  @ApiResponse({ status: 400, description: "邀请无效、已过期或名额已满" })
+  getOperatorInvite(@Param("id") id: string) {
+    return this.svc.getOperatorInvite(id);
+  }
+
   @Put("my")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新自己的分站信息（自服务）" })
@@ -58,7 +82,12 @@ export class StationController {
   async updateMyStation(@Req() req: Request, @Body() dto: UpdateStationDto) {
     const station = await this.svc.getStationByUserId(req.user.id);
     if (!station) throw new BusinessException(ErrorCode.NOT_FOUND, "你还没有开通分站");
-    return this.svc.updateStation(station.id, dto);
+    // 安全修复(后端审计P0)：status 是治理/计费门槛字段(commission 计费依赖"非 ACTIVE 不发佣金")，
+    // 绝不能经自服务接口设置——否则站长可 PUT {status:"ACTIVE"} 绕过加盟费白拿佣金。此处剥离 status，
+    // 状态变更只能走管理端审核流。
+    const safe = { ...dto };
+    delete safe.status;
+    return this.svc.updateStation(station.id, safe);
   }
 
   @Get("my/customers")
@@ -126,8 +155,11 @@ export class StationController {
   @Get()
   @ApiOperation({ summary: "分站列表" })
   @ApiResponse({ status: 200, description: "成功" })
-  listStations(@Query("page") page = 1, @Query("pageSize") pageSize = 20) {
-    return this.svc.listStations(+page, +pageSize);
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  @ApiQuery({ name: "keyword", required: false, description: "关键词（分站名/推广码/站长昵称）" })
+  listStations(@Query("page") page = 1, @Query("pageSize") pageSize = 20, @Query("keyword") keyword?: string) {
+    return this.svc.listStations(+page, +pageSize, keyword);
   }
 
   // ───────── 分站发现 ─────────
@@ -283,6 +315,13 @@ export class StationController {
   @ApiResponse({ status: 200, description: "成功" })
   getPublishedMicroPage(@Param("code") code: string) {
     return this.svc.getPublishedMicroPage(code);
+  }
+
+  @Get("brand/:code/pinned")
+  @ApiOperation({ summary: "通过推广码获取分站站长主推位（公开·用户侧渲染·仅返回有内容板块·无则空数组）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  getPublishedPinnedBoards(@Param("code") code: string) {
+    return this.svc.getPublishedPinnedBoards(code);
   }
 
   // ───────── 运营商品牌与小程序 ─────────

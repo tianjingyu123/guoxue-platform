@@ -36,6 +36,21 @@
       </view>
     </view>
 
+    <!-- 🔴 私信入口：会话列表页（真连腾讯 IM）此前是**孤岛** —— 全项目没有任何地方能跳进去，
+         用户根本看不到别人发来的私信。而私信是达人咨询、圈友交流的承载。
+         消息中心只管系统/互动/交易通知，私信独立一栏。 -->
+    <view class="dm-entry" @click="goConversations">
+      <view class="dm-icon"><app-icon name="message-circle" :size="22" color="#C41E3A" /></view>
+      <view class="dm-main">
+        <text class="dm-title">私信</text>
+        <text class="dm-sub">与老师、圈友的一对一对话</text>
+      </view>
+      <view v-if="dmUnread > 0" class="dm-badge">
+        <text class="dm-badge-text">{{ dmUnread > 99 ? '99+' : dmUnread }}</text>
+      </view>
+      <app-icon name="chevron-right" :size="18" color="#c8c8cd" />
+    </view>
+
     <!-- 加载骨架屏 -->
     <view v-if="loading" class="skeleton-wrap">
       <view v-for="i in 5" :key="i" class="skel-row">
@@ -103,6 +118,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { mineApi, type NotifyItem, type NotifyKind } from '@/lib/mine-data'
+import { imApi } from '@/lib/im-data'
 
 const ICON_MAP: Record<string, string> = {
   评论: 'message-circle',
@@ -157,6 +173,18 @@ function catUnread(cat: CatKey): number {
   return notifications.value.filter((n) => !n.isRead && belongsTo(n, cat)).length
 }
 
+// 私信未读：复用会话列表 TIM 未读（与 pkg-im/im/conversations 同一算法 reduce unreadCount）。
+// getConversations 内部会触发 TIM 登录，未登录/取数失败一律静默降级为 0（不显角标，绝不阻断通知页）
+const dmUnread = ref(0)
+async function fetchDmUnread() {
+  try {
+    const convs = await imApi.getConversations()
+    dmUnread.value = convs.reduce((s, c) => s + c.unreadCount, 0)
+  } catch {
+    dmUnread.value = 0
+  }
+}
+
 const unreadTotal = computed(() => notifications.value.filter((n) => !n.isRead).length)
 const markAllDisabled = computed(() => markingAllRead.value || unreadTotal.value === 0)
 
@@ -176,7 +204,7 @@ async function fetchNotifications(showRefreshing = false) {
   }
 }
 
-onMounted(() => { fetchNotifications() })
+onMounted(() => { fetchNotifications(); fetchDmUnread() })
 
 function getIcon(category: string) {
   return ICON_MAP[category] || 'bell'
@@ -216,6 +244,11 @@ function handleRefresh() {
 function showToast(msg: string) {
   toastMsg.value = msg
   setTimeout(() => { toastMsg.value = '' }, 2000)
+}
+
+/** 私信会话列表（原本零入口的孤岛页） */
+function goConversations() {
+  navigateTo('/im/conversations')
 }
 
 function onBack() {
@@ -300,6 +333,43 @@ function onBack() {
 }
 
 /* 分类 Tab */
+/* 私信入口行 */
+.dm-entry {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin: 16rpx 24rpx 0;
+  padding: 24rpx 28rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05);
+}
+.dm-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dm-main { flex: 1; min-width: 0; }
+.dm-title { display: block; font-size: 30rpx; font-weight: 500; color: #2c2c2c; }
+.dm-sub { display: block; margin-top: 4rpx; font-size: 24rpx; color: #999; }
+.dm-badge {
+  min-width: 36rpx;
+  height: 36rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: #ff4d4f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dm-badge-text { font-size: 22rpx; color: #ffffff; line-height: 1; }
+
 .cat-tabs {
   position: sticky;
   top: 112rpx;

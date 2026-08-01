@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue'
+import { onHide, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { reLaunch } from '@/utils/router'
 
@@ -8,18 +9,36 @@ const props = defineProps<{ active: string }>()
 
 const BRAND_RED = '#c41e3a'
 const MUTED = '#999999'
+const visible = ref(true)
+const NAV_ACTIVE_EVENT = 'gx-bottom-nav-active'
 
-// R4 合规：小程序端无占卜类目，「排盘」tab 改「民俗」表述（仅展示文案·路由不变）
-let paipanLabel = '排盘'
-// #ifdef MP-WEIXIN
-paipanLabel = '民俗'
-// #endif
+// H5 使用 Teleport 挂到 body。主页面之间切换时广播唯一 active，避免路由栈同时残留两套导航。
+function syncActive(active: string) {
+  visible.value = active === props.active
+}
+function activateCurrent() {
+  uni.$emit(NAV_ACTIVE_EVENT, props.active)
+}
+onMounted(() => {
+  uni.$on(NAV_ACTIVE_EVENT, syncActive)
+  activateCurrent()
+})
+onUnmounted(() => {
+  uni.$off(NAV_ACTIVE_EVENT, syncActive)
+})
+onActivated(activateCurrent)
+onDeactivated(() => { visible.value = false })
+onShow(activateCurrent)
+onHide(() => { visible.value = false })
+
+// 合规收敛：中间 tab 统一用中性「工具」表述（避免「排盘/占卜」敏感表达·路由不变·全端一致）
+const paipanLabel = '工具'
 
 const tabs = [
   { id: 'home', label: '首页', icon: 'home', url: '/pages/index/index' },
   { id: 'circle', label: '圈子', icon: 'users', url: '/pages/circles/index' },
   { id: 'paipan', label: paipanLabel, icon: '', url: '/pages/paipan/index' },
-  { id: 'discover', label: '发现', icon: 'shopping-bag', url: '/pages/discover/index' },
+  { id: 'discover', label: '发现', icon: 'compass', url: '/pages/discover/index' },
   { id: 'profile', label: '我的', icon: 'user', url: '/pages/profile/index' },
 ]
 
@@ -28,16 +47,31 @@ function go(url: string, id: string) {
   if (isActive(id)) return
   reLaunch(url)
 }
+
+function onNavKeydown(event: KeyboardEvent, url: string, id: string) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  go(url, id)
+}
 </script>
 
 <template>
-  <view class="bottom-nav">
+  <!-- H5 挂到 body，避免桌面限宽容器的 transform 改变 fixed 定位基准。 -->
+  <!-- #ifdef H5 -->
+  <Teleport to="body">
+  <!-- #endif -->
+  <view v-if="visible" class="bottom-nav" role="navigation" aria-label="主导航">
     <view class="nav-inner">
       <view
         v-for="tab in tabs"
         :key="tab.id"
         class="nav-item"
+        role="link"
+        :aria-label="tab.label"
+        :aria-current="isActive(tab.id) ? 'page' : undefined"
+        tabindex="0"
         @tap="go(tab.url, tab.id)"
+        @keydown="onNavKeydown($event, tab.url, tab.id)"
       >
         <!-- 排盘居中凸起太极按钮 -->
         <view v-if="tab.id === 'paipan'" class="paipan">
@@ -63,6 +97,9 @@ function go(url: string, id: string) {
       </view>
     </view>
   </view>
+  <!-- #ifdef H5 -->
+  </Teleport>
+  <!-- #endif -->
 </template>
 
 <style scoped lang="scss">
@@ -101,4 +138,16 @@ function go(url: string, id: string) {
   box-shadow: 0 4rpx 24rpx rgba(196, 30, 58, 0.25);
 }
 .taiji { width: 64rpx; height: 64rpx; }
+
+/* H5 桌面壳保持 480px 居中；移动端仍贴合完整视口。 */
+/* #ifdef H5 */
+@media screen and (min-width: 600px) {
+  .bottom-nav {
+    left: 50%;
+    right: auto;
+    width: 480px;
+    transform: translateX(-50%);
+  }
+}
+/* #endif */
 </style>

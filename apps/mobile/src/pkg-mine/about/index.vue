@@ -1,290 +1,422 @@
 <template>
   <view class="page">
-    <!-- 顶部导航 -->
-    <app-nav-bar title="关于我们" :back-icon="'arrow-left'" :back-size="40" :title-size="36" :bar-height="112" title-align="left" />
+    <AppNavBar
+      title="关于我们"
+      :back-size="40"
+    />
 
-    <!-- Hero -->
     <view class="hero">
-      <view class="logo-box">
-        <image lazy-load class="logo-img" :src="logoSrc" mode="aspectFill" />
+      <view class="seal-wrap">
+        <image
+          class="logo-img"
+          :src="logoSrc"
+          mode="aspectFill"
+        />
       </view>
-      <text class="hero-title">{{ BRAND.name }}</text>
-      <text class="hero-slogan">传承智慧 · 启迪人生</text>
+      <text class="hero-name">
+        {{ BRAND.name }}
+      </text>
+      <text class="hero-slogan">
+        {{ BRAND.slogan }}
+      </text>
+      <text class="hero-tagline">
+        {{ BRAND.tagline }}
+      </text>
     </view>
 
-    <!-- 加载/错误/内容 -->
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
-    <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
-    <view v-else class="content">
-      <!-- 介绍 -->
-      <text class="intro">
-        {{ BRAND.name }}是一个专注于中华传统文化传承与学习的综合性平台。我们汇聚了易经、风水、命理、中医养生等领域的专家学者，致力于让国学智慧以现代化的方式传播，帮助更多人了解和受益于中华传统文化的精髓。
+    <view class="content">
+      <view class="mission-card">
+        <text class="eyebrow">
+          我们在做什么
+        </text>
+        <text class="mission-title">
+          让传统文化知识更可信、更好用
+        </text>
+        <text class="mission-desc">
+          {{ BRAND.name }}提供古籍阅读、术数工具、课程学习、社区交流与智能辅助。我们持续核验公开内容和功能状态，不用演示数据替代真实服务。
+        </text>
+      </view>
+
+      <text class="section-title">
+        平台能力
       </text>
-
-      <!-- 数据展示 -->
-      <view class="stats">
-        <view v-for="s in aboutStats" :key="s.label" class="stat-card">
-          <text class="stat-value" :style="{ color: s.color }">{{ s.value }}</text>
-          <text class="stat-label">{{ s.label }}</text>
-        </view>
-      </view>
-
-      <!-- 特色 -->
-      <text class="section-title">我们的特色</text>
-      <view class="feature-list">
-        <view v-for="f in aboutFeatures" :key="f.title" class="feature-card">
+      <view class="feature-grid">
+        <view
+          v-for="feature in features"
+          :key="feature.title"
+          class="feature-card"
+        >
           <view class="feature-icon">
-            <AppIcon :name="f.icon" :size="20" color="#c41e3a" />
+            <AppIcon
+              :name="feature.icon"
+              :size="22"
+              color="#c41e3a"
+            />
           </view>
-          <view class="feature-body">
-            <text class="feature-title">{{ f.title }}</text>
-            <text class="feature-desc">{{ f.desc }}</text>
-          </view>
+          <text class="feature-title">
+            {{ feature.title }}
+          </text>
+          <text class="feature-desc">
+            {{ feature.desc }}
+          </text>
         </view>
       </view>
 
-      <!-- 联系方式 -->
-      <text class="section-title">联系我们</text>
+      <text class="section-title">
+        联系我们
+      </text>
       <view class="contact-card">
-        <view class="contact-row" @tap="goFeedback">
-          <text class="contact-label">意见反馈</text>
-          <AppIcon name="chevron-right" :size="20" color="#999999" />
+        <view
+          class="contact-row"
+          role="button"
+          aria-label="联系平台客服"
+          @tap="goService"
+        >
+          <view class="contact-left">
+            <AppIcon
+              name="message-square"
+              :size="20"
+              color="#c41e3a"
+            />
+            <view class="contact-copy">
+              <text class="contact-label">
+                平台客服
+              </text>
+              <text class="contact-sub">
+                咨询产品使用、隐私与账号问题
+              </text>
+            </view>
+          </view>
+          <AppIcon
+            name="chevron-right"
+            :size="18"
+            color="#9b948b"
+          />
         </view>
-        <view class="contact-row">
-          <text class="contact-label">客服邮箱</text>
-          <text class="contact-value">{{ BRAND.serviceEmail }}</text>
+        <view
+          class="contact-row"
+          role="button"
+          aria-label="提交意见反馈"
+          @tap="goFeedback"
+        >
+          <view class="contact-left">
+            <AppIcon
+              name="edit"
+              :size="20"
+              color="#c41e3a"
+            />
+            <view class="contact-copy">
+              <text class="contact-label">
+                意见反馈
+              </text>
+              <text class="contact-sub">
+                提交问题、建议或体验反馈
+              </text>
+            </view>
+          </view>
+          <AppIcon
+            name="chevron-right"
+            :size="18"
+            color="#9b948b"
+          />
         </view>
-        <view class="contact-row">
-          <text class="contact-label">官方微信</text>
-          <text class="contact-value">{{ BRAND.serviceWechat }}</text>
+        <view
+          v-if="BRAND.serviceEmail"
+          class="contact-row"
+          @tap="copyContact(BRAND.serviceEmail, '邮箱')"
+        >
+          <view class="contact-left">
+            <AppIcon
+              name="mail"
+              :size="20"
+              color="#76624f"
+            />
+            <view class="contact-copy">
+              <text class="contact-label">
+                客服邮箱
+              </text>
+              <text class="contact-sub">
+                {{ BRAND.serviceEmail }}
+              </text>
+            </view>
+          </view>
+          <text class="copy-label">
+            复制
+          </text>
+        </view>
+        <view
+          v-if="BRAND.serviceWechat"
+          class="contact-row"
+          @tap="copyContact(BRAND.serviceWechat, '微信号')"
+        >
+          <view class="contact-left">
+            <AppIcon
+              name="message-circle"
+              :size="20"
+              color="#76624f"
+            />
+            <view class="contact-copy">
+              <text class="contact-label">
+                官方微信
+              </text>
+              <text class="contact-sub">
+                {{ BRAND.serviceWechat }}
+              </text>
+            </view>
+          </view>
+          <text class="copy-label">
+            复制
+          </text>
         </view>
       </view>
 
-      <!-- 版本信息 -->
-      <view class="version">
-        <text class="version-text">版本 1.0.0</text>
-        <text class="version-text">Copyright © 2024 {{ BRAND.name }}</text>
+      <view class="footer-copy">
+        <text>{{ BRAND.copyright }}</text>
+        <text>Copyright © {{ currentYear }} {{ BRAND.name }}</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
-import { navigateTo } from '@/utils/router'
-import { mineApi } from '@/lib/mine-data'
 import { BRAND } from '@/lib/brand'
+import { navigateTo } from '@/utils/router'
 
-// 热卜 logo（根 public 与 vue3 共享，:src 动态绑定避免 Vite 静态解析报错）
-const logoSrc = ref('/images/logo.jpg')
+const logoSrc = '/static/logo.webp'
+const currentYear = new Date().getFullYear()
 
-const aboutStats = ref<{ value: string; label: string; color: string }[]>([])
-const aboutFeatures = ref<{ icon: string; title: string; desc: string }[]>([])
-const loading = ref(true)
-const error = ref('')
+const features = [
+  { icon: 'book-open', title: '古籍与工具', desc: '阅读经典原文，使用经过校验的传统文化工具' },
+  { icon: 'play', title: '内容与课程', desc: '从公开内容到体系课程，按真实上架状态呈现' },
+  { icon: 'users', title: '社区交流', desc: '围绕兴趣加入圈子，与同好持续讨论和学习' },
+  { icon: 'sparkles', title: '智能辅助', desc: '为伴读、搜索、客服与创作提供流式智能能力' },
+]
 
-async function fetchData() {
-  loading.value = true
-  error.value = ''
-  try {
-    const data = await mineApi.getAbout()
-    aboutStats.value = data.stats || []
-    aboutFeatures.value = data.features || []
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
+function goService() {
+  navigateTo('/customer-service')
 }
-
-function retry() {
-  fetchData()
-}
-
-onMounted(() => {
-  fetchData()
-})
 
 function goFeedback() {
   navigateTo('/feedback')
 }
+
+function copyContact(value: string, label: string) {
+  uni.setClipboardData({
+    data: value,
+    success: () => uni.showToast({ title: `${label}已复制`, icon: 'none' }),
+  })
+}
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .page {
   min-height: 100vh;
-  background: #faf8f5;
+  background: #f8f5f0;
+  color: #2b2620;
 }
 
-/* 三态 */
-.loading { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
-.error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
-.error-state text { font-size: 28rpx; color: #8a8178; }
-.retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
-
-/* Hero */
 .hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 64rpx 0;
-  background: linear-gradient(to bottom right, rgba(196, 30, 58, 0.1), rgba(212, 184, 125, 0.1));
+  padding: 58rpx 32rpx 50rpx;
+  background:
+    radial-gradient(circle at 50% 8%, rgba(196, 30, 58, 0.12), transparent 48%),
+    linear-gradient(180deg, #fffaf5 0%, #f8f5f0 100%);
 }
-.logo-box {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 32rpx;
+
+.seal-wrap {
+  width: 136rpx;
+  height: 136rpx;
   overflow: hidden;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 12rpx 32rpx rgba(196, 30, 58, 0.25);
-  margin-bottom: 32rpx;
+  border: 8rpx solid rgba(255, 255, 255, 0.9);
+  border-radius: 32rpx;
+  background: #fff;
+  box-shadow: 0 16rpx 42rpx rgba(111, 48, 49, 0.18);
 }
+
 .logo-img {
   width: 100%;
   height: 100%;
 }
-.hero-title {
-  font-size: 48rpx;
+
+.hero-name {
+  margin-top: 28rpx;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 44rpx;
   font-weight: 700;
-  color: #2c2c2c;
-  font-family: 'Noto Serif SC', serif;
-  margin-bottom: 16rpx;
+  color: #2a2420;
 }
+
 .hero-slogan {
-  font-size: 28rpx;
-  color: #999999;
+  margin-top: 12rpx;
+  font-size: 27rpx;
+  letter-spacing: 4rpx;
+  color: #8d6f36;
 }
 
-/* 内容 */
+.hero-tagline {
+  margin-top: 10rpx;
+  font-size: 23rpx;
+  color: #9a9187;
+}
+
 .content {
-  padding: 48rpx;
+  padding: 0 28rpx calc(68rpx + env(safe-area-inset-bottom));
 }
-.intro {
+
+.mission-card {
+  padding: 34rpx;
+  border: 1rpx solid #e8dfd4;
+  border-radius: 28rpx;
+  background: #fff;
+  box-shadow: 0 12rpx 34rpx rgba(66, 45, 33, 0.06);
+}
+
+.eyebrow {
   display: block;
-  font-size: 28rpx;
-  color: #999999;
-  line-height: 1.7;
-  margin-bottom: 48rpx;
-}
-
-/* 数据 */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24rpx;
-  margin-bottom: 64rpx;
-}
-.stat-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 32rpx 16rpx;
-  background: #ffffff;
-  border-radius: 24rpx;
-  border: 2rpx solid #f0ece5;
-}
-.stat-value {
-  font-size: 40rpx;
+  margin-bottom: 10rpx;
+  font-size: 21rpx;
   font-weight: 700;
-}
-.stat-label {
-  font-size: 22rpx;
-  color: #999999;
-  margin-top: 8rpx;
+  letter-spacing: 3rpx;
+  color: #a5843f;
 }
 
-/* 区块标题 */
+.mission-title {
+  display: block;
+  font-family: "Songti SC", "STSong", serif;
+  font-size: 34rpx;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #2b2620;
+}
+
+.mission-desc {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  line-height: 1.78;
+  color: #70675f;
+}
+
 .section-title {
   display: block;
-  font-size: 32rpx;
+  margin: 42rpx 4rpx 20rpx;
+  font-size: 30rpx;
   font-weight: 700;
-  color: #2c2c2c;
-  margin-bottom: 32rpx;
+  color: #312a24;
 }
 
-/* 特色 */
-.feature-list {
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-  margin-bottom: 64rpx;
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18rpx;
 }
+
 .feature-card {
-  display: flex;
-  align-items: center;
-  gap: 32rpx;
-  padding: 32rpx;
-  background: #ffffff;
+  min-width: 0;
+  padding: 28rpx;
+  border: 1rpx solid #ece4da;
   border-radius: 24rpx;
-  border: 2rpx solid #f0ece5;
+  background: rgba(255, 255, 255, 0.9);
 }
+
 .feature-icon {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  background: rgba(196, 30, 58, 0.1);
+  width: 66rpx;
+  height: 66rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-}
-.feature-body {
-  display: flex;
-  flex-direction: column;
-}
-.feature-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.feature-desc {
-  font-size: 26rpx;
-  color: #999999;
-  margin-top: 4rpx;
+  border-radius: 20rpx;
+  background: #fbebee;
 }
 
-/* 联系方式 */
-.contact-card {
-  background: #ffffff;
-  border-radius: 24rpx;
-  border: 2rpx solid #f0ece5;
-  overflow: hidden;
+.feature-title {
+  display: block;
+  margin-top: 18rpx;
+  font-size: 27rpx;
+  font-weight: 700;
+  color: #322b25;
 }
+
+.feature-desc {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: #837970;
+}
+
+.contact-card {
+  overflow: hidden;
+  border: 1rpx solid #e8dfd4;
+  border-radius: 24rpx;
+  background: #fff;
+}
+
 .contact-row {
+  min-height: 106rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 32rpx;
-  border-bottom: 2rpx solid #f0ece5;
+  gap: 20rpx;
+  padding: 20rpx 28rpx;
+  border-bottom: 1rpx solid #f1ebe4;
 }
+
 .contact-row:last-child {
   border-bottom: none;
 }
-.contact-label {
-  font-size: 28rpx;
-  color: #2c2c2c;
-}
-.contact-value {
-  font-size: 28rpx;
-  color: #999999;
+
+.contact-row:active {
+  background: #faf7f3;
 }
 
-/* 版本 */
-.version {
+.contact-left {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.contact-copy {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8rpx;
-  margin-top: 64rpx;
-  padding-bottom: 48rpx;
+  gap: 5rpx;
 }
-.version-text {
-  font-size: 24rpx;
-  color: #999999;
+
+.contact-label {
+  font-size: 27rpx;
+  font-weight: 600;
+  color: #342d27;
+}
+
+.contact-sub {
+  max-width: 500rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 22rpx;
+  color: #8d847b;
+}
+
+.copy-label {
+  flex-shrink: 0;
+  font-size: 23rpx;
+  color: #c41e3a;
+}
+
+.footer-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  margin-top: 46rpx;
+  text-align: center;
+  font-size: 21rpx;
+  color: #9b9289;
 }
 </style>

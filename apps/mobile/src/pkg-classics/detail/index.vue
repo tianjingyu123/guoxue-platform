@@ -21,7 +21,7 @@
         <view class="cd-cover-row">
           <flat-cover
             :title="book.title"
-            :label="book.dynasty"
+            :label="dynastyLabel"
             :footer="book.author.split('/')[0]"
             :cover-color="coverColorForBook(book.title)"
             title-size="36rpx"
@@ -30,7 +30,7 @@
           <view class="cd-info">
             <view>
               <text class="cd-title">{{ book.title }}</text>
-              <text class="cd-author">[{{ book.dynasty }}] {{ book.author }}</text>
+              <text class="cd-author">{{ dynastyLabel ? `[${dynastyLabel}] ` : '' }}{{ book.author }}</text>
               <view class="cd-tags">
                 <text class="cd-tag cd-tag-muted">{{ book.version }}</text>
                 <text v-if="book.hasTranslation" class="cd-tag cd-tag-amber">译文</text>
@@ -40,7 +40,7 @@
             <view class="cd-stats">
               <view class="cd-stat">
                 <app-icon name="eye" :size="26" color="#999999" />
-                <text class="cd-stat-text">{{ (book.reads / 10000).toFixed(1) }}万</text>
+                <text class="cd-stat-text">{{ readsText }}</text>
               </view>
               <view class="cd-stat">
                 <app-icon name="file-text" :size="26" color="#999999" />
@@ -140,33 +140,32 @@
         </view>
       </view>
 
-      <!-- 书友讨论 -->
-      <view class="cd-sec">
+      <!-- 书友评论（统一评论组件·targetType=CLASSIC_BOOK·吸底输入条随处可评） -->
+      <view class="cd-sec cd-comments">
         <view class="cd-sec-head">
-          <text class="cd-sec-title">书友讨论</text>
-          <text class="cd-sec-meta">{{ commentCount }} 条</text>
-        </view>
-        <view v-if="firstDiscussion" class="cd-card cd-disc" @tap="showComments = true">
-          <view class="cd-disc-preview">
-            <view class="cd-disc-avatar" :style="{ background: '#a06a38' }">{{ firstDiscussion.author.name.charAt(0) }}</view>
-            <view class="cd-disc-body">
-              <text class="cd-disc-name">{{ firstDiscussion.author.name }}</text>
-              <text class="cd-disc-content">{{ firstDiscussion.content }}</text>
-              <view class="cd-disc-like">
-                <app-icon name="heart" :size="26" color="#999999" />
-                <text class="cd-disc-like-text">{{ firstDiscussion.likeCount }}</text>
-              </view>
+          <text class="cd-sec-title">书友评论</text>
+          <view class="cd-comment-head-actions">
+            <text v-if="commentCount > 0" class="cd-sec-meta">{{ commentCount }} 条</text>
+            <view class="cd-comment-trigger" hover-class="cd-comment-trigger--press" @click="openCommentInput">
+              <app-icon name="message-circle" :size="26" color="#c41e3a" />
+              <text class="cd-comment-trigger-text">写评论</text>
             </view>
           </view>
-          <view class="cd-disc-all">
-            <app-icon name="message-square" :size="28" color="#c41e3a" />
-            <text class="cd-disc-all-text">查看全部 {{ commentCount }} 条讨论</text>
-          </view>
+        </view>
+        <view class="cd-card cd-comments-card">
+          <comment-section
+            target-type="CLASSIC_BOOK"
+            :target-id="book.id"
+            deferred-input
+            :open-signal="commentInputSignal"
+            no-pad
+            @count-change="commentCount = $event"
+          />
         </view>
       </view>
 
-      <!-- 相关推荐 -->
-      <view class="cd-sec cd-related-sec">
+      <!-- 相关推荐（空列表整块不渲染，避免「标题+空横滚」空壳） -->
+      <view v-if="book.relatedBooks && book.relatedBooks.length" class="cd-sec cd-related-sec">
         <text class="cd-sec-title cd-related-title">相关推荐</text>
         <scroll-view scroll-x class="cd-related-scroll">
           <view class="cd-related-row">
@@ -188,18 +187,21 @@
         </view>
         <view class="cd-read-btn" @tap="toReader()">
           <app-icon name="play" :size="34" color="#ffffff" :fill="true" />
-          <text class="cd-read-text">开始阅读</text>
+          <text class="cd-read-text">{{ lastChapterId ? '继续阅读' : '开始阅读' }}</text>
         </view>
       </view>
     </view>
 
-    <!-- 书友讨论抽屉 -->
-    <discussion-sheet
-      :open="showComments"
-      :config="discussionConfig"
-      :items="BOOK_DISCUSSIONS"
-      :enable-a-i-assist="true"
-      @close="showComments = false"
+    <content-share-sheet
+      v-if="book"
+      :visible="showShareSheet"
+      kind="classic"
+      :title="book.title"
+      :summary="book.aiSummary || `${book.totalChapters} 篇章节，支持原文阅读与 AI 智能伴读。`"
+      :meta="[dynastyLabel, book.author].filter(Boolean).join(' · ')"
+      :url="buildShareUrl()"
+      @close="showShareSheet = false"
+      @poster="openPoster('classic', book.id)"
     />
   </view>
   </view>
@@ -207,42 +209,53 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
+import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
+import { goBack as platformGoBack } from '@/utils/router'
 import ClassicsHeader from '@/components/classics/classics-header.vue'
 import FlatCover from '@/components/classics/flat-cover.vue'
-import DiscussionSheet from '@/components/common/discussion-sheet.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
+import CommentSection from '@/components/comment/comment-section.vue'
 import { coverColorForBook } from '@/lib/classics-cover'
-import { classicsApi, _mockAI_FEATURES, type BookInfo, type BookDiscussion } from '@/lib/classics-data'
-import type { AuthorBadge, DiscussionConfig, DiscussionItem } from '@/lib/discussion-types'
+import { classicsApi, _mockAI_FEATURES, type BookInfo } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
 
 const bookId = ref('1')
 const book = ref<BookInfo | null>(null)
 const AI_FEATURES = _mockAI_FEATURES
-const BOOK_DISCUSSIONS = ref<DiscussionItem[]>([])
 const loading = ref(true)
 const error = ref('')
 
 const isInBookshelf = ref(false)
+// 上次读到的章节（阅读进度记录 chapterId）·有值时「开始阅读」变「继续阅读」并续读该章
+const lastChapterId = ref('')
+// 书友评论总数（由统一评论组件 count-change 回传，用于小节头「N 条」）
+const commentCount = ref(0)
+const commentInputSignal = ref(0)
 const expandedChapters = ref<Set<string>>(new Set())
 const showAllChapters = ref(false)
-const showComments = ref(false)
+const showShareSheet = ref(false)
 
-const firstDiscussion = computed(() => BOOK_DISCUSSIONS.value[0] || null)
-const commentCount = computed(() => BOOK_DISCUSSIONS.value.reduce((n, c) => n + 1 + (c.replies?.length || 0), 0))
+function openCommentInput() {
+  commentInputSignal.value += 1
+}
 
 const displayedChapters = computed(() =>
   book.value ? (showAllChapters.value ? book.value.chapters : book.value.chapters.slice(0, 6)) : [],
 )
 
-const discussionConfig: DiscussionConfig = {
-  scene: 'classic',
-  mode: 'comment',
-  title: '书友讨论',
-  accentColor: '#c41e3a',
-  placeholder: '各抒己见，友善交流…',
-}
+// 阅读量：万级才用「万」，小数尾零去掉；0 直接显示「0」而非「0.0万」
+const readsText = computed(() => {
+  const n = book.value?.reads ?? 0
+  return n >= 10000 ? (n / 10000).toFixed(1).replace(/\.0$/, '') + '万' : String(n)
+})
+// 朝代：空/占位（—、未知）不显示方括号，避免「[—]佚名」
+const dynastyLabel = computed(() => {
+  const d = (book.value?.dynasty || '').trim()
+  return d && d !== '—' && d !== '未知' && d !== '佚名' ? d : ''
+})
 
 async function fetchData(id: string) {
   loading.value = true
@@ -251,22 +264,16 @@ async function fetchData(id: string) {
     const data = await classicsApi.detail(id)
     book.value = data.book
     isInBookshelf.value = data.book?.isInBookshelf ?? false
-    // 真实在架状态：登录用户查阅读进度，有记录即在书架
+    lastChapterId.value = ''
+    // 真实在架状态：登录用户查阅读进度，有记录即在书架（记录内 chapterId 用于续读）
     if (getToken() && data.book?.id) {
-      try { isInBookshelf.value = !!(await classicsApi.getProgress(data.book.id)) } catch { /* 未登录或无记录 */ }
+      try {
+        const prog = (await classicsApi.getProgress(data.book.id, true)) as { chapterId?: string } | null
+        isInBookshelf.value = !!prog
+        lastChapterId.value = (prog && typeof prog.chapterId === 'string') ? prog.chapterId : ''
+      } catch { /* 未登录或无记录 */ }
       try { isFavorited.value = (await classicsApi.favoriteStatus(data.book.id)).favorited } catch { /* 忽略 */ }
     }
-    // Map BookDiscussion to DiscussionItem
-    BOOK_DISCUSSIONS.value = (data.discussions || []).map((d: BookDiscussion): DiscussionItem => ({
-      id: d.id,
-      author: { id: 0, name: d.authorName, badge: d.badge as AuthorBadge | undefined },
-      content: d.content,
-      time: d.time,
-      likeCount: d.likeCount,
-      featured: d.featured,
-      replies: [],
-      replyCount: 0,
-    }))
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -279,8 +286,22 @@ onLoad((q) => {
   fetchData(bookId.value)
 })
 
+// 从阅读器返回时轻量刷新续读章节（只查进度不重拉整页），保证「继续阅读」指向最新章
+let shownOnce = false
+onShow(async () => {
+  if (!shownOnce) { shownOnce = true; return } // 首次 onShow 紧随 onLoad，fetchData 已在查
+  if (!getToken() || !book.value) return
+  try {
+    const prog = (await classicsApi.getProgress(book.value.id, true)) as { chapterId?: string } | null
+    if (prog) {
+      isInBookshelf.value = true
+      lastChapterId.value = typeof prog.chapterId === 'string' ? prog.chapterId : ''
+    }
+  } catch { /* 忽略 */ }
+})
+
 // 微信原生分享（好友 / 朋友圈）；古籍封面为生成色块，无图片字段，故省略 cover
-const { toAppMessage, toTimeline } = useShare()
+const { toAppMessage, toTimeline, openPoster } = useShare()
 onShareAppMessage(() => toAppMessage({
   title: book.value?.title || '古籍典藏',
   path: `/classics/${book.value?.id || bookId.value}`,
@@ -292,15 +313,27 @@ onShareTimeline(() => toTimeline({
 
 function toggleChapter(id: string) {
   const next = new Set(expandedChapters.value)
-  next.has(id) ? next.delete(id) : next.add(id)
+  if (next.has(id))
+    next.delete(id)
+  else
+    next.add(id)
   expandedChapters.value = next
 }
 
 function goBack() {
-  uni.navigateBack({ fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
+  platformGoBack()
+}
+/**
+ * 顶栏分享（H5 无原生转发面板·照短视频 buildShareUrl/withRef 范式）：
+ * 构造本书 H5 深链（携带分享者 ref 推荐归因）→ 复制到剪贴板 + toast 引导转发。
+ * 小程序端仍走 onShareAppMessage/onShareTimeline 原生转发。
+ */
+function buildShareUrl(): string {
+  const id = book.value?.id || bookId.value
+  return withRef(buildH5Url('pkg-classics/detail/index', { id }))
 }
 function onShare() {
-  uni.showToast({ title: '分享', icon: 'none' })
+  showShareSheet.value = true
 }
 function toSharedReading() {
   if (!book.value) return
@@ -315,7 +348,13 @@ function toReader(chapterId?: string) {
     return
   }
   const base = `/pkg-classics/reader/index?bookId=${book.value.id}`
-  uni.navigateTo({ url: chapterId ? `${base}&chapterId=${chapterId}` : base })
+  // 未指定章节且有阅读进度：续读上次章节（resume=1 触发阅读器「已定位到上次读到的章节」提示）
+  const url = chapterId
+    ? `${base}&chapterId=${chapterId}`
+    : lastChapterId.value
+      ? `${base}&chapterId=${lastChapterId.value}&resume=1`
+      : base
+  uni.navigateTo({ url })
 }
 
 const isFavorited = ref(false)
@@ -357,14 +396,21 @@ async function toggleShelf() {
     return
   }
   if (shelfSubmitting.value || !book.value) return
-  if (isInBookshelf.value) { uni.showToast({ title: '已在书架中', icon: 'none' }); return }
+  // 已在书架：直接进「我的书房」查看，提供可见入口
+  if (isInBookshelf.value) { uni.navigateTo({ url: '/pkg-classics/bookshelf/index' }); return }
   const first = book.value.chapters?.[0]
   if (!first) { uni.showToast({ title: '本书暂无章节', icon: 'none' }); return }
   shelfSubmitting.value = true
   try {
     await classicsApi.saveProgress(book.value.id, first.id, 1)
     isInBookshelf.value = true
-    uni.showToast({ title: '已加入书架', icon: 'success' })
+    // 加入成功后告知入口，避免「加了却找不到书架」
+    uni.showModal({
+      title: '已加入书架',
+      content: '可在「我的书房」查看已收藏的古籍，再次点按此处即可前往。',
+      confirmText: '去书房', cancelText: '继续浏览',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-classics/bookshelf/index' }) },
+    })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '操作失败', icon: 'none' })
   } finally {
@@ -375,6 +421,7 @@ async function toBook(id: string) {
   bookId.value = id
   showAllChapters.value = false
   expandedChapters.value = new Set()
+  commentCount.value = 0 // 切书先清计数，评论组件 watch targetId 重载后回传新值
   await fetchData(id)
   uni.pageScrollTo({ scrollTop: 0, duration: 0 })
 }
@@ -382,9 +429,12 @@ async function toBook(id: string) {
 
 <style scoped>
 .cd-page {
+  --cd-action-bar-height: 128rpx;
   min-height: 100vh;
   background: var(--classics-bg);
-  padding-bottom: 180rpx;
+  /* 古籍为沉浸式独立板块，仅为自身阅读操作栏和设备安全区留位。 */
+  padding-bottom: calc(var(--cd-action-bar-height) + 48rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(var(--cd-action-bar-height) + 48rpx + env(safe-area-inset-bottom));
 }
 .cd-main {
   max-width: 1280rpx;
@@ -400,6 +450,8 @@ async function toBook(id: string) {
 .cd-cover {
   width: 224rpx;
   flex-shrink: 0;
+  /* 防 flex stretch 拉高封面（.cd-cover-row 未设 align-items，默认 stretch 会拉长变形） */
+  align-self: flex-start;
 }
 .cd-info {
   flex: 1;
@@ -647,71 +699,12 @@ async function toBook(id: string) {
   color: var(--brand);
   border-top: 2rpx solid var(--border);
 }
-.cd-disc {
-  overflow: hidden;
-}
-.cd-disc-preview {
-  display: flex;
-  align-items: flex-start;
-  gap: 24rpx;
-  padding: 32rpx;
-}
-.cd-disc-avatar {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 999rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-weight: 500;
-  font-size: 28rpx;
-  flex-shrink: 0;
-}
-.cd-disc-body {
-  flex: 1;
-  min-width: 0;
-}
-.cd-disc-name {
-  display: block;
-  font-size: 26rpx;
-  font-weight: 500;
-  color: var(--foreground);
-}
-.cd-disc-content {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: 26rpx;
-  color: var(--foreground);
-  line-height: 1.6;
-  margin-top: 4rpx;
-}
-.cd-disc-like {
-  display: inline-flex;
-  align-items: center;
-  gap: 8rpx;
-  margin-top: 12rpx;
-}
-.cd-disc-like-text {
-  font-size: 24rpx;
-  color: var(--muted-foreground);
-}
-.cd-disc-all {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  padding: 24rpx 0;
-  border-top: 2rpx solid var(--border);
-  font-size: 28rpx;
-  font-weight: 500;
-  color: var(--brand);
-}
 .cd-related-sec {
   padding-left: 0;
   padding-right: 0;
+  /* 阅读操作栏为 fixed；末段上移时先留出一段缓冲，
+   * 避免「相关推荐」标题及封面顶部贴进固定栏下方而显示不全。 */
+  padding-top: 80rpx;
 }
 .cd-related-title {
   display: block;
@@ -752,17 +745,58 @@ async function toBook(id: string) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ── 统一评论组件与页面固定操作栏共存 ──
+ * 评论输入条临时展开时，抬到阅读操作栏上方并留出呼吸间距，避免相互遮挡。 */
+.cd-comments-card {
+  padding: 8rpx 28rpx 20rpx;
+}
+.cd-comment-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.cd-comment-trigger {
+  min-height: 64rpx;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, .08);
+  border: 1rpx solid rgba(196, 30, 58, .14);
+}
+.cd-comment-trigger--press { opacity: .72; transform: scale(.98); }
+.cd-comment-trigger-text {
+  color: var(--brand);
+  font-size: 24rpx;
+  font-weight: 600;
+}
+.cd-comments :deep(.cib--fixed) {
+  bottom: calc(var(--cd-action-bar-height) + 16rpx + constant(safe-area-inset-bottom));
+  bottom: calc(var(--cd-action-bar-height) + 16rpx + env(safe-area-inset-bottom));
+  z-index: 46;
+  /* 不再贴屏幕底缘，安全区由下方操作栏承担，避免双重加高 */
+  padding-bottom: 16rpx;
+}
+/* 组件内自带的「给吸底输入条让位」垫片按贴屏底算高（140rpx+安全区），
+ * 且评论区后还有相关推荐，垫片会变成版心中段空洞——清零，让位改由 .cd-page 底部留白统一承担 */
+.cd-comments :deep(.csec__pad) {
+  height: 0;
+}
+
 .cd-bottom {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 40;
+  z-index: 45;
   background: color-mix(in srgb, var(--classics-bg) 90%, transparent);
   backdrop-filter: blur(20rpx);
   -webkit-backdrop-filter: blur(20rpx);
   border-top: 2rpx solid var(--border);
   padding: 16rpx 40rpx;
+  padding-bottom: calc(16rpx + constant(safe-area-inset-bottom));
   padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
 }
 .cd-bottom-row {

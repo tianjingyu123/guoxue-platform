@@ -38,7 +38,7 @@ export class ColdStartService {
 
     if (!type || type === "COURSE") {
       const courses = await this.prisma.course.findMany({
-        where: { tags: { hasSome: startTags }, auditStatus: "APPROVED" },
+        where: { tags: { hasSome: startTags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
         select: { id: true, title: true, cover: true, intro: true, tags: true, price: true, studentCount: true },
         take: 6,
         orderBy: { studentCount: "desc" },
@@ -72,7 +72,7 @@ export class ColdStartService {
 
     if (!type || type === "ARTICLE") {
       const articles = await this.prisma.article.findMany({
-        where: { tags: { hasSome: startTags }, auditStatus: "APPROVED" },
+        where: { tags: { hasSome: startTags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
         select: { id: true, title: true, cover: true, excerpt: true, tags: true, viewCount: true, likeCount: true },
         take: 6,
         orderBy: { viewCount: "desc" },
@@ -162,7 +162,7 @@ export class ColdStartService {
     const items: RecommendItem[] = [];
 
     const courses = await this.prisma.course.findMany({
-      where: { tags: { hasSome: tags }, auditStatus: "APPROVED" },
+      where: { tags: { hasSome: tags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
       select: { id: true, title: true, cover: true, intro: true, tags: true, price: true, studentCount: true },
       take: 6,
       orderBy: { studentCount: "desc" },
@@ -177,7 +177,7 @@ export class ColdStartService {
     })));
 
     const articles = await this.prisma.article.findMany({
-      where: { tags: { hasSome: tags }, auditStatus: "APPROVED" },
+      where: { tags: { hasSome: tags }, auditStatus: "APPROVED", visibility: "PLATFORM" },
       select: { id: true, title: true, cover: true, excerpt: true, tags: true, viewCount: true, likeCount: true },
       take: 6,
       orderBy: { viewCount: "desc" },

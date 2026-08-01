@@ -93,9 +93,8 @@ export class MerchantController {
   }
 
   @Post("pay-deposit")
-  @ApiOperation({ summary: "发起保证金支付" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiOperation({ summary: "保证金支付（当前免缴，在线收款未开放）" })
+  @ApiResponse({ status: 400, description: "当前免缴或在线收款未开放" })
   payDeposit(@Req() req: AuthRequest, @Body() dto: PayDepositDto) {
     return this.depositService.payDeposit(req.user.id, dto);
   }

@@ -9,14 +9,19 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine, resolveExecutorType } from "../../common/red-lines";
+import { Autonomy, AutonomyLevel } from "../../common/autonomy";
+import { RequireAutomation } from "../../common/require-automation.decorator";
 import { SystemService } from "./system.service";
+import { OpsActionService } from "./ops-action.service";
 import { ExportService } from "./export.service";
 import { Response, Request } from "express";
 import * as fs from "fs";
-import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, ExportExcelDto, UpdateBrandConfigDto } from "./system.dto";
+import { SetConfigDto, CreateConfigDto, ToggleMaintenanceDto, ToggleAutomationDto, ExportUsersDto, ExportOrdersDto, ExportContentsDto, ExportAuditLogsDto, ExportEarningsDto, UpsertPageContentDto, CreateSiteNoticeDto, UpdateSiteNoticeDto, RollbackConfigDto, UpsertMemberConfigDto, UpdateMemberConfigDto, ExportExcelDto, UpdateBrandConfigDto } from "./system.dto";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { Auditable } from "../../common/audit.decorator";
 import { THIRD_PARTY_SERVICES } from "../../config/third-party-services";
+import { serverConfig } from "../../config/server-config";
 
 @ApiTags("系统配置")
 @Controller("system")
@@ -24,6 +29,7 @@ export class SystemController {
   constructor(
     private readonly systemService: SystemService,
     private readonly exportService: ExportService,
+    private readonly opsActionService: OpsActionService,
   ) {}
 
   @Get("third-party-schema")
@@ -32,6 +38,17 @@ export class SystemController {
   @ApiOperation({ summary: "第三方密钥配置 schema（驱动后台动态渲染，不含值）" })
   @ApiBearerAuth()
   getThirdPartySchema() {
+    const publicApiUrl = serverConfig.publicApiUrl.replace(/\/+$/, "");
+    const callbackRecommendations: Record<string, Record<string, string>> = {
+      wechat_pay: {
+        notifyUrl: `${publicApiUrl}/api/v1/shop/pay/notify`,
+        refundNotifyUrl: `${publicApiUrl}/api/v1/shop/refund/notify`,
+      },
+      alipay: { notifyUrl: `${publicApiUrl}/api/v1/shop/alipay/notify` },
+      huifu: { notifyUrl: `${publicApiUrl}/api/v1/huifu/notify` },
+      unionpay: { notifyUrl: `${publicApiUrl}/api/v1/shop/unionpay/notify` },
+      kuaidi100: { callbackUrl: `${publicApiUrl}/api/v1/shop/logistics/kuaidi100/callback` },
+    };
     return {
       services: THIRD_PARTY_SERVICES.map((s) => ({
         key: s.key,
@@ -46,6 +63,7 @@ export class SystemController {
           placeholder: f.placeholder ?? "",
           hint: f.hint ?? "",
           multiline: !!f.multiline,
+          recommendedValue: callbackRecommendations[s.key]?.[f.key] ?? "",
         })),
       })),
     };
@@ -62,10 +80,15 @@ export class SystemController {
   @ApiQuery({ name: "keyPrefix", required: false, type: String, description: "按 key 前缀过滤" })
   async listConfigs(@Query("keyPrefix") keyPrefix?: string) {
     const configs = await this.systemService.getAllConfigs();
+    // 配置卫生：运营机器人日志（operation_robot_logs* 等）被写入 ConfigSystem 污染了配置列表，
+    // 列表端点前缀过滤掉这类日志键（数据不动，仅不在配置管理页展示）。
+    const LOG_KEY_PREFIXES = ["operation_robot_logs", "robot_logs"];
+    const isLogKey = (key?: string) => !!key && LOG_KEY_PREFIXES.some((p) => key.startsWith(p));
+    const cleaned = configs.filter((c: any) => !isLogKey(c.configKey));
     if (keyPrefix) {
-      return { configs: configs.filter((c: any) => c.configKey?.startsWith(keyPrefix)) };
+      return { configs: cleaned.filter((c: any) => c.configKey?.startsWith(keyPrefix)) };
     }
-    return { configs };
+    return { configs: cleaned };
   }
 
   @Post("configs")
@@ -140,6 +163,14 @@ export class SystemController {
     return this.systemService.healthCheck();
   }
 
+  // ── 前端 UI 运营配置（公开只读·P1 运营配置最小闭环）──
+  @Get("ui-config")
+  @ApiOperation({ summary: "前端 UI 运营配置（公开·配置驱动首页大卡频率/智能体色系等）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  async getUiConfig() {
+    return this.systemService.getUiConfig();
+  }
+
   // ── 维护模式 ──
 
   @Get("maintenance")
@@ -191,6 +222,68 @@ export class SystemController {
     return this.systemService.toggleAutomation(body.enabled, operator);
   }
 
+  // ── 一键回滚（治理护栏 §2.3 · 验收标准三）──
+
+  @Get("automation/rollbackable")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "可回滚操作列表（带快照的审计记录，供一键回滚面板）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  async listRollbackable(@Query() q: { targetType?: string; targetId?: string; page?: number; pageSize?: number }) {
+    return this.systemService.listRollbackable(q);
+  }
+
+  @Post("automation/rollback/:auditId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "一键回滚 — 按审计快照还原某次自动化配置变更（SUPER_ADMIN·真人纠错）" })
+  @ApiResponse({ status: 201, description: "回滚成功" })
+  @ApiResponse({ status: 400, description: "该动作不支持回滚" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 404, description: "审计记录不存在或无快照" })
+  @ApiBearerAuth()
+  async rollbackAudit(@Param("auditId") auditId: string, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    const operator = u?.nickname || u?.id || "ADMIN";
+    return this.systemService.rollbackAudit(auditId, operator);
+  }
+
+  // ── 运维动作中心（后台管理自动化·L2 一键化试点·护栏底座第一个真实客户）──
+
+  @Get("ops-actions")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "运维动作列表（白名单安全可逆动作 + 当前值 + 档位·仅收非红线运营开关）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  async listOpsActions() {
+    return this.opsActionService.listActions();
+  }
+
+  @Post("ops-actions/execute")
+  @Autonomy(AutonomyLevel.L2_ONE_CLICK)
+  @RequireAutomation() // 受一键接管开关约束：接管后此写操作 403
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "执行运维动作（L2 一键·带回滚·白名单校验·写审计快照·可经 automation/rollback 还原）" })
+  @ApiResponse({ status: 201, description: "执行成功，返回 auditId 供一键回滚" })
+  @ApiResponse({ status: 400, description: "取值非法/非白名单动作" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限/自动化已接管" })
+  @ApiResponse({ status: 404, description: "未注册的运维动作" })
+  @ApiBearerAuth()
+  async executeOpsAction(@Body() body: { action: string; value: string }, @Req() req: Request) {
+    const u = req.user as { nickname?: string; id?: string } | undefined;
+    const operator = u?.nickname || u?.id || "ADMIN";
+    return this.opsActionService.execute(body.action, body.value, operator, resolveExecutorType(req));
+  }
+
   /** 公开接口：获取首页 Banner */
   @Get("public/banners")
   @ApiOperation({ summary: "获取首页Banner（公开）" })
@@ -235,7 +328,7 @@ export class SystemController {
       /** 审核期间展示的公告文案 */
       notice: '更多精彩功能，请在浏览器中打开热卜国学 H5 版本体验',
       /** 跳转到 H5 完整版的链接 */
-      h5Url: 'https://m.guoxue.ac.cn',
+      h5Url: serverConfig.publicH5Url,
     };
   }
 
@@ -264,25 +357,22 @@ export class SystemController {
     return this.systemService.updateBrandConfig({ ...dto }, u?.nickname || u?.id);
   }
 
-  /** 公开接口：关于我们 */
+  /** 公开接口：关于我们。规模指标没有可审计聚合口径前保持为空，禁止固定宣传数字。 */
   @Get("about")
   @ApiOperation({ summary: "获取关于我们信息（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
   async getAbout() {
     return {
-      stats: [
-        { value: "100+", label: "专家讲师", color: "#c41e3a" },
-        { value: "500+", label: "精品课程", color: "#d4b87d" },
-        { value: "50万+", label: "学习用户", color: "#6ed24a" },
-      ],
+      stats: [],
       features: [
-        { icon: "book-open", title: "专业内容", desc: "严选优质国学课程与古籍资源" },
-        { icon: "users", title: "圈子交流", desc: "加入志同道合的学习社区" },
-        { icon: "award", title: "名师指导", desc: "一对一咨询，答疑解惑" },
-        { icon: "building-2", title: "线下活动", desc: "定期举办国学文化体验活动" },
+        { icon: "book-open", title: "古籍与工具", desc: "阅读经典原文，使用经过校验的传统文化工具" },
+        { icon: "play", title: "内容与课程", desc: "从公开内容到体系课程，按真实上架状态呈现" },
+        { icon: "users", title: "社区交流", desc: "围绕兴趣加入圈子，与同好持续讨论和学习" },
+        { icon: "sparkles", title: "智能辅助", desc: "为伴读、搜索、客服与创作提供流式智能能力" },
       ],
     };
   }
+
   // ── 审计日志 ──
 
   @Get("audit-logs")
@@ -400,9 +490,23 @@ export class SystemController {
     return { jobs: await this.systemService.getRecentCronJobs(Number(limit)) };
   }
 
+  @Get("cron")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "定时任务总览（进程内真实注册的 @Cron 任务 + DB 执行记录合并）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "limit", required: false, description: "合并的最近执行记录条数", example: "20" })
+  async getCronJobs(@Query("limit") limit = "20") {
+    return this.systemService.getCronJobs(Number(limit));
+  }
+
   // ───────── 数据导出 ─────────
 
   @Post("export/users")
+  @RedLineGate(RedLine.USER_DATA)
   @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -548,9 +652,27 @@ export class SystemController {
     return this.systemService.upsertPageContent(dto.pageRoute, dto.fieldKey, dto.content);
   }
 
-  // ───────── 全站弹窗公告 ─────────
+  // ───────── 全站公告 ─────────
+
+  @Get("public/site-notices")
+  @ApiOperation({ summary: "获取当前有效的公开公告" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  async getPublicSiteNotices(
+    @Query("page") page = "1",
+    @Query("pageSize") pageSize = "20",
+  ) {
+    return this.systemService.getPublicSiteNotices(Number(page), Number(pageSize));
+  }
+
+  @Get("public/site-notices/:id")
+  @ApiOperation({ summary: "获取当前有效的公开公告详情" })
+  getPublicSiteNotice(@Param("id") id: string) {
+    return this.systemService.getPublicSiteNotice(id);
+  }
 
   @Post("site-notices")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建全站公告" })
@@ -581,6 +703,7 @@ export class SystemController {
   }
 
   @Put("site-notices/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新全站公告" })
@@ -772,6 +895,7 @@ export class SystemController {
   }
 
   @Post("member-configs")
+  @Auditable({ action: "提交会员套餐新增审批", targetType: "MEMBER_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "创建或更新会员等级配置" })
@@ -780,11 +904,12 @@ export class SystemController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async upsertMemberConfig(@Body() dto: UpsertMemberConfigDto) {
-    return this.systemService.upsertMemberConfig(dto);
+  async upsertMemberConfig(@Body() dto: UpsertMemberConfigDto, @Req() req: Request) {
+    return this.systemService.requestUpsertMemberConfig(dto, req.user.id);
   }
 
   @Put("member-configs/:id")
+  @Auditable({ action: "提交会员套餐修改审批", targetType: "MEMBER_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新会员等级配置" })
@@ -794,11 +919,12 @@ export class SystemController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async updateMemberConfig(@Param("id") id: string, @Body() dto: UpsertMemberConfigDto) {
-    return this.systemService.updateMemberConfig(id, dto);
+  async updateMemberConfig(@Param("id") id: string, @Body() dto: UpdateMemberConfigDto, @Req() req: Request) {
+    return this.systemService.requestUpdateMemberConfig(id, dto, req.user.id);
   }
 
   @Delete("member-configs/:id")
+  @Auditable({ action: "提交会员套餐删除审批", targetType: "MEMBER_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除会员等级配置" })
@@ -808,9 +934,8 @@ export class SystemController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  async deleteMemberConfig(@Param("id") id: string) {
-    await this.systemService.deleteMemberConfig(id);
-    return { ok: true };
+  async deleteMemberConfig(@Param("id") id: string, @Req() req: Request) {
+    return this.systemService.requestDeleteMemberConfig(id, req.user.id);
   }
 
   /** 发送文件到客户端 */

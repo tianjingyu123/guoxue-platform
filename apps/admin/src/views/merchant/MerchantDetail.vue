@@ -89,7 +89,7 @@
               {{ formatDate(merchant.reviewedAt) }}
             </el-descriptions-item>
             <el-descriptions-item label="保证金">
-              {{ merchant.depositAmount ? '¥' + Number(merchant.depositAmount).toFixed(2) : '未设置' }}
+              {{ Number(merchant.depositAmount || 0) > 0 ? '¥' + Number(merchant.depositAmount).toFixed(2) : '当前免缴' }}
             </el-descriptions-item>
             <el-descriptions-item label="分佣比例">
               {{ merchant.commissionRate ? (Number(merchant.commissionRate) * 100).toFixed(1) + '%' : '默认' }}
@@ -99,10 +99,38 @@
           <h4 style="margin:20px 0 12px">
             资质材料
           </h4>
+          <el-alert
+            :title="`资质状态：${merchant.qualificationStatus || 'DRAFT'}　风险等级：${merchant.riskLevel || 'MEDIUM'}`"
+            :type="merchant.qualificationStatus === 'APPROVED' ? 'success' : merchant.qualificationStatus === 'PENDING' ? 'warning' : 'error'"
+            :closable="false"
+            show-icon
+            style="margin-bottom:12px"
+          />
           <el-descriptions
             :column="3"
             border
           >
+            <el-descriptions-item label="主体类型">
+              {{ merchant.merchantType === 'INDIVIDUAL' ? '个体工商户' : '企业' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="统一社会信用代码">
+              {{ merchant.unifiedSocialCreditCode || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="法定代表人/经营者">
+              {{ merchant.legalRepresentative || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="注册地址" :span="2">
+              {{ merchant.registeredAddress || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="执照有效期">
+              {{ merchant.licenseLongTerm ? '长期有效' : formatDate(merchant.licenseValidUntil) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="下次复核">
+              {{ formatDate(merchant.qualificationNextReviewAt) }}
+            </el-descriptions-item>
+            <el-descriptions-item v-if="merchant.qualificationRejectReason" label="资质补正原因" :span="2">
+              <span style="color:#d03050">{{ merchant.qualificationRejectReason }}</span>
+            </el-descriptions-item>
             <el-descriptions-item label="身份证正面">
               <el-image
                 v-if="merchant.idCardFront"
@@ -187,7 +215,7 @@
           </el-descriptions>
 
           <div style="margin-top:20px">
-            <template v-if="merchant.status === 'PENDING_REVIEW'">
+            <template v-if="merchant.status === 'PENDING_REVIEW' || merchant.qualificationStatus === 'PENDING'">
               <el-button
                 type="success"
                 @click="openApprove"
@@ -454,21 +482,13 @@
         label="保证金记录"
         name="deposits"
       >
-        <div style="margin-bottom:12px">
-          <el-button
-            type="primary"
-            size="small"
-            @click="openRefund"
-          >
-            退还保证金
-          </el-button>
-          <el-button
-            size="small"
-            @click="openAdjust"
-          >
-            调整保证金
-          </el-button>
-        </div>
+        <el-alert
+          title="当前实行免保证金入驻；本页仅保留历史流水只读核验，在线收款与原路退款未接入前不提供资金操作"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom:12px"
+        />
         <el-table
           :data="deposits"
           stripe
@@ -617,7 +637,7 @@
                 <el-button
                   type="success"
                   size="small"
-                  @click="openPaySettle(row.id)"
+                  @click="openPaySettle(row)"
                 >
                   标记支付
                 </el-button>
@@ -633,7 +653,116 @@
           </el-table-column>
         </el-table>
       </el-tab-pane>
+
+      <!-- 标签: 操作员管理（多操作员·官方旗舰店） -->
+      <el-tab-pane
+        label="操作员管理"
+        name="members"
+      >
+        <el-card>
+          <div class="members-head">
+            <div class="members-hint">
+              操作员可用自己的账号以本店铺身份发布/管理商品；商品与订单归属仍记店主，操作员仅用于协作与审计。
+            </div>
+            <el-button
+              type="primary"
+              size="small"
+              @click="openAddMember"
+            >
+              添加操作员
+            </el-button>
+          </div>
+          <el-table
+            v-loading="membersLoading"
+            :data="members"
+            stripe
+          >
+            <template #empty>
+              <el-empty description="暂无操作员" />
+            </template>
+            <el-table-column
+              label="用户"
+              min-width="160"
+            >
+              <template #default="{ row }">
+                {{ row.nickname || '（未设昵称）' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="phone"
+              label="手机号"
+              width="140"
+            />
+            <el-table-column
+              label="身份"
+              width="100"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.role === 'OWNER' ? 'warning' : 'success'"
+                  size="small"
+                >
+                  {{ row.role === "OWNER" ? "店主" : "操作员" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              width="100"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <el-button
+                  v-if="row.role !== 'OWNER'"
+                  size="small"
+                  text
+                  type="danger"
+                  @click="doRemoveMember(row)"
+                >
+                  移除
+                </el-button>
+                <span
+                  v-else
+                  class="members-owner-hint"
+                >—</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-tab-pane>
     </el-tabs>
+
+    <!-- 添加操作员对话框 -->
+    <el-dialog
+      v-model="addMemberDialog"
+      title="添加操作员"
+      width="420px"
+    >
+      <el-form label-width="80px">
+        <el-form-item label="手机号">
+          <el-input
+            v-model="addMemberPhone"
+            maxlength="11"
+            placeholder="输入操作员手机号（须已注册平台）"
+          />
+        </el-form-item>
+        <div class="members-add-tip">
+          该手机号对应的账号将成为本店铺操作员，可在「个人中心 · 身份切换 · 商家管理台」进入并发布/管理商品。
+        </div>
+      </el-form>
+      <template #footer>
+        <el-button @click="addMemberDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="addMemberSaving"
+          @click="doAddMember"
+        >
+          确定添加
+        </el-button>
+      </template>
+    </el-dialog>
 
     <!-- 执行处罚对话框（履-P3·四类·二次确认） -->
     <el-dialog
@@ -734,18 +863,17 @@
       title="审核通过"
       width="500px"
     >
+      <el-alert
+        title="当前实行免保证金入驻；审核通过后商家将直接进入待签约状态"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom:16px"
+      />
       <el-form
         :model="approveForm"
         label-width="100px"
       >
-        <el-form-item label="保证金金额">
-          <el-input-number
-            v-model="approveForm.depositAmount"
-            :min="0"
-            :precision="2"
-            style="width:100%"
-          />
-        </el-form-item>
         <el-form-item label="分佣比例">
           <el-input-number
             v-model="approveForm.commissionRate"
@@ -755,6 +883,13 @@
             :precision="4"
             style="width:100%"
           />
+        </el-form-item>
+        <el-form-item label="风险等级">
+          <el-select v-model="approveForm.riskLevel" style="width:100%">
+            <el-option label="低风险 · 材料完整且一致" value="LOW" />
+            <el-option label="中风险 · 需持续观察" value="MEDIUM" />
+            <el-option label="高风险 · 限制经营" value="HIGH" />
+          </el-select>
         </el-form-item>
         <el-form-item label="内部备注">
           <el-input
@@ -888,78 +1023,6 @@
       </template>
     </el-dialog>
 
-    <!-- 保证金退还对话框 -->
-    <el-dialog
-      v-model="refundDialog"
-      title="退还保证金"
-      width="400px"
-    >
-      <el-form label-width="80px">
-        <el-form-item label="退还金额">
-          <el-input-number
-            v-model="refundAmount"
-            :min="0"
-            :precision="2"
-            style="width:100%"
-          />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="refundRemark" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="refundDialog = false">
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          :loading="saving"
-          @click="doRefund"
-        >
-          确认退还
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 保证金调整对话框 -->
-    <el-dialog
-      v-model="adjustDialog"
-      title="调整保证金"
-      width="400px"
-    >
-      <el-form label-width="80px">
-        <el-form-item
-          label="新金额"
-          required
-        >
-          <el-input-number
-            v-model="adjustAmount"
-            :min="0"
-            :precision="2"
-            style="width:100%"
-          />
-        </el-form-item>
-        <el-form-item label="调整原因">
-          <el-input
-            v-model="adjustReason"
-            type="textarea"
-            :rows="2"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="adjustDialog = false">
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          :loading="saving"
-          @click="doAdjust"
-        >
-          确认调整
-        </el-button>
-      </template>
-    </el-dialog>
 
     <!-- 生成结算单对话框 -->
     <el-dialog
@@ -1009,8 +1072,15 @@
     <el-dialog
       v-model="paySettleDialog"
       title="标记结算已支付"
-      width="400px"
+      width="420px"
     >
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom:12px"
+        :title="`该结算单应付金额 ¥${paySettleDue.toFixed(2)}（已预填），确认前请核对线下实际打款金额。`"
+      />
       <el-form label-width="80px">
         <el-form-item
           label="支付金额"
@@ -1108,6 +1178,16 @@ interface MerchantInfo {
   idCardFront?: string
   idCardBack?: string
   businessLicense?: string
+  merchantType?: string
+  unifiedSocialCreditCode?: string
+  legalRepresentative?: string
+  registeredAddress?: string
+  licenseValidUntil?: string
+  licenseLongTerm?: boolean
+  qualificationStatus?: string
+  qualificationNextReviewAt?: string
+  qualificationRejectReason?: string
+  riskLevel?: string
   brandAuth?: string
   agreementUrl?: string
   user?: MerchantUser
@@ -1150,18 +1230,11 @@ const deposits = ref<DepositRow[]>([])
 const approveDialog = ref(false)
 const rejectDialog = ref(false)
 const rejectReason = ref('')
-const approveForm = ref({ depositAmount: undefined as number | undefined, commissionRate: undefined as number | undefined, remark: '' })
+const approveForm = ref({ commissionRate: undefined as number | undefined, remark: '', riskLevel: 'LOW' })
 
 const violationDialog = ref(false)
 const violationForm = ref({ type: 'MINOR', title: '', description: '', penalty: undefined as number | undefined, remark: '' })
 
-const refundDialog = ref(false)
-const refundAmount = ref(0)
-const refundRemark = ref('')
-
-const adjustDialog = ref(false)
-const adjustAmount = ref(0)
-const adjustReason = ref('')
 
 const commissionDialog = ref(false)
 const commissionRate = ref(0.8)
@@ -1177,11 +1250,12 @@ const settleForm = ref({ periodStart: '', periodEnd: '' })
 
 const paySettleDialog = ref(false)
 const paySettleId = ref('')
+const paySettleDue = ref(0) // 结算单应付金额（预填与比对基准）
 const paySettleAmount = ref(0)
 const paySettleRemark = ref('')
 
 const STATUS_MAP: Record<string, string> = {
-  PENDING_REVIEW: '待审核', REVIEW_FAILED: '审核驳回', DEPOSIT_PENDING: '待缴保证金',
+  PENDING_REVIEW: '待审核', REVIEW_FAILED: '审核驳回', DEPOSIT_PENDING: '保证金待处理',
   AGREEMENT_PENDING: '待签署协议', ACTIVE: '已开通', SUSPENDED: '已暂停', CLOSED: '已关闭',
 }
 const VIOLATION_TYPE: Record<string, string> = { MINOR: '轻微', MODERATE: '中等', SEVERE: '严重' }
@@ -1219,7 +1293,49 @@ watch(activeTab, (tab) => {
   if (tab === 'stats') fetchStats()
   else if (tab === 'settlements') fetchSettlements()
   else if (tab === 'punishments') fetchPunishments()
+  else if (tab === 'members') fetchMembers()
 })
+
+// ── 操作员管理 ──
+interface MemberRow { userId: string; nickname: string; phone: string; role: string; status: string }
+const members = ref<MemberRow[]>([])
+const membersLoading = ref(false)
+const addMemberDialog = ref(false)
+const addMemberPhone = ref('')
+const addMemberSaving = ref(false)
+
+async function fetchMembers() {
+  membersLoading.value = true
+  try {
+    const res = await merchantApi.listMembers(id)
+    members.value = (res.data as MemberRow[]) || []
+  } catch {
+    members.value = []
+  } finally { membersLoading.value = false }
+}
+
+function openAddMember() { addMemberPhone.value = ''; addMemberDialog.value = true }
+
+async function doAddMember() {
+  const phone = addMemberPhone.value.trim()
+  if (!/^1[3-9]\d{9}$/.test(phone)) { ElMessage.warning('请输入正确的手机号'); return }
+  addMemberSaving.value = true
+  try {
+    await merchantApi.addMember(id, { phone })
+    ElMessage.success('已添加操作员')
+    addMemberDialog.value = false
+    fetchMembers()
+  } catch { /* 拦截器已提示 */ } finally { addMemberSaving.value = false }
+}
+
+async function doRemoveMember(row: MemberRow) {
+  try {
+    await ElMessageBox.confirm(`确定移除操作员「${row.nickname || row.phone}」？`, '提示', { type: 'warning' })
+    await merchantApi.removeMember(id, row.userId)
+    ElMessage.success('已移除')
+    fetchMembers()
+  } catch { /* 取消或失败 */ }
+}
 
 async function fetchDetail() {
   loading.value = true
@@ -1229,7 +1345,7 @@ async function fetchDetail() {
     merchant.value = (res.data as MerchantInfo)
     violations.value = merchant.value?.violations || []
     deposits.value = merchant.value?.depositRecords || []
-  } catch (e) {
+  } catch (_e) {
     error.value = true
   } finally { loading.value = false }
 }
@@ -1243,7 +1359,7 @@ async function fetchStats() {
 
 // 审核
 function openApprove() {
-  approveForm.value = { depositAmount: undefined, commissionRate: undefined, remark: '' }
+  approveForm.value = { commissionRate: undefined, remark: '', riskLevel: 'LOW' }
   approveDialog.value = true
 }
 async function doApprove() {
@@ -1253,7 +1369,7 @@ async function doApprove() {
     ElMessage.success('审核已通过')
     approveDialog.value = false
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 function openReject() { rejectReason.value = ''; rejectDialog.value = true }
@@ -1265,14 +1381,30 @@ async function doReject() {
     ElMessage.success('已驳回')
     rejectDialog.value = false
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 async function changeStatus(status: string) {
   const label = status === 'SUSPENDED' ? '暂停' : status === 'ACTIVE' ? '恢复' : '关闭'
+  const shopName = merchant.value?.shopName || '该商家'
   try {
-    await ElMessageBox.confirm(`确定${label}该商家吗？`, '提示', { type: 'warning' })
-    await merchantApi.updateStatus(id, { status })
+    if (status === 'ACTIVE') {
+      await ElMessageBox.confirm(`确定恢复「${shopName}」经营吗？恢复后店铺与商品重新对用户可见。`, '恢复经营', { type: 'warning' })
+      await merchantApi.updateStatus(id, { status })
+    } else {
+      // 暂停/关闭为 L2 危险操作：理由必填 + 影响提示（理由将通知商家并写入审计）
+      const impact = status === 'SUSPENDED'
+        ? `暂停后「${shopName}」店铺冻结、全部商品对用户不可购买，需人工恢复。`
+        : `关闭后「${shopName}」永久停业、不可自助恢复，保证金与未结算货款需另行人工处理。`
+      const r = await ElMessageBox.prompt(`${impact}请填写${label}理由（将通知商家并记录审计）：`, `${label}店铺`, {
+        type: 'warning',
+        confirmButtonText: `确认${label}`,
+        cancelButtonText: '取消',
+        inputPlaceholder: `请输入${label}理由（必填）`,
+        inputValidator: (v: string) => (v && v.trim() ? true : '理由不能为空'),
+      })
+      await merchantApi.updateStatus(id, { status, reason: (r.value || '').trim() })
+    }
     ElMessage.success(`已${label}`)
     fetchDetail()
   } catch { /* cancelled */ }
@@ -1287,12 +1419,11 @@ async function doCreateViolation() {
   if (!violationForm.value.title || !violationForm.value.description) { ElMessage.warning('请填写完整'); return }
   saving.value = true
   try {
-    // 保留 as any：violationForm 含 undefined 可选字段，与 api dto 结构存在差异
-    await merchantApi.createViolation(id, violationForm.value as any)
+    await merchantApi.createViolation(id, violationForm.value)
     ElMessage.success('违规记录已创建')
     violationDialog.value = false
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 
@@ -1303,7 +1434,7 @@ async function handleViolationAction(vid: string, status: string) {
     await merchantApi.handleViolation(id, vid, { status })
     ElMessage.success(status === 'CONFIRMED' ? '违规已确认' : '违规已驳回')
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 
@@ -1351,7 +1482,7 @@ async function doCreatePunishment() {
     punishDialog.value = false
     fetchPunishments()
     fetchDetail() // 暂停/清退会改商家状态，同步刷新
-  } catch (e) { /* 错误走全局提示 */ }
+  } catch (_e) { /* 错误走全局提示 */ }
   finally { saving.value = false }
 }
 
@@ -1373,7 +1504,7 @@ async function doRevokePunishment(row: PunishmentRow) {
     ElMessage.success('处罚已撤销，状态已按快照恢复')
     fetchPunishments()
     fetchDetail()
-  } catch (e) { /* 错误走全局提示 */ }
+  } catch (_e) { /* 错误走全局提示 */ }
   finally { saving.value = false }
 }
 
@@ -1399,19 +1530,30 @@ async function doGenerateSettlement() {
     ElMessage.success('结算单已生成')
     settleDialog.value = false
     fetchSettlements()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 
-function openPaySettle(sid: string) {
-  paySettleId.value = sid
-  paySettleAmount.value = 0
+function openPaySettle(row: SettlementRow) {
+  paySettleId.value = row.id
+  // 预填结算单应付金额，避免手输错账
+  paySettleDue.value = Number(row.settlementAmount || 0)
+  paySettleAmount.value = paySettleDue.value
   paySettleRemark.value = ''
   paySettleDialog.value = true
 }
 
 async function doPaySettlement() {
-  if (!paySettleAmount.value) { ElMessage.warning('请输入支付金额'); return }
+  if (!paySettleAmount.value || paySettleAmount.value <= 0) { ElMessage.warning('请输入支付金额（须大于 0）'); return }
+  const diff = Math.abs(paySettleAmount.value - paySettleDue.value) > 0.005
+  const diffWarn = diff ? `⚠ 输入金额 ¥${paySettleAmount.value.toFixed(2)} 与应付 ¥${paySettleDue.value.toFixed(2)} 不一致，请确认线下实际打款金额无误。` : ''
+  try {
+    await ElMessageBox.confirm(
+      `确认已线下向商家打款 ¥${paySettleAmount.value.toFixed(2)} 并标记该结算单为已支付？标记后不可撤销。${diffWarn}`,
+      '标记结算已支付（不可逆）',
+      { type: diff ? 'error' : 'warning', confirmButtonText: '确认标记', cancelButtonText: '取消' },
+    )
+  } catch { return }
   saving.value = true
   try {
     await merchantApi.paySettlement(id, paySettleId.value, {
@@ -1421,7 +1563,7 @@ async function doPaySettlement() {
     ElMessage.success('已标记为已支付')
     paySettleDialog.value = false
     fetchSettlements()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 
@@ -1434,30 +1576,6 @@ async function doCancelSettlement(sid: string) {
   } catch { /* cancelled */ }
 }
 
-// 保证金
-function openRefund() { refundAmount.value = 0; refundRemark.value = ''; refundDialog.value = true }
-async function doRefund() {
-  saving.value = true
-  try {
-    await merchantApi.refundDeposit(id, { amount: refundAmount.value || undefined, remark: refundRemark.value || undefined })
-    ElMessage.success('保证金已退还')
-    refundDialog.value = false
-    fetchDetail()
-  } catch (e) { }
-  finally { saving.value = false }
-}
-function openAdjust() { adjustAmount.value = 0; adjustReason.value = ''; adjustDialog.value = true }
-async function doAdjust() {
-  if (!adjustAmount.value) { ElMessage.warning('请输入新金额'); return }
-  saving.value = true
-  try {
-    await merchantApi.adjustDeposit(id, { amount: adjustAmount.value, reason: adjustReason.value || undefined })
-    ElMessage.success('保证金已调整')
-    adjustDialog.value = false
-    fetchDetail()
-  } catch (e) { }
-  finally { saving.value = false }
-}
 
 // 分佣
 function openCommission() {
@@ -1471,7 +1589,7 @@ async function doSetCommission() {
     ElMessage.success('分佣比例已更新')
     commissionDialog.value = false
     fetchDetail()
-  } catch (e) { }
+  } catch (_e) { }
   finally { saving.value = false }
 }
 </script>
@@ -1482,4 +1600,9 @@ async function doSetCommission() {
 .header h3 { margin: 0; }
 .stats-row { display: flex; gap: 40px; padding: 20px; }
 .text-muted { color: var(--color-text-secondary); }
+.members-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.members-hint { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; flex: 1; }
+.members-owner-hint { color: var(--color-text-placeholder); }
+.members-add-tip { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; padding: 0 4px; }
+.fund-hint { font-size: 12px; color: var(--el-text-color-secondary); line-height: 1.5; margin-top: 4px; }
 </style>

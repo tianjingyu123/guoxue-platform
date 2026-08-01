@@ -7,6 +7,8 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { circleApi, formatMembers, type RankingCircle, type RankSortBy } from '@/lib/circle-data'
 
@@ -72,7 +74,7 @@ onMounted(load)
     </view>
 
     <!-- 加载 / 错误 / 空 三态 -->
-    <view v-if="loading" class="rk-state"><text class="rk-state-txt">加载中…</text></view>
+    <view v-if="loading" class="rk-state"><AppLoading /></view>
     <view v-else-if="error" class="rk-state">
       <text class="rk-state-txt">{{ error }}</text>
       <view class="rk-state-btn" @tap="load">重试</view>
@@ -85,7 +87,7 @@ onMounted(load)
         <!-- 第2名 -->
         <view class="rk-pod rk-pod-2">
           <view class="rk-pod-avatar-wrap">
-            <image lazy-load :src="top3[1]?.cover" class="rk-pod-avatar silver" mode="aspectFill" />
+            <view class="rk-pod-avatar silver"><smart-cover :src="top3[1]?.cover" :title="top3[1]?.name" type="circle" deco :deco-size="44" /></view>
             <view class="rk-pod-rank silver">2</view>
           </view>
           <text class="rk-pod-name">{{ top3[1]?.name }}</text>
@@ -96,7 +98,7 @@ onMounted(load)
         <view class="rk-pod rk-pod-1">
           <view class="rk-pod-crown"><app-icon name="crown" :size="32" color="#F59E0B" /></view>
           <view class="rk-pod-avatar-wrap">
-            <image lazy-load :src="top3[0]?.cover" class="rk-pod-avatar gold" mode="aspectFill" />
+            <view class="rk-pod-avatar gold"><smart-cover :src="top3[0]?.cover" :title="top3[0]?.name" type="circle" deco :deco-size="50" /></view>
             <view class="rk-pod-rank gold">1</view>
           </view>
           <text class="rk-pod-name">{{ top3[0]?.name }}</text>
@@ -106,7 +108,7 @@ onMounted(load)
         <!-- 第3名 -->
         <view class="rk-pod rk-pod-2">
           <view class="rk-pod-avatar-wrap">
-            <image lazy-load :src="top3[2]?.cover" class="rk-pod-avatar bronze" mode="aspectFill" />
+            <view class="rk-pod-avatar bronze"><smart-cover :src="top3[2]?.cover" :title="top3[2]?.name" type="circle" deco :deco-size="44" /></view>
             <view class="rk-pod-rank bronze">3</view>
           </view>
           <text class="rk-pod-name">{{ top3[2]?.name }}</text>
@@ -119,7 +121,7 @@ onMounted(load)
       <view class="rk-list">
         <view v-for="c in rest" :key="c.id" class="rk-row" @tap="openCircle(c.id)">
           <text class="rk-row-rank">{{ c.rank }}</text>
-          <image lazy-load :src="c.cover" class="rk-row-avatar" mode="aspectFill" />
+          <view class="rk-row-avatar"><smart-cover :src="c.cover" :title="c.name" type="circle" deco :deco-size="34" /></view>
           <view class="rk-row-main">
             <view class="rk-row-name-row">
               <text class="rk-row-name">{{ c.name }}</text>
@@ -158,7 +160,7 @@ onMounted(load)
 .rk-pod-1 { border: 2rpx solid #FDE68A; }
 .rk-pod-crown { width: 100%; background: rgba(251,191,36,0.2); padding: 8rpx 0; text-align: center; border-radius: 24rpx 24rpx 0 0; margin-bottom: 16rpx; display: flex; justify-content: center; }
 .rk-pod-avatar-wrap { position: relative; margin-bottom: 16rpx; }
-.rk-pod-avatar { width: 112rpx; height: 112rpx; border-radius: 24rpx; border: 4rpx solid #CBD5E1; }
+.rk-pod-avatar { width: 112rpx; height: 112rpx; border-radius: 24rpx; border: 4rpx solid #CBD5E1; overflow: hidden; }
 .rk-pod-avatar.gold { width: 128rpx; height: 128rpx; border-color: #FBBF24; }
 .rk-pod-avatar.silver { border-color: #CBD5E1; }
 .rk-pod-avatar.bronze { border-color: #FDBA74; }
@@ -174,7 +176,7 @@ onMounted(load)
 .rk-list { padding: 32rpx; display: flex; flex-direction: column; gap: 16rpx; }
 .rk-row { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: var(--card, #fff); border-radius: 24rpx; border: 2rpx solid var(--border, #EDE8E0); }
 .rk-row-rank { width: 48rpx; text-align: center; font-size: 28rpx; font-weight: 700; color: #999; flex-shrink: 0; }
-.rk-row-avatar { width: 88rpx; height: 88rpx; border-radius: 20rpx; flex-shrink: 0; }
+.rk-row-avatar { width: 88rpx; height: 88rpx; border-radius: 20rpx; flex-shrink: 0; overflow: hidden; }
 .rk-row-main { flex: 1; min-width: 0; }
 .rk-row-name-row { display: flex; align-items: center; gap: 12rpx; }
 .rk-row-name { font-size: 28rpx; font-weight: 500; color: var(--text-ink, #2C2C2C); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280rpx; }

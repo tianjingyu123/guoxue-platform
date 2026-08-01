@@ -1,4 +1,4 @@
-import { apiGet } from '@/utils/request'
+import { apiGetOptionalAuth } from '@/utils/request'
 import { track } from '@/composables/useTrack'
 
 /**
@@ -49,7 +49,7 @@ export const touchpointApi = {
     try {
       let url = `/recommend/touchpoint?scene=${encodeURIComponent(scene)}`
       if (ctx) url += `&ctx=${encodeURIComponent(JSON.stringify(ctx))}`
-      const res = await apiGet<TouchpointResult>(url)
+      const res = await apiGetOptionalAuth<TouchpointResult>(url)
       if (res?.show && res.card?.skuId && res.card.link) return { show: true, card: res.card }
       return { show: false }
     } catch {

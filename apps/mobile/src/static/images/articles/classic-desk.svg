@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800">
+  <defs><linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#253a49"/><stop offset="1" stop-color="#78919b"/></linearGradient></defs>
+  <rect width="1280" height="800" fill="url(#p)"/>
+  <circle cx="1050" cy="140" r="135" fill="#e4d5a9" opacity=".22"/>
+  <rect x="125" y="150" width="660" height="510" rx="10" fill="#e9dfc5" transform="rotate(-3 455 405)"/>
+  <rect x="490" y="110" width="610" height="525" rx="10" fill="#f6efd9" transform="rotate(4 795 372)"/>
+  <g fill="#445057" font-family="serif" font-size="28" opacity=".8">
+    <text x="555" y="220">学而时习之，不亦说乎。</text><text x="555" y="278">有朋自远方来，不亦乐乎。</text><text x="555" y="336">人不知而不愠，不亦君子乎。</text>
+  </g>
+  <path d="M270 240v320" stroke="#b02b3e" stroke-width="8"/>
+  <text x="305" y="318" fill="#232f35" font-size="62" font-family="serif" writing-mode="tb">古籍怎样读得进去</text>
+  <text x="875" y="580" fill="#8f6f3f" font-size="26" letter-spacing="7">经典研读方法</text>
+</svg>

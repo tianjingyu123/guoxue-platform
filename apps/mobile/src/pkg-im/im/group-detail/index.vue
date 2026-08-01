@@ -43,6 +43,9 @@ async function loadData() {
     group.value = detail
     members.value = memberList
     settings.value = groupSettings
+    nicknameInput.value = groupSettings.myNickname || ''
+    groupNameInput.value = detail.name || ''
+    noticeInput.value = detail.notice || ''
   } catch (e) {
     error.value = (e as Error)?.message || '加载群详情失败，请重试'
   } finally {
@@ -58,6 +61,10 @@ onLoad((options) => {
 // 编辑昵称
 const editingNickname = ref(false)
 const nicknameInput = ref(settings.value.myNickname || '')
+const editingGroupName = ref(false)
+const groupNameInput = ref('')
+const editingNotice = ref(false)
+const noticeInput = ref('')
 
 // 成员管理
 const showAllMembers = ref(false)
@@ -69,9 +76,6 @@ const showQuitConfirm = ref(false)
 const showDismissConfirm = ref(false)
 const showTransferConfirm = ref(false)
 const showRemoveConfirm = ref(false)
-
-// 二维码
-const showQrcode = ref(false)
 
 const displayMembers = computed(() => members.value.slice(0, 8))
 
@@ -94,10 +98,84 @@ function handleCopyGroupId() {
   uni.setClipboardData({ data: groupId.value, success: () => toast('群号已复制') })
 }
 
-// 群昵称修改属群管理范畴（需 TIM setGroupMemberNameCard），本切片聚焦消息收发闭环，暂不开放
-function handleSaveNickname() {
-  editingNickname.value = false
-  toast('群昵称修改暂未开放')
+function utf8ByteLength(value: string): number {
+  return encodeURIComponent(value).replace(/%[0-9A-F]{2}|./g, 'x').length
+}
+
+function operationError(err: unknown, fallback: string): string {
+  return (err as { message?: string })?.message?.trim() || fallback
+}
+
+function startEditGroupName() {
+  groupNameInput.value = group.value.name || ''
+  editingGroupName.value = true
+}
+
+async function handleSaveGroupName() {
+  if (submitting.value) return
+  const next = groupNameInput.value.trim()
+  if (!next) return toast('群聊名称不能为空')
+  if (utf8ByteLength(next) > 30) return toast('群聊名称不能超过 30 字节')
+  if (next === group.value.name) { editingGroupName.value = false; return }
+  submitting.value = true
+  try {
+    await imApi.updateGroupProfile(groupId.value, { name: next })
+    group.value.name = next
+    editingGroupName.value = false
+    toast('群聊名称已更新')
+  } catch (err) {
+    toast(operationError(err, '名称修改失败，请重试'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+function startEditNotice() {
+  noticeInput.value = group.value.notice || ''
+  editingNotice.value = true
+}
+
+async function handleSaveNotice() {
+  if (submitting.value) return
+  const next = noticeInput.value.trim()
+  if (utf8ByteLength(next) > 300) return toast('群公告不能超过 300 字节')
+  if (next === (group.value.notice || '')) { editingNotice.value = false; return }
+  submitting.value = true
+  try {
+    await imApi.updateGroupProfile(groupId.value, { notification: next })
+    group.value.notice = next
+    group.value.noticeDetail = next
+      ? { publisher: '', publishedAt: '', content: next }
+      : undefined
+    editingNotice.value = false
+    toast(next ? '群公告已更新' : '群公告已清空')
+  } catch (err) {
+    toast(operationError(err, '公告修改失败，请重试'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+function startEditNickname() {
+  nicknameInput.value = settings.value.myNickname || ''
+  editingNickname.value = true
+}
+
+async function handleSaveNickname() {
+  if (submitting.value) return
+  const next = nicknameInput.value.trim()
+  if (next === (settings.value.myNickname || '')) { editingNickname.value = false; return }
+  submitting.value = true
+  try {
+    await imApi.setMyGroupNickname(groupId.value, next)
+    settings.value.myNickname = next
+    editingNickname.value = false
+    toast(next ? '群昵称已更新' : '已恢复默认昵称')
+  } catch (err) {
+    toast(operationError(err, '群昵称修改失败，请重试'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 消息免打扰：真连 TIM SDK（乐观更新 + 失败回滚）。绑定 uni <switch>，事件签名保留 any
@@ -150,10 +228,20 @@ async function handleQuit() {
   }
 }
 
-// 解散群聊属群管理范畴（群主权限 + 平台侧业务），本切片不做群管理全套，honest 降级
-function handleDismiss() {
-  showDismissConfirm.value = false
-  toast('解散群聊请在管理后台操作')
+// 解散群聊：腾讯 SDK 直接校验群主身份，失败保持弹窗并给出真实反馈
+async function handleDismiss() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await imApi.dismissGroup(groupId.value)
+    showDismissConfirm.value = false
+    toast('群聊已解散')
+    setTimeout(() => navigateTo('/im/group-list'), 600)
+  } catch (err) {
+    toast(operationError(err, '解散失败，请重试'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 function openMemberMenu(member: GroupMember) {
@@ -163,39 +251,75 @@ function openMemberMenu(member: GroupMember) {
   showMemberMenu.value = true
 }
 
-// 设管理员/转让群主/移除成员均属群管理范畴（后端群管理为 ADMIN only，见记忆 guoxue-im-progress），
-// 本切片聚焦已存在群的消息收发闭环，honest 降级为提示，不做假成功
-function handleToggleAdmin() {
+async function handleToggleAdmin() {
+  if (submitting.value || !selectedMember.value) return
+  const member = selectedMember.value
+  const nextIsAdmin = member.role !== 'admin'
   showMemberMenu.value = false
-  toast('群管理功能暂未开放')
+  submitting.value = true
+  try {
+    await imApi.setGroupMemberAdmin(groupId.value, member.id, nextIsAdmin)
+    member.role = nextIsAdmin ? 'admin' : 'member'
+    toast(nextIsAdmin ? '已设为管理员' : '已取消管理员')
+    selectedMember.value = null
+  } catch (err) {
+    toast(operationError(err, '管理员设置失败，请重试'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 function openTransfer() {
   showMemberMenu.value = false
   showTransferConfirm.value = true
 }
-function handleTransfer() {
-  showTransferConfirm.value = false
-  toast('群管理功能暂未开放')
+
+async function handleTransfer() {
+  if (submitting.value || !selectedMember.value) return
+  const member = selectedMember.value
+  submitting.value = true
+  try {
+    await imApi.transferGroupOwner(groupId.value, member.id)
+    members.value = members.value.map((item) => {
+      if (item.id === member.id) return { ...item, role: 'owner' }
+      if (item.id === myUserId) return { ...item, role: 'member' }
+      return item
+    })
+    group.value.myRole = 'member'
+    group.value.ownerId = member.id
+    showTransferConfirm.value = false
+    selectedMember.value = null
+    toast('群主已转让')
+  } catch (err) {
+    toast(operationError(err, '转让失败，请重试'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 function openRemove() {
   showMemberMenu.value = false
   showRemoveConfirm.value = true
 }
-function handleRemoveMember() {
-  showRemoveConfirm.value = false
-  selectedMember.value = null
-  toast('群管理功能暂未开放')
+
+async function handleRemoveMember() {
+  if (submitting.value || !selectedMember.value) return
+  const member = selectedMember.value
+  submitting.value = true
+  try {
+    await imApi.removeGroupMember(groupId.value, member.id)
+    members.value = members.value.filter((item) => item.id !== member.id)
+    group.value.memberCount = members.value.length
+    showRemoveConfirm.value = false
+    selectedMember.value = null
+    toast('成员已移出群聊')
+  } catch (err) {
+    toast(operationError(err, '移除失败，请重试'))
+  } finally {
+    submitting.value = false
+  }
 }
 
-function handleShowQrcode() {
-  showQrcode.value = true
-}
-
-function goInvite() {
-  navigateTo(`/im/invite?groupId=${groupId.value}`)
-}
 </script>
 
 <template>
@@ -223,9 +347,24 @@ function goInvite() {
           <view class="info-head">
             <image lazy-load class="group-avatar" :src="group.avatar" mode="aspectFill" />
             <view class="info-main">
-              <view class="info-name-row">
+              <view v-if="editingGroupName" class="group-name-edit">
+                <input
+                  v-model="groupNameInput"
+                  class="group-name-input"
+                  :maxlength="30"
+                  confirm-type="done"
+                  @confirm="handleSaveGroupName"
+                />
+                <view class="edit-btn compact save" :class="{ disabled: submitting }" @tap="handleSaveGroupName">
+                  <AppIcon name="check" :size="14" color="#ffffff" />
+                </view>
+                <view class="edit-btn compact cancel" @tap="editingGroupName = false">
+                  <AppIcon name="x" :size="14" color="#999999" />
+                </view>
+              </view>
+              <view v-else class="info-name-row">
                 <text class="group-name">{{ group.name }}</text>
-                <view v-if="permissions.canUpdateNotice" class="icon-mini">
+                <view v-if="permissions.canUpdateNotice" class="icon-mini" @tap="startEditGroupName">
                   <AppIcon name="edit-3" :size="14" color="#999999" />
                 </view>
               </view>
@@ -235,9 +374,6 @@ function goInvite() {
                   <AppIcon name="copy" :size="12" color="#999999" />
                 </view>
               </view>
-            </view>
-            <view class="qr-btn" @tap="handleShowQrcode">
-              <AppIcon name="qr-code" :size="20" color="#2c2c2c" />
             </view>
           </view>
 
@@ -265,24 +401,44 @@ function goInvite() {
                 </view>
                 <text class="member-name">{{ member.remark || member.nickname }}</text>
               </view>
-              <view v-if="permissions.canInvite" class="member-cell" @tap="goInvite">
-                <view class="invite-avatar">
-                  <AppIcon name="user-plus" :size="20" color="#999999" />
-                </view>
-                <text class="member-name">邀请</text>
-              </view>
             </view>
           </view>
         </view>
 
         <!-- 群公告 -->
-        <view v-if="group.noticeDetail" class="card notice-card">
+        <view v-if="group.noticeDetail || permissions.canUpdateNotice" class="card notice-card">
           <view class="notice-head">
             <text class="notice-title">群公告</text>
-            <text v-if="permissions.canUpdateNotice" class="notice-edit">编辑</text>
+            <text
+              v-if="permissions.canUpdateNotice"
+              class="notice-edit"
+              @tap="editingNotice ? (editingNotice = false) : startEditNotice()"
+            >{{ editingNotice ? '取消' : '编辑' }}</text>
           </view>
-          <text class="notice-content">{{ group.noticeDetail.content }}</text>
-          <text class="notice-meta">{{ group.noticeDetail.publisher }} 发布于 {{ group.noticeDetail.publishedAt }}</text>
+          <view v-if="editingNotice" class="notice-editor">
+            <textarea
+              v-model="noticeInput"
+              class="notice-input"
+              :maxlength="300"
+              placeholder="输入群公告，留空可清除"
+              auto-height
+            />
+            <view class="notice-actions">
+              <text class="notice-count">{{ utf8ByteLength(noticeInput) }}/300 字节</text>
+              <view class="notice-save" :class="{ disabled: submitting }" @tap="handleSaveNotice">
+                <text class="notice-save-text">{{ submitting ? '保存中…' : '保存公告' }}</text>
+              </view>
+            </view>
+          </view>
+          <template v-else>
+            <text class="notice-content" :class="{ empty: !group.noticeDetail }">
+              {{ group.noticeDetail?.content || '暂无群公告' }}
+            </text>
+            <text
+              v-if="group.noticeDetail?.publisher || group.noticeDetail?.publishedAt"
+              class="notice-meta"
+            >{{ group.noticeDetail.publisher }}{{ group.noticeDetail.publisher && group.noticeDetail.publishedAt ? ' · ' : '' }}{{ group.noticeDetail.publishedAt }}</text>
+          </template>
         </view>
 
         <!-- 我的设置 -->
@@ -304,7 +460,7 @@ function goInvite() {
                 <AppIcon name="x" :size="16" color="#999999" />
               </view>
             </view>
-            <view v-else class="setting-value" @tap="editingNickname = true">
+            <view v-else class="setting-value" @tap="startEditNickname">
               <text class="value-text">{{ settings.myNickname || '未设置' }}</text>
               <AppIcon name="chevron-right" :size="16" color="#999999" />
             </view>
@@ -403,22 +559,6 @@ function goInvite() {
       </view>
     </view>
 
-    <!-- 二维码弹窗 -->
-    <view v-if="showQrcode" class="mask" @tap="showQrcode = false">
-      <view class="qr-sheet" @tap.stop>
-        <view class="qr-sheet-head">
-          <text class="qr-sheet-title">群二维码</text>
-        </view>
-        <view class="qr-body">
-          <view class="qr-box">
-            <AppIcon name="qr-code" :size="140" color="#2c2c2c" />
-          </view>
-          <text class="qr-tip">扫一扫，加入群聊</text>
-          <text class="qr-sub">二维码7天内有效</text>
-        </view>
-      </view>
-    </view>
-
     <!-- 退出确认 -->
     <view v-if="showQuitConfirm" class="mask center" @tap="showQuitConfirm = false">
       <view class="dialog" @tap.stop>
@@ -426,7 +566,7 @@ function goInvite() {
         <text class="dialog-desc">确定要退出群聊「{{ group.name }}」吗？退出后将不再接收此群消息。</text>
         <view class="dialog-actions">
           <view class="dialog-btn cancel" @tap="showQuitConfirm = false"><text class="dialog-btn-text">取消</text></view>
-          <view class="dialog-btn danger" @tap="handleQuit"><text class="dialog-btn-text light">退出</text></view>
+          <view class="dialog-btn danger" :class="{ disabled: submitting }" @tap="handleQuit"><text class="dialog-btn-text light">{{ submitting ? '退出中…' : '退出' }}</text></view>
         </view>
       </view>
     </view>
@@ -438,7 +578,7 @@ function goInvite() {
         <text class="dialog-desc">确定要解散群聊「{{ group.name }}」吗？解散后所有成员将被移出，此操作不可撤销。</text>
         <view class="dialog-actions">
           <view class="dialog-btn cancel" @tap="showDismissConfirm = false"><text class="dialog-btn-text">取消</text></view>
-          <view class="dialog-btn danger" @tap="handleDismiss"><text class="dialog-btn-text light">解散</text></view>
+          <view class="dialog-btn danger" :class="{ disabled: submitting }" @tap="handleDismiss"><text class="dialog-btn-text light">{{ submitting ? '解散中…' : '解散' }}</text></view>
         </view>
       </view>
     </view>
@@ -450,7 +590,7 @@ function goInvite() {
         <text class="dialog-desc">确定要将群主转让给「{{ selectedMember?.nickname }}」吗？转让后您将成为普通成员。</text>
         <view class="dialog-actions">
           <view class="dialog-btn cancel" @tap="showTransferConfirm = false"><text class="dialog-btn-text">取消</text></view>
-          <view class="dialog-btn primary" @tap="handleTransfer"><text class="dialog-btn-text light">确认转让</text></view>
+          <view class="dialog-btn primary" :class="{ disabled: submitting }" @tap="handleTransfer"><text class="dialog-btn-text light">{{ submitting ? '转让中…' : '确认转让' }}</text></view>
         </view>
       </view>
     </view>
@@ -462,7 +602,7 @@ function goInvite() {
         <text class="dialog-desc">确定要将「{{ selectedMember?.nickname }}」移出群聊吗？</text>
         <view class="dialog-actions">
           <view class="dialog-btn cancel" @tap="showRemoveConfirm = false"><text class="dialog-btn-text">取消</text></view>
-          <view class="dialog-btn danger" @tap="handleRemoveMember"><text class="dialog-btn-text light">移除</text></view>
+          <view class="dialog-btn danger" :class="{ disabled: submitting }" @tap="handleRemoveMember"><text class="dialog-btn-text light">{{ submitting ? '移除中…' : '移除' }}</text></view>
         </view>
       </view>
     </view>
@@ -551,6 +691,26 @@ function goInvite() {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.group-name-edit {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  width: 100%;
+}
+.group-name-input {
+  flex: 1;
+  min-width: 0;
+  height: 60rpx;
+  padding: 0 14rpx;
+  border-radius: 12rpx;
+  background: #f5f1eb;
+  color: #2c2c2c;
+  font-size: 28rpx;
+}
+.edit-btn.compact {
+  width: 56rpx;
+  height: 56rpx;
+}
 .icon-mini {
   width: 36rpx;
   height: 36rpx;
@@ -568,16 +728,6 @@ function goInvite() {
   font-size: 26rpx;
   color: #999999;
 }
-.qr-btn {
-  width: 72rpx;
-  height: 72rpx;
-  border: 1rpx solid #e8e0d5;
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* 群成员 */
 .member-section {
   margin-top: 32rpx;
@@ -684,6 +834,43 @@ function goInvite() {
   color: #999999;
   margin-top: 16rpx;
   display: block;
+}
+.notice-content.empty {
+  color: #aaa29a;
+}
+.notice-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+.notice-input {
+  width: 100%;
+  min-height: 140rpx;
+  box-sizing: border-box;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: #f8f5f0;
+  color: #2c2c2c;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+.notice-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.notice-count {
+  color: #999999;
+  font-size: 22rpx;
+}
+.notice-save {
+  padding: 14rpx 24rpx;
+  border-radius: 999rpx;
+  background: var(--brand);
+}
+.notice-save-text {
+  color: #ffffff;
+  font-size: 24rpx;
 }
 
 /* 我的设置 */
@@ -894,50 +1081,6 @@ function goInvite() {
   color: #999999;
 }
 
-/* 二维码 */
-.qr-sheet {
-  margin-top: auto;
-  width: 100%;
-  background: #ffffff;
-  border-radius: 32rpx 32rpx 0 0;
-  padding-bottom: 48rpx;
-}
-.qr-sheet-head {
-  padding: 28rpx;
-  text-align: center;
-}
-.qr-sheet-title {
-  font-size: 30rpx;
-  font-weight: 600;
-  color: #2c2c2c;
-}
-.qr-body {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 32rpx 0;
-}
-.qr-box {
-  width: 320rpx;
-  height: 320rpx;
-  background: #ffffff;
-  border-radius: 20rpx;
-  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.qr-tip {
-  font-size: 26rpx;
-  color: #999999;
-  margin-top: 32rpx;
-}
-.qr-sub {
-  font-size: 22rpx;
-  color: #999999;
-  margin-top: 8rpx;
-}
-
 /* 确认弹窗 */
 .dialog {
   width: 580rpx;
@@ -980,6 +1123,10 @@ function goInvite() {
 }
 .dialog-btn.primary {
   background: var(--brand);
+}
+.disabled {
+  opacity: 0.55;
+  pointer-events: none;
 }
 .dialog-btn-text {
   font-size: 28rpx;

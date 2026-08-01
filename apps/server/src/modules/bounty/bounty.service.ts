@@ -9,6 +9,11 @@ import { ErrorCode } from "../../common/error-codes";
 import { CreateBountyDto, AnswerBountyDto } from "./bounty.dto";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
+/** 悬赏有效期（董事长拍板 2026-07-10：统一 48 小时，到期无人应答自动全额退回） */
+const BOUNTY_TTL_MS = 48 * 3600 * 1000;
+/** 抢答锁定时长（不超过悬赏剩余有效期） */
+const CLAIM_LOCK_MS = 72 * 3600 * 1000;
+
 @Injectable()
 export class BountyService {
   private readonly logger = new Logger(BountyService.name);
@@ -22,6 +27,18 @@ export class BountyService {
   // ───────── 创建悬赏 ─────────
 
   async createQuestion(userId: string, dto: CreateBountyDto) {
+    // 圈子治理 #10（2026-07-11）：圈内悬赏同受禁言约束（仅当悬赏带 circleId 且该圈禁言生效时拦截·轻量直查避免跨模块依赖）
+    if (dto.circleId) {
+      const mute = await this.prisma.circleViolation.findFirst({
+        where: { circleId: dto.circleId, userId, type: "MUTE", status: "ACTIVE", expiresAt: { gt: new Date() } },
+        select: { expiresAt: true },
+      });
+      if (mute) {
+        const until = mute.expiresAt ? mute.expiresAt.toISOString().slice(0, 16).replace("T", " ") : "";
+        throw new BusinessException(ErrorCode.FORBIDDEN, `你在该圈处于禁言期${until ? `（至 ${until}）` : ""}，暂不能发布悬赏`);
+      }
+    }
+
     // 冻结赏金与创建悬赏放进同一事务：冻结失败则回滚，避免"钱冻结了却没有悬赏记录"的孤儿冻结。
     return this.prisma.$transaction(async (tx) => {
       const question = await tx.bountyQuestion.create({
@@ -51,9 +68,14 @@ export class BountyService {
     if (!question || question.status !== "OPEN") throw new BusinessException(ErrorCode.BAD_REQUEST, "悬赏不可抢答");
     if (question.askerId === userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "不能抢答自己的悬赏");
 
+    // 悬赏有效期 48 小时：过期不可再抢答（待每小时清理任务退款）
+    const expireAt = question.createdAt.getTime() + BOUNTY_TTL_MS;
+    if (Date.now() >= expireAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "悬赏已过期");
+
     return this.prisma.bountyQuestion.update({
       where: { id: questionId },
-      data: { status: "CLAIMED", answererId: userId, lockExpireAt: new Date(Date.now() + 72 * 3600 * 1000) },
+      // 抢答锁不越过悬赏 48h 有效期终点
+      data: { status: "CLAIMED", answererId: userId, lockExpireAt: new Date(Math.min(Date.now() + CLAIM_LOCK_MS, expireAt)) },
     });
   }
 
@@ -160,29 +182,43 @@ export class BountyService {
     });
   }
 
-  async listReviews(rawPage = 1, rawPageSize = 20) {
+  async listReviews(rawPage = 1, rawPageSize = 20, status?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
+    // 状态过滤（PENDING/APPROVED/REJECTED）——非法值忽略，行为同不传
+    const VALID_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
+    const where = status && VALID_STATUSES.includes(status) ? { status } : undefined;
     const [reviews, total] = await Promise.all([
       this.prisma.bountyReview.findMany({
+        where,
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
-      this.prisma.bountyReview.count(),
+      this.prisma.bountyReview.count({ where }),
     ]);
-    // 批量查询关联问题标题
+    // 批量查询关联问题（BountyReview 与 BountyQuestion 无 Prisma relation·只能按 questionId 手工联查）
+    // 补被审内容摘要与悬赏金额：标题+问题描述摘要+答案摘要+金额+问题状态
     const questionIds = [...new Set(reviews.map((r) => r.questionId))];
     const questions = questionIds.length
       ? await this.prisma.bountyQuestion.findMany({
           where: { id: { in: questionIds } },
-          select: { id: true, title: true },
+          select: { id: true, title: true, description: true, answer: true, bountyCoin: true, bountyRmb: true, status: true, category: true },
         })
       : [];
-    const titleMap = new Map(questions.map((q) => [q.id, q.title]));
-    const list = reviews.map((r) => ({
-      ...r,
-      questionTitle: titleMap.get(r.questionId) || "",
-    }));
+    const questionMap = new Map(questions.map((q) => [q.id, q]));
+    const list = reviews.map((r) => {
+      const q = questionMap.get(r.questionId);
+      return {
+        ...r,
+        questionTitle: q?.title || "",
+        questionExcerpt: q?.description ? q.description.slice(0, 100) : "",
+        answerExcerpt: q?.answer ? q.answer.slice(0, 100) : "",
+        bountyCoin: q?.bountyCoin ?? 0,
+        bountyRmb: q?.bountyRmb ?? null,
+        questionStatus: q?.status || "",
+        category: q?.category || "",
+      };
+    });
     return { list, total, page, pageSize };
   }
 
@@ -223,18 +259,18 @@ export class BountyService {
     });
   }
 
-  /** 每天检查超过30天无人抢答的悬赏，自动退款（多实例锁防重复退款/双解冻） */
-  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  /** 每小时检查超过 48 小时无人应答的悬赏，自动全额退款（董事长拍板 2026-07-10·多实例锁防重复退款/双解冻） */
+  @Cron(CronExpression.EVERY_HOUR)
   async processExpiredBounties() {
     await this.redis.runExclusive("bounty_expired_bounties", 1800, () => this._processExpiredBounties(), { critical: true });
   }
 
   private async _processExpiredBounties() {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400 * 1000);
+    const ttlAgo = new Date(Date.now() - BOUNTY_TTL_MS);
     const expired = await this.prisma.bountyQuestion.findMany({
       where: {
         status: { in: ["OPEN", "CLAIMED"] },
-        createdAt: { lt: thirtyDaysAgo },
+        createdAt: { lt: ttlAgo },
       },
       select: { id: true, askerId: true, bountyCoin: true, status: true },
       take: 50,

@@ -1,5 +1,11 @@
 import { Module } from "@nestjs/common";
 import { CircleService } from "./circle.service";
+import { CircleSharedService } from "./services/circle-shared.service";
+import { CircleCoreService } from "./services/circle-core.service";
+import { CircleMembershipService } from "./services/circle-membership.service";
+import { CirclePostService } from "./services/circle-post.service";
+import { CircleExpertService } from "./services/circle-expert.service";
+import { CircleInsightService } from "./services/circle-insight.service";
 import { CircleController } from "./circle.controller";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { CircleKnowledgeController } from "./circle-knowledge.controller";
@@ -8,6 +14,8 @@ import { CircleAssistantController } from "./circle-assistant.controller";
 import { CircleDashboardController } from "./circle-dashboard.controller";
 import { CircleDashboardService } from "./circle-dashboard.service";
 import { CircleBackendController } from "./circle-backend.controller";
+import { CircleGovernanceService } from "./governance/circle-governance.service";
+import { CircleGovernanceController } from "./governance/circle-governance.controller";
 import { CircleKnowledgeTask } from "./circle-knowledge.task";
 import { UgcKnowledgeService } from "./ugc-knowledge.service";
 import { UgcKnowledgeTask } from "./ugc-knowledge.task";
@@ -19,11 +27,13 @@ import { NotificationModule } from "../notification/notification.module";
 import { PricingModule } from "../pricing/pricing.module";
 import { AuditModule } from "../audit/audit.module";
 import { TrackModule } from "../track/track.module";
+import { CirclePublishGrantController } from "./circle-publish-grant.controller";
+import { CirclePublishGrantService } from "./circle-publish-grant.service";
 
 @Module({
   imports: [AiGatewayModule, CoinModule, CommissionModule, NotificationModule, PricingModule, AuditModule, TrackModule],
-  controllers: [CircleController, CircleKnowledgeController, CircleAssistantController, CircleDashboardController, CircleBackendController],
-  providers: [CircleService, CircleKnowledgeService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard],
-  exports: [CircleService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService],
+  controllers: [CircleController, CircleKnowledgeController, CircleAssistantController, CircleDashboardController, CircleBackendController, CircleGovernanceController, CirclePublishGrantController],
+  providers: [CircleService, CircleSharedService, CircleCoreService, CircleMembershipService, CirclePostService, CircleExpertService, CircleInsightService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, CircleDashboardService, CircleKnowledgeTask, UgcKnowledgeService, UgcKnowledgeTask, StationIsolationGuard, CirclePublishGrantService],
+  exports: [CircleService, CircleGovernanceService, CircleKnowledgeService, CircleAssistantService, UgcKnowledgeService, CirclePublishGrantService],
 })
 export class CircleModule {}

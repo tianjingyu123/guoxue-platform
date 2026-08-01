@@ -15,12 +15,23 @@
       style="margin-bottom:12px"
     >
       <el-form-item label="所属驿站">
-        <el-input
+        <!-- 驿站下拉筛选（原为手输裸 UUID） -->
+        <el-select
           v-model="filter.stationId"
-          placeholder="输入驿站ID"
+          placeholder="全部驿站"
           clearable
+          filterable
+          style="width: 240px"
+          :loading="stationsLoading"
           @change="fetchList"
-        />
+        >
+          <el-option
+            v-for="s in stationOptions"
+            :key="s.id"
+            :label="s.name + (s.city ? '（' + s.city + '）' : '')"
+            :value="s.id"
+          />
+        </el-select>
       </el-form-item>
     </el-form>
 
@@ -35,10 +46,15 @@
         width="100"
       />
       <el-table-column
-        prop="stationId"
         label="所属驿站"
-        width="200"
-      />
+        width="160"
+        show-overflow-tooltip
+      >
+        <!-- 后端 include station {id,name}，显示名称而非裸 UUID -->
+        <template #default="{ row }">
+          {{ row.station?.name || '—' }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="专长"
         min-width="200"
@@ -144,13 +160,26 @@
           <el-input v-model="form.name" />
         </el-form-item>
         <el-form-item
-          label="所属驿站ID"
+          label="所属驿站"
           required
         >
-          <el-input v-model="form.stationId" />
+          <el-select
+            v-model="form.stationId"
+            placeholder="选择驿站"
+            filterable
+            style="width:100%"
+            :loading="stationsLoading"
+          >
+            <el-option
+              v-for="s in stationOptions"
+              :key="s.id"
+              :label="s.name + (s.city ? '（' + s.city + '）' : '')"
+              :value="s.id"
+            />
+          </el-select>
         </el-form-item>
-        <el-form-item label="头像URL">
-          <el-input v-model="form.avatar" />
+        <el-form-item label="头像">
+          <CosImageUpload v-model="form.avatar" tip="点击上传头像" />
         </el-form-item>
         <el-form-item label="专长标签">
           <el-input
@@ -193,24 +222,29 @@
       </template>
     </el-dialog>
 
-    <!-- 排期查看弹窗 -->
+    <!-- 排期查看弹窗（后端返回 bookings 数组，非 date/slots 结构） -->
     <el-dialog
       v-model="scheduleVis"
       title="讲师排期"
-      width="500px"
+      width="560px"
     >
-      <el-form-item label="月份">
-        <el-input
+      <div style="display:flex;gap:8px;align-items:center">
+        <el-date-picker
           v-model="scheduleMonth"
-          placeholder="2026-05"
+          type="month"
+          placeholder="选择月份"
+          format="YYYY-MM"
+          value-format="YYYY-MM"
+          :clearable="false"
         />
-      </el-form-item>
-      <el-button
-        type="primary"
-        @click="fetchSchedule"
-      >
-        查询
-      </el-button>
+        <el-button
+          type="primary"
+          :loading="scheduleLoading"
+          @click="fetchSchedule"
+        >
+          查询
+        </el-button>
+      </div>
       <el-table
         v-if="schedule.length"
         :data="schedule"
@@ -219,16 +253,41 @@
         max-height="300"
       >
         <el-table-column
-          prop="date"
-          label="日期"
-          width="120"
-        />
-        <el-table-column label="时段">
+          label="预约时间"
+          width="160"
+        >
           <template #default="{ row }">
-            {{ (row.slots || []).join(', ') }}
+            {{ formatDate(row.bookingDate) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="驿站"
+          min-width="120"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.station?.name || '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="状态"
+          width="90"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="BOOKING_STATUS[row.status]?.tag || 'info'"
+              size="small"
+            >
+              {{ BOOKING_STATUS[row.status]?.label || row.status }}
+            </el-tag>
           </template>
         </el-table-column>
       </el-table>
+      <el-empty
+        v-else-if="scheduleQueried && !scheduleLoading"
+        description="该月暂无预约排期"
+        :image-size="60"
+      />
       <div
         v-if="conflictMsg"
         style="margin-top:8px;color:var(--color-error)"
@@ -237,17 +296,56 @@
       </div>
     </el-dialog>
 
-    <!-- 可预约时段弹窗 -->
+    <!-- 可预约时段弹窗（结构化点选，提交时拼 ISO，不再手写 ISO 串） -->
     <el-dialog
       v-model="availabilityVis"
       title="设置可预约时段"
-      width="500px"
+      width="560px"
     >
-      <el-input
-        v-model="availSlotsStr"
-        type="textarea"
-        :rows="6"
-        placeholder="每行一个ISO时间，如&#10;2026-06-01T09:00:00Z&#10;2026-06-01T10:00:00Z"
+      <div class="avail-picker">
+        <el-date-picker
+          v-model="availDate"
+          type="date"
+          placeholder="选择日期"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          :disabled-date="(d: Date) => d.getTime() < Date.now() - 86400000"
+          style="width: 160px"
+        />
+        <el-select
+          v-model="availTimes"
+          multiple
+          placeholder="选择时段（可多选）"
+          style="flex: 1"
+        >
+          <el-option
+            v-for="t in TIME_OPTIONS"
+            :key="t"
+            :label="t"
+            :value="t"
+          />
+        </el-select>
+        <el-button @click="addAvailSlots">
+          添加
+        </el-button>
+      </div>
+      <div
+        v-if="availSlots.length"
+        class="avail-tags"
+      >
+        <el-tag
+          v-for="(s, i) in availSlots"
+          :key="s.date + s.time"
+          closable
+          @close="removeAvailSlot(i)"
+        >
+          {{ s.date }} {{ s.time }}
+        </el-tag>
+      </div>
+      <el-empty
+        v-else
+        description="尚未添加时段，先选日期和时段后点「添加」"
+        :image-size="60"
       />
       <template #footer>
         <el-button @click="availabilityVis = false">
@@ -255,9 +353,10 @@
         </el-button><el-button
           type="primary"
           :loading="settingAvail"
+          :disabled="!availSlots.length"
           @click="setAvailability"
         >
-          保存
+          保存（{{ availSlots.length }} 个时段）
         </el-button>
       </template>
     </el-dialog>
@@ -268,22 +367,33 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api } from '@/api'
+import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 
 /** 教师行（字段宽松 optional） */
 interface TeacherRow {
   id: string
   name?: string
   stationId?: string
+  station?: { id?: string; name?: string }
   avatar?: string
   specialties?: string[]
   bio?: string
   status?: string
   createdAt?: string
 }
-/** 排期行 */
+/** 排期行（后端 getTeacherSchedule 返回 bookings：StationTeacherBooking + station） */
 interface ScheduleRow {
-  date?: string
-  slots?: string[]
+  id?: string
+  bookingDate?: string
+  status?: string
+  station?: { id?: string; name?: string }
+}
+
+/** 预约状态翻译（PENDING/CONFIRMED/CANCELLED） */
+const BOOKING_STATUS: Record<string, { label: string; tag: 'warning' | 'success' | 'info' | 'danger' }> = {
+  PENDING: { label: '待确认', tag: 'warning' },
+  CONFIRMED: { label: '已确认', tag: 'success' },
+  CANCELLED: { label: '已取消', tag: 'info' },
 }
 
 const loading = ref(false); const loadError = ref(false); const deleting = ref(false); const saving = ref(false); const list = ref<TeacherRow[]>([]); const total = ref(0); const page = ref(1)
@@ -291,16 +401,38 @@ const vis = ref(false); const editingId = ref('')
 const filter = reactive({ stationId: '' })
 const form = reactive({ name: '', stationId: '', avatar: '', specialtiesStr: '', bio: '', status: 'ACTIVE' })
 
-const scheduleVis = ref(false); const schedule = ref<ScheduleRow[]>([]); const scheduleMonth = ref(''); const conflictMsg = ref(''); const scheduleTeacherId = ref('')
-const availabilityVis = ref(false); const availSlotsStr = ref(''); const settingAvail = ref(false); const availTeacherId = ref('')
+const scheduleVis = ref(false); const schedule = ref<ScheduleRow[]>([]); const scheduleMonth = ref(''); const conflictMsg = ref(''); const scheduleTeacherId = ref(''); const scheduleLoading = ref(false); const scheduleQueried = ref(false)
+const availabilityVis = ref(false); const settingAvail = ref(false); const availTeacherId = ref('')
+// 可预约时段：结构化录入（日期 + 常用时段多选），提交时拼 ISO，不再让运营手写 ISO 串
+const availDate = ref('')
+const availTimes = ref<string[]>([])
+const availSlots = ref<{ date: string; time: string }[]>([])
+const TIME_OPTIONS = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '19:00', '20:00']
 
-onMounted(() => fetchList())
+// 驿站下拉数据源（GET /offline/stations 返回 stations 键）
+interface StationOption { id: string; name?: string; city?: string }
+const stationOptions = ref<StationOption[]>([])
+const stationsLoading = ref(false)
+async function fetchStations() {
+  stationsLoading.value = true
+  try {
+    const { data } = await api.get('/offline/stations', { params: { page: 1, pageSize: 100 } })
+    stationOptions.value = data.stations || []
+  } catch {
+    stationOptions.value = []
+  } finally {
+    stationsLoading.value = false
+  }
+}
+
+onMounted(() => { fetchList(); fetchStations() })
 function formatDate(d: string) { return d ? new Date(d).toLocaleString() : '-' }
 
 async function fetchList() {
   loading.value = true
   loadError.value = false
-  try { const { data } = await api.get('/offline/admin/teachers', { params: { page: page.value, pageSize: 20, stationId: filter.stationId || undefined } }); list.value = data.items || data.data || []; total.value = data.total || 0 } catch { list.value = []; loadError.value = true } finally { loading.value = false }
+  // 后端返回体键名是 teachers（offline-teacher.service listTeachers）
+  try { const { data } = await api.get('/offline/admin/teachers', { params: { page: page.value, pageSize: 20, stationId: filter.stationId || undefined } }); list.value = data.teachers || []; total.value = data.total || 0 } catch { list.value = []; loadError.value = true } finally { loading.value = false }
 }
 
 function openCreate() { editingId.value = ''; Object.assign(form, { name: '', stationId: '', avatar: '', specialtiesStr: '', bio: '', status: 'ACTIVE' }); vis.value = true }
@@ -317,7 +449,7 @@ async function save() {
       await api.post('/offline/admin/teachers', payload)
     }
     ElMessage.success('已保存'); vis.value = false; fetchList()
-  } catch { } finally { saving.value = false }
+  } catch { ElMessage.error('保存失败，请检查填写内容后重试') } finally { saving.value = false }
 }
 
 async function del(id: string) {
@@ -330,22 +462,49 @@ async function del(id: string) {
 }
 
 function openSchedule(row: TeacherRow) {
-  scheduleTeacherId.value = row.id; scheduleMonth.value = new Date().toISOString().slice(0, 7); schedule.value = []; conflictMsg.value = ''
+  scheduleTeacherId.value = row.id; scheduleMonth.value = new Date().toISOString().slice(0, 7); schedule.value = []; conflictMsg.value = ''; scheduleQueried.value = false
   scheduleVis.value = true
+  fetchSchedule() // 打开即查当月，不让运营多点一步
 }
 async function fetchSchedule() {
-  try { const { data } = await api.get(`/offline/admin/teachers/${scheduleTeacherId.value}/schedule`, { params: { month: scheduleMonth.value } }); schedule.value = data.items || data.schedule || data.data || [] } catch { schedule.value = [] }
+  scheduleLoading.value = true
+  // 后端返回体键名是 bookings（offline-teacher.service getTeacherSchedule）
+  try { const { data } = await api.get(`/offline/admin/teachers/${scheduleTeacherId.value}/schedule`, { params: { month: scheduleMonth.value } }); schedule.value = data.bookings || [] } catch { schedule.value = []; ElMessage.error('排期加载失败，请重试') }
   try { const { data } = await api.get('/offline/admin/schedule/conflicts', { params: { teacherId: scheduleTeacherId.value, date: scheduleMonth.value + '-01' } }); conflictMsg.value = data.conflicts?.length ? `${data.conflicts.length} 个冲突` : '' } catch { conflictMsg.value = '' }
+  scheduleLoading.value = false
+  scheduleQueried.value = true
 }
 
-function openAvailability(row: TeacherRow) { availTeacherId.value = row.id; availSlotsStr.value = ''; availabilityVis.value = true }
+function openAvailability(row: TeacherRow) { availTeacherId.value = row.id; availDate.value = ''; availTimes.value = []; availSlots.value = []; availabilityVis.value = true }
+
+/** 把选中的日期+时段加入待提交列表（去重） */
+function addAvailSlots() {
+  if (!availDate.value || !availTimes.value.length) { ElMessage.warning('请先选择日期和时段'); return }
+  for (const t of availTimes.value) {
+    if (!availSlots.value.some((s) => s.date === availDate.value && s.time === t)) {
+      availSlots.value.push({ date: availDate.value, time: t })
+    }
+  }
+  availSlots.value.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
+  availTimes.value = []
+}
+function removeAvailSlot(idx: number) { availSlots.value.splice(idx, 1) }
+
 async function setAvailability() {
+  if (!availSlots.value.length) { ElMessage.warning('请先添加至少一个时段'); return }
   settingAvail.value = true
   try {
-    const slots = availSlotsStr.value.split('\n').map((s: string) => s.trim()).filter(Boolean)
+    // 提交时拼 ISO（本地时区），运营全程点选不手写
+    const slots = availSlots.value.map((s) => new Date(`${s.date}T${s.time}:00`).toISOString())
     await api.post(`/offline/admin/teachers/${availTeacherId.value}/availability`, { slots })
     ElMessage.success('时段已设置'); availabilityVis.value = false
-  } catch { } finally { settingAvail.value = false }
+  } catch { ElMessage.error('时段设置失败，请重试') } finally { settingAvail.value = false }
 }
 </script>
-<style scoped>.page { padding: 16px; } .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; } .toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }</style>
+<style scoped>
+.page { padding: 16px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
+.avail-picker { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.avail-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+</style>

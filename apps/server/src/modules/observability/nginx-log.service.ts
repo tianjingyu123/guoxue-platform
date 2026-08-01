@@ -71,7 +71,7 @@ export class NginxLogService {
     }
 
     let truncated = false;
-    let readEnd = stat.size;
+    const readEnd = stat.size;
     if (readEnd - start > MAX_READ_BYTES) {
       start = readEnd - MAX_READ_BYTES;
       truncated = true;

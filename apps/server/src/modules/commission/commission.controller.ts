@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody, ApiResponse } 
 import { Request } from "express";
 import { CommissionService } from "./commission.service";
 import { ChannelClickService } from "./channel-click.service";
-import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, CreateReferralDto, CommissionRateDto, ChannelClickDto } from "./commission.dto";
+import { ConfigUpdateDto, WithdrawalApplyDto, WithdrawalAuditDto, ConfirmPayoutDto, CreateReferralDto, CommissionRateDto, ChannelClickDto } from "./commission.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RedisThrottleGuard, StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
@@ -15,6 +15,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("分佣")
 @Controller("commission")
@@ -29,7 +30,7 @@ export class CommissionController {
 
   @Get("configs")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "获取所有分佣配置" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -40,6 +41,7 @@ export class CommissionController {
   }
 
   @Put("configs/:key")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "发起分佣比例变更审批", targetType: "COMMISSION_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -160,7 +162,7 @@ export class CommissionController {
 
   @Get("admin/withdrawals")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "查看所有提现记录（管理员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -177,7 +179,11 @@ export class CommissionController {
     return this.svc.listWithdrawals(+page, +pageSize, status);
   }
 
+  // 🔴 刻意不给 FINANCE_ADMIN：Withdrawal 表无 reviewedBy 列（本批禁迁移），代码层无法校验
+  //    "审核人≠打款人"；现行四眼靠角色分离实现——审核=OPERATION_ADMIN、打款=FINANCE_ADMIN。
+  //    若放开 FINANCE_ADMIN 审核，同一财务可先审后打、单人闭环出款。前端应对财务隐藏审核按钮。
   @Put("admin/withdrawals/:id")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提现审核", targetType: "WITHDRAWAL" })
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -190,6 +196,44 @@ export class CommissionController {
   @ApiBearerAuth()
   auditWithdrawal(@Param("id") id: string, @Body() dto: WithdrawalAuditDto, @Req() req: Request) {
     return this.svc.auditWithdrawal(id, dto, req.user.id);
+  }
+
+  /**
+   * 打款专用：取完整收款账户（解密）。
+   * 🔴 唯一会返回明文卡号的端点 —— 权限收到财务/超管，且每次调用强制写 AuditLog（谁看了哪张卡）。
+   * 列表接口一律脱敏，不要为了省事去放宽那边。
+   */
+  @Get("admin/withdrawals/:id/payout-account")
+  @RedLineGate(RedLine.MONEY)
+  @Auditable({ action: "查看提现收款账户", targetType: "WITHDRAWAL" })
+  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({ summary: "查看提现收款账户完整信息（打款用·强制审计留痕）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "仅 APPROVED 状态可查看" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  revealPayoutAccount(@Param("id") id: string, @Req() req: Request) {
+    return this.svc.revealPayoutAccount(id, req.user.id, req.ip);
+  }
+
+  /** 确认已线下打款（APPROVED → PAID）。payoutRef=银行/支付宝流水号，必填且唯一（出款幂等键）。 */
+  @Post("admin/withdrawals/:id/payout")
+  @RedLineGate(RedLine.MONEY)
+  @Auditable({ action: "确认提现打款", targetType: "WITHDRAWAL" })
+  @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({ summary: "确认已打款（需提供转账流水号·幂等防重复打款）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "状态不合法或缺流水号" })
+  @ApiResponse({ status: 404, description: "资源不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiBearerAuth()
+  confirmPayout(@Param("id") id: string, @Body() dto: ConfirmPayoutDto, @Req() req: Request) {
+    return this.svc.confirmPayout(id, dto.payoutRef, req.user.id);
   }
 
   // ───────── 推荐链接 ─────────
@@ -250,6 +294,7 @@ export class CommissionController {
   }
 
   @Put("config")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新分佣配置比例" })
@@ -268,7 +313,7 @@ export class CommissionController {
 
   @Get("platform-fee/summary")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "平台抽成汇总" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })

@@ -4,6 +4,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
+import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 import { BRAND } from '@/lib/brand'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案·路由/逻辑不变）
@@ -53,12 +54,23 @@ const formatDateTime = computed(() =>
   `${dateTime.year}年${dateTime.month}月${dateTime.day}日 ${String(dateTime.hour).padStart(2, '0')}时${String(dateTime.minute).padStart(2, '0')}分`,
 )
 
-function onDateConfirm(date: { year: number; month: number; day: number; hour: number | null; minute: number | null }) {
+function onDateConfirm(d: {
+  year: number; month: number; day: number
+  hour: number | null; minute: number | null; isLunar?: boolean
+}) {
+  const hour = d.hour ?? dateTime.hour
+  const minute = d.minute ?? dateTime.minute
+  // 农历输入归一为公历：引擎入参恒为公历，否则农历数字会被当公历排盘
+  const { date, ok } = toSolarSafe({ year: d.year, month: d.month, day: d.day, hour, minute, isLunar: d.isLunar })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
+  }
   dateTime.year = date.year
   dateTime.month = date.month
   dateTime.day = date.day
-  dateTime.hour = date.hour ?? dateTime.hour
-  dateTime.minute = date.minute ?? dateTime.minute
+  dateTime.hour = date.hour
+  dateTime.minute = date.minute
   showDatePicker.value = false
 }
 
@@ -80,12 +92,31 @@ function handleSubmit() {
     startMethod: startMethod.value,
     customJu: startMethod.value === 'custom' ? customJu.value : '',
     anganMethod: anganMethod.value,
-    trueSolar: String(useTrueSolar.value),
+    // 🔴 参数名必须叫 useTrueSolar：result.vue 读的是 opts.useTrueSolar（历史页也发 useTrueSolar=1）。
+    // 此前这里发 trueSolar= → 结果页恒 false，开关形同虚设。
+    useTrueSolar: String(useTrueSolar.value),
     lat: String(coordinates.lat),
     lng: String(coordinates.lng),
   }
   const qs = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&')
   navigateTo(`/paipan/qimen/result?${qs}`)
+}
+
+/** 分享：H5 系统分享/复制链接，其余端复制标题（照 jinkoujue/meihua 范式） */
+function handleShare() {
+  const title = `${bannerTitle} - ${BRAND.nameShort}`
+  // #ifdef H5
+  const url = window.location.href
+  const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
+  if (nav.share) {
+    nav.share({ title, url }).catch(() => {})
+  } else {
+    uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  }
+  // #endif
+  // #ifndef H5
+  uni.setClipboardData({ data: title, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })
+  // #endif
 }
 </script>
 
@@ -105,7 +136,7 @@ function handleSubmit() {
     <!-- 标题横幅 -->
     <view class="banner">
       <text class="banner-title">{{ bannerTitle }}</text>
-      <view class="banner-share">
+      <view class="banner-share" @tap="handleShare">
         <app-icon name="share-2" :size="28" color="rgba(255,255,255,0.9)" />
         <text class="banner-share-text">分享</text>
       </view>

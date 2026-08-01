@@ -1,26 +1,51 @@
 {
   "name": "热卜国学",
-  "appid": "",
+  "appid": "__UNI__277B108",
   "description": "国学知识平台 · 探寻东方智慧",
-  "versionName": "0.1.0",
-  "versionCode": "100",
+  "versionName": "1.1.0",
+  "versionCode": "200",
   "transformPx": false,
   "app-plus": {
     "usingComponents": true,
+    "optimization": { "codeSplitting": true },
     "splashscreen": { "alwaysShowBeforeRender": true, "waiting": true },
     "modules": {},
     "distribute": {
-      "android": { "permissions": [] },
-      "ios": {},
+      "android": {
+        "packagename": "com.rebu.apprebu",
+        "permissions": [
+          "<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/>",
+          "<uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH\"/>",
+          "<uses-permission android:name=\"android.permission.BLUETOOTH_CONNECT\"/>"
+        ]
+      },
+      "ios": {
+        "appid": "com.rebu.iosapprebu",
+        "privacyDescription": {
+          "NSMicrophoneUsageDescription": "用于与国学智能体进行实时语音通话，仅在通话期间采集声音。"
+        }
+      },
       "sdkConfigs": {}
     }
   },
   "quickapp": {},
+  "app-harmony": {
+    "distribute": {
+      "bundleName": "com.rebu.apprebu"
+    }
+  },
   "mp-weixin": {
-    "appid": "",
-    "setting": { "urlCheck": false, "es6": true, "minified": true },
+    "appid": "wx06397e8ab26bed9e",
+    "setting": { "urlCheck": true, "es6": true, "minified": true },
+    "permission": {
+      "scope.record": {
+        "desc": "用于与国学智能体进行实时语音通话"
+      }
+    },
     "usingComponents": true,
-    "lazyCodeLoading": "requiredComponents"
+    "lazyCodeLoading": "requiredComponents",
+    "optimization": { "subPackages": true }
   },
   "h5": {
     "title": "热卜国学",

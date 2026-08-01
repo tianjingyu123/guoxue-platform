@@ -39,7 +39,6 @@ async function main() {
       console.log("\n分类种子统计:");
       let total = 0;
       for (const [cat, files] of Object.entries(idx) as [string, string[]][]) {
-        const catTotal = files.length; // rough estimate
         console.log(`  ${cat}: ${files.length} 个文件`);
         total += files.length;
       }

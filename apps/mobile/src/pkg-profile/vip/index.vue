@@ -59,15 +59,13 @@
             </view>
           </view>
 
-          <!-- 核心数据（对应五项权益中的前三项） -->
+          <!-- 核心数据（只列兑现得了的权益）
+               🔴 2026-07-14 撤下「付费精品电子书·畅读」一栏：电子书板块 07-08 已整体下线，
+               这条权益兑现不了，挂在付费页上就是虚假宣传。不虚构新权益顶替 —— 要补需董事长拍板。 -->
           <view class="card-stats">
             <view class="stat-col">
               <text class="stat-num">不限量</text>
               <text class="stat-label">AI 伴读·白话对照</text>
-            </view>
-            <view class="stat-col">
-              <text class="stat-num">畅读</text>
-              <text class="stat-label">付费精品电子书</text>
             </view>
             <view class="stat-col">
               <text class="stat-num">{{ selectedPlan?.monthlyPoints ?? 0 }}</text>
@@ -113,9 +111,9 @@
             <text class="plan-duration">{{ plan.durationName }}</text>
             <view class="plan-price-row">
               <text class="plan-yuan">¥</text>
-              <text class="plan-price">{{ plan.price }}</text>
+              <text class="plan-price">{{ formatPrice(plan.price) }}</text>
             </view>
-            <text v-if="plan.dailyPrice" class="plan-daily">¥{{ plan.dailyPrice }}/天</text>
+            <text v-if="plan.dailyPrice" class="plan-daily">¥{{ formatPrice(plan.dailyPrice) }}/天</text>
             <text v-else class="plan-daily">一次开通 永久有效</text>
 
             <view v-if="selectedPlan?.id === plan.id" class="plan-check">
@@ -125,7 +123,7 @@
         </view>
         <!-- 连续包年说明（诚实降级：代扣能力开通前=到期提醒按续费价续费） -->
         <text v-if="selectedPlan?.autoRenew" class="auto-renew-note">
-          连续包年：首年 ¥{{ selectedPlan.price }} 开通；自动扣费能力开通前，到期我们会提醒你以 ¥{{ selectedPlan.price }} 优惠价续费，不会不经确认扣款。
+          连续包年：首年 ¥{{ formatPrice(selectedPlan.price) }} 开通；自动扣费能力开通前，到期我们会提醒你以 ¥{{ formatPrice(selectedPlan.price) }} 优惠价续费，不会不经确认扣款。
         </text>
       </view>
 
@@ -171,7 +169,7 @@
         <view class="buy-price-box">
           <view class="buy-price-row">
             <text class="buy-yuan">¥</text>
-            <text class="buy-price">{{ selectedPlan.price }}</text>
+            <text class="buy-price">{{ formatPrice(selectedPlan.price) }}</text>
             <text class="buy-duration">/{{ selectedPlan.durationName }}</text>
           </view>
           <text class="buy-plan-name">{{ selectedPlan.name }}</text>
@@ -182,38 +180,15 @@
       </view>
     </view>
 
-    <!-- 支付方式选择 Sheet -->
-    <view v-if="showPaySheet" class="sheet-mask" @tap="closePaySheet">
-      <view class="sheet" @tap.stop>
-        <!-- 状态B：已发起微信 Native 支付，展示扫码引导 + 轮询支付结果 -->
-        <view v-if="payPending">
-          <text class="sheet-title">请使用微信扫码支付</text>
-          <view class="sheet-summary">
-            <text class="sheet-plan">{{ selectedPlan?.name }} · {{ selectedPlan?.durationName }}</text>
-            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ payPending.amount }}</text>
-          </view>
-          <view class="pending-box">
-            <text class="pending-tip">复制以下支付链接，在微信中打开完成支付（二维码渲染后续接入）：</text>
-            <text class="pending-url" :selectable="true">{{ payPending.codeUrl }}</text>
-            <view class="pending-copy" @tap="copyCodeUrl">
-              <text class="pending-copy-txt">复制支付链接</text>
-            </view>
-            <view class="pending-poll">
-              <view class="pending-dot" />
-              <text class="pending-poll-txt">正在等待支付结果（{{ pollCount }}/{{ POLL_MAX }}），支付成功后自动开通</text>
-            </view>
-          </view>
-          <view class="sheet-cancel" @tap="closePaySheet">
-            <text class="sheet-cancel-txt">关闭（稍后可在购买记录中查看）</text>
-          </view>
-        </view>
-
-        <!-- 状态A：选择支付方式 + 协议勾选 -->
-        <view v-else>
+    <!-- 支付方式选择 Sheet（V1：确认后创建订单跳统一收银页 /pkg-shop/paying，原 Native 扫码弹层已移除——
+         手机端无从扫码属死路；收银页覆盖微信内 JSAPI/外部浏览器 mweb/小程序 requestPayment 全端） -->
+    <view v-if="showPaySheet" class="sheet-mask" @tap="closePaySheet" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
+        <view>
           <text class="sheet-title">选择支付方式</text>
           <view v-if="selectedPlan" class="sheet-summary">
             <text class="sheet-plan">{{ selectedPlan.name }} · {{ selectedPlan.durationName }}</text>
-            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ selectedPlan.price }}</text>
+            <text class="sheet-amount"><text class="sheet-amount-yuan">¥</text>{{ formatPrice(selectedPlan.price) }}</text>
           </view>
 
           <view class="pay-list">
@@ -221,17 +196,14 @@
               v-for="m in payMethods"
               :key="m.key"
               class="pay-item"
-              :class="{ 'pay-item-disabled': !m.enabled }"
-              @tap="selectPayMethod(m)"
             >
-              <view class="pay-radio" :class="{ 'pay-radio-on': paymentMethod === m.key && m.enabled }">
-                <view v-if="paymentMethod === m.key && m.enabled" class="pay-radio-dot" />
+              <view class="pay-radio pay-radio-on">
+                <view class="pay-radio-dot" />
               </view>
               <view class="pay-logo" :style="{ background: m.color }">
                 <text class="pay-logo-txt">{{ m.short }}</text>
               </view>
               <text class="pay-name">{{ m.label }}</text>
-              <text v-if="!m.enabled" class="pay-soon">即将开通</text>
             </view>
           </view>
 
@@ -256,8 +228,8 @@
     </view>
 
     <!-- 会员服务协议弹层（真源 GET /system/legal/member） -->
-    <view v-if="showAgreement" class="sheet-mask agreement-mask" @tap="showAgreement = false">
-      <view class="agreement-sheet" @tap.stop>
+    <view v-if="showAgreement" class="sheet-mask agreement-mask" @tap="showAgreement = false" @touchmove.self.prevent>
+      <view class="agreement-sheet" @tap.stop @touchmove.stop>
         <view class="agreement-head">
           <text class="agreement-title">{{ agreement?.title || '会员服务协议' }}</text>
           <text v-if="agreement?.version" class="agreement-version">版本 {{ agreement.version }}</text>
@@ -288,25 +260,12 @@
         </view>
       </view>
     </view>
-
-    <!-- 支付渠道未就绪提示（诚实降级，不假装成功） -->
-    <view v-if="payUnavailable" class="modal-mask" @tap="payUnavailable = false">
-      <view class="modal-card" @tap.stop>
-        <view class="modal-icon">
-          <app-icon name="shield" :size="56" color="#C9A96E" />
-        </view>
-        <text class="modal-title">支付渠道正在开通中</text>
-        <text class="modal-desc">微信支付商户资质审核中，暂时无法在线支付，敬请期待。</text>
-        <view class="modal-btn" @tap="payUnavailable = false">
-          <text class="modal-btn-txt">我知道了</text>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppError from '@/components/common/app-error.vue'
@@ -317,25 +276,32 @@ import { track } from '@/composables/useTrack'
 import { vipApi, memberLevelLabel } from '@/lib/vip-data'
 import type { VipPlan, VipMemberStatus, VipAgreement } from '@/lib/vip-data'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 // —— 页面数据结构（planGroups 渲染骨架保持不变，数据真源为 GET /member/plans）——
 interface VipPlanGroup { level: string; levelName: string; description: string; plans: VipPlan[] }
 interface VipCenterData { status: VipMemberStatus; planGroups: VipPlanGroup[] }
 
-// 支付方式：后端仅有微信支付创建端点（pay/native 扫码），支付宝无创建支付端点 → 置灰诚实标注
-interface PayMethodItem { key: 'wechat' | 'alipay'; label: string; short: string; color: string; enabled: boolean }
+// 正式收银入口只展示已经接通并完成验收的支付方式
+interface PayMethodItem { key: 'wechat'; label: string; short: string; color: string }
 const payMethods: PayMethodItem[] = [
-  { key: 'wechat', label: '微信支付', short: '微', color: '#22C55E', enabled: true },
-  { key: 'alipay', label: '支付宝', short: '支', color: '#3B82F6', enabled: false },
+  { key: 'wechat', label: '微信支付', short: '微', color: '#22C55E' },
 ]
 
-// 常见问题（静态运营文案，非业务数据）
-const faqs = [
-  { q: '连续包年会自动扣款吗？', a: '自动扣费能力开通前不会自动扣款：到期前我们会提醒你，由你确认后以 ¥148 优惠价续费。' },
-  { q: '免费用户能用 AI 伴读吗？', a: '可以，每天有免费次数；开通书院会员后 AI 伴读与白话对照不限量。' },
-  { q: '开通后可以退款吗？', a: '会员服务一经开通，暂不支持退款，请确认后购买。' },
-  { q: '会员到期后权益还在吗？', a: '到期后会员权益将失效，已购买的内容不受影响。' },
-]
+// 常见问题（运营文案；V3：年费价从套餐真数据取，不再硬编码 ¥148——后台改价 FAQ 就变成假承诺）
+const faqs = computed(() => {
+  const plans = data.value?.planGroups[0]?.plans || []
+  const yearly = plans.find(p => p.autoRenew) || plans.find(p => p.level === 'YEARLY')
+  const renewText = yearly
+    ? `自动扣费能力开通前不会自动扣款：到期前我们会提醒你，由你确认后以 ¥${formatPrice(yearly.price)} 优惠价续费。`
+    : '自动扣费能力开通前不会自动扣款：到期前我们会提醒你，由你确认后以优惠价续费。'
+  return [
+    { q: '连续包年会自动扣款吗？', a: renewText },
+    { q: '免费用户能用 AI 伴读吗？', a: '可以，每天有免费次数；开通书院会员后 AI 伴读与白话对照不限量。' },
+    { q: '开通后可以退款吗？', a: '会员服务一经开通，暂不支持退款，请确认后购买。' },
+    { q: '会员到期后权益还在吗？', a: '到期后会员权益将失效，已购买的内容不受影响。' },
+  ]
+})
 
 // 权益卡图标轮换（纯展示层，权益文案来自后端 MemberConfig.benefits）
 const BENEFIT_ICONS = ['crown', 'book-open', 'gift', 'zap', 'shield', 'shopping-bag', 'bot', 'star']
@@ -346,7 +312,6 @@ const error = ref<string | null>(null)
 const selectedLevel = ref('vip')
 const selectedPlan = ref<VipPlan | null>(null)
 const showPaySheet = ref(false)
-const paymentMethod = ref<'wechat' | 'alipay'>('wechat')
 const purchasing = ref(false)
 
 // —— 会员协议 ——
@@ -355,13 +320,6 @@ const showAgreement = ref(false)
 const agreement = ref<VipAgreement | null>(null)
 const agreementLoading = ref(false)
 const agreementError = ref<string | null>(null)
-
-// —— 支付进行中（微信 Native 扫码 + 轮询订单状态）——
-const payPending = ref<{ orderId: string; codeUrl: string; amount: number } | null>(null)
-const payUnavailable = ref(false)
-const POLL_MAX = 40 // 最多轮询 40 次（每 3s 一次，约 2 分钟）
-const pollCount = ref(0)
-let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 const currentPlanGroup = computed(() => data.value?.planGroups.find(g => g.level === selectedLevel.value))
 
@@ -410,7 +368,7 @@ async function loadData() {
       planGroups: [{
         level: 'vip',
         levelName: '书院会员',
-        description: 'AI 伴读不限量 · 付费电子书畅读 · 每月赠积分与优惠券 · 专属标识与客服',
+        description: 'AI 伴读不限量 · 每月赠积分与优惠券 · 专属标识与客服',
         plans,
       }],
     }
@@ -428,14 +386,6 @@ function selectLevel(level: string) {
   selectedLevel.value = level
   const group = data.value?.planGroups.find(g => g.level === level)
   selectedPlan.value = group?.plans.find(p => p.popular) || group?.plans[0] || null
-}
-
-function selectPayMethod(m: PayMethodItem) {
-  if (!m.enabled) {
-    uni.showToast({ title: `${m.label}即将开通，敬请期待`, icon: 'none' })
-    return
-  }
-  paymentMethod.value = m.key
 }
 
 // —— 会员服务协议 ——
@@ -468,7 +418,14 @@ function confirmAgreementRead() {
   agreementChecked.value = true
 }
 
-// —— 真实购买链路：创建订单 → 发起微信 Native 支付 → 轮询订单状态 ——
+/**
+ * V1 真实购买链路（2026-07-17 审计修复）：创建 MEMBER 订单 → 跳统一收银页 /pkg-shop/paying。
+ * 原实现走 payOrderNative（Native 扫码协议）——手机上没有第二台设备扫码，就是死路；
+ * 统一收银页对齐 purchase-sheet 范式，微信内公众号 JSAPI / 外部浏览器 mweb / 小程序 requestPayment
+ * 全端可付，到账由支付回调驱动、收银页轮询订单状态并展示结果。
+ * 扫码弹层整体移除（选择说明：本产品仅移动端 H5/小程序两种形态，无 PC 宽屏版；
+ * 收银页已覆盖全部真实端型，保留扫码层只会再次成为无人可用的死 UI）。
+ */
 async function handlePurchase() {
   if (purchasing.value || !selectedPlan.value) return
   if (!agreementChecked.value) {
@@ -479,94 +436,26 @@ async function handlePurchase() {
   track.custom('member_pay_click', { planId: selectedPlan.value.id, level: selectedPlan.value.level })
   purchasing.value = true
   try {
-    // 1) 创建会员订单（服务端按 MemberConfig 真价计费；amount 语义=数量，固定 1）
+    // 创建会员订单（服务端按 MemberConfig 真价计费；amount 语义=数量，固定 1）
     const order = await shopApi.createOrder({
       type: 'MEMBER',
       targetId: selectedPlan.value.id,
       quantity: 1,
     })
     if (!order.id) throw new Error('订单创建失败')
-    // 2) 发起微信 Native 扫码支付（商户资质审核中时该调用会失败 → 诚实降级提示）
-    const pay = await shopApi.payOrderNative(order.id)
-    if (pay.codeUrl) {
-      payPending.value = { orderId: order.id, codeUrl: pay.codeUrl, amount: order.amount }
-      startPolling(order.id)
-    } else {
-      // 未返回 code_url 同样视为渠道未就绪，不假装成功
-      payUnavailable.value = true
-    }
-  } catch {
-    // 支付渠道未就绪（当前微信支付 AppID 审核中必现）→ 诚实提示，订单保留在购买记录中
-    payUnavailable.value = true
+    // 金额展示优先用订单真实应付额（服务端计价），异常时回退套餐标价
+    const payAmount = Number(order.amount) || selectedPlan.value.price
+    showPaySheet.value = false
+    navigateTo(`/pkg-shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    uni.showToast({ title: msg || '下单失败，请重试', icon: 'none' })
   } finally {
     purchasing.value = false
   }
 }
 
-// 每 3s 轮询一次订单状态，最多 POLL_MAX 次；PAID 后开通成功
-function startPolling(orderId: string) {
-  stopPolling()
-  pollCount.value = 0
-  const tick = async () => {
-    pollCount.value++
-    try {
-      const st = await shopApi.getOrderPayState(orderId)
-      if (st.paid) {
-        onPaid(orderId)
-        return
-      }
-    } catch {
-      // 单次查询失败不中断轮询
-    }
-    if (pollCount.value >= POLL_MAX) {
-      uni.showToast({ title: '未检测到支付结果，可稍后在购买记录中查看', icon: 'none' })
-      payPending.value = null
-      showPaySheet.value = false
-      return
-    }
-    pollTimer = setTimeout(tick, 3000)
-  }
-  pollTimer = setTimeout(tick, 3000)
-}
-
-function stopPolling() {
-  if (pollTimer) {
-    clearTimeout(pollTimer)
-    pollTimer = null
-  }
-}
-
-// 支付成功：埋点（仅真正 PAID 后触发）+ 提示 + 刷新会员状态
-function onPaid(orderId: string) {
-  stopPolling()
-  track.purchase({
-    type: 'vip',
-    orderId,
-    planId: selectedPlan.value?.id,
-    level: selectedPlan.value?.level,
-    amount: payPending.value?.amount ?? selectedPlan.value?.price,
-  })
-  payPending.value = null
-  showPaySheet.value = false
-  uni.showToast({ title: '开通成功', icon: 'success' })
-  loadData()
-}
-
-function copyCodeUrl() {
-  const url = payPending.value?.codeUrl
-  if (!url) return
-  uni.setClipboardData({
-    data: url,
-    success: () => uni.showToast({ title: '支付链接已复制', icon: 'none' }),
-  })
-}
-
-// 关闭支付弹层：若扫码支付进行中则停止轮询（订单保留，可在购买记录中继续）
 function closePaySheet() {
-  if (payPending.value) {
-    stopPolling()
-    payPending.value = null
-  }
   showPaySheet.value = false
 }
 
@@ -577,7 +466,13 @@ onMounted(() => {
   track.custom('member_page_view')
   loadData()
 })
-onUnmounted(stopPolling)
+// 支付跳收银页后返回本页 → 回刷会员状态：否则陈旧"开通会员"未购态诱导再点一次
+// 而后端 MEMBER 下单不校验已有有效会员 → 二次建单二次扣款（首次 onShow 进页由标记跳过）
+let vipFirstShow = true
+onShow(() => {
+  if (vipFirstShow) { vipFirstShow = false; return }
+  loadData()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -673,19 +568,15 @@ onUnmounted(stopPolling)
 .sheet-amount-yuan { font-size: 32rpx; }
 .pay-list { display: flex; flex-direction: column; gap: 24rpx; }
 .pay-item { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; border: 2rpx solid #E8E3DB; border-radius: 16rpx; }
-.pay-item-disabled { opacity: 0.5; }
 .pay-radio { width: 36rpx; height: 36rpx; border-radius: 50%; border: 2rpx solid #C9C4BB; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pay-radio-on { border-color: var(--brand); }
 .pay-radio-dot { width: 20rpx; height: 20rpx; border-radius: 50%; background: var(--brand); }
 .pay-logo { width: 64rpx; height: 64rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .pay-logo-txt { font-size: 24rpx; font-weight: 700; color: #FFFFFF; }
 .pay-name { font-size: 28rpx; color: #2C2C2C; flex: 1; }
-.pay-soon { font-size: 22rpx; color: #8A8478; background: #F0EDE8; padding: 4rpx 16rpx; border-radius: 999rpx; }
 .sheet-confirm { margin-top: 32rpx; height: 96rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
 .sheet-confirm.disabled { opacity: 0.5; }
 .sheet-confirm-txt { font-size: 30rpx; font-weight: 500; color: #FFFFFF; }
-.sheet-cancel { margin-top: 24rpx; height: 88rpx; border-radius: 16rpx; border: 2rpx solid #E8E3DB; display: flex; align-items: center; justify-content: center; }
-.sheet-cancel-txt { font-size: 28rpx; color: #8A8478; }
 
 /* 协议勾选行 */
 .agree-row { display: flex; align-items: center; margin-top: 32rpx; }
@@ -700,31 +591,13 @@ onUnmounted(stopPolling)
 .agreement-head { text-align: center; padding-bottom: 24rpx; border-bottom: 2rpx solid #E8E3DB; }
 .agreement-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; display: block; }
 .agreement-version { font-size: 22rpx; color: #8A8478; margin-top: 8rpx; display: block; }
-.agreement-scroll { flex: 1; min-height: 0; margin-top: 24rpx; }
+.agreement-scroll { flex: 1; height: 0; min-height: 0; margin-top: 24rpx; }
+.agreement-scroll :deep(.uni-scroll-view),
+.agreement-scroll :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .agreement-content { font-size: 26rpx; color: #4A4A4A; line-height: 1.8; white-space: pre-wrap; word-break: break-all; }
 .agreement-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; }
 .agreement-state-txt { font-size: 26rpx; color: #8A8478; }
 .agreement-retry { padding: 12rpx 48rpx; border-radius: 999rpx; border: 2rpx solid var(--brand); }
 .agreement-retry-txt { font-size: 26rpx; color: var(--brand); }
 .agreement-confirm { flex-shrink: 0; }
-
-/* 扫码支付进行中 */
-.pending-box { margin-top: 8rpx; padding: 24rpx; background: #FAF8F5; border-radius: 16rpx; }
-.pending-tip { font-size: 24rpx; color: #8A8478; line-height: 1.6; display: block; }
-.pending-url { font-size: 22rpx; color: #2C2C2C; margin-top: 16rpx; display: block; word-break: break-all; line-height: 1.5; }
-.pending-copy { margin-top: 24rpx; height: 72rpx; border-radius: 12rpx; border: 2rpx solid var(--brand); display: flex; align-items: center; justify-content: center; }
-.pending-copy-txt { font-size: 26rpx; color: var(--brand); }
-.pending-poll { display: flex; align-items: center; gap: 12rpx; margin-top: 24rpx; }
-.pending-dot { width: 16rpx; height: 16rpx; border-radius: 50%; background: #16A34A; animation: pulse 1.2s ease-in-out infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-.pending-poll-txt { font-size: 22rpx; color: #8A8478; flex: 1; }
-
-/* 支付渠道未就绪弹窗 */
-.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 400; display: flex; align-items: center; justify-content: center; }
-.modal-card { width: 560rpx; background: #FFFFFF; border-radius: 24rpx; padding: 48rpx 40rpx; display: flex; flex-direction: column; align-items: center; }
-.modal-icon { width: 112rpx; height: 112rpx; border-radius: 50%; background: rgba(201,169,110,0.12); display: flex; align-items: center; justify-content: center; }
-.modal-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; margin-top: 24rpx; }
-.modal-desc { font-size: 26rpx; color: #8A8478; line-height: 1.7; margin-top: 16rpx; text-align: center; }
-.modal-btn { margin-top: 40rpx; width: 100%; height: 88rpx; border-radius: 16rpx; background: var(--brand); display: flex; align-items: center; justify-content: center; }
-.modal-btn-txt { font-size: 28rpx; font-weight: 500; color: #FFFFFF; }
 </style>

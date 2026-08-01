@@ -1,13 +1,13 @@
 import { startTracing, stopTracing } from "./tracing";
-import { NestFactory } from "@nestjs/core";
+import { NestFactory, Reflector } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
-import { json, urlencoded } from "express";
 import compression from "compression";
 import helmet from "helmet";
 import { AppGraphqlModule } from "./app-graphql.module";
 import { RedisThrottleGuard } from "./common/redis-throttle.guard";
+import { RedLineGuard } from "./common/red-lines";
 import { RedisIoAdapter } from "./common/redis-io.adapter";
 import { serverConfig } from "./config/server-config";
 import { cryptoSelfTest, setDecryptAlertHandler } from "./common/crypto.util";
@@ -41,13 +41,15 @@ async function bootstrap() {
 
   // ⚠️ 在创建应用【之前】把后台第三方密钥(DB)同步到 process.env。
   // 原因：部分模块在实例化(create 期间)时就读 env 决定行为——如 upload 存储 provider 工厂
-  // 按 COS_SECRET_ID 选 CosStorageProvider 还是本地存储、CosStorageProvider 构造时即建客户端。
+  // 会按 STORAGE_PROVIDER 与凭据模式选择 COS/本地存储，CosStorageProvider 构造时即建客户端。
   // 若同步晚于 create(原在 listen 前)，后台配置的 COS/等密钥永不生效(只会走 .env 兜底/本地存储)。
   try {
     const { PrismaClient } = await import("@prisma/client");
     const bootPrisma = new PrismaClient();
     try {
-      const n = await new ThirdPartyConfigLoader(bootPrisma as unknown as PrismaService).syncToEnv();
+      const n = await new ThirdPartyConfigLoader(
+        bootPrisma as unknown as PrismaService,
+      ).syncToEnv();
       logger.raw().info(`启动前已同步 ${n} 项后台第三方密钥到 env`);
     } finally {
       await bootPrisma.$disconnect();
@@ -56,12 +58,24 @@ async function bootstrap() {
     logger.raw().warn(`启动前第三方密钥同步失败，使用 .env 兜底：${(e as Error)?.message}`);
   }
 
-  const app = await NestFactory.create<NestExpressApplication>(AppGraphqlModule, { logger });
+  // rawBody:true 保留请求原始字节到 req.rawBody（微信支付 V3 回调必须对原始报文验签，重构后的 JSON 会破坏签名）。
+  // 不影响其它 controller：json/urlencoded 仍正常解析 req.body，仅额外缓存原始 Buffer。
+  const app = await NestFactory.create<NestExpressApplication>(AppGraphqlModule, {
+    logger,
+    rawBody: true,
+  });
+
+  // 应用端口仅在 Docker 内网暴露，且生产链路固定为 CLB → Nginx → Nest。
+  // 只信任紧邻的一层 Nginx，才能让 request.ip 使用 Nginx 已清洗并重写的 X-Forwarded-For；
+  // 否则所有用户会按 Nginx 容器地址共享同一个限流计数器。
+  app.set("trust proxy", 1);
 
   // B2: 注入解密失败告警通道 — decrypt 遇 GCM 认证失败（疑似密钥错配）时经企微告警；无 webhook 时降级为日志
   try {
     const wework = app.get(WeworkService, { strict: false });
-    const toWework = (title: string, detail: string) => { wework.notifyAlert(title, detail).catch(() => undefined); };
+    const toWework = (title: string, detail: string) => {
+      wework.notifyAlert(title, detail).catch(() => undefined);
+    };
     setDecryptAlertHandler(toWework);
     // B4 可观测：5xx / 慢请求 / 队列积压统一告警通道注入企微
     setAlertHandler(toWework);
@@ -69,10 +83,22 @@ async function bootstrap() {
     logger.raw().warn("WeworkService 不可用，解密/可观测告警降级为 stderr 日志");
   }
 
-  // 请求体大小限制 — 防止大payload攻击
-  app.use(json({ limit: "10mb" }));
-  app.use(urlencoded({ limit: "10mb", extended: true }));
-  app.use(compression());
+  // 请求体大小限制 — 防止大payload攻击。
+  // 用 useBodyParser 而非 app.use(json())：配合 rawBody:true 才能既自定义 10mb 上限、又保留 req.rawBody 原始字节
+  // （直接 app.use(json()) 会先消费请求流，导致 rawBody 缓存不到，微信回调验签拿不到原文）。
+  app.useBodyParser("json", { limit: "10mb" });
+  app.useBodyParser("urlencoded", { limit: "10mb", extended: true });
+  // SSE 流式响应必须跳过压缩：compression 会把分块缓冲成整段一次下发，
+  // 前端"打字机"变成长等后全文闪现（浏览器带 Accept-Encoding 才触发，curl 不带所以难复现）
+  app.use(
+    compression({
+      filter: (req, res) => {
+        const ct = String(res.getHeader("Content-Type") || "");
+        if (ct.includes("text/event-stream")) return false;
+        return compression.filter(req, res);
+      },
+    }),
+  );
 
   // 静态文件服务
   app.useStaticAssets(join(__dirname, "..", "uploads"), { prefix: "/uploads/" });
@@ -112,7 +138,11 @@ async function bootstrap() {
     new ResponseInterceptor(),
     new AuditInterceptor(app.get(AuditService)),
   );
-  app.useGlobalGuards(new RedisThrottleGuard(app.get(RedisService)));
+  // 全局守卫：限流 + 红线硬闸（红线闸仅拦标了 @RedLineGate 的端点，其余放行；四红线永久人工闸·治理护栏 §2.2）
+  app.useGlobalGuards(
+    new RedisThrottleGuard(app.get(RedisService)),
+    new RedLineGuard(app.get(Reflector)),
+  );
 
   // websocket 跨实例广播（H2·cluster 前提）：Redis adapter 接入，不可用时降级单实例
   const ioAdapter = new RedisIoAdapter(app);
@@ -124,29 +154,33 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
-      forbidNonWhitelisted: true,
+      // forbidNonWhitelisted 关闭：前端表单常带 id/createdAt/关联对象等 DTO 未定义字段，
+      // 严格拒绝会报"多余字段"、影响正常保存。whitelist:true 仍会 strip 掉未知字段(安全保留)，只是不再报错。
+      forbidNonWhitelisted: false,
       exceptionFactory: chineseValidationExceptionFactory,
     }),
   );
 
   // 安全头 — Helmet 默认覆盖 OWASP 推荐的所有安全头
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "blob:", "https:"],
-        mediaSrc: ["'self'", "https:"],
-        connectSrc: ["'self'", "https:"],
-        frameSrc: ["'self'", "https://*.qq.com"],
-        fontSrc: ["'self'", "data:"],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        formAction: ["'self'"],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "blob:", "https:"],
+          mediaSrc: ["'self'", "https:"],
+          connectSrc: ["'self'", "https:"],
+          frameSrc: ["'self'", "https://*.qq.com"],
+          fontSrc: ["'self'", "data:"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+        },
       },
-    },
-  }));
+    }),
+  );
 
   // 启动时把后台配置的第三方密钥同步到 process.env（DB 优先、.env 兜底；保存时会再同步实现热生效）
   try {

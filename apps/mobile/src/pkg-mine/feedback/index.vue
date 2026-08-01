@@ -1,7 +1,7 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <app-nav-bar title="意见反馈" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="500" :bar-height="96" title-align="left" />
+    <app-nav-bar :title="pageTitle" :back-icon="'arrow-left'" :back-size="40" :title-size="32" :title-weight="500" :bar-height="96" title-align="left" />
 
     <!-- Tab切换 -->
     <view class="tabs">
@@ -16,7 +16,7 @@
     </view>
 
     <!-- 加载/错误 -->
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <template v-else>
     <!-- 提交反馈 -->
@@ -153,8 +153,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
+import { uploadImage } from '@/utils/request'
 import { mineApi, feedbackStatusConfig, type FeedbackType, type HistoryFeedbackItem } from '@/lib/mine-data'
 
 // UI 临时状态
@@ -169,6 +172,20 @@ const feedbackTypes = ref<FeedbackType[]>([])
 const historyFeedbacks = ref<HistoryFeedbackItem[]>([])
 const loading = ref(true)
 const error = ref('')
+const sourceScene = ref('')
+const sourceReference = ref('')
+const pageTitle = computed(() => selectedType.value === 'complaint' ? '投诉与反馈' : '意见反馈')
+
+onLoad((query) => {
+  if (!query) return
+  if (query.type) selectedType.value = String(query.type)
+  sourceScene.value = decodeURIComponent(String(query.source || ''))
+  sourceReference.value = decodeURIComponent(String(query.reference || ''))
+  if (sourceScene.value && !content.value) {
+    const refText = sourceReference.value ? `（${sourceReference.value}）` : ''
+    content.value = `关于${sourceScene.value}${refText}，我需要投诉/反馈：`
+  }
+})
 
 async function fetchData() {
   loading.value = true
@@ -212,12 +229,42 @@ function onContactInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校
 function removeImage(i: number) {
   images.value = images.value.filter((_, idx) => idx !== i)
 }
+/* —— 上传截图（真连）：uni.chooseImage 选图 → POST /upload/image 逐张上传 → 存 URL 出缩略图 ——
+ * 原实现是空函数体死按钮（UI 写着「最多上传4张」但点了没反应）。
+ * 提交时 images 随表单上送 POST /users/feedback；已核实后端确实落库
+ * （feedback.dto images?: string[] + Feedback.images String[]，history 也会返回）。 */
+const uploadingImg = ref(false)
 function addImage() {
-  // 选图交互交给 @/lib 层(uni.chooseImage)
+  const remain = 4 - images.value.length
+  if (remain <= 0 || uploadingImg.value) return
+  uni.chooseImage({
+    count: remain,
+    sizeType: ['compressed'],
+    success: async (res: any /* uni 回调经 vue-tsc 按原生签名校验，参数须 any */) => {
+      const paths: string[] = (Array.isArray(res.tempFilePaths) ? res.tempFilePaths : [res.tempFilePaths]).filter(Boolean)
+      if (!paths.length) return
+      uploadingImg.value = true
+      uni.showLoading({ title: '上传中...', mask: true })
+      let failMsg = ''
+      try {
+        for (const p of paths.slice(0, remain)) {
+          const url = await uploadImage(p)
+          images.value = [...images.value, url]
+        }
+      } catch (e) {
+        failMsg = (e as Error)?.message || '图片上传失败'
+      } finally {
+        uni.hideLoading()
+        uploadingImg.value = false
+        if (failMsg) uni.showToast({ title: failMsg, icon: 'none' })
+      }
+    },
+    fail: () => { /* 用户取消选图，不提示 */ },
+  })
 }
 
 async function handleSubmit() {
-  if (!canSubmit.value || isSubmitting.value) return
+  if (!canSubmit.value || isSubmitting.value || uploadingImg.value) return
   isSubmitting.value = true
   try {
     await mineApi.submitFeedback(selectedType.value!, content.value, contact.value || undefined, images.value)

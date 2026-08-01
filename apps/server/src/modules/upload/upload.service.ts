@@ -3,14 +3,31 @@ import * as fs from "fs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { StorageProvider, UploadResult, STORAGE_PROVIDER } from "./storage.interface";
-import { validateImageMagic, validateAudioMagic, validateVideoMagic } from "../../common/file-magic.util";
+import { validateImageMagic, validateAudioMagic, validateVideoMagic, validateDocumentMagic } from "../../common/file-magic.util";
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 const ALLOWED_AUDIO_TYPES = ["audio/mpeg", "audio/mp3", "audio/wav", "audio/m4a", "audio/ogg"];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm", "video/x-msvideo", "video/x-matroska"];
+// 帖子附件（文件卡）文档白名单：PDF/Office/纯文本/压缩包，明确排除 html/svg/js 等可执行内容
+const ALLOWED_DOC_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain",
+  "text/markdown",
+  "application/zip",
+  "application/x-zip-compressed",
+];
+// 无魔数可校验的纯文本类 MIME（跳过魔数校验）
+const TEXT_DOC_TYPES = ["text/plain", "text/markdown"];
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_AUDIO_SIZE = 50 * 1024 * 1024; // 50MB
 const MAX_VIDEO_SIZE = 200 * 1024 * 1024; // 200MB
+const MAX_DOC_SIZE = 50 * 1024 * 1024; // 50MB
 
 @Injectable()
 export class UploadService {
@@ -81,6 +98,24 @@ export class UploadService {
     const magic = validateVideoMagic(head);
     if (!magic.valid) {
       throw new BusinessException(ErrorCode.UPLOAD_FILE_TYPE_DENIED, "文件内容与声明类型不符，拒绝上传");
+    }
+  }
+
+  validateDocument(file: Express.Multer.File) {
+    if (!file) throw new BusinessException(ErrorCode.BAD_REQUEST, "未选择文件");
+    if (!ALLOWED_DOC_TYPES.includes(file.mimetype)) {
+      throw new BusinessException(ErrorCode.UPLOAD_FILE_TYPE_DENIED, `不支持的文件格式: ${file.mimetype}，仅支持 PDF/Word/Excel/PPT/TXT/ZIP`);
+    }
+    if (file.size > MAX_DOC_SIZE) {
+      throw new BusinessException(ErrorCode.UPLOAD_FILE_TOO_LARGE, `文件大小不能超过 ${MAX_DOC_SIZE / 1024 / 1024}MB`);
+    }
+    // 纯文本无魔数可校验；其余（PDF/Office/ZIP）做魔数校验防伪造 MIME
+    if (!TEXT_DOC_TYPES.includes(file.mimetype)) {
+      const head = this.readHead(file, 12);
+      const magic = validateDocumentMagic(head);
+      if (!magic.valid) {
+        throw new BusinessException(ErrorCode.UPLOAD_FILE_TYPE_DENIED, "文件内容与声明类型不符，拒绝上传");
+      }
     }
   }
 

@@ -10,6 +10,8 @@ import { CoinService } from "../coin/coin.service";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { getSchool } from "./bazi-schools";
 import { safePagination } from "../../common/pagination";
+// 合规修复(后端审计P1·R4红线)：通用命理分析主路径原漏挂免责声明，此处统一在返回点追加。
+import { RISK_DISCLAIMER } from "../../common/ai-disclaimer";
 
 /** 通用八字分析的 system prompt（保持现行行为，一个字不改） */
 const GENERAL_SYSTEM_PROMPT =
@@ -59,7 +61,7 @@ export class PaipanAiService {
     if (existing) {
       return {
         id: existing.id,
-        analysisContent: existing.analysisContent,
+        analysisContent: existing.analysisContent + RISK_DISCLAIMER,
         createdAt: existing.createdAt,
         isCached: true,
       };
@@ -78,7 +80,7 @@ export class PaipanAiService {
       });
       return {
         id: record.id,
-        analysisContent: record.analysisContent,
+        analysisContent: record.analysisContent + RISK_DISCLAIMER,
         createdAt: record.createdAt,
         isCached: false,
       };
@@ -102,7 +104,7 @@ export class PaipanAiService {
 
     return {
       id: record.id,
-      analysisContent: record.analysisContent,
+      analysisContent: record.analysisContent + RISK_DISCLAIMER,
       createdAt: record.createdAt,
       isCached: false,
     };
@@ -158,7 +160,7 @@ export class PaipanAiService {
         school: schoolDef.id,
         master: schoolDef.master,
         schoolName: schoolDef.name,
-        analysisContent: existing.analysisContent,
+        analysisContent: existing.analysisContent + RISK_DISCLAIMER,
         createdAt: existing.createdAt,
         isCached: true,
       };
@@ -194,7 +196,7 @@ export class PaipanAiService {
         school: schoolDef.id,
         master: schoolDef.master,
         schoolName: schoolDef.name,
-        analysisContent: record.analysisContent,
+        analysisContent: record.analysisContent + RISK_DISCLAIMER,
         createdAt: record.createdAt,
         isCached: false,
       };
@@ -290,7 +292,7 @@ export class PaipanAiService {
       school: schoolDef.id,
       master: schoolDef.master,
       schoolName: schoolDef.name,
-      analysisContent: record.analysisContent,
+      analysisContent: record.analysisContent + RISK_DISCLAIMER,
       createdAt: record.createdAt,
       isCached: false,
       costCoin: chargeCoin,
@@ -430,7 +432,7 @@ export class PaipanAiService {
     if (existing) {
       return {
         id: existing.id,
-        analysisContent: existing.analysisContent,
+        analysisContent: existing.analysisContent + RISK_DISCLAIMER,
         createdAt: existing.createdAt,
         isCached: true,
       };
@@ -446,7 +448,7 @@ export class PaipanAiService {
           isCached: false,
         },
       });
-      return { id: record.id, analysisContent: record.analysisContent, createdAt: record.createdAt, isCached: false };
+      return { id: record.id, analysisContent: record.analysisContent + RISK_DISCLAIMER, createdAt: record.createdAt, isCached: false };
     }
 
     const prompt = this.buildZiweiPrompt(ziweiResult);
@@ -463,7 +465,7 @@ export class PaipanAiService {
       },
     });
 
-    return { id: record.id, analysisContent: record.analysisContent, createdAt: record.createdAt, isCached: false };
+    return { id: record.id, analysisContent: record.analysisContent + RISK_DISCLAIMER, createdAt: record.createdAt, isCached: false };
   }
 
   /** 构建紫微斗数专业分析 prompt */
@@ -656,7 +658,7 @@ ${fenXiLines.join("\n") || "无显著合冲刑害关系"}
       },
     });
 
-    return { id: record.id, analysisContent: record.analysisContent, createdAt: record.createdAt, isCached: false };
+    return { id: record.id, analysisContent: record.analysisContent + RISK_DISCLAIMER, createdAt: record.createdAt, isCached: false };
   }
 
   /** 构建合婚分析 prompt */

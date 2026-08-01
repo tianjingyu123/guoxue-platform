@@ -72,7 +72,9 @@ async function load() {
     cards.value = [
       { label: '待处理举报', value: pendingReports, icon: WarningFilled, highlight: pendingReports > 0, route: '/reports' },
       { label: '待处理工单', value: pendingOrders, icon: Tickets, highlight: pendingOrders > 0, route: '/after-sales' },
-      { label: '今日工单量', value: ov.todayNewOrders ?? 0, icon: Timer, trend: dayOverDay(todayRow?.orders, yestRow?.orders), route: '/orders' },
+      // 数据源是订单数（today-overview.todayNewOrders），文案照实叫"订单量"不冒充工单；
+      // /orders 路由 roles 不含 CUSTOMER_SERVICE（守卫会拦=死链），故该卡不挂跳转（2026-07-18 修）
+      { label: '今日订单量', value: ov.todayNewOrders ?? 0, icon: Timer, trend: dayOverDay(todayRow?.orders, yestRow?.orders) },
       { label: '今日新增用户', value: ov.todayNewUsers ?? 0, icon: User, trend: dayOverDay(todayRow?.users, yestRow?.users), route: '/users' },
       { label: '总用户数', value: st.userCount ?? 0, icon: User, route: '/users' },
       { label: '今日活跃圈子', value: ov.todayStats?.todayActiveCircles ?? 0, icon: ChatLineSquare },
@@ -88,9 +90,9 @@ async function load() {
       { label: '通知管理', path: '/notifications', icon: Bell },
     ]
 
-    // 折线图 — 近 7 日工单量趋势（真实日订单数）
+    // 折线图 — 近 7 日订单量趋势（真实日订单数，与卡片口径一致）
     charts.value = td.length ? [{
-      title: '近7日工单量趋势',
+      title: '近7日订单量趋势',
       option: {
         grid: { top: 30, right: 20, bottom: 30, left: 50 },
         xAxis: {
@@ -257,7 +259,7 @@ async function load() {
         :xs="24"
         :md="24"
       >
-        <el-empty description="暂无工单趋势数据" />
+        <el-empty description="暂无订单趋势数据" />
       </el-col>
     </el-row>
     </template>

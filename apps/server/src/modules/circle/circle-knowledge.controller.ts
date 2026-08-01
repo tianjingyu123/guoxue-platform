@@ -110,6 +110,18 @@ export class CircleKnowledgeController {
     return this.knowledge.listCandidates(circleId, Number(page), Number(pageSize));
   }
 
+  @Post(":circleId/knowledge/extract-candidates")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "从达人回答提炼知识候选（#38·近30天已回答问答前10条→AI提炼落候选队列）" })
+  @ApiResponse({ status: 201, description: "{ scanned, created, message }" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无知识库管理权限" })
+  @ApiBearerAuth()
+  async extractCandidates(@Param("circleId") circleId: string, @Req() req: Request) {
+    await this.knowledge.assertManager(circleId, req.user.id);
+    return this.knowledge.extractFromExpertAnswers(circleId);
+  }
+
   @Post(":circleId/knowledge/candidates/:candidateId/confirm")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "确认候选条目入库" })

@@ -10,7 +10,11 @@
  *   track.search('八字')
  *   track.share('course', courseId)
  */
-import { apiPost } from '@/utils/request'
+import { getToken } from '@/utils/storage'
+
+const BASE_URL = (import.meta as any).env?.VITE_API_URL || ''
+const PREFIX = '/api/v1'
+const TRACK_TIMEOUT = 10000
 
 interface TrackEvent {
   action: string
@@ -43,16 +47,44 @@ function scheduleFlush() {
   }, 3000)
 }
 
+/**
+ * 埋点专用直传通道。
+ * 不复用 utils/request：请求层本身会记录 api_error，若相互 import 会形成循环依赖；
+ * 埋点是旁路能力，失败时无需刷新 token、重试或触发全局登录跳转。
+ */
+function postTrackBatch(events: TrackEvent[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const token = getToken()
+    uni.request({
+      url: `${BASE_URL}${PREFIX}/track/batch`,
+      method: 'POST',
+      data: { events },
+      header: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      timeout: TRACK_TIMEOUT,
+      success: (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300) resolve()
+        else reject(new Error(`track request failed (${res.statusCode})`))
+      },
+      fail: reject,
+    })
+  })
+}
+
 async function flush() {
   if (flushing || !queue.length) return
   flushing = true
   const batch = queue.splice(0, queue.length)
   try {
-    await apiPost('/track/batch', { events: batch })
+    await postTrackBatch(batch)
   } catch {
     // 端点未就绪/网络异常：静默丢弃，埋点永不阻塞或报错给用户
   } finally {
     flushing = false
+    // flush 期间可能又有新事件入队，确保尾批不会因并发窗口永久滞留。
+    if (queue.length) scheduleFlush()
   }
 }
 

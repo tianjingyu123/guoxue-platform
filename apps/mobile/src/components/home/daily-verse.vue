@@ -5,6 +5,7 @@ import { ref, onMounted } from 'vue'
 import { getStorage, setStorage } from '@/utils/storage'
 import { getTodayVerse } from '@/lib/home-data'
 import { withRef } from '@/utils/referral'
+import { buildH5Url } from '@/utils/share'
 import { BRAND } from '@/lib/brand'
 import { track } from '@/composables/useTrack'
 
@@ -42,7 +43,7 @@ function dismiss() {
 
 /** V2 每日一签分享：复制签文+带 ref 的首页链接（好友点开自动记归因，见到自己的今日签） */
 function shareVerse() {
-  const link = withRef('https://api.rebugx.cn/h5/#/pages/index/index')
+  const link = withRef(buildH5Url('pages/index/index'))
   const content = `【今日一签】${verse.text} ——《${verse.source}》\n来${BRAND.name}，看你的今日签：${link}`
   uni.setClipboardData({
     data: content,

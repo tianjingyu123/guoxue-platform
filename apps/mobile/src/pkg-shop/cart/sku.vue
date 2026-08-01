@@ -8,7 +8,7 @@
 
     <!-- 加载中 -->
     <view v-if="loading" class="state-wrap">
-      <text class="state-text">加载中...</text>
+      <AppLoading />
     </view>
     <!-- 错误 -->
     <view v-else-if="error" class="state-wrap">
@@ -29,7 +29,7 @@
           class="swipe-wrap"
         >
           <view class="swipe-inner" :style="{ transform: openId === item.id ? 'translateX(-160rpx)' : 'translateX(0)' }">
-            <view class="cart-item" @tap="onItemTap(item)">
+            <view class="cart-item" @tap="onItemTap(item)" @touchstart="onRowTouchStart" @touchend="onRowTouchEnd($event, item)">
               <view class="item-check" :class="{ checked: item.selected }" @tap.stop="toggleItem(item)">
                 <app-icon v-if="item.selected" name="check" :size="28" color="#FFFFFF" />
               </view>
@@ -39,8 +39,8 @@
                 <view class="sku-tag"><text>{{ item.skuName }}</text></view>
                 <view class="item-bottom">
                   <view class="price-box">
-                    <text class="cur">¥{{ item.price }}</text>
-                    <text class="ori">¥{{ item.originalPrice }}</text>
+                    <text class="cur">¥{{ formatPrice(item.price) }}</text>
+                    <text class="ori">¥{{ formatPrice(item.originalPrice) }}</text>
                   </view>
                   <view class="stepper">
                     <view class="step-btn" :class="{ disabled: item.quantity <= 1 }" @tap.stop="changeQty(item, -1)"><app-icon name="minus" :size="24" color="#666666" /></view>
@@ -90,9 +90,9 @@
       <view class="footer-info" v-if="!editMode">
         <view class="total-row">
           <text class="total-label">合计</text>
-          <text class="total-amount">¥{{ totalAmount }}</text>
+          <text class="total-amount">¥{{ formatPrice(totalAmount) }}</text>
         </view>
-        <text class="saved">已优惠 ¥{{ savedAmount }}</text>
+        <text class="saved">已优惠 ¥{{ formatPrice(savedAmount) }}</text>
       </view>
       <view class="footer-spacer" v-else />
       <view class="checkout-btn" v-if="!editMode" @tap="goCheckout">
@@ -107,9 +107,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { navigateTo, reLaunch } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { shopApi, type SkuCartItem } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const items = ref<SkuCartItem[]>([])
 const loading = ref(true)
@@ -118,15 +121,27 @@ const submitting = ref(false)
 const editMode = ref(false)
 const openId = ref<string | null>(null)
 
-onMounted(async () => {
-  loading.value = true
-  error.value = ''
-  try {
-    items.value = await shopApi.getSkuCart()
-  } catch (_e) {
-    error.value = '加载失败，请重试'
-  } finally {
-    loading.value = false
+// onShow 而非 onMounted：从商品详情/结算页返回时回刷（加购/下单后数量若不刷新会误导结算）
+let firstShow = true
+onShow(async () => {
+  if (firstShow) {
+    firstShow = false
+    loading.value = true
+    error.value = ''
+    try {
+      items.value = await shopApi.getSkuCart()
+    } catch (_e) {
+      error.value = '加载失败，请重试'
+    } finally {
+      loading.value = false
+    }
+  } else {
+    // 返回本页静默回刷（保留勾选状态，不闪 loading）
+    try {
+      await refreshSku()
+    } catch (_e) {
+      /* 静默：保留现有列表 */
+    }
   }
 })
 
@@ -145,12 +160,29 @@ function retry() {
 const validItems = computed(() => items.value.filter((i) => i.isValid))
 const invalidItems = computed(() => items.value.filter((i) => !i.isValid))
 
+// 行主体点击跳商品详情（P2-11）；左滑手势露出删除，已展开时点击先收起
 function onItemTap(item: SkuCartItem) {
-  if (openId.value === item.id) {
+  if (openId.value) {
     openId.value = null
     return
   }
-  openId.value = item.id
+  if (!item.productId) return
+  navigateTo(`/mall/product/${item.productId}`)
+}
+let touchStartX = 0
+let touchStartY = 0
+function onRowTouchStart(e: any /* uni 触摸事件经 vue-tsc 按原生签名校验，参数须 any */) {
+  touchStartX = e.touches?.[0]?.clientX ?? 0
+  touchStartY = e.touches?.[0]?.clientY ?? 0
+}
+function onRowTouchEnd(e: any /* uni 触摸事件经 vue-tsc 按原生签名校验，参数须 any */, item: SkuCartItem) {
+  const t = e.changedTouches?.[0]
+  if (!t) return
+  const dx = (t.clientX ?? 0) - touchStartX
+  const dy = (t.clientY ?? 0) - touchStartY
+  // 水平位移不足或以纵向滚动为主时不当作滑动
+  if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return
+  openId.value = dx < 0 ? item.id : null
 }
 function toggleItem(item: SkuCartItem) {
   item.selected = !item.selected
@@ -221,12 +253,14 @@ async function clearInvalid() {
     submitting.value = false
   }
 }
-function goShop() { reLaunch('/shop') }
+function goShop() { reLaunch('/mall') }
 function goCheckout() {
   if (submitting.value) return
   if (selectedCount.value === 0) { uni.showToast({ title: '请选择商品', icon: 'none' }); return }
   submitting.value = true
-  navigateTo('/shop/checkout')
+  // P0-1：必须携带选中项 id（结算页只认 q.items→itemIds），不带参恒"没有可结算的商品"
+  const ids = validItems.value.filter((i) => i.selected).map((i) => i.id).join(',')
+  navigateTo(`/shop/checkout?items=${ids}`)
   setTimeout(() => (submitting.value = false), 500)
 }
 </script>

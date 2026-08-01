@@ -1,91 +1,137 @@
 <template>
   <view class="ag-page">
-    <app-nav-bar title="运营商协议" :border="true" />
-    <!-- 加载中 -->
-    <view v-if="loading" class="state-loading">
-      <text class="state-loading-text">加载中...</text>
+    <!-- 自定义导航 -->
+    <view class="ag-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="ag-nav-bar">
+        <view class="ag-nav-back" @tap="goBack">
+          <text class="ag-nav-back-ic">‹</text>
+        </view>
+        <text class="ag-nav-title">运营商服务协议</text>
+        <view class="ag-nav-placeholder" />
+      </view>
     </view>
-    <!-- 错误 -->
-    <view v-else-if="error" class="state-error">
-      <text class="state-error-text">{{ error }}</text>
-      <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
-    </view>
-    <!-- 正常内容 -->
-    <scroll-view v-else scroll-y class="ag-scroll">
-      <!-- 重要提示 -->
-      <view class="ag-tip">
-        <text class="ag-tip-title">重要提示</text>
-        <text class="ag-tip-text">{{ operatorAgreementTip }}</text>
+
+    <!-- 协议正文 -->
+    <scroll-view scroll-y class="ag-scroll">
+      <!-- 协议头 -->
+      <view class="ag-head">
+        <text class="ag-head-title">热卜国学运营商服务协议</text>
+        <text class="ag-head-meta">版本：2026-07-19 · 最近更新：2026-07-19</text>
       </view>
 
-      <!-- 协议内容 -->
-      <view class="ag-list">
-        <view v-for="(s, i) in operatorAgreementSections" :key="i" class="ag-card">
-          <text class="ag-card-title">{{ s.title }}</text>
-          <text class="ag-card-content">{{ s.content }}</text>
+      <!-- 正文 -->
+      <view class="ag-body">
+        <view class="ag-sec">
+          <text class="ag-sh">一、定义与解释</text>
+          <text class="ag-p">1.1 本协议所称「运营商」，是指在热卜国学平台（以下简称「平台」）缴纳运营商资格费用后，获得运营商身份，依本协议规则招募、管理站长并获取团队管理奖励的用户。运营商沿用平台统一账号，无独立后台。</text>
+          <text class="ag-p">1.2 开通或续费的实际金额、服务期和名额数量，以付款前页面展示及服务端生成的订单为准。名额用于自有分站和邀请站长建立真实团队归属，不得私下出售、转让或加购。</text>
+        </view>
+
+        <view class="ag-sec">
+          <text class="ag-sh">二、服务内容</text>
+          <text class="ag-p">2.1 平台向运营商提供以下服务：</text>
+          <text class="ag-p">（a）站长团队管理工具，包括成员列表、业绩排行、沉寂预警等功能；</text>
+          <text class="ag-p">（b）<text class="ag-hl">团队管理奖励</text>：就运营商名下站长产生的收入，平台按 <text class="ag-hl">10%</text> 向运营商额外支付团队管理奖励（该奖励由平台承担，不从站长收益中扣除）；</text>
+          <text class="ag-p">（c）名额管理功能，包括查看总量与占用情况、生成专属邀请链接、查看已加入并归属团队的分站。</text>
+        </view>
+
+        <view class="ag-sec">
+          <text class="ag-sh">三、收益与结算</text>
+          <text class="ag-p">3.1 团队管理奖励按开通页面所示的当前比例，基于名下站长的真实、有效且无退款交易核算，最终以平台账单为准。</text>
+          <text class="ag-p">3.2 已确认收益按平台届时公示的结算与提现规则处理；可用的结算周期、账户和到账方式以账单及提现页面实际支持为准。</text>
+          <text class="ag-p">3.3 若订单发生退款，对应奖励自动冲销。</text>
+        </view>
+
+        <view class="ag-sec">
+          <text class="ag-sh">四、权利与义务</text>
+          <text class="ag-p">4.1 运营商应遵守平台规则，不得通过虚假交易、刷单等方式套取奖励。</text>
+          <text class="ag-p">4.2 运营商不得以平台名义向第三方承诺任何未经平台授权的收益保证。</text>
+          <text class="ag-p">4.3 平台有权依违规程度采取提醒、限制功能、暂停或终止资格等措施；已支付费用及未结算权益按适用法律、本协议和平台届时公示的规则处理。</text>
+        </view>
+
+        <view class="ag-sec">
+          <text class="ag-sh">五、协议变更</text>
+          <text class="ag-p">平台可根据运营情况依法修订本协议，并通过平台内公告等方式提示。涉及价格、服务期或核心权益的重大调整将按适用规则提前公示；已购买服务按下单时确认的订单权益执行。</text>
+        </view>
+
+        <view class="ag-sec">
+          <text class="ag-sh">六、争议解决</text>
+          <text class="ag-p">本协议适用中华人民共和国法律，争议由平台所在地有管辖权的人民法院诉讼解决。</text>
         </view>
       </view>
 
-      <!-- 更新时间 -->
-      <view class="ag-footer">
-        <text class="ag-footer-text">最后更新时间：2024年1月1日</text>
-        <text class="ag-footer-text">版本号：v1.0</text>
-      </view>
       <view class="ag-bottom-pad" />
     </scroll-view>
+
+    <!-- 底部同意栏（from=apply · 同意并继续） -->
+    <view class="ag-bar" :style="{ paddingBottom: (safeBottom + 24) + 'px' }">
+      <view class="ag-btn primary" @tap="onAgree">
+        <text class="ag-btn-text">同意并继续</text>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import AppNavBar from '@/components/common/app-nav-bar.vue'
-import { operatorApi, type AgreementSection } from '@/lib/operator-data'
+import { ref } from 'vue'
 
-const loading = ref(true)
-const error = ref('')
-const operatorAgreementSections = ref<AgreementSection[]>([])
-const operatorAgreementTip = ref('')
+const statusBarHeight = ref(0)
+const safeBottom = ref(0)
 
-async function fetchData() {
-  try {
-    const res = await operatorApi.getOperatorAgreement()
-    operatorAgreementSections.value = res.sections
-    operatorAgreementTip.value = res.tip
-  } catch (e) {
-    error.value = (e as Error)?.message || '加载失败'
-  } finally {
-    loading.value = false
-  }
+try {
+  const info = uni.getSystemInfoSync()
+  statusBarHeight.value = info.statusBarHeight || 0
+  safeBottom.value = info.safeAreaInsets?.bottom || 0
+} catch {
+  // 忽略：读取系统信息失败时使用默认留白
 }
 
-async function retry() {
-  loading.value = true
-  error.value = ''
-  await fetchData()
+function goBack() {
+  uni.navigateBack()
 }
 
-onMounted(fetchData)
+// from=apply：同意后返回上一页并标记已同意，继续开通流程
+function onAgree() {
+  const pages = getCurrentPages()
+  const prev = pages[pages.length - 2] as { $vm?: { agreedOperator?: boolean } } | undefined
+  if (prev?.$vm) prev.$vm.agreedOperator = true
+  uni.navigateBack()
+}
 </script>
 
 <style scoped>
-.ag-page { display: flex; flex-direction: column; height: 100vh; background: #f5f2ec; }
-.ag-scroll { flex: 1; }
-.ag-tip { margin: 32rpx; padding: 32rpx; background: #eff6ff; border: 1rpx solid #bfdbfe; border-radius: 16rpx; }
-.ag-tip-title { display: block; font-size: 28rpx; font-weight: 600; color: #1e3a8a; margin-bottom: 16rpx; }
-.ag-tip-text { font-size: 26rpx; color: #1e40af; line-height: 1.5; }
-.ag-list { padding: 0 32rpx; display: flex; flex-direction: column; gap: 24rpx; }
-.ag-card { background: #fff; border-radius: 16rpx; padding: 32rpx; }
-.ag-card-title { display: block; font-size: 28rpx; font-weight: 600; color: #2a2a2a; margin-bottom: 16rpx; }
-.ag-card-content { font-size: 26rpx; color: #8a8178; line-height: 1.6; }
-.ag-footer { margin: 48rpx 32rpx 0; padding: 32rpx; background: rgba(138,129,120,0.1); border-radius: 16rpx; display: flex; flex-direction: column; align-items: center; gap: 16rpx; }
-.ag-footer-text { font-size: 22rpx; color: #8a8178; }
-.ag-bottom-pad { height: 48rpx; }
+.ag-page { display: flex; flex-direction: column; height: 100vh; background: #FAF8F5; }
 
-/* 三态 */
-.state-loading { flex: 1; display: flex; align-items: center; justify-content: center; }
-.state-loading-text { font-size: 28rpx; color: #8a8178; }
-.state-error { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx; }
-.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; }
-.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 16rpx; }
-.state-retry-btn text { font-size: 28rpx; color: #fff; }
+/* 自定义导航 */
+.ag-nav { background: #FFFFFF; border-bottom: 1rpx solid #ECE7DF; }
+.ag-nav-bar { height: 88rpx; display: flex; align-items: center; padding: 0 38rpx; }
+.ag-nav-back { width: 88rpx; height: 88rpx; margin: 0 -20rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
+.ag-nav-back-ic { font-size: 44rpx; color: #2C2C2C; line-height: 1; }
+.ag-nav-title { flex: 1; text-align: center; font-size: 33rpx; font-weight: 600; color: #2C2C2C; }
+.ag-nav-placeholder { width: 48rpx; }
+
+.ag-scroll { flex: 1; }
+
+/* 协议头 */
+.ag-head { padding: 46rpx 42rpx 35rpx; text-align: center; background: #FFFFFF; border-bottom: 1rpx solid #ECE7DF; }
+.ag-head-title { display: block; font-size: 38rpx; font-weight: 700; color: #2C2C2C; }
+.ag-head-meta { display: block; font-size: 21rpx; color: #999999; margin-top: 15rpx; }
+
+/* 正文 */
+.ag-body { padding: 38rpx 42rpx 16rpx; }
+.ag-sec { margin-bottom: 38rpx; }
+.ag-sec:last-child { margin-bottom: 0; }
+.ag-sh { display: block; font-size: 29rpx; font-weight: 600; color: #2C2C2C; margin-bottom: 19rpx; padding-left: 21rpx; border-left: 6rpx solid #C41E3A; line-height: 1.4; }
+.ag-p { display: block; font-size: 25rpx; color: #6E6E73; line-height: 1.85; margin-bottom: 15rpx; }
+.ag-p:last-child { margin-bottom: 0; }
+.ag-hl { color: #C41E3A; font-weight: 600; }
+
+.ag-bottom-pad { height: 40rpx; }
+
+/* 底部按钮栏 */
+.ag-bar { background: #FFFFFF; border-top: 1rpx solid #ECE7DF; padding: 27rpx 42rpx 27rpx; }
+.ag-btn { height: 96rpx; border-radius: 35rpx; display: flex; align-items: center; justify-content: center; }
+.ag-btn.primary { background: #C41E3A; box-shadow: 0 15rpx 46rpx rgba(196,30,58,0.3); }
+.ag-btn.primary .ag-btn-text { color: #FFFFFF; }
+.ag-btn-text { font-size: 31rpx; font-weight: 600; }
 </style>

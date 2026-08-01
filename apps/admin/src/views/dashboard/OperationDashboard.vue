@@ -3,30 +3,32 @@
  * OperationDashboard.vue — 运营管理员面板
  * 用户增长 / 内容审核 / 活跃度监控
  */
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted, onBeforeUnmount } from "vue"
 import type { Component } from "vue"
 import { useRouter } from "vue-router"
 import { api } from "@/api"
-import * as echarts from "echarts"
 import GreetingHeader from "@/components/GreetingHeader.vue"
 import AnimatedCounter from "@/components/AnimatedCounter.vue"
 import AnomalyAlert from "@/components/AnomalyAlert.vue"
 import ChartCard from "@/components/ChartCard.vue"
+import { useAuthStore } from "@/store/auth"
 import { Plus, Document, Edit, WarningFilled, View, User, Collection, Calendar,
   Promotion, Star, Odometer, CaretTop, CaretBottom } from "@element-plus/icons-vue"
 
 const router = useRouter()
-const username = ref('')
+const auth = useAuthStore()
+// 真实用户名取自 auth store（原来恒空致问候语退化成"管理员"·2026-07-18 修）
+const username = computed(() => auth.user?.nickname || "运营管理员")
 
 // ==================== 快捷操作（运营高频管理页）====================
 interface QuickAction { label: string; path: string; icon: Component }
 const quickActions: QuickAction[] = [
   { label: "内容管理", path: "/contents", icon: Document },
   { label: "内容审核", path: "/contents/audit", icon: Edit },
-  { label: "推荐管理", path: "/contents/recommend", icon: Star },
+  { label: "推荐规则", path: "/recommend/rules", icon: Star },
   { label: "营销活动", path: "/marketing/activities", icon: Promotion },
   { label: "用户管理", path: "/users", icon: User },
-  { label: "数据驾驶舱", path: "/admin/cockpit", icon: Odometer },
+  { label: "数据驾驶舱", path: "/cockpit", icon: Odometer },
 ]
 // 待办角标（真实计数，无则为 0 不显示）
 const badges = ref<Record<string, number>>({})
@@ -48,8 +50,8 @@ function onCardClick(card: { label: string; value: number; icon: Component }) {
 }
 
 // ==================== 报警信息 ====================
-/** 报警条目（字段宽松 optional） */
-interface AlertItem { text?: string; count?: number; level?: 'critical' | 'warning' | 'info' }
+/** 报警条目（字段宽松 optional·后端 RiskAlert 文案在 title、level 为大写枚举，展示前映射） */
+interface AlertItem { text?: string; title?: string; count?: number; level?: string }
 const alerts = ref<AlertItem[]>([])
 
 // ==================== 统计卡片 ====================
@@ -111,7 +113,17 @@ function buildUserGrowthOption(dates: string[], values: number[]) {
   }
 }
 
-onMounted(load)
+// 30 秒自动刷新（与 SuperAdminDashboard 同族一致）
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
+onMounted(() => {
+  load()
+  refreshTimer = setInterval(load, 30000)
+})
+
+onBeforeUnmount(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+})
 
 async function load() {
   loading.value = true
@@ -170,10 +182,15 @@ async function load() {
       hasUserGrowth.value = false
     }
 
-    // 报警
-    const list = alertRes.data ?? []
+    // 报警取前 3 条（后端返回 {alerts:[],total,page,pageSize,levelCounts} 对象，非裸数组，需取 .alerts；
+    // 原来对对象直接 .slice 抛 TypeError 把整页打成错误态·2026-07-18 P0 修）
+    // 字段映射：RiskAlert 文案在 title（非 text）、level 为大写 WARN/DANGER/CRITICAL（AnomalyAlert 内部归一）
+    const rawAlert = alertRes.data
+    const list: AlertItem[] = Array.isArray(rawAlert)
+      ? rawAlert
+      : ((rawAlert as { alerts?: AlertItem[] })?.alerts ?? [])
     alerts.value = list.slice(0, 3).map((a: AlertItem) => ({
-      text: a.text, count: a.count, level: a.level ?? "warning",
+      text: a.title ?? a.text ?? "", count: a.count, level: a.level ?? "warning",
     }))
   } catch {
     loadError.value = true

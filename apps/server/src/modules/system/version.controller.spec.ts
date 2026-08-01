@@ -39,8 +39,9 @@ describe("VersionController", () => {
   describe("公开接口", () => {
     it("检查更新——无版本记录", async () => {
       mockPrisma.appVersion.findFirst.mockResolvedValue(null);
-      const result: any = await ctrl.check("ios", "1.0.0");
+      const result: any = await ctrl.check({ platform: "ios", version: "1.0.0" });
       expect(result.hasUpdate).toBe(false);
+      expect(result.latest).toBeNull();
     });
 
     it("检查更新——有更新", async () => {
@@ -48,32 +49,95 @@ describe("VersionController", () => {
         version: "1.2.0", buildNumber: 10, changelog: "bug修复",
         forceUpdate: false, downloadUrl: "https://example.com/app",
       });
-      const result: any = await ctrl.check("android", "1.0.0");
+      const result: any = await ctrl.check({ platform: "android", version: "1.0.0" });
       expect(result.hasUpdate).toBe(true);
       expect(result.latest.version).toBe("1.2.0");
     });
 
     it("检查更新——已是最新", async () => {
       mockPrisma.appVersion.findFirst.mockResolvedValue({ version: "1.0.0" });
-      const result: any = await ctrl.check("ios", "1.0.0");
+      const result: any = await ctrl.check({ platform: "ios", version: "1.0.0" });
       expect(result.hasUpdate).toBe(false);
       expect(result.latest).toBeNull();
+    });
+
+    it("检查更新——客户端版本更高时不推送降级", async () => {
+      mockPrisma.appVersion.findFirst.mockResolvedValue({ version: "1.9.9", buildNumber: "199" });
+      const result: any = await ctrl.check({
+        platform: "android",
+        version: "2.0.0",
+        buildNumber: "200",
+      });
+      expect(result.hasUpdate).toBe(false);
+    });
+
+    it("检查更新——同展示版本按构建号识别热修", async () => {
+      mockPrisma.appVersion.findFirst.mockResolvedValue({
+        version: "2.0.0",
+        buildNumber: "201",
+        forceUpdate: true,
+        downloadUrl: "https://example.com/app",
+      });
+      const result: any = await ctrl.check({
+        platform: "android",
+        version: "2.0.0",
+        buildNumber: "200",
+      });
+      expect(result.hasUpdate).toBe(true);
+      expect(result.latest.buildNumber).toBe("201");
     });
   });
 
   describe("管理接口", () => {
     it("发布新版本", async () => {
+      mockPrisma.appVersion.findFirst.mockResolvedValue(null);
       mockPrisma.appVersion.create.mockResolvedValue({
-        id: "v1", platform: "ios", version: "1.1.0", buildNumber: 5,
+        id: "v1", platform: "ios", version: "1.1.0", buildNumber: "5",
       });
-      const result: any = await ctrl.adminCreate({ platform: "ios", version: "1.1.0", buildNumber: 5 } as any);
+      const result: any = await ctrl.adminCreate({ platform: "ios", version: "1.1.0", buildNumber: "5" } as any);
       expect(result.version).toBe("1.1.0");
     });
 
+    it("发布版本——拒绝覆盖为更低构建", async () => {
+      mockPrisma.appVersion.findFirst.mockResolvedValue({
+        version: "1.1.0",
+        buildNumber: "110",
+      });
+      await expect(
+        ctrl.adminCreate({
+          platform: "ios",
+          version: "1.0.9",
+          buildNumber: "109",
+        } as any),
+      ).rejects.toThrow("新版本必须高于当前已发布版本");
+      expect(mockPrisma.appVersion.create).not.toHaveBeenCalled();
+    });
+
+    it("发布强制更新——下载地址缺失时拒绝", async () => {
+      mockPrisma.appVersion.findFirst.mockResolvedValue(null);
+      await expect(
+        ctrl.adminCreate({
+          platform: "android",
+          version: "1.1.0",
+          buildNumber: "110",
+          forceUpdate: true,
+        } as any),
+      ).rejects.toThrow("强制更新必须配置有效下载地址");
+      expect(mockPrisma.appVersion.create).not.toHaveBeenCalled();
+    });
+
     it("更新版本信息", async () => {
-      mockPrisma.appVersion.findUnique.mockResolvedValue({ id: "v1", platform: "ios", version: "1.0.0" });
+      mockPrisma.appVersion.findUnique.mockResolvedValue({
+        id: "v1",
+        platform: "ios",
+        version: "1.0.0",
+        forceUpdate: false,
+      });
       mockPrisma.appVersion.update.mockResolvedValue({ id: "v1", forceUpdate: true });
-      const result: any = await ctrl.adminUpdate("v1", { forceUpdate: true } as any);
+      const result: any = await ctrl.adminUpdate("v1", {
+        forceUpdate: true,
+        downloadUrl: "https://example.com/app",
+      } as any);
       expect(result.forceUpdate).toBe(true);
     });
 

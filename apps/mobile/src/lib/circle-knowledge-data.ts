@@ -19,6 +19,7 @@ export interface KnowledgeItem {
 
 const SOURCE_LABEL: Record<string, string> = {
   article: '文章', post: '帖子', course: '课程', file: '文件', manual: '手动添加', free_text: '文本',
+  expert_qa: '达人回答', // #38 从达人问答提炼
 }
 
 function deriveTitle(content: string): string {
@@ -87,4 +88,10 @@ export const knowledgeApi = {
   /** 删除知识条目 — DELETE /circles/:id/knowledge/:id */
   remove: (circleId: string, id: string) =>
     apiDelete(`/circles/${circleId}/knowledge/${id}`),
+  /**
+   * #38 从达人回答提炼候选 — POST /circles/:id/knowledge/extract-candidates（圈主手动触发）。
+   * 后端取近 30 天已回答付费问答前 10 条 → AI 提炼落候选队列；AI 未配置抛友好错误（由调用方 toast）。
+   */
+  extract: (circleId: string) =>
+    apiPost<{ scanned?: number; created?: number; message?: string }>(`/circles/${circleId}/knowledge/extract-candidates`),
 }

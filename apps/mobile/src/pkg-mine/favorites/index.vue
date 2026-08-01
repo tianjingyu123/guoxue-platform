@@ -61,7 +61,7 @@
       <!-- 空态 -->
       <view v-else-if="displayList.length === 0" class="empty">
         <app-icon name="heart" :size="64" color="#d1d5db" />
-        <text class="empty-text">暂无收藏内容</text>
+        <text class="empty-text">还没有收藏，喜欢的内容点 ❤ 就会出现在这里</text>
         <view class="empty-btn" @tap="goDiscover">
           <text class="empty-btn-text">去发现</text>
         </view>
@@ -133,6 +133,9 @@ const typeIcons: Record<FavType, string> = {
   product: 'shopping-bag',
   video: 'video',
   comment: 'message-square',
+  poem: 'scroll-text',
+  classic: 'book-marked',
+  ebook: 'book-open',
 }
 
 const typeNames: Record<FavType, string> = {
@@ -142,6 +145,9 @@ const typeNames: Record<FavType, string> = {
   product: '商品',
   video: '视频',
   comment: '评论',
+  poem: '诗词',
+  classic: '古籍',
+  ebook: '电子书',
 }
 
 const typeColors: Record<FavType, { bg: string; text: string }> = {
@@ -151,6 +157,9 @@ const typeColors: Record<FavType, { bg: string; text: string }> = {
   product: { bg: 'rgba(234,88,12,0.1)', text: '#ea580c' },
   video: { bg: 'rgba(196,30,58,0.1)', text: '#C41E3A' },
   comment: { bg: 'rgba(79,70,229,0.1)', text: '#4f46e5' },
+  poem: { bg: 'rgba(180,83,9,0.1)', text: '#b45309' },
+  classic: { bg: 'rgba(146,64,14,0.1)', text: '#92400e' },
+  ebook: { bg: 'rgba(13,148,136,0.1)', text: '#0d9488' },
 }
 
 const allFavorites = ref<FavItem[]>([])
@@ -168,6 +177,7 @@ const tabs = computed(() => {
   return [
     { id: 'all' as const, name: '全部', count: counts.all || 0 },
     { id: 'course' as const, name: '课程', count: counts.course || 0 },
+    { id: 'classic' as const, name: '古籍', count: counts.classic || 0 },
     { id: 'article' as const, name: '文章', count: counts.article || 0 },
     { id: 'video' as const, name: '视频', count: counts.video || 0 },
     { id: 'product' as const, name: '商品', count: counts.product || 0 },
@@ -284,9 +294,12 @@ const linkMap: Record<FavType, string> = {
   course: '/course',
   circle_post: '/post',
   article: '/article',
-  product: '/shop/product',
+  product: '/shop', // 商品详情动态路由为单段 /shop/:id → pkg-mall/product/detail（旧 /shop/product/:id 已随商城收敛删除）
   video: '/video',
   comment: '',
+  poem: '/poetry',
+  classic: '/classic',
+  ebook: '/ebook',
 }
 
 function openItem(item: FavItem) {
@@ -349,7 +362,8 @@ function openItem(item: FavItem) {
 .nav-action {
   font-size: 28rpx;
   color: var(--brand);
-  width: 56rpx;
+  min-width: 56rpx;
+  white-space: nowrap;
   text-align: right;
 }
 

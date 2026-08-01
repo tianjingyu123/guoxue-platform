@@ -30,10 +30,27 @@ interface RawInviteCode {
 }
 /** 邀请码列表响应：裸数组或 {data:[]} / {codes:[]} 包装 */
 type RawInviteCodeResp = RawInviteCode[] | { data?: RawInviteCode[]; codes?: RawInviteCode[] }
-/** 邀请统计响应：{total} 或 {data:{total}} */
+/** 邀请记录（GET invitation-stats records：invitee 昵称/头像 + 加入时间） */
+export interface InviteRecord {
+  id: string
+  nickname: string
+  avatar: string
+  joinedAt: string
+}
+
+/** 后端邀请记录原始条目 */
+interface RawInviteRecord {
+  id?: string
+  joinedAt?: string
+  createdAt?: string
+  invitee?: { id?: string; nickname?: string; avatar?: string } | null
+}
+
+/** 邀请统计响应：{total,records} 或 {data:{total,records}} */
 interface RawInviteStatsResp {
   total?: number | string
-  data?: { total?: number | string }
+  records?: RawInviteRecord[]
+  data?: { total?: number | string; records?: RawInviteRecord[] }
 }
 
 function adaptCode(c: RawInviteCode): InviteCodeItem {
@@ -62,6 +79,18 @@ export const inviteApi = {
       const d = res?.data ?? res
       return Number(d?.total) || 0
     } catch { return 0 }
+  },
+  /** 邀请统计（人数 + 最近记录）— GET /circles/:id/invitation-stats（后端返回 {total, records[≤20]}）；错误上抛供页面三态 */
+  getStats: async (circleId: string): Promise<{ total: number; records: InviteRecord[] }> => {
+    const res = await apiGet<RawInviteStatsResp>(`/circles/${circleId}/invitation-stats`)
+    const d = (res?.data ?? res) as { total?: number | string; records?: RawInviteRecord[] }
+    const records = (Array.isArray(d?.records) ? d.records : []).map((r): InviteRecord => ({
+      id: r.id || '',
+      nickname: r.invitee?.nickname || '圈友',
+      avatar: r.invitee?.avatar || '',
+      joinedAt: r.joinedAt || r.createdAt || '',
+    }))
+    return { total: Number(d?.total) || 0, records }
   },
   /** 生成邀请码 — POST /circles/:id/invite-code */
   generate: (circleId: string, maxUses: number) =>

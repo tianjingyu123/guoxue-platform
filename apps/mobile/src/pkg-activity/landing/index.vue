@@ -14,6 +14,14 @@
     <view :style="{ height: navH + 'px' }" />
 
     <scroll-view scroll-y class="scroll">
+      <!-- 诚实空态：暂无进行中的活动（后端活动查询端点未开放） -->
+      <view v-if="!activity" class="empty">
+        <app-icon name="calendar" :size="96" color="#D8D2C8" />
+        <text class="empty-txt">暂无进行中的活动</text>
+        <text class="empty-sub">限时活动功能完善中，敬请期待</text>
+      </view>
+
+      <template v-else>
       <!-- Banner -->
       <view class="banner">
         <view class="banner-mask" />
@@ -27,9 +35,9 @@
       <view class="cd-bar">
         <view class="cd-left">
           <app-icon name="clock" :size="32" color="#C41E3A" />
-          <text class="cd-label">距结束</text>
+          <text class="cd-label">{{ ended ? '活动已结束' : '距结束' }}</text>
         </view>
-        <view class="cd-right">
+        <view v-if="!ended" class="cd-right">
           <text class="cd-box">{{ countdown.days }}</text>
           <text class="cd-unit">天</text>
           <text class="cd-box">{{ pad(countdown.hours) }}</text>
@@ -38,6 +46,7 @@
           <text class="cd-colon">:</text>
           <text class="cd-box">{{ pad(countdown.seconds) }}</text>
         </view>
+        <text v-else class="cd-ended-txt">感谢参与</text>
       </view>
 
       <!-- 限时秒杀商品区 -->
@@ -74,7 +83,7 @@
           <view class="sk-item-foot">
             <view
               class="sk-buy"
-              :class="{ disabled: item.status !== 'ongoing' }"
+              :class="{ disabled: ended || item.status !== 'ongoing' }"
               @tap.stop="onBuy(item)"
             >
               <text class="sk-buy-txt">{{ buyText(item) }}</text>
@@ -98,6 +107,7 @@
       </view>
 
       <view class="bottom-space" />
+      </template>
     </scroll-view>
   </view>
 </template>
@@ -105,30 +115,20 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { shareLink } from '@/utils/share'
 
 const statusBarHeight = ref(0)
 const navH = ref(44)
 
-const activity = {
-  title: '国学好课限时秒杀',
-  subtitle: '精选课程 低至3折 抢完即止',
-  endTime: '2024-11-11T23:59:59',
-  items: [
-    { id: 1, productId: 101, title: '八字命理入门精讲（30节系统课）', originalPrice: 299, salePrice: 99, soldCount: 42, totalStock: 50, limitPerUser: 1, status: 'ongoing' },
-    { id: 2, productId: 102, title: '紫微斗数实战案例解析', originalPrice: 399, salePrice: 149, soldCount: 28, totalStock: 30, limitPerUser: 2, status: 'ongoing' },
-    { id: 3, productId: 103, title: '风水堪舆入门到精通', originalPrice: 199, salePrice: 69, soldCount: 100, totalStock: 100, limitPerUser: 1, status: 'sold_out' },
-  ],
-  rules: [
-    '活动时间：2024年11月1日00:00 - 11月11日23:59',
-    '每个秒杀商品每人限购数量以页面显示为准',
-    '秒杀商品为虚拟课程，购买后立即生效，不支持退款',
-    '抢购成功后请在30分钟内完成支付，超时订单自动取消',
-    '本活动最终解释权归平台所有',
-  ],
-}
+// 秒杀活动详情：后端暂未提供活动/秒杀场次查询端点，
+// 故绝不硬编码假活动（旧版硬编码 3 商品 + 已过期日期）。
+// 拿不到真实活动数据时统一走诚实空态（见模板 v-else）。
+const activity = ref<ActivityData | null>(null)
 
 const showRules = ref(false)
 const countdown = ref({ days: 0, hours: 0, minutes: 0, seconds: 0 })
+// 活动是否已结束（倒计时归零）：结束后改文案并禁用抢购
+const ended = ref(false)
 let cdTimer: ReturnType<typeof setInterval> | null = null
 
 // 秒杀活动商品项的本地类型定义
@@ -143,6 +143,14 @@ interface ActivityItem {
   limitPerUser: number
   status: string
 }
+// 秒杀活动详情
+interface ActivityData {
+  title: string
+  subtitle?: string
+  endTime: string
+  items: ActivityItem[]
+  rules: string[]
+}
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
@@ -151,15 +159,16 @@ function progress(item: ActivityItem) {
   return Math.round((item.soldCount / item.totalStock) * 100)
 }
 function buyText(item: ActivityItem) {
+  if (ended.value) return '已结束'
   return item.status === 'sold_out' ? '已抢光' : item.status === 'ended' ? '已结束' : '立即抢购'
 }
 function onBuy(item: ActivityItem) {
-  if (item.status === 'ongoing') {
+  if (!ended.value && item.status === 'ongoing') {
     uni.showToast({ title: '抢购成功！', icon: 'success' })
   }
 }
-function onShare() {
-  uni.showToast({ title: '链接已复制', icon: 'none' })
+async function onShare() {
+  await shareLink({ title: activity.value?.title || '限时活动' })
 }
 function go(path: string) {
   navigateTo(path)
@@ -168,14 +177,20 @@ function onBack() {
   navigateBack()
 }
 function tick() {
-  const diff = new Date(activity.endTime).getTime() - Date.now()
+  if (!activity.value) return
+  const diff = new Date(activity.value.endTime).getTime() - Date.now()
   if (diff > 0) {
+    ended.value = false
     countdown.value = {
       days: Math.floor(diff / 86400000),
       hours: Math.floor((diff % 86400000) / 3600000),
       minutes: Math.floor((diff % 3600000) / 60000),
       seconds: Math.floor((diff % 60000) / 1000),
     }
+  } else {
+    ended.value = true
+    countdown.value = { days: 0, hours: 0, minutes: 0, seconds: 0 }
+    if (cdTimer) { clearInterval(cdTimer); cdTimer = null }
   }
 }
 
@@ -227,6 +242,26 @@ onUnmounted(() => {
 }
 .scroll {
   height: calc(100vh - 44px);
+}
+/* 诚实空态 */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 160rpx 48rpx;
+  gap: 16rpx;
+}
+.empty-txt {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #666;
+  margin-top: 16rpx;
+}
+.empty-sub {
+  font-size: 24rpx;
+  color: #aaa;
+  text-align: center;
 }
 .banner {
   position: relative;
@@ -295,6 +330,11 @@ onUnmounted(() => {
 .cd-unit, .cd-colon {
   font-size: 26rpx;
   color: #999;
+}
+.cd-ended-txt {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--brand);
 }
 .sk-section {
   padding: 32rpx;

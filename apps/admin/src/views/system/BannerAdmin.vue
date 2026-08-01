@@ -10,6 +10,15 @@
       </el-button>
     </div>
 
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      title="消费端说明"
+      description="此处 Banner 配置目前仅由「小程序」首页读取展示，H5/App 端不消费。修改为本地暂存，需点击下方「保存到服务器」后才会对小程序生效。"
+      style="margin-bottom:12px"
+    />
+
     <!-- 错误态 -->
     <el-result
       v-if="loadError"
@@ -93,14 +102,22 @@
       v-if="!loadError"
       style="margin-top:16px"
     >
-      <el-button
-        :loading="saving"
-        type="success"
-        @click="saveBanners"
+      <el-badge
+        :is-dot="dirty"
+        type="danger"
       >
-        保存到服务器
-      </el-button>
-      <span style="margin-left:12px;color:var(--color-text-secondary);font-size:13px">编辑后需点击保存生效</span>
+        <el-button
+          :loading="saving"
+          :type="dirty ? 'danger' : 'success'"
+          @click="saveBanners"
+        >
+          保存到服务器
+        </el-button>
+      </el-badge>
+      <span
+        style="margin-left:12px;font-size:13px"
+        :style="{ color: dirty ? 'var(--el-color-danger)' : 'var(--color-text-secondary)' }"
+      >{{ dirty ? '有未保存的修改，点击保存后才对小程序生效' : '编辑后需点击保存生效' }}</span>
     </div>
 
     <el-dialog
@@ -163,7 +180,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { systemApi } from "@/api";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 
 interface Banner {
   icon: string;
@@ -178,6 +195,7 @@ const loading = ref(true);
 const loadError = ref(false);
 const dialogVisible = ref(false);
 const editIdx = ref(-1);
+const dirty = ref(false); // 两段式保存：本地有未保存修改时标红
 const form = ref<Banner>({ icon: "", title: "", sub: "", bg: "" });
 
 onMounted(load);
@@ -195,6 +213,7 @@ async function load() {
       // 无配置（首次）→ 空态，由管理员添加
       banners.value = [];
     }
+    dirty.value = false;
   } catch {
     loadError.value = true;
   } finally {
@@ -215,17 +234,23 @@ function openEdit(idx: number) {
 }
 
 function confirmEdit() {
-  if (!form.value.title) return;
+  if (!form.value.title) { ElMessage.warning("请填写标题"); return; }
   if (editIdx.value >= 0) {
     banners.value[editIdx.value] = { ...form.value };
   } else {
     banners.value.push({ ...form.value });
   }
+  dirty.value = true;
   dialogVisible.value = false;
 }
 
-function removeBanner(idx: number) {
+async function removeBanner(idx: number) {
+  const b = banners.value[idx];
+  try {
+    await ElMessageBox.confirm(`确定删除 Banner「${b?.title || '未命名'}」？删除后需点击「保存到服务器」才会对小程序生效。`, "删除确认", { type: "warning", confirmButtonText: "确定删除" });
+  } catch { return; }
   banners.value.splice(idx, 1);
+  dirty.value = true;
 }
 
 async function saveBanners() {
@@ -235,6 +260,7 @@ async function saveBanners() {
       value: JSON.stringify(banners.value),
       description: "首页轮播Banner配置",
     });
+    dirty.value = false;
     ElMessage.success("Banner已保存");
   } finally {
     saving.value = false;

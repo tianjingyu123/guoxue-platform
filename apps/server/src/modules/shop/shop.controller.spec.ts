@@ -27,6 +27,11 @@ const mockShopSvc = {
   getOrder: jest.fn().mockResolvedValue({ id: "o1", amount: 99, status: "PAID" }),
   createJsapiPayment: jest.fn().mockResolvedValue({ prepayId: "prepay123", paySign: {} }),
   createNativePayment: jest.fn().mockResolvedValue({ codeUrl: "weixin://..." }),
+  createH5Payment: jest.fn().mockResolvedValue({ mwebUrl: "https://wx.tenpay.com/h5/pay/xxx", outTradeNo: "GX1" }),
+  createCoinRechargeJsapi: jest.fn().mockResolvedValue({ payParams: { paySign: "x" }, orderNo: "RC12345678" }),
+  createCoinRechargeH5: jest.fn().mockResolvedValue({ mwebUrl: "https://wx.tenpay.com/h5/pay/recharge", orderNo: "RC12345678" }),
+  queryCoinRechargeStatus: jest.fn().mockResolvedValue({ orderNo: "RC12345678", status: "PENDING" }),
+  estimateOrder: jest.fn().mockResolvedValue({ goodsAmount: 79, couponDiscount: 10, selfDiscount: 13.8, payableAmount: 55.2 }),
   queryPaymentStatus: jest.fn().mockResolvedValue({ status: "PAID" }),
   shipOrder: jest.fn().mockResolvedValue({ id: "o1", status: "SHIPPED" }),
   adminPayOrder: jest.fn().mockResolvedValue({ id: "o1", status: "PAID" }),
@@ -35,9 +40,9 @@ const mockShopSvc = {
   verifyAndDecryptNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "o1" } }),
   handlePaymentNotify: jest.fn().mockResolvedValue(true),
   verifyAlipayNotify: jest.fn().mockResolvedValue({ valid: true, data: {} }),
-  handleAlipayNotify: jest.fn().mockResolvedValue(undefined),
+  handleAlipayNotify: jest.fn().mockResolvedValue(true),
   verifyUnionpayNotify: jest.fn().mockResolvedValue({ valid: true, data: {} }),
-  handleUnionpayNotify: jest.fn().mockResolvedValue(undefined),
+  handleUnionpayNotify: jest.fn().mockResolvedValue(true),
   handleRefundNotify: jest.fn().mockResolvedValue(undefined),
   alipayQuery: jest.fn().mockResolvedValue({ tradeStatus: "TRADE_SUCCESS" }),
   alipayRefund: jest.fn().mockResolvedValue({ refundStatus: "SUCCESS" }),
@@ -66,6 +71,8 @@ const mockShopSvc = {
 
 const mockLogisticsSvc = {
   queryTrack: jest.fn().mockResolvedValue({ state: "3", traces: [] }),
+  subscribeTrack: jest.fn().mockResolvedValue({ subscribed: true }),
+  handlePush: jest.fn().mockResolvedValue({ accepted: true, updated: 1 }),
 };
 
 const mockCouponSvc = {
@@ -76,6 +83,8 @@ const mockCouponSvc = {
   claimCoupon: jest.fn().mockResolvedValue({ claimed: true }),
   grantCoupon: jest.fn().mockResolvedValue({ granted: true }),
   getUserCoupons: jest.fn().mockResolvedValue([{ id: "cp1", status: "UNUSED" }]),
+  submitReturnLogistics: jest.fn().mockResolvedValue({ id: "as1" }),
+  processAfterSale: jest.fn().mockResolvedValue({ id: "as1", status: "APPROVED" }),
 };
 
 const mockSystemSvc = {
@@ -109,6 +118,18 @@ describe("ShopController", () => {
 
   beforeEach(() => { jest.clearAllMocks(); });
 
+  it("客服处理售后时后端关闭退款资金权限", async () => {
+    const req: any = { user: { id: "cs1", roles: ["CUSTOMER_SERVICE"] } };
+    await ctrl.processAfterSale(req, "as1", "approve", "同意申请");
+    expect(mockCouponSvc.processAfterSale).toHaveBeenCalledWith("as1", "approve", "同意申请", false);
+  });
+
+  it("运营处理售后时保留退款资金权限", async () => {
+    const req: any = { user: { id: "op1", roles: ["OPERATION_ADMIN"] } };
+    await ctrl.processAfterSale(req, "as1", "approve");
+    expect(mockCouponSvc.processAfterSale).toHaveBeenCalledWith("as1", "approve", undefined, true);
+  });
+
   // ─── 商品 ───
   it("POST /shop/products — 创建商品", async () => {
     const req: any = { user: { id: "u1" } };
@@ -121,6 +142,21 @@ describe("ShopController", () => {
     const q: any = { page: 1, pageSize: 20 };
     const result: any = await ctrl.listProducts(q);
     expect(result).toHaveLength(1);
+  });
+
+  it("GET /shop/products — 游客传 ALL 仍强制公开在售口径", async () => {
+    await ctrl.listProducts({ page: 1, pageSize: 20, status: "ALL" } as any);
+    expect(mockShopSvc.listProducts).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: undefined }),
+    );
+  });
+
+  it("GET /shop/products — 管理员保留 ALL 工作队列", async () => {
+    const req: any = { user: { id: "admin", roles: ["OPERATION_ADMIN"] } };
+    await ctrl.listProducts({ page: 1, pageSize: 20, status: "ALL" } as any, req);
+    expect(mockShopSvc.listProducts).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "ALL" }),
+    );
   });
 
   it("GET /shop/products/:id — 商品详情", async () => {
@@ -184,10 +220,58 @@ describe("ShopController", () => {
     expect(result.prepayId).toBe("prepay123");
   });
 
+  it("POST /shop/recharge/jsapi — 公众号充值参数完整透传", async () => {
+    const req: any = { user: { id: "u1" } };
+    const body: any = { amountCoin: 1000, openid: "oa-openid", channel: "OFFICIAL" };
+    const result: any = await ctrl.rechargeJsapi(req, body);
+    expect(result.orderNo).toBe("RC12345678");
+    expect(mockShopSvc.createCoinRechargeJsapi).toHaveBeenCalledWith("u1", 1000, "oa-openid", "OFFICIAL");
+  });
+
+  it("POST /shop/recharge/h5 — 透传登录用户与代理首段IP", async () => {
+    const req: any = { user: { id: "u1" }, headers: { "x-forwarded-for": "8.8.8.8, 10.0.0.1" }, ip: "10.0.0.1" };
+    const result: any = await ctrl.rechargeH5(req, { amountCoin: 1000 } as any);
+    expect(result.mwebUrl).toContain("wx.tenpay.com");
+    expect(mockShopSvc.createCoinRechargeH5).toHaveBeenCalledWith("u1", 1000, "8.8.8.8");
+  });
+
+  it("POST /shop/recharge/h5 — 无代理头回退连接IP", async () => {
+    const req: any = { user: { id: "u1" }, headers: {}, ip: "127.0.0.1" };
+    await ctrl.rechargeH5(req, { amountCoin: 1000 } as any);
+    expect(mockShopSvc.createCoinRechargeH5).toHaveBeenCalledWith("u1", 1000, "127.0.0.1");
+  });
+
+  it("GET /shop/recharge/:orderNo/payment-status — 只按当前登录用户查询", async () => {
+    const result: any = await ctrl.rechargePaymentStatus({ user: { id: "u1" } } as any, "RC12345678");
+    expect(result.status).toBe("PENDING");
+    expect(mockShopSvc.queryCoinRechargeStatus).toHaveBeenCalledWith("u1", "RC12345678");
+  });
+
   it("POST /shop/orders/:id/pay/native — Native支付", async () => {
     const req: any = { user: { id: "u1" } };
     const result: any = await ctrl.nativePay(req, "o1");
     expect(result.codeUrl).toBeTruthy();
+  });
+
+  it("POST /shop/pay/h5 — H5支付（透传当前用户做归属校验 + 代理头取客户端IP）", async () => {
+    const req: any = { user: { id: "u1" }, headers: { "x-forwarded-for": "8.8.8.8, 10.0.0.1" }, ip: "10.0.0.1" };
+    const result: any = await ctrl.h5Pay(req, { orderId: "o1" } as any);
+    expect(result.mwebUrl).toContain("wx.tenpay.com");
+    // 归属校验依赖：必须把当前登录用户 id 传给 service；IP 取 x-forwarded-for 首段
+    expect(mockShopSvc.createH5Payment).toHaveBeenCalledWith("o1", "u1", "8.8.8.8", undefined);
+  });
+
+  it("POST /shop/pay/h5 — 无代理头时回退连接 IP", async () => {
+    const req: any = { user: { id: "u1" }, headers: {}, ip: "127.0.0.1" };
+    await ctrl.h5Pay(req, { orderId: "o1" } as any);
+    expect(mockShopSvc.createH5Payment).toHaveBeenCalledWith("o1", "u1", "127.0.0.1", undefined);
+  });
+
+  it("POST /shop/orders/estimate — 订单试算（结算页价格明细）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.estimateOrder(req, { targetId: "p1", quantity: 1, couponId: "uc1" } as any);
+    expect(result.payableAmount).toBe(55.2);
+    expect(mockShopSvc.estimateOrder).toHaveBeenCalledWith("u1", expect.objectContaining({ targetId: "p1" }));
   });
 
   it("GET /shop/orders/:id/payment-status — 支付状态", async () => {
@@ -200,9 +284,14 @@ describe("ShopController", () => {
     expect(result.status).toBe("SHIPPED");
   });
 
-  it("PUT /shop/orders/:id/pay — 管理员确认支付", async () => {
-    const result: any = await ctrl.adminPayOrder({ user: { id: "admin", roles: ["SUPER_ADMIN"], nickname: "管理员" } } as any, "o1", { payTransactionId: "TXN-001" });
+  it("PUT /shop/orders/:id/pay — 管理员确认支付（测试通道·必须落审计日志记录谁用了）", async () => {
+    const result: any = await ctrl.adminPayOrder({ user: { id: "admin", roles: ["SUPER_ADMIN"], nickname: "管理员" }, ip: "127.0.0.1" } as any, "o1", { payTransactionId: "TXN-001" });
     expect(result.status).toBe("PAID");
+    expect(mockSystemSvc.logAudit).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "admin",
+      action: "ADMIN_MARK_PAID",
+      targetId: "o1",
+    }));
   });
 
   it("PUT /shop/orders/:id/complete — 完成订单", async () => {
@@ -226,11 +315,42 @@ describe("ShopController", () => {
     expect(result.code).toBe("SUCCESS");
   });
 
-  it("POST /shop/pay/notify — 微信支付回调（验签失败）", async () => {
+  it("POST /shop/pay/notify — 验签失败抛非 2xx，不能用 HTTP 200 + FAIL 停止微信重试", async () => {
     mockShopSvc.verifyAndDecryptNotify.mockResolvedValueOnce({ valid: false, data: null, error: "签名错误" });
     const req: any = { headers: {}, body: "{}" };
-    const result: any = await ctrl.handlePayNotify(req);
-    expect(result.code).toBe("FAIL");
+    await expect(ctrl.handlePayNotify(req)).rejects.toThrow("签名错误");
+  });
+
+  it("POST /shop/pay/notify — 本地未入账抛 503 语义让微信继续重试", async () => {
+    mockShopSvc.handlePaymentNotify.mockResolvedValueOnce(false);
+    const req: any = { headers: {}, body: "{}" };
+    await expect(ctrl.handlePayNotify(req)).rejects.toThrow("尚未完成本地入账");
+  });
+
+  it("POST /shop/pay/notify — 验签用 req.rawBody 原始字节，而非重构的 JSON（微信 V3 对原文验签）", async () => {
+    // 原始报文带特定空白/字段序，JSON.stringify(解析后的对象) 无法还原 → 必须用 rawBody
+    const rawStr = '{ "outTradeNo":"o1",  "amount":100 }';
+    const req: any = {
+      headers: { "wechatpay-signature": "sig", "wechatpay-timestamp": "123", "wechatpay-nonce": "abc", "wechatpay-serial": "s1" },
+      rawBody: Buffer.from(rawStr, "utf8"),
+      body: { outTradeNo: "o1", amount: 100 }, // 解析后的对象，序列化后 ≠ 原文
+    };
+    await ctrl.handlePayNotify(req);
+    const passedBody = mockShopSvc.verifyAndDecryptNotify.mock.calls.at(-1)![1];
+    expect(passedBody).toBe(rawStr);
+    expect(passedBody).not.toBe(JSON.stringify(req.body));
+  });
+
+  it("POST /shop/refund/notify — 验签同样用 req.rawBody 原始字节", async () => {
+    const rawStr = '{ "resource":"x" }';
+    const req: any = {
+      headers: { "wechatpay-signature": "sig", "wechatpay-timestamp": "123", "wechatpay-nonce": "abc", "wechatpay-serial": "s1" },
+      rawBody: Buffer.from(rawStr, "utf8"),
+      body: { resource: "x" },
+    };
+    await ctrl.handleRefundNotify(req);
+    const passedBody = mockShopSvc.verifyAndDecryptNotify.mock.calls.at(-1)![1];
+    expect(passedBody).toBe(rawStr);
   });
 
   it("POST /shop/alipay/notify — 支付宝回调", async () => {
@@ -246,10 +366,27 @@ describe("ShopController", () => {
     expect(result).toBe("fail");
   });
 
+  it("POST /shop/alipay/notify — 本地未入账返回 fail 让渠道重试", async () => {
+    mockShopSvc.handleAlipayNotify.mockResolvedValueOnce(false);
+    const result: any = await ctrl.handleAlipayNotify({ body: {} } as any);
+    expect(result).toBe("fail");
+  });
+
   it("POST /shop/unionpay/notify — 银联回调", async () => {
     const req: any = { body: {} };
     const result: any = await ctrl.handleUnionpayNotify(req);
     expect(result).toBe("success");
+  });
+
+  it("POST /shop/unionpay/notify — 本地未入账返回 fail 让渠道重试", async () => {
+    mockShopSvc.handleUnionpayNotify.mockResolvedValueOnce(false);
+    const result: any = await ctrl.handleUnionpayNotify({ body: {} } as any);
+    expect(result).toBe("fail");
+  });
+
+  it("POST /shop/refund/notify — 验签失败抛非 2xx 让微信重试", async () => {
+    mockShopSvc.verifyAndDecryptNotify.mockResolvedValueOnce({ valid: false, data: null, error: "退款签名错误" });
+    await expect(ctrl.handleRefundNotify({ headers: {}, body: "{}" } as any)).rejects.toThrow("退款签名错误");
   });
 
   it("POST /shop/refund/notify — 退款回调", async () => {
@@ -401,8 +538,17 @@ describe("ShopController", () => {
   });
 
   it("PUT /shop/orders/:id/logistics — 更新物流", async () => {
-    const dto: any = { trackingNo: "SF123", company: "顺丰" };
+    const dto: any = { logisticsNo: "SF123", company: "顺丰" };
     const result: any = await ctrl.updateLogistics("o1", dto);
     expect(result.trackingNo).toBe("SF123");
+    expect(mockLogisticsSvc.subscribeTrack).toHaveBeenCalledWith("SF123", "顺丰");
+  });
+
+  it("POST /shop/logistics/kuaidi100/callback — 原样验签并返回官方成功应答", async () => {
+    const body = { param: '{"lastResult":{"nu":"SF123"}}', sign: "ABC123" };
+    const result = await ctrl.handleKuaidi100Callback(body);
+
+    expect(mockLogisticsSvc.handlePush).toHaveBeenCalledWith(body.param, body.sign);
+    expect(result).toEqual({ result: true, returnCode: "200", message: "成功" });
   });
 });

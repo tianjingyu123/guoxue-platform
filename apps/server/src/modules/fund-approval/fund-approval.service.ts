@@ -5,7 +5,10 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
-export type FundApprovalType = "DIVIDEND" | "REFUND" | "RECHARGE" | "COMMISSION_CONFIG" | "COIN_REFUND";
+export type FundApprovalType = "DIVIDEND" | "REFUND" | "RECHARGE" | "COMMISSION_CONFIG" | "MEMBER_CONFIG" | "COIN_REFUND" | "HUIFU_SPLIT";
+
+/** amount 存"币数"的审批类型（其余均为人民币元）——前端显示单位以 amountUnit 为准，防止把币数当成元 */
+const COIN_AMOUNT_TYPES: readonly string[] = ["RECHARGE", "COIN_REFUND"];
 
 /**
  * 资金审批核心服务（仅依赖 Prisma，无业务模块依赖）。
@@ -46,10 +49,11 @@ export class FundApprovalService {
     };
   }
 
-  /** 待审 / 按状态分页列表 */
+  /** 待审 / 按状态分页列表。status=ALL（或留空）返回全部状态 */
   async list(rawPage = 1, rawPageSize = 20, status = "PENDING") {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
-    const where = status ? { status } : {};
+    const normalized = (status || "").trim().toUpperCase();
+    const where = !normalized || normalized === "ALL" ? {} : { status: normalized };
     const [items, total] = await Promise.all([
       this.model.findMany({
         where,
@@ -59,7 +63,13 @@ export class FundApprovalService {
       }),
       this.model.count({ where }),
     ]);
-    return { items, total, page, pageSize };
+    // amountUnit：RECHARGE/COIN_REFUND 的 amount 是币数（coin.service 直接把 amountCoin 落进 amount），
+    // 其余类型是人民币元。不带单位前端会把"充值 1000 币"显示成"¥1000"。
+    const withUnit = items.map((i) => ({
+      ...i,
+      amountUnit: COIN_AMOUNT_TYPES.includes(i.type) ? "COIN" : "CNY",
+    }));
+    return { items: withUnit, total, page, pageSize };
   }
 
   async findById(id: string) {

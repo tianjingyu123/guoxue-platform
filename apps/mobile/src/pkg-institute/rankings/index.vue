@@ -59,10 +59,7 @@
               <text class="podium-medal-text">{{ p.item.rank }}</text>
             </view>
             <view class="podium-avatar-wrap" :style="{ borderColor: p.medalBg }">
-              <image v-if="p.item.avatar" lazy-load :src="p.item.avatar" class="podium-avatar" mode="aspectFill" />
-              <view v-else class="podium-avatar podium-avatar-fallback">
-                <app-icon name="user" :size="24" color="#9ca3af" />
-              </view>
+              <smart-avatar class="podium-avatar" :src="p.item.avatar" :name="p.item.nickname" />
             </view>
             <text class="podium-name">{{ p.item.nickname }}</text>
             <text class="podium-level" :style="{ color: lecturerLevelColor[p.item.lecturerLevel].color, background: lecturerLevelColor[p.item.lecturerLevel].bg }">{{ lecturerLevelLabel[p.item.lecturerLevel] }}</text>
@@ -88,8 +85,7 @@
             <view class="row-top">
               <text class="row-rank">{{ it.rank }}</text>
               <view class="row-avatar-wrap">
-                <image v-if="it.avatar" lazy-load :src="it.avatar" class="row-avatar" mode="aspectFill" />
-                <view v-else class="row-avatar row-avatar-fallback"><app-icon name="user" :size="18" color="#9ca3af" /></view>
+                <smart-avatar class="row-avatar" :src="it.avatar" :name="it.nickname" />
               </view>
               <view class="row-info">
                 <text class="row-name">{{ it.nickname }}</text>
@@ -131,12 +127,13 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import {
   instituteApi, lecturerLevelLabel, lecturerLevelColor, fmtDateTime,
   type RankingItem, type RankingDims,
-} from '@/lib/institute-data'
+} from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -215,7 +212,7 @@ onLoad((options) => {
 .page { min-height: 100vh; background: #f5f5f5; }
 .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 20; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid #ececec; }
 .nav-bar { height: 44px; display: flex; align-items: center; padding: 0 12px; }
-.nav-back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -4px; }
+.nav-back { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin: 0 -6px 0 -10px; } /* 触控热区≥44px：容器扩大+负margin保持视觉位置 */
 .nav-title { flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #1a1a1a; }
 .nav-action { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
 .scroll { height: 100vh; box-sizing: border-box; }

@@ -4,6 +4,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "@guoxue/shared";
 import { maskPhone } from "../../common/crypto.util";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { Prisma, MemberLevel } from "@prisma/client";
 
 @Injectable()
 export class MemberService {
@@ -65,17 +66,32 @@ export class MemberService {
 
   // ═══════════════════ 管理员方法 ═══════════════════
 
-  /** 管理员查看所有会员购买记录 */
-  async getAdminPurchases(rawPage = 1, rawPageSize = 20) {
+  /** 管理员查看所有会员购买记录（可选按类型 + 购买时间范围筛选，服务端过滤支撑全量导出） */
+  async getAdminPurchases(
+    rawPage = 1,
+    rawPageSize = 20,
+    filter?: { type?: string; startDate?: string; endDate?: string },
+  ) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
+    const where: Prisma.MemberPurchaseWhereInput = {};
+    // type → memberType（枚举 MONTHLY/QUARTERLY/YEARLY/LIFETIME）；不传即不过滤，向后兼容
+    if (filter?.type) where.memberType = filter.type as MemberLevel;
+    // 购买时间范围（paidAt）：起始含当日 00:00、截止含当日 23:59:59.999，与前端本地筛选口径一致
+    if (filter?.startDate || filter?.endDate) {
+      const paidAt: Prisma.DateTimeFilter = {};
+      if (filter.startDate) paidAt.gte = new Date(`${filter.startDate}T00:00:00.000`);
+      if (filter.endDate) paidAt.lte = new Date(`${filter.endDate}T23:59:59.999`);
+      where.paidAt = paidAt;
+    }
     const [items, total] = await Promise.all([
       this.prisma.memberPurchase.findMany({
+        where,
         skip,
         take: pageSize,
         orderBy: { paidAt: "desc" },
         include: { user: { select: { id: true, nickname: true, phone: true } } },
       }),
-      this.prisma.memberPurchase.count(),
+      this.prisma.memberPurchase.count({ where }),
     ]);
     // 管理端列表脱敏会员手机号
     const masked = items.map((it) => ({

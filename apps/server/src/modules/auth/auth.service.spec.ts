@@ -15,11 +15,12 @@ import * as bcrypt from "bcryptjs";
 
 const mockPrisma = {
   user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
-  auth: { findFirst: jest.fn(), update: jest.fn() },
+  auth: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
   userRole: { findMany: jest.fn() },
   station: { findUnique: jest.fn() },
   referralRelation: { create: jest.fn() },
   merchant: { findUnique: jest.fn() },
+  merchantMember: { findFirst: jest.fn() },
 };
 
 const mockJwt = { sign: jest.fn() };
@@ -72,7 +73,17 @@ describe("AuthService", () => {
     svc = mod.get(AuthService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    delete process.env.WECHAT_APP_ID;
+    delete process.env.WECHAT_APP_SECRET;
+    delete process.env.WECHAT_OFFICIAL_APPID;
+    delete process.env.WECHAT_OFFICIAL_APP_SECRET;
+    delete process.env.WECHAT_MINI_APP_ID;
+    delete process.env.MINIPROGRAM_APP_ID;
+    delete process.env.WECHAT_MP_APP_ID;
+    delete process.env.MINIPROGRAM_APP_SECRET;
+  });
 
   describe("phoneRegister", () => {
     it("注册成功", async () => {
@@ -167,8 +178,25 @@ describe("AuthService", () => {
   });
 
   describe("wechatLogin", () => {
-    it("微信登录暂未开放", async () => {
+    it("未配置任何微信应用时拒绝登录", async () => {
       await expect(svc.wechatLogin({ code: "code" })).rejects.toThrow(BusinessException);
+      expect(mockWechat.exchangeOAuthCode).not.toHaveBeenCalled();
+    });
+
+    it("只配置公众号卡片时允许进入 H5 code 换取流程", async () => {
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official";
+      process.env.WECHAT_OFFICIAL_APP_SECRET = "official-secret";
+      mockWechat.exchangeOAuthCode.mockRejectedValueOnce(new Error("测试到此为止"));
+      await expect(svc.wechatLogin({ code: "code", loginType: "h5" })).rejects.toThrow(BusinessException);
+      expect(mockWechat.exchangeOAuthCode).toHaveBeenCalledWith("code");
+    });
+
+    it("只配置小程序卡片时允许进入 code2session 流程", async () => {
+      process.env.WECHAT_MINI_APP_ID = "wx-mini";
+      process.env.MINIPROGRAM_APP_SECRET = "mini-secret";
+      mockWechat.exchangeMiniCode.mockRejectedValueOnce(new Error("测试到此为止"));
+      await expect(svc.wechatLogin({ code: "code", loginType: "miniprogram" })).rejects.toThrow(BusinessException);
+      expect(mockWechat.exchangeMiniCode).toHaveBeenCalledWith("code");
     });
   });
 
@@ -183,6 +211,34 @@ describe("AuthService", () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
       const result = await svc.getProfile("user-1");
       expect(result).toEqual({ ...profile, paymentPasswordSet: false, permissions: [], merchant: null });
+    });
+  });
+
+  describe("跨端无感登录握手码", () => {
+    it("签发握手码：写入 Redis(60s) 并返回 code", async () => {
+      const r = await svc.issueHandoffCode("user-1");
+      expect(typeof r.code).toBe("string");
+      expect(r.code.length).toBeGreaterThan(0);
+      expect(mockRedis.set).toHaveBeenCalledWith(`handoff:${r.code}`, "user-1", 60);
+    });
+
+    it("换取会话：有效码返回新 token 且单次消费(del)", async () => {
+      mockRedis.get.mockResolvedValueOnce("user-1");
+      mockPrisma.user.findUnique.mockResolvedValue({ status: "ACTIVE" });
+      mockJwt.sign.mockReturnValue("access-token");
+      const r = await svc.exchangeHandoffCode("good-code");
+      expect(mockRedis.del).toHaveBeenCalledWith("handoff:good-code");
+      expect(r.accessToken).toBe("access-token");
+      expect(r.refreshToken).toBeDefined();
+    });
+
+    it("换取会话：无效/过期码抛错，不签发", async () => {
+      mockRedis.get.mockResolvedValueOnce(null);
+      await expect(svc.exchangeHandoffCode("bad-code")).rejects.toThrow();
+    });
+
+    it("换取会话：空码抛错", async () => {
+      await expect(svc.exchangeHandoffCode("")).rejects.toThrow();
     });
   });
 
@@ -208,9 +264,13 @@ describe("AuthService", () => {
       const result = await svc.changePassword("user-1", { oldPassword: "123456", newPassword: "654321" });
       expect(result.success).toBe(true);
     });
-    it("未设置密码抛出 BadRequestException", async () => {
+    it("未设置密码时首次创建凭证（验证码/微信登录用户首次设密码，无需旧密码）", async () => {
       mockPrisma.auth.findFirst.mockResolvedValue(null);
-      await expect(svc.changePassword("user-1", { oldPassword: "123456", newPassword: "654321" })).rejects.toThrow(BusinessException);
+      (bcrypt.hash as jest.Mock).mockResolvedValue("new-hash");
+      mockPrisma.auth.create.mockResolvedValue({ id: "auth-new", credential: "new-hash" });
+      const result = await svc.changePassword("user-1", { newPassword: "Abc12345" });
+      expect(result.success).toBe(true);
+      expect(mockPrisma.auth.create).toHaveBeenCalled();
     });
     it("原密码错误抛出 BadRequestException", async () => {
       mockPrisma.auth.findFirst.mockResolvedValue({ id: "auth-1", credential: "hash" });
@@ -230,8 +290,8 @@ describe("AuthService", () => {
 
       expect(result.accessToken).toBe("new-access-token");
       expect(result.refreshToken).toBeTruthy();
-      // 旧 token 被删除（防重放攻击）
-      expect(mockRedis.del).toHaveBeenCalledWith("refresh:valid-refresh");
+      // 旧 token 进入 60 秒轮换宽限（吸收并发续期防误登出），而非立即删除
+      expect(mockRedis.expire).toHaveBeenCalledWith("refresh:valid-refresh", 60);
     });
 
     it("无效 refreshToken 抛出异常", async () => {

@@ -1,6 +1,6 @@
 <template>
   <div class="product-audit-page">
-    <PageHeader title="商品品控巡检">
+    <PageHeader title="商品审核巡检">
       <template #actions>
         <el-tag
           type="info"
@@ -37,7 +37,7 @@
       :loading="loading"
       :total="total"
       :page-size="pageSize"
-      actions-width="260"
+      actions-width="330"
       @change="fetchList"
     >
       <template #toolbar>
@@ -107,7 +107,7 @@
         >无</span>
       </template>
       <template #price="{ row }">
-        ¥{{ Number(row.price).toFixed(2) }}
+        {{ formatPrice(row.price) }}
       </template>
       <template #status="{ row }">
         <el-tag
@@ -118,6 +118,12 @@
         </el-tag>
       </template>
       <template #actions="{ row }">
+        <el-button
+          size="small"
+          @click="openDetail(row)"
+        >
+          查看详情
+        </el-button>
         <el-button
           v-if="row.status !== 'OFF_SHELF'"
           size="small"
@@ -145,6 +151,85 @@
       </template>
     </DataTable>
 
+    <!-- 商品详情抽屉：列表行数据先显 + productApi.detail 全量补充（GET /shop/products/:id） -->
+    <el-drawer
+      v-model="detailVisible"
+      title="商品详情"
+      size="520px"
+    >
+      <div
+        v-if="detailData"
+        v-loading="detailLoading"
+        class="detail-body"
+      >
+        <div
+          v-if="detailData.images?.length"
+          class="detail-gallery"
+        >
+          <el-image
+            v-for="(img, i) in detailData.images"
+            :key="i"
+            :src="img"
+            :preview-src-list="detailData.images"
+            :initial-index="i"
+            fit="cover"
+            class="detail-gallery__img"
+          />
+        </div>
+        <el-descriptions
+          :column="1"
+          border
+          style="margin-top:12px"
+        >
+          <el-descriptions-item label="商品名">
+            {{ detailData.title || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="价格">
+            <span class="detail-price">{{ formatPrice(detailData.price) }}</span>
+            <span
+              v-if="detailData.effectivePrice != null && Number(detailData.effectivePrice) !== Number(detailData.price)"
+              class="detail-promo"
+            >活动价 {{ formatPrice(detailData.effectivePrice) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="库存 / 销量">
+            {{ detailData.stock ?? '—' }} / {{ detailData.salesCount ?? '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag
+              :type="statusType(detailData.status || '')"
+              size="small"
+            >
+              {{ statusLabel(detailData.status || '') }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="商家">
+            {{ detailData.merchant?.shopName || (detailData.isPlatform ? '平台自营' : '—') }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailData.categoryLevel1"
+            label="品类"
+          >
+            {{ detailData.categoryLevel1 }}{{ detailData.categoryLevel2 ? ` / ${detailData.categoryLevel2}` : '' }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            v-if="detailData.intro"
+            label="简介"
+          >
+            {{ detailData.intro }}
+          </el-descriptions-item>
+        </el-descriptions>
+        <template v-if="detailData.detail">
+          <h4 class="detail-subtitle">
+            图文描述
+          </h4>
+          <div
+            class="detail-html"
+            v-html="sanitize(detailData.detail)"
+          />
+        </template>
+      </div>
+    </el-drawer>
+
     <!-- 处置弹窗 -->
     <el-dialog
       v-model="dialogVisible"
@@ -159,7 +244,10 @@
           <b>商品：</b>{{ currentRow.title }}
         </p>
         <el-form label-width="72px">
-          <el-form-item :label="action === 'restore' ? '备注' : '原因'">
+          <el-form-item
+            :label="action === 'restore' ? '备注' : '原因'"
+            :required="action !== 'restore'"
+          >
             <el-input
               v-model="reason"
               type="textarea"
@@ -205,6 +293,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api'
+import { sanitize } from '@/utils/sanitize'
 import DataTable from '@/components/DataTable.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
@@ -219,6 +308,17 @@ interface ProductRow {
   salesCount?: number
   status?: string
   images?: string[]
+}
+
+/** 详情抽屉数据（GET /shop/products/:id·shop-product.service.getProduct 全量返回，price 单位=元） */
+interface ProductDetail extends ProductRow {
+  intro?: string | null
+  detail?: string | null
+  isPlatform?: boolean
+  categoryLevel1?: string | null
+  categoryLevel2?: string | null
+  effectivePrice?: number | string
+  merchant?: { shopName?: string } | null
 }
 
 const products = ref<ProductRow[]>([])
@@ -239,14 +339,26 @@ const currentRow = ref<ProductRow | null>(null)
 const action = ref<ModerateActionType>('takedown')
 const reason = ref('')
 
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detailData = ref<ProductDetail | null>(null)
+
 const columns = [
   { prop: 'image', label: '图片', width: 80, slot: 'image' },
   { prop: 'title', label: '商品名', minWidth: 180, showOverflow: true },
-  { prop: 'price', label: '价格', width: 110, slot: 'price' },
+  // 价格右对齐（标准第四节-3）；Product.price 为 Decimal(10,2) 元，无需分转元
+  { prop: 'price', label: '价格', width: 110, slot: 'price', align: 'right' },
   { prop: 'stock', label: '库存', width: 70 },
   { prop: 'salesCount', label: '销量', width: 70 },
   { prop: 'status', label: '状态', width: 90, slot: 'status' },
 ]
+
+/** ¥千分位两位小数；单位=元（schema Product.price Decimal(10,2)·后端 Number() 直出） */
+function formatPrice(v?: number | string) {
+  const n = Number(v)
+  if (v == null || v === '' || Number.isNaN(n)) return '—'
+  return `¥${n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
 
 const dialogTitle = computed(() =>
   ({ takedown: '违规下架', restore: '恢复上架', warn: '警告' } as Record<string, string>)[action.value] || '处置',
@@ -291,7 +403,8 @@ async function fetchList() {
   try {
     const params: Record<string, unknown> = { page: page.value, pageSize: pageSize.value }
     if (keyword.value.trim()) params.keyword = keyword.value.trim()
-    if (status.value) params.status = status.value
+    // 「全部状态」须显式传 ALL：后端 C 端不传 status 默认只出 ON_SALE，审核巡检要看到待审/下架
+    params.status = status.value || 'ALL'
     if (categoryId.value) params.categoryId = categoryId.value
     const { data } = await api.get('/shop/products', { params })
     products.value = data.items || data.products || []
@@ -325,10 +438,30 @@ function openModerate(row: ProductRow, act: ModerateActionType) {
   dialogVisible.value = true
 }
 
+/** 查看详情：先用列表行数据即时显示，再拉全量详情补充（旧后端/接口失败时诚实降级只显行数据） */
+async function openDetail(row: ProductRow) {
+  detailData.value = { ...row }
+  detailVisible.value = true
+  if (!row.id) return
+  detailLoading.value = true
+  try {
+    const { data } = await api.get(`/shop/products/${row.id}`)
+    if (data) detailData.value = { ...row, ...data }
+  } catch {
+    // 详情拉取失败：保留列表行数据，拦截器已提示
+  } finally {
+    detailLoading.value = false
+  }
+}
+
 async function confirmModerate() {
   if (submitting.value || !currentRow.value) return
   if (action.value === 'takedown' && !reason.value.trim()) {
     ElMessage.warning('违规下架请填写原因')
+    return
+  }
+  if (action.value === 'warn' && !reason.value.trim()) {
+    ElMessage.warning('警告请填写说明，将记录品控审计日志')
     return
   }
   submitting.value = true
@@ -354,4 +487,11 @@ async function confirmModerate() {
 .no-img { color: var(--color-text-placeholder); font-size: 11px; }
 .moderate-target { margin: 0 0 12px; color: var(--color-text-primary); }
 .moderate-body :deep(.el-alert) { margin-top: 4px; }
+.detail-gallery { display: flex; flex-wrap: wrap; gap: 8px; }
+.detail-gallery__img { width: 96px; height: 96px; border-radius: var(--radius-sm, 4px); }
+.detail-price { font-weight: 600; }
+.detail-promo { margin-left: 8px; font-size: 12px; color: #C41E3A; }
+.detail-subtitle { margin: 16px 0 8px; font-size: 14px; color: var(--color-text-title); }
+.detail-html { line-height: 1.8; word-break: break-word; }
+.detail-html :deep(img) { max-width: 100%; }
 </style>

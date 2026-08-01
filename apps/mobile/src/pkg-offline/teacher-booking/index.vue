@@ -1,140 +1,233 @@
-<template>
-  <view class="tb-page">
-    <!-- 顶部导航 -->
-    <view class="tb-header" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="tb-nav">
-        <view class="tb-icon-btn" @tap="goBack">
-          <app-icon name="chevron-left" :size="22" color="#1a1a1a" />
-        </view>
-        <text class="tb-nav-title">驿站师资</text>
-        <view class="tb-icon-btn" />
-      </view>
-    </view>
-
-    <scroll-view scroll-y class="tb-body">
-      <!-- 三态 -->
-      <view v-if="loading" class="tb-state">
-        <view class="spinner" />
-        <text class="tb-state-text">加载中…</text>
-      </view>
-      <view v-else-if="errMsg" class="tb-state">
-        <app-icon name="alert-circle" :size="44" color="#d1d5db" />
-        <text class="tb-state-text">{{ errMsg }}</text>
-        <view class="retry-btn" @tap="load"><text class="retry-text">重试</text></view>
-      </view>
-      <view v-else-if="teachers.length === 0" class="tb-state">
-        <app-icon name="users" :size="48" color="#d1d5db" />
-        <text class="tb-state-text">该驿站暂无驻场讲师</text>
-      </view>
-
-      <view v-else class="tb-list">
-        <view class="tb-tip">
-          <app-icon name="info" :size="15" color="#c41e3a" />
-          <text class="tb-tip-text">驿站讲师面向学员开展线下课程教学，可在下方查看讲师课程并报名。</text>
-        </view>
-
-        <view v-for="t in teachers" :key="t.id" class="tb-card" :class="{ highlight: t.id === highlightId }">
-          <view class="tb-card-head">
-            <image lazy-load v-if="t.avatar" :src="t.avatar" class="tb-avatar-img" mode="aspectFill" />
-            <view v-else class="tb-avatar"><app-icon name="user" :size="26" color="#9ca3af" /></view>
-            <view class="tb-card-info">
-              <view class="tb-name-row">
-                <text class="tb-name">{{ t.name }}</text>
-                <text v-if="t.sourceUserId" class="tb-signed">研究院签约</text>
-              </view>
-              <text class="tb-spec">{{ t.specialties.length ? t.specialties.join(' · ') : '国学讲师' }}</text>
-            </view>
-          </view>
-          <text v-if="t.bio" class="tb-bio">{{ t.bio }}</text>
-          <view class="tb-card-foot">
-            <view class="tb-foot-btn ghost" @tap="goCourses"><text class="tb-foot-btn-text">查看课程</text></view>
-            <view class="tb-foot-btn primary" @tap="onConsult"><text class="tb-foot-btn-text primary">咨询预约</text></view>
-          </view>
-        </view>
-      </view>
-      <view class="tb-safe" />
-    </scroll-view>
-  </view>
-</template>
-
 <script setup lang="ts">
-import { ref } from 'vue'
+/**
+ * 预约到店（师资预约）—— 2026-07-14 接线新建
+ *
+ * 背景：驿站详情页的**主 CTA** 在该驿站没排线下课时是「预约到店」，
+ *   跳 `/offline/teacher-booking?stationId=xxx` —— **这个页面根本不存在**，点了没反应。
+ *   而后端整套是好的（POST /offline/stations/:id/teacher-bookings + 站长确认 PUT .../confirm），
+ *   前端连封装 offlineApi.createBooking 都早就写好了，只差这一个页面。
+ *
+ * 预约成功后是「待站长确认」，不是即时成交 —— 文案如实说明，不让用户以为约上了就一定能去。
+ */
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import { goBack } from '@/utils/router'
 import { offlineApi, type StationTeacherLite } from '@/lib/offline-data'
 
-const statusBarHeight = ref(0)
-try {
-  const info = uni.getSystemInfoSync()
-  statusBarHeight.value = info.statusBarHeight || 0
-} catch {}
-
-const loading = ref(true)
-const errMsg = ref('')
 const stationId = ref('')
-const highlightId = ref('')
+const loading = ref(true)
+const error = ref('')
+const submitting = ref(false)
+
 const teachers = ref<StationTeacherLite[]>([])
+const teacherId = ref('')
+const bookingDate = ref('')
+const remark = ref('')
+
+/** 只能约今天之后（含今天）——后端不挡，前端别让用户约到过去 */
+const today = computed(() => {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+})
+
+const selected = computed(() => teachers.value.find((t) => t.id === teacherId.value) || null)
+const canSubmit = computed(() => !!teacherId.value && !!bookingDate.value && !submitting.value)
+
+onLoad((opt) => {
+  stationId.value = String((opt as Record<string, string>)?.stationId || (opt as Record<string, string>)?.id || '')
+})
 
 async function load() {
-  if (!stationId.value) { loading.value = false; errMsg.value = '请从驿站详情进入'; return }
+  if (!stationId.value) {
+    error.value = '缺少驿站参数，请从驿站详情页进入'
+    loading.value = false
+    return
+  }
   loading.value = true
-  errMsg.value = ''
+  error.value = ''
   try {
     teachers.value = await offlineApi.getStationTeachers(stationId.value)
   } catch (e) {
-    errMsg.value = (e as Error)?.message || '加载失败'
+    error.value = (e as Error)?.message || '加载失败'
   } finally {
     loading.value = false
   }
 }
-onLoad((q) => {
-  stationId.value = q && q.stationId ? String(q.stationId) : ''
-  highlightId.value = q && q.teacherId ? String(q.teacherId) : ''
-  load()
-})
 
-function goCourses() {
-  navigateTo(`/offline/courses?stationId=${stationId.value}`)
+function onDateChange(e: { detail: { value: string } }) {
+  bookingDate.value = e.detail.value
 }
-function onConsult() {
-  uni.showToast({ title: '1对1咨询预约即将开放', icon: 'none' })
+
+async function submit() {
+  if (!canSubmit.value) {
+    if (!teacherId.value) uni.showToast({ title: '请选择讲师', icon: 'none' })
+    else if (!bookingDate.value) uni.showToast({ title: '请选择到店日期', icon: 'none' })
+    return
+  }
+  submitting.value = true
+  try {
+    await offlineApi.createBooking(stationId.value, {
+      teacherId: teacherId.value,
+      bookingDate: bookingDate.value,
+      remark: remark.value.trim() || undefined,
+    })
+    uni.showModal({
+      title: '预约已提交',
+      content: '已通知驿站，待站长确认后生效。可在「我的-预约」中查看进度。',
+      showCancel: false,
+      confirmColor: '#C41E3A',
+      success: () => goBack(),
+    })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '预约失败，请稍后重试', icon: 'none' })
+  } finally {
+    submitting.value = false
+  }
 }
+
+onMounted(load)
 </script>
 
-<style scoped>
-.tb-page { min-height: 100vh; background: #f5f5f7; display: flex; flex-direction: column; }
-.tb-header { position: sticky; top: 0; z-index: 50; background: #fff; border-bottom: 1px solid #ededed; }
-.tb-nav { display: flex; align-items: center; justify-content: space-between; height: 48px; padding: 0 8px; }
-.tb-icon-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
-.tb-nav-title { font-size: 17px; font-weight: 600; color: #1a1a1a; }
-.tb-body { flex: 1; }
-.tb-state { padding: 100px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.tb-state-text { font-size: 13px; color: #9ca3af; }
-.spinner { width: 28px; height: 28px; border: 3px solid #f0f0f0; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.retry-btn { margin-top: 4px; padding: 8px 22px; border: 1px solid var(--brand); border-radius: 999px; }
-.retry-text { font-size: 13px; color: var(--brand); }
+<template>
+  <view class="page">
+    <view class="topbar">
+      <view class="back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+      <text class="topbar-title">预约到店</text>
+    </view>
 
-.tb-list { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
-.tb-tip { display: flex; align-items: flex-start; gap: 8px; padding: 12px; background: rgba(196,30,58,0.05); border-radius: 10px; }
-.tb-tip-text { flex: 1; font-size: 12px; color: #9a2e25; line-height: 1.6; }
-.tb-card { background: #fff; border-radius: 12px; padding: 16px; }
-.tb-card.highlight { border: 1px solid var(--brand); }
-.tb-card-head { display: flex; align-items: center; gap: 12px; }
-.tb-avatar { width: 56px; height: 56px; border-radius: 999px; background: #f3f4f6; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.tb-avatar-img { width: 56px; height: 56px; border-radius: 999px; flex-shrink: 0; }
-.tb-card-info { flex: 1; min-width: 0; }
-.tb-name-row { display: flex; align-items: center; gap: 6px; }
-.tb-name { font-size: 16px; font-weight: 600; color: #1a1a1a; }
-.tb-signed { font-size: 10px; padding: 1px 6px; color: var(--brand); background: rgba(196,30,58,0.1); border-radius: 4px; }
-.tb-spec { display: block; font-size: 13px; color: #9ca3af; margin-top: 4px; }
-.tb-bio { display: block; font-size: 13px; color: #6b7280; line-height: 1.6; margin-top: 12px; }
-.tb-card-foot { display: flex; gap: 12px; margin-top: 16px; }
-.tb-foot-btn { flex: 1; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; }
-.tb-foot-btn.ghost { border: 1px solid #e5e7eb; }
-.tb-foot-btn.primary { background: var(--brand); }
-.tb-foot-btn-text { font-size: 14px; color: #1a1a1a; }
-.tb-foot-btn-text.primary { color: #fff; }
-.tb-safe { height: 24px; }
+    <view v-if="loading" class="state">
+      <view class="skel" /><view class="skel" />
+    </view>
+    <view v-else-if="error" class="state center">
+      <text class="state-t">{{ error }}</text>
+      <view class="retry" @tap="load"><text class="retry-t">重试</text></view>
+    </view>
+    <view v-else-if="!teachers.length" class="state center">
+      <text class="state-t">该驿站还没有登记讲师，暂时无法预约</text>
+    </view>
+
+    <template v-else>
+      <text class="group-label">选择讲师</text>
+      <view class="group">
+        <view
+          v-for="t in teachers"
+          :key="t.id"
+          class="teacher"
+          :class="{ on: teacherId === t.id }"
+          @tap="teacherId = t.id"
+        >
+          <image v-if="t.avatar" class="avatar" :src="t.avatar" mode="aspectFill" />
+          <view v-else class="avatar avatar-ph"><text class="avatar-t">{{ t.name.charAt(0) }}</text></view>
+          <view class="tmain">
+            <text class="tname">{{ t.name }}</text>
+            <text v-if="t.specialties?.length" class="tspec">{{ t.specialties.join(' · ') }}</text>
+          </view>
+          <view class="radio" :class="{ on: teacherId === t.id }">
+            <app-icon v-if="teacherId === t.id" name="check" :size="20" color="#fff" />
+          </view>
+        </view>
+      </view>
+
+      <text class="group-label">到店日期</text>
+      <view class="group">
+        <picker mode="date" :start="today" :value="bookingDate" @change="onDateChange">
+          <view class="row">
+            <text class="row-label">选择日期</text>
+            <view class="row-right">
+              <text class="row-value" :class="{ ph: !bookingDate }">{{ bookingDate || '请选择' }}</text>
+              <app-icon name="chevron-right" :size="28" color="#c8c8cd" />
+            </view>
+          </view>
+        </picker>
+      </view>
+
+      <text class="group-label">备注（选填）</text>
+      <view class="group">
+        <textarea
+          v-model="remark"
+          class="ta"
+          placeholder="想咨询的方向、到店时段等"
+          placeholder-class="ph"
+          :maxlength="200"
+        />
+      </view>
+
+      <view class="tip">
+        <app-icon name="info" :size="24" color="#C9A96E" />
+        <text class="tip-t">预约提交后需驿站站长确认才生效，确认结果会以消息通知你。</text>
+      </view>
+
+      <view class="savebar">
+        <view class="btn" :class="{ disabled: !canSubmit }" @tap="submit">
+          <text class="btn-t">{{ submitting ? '提交中…' : `预约${selected ? ' · ' + selected.name : ''}` }}</text>
+        </view>
+      </view>
+    </template>
+  </view>
+</template>
+
+<style scoped lang="scss">
+.page { min-height: 100vh; background: var(--bg-page, #faf8f5); padding-bottom: calc(176rpx + env(safe-area-inset-bottom)); }
+
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 20rpx;
+  padding: 24rpx 32rpx; padding-top: calc(var(--status-bar-height, 0px) + 24rpx);
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+  border-bottom: 1rpx solid var(--separator, #ede7dd);
+}
+.back { display: flex; align-items: center; }
+.topbar-title { font-size: 34rpx; font-weight: 600; color: var(--text-primary, #2c2c2c); flex: 1; }
+
+.state { padding: 32rpx; }
+.state.center { padding: 160rpx 80rpx; display: flex; flex-direction: column; align-items: center; gap: 16rpx; }
+.skel { height: 120rpx; border-radius: 28rpx; background: #fff; margin-bottom: 24rpx; }
+.state-t { font-size: 28rpx; color: var(--text-tertiary, #999); text-align: center; line-height: 1.7; }
+.retry { margin-top: 12rpx; padding: 14rpx 56rpx; border-radius: 999rpx; background: var(--brand, #c41e3a); }
+.retry-t { font-size: 26rpx; color: #fff; }
+
+.group-label { display: block; margin: 36rpx 36rpx 16rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.group {
+  margin: 0 32rpx; background: var(--bg-card, #fff);
+  border-radius: 32rpx; box-shadow: 0 2rpx 6rpx rgba(44, 44, 44, 0.05); overflow: hidden;
+}
+
+.teacher { display: flex; align-items: center; gap: 20rpx; padding: 24rpx 28rpx; }
+.teacher + .teacher { border-top: 1rpx solid var(--separator, #ede7dd); }
+.avatar { width: 84rpx; height: 84rpx; border-radius: 999rpx; flex-shrink: 0; }
+.avatar-ph { background: var(--gold-soft, rgba(201,169,110,.16)); display: flex; align-items: center; justify-content: center; }
+.avatar-t { font-size: 32rpx; color: #a98b52; font-weight: 600; }
+.tmain { flex: 1; min-width: 0; }
+.tname { display: block; font-size: 30rpx; color: var(--text-primary, #2c2c2c); font-weight: 500; }
+.tspec { display: block; margin-top: 6rpx; font-size: 24rpx; color: var(--text-tertiary, #999); }
+.radio {
+  width: 40rpx; height: 40rpx; border-radius: 999rpx; flex-shrink: 0;
+  border: 2rpx solid #d8d3ca; display: flex; align-items: center; justify-content: center;
+}
+.radio.on { background: var(--brand, #c41e3a); border-color: var(--brand, #c41e3a); }
+
+.row { display: flex; align-items: center; padding: 28rpx 32rpx; }
+.row-label { flex: 1; font-size: 30rpx; color: var(--text-primary, #2c2c2c); }
+.row-right { display: flex; align-items: center; gap: 8rpx; }
+.row-value { font-size: 28rpx; color: var(--text-secondary, #6e6e73); }
+.row-value.ph { color: #b9b3aa; }
+
+/* uni-app 坑：原生 textarea 必须给明确高度 */
+.ta { width: 100%; box-sizing: border-box; height: 160rpx; padding: 24rpx 28rpx; font-size: 28rpx; color: var(--text-primary, #2c2c2c); }
+.ph { color: #b9b3aa; }
+
+.tip { margin: 28rpx 36rpx 0; display: flex; align-items: flex-start; gap: 12rpx; }
+.tip-t { flex: 1; font-size: 22rpx; color: var(--text-tertiary, #999); line-height: 1.7; }
+
+.savebar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+  padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(24rpx);
+  border-top: 1rpx solid var(--separator, #ede7dd);
+}
+.btn { height: 92rpx; border-radius: 46rpx; background: var(--brand, #c41e3a); display: flex; align-items: center; justify-content: center; }
+.btn.disabled { opacity: 0.5; }
+.btn-t { font-size: 32rpx; font-weight: 600; color: #fff; letter-spacing: 2rpx; }
 </style>

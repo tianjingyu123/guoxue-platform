@@ -2,8 +2,7 @@
   <view class="gf-page">
     <!-- 加载中 -->
     <view v-if="loading" class="state-box">
-      <view class="state-spin" />
-      <text class="state-text">加载中...</text>
+      <AppLoading />
     </view>
     <!-- 加载失败 -->
     <view v-else-if="error" class="state-box">
@@ -37,22 +36,21 @@
       <!-- 商品卡 -->
       <view class="card">
         <view class="prod">
-          <image lazy-load class="prod-cover" :src="info.productCover" mode="aspectFill" />
+          <smart-cover class="prod-cover" :src="info.productCover" :title="info.productName" type="product" deco :deco-size="44" />
           <view class="prod-info">
             <text class="prod-name">{{ info.productName }}</text>
-            <text class="price-now">¥{{ info.price }}</text>
+            <text class="price-now">¥{{ formatPrice(info.price) }}</text>
           </view>
         </view>
         <view class="card-divider" />
         <view class="row">
           <text class="row-label">参团人数</text>
           <view class="members">
-            <image lazy-load
+            <smart-avatar
               v-for="(m, i) in info.members"
               :key="i"
               class="member-avatar"
               :src="m.avatar"
-              mode="aspectFill"
             />
             <view v-for="n in (info.minMembers - info.currentMembers)" :key="'e' + n" class="member-empty">
               <text class="member-q">?</text>
@@ -151,7 +149,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
+import SmartCover from '@/components/common/smart-cover.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 interface GroupBuyFailData {
   productCover: string
@@ -316,6 +318,7 @@ async function retryLoad() {
   width: 144rpx;
   height: 144rpx;
   border-radius: 16rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .prod-info {
@@ -571,17 +574,6 @@ async function retryLoad() {
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-}
-.state-spin {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #e8e3db;
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 .state-icon {
   width: 120rpx;

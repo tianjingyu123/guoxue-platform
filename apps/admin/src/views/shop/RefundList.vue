@@ -28,12 +28,12 @@
       </el-col>
       <el-col :span="6">
         <div class="stat-card amount">
-          <span class="value">¥{{ fmt(stats.pendingAmount) }}</span><span class="label">待处理金额</span>
+          <span class="value">¥{{ fmt(stats.pendingAmount) }}</span><span class="label">待处理金额（近100条口径）</span>
         </div>
       </el-col>
       <el-col :span="6">
         <div class="stat-card">
-          <span class="value">¥{{ fmt(stats.todayRefund) }}</span><span class="label">今日退款</span>
+          <span class="value">¥{{ fmt(stats.todayRefund) }}</span><span class="label">今日退款（近100条口径）</span>
         </div>
       </el-col>
       <el-col :span="6">
@@ -54,10 +54,12 @@
           label="待处理"
           name="PENDING"
         />
+        <el-tab-pane label="退款中" name="PROCESSING" />
         <el-tab-pane
           label="已同意"
           name="APPROVED"
         />
+        <el-tab-pane label="已完成" name="COMPLETED" />
         <el-tab-pane
           label="已拒绝"
           name="REJECTED"
@@ -91,7 +93,7 @@
       stripe
     >
       <template #empty>
-        <el-empty description="暂无退款申请" />
+        <el-empty description="暂无售后申请" />
       </template>
       <el-table-column
         label="订单号"
@@ -107,7 +109,36 @@
         width="160"
       >
         <template #default="{ row }">
-          {{ row.user?.nickname || row.userId }}
+          <template v-if="row.user?.nickname">
+            <router-link
+              class="user-link"
+              :to="`/users/${row.userId}`"
+            >
+              {{ row.user.nickname }}
+            </router-link>
+          </template>
+          <template v-else-if="row.userId">
+            <el-tooltip
+              :content="row.userId"
+              placement="top"
+            >
+              <router-link
+                class="user-link mono"
+                :to="`/users/${row.userId}`"
+              >
+                {{ row.userId.slice(0, 8) }}…
+              </router-link>
+            </el-tooltip>
+            <el-button
+              size="small"
+              link
+              type="primary"
+              @click.stop="copyText(row.userId)"
+            >
+              复制
+            </el-button>
+          </template>
+          <span v-else>—</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -119,16 +150,16 @@
         </template>
       </el-table-column>
       <el-table-column
-        label="退款金额"
+        label="售后金额"
         width="110"
         align="right"
       >
         <template #default="{ row }">
-          ¥{{ fmt(row.amount) }}
+          {{ isRefundType(row.type) ? `¥${fmt(row.amount)}` : '—' }}
         </template>
       </el-table-column>
       <el-table-column
-        label="退款原因"
+        label="申请原因"
         min-width="150"
         show-overflow-tooltip
       >
@@ -146,7 +177,7 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="200"
+        width="240"
         fixed="right"
       >
         <template #default="{ row }">
@@ -157,7 +188,7 @@
               :disabled="processing"
               @click="showApproveConfirm(row)"
             >
-              同意退款
+              {{ approvalButtonLabel(row.type) }}
             </el-button>
             <el-button
               size="small"
@@ -168,26 +199,23 @@
               拒绝
             </el-button>
           </template>
-          <template v-else>
-            <span
-              v-if="row.logistics"
-              class="reason text-muted"
-            >{{ row.logistics }}</span>
-            <el-tag
-              v-else-if="activeTab === 'APPROVED'"
-              type="success"
-              size="small"
-            >
-              已同意
-            </el-tag>
-            <el-tag
-              v-else
-              type="danger"
-              size="small"
-            >
-              已拒绝
-            </el-tag>
+          <template v-else-if="activeTab === 'APPROVED' && isReturnRefundType(row.type)">
+            <el-tag type="warning" size="small">等待买家退货/商家验收</el-tag>
           </template>
+          <el-button
+            v-else-if="activeTab === 'APPROVED' && !isRefundType(row.type)"
+            size="small"
+            type="success"
+            plain
+            :disabled="processing"
+            @click="confirmComplete(row)"
+          >
+            确认完成
+          </el-button>
+          <span v-else-if="row.logistics" class="reason text-muted">{{ logisticsLabel(row.logistics) }}</span>
+          <el-tag v-else :type="activeTab === 'COMPLETED' ? 'success' : activeTab === 'REJECTED' ? 'danger' : 'info'" size="small">
+            {{ statusLabel(activeTab) }}
+          </el-tag>
         </template>
       </el-table-column>
     </el-table>
@@ -206,7 +234,7 @@
     <!-- 同意退款确认弹窗 -->
     <el-dialog
       v-model="approveVisible"
-      title="确认退款"
+      :title="isReturnRefundType(approveTarget?.type) ? '同意退货退款' : isImmediateRefundType(approveTarget?.type) ? '确认退款' : '同意售后'"
       width="450px"
     >
       <el-descriptions
@@ -217,8 +245,8 @@
         <el-descriptions-item label="订单号">
           {{ approveTarget?.orderId }}
         </el-descriptions-item>
-        <el-descriptions-item label="退款金额">
-          ¥{{ fmt(approveTarget?.amount) }}
+        <el-descriptions-item label="售后金额">
+          {{ isRefundType(approveTarget?.type) ? `¥${fmt(approveTarget?.amount)}` : '—' }}
         </el-descriptions-item>
         <el-descriptions-item label="退款原因">
           {{ approveTarget?.reason || '-' }}
@@ -227,8 +255,18 @@
           {{ approveTarget?.user?.nickname || approveTarget?.userId }}
         </el-descriptions-item>
       </el-descriptions>
-      <p style="margin-top:12px; color:#e6a23c">
-        ⚠️ 确认后将执行退款，资金将原路退回，此操作不可撤销。
+      <p
+        v-if="isImmediateRefundType(approveTarget?.type)"
+        class="danger-hint"
+      >
+        此操作真金退款不可逆：确认后将向用户真金退款 ¥{{ fmt(approveTarget?.amount) }}，资金原路退回支付渠道。
+      </p>
+      <template v-else-if="isReturnRefundType(approveTarget?.type)">
+        <p style="margin-top:12px; color:#e6a23c">同意后先由买家退货，不会立即退款；商家验收入库后才触发原路退款。</p>
+        <el-input v-model="returnAddress" type="textarea" :rows="3" placeholder="必填：收件人、电话和完整退货地址" />
+      </template>
+      <p v-else style="margin-top:12px; color:#e6a23c">
+        该申请为{{ typeLabel(approveTarget?.type ?? '') }}，同意后不发生退款，仅流转售后状态。
       </p>
       <template #footer>
         <el-button @click="approveVisible = false">
@@ -239,7 +277,7 @@
           :loading="processing"
           @click="confirmApprove"
         >
-          确认退款
+          {{ isImmediateRefundType(approveTarget?.type) ? '确认退款' : isReturnRefundType(approveTarget?.type) ? '确认并发送地址' : '确认同意' }}
         </el-button>
       </template>
     </el-dialog>
@@ -276,7 +314,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-import { orderApi, api } from "@/api";
+import { api } from "@/api";
 
 // 退款审核基于「售后申请(AfterSale)」实体：其 status 枚举(PENDING/APPROVED/REJECTED/...)
 // 与本页标签完全对应，且平台侧仅 AfterSale 有「带原因拒绝退款」的真实端点
@@ -312,6 +350,7 @@ const stats = reactive({ pending: 0, pendingAmount: 0, todayRefund: 0, totalProc
 
 const approveVisible = ref(false);
 const approveTarget = ref<RefundRow | null>(null);
+const returnAddress = ref("");
 const rejectVisible = ref(false);
 const rejectReason = ref("");
 const pendingItem = ref<RefundRow | null>(null);
@@ -323,8 +362,68 @@ function fmt(v: number | string | undefined | null) {
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleString("zh-CN", { hour12: false }) : "-";
 }
+/** 售后类型翻译与资金动作判定：兼容历史别名。 */
+function normalizeAfterSaleType(t?: string | null) {
+  const value = String(t || "").trim().toLowerCase();
+  if (value === "refund") return "refund_only";
+  if (value === "return") return "refund_with_return";
+  return value;
+}
 function typeLabel(t: string) {
-  return ({ refund: "退款", return: "退货", exchange: "换货" } as Record<string, string>)[t] || t || "退款";
+  return ({
+    refund_only: "仅退款",
+    refund_with_return: "退货退款",
+    exchange: "换货",
+    not_received: "未收到商品申诉",
+    not_as_described: "描述不符申诉",
+    quality_issue: "质量问题申诉",
+    other: "其他售后",
+  } as Record<string, string>)[normalizeAfterSaleType(t)] || t || "售后";
+}
+function isImmediateRefundType(t?: string | null) {
+  return normalizeAfterSaleType(t) === "refund_only";
+}
+function isReturnRefundType(t?: string | null) {
+  return normalizeAfterSaleType(t) === "refund_with_return";
+}
+function isRefundType(t?: string | null) {
+  return isImmediateRefundType(t) || isReturnRefundType(t);
+}
+function approvalButtonLabel(t?: string | null) {
+  if (isImmediateRefundType(t)) return "同意并退款";
+  if (isReturnRefundType(t)) return "同意退货";
+  return "同意申请";
+}
+function statusLabel(status?: string | null) {
+  return ({ APPROVED: "已同意", PROCESSING: "退款处理中", COMPLETED: "已完成", REJECTED: "已拒绝" } as Record<string, string>)[status || ""] || status || "—";
+}
+function logisticsLabel(raw?: string | null) {
+  if (!raw) return "—";
+  try {
+    const data = JSON.parse(raw) as { returnAddress?: string; company?: string; logisticsNo?: string; inspection?: string; remark?: string };
+    return [
+      data.returnAddress ? `退货地址：${data.returnAddress}` : "",
+      data.logisticsNo ? `运单：${data.company || ""} ${data.logisticsNo}` : "",
+      data.inspection ? `验收：${data.inspection === "ACCEPTED" ? "合格" : "不合格"}` : "",
+      data.remark || "",
+    ].filter(Boolean).join("；") || "—";
+  } catch {
+    return raw;
+  }
+}
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success("已复制");
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    ElMessage.success("已复制");
+  }
 }
 
 onMounted(() => { fetchList(); fetchStats(); });
@@ -351,39 +450,69 @@ async function fetchStats() {
     const pendingRes = await api.get("/shop/admin/after-sales", { params: { page: 1, pageSize: 100, status: "PENDING" } });
     const pendingItems = (pendingRes.data as AfterSaleListResp)?.items || [];
     stats.pending = (pendingRes.data as AfterSaleListResp)?.total ?? pendingItems.length;
-    stats.pendingAmount = pendingItems.reduce((s: number, r: RefundRow) => s + Number(r.amount || 0), 0);
+    stats.pendingAmount = pendingItems.filter((r) => isRefundType(r.type)).reduce((s: number, r: RefundRow) => s + Number(r.amount || 0), 0);
 
-    const approvedRes = await api.get("/shop/admin/after-sales", { params: { page: 1, pageSize: 100, status: "APPROVED" } });
+    const approvedRes = await api.get("/shop/admin/after-sales", { params: { page: 1, pageSize: 100, status: "COMPLETED" } });
     const approvedItems = (approvedRes.data as AfterSaleListResp)?.items || [];
     stats.totalProcessed = (approvedRes.data as AfterSaleListResp)?.total ?? approvedItems.length;
 
     const todayStr = new Date().toISOString().slice(0, 10);
     stats.todayRefund = approvedItems
-      .filter((r: RefundRow) => String(r.updatedAt || r.createdAt || "").slice(0, 10) === todayStr)
+      .filter((r: RefundRow) => isRefundType(r.type) && String(r.updatedAt || r.createdAt || "").slice(0, 10) === todayStr)
       .reduce((s: number, r: RefundRow) => s + Number(r.amount || 0), 0);
   } catch { /* 统计失败不阻塞主流程 */ }
 }
 
 function showApproveConfirm(row: RefundRow) {
   approveTarget.value = row;
+  returnAddress.value = "";
   approveVisible.value = true;
 }
 
 async function confirmApprove() {
   if (!approveTarget.value || processing.value) return;
   const target = approveTarget.value;
+  const address = returnAddress.value.trim();
+  if (isReturnRefundType(target.type) && address.length < 8) {
+    ElMessage.warning("请填写完整退货地址");
+    return;
+  }
   processing.value = true;
   try {
-    // 同意退款：先对订单执行真实退款（原路退回 + 冲正分佣），再将售后单标记为已通过。
-    await orderApi.refund(target.orderId ?? "");
-    await api.put(`/shop/admin/after-sales/${target.id}/process`, { action: "approve" });
-    ElMessage.success("退款已同意，资金将原路退回");
+    await api.put(`/shop/admin/after-sales/${target.id}/process`, {
+      action: "approve",
+      remark: isReturnRefundType(target.type) ? address : undefined,
+    });
+    ElMessage.success(
+      isImmediateRefundType(target.type)
+        ? "退款已提交原支付渠道"
+        : isReturnRefundType(target.type)
+          ? "已同意退货，退货地址已发送"
+          : "售后已同意",
+    );
     approveVisible.value = false;
     await fetchList();
     await fetchStats();
-  } catch {
-    ElMessage.error("操作失败，请重试");
-  } finally { processing.value = false; }
+  } catch (e) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "操作失败，请重试");
+  } finally {
+    processing.value = false;
+  }
+}
+
+async function confirmComplete(row: RefundRow) {
+  if (processing.value) return;
+  processing.value = true;
+  try {
+    await api.put(`/shop/admin/after-sales/${row.id}/process`, { action: "complete" });
+    ElMessage.success("售后已完成");
+    await fetchList();
+    await fetchStats();
+  } catch (e) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message || "操作失败，请重试");
+  } finally {
+    processing.value = false;
+  }
 }
 
 function showReject(row: RefundRow) {
@@ -444,4 +573,8 @@ function exportCSV() {
 
 .reason { font-size: 12px; }
 .text-muted { color: var(--color-text-secondary); }
+.user-link { color: var(--el-color-primary, #409eff); text-decoration: none; }
+.user-link:hover { text-decoration: underline; }
+.mono { font-family: monospace; }
+.danger-hint { margin-top: 12px; color: var(--color-error, #f56c6c); font-size: 13px; }
 </style>

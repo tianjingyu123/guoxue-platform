@@ -46,6 +46,7 @@
       :gutter="16"
       style="margin-bottom:16px"
     >
+      <!-- 统计卡点击 = 本地过滤最近一次巡检结果（不再隐式触发写型 checkAll） -->
       <el-col
         v-for="s in severityStats"
         :key="s.label"
@@ -54,7 +55,7 @@
         <div
           :class="['stat-card', s.cls]"
           style="cursor:pointer"
-          @click="filterSeverity=s.key;fetchReports()"
+          @click="filterSeverity = s.key; activeTab = 'reports'"
         >
           <span class="value">{{ s.count }}</span>
           <span class="label">{{ s.label }}</span>
@@ -139,7 +140,7 @@
             </el-table-column>
             <el-table-column
               label="状态"
-              width="80"
+              width="110"
             >
               <template #default="{ row }">
                 <el-switch
@@ -147,6 +148,9 @@
                   size="small"
                   @change="toggleRule(row)"
                 />
+                <span
+                  :style="{ marginLeft: '6px', fontSize: '12px', color: row.enabled ? 'var(--color-success)' : 'var(--color-text-secondary)' }"
+                >{{ row.enabled ? '启用' : '停用' }}</span>
               </template>
             </el-table-column>
             <el-table-column
@@ -178,6 +182,15 @@
         label="异常记录"
         name="reports"
       >
+        <!-- 读写分离：原"刷新"按钮悄悄调 POST /ai/anomalies/check（写型全量巡检+AI报告），
+             后端无只读历史查询端点（已记后端清单），此处只展示最近一次巡检结果并本地过滤 -->
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="展示本次会话最近一次巡检结果（后端暂无历史记录端点）；要产生新结果请点右上角「全量巡检」"
+          style="margin-bottom:12px"
+        />
         <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
           <el-select
             v-model="filterSeverity"
@@ -185,7 +198,6 @@
             size="small"
             clearable
             style="width:130px"
-            @change="fetchReports"
           >
             <el-option
               label="严重"
@@ -200,17 +212,11 @@
               value="info"
             />
           </el-select>
-          <el-button
-            size="small"
-            @click="fetchReports"
-          >
-            刷新
-          </el-button>
         </div>
 
         <el-card>
           <el-table
-            v-loading="reportLoading"
+            v-loading="checking"
             :data="reports"
             stripe
             size="small"
@@ -279,8 +285,8 @@
             </el-table-column>
           </el-table>
           <el-empty
-            v-if="!reportLoading && reports.length === 0"
-            description="暂无异常记录"
+            v-if="!checking && reports.length === 0"
+            :description="lastReports.length === 0 ? '本次会话尚未运行巡检，点击右上角「全量巡检」开始' : '该级别下无异常，换个筛选条件'"
           />
         </el-card>
       </el-tab-pane>
@@ -292,7 +298,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { ref, computed, onMounted } from 'vue'
 import { aiAnomalyApi } from '@/api'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 /** axios 错误结构（用于提取后端 message） */
 type ApiError = { response?: { data?: { message?: string } } }
@@ -321,15 +327,21 @@ interface AnomalyReport {
 
 const activeTab = ref('rules')
 const rules = ref<AnomalyRule[]>([])
-const reports = ref<AnomalyReport[]>([])
+// 最近一次巡检结果（本次会话内存·后端无历史记录端点）
 const lastReports = ref<AnomalyReport[]>([])
 const aiReport = ref('')
 const checking = ref(false)
 const checkingRule = ref('')
-const reportLoading = ref(false)
 const rulesLoading = ref(false)
 const loadErr = ref(false)
 const filterSeverity = ref('')
+
+// 异常记录 = 最近巡检结果的本地过滤（读写分离：查看不再触发写型 checkAll）
+const reports = computed(() =>
+  filterSeverity.value
+    ? lastReports.value.filter(r => r.severity === filterSeverity.value)
+    : lastReports.value,
+)
 
 const severityStats = computed(() => [
   { key: 'critical', label: '严重', count: lastReports.value.filter(r => r.severity === 'critical').length, cls: 'danger' },
@@ -338,7 +350,8 @@ const severityStats = computed(() => [
   { key: '', label: '合计', count: lastReports.value.length, cls: 'info' },
 ])
 
-function reload() { loadErr.value = false; fetchRules(); fetchReports() }
+// 进页只读规则列表，不再隐式触发全量巡检（原 fetchReports 每次进页/刷新都 POST check）
+function reload() { loadErr.value = false; fetchRules() }
 
 onMounted(() => reload())
 
@@ -357,27 +370,21 @@ async function fetchRules() {
   finally { rulesLoading.value = false }
 }
 
-async function fetchReports() {
-  reportLoading.value = true
-  try {
-    const res = await aiAnomalyApi.checkAll()
-    const all = (res.data?.reports || []) as AnomalyReport[]
-    if (filterSeverity.value) {
-      reports.value = all.filter(r => r.severity === filterSeverity.value)
-    } else {
-      reports.value = all
-    }
-  } catch { loadErr.value = true }
-  finally { reportLoading.value = false }
-}
-
 async function runAllChecks() {
+  // L3 确认：全量巡检会逐条跑所有启用规则并调用 AI 生成综合报告（消耗 AI 配额）
+  try {
+    const enabledCount = rules.value.filter(r => r.enabled).length
+    await ElMessageBox.confirm(
+      `将立即运行 ${enabledCount || '所有启用的'} 条检测规则并调用 AI 生成综合分析报告（消耗 AI 调用配额），确认执行？`,
+      '全量巡检',
+      { type: 'warning', confirmButtonText: '开始巡检', cancelButtonText: '取消' },
+    )
+  } catch { return }
   checking.value = true; aiReport.value = ''
   try {
     const res = await aiAnomalyApi.checkAll()
     const data = res.data || {}
     lastReports.value = data.items || data.reports || []
-    reports.value = lastReports.value
     aiReport.value = data.aiReport || ''
     if (lastReports.value.length > 0) {
       ElMessage.warning(`发现 ${lastReports.value.length} 个异常`)
@@ -398,9 +405,10 @@ async function runSingleCheck(ruleId: string) {
     const report = res.data?.report
     if (report) {
       ElMessage.warning(`异常：${report.summary}`)
-      const idx = reports.value.findIndex(r => r.ruleId === ruleId)
-      if (idx >= 0) reports.value[idx] = report
-      else reports.value.unshift(report)
+      // 单规则检测结果并入最近巡检结果（reports 为其过滤视图）
+      const idx = lastReports.value.findIndex(r => r.ruleId === ruleId)
+      if (idx >= 0) lastReports.value[idx] = report
+      else lastReports.value.unshift(report)
     } else {
       ElMessage.success('该指标正常')
     }
@@ -412,7 +420,15 @@ async function runSingleCheck(ruleId: string) {
 }
 
 async function toggleRule(rule: AnomalyRule) {
-  // 更新本地状态，后端可通过 addRule 接口覆盖
+  if (!rule.id) return
+  try {
+    const res = await aiAnomalyApi.toggleRule(rule.id, !!rule.enabled)
+    rule.enabled = !!(res.data?.enabled ?? rule.enabled)
+    ElMessage.success(rule.enabled ? '规则已启用' : '规则已停用')
+  } catch {
+    rule.enabled = !rule.enabled // 失败回滚开关
+    ElMessage.error('操作失败，请重试')
+  }
 }
 </script>
 

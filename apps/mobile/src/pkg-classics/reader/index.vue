@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { onLoad, onPageScroll, onUnload, onHide } from '@dcloudio/uni-app'
-import { classicsApi } from '@/lib/classics-data'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { onLoad, onUnload, onHide } from '@dcloudio/uni-app'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
+import { classicsApi, type BookmarkItem, type NoteItem } from '@/lib/classics-data'
 import { getToken } from '@/utils/storage'
 import TouchpointCard from '@/components/common/touchpoint-card.vue'
+import AiThinking from '@/components/classics/ai-thinking.vue'
 import { touchpointApi, type TouchpointResult } from '@/lib/touchpoint-data'
 
 interface ChapterRef { id: string; title: string }
@@ -40,6 +42,11 @@ const THEME_COLORS: Record<Theme, { fg: string; sub: string; brand: string }> = 
 const iconColor = computed(() => THEME_COLORS[theme.value].fg)
 const subColor = computed(() => THEME_COLORS[theme.value].sub)
 const brandColor = computed(() => THEME_COLORS[theme.value].brand)
+// 亮度 0-100（100=原亮度）·H5 用全屏压暗遮罩实现，最暗压到 0.7 不至于全黑
+const brightness = ref(100)
+const dimOpacity = computed(() => ((100 - brightness.value) / 100) * 0.7)
+function onBrightnessChanging(e: { detail: { value: number } }) { brightness.value = e.detail.value }
+function onBrightnessChange(e: { detail: { value: number } }) { brightness.value = e.detail.value; savePref() }
 const PREF_KEY = 'classics_reader_pref'
 function loadPref() {
   try {
@@ -47,11 +54,12 @@ function loadPref() {
     if (p && typeof p === 'object') {
       if (p.theme) theme.value = p.theme
       if (typeof p.fontIdx === 'number') fontIdx.value = Math.min(Math.max(p.fontIdx, 0), FONT_STEPS.length - 1)
+      if (typeof p.brightness === 'number') brightness.value = Math.min(Math.max(Math.round(p.brightness), 0), 100)
     }
   } catch { /* ignore */ }
 }
 function savePref() {
-  try { uni.setStorageSync(PREF_KEY, { theme: theme.value, fontIdx: fontIdx.value }) } catch { /* ignore */ }
+  try { uni.setStorageSync(PREF_KEY, { theme: theme.value, fontIdx: fontIdx.value, brightness: brightness.value }) } catch { /* ignore */ }
 }
 
 // ── 弹层开关 ──
@@ -60,8 +68,122 @@ const setOpen = ref(false)
 const noteOpen = ref(false)
 const dictOpen = ref(false)
 
+// ── 目录抽屉页签（目录 / 书签 / 笔记·本书维度） ──
+const tocTab = ref<'toc' | 'marks' | 'notes'>('toc')
+// 长目录打开时定位到当前章（上移一项便于看到上下文）·关闭时置空避免残留锚点干扰手动滚动
+const tocScrollId = computed(() =>
+  tocOpen.value && chapters.value.length ? 'toc-' + Math.max(0, curIndex.value - 1) : '',
+)
+const bookMarks = ref<BookmarkItem[]>([])
+const bookNotes = ref<NoteItem[]>([])
+const marksLoading = ref(false)
+const marksLoaded = ref(false)
+async function loadMarksAndNotes(force = false) {
+  if (!isLoggedIn()) return
+  if (marksLoading.value || (marksLoaded.value && !force)) return
+  marksLoading.value = true
+  try {
+    const [bms, nts] = await Promise.all([
+      classicsApi.bookmarks(bookId.value).catch(() => [] as BookmarkItem[]),
+      classicsApi.notes(bookId.value).catch(() => [] as NoteItem[]),
+    ])
+    bookMarks.value = bms
+    bookNotes.value = nts
+    marksLoaded.value = true
+  } finally {
+    marksLoading.value = false
+  }
+}
+watch([tocOpen, tocTab], ([open, tab]) => {
+  if (open && (tab === 'marks' || tab === 'notes')) loadMarksAndNotes()
+})
+
+// ── 回跳定位：书签/笔记列表跳转带 chapterId+pos，滚动到段落并短暂高亮 ──
+const pendingPos = ref<number | null>(null)
+const highlightIdx = ref(-1)
+let hlTimer: ReturnType<typeof setTimeout> | null = null
+function scrollToParagraph(pos: number) {
+  if (pos == null || pos < 0) return
+  nextTick(() => {
+    setTimeout(() => {
+      // 旧书签存的是滚动像素（超出段数视为 legacy scrollTop）
+      if (pos >= paragraphs.value.length) {
+        uni.pageScrollTo({ scrollTop: pos, duration: 300 })
+        return
+      }
+      const q = uni.createSelectorQuery()
+      q.selectAll('.rd-para').boundingClientRect()
+      q.selectViewport().scrollOffset(() => {}) // 类型声明要求回调；结果仍经 exec 聚合返回
+      q.exec((res) => {
+        const rects = (res?.[0] || []) as { top: number }[]
+        const scroll = (res?.[1] || {}) as { scrollTop?: number }
+        const rect = rects[pos]
+        if (!rect) return
+        const target = Math.max(0, (scroll.scrollTop || 0) + rect.top - 120)
+        uni.pageScrollTo({ scrollTop: target, duration: 300 })
+        highlightIdx.value = pos
+        if (hlTimer) clearTimeout(hlTimer)
+        hlTimer = setTimeout(() => { highlightIdx.value = -1 }, 3000)
+      })
+    }, 250)
+  })
+}
+function jumpToBookmark(bm: BookmarkItem) {
+  tocOpen.value = false
+  const idx = chapters.value.findIndex((c) => c.id === bm.chapterId)
+  const pos = bm.position ?? 0
+  if (idx < 0) { uni.showToast({ title: '未找到对应章节', icon: 'none' }); return }
+  if (idx === curIndex.value) { scrollToParagraph(pos); return }
+  loadChapter(idx).then(() => scrollToParagraph(pos))
+}
+function jumpToNote(n: NoteItem) {
+  tocOpen.value = false
+  const idx = chapters.value.findIndex((c) => c.id === n.chapterId)
+  if (idx < 0) { uni.showToast({ title: '未找到对应章节', icon: 'none' }); return }
+  const position = typeof n.position === 'number' ? n.position : null
+  if (idx === curIndex.value) {
+    if (position != null) scrollToParagraph(position)
+    return
+  }
+  loadChapter(idx).then(() => {
+    if (position != null) scrollToParagraph(position)
+  })
+}
+function goAllBookmarks() { tocOpen.value = false; uni.navigateTo({ url: '/pkg-classics/bookmarks/index' }) }
+function goAllNotes() { tocOpen.value = false; uni.navigateTo({ url: '/pkg-classics/notes/index' }) }
+
 // ── AI 文白对照抽屉 ──
 const aiOpen = ref(false)
+function closeToc() { tocOpen.value = false }
+function closeSettings() { setOpen.value = false }
+function closeDictionary() { dictOpen.value = false }
+function closeAi() { aiOpen.value = false }
+
+useOverlayScrollLock(() => tocOpen.value, {
+  onEscape: closeToc,
+  focusContainerSelector: '.rd-sheet--toc',
+  initialFocusSelector: '.rd-sheet--toc .rd-sheet-close',
+})
+useOverlayScrollLock(() => setOpen.value, {
+  onEscape: closeSettings,
+  focusContainerSelector: '.rd-sheet--settings',
+  initialFocusSelector: '.rd-sheet--settings .rd-sheet-close',
+})
+useOverlayScrollLock(() => dictOpen.value, {
+  onEscape: closeDictionary,
+  focusContainerSelector: '.rd-sheet--dict',
+  initialFocusSelector: '.rd-sheet--dict .rd-sheet-close',
+})
+useOverlayScrollLock(() => aiOpen.value, {
+  onEscape: closeAi,
+  focusContainerSelector: '.rd-sheet--ai',
+  initialFocusSelector: '.rd-sheet--ai .rd-sheet-close',
+})
+useOverlayScrollLock(() => noteOpen.value, {
+  onEscape: closeNote,
+  focusContainerSelector: '.rd-sheet--note',
+  initialFocusSelector: '.rd-sheet--note .rd-sheet-close',
+})
 const aiSeg = ref('')
 const aiLoading = ref(false)
 const aiError = ref('')
@@ -76,9 +198,22 @@ const dictError = ref('')
 // ── 笔记 ──
 const noteText = ref('')
 const noteSubmitting = ref(false)
+const notePickMode = ref(false)
+const notePosition = ref<number | null>(null)
+const noteOriginalText = ref('')
+const editingNoteId = ref('')
+
+/** 当前章节中已落点的笔记；旧版章节级笔记没有 position，不在正文误标。 */
+const currentChapterNotes = computed(() =>
+  bookNotes.value.filter((note) =>
+    note.chapterId === curChapter.value?.id && typeof note.position === 'number',
+  ),
+)
+function notesAtPosition(position: number) {
+  return currentChapterNotes.value.filter((note) => note.position === position)
+}
 
 const bookmarking = ref(false)
-let lastScrollTop = 0
 
 function isLoggedIn() {
   return !!getToken()
@@ -106,6 +241,9 @@ function splitParagraphs(text: string): string[] {
   return parts
 }
 
+// 续读进入标记（详情页「继续阅读」带 resume=1）：定位成功且非第一章时轻提示
+const resumeToast = ref(false)
+
 async function fetchBook(id: string, chapterId?: string) {
   loading.value = true
   error.value = ''
@@ -118,6 +256,15 @@ async function fetchBook(id: string, chapterId?: string) {
     let idx = chapterId ? chapters.value.findIndex((c) => c.id === chapterId) : 0
     if (idx < 0) idx = 0
     await loadChapter(idx, false)
+    if (resumeToast.value) {
+      resumeToast.value = false
+      if (chapterId && idx > 0) uni.showToast({ title: '已定位到上次读到的章节', icon: 'none' })
+    }
+    if (pendingPos.value != null) {
+      scrollToParagraph(pendingPos.value)
+      pendingPos.value = null
+    }
+    loadMarksAndNotes()
     loadTouchpoint()
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
@@ -160,22 +307,33 @@ function goNext() { if (hasNext.value) { tocOpen.value = false; loadChapter(curI
 function jumpTo(idx: number) { tocOpen.value = false; loadChapter(idx) }
 
 // ── 点句即时 AI 白话对照 ──
+const aiThinkStart = ref(0) // 请求发起时刻：关抽屉重开时动态卡续接进度
+let aiSeq = 0
 async function explain(seg: string) {
   if (!isLoggedIn()) { needLogin(); return }
+  // 同一句已出结果（如等待中关过抽屉）：直接重开呈现，不重复请求
+  if (seg === aiSeg.value && (aiResult.value || aiLoading.value)) { aiOpen.value = true; return }
   aiOpen.value = true
   aiSeg.value = seg
   aiResult.value = null
   aiError.value = ''
+  aiThinkStart.value = Date.now()
   aiLoading.value = true
+  const seq = ++aiSeq // 并发防串台：等待中又点了别句时，旧响应作废不覆盖新句结果
   try {
     const r = await classicsApi.translate(seg, bookTitle.value)
+    if (seq !== aiSeq) return
     aiResult.value = { translation: r?.translation || '暂无翻译', notes: Array.isArray(r?.notes) ? r.notes : [], source: r?.source }
   } catch (e) {
+    if (seq !== aiSeq) return
     aiError.value = (e as Error)?.message || 'AI 解读失败，请稍后重试'
   } finally {
-    aiLoading.value = false
+    if (seq === aiSeq) aiLoading.value = false
   }
 }
+
+/** AI 解读失败重试：重发当前句（失败态 aiResult=null 且 aiLoading=false，explain 缓存守卫不拦截，会真正重新请求） */
+function retryExplain() { if (aiSeg.value) explain(aiSeg.value) }
 
 // ── H5 选中任意文字 → 即时解读（在「点句」基础上支持自由划选片段）──
 const selectedText = ref('')
@@ -190,11 +348,26 @@ function explainSelection() {
   selectedText.value = ''
   if (t) explain(t)
 }
+
+/** 卡片原位详情层内进入阅读器时，隐藏父页公共导航，给阅读器工具栏完整空间。 */
+function setParentReaderMode(active: boolean) {
+  // #ifdef H5
+  if (typeof window === 'undefined' || window.parent === window) return
+  try {
+    window.parent.document.documentElement.classList.toggle('gx-content-reader-open', active)
+  } catch {
+    // 非同源容器不直接操作父文档，阅读器本身仍可正常使用。
+  }
+  // #endif
+}
+
 onMounted(() => {
   if (typeof document !== 'undefined') document.addEventListener('selectionchange', handleSelection)
+  setParentReaderMode(true)
 })
 onUnmounted(() => {
   if (typeof document !== 'undefined') document.removeEventListener('selectionchange', handleSelection)
+  setParentReaderMode(false)
 })
 
 // ── 查词 ──
@@ -215,13 +388,35 @@ async function doLookup() {
 }
 
 // ── 书签 ──
+/** 找到当前视口顶部的段落索引（存段落索引而非滚动像素，换字号/设备也能精确回跳） */
+function getTopParagraphIdx(): Promise<number> {
+  return new Promise((resolve) => {
+    const q = uni.createSelectorQuery()
+    q.selectAll('.rd-para').boundingClientRect()
+    q.exec((res) => {
+      const rects = (res?.[0] || []) as { bottom: number }[]
+      if (!rects.length) { resolve(0); return }
+      const idx = rects.findIndex((r) => r.bottom > 100)
+      resolve(idx < 0 ? 0 : idx)
+    })
+  })
+}
 async function addBookmark() {
   if (!isLoggedIn()) { needLogin(); return }
   if (bookmarking.value || !curChapter.value) return
   bookmarking.value = true
   try {
-    await classicsApi.addBookmark(bookId.value, { chapterId: curChapter.value.id, position: Math.round(lastScrollTop) })
-    uni.showToast({ title: '已加书签', icon: 'success' })
+    const idx = await getTopParagraphIdx()
+    const excerpt = (paragraphs.value[idx] || '').slice(0, 60)
+    await classicsApi.addBookmark(bookId.value, { chapterId: curChapter.value.id, position: idx, note: excerpt })
+    marksLoaded.value = false // 目录抽屉书签页签下次打开时刷新
+    // 告知查看入口，避免「加了书签却不知在哪看」
+    uni.showModal({
+      title: '已加书签',
+      content: `已记下「${excerpt.slice(0, 16)}…」的位置。可在阅读器目录的「书签」页签或「我的书签」中一键回跳。`,
+      confirmText: '查看书签', cancelText: '继续阅读',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-classics/bookmarks/index' }) },
+    })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '添加失败', icon: 'none' })
   } finally {
@@ -232,17 +427,71 @@ async function addBookmark() {
 // ── 笔记 ──
 function openNote() {
   if (!isLoggedIn()) { needLogin(); return }
-  noteText.value = ''
+  notePickMode.value = true
+  uni.showToast({ title: '请点选要做笔记的原句', icon: 'none' })
+}
+function openNoteAt(position: number, originalText: string) {
+  if (!isLoggedIn()) { needLogin(); return }
+  const existing = notesAtPosition(position)[0]
+  notePosition.value = position
+  noteOriginalText.value = originalText
+  editingNoteId.value = existing?.id || ''
+  noteText.value = existing?.noteContent || ''
+  notePickMode.value = false
   noteOpen.value = true
+}
+function openExistingNote(note: NoteItem) {
+  const position = typeof note.position === 'number' ? note.position : null
+  if (position == null) return
+  notePosition.value = position
+  noteOriginalText.value = note.originalText || paragraphs.value[position] || ''
+  editingNoteId.value = note.id
+  noteText.value = note.noteContent
+  notePickMode.value = false
+  noteOpen.value = true
+}
+function onParagraphTap(text: string, position: number) {
+  if (notePickMode.value) {
+    openNoteAt(position, text)
+    return
+  }
+  explain(text)
+}
+function closeNote() {
+  noteOpen.value = false
+  notePosition.value = null
+  noteOriginalText.value = ''
+  editingNoteId.value = ''
+  noteText.value = ''
 }
 async function submitNote() {
   const c = noteText.value.trim()
-  if (!c || noteSubmitting.value || !curChapter.value) return
+  if (!c || noteSubmitting.value || !curChapter.value || notePosition.value == null) return
   noteSubmitting.value = true
   try {
-    await classicsApi.addNote(bookId.value, { chapterId: curChapter.value.id, content: c })
-    noteOpen.value = false
-    uni.showToast({ title: '笔记已保存', icon: 'success' })
+    const wasEditing = !!editingNoteId.value
+    if (editingNoteId.value) {
+      await classicsApi.updateNote(editingNoteId.value, c)
+    } else {
+      await classicsApi.addNote(bookId.value, {
+        chapterId: curChapter.value.id,
+        content: c,
+        position: notePosition.value,
+        originalText: noteOriginalText.value,
+      })
+    }
+    const savedPosition = notePosition.value
+    closeNote()
+    marksLoaded.value = false
+    await loadMarksAndNotes(true)
+    scrollToParagraph(savedPosition)
+    // 告知查看入口，避免「写了笔记却找不到在哪」
+    uni.showModal({
+      title: wasEditing ? '批注已更新' : '批注已保存',
+      content: '原句旁已留下批注标记，可随时点开查看；也可在「我的笔记」中精准回到这里。',
+      confirmText: '查看笔记', cancelText: '继续阅读',
+      success: (r) => { if (r.confirm) uni.navigateTo({ url: '/pkg-classics/notes/index' }) },
+    })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '保存失败', icon: 'none' })
   } finally {
@@ -253,7 +502,7 @@ async function submitNote() {
 // ── 进度上报（登录态才有意义；静默失败不打扰阅读）──
 function saveProgress() {
   if (!isLoggedIn() || !curChapter.value) return
-  classicsApi.saveProgress(bookId.value, curChapter.value.id, progressPct.value).catch(() => {})
+  classicsApi.saveProgress(bookId.value, curChapter.value.id, progressPct.value, true).catch(() => {})
 }
 
 function pickTheme(t: Theme) { theme.value = t; savePref() }
@@ -264,14 +513,24 @@ function goBack() {
   uni.navigateBack({ fail: () => uni.navigateTo({ url: '/pkg-classics/home/index' }) })
 }
 
-onPageScroll((e) => { lastScrollTop = e.scrollTop })
 onHide(() => saveProgress())
-onUnload(() => saveProgress())
+onUnload(() => {
+  saveProgress()
+  setParentReaderMode(false)
+  // 抽屉开着直接返回时还原滚动锁（H5 SPA 共享 document，残留会锁死其他页面）
+  // #ifdef H5
+  document.documentElement.style.overflow = ''
+  // #endif
+})
 
 onLoad((q) => {
   loadPref()
   bookId.value = String(q?.bookId || q?.id || '')
   const chapterId = q?.chapterId ? String(q.chapterId) : undefined
+  resumeToast.value = String(q?.resume || '') === '1'
+  // 书签/笔记回跳定位：?pos=段落索引（旧数据为滚动像素·scrollToParagraph 内兼容）
+  const rawPos = Number(q?.pos)
+  if (Number.isFinite(rawPos) && rawPos >= 0) pendingPos.value = Math.round(rawPos)
   if (!bookId.value) { error.value = '缺少书籍参数'; loading.value = false; return }
   fetchBook(bookId.value, chapterId)
 })
@@ -283,12 +542,20 @@ onLoad((q) => {
     <view class="rd-top">
       <view class="rd-statusbar" />
       <view class="rd-top-inner">
-        <view class="rd-icon-btn" @tap="goBack"><app-icon name="arrow-left" :size="40" :color="iconColor" /></view>
+        <view class="rd-icon-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" :color="iconColor" /></view>
         <view class="rd-top-mid">
           <text class="rd-top-title">{{ bookTitle }}</text>
           <text v-if="curChapter" class="rd-top-sub">{{ curChapter.title }}</text>
         </view>
-        <view class="rd-icon-btn" @tap="dictOpen = true"><app-icon name="search" :size="36" :color="iconColor" /></view>
+        <view
+          class="rd-icon-btn"
+          role="button"
+          tabindex="0"
+          aria-label="打开古汉语查词"
+          @tap="dictOpen = true"
+          @keydown.enter.prevent="dictOpen = true"
+          @keydown.space.prevent="dictOpen = true"
+        ><app-icon name="search" :size="36" :color="iconColor" /></view>
       </view>
     </view>
 
@@ -308,12 +575,23 @@ onLoad((q) => {
           <text class="rd-state-txt">本章暂无正文内容</text>
         </view>
         <view v-else class="rd-content" :style="{ fontSize: fontSize + 'rpx' }">
-          <text
+          <view
             v-for="(p, i) in paragraphs"
             :key="i"
-            class="rd-para"
-            @tap="explain(p)"
-          >{{ p }}</text>
+            class="rd-para-row"
+            :class="{ 'rd-para-hl': i === highlightIdx, 'rd-para-pick': notePickMode }"
+          >
+            <text class="rd-para" @tap="onParagraphTap(p, i)">{{ p }}</text>
+            <view
+              v-if="notesAtPosition(i).length"
+              class="rd-note-mark"
+              :aria-label="`本句有 ${notesAtPosition(i).length} 条笔记`"
+              @tap.stop="openExistingNote(notesAtPosition(i)[0])"
+            >
+              <text class="rd-note-mark-glyph">笺</text>
+              <text v-if="notesAtPosition(i).length > 1" class="rd-note-mark-count">{{ notesAtPosition(i).length }}</text>
+            </view>
+          </view>
         </view>
         <view class="rd-tip">
           <app-icon name="sparkles" :size="26" :color="subColor" />
@@ -324,7 +602,7 @@ onLoad((q) => {
         <!-- 章节切换 -->
         <view class="rd-chapter-nav">
           <view class="rd-cn-btn" :class="{ 'rd-cn-disabled': !hasPrev }" @tap="goPrev">
-            <app-icon name="chevron-left" :size="32" :color="hasPrev ? brandColor : subColor" />
+            <app-icon name="chevron-left" :size="32" :color="hasPrev ? brandColor : subColor" compact />
             <text class="rd-cn-txt" :style="{ color: hasPrev ? brandColor : subColor }">上一章</text>
           </view>
           <text class="rd-cn-page">{{ curIndex + 1 }} / {{ chapters.length }}</text>
@@ -341,31 +619,76 @@ onLoad((q) => {
       <app-icon name="sparkles" :size="30" color="#ffffff" />
       <text class="rd-sel-txt">解读选中内容</text>
     </view>
+    <view v-if="notePickMode" class="rd-note-pick-bar">
+      <text class="rd-note-pick-txt">轻点一句原文，写下批注</text>
+      <view class="rd-note-pick-cancel" @tap="notePickMode = false"><text>取消</text></view>
+    </view>
+
+    <!-- 亮度压暗遮罩：盖正文与工具栏（z 50），低于抽屉（z 60），pointer-events:none 不拦截任何点击 -->
+    <view v-if="brightness < 100" class="rd-dim" :style="{ opacity: dimOpacity }" />
 
     <!-- 底部工具栏 -->
     <view class="rd-bottom">
       <view class="rd-prog"><view class="rd-prog-fill" :style="{ width: progressPct + '%' }" /></view>
       <view class="rd-tools">
         <view class="rd-tool" @tap="goCompanion"><app-icon name="sparkles" :size="38" :color="brandColor" /><text class="rd-tool-txt" :style="{ color: brandColor }">伴读</text></view>
-        <view class="rd-tool" @tap="tocOpen = true"><app-icon name="list" :size="38" :color="iconColor" /><text class="rd-tool-txt">目录</text></view>
+        <view
+          class="rd-tool"
+          role="button"
+          tabindex="0"
+          aria-label="打开目录、书签和笔记"
+          @tap="tocOpen = true"
+          @keydown.enter.prevent="tocOpen = true"
+          @keydown.space.prevent="tocOpen = true"
+        ><app-icon name="list" :size="38" :color="iconColor" /><text class="rd-tool-txt">目录</text></view>
         <view class="rd-tool" @tap="addBookmark"><app-icon name="bookmark-plus" :size="38" :color="iconColor" /><text class="rd-tool-txt">书签</text></view>
-        <view class="rd-tool" @tap="openNote"><app-icon name="edit" :size="38" :color="iconColor" /><text class="rd-tool-txt">笔记</text></view>
-        <view class="rd-tool" @tap="setOpen = true"><app-icon name="type" :size="38" :color="iconColor" /><text class="rd-tool-txt">设置</text></view>
+        <view class="rd-tool" :class="{ 'rd-tool-on': notePickMode }" @tap="openNote"><app-icon name="edit" :size="38" :color="notePickMode ? brandColor : iconColor" /><text class="rd-tool-txt" :style="{ color: notePickMode ? brandColor : undefined }">笔记</text></view>
+        <view
+          class="rd-tool"
+          role="button"
+          tabindex="0"
+          aria-label="打开阅读设置"
+          @tap="setOpen = true"
+          @keydown.enter.prevent="setOpen = true"
+          @keydown.space.prevent="setOpen = true"
+        ><app-icon name="type" :size="38" :color="iconColor" /><text class="rd-tool-txt">设置</text></view>
       </view>
     </view>
 
     <!-- AI 文白对照抽屉 -->
-    <view v-if="aiOpen" class="rd-mask" @tap="aiOpen = false">
-      <view class="rd-sheet" @tap.stop>
+    <view v-if="aiOpen" class="rd-mask" @tap="closeAi" @touchmove.self.prevent>
+      <view
+        class="rd-sheet rd-sheet--ai"
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI 白话对照"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
         <view class="rd-sheet-head">
-          <view class="rd-ai-badge"><app-icon name="sparkles" :size="24" color="#fff" /></view>
-          <text class="rd-sheet-title">AI 白话对照</text>
+          <view class="rd-sheet-head-main">
+            <view class="rd-ai-badge"><app-icon name="sparkles" :size="24" color="#fff" /></view>
+            <text class="rd-sheet-title">AI 白话对照</text>
+          </view>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeAi"
+            @keydown.enter.prevent="closeAi"
+            @keydown.space.prevent="closeAi"
+          >关闭</text>
         </view>
         <scroll-view scroll-y class="rd-sheet-body">
           <view class="rd-orig"><text class="rd-orig-txt">{{ aiSeg }}</text></view>
-          <view v-if="aiLoading" class="rd-ai-loading"><text>AI 正在解读…</text></view>
-          <view v-else-if="aiError" class="rd-ai-loading"><text class="rd-ai-err">{{ aiError }}</text></view>
+          <!-- AI 研读中动态卡（阶段文案+墨点晕开+伪进度·关抽屉不中断请求，重开续接进度） -->
+          <view v-if="aiLoading" class="rd-ai-wait"><ai-thinking mode="translate" :since="aiThinkStart" /></view>
+          <view v-else-if="aiError" class="rd-ai-loading">
+            <text class="rd-ai-err">{{ aiError }}</text>
+            <view class="rd-ai-retry" @tap="retryExplain"><text class="rd-ai-retry-txt">重试</text></view>
+          </view>
           <template v-else-if="aiResult">
             <view class="rd-ai-sec">
               <text class="rd-ai-label">白话译文</text>
@@ -381,32 +704,154 @@ onLoad((q) => {
       </view>
     </view>
 
-    <!-- 目录抽屉 -->
-    <view v-if="tocOpen" class="rd-mask" @tap="tocOpen = false">
-      <view class="rd-sheet rd-sheet-tall" @tap.stop>
+    <!-- 目录抽屉（目录 / 书签 / 笔记） -->
+    <view v-if="tocOpen" class="rd-mask" @tap="closeToc" @touchmove.self.prevent>
+      <view
+        class="rd-sheet rd-sheet-tall rd-sheet--toc"
+        role="dialog"
+        aria-modal="true"
+        aria-label="目录、书签和笔记"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
-        <view class="rd-sheet-head"><text class="rd-sheet-title">目录 · 共 {{ chapters.length }} 章</text></view>
-        <scroll-view scroll-y class="rd-toc-body">
+        <view class="rd-sheet-head rd-sheet-head--compact">
+          <text class="rd-sheet-title">目录与摘记</text>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeToc"
+            @keydown.enter.prevent="closeToc"
+            @keydown.space.prevent="closeToc"
+          >关闭</text>
+        </view>
+        <view class="rd-toc-tabs">
+          <view
+            class="rd-toc-tab"
+            :class="{ 'rd-toc-tab-on': tocTab === 'toc' }"
+            role="tab"
+            tabindex="0"
+            :aria-selected="tocTab === 'toc'"
+            @tap="tocTab = 'toc'"
+            @keydown.enter.prevent="tocTab = 'toc'"
+            @keydown.space.prevent="tocTab = 'toc'"
+          >
+            <text class="rd-toc-tab-txt" :style="{ color: tocTab === 'toc' ? brandColor : subColor }">目录</text>
+          </view>
+          <view
+            class="rd-toc-tab"
+            :class="{ 'rd-toc-tab-on': tocTab === 'marks' }"
+            role="tab"
+            tabindex="0"
+            :aria-selected="tocTab === 'marks'"
+            @tap="tocTab = 'marks'"
+            @keydown.enter.prevent="tocTab = 'marks'"
+            @keydown.space.prevent="tocTab = 'marks'"
+          >
+            <text class="rd-toc-tab-txt" :style="{ color: tocTab === 'marks' ? brandColor : subColor }">书签</text>
+          </view>
+          <view
+            class="rd-toc-tab"
+            :class="{ 'rd-toc-tab-on': tocTab === 'notes' }"
+            role="tab"
+            tabindex="0"
+            :aria-selected="tocTab === 'notes'"
+            @tap="tocTab = 'notes'"
+            @keydown.enter.prevent="tocTab = 'notes'"
+            @keydown.space.prevent="tocTab = 'notes'"
+          >
+            <text class="rd-toc-tab-txt" :style="{ color: tocTab === 'notes' ? brandColor : subColor }">笔记</text>
+          </view>
+        </view>
+        <!-- 目录 -->
+        <scroll-view v-if="tocTab === 'toc'" scroll-y class="rd-toc-body" :scroll-into-view="tocScrollId">
           <view
             v-for="(c, i) in chapters"
+            :id="'toc-' + i"
             :key="c.id"
             class="rd-toc-item"
             :class="{ 'rd-toc-active': i === curIndex }"
+            role="button"
+            tabindex="0"
             @tap="jumpTo(i)"
+            @keydown.enter.prevent="jumpTo(i)"
+            @keydown.space.prevent="jumpTo(i)"
           >
             <text class="rd-toc-idx">{{ i + 1 }}</text>
             <text class="rd-toc-name">{{ c.title }}</text>
             <app-icon v-if="i === curIndex" name="book-open" :size="28" :color="brandColor" />
           </view>
         </scroll-view>
+        <!-- 本书书签 -->
+        <scroll-view v-else-if="tocTab === 'marks'" scroll-y class="rd-toc-body">
+          <view v-if="!isLoggedIn()" class="rd-mk-empty"><text class="rd-mk-empty-txt">登录后可查看本书书签</text></view>
+          <view v-else-if="marksLoading && !marksLoaded" class="rd-mk-empty"><text class="rd-mk-empty-txt">加载中…</text></view>
+          <template v-else>
+            <view v-if="!bookMarks.length" class="rd-mk-empty">
+              <text class="rd-mk-empty-txt">本书还没有书签</text>
+              <text class="rd-mk-empty-sub">点底部「书签」记下此刻读到的位置</text>
+            </view>
+            <view v-for="bm in bookMarks" :key="bm.id" class="rd-mk-item" @tap="jumpToBookmark(bm)">
+              <view class="rd-mk-ribbon" />
+              <view class="rd-mk-main">
+                <text class="rd-mk-chapter">{{ bm.chapter }}</text>
+                <text v-if="bm.content" class="rd-mk-excerpt">{{ bm.content }}</text>
+                <text class="rd-mk-time">{{ bm.createdAt }}</text>
+              </view>
+              <app-icon name="chevron-right" :size="28" :color="subColor" />
+            </view>
+            <view v-if="bookMarks.length" class="rd-mk-all" @tap="goAllBookmarks"><text class="rd-mk-all-txt" :style="{ color: brandColor }">管理全部书签</text></view>
+          </template>
+        </scroll-view>
+        <!-- 本书笔记 -->
+        <scroll-view v-else scroll-y class="rd-toc-body">
+          <view v-if="!isLoggedIn()" class="rd-mk-empty"><text class="rd-mk-empty-txt">登录后可查看本书笔记</text></view>
+          <view v-else-if="marksLoading && !marksLoaded" class="rd-mk-empty"><text class="rd-mk-empty-txt">加载中…</text></view>
+          <template v-else>
+            <view v-if="!bookNotes.length" class="rd-mk-empty">
+              <text class="rd-mk-empty-txt">本书还没有笔记</text>
+              <text class="rd-mk-empty-sub">点底部「笔记」记下所思所悟</text>
+            </view>
+            <view v-for="n in bookNotes" :key="n.id" class="rd-mk-item" @tap="jumpToNote(n)">
+              <view class="rd-mk-ribbon rd-mk-ribbon-note" />
+              <view class="rd-mk-main">
+                <text class="rd-mk-chapter">{{ n.chapter }}</text>
+                <text class="rd-mk-excerpt">{{ n.noteContent }}</text>
+                <text class="rd-mk-time">{{ n.updatedAt }}</text>
+              </view>
+              <app-icon name="chevron-right" :size="28" :color="subColor" />
+            </view>
+            <view v-if="bookNotes.length" class="rd-mk-all" @tap="goAllNotes"><text class="rd-mk-all-txt" :style="{ color: brandColor }">管理全部笔记</text></view>
+          </template>
+        </scroll-view>
       </view>
     </view>
 
     <!-- 设置抽屉 -->
-    <view v-if="setOpen" class="rd-mask" @tap="setOpen = false">
-      <view class="rd-sheet" @tap.stop>
+    <view v-if="setOpen" class="rd-mask" @tap="closeSettings" @touchmove.self.prevent>
+      <view
+        class="rd-sheet rd-sheet--settings"
+        role="dialog"
+        aria-modal="true"
+        aria-label="阅读设置"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
-        <view class="rd-sheet-head"><text class="rd-sheet-title">阅读设置</text></view>
+        <view class="rd-sheet-head">
+          <text class="rd-sheet-title">阅读设置</text>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeSettings"
+            @keydown.enter.prevent="closeSettings"
+            @keydown.space.prevent="closeSettings"
+          >关闭</text>
+        </view>
         <view class="rd-set-row">
           <text class="rd-set-label">字号</text>
           <view class="rd-set-font">
@@ -424,20 +869,50 @@ onLoad((q) => {
             <view class="rd-theme-dot rd-dot-night" :class="{ 'rd-dot-on': theme === 'night' }" @tap="pickTheme('night')" />
           </view>
         </view>
+        <view class="rd-set-row">
+          <text class="rd-set-label">亮度</text>
+          <view class="rd-set-bright">
+            <slider
+              class="rd-bright-slider"
+              :value="brightness" :min="0" :max="100" :step="1"
+              :activeColor="brandColor" backgroundColor="rgba(150,130,90,0.2)" block-size="22"
+              @changing="onBrightnessChanging" @change="onBrightnessChange"
+            />
+            <text class="rd-bright-val">{{ brightness }}</text>
+          </view>
+        </view>
       </view>
     </view>
 
     <!-- 查词抽屉 -->
-    <view v-if="dictOpen" class="rd-mask" @tap="dictOpen = false">
-      <view class="rd-sheet rd-sheet-tall" @tap.stop>
+    <view v-if="dictOpen" class="rd-mask" @tap="closeDictionary" @touchmove.self.prevent>
+      <view
+        class="rd-sheet rd-sheet-tall rd-sheet--dict"
+        role="dialog"
+        aria-modal="true"
+        aria-label="古汉语查词"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
-        <view class="rd-sheet-head"><text class="rd-sheet-title">古汉语查词</text></view>
+        <view class="rd-sheet-head">
+          <text class="rd-sheet-title">古汉语查词</text>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeDictionary"
+            @keydown.enter.prevent="closeDictionary"
+            @keydown.space.prevent="closeDictionary"
+          >关闭</text>
+        </view>
         <view class="rd-dict-input">
           <input v-model="dictWord" class="rd-dict-field" placeholder="输入要查的字或词，如「仁」「逍遥」" confirm-type="search" @confirm="doLookup" />
           <view class="rd-dict-go" @tap="doLookup"><text>查询</text></view>
         </view>
         <scroll-view scroll-y class="rd-sheet-body">
-          <view v-if="dictLoading" class="rd-ai-loading"><text>查询中…</text></view>
+          <view v-if="dictLoading" class="rd-ai-wait"><ai-thinking mode="lookup" /></view>
           <view v-else-if="dictError" class="rd-ai-loading"><text class="rd-ai-err">{{ dictError }}</text></view>
           <template v-else-if="dictResult">
             <view class="rd-dict-head">
@@ -464,11 +939,33 @@ onLoad((q) => {
     </view>
 
     <!-- 笔记输入 -->
-    <view v-if="noteOpen" class="rd-mask" @tap="noteOpen = false">
-      <view class="rd-sheet" @tap.stop>
+    <view v-if="noteOpen" class="rd-mask" @tap="closeNote" @touchmove.self.prevent>
+      <view
+        class="rd-sheet rd-sheet--note"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="editingNoteId ? '编辑批注' : '写批注'"
+        tabindex="-1"
+        @tap.stop
+        @touchmove.stop
+      >
         <view class="rd-sheet-bar"><view class="rd-sheet-handle" /></view>
-        <view class="rd-sheet-head"><text class="rd-sheet-title">写笔记 · {{ curChapter?.title }}</text></view>
-        <textarea v-model="noteText" class="rd-note-area" placeholder="记下此刻的所思所悟…" :maxlength="2000" />
+        <view class="rd-sheet-head">
+          <text class="rd-sheet-title">{{ editingNoteId ? '编辑批注' : '写批注' }} · {{ curChapter?.title }}</text>
+          <text
+            class="rd-sheet-close"
+            role="button"
+            tabindex="0"
+            @tap="closeNote"
+            @keydown.enter.prevent="closeNote"
+            @keydown.space.prevent="closeNote"
+          >关闭</text>
+        </view>
+        <view class="rd-note-quote">
+          <text class="rd-note-quote-label">原文</text>
+          <text class="rd-note-quote-text">{{ noteOriginalText }}</text>
+        </view>
+        <textarea v-model="noteText" class="rd-note-area" placeholder="记下你对这句话的理解、疑问或心得…" :maxlength="2000" />
         <view class="rd-note-submit" :class="{ 'rd-note-disabled': !noteText.trim() || noteSubmitting }" @tap="submitNote">
           <text>{{ noteSubmitting ? '保存中…' : '保存笔记' }}</text>
         </view>
@@ -500,7 +997,8 @@ export default { options: { styleIsolation: 'shared' } }
 }
 .rd-statusbar { height: var(--status-bar-height, 0px); }
 .rd-top-inner { display: flex; align-items: center; gap: 16rpx; height: 92rpx; padding: 0 16rpx; }
-.rd-icon-btn { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+/* 触控热区 88rpx（负 margin 抵消占位·无底色，视觉不变） */
+.rd-icon-btn { width: 88rpx; height: 88rpx; margin: -12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .rd-top-mid { flex: 1; min-width: 0; text-align: center; }
 .rd-top-title { display: block; font-size: 30rpx; font-weight: 600; color: var(--rd-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd-top-sub { display: block; font-size: 22rpx; color: var(--rd-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -515,17 +1013,65 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-chapter-title { display: block; font-family: 'Songti SC','STSong',serif; font-size: 46rpx; font-weight: 700; color: var(--rd-fg); }
 .rd-chapter-from { display: block; margin-top: 12rpx; font-size: 24rpx; color: var(--rd-sub); }
 .rd-content { }
+.rd-para-row {
+  position: relative;
+  margin-bottom: 12rpx;
+  border-radius: 10rpx;
+  transition: background 0.2s, box-shadow 0.2s;
+}
 .rd-para {
   display: block;
   font-family: 'Songti SC','STSong','Noto Serif SC',serif;
   line-height: 2;
   color: var(--rd-fg);
   text-indent: 2em;
-  margin-bottom: 12rpx;
   letter-spacing: 1rpx;
   user-select: text;
   -webkit-user-select: text;
   &:active { background: rgba(160,106,56,0.10); border-radius: 8rpx; }
+}
+.rd-para-pick {
+  box-shadow: inset 4rpx 0 0 rgba(196, 30, 58, 0.28);
+  background: rgba(196, 30, 58, 0.035);
+}
+/* 批注标记取“书页边笺”意象：压在右侧页边，不打断正文行距。 */
+.rd-note-mark {
+  position: absolute;
+  right: -34rpx;
+  top: 2rpx;
+  z-index: 2;
+  width: 38rpx;
+  height: 38rpx;
+  border-radius: 7rpx 7rpx 7rpx 1rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #b5223b;
+  box-shadow: 0 4rpx 12rpx rgba(120, 34, 48, 0.22);
+}
+.rd-note-mark::after {
+  content: '';
+  position: absolute;
+  left: 5rpx;
+  bottom: -7rpx;
+  border-width: 7rpx 7rpx 0 0;
+  border-style: solid;
+  border-color: #b5223b transparent transparent transparent;
+}
+.rd-note-mark-glyph { color: #fff9ed; font-family: 'Songti SC','STSong',serif; font-size: 20rpx; line-height: 1; }
+.rd-note-mark-count {
+  position: absolute;
+  right: -10rpx;
+  top: -12rpx;
+  min-width: 24rpx;
+  height: 24rpx;
+  padding: 0 4rpx;
+  border-radius: 999rpx;
+  background: #f4d49a;
+  color: #6e391b;
+  font-size: 16rpx;
+  line-height: 24rpx;
+  text-align: center;
 }
 .rd-sel-bar {
   position: fixed;
@@ -543,6 +1089,30 @@ export default { options: { styleIsolation: 'shared' } }
   box-shadow: 0 6rpx 20rpx rgba(196, 30, 58, 0.35);
 }
 .rd-sel-txt { color: #fff; font-size: 28rpx; font-weight: 600; }
+.rd-note-pick-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 194rpx;
+  transform: translateX(-50%);
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  height: 76rpx;
+  padding: 0 16rpx 0 30rpx;
+  border: 2rpx solid rgba(160, 106, 56, 0.28);
+  border-radius: 999rpx;
+  background: var(--rd-card);
+  box-shadow: 0 8rpx 28rpx rgba(70, 48, 24, 0.18);
+}
+.rd-note-pick-txt { color: var(--rd-fg); font-size: 25rpx; white-space: nowrap; }
+.rd-note-pick-cancel {
+  padding: 12rpx 20rpx;
+  border-radius: 999rpx;
+  background: rgba(150, 130, 90, 0.12);
+  color: var(--rd-brand);
+  font-size: 23rpx;
+}
 .rd-tip { display: flex; align-items: center; justify-content: center; gap: 10rpx; margin: 40rpx 0; opacity: 0.7; }
 .rd-tip-txt { font-size: 22rpx; color: var(--rd-sub); }
 .rd-chapter-nav { display: flex; align-items: center; justify-content: space-between; padding: 32rpx 0 48rpx; border-top: 2rpx solid rgba(150,130,90,0.18); }
@@ -562,6 +1132,7 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-prog-fill { height: 100%; background: var(--rd-brand); transition: width 0.3s; }
 .rd-tools { display: flex; }
 .rd-tool { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6rpx; padding: 16rpx 0; &:active { opacity: 0.6; } }
+.rd-tool-on { background: rgba(160, 106, 56, 0.08); }
 .rd-tool-txt { font-size: 20rpx; color: var(--rd-sub); }
 
 /* 抽屉通用 */
@@ -570,24 +1141,78 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-sheet-tall { max-height: 82vh; }
 .rd-sheet-bar { display: flex; justify-content: center; padding: 16rpx 0 8rpx; }
 .rd-sheet-handle { width: 64rpx; height: 8rpx; border-radius: 999rpx; background: rgba(150,130,90,0.3); }
-.rd-sheet-head { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 40rpx 20rpx; }
+.rd-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 12rpx 40rpx 20rpx; }
+.rd-sheet-head--compact { padding-bottom: 8rpx; }
+.rd-sheet-head-main { min-width: 0; display: flex; align-items: center; gap: 16rpx; }
 .rd-sheet-title { font-size: 32rpx; font-weight: 700; color: var(--rd-fg, #2c2c2c); }
+.rd-sheet-close {
+  min-width: 88rpx;
+  min-height: 72rpx;
+  margin: -16rpx -16rpx -16rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rd-sub, #8f8068);
+  font-size: 28rpx;
+  border-radius: 999rpx;
+}
 .rd-ai-badge { width: 44rpx; height: 44rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(150deg,#c8324c,#9e1b30); }
-.rd-sheet-body { padding: 0 40rpx 40rpx; }
+/* 滚动穿透修复（照 .rd-toc-body 已验证模式）：AI 对照/查词抽屉共用此类，
+   原无约束高度 → scroll-view 不产生内滚，在 AI 内容上滑动滚的是底层原文页 */
+.rd-sheet-body { padding: 0 40rpx 40rpx; flex: 1; min-height: 0; }
+.rd-sheet-body :deep(.uni-scroll-view),
+.rd-sheet-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 
 /* AI 对照 */
 .rd-orig { background: rgba(160,106,56,0.08); border-radius: 16rpx; padding: 24rpx; margin-bottom: 24rpx; }
 .rd-orig-txt { font-family: 'Songti SC',serif; font-size: 30rpx; line-height: 1.8; color: var(--rd-fg, #2c2c2c); }
 .rd-ai-loading { padding: 40rpx 0; text-align: center; color: var(--rd-sub, #999); font-size: 26rpx; }
-.rd-ai-err { color: var(--brand); }
+/* AI 研读中动态卡容器（替代原纯文字等待） */
+.rd-ai-wait { padding: 28rpx 8rpx 20rpx; }
+.rd-ai-err { display: block; color: var(--brand); }
+/* 失败态「重试」小钮：重发当前句 */
+.rd-ai-retry { display: inline-flex; align-items: center; justify-content: center; margin-top: 24rpx; min-height: 64rpx; padding: 0 48rpx; border: 2rpx solid var(--rd-brand, #a06a38); border-radius: 999rpx; &:active { opacity: 0.6; } }
+.rd-ai-retry-txt { font-size: 26rpx; font-weight: 500; color: var(--rd-brand, #a06a38); }
 .rd-ai-sec { margin-bottom: 28rpx; }
 .rd-ai-label { display: block; font-size: 24rpx; font-weight: 600; color: var(--rd-brand,#a06a38); margin-bottom: 12rpx; }
 .rd-ai-trans { font-size: 30rpx; line-height: 1.9; color: var(--rd-fg,#2c2c2c); }
 .rd-ai-note { font-size: 26rpx; line-height: 1.7; color: var(--rd-fg,#444); margin-bottom: 6rpx; }
 .rd-ai-src { margin-top: 12rpx; font-size: 22rpx; color: var(--rd-sub,#999); }
 
+/* 回跳高亮（书签定位后短暂点亮该段） */
+.rd-para-hl { background: rgba(196, 30, 58, 0.10); border-radius: 8rpx; transition: background 0.6s; }
+
+/* 目录抽屉页签 */
+.rd-toc-tabs { display: flex; padding: 4rpx 40rpx 16rpx; gap: 8rpx; }
+.rd-toc-tab { flex: 1; display: flex; justify-content: center; padding: 16rpx 0; border-radius: 16rpx; }
+.rd-toc-tab-on { background: rgba(150, 130, 90, 0.12); }
+.rd-toc-tab-txt { font-size: 28rpx; font-weight: 600; }
+
+/* 本书书签/笔记条目 */
+.rd-mk-item { display: flex; align-items: center; gap: 20rpx; padding: 26rpx 16rpx; border-bottom: 2rpx solid rgba(150, 130, 90, 0.12); &:active { opacity: 0.6; } }
+.rd-mk-ribbon { width: 8rpx; align-self: stretch; border-radius: 4rpx; background: var(--rd-brand, #a06a38); flex-shrink: 0; }
+.rd-mk-ribbon-note { background: rgba(150, 130, 90, 0.55); }
+.rd-mk-main { flex: 1; min-width: 0; }
+.rd-mk-chapter { display: block; font-size: 26rpx; font-weight: 600; color: var(--rd-fg, #2c2c2c); }
+.rd-mk-excerpt {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  margin-top: 8rpx; font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+  font-size: 26rpx; line-height: 1.7; color: var(--rd-fg, #2c2c2c); opacity: 0.85;
+}
+.rd-mk-time { display: block; margin-top: 8rpx; font-size: 22rpx; color: var(--rd-sub, #999); }
+.rd-mk-empty { text-align: center; padding: 96rpx 0 48rpx; }
+.rd-mk-empty-txt { display: block; font-size: 28rpx; color: var(--rd-fg, #2c2c2c); }
+.rd-mk-empty-sub { display: block; margin-top: 12rpx; font-size: 24rpx; color: var(--rd-sub, #999); }
+.rd-mk-all { padding: 28rpx 0 12rpx; text-align: center; &:active { opacity: 0.6; } }
+.rd-mk-all-txt { font-size: 28rpx; font-weight: 600; }
+
 /* 目录 */
-.rd-toc-body { padding: 0 24rpx 40rpx; }
+/* 滚动穿透修复：scroll-view 在 H5 无约束高度时不产生内部滚动，触摸会落到底层正文页。
+   flex:1 + min-height:0 让它在抽屉（max-height 定界的 flex 列）内拿到确定高度自己滚；
+   overscroll-behavior: contain 阻断滚到边界后把滚动链回传给底层页面。 */
+.rd-toc-body { padding: 0 24rpx 40rpx; flex: 1; min-height: 0; }
+.rd-toc-body :deep(.uni-scroll-view),
+.rd-toc-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .rd-toc-item { display: flex; align-items: center; gap: 20rpx; padding: 26rpx 16rpx; border-bottom: 2rpx solid rgba(150,130,90,0.12); &:active { opacity: 0.6; } }
 .rd-toc-active { background: rgba(160,106,56,0.08); border-radius: 12rpx; }
 .rd-toc-idx { width: 48rpx; text-align: center; font-size: 24rpx; color: var(--rd-sub,#999); flex-shrink: 0; }
@@ -600,6 +1225,12 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-font-btn { width: 88rpx; height: 64rpx; border-radius: 16rpx; background: rgba(150,130,90,0.12); display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: var(--rd-fg,#2c2c2c); &:active { opacity: 0.6; } }
 .rd-font-cur { font-size: 28rpx; color: var(--rd-fg,#2c2c2c); min-width: 56rpx; text-align: center; }
 .rd-set-themes { display: flex; gap: 24rpx; }
+.rd-set-bright { flex: 1; display: flex; align-items: center; gap: 8rpx; margin-left: 40rpx; }
+.rd-bright-slider { flex: 1; margin: 0 12rpx; }
+.rd-bright-val { font-size: 26rpx; color: var(--rd-sub,#999); min-width: 52rpx; text-align: right; }
+
+/* 亮度压暗遮罩（最暗 opacity 0.7 不至于全黑） */
+.rd-dim { position: fixed; inset: 0; z-index: 50; background: #000; pointer-events: none; }
 .rd-theme-dot { width: 64rpx; height: 64rpx; border-radius: 999rpx; border: 4rpx solid transparent; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.1); }
 .rd-dot-yangpi { background: #f5ecd8; }
 .rd-dot-hugu { background: #dce9d5; }
@@ -618,6 +1249,15 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-dict-empty { text-align: center; padding: 80rpx 0; color: var(--rd-sub,#999); font-size: 26rpx; }
 
 /* 笔记 */
+.rd-note-quote {
+  margin: 0 40rpx 20rpx;
+  padding: 20rpx 24rpx;
+  border-left: 6rpx solid var(--rd-brand, #a06a38);
+  border-radius: 4rpx 14rpx 14rpx 4rpx;
+  background: rgba(150, 130, 90, 0.08);
+}
+.rd-note-quote-label { display: block; margin-bottom: 8rpx; color: var(--rd-brand, #a06a38); font-size: 20rpx; }
+.rd-note-quote-text { color: var(--rd-fg, #2c2c2c); font-family: 'Songti SC','STSong',serif; font-size: 27rpx; line-height: 1.7; }
 .rd-note-area { margin: 0 40rpx; padding: 24rpx; height: 280rpx; background: rgba(150,130,90,0.08); border-radius: 16rpx; font-size: 28rpx; line-height: 1.7; color: var(--rd-fg,#2c2c2c); width: auto; box-sizing: border-box; }
 .rd-note-submit { margin: 28rpx 40rpx 16rpx; height: 88rpx; border-radius: 20rpx; background: var(--rd-brand,#a06a38); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 30rpx; font-weight: 600; &:active { opacity: 0.85; } }
 .rd-note-disabled { opacity: 0.5; }

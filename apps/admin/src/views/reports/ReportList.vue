@@ -1,7 +1,97 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { useRouter } from "vue-router";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { reportApi, api } from "@/api";
+
+const router = useRouter();
+
+/** 举报对象类型翻译（与后端 getReportTarget 支持的类型对齐） */
+const TYPE_META: Record<string, { label: string; tag: "primary" | "success" | "warning" | "danger" | "info" }> = {
+  POST: { label: "帖子", tag: "primary" },
+  CIRCLE_POST: { label: "圈子帖子", tag: "primary" },
+  ARTICLE: { label: "文章", tag: "primary" },
+  COMMENT: { label: "评论", tag: "info" },
+  COURSE: { label: "课程", tag: "success" },
+  PRODUCT: { label: "商品", tag: "success" },
+  VIDEO: { label: "视频", tag: "warning" },
+  CIRCLE: { label: "圈子", tag: "warning" },
+  LIVE: { label: "直播", tag: "warning" },
+  LIVEROOM: { label: "直播", tag: "warning" },
+  LIVESTREAM: { label: "直播", tag: "warning" },
+  USER: { label: "用户", tag: "danger" },
+};
+function typeLabel(t?: string) {
+  return TYPE_META[String(t || "").toUpperCase()]?.label || t || "--";
+}
+function typeTag(t?: string) {
+  return TYPE_META[String(t || "").toUpperCase()]?.tag || "info";
+}
+
+/** 被举报内容自身状态翻译（不同业务表 status/auditStatus 的常见枚举） */
+const CONTENT_STATUS_MAP: Record<string, string> = {
+  PUBLISHED: "已发布",
+  APPROVED: "审核通过",
+  PENDING: "待审核",
+  AUDITING: "审核中",
+  REJECTED: "已驳回",
+  DRAFT: "草稿",
+  REMOVED: "已下架",
+  OFFLINE: "已下架",
+  HIDDEN: "已隐藏",
+  DELETED: "已删除",
+  BANNED: "已封禁",
+  ACTIVE: "正常",
+  DISABLED: "已禁用",
+  ON_SALE: "在售",
+  OFF_SALE: "已下架",
+};
+function contentStatusLabel(s?: string) {
+  return CONTENT_STATUS_MAP[String(s || "").toUpperCase()] || s || "--";
+}
+
+/** 本地时区格式化 YYYY-MM-DD HH:mm */
+function fmtTime(t?: string) {
+  if (!t) return "--";
+  const d = new Date(t);
+  if (Number.isNaN(d.getTime())) return "--";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** 长 ID 截断显示前 8 位 */
+function shortId(id?: string) {
+  return id ? `${id.slice(0, 8)}…` : "--";
+}
+async function copyId(id?: string) {
+  if (!id) return;
+  try {
+    await navigator.clipboard.writeText(id);
+    ElMessage.success("已复制");
+  } catch {
+    ElMessage.error("复制失败，请手动选择复制");
+  }
+}
+
+/** 手机号脱敏 138****1234 */
+function maskPhone(phone?: string) {
+  const s = String(phone || "");
+  if (s.length < 7) return s ? "****" : "--";
+  return `${s.slice(0, 3)}****${s.slice(-4)}`;
+}
+
+/** 可跳转的对象类型 → 后台已存在的详情路由（只挂真实存在的路由，避免死链） */
+function targetJumpPath(row: { targetType?: string; targetId?: string }): string | null {
+  const t = String(row.targetType || "").toUpperCase();
+  if (!row.targetId) return null;
+  if (t === "USER") return `/users/${row.targetId}`; // router index.ts: users/:id → UserDetail
+  if (t === "CIRCLE") return `/circles/${row.targetId}`; // router index.ts: circles/:id → CircleDetail
+  return null;
+}
+function jumpToTarget(row: { targetType?: string; targetId?: string }) {
+  const path = targetJumpPath(row);
+  if (path) router.push(path);
+}
 
 const reports = ref<any[]>([]);
 const total = ref(0);
@@ -56,29 +146,63 @@ async function viewTarget(row: any) {
   }
 }
 
-async function handleProcess(id: string) {
+async function handleProcess(row: any) {
   if (submitting.value) return;
+  let result: string;
+  try {
+    // 危险操作 L2：处理需确认并写明结论，结论落库（Report.result）可追溯
+    ({ value: result } = await ElMessageBox.prompt(
+      `确认将对「${typeLabel(row.targetType)}」的举报标记为已处理？请填写处理结论（将记录在案）：`,
+      "处理举报",
+      {
+        confirmButtonText: "确认处理",
+        cancelButtonText: "取消",
+        inputType: "textarea",
+        inputPlaceholder: "处理结论（必填，如：内容违规已下架 / 已警告发布者）",
+        inputValidator: (v: string) => (v && v.trim() ? true : "请输入处理结论"),
+      },
+    ));
+  } catch {
+    return; // 取消
+  }
   submitting.value = true;
   try {
-    await reportApi.process(id);
+    await reportApi.process(row.id, result.trim());
     ElMessage.success("已处理");
     fetchList();
   } catch {
-    ElMessage.error("操作失败");
+    // 错误已由响应拦截器统一弹出人话提示，不再重复弹
   } finally {
     submitting.value = false;
   }
 }
 
-async function handleDismiss(id: string) {
+async function handleDismiss(row: any) {
   if (submitting.value) return;
+  let reason: string;
+  try {
+    // 危险操作 L2：驳回理由必填（后端 dismiss 端点当前未接收 reason 落库，已记后端清单；前端先按契约传参）
+    ({ value: reason } = await ElMessageBox.prompt(
+      "确认驳回该举报（举报不成立）？请填写驳回理由：",
+      "驳回举报",
+      {
+        confirmButtonText: "确认驳回",
+        cancelButtonText: "取消",
+        inputType: "textarea",
+        inputPlaceholder: "驳回理由（必填，如：核查内容无违规）",
+        inputValidator: (v: string) => (v && v.trim() ? true : "请输入驳回理由"),
+      },
+    ));
+  } catch {
+    return; // 取消
+  }
   submitting.value = true;
   try {
-    await reportApi.dismiss(id);
+    await reportApi.dismiss(row.id, reason.trim());
     ElMessage.success("已驳回");
     fetchList();
   } catch {
-    ElMessage.error("操作失败");
+    // 错误已由响应拦截器统一弹出人话提示，不再重复弹
   } finally {
     submitting.value = false;
   }
@@ -152,16 +276,31 @@ async function handleDismiss(id: string) {
         width="100"
       >
         <template #default="{ row }">
-          <el-tag size="small">
-            {{ row.targetType }}
+          <el-tag
+            size="small"
+            :type="typeTag(row.targetType)"
+          >
+            {{ typeLabel(row.targetType) }}
           </el-tag>
         </template>
       </el-table-column>
       <el-table-column
-        prop="targetId"
         label="对象ID"
-        width="280"
-      />
+        width="110"
+      >
+        <template #default="{ row }">
+          <el-tooltip
+            :content="row.targetId"
+            placement="top"
+            :disabled="!row.targetId"
+          >
+            <span
+              class="id-chip"
+              @click="copyId(row.targetId)"
+            >{{ shortId(row.targetId) }}</span>
+          </el-tooltip>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="reason"
         label="举报原因"
@@ -182,15 +321,21 @@ async function handleDismiss(id: string) {
       </el-table-column>
       <el-table-column
         label="时间"
-        width="170"
+        width="150"
       >
         <template #default="{ row }">
-          {{ new Date(row.createdAt).toLocaleString() }}
+          <el-tooltip
+            :content="row.createdAt"
+            placement="top"
+            :disabled="!row.createdAt"
+          >
+            <span>{{ fmtTime(row.createdAt) }}</span>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column
         label="操作"
-        width="260"
+        width="300"
         fixed="right"
       >
         <template #default="{ row }">
@@ -200,18 +345,29 @@ async function handleDismiss(id: string) {
           >
             查看内容
           </el-button>
+          <el-button
+            v-if="targetJumpPath(row)"
+            size="small"
+            type="primary"
+            link
+            @click="jumpToTarget(row)"
+          >
+            打开详情
+          </el-button>
           <template v-if="row.status === 'PENDING'">
             <el-button
               size="small"
               type="success"
-              @click="handleProcess(row.id)"
+              :disabled="submitting"
+              @click="handleProcess(row)"
             >
               处理
             </el-button>
             <el-button
               size="small"
               type="warning"
-              @click="handleDismiss(row.id)"
+              :disabled="submitting"
+              @click="handleDismiss(row)"
             >
               驳回
             </el-button>
@@ -263,8 +419,12 @@ async function handleDismiss(id: string) {
           border
         >
           <el-descriptions-item label="内容类型">
-            <el-tag size="small">
-              {{ target.type || target.targetType }}
+            <el-tag
+              size="small"
+              :type="typeTag(target.targetType)"
+            >
+              <!-- 后端 getReportTarget 已返回中文 type（"帖子"等），兜底走前端映射 -->
+              {{ target.type || typeLabel(target.targetType) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item
@@ -291,19 +451,20 @@ async function handleDismiss(id: string) {
             v-if="target.extra && target.extra.phone"
             label="手机号"
           >
-            {{ target.extra.phone }}
+            <!-- 被举报用户手机号脱敏展示，后台核验无需明文 -->
+            {{ maskPhone(target.extra.phone) }}
           </el-descriptions-item>
           <el-descriptions-item
-            v-if="target.extra && target.extra.status"
+            v-if="target.extra && (target.extra.status || target.extra.auditStatus)"
             label="内容状态"
           >
-            {{ target.extra.status }}
+            {{ contentStatusLabel(target.extra.status || target.extra.auditStatus) }}
           </el-descriptions-item>
           <el-descriptions-item
             v-if="target.createdAt"
             label="发布时间"
           >
-            {{ new Date(target.createdAt).toLocaleString() }}
+            {{ fmtTime(target.createdAt) }}
           </el-descriptions-item>
           <el-descriptions-item label="举报原因">
             {{ target.reason || '-' }}
@@ -317,4 +478,6 @@ async function handleDismiss(id: string) {
 <style scoped>
 .report-list { padding: 16px; }
 .toolbar { display: flex; gap: 12px; margin-bottom: 16px; }
+.id-chip { cursor: pointer; font-family: monospace; color: var(--el-color-primary); }
+.id-chip:hover { text-decoration: underline; }
 </style>

@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
 import { AuthService } from "../auth/auth.service";
+import { PushAudienceService } from "./push-audience.service";
 import { BusinessException } from "../../common/business.exception";
 
 const mockRedis = {
@@ -12,6 +13,7 @@ const mockRedis = {
   del: jest.fn().mockResolvedValue(undefined),
   getJson: jest.fn().mockResolvedValue(null),
   setJson: jest.fn().mockResolvedValue(undefined),
+  runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
 };
 
 const mockPrisma = {
@@ -42,10 +44,14 @@ const mockPrisma = {
     create: jest.fn(),
     delete: jest.fn(),
   },
-  notification: { createMany: jest.fn(), updateMany: jest.fn() },
+  notification: { create: jest.fn().mockResolvedValue({}), createMany: jest.fn().mockResolvedValue({ count: 0 }), updateMany: jest.fn() },
+  userTag: { findMany: jest.fn().mockResolvedValue([]) },
   userBehaviorLog: { groupBy: jest.fn(), findMany: jest.fn() },
-  order: { aggregate: jest.fn() },
+  order: { aggregate: jest.fn(), groupBy: jest.fn() },
+  afterSale: { count: jest.fn() },
   virtualCoinAccount: { findUnique: jest.fn() },
+  userPoints: { findUnique: jest.fn() },
+  userCoupon: { count: jest.fn() },
   circleMember: { count: jest.fn(), deleteMany: jest.fn() },
   courseProgress: { findMany: jest.fn() },
   deviceFingerprint: { findMany: jest.fn() },
@@ -55,6 +61,7 @@ const mockPrisma = {
   bookmark: { deleteMany: jest.fn() },
   auditLog: { create: jest.fn() },
   auth: { deleteMany: jest.fn() },
+  $queryRaw: jest.fn().mockResolvedValue([{ count: BigInt(0) }]),
   $transaction: jest.fn().mockImplementation((fn: (prisma: typeof mockPrisma) => unknown) => fn(mockPrisma)),
 };
 
@@ -67,8 +74,9 @@ describe("UserService", () => {
         UserService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
-        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined), moderateImageOrThrow: jest.fn().mockResolvedValue(undefined), log: jest.fn().mockResolvedValue({}) } },
         { provide: AuthService, useValue: { revokeAllRefreshTokens: jest.fn().mockResolvedValue(undefined) } },
+        PushAudienceService,
       ],
     }).compile();
     svc = mod.get(UserService);
@@ -233,7 +241,7 @@ describe("UserService", () => {
       mockPrisma.circle.count.mockResolvedValue(2);
       mockPrisma.follow.count.mockResolvedValueOnce(50);  // followers count
       mockPrisma.follow.count.mockResolvedValueOnce(20);  // following count
-      mockPrisma.like.count.mockResolvedValue(100);
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: BigInt(100) }]);
       mockPrisma.collect.count.mockResolvedValue(30);
 
       const stats = await svc.getUserStats("u1");
@@ -249,6 +257,43 @@ describe("UserService", () => {
 
   // ═══════════════════ getPublicProfile（C端公开主页·脱敏） ═══════════════════
 
+  describe("getMySummary", () => {
+    it("返回真实社交、资产和订单角标，且优惠券只统计当前可用券", async () => {
+      mockPrisma.follow.count.mockResolvedValueOnce(12).mockResolvedValueOnce(8);
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: BigInt(19) }]);
+      mockPrisma.virtualCoinAccount.findUnique.mockResolvedValue({ balance: 88.5 });
+      mockPrisma.userPoints.findUnique.mockResolvedValue({ balance: 360 });
+      mockPrisma.userCoupon.count.mockResolvedValue(3);
+      mockPrisma.afterSale.count.mockResolvedValue(3);
+      mockPrisma.order.groupBy.mockResolvedValue([
+        { status: "PENDING", _count: { _all: 2 } },
+        { status: "PAID", _count: { _all: 4 } },
+        { status: "SHIPPED", _count: { _all: 1 } },
+      ]);
+
+      const result = await svc.getMySummary("u1");
+
+      expect(result).toEqual({
+        stats: { following: 12, followers: 8, likes: 19 },
+        assets: { coins: 88.5, coupons: 3, points: 360 },
+        orders: { pending: 2, shipped: 4, received: 1, refund: 3 },
+      });
+      expect(mockPrisma.userCoupon.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          userId: "u1",
+          used: false,
+          coupon: expect.objectContaining({ status: "ACTIVE" }),
+        }),
+      });
+      expect(mockPrisma.afterSale.count).toHaveBeenCalledWith({
+        where: {
+          userId: "u1",
+          status: { notIn: ["COMPLETED", "REJECTED", "CANCELLED"] },
+        },
+      });
+    });
+  });
+
   describe("getPublicProfile", () => {
     /** getUserStats 内部依赖的 7 个 count，统一置 0，避免污染断言 */
     function stubStatsCounts() {
@@ -256,7 +301,7 @@ describe("UserService", () => {
       mockPrisma.course.count.mockResolvedValue(0);
       mockPrisma.circle.count.mockResolvedValue(0);
       mockPrisma.follow.count.mockResolvedValue(0);
-      mockPrisma.like.count.mockResolvedValue(0);
+      mockPrisma.$queryRaw.mockResolvedValue([{ count: BigInt(0) }]);
       mockPrisma.collect.count.mockResolvedValue(0);
     }
 
@@ -479,34 +524,51 @@ describe("UserService", () => {
   // ═══════════════════ 白名单管理 ═══════════════════
 
   describe("getWhitelist", () => {
-    it("获取白名单（空列表）", async () => {
+    it("空名单返回标准分页结构", async () => {
       mockRedis.getJson.mockResolvedValue(null);
       const result = await svc.getWhitelist(1, 20);
       expect(result.users).toEqual([]);
-      expect(result.total).toBe(0);
+      expect(result).toMatchObject({ total: 0, page: 1, pageSize: 20 });
     });
 
-    it("获取白名单（有数据含分页）", async () => {
-      mockRedis.getJson.mockResolvedValue(["u1", "u2", "u3", "u4"]);
+    it("兼容历史 string[]，并返回前端所需的用户、原因和添加时间", async () => {
+      mockRedis.getJson.mockResolvedValue(["u1", "u2", "u3"]);
       mockPrisma.user.findMany.mockResolvedValue([
-        { id: "u1", nickname: "用户1", avatar: null, phone: "138****8001", createdAt: new Date() },
-        { id: "u2", nickname: "用户2", avatar: null, phone: "138****8002", createdAt: new Date() },
+        { id: "u2", nickname: "用户2", avatar: null, phone: "13800138002" },
+        { id: "u1", nickname: "用户1", avatar: null, phone: "13800138001" },
       ]);
       const result = await svc.getWhitelist(1, 2);
       expect(result.users).toHaveLength(2);
-      expect(result.total).toBe(4);
+      expect(result.users[0]).toMatchObject({
+        userId: "u1", reason: null, createdAt: null,
+        user: { id: "u1", nickname: "用户1", phone: "138****8001" },
+      });
+      expect(result.total).toBe(3);
       expect(result.pageSize).toBe(2);
+    });
+
+    it("保留结构化名单元数据并过滤非法、重复条目", async () => {
+      mockRedis.getJson.mockResolvedValue([
+        { userId: "u1", reason: "联调", createdAt: "2026-07-22T00:00:00.000Z" },
+        { userId: "u1", reason: "重复", createdAt: "2026-07-22T01:00:00.000Z" },
+        { reason: "无用户" },
+      ]);
+      mockPrisma.user.findMany.mockResolvedValue([{ id: "u1", nickname: "用户1", avatar: null, phone: null }]);
+      const result = await svc.getWhitelist(0, 999);
+      expect(result).toMatchObject({ total: 1, page: 1, pageSize: 100 });
+      expect(result.users[0]).toMatchObject({ userId: "u1", reason: "联调", createdAt: "2026-07-22T00:00:00.000Z" });
     });
   });
 
   describe("addWhitelist", () => {
-    it("添加用户到白名单", async () => {
+    it("新增用户时写入原因与添加时间", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: "u1" });
       mockRedis.getJson.mockResolvedValue([]);
-      const result = await svc.addWhitelist("u1");
-      expect(result.success).toBe(true);
-      expect(result.userId).toBe("u1");
-      expect(mockRedis.setJson).toHaveBeenCalled();
+      const result = await svc.addWhitelist(" u1 ", " 上线联调 ");
+      expect(result).toEqual({ success: true, userId: "u1" });
+      expect(mockRedis.setJson).toHaveBeenCalledWith("admin:whitelist", [
+        expect.objectContaining({ userId: "u1", reason: "上线联调", createdAt: expect.any(String) }),
+      ]);
     });
 
     it("用户不存在抛出异常", async () => {
@@ -514,24 +576,35 @@ describe("UserService", () => {
       await expect(svc.addWhitelist("no-user")).rejects.toThrow(BusinessException);
     });
 
-    it("重复添加不重复写入", async () => {
+    it("重复添加且未修改原因时不重复写入", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: "u1" });
-      mockRedis.getJson.mockResolvedValue(["u1", "u2"]);
+      mockRedis.getJson.mockResolvedValue([{ userId: "u1", reason: "联调", createdAt: "2026-07-22T00:00:00.000Z" }]);
       const result = await svc.addWhitelist("u1");
       expect(result.success).toBe(true);
       expect(mockRedis.setJson).not.toHaveBeenCalled();
     });
+
+    it("重复添加时允许更新原因且保留原添加时间", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "u1" });
+      mockRedis.getJson.mockResolvedValue([{ userId: "u1", reason: "旧原因", createdAt: "2026-07-22T00:00:00.000Z" }]);
+      await svc.addWhitelist("u1", "新原因");
+      expect(mockRedis.setJson).toHaveBeenCalledWith("admin:whitelist", [
+        { userId: "u1", reason: "新原因", createdAt: "2026-07-22T00:00:00.000Z" },
+      ]);
+    });
   });
 
   describe("removeWhitelist", () => {
-    it("从白名单移除用户", async () => {
+    it("从名单移除用户并把历史格式规范化", async () => {
       mockRedis.getJson.mockResolvedValue(["u1", "u2"]);
       const result = await svc.removeWhitelist("u1");
-      expect(result.success).toBe(true);
-      expect(mockRedis.setJson).toHaveBeenCalledWith("admin:whitelist", ["u2"]);
+      expect(result).toEqual({ success: true, userId: "u1" });
+      expect(mockRedis.setJson).toHaveBeenCalledWith("admin:whitelist", [
+        { userId: "u2", reason: null, createdAt: null },
+      ]);
     });
 
-    it("移除不在白名单中的用户", async () => {
+    it("移除不在名单中的用户不写 Redis", async () => {
       mockRedis.getJson.mockResolvedValue(["u1"]);
       const result = await svc.removeWhitelist("u3");
       expect(result.success).toBe(true);
@@ -602,6 +675,38 @@ describe("UserService", () => {
     });
   });
 
+  describe("notify settings", () => {
+    it("按 operator scope 返回运营商专属偏好并保留已保存值", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        notifySettings: { operatorTeam: false, operatorSystem: true },
+      });
+
+      const result = await svc.getNotifySettings("u1", "operator");
+
+      expect(result).toEqual([
+        expect.objectContaining({ key: "operatorTeam", value: false }),
+        expect.objectContaining({ key: "operatorReport", value: true }),
+        expect.objectContaining({ key: "operatorDormant", value: true }),
+        expect.objectContaining({ key: "operatorSystem", value: true }),
+      ]);
+    });
+
+    it("更新运营商专属键时合并原通知偏好，不覆盖其他设置", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        notifySettings: { message: false, operatorTeam: true },
+      });
+      mockPrisma.user.update.mockResolvedValue({});
+
+      const result = await svc.updateNotifySettings("u1", { key: "operatorTeam", value: false });
+
+      expect(result).toEqual({ success: true });
+      expect(mockPrisma.user.update).toHaveBeenCalledWith({
+        where: { id: "u1" },
+        data: { notifySettings: { message: false, operatorTeam: false } },
+      });
+    });
+  });
+
   // ═══════════════════ 账户注销 ═══════════════════
 
   describe("requestAccountDeletion", () => {
@@ -654,6 +759,28 @@ describe("UserService", () => {
     it("用户未申请注销不能执行", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ deleteRequestedAt: null, status: "ACTIVE" });
       await expect(svc.executeAccountDeletion("u1")).rejects.toThrow("未申请注销");
+    });
+  });
+
+  describe("autoExecuteScheduledDeletions cron (#7)", () => {
+    it("扫冷静期到期(status!=DISABLED)并逐个执行·经runExclusive互斥", async () => {
+      mockPrisma.user.findMany.mockResolvedValueOnce([{ id: "u1" }, { id: "u2" }]);
+      // executeAccountDeletion 内部 findUnique 需返回已申请注销
+      mockPrisma.user.findUnique.mockResolvedValue({ deleteRequestedAt: new Date(), status: "ACTIVE" });
+
+      await svc.autoExecuteScheduledDeletions();
+
+      expect(mockRedis.runExclusive).toHaveBeenCalledWith("account_auto_deletion", 600, expect.any(Function));
+      // 扫描条件：deleteScheduledAt<=now + deleteRequestedAt非空 + status!=DISABLED + 上限200
+      expect(mockPrisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            deleteScheduledAt: expect.objectContaining({ lte: expect.any(Date) }),
+            status: { not: "DISABLED" },
+          }),
+          take: 200,
+        }),
+      );
     });
   });
 });

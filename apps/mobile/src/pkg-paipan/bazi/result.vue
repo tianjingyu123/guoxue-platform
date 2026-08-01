@@ -9,10 +9,15 @@ import AppIcon from '@/components/common/app-icon.vue'
 import TraditionalMode from '@/components/bazi/traditional-mode.vue'
 import AnalysisMode from '@/components/bazi/analysis-mode.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
+import GenerateReportButton from '@/components/paipan/generate-report-button.vue'
 import NotesPanel from '@/components/bazi/notes-panel.vue'
 import SchoolAnalysis from '../components/school-analysis.vue'
+import SimilarCases from '../components/similar-cases.vue'
+import CaseLibraryEntry from '../components/case-library-entry.vue'
 import { baziApi } from '@/lib/bazi-result-data'
+import { saveBaziHistory } from './bazi-history'
 import { navigateBack } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
 
 const activeMode = ref<'traditional' | 'analysis'>('traditional')
@@ -30,21 +35,31 @@ const userInput = reactive({
   year: 1983, month: 6, day: 18, hour: 14, minute: 31,
   province: '', city: '北京', district: '房山区',
 })
+// 时间校正选项（input-form 采集 → query 带入 → 真透传后端引擎；此前采集了不消费=假开关）
+const calcOpts = reactive({ trueSolar: true, earlyZi: false, dst: false })
 
-async function loadResult(q: Record<string, string> = {}) {
+/**
+ * 排盘恒以 userInput + calcOpts 为准（单一真源）。
+ * 此前 loadResult(q) 直接吃 query、缺参回退 1983 默认盘：
+ * ① 错误态「重试」传 {} → 排的是 1983 默认盘还落档；② 修改信息确定后没人重排。
+ * 现在 onLoad/confirmEdit 先写 userInput，再统一走这里。
+ */
+async function loadResult() {
   loading.value = true
   error.value = ''
   try {
     const result = await baziApi.calculate({
-      name: q.name || undefined,
-      gender: q.gender || '男',
-      year: q.year ? Number(q.year) : 1983,
-      month: q.month ? Number(q.month) : 6,
-      day: q.day ? Number(q.day) : 18,
-      hour: q.hour ? Number(q.hour) : 14,
-      minute: q.minute ? Number(q.minute) : 31,
+      name: userInput.name || undefined,
+      gender: userInput.gender || '男',
+      year: userInput.year, month: userInput.month, day: userInput.day,
+      hour: userInput.hour, minute: userInput.minute,
+      city: userInput.city || userInput.province || undefined,
+      useTrueSolarTime: calcOpts.trueSolar,
+      useDaylightSaving: calcOpts.dst,
+      earlyZi: calcOpts.earlyZi,
     })
     baziResult.value = result
+    await saveRecord(result)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败'
   } finally {
@@ -52,7 +67,78 @@ async function loadResult(q: Record<string, string> = {}) {
   }
 }
 
+/** 本盘四柱（拼成「甲子」这样的干支）—— 拿去案例库找同类八字 */
+const myPillars = computed(() => {
+  const sz = baziResult.value?.siZhu
+  if (!sz?.year?.gan || !sz?.month?.gan || !sz?.day?.gan || !sz?.hour?.gan) return null
+  return {
+    year: `${sz.year.gan}${sz.year.zhi}`,
+    month: `${sz.month.gan}${sz.month.zhi}`,
+    day: `${sz.day.gan}${sz.day.zhi}`,
+    hour: `${sz.hour.gan}${sz.hour.zhi}`,
+  }
+})
+
+/**
+ * 排盘成功后落记录 —— 本地 + 后端双写。
+ *
+ * 🔴 此前只写本地：后端 PaipanRecord 表因此长期是空的，导致
+ *    ① AI 智能解盘页（读 GET /paipan/bazi）对所有人恒空；
+ *    ② 「请师父点评」每次都要临时补建一条记录；
+ *    ③ 换设备/重装后排盘记录全丢。
+ *    盘明明排出来了，后端却不知道 —— 现在补上这一步。
+ *
+ * 未登录只写本地（不弹登录打断排盘），已登录才同步落库；
+ * 落库失败也不打断（本地记录已在，用户无感），只是拿不到 serverId。
+ */
+async function saveRecord(result: any) {
+  const sz = result?.siZhu || {}
+  const params = {
+    name: userInput.name || '未命名',
+    gender: userInput.gender,
+    year: userInput.year, month: userInput.month, day: userInput.day,
+    hour: userInput.hour, minute: userInput.minute,
+    city: userInput.city || undefined,
+    pillars: {
+      yearGan: sz.year?.gan || '', yearZhi: sz.year?.zhi || '',
+      monthGan: sz.month?.gan || '', monthZhi: sz.month?.zhi || '',
+      dayGan: sz.day?.gan || '', dayZhi: sz.day?.zhi || '',
+      hourGan: sz.hour?.gan || '', hourZhi: sz.hour?.zhi || '',
+    },
+  }
+
+  // 从历史/记录页带 id 进来的，本就是后端已有的盘，不必重复落库
+  if (recordIdFromQuery.value) {
+    saveBaziHistory({ ...params, serverId: recordIdFromQuery.value })
+    return
+  }
+
+  let serverId: string | undefined
+  if (getToken()) {
+    try {
+      serverId = (await baziApi.createRecord({
+        name: userInput.name || undefined,
+        gender: userInput.gender,
+        year: userInput.year, month: userInput.month, day: userInput.day,
+        hour: userInput.hour, minute: userInput.minute,
+        // 校正项同口径落库，保证后端记录复算出的盘与用户看到的一致
+        city: userInput.city || userInput.province || undefined,
+        useTrueSolarTime: calcOpts.trueSolar,
+        useDaylightSaving: calcOpts.dst,
+        earlyZi: calcOpts.earlyZi,
+      }, true)).id
+      // 交给 school-analysis：它拿到 recordId 就不会再自己建一条
+      recordIdFromQuery.value = serverId
+    } catch {
+      // 静默：本地记录仍然写，用户看得到自己的盘
+    }
+  }
+
+  saveBaziHistory({ ...params, serverId })
+}
+
 onLoad((q: Record<string, string> = {}) => {
+  // 历史/记录页带后端记录 id 进来（history 侧带 id=serverId），避免重复 createRecord 致记录膨胀
   if (q.id) recordIdFromQuery.value = q.id
   if (q.name) userInput.name = decodeURIComponent(q.name)
   if (q.gender) userInput.gender = decodeURIComponent(q.gender)
@@ -60,11 +146,16 @@ onLoad((q: Record<string, string> = {}) => {
   if (q.month) userInput.month = Number(q.month)
   if (q.day) userInput.day = Number(q.day)
   if (q.hour) userInput.hour = Number(q.hour)
-  if (q.minute) userInput.minute = Number(q.minute)
+  // minute=0 也要认（'0' 为真值字符串，可正常进入；仅 undefined 保持默认）
+  if (q.minute !== undefined) userInput.minute = Number(q.minute) || 0
   if (q.province) userInput.province = decodeURIComponent(q.province)
   if (q.city) userInput.city = decodeURIComponent(q.city)
   if (q.district) userInput.district = decodeURIComponent(q.district)
-  loadResult(q)
+  // 时间校正选项（input-form 传 'true'/'false' 字符串；缺省保持默认）
+  if (q.trueSolar !== undefined) calcOpts.trueSolar = q.trueSolar === 'true'
+  if (q.earlyZi !== undefined) calcOpts.earlyZi = q.earlyZi === 'true'
+  if (q.dst !== undefined) calcOpts.dst = q.dst === 'true'
+  loadResult()
 })
 
 const data = computed(() => {
@@ -79,23 +170,92 @@ const data = computed(() => {
   }
 })
 
+/** 报告摘要：只用引擎真算出来的字段，缺了就退回四柱本身，不编话 */
+const reportSummary = computed(() => {
+  const d: any = data.value
+  const parts = [
+    d.dayMaster ? `${d.dayMaster}日主` : '',
+    d.geju || d.pattern || '',
+    d.pillars ? Object.values(d.pillars).filter((x) => typeof x === 'string').join(' ') : '',
+  ].filter(Boolean)
+  return parts.join(' · ') || d.solarDate || ''
+})
+
 // 编辑弹窗草稿
 const draft = reactive({ ...userInput })
 const timeOpts = reactive([true, false, false]) // 真太阳时/早晚子时/夏令时
 function openEdit() {
   Object.assign(draft, userInput)
+  // 勾选项从当前生效的校正选项回填（此前恒显示默认值，与实际排盘口径脱节）
+  timeOpts[0] = calcOpts.trueSolar
+  timeOpts[1] = calcOpts.earlyZi
+  timeOpts[2] = calcOpts.dst
   showEditModal.value = true
 }
 function confirmEdit() {
+  // 粗校验：非法数字直接拦下（引擎吃到 NaN/越界会 400）
+  if (!Number.isInteger(draft.year) || draft.year < 1900 || draft.year > 2100 ||
+      !Number.isInteger(draft.month) || draft.month < 1 || draft.month > 12 ||
+      !Number.isInteger(draft.day) || draft.day < 1 || draft.day > 31 ||
+      !Number.isInteger(draft.hour) || draft.hour < 0 || draft.hour > 23 ||
+      !Number.isInteger(draft.minute) || draft.minute < 0 || draft.minute > 59) {
+    uni.showToast({ title: '出生时间不合法，请检查', icon: 'none' })
+    return
+  }
+  const changed =
+    draft.name !== userInput.name || draft.gender !== userInput.gender ||
+    draft.year !== userInput.year || draft.month !== userInput.month || draft.day !== userInput.day ||
+    draft.hour !== userInput.hour || draft.minute !== userInput.minute ||
+    draft.city !== userInput.city || draft.district !== userInput.district ||
+    timeOpts[0] !== calcOpts.trueSolar || timeOpts[1] !== calcOpts.earlyZi || timeOpts[2] !== calcOpts.dst
   Object.assign(userInput, draft)
+  calcOpts.trueSolar = timeOpts[0]
+  calcOpts.earlyZi = timeOpts[1]
+  calcOpts.dst = timeOpts[2]
   showEditModal.value = false
+  if (changed) {
+    // 🔴 改完必须重排（此前只 Object.assign 改显示、盘还是旧盘）。
+    // 输入变了即是另一张盘：旧 serverId 不再对应，清掉让 saveRecord 走新建，
+    // 否则师父点评/AI 解盘会挂在旧盘的记录上。
+    recordIdFromQuery.value = ''
+    loadResult()
+  }
 }
 
 function openNotes() {
   showNotes.value = true
 }
+/**
+ * 断事笔记的落盘 key：优先后端记录 id；未登录/未落库时退化为「性别+生辰」指纹，
+ * 保证同一张盘重开还能读回自己的笔记、不同盘之间不串。
+ */
+const notesKey = computed(() =>
+  recordIdFromQuery.value ||
+  `local-${userInput.gender}-${userInput.year}-${userInput.month}-${userInput.day}-${userInput.hour}-${userInput.minute}`,
+)
+/** 分享：复制盘面文字摘要（照搬八宅范式，只用引擎真算出来的四柱/五行，不编话） */
 function onShare() {
-  uni.showToast({ title: '分享功能开发中', icon: 'none' })
+  const d: any = data.value
+  const sz = d?.siZhu
+  if (!sz?.year?.gan || !sz?.month?.gan || !sz?.day?.gan || !sz?.hour?.gan) {
+    uni.showToast({ title: '盘面尚未就绪', icon: 'none' })
+    return
+  }
+  const pillar = (k: string) => `${sz[k].gan}${sz[k].zhi}`
+  const wx = d.wuxingState
+    ? Object.entries(d.wuxingState).map(([el, st]) => `${el}${st}`).join(' ')
+    : ''
+  const summary = [
+    `【${BRAND.nameShort}八字】${d.name} · ${d.qianKun}`,
+    `出生：${d.solarDate}${d.lunarDate ? `（${d.lunarDate}）` : ''}`,
+    `四柱：${pillar('year')} ${pillar('month')} ${pillar('day')} ${pillar('hour')}`,
+    wx ? `五行：${wx}` : '',
+    `—— 来自${BRAND.nameShort} · 专业排盘工具`,
+  ].filter(Boolean).join('\n')
+  uni.setClipboardData({
+    data: summary,
+    success: () => uni.showToast({ title: '盘面摘要已复制', icon: 'none' }),
+  })
 }
 </script>
 
@@ -126,13 +286,25 @@ function onShare() {
       </view>
       <view v-else-if="error" class="error-wrap">
         <text class="error-text">{{ error }}</text>
-        <view class="retry-btn" @tap="loadResult({})"><text class="retry-text">重试</text></view>
+        <!-- 重试用当前 userInput（此前传 {} → 排的是 1983 默认盘还落档） -->
+        <view class="retry-btn" @tap="loadResult()"><text class="retry-text">重试</text></view>
       </view>
       <template v-else>
         <traditional-mode v-if="activeMode === 'traditional'" :data="data" @edit="openEdit" />
         <analysis-mode v-else :data="data" @edit="openEdit" />
+        <!-- 同类八字：案例库里有日柱相同+另两柱相同的，才出现（没命中整块不显示） -->
+        <similar-cases :pillars="myPillars" />
+        <case-library-entry method="BAZI" />
         <!-- AI 师徒 · 请师父看盘（流派虚拟师父点评对照，T6 §三） -->
         <school-analysis :input="userInput" :record-id="recordIdFromQuery" />
+        <generate-report-button
+          tool-key="bazi"
+          tool-label="八字排盘"
+          :client-name="data.name"
+          :client-birth="data.solarDate"
+          :data="data"
+          :summary="reportSummary"
+        />
         <view class="disc-wrap"><disclaimer variant="fortune" tone="card" /></view>
       </template>
     </scroll-view>
@@ -198,8 +370,8 @@ function onShare() {
       </view>
     </view>
 
-    <!-- 断事笔记面板 -->
-    <notes-panel :open="showNotes" @close="showNotes = false" />
+    <!-- 断事笔记面板（record-id 用于笔记按盘落本地存储） -->
+    <notes-panel :open="showNotes" :record-id="notesKey" @close="showNotes = false" />
   </view>
 </template>
 
@@ -208,7 +380,7 @@ function onShare() {
 /* 顶栏 */
 .hdr { position: sticky; top: 0; z-index: 20; background: var(--card); border-bottom: 2rpx solid var(--border, rgba(0,0,0,0.08)); padding-top: var(--status-bar-height, 0); }
 .hdr-bar { display: flex; align-items: center; justify-content: space-between; padding: 10rpx 24rpx; }
-.hdr-back { padding: 4rpx; }
+.hdr-back { width: 88rpx; height: 88rpx; margin: -20rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .hdr-title { font-size: 32rpx; font-weight: 700; color: var(--text-ink); }
 .hdr-actions { display: flex; align-items: center; gap: 8rpx; }
 .hdr-act { padding: 8rpx; }

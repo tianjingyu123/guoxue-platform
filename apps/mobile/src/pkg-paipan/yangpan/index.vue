@@ -5,6 +5,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import DatePickerModal from '@/components/bazi/date-picker-modal.vue'
 import LocationPickerModal from '@/components/bazi/location-picker-modal.vue'
 import { navigateTo } from '@/utils/router'
+import { toSolarSafe } from '@/pkg-paipan/lib/date-convert'
 
 // R4 合规：小程序端无占卜类目，标题改历法研究表述（仅展示文案·路由/逻辑不变）
 let yangpanTitle = '阳盘命理奇门'
@@ -39,12 +40,23 @@ const formatDateTime = computed(() =>
   `${birth.year}年${birth.month}月${birth.day}日 ${birth.hour}时${birth.minute}分`,
 )
 
-function onDateConfirm(date: { year: number; month: number; day: number; hour: number | null; minute: number | null }) {
+function onDateConfirm(d: {
+  year: number; month: number; day: number
+  hour: number | null; minute: number | null; isLunar?: boolean
+}) {
+  const hour = d.hour ?? birth.hour
+  const minute = d.minute ?? birth.minute
+  // 农历输入归一为公历：引擎入参恒为公历，否则农历数字会被当公历排盘
+  const { date, ok } = toSolarSafe({ year: d.year, month: d.month, day: d.day, hour, minute, isLunar: d.isLunar })
+  if (!ok) {
+    uni.showToast({ title: '农历日期无效，请重新选择', icon: 'none' })
+    return
+  }
   birth.year = date.year
   birth.month = date.month
   birth.day = date.day
-  birth.hour = date.hour ?? birth.hour
-  birth.minute = date.minute ?? birth.minute
+  birth.hour = date.hour
+  birth.minute = date.minute
   showDatePicker.value = false
 }
 
@@ -77,6 +89,23 @@ function handleSubmit() {
   const qs = Object.keys(params).map(k => `${k}=${encodeURIComponent(params[k])}`).join('&')
   navigateTo(`/paipan/yangpan/result?${qs}`)
 }
+
+/** 分享：H5 系统分享/复制链接，其余端复制标题（照 jinkoujue/meihua 范式） */
+function handleShare() {
+  const title = yangpanTitle
+  // #ifdef H5
+  const url = window.location.href
+  const nav = navigator as Navigator & { share?: (data: { title?: string; url?: string }) => Promise<void> }
+  if (nav.share) {
+    nav.share({ title, url }).catch(() => {})
+  } else {
+    uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  }
+  // #endif
+  // #ifndef H5
+  uni.setClipboardData({ data: title, success: () => uni.showToast({ title: '已复制', icon: 'none' }) })
+  // #endif
+}
 </script>
 
 <template>
@@ -95,7 +124,7 @@ function handleSubmit() {
     <!-- 标题横幅 -->
     <view class="banner">
       <text class="banner-title">{{ yangpanTitle }}</text>
-      <view class="banner-share">
+      <view class="banner-share" @tap="handleShare">
         <app-icon name="share-2" :size="28" color="rgba(255,255,255,0.9)" />
         <text class="banner-share-text">分享</text>
       </view>

@@ -24,11 +24,13 @@ export const INTEREST_THEMES: InterestTheme[] = [
 ]
 
 const KEY = 'user_interest_themes'
+const GUIDE_COMPLETED_KEY = 'user_interest_guide_completed'
 
 /** 保存所选主题（key 列表），并上报埋点供个性化演进 */
 export function saveInterestThemes(keys: string[]): void {
   const valid = keys.filter((k) => INTEREST_THEMES.some((t) => t.key === k)).slice(0, 3)
   setStorage(KEY, valid)
+  if (valid.length > 0) setStorage(GUIDE_COMPLETED_KEY, true)
   try {
     track.custom('interests_selected', { themes: valid })
   } catch {
@@ -45,6 +47,21 @@ export function getInterestThemes(): string[] {
 /** 是否已完成兴趣选择（welcome 页据此决定是否进入引导） */
 export function hasSelectedInterests(): boolean {
   return getInterestThemes().length > 0
+}
+
+/** 记录用户主动跳过；不伪造兴趣，首页继续使用按日期/时段轮换的默认主题。 */
+export function markInterestGuideSkipped(): void {
+  setStorage(GUIDE_COMPLETED_KEY, true)
+  try {
+    track.custom('interests_skipped', {})
+  } catch {
+    /* 埋点失败不影响主流程 */
+  }
+}
+
+/** 是否已经完成过兴趣引导（选过或明确跳过），避免每次登录重复拦截。 */
+export function hasCompletedInterestGuide(): boolean {
+  return hasSelectedInterests() || getStorage<boolean>(GUIDE_COMPLETED_KEY, false) === true
 }
 
 /** 一年中的第几天（稳定的「每日轮换」随机源，每天变化一次） */

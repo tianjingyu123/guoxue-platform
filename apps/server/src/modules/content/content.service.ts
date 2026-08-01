@@ -33,7 +33,7 @@ export class ContentService {
       },
     });
 
-    this.webhook.fire("CONTENT_PUBLISHED", {
+    await this.webhook.fire("CONTENT_PUBLISHED", {
       contentId: content.id,
       title: content.title,
       type: content.type,
@@ -50,7 +50,7 @@ export class ContentService {
 
     // 无关键词搜索时尝试缓存（第一页缓存30秒）
     if (!q.keyword && page === 1) {
-      const cacheKey = `content:list:${q.type || "all"}:${q.status || "all"}:${q.stationId || "all"}`;
+      const cacheKey = `content:list:${q.type || "all"}:${q.status || "all"}:${q.stationId || "all"}:${q.categoryLevel1 || "all"}:${q.categoryLevel2 || "all"}`;
       const cached = await this.redis.getJson(cacheKey);
       if (cached) return cached as { data: Content[]; total: number; page: number; pageSize: number };
 
@@ -66,8 +66,15 @@ export class ContentService {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.ContentWhereInput = {};
     if (q.type) where.type = q.type;
-    if (q.status) where.status = q.status;
+    if (q.status) {
+      // status 支持逗号分隔多值（前端"已通过"tab 需 APPROVED+PUBLISHED 并存）；单值时保持等值查询，向后兼容
+      const statuses = q.status.split(",").map((s) => s.trim()).filter(Boolean);
+      if (statuses.length > 1) where.status = { in: statuses };
+      else if (statuses.length === 1) where.status = statuses[0];
+    }
     if (q.stationId) where.stationId = q.stationId;
+    if (q.categoryLevel1) where.categoryLevel1 = q.categoryLevel1;
+    if (q.categoryLevel2) where.categoryLevel2 = q.categoryLevel2;
     if (q.keyword) {
       where.OR = [
         { title: { contains: q.keyword } },
@@ -117,6 +124,28 @@ export class ContentService {
     });
 
     // 更新后失效缓存
+    this.redis.del(`content:detail:${id}`).catch((err) => this.logger.warn("缓存删除失败", err));
+    this.redis.delByPattern("content:list:*").catch((err) => this.logger.warn("缓存清理失败", err));
+    return updated;
+  }
+
+  /**
+   * 专用审核方法（区别于全量编辑 update）：
+   * 只允许改 status(APPROVED/REJECTED) + auditReason，审核员不具备内容编辑权。
+   */
+  async audit(id: string, status: "APPROVED" | "REJECTED", reason?: string) {
+    const content = await this.prisma.content.findUnique({ where: { id } });
+    if (!content) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
+
+    const updated = await this.prisma.content.update({
+      where: { id },
+      data: {
+        status,
+        // 通过时清空历史驳回原因；驳回时记录原因
+        auditReason: status === "REJECTED" ? (reason ?? null) : null,
+      },
+    });
+
     this.redis.del(`content:detail:${id}`).catch((err) => this.logger.warn("缓存删除失败", err));
     this.redis.delByPattern("content:list:*").catch((err) => this.logger.warn("缓存清理失败", err));
     return updated;

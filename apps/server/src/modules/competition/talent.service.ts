@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { maskName } from "../../common/crypto.util";
 import { safePagination, paginated } from "../../common/pagination";
+import { COMPETITION_DEMO_PREFIX } from "./competition-public.policy";
 
 /**
  * talentScore 加权（设计钉死·赛-P4）：
@@ -14,6 +15,18 @@ export const TALENT_WEIGHTS = {
   PROMOTED: 10,
   PARTICIPATION: 2,
 } as const;
+
+/**
+ * 易学分析师段位阈值（与前端 competition-data.ts 的 analystLevel 保持一致）：
+ * 见习0 / 初级50 / 中级150 / 高级400 / 资深800。收官重算按 talentScore 自动晋级。
+ */
+export function levelForScore(score: number): string {
+  if (score >= 800) return "MASTER";
+  if (score >= 400) return "SENIOR";
+  if (score >= 150) return "INTERMEDIATE";
+  if (score >= 50) return "JUNIOR";
+  return "TRAINEE";
+}
 
 /** 奖牌名次状态（进 badges 的冠亚季军语义，沿用 PromotionStatus 枚举值） */
 const MEDAL_STATUS = ["CHAMPION", "RUNNER_UP", "THIRD_PLACE"] as const;
@@ -38,6 +51,7 @@ interface TalentRow {
   totalCompetitions: number;
   totalWins: number;
   talentScore: number;
+  level: string;
   badges: unknown;
   updatedAt: Date;
 }
@@ -136,6 +150,7 @@ export class TalentService {
       const bestRank =
         talent?.bestRank == null ? rank : rank == null ? talent.bestRank : Math.min(talent.bestRank, rank);
 
+      const newScore = (talent?.talentScore ?? 0) + delta;
       await this.prisma.competitionTalent.upsert({
         where: { userId },
         create: {
@@ -144,13 +159,15 @@ export class TalentService {
           totalCompetitions: 1,
           totalWins: isWin ? 1 : 0,
           talentScore: delta,
+          level: levelForScore(delta),
           badges: [badge] as never,
         },
         update: {
           bestRank,
           totalCompetitions: (talent?.totalCompetitions ?? 0) + 1,
           totalWins: (talent?.totalWins ?? 0) + (isWin ? 1 : 0),
-          talentScore: (talent?.talentScore ?? 0) + delta,
+          talentScore: newScore,
+          level: levelForScore(newScore),
           badges: [...badges, badge] as never,
         },
       });
@@ -170,14 +187,16 @@ export class TalentService {
    */
   async listTalents(pageRaw?: string | number, pageSizeRaw?: string | number) {
     const { page, pageSize, skip } = safePagination(pageRaw, pageSizeRaw);
+    const where = { NOT: { userId: { startsWith: COMPETITION_DEMO_PREFIX } } };
     const [rows, total] = await Promise.all([
       this.prisma.competitionTalent.findMany({
+        where,
         orderBy: [{ talentScore: "desc" }, { updatedAt: "asc" }],
         skip,
         take: pageSize,
         include: { user: { select: { id: true, nickname: true, avatar: true } } },
       }),
-      this.prisma.competitionTalent.count(),
+      this.prisma.competitionTalent.count({ where }),
     ]);
 
     const certified = await this.certifiedMap(rows.map((r) => r.userId));
@@ -193,9 +212,10 @@ export class TalentService {
         totalCompetitions: r.totalCompetitions,
         totalWins: r.totalWins,
         talentScore: r.talentScore,
+        level: r.level,
         // 战绩徽章只出奖牌（冠亚季军）·公开榜不暴露完整参赛轨迹
         medals: this.parseBadges(r.badges)
-          .filter((b) => (MEDAL_STATUS as readonly string[]).includes(b.status))
+          .filter((b) => !b.competitionId.startsWith(COMPETITION_DEMO_PREFIX) && (MEDAL_STATUS as readonly string[]).includes(b.status))
           .map((b) => ({ competitionId: b.competitionId, title: b.title, status: b.status, finishedAt: b.finishedAt })),
         isCertified: !!cert,
         verifiedTitle: cert?.verifiedTitle ?? null,
@@ -220,6 +240,7 @@ export class TalentService {
         totalCompetitions: 0,
         totalWins: 0,
         talentScore: 0,
+        level: "TRAINEE",
         badges: [] as TalentBadge[],
         position: null,
         isCertified: !!cert,
@@ -236,6 +257,7 @@ export class TalentService {
       totalCompetitions: talent.totalCompetitions,
       totalWins: talent.totalWins,
       talentScore: talent.talentScore,
+      level: talent.level,
       badges: this.parseBadges(talent.badges),
       position: higher + 1,
       isCertified: !!cert,

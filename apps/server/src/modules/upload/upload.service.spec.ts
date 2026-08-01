@@ -162,4 +162,49 @@ describe("UploadService", () => {
       expect(() => svc.validateVideo(f)).not.toThrow();
     });
   });
+
+  // /upload/file 文档附件（帖子文件卡·2026-07-10 交互小件整改批）
+  describe("validateDocument", () => {
+    it("空文件抛出异常", () => {
+      expect(() => svc.validateDocument(null as any)).toThrow(BusinessException);
+    });
+
+    it("不支持的MIME类型（html 拒绝）", () => {
+      const f = makeFile({ mimetype: "text/html", originalname: "x.html" });
+      expect(() => svc.validateDocument(f)).toThrow("不支持的文件格式");
+    });
+
+    it("文件过大", () => {
+      const f = makeFile({ mimetype: "application/pdf", size: 51 * 1024 * 1024 });
+      expect(() => svc.validateDocument(f)).toThrow("文件大小不能超过");
+    });
+
+    it("PDF 魔数不匹配（伪造 MIME 拒绝）", () => {
+      const f = makeFile({ mimetype: "application/pdf", originalname: "x.pdf" });
+      expect(() => svc.validateDocument(f)).toThrow("文件内容与声明类型不符");
+    });
+
+    it("有效 PDF（%PDF 魔数）通过", () => {
+      const f = makeFile({
+        mimetype: "application/pdf",
+        originalname: "x.pdf",
+        buffer: Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34, 0x0a, 0x25, 0x00, 0x00]),
+      });
+      expect(() => svc.validateDocument(f)).not.toThrow();
+    });
+
+    it("有效 docx（PK zip 魔数）通过", () => {
+      const f = makeFile({
+        mimetype: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        originalname: "x.docx",
+        buffer: Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00, 0x08, 0x00, 0x00, 0x00]),
+      });
+      expect(() => svc.validateDocument(f)).not.toThrow();
+    });
+
+    it("纯文本 txt 跳过魔数校验通过", () => {
+      const f = makeFile({ mimetype: "text/plain", originalname: "x.txt", buffer: Buffer.from("hello world!") });
+      expect(() => svc.validateDocument(f)).not.toThrow();
+    });
+  });
 });

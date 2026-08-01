@@ -1,65 +1,149 @@
 <template>
   <view class="analysis-page">
-    <app-nav-bar title="下线业绩分析" :show-back="true" background="#ffffff" color="#1f2937" />
+    <!-- 自定义导航：朱红渐变 + 周期 Tab（statusBarHeight 由组件处理） -->
+    <app-nav-bar
+      title="业绩分析"
+      :show-back="true"
+      background="linear-gradient(135deg, #A01828, #C41E3A)"
+      color="#ffffff"
+      :no-border="true"
+    >
+      <template #center>
+        <view class="period-tab">
+          <view
+            v-for="p in periods"
+            :key="p.key"
+            class="period-item"
+            :class="{ on: activePeriod === p.key }"
+            @tap="switchPeriod(p.key)"
+          >
+            <text class="period-txt" :class="{ on: activePeriod === p.key }">{{ p.label }}</text>
+          </view>
+        </view>
+      </template>
+    </app-nav-bar>
 
     <view class="an-body">
-      <!-- 三态：加载中 -->
-      <view v-if="loading" class="state-loading"><text class="state-loading-text">加载中...</text></view>
+      <!-- 三态：加载中（骨架） -->
+      <view v-if="loading" class="state-loading">
+        <view class="skeleton-kpi">
+          <view v-for="i in 4" :key="i" class="skeleton-cell" />
+        </view>
+        <view class="skeleton-card" />
+        <view class="skeleton-card" />
+        <text class="state-loading-text">加载中...</text>
+      </view>
+
       <!-- 三态：错误 -->
       <view v-else-if="error" class="state-error">
         <text class="state-error-text">{{ error }}</text>
         <view class="state-retry-btn" @tap="retry"><text>重试</text></view>
       </view>
+
       <!-- 三态：空数据 -->
       <view v-else-if="isEmpty" class="state-empty">
-        <text class="state-empty-text">暂无数据</text>
+        <text class="state-empty-icon">📊</text>
+        <text class="state-empty-text">暂无团队业绩数据</text>
+        <text class="state-empty-sub">名下暂无站长，或本周期无经营记录</text>
       </view>
+
       <!-- 数据渲染 -->
       <template v-else>
-        <text class="an-intro">名下站长本月收益与运营诊断。推广漏斗（曝光→点击→成交）数据待埋点接入后展示。</text>
-
-        <view v-for="m in members" :key="m.id" class="an-card">
-          <!-- 头部 -->
-          <view class="an-head">
-            <view class="an-avatar">
-              <text class="an-avatar-txt">{{ m.name.charAt(0) }}</text>
+        <!-- 关键指标 2×2（由团队成员真实收益聚合） -->
+        <view class="kpi">
+          <view class="kpi-cell">
+            <view class="kpi-lbl">
+              <view class="kpi-di gold" />
+              <text class="kpi-lbl-txt">团队总收益(元)</text>
             </view>
-            <view class="an-head-info">
-              <view class="an-head-name-row">
-                <text class="an-name">{{ m.name }}</text>
-                <text class="an-level">{{ m.level }}</text>
+            <text class="kpi-num gold">{{ formatPrice(kpi.totalEarning) }}</text>
+            <text class="kpi-foot">累计口径 · 环比待埋点</text>
+          </view>
+          <view class="kpi-cell">
+            <view class="kpi-lbl">
+              <view class="kpi-di red" />
+              <text class="kpi-lbl-txt">团队成员</text>
+            </view>
+            <text class="kpi-num">{{ kpi.memberCount }}</text>
+            <text class="kpi-foot">名下站长(人)</text>
+          </view>
+          <view class="kpi-cell">
+            <view class="kpi-lbl">
+              <view class="kpi-di blue" />
+              <text class="kpi-lbl-txt">活跃站长</text>
+            </view>
+            <text class="kpi-num">{{ kpi.activeCount }}</text>
+            <text class="kpi-foot">/ 共 {{ kpi.memberCount }} 人</text>
+          </view>
+          <view class="kpi-cell">
+            <view class="kpi-lbl">
+              <view class="kpi-di orange" />
+              <text class="kpi-lbl-txt">人均收益(元)</text>
+            </view>
+            <text class="kpi-num">{{ formatPrice(kpi.avgEarning) }}</text>
+            <text class="kpi-foot">团队均摊</text>
+          </view>
+        </view>
+
+        <!-- 收益走势折线（团队级每日趋势后端未埋点 → 诚实降级空态） -->
+        <view class="card">
+          <text class="card-title">团队收益走势</text>
+          <text class="card-sub">近 30 天 · 单位：元</text>
+          <view class="chart-empty">
+            <view class="chart-empty-grid">
+              <view v-for="i in 4" :key="i" class="chart-grid-line" />
+            </view>
+            <text class="chart-empty-txt">每日收益趋势数据待埋点接入</text>
+          </view>
+          <view class="cl-x">
+            <text class="cl-x-txt">近30天</text>
+            <text class="cl-x-txt">—</text>
+            <text class="cl-x-txt">今日</text>
+          </view>
+        </view>
+
+        <!-- 转化漏斗（访问/点击/成交埋点后端未接 → 诚实降级空态） -->
+        <view class="card">
+          <text class="card-title">转化漏斗</text>
+          <text class="card-sub">从访问到付费的转化路径</text>
+          <view class="funnel">
+            <view
+              v-for="f in funnelStages"
+              :key="f.key"
+              class="fn-row"
+            >
+              <view class="fn-bar" :style="{ width: f.width, background: f.bg }">
+                <text class="fn-bar-txt">{{ f.name }}</text>
               </view>
-              <text class="an-commission">佣金 ¥{{ m.commission }}</text>
-            </view>
-            <view class="an-trend" :class="m.trend >= 0 ? 'up' : 'down'">
-              <app-icon :name="m.trend >= 0 ? 'trending-up' : 'trending-down'" :size="28" :color="m.trend >= 0 ? '#16a34a' : '#ef4444'" />
-              <text class="an-trend-txt" :class="m.trend >= 0 ? 'up' : 'down'">{{ Math.abs(m.trend) }}%</text>
+              <view class="fn-meta">
+                <text class="fn-rate">{{ f.rate }}</text>
+              </view>
             </view>
           </view>
+          <text class="funnel-note">漏斗需推广埋点数据支持，当前展示为口径示意</text>
+        </view>
 
-          <!-- 漏斗数据 -->
-          <view class="an-funnel">
-            <view class="an-funnel-item">
-              <app-icon name="eye" :size="28" color="#9ca3af" />
-              <text class="an-funnel-val">{{ m.visits }}</text>
-              <text class="an-funnel-label">曝光</text>
+        <!-- 成员业绩分解（真实 commission，按收益降序） -->
+        <view class="card">
+          <text class="card-title mb10">成员业绩分解</text>
+          <view
+            v-for="(m, i) in sortedMembers"
+            :key="m.id"
+            class="mb"
+          >
+            <view class="mb-av" :style="{ background: avatarBg(i) }">
+              <text class="mb-av-txt">{{ (m.name || '?').charAt(0) }}</text>
             </view>
-            <view class="an-funnel-item">
-              <app-icon name="mouse-pointer-click" :size="28" color="#9ca3af" />
-              <text class="an-funnel-val">{{ m.clicks }}</text>
-              <text class="an-funnel-label">点击 {{ ctr(m) }}%</text>
+            <view class="mb-info">
+              <view class="mb-name-row">
+                <text class="mb-name">{{ m.name }}</text>
+                <text v-if="m.level" class="mb-level">{{ m.level }}</text>
+              </view>
+              <view class="mb-track">
+                <view class="mb-fill" :style="{ width: barWidth(m.commission) }" />
+              </view>
             </view>
-            <view class="an-funnel-item">
-              <app-icon name="shopping-cart" :size="28" color="#9ca3af" />
-              <text class="an-funnel-val">{{ m.orders }}</text>
-              <text class="an-funnel-label">成交 {{ cvr(m) }}%</text>
-            </view>
-          </view>
-
-          <!-- 自动诊断 -->
-          <view class="an-diag" :class="m.diagnosis.type">
-            <app-icon name="alert-circle" :size="26" :color="m.diagnosis.type === 'good' ? '#16a34a' : '#b45309'" />
-            <text class="an-diag-txt" :class="m.diagnosis.type">{{ m.diagnosis.text }}</text>
+            <text class="mb-val">¥{{ formatPrice(m.commission) }}</text>
           </view>
         </view>
       </template>
@@ -68,13 +152,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { operatorApi, type MemberPerf } from '@/lib/operator-data'
+import { ref, computed, onMounted } from 'vue'
+import { operatorApi, type MemberPerf } from '@/pkg-operator/lib/operator-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')
 const isEmpty = ref(false)
 const members = ref<MemberPerf[]>([])
+
+// 周期 Tab：后端 getAnalysisMembers 无 period 参数 → 仅作口径切换视觉，数据不造假
+const periods = [
+  { key: '7d', label: '7天' },
+  { key: '30d', label: '30天' },
+  { key: '90d', label: '90天' },
+]
+const activePeriod = ref('30d')
+function switchPeriod(k: string) {
+  activePeriod.value = k
+}
 
 onMounted(async () => {
   await loadData()
@@ -94,163 +190,380 @@ async function loadData() {
   }
 }
 
-async function retry() { await loadData() }
+async function retry() {
+  await loadData()
+}
 
-function ctr(m: MemberPerf) {
-  return m.visits > 0 ? ((m.clicks / m.visits) * 100).toFixed(1) : '0.0'
+// —— KPI 聚合（真实收益，环比/客单价后端无 → 降级为口径说明） ——
+const kpi = computed(() => {
+  const list = members.value
+  const totalEarning = list.reduce((s, m) => s + (m.commission || 0), 0)
+  const memberCount = list.length
+  const activeCount = list.filter((m) => (m.commission || 0) > 0).length
+  const avgEarning = memberCount > 0 ? Math.round(totalEarning / memberCount) : 0
+  return { totalEarning, memberCount, activeCount, avgEarning }
+})
+
+// —— 成员分解：按收益降序，进度条相对最高值 ——
+const sortedMembers = computed(() =>
+  [...members.value].sort((a, b) => (b.commission || 0) - (a.commission || 0)),
+)
+const maxCommission = computed(() =>
+  Math.max(1, ...sortedMembers.value.map((m) => m.commission || 0)),
+)
+function barWidth(v: number) {
+  const pct = Math.round(((v || 0) / maxCommission.value) * 100)
+  return Math.max(4, pct) + '%'
 }
-function cvr(m: MemberPerf) {
-  return m.clicks > 0 ? ((m.orders / m.clicks) * 100).toFixed(1) : '0.0'
+
+const AVATAR_BGS = [
+  'linear-gradient(135deg, #C9A96E, #B08D4A)',
+  'linear-gradient(135deg, #8E9BAE, #6E7A8C)',
+  'linear-gradient(135deg, #D0925A, #B0743C)',
+  '#C7BFB2',
+]
+function avatarBg(i: number) {
+  return AVATAR_BGS[i % AVATAR_BGS.length]
 }
+
+// —— 转化漏斗：后端埋点未接，四段口径示意（宽度固定示意，比率显示待接入） ——
+const funnelStages = [
+  { key: 'visit', name: '访问', width: '100%', bg: 'linear-gradient(90deg, #5AA0E0, #4A90D9)', rate: '待埋点' },
+  { key: 'click', name: '点击', width: '74%', bg: 'linear-gradient(90deg, #6AB98C, #4FA876)', rate: 'CTR —' },
+  { key: 'order', name: '下单', width: '42%', bg: 'linear-gradient(90deg, #E0A94A, #C9A96E)', rate: '— %' },
+  { key: 'paid', name: '付费', width: '30%', bg: 'linear-gradient(90deg, #C41E3A, #A01828)', rate: 'CVR —' },
+]
 </script>
 
 <style lang="scss" scoped>
 .analysis-page {
   min-height: 100vh;
   background: #faf8f5;
-  padding-bottom: 40rpx;
+  padding-bottom: 60rpx;
 }
 
-.an-body {
-  padding: 24rpx 32rpx;
+/* 周期 Tab（导航栏 center 插槽内） */
+.period-tab {
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 24rpx;
+  gap: 4rpx;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 16rpx;
+  padding: 6rpx;
+  margin: 0 20rpx;
 }
-.an-intro {
-  font-size: 22rpx;
-  color: #9ca3af;
-  line-height: 1.5;
-}
-
-.an-card {
-  padding: 32rpx;
-  background: #ffffff;
-  border: 1rpx solid #f0e9e0;
-  border-radius: 24rpx;
-}
-
-.an-head {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  margin-bottom: 24rpx;
-}
-.an-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 20rpx;
-  background: rgba(146, 84, 222, 0.1);
+.period-item {
+  flex: 1;
+  height: 52rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 12rpx;
+}
+.period-item.on {
+  background: #ffffff;
+}
+.period-txt {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.7);
+}
+.period-txt.on {
+  color: #c41e3a;
+  font-weight: 600;
+}
+
+.an-body {
+  padding: 30rpx 38rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 28rpx;
+}
+
+/* —— KPI 2×2 —— */
+.kpi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+.kpi-cell {
+  width: calc(50% - 12rpx);
+  box-sizing: border-box;
+  background: #ffffff;
+  border-radius: 35rpx;
+  padding: 30rpx;
+  box-shadow: 0 2rpx 20rpx rgba(44, 38, 30, 0.05);
+}
+.kpi-lbl {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.kpi-di {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 4rpx;
   flex-shrink: 0;
 }
-.an-avatar-txt {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #9254de;
+.kpi-di.gold { background: #c9a96e; }
+.kpi-di.red { background: #c41e3a; }
+.kpi-di.blue { background: #4a90d9; }
+.kpi-di.orange { background: #e8890b; }
+.kpi-lbl-txt {
+  font-size: 23rpx;
+  color: #6e6e73;
 }
-.an-head-info {
+.kpi-num {
+  display: block;
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 46rpx;
+  font-weight: 700;
+  color: #2c2c2c;
+  line-height: 1.1;
+  margin-top: 16rpx;
+}
+.kpi-num.gold { color: #97794a; }
+.kpi-num.red { color: #c41e3a; }
+.kpi-foot {
+  display: block;
+  font-size: 20rpx;
+  color: #999999;
+  margin-top: 10rpx;
+}
+
+/* —— 通用卡片 —— */
+.card {
+  background: #ffffff;
+  border-radius: 35rpx;
+  padding: 34rpx;
+  box-shadow: 0 2rpx 20rpx rgba(44, 38, 30, 0.05);
+}
+.card-title {
+  display: block;
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2c2c2c;
+}
+.card-title.mb10 {
+  margin-bottom: 20rpx;
+}
+.card-sub {
+  display: block;
+  font-size: 21rpx;
+  color: #999999;
+  margin-top: 6rpx;
+}
+
+/* —— 收益走势折线空态 —— */
+.chart-empty {
+  height: 280rpx;
+  margin-top: 26rpx;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chart-empty-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.chart-grid-line {
+  height: 2rpx;
+  background: #f1ede6;
+}
+.chart-empty-txt {
+  position: relative;
+  font-size: 22rpx;
+  color: #999999;
+}
+.cl-x {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14rpx;
+}
+.cl-x-txt {
+  font-size: 19rpx;
+  color: #999999;
+}
+
+/* —— 转化漏斗 —— */
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-top: 26rpx;
+}
+.fn-row {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+}
+.fn-bar {
+  height: 72rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  padding: 0 26rpx;
+  min-width: 120rpx;
+}
+.fn-bar-txt {
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 600;
+}
+.fn-meta {
+  flex: 1;
+}
+.fn-rate {
+  font-size: 20rpx;
+  color: #999999;
+}
+.funnel-note {
+  display: block;
+  font-size: 20rpx;
+  color: #999999;
+  margin-top: 20rpx;
+  line-height: 1.5;
+}
+
+/* —— 成员业绩分解 —— */
+.mb {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+  padding: 22rpx 0;
+  border-bottom: 2rpx solid #f4f0e9;
+}
+.mb:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.mb-av {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mb-av-txt {
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 26rpx;
+  color: #ffffff;
+}
+.mb-info {
   flex: 1;
   min-width: 0;
 }
-.an-head-name-row {
+.mb-name-row {
   display: flex;
   align-items: center;
   gap: 12rpx;
 }
-.an-name {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #1f2937;
+.mb-name {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #2c2c2c;
 }
-.an-level {
-  font-size: 20rpx;
+.mb-level {
+  font-size: 19rpx;
   padding: 2rpx 12rpx;
   border-radius: 8rpx;
   background: #f3f4f6;
-  color: #9ca3af;
+  color: #999999;
 }
-.an-commission {
-  display: block;
-  font-size: 22rpx;
-  color: #9ca3af;
-  margin-top: 6rpx;
+.mb-track {
+  height: 12rpx;
+  border-radius: 99rpx;
+  background: #f1ede6;
+  margin-top: 10rpx;
+  overflow: hidden;
 }
-.an-trend {
+.mb-fill {
+  height: 100%;
+  border-radius: 99rpx;
+  background: linear-gradient(90deg, #c9a96e, #97794a);
+}
+.mb-val {
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #97794a;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 2rpx;
-}
-.an-trend-txt {
-  font-size: 26rpx;
-  font-weight: 500;
-}
-.an-trend-txt.up {
-  color: #16a34a;
-}
-.an-trend-txt.down {
-  color: #ef4444;
 }
 
-.an-funnel {
+/* —— 三态 —— */
+.state-loading {
   display: flex;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
+  flex-direction: column;
+  gap: 28rpx;
+  align-items: center;
 }
-.an-funnel-item {
-  flex: 1;
+.skeleton-kpi {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+.skeleton-cell {
+  width: calc(50% - 12rpx);
+  height: 160rpx;
+  border-radius: 35rpx;
+  background: #f0ece5;
+}
+.skeleton-card {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 35rpx;
+  background: #f0ece5;
+}
+.state-loading-text {
+  font-size: 26rpx;
+  color: #999999;
+  margin-top: 8rpx;
+}
+.state-error,
+.state-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16rpx 0;
-  border-radius: 16rpx;
-  background: #f9fafb;
+  justify-content: center;
+  padding: 140rpx 38rpx;
 }
-.an-funnel-val {
+.state-error-text {
   font-size: 28rpx;
-  font-weight: 700;
-  color: #1f2937;
-  margin-top: 8rpx;
+  color: #c41e3a;
+  text-align: center;
+  margin-bottom: 28rpx;
 }
-.an-funnel-label {
-  font-size: 20rpx;
-  color: #9ca3af;
-  margin-top: 4rpx;
-}
-
-.an-diag {
-  display: flex;
-  align-items: flex-start;
-  gap: 12rpx;
-  padding: 20rpx;
+.state-retry-btn {
+  padding: 18rpx 56rpx;
+  background: #c41e3a;
   border-radius: 16rpx;
 }
-.an-diag.good {
-  background: rgba(22, 163, 74, 0.05);
+.state-retry-btn text {
+  font-size: 26rpx;
+  color: #ffffff;
 }
-.an-diag.warn {
-  background: #fffbeb;
+.state-empty-icon {
+  font-size: 60rpx;
+  margin-bottom: 20rpx;
 }
-.an-diag-txt {
-  flex: 1;
+.state-empty-text {
+  font-size: 28rpx;
+  color: #2c2c2c;
+  font-weight: 500;
+}
+.state-empty-sub {
   font-size: 22rpx;
-  line-height: 1.6;
+  color: #999999;
+  margin-top: 12rpx;
 }
-.an-diag-txt.good {
-  color: #16a34a;
-}
-.an-diag-txt.warn {
-  color: #b45309;
-}
-
-/* 三态 */
-.state-loading, .state-error, .state-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 32rpx; }
-.state-loading-text { font-size: 28rpx; color: #999; }
-.state-error-text { font-size: 28rpx; color: #ef4444; text-align: center; margin-bottom: 24rpx; }
-.state-empty-text { font-size: 28rpx; color: #999; }
-.state-retry-btn { padding: 16rpx 48rpx; background: #7c3aed; border-radius: 12rpx; }
-.state-retry-btn text { font-size: 26rpx; color: #fff; }
 </style>

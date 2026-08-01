@@ -8,6 +8,8 @@ import { Prisma } from "@prisma/client";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { AuditService } from "../audit/audit.service";
 import { safePagination } from "../../common/pagination";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 @Injectable()
 export class VideoService {
@@ -17,17 +19,62 @@ export class VideoService {
     private prisma: PrismaService,
     private vod: VodService,
     private auditService: AuditService,
+    private publishGrants: CirclePublishGrantService,
   ) {}
 
+  /** circleId 缺省时兜底为「官方圈子」(id 存 ConfigSystem.official_circle_id·由后台/脚本一次性写入)。未配置则保持 undefined(游离·兼容旧行为)。 */
+  private async resolveCircleId(circleId?: string): Promise<string | undefined> {
+    if (circleId) return circleId;
+    const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: "official_circle_id" } });
+    return cfg?.configValue || undefined;
+  }
+
+  /**
+   * 反转义历史坏数据：旧版 SanitizePipe 曾把 URL 字段 HTML 实体转义后入库
+   * （https:&#x2F;&#x2F;... 使 <video src> 无效 → 「新上传视频播不了」的真凶）。
+   * 入口白名单已修（sanitize.pipe SKIP_FIELDS 已含 videoUrl/coverUrl），此处对读取路径防御性归一化，
+   * 存量数据另有 prisma/manual/20260710-fix-video-url-html-escape.sql 幂等修复。
+   */
+  private static unescapeHtmlUrl<T extends string | null | undefined>(s: T): T {
+    if (!s || !s.includes("&")) return s;
+    return s
+      .replace(/&amp;/g, "&")
+      .replace(/&#x2F;/g, "/")
+      .replace(/&#x27;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">") as T;
+  }
+
+  /** 归一化单条视频的 URL 字段（就地修改并返回，供 list/getDetail 读取路径复用） */
+  private normalizeVideoUrls<T extends { videoUrl?: string | null; coverUrl?: string | null }>(v: T): T {
+    if (v) {
+      v.videoUrl = VideoService.unescapeHtmlUrl(v.videoUrl);
+      v.coverUrl = VideoService.unescapeHtmlUrl(v.coverUrl);
+    }
+    return v;
+  }
+
   @CacheEvict({ key: "video:list:*", pattern: true })
-  async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; products?: string[]; stationId?: string }) {
-    await this.auditService.moderateTextOrThrow([dto.title, dto.description].filter(Boolean).join(" "), { scene: "VIDEO", userId });
+  async create(userId: string, dto: { circleId?: string; title?: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; visibility?: string; products?: string[]; stationId?: string }, isAdmin = false) {
     // 带货商品去重 + 限 5 件
     const productIds = Array.from(new Set((dto.products ?? []).filter(Boolean))).slice(0, 5);
-    return this.prisma.video.create({
+    // 短视频=圈子内容：未指定圈子时兜底落「官方圈子」(供 AI/后台自动发布种子内容，人工前端在圈子内发时会带上下文 circleId)
+    const circleId = await this.resolveCircleId(dto.circleId);
+    if (String(dto.visibility || "").toUpperCase() === "PLATFORM") {
+      await this.publishGrants.assertCanPublish(userId, circleId, "SHORT_VIDEO", isAdmin);
+    }
+    // 审核无感化（20260711 第八节）：发布即可见（instantPublish），机审改异步分级处置（pass 不动 / mild 降 SELF_ONLY / severe 下架+通知）
+    const { visibility, auditStatus } = await this.auditService.resolveContentVisibility({
+      visibility: dto.visibility,
+      circleId,
+      isAdmin,
+      instantPublish: true,
+    });
+    const video = await this.prisma.video.create({
       data: {
         userId,
-        circleId: dto.circleId,
+        circleId,
         title: dto.title,
         description: dto.description,
         videoUrl: dto.videoUrl,
@@ -35,12 +82,28 @@ export class VideoService {
         duration: dto.duration,
         tags: (dto.tags ?? []).slice(0, 5),
         isPrivate: dto.isPrivate ?? false,
+        visibility,
+        auditStatus,
         stationId: dto.stationId || undefined,
         products: productIds.length
           ? { create: productIds.map((productId, i) => ({ productId, sortOrder: i })) }
           : undefined,
       },
     });
+    if (auditStatus === "PENDING") {
+      await this.auditService.openContentAudit({ contentType: "VIDEO", contentId: video.id, circleId, submitterId: userId });
+    }
+    // 异步机审（fire-and-forget·不阻塞发布响应）：标题+简介文本 / 封面图 / 视频画面+音频（VM·耗时轮询）
+    this.auditService.queueContentModeration({
+      contentType: "VIDEO",
+      contentId: video.id,
+      userId,
+      circleId,
+      text: [dto.title, dto.description].filter(Boolean).join(" "),
+      images: dto.coverUrl,
+      video: dto.videoUrl,
+    });
+    return video;
   }
 
   @CacheEvict({ key: (args) => `video:detail:${args[1]}`, pattern: true })
@@ -49,8 +112,12 @@ export class VideoService {
     const video = await this.prisma.video.findUnique({ where: { id }, select: { userId: true } });
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
     if (video.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的视频");
-    await this.auditService.moderateTextOrThrow([dto.title].filter(Boolean).join(" "), { scene: "VIDEO_EDIT", userId, dataId: id });
-    return this.prisma.video.update({ where: { id }, data: dto as Prisma.VideoUpdateInput });
+    const updated = await this.prisma.video.update({ where: { id }, data: dto as Prisma.VideoUpdateInput });
+    // 改标题/封面同样先生效后异步机审（审核无感化）
+    if (dto.title || dto.coverUrl) {
+      this.auditService.queueContentModeration({ contentType: "VIDEO", contentId: id, userId, text: dto.title, images: dto.coverUrl });
+    }
+    return updated;
   }
 
   @CacheEvict({ key: (args) => `video:detail:${args[1]}`, pattern: true })
@@ -76,15 +143,25 @@ export class VideoService {
     return this.prisma.video.update({ where: { id }, data });
   }
 
-  @Cacheable({ key: (args) => `video:list:${JSON.stringify(args[0])}`, ttl: 60 })
-  async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string }) {
-    const { circleId, status, stationId } = params;
+  @Cacheable({ key: (args) => `video:list:v2:${JSON.stringify(args[0])}`, ttl: 60 })
+  async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string; scope?: string }) {
+    const { circleId, status, stationId, scope } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.VideoWhereInput = {};
     if (circleId) where.circleId = circleId;
     if (status) where.status = status;
     else where.status = "PUBLISHED";
     if (stationId) where.stationId = stationId;
+    // 平台公共池（未按圈子过滤·非管理端 scope=all）：只出「全平台开放+审核通过+非私密」——绝不展示他圈封闭作品
+    if (!circleId && scope !== "all") {
+      where.visibility = "PLATFORM";
+      where.auditStatus = "APPROVED";
+      where.isPrivate = false;
+    } else if (circleId && scope !== "all") {
+      // 圈内列表：机审降级 SELF_ONLY 的作品仅作者本人可见（走「我的作品」），圈内流不出
+      where.visibility = { not: "SELF_ONLY" };
+    }
+    if (scope !== "all") where.id = { notIn: publicQuarantinedIds("video") };
 
     const [videos, total] = await Promise.all([
       this.prisma.video.findMany({
@@ -100,11 +177,24 @@ export class VideoService {
       this.prisma.video.count({ where }),
     ]);
 
-    return { videos, total, page, pageSize };
+    return { videos: videos.map((v) => this.normalizeVideoUrls(v)), total, page, pageSize };
+  }
+
+  /**
+   * 详情（带可见性收口）：SELF_ONLY / 已下架(REJECTED) 内容仅作者本人可访问，他人一律 404。
+   * 校验放在缓存读取之后（getDetailRaw 的缓存 key 只含 id，不能把 viewer 相关判断缓存进去）。
+   */
+  async getDetail(id: string, viewerId?: string) {
+    const video = await this.getDetailRaw(id);
+    const isOwner = !!viewerId && video.userId === viewerId;
+    if (!isOwner && (video.visibility === "SELF_ONLY" || video.status === "REJECTED")) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
+    }
+    return video;
   }
 
   @Cacheable({ key: (args) => `video:detail:${args[0]}`, ttl: 120 })
-  async getDetail(id: string) {
+  async getDetailRaw(id: string) {
     const video = await this.prisma.video.findUnique({
       where: { id },
       include: {
@@ -116,7 +206,7 @@ export class VideoService {
     if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
 
     await this.prisma.video.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((e) => this.logger.warn(`视频 ${id} 浏览计数失败`, e));
-    return video;
+    return this.normalizeVideoUrls(video);
   }
 
   /** 点赞/取消点赞视频（per-user去重） */
@@ -322,8 +412,15 @@ export class VideoService {
    * sort: recommend(默认)=播放量优先 / hot=点赞优先 / follow=已关注作者(需登录，未登录或未关注→空)
    */
   async listItems(rawPage: number, rawPageSize: number, opts?: { sort?: string; followerId?: string }) {
-    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.VideoWhereInput = { status: "PUBLISHED" };
+    const { pageSize, skip } = safePagination(rawPage, rawPageSize);
+    // 瀑布流=平台公共池：只出「全平台开放+审核通过+非私密」内容（圈内封闭作品不外泄）
+    const where: Prisma.VideoWhereInput = {
+      id: { notIn: publicQuarantinedIds("video") },
+      status: "PUBLISHED",
+      visibility: "PLATFORM",
+      auditStatus: "APPROVED",
+      isPrivate: false,
+    };
 
     // 关注 tab：仅拉取已关注作者的视频；未登录或未关注任何人 → 空列表（前端引导登录/去关注）
     if (opts?.sort === "follow") {
@@ -358,7 +455,8 @@ export class VideoService {
     return videos.map((v) => ({
       id: v.id,
       title: v.title,
-      coverUrl: v.coverUrl,
+      coverUrl: VideoService.unescapeHtmlUrl(v.coverUrl),
+      videoUrl: VideoService.unescapeHtmlUrl(v.videoUrl),
       duration: v.duration ?? 0,
       author: { name: v.user.nickname, avatar: v.user.avatar ?? "" },
       likes: v.likeCount,
@@ -368,11 +466,17 @@ export class VideoService {
     }));
   }
 
-  /** 搜索视频 — 标题/标签模糊匹配 */
+  /** 搜索视频 — 标题/标签模糊匹配（平台级搜索=公共池口径：不出圈内封闭/SELF_ONLY/私密内容） */
   async searchVideos(params: { keyword?: string; category?: string; page: number; pageSize: number }) {
     const { keyword, category } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
-    const where: any = { status: "PUBLISHED" };
+    const where: Prisma.VideoWhereInput = {
+      id: { notIn: publicQuarantinedIds("video") },
+      status: "PUBLISHED",
+      visibility: "PLATFORM",
+      auditStatus: "APPROVED",
+      isPrivate: false,
+    };
 
     if (keyword) {
       where.OR = [
@@ -403,7 +507,8 @@ export class VideoService {
         title: v.title,
         author: v.user.nickname,
         authorAvatar: v.user.avatar ?? "",
-        cover: v.coverUrl,
+        cover: VideoService.unescapeHtmlUrl(v.coverUrl),
+        videoUrl: VideoService.unescapeHtmlUrl(v.videoUrl),
         duration: `${Math.floor((v.duration ?? 0) / 60)}:${String((v.duration ?? 0) % 60).padStart(2, "0")}`,
         views: v.viewCount,
         publishedAt: this.timeAgo(v.createdAt),
@@ -419,7 +524,11 @@ export class VideoService {
   async listProducts(rawPage: number, rawPageSize: number) {
     const { skip, pageSize } = safePagination(rawPage, rawPageSize);
     const products = await this.prisma.product.findMany({
-      where: { status: "ON_SALE", deletedAt: null },
+      where: {
+        id: { notIn: publicQuarantinedIds("product") },
+        status: "ON_SALE",
+        deletedAt: null,
+      },
       orderBy: { salesCount: "desc" },
       skip,
       take: pageSize,

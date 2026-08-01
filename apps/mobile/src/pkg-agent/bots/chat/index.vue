@@ -1,5 +1,9 @@
 <template>
   <view class="chat-page">
+    <!-- 状态态返回栏：加载/硬失败时也能退出，避免卡死 -->
+    <view v-if="loading || error" class="cc-state-back" @tap="goBack">
+      <app-icon name="arrow-left" :size="40" color="#2C2C2C" />
+    </view>
     <!-- 加载/错误态 -->
     <view v-if="loading" class="cc-state"><text class="cc-state-t">加载中...</text></view>
     <view v-else-if="error" class="cc-state">
@@ -14,7 +18,7 @@
           <app-icon name="arrow-left" :size="40" color="#fff" />
         </view>
         <view class="nav-bot">
-          <image lazy-load v-if="botDetail.avatar" class="nav-avatar" :src="botDetail.avatar" mode="aspectFill" />
+          <image lazy-load v-if="botDetail.avatar" class="nav-avatar" :src="botDetail.avatar" mode="aspectFill" @error="botDetail.avatar = ''" />
           <view v-else class="nav-avatar nav-avatar-fb">{{ botDetail.name.slice(0, 1) }}</view>
           <view class="nav-info">
             <text class="nav-name">{{ botDetail.name }}</text>
@@ -22,9 +26,6 @@
           </view>
         </view>
         <view class="nav-actions">
-          <view v-if="botDetail.voiceEnabled" class="nav-btn" @tap="handleVoiceCall">
-            <app-icon name="phone" :size="38" color="#fff" />
-          </view>
           <view class="nav-btn" @tap="toggleMenu">
             <app-icon name="more-vertical" :size="38" color="#fff" />
           </view>
@@ -47,12 +48,15 @@
         scroll-y
         :scroll-top="scrollTop"
         :scroll-with-animation="true"
+        @scroll="onScroll"
+        @touchstart="onTouchStart"
+        @touchend="onTouchEnd"
       >
         <view class="chat-content">
           <!-- 欢迎消息 -->
           <view v-if="messages.length === 0" class="welcome-block">
             <view class="msg-row">
-              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
+              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" @error="botDetail.avatar = ''" />
               <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
               <view class="bubble bubble-bot">
                 <text class="bubble-text">{{ botDetail.welcomeMessage }}</text>
@@ -69,7 +73,7 @@
           >
             <view v-if="msg.role === 'user'" class="msg-avatar msg-avatar-user">我</view>
             <template v-else>
-              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" />
+              <image lazy-load v-if="botDetail.avatar" class="msg-avatar" :src="botDetail.avatar" mode="aspectFill" @error="botDetail.avatar = ''" />
               <view v-else class="msg-avatar msg-avatar-bot">{{ botDetail.name.slice(0, 1) }}</view>
             </template>
 
@@ -78,16 +82,16 @@
                 class="bubble"
                 :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'"
               >
-                <rich-text class="bubble-rich" :nodes="renderMarkdown(msg.isStreaming ? streamingText : msg.content)" />
-                <text v-if="msg.isStreaming" class="cursor">|</text>
+                <rich-text class="bubble-rich" :nodes="renderMarkdown(msg.content)" />
+                <text v-if="msg.isStreaming" class="cursor">▍</text>
               </view>
 
               <!-- AI 风险免责声明（后端下发，仅 assistant 非流式时展示） -->
               <text v-if="msg.role === 'assistant' && msg.disclaimer && !msg.isStreaming" class="ai-disclaimer">{{ msg.disclaimer }}</text>
 
-              <!-- 软性导流推荐（先征求同意，同意才展开真实卡片） -->
+              <!-- 向导式推荐：高相关场景直接展示，低置信商业内容先征求同意 -->
               <view v-if="msg.role === 'assistant' && msg.recommendation && !msg.isStreaming" class="recommend-block">
-                <view v-if="!msg.recoConsented" class="reco-consent">
+                <view v-if="msg.recommendation.presentation !== 'inline' && !msg.recoConsented" class="reco-consent">
                   <text class="reco-consent-text">{{ msg.recommendation.consentPrompt }}</text>
                   <view class="reco-consent-btns">
                     <view class="reco-btn reco-btn-yes" @tap="consentReco(msg)"><text class="reco-btn-yes-text">好的，看看</text></view>
@@ -95,32 +99,20 @@
                   </view>
                 </view>
                 <template v-else>
-                  <view class="recommend-head"><app-icon name="sparkles" :size="24" color="#c9a96e" /><text class="recommend-label">为您推荐</text></view>
-                  <view v-for="(rec, i) in msg.recommendation.items" :key="i" class="rec-card" :class="`rec-${rec.type}`" @tap="openRecommend(rec)">
-                    <!-- 课程 -->
-                    <template v-if="rec.type === 'course'">
-                      <view class="rec-icon rec-icon-course"><app-icon name="play" :size="28" color="#C41E3A" /></view>
-                      <view class="rec-info">
-                        <view class="rec-top"><text class="rec-title">{{ rec.data.title }}</text><text class="rec-badge">推荐</text></view>
-                        <text v-if="rec.data.reason" class="rec-sub">{{ rec.data.reason }}</text>
-                        <view class="rec-price-row">
-                          <text class="rec-price">{{ rec.data.price > 0 ? '¥' + rec.data.price : '免费' }}</text>
-                          <text class="rec-members">{{ rec.data.studentCount }}人已学</text>
-                        </view>
-                      </view>
-                      <app-icon name="chevron-right" :size="28" color="#999" />
-                    </template>
-                    <!-- 圈子 -->
-                    <template v-else-if="rec.type === 'circle'">
-                      <view class="rec-icon rec-icon-circle"><app-icon name="users" :size="26" color="#059669" /></view>
-                      <view class="rec-info">
-                        <view class="rec-top"><text class="rec-title">{{ rec.data.name }}</text></view>
-                        <text class="rec-sub">{{ rec.data.reason || rec.data.intro }}</text>
-                        <view class="rec-price-row"><text class="rec-members">{{ rec.data.memberCount }}成员</text></view>
-                      </view>
-                      <app-icon name="chevron-right" :size="28" color="#999" />
-                    </template>
+                  <view class="recommend-head">
+                    <view class="recommend-node"><app-icon name="sparkles" :size="22" color="#ffffff" /></view>
+                    <view class="recommend-copy">
+                      <text class="recommend-label">{{ msg.recommendation.title || '接下来可以这样做' }}</text>
+                      <text v-if="msg.recommendation.lead" class="recommend-lead">{{ msg.recommendation.lead }}</text>
+                    </view>
                   </view>
+                  <GuidedRecommendCard
+                    v-for="(rec, i) in msg.recommendation.items"
+                    :key="`${rec.type}-${rec.data?.id || i}`"
+                    :item="rec"
+                    @tap="openRecommend"
+                  />
+                  <text v-if="msg.recommendation.commercialDisclosure" class="recommend-disclosure">{{ msg.recommendation.commercialDisclosure }}</text>
                 </template>
               </view>
 
@@ -160,13 +152,19 @@
 /**
  * Bot 对话页 —— 接真实后端 GET /bots/:id（详情）+ POST /bots/:id/chat（对话）。
  * 原型臆想字段（推荐问题/能力标签/官方认证/每日已用次数/文件上传）后端无 → 降级隐藏，不造假。
- * 逐字展示的是后端真实返回的回复 content（展示动效，非伪造内容）。
+ *
+ * 流式（2026-07 智能体体验批）：H5 端走 POST /bots/:id/chat/stream（fetch SSE），
+ * 文本增量实时上屏（真流式打字机）；流末 meta 带 conversationId（续聊）/免责声明/软性导流。
+ * 非 H5 端降级原非流式接口 + 逐字动效（展示动效，非伪造内容）。
+ * 用户上滑阅读时暂停自动滚底，回到底部恢复跟随。
  */
-import { ref } from 'vue'
+import { ref, getCurrentInstance, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import GuidedRecommendCard from '@/components/agent/guided-recommend-card.vue'
 import { navigateBack, navigateTo, toastComingSoon } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
+import { streamChat, streamChatSupported } from '@/utils/stream-chat'
 import type { Recommendation, RecommendItem } from '@/lib/agent-data'
 
 interface ChatMessage {
@@ -186,7 +184,6 @@ interface ChatMessage {
 const botId = ref('')
 const inputValue = ref('')
 const isSending = ref(false)
-const streamingText = ref('')
 const messages = ref<ChatMessage[]>([])
 const menuOpen = ref(false)
 const scrollTop = ref(0)
@@ -197,7 +194,6 @@ const conversationId = ref('')
 const botDetail = ref({
   name: '智能体',
   avatar: '',
-  voiceEnabled: false,
   welcomeMessage: '',
 })
 
@@ -220,7 +216,6 @@ async function loadDetail() {
     botDetail.value = {
       name: b.name || '智能体',
       avatar: b.avatar || '',
-      voiceEnabled: !!b.voiceEnabled,
       welcomeMessage: b.intro || `您好！我是${b.name || '智能助手'}，有什么可以帮您的吗？`,
     }
   } catch (e) {
@@ -230,9 +225,56 @@ async function loadDetail() {
   }
 }
 
-function scrollToBottom() {
+// ── 自动滚底 + 用户上滑暂停 ──
+const autoFollow = ref(true)
+let viewportH = 600
+const pageInstance = getCurrentInstance()
+
+onMounted(() => {
+  uni.createSelectorQuery().in(pageInstance).select('.chat-scroll').boundingClientRect((rect) => {
+    const r = rect as UniApp.NodeInfo | null
+    if (r?.height) viewportH = r.height
+  }).exec()
+})
+
+// 只有「用户触摸中的上滑」才暂停跟随——编程滚底也触发 @scroll，单看距底会误锁死
+let touching = false
+let lastScrollTop = 0
+function onTouchStart() { touching = true }
+function onTouchEnd() { touching = false }
+function onScroll(e: { detail: { scrollTop: number; scrollHeight: number } }) {
+  const { scrollTop: st, scrollHeight } = e.detail || { scrollTop: 0, scrollHeight: 0 }
+  if (touching && st < lastScrollTop - 2) {
+    autoFollow.value = false // 用户主动上滑阅读 → 暂停自动滚底
+  } else if (st + viewportH >= scrollHeight - 60) {
+    autoFollow.value = true // 回到底部 → 恢复跟随
+  }
+  lastScrollTop = st
+}
+
+function scrollToBottom(force = false) {
+  if (!force && !autoFollow.value) return
+  // #ifdef H5
+  // H5 直接滚内部滚动容器（scrollTop 0→大数 hack 会先跳顶再滚底，流式期间会闪）。
+  // uni-scroll-view 内部有两层 .uni-scroll-view div（滚动发生在内层），全部设一遍。
+  const els = document.querySelectorAll('.chat-scroll .uni-scroll-view')
+  if (els.length) {
+    els.forEach((el) => { (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight })
+    return
+  }
+  // #endif
   scrollTop.value = 0
   setTimeout(() => { scrollTop.value = 999999 }, 50)
+}
+
+// 流式期间节流滚底（每块都滚会抖）
+let scrollTimer: ReturnType<typeof setTimeout> | null = null
+function scrollThrottled() {
+  if (scrollTimer) return
+  scrollTimer = setTimeout(() => {
+    scrollTimer = null
+    scrollToBottom()
+  }, 200)
 }
 
 async function handleSend() {
@@ -247,8 +289,8 @@ async function handleSend() {
   })
   inputValue.value = ''
   isSending.value = true
-  streamingText.value = ''
-  scrollToBottom()
+  autoFollow.value = true
+  scrollToBottom(true)
 
   const aiId = 'ai_' + Date.now()
   messages.value.push({
@@ -260,57 +302,90 @@ async function handleSend() {
   })
 
   try {
-    // 后端对话返回结构（content/conversationId/disclaimer/recommendation）动态，泛型保留 any 安全
-    const res = await apiPost<any>(`/bots/${botId.value}/chat`, {
-      query: text,
-      conversationId: conversationId.value || undefined,
-    })
-    if (res?.conversationId) conversationId.value = res.conversationId
-    await typewriter(res?.content || '（未返回内容）', aiId)
-    // 打字结束后挂载免责声明 + 软性导流推荐（后端 bot.chat 下发，剥离协议后的净文本）
-    const done = messages.value.find((m) => m.id === aiId)
-    if (done) {
-      done.disclaimer = res?.disclaimer
-      done.recommendation = res?.recommendation || undefined
+    if (streamChatSupported()) {
+      // H5：真流式（SSE），文本增量实时上屏
+      await sendViaStream(text, aiId)
+    } else {
+      // 非 H5 端：降级非流式接口 + 逐字动效
+      // 后端对话返回结构（content/conversationId/disclaimer/recommendation）动态，泛型保留 any 安全
+      const res = await apiPost<any>(`/bots/${botId.value}/chat`, {
+        query: text,
+        conversationId: conversationId.value || undefined,
+      })
+      if (res?.conversationId) conversationId.value = res.conversationId
+      await typewriter(res?.content || '（未返回内容）', aiId)
+      // 打字结束后挂载免责声明 + 软性导流推荐（后端 bot.chat 下发，剥离协议后的净文本）
+      const done = messages.value.find((m) => m.id === aiId)
+      if (done) {
+        done.disclaimer = res?.disclaimer
+        done.recommendation = res?.recommendation || undefined
+      }
     }
   } catch (e) {
     const target = messages.value.find((m) => m.id === aiId)
     if (target) {
-      target.content = '抱歉，回复失败：' + ((e as Error)?.message || '请稍后再试')
+      target.content = target.content
+        ? target.content + '\n\n（连接中断：' + ((e as Error)?.message || '请稍后再试') + '）'
+        : '抱歉，回复失败：' + ((e as Error)?.message || '请稍后再试')
       target.isStreaming = false
     }
-    streamingText.value = ''
   } finally {
+    const target = messages.value.find((m) => m.id === aiId)
+    if (target) {
+      target.isStreaming = false
+      if (!target.content.trim()) target.content = '（未返回内容）'
+    }
     isSending.value = false
     scrollToBottom()
   }
 }
 
-/** 逐字展示真实返回文本 */
+/** H5 真流式：POST /bots/:id/chat/stream（chunk 增量 + meta 会话信息/免责/导流） */
+async function sendViaStream(text: string, aiId: string): Promise<void> {
+  const live = () => messages.value.find((m) => m.id === aiId)
+  await streamChat(
+    `/bots/${botId.value}/chat/stream`,
+    { query: text, conversationId: conversationId.value || undefined },
+    {
+      onChunk: (t) => {
+        const m = live()
+        if (m) m.content += t
+        scrollThrottled()
+      },
+      onMeta: (meta) => {
+        if (meta.conversationId) conversationId.value = meta.conversationId
+        const m = live()
+        if (m) {
+          m.disclaimer = meta.disclaimer
+          m.recommendation = (meta.recommendation as Recommendation | undefined) || undefined
+        }
+      },
+    },
+  )
+}
+
+/** 逐字展示真实返回文本（非 H5 降级动效） */
 function typewriter(fullText: string, aiId: string): Promise<void> {
   return new Promise((resolve) => {
     let i = 0
     const timer = setInterval(() => {
+      const target = messages.value.find((m) => m.id === aiId)
+      if (!target) {
+        clearInterval(timer)
+        resolve()
+        return
+      }
       if (i < fullText.length) {
-        streamingText.value += fullText[i]
+        target.content += fullText[i]
         i++
-        scrollToBottom()
+        scrollThrottled()
       } else {
         clearInterval(timer)
-        const target = messages.value.find((m) => m.id === aiId)
-        if (target) {
-          target.content = fullText
-          target.isStreaming = false
-        }
-        streamingText.value = ''
+        target.isStreaming = false
         resolve()
       }
     }, 30)
   })
-}
-
-function handleVoiceCall() {
-  uni.showToast({ title: '语音通话功能开发中', icon: 'none' })
 }
 
 function toggleMenu() {
@@ -327,7 +402,6 @@ function onMenu(action: string) {
       success: (r) => {
         if (r.confirm) {
           messages.value = []
-          streamingText.value = ''
           conversationId.value = ''
         }
       },
@@ -341,7 +415,7 @@ function renderMarkdown(content: string): string {
   return content
     .split('\n')
     .map((line) => {
-      let l = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      const l = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       if (l.startsWith('# ')) return `<div style="font-size:30rpx;font-weight:bold;margin:8rpx 0;">${l.slice(2)}</div>`
       if (l.startsWith('## ')) return `<div style="font-size:28rpx;font-weight:bold;margin:8rpx 0;">${l.slice(3)}</div>`
       if (/^\d+\.\s/.test(l)) return `<div style="margin-left:24rpx;">${l}</div>`
@@ -363,7 +437,7 @@ function goBack() {
   navigateBack()
 }
 
-// 软性导流：同意/拒绝查看推荐
+// 低置信商业推荐：同意/拒绝查看
 function consentReco(msg: ChatMessage) {
   msg.recoConsented = true
   scrollToBottom()
@@ -373,9 +447,15 @@ function declineReco(msg: ChatMessage) {
 }
 // 推荐卡片点击 → 跳转对应板块
 function openRecommend(item: RecommendItem) {
-  if (item.type === 'course') navigateTo(`/courses/${item.data.id}`)
+  if (item.data?.href) navigateTo(item.data.href)
+  else if (item.type === 'course') navigateTo(`/courses/${item.data.id}`)
   else if (item.type === 'circle') navigateTo(`/circles/${item.data.id}`)
-  else if (item.type === 'product') navigateTo(`/shop/${item.data.id}`) // 死入口大扫除：商品推荐 → 商品详情页（真实已注册）
+  else if (item.type === 'product') navigateTo(`/shop/${item.data.id}`)
+  else if (item.type === 'article') navigateTo(`/articles/${item.data.id}`)
+  else if (item.type === 'classic') navigateTo(`/classics/${item.data.id}`)
+  else if (item.type === 'video') navigateTo(`/video/${item.data.id}`)
+  else if (item.type === 'live') navigateTo(`/live/${item.data.id}`)
+  else if (item.type === 'agent') navigateTo(`/agent/${item.data.id}`)
   else if (item.type === 'paipan') navigateTo('/paipan')
   else toastComingSoon()
 }
@@ -411,6 +491,17 @@ function openRecommend(item: RecommendItem) {
   font-size: 28rpx;
   color: #fff;
 }
+.cc-state-back {
+  position: fixed;
+  left: 24rpx;
+  top: calc(var(--status-bar-height, 0px) + 20rpx);
+  z-index: 10;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* 顶栏 */
 .nav-bar {
@@ -422,12 +513,14 @@ function openRecommend(item: RecommendItem) {
   flex-shrink: 0;
 }
 .nav-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+.nav-bar > .nav-btn:first-child { margin-left: -12rpx; }
+.nav-bar > .nav-btn:last-child { margin-right: -12rpx; }
 .nav-bot {
   flex: 1;
   display: flex;
@@ -636,9 +729,14 @@ function openRecommend(item: RecommendItem) {
 .ai-disclaimer { display: block; margin-top: 10rpx; font-size: 20rpx; line-height: 1.4; color: #bbb; }
 
 /* 软性导流推荐卡片 */
-.recommend-block { margin-top: 16rpx; display: flex; flex-direction: column; gap: 12rpx; }
-.recommend-head { display: flex; align-items: center; gap: 6rpx; }
-.recommend-label { font-size: 22rpx; color: #999; }
+.recommend-block { position: relative; margin-top: 18rpx; padding-left: 18rpx; display: flex; flex-direction: column; gap: 12rpx; }
+.recommend-block::before { content: ''; position: absolute; left: 5rpx; top: 16rpx; bottom: 20rpx; width: 2rpx; border-radius: 2rpx; background: linear-gradient(180deg, #c9a96e, rgba(201,169,110,0.12)); }
+.recommend-head { display: flex; align-items: flex-start; gap: 12rpx; }
+.recommend-node { position: relative; z-index: 1; width: 38rpx; height: 38rpx; margin-left: -32rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #c9a96e; box-shadow: 0 0 0 7rpx #fff; }
+.recommend-copy { min-width: 0; display: flex; flex-direction: column; gap: 3rpx; }
+.recommend-label { font-size: 25rpx; line-height: 1.35; color: #303641; font-weight: 700; }
+.recommend-lead { font-size: 21rpx; line-height: 1.5; color: #8a8178; }
+.recommend-disclosure { padding-left: 4rpx; font-size: 19rpx; color: #aaa19a; }
 .reco-consent { background: rgba(201, 169, 110, 0.08); border: 2rpx solid rgba(201, 169, 110, 0.3); border-radius: 20rpx; padding: 24rpx; }
 .reco-consent-text { font-size: 26rpx; color: #1a1a1a; line-height: 1.5; }
 .reco-consent-btns { display: flex; gap: 16rpx; margin-top: 20rpx; }

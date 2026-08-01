@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import { navigateTo } from '@/utils/router'
 import { pointsApi, type PointsTask } from '@/lib/points-data'
 
 const info = ref({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
 const tasks = ref<PointsTask[]>([])
 const loading = ref(true)
 const error = ref('')
-const completing = ref<number | null>(null)
-const submitting = ref(false)
 
 const taskColors = ['#9a2e22', '#2563eb', '#16a34a', '#d97706', '#7c3aed']
 const completedCount = computed(() => tasks.value.filter((t) => t.completed).length)
@@ -45,24 +45,23 @@ onMounted(() => {
 function goBack() {
   uni.navigateBack()
 }
+// 统一走 @/utils/router 的 navigateTo（自带失败兜底 toast），替代裸 uni.navigateTo
 function go(url: string) {
-  uni.navigateTo({ url })
+  navigateTo(url)
 }
 function pct(cur: number, max: number) {
   return Math.min(100, Math.round((cur / max) * 100))
 }
-function handleComplete(taskId: number) {
-  const task = tasks.value.find((t) => t.id === taskId)
-  if (!task || task.completed || completing.value !== null || submitting.value) return
-  completing.value = taskId
-  submitting.value = true
-  setTimeout(() => {
-    task.completed = true
-    info.value.balance += task.points
-    info.value.todayEarned += task.points
-    completing.value = null
-    submitting.value = false
-  }, 400)
+/* 上线阶段只展示后端已有真实入账链路的签到任务。 */
+const TASK_ROUTES: Record<string, string> = {
+  '每日签到': '/profile', // 签到入口在个人中心（profile 页签到卡，POST /users/me/checkin）
+}
+function taskRoute(task: PointsTask): string | undefined {
+  return TASK_ROUTES[task.title]
+}
+function goTask(task: PointsTask) {
+  const route = taskRoute(task)
+  if (route) navigateTo(route)
 }
 </script>
 
@@ -76,7 +75,7 @@ function handleComplete(taskId: number) {
       <view class="nav-placeholder" />
     </view>
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="retry">重试</view>
@@ -91,7 +90,7 @@ function handleComplete(taskId: number) {
             <text class="ov-num">{{ info.balance.toLocaleString() }}</text>
             <text class="ov-today">今日已获 +{{ info.todayEarned }}</text>
           </view>
-          <view class="ov-btn" @tap="go('/pkg-mine/points/exchange')">
+          <view class="ov-btn" @tap="go('/pkg-mine/points/exchange/index')">
             <text class="ov-btn-text">积分兑换</text>
             <AppIcon name="chevron-right" :size="16" color="#fff" />
           </view>
@@ -118,7 +117,7 @@ function handleComplete(taskId: number) {
             <view class="task-info">
               <view class="task-title-row">
                 <text class="task-title">{{ task.title }}</text>
-                <text class="task-badge">+{{ task.points }} 积分</text>
+                <text class="task-badge">+{{ task.points }} 积分起</text>
               </view>
               <text class="task-limit">{{ task.limit }}</text>
               <view v-if="task.max !== undefined && task.current !== undefined" class="task-progress">
@@ -136,20 +135,20 @@ function handleComplete(taskId: number) {
                 <AppIcon name="check-circle" :size="16" color="#16a34a" />
                 <text class="task-done-text">已完成</text>
               </view>
-              <view v-else class="task-btn" @tap="handleComplete(task.id)">
-                <text class="task-btn-text">{{ completing === task.id ? '...' : task.action }}</text>
+              <view v-else-if="taskRoute(task)" class="task-btn" @tap="goTask(task)">
+                <text class="task-btn-text">{{ task.action || '去完成' }}</text>
               </view>
             </view>
           </view>
         </view>
       </view>
 
-      <!-- 其他获取方式 -->
+      <!-- 真实积分规则 -->
       <view class="note">
-        <text class="note-title">更多积分获取方式</text>
-        <text class="note-item">• 每次消费 ¥1 = 1 积分</text>
-        <text class="note-item">• 邀请好友注册 = 100 积分</text>
-        <text class="note-item">• 参与平台活动可获得额外积分</text>
+        <text class="note-title">签到积分说明</text>
+        <text class="note-item">• 每日签到基础获得 5 积分</text>
+        <text class="note-item">• 连续签到每满 3 天，下一档起每日额外增加 3 积分</text>
+        <text class="note-item">• 积分到账后可在积分明细中核对</text>
       </view>
       <view class="bottom-space" />
     </scroll-view>

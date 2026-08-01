@@ -42,7 +42,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="套餐">
           <el-tag :type="planTag(tenant?.plan)">
-            {{ tenant?.plan }}
+            {{ planLabel(tenant?.plan) }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="总配额">
@@ -57,10 +57,10 @@
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="过期时间">
-          {{ tenant?.expireAt }}
+          {{ formatDate(tenant?.expireAt) }}
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">
-          {{ tenant?.createdAt }}
+          {{ formatDate(tenant?.createdAt) }}
         </el-descriptions-item>
       </el-descriptions>
     </el-card>
@@ -115,7 +115,11 @@
           prop="createdAt"
           label="时间"
           width="170"
-        />
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
+        </el-table-column>
       </el-table>
     </el-card>
 
@@ -182,7 +186,7 @@
         >
           <template #default="{ row }">
             <el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'">
-              {{ row.status }}
+              {{ logStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -195,7 +199,11 @@
           prop="createdAt"
           label="调用时间"
           width="170"
-        />
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
+        </el-table-column>
         <template #empty>
           <el-empty description="暂无调用日志" />
         </template>
@@ -270,6 +278,18 @@ function maskKey(key?: string) {
 function planTag(plan: string) {
   const map: Record<string, string> = { BASIC: "info", PRO: "warning", ENTERPRISE: "danger" };
   return map[plan] || "info";
+}
+
+function planLabel(plan?: string) {
+  const map: Record<string, string> = { BASIC: "基础版", PRO: "专业版", ENTERPRISE: "企业版" };
+  return (plan && map[plan]) || plan || "-";
+}
+
+function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : "-"; }
+
+function logStatusLabel(status?: string) {
+  const map: Record<string, string> = { SUCCESS: "成功", QUOTA_EXCEEDED: "配额超限", FAILED: "失败" };
+  return (status && map[status]) || status || "-";
 }
 
 function statusTag(status: string) {

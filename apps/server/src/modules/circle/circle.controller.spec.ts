@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { CircleController } from "./circle.controller";
 import { CircleService } from "./circle.service";
+import { CircleInsightService } from "./services/circle-insight.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
 
@@ -40,7 +41,14 @@ describe("CircleController", () => {
   beforeAll(async () => {
     const mod = await Test.createTestingModule({
       controllers: [CircleController],
-      providers: [{ provide: CircleService, useValue: mockCircleSvc }],
+      providers: [
+        { provide: CircleService, useValue: mockCircleSvc },
+        // 并行批新增依赖（AI 搜索推荐/年度报告）：controller spec 仅注入占位 mock
+        {
+          provide: CircleInsightService,
+          useValue: { aiSearchRecommend: jest.fn().mockResolvedValue([]), annualReport: jest.fn().mockResolvedValue({}) },
+        },
+      ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })

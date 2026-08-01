@@ -69,9 +69,16 @@ async function doCalc() {
       </div>
     </template>
 
-    <template #output>
+    <!-- PageTool 只有 input/result/bottom-bar 三个插槽，此处必须用 #result（曾误写 #output 致结果区永远空白） -->
+    <template #result>
       <div v-if="errorMsg" class="error-box">{{ errorMsg }}</div>
       <div v-else-if="!result" class="empty-hint">请先设置参数并排盘</div>
+      <div
+        v-if="result?.jieQi"
+        class="jieqi-bar"
+      >
+        节气：<strong>{{ result.jieQi }}</strong>
+      </div>
       <DaLiuRenBoard
         v-else-if="result"
         :gongs="result.gongs || []"
@@ -104,4 +111,9 @@ async function doCalc() {
 .calc-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .error-box { padding: 16px; background: #fef0f0; color: var(--color-error); border-radius: 6px; }
 .empty-hint { padding: 40px; text-align: center; color: var(--color-text-secondary); }
+.jieqi-bar {
+  padding: 8px 16px; margin-bottom: 12px; background: #faf8f3; border-radius: 6px;
+  font-size: 13px; color: var(--color-text-secondary);
+}
+.jieqi-bar strong { color: var(--color-text-title); }
 </style>

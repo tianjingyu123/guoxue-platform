@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { SharedReadingService, SHARED_READING_REWARD_EXP } from "./shared-reading.service";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { UserGrowthService } from "../user-growth/user-growth.service";
 import { BusinessException } from "../../common/business.exception";
 
@@ -42,6 +43,7 @@ describe("SharedReadingService", () => {
       providers: [
         SharedReadingService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: RedisService, useValue: { runExclusive: (_n: string, _t: number, fn: () => Promise<unknown>) => fn() } },
         { provide: UserGrowthService, useValue: mockGrowth },
       ],
     }).compile();
@@ -49,6 +51,26 @@ describe("SharedReadingService", () => {
   });
 
   beforeEach(() => jest.clearAllMocks());
+
+  // 0. 超时兜底结算 cron（后端审计D8）
+  it("settleExpiredGroupsCron：扫 READING+deadline 到期组，空成员组结算为 EXPIRED", async () => {
+    mockPrisma.sharedReadingGroup.findMany.mockResolvedValue([
+      { id: "g1", classicBookId: "b1", targetChapters: 10 },
+    ]);
+    mockPrisma.sharedReadingMember.findMany.mockResolvedValue([]); // 无成员 → allCompleted=false
+    mockPrisma.sharedReadingGroup.update.mockResolvedValue({});
+
+    await svc.settleExpiredGroupsCron();
+
+    // 只扫 READING 且 deadline<=now
+    expect(mockPrisma.sharedReadingGroup.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ status: "READING", deadline: expect.objectContaining({ lte: expect.any(Date) }) }) }),
+    );
+    // 结算流转为 EXPIRED
+    expect(mockPrisma.sharedReadingGroup.update).toHaveBeenCalledWith(
+      { where: { id: "g1" }, data: { status: "EXPIRED" } },
+    );
+  });
 
   // 1. 建组
   it("建组成功：校验书存在、目标章节缺省取书章节数、发起人入组 isLeader", async () => {

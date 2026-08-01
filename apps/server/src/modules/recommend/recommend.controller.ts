@@ -1,8 +1,9 @@
 import { Request } from "express";
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, Req, UseGuards, NotFoundException } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { RecommendService } from "./recommend.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
@@ -11,6 +12,7 @@ import { RequireFeature } from "../../common/feature-flag.decorator";
 import { StationId } from "../../common/station-id.decorator";
 import { RecommendQueryDto, RecommendLogDto, RecommendScene, SaveUserInterestsDto, InsertContentDto } from "./recommend.dto";
 import { ColdStartService } from "./services/cold-start.service";
+import { RECOMMEND_FEATURE_FLAG } from "./recommend-feature.constants";
 
 @ApiTags("智能推荐")
 @Controller("recommend")
@@ -20,12 +22,12 @@ export class RecommendController {
   // ───── 固定路由（必须在 :scene 之前，避免被参数路由拦截） ─────
 
   @Post("log")
-  @UseGuards(ThrottleGuard)
+  @UseGuards(OptionalAuthGuard, ThrottleGuard)
   @ApiOperation({ summary: "上报推荐曝光/点击" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  log(@Body() dto: RecommendLogDto) {
-    return this.svc.logInteractions(dto);
+  log(@Req() req: Request, @Body() dto: RecommendLogDto) {
+    return this.svc.logInteractions(dto, req.user?.id);
   }
 
   @Get("trending")
@@ -46,7 +48,7 @@ export class RecommendController {
 
   @Get("personalized")
   @UseGuards(JwtAuthGuard, FeatureFlagGuard)
-  @RequireFeature("recommend_algorithm")
+  @RequireFeature(RECOMMEND_FEATURE_FLAG)
   @ApiOperation({ summary: "获取个性化推荐（旧版兼容）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -79,7 +81,7 @@ export class RecommendController {
 
   @Put("insert")
   @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
-  @RequireFeature("recommend_algorithm")
+  @RequireFeature(RECOMMEND_FEATURE_FLAG)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置分区强插" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -126,8 +128,8 @@ export class RecommendController {
   // 注意：新增静态路由的控制器必须在本控制器之前注册，否则会被 :scene 通配拦截
 
   @Get(":scene")
-  @UseGuards(FeatureFlagGuard)
-  @RequireFeature("recommend_algorithm")
+  @UseGuards(OptionalAuthGuard, FeatureFlagGuard)
+  @RequireFeature(RECOMMEND_FEATURE_FLAG)
   @ApiOperation({ summary: "全页面智能推荐" })
   @ApiResponse({ status: 200, description: "成功" })
   async recommend(
@@ -136,6 +138,9 @@ export class RecommendController {
     @Req() req: Request,
     @StationId() stationId?: string,
   ) {
+    if (!Object.values(RecommendScene).includes(scene)) {
+      throw new NotFoundException("推荐场景不存在");
+    }
     return this.svc.getRecommendations({
       scene,
       userId: req.user?.id,

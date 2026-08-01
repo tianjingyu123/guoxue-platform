@@ -47,10 +47,12 @@ export class CoinController {
     return this.coin.getRechargeTiers();
   }
 
+  // FINANCE_ADMIN 可发起（写）：此端点只创建 FundApproval 审批单不直接动账，
+  // 且执行器禁自审自批（发起人≠审批人），财务发起仍需另一名审批人放行，无单人成环风险
   @Post("admin/recharge")
   @Auditable({ action: "管理员充值", targetType: "COIN" })
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "管理员充值", description: "管理员为用户账户充值虚拟币" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -92,7 +94,7 @@ export class CoinController {
 
   @Get("admin/recharges")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "管理员查看充值记录" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -101,13 +103,31 @@ export class CoinController {
     return this.coin.getRecharges(+page, +pageSize, userId);
   }
 
+  /**
+   * 🔴 客户端可直接发起的消费场景白名单（fail-closed）。
+   *
+   * 背景（资金安全）：此前 /coin/spend 接受客户端任意 scene，攻击者可自造一条
+   *   {scene:"PEEK_ANSWER", refId:questionId, amountCoin:1} 的流水，而围观付费墙
+   *   canViewAnswer 仅凭「存在该 scene+refId 的流水」放行 → 花 1 币白嫖整篇付费答案，
+   *   且达人/提问者各 30% 的分成完全不产生。PAID_QUESTION 等同理。
+   *
+   * 所有真实消费（提问/围观/入圈/打赏/连麦/画质包…）都由服务端业务端点内部调
+   * coin.spend 完成，从不经此通用端点。故白名单为空 —— 任何业务 scene 一律拒绝，
+   * 新增场景默认拒绝（fail-closed）。要开放某场景直连，必须确认它没有
+   * 「流水存在即已付凭证」语义后再显式加入。
+   */
+  private static readonly CLIENT_DIRECT_SPEND_SCENES: readonly string[] = [];
+
   @Post("spend")
   @UseGuards(JwtAuthGuard, ActiveUserGuard, StrictRedisThrottleGuard)
-  @ApiOperation({ summary: "消费虚拟币", description: "按场景扣除余额（提问/打赏/入圈等）" })
+  @ApiOperation({ summary: "消费虚拟币", description: "通用扣币端点已收敛；各类消费请走对应业务功能" })
   @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 400, description: "参数校验失败 / 场景不允许直接扣币" })
   @ApiResponse({ status: 401, description: "未登录" })
   spend(@Req() req: Request, @Body() dto: SpendDto) {
+    if (!CoinController.CLIENT_DIRECT_SPEND_SCENES.includes(dto.scene)) {
+      throw new BadRequestException("该消费请通过对应业务功能操作，不支持直接扣币");
+    }
     return this.coin.spend(req.user.id, dto);
   }
 
@@ -120,10 +140,12 @@ export class CoinController {
     return this.coin.getGifts();
   }
 
+  // 礼物 CRUD 对 FINANCE_ADMIN 放行（写）：礼物单价即虚拟币定价（财务口径），
+  // 且不直接产生出入账（送礼扣币走 sendGift 独立链路），@Auditable 全程留痕可追责
   @Post("gifts")
   @Auditable({ action: "创建礼物", targetType: "GIFT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "创建礼物", description: "管理员创建新礼物类型" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -136,7 +158,7 @@ export class CoinController {
   @Put("gifts/:id")
   @Auditable({ action: "更新礼物", targetType: "GIFT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "更新礼物", description: "管理员更新礼物信息" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -150,7 +172,7 @@ export class CoinController {
   @Delete("gifts/:id")
   @Auditable({ action: "删除礼物", targetType: "GIFT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiOperation({ summary: "删除礼物", description: "管理员删除礼物类型" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

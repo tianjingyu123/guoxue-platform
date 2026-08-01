@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PAID_ORDER_STATUSES } from "./order-status.constants";
 
 @Injectable()
 export class EntityDashboardService {
@@ -67,10 +68,10 @@ export class EntityDashboardService {
 
       const [courseRevenue, productRevenue, tippingRevenue] = await Promise.all([
         courseIds.length > 0
-          ? this.prisma.order.aggregate({ where: { type: "COURSE", targetId: { in: courseIds }, status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } })
+          ? this.prisma.order.aggregate({ where: { type: "COURSE", targetId: { in: courseIds }, status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } })
           : { _sum: { amount: null } },
         productIds.length > 0
-          ? this.prisma.order.aggregate({ where: { type: "PRODUCT", targetId: { in: productIds }, status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } })
+          ? this.prisma.order.aggregate({ where: { type: "PRODUCT", targetId: { in: productIds }, status: { in: PAID_ORDER_STATUSES } }, _sum: { amount: true } })
           : { _sum: { amount: null } },
         liveRoomIds.length > 0
           ? this.prisma.giftRecord.aggregate({ where: { liveRoomId: { in: liveRoomIds } }, _sum: { totalCoin: true } })
@@ -139,10 +140,10 @@ export class EntityDashboardService {
 
       const [totalSales, dailyOrders] = await Promise.all([
         this.prisma.order.count({
-          where: { type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] } },
+          where: { type: "COURSE", targetId: courseId, status: { in: PAID_ORDER_STATUSES } },
         }),
         this.prisma.order.findMany({
-          where: { type: "COURSE", targetId: courseId, status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: thirtyDaysAgo } },
+          where: { type: "COURSE", targetId: courseId, status: { in: PAID_ORDER_STATUSES }, createdAt: { gte: thirtyDaysAgo } },
           select: { createdAt: true, amount: true },
           orderBy: { createdAt: "asc" },
         }),
@@ -283,7 +284,7 @@ export class EntityDashboardService {
           take: 500,
         }),
         this.prisma.order.findMany({
-          where: { type: "LIVESTREAM", targetId: liveId, status: { in: ["PAID", "COMPLETED"] } },
+          where: { type: "LIVESTREAM", targetId: liveId, status: { in: PAID_ORDER_STATUSES } },
           select: { amount: true },
           take: 500,
         }),

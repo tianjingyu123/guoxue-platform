@@ -54,36 +54,35 @@
         </view>
       </view>
 
-      <!-- 邀请码展示 -->
+      <!-- 邀请码展示（后端暂无用户专属邀请码来源，不伪造全体同码，诚实显示生成中） -->
       <view class="code-card">
         <view class="code-left">
           <text class="code-hint">我的邀请码</text>
-          <text class="code-val">{{ inviteCode }}</text>
-        </view>
-        <view class="code-btn" @tap="onCopy">
-          <text class="code-btn-txt">{{ copied ? '已复制' : '复制' }}</text>
+          <text class="code-val pending">生成中</text>
         </view>
       </view>
 
-      <!-- 排行榜 -->
-      <view class="rank-head">
-        <view class="rank-title-row">
-          <app-icon name="crown" :size="32" color="#C9A96E" />
-          <text class="section-title inline">邀请排行榜</text>
+      <!-- 排行榜（后端无邀请排行数据时整段隐藏，不展示占位假榜） -->
+      <template v-if="leaderboard.length">
+        <view class="rank-head">
+          <view class="rank-title-row">
+            <app-icon name="crown" :size="32" color="#C9A96E" />
+            <text class="section-title inline">邀请排行榜</text>
+          </view>
+          <view class="seg">
+            <text :class="['seg-item', leaderboardTab === 'today' && 'seg-on']" @tap="leaderboardTab = 'today'">今日</text>
+            <text :class="['seg-item', leaderboardTab === 'total' && 'seg-on']" @tap="leaderboardTab = 'total'">累计</text>
+          </view>
         </view>
-        <view class="seg">
-          <text :class="['seg-item', leaderboardTab === 'today' && 'seg-on']" @tap="leaderboardTab = 'today'">今日</text>
-          <text :class="['seg-item', leaderboardTab === 'total' && 'seg-on']" @tap="leaderboardTab = 'total'">累计</text>
+        <view class="card">
+          <view v-for="(u, i) in leaderboard" :key="u.rank" :class="['rank-row', i < leaderboard.length - 1 && 'bb']">
+            <text :class="['rank-no', u.rank === 1 && 'r1', u.rank === 2 && 'r2', u.rank === 3 && 'r3']">{{ u.rank }}</text>
+            <view class="avatar"><text class="avatar-txt">{{ u.name[0] }}</text></view>
+            <text class="rank-name">{{ u.name }}</text>
+            <view class="rank-cnt"><text class="rank-cnt-num">{{ u.count }}</text><text class="rank-cnt-unit">人</text></view>
+          </view>
         </view>
-      </view>
-      <view class="card">
-        <view v-for="(u, i) in leaderboard" :key="u.rank" :class="['rank-row', i < leaderboard.length - 1 && 'bb']">
-          <text :class="['rank-no', u.rank === 1 && 'r1', u.rank === 2 && 'r2', u.rank === 3 && 'r3']">{{ u.rank }}</text>
-          <view class="avatar"><text class="avatar-txt">{{ u.name[0] }}</text></view>
-          <text class="rank-name">{{ u.name }}</text>
-          <view class="rank-cnt"><text class="rank-cnt-num">{{ u.count }}</text><text class="rank-cnt-unit">人</text></view>
-        </view>
-      </view>
+      </template>
 
       <!-- 已邀请好友 -->
       <view class="rank-head">
@@ -134,7 +133,7 @@
           <view class="poster-qr">
             <view class="qr-box"><text class="qr-txt">二维码</text></view>
             <text class="qr-hint">长按识别二维码</text>
-            <text class="qr-code">邀请码: {{ inviteCode }}</text>
+            <text class="qr-code">邀请码生成中</text>
           </view>
         </view>
         <view class="poster-actions">
@@ -151,39 +150,23 @@ import { ref, computed } from 'vue'
 import { navigateTo } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
 
-const inviteCode = 'REBU2024'
 const copied = ref(false)
 const showPoster = ref(false)
 const leaderboardTab = ref<'today' | 'total'>('total')
 
-const invitedFriends = ref([
-  { id: 1, name: '张三', registerTime: '2024-03-15 14:30', status: 'registered' },
-  { id: 2, name: '李四', registerTime: '2024-03-14 09:20', status: 'registered' },
-  { id: 3, name: '王五', registerTime: '2024-03-13 16:45', status: 'pending' },
-  { id: 4, name: '赵六', registerTime: '2024-03-12 11:00', status: 'registered' },
-])
-
-const leaderboard = ref([
-  { rank: 1, name: '周易大师', count: 128 },
-  { rank: 2, name: '张玄风', count: 96 },
-  { rank: 3, name: '陈风水', count: 72 },
-  { rank: 4, name: '李易安', count: 58 },
-  { rank: 5, name: '王命理', count: 45 },
-])
+// 后端暂无用户侧邀请数据聚合接口（user/auth 控制器无 invite 端点）→ 诚实降级为空，不伪造好友/排行
+const invitedFriends = ref<{ id: number; name: string; registerTime: string; status: string }[]>([])
+const leaderboard = ref<{ rank: number; name: string; count: number }[]>([])
 
 const registeredCount = computed(() => invitedFriends.value.filter(f => f.status === 'registered').length)
 
 function go(path: string) { navigateTo(path) }
+// 邀请码尚未生成（后端无用户专属码来源），复制/分享暂不可用，诚实提示
 function onCopy() {
-  uni.setClipboardData({ data: inviteCode, success: () => {
-    copied.value = true
-    setTimeout(() => { copied.value = false }, 2000)
-  }})
+  uni.showToast({ title: '邀请码生成中，敬请期待', icon: 'none' })
 }
 function onShare() {
-  uni.setClipboardData({ data: `https://rebu.com/register?invite=${inviteCode}`, success: () => {
-    uni.showToast({ title: '链接已复制', icon: 'none' })
-  }})
+  uni.showToast({ title: '邀请功能即将开放', icon: 'none' })
 }
 function onSavePoster() {
   uni.showToast({ title: '海报已保存到相册', icon: 'none' })
@@ -219,6 +202,7 @@ function onSavePoster() {
 .code-card { display: flex; align-items: center; justify-content: space-between; margin: 32rpx; padding: 32rpx; background: rgba(201,169,110,0.08); border: 2rpx dashed #D9CDB8; border-radius: 20rpx; }
 .code-hint { display: block; font-size: 22rpx; color: #9A8F80; }
 .code-val { display: block; font-size: 40rpx; font-weight: 700; color: #C41E2D; letter-spacing: 6rpx; margin-top: 8rpx; }
+.code-val.pending { font-size: 30rpx; color: #9A8F80; letter-spacing: 2rpx; }
 .code-btn { padding: 16rpx 32rpx; background: #C41E2D; border-radius: 12rpx; }
 .code-btn-txt { font-size: 26rpx; color: #FFFFFF; font-weight: 500; }
 

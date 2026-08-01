@@ -58,7 +58,7 @@ export const TOUCHPOINTS: Record<string, TouchpointMeta> = {
   /** #8 晋级/成就时刻 → 进阶之路：下一门课（本批参考实现） */
   levelup_course: { label: "晋级进阶课", skuSource: "课程库按分类推进阶", status: "implemented" },
   /** #1 古籍读到精彩处 → 本书相关名师精讲课 */
-  classic_course: { label: "古籍精讲", skuSource: "本书相关课程", status: "pending" },
+  classic_course: { label: "古籍精讲", skuSource: "本书相关课程", status: "implemented" },
   /** #3 诗词赏析页 → 应景雅物（触-P3） */
   poetry_goods: { label: "诗词雅物", skuSource: "商品池雅物类目（文创/文房/香道/茶具）·场景标签兜底", status: "implemented" },
   /** #6 圈子优质讨论 → 圈主的课程（触-P3） */
@@ -150,6 +150,8 @@ export class TouchpointService {
   ): Promise<TouchpointCard | null> {
     if (meta.status !== "implemented") return null;
     switch (scene) {
+      case "classic_course":
+        return this.resolveClassicCourse(ctx);
       case "levelup_course":
         return this.resolveLevelupCourse(userId, ctx);
       case "jieqi_gift":
@@ -163,6 +165,69 @@ export class TouchpointService {
       default:
         return null;
     }
+  }
+
+  /**
+   * #1 古籍读到精彩处 → 本书相关精讲。
+   * 先按书名精确关联课程；没有直接关联时，才按古籍分类召回同类公开课。
+   * 两级都无结果就不展示，避免阅读场景被无关销售内容打断。
+   */
+  private async resolveClassicCourse(ctx?: Record<string, unknown>): Promise<TouchpointCard | null> {
+    const bookId = typeof ctx?.bookId === "string" && ctx.bookId ? ctx.bookId : undefined;
+    const ctxTitle = typeof ctx?.bookTitle === "string" && ctx.bookTitle ? ctx.bookTitle.trim() : "";
+    let book: { title: string; category: string } | null = null;
+    if (bookId) {
+      book = await this.prisma.classicBook.findFirst({
+        where: { id: bookId, status: "PUBLISHED", deletedAt: null },
+        select: { title: true, category: true },
+      });
+    }
+    const title = book?.title || ctxTitle;
+    if (!title && !book?.category) return null;
+
+    const direct = title
+      ? await this.prisma.course.findFirst({
+          where: {
+            auditStatus: "APPROVED",
+            visibility: "PLATFORM",
+            deletedAt: null,
+            OR: [
+              { title: { contains: title, mode: "insensitive" } },
+              { intro: { contains: title, mode: "insensitive" } },
+              { tags: { has: title } },
+            ],
+          },
+          select: { id: true, title: true, cover: true },
+          orderBy: { studentCount: "desc" },
+        })
+      : null;
+
+    const course = direct || (book?.category
+      ? await this.prisma.course.findFirst({
+          where: {
+            auditStatus: "APPROVED",
+            visibility: "PLATFORM",
+            deletedAt: null,
+            OR: [
+              { categoryLevel1: book.category },
+              { categoryLevel2: book.category },
+              { tags: { has: book.category } },
+            ],
+          },
+          select: { id: true, title: true, cover: true },
+          orderBy: { studentCount: "desc" },
+        })
+      : null);
+    if (!course) return null;
+
+    return {
+      skuType: "course",
+      skuId: course.id,
+      title: course.title,
+      reason: title ? `读完《${title}》·继续听讲` : "读到这里·继续听讲",
+      cover: course.cover || "",
+      link: `/courses/${course.id}`,
+    };
   }
 
   /**

@@ -5,7 +5,15 @@
     <view class="nav-content" :style="{ height: barHeight + 'rpx' }">
       <!-- 左侧：返回 -->
       <view class="nav-side nav-left">
-        <view v-if="showBack" class="nav-back" @tap="onBack">
+        <view
+          v-if="showBack"
+          class="nav-back"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="onBack"
+          @keydown="onBackKeydown"
+        >
           <app-icon :name="backIcon" :size="backSize" :color="color" />
         </view>
         <slot name="left" />
@@ -34,7 +42,7 @@ const props = withDefaults(
     color?: string
     /** 返回图标，原型各页不同：chevron-left(默认) 或 arrow-left */
     backIcon?: string
-    /** 返回图标尺寸(rpx)，chevron 默认 44(=22px)，arrow 建议 40(=20px) */
+    /** 返回图标尺寸(rpx)；AppIcon 会按全站规范保底到 44rpx。 */
     backSize?: number
     /** 标题字号(rpx)，默认 32(=16px text-base)，部分页用 36(=18px text-lg) */
     titleSize?: number
@@ -56,8 +64,8 @@ const props = withDefaults(
     title: '',
     showBack: true,
     color: '#2C2C2C',
-    backIcon: 'chevron-left',
-    backSize: 44,
+    backIcon: 'arrow-left',
+    backSize: 48,
     titleSize: 32,
     barHeight: 112,
     titleAlign: 'center',
@@ -76,6 +84,12 @@ const barStyle = computed(() => ({ background: props.background }))
 function onBack() {
   emit('back')
   if (!props.customBack) goBack()
+}
+
+function onBackKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  onBack()
 }
 </script>
 
@@ -123,9 +137,10 @@ function onBack() {
 }
 
 .nav-back {
-  width: 60rpx;
-  height: 60rpx;
-  margin-left: -12rpx; /* -ml-2，与原型一致 */
+  /* 触控热区标准 ≥88rpx（44pt）：icon 不变，容器扩大 + 负 margin 保持视觉位置不动 */
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -26rpx;
   display: flex;
   align-items: center;
   justify-content: center;

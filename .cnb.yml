@@ -171,6 +171,11 @@ main:
 
         - name: 执行数据库迁移
           script: |
+            if [ "${ALLOW_PROD_DB_MIGRATION:-}" != "reviewed" ]; then
+              echo "生产迁移未获人工审查授权：请设置 ALLOW_PROD_DB_MIGRATION=reviewed"
+              exit 64
+            fi
+
             echo "$PROD_SSH_KEY" > ~/.ssh/prod_key
             chmod 600 ~/.ssh/prod_key
             TAG=$(git describe --tags --abbrev=0)
@@ -300,7 +305,9 @@ main:
                   sleep 2
                 done
             - name: 执行迁移
-              script: pnpm --filter @guoxue/server exec prisma migrate deploy
+              script: |
+                cd apps/server
+                CONFIRM_EMPTY_DATABASE=YES sh prisma/migrations-deploy/bootstrap-empty-database.sh
             - name: 构建服务
               script: pnpm --filter @guoxue/server build
 

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 import { mineApi, pwdRules, calcPwdStrength } from '@/lib/mine-data'
+import { clearToken, clearRefreshToken, clearUserInfo } from '@/utils/storage'
 
 function goForgot() {
   navigateTo('/pkg-auth/forgot-password/index')
@@ -33,7 +34,7 @@ function showToast(msg: string, type: 'success' | 'error' = 'success') {
 
 function validate() {
   const errs: Record<string, string> = {}
-  if (!oldPwd.value) errs.oldPwd = '请输入当前密码'
+  // 当前密码首次设置可留空（验证码/微信登录用户无旧密码）；已设密码时后端会强制校验
   if (!newPwd.value) errs.newPwd = '请输入新密码'
   else if (newPwd.value.length < 8) errs.newPwd = '密码长度至少 8 位'
   else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPwd.value)) errs.newPwd = '需包含大小写字母和数字'
@@ -49,8 +50,14 @@ async function handleSubmit() {
   loading.value = true
   try {
     await mineApi.changePassword(oldPwd.value, newPwd.value)
-    showToast('密码修改成功', 'success')
-    setTimeout(() => goBack(), 1000)
+    showToast('密码修改成功，请重新登录', 'success')
+    // 改密后主动清空本地登录凭证并回登录页，强制用新密码重新登录（不再依赖后端让旧 token 失效，体验更明确）。
+    setTimeout(() => {
+      clearToken()
+      clearRefreshToken()
+      clearUserInfo()
+      uni.reLaunch({ url: '/pkg-auth/login/index' })
+    }, 1000)
   } catch (e) {
     showToast((e as Error)?.message || '修改失败', 'error')
   } finally {
@@ -74,7 +81,7 @@ async function handleSubmit() {
         <!-- 表单 -->
         <view class="card">
           <view class="field">
-            <text class="field-label">当前密码</text>
+            <text class="field-label">当前密码<text class="field-hint">（首次设置密码可留空）</text></text>
             <view class="input-wrap" :class="{ error: errors.oldPwd }">
               <AppIcon name="lock" :size="16" color="#999" />
               <input
@@ -179,7 +186,8 @@ async function handleSubmit() {
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+  height: 100vh;
   background: #faf8f5;
   display: flex;
   flex-direction: column;
@@ -188,6 +196,7 @@ async function handleSubmit() {
 .scroll {
   flex: 1;
   height: 0;
+  min-height: 0;
 }
 .container {
   padding: 32rpx;

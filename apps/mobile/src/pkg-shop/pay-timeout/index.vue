@@ -13,7 +13,7 @@
       <text class="hero-sub">订单已超时，请重新发起支付</text>
       <view class="hero-amount">
         <text class="amt-label">订单金额</text>
-        <text class="amt">¥{{ amount }}</text>
+        <text class="amt">¥{{ formatPrice(amount) }}</text>
       </view>
     </view>
 
@@ -55,7 +55,7 @@
         <view class="blue-dot"><text>!</text></view>
         <view class="blue-content">
           <text class="blue-title">温馨提示</text>
-          <text class="blue-text">如您已完成支付但显示超时，资金会在1-3个工作日内原路退回。如有疑问请联系客服。</text>
+          <text class="blue-text">如您已完成支付但显示超时，资金会在1-3个工作日内原路退回。如有疑问请<text class="blue-link" @tap="goService">联系客服</text>。</text>
         </view>
       </view>
     </view>
@@ -66,11 +66,8 @@
         <app-icon name="refresh-cw" :size="34" color="#fff" />
         <text>重新支付</text>
       </view>
+      <!-- 原「换个支付方式」按钮删除：仅微信一个收银渠道，与「重新支付」功能重复 -->
       <view class="btn-row">
-        <view class="btn ghost" @tap="goChangeMethod">
-          <app-icon name="repeat" :size="30" color="#666666" />
-          <text>换个支付方式</text>
-        </view>
         <view class="btn ghost" @tap="goOrder">
           <app-icon name="file-text" :size="30" color="#666666" />
           <text>查看订单</text>
@@ -85,26 +82,36 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { navigateTo, redirectTo } from '@/utils/router'
 import { shopApi, payTimeoutReasons } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
-const orderId = ref('ORD20241201123456')
-const amount = ref('344.00')
+// 真实进入必由收银台跳转携带 orderId/amount（见 onLoad）；默认留空，不硬编码过期示例单号
+const orderId = ref('')
+const amount = ref('0')
+const payMethod = ref('')
 const timeoutTime = ref('')
 const reasons = payTimeoutReasons
 
 onLoad((q) => {
   if (q?.orderId) orderId.value = q.orderId as string
   if (q?.amount) amount.value = q.amount as string
+  if (q?.method) payMethod.value = q.method as string
   const d = new Date()
   timeoutTime.value = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 })
 
-function goRePay() { redirectTo(`/shop/paying?orderId=${orderId.value}`) }
-function goChangeMethod() { navigateTo(`/shop/checkout?orderId=${orderId.value}`) }
-function goOrder() { navigateTo(`/shop/orders/${orderId.value}`) }
+// 重新支付带上真实金额与支付方式，避免收银页显示 ¥0.00 且强制微信
+function goRePay() {
+  const q = `orderId=${orderId.value}&amount=${amount.value}${payMethod.value ? `&method=${payMethod.value}` : ''}`
+  redirectTo(`/shop/paying?${q}`)
+}
+// P1-5：结算页不认 orderId（原跳法=死路"没有可结算的商品"）；收银页 /shop/paying 认 orderId 且按环境走可用支付渠道
+// 真别名是 /orders/:id（原来写的 /shop/orders/:id 没登记 → 支付超时后点「查看订单」没反应）
+function goOrder() { navigateTo(`/orders/${orderId.value}`) }
+function goService() { navigateTo('/customer-service') }
 </script>
 
 <style lang="scss" scoped>
-.pay-timeout { min-height: 100vh; background: #FAF8F5; padding-bottom: 280rpx; }
+.pay-timeout { min-height: 100vh; background: #FAF8F5; padding-bottom: calc(320rpx + env(safe-area-inset-bottom)); }
 .hero {
   background: linear-gradient(180deg, #FB923C 0%, #F97316 100%);
   padding: 64rpx 32rpx 160rpx;
@@ -158,6 +165,7 @@ function goOrder() { navigateTo(`/shop/orders/${orderId.value}`) }
 .blue-content { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
 .blue-title { font-size: 26rpx; font-weight: 500; color: #1D4ED8; }
 .blue-text { font-size: 24rpx; color: #1D4ED8; line-height: 1.6; }
+.blue-link { font-size: 24rpx; color: #1D4ED8; font-weight: 600; text-decoration: underline; }
 .footer {
   position: fixed;
   bottom: 0;

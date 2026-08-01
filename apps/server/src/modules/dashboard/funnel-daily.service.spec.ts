@@ -4,7 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 
-/** D-T1 漏斗日聚合单测：四漏斗步骤计数/幂等upsert/序列查询/cron互斥 */
+/** D-T1 漏斗日聚合单测：五漏斗步骤计数/幂等upsert/序列查询/cron互斥 */
 
 const mockPrisma = {
   user: { findMany: jest.fn() },
@@ -52,8 +52,8 @@ describe("FunnelDailyService", () => {
   it("aggregateCron 经 runExclusive('funnel-daily') 互斥，且重算昨日+前日两天（F1 次日回访幂等修正）", async () => {
     await svc.aggregateCron();
     expect(mockRedis.runExclusive).toHaveBeenCalledWith("funnel-daily", 600, expect.any(Function));
-    // 4 漏斗 × (3+3+3+4)=13 步骤 × 2 天 = 26 次 upsert
-    expect(mockPrisma.funnelDaily.upsert).toHaveBeenCalledTimes(26);
+    // 5 漏斗 × (3+3+3+4+5)=18 步骤 × 2 天 = 36 次 upsert
+    expect(mockPrisma.funnelDaily.upsert).toHaveBeenCalledTimes(36);
   });
 
   it("非法日期抛业务异常", async () => {
@@ -126,6 +126,36 @@ describe("FunnelDailyService", () => {
     expect(f4.map((c) => c.stepKey)).toEqual(["tool_use", "b_entry_view", "cert_apply", "commission_earned"]);
     expect(f4[2].count).toBe(2);
     expect(f4[3].count).toBe(1);
+  });
+
+  it("F5 智能客服：咨询到点击后支付按登录用户归因", async () => {
+    const clickAt = new Date("2026-07-01T03:00:00.000Z");
+    mockPrisma.trackEvent.findMany.mockImplementation(async (args: any) => {
+      const action = args?.where?.action;
+      if (action === "cs_question_submitted") return [{ userId: "u1" }, { userId: "u2" }];
+      if (action === "cs_reply_completed") return [{ userId: "u1" }, { userId: "u2" }];
+      if (action === "cs_recommend_offered") return [{ userId: "u1" }];
+      if (action === "cs_recommend_click") return [{ userId: "u1", occurredAt: clickAt }];
+      return [];
+    });
+    mockPrisma.order.findMany.mockImplementation(async (args: any) => {
+      if (args?.where?.userId?.in) {
+        return [{ userId: "u1", paidAt: new Date("2026-07-01T04:00:00.000Z") }];
+      }
+      return [];
+    });
+
+    await svc.rebuildDate("2026-07-01");
+
+    const f5 = mockPrisma.funnelDaily.upsert.mock.calls
+      .map((c) => c[0].create).filter((c) => c.funnel === "F5_customer_service");
+    expect(f5.map((c) => [c.stepKey, c.count])).toEqual([
+      ["cs_question", 2],
+      ["cs_resolved", 2],
+      ["cs_recommend_offered", 1],
+      ["cs_recommend_clicked", 1],
+      ["cs_attributed_paid", 1],
+    ]);
   });
 
   it("upsert 幂等键为 date+funnel+step", async () => {

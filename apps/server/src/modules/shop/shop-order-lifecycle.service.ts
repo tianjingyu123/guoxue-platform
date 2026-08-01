@@ -7,9 +7,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
-
-/** 缓存前缀 */
-const CACHE_PREFIX = "shop:";
+import { ShopPaymentService } from "./shop-payment.service";
+import { isStocklessOrderType } from "./shop-order-types.constants";
 
 /**
  * 商城订单-履约与取消域（从 shop.service 拆出·纯搬家不改逻辑）。
@@ -18,8 +17,6 @@ const CACHE_PREFIX = "shop:";
  */
 @Injectable()
 export class ShopOrderLifecycleService {
-  /** 虚拟商品类型 — 无需库存恢复，新增类型追加此集合 */
-  private static readonly NO_INVENTORY_TYPES = new Set(["MEMBER"]);
   private readonly logger = new Logger(ShopOrderLifecycleService.name);
 
   constructor(
@@ -27,6 +24,7 @@ export class ShopOrderLifecycleService {
     private redis: RedisService,
     private attribution: ShopAttributionService,
     private orderSvc: ShopOrderService,
+    private paymentSvc: ShopPaymentService,
   ) {}
 
   async shipOrder(orderId: string) {
@@ -37,7 +35,7 @@ export class ShopOrderLifecycleService {
       where: { id: orderId },
       data: { status: "SHIPPED", shippedAt: new Date() },
     });
-    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    await this.orderSvc.invalidateOrderCache(orderId, order.userId);
     return updated;
   }
 
@@ -45,17 +43,32 @@ export class ShopOrderLifecycleService {
   async adminPayOrder(orderId: string, payTransactionId: string, operatorId: string) {
     if (!payTransactionId) throw new BusinessException(ErrorCode.BAD_REQUEST, "必须提供支付流水号");
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
-    if (!order || order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待支付订单可确认支付");
+    if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    if (order.status === "PAID" && order.payMethod === "MANUAL" && order.payTransactionId === payTransactionId) {
+      // 首次确认已翻状态但外发箱落库失败时，后台用同一流水重试即可补齐通知；分佣记录自身幂等。
+      await this.attribution.recordOrderCommissionAndFee(order);
+      await this.paymentSvc.emitOrderPaidEvent(order, order.id, "MANUAL", payTransactionId);
+      await this.orderSvc.settleGroupBuyIfNeeded(orderId)
+        .catch((e) => this.logger.error(`拼团成团结算失败 order=${orderId}`, e));
+      return { success: true, orderId, payTransactionId, replayed: true };
+    }
+    if (order.status !== "PENDING") throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "仅待支付订单可确认支付");
 
-    // CAS 状态翻转防并发重复确认
-    const flipped = await this.prisma.order.updateMany({
-      where: { id: orderId, status: "PENDING" },
-      data: { status: "PAID", paidAt: new Date(), payTransactionId },
+    // CAS 状态翻转防并发重复确认 + 同事务跑支付后处理器。
+    // ⚠️ 后处理器不可省：它负责会员开通/分站激活/运营商建号。此前本方法绕过了它，
+    //    导致线下确认收款的订单「变 PAID 但权益不开通」（钱收了货不发）。与网关回调路径同口径。
+    await this.prisma.$transaction(async (tx) => {
+      const flipped = await tx.order.updateMany({
+        where: { id: orderId, status: "PENDING" },
+        data: { status: "PAID", paidAt: new Date(), payMethod: "MANUAL", payTransactionId },
+      });
+      if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
+      await this.paymentSvc.runPaidPostProcessors(order, tx);
     });
-    if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
-    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    await this.orderSvc.invalidateOrderCache(orderId, order.userId);
     // 线下确认收款同样记分佣 + 平台费（与网关支付路径一致，避免账目漏记）
     await this.attribution.recordOrderCommissionAndFee(order);
+    await this.paymentSvc.emitOrderPaidEvent(order, order.id, "MANUAL", payTransactionId);
     // 拼团订单：管理员确认支付后同样触发成团结算（本地无微信证书时用此路径验证闭环）
     await this.orderSvc.settleGroupBuyIfNeeded(orderId).catch((e) => this.logger.error(`拼团成团结算失败 order=${orderId}`, e));
     this.logger.log(`管理员 ${operatorId} 手动确认支付: ${orderId}, 流水号: ${payTransactionId}`);
@@ -69,7 +82,7 @@ export class ShopOrderLifecycleService {
       where: { id: orderId },
       data: { status: "COMPLETED", completedAt: new Date() },
     });
-    await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
+    await this.orderSvc.invalidateOrderCache(orderId, order.userId);
     // 异步记录购买行为
     if (order) {
       this.prisma.userBehavior.create({ data: { userId: order.userId, targetType: order.type, targetId: order.targetId, behavior: "PURCHASE", weight: 5 } }).catch((e) => this.logger.warn("用户购买行为记录失败", e));
@@ -82,8 +95,8 @@ export class ShopOrderLifecycleService {
     const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: { userId: true } });
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能确认自己的订单");
+    // 缓存已由 completeOrder → invalidateOrderCache(该订单 userId=本人) 清净，无需重复清
     const result = await this.completeOrder(orderId);
-    await this.redis.del(`${CACHE_PREFIX}userOrders:${userId}:1:20`);
     return result;
   }
 
@@ -107,18 +120,41 @@ export class ShopOrderLifecycleService {
         });
         if (result.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更，无法取消");
 
-        // 恢复库存（虚拟商品如 MEMBER 无需恢复）
-        if (!ShopOrderLifecycleService.NO_INVENTORY_TYPES.has(order.type)) {
+        // 恢复库存（虚拟商品如会员/分站/运营商无需恢复·单一真源见 shop-order-types.constants）
+        if (!isStocklessOrderType(order.type)) {
+          let beforeStock: number | null = null;
+          let movementProductId = order.targetId;
           if (order.skuId) {
+            if (order.merchantId) {
+              const skuBefore = await tx.productSku.findUnique({
+                where: { id: order.skuId }, select: { stock: true, productId: true },
+              });
+              beforeStock = skuBefore?.stock ?? null;
+              movementProductId = skuBefore?.productId ?? order.targetId;
+            }
             await tx.productSku.updateMany({
               where: { id: order.skuId },
               data: { stock: { increment: order.quantity } },
             });
           } else if (order.targetId) {
+            if (order.merchantId) {
+              const productBefore = await tx.product.findUnique({ where: { id: order.targetId }, select: { stock: true } });
+              beforeStock = productBefore?.stock ?? null;
+            }
             await tx.product.updateMany({
               where: { id: order.targetId },
               data: { stock: { increment: order.quantity } },
             });
+          }
+          if (order.merchantId && movementProductId && beforeStock !== null) {
+            await tx.inventoryMovement.create({ data: {
+              merchantId: order.merchantId, productId: movementProductId, skuId: order.skuId,
+              type: "ORDER_CANCEL_RETURN", quantity: order.quantity,
+              beforeStock, afterStock: beforeStock + order.quantity,
+              referenceType: "ORDER", referenceId: order.id,
+              idempotencyKey: `order-cancel:${order.id}`, operatorId: userId,
+              reason: "待付款订单取消回补库存",
+            } });
           }
         }
 
@@ -139,8 +175,7 @@ export class ShopOrderLifecycleService {
       return { id: orderId, status: "CANCELLED" };
     } finally {
       await this.redis.del(lockKey);
-      await this.redis.del(`${CACHE_PREFIX}order:${orderId}`);
-      await this.redis.del(`${CACHE_PREFIX}userOrders:${userId}:1:20`);
+      await this.orderSvc.invalidateOrderCache(orderId, userId);
     }
   }
 
@@ -210,7 +245,7 @@ export class ShopOrderLifecycleService {
         // （超卖+已用券复活）。故先在事务内锁定「仍 PENDING」的确定名单，只对该名单翻转与回补。
         const toCancel = await tx.order.findMany({
           where: { id: { in: lockedIds }, status: "PENDING" },
-          select: { id: true, type: true, skuId: true, targetId: true, couponId: true, quantity: true, promotionType: true, promotionId: true },
+          select: { id: true, type: true, skuId: true, targetId: true, couponId: true, quantity: true, promotionType: true, promotionId: true, merchantId: true },
         });
         if (toCancel.length === 0) return;
         const cancelIds = toCancel.map((o) => o.id);
@@ -224,29 +259,63 @@ export class ShopOrderLifecycleService {
         // 聚合 SKU 库存恢复（按下单数量 quantity 回补，与 createOrder 扣减对称）
         const skuCounts = new Map<string, number>();
         for (const o of toCancel) {
-          if (o.type !== "MEMBER" && o.skuId) {
+          if (!isStocklessOrderType(o.type) && o.skuId) {
             skuCounts.set(o.skuId, (skuCounts.get(o.skuId) || 0) + o.quantity);
           }
         }
         for (const [skuId, count] of skuCounts) {
+          const merchantOrders = toCancel.filter((o) => o.skuId === skuId && o.merchantId);
+          const skuBefore = merchantOrders.length
+            ? await tx.productSku.findUnique({ where: { id: skuId }, select: { stock: true, productId: true } })
+            : null;
           await tx.productSku.updateMany({
             where: { id: skuId },
             data: { stock: { increment: count } },
           });
+          if (skuBefore) {
+            let runningStock = skuBefore.stock;
+            for (const order of merchantOrders) {
+              await tx.inventoryMovement.create({ data: {
+                merchantId: order.merchantId!, productId: skuBefore.productId, skuId,
+                type: "ORDER_CANCEL_RETURN", quantity: order.quantity,
+                beforeStock: runningStock, afterStock: runningStock + order.quantity,
+                referenceType: "ORDER", referenceId: order.id,
+                idempotencyKey: `order-cancel:${order.id}`, reason: "超时未付款自动取消回补库存",
+              } });
+              runningStock += order.quantity;
+            }
+          }
         }
 
         // 聚合商品库存恢复（按下单数量 quantity 回补，与 createOrder 扣减对称）
         const productCounts = new Map<string, number>();
         for (const o of toCancel) {
-          if (o.type !== "MEMBER" && !o.skuId && o.targetId) {
+          if (!isStocklessOrderType(o.type) && !o.skuId && o.targetId) {
             productCounts.set(o.targetId, (productCounts.get(o.targetId) || 0) + o.quantity);
           }
         }
         for (const [targetId, count] of productCounts) {
+          const merchantOrders = toCancel.filter((o) => !o.skuId && o.targetId === targetId && o.merchantId);
+          const productBefore = merchantOrders.length
+            ? await tx.product.findUnique({ where: { id: targetId }, select: { stock: true } })
+            : null;
           await tx.product.updateMany({
             where: { id: targetId },
             data: { stock: { increment: count } },
           });
+          if (productBefore) {
+            let runningStock = productBefore.stock;
+            for (const order of merchantOrders) {
+              await tx.inventoryMovement.create({ data: {
+                merchantId: order.merchantId!, productId: targetId, skuId: null,
+                type: "ORDER_CANCEL_RETURN", quantity: order.quantity,
+                beforeStock: runningStock, afterStock: runningStock + order.quantity,
+                referenceType: "ORDER", referenceId: order.id,
+                idempotencyKey: `order-cancel:${order.id}`, reason: "超时未付款自动取消回补库存",
+              } });
+              runningStock += order.quantity;
+            }
+          }
         }
 
         // 聚合秒杀条目已售量回补（与取消单量对称·防负数见 restoreFlashSaleSold）

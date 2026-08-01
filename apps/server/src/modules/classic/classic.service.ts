@@ -218,7 +218,7 @@ export class ClassicService {
       this.prisma.bookmark.findMany({
         where,
         include: {
-          book: { select: { title: true, cover: true } },
+          book: { select: { title: true, cover: true, author: true, dynasty: true } },
           chapter: { select: { title: true, sortOrder: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -515,7 +515,7 @@ export class ClassicService {
       this.prisma.classicReadingNote.findMany({
         where,
         include: {
-          book: { select: { id: true, title: true } },
+          book: { select: { id: true, title: true, author: true, dynasty: true } },
           chapter: { select: { id: true, title: true } },
         },
         orderBy: { updatedAt: "desc" },
@@ -527,9 +527,20 @@ export class ClassicService {
     return { items, total, page, pageSize };
   }
 
-  async createNote(userId: string, bookId: string, dto: { chapterId: string; content: string }) {
+  async createNote(
+    userId: string,
+    bookId: string,
+    dto: { chapterId: string; content: string; position?: number; originalText?: string },
+  ) {
     return this.prisma.classicReadingNote.create({
-      data: { userId, bookId, chapterId: dto.chapterId, content: dto.content },
+      data: {
+        userId,
+        bookId,
+        chapterId: dto.chapterId,
+        content: dto.content,
+        position: dto.position,
+        originalText: dto.originalText,
+      },
     });
   }
 

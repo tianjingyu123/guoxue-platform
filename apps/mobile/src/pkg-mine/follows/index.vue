@@ -28,7 +28,7 @@
       <view class="follows-list">
         <!-- 加载态 -->
         <view v-if="loading" class="follows-empty">
-          <text class="empty-title">加载中...</text>
+          <AppLoading />
         </view>
         <!-- 错误态 -->
         <view v-else-if="error" class="follows-empty">
@@ -50,7 +50,7 @@
           @tap="goUser(user.id)"
         >
           <view class="user-avatar-wrap">
-            <image lazy-load class="user-avatar" :src="user.avatar || defaultAvatar" mode="aspectFill" />
+            <smart-avatar :src="user.avatar || defaultAvatar" :name="user.name" class="user-avatar" />
             <view v-if="user.isFollowing && user.isFollowedBy" class="mutual-badge">
               <app-icon name="users" :size="18" color="#fff" />
             </view>
@@ -74,9 +74,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { navigateTo } from '@/utils/router'
+import AppLoading from '@/components/common/app-loading.vue'
 import { mineApi, type FollowUserItem } from '@/lib/mine-data'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 
 const defaultAvatar = '/static/placeholder-avatar.png'
 
@@ -103,7 +106,8 @@ async function fetchData() {
   }
 }
 
-onMounted(fetchData)
+// 用 onShow：从他人主页取关返回时重拉，避免关注列表陈旧（onShow 首次进入也会触发，等价初始加载）
+onShow(fetchData)
 
 async function toggleFollow(user: FollowUserItem) {
   if (submittingId.value) return
@@ -152,7 +156,8 @@ function goUser(id: string) {
 
 <style lang="scss" scoped>
 .follows-page {
-  min-height: 100vh;
+  /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+  height: 100vh;
   background: #fff;
   display: flex;
   flex-direction: column;
@@ -194,6 +199,7 @@ function goUser(id: string) {
 .follows-scroll {
   flex: 1;
   height: 0;
+  min-height: 0;
 }
 .follows-list {
   padding: 32rpx;

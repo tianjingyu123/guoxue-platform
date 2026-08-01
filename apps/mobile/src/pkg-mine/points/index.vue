@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import { navigateTo } from '@/utils/router'
 import {
   pointsApi,
   type PointsInfo,
@@ -59,8 +61,9 @@ function fmt(n: number) {
 function goBack() {
   uni.navigateBack()
 }
+// 统一走 @/utils/router 的 navigateTo（自带失败兜底 toast），替代裸 uni.navigateTo
 function go(url: string) {
-  uni.navigateTo({ url })
+  navigateTo(url)
 }
 function handleExchange(item: PointsExchangeItem) {
   if (userPoints.value >= item.points) {
@@ -97,10 +100,10 @@ function confirmExchange() {
         <AppIcon name="arrow-left" :size="44" color="#2D2A26" />
       </view>
       <text class="nav-title">积分中心</text>
-      <text class="nav-link" @tap="go('/pkg-mine/points/history')">明细</text>
+      <text class="nav-link" @tap="go('/pkg-mine/points/history/index')">明细</text>
     </view>
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <scroll-view v-else scroll-y class="scroll" :style="{ height: 'calc(100vh - 92rpx - ' + statusBarHeight + 'px)' }">
       <!-- 积分余额卡片 -->
@@ -135,7 +138,7 @@ function confirmExchange() {
       <view class="section">
         <view class="section-head">
           <text class="section-title">如何获取积分</text>
-          <view class="section-more" @tap="go('/pkg-mine/points/tasks')">
+          <view class="section-more" @tap="go('/pkg-mine/points/tasks/index')">
             <text class="section-more-text">更多任务</text>
             <AppIcon name="chevron-right" :size="14" color="#8a8178" />
           </view>
@@ -160,7 +163,7 @@ function confirmExchange() {
               <AppIcon name="check-circle" :size="14" color="#22c55e" />
               <text class="task-done-text">已完成</text>
             </view>
-            <view v-else class="task-btn" @tap="go('/pkg-mine/points/tasks')">
+            <view v-else class="task-btn" @tap="go('/pkg-mine/points/tasks/index')">
               <text class="task-btn-text">{{ task.action }}</text>
             </view>
           </view>
@@ -171,7 +174,7 @@ function confirmExchange() {
       <view class="section">
         <view class="section-head">
           <text class="section-title">积分兑换</text>
-          <view class="section-more" @tap="go('/pkg-mine/points/exchange')">
+          <view class="section-more" @tap="go('/pkg-mine/points/exchange/index')">
             <text class="section-more-text">全部商品</text>
             <AppIcon name="chevron-right" :size="14" color="#8a8178" />
           </view>
@@ -208,7 +211,7 @@ function confirmExchange() {
       <view class="section">
         <view class="section-head">
           <text class="section-title">近期明细</text>
-          <view class="section-more" @tap="go('/pkg-mine/points/history')">
+          <view class="section-more" @tap="go('/pkg-mine/points/history/index')">
             <text class="section-more-text">全部记录</text>
             <AppIcon name="chevron-right" :size="14" color="#8a8178" />
           </view>
@@ -299,7 +302,8 @@ function confirmExchange() {
 .nav-link {
   font-size: 28rpx;
   color: #9a2e22;
-  width: 48rpx;
+  min-width: 48rpx;
+  white-space: nowrap;
   text-align: right;
 }
 .scroll {

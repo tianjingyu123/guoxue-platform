@@ -1,141 +1,167 @@
 <template>
-  <view class="page">
+  <view class="a9-page">
     <!-- 顶部导航 -->
-    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="nav-inner">
-        <view class="nav-btn" @click="goBack"><app-icon name="arrow-left" :size="20" color="#fff" /></view>
-        <text class="nav-title">排行榜</text>
-        <view class="nav-btn" />
+    <view class="a9-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="a9-nav-row">
+        <view class="a9-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+        <text class="a9-nav-title">排行榜{{ navSuffix }}</text>
+        <view class="a9-nav-btn" />
       </view>
     </view>
 
-    <!-- loading -->
-    <view v-if="loading" class="state">
-      <view class="spinner" /><text class="state-txt">加载中...</text>
-    </view>
-    <!-- error -->
-    <view v-else-if="error" class="state">
-      <app-icon name="alert-circle" :size="44" color="#d1d5db" />
-      <text class="state-txt">{{ error }}</text>
-      <view class="retry-btn" @click="load"><text class="retry-txt">重新加载</text></view>
-    </view>
-
-    <scroll-view v-else scroll-y class="scroll" :style="{ height: scrollHeight + 'px' }">
-      <!-- 赛事信息条 -->
-      <view class="info-bar">
-        <text v-if="title" class="info-title">{{ title }}</text>
-        <view class="info-meta">
-          <text v-if="totalParticipants > 0" class="info-sub">参赛 {{ totalParticipants }} 人</text>
-          <text v-if="promotedCount > 0" class="info-sub">晋级 {{ promotedCount }} 人</text>
-        </view>
+    <scroll-view scroll-y class="a9-body" :style="{ height: bodyHeight + 'px' }">
+      <!-- loading -->
+      <view v-if="loading" class="a9-state">
+        <view class="a9-spinner" /><text class="a9-state-txt">加载中…</text>
+      </view>
+      <!-- error -->
+      <view v-else-if="error" class="a9-state">
+        <app-icon name="alert-circle" :size="44" color="#d8cfc0" />
+        <text class="a9-state-txt">{{ error }}</text>
+        <view class="a9-retry" @tap="load"><text class="a9-retry-txt">重新加载</text></view>
       </view>
 
-      <template v-if="rankings.length > 0">
-        <!-- 前三名领奖台 -->
-        <view v-if="top3.length > 0" class="podium-card">
-          <view class="podium">
-            <!-- 亚军 -->
-            <view class="podium-item">
-              <template v-if="top3[1]">
-                <view class="pod-avatar silver">
-                  <image lazy-load v-if="top3[1].user?.avatar" :src="top3[1].user!.avatar!" class="pod-avatar-img" mode="aspectFill" />
-                  <app-icon v-else name="user" :size="24" color="#9ca3af" />
-                  <view class="pod-medal silver"><app-icon name="medal" :size="14" color="#fff" /></view>
-                </view>
-                <text class="pod-name">{{ top3[1].user?.nickname || '选手' }}</text>
-                <text class="pod-score silver-txt">{{ top3[1].score }}</text>
-                <text class="pod-tag">{{ promotionLabel[top3[1].status] }}</text>
-              </template>
-            </view>
-            <!-- 冠军 -->
-            <view class="podium-item champion">
-              <template v-if="top3[0]">
-                <view class="pod-avatar gold">
-                  <image lazy-load v-if="top3[0].user?.avatar" :src="top3[0].user!.avatar!" class="pod-avatar-img" mode="aspectFill" />
-                  <app-icon v-else name="crown" :size="32" color="#f59e0b" />
-                  <view class="pod-medal gold"><app-icon name="crown" :size="16" color="#fff" /></view>
-                </view>
-                <text class="pod-name bold">{{ top3[0].user?.nickname || '选手' }}</text>
-                <text class="pod-score gold-txt">{{ top3[0].score }}</text>
-                <text class="pod-tag gold-tag">{{ promotionLabel[top3[0].status] }}</text>
-              </template>
-            </view>
-            <!-- 季军 -->
-            <view class="podium-item">
-              <template v-if="top3[2]">
-                <view class="pod-avatar bronze">
-                  <image lazy-load v-if="top3[2].user?.avatar" :src="top3[2].user!.avatar!" class="pod-avatar-img" mode="aspectFill" />
-                  <app-icon v-else name="award" :size="24" color="#b45309" />
-                  <view class="pod-medal bronze"><app-icon name="award" :size="14" color="#fff" /></view>
-                </view>
-                <text class="pod-name">{{ top3[2].user?.nickname || '选手' }}</text>
-                <text class="pod-score bronze-txt">{{ top3[2].score }}</text>
-                <text class="pod-tag">{{ promotionLabel[top3[2].status] }}</text>
-              </template>
+      <template v-else>
+        <!-- 轮次切换（仅当赛事多 round 且已排名） -->
+        <scroll-view v-if="roundTabs.length > 1" scroll-x class="a9-rounds" :show-scrollbar="false">
+          <view class="a9-rounds-inner">
+            <view
+              v-for="r in roundTabs" :key="r.id"
+              class="a9-round" :class="{ on: activeRoundId === r.id }"
+              @tap="switchRound(r.id)"
+            >
+              <text class="a9-round-txt" :class="{ on: activeRoundId === r.id }">{{ r.label }}</text>
             </view>
           </view>
-        </view>
+        </scroll-view>
 
-        <!-- 我的排名 -->
-        <view v-if="myRank" class="my-rank" :class="{ promoted: myPromoted }">
-          <view class="my-no" :class="rankClass(myRank.rank)"><text class="my-no-txt">{{ myRank.rank }}</text></view>
-          <view class="my-avatar">
-            <image lazy-load v-if="myRank.user?.avatar" :src="myRank.user!.avatar!" class="my-avatar-img" mode="aspectFill" />
-            <app-icon v-else name="user" :size="24" color="#c41e3a" />
+        <template v-if="rankings.length > 0">
+          <!-- 荣誉领奖台 -->
+          <view v-if="top3.length > 0" class="a9-podium-wrap">
+            <text class="a9-podium-ttl">— 荣 誉 领 奖 台 —</text>
+            <view class="a9-podium">
+              <!-- 亚军 -->
+              <view class="a9-stand silver">
+                <template v-if="top3[1]">
+                  <view class="a9-ava silver">
+                    <image v-if="top3[1].user?.avatar" :src="top3[1].user!.avatar!" class="a9-ava-img" mode="aspectFill" />
+                    <text v-else class="a9-ava-initial">{{ initial(top3[1]) }}</text>
+                  </view>
+                  <text class="a9-stand-nm">{{ name(top3[1]) }}</text>
+                  <text class="a9-stand-sc">{{ top3[1].score }} 分</text>
+                  <view class="a9-base silver"><text class="a9-base-no">2</text></view>
+                </template>
+              </view>
+              <!-- 冠军 -->
+              <view class="a9-stand gold">
+                <template v-if="top3[0]">
+                  <view class="a9-crown"><app-icon name="crown" :size="22" color="#c9a96e" /></view>
+                  <view class="a9-ava gold">
+                    <image v-if="top3[0].user?.avatar" :src="top3[0].user!.avatar!" class="a9-ava-img" mode="aspectFill" />
+                    <text v-else class="a9-ava-initial gold">{{ initial(top3[0]) }}</text>
+                  </view>
+                  <text class="a9-stand-nm gold-nm">{{ name(top3[0]) }}</text>
+                  <text class="a9-stand-sc">{{ top3[0].score }} 分</text>
+                  <view class="a9-base gold"><text class="a9-base-no">1</text></view>
+                </template>
+              </view>
+              <!-- 季军 -->
+              <view class="a9-stand bronze">
+                <template v-if="top3[2]">
+                  <view class="a9-ava bronze">
+                    <image v-if="top3[2].user?.avatar" :src="top3[2].user!.avatar!" class="a9-ava-img" mode="aspectFill" />
+                    <text v-else class="a9-ava-initial">{{ initial(top3[2]) }}</text>
+                  </view>
+                  <text class="a9-stand-nm">{{ name(top3[2]) }}</text>
+                  <text class="a9-stand-sc">{{ top3[2].score }} 分</text>
+                  <view class="a9-base bronze"><text class="a9-base-no">3</text></view>
+                </template>
+              </view>
+            </view>
           </view>
-          <view class="my-info">
-            <text class="my-title">我的排名</text>
-            <text class="my-sub">超越了 {{ beatPct }}% 的选手</text>
-          </view>
-          <view class="my-right">
-            <text class="my-score">{{ myRank.score }}</text>
-            <view class="my-badge" :class="{ promoted: myPromoted }"><text class="my-badge-txt">{{ promotionLabel[myRank.status] }}</text></view>
-          </view>
-        </view>
-        <view v-if="myRank && myAwarded" class="cert-row" @click="go('/competition/' + compId + '/certificate?rankingId=' + myRank.id)">
-          <app-icon name="award" :size="16" color="#c41e3a" />
-          <text class="cert-txt">查看证书</text>
-          <app-icon name="chevron-right" :size="14" color="#c41e3a" />
-        </view>
 
-        <!-- 搜索筛选 -->
-        <view class="filter">
-          <view class="search-box">
-            <app-icon name="search" :size="16" color="#9ca3af" />
-            <input v-model="searchQuery" class="search-input" placeholder="搜索选手..." placeholder-class="ph" />
-          </view>
-          <view class="tabs">
-            <view v-for="t in tabs" :key="t.id" class="tab" :class="{ active: activeTab === t.id }" @click="activeTab = t.id">
-              <text class="tab-txt" :class="{ active: activeTab === t.id }">{{ t.label }}</text>
+          <!-- 我的排名（醒目高亮） -->
+          <view v-if="myRank" class="a9-myrank" :class="{ out: !myPromoted }">
+            <view class="a9-my-rk">
+              <text class="a9-my-rk-no" :class="{ out: !myPromoted }">{{ myRank.rank }}</text>
+              <text class="a9-my-rk-lbl">我的名次</text>
             </view>
+            <view class="a9-my-av">
+              <image v-if="myRank.user?.avatar" :src="myRank.user!.avatar!" class="a9-my-av-img" mode="aspectFill" />
+              <text v-else class="a9-my-av-initial">{{ initial(myRank) }}</text>
+            </view>
+            <view class="a9-my-info">
+              <text class="a9-my-name">{{ name(myRank) }}（我）</text>
+              <text v-if="myPromoted" class="a9-tag up">✓ {{ promotionLabel[myRank.status] }}</text>
+              <text v-else class="a9-tag out">{{ promotionLabel[myRank.status] }}</text>
+              <text v-if="beatPct > 0" class="a9-my-beat">超越了 {{ beatPct }}% 的选手</text>
+            </view>
+            <text class="a9-my-sc" :class="{ out: !myPromoted }">{{ myRank.score }}</text>
           </view>
-        </view>
 
-        <!-- 排行榜列表 -->
-        <view class="rank-card">
-          <view v-for="(item, i) in filteredRankings" :key="item.id" class="rank-row" :class="{ first: i === 0 }">
-            <view class="rank-no" :class="rankClass(item.rank)"><text class="rank-no-txt">{{ item.rank }}</text></view>
-            <view class="rank-avatar">
-              <image lazy-load v-if="item.user?.avatar" :src="item.user!.avatar!" class="rank-avatar-img" mode="aspectFill" />
-              <app-icon v-else name="user" :size="20" color="#9ca3af" />
-            </view>
-            <text class="rank-name">{{ item.user?.nickname || '选手' }}</text>
-            <view class="rank-right">
-              <text class="rank-score">{{ item.score }}</text>
-              <text class="rank-status" :class="{ promoted: item.status !== 'ELIMINATED' }">{{ promotionLabel[item.status] }}</text>
+          <!-- 筛选 -->
+          <view class="a9-filters">
+            <view
+              v-for="t in tabs" :key="t.id"
+              class="a9-f" :class="{ on: activeTab === t.id }"
+              @tap="activeTab = t.id"
+            >
+              <text class="a9-f-txt" :class="{ on: activeTab === t.id }">{{ t.label }}</text>
             </view>
           </view>
-          <view v-if="filteredRankings.length === 0" class="mini-empty"><text class="mini-empty-txt">未找到选手</text></view>
+
+          <!-- 榜单列表 -->
+          <view class="a9-rows">
+            <view
+              v-for="item in filteredRankings" :key="item.id"
+              class="a9-lrow" :class="{ out: item.status === 'ELIMINATED', me: isMe(item) }"
+            >
+              <view class="a9-no" :class="rankClass(item.rank)">
+                <text class="a9-no-txt" :class="rankClass(item.rank)">{{ item.rank }}</text>
+              </view>
+              <view class="a9-lav">
+                <image v-if="item.user?.avatar" :src="item.user!.avatar!" class="a9-lav-img" mode="aspectFill" />
+                <text v-else class="a9-lav-initial">{{ initial(item) }}</text>
+              </view>
+              <view class="a9-lnm">
+                <text class="a9-lnm-txt">{{ name(item) }}<text v-if="isMe(item)" class="a9-me-mark">（我）</text></text>
+                <text class="a9-st" :class="item.status === 'ELIMINATED' ? 'out' : 'up'">{{ promotionLabel[item.status] }}</text>
+              </view>
+              <text class="a9-lsc" :class="{ gold: item.status !== 'ELIMINATED', out: item.status === 'ELIMINATED' }">{{ item.score }}</text>
+            </view>
+            <view v-if="filteredRankings.length === 0" class="a9-mini-empty">
+              <text class="a9-mini-empty-txt">未找到符合条件的选手</text>
+            </view>
+          </view>
+
+          <!-- 荣誉/结果入口 -->
+          <view class="a9-cta">
+            <!-- 获奖/晋级：证书入口 -->
+            <view v-if="myRank && myAwarded" class="a9-cta-btn gold" @tap="goCertificate">
+              <app-icon name="award" :size="17" color="#fff" />
+              <text class="a9-cta-txt gold">查看我的荣誉证书</text>
+            </view>
+            <!-- 淘汰：引导看解析 + 邀请同台 -->
+            <template v-else-if="myRank">
+              <view class="a9-cta-btn primary" @tap="goAnalysis">
+                <text class="a9-cta-txt primary">再接再厉 · 查看逐题解析</text>
+              </view>
+              <view class="a9-cta-btn ghost" @tap="goInvite">
+                <text class="a9-cta-txt ghost">邀请好友来同台竞技</text>
+              </view>
+            </template>
+          </view>
+        </template>
+
+        <!-- 空态 -->
+        <view v-else class="a9-empty">
+          <app-icon name="award" :size="48" color="#d8cfc0" />
+          <text class="a9-empty-txt">暂无排名</text>
+          <text class="a9-empty-sub">赛事结束、成绩核算后公布</text>
         </view>
       </template>
 
-      <!-- 空态 -->
-      <view v-else class="empty">
-        <app-icon name="trophy" :size="48" color="#d1d5db" />
-        <text class="empty-txt">暂无排名，赛事结束后公布</text>
-      </view>
-
-      <view class="safe-bottom" />
+      <view class="a9-safe" />
     </scroll-view>
   </view>
 </template>
@@ -146,16 +172,16 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
 import {
-  competitionApi, promotionLabel,
-  type Ranking, type Registration, type Competition,
-} from '@/lib/competition-data'
+  competitionApi, promotionLabel, roundTypeLabel,
+  type Ranking, type Registration, type Competition, type CompetitionRound,
+} from '@/pkg-competition/lib/competition-data'
 
 const statusBarHeight = ref(0)
-const sysH = ref(667)
-const scrollHeight = computed(() => sysH.value - statusBarHeight.value - 44)
+const winH = ref(667)
+const bodyHeight = computed(() => winH.value - statusBarHeight.value - 44)
 
 const compId = ref('')
-const roundId = ref<string | undefined>(undefined)
+const activeRoundId = ref<string | undefined>(undefined)
 const loading = ref(true)
 const error = ref('')
 
@@ -165,18 +191,32 @@ const detail = ref<Competition | null>(null)
 
 const tabs = [
   { id: 'all', label: '全部' },
-  { id: 'promoted', label: '已晋级' },
+  { id: 'promoted', label: '晋级' },
   { id: 'eliminated', label: '未晋级' },
 ] as const
 const activeTab = ref<'all' | 'promoted' | 'eliminated'>('all')
-const searchQuery = ref('')
 
-const title = computed(() => detail.value?.title || '')
-const totalParticipants = computed(() => detail.value?._count?.registrations ?? 0)
-const promotedCount = computed(() => rankings.value.filter((r) => r.status !== 'ELIMINATED').length)
+// ── 轮次链（诚实降级：只画后端真实存在的非报名轮次） ──
+const roundTabs = computed(() => {
+  const rounds = (detail.value?.rounds || [])
+    .filter((r) => r.type !== 'REGISTRATION')
+    .slice()
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+  return rounds.map((r: CompetitionRound) => ({
+    id: r.id,
+    label: r.title || roundTypeLabel[r.type],
+  }))
+})
+const navSuffix = computed(() => {
+  const cur = roundTabs.value.find((r) => r.id === activeRoundId.value)
+  return cur ? ' · ' + cur.label : ''
+})
 
 const top3 = computed(() => rankings.value.slice(0, 3))
 
+function isMe(r: Ranking) {
+  return !!myReg.value?.userId && r.userId === myReg.value.userId
+}
 const myRank = computed(() => {
   const uid = myReg.value?.userId
   if (!uid) return null
@@ -185,11 +225,12 @@ const myRank = computed(() => {
 const myPromoted = computed(() => !!myRank.value && myRank.value.status !== 'ELIMINATED')
 const myAwarded = computed(() => {
   const s = myRank.value?.status
-  return s === 'CHAMPION' || s === 'RUNNER_UP' || s === 'THIRD_PLACE' || s === 'PROMOTED'
+  // 有证书链接即可见；否则获奖/晋级态（非淘汰）亦可见
+  return !!myRank.value?.certificateUrl || (!!s && s !== 'ELIMINATED')
 })
 const beatPct = computed(() => {
   const total = rankings.value.length
-  if (!myRank.value || total === 0) return 0
+  if (!myRank.value || total <= 1) return 0
   return Math.round(((total - myRank.value.rank) / total) * 100)
 })
 
@@ -197,14 +238,20 @@ const filteredRankings = computed(() => rankings.value.filter((r) => {
   if (activeTab.value === 'promoted') return r.status !== 'ELIMINATED'
   if (activeTab.value === 'eliminated') return r.status === 'ELIMINATED'
   return true
-}).filter((r) => (r.user?.nickname || '').includes(searchQuery.value)))
+}))
 
 function rankClass(rank: number) {
   if (rank === 1) return 'r1'
   if (rank === 2) return 'r2'
   if (rank === 3) return 'r3'
-  if (rank <= 10) return 'top10'
   return ''
+}
+function name(r: Ranking) {
+  return r.user?.nickname || '选手'
+}
+function initial(r: Ranking) {
+  const n = r.user?.nickname || ''
+  return n ? n.charAt(0) : '手'
 }
 
 async function load() {
@@ -212,7 +259,7 @@ async function load() {
   error.value = ''
   try {
     const [rk, reg, c] = await Promise.all([
-      competitionApi.rankings(compId.value, roundId.value),
+      competitionApi.rankings(compId.value, activeRoundId.value),
       competitionApi.myRegistration(compId.value).catch(() => null),
       competitionApi.detail(compId.value).catch(() => null),
     ])
@@ -226,111 +273,159 @@ async function load() {
   }
 }
 
-function go(p: string) { navigateTo(p) }
+function switchRound(rid: string) {
+  if (activeRoundId.value === rid) return
+  activeRoundId.value = rid
+  activeTab.value = 'all'
+  load()
+}
+
+function goCertificate() {
+  if (!myRank.value) return
+  navigateTo(`/pkg-competition/certificate/index?id=${compId.value}&rankingId=${myRank.value.id}`)
+}
+function goAnalysis() {
+  navigateTo(`/pkg-competition/score-detail/index?id=${compId.value}`)
+}
+function goInvite() {
+  navigateTo(`/pkg-competition/detail/index?id=${compId.value}`)
+}
 function goBack() { navigateBack() }
 
 onLoad((q) => {
   compId.value = (q?.id as string) || ''
-  roundId.value = (q?.roundId as string) || undefined
-  uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0; sysH.value = e.windowHeight || 667 } })
+  activeRoundId.value = (q?.roundId as string) || undefined
+  uni.getSystemInfo({ success: (e) => { statusBarHeight.value = e.statusBarHeight || 0; winH.value = e.windowHeight || 667 } })
   load()
 })
 </script>
 
 <style lang="scss" scoped>
-.page { min-height: 100vh; background: #f5f5f5; }
-.nav-bar { background: var(--brand); position: sticky; top: 0; z-index: 50; }
-.nav-inner { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
-.nav-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
-.nav-title { color: #fff; font-size: 16px; font-weight: 500; }
-.scroll { width: 100%; }
+$paper: #faf8f5;
+$card: #fff;
+$red: #c41e3a;
+$red2: #a01830;
+$gold: #c9a96e;
+$goldD: #a5883f;
+$ink: #2c2c2c;
+$sub: #6e6e73;
+$mute: #999;
+$line: #ece7df;
 
-.state { padding: 100px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.state-txt { color: #9ca3af; font-size: 14px; }
-.spinner { width: 32px; height: 32px; border: 3px solid #f0d0d4; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.a9-page { height: 100vh; background: $paper; display: flex; flex-direction: column; }
+
+/* 顶部导航 */
+.a9-nav { background: $paper; border-bottom: 1rpx solid $line; }
+.a9-nav-row { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; }
+.a9-nav-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
+.a9-nav-title { font-family: "Songti SC", "STSong", serif; font-size: 17px; font-weight: 700; color: $ink; letter-spacing: 1px; }
+
+.a9-body { flex: 1; height: 0; min-height: 0; }
+
+/* 三态 */
+.a9-state { padding: 100px 40px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.a9-state-txt { color: $mute; font-size: 14px; }
+.a9-spinner { width: 30px; height: 30px; border: 3px solid #ede9e2; border-top-color: $red; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.retry-btn { margin-top: 4px; padding: 8px 24px; background: var(--brand); border-radius: 8px; }
-.retry-txt { color: #fff; font-size: 14px; }
+.a9-retry { margin-top: 4px; padding: 8px 24px; border: 1rpx solid $red; border-radius: 999px; }
+.a9-retry-txt { color: $red; font-size: 14px; }
 
-.info-bar { background: var(--brand); padding: 8px 16px 24px; }
-.info-title { display: block; color: #fff; font-size: 15px; font-weight: 600; margin-bottom: 6px; }
-.info-meta { display: flex; align-items: center; gap: 12px; }
-.info-sub { color: rgba(255,255,255,0.8); font-size: 13px; }
+/* 轮次链 */
+.a9-rounds { white-space: nowrap; padding: 12px 0 4px; }
+.a9-rounds-inner { display: inline-flex; gap: 8px; padding: 0 20px; }
+.a9-round { padding: 6px 16px; background: $card; border: 1rpx solid $line; border-radius: 999px; }
+.a9-round.on { background: #f1e9d8; border-color: #e3d5b0; }
+.a9-round-txt { font-size: 13px; color: $sub; }
+.a9-round-txt.on { color: $goldD; font-weight: 700; }
 
-.podium-card { margin: -8px 16px 0; background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06); }
-.podium { display: flex; align-items: flex-end; justify-content: center; gap: 16px; }
-.podium-item { flex: 1; text-align: center; }
-.podium-item.champion { margin-bottom: 8px; }
-.pod-avatar { position: relative; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; overflow: visible; }
-.pod-avatar.silver, .pod-avatar.bronze { width: 56px; height: 56px; }
-.pod-avatar.gold { width: 80px; height: 80px; background: #fef3c7; }
-.pod-avatar.silver { background: #f3f4f6; }
-.pod-avatar.bronze { background: #fef9ec; }
-.pod-avatar-img { width: 100%; height: 100%; border-radius: 50%; }
-.pod-medal { position: absolute; bottom: -2px; right: -2px; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.pod-medal.gold { width: 28px; height: 28px; background: #f59e0b; }
-.pod-medal.silver { background: #d1d5db; }
-.pod-medal.bronze { background: #b45309; }
-.pod-name { display: block; font-size: 13px; font-weight: 500; color: #1a1a1a; }
-.pod-name.bold { font-size: 15px; font-weight: 700; }
-.pod-score { display: block; font-size: 18px; font-weight: 700; }
-.pod-score.gold-txt { color: #f59e0b; font-size: 24px; }
-.pod-score.silver-txt { color: #6b7280; }
-.pod-score.bronze-txt { color: #b45309; }
-.pod-tag { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
-.pod-tag.gold-tag { color: #f59e0b; }
+/* 领奖台 */
+.a9-podium-wrap { background: linear-gradient(180deg, #fbf3e2, $paper); padding: 18px 20px 0; }
+.a9-podium-ttl { display: block; text-align: center; font-family: "Songti SC", "STSong", serif; font-size: 13px; color: $goldD; font-weight: 700; letter-spacing: 4px; margin-bottom: 16px; }
+.a9-podium { display: flex; align-items: flex-end; justify-content: center; gap: 8px; }
+.a9-stand { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; }
 
-.my-rank { margin: 16px 16px 0; display: flex; align-items: center; gap: 12px; background: #fff; border: 2rpx solid #e5e7eb; border-radius: 14px; padding: 16px; }
-.my-rank.promoted { border-color: #86efac; background: #f0fdf4; }
-.my-no { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #f3f4f6; }
-.my-no.r1, .my-no.r2, .my-no.r3 { background: #fef3c7; }
-.my-no.top10 { background: rgba(196,30,58,0.1); }
-.my-no-txt { font-size: 16px; font-weight: 700; color: #6b7280; }
-.my-avatar { width: 48px; height: 48px; border-radius: 50%; background: rgba(196,30,58,0.1); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.my-avatar-img { width: 100%; height: 100%; }
-.my-info { flex: 1; }
-.my-title { display: block; font-size: 14px; font-weight: 500; color: #1a1a1a; }
-.my-sub { display: block; font-size: 13px; color: #9ca3af; margin-top: 2px; }
-.my-right { text-align: right; }
-.my-score { display: block; font-size: 20px; font-weight: 700; color: var(--brand); }
-.my-badge { display: inline-block; background: #f3f4f6; border-radius: 6px; padding: 1px 8px; margin-top: 2px; }
-.my-badge.promoted { background: #dcfce7; }
-.my-badge-txt { font-size: 11px; color: #6b7280; }
-.my-badge.promoted .my-badge-txt { color: #15803d; }
+.a9-crown { margin-bottom: 2px; }
+.a9-ava { border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; background: linear-gradient(135deg, #e8dcc4, #d8c9a8); }
+.a9-ava.gold { width: 66px; height: 66px; border: 3px solid $gold; box-shadow: 0 0 0 4px #f1e9d8, 0 6px 16px rgba(201,169,110,.4); }
+.a9-ava.silver { width: 52px; height: 52px; border: 3px solid #c0c0c0; }
+.a9-ava.bronze { width: 52px; height: 52px; border: 3px solid #cb9c78; }
+.a9-ava-img { width: 100%; height: 100%; }
+.a9-ava-initial { font-family: "Songti SC", "STSong", serif; font-size: 18px; font-weight: 700; color: #fff; }
+.a9-ava-initial.gold { font-size: 22px; }
 
-.cert-row { margin: 12px 16px 0; display: flex; align-items: center; justify-content: center; gap: 4px; background: #fff; border: 1rpx solid rgba(196,30,58,0.3); border-radius: 12px; padding: 12px 0; }
-.cert-txt { font-size: 14px; color: var(--brand); font-weight: 500; }
+.a9-stand-nm { display: block; font-size: 12px; font-weight: 700; color: $ink; margin-top: 7px; }
+.a9-stand-nm.gold-nm { color: $goldD; }
+.a9-stand-sc { display: block; font-size: 11px; color: $mute; margin-top: 1px; }
+.a9-base { width: 100%; margin-top: 7px; border-radius: 10px 10px 0 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 8px; }
+.a9-base.gold { height: 80px; background: linear-gradient(#d8bd82, $gold); }
+.a9-base.silver { height: 58px; background: linear-gradient(#d4d4d4, #b8b8b8); }
+.a9-base.bronze { height: 46px; background: linear-gradient(#d6ac84, #c08d63); }
+.a9-base-no { font-family: "Songti SC", "STSong", serif; font-size: 22px; font-weight: 800; color: #fff; }
 
-.filter { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.search-box { display: flex; align-items: center; gap: 8px; background: #fff; border: 1rpx solid #e5e7eb; border-radius: 10px; padding: 8px 12px; }
-.search-input { flex: 1; font-size: 14px; color: #1a1a1a; }
-.ph { color: #9ca3af; }
-.tabs { display: flex; gap: 8px; }
-.tab { flex: 1; padding: 7px 0; text-align: center; background: #ececec; border-radius: 8px; }
-.tab.active { background: var(--brand); }
-.tab-txt { font-size: 12px; color: #4b5563; }
-.tab-txt.active { color: #fff; }
+/* 我的排名 */
+.a9-myrank { margin: 14px 20px; background: $card; border: 2rpx solid $red; border-radius: 16px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 6px 16px rgba(196,30,58,.14); }
+.a9-myrank.out { border-color: #ddd; box-shadow: none; }
+.a9-my-rk { min-width: 46px; display: flex; flex-direction: column; align-items: center; }
+.a9-my-rk-no { font-family: "Songti SC", "STSong", serif; font-size: 24px; font-weight: 800; color: $red; line-height: 1.1; }
+.a9-my-rk-no.out { color: $mute; }
+.a9-my-rk-lbl { font-size: 10px; color: $mute; margin-top: 1px; }
+.a9-my-av { width: 42px; height: 42px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #e8dcc4, #d8c9a8); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.a9-my-av-img { width: 100%; height: 100%; }
+.a9-my-av-initial { font-family: "Songti SC", "STSong", serif; font-size: 16px; font-weight: 700; color: #fff; }
+.a9-my-info { flex: 1; }
+.a9-my-name { display: block; font-size: 14px; font-weight: 700; color: $ink; }
+.a9-tag { display: inline-block; font-size: 11px; padding: 1px 9px; border-radius: 999px; margin-top: 4px; }
+.a9-tag.up { color: $goldD; background: #f1e9d8; border: 1rpx solid #e3d5b0; }
+.a9-tag.out { color: $mute; background: #f2f2f2; border: 1rpx solid #e6e6e6; }
+.a9-my-beat { display: block; font-size: 11px; color: $sub; margin-top: 4px; }
+.a9-my-sc { font-family: "Songti SC", "STSong", serif; font-size: 18px; font-weight: 800; color: $red; }
+.a9-my-sc.out { color: $mute; }
 
-.rank-card { margin: 0 16px; background: #fff; border-radius: 14px; overflow: hidden; }
-.rank-row { display: flex; align-items: center; gap: 12px; padding: 12px; border-top: 1rpx solid #f0f0f0; }
-.rank-row.first { border-top: none; }
-.rank-no { width: 32px; height: 32px; border-radius: 50%; background: #f3f4f6; display: flex; align-items: center; justify-content: center; }
-.rank-no.r1 { background: #fef3c7; } .rank-no.r2 { background: #f3f4f6; } .rank-no.r3 { background: #fef9ec; }
-.rank-no.top10 { background: rgba(196,30,58,0.1); }
-.rank-no-txt { font-size: 14px; font-weight: 700; color: #6b7280; }
-.rank-no.r1 .rank-no-txt { color: #f59e0b; } .rank-no.r2 .rank-no-txt { color: #6b7280; } .rank-no.r3 .rank-no-txt { color: #b45309; }
-.rank-no.top10 .rank-no-txt { color: var(--brand); }
-.rank-avatar { width: 40px; height: 40px; border-radius: 50%; background: #f3f4f6; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.rank-avatar-img { width: 100%; height: 100%; }
-.rank-name { flex: 1; font-size: 14px; font-weight: 500; color: #1a1a1a; }
-.rank-right { text-align: right; }
-.rank-score { display: block; font-size: 16px; font-weight: 700; color: #1a1a1a; }
-.rank-status { display: block; font-size: 11px; color: #9ca3af; }
-.rank-status.promoted { color: #16a34a; }
-.mini-empty { padding: 32px 0; text-align: center; }
-.mini-empty-txt { color: #9ca3af; font-size: 14px; }
+/* 筛选 */
+.a9-filters { display: flex; gap: 8px; padding: 0 20px 12px; }
+.a9-f { flex: 1; text-align: center; padding: 8px 0; border-radius: 10px; background: $card; border: 1rpx solid #e2ddd4; }
+.a9-f.on { background: #f1e9d8; border-color: #e3d5b0; }
+.a9-f-txt { font-size: 13px; color: $sub; }
+.a9-f-txt.on { color: $goldD; font-weight: 700; }
 
-.empty { padding: 80px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.empty-txt { color: #9ca3af; font-size: 14px; }
-.safe-bottom { height: 24px; }
+/* 榜单 */
+.a9-rows { padding: 0 20px; }
+.a9-lrow { display: flex; align-items: center; gap: 12px; background: $card; border: 1rpx solid $line; border-radius: 12px; padding: 11px 14px; margin-bottom: 8px; }
+.a9-lrow.out { opacity: .55; }
+.a9-lrow.me { border-color: #edc0c6; background: #fffafb; }
+.a9-no { width: 26px; text-align: center; flex-shrink: 0; }
+.a9-no-txt { font-family: "Songti SC", "STSong", serif; font-size: 16px; font-weight: 800; color: $mute; }
+.a9-no-txt.r1, .a9-no-txt.r2, .a9-no-txt.r3 { color: $goldD; }
+.a9-lav { width: 36px; height: 36px; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #e8dcc4, #d8c9a8); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.a9-lav-img { width: 100%; height: 100%; }
+.a9-lav-initial { font-family: "Songti SC", "STSong", serif; font-size: 15px; font-weight: 700; color: #fff; }
+.a9-lnm { flex: 1; min-width: 0; }
+.a9-lnm-txt { font-size: 14px; font-weight: 600; color: $ink; }
+.a9-me-mark { font-size: 12px; color: $red; }
+.a9-st { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; margin-top: 3px; }
+.a9-st.up { background: #f1e9d8; color: $goldD; }
+.a9-st.out { background: #f2f2f2; color: $mute; }
+.a9-lsc { font-family: "Songti SC", "STSong", serif; font-size: 15px; font-weight: 800; color: $ink; }
+.a9-lsc.gold { color: $goldD; }
+.a9-lsc.out { color: $mute; }
+.a9-mini-empty { padding: 32px 0; text-align: center; }
+.a9-mini-empty-txt { color: $mute; font-size: 14px; }
+
+/* CTA */
+.a9-cta { padding: 14px 20px 18px; }
+.a9-cta-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 13px 0; border-radius: 999px; }
+.a9-cta-btn.gold { background: linear-gradient(135deg, #d8c28a, $gold); box-shadow: 0 6px 16px rgba(201,169,110,.3); }
+.a9-cta-btn.primary { background: linear-gradient(135deg, $red, $red2); }
+.a9-cta-btn.ghost { background: $card; border: 1rpx solid #e2ddd4; margin-top: 10px; }
+.a9-cta-txt { font-size: 15px; font-weight: 700; }
+.a9-cta-txt.gold { color: #fff; }
+.a9-cta-txt.primary { color: #fff; }
+.a9-cta-txt.ghost { color: $sub; }
+
+/* 空态 */
+.a9-empty { padding: 90px 40px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.a9-empty-txt { color: $sub; font-size: 15px; font-weight: 600; }
+.a9-empty-sub { color: $mute; font-size: 12px; }
+
+.a9-safe { height: 30px; }
 </style>

@@ -13,6 +13,7 @@ const mockLiveSvc = {
   listCourseRooms: jest.fn().mockResolvedValue([{ id: "r1", courseId: "c1" }]),
   getRoom: jest.fn().mockResolvedValue({ id: "r1", title: "国学直播", status: "LIVE" }),
   updateRoom: jest.fn().mockResolvedValue({ id: "r1", title: "更新标题" }),
+  updateRoomProducts: jest.fn().mockResolvedValue({ success: true, count: 2, productIds: ["p2", "p1"] }),
   startLive: jest.fn().mockResolvedValue({ pushUrl: "rtmp://...", playUrl: "https://..." }),
   getStreamUrls: jest.fn().mockResolvedValue({ pushUrl: "rtmp://...", playUrl: "https://..." }),
   getPlayUrl: jest.fn().mockResolvedValue({ playUrl: "https://...flv" }),
@@ -42,6 +43,10 @@ const mockLiveSvc = {
   handleAuditCallback: jest.fn().mockResolvedValue({ success: true }),
   listAuditLogs: jest.fn().mockResolvedValue([{ id: "log1", result: "PASS" }]),
   giftRanking: jest.fn().mockResolvedValue([]),
+  getStreamerSettings: jest.fn().mockResolvedValue({ profile: { name: "直播间" } }),
+  saveStreamerSettings: jest.fn().mockResolvedValue({ success: true }),
+  getHosts: jest.fn().mockResolvedValue({ items: [] }),
+  getPreview: jest.fn().mockResolvedValue({ id: "r1", isBooked: true }),
 };
 
 const mockQualitySvc = {
@@ -77,13 +82,14 @@ describe("LiveController", () => {
     const dto: any = { title: "国学直播" };
     const result: any = await ctrl.createRoom(req, dto);
     expect(result.title).toBe("国学直播");
-    expect(mockLiveSvc.createRoom).toHaveBeenCalledWith("u1", dto);
+    expect(mockLiveSvc.createRoom).toHaveBeenCalledWith("u1", dto, false);
   });
 
   it("GET /live/rooms — 直播列表", async () => {
     const result: any = await ctrl.listRooms("LIVE", undefined, undefined, 1 as any, 20 as any);
     expect(result).toHaveLength(1);
-    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20, undefined, undefined);
+    // 末位 undefined = scope（非管理员不生效·公共池过滤在 service 层）
+    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith("LIVE", 1, 20, undefined, undefined, undefined, undefined);
   });
 
   it("GET /live/rooms — 按课程过滤", async () => {
@@ -92,8 +98,36 @@ describe("LiveController", () => {
     expect(mockLiveSvc.listCourseRooms).toHaveBeenCalledWith("c1", 1, 20, undefined);
   });
 
+  it("GET /live/rooms?followed=1 — 透传当前登录用户", async () => {
+    const req: any = { user: { id: "viewer1", roles: [] } };
+    await ctrl.listRooms(undefined, undefined, undefined, 1 as any, 20 as any, undefined, undefined, req, "1");
+    expect(mockLiveSvc.listRooms).toHaveBeenCalledWith(
+      undefined, 1, 20, undefined, undefined, undefined, "viewer1",
+    );
+  });
+
+  it("PUT /live/settings — 保存主播设置", async () => {
+    const req: any = { user: { id: "u1" } };
+    const body = { profile: { name: "新直播间" }, notify: { reward: true } };
+    const result: any = await ctrl.saveStreamerSettings(req, body);
+    expect(result.success).toBe(true);
+    expect(mockLiveSvc.saveStreamerSettings).toHaveBeenCalledWith("u1", body);
+  });
+
+  it("GET /live/hosts — 可选登录身份透传已关注筛选", async () => {
+    const req: any = { user: { id: "viewer1" } };
+    await ctrl.getHosts("followed", req);
+    expect(mockLiveSvc.getHosts).toHaveBeenCalledWith("followed", "viewer1");
+  });
+
+  it("GET /live/preview/:id — 可选登录身份透传预约状态", async () => {
+    const req: any = { user: { id: "viewer1" } };
+    await ctrl.getPreview("r1", req);
+    expect(mockLiveSvc.getPreview).toHaveBeenCalledWith("r1", "viewer1");
+  });
+
   it("GET /live/rooms/:id — 直播间详情", async () => {
-    const result: any = await ctrl.getRoom("r1");
+    const result: any = await ctrl.getRoom("r1", { user: undefined } as any);
     expect(result.status).toBe("LIVE");
   });
 
@@ -104,10 +138,30 @@ describe("LiveController", () => {
     expect(result.title).toBe("更新标题");
   });
 
-  it("PUT /live/rooms/:id/start — 开始直播", async () => {
-    const result: any = await ctrl.startRoom("r1");
+  it("PUT /live/rooms/:id/products — 房主保存商品顺序", async () => {
+    const req: any = { user: { id: "u1", roles: [] } };
+    const result: any = await ctrl.updateRoomProducts(req, "r1", { productIds: ["p2", "p1"] });
+    expect(result.count).toBe(2);
+    expect(mockLiveSvc.updateRoomProducts).toHaveBeenCalledWith("u1", "r1", ["p2", "p1"], false);
+  });
+
+  it("PUT /live/rooms/:id/products — 管理员权限标记透传 service", async () => {
+    const req: any = { user: { id: "admin1", roles: ["OPERATION_ADMIN"] } };
+    await ctrl.updateRoomProducts(req, "r1", { productIds: [] });
+    expect(mockLiveSvc.updateRoomProducts).toHaveBeenCalledWith("admin1", "r1", [], true);
+  });
+
+  it("PUT /live/rooms/:id/start — 房主开播（登录即可·房主/管理员校验下沉 service）", async () => {
+    const req: any = { user: { id: "u1", roles: [] } };
+    const result: any = await ctrl.startRoom("r1", req);
     expect(result.pushUrl).toBeTruthy();
-    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1");
+    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1", "u1", false);
+  });
+
+  it("PUT /live/rooms/:id/start — 管理员开播（isAdmin=true 透传）", async () => {
+    const req: any = { user: { id: "admin1", roles: ["SUPER_ADMIN"] } };
+    await ctrl.startRoom("r1", req);
+    expect(mockLiveSvc.startLive).toHaveBeenCalledWith("r1", "admin1", true);
   });
 
   it("GET /live/rooms/:id/stream-urls — 推拉流地址", async () => {
@@ -122,9 +176,11 @@ describe("LiveController", () => {
     expect(result.playUrl).toBeTruthy();
   });
 
-  it("PUT /live/rooms/:id/end — 结束直播", async () => {
-    const result: any = await ctrl.endRoom("r1");
+  it("PUT /live/rooms/:id/end — 房主结束直播（校验下沉 service）", async () => {
+    const req: any = { user: { id: "u1", roles: [] } };
+    const result: any = await ctrl.endRoom("r1", req);
     expect(result.status).toBe("ENDED");
+    expect(mockLiveSvc.endRoom).toHaveBeenCalledWith("r1", "u1", false);
   });
 
   it("PUT /live/rooms/:id/replay — 设置回放", async () => {
@@ -183,6 +239,24 @@ describe("LiveController", () => {
   it("GET /live/rooms/:id/bookings — 预约人数", async () => {
     const result: any = await ctrl.getBookingCount("r1");
     expect(result.count).toBe(50);
+  });
+
+  it("GET /live/rooms/:id/muted-users — 房主读取禁言名单", async () => {
+    const req: any = { user: { id: "host1", roles: [] } };
+    await ctrl.listMutedUsers("r1", req);
+    expect(mockLiveSvc.listMutedUsers).toHaveBeenCalledWith("r1", "host1", false);
+  });
+
+  it("GET /live/rooms/:id/muted-users — 管理员权限透传到服务层", async () => {
+    const req: any = { user: { id: "admin1", roles: ["OPERATION_ADMIN"] } };
+    await ctrl.listMutedUsers("r1", req);
+    expect(mockLiveSvc.listMutedUsers).toHaveBeenCalledWith("r1", "admin1", true);
+  });
+
+  it("DELETE /live/rooms/:id/mute/:userId — 解除禁言", async () => {
+    const req: any = { user: { id: "host1", roles: [] } };
+    await ctrl.unmuteUser("r1", "u1", req);
+    expect(mockLiveSvc.unmuteUser).toHaveBeenCalledWith("r1", "u1", "host1", false);
   });
 
   it("POST /live/callback — 腾讯云回调", async () => {

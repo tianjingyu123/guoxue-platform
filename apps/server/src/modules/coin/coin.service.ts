@@ -10,13 +10,11 @@ import { SystemService } from "../system/system.service";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 
-/** 默认充值档位（ConfigSystem 未配置时的兜底） */
+/** 默认充值档位（ConfigSystem 未配置时的兜底）——董事长拍板 2026-07-10：100元/200元/500元 三档 + 自定义 */
 const DEFAULT_RECHARGE_TIERS = [
-  { amountRmb: 6, amountCoin: 60, bonus: 0 },
-  { amountRmb: 18, amountCoin: 180, bonus: 0 },
-  { amountRmb: 68, amountCoin: 680, bonus: 0 },
-  { amountRmb: 198, amountCoin: 1980, bonus: 0 },
-  { amountRmb: 648, amountCoin: 6480, bonus: 0 },
+  { amountRmb: 100, amountCoin: 1000, bonus: 0 },
+  { amountRmb: 200, amountCoin: 2000, bonus: 0 },
+  { amountRmb: 500, amountCoin: 5000, bonus: 0 },
 ];
 
 @Injectable()
@@ -82,12 +80,13 @@ export class CoinService {
   }
 
   /** 充值（管理员手动充值 或 支付回调触发） */
-  async recharge(userId: string, dto: { amountCoin: number; payMethod?: string; orderNo?: string; description?: string }) {
+  async recharge(userId: string, dto: { amountCoin: number; amountRmb?: number; payMethod?: string; orderNo?: string; description?: string }) {
     if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "充值币数必须大于0");
 
     await this.getOrCreateAccount(userId);
 
-    const coinRate = await this.getCoinRate();
+    // 微信回调已携带下单时的实付金额快照，不应再依赖可能已变化或暂时不可用的实时汇率。
+    const coinRate = dto.amountRmb === undefined ? await this.getCoinRate() : null;
 
     // 交互式事务：余额用 atomic increment，避免读-写竞态
     const [updatedAccount, recharge, transaction] = await this.prisma.$transaction(async (tx) => {
@@ -101,7 +100,7 @@ export class CoinService {
       const rec = await tx.virtualCoinRecharge.create({
         data: {
           userId,
-          amountRmb: dto.amountCoin / coinRate,
+          amountRmb: dto.amountRmb ?? dto.amountCoin / (coinRate as number),
           amountCoin: dto.amountCoin,
           payMethod: dto.payMethod || "ADMIN",
           orderNo: dto.orderNo || `ADMIN_${Date.now()}`,
@@ -161,6 +160,43 @@ export class CoinService {
         },
       });
       return { account: acc!, transaction: txn };
+    };
+
+    if (prismaTx) return run(prismaTx);
+    return this.prisma.$transaction(run);
+  }
+
+  /**
+   * 收入入账（打赏分成等业务收入直接进金币余额，可用于全平台虚拟币消费）。
+   * 董事长拍板 2026-07-10：打赏金币与平台虚拟币消费产品通用。
+   * 调用方可传入 prismaTx 以合并到外层事务（如送礼：扣赠礼者币 + 主播入账原子化）。
+   */
+  async income(
+    userId: string,
+    dto: { amountCoin: number; scene: string; refId?: string; description?: string },
+    prismaTx?: Prisma.TransactionClient,
+  ) {
+    if (dto.amountCoin <= 0) throw new BusinessException(ErrorCode.COIN_AMOUNT_INVALID, "收入币数必须大于0");
+
+    await this.getOrCreateAccount(userId);
+
+    const run = async (tx: Prisma.TransactionClient) => {
+      const acc = await tx.virtualCoinAccount.update({
+        where: { userId },
+        data: { balance: { increment: dto.amountCoin } },
+      });
+      const txn = await tx.virtualCoinTransaction.create({
+        data: {
+          userId,
+          type: "INCOME",
+          amountCoin: dto.amountCoin,
+          balanceAfter: acc.balance,
+          scene: dto.scene as Prisma.VirtualCoinTransactionCreateInput["scene"],
+          refId: dto.refId,
+          description: dto.description,
+        },
+      });
+      return { account: acc, transaction: txn };
     };
 
     if (prismaTx) return run(prismaTx);
@@ -274,6 +310,25 @@ export class CoinService {
       }
     }
     return DEFAULT_RECHARGE_TIERS;
+  }
+
+  /**
+   * 按「基础充值币数」解析对应档位的赠币。
+   * 🔴 赠币是营销（充得多送得多），只加币、绝不加价 —— 实付永远按基础币数收，
+   *    赠币由服务端按档位权威计算，绝不能相信前端把 (基础+赠) 当作要付款的币数传上来
+   *    （那会让用户为赠币多付钱）。基础币数精确匹配某档位才送；自定义金额不匹配→不送。
+   */
+  private async resolveRechargeBonus(baseCoin: number): Promise<number> {
+    try {
+      const tiers = await this.getRechargeTiers();
+      const tier = (tiers as Array<{ amountCoin?: number; bonus?: number }>).find(
+        (t) => Number(t.amountCoin) === baseCoin,
+      );
+      const bonus = tier ? Number(tier.bonus ?? 0) : 0;
+      return bonus > 0 ? bonus : 0;
+    } catch {
+      return 0; // 档位不可用时不影响到账，只是不送赠币
+    }
   }
 
   /** 获取当前汇率（国学币:人民币），优先从 ConfigSystem 读取 */
@@ -407,32 +462,42 @@ export class CoinService {
   // 充值支付由商城模块统一处理，支付回调通过 ShopService.handlePaymentNotify → CoinService.handleRechargeCallback
 
   /** 处理充值支付回调（由支付通知中心调用） */
-  async handleRechargeCallback(body: Record<string, unknown>) {
-    if (body.trade_state !== "SUCCESS") return;
+  async handleRechargeCallback(body: Record<string, unknown>): Promise<boolean> {
+    if (body.trade_state !== "SUCCESS") return true;
 
     let attach: Record<string, unknown> = {};
     try {
       attach = typeof body.attach === "string" ? JSON.parse(body.attach) : (body.attach as Record<string, unknown>) || {};
-    } catch (err) { this.logger.warn("解析充值回调attach失败", err); }
-
-    if (attach.type !== "COIN_RECHARGE") return;
-
-    const userId = attach.userId as string;
-    const amountCoin = attach.amountCoin as number;
-
-    if (!userId || !amountCoin) {
-      this.logger.error("充值回调参数缺失", attach);
-      return;
+    } catch (err) {
+      this.logger.warn("解析充值回调attach失败", err);
+      return false;
     }
 
+    if (attach.type !== "COIN_RECHARGE") return false;
+
+    const userId = attach.userId as string;
+    // 🔴 attach.amountCoin 是用户实付对应的「基础币数」，不含赠币。
+    //    赠币由服务端按档位算并只在到账时加，绝不参与实付金额核对（防「为赠币多付钱」）。
+    const baseCoin = Number(attach.amountCoin);
     const orderNo = body.out_trade_no as string;
+
+    if (
+      typeof userId !== "string" || !userId
+      || !Number.isInteger(baseCoin) || baseCoin <= 0 || baseCoin > 500_000
+      || typeof orderNo !== "string" || !/^RC[A-Za-z0-9_-]{8,40}$/.test(orderNo)
+    ) {
+      this.logger.error("充值回调参数缺失", attach);
+      return false;
+    }
+
     const lockKey = `recharge:lock:${orderNo}`;
 
     // 分布式锁防并发重复处理
     const locked = await this.redis.setNX(lockKey, "1", 30);
     if (!locked) {
       this.logger.warn(`充值回调重复处理被拦截: ${orderNo}`);
-      return;
+      // 不能向微信确认成功：持锁的首轮处理仍可能失败，必须让渠道稍后重投。
+      return false;
     }
 
     try {
@@ -440,33 +505,45 @@ export class CoinService {
       const existing = await this.prisma.virtualCoinRecharge.findUnique({
         where: { orderNo },
       });
-      if (existing?.status === "PAID") return;
+      if (existing?.status === "PAID") {
+        await this.redis.del(`recharge:intent:${orderNo}`);
+        return true;
+      }
 
-      const amountRmb = amountCoin / (await this.getCoinRate());
+      // 新单在下单时把应付「分」快照写进微信 attach，避免支付过程中后台改汇率导致已付款却拒绝入账。
+      // 兼容旧单：没有 amountFen 时仍按当前服务端汇率计算。
+      const attachFen = Number(attach.amountFen);
+      const expectedFen = Number.isInteger(attachFen) && attachFen > 0
+        ? attachFen
+        : Math.round((baseCoin / (await this.getCoinRate())) * 100);
+      const amountRmb = expectedFen / 100;
 
       // M2 金额比对：attach 是我方下单侧写入的期望值，入账前必须与微信实付金额(amount.total·分)核对
       const wxTotal = (body.amount as Record<string, unknown> | undefined)?.total;
-      if (typeof wxTotal === "number" && Math.abs(wxTotal / 100 - amountRmb) >= 0.01) {
+      if (!Number.isInteger(wxTotal) || wxTotal !== expectedFen) {
         this.logger.error(
-          `【资金对账·金额不符】充值回调实付金额与应付金额不一致，拒绝入账: orderNo=${orderNo}, userId=${userId}, 实付=${wxTotal / 100}, 应付=${amountRmb}`,
+          `【资金对账·金额不符】充值回调实付金额与应付金额不一致，拒绝入账: orderNo=${orderNo}, userId=${userId}, 实付分=${String(wxTotal)}, 应付=${amountRmb}`,
         );
-        return;
+        return false;
       }
 
+      // 新单使用下单时的赠币快照，避免支付过程中运营配置变化导致到账数量漂移；旧单按当前档位兼容。
+      const attachedBonus = Number(attach.bonusCoin);
+      const bonus = Number.isInteger(attachedBonus) && attachedBonus >= 0
+        ? attachedBonus
+        : await this.resolveRechargeBonus(baseCoin);
+      const creditCoin = baseCoin + bonus;
       await this.recharge(userId, {
-        amountCoin,
+        amountCoin: creditCoin,
+        amountRmb,
         payMethod: "WECHAT",
         orderNo,
-        description: `微信支付充值${amountCoin}币`,
+        description: bonus > 0 ? `微信支付充值${baseCoin}币+赠${bonus}币` : `微信支付充值${baseCoin}币`,
       });
 
-      // 更新充值金额
-      await this.prisma.virtualCoinRecharge.update({
-        where: { orderNo },
-        data: { amountRmb, status: "PAID", paidAt: new Date() },
-      });
-
-      this.logger.log(`用户 ${userId} 充值 ${amountCoin} 币成功, 微信订单: ${orderNo}`);
+      await this.redis.del(`recharge:intent:${orderNo}`);
+      this.logger.log(`用户 ${userId} 充值 ${creditCoin} 币成功（实付${amountRmb}元）, 微信订单: ${orderNo}`);
+      return true;
     } finally {
       await this.redis.del(lockKey);
     }

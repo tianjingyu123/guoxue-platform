@@ -2,8 +2,7 @@
   <view class="gs-page">
     <!-- 加载中 -->
     <view v-if="loading" class="state-box">
-      <view class="state-spin" />
-      <text class="state-text">加载中...</text>
+      <AppLoading />
     </view>
     <!-- 加载失败 -->
     <view v-else-if="error" class="state-box">
@@ -18,6 +17,12 @@
     <template v-else-if="data">
       <!-- 成功头部 -->
       <view class="header">
+        <view class="gs-nav">
+          <view class="gs-nav-back" hover-class="nav-hover" @tap="onBack">
+            <app-icon name="chevron-left" :size="40" color="#fff" />
+          </view>
+          <text class="gs-nav-title">拼团结果</text>
+        </view>
         <view class="success-icon">
           <app-icon name="check-circle" :size="96" color="#22c55e" />
         </view>
@@ -29,25 +34,24 @@
       <!-- 商品卡片 -->
       <view class="card">
         <view class="prod">
-          <image lazy-load class="prod-cover" :src="data.productCover" mode="aspectFill" />
+          <smart-cover class="prod-cover" :src="data.productCover" :title="data.productName" type="product" deco :deco-size="44" />
           <view class="prod-info">
             <text class="prod-name">{{ data.productName }}</text>
             <view class="prod-price">
-              <text class="price-now">¥{{ data.price }}</text>
-              <text class="price-old">¥{{ data.originalPrice }}</text>
-              <text class="save-tag">省¥{{ data.savedAmount }}</text>
+              <text class="price-now">¥{{ formatPrice(data.price) }}</text>
+              <text class="price-old">¥{{ formatPrice(data.originalPrice) }}</text>
+              <text class="save-tag">省¥{{ formatPrice(data.savedAmount) }}</text>
             </view>
           </view>
         </view>
         <view class="row">
           <text class="row-label">成团成员</text>
           <view class="members">
-            <image lazy-load
+            <smart-avatar
               v-for="(m, i) in data.members"
               :key="i"
               class="member-avatar"
               :src="m.avatar"
-              mode="aspectFill"
             />
             <text class="member-count">共{{ data.members.length }}人</text>
           </view>
@@ -113,8 +117,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { navigateTo } from '@/utils/router'
+import { navigateTo, goBack } from '@/utils/router'
+import SmartCover from '@/components/common/smart-cover.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { shopApi } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 interface GroupBuySuccessData {
   productCover: string
@@ -164,7 +172,10 @@ function viewOrder() {
   navigateTo(`/orders/${data.value.orderId}`)
 }
 function goShop() {
-  navigateTo('/shop')
+  navigateTo('/mall')
+}
+function onBack() {
+  goBack()
 }
 async function retryLoad() {
   loading.value = true
@@ -186,13 +197,36 @@ async function retryLoad() {
 }
 .header {
   background: linear-gradient(to bottom right, #22c55e, #16a34a);
-  padding: 96rpx 32rpx 192rpx;
+  padding: 0 32rpx 192rpx;
   text-align: center;
+}
+.gs-nav {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  height: 88rpx;
+  padding-top: var(--status-bar-height, 0px);
+  text-align: left;
+}
+.gs-nav-back {
+  width: 56rpx;
+  height: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gs-nav-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #fff;
+}
+.nav-hover {
+  opacity: 0.6;
 }
 .success-icon {
   width: 160rpx;
   height: 160rpx;
-  margin: 0 auto 32rpx;
+  margin: 48rpx auto 32rpx;
   background: #fff;
   border-radius: 50%;
   display: flex;
@@ -233,6 +267,7 @@ async function retryLoad() {
   width: 144rpx;
   height: 144rpx;
   border-radius: 16rpx;
+  overflow: hidden;
   background: #f0ece2;
 }
 .prod-info {
@@ -438,17 +473,6 @@ async function retryLoad() {
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-}
-.state-spin {
-  width: 64rpx;
-  height: 64rpx;
-  border: 4rpx solid #e8e3db;
-  border-top-color: var(--brand);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 .state-icon {
   width: 120rpx;

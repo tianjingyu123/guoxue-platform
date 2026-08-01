@@ -7,6 +7,7 @@ import { RedisService } from "../../redis/redis.service";
 import { InsightService } from "../track/insight.service";
 import { CreateStationDto, UpdateStationDto, CreateOperatorDto, SetStationTemplateDto, UpdateOperatorBrandDto, ApplyStationDto } from "./station.dto";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { StationPinnedService } from "./station-pinned.service";
 
 /** 模版定义 */
 export const STATION_TEMPLATES = {
@@ -65,9 +66,11 @@ export class StationService {
     private prisma: PrismaService,
     private redis: RedisService,
     private insight: InsightService,
+    private stationPinned: StationPinnedService,
   ) {}
 
   private readonly BRAND_TTL = 600; // 品牌配置缓存10分钟
+  private readonly PINNED_TTL = 120; // 站长主推位公开缓存2分钟（兼顾新鲜度与公开访问性能·挡懒失活高频写）
 
   // ───────── 分站管理 ─────────
 
@@ -89,24 +92,139 @@ export class StationService {
 
   /** 用户自助申请开通分站 */
   async applyStation(userId: string, dto: ApplyStationDto) {
-    // 检查是否已有分站
-    const existing = await this.prisma.station.findFirst({ where: { userId } });
-    if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "你已开通分站，无需重复申请");
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // userId/code 都有唯一索引；事务内先给出可读错误，数据库唯一约束继续做最终兜底。
+        const existing = await tx.station.findFirst({ where: { userId } });
+        if (existing) throw new BusinessException(ErrorCode.BAD_REQUEST, "你已有分站，可直接继续支付或续费");
 
-    // 检查推广码是否已被占用
-    const codeExists = await this.prisma.station.findUnique({ where: { code: dto.code } });
-    if (codeExists) throw new BusinessException(ErrorCode.BAD_REQUEST, "推广码已被占用，请更换");
+        const codeExists = await tx.station.findUnique({ where: { code: dto.code } });
+        if (codeExists) throw new BusinessException(ErrorCode.BAD_REQUEST, "推广码已被占用，请更换");
 
-    return this.prisma.station.create({
-      data: {
-        userId,
-        name: dto.name,
-        code: dto.code,
-        intro: dto.intro,
-        logo: dto.logo,
-        status: "PENDING",
-      },
+        let operatorId: string | undefined;
+        if (dto.operatorId) {
+          const operator = await tx.operator.findUnique({
+            where: { id: dto.operatorId },
+            select: { id: true, status: true, expireAt: true, containQuota: true, usedQuota: true },
+          });
+          const now = new Date();
+          if (!operator || operator.status !== "ACTIVE" || (operator.expireAt && operator.expireAt <= now)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商邀请码无效或已过期");
+          }
+
+          // 真实 Station.operatorId 数量是配额真源；usedQuota 只作 CAS 镜像，创建时顺手校准历史漂移。
+          const actualUsed = await tx.station.count({ where: { operatorId: operator.id } });
+          const currentUsed = actualUsed;
+          if (operator.containQuota <= 0 || currentUsed >= operator.containQuota) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "该运营商的分站名额已用完");
+          }
+          const reserved = await tx.operator.updateMany({
+            where: { id: operator.id, status: "ACTIVE", usedQuota: operator.usedQuota },
+            data: { usedQuota: currentUsed + 1 },
+          });
+          if (reserved.count === 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商名额状态已变化，请刷新后重试");
+          }
+          operatorId = operator.id;
+        }
+
+        return tx.station.create({
+          data: {
+            userId,
+            name: dto.name,
+            code: dto.code,
+            intro: dto.intro,
+            logo: dto.logo,
+            status: "PENDING",
+            operatorId,
+          },
+        });
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "你已有分站或推广码已被占用，请刷新后重试");
+      }
+      throw error;
+    }
+  }
+
+  /** 公开站长方案：展示金额与支付订单读取同一个 CommissionConfig 真源。 */
+  async getStationPlan() {
+    const [plan, period] = await Promise.all([
+      this.prisma.commissionConfig.findUnique({
+        where: { configKey: "station_master_price" },
+        select: { rateA: true },
+      }),
+      this.prisma.configSystem.findUnique({
+        where: { configKey: "station.billing_period_months" },
+        select: { configValue: true },
+      }),
+    ]);
+    const price = Number(plan?.rateA ?? 0);
+    const configuredMonths = Number(period?.configValue ?? 12);
+    const serviceMonths = Number.isFinite(configuredMonths) && configuredMonths > 0
+      ? Math.floor(configuredMonths)
+      : 12;
+    if (!plan || !(price > 0)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "站长方案暂不可用，请联系平台客服");
+    }
+    return {
+      price: Math.round(price * 100) / 100,
+      serviceMonths,
+    };
+  }
+
+  /** 公开运营商方案：价格、名额与服务期均读取支付链同一真源。 */
+  async getOperatorPlan() {
+    const [plan, period] = await Promise.all([
+      this.prisma.commissionConfig.findUnique({
+        where: { configKey: "operator_SILVER" },
+        select: { rateA: true, rateB: true },
+      }),
+      this.prisma.configSystem.findUnique({
+        where: { configKey: "station.billing_period_months" },
+        select: { configValue: true },
+      }),
+    ]);
+    const price = Number(plan?.rateA ?? 0);
+    const quotaTotal = Math.max(0, Math.floor(Number(plan?.rateB ?? 0)));
+    const configuredMonths = Number(period?.configValue ?? 12);
+    const serviceMonths = Number.isFinite(configuredMonths) && configuredMonths > 0
+      ? Math.floor(configuredMonths)
+      : 12;
+    if (!plan || !(price > 0) || quotaTotal <= 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商方案暂不可用，请联系平台客服");
+    }
+    return {
+      level: "SILVER",
+      price: Math.round(price * 100) / 100,
+      quotaTotal,
+      serviceMonths,
+      managementRate: 0.1,
+      allocationMode: "INVITE",
+    };
+  }
+
+  /** 公开校验运营商邀请，不返回用户身份或联系方式。 */
+  async getOperatorInvite(operatorId: string) {
+    const operator = await this.prisma.operator.findUnique({
+      where: { id: operatorId },
+      select: { id: true, brandName: true, status: true, expireAt: true, containQuota: true, usedQuota: true },
     });
+    const now = new Date();
+    if (!operator || operator.status !== "ACTIVE" || (operator.expireAt && operator.expireAt <= now)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "运营商邀请码无效或已过期");
+    }
+    const actualUsed = await this.prisma.station.count({ where: { operatorId: operator.id } });
+    const used = actualUsed;
+    if (operator.containQuota <= 0 || used >= operator.containQuota) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该运营商的分站名额已用完");
+    }
+    return {
+      operatorId: operator.id,
+      operatorName: operator.brandName || "平台运营商",
+      availableQuota: operator.containQuota - used,
+    };
   }
 
   async updateStation(id: string, dto: UpdateStationDto) {
@@ -196,7 +314,7 @@ export class StationService {
     const customers = await this.insight.buildCustomerProfiles(
       relations.map((r) => ({ userId: r.userId, boundAt: r.createdAt })),
     );
-    return { customers, total };
+    return { customers, total, page, pageSize };
   }
 
   /** 单个归属客户的最近行为时间线（先校验归属关系，防越权窥探） */
@@ -255,16 +373,27 @@ export class StationService {
     return station;
   }
 
-  async listStations(rawPage = 1, rawPageSize = 20) {
+  async listStations(rawPage = 1, rawPageSize = 20, keyword?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
+    // keyword 服务端筛选（分站名/推广码/站长昵称）·不传即全量，向后兼容
+    const where: Prisma.StationWhereInput = {};
+    if (keyword?.trim()) {
+      const k = keyword.trim();
+      where.OR = [
+        { name: { contains: k, mode: "insensitive" } },
+        { code: { contains: k, mode: "insensitive" } },
+        { user: { nickname: { contains: k, mode: "insensitive" } } },
+      ];
+    }
     const [stations, total] = await Promise.all([
       this.prisma.station.findMany({
+        where,
         include: { user: { select: { id: true, nickname: true } } },
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
       }),
-      this.prisma.station.count(),
+      this.prisma.station.count({ where }),
     ]);
     return { stations, total, page, pageSize };
   }
@@ -518,6 +647,24 @@ export class StationService {
       orderBy: { publishedAt: "desc" },
       include: { components: { orderBy: { sortOrder: "asc" } } },
     });
+  }
+
+  /**
+   * 通过推广码获取分站【站长主推位】（公开·用户侧渲染）。
+   * 站长在 pinned-manage 锁定的 9 板块×6 位主推内容 → C 端"站长精选"分区真实露出。
+   * 只返回有已锁内容的板块（filled>0）；无分站/无内容返回空数组（前端诚实降级不渲染）。
+   */
+  async getPublishedPinnedBoards(code: string) {
+    const cacheKey = `station:pinned-public:${code}`;
+    const cached = await this.redis.getJson<any>(cacheKey);
+    if (cached) return cached;
+
+    const station = await this.prisma.station.findUnique({ where: { code }, select: { id: true } });
+    if (!station) return [];
+    const boards = await this.stationPinned.getBoards(station.id);
+    const result = (boards as Array<{ filled: number }>).filter((b) => b.filled > 0);
+    await this.redis.setJson(cacheKey, result, this.PINNED_TTL);
+    return result;
   }
 
   // ───────── 运营商品牌与小程序 ─────────

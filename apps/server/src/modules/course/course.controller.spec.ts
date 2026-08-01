@@ -84,8 +84,27 @@ describe("CourseController", () => {
 
   it("GET /courses — 课程列表", async () => {
     const q: any = { page: 1, pageSize: 20 };
-    const result: any = await ctrl.list(q);
+    const req: any = { user: undefined }; // 游客
+    const result: any = await ctrl.list(req, q);
     expect(result).toHaveLength(1);
+  });
+
+  it("GET /courses — 非管理员传 auditStatus=PENDING 被忽略（不泄未过审内容）", async () => {
+    const q: any = { page: 1, pageSize: 20, auditStatus: "PENDING" };
+    const req: any = { user: { id: "u1", roles: [] } };
+    await ctrl.list(req, q);
+    expect(mockCourseSvc.listCourses).toHaveBeenCalledWith(
+      expect.objectContaining({ auditStatus: undefined }),
+    );
+  });
+
+  it("GET /courses — 管理员 status=PENDING 透传为 auditStatus（审核队列不再落到已通过）", async () => {
+    const q: any = { page: 1, pageSize: 20, status: "PENDING" };
+    const req: any = { user: { id: "admin", roles: ["SUPER_ADMIN"] } };
+    await ctrl.list(req, q);
+    expect(mockCourseSvc.listCourses).toHaveBeenCalledWith(
+      expect.objectContaining({ auditStatus: "PENDING" }),
+    );
   });
 
   it("GET /courses/my — 我购买的课程", async () => {
@@ -113,7 +132,7 @@ describe("CourseController", () => {
   });
 
   it("GET /courses/:id — 课程详情", async () => {
-    const result: any = await ctrl.detail("c1");
+    const result: any = await ctrl.detail("c1", { user: undefined } as any);
     expect(result.title).toBe("国学入门");
   });
 

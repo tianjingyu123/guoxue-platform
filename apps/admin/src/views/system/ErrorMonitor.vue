@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
 import { trackErrorApi } from '@/api'
+import { exportCSV } from '@/utils/export'
 
 interface ByDayItem {
   date: string
@@ -95,6 +97,27 @@ async function fetchData() {
   }
 }
 
+// 导出当前页错误明细为 CSV（客户端导出已加载数据，无需额外接口）
+function exportDetails() {
+  const items = data.value?.items ?? []
+  if (!items.length) { ElMessage.warning('当前页暂无可导出的错误明细'); return }
+  const rows = items.map((it) => ({
+    time: formatDate(it.createdAt),
+    path: it.path || '-',
+    msg: payloadMsg(it.payload),
+    source: payloadSource(it.payload),
+    user: it.userId || '匿名',
+  }))
+  exportCSV(`前端错误明细-近${days.value}天-第${page.value}页-${Date.now()}`, [
+    { label: '时间', prop: 'time' },
+    { label: '页面', prop: 'path' },
+    { label: '消息', prop: 'msg' },
+    { label: '来源', prop: 'source' },
+    { label: '用户', prop: 'user' },
+  ], rows)
+  ElMessage.success('已导出当前页错误明细')
+}
+
 // 切换统计窗口天数：重置回第 1 页
 function onDaysChange() {
   page.value = 1
@@ -113,19 +136,27 @@ onMounted(fetchData)
   <div class="page">
     <div class="toolbar">
       <h3>前端错误监控</h3>
-      <el-radio-group
-        v-model="days"
-        :disabled="loading"
-        @change="onDaysChange"
-      >
-        <el-radio-button
-          v-for="d in DAY_OPTIONS"
-          :key="d"
-          :value="d"
+      <div style="display:flex;gap:12px;align-items:center">
+        <el-radio-group
+          v-model="days"
+          :disabled="loading"
+          @change="onDaysChange"
         >
-          近{{ d }}天
-        </el-radio-button>
-      </el-radio-group>
+          <el-radio-button
+            v-for="d in DAY_OPTIONS"
+            :key="d"
+            :value="d"
+          >
+            近{{ d }}天
+          </el-radio-button>
+        </el-radio-group>
+        <el-button
+          :disabled="loading || !data || !data.items?.length"
+          @click="exportDetails"
+        >
+          导出明细
+        </el-button>
+      </div>
     </div>
 
     <!-- 错误态：加载失败 + 重试 -->

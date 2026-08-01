@@ -46,7 +46,7 @@
       <view class="list">
         <!-- 加载态 -->
         <view v-if="loading" class="empty">
-          <text class="empty-txt">加载中...</text>
+          <AppLoading />
         </view>
         <!-- 错误态 -->
         <view v-else-if="error" class="empty">
@@ -114,7 +114,7 @@
             <view class="renew-right">
               <view v-if="m.price > 0" class="renew-price">
                 <text class="renew-price-label">续费价格</text>
-                <text class="renew-price-num">¥{{ m.price }}</text>
+                <text class="renew-price-num">¥{{ formatPrice(m.price) }}</text>
               </view>
               <view class="renew-btn" :class="{ 'renew-btn-amber': isExpiring(m) }" @tap="goRenew(m)">
                 <app-icon name="refresh-cw" :size="14" color="#fff" />
@@ -138,8 +138,10 @@
 import { ref, computed, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi, type MembershipItem } from '@/lib/mine-data'
+import { formatPrice } from '@/utils/format'
 
 type MembershipStatus = 'active' | 'expiring' | 'expired'
 
@@ -193,7 +195,8 @@ function goExpiryNotice() {
   navigateTo('/notifications')
 }
 function goOrders() {
-  navigateTo('/orders/center')
+  // 统一订单入口（原 /orders/center 老原型冗余页已下线，会员订单在统一列表按类型展示）
+  navigateTo('/orders')
 }
 function goVip() {
   navigateTo('/vip')

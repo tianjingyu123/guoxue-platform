@@ -1,12 +1,51 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { commissionApi } from "@/api";
 
-// 汇总对象字段在模板中被直接参与除法/货币格式化（formatCurrency 需 number），
-// 收敛为强类型会引发多处模板 "possibly undefined" 连锁报错，故保留 any 作边界。
-const summary = ref<any>({});
+// 后端 getPlatformFeeSummary 真实返回：{ totalRecords, totalAmount, totalPlatformFee, byType: [{ type, platformFee }] }
+interface ByTypeRow { type: string; platformFee: number }
+interface FeeSummary {
+  totalRecords?: number
+  totalAmount?: number
+  totalPlatformFee?: number
+  byType?: ByTypeRow[]
+}
+
+const summary = ref<FeeSummary>({});
 const loading = ref(false);
 const error = ref(false);
+
+// 收入类型翻译（PlatformFeeRecord.type：订单大写枚举 + 圈子侧小写配置键）
+const TYPE_LABELS: Record<string, string> = {
+  COURSE: "课程订单",
+  PRODUCT: "商品订单",
+  MEMBER: "会员购买",
+  CIRCLE: "圈子收入",
+  BOT: "智能体调用",
+  REFUND: "退款冲正",
+  course: "课程收入",
+  product: "商品收入",
+  circle_join: "付费入圈",
+  circle_join_referral: "入圈推广",
+  gift: "直播打赏",
+  question: "付费提问",
+  peek: "围观答案",
+  audio_call: "音频连麦",
+  bounty: "悬赏咨询",
+  knowledge_revenue: "知识付费",
+};
+function typeLabel(t: string) { return TYPE_LABELS[t] || t; }
+
+const byType = computed(() => {
+  const rows = Array.isArray(summary.value.byType) ? summary.value.byType : [];
+  return [...rows].sort((a, b) => Number(b.platformFee || 0) - Number(a.platformFee || 0));
+});
+
+const avgRate = computed(() => {
+  const amount = Number(summary.value.totalAmount || 0);
+  const fee = Number(summary.value.totalPlatformFee || 0);
+  return amount > 0 ? ((fee / amount) * 100).toFixed(1) + "%" : "—";
+});
 
 onMounted(() => fetchSummary());
 
@@ -15,7 +54,7 @@ async function fetchSummary() {
   error.value = false;
   try {
     const { data } = await commissionApi.getPlatformFeeSummary();
-    summary.value = data ?? {};
+    summary.value = (data ?? {}) as FeeSummary;
   } catch {
     error.value = true;
     summary.value = {};
@@ -24,8 +63,8 @@ async function fetchSummary() {
   }
 }
 
-function formatCurrency(v: number) {
-  return `¥${(v || 0).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function formatCurrency(v: number | undefined | null) {
+  return `¥${Number(v || 0).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 </script>
 
@@ -75,7 +114,7 @@ function formatCurrency(v: number) {
       <el-col :span="6">
         <el-statistic
           title="来源总金额"
-          :value="formatCurrency(summary.totalSourceAmount)"
+          :value="formatCurrency(summary.totalAmount)"
         >
           <template #prefix>
             <span style="color:#67c23a">📊</span>
@@ -85,7 +124,7 @@ function formatCurrency(v: number) {
       <el-col :span="6">
         <el-statistic
           title="抽成笔数"
-          :value="summary.totalCount ?? 0"
+          :value="Number(summary.totalRecords ?? 0).toLocaleString('zh-CN')"
         >
           <template #prefix>
             <span style="color:#409eff">📝</span>
@@ -95,7 +134,7 @@ function formatCurrency(v: number) {
       <el-col :span="6">
         <el-statistic
           title="平均抽成率"
-          :value="summary.totalSourceAmount ? ((summary.totalPlatformFee / summary.totalSourceAmount) * 100).toFixed(2) + '%' : '-'"
+          :value="avgRate"
         >
           <template #prefix>
             <span style="color:#f56c6c">📈</span>
@@ -107,53 +146,37 @@ function formatCurrency(v: number) {
     <el-divider />
 
     <h3>按收入类型分拆</h3>
+    <!-- 后端 byType 只有 type + platformFee 两个字段，不虚构"来源金额/比例/笔数"分拆列 -->
     <el-table
-      :data="summary.breakdown || []"
+      :data="byType"
       border
       stripe
-      style="margin-top:12px"
+      style="margin-top:12px;max-width:560px"
     >
+      <template #empty>
+        <el-empty
+          description="暂无抽成数据"
+          :image-size="80"
+        />
+      </template>
       <el-table-column
-        prop="sourceType"
         label="收入类型"
-        width="180"
-      />
+        min-width="200"
+      >
+        <template #default="{ row }">
+          {{ typeLabel(row.type) }}
+        </template>
+      </el-table-column>
       <el-table-column
         label="平台抽成"
-        width="180"
+        width="200"
+        align="right"
       >
         <template #default="{ row }">
-          {{ formatCurrency(row.platformFee) }}
+          <span style="font-weight:600">{{ formatCurrency(row.platformFee) }}</span>
         </template>
       </el-table-column>
-      <el-table-column
-        label="来源金额"
-        width="180"
-      >
-        <template #default="{ row }">
-          {{ formatCurrency(row.sourceAmount) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="抽成比例"
-        width="120"
-      >
-        <template #default="{ row }">
-          {{ row.sourceAmount ? ((row.platformFee / row.sourceAmount) * 100).toFixed(2) + '%' : '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="count"
-        label="笔数"
-        width="100"
-      />
     </el-table>
-
-      <el-empty
-        v-if="!loading && (!summary.breakdown || summary.breakdown.length === 0)"
-        description="暂无抽成数据"
-        :image-size="80"
-      />
     </template>
   </div>
 </template>

@@ -94,7 +94,8 @@
 import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 import { BRAND } from "@/lib/brand";
 
 /** 场景调用分布项 */
@@ -121,8 +122,8 @@ const loadError = ref(false);
 
 const sceneChartRef = ref<HTMLDivElement>();
 const modelChartRef = ref<HTMLDivElement>();
-let sceneChart: echarts.ECharts | null = null;
-let modelChart: echarts.ECharts | null = null;
+let sceneChart: EChartsType | null = null;
+let modelChart: EChartsType | null = null;
 let timer: ReturnType<typeof setInterval> | undefined = undefined;
 let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
 

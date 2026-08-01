@@ -139,6 +139,15 @@
             >
               <template #default="{ row, $index }">
                 <span v-if="$index === 0">—</span>
+                <!-- 按日累加口径下后步人数可能大于前步（同一用户跨日重复计数），转化率会 >100%，
+                     此时率无业务意义，显示 "—" 并 tooltip 说明，避免出现「300%」误导 -->
+                <el-tooltip
+                  v-else-if="row.rate > 1"
+                  content="按日累加口径下后步人数大于前步（同一用户跨日重复计数），此处转化率无意义，故不展示。如需精确率请用去重口径专项分析。"
+                  placement="top"
+                >
+                  <span class="rate-na">—</span>
+                </el-tooltip>
                 <span
                   v-else
                   :class="{ 'rate-low': row.rate < 0.1 }"
@@ -151,6 +160,13 @@
             >
               <template #default="{ row, $index }">
                 <span v-if="$index === 0">100%</span>
+                <el-tooltip
+                  v-else-if="row.totalRate > 1"
+                  content="按日累加口径下该步人数大于第 1 步（同一用户跨日重复计数），总转化率无意义，故不展示。"
+                  placement="top"
+                >
+                  <span class="rate-na">—</span>
+                </el-tooltip>
                 <span v-else>{{ (row.totalRate * 100).toFixed(1) }}%</span>
               </template>
             </el-table-column>
@@ -168,12 +184,13 @@ import PageHeader from "@/components/PageHeader.vue";
 import { funnelApi } from "@/api";
 import echarts from "@/utils/echarts";
 
-/** 四条漏斗定义（与后端 FunnelDailyService 对齐） */
+/** 五条漏斗定义（与后端 FunnelDailyService 对齐） */
 const FUNNELS = [
   { key: "F1_activation", label: "F1 新用户激活" },
   { key: "F2_member", label: "F2 会员转化" },
   { key: "F3_commerce", label: "F3 电商转化" },
   { key: "F4_practitioner", label: "F4 从业者转化" },
+  { key: "F5_customer_service", label: "F5 客服服务与成交" },
 ];
 
 /** 步骤键 → 中文（与后端 upsertSteps 的 stepKey 一一对应） */
@@ -191,6 +208,11 @@ const STEP_LABELS: Record<string, string> = {
   b_entry_view: "B端入口曝光",
   cert_apply: "认证申请",
   commission_earned: "产生佣金",
+  cs_question: "发起咨询",
+  cs_resolved: "问题已处理",
+  cs_recommend_offered: "相关建议展示",
+  cs_recommend_clicked: "点击下一步",
+  cs_attributed_paid: "点击后支付",
 };
 
 interface DayRow { date: string; steps: Array<{ step: number; stepKey: string; count: number }> }
@@ -329,4 +351,5 @@ async function rebuild() {
 .chart-trend { height: 320px; }
 .steps-card { margin-top: var(--spacing-lg); }
 .rate-low { color: var(--el-color-danger); font-weight: 600; }
+.rate-na { color: var(--color-text-secondary, #909399); cursor: help; border-bottom: 1px dashed var(--color-divider, #dcdfe6); }
 </style>

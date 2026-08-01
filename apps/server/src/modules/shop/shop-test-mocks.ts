@@ -6,33 +6,43 @@
 
 export function makeMockWechatPay() {
   return {
+    // 真实服务是 getter；mock 为可改写属性（"无证书优雅 400" 用例会临时置 false）
+    isConfigured: true,
     createNativeOrder: jest.fn().mockResolvedValue({ codeUrl: "weixin://wxpay/mock" }),
     createJsapiOrder: jest.fn().mockResolvedValue({ prepay_id: "mock-prepay" }),
+    createH5Order: jest.fn().mockResolvedValue({ h5Url: "https://wx.tenpay.com/h5/pay/mock" }),
     queryOrder: jest.fn().mockResolvedValue({ trade_state: "SUCCESS" }),
     closeOrder: jest.fn().mockResolvedValue({}),
     refund: jest.fn().mockResolvedValue({ status: "SUCCESS" }),
+    queryRefund: jest.fn().mockResolvedValue({ status: "PROCESSING" }),
     verifyAndDecryptNotify: jest.fn().mockResolvedValue({ valid: true, data: { out_trade_no: "o1" } }),
   };
 }
 
 export function makeMockAlipay() {
   return {
+    isConfigured: true,
     verifyNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "o1", tradeStatus: "TRADE_SUCCESS" } }),
     query: jest.fn().mockResolvedValue({ alipay_trade_query_response: {} }),
-    refund: jest.fn().mockResolvedValue("https://openapi.alipay.com/..."),
+    refund: jest.fn().mockResolvedValue({ status: "SUCCESS", outRefundNo: "RFo1", raw: {} }),
+    queryRefund: jest.fn().mockResolvedValue({ status: "PROCESSING", raw: {} }),
   };
 }
 
 export function makeMockUnionpay() {
   return {
+    isConfigured: true,
     verifyNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "o1", respCode: "00" } }),
     query: jest.fn().mockResolvedValue({ respCode: "00" }),
-    refund: jest.fn().mockResolvedValue({ respCode: "00" }),
+    refund: jest.fn().mockResolvedValue({ status: "PROCESSING", channelRefundNo: "RForder1", raw: { respCode: "00" } }),
   };
 }
 
 export function makeMockCoin() {
   return {
+    handleRechargeCallback: jest.fn().mockResolvedValue(true),
+    getCoinRate: jest.fn().mockResolvedValue(10),
+    getRechargeTiers: jest.fn().mockResolvedValue([]),
     getOrCreateAccount: jest.fn(),
     spend: jest.fn(),
     refund: jest.fn(),
@@ -52,6 +62,7 @@ export function makeMockRedis() {
     del: jest.fn().mockResolvedValue(undefined),
     delByPattern: jest.fn().mockResolvedValue(undefined),
     setNX: jest.fn().mockResolvedValue(true),
+    runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()),
   };
 }
 
@@ -61,6 +72,7 @@ export function makeMockPrisma(): any {
       if (Array.isArray(arg)) return Promise.all(arg);
       return arg(mockPrisma);
     }),
+    $queryRawUnsafe: jest.fn().mockResolvedValue([]),
     $executeRaw: jest.fn().mockResolvedValue(1),
     product: {
       create: jest.fn(),
@@ -87,6 +99,7 @@ export function makeMockPrisma(): any {
     },
     order: {
       create: jest.fn(),
+      findFirst: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
@@ -121,6 +134,15 @@ export function makeMockPrisma(): any {
       findUnique: jest.fn(),
       findMany: jest.fn().mockResolvedValue([]),
     },
+    auth: {
+      findFirst: jest.fn(),
+    },
+    virtualCoinRecharge: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
     configSystem: {
       findUnique: jest.fn(),
     },
@@ -130,18 +152,28 @@ export function makeMockPrisma(): any {
     merchant: {
       findUnique: jest.fn().mockResolvedValue(null),
     },
+    inventoryMovement: {
+      create: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn(), count: jest.fn(), findMany: jest.fn(),
+    },
     groupBuy: {
       findUnique: jest.fn(),
     },
     groupBuyParticipant: {
       findFirst: jest.fn(),
+      findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       updateMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     // 供-P3 自购立减泛化涉及的分销角色模型（默认全 null=普通用户·测试内用 mockResolvedValueOnce 命中角色）
     station: {
       findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      update: jest.fn(),
+    },
+    // 加盟费定价真源（价格塞 rateA·名额塞 rateB）：默认无配置 → 下单应报「未配置价格」
+    commissionConfig: {
       findUnique: jest.fn().mockResolvedValue(null),
     },
     circle: {
@@ -155,6 +187,9 @@ export function makeMockPrisma(): any {
     },
     operator: {
       findFirst: jest.fn().mockResolvedValue(null),
+      findUnique: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+      update: jest.fn(),
     },
     referralRelation: {
       findFirst: jest.fn().mockResolvedValue(null),
@@ -166,6 +201,18 @@ export function makeMockPrisma(): any {
     // 佣-V2-P3 直播来源→圈子受益人解析（默认查无房间）
     liveRoom: {
       findUnique: jest.fn().mockResolvedValue(null),
+    },
+    afterSale: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockResolvedValue({ id: "as-created", updatedAt: new Date("2026-07-01T00:00:00.000Z") }),
+      update: jest.fn().mockResolvedValue({ id: "as-updated", updatedAt: new Date("2026-07-01T00:00:00.000Z") }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    },
+    huifuSplitRecord: {
+      findUnique: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
   };
   return mockPrisma;
@@ -204,7 +251,11 @@ export function makeMockPaymentFactory() {
 
 export function makeMockHuifu() {
   return {
-    createOrder: jest.fn().mockResolvedValue({ huifuId: "h1" }),
+    isEnabled: jest.fn().mockResolvedValue(true),
+    registerPaymentNotifyHandler: jest.fn(),
+    registerRefundNotifyHandler: jest.fn(),
+    createPayment: jest.fn().mockResolvedValue({ outTradeNo: "HF1" }),
+    createRefund: jest.fn().mockResolvedValue({ outRefundNo: "RForder1", refundStatus: "PROCESSING", raw: {} }),
   };
 }
 
@@ -218,5 +269,8 @@ export function makeMockMemberBenefit() {
 }
 
 export function makeMockAudit() {
-  return { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) };
+  return {
+    moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
+    moderateImageOrThrow: jest.fn().mockResolvedValue(undefined),
+  };
 }

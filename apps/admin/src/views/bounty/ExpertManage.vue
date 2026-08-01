@@ -11,6 +11,14 @@
       </el-button>
     </div>
 
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 12px"
+      title="本页与「圈子详情 - 达人管理」为同一份配置（入口整合待拍板），修改会同步生效"
+    />
+
     <!-- 错误态 -->
     <el-result
       v-if="error"
@@ -209,18 +217,35 @@
             style="width:100%"
           />
         </el-form-item>
+        <el-form-item label="超时退款（小时）">
+          <el-input-number
+            v-model="configForm.questionTimeoutHours"
+            :min="1"
+            :max="720"
+            :step="1"
+            style="width:100%"
+          />
+          <span style="font-size:12px;color:var(--color-text-secondary)">超过该时长未回答将自动退款给提问者</span>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showConfigDialog = false">
           取消
         </el-button>
-        <el-button
-          type="primary"
-          :loading="saving"
-          @click="submitConfig"
+        <el-tooltip
+          :disabled="backendSupportsUserId"
+          content="当前后端版本暂不支持管理员代成员配置（userId 契约未上线），请等待后端更新"
+          placement="top"
         >
-          保存
-        </el-button>
+          <el-button
+            type="primary"
+            :loading="saving"
+            :disabled="!backendSupportsUserId"
+            @click="submitConfig"
+          >
+            保存
+          </el-button>
+        </el-tooltip>
       </template>
     </el-dialog>
   </div>
@@ -258,8 +283,11 @@ interface MemberRow {
 const circles = ref<CircleRow[]>([])
 const experts = ref<ExpertRow[]>([])
 const members = ref<MemberRow[]>([])
+// 管理员代成员配置依赖后端 userId 契约（POST /circles/:id/expert/config 带 userId）；
+// 旧后端会按管理员自身查成员返回 404，此时降级禁用保存并提示
+const backendSupportsUserId = ref(true)
 
-const configForm = reactive({ userId: '', questionPriceCoin: 0, callPricePerMinuteCoin: 0 })
+const configForm = reactive({ userId: '', questionPriceCoin: 0, callPricePerMinuteCoin: 0, questionTimeoutHours: 48 })
 const configRules = {}
 
 function roleLabel(role: string) {
@@ -271,7 +299,10 @@ async function loadCircles() {
   error.value = false
   try {
     const res = await circleApi.list({ page: 1, pageSize: 100 })
-    circles.value = res.data?.circles || res.data?.list || res.data || []
+    // 后端返回 { circles, total }，经响应拦截器链规范化为 { items, total }；
+    // 旧写法兜底到 res.data 对象本身，v-for 遍历对象值渲染出无文字空白选项（黑盒实锤根因）
+    const rows = res.data?.items || res.data?.circles || res.data?.list
+    circles.value = Array.isArray(rows) ? rows : []
   } catch {
     error.value = true
   } finally {
@@ -286,8 +317,11 @@ async function onCircleChange() {
 async function loadMembers() {
   if (!selectedCircle.value) return
   try {
-    const res = await circleApi.detail(selectedCircle.value)
-    members.value = (res.data?.members || []).filter(
+    // 圈子详情不含 members，须走成员列表端点 GET /circles/:id/members（返回 { members, total }，
+    // 经拦截器规范化为 { items, total }）
+    const res = await circleApi.getMembers(selectedCircle.value, { page: 1, pageSize: 100 })
+    const rows = res.data?.items || res.data?.members
+    members.value = (Array.isArray(rows) ? rows : []).filter(
       (m: MemberRow) => ['OWNER', 'PARTNER', 'GUEST'].includes(m.role)
     )
   } catch { members.value = [] }
@@ -297,12 +331,14 @@ function resetConfigForm() {
   configForm.userId = ''
   configForm.questionPriceCoin = 0
   configForm.callPricePerMinuteCoin = 0
+  configForm.questionTimeoutHours = 48
 }
 
 function openConfig(row: ExpertRow) {
   configForm.userId = row.userId
   configForm.questionPriceCoin = row.questionPriceCoin || 0
   configForm.callPricePerMinuteCoin = row.callPricePerMinuteCoin || 0
+  configForm.questionTimeoutHours = (row as ExpertRow & { questionTimeoutHours?: number }).questionTimeoutHours || 48
   showConfigDialog.value = true
 }
 
@@ -311,14 +347,26 @@ async function submitConfig() {
   if (!configForm.userId) { ElMessage.warning('请选择成员'); return }
   saving.value = true
   try {
+    // questionTimeoutHours 为后端 DTO 必填字段（缺省会 400）；userId 为管理员代配置契约
     await circleApi.setExpertConfig(selectedCircle.value, {
+      userId: configForm.userId,
       questionPriceCoin: configForm.questionPriceCoin,
       callPricePerMinuteCoin: configForm.callPricePerMinuteCoin,
-    })
+      questionTimeoutHours: configForm.questionTimeoutHours,
+    } as Parameters<typeof circleApi.setExpertConfig>[1])
     ElMessage.success('配置已保存')
     showConfigDialog.value = false
     await refresh()
-  } catch { ElMessage.error('保存失败') }
+  } catch (e) {
+    // 旧后端按管理员自身查成员 → 404「成员不存在」：判定 userId 契约未上线，降级禁用
+    const status = (e as { response?: { status?: number } })?.response?.status
+    if (status === 404) {
+      backendSupportsUserId.value = false
+      ElMessage.error('当前后端暂不支持管理员代成员配置，保存已禁用（等待后端 userId 契约上线）')
+    } else {
+      ElMessage.error('保存失败')
+    }
+  }
   finally { saving.value = false }
 }
 

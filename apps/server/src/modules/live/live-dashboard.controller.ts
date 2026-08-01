@@ -16,13 +16,19 @@ export class LiveDashboardController {
     private readonly reportSvc: LiveReportService,
   ) {}
 
+  /** 是否平台管理员（超管/运营）——管理端可查看任意直播间经营数据/复盘（与 live.controller isAdmin 口径一致） */
+  private isAdmin(req: Request): boolean {
+    const roles = (req.user as { roles?: string[] }).roles || [];
+    return roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+  }
+
   @Get(":id/dashboard/overview")
   @ApiOperation({ summary: "直播实时概览 — 在线/峰值/累计观看/打赏/GMV/互动率" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 403, description: "无权访问该直播间数据" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getOverview(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.getOverview(id, req.user.id);
+    return this.svc.getOverview(id, req.user.id, this.isAdmin(req));
   }
 
   @Get(":id/dashboard/trends")
@@ -31,7 +37,7 @@ export class LiveDashboardController {
   @ApiResponse({ status: 403, description: "无权访问该直播间数据" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getTrends(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.getTrends(id, req.user.id);
+    return this.svc.getTrends(id, req.user.id, this.isAdmin(req));
   }
 
   @Get(":id/dashboard/products")
@@ -40,7 +46,7 @@ export class LiveDashboardController {
   @ApiResponse({ status: 403, description: "无权访问该直播间数据" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getProducts(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.getProducts(id, req.user.id);
+    return this.svc.getProducts(id, req.user.id, this.isAdmin(req));
   }
 
   @Get(":id/dashboard/interactions")
@@ -49,7 +55,7 @@ export class LiveDashboardController {
   @ApiResponse({ status: 403, description: "无权访问该直播间数据" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getInteractions(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.getInteractions(id, req.user.id);
+    return this.svc.getInteractions(id, req.user.id, this.isAdmin(req));
   }
 
   @Get(":id/dashboard/host-stats")
@@ -58,7 +64,7 @@ export class LiveDashboardController {
   @ApiResponse({ status: 403, description: "无权访问该直播间数据" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getHostStats(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.getHostStats(id, req.user.id);
+    return this.svc.getHostStats(id, req.user.id, this.isAdmin(req));
   }
 
   @Get(":id/dashboard/audience")
@@ -67,7 +73,7 @@ export class LiveDashboardController {
   @ApiResponse({ status: 403, description: "无权访问该直播间数据" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getAudience(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.getAudience(id, req.user.id);
+    return this.svc.getAudience(id, req.user.id, this.isAdmin(req));
   }
 
   @Get(":id/report")
@@ -76,7 +82,7 @@ export class LiveDashboardController {
   @ApiResponse({ status: 403, description: "无权访问该直播间数据" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getReport(@Param("id") id: string, @Req() req: Request) {
-    return this.reportSvc.getReport(id, req.user.id);
+    return this.reportSvc.getReport(id, req.user.id, this.isAdmin(req));
   }
 
   @Get(":id/compare")
@@ -85,7 +91,7 @@ export class LiveDashboardController {
   @ApiResponse({ status: 403, description: "无权访问该直播间数据" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getCompare(@Param("id") id: string, @Req() req: Request) {
-    return this.reportSvc.getCompare(id, req.user.id);
+    return this.reportSvc.getCompare(id, req.user.id, this.isAdmin(req));
   }
 
   @Get(":id/report/export")
@@ -101,7 +107,7 @@ export class LiveDashboardController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const report = await this.reportSvc.getReport(id, req.user.id);
+    const report = await this.reportSvc.getReport(id, req.user.id, this.isAdmin(req));
 
     if (format === "csv") {
       const headers = "指标,数值\n";

@@ -44,7 +44,7 @@
       </scroll-view>
 
       <!-- 热门回放 -->
-      <view v-if="!selectedCategory" class="section">
+      <view v-if="!selectedCategory && hotReplays.length" class="section">
         <view class="section-head">
           <text class="section-title">热门回放</text>
           <view class="more-btn" @tap="goReplays">
@@ -55,7 +55,8 @@
         <view class="hot-list">
           <view v-for="(item, idx) in hotReplays" :key="item.id" class="hot-card" @tap="openReplay(item)">
             <view class="hot-cover">
-              <image lazy-load class="hot-img" :src="item.cover" mode="aspectFill" />
+              <!-- plain：大卡自身已有居中播放按钮 + 卡底标题栏，兜底封面只出底纹不出文字，防撞按钮/重复标题 -->
+              <smart-cover class="hot-img" :src="item.cover" :video-url="item.replayUrl" :title="item.title" type="live" plain />
               <view class="hot-mask" />
               <view class="hot-tag">
                 <text class="hot-tag-emoji">🔥</text>
@@ -73,9 +74,9 @@
             </view>
             <view class="hot-foot">
               <view class="hot-host">
-                <image lazy-load class="hot-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                <smart-avatar :src="item.hostAvatar" :name="item.hostName" class="hot-avatar" />
                 <text class="hot-host-name">{{ item.hostName }}</text>
-                <text class="hot-cat">{{ item.category }}</text>
+                <text v-if="item.category" class="hot-cat">{{ item.category }}</text>
               </view>
               <view class="hot-views">
                 <AppIcon name="eye" :size="32" color="#999" />
@@ -90,15 +91,11 @@
       <view class="section">
         <view class="section-head">
           <text class="section-title">{{ listTitle }}</text>
-          <view class="filter-btn">
-            <AppIcon name="filter" :size="32" color="#999" />
-            <text class="filter-txt">筛选</text>
-          </view>
         </view>
-        <view class="grid">
+        <view v-if="filteredReplays.length" class="grid">
           <view v-for="item in filteredReplays" :key="item.id" class="grid-card" @tap="openReplay(item)">
             <view class="grid-cover">
-              <image lazy-load class="grid-img" :src="item.cover" mode="aspectFill" />
+              <smart-cover class="grid-img" :src="item.cover" :video-url="item.replayUrl" :title="item.title" type="live" />
               <view class="grid-mask" />
               <view class="grid-replay-tag">
                 <AppIcon name="play" :size="24" color="#fff" />
@@ -110,7 +107,7 @@
               <text class="grid-title">{{ item.title }}</text>
               <view class="grid-meta">
                 <view class="grid-host">
-                  <image lazy-load class="grid-avatar" :src="item.hostAvatar" mode="aspectFill" />
+                  <smart-avatar :src="item.hostAvatar" :name="item.hostName" class="grid-avatar" />
                   <text class="grid-host-name">{{ item.hostName }}</text>
                 </view>
                 <view class="grid-views">
@@ -121,10 +118,14 @@
             </view>
           </view>
         </view>
+        <view v-else class="list-empty">
+          <AppIcon name="play-circle" :size="64" color="#c8c0b5" />
+          <text class="list-empty__txt">暂时还没有直播回放</text>
+        </view>
       </view>
 
-      <view class="load-more">
-        <text class="load-more-txt">上拉加载更多</text>
+      <view v-if="replayList.length" class="load-more">
+        <text class="load-more-txt">已显示当前回放</text>
       </view>
       </template>
     </view>
@@ -148,10 +149,29 @@
         <text class="search-cancel" @tap="closeSearch">取消</text>
       </view>
       <view class="search-body">
-        <text class="search-section-title">热门搜索</text>
-        <view class="hot-search-row">
-          <text v-for="tag in hotSearches" :key="tag" class="hot-search-tag" @tap="searchQuery = tag">{{ tag }}</text>
-        </view>
+        <template v-if="!searchQuery.trim()">
+          <text class="search-section-title">推荐搜索</text>
+          <view class="hot-search-row">
+            <text v-for="tag in hotSearches" :key="tag" class="hot-search-tag" @tap="searchQuery = tag">{{ tag }}</text>
+          </view>
+        </template>
+        <template v-else>
+          <text class="search-section-title">搜索结果（{{ searchResults.length }}）</text>
+          <view v-if="searchResults.length" class="search-results">
+            <view v-for="item in searchResults" :key="item.id" class="search-result" @tap="openReplay(item)">
+              <smart-cover class="search-result__cover" :src="item.cover" :video-url="item.replayUrl" :title="item.title" type="live" plain />
+              <view class="search-result__info">
+                <text class="search-result__title">{{ item.title }}</text>
+                <text class="search-result__meta">{{ item.hostName || '主播' }} · {{ formatLiveViews(item.views) }}</text>
+              </view>
+              <AppIcon name="chevron-right" :size="30" color="#aaa" />
+            </view>
+          </view>
+          <view v-else class="search-empty">
+            <AppIcon name="search" :size="58" color="#c8c0b5" />
+            <text class="search-empty__txt">没有找到相关回放，换个关键词试试</text>
+          </view>
+        </template>
         </view>
       </view>
   </view>
@@ -160,6 +180,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartCover from '@/components/common/smart-cover.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   liveApi,
@@ -188,6 +210,16 @@ const filteredReplays = computed(() => {
   }
   return replayList.value
 })
+const searchResults = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+  if (!keyword) return []
+  const merged = new Map<string, ReplayHomeItem>()
+  for (const item of [...hotReplays.value, ...replayList.value]) merged.set(item.id, item)
+  return [...merged.values()].filter((item) =>
+    [item.title, item.hostName, item.category].some((value) => String(value || '').toLowerCase().includes(keyword)),
+  )
+})
+
 
 async function fetchData() {
   loading.value = true
@@ -660,6 +692,21 @@ function openReplay(item: ReplayHomeItem) { navigateTo(`/pkg-live/replay-detail/
 /* 骨架屏 */
 .skeleton { display: flex; flex-direction: column; gap: 24rpx; }
 .sk-card { height: 320rpx; border-radius: 24rpx; background: linear-gradient(90deg, #e8e4dc 25%, #f0ece5 50%, #e8e4dc 75%); animation: shimmer 1.5s infinite; background-size: 200% 100%; }
+.search-results { display: flex; flex-direction: column; gap: 18rpx; }
+.search-result { display: flex; align-items: center; gap: 20rpx; padding: 18rpx; background: #faf8f5; border-radius: 18rpx; }
+.search-result__cover { width: 168rpx; height: 96rpx; border-radius: 12rpx; flex-shrink: 0; overflow: hidden; }
+.search-result__info { flex: 1; min-width: 0; }
+.search-result__title { display: block; font-size: 28rpx; font-weight: 600; color: #2c2c2c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.search-result__meta { display: block; margin-top: 12rpx; font-size: 24rpx; color: #999; }
+.search-empty, .list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 24rpx;
+  text-align: center;
+}
+.search-empty__txt, .list-empty__txt { margin-top: 20rpx; font-size: 26rpx; line-height: 1.6; color: #999; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* 错误状态 */

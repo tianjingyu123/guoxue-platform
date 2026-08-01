@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, Req, UseGuards, Headers } from "@nestjs/common";
+import { Controller, Get, Post, Put, Body, Param, Req, UseGuards, Headers, HttpCode } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { Request } from "express";
 import { HuifuService } from "./huifu.service";
@@ -6,6 +6,9 @@ import { HuifuPayDto, HuifuSplitDto, HuifuRefundDto, UpdateConfigDto } from "./h
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { SkipFormat } from "../../common/skip-format.decorator";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 @ApiTags("汇付天下支付")
 @Controller("huifu")
@@ -41,7 +44,7 @@ export class HuifuController {
 
   @Get("status")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "检查汇付支付是否已启用" })
   @ApiResponse({ status: 200, description: "成功" })
@@ -78,21 +81,23 @@ export class HuifuController {
   }
 
   @Post("notify")
+  @HttpCode(200)
+  @SkipFormat()
   @ApiOperation({ summary: "汇付斗拱支付异步通知（公开接口·sign 在通知体内）" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleNotify(@Body() body: Record<string, unknown>, @Headers("X-HF-Signature") headerSign?: string) {
     // 斗拱异步通知：POST 表单/JSON 含 resp_data(JSON字符串) 与 sign（兼容旧 header 签名）
     const signature = (typeof body?.sign === "string" ? body.sign : "") || headerSign;
     if (!signature) {
-      return { resp_code: "FAIL", resp_desc: "缺少签名" };
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付回调缺少签名");
     }
     const isValid = await this.svc.verifyNotify(body, signature);
     if (!isValid) {
-      return { resp_code: "FAIL", resp_desc: "签名验证失败" };
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付回调签名验证失败");
     }
-    await this.svc.handleNotify(body);
-    return { resp_code: "00000000", resp_desc: "成功" };
+    const outTradeNo = await this.svc.handleNotify(body);
+    return `RECV_ORD_ID_${outTradeNo}`;
   }
 
   @Post("query")
@@ -110,15 +115,15 @@ export class HuifuController {
 
   @Post("split")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
-  @ApiOperation({ summary: "发起分账" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiOperation({ summary: "发起分账（提交资金审批·财务审批通过后才真正向汇付发起）" })
+  @ApiResponse({ status: 201, description: "已提交审批" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  createSplit(@Body() dto: HuifuSplitDto) {
-    return this.svc.createSplit(dto);
+  createSplit(@Body() dto: HuifuSplitDto, @Req() req: Request) {
+    return this.svc.requestSplit(dto, req.user.id);
   }
 
   @Get("split/:orderId")
@@ -152,7 +157,7 @@ export class HuifuController {
 
   @Get("balance")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
   @ApiOperation({ summary: "查询商户余额" })
   @ApiResponse({ status: 200, description: "成功" })

@@ -39,7 +39,7 @@
             <text class="perm-title">角色权限说明</text>
           </view>
           <view class="perm-arrow" :class="{ 'perm-arrow-open': showPermissions }">
-            <app-icon name="chevron-left" :size="32" color="#999" />
+            <app-icon name="chevron-left" :size="32" color="#999" compact />
           </view>
         </view>
         <view v-if="showPermissions" class="perm-body">
@@ -83,7 +83,7 @@
         </view>
         <view v-for="member in filteredMembers" :key="member.id" class="member-card">
           <view class="member-avatar-wrap">
-            <image lazy-load class="member-avatar" :src="member.avatar" mode="aspectFill" />
+            <smart-avatar :src="member.avatar" :name="member.name" class="member-avatar" />
             <view class="member-status" :class="member.status === 'online' ? 'status-online' : 'status-offline'" />
           </view>
           <view class="member-info">
@@ -181,7 +181,7 @@
         <text class="dialog-title">编辑成员信息</text>
         <view v-if="selectedMember" class="edit-body">
           <view class="edit-head">
-            <image lazy-load class="edit-avatar" :src="selectedMember.avatar" mode="aspectFill" />
+            <smart-avatar :src="selectedMember.avatar" :name="selectedMember.name" class="edit-avatar" />
             <view>
               <text class="edit-name">{{ selectedMember.name }}</text>
               <text class="edit-join">加入时间：{{ selectedMember.joinDate }}</text>
@@ -231,7 +231,7 @@
             </view>
           </view>
           <view v-else class="remove-confirm">
-            <image lazy-load class="remove-avatar" :src="selectedMember.avatar" mode="aspectFill" />
+            <smart-avatar :src="selectedMember.avatar" :name="selectedMember.name" class="remove-avatar" />
             <text class="remove-q">确定要移除 <text class="remove-name">{{ selectedMember.name }}</text> 吗？</text>
             <text class="remove-sub">移除后该成员将无法参与直播管理</text>
           </view>
@@ -248,6 +248,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { liveApi, teamRoleConfig, teamPermissions, type TeamMember, type TeamRole, type AvailableMember } from '@/lib/live-data'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 
 const roleConfig = teamRoleConfig as Record<string, typeof teamRoleConfig[TeamRole]>
 const permissions = teamPermissions as Record<string, typeof teamPermissions[TeamRole]>
@@ -324,7 +325,6 @@ function openRemove(member: TeamMember) {
 }
 function confirmRemove() {
   if (selectedMember.value?.hasActiveLive) return
-  console.log('[v0] 移除成员', selectedMember.value?.id)
   showRemoveDialog.value = false
   selectedMember.value = null
 }

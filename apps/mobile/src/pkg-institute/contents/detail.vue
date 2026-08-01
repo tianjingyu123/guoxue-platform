@@ -104,7 +104,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
-import { instituteApi, contentTypeLabel, contentTypeColor, fmtDate, type InstituteContentDetail } from '@/lib/institute-data'
+import { instituteApi, contentTypeLabel, contentTypeColor, fmtDate, type InstituteContentDetail } from '@/pkg-institute/lib/institute-data'
 
 const statusBarHeight = ref(0)
 const navHeight = ref(44)
@@ -203,7 +203,7 @@ function copyDocLink() {
 .page { min-height: 100vh; background: #fff; }
 .nav { position: fixed; top: 0; left: 0; right: 0; z-index: 20; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-bottom: 1px solid #ececec; }
 .nav-bar { height: 44px; display: flex; align-items: center; padding: 0 12px; }
-.nav-back { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin-left: -4px; }
+.nav-back { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; margin: 0 -6px 0 -10px; } /* 触控热区≥44px：容器扩大+负margin保持视觉位置 */
 .nav-title { flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #1a1a1a; }
 .nav-placeholder { width: 32px; }
 .scroll { height: 100vh; box-sizing: border-box; }

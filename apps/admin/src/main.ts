@@ -2,6 +2,7 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import ElementPlus from "element-plus";
 import { ElMessage } from "element-plus";
+import zhCn from "element-plus/es/locale/lang/zh-cn";
 import "element-plus/dist/index.css";
 import "./styles/tokens.css";
 import "./styles/global.css";
@@ -33,7 +34,8 @@ window.addEventListener("unhandledrejection", (event) => {
 app.use(createPinia());
 app.use(router);
 app.use(i18n);
-app.use(ElementPlus, { locale: undefined });
+// 全局中文化：一次性令 el-table 空态、el-pagination、el-date-picker 等内置文案走中文
+app.use(ElementPlus, { locale: zhCn });
 app.directive("permission", permission);
 // 启动时水合品牌配置（失败用内置默认值）
 hydrateBrandConfig();

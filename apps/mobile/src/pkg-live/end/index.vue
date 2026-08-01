@@ -9,7 +9,7 @@
     <!-- 错误状态 -->
     <view v-else-if="error" class="state-error">
       <text class="state-error__txt">{{ error }}</text>
-      <view class="state-error__retry" @tap="fetchData('1')"><text class="state-error__retry-txt">重试</text></view>
+      <view class="state-error__retry" @tap="fetchData(endId)"><text class="state-error__retry-txt">重试</text></view>
     </view>
 
     <template v-else>
@@ -48,9 +48,9 @@
     <!-- 主播信息（后端 end 无关注/粉丝维度 → 仅展示主播） -->
     <view class="host-card">
       <view class="host-left">
-        <image lazy-load class="host-avatar" :src="room.hostAvatar" mode="aspectFill" />
+        <smart-avatar :src="room.hostAvatar" :name="hostDisplayName" class="host-avatar" />
         <view class="host-meta">
-          <text class="host-name">{{ room.hostName }}</text>
+          <text class="host-name">{{ hostDisplayName }}</text>
         </view>
       </view>
     </view>
@@ -126,7 +126,7 @@
           <view class="course-meta">
             <text class="course-title">{{ course.title }}</text>
             <view class="course-foot">
-              <text class="course-price">¥{{ course.price }}</text>
+              <text class="course-price">¥{{ formatPrice(course.price) }}</text>
               <text class="course-lessons">{{ course.lessons }}课时</text>
             </view>
           </view>
@@ -149,22 +149,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
 
 // 数据状态
 const loading = ref(true)
 const error = ref('')
+const endId = ref('')
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
 // 推荐直播/课程列表，元素结构由后端返回，保留 any[]
 const recommendLives = ref<any[]>([])
 const recommendCourses = ref<any[]>([])
+
+// 主播昵称缺失时兜底，避免头像旁整块空白
+const hostDisplayName = computed(() => (room.value?.hostName || '').trim() || '主播')
 
 async function fetchData(endId: string) {
   loading.value = true
@@ -182,7 +188,13 @@ async function fetchData(endId: string) {
 }
 
 onLoad((opts) => {
-  fetchData(opts?.id || '1')
+  endId.value = String(opts?.id || '')
+  if (!endId.value) {
+    loading.value = false
+    error.value = '缺少直播场次信息，请返回后重新进入'
+    return
+  }
+  fetchData(endId.value)
 })
 
 function goPlaza() { navigateTo('/pkg-live/plaza/index') }

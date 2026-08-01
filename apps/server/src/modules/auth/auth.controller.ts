@@ -15,6 +15,7 @@ import {
   RegisterDeviceDto,
   BindPhoneDto,
   ForgotPasswordDto,
+  OaOpenidDto,
 } from "./auth.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -135,6 +136,20 @@ export class AuthController {
     return { url };
   }
 
+  @Post("wechat/oa-openid")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "公众号网页授权 code 换 openid（微信内 JSAPI 支付用）",
+    description: "已登录用户在公众号内 H5 完成 snsapi_base 静默授权后，用 code 换取公众号 openid。仅返回 openid，不落库、不影响登录态与已绑定的小程序微信记录。",
+  })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  async oaOpenid(@Body() dto: OaOpenidDto) {
+    const { openId } = await this.wechat.exchangeOAuthCode(dto.code);
+    return { openid: openId };
+  }
+
   @Post("login/wechat")
   @ApiOperation({ summary: "微信登录（H5/小程序）", description: "使用微信授权 code 登录，自动判断 H5 OAuth 或小程序" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -171,6 +186,25 @@ export class AuthController {
   async refresh(@Body("refreshToken") refreshToken: string) {
     if (!refreshToken) throw new BadRequestException("refreshToken 参数必填");
     return this.auth.refreshToken(refreshToken);
+  }
+
+  @Post("handoff/issue")
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "签发跨端无感登录握手码", description: "登录态签发一次性短时码（60s·绑定本人），用于后台跳 C 端等跨端无感登录，避免 token 进 URL" })
+  @ApiResponse({ status: 201, description: "签发成功" })
+  issueHandoff(@Req() req: Request) {
+    return this.auth.issueHandoffCode(req.user.id);
+  }
+
+  @Post("handoff/exchange")
+  @UseGuards(StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "握手码换会话", description: "用一次性握手码换取新的 accessToken + refreshToken（用后即焚）" })
+  @ApiResponse({ status: 201, description: "换取成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  async exchangeHandoff(@Body("code") code: string) {
+    if (!code) throw new BadRequestException("code 参数必填");
+    return this.auth.exchangeHandoffCode(code);
   }
 
   @Put("profile")

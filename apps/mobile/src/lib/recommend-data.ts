@@ -4,7 +4,7 @@ import type { RecommendItem } from '@/components/common/recommend-section.vue'
 /**
  * 全平台统一「相关推荐 / 猜你喜欢」数据层。
  * 后端真源：GET /recommend/:scene（智能推荐模块，按 scene + contentId 召回）。
- * 注意：该端点受功能开关 `recommend_algorithm` 门禁，未开启时后端返回 404；
+ * 注意：该端点受唯一正式功能开关 `recommend_algorithm` 门禁，未开启时后端返回 404；
  *       本层统一 try/catch 降级为空数组，recommend-section 组件 items 为空时自动不渲染（诚实降级）。
  */
 
@@ -41,7 +41,8 @@ function hrefOf(vo: RecommendVO): string {
     case 'PRODUCT': return `/mall/product/${id}`
     case 'CIRCLE': return `/circles/${id}`
     case 'VIDEO': return `/video/${id}`
-    case 'EBOOK': return `/ebook/${id}`
+    // （EBOOK 分支已删 2026-07-14：电子书板块 07-08 下线，前端无详情页。
+    //   后端 recommend 策略实测也不查 Ebook 表、吐不出 EBOOK，这里本就是死分支。）
     case 'CLASSIC': return `/classics/${id}`
     case 'ARTICLE':
     case 'CONTENT':
@@ -64,7 +65,7 @@ function subtitleOf(vo: RecommendVO): string | undefined {
 }
 
 /** 后端 VO → 统一推荐卡 */
-function toRecommendItem(vo: RecommendVO): RecommendItem {
+function toRecommendItem(vo: RecommendVO, recommendId: string, position: number): RecommendItem {
   const price = typeof vo.metadata?.price === 'number' ? vo.metadata.price : undefined
   return {
     id: vo.id,
@@ -74,6 +75,9 @@ function toRecommendItem(vo: RecommendVO): RecommendItem {
     price: price && price > 0 ? price : undefined,
     tag: vo.reason || vo.tags?.[0],
     href: hrefOf(vo),
+    recommendId,
+    itemType: vo.type,
+    position,
   }
 }
 
@@ -90,7 +94,8 @@ export const recommendApi = {
       if (contentId) url += `&contentId=${encodeURIComponent(contentId)}`
       const res = await apiGet<RecommendResponse>(url)
       const items = Array.isArray(res?.items) ? res.items : []
-      return items.map(toRecommendItem).filter(it => it.title)
+      const recommendId = typeof res?.recommendId === 'string' ? res.recommendId : ''
+      return items.map((item, index) => toRecommendItem(item, recommendId, index)).filter(it => it.title)
     } catch {
       return []
     }

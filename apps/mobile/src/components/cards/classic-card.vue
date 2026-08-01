@@ -1,19 +1,19 @@
 <script setup lang="ts">
 /** 古籍卡(feed,宣纸质感+印章)- 从原型 components/cards/classic-card.tsx 迁移 */
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo } from '@/utils/router'
+import { navigateToContent } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import { type ClassicCardData, formatCount } from '@/lib/card-utils'
 
 const props = defineProps<{ data: ClassicCardData }>()
-function open() {
+function open(event?: unknown) {
   track.click('classic_card', { id: props.data.id })
-  navigateTo(`/classics/${props.data.id}`)
+  navigateToContent(`/classics/${props.data.id}`, event)
 }
 </script>
 
 <template>
-  <view class="card" hover-class="card-press" @tap="open">
+  <view class="card" data-content-card hover-class="card-press" @tap="open">
     <!-- 印章装饰 -->
     <view class="seal"><text class="seal-txt">典藏</text></view>
     <view class="inner">

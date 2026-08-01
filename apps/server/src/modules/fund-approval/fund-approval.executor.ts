@@ -6,6 +6,9 @@ import { InstituteService } from "../institute/institute.service";
 import { HuifuService } from "../huifu/huifu.service";
 import { CoinService } from "../coin/coin.service";
 import { CommissionService } from "../commission/commission.service";
+import { AdminReferralService } from "../station/admin-referral.service";
+import { SystemService } from "../system/system.service";
+import { SettlementRuleAdminService } from "../settlement/settlement-rule-admin.service";
 
 /**
  * 资金审批执行器：审批通过时按 type 调用对应模块的「真实执行方法」。
@@ -22,6 +25,9 @@ export class FundApprovalExecutor {
     private huifu: HuifuService,
     private coin: CoinService,
     private commission: CommissionService,
+    private referrals: AdminReferralService,
+    private system: SystemService,
+    private settlementRules: SettlementRuleAdminService,
   ) {}
 
   /** 审批：approve=true → 认领并执行；approve=false → 标记 REJECTED */
@@ -73,9 +79,39 @@ export class FundApprovalExecutor {
         if (p.method === "updateCommissionConfig") {
           return this.commission.updateCommissionConfig(p.type, p.rate);
         }
+        if (p.method === "createTemporaryReferralConfig") {
+          return this.referrals.create(p.dto, approval.requestedBy);
+        }
+        if (p.method === "updateTemporaryReferralConfig") {
+          return this.referrals.update(p.id, p.dto ?? {});
+        }
+        if (p.method === "deleteTemporaryReferralConfig") {
+          return this.referrals.delete(p.id);
+        }
+        if (p.method === "createSettlementRule") {
+          return this.settlementRules.createRule(p.dto, approval.requestedBy);
+        }
+        if (p.method === "updateSettlementRule") {
+          return this.settlementRules.updateRule(p.id, p.dto ?? {}, approval.requestedBy);
+        }
         return this.commission.updateConfig(p.key, p.dto ?? {});
+      case "MEMBER_CONFIG":
+        if (p.method === "upsertMemberConfig") {
+          return this.system.upsertMemberConfig(p.dto);
+        }
+        if (p.method === "updateMemberConfig") {
+          return this.system.updateMemberConfig(p.id, p.dto ?? {});
+        }
+        if (p.method === "deleteMemberConfig") {
+          return this.system.deleteMemberConfig(p.id);
+        }
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "未知会员配置审批方法");
       case "REFUND":
         return this.huifu.createRefund(p);
+      case "HUIFU_SPLIT":
+        // 汇付分账（真金出款）：审批通过后才真正向渠道发起。createSplit 自带
+        // 状态防重（PROCESSING/SUCCESS 拒绝）与总额≤已付校验，重复执行不会二次分账。
+        return this.huifu.createSplit(p);
       case "COIN_REFUND":
         // 虚拟币退款（客诉/协商）：财务审批通过后给用户退回国学币
         return this.coin.refund(p.userId, p.amountCoin, p.description || "客诉退款");

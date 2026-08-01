@@ -41,7 +41,7 @@
       </scroll-view>
     </view>
 
-    <scroll-view scroll-y class="result-body">
+    <scroll-view scroll-y class="result-body" :lower-threshold="200" @scrolltolower="loadMoreResults">
       <!-- 加载骨架 -->
       <view v-if="loading" class="skeleton-wrap">
         <view v-for="i in 5" :key="i" class="skeleton-card">
@@ -162,7 +162,7 @@
               >
                 <view :class="activeTab === 'course' ? 'course-cover-grid' : 'course-cover-row'">
                   <image lazy-load v-if="course.cover" :src="course.cover" class="row-cover-img" mode="aspectFill" />
-                  <app-icon v-else name="book-open" :size="56" color="#C41E3A" />
+                  <view v-else class="cover-fallback"><app-icon name="book-open" :size="56" color="#C41E3A" /></view>
                 </view>
                 <view :class="activeTab === 'course' ? 'course-meta-grid' : 'course-meta-row'">
                   <rich-text class="course-title" :nodes="highlight(course.title)" />
@@ -171,7 +171,37 @@
                     <text class="course-students">{{ formatNumber(course.studentCount) }}人学习</text>
                   </view>
                   <view class="course-price-row">
-                    <text class="course-price">¥{{ course.price }}</text>
+                    <text class="course-price">¥{{ formatPrice(course.price) }}</text>
+                  </view>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <!-- 商品结果 -->
+          <view v-if="(activeTab === 'all' || activeTab === 'product') && results.products.length" class="result-group">
+            <view v-if="activeTab === 'all'" class="group-head">
+              <text class="group-title">相关商品</text>
+              <text class="group-more" @click="activeTab = 'product'">查看全部</text>
+            </view>
+            <view class="product-grid">
+              <view
+                v-for="product in results.products"
+                :key="product.id"
+                class="product-card"
+                @click="navigateTo(product.href)"
+              >
+                <view class="product-cover">
+                  <image lazy-load v-if="product.cover" :src="product.cover" class="product-cover-img" mode="aspectFill" />
+                  <view v-else class="cover-fallback"><app-icon name="shopping-bag" :size="56" color="#C41E3A" /></view>
+                </view>
+                <view class="product-meta">
+                  <rich-text class="product-name" :nodes="highlight(product.title)" />
+                  <view class="product-foot">
+                    <view class="product-price-wrap">
+                      <text class="product-price">¥{{ formatPrice(product.price) }}</text>
+                    </view>
+                    <text class="product-sales">{{ formatNumber(product.salesCount) }}人付款</text>
                   </view>
                 </view>
               </view>
@@ -202,67 +232,6 @@
                   </text>
                   <view v-if="classic.category" class="course-sub">
                     <text class="meta-tag">{{ classic.category }}</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-          </view>
-
-          <!-- 电子书结果 -->
-          <view v-if="(activeTab === 'all' || activeTab === 'ebook') && results.ebooks.length" class="result-group">
-            <view v-if="activeTab === 'all'" class="group-head">
-              <text class="group-title">相关电子书</text>
-              <text class="group-more" @click="activeTab = 'ebook'">查看全部</text>
-            </view>
-            <view class="course-list">
-              <view
-                v-for="ebook in results.ebooks"
-                :key="ebook.id"
-                class="course-card-row"
-                @click="navigateTo(ebook.href)"
-              >
-                <view class="course-cover-row">
-                  <image lazy-load v-if="ebook.cover" :src="ebook.cover" class="row-cover-img" mode="aspectFill" />
-                  <app-icon v-else name="book" :size="56" color="#C41E3A" />
-                </view>
-                <view class="course-meta-row">
-                  <rich-text class="course-title" :nodes="highlight(ebook.title)" />
-                  <text v-if="ebook.author" class="course-teacher">{{ ebook.author }}</text>
-                  <view class="course-sub">
-                    <text class="course-students">{{ formatNumber(ebook.purchaseCount) }}人购买</text>
-                  </view>
-                  <view class="course-price-row">
-                    <text class="course-price">¥{{ ebook.price }}</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-          </view>
-
-          <!-- 商品结果 -->
-          <view v-if="(activeTab === 'all' || activeTab === 'product') && results.products.length" class="result-group">
-            <view v-if="activeTab === 'all'" class="group-head">
-              <text class="group-title">相关商品</text>
-              <text class="group-more" @click="activeTab = 'product'">查看全部</text>
-            </view>
-            <view class="product-grid">
-              <view
-                v-for="product in results.products"
-                :key="product.id"
-                class="product-card"
-                @click="navigateTo(product.href)"
-              >
-                <view class="product-cover">
-                  <image lazy-load v-if="product.cover" :src="product.cover" class="product-cover-img" mode="aspectFill" />
-                  <app-icon v-else name="shopping-bag" :size="72" color="rgba(196,30,58,0.5)" />
-                </view>
-                <view class="product-meta">
-                  <rich-text class="product-name" :nodes="highlight(product.title)" />
-                  <view class="product-foot">
-                    <view class="product-price-wrap">
-                      <text class="product-price">¥{{ product.price }}</text>
-                    </view>
-                    <text class="product-sales">{{ formatNumber(product.salesCount) }}人购买</text>
                   </view>
                 </view>
               </view>
@@ -310,6 +279,11 @@
             </view>
           </view>
         </view>
+
+        <!-- 翻页尾巴（仅分类 Tab）：加载中 / 到底 / 可上滑 -->
+        <view v-if="showLoadFoot" class="load-foot">
+          <text class="load-foot-text">{{ loadingMore ? '加载中…' : noMore ? '已经到底了' : '上滑加载更多' }}</text>
+        </view>
       </block>
 
       <view class="bottom-gap" />
@@ -322,7 +296,8 @@ import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, navigateBack } from '@/utils/router'
-import { searchApi, type SearchResults, type SearchTab } from '@/lib/search-data'
+import { searchApi, SEARCH_PAGE_SIZE, type SearchResults, type SearchTab } from '@/lib/search-data'
+import { formatPrice } from '@/utils/format'
 
 const tabs: { key: SearchTab; label: string }[] = [
   { key: 'all', label: '综合' },
@@ -331,7 +306,6 @@ const tabs: { key: SearchTab; label: string }[] = [
   { key: 'product', label: '商品' },
   { key: 'circle', label: '圈子' },
   { key: 'classic', label: '古籍' },
-  { key: 'ebook', label: '电子书' },
   { key: 'user', label: '用户' },
 ]
 
@@ -342,7 +316,6 @@ const fromToTab: Record<string, SearchTab> = {
   shop: 'product',
   circle: 'circle',
   classics: 'classic',
-  ebook: 'ebook',
 }
 
 // ===== UI 状态 =====
@@ -355,50 +328,144 @@ const error = ref('')
 const aiExpanded = ref(true)
 const aiSummaryText = ref('')
 
-const emptyHotWords = ['八字入门', '紫微斗数', '风水布局', '奇门遁甲', '六爻预测']
+// 空态热门搜索（真连后端 /search/hot，onLoad 拉取；失败保持空数组不露假词）
+const emptyHotWords = ref<string[]>([])
 
 // ===== 真连后端：搜索结果 =====
 const results = ref<SearchResults>({
-  contents: [], courses: [], products: [], circles: [], classics: [], ebooks: [], users: [],
+  contents: [], courses: [], products: [], circles: [], classics: [], users: [],
+})
+
+// 结果缓存：key = `${关键词}||${tab}`。切 Tab 命中缓存直接复用，不再整页骨架+重拉后端。
+const resultCache = new Map<string, SearchResults>()
+// AI 总结缓存（仅综合 Tab 用，按关键词缓存）
+const aiCache = new Map<string, string>()
+
+// ===== 分页（分类 Tab 上滑加载更多；综合 Tab 各类前 5 混排无分页语义，不翻页）=====
+const page = ref(1)
+const loadingMore = ref(false)
+const noMore = ref(false)
+// 分页态缓存：与 resultCache 同 key，切回 Tab 恢复已翻到的页码与到底态
+const pageCache = new Map<string, { page: number; noMore: boolean }>()
+
+/** 分类 Tab → results 字段映射（'all' 无映射 → 不参与翻页） */
+const tabListKey: Partial<Record<SearchTab, keyof SearchResults>> = {
+  content: 'contents',
+  course: 'courses',
+  product: 'products',
+  circle: 'circles',
+  classic: 'classics',
+  user: 'users',
+}
+
+// 翻页尾巴可见性：分类 Tab 且当前列表非空
+const showLoadFoot = computed(() => {
+  const key = tabListKey[activeTab.value]
+  if (!key) return false
+  return !loading.value && !error.value && (results.value[key] as unknown[]).length > 0
 })
 
 const isEmpty = computed(() => {
   const r = results.value
   return !loading.value && !error.value &&
     !r.contents.length && !r.courses.length && !r.products.length &&
-    !r.circles.length && !r.classics.length && !r.ebooks.length && !r.users.length
+    !r.circles.length && !r.classics.length && !r.users.length
 })
+
+// 请求序号守卫：快速切 Tab / 改词时，弱网晚到的旧响应不得覆盖新结果。
+// 每次 loadResults 发起（含命中缓存的分支）都自增序号，在途旧请求回来发现序号不匹配即整体丢弃。
+let reqSeq = 0
 
 /** 拉取搜索结果（关键词/Tab 变化触发） */
 async function loadResults() {
-  if (!keyword.value.trim()) {
-    results.value = { contents: [], courses: [], products: [], circles: [], classics: [], ebooks: [], users: [] }
+  const seq = ++reqSeq // 快照本次序号：切到缓存 Tab 也要作废在途旧请求
+  const kw = keyword.value.trim()
+  const tab = activeTab.value // 快照发起时的 Tab，响应处理全部用快照值
+  if (!kw) {
+    results.value = { contents: [], courses: [], products: [], circles: [], classics: [], users: [] }
     aiSummaryText.value = ''
     loading.value = false
     return
   }
+  // 命中缓存：切回已搜过的 Tab，直接复用不重拉（无骨架闪烁），并恢复分页态
+  const cacheKey = `${kw}||${tab}`
+  const cached = resultCache.get(cacheKey)
+  if (cached) {
+    results.value = cached
+    error.value = ''
+    loading.value = false
+    const pc = pageCache.get(cacheKey)
+    page.value = pc ? pc.page : 1
+    noMore.value = pc ? pc.noMore : false
+    aiSummaryText.value = tab === 'all' ? (aiCache.get(kw) || '') : ''
+    return
+  }
   loading.value = true
   error.value = ''
+  page.value = 1
+  noMore.value = false
   try {
-    results.value = await searchApi.search(keyword.value, activeTab.value)
-    searchApi.saveHistory(keyword.value) // 静默保存历史，不阻塞
-    const r = results.value
-    const hasAny = r.contents.length || r.courses.length || r.products.length ||
-      r.circles.length || r.classics.length || r.ebooks.length || r.users.length
-    if (activeTab.value === 'all' && hasAny) {
-      loadAiSummary()
+    const res = await searchApi.search(kw, tab)
+    if (seq !== reqSeq) return // 晚到的旧响应：期间已发起过新请求（或切了缓存 Tab），整体丢弃
+    results.value = res
+    resultCache.set(cacheKey, res)
+    // 分类 Tab：首页不足一页即到底（search 抛错走 catch，这里的空/短返回可信）
+    const listKey = tabListKey[tab]
+    if (listKey) {
+      noMore.value = (res[listKey] as unknown[]).length < SEARCH_PAGE_SIZE
+      pageCache.set(cacheKey, { page: 1, noMore: noMore.value })
+    }
+    searchApi.saveHistory(kw) // 静默保存历史，不阻塞
+    const hasAny = res.contents.length || res.courses.length || res.products.length ||
+      res.circles.length || res.classics.length || res.users.length
+    if (tab === 'all' && hasAny) {
+      loadAiSummary(kw)
     } else {
       aiSummaryText.value = ''
     }
   } catch (e) {
+    if (seq !== reqSeq) return // 旧请求失败也不许污染新请求的三态
     error.value = '搜索失败，请重试'
   } finally {
-    loading.value = false
+    if (seq === reqSeq) loading.value = false
   }
 }
 
-/** AI 智能总结（需登录+后端配置，失败静默隐藏卡片） */
-async function loadAiSummary() {
+/**
+ * 上滑翻页（scroll-view @scrolltolower）：仅分类 Tab。
+ * 追加当前 Tab 列表并按 id 去重（FTS 权重排序下翻页可能少量重叠）；
+ * 失败 toast 保留现状可重试，不误设 noMore。
+ */
+async function loadMoreResults() {
+  const key = tabListKey[activeTab.value]
+  if (!key || loading.value || loadingMore.value || noMore.value || error.value) return
+  const kw = keyword.value.trim()
+  if (!kw) return
+  const cacheKey = `${kw}||${activeTab.value}`
+  loadingMore.value = true
+  try {
+    const next = page.value + 1
+    const res = await searchApi.search(kw, activeTab.value, next)
+    const incoming = res[key] as Array<{ id: string }>
+    const cur = results.value[key] as Array<{ id: string }>
+    if (incoming.length) {
+      const seen = new Set(cur.map((it) => it.id))
+      cur.push(...incoming.filter((it) => !seen.has(it.id)))
+      page.value = next
+      resultCache.set(cacheKey, results.value) // 追加后的整表回写缓存，切 Tab 回来不丢
+    }
+    if (incoming.length < SEARCH_PAGE_SIZE) noMore.value = true
+    pageCache.set(cacheKey, { page: page.value, noMore: noMore.value })
+  } catch {
+    uni.showToast({ title: '加载失败，请重试', icon: 'none' })
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+/** AI 智能总结（需登录+后端配置，失败静默隐藏卡片）。
+ *  kw = 发起时的关键词快照：慢响应回来若用户已换词/离开综合 Tab，只写按快照词的缓存，不覆盖当前展示态 */
+async function loadAiSummary(kw: string) {
   const r = results.value
   const items = [
     ...r.contents.slice(0, 4).map((c) => ({ title: c.title, content: c.summary || '' })),
@@ -406,9 +473,25 @@ async function loadAiSummary() {
   ]
   if (!items.length) { aiSummaryText.value = ''; return }
   try {
-    aiSummaryText.value = await searchApi.aiSummary(keyword.value, items)
+    const text = await searchApi.aiSummary(kw, items)
+    aiCache.set(kw, text) // 按快照词写缓存，供切回综合Tab复用
+    if (keyword.value.trim() === kw && activeTab.value === 'all') {
+      aiSummaryText.value = text
+    }
   } catch {
-    aiSummaryText.value = ''
+    if (keyword.value.trim() === kw && activeTab.value === 'all') {
+      aiSummaryText.value = ''
+    }
+  }
+}
+
+/** 安全解码：外部拼的 URL 可能带裸 "%"（如搜「涨50%」被二次转发），
+ *  裸 decodeURIComponent 会抛 URIError 中断整个 onLoad 白屏；失败时原样使用 */
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s)
+  } catch {
+    return s
   }
 }
 
@@ -419,14 +502,25 @@ onLoad((opt) => {
   } catch (e) {
     statusBarHeight.value = 0
   }
-  const kw = opt && opt.keyword ? decodeURIComponent(opt.keyword) : ''
+  const kw = opt && opt.keyword ? safeDecode(opt.keyword) : ''
   const tabOpt = opt && opt.tab ? (opt.tab as SearchTab) : ''
   const from = opt && opt.from ? opt.from : ''
   keyword.value = kw
   searchValue.value = kw
   activeTab.value = (tabOpt && tabs.some((t) => t.key === tabOpt) ? tabOpt : fromToTab[from]) || 'all'
   loadResults()
+  loadHotWords()
 })
+
+/** 空态热门搜索词（真连 /search/hot，失败静默保持空数组） */
+async function loadHotWords() {
+  try {
+    const hot = await searchApi.getHot(6)
+    emptyHotWords.value = hot.map((h) => h.keyword)
+  } catch {
+    /* 静默：拉不到就不展示热词，不编假词 */
+  }
+}
 
 // 关键词或Tab变化 → 重新加载
 watch([keyword, activeTab], loadResults)
@@ -494,8 +588,9 @@ function formatNumber(num: number) {
   padding: 16rpx 24rpx;
 }
 .back-btn {
-  width: 52rpx;
-  height: 52rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin: 0 -18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -843,14 +938,20 @@ function formatNumber(num: number) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  position: relative; /* cover-fallback 绝对定位锚点 */
 }
 .course-cover-grid {
+  /* X5 内核不支持 aspect-ratio：4:3 用 padding-top 75% 撑比例，子元素绝对铺满 */
   width: 100%;
-  aspect-ratio: 4 / 3;
+  height: 0;
+  padding-top: 75%;
+  position: relative;
   background: linear-gradient(135deg, rgba(196, 30, 58, 0.2), rgba(201, 169, 110, 0.2));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+.course-cover-grid .row-cover-img {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 .course-meta-row {
   flex: 1;
@@ -918,12 +1019,17 @@ function formatNumber(num: number) {
   overflow: hidden;
 }
 .product-cover {
+  /* X5 内核不支持 aspect-ratio：1:1 用 padding-top 100% 撑比例，子元素绝对铺满 */
   width: 100%;
-  aspect-ratio: 1 / 1;
+  height: 0;
+  padding-top: 100%;
+  position: relative;
   background: linear-gradient(135deg, rgba(196, 30, 58, 0.1), rgba(201, 169, 110, 0.1));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+}
+.product-cover .product-cover-img {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 .product-meta {
   padding: 24rpx;
@@ -1084,6 +1190,29 @@ function formatNumber(num: number) {
 .product-cover,
 .user-avatar {
   overflow: hidden;
+}
+
+/* 无封面占位图标：绝对铺满父容器并居中（父容器已 position:relative） */
+.cover-fallback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 翻页尾巴 */
+.load-foot {
+  display: flex;
+  justify-content: center;
+  padding: 24rpx 0 8rpx;
+}
+.load-foot-text {
+  font-size: 24rpx;
+  color: var(--text-soft);
 }
 
 /* 古籍/电子书 分类标签 */

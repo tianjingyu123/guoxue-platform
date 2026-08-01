@@ -26,6 +26,9 @@
         <el-button @click="exportData">
           导出CSV
         </el-button>
+        <el-button @click="fetchList">
+          刷新
+        </el-button>
       </div>
     </div>
 
@@ -53,14 +56,15 @@
         stripe
       >
         <template #empty>
-          <el-empty description="暂无充值记录" />
+          <el-empty description="暂无充值记录，可按用户ID筛选后重试" />
         </template>
         <el-table-column
           label="用户昵称"
           width="130"
+          show-overflow-tooltip
         >
         <template #default="{ row }">
-          {{ row.user?.nickname || "--" }}
+          {{ row.user?.nickname || "—" }}
         </template>
       </el-table-column>
       <el-table-column
@@ -68,31 +72,41 @@
         width="130"
       >
         <template #default="{ row }">
-          {{ row.user?.phone || "--" }}
+          {{ maskPhone(row.user?.phone) }}
         </template>
       </el-table-column>
       <el-table-column
         label="用户ID"
-        width="80"
+        width="110"
       >
         <template #default="{ row }">
-          {{ row.userId }}
+          <el-tooltip
+            :content="String(row.userId || '')"
+            placement="top"
+          >
+            <span
+              class="copyable"
+              @click="copyText(String(row.userId || ''))"
+            >{{ String(row.userId || '').slice(0, 8) }}</span>
+          </el-tooltip>
         </template>
       </el-table-column>
       <el-table-column
         label="人民币金额"
-        width="110"
+        width="120"
+        align="right"
       >
         <template #default="{ row }">
-          ¥{{ Number(row.amount).toFixed(2) }}
+          <span class="money">{{ fmtMoney(row.amountRmb) }}</span>
         </template>
       </el-table-column>
       <el-table-column
         label="币数"
-        width="90"
+        width="100"
+        align="right"
       >
         <template #default="{ row }">
-          {{ row.coins }}
+          {{ fmtInt(row.amountCoin) }}
         </template>
       </el-table-column>
       <el-table-column
@@ -104,8 +118,26 @@
         </template>
       </el-table-column>
       <el-table-column
+        label="支付单号"
+        width="120"
+      >
+        <template #default="{ row }">
+          <el-tooltip
+            v-if="row.orderNo"
+            :content="row.orderNo"
+            placement="top"
+          >
+            <span
+              class="copyable"
+              @click="copyText(row.orderNo!)"
+            >{{ row.orderNo.slice(0, 8) }}…</span>
+          </el-tooltip>
+          <span v-else>—</span>
+        </template>
+      </el-table-column>
+      <el-table-column
         label="状态"
-        width="80"
+        width="90"
       >
         <template #default="{ row }">
           <el-tag
@@ -117,20 +149,16 @@
         </template>
       </el-table-column>
       <el-table-column
-        label="备注"
-        width="160"
-        show-overflow-tooltip
-      >
-        <template #default="{ row }">
-          {{ row.remark || "--" }}
-        </template>
-      </el-table-column>
-      <el-table-column
         label="充值时间"
-        width="170"
+        width="150"
       >
         <template #default="{ row }">
-          {{ formatTime(row.createdAt) }}
+          <el-tooltip
+            :content="fullTime(row.createdAt)"
+            placement="top"
+          >
+            <span>{{ formatTime(row.createdAt) }}</span>
+          </el-tooltip>
         </template>
       </el-table-column>
       </el-table>
@@ -155,6 +183,13 @@
       title="管理员充值"
       width="500px"
     >
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        title="管理员充值不会立即到账：提交后进入资金审批中心，财务审批通过才入账"
+        style="margin-bottom:12px"
+      />
       <el-form
         :model="rechargeForm"
         label-width="100px"
@@ -174,10 +209,11 @@
         >
           <el-input-number
             v-model="rechargeForm.coins"
-            :min="1"
+            :min="10"
             :step="100"
             style="width: 100%"
           />
+          <span class="field-tip">最低 10 币（与后端校验一致）</span>
         </el-form-item>
         <el-form-item label="备注">
           <el-input
@@ -197,7 +233,7 @@
           :loading="submitting"
           @click="submitRecharge"
         >
-          确认充值
+          提交审批
         </el-button>
       </template>
     </el-dialog>
@@ -210,15 +246,15 @@ import { coinApi, api } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { exportCSV } from "@/utils/export";
 
-// 充值记录行（按列配置与模板访问字段定义的宽松本地类型）
+// 充值记录行（后端 VirtualCoinRecharge：amountRmb/amountCoin/payMethod/orderNo/status/createdAt）
 interface RechargeRow {
   userId?: string | number
   user?: { nickname?: string; phone?: string }
-  amount?: number
-  coins?: number
+  amountRmb?: number | string
+  amountCoin?: number
   payMethod: string
   status: string
-  remark?: string
+  orderNo?: string
   createdAt: string
 }
 
@@ -251,6 +287,7 @@ async function fetchList() {
       pageSize.value,
       filterUserId.value || undefined,
     );
+    // 后端返回 { recharges, total, page, pageSize }（"recharges" 键或被拦截器解包为 items）
     list.value = data.items || data.recharges || data.list || [];
     total.value = data.total || 0;
   } catch {
@@ -262,6 +299,34 @@ async function fetchList() {
   }
 }
 
+function fmtMoney(v: number | string | null | undefined) {
+  if (v === null || v === undefined || v === "") return "—";
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "—";
+  return "¥" + n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtInt(v: number | null | undefined) {
+  if (v === null || v === undefined) return "—";
+  return Number(v).toLocaleString("zh-CN");
+}
+
+function maskPhone(phone?: string) {
+  if (!phone) return "—";
+  const s = String(phone);
+  if (s.length < 7) return s;
+  return s.slice(0, 3) + "****" + s.slice(-4);
+}
+
+async function copyText(text: string) {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    ElMessage.success("已复制");
+  } catch {
+    ElMessage.warning("复制失败，请手动复制");
+  }
+}
+
 function payMethodLabel(method: string) {
   const map: Record<string, string> = {
     WECHAT: "微信",
@@ -269,32 +334,37 @@ function payMethodLabel(method: string) {
     ADMIN: "管理员充值",
     BANK: "银行转账",
   };
-  return map[method] || method || "--";
+  return map[method] || method || "—";
 }
 
+// 后端字段：status = PENDING / PAID / FAILED / REFUNDED
 function statusType(status: string) {
   const map: Record<string, string> = {
     PENDING: "warning",
-    SUCCESS: "success",
+    PAID: "success",
     FAILED: "danger",
-    REFUND: "info",
+    REFUNDED: "info",
   };
-  return map[status] || "";
+  return map[status] || "info";
 }
 
 function statusLabel(status: string) {
   const map: Record<string, string> = {
     PENDING: "待支付",
-    SUCCESS: "成功",
+    PAID: "已到账",
     FAILED: "失败",
-    REFUND: "已退款",
+    REFUNDED: "已退款",
   };
-  return map[status] || status || "--";
+  return map[status] || status || "—";
 }
 
 function formatTime(t: string) {
-  if (!t) return "--";
-  return t.slice(0, 16).replace("T", " ");
+  if (!t) return "—";
+  return t.slice(5, 16).replace("T", " ");
+}
+function fullTime(t: string) {
+  if (!t) return "—";
+  return t.slice(0, 19).replace("T", " ");
 }
 
 function openRechargeDialog() {
@@ -308,15 +378,16 @@ async function submitRecharge() {
     ElMessage.warning("请输入用户ID");
     return;
   }
-  if (!coins || coins <= 0) {
-    ElMessage.warning("请输入有效的币数");
+  // 后端 AdminRechargeDto @Min(10)：低于 10 币直接被 400 打回，这里先拦
+  if (!coins || coins < 10) {
+    ElMessage.warning("充值币数最低 10 币");
     return;
   }
   try {
     await ElMessageBox.confirm(
-      `确认给用户 ${userId} 充值 ${coins} 币？`,
-      "确认充值",
-      { type: "warning", confirmButtonText: "确认", cancelButtonText: "取消" },
+      `确认给用户 ${userId} 充值 ${coins} 国学币？\n提交后需财务在资金审批中心审批通过才会到账。`,
+      "确认提交审批",
+      { type: "warning", confirmButtonText: "提交审批", cancelButtonText: "取消" },
     );
   } catch {
     return;
@@ -347,20 +418,20 @@ function exportData() {
       { label: "人民币金额", key: "amount" },
       { label: "币数", key: "coins" },
       { label: "支付方式", key: "payMethod" },
+      { label: "支付单号", key: "orderNo" },
       { label: "状态", key: "status" },
-      { label: "备注", key: "remark" },
       { label: "充值时间", key: "createdAt" },
     ],
     list.value.map((r) => ({
-      nickname: r.user?.nickname || "--",
-      phone: r.user?.phone || "--",
+      nickname: r.user?.nickname || "—",
+      phone: maskPhone(r.user?.phone),
       userId: r.userId,
-      amount: `¥${Number(r.amount).toFixed(2)}`,
-      coins: r.coins,
+      amount: fmtMoney(r.amountRmb),
+      coins: r.amountCoin ?? "—",
       payMethod: payMethodLabel(r.payMethod),
+      orderNo: r.orderNo || "—",
       status: statusLabel(r.status),
-      remark: r.remark || "--",
-      createdAt: formatTime(r.createdAt),
+      createdAt: fullTime(r.createdAt),
     })),
   );
 }
@@ -372,4 +443,7 @@ function exportData() {
 .header h2 { margin: 0 0 8px; font-size: 18px; color: var(--color-text-title); }
 .filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pagination { margin-top: 16px; display: flex; justify-content: flex-end; }
+.money { font-weight: 600; }
+.copyable { cursor: pointer; color: var(--el-color-primary); }
+.field-tip { margin-left: 8px; font-size: 12px; color: var(--color-text-secondary); }
 </style>

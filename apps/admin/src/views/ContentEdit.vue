@@ -3,10 +3,11 @@
     <div class="edit-header">
       <h3>{{ isEdit ? '编辑内容' : '新建内容' }}</h3>
       <div class="header-actions">
+        <!-- 注意：不能写 @click="handleSave"，Vue 会把 MouseEvent 作为 status 参数传入导致提交 400 -->
         <el-button
           type="primary"
           :loading="saving"
-          @click="handleSave"
+          @click="() => handleSave()"
         >
           保存
         </el-button>
@@ -88,12 +89,12 @@
           </el-form-item>
 
           <el-form-item label="正文">
-            <div class="editor-wrapper">
-              <div
-                ref="editorEl"
-                class="ql-editor-container"
-              />
-            </div>
+            <RichEditor
+              v-model="form.body"
+              placeholder="请输入正文..."
+              min-height="380px"
+              style="width: 100%"
+            />
           </el-form-item>
         </el-form>
       </div>
@@ -102,58 +103,7 @@
       <div class="edit-sidebar">
         <div class="sidebar-section">
           <h4>封面图片</h4>
-          <div class="cover-upload">
-            <div
-              v-if="form.cover"
-              class="cover-preview"
-            >
-              <img
-                :src="form.cover"
-                alt="封面"
-              >
-              <el-button
-                size="small"
-                type="danger"
-                class="cover-remove"
-                @click="form.cover = ''"
-              >
-                移除
-              </el-button>
-            </div>
-            <div
-              v-else
-              class="cover-placeholder"
-            >
-              <span>暂无封面</span>
-            </div>
-            <div class="cover-input-row">
-              <el-input
-                v-model="coverUrl"
-                placeholder="输入图片URL"
-                size="small"
-              />
-              <el-button
-                size="small"
-                @click="form.cover = coverUrl"
-              >
-                设置
-              </el-button>
-            </div>
-            <el-upload
-              :show-file-list="false"
-              :http-request="handleCoverUpload"
-              accept="image/*"
-              style="margin-top:8px"
-            >
-              <el-button
-                size="small"
-                type="primary"
-                :loading="uploading"
-              >
-                本地上传
-              </el-button>
-            </el-upload>
-          </div>
+          <CosImageUpload v-model="form.cover" />
         </div>
 
         <div class="sidebar-section">
@@ -209,18 +159,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { contentApi, uploadApi } from '@/api'
+import { contentApi } from '@/api'
 import { ElMessage } from 'element-plus'
-import type { UploadRequestOptions } from 'element-plus'
+import CosImageUpload from '@/components/upload/CosImageUpload.vue'
+import RichEditor from '@/components/editor/RichEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const id = route.params.id as string | undefined
 const isEdit = !!id
 const saving = ref(false)
-const uploading = ref(false)
 
 const form = reactive({
   title: '',
@@ -231,14 +181,11 @@ const form = reactive({
   body: '',
   cover: '',
   tags: [] as string[],
-  status: 'PUBLISHED' as string,
+  // 旧CMS双入口收敛观察期：新建默认存草稿，不直接发布（发布需在状态面板显式选择）
+  status: 'DRAFT' as string,
 })
 
-const coverUrl = ref('')
 const tagInput = ref('')
-const editorEl = ref<HTMLElement | null>(null)
-// Quill 编辑器实例：经 CDN 动态加载，无类型声明，保留 any
-let quill: any = null
 
 onMounted(async () => {
   if (isEdit && id) {
@@ -259,47 +206,7 @@ onMounted(async () => {
       ElMessage.error('内容加载失败，请返回重试')
     }
   }
-
-  // 初始化 Quill 编辑器
-  await nextTick()
-  initQuill()
 })
-
-function initQuill() {
-  if (!editorEl.value) return
-  // 动态加载 Quill
-  const script = document.createElement('script')
-  script.src = 'https://cdn.quilljs.com/1.3.7/quill.min.js'
-  script.onload = () => {
-    // window.Quill 由 CDN 脚本注入，无类型声明，保留 any
-    const Q = (window as any).Quill
-    if (!Q) return
-    quill = new Q(editorEl.value, {
-      theme: 'snow',
-      modules: {
-        toolbar: [
-          ['bold', 'italic', 'underline', 'strike'],
-          [{ header: 1 }, { header: 2 }],
-          [{ align: [] }],
-          ['blockquote', 'code-block'],
-          [{ list: 'ordered' }, { list: 'bullet' }],
-          [{ indent: '-1' }, { indent: '+1' }],
-          [{ color: [] }, { background: [] }],
-          ['link', 'image'],
-          ['clean'],
-        ],
-      },
-      placeholder: '请输入正文...',
-    })
-    if (form.body) {
-      quill.root.innerHTML = form.body
-    }
-    quill.on('text-change', () => {
-      form.body = quill.root.innerHTML
-    })
-  }
-  document.head.appendChild(script)
-}
 
 function addTag() {
   const t = tagInput.value.trim()
@@ -308,19 +215,6 @@ function addTag() {
     form.tags.push(t)
   }
   tagInput.value = ''
-}
-
-async function handleCoverUpload(options: UploadRequestOptions) {
-  uploading.value = true
-  try {
-    const { data } = await uploadApi.image(options.file)
-    form.cover = data.url
-    coverUrl.value = data.url
-    ElMessage.success('封面上传成功')
-  } catch {
-  } finally {
-    uploading.value = false
-  }
 }
 
 async function handleSave(status?: string) {
@@ -406,11 +300,6 @@ async function handleSave(status?: string) {
   border-bottom: 1px solid #f0e6d3;
   padding-bottom: 6px;
 }
-
-/* 编辑器 */
-.editor-wrapper { border: 1px solid #ddd; border-radius: 4px; min-height: 400px; }
-.ql-editor-container { min-height: 380px; }
-:deep(.ql-toolbar) { border-radius: 4px 4px 0 0; }
 
 /* 封面 */
 .cover-upload { display: flex; flex-direction: column; gap: 8px; }

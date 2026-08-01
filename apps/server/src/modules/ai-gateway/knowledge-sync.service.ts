@@ -423,6 +423,21 @@ export class KnowledgeSyncService {
     return { removed: true, message: "已从知识库移除" };
   }
 
+  /** 管理端移除知识条目（超管/运营·跳过圈主校验，与 confirmCandidate 的角色门控一致；仍加 circleId 约束防越权） */
+  async adminRemoveFromKnowledge(circleId: string, userId: string, knowledgeId: string) {
+    const result = await this.prisma.circleKnowledge.updateMany({
+      where: { id: knowledgeId, circleId },
+      data: { status: "removed" },
+    });
+    if (result.count === 0) {
+      throw new BusinessException(ErrorCode.NOT_FOUND, "知识条目不存在或不属于该圈子");
+    }
+    await this.prisma.circleKnowledgeManual.create({
+      data: { circleId, userId, targetType: "knowledge", targetId: knowledgeId, action: "remove" },
+    });
+    return { removed: true, message: "已从知识库移除" };
+  }
+
   /** 获取候选内容列表 */
   async getCandidates(circleId: string, status: "pending" | "confirmed" | "rejected" = "pending") {
     return this.prisma.circleKnowledgeCandidate.findMany({

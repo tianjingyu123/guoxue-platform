@@ -97,6 +97,7 @@ export class RagService {
       userId,
       messages,
       options: { temperature: 0.3, maxTokens: 1024 },
+      cacheScopeKey: circleId, // 按圈隔离语义缓存，防跨圈串答
     });
 
     return { answer: result.content, sources: chunks };
@@ -130,6 +131,7 @@ export class RagService {
       userId,
       messages,
       options: { temperature: 0.3, maxTokens: 1024 },
+      cacheScopeKey: circleId, // 按圈隔离语义缓存，防跨圈串答
     };
 
     for await (const chunk of this.gateway.chatStream(req)) {
@@ -259,6 +261,7 @@ export class RagService {
       userId,
       messages,
       options: { temperature: 0.3, maxTokens: 1024 },
+      cacheScopeKey: circleId, // 按圈隔离语义缓存，防跨圈串答
     });
 
     return { answer: result.content, sources: topChunks };

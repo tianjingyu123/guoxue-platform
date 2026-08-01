@@ -15,6 +15,9 @@ import {
   formatLikes,
   formatCount,
 } from '@/lib/home-data'
+import { formatPrice } from '@/utils/format'
+import SmartCover from '@/components/common/smart-cover.vue'
+import LiveStatusBadge from '@/components/live/live-status-badge.vue'
 
 const props = defineProps<{ data: RenderItem }>()
 
@@ -25,7 +28,9 @@ const agent = computed(() => (props.data.kind === 'agent' ? props.data.agent : n
 // 视觉卡：课程/商品/直播(竖)/视频/电子书
 const VISUAL_TYPES = ['course', 'product', 'live', 'video', 'ebook']
 const cardType = computed(() => item.value?.type ?? '')
-const isVisual = computed(() => VISUAL_TYPES.includes(cardType.value) && !!item.value?.cover)
+// 视觉类型(课程/商品/直播/视频/电子书)一律走视觉卡：无 cover 时由 smart-cover 生成雅致封面
+// (原来要求 !!cover，导致内容普遍缺图时这些卡进不了视觉卡、首页全是文字卡显单调)
+const isVisual = computed(() => VISUAL_TYPES.includes(cardType.value))
 const isArticle = computed(() => cardType.value === 'article' && !!item.value?.cover)
 const isTextOnly = computed(
   () => (!item.value?.cover && (cardType.value === 'article' || cardType.value === 'post')),
@@ -46,16 +51,18 @@ function go() {
   const it = item.value
   if (it) {
     track.click('feed_card', { type: it.type, id: it.id })
+    // 用 router 真实动态路由(此前用 /pages/xxx/detail 前缀全部匹配不上→首页卡片点击全"功能开发中")
     const map: Record<string, string> = {
-      live: `/pages/live/detail?id=${it.id}`,
-      course: `/pages/course/detail?id=${it.id}`,
-      video: `/pages/video/detail?id=${it.id}`,
-      ebook: `/pages/ebook/detail?id=${it.id}`,
-      product: `/pages/mall/product?id=${it.id}`,
-      article: `/pages/article/detail?id=${it.id}`,
-      post: `/pages/post/detail?id=${it.id}`,
-      poem: `/pages/poetry/detail?id=${it.id}`,
-      poem_daily: `/pages/poetry/detail?id=${it.id}`,
+      live: `/live/${it.id}`,
+      course: `/course/${it.id}`,
+      video: `/video/${it.id}`,
+      ebook: `/ebook/${it.id}`,
+      product: `/mall/product/${it.id}`,
+      article: `/articles/${it.id}`,
+      post: `/pkg-circle/circles/post?id=${it.id}`,
+      circle_post: `/pkg-circle/circles/post?id=${it.id}`,
+      poem: `/poetry/${it.id}`,
+      poem_daily: `/poetry/${it.id}`,
       classic: `/pkg-classics/detail/index?id=${it.id}`,
     }
     if (it.type === 'circle') {
@@ -66,7 +73,7 @@ function go() {
       )
       return
     }
-    navigateTo(map[it.type] || `/pages/article/detail?id=${it.id}`)
+    navigateTo(map[it.type] || `/articles/${it.id}`)
     return
   }
   if (agent.value) {
@@ -109,15 +116,18 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 视觉卡：课程/商品/直播/视频/电子书 ============ -->
   <view v-else-if="item && isVisual" class="card card-press" :class="{ 'live-card-glow': isLiveNow }" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <image :src="item.cover!" class="cover-img" mode="aspectFill" lazy-load />
-      <text v-if="badge" class="type-badge" :style="{ background: badge.bg }">{{ badge.label }}</text>
-      <!-- 直播中呼吸灯 -->
-      <view v-if="isLiveNow" class="live-tag live-indicator">
-        <view class="live-dot" /><text class="live-text">直播中</text>
-      </view>
+      <smart-cover
+        :src="item.cover"
+        :video-url="cardType === 'video' ? item.videoUrl : ''"
+        :title="item.title"
+        :type="cardType"
+        class="cover-img"
+      />
+      <view v-if="isLiveNow" class="live-scan" />
+      <live-status-badge v-if="isLiveNow" />
       <!-- 直播预约时间 -->
       <view v-if="cardType === 'live' && !item.isLive && item.time" class="time-tag">
-        <app-icon name="clock" :size="20" color="#ffffff" /><text class="time-text">{{ item.time }}</text>
+        <app-icon name="clock" :size="20" color="#ffffff" /><text class="time-text">预约</text>
       </view>
       <!-- 商品标签 -->
       <text
@@ -136,17 +146,17 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
         <text class="viewers-text">{{ formatCount(item.isLive ? item.viewers : item.reservations) }}</text>
       </view>
       <!-- 电子书价格 -->
-      <text v-if="cardType === 'ebook'" class="ebook-price">{{ item.price ? '¥' + item.price : '会员免费' }}</text>
+      <text v-if="cardType === 'ebook'" class="ebook-price">{{ item.price ? '¥' + formatPrice(item.price) : '会员免费' }}</text>
     </view>
     <view class="info">
       <text class="title clamp-2">{{ item.title }}</text>
       <!-- 价格行 -->
       <view v-if="cardType === 'course' || cardType === 'product'" class="price-row">
-        <text class="price">¥{{ item.price }}</text>
-        <text v-if="item.originalPrice" class="origin">¥{{ item.originalPrice }}</text>
+        <text class="price">¥{{ formatPrice(item.price) }}</text>
+        <text v-if="item.originalPrice" class="origin">¥{{ formatPrice(item.originalPrice) }}</text>
       </view>
       <view v-if="cardType === 'ebook'" class="ebook-row">
-        <text class="ebook-p">{{ item.price ? '¥' + item.price : '免费' }}</text>
+        <text class="ebook-p">{{ item.price ? '¥' + formatPrice(item.price) : '免费' }}</text>
         <text class="ebook-readers">{{ formatCount(item.readers) }}人读过</text>
       </view>
       <view class="foot">
@@ -167,8 +177,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 文章卡（带封面） ============ -->
   <view v-else-if="item && isArticle" class="card card-press" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <image :src="item.cover!" class="cover-img" mode="aspectFill" lazy-load />
-      <text class="type-badge" :style="{ background: typeConfig.article.bg }">文章</text>
+      <smart-cover :src="item.cover" :title="item.title" :type="cardType" class="cover-img" />
     </view>
     <view class="info">
       <text class="title-serif clamp-2">{{ item.title }}</text>
@@ -240,7 +249,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   <!-- ============ 圈子卡（masonry 简版） ============ -->
   <view v-else-if="item && isCircle" class="card card-press" @tap="go">
     <view class="cover" :style="{ aspectRatio: aspect }">
-      <image :src="item.cover!" class="cover-img" mode="aspectFill" lazy-load />
+      <smart-cover :src="item.cover" :title="item.title" :type="cardType" class="cover-img" />
       <text class="type-badge" :style="{ background: typeConfig.circle.bg }">圈子</text>
     </view>
     <view class="info">
@@ -251,7 +260,7 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
       <text class="excerpt clamp-2">{{ item.content }}</text>
       <view class="circle-meta">
         <view class="cm-stat"><app-icon name="users" :size="22" color="#999999" /><text class="cm-num">{{ formatCount(item.members) }}</text></view>
-        <text class="cm-price">{{ item.price ? '¥' + item.price : '免费' }}</text>
+        <text class="cm-price">{{ item.price ? '¥' + formatPrice(item.price) : '免费' }}</text>
       </view>
       <view class="circle-foot">
         <text class="join-btn" :class="{ joined: item.isMember }">{{ item.isMember ? '已加入' : '加入' }}</text>
@@ -288,13 +297,11 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   font-size: 18rpx; color: rgba(255, 255, 255, 0.95); font-weight: 500;
   padding: 4rpx 16rpx; border-radius: 999rpx; letter-spacing: 1rpx;
 }
-.live-tag {
-  position: absolute; top: 16rpx; right: 16rpx;
-  display: flex; align-items: center; gap: 6rpx;
-  padding: 4rpx 12rpx; border-radius: 999rpx; background: var(--brand);
+.live-scan {
+  position: absolute; top: -20%; right: 0; left: 0; z-index: 2; height: 20%;
+  background: linear-gradient(180deg, transparent, rgba(255,235,224,.18), transparent);
+  animation: live-scan 4.2s ease-in-out infinite;
 }
-.live-dot { width: 10rpx; height: 10rpx; border-radius: 999rpx; background: #fff; }
-.live-text { font-size: 18rpx; color: #fff; }
 .time-tag {
   position: absolute; top: 16rpx; right: 16rpx;
   display: flex; align-items: center; gap: 2rpx;
@@ -323,6 +330,15 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   position: absolute; bottom: 16rpx; left: 16rpx;
   display: flex; align-items: center; gap: 2rpx;
   padding: 4rpx 12rpx; border-radius: 8rpx; background: rgba(0, 0, 0, 0.5);
+}
+@keyframes live-scan {
+  0%, 18% { transform: translateY(0); opacity: 0; }
+  28% { opacity: 1; }
+  68% { opacity: .7; }
+  82%, 100% { transform: translateY(600%); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-scan { animation: none; }
 }
 .viewers-text { font-size: 18rpx; color: #fff; }
 .ebook-price {
@@ -378,10 +394,11 @@ const theme = computed(() => agentThemes[agent.value?.type ?? 'general'] ?? agen
   border: 2rpx solid rgba(196, 30, 58, 0.5); background: rgba(196, 30, 58, 0.04);
 }
 .dynasty { font-size: 20rpx; color: var(--text-soft, #999); font-family: var(--font-serif); }
-.poem-lines { display: flex; flex-direction: row-reverse; justify-content: center; gap: 28rpx; padding: 16rpx 0; min-height: 160rpx; }
+/* 横排展示（每行一句，居中），替代原竖排 writing-mode（用户反馈：诗词建议横向阅读更友好） */
+.poem-lines { display: flex; flex-direction: column; align-items: center; gap: 10rpx; padding: 16rpx 0; }
 .poem-line {
   font-family: var(--font-serif); font-size: 30rpx; color: var(--text-ink, #2c2c2c);
-  writing-mode: vertical-rl; letter-spacing: 6rpx; line-height: 1.9;
+  letter-spacing: 4rpx; line-height: 1.9; text-align: center;
 }
 .poem-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 24rpx; padding-top: 20rpx; border-top: 2rpx solid rgba(201, 169, 110, 0.25); }
 .poem-title { font-family: var(--font-serif); font-weight: 700; font-size: 28rpx; color: #c9a96e; letter-spacing: 2rpx; }

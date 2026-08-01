@@ -74,7 +74,7 @@ export class CollaborationController {
   async rollback(
     @Param("id") id: string,
     @Req() req: AuthRequest,
-    @Body() body?: RollbackCollaborationDto,
+    @Body() _body?: RollbackCollaborationDto,
   ) {
     // operator 从登录态注入
     await this.collaboration.rollback(id, req.user.id);

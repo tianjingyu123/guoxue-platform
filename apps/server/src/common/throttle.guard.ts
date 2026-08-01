@@ -23,6 +23,6 @@ export class ThrottleGuard extends RedisThrottleGuard {
 @Injectable()
 export class StrictThrottleGuard extends RedisThrottleGuard {
   constructor(redis: RedisService) {
-    super(redis, 10, 60, "rate:strict");
+    super(redis, 10, 60, "rate:strict", true);
   }
 }

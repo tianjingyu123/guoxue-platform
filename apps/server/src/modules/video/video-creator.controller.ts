@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("视频创作者中心")
 @Controller("videos/creator")
@@ -154,19 +155,39 @@ export class VideoCreatorController {
     return this.svc.adminListWithdrawals(+page, +pageSize, keyword, status);
   }
 
+  /**
+   * 打款专用：取完整收款账户（明文）。
+   * 🔴 唯一返回明文收款账号的端点——权限收到财务/超管，每次调用先写 AuditLog 留痕再返回（防自取）。
+   * 列表接口一律脱敏（maskAccount），不要为了省事放宽那边。
+   */
+  @Get("admin/withdrawals/:id/payout-account")
+  @RedLineGate(RedLine.MONEY)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @Auditable({ action: "查看创作者提现收款账户", targetType: "VIDEO_CREATOR_WITHDRAWAL" })
+  @ApiOperation({ summary: "查看创作者提现收款账户完整信息（打款用·强制审计留痕）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 400, description: "仅 APPROVED 状态可查看" })
+  @ApiResponse({ status: 403, description: "无权限/不能查看自己的申请" })
+  @ApiResponse({ status: 404, description: "申请不存在" })
+  revealPayoutAccount(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.revealPayoutAccount(id, req.user.id, req.ip);
+  }
+
   @Post("admin/withdrawals/:id/review")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @Auditable({ action: "创作者提现审批", targetType: "VIDEO_CREATOR_WITHDRAWAL" })
-  @ApiOperation({ summary: "审批创作者提现申请（通过/拒绝/打款）" })
+  @ApiOperation({ summary: "审批创作者提现申请（通过/拒绝/打款·pay 须先 APPROVED 且必带 payoutRef·审批人≠打款人）" })
   @ApiResponse({ status: 200, description: "审批成功" })
-  @ApiResponse({ status: 400, description: "状态非法或参数错误" })
-  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiResponse({ status: 400, description: "状态非法/缺 payoutRef/流水号重复" })
+  @ApiResponse({ status: 403, description: "无权限/自审自批/四眼冲突" })
   @ApiResponse({ status: 404, description: "申请不存在" })
   reviewWithdrawal(
     @Req() req: Request,
     @Param("id") id: string,
-    @Body() data: { action: "approve" | "reject" | "pay"; note?: string },
+    @Body() data: { action: "approve" | "reject" | "pay"; note?: string; payoutRef?: string },
   ) {
     return this.svc.reviewWithdrawal(id, req.user.id, data);
   }

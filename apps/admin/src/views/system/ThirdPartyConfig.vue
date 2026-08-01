@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { systemApi, api } from '@/api'
 
-interface Field { key: string; label: string; sensitive: boolean; placeholder: string; hint: string; multiline: boolean }
+interface Field { key: string; label: string; sensitive: boolean; placeholder: string; hint: string; multiline: boolean; recommendedValue?: string }
 interface Service { key: string; label: string; category: string; enabled: boolean; note: string; fields: Field[] }
 
 const loading = ref(false)
@@ -50,7 +50,9 @@ async function load() {
     // 先初始化 formData，再赋 services，保证模板 v-model 有对象可绑
     svcs.forEach((s) => {
       if (!formData[s.key]) formData[s.key] = {}
-      s.fields.forEach((f) => { if (formData[s.key][f.key] === undefined) formData[s.key][f.key] = '' })
+      s.fields.forEach((f) => {
+        if (formData[s.key][f.key] === undefined) formData[s.key][f.key] = f.recommendedValue || ''
+      })
     })
     services.value = svcs
     if (!activeTab.value && svcs.length) activeTab.value = svcs[0].category
@@ -203,6 +205,20 @@ async function saveService(svc: Service) {
                 >
                   {{ f.hint }}
                 </div>
+                <div
+                  v-if="f.recommendedValue"
+                  class="recommended-value"
+                >
+                  当前环境推荐值：<code>{{ f.recommendedValue }}</code>
+                  <el-button
+                    text
+                    type="primary"
+                    size="small"
+                    @click="formData[svc.key][f.key] = f.recommendedValue || ''"
+                  >
+                    填入推荐值
+                  </el-button>
+                </div>
               </el-form-item>
               <el-form-item>
                 <el-button
@@ -244,5 +260,7 @@ async function saveService(svc: Service) {
 .svc-title { font-weight: 600; margin-right: 8px; }
 .svc-note { color: #606266; font-size: 13px; line-height: 1.6; margin: 0 0 14px; padding: 8px 12px; background: #f4f4f5; border-radius: 4px; border-left: 3px solid #409eff; }
 .field-hint { color: #909399; font-size: 12px; line-height: 1.5; margin-top: 4px; }
+.recommended-value { color: #606266; font-size: 12px; line-height: 1.5; margin-top: 4px; }
+.recommended-value code { word-break: break-all; }
 .autofill-trap { position: absolute; top: -9999px; left: -9999px; width: 0; height: 0; opacity: 0; pointer-events: none; }
 </style>

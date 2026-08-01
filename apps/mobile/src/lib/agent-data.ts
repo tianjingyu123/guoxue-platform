@@ -9,33 +9,59 @@
  * - 推荐内容(课程/圈子/商品) 与「用户全部对话历史」后端无对应端点 → 返回空数组走空态。
  * - 失败直接 throw，让页面走 error 态，禁止 catch 返回假回复。
  */
-import { apiGet, apiPost } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 export interface ChatMessage {
   id: number
   role: 'user' | 'assistant'
   content: string
+  /** 结构化消息类型（如专业转介卡）；缺省为文本 */
+  type?: string
+  payload?: unknown
   time: string
   isStreaming?: boolean
   recommendations?: RecommendItem[]
   /** AI 输出风险免责声明（后端下发，仅 assistant 消息有） */
   disclaimer?: string
-  /** 软性导流推荐（征求同意后才展开卡片） */
+  /** 向导式推荐（高相关直展，低置信商业内容先征求同意） */
   recommendation?: Recommendation
   /** 用户是否已同意查看推荐 */
   recoConsented?: boolean
+  /** 回复失败气泡（气泡内展示错误+重试，不再只弹一次性 toast） */
+  isError?: boolean
+  /** 失败时暂存原提问，供「重试」直接重发 */
+  failedQuery?: string
+  /** 用户通过智能体结构化表单提交的资料，聊天页按资料卡展示 */
+  structuredInput?: {
+    kind: 'bazi'
+    data: {
+      calendar: 'solar' | 'lunar'
+      date: string
+      time: string
+      timeUnknown: boolean
+      gender: '男' | '女'
+      city: string
+    }
+  }
 }
 
 export interface RecommendItem {
-  type: 'course' | 'circle' | 'product' | 'paipan'
-  // 推荐卡片载荷：course/circle/product/paipan 四类结构各异，页面按 type 动态渲染，保留 any
+  type: 'article' | 'classic' | 'video' | 'live' | 'agent' | 'tool' | 'course' | 'circle' | 'product' | 'paipan'
+  // 推荐卡片载荷按 type 动态渲染；服务端同时下发统一 href，旧版 paipan 继续兼容。
   data: any
 }
 
-/** 软性导流推荐（后端 bot.chat 下发） */
+/** 向导式推荐（后端 bot.chat 下发） */
 export interface Recommendation {
+  /** 高相关场景直接展示，低置信商业内容先征求同意；旧响应缺省按 consent 兼容 */
+  presentation?: 'inline' | 'consent'
+  /** 推荐区标题与承接文案 */
+  title?: string
+  lead?: string
   /** 征求同意话术 */
   consentPrompt: string
+  /** 商业属性透明说明 */
+  commercialDisclosure?: string
   /** 推荐卡片（同意后展示） */
   items: RecommendItem[]
 }
@@ -51,7 +77,21 @@ export interface AgentDetail {
   freeQuota: number
   /** 每分钟通话价格：后端无对应字段 → 0（页面降级隐藏） */
   callPrice: number
+  /** 后端 BotConfig.type，用于区分图文型与语音型智能体 */
+  type: string
   voiceEnabled: boolean
+}
+
+/** 服务端创建的实时语音房间凭据。字段由供应商透传，客户端适配器按实际 SDK 取用。 */
+export interface VoiceRoomTicket {
+  roomId?: string
+  room_id?: string
+  token?: string
+  appId?: string | number
+  app_id?: string | number
+  userId?: string
+  botName?: string
+  [key: string]: unknown
 }
 
 // 快捷提问（前端运营文案）
@@ -77,28 +117,28 @@ export function formatDuration(seconds: number): string {
 }
 
 // 对话页初始欢迎语（前端运营文案，不绑定具体智能体名）
-export const chatWelcome = `您好！我是您的国学智能助手，精通八字命理、紫微斗数、奇门遁甲等传统命理学。
+export const chatWelcome = `您好！我是您的国学智能助手，通晓传统命理文化，也熟读经典古籍。
 
 我可以为您提供以下服务：
 - 命盘排盘与解读
-- 流年运势分析
-- 婚姻事业预测
-- 五行调理建议
+- 传统历法与节气解析
+- 国学经典义理答疑
+- 五行养生与调理建议
 
-请告诉我您的需求，我来为您详细分析。`
+请告诉我您的需求，我来为您详细梳理。`
 
 // ===== 智玄助手（main）运营文案 =====
-export const zhixuanWelcome = `您好！我是智玄 AI 助手，精通八字命理、奇门遁甲、紫微斗数等传统命理学。
+export const zhixuanWelcome = `你好，我是智玄，平台官方国学学习向导。
 
-您可以向我提问：
-- 八字分析与五行解读
-- 流年运势与注意事项
-- 婚姻、事业、财运预测
-- 风水布局与趋吉避凶
+我不替代下方各领域学伴，而是先了解你的兴趣、基础和可用时间，再帮你：
+- 找到适合的古籍、文章、课程与工具
+- 匹配最合适的垂直智能体
+- 制定能坚持的阅读与学习路线
+- 在需要时解释平台功能与内容之间的关系
 
-请告诉我您的需求，我将竭诚为您服务。`
+你可以直接说“我对诗词感兴趣，但不知道从哪里开始”，我会先问少量必要问题，再给一条清晰路线。`
 
-export const zhixuanQuickPrompts = ['帮我分析今年运势', '我的八字五行缺什么', '解读事业宫位走势', '分析近期财运方向']
+export const zhixuanQuickPrompts = ['我第一次学国学，从哪里开始', '按每周两小时制定经典阅读路线', '帮我选择适合的国学智能体', '我想系统学习诗词，请推荐路径']
 
 // ===== 智能客服（customer-service）运营文案 =====
 export const csWelcome = `您好，欢迎联系智玄客服！
@@ -112,7 +152,7 @@ export const csWelcome = `您好，欢迎联系智玄客服！
 
 请描述您的问题，我们将尽快为您解答。`
 
-export const csQuick = ['课程退款', 'VIP开通', '账号问题', '内容举报', '联系人工客服']
+export const csQuick = ['课程退款', 'VIP开通', '账号问题', '内容举报', '转接人工协助']
 
 // ===== 对话历史（history）=====
 export interface HistoryItem {
@@ -210,6 +250,7 @@ export const agentApi = {
       pricePerChat: b.price != null ? Number(b.price) : 0,
       freeQuota: b.dailyLimit != null ? Number(b.dailyLimit) : 0,
       callPrice: 0,
+      type: b.type || '',
       voiceEnabled: !!b.voiceEnabled,
     }
   },
@@ -229,6 +270,11 @@ export const agentApi = {
     return { text: res?.content || '', disclaimer: res?.disclaimer, recommendation: res?.recommendation || undefined }
   },
 
+  /** 创建实时语音房间 —— POST /bots/:id/voice-room；仅 voiceEnabled 智能体可用。 */
+  async createVoiceRoom(agentId: string): Promise<VoiceRoomTicket> {
+    return await apiPost<VoiceRoomTicket>(`/bots/${agentId}/voice-room`)
+  },
+
   /** 设定某智能体的续聊会话 id（从历史进入时调用） */
   setConversation(agentId: string, conversationId: string) {
     if (conversationId) _agentConv[agentId] = conversationId
@@ -240,8 +286,11 @@ export const agentApi = {
   },
 
   /** 拉取某会话的历史消息 —— GET /bots/:id/chat-history/:conversationId（续聊回填） */
-  async getChatHistory(agentId: string, conversationId: string): Promise<ChatMessage[]> {
-    const res = await apiGet<RawChatHistoryMsg[]>(`/bots/${agentId}/chat-history/${encodeURIComponent(conversationId)}`)
+  async getChatHistory(agentId: string, conversationId: string, optionalAuth = false): Promise<ChatMessage[]> {
+    const path = `/bots/${agentId}/chat-history/${encodeURIComponent(conversationId)}`
+    const res = optionalAuth
+      ? await apiGetOptionalAuth<RawChatHistoryMsg[]>(path)
+      : await apiGet<RawChatHistoryMsg[]>(path)
     const arr = Array.isArray(res) ? res : []
     return arr.map((m: RawChatHistoryMsg, i: number) => ({
       id: i,
@@ -284,8 +333,10 @@ export const agentApi = {
   },
 
   /** 对话历史 —— GET /bots/my-conversations（按 conversationId 聚合的我的会话） */
-  async getHistory(): Promise<HistoryItem[]> {
-    const res = await apiGet<unknown>('/bots/my-conversations')
+  async getHistory(optionalAuth = false): Promise<HistoryItem[]> {
+    const res = optionalAuth
+      ? await apiGetOptionalAuth<unknown>('/bots/my-conversations')
+      : await apiGet<unknown>('/bots/my-conversations')
     return unwrap<RawConversation>(res).map((c: RawConversation, i: number) => ({
       id: i + 1,
       botConfigId: String(c.botConfigId),
@@ -304,5 +355,42 @@ export const agentApi = {
   /** 推荐内容 —— 后端无对应端点，返回空走空态 */
   async getRecommendations(): Promise<{ courses: unknown[]; circles: unknown[]; products: unknown[] }> {
     return { courses: [], circles: [], products: [] }
+  },
+}
+
+// ============ 平台自建 AI 链路（ai-gateway/DeepSeek·非 Coze） ============
+
+/** 富消息片段（与后端 /ai/zhixuan/chat 响应 messages 数组契约一致） */
+export interface RichReplyPart {
+  type: string // 'text' | 'bazi-card' | ...
+  content?: string
+  payload?: unknown
+}
+
+/** 多轮上下文消息（自建链路无状态，由前端携带近几轮） */
+export interface AiHistoryMsg {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+/** 智玄助手（平台自建主智能体）—— POST /ai/zhixuan/chat（非流式降级路径） */
+export const zhixuanAiApi = {
+  async chatRich(query: string, history: AiHistoryMsg[]): Promise<{ messages: RichReplyPart[]; disclaimer?: string }> {
+    const res = await apiPost<{ messages?: RichReplyPart[]; disclaimer?: string }>('/ai/zhixuan/chat', {
+      query,
+      history: history.slice(-8),
+    })
+    return { messages: res?.messages || [], disclaimer: res?.disclaimer }
+  },
+}
+
+/** 智能客服（平台自建 RAG 链路）—— POST /ai/customer-service（非流式降级路径） */
+export const csAiApi = {
+  async ask(question: string, history: AiHistoryMsg[]): Promise<{ answer: string; recommendation?: Recommendation }> {
+    const res = await apiPost<{ answer?: string; recommendation?: Recommendation }>('/ai/customer-service', {
+      question,
+      history: history.slice(-8),
+    })
+    return { answer: res?.answer || '', recommendation: res?.recommendation }
   },
 }

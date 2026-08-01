@@ -50,20 +50,21 @@ describe("VideoController", () => {
     const dto: any = { title: "国学讲座", fileId: "f1" };
     const result: any = await ctrl.create(req, dto);
     expect(result.id).toBe("v1");
-    expect(mockVideoSvc.create).toHaveBeenCalledWith("u1", dto);
+    expect(mockVideoSvc.create).toHaveBeenCalledWith("u1", dto, false);
   });
 
   it("GET /videos — 视频列表", async () => {
+    const req: any = { user: undefined }; // 公开端点：未登录（scope=all 仅管理员生效）
     const q: any = { page: 1, pageSize: 20 };
-    const result: any = await ctrl.list(q);
+    const result: any = await ctrl.list(req, q);
     expect(result).toHaveLength(1);
     expect(mockVideoSvc.list).toHaveBeenCalled();
   });
 
   it("GET /videos/:id — 视频详情", async () => {
-    const result: any = await ctrl.detail("v1");
+    const result: any = await ctrl.detail("v1", { user: undefined } as any);
     expect(result.title).toBe("国学讲座");
-    expect(mockVideoSvc.getDetail).toHaveBeenCalledWith("v1");
+    expect(mockVideoSvc.getDetail).toHaveBeenCalledWith("v1", undefined);
   });
 
   it("PUT /videos/:id — 更新视频", async () => {

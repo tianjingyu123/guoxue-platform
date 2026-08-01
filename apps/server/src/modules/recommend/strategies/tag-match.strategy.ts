@@ -36,7 +36,7 @@ export class TagMatchStrategy extends BaseRecommendStrategy {
     // 并行查询各类型标签匹配内容
     const [courses, products, circles, articles] = await Promise.all([
       this.prisma.course.findMany({
-        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED", ...(ctx.contentId ? { id: { not: ctx.contentId } } : {}) },
+        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED", visibility: "PLATFORM", ...(ctx.contentId ? { id: { not: ctx.contentId } } : {}) },
         select: { id: true, title: true, cover: true, intro: true, tags: true, price: true, studentCount: true },
         take: 6, orderBy: { studentCount: "desc" },
       }),
@@ -51,7 +51,7 @@ export class TagMatchStrategy extends BaseRecommendStrategy {
         take: 4, orderBy: { memberCount: "desc" },
       }),
       this.prisma.article.findMany({
-        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED", ...(ctx.contentId ? { id: { not: ctx.contentId } } : {}) },
+        where: { tags: { hasSome: matchTags }, auditStatus: "APPROVED", visibility: "PLATFORM", ...(ctx.contentId ? { id: { not: ctx.contentId } } : {}) },
         select: { id: true, title: true, cover: true, excerpt: true, tags: true, viewCount: true, likeCount: true },
         take: 6, orderBy: { viewCount: "desc" },
       }),

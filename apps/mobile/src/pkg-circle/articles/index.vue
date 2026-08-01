@@ -6,12 +6,26 @@
     <!-- 顶部导航 -->
     <view class="header">
       <view class="nav-bar">
-        <view class="nav-btn" @tap="goBack">
-          <AppIcon name="arrow-left" :size="20" color="#2C2C2C" />
+        <view
+          class="nav-btn"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="goBack"
+          @keydown="activateOnKeyboard($event, goBack)"
+        >
+          <AppIcon name="arrow-left" :size="44" color="#2C2C2C" />
         </view>
         <text class="nav-title">文章</text>
         <view class="flex-1" />
-        <view class="ai-btn" @tap="aiOpen = true">
+        <view
+          class="ai-btn"
+          role="button"
+          aria-label="打开文章 AI 搜索"
+          tabindex="0"
+          @tap="aiOpen = true"
+          @keydown="activateOnKeyboard($event, () => aiOpen = true)"
+        >
           <AppIcon name="sparkles" :size="18" color="#C41E3A" />
           <text class="ai-btn-text">AI搜索</text>
         </view>
@@ -24,10 +38,19 @@
           <input
             v-model="searchQuery"
             class="search-input"
+            aria-label="搜索文章标题或内容"
             placeholder="搜索文章标题或内容"
             placeholder-class="search-ph"
           />
-          <view v-if="searchQuery" class="search-clear" @tap="searchQuery = ''">
+          <view
+            v-if="searchQuery"
+            class="search-clear"
+            role="button"
+            aria-label="清空文章搜索"
+            tabindex="0"
+            @tap="searchQuery = ''"
+            @keydown="activateOnKeyboard($event, () => searchQuery = '')"
+          >
             <AppIcon name="x" :size="16" color="#999" />
           </view>
         </view>
@@ -35,11 +58,15 @@
 
       <!-- 分类 Tab（全部 + 热门标签真连） -->
       <scroll-view scroll-x class="cat-scroll">
-        <view class="cat-row">
+        <view class="cat-row" role="tablist" aria-label="文章分类">
           <view
             class="cat-chip"
             :class="{ active: activeTag === '' }"
+            role="tab"
+            :aria-selected="activeTag === '' ? 'true' : 'false'"
+            :tabindex="activeTag === '' ? 0 : -1"
             @tap="selectTag('')"
+            @keydown="onCategoryKeydown($event, '')"
           >
             <text class="cat-label" :class="{ active: activeTag === '' }">全部</text>
           </view>
@@ -48,7 +75,11 @@
             :key="tag.id"
             class="cat-chip"
             :class="{ active: activeTag === tag.name }"
+            role="tab"
+            :aria-selected="activeTag === tag.name ? 'true' : 'false'"
+            :tabindex="activeTag === tag.name ? 0 : -1"
             @tap="selectTag(tag.name)"
+            @keydown="onCategoryKeydown($event, tag.name)"
           >
             <text class="cat-label" :class="{ active: activeTag === tag.name }">{{ tag.name }}</text>
           </view>
@@ -60,13 +91,37 @@
     <view class="sort-bar">
       <text class="sort-count">共 {{ total }} 篇文章</text>
       <view class="sort-wrap">
-        <view class="sort-trigger" @tap="showSortMenu = !showSortMenu">
+        <view
+          class="sort-trigger"
+          role="button"
+          aria-haspopup="true"
+          :aria-expanded="showSortMenu ? 'true' : 'false'"
+          tabindex="0"
+          @tap="showSortMenu = !showSortMenu"
+          @keydown="activateOnKeyboard($event, () => showSortMenu = !showSortMenu)"
+        >
           <text class="sort-text">{{ sortBy === 'latest' ? '最新发布' : '最受欢迎' }}</text>
           <AppIcon name="chevron-down" :size="16" color="#2C2C2C" :class="{ flip: showSortMenu }" />
         </view>
-        <view v-if="showSortMenu" class="sort-menu">
-          <view class="sort-option" :class="{ active: sortBy === 'latest' }" @tap="selectSort('latest')">最新发布</view>
-          <view class="sort-option" :class="{ active: sortBy === 'popular' }" @tap="selectSort('popular')">最受欢迎</view>
+        <view v-if="showSortMenu" class="sort-menu" role="radiogroup" aria-label="文章排序方式">
+          <view
+            class="sort-option"
+            :class="{ active: sortBy === 'latest' }"
+            role="radio"
+            :aria-checked="sortBy === 'latest' ? 'true' : 'false'"
+            tabindex="0"
+            @tap="selectSort('latest')"
+            @keydown="activateOnKeyboard($event, () => selectSort('latest'))"
+          >最新发布</view>
+          <view
+            class="sort-option"
+            :class="{ active: sortBy === 'popular' }"
+            role="radio"
+            :aria-checked="sortBy === 'popular' ? 'true' : 'false'"
+            tabindex="0"
+            @tap="selectSort('popular')"
+            @keydown="activateOnKeyboard($event, () => selectSort('popular'))"
+          >最受欢迎</view>
         </view>
       </view>
     </view>
@@ -74,17 +129,24 @@
     <!-- 文章列表 -->
     <scroll-view scroll-y class="list-scroll">
       <view class="list">
+        <station-pinned-rail board="article" :inset="false" />
+
         <!-- loading -->
-        <view v-if="loading" class="state">
-          <AppIcon name="loader-2" :size="28" color="#C41E3A" class="spin" />
-          <text class="state-text">加载中...</text>
+        <view v-if="loading" class="state" role="status" aria-live="polite" aria-label="正在加载文章">
+          <AppLoading />
         </view>
 
         <!-- error -->
-        <view v-else-if="error" class="state">
+        <view v-else-if="error" class="state" role="alert" aria-live="polite">
           <view class="state-icon"><AppIcon name="alert-circle" :size="32" color="#C41E3A" /></view>
           <text class="state-text">{{ error }}</text>
-          <view class="retry-btn" @tap="loadList"><text class="retry-text">重试</text></view>
+          <view
+            class="retry-btn"
+            role="button"
+            tabindex="0"
+            @tap="loadList"
+            @keydown="activateOnKeyboard($event, loadList)"
+          ><text class="retry-text">重试</text></view>
         </view>
 
         <!-- 列表 -->
@@ -93,60 +155,92 @@
             v-for="article in displayArticles"
             :key="article.id"
             class="article-card"
-            @tap="navigateTo(`/articles/${article.id}`)"
+            :class="`article-card--${resolvedLayout(article).toLowerCase()}`"
+            data-content-card
+            role="link"
+            :aria-label="`阅读文章：${article.title}`"
+            tabindex="0"
+            @tap="navigateToContent(`/articles/${article.id}`, $event)"
+            @keydown="openArticleOnKeyboard($event, article.id)"
           >
-            <image lazy-load
-              v-if="article.cover"
-              :src="article.cover"
-              class="article-cover-img"
-              mode="aspectFill"
-            />
-            <view v-else class="article-cover" :style="{ background: coverColor(article.title) }">
-              <text class="article-cover-text">{{ article.title.slice(0, 1) }}</text>
+            <view v-if="resolvedLayout(article) === 'FEATURE'" class="article-feature-cover">
+              <smart-cover
+                :src="articleImages(article)[0]"
+                :title="article.title"
+                type="default"
+              />
+              <view class="article-feature-shade" />
+              <view class="article-feature-label">
+                <text>本期策划</text>
+              </view>
+              <view class="article-feature-copy">
+                <text v-if="article.tags?.[0]" class="article-feature-kicker">{{ article.tags[0] }}</text>
+                <text class="article-feature-title">{{ article.title }}</text>
+                <text v-if="article.excerpt" class="article-feature-excerpt">{{ article.excerpt }}</text>
+              </view>
             </view>
-            <view class="article-body">
-              <view class="article-title-row">
-                <text class="article-title">{{ article.title }}</text>
-              </view>
-              <text v-if="article.excerpt" class="article-excerpt">{{ article.excerpt }}</text>
-              <view class="article-foot">
-                <view class="article-author">
-                  <image lazy-load
-                    v-if="article.user?.avatar"
-                    :src="article.user.avatar"
-                    class="author-avatar-img"
-                    mode="aspectFill"
-                  />
-                  <view v-else class="author-avatar" :style="{ background: coverColor(article.user?.nickname || '匿名') }">
-                    <text class="author-avatar-text">{{ (article.user?.nickname || '匿')[0] }}</text>
-                  </view>
-                  <text class="author-name">{{ article.user?.nickname || '匿名' }}</text>
+
+            <view v-else class="article-main">
+              <view class="article-copy">
+                <text v-if="article.tags?.[0]" class="article-kicker">{{ article.tags[0] }}</text>
+                <view class="article-title-row">
+                  <text class="article-title">{{ article.title }}</text>
                 </view>
-                <view class="article-stats">
-                  <view class="stat">
-                    <AppIcon name="heart" :size="14" color="#999" />
-                    <text class="stat-text">{{ article.likeCount }}</text>
-                  </view>
-                  <view class="stat">
-                    <AppIcon name="eye" :size="14" color="#999" />
-                    <text class="stat-text">{{ article.viewCount }}</text>
-                  </view>
-                  <text class="stat-text">{{ formatDate(article.createdAt) }}</text>
-                </view>
+                <text v-if="article.excerpt" class="article-excerpt">{{ article.excerpt }}</text>
               </view>
+
+              <!-- 单图：头条式右侧横图。 -->
+              <view v-if="resolvedLayout(article) === 'SINGLE' || resolvedLayout(article) === 'COLUMN'" class="article-cover-single">
+                <smart-cover
+                  :src="articleImages(article)[0]"
+                  :title="article.title"
+                  type="default"
+                />
+              </view>
+            </view>
+
+            <!-- 多图：按真实图片数量平铺，两图与三图均有独立比例。 -->
+            <view
+              v-if="resolvedLayout(article) === 'GALLERY'"
+              class="article-gallery"
+              :class="`article-gallery--${Math.min(articleImages(article).length, 3)}`"
+            >
+              <view
+                v-for="(image, imageIndex) in articleImages(article)"
+                :key="`${article.id}-${imageIndex}`"
+                class="article-gallery-item"
+              >
+                <smart-cover :src="image" :title="article.title" type="default" />
+              </view>
+            </view>
+
+            <view class="article-foot">
+              <text class="article-source">{{ article.user?.nickname || article.circle?.name || '国学平台' }}</text>
+              <text class="article-meta">{{ formatCount(article.viewCount) }} 阅读</text>
+              <text class="article-meta">{{ readingMinutes(article.excerpt) }} 分钟读完</text>
+              <text class="article-date">{{ formatDate(article.createdAt) }}</text>
             </view>
           </view>
 
-          <view v-if="hasMore" class="load-more" @tap="loadMore">
+          <view
+            v-if="hasMore"
+            class="load-more"
+            role="button"
+            :aria-busy="loadingMore ? 'true' : 'false'"
+            :aria-disabled="loadingMore ? 'true' : 'false'"
+            tabindex="0"
+            @tap="loadMore"
+            @keydown="activateOnKeyboard($event, loadMore)"
+          >
             <text class="load-more-text">{{ loadingMore ? '加载中...' : '点击加载更多' }}</text>
           </view>
-          <view v-else class="load-more">
+          <view v-else class="load-more" role="status">
             <text class="load-more-text">没有更多了</text>
           </view>
         </template>
 
         <!-- empty -->
-        <view v-else class="empty">
+        <view v-else class="empty" role="status" aria-live="polite">
           <view class="empty-icon">
             <AppIcon name="file-text" :size="32" color="#999" />
           </view>
@@ -160,11 +254,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import AiSearchModal from '@/components/common/ai-search-modal.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import SmartCover from '@/components/common/smart-cover.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
+import { goBack, navigateToContent } from '@/utils/router'
 import { articleApi, tagApi, type ArticleListItem, type HotTag } from '@/lib/article-data'
 
 const searchQuery = ref('')
@@ -184,6 +281,30 @@ const page = ref(1)
 const pageSize = 20
 const hasMore = ref(false)
 const loadingMore = ref(false)
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+function onCategoryKeydown(event: KeyboardEvent, current: string) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    selectTag(current)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  const categories = ['', ...hotTags.value.map((tag) => tag.name)]
+  const currentIndex = Math.max(0, categories.indexOf(current))
+  const direction = event.key === 'ArrowRight' ? 1 : -1
+  const nextCategory = categories[(currentIndex + direction + categories.length) % categories.length] ?? ''
+  selectTag(nextCategory)
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('.cat-chip[aria-selected="true"]')?.focus()
+  })
+}
 
 onLoad((q) => {
   if (q?.circleId) circleId.value = q.circleId
@@ -267,6 +388,37 @@ function selectSort(s: 'latest' | 'popular') {
   showSortMenu.value = false
 }
 
+function openArticleOnKeyboard(event: KeyboardEvent, id: string) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  navigateToContent(`/articles/${id}`, event)
+}
+
+function articleImages(article: ArticleListItem): string[] {
+  const seen = new Set<string>()
+  return [...(article.images || []), article.cover || '']
+    .map((image) => image.trim())
+    .filter((image) => image && !seen.has(image) && !!seen.add(image))
+    .slice(0, 3)
+}
+
+function resolvedLayout(article: ArticleListItem): 'FEATURE' | 'SINGLE' | 'GALLERY' | 'COLUMN' {
+  if (article.layout && article.layout !== 'AUTO') return article.layout
+  const count = articleImages(article).length
+  if (count >= 3) return 'GALLERY'
+  if (count === 2) return 'FEATURE'
+  return 'SINGLE'
+}
+
+function readingMinutes(excerpt?: string | null) {
+  return Math.max(3, Math.min(12, Math.ceil((excerpt?.length || 80) / 55) + 2))
+}
+
+function formatCount(value: number) {
+  if (value >= 10000) return `${(value / 10000).toFixed(value >= 100000 ? 0 : 1)}万`
+  return String(value || 0)
+}
+
 function formatDate(dateStr: string) {
   const date = new Date(dateStr)
   const now = new Date()
@@ -276,18 +428,12 @@ function formatDate(dateStr: string) {
   if (diffDays < 7) return `${diffDays}天前`
   return `${date.getMonth() + 1}-${date.getDate()}`
 }
-
-const coverPalette = ['#C41E3A', '#B8860B', '#2E7D5B', '#1F6FB2', '#8B5A2B', '#9A3B5C']
-function coverColor(name: string) {
-  let sum = 0
-  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i)
-  return coverPalette[sum % coverPalette.length]
-}
 </script>
 
 <style scoped>
 .page {
-  min-height: 100vh;
+  /* iOS Safari flex bug：用固定 height 才能让 flex:1 滚动子项正确填充(min-height:100vh 会算出高度0致内容空白) */
+  height: 100vh;
   background: #faf8f5;
   display: flex;
   flex-direction: column;
@@ -310,8 +456,9 @@ function coverColor(name: string) {
   padding: 0 24rpx;
 }
 .nav-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -435,9 +582,11 @@ function coverColor(name: string) {
 .list-scroll {
   flex: 1;
   height: 0;
+  min-height: 0;
+  background: #fff;
 }
 .list {
-  padding: 24rpx;
+  padding: 0 28rpx;
 }
 .state {
   display: flex;
@@ -469,114 +618,202 @@ function coverColor(name: string) {
   font-size: 26rpx;
   color: #fff;
 }
-.spin {
-  animation: spin 1s linear infinite;
-}
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 .article-card {
-  display: flex;
-  gap: 24rpx;
-  padding: 24rpx;
-  margin-bottom: 16rpx;
+  position: relative;
+  padding: 32rpx 4rpx 26rpx;
   background: #fff;
-  border-radius: 20rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  border-bottom: 1rpx solid #e9e6e1;
 }
-.article-cover,
-.article-cover-img {
-  width: 200rpx;
-  height: 144rpx;
-  border-radius: 16rpx;
-  flex-shrink: 0;
+.article-card::before {
+  content: "";
+  position: absolute;
+  left: 4rpx;
+  top: 34rpx;
+  width: 3rpx;
+  height: 34rpx;
+  border-radius: 999rpx;
+  background: #c41e3a;
+  opacity: 0;
 }
-.article-cover {
+.article-card--column {
+  padding-left: 24rpx;
+}
+.article-card--column::before { opacity: 1; }
+.article-main {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  gap: 24rpx;
 }
-.article-cover-text {
-  font-size: 72rpx;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+.article-feature-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 20rpx;
+  background: #202b34;
+  box-shadow: 0 14rpx 34rpx rgba(29, 36, 42, 0.14);
 }
-.article-body {
+.article-feature-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(15, 24, 31, 0.02) 26%, rgba(15, 24, 31, 0.9) 100%);
+}
+.article-feature-label {
+  position: absolute;
+  left: 20rpx;
+  top: 20rpx;
+  padding: 7rpx 14rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.56);
+  border-radius: 999rpx;
+  background: rgba(27, 35, 42, 0.46);
+  backdrop-filter: blur(10rpx);
+}
+.article-feature-label text {
+  color: #fff;
+  font-size: 20rpx;
+  letter-spacing: 2rpx;
+}
+.article-feature-copy {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 24rpx;
+  display: flex;
+  flex-direction: column;
+}
+.article-feature-kicker {
+  margin-bottom: 8rpx;
+  color: #efc879;
+  font-size: 21rpx;
+  letter-spacing: 3rpx;
+}
+.article-feature-title {
+  color: #fff;
+  font-family: var(--font-serif, "Songti SC", "STSong", serif);
+  font-size: 38rpx;
+  font-weight: 700;
+  line-height: 1.34;
+  text-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.24);
+}
+.article-feature-excerpt {
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 23rpx;
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.article-copy {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
+.article-kicker {
+  align-self: flex-start;
+  margin-bottom: 10rpx;
+  padding: 3rpx 10rpx;
+  border: 1rpx solid rgba(196, 30, 58, 0.32);
+  border-radius: 4rpx;
+  color: #b51b34;
+  font-size: 20rpx;
+  line-height: 1.35;
+}
+.article-cover-single {
+  width: 220rpx;
+  height: 148rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #f2efe9;
+}
 .article-title-row {
   display: flex;
   align-items: flex-start;
-  gap: 12rpx;
 }
 .article-title {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-  line-height: 1.4;
+  font-family: var(--font-serif, "Songti SC", "STSong", "SimSun", serif);
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 0.5rpx;
+  color: #24211d;
+  line-height: 1.42;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .article-excerpt {
-  font-size: 22rpx;
-  color: #666;
-  margin-top: 8rpx;
+  margin-top: 12rpx;
+  font-size: 25rpx;
+  color: #6b665f;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+}
+.article-card--single .article-excerpt {
+  -webkit-line-clamp: 1;
+}
+.article-card--column .article-excerpt {
+  -webkit-line-clamp: 3;
+}
+.article-card--column .article-cover-single {
+  width: 176rpx;
+  height: 204rpx;
+  border-radius: 8rpx 18rpx 18rpx 8rpx;
+}
+.article-card--column .article-kicker {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  color: #8a6f3d;
+  letter-spacing: 3rpx;
+}
+.article-gallery {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 20rpx;
+  overflow: hidden;
+}
+.article-gallery-item {
+  flex: 1;
+  min-width: 0;
+  height: 142rpx;
+  overflow: hidden;
+  border-radius: 6rpx;
+  background: #f2efe9;
+}
+.article-gallery--2 .article-gallery-item {
+  height: 196rpx;
 }
 .article-foot {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: auto;
-  padding-top: 16rpx;
+  gap: 16rpx;
+  margin-top: 18rpx;
+  min-width: 0;
 }
-.article-author {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-.author-avatar,
-.author-avatar-img {
-  width: 36rpx;
-  height: 36rpx;
-  border-radius: 999rpx;
-  flex-shrink: 0;
-}
-.author-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.author-avatar-text {
-  font-size: 18rpx;
-  color: #fff;
-}
-.author-name {
+.article-source {
+  max-width: 260rpx;
   font-size: 22rpx;
-  color: #666;
+  color: #8a6f3d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.article-stats {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 4rpx;
-}
-.stat-text {
+.article-meta {
   font-size: 22rpx;
-  color: #999;
+  color: #a09b94;
+  white-space: nowrap;
+}
+.article-date {
+  margin-left: auto;
+  font-size: 22rpx;
+  color: #aaa49d;
+  white-space: nowrap;
 }
 .load-more {
   display: flex;

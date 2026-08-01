@@ -3,7 +3,14 @@
     <!-- 顶部导航 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="navbar-inner">
-        <view class="back-btn" @tap="onBack">
+        <view
+          class="back-btn"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="onBack"
+          @keydown="activateOnKeyboard($event, onBack)"
+        >
           <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
         </view>
         <text class="navbar-title">找回密码</text>
@@ -19,27 +26,48 @@
 
       <view class="card-list">
         <!-- 手机号找回 -->
-        <view class="rec-card" @tap="onPhone">
+        <view
+          class="rec-card"
+          role="button"
+          aria-label="手机号找回，当前由客服协助处理"
+          tabindex="0"
+          @tap="onPhone"
+          @keydown="activateOnKeyboard($event, onPhone)"
+        >
           <view class="rec-icon icon-phone"><AppIcon name="phone" :size="24" color="#c9a96e" /></view>
           <view class="rec-main">
             <text class="rec-title">手机号找回</text>
-            <text class="rec-desc">通过手机验证码重置密码</text>
+            <text class="rec-desc">自助找回暂未开放，客服协助处理</text>
           </view>
           <AppIcon name="chevron-right" :size="20" color="#bbbbbb" />
         </view>
 
         <!-- 邮箱找回 -->
-        <view class="rec-card" @tap="onEmail">
+        <view
+          class="rec-card"
+          role="button"
+          aria-label="邮箱找回，当前由客服协助处理"
+          tabindex="0"
+          @tap="onEmail"
+          @keydown="activateOnKeyboard($event, onEmail)"
+        >
           <view class="rec-icon icon-mail"><AppIcon name="mail" :size="24" color="#3b82f6" /></view>
           <view class="rec-main">
             <text class="rec-title">邮箱找回</text>
-            <text class="rec-desc">通过邮箱验证重置密码</text>
+            <text class="rec-desc">自助找回暂未开放，客服协助处理</text>
           </view>
           <AppIcon name="chevron-right" :size="20" color="#bbbbbb" />
         </view>
 
         <!-- 联系客服 -->
-        <view class="rec-card" @tap="onFeedback">
+        <view
+          class="rec-card"
+          role="button"
+          aria-label="联系人工客服找回账号"
+          tabindex="0"
+          @tap="onFeedback"
+          @keydown="activateOnKeyboard($event, onFeedback)"
+        >
           <view class="rec-icon icon-service"><AppIcon name="message-circle" :size="24" color="#d4a017" /></view>
           <view class="rec-main">
             <text class="rec-title">联系客服</text>
@@ -51,7 +79,7 @@
 
       <!-- 温馨提示 -->
       <view class="tip">
-        <text class="tip-text">温馨提示：如果您绑定了多种验证方式，推荐使用手机号找回，速度更快更安全。</text>
+        <text class="tip-text">温馨提示：账号找回目前由人工客服协助处理，请通过「联系客服」提交找回申请，我们会尽快为您处理。</text>
       </view>
     </view>
   </view>
@@ -70,18 +98,35 @@ try {
   statusBarHeight.value = 0
 }
 
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
 function onBack() {
   goBack()
 }
 
+/** 手机号/邮箱自助找回子页未迁移——给用户活路：说明人工协助并引导到本页已有的客服入口 */
+function assistRecover(channel: string) {
+  uni.showModal({
+    title: '人工协助找回',
+    content: `${channel}自助找回暂未开放，账号找回目前由人工客服协助处理，是否前往联系客服？`,
+    confirmText: '联系客服',
+    cancelText: '取消',
+    success: (res) => {
+      if (res.confirm) onFeedback()
+    },
+  })
+}
+
 function onPhone() {
-  // 下游手机号找回子页待迁移
-  uni.showToast({ title: '敬请期待', icon: 'none' })
+  assistRecover('手机号')
 }
 
 function onEmail() {
-  // 下游邮箱找回子页待迁移
-  uni.showToast({ title: '敬请期待', icon: 'none' })
+  assistRecover('邮箱')
 }
 
 function onFeedback() {
@@ -114,12 +159,12 @@ function onFeedback() {
   padding: 0 32rpx;
 }
 .back-btn {
-  width: 56rpx;
-  height: 56rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: -8rpx;
+  margin-left: -16rpx;
 }
 .navbar-title {
   font-size: 34rpx;

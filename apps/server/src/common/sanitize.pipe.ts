@@ -11,12 +11,24 @@ import { PipeTransform, Injectable, ArgumentMetadata } from "@nestjs/common";
  */
 const SKIP_FIELDS = new Set([
   "content", "text", "body", "description", "summary", "intro",
+  // detail：商品详情富文本(wangEditor HTML)，转义会变成 &lt;p&gt; 乱码 → C 端 rich-text 渲染成源码
+  "detail",
   "translation", "annotation", "excerpt", "evidence",
   "answer", "question",
   "url", "iiifUrl", "manifestUrl", "src", "href", "link", "cover", "path",
   "sourceUrl", "avatar", "imageUrl", "redirectUri",
+  // 视频/媒体 URL：VOD/COS 播放地址，转义会把 / → &#x2F; 导致 <video src> 无法播放（视频课程/短视频播不了的真凶）
+  "videoUrl", "mediaUrl", "coverUrl", "poster", "fileUrl", "playUrl",
+  "thumbnail", "videoCover", "audioUrl", "hlsUrl",
+  // images：商品/帖子/评价的图片 URL 数组，转义会把 / → &#x2F; 导致 <image src> 全挂
+  // （生产 Product.images 已有被转义的存量脏数据·C 端适配层做了防御性反转义）
+  "images", "detailImages",
+  // attachments：帖子附件 [{name,size,url}]，JSON 结构容器（详情页以文本节点渲染，前端框架转义兜底）
+  "attachments",
   "password", "token", "accessToken", "refreshToken", "hash",
   "secret", "apiKey", "key",
+  // 第三方支付回调签名与原始业务报文必须逐字保持不变，否则验签必然失败。
+  "resp_data", "param", "sign", "sign_type",
   "aliases", "tags", "metadata", "data", "payload",
   // value：系统/第三方配置的数据容器（常为 JSON 文本），HTML 转义会破坏 JSON 结构导致解析失败；
   // 这类值经加密存储或写入配置，不会被当富文本 innerHTML 渲染，渲染侧由前端框架自动转义兜底。

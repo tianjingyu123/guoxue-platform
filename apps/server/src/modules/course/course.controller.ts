@@ -16,6 +16,7 @@ import {
   AskQuestionDto, QaListQueryDto,
 } from "./course.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
 import { MemberGuard } from "../../common/member.guard";
@@ -48,7 +49,9 @@ export class CourseController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未认证" })
   async create(@Req() req: AuthRequest, @Body() dto: CreateCourseDto) {
-    const result = await this.course.create(req.user.id, dto);
+    const roles = ((req.user as { roles?: string[] }).roles) || [];
+    const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN");
+    const result = await this.course.create(req.user.id, dto, isAdmin);
     this.systemService.logAudit({
       userId: req.user?.id,
       action: "CREATE",
@@ -61,20 +64,29 @@ export class CourseController {
   }
 
   @Get()
+  @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: "获取课程列表" })
   @ApiResponse({ status: 200, description: "成功返回课程列表" })
-  list(@Query() q: CourseListQueryDto, @StationId() stationId?: string) {
+  list(@Req() req: Request, @Query() q: CourseListQueryDto, @StationId() stationId?: string) {
+    // 状态筛选（含 status 兼容字段）仅管理角色可用：
+    // ① 此前 status 参数被丢弃 → admin 待审列表落到公开默认"已通过"，把已上架课程当待审展示；
+    // ② 公开端点若不设门禁，任何人传 auditStatus=PENDING/ALL 可窥未过审内容（越权·2026-07-15 走查修）
+    const roles = ((req.user as { roles?: string[] } | undefined)?.roles) || [];
+    const isAdmin = roles.some((r) => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(r));
+    const requestedStatus = q.auditStatus || q.status;
     return this.course.listCourses({
       page: q.page || 1,
       pageSize: q.pageSize || 20,
       circleId: q.circleId,
-      auditStatus: q.auditStatus,
+      auditStatus: isAdmin ? requestedStatus : undefined,
       stationId: stationId || q.stationId,
       type: q.type,
       keyword: q.keyword,
       categoryLevel1: q.categoryLevel1,
       sort: q.sort,
       free: q.free,
+      minPrice: q.minPrice,
+      maxPrice: q.maxPrice,
     });
   }
 
@@ -177,12 +189,12 @@ export class CourseController {
   }
 
   @Get(":id")
-  @UseGuards(StationIsolationGuard)
-  @ApiOperation({ summary: "获取课程详情" })
+  @UseGuards(OptionalAuthGuard, StationIsolationGuard)
+  @ApiOperation({ summary: "获取课程详情（SELF_ONLY/已下架课程仅作者本人可见）" })
   @ApiResponse({ status: 200, description: "成功返回课程详情" })
   @ApiResponse({ status: 404, description: "课程不存在" })
-  detail(@Param("id") id: string) {
-    return this.course.getDetail(id);
+  detail(@Param("id") id: string, @Req() req: Request) {
+    return this.course.getDetail(id, req.user?.id);
   }
 
   @Put(":id")

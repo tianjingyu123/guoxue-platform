@@ -1,364 +1,319 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+/**
+ * 发现页 · 双列瀑布流 · 按类别分区（董事长拍板：便于维护，与首页一致但按类别分区）
+ *
+ * 结构（自上而下）：
+ *  ① 大搜索框 → ② 运营楼层（block-renderer·discoverBlocks） → ③ 事业生态五入口
+ *  → ④ 按类别分区（6 类·每区= 标题 + 更多› + 双列瀑布流 4 张 + 查看更多渐进加载）
+ *  → ⑤ 底部导航
+ *
+ * 数据真连：getCategoryFeed(type, page, size=4) → 该类别一页 FeedEnvelope[]，
+ * 卡片统一走 <feed-card>（九类通用卡·自带点击/角标/去数字化）。空则隐藏该分区；
+ * 追加「有返回但不足一页」才判到底（空返回可能是网络失败，保留按钮可重试）。
+ * 首屏三态：骨架（.skeleton 微光）→ 六类全空视为整页错误给重试 → 正常分区。
+ */
+import { ref, reactive, onMounted } from 'vue'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import PlatformSupportActions from '@/components/common/platform-support-actions.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
-import ProductCard from '@/components/cards/product-card.vue'
-import CourseCard from '@/components/cards/course-card.vue'
-import LiveCard from '@/components/cards/live-card.vue'
-import AgentCard from '@/components/cards/agent-card.vue'
-import ClassicCard from '@/components/cards/classic-card.vue'
-import VideoCard from '@/components/cards/video-card.vue'
+import FeedCard from '@/components/feed/feed-card.vue'
 import { navigateTo } from '@/utils/router'
-import {
-  discoverApi, coreEntries, columns, serviceGroups,
-  type FeedItem,
-} from '@/lib/discover-data'
+import { getPublishedLayout, type LayoutBlock } from '@/lib/page-layout-data'
+import BlockRenderer from '@/components/layout/block-renderer.vue'
+import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
+import BusinessEntryGrid from '@/components/navigation/business-entry-grid.vue'
+import { getCategoryFeed, isRenderablePublicFeedItem, type FeedEnvelope } from '@/lib/feed-data'
 
-const activeCategory = ref('all')
-const isLoading = ref(true)
-const error = ref('')
-const feedItems = ref<FeedItem[]>([])
-const allCats = ref<{ id: string; label: string }[]>([])
-const hotWords = ref<string[]>([])
+// 状态栏适配：照首页模式动态取 statusBarHeight（原来写死 padding-top:96rpx，
+// 刘海屏会顶进状态栏、H5 无状态栏又留大白），搜索行 padding-top = 状态栏高 + 8px 呼吸位
+const statusBarHeight = ref(0)
+uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 0 } })
 
-// —— 发现页瘦身（董事长拍板）——
-// ① 更多玩法：剔除与首页金刚区（课程/圈子/古籍馆/商城/直播/运势/排盘/智能体/诗词）重复的入口，
-//    只保留发现页特有的玩法（赛事/视频/榜单）
-const HOME_GRID_DUP_IDS = ['course', 'mall', 'classics', 'agent', 'circles', 'live']
-const morePlays = coreEntries.filter((e) => !HOME_GRID_DUP_IDS.includes(e.id))
-// ② B/C 分层：C 端「学习互动」组保留原位；B 端「经营变现」组下沉为页面底部折叠区「事业与合作」
-const cServiceGroups = serviceGroups.filter((g) => g.title !== '经营变现')
-const bizGroup = serviceGroups.find((g) => g.title === '经营变现')
-const bizExpanded = ref(false)
-function toggleBiz() { bizExpanded.value = !bizExpanded.value }
+// 平台微页面运营楼层（后台「平台页面布局」搭 route='discover' 发布 → 此处渲染；无则不显示）
+const discoverBlocks = ref<LayoutBlock[]>([])
 
-// 瀑布流：按索引奇偶分两列
-const colLeft = computed(() => feedItems.value.filter((_, i) => i % 2 === 0))
-const colRight = computed(() => feedItems.value.filter((_, i) => i % 2 === 1))
+// ============================================
+// 按类别分区（6 类公开内容；圈帖只在所属圈子内展示）
+// ============================================
+interface CategoryDef {
+  type: string   // 后端 category type
+  title: string  // 分区标题
+  more: string   // 「更多›」跳转板块首页
+}
+const CATEGORIES: CategoryDef[] = [
+  { type: 'course',  title: '精选课程',   more: '/pkg-course/home/index' },
+  { type: 'classic', title: '经典古籍',   more: '/pkg-classics/home/index' },
+  { type: 'video',   title: '热门短视频', more: '/videos' },
+  { type: 'live',    title: '正在直播',   more: '/pkg-live/plaza/index' },
+  { type: 'article', title: '热门文章',   more: '/pkg-circle/articles/index' },
+  { type: 'product', title: '掌柜好物',   more: '/pkg-mall/home/index' },
+]
+const SECTION_PAGE_SIZE = 4
 
-async function fetchFeed() {
-  isLoading.value = true
-  error.value = ''
+/** 每个分区独立维护：items + page + loading + 是否到底 */
+interface SectionState {
+  items: FeedEnvelope[]
+  page: number
+  loadingMore: boolean
+  noMore: boolean
+  loaded: boolean  // 首屏是否已加载（loaded 且空 → 整区不渲染）
+}
+const sections = reactive<Record<string, SectionState>>({})
+CATEGORIES.forEach((c) => {
+  sections[c.type] = { items: [], page: 1, loadingMore: false, noMore: false, loaded: false }
+})
+
+/** 按索引奇偶拆左右两列（与首页双列写法一致） */
+function leftCol(type: string): FeedEnvelope[] {
+  return sections[type].items.filter((_, i) => i % 2 === 0)
+}
+function rightCol(type: string): FeedEnvelope[] {
+  return sections[type].items.filter((_, i) => i % 2 === 1)
+}
+
+// 首屏三态：骨架加载中 / 整页错误重试 / 正常分区
+const firstLoading = ref(true)
+const loadError = ref(false)
+
+// SWR 首屏缓存（照首页 FEED_CACHE_KEY 模式）：只存六分区各自的第一页（4 张）——
+// 再次进入 tab 先渲染缓存跳过骨架屏，后台 loadFirstPages 静默刷新替换
+const DISCOVER_CACHE_KEY = 'discover:home:cache'
+
+/** 缓存写入：各分区首页快照（只截第一页 4 张控制体积；全空不写） */
+function writeSectionsCache() {
   try {
-    feedItems.value = await discoverApi.getFeed(activeCategory.value)
-  } catch {
-    error.value = '加载失败'
+    const snap: Record<string, FeedEnvelope[]> = {}
+    let hasAny = false
+    CATEGORIES.forEach((c) => {
+      const first = sections[c.type].items.slice(0, SECTION_PAGE_SIZE)
+      if (first.length) hasAny = true
+      snap[c.type] = first
+    })
+    if (hasAny) uni.setStorageSync(DISCOVER_CACHE_KEY, snap)
+  } catch { /* 存储满等异常不影响主流程 */ }
+}
+
+/** 缓存恢复：命中任一分区即返回 true（骨架屏跳过）。结构校验：对象 + 每类 Array.isArray 兜底 */
+function restoreSectionsCache(): boolean {
+  let hit = false
+  try {
+    const raw = uni.getStorageSync(DISCOVER_CACHE_KEY) as unknown
+    if (raw && typeof raw === 'object') {
+      CATEGORIES.forEach((c) => {
+        const list = (raw as Record<string, unknown>)[c.type]
+        if (Array.isArray(list) && list.length) {
+          const s = sections[c.type]
+          s.items = (list as FeedEnvelope[]).filter(isRenderablePublicFeedItem)
+          if (!s.items.length) return
+          s.page = 1
+          s.loaded = true
+          s.noMore = s.items.length < SECTION_PAGE_SIZE
+          hit = true
+        }
+      })
+    }
+  } catch { /* 读缓存失败按未命中处理 */ }
+  return hit
+}
+
+/** 首屏加载：各分区并行拉第一页 4 张，返回空则该区不渲染 */
+async function loadFirstPages() {
+  // 已有内容时（下拉刷新）不回骨架，静默重拉
+  const hadAny = CATEGORIES.some((c) => sections[c.type].items.length > 0)
+  if (!hadAny) firstLoading.value = true
+  await Promise.all(
+    CATEGORIES.map(async (c) => {
+      const s = sections[c.type]
+      const list = await getCategoryFeed(c.type, 1, SECTION_PAGE_SIZE)
+      // 刷新失败（lib 层吞错返回 []）时保留已有内容，不把整区清空
+      if (!list.length && s.items.length) return
+      s.items = list
+      s.page = 1
+      s.loaded = true
+      // 只有「有返回但不足一页」才判到底；空返回可能是网络失败，不据此锁死
+      s.noMore = list.length > 0 && list.length < SECTION_PAGE_SIZE
+    }),
+  )
+  firstLoading.value = false
+  // lib 层 getCategoryFeed 吞错返回 []，页面区分不了「全失败」与「六类真的全空」；
+  // 生产上六类同时为空几乎只可能是断网/接口挂 → 视为加载失败给整页重试（部分成功则正常显示成功分区）
+  loadError.value = CATEGORIES.every((c) => sections[c.type].items.length === 0)
+  // SWR：刷新成功（非全空）后落盘各分区首页快照，供下次进 tab 秒开
+  if (!loadError.value) writeSectionsCache()
+}
+
+/** 整页错误态重试 */
+function retryFirst() {
+  loadError.value = false
+  loadFirstPages()
+}
+
+/** 「查看更多」：该类别 page++ 再拉 4 张追加；有返回但不足一页才判到底 */
+async function loadMore(type: string) {
+  const s = sections[type]
+  if (s.loadingMore || s.noMore) return
+  s.loadingMore = true
+  try {
+    const next = s.page + 1
+    const list = await getCategoryFeed(type, next, SECTION_PAGE_SIZE)
+    if (list.length) {
+      s.items = s.items.concat(list)
+      s.page = next
+      if (list.length < SECTION_PAGE_SIZE) s.noMore = true
+    } else {
+      // 空返回无法区分「到底」与「请求失败」（lib 层吞错返回 []）：
+      // 不设 noMore、保留按钮让用户可重试，避免把一次网络失败当成永久到底
+      uni.showToast({ title: '暂时没有更多，稍后再试', icon: 'none' })
+    }
   } finally {
-    isLoading.value = false
+    s.loadingMore = false
   }
 }
 
-// 品类导航与热搜词（与 feed 并行加载，失败各自走 data 层兜底）
-async function loadMeta() {
-  const [cats, hot] = await Promise.all([
-    discoverApi.getCategories(),
-    discoverApi.getHotWords(),
-  ])
-  allCats.value = cats
-  hotWords.value = hot
-}
+onMounted(() => {
+  // SWR：先恢复上次七分区首屏缓存——命中则立即上屏（跳过骨架屏），
+  // 随后 loadFirstPages 静默刷新（hadAny=true 不回骨架，失败保留已上屏内容）；未命中走原骨架流程
+  if (restoreSectionsCache()) firstLoading.value = false
+  loadFirstPages()
+  getPublishedLayout('discover').then((l) => { discoverBlocks.value = l.blocks }).catch(() => {})
+})
 
-onMounted(() => { loadMeta(); fetchFeed() })
+// 下拉刷新：重拉各分区首屏 + 运营楼层，完成后收起刷新态
+onPullDownRefresh(async () => {
+  try {
+    await loadFirstPages()
+    await getPublishedLayout('discover').then((l) => { discoverBlocks.value = l.blocks }).catch(() => {})
+  } finally {
+    uni.stopPullDownRefresh()
+  }
+})
 
-function retry() { fetchFeed() }
-
-// 统一走 navigateTo：内部含 ROUTE_MAP 解析 + 主 tab reLaunch 兜底；未注册路径才 toast
-function goEntry(href: string) {
-  navigateTo(href)
-}
-function goSearchWord(w: string) { navigateTo(`/pkg-search/search/index?keyword=${encodeURIComponent(w)}`) }
-function goCategory(cat: { id: string; label: string }) {
-  if (activeCategory.value === cat.id) return
-  activeCategory.value = cat.id
-  fetchFeed()
-}
-// 专栏板卡：href 已改指真实板块页（courses-list/商城分类/古籍馆/圈子 tab），直接真跳转
-function goColumn(href: string) { navigateTo(href) }
+function goEntry(href: string) { navigateTo(href) }
 </script>
 
 <template>
   <view class="page">
     <app-network-bar />
     <customer-service-fab />
-    <!-- 顶部固定区：搜索栏 + 品类导航 -->
-    <view class="sticky-top">
-      <view class="search-wrap">
-        <search-bar default-tab="all" placeholder="搜索课程、商品、古籍..." />
 
-        <!-- 热搜词 -->
-        <scroll-view class="hot-row" scroll-x :show-scrollbar="false">
-          <view class="hot-inner">
-            <view class="hot-label">
-              <AppIcon name="flame" :size="26" color="#c41e3a" />
-              <text class="hot-label-txt">热搜</text>
-            </view>
-            <view
-              v-for="(word, i) in hotWords" :key="word"
-              :class="['hot-chip', i === 0 ? 'hot-chip-first' : '']"
-              @tap="goSearchWord(word)"
-            >
-              <text class="hot-chip-txt">{{ word }}</text>
-            </view>
-          </view>
-        </scroll-view>
+    <!-- ① 大搜索框：全局搜索主场（框内热词跑马灯 + 点击跳 /search）·padding-top 动态适配状态栏 -->
+    <view class="search-row" :style="{ paddingTop: statusBarHeight + 8 + 'px' }">
+      <view class="discover-search">
+        <search-bar default-tab="all" placeholder="搜古籍 · 课程 · 直播 · 掌柜好物" />
       </view>
-
-      <!-- 品类导航 -->
-      <scroll-view class="cat-row" scroll-x :show-scrollbar="false">
-        <view class="cat-inner">
-          <view
-            v-for="cat in allCats" :key="cat.id"
-            class="cat-item" @tap="goCategory(cat)"
-          >
-            <text :class="['cat-txt', activeCategory === cat.id ? 'cat-txt-active' : '']">{{ cat.label }}</text>
-            <view v-if="activeCategory === cat.id" class="cat-underline" />
-          </view>
-        </view>
-      </scroll-view>
+      <platform-support-actions />
     </view>
 
-    <!-- 更多玩法（仅发现页特有入口，与首页金刚区去重） -->
-    <view class="grid-section svc-section">
-      <view class="svc-head">
-        <view class="svc-bar" />
-        <text class="svc-title">更多玩法</text>
-      </view>
-      <view class="grid">
-        <view
-          v-for="entry in morePlays" :key="entry.id"
-          class="grid-item" @tap="goEntry(entry.href)"
-        >
-          <view class="grid-icon">
-            <AppIcon :name="entry.icon" :size="44" color="#c41e3a" />
+    <!-- ② 运营楼层（后台平台页面布局·route='discover'·有已发布则渲染，无则不显示） -->
+    <view v-if="discoverBlocks.length" class="disc-blocks"><block-renderer :blocks="discoverBlocks" /></view>
+
+    <!-- ③ 事业生态入口；十大核心功能只保留在首页顶部，避免发现页与首页职责重叠 -->
+    <business-entry-grid />
+
+    <station-pinned-rail board="home" />
+
+    <!-- ④a 首屏骨架：分区占位（复用全局 .skeleton 微光，2 个假分区各 3 张骨架卡） -->
+    <template v-if="firstLoading">
+      <view v-for="n in 2" :key="'sk-' + n" class="cat-section">
+        <view class="sec"><view class="skeleton sk-title" /></view>
+        <view class="flow">
+          <view class="col">
+            <view class="skeleton sk-card-a" />
+            <view class="skeleton sk-card-b" />
           </view>
-          <text class="grid-label">{{ entry.label }}</text>
+          <view class="col">
+            <view class="skeleton sk-card-b" />
+          </view>
         </view>
+      </view>
+    </template>
+
+    <!-- ④b 整页错误态：七分区全空视为加载失败（lib 层吞错无法逐类分辨），给重试 -->
+    <view v-else-if="loadError" class="disc-error">
+      <AppIcon name="wifi-off" :size="120" color="#D8D0C4" />
+      <text class="disc-error-msg">加载失败，请检查网络后重试</text>
+      <view class="disc-error-btn" hover-class="disc-error-btn-press" @tap="retryFirst">
+        <text class="disc-error-btn-txt">重新加载</text>
       </view>
     </view>
 
-    <!-- C 端服务矩阵（学习互动，B 端经营组已下沉页面底部折叠区） -->
-    <view
-      v-for="group in cServiceGroups" :key="group.title"
-      class="grid-section svc-section"
-    >
-      <view class="svc-head">
-        <view class="svc-bar" />
-        <text class="svc-title">{{ group.title }}</text>
-      </view>
-      <view class="grid">
-        <view
-          v-for="item in group.items" :key="item.id"
-          class="grid-item" @tap="goEntry(item.href)"
-        >
-          <view class="grid-icon">
-            <AppIcon :name="item.icon" :size="44" color="#c41e3a" />
-          </view>
-          <text class="grid-label">{{ item.label }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 运营专栏 -->
-    <view class="col-section">
-      <view class="sec-head">
-        <text class="sec-title">精选专栏</text>
-        <!-- 死入口大扫除：原「更多」指向不存在的全部专栏聚合页，属残留占位已删除 -->
-      </view>
-      <scroll-view class="col-row" scroll-x :show-scrollbar="false">
-        <view class="col-inner">
-          <view
-            v-for="col in columns" :key="col.id"
-            class="col-card" @tap="goColumn(col.href)"
-          >
-            <view class="col-cover">
-              <image lazy-load class="col-img" :src="col.cover" mode="aspectFill" />
-              <view class="col-mask" :style="{ background: `linear-gradient(180deg, transparent 40%, ${col.accent}E6 100%)` }" />
-              <view class="col-cover-txt">
-                <text class="col-title">{{ col.title }}</text>
-                <text class="col-subtitle">{{ col.subtitle }}</text>
-              </view>
-            </view>
-            <view class="col-foot">
-              <text class="col-count">{{ col.count }} 个内容</text>
-              <text class="col-view">查看 ›</text>
-            </view>
+    <!-- ④ 按类别分区：每区= 标题 + 更多› + 双列瀑布流 + 查看更多 -->
+    <template v-else>
+    <template v-for="cat in CATEGORIES" :key="cat.type">
+      <view v-if="sections[cat.type].loaded && sections[cat.type].items.length" class="cat-section">
+        <view class="sec">
+          <text class="sec-title">{{ cat.title }}</text>
+          <view class="sec-more" hover-class="sec-more-press" @tap="goEntry(cat.more)">
+            <text class="sec-more-txt">更多</text>
+            <AppIcon name="chevron-right" :size="24" color="#B0A99A" />
           </view>
         </view>
-      </scroll-view>
-    </view>
 
-    <!-- 推荐内容流 -->
-    <view class="feed-section">
-      <view class="feed-head">
-        <AppIcon name="sparkles" :size="28" color="#c41e3a" />
-        <text class="sec-title">为你推荐</text>
-      </view>
+        <view class="flow">
+          <view class="col">
+            <view v-for="item in leftCol(cat.type)" :key="item.id"><feed-card :item="item" /></view>
+          </view>
+          <view class="col">
+            <view v-for="item in rightCol(cat.type)" :key="item.id"><feed-card :item="item" /></view>
+          </view>
+        </view>
 
-      <!-- 骨架屏 -->
-      <view v-if="isLoading" class="masonry">
-        <view v-for="col in [0, 1]" :key="col" class="masonry-col">
-          <view v-for="i in 3" :key="i" class="sk-card">
-            <view :class="['sk-cover', i % 2 === 1 ? 'sk-34' : 'sk-11']" />
-            <view class="sk-body">
-              <view class="sk-line" />
-              <view class="sk-line sk-line-short" />
-            </view>
+        <!-- 查看更多：加载该类别再 4 张（到底则隐藏） -->
+        <view v-if="!sections[cat.type].noMore" class="more-wrap">
+          <view class="more-btn" hover-class="more-btn-press" @tap="loadMore(cat.type)">
+            <text class="more-btn-txt">{{ sections[cat.type].loadingMore ? '加载中…' : '查看更多' }}</text>
           </view>
         </view>
       </view>
-
-      <!-- 错误态 -->
-      <view v-else-if="error" class="feed-state">
-        <text class="state-txt">{{ error }}</text>
-        <view class="state-btn" @tap="retry">重试</view>
-      </view>
-
-      <!-- 空态 -->
-      <view v-else-if="!feedItems.length" class="feed-state">
-        <text class="state-txt">该品类暂无内容，换个看看</text>
-      </view>
-
-      <!-- 瀑布流 -->
-      <view v-else class="masonry">
-        <view class="masonry-col">
-          <template v-for="item in colLeft" :key="item.data.id">
-            <ProductCard v-if="item.kind === 'product'" :data="item.data" />
-            <CourseCard v-else-if="item.kind === 'course'" :data="item.data" />
-            <LiveCard v-else-if="item.kind === 'live'" :data="item.data" />
-            <AgentCard v-else-if="item.kind === 'agent'" :data="item.data" context="discover" />
-            <ClassicCard v-else-if="item.kind === 'classic'" :data="item.data" />
-            <VideoCard v-else-if="item.kind === 'video'" :data="item.data" />
-          </template>
-        </view>
-        <view class="masonry-col">
-          <template v-for="item in colRight" :key="item.data.id">
-            <ProductCard v-if="item.kind === 'product'" :data="item.data" />
-            <CourseCard v-else-if="item.kind === 'course'" :data="item.data" />
-            <LiveCard v-else-if="item.kind === 'live'" :data="item.data" />
-            <AgentCard v-else-if="item.kind === 'agent'" :data="item.data" context="discover" />
-            <ClassicCard v-else-if="item.kind === 'classic'" :data="item.data" />
-            <VideoCard v-else-if="item.kind === 'video'" :data="item.data" />
-          </template>
-        </view>
-      </view>
-
-      <view v-if="!isLoading && !error && feedItems.length" class="feed-end">
-        <view class="end-line" />
-        <text class="end-txt">已经到底了</text>
-        <view class="end-line" />
-      </view>
-    </view>
-
-    <!-- 事业与合作（B 端入口折叠区：默认收起一行，与 C 端内容彻底分层） -->
-    <view v-if="bizGroup" class="biz-section">
-      <view class="biz-head" @tap="toggleBiz">
-        <view class="biz-head-left">
-          <AppIcon name="briefcase" :size="30" color="#8a8378" />
-          <text class="biz-title">事业与合作</text>
-          <text class="biz-sub">{{ bizGroup.items.map((i) => i.label).join(' · ') }}</text>
-        </view>
-        <AppIcon :name="bizExpanded ? 'chevron-up' : 'chevron-down'" :size="28" color="#999999" />
-      </view>
-      <view v-if="bizExpanded" class="grid biz-grid">
-        <view
-          v-for="item in bizGroup.items" :key="item.id"
-          class="grid-item" @tap="goEntry(item.href)"
-        >
-          <view class="grid-icon biz-icon">
-            <AppIcon :name="item.icon" :size="44" color="#8a8378" />
-          </view>
-          <text class="grid-label">{{ item.label }}</text>
-        </view>
-      </view>
-    </view>
+    </template>
+    </template>
 
     <bottom-nav active="discover" />
   </view>
 </template>
 
 <style scoped lang="scss">
-.page { min-height: 100vh; background: var(--surface-base, #f5f1ea); padding-bottom: 140rpx; }
+/* —— token —— */
+$paper: #FAF8F5; $card: #FFFFFF; $red: #C41E3A; $gold: #C9A96E;
+$ink: #2C2C2C; $sub: #6E6E73; $faint: #999999; $wash: #F6F1E7; $line: #F2EDE4;
 
-.sticky-top { position: sticky; top: 0; z-index: 30; background: var(--surface-base, #f5f1ea); }
+.page { min-height: 100vh; background: $paper; padding-bottom: 140rpx; }
 
-.search-wrap { padding: 96rpx 32rpx 24rpx; }
-.search-bar { display: flex; align-items: center; height: 80rpx; padding: 0 32rpx; border-radius: 999rpx; background: var(--surface-sunken, #ece6dc); border: 2rpx solid var(--line, #e4ddd0); }
-.ai-badge { display: flex; align-items: center; gap: 4rpx; padding: 4rpx 12rpx; margin: 0 16rpx; border-radius: 999rpx; background: rgba(196, 30, 58, 0.15); }
-.ai-txt { font-size: 18rpx; color: var(--brand); font-weight: 600; line-height: 1; }
-.search-ph { font-size: 26rpx; color: var(--text-soft, #999); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* ① 搜索：padding-top 由内联 style 按 statusBarHeight 动态计算（此处仅兜底） */
+.search-row { display: flex; align-items: center; gap: 12rpx; padding: 16rpx 24rpx 8rpx; }
+.discover-search { flex: 1; min-width: 0; }
+/* ② 运营楼层（微页面区块） */
+.disc-blocks { padding: 8rpx 0 4rpx; }
 
-.hot-row { margin-top: 24rpx; white-space: nowrap; }
-.hot-inner { display: flex; align-items: center; gap: 16rpx; }
-.hot-label { display: flex; align-items: center; gap: 6rpx; flex-shrink: 0; }
-.hot-label-txt { font-size: 24rpx; color: var(--text-soft, #999); }
-.hot-chip { flex-shrink: 0; padding: 8rpx 24rpx; border-radius: 999rpx; background: var(--surface, #fff); }
-.hot-chip-first { background: rgba(196, 30, 58, 0.1); }
-.hot-chip-txt { font-size: 24rpx; color: var(--text, #444); }
-.hot-chip-first .hot-chip-txt { color: var(--brand); font-weight: 500; }
-
-.cat-row { white-space: nowrap; padding: 0 32rpx 20rpx; }
-.cat-inner { display: flex; align-items: center; gap: 8rpx; }
-.cat-item { position: relative; flex-shrink: 0; padding: 12rpx 24rpx; }
-.cat-txt { font-size: 28rpx; color: var(--text, #444); white-space: nowrap; }
-.cat-txt-active { color: var(--brand); font-weight: 600; }
-.cat-underline { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 32rpx; height: 4rpx; border-radius: 999rpx; background: var(--brand); }
-
-.grid-section { padding: 32rpx 32rpx 16rpx; }
-.svc-section { padding-top: 8rpx; }
-.svc-head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 20rpx; }
-.svc-bar { width: 6rpx; height: 28rpx; border-radius: 9999rpx; background: var(--brand); }
-.svc-title { font-size: 30rpx; font-weight: 700; color: var(--text-strong, #2c2c2c); }
-.grid { display: flex; flex-wrap: wrap; }
-.grid-item { width: 25%; display: flex; flex-direction: column; align-items: center; gap: 12rpx; margin-bottom: 32rpx; }
-.grid-icon { width: 96rpx; height: 96rpx; border-radius: 32rpx; background: rgba(196, 30, 58, 0.08); display: flex; align-items: center; justify-content: center; }
-.grid-label { font-size: 22rpx; color: var(--text-strong, #2c2c2c); text-align: center; line-height: 1.2; }
-
-.col-section { padding-top: 32rpx; }
-.sec-head { display: flex; align-items: center; justify-content: space-between; padding: 0 32rpx; margin-bottom: 20rpx; }
-.sec-title { font-size: 30rpx; font-weight: 700; color: var(--text-strong, #2c2c2c); }
+/* ④ 类别分区 */
+.cat-section { margin-top: 12rpx; padding-top: 20rpx; border-top: 2rpx solid $line; }
+.sec { display: flex; align-items: baseline; justify-content: space-between; padding: 12rpx 32rpx 16rpx; }
+.sec-title { font-size: 34rpx; font-weight: 700; color: $ink; font-family: var(--font-serif); }
 .sec-more { display: flex; align-items: center; }
-.sec-more-txt { font-size: 24rpx; color: var(--text-soft, #999); }
-.col-row { white-space: nowrap; padding: 0 32rpx 8rpx; }
-.col-inner { display: flex; gap: 24rpx; }
-.col-card { flex-shrink: 0; width: 300rpx; border-radius: 24rpx; overflow: hidden; background: var(--surface, #fff); box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.col-cover { position: relative; width: 100%; height: 200rpx; overflow: hidden; }
-.col-img { width: 100%; height: 100%; }
-.col-mask { position: absolute; inset: 0; }
-.col-cover-txt { position: absolute; bottom: 16rpx; left: 20rpx; right: 20rpx; }
-.col-title { display: block; color: #fff; font-weight: 700; font-size: 28rpx; }
-.col-subtitle { display: block; color: rgba(255,255,255,0.85); font-size: 20rpx; margin-top: 4rpx; }
-.col-foot { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 20rpx; }
-.col-count { font-size: 22rpx; color: var(--text-soft, #999); }
-.col-view { font-size: 22rpx; color: var(--brand); font-weight: 500; }
+.sec-more-press { opacity: 0.6; }
+.sec-more-txt { font-size: 24rpx; color: $faint; }
 
-.feed-section { padding-top: 40rpx; }
-.feed-head { display: flex; align-items: center; gap: 12rpx; padding: 0 32rpx; margin-bottom: 16rpx; }
+/* 双列瀑布流（与首页一致：奇偶分列） */
+.flow { display: flex; gap: 16rpx; padding: 0 24rpx; align-items: flex-start; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 12rpx; min-width: 0; }
 
-.masonry { display: flex; gap: 12rpx; padding: 0 10rpx; }
-.masonry-col { flex: 1; display: flex; flex-direction: column; gap: 12rpx; min-width: 0; }
+/* 查看更多 */
+.more-wrap { display: flex; justify-content: center; padding: 24rpx 0 8rpx; }
+.more-btn { padding: 14rpx 56rpx; border-radius: 999rpx; background: $card; border: 2rpx solid $line; box-shadow: 0 2rpx 12rpx rgba(60,50,40,0.06); }
+.more-btn-press { opacity: 0.7; }
+.more-btn-txt { font-size: 26rpx; color: $sub; }
 
-.sk-card { border-radius: 24rpx; background: var(--surface, #fff); overflow: hidden; }
-.sk-cover { background: var(--surface-sunken, #ece6dc); }
-.sk-34 { aspect-ratio: 3 / 4; }
-.sk-11 { aspect-ratio: 1 / 1; }
-.sk-body { padding: 20rpx; display: flex; flex-direction: column; gap: 16rpx; }
-.sk-line { height: 24rpx; background: var(--surface-sunken, #ece6dc); border-radius: 8rpx; }
-.sk-line-short { width: 66%; }
+/* ④a 首屏骨架（微光动画来自全局 .skeleton·animations.scss） */
+.sk-title { width: 200rpx; height: 36rpx; }
+.sk-card-a { width: 100%; height: 0; padding-top: 133%; border-radius: 20rpx; }
+.sk-card-b { width: 100%; height: 0; padding-top: 90%; border-radius: 20rpx; }
 
-.feed-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24rpx; padding: 120rpx 0; }
-.state-txt { font-size: 28rpx; color: var(--text-soft, #999); }
-.state-btn { padding: 12rpx 48rpx; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 26rpx; }
+/* ④b 整页错误态 */
+.disc-error { padding: 120rpx 40rpx; display: flex; flex-direction: column; align-items: center; gap: 24rpx; }
+.disc-error-msg { font-size: 28rpx; color: $sub; }
+.disc-error-btn { margin-top: 8rpx; padding: 16rpx 64rpx; border-radius: 999rpx; background: $red; }
+.disc-error-btn-press { opacity: 0.8; }
+.disc-error-btn-txt { font-size: 28rpx; color: #FFFFFF; }
 
-.feed-end { display: flex; align-items: center; justify-content: center; gap: 24rpx; padding: 48rpx 0; }
-.end-line { width: 80rpx; height: 2rpx; background: var(--line, #e4ddd0); }
-.end-txt { font-size: 26rpx; color: var(--text-soft, #999); }
-
-/* 事业与合作（B 端折叠区，低调灰调与 C 端区分） */
-.biz-section { margin: 24rpx 32rpx 0; border-radius: 24rpx; background: var(--surface, #fff); overflow: hidden; }
-.biz-head { display: flex; align-items: center; justify-content: space-between; padding: 28rpx 28rpx; }
-.biz-head-left { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
-.biz-title { font-size: 28rpx; font-weight: 600; color: var(--text, #555); flex-shrink: 0; }
-.biz-sub { font-size: 22rpx; color: var(--text-soft, #999); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.biz-grid { padding: 28rpx 16rpx 0; border-top: 2rpx solid var(--line, #f0ece4); }
-.biz-icon { background: rgba(138, 131, 120, 0.08); }
 </style>

@@ -1,13 +1,17 @@
 <script setup lang="ts">
 /** 商品分类页 - 分类/搜索/价格/排序全下沉后端，useList 管理列表分页 */
-import { ref, computed } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import ProductCard from '@/components/cards/product-card.vue'
+import { goBack } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 import type { CategoryTab, CategorySortOption, CategoryProduct } from '@/lib/shop-data'
+import type { ProductCardData } from '@/lib/card-utils'
 import { useList } from '@/composables/useList'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 
 const categoryTabs = ref<CategoryTab[]>([])
 const categorySortOptions = ref<CategorySortOption[]>([])
@@ -20,7 +24,31 @@ const searchQuery = ref('')
 const priceMin = ref(0)
 const priceMax = ref(1000)
 
+useOverlayScrollLock(
+  () => showSortMenu.value,
+  {
+    onEscape: () => { showSortMenu.value = false },
+    focusContainerSelector: '.sort-menu',
+    initialFocusSelector: '.sort-menu [aria-checked="true"]',
+  },
+)
+useOverlayScrollLock(
+  () => showFilter.value,
+  {
+    onEscape: () => { showFilter.value = false },
+    focusContainerSelector: '.filter-panel',
+    initialFocusSelector: '.filter-panel [aria-label="关闭商品筛选"]',
+  },
+)
+
 const quickPrices: Array<[number, number]> = [[0, 50], [50, 100], [100, 300], [300, 500], [500, 1000]]
+const CATEGORY_LABEL_MAX_LENGTH = 5
+
+function categoryDisplayName(name: string) {
+  return name.length > CATEGORY_LABEL_MAX_LENGTH
+    ? `${name.slice(0, CATEGORY_LABEL_MAX_LENGTH - 1)}…`
+    : name
+}
 
 const sortName = computed(() => categorySortOptions.value.find((s) => s.id === sortBy.value)?.name)
 const hasFilter = computed(() => priceMin.value > 0 || priceMax.value < 1000)
@@ -51,54 +79,131 @@ onReachBottom(() => loadMore())
 
 function selectCategory(id: string) { if (activeCategory.value === id) return; activeCategory.value = id; refresh() }
 function onSearch() { refresh() }
-function formatSales(n: number) { return n > 1000 ? (n / 1000).toFixed(1) + 'k' : String(n) }
+function toProductCard(p: CategoryProduct): ProductCardData {
+  return {
+    id: p.id,
+    title: p.name,
+    subtitle: p.intro,
+    cover: p.cover,
+    coverRatio: '1:1',
+    price: p.price,
+    originalPrice: p.originalPrice,
+    sales: p.sales,
+    stock: p.stock,
+    tags: p.tags,
+    reason: '严选好物',
+  }
+}
 function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false; refresh() }
 function pickQuickPrice(min: number, max: number) { priceMin.value = min; priceMax.value = max }
 function applyFilter() { showFilter.value = false; refresh() }
 function resetFilter() { priceMin.value = 0; priceMax.value = 1000 }
 function resetAll() { activeCategory.value = 'all'; searchQuery.value = ''; resetFilter(); refresh() }
-function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+function onCategoryKeydown(event: KeyboardEvent, currentId: string) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    selectCategory(currentId)
+    return
+  }
+  if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
+  event.preventDefault()
+  const currentIndex = Math.max(0, categoryTabs.value.findIndex((item) => item.id === currentId))
+  const direction = event.key === 'ArrowDown' ? 1 : -1
+  const nextCategory = categoryTabs.value[
+    (currentIndex + direction + categoryTabs.value.length) % categoryTabs.value.length
+  ]
+  if (!nextCategory) return
+  selectCategory(nextCategory.id)
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('.cat-item[aria-selected="true"]')?.focus()
+  })
+}
 </script>
 
 <template>
-  <view class="page">
+  <view class="page" @keydown.esc="showSortMenu = false; showFilter = false">
     <!-- 顶部搜索栏 -->
     <view class="header">
       <view class="header-inner">
-        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="var(--text-strong)" /></view>
+        <view
+          class="back-btn"
+          role="button"
+          aria-label="返回上一页"
+          tabindex="0"
+          @tap="goBack"
+          @keydown="activateOnKeyboard($event, goBack)"
+        >
+          <AppIcon name="arrow-left" :size="44" color="#1A1A1A" />
+        </view>
         <view class="search-box">
           <view class="search-icon"><AppIcon name="search" :size="32" color="var(--text-soft)" /></view>
-          <input v-model="searchQuery" class="search-input" type="text" confirm-type="search" placeholder="搜索商品后回车" placeholder-class="search-ph" @confirm="onSearch" />
+          <input
+            v-model="searchQuery"
+            class="search-input"
+            aria-label="搜索商品名称或内容"
+            type="text"
+            confirm-type="search"
+            placeholder="搜索商品后回车"
+            placeholder-class="search-ph"
+            @confirm="onSearch"
+          />
         </view>
       </view>
     </view>
 
     <view class="body">
       <!-- 加载中 -->
-      <view v-if="loading" class="state-wrap">
-        <view class="state-spinner" />
-        <text class="state-text">加载中...</text>
+      <view v-if="loading" class="state-wrap" role="status" aria-live="polite" aria-label="商品加载中">
+        <AppLoading />
       </view>
       <!-- 加载失败 -->
-      <view v-else-if="error" class="state-wrap">
+      <view v-else-if="error" class="state-wrap" role="alert" aria-live="assertive">
         <view class="state-icon"><AppIcon name="alert-circle" :size="56" color="#c41e3a" /></view>
         <text class="state-text">加载失败，请重试</text>
-        <view class="state-retry" @tap="refresh"><text class="state-retry-text">点击重试</text></view>
+        <view
+          class="state-retry"
+          role="button"
+          aria-label="重新加载商品"
+          tabindex="0"
+          @tap="refresh"
+          @keydown="activateOnKeyboard($event, refresh)"
+        >
+          <text class="state-retry-text">点击重试</text>
+        </view>
       </view>
       <!-- 内容 -->
       <template v-else>
       <!-- 左侧分类栏 -->
-      <scroll-view class="aside" scroll-y>
+      <scroll-view
+        class="aside"
+        scroll-y
+        role="tablist"
+        aria-label="商品分类"
+        aria-orientation="vertical"
+      >
+        <view class="aside-head">
+          <text class="aside-head-text">商品分类</text>
+        </view>
         <view
           v-for="cat in categoryTabs"
           :key="cat.id"
           class="cat-item"
           :class="{ 'cat-item-on': activeCategory === cat.id }"
+          role="tab"
+          :aria-label="`${cat.name}，${cat.count} 件商品`"
+          :aria-selected="activeCategory === cat.id ? 'true' : 'false'"
+          :tabindex="activeCategory === cat.id ? 0 : -1"
           @tap="selectCategory(cat.id)"
+          @keydown="onCategoryKeydown($event, cat.id)"
         >
           <view v-if="activeCategory === cat.id" class="cat-bar" />
-          <text class="cat-name">{{ cat.name }}</text>
-          <text class="cat-count">{{ cat.count }}</text>
+          <text class="cat-name" :aria-label="cat.name">{{ categoryDisplayName(cat.name) }}</text>
+          <text class="cat-count">{{ cat.count }}件</text>
         </view>
       </scroll-view>
 
@@ -107,24 +212,47 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
         <!-- 排序栏 -->
         <view class="sort-bar">
           <view class="sort-dropdown">
-            <view class="sort-trigger" @tap="showSortMenu = !showSortMenu">
+            <view
+              class="sort-trigger"
+              role="button"
+              aria-label="选择商品排序"
+              aria-haspopup="true"
+              :aria-expanded="showSortMenu ? 'true' : 'false'"
+              tabindex="0"
+              @tap="showSortMenu = !showSortMenu"
+              @keydown="activateOnKeyboard($event, () => { showSortMenu = !showSortMenu })"
+            >
               <text class="sort-text">{{ sortName }}</text>
               <view class="sort-arrow" :class="{ 'sort-arrow-up': showSortMenu }"><AppIcon name="chevron-down" :size="28" color="var(--text-strong)" /></view>
             </view>
-            <view v-if="showSortMenu" class="sort-mask" @tap="showSortMenu = false" />
-            <view v-if="showSortMenu" class="sort-menu">
+            <view v-if="showSortMenu" class="sort-mask" aria-hidden="true" @tap="showSortMenu = false" />
+            <view v-if="showSortMenu" class="sort-menu" role="radiogroup" aria-label="商品排序方式">
               <view
                 v-for="opt in categorySortOptions"
                 :key="opt.id"
                 class="sort-opt"
                 :class="{ 'sort-opt-on': sortBy === opt.id }"
+                role="radio"
+                :aria-checked="sortBy === opt.id ? 'true' : 'false'"
+                :tabindex="sortBy === opt.id ? 0 : -1"
                 @tap="pickSort(opt.id)"
+                @keydown="activateOnKeyboard($event, () => pickSort(opt.id))"
               >
                 <text class="sort-opt-text" :class="{ 'sort-opt-text-on': sortBy === opt.id }">{{ opt.name }}</text>
               </view>
             </view>
           </view>
-          <view class="filter-btn" :class="{ 'filter-btn-on': hasFilter }" @tap="showFilter = true">
+          <view
+            class="filter-btn"
+            :class="{ 'filter-btn-on': hasFilter }"
+            role="button"
+            :aria-label="hasFilter ? '调整商品筛选，当前已启用价格条件' : '打开商品筛选'"
+            aria-haspopup="dialog"
+            :aria-expanded="showFilter ? 'true' : 'false'"
+            tabindex="0"
+            @tap="showFilter = true"
+            @keydown="activateOnKeyboard($event, () => { showFilter = true })"
+          >
             <AppIcon name="filter" :size="28" :color="hasFilter ? 'var(--brand)' : 'var(--text-soft)'" />
             <text class="filter-text" :class="{ 'filter-text-on': hasFilter }">筛选</text>
           </view>
@@ -132,25 +260,19 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 
         <!-- 商品网格 -->
         <view v-if="categoryProducts.length" class="grid">
-          <view v-for="p in categoryProducts" :key="p.id" class="g-card" hover-class="g-card-press" @tap="openProduct(p.id)">
-            <view class="g-cover">
-              <image lazy-load class="g-img" :src="p.cover" mode="aspectFill" />
-              <text v-if="p.isMemberFree" class="g-badge">会员免费</text>
-            </view>
-            <view class="g-body">
-              <text class="g-name">{{ p.name }}</text>
-              <view class="g-price-row">
-                <text class="g-price">¥{{ p.price }}</text>
-                <text class="g-orig">¥{{ p.originalPrice }}</text>
-              </view>
-              <text class="g-sales">已售{{ formatSales(p.sales) }}</text>
-            </view>
-          </view>
+          <ProductCard v-for="p in categoryProducts" :key="p.id" :data="toProductCard(p)" />
         </view>
-        <view v-else class="empty">
+        <view v-else class="empty" role="status" aria-live="polite">
           <view class="empty-icon"><AppIcon name="search" :size="56" color="var(--text-soft)" /></view>
           <text class="empty-text">暂无相关商品</text>
-          <text class="empty-reset" @tap="resetAll">重置筛选条件</text>
+          <text
+            class="empty-reset"
+            role="button"
+            aria-label="重置商品分类、搜索和价格筛选"
+            tabindex="0"
+            @tap="resetAll"
+            @keydown="activateOnKeyboard($event, resetAll)"
+          >重置筛选条件</text>
         </view>
 
         <app-load-more v-if="categoryProducts.length" :status="loadStatus" />
@@ -159,27 +281,46 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
     </view>
 
     <!-- 筛选面板 -->
-    <view v-if="showFilter" class="mask mask-fade-in" @tap="showFilter = false" />
-    <view v-if="showFilter" class="filter-panel">
+    <view v-if="showFilter" class="mask mask-fade-in" aria-hidden="true" @tap="showFilter = false" />
+    <view
+      v-if="showFilter"
+      class="filter-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="商品筛选"
+    >
       <view class="fp-head">
         <text class="fp-title">筛选</text>
-        <view @tap="showFilter = false"><AppIcon name="x" :size="36" color="var(--text-soft)" /></view>
+        <view
+          role="button"
+          aria-label="关闭商品筛选"
+          tabindex="0"
+          @tap="showFilter = false"
+          @keydown="activateOnKeyboard($event, () => { showFilter = false })"
+        >
+          <AppIcon name="x" :size="36" color="var(--text-soft)" />
+        </view>
       </view>
       <view class="fp-body">
         <view class="fp-group">
           <text class="fp-label">价格区间</text>
           <view class="fp-price-row">
-            <input v-model.number="priceMin" class="fp-input" type="number" placeholder="最低价" placeholder-class="search-ph" />
+            <input v-model.number="priceMin" class="fp-input" aria-label="最低价格" type="number" placeholder="最低价" placeholder-class="search-ph" />
             <text class="fp-dash">-</text>
-            <input v-model.number="priceMax" class="fp-input" type="number" placeholder="最高价" placeholder-class="search-ph" />
+            <input v-model.number="priceMax" class="fp-input" aria-label="最高价格" type="number" placeholder="最高价" placeholder-class="search-ph" />
           </view>
-          <view class="fp-quick">
+          <view class="fp-quick" role="radiogroup" aria-label="快捷价格区间">
             <view
               v-for="([min, max]) in quickPrices"
               :key="`${min}-${max}`"
               class="fp-quick-tag"
               :class="{ 'fp-quick-tag-on': priceMin === min && priceMax === max }"
+              role="radio"
+              :aria-label="`${min} 元至 ${max} 元`"
+              :aria-checked="priceMin === min && priceMax === max ? 'true' : 'false'"
+              tabindex="0"
               @tap="pickQuickPrice(min, max)"
+              @keydown="activateOnKeyboard($event, () => pickQuickPrice(min, max))"
             >
               <text class="fp-quick-text" :class="{ 'fp-quick-text-on': priceMin === min && priceMax === max }">¥{{ min }}-{{ max }}</text>
             </view>
@@ -187,8 +328,24 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
         </view>
       </view>
       <view class="fp-actions">
-        <view class="fp-btn-reset" hover-class="g-card-press" @tap="resetFilter"><text class="fp-btn-reset-text">重置</text></view>
-        <view class="fp-btn-ok" hover-class="g-card-press" @tap="applyFilter"><text class="fp-btn-ok-text">确定</text></view>
+        <view
+          class="fp-btn-reset"
+          role="button"
+          aria-label="重置价格筛选"
+          tabindex="0"
+          hover-class="g-card-press"
+          @tap="resetFilter"
+          @keydown="activateOnKeyboard($event, resetFilter)"
+        ><text class="fp-btn-reset-text">重置</text></view>
+        <view
+          class="fp-btn-ok"
+          role="button"
+          aria-label="应用商品筛选"
+          tabindex="0"
+          hover-class="g-card-press"
+          @tap="applyFilter"
+          @keydown="activateOnKeyboard($event, applyFilter)"
+        ><text class="fp-btn-ok-text">确定</text></view>
       </view>
     </view>
   </view>
@@ -199,20 +356,98 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 /* 顶部 */
 .header { position: sticky; top: 0; z-index: 40; background: var(--surface); border-bottom: 1rpx solid var(--border, #eee); padding-top: var(--status-bar-height, 0px); }
 .header-inner { display: flex; align-items: center; gap: 20rpx; padding: 0 28rpx; height: 100rpx; }
-.back-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
+.back-btn { width: 88rpx; height: 88rpx; margin: 0 -16rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .search-box { flex: 1; position: relative; display: flex; align-items: center; height: 68rpx; background: var(--surface-sunken); border-radius: 999rpx; padding: 0 28rpx 0 64rpx; }
 .search-icon { position: absolute; left: 20rpx; top: 50%; transform: translateY(-50%); }
 .search-input { flex: 1; font-size: 26rpx; color: var(--text-strong); }
 .search-ph { color: var(--text-soft); }
 /* 主体 */
 .body { display: flex; }
-.aside { width: 150rpx; flex-shrink: 0; background: rgba(0,0,0,0.02); border-right: 1rpx solid var(--border, #eee); height: calc(100vh - 100rpx - var(--status-bar-height, 0px)); position: sticky; top: calc(100rpx + var(--status-bar-height, 0px)); }
-.cat-item { position: relative; padding: 28rpx 12rpx; text-align: center; }
-.cat-item-on { background: var(--surface); }
-.cat-bar { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 6rpx; height: 44rpx; background: var(--brand); border-radius: 0 6rpx 6rpx 0; }
-.cat-name { display: block; font-size: 24rpx; color: var(--text-soft); }
-.cat-item-on .cat-name { color: var(--brand); font-weight: 500; }
-.cat-count { display: block; font-size: 20rpx; color: var(--text-soft); margin-top: 4rpx; opacity: 0.7; }
+.aside {
+  width: 164rpx;
+  flex-shrink: 0;
+  height: calc(100vh - 100rpx - var(--status-bar-height, 0px));
+  position: sticky;
+  top: calc(100rpx + var(--status-bar-height, 0px));
+  box-sizing: border-box;
+  padding: 0 10rpx 12rpx;
+  background: linear-gradient(180deg, #F8F5EF 0%, #F4F1EB 100%);
+  border-right: 1rpx solid rgba(201, 169, 110, 0.18);
+}
+.aside-head {
+  height: 76rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1rpx solid rgba(201, 169, 110, 0.14);
+}
+.aside-head-text {
+  color: #9A9184;
+  font-size: 19rpx;
+  font-weight: 500;
+  letter-spacing: 2rpx;
+}
+.cat-item {
+  position: relative;
+  min-height: 96rpx;
+  margin-top: 8rpx;
+  margin-bottom: 8rpx;
+  padding: 14rpx 10rpx;
+  border: 1rpx solid transparent;
+  border-radius: 18rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  text-align: center;
+}
+.cat-item-on {
+  background: linear-gradient(145deg, #FFFFFF 0%, #FFF9F2 100%);
+  border-color: rgba(196, 30, 58, 0.14);
+  box-shadow: 0 4rpx 14rpx rgba(83, 56, 28, 0.07);
+}
+.cat-bar {
+  position: absolute;
+  left: -1rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6rpx;
+  height: 38rpx;
+  background: var(--brand);
+  border-radius: 0 6rpx 6rpx 0;
+  box-shadow: 0 2rpx 6rpx rgba(196, 30, 58, 0.18);
+}
+.cat-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: #625C52;
+  font-size: 23rpx;
+  font-weight: 500;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cat-item-on .cat-name {
+  color: var(--brand);
+  font-weight: 600;
+}
+.cat-count {
+  display: block;
+  min-width: 44rpx;
+  padding: 1rpx 8rpx;
+  border-radius: 999rpx;
+  background: rgba(120, 100, 72, 0.07);
+  color: #9A9184;
+  font-size: 18rpx;
+  line-height: 1.4;
+}
+.cat-item-on .cat-count {
+  background: rgba(196, 30, 58, 0.08);
+  color: rgba(196, 30, 58, 0.72);
+}
 .main { flex: 1; min-width: 0; }
 /* 排序栏 */
 .sort-bar { position: sticky; top: calc(100rpx + var(--status-bar-height, 0px)); z-index: 30; display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; height: 76rpx; background: var(--surface); border-bottom: 1rpx solid var(--border, #eee); }
@@ -232,17 +467,7 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 .filter-text-on { color: var(--brand); }
 /* 网格 */
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; padding: 16rpx; }
-.g-card { background: var(--surface); border-radius: 16rpx; overflow: hidden; }
 .g-card-press { opacity: 0.85; }
-.g-cover { position: relative; width: 100%; padding-bottom: 100%; background: var(--surface-sunken); }
-.g-img { position: absolute; inset: 0; width: 100%; height: 100%; }
-.g-badge { position: absolute; top: 12rpx; left: 12rpx; font-size: 18rpx; padding: 2rpx 12rpx; border-radius: 8rpx; background: var(--gold, #c9a96e); color: #fff; }
-.g-body { padding: 16rpx; }
-.g-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-size: 24rpx; font-weight: 500; color: var(--text-strong); line-height: 1.4; min-height: 68rpx; }
-.g-price-row { display: flex; align-items: baseline; gap: 8rpx; margin-top: 8rpx; }
-.g-price { font-size: 30rpx; font-weight: 600; color: var(--brand); }
-.g-orig { font-size: 20rpx; color: var(--text-soft); text-decoration: line-through; }
-.g-sales { display: block; font-size: 20rpx; color: var(--text-soft); margin-top: 4rpx; }
 /* 空态 */
 .empty { display: flex; flex-direction: column; align-items: center; padding: 120rpx 0; }
 .empty-icon { width: 140rpx; height: 140rpx; border-radius: 50%; background: var(--surface-sunken); display: flex; align-items: center; justify-content: center; margin-bottom: 28rpx; }
@@ -276,8 +501,6 @@ function openProduct(id: string | number) { navigateTo(`/mall/product/${id}`) }
 
 /* 三态：加载/错误 */
 .state-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; }
-.state-spinner { width: 64rpx; height: 64rpx; border: 4rpx solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 .state-icon { width: 120rpx; height: 120rpx; border-radius: 50%; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
 .state-text { font-size: 26rpx; color: var(--text-soft); margin-top: 20rpx; }
 .state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }

@@ -184,8 +184,8 @@
     </template>
 
     <!-- 导入对话框 -->
-    <view v-if="showImportDialog" class="dialog-mask" @tap="showImportDialog = false">
-      <view class="dialog" @tap.stop>
+    <view v-if="showImportDialog" class="dialog-mask" @tap="showImportDialog = false" @touchmove.self.prevent>
+      <view class="dialog" @tap.stop @touchmove.stop>
         <text class="dialog-title">批量导入场次</text>
         <text class="dialog-desc">通过Excel文件批量导入直播排期</text>
         <view class="tpl-row">
@@ -211,8 +211,8 @@
     </view>
 
     <!-- 删除确认对话框 -->
-    <view v-if="showDeleteDialog" class="dialog-mask" @tap="showDeleteDialog = false">
-      <view class="dialog" @tap.stop>
+    <view v-if="showDeleteDialog" class="dialog-mask" @tap="showDeleteDialog = false" @touchmove.self.prevent>
+      <view class="dialog" @tap.stop @touchmove.stop>
         <text class="dialog-title">确认删除</text>
         <text class="dialog-desc">确定要删除直播「{{ selectedSchedule?.title }}」吗？此操作不可恢复。</text>
         <view class="dialog-footer">
@@ -226,6 +226,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { liveApi, scheduleStatusConfig, type ScheduleItem } from '@/lib/live-data'
 import ScheduleCard from './schedule-card.vue'
 
@@ -239,6 +240,7 @@ const currentMonth = ref(4) // 0-based，2026年5月
 const selectedDate = ref<string | null>(null)
 const showImportDialog = ref(false)
 const showDeleteDialog = ref(false)
+useOverlayScrollLock(() => showImportDialog.value || showDeleteDialog.value)
 const selectedSchedule = ref<ScheduleItem | null>(null)
 const filterStatus = ref('all')
 const searchQuery = ref('')
@@ -325,14 +327,13 @@ function goCreate(id?: number | string) {
   uni.navigateTo({ url })
 }
 function onCopy(s: ScheduleItem) {
-  console.log('[v0] 复制场次', s.id)
+  void s
 }
 function onDelete(s: ScheduleItem) {
   selectedSchedule.value = s
   showDeleteDialog.value = true
 }
 function confirmDelete() {
-  console.log('[v0] 删除场次', selectedSchedule.value?.id)
   showDeleteDialog.value = false
 }
 

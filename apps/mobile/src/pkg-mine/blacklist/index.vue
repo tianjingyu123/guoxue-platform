@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { mineApi, type BlacklistItem } from '@/lib/mine-data'
 
 const list = ref<BlacklistItem[]>([])
@@ -73,7 +75,7 @@ const isEmpty = computed(() => list.value.length === 0)
     </app-nav-bar>
 
     <!-- 加载/错误 -->
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state"><text>{{ error }}</text><view class="retry-btn" @tap="retry">重试</view></view>
     <scroll-view v-else scroll-y class="scroll">
       <!-- 空状态 -->
@@ -88,7 +90,7 @@ const isEmpty = computed(() => list.value.length === 0)
       <!-- 列表 -->
       <template v-else>
         <view v-for="u in list" :key="u.id" class="item">
-          <image lazy-load class="avatar" :src="u.avatar" mode="aspectFill" />
+          <smart-avatar :src="u.avatar" :name="u.nickname" class="avatar" />
           <view class="item-body">
             <text class="item-name">{{ u.nickname }}</text>
             <text class="item-time">{{ u.blockedAt }} 加入黑名单</text>

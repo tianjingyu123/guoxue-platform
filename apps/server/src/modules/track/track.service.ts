@@ -85,15 +85,18 @@ export class TrackService {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const since = new Date(Date.now() - days * 86_400_000);
     const dayAgo = new Date(Date.now() - 86_400_000);
+    // 口径统一：聚合/明细全部按 occurredAt（客户端错误"发生时间"）——运营关心的是错误何时发生，
+    // 而非何时入库。occurredAt 在 schema 为 DateTime 非空（recordBatch 恒赋值），故无 null 老数据，
+    // where 直接以 occurredAt 过滤；内存归类另留 `?? createdAt` 兜底以防极端脏数据。
     const [windowRows, total, last24h] = await Promise.all([
       this.prisma.trackEvent.findMany({
-        where: { action: "error", createdAt: { gte: since } },
-        select: { path: true, payload: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
+        where: { action: "error", occurredAt: { gte: since } },
+        select: { path: true, payload: true, occurredAt: true, createdAt: true },
+        orderBy: { occurredAt: "desc" },
         take: 5000, // 聚合上限保险（错误洪峰时只聚合最近5000条）
       }),
-      this.prisma.trackEvent.count({ where: { action: "error", createdAt: { gte: since } } }),
-      this.prisma.trackEvent.count({ where: { action: "error", createdAt: { gte: dayAgo } } }),
+      this.prisma.trackEvent.count({ where: { action: "error", occurredAt: { gte: since } } }),
+      this.prisma.trackEvent.count({ where: { action: "error", occurredAt: { gte: dayAgo } } }),
     ]);
 
     // 按日趋势（自然日·补零）
@@ -105,15 +108,16 @@ export class TrackService {
     // 按消息 TOP（msg 截断 120 字归并）
     const byMsg = new Map<string, { count: number; lastAt: Date; samplePath: string | null }>();
     for (const r of windowRows) {
-      const day = r.createdAt.toISOString().slice(0, 10);
+      const at = r.occurredAt ?? r.createdAt;
+      const day = at.toISOString().slice(0, 10);
       if (byDayMap.has(day)) byDayMap.set(day, (byDayMap.get(day) ?? 0) + 1);
       const msg = String((r.payload as Record<string, unknown> | null)?.msg ?? "未知错误").slice(0, 120);
       const cur = byMsg.get(msg);
       if (cur) {
         cur.count++;
-        if (r.createdAt > cur.lastAt) cur.lastAt = r.createdAt;
+        if (at > cur.lastAt) cur.lastAt = at;
       } else {
-        byMsg.set(msg, { count: 1, lastAt: r.createdAt, samplePath: r.path });
+        byMsg.set(msg, { count: 1, lastAt: at, samplePath: r.path });
       }
     }
     const topMessages = [...byMsg.entries()]
@@ -121,11 +125,11 @@ export class TrackService {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // 明细分页
+    // 明细分页（排序与过滤口径同上，用 occurredAt）
     const items = await this.prisma.trackEvent.findMany({
-      where: { action: "error", createdAt: { gte: since } },
+      where: { action: "error", occurredAt: { gte: since } },
       select: { id: true, userId: true, path: true, payload: true, occurredAt: true, createdAt: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: { occurredAt: "desc" },
       skip,
       take: pageSize,
     });

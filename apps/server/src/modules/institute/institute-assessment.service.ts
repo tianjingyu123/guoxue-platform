@@ -91,9 +91,10 @@ export class InstituteAssessmentService {
 
   async getEligibility(userId: string, seatType?: string): Promise<EligibilityResult> {
     const seat: "LECTURE" | "STUDY" = seatType === "STUDY" ? "STUDY" : "LECTURE";
-    const checks = seat === "STUDY"
-      ? await this.buildStudyChecks(userId)
-      : await this.buildLectureChecks(userId);
+    const checks =
+      seat === "STUDY"
+        ? await this.buildStudyChecks(userId)
+        : await this.buildLectureChecks(userId);
     return { seatType: seat, eligible: checks.every((c) => c.pass), checks };
   }
 
@@ -130,10 +131,16 @@ export class InstituteAssessmentService {
     let best: CircleDimResult | null = null;
     for (const m of candidates) {
       const dim = await this.evaluateCircleDims(userId, m.circleId, m.circle?.name || "", {
-        reqMembers, reqContent, reqBRatio, reqPosts90,
+        reqMembers,
+        reqContent,
+        reqBRatio,
+        reqPosts90,
       });
-      if (!best || dim.passCount > best.passCount ||
-        (dim.passCount === best.passCount && dim.memberCount > best.memberCount)) {
+      if (
+        !best ||
+        dim.passCount > best.passCount ||
+        (dim.passCount === best.passCount && dim.memberCount > best.memberCount)
+      ) {
         best = dim;
       }
     }
@@ -226,13 +233,25 @@ export class InstituteAssessmentService {
       (contentTotal >= req.reqContent && bRatio >= req.reqBRatio ? 1 : 0) +
       (recentPosts >= req.reqPosts90 ? 1 : 0);
 
-    return { circleId, circleName, memberCount, contentTotal, bGradeCount, bRatio, recentPosts, passCount };
+    return {
+      circleId,
+      circleName,
+      memberCount,
+      contentTotal,
+      bGradeCount,
+      bRatio,
+      recentPosts,
+      passCount,
+    };
   }
 
   /** 创收口径：自有圈 CircleRevenueRecord.amount 总额（全类型）+ 本人创建课程的已支付订单 amount 总额（单位：元） */
   private async sumUserRevenue(userId: string): Promise<number> {
     const [ownedCircles, myCourses] = await Promise.all([
-      this.prisma.circle.findMany({ where: { ownerId: userId, deletedAt: null }, select: { id: true } }),
+      this.prisma.circle.findMany({
+        where: { ownerId: userId, deletedAt: null },
+        select: { id: true },
+      }),
       this.prisma.course.findMany({ where: { userId, deletedAt: null }, select: { id: true } }),
     ]);
 
@@ -333,9 +352,21 @@ export class InstituteAssessmentService {
 
     // 线下硬指标三选一（当期指标·平台坑位供给即调节阀）
     const offlineReqs: { type: SharePointType; label: string; required: number }[] = [
-      { type: "OFFLINE_STATION", label: "旗舰驿站线下分享", required: envNum("INSTITUTE_OFFLINE_STATION_MIN", 1) },
-      { type: "SALON_MONTHLY", label: "平台月度线下沙龙主讲", required: envNum("INSTITUTE_OFFLINE_SALON_MIN", 2) },
-      { type: "QUARTERLY_EVENT", label: "季度高规格分享会主讲", required: envNum("INSTITUTE_OFFLINE_QUARTERLY_MIN", 1) },
+      {
+        type: "OFFLINE_STATION",
+        label: "旗舰驿站线下分享",
+        required: envNum("INSTITUTE_OFFLINE_STATION_MIN", 1),
+      },
+      {
+        type: "SALON_MONTHLY",
+        label: "平台月度线下沙龙主讲",
+        required: envNum("INSTITUTE_OFFLINE_SALON_MIN", 2),
+      },
+      {
+        type: "QUARTERLY_EVENT",
+        label: "季度高规格分享会主讲",
+        required: envNum("INSTITUTE_OFFLINE_QUARTERLY_MIN", 1),
+      },
     ];
     const detail = offlineReqs.map((req) => ({
       type: req.type,
@@ -354,7 +385,8 @@ export class InstituteAssessmentService {
     const quarterLineOk = quarterPoints.slice(0, elapsedQuarters).every((p) => p >= quarterMin);
 
     let tier: AssessmentTierResponse["tier"];
-    if (feeExempt) tier = "EXEMPT"; // 特邀免会费：无年费可返·豁免返还与转席档位（积分与流水照常返回进榜单）
+    if (feeExempt)
+      tier = "EXEMPT"; // 特邀免会费：无年费可返·豁免返还与转席档位（积分与流水照常返回进榜单）
     else if (points >= fullLine && met) tier = "FULL_REFUND";
     else if (points >= fullLine) tier = "HALF_REFUND";
     else if (points >= keepLine && quarterLineOk) tier = "KEEP";
@@ -398,13 +430,16 @@ export class InstituteAssessmentService {
     memberId: string,
     dto: { pointType?: string; points: number; refId?: string; remark?: string },
   ) {
-    await this.assertManagement(operatorUserId);
+    const mgr = await this.assertManagement(operatorUserId);
 
     const member = await this.prisma.instituteMember.findUnique({
       where: { id: memberId },
       select: { id: true, instituteId: true, userId: true },
     });
     if (!member) throw new BusinessException(ErrorCode.NOT_FOUND, "研究院成员不存在");
+    if (member.instituteId !== mgr.instituteId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "仅可调整本研究院成员积分");
+    }
 
     const pointType = dto.pointType || "MANUAL";
     if (!SHARE_POINT_TYPES.includes(pointType as SharePointType)) {
@@ -442,7 +477,10 @@ export class InstituteAssessmentService {
     if (!event.lecturerId) return null;
 
     const conf: Record<string, { pointType: SharePointType; points: number }> = {
-      SALON: { pointType: "INSTITUTE_SALON", points: envNum("INSTITUTE_POINTS_INSTITUTE_SALON", 20) },
+      SALON: {
+        pointType: "INSTITUTE_SALON",
+        points: envNum("INSTITUTE_POINTS_INSTITUTE_SALON", 20),
+      },
       LIVE: { pointType: "LIVE_COURSE", points: envNum("INSTITUTE_POINTS_LIVE_COURSE", 15) },
     };
     const rule = conf[event.type];

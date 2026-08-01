@@ -25,7 +25,7 @@ const quickActions: QuickAction[] = [
   { label: "角色权限", path: "/system/role-permission", icon: Lock },
   { label: "功能开关", path: "/system/feature-flags", icon: Operation },
   { label: "第三方配置", path: "/system/third-party", icon: Connection },
-  { label: "管理驾驶舱", path: "/admin/cockpit", icon: Odometer },
+  { label: "管理驾驶舱", path: "/cockpit", icon: Odometer },
   { label: "平台综合大屏", path: "/bigscreen/platform", icon: Monitor },
 ]
 // 待办角标（真实计数，无则为 0 不显示）
@@ -39,7 +39,8 @@ const cardRoutes: Record<string, string> = {
   "待处理举报":  "/reports",
   "圈子总数":   "/circles",
   "课程总数":   "/courses",
-  "系统健康":   "/system/role-permission",
+  // 系统健康卡点击应看错误监控（角色权限页与健康无关·2026-07-18 修）
+  "系统健康":   "/system/error-monitor",
 }
 
 function onCardClick(card: CardDef) {
@@ -48,13 +49,13 @@ function onCardClick(card: CardDef) {
 }
 
 // ==================== 报警信息 ====================
-/** 报警条目（字段宽松 optional） */
-interface AlertItem { text?: string; count?: number; level?: 'critical' | 'warning' | 'info' }
+/** 报警条目（字段宽松 optional·后端 RiskAlert 字段为 title + 大写 level，展示前做映射） */
+interface AlertItem { text?: string; title?: string; count?: number; level?: string }
 const alerts = ref<AlertItem[]>([])
 
 // ==================== 统计卡片 ====================
 interface CardDelta { value: number; dir: "up" | "down" | "flat"; label: string }
-interface CardDef { label: string; value: number; icon: Component; delta?: CardDelta }
+interface CardDef { label: string; value: number; icon: Component; delta?: CardDelta; format?: "number" | "currency" }
 const cards = ref<CardDef[]>([])
 
 /** 日环比：仅当昨日基准>0 时计算，否则 undefined（诚实留白） */
@@ -146,11 +147,12 @@ async function load() {
       { label: "总用户数",   value: s.totalUsers ?? 0,   icon: User },
       { label: "总订单数",   value: s.totalOrders ?? 0,  icon: Goods },
       { label: "今日新增用户", value: s.todayNewUsers ?? 0, icon: Plus },
-      { label: "今日营收",   value: s.todayRevenue ?? 0, icon: Money },
+      { label: "今日营收",   value: s.todayRevenue ?? 0, icon: Money, format: "currency" },
       { label: "待处理举报",  value: s.pendingReports ?? 0, icon: WarningFilled },
       { label: "圈子总数",   value: s.totalCircles ?? 0, icon: ChatDotRound },
       { label: "课程总数",   value: s.totalCourses ?? 0, icon: Reading },
-      { label: "系统健康",   value: s.systemOk ?? 1,     icon: DataLine },
+      // systemOk 缺失时用 -1 表示"未知"，展示灰态，不能兜底成"正常"假绿灯（2026-07-18 修）
+      { label: "系统健康",   value: s.systemOk ?? -1,    icon: DataLine },
     ]
 
     // 真实日环比：今日新增用户/今日营收 vs 昨日同口径（后端 stats 已补昨日基准）
@@ -186,12 +188,13 @@ async function load() {
     badges.value = { "/system/third-party": abnormal }
 
     // 报警取前 3 条（后端返回 {alerts:[],total,...} 对象，非裸数组，需取 .alerts）
+    // 字段映射：后端 RiskAlert 文案在 title（非 text）、level 为大写 WARN/DANGER/CRITICAL（AnomalyAlert 内部归一小写）
     const rawAlert = alertRes.data
     const list: AlertItem[] = Array.isArray(rawAlert)
       ? rawAlert
       : ((rawAlert as { alerts?: AlertItem[] })?.alerts ?? [])
     alerts.value = list.slice(0, 3).map((a: AlertItem) => ({
-      text: a.text, count: a.count, level: a.level ?? "warning",
+      text: a.title ?? a.text ?? "", count: a.count, level: a.level ?? "warning",
     }))
   } catch {
     loadError.value = true
@@ -304,16 +307,20 @@ onBeforeUnmount(() => {
             :class="{ 'stat-card__value--alert': card.label === '待处理举报' && card.value > 0 }"
           >
             <template v-if="card.label === '系统健康'">
+              <!-- 三态：1=正常绿 / 0=异常红 / 字段缺失=未知灰（禁止假绿灯） -->
               <el-tag
-                :type="card.value === 1 ? 'success' : 'danger'"
+                :type="card.value === 1 ? 'success' : card.value === 0 ? 'danger' : 'info'"
                 size="small"
                 effect="dark"
               >
-                {{ card.value === 1 ? '正常' : '异常' }}
+                {{ card.value === 1 ? '正常' : card.value === 0 ? '异常' : '未知' }}
               </el-tag>
             </template>
             <template v-else>
-              <AnimatedCounter :value="card.value" />
+              <AnimatedCounter
+                :value="card.value"
+                :format="card.format"
+              />
             </template>
           </div>
           <div

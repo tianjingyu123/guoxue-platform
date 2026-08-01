@@ -34,6 +34,21 @@ describe("Course DTO 校验", () => {
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
     });
+
+    it("拒绝仅在当前浏览器会话有效的 blob 封面", async () => {
+      const dto = Object.assign(new CreateCourseDto(), {
+        title: "课程",
+        cover: "blob:https://api.rebugx.cn/session-only",
+      });
+      const errors = await validate(dto);
+      expect(errors.some((error) => error.property === "cover")).toBe(true);
+    });
+
+    it("空封面仍可用于无封面课程", async () => {
+      const dto = Object.assign(new CreateCourseDto(), { title: "课程", cover: "" });
+      const errors = await validate(dto);
+      expect(errors.length).toBe(0);
+    });
   });
 
   describe("UpdateCourseDto", () => {
@@ -53,6 +68,17 @@ describe("Course DTO 校验", () => {
       const dto = Object.assign(new UpdateCourseDto(), { type: "INVALID" as any });
       const errors = await validate(dto);
       expect(errors.length).toBeGreaterThan(0);
+    });
+
+    it("拒绝 blob 封面和详情图", async () => {
+      const dto = Object.assign(new UpdateCourseDto(), {
+        cover: "blob:https://api.rebugx.cn/session-only",
+        detailImages: ["https://cdn.example.com/ok.jpg", "blob:https://api.rebugx.cn/detail"],
+      });
+      const errors = await validate(dto);
+      expect(errors.map((error) => error.property)).toEqual(
+        expect.arrayContaining(["cover", "detailImages"]),
+      );
     });
   });
 

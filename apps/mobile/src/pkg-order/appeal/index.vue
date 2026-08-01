@@ -84,7 +84,7 @@
           <view class="tips-text">
             <text class="tips-line">1. 平台将在1-3个工作日内完成审核</text>
             <text class="tips-line">2. 处理结果将通过消息通知推送给您</text>
-            <text class="tips-line">3. 如有疑问，可联系在线客服</text>
+            <text class="tips-line">3. 如有疑问，可<text class="tips-link" @tap="goService">联系在线客服</text></text>
           </view>
         </view>
       </scroll-view>
@@ -122,7 +122,16 @@
         <!-- 步骤1：选择订单 -->
         <view v-if="step === 1" class="step-section">
           <text class="step-hint">请选择需要申诉的订单</text>
+          <view v-if="ordersLoading" class="orders-state"><text class="orders-state-text">加载中...</text></view>
+          <view v-else-if="ordersError" class="orders-state">
+            <text class="orders-state-text">{{ ordersError }}</text>
+            <view class="orders-retry" @tap="loadOrders"><text class="orders-retry-text">重试</text></view>
+          </view>
+          <view v-else-if="appealableOrders.length === 0" class="orders-state">
+            <text class="orders-state-text">暂无可申诉的已完成订单</text>
+          </view>
           <view
+            v-else
             v-for="order in appealableOrders"
             :key="order.id"
             class="order-card"
@@ -136,7 +145,7 @@
               <text class="order-title">{{ order.title }}</text>
               <text class="order-id">订单号：{{ order.id }}</text>
               <view class="order-meta">
-                <text class="order-price">¥{{ order.price }}</text>
+                <text class="order-price">¥{{ formatPrice(order.price) }}</text>
                 <text class="order-status">{{ order.status }}</text>
               </view>
             </view>
@@ -234,14 +243,37 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateBack } from '@/utils/router'
+import { navigateBack, navigateTo } from '@/utils/router'
+import { formatPrice } from '@/utils/format'
+import { orderApi } from '@/pkg-order/lib/order-data'
 
-const appealableOrders = [
-  { id: '20240115001', title: '《渊海子平》精装典藏版', price: 168, time: '2024-01-15 14:30', status: '已完成' },
-  { id: '20240112003', title: '八字命理入门课程', price: 299, time: '2024-01-12 09:15', status: '已完成' },
-  { id: '20240108002', title: '开运水晶手串', price: 388, time: '2024-01-08 16:45', status: '已完成' },
-]
+interface AppealOrder { id: string; title: string; price: number; status: string }
+// 可申诉订单：接真实「已完成」订单（原为渊海子平/开运水晶等硬编码假数据）
+const appealableOrders = ref<AppealOrder[]>([])
+const ordersLoading = ref(true)
+const ordersError = ref('')
+
+async function loadOrders() {
+  ordersLoading.value = true
+  ordersError.value = ''
+  try {
+    const { items } = await orderApi.list('completed', 1, 50)
+    appealableOrders.value = items.map((o) => ({
+      id: o.id,
+      title: o.products?.[0]?.name || '订单商品',
+      price: o.payAmount,
+      status: '已完成',
+    }))
+  } catch (e) {
+    ordersError.value = (e as Error)?.message || '加载失败，请重试'
+  } finally {
+    ordersLoading.value = false
+  }
+}
+
+onLoad(() => { loadOrders() })
 
 const appealTypes = [
   { id: 'not_received', label: '未收到货', desc: '付款后长时间未收到商品' },
@@ -251,8 +283,12 @@ const appealTypes = [
   { id: 'other', label: '其他问题', desc: '其他交易相关问题' },
 ]
 
+// 「申诉已提交」时间取当前时刻（该演示时间线在提交后展示），避免硬编码过期日期
+const _now = new Date()
+const _p = (n: number) => String(n).padStart(2, '0')
+const submittedAt = `${_now.getFullYear()}-${_p(_now.getMonth() + 1)}-${_p(_now.getDate())} ${_p(_now.getHours())}:${_p(_now.getMinutes())}`
 const appealTimeline = [
-  { status: 'submitted', label: '申诉已提交', time: '2024-01-20 10:30', completed: true, current: false },
+  { status: 'submitted', label: '申诉已提交', time: submittedAt, completed: true, current: false },
   { status: 'reviewing', label: '平台审核中', time: '预计1-3个工作日', completed: true, current: true },
   { status: 'processing', label: '平台介入处理', time: '', completed: false, current: false },
   { status: 'completed', label: '处理完成', time: '', completed: false, current: false },
@@ -267,7 +303,7 @@ const isSubmitting = ref(false)
 const isSubmitted = ref(false)
 const appealId = ref('')
 
-const selectedOrderData = computed(() => appealableOrders.find((o) => o.id === selectedOrder.value))
+const selectedOrderData = computed(() => appealableOrders.value.find((o) => o.id === selectedOrder.value))
 const selectedTypeData = computed(() => appealTypes.find((t) => t.id === selectedType.value))
 
 const canProceed = computed(() => (step.value === 1 ? selectedOrder.value !== null : selectedType.value !== null))
@@ -294,6 +330,9 @@ function handleSubmit() {
 }
 function goBack() {
   navigateBack()
+}
+function goService() {
+  navigateTo('/customer-service')
 }
 </script>
 
@@ -399,6 +438,26 @@ function goBack() {
 .step-hint {
   font-size: 26rpx;
   color: #9C8C7A;
+}
+.orders-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 96rpx 0;
+}
+.orders-state-text {
+  font-size: 26rpx;
+  color: #9C8C7A;
+}
+.orders-retry {
+  padding: 12rpx 40rpx;
+  border: 2rpx solid var(--brand);
+  border-radius: 999rpx;
+}
+.orders-retry-text {
+  font-size: 26rpx;
+  color: var(--brand);
 }
 
 /* 订单卡 */
@@ -602,6 +661,12 @@ function goBack() {
 .tips-line {
   font-size: 22rpx;
   color: #9C8C7A;
+}
+.tips-link {
+  font-size: 22rpx;
+  color: #C9A961;
+  font-weight: 600;
+  text-decoration: underline;
 }
 .tips-inline {
   flex: 1;

@@ -2,7 +2,7 @@
  * 圈子数据 + 类型 + API 封装（从原型 app/circles/page.tsx 与 lib/api.ts circleApi 1:1 迁移）
  * mock 数据与原型完全一致；真实接口走 utils/request，mock 开关同原型口径。
  */
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 export interface Circle {
   id: string
@@ -17,6 +17,8 @@ export interface Circle {
   rank?: number
   isPaid?: boolean
   price?: number
+  /** 后端圈子类型原值（FREE/PAID/YEARLY），YEARLY 年费圈 isPaid 口径外的补充判断 */
+  type?: string
 }
 
 export interface CircleCategory { id: string; name: string; icon: string }
@@ -55,18 +57,10 @@ export const circleCategories: CircleCategory[] = [
 // 注：直播预告 / 今日活动 / 热门帖子 已改为真实接口
 // （circleApi.getUpcomingLives / getActivities / getHotPosts）。
 // 后端无数据时返回空数组 → 页面对应板块走空态隐藏，不再展示写死假数据（遵守前端数据流铁律）。
-
-// ─── 圈子 mock（list/my/getRanking 接口失败时的兜底，原型 mockCircles） ───
-export const mockCircles: Circle[] = [
-  { id: '1', name: '八字研习社', cover: 'https://picsum.photos/400/300?random=101', description: '专注八字命理学习与交流', category: 'bazi', members: 12800, posts: 3560, isJoined: true, todayActive: 128, rank: 1 },
-  { id: '2', name: '紫微斗数爱好者', cover: 'https://picsum.photos/400/300?random=102', description: '探索紫微斗数的奥秘', category: 'ziwei', members: 8600, posts: 2180, isJoined: false, todayActive: 86, rank: 2 },
-  { id: '3', name: '风水学堂', cover: 'https://picsum.photos/400/300?random=103', description: '风水堪舆知识分享', category: 'fengshui', members: 6500, posts: 1820, isJoined: true, todayActive: 56, rank: 3 },
-  { id: '4', name: '易经读书会', cover: 'https://picsum.photos/400/300?random=104', description: '一起研读易经经典', category: 'yijing', members: 5200, posts: 1560, isJoined: false, todayActive: 42 },
-  { id: '5', name: '六爻预测交流', cover: 'https://picsum.photos/400/300?random=105', description: '六爻占卜实战分享', category: 'liuyao', members: 4800, posts: 1280, isJoined: false, todayActive: 38 },
-  { id: '6', name: '奇门遁甲研究', cover: 'https://picsum.photos/400/300?random=106', description: '奇门遁甲术数探讨', category: 'qimen', members: 3600, posts: 960, isJoined: false, todayActive: 28 },
-  { id: '7', name: '中医养生圈', cover: 'https://picsum.photos/400/300?random=107', description: '传统养生智慧分享', category: 'yangsheng', members: 9200, posts: 2860, isJoined: true, todayActive: 96 },
-  { id: '8', name: '书法艺术', cover: 'https://picsum.photos/400/300?random=108', description: '书法练习与鉴赏', category: 'shufa', members: 7800, posts: 2340, isJoined: false, todayActive: 68 },
-]
+//
+// 圈子列表 mock（原 mockCircles「八字研习社」等硬编码活跃数据）已删除：
+// 接口 500 时若回退这批假圈子，会让用户误以为平台有大量活跃内容（走查实证误导）。
+// 现 circleApi.list 故障时对分类/推荐浏览上抛错误，页面走真实 <app-error> 兜底。
 
 /* —— 后端原始响应类型（容错适配用，字段宽松全 optional，仅声明 adapter 实际访问到的字段） —— */
 interface RawCircle {
@@ -164,6 +158,7 @@ function adaptCircle(c: RawCircle): Circle {
     rank: c.rank,
     isPaid: c.type ? c.type === 'PAID' : (c.isPaid ?? false),
     price: c.price != null ? Number(c.price) : 0,
+    type: c.type,
   }
 }
 
@@ -198,6 +193,7 @@ function adaptMyCircle(m: RawMyCircleMember): MyCircle {
     name: c.name || '',
     cover: c.cover || '',
     role: mapMemberRole(m.role),
+    rawRole: (m.role || '').toUpperCase(),
     memberCount: Number(c.memberCount) || 0,
     postCount: Number(c.postCount) || 0,
   }
@@ -279,6 +275,14 @@ function adaptHotPost(p: RawHotPost): HotPost {
 }
 
 // ─── API（真实接口优先，失败回退 mock；后端字段经 adaptCircle 适配） ───
+/** #37 AI 搜索推荐结果（后端 fail-open：AI 不可用时返回 {} → 前端归一为 null 不渲染） */
+export interface AiSearchResult {
+  recommendCircleIds?: string[]
+  circles?: { id: string; name: string; cover?: string; intro?: string; memberCount?: number; category?: string }[]
+  reason?: string
+  followUps?: string[]
+}
+
 export const circleApi = {
   list: async (params?: { category?: string; keyword?: string }): Promise<{ data: Circle[]; total: number }> => {
     try {
@@ -289,18 +293,44 @@ export const circleApi = {
       // apiGet 已剥离信封，res 即后端 data（圈子数组）
       const arr = Array.isArray(res) ? res : (res?.data ?? res?.circles ?? [])
       return { data: arr.map(adaptCircle), total: arr.length }
-    } catch {
-      // 关键词搜索失败返回空（走空态，不展示假数据）；分类浏览保留兜底
-      return params?.keyword ? { data: [], total: 0 } : { data: mockCircles, total: mockCircles.length }
+    } catch (e) {
+      // 关键词搜索失败返回空（走空态，不展示假数据）；
+      // 分类/推荐浏览失败上抛，让页面走真实错误 UI（circles 页 <app-error>），
+      // 不再回退 mockCircles 假圈子误导用户「平台有活跃内容」。
+      if (params?.keyword) return { data: [], total: 0 }
+      throw e
     }
   },
-  my: async (): Promise<Circle[]> => {
+  my: async (optionalAuth = false): Promise<Circle[]> => {
     try {
-      const res = await apiGet<RawCircle[] | RawCircleListResp>('/circles/my')
-      const arr = Array.isArray(res) ? res : (res?.data ?? [])
-      return arr.map(adaptCircle)
+      // 后端 /circles/my 返回 CircleMember[]（圈子信息嵌套在 .circle）——此前直接当圈子适配导致
+      // 首页「我的圈子」横滑卡无名字无封面、点击 id 错跳加载失败（董事长 2026-07-11 真机反馈根因）
+      const res = optionalAuth
+        ? await apiGetOptionalAuth<Array<RawCircle & { circle?: RawCircle }> | RawCircleListResp>('/circles/my')
+        : await apiGet<Array<RawCircle & { circle?: RawCircle }> | RawCircleListResp>('/circles/my')
+      const arr = Array.isArray(res) ? res : ((res?.data ?? []) as Array<RawCircle & { circle?: RawCircle }>)
+      return arr
+        .map((m) => {
+          const c = m.circle ?? m // 兼容两种结构：嵌套 member.circle / 直接圈子对象
+          return { ...adaptCircle(c as RawCircle), isJoined: true }
+        })
+        .filter((c) => !!c.id)
     } catch {
-      return mockCircles.filter(c => c.isJoined)
+      return [] // 拉取失败诚实空态，不给假数据
+    }
+  },
+  /**
+   * AI 搜索推荐 — POST /circles/search/ai（#37·可匿名）。
+   * 后端组合「已加入圈子偏好 + 平台圈子清单」走 AiGateway；AI 失败/未配置后端返回 {}。
+   * 前端口径：无有效内容或请求失败一律返回 null → AI 区块不渲染（保持既有热门推荐降级）。
+   */
+  aiSearch: async (query: string): Promise<AiSearchResult | null> => {
+    try {
+      const r = await apiPost<AiSearchResult>('/circles/search/ai', { query })
+      if (!r || (!r.reason && !(r.circles?.length) && !(r.followUps?.length))) return null
+      return r
+    } catch {
+      return null
     }
   },
   /**
@@ -362,9 +392,11 @@ export const circleApi = {
     }
   },
   /** 我的圈子数据汇总（已加入/发帖/获赞，真实聚合；失败返回全 0 占位） */
-  getMyStats: async (): Promise<MyCircleStats> => {
+  getMyStats: async (optionalAuth = false): Promise<MyCircleStats> => {
     try {
-      const res = await apiGet<RawMyStats>('/circles/my-stats')
+      const res = optionalAuth
+        ? await apiGetOptionalAuth<RawMyStats>('/circles/my-stats')
+        : await apiGet<RawMyStats>('/circles/my-stats')
       return {
         joinedCount: Number(res?.joinedCount) || 0,
         postCount: Number(res?.postCount) || 0,
@@ -385,6 +417,22 @@ export const circleApi = {
   },
   join: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/join`),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
+  /**
+   * 创建圈子 — POST /circles（真连，后端 CreateCircleDto）。
+   * 返回新圈子对象（含 id），供创建页跳转到详情/我的圈子。
+   * 后端字段：name(2-30)/intro(10-500)/tags:string[]/type:FREE|PAID|YEARLY/price(元,PAID/YEARLY必填)。
+   */
+  create: (input: CreateCircleInput) => apiPost<{ id: string; name?: string }>(`/circles`, input),
+}
+
+/** 创建圈子入参（对齐后端 CreateCircleDto） */
+export interface CreateCircleInput {
+  name: string
+  intro: string
+  tags: string[]
+  type: 'FREE' | 'PAID' | 'YEARLY'
+  price?: number
+  cover?: string
 }
 
 /** 我的圈子角色（后端 CircleMemberRole 归并为三档展示） */
@@ -396,8 +444,21 @@ export interface MyCircle {
   name: string
   cover: string
   role: MyCircleRole
+  /**
+   * 后端原始角色（OWNER/PARTNER/ADMIN/GUEST/VOLUNTEER/MEMBER）。
+   * role 的三档归并会把 GUEST 压成 member、PARTNER 并进 admin，判达人资格
+   * （OWNER/PARTNER/GUEST）必须看这个原文，见 EXPERT_ROLES。
+   */
+  rawRole: string
   memberCount: number
   postCount: number
+}
+
+/** 可配置咨询价格的角色（对齐后端 CircleExpertService.setExpertConfig 白名单） */
+export const EXPERT_ROLES = ['OWNER', 'PARTNER', 'GUEST']
+/** 我在该圈是否有达人资格（可配置提问价/围观价/连麦价） */
+export function isExpertRole(rawRole: string): boolean {
+  return EXPERT_ROLES.includes((rawRole || '').toUpperCase())
 }
 
 /** 我的圈子数据汇总 */

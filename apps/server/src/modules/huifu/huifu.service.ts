@@ -1,5 +1,5 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
-import { createSign, createVerify, randomUUID } from "crypto";
+import { createPrivateKey, createPublicKey, createSign, createVerify, randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
@@ -14,12 +14,14 @@ import { FundApprovalService } from "../fund-approval/fund-approval.service";
  * - 网关 https://api.huifu.com，一律 POST JSON
  * - 请求体 { sys_id, product_id, sign, data }
  * - 签名：data 去空字段 → 按 key 字母序递归排序的紧凑 JSON → SHA256withRSA(PKCS1v15) → base64
- * - 响应 { data, sign }：用汇付公钥对响应体中 data 字段的「原始 JSON 子串」验签（验签失败仅告警不阻断）
+ * - 响应 { data, sign }：用汇付公钥对响应体中 data 字段的「原始 JSON 子串」验签；资金操作失败关闭，只读探针告警降级
  * - 业务码：data.resp_code === "00000000" 为成功
  * 文档: https://paas.huifu.com
  */
 @Injectable()
 export class HuifuService {
+  private paymentNotifyHandler?: (payload: Record<string, unknown>) => Promise<void>;
+  private refundNotifyHandler?: (payload: Record<string, unknown>) => Promise<void>;
   private readonly logger = new Logger(HuifuService.name);
   private readonly baseUrl: string;
   private configCache: Map<string, string> = new Map();
@@ -27,6 +29,12 @@ export class HuifuService {
 
   /** 斗拱业务成功码 */
   private static readonly RESP_SUCCESS = "00000000";
+  /** 聚合正扫/退款已受理，渠道处理中 */
+  private static readonly RESP_PROCESSING = "00000100";
+
+  private static isAcceptedTradeRespCode(code: unknown): boolean {
+    return code === HuifuService.RESP_SUCCESS || code === HuifuService.RESP_PROCESSING;
+  }
 
   constructor(
     private prisma: PrismaService,
@@ -36,20 +44,77 @@ export class HuifuService {
     this.baseUrl = process.env.HUIFU_BASE_URL || "https://api.huifu.com";
   }
 
+  /** 注册统一商城支付通知处理器，避免 HuifuModule 与 ShopModule 形成循环依赖。 */
+  registerPaymentNotifyHandler(handler: (payload: Record<string, unknown>) => Promise<void>): void {
+    this.paymentNotifyHandler = handler;
+  }
+
+  /** 注册统一商城退款通知处理器，避免 HuifuModule 与 ShopModule 形成循环依赖。 */
+  registerRefundNotifyHandler(handler: (payload: Record<string, unknown>) => Promise<void>): void {
+    this.refundNotifyHandler = handler;
+  }
+
   /**
    * 发起「退款」审批（不立即退款）。
    * 审批通过后由 FundApprovalExecutor 调用 createRefund 真正发起汇付退款。
    */
   async requestRefund(dto: HuifuRefundDto, requestedBy: string) {
-    const orderId = dto.orderId || dto.outTradeNo;
-    if (!orderId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或交易号");
+    if (!dto.orderId && !dto.outTradeNo) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或交易号");
     if (!dto.amount || dto.amount <= 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "退款金额必须大于0");
     if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    const splitRecord = await this.prisma.huifuSplitRecord.findUnique({
+      where: dto.orderId ? { orderId: dto.orderId } : { outTradeNo: dto.outTradeNo! },
+    });
+    if (!splitRecord) throw new BusinessException(ErrorCode.NOT_FOUND, "找不到支付记录");
+    const paid = Number(splitRecord.totalAmount);
+    if (Math.abs(dto.amount - paid) > 0.009) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `当前仅支持整单全额退款（${paid.toFixed(2)} 元）`);
+    }
+    const orderId = splitRecord.orderId;
     return this.fundApproval.create({
       type: "REFUND",
-      payload: { orderId: dto.orderId, outTradeNo: dto.outTradeNo, amount: dto.amount, reason: dto.reason },
+      payload: { orderId, outTradeNo: splitRecord.outTradeNo, amount: dto.amount, reason: dto.reason },
       amount: dto.amount,
-      summary: `汇付退款 ¥${dto.amount}（交易号 ${dto.outTradeNo || orderId}）`,
+      summary: `汇付退款 ¥${dto.amount}（交易号 ${splitRecord.outTradeNo}）`,
+      requestedBy,
+    });
+  }
+
+  /**
+   * 发起「分账」审批（不立即执行）——真金动作全部过审批中心（四眼）。
+   * 此前 /huifu/split 单人直接触发渠道真实分账出款；现改为：发起人提交 → 财务审批
+   * 通过后由 FundApprovalExecutor 调用 createSplit 真正向汇付发起分账。
+   * 发起前先做与 createSplit 同款的存在性/状态/总额校验，把明显非法的请求挡在审批单之外。
+   */
+  async requestSplit(dto: HuifuSplitDto, requestedBy: string) {
+    let receivers = dto.receivers || [];
+    if (receivers.length === 0 && dto.receiverId) {
+      receivers = [{ acctId: dto.receiverId, amount: dto.amount, name: dto.receiverName || dto.receiverId }];
+    }
+    if (receivers.length === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供分账接收方信息");
+    }
+
+    const splitRecord = await this.prisma.huifuSplitRecord.findUnique({ where: { orderId: dto.orderId } });
+    if (!splitRecord) throw new BusinessException(ErrorCode.NOT_FOUND, "找不到对应的支付记录");
+    if (["PROCESSING", "SUCCESS"].includes(splitRecord.splitStatus)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已分账或分账处理中");
+    }
+
+    const splitTotal = receivers.reduce((sum, r) => sum + Number(r.amount), 0);
+    if (splitTotal > Number(splitRecord.totalAmount) + 1e-6) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `分账总额 ¥${splitTotal.toFixed(2)} 超过订单已付 ¥${Number(splitRecord.totalAmount).toFixed(2)}`,
+      );
+    }
+
+    if (!this.fundApproval) throw new BusinessException(ErrorCode.BAD_REQUEST, "审批服务不可用");
+    return this.fundApproval.create({
+      type: "HUIFU_SPLIT",
+      payload: { ...dto, receivers } as unknown as Record<string, unknown>,
+      amount: splitTotal,
+      summary: `汇付分账 ¥${splitTotal.toFixed(2)}（订单 ${dto.orderId}·${receivers.length} 个接收方）`,
       requestedBy,
     });
   }
@@ -79,6 +144,7 @@ export class HuifuService {
     // 回退到环境变量
     const envMap: Record<string, string | undefined> = {
       merchantId: process.env.HUIFU_MERCHANT_ID,
+      upperHuifuId: process.env.HUIFU_UPPER_HUIFU_ID,
       appId: process.env.HUIFU_APP_ID,
       productId: process.env.HUIFU_PRODUCT_ID,
       secretKey: process.env.HUIFU_SECRET_KEY,
@@ -112,9 +178,19 @@ export class HuifuService {
   }
 
   async isEnabled(): Promise<boolean> {
-    const merchantId = await this.getConfig("merchantId");
-    const rsaPrivateKey = await this.getConfig("rsaPrivateKey");
-    return !!(merchantId && rsaPrivateKey);
+    const [merchantId, productId, rsaPrivateKey, rsaPublicKey] = await Promise.all([
+      this.getConfig("merchantId"),
+      this.getConfig("productId"),
+      this.getConfig("rsaPrivateKey"),
+      this.getConfig("rsaPublicKey"),
+    ]);
+    return !!(
+      merchantId &&
+      productId &&
+      rsaPrivateKey &&
+      rsaPublicKey &&
+      !this.isSameRsaKeyPair(rsaPrivateKey, rsaPublicKey)
+    );
   }
 
   // ───────── 协议工具 ─────────
@@ -158,44 +234,11 @@ export class HuifuService {
     return value;
   }
 
-  /**
-   * 从响应原文中截取某字段的「原始 JSON 对象子串」（花括号配平·跳过字符串内花括号）。
-   * 斗拱响应验签必须用原文子串（非重排序后的 JSON）。
-   */
-  private extractRawJsonField(rawText: string, field: string): string | null {
-    const keyToken = `"${field}"`;
-    let idx = rawText.indexOf(keyToken);
-    while (idx !== -1) {
-      let i = idx + keyToken.length;
-      while (i < rawText.length && /\s/.test(rawText[i])) i++;
-      if (rawText[i] === ":") {
-        i++;
-        while (i < rawText.length && /\s/.test(rawText[i])) i++;
-        if (rawText[i] === "{") {
-          let depth = 0;
-          let inStr = false;
-          let esc = false;
-          for (let j = i; j < rawText.length; j++) {
-            const ch = rawText[j];
-            if (inStr) {
-              if (esc) esc = false;
-              else if (ch === "\\") esc = true;
-              else if (ch === '"') inStr = false;
-            } else if (ch === '"') {
-              inStr = true;
-            } else if (ch === "{") {
-              depth++;
-            } else if (ch === "}") {
-              depth--;
-              if (depth === 0) return rawText.slice(i, j + 1);
-            }
-          }
-          return null; // 花括号未配平
-        }
-      }
-      idx = rawText.indexOf(keyToken, idx + 1);
-    }
-    return null;
+  /** 同步返参只排序 data 第一层字段；内层复杂值按汇付原值保序。 */
+  private sortedTopLevelCompactJson(data: Record<string, unknown>): string {
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(data).sort()) sorted[key] = data[key];
+    return JSON.stringify(sorted);
   }
 
   // ───────── RSA 签名 ─────────
@@ -214,6 +257,34 @@ export class HuifuService {
       key = `-----BEGIN PUBLIC KEY-----\n${key}\n-----END PUBLIC KEY-----`;
     }
     return key;
+  }
+
+  /** 检查验签公钥是否误填成了由商户私钥导出的商户公钥。 */
+  private isSameRsaKeyPair(privateRaw: string, publicRaw: string): boolean {
+    try {
+      const derivedPublic = createPublicKey(
+        createPrivateKey(this.normalizePrivateKey(privateRaw)),
+      ).export({ type: "spki", format: "der" });
+      const configuredPublic = createPublicKey(
+        this.normalizePublicKey(publicRaw),
+      ).export({ type: "spki", format: "der" });
+      return Buffer.from(derivedPublic).equals(Buffer.from(configuredPublic));
+    } catch {
+      return false;
+    }
+  }
+
+  private async assertKeyDirection(): Promise<void> {
+    const [privateKey, publicKey] = await Promise.all([
+      this.getConfig("rsaPrivateKey"),
+      this.getConfig("rsaPublicKey"),
+    ]);
+    if (privateKey && publicKey && this.isSameRsaKeyPair(privateKey, publicKey)) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "汇付平台公钥配置错误：当前填入的是商户公钥，请从汇付控台「开发设置→开发者信息」复制汇付公钥",
+      );
+    }
   }
 
   /** 商户私钥 SHA256withRSA(PKCS1v15) 签名，输出 base64 */
@@ -247,16 +318,17 @@ export class HuifuService {
     }
   }
 
-  // ───────── HTTP 调用（斗拱 v2 协议） ─────────
+  // ───────── HTTP 调用（斗拱 v2/v3 协议） ─────────
 
   /**
-   * 调用斗拱 v2 接口。
+   * 调用斗拱 v2/v3 接口。
    * 组包 { sys_id, product_id, sign, data } → POST JSON → 验签响应 → 返回响应 data 对象。
-   * 业务码非 00000000 时记录错误但不抛出（调用方可读 resp_code/resp_desc）。
+   * 非已受理业务码时记录错误但不抛出（调用方按具体动作判定 resp_code/trans_stat）。
    */
   private async callApi(
     path: string,
     data: Record<string, unknown>,
+    strictVerify = false,
   ): Promise<Record<string, unknown>> {
     const merchantId = await this.getConfig("merchantId");
     const sysId = (await this.getConfig("appId")) || merchantId;
@@ -264,6 +336,8 @@ export class HuifuService {
     if (!productId) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付产品号 product_id 未配置，请到后台「第三方配置→汇付天下」填写");
     }
+
+    await this.assertKeyDirection();
 
     // ① 删除空字段 ② key 字母序紧凑 JSON ③ RSA-SHA256 签名
     const cleaned = this.removeEmpty(data);
@@ -290,6 +364,9 @@ export class HuifuService {
         signal: AbortSignal.timeout(15000),
       });
 
+      if (resp.ok === false) {
+        throw new BusinessException(ErrorCode.PAY_FAILED, `汇付网关 HTTP ${resp.status}`);
+      }
       const raw = await resp.text();
       let result: Record<string, unknown>;
       try {
@@ -303,18 +380,22 @@ export class HuifuService {
         ? result.data
         : {}) as Record<string, unknown>;
 
-      // 验签：用汇付公钥对响应体中 data 字段的「原始 JSON 子串」验签；失败仅告警不阻断
+      // 资金操作 strictVerify=true：缺签名/验签失败必须失败关闭；只读探针仍保留告警降级。
       const respSign = typeof result?.sign === "string" ? result.sign : "";
-      if (respSign) {
-        const rawData = this.extractRawJsonField(raw, "data");
-        if (!rawData || !(await this.verifyData(rawData, respSign))) {
-          this.logger.warn(`汇付API响应验签失败: ${path}`);
-        }
+      // 官方规范：同步返参需按 data 第一层 key 字典序排序后验签；
+      // 异步通知不排序，仍由 verifyNotify 对 resp_data 原串独立验签。
+      const syncSignSrc = this.sortedTopLevelCompactJson(respData);
+      const signatureValid = !!(respSign && await this.verifyData(syncSignSrc, respSign));
+      if (strictVerify && !signatureValid) {
+        throw new BusinessException(ErrorCode.PAY_FAILED, "汇付资金响应验签失败");
+      }
+      if (!strictVerify && respSign && !signatureValid) {
+        this.logger.warn(`汇付API响应验签失败: ${path}`);
       }
 
-      // 业务码判定：00000000 为成功
+      // 聚合交易类 00000100 表示已受理/处理中，不应记成业务失败；具体动作由调用方继续判定。
       const respCode = respData.resp_code as string | undefined;
-      if (respCode && respCode !== HuifuService.RESP_SUCCESS) {
+      if (respCode && !HuifuService.isAcceptedTradeRespCode(respCode)) {
         this.logger.error(`汇付API业务失败: ${path} resp_code=${respCode} resp_desc=${respData.resp_desc}`);
       }
 
@@ -384,7 +465,7 @@ export class HuifuService {
 
   // ───────── 支付 ─────────
 
-  /** 创建汇付支付（JSAPI 聚合下单 /v2/trade/payment/jspay） */
+  /** 创建汇付支付（聚合正扫/JSAPI/H5，下单接口 /v3/trade/payment/jspay） */
   async createPayment(userId: string, dto: HuifuPayDto) {
     const order = await this.prisma.order.findUnique({
       where: { id: dto.orderId },
@@ -402,13 +483,13 @@ export class HuifuService {
     // 商户订单号即斗拱 req_seq_id（查询/退款用 org_req_seq_id 回溯，保持自洽）
     const outTradeNo = `HF${Date.now()}${dto.orderId.slice(0, 8)}`;
 
-    // 渠道 → 斗拱 jspay trade_type（T_MINIAPP 微信小程序预留）
+    // 渠道 → 斗拱聚合正扫/线上支付 trade_type。
     const tradeTypeMap: Record<string, string> = {
-      WECHAT_H5: "T_JSAPI",
+      WECHAT_H5: "T_H5",
       WECHAT_JSAPI: "T_JSAPI",
       WECHAT_MINIAPP: "T_MINIAPP", // 预留
-      ALIPAY: "A_JSAPI",
-      UNIONPAY: "U_JSAPI",
+      ALIPAY: "A_NATIVE",
+      UNIONPAY: "U_NATIVE",
     };
     const tradeType = tradeTypeMap[dto.payType || "WECHAT_JSAPI"] || "T_JSAPI";
 
@@ -419,14 +500,31 @@ export class HuifuService {
       trade_type: tradeType,
       trans_amt: Number(order.amount).toFixed(2), // 元·两位小数字符串
       goods_desc: `国学平台-${order.type}`,
-      notify_url: notifyUrl || `${process.env.API_BASE_URL || ""}/api/v1/huifu/notify`,
+      notify_url:
+        notifyUrl ||
+        `${(process.env.PUBLIC_API_URL || process.env.API_BASE_URL || "").replace(/\/+$/, "")}/api/v1/huifu/notify`,
     };
     // 微信 JSAPI/小程序需要 openid
     if (dto.openid && tradeType.startsWith("T_")) {
       data.wx_data = { sub_openid: dto.openid };
     }
 
-    const result = await this.callApi("/v2/trade/payment/jspay", data);
+    const result = await this.callApi("/v3/trade/payment/jspay", data, true);
+    if (
+      !HuifuService.isAcceptedTradeRespCode(result.resp_code) ||
+      result.trans_stat === "F"
+    ) {
+      throw new BusinessException(
+        ErrorCode.PAY_FAILED,
+        String(result.resp_desc || `汇付支付未受理(${result.resp_code || "UNKNOWN"})`),
+      );
+    }
+    const hasPayCredential = [result.pay_info, result.pay_url, result.h5_url, result.qr_code].some(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    );
+    if (!hasPayCredential) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "汇付未返回可调起支付的凭证");
+    }
 
     // 保存分账记录（hf_seq_id 为汇付全局流水号）
     await this.prisma.huifuSplitRecord.create({
@@ -456,7 +554,7 @@ export class HuifuService {
     };
   }
 
-  /** 查询支付状态（/v2/trade/payment/scanpay/query） */
+  /** 查询支付状态（/v3/trade/payment/scanpay/query） */
   async queryPayment(outTradeNo: string, userId: string) {
     // 校验该支付单归属当前用户，防止越权查询/探测他人订单（userId 必传，fail-closed）
     const order = await this.prisma.order.findFirst({
@@ -478,7 +576,19 @@ export class HuifuService {
       org_req_date: this.orgReqDateOf(record, outTradeNo),
       org_req_seq_id: outTradeNo,
     };
-    return this.callApi("/v2/trade/payment/scanpay/query", data);
+    // 主动查单也是资金入账依据，必须严格验证汇付响应签名。
+    const result = await this.callApi("/v3/trade/payment/scanpay/query", data, true);
+    if (result.trans_stat === "S") {
+      if (!this.paymentNotifyHandler) {
+        throw new BusinessException(ErrorCode.INTERNAL_ERROR, "汇付支付通知处理器未就绪");
+      }
+      await this.paymentNotifyHandler({
+        ...result,
+        req_seq_id: outTradeNo,
+        hf_seq_id: result.hf_seq_id || result.org_hf_seq_id,
+      });
+    }
+    return result;
   }
 
   // ───────── 回调处理 ─────────
@@ -496,7 +606,7 @@ export class HuifuService {
   }
 
   /** 处理支付回调（resp_data 内 trans_stat==="S" 为成功） */
-  async handleNotify(body: Record<string, unknown>): Promise<void> {
+  async handleNotify(body: Record<string, unknown>): Promise<string> {
     // 解析 resp_data（JSON 字符串或对象），兼容平铺字段
     let payload: Record<string, unknown>;
     const respData = body.resp_data ?? body.data;
@@ -505,7 +615,7 @@ export class HuifuService {
         payload = JSON.parse(respData);
       } catch (_err) {
         this.logger.warn("汇付回调 resp_data 非合法JSON");
-        return;
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付回调数据格式错误");
       }
     } else if (respData && typeof respData === "object") {
       payload = respData as Record<string, unknown>;
@@ -516,69 +626,32 @@ export class HuifuService {
     const outTradeNo = (payload.req_seq_id || payload.out_trade_no) as string;
     if (!outTradeNo) {
       this.logger.warn("汇付回调缺少 req_seq_id");
-      return;
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付回调缺少商户订单号");
     }
 
     // 分布式锁防重复
     const lockKey = `huifu:cb:${outTradeNo}`;
     const locked = await this.redis.setNX(lockKey, "1", 30);
     if (!locked) {
-      this.logger.warn(`汇付回调重复处理被拦截: ${outTradeNo}`);
-      return;
+      this.logger.warn(`汇付回调正在处理中: ${outTradeNo}`);
+      throw new BusinessException(ErrorCode.INTERNAL_ERROR, "汇付回调正在处理中，请稍后重试");
     }
 
     try {
-      const transStat = payload.trans_stat;
-      if (transStat !== "S") {
-        this.logger.log(`汇付支付未成功: ${outTradeNo}, trans_stat: ${transStat}`);
-        return;
+      const isRefundNotify = outTradeNo.startsWith("RF") && !!payload.org_req_seq_id;
+      if (isRefundNotify) {
+        if (!this.refundNotifyHandler) {
+          throw new BusinessException(ErrorCode.INTERNAL_ERROR, "汇付退款通知处理器未就绪");
+        }
+        await this.refundNotifyHandler(payload);
+        return outTradeNo;
       }
 
-      // 查找订单
-      const order = await this.prisma.order.findFirst({
-        where: { payTransactionId: outTradeNo },
-      });
-      if (!order || order.status !== "PENDING") {
-        this.logger.warn(`汇付回调找不到对应订单或状态异常: ${outTradeNo}`);
-        return;
+      if (!this.paymentNotifyHandler) {
+        throw new BusinessException(ErrorCode.INTERNAL_ERROR, "汇付支付通知处理器未就绪");
       }
-
-      // M2 金额比对：斗拱回调 trans_amt 单位为元；不符拒绝入账，落错误台账人工对账
-      const transAmt = parseFloat(String(payload.trans_amt ?? ""));
-      if (Number.isFinite(transAmt) && Math.abs(transAmt - Number(order.amount)) >= 0.01) {
-        this.logger.error(
-          `【资金对账·金额不符】汇付回调金额与订单金额不一致，拒绝入账: order=${order.id}, outTradeNo=${outTradeNo}, 回调金额=${transAmt}, 订单金额=${Number(order.amount)}`,
-        );
-        return;
-      }
-
-      const transactionId = (payload.hf_seq_id || payload.huifu_order_id) as string;
-
-      // CAS 状态翻转：仅当仍为 PENDING 时置 PAID，防并发/回调重投重复处理(不依赖 redis 锁存活)
-      const flipped = await this.prisma.order.updateMany({
-        where: { id: order.id, status: "PENDING" },
-        data: {
-          status: "PAID",
-          paidAt: new Date(),
-          payTransactionId: outTradeNo,
-          payMethod: "HUIFU",
-        },
-      });
-      if (flipped.count === 0) {
-        this.logger.warn(`汇付回调订单状态已变更，跳过重复处理: ${outTradeNo}`);
-        return;
-      }
-
-      // 更新分账记录
-      await this.prisma.huifuSplitRecord.updateMany({
-        where: { outTradeNo },
-        data: {
-          huifuOrderId: transactionId,
-          rawResponse: payload as any,
-        },
-      });
-
-      this.logger.log(`汇付支付回调成功: 订单=${order.id}, 汇付单号=${transactionId}`);
+      await this.paymentNotifyHandler(payload);
+      return outTradeNo;
     } finally {
       await this.redis.del(lockKey);
     }
@@ -607,12 +680,24 @@ export class HuifuService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该订单已分账或分账处理中");
     }
 
+    // 加固(后端审计P2)：分账总额不得超过订单已付总额，防超额分账（资金守恒）。
+    // 注：四眼审批流程(单 OPERATION_ADMIN 直发→纳入 fundApproval)属流程决策，未在此改动。
+    const splitTotal = receivers.reduce((sum, r) => sum + Number(r.amount), 0);
+    if (splitTotal > Number(splitRecord.totalAmount) + 1e-6) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `分账总额 ¥${splitTotal.toFixed(2)} 超过订单已付 ¥${Number(splitRecord.totalAmount).toFixed(2)}`,
+      );
+    }
+
     const merchantId = await this.getConfig("merchantId");
+    // 同一订单固定使用同一个分账请求号：渠道已受理但本地落库失败时，重试不会重复分账。
+    const splitReqSeqId = `SP${dto.orderId.replace(/-/g, "")}`.slice(0, 32);
 
     const data: Record<string, unknown> = {
       huifu_id: merchantId,
       req_date: this.reqDate(),
-      req_seq_id: this.reqSeqId(),
+      req_seq_id: splitReqSeqId,
       org_req_date: this.orgReqDateOf(splitRecord, splitRecord.outTradeNo),
       org_req_seq_id: splitRecord.outTradeNo,
       acct_split_bunch: {
@@ -623,10 +708,13 @@ export class HuifuService {
       },
     };
 
-    const result = await this.callApi("/v2/trade/payment/delaytrans/confirm", data);
+    const result = await this.callApi("/v2/trade/payment/delaytrans/confirm", data, true);
 
-    const splitStatus =
-      result.resp_code === HuifuService.RESP_SUCCESS && result.trans_stat === "S"
+    const splitFailed =
+      result.resp_code !== HuifuService.RESP_SUCCESS || result.trans_stat === "F";
+    const splitStatus = splitFailed
+      ? "FAILED"
+      : result.trans_stat === "S"
         ? "SUCCESS"
         : "PROCESSING";
 
@@ -639,13 +727,23 @@ export class HuifuService {
           acctId: r.acctId,
           amount: r.amount,
           name: r.name,
-          status: splitStatus === "SUCCESS" ? "SUCCESS" : "PROCESSING",
+          status: splitStatus,
         })),
         rawRequest: data as any,
         rawResponse: result as any,
+        errorMsg: splitFailed
+          ? String(result.resp_desc || `汇付分账失败(${result.resp_code || result.trans_stat || "UNKNOWN"})`)
+          : null,
         splitAt: new Date(),
       },
     });
+
+    if (splitFailed) {
+      throw new BusinessException(
+        ErrorCode.PAY_FAILED,
+        String(result.resp_desc || `汇付分账失败(${result.resp_code || result.trans_stat || "UNKNOWN"})`),
+      );
+    }
 
     return {
       orderId: dto.orderId,
@@ -686,20 +784,32 @@ export class HuifuService {
 
   // ───────── 退款 ─────────
 
-  /** 申请退款（/v2/trade/payment/scanpay/refund） */
+  /** 申请退款（/v3/trade/payment/scanpay/refund） */
   async createRefund(dto: HuifuRefundDto) {
-    const orderId = dto.orderId || dto.outTradeNo;
-    if (!orderId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或交易号");
+    if (!dto.orderId && !dto.outTradeNo) throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供订单ID或交易号");
 
     const splitRecord = await this.prisma.huifuSplitRecord.findUnique({
-      where: { orderId },
+      where: dto.orderId ? { orderId: dto.orderId } : { outTradeNo: dto.outTradeNo! },
     });
     if (!splitRecord) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "找不到支付记录");
     }
+    const orderId = splitRecord.orderId;
+
+    // 加固(后端审计P1-1)①退款额上限校验：退款金额不得超过订单已付总额，杜绝超额真金退款。
+    const paid = Number(splitRecord.totalAmount);
+    if (dto.amount > paid + 1e-6) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `退款金额 ¥${dto.amount} 超过订单已付 ¥${paid.toFixed(2)}`);
+    }
+    if (Math.abs(dto.amount - paid) > 0.009) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `当前仅支持整单全额退款（${paid.toFixed(2)} 元）`);
+    }
 
     const merchantId = await this.getConfig("merchantId");
-    const outRefundNo = `RF${Date.now()}${orderId.slice(0, 8)}`;
+    // 加固(后端审计P1-1)②幂等：req_seq_id 由 orderId 确定性派生（非 Date.now），汇付按 req_seq_id 幂等去重。
+    // 原每次新流水号 → 二次审批/重试会以全新 req_seq_id 再次发起真金退款、重复出款。改稳定键后重复请求
+    // 命中汇付原结果不重复退。（汇付 req_seq_id ≤32 位·uuid 去横线为 32 位基准）
+    const outRefundNo = `RF${orderId.replace(/-/g, "")}`.slice(0, 32);
 
     const data: Record<string, unknown> = {
       huifu_id: merchantId,
@@ -711,12 +821,35 @@ export class HuifuService {
       remark: dto.reason || "用户申请退款",
     };
 
-    const result = await this.callApi("/v2/trade/payment/scanpay/refund", data);
+    const result = await this.callApi("/v3/trade/payment/scanpay/refund", data, true);
+    if (
+      !HuifuService.isAcceptedTradeRespCode(result.resp_code) ||
+      result.trans_stat === "F"
+    ) {
+      throw new BusinessException(
+        ErrorCode.PAY_FAILED,
+        String(result.resp_desc || `汇付退款未受理(${result.resp_code || "UNKNOWN"})`),
+      );
+    }
+    const refundStatus = this.mapTransStat(result.trans_stat);
+
+    // 加固(后端审计P1-1)③落库供对账：退款无专用记录表（完整台账需建 HuifuRefundRecord 迁移·待拍板），
+    // 先写 AuditLog 留痕——谁在何时按什么流水号退了多少，供财务对账与排查。写审计失败不影响退款结果。
+    await this.prisma.auditLog
+      .create({
+        data: {
+          action: "HUIFU_REFUND",
+          targetType: "HUIFU_SPLIT",
+          targetId: orderId,
+          detail: JSON.stringify({ orderId, outRefundNo, amount: dto.amount, refundStatus, transStat: result.trans_stat }),
+        },
+      })
+      .catch((err) => this.logger.warn(`汇付退款审计写入失败 [${orderId}]`, err instanceof Error ? err.message : err));
 
     return {
-      orderId: dto.orderId,
+      orderId,
       outRefundNo,
-      refundStatus: this.mapTransStat(result.trans_stat),
+      refundStatus,
       raw: result,
     };
   }
@@ -738,4 +871,146 @@ export class HuifuService {
   async downloadBill(_billDate: string): Promise<never> {
     throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付对账单下载暂未接入斗拱协议，请在斗拱控制台查看对账文件");
   }
+
+  // ───────── 商户进件（服务商开户）─────────
+  //
+  // 我们在汇付是「服务商」身份，可以给下级客户开户 —— 这是整个分账架构的地基：
+  // 分账的本质是「把钱分给某个持牌机构认识的账户」，进件就是让驿站/商家/圈主
+  // 在汇付眼里「存在」（拿到 huifu_id）。没有它，任何分账都无从谈起。
+  //
+  // ⚠️ 字段结构按斗拱 V2 企业进件规范编写，但【未经沙箱实测】。
+  //    上线前必须用汇付给的接口文档 + 沙箱环境校准字段名与必填项，
+  //    尤其是：地区码(prov_id/area_id/district_id)、银行编码(bank_code)、
+  //    影像资料(file_list)的上传方式、以及费率配置(fee_conf)的结构。
+  //    校准点集中在本方法的 data 组包处，改动不外溢。
+
+  /**
+   * 企业商户进件（/v2/merchant/basicdata/ent）。
+   * 适用：线下驿站、商家、有营业执照的圈主、研究院 —— 凡是要「自己收款」的主体。
+   * 返回渠道申请单号与（若同步返回的）huifu_id；多数情况下审核异步，需轮询 queryMerchantApply。
+   */
+  async applyEntMerchant(payload: HuifuEntApplyPayload) {
+    // 上级渠道号与平台实际收款 huifu_id 由汇付合同决定，不能在代码里假定相同。
+    // 旧环境尚未拆分时保留 merchantId 回退，完成正式参数交接后应显式配置 upperHuifuId。
+    const upperHuifuId = (await this.getConfig("upperHuifuId")) || await this.getConfig("merchantId");
+    if (!upperHuifuId) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "汇付服务商商户号未配置，请到后台「第三方配置→汇付天下」填写");
+    }
+
+    const reqSeqId = this.reqSeqId();
+    const data: Record<string, unknown> = {
+      req_date: this.reqDate(),
+      req_seq_id: reqSeqId,
+      upper_huifu_id: upperHuifuId,
+
+      // 主体信息
+      reg_name: payload.subjectName,
+      short_name: payload.shortName || payload.subjectName,
+      ent_type: payload.entType || "1", // 1 企业 / 2 个体工商户
+      license_code: payload.licenseNo,
+      license_validity_type: payload.licenseLongTerm ? "1" : "0",
+      license_begin_date: payload.licenseBeginDate,
+      license_end_date: payload.licenseLongTerm ? undefined : payload.licenseEndDate,
+
+      // 法人（身份证号为明文传渠道 —— 调用方负责解密后传入，本方法不落库）
+      legal_name: payload.legalName,
+      legal_cert_type: "00", // 00 = 身份证
+      legal_cert_no: payload.legalIdCard,
+
+      // 联系人
+      contact_name: payload.contactName,
+      contact_mobile_no: payload.contactPhone,
+      contact_email: payload.contactEmail,
+
+      // 结算卡（对公/对私）
+      card_info: {
+        card_type: payload.bankCardType || "0", // 0 对公 / 1 对私
+        card_name: payload.bankHolder,
+        card_no: payload.bankAccount,
+        bank_code: payload.bankCode,
+        prov_id: payload.bankProvId,
+        area_id: payload.bankAreaId,
+      },
+
+      // 经营地址
+      prov_id: payload.provId,
+      area_id: payload.areaId,
+      district_id: payload.districtId,
+      detail_addr: payload.address,
+
+      // 影像资料（营业执照/身份证正反面等）
+      file_list: payload.files,
+    };
+
+    const result = await this.callApi("/v2/merchant/basicdata/ent", data);
+    const ok = result.resp_code === HuifuService.RESP_SUCCESS;
+
+    return {
+      ok,
+      reqSeqId,
+      /** 渠道申请单号（查进度用）；部分场景汇付直接回 huifu_id */
+      applyId: (result.apply_no as string) || (result.req_seq_id as string) || reqSeqId,
+      /** 进件成功时的下级商户号 —— 分账接收方身份就是它 */
+      huifuId: (result.huifu_id as string) || null,
+      respCode: result.resp_code as string,
+      respDesc: result.resp_desc as string,
+      raw: result,
+    };
+  }
+
+  /**
+   * 查询进件进度（/v2/merchant/basicdata/query）。
+   * 汇付审核异步，进件后需轮询直到拿到 huifu_id 或被拒。
+   */
+  async queryMerchantApply(applyId: string, originalReqDate: string) {
+    const upperHuifuId = (await this.getConfig("upperHuifuId")) || await this.getConfig("merchantId");
+    const result = await this.callApi("/v2/merchant/basicdata/query", {
+      req_date: this.reqDate(),
+      req_seq_id: this.reqSeqId(),
+      upper_huifu_id: upperHuifuId,
+      org_req_seq_id: applyId,
+      org_req_date: originalReqDate,
+    });
+
+    const huifuId = (result.huifu_id as string) || null;
+    // 汇付审核态：多数返回 apply_stat / audit_stat，取值以文档为准（待沙箱校准）
+    const stat = (result.apply_stat as string) || (result.audit_stat as string) || "";
+    return {
+      huifuId,
+      /** 归一化后的状态：APPROVING 审核中 / ACTIVE 已通过 / REJECTED 被拒 */
+      status: huifuId ? "ACTIVE" : stat === "R" || stat === "F" ? "REJECTED" : "APPROVING",
+      rejectReason: (result.resp_desc as string) || null,
+      raw: result,
+    };
+  }
+}
+
+/**
+ * 企业进件入参。身份证号/银行账号是【明文】——
+ * 调用方（PayeeAccountService）从库里读出加密值、解密后传入；本服务不接触密文、也不落库。
+ */
+export interface HuifuEntApplyPayload {
+  subjectName: string;
+  shortName?: string;
+  entType?: string; // 1 企业 / 2 个体工商户
+  licenseNo: string;
+  licenseLongTerm?: boolean;
+  licenseBeginDate?: string; // yyyyMMdd
+  licenseEndDate?: string;
+  legalName: string;
+  legalIdCard: string; // 明文
+  contactName: string;
+  contactPhone: string;
+  contactEmail?: string;
+  bankHolder: string;
+  bankAccount: string; // 明文
+  bankCode?: string;
+  bankCardType?: string; // 0 对公 / 1 对私
+  bankProvId?: string;
+  bankAreaId?: string;
+  provId?: string;
+  areaId?: string;
+  districtId?: string;
+  address?: string;
+  files?: Array<{ file_type: string; file_id: string }>;
 }

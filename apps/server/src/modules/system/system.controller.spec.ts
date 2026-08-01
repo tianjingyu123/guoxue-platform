@@ -2,6 +2,7 @@ import { Test } from "@nestjs/testing";
 import { SystemController } from "./system.controller";
 import { SystemService } from "./system.service";
 import { ExportService } from "./export.service";
+import { OpsActionService } from "./ops-action.service";
 import { RolesGuard } from "../../common/roles.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
@@ -19,6 +20,8 @@ const mockSystemSvc = {
   upsertPageContent: jest.fn().mockResolvedValue({ id: "pc1" }),
   createSiteNotice: jest.fn().mockResolvedValue({ id: "sn1", title: "公告" }),
   getSiteNotices: jest.fn().mockResolvedValue({ items: [], total: 0 }),
+  getPublicSiteNotices: jest.fn().mockResolvedValue({ items: [], total: 0 }),
+  getPublicSiteNotice: jest.fn().mockResolvedValue({ id: "sn1", title: "公告" }),
   updateSiteNotice: jest.fn().mockResolvedValue({ id: "sn1", title: "新公告" }),
   deleteSiteNotice: jest.fn().mockResolvedValue(undefined),
   getConfigVersions: jest.fn().mockResolvedValue({ items: [], total: 0 }),
@@ -26,10 +29,18 @@ const mockSystemSvc = {
   getConfigDiff: jest.fn().mockResolvedValue({ diff: "..." }),
   getMemberConfigs: jest.fn().mockResolvedValue([]),
   upsertMemberConfig: jest.fn().mockResolvedValue({ id: "mc1" }),
+  requestUpsertMemberConfig: jest.fn().mockResolvedValue({ submitted: true, approvalId: "a1", status: "PENDING" }),
+  requestUpdateMemberConfig: jest.fn().mockResolvedValue({ submitted: true, approvalId: "a2", status: "PENDING" }),
+  requestDeleteMemberConfig: jest.fn().mockResolvedValue({ submitted: true, approvalId: "a3", status: "PENDING" }),
   getPublicBanners: jest.fn().mockResolvedValue({ banners: [] }),
   getHomeConfig: jest.fn().mockResolvedValue({ layout: "default", paipanSlot: 6, featuredTags: [] }),
   getBrandConfig: jest.fn().mockResolvedValue({ id: "default", siteName: "热卜国学", siteNameShort: "热卜" }),
   updateBrandConfig: jest.fn().mockResolvedValue({ id: "default", siteName: "道商世界" }),
+};
+
+const mockOpsActionSvc = {
+  listActions: jest.fn().mockResolvedValue({ total: 0, items: [] }),
+  execute: jest.fn().mockResolvedValue({ action: "maintenance_mode", value: "true", auditId: "a1", rollbackable: true }),
 };
 
 const mockExportSvc = {
@@ -51,6 +62,7 @@ describe("SystemController", () => {
       providers: [
         { provide: SystemService, useValue: mockSystemSvc },
         { provide: ExportService, useValue: mockExportSvc },
+        { provide: OpsActionService, useValue: mockOpsActionSvc },
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
@@ -128,6 +140,13 @@ describe("SystemController", () => {
     expect(result.layout).toBeDefined();
   });
 
+  it("GET /system/about — 不返回不可审计的固定规模数字", async () => {
+    const result: any = await ctrl.getAbout();
+    expect(result.stats).toEqual([]);
+    expect(JSON.stringify(result)).not.toMatch(/100\+|500\+|50万\+/);
+    expect(result.features).toHaveLength(4);
+  });
+
   // ── 审计日志 ──
 
   it("GET /system/audit-logs — 审计日志列表", async () => {
@@ -153,6 +172,16 @@ describe("SystemController", () => {
   });
 
   // ── 全站公告 ──
+
+  it("GET /system/public/site-notices — 公开公告列表", async () => {
+    const result: any = await ctrl.getPublicSiteNotices();
+    expect(result.items).toHaveLength(0);
+  });
+
+  it("GET /system/public/site-notices/:id — 公开公告详情", async () => {
+    const result: any = await ctrl.getPublicSiteNotice("sn1");
+    expect(result.id).toBe("sn1");
+  });
 
   it("POST /system/site-notices — 创建公告", async () => {
     const result: any = await ctrl.createSiteNotice({ title: "公告", content: "内容" } as any);
@@ -198,8 +227,26 @@ describe("SystemController", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("POST /system/member-configs — 更新会员配置", async () => {
-    const result: any = await ctrl.upsertMemberConfig({ level: 1 } as any);
-    expect(result.id).toBe("mc1");
+  it("POST /system/member-configs — 提交会员配置审批", async () => {
+    const req = { user: { id: "admin-1" } } as any;
+    const dto = { level: "MONTHLY", name: "月卡", price: 19 } as any;
+    const result: any = await ctrl.upsertMemberConfig(dto, req);
+    expect(result.status).toBe("PENDING");
+    expect(mockSystemSvc.requestUpsertMemberConfig).toHaveBeenCalledWith(dto, "admin-1");
+  });
+
+  it("PUT /system/member-configs/:id — 提交会员配置修改审批", async () => {
+    const req = { user: { id: "admin-1" } } as any;
+    const dto = { price: 20 } as any;
+    const result: any = await ctrl.updateMemberConfig("m1", dto, req);
+    expect(result.status).toBe("PENDING");
+    expect(mockSystemSvc.requestUpdateMemberConfig).toHaveBeenCalledWith("m1", dto, "admin-1");
+  });
+
+  it("DELETE /system/member-configs/:id — 提交会员配置删除审批", async () => {
+    const req = { user: { id: "admin-1" } } as any;
+    const result: any = await ctrl.deleteMemberConfig("m1", req);
+    expect(result.status).toBe("PENDING");
+    expect(mockSystemSvc.requestDeleteMemberConfig).toHaveBeenCalledWith("m1", "admin-1");
   });
 });

@@ -12,13 +12,15 @@ import { BackupService } from "./backup.service";
 import { PermissionController } from "./permission.controller";
 import { PermissionService } from "./permission.service";
 import { ThirdPartyConfigLoader } from "./third-party-config.loader";
+import { OpsActionService } from "./ops-action.service";
 import { AuditModule } from "../audit/audit.module";
+import { FundApprovalCoreModule } from "../fund-approval/fund-approval-core.module";
 
 @Global()
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, FundApprovalCoreModule],
   controllers: [SystemController, ImportController, LegalController, VersionController, BackupController, PermissionController],
-  providers: [SystemService, ExportService, ImportService, SystemTask, BackupService, PermissionService, ThirdPartyConfigLoader],
-  exports: [SystemService, ExportService, ImportService, PermissionService, ThirdPartyConfigLoader],
+  providers: [SystemService, ExportService, ImportService, SystemTask, BackupService, PermissionService, ThirdPartyConfigLoader, OpsActionService],
+  exports: [SystemService, ExportService, ImportService, PermissionService, ThirdPartyConfigLoader, OpsActionService],
 })
 export class SystemModule {}

@@ -1,6 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { ContentGenerationController } from "./content-generation.controller";
 import { ContentGenerationService } from "./content-generation.service";
+import { OperationalSeedService } from "./operational-seed.service";
 
 describe("ContentGenerationController", () => {
   let ctrl: ContentGenerationController;
@@ -18,6 +19,10 @@ describe("ContentGenerationController", () => {
             getCategoryTree: jest.fn(),
             autoFillEmptyCategories: jest.fn(),
           },
+        },
+        {
+          provide: OperationalSeedService,
+          useValue: { listTopics: jest.fn(), generateDraft: jest.fn() },
         },
       ],
     }).compile();

@@ -32,6 +32,8 @@ describe("ShopOrderService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPrisma.order.findFirst.mockReset()
+    mockPrisma.operator.findUnique.mockResolvedValue(null)
   })
 
   describe("createOrder", () => {
@@ -47,6 +49,24 @@ describe("ShopOrderService", () => {
       mockPrisma.order.create.mockResolvedValue({ id: "o1", status: "PENDING" })
       const result = await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 99 })
       expect(result.id).toBe("o1")
+    })
+
+    it("商家商品下单后按原子扣减结果写销售出库流水", async () => {
+      mockPrisma.product.findUnique
+        .mockResolvedValueOnce({ id: "p1", price: 99, status: "ON_SALE", supplierType: "CERTIFIED_MERCHANT", userId: "seller" })
+        .mockResolvedValueOnce({ stock: 7 })
+      mockPrisma.merchant.findUnique.mockResolvedValueOnce({ id: "m1" })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-ledger", status: "PENDING" })
+
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 3 })
+
+      expect(mockPrisma.product.updateMany).toHaveBeenCalledWith({
+        where: { id: "p1", stock: { gte: 3 } }, data: { stock: { decrement: 3 } },
+      })
+      expect(mockPrisma.inventoryMovement.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+        merchantId: "m1", productId: "p1", type: "SALE_OUT", quantity: -3,
+        beforeStock: 10, afterStock: 7, idempotencyKey: "order-sale:o-ledger",
+      }) })
     })
 
     it("使用优惠券创建订单", async () => {
@@ -192,6 +212,21 @@ describe("ShopOrderService", () => {
       await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, tempReferrerId: "ref1" })
       const data = mockPrisma.order.create.mock.calls[0][0].data
       expect(data.tempReferrerId).toBe("station-master")
+      expect(data.tempRefSubjectType).toBe("STATION")
+    })
+
+    it("永久归属 B 与临时分站 E 并存落单，临时链接不改永久绑定但作为本单优先归因", async () => {
+      setupChannelOrder()
+      setAttributionFlag(true)
+      mockPrisma.channelClick.findFirst.mockResolvedValueOnce({
+        beneficiaryUserId: "station-e-user",
+        subjectType: "STATION",
+      })
+      mockPrisma.referralRelation.findFirst.mockResolvedValueOnce({ referrerId: "station-b-user" })
+      await svc.createOrder("buyer-c", { type: "PRODUCT", targetId: "p1", amount: 1 })
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.referrerId).toBe("station-b-user")
+      expect(data.tempReferrerId).toBe("station-e-user")
       expect(data.tempRefSubjectType).toBe("STATION")
     })
 
@@ -603,6 +638,223 @@ describe("ShopOrderService", () => {
       expect(mockPrisma.groupBuyParticipant.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: { groupId: "g1", status: "WAITING" }, data: { status: "SUCCESS" } }),
       )
+    })
+  })
+
+  // ═══════════════════ 订单试算（结算页价格明细·商城收敛 2026-07-11） ═══════════════════
+
+  describe("estimateOrder（与 createOrder 定价同口径·只读不核销）", () => {
+    const now = new Date()
+    const fullReduce10 = {
+      id: "c1", userId: "u1", used: false,
+      coupon: {
+        status: "ACTIVE", type: "FULL_REDUCE", value: 10, discountAmount: 10, discountRate: null,
+        minAmount: 0, validStart: new Date(now.getTime() - 86400000), validEnd: new Date(now.getTime() + 86400000),
+        scope: "ALL", scopeId: null,
+      },
+    }
+    function setup79() {
+      mockUnifiedPricing.calculateEffectivePrice.mockResolvedValue({
+        productId: "p1", effectivePrice: 79, originalPrice: 79,
+        appliedPromotion: null, activePromotions: [], hasPromotion: false,
+      })
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 79, status: "ON_SALE" })
+    }
+
+    it("摸底同款复算：¥79 − 10券 − 分销自购立减20% = 55.20", async () => {
+      setup79()
+      mockPrisma.userCoupon.findFirst.mockResolvedValue(fullReduce10)
+      // 分销身份：eligible=true + rateA=0.2
+      const attribution = (svc as any).attribution
+      const eligibleSpy = jest.spyOn(attribution, "isDistributorSelfPurchaseEligible").mockResolvedValue(true)
+      mockCommission.getStationRate.mockResolvedValue(0.2)
+      try {
+        const est = await svc.estimateOrder("u1", { targetId: "p1", quantity: 1, couponId: "c1" })
+        expect(est.goodsAmount).toBe(79)
+        expect(est.couponDiscount).toBe(10)
+        expect(est.selfDiscount).toBe(13.8) // (79-10)×20%
+        expect(est.payableAmount).toBe(55.2)
+        // 只读：绝不核销优惠券、不建单、不扣库存
+        expect(mockPrisma.userCoupon.updateMany).not.toHaveBeenCalled()
+        expect(mockPrisma.order.create).not.toHaveBeenCalled()
+        expect(mockPrisma.product.updateMany).not.toHaveBeenCalled()
+      } finally {
+        eligibleSpy.mockRestore()
+        mockCommission.getStationRate.mockResolvedValue(0.25)
+      }
+    })
+
+    it("试算=实付：同参数 createOrder 落库金额与试算 payableAmount 一致", async () => {
+      setup79()
+      mockPrisma.userCoupon.findFirst.mockResolvedValue(fullReduce10)
+      const attribution = (svc as any).attribution
+      const eligibleSpy = jest.spyOn(attribution, "isDistributorSelfPurchaseEligible").mockResolvedValue(true)
+      mockCommission.getStationRate.mockResolvedValue(0.2)
+      mockPrisma.userCoupon.updateMany.mockResolvedValue({ count: 1 })
+      mockPrisma.order.create.mockResolvedValue({ id: "o-est", status: "PENDING" })
+      try {
+        const est = await svc.estimateOrder("u1", { targetId: "p1", quantity: 1, couponId: "c1" })
+        await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, couponId: "c1" })
+        const orderData = mockPrisma.order.create.mock.calls[0][0].data
+        expect(orderData.amount).toBe(est.payableAmount) // 展示价与实付必须一致
+        expect(orderData.selfDiscount).toBe(est.selfDiscount)
+      } finally {
+        eligibleSpy.mockRestore()
+        mockCommission.getStationRate.mockResolvedValue(0.25)
+      }
+    })
+
+    it("非分销身份：selfDiscount=0，仅券后价", async () => {
+      setup79()
+      mockPrisma.userCoupon.findFirst.mockResolvedValue(fullReduce10)
+      const est = await svc.estimateOrder("u1", { targetId: "p1", quantity: 1, couponId: "c1" })
+      expect(est.selfDiscount).toBe(0)
+      expect(est.payableAmount).toBe(69)
+    })
+
+    it("商品不可购买（下架/待审）：结构化 400", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 79, status: "PENDING" })
+      await expect(svc.estimateOrder("u1", { targetId: "p1" })).rejects.toThrow("商品不可购买")
+    })
+  })
+
+  // ═══════════════════ 加盟费下单（分站年租 / 运营商开通）═══════════════════
+
+  describe("加盟费下单定价（服务端定价·真源 CommissionConfig.rateA）", () => {
+    it("分站年租：价格取自配置，无视前端传入的 amount（防篡改）", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 999 })
+      mockPrisma.order.create.mockResolvedValue({ id: "o1" })
+
+      // 前端谎报 1 元
+      await svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 1 })
+
+      expect(mockPrisma.order.create.mock.calls[0][0].data.amount).toBe(999)
+    })
+
+    it("分站年租：已有待支付单时复用原单，不重复创建可扣款订单", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1", status: "PENDING" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 999 })
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "o-pending", amount: 999, status: "PENDING" })
+
+      const result = await svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 1 })
+
+      expect(result.id).toBe("o-pending")
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "station-order:u1:st1",
+      )
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+      expect(mockRedis.del).toHaveBeenCalledWith("station-order:create:u1:st1")
+    })
+
+    it("分站年租：订单创建锁冲突时拒绝并发建单", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1", status: "PENDING" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 999 })
+      mockRedis.setNX.mockResolvedValueOnce(false)
+
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 1 }),
+      ).rejects.toThrow("支付订单正在创建")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("分站年租：只能为自己的分站缴费（越权 403）", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "someone-else" })
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 999 }),
+      ).rejects.toThrow("只能为自己的分站缴纳年租")
+    })
+
+    it("分站年租：分站不存在 → 引导先申请开通", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue(null)
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "gone", amount: 999 }),
+      ).rejects.toThrow("请先提交开通申请")
+    })
+
+    it("分站年租：平台停用态不可通过续费重新激活", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1", status: "DISABLED" })
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 999 }),
+      ).rejects.toThrow("分站已被平台停用")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("分站年租：未配置价格 → 结构化报错，绝不按 0 元放行", async () => {
+      mockPrisma.station.findUnique.mockResolvedValue({ id: "st1", userId: "u1" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue(null)
+      await expect(
+        svc.createOrder("u1", { type: "STATION_MASTER", targetId: "st1", amount: 999 }),
+      ).rejects.toThrow("未配置价格")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("运营商开通：价格按档位取配置", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 4999, rateB: 10 })
+      mockPrisma.order.create.mockResolvedValue({ id: "o2" })
+
+      await svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 1 })
+
+      expect(mockPrisma.commissionConfig.findUnique).toHaveBeenCalledWith({
+        where: { configKey: "operator_SILVER" },
+      })
+      expect(mockPrisma.order.create.mock.calls[0][0].data.amount).toBe(4999)
+    })
+
+    it("运营商开通：已有待支付单时复用原单，避免资格重复续期", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 4999, rateB: 6 })
+      mockPrisma.order.findFirst.mockResolvedValue({ id: "op-pending", amount: 4999, status: "PENDING" })
+
+      const result = await svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 1 })
+
+      expect(result.id).toBe("op-pending")
+      expect(mockPrisma.$queryRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "operator-order:u1:SILVER",
+      )
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+      expect(mockRedis.del).toHaveBeenCalledWith("operator-order:create:u1:SILVER")
+    })
+
+    it("运营商续费：正常到期态允许创建续费订单", async () => {
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op1", status: "EXPIRED" })
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 4999, rateB: 6 })
+      mockPrisma.order.create.mockResolvedValue({ id: "op-renew" })
+
+      const result = await svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 4999 })
+
+      expect(result.id).toBe("op-renew")
+    })
+
+    it("运营商续费：平台停用态不可通过付款重新激活", async () => {
+      mockPrisma.operator.findUnique.mockResolvedValue({ id: "op1", status: "DISABLED" })
+      await expect(
+        svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 4999 }),
+      ).rejects.toThrow("运营商资格已被平台停用")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    it("运营商开通：非法档位直接拒单", async () => {
+      await expect(
+        svc.createOrder("u1", { type: "OPERATOR", targetId: "PLATINUM", amount: 4999 }),
+      ).rejects.toThrow("运营商档位不存在")
+      expect(mockPrisma.order.create).not.toHaveBeenCalled()
+    })
+
+    // 端到端实测抓到的漏钱 bug：站长本身是分销角色，买运营商资格时命中自购立减 → 4999 被打八折成 3999.2。
+    // 加盟费是 B 端资格费，不是商品，不得参与任何促销。
+    it("加盟费不参与分销自购立减（站长买运营商仍付全款）", async () => {
+      mockPrisma.commissionConfig.findUnique.mockResolvedValue({ rateA: 4999, rateB: 6 })
+      mockPrisma.order.create.mockResolvedValue({ id: "o3" })
+      // 让该用户命中站长身份（自购立减 20%）
+      mockPrisma.station.findFirst.mockResolvedValue({ id: "st1", userId: "u1" })
+
+      await svc.createOrder("u1", { type: "OPERATOR", targetId: "SILVER", amount: 1 })
+
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.amount).toBe(4999) // 不是 3999.2
+      expect(data.selfDiscount).toBeNull()
     })
   })
 })

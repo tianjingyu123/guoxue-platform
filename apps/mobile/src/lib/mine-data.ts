@@ -7,8 +7,6 @@ import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 /* —— 头像生成辅助（沿用工程 dicebear 约定） —— */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
-/* —— 商品/封面图基址（沿用 shop-data 约定） —— */
-const P = 'https://api.rebugx.cn/assets/images/products'
 
 /* —— 通用账户资料 —— */
 export const mineProfile = {
@@ -65,6 +63,7 @@ export interface SecurityItem {
   label: string
   value?: string
   status?: 'set' | 'unset' | 'verified' | 'unverified'
+  /** 空串 = 纯展示行，不可点（如登录设备：只有数量展示，无独立管理页，别再指回本页造成"点了没反应"） */
   href: string
 }
 export const securityLoginItems: SecurityItem[] = [
@@ -74,10 +73,10 @@ export const securityLoginItems: SecurityItem[] = [
 ]
 export const securityPaymentItems: SecurityItem[] = [
   { id: 'pay-password', icon: 'credit-card', iconBg: '#a855f7', label: '支付密码', status: mineProfile.payPasswordSet ? 'set' : 'unset', href: '/mine/payment-password' },
-  { id: 'real-name', icon: 'shield', iconBg: '#C41E3A', label: '实名认证', value: mineProfile.realNameVerified ? mineProfile.realName : undefined, status: mineProfile.realNameVerified ? 'verified' : 'unverified', href: '/mine/security' },
+  { id: 'real-name', icon: 'shield', iconBg: '#C41E3A', label: '实名认证', value: mineProfile.realNameVerified ? mineProfile.realName : undefined, status: mineProfile.realNameVerified ? 'verified' : 'unverified', href: '/mine/verification' },
 ]
 export const securityDeviceItems: SecurityItem[] = [
-  { id: 'devices', icon: 'monitor', iconBg: '#64748b', label: '登录设备管理', value: '2 台设备已登录', href: '/mine/security' },
+  { id: 'devices', icon: 'monitor', iconBg: '#64748b', label: '登录设备管理', value: '2 台设备已登录', href: '' },
 ]
 export const securityScoreItems = [
   { label: '密码', done: true },
@@ -196,37 +195,6 @@ export const blacklistSearchPool: SearchUserItem[] = [
   { id: 2004, nickname: '八字小王', avatar: AVATAR('sp-4'), isBlocked: true },
 ]
 
-/* —— 青少年模式 —— */
-export interface TeenModeSettings {
-  enabled: boolean
-  dailyLimit: number
-  restrictedStartHour: number
-  restrictedEndHour: number
-  autoNightMode: boolean
-  filterLevel: 'strict' | 'moderate'
-  hasPassword: boolean
-}
-export const defaultTeenModeSettings: TeenModeSettings = {
-  enabled: false,
-  dailyLimit: 40,
-  restrictedStartHour: 22,
-  restrictedEndHour: 6,
-  autoNightMode: true,
-  filterLevel: 'moderate',
-  hasPassword: false,
-}
-export const teenTimeLimitOptions = [
-  { value: 15, label: '15分钟' },
-  { value: 30, label: '30分钟' },
-  { value: 40, label: '40分钟（默认）' },
-  { value: 60, label: '60分钟' },
-  { value: 90, label: '90分钟' },
-  { value: 120, label: '120分钟' },
-]
-export const teenFilterLevels = [
-  { value: 'strict', label: '严格', desc: '仅显示适合青少年的教育内容' },
-  { value: 'moderate', label: '适中', desc: '过滤不适内容，保留大部分功能' },
-]
 
 /* —— 数据导出 —— */
 export interface ExportDataType {
@@ -234,32 +202,25 @@ export interface ExportDataType {
   name: string
   description: string
   icon: string
-  estimatedSize: string
 }
-export type ExportRecordStatus = 'processing' | 'completed' | 'expired' | 'failed'
-export interface ExportRecord {
-  id: string
-  types: string[]
-  status: ExportRecordStatus
-  createdAt: string
-  completedAt?: string
-  expireAt?: string
-  fileSize?: string
+export interface PersonalDataExportPackage {
+  schemaVersion: string
+  exportedAt: string
+  accountId: string
+  selectedTypes: string[]
+  summary: Record<string, number>
+  notice: string
+  sections: Record<string, unknown>
 }
 export const exportDataTypes: ExportDataType[] = [
-  { id: 'profile', name: '个人信息', description: '账号资料、头像、昵称、简介等', icon: 'user', estimatedSize: '< 1MB' },
-  { id: 'posts', name: '帖子内容', description: '发布的圈子帖子、评论、回复', icon: 'file-text', estimatedSize: '约 5MB' },
-  { id: 'comments', name: '评论互动', description: '课程评论、视频评论、点赞记录', icon: 'message-square', estimatedSize: '约 2MB' },
-  { id: 'favorites', name: '收藏内容', description: '收藏的课程、帖子、商品等', icon: 'bookmark', estimatedSize: '约 1MB' },
-  { id: 'orders', name: '订单数据', description: '购买记录、支付信息、发票', icon: 'shopping-bag', estimatedSize: '约 3MB' },
-  { id: 'learning', name: '学习记录', description: '课程进度、学习时长、测验成绩', icon: 'graduation-cap', estimatedSize: '约 2MB' },
-  { id: 'notes', name: '笔记内容', description: '课程笔记、批注、高亮标记', icon: 'book-open', estimatedSize: '约 4MB' },
-  { id: 'follows', name: '关注列表', description: '关注的用户、圈子、讲师', icon: 'users', estimatedSize: '< 1MB' },
-]
-export const exportRecords: ExportRecord[] = [
-  { id: '1', types: ['profile', 'posts', 'comments'], status: 'completed', createdAt: '2026-06-01T10:30:00', completedAt: '2026-06-01T10:35:00', expireAt: '2026-06-08T10:35:00', fileSize: '8.2MB' },
-  { id: '2', types: ['orders', 'learning'], status: 'processing', createdAt: '2026-06-03T08:00:00' },
-  { id: '3', types: ['profile', 'favorites', 'notes', 'follows'], status: 'expired', createdAt: '2026-05-20T14:00:00', completedAt: '2026-05-20T14:10:00', expireAt: '2026-05-27T14:10:00' },
+  { id: 'profile', name: '个人信息', description: '账号资料、会员状态、偏好与角色信息', icon: 'user' },
+  { id: 'posts', name: '创作内容', description: '发布的圈子帖子与原创文章正文', icon: 'file-text' },
+  { id: 'comments', name: '评论互动', description: '评论、点赞及课程、商品与直播评价', icon: 'message-square' },
+  { id: 'favorites', name: '收藏内容', description: '收藏的内容、工具、古籍与电子书', icon: 'bookmark' },
+  { id: 'orders', name: '订单数据', description: '平台订单、会员与电子书购买、发票记录', icon: 'shopping-bag' },
+  { id: 'learning', name: '学习记录', description: '课程、古籍与电子书进度及阅读时长', icon: 'graduation-cap' },
+  { id: 'notes', name: '笔记内容', description: '古籍与电子书的书签、批注和笔记', icon: 'book-open' },
+  { id: 'follows', name: '关注与加入', description: '关注的用户及已加入的圈子', icon: 'users' },
 ]
 
 /* —— 注销账号 —— */
@@ -297,7 +258,11 @@ export interface WalletInfo {
   growthValue: number
   nextLevelGrowth: number
   points: number
+  /** 冻结中的国学币（提现审批/风控冻结·后端 VirtualCoinAccount.frozen），>0 时页面须可见 */
+  frozen: number
+  /** 累计充值（单位：国学币·后端 totalRecharged 即币数，不是人民币，展示不可加 ¥） */
   totalRecharge: number
+  /** 累计消费（单位：国学币·同上） */
   totalSpent: number
 }
 export interface RechargeOption {
@@ -315,6 +280,19 @@ export interface WechatPayParams {
   signType: string
   paySign: string
 }
+export interface RechargePaymentResult {
+  orderNo: string
+  amountRmb: number
+  payParams?: WechatPayParams
+  mwebUrl?: string
+}
+export interface RechargePaymentStatus {
+  orderNo: string
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
+  amountCoin: number | null
+  amountRmb: number | null
+  paidAt: string | null
+}
 export type WalletTxType = 'recharge' | 'spend' | 'bonus' | 'refund'
 export interface WalletTransaction {
   id: string
@@ -330,8 +308,9 @@ export const walletInfo: WalletInfo = {
   growthValue: 4520,
   nextLevelGrowth: 6000,
   points: 3680,
-  totalRecharge: 2500.0,
-  totalSpent: 1220.0,
+  frozen: 0,
+  totalRecharge: 2500,
+  totalSpent: 1220,
 }
 export const rechargeOptions: RechargeOption[] = [
   { coins: 100, price: 10, bonus: 0 },
@@ -621,19 +600,6 @@ export const historyFeedbacks: HistoryFeedbackItem[] = [
   { id: 3, type: 'other', title: '如何申请成为讲师', content: '想了解成为平台讲师的条件...', time: '2024-02-28', status: 'resolved', reply: '您好，您可以在研究院页面查看讲师申请条件和流程。' },
 ]
 
-/* —— 关于我们(about) —— */
-export const aboutStats = [
-  { value: '100+', label: '专家讲师', color: '#c41e3a' },
-  { value: '500+', label: '精品课程', color: '#d4b87d' },
-  { value: '50万+', label: '学习用户', color: '#6ed24a' },
-]
-export const aboutFeatures = [
-  { icon: 'book-open', title: '专业内容', desc: '严选优质国学课程与古籍资源' },
-  { icon: 'users', title: '圈子交流', desc: '加入志同道合的学习社区' },
-  { icon: 'award', title: '名师指导', desc: '一对一咨询，答疑解惑' },
-  { icon: 'building-2', title: '线下活动', desc: '定期举办国学文化体验活动' },
-]
-
 /* —— 编辑资料(profile/edit) —— */
 export interface TagCategory {
   name: string
@@ -677,29 +643,53 @@ export const editProfileDefault: EditProfileData = {
   tags: ['八字命理', '紫微斗数'],
 }
 
-/* —— 钱包充值页：支付方式 —— */
-export interface RechargePayMethod {
-  id: 'wechat' | 'alipay' | 'unionpay' | 'huifu'
-  name: string
-  badge: string
-  badgeClass: string
-}
-export const rechargePayMethods: RechargePayMethod[] = [
-  { id: 'wechat', name: '微信支付', badge: '微', badgeClass: 'badge-wechat' },
-  { id: 'alipay', name: '支付宝', badge: '支', badgeClass: 'badge-alipay' },
-  { id: 'unionpay', name: '云闪付', badge: '云', badgeClass: 'badge-unionpay' },
-]
-
 /* —— 钱包提现页 —— */
-export type WithdrawMethod = 'alipay' | 'bank'
+/**
+ * 提现方式。
+ * wechat = 微信零钱（走微信商家转账·自动到账，是唯一自动化的通道）
+ *   🔴 但它不是无感到账：转账发起后用户还要在【微信小程序内】点「确认收款」钱才到账。
+ *      wx.requestMerchantTransfer 是小程序 API，H5 调不了 —— H5 用户只能去小程序确认。
+ * alipay / bank = 目前仍走人工打款（支付宝转账、汇付代付尚未接入）
+ */
+export type WithdrawMethod = 'wechat' | 'alipay' | 'bank'
 export interface WithdrawAccount {
   method: WithdrawMethod
+  /** 微信零钱：收款人真实姓名（≥2000元微信强制校验实名，加密后提交） */
+  realName?: string
   alipayAccount?: string
   alipayName?: string
   bankName?: string
   bankAccount?: string
   bankHolder?: string
 }
+
+/** 待确认收款的转账（微信商家转账 WAIT_USER_CONFIRM 时返回） */
+export interface TransferConfirmInfo {
+  needConfirm: boolean
+  /** 微信确认收款凭据，前端凭它调 wx.requestMerchantTransfer；敏感，只有本人拿得到 */
+  packageInfo: string | null
+  status: string
+  transferState?: string
+  amount?: number
+}
+/** 我的提现记录一条 */
+export interface WithdrawRecord {
+  id: string
+  amount: number
+  fee: number
+  taxAmount: number
+  actualAmount: number
+  payMethod: string
+  /** PENDING 待审 / APPROVED 待打款 / TRANSFERRING 已发起转账（钱还没到你手上）/ PAID 已到账 / REJECTED 驳回 */
+  status: string
+  transferState?: string | null
+  transferFailReason?: string | null
+  reviewNote?: string | null
+  /** true = 微信转账已发起，等你在微信里点「确认收款」，不点会自动退回 */
+  needConfirm: boolean
+  createdAt: string
+}
+
 export interface WithdrawBalanceInfo {
   availableBalance: number
   frozenBalance: number
@@ -708,6 +698,10 @@ export interface WithdrawBalanceInfo {
   maxWithdraw: number
   feeRate: number
   minFee: number
+  /** 代扣代缴开关（后台 finance.tax.enabled·开着时提现要扣税，预览必须算进去否则到账额虚高） */
+  taxEnabled: boolean
+  /** 代扣代缴税率（0~1·未开启为 0） */
+  taxRate: number
   savedAccounts: WithdrawAccount[]
 }
 // @data-needs: 提现余额与已存收款账户，返回 [{availableBalance,frozenBalance,pendingBalance,minWithdraw,maxWithdraw,feeRate,minFee,savedAccounts}]
@@ -719,6 +713,8 @@ export const withdrawBalanceInfo: WithdrawBalanceInfo = {
   maxWithdraw: 50000,
   feeRate: 0.006,
   minFee: 1,
+  taxEnabled: false,
+  taxRate: 0,
   savedAccounts: [
     { method: 'alipay', alipayAccount: '138****8888', alipayName: '张*明' },
     { method: 'bank', bankName: '中国工商银行', bankAccount: '6222****1234', bankHolder: '张*明' },
@@ -754,7 +750,7 @@ export const walletBalanceBrief: WalletBalanceBrief = {
 export const walletTxRecords: WalletTxRecord[] = [
   { id: '1', type: 'expense', category: 'purchase', title: '购买课程', description: '紫微斗数入门精讲', amount: -299, balance: 2580, createdAt: '2024-01-15 14:30', orderNo: '202401151430001' },
   { id: '2', type: 'income', category: 'refund', title: '退款到账', description: '订单退款', amount: 199, balance: 2879, createdAt: '2024-01-14 10:20', orderNo: '202401141020001' },
-  { id: '3', type: 'income', category: 'recharge', title: '充值学习币', description: '微信支付充值', amount: 500, balance: 2680, createdAt: '2024-01-13 09:15' },
+  { id: '3', type: 'income', category: 'recharge', title: '充值国学币', description: '微信支付充值', amount: 500, balance: 2680, createdAt: '2024-01-13 09:15' },
   { id: '4', type: 'expense', category: 'purchase', title: '购买商品', description: '周易六十四卦详解', amount: -168, balance: 2180, createdAt: '2024-01-12 16:45', orderNo: '202401121645001' },
   { id: '5', type: 'income', category: 'reward', title: '签到奖励', description: '连续签到7天奖励', amount: 50, balance: 2348, createdAt: '2024-01-11 08:00' },
   { id: '6', type: 'expense', category: 'transfer', title: '打赏作者', description: '打赏文章《八字命理基础》', amount: -20, balance: 2298, createdAt: '2024-01-10 20:30' },
@@ -807,6 +803,8 @@ interface RawWithdrawInfo {
   maxWithdraw?: number | string
   feeRate?: number | string
   minFee?: number | string
+  taxEnabled?: boolean
+  taxRate?: number | string
   savedAccounts?: RawSavedAccount[]
 }
 /** GET /users/wallet/recharge-options 原始项 */
@@ -831,19 +829,6 @@ interface RawBlacklist {
   blockedUserId: number
   blockedUser?: { id?: number; nickname?: string | null; avatar?: string | null } | null
   createdAt?: string | null
-}
-/** 青少年模式 settings 原始结构 */
-interface RawTeenSettings {
-  dailyLimitMinutes?: number | string
-  blockStartHour?: number | string
-  blockEndHour?: number | string
-  contentFilter?: string
-  guardianPassword?: string | null
-}
-/** GET /users/me/teen-mode 原始响应 */
-interface RawTeenMode {
-  enabled?: boolean
-  settings?: RawTeenSettings | null
 }
 /** 后端 Feedback 原始项 */
 interface RawFeedback {
@@ -1098,19 +1083,6 @@ function adaptBlacklist(b: RawBlacklist): BlacklistItem {
   }
 }
 
-/** 后端青少年模式 {enabled,settings} → 前端 TeenModeSettings */
-function adaptTeenMode(r: RawTeenMode): TeenModeSettings {
-  const s: RawTeenSettings = r?.settings ?? {}
-  return {
-    enabled: !!r?.enabled,
-    dailyLimit: Number(s.dailyLimitMinutes ?? 40),
-    restrictedStartHour: Number(s.blockStartHour ?? 22),
-    restrictedEndHour: Number(s.blockEndHour ?? 6),
-    autoNightMode: true,
-    filterLevel: (s.contentFilter === 'strict' ? 'strict' : 'moderate'),
-    hasPassword: !!s.guardianPassword,
-  }
-}
 
 /** 后端 Feedback 记录 → 前端 HistoryFeedbackItem（后端无独立 title，取内容首行） */
 function adaptFeedbackHistory(f: RawFeedback): HistoryFeedbackItem {
@@ -1229,7 +1201,7 @@ export interface MyCoursesResult {
 }
 
 /* —— 收藏 —— */
-export type FavType = 'course' | 'article' | 'video' | 'product' | 'circle_post' | 'comment'
+export type FavType = 'course' | 'article' | 'video' | 'product' | 'circle_post' | 'comment' | 'poem' | 'classic' | 'ebook'
 export interface FavItem {
   id: string
   targetType: string
@@ -1240,6 +1212,19 @@ export interface FavItem {
   cover: string
   collectedAt: string
   isInvalid: boolean
+}
+
+/* —— 我的笔记（跨模块聚合：古籍读书笔记 + 电子书笔记） —— */
+export type NoteSource = 'classic' | 'ebook'
+export interface NoteItem {
+  id: string
+  source: NoteSource
+  sourceName: string   // 古籍 / 电子书
+  bookId: string       // 用于跳转对应阅读/详情
+  bookTitle: string
+  chapter: string
+  content: string
+  updatedAt: string
 }
 
 /* —— 关注/粉丝 —— */
@@ -1299,6 +1284,16 @@ function adaptFavorite(it: RawFavorite): FavItem {
   }
 }
 
+/* —— 诗词/古籍/电子书收藏适配（各自独立收藏表·统一并入"我的收藏"展示） —— */
+/** 古籍收藏项（GET /classic/favorites → items[]） */
+function adaptClassicFav(b: { id: string; title?: string; author?: string; dynasty?: string; addedAt?: string }): FavItem {
+  return {
+    id: `classic_${b.id}`, targetType: 'CLASSIC', targetId: String(b.id), type: 'classic',
+    title: b.title || '古籍', subtitle: [b.author, b.dynasty].filter(Boolean).join(' · ') || '古籍',
+    cover: '', collectedAt: formatDate(b.addedAt ?? ''), isInvalid: false,
+  }
+}
+
 /* —— 通知适配（后端 type → 前端 kind/category/跳转） —— */
 function relativeTime(v: string | number | Date): string {
   const d = new Date(v)
@@ -1330,6 +1325,8 @@ function notifyLink(targetType?: string | null, targetId?: string | null): strin
     video: `/video/${targetId}`, product: `/shop/product/${targetId}`,
     post: `/post/${targetId}`, circle_post: `/post/${targetId}`,
     circle: `/circle/${targetId}`, order: `/orders/${targetId}`, live: `/live/${targetId}`,
+    station: '/pkg-operator/station-home/index',
+    report: `/report/result/${targetId}`,
   }
   return map[t] || ''
 }
@@ -1392,11 +1389,13 @@ export const mineApi = {
     }
     const payment: SecurityItem[] = [
       { id: 'pay-password', icon: 'credit-card', iconBg: '#a855f7', label: '支付密码', status: paySet ? 'set' : 'unset', href: '/mine/payment-password' },
-      { id: 'real-name', icon: 'shield', iconBg: '#C41E3A', label: '实名认证', status: verified ? 'verified' : 'unverified', href: '/mine/security' },
+      // 🔴 原 href 指向 /mine/security（本页自己）→ 点了原地跳回，实名永远做不了；后端 identity 模块整套是好的
+      { id: 'real-name', icon: 'shield', iconBg: '#C41E3A', label: '实名认证', status: verified ? 'verified' : 'unverified', href: '/mine/verification' },
     ]
     const deviceCount = Array.isArray(devices) ? devices.length : 0
     const device: SecurityItem[] = [
-      { id: 'devices', icon: 'monitor', iconBg: '#64748b', label: '登录设备管理', value: `${deviceCount} 台设备已登录`, href: '/mine/security' },
+      // 无独立设备管理页，此行仅展示数量（原 href 同样指回本页）
+      { id: 'devices', icon: 'monitor', iconBg: '#64748b', label: '登录设备管理', value: `${deviceCount} 台设备已登录`, href: '' },
     ]
     const score = [
       { label: '密码', done: true },
@@ -1459,23 +1458,7 @@ export const mineApi = {
     return true
   },
 
-  /** 获取青少年模式设置 —— GET /users/me/teen-mode（{enabled,settings} → 适配） */
-  async getTeenMode(): Promise<TeenModeSettings> {
-    const r = await apiGet<RawTeenMode>('/users/me/teen-mode')
-    return adaptTeenMode(r)
-  },
 
-  /** 更新青少年模式 —— PUT /users/me/teen-mode（前端字段 → 后端 DTO 映射） */
-  async updateTeenMode(_settings: TeenModeSettings): Promise<boolean> {
-    await apiPut('/users/me/teen-mode', {
-      enabled: _settings.enabled,
-      dailyLimitMinutes: _settings.dailyLimit,
-      blockStartHour: _settings.restrictedStartHour,
-      blockEndHour: _settings.restrictedEndHour,
-      contentFilter: _settings.filterLevel,
-    })
-    return true
-  },
 
   /** 注销账号信息 —— GET /users/delete-account/info（脱敏手机号 + 原因 + 影响数据 + 真实资产） */
   async getDeleteAccountInfo(): Promise<{
@@ -1509,19 +1492,15 @@ export const mineApi = {
     return exportDataTypes
   },
 
-  /** 导出记录 —— 后端暂无数据导出端点 → 诚实返回空，页面提示即将开放 */
-  async getExportRecords(): Promise<ExportRecord[]> {
-    return []
-  },
-
-  /** 申请数据导出 —— 后端暂无端点 → 诚实降级，不伪造成功 */
-  async requestExport(_typeIds: string[]): Promise<{ success: boolean; message: string }> {
-    return { success: false, message: '数据导出功能即将开放' }
+  /** 即时生成当前登录账号的个人数据包（后端字段白名单，60 秒长请求预算） */
+  async requestExport(typeIds: string[]): Promise<PersonalDataExportPackage> {
+    return apiPost<PersonalDataExportPackage>('/users/me/data-export', { types: typeIds }, undefined, 60000)
   },
 
   /** 获取钱包信息 —— GET /users/wallet/balance（后端返回币/积分/累计；会员等级属成长体系不在此接口→0，页面降级隐藏） */
   async getWallet(): Promise<WalletInfo> {
-    const b = await apiGet<{ coin?: number; points?: number; frozen?: number; totalRecharged?: number; totalSpent?: number }>('/users/wallet/balance')
+    // 防 data:null —— 接口返回 { data: null } 时 apiGet 会给到 null，直接读 b.coin 裸崩 TypeError
+    const b = (await apiGet<{ coin?: number; points?: number; frozen?: number; totalRecharged?: number; totalSpent?: number }>('/users/wallet/balance')) ?? {}
     return {
       balance: Number(b.coin ?? 0),
       rmb: 0,
@@ -1529,6 +1508,9 @@ export const mineApi = {
       growthValue: 0,
       nextLevelGrowth: 1,
       points: Number(b.points ?? 0),
+      // 冻结币透传：后端一直有返回、前端原来丢弃 → 用户看到「余额变少」却查不到钱在哪
+      frozen: Number(b.frozen ?? 0),
+      // 🔴 totalRecharged/totalSpent 是币数（VirtualCoinAccount 整数币），不是人民币，展示端不得加 ¥
       totalRecharge: Number(b.totalRecharged ?? 0),
       totalSpent: Number(b.totalSpent ?? 0),
     }
@@ -1546,33 +1528,64 @@ export const mineApi = {
     }))
   },
 
-  /** 充值 —— POST /users/wallet/recharge（微信/支付宝/云闪付；演示模式下单后模拟到账） */
-  async recharge(_amountCoin: number, _payMethod: string): Promise<{ success: boolean; message: string }> {
-    try {
-      const res = await apiPost<{ message?: string }>('/users/wallet/recharge', { amountCoin: _amountCoin, payMethod: _payMethod })
-      return { success: true, message: res?.message || '充值成功' }
-    } catch (e: any) {
-      return { success: false, message: e?.message || '充值失败' }
-    }
+  /** 充值页配置：服务端同时返回营销档位和自定义充值权威汇率。 */
+  async getRechargeConfig(): Promise<{ options: RechargeOption[]; coinRate: number }> {
+    const res = await apiGet<{ tiers?: RawRechargeOption[]; coinRate?: number }>('/users/wallet/recharge-config')
+    const tiers = Array.isArray(res?.tiers) ? res.tiers : []
+    const options = tiers.map((t: RawRechargeOption, i: number) => ({
+      coins: Number(t.amountCoin ?? t.coins ?? 0),
+      price: Number(t.amountRmb ?? t.price ?? 0),
+      bonus: Number(t.bonus ?? 0),
+      popular: i === 2,
+    }))
+    const coinRate = Number(res?.coinRate)
+    if (!Number.isFinite(coinRate) || coinRate <= 0) throw new Error('充值汇率配置异常，请稍后重试')
+    return { options, coinRate }
+  },
+
+  /** 微信 JSAPI 充值下单（小程序或公众号内 H5）。 */
+  async rechargeWechat(amountCoin: number, opts?: { openid?: string; channel?: 'MINI' | 'OFFICIAL' }): Promise<RechargePaymentResult & { payParams: WechatPayParams }> {
+    return await apiPost<RechargePaymentResult & { payParams: WechatPayParams }>('/shop/recharge/jsapi', {
+      amountCoin,
+      ...(opts?.openid ? { openid: opts.openid } : {}),
+      ...(opts?.channel ? { channel: opts.channel } : {}),
+    })
+  },
+
+  /** 微信外部浏览器 H5 充值下单，返回 mweb_url。 */
+  async rechargeWechatH5(amountCoin: number): Promise<RechargePaymentResult & { mwebUrl: string }> {
+    return await apiPost<RechargePaymentResult & { mwebUrl: string }>('/shop/recharge/h5', { amountCoin })
+  },
+
+  /** 查询本人充值到账状态（支付回跳后轮询）。 */
+  async getRechargePaymentStatus(orderNo: string): Promise<RechargePaymentStatus> {
+    return await apiGet<RechargePaymentStatus>(`/shop/recharge/${encodeURIComponent(orderNo)}/payment-status`)
   },
 
   /**
-   * 微信小程序充值下单 —— POST /shop/recharge/jsapi
-   * 返回 uni.requestPayment 所需支付参数；openid 由后端从微信授权查取。
-   * 到账由支付回调异步完成（幂等），支付成功后需刷新余额。错误传播给页面。
+   * 获取交易记录（服务端分页）—— GET /users/wallet/transactions?page=&pageSize=[&type=][&month=]
+   * 后端返回 { transactions, total, page, pageSize }。
+   * 🔴 后端查证（wallet.controller:22-37 + coin.service.getTransactions:242）：
+   *   - page/pageSize 真分页可用；
+   *   - type 是 CoinTransType 枚举（RECHARGE/SPEND/REFUND/GRANT/INCOME），不是前端的 income/expense——
+   *     「支出」可精确映射 type=SPEND；「收入」是 4 个枚举的并集，单值参数表达不了，只能客户端过滤；
+   *   - month 参数 controller 收了但 wallet.service:57 没往下传（服务端月份过滤是后端缺口），
+   *     这里仍然拼上（契约已声明、后端补上即生效），客户端过滤兜底。
    */
-  async rechargeWechat(amountCoin: number): Promise<{ payParams: WechatPayParams }> {
-    return await apiPost<{ payParams: WechatPayParams }>('/shop/recharge/jsapi', { amountCoin })
-  },
-
-  /** 获取交易记录 —— GET /users/wallet/transactions（后端 {transactions:VirtualCoinTransaction[]} → 适配） */
-  async getTransactions(_type?: string): Promise<WalletTxRecord[]> {
-    const res = await apiGet<{ transactions?: RawWalletTx[] } | RawWalletTx[]>(`/users/wallet/transactions${_type ? `?type=${encodeURIComponent(_type)}` : ''}`)
+  async getTransactions(opts?: { page?: number; pageSize?: number; type?: string; month?: string }): Promise<{ list: WalletTxRecord[]; total: number }> {
+    const page = opts?.page || 1
+    const pageSize = opts?.pageSize || 20
+    const qs = [`page=${page}`, `pageSize=${pageSize}`]
+    if (opts?.type) qs.push(`type=${encodeURIComponent(opts.type)}`)
+    if (opts?.month) qs.push(`month=${encodeURIComponent(opts.month)}`)
+    const res = await apiGet<{ transactions?: RawWalletTx[]; total?: number } | RawWalletTx[]>(`/users/wallet/transactions?${qs.join('&')}`)
     const list = Array.isArray(res) ? res : (res?.transactions ?? [])
-    return list.map(adaptWalletTx)
+    const total = Array.isArray(res) ? list.length : Number(res?.total ?? list.length)
+    return { list: list.map(adaptWalletTx), total }
   },
 
-  /** 获取提现信息 —— GET /users/wallet/withdraw-info（冻结/在途后端无→0，页面降级；savedAccounts 适配） */
+  /** 获取提现信息 —— GET /users/wallet/withdraw-info（冻结/在途后端无→0，页面降级；savedAccounts 适配；
+   *  taxEnabled/taxRate 透传：后台开了代扣代缴时前端预览不算税=到账金额虚高，属资金口径错误） */
   async getWithdrawInfo(): Promise<WithdrawBalanceInfo> {
     const r = await apiGet<RawWithdrawInfo>('/users/wallet/withdraw-info')
     return {
@@ -1583,16 +1596,79 @@ export const mineApi = {
       maxWithdraw: Number(r.maxWithdraw ?? 50000),
       feeRate: Number(r.feeRate ?? 0.006),
       minFee: Number(r.minFee ?? 1),
+      taxEnabled: !!r.taxEnabled,
+      taxRate: Number(r.taxRate ?? 0),
       savedAccounts: Array.isArray(r.savedAccounts) ? r.savedAccounts.map(adaptSavedAccount) : [],
     }
   },
 
-  /** 申请提现 —— POST /users/wallet/withdraw（后端校验可提现余额/门槛100-50000/并发锁） */
-  async withdraw(_amount: number, _method: string, _account: string | Record<string, string>): Promise<{ success: boolean; message: string }> {
+  /** 收益转金币 —— POST /users/wallet/convert-to-coin（可提现余额→金币·1元=10币·单向不可逆·董事长拍板2026-07-10） */
+  async convertToCoin(amountRmb: number): Promise<{ amountRmb: number; amountCoin: number }> {
+    return apiPost<{ amountRmb: number; amountCoin: number }>('/users/wallet/convert-to-coin', { amountRmb })
+  },
+
+  /** 申请提现 —— POST /users/wallet/withdraw（后端校验可提现余额/门槛100-50000/并发锁）。
+   *  🔴 后端响应（wallet.service.submitWithdraw:307）带权威金额 {amount,fee,taxAmount,actualAmount}（含税快照），
+   *  必须透传给成功页展示——前端本地公式只是预览，落库口径以后端为准。 */
+  async withdraw(_amount: number, _method: string, _account: string | Record<string, string>): Promise<{
+    success: boolean; message: string; amount?: number; fee?: number; taxAmount?: number; actualAmount?: number
+  }> {
     try {
-      await apiPost('/users/wallet/withdraw', { amount: _amount, method: _method, account: _account })
-      return { success: true, message: '提现申请已提交' }
+      const res = await apiPost<{ amount?: number | string; fee?: number | string; taxAmount?: number | string; actualAmount?: number | string }>(
+        '/users/wallet/withdraw', { amount: _amount, method: _method, account: _account },
+      )
+      return {
+        success: true,
+        message: '提现申请已提交',
+        amount: res?.amount != null ? Number(res.amount) : undefined,
+        fee: res?.fee != null ? Number(res.fee) : undefined,
+        taxAmount: res?.taxAmount != null ? Number(res.taxAmount) : undefined,
+        actualAmount: res?.actualAmount != null ? Number(res.actualAmount) : undefined,
+      }
     } catch (e: any) { return { success: false, message: e?.message || '提现失败' } }
+  },
+
+  /** 我的提现记录 —— GET /users/wallet/withdrawals（needConfirm=true 的要引导用户去微信确认收款） */
+  async getMyWithdrawals(page = 1, pageSize = 20): Promise<{ list: WithdrawRecord[]; total: number }> {
+    // apiGet 第二参是 header 不是 query —— 查询串必须拼进 path
+    return apiGet<{ list: WithdrawRecord[]; total: number }>(
+      `/users/wallet/withdrawals?page=${page}&pageSize=${pageSize}`,
+    )
+  },
+
+  /**
+   * 查我的待确认转账 —— GET /payout/my/:id/confirm
+   * 🔴 微信商家转账不是无感到账：不点「确认收款」，钱永远不到账（超时自动退回）。
+   */
+  async getTransferConfirm(applicationId: string): Promise<TransferConfirmInfo> {
+    return apiGet<TransferConfirmInfo>(`/payout/my/${applicationId}/confirm`)
+  },
+
+  /**
+   * 调起微信「确认收款」页（仅小程序可用）。
+   * wx.requestMerchantTransfer 是小程序 API —— H5/APP 调不了，只能引导用户去小程序确认。
+   */
+  async confirmWechatTransfer(packageInfo: string): Promise<{ success: boolean; message: string }> {
+    // #ifdef MP-WEIXIN
+    return new Promise((resolve) => {
+      // 走 globalThis 取，避免 vue-tsc 在非小程序端找不到全局 wx 声明
+      const wxAny = (globalThis as any).wx
+      if (!wxAny?.requestMerchantTransfer) {
+        resolve({ success: false, message: '当前微信版本过低，请升级微信后再确认收款' })
+        return
+      }
+      wxAny.requestMerchantTransfer({
+        mchId: import.meta.env.VITE_WECHAT_MCH_ID || '',
+        appId: import.meta.env.VITE_WECHAT_APP_ID || '',
+        package: packageInfo,
+        success: () => resolve({ success: true, message: '已确认收款' }),
+        fail: (err: any) => resolve({ success: false, message: err?.errMsg || '确认收款失败' }),
+      })
+    })
+    // #endif
+    // #ifndef MP-WEIXIN
+    return { success: false, message: '请在微信小程序内打开并确认收款' }
+    // #endif
   },
 
   /** 验证支付密码 —— POST /users/me/payment-password/verify（后端 bcrypt 校验 + 连续错误锁定30分钟） */
@@ -1657,11 +1733,21 @@ export const mineApi = {
     return adaptHistory(list)
   },
 
+  /** 清空当前用户全部浏览历史 —— DELETE /users/me/history（后端按登录用户隔离） */
+  async clearHistory(): Promise<void> {
+    await apiDelete('/users/me/history')
+  },
+
   /** 获取我的点赞 —— GET /users/me/likes（后端 {items} 含多态 target 详情 → 适配，目标已删降级） */
   async getMyLikes(_filter?: string): Promise<LikeItem[]> {
     const res = await apiGet<{ items?: RawLike[] } | RawLike[]>('/users/me/likes?page=1&pageSize=50')
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return list.map(adaptLike)
+  },
+
+  /** 确定性取消一条自己的点赞记录，不使用可能反向创建的 toggle。 */
+  async removeMyLike(id: string | number): Promise<void> {
+    await apiDelete(`/interaction/like/${encodeURIComponent(String(id))}`)
   },
 
   /** 获取我的评论 —— GET /users/me/comments（后端 {items} 含 target/replyCount/hasReply → 适配） */
@@ -1671,11 +1757,28 @@ export const mineApi = {
     return list.map(adaptMyComment)
   },
 
+  /** 删除自己的评论（后端同时清理该评论的直接回复）。 */
+  async deleteMyComment(id: string | number): Promise<void> {
+    await apiDelete(`/interaction/comment/${encodeURIComponent(String(id))}`)
+  },
+
   /** 获取收到的评论 —— GET /users/me/received-comments（后端 {items} 含 user/target/isReplied/myReply → 适配） */
   async getReceivedComments(): Promise<ReceivedCommentItem[]> {
     const res = await apiGet<{ items?: RawReceivedComment[] } | RawReceivedComment[]>('/users/me/received-comments?page=1&pageSize=50')
     const list = Array.isArray(res) ? res : (res?.items ?? [])
     return list.map(adaptReceivedComment)
+  },
+
+  /** 回复收到的评论 —— POST /interaction/comment（parentId=对方评论 id·真连替代原 setTimeout 假回复）。
+   *  前端小写内容类型 → 后端大写枚举（circle_post→POST，其余直接大写） */
+  replyReceivedComment(item: ReceivedCommentItem, content: string): Promise<unknown> {
+    const targetType = item.myContent.type === 'circle_post' ? 'POST' : item.myContent.type.toUpperCase()
+    return apiPost<unknown>('/interaction/comment', {
+      targetType,
+      targetId: String(item.myContent.id),
+      content,
+      parentId: String(item.id),
+    })
   },
 
   /** 获取反馈类型 —— GET /users/feedback/types（后端 {types,statusConfig} → 取 types） */
@@ -1694,15 +1797,6 @@ export const mineApi = {
   async submitFeedback(_type: string, _content: string, _contact?: string, _images?: string[]): Promise<{ success: boolean; message: string }> {
     await apiPost('/users/feedback', { type: _type, content: _content, contact: _contact, images: _images })
     return { success: true, message: '反馈已提交' }
-  },
-
-  /**
-   * 获取关于页数据
-   * aboutStats/aboutFeatures 是纯 UI 展示配置（平台简介数据），后端无 /about 端点，
-   * 直接返回前端维护的展示常量，不属于伪造业务数据。
-   */
-  async getAbout(): Promise<{ stats: typeof aboutStats; features: typeof aboutFeatures }> {
-    return { stats: aboutStats, features: aboutFeatures }
   },
 
   /**
@@ -1790,17 +1884,53 @@ export const mineApi = {
     }
   },
 
-  /** 我的收藏 —— GET /interaction/collect（多态 target 已补全，已删降级） */
+  /**
+   * 我的收藏 —— 聚合来源并按收藏时间倒序：
+   *   ① /interaction/collect（课程/文章/视频/商品/帖子·多态 target 已补全）
+   *   ② /classic/favorites（古籍·独立收藏表）
+   * 诗词/电子书模块已下线，不再聚合其收藏。各来源独立容错，空则跳过。
+   */
   async getFavorites(): Promise<FavItem[]> {
-    const res = await apiGet<{ items?: RawFavorite[] }>('/interaction/collect?page=1&pageSize=50')
-    const list = Array.isArray(res?.items) ? res!.items! : []
-    return list.map(adaptFavorite)
+    const [collectRes, classicRes] = await Promise.all([
+      apiGet<{ items?: RawFavorite[] }>('/interaction/collect?page=1&pageSize=50').catch(() => null),
+      apiGet<{ items?: { id: string; title?: string; author?: string; dynasty?: string; addedAt?: string }[] }>('/classic/favorites').catch(() => null),
+    ])
+    const rawTs = (v: unknown): number => { const d = new Date(v as string); return Number.isNaN(d.getTime()) ? 0 : d.getTime() }
+    const rows: { item: FavItem; ts: number }[] = []
+    for (const it of (Array.isArray(collectRes?.items) ? collectRes!.items! : [])) rows.push({ item: adaptFavorite(it), ts: rawTs(it.createdAt) })
+    for (const b of (Array.isArray(classicRes?.items) ? classicRes!.items! : [])) rows.push({ item: adaptClassicFav(b), ts: rawTs(b.addedAt) })
+    rows.sort((a, b) => b.ts - a.ts)
+    return rows.map((r) => r.item)
   },
 
   /** 取消收藏 —— POST /interaction/collect（已收藏 → toggle 关闭） */
-  async removeFavorite(_targetType: string, _targetId: string): Promise<boolean> {
-    await apiPost('/interaction/collect', { targetType: _targetType, targetId: _targetId })
+  async removeFavorite(targetType: string, targetId: string): Promise<boolean> {
+    // 按来源路由到对应取消收藏端点（诗词/古籍/电子书各有独立收藏表）
+    const t = String(targetType || '').toUpperCase()
+    if (t === 'POEM') await apiPost(`/poetry/${targetId}/collect`)          // toggle：已收藏 → 取消
+    else if (t === 'CLASSIC') await apiDelete(`/classic/favorites/${targetId}`)
+    else if (t === 'EBOOK') await apiDelete(`/ebook/favorites/${targetId}`)
+    else await apiPost('/interaction/collect', { targetType, targetId })    // interaction toggle
     return true
+  },
+
+  /**
+   * 我的笔记 —— 古籍读书笔记，按更新时间倒序。
+   * 古籍 GET /classic/notes（{items,...}）；电子书模块已下线，不再聚合其笔记。
+   */
+  async getNotes(): Promise<NoteItem[]> {
+    const classicRes = await apiGet<{ items?: { id?: string; bookId?: string; book?: { title?: string } | null; chapter?: { title?: string } | null; content?: string; updatedAt?: string }[] }>('/classic/notes?pageSize=100').catch(() => null)
+    const rawTs = (v: unknown): number => { const d = new Date(v as string); return Number.isNaN(d.getTime()) ? 0 : d.getTime() }
+    const fmt = (v?: string) => String(v || '').slice(0, 16).replace('T', ' ')
+    const rows: { item: NoteItem; ts: number }[] = []
+    for (const n of (Array.isArray(classicRes?.items) ? classicRes!.items! : [])) {
+      rows.push({ ts: rawTs(n.updatedAt), item: {
+        id: `classic_${n.id}`, source: 'classic', sourceName: '古籍', bookId: n.bookId || '',
+        bookTitle: n.book?.title || '古籍', chapter: n.chapter?.title || '', content: n.content || '', updatedAt: fmt(n.updatedAt),
+      } })
+    }
+    rows.sort((a, b) => b.ts - a.ts)
+    return rows.map((r) => r.item)
   },
 
   /** 关注与粉丝 —— GET /users/:id/following + /users/:id/followers（交叉计算互关） */
@@ -1838,11 +1968,24 @@ export const mineApi = {
     return true
   },
 
-  /** 通知列表 —— GET /notifications */
+  /** 通知列表 —— GET /notifications
+   * 🔴 防御性清洗：后端曾把「依赖降级/熔断/监控巡检」等内部运维通知也写进用户通知流，
+   *    对 C 端是看不懂的技术黑话且会刷屏。此处：① 过滤内部运维通知 ② 按标题+正文去重。
+   *    根治需后端不向 C 端用户投递此类系统内部通知（见交接说明）。 */
   async getNotifications(): Promise<NotifyItem[]> {
     const res = await apiGet<{ notifications?: RawNotification[] }>('/notifications?page=1&pageSize=50')
     const list = Array.isArray(res?.notifications) ? res!.notifications! : []
-    return list.map(adaptNotification)
+    const OPS_PATTERN = /(依赖降级|服务降级|降级通知|熔断|限流|监控告警|健康检查|巡检|运维|mock|超时告警|回源失败|接口异常告警)/i
+    const seen = new Set<string>()
+    return list
+      .map(adaptNotification)
+      .filter((n) => !OPS_PATTERN.test(`${n.title} ${n.content}`)) // 剔除内部运维/技术黑话通知
+      .filter((n) => {
+        const key = `${n.title}|${n.content}` // 同标题+正文视为重复，仅保留首条
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
   },
 
   /** 标记单条通知已读 —— PUT /notifications/:id/read */
@@ -1893,4 +2036,24 @@ export const mineApi = {
       benefits: Array.isArray(config?.benefits) ? config.benefits : [],
     }]
   },
+}
+
+/* ───────────────────────── 实名认证 ─────────────────────────
+ * 🔴 2026-07-14 接线：后端 identity 模块（OCR/二要素核验/人脸核身 + admin 审核）早已整套做完，
+ *    前端却零调用；账号安全页的「实名认证」href 还指向页面自己（点了原地跳回）——
+ *    而实名是【提现 / 发课程 / 讲师认证】的前置，卡死一大片。
+ *    本次接【二要素核验】（姓名+身份证号→腾讯云 CheckIdCardInformation），
+ *    它不依赖 OCR 上传与活体配置，是最短可用路径；通过后后端写 user.identityVerified=true。
+ */
+
+export interface IdentityVerifyResult {
+  passed: boolean
+  result: string
+  description: string
+}
+
+export const identityApi = {
+  /** 二要素核验 — POST /identity/verify（每日限 3 次·防撞库；已认证用户再调会 400） */
+  verify: (name: string, idCard: string): Promise<IdentityVerifyResult> =>
+    apiPost<IdentityVerifyResult>('/identity/verify', { name, idCard }),
 }

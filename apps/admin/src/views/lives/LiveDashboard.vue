@@ -266,7 +266,13 @@
           style="margin-top:12px"
         >
           <el-divider>与上一场对比</el-divider>
+          <el-empty
+            v-if="compareNoPrevious"
+            description="该主播暂无已结束的上一场直播，无法对比"
+            :image-size="60"
+          />
           <el-table
+            v-else
             :data="compareRows"
             size="small"
           >
@@ -295,11 +301,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
 import { liveDashboardApi } from "@/api";
-import * as echarts from "echarts";
+import echarts from "@/utils/echarts";
+import type { EChartsType } from "echarts/core";
 
 /** 概览指标（宽松 optional） */
 interface LiveOverview {
@@ -316,8 +323,6 @@ interface GiftRankItem { userId?: string; userName?: string; nickname?: string; 
 interface AudienceData { gender?: string; age?: string; region?: string; interests?: string }
 /** 主播表现 */
 interface HostStats { totalDuration?: string; productCount?: number; coverage?: string; avgStayDuration?: string }
-/** 对比单元格 */
-interface CompareCell { current?: string | number; previous?: string | number; diff?: string | number }
 
 const route = useRoute();
 const roomId = computed(() => route.params.id as string);
@@ -342,7 +347,7 @@ const kpiCards = computed(() => {
 
 // 趋势图
 const trendsChartRef = ref<HTMLDivElement>();
-let trendsChart: echarts.ECharts | null = null;
+let trendsChart: EChartsType | null = null;
 const trendsData = ref<TrendPoint[]>([]);
 
 function renderTrendsChart() {
@@ -379,32 +384,35 @@ const productData = ref<ProductRow[]>([]);
 
 // 互动
 const interChartRef = ref<HTMLDivElement>();
-let interChart: echarts.ECharts | null = null;
+let interChart: EChartsType | null = null;
 const giftRanking = ref<GiftRankItem[]>([]);
 
 function renderInterChart() {
   if (!interChartRef.value) return;
   if (!interChart) interChart = echarts.init(interChartRef.value);
 
-  // 从打赏排行提取词云
-  const words = (giftRanking.value || []).map((g) => ({
+  // 互动榜直接使用条形图，避免依赖未注册的词云扩展导致图表空白
+  const ranking = (giftRanking.value || []).slice(0, 10).map((g) => ({
     name: g.nickname || g.userId,
     value: g.totalCoin || 0,
-  }));
+  })).sort((a, b) => a.value - b.value);
 
   interChart.setOption({
-    tooltip: { trigger: "item" },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+    grid: { left: 20, right: 28, top: 12, bottom: 12, containLabel: true },
+    xAxis: { type: "value", minInterval: 1, axisLabel: { color: "#909399" } },
+    yAxis: {
+      type: "category",
+      data: ranking.length > 0 ? ranking.map((item) => item.name) : ["暂无数据"],
+      axisLabel: { color: "#606266", width: 96, overflow: "truncate" },
+    },
     series: [{
-      type: "wordCloud",
-      shape: "circle",
-      left: "center", top: "center", width: "80%", height: "80%",
-      right: null, bottom: null,
-      sizeRange: [14, 40],
-      rotationRange: [-30, 30],
-      textStyle: {
-        color: (() => { const p = ['#409eff','#67c23a','#e6a23c','#f56c6c','#909399','#b37feb']; let i = 0; return () => p[i++ % p.length]; })(),
-      },
-      data: words.length > 0 ? words : [{ name: "暂无数据", value: 1 }],
+      name: "打赏热度",
+      type: "bar",
+      data: ranking.length > 0 ? ranking.map((item) => item.value) : [0],
+      barMaxWidth: 20,
+      itemStyle: { color: "#d21f3c", borderRadius: [0, 8, 8, 0] },
+      label: { show: true, position: "right", color: "#909399" },
     }],
   }, true);
 }
@@ -418,20 +426,75 @@ const hostData = ref<HostStats | null>(null);
 // 复盘
 const showReport = ref(false);
 const reportData = ref<Record<string, unknown> | null>(null);
-const compareData = ref<Record<string, CompareCell> | null>(null);
+const compareData = ref<Record<string, unknown> | null>(null);
+
+// 复盘 summary 键名翻译+格式化（后端 live-report.service getReport 返回 { summary, minuteData }，
+// 此前直接遍历顶层导致英文键名+minuteData 整段 JSON 直出）
+const REPORT_LABELS: Record<string, { label: string; fmt?: (v: unknown) => string }> = {
+  title: { label: "直播标题" },
+  durationMinutes: { label: "直播时长", fmt: (v) => formatMinutes(Number(v)) },
+  totalViews: { label: "累计观看", fmt: (v) => Number(v || 0).toLocaleString() + " 人次" },
+  peakOnline: { label: "峰值在线", fmt: (v) => Number(v || 0).toLocaleString() + " 人" },
+  avgOnline: { label: "平均在线", fmt: (v) => Number(v || 0).toLocaleString() + " 人" },
+  totalGmv: { label: "成交额(GMV)", fmt: (v) => "¥" + Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+  totalOrders: { label: "成交订单", fmt: (v) => Number(v || 0).toLocaleString() + " 单" },
+  totalComments: { label: "评论数", fmt: (v) => Number(v || 0).toLocaleString() },
+  totalLikes: { label: "点赞数", fmt: (v) => Number(v || 0).toLocaleString() },
+  totalGiftCoin: { label: "打赏(币)", fmt: (v) => Number(v || 0).toLocaleString() + " 币" },
+  giftTransactions: { label: "打赏次数", fmt: (v) => Number(v || 0).toLocaleString() + " 次" },
+  uniqueGifters: { label: "打赏人数", fmt: (v) => Number(v || 0).toLocaleString() + " 人" },
+  interactionRate: { label: "互动率" },
+};
+
+function formatMinutes(min: number) {
+  if (!min || isNaN(min)) return "—";
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h} 小时 ${m} 分钟` : `${m} 分钟`;
+}
 
 const reportItems = computed(() => {
-  if (!reportData.value) return [];
-  return Object.entries(reportData.value)
-    .filter(([k]) => !["id", "roomId", "createdAt", "updatedAt"].includes(k))
-    .map(([k, v]) => ({ label: k, value: typeof v === "object" ? JSON.stringify(v) : String(v) }));
+  const summary = (reportData.value as { summary?: Record<string, unknown> } | null)?.summary;
+  if (!summary) return [];
+  return Object.entries(summary)
+    .filter(([, v]) => typeof v !== "object" || v === null) // 复杂结构不直出 JSON
+    .map(([k, v]) => {
+      const def = REPORT_LABELS[k];
+      const raw = v === null || v === undefined || v === "" ? "—" : v;
+      return { label: def?.label || k, value: def?.fmt ? def.fmt(raw === "—" ? 0 : raw) : String(raw) };
+    });
+});
+
+// 对比端点真实返回 { current, previous, changes }（live-report.service getCompare），
+// 逐指标翻译成"本场/上一场/变化"三列；previous 为 null 表示没有上一场
+const COMPARE_LABELS: Record<string, { label: string; fmt?: (v: unknown) => string }> = {
+  views: { label: "累计观看" },
+  peakOnline: { label: "峰值在线" },
+  gmv: { label: "成交额(GMV)", fmt: (v) => "¥" + Number(v || 0).toLocaleString() },
+  orders: { label: "成交订单" },
+  comments: { label: "评论数" },
+  gifts: { label: "打赏(币)" },
+};
+
+const compareNoPrevious = computed(() => {
+  const d = compareData.value as { previous?: unknown } | null;
+  return !!d && (d.previous === null || d.previous === undefined);
 });
 
 const compareRows = computed(() => {
-  if (!compareData.value) return [];
-  return Object.entries(compareData.value).map(([k, v]) => ({
-    label: k, current: v?.current ?? "-", previous: v?.previous ?? "-", diff: v?.diff ?? "-",
-  }));
+  const d = compareData.value as {
+    current?: Record<string, unknown>; previous?: Record<string, unknown> | null; changes?: Record<string, unknown>;
+  } | null;
+  if (!d?.current || !d.previous) return [];
+  return Object.entries(COMPARE_LABELS).map(([k, def]) => {
+    const fmt = def.fmt || ((v: unknown) => String(v ?? "—"));
+    return {
+      label: def.label,
+      current: fmt(d.current?.[k] ?? 0),
+      previous: fmt(d.previous?.[k] ?? 0),
+      diff: String(d.changes?.[k] ?? "—"),
+    };
+  });
 });
 
 async function refreshAll() {
@@ -470,14 +533,18 @@ async function openReport() {
     reportData.value = data;
     compareData.value = null;
     showReport.value = true;
-  } catch { /* ignore */ }
+  } catch {
+    ElMessage.error("复盘报告加载失败，请重试");
+  }
 }
 
 async function fetchCompare() {
   try {
     const { data } = await liveDashboardApi.compare(roomId.value);
     compareData.value = data;
-  } catch { /* ignore */ }
+  } catch {
+    ElMessage.error("对比数据加载失败，请重试");
+  }
 }
 
 function exportReport(format: "pdf" | "excel") {

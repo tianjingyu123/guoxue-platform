@@ -143,6 +143,13 @@ const error = ref('')
 const pending = ref<FriendRequestItem[]>([])
 const processed = ref<FriendRequestItem[]>([])
 
+// 后端偶发透传英文报错（如 "service timeout or request format error..."），对用户不友好。
+// 仅当错误信息含中文时才展示，否则统一兜底为友好中文。
+function friendlyError(e: unknown, fallback: string) {
+  const msg = (e as Error)?.message || ''
+  return /[一-龥]/.test(msg) ? msg : fallback
+}
+
 async function loadData() {
   loading.value = true
   error.value = ''
@@ -151,7 +158,7 @@ async function loadData() {
     pending.value = res.pending
     processed.value = res.processed
   } catch (e) {
-    error.value = (e as Error)?.message || '加载好友请求失败，请重试'
+    error.value = friendlyError(e, '好友请求加载失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -201,7 +208,7 @@ async function handleApprove(req: FriendRequestItem) {
     processed.value = [{ ...req, status: 'approved', processedAt: nowStr() }, ...processed.value]
     uni.showToast({ title: `已添加 ${req.fromUser.nickname} 为好友`, icon: 'none' })
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+    uni.showToast({ title: friendlyError(e, '操作失败，请重试'), icon: 'none' })
   } finally {
     processingIds.value = processingIds.value.filter((id) => id !== req.id)
   }
@@ -230,7 +237,7 @@ async function handleReject() {
     processed.value = [{ ...req, status: 'rejected', processedAt: nowStr(), rejectReason: reason }, ...processed.value]
     uni.showToast({ title: '已拒绝请求', icon: 'none' })
   } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+    uni.showToast({ title: friendlyError(e, '操作失败，请重试'), icon: 'none' })
   }
 }
 

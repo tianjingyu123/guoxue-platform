@@ -80,14 +80,15 @@ describe('daysBetween - 日期差计算', () => {
 
 describe('daysToNearestJie - 最近节气天数', () => {
   it('1984-02-04 0:00 顺排到立春当天=1', () => {
-    // 立春在2月4日15:25，0:00出生则下一个节就是当天的立春
+    // 1984 立春 = 2月4日 23:19（北京时间·已对拍寿星历法），0:00出生则下一个节就是当天的立春
     const days = daysToNearestJie(1984, 2, 4, 'forward', 0)
     expect(days).toBe(1)
   })
 
-  it('1984-02-04 20:00 顺排到惊蛰≈30天', () => {
-    // 立春已过(15:25)，下一个节是惊蛰
-    const days = daysToNearestJie(1984, 2, 4, 'forward', 20)
+  it('1984-02-05 12:00 顺排到惊蛰≈30天', () => {
+    // 立春（2/4 23:19）已过，下一个节是惊蛰（3/5）
+    // 2026-07-11 基准更正：原用例写"立春15:25"是修复前 UT 漏转北京时间的错误口径
+    const days = daysToNearestJie(1984, 2, 5, 'forward', 12)
     expect(days).toBeGreaterThanOrEqual(28)
     expect(days).toBeLessThanOrEqual(32)
   })

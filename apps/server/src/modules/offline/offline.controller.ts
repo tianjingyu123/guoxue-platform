@@ -5,9 +5,11 @@ import { OfflineService } from "./offline.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import {
-  CreateStationDto, CreateOfflineCourseDto, UpdateMemberDto, AuditStationDto,
+  CreateStationDto, CreateOfflineCourseDto, UpdateOfflineCourseDto, UpdateMemberDto, AuditStationDto,
   SignInCourseDto,
+  VerifyByCodeDto,
   CreateProductDto, UpdateProductDto,
   CreateTeacherBookingDto,
   CreateStationOrderDto, CreateSettlementDto,
@@ -36,7 +38,10 @@ export class OfflineController {
   }
 
   @Get("stations")
-  @ApiOperation({ summary: "线下驿站列表" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "线下驿站列表（平台管理）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "pageSize", required: false, type: Number })
@@ -88,19 +93,21 @@ export class OfflineController {
   }
 
   @Get("stations/:id")
-  @ApiOperation({ summary: "驿站详情" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "驿站详情（公开仅 ACTIVE；驿站主可预览本人驿站）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  getStation(@Param("id") id: string) {
-    return this.svc.getStation(id);
+  getStation(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getStation(id, req.user?.id);
   }
 
   @Get("stations/:id/home")
-  @ApiOperation({ summary: "驿站品牌主页聚合（公开·基础+故事相册+讲师阵容+特色课程+评价墙·驿-P1）" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "驿站品牌主页聚合（公开仅 ACTIVE；驿站主可预览本人驿站）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  getStationHome(@Param("id") id: string) {
-    return this.svc.getStationHome(id);
+  getStationHome(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getStationHome(id, req.user?.id);
   }
 
   @Put("stations/:id/audit")
@@ -126,8 +133,8 @@ export class OfflineController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  getRevenueDashboard(@Param("id") id: string) {
-    return this.svc.getRevenueDashboard(id);
+  getRevenueDashboard(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getRevenueDashboard(req.user.id, id);
   }
 
   // ───────── 线下课程 ─────────
@@ -143,20 +150,35 @@ export class OfflineController {
     return this.svc.createOfflineCourse(req.user.id, dto);
   }
 
+  @Put("courses/:id")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "编辑未开课且无有效报名的线下课程（修改后重新审核）" })
+  @ApiResponse({ status: 200, description: "更新成功，课程回到待审核" })
+  @ApiResponse({ status: 400, description: "已开课/已有报名/参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
+  @ApiResponse({ status: 404, description: "课程不存在" })
+  @ApiBearerAuth()
+  updateCourse(@Req() req: Request, @Param("id") id: string, @Body() dto: UpdateOfflineCourseDto) {
+    return this.svc.updateOfflineCourse(req.user.id, id, dto);
+  }
+
   @Get("courses")
-  @ApiOperation({ summary: "课程列表（传 stationId=单驿站；不传=用户端发现全部已发布课程）" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "课程列表（公开仅已发布；驿站主登录后可预览本人课程）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "stationId", required: false })
-  listCourses(@Query("stationId") stationId?: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
-    return this.svc.listOfflineCourses(stationId, Number(page) || 1, Number(pageSize) || 20);
+  listCourses(@Req() req: Request, @Query("stationId") stationId?: string, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
+    return this.svc.listOfflineCourses(stationId, Number(page) || 1, Number(pageSize) || 20, req.user?.id);
   }
 
   @Get("courses/:id")
-  @ApiOperation({ summary: "课程详情（含报名列表）" })
+  @UseGuards(OptionalAuthGuard)
+  @ApiOperation({ summary: "课程详情（公开仅已发布；仅返回有效报名数，不返回报名凭证）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  getCourse(@Param("id") id: string) {
-    return this.svc.getOfflineCourse(id);
+  getCourse(@Req() req: Request, @Param("id") id: string) {
+    return this.svc.getOfflineCourse(id, req.user?.id);
   }
 
   // ───────── 课程审核（管理后台） ─────────
@@ -245,6 +267,18 @@ export class OfflineController {
     return this.svc.getMyRegistration(id, req.user.id);
   }
 
+  @Get("my-course-registrations")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "我的线下课报名列表（C4·含本人凭证码）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiBearerAuth()
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  listMyCourseRegistrations(@Req() req: Request, @Query("page") page?: number, @Query("pageSize") pageSize?: number) {
+    return this.svc.listMyCourseRegistrations(req.user.id, Number(page) || 1, Number(pageSize) || 20);
+  }
+
   @Post("courses/:id/cancel")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "取消报名" })
@@ -266,6 +300,19 @@ export class OfflineController {
   @ApiBearerAuth()
   signInCourse(@Req() req: Request, @Body() dto: SignInCourseDto, @Query("stationId") stationId: string) {
     return this.svc.signInCourse(req.user.id, stationId, dto.qrCode);
+  }
+
+  @Post("courses/verify-code")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "输码核销（扫码不便兜底·6位到店核销码）" })
+  @ApiResponse({ status: 201, description: "核销成功" })
+  @ApiResponse({ status: 400, description: "已核销/已过期/已取消/参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "非该驿站主" })
+  @ApiResponse({ status: 404, description: "核销码无效" })
+  @ApiBearerAuth()
+  signInByCode(@Req() req: Request, @Body() dto: VerifyByCodeDto) {
+    return this.svc.signInByCode(req.user.id, dto.courseId, dto.code);
   }
 
   @Get("courses/:id/registrations")
@@ -426,7 +473,7 @@ export class OfflineController {
 
   @Post("stations/:id/orders")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "创建驿站订单" })
+  @ApiOperation({ summary: "驿站在线订单预留接口（当前 fail-closed）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -460,7 +507,7 @@ export class OfflineController {
 
   @Put("orders/:orderId")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "更新订单状态" })
+  @ApiOperation({ summary: "驿站订单状态预留接口（当前仅支付系统可推进）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -474,7 +521,7 @@ export class OfflineController {
   @Post("stations/:id/settlements")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "创建结算单" })
+  @ApiOperation({ summary: "驿站自动结算预留接口（当前禁止手填金额）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -501,7 +548,7 @@ export class OfflineController {
   @Put("settlements/:settlementId/settle")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "执行结算（标记已结算）" })
+  @ApiOperation({ summary: "驿站真实打款预留接口（当前 fail-closed）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })

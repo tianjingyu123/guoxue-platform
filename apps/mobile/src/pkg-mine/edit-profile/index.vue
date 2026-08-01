@@ -7,7 +7,7 @@
         <text class="nav-back-text">返回</text>
       </view>
       <text class="nav-title">编辑资料</text>
-      <view class="nav-save" :class="{ 'nav-save-disabled': saving }" @tap="handleSave">
+      <view class="nav-save" :class="{ 'nav-save-disabled': saving || avatarUploading }" @tap="handleSave">
         <AppIcon v-if="saving" name="loader-2" :size="36" color="#c41e3a" class="spin" />
         <text v-else class="nav-save-text">保存</text>
       </view>
@@ -29,18 +29,15 @@
     <template v-else>
       <!-- 头像区 -->
       <view class="avatar-section">
-        <view class="avatar-btn" @tap="showAvatarSheet = true">
+        <view class="avatar-btn" @tap="openAvatarSheet">
           <view class="avatar-box">
-            <image lazy-load v-if="profile.avatar" class="avatar-img" :src="profile.avatar" mode="aspectFill" />
-            <view v-else class="avatar-fallback">
-              <text class="avatar-fallback-text">{{ profile.nickname.charAt(0) || '?' }}</text>
-            </view>
+            <smart-avatar :src="profile.avatar" :name="profile.nickname" class="avatar-img" />
           </view>
           <view class="avatar-camera">
-            <AppIcon name="camera" :size="32" color="#ffffff" />
+            <AppIcon :name="avatarUploading ? 'loader-2' : 'camera'" :size="32" color="#ffffff" :class="{ spin: avatarUploading }" />
           </view>
         </view>
-        <text class="avatar-tip">点击更换头像</text>
+        <text class="avatar-tip">{{ avatarUploading ? '头像上传中…' : '点击更换头像' }}</text>
       </view>
 
       <!-- 表单 -->
@@ -109,10 +106,10 @@
     <view v-if="showAvatarSheet" class="sheet">
       <view class="sheet-handle" />
       <view class="sheet-body">
-        <view class="sheet-btn" @tap="handleChooseAvatar">
+        <view class="sheet-btn" @tap="handleChooseAvatar('camera')">
           <text class="sheet-btn-text">拍照</text>
         </view>
-        <view class="sheet-btn" @tap="handleChooseAvatar">
+        <view class="sheet-btn" @tap="handleChooseAvatar('album')">
           <text class="sheet-btn-text">从相册选择</text>
         </view>
       </view>
@@ -126,7 +123,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { mineApi } from '@/lib/mine-data'
+import { getUserInfo, setUserInfo } from '@/utils/storage'
+import { uploadImage } from '@/utils/request'
 
 interface UserProfile {
   avatar: string
@@ -147,6 +147,7 @@ const loading = ref(true)
 const loadError = ref('')
 const saving = ref(false)
 const showAvatarSheet = ref(false)
+const avatarUploading = ref(false)
 const errors = ref<Record<string, string>>({})
 
 onMounted(() => {
@@ -200,12 +201,29 @@ function toggleInterest(interest: string) {
   }
 }
 
-function handleChooseAvatar() {
+function openAvatarSheet() {
+  if (avatarUploading.value) return
+  showAvatarSheet.value = true
+}
+
+function handleChooseAvatar(sourceType: 'camera' | 'album') {
+  if (avatarUploading.value) return
   showAvatarSheet.value = false
   uni.chooseImage({
     count: 1,
-    success: (res) => {
-      profile.value.avatar = res.tempFilePaths[0]
+    sourceType: [sourceType],
+    success: async (res) => {
+      const filePath = res.tempFilePaths?.[0]
+      if (!filePath) return
+      avatarUploading.value = true
+      try {
+        profile.value.avatar = await uploadImage(filePath)
+        uni.showToast({ title: '头像上传完成，请保存', icon: 'none' })
+      } catch (e) {
+        uni.showToast({ title: (e as Error)?.message || '头像上传失败，请重试', icon: 'none' })
+      } finally {
+        avatarUploading.value = false
+      }
     },
   })
 }
@@ -221,7 +239,7 @@ function validate() {
 
 // 保存用户资料 —— PUT /users/profile（nickname/avatar/bio/兴趣品类）
 async function handleSave() {
-  if (saving.value) return
+  if (saving.value || avatarUploading.value) return
   if (!validate()) return
   saving.value = true
   try {
@@ -230,6 +248,13 @@ async function handleSave() {
       avatar: profile.value.avatar,
       bio: profile.value.bio,
       interestCategories: profile.value.interests,
+    })
+    // 回写本地 userInfo 缓存，使全站（海报/证书/IM/短视频等）用 getUserInfo() 的展示位即时同步新昵称/头像/简介
+    setUserInfo({
+      ...(getUserInfo() || {}),
+      nickname: profile.value.nickname,
+      avatar: profile.value.avatar,
+      bio: profile.value.bio,
     })
     uni.showToast({ title: '保存成功', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 600)

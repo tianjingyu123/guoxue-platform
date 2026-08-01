@@ -3,9 +3,14 @@ import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { SystemService } from "../system/system.service";
 import { RolesGuard } from "../../common/roles.guard";
+import { PersonalDataExportService } from "./personal-data-export.service";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 const mockUserSvc: Record<string, jest.Mock> = {
   updateProfile: jest.fn().mockResolvedValue({ id: "u1", nickname: "新昵称" } as any),
+  getNotifySettings: jest.fn().mockResolvedValue([{ key: "operatorTeam", value: true }] as any),
+  updateNotifySettings: jest.fn().mockResolvedValue({ success: true } as any),
+  getMySummary: jest.fn().mockResolvedValue({ stats: { following: 2, followers: 3, likes: 4 } } as any),
   getUserById: jest.fn().mockResolvedValue({ id: "u1", nickname: "张三" } as any),
   getUserStats: jest.fn().mockResolvedValue({ articleCount: 10, followerCount: 100 } as any),
   listUsers: jest.fn().mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 20 } as any),
@@ -34,6 +39,10 @@ const mockSystemSvc = {
   logAudit: jest.fn().mockResolvedValue(undefined),
 };
 
+const mockPersonalDataExport = {
+  create: jest.fn().mockResolvedValue({ accountId: "u1", selectedTypes: ["profile"] }),
+};
+
 describe("UserController", () => {
   let ctrl: UserController;
 
@@ -43,9 +52,11 @@ describe("UserController", () => {
       providers: [
         { provide: UserService, useValue: mockUserSvc },
         { provide: SystemService, useValue: mockSystemSvc },
+        { provide: PersonalDataExportService, useValue: mockPersonalDataExport },
       ],
     })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(StrictRedisThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(UserController);
   });
@@ -57,6 +68,31 @@ describe("UserController", () => {
   it("PUT /users/profile — 更新个人资料", async () => {
     const result: any = await ctrl.updateProfile(mockReq(), { nickname: "新昵称" });
     expect(result.nickname).toBe("新昵称");
+  });
+
+  it("GET /users/notify-settings?scope=operator — 获取运营商通知偏好", async () => {
+    const result: any = await ctrl.getNotifySettings(mockReq(), "operator");
+    expect(result[0].key).toBe("operatorTeam");
+    expect(mockUserSvc.getNotifySettings).toHaveBeenCalledWith("u1", "operator");
+  });
+
+  it("PUT /users/notify-settings — 更新运营商通知偏好", async () => {
+    const dto = { key: "operatorTeam", value: false } as any;
+    const result: any = await ctrl.updateNotifySettings(mockReq(), dto);
+    expect(result.success).toBe(true);
+    expect(mockUserSvc.updateNotifySettings).toHaveBeenCalledWith("u1", dto);
+  });
+
+  it("GET /users/me/summary — 当前用户个人中心统计", async () => {
+    const result: any = await ctrl.getMySummary(mockReq());
+    expect(result.stats.likes).toBe(4);
+    expect(mockUserSvc.getMySummary).toHaveBeenCalledWith("u1");
+  });
+
+  it("POST /users/me/data-export — 只导出当前登录用户所选数据", async () => {
+    const result: any = await ctrl.createPersonalDataExport(mockReq(), { types: ["profile"] });
+    expect(result.accountId).toBe("u1");
+    expect(mockPersonalDataExport.create).toHaveBeenCalledWith("u1", ["profile"]);
   });
 
   it("GET /users/:id — 获取用户详情", async () => {
@@ -84,9 +120,10 @@ describe("UserController", () => {
     expect(result.roles).toHaveLength(0);
   });
 
-  it("PUT /users/:id/status — 更新用户状态", async () => {
-    const result: any = await ctrl.updateUserStatus("u1", { status: "BANNED" } as any);
+  it("PUT /users/:id/status — 更新用户状态（带理由）", async () => {
+    const result: any = await ctrl.updateUserStatus("u1", { status: "BANNED", reason: "违规发布" } as any, mockReq());
     expect(result.status).toBe("BANNED");
+    expect(mockUserSvc.updateUserStatus).toHaveBeenCalledWith("u1", "BANNED", "违规发布", "u1", "127.0.0.1");
   });
 
   it("GET /users/:id/purchases — 购买记录", async () => {
@@ -129,9 +166,10 @@ describe("UserController", () => {
     expect(result.items).toHaveLength(0);
   });
 
-  it("POST /users/whitelist — 添加白名单", async () => {
-    const result: any = await ctrl.addWhitelist({ userId: "u1" });
+  it("POST /users/whitelist — 添加白名单并透传原因", async () => {
+    const result: any = await ctrl.addWhitelist({ userId: "u1", reason: "上线联调" });
     expect(result.userId).toBe("u1");
+    expect(mockUserSvc.addWhitelist).toHaveBeenCalledWith("u1", "上线联调");
   });
 
   it("DELETE /users/whitelist/:userId — 移除白名单", async () => {
@@ -144,9 +182,10 @@ describe("UserController", () => {
     expect(result.id).toBe("u1");
   });
 
-  it("PUT /users/batch/status — 批量更新用户状态", async () => {
-    const result: any = await ctrl.batchUpdateStatus({ ids: ["u1", "u2"], status: "DISABLED" });
+  it("PUT /users/batch/status — 批量更新用户状态（带理由）", async () => {
+    const result: any = await ctrl.batchUpdateStatus({ ids: ["u1", "u2"], status: "DISABLED", reason: "批量封禁" }, mockReq());
     expect(result.updated).toBe(3);
+    expect(mockUserSvc.batchUpdateStatus).toHaveBeenCalledWith(["u1", "u2"], "DISABLED", "批量封禁", "u1", "127.0.0.1");
   });
 
   it("GET /users/:id/purchases — 非本人非管理员无权查看", () => {

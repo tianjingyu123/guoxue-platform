@@ -15,6 +15,7 @@ describe("CallService", () => {
   let revenue: any;
   let trtc: any;
   let ws: any;
+  let redis: any;
 
   beforeEach(async () => {
     prisma = {
@@ -34,19 +35,20 @@ describe("CallService", () => {
       getBalance: jest.fn().mockResolvedValue({ balance: 500, frozen: 0 }),
       spend: jest.fn().mockResolvedValue({ account: { balance: 400 }, record: { id: "tx1" } }),
     };
-    revenue = { record: jest.fn().mockResolvedValue({}) };
+    revenue = { record: jest.fn().mockResolvedValue({}), settleLedger: jest.fn().mockResolvedValue(undefined) };
     trtc = {
       generateRoomId: jest.fn().mockReturnValue("room_abc"),
       genRoomToken: jest.fn().mockReturnValue("token_xyz"),
       getAppId: jest.fn().mockReturnValue("sdk_app_123"),
     };
     ws = { sendToUser: jest.fn() };
+    redis = { setNX: jest.fn().mockResolvedValue(true), del: jest.fn(), runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CallService,
         { provide: PrismaService, useValue: prisma },
-        { provide: RedisService, useValue: { setNX: jest.fn().mockResolvedValue(true), del: jest.fn(), runExclusive: jest.fn((_n: string, _t: number, fn: () => Promise<unknown>) => fn()) } },
+        { provide: RedisService, useValue: redis },
         { provide: CoinService, useValue: coin },
         { provide: RevenueService, useValue: revenue },
         { provide: TrtcService, useValue: trtc },
@@ -145,6 +147,43 @@ describe("CallService", () => {
       expect(revenue.record).toHaveBeenCalled();
       expect(ws.sendToUser).toHaveBeenCalledTimes(2);
     });
+
+    // 🔴 cron 已按「当前进行分钟」预扣满，挂断时差额为 0 → 绝不能再 spend(0)（会抛错回滚→卡 IN_PROGRESS）
+    it("cron 已预扣满时挂断不再扣币且不崩，仍标 COMPLETED 并记达人收益", async () => {
+      const startedAt = new Date(Date.now() - 65000); // 65s → ceil=2 分钟
+      prisma.audioCallRecord.findUnique.mockResolvedValue({
+        id: "call1", callerId: "u1", calleeId: "u2",
+        status: "IN_PROGRESS", pricePerMinuteCoin: 10, totalCoin: 20, // cron 已扣 2 分钟=20
+        startedAt,
+      });
+      prisma.audioCallRecord.update.mockResolvedValue({ id: "call1", status: "COMPLETED" });
+      const result = await svc.hangup("u1", "call1");
+      expect(result.status).toBe("COMPLETED");
+      expect(coin.spend).not.toHaveBeenCalled();        // 差额=0，不补扣
+      expect(revenue.record).toHaveBeenCalled();         // 达人收益按实付 20 记
+      expect(revenue.record.mock.calls[0][0].amountCoin).toBe(20);
+    });
+  });
+
+  describe("forceHangup（余额耗尽·经 billingTick 触发）", () => {
+    // 🔴 cron 逐分钟只扣主叫从不记达人收益，强制挂断若不补记 → 达人整场白干
+    it("余额不足触发强制挂断时补记达人收益", async () => {
+      const startedAt = new Date(Date.now() - 125000); // 125s → 当前第 3 分钟
+      // totalCoin=20（已扣 2 分钟）→ 第 3 分钟待扣，但余额不足 → forceHangup
+      prisma.audioCallRecord.findMany.mockResolvedValue([{
+        id: "call1", callerId: "u1", calleeId: "u2",
+        status: "IN_PROGRESS", pricePerMinuteCoin: 10, totalCoin: 20, startedAt,
+      }]);
+      prisma.audioCallRecord.findUnique.mockResolvedValue({
+        id: "call1", callerId: "u1", calleeId: "u2",
+        status: "IN_PROGRESS", pricePerMinuteCoin: 10, totalCoin: 20, startedAt,
+      });
+      prisma.audioCallRecord.update.mockResolvedValue({ id: "call1", status: "COMPLETED" });
+      coin.getBalance.mockResolvedValue({ balance: 5, frozen: 0 }); // < 单分钟价 → 强制挂断
+      await svc.billingTick();
+      expect(revenue.record).toHaveBeenCalled();
+      expect(revenue.record.mock.calls[0][0].amountCoin).toBe(20); // 按已扣的 call.totalCoin
+    });
   });
 
   describe("getStatus", () => {
@@ -177,6 +216,19 @@ describe("CallService", () => {
       await svc.listCalls("u1", { page: "abc" as any, pageSize: 10 });
       const arg = prisma.audioCallRecord.findMany.mock.calls[0][0];
       expect(Number.isNaN(arg.skip)).toBe(false);
+    });
+  });
+
+  describe("billingTick 定时扣费锁", () => {
+    it("按分钟扣费属资金类任务，runExclusive 必须带 critical:true（Redis 不可用时拒跑防多实例重复扣费）", async () => {
+      prisma.audioCallRecord.findMany.mockResolvedValue([]);
+      await svc.billingTick();
+      expect(redis.runExclusive).toHaveBeenCalledWith(
+        "billing_tick",
+        55,
+        expect.any(Function),
+        { critical: true },
+      );
     });
   });
 });

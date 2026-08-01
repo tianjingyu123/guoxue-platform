@@ -37,7 +37,7 @@ export class ModerationService {
   // ───────── 通用 V3 签名调用 ─────────
 
   private async callApi(
-    service: "ims" | "tms",
+    service: "ims" | "tms" | "vm" | "ams",
     action: string,
     params: Record<string, unknown>,
   ) {
@@ -55,6 +55,7 @@ export class ModerationService {
       method: "POST",
       headers,
       body: payloadStr,
+      signal: AbortSignal.timeout(10000), // 防第三方无响应挂死请求线程
     });
 
     const data = await resp.json() as TencentCloudResponse;
@@ -95,6 +96,57 @@ export class ModerationService {
     return this.callApi("ims", "CreateImageModerationAsyncTask", {
       Tasks: tasks,
     });
+  }
+
+  // ───────── 视频审核 (VM) / 音频审核 (AMS)·异步任务制 ─────────
+
+  /**
+   * 创建视频审核任务（VM·画面逐帧+内置音频 ASR 一并送审）。
+   * 复用同套腾讯云凭证（COS_SECRET_ID/KEY → TENCENT_SECRET_ID/KEY），version 与 TMS/IMS 一致 2020-12-29。
+   * 返回 Response.Results[].TaskId（用 getFirstTaskId 提取），任务耗时→由编排层轮询 describeVmTask。
+   */
+  async createVideoModerationTask(params: { url: string; bizType?: string; dataId?: string }) {
+    const task: Record<string, unknown> = { Url: params.url };
+    if (params.dataId) task.DataId = params.dataId;
+    const data: Record<string, unknown> = { Type: "VIDEO", Tasks: [task] };
+    if (params.bizType) data.BizType = params.bizType;
+    return this.callApi("vm", "CreateVideoModerationTask", data);
+  }
+
+  /** 创建音频审核任务（AMS·纯语音/连麦音频流场景；视频内音频已被 VM 覆盖，无需重复送审） */
+  async createAudioModerationTask(params: { url: string; bizType?: string; dataId?: string }) {
+    const task: Record<string, unknown> = { Url: params.url };
+    if (params.dataId) task.DataId = params.dataId;
+    const data: Record<string, unknown> = { Type: "AUDIO", Tasks: [task] };
+    if (params.bizType) data.BizType = params.bizType;
+    return this.callApi("ams", "CreateAudioModerationTask", data);
+  }
+
+  /** 查询视频审核任务详情（VM·DescribeTaskDetail） */
+  async describeVmTask(taskId: string) {
+    return this.callApi("vm", "DescribeTaskDetail", { TaskId: taskId, ShowAllLabel: true });
+  }
+
+  /** 查询音频审核任务详情（AMS·DescribeTaskDetail） */
+  async describeAmsTask(taskId: string) {
+    return this.callApi("ams", "DescribeTaskDetail", { TaskId: taskId, ShowAllLabel: true });
+  }
+
+  /** 从 CreateXxxModerationTask 返回中提取首个 TaskId（无法识别返回 null） */
+  getFirstTaskId(result: unknown): string | null {
+    const r = result as { Results?: Array<{ TaskId?: string }> };
+    return r?.Results?.[0]?.TaskId || null;
+  }
+
+  /** 提取任务状态：FINISH（已完成）/ RUNNING·PENDING（进行中）/ ERROR·CANCELLED（异常）。无法识别按 RUNNING 处理。 */
+  getTaskStatus(result: unknown): string {
+    const r = result as { Status?: string; Data?: { Status?: string } };
+    return r?.Status ?? r?.Data?.Status ?? "RUNNING";
+  }
+
+  /** 提取视频/音频任务三档建议：Pass / Review / Block（复用与图文一致的映射，含数值档兜底） */
+  getTaskSuggestion(result: unknown): "Pass" | "Review" | "Block" {
+    return this.getImageSuggestion(result);
   }
 
   // ───────── 文本审核 (TMS) ─────────
@@ -138,6 +190,23 @@ export class ModerationService {
    * 无结果或无法识别时按最宽松的 Pass 处理（与 fail-open 基调一致）。
    */
   getTextSuggestion(result: unknown): "Pass" | "Review" | "Block" {
+    if (!result) return "Pass";
+    const r = result as { Suggestion?: string | number; Data?: { Suggestion?: string | number } };
+    const s = r.Suggestion ?? r.Data?.Suggestion;
+    if (s === "Block") return "Block";
+    if (s === "Review") return "Review";
+    if (s === "Pass" || s === 0) return "Pass";
+    // 腾讯云数值档：1=Review、2=Block（防御性映射）
+    if (s === 2) return "Block";
+    if (s === 1) return "Review";
+    return "Pass";
+  }
+
+  /**
+   * 提取腾讯云图片审核三档建议：Pass（放行）/ Review（疑似，转人工）/ Block（拦截）。
+   * 与 getTextSuggestion 对齐；无结果或无法识别时按最宽松的 Pass 处理（与 fail-open 基调一致）。
+   */
+  getImageSuggestion(result: unknown): "Pass" | "Review" | "Block" {
     if (!result) return "Pass";
     const r = result as { Suggestion?: string | number; Data?: { Suggestion?: string | number } };
     const s = r.Suggestion ?? r.Data?.Suggestion;

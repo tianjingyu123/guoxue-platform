@@ -319,40 +319,6 @@ export class ImController {
     return this.im.getBlacklist(req.user.id);
   }
 
-  // ───────── 好友申请处理 ─────────
-
-  @Post("friends/approve")
-  @ApiOperation({ summary: "通过好友申请" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  approveFriendRequest(@Req() req: Request, @Body() dto: FriendDto) {
-    return this.im.approveFriendRequest(req.user.id, dto.toUserId);
-  }
-
-  @Post("friends/reject")
-  @ApiOperation({ summary: "拒绝好友申请" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  rejectFriendRequest(@Req() req: Request, @Body() dto: FriendDto) {
-    return this.im.rejectFriendRequest(req.user.id, dto.toUserId);
-  }
-
-  @Get("friends/pending")
-  @ApiOperation({ summary: "获取待处理好友申请" })
-  @ApiResponse({ status: 200, description: "成功" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  listPendingFriendRequests(@Req() req: Request) {
-    return this.im.listPendingFriendRequests(req.user.id);
-  }
-
   // ───────── 群组详情 ─────────
 
   @Get("groups/:groupId/detail")

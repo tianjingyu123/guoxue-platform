@@ -539,7 +539,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { systemApi, api } from "@/api";
 
 const availableModels = [
@@ -633,6 +633,15 @@ async function refresh() {
 }
 
 async function saveConfig() {
+  // L3 确认：全平台模型路由变更，影响所有 AI 场景的实时调用（体验标准第七节）
+  const sceneCount = Object.keys(config.scenes).length;
+  try {
+    await ElMessageBox.confirm(
+      `即将保存 AI 模型路由配置：默认模型「${config.default.model}」+ ${sceneCount} 个场景覆写。保存后立即对全平台所有 AI 调用（对话/排盘解析/内容生成等）生效，配置错误可能导致 AI 服务不可用或成本上升。确认保存？`,
+      "全平台路由变更确认",
+      { type: "warning", confirmButtonText: "确认保存", cancelButtonText: "取消" },
+    );
+  } catch { return; }
   saving.value = true;
   try {
     const routingConfig = {
@@ -643,7 +652,9 @@ async function saveConfig() {
       value: JSON.stringify(routingConfig),
       description: "AI模型路由配置",
     });
-    ElMessage.success("路由配置已保存");
+    ElMessage.success("路由配置已保存并生效");
+  } catch {
+    ElMessage.error("保存失败，请重试");
   } finally { saving.value = false; }
 }
 

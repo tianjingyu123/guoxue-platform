@@ -93,8 +93,8 @@
           </view>
           <text class="card-name">{{ p.name }}</text>
           <view class="card-price">
-            <text class="price-now">¥{{ p.price }}</text>
-            <text class="price-old">¥{{ p.originalPrice }}</text>
+            <text class="price-now">¥{{ formatPrice(p.price) }}</text>
+            <text class="price-old">¥{{ formatPrice(p.originalPrice) }}</text>
           </view>
           <view class="progress">
             <view class="progress-bar" :style="{ width: progress(p) + '%' }" />
@@ -120,6 +120,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type FlashProduct } from '@/lib/shop-data'
+import { formatPrice } from '@/utils/format'
 
 const loading = ref(true)
 const error = ref('')

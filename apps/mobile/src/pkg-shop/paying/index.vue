@@ -1,7 +1,7 @@
 <template>
   <view class="paying">
     <!-- 顶部导航 -->
-    <app-nav-bar title="支付中" back-icon="x" :back-size="44" :title-weight="500" :bar-height="106" custom-back @back="handleCancel" />
+    <app-nav-bar :title="isRecharge ? '充值中' : '支付中'" back-icon="x" :back-size="44" :title-weight="500" :bar-height="106" custom-back @back="handleCancel" />
 
     <view class="main">
       <!-- 加载中 -->
@@ -22,7 +22,7 @@
         </view>
         <text class="title">正在支付中...</text>
         <text class="method-name">{{ methodName }}</text>
-        <text class="amount">¥{{ amount }}</text>
+        <text class="amount">¥{{ formatPrice(amount) }}</text>
         <view class="countdown-box">
           <app-icon name="alert-circle" :size="30" color="#666666" />
           <text class="cd-text">请在 <text class="cd-num">{{ countdown }}</text> 秒内完成支付</text>
@@ -30,10 +30,18 @@
         <text class="cancel-link" @tap="handleCancel">取消支付</text>
       </block>
 
+      <!-- 确认支付结果中（倒计时归零但仍在查单，不判失败） -->
+      <block v-else-if="status === 'confirming'">
+        <view class="spinner" />
+        <text class="title">正在确认支付结果...</text>
+        <text class="sub">若已完成支付请稍候，系统正在核对到账状态</text>
+        <text class="cancel-link" @tap="handleCancel">{{ isRecharge ? '返回钱包查看' : '返回订单查看' }}</text>
+      </block>
+
       <!-- 成功 -->
       <block v-else-if="status === 'success'">
         <view class="result-icon green"><app-icon name="check-circle" :size="72" color="#4CAF50" /></view>
-        <text class="title">支付成功</text>
+        <text class="title">{{ isRecharge ? '充值成功' : '支付成功' }}</text>
         <text class="sub">正在跳转...</text>
       </block>
 
@@ -43,8 +51,8 @@
         <text class="title">支付失败</text>
         <text class="sub">{{ failReason || '请重新尝试' }}</text>
         <view class="btn-row">
-          <view class="btn ghost" @tap="handleCancel"><text>返回订单</text></view>
-          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>重新支付</text></view>
+          <view class="btn ghost" @tap="handleCancel"><text>{{ isRecharge ? '返回钱包' : '返回订单' }}</text></view>
+          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
         </view>
       </block>
 
@@ -54,8 +62,8 @@
         <text class="title">支付超时</text>
         <text class="sub">未收到支付结果，请确认支付状态</text>
         <view class="btn-row">
-          <view class="btn ghost" @tap="goOrder"><text>查看订单</text></view>
-          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>重新支付</text></view>
+          <view class="btn ghost" @tap="goOrder"><text>{{ isRecharge ? '返回钱包' : '查看订单' }}</text></view>
+          <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
         </view>
       </block>
 
@@ -64,7 +72,7 @@
         <view class="result-icon gray"><app-icon name="x" :size="72" color="#999999" /></view>
         <text class="title">支付已取消</text>
         <text class="sub">您已取消本次支付</text>
-        <view class="btn primary single" @tap="goOrder"><text>查看订单</text></view>
+        <view class="btn primary single" @tap="goOrder"><text>{{ isRecharge ? '返回钱包' : '查看订单' }}</text></view>
       </block>
     </view>
 
@@ -83,24 +91,35 @@
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
+import { apiGet, apiPost } from '@/utils/request'
 import { shopApi } from '@/lib/shop-data'
+import { mineApi } from '@/lib/mine-data'
 import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
+import { formatPrice } from '@/utils/format'
 
-type Status = 'loading' | 'paying' | 'success' | 'failed' | 'timeout' | 'cancelled'
+type Status = 'loading' | 'paying' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
 const orderId = ref('')
+const scene = ref<'order' | 'recharge'>('order')
+const amountCoin = ref(0)
+const rechargeOrderNo = ref('')
 const payMethod = ref('wechat')
 const amount = ref('0')
+const isRecharge = computed(() => scene.value === 'recharge')
 const status = ref<Status>('loading')
-const countdown = ref(30)
+const countdown = ref(180)
 const failReason = ref('')
 const submitting = ref(false)
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setTimeout> | null = null
+// handleCancel 独立防抖守卫：与 submitting（支付发起中守卫）解耦，
+// 否则慢支付 confirming 态下 submitting 仍为 true 会误挡用户取消/返回
+let cancelling = false
 let pollCount = 0
-const maxPolls = 10
+// 3s/次 × 70 ≈ 210s，覆盖倒计时 180s 之外的回调延迟；轮询（而非倒计时）才是「真超时」的唯一判定者
+const maxPolls = 70
 
 const methodName = computed(() => {
   if (payMethod.value === 'wechat') return '微信支付'
@@ -116,9 +135,27 @@ const methodColor = computed(() => {
 })
 
 onLoad((q) => {
+  scene.value = q?.scene === 'recharge' ? 'recharge' : 'order'
   orderId.value = (q?.orderId as string) || ''
+  amountCoin.value = Number(q?.amountCoin || 0)
+  rechargeOrderNo.value = (q?.rechargeOrderNo as string) || ''
   payMethod.value = (q?.method as string) || 'wechat'
   amount.value = (q?.amount as string) || '0'
+  if (isRecharge.value) {
+    if (!Number.isInteger(amountCoin.value) || amountCoin.value <= 0) {
+      status.value = 'failed'
+      failReason.value = '缺少有效充值金额'
+      return
+    }
+    if (rechargeOrderNo.value) {
+      status.value = 'confirming'
+      startCountdown()
+      startPolling(300)
+      return
+    }
+    startPaying()
+    return
+  }
   if (!orderId.value) {
     status.value = 'failed'
     failReason.value = '缺少订单信息'
@@ -128,48 +165,278 @@ onLoad((q) => {
 })
 
 async function startPaying() {
+  // 真守卫：发起阶段进行中忽略重复触发（handleRetry 快速连点 / onLoad 重入），杜绝多个 pollTimer 泄漏与重复下单
+  if (submitting.value) return
+  submitting.value = true
   status.value = 'paying'
-  countdown.value = 30
+  countdown.value = 180
   pollCount = 0
   failReason.value = ''
+  clearTimers('all') // 清掉上一轮遗留的倒计时/轮询 timer，防泄漏
   startCountdown()
-  // 发起微信 Native 支付（本地无商户证书会失败，不阻断；微信回调或管理员确认置 PAID 后轮询可见，闭环可验证）
   try {
-    await shopApi.payOrderNative(orderId.value)
+  // #ifdef MP-WEIXIN
+  // 微信小程序内：走 JSAPI 支付，唤起微信收银台（到账以支付回调为准）
+  try {
+    let p
+    if (isRecharge.value) {
+      const recharge = await mineApi.rechargeWechat(amountCoin.value)
+      rechargeOrderNo.value = recharge.orderNo
+      amount.value = String(recharge.amountRmb)
+      p = recharge.payParams
+    } else {
+      p = await shopApi.payOrderJsapi(orderId.value)
+    }
+    await new Promise<void>((resolve, reject) => {
+      uni.requestPayment({
+        provider: 'wxpay',
+        timeStamp: p.timeStamp,
+        nonceStr: p.nonceStr,
+        package: p.package,
+        signType: p.signType as 'MD5' | 'HMAC-SHA256' | 'RSA',
+        paySign: p.paySign,
+        success: () => resolve(),
+        fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg?.includes('cancel') ? '支付已取消' : (err?.errMsg || '支付失败'))),
+      })
+    })
   } catch (e) {
-    console.warn('[paying] 发起支付失败，继续轮询订单状态以等待支付确认', e)
+    const msg = (e as Error)?.message || ''
+    if (msg.includes('取消') || msg.includes('cancel')) {
+      status.value = 'cancelled'
+      clearTimers('all')
+      return
+    }
+    // 唤起/支付失败不阻断：继续轮询订单状态以等待支付确认
+    console.warn('[paying] JSAPI 支付未完成，继续轮询订单状态', e)
   }
-  startPolling()
+  // #endif
+  // #ifdef H5
+  /*
+   * H5 真实微信支付分流（2026-07-11 接线·2026-07-15 公众号授权改造）：
+   * ① 微信内置浏览器（UA 含 micromessenger）：微信内不允许 H5 支付（mweb_url 打不开）——
+   *    走公众号 JSAPI：先经公众号网页授权(snsapi_base 静默)拿公众号 openid（ensureOaOpenid，
+   *    sessionStorage 缓存 / URL code 兑换 / 无 code 则跳授权后回本页），
+   *    再调 /shop/orders/:id/pay/jsapi（channel=OFFICIAL·公众号 appid 下单），
+   *    WeixinJSBridge 调起收银台；授权失败/调起失败 → 提示「请在外部浏览器打开支付」，
+   *    不阻断：继续轮询订单状态（用户可能换端完成支付）。
+   *    ⚠️不再依赖 Auth 表的微信记录——那是小程序 openid，与公众号 appid 不同应用，微信必拒。
+   * ② 外部浏览器：调 POST /shop/pay/h5 拿 mweb_url → 跳转微信收银台中间页，
+   *    携带 redirect_url 回跳当前页；回跳后页面重新加载走 onLoad→startPaying→startPolling，
+   *    轮询订单状态恢复（已支付则进成功态）。
+   * 无商户证书/H5 支付域名未配置时后端返回结构化 400，错误文案透出到失败态。
+   */
+  try {
+    const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '').toLowerCase()
+    const isWechatBrowser = ua.includes('micromessenger')
+    if (isWechatBrowser) {
+      // 微信内 → 公众号 JSAPI（openid 来自公众号网页授权）
+      try {
+        const openid = await ensureOaOpenid()
+        if (!openid) return // 已跳转微信授权页，本页即将卸载，回跳后重走 onLoad
+        let p
+        if (isRecharge.value) {
+          const recharge = await mineApi.rechargeWechat(amountCoin.value, { openid, channel: 'OFFICIAL' })
+          rechargeOrderNo.value = recharge.orderNo
+          amount.value = String(recharge.amountRmb)
+          p = recharge.payParams
+        } else {
+          p = await shopApi.payOrderJsapi(orderId.value, { openid, channel: 'OFFICIAL' })
+        }
+        await invokeWechatJsapiPay(p)
+      } catch (e) {
+        const msg = (e as Error)?.message || ''
+        if (msg.includes('取消')) {
+          status.value = 'cancelled'
+          clearTimers('all')
+          return
+        }
+        // 授权失败/未配置/调起失败：引导外部浏览器，继续轮询兜底
+        uni.showToast({ title: msg.includes('未配置') || msg.includes('授权') ? msg : '微信内暂无法支付，请点击右上角在浏览器打开后支付', icon: 'none', duration: 3500 })
+      }
+    } else {
+      // 外部浏览器 → 微信 H5 支付（mweb_url 跳转，redirect_url 回跳本页恢复轮询）
+      let mwebUrl = ''
+      let returnUrl = window.location.href
+      if (isRecharge.value) {
+        const recharge = await mineApi.rechargeWechatH5(amountCoin.value)
+        rechargeOrderNo.value = recharge.orderNo
+        amount.value = String(recharge.amountRmb)
+        mwebUrl = recharge.mwebUrl
+        const url = new URL(window.location.href)
+        url.searchParams.set('rechargeOrderNo', recharge.orderNo)
+        returnUrl = url.toString()
+      } else {
+        const result = await shopApi.payOrderH5(orderId.value)
+        mwebUrl = result.mwebUrl || ''
+      }
+      if (mwebUrl) {
+        window.location.href = mwebUrl + '&redirect_url=' + encodeURIComponent(returnUrl)
+      } else {
+        throw new Error('支付下单失败，请稍后重试')
+      }
+    }
+  } catch (e) {
+    // 结构化错误（如未配置商户证书 400）直接进入失败态，文案透出
+    status.value = 'failed'
+    failReason.value = (e as Error)?.message || '支付发起失败，请稍后重试'
+    clearTimers('all')
+    return
+  }
+  // #endif
+  // #ifndef MP-WEIXIN || H5
+  // App 等其他端：微信 APP 支付需客户端 SDK 接入（未接），提示改用小程序/H5 支付；仍轮询兜底（可换端支付）
+  uni.showToast({ title: '当前端暂不支持在线支付，请在小程序或浏览器中完成支付', icon: 'none', duration: 3000 })
+  // #endif
+    // 首查用 600ms 短延迟：支付唤起成功后回调多在 1~2s 内到账，快探能把感知等待压到 ~1s
+    startPolling(600)
+  } finally {
+    // 发起阶段结束即释放守卫（无论：成功唤起 / 用户取消早返回 / 失败早返回 / 外部浏览器外跳），
+    // 之后的「支付中/确认中→结果」由倒计时与轮询驱动，不再依赖 submitting
+    submitting.value = false
+  }
+}
+
+// #ifdef H5
+const OA_OPENID_KEY = 'wx_oa_openid'
+
+/**
+ * 公众号网页授权取 openid（微信内 JSAPI 支付前置）：
+ * ① sessionStorage 有缓存 → 直接用（会话内一次授权多次支付）；
+ * ② URL 带授权回跳 code → 调后端兑换 openid，成功后缓存并用 replaceState 清掉 code（code 一次性，防刷新复用）；
+ * ③ 都没有 → 请求后端 oauth-url（snsapi_base 静默授权，无弹窗），整页跳转微信授权，回跳本页后重走 onLoad。
+ * 返回 ''=已发起跳转（调用方直接 return）；抛错=授权失败（调用方走外部浏览器引导兜底）。
+ */
+async function ensureOaOpenid(): Promise<string> {
+  const cached = sessionStorage.getItem(OA_OPENID_KEY)
+  if (cached) return cached
+
+  const sp = new URLSearchParams(window.location.search)
+  const code = sp.get('code')
+  if (code) {
+    try {
+      const res = await apiPost<{ openid: string }>('/auth/wechat/oa-openid', { code })
+      if (!res?.openid) throw new Error('微信授权失败，请重试')
+      sessionStorage.setItem(OA_OPENID_KEY, res.openid)
+      return res.openid
+    } finally {
+      // 无论成败都清掉 code：code 一次性，留在 URL 里刷新必报 40163(code been used)
+      sp.delete('code'); sp.delete('state')
+      const qs = sp.toString()
+      history.replaceState(null, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash)
+    }
+  }
+
+  const { url } = await apiGet<{ url: string }>(`/auth/wechat/oauth-url?redirectUri=${encodeURIComponent(window.location.href)}&scope=snsapi_base`)
+  if (!url) throw new Error('微信授权发起失败')
+  window.location.href = url
+  return ''
+}
+// #endif
+
+/** 微信内置浏览器 JSAPI 调起收银台（WeixinJSBridge.getBrandWCPayRequest） */
+function invokeWechatJsapiPay(p: { appId: string; timeStamp: string; nonceStr: string; package: string; signType: string; paySign: string }): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // #ifdef H5
+    const doInvoke = (bridge: { invoke: (api: string, params: Record<string, string>, cb: (res: { err_msg?: string }) => void) => void }) => {
+      bridge.invoke(
+        'getBrandWCPayRequest',
+        { appId: p.appId, timeStamp: p.timeStamp, nonceStr: p.nonceStr, package: p.package, signType: p.signType, paySign: p.paySign },
+        (res) => {
+          if (res?.err_msg === 'get_brand_wcpay_request:ok') resolve()
+          else if (res?.err_msg === 'get_brand_wcpay_request:cancel') reject(new Error('支付已取消'))
+          else reject(new Error(`微信支付调起失败${res?.err_msg ? `(${res.err_msg})` : ''}`))
+        },
+      )
+    }
+    const w = window as unknown as { WeixinJSBridge?: { invoke: (api: string, params: Record<string, string>, cb: (res: { err_msg?: string }) => void) => void } }
+    if (w.WeixinJSBridge) { doInvoke(w.WeixinJSBridge); return }
+    // 微信内注入 WeixinJSBridge 是异步的，页面加载早期可能未就绪 → 等 ready 事件（5s 超时兜底）
+    const timer = setTimeout(() => reject(new Error('微信支付环境未就绪，请在外部浏览器打开支付')), 5000)
+    document.addEventListener('WeixinJSBridgeReady', () => {
+      clearTimeout(timer)
+      if (w.WeixinJSBridge) doInvoke(w.WeixinJSBridge)
+      else reject(new Error('微信支付环境未就绪，请在外部浏览器打开支付'))
+    }, { once: true })
+    // #endif
+    // #ifndef H5
+    reject(new Error('非 H5 环境'))
+    // #endif
+  })
+}
+
+/**
+ * 圈子订单支付兑现（2026-07-16 接线）：圈子入圈/续费是双段模式——支付回调只把订单标 PAID，
+ * 建成员关系/顺延到期须再调 confirm（后端 paidPostProcessors 无 CIRCLE 类型，此前无任何调用方=付了钱不入圈）。
+ * 幂等：重复调用后端报「已是圈子成员」，吞掉视为已兑现；COMPLETED 订单同理。
+ */
+async function settleCircleIfNeeded(st: { type?: string; targetId?: string }) {
+  if (!st.targetId) return
+  try {
+    if (st.type === 'CIRCLE_JOIN') await apiPost(`/circles/${st.targetId}/join/confirm`, { orderId: orderId.value })
+    else if (st.type === 'CIRCLE_RENEW') await apiPost(`/circles/${st.targetId}/renew/confirm`, { orderId: orderId.value })
+  } catch (e) {
+    const msg = (e as Error)?.message || ''
+    if (!msg.includes('已是圈子成员')) console.warn('[paying] 圈子兑现确认失败（订单已支付，稍后可在圈子页重试加入）', e)
+  }
 }
 
 function startCountdown() {
   clearTimers('cd')
   cdTimer = setInterval(() => {
     if (countdown.value <= 1) {
-      status.value = 'timeout'
-      clearTimers('all')
+      countdown.value = 0
+      clearTimers('cd') // 只停倒计时，绝不停轮询
+      // 🔴命脉：倒计时归零 ≠ 支付失败。慢支付/晚 resolve 时用户其实已扣款，
+      // 此处若判 timeout 就会「已付却显示超时」。改为进入「确认支付结果中」中间态，
+      // 让 startPolling 继续查单直到查到 paid 或耗尽 maxPolls 才由轮询判真超时。
+      if (status.value === 'paying') status.value = 'confirming'
       return
     }
     countdown.value -= 1
   }, 1000)
 }
 
-function startPolling() {
-  // 真实轮询订单支付状态（读订单 status，不依赖微信查单）
+// 真实轮询支付状态：商城读 Order，充值读本人 VirtualCoinRecharge；都只认服务端 PAID，不认前端调起成功。
+// 首次由支付唤起成功后以短延迟触发；微信回调多在支付后 1~2s 到账，故前几次用 1s 短间隔快探
+// （把「支付完成→结果页」的等待从最多 3s 压到 ~1s），耗尽快探次数后退回 3s 稳态轮询。
+function startPolling(delayMs?: number) {
+  const delay = delayMs ?? (pollCount < 6 ? 1000 : 3000)
   pollTimer = setTimeout(async () => {
-    if (status.value !== 'paying') return
+    // 放行 paying 与 confirming 两态：慢支付晚 resolve、倒计时已归零进确认态时，都必须继续查单，
+    // 唯有已进 success/failed/timeout/cancelled 结果态才停（否则重复跳转/重复兑现）
+    if (status.value !== 'paying' && status.value !== 'confirming') return
     pollCount += 1
     try {
-      const st = await shopApi.getOrderPayState(orderId.value)
-      if (st.paid) {
-        status.value = 'success'
-        track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
-        clearTimers('all')
-        setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}`), 1200)
-        return
+      if (isRecharge.value) {
+        if (!rechargeOrderNo.value) throw new Error('充值订单尚未创建')
+        const st = await mineApi.getRechargePaymentStatus(rechargeOrderNo.value)
+        if (st.status === 'PAID') {
+          if (st.amountRmb != null) amount.value = String(st.amountRmb)
+          status.value = 'success'
+          track.purchase({ type: 'recharge', orderId: rechargeOrderNo.value, amount: Number(amount.value), method: 'wechat' })
+          clearTimers('all')
+          setTimeout(() => redirectTo('/pkg-mine/wallet/index'), 900)
+          return
+        }
+        if (st.status === 'FAILED' || st.status === 'REFUNDED') {
+          status.value = 'failed'
+          failReason.value = st.status === 'REFUNDED' ? '本次充值已退款' : '本次充值未完成'
+          clearTimers('all')
+          return
+        }
+      } else {
+        const st = await shopApi.getOrderPayState(orderId.value)
+        if (st.paid) {
+          await settleCircleIfNeeded(st)
+          status.value = 'success'
+          track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
+          clearTimers('all')
+          setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}`), 900)
+          return
+        }
       }
     } catch (e) {
-      console.warn('[paying] 查询订单状态失败', e)
+      console.warn('[paying] 查询支付状态失败', e)
     }
     if (pollCount >= maxPolls) {
       status.value = 'timeout'
@@ -177,7 +444,7 @@ function startPolling() {
     } else {
       startPolling()
     }
-  }, 3000)
+  }, delay)
 }
 
 function clearTimers(which: 'cd' | 'poll' | 'all') {
@@ -185,20 +452,34 @@ function clearTimers(which: 'cd' | 'poll' | 'all') {
   if ((which === 'poll' || which === 'all') && pollTimer) { clearTimeout(pollTimer); pollTimer = null }
 }
 
+function returnTarget() {
+  return isRecharge.value ? '/pkg-mine/wallet/index' : `/orders/${orderId.value}`
+}
+
 function handleCancel() {
-  if (submitting.value) return
-  submitting.value = true
+  if (cancelling) return
+  cancelling = true
   clearTimers('all')
-  navigateTo(`/shop/orders/${orderId.value}`)
-  setTimeout(() => { submitting.value = false }, 500)
+  navigateTo(returnTarget())
+  setTimeout(() => { cancelling = false }, 500)
 }
 function handleRetry() {
   if (submitting.value) return
   failReason.value = ''
+  if (isRecharge.value && rechargeOrderNo.value) {
+    // 已创建微信单时只继续查原单，绝不再建第二笔，避免用户晚付导致重复扣款。
+    status.value = 'confirming'
+    countdown.value = 180
+    pollCount = 0
+    clearTimers('all')
+    startCountdown()
+    startPolling(300)
+    return
+  }
   startPaying()
 }
 function goOrder() {
-  navigateTo(`/shop/orders/${orderId.value}`)
+  navigateTo(returnTarget())
 }
 
 onUnmounted(() => clearTimers('all'))

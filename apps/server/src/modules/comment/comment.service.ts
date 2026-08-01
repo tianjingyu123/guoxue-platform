@@ -5,7 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { CreateCommentDto, UpdateCommentDto, CommentQueryDto } from "./comment.dto";
 import { Prisma } from "@prisma/client";
 import { safePagination } from "../../common/pagination";
-import { Cacheable } from "../../common/cache.decorator";
+import { Cacheable, CacheEvict } from "../../common/cache.decorator";
 import { resolveTargets, targetKey } from "../interaction/target-resolver";
 import { AuditService } from "../audit/audit.service";
 
@@ -23,6 +23,8 @@ export class CommentService {
     private audit: AuditService,
   ) {}
 
+  // 发布评论后立刻失效该目标的列表缓存（findByTarget @Cacheable ttl15s·否则新评论要等缓存过期才可见）
+  @CacheEvict({ key: (args: any[]) => `comment:target:${args[1]?.targetType || ""}:${args[1]?.targetId || ""}:*`, pattern: true })
   async create(userId: string, dto: CreateCommentDto) {
     if (dto.parentId) {
       const parent = await this.prisma.comment.findUnique({
@@ -32,6 +34,21 @@ export class CommentService {
       if (!parent) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "父评论不存在");
       if (parent.targetType !== dto.targetType || parent.targetId !== dto.targetId) {
         throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "回复评论与目标不匹配");
+      }
+    }
+
+    // 圈子治理 #10：圈内帖子评论前查禁言（轻量直查 CircleViolation·避免跨模块依赖）
+    if (dto.targetType === "POST") {
+      const post = await this.prisma.post.findUnique({ where: { id: dto.targetId }, select: { circleId: true } });
+      if (post?.circleId) {
+        const mute = await this.prisma.circleViolation.findFirst({
+          where: { circleId: post.circleId, userId, type: "MUTE", status: "ACTIVE", expiresAt: { gt: new Date() } },
+          select: { expiresAt: true },
+        });
+        if (mute) {
+          const until = mute.expiresAt ? mute.expiresAt.toISOString().slice(0, 16).replace("T", " ") : "";
+          throw new BusinessException(ErrorCode.FORBIDDEN, `你在该圈处于禁言期${until ? `（至 ${until}）` : ""}，暂不能评论`);
+        }
       }
     }
 
@@ -173,6 +190,18 @@ export class CommentService {
     });
   }
 
+  /** 恢复显示（管理员）——与 hide 对称，置回 PUBLISHED（Comment.status 仅 PUBLISHED/HIDDEN 两态） */
+  async show(commentId: string) {
+    const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+
+    return this.prisma.comment.update({
+      where: { id: commentId },
+      data: { status: "PUBLISHED" },
+      select: { id: true, status: true },
+    });
+  }
+
   async getCommentCount(targetType: string, targetId: string) {
     return this.prisma.comment.count({
       where: { targetType, targetId, status: "PUBLISHED" },
@@ -181,11 +210,13 @@ export class CommentService {
 
   // ───────── 管理员审核 ─────────
 
-  async getModerationList(params: { status?: string; targetType?: string; page?: number; pageSize?: number }) {
-    const { status = "PUBLISHED", targetType } = params;
+  async getModerationList(params: { status?: string; targetType?: string; keyword?: string; page?: number; pageSize?: number }) {
+    const { status = "PUBLISHED", targetType, keyword } = params;
     const { skip, page, pageSize } = safePagination(params.page, params.pageSize);
     const where: Prisma.CommentWhereInput = { status };
     if (targetType) where.targetType = targetType;
+    // 评论内容关键词搜索（前端 CommentList 的 keyword 搜索接此参数即生效）
+    if (keyword?.trim()) where.content = { contains: keyword.trim(), mode: "insensitive" };
 
     const [items, total] = await Promise.all([
       this.prisma.comment.findMany({

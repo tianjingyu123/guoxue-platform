@@ -1,545 +1,322 @@
 <template>
   <view class="rd-page">
-    <!-- 顶部导航 -->
     <view class="rd-header" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="rd-header-row">
-        <view class="rd-icon-btn" @tap="goBack">
-          <app-icon name="chevron-left" :size="40" color="#2c2c2c" />
+        <view class="rd-icon-btn press" @tap="goBack">
+          <app-icon name="chevron-left" :size="40" color="#2B2620" />
         </view>
-        <text class="rd-header-title">举报处理结果</text>
+        <text class="rd-header-title">举报详情</text>
         <view class="rd-header-spacer" />
       </view>
     </view>
 
-    <view class="rd-body">
-      <!-- 处理结果状态卡片 -->
-      <view class="rd-result-card" :class="isProcessed ? 'rd-result-success' : 'rd-result-neutral'">
-        <view class="rd-result-icon" :class="isProcessed ? 'rd-result-icon-success' : 'rd-result-icon-neutral'">
-          <app-icon :name="isProcessed ? 'check' : 'info'" :size="64" :color="isProcessed ? '#22C55E' : '#999999'" />
-        </view>
-        <text class="rd-result-title" :class="isProcessed ? 'rd-result-title-success' : 'rd-result-title-neutral'">{{ report.resultTitle }}</text>
-        <text class="rd-result-time">处理时间：{{ report.processTime }}</text>
-      </view>
+    <view v-if="loading" class="rd-state">
+      <view class="rd-spinner" />
+      <text class="rd-state-title">正在读取处理进度</text>
+      <text class="rd-state-desc">请稍候</text>
+    </view>
 
-      <!-- 被举报对象摘要 -->
-      <view class="rd-card">
-        <view class="rd-card-title-row">
-          <app-icon name="alert-triangle" :size="32" color="#f59e0b" />
-          <text class="rd-card-title">被举报对象</text>
-        </view>
-        <view class="rd-target">
-          <!-- 用户 -->
-          <template v-if="report.targetType === 'user'">
-            <view class="rd-avatar">
-              <text class="rd-avatar-letter">{{ report.target.nickname[0] }}</text>
-            </view>
-            <view class="rd-target-main">
-              <text class="rd-badge rd-badge-blue">用户</text>
-              <text class="rd-target-name">{{ report.target.nickname }}</text>
-            </view>
-          </template>
-          <!-- 帖子/评论 -->
-          <template v-else>
-            <view class="rd-target-thumb">
-              <app-icon :name="report.targetType === 'post' ? 'file-text' : 'user'" :size="36" color="#999999" />
-            </view>
-            <view class="rd-target-main">
-              <text class="rd-badge rd-badge-primary">{{ report.targetType === 'post' ? '帖子' : '评论' }}</text>
-              <text v-if="report.target.title" class="rd-target-title">{{ report.target.title }}</text>
-              <text class="rd-target-content">{{ report.target.content }}</text>
-              <text class="rd-target-author">发布者：{{ report.target.nickname }}</text>
-            </view>
-          </template>
-        </view>
+    <view v-else-if="loadError || !report" class="rd-state">
+      <view class="rd-state-icon">
+        <app-icon name="alert-triangle" :size="52" color="#B4884A" />
       </view>
-
-      <!-- 举报信息 -->
-      <view class="rd-card">
-        <text class="rd-card-title rd-mb">举报信息</text>
-        <view class="rd-info-row rd-info-border">
-          <text class="rd-info-key">举报编号</text>
-          <text class="rd-info-val rd-mono">{{ report.id }}</text>
-        </view>
-        <view class="rd-info-row rd-info-border">
-          <text class="rd-info-key">举报类型</text>
-          <text class="rd-info-tag">{{ report.reportType }}</text>
-        </view>
-        <view class="rd-info-row">
-          <text class="rd-info-key">举报时间</text>
-          <text class="rd-info-val">{{ report.reportTime }}</text>
-        </view>
+      <text class="rd-state-title">{{ reportId ? '未找到该举报记录' : '举报编号缺失' }}</text>
+      <text class="rd-state-desc">{{ loadError || '请从“我的举报”进入详情' }}</text>
+      <view v-if="reportId" class="rd-state-btn press" @tap="loadDetail">
+        <text class="rd-state-btn-text">重新加载</text>
       </view>
-
-      <!-- 处理说明 -->
-      <view class="rd-card">
-        <view class="rd-card-title-row">
-          <app-icon name="shield" :size="32" color="#C41E3A" />
-          <text class="rd-card-title">处理说明</text>
-        </view>
-        <text class="rd-desc">{{ report.resultDescription }}</text>
-        <view v-if="report.punishment" class="rd-punish">
-          <text class="rd-punish-label">处罚措施</text>
-          <text class="rd-punish-text">{{ report.punishment }}</text>
-        </view>
-      </view>
-
-      <!-- 内容规范入口 -->
-      <view class="rd-card rd-rules" @tap="goRules">
-        <view class="rd-rules-left">
-          <view class="rd-rules-icon">
-            <app-icon name="help-circle" :size="40" color="#C41E3A" />
-          </view>
-          <view>
-            <text class="rd-rules-title">查看平台内容规范</text>
-            <text class="rd-rules-sub">了解什么是违规内容</text>
-          </view>
-        </view>
-        <app-icon name="chevron-right" :size="36" color="#cccccc" />
-      </view>
-
-      <!-- 反馈提示 -->
-      <view class="rd-feedback">
-        <text class="rd-feedback-text">如对处理结果有异议，可<text class="rd-link" @tap="goHelp">联系客服</text>进一步反馈</text>
+      <view class="rd-state-link press" @tap="goList">
+        <text class="rd-state-link-text">返回我的举报</text>
       </view>
     </view>
 
-    <!-- 底部操作栏 -->
-    <view class="rd-footer">
-      <view class="rd-home-btn" @tap="goHome">
-        <app-icon name="home" :size="32" color="#ffffff" />
-        <text class="rd-home-text">返回首页</text>
+    <scroll-view v-else scroll-y class="rd-scroll">
+      <view class="rd-body">
+        <view class="rd-result-card" :class="'rd-result-' + uiStatus">
+          <view class="rd-result-icon" :class="'rd-result-icon-' + uiStatus">
+            <app-icon :name="statusIcon" :size="58" :color="statusColor" />
+          </view>
+          <text class="rd-result-title">{{ resultTitle }}</text>
+          <text class="rd-result-sub">{{ resultSubtitle }}</text>
+        </view>
+
+        <view class="rd-progress">
+          <view class="rd-progress-item done">
+            <view class="rd-progress-dot"><app-icon name="check" :size="22" color="#FFFFFF" /></view>
+            <view class="rd-progress-copy">
+              <text class="rd-progress-title">举报已提交</text>
+              <text class="rd-progress-time">{{ formatTime(report.createdAt) }}</text>
+            </view>
+          </view>
+          <view class="rd-progress-line" :class="{ done: uiStatus !== 'pending' }" />
+          <view class="rd-progress-item" :class="{ done: uiStatus !== 'pending' }">
+            <view class="rd-progress-dot">
+              <app-icon :name="uiStatus === 'pending' ? 'clock' : 'check'" :size="22" :color="uiStatus === 'pending' ? '#A67A38' : '#FFFFFF'" />
+            </view>
+            <view class="rd-progress-copy">
+              <text class="rd-progress-title">{{ uiStatus === 'pending' ? '平台核查中' : '核查已完成' }}</text>
+              <text class="rd-progress-time">{{ report.processedAt ? formatTime(report.processedAt) : '请耐心等待' }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="rd-card">
+          <view class="rd-card-head">
+            <view class="rd-card-icon">
+              <app-icon :name="targetIcon" :size="30" color="#8A6A3C" />
+            </view>
+            <view class="rd-card-copy">
+              <text class="rd-card-title">已举报的{{ targetLabel }}</text>
+              <text class="rd-card-sub">对象编号 {{ shortId(report.targetId) }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="rd-card">
+          <text class="rd-section-title">举报信息</text>
+          <view class="rd-info-row">
+            <text class="rd-info-key">举报编号</text>
+            <text class="rd-info-val rd-mono">{{ shortId(report.id) }}</text>
+          </view>
+          <view class="rd-info-row">
+            <text class="rd-info-key">问题类型</text>
+            <text class="rd-info-tag">{{ reasonInfo.category }}</text>
+          </view>
+          <view class="rd-reason">
+            <text class="rd-info-key">补充说明</text>
+            <text class="rd-reason-text">{{ reasonInfo.detail }}</text>
+          </view>
+        </view>
+
+        <view class="rd-card">
+          <view class="rd-section-head">
+            <text class="rd-section-title">{{ uiStatus === 'pending' ? '核查说明' : '处理说明' }}</text>
+            <view class="rd-mini-status" :class="'rd-mini-' + uiStatus">
+              <text class="rd-mini-text">{{ statusText }}</text>
+            </view>
+          </view>
+          <text class="rd-result-description">{{ resultDescription }}</text>
+          <view v-if="uiStatus === 'pending'" class="rd-processing-note">
+            <app-icon name="info" :size="26" color="#9A7A48" />
+            <text class="rd-processing-text">一般会在 1—3 个工作日内完成核查，结果更新后会发送站内信。</text>
+          </view>
+        </view>
+
+        <view class="rd-card rd-link-card press" @tap="goRules">
+          <view class="rd-link-icon">
+            <app-icon name="shield-check" :size="34" color="#9A6F34" />
+          </view>
+          <view class="rd-link-copy">
+            <text class="rd-link-title">平台内容规范</text>
+            <text class="rd-link-sub">了解平台如何判定与处置违规内容</text>
+          </view>
+          <app-icon name="chevron-right" :size="30" color="#BDB4A7" />
+        </view>
+
+        <view class="rd-feedback">
+          <text class="rd-feedback-text">对处理结果有疑问？</text>
+          <text class="rd-feedback-link press" @tap="goHelp">联系平台客服复核</text>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view v-if="report && !loading" class="rd-footer">
+      <view class="rd-footer-btn press" @tap="goList">
+        <text class="rd-footer-text">返回我的举报</text>
       </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { navigateBack, navigateTo } from '@/utils/router'
+import { reportApi, type ReportRecord } from '@/lib/report-data'
 
+type UiStatus = 'pending' | 'processed' | 'dismissed'
+
+const props = defineProps<{ id?: string }>()
+const reportId = computed(() => String(props.id || '').trim())
 const statusBarHeight = ref(0)
 try {
   statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0
-} catch (e) {
+} catch {
   statusBarHeight.value = 0
 }
 
-// 被举报对象（用户无 title/content，帖子/评论有）
-interface ReportResultTarget {
-  title?: string
-  content?: string
-  nickname: string
-}
-// 举报处理结果详情（对应下方内联 mock 的元素结构）
-interface ReportResult {
-  id: string
-  targetType: string
-  target: ReportResultTarget
-  reportType: string
-  reportTime: string
-  result: string
-  resultTitle: string
-  resultDescription: string
-  processTime: string
-  punishment?: string // 处罚措施（仅成立时有）
+const loading = ref(true)
+const loadError = ref('')
+const report = ref<ReportRecord | null>(null)
+
+const TARGET_META: Record<string, { label: string; icon: string }> = {
+  POST: { label: '动态', icon: 'file-text' },
+  ARTICLE: { label: '文章', icon: 'file-text' },
+  COMMENT: { label: '评论', icon: 'message-circle' },
+  CIRCLE: { label: '圈子', icon: 'users' },
+  USER: { label: '用户', icon: 'user' },
+  COURSE: { label: '课程', icon: 'book-open' },
+  PRODUCT: { label: '商品', icon: 'shopping-bag' },
+  LIVE: { label: '直播', icon: 'radio' },
+  VIDEO: { label: '短视频', icon: 'video' },
 }
 
-const reportResults: Record<string, ReportResult> = {
-  '1': {
-    id: 'R202401150001',
-    targetType: 'post',
-    target: {
-      title: '这个八字太神奇了，大家来看看',
-      content: '昨天遇到一个案例，真的是让我大开眼界...',
-      nickname: '算命先生',
-    },
-    reportType: '虚假宣传/欺诈',
-    reportTime: '2024-01-15 10:30',
-    result: 'processed',
-    resultTitle: '举报成立，已处理',
-    resultDescription: '经核实，该内容存在虚假宣传行为，已对相关内容进行下架处理，并对发布者进行警告处分。感谢你的举报，你的反馈有助于维护平台健康环境。',
-    processTime: '2024-01-16 14:22',
-    punishment: '内容下架 + 账号警告',
-  },
-  '2': {
-    id: 'R202401160002',
-    targetType: 'user',
-    target: { nickname: '神棍大师' },
-    reportType: '人身攻击/骚扰',
-    reportTime: '2024-01-16 15:45',
-    result: 'rejected',
-    resultTitle: '举报不成立',
-    resultDescription: '经平台审核，被举报用户的行为未违反平台社区规范。如有其他问题，建议你直接使用拉黑功能屏蔽该用户。如有异议，可联系客服进一步反馈。',
-    processTime: '2024-01-17 09:15',
-  },
-  '3': {
-    id: 'R202401170003',
-    targetType: 'comment',
-    target: {
-      content: '你这个分析完全是胡说八道，一点都不专业...',
-      nickname: '路人甲',
-    },
-    reportType: '人身攻击/骚扰',
-    reportTime: '2024-01-17 08:20',
-    result: 'processed',
-    resultTitle: '举报成立，已处理',
-    resultDescription: '经核实，该评论内容含有攻击性言论，已删除相关评论并对发布者进行禁言3天处理。感谢你对社区环境的维护。',
-    processTime: '2024-01-17 16:40',
-    punishment: '评论删除 + 禁言3天',
-  },
+const uiStatus = computed<UiStatus>(() => {
+  const status = String(report.value?.status || '').toUpperCase()
+  if (status === 'DISMISSED' || String(report.value?.result || '').startsWith('DISMISS')) return 'dismissed'
+  if (status === 'PROCESSED') return 'processed'
+  return 'pending'
+})
+
+const targetMeta = computed(() => TARGET_META[String(report.value?.targetType || '').toUpperCase()] || { label: '内容', icon: 'alert-circle' })
+const targetLabel = computed(() => targetMeta.value.label)
+const targetIcon = computed(() => targetMeta.value.icon)
+const statusIcon = computed(() => uiStatus.value === 'pending' ? 'clock' : uiStatus.value === 'dismissed' ? 'info' : 'shield-check')
+const statusColor = computed(() => uiStatus.value === 'pending' ? '#A67A38' : uiStatus.value === 'dismissed' ? '#777066' : '#2F855A')
+const statusText = computed(() => uiStatus.value === 'pending' ? '核查中' : uiStatus.value === 'dismissed' ? '未发现违规' : '已处理')
+const resultTitle = computed(() => uiStatus.value === 'pending' ? '平台正在核查' : uiStatus.value === 'dismissed' ? '暂未发现违规' : '举报已处理')
+const resultSubtitle = computed(() => uiStatus.value === 'pending' ? '已进入平台治理队列' : `完成于 ${formatTime(report.value?.processedAt || '')}`)
+
+const reasonInfo = computed(() => {
+  const raw = String(report.value?.reason || '').trim()
+  const match = raw.match(/^【([^】]+)】/)
+  let detail = raw.replace(/^【[^】]+】/, '').trim()
+  detail = detail.split(/\n\[凭证\]/)[0].trim()
+  return { category: match?.[1] || '其他问题', detail: detail || '未填写补充说明' }
+})
+
+const resultDescription = computed(() => {
+  if (uiStatus.value === 'pending') return '平台已收到你的举报，正在结合内容、上下文和相关证据进行核查。'
+  const raw = String(report.value?.result || '').trim()
+  const actionMap: Record<string, string> = {
+    DELETE_CONTENT: '经核查内容存在违规，平台已将相关内容下架。',
+    BAN_USER: '经核查存在严重违规，平台已对相关账号采取处置措施。',
+    WARN_USER: '平台已提醒相关用户整改，并将持续关注后续行为。',
+    DISMISS: '经核查，现有信息暂不足以认定违规。',
+  }
+  for (const [action, fallback] of Object.entries(actionMap)) {
+    if (raw === action) return fallback
+    if (raw.startsWith(`${action}:`)) return raw.slice(action.length + 1).trim() || fallback
+  }
+  if (raw) return raw
+  return uiStatus.value === 'dismissed' ? '经核查，现有信息暂不足以认定违规。' : '平台已完成核查与处理。'
+})
+
+function formatTime(value: string) {
+  const d = new Date(value)
+  if (!value || Number.isNaN(d.getTime())) return '时间未知'
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-const reportId = ref('1')
-try {
-  const pages = getCurrentPages()
-  // uni-app Page 类型未声明 options/$page，保留 any 以兼容多端取参
-  const cur: any = pages[pages.length - 1]
-  const opt = cur?.options || cur?.$page?.options || {}
-  if (opt.id) reportId.value = String(opt.id)
-} catch (e) {}
+function shortId(id: string) {
+  const value = String(id || '')
+  return value.length > 12 ? `${value.slice(0, 12)}…` : value
+}
 
-const report = computed(() => reportResults[reportId.value] || reportResults['1'])
-const isProcessed = computed(() => report.value.result === 'processed')
+async function loadDetail() {
+  if (!reportId.value) {
+    loading.value = false
+    loadError.value = '举报编号缺失，请从“我的举报”重新进入'
+    return
+  }
+  loading.value = true
+  loadError.value = ''
+  try {
+    report.value = await reportApi.detail(reportId.value)
+  } catch (e) {
+    report.value = null
+    loadError.value = (e as Error)?.message || '记录可能不存在，或你无权查看'
+  } finally {
+    loading.value = false
+  }
+}
 
 function goRules() {
   navigateTo('/content/community-rules')
 }
+
 function goHelp() {
   navigateTo('/help')
 }
-function goHome() {
-  navigateTo('/')
+
+function goList() {
+  navigateTo('/report/result')
 }
+
 function goBack() {
   navigateBack()
 }
+
+onMounted(loadDetail)
 </script>
 
 <style scoped>
-.rd-page {
-  min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 160rpx;
-}
-
-/* Header */
-.rd-header {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  background: rgba(255, 255, 255, 0.95);
-  border-bottom: 2rpx solid #ececec;
-}
-.rd-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24rpx;
-  height: 88rpx;
-}
-.rd-icon-btn {
-  width: 64rpx;
-  height: 64rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.rd-header-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #2c2c2c;
-}
-.rd-header-spacer {
-  width: 64rpx;
-}
-
-.rd-body {
-  padding: 24rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 24rpx;
-}
-
-/* 结果卡片 */
-.rd-result-card {
-  border-radius: 20rpx;
-  padding: 48rpx;
-  text-align: center;
-  border: 2rpx solid;
-}
-.rd-result-success {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.02));
-  border-color: rgba(34, 197, 94, 0.2);
-}
-.rd-result-neutral {
-  background: linear-gradient(135deg, rgba(0, 0, 0, 0.04), transparent);
-  border-color: #ececec;
-}
-.rd-result-icon {
-  width: 128rpx;
-  height: 128rpx;
-  border-radius: 50%;
-  margin: 0 auto 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.rd-result-icon-success {
-  background: rgba(34, 197, 94, 0.2);
-}
-.rd-result-icon-neutral {
-  background: #eee;
-}
-.rd-result-title {
-  display: block;
-  font-size: 34rpx;
-  font-weight: 700;
-}
-.rd-result-title-success {
-  color: #16a34a;
-}
-.rd-result-title-neutral {
-  color: #999;
-}
-.rd-result-time {
-  display: block;
-  font-size: 22rpx;
-  color: #aaa;
-  margin-top: 8rpx;
-}
-
-/* 卡片 */
-.rd-card {
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 28rpx;
-}
-.rd-card-title-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  margin-bottom: 20rpx;
-}
-.rd-card-title {
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.rd-mb {
-  display: block;
-  margin-bottom: 20rpx;
-}
-
-/* 被举报对象 */
-.rd-target {
-  display: flex;
-  align-items: flex-start;
-  gap: 24rpx;
-  padding: 24rpx;
-  background: rgba(245, 240, 232, 0.5);
-  border-radius: 16rpx;
-}
-.rd-avatar {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 50%;
-  background: rgba(196, 30, 58, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.rd-avatar-letter {
-  font-size: 36rpx;
-  color: var(--brand);
-}
-.rd-target-thumb {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 16rpx;
-  background: #eee;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.rd-target-main {
-  flex: 1;
-  min-width: 0;
-}
-.rd-badge {
-  display: inline-block;
-  font-size: 20rpx;
-  padding: 2rpx 12rpx;
-  border-radius: 8rpx;
-  border: 2rpx solid;
-  margin-bottom: 8rpx;
-}
-.rd-badge-blue {
-  border-color: rgba(59, 130, 246, 0.3);
-  color: #3b82f6;
-}
-.rd-badge-primary {
-  border-color: rgba(196, 30, 58, 0.3);
-  color: var(--brand);
-}
-.rd-target-name {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.rd-target-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.rd-target-content {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-size: 24rpx;
-  color: #888;
-  margin-top: 4rpx;
-  line-height: 1.4;
-}
-.rd-target-author {
-  display: block;
-  font-size: 22rpx;
-  color: #aaa;
-  margin-top: 8rpx;
-}
-
-/* 举报信息 */
-.rd-info-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16rpx 0;
-}
-.rd-info-border {
-  border-bottom: 2rpx solid rgba(236, 236, 236, 0.5);
-}
-.rd-info-key {
-  font-size: 26rpx;
-  color: #888;
-}
-.rd-info-val {
-  font-size: 26rpx;
-  color: #2c2c2c;
-}
-.rd-mono {
-  font-family: monospace;
-}
-.rd-info-tag {
-  font-size: 22rpx;
-  padding: 4rpx 16rpx;
-  border-radius: 8rpx;
-  background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
-}
-
-/* 处理说明 */
-.rd-desc {
-  display: block;
-  font-size: 28rpx;
-  color: #666;
-  line-height: 1.6;
-}
-.rd-punish {
-  margin-top: 24rpx;
-  padding: 24rpx;
-  background: rgba(34, 197, 94, 0.1);
-  border: 2rpx solid rgba(34, 197, 94, 0.2);
-  border-radius: 16rpx;
-}
-.rd-punish-label {
-  display: block;
-  font-size: 22rpx;
-  color: #888;
-  margin-bottom: 4rpx;
-}
-.rd-punish-text {
-  display: block;
-  font-size: 28rpx;
-  color: #16a34a;
-  font-weight: 500;
-}
-
-/* 规范入口 */
-.rd-rules {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.rd-rules-left {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-}
-.rd-rules-icon {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  background: rgba(196, 30, 58, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.rd-rules-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 500;
-  color: #2c2c2c;
-}
-.rd-rules-sub {
-  display: block;
-  font-size: 24rpx;
-  color: #888;
-  margin-top: 4rpx;
-}
-
-/* 反馈 */
-.rd-feedback {
-  text-align: center;
-  padding: 24rpx 0;
-}
-.rd-feedback-text {
-  font-size: 22rpx;
-  color: #aaa;
-}
-.rd-link {
-  color: var(--brand);
-}
-
-/* 底部 */
-.rd-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: rgba(255, 255, 255, 0.95);
-  border-top: 2rpx solid #ececec;
-  padding: 24rpx;
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-}
-.rd-home-btn {
-  height: 88rpx;
-  background: var(--brand);
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-}
-.rd-home-text {
-  font-size: 30rpx;
-  font-weight: 500;
-  color: #fff;
-}
+.rd-page { min-height: 100vh; background: #FAF8F5; color: #2B2620; padding-bottom: calc(126rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.rd-header { position: sticky; top: 0; z-index: 30; background: rgba(250,248,245,.96); backdrop-filter: blur(18px); border-bottom: 1rpx solid rgba(99,77,49,.08); }
+.rd-header-row { height: 96rpx; display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; }
+.rd-icon-btn, .rd-header-spacer { width: 68rpx; height: 68rpx; display: flex; align-items: center; justify-content: center; }
+.rd-header-title { font-family: var(--font-serif); font-size: 32rpx; font-weight: 700; }
+.rd-scroll { height: calc(100vh - 96rpx - 126rpx); }
+.rd-body { padding: 28rpx 28rpx 44rpx; }
+.rd-result-card { padding: 38rpx 30rpx; text-align: center; border-radius: 26rpx; border: 1rpx solid transparent; }
+.rd-result-pending { background: linear-gradient(145deg,#FFF9E9,#FFF3D2); border-color: #F2D99A; }
+.rd-result-processed { background: linear-gradient(145deg,#F0FAF4,#E3F4EA); border-color: #B9DEC7; }
+.rd-result-dismissed { background: linear-gradient(145deg,#F7F6F3,#EFEEE9); border-color: #DDD9D1; }
+.rd-result-icon { width: 104rpx; height: 104rpx; margin: 0 auto; display: flex; align-items: center; justify-content: center; border-radius: 34rpx; }
+.rd-result-icon-pending { background: rgba(166,122,56,.12); }
+.rd-result-icon-processed { background: rgba(47,133,90,.12); }
+.rd-result-icon-dismissed { background: rgba(119,112,102,.10); }
+.rd-result-title { display: block; margin-top: 24rpx; font-size: 34rpx; font-weight: 700; }
+.rd-result-sub { display: block; margin-top: 9rpx; font-size: 23rpx; color: #81786D; }
+.rd-progress { margin: 22rpx 0; padding: 24rpx 26rpx; background: #FFF; border-radius: 22rpx; border: 1rpx solid rgba(93,71,43,.08); }
+.rd-progress-item { display: flex; align-items: center; gap: 18rpx; }
+.rd-progress-dot { width: 42rpx; height: 42rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%; background: #F3E8D5; border: 2rpx solid #D8B879; box-sizing: border-box; }
+.rd-progress-item.done .rd-progress-dot { background: #B4884A; border-color: #B4884A; }
+.rd-progress-line { width: 3rpx; height: 32rpx; margin: 3rpx 0 3rpx 19rpx; background: #E8DFD2; }
+.rd-progress-line.done { background: #B4884A; }
+.rd-progress-copy { flex: 1; }
+.rd-progress-title { display: block; font-size: 25rpx; font-weight: 600; }
+.rd-progress-time { display: block; margin-top: 4rpx; font-size: 21rpx; color: #A1988C; }
+.rd-card { margin-top: 18rpx; padding: 26rpx; background: #FFF; border-radius: 22rpx; border: 1rpx solid rgba(93,71,43,.08); box-shadow: 0 4rpx 18rpx rgba(76,58,35,.04); }
+.rd-card-head { display: flex; align-items: center; gap: 18rpx; }
+.rd-card-icon, .rd-link-icon { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 18rpx; background: #F6EFE3; }
+.rd-card-copy, .rd-link-copy { flex: 1; min-width: 0; }
+.rd-card-title, .rd-link-title { display: block; font-size: 27rpx; font-weight: 650; }
+.rd-card-sub, .rd-link-sub { display: block; margin-top: 6rpx; font-size: 21rpx; color: #A1988C; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-section-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.rd-section-title { display: block; font-size: 28rpx; font-weight: 700; }
+.rd-info-row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; padding: 22rpx 0; border-bottom: 1rpx solid #F0EBE3; }
+.rd-info-key { font-size: 23rpx; color: #8A8277; }
+.rd-info-val { max-width: 68%; font-size: 23rpx; color: #3D3832; text-align: right; }
+.rd-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.rd-info-tag { padding: 7rpx 15rpx; border-radius: 999rpx; background: #F5ECDE; font-size: 21rpx; color: #8A6533; }
+.rd-reason { padding-top: 22rpx; }
+.rd-reason-text { display: block; margin-top: 12rpx; font-size: 25rpx; line-height: 1.65; color: #504A42; word-break: break-word; }
+.rd-mini-status { padding: 6rpx 14rpx; border-radius: 999rpx; }
+.rd-mini-pending { background: #FFF4D8; }
+.rd-mini-processed { background: #E8F6EE; }
+.rd-mini-dismissed { background: #EFEEEA; }
+.rd-mini-text { font-size: 20rpx; color: #806536; }
+.rd-result-description { display: block; margin-top: 20rpx; font-size: 25rpx; line-height: 1.72; color: #4F4941; }
+.rd-processing-note { display: flex; align-items: flex-start; gap: 10rpx; margin-top: 20rpx; padding: 18rpx; border-radius: 16rpx; background: #FBF6EC; }
+.rd-processing-text { flex: 1; font-size: 21rpx; line-height: 1.55; color: #81725D; }
+.rd-link-card { display: flex; align-items: center; gap: 16rpx; }
+.rd-feedback { display: flex; justify-content: center; gap: 8rpx; padding: 32rpx 0 10rpx; }
+.rd-feedback-text, .rd-feedback-link { font-size: 22rpx; }
+.rd-feedback-text { color: #A1988C; }
+.rd-feedback-link { color: #9A6F34; font-weight: 600; }
+.rd-footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; padding: 18rpx 28rpx calc(18rpx + env(safe-area-inset-bottom)); background: rgba(250,248,245,.96); border-top: 1rpx solid rgba(99,77,49,.08); backdrop-filter: blur(18px); }
+.rd-footer-btn { height: 84rpx; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: #2B2620; box-shadow: 0 8rpx 20rpx rgba(43,38,32,.16); }
+.rd-footer-text { font-size: 28rpx; font-weight: 650; color: #FFF; }
+.rd-state { min-height: 720rpx; padding: 80rpx 64rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.rd-state-icon { width: 116rpx; height: 116rpx; display: flex; align-items: center; justify-content: center; border-radius: 34rpx; background: #F5ECDE; }
+.rd-state-title { margin-top: 28rpx; font-size: 30rpx; font-weight: 650; }
+.rd-state-desc { margin-top: 12rpx; font-size: 24rpx; line-height: 1.6; color: #9C9387; }
+.rd-state-btn { margin-top: 28rpx; padding: 16rpx 36rpx; border-radius: 999rpx; background: #2B2620; }
+.rd-state-btn-text { font-size: 25rpx; color: #FFF; }
+.rd-state-link { padding: 24rpx 30rpx; }
+.rd-state-link-text { font-size: 24rpx; color: #9A6F34; }
+.rd-spinner { width: 50rpx; height: 50rpx; border: 5rpx solid #E6DCCB; border-top-color: #B4884A; border-radius: 50%; animation: spin .85s linear infinite; }
+.press:active { opacity: .72; transform: scale(.985); }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

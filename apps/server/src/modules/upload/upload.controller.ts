@@ -114,6 +114,31 @@ export class UploadController {
     return this.uploadService.upload(file);
   }
 
+  @Post("file")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "上传文档附件（PDF/Word/Excel/PPT/TXT/ZIP，最大50MB·帖子文件卡用）" })
+  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 400, description: "参数校验失败" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: memoryStorage(),
+      limits: { fileSize: 50 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        // 白名单精确校验在 service（MIME+魔数），此处先拦明显的可执行/标记类型
+        if (/html|svg|javascript|xhtml/i.test(file.mimetype)) {
+          cb(new BadRequestException("不支持的文件类型"), false);
+        } else {
+          cb(null, true);
+        }
+      },
+    }),
+  )
+  async uploadDocument(@UploadedFile() file: Express.Multer.File) {
+    this.uploadService.validateDocument(file);
+    return this.uploadService.upload(file);
+  }
+
   @Delete(":key")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")

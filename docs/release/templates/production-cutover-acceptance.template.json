@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "releaseId": "替换为固定发布标识",
+  "confirmation": "approve:替换为固定发布标识",
+  "changeTicket": "替换为变更单号",
+  "completedAt": "替换为 ISO-8601 时间",
+  "approvers": {
+    "technical": {
+      "name": "替换为技术负责人姓名",
+      "role": "技术负责人",
+      "approvedAt": "替换为 ISO-8601 时间"
+    },
+    "business": {
+      "name": "替换为业务负责人姓名",
+      "role": "业务负责人",
+      "approvedAt": "替换为 ISO-8601 时间"
+    }
+  },
+  "checks": [
+    {
+      "id": "environment_credentials",
+      "status": "PENDING",
+      "completedAt": "替换为 ISO-8601 时间",
+      "evidence": []
+    },
+    {
+      "id": "database_reconciliation",
+      "status": "PENDING",
+      "completedAt": "替换为 ISO-8601 时间",
+      "evidence": []
+    },
+    {
+      "id": "payment_refund",
+      "status": "PENDING",
+      "completedAt": "替换为 ISO-8601 时间",
+      "evidence": []
+    },
+    {
+      "id": "core_clients",
+      "status": "PENDING",
+      "completedAt": "替换为 ISO-8601 时间",
+      "evidence": []
+    },
+    {
+      "id": "harmony_client",
+      "status": "PENDING",
+      "completedAt": "替换为 ISO-8601 时间",
+      "evidence": []
+    },
+    {
+      "id": "client_artifacts",
+      "status": "PENDING",
+      "completedAt": "替换为 ISO-8601 时间",
+      "evidence": []
+    },
+    {
+      "id": "monitoring_backup_restore",
+      "status": "PENDING",
+      "completedAt": "替换为 ISO-8601 时间",
+      "evidence": []
+    },
+    {
+      "id": "dns_rollback",
+      "status": "PENDING",
+      "completedAt": "替换为 ISO-8601 时间",
+      "evidence": []
+    },
+    {
+      "id": "legal_privacy_support",
+      "status": "PENDING",
+      "completedAt": "替换为 ISO-8601 时间",
+      "evidence": []
+    }
+  ]
+}

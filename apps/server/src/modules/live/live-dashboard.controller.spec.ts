@@ -54,7 +54,7 @@ describe("LiveDashboardController", () => {
     mockDashboardSvc.getOverview.mockResolvedValue({ online: 150, peak: 300, gmv: 5000 });
     const result: any = await ctrl.getOverview("room1", mockReq);
     expect(result.online).toBe(150);
-    expect(mockDashboardSvc.getOverview).toHaveBeenCalledWith("room1", "h1");
+    expect(mockDashboardSvc.getOverview).toHaveBeenCalledWith("room1", "h1", false);
   });
 
   it("实时趋势", async () => {
@@ -91,7 +91,7 @@ describe("LiveDashboardController", () => {
     mockReportSvc.getReport.mockResolvedValue({ summary: { gmv: 5000 } });
     const result: any = await ctrl.getReport("room1", mockReq);
     expect(result.summary.gmv).toBe(5000);
-    expect(mockReportSvc.getReport).toHaveBeenCalledWith("room1", "h1");
+    expect(mockReportSvc.getReport).toHaveBeenCalledWith("room1", "h1", false);
   });
 
   it("直播对比", async () => {
@@ -99,7 +99,7 @@ describe("LiveDashboardController", () => {
     const result: any = await ctrl.getCompare("room1", mockReq);
     expect(result.current.gmv).toBe(5000);
     expect(result.previous.gmv).toBe(3000);
-    expect(mockReportSvc.getCompare).toHaveBeenCalledWith("room1", "h1");
+    expect(mockReportSvc.getCompare).toHaveBeenCalledWith("room1", "h1", false);
   });
 
   it("导出直播报告JSON", async () => {

@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
-import { createSign, createVerify, randomUUID, createDecipheriv } from "crypto";
-import { readFileSync } from "fs";
+import { createSign, createVerify, randomUUID, createDecipheriv, publicEncrypt, constants } from "crypto";
+import { readFileSync, existsSync } from "fs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
@@ -12,11 +12,6 @@ import { MetricsService } from "../../common/metrics.service";
 @Injectable()
 export class WechatPayService {
   private readonly logger = new Logger(WechatPayService.name);
-  private readonly mchId: string;
-  private readonly serialNo: string;
-  private readonly privateKey: string;
-  private readonly apiV3Key: string;
-  private readonly appId: string;
   private readonly baseUrl = "https://api.mch.weixin.qq.com";
   // 平台证书序列号 → { pem, expireAt }
   private platformCerts: Map<string, { pem: string; expireAt: number }> = new Map();
@@ -24,24 +19,40 @@ export class WechatPayService {
   constructor(
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
   ) {
-    this.mchId = process.env.WECHAT_PAY_MCH_ID || "";
-    this.serialNo = process.env.WECHAT_PAY_SERIAL_NO || "";
-    this.apiV3Key = process.env.WECHAT_PAY_API_V3_KEY || "";
-    // AppID 回退链：支付专用 → 小程序 → 开放平台（微信支付必须携带与商户号绑定的 AppID）
-    this.appId = process.env.WECHAT_PAY_APP_ID || process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "";
-
-    // 私钥可以从文件路径读取或直接环境变量
-    const keyPath = process.env.WECHAT_PAY_PRIVATE_KEY_PATH || "";
-    const keyContent = process.env.WECHAT_PAY_PRIVATE_KEY || "";
-    if (keyPath) {
-      this.privateKey = readFileSync(keyPath, "utf-8");
-    } else {
-      this.privateKey = keyContent.replace(/\\n/g, "\n");
-    }
-
     if (!this.mchId || !this.privateKey) {
       this.logger.warn("微信支付未配置，请在 .env 中设置 WECHAT_PAY_* 相关变量");
     }
+  }
+
+  // 后台第三方配置保存后会同步到当前实例的 process.env。这里不能在构造阶段缓存，
+  // 否则连处理保存请求的实例也会继续使用旧商户号/密钥；其他实例仍需滚动重启同步。
+  private get mchId(): string {
+    return process.env.WECHAT_PAY_MCH_ID || "";
+  }
+
+  private get serialNo(): string {
+    return process.env.WECHAT_PAY_SERIAL_NO || "";
+  }
+
+  private get apiV3Key(): string {
+    return process.env.WECHAT_PAY_API_V3_KEY || "";
+  }
+
+  private get appId(): string {
+    return process.env.WECHAT_PAY_APP_ID || process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "";
+  }
+
+  private get privateKey(): string {
+    const keyPath = process.env.WECHAT_PAY_PRIVATE_KEY_PATH || "";
+    if (keyPath) return readFileSync(keyPath, "utf-8");
+    return (process.env.WECHAT_PAY_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+  }
+
+  private callbackUrl(envKey: "WECHAT_PAY_NOTIFY_URL" | "WECHAT_PAY_REFUND_NOTIFY_URL", path: string): string {
+    const configured = process.env[envKey]?.trim();
+    if (configured) return configured;
+    const publicApiUrl = (process.env.PUBLIC_API_URL || process.env.API_BASE_URL || "").replace(/\/+$/, "");
+    return publicApiUrl ? `${publicApiUrl}${path}` : "";
   }
 
   /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */
@@ -65,11 +76,16 @@ export class WechatPayService {
     return { authorization, timestamp, nonce };
   }
 
-  /** 调用微信支付 V3 API */
+  /**
+   * 调用微信支付 V3 API。
+   * extraHeaders 用于携带 Wechatpay-Serial —— 请求体里含敏感字段密文（如商家转账的收款人姓名）时，
+   * 必须告诉微信用的是哪个平台证书公钥加的密，否则微信解不开、直接报错。
+   */
   private async callApi(
     method: "GET" | "POST",
     path: string,
     body?: Record<string, any>,
+    extraHeaders?: Record<string, string>,
   ): Promise<Record<string, unknown>> {
     const bodyStr = body ? JSON.stringify(body) : "";
     const { authorization } = this.sign(method, path, bodyStr);
@@ -84,6 +100,7 @@ export class WechatPayService {
           "Accept": "application/json",
           "User-Agent": "guoxue-platform/1.0",
           ...(method === "POST" ? { "Idempotency-Key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` } : {}),
+          ...extraHeaders,
         },
         body: bodyStr || undefined,
         signal: AbortSignal.timeout(15000),
@@ -152,6 +169,102 @@ export class WechatPayService {
     return valid;
   }
 
+  // ───────── 商家转账（提现代付）─────────
+  //
+  // 【为什么是这个接口】微信「企业付款到银行卡」已下线，「商家转账到零钱」是唯一出路 ——
+  // 只能打零钱、必须要 openid。银行卡提现只能走汇付代付，支付宝账号走支付宝转账。
+  //
+  // 【一个会改变产品流程的硬约束】新版商家转账不是无感到账：
+  // 发起后状态可能是 WAIT_USER_CONFIRM，用户要在微信里点「确认收款」，钱才真正到账
+  // （超时未确认自动退回）。所以提现流程必须是：
+  //   审核通过 → 发起转账（拿 packageInfo）→ 通知用户确认 → 用户点确认 → 回调 SUCCESS → 标记 PAID
+  // 绝不能一发起就把提现标成已打款 —— 那是「钱没出去却记成出去了」。
+  //
+  // 【幂等】outBillNo 就是我们的 payoutRef（提现出款幂等键，DB 唯一约束）。
+  // 同一个 outBillNo 重复发起，微信返回同一笔单，不会重复打款。
+
+  /**
+   * 发起商家转账到零钱。
+   * @param outBillNo 商户单号 = payoutRef（幂等键）
+   * @param openid    收款人 openid（必须是本商户号绑定 appid 下的 openid）
+   * @param amountFen 金额（分）
+   * @param userName  收款人真实姓名；转账金额 ≥ 2000 元时微信要求必填，会加密提交
+   */
+  async transferToBalance(params: {
+    outBillNo: string;
+    openid: string;
+    amountFen: number;
+    remark: string;
+    userName?: string;
+    /** 转账场景 ID，需先在商户平台申请开通。佣金报酬 = 1005 */
+    sceneId?: string;
+    /** 场景报备信息（微信要求随场景提交，字段随场景而异） */
+    sceneReportInfos?: Array<{ info_type: string; info_content: string }>;
+    notifyUrl?: string;
+  }) {
+    const body: Record<string, unknown> = {
+      appid: this.appId,
+      out_bill_no: params.outBillNo,
+      transfer_scene_id: params.sceneId || process.env.WECHAT_TRANSFER_SCENE_ID || "1005",
+      openid: params.openid,
+      transfer_amount: params.amountFen,
+      transfer_remark: params.remark.slice(0, 32),
+      notify_url: params.notifyUrl || process.env.WECHAT_TRANSFER_NOTIFY_URL || "",
+      transfer_scene_report_infos:
+        params.sceneReportInfos || [{ info_type: "岗位类型", info_content: "推广员" }, { info_type: "报酬说明", info_content: "推广佣金" }],
+    };
+
+    // 收款人姓名需用平台证书公钥加密，并在 Wechatpay-Serial 头声明证书序列号
+    const headers: Record<string, string> = {};
+    if (params.userName) {
+      const { ciphertext, serialNo } = await this.encryptSensitive(params.userName);
+      body.user_name = ciphertext;
+      headers["Wechatpay-Serial"] = serialNo;
+    }
+
+    const result = (await this.callApi(
+      "POST",
+      "/v3/fund-app/mch-transfer/transfer-bills",
+      body,
+      headers,
+    )) as Record<string, unknown>;
+
+    return {
+      /** 微信转账单号 */
+      transferBillNo: result.transfer_bill_no as string,
+      outBillNo: result.out_bill_no as string,
+      /** ACCEPTED / PROCESSING / WAIT_USER_CONFIRM / TRANSFERING / SUCCESS / FAIL / CANCELLED */
+      state: result.state as string,
+      /**
+       * 待用户确认收款时返回。前端需用它调起微信确认页（wx.requestMerchantTransfer）。
+       * 拿不到它，用户就没法确认，钱永远到不了账。
+       */
+      packageInfo: (result.package_info as string) || null,
+      createTime: result.create_time as string,
+      raw: result,
+    };
+  }
+
+  /** 按商户单号（payoutRef）查转账状态 —— 回调之外的兜底核实手段 */
+  async queryTransferByOutBillNo(outBillNo: string) {
+    const result = (await this.callApi(
+      "GET",
+      `/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/${outBillNo}`,
+    )) as Record<string, unknown>;
+    return {
+      transferBillNo: result.transfer_bill_no as string,
+      outBillNo: result.out_bill_no as string,
+      state: result.state as string,
+      failReason: (result.fail_reason as string) || null,
+      raw: result,
+    };
+  }
+
+  /** 撤销转账（仅 WAIT_USER_CONFIRM / ACCEPTED 可撤） */
+  async cancelTransfer(outBillNo: string) {
+    return this.callApi("POST", `/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/${outBillNo}/cancel`);
+  }
+
   /** 根据序列号获取指定平台证书 */
   async getPlatformCertBySerial(serialNo: string): Promise<string> {
     const certs = await this.getPlatformCerts();
@@ -160,11 +273,34 @@ export class WechatPayService {
     return pem;
   }
 
-  /** AES-256-GCM 解密（用于证书和回调数据解密） */
+  /**
+   * 敏感字段加密（RSA-OAEP + 微信平台证书公钥）。
+   * 商家转账的收款人姓名必须密文提交（≥2000元时必填），且要在 Wechatpay-Serial 头里
+   * 声明用的是哪个平台证书 —— 否则微信解不开。
+   */
+  async encryptSensitive(plaintext: string): Promise<{ ciphertext: string; serialNo: string }> {
+    const certs = await this.getPlatformCerts();
+    const [serialNo, entry] = [...certs.entries()][0] ?? [];
+    if (!serialNo || !entry) {
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, "无可用的微信平台证书，无法加密敏感字段");
+    }
+    const ciphertext = publicEncrypt(
+      { key: entry, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
+      Buffer.from(plaintext, "utf-8"),
+    ).toString("base64");
+    return { ciphertext, serialNo };
+  }
+
+  /**
+   * AES-256-GCM 解密（用于证书和回调数据解密）。
+   * 微信 V3 的 ciphertext 是 Base64 编码、末尾 16 字节为 authTag——
+   * 曾按 hex/末尾32字符解导致回调报文永远解不开（GCM 认证失败）、订单无法入账。
+   */
   aesGcmDecrypt(associatedData: string, nonce: string, ciphertext: string): string {
     const key = Buffer.from(this.apiV3Key, "utf-8");
-    const authTag = Buffer.from(ciphertext.slice(-32), "hex");
-    const data = Buffer.from(ciphertext.slice(0, -32), "hex");
+    const buf = Buffer.from(ciphertext, "base64");
+    const authTag = buf.subarray(buf.length - 16);
+    const data = buf.subarray(0, buf.length - 16);
 
     const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(nonce, "utf-8"));
     decipher.setAuthTag(authTag);
@@ -176,7 +312,11 @@ export class WechatPayService {
 
   // ───────── 支付下单 ─────────
 
-  /** JSAPI 支付（小程序/公众号内支付） */
+  /**
+   * JSAPI 支付（小程序/公众号内支付）。
+   * appId 可覆盖：公众号内 H5 支付必须用公众号 appid + 该公众号下的 openid（微信要求 openid 与下单 appid 同应用），
+   * 覆盖时调起签名(signJsapiConfig)同步使用同一 appid，否则前端 getBrandWCPayRequest 验签必失败。
+   */
   async createJsapiOrder(params: {
     outTradeNo: string;
     description: string;
@@ -184,13 +324,15 @@ export class WechatPayService {
     payer: { openid: string };
     attach?: string;
     notifyUrl?: string;
+    appId?: string;
   }) {
+    const appId = params.appId || this.appId;
     const body: Record<string, unknown> = {
-      appid: this.appId,
+      appid: appId,
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total, // 分
         currency: params.amount.currency || "CNY",
@@ -201,9 +343,9 @@ export class WechatPayService {
 
     const result = await this.callApi("POST", "/v3/pay/transactions/jsapi", body) as Record<string, unknown>;
 
-    // 二次签名用于小程序调起支付
+    // 二次签名用于小程序/公众号H5调起支付
     const prepayId = result.prepay_id as string;
-    const paySign = this.signJsapiConfig(prepayId);
+    const paySign = this.signJsapiConfig(prepayId, appId);
 
     return { prepayId, paySign, raw: result };
   }
@@ -221,7 +363,7 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
@@ -246,7 +388,7 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
@@ -272,12 +414,21 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
       },
-      scene_info: params.sceneInfo,
+      // 微信 V3 API 要求 snake_case：payer_client_ip 必填、h5_info.type 固定 "Wap"
+      // （原实现把 camelCase 的 sceneInfo 原样透传会被微信拒收 PARAM_ERROR）
+      scene_info: {
+        payer_client_ip: params.sceneInfo.payerClientIp,
+        h5_info: {
+          type: params.sceneInfo.h5Info?.type || "Wap",
+          ...(params.sceneInfo.h5Info?.appName ? { app_name: params.sceneInfo.h5Info.appName } : {}),
+          ...(params.sceneInfo.h5Info?.appUrl ? { app_url: params.sceneInfo.h5Info.appUrl } : {}),
+        },
+      },
     };
     if (params.attach) body.attach = params.attach;
 
@@ -290,6 +441,15 @@ export class WechatPayService {
   /** 按商户订单号查询 */
   async queryOrder(outTradeNo: string) {
     return this.callApi("GET", `/v3/pay/transactions/out-trade-no/${outTradeNo}?mchid=${this.mchId}`);
+  }
+
+  /** 关闭尚未支付的商户订单；微信确认关单成功后才允许生成新的付款码。 */
+  async closeOrder(outTradeNo: string) {
+    return this.callApi(
+      "POST",
+      "/v3/pay/transactions/out-trade-no/" + outTradeNo + "/close",
+      { mchid: this.mchId },
+    );
   }
 
   /** 申请退款 */
@@ -310,28 +470,34 @@ export class WechatPayService {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
       },
-      notify_url: params.notifyUrl || process.env.WECHAT_PAY_REFUND_NOTIFY_URL || "",
+      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_REFUND_NOTIFY_URL", "/api/v1/shop/refund/notify"),
     };
     if (params.reason) body.reason = params.reason;
 
     return this.callApi("POST", "/v3/refund/domestic/refunds", body);
   }
 
+  /** 按商户退款单号查询退款结果，供异步回调丢失时定时对账收敛。 */
+  async queryRefund(outRefundNo: string) {
+    return this.callApi("GET", "/v3/refund/domestic/refunds/" + encodeURIComponent(outRefundNo));
+  }
+
   // ───────── JSAPI 调起支付签名 ─────────
 
-  /** 生成小程序调起支付的 paySign */
-  signJsapiConfig(prepayId: string) {
+  /** 生成小程序/公众号H5调起支付的 paySign（appId 必须与下单 appid 一致） */
+  signJsapiConfig(prepayId: string, appId?: string) {
+    const signAppId = appId || this.appId;
     const timestamp = Math.floor(Date.now() / 1000);
     const nonce = randomUUID().replace(/-/g, "");
     const pkg = `prepay_id=${prepayId}`;
-    const signMessage = `${this.appId}\n${timestamp}\n${nonce}\n${pkg}\n`;
+    const signMessage = `${signAppId}\n${timestamp}\n${nonce}\n${pkg}\n`;
 
     const signer = createSign("sha256WithRSAEncryption");
     signer.update(signMessage);
     const paySign = signer.sign(this.privateKey, "base64");
 
     return {
-      appId: this.appId,
+      appId: signAppId,
       timeStamp: String(timestamp),
       nonceStr: nonce,
       package: pkg,
@@ -363,7 +529,22 @@ export class WechatPayService {
     };
   }
 
-  /** 验证回调签名（使用平台证书 RSA公钥 验签） */
+  /**
+   * 微信支付公钥（2024-05 后新商户默认「公钥模式」：回调 serial 为 PUB_KEY_ID_xxx，
+   * /v3/certificates 拉不到平台证书，须用商户平台下载的 pub_key.pem 验签）。
+   * 现读 env（后台卡片保存热生效）；支持内容或服务器文件路径两种填法。
+   */
+  private getWechatPayPublicKey(): string {
+    let v = process.env.WECHAT_PAY_PUBLIC_KEY || "";
+    if (v && !v.includes("BEGIN")) {
+      try {
+        if (existsSync(v)) v = readFileSync(v, "utf-8");
+      } catch { /* 按内容处理 */ }
+    }
+    return v.replace(/\\n/g, "\n");
+  }
+
+  /** 验证回调签名（平台证书 或 微信支付公钥 RSA 验签，按回调 serial 自动分流） */
   async verifyNotifySign(signHeader: string, body: string): Promise<boolean> {
     const parsed = this.parseNotifySign(signHeader);
     if (!parsed) return false;
@@ -371,7 +552,16 @@ export class WechatPayService {
     const { timestamp, nonce, signature, serialNo } = parsed;
 
     try {
-      const pem = await this.getPlatformCertBySerial(serialNo);
+      let pem: string;
+      if (serialNo.startsWith("PUB_KEY_ID_")) {
+        pem = this.getWechatPayPublicKey();
+        if (!pem) {
+          this.logger.error(`回调为微信支付公钥模式但未配置公钥，请在后台「微信支付」卡片粘贴 pub_key.pem 内容: serial=${serialNo}`);
+          return false;
+        }
+      } else {
+        pem = await this.getPlatformCertBySerial(serialNo);
+      }
       const signMessage = `${timestamp}\n${nonce}\n${body}\n`;
 
       const verifier = createVerify("sha256WithRSAEncryption");
@@ -420,11 +610,16 @@ export class WechatPayService {
 
       const { ciphertext, associated_data, nonce } = notify.resource;
       const decrypted = this.aesGcmDecrypt(associated_data, nonce, ciphertext);
+      const data = JSON.parse(decrypted) as Record<string, unknown>;
+      if (!data.mchid || String(data.mchid) !== this.mchId) {
+        this.metrics?.recordPaymentCallback("wechatpay", false, "mchid_mismatch");
+        return { valid: false, error: "微信回调商户号不匹配" };
+      }
       this.metrics?.recordPaymentCallback("wechatpay", true);
-      return { valid: true, data: JSON.parse(decrypted) };
+      return { valid: true, data };
     } catch (err: unknown) {
       this.metrics?.recordPaymentCallback("wechatpay", false, "decrypt_failed");
-      return { valid: true, error: `解密失败: ${(err as Error).message}` };
+      return { valid: false, error: `解密失败: ${(err as Error).message}` };
     }
   }
 

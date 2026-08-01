@@ -6,13 +6,18 @@ import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { LiveStreamService } from "./live-stream.service";
 import { createHash } from "crypto";
 import { WebhookService } from "../webhook/webhook.service";
-import { CreateRoomDto, UpdateRoomDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, UpdateLiveWatchProgressDto } from "./live.dto";
 import { Prisma, LiveStatus } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
+import { AuditService } from "../audit/audit.service";
+import { NotificationService } from "../notification/notification.service";
+import { ImService } from "../im/im.service";
 import { safePagination } from "../../common/pagination";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 @Injectable()
 export class LiveService {
@@ -23,37 +28,213 @@ export class LiveService {
     private redis: RedisService,
     private stream: LiveStreamService,
     private webhook: WebhookService,
+    private audit: AuditService,
+    private publishGrants: CirclePublishGrantService,
     @Optional() private coin?: CoinService,
     @Optional() private revenue?: RevenueService,
+    @Optional() private notification?: NotificationService,
+    @Optional() private im?: ImService,
   ) {}
 
-  async createRoom(userId: string, dto: CreateRoomDto) {
+  /** 公开预告发布护栏：排期开播的场次必须同时具备首图和介绍。 */
+  private validatePreviewPublish(startTime?: string | Date | null, cover?: string | null, description?: string | null) {
+    if (!startTime) return;
+    if (!String(cover || "").trim()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "发布直播预告前请上传首图");
+    }
+    if (!String(description || "").trim()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "发布直播预告前请填写直播介绍");
+    }
+  }
+
+  /** 直播挂车统一校验：最多 5 件、保持请求顺序、只允许当前在售且未隔离商品。 */
+  private async validateLiveProductIds(productIds: string[]): Promise<string[]> {
+    if (!Array.isArray(productIds)) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品清单格式错误");
+    const normalized = productIds.map((id) => String(id || "").trim());
+    if (normalized.some((id) => !id)) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品ID不能为空");
+    if (normalized.length > 5) throw new BusinessException(ErrorCode.BAD_REQUEST, "每场直播最多挂载 5 件商品");
+    if (new Set(normalized).size !== normalized.length) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品清单不能包含重复商品");
+    if (!normalized.length) return [];
+
+    const available = await this.prisma.product.findMany({
+      where: {
+        id: { in: normalized, notIn: [...publicQuarantinedIds("product")] },
+        status: "ON_SALE",
+      },
+      select: { id: true },
+    });
+    if (available.length !== normalized.length) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "部分商品已下架或不存在，请刷新商品库后重试");
+    }
+    return normalized;
+  }
+
+  private async replaceLiveProducts(tx: Prisma.TransactionClient, roomId: string, productIds: string[]) {
+    await tx.liveProduct.deleteMany({ where: { liveId: roomId } });
+    if (productIds.length) {
+      await tx.liveProduct.createMany({ data: productIds.map((productId, sortOrder) => ({ liveId: roomId, productId, sortOrder })) });
+    }
+  }
+
+  async createRoom(userId: string, dto: CreateRoomDto, isAdmin = false) {
+    this.validatePreviewPublish(dto.startTime, dto.cover, dto.description);
+    if (String(dto.visibility || "").toUpperCase() === "PLATFORM") {
+      await this.publishGrants.assertCanPublish(userId, dto.circleId, "LIVE", isAdmin);
+    }
+    let parsedStartTime: Date | undefined;
+    if (dto.startTime) {
+      parsedStartTime = new Date(dto.startTime);
+      if (Number.isNaN(parsedStartTime.getTime())) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "开播时间格式错误");
+      }
+    }
+    const productIds = dto.productIds ? await this.validateLiveProductIds(dto.productIds) : [];
+    const chargeType = dto.chargeType || "FREE";
+    const requestedChargePrice = Number(dto.chargePrice);
+    const chargePrice = chargeType === "PAID" ? requestedChargePrice : null;
+    if (chargeType === "PAID" && (!Number.isFinite(requestedChargePrice) || requestedChargePrice <= 0)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "付费直播必须设置大于 0 元的票价");
+    }
+    // 审核无感化（20260711 第八节）：创建即生效，封面/标题机审改异步分级处置（直播实时内容仍走 LiveAuditLog 机审）
+    const { visibility, auditStatus } = await this.audit.resolveContentVisibility({
+      visibility: dto.visibility,
+      circleId: dto.circleId,
+      isAdmin,
+      instantPublish: true,
+    });
+
     const data: Record<string, unknown> = {
       userId,
       title: dto.title,
+      description: dto.description?.trim() || null,
       cover: dto.cover,
       circleId: dto.circleId,
       hostUserId: dto.hostUserId || userId,
       hostType: dto.circleId ? "CIRCLE_OWNER" : "STATION_MASTER",
       coHostIds: dto.coHostIds || [],
       quality: dto.quality || "basic",
-      chargeType: dto.chargeType || "FREE",
-      chargePrice: dto.chargePrice,
+      orientation: dto.orientation || "portrait",
+      chargeType,
+      chargePrice,
       status: "WAITING",
-      ...(dto.startTime ? { startTime: new Date(dto.startTime) } : {}),
+      visibility,
+      auditStatus,
+      replayVisibility: dto.replayVisibility || "CIRCLE_ONLY",
+      replayCharge: dto.replayCharge ?? false,
+      ...(parsedStartTime ? { startTime: parsedStartTime } : {}),
       ...(dto.courseId ? { courseId: dto.courseId } : {}),
       ...(dto.stationId ? { stationId: dto.stationId } : {}),
-      ...(dto.productIds?.length ? { products: { create: dto.productIds.map(productId => ({ productId })) } } : {}),
+      ...(productIds.length ? { products: { create: productIds.map((productId, sortOrder) => ({ productId, sortOrder })) } } : {}),
     };
 
-    return this.prisma.liveRoom.create({ data: data as Prisma.LiveRoomCreateInput, include: { products: true } });
+    const room = await this.prisma.liveRoom.create({ data: data as Prisma.LiveRoomCreateInput, include: { products: true } });
+
+    if (auditStatus === "PENDING") {
+      await this.audit.openContentAudit({ contentType: "LIVE", contentId: room.id, circleId: dto.circleId, submitterId: userId });
+    }
+
+    // 异步机审（fire-and-forget·不阻塞创建响应）：标题文本 / 封面图
+    this.audit.queueContentModeration({
+      contentType: "LIVE",
+      contentId: room.id,
+      userId,
+      circleId: dto.circleId,
+      text: [dto.title, dto.description].filter(Boolean).join("\n"),
+      images: dto.cover,
+    });
+
+    return room;
   }
 
-  async updateRoom(userId: string, id: string, dto: UpdateRoomDto) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { hostUserId: true } });
+  /** 编辑待开播场次；标题/封面沿用历史可编辑口径，排期/收费/画质仅 WAITING 可改。 */
+  async updateRoom(userId: string, id: string, dto: UpdateRoomDto, isAdmin = false) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id },
+      select: {
+        hostUserId: true,
+        status: true,
+        circleId: true,
+        chargeType: true,
+        chargePrice: true,
+        startTime: true,
+        cover: true,
+        description: true,
+      },
+    });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
-    if (room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的直播间");
-    return this.prisma.liveRoom.update({ where: { id }, data: dto as unknown as Prisma.LiveRoomUpdateInput });
+    // 平台管理员豁免归属校验（管理端编辑任意直播间）；普通用户仍只能改自己的
+    if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的直播间");
+
+    const changesWaitingConfig = dto.startTime !== undefined || dto.chargeType !== undefined || dto.chargePrice !== undefined
+      || dto.quality !== undefined || dto.orientation !== undefined;
+    if (changesWaitingConfig && room.status !== "WAITING") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "直播开始后不能修改排期、收费或画质");
+    }
+
+    const data: Prisma.LiveRoomUncheckedUpdateInput = {};
+    if (dto.title !== undefined) {
+      const title = dto.title.trim();
+      if (!title) throw new BusinessException(ErrorCode.BAD_REQUEST, "直播标题不能为空");
+      data.title = title;
+    }
+    if (dto.description !== undefined) data.description = dto.description.trim() || null;
+    if (dto.cover !== undefined) data.cover = dto.cover;
+    if (dto.startTime !== undefined) {
+      if (dto.startTime === null || dto.startTime === "") data.startTime = null;
+      else {
+        const parsed = new Date(dto.startTime);
+        if (Number.isNaN(parsed.getTime())) throw new BusinessException(ErrorCode.BAD_REQUEST, "开播时间格式错误");
+        data.startTime = parsed;
+      }
+    }
+    const targetStartTime = dto.startTime === undefined ? room.startTime : dto.startTime;
+    const targetCover = dto.cover === undefined ? room.cover : dto.cover;
+    const targetDescription = dto.description === undefined ? room.description : dto.description;
+    this.validatePreviewPublish(targetStartTime, targetCover, targetDescription);
+    if (dto.chargeType !== undefined || dto.chargePrice !== undefined) {
+      const targetType = dto.chargeType ?? room.chargeType;
+      const targetPrice = dto.chargePrice !== undefined ? Number(dto.chargePrice) : Number(room.chargePrice);
+      if (targetType === "PAID" && (!Number.isFinite(targetPrice) || targetPrice <= 0)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "付费直播必须设置大于 0 元的票价");
+      }
+      if (dto.chargeType !== undefined) data.chargeType = dto.chargeType;
+      data.chargePrice = targetType === "PAID" ? targetPrice : null;
+    }
+    if (dto.quality !== undefined) data.quality = dto.quality;
+    if (dto.orientation !== undefined) data.orientation = dto.orientation;
+
+    const productIds = dto.productIds === undefined ? undefined : await this.validateLiveProductIds(dto.productIds);
+    const updated = productIds === undefined
+      ? await this.prisma.liveRoom.update({ where: { id }, data })
+      : await this.prisma.$transaction(async (tx) => {
+          const row = await tx.liveRoom.update({ where: { id }, data });
+          await this.replaceLiveProducts(tx, id, productIds);
+          return { ...row, products: productIds.map((productId, sortOrder) => ({ productId, sortOrder })) };
+        });
+
+    // 编辑同样进入异步机审，避免“先发合规标题、再编辑绕审”；审核故障不阻断主播保存。
+    if (dto.title !== undefined || dto.description !== undefined || dto.cover !== undefined) {
+      this.audit.queueContentModeration({
+        contentType: "LIVE",
+        contentId: id,
+        userId,
+        circleId: room.circleId || undefined,
+        text: [dto.title, dto.description].filter(Boolean).join("\n") || undefined,
+        images: dto.cover,
+      });
+    }
+    return updated;
+  }
+
+  /** 主播在开播前或直播中维护商品挂车；事务全量替换，排序与请求数组一致。 */
+  async updateRoomProducts(userId: string, roomId: string, productIds: string[], isAdmin = false) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (!isAdmin && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能管理自己的直播间商品");
+
+    const normalized = await this.validateLiveProductIds(productIds);
+    await this.prisma.$transaction(async (tx) => this.replaceLiveProducts(tx, roomId, normalized));
+    return { success: true, count: normalized.length, productIds: normalized };
   }
 
   private static readonly STATE_MACHINE: Record<string, string[]> = {
@@ -80,13 +261,55 @@ export class LiveService {
     if (status === "REPLAY" && extra?.replayUrl) data.replayUrl = extra.replayUrl;
     if (status === "ENDED") data.endTime = new Date();
 
-    return this.prisma.liveRoom.update({ where: { id }, data: data as Prisma.LiveRoomUpdateInput });
+    const updated = await this.prisma.liveRoom.update({ where: { id }, data: data as Prisma.LiveRoomUpdateInput });
+
+    // 开播 → 通知预约用户（圈内通知中心·直播 LIVE·fire-and-forget 不阻断开播）
+    // TODO(#25 通知部分·后续)：开播前 15 分钟提醒需定时任务扫描预约集合，本轮只做开播即时通知。
+    if (status === "LIVING") {
+      this.notifyBookedUsers(updated).catch((err) => this.logger.warn(`开播预约通知发送失败 room=${id}`, err));
+    }
+
+    // 直播回放画面+音频机审（先发后审·VM 异步轮询·四档处置）：回放是可下载录像，VM 适用。
+    // 命中 severe → 回放下架 + 通知（applyModerationVerdict 对 LIVE 走 auditStatus=REJECTED）。
+    // 注：LIVING 实时流审核需腾讯云「直播流审核」独立能力（Type=LIVE_VIDEO/推流回调），非本次录像任务制覆盖，后续接入。
+    if (status === "REPLAY" && extra?.replayUrl) {
+      this.audit.queueContentModeration({
+        contentType: "LIVE",
+        contentId: id,
+        userId: updated.userId,
+        circleId: updated.circleId,
+        video: extra.replayUrl,
+      });
+    }
+
+    return updated;
   }
 
-  /** 开始直播，自动生成推拉流地址 */
-  async startLive(id: string) {
+  /** 开播时通知 Redis 预约集合中的用户（live:bookings:{roomId}·bookRoom 写入） */
+  private async notifyBookedUsers(room: { id: string; title: string | null; circleId: string | null }) {
+    if (!this.notification) return;
+    const userIds = await this.redis.smembers(`live:bookings:${room.id}`);
+    if (!userIds?.length) return;
+    await this.notification.batchSend({
+      userIds,
+      type: "LIVE_STARTED",
+      title: "你预约的直播已开播",
+      content: `直播「${room.title || "直播间"}」已开播，点击进入直播间观看`,
+      targetType: "LIVE_ROOM",
+      targetId: room.id,
+      category: "LIVE",
+      circleId: room.circleId ?? undefined,
+    });
+  }
+
+  /** 开始直播（房主本人或管理员），自动生成推拉流地址 + 创建 IM 弹幕群（fail-open） */
+  async startLive(id: string, operatorId?: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (operatorId && room.hostUserId !== operatorId && !isAdmin) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以开播");
+    }
+    if (room.auditStatus === "REJECTED") throw new BusinessException(ErrorCode.FORBIDDEN, "该直播间已被下架，无法开播");
     if (room.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "只能在等待状态开始直播");
 
     const streamKey = `room_${id}`;
@@ -99,21 +322,46 @@ export class LiveService {
       trtcRoomId: streamKey,
     });
 
-    this.webhook.fire("LIVE_STARTED", {
+    // IM 弹幕群：开播时才建（WAITING 房可能永不开播·不浪费群资源）。
+    // fail-open：IM 未配置/建群失败只记 warn，不阻断开播（前端有 if(imGroupId) 守卫自动降级为轮询弹幕）。
+    const imGroupId = await this.createLiveImGroup(id, room.title, room.hostUserId);
+
+    await this.webhook.fire("LIVE_STARTED", {
       roomId: id,
       title: room.title,
       hostUserId: room.hostUserId,
       circleId: room.circleId,
     }).catch((e: unknown) => this.logger.warn("LIVE_STARTED webhook 发送失败", e instanceof Error ? e.message : String(e)));
 
-    return result;
+    return imGroupId ? { ...result, imGroupId } : result;
   }
 
-  /** 获取指定房间的推/拉流地址（主播用） */
-  async getStreamUrls(id: string, userId?: string) {
+  /**
+   * 创建直播弹幕群（腾讯 IM AVChatRoom 直播大群）并回写 LiveRoom.imGroupId。
+   * fail-open：任何失败（含 IM 未配置）只记 warn 返回 null，绝不阻断开播。
+   */
+  private async createLiveImGroup(roomId: string, title?: string | null, hostUserId?: string): Promise<string | null> {
+    if (!this.im) return null;
+    try {
+      const groupId = `live_${roomId}`;
+      // 群名限 30 字节（UTF-8 中文 3 字节/字），截断防超限
+      const name = (title || "直播间").slice(0, 9);
+      await this.im.createGroup(groupId, name, "AVChatRoom", hostUserId);
+      await this.prisma.liveRoom.update({ where: { id: roomId }, data: { imGroupId: groupId } });
+      return groupId;
+    } catch (e: unknown) {
+      this.logger.warn(
+        `IM 弹幕群创建失败（fail-open·开播不受影响） room=${roomId}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      return null;
+    }
+  }
+
+  /** 获取指定房间的推/拉流地址（主播或管理员用） */
+  async getStreamUrls(id: string, userId?: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
-    if (userId && room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可获取推流地址");
+    if (userId && room.hostUserId !== userId && !isAdmin) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可获取推流地址");
 
     const streamKey = `room_${id}`;
     return {
@@ -123,10 +371,13 @@ export class LiveService {
   }
 
   /** 获取观众拉流地址（可带鉴权） */
-  async getPlayUrl(id: string, userId: string) {
+  async getPlayUrl(id: string, userId?: string) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
+    if (!userId && (room.visibility !== "PLATFORM" || room.auditStatus !== "APPROVED")) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "该直播仅对已授权用户开放");
+    }
 
     // 分档播放：basic=原流(零转码成本)；hd/uhd=腾讯云转码流(推流后自动产出 {stream}_{模板名})
     // 转码模板已在生产创建并绑定 test.rebugx.com/live：hd720 / hd1080
@@ -134,14 +385,21 @@ export class LiveService {
     const quality = (room as { quality?: string }).quality || "basic";
     const streamKey =
       quality === "hd" ? `${baseKey}_hd720` : quality === "uhd" ? `${baseKey}_hd1080` : baseKey;
-    return { ...this.stream.genPlayUrlWithAuth(streamKey, userId), quality };
+    return { ...this.stream.genPlayUrlWithAuth(streamKey, userId || "guest"), quality };
   }
 
-  async endRoom(id: string) {
+  /** 结束直播（房主本人或管理员） */
+  async endRoom(id: string, operatorId?: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id } });
+    if (operatorId) {
+      if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+      if (room.hostUserId !== operatorId && !isAdmin) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以结束直播");
+      }
+    }
     const result = await this.updateStatus(id, "ENDED");
 
-    this.webhook.fire("LIVE_ENDED", {
+    await this.webhook.fire("LIVE_ENDED", {
       roomId: id,
       title: room?.title,
     }).catch((e: unknown) => this.logger.warn("LIVE_ENDED webhook 发送失败", e instanceof Error ? e.message : String(e)));
@@ -149,13 +407,46 @@ export class LiveService {
     return result;
   }
 
-  @Cacheable({ key: (args: any[]) => `live:rooms:${args[0] || "all"}:${args[1]}:${args[2]}:${args[3] || ""}:${args[4] || ""}`, ttl: 15 })
-  async listRooms(status?: string, rawPage = 1, rawPageSize = 20, circleId?: string, stationId?: string) {
+  @Cacheable({ key: (args: any[]) => `live:rooms:${args[0] || "all"}:${args[1]}:${args[2]}:${args[3] || ""}:${args[4] || ""}:${args[5] || ""}:${args[6] === null ? "anon" : args[6] || ""}`, ttl: 15 })
+  async listRooms(status?: string, rawPage = 1, rawPageSize = 20, circleId?: string, stationId?: string, scope?: string, followedByUserId?: string | null) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where: Prisma.LiveRoomWhereInput = {};
+    if (followedByUserId === null) {
+      return { rooms: [], total: 0, page, pageSize };
+    }
     if (status) where.status = status as LiveStatus;
     if (circleId) where.circleId = circleId;
     if (stationId) where.stationId = stationId;
+    // 平台公共池（直播广场·未按圈子过滤·非管理端 scope=all）：只出「全平台开放+审核通过」——绝不展示他圈封闭直播
+    if (!circleId && scope !== "all") {
+      where.visibility = "PLATFORM";
+      where.auditStatus = "APPROVED";
+      if (status === "WAITING") {
+        where.cover = { not: "" };
+        where.description = { not: "" };
+      } else if (!status) {
+        where.AND = [{
+          OR: [
+            { status: { not: "WAITING" as LiveStatus } },
+            { cover: { not: "" }, description: { not: "" } },
+          ],
+        }];
+      }
+    } else if (circleId && scope !== "all") {
+      // 圈内列表：机审降级 SELF_ONLY / 严重违规下架(REJECTED) 的直播间不出圈内流
+      where.visibility = { not: "SELF_ONLY" };
+      where.auditStatus = { not: "REJECTED" };
+    }
+
+    if (followedByUserId) {
+      const follows = await this.prisma.follow.findMany({
+        where: { userId: followedByUserId },
+        select: { followedUserId: true },
+      });
+      const hostIds = follows.map((item) => item.followedUserId);
+      if (!hostIds.length) return { rooms: [], total: 0, page, pageSize };
+      where.hostUserId = { in: hostIds };
+    }
 
     const [rooms, total] = await Promise.all([
       this.prisma.liveRoom.findMany({
@@ -203,10 +494,17 @@ export class LiveService {
         status: r.status,
         viewCount: r.viewCount,
         hasProducts: r._count.products > 0,
+        productCount: r._count.products,
         chargeType: r.chargeType,
+        orientation: r.orientation,
+        quality: r.quality,
+        replayUrl: r.replayUrl,
         startTime: r.startTime,
         endTime: r.endTime,
         createdAt: r.createdAt,
+        // 审核无感化：selfOnly=机审降级仅自己可见（灰色小标）；removed=严重违规已下架
+        selfOnly: r.visibility === "SELF_ONLY",
+        removed: r.auditStatus === "REJECTED",
       })),
     };
   }
@@ -291,7 +589,7 @@ export class LiveService {
 
   /** 主播带货商品库 — 平台在售商品供主播选入直播间带货（filter: all/on/off） */
   async getLiveProducts(filter?: string) {
-    const where: Prisma.ProductWhereInput = {};
+    const where: Prisma.ProductWhereInput = { id: { notIn: publicQuarantinedIds("product") } };
     if (filter === "on") where.status = "ON_SALE";
     else if (filter === "off") where.status = { not: "ON_SALE" };
     const products = await this.prisma.product.findMany({
@@ -313,17 +611,90 @@ export class LiveService {
     };
   }
 
-  /** 主播直播间设置 — 资料取自用户档案；通知/隐私为默认偏好（上线接偏好存储表后改为读取持久值） */
+  /** 主播直播间设置 — 资料走 User 主字段；直播通知/互动偏好复用现有 JSON 字段，无需新增 DDL。 */
   async getStreamerSettings(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { nickname: true, avatar: true, bio: true },
+      select: { nickname: true, avatar: true, bio: true, notifySettings: true, creatorSettings: true },
     });
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+
+    const notify = (user.notifySettings as Record<string, unknown> | null) ?? {};
+    const creator = (user.creatorSettings as Record<string, unknown> | null) ?? {};
+    const privacy = (creator.livePrivacy as Record<string, unknown> | undefined) ?? {};
     return {
-      profile: { name: user?.nickname || "我的直播间", desc: user?.bio || "", cover: user?.avatar || "" },
-      notify: { newViewer: true, reward: true, comment: false, order: true },
-      privacy: { allowComment: true, allowGift: true, showViewCount: true, autoRecord: true },
+      profile: {
+        name: user.nickname || "我的直播间",
+        desc: user.bio || "",
+        cover: typeof creator.liveCover === "string" ? creator.liveCover : (user.avatar || ""),
+      },
+      notify: {
+        newViewer: typeof notify.liveNewViewer === "boolean" ? notify.liveNewViewer : true,
+        reward: typeof notify.liveReward === "boolean" ? notify.liveReward : true,
+        comment: typeof notify.liveComment === "boolean" ? notify.liveComment : false,
+        order: typeof notify.liveOrder === "boolean" ? notify.liveOrder : true,
+      },
+      privacy: {
+        allowComment: typeof privacy.allowComment === "boolean" ? privacy.allowComment : true,
+        allowGift: typeof privacy.allowGift === "boolean" ? privacy.allowGift : true,
+        showViewCount: typeof privacy.showViewCount === "boolean" ? privacy.showViewCount : true,
+        autoRecord: typeof privacy.autoRecord === "boolean" ? privacy.autoRecord : true,
+      },
     };
+  }
+
+  /** 保存主播直播间设置：只接收白名单字段，并与其他模块共享的 JSON 偏好做合并写入。 */
+  async saveStreamerSettings(
+    userId: string,
+    data: {
+      profile?: { name?: string; desc?: string; cover?: string };
+      notify?: Record<string, boolean>;
+      privacy?: Record<string, boolean>;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { nickname: true, bio: true, notifySettings: true, creatorSettings: true },
+    });
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+
+    const update: Prisma.UserUpdateInput = {};
+    const creator = { ...((user.creatorSettings as Record<string, unknown> | null) ?? {}) };
+    const notify = { ...((user.notifySettings as Record<string, unknown> | null) ?? {}) };
+
+    if (data.profile) {
+      const name = String(data.profile.name ?? "").trim();
+      const desc = String(data.profile.desc ?? "").trim();
+      const cover = String(data.profile.cover ?? "").trim();
+      if (!name) throw new BusinessException(ErrorCode.BAD_REQUEST, "直播间名称不能为空");
+      if (name.length > 40) throw new BusinessException(ErrorCode.BAD_REQUEST, "直播间名称不能超过40字");
+      if (desc.length > 100) throw new BusinessException(ErrorCode.BAD_REQUEST, "直播间简介不能超过100字");
+      if (cover.length > 1000) throw new BusinessException(ErrorCode.BAD_REQUEST, "封面地址过长");
+      update.nickname = name;
+      update.bio = desc || null;
+      creator.liveCover = cover;
+    }
+
+    if (data.notify) {
+      if (typeof data.notify.newViewer === "boolean") notify.liveNewViewer = data.notify.newViewer;
+      if (typeof data.notify.reward === "boolean") notify.liveReward = data.notify.reward;
+      if (typeof data.notify.comment === "boolean") notify.liveComment = data.notify.comment;
+      if (typeof data.notify.order === "boolean") notify.liveOrder = data.notify.order;
+    }
+    if (data.privacy) {
+      const current = (creator.livePrivacy as Record<string, unknown> | undefined) ?? {};
+      const next = { ...current };
+      if (typeof data.privacy.allowComment === "boolean") next.allowComment = data.privacy.allowComment;
+      if (typeof data.privacy.allowGift === "boolean") next.allowGift = data.privacy.allowGift;
+      if (typeof data.privacy.showViewCount === "boolean") next.showViewCount = data.privacy.showViewCount;
+      if (typeof data.privacy.autoRecord === "boolean") next.autoRecord = data.privacy.autoRecord;
+      creator.livePrivacy = next;
+    }
+
+    update.notifySettings = notify as Prisma.InputJsonValue;
+    update.creatorSettings = creator as Prisma.InputJsonValue;
+    await this.prisma.user.update({ where: { id: userId }, data: update });
+    return { success: true, message: "设置已保存" };
   }
 
   /** 主播端直播评价 — 评分分布 + 评价列表(filter: all/5/4/3/pending/replied)。LiveReview 为新表，用原生 SQL 访问。 */
@@ -373,6 +744,26 @@ export class LiveService {
     return { dist, reviews, filters };
   }
 
+  /** 回复直播评价（仅评价所属直播间的房主）。LiveReview 为新表，用原生 SQL 访问。 */
+  async replyStreamerReview(userId: string, reviewId: string, reply: string) {
+    const content = (reply || "").trim();
+    if (!content) throw new BusinessException(ErrorCode.BAD_REQUEST, "回复内容不能为空");
+    if (content.length > 500) throw new BusinessException(ErrorCode.BAD_REQUEST, "回复内容不能超过 500 字");
+
+    const rows = await this.prisma.$queryRawUnsafe<{ id: string; roomId: string }[]>(
+      `SELECT id, "roomId" FROM "LiveReview" WHERE id = $1`, reviewId);
+    if (!rows.length) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
+
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: rows[0].roomId }, select: { hostUserId: true } });
+    if (!room || room.hostUserId !== userId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人可以回复评价");
+    }
+
+    await this.prisma.$executeRawUnsafe(
+      `UPDATE "LiveReview" SET reply = $1 WHERE id = $2`, content, reviewId);
+    return { id: reviewId, reply: content };
+  }
+
   /** 主播端直播团队 — 团队成员 + 可邀请成员。LiveTeamMember 为新表，用原生 SQL 访问。 */
   async getStreamerTeam(userId: string) {
     const memberRows = await this.prisma.$queryRawUnsafe<any[]>(
@@ -408,7 +799,7 @@ export class LiveService {
   async getConsoleData(roomId: string, userId: string) {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id: roomId },
-      select: { hostUserId: true, viewCount: true, title: true },
+      select: { hostUserId: true, viewCount: true, title: true, quality: true },
     });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权访问该直播间");
@@ -443,7 +834,8 @@ export class LiveService {
       const x = new Date(d);
       return `${String(x.getHours()).padStart(2, "0")}:${String(x.getMinutes()).padStart(2, "0")}:${String(x.getSeconds()).padStart(2, "0")}`;
     };
-    const danmaku = comments.map((c, i) => ({ id: i + 1, user: nick.get(c.userId) || "观众", content: c.content, time: fmtTime(c.createdAt), level: 1, isVip: false }));
+    // userId 随弹幕返回：主播控制台禁言操作需要定位真实用户
+    const danmaku = comments.map((c, i) => ({ id: i + 1, userId: c.userId, user: nick.get(c.userId) || "观众", content: c.content, time: fmtTime(c.createdAt), level: 1, isVip: false }));
 
     const prodIds = liveProds.map((p) => p.productId);
     const prodDetails = await this.prisma.product.findMany({ where: { id: { in: prodIds } }, select: { id: true, title: true, price: true, stock: true, salesCount: true } });
@@ -454,22 +846,162 @@ export class LiveService {
     });
 
     // 连麦请求 / 提词器脚本无对应数据源 → 空（前端降级）
-    return { title: room.title, stats, danmaku, requests: [], products, script: [] };
+    return { title: room.title, quality: room.quality, stats, danmaku, requests: [], products, script: [] };
   }
 
-  async getRoom(id: string) {
+  async getRoom(id: string, viewerId?: string) {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id },
       include: {
-        user: { select: { id: true, nickname: true, avatar: true } },
+        user: { select: { id: true, nickname: true, avatar: true, bio: true, _count: { select: { followers: true } } } },
         circle: { select: { id: true, name: true } },
         products: true,
       },
     });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    // 可见性收口（审核无感化）：SELF_ONLY / 已下架(REJECTED) 直播间仅主播本人可访问
+    const isOwner = !!viewerId && (room.hostUserId === viewerId || room.userId === viewerId);
+    if (!isOwner && (room.visibility === "SELF_ONLY" || room.auditStatus === "REJECTED")) {
+      throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    }
 
-    await this.prisma.liveRoom.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+    if (!isOwner) {
+      await this.prisma.liveRoom.update({ where: { id }, data: { viewCount: { increment: 1 } } });
+    }
+    const host = room.hostUserId === room.userId
+      ? room.user
+      : await this.prisma.user.findUnique({
+          where: { id: room.hostUserId },
+          select: { id: true, nickname: true, avatar: true, bio: true, _count: { select: { followers: true } } },
+        });
+
+    // #21 回放章节点随详情返回（raw 读绕过 prisma generate；列未就绪/查询失败不阻断详情）
+    const replayChapters = await this.getReplayChapters(id);
+    return { ...room, user: host || room.user, replayChapters };
+  }
+
+  // ───────── 回放章节点（#21·主播标注） ─────────
+
+  /** 读取回放章节（raw SQL 绕过 prisma client 旧类型；异常时返回 null 不阻断） */
+  private async getReplayChapters(id: string): Promise<Array<{ t: number; title: string }> | null> {
+    try {
+      const rows = await this.prisma.$queryRaw<Array<{ replayChapters: unknown }>>(
+        Prisma.sql`SELECT "replayChapters" FROM "LiveRoom" WHERE "id" = ${id}`,
+      );
+      const raw = rows?.[0]?.replayChapters;
+      return Array.isArray(raw) ? (raw as Array<{ t: number; title: string }>) : null;
+    } catch {
+      return null; // 列未应用（manual SQL 未跑）或查询异常 → 详情照常返回
+    }
+  }
+
+  /**
+   * 主播标注回放章节点（PUT /live/rooms/:id/replay-chapters·仅主播本人）。
+   * chapters: [{ t: 秒(>=0 整数), title: 1~80 字 }]，按 t 升序存储，上限 100 条；传 [] 即清空。
+   * TODO(#21): AI 自动生成章节（依赖回放转写）暂不做；观看进度已由 LiveWatchProgress 跨设备持久化。
+   */
+  async setReplayChapters(userId: string, roomId: string, chapters: Array<{ t?: unknown; title?: unknown }>) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.hostUserId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "仅主播本人可标注回放章节");
+
+    if (!Array.isArray(chapters)) throw new BusinessException(ErrorCode.BAD_REQUEST, "chapters 必须是数组");
+    if (chapters.length > 100) throw new BusinessException(ErrorCode.BAD_REQUEST, "章节最多 100 条");
+    const normalized = chapters.map((c) => {
+      const t = Math.floor(Number(c?.t));
+      const title = String(c?.title ?? "").trim();
+      if (!Number.isFinite(t) || t < 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "章节时间点 t 须为不小于 0 的秒数");
+      if (!title || title.length > 80) throw new BusinessException(ErrorCode.BAD_REQUEST, "章节标题须为 1~80 字");
+      return { t, title };
+    });
+    normalized.sort((a, b) => a.t - b.t);
+
+    await this.prisma.$executeRaw(
+      Prisma.sql`UPDATE "LiveRoom" SET "replayChapters" = ${JSON.stringify(normalized)}::jsonb, "updatedAt" = now() WHERE "id" = ${roomId}`,
+    );
+    return { success: true, count: normalized.length, replayChapters: normalized };
+  }
+
+  /** 校验回放进度接口的最小可见性，避免利用进度接口探测私密或已下架直播间。 */
+  private async assertWatchProgressAccess(userId: string, roomId: string) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: {
+        id: true,
+        hostUserId: true,
+        userId: true,
+        status: true,
+        replayUrl: true,
+        visibility: true,
+        auditStatus: true,
+      },
+    });
+    const isOwner = room?.hostUserId === userId || room?.userId === userId;
+    if (
+      !room
+      || (!isOwner && (room.visibility === "SELF_ONLY" || room.auditStatus === "REJECTED"))
+    ) {
+      throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    }
+    if (!room.replayUrl || !["ENDED", "REPLAY"].includes(String(room.status))) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "当前直播间暂无可观看回放");
+    }
     return room;
+  }
+
+  async getWatchProgress(userId: string, roomId: string) {
+    await this.assertWatchProgressAccess(userId, roomId);
+    const progress = await this.prisma.liveWatchProgress.findUnique({
+      where: { userId_liveRoomId: { userId, liveRoomId: roomId } },
+      select: {
+        positionSeconds: true,
+        durationSeconds: true,
+        completed: true,
+        lastWatchedAt: true,
+      },
+    });
+    return progress || {
+      positionSeconds: 0,
+      durationSeconds: 0,
+      completed: false,
+      lastWatchedAt: null,
+    };
+  }
+
+  async saveWatchProgress(userId: string, roomId: string, dto: UpdateLiveWatchProgressDto) {
+    await this.assertWatchProgressAccess(userId, roomId);
+    const existing = await this.prisma.liveWatchProgress.findUnique({
+      where: { userId_liveRoomId: { userId, liveRoomId: roomId } },
+    });
+    // 同一播放会话内，请求序号必须单调递增。重试和迟到请求直接返回当前记录。
+    if (
+      existing
+      && existing.clientSessionId === dto.clientSessionId
+      && dto.clientSequence <= existing.clientSequence
+    ) {
+      return existing;
+    }
+
+    const durationSeconds = Math.max(0, Math.floor(dto.durationSeconds));
+    const positionSeconds = Math.max(
+      0,
+      Math.min(Math.floor(dto.positionSeconds), durationSeconds || 604800),
+    );
+    const completed = durationSeconds > 0
+      && positionSeconds >= Math.max(durationSeconds - 10, Math.floor(durationSeconds * 0.95));
+    const data = {
+      positionSeconds,
+      durationSeconds,
+      completed,
+      clientSessionId: dto.clientSessionId,
+      clientSequence: dto.clientSequence,
+      lastWatchedAt: new Date(),
+    };
+    return this.prisma.liveWatchProgress.upsert({
+      where: { userId_liveRoomId: { userId, liveRoomId: roomId } },
+      create: { userId, liveRoomId: roomId, ...data },
+      update: data,
+    });
   }
 
   async deleteRoom(userId: string, id: string, isAdmin = false) {
@@ -486,13 +1018,18 @@ export class LiveService {
   @Cacheable({ key: (args: any[]) => `live:scheduled:${args[0]}:${args[1]}:${args[2] || ""}`, ttl: 30 })
   async listScheduled(rawPage = 1, rawPageSize = 10, stationId?: string) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where: Prisma.LiveRoomWhereInput = { status: "WAITING" as LiveStatus, startTime: { gte: new Date() } };
+    const where: Prisma.LiveRoomWhereInput = {
+      status: "WAITING" as LiveStatus,
+      startTime: { gte: new Date() },
+      cover: { not: "" },
+      description: { not: "" },
+    };
     if (stationId) where.stationId = stationId;
     const [rooms, total] = await Promise.all([
       this.prisma.liveRoom.findMany({
         where,
         select: {
-          id: true, title: true, cover: true, startTime: true, endTime: true,
+          id: true, title: true, description: true, cover: true, startTime: true, endTime: true,
           userId: true,
           user: { select: { id: true, nickname: true, avatar: true } },
           circle: { select: { id: true, name: true } },
@@ -669,8 +1206,14 @@ export class LiveService {
 
   // ───────── 禁言管理 ─────────
 
-  /** 禁言用户 */
-  async muteUser(roomId: string, operatorId: string, dto: { userId: string; durationMinutes?: number }) {
+  /** 禁言用户（主播本人或管理员） */
+  async muteUser(roomId: string, operatorId: string, dto: { userId: string; durationMinutes?: number }, isAdmin = false) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.hostUserId !== operatorId && !isAdmin) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以禁言");
+    }
+
     const expiresAt = dto.durationMinutes
       ? new Date(Date.now() + dto.durationMinutes * 60000)
       : null;
@@ -682,21 +1225,54 @@ export class LiveService {
     });
   }
 
-  /** 解除禁言（主播或管理员操作） */
-  async unmuteUser(roomId: string, userId: string, operatorId: string) {
+  /** 解除禁言（主播本人或管理员） */
+  async unmuteUser(roomId: string, userId: string, operatorId: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId }, select: { hostUserId: true } });
-    if (!room || room.hostUserId !== operatorId) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播可以解除禁言");
+    if (!room || (room.hostUserId !== operatorId && !isAdmin)) throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以解除禁言");
     await this.prisma.liveMutedUser.deleteMany({
       where: { liveRoomId: roomId, userId },
     });
     return { success: true };
   }
 
-  /** 获取禁言列表 */
-  async listMutedUsers(roomId: string) {
-    return this.prisma.liveMutedUser.findMany({
-      where: { liveRoomId: roomId },
+  /** 获取当前有效禁言列表（仅主播本人或管理员） */
+  async listMutedUsers(roomId: string, operatorId: string, isAdmin = false) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: { hostUserId: true },
+    });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.hostUserId !== operatorId && !isAdmin) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以查看禁言名单");
+    }
+
+    const now = new Date();
+    const records = await this.prisma.liveMutedUser.findMany({
+      where: {
+        liveRoomId: roomId,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
       orderBy: { mutedAt: "desc" },
+    });
+    if (records.length === 0) return [];
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [...new Set(records.map((record) => record.userId))] } },
+      select: { id: true, nickname: true, avatar: true },
+    });
+    const userById = new Map(users.map((user) => [user.id, user]));
+
+    return records.map((record) => {
+      const user = userById.get(record.userId);
+      return {
+        id: record.id,
+        userId: record.userId,
+        nickname: user?.nickname || "用户",
+        avatar: user?.avatar || null,
+        mutedAt: record.mutedAt,
+        expiresAt: record.expiresAt,
+        isPermanent: record.expiresAt === null,
+      };
     });
   }
 
@@ -723,6 +1299,9 @@ export class LiveService {
 
     const muted = await this.isUserMuted(roomId, userId);
     if (muted) throw new BusinessException(ErrorCode.BAD_REQUEST, "您已被禁言");
+
+    // 内容审核（先审后发·三层漏斗）：直播评论持久化入库前拦违规；fail-open 保证密钥未配不阻断发评论
+    await this.audit.moderateTextOrThrow(content, { scene: "LIVE_COMMENT", userId, dataId: roomId });
 
     const comment = await this.prisma.comment.create({
       data: {
@@ -910,8 +1489,9 @@ export class LiveService {
         },
       });
 
-      // 打赏分账：主播实时入账 50%（平台留 50%·2026-07-01 业务规则），记为可提现 RMB 收益（同一事务·原子）
-      // 赠礼者虚拟币不可提现/退款，主播打赏收入 RMB 可提现（走 UserEarning → 提现流）
+      // 打赏分账：主播实时入账 50%（平台留 50%·2026-07-01 业务规则），记为可提现 RMB 收益（同一事务·原子）。
+      // 董事长拍板 2026-07-10（终版）：打赏收入既支持提现（走 UserEarning → 提现流），
+      // 也可通过「收益转金币」（wallet convert-to-coin·单向）转成金币消费全平台虚拟币项目——两全。
       if (this.revenue && room.hostUserId && room.hostUserId !== userId) {
         await this.revenue.record(
           { userId: room.hostUserId, scene: "LIVE_GIFT", refId: giftRecord.id, amountCoin: totalCoin, rate: 0.5 },
@@ -921,6 +1501,18 @@ export class LiveService {
 
       return giftRecord;
     });
+
+    // 统一总账影子双写（事务外·fire-and-forget，绝不阻断送礼主流程）
+    if (this.revenue && record.toUserId && record.toUserId !== userId) {
+      this.revenue.settleLedger({
+        scene: "LIVE_GIFT",
+        refType: "GIFT_RECORD",
+        refId: record.id,
+        amountCoin: record.totalCoin,
+        payerId: userId,
+        parties: { PROVIDER: { type: "USER", id: record.toUserId, userId: record.toUserId } },
+      }).catch(() => undefined);
+    }
 
     return record;
   }
@@ -1127,30 +1719,132 @@ export class LiveService {
     return 0;
   }
 
-  async getHosts(filter?: string) {
+  async getHosts(filter?: string, viewerId?: string) {
+    let followedHostIds: string[] | undefined;
+    if (filter === "followed") {
+      if (!viewerId) return { items: [], total: 0 };
+      const follows = await this.prisma.follow.findMany({
+        where: { userId: viewerId },
+        select: { followedUserId: true },
+      });
+      followedHostIds = follows.map((item) => item.followedUserId);
+      if (!followedHostIds.length) return { items: [], total: 0 };
+    }
+
     const rooms = await this.prisma.liveRoom.findMany({
-      where: { status: filter === 'live' ? 'LIVING' : undefined },
-      select: { id: true, cover: true, status: true, viewCount: true, user: { select: { nickname: true, avatar: true } } },
-      take: 20, orderBy: { viewCount: 'desc' },
+      where: {
+        status: filter === "live" ? "LIVING" : undefined,
+        visibility: "PLATFORM",
+        auditStatus: "APPROVED",
+        ...(followedHostIds ? { hostUserId: { in: followedHostIds } } : {}),
+      },
+      select: { id: true, cover: true, status: true, viewCount: true, hostUserId: true },
+      take: 100,
+      orderBy: { viewCount: "desc" },
     });
-    return { items: rooms.map(r => ({ id: r.id, name: r.user?.nickname || '', avatar: r.user?.avatar || '', cover: r.cover || '', specialty: '', followers: 0, likes: 0, liveCount: 0, rating: 4.5, isLive: r.status === 'LIVING', viewerCount: r.viewCount, tags: [], verified: false })), total: rooms.length };
+
+    const representative = new Map<string, typeof rooms[number]>();
+    const liveCounts = new Map<string, number>();
+    for (const room of rooms) {
+      liveCounts.set(room.hostUserId, (liveCounts.get(room.hostUserId) || 0) + 1);
+      const current = representative.get(room.hostUserId);
+      if (!current || (current.status !== "LIVING" && room.status === "LIVING")) {
+        representative.set(room.hostUserId, room);
+      }
+    }
+    const hostIds = [...representative.keys()];
+    if (!hostIds.length) return { items: [], total: 0 };
+
+    const [users, followerRows] = await Promise.all([
+      this.prisma.user.findMany({
+        where: { id: { in: hostIds } },
+        select: { id: true, nickname: true, avatar: true, bio: true, identityVerified: true },
+      }),
+      this.prisma.follow.findMany({
+        where: { followedUserId: { in: hostIds } },
+        select: { followedUserId: true },
+      }),
+    ]);
+    const userMap = new Map(users.map((user) => [user.id, user]));
+    const followerCounts = new Map<string, number>();
+    for (const row of followerRows) {
+      followerCounts.set(row.followedUserId, (followerCounts.get(row.followedUserId) || 0) + 1);
+    }
+
+    const items = [...representative.entries()].map(([hostId, room]) => {
+      const user = userMap.get(hostId);
+      return {
+        id: room.id,
+        name: user?.nickname || "主播",
+        avatar: user?.avatar || "",
+        cover: room.cover || user?.avatar || "",
+        specialty: user?.bio || "",
+        followers: followerCounts.get(hostId) || 0,
+        likes: 0,
+        liveCount: liveCounts.get(hostId) || 0,
+        rating: 0,
+        isLive: room.status === "LIVING",
+        viewerCount: room.viewCount,
+        tags: [],
+        verified: !!user?.identityVerified,
+      };
+    });
+    return { items, total: items.length };
   }
 
   async getReplays(sortBy?: string) {
     const rooms = await this.prisma.liveRoom.findMany({
       // 回放列表含「已结束(ENDED)」与「已生成回放(REPLAY)」两态（原仅 ENDED 漏掉 REPLAY 房）
-      where: { status: { in: ['ENDED', 'REPLAY'] } },
-      select: { id: true, title: true, cover: true, viewCount: true, startTime: true, endTime: true, createdAt: true, user: { select: { nickname: true, avatar: true } } },
+      where: { status: { in: ["ENDED", "REPLAY"] }, replayVisibility: "PLATFORM", auditStatus: "APPROVED" },
+      select: { id: true, title: true, cover: true, replayUrl: true, viewCount: true, startTime: true, endTime: true, createdAt: true, user: { select: { nickname: true, avatar: true } } },
       take: 20,
       orderBy: sortBy === 'popular' ? { viewCount: 'desc' } : { createdAt: 'desc' },
     });
-    return { items: rooms.map(r => ({ id: r.id, title: r.title, cover: r.cover || '', hostName: r.user?.nickname || '', hostAvatar: r.user?.avatar || '', category: '', viewers: r.viewCount, duration: this.calcDuration(r.startTime, r.endTime), dateText: r.createdAt.toISOString().slice(0, 10) })), total: rooms.length };
+    return { items: rooms.map(r => ({ id: r.id, title: r.title, cover: r.cover || '', replayUrl: r.replayUrl || '', hostName: r.user?.nickname || '', hostAvatar: r.user?.avatar || '', category: '', viewers: r.viewCount, duration: this.calcDuration(r.startTime, r.endTime), dateText: r.createdAt.toISOString().slice(0, 10) })), total: rooms.length };
   }
 
-  async getPreview(id: string) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id }, include: { user: { select: { nickname: true, avatar: true } } } });
-    if (!room) return null;
-    return { id: room.id, title: room.title, cover: room.cover || '', hostName: room.user?.nickname || '', hostAvatar: room.user?.avatar || '', hostFollowers: 0, bookedCount: 0, estimatedDuration: this.calcDuration(room.startTime, room.endTime) || 60, scheduledAt: room.startTime, tags: [], descriptionLines: [] };
+  async getPreview(id: string, viewerId?: string) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id },
+      include: { user: { select: { id: true, nickname: true, avatar: true, bio: true } } },
+    });
+    const isOwner = !!room && !!viewerId && (room.hostUserId === viewerId || room.userId === viewerId);
+    if (!room || (!isOwner && (room.visibility === "SELF_ONLY" || room.auditStatus === "REJECTED"))) {
+      throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    }
+
+    const host = room.hostUserId === room.userId
+      ? room.user
+      : await this.prisma.user.findUnique({
+          where: { id: room.hostUserId },
+          select: { id: true, nickname: true, avatar: true, bio: true },
+        });
+    const key = `live:bookings:${id}`;
+    const [bookedCount, isBooked, hostFollowers] = await Promise.all([
+      this.redis.scard(key).catch(() => 0),
+      viewerId ? this.redis.sismember(key, viewerId).catch(() => false) : false,
+      this.prisma.follow.count({ where: { followedUserId: room.hostUserId } }).catch(() => 0),
+    ]);
+    const durationSeconds = this.calcDuration(room.startTime, room.endTime);
+
+    return {
+      id: room.id,
+      title: room.title,
+      cover: room.cover || "",
+      hostId: room.hostUserId,
+      hostName: host?.nickname || "主播",
+      hostAvatar: host?.avatar || "",
+      hostFollowers,
+      bookedCount,
+      estimatedDuration: durationSeconds > 0 ? Math.max(1, Math.round(durationSeconds / 60)) : 60,
+      scheduledAt: room.startTime?.toISOString() || "",
+      status: room.status,
+      tags: [],
+      descriptionLines: room.description
+        ? room.description.split(/\r?\n/).filter(Boolean)
+        : host?.bio ? [host.bio] : [],
+      isBooked,
+    };
   }
 
   async getReplayDetail(id: string) {

@@ -21,7 +21,15 @@
     <template v-else>
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2>📊 管理驾驶舱</h2>
+      <div class="page-header__title">
+        <h2>📊 管理驾驶舱</h2>
+        <el-tooltip
+          placement="bottom-start"
+          content="驾驶舱为「老板视角」实时估算口径（本月/今日即时聚合、5分钟缓存），与「运营看板·总览」的天级聚合表口径各自独立，两处同名指标（GMV/新增用户等）可能略有差异，属正常。"
+        >
+          <span class="caliber-tip">口径说明</span>
+        </el-tooltip>
+      </div>
       <div class="header-actions">
         <span
           v-if="lastRefreshTime"
@@ -374,6 +382,8 @@ interface Overview {
   totalCommissionPaid: number;
   monthCommissionPaid: number;
   estimatedNetProfit: number;
+  /** 净利润是否为估算值（后端可缺省·缺省时按估算处理·契约未上线时前端诚实降级） */
+  isEstimate?: boolean;
 }
 
 const overview = ref<Overview>({
@@ -393,7 +403,8 @@ function buildKpiCards() {
     { label: "本月付费用户", value: o.monthPaidUsers.toLocaleString(), sub: `累计 ${o.totalPaidUsers.toLocaleString()}`, color: "#e6a23c" },
     { label: "当前在线", value: o.onlineUsers.toLocaleString(), sub: `总用户 ${o.totalUsers.toLocaleString()}`, color: "#f56c6c" },
     { label: "本月分佣支出", value: `¥${o.monthCommissionPaid.toLocaleString()}`, color: "#909399" },
-    { label: "本月净利润(估)", value: `¥${o.estimatedNetProfit.toLocaleString()}`, color: o.estimatedNetProfit >= 0 ? "#67c23a" : "#f56c6c" },
+    // 净利润为估算值：估算口径 = GMV − 佣金 − 退款（后端 isEstimate 契约未上线时默认按估算展示）
+    { label: o.isEstimate === false ? "本月净利润" : "本月净利润(估)", value: `¥${o.estimatedNetProfit.toLocaleString()}`, color: o.estimatedNetProfit >= 0 ? "#67c23a" : "#f56c6c", sub: "估算 = GMV − 佣金 − 退款" },
   ];
 }
 
@@ -442,8 +453,9 @@ function renderUserGrowthChart() {
   const data = userGrowthTrends.value;
   userGrowthChart.setOption({
     tooltip: { trigger: "axis" },
-    legend: { data: ["新增用户", "获客成本"] },
-    grid: { left: 60, right: 60, bottom: 30, top: 20 },
+    // 图例置顶留白，网格顶部下压 44px，避免图例/Y轴名与旋转的 X 轴标签互相重叠
+    legend: { data: ["新增用户", "获客成本"], top: 0 },
+    grid: { left: 60, right: 60, bottom: 48, top: 44 },
     xAxis: { type: "category", data: data.map((d) => d.date.slice(5)), axisLabel: { rotate: 45, fontSize: 10 } },
     yAxis: [
       { type: "value", name: "用户数" },
@@ -606,7 +618,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .cockpit { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.page-header__title { display: flex; align-items: center; gap: 10px; }
 .page-header h2 { margin: 0; font-size: 20px; }
+.caliber-tip { font-size: 12px; color: var(--color-info, #909399); cursor: help; border-bottom: 1px dashed var(--color-info, #909399); }
 .header-actions { display: flex; gap: 8px; align-items: center; }
 
 .kpi-row { margin-bottom: 16px; }

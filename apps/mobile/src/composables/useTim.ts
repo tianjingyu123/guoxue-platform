@@ -74,6 +74,17 @@ export interface TimGroup {
   selfInfo?: { role?: string; messageRemindType?: string; nameCard?: string }
 }
 
+/** SDK 好友申请对象（getFriendApplicationList 返回；仅声明页面需要的字段） */
+export interface TimFriendApplication {
+  userID: string
+  avatar?: string
+  nick?: string
+  time?: number
+  source?: string
+  wording?: string
+  type: string
+}
+
 /** SDK 群成员对象（getGroupMemberList 返回 memberList；role=Owner|Admin|Member） */
 export interface TimGroupMember {
   userID: string
@@ -253,6 +264,13 @@ export function useTim() {
     try { await chat.quitGroup(groupId) } catch { /* ignore */ }
   }
 
+  /** 用户主动退出群聊：错误必须向上抛，页面不得把失败误报为成功 */
+  async function quitGroupStrict(groupId: string): Promise<void> {
+    if (!groupId) throw new Error('群聊信息无效，请返回重试')
+    await ensureLogin()
+    await chat!.quitGroup(groupId)
+  }
+
   /** 发送群弹幕文本，返回 SDK 落地消息对象 */
   async function sendGroupText(groupId: string, text: string): Promise<TimMessage> {
     await ensureLogin()
@@ -284,11 +302,29 @@ export function useTim() {
     return (res.data?.group as unknown) as TimGroup
   }
 
-  /** 拉取群成员列表（单页 count，最多 500；本切片一次拉够，不做深分页） */
+  /** 拉取完整群成员列表：SDK 单页最多 100，自动分页并按 userID 去重 */
   async function getGroupMemberList(groupId: string, offset = 0, count = 100): Promise<TimGroupMember[]> {
     await ensureLogin()
-    const res = await chat!.getGroupMemberList({ groupID: groupId, count, offset })
-    return ((res.data?.memberList || []) as unknown) as TimGroupMember[]
+    const pageSize = Math.min(100, Math.max(1, count))
+    const result: TimGroupMember[] = []
+    const seen = new Set<string>()
+    let currentOffset = offset
+    // 100 页是防御性上限；常规群远低于此值，避免异常服务响应造成死循环
+    for (let page = 0; page < 100; page += 1) {
+      const res = await chat!.getGroupMemberList({ groupID: groupId, count: pageSize, offset: currentOffset })
+      const members = ((res.data?.memberList || []) as unknown) as TimGroupMember[]
+      let added = 0
+      for (const member of members) {
+        if (!seen.has(member.userID)) {
+          seen.add(member.userID)
+          result.push(member)
+          added += 1
+        }
+      }
+      if (members.length < pageSize || added === 0) break
+      currentOffset += members.length
+    }
+    return result
   }
 
   /** 拉取我加入的群名录（不含未读/最后一条，需与会话列表合并补齐） */
@@ -304,10 +340,85 @@ export function useTim() {
     try { await chat.setMessageRead({ conversationID: `GROUP${groupId}` }) } catch { /* ignore */ }
   }
 
+  /** 修改群名称或公告（腾讯权限规则由 SDK 服务端最终校验） */
+  async function updateGroupProfile(
+    groupId: string,
+    profile: { name?: string; notification?: string },
+  ): Promise<void> {
+    await ensureLogin()
+    await chat!.updateGroupProfile({ groupID: groupId, ...profile })
+  }
+
+  /** 修改本人群名片；普通成员也可修改自己的名片 */
+  async function setGroupMemberNameCard(groupId: string, nameCard: string): Promise<void> {
+    await ensureLogin()
+    await chat!.setGroupMemberNameCard({ groupID: groupId, nameCard })
+  }
+
+  /** 设置或取消群管理员；仅群主可操作 */
+  async function setGroupMemberAdmin(groupId: string, userId: string, isAdmin: boolean): Promise<void> {
+    await ensureLogin()
+    await chat!.setGroupMemberRole({
+      groupID: groupId,
+      userID: userId,
+      role: isAdmin ? TIM!.TYPES.GRP_MBR_ROLE_ADMIN : TIM!.TYPES.GRP_MBR_ROLE_MEMBER,
+    })
+  }
+
+  /** 转让群主；仅群主可操作 */
+  async function changeGroupOwner(groupId: string, newOwnerId: string): Promise<void> {
+    await ensureLogin()
+    await chat!.changeGroupOwner({ groupID: groupId, newOwnerID: newOwnerId })
+  }
+
+  /** 移除群成员；仅群主可操作，具体权限由腾讯服务端校验 */
+  async function deleteGroupMember(groupId: string, userId: string): Promise<void> {
+    await ensureLogin()
+    await chat!.deleteGroupMember({ groupID: groupId, userIDList: [userId], reason: '群管理员移除成员' })
+  }
+
+  /** 解散群聊；仅群主可操作 */
+  async function dismissGroup(groupId: string): Promise<void> {
+    await ensureLogin()
+    await chat!.dismissGroup(groupId)
+  }
+
+  // ───────── 好友申请：腾讯仅在客户端 SDK 提供申请列表拉取 ─────────
+
+  /** 拉取别人发给我的待处理好友申请（SDK 缓存会在 ready 前完成同步） */
+  async function getFriendApplications(): Promise<TimFriendApplication[]> {
+    await ensureLogin()
+    const res = await chat!.getFriendApplicationList()
+    const list = ((res.data?.friendApplicationList || []) as unknown) as TimFriendApplication[]
+    return list.filter((item) => item.type === TIM!.TYPES.SNS_APPLICATION_SENT_TO_ME)
+  }
+
+  /** 同意或拒绝好友申请；同意时建立双向好友关系 */
+  async function handleFriendApplication(userID: string, action: 'approve' | 'reject'): Promise<void> {
+    await ensureLogin()
+    if (action === 'approve') {
+      await chat!.acceptFriendApplication({
+        userID,
+        type: TIM!.TYPES.SNS_APPLICATION_AGREE_AND_ADD,
+      })
+      return
+    }
+    await chat!.refuseFriendApplication({ userID })
+  }
+
+  /** 进入申请页后上报已读；失败不阻断已成功拉取的列表 */
+  async function markFriendApplicationsRead(): Promise<void> {
+    await ensureLogin()
+    try { await chat!.setFriendApplicationRead() } catch { /* fail-open */ }
+  }
+
   return {
     isReady, isLoggedIn, ensureLogin, sendText, getC2CHistory, setC2CRead, onMessage,
     getConversationList, onConversationsUpdated, pinConversation, setConversationMute, deleteConversation,
-    joinGroup, quitGroup, sendGroupText, getGroupHistory,
+    joinGroup, quitGroup, quitGroupStrict, sendGroupText, getGroupHistory,
     getGroupProfile, getGroupMemberList, getJoinedGroupList, setGroupRead,
+    updateGroupProfile, setGroupMemberNameCard, setGroupMemberAdmin,
+    changeGroupOwner, deleteGroupMember, dismissGroup,
+    getFriendApplications, handleFriendApplication, markFriendApplicationsRead,
   }
 }

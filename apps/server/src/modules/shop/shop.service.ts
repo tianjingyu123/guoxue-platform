@@ -13,14 +13,11 @@ import { ShopOrderLifecycleService } from "./shop-order-lifecycle.service";
 import { ShopPaymentService } from "./shop-payment.service";
 import { ShopRefundService } from "./shop-refund.service";
 import {
-  CreateProductDto, UpdateProductDto, CreateOrderDto,
+  CreateProductDto, UpdateProductDto, CreateOrderDto, EstimateOrderDto,
   CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto,
   ProductListQueryDto, OrderListQueryDto,
 } from "./shop.dto";
-
-/** 缓存前缀 */
-const CACHE_PREFIX = "shop:";
 
 /**
  * 商城 facade（拆分后·纯委托层）。
@@ -45,8 +42,8 @@ export class ShopService {
 
   // ═══════════════════ 商品管理（委托 ShopProductService） ═══════════════════
 
-  createProduct(userId: string, dto: CreateProductDto) {
-    return this.product.createProduct(userId, dto);
+  createProduct(userId: string, dto: CreateProductDto, autoPublish = false) {
+    return this.product.createProduct(userId, dto, autoPublish);
   }
 
   updateProduct(userId: string, productId: string, dto: UpdateProductDto) {
@@ -103,6 +100,10 @@ export class ShopService {
     return this.orderSvc.createOrder(userId, dto);
   }
 
+  estimateOrder(userId: string, dto: EstimateOrderDto) {
+    return this.orderSvc.estimateOrder(userId, dto);
+  }
+
   createGroupBuyOrder(userId: string, params: {
     groupBuyId: string; productId: string; skuId?: string; groupPrice: number; groupId: string;
   }) {
@@ -129,20 +130,38 @@ export class ShopService {
     return this.orderSvc.getUserOrders(userId, page, pageSize, status);
   }
 
-  createJsapiPayment(userId: string, openid: string, orderId: string, notifyUrl?: string) {
-    return this.paymentSvc.createJsapiPayment(userId, openid, orderId, notifyUrl);
+  createJsapiPayment(userId: string, openid: string | undefined, orderId: string, notifyUrl?: string, channel?: "MINI" | "OFFICIAL") {
+    return this.paymentSvc.createJsapiPayment(userId, openid, orderId, notifyUrl, channel);
   }
 
   createNativePayment(orderId: string, userId: string, notifyUrl?: string) {
     return this.paymentSvc.createNativePayment(orderId, userId, notifyUrl);
   }
 
-  createRechargePayment(userId: string, openid: string, amountCoin: number, notifyUrl?: string) {
-    return this.paymentSvc.createRechargePayment(userId, openid, amountCoin, notifyUrl);
+  createH5Payment(orderId: string, userId: string, clientIp: string, notifyUrl?: string) {
+    return this.paymentSvc.createH5Payment(orderId, userId, clientIp, notifyUrl);
   }
 
-  createCoinRechargeJsapi(userId: string, amountCoin: number) {
-    return this.paymentSvc.createCoinRechargeJsapi(userId, amountCoin);
+  createRechargePayment(userId: string, openid: string, amountCoin: number, notifyUrl?: string, appId?: string) {
+    return this.paymentSvc.createRechargePayment(userId, openid, amountCoin, notifyUrl, appId);
+  }
+
+  createCoinRechargeJsapi(
+    userId: string,
+    amountCoin: number,
+    openid?: string,
+    channel?: "MINI" | "OFFICIAL",
+    notifyUrl?: string,
+  ) {
+    return this.paymentSvc.createCoinRechargeJsapi(userId, amountCoin, openid, channel, notifyUrl);
+  }
+
+  createCoinRechargeH5(userId: string, amountCoin: number, clientIp: string, notifyUrl?: string) {
+    return this.paymentSvc.createCoinRechargeH5(userId, amountCoin, clientIp, notifyUrl);
+  }
+
+  queryCoinRechargeStatus(userId: string, orderNo: string) {
+    return this.paymentSvc.queryCoinRechargeStatus(userId, orderNo);
   }
 
   verifyAndDecryptNotify(signature: string, rawBody: string, timestamp: string, nonce: string, serialNo: string) {
@@ -165,7 +184,11 @@ export class ShopService {
     return this.paymentSvc.verifyUnionpayNotify(params);
   }
 
-  handleUnionpayNotify(data: Record<string, unknown>) {
+  async handleUnionpayNotify(data: Record<string, unknown>) {
+    if (data.txnType === "04") {
+      await this.refundSvc.handleUnionpayRefundNotify(data);
+      return true;
+    }
     return this.paymentSvc.handleUnionpayNotify(data);
   }
 
@@ -244,6 +267,8 @@ export class ShopService {
       userId,
       dataId: productId,
     });
+    // 图片审核：评价配图（晒图，先审后发）
+    await this.audit.moderateImageOrThrow(dto.images, { scene: "PRODUCT_REVIEW", userId, dataId: productId });
 
     return this.prisma.productReview.create({
       data: {
@@ -355,6 +380,43 @@ export class ShopService {
     await this.prisma.productReview.findUniqueOrThrow({ where: { id: reviewId } });
     await this.prisma.productReview.delete({ where: { id: reviewId } });
     return { success: true };
+  }
+
+  /**
+   * 管理员隐藏/恢复评价（评价治理）。
+   * schema 定义了 status: PUBLISHED/HIDDEN 但此前全模块没有任何写 HIDDEN 的代码，
+   * 隐藏能力有列无门 —— C 端 listReviews/listShopReviews/getReviewStats 均只查 PUBLISHED，
+   * 置 HIDDEN 后 C 端立即不可见（含评分统计），无需改 C 端。
+   */
+  async setProductReviewStatus(reviewId: string, status: "PUBLISHED" | "HIDDEN") {
+    const review = await this.prisma.productReview.findUnique({ where: { id: reviewId } });
+    if (!review) throw new BusinessException(ErrorCode.NOT_FOUND, "评价不存在");
+    if (review.status === status) return review; // 幂等：重复隐藏/恢复直接返回
+    return this.prisma.productReview.update({
+      where: { id: reviewId },
+      data: { status },
+    });
+  }
+
+  /**
+   * 管理员评价列表（聚合全部商品评价·治理视角）：
+   * 与公开的 listShopReviews 不同，默认返回全部状态（含 HIDDEN），支持 status 筛选。
+   */
+  async listShopReviewsAdmin(rawPage = 1, rawPageSize = 20, status?: string) {
+    const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
+    const where: Prisma.ProductReviewWhereInput = {};
+    if (status === "PUBLISHED" || status === "HIDDEN") where.status = status;
+    const [rawReviews, total] = await Promise.all([
+      this.prisma.productReview.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.productReview.count({ where }),
+    ]);
+    const reviews = await this.enrichReviews(rawReviews, true);
+    return { reviews, total, page, pageSize };
   }
 
   /** 获取店铺级评价列表（聚合所有商品评价） */

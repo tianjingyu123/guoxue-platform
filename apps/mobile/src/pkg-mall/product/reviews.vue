@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
 import AppLoadMore from '@/components/common/app-load-more.vue'
 import { goBack } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
@@ -15,6 +16,7 @@ const reviewSortOptions = ref<ReviewSortOption[]>([])
 const reviewSummary = ref<{ goodRatePercent: number; rating: number; total: number }>({ goodRatePercent: 0, rating: 0, total: 0 })
 
 const productId = ref('')
+const noProduct = ref(false)
 const selectedTag = ref('all')
 const sortBy = ref('default')
 const showSortMenu = ref(false)
@@ -39,6 +41,8 @@ const previewReview = computed(() => fullReviews.value.find((r) => r.id === prev
 
 onLoad((query) => {
   productId.value = query?.id || query?.productId || ''
+  // 缺商品参数：不触发注定失败的请求，改为友好引导（正常从商品详情进入会带 id）
+  if (!productId.value) { noProduct.value = true; return }
   refresh()
 })
 onReachBottom(() => loadMore())
@@ -58,16 +62,21 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
     <!-- 顶部导航 -->
     <view class="header">
       <view class="header-inner">
-        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="40" color="var(--text-strong)" /></view>
+        <view class="back-btn" @tap="goBack"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
         <text class="header-title">商品评价</text>
         <view class="header-spacer" />
       </view>
     </view>
 
+    <!-- 缺商品参数：友好引导（而非整页加载失败） -->
+    <view v-if="noProduct" class="state-wrap">
+      <view class="state-icon"><AppIcon name="package" :size="56" color="var(--text-soft)" /></view>
+      <text class="state-text">未指定商品，无法查看评价</text>
+      <view class="state-retry" @tap="goBack"><text class="state-retry-text">返回上一页</text></view>
+    </view>
     <!-- 加载中 -->
-    <view v-if="loading" class="state-wrap">
-      <view class="state-spinner" />
-      <text class="state-text">加载中...</text>
+    <view v-else-if="loading" class="state-wrap">
+      <AppLoading />
     </view>
     <!-- 加载失败 -->
     <view v-else-if="error" class="state-wrap">
@@ -197,7 +206,7 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
 /* 顶部 */
 .header { position: sticky; top: 0; z-index: 40; background: var(--surface); border-bottom: 1rpx solid var(--border, #eee); padding-top: var(--status-bar-height, 0px); }
 .header-inner { display: flex; align-items: center; justify-content: space-between; padding: 0 28rpx; height: 88rpx; }
-.back-btn { width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
+.back-btn { width: 88rpx; height: 88rpx; margin: 0 -16rpx; display: flex; align-items: center; justify-content: center; } /* 触控热区≥88rpx：容器扩大+负margin保持视觉位置 */
 .header-title { font-size: 30rpx; font-weight: 600; color: var(--text-strong); }
 .header-spacer { width: 56rpx; }
 /* 总览 */
@@ -271,8 +280,6 @@ function setPreviewIndex(index: number) { if (previewImage.value) previewImage.v
 
 /* 三态：加载/错误 */
 .state-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 120rpx 0; }
-.state-spinner { width: 64rpx; height: 64rpx; border: 4rpx solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 .state-icon { width: 120rpx; height: 120rpx; border-radius: 50%; background: rgba(196,30,58,0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 24rpx; }
 .state-text { font-size: 26rpx; color: var(--text-soft); margin-top: 20rpx; }
 .state-retry { margin-top: 32rpx; padding: 16rpx 48rpx; border-radius: 999rpx; background: var(--brand); }

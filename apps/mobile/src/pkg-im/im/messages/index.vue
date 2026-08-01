@@ -76,7 +76,8 @@
         </view>
       </view>
 
-      <view class="msg-list__end">— 已显示全部消息 —</view>
+      <!-- 接口单次最多取 50 条：满 50 条时如实提示截断，不谎称"已显示全部"（分页留后端项） -->
+      <view class="msg-list__end">{{ messages.length >= 50 ? '— 仅显示最近 50 条消息 —' : '— 已显示全部消息 —' }}</view>
     </view>
 
     <!-- 空态 -->
@@ -84,8 +85,11 @@
       <view class="msg-empty__icon">
         <AppIcon name="bell" :size="80" color="#d6cdbf" />
       </view>
-      <text class="msg-empty__title">暂无消息</text>
-      <text class="msg-empty__desc">当前分类下没有消息</text>
+      <text class="msg-empty__title">这里还静悄悄的</text>
+      <text class="msg-empty__desc">去圈子逛逛，互动和通知都会出现在这里</text>
+      <view class="msg-empty__btn" @tap="navigateTo('/pages/circles/index')">
+        <text class="msg-empty__btn-text">去圈子逛逛</text>
+      </view>
     </view>
   </view>
 </template>
@@ -180,6 +184,10 @@ async function markAllRead() {
     await imApi.markAllNotifyRead()
     messages.value.forEach((m) => (m.isRead = true))
     counts.value = { system: 0, interaction: 0, transaction: 0, service: 0, income: 0, total: 0 }
+    uni.showToast({ title: '已全部标为已读', icon: 'none' })
+  } catch (e) {
+    // 失败必须提示：此前静默失败让用户以为已读成功（照 circles/notifications.vue 范式）
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
   } finally {
     marking.value = false
   }
@@ -408,6 +416,16 @@ async function markAllRead() {
 .msg-empty__desc {
   font-size: 26rpx;
   color: #9c9388;
+}
+.msg-empty__btn {
+  margin-top: 40rpx;
+  padding: 16rpx 48rpx;
+  background: var(--brand, #c41e3a);
+  border-radius: 999rpx;
+}
+.msg-empty__btn-text {
+  font-size: 28rpx;
+  color: #ffffff;
 }
 
 /* 加载/错误状态 */

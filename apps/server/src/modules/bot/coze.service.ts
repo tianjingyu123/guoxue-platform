@@ -3,6 +3,18 @@ import { Observable } from "rxjs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SystemService } from "../system/system.service";
+import { CozeOAuthService } from "./coze-oauth.service";
+
+/** Coze 流式结构化事件（chatStreamEx 输出） */
+export interface CozeStreamEvent {
+  type: "chunk" | "meta";
+  /** type=chunk：回答文本增量 */
+  content?: string;
+  /** type=meta：会话 id（前端续聊用） */
+  conversationId?: string;
+  /** type=meta：本次 chat id（审计用） */
+  chatId?: string;
+}
 
 /**
  * COZE 智能体 API 服务
@@ -26,6 +38,8 @@ export class CozeService {
   constructor(
     // SystemModule 为 @Global 导出·@Optional 保证单测缺 provider 时回退默认品牌名
     @Optional() private readonly systemService?: SystemService,
+    // @Optional：配了 OAuth 则所有 Coze 调用统一用自动刷新的 OAuth 令牌；未配/单测缺 provider 时回退传入的 PAT
+    @Optional() private readonly oauth?: CozeOAuthService,
   ) {}
 
   /** 品牌名（后台 BrandConfig 可配·拉取失败/未注入时兜底"热卜国学"，与历史口径一致） */
@@ -36,6 +50,23 @@ export class CozeService {
     } catch {
       return "热卜国学";
     }
+  }
+
+  /**
+   * 解析实际使用的令牌：配置了 Coze OAuth 则用自动签名/刷新的 access_token；
+   * 未配置或换取失败则回退传入的 PAT（过渡不断服务）。所有对 Coze 的调用统一经此。
+   */
+  private async resolveApiKey(fallback: string): Promise<string> {
+    if (this.oauth?.isConfigured()) {
+      const token = await this.oauth.getAccessToken();
+      if (token) return token;
+    }
+    return fallback;
+  }
+
+  /** 是否已配置 Coze OAuth（供调用方在缺 PAT 时放行守卫） */
+  isOAuthConfigured(): boolean {
+    return this.oauth?.isConfigured() ?? false;
   }
 
   // ───────── 对话 ─────────
@@ -73,14 +104,17 @@ export class CozeService {
       body.additional_params = params.additionalParams;
     }
 
+    const apiKey = await this.resolveApiKey(params.apiKey);
+
     // 先发送用户消息创建chat
     const createResp = await fetch(`${this.baseUrl}/chat`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${params.apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000), // 防 COZE 无响应挂死请求线程
     });
 
     const createData = await createResp.json() as Record<string, unknown>;
@@ -93,11 +127,11 @@ export class CozeService {
     const chatId = createDataBody.id as string;
     const conversationId = createDataBody.conversation_id as string;
 
-    // 轮询获取对话结果
-    return this.pollChatResult(chatId, conversationId, params.apiKey);
+    // 轮询获取对话结果（复用已解析的令牌，避免二次换取）
+    return this.pollChatResult(chatId, conversationId, apiKey);
   }
 
-  /** 发起对话（流式），返回SSE Observable */
+  /** 发起对话（流式·仅文本增量），返回SSE Observable —— 兼容旧调用方 */
   chatStream(params: {
     botId: string;
     apiKey: string;
@@ -106,6 +140,32 @@ export class CozeService {
     conversationId?: string;
     additionalParams?: Record<string, unknown>;
   }): Observable<string> {
+    return new Observable((subscriber) => {
+      const sub = this.chatStreamEx(params).subscribe({
+        next: (ev) => {
+          if (ev.type === "chunk" && ev.content) subscriber.next(ev.content);
+        },
+        error: (err) => subscriber.error(err),
+        complete: () => subscriber.complete(),
+      });
+      return () => sub.unsubscribe();
+    });
+  }
+
+  /**
+   * 发起对话（流式·结构化事件）：
+   * - {type:"chunk", content} —— 回答文本增量（只取 conversation.message.delta 的 answer，
+   *   修复旧实现 data.content 与 type==="answer" 双条件重复发送、completed 全文重放的问题）
+   * - {type:"meta", conversationId, chatId} —— 会话建立即下发，供前端续聊
+   */
+  chatStreamEx(params: {
+    botId: string;
+    apiKey: string;
+    userId: string;
+    query: string;
+    conversationId?: string;
+    additionalParams?: Record<string, unknown>;
+  }): Observable<CozeStreamEvent> {
     return new Observable((subscriber) => {
       const body: Record<string, unknown> = {
         bot_id: params.botId,
@@ -124,16 +184,23 @@ export class CozeService {
         body.additional_params = params.additionalParams;
       }
 
+      const t0 = Date.now();
+      let firstChunkLogged = false;
       (async () => {
         try {
+          const apiKey = await this.resolveApiKey(params.apiKey);
+          const tokenMs = Date.now() - t0;
           const resp = await fetch(`${this.baseUrl}/chat`, {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${params.apiKey}`,
+              "Authorization": `Bearer ${apiKey}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify(body),
+            // 流式回答整体可能超 10s，用较宽裕超时仅防"永不响应"挂死，避免截断正常长回答
+            signal: AbortSignal.timeout(120000),
           });
+          const fetchMs = Date.now() - t0;
 
           if (resp.status !== 200) {
             const errText = await resp.text();
@@ -149,6 +216,9 @@ export class CozeService {
 
           const decoder = new TextDecoder();
           let buffer = "";
+          // Coze v3 SSE：event: 行标识事件类型，紧随的 data: 行携带载荷
+          let currentEvent = "";
+          let metaSent = false;
 
           for (;;) {
             const { done, value } = await reader.read();
@@ -159,31 +229,56 @@ export class CozeService {
             buffer = lines.pop() || "";
 
             for (const line of lines) {
-              if (line.startsWith("data:")) {
-                const jsonStr = line.slice(5).trim();
-                if (jsonStr === "[DONE]") {
-                  subscriber.complete();
-                  return;
-                }
-                try {
-                  const data = JSON.parse(jsonStr);
-                  if (data.content) {
-                    subscriber.next(data.content);
-                  }
-                  if (data.type === "answer" && data.content_type === "text") {
-                    subscriber.next(data.content);
-                  }
-                } catch (err) {
-                  this.logger.warn(`Coze 响应行 JSON 解析失败`, err);
-                  // 非JSON行，忽略
-                }
-              }
               if (line.startsWith("event:")) {
-                const eventType = line.slice(6).trim();
-                if (eventType === "done") {
+                currentEvent = line.slice(6).trim();
+                if (currentEvent === "done") {
                   subscriber.complete();
                   return;
                 }
+                continue;
+              }
+              if (!line.startsWith("data:")) continue;
+              const jsonStr = line.slice(5).trim();
+              if (jsonStr === "[DONE]" || jsonStr === '"[DONE]"') {
+                subscriber.complete();
+                return;
+              }
+              try {
+                const data = JSON.parse(jsonStr) as Record<string, unknown>;
+                // 会话元信息：chat 创建即下发 conversation_id 供前端续聊
+                if (!metaSent && data.conversation_id) {
+                  metaSent = true;
+                  subscriber.next({
+                    type: "meta",
+                    conversationId: String(data.conversation_id),
+                    chatId: data.id ? String(data.id) : undefined,
+                  });
+                }
+                if (currentEvent === "conversation.chat.failed") {
+                  const lastError = data.last_error as Record<string, unknown> | undefined;
+                  subscriber.error(new Error(`COZE对话失败: ${lastError?.msg || "unknown"}`));
+                  return;
+                }
+                // 文本增量：宽容接收带 content 的载荷，但排除全文重放/状态类事件
+                // （completed 是整段全文重放，取了会与 delta 增量重复；同时修复旧实现
+                //   data.content 与 type===answer 双条件各发一次导致的逐块双发）
+                const isReplayEvent =
+                  currentEvent === "conversation.message.completed" ||
+                  currentEvent === "conversation.chat.completed" ||
+                  currentEvent === "conversation.chat.created" ||
+                  currentEvent === "conversation.chat.in_progress";
+                const typeOk = data.type === undefined || data.type === "answer";
+                const ctypeOk = data.content_type === undefined || data.content_type === "text";
+                if (!isReplayEvent && typeOk && ctypeOk && typeof data.content === "string" && data.content) {
+                  if (!firstChunkLogged) {
+                    firstChunkLogged = true;
+                    this.logger.log(`Coze首字诊断 token换取=${tokenMs}ms 连Coze=${fetchMs}ms Coze吐首字=${Date.now() - t0}ms bot=${params.botId}`);
+                  }
+                  subscriber.next({ type: "chunk", content: data.content });
+                }
+              } catch (err) {
+                this.logger.warn(`Coze 响应行 JSON 解析失败`, err);
+                // 非JSON行，忽略
               }
             }
           }
@@ -195,7 +290,13 @@ export class CozeService {
     });
   }
 
-  /** 轮询对话结果 */
+  /**
+   * 轮询对话结果 —— 先查 chat 状态机再取消息（诊断+止血）：
+   * - failed：立即抛出 Coze 返回的 last_error（暴露真因：模型报错/bot 配置问题），不再对失败傻等满超时
+   * - completed：取 assistant answer 消息返回
+   * - in_progress/created：继续等（真慢才会走到超时）
+   * 关键日志（不含敏感）：last_error / completed 无 answer / 超时，供生产定位"慢 vs 卡死 vs 配置错"。
+   */
   private async pollChatResult(
     chatId: string,
     conversationId: string,
@@ -203,36 +304,61 @@ export class CozeService {
     maxRetries = 30,
   ) {
     for (let i = 0; i < maxRetries; i++) {
-      const messagesResp = await fetch(
-        `${this.baseUrl}/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`,
+      // 1) 查 chat 状态，区分 completed / failed / in_progress
+      const retrieveResp = await fetch(
+        `${this.baseUrl}/chat/retrieve?chat_id=${chatId}&conversation_id=${conversationId}`,
         {
           headers: { "Authorization": `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(10000),
         },
       );
+      const retrieveData = await retrieveResp.json() as Record<string, unknown>;
+      const chatObj = retrieveData.data as Record<string, unknown> | undefined;
+      const status = chatObj?.status as string | undefined;
 
-      const messagesData = await messagesResp.json() as Record<string, unknown>;
-      if (messagesData.code !== 0) {
-        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取消息列表失败: ${messagesData.msg}`);
+      if (status === "failed") {
+        const lastError = chatObj?.last_error as Record<string, unknown> | undefined;
+        this.logger.error(
+          `COZE对话失败(chat.failed) chatId=${chatId} code=${lastError?.code ?? ""} msg=${lastError?.msg ?? ""}`,
+        );
+        throw new BusinessException(
+          ErrorCode.THIRD_AI_FAILED,
+          `COZE对话失败: ${(lastError?.msg as string) || "模型未产出回答，请检查智能体模型/发布状态"}`,
+        );
       }
 
-      const messages = (messagesData.data as Array<Record<string, unknown>>) || [];
-      const assistantMsg = messages.find(
-        (m) => (m as Record<string, unknown>).role === "assistant" && (m as Record<string, unknown>).type === "answer",
-      );
-
-      if (assistantMsg) {
-        return {
-          chatId,
-          conversationId,
-          content: assistantMsg.content,
-          messages,
-        };
+      if (status === "completed") {
+        // 2) 完成 → 取 assistant answer 消息
+        const messagesResp = await fetch(
+          `${this.baseUrl}/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`,
+          {
+            headers: { "Authorization": `Bearer ${apiKey}` },
+            signal: AbortSignal.timeout(10000),
+          },
+        );
+        const messagesData = await messagesResp.json() as Record<string, unknown>;
+        if (messagesData.code !== 0) {
+          throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `获取消息列表失败: ${messagesData.msg}`);
+        }
+        const messages = (messagesData.data as Array<Record<string, unknown>>) || [];
+        const assistantMsg = messages.find(
+          (m) => (m as Record<string, unknown>).role === "assistant" && (m as Record<string, unknown>).type === "answer",
+        );
+        if (assistantMsg) {
+          return { chatId, conversationId, content: assistantMsg.content, messages };
+        }
+        // completed 但无 answer（异常）→ 报错暴露，不再空转
+        this.logger.error(
+          `COZE已完成但无answer消息 chatId=${chatId} types=${messages.map((m) => m.type).join(",")}`,
+        );
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "COZE已完成但未返回回答内容，请检查智能体配置");
       }
 
-      // 等待1秒后重试
+      // in_progress / created / requires_action → 继续等待
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "COZE对话超时，未获取到响应");
+    this.logger.warn(`COZE对话轮询超时 chatId=${chatId} maxRetries=${maxRetries}（模型生成过慢）`);
+    throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "COZE对话超时，模型生成过慢，建议更换更快的模型");
   }
 
   /** 获取对话消息列表 */
@@ -241,6 +367,7 @@ export class CozeService {
     chatId: string,
     apiKey: string,
   ) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch(
       `${this.baseUrl}/chat/message/list?chat_id=${chatId}&conversation_id=${conversationId}`,
       {
@@ -257,6 +384,7 @@ export class CozeService {
 
   /** 获取对话详情 */
   async getChatDetail(conversationId: string, chatId: string, apiKey: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch(
       `${this.baseUrl}/chat/retrieve?chat_id=${chatId}&conversation_id=${conversationId}`,
       {
@@ -278,6 +406,7 @@ export class CozeService {
     messageId: string,
     apiKey: string,
   ) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch(
       `${this.baseUrl}/chat/message/retrieve?chat_id=${chatId}&conversation_id=${conversationId}&message_id=${messageId}`,
       { headers: { "Authorization": `Bearer ${apiKey}` } },
@@ -293,6 +422,7 @@ export class CozeService {
 
   /** 从 Coze 获取智能体详情（含 voice_id 等配置） */
   async retrieveBot(botId: string, apiKey: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch(`https://api.coze.cn/v1/bot/retrieve?bot_id=${botId}`, {
       headers: { "Authorization": `Bearer ${apiKey}` },
     });
@@ -305,6 +435,7 @@ export class CozeService {
 
   /** 获取 Coze 空间下的所有智能体列表 */
   async listBots(apiKey: string, spaceId?: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const params = new URLSearchParams();
     if (spaceId) params.set("space_id", spaceId);
     const url = `https://api.coze.cn/v1/space/list_bot${params.toString() ? "?" + params.toString() : ""}`;
@@ -359,9 +490,10 @@ export class CozeService {
     if (params.onboarding)            body.onboarding_info = params.onboarding;
     if (params.voiceId)               body.voice_id = params.voiceId;
 
+    const apiKey = await this.resolveApiKey(params.apiKey);
     const resp = await fetch("https://api.coze.cn/v1/bot/create", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${params.apiKey}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify(body),
     });
     const data = await resp.json() as Record<string, unknown>;
@@ -374,7 +506,7 @@ export class CozeService {
     try {
       await fetch("https://api.coze.cn/v1/bot/publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${params.apiKey}` },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
         body: JSON.stringify({ bot_id: botData.bot_id, connector_ids: [1024] }),
       });
     } catch { /* 发布失败不影响创建 */ }
@@ -401,10 +533,11 @@ export class CozeService {
     if (params.voiceId) body.voice_id = params.voiceId;
     if (params.prologue) (body.config as Record<string, unknown>).prologue_content = params.prologue;
 
+    const apiKey = await this.resolveApiKey(params.apiKey);
     const resp = await fetch("https://api.coze.cn/v1/audio/rooms", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${params.apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
@@ -419,6 +552,7 @@ export class CozeService {
 
   /** 获取可用音色列表 */
   async listVoices(apiKey: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const resp = await fetch("https://api.coze.cn/v1/audio/voices", {
       headers: { "Authorization": `Bearer ${apiKey}` },
     });
@@ -437,10 +571,11 @@ export class CozeService {
     apiKey: string;
     parameters?: Record<string, unknown>;
   }) {
+    const apiKey = await this.resolveApiKey(params.apiKey);
     const resp = await fetch("https://api.coze.cn/v1/workflow/run", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${params.apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -464,6 +599,7 @@ export class CozeService {
 
   /** 上传文件到 Coze（用于多模态对话） */
   async uploadFile(file: Buffer, filename: string, apiKey: string) {
+    apiKey = await this.resolveApiKey(apiKey);
     const form = new FormData();
     form.append("file", new Blob([file]), filename);
 

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo, toastComingSoon } from '@/utils/router'
+import { navigateTo } from '@/utils/router'
 import {
-  profileApi, getGreeting, roleConfig, quickFunctions,
-  allRoleTypes, roleHref, type UserRole,
+  profileApi, getGreeting, roleHref, type UserRole,
 } from '@/lib/profile-data'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
+import { mineApi } from '@/lib/mine-data'
 import { recommendApi } from '@/lib/recommend-data'
 import { growthApi } from '@/lib/growth-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
@@ -14,6 +16,9 @@ import type { RecommendItem } from '@/components/common/recommend-section.vue'
 const loading = ref(true)
 const error = ref('')
 const greeting = getGreeting()
+
+// 状态栏高度（自定义导航顶栏 paddingTop）
+const statusBarHeight = ref(20)
 
 // 从 API 获取的数据（响应式）
 const userData = ref({
@@ -28,32 +33,121 @@ const userData = ref({
   roles: [] as import('@/lib/profile-data').RoleEntry[],
   messages: { system: 0, interaction: 0, transaction: 0 },
   checkIn: { todayChecked: false, continuousDays: 0, totalPoints: 0 },
-  stats: { following: 0, followers: 0, likes: 0 },
-  coins: 0,
-  coupons: 0,
-  points: 0,
-  orders: { pending: 0, shipped: 0, received: 0, refund: 0 },
+  stats: { following: null as number | null, followers: null as number | null, likes: null as number | null },
+  coins: null as number | null,
+  coupons: null as number | null,
+  points: null as number | null,
+  orders: { pending: null as number | null, shipped: null as number | null, received: null as number | null, refund: null as number | null },
   continueLearning: null as { id: number; title: string; progress: number; lastLesson: string } | null,
 })
 const recItems = ref<RecommendItem[]>([])
 
-// totalMessages 基于 API 返回的用户数据动态计算
-const totalMessages = computed(() => {
-  const m = userData.value.messages
-  return m.system + m.interaction + m.transaction
+// 铃铛未读数：旁路 profile-data 的占位常量（messages 无聚合端点恒 0），
+// 直接用真实聚合端点 GET /notifications/unread-count 驱动红点（内部已 try/catch 降级 0）
+const unreadNotify = ref(0)
+async function fetchUnreadNotify() {
+  unreadNotify.value = await mineApi.getUnreadNotifyCount()
+}
+
+/* ===== 身份成长区（§六）：六角色统一模型（图章单字 + 一句权益 + 申请页路由）
+   六类均可查已加入态：后端 /auth/me 原样返回全部 roleType（含 OPERATOR/
+   STATION_OFFLINE_OWNER/INSTITUTE_MEMBER），profile-data _roleTypeMap 已补齐映射，
+   已开通者点入对应工作台，未开通者走「申请加入」引导。 ===== */
+interface RoleSpec {
+  applyType: string       // 申请页 role 参数
+  ownType?: UserRole      // 后端已有身份类型（用于查已加入态/进工作台），无则纯申请引导
+  seal: string            // 图章衍生单字
+  name: string            // 角色名
+  benefit: string         // 一句话权益（未加入态副行）
+}
+// 六角色定位顺序（讲师/商家/分站站长/运营商/线下驿站/研究院）
+const ROLE_SPECS: RoleSpec[] = [
+  { applyType: 'teacher', ownType: 'teacher', seal: '讲', name: '讲师', benefit: '把你的学问变成课程，触达百万学友' },
+  { applyType: 'merchant', ownType: 'merchant', seal: '商', name: '商家', benefit: '开店卖国学好物，平台代运营' },
+  { applyType: 'station_owner', ownType: 'station_owner', seal: '站', name: '分站站长', benefit: '承包一城，独享分站收益' },
+  { applyType: 'operator', ownType: 'operator', seal: '运', name: '运营商', benefit: '区域推广合伙，两级分润' },
+  { applyType: 'offline_station', ownType: 'offline_station', seal: '驿', name: '线下驿站', benefit: '门店挂牌，线上线下互导' },
+  { applyType: 'institute', ownType: 'institute', seal: '研', name: '研究院', benefit: '学术共建，内容首发权益' },
+]
+// 已加入身份集合（后端 roles → type）
+const ownedRoleMap = computed(() => {
+  const m = new Map<string, import('@/lib/profile-data').RoleEntry>()
+  for (const r of userData.value.roles) m.set(r.type, r)
+  return m
 })
+// 身份成长区渲染项（合并加入态/申请态）
+const roleRows = computed(() =>
+  ROLE_SPECS.map((spec) => {
+    const owned = spec.ownType ? ownedRoleMap.value.get(spec.ownType) : undefined
+    return {
+      ...spec,
+      joined: !!owned,
+      // 已加入：进入工作台（后端未返回待办数 → 中性引导「进入工作台」，诚实降级不造假待办数）
+      href: owned && spec.ownType ? roleHref(spec.ownType, owned.id) : '',
+      roleName: owned?.name || '',
+    }
+  }),
+)
+// 身份区展开态（默认露出前 3 行）
+const rolesExpanded = ref(false)
+const visibleRoleRows = computed(() =>
+  rolesExpanded.value ? roleRows.value : roleRows.value.slice(0, 3),
+)
+const hasMoreRoles = computed(() => roleRows.value.length > 3)
 
-// 未开通角色（申请开通引导）
-const ownedTypes = computed(() => new Set(userData.value.roles.map((r) => r.type)))
-const availableToApply = computed(() => allRoleTypes.filter((r) => !ownedTypes.value.has(r.type)))
+/* ===== 资产四宫格 ===== */
+// 钱包余额（可提现·真接口）：失败/未登录显示 —，不造假
+const walletBalance = ref<number | null>(null)
+async function loadWalletBalance() {
+  try {
+    const info = await mineApi.getWithdrawInfo()
+    walletBalance.value = info.availableBalance
+  } catch { walletBalance.value = null }
+}
+function metricText(value: number | null): string {
+  return value == null ? '—' : String(value)
+}
+const assetCells = computed(() => [
+  { key: 'wallet', label: '钱包余额', value: walletBalance.value == null ? '—' : `¥${walletBalance.value.toFixed(walletBalance.value % 1 ? 2 : 0)}`, href: '/pkg-mine/wallet/index' },
+  { key: 'coins', label: '国学币', value: metricText(userData.value.coins), href: '/pkg-mine/wallet/index' },
+  { key: 'coupons', label: '优惠券', value: metricText(userData.value.coupons), href: '/pkg-shop/coupons/index' },
+  { key: 'points', label: '积分', value: metricText(userData.value.points), href: '/pkg-mine/points/index' },
+])
 
-// 订单状态
+/* ===== 订单条 ===== */
 const orderStatus = computed(() => [
   { key: 'pending' as const, label: '待付款', icon: 'wallet', count: userData.value.orders.pending },
   { key: 'shipped' as const, label: '待发货', icon: 'package', count: userData.value.orders.shipped },
   { key: 'received' as const, label: '待收货', icon: 'truck', count: userData.value.orders.received },
   { key: 'refund' as const, label: '售后', icon: 'refresh-cw', count: userData.value.orders.refund },
 ])
+
+/* ===== 内容矩阵 4 列（排盘记录=战略位轻强调 star） =====
+   🔴 2026-07-14 补齐：此前只有 8 格，个人中心根本进不去自己的
+   笔记 / 直播 / 申请 / 收货地址 / 创作中心 / 讲师工作台 / 资质 ——
+   这些页面全是"做完了但没人跳得进去"的孤岛，用户体感就是"这个没做"。
+   （lib/profile-data 里那份 quickFunctions 是死常量、没人读，已删。） */
+const matrixItems: { icon: string; label: string; href: string; star?: boolean }[] = [
+  { icon: 'compass', label: '我的排盘记录', href: '/paipan', star: true },
+  { icon: 'book-open', label: '我的课程', href: '/courses/my-learning' },
+  // 我的圈子 → 圈子板块「我的」门户 /pkg-circle/circles/me（与圈子页右上角头像入口指向同一页）
+  { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/me' },
+  // 我的书架 → 古籍板块「我的书房」书架（真连收藏/进度），与古籍馆书架对齐
+  { icon: 'book-open', label: '我的书架', href: '/pkg-classics/bookshelf/index' },
+  { icon: 'bookmark', label: '收藏', href: '/favorites' },
+  { icon: 'history', label: '足迹', href: '/history' },
+  // 统一笔记页（古籍+电子书聚合），原 /ebook/notes 只有电子书
+  { icon: 'sticky-note', label: '我的笔记', href: '/mine/notes' },
+  // 「我的发布」价值有限（多数用户不发布·发布走圈子/创作者流各自管理）→ 董事长拍板换为「我的评价」（真实页·更有用）
+  { icon: 'message-circle', label: '我的评价', href: '/mine/my-comments' },
+  // 创作不需要角色（人人可发短视频），所以不走 roleHref 角色映射——后端 RoleType 枚举里压根没有 CREATOR
+  { icon: 'video', label: '创作中心', href: '/videos/creator' },
+  { icon: 'radio', label: '我的直播', href: '/pkg-live/manage/index' },
+  { icon: 'award', label: '讲师工作台', href: '/pkg-creator/teacher-dashboard/index' },
+  { icon: 'shield-check', label: '我的资质', href: '/pkg-creator/my-qualifications/index' },
+  // 收货地址此前全项目零入口：买了实体商品的用户只能在结算时被动选，改不了地址
+  { icon: 'map-pin', label: '收货地址', href: '/shop/addresses' },
+]
 
 async function fetchData() {
   loading.value = true
@@ -84,51 +178,56 @@ async function fetchEquippedTitle() {
 }
 
 onMounted(() => {
+  try {
+    const sys = uni.getSystemInfoSync()
+    if (sys?.statusBarHeight) statusBarHeight.value = sys.statusBarHeight
+  } catch { /* 降级默认 20 */ }
   fetchData()
   fetchEquippedTitle()
+  loadWalletBalance()
 })
 
-// 身份切换确认弹窗
-const pendingRole = ref<{ type: UserRole; name: string; href: string } | null>(null)
+// 每次显示都刷新铃铛未读（从通知中心读完返回即时消红点）；onShow 首屏也会触发
+onShow(() => {
+  fetchUnreadNotify()
+})
 
-function go(href: string) {
-  navigateTo(href)
-}
-/** 我的页订单状态 key → 订单列表页 tab key */
-function orderTabOf(key: 'pending' | 'shipped' | 'received' | 'refund'): string {
-  return { pending: 'pending_pay', shipped: 'pending_ship', received: 'pending_receive', refund: 'after_sale' }[key]
-}
-function openRole(type: UserRole, name: string, id: string | number) {
-  pendingRole.value = { type, name, href: roleHref(type, id) }
-}
-function confirmRole() {
-  if (!pendingRole.value) return
-  const href = pendingRole.value.href
-  pendingRole.value = null
-  navigateTo(href)
-}
-function applyRole(type: UserRole) {
-  toastComingSoon()
-}
-
-// 签到（防重复提交）
-const checkInSubmitting = ref(false)
-async function handleCheckIn() {
-  if (checkInSubmitting.value) return
-  checkInSubmitting.value = true
+// 下拉刷新：重拉个人资料与装备称号 + 铃铛未读
+onPullDownRefresh(async () => {
   try {
-    const res = await profileApi.checkIn()
-    userData.value.checkIn = {
-      todayChecked: true,
-      continuousDays: res.consecutiveDays,
-      totalPoints: userData.value.checkIn.totalPoints + res.points,
-    }
-    uni.showToast({ title: `签到成功 +${res.points}积分`, icon: 'none' })
-  } catch (e) {
-    uni.showToast({ title: (e as Error)?.message || '签到失败，请重试', icon: 'none' })
+    await Promise.all([fetchData(), fetchEquippedTitle(), loadWalletBalance(), fetchUnreadNotify()])
   } finally {
-    checkInSubmitting.value = false
+    uni.stopPullDownRefresh()
   }
+})
+
+function go(href?: string) {
+  if (href) navigateTo(href)
+}
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<unknown>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+function toggleRoles() {
+  rolesExpanded.value = !rolesExpanded.value
+}
+/** 我的页订单状态入口：售后是独立状态机，进入专属列表；其余进入订单筛选。 */
+function openOrderStatus(key: 'pending' | 'shipped' | 'received' | 'refund') {
+  if (key === 'refund') {
+    navigateTo('/shop/my-after-sales')
+    return
+  }
+  const tab = { pending: 'pending_pay', shipped: 'pending_ship', received: 'pending_receive' }[key]
+  navigateTo('/pkg-order/list/index?tab=' + tab)
+}
+/** 点击已有身份卡 → 进入对应工作台 */
+function openRole(href: string) {
+  if (href) navigateTo(href)
+}
+/** 点击「申请加入」→ 角色申请页（六角色共用模板，role 驱动） */
+function applyRole(role: string) {
+  navigateTo(`/pkg-mine/role-apply/index?role=${role}`)
 }
 </script>
 
@@ -137,7 +236,7 @@ async function handleCheckIn() {
     <app-network-bar />
     <customer-service-fab />
     <!-- 骨架屏 -->
-    <view v-if="loading" class="skeleton">
+    <view v-if="loading" class="skeleton" role="status" aria-live="polite">
       <view class="skeleton-hero" />
       <view class="skeleton-sec" />
       <view class="skeleton-sec" />
@@ -145,236 +244,306 @@ async function handleCheckIn() {
       <text class="skeleton-text">加载中...</text>
     </view>
     <!-- 错误态 -->
-    <view v-else-if="error" class="error-state">
+    <view v-else-if="error" class="error-state" role="alert" aria-live="assertive">
       <text class="error-text">{{ error }}</text>
-      <view class="retry-btn" @tap="fetchData">
+      <view
+        class="retry-btn"
+        role="button"
+        tabindex="0"
+        aria-label="重新加载个人中心"
+        @tap="fetchData"
+        @keydown="activateOnKeyboard($event, fetchData)"
+      >
         <text>重试</text>
       </view>
     </view>
     <template v-else>
-    <!-- ===== 第一层：个人信息区 ===== -->
-    <view class="hero">
-      <view class="hero-bg" />
-
-      <!-- 顶部操作栏 -->
-      <view class="topbar">
-        <view class="round-btn" @tap="toastComingSoon"><AppIcon name="qr-code" :size="38" color="#2c2c2c" /></view>
-        <view class="topbar-right">
-          <view class="round-btn msg-btn" @tap="go('/pkg-im/im/conversations')">
-            <AppIcon name="bell" :size="38" color="#2c2c2c" />
-            <text v-if="totalMessages > 0" class="msg-badge">{{ totalMessages }}</text>
-          </view>
-          <view class="round-btn" @tap="go('/pkg-mine/settings/index')"><AppIcon name="settings" :size="38" color="#2c2c2c" /></view>
+    <!-- ===== ① 头部身份区（白卡通栏） ===== -->
+    <view class="id-area" :style="{ paddingTop: statusBarHeight + 14 + 'px' }">
+      <!-- 右上角操作：消息（带未读红点）+ 设置 -->
+      <view class="top-acts" :style="{ top: statusBarHeight + 6 + 'px' }">
+        <view
+          class="top-act tap-press"
+          role="link"
+          tabindex="0"
+          :aria-label="unreadNotify > 0 ? `消息通知，${unreadNotify}条未读` : '消息通知'"
+          @tap="go('/notifications')"
+          @keydown="activateOnKeyboard($event, () => go('/notifications'))"
+        >
+          <AppIcon name="message-circle" :size="44" color="#2B2620" />
+          <view v-if="unreadNotify > 0" class="dot" />
+        </view>
+        <view
+          class="top-act tap-press"
+          role="link"
+          tabindex="0"
+          aria-label="打开设置"
+          @tap="go('/pkg-mine/settings/index')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-mine/settings/index'))"
+        >
+          <AppIcon name="settings" :size="44" color="#2B2620" />
         </view>
       </view>
 
-      <!-- 用户信息 -->
-      <view class="user-row">
-        <view class="avatar" @tap="go('/pages/profile/edit')">
-          <image lazy-load v-if="userData.avatar" class="avatar-img" :src="userData.avatar" mode="aspectFill" />
-          <text v-else class="avatar-fallback">{{ userData.name[0] }}</text>
+      <view class="id-row">
+        <view
+          class="id-avatar"
+          role="link"
+          tabindex="0"
+          aria-label="编辑个人资料"
+          @tap="go('/mine/edit-profile')"
+          @keydown="activateOnKeyboard($event, () => go('/mine/edit-profile'))"
+        >
+          <!-- smart-avatar：头像 URL 失效自动翻昵称首字色块（原 image 裂图时是纯红空圈） -->
+          <smart-avatar class="avatar-img" :src="userData.avatar" :name="userData.name || '国'" />
         </view>
-        <view class="user-info">
-          <text class="greeting">{{ greeting }}，{{ userData.name }}</text>
-          <view class="name-row">
-            <text class="uname">{{ userData.name }}</text>
+        <view class="id-info">
+          <view class="id-name-row">
+            <text class="id-name" role="heading" aria-level="1">{{ userData.name }}</text>
             <AppIcon v-if="userData.isVerified" name="shield" :size="28" color="#4A90D9" />
-            <view v-if="userData.isVip" class="vip-badge">
-              <AppIcon name="crown" :size="22" color="#ffffff" />
-              <text class="vip-txt">{{ userData.vipLevel }}</text>
-            </view>
-            <view v-if="equippedTitle" class="title-chip" @tap="go('/pkg-mine/achievements/index')">
+            <view
+              v-if="equippedTitle"
+              class="title-chip"
+              role="link"
+              tabindex="0"
+              :aria-label="`查看称号与成就：${equippedTitle.name}`"
+              @tap="go('/pkg-mine/achievements/index')"
+              @keydown="activateOnKeyboard($event, () => go('/pkg-mine/achievements/index'))"
+            >
               <text class="title-chip-txt">{{ equippedTitle.name }}</text>
             </view>
           </view>
-          <view class="stat-row">
-            <view class="stat-item" @tap="go('/pkg-mine/follows/index')">
-              <text class="stat-num">{{ userData.stats.following }}</text><text class="stat-label">关注</text>
-            </view>
-            <view class="stat-div" />
-            <view class="stat-item" @tap="go('/pkg-mine/follows/index?tab=followers')">
-              <text class="stat-num">{{ userData.stats.followers }}</text><text class="stat-label">粉丝</text>
-            </view>
-            <view class="stat-div" />
-            <view class="stat-item" @tap="toastComingSoon">
-              <text class="stat-num">{{ userData.stats.likes }}</text><text class="stat-label">获赞</text>
-            </view>
-          </view>
-          <view class="edit-btn" @tap="go('/pages/profile/edit')">
-            <AppIcon name="edit" :size="24" color="#2c2c2c" /><text class="edit-txt">编辑资料</text>
-          </view>
+          <text class="id-sign">{{ userData.bio || greeting + '，欢迎回来' }}</text>
         </view>
+      </view>
+
+      <!-- 三数据：关注/粉丝/获赞 -->
+      <view class="id-stats">
+        <view
+          class="st"
+          role="link"
+          tabindex="0"
+          :aria-label="`我的关注，${metricText(userData.stats.following)}`"
+          @tap="go('/pkg-mine/follows/index')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-mine/follows/index'))"
+        ><text class="st-b">{{ metricText(userData.stats.following) }}</text><text class="st-l">关注</text></view>
+        <view
+          class="st"
+          role="link"
+          tabindex="0"
+          :aria-label="`我的粉丝，${metricText(userData.stats.followers)}`"
+          @tap="go('/pkg-mine/follows/index?tab=followers')"
+          @keydown="activateOnKeyboard($event, () => go('/pkg-mine/follows/index?tab=followers'))"
+        ><text class="st-b">{{ metricText(userData.stats.followers) }}</text><text class="st-l">粉丝</text></view>
+        <!-- “获赞”是内容收到的赞；现有 likes 页是主动点赞，二者不可混跳。 -->
+        <view class="st"><text class="st-b">{{ metricText(userData.stats.likes) }}</text><text class="st-l">获赞</text></view>
+      </view>
+
+      <!-- 会员金卡条：会员=暖金渐变金底深字 / 非会员=宣纸衬底金描边 -->
+      <view
+        v-if="userData.isVip"
+        class="gold-bar gold-bar--member card-press"
+        role="link"
+        tabindex="0"
+        aria-label="查看书院会员权益与续费"
+        @tap="go('/vip')"
+        @keydown="activateOnKeyboard($event, () => go('/vip'))"
+      >
+        <view class="gb-crown"><AppIcon name="crown" :size="34" color="#8A6B38" /></view>
+        <view class="gb-txt">
+          <text class="gb-title gb-title--member">书院会员 · {{ userData.vipLevel || '专属权益' }}</text>
+          <text class="gb-sub gb-sub--member">{{ userData.vipExpiry ? userData.vipExpiry + ' 到期' : 'AI 伴读 · 古籍畅读 · 全场好课优惠' }}</text>
+        </view>
+        <view class="gb-cta gb-cta--member"><text class="gb-cta-txt gb-cta-txt--member">续费</text></view>
+      </view>
+      <view
+        v-else
+        class="gold-bar gold-bar--guest card-press"
+        role="link"
+        tabindex="0"
+        aria-label="查看并开通书院会员"
+        @tap="go('/vip')"
+        @keydown="activateOnKeyboard($event, () => go('/vip'))"
+      >
+        <view class="gb-crown"><AppIcon name="crown" :size="34" color="#C9A96E" /></view>
+        <view class="gb-txt">
+          <text class="gb-title gb-title--guest">开通书院会员</text>
+          <text class="gb-sub gb-sub--guest">AI 伴读 · 古籍畅读 · 全场好课优惠</text>
+        </view>
+        <view class="gb-cta gb-cta--guest"><text class="gb-cta-txt gb-cta-txt--guest">立即开通</text></view>
       </view>
     </view>
 
-    <!-- ===== 第二层：资产核心区 ===== -->
-    <view class="sec">
-      <view class="asset-card">
-        <view class="asset-grid">
-          <view class="asset-item" @tap="go('/pkg-mine/wallet/index')">
-            <view class="asset-val"><AppIcon name="coins" :size="38" color="#C9A96E" /><text class="coin-num">{{ userData.coins }}</text></view>
-            <text class="coin-label">国学币</text>
-          </view>
-          <view class="asset-item asset-bd" @tap="go('/pkg-shop/coupons/index')">
-            <view class="asset-val"><AppIcon name="ticket" :size="30" color="#999999" /><text class="asset-num">{{ userData.coupons }}</text></view>
-            <text class="asset-label">优惠券</text>
-          </view>
-          <view class="asset-item asset-bd" @tap="go('/pkg-mine/points/index')">
-            <view class="asset-val"><AppIcon name="star" :size="30" color="#999999" /><text class="asset-num">{{ userData.points }}</text></view>
-            <text class="asset-label">积分</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- ===== 书院会员常驻入口（非会员=开通引导·会员=等级/到期）===== -->
-    <view class="sec">
-      <view class="vip-entry" @tap="go('/pkg-mine/memberships/index')">
-        <view class="vip-entry-left">
-          <view class="vip-entry-icon"><AppIcon name="crown" :size="36" color="#ffffff" /></view>
-          <view class="vip-entry-info">
-            <text class="vip-entry-title">书院会员</text>
-            <text v-if="userData.isVip" class="vip-entry-sub">{{ userData.vipLevel || '会员' }}{{ userData.vipExpiry ? ' · ' + userData.vipExpiry + ' 到期' : '' }}</text>
-            <text v-else class="vip-entry-sub">AI 伴读 · 电子书畅读 · 专属权益</text>
-          </view>
-        </view>
-        <view class="vip-entry-btn">
-          <text class="vip-entry-btn-txt">{{ userData.isVip ? '查看权益' : '立即开通' }}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- ===== 第三层：订单与售后区 ===== -->
-    <view class="sec">
-      <view class="card">
-        <view class="card-head">
-          <text class="card-title">我的订单</text>
-          <view class="card-more" @tap="go('/pkg-order/list/index')"><text class="more-txt">查看全部订单</text><AppIcon name="chevron-right" :size="28" color="#999999" /></view>
-        </view>
-        <view class="order-grid">
-          <view v-for="item in orderStatus" :key="item.key" class="order-item" @tap="go(`/pkg-order/list/index?tab=${orderTabOf(item.key)}`)">
-            <view class="order-icon"><AppIcon :name="item.icon" :size="36" color="#999999" /></view>
-            <text class="order-label">{{ item.label }}</text>
-            <text v-if="item.count > 0" class="order-badge">{{ item.count }}</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- ===== 第四层：常用功能区 ===== -->
-    <view class="sec">
-      <view class="card">
-        <view class="card-head"><text class="card-title">常用功能</text></view>
-        <view class="fn-grid">
-          <view v-for="item in quickFunctions" :key="item.label" class="fn-item" @tap="go(item.href)">
-            <view class="fn-icon"><AppIcon :name="item.icon" :size="36" :color="item.color" /></view>
-            <text class="fn-label">{{ item.label }}</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- ===== 第五层：身份切换区 ===== -->
-    <view v-if="userData.roles.length > 0" class="sec">
-      <view class="card">
-        <view class="card-head">
-          <text class="card-title">身份切换</text>
-          <text class="card-hint">点击进入对应管理后台</text>
-        </view>
-        <view class="role-grid">
+    <!-- ===== ② 继续区（复访钩子·横滑）：谁有进行中出谁，全无则推荐引导卡 ===== -->
+    <template v-if="userData.continueLearning">
+      <view class="sec-title"><text class="sec-h">继续</text><text class="sec-more" role="link" tabindex="0" aria-label="查看我的全部学习课程" @tap="go('/courses/my-learning')" @keydown="activateOnKeyboard($event, () => go('/courses/my-learning'))">接着上次 ›</text></view>
+      <scroll-view scroll-x class="cont-row" :show-scrollbar="false">
+        <view class="cont-row-inner">
           <view
-            v-for="role in userData.roles"
-            :key="`${role.type}-${role.id}`"
-            class="role-item"
-            @tap="openRole(role.type, role.name, role.id)"
+            class="cont-card tap-press"
+            role="link"
+            tabindex="0"
+            :aria-label="`继续学习${userData.continueLearning.title}，当前进度${userData.continueLearning.progress}%`"
+            @tap="go(`/pkg-course/detail/index?id=${userData.continueLearning?.id}`)"
+            @keydown="activateOnKeyboard($event, () => go(`/pkg-course/detail/index?id=${userData.continueLearning?.id}`))"
           >
-            <view class="role-icon" :style="{ background: roleConfig[role.type].bgColor }">
-              <AppIcon :name="roleConfig[role.type].icon" :size="36" :color="roleConfig[role.type].color" />
-            </view>
-            <view class="role-info">
-              <text class="role-label">{{ roleConfig[role.type].label }}</text>
-              <text v-if="role.name" class="role-name">{{ role.name }}</text>
-            </view>
-            <AppIcon name="chevron-right" :size="28" color="#999999" />
-          </view>
-        </view>
-
-        <view v-if="availableToApply.length > 0" class="apply-wrap">
-          <text class="apply-title">开通更多身份</text>
-          <scroll-view scroll-x class="apply-scroll" :show-scrollbar="false">
-            <view class="apply-row">
-              <view v-for="r in availableToApply" :key="r.type" class="apply-chip" @tap="applyRole(r.type)">
-                <AppIcon :name="roleConfig[r.type].icon" :size="28" :color="roleConfig[r.type].color" />
-                <text class="apply-txt">申请{{ roleConfig[r.type].label.replace('后台', '').replace('中心', '') }}</text>
+            <text class="cont-tag">继续学习</text>
+            <view class="cont-main">
+              <view class="cont-th"><AppIcon name="book-open" :size="34" color="#C9A96E" /></view>
+              <view class="cont-txt">
+                <text class="cont-t">{{ userData.continueLearning.title }}</text>
+                <text class="cont-sub">{{ userData.continueLearning.lastLesson }}</text>
               </view>
             </view>
-          </scroll-view>
-        </view>
-      </view>
-    </view>
-
-    <!-- ===== 签到入口 ===== -->
-    <view class="sec">
-      <view class="checkin-card" :class="{ 'checkin-submitting': checkInSubmitting }" @tap="handleCheckIn">
-        <view class="checkin-left">
-          <view class="checkin-icon"><AppIcon name="calendar-check" :size="36" color="#ffffff" /></view>
-          <view>
-            <view class="checkin-title-row">
-              <text class="checkin-title">每日签到</text>
-              <text v-if="userData.checkIn.todayChecked" class="checkin-done">已签到</text>
-              <text v-else class="checkin-todo">待签到</text>
-            </view>
-            <text class="checkin-sub">已连续签到 <text class="hl-red">{{ userData.checkIn.continuousDays }}</text> 天，累计 <text class="hl-gold">{{ userData.checkIn.totalPoints }}</text> 积分</text>
+            <view class="prog"><view class="prog-i" :style="{ width: userData.continueLearning.progress + '%' }" /></view>
           </view>
         </view>
-        <AppIcon name="chevron-right" :size="36" color="#999999" />
+      </scroll-view>
+    </template>
+    <template v-else>
+      <view class="sec-title"><text class="sec-h">继续</text></view>
+      <view
+        class="empty-lead card-press"
+        role="link"
+        tabindex="0"
+        aria-label="前往排盘工具，开始国学探索"
+        @tap="go('/paipan')"
+        @keydown="activateOnKeyboard($event, () => go('/paipan'))"
+      >
+        <view class="empty-th"><AppIcon name="compass" :size="40" color="#C9A96E" /></view>
+        <view class="el-txt">
+          <text class="el-t">从一盘开始你的国学之旅</text>
+          <text class="el-sub">排盘、听书、读经，挑一个感兴趣的</text>
+        </view>
+        <view class="el-go"><text class="el-go-txt">去看看 ›</text></view>
+      </view>
+    </template>
+
+    <!-- ===== ③ 资产四宫格 ===== -->
+    <view class="assets">
+      <view
+        v-for="c in assetCells"
+        :key="c.key"
+        class="asset tap-press"
+        role="link"
+        tabindex="0"
+        :aria-label="`${c.label}，${c.value}`"
+        @tap="go(c.href)"
+        @keydown="activateOnKeyboard($event, () => go(c.href))"
+      >
+        <text class="asset-b">{{ c.value }}</text>
+        <text class="asset-s">{{ c.label }}</text>
       </view>
     </view>
 
-    <!-- ===== 继续学习卡片 ===== -->
-    <view v-if="userData.continueLearning" class="sec">
-      <view class="learn-card" @tap="go(`/pkg-course/detail/index?id=${userData.continueLearning?.id}`)">
-        <view class="learn-cover"><AppIcon name="play" :size="44" color="#C41E3A" /></view>
-        <view class="learn-info">
-          <text class="learn-tag">继续学习</text>
-          <text class="learn-title">{{ userData.continueLearning.title }}</text>
-          <text class="learn-lesson">{{ userData.continueLearning.lastLesson }}</text>
-        </view>
-        <view class="learn-prog">
-          <text class="learn-pct">{{ userData.continueLearning.progress }}%</text>
-          <view class="learn-bar"><view class="learn-bar-fill" :style="{ width: userData.continueLearning.progress + '%' }" /></view>
+    <!-- ===== ④ 订单条 ===== -->
+    <view class="orders">
+      <view class="orders-head">
+        <text class="orders-title">我的订单</text>
+        <text class="orders-more" role="link" tabindex="0" aria-label="查看全部订单" @tap="go('/pkg-order/list/index')" @keydown="activateOnKeyboard($event, () => go('/pkg-order/list/index'))">全部订单 ›</text>
+      </view>
+      <view class="orders-row">
+        <view
+          v-for="item in orderStatus"
+          :key="item.key"
+          class="o-item tap-press"
+          role="link"
+          tabindex="0"
+          :aria-label="`${item.label}订单，${item.count == null ? '数量未加载' : `${item.count}笔`}`"
+          @tap="openOrderStatus(item.key)"
+          @keydown="activateOnKeyboard($event, () => openOrderStatus(item.key))"
+        >
+          <view class="o-icon">
+            <AppIcon :name="item.icon" :size="40" color="#2B2620" />
+            <text v-if="item.count != null && item.count > 0" class="o-dot">{{ item.count }}</text>
+          </view>
+          <text class="o-label">{{ item.label }}</text>
         </view>
       </view>
     </view>
 
-    <!-- ===== 猜你喜欢（统一推荐区块·空时不渲染）===== -->
+    <!-- ===== ⑤ 我的内容矩阵（4 列 × 4 行·个人中心的入口集散地） ===== -->
+    <view class="matrix">
+      <view
+        v-for="m in matrixItems"
+        :key="m.label"
+        class="m-item tap-press"
+        :class="{ star: m.star }"
+        role="link"
+        tabindex="0"
+        :aria-label="m.label"
+        @tap="go(m.href)"
+        @keydown="activateOnKeyboard($event, () => go(m.href))"
+      >
+        <view class="m-icon">
+          <AppIcon :name="m.icon" :size="40" :color="m.star ? '#B4884A' : '#2B2620'" />
+          <view v-if="m.star" class="m-star-dot" />
+        </view>
+        <text class="m-label">{{ m.label }}</text>
+      </view>
+    </view>
+
+    <!-- ===== ⑥ 身份成长区（B端转化·六角色·默认露出 3 行） ===== -->
+    <view class="roles">
+      <view class="roles-head">
+        <text class="roles-title">身份切换</text>
+        <text class="roles-hint">加入平台生态，开启第二身份</text>
+      </view>
+      <view
+        v-for="row in visibleRoleRows"
+        :key="row.applyType"
+        class="role-row list-press"
+        :class="{ joined: row.joined, pending: !row.joined }"
+        role="link"
+        tabindex="0"
+        :aria-label="row.joined ? `进入${row.name}工作台` : `申请加入${row.name}：${row.benefit}`"
+        @tap="row.joined ? openRole(row.href) : applyRole(row.applyType)"
+        @keydown="activateOnKeyboard($event, () => row.joined ? openRole(row.href) : applyRole(row.applyType))"
+      >
+        <text class="role-seal">{{ row.seal }}</text>
+        <view class="role-txt">
+          <text class="role-name">{{ row.name }}</text>
+          <text class="role-sub">{{ row.joined ? (row.roleName || '身份已启用') : row.benefit }}</text>
+        </view>
+        <view v-if="row.joined" class="role-go">
+          <text class="role-go-txt">进入{{ row.name }}工作台</text>
+          <AppIcon name="chevron-right" :size="24" color="#C41E3A" />
+        </view>
+        <view v-else class="role-apply"><text class="role-apply-txt">申请加入</text></view>
+      </view>
+      <view
+        v-if="hasMoreRoles"
+        class="role-more list-press"
+        role="button"
+        tabindex="0"
+        :aria-expanded="rolesExpanded"
+        :aria-label="rolesExpanded ? '收起更多身份' : '展开更多身份'"
+        @tap="toggleRoles"
+        @keydown="activateOnKeyboard($event, toggleRoles)"
+      >
+        <text class="role-more-txt">{{ rolesExpanded ? '收起更多身份' : '更多身份' }}</text>
+        <AppIcon :name="rolesExpanded ? 'chevron-up' : 'chevron-down'" :size="22" color="#B0A99A" />
+      </view>
+    </view>
+
+    <!-- ===== ⑦ 服务与设置 ===== -->
+    <view class="svc">
+      <view class="svc-item tap-press" role="link" tabindex="0" aria-label="查看AI会话记录" @tap="go('/agents/history')" @keydown="activateOnKeyboard($event, () => go('/agents/history'))">
+        <AppIcon name="message-circle" :size="40" color="#2B2620" /><text class="svc-label">AI会话</text>
+      </view>
+      <view class="svc-item tap-press" role="link" tabindex="0" aria-label="联系智能客服" @tap="go('/agent/customer-service')" @keydown="activateOnKeyboard($event, () => go('/agent/customer-service'))">
+        <AppIcon name="customer-service" :size="40" color="#2B2620" /><text class="svc-label">联系客服</text>
+      </view>
+      <view class="svc-item tap-press" role="link" tabindex="0" aria-label="查看我的举报记录" @tap="go('/report/result')" @keydown="activateOnKeyboard($event, () => go('/report/result'))">
+        <AppIcon name="shield-check" :size="40" color="#2B2620" /><text class="svc-label">我的举报</text>
+      </view>
+      <view class="svc-item tap-press" role="link" tabindex="0" aria-label="打开帮助中心" @tap="go('/help')" @keydown="activateOnKeyboard($event, () => go('/help'))">
+        <AppIcon name="help-circle" :size="40" color="#2B2620" /><text class="svc-label">帮助中心</text>
+      </view>
+    </view>
+
+    <!-- ===== ⑧ 猜你喜欢（统一推荐区块·空时不渲染）===== -->
     <recommend-section title="猜你喜欢" :items="recItems" />
-
-    <!-- ===== 会员到期提醒（剩余<=30天）===== -->
-    <view v-if="userData.isVip && userData.vipDaysLeft <= 30" class="vip-remind">
-      <view class="vip-remind-card">
-        <view class="vip-remind-left"><AppIcon name="crown" :size="36" color="#ffffff" /><text class="vip-remind-txt">会员还剩 {{ userData.vipDaysLeft }} 天到期</text></view>
-        <view class="vip-renew" @tap="go('/pkg-mine/memberships/index')"><text class="vip-renew-txt">立即续费</text></view>
-      </view>
-    </view>
-
-    <!-- ===== 身份切换确认弹窗 ===== -->
-    <view v-if="pendingRole" class="modal-mask" @tap="pendingRole = null">
-      <view class="modal" @tap.stop>
-        <view class="modal-body">
-          <view class="modal-icon" :style="{ background: roleConfig[pendingRole.type].bgColor }">
-            <AppIcon :name="roleConfig[pendingRole.type].icon" :size="44" :color="roleConfig[pendingRole.type].color" />
-          </view>
-          <text class="modal-title">切换到「{{ roleConfig[pendingRole.type].label }}」</text>
-          <text class="modal-name">{{ pendingRole.name }}</text>
-          <text class="modal-desc">将进入对应管理后台，确认切换？</text>
-        </view>
-        <view class="modal-actions">
-          <view class="modal-cancel" @tap="pendingRole = null"><text class="modal-cancel-txt">取消</text></view>
-          <view class="modal-confirm" @tap="confirmRole"><text class="modal-confirm-txt">确认切换</text></view>
-        </view>
-      </view>
-    </view>
 
     </template>
     <bottom-nav active="profile" />
@@ -384,150 +553,125 @@ async function handleCheckIn() {
 <style scoped lang="scss">
 .page { min-height: 100vh; background: #FAF8F5; padding-bottom: 160rpx; }
 
-/* 第一层 hero */
-.hero { position: relative; }
-.hero-bg { position: absolute; top: 0; left: 0; right: 0; height: 384rpx; background: linear-gradient(to bottom, #F5F1EB, #FAF8F5 60%, #FAF8F5); }
-.topbar { position: relative; display: flex; align-items: center; justify-content: space-between; padding: 96rpx 32rpx 16rpx; }
-.topbar-right { display: flex; align-items: center; gap: 16rpx; }
-.round-btn { position: relative; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; }
-.msg-badge { position: absolute; top: -4rpx; right: -4rpx; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
+/* ① 头部身份区 */
+.id-area { position: relative; background: #FFFFFF; padding: 20rpx 32rpx 32rpx; }
+.top-acts { position: absolute; right: 16rpx; display: flex; }
+.top-act { position: relative; width: 80rpx; height: 80rpx; display: flex; align-items: center; justify-content: center; }
+.top-act .dot { position: absolute; top: 14rpx; right: 14rpx; width: 16rpx; height: 16rpx; border-radius: 50%; background: #C41E3A; border: 3rpx solid #fff; }
 
-.user-row { position: relative; display: flex; align-items: flex-start; gap: 32rpx; padding: 0 32rpx 32rpx; }
-.avatar { width: 160rpx; height: 160rpx; border-radius: 50%; background: var(--brand); display: flex; align-items: center; justify-content: center; border: 8rpx solid #fff; box-shadow: 0 8rpx 24rpx rgba(0,0,0,0.12); flex-shrink: 0; overflow: hidden; }
+.id-row { display: flex; align-items: center; gap: 28rpx; }
+.id-avatar { width: 120rpx; height: 120rpx; border-radius: 50%; background: #C41E3A; display: flex; align-items: center; justify-content: center; border: 4rpx solid #fff; box-shadow: 0 4rpx 16rpx rgba(60,50,40,.15); flex-shrink: 0; overflow: hidden; }
 .avatar-img { width: 100%; height: 100%; }
-.avatar-fallback { font-family: var(--font-serif); font-size: 56rpx; font-weight: 700; color: #fff; }
-.user-info { flex: 1; padding-top: 8rpx; min-width: 0; }
-.greeting { display: block; font-size: 22rpx; color: #999; margin-bottom: 8rpx; }
-.name-row { display: flex; align-items: center; gap: 12rpx; }
-.uname { font-family: var(--font-serif); font-size: 40rpx; font-weight: 700; color: #2c2c2c; }
-.vip-badge { display: flex; align-items: center; gap: 4rpx; padding: 2rpx 12rpx; border-radius: 999rpx; background: linear-gradient(to right, #C9A96E, #D4B87D); }
-.vip-txt { font-size: 20rpx; color: #fff; }
-/* 佩戴称号（小印章式标签·点击进成长中心） */
-.title-chip { padding: 2rpx 12rpx; border: 2rpx solid var(--brand); border-radius: 8rpx; background: rgba(196,30,58,0.06); }
-.title-chip-txt { font-family: var(--font-serif); font-size: 20rpx; font-weight: 600; color: var(--brand); letter-spacing: 2rpx; }
-.stat-row { display: flex; align-items: center; gap: 28rpx; margin-top: 16rpx; }
-.stat-item { display: flex; align-items: baseline; gap: 6rpx; }
-.stat-num { font-size: 32rpx; font-weight: 700; color: #2c2c2c; }
-.stat-label { font-size: 22rpx; color: #999; }
-.stat-div { width: 2rpx; height: 24rpx; background: #e8e0d5; }
-.edit-btn { display: inline-flex; align-items: center; gap: 6rpx; margin-top: 24rpx; height: 56rpx; padding: 0 24rpx; border-radius: 999rpx; border: 2rpx solid #e8e0d5; background: #fff; align-self: flex-start; }
-.edit-txt { font-size: 22rpx; color: #2c2c2c; }
+.avatar-fallback { font-family: var(--font-serif); font-size: 48rpx; font-weight: 700; color: #fff; }
+.id-info { flex: 1; min-width: 0; }
+.id-name-row { display: flex; align-items: center; gap: 12rpx; }
+.id-name { font-size: 34rpx; font-weight: 700; color: #2B2620; }
+.title-chip { padding: 2rpx 12rpx; border: 2rpx solid #C41E3A; border-radius: 8rpx; background: rgba(196,30,58,0.06); }
+.title-chip-txt { font-family: var(--font-serif); font-size: 24rpx; font-weight: 600; color: #C41E3A; letter-spacing: 2rpx; }
+.id-sign { display: block; font-size: 26rpx; color: #8A8578; margin-top: 10rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* 通用 section / card */
-.sec { padding: 0 32rpx; margin-top: 32rpx; }
-.card { background: #fff; border-radius: 24rpx; overflow: hidden; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.card-head { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; border-bottom: 2rpx solid #f0ece4; }
-.card-title { font-size: 30rpx; font-weight: 500; color: #2c2c2c; }
-.card-hint { font-size: 20rpx; color: #999; }
-.card-more { display: flex; align-items: center; }
-.more-txt { font-size: 22rpx; color: #999; }
+.id-stats { display: flex; gap: 56rpx; margin-top: 28rpx; padding-left: 4rpx; }
+.st { display: flex; align-items: baseline; gap: 10rpx; }
+.st-b { font-size: 30rpx; font-weight: 700; color: #2B2620; }
+.st-l { font-size: 24rpx; color: #8A8578; }
 
-/* 第二层 资产 */
-.asset-card { background: linear-gradient(to right, #FAF8F5, #F8F4EC); border: 2rpx solid rgba(201,169,110,0.2); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); padding: 32rpx; }
-.asset-grid { display: flex; }
-.asset-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8rpx 0; }
-.asset-bd { border-left: 2rpx solid rgba(201,169,110,0.2); }
-.asset-val { display: flex; align-items: center; gap: 8rpx; }
-.coin-num { font-size: 60rpx; font-weight: 700; color: #C9A96E; line-height: 1; }
-.coin-label { font-size: 22rpx; color: rgba(201,169,110,0.9); font-weight: 500; margin-top: 12rpx; }
-.asset-num { font-size: 40rpx; font-weight: 700; color: #2c2c2c; line-height: 1; }
-.asset-label { font-size: 22rpx; color: #999; margin-top: 12rpx; }
+/* 会员金卡条 */
+.gold-bar { margin-top: 32rpx; height: 128rpx; border-radius: 24rpx; padding: 0 28rpx; display: flex; align-items: center; gap: 20rpx; }
+.gold-bar--member { background: linear-gradient(105deg, #F3E3C3, #E8CE9C); box-shadow: 0 4rpx 16rpx rgba(180,140,70,.22); }
+.gold-bar--guest { background: #F6F1E7; border: 2rpx solid #E0CFA8; }
+.gb-crown { flex-shrink: 0; width: 44rpx; height: 44rpx; display: flex; align-items: center; justify-content: center; }
+.gb-txt { flex: 1; min-width: 0; }
+.gb-title { display: block; font-size: 26rpx; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gb-title--member { color: #5A431E; }
+.gb-title--guest { color: #2B2620; }
+.gb-sub { display: block; font-size: 24rpx; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gb-sub--member { color: #8A6B38; }
+.gb-sub--guest { color: #8A8578; }
+.gb-cta { flex-shrink: 0; height: 56rpx; padding: 0 28rpx; border-radius: 28rpx; display: flex; align-items: center; }
+.gb-cta--member { background: #2B2620; }
+.gb-cta--guest { background: linear-gradient(105deg, #F3E3C3, #E8CE9C); box-shadow: 0 2rpx 8rpx rgba(180,140,70,.25); }
+.gb-cta-txt { font-size: 24rpx; }
+.gb-cta-txt--member { color: #E8CE9C; font-weight: 500; }
+.gb-cta-txt--guest { color: #5A431E; font-weight: 700; }
 
-/* 书院会员常驻入口 */
-.vip-entry { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 28rpx; background: linear-gradient(to right, #C9A96E, #D4B87D); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(201,169,110,0.25); }
-.vip-entry-left { display: flex; align-items: center; gap: 20rpx; min-width: 0; }
-.vip-entry-icon { width: 72rpx; height: 72rpx; border-radius: 20rpx; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.vip-entry-info { min-width: 0; }
-.vip-entry-title { display: block; font-family: var(--font-serif); font-size: 30rpx; font-weight: 700; color: #fff; }
-.vip-entry-sub { display: block; font-size: 20rpx; color: rgba(255,255,255,0.85); margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vip-entry-btn { flex-shrink: 0; padding: 12rpx 28rpx; background: #fff; border-radius: 999rpx; }
-.vip-entry-btn-txt { font-size: 24rpx; font-weight: 600; color: #C9A96E; }
+/* 通用区块标题 */
+.sec-title { display: flex; align-items: baseline; padding: 36rpx 32rpx 20rpx; }
+.sec-h { font-family: var(--font-serif); font-size: 32rpx; font-weight: 700; color: #2B2620; }
+.sec-more { margin-left: auto; font-size: 24rpx; color: #B0A99A; }
 
-/* 第三层 订单 */
-.order-grid { display: flex; padding: 32rpx 0; }
-.order-item { flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
-.order-icon { width: 80rpx; height: 80rpx; border-radius: 50%; background: rgba(240,236,228,0.5); display: flex; align-items: center; justify-content: center; }
-.order-label { font-size: 22rpx; color: #2c2c2c; }
-.order-badge { position: absolute; top: 0; right: 25%; min-width: 32rpx; height: 32rpx; padding: 0 6rpx; background: var(--brand); color: #fff; font-size: 18rpx; font-weight: 700; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; }
+/* ② 继续区 */
+.cont-row { width: 100%; white-space: nowrap; }
+.cont-row-inner { display: inline-flex; gap: 16rpx; padding: 0 32rpx; }
+.cont-card { display: inline-block; width: 300rpx; vertical-align: top; background: #fff; border-radius: 20rpx; padding: 20rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); white-space: normal; }
+.cont-tag { display: inline-block; font-size: 22rpx; color: #C9A96E; border: 2rpx solid #C9A96E; border-radius: 6rpx; padding: 0 8rpx; }
+.cont-main { display: flex; gap: 16rpx; align-items: center; margin-top: 14rpx; }
+.cont-th { width: 80rpx; height: 104rpx; border-radius: 12rpx; background: linear-gradient(135deg, rgba(196,30,58,0.08), rgba(201,169,110,0.12)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cont-txt { flex: 1; min-width: 0; }
+.cont-t { display: block; font-size: 24rpx; font-weight: 500; color: #2B2620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cont-sub { display: block; font-size: 24rpx; color: #B0A99A; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog { height: 8rpx; background: #F0EBE1; border-radius: 4rpx; margin-top: 16rpx; overflow: hidden; }
+.prog-i { height: 100%; background: #C9A96E; border-radius: 4rpx; }
 
-/* 第四层 常用功能 */
-.fn-grid { display: flex; flex-wrap: wrap; padding: 32rpx 0; }
-.fn-item { width: 25%; display: flex; flex-direction: column; align-items: center; gap: 12rpx; margin-bottom: 32rpx; }
-.fn-icon { width: 80rpx; height: 80rpx; border-radius: 20rpx; background: rgba(240,236,228,0.5); display: flex; align-items: center; justify-content: center; }
-.fn-label { font-size: 22rpx; color: #2c2c2c; }
+/* ② 继续区空态引导卡 */
+.empty-lead { margin: 0 32rpx; background: #fff; border-radius: 24rpx; padding: 28rpx; display: flex; align-items: center; gap: 24rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
+.empty-th { width: 112rpx; height: 84rpx; border-radius: 16rpx; background: linear-gradient(135deg, rgba(196,30,58,0.06), rgba(201,169,110,0.12)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.el-txt { flex: 1; min-width: 0; }
+.el-t { display: block; font-size: 26rpx; font-weight: 700; color: #2B2620; }
+.el-sub { display: block; font-size: 24rpx; color: #8A8578; margin-top: 6rpx; }
+.el-go { flex-shrink: 0; height: 52rpx; padding: 0 24rpx; border-radius: 26rpx; border: 2rpx solid #C41E3A; display: flex; align-items: center; }
+.el-go-txt { font-size: 24rpx; color: #C41E3A; }
 
-/* 第五层 身份切换 */
-.role-grid { display: flex; flex-wrap: wrap; padding: 24rpx; gap: 16rpx; }
-.role-item { width: calc(50% - 8rpx); display: flex; align-items: center; gap: 20rpx; padding: 24rpx; border-radius: 20rpx; border: 2rpx solid #f0ece4; }
-.role-icon { width: 72rpx; height: 72rpx; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.role-info { flex: 1; min-width: 0; }
-.role-label { display: block; font-size: 26rpx; font-weight: 500; color: #2c2c2c; }
-.role-name { display: block; font-size: 20rpx; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.apply-wrap { padding: 0 24rpx 24rpx; }
-.apply-title { display: block; font-size: 20rpx; color: #999; margin-bottom: 16rpx; padding-left: 8rpx; }
-.apply-scroll { width: 100%; white-space: nowrap; }
-.apply-row { display: inline-flex; gap: 16rpx; }
-.apply-chip { display: inline-flex; align-items: center; gap: 12rpx; padding: 16rpx 24rpx; border-radius: 999rpx; border: 2rpx dashed #e8e0d5; }
-.apply-txt { font-size: 22rpx; color: #999; white-space: nowrap; }
+/* ③ 资产四宫格 */
+.assets { display: flex; margin: 28rpx 32rpx 0; background: #fff; border-radius: 24rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
+.asset { flex: 1; text-align: center; padding: 30rpx 0 26rpx; position: relative; }
+.asset + .asset::before { content: ''; position: absolute; left: 0; top: 28rpx; bottom: 28rpx; width: 2rpx; background: #F0EBE1; }
+.asset-b { display: block; font-family: var(--font-serif); font-size: 34rpx; font-weight: 700; color: #2B2620; }
+.asset-s { display: block; font-size: 24rpx; color: #8A8578; margin-top: 6rpx; }
 
-/* 签到 */
-.checkin-card { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; background: linear-gradient(to right, rgba(196,30,58,0.05), rgba(201,169,110,0.05)); border: 2rpx solid rgba(196,30,58,0.2); border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.checkin-left { display: flex; align-items: center; gap: 24rpx; }
-.checkin-icon { width: 80rpx; height: 80rpx; border-radius: 20rpx; background: linear-gradient(135deg, var(--brand), #C9A96E); display: flex; align-items: center; justify-content: center; }
-.checkin-title-row { display: flex; align-items: center; gap: 16rpx; }
-.checkin-title { font-size: 28rpx; font-weight: 500; color: #2c2c2c; }
-.checkin-done { font-size: 20rpx; color: #52C41A; background: rgba(82,196,26,0.1); padding: 2rpx 12rpx; border-radius: 8rpx; }
-.checkin-todo { font-size: 20rpx; color: #fff; background: var(--brand); padding: 2rpx 12rpx; border-radius: 8rpx; }
-.checkin-sub { display: block; font-size: 22rpx; color: #999; margin-top: 4rpx; }
-.hl-red { color: var(--brand); font-weight: 500; }
-.hl-gold { color: #C9A96E; font-weight: 500; }
+/* ④ 订单条 */
+.orders { margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 26rpx 28rpx 28rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
+.orders-head { display: flex; align-items: center; margin-bottom: 26rpx; }
+.orders-title { font-size: 26rpx; font-weight: 700; color: #2B2620; }
+.orders-more { margin-left: auto; font-size: 24rpx; color: #B0A99A; }
+.orders-row { display: flex; }
+.o-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12rpx; }
+.o-icon { position: relative; width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
+.o-dot { position: absolute; top: -10rpx; right: -14rpx; min-width: 28rpx; height: 28rpx; padding: 0 8rpx; border-radius: 14rpx; background: #C41E3A; color: #fff; font-size: 18rpx; line-height: 28rpx; text-align: center; }
+.o-label { font-size: 24rpx; color: #8A8578; }
 
-/* 继续学习 */
-.learn-card { display: flex; align-items: center; gap: 24rpx; padding: 24rpx; background: #fff; border-radius: 24rpx; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.learn-cover { width: 128rpx; height: 96rpx; border-radius: 16rpx; background: linear-gradient(135deg, rgba(196,30,58,0.1), rgba(201,169,110,0.1)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.learn-info { flex: 1; min-width: 0; }
-.learn-tag { display: block; font-size: 22rpx; color: #999; }
-.learn-title { display: block; font-size: 28rpx; font-weight: 500; color: #2c2c2c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.learn-lesson { display: block; font-size: 20rpx; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.learn-prog { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
-.learn-pct { font-size: 28rpx; font-weight: 700; color: var(--brand); }
-.learn-bar { width: 96rpx; height: 8rpx; background: #f0ece4; border-radius: 999rpx; margin-top: 8rpx; overflow: hidden; }
-.learn-bar-fill { height: 100%; background: var(--brand); border-radius: 999rpx; }
+/* ⑤ 内容矩阵 */
+.matrix { display: flex; flex-wrap: wrap; margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 12rpx 0 16rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
+.m-item { width: 25%; display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 26rpx 0 18rpx; position: relative; }
+.m-icon { position: relative; width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
+.m-label { font-size: 24rpx; color: #8A8578; }
+.m-item.star .m-label { color: #8A6420; font-weight: 500; }
+.m-star-dot { position: absolute; top: -2rpx; right: -6rpx; width: 10rpx; height: 10rpx; border-radius: 50%; background: #C9A96E; }
 
-/* 猜你喜欢 */
-.sec-rec { margin-bottom: 24rpx; }
-.rec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.rec-scroll { width: 100%; white-space: nowrap; }
-.rec-row { display: inline-flex; gap: 24rpx; padding-bottom: 8rpx; }
-.rec-item { display: inline-block; width: 256rpx; vertical-align: top; }
-.rec-cover { position: relative; width: 256rpx; height: 341rpx; border-radius: 16rpx; background: linear-gradient(135deg, rgba(196,30,58,0.05), rgba(201,169,110,0.05)); display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 16rpx rgba(0,0,0,0.05); }
-.rec-tag { position: absolute; top: 12rpx; left: 12rpx; font-size: 18rpx; padding: 2rpx 12rpx; background: var(--brand); color: #fff; border-radius: 8rpx; }
-.rec-title { display: block; font-size: 22rpx; font-weight: 500; color: #2c2c2c; margin-top: 16rpx; line-height: 1.5; white-space: normal; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.rec-price-row { display: flex; align-items: baseline; gap: 8rpx; margin-top: 8rpx; }
-.rec-price { font-size: 28rpx; font-weight: 700; color: var(--brand); }
-.rec-origin { font-size: 20rpx; color: #999; text-decoration: line-through; }
+/* ⑥ 身份成长区 */
+.roles { margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 8rpx 0; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); overflow: hidden; }
+.roles-head { display: flex; align-items: baseline; padding: 24rpx 28rpx 12rpx; }
+.roles-title { font-size: 26rpx; font-weight: 700; color: #2B2620; }
+.roles-hint { margin-left: auto; font-size: 24rpx; color: #B0A99A; }
+.role-row { display: flex; align-items: center; gap: 24rpx; height: 112rpx; padding: 0 28rpx; }
+.role-row + .role-row { border-top: 2rpx solid #F5F1EA; }
+.role-seal { width: 68rpx; height: 68rpx; border-radius: 16rpx; font-family: var(--font-serif); font-size: 30rpx; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.role-row.joined .role-seal { background: rgba(180,140,70,.92); color: #fff; }
+.role-row.pending .role-seal { background: #F6F1E7; color: #B4884A; border: 2rpx solid #DFCBA4; }
+.role-txt { flex: 1; min-width: 0; }
+.role-name { display: block; font-size: 26rpx; font-weight: 700; color: #2B2620; }
+.role-sub { display: block; font-size: 24rpx; color: #8A8578; margin-top: 4rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-row.joined .role-sub { color: #C41E3A; }
+.role-go { display: flex; align-items: center; gap: 4rpx; flex-shrink: 0; }
+.role-go-txt { font-size: 24rpx; font-weight: 500; color: #2B2620; }
+.role-apply { flex-shrink: 0; height: 52rpx; padding: 0 24rpx; border-radius: 26rpx; border: 2rpx solid #C9A96E; display: flex; align-items: center; }
+.role-apply-txt { font-size: 24rpx; color: #8A6420; }
+.role-more { display: flex; align-items: center; justify-content: center; gap: 8rpx; height: 80rpx; border-top: 2rpx solid #F5F1EA; }
+.role-more-txt { font-size: 24rpx; color: #B0A99A; }
 
-/* 会员提醒 */
-.vip-remind { position: fixed; bottom: 160rpx; left: 32rpx; right: 32rpx; z-index: 40; }
-.vip-remind-card { display: flex; align-items: center; justify-content: space-between; padding: 24rpx; background: linear-gradient(to right, #C9A96E, #D4B87D); border-radius: 20rpx; box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.15); }
-.vip-remind-left { display: flex; align-items: center; gap: 16rpx; }
-.vip-remind-txt { font-size: 26rpx; color: #fff; }
-.vip-renew { padding: 8rpx 24rpx; background: #fff; border-radius: 999rpx; }
-.vip-renew-txt { font-size: 22rpx; font-weight: 500; color: #C9A96E; }
-
-/* 弹窗 */
-.modal-mask { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); padding: 0 64rpx; }
-.modal { width: 100%; max-width: 560rpx; background: #fff; border-radius: 32rpx; overflow: hidden; box-shadow: 0 8rpx 40rpx rgba(0,0,0,0.2); }
-.modal-body { padding: 40rpx; text-align: center; }
-.modal-icon { width: 96rpx; height: 96rpx; border-radius: 24rpx; margin: 0 auto 24rpx; display: flex; align-items: center; justify-content: center; }
-.modal-title { display: block; font-size: 30rpx; font-weight: 500; color: #2c2c2c; }
-.modal-name { display: block; font-size: 22rpx; color: #999; margin-top: 12rpx; }
-.modal-desc { display: block; font-size: 22rpx; color: #999; margin-top: 16rpx; }
-.modal-actions { display: flex; border-top: 2rpx solid #f0ece4; }
-.modal-cancel { flex: 1; padding: 28rpx 0; text-align: center; }
-.modal-cancel-txt { font-size: 28rpx; color: #999; }
-.modal-confirm { flex: 1; padding: 28rpx 0; text-align: center; background: var(--brand); border-left: 2rpx solid #f0ece4; }
-.modal-confirm-txt { font-size: 28rpx; font-weight: 500; color: #fff; }
+/* ⑦ 服务行 */
+.svc { display: flex; margin: 20rpx 32rpx 0; background: #fff; border-radius: 24rpx; padding: 12rpx 0 16rpx; box-shadow: 0 2rpx 8rpx rgba(60,50,40,.06); }
+.svc-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 26rpx 0 18rpx; }
+.svc-label { font-size: 24rpx; color: #8A8578; }
 
 /* 三态：骨架屏 / 错误态 */
 .skeleton { padding-top: 120rpx; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }
@@ -538,9 +682,6 @@ async function handleCheckIn() {
 
 .error-state { padding: 200rpx 64rpx 0; display: flex; flex-direction: column; align-items: center; gap: 32rpx; }
 .error-text { font-size: 28rpx; color: #999; text-align: center; }
-.retry-btn { padding: 16rpx 48rpx; border-radius: 999rpx; border: 2rpx solid var(--brand); }
-.retry-btn text { font-size: 28rpx; color: var(--brand); }
-
-/* 签到提交中 */
-.checkin-submitting { opacity: 0.6; pointer-events: none; }
+.retry-btn { padding: 16rpx 48rpx; border-radius: 999rpx; border: 2rpx solid #C41E3A; }
+.retry-btn text { font-size: 28rpx; color: #C41E3A; }
 </style>

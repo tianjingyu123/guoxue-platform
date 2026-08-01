@@ -9,8 +9,11 @@ import { Roles } from "../../common/roles.decorator";
 import { RoleType } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
-import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto, UpdateNotifySettingsDto, PushByTagDto, AddWhitelistDto } from "./user.dto";
+import { AssignRoleDto, RemoveRoleDto, UserListQueryDto, UpdateProfileDto, UpdateUserStatusDto, BatchUpdateUserStatusDto, UpdateNotifySettingsDto, PushByTagDto, AddWhitelistDto, PersonalDataExportDto } from "./user.dto";
+import { PersonalDataExportService } from "./personal-data-export.service";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
+import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 
 @ApiTags("用户")
 @ApiBearerAuth()
@@ -20,6 +23,7 @@ export class UserController {
   constructor(
     private user: UserService,
     private systemService: SystemService,
+    private personalDataExport: PersonalDataExportService,
   ) {}
 
   // ───────── 个人资料 ─────────
@@ -39,10 +43,11 @@ export class UserController {
   @Get("notify-settings")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取通知设置" })
+  @ApiQuery({ name: "scope", required: false, enum: ["operator"] })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 401, description: "未登录" })
-  getNotifySettings(@Req() req: Request) {
-    return this.user.getNotifySettings(req.user.id);
+  getNotifySettings(@Req() req: Request, @Query("scope") scope?: string) {
+    return this.user.getNotifySettings(req.user.id, scope);
   }
 
   @Put("notify-settings")
@@ -88,6 +93,43 @@ export class UserController {
   @ApiQuery({ name: "pageSize", required: false, type: Number })
   getBrowseHistory(@Req() req: Request, @Query("page") page = 1, @Query("pageSize") pageSize = 20) {
     return this.user.getBrowseHistory(req.user.id, +page, +pageSize);
+  }
+
+  @Get("me/summary")
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "获取当前用户个人中心统计摘要" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  getMySummary(@Req() req: Request) {
+    return this.user.getMySummary(req.user.id);
+  }
+
+  @Post("me/data-export")
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "即时导出当前用户所选类别的个人数据" })
+  @ApiResponse({ status: 201, description: "成功生成个人数据包" })
+  @ApiResponse({ status: 400, description: "导出类别无效" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  createPersonalDataExport(@Req() req: Request, @Body() dto: PersonalDataExportDto) {
+    return this.personalDataExport.create(req.user.id, dto.types);
+  }
+
+  // ───────── 白名单管理（GET 必须在 :id 动态路由之前声明，否则被 :id 遮蔽 → 白名单页必 500·后端审计修复） ─────────
+
+  @Get("whitelist")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "用户附加限流白名单列表" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  @ApiQuery({ name: "page", required: false, type: Number })
+  @ApiQuery({ name: "pageSize", required: false, type: Number })
+  getWhitelist(
+    @Query("page") page = 1,
+    @Query("pageSize") pageSize = 20,
+  ) {
+    return this.user.getWhitelist(+page, +pageSize);
   }
 
   // ───────── 用户查询 ─────────
@@ -153,6 +195,7 @@ export class UserController {
   // ───────── 角色管理 ─────────
 
   @Post(":id/roles")
+  @RedLineGate(RedLine.USER_DATA)
   @Auditable({ action: "授予用户角色", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
@@ -179,6 +222,7 @@ export class UserController {
   }
 
   @Delete(":id/roles/:roleType")
+  @RedLineGate(RedLine.USER_DATA)
   @Auditable({ action: "移除用户角色", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
@@ -209,6 +253,7 @@ export class UserController {
   // ───────── 状态管理 ─────────
 
   @Put("batch/status")
+  @RedLineGate(RedLine.USER_DATA)
   @Auditable({ action: "批量用户状态变更", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -217,11 +262,12 @@ export class UserController {
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  batchUpdateStatus(@Body() dto: BatchUpdateUserStatusDto) {
-    return this.user.batchUpdateStatus(dto.ids, dto.status);
+  batchUpdateStatus(@Body() dto: BatchUpdateUserStatusDto, @Req() req: Request) {
+    return this.user.batchUpdateStatus(dto.ids, dto.status, dto.reason, req.user?.id, req.ip);
   }
 
   @Put(":id/status")
+  @RedLineGate(RedLine.USER_DATA)
   @Auditable({ action: "用户封禁/解封", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -231,8 +277,22 @@ export class UserController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  updateUserStatus(@Param("id") id: string, @Body() dto: UpdateUserStatusDto) {
-    return this.user.updateUserStatus(id, dto.status);
+  updateUserStatus(@Param("id") id: string, @Body() dto: UpdateUserStatusDto, @Req() req: Request) {
+    return this.user.updateUserStatus(id, dto.status, dto.reason, req.user?.id, req.ip);
+  }
+
+  // ───────── 用户圈子关系（管理员） ─────────
+
+  @Get(":id/circles")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
+  @ApiOperation({ summary: "用户加入的圈子列表（管理员·用户详情页）" })
+  @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 404, description: "用户不存在" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  getUserCircles(@Param("id") id: string) {
+    return this.user.getUserCircles(id);
   }
 
   // ───────── 会员 ─────────
@@ -350,16 +410,19 @@ export class UserController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
+  @ApiQuery({ name: "tag", required: false, type: String, description: "用户标签（UserTag 真实标签·全员传 ALL）" })
   @ApiQuery({ name: "memberLevel", required: false, type: String, description: "会员等级" })
   @ApiQuery({ name: "activeDays", required: false, type: Number, description: "最少活跃天数" })
   estimatePush(
+    @Query("tag") tag?: string,
     @Query("memberLevel") memberLevel?: string,
     @Query("activeDays") activeDays?: number,
   ) {
-    return this.user.estimateByTag(memberLevel || "", Number(activeDays) || 0);
+    return this.user.estimateByTag(tag, memberLevel || "", Number(activeDays) || 0);
   }
 
   @Post("push/by-tag")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "按标签分群推送消息" })
@@ -379,38 +442,22 @@ export class UserController {
 
   // ───────── 白名单管理 ─────────
 
-  @Get("whitelist")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN")
-  @ApiOperation({ summary: "白名单用户列表" })
-  @ApiResponse({ status: 200, description: "成功" })
-  @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限" })
-  @ApiQuery({ name: "page", required: false, type: Number })
-  @ApiQuery({ name: "pageSize", required: false, type: Number })
-  getWhitelist(
-    @Query("page") page = 1,
-    @Query("pageSize") pageSize = 20,
-  ) {
-    return this.user.getWhitelist(+page, +pageSize);
-  }
-
   @Post("whitelist")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
-  @ApiOperation({ summary: "添加用户到白名单" })
+  @ApiOperation({ summary: "添加用户到附加限流白名单" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   addWhitelist(@Body() body: AddWhitelistDto) {
-    return this.user.addWhitelist(body.userId);
+    return this.user.addWhitelist(body.userId, body.reason);
   }
 
   @Delete("whitelist/:userId")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
-  @ApiOperation({ summary: "从白名单移除用户" })
+  @ApiOperation({ summary: "从附加限流白名单移除用户" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
@@ -478,6 +525,7 @@ export class UserController {
   }
 
   @Post(":id/delete-execute")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @Auditable({ action: "执行账号注销", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")

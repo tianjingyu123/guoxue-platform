@@ -531,19 +531,18 @@ ssh-copy-id -i ~/.ssh/id_ed25519.pub deploy@123.45.67.89
 
 ```bash
 # 在新服务器上（Ubuntu 20.04+ / Debian 11+ / Rocky 8+）
-curl -fsSL https://raw.githubusercontent.com/<user>/guoxue-platform/main/docker/setup-server.sh | sudo bash
-
-# 或本地执行
-sudo REPO_URL=https://github.com/<user>/guoxue-platform.git DOMAIN=guoxue.ac.cn ./docker/setup-server.sh
+# 先上传已经通过门禁、带提交 SHA 的完整固定发布包，再从项目根目录执行
+sudo DOMAIN=api.example.com LETSENCRYPT_EMAIL=ops@example.com \
+  DATABASE_MODE=prepare ./docker/setup-server.sh
 ```
 
 脚本自动执行：
 1. 系统优化（时区/swap/内核参数）
 2. 安装 Docker + Docker Compose
 3. 配置防火墙（22/80/443）
-4. 克隆仓库 + 构建镜像
+4. 复核当前固定发布包 + 构建镜像
 5. SSL 证书签发（Let's Encrypt）
-6. 数据库迁移
+6. 按显式 `DATABASE_MODE` 准备或恢复数据库
 7. 注册 systemd 自启动服务
 8. 配置定时备份 + 日志清理 cron
 

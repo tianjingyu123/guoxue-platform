@@ -5,6 +5,7 @@ import { ClassicLibrarySeeder } from "./classic-library-seeder.service";
 import { ClassicDaizhigeSeeder } from "./classic-daizhige-seeder.service";
 import { ClassicCompanionService } from "./classic-companion.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
+import { StreamUnifierService } from "../ai-gateway/stream-unifier.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
@@ -74,6 +75,7 @@ describe("ClassicController", () => {
         { provide: ClassicDaizhigeSeeder, useValue: mockDaizhigeSeeder },
         { provide: ClassicCompanionService, useValue: mockCompanion },
         { provide: MemberBenefitService, useValue: mockMemberBenefit },
+        { provide: StreamUnifierService, useValue: { writeSseStream: jest.fn(), encode: jest.fn((c: unknown) => `data: ${JSON.stringify(c)}\n\n`) } },
       ],
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })

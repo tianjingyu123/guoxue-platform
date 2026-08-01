@@ -11,6 +11,7 @@ import {
   CreateProductDto, UpdateProductDto, ProductListQueryDto,
   PRODUCT_SCENE_TAGS,
 } from "./shop.dto";
+import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 
 /** 缓存前缀（与 shop.service 一致） */
 const CACHE_PREFIX = "shop:";
@@ -30,12 +31,18 @@ export class ShopProductService {
 
   // ═══════════════════ 商品管理 ═══════════════════
 
-  async createProduct(userId: string, dto: CreateProductDto) {
+  async createProduct(userId: string, dto: CreateProductDto, autoPublish = false) {
+    const productImages = dto.images?.filter((image) => image.trim()) ?? [];
+    if (autoPublish && productImages.length === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品必须上传至少一张首图后才能上架");
+    }
     // 内容审核：商品标题+简介+详情（违规抛异常，写库前拦截）
     await this.audit.moderateTextOrThrow(
       [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
       { scene: "PRODUCT", userId },
     );
+    // 商品主图/详情图 IMS 图片审核（多图批量·任一 Block 拦截；fail-open 密钥未配不阻断上架）
+    await this.audit.moderateImageOrThrow(dto.images, { scene: "PRODUCT_IMAGE", userId });
     const { skus, ...rest } = dto;
     const data: Prisma.ProductCreateInput = {
       title: rest.title,
@@ -43,11 +50,13 @@ export class ShopProductService {
       stock: rest.stock ?? 0,
       detail: rest.detail ?? "",
       userId,
+      // 管理员/运营创建的商品直接上架（跳过审核 PENDING），避免"保存后列表看不到"
+      ...(autoPublish ? { status: "ON_SALE" } : {}),
     };
     if (rest.circleId) data.circle = { connect: { id: rest.circleId } };
     if (rest.categoryId) data.categoryId = rest.categoryId;
     if (rest.intro) data.intro = rest.intro;
-    if (rest.images) data.images = rest.images;
+    if (productImages.length) data.images = productImages;
     if (rest.videoUrl) data.videoUrl = rest.videoUrl;
     if (rest.sceneTags) data.sceneTags = rest.sceneTags;
     if (rest.stationId) data.station = { connect: { id: rest.stationId } };
@@ -65,12 +74,22 @@ export class ShopProductService {
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
     if (product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的商品");
+    if (
+      dto.status === "ON_SALE" &&
+      !(dto.images ?? product.images).some((image) => image.trim())
+    ) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品必须上传至少一张首图后才能上架");
+    }
 
     // 内容审核：改动的标题+简介+详情（违规抛异常，写库前拦截）
     await this.audit.moderateTextOrThrow(
       [dto.title, dto.intro, dto.detail].filter(Boolean).join(" "),
       { scene: "PRODUCT_EDIT", userId, dataId: productId },
     );
+    // 改动的商品图 IMS 审核（仅当本次提交了 images 时·未改则不重复审）
+    if (dto.images !== undefined) {
+      await this.audit.moderateImageOrThrow(dto.images, { scene: "PRODUCT_IMAGE", userId, dataId: productId });
+    }
 
     const data: Prisma.ProductUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
@@ -103,7 +122,13 @@ export class ShopProductService {
 
   /** 更新商品状态 */
   async updateProductStatus(productId: string, status: string) {
-    await this.prisma.product.findUniqueOrThrow({ where: { id: productId } });
+    const product = await this.prisma.product.findUniqueOrThrow({
+      where: { id: productId },
+      select: { images: true },
+    });
+    if (status === "ON_SALE" && !product.images.some((image) => image.trim())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品必须上传至少一张首图后才能上架");
+    }
     const updated = await this.prisma.product.update({ where: { id: productId }, data: { status } });
     await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
     return updated;
@@ -152,6 +177,14 @@ export class ShopProductService {
     };
   }
 
+  /** 官方旗舰店 owner 的 userId（"官方自营"角标判定：商品 userId===官方店 owner）。无配置则 null。 */
+  private async getOfficialOwnerId(): Promise<string | null> {
+    const cfg = await this.prisma.configSystem.findUnique({ where: { configKey: "official_merchant_id" } });
+    if (!cfg?.configValue) return null;
+    const m = await this.prisma.merchant.findUnique({ where: { id: cfg.configValue }, select: { userId: true } });
+    return m?.userId ?? null;
+  }
+
   async getProduct(productId: string, scene?: string, pageId?: string) {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
@@ -175,11 +208,15 @@ export class ShopProductService {
       });
     }
 
+    const officialOwnerId = await this.getOfficialOwnerId();
+
     return {
       ...product,
       merchant,
       // 严选标（履-P2 权益挂钩）：商家信用 A 级即严选，前端商品详情展示「严选」标识
       isSelected: merchant?.creditGrade === "A",
+      // 官方自营标：商品归属官方旗舰店（走商家标准链路，仅展示层加标）
+      isOfficialSelfOwned: !!product.userId && product.userId === officialOwnerId,
       price: Number(product.price),
       originalPrice: Number(product.price),
       baseListPrice: product.originalPrice ? Number(product.originalPrice) : undefined,
@@ -192,12 +229,26 @@ export class ShopProductService {
   }
 
   async listProducts(dto: ProductListQueryDto) {
-    const { categoryId, status, stationId, keyword, categoryLevel1, priceMin, priceMax, sort } = dto;
+    const { categoryId, status, stationId, circleId, keyword, categoryLevel1, priceMin, priceMax, sort } = dto;
     const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
 
     const where: Prisma.ProductWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
-    if (status) where.status = status;
+    if (circleId) where.circleId = circleId;
+    // P0 状态过滤（商城收敛·断流止血 2026-07）：C 端不传 status 默认只出在售，
+    // 待审核/违规下架商品不得在列表曝光；管理端工作队列显式传 status=ALL 查全量，
+    // 支持逗号多值（如 status=PENDING,OFF_SHELF）
+    if (status) {
+      const s = status.trim();
+      if (s.toUpperCase() !== "ALL") {
+        const list = s.split(",").map((v) => v.trim()).filter(Boolean);
+        if (list.length > 1) where.status = { in: list };
+        else where.status = list[0] || "ON_SALE";
+      }
+    } else {
+      where.status = "ON_SALE";
+      where.id = { notIn: publicQuarantinedIds("product") };
+    }
     if (stationId) where.stationId = stationId;
     if (keyword) where.title = { contains: keyword, mode: "insensitive" };
     if (categoryLevel1) where.categoryLevel1 = categoryLevel1;
@@ -249,6 +300,8 @@ export class ShopProductService {
         )
       : new Set<string>();
 
+    const officialOwnerId = await this.getOfficialOwnerId();
+
     const enriched = products.map(p => {
       const up = priceMap.get(p.id);
       return {
@@ -259,6 +312,8 @@ export class ShopProductService {
         hasPromotion: up?.hasPromotion ?? false,
         promotionTag: up?.promotionTag,
         isSelected: !!p.userId && selectedOwners.has(p.userId),
+        // 官方自营标：商品归属官方旗舰店
+        isOfficialSelfOwned: !!p.userId && p.userId === officialOwnerId,
       };
     });
 
@@ -269,7 +324,12 @@ export class ShopProductService {
   async listProductCategoryL1() {
     const grouped = await this.prisma.product.groupBy({
       by: ["categoryLevel1"],
-      where: { categoryLevel1: { not: null } },
+      where: {
+        id: { notIn: publicQuarantinedIds("product") },
+        status: "ON_SALE",
+        deletedAt: null,
+        categoryLevel1: { not: null },
+      },
       _count: { _all: true },
     });
     return grouped
@@ -290,7 +350,12 @@ export class ShopProductService {
     // limit 归一化：非法/NaN 回落默认 6，夹取 1..50（公开端点防大页拖库）
     const take = Math.min(Math.max(Math.trunc(limit) || 6, 1), 50);
     const products = await this.prisma.product.findMany({
-      where: { status: "ON_SALE", deletedAt: null, sceneTags: { has: tag } },
+      where: {
+        id: { notIn: publicQuarantinedIds("product") },
+        status: "ON_SALE",
+        deletedAt: null,
+        sceneTags: { has: tag },
+      },
       select: {
         id: true, title: true, intro: true, images: true,
         price: true, originalPrice: true, salesCount: true, sceneTags: true, createdAt: true,
@@ -312,14 +377,18 @@ export class ShopProductService {
       where: { id: merchantId, status: "ACTIVE" },
       select: {
         id: true, userId: true, shopName: true, shopLogo: true, shopIntro: true,
-        rating: true, totalSales: true, totalOrders: true, openedAt: true, creditGrade: true,
+        openedAt: true, creditGrade: true,
       },
     });
     if (!merchant) throw new BusinessException(ErrorCode.NOT_FOUND, "店铺不存在或未开通");
 
     // 商品经创建者 userId 归属商家（Product 无 merchantId 列，用 userId 关联在售商品）
-    const where: Prisma.ProductWhereInput = { userId: merchant.userId, status: "ON_SALE" };
-    const [products, total] = await Promise.all([
+    const where: Prisma.ProductWhereInput = {
+      id: { notIn: publicQuarantinedIds("product") },
+      userId: merchant.userId,
+      status: "ON_SALE",
+    };
+    const [products, total, cumSalesAgg, cumOrderCount, ratingAgg] = await Promise.all([
       this.prisma.product.findMany({
         where,
         include: { skus: true },
@@ -328,6 +397,13 @@ export class ShopProductService {
         orderBy: { createdAt: "desc" },
       }),
       this.prisma.product.count({ where }),
+      // 累计口径实时聚合（去规范化字段 merchant.totalSales/totalOrders/rating 全库无 writer→改实时算，避免店铺页显示死数/虚高满分）
+      this.prisma.order.aggregate({
+        where: { merchantId: merchant.id, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } },
+        _sum: { amount: true },
+      }),
+      this.prisma.order.count({ where: { merchantId: merchant.id } }),
+      this.prisma.productReview.aggregate({ where: { product: { userId: merchant.userId } }, _avg: { rating: true }, _count: true }),
     ]);
 
     const enriched = products.map((p) => ({
@@ -342,9 +418,9 @@ export class ShopProductService {
         shopName: merchant.shopName,
         shopLogo: merchant.shopLogo,
         shopIntro: merchant.shopIntro,
-        rating: Number(merchant.rating),
-        totalSales: Number(merchant.totalSales),
-        totalOrders: merchant.totalOrders,
+        rating: ratingAgg._count > 0 && ratingAgg._avg.rating != null ? Math.round(Number(ratingAgg._avg.rating) * 10) / 10 : 5.0,
+        totalSales: Number(cumSalesAgg._sum.amount ?? 0),
+        totalOrders: cumOrderCount,
         openedAt: merchant.openedAt,
         productCount: total,
         // 严选标（履-P2 权益挂钩）：A 级店铺主页展示「严选」信任背书

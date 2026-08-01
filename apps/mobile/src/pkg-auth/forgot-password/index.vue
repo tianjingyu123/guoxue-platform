@@ -5,7 +5,15 @@
 
     <!-- 返回按钮 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view v-if="step !== 3" class="back-btn" @tap="handleBack">
+      <view
+        v-if="step !== 3"
+        class="back-btn"
+        role="button"
+        aria-label="返回上一步"
+        tabindex="0"
+        @tap="handleBack"
+        @keydown="activateOnKeyboard($event, handleBack)"
+      >
         <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
       </view>
     </view>
@@ -36,9 +44,11 @@
             <view class="input-icon"><AppIcon name="phone" :size="20" color="#999999" /></view>
             <input
               class="input"
-              type="text"
+              type="number"
+              inputmode="numeric"
               :value="phone"
               maxlength="11"
+              aria-label="找回密码手机号"
               placeholder="请输入手机号"
               placeholder-class="input-ph"
               @input="onPhoneInput"
@@ -49,25 +59,41 @@
             <view class="input-icon"><AppIcon name="message-circle" :size="20" color="#999999" /></view>
             <input
               class="input input-code"
-              type="text"
+              type="number"
+              inputmode="numeric"
               :value="code"
               maxlength="6"
+              aria-label="短信验证码"
               placeholder="请输入验证码"
               placeholder-class="input-ph"
               @input="onCodeInput"
             />
             <view
               class="code-btn"
-              :class="{ 'code-btn-disabled': countdown > 0 || !isPhoneValid }"
+              :class="{ 'code-btn-disabled': countdown > 0 || !isPhoneValid || isSendingCode }"
+              role="button"
+              :aria-label="countdown > 0 ? `${countdown}秒后可重新获取验证码` : '获取验证码'"
+              :aria-busy="isSendingCode ? 'true' : 'false'"
+              :aria-disabled="countdown > 0 || !isPhoneValid || isSendingCode ? 'true' : 'false'"
+              tabindex="0"
               @tap="sendCode"
+              @keydown="activateOnKeyboard($event, sendCode)"
             >
-              <text class="code-btn-text" :class="{ 'code-btn-text-disabled': countdown > 0 || !isPhoneValid }">
-                {{ countdown > 0 ? countdown + 's' : '获取验证码' }}
+              <text class="code-btn-text" :class="{ 'code-btn-text-disabled': countdown > 0 || !isPhoneValid || isSendingCode }">
+                {{ isSendingCode ? '发送中...' : countdown > 0 ? countdown + 's' : '获取验证码' }}
               </text>
             </view>
           </view>
-          <text v-if="error" class="error-text">{{ error }}</text>
-          <view class="btn" :class="{ 'btn-disabled': !isPhoneValid || !isCodeValid }" @tap="verifyPhone">
+          <text v-if="error" class="error-text" role="alert" aria-live="polite">{{ error }}</text>
+          <view
+            class="btn"
+            :class="{ 'btn-disabled': !isPhoneValid || !isCodeValid }"
+            role="button"
+            :aria-disabled="!isPhoneValid || !isCodeValid ? 'true' : 'false'"
+            tabindex="0"
+            @tap="verifyPhone"
+            @keydown="activateOnKeyboard($event, verifyPhone)"
+          >
             <text class="btn-text">下一步</text>
           </view>
         </view>
@@ -88,16 +114,33 @@
                 class="input input-pwd"
                 :password="!showPassword"
                 :value="password"
+                aria-label="新密码"
                 placeholder="请输入新密码"
                 placeholder-class="input-ph"
                 @input="onPasswordInput"
               />
-              <view class="eye-btn" @tap="showPassword = !showPassword">
+              <view
+                class="eye-btn"
+                role="button"
+                :aria-label="showPassword ? '隐藏新密码' : '显示新密码'"
+                tabindex="0"
+                @tap="showPassword = !showPassword"
+                @keydown="activateOnKeyboard($event, () => showPassword = !showPassword)"
+              >
                 <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
               </view>
             </view>
             <!-- 密码强度 -->
-            <view v-if="password" class="strength-row">
+            <view
+              v-if="password"
+              class="strength-row"
+              role="meter"
+              aria-label="密码强度"
+              aria-valuemin="0"
+              aria-valuemax="3"
+              :aria-valuenow="passwordStrength.level"
+              :aria-valuetext="passwordStrength.text"
+            >
               <view class="strength-bars">
                 <view
                   v-for="i in 3"
@@ -117,17 +160,39 @@
               class="input input-pwd"
               :password="!showConfirmPassword"
               :value="confirmPassword"
+              aria-label="确认新密码"
               placeholder="请再次输入新密码"
               placeholder-class="input-ph"
               @input="onConfirmInput"
             />
-            <view class="eye-btn" @tap="showConfirmPassword = !showConfirmPassword">
+            <view
+              class="eye-btn"
+              role="button"
+              :aria-label="showConfirmPassword ? '隐藏确认密码' : '显示确认密码'"
+              tabindex="0"
+              @tap="showConfirmPassword = !showConfirmPassword"
+              @keydown="activateOnKeyboard($event, () => showConfirmPassword = !showConfirmPassword)"
+            >
               <AppIcon :name="showConfirmPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
             </view>
           </view>
-          <text v-if="confirmPassword && password !== confirmPassword" class="error-text">两次输入的密码不一致</text>
-          <text v-else-if="error" class="error-text">{{ error }}</text>
-          <view class="btn" :class="{ 'btn-disabled': !isPasswordValid || isLoading }" @tap="resetPassword">
+          <text
+            v-if="confirmPassword && password !== confirmPassword"
+            class="error-text"
+            role="alert"
+            aria-live="polite"
+          >两次输入的密码不一致</text>
+          <text v-else-if="error" class="error-text" role="alert" aria-live="polite">{{ error }}</text>
+          <view
+            class="btn"
+            :class="{ 'btn-disabled': !isPasswordValid || isLoading }"
+            role="button"
+            :aria-busy="isLoading ? 'true' : 'false'"
+            :aria-disabled="!isPasswordValid || isLoading ? 'true' : 'false'"
+            tabindex="0"
+            @tap="resetPassword"
+            @keydown="activateOnKeyboard($event, resetPassword)"
+          >
             <text class="btn-text">{{ isLoading ? '设置中...' : '确认设置' }}</text>
           </view>
         </view>
@@ -140,7 +205,13 @@
         </view>
         <text class="success-title">密码重置成功</text>
         <text class="success-sub">您的密码已重置成功{{ '\n' }}请使用新密码登录</text>
-        <view class="btn success-btn" @tap="goLogin">
+        <view
+          class="btn success-btn"
+          role="button"
+          tabindex="0"
+          @tap="goLogin"
+          @keydown="activateOnKeyboard($event, goLogin)"
+        >
           <text class="btn-text">去登录</text>
         </view>
       </view>
@@ -165,10 +236,17 @@ const confirmPassword = ref('')
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const countdown = ref(0)
+const isSendingCode = ref(false)
 const isLoading = ref(false)
 const error = ref('')
 
 let timer: ReturnType<typeof setInterval> | null = null
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
 
 const isPhoneValid = computed(() => phone.value.length === 11)
 const isCodeValid = computed(() => code.value.length === 6)
@@ -212,10 +290,11 @@ function handleBack() {
 
 // @data-needs: 发送找回密码验证码, 参数 {phone, scene:'reset'}, 返回 {success, message}
 async function sendCode() {
-  if (countdown.value > 0 || !isPhoneValid.value) {
+  if (countdown.value > 0 || !isPhoneValid.value || isSendingCode.value) {
     if (!isPhoneValid.value) error.value = '请输入正确的手机号'
     return
   }
+  isSendingCode.value = true
   try {
     const res = await authApi.sendCode(phone.value, 'reset')
     if (!res.success) { error.value = res.message || '发送失败'; return }
@@ -226,6 +305,8 @@ async function sendCode() {
     }, 1000)
   } catch (e) {
     error.value = (e as Error)?.message || '发送失败'
+  } finally {
+    isSendingCode.value = false
   }
 }
 
@@ -294,8 +375,8 @@ onUnmounted(() => {
   height: 112rpx;
 }
 .back-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   margin-left: -8rpx;
   display: flex;
   align-items: center;
@@ -409,13 +490,15 @@ onUnmounted(() => {
 }
 .code-btn {
   position: absolute;
-  right: 16rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12rpx 28rpx;
+  min-width: 128rpx;
+  height: 88rpx;
+  padding: 0 24rpx;
   border-radius: 16rpx;
   background: rgba(196, 30, 58, 0.1);
 }
@@ -432,9 +515,14 @@ onUnmounted(() => {
 }
 .eye-btn {
   position: absolute;
-  right: 32rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 密码强度 */

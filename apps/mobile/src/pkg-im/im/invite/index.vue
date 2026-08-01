@@ -200,9 +200,12 @@ const copied = ref(false)
 const selectedBg = ref(0)
 
 // 邀请链接信息（对应 getInviteLinkInfo mock）
+// 域名取品牌配置真源 BRAND.h5Url（生产 https://api.rebugx.cn/h5/），
+// 拼装为 H5 落地页带邀请码，杜绝 example.com 占位域名
+const INVITE_CODE = 'GUOXUE2026'
 const linkInfo = ref({
-  inviteCode: 'GUOXUE2026',
-  inviteLink: 'https://app.example.com/invite/GUOXUE2026',
+  inviteCode: INVITE_CODE,
+  inviteLink: `${BRAND.h5Url.replace(/\/$/, '')}/pages/index/index?invite=${INVITE_CODE}`,
   qrCodeUrl: '',
 })
 

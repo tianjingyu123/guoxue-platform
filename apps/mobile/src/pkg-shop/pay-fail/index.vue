@@ -44,13 +44,14 @@
             <app-icon name="refresh-cw" :size="34" color="#fff" />
             <text>重新支付</text>
           </view>
-          <view class="btn ghost" @tap="goChangeMethod">
-            <app-icon name="credit-card" :size="34" color="#2C2C2C" />
-            <text>换个方式支付</text>
-          </view>
+          <!-- 原「换个方式支付」按钮删除：当前仅微信一个收银渠道，与「重新支付」跳同一收银页功能重复 -->
           <view class="btn text" @tap="goOrder">
             <app-icon name="file-text" :size="34" color="#666666" />
             <text>查看订单详情</text>
+          </view>
+          <view class="btn text" @tap="goService">
+            <app-icon name="message-circle" :size="34" color="#666666" />
+            <text>联系客服</text>
           </view>
         </view>
       </view>
@@ -85,12 +86,15 @@ import { shopApi, payFailReasons } from '@/lib/shop-data'
 const orderId = ref('')
 const reason = ref('default')
 const amount = ref('0')
+const payMethod = ref('')
 const failTime = ref('')
 
 onLoad((q) => {
   orderId.value = (q?.orderId as string) || ''
   reason.value = (q?.reason as string) || 'default'
-  amount.value = (q?.amount as string) || '344'
+  // 兜底改 '0'（真实进入由收银页跳转携带 amount，此兜底基本不触发；残留示例值 344 会误显金额）
+  amount.value = (q?.amount as string) || '0'
+  if (q?.method) payMethod.value = q.method as string
   const d = new Date()
   failTime.value = `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 })
@@ -98,10 +102,15 @@ onLoad((q) => {
 const failInfo = computed(() => payFailReasons[reason.value] || payFailReasons.default)
 const amountText = computed(() => parseFloat(amount.value || '0').toFixed(2))
 
-function goRePay() { redirectTo(`/shop/paying?orderId=${orderId.value}`) }
-function goChangeMethod() { navigateTo(`/shop/checkout?orderId=${orderId.value}`) }
+// 重新支付带上真实金额与支付方式，避免收银页显示 ¥0.00 且强制微信
+function goRePay() {
+  const q = `orderId=${orderId.value}&amount=${amount.value}${payMethod.value ? `&method=${payMethod.value}` : ''}`
+  redirectTo(`/shop/paying?${q}`)
+}
+// P1-5：结算页不认 orderId（原跳法=死路"没有可结算的商品"）；收银页 /shop/paying 认 orderId 且按环境走可用支付渠道
 function goOrder() { navigateTo(`/orders/${orderId.value}`) }
-function goShop() { navigateTo('/shop') }
+function goShop() { navigateTo('/mall') }
+function goService() { navigateTo('/customer-service') }
 </script>
 
 <style lang="scss" scoped>

@@ -1,4 +1,7 @@
 import { Test } from "@nestjs/testing";
+import type { Response } from "express";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 import { StreamUnifierService } from "./stream-unifier.service";
 
 describe("StreamUnifierService", () => {
@@ -47,7 +50,10 @@ describe("StreamUnifierService", () => {
 
   describe("unify", () => {
     it("正常流式输出", async () => {
-      async function* source() { yield "Hello"; yield " World"; }
+      async function* source() {
+        yield "Hello";
+        yield " World";
+      }
       const gen = svc.unify(source());
       const lines: string[] = [];
       for await (const line of gen) lines.push(line);
@@ -57,7 +63,9 @@ describe("StreamUnifierService", () => {
     });
 
     it("带参考来源的流式输出", async () => {
-      async function* source() { yield "内容"; }
+      async function* source() {
+        yield "内容";
+      }
       const gen = svc.unify(source(), { sources: [{ title: "参考A", excerpt: "摘要" }] });
       const lines: string[] = [];
       for await (const line of gen) lines.push(line);
@@ -65,21 +73,63 @@ describe("StreamUnifierService", () => {
       expect(lines[0]).toContain("参考A");
     });
 
+    it("在done前输出业务元信息", async () => {
+      async function* source() {
+        yield "内容";
+      }
+      const gen = svc.unify(source(), { meta: { disclaimer: "仅供参考" } });
+      const lines: string[] = [];
+      for await (const line of gen) lines.push(line);
+      expect(lines).toHaveLength(3);
+      expect(lines[1]).toContain('"type":"meta"');
+      expect(lines[1]).toContain("仅供参考");
+      expect(lines[2]).toContain('"type":"done"');
+    });
+
+    it("可在首个文本块前发送会话元信息，断流时仍保留 conversationId", async () => {
+      // eslint-disable-next-line require-yield
+      async function* source() {
+        throw new Error("流中断");
+      }
+      const gen = svc.unify(source(), {
+        meta: { conversationId: "conversation-1", disclaimer: "仅供参考" },
+        metaTiming: "before",
+      });
+      const lines: string[] = [];
+      for await (const line of gen) lines.push(line);
+      expect(lines[0]).toContain('"type":"meta"');
+      expect(lines[0]).toContain('"conversationId":"conversation-1"');
+      expect(lines[1]).toContain('"type":"error"');
+    });
+
+    it("保留可安全展示的业务错误文案", async () => {
+      // eslint-disable-next-line require-yield
+      async function* source() {
+        throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "AI 暂未返回有效内容");
+      }
+      const lines: string[] = [];
+      for await (const line of svc.unify(source())) lines.push(line);
+      expect(lines[0]).toContain("AI 暂未返回有效内容");
+    });
     it("流式异常时输出error", async () => {
       // 测试流式异常抛出：需要 async generator 签名，但函数体只 throw 不含 yield
       // eslint-disable-next-line require-yield
-      async function* source() { throw new Error("流中断"); }
+      async function* source() {
+        throw new Error("流中断");
+      }
       const gen = svc.unify(source());
       const lines: string[] = [];
       for await (const line of gen) lines.push(line);
       expect(lines[0]).toContain('"type":"error"');
-      expect(lines[0]).toContain("流中断");
+      expect(lines[0]).toContain("AI 流式输出中断，请稍后重试");
     });
   });
 
   describe("unifyWithUsage", () => {
     it("带用量统计的流式输出", async () => {
-      async function* source() { yield "data"; }
+      async function* source() {
+        yield "data";
+      }
       const gen = svc.unifyWithUsage(source(), { promptTokens: 10, completionTokens: 5 });
       const lines: string[] = [];
       for await (const line of gen) lines.push(line);
@@ -94,11 +144,15 @@ describe("StreamUnifierService", () => {
       const res = {
         setHeader: jest.fn(),
         flushHeaders: jest.fn(),
-        write: jest.fn((s: string) => { written.push(s); }),
+        write: jest.fn((s: string) => {
+          written.push(s);
+        }),
         end: jest.fn(),
-      } as any;
+      } as unknown as Response;
 
-      async function* source() { yield "Hello"; }
+      async function* source() {
+        yield "Hello";
+      }
       await svc.writeSseStream(res, source());
 
       expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "text/event-stream");

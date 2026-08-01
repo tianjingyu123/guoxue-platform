@@ -49,18 +49,41 @@ export class AuthService {
     const accessToken = this.jwt.sign({ sub: userId });
     const refreshToken = crypto.randomUUID();
     // refreshToken 存 Redis，7 天过期；同时挂进用户维度索引，撤销时可精确删除
-    await this.redis.set(`refresh:${refreshToken}`, userId, 7 * 24 * 3600);
+    await this.redis.set(`refresh:${refreshToken}`, userId, 30 * 24 * 3600);
     await this.redis.sadd(`refresh:user:${userId}`, refreshToken);
-    await this.redis.expire(`refresh:user:${userId}`, 7 * 24 * 3600);
+    await this.redis.expire(`refresh:user:${userId}`, 30 * 24 * 3600);
     return { accessToken, refreshToken };
+  }
+
+  /**
+   * 跨端无感登录握手码：签发一次性短时码（60s·绑定当前用户）。
+   * 用于"后台点链接跳 C 端发文"场景——避免把可复用的 bearer token 放进 URL（防泄露/会话固定）。
+   */
+  async issueHandoffCode(userId: string): Promise<{ code: string; expiresIn: number }> {
+    const code = crypto.randomBytes(24).toString("hex");
+    await this.redis.set(`handoff:${code}`, userId, 60);
+    return { code, expiresIn: 60 };
+  }
+
+  /** 用握手码换取新会话（用后即焚·单次）。攻击者无法伪造码（签发需登录态），故不产生会话注入。 */
+  async exchangeHandoffCode(code: string) {
+    if (!code) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "握手码无效");
+    const userId = await this.redis.get(`handoff:${code}`);
+    if (!userId) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "握手码无效或已过期");
+    await this.redis.del(`handoff:${code}`); // 单次消费，防重放
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
+    if (!user || user.status === "DISABLED") throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "账号不可用");
+    return this.generateTokenPair(userId);
   }
 
   /** 使用 refreshToken 换取新的 accessToken（轮换刷新） */
   async refreshToken(refreshToken: string) {
     const userId = await this.redis.get(`refresh:${refreshToken}`);
     if (!userId) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "refreshToken 无效或已过期");
-    // 轮换：删除旧 token 防止重放攻击
-    await this.redis.del(`refresh:${refreshToken}`);
+    // 轮换宽限（防误登出）：旧 refreshToken 不立即删除，保留 60 秒缓冲——
+    // 吸收 H5 多标签页/并发请求/页面刷新时对同一 token 的重复续期（否则第二次续期撞上"已作废"→前端清登录态→掉线）。
+    // 60 秒后自动失效，仍保留防重放能力。
+    await this.redis.expire(`refresh:${refreshToken}`, 60);
     await this.redis.srem(`refresh:user:${userId}`, refreshToken);
     // 封号用户不再续发（accessToken 侧由 JwtStrategy 拦截，此处断掉 refresh 链路）
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
@@ -111,7 +134,7 @@ export class AuthService {
       await this.bindReferral(user.id, dto.referrerCode);
     }
 
-    this.fireUserRegistered(user.id, user.nickname, user.phone!);
+    await this.fireUserRegistered(user.id, user.nickname, user.phone!);
     this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
   }
@@ -186,7 +209,7 @@ export class AuthService {
       if (dto.referrerCode) {
         await this.bindReferral(registered.id, dto.referrerCode);
       }
-      this.fireUserRegistered(registered.id, registered.nickname, registered.phone!);
+      await this.fireUserRegistered(registered.id, registered.nickname, registered.phone!);
     }
 
     this.importToIm(user!.id, user!.nickname);
@@ -198,7 +221,14 @@ export class AuthService {
   }
 
   async wechatLogin(dto: WechatLoginDto) {
-    if (!process.env.WECHAT_APP_ID || !process.env.WECHAT_APP_SECRET) {
+    const isMiniProgram = dto.loginType === "miniprogram";
+    const appId = isMiniProgram
+      ? process.env.WECHAT_MINI_APP_ID || process.env.MINIPROGRAM_APP_ID || process.env.WECHAT_MP_APP_ID || process.env.WECHAT_APP_ID
+      : process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID;
+    const appSecret = isMiniProgram
+      ? process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET
+      : process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET;
+    if (!appId || !appSecret) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "微信登录未配置，请联系管理员");
     }
 
@@ -207,7 +237,7 @@ export class AuthService {
     let unionId: string | undefined;
 
     try {
-      if (dto.loginType === "miniprogram") {
+      if (isMiniProgram) {
         const session = await this.wechat.exchangeMiniCode(dto.code);
         openId = session.openId;
         unionId = session.unionId;
@@ -290,7 +320,7 @@ export class AuthService {
       await this.bindReferral(user.id, dto.referrerCode);
     }
 
-    this.fireUserRegistered(user.id, user.nickname);
+    await this.fireUserRegistered(user.id, user.nickname);
     this.importToIm(user.id, user.nickname, user.avatar || undefined);
     return this.buildLoginResult(user.id);
   }
@@ -368,7 +398,7 @@ export class AuthService {
       if (dto.referrerCode) {
         await this.bindReferral(user.id, dto.referrerCode);
       }
-      this.fireUserRegistered(user.id, user.nickname, user.phone!);
+      await this.fireUserRegistered(user.id, user.nickname, user.phone!);
     }
 
     this.importToIm(user.id, user.nickname);
@@ -394,9 +424,25 @@ export class AuthService {
         select: { id: true, status: true, shopName: true, shopLogo: true },
       }),
     ]);
+    // 商家身份 = 自营 owner 或 受雇操作员(MerchantMember·官方旗舰店多管理员场景)
+    let effectiveMerchant = merchant;
+    if (!effectiveMerchant) {
+      const membership = await this.prisma.merchantMember.findFirst({
+        where: { userId, status: "ACTIVE" },
+        select: { merchant: { select: { id: true, status: true, shopName: true, shopLogo: true } } },
+      });
+      effectiveMerchant = membership?.merchant ?? null;
+    }
     // 不回传支付密码哈希，仅暴露是否已设置的布尔值
-    const { paymentPasswordHash, ...rest } = user ?? {};
-    return { ...rest, paymentPasswordSet: !!paymentPasswordHash, permissions, merchant };
+    const { paymentPasswordHash, roles, ...rest } = user ?? {};
+    // 有 ACTIVE 商家（自营/受雇）则注入 MERCHANT 身份：个人中心"身份切换"统一从此进商家管理台，权限天然由此控制
+    const mergedRoles: Array<{ roleType: string; bindId: string | null }> = [
+      ...(roles ?? []).map((r) => ({ roleType: String(r.roleType), bindId: r.bindId ?? null })),
+      ...(effectiveMerchant && effectiveMerchant.status === "ACTIVE"
+        ? [{ roleType: "MERCHANT", bindId: effectiveMerchant.id }]
+        : []),
+    ];
+    return { ...rest, roles: mergedRoles, paymentPasswordSet: !!paymentPasswordHash, permissions, merchant: effectiveMerchant };
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
@@ -416,16 +462,24 @@ export class AuthService {
     const auth = await this.prisma.auth.findFirst({
       where: { userId, provider: "PASSWORD" },
     });
-    if (!auth?.credential) throw new BusinessException(ErrorCode.BAD_REQUEST, "未设置密码");
-
-    const valid = await bcrypt.compare(dto.oldPassword, auth.credential);
-    if (!valid) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "原密码错误");
-
     const newHash = await bcrypt.hash(dto.newPassword, 10);
-    await this.prisma.auth.update({
-      where: { id: auth.id },
-      data: { credential: newHash },
-    });
+
+    if (!auth?.credential) {
+      // 首次设置密码：验证码/微信登录用户从无 PASSWORD 凭证，本人已登录态即可信任，
+      // 无需旧密码，直接创建凭证（原先在此抛"未设置密码"导致这类用户永远设不了密码）。
+      await this.prisma.auth.create({
+        data: { userId, provider: "PASSWORD", credential: newHash },
+      });
+    } else {
+      // 已有密码：必须校验旧密码
+      if (!dto.oldPassword) throw new BusinessException(ErrorCode.BAD_REQUEST, "请输入当前密码");
+      const valid = await bcrypt.compare(dto.oldPassword, auth.credential);
+      if (!valid) throw new BusinessException(ErrorCode.AUTH_PASSWORD_WRONG, "原密码错误");
+      await this.prisma.auth.update({
+        where: { id: auth.id },
+        data: { credential: newHash },
+      });
+    }
     await this.revokeAllRefreshTokens(userId);
     return { success: true };
   }
@@ -522,8 +576,10 @@ export class AuthService {
   // ───────── 私有方法 ─────────
 
   /** 触发用户注册 Webhook（异步，失败不影响注册流程） */
-  private fireUserRegistered(userId: string, nickname: string, phone?: string) {
-    this.webhook.fire("USER_REGISTERED", { userId, nickname, phone }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+  private async fireUserRegistered(userId: string, nickname: string, phone?: string) {
+    await this.webhook
+      .fire("USER_REGISTERED", { userId, nickname, phone })
+      .catch((err) => this.logger.warn("Webhook 外发箱写入失败", err));
   }
 
   /** 异步导入用户到 IM（失败不影响登录） */

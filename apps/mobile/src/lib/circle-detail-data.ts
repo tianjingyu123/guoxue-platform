@@ -2,7 +2,7 @@
  * 圈子详情页数据 + 类型（从原型 app/circles/[id]/page.tsx 1:1 迁移）
  * 含 CircleDetail / CirclePost / CircleMember / 专栏 / 活动 / 会员权益。
  */
-import { apiGet, apiPost, useMock } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost } from '@/utils/request'
 
 export interface CircleOwner { id: string; name: string; avatar: string }
 
@@ -72,6 +72,15 @@ export interface CircleArticle {
   id: string; title: string; cover: string; author: string
   publishedAt: string; views: number; likes: number; isFeatured: boolean
 }
+
+export interface CircleCourse { id: string; title: string; cover: string; price: number; teacher: string }
+export interface CircleLive { id: string; title: string; cover: string; hostName: string; status: 'live' | 'upcoming' | 'replay'; viewCount: number }
+export interface CircleProduct { id: string; title: string; cover: string; price: number }
+/** 后端 /courses、/live/rooms、/shop/products 列表项（仅声明本处访问到的字段·容错宽松） */
+interface RawCircleCourse { id?: string; title?: string; cover?: string; price?: number | string; user?: { nickname?: string } | null }
+interface RawCircleLive { id?: string; title?: string; cover?: string | null; status?: string; viewCount?: number; user?: { nickname?: string } | null }
+interface RawCircleArticle { id?: string; title?: string; cover?: string; createdAt?: string; viewCount?: number; likeCount?: number; isPushHome?: boolean; user?: { nickname?: string } | null }
+interface RawCircleProduct { id?: string; title?: string; cover?: string; images?: string[]; price?: number | string; effectivePrice?: number }
 
 export interface MemberBenefit { icon: string; title: string; desc: string }
 
@@ -302,7 +311,141 @@ export const circleDetailApi = {
   columns: async (_id: string): Promise<CircleColumn[]> => [],
   articles: async (_id: string): Promise<CircleArticle[]> => [],
   activities: async (_id: string): Promise<CircleActivity[]> => [],
+  /** 圈内课程（真连 GET /courses?circleId=·课程模型已有 circleId·圈子内变现展示）。失败降级空。 */
+  courses: async (id: string): Promise<CircleCourse[]> => {
+    try {
+      const r = await apiGet<unknown>(`/courses?circleId=${id}&pageSize=6`)
+      const arr: RawCircleCourse[] = Array.isArray(r) ? r : ((r as { items?: RawCircleCourse[]; courses?: RawCircleCourse[]; data?: RawCircleCourse[] })?.items ?? (r as { courses?: RawCircleCourse[] })?.courses ?? (r as { data?: RawCircleCourse[] })?.data ?? [])
+      return arr.map((c) => ({
+        id: String(c.id ?? ''),
+        title: c.title ?? '',
+        cover: c.cover ?? '',
+        price: Number(c.price) || 0,
+        teacher: c.user?.nickname ?? '',
+      }))
+    } catch { return [] }
+  },
+  /** 圈内已发布文章（真连 GET /articles?circleId=·成员/圈主发布的文章·修"文章板块看不到"）。失败降级空。 */
+  postedArticles: async (id: string): Promise<CircleArticle[]> => {
+    try {
+      const r = await apiGet<unknown>(`/articles?circleId=${id}&pageSize=6`)
+      const arr: RawCircleArticle[] = Array.isArray(r) ? r : ((r as { items?: RawCircleArticle[]; data?: RawCircleArticle[] })?.items ?? (r as { data?: RawCircleArticle[] })?.data ?? [])
+      return arr.map((a) => ({
+        id: String(a.id ?? ''),
+        title: a.title ?? '',
+        cover: a.cover ?? '',
+        author: a.user?.nickname ?? '',
+        publishedAt: a.createdAt ?? '',
+        views: Number(a.viewCount) || 0,
+        likes: Number(a.likeCount) || 0,
+        isFeatured: !!a.isPushHome,
+      }))
+    } catch { return [] }
+  },
+  /** 圈内直播（真连 GET /live/rooms?circleId=·含往期/进行/预告·LiveRoom 已有 circleId）。失败降级空。 */
+  lives: async (id: string): Promise<CircleLive[]> => {
+    try {
+      const r = await apiGet<unknown>(`/live/rooms?circleId=${id}&pageSize=8`)
+      const arr: RawCircleLive[] = Array.isArray(r) ? r : ((r as { rooms?: RawCircleLive[]; items?: RawCircleLive[]; data?: RawCircleLive[] })?.rooms ?? (r as { items?: RawCircleLive[] })?.items ?? (r as { data?: RawCircleLive[] })?.data ?? [])
+      return arr.map((v) => {
+        const u = String(v.status ?? '').toUpperCase()
+        const status: CircleLive['status'] = u === 'LIVING' ? 'live' : u === 'WAITING' ? 'upcoming' : 'replay'
+        return { id: String(v.id ?? ''), title: v.title ?? '', cover: v.cover ?? '', hostName: v.user?.nickname ?? '', status, viewCount: Number(v.viewCount) || 0 }
+      })
+    } catch { return [] }
+  },
+  /** 圈内商品（真连 GET /shop/products?circleId=·Product 已有 circleId·圈主选品展示）。失败降级空。 */
+  products: async (id: string): Promise<CircleProduct[]> => {
+    try {
+      const r = await apiGet<unknown>(`/shop/products?circleId=${id}&status=ON_SALE&pageSize=6`)
+      const arr: RawCircleProduct[] = Array.isArray(r) ? r : ((r as { products?: RawCircleProduct[]; items?: RawCircleProduct[]; data?: RawCircleProduct[] })?.products ?? (r as { items?: RawCircleProduct[] })?.items ?? (r as { data?: RawCircleProduct[] })?.data ?? [])
+      return arr.map((p) => ({
+        id: String(p.id ?? ''),
+        title: p.title ?? '',
+        cover: (Array.isArray(p.images) ? p.images[0] : p.cover) ?? '',
+        price: Number(p.effectivePrice ?? p.price) || 0,
+      }))
+    } catch { return [] }
+  },
   // 免费圈直接成员 {success}；需审批免费圈返回 {status:'pending',message}
-  join: (id: string) => apiPost<{ success?: boolean; status?: string; message?: string }>(`/circles/${id}/join`),
+  // code=好友邀请码（可选）：随 join 一并传后端。⚠️ 后端是否消费 code 字段未核实——若未接则透传无副作用，仅作申请备注；归因/奖励需后端配合接线
+  join: (id: string, code?: string) =>
+    apiPost<{ success?: boolean; status?: string; message?: string }>(`/circles/${id}/join`, code ? { code } : undefined),
   leave: (id: string) => apiPost<{ success: boolean }>(`/circles/${id}/leave`),
+  /**
+   * 查询当前用户入圈状态 — GET /circles/:id/join/status（需登录，权威判断是否已加入 / 角色）。
+   * ⚠️ 详情端点 GET /circles/:id 未挂 JwtAuthGuard，req.user 恒空 → membership 恒 null →
+   *    detail.isJoined 恒 false、myRole 恒 null。故登录态下须单独查此鉴权端点覆盖真实加入态。
+   * 失败返回 { joined:false }（不阻断页面渲染）。
+   */
+  getJoinStatus: async (id: string, optionalAuth = false): Promise<{ joined: boolean; role: CircleMemberRole | null; expired: boolean; joinedAt: string | null; expireAt: string | null }> => {
+    try {
+      const path = `/circles/${id}/join/status`
+      type JoinStatus = { joined?: boolean; role?: string; expired?: boolean; joinedAt?: string; expireAt?: string | null }
+      const r = optionalAuth ? await apiGetOptionalAuth<JoinStatus>(path) : await apiGet<JoinStatus>(path)
+      return {
+        joined: !!r?.joined,
+        role: (r?.role as CircleMemberRole) ?? null,
+        expired: !!r?.expired,
+        joinedAt: r?.joinedAt ? String(r.joinedAt) : null,
+        expireAt: r?.expireAt ? String(r.expireAt) : null,
+      }
+    } catch {
+      return { joined: false, role: null, expired: false, joinedAt: null, expireAt: null }
+    }
+  },
+  /**
+   * 续费年费圈子·第一步创建现金订单 — POST /circles/:id/renew。
+   * 董事长拍板 2026-07-10：入圈与续费都只能人民币（微信/支付宝），不支持虚拟币。
+   * #34：折扣开启时后端返回折后 priceYuan + originalPriceYuan（前端展示以此为准，不硬编码折扣文案）。
+   * years=1/2 均由续费页显式选择并传入，价格以报价接口返回值为准。
+   */
+  renewPrepare: (id: string, payMethod: 'WECHAT' | 'ALIPAY', years?: number) =>
+    apiPost<{ needPayment?: boolean; orderId?: string; priceYuan?: number; originalPriceYuan?: number; discountApplied?: boolean; message?: string }>(
+      `/circles/${id}/renew`,
+      { payMethod, ...(years === 2 ? { years } : {}) },
+    ),
+  /** 续费·第二步支付完成后确认 — POST /circles/:id/renew/confirm（顺延到期时间·返回 newExpireAt） */
+  renewConfirm: (id: string, orderId: string) =>
+    apiPost<{ newExpireAt?: string }>(`/circles/${id}/renew/confirm`, { orderId }),
+  /**
+   * 续费报价 — GET /circles/:id/renew/quote（#34·纯查询不建单）。
+   * 折扣关闭（默认）时 priceYuan === originalPriceYuan → 页面无任何折扣露出（零变化）。
+   * 失败返回 null（页面回落 circle.price 展示，不阻断）。
+   */
+  renewQuote: async (id: string): Promise<RenewQuote | null> => {
+    try {
+      const r = await apiGet<RenewQuote>(`/circles/${id}/renew/quote`)
+      return r && typeof r.priceYuan === 'number' ? r : null
+    } catch { return null }
+  },
+  /**
+   * 成员年度报告 — GET /circles/:id/annual-report（#33·本人过去 365 天在本圈真实聚合）。
+   * 查不到的字段后端不返回（如无分成则无 earningsRmb）；失败返回 null（报告卡不渲染·保持降级）。
+   */
+  annualReport: async (id: string): Promise<CircleAnnualReport | null> => {
+    try {
+      return await apiGet<CircleAnnualReport>(`/circles/${id}/annual-report`)
+    } catch { return null }
+  },
+}
+
+/** #34 续费报价（后端 renewQuote 返回形状） */
+export interface RenewQuote {
+  years: number
+  originalPriceYuan: number
+  priceYuan: number
+  discountEnabled: boolean
+  discountApplied: boolean
+  twoYear?: { originalPriceYuan: number; priceYuan: number }
+}
+
+/** #33 年度报告（全部真实聚合·earningsRmb 仅有分成记录时返回） */
+export interface CircleAnnualReport {
+  joinedDays: number
+  posts: number
+  questions: number
+  liveCount: number
+  likesReceived: number
+  earningsRmb?: number
 }

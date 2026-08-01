@@ -190,6 +190,30 @@ export class CreateOrderDto {
   sourceContentId?: string;
 }
 
+/** 订单试算（结算页价格明细预演·与 createOrder 定价同口径·只读不落库不占券） */
+export class EstimateOrderDto {
+  @ApiProperty({ description: "商品ID" })
+  @IsString()
+  @MinLength(1)
+  targetId: string;
+
+  @ApiPropertyOptional({ description: "SKU ID" })
+  @IsOptional() @IsString()
+  skuId?: string;
+
+  @ApiPropertyOptional({ description: "购买数量", minimum: 1, default: 1 })
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1)
+  quantity?: number;
+
+  @ApiPropertyOptional({ description: "优惠券ID（UserCoupon.id·只校验计算不核销）" })
+  @IsOptional() @IsString()
+  couponId?: string;
+
+  @ApiPropertyOptional({ description: "临时推荐人ID（与 createOrder 同源传入，保证自购立减判定一致）" })
+  @IsOptional() @IsString()
+  tempReferrerId?: string;
+}
+
 export class CreateCouponDto {
   @ApiProperty({ description: "优惠券类型（FIXED/DISCOUNT）" })
   @IsString()
@@ -242,13 +266,17 @@ export class ProductListQueryDto {
   @IsOptional() @IsString()
   categoryId?: string;
 
-  @ApiPropertyOptional({ description: "商品状态" })
+  @ApiPropertyOptional({ description: "商品状态（缺省=ON_SALE 只出在售；ALL=全量·管理端工作队列用；支持逗号多值如 PENDING,OFF_SHELF）" })
   @IsOptional() @IsString()
   status?: string;
 
   @ApiPropertyOptional({ description: "驿站ID" })
   @IsOptional() @IsString()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "圈子ID（圈内选品展示）" })
+  @IsOptional() @IsString()
+  circleId?: string;
 
   @ApiPropertyOptional({ description: "商品名称关键词搜索" })
   @IsOptional() @IsString()
@@ -289,14 +317,17 @@ export class ModerateProductDto {
 }
 
 export class JsapiPayDto {
-  @ApiProperty({ description: "微信openid" })
-  @IsString()
-  @MinLength(1)
-  openid: string;
+  @ApiPropertyOptional({ description: "微信openid（可选；不传则后端从用户已绑定的微信授权记录中查取。channel=OFFICIAL 时必传，须为公众号网页授权取得的 openid）" })
+  @IsOptional() @IsString()
+  openid?: string;
 
   @ApiPropertyOptional({ description: "回调通知地址" })
   @IsOptional() @IsString()
   notifyUrl?: string;
+
+  @ApiPropertyOptional({ description: "支付渠道：缺省/MINI=小程序内；OFFICIAL=公众号内H5（用公众号appid下单）", enum: ["MINI", "OFFICIAL"] })
+  @IsOptional() @IsIn(["MINI", "OFFICIAL"])
+  channel?: "MINI" | "OFFICIAL";
 }
 
 export class RechargeJsapiDto {
@@ -304,11 +335,43 @@ export class RechargeJsapiDto {
   @Type(() => Number)
   @IsInt()
   @IsPositive()
-  @Max(1000000)
+  @Max(500000)
   amountCoin: number;
+
+  @ApiPropertyOptional({ description: "公众号网页授权 openid（channel=OFFICIAL 时必传）" })
+  @IsOptional() @IsString()
+  openid?: string;
+
+
+  @ApiPropertyOptional({ description: "支付渠道：缺省/MINI=小程序；OFFICIAL=公众号内H5", enum: ["MINI", "OFFICIAL"] })
+  @IsOptional() @IsIn(["MINI", "OFFICIAL"])
+  channel?: "MINI" | "OFFICIAL";
+}
+
+/** 国学币充值 H5 支付（微信外部浏览器 mweb_url） */
+export class RechargeH5Dto {
+  @ApiProperty({ description: "充值国学币数量", maximum: 500000 })
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  @Max(500000)
+  amountCoin: number;
+
 }
 
 export class NativePayDto {
+  @ApiPropertyOptional({ description: "回调通知地址" })
+  @IsOptional() @IsString()
+  notifyUrl?: string;
+}
+
+/** H5 支付（外部浏览器 mweb_url 跳转微信收银台） */
+export class H5PayDto {
+  @ApiProperty({ description: "订单ID" })
+  @IsString()
+  @MinLength(1)
+  orderId: string;
+
   @ApiPropertyOptional({ description: "回调通知地址" })
   @IsOptional() @IsString()
   notifyUrl?: string;
@@ -630,6 +693,24 @@ export class ApplyAfterSaleDto {
   @IsPositive()
   @Type(() => Number)
   amount?: number;
+
+  @ApiPropertyOptional({ description: "凭证图片 URL（已上传 COS 的可访问地址，最多 5 张）", type: [String] })
+  @IsOptional() @IsArray() @ArrayMaxSize(5) @IsString({ each: true })
+  images?: string[];
+}
+
+export class SubmitReturnLogisticsDto {
+  @ApiProperty({ description: "退货快递公司" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  company: string;
+
+  @ApiProperty({ description: "退货运单号" })
+  @IsString()
+  @MinLength(4)
+  @MaxLength(80)
+  logisticsNo: string;
 }
 
 // ── 商品分类 DTO ──

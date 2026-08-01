@@ -56,7 +56,7 @@
               <view class="ic-wrap ic-red"><app-icon name="user-x" :size="32" color="#e74c3c" /></view>
               <view class="row-info">
                 <text class="row-title">黑名单管理</text>
-                <text class="row-desc">已拉黑 3 人</text>
+                <text class="row-desc">{{ blacklistCount === null ? '管理已拉黑用户' : (blacklistCount === 0 ? '暂无拉黑用户' : `已拉黑 ${blacklistCount} 人`) }}</text>
               </view>
             </view>
             <app-icon name="chevron-right" :size="28" color="#ccc" />
@@ -87,10 +87,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppNavBar from '@/components/common/app-nav-bar.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
+import { mineApi } from '@/lib/mine-data'
+
+// 黑名单人数读真实接口（与 /mine/blacklist 同一 getBlacklist），避免与黑名单页「暂无」自相矛盾
+const blacklistCount = ref<number | null>(null)
+onMounted(async () => {
+  try {
+    const list = await mineApi.getBlacklist()
+    blacklistCount.value = list.length
+  } catch {
+    blacklistCount.value = null
+  }
+})
 
 const visItems = ref([
   { id: 'online', icon: 'globe', title: '显示在线状态', desc: '其他用户可以看到您是否在线', value: true },

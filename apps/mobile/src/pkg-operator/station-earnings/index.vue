@@ -1,14 +1,14 @@
 <template>
   <view class="earn-page">
-    <!-- 顶部导航 -->
+    <!-- 自定义导航：statusBarHeight 留白 -->
     <view class="earn-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="earn-nav-inner">
         <view class="earn-nav-btn" @tap="goBack">
-          <app-icon name="arrow-left" :size="48" color="#1f2937" />
+          <app-icon name="arrow-left" :size="44" color="#2C2C2C" />
         </view>
-        <text class="earn-nav-title">分站收益</text>
+        <text class="earn-nav-title">收益明细</text>
         <view class="earn-nav-btn" :class="{ spinning: loading }" @tap="onRefresh">
-          <app-icon name="refresh-cw" :size="40" color="#4b5563" />
+          <app-icon name="refresh-cw" :size="38" color="#6E6E73" />
         </view>
       </view>
     </view>
@@ -20,114 +20,118 @@
 
     <!-- 未开通分站 -->
     <view v-else-if="notOpened" class="earn-state">
-      <app-icon name="store" :size="96" color="#d1d5db" />
+      <app-icon name="store" :size="92" color="#D8D2C8" />
       <text class="earn-state-txt">你还没有开通分站</text>
       <view class="earn-state-btn" @tap="goJoin"><text class="earn-state-btn-txt">去开通分站</text></view>
     </view>
 
     <!-- error -->
     <view v-else-if="error" class="earn-state">
-      <app-icon name="alert-circle" :size="96" color="#d1d5db" />
+      <app-icon name="alert-circle" :size="92" color="#D8D2C8" />
       <text class="earn-state-txt">{{ error }}</text>
       <view class="earn-state-btn" @tap="load"><text class="earn-state-btn-txt">重新加载</text></view>
     </view>
 
-    <view v-else class="earn-content">
-      <!-- 收益总览卡片（真实字段：累计/本月/待结算/下次结算） -->
-      <view class="earn-overview">
-        <view class="earn-overview-top">
-          <view>
-            <text class="earn-ov-label">累计收益（元）</text>
-            <text class="earn-ov-balance">¥{{ overview.totalEarning.toFixed(2) }}</text>
-          </view>
-          <view class="earn-withdraw-btn" @tap="goWithdraw">
-            <app-icon name="wallet" :size="32" color="#C41E3A" />
-            <text class="earn-withdraw-txt">提现</text>
-          </view>
-        </view>
-        <view class="earn-ov-stats">
-          <view class="earn-ov-stat">
-            <view class="earn-ov-stat-head">
-              <app-icon name="trending-up" :size="24" color="rgba(255,255,255,0.7)" />
-              <text class="earn-ov-stat-label">本月收益</text>
+    <scroll-view v-else scroll-y class="earn-scroll" @scrolltolower="loadMore">
+      <view class="earn-content">
+        <!-- 收益概览卡（朱红渐变 · 金色衬线大字） -->
+        <view class="hero">
+          <view class="hero-top">
+            <view class="hero-main">
+              <text class="hero-label">本月收益（待结算）</text>
+              <text class="hero-num serif"><text class="hero-num-sym">¥</text>{{ fmtMoney(overview.monthEarning) }}</text>
             </view>
-            <text class="earn-ov-stat-val">¥{{ overview.monthEarning.toFixed(2) }}</text>
-          </view>
-          <view class="earn-ov-stat">
-            <view class="earn-ov-stat-head">
-              <app-icon name="clock" :size="24" color="rgba(255,255,255,0.7)" />
-              <text class="earn-ov-stat-label">待结算</text>
+            <view class="hero-settle">
+              <text class="hero-settle-h">下次结算</text>
+              <text class="hero-settle-d serif">{{ settleDateLabel }}</text>
             </view>
-            <text class="earn-ov-stat-val">¥{{ overview.pendingSettlement.toFixed(2) }}</text>
           </view>
-          <view class="earn-ov-stat">
-            <view class="earn-ov-stat-head">
-              <app-icon name="calendar" :size="24" color="rgba(255,255,255,0.7)" />
-              <text class="earn-ov-stat-label">下次结算</text>
+          <view class="hero-row">
+            <view class="hero-item">
+              <text class="hero-item-num gold serif">¥{{ fmtMoney(overview.pendingSettlement) }}</text>
+              <text class="hero-item-label">待结算</text>
             </view>
-            <text class="earn-ov-stat-val">{{ overview.remainingDays > 0 ? overview.remainingDays + '天后' : '—' }}</text>
-          </view>
-        </view>
-        <view v-if="overview.selfPurchaseSaved > 0" class="earn-ov-saved">
-          <app-icon name="gift" :size="28" color="rgba(255,255,255,0.85)" />
-          <text class="earn-ov-saved-txt">自购已省 ¥{{ overview.selfPurchaseSaved.toFixed(2) }} · 站长自购下单直接立减</text>
-        </view>
-      </view>
-
-      <!-- 收益明细 -->
-      <view class="earn-section-head">
-        <text class="earn-section-title">收益明细</text>
-        <text v-if="total > 0" class="earn-section-count">共 {{ total }} 笔</text>
-      </view>
-
-      <scroll-view scroll-x class="earn-filter-scroll">
-        <view class="earn-filter-row">
-          <view
-            v-for="f in filterTypes"
-            :key="f.value"
-            class="earn-filter"
-            :class="{ active: filterType === f.value }"
-            @tap="filterType = f.value"
-          >
-            <text class="earn-filter-txt" :style="{ color: filterType === f.value ? '#fff' : '#4b5563' }">{{ f.label }}</text>
-          </view>
-        </view>
-      </scroll-view>
-
-      <view v-if="filteredEarnings.length === 0" class="earn-empty">
-        <app-icon name="file-text" :size="96" color="#d1d5db" />
-        <text class="earn-empty-txt">{{ filterType === 'all' ? '暂无收益记录' : '该类型暂无收益记录' }}</text>
-      </view>
-      <view v-else class="earn-list">
-        <view v-for="item in filteredEarnings" :key="item.id" class="earn-item">
-          <view class="earn-item-main">
-            <view class="earn-item-icon">
-              <app-icon :name="typeIcon(item.type)" :size="32" color="#C41E3A" />
+            <view class="hero-item">
+              <text class="hero-item-num serif">¥{{ fmtMoney(overview.totalEarning) }}</text>
+              <text class="hero-item-label">累计收益</text>
             </view>
-            <view class="earn-item-info">
-              <view class="earn-item-row1">
-                <text class="earn-item-title">{{ typeLabel(item.type) }}</text>
-                <text class="earn-item-amount">+¥{{ item.earned.toFixed(2) }}</text>
+            <view class="hero-item hero-item-btn" @tap="goWithdraw">
+              <view class="hero-withdraw">
+                <app-icon name="wallet" :size="30" color="#C41E3A" />
+                <text class="hero-withdraw-txt">提现</text>
               </view>
-              <text class="earn-item-desc">订单金额 ¥{{ item.amount.toFixed(2) }} · 佣金率 {{ ratePct(item.rate) }}</text>
-              <view class="earn-item-row2">
-                <text class="earn-item-time">{{ fmtTime(item.createdAt) }}</text>
-                <text v-if="item.orderId" class="earn-item-order">订单 {{ shortId(item.orderId) }}</text>
-              </view>
+              <text class="hero-item-label">前往钱包</text>
             </view>
           </view>
         </view>
-      </view>
 
-      <view v-if="hasMore && filteredEarnings.length > 0" class="earn-more" @tap="loadMore">
-        <text class="earn-more-txt">{{ loadingMore ? '加载中...' : '加载更多' }}</text>
-      </view>
+        <!-- 自购已省（后端真有则显示） -->
+        <view v-if="overview.selfPurchaseSaved > 0" class="saved-tip">
+          <app-icon name="gift" :size="28" color="#97794A" />
+          <text class="saved-tip-txt">自购已省 ¥{{ fmtMoney(overview.selfPurchaseSaved) }} · 站长自购下单直接立减</text>
+        </view>
 
-      <!-- 底部提示（诚实：提现走钱包） -->
-      <view class="earn-tip">
-        <text class="earn-tip-txt"><text class="earn-tip-bold">收益说明：</text>分站推广佣金在订单完成后按平台结算周期入账，已结算收益进入个人钱包，提现请前往「钱包」操作。</text>
+        <!-- 状态筛选 Tab（下划线激活，按后端真实收益类型 type 筛选） -->
+        <scroll-view scroll-x class="tabs-scroll">
+          <view class="tabs-row">
+            <view
+              v-for="f in filterTypes"
+              :key="f.value"
+              class="tab"
+              :class="{ on: filterType === f.value }"
+              @tap="filterType = f.value"
+            >
+              <text class="tab-txt" :class="{ on: filterType === f.value }">{{ f.label }}</text>
+              <view v-if="filterType === f.value" class="tab-underline" />
+            </view>
+          </view>
+        </scroll-view>
+
+        <!-- 结算说明 -->
+        <view class="notice">
+          <text class="notice-txt">每月 <text class="notice-strong">25 日</text> 结算上月已确认订单佣金，已结算收益进入个人钱包，提现请前往「钱包」操作。</text>
+        </view>
+
+        <!-- 账单区标题 -->
+        <view class="bills-head">
+          <text class="bills-head-title">{{ filterLabel }}</text>
+          <text v-if="filteredEarnings.length > 0" class="bills-head-count">共 {{ filteredEarnings.length }} 笔</text>
+        </view>
+
+        <!-- 空态 -->
+        <view v-if="filteredEarnings.length === 0" class="empty">
+          <view class="empty-ic">
+            <app-icon name="dollar-sign" :size="72" color="#C9A96E" />
+          </view>
+          <text class="empty-t serif">{{ filterType === 'all' ? '还没有收益' : '该类型暂无收益' }}</text>
+          <text class="empty-d">推广你的主推内容，用户下单成交后佣金会在这里显示。</text>
+        </view>
+
+        <!-- 账单列表 -->
+        <view v-else class="bills">
+          <view v-for="item in filteredEarnings" :key="item.id" class="bill">
+            <view class="bill-ic" :style="{ background: typeColor(item.type) }">
+              <text class="bill-ic-txt">{{ typeShort(item.type) }}</text>
+            </view>
+            <view class="bill-info">
+              <text class="bill-t">{{ typeLabel(item.type) }}</text>
+              <text class="bill-s">{{ subLine(item) }}</text>
+            </view>
+            <view class="bill-r">
+              <text class="bill-amt">+¥{{ fmtMoney(item.earned) }}</text>
+              <text class="bill-st">佣金 {{ ratePct(item.rate) }}</text>
+            </view>
+          </view>
+
+          <view v-if="hasMore" class="loadmore" @tap="loadMore">
+            <text class="loadmore-txt">{{ loadingMore ? '加载中...' : '上滑加载更多' }}</text>
+          </view>
+          <view v-else class="loadmore">
+            <text class="loadmore-txt loadmore-end">没有更多了</text>
+          </view>
+        </view>
       </view>
-    </view>
+    </scroll-view>
   </view>
 </template>
 
@@ -140,7 +144,7 @@ import {
   STATION_EARNING_TYPE_LABELS,
   type StationBalanceInfo,
   type StationEarningItem,
-} from '@/lib/operator-data'
+} from '@/pkg-operator/lib/operator-data'
 
 const statusBarHeight = ref(20)
 try {
@@ -161,6 +165,8 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = 20
 
+// 状态筛选：后端 StationEarning 无 status（待结算/已结算/已取消）字段，
+// 故按后端真实存在的收益类型 type 分类筛选（诚实降级，不虚构状态）
 const filterType = ref<string>('all')
 const filterTypes = [
   { value: 'all', label: '全部' },
@@ -175,15 +181,36 @@ const filteredEarnings = computed(() =>
   filterType.value === 'all' ? earnings.value : earnings.value.filter((i) => i.type === filterType.value),
 )
 const hasMore = computed(() => earnings.value.length < total.value)
+const filterLabel = computed(() => filterTypes.find((f) => f.value === filterType.value)?.label || '收益明细')
+
+// 下次结算日：优先用后端 nextSettleDate（取 MM-DD），无则按结算规则显示每月 25 日
+const settleDateLabel = computed(() => {
+  const raw = overview.value.nextSettleDate
+  if (raw) {
+    const d = new Date(raw)
+    if (!isNaN(d.getTime())) {
+      const p = (n: number) => String(n).padStart(2, '0')
+      return `${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    }
+    return raw
+  }
+  return '每月25日'
+})
 
 function typeLabel(t: string): string {
   return STATION_EARNING_TYPE_LABELS[t] || '推广佣金'
 }
-function typeIcon(t: string): string {
+function typeShort(t: string): string {
   const map: Record<string, string> = {
-    COURSE: 'book-open', PRODUCT: 'shopping-bag', MEMBER: 'crown', CIRCLE: 'users', BOT: 'bot',
+    COURSE: '课程', PRODUCT: '商城', MEMBER: '会员', CIRCLE: '圈子', BOT: '智能体',
   }
-  return map[t] || 'wallet'
+  return map[t] || '佣金'
+}
+function typeColor(t: string): string {
+  const map: Record<string, string> = {
+    COURSE: '#C41E3A', PRODUCT: '#C9A96E', MEMBER: '#A01828', CIRCLE: '#8A6F3F', BOT: '#6E6E73',
+  }
+  return map[t] || '#B8B0A4'
 }
 function ratePct(rate: number): string {
   return (rate * 100).toFixed(rate * 100 % 1 === 0 ? 0 : 1) + '%'
@@ -191,12 +218,24 @@ function ratePct(rate: number): string {
 function shortId(id: string): string {
   return id.length > 10 ? id.slice(-8) : id
 }
-function fmtTime(iso: string): string {
+function fmtMoney(n: number): string {
+  const v = Number(n) || 0
+  return v.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function fmtDate(iso: string): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (isNaN(d.getTime())) return iso
   const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+function subLine(item: StationEarningItem): string {
+  const parts: string[] = []
+  if (item.orderId) parts.push('订单 #' + shortId(item.orderId))
+  parts.push('订单金额 ¥' + fmtMoney(item.amount))
+  const dt = fmtDate(item.createdAt)
+  if (dt) parts.push(dt)
+  return parts.join(' · ')
 }
 
 async function load() {
@@ -244,8 +283,9 @@ function onRefresh() {
   if (loading.value) return
   load()
 }
+// 提现入口：走个人钱包提现页（收益已结算入钱包，分站侧无独立提现）
 function goWithdraw() {
-  navigateTo('/wallet/withdraw')
+  navigateTo('/pkg-mine/wallet/withdraw')
 }
 function goJoin() {
   navigateTo('/pkg-operator/join-station/index')
@@ -258,66 +298,127 @@ onMounted(load)
 </script>
 
 <style lang="scss" scoped>
-.earn-page { min-height: 100vh; background: #faf8f5; }
-.earn-nav { position: sticky; top: 0; z-index: 10; background: #faf8f5; border-bottom: 1rpx solid #f3f4f6; }
-.earn-nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; }
-.earn-nav-btn { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; }
+/* ===== token ===== */
+$paper: #FAF8F5;
+$card: #FFFFFF;
+$red: #C41E3A;
+$red-deep: #A01828;
+$gold: #C9A96E;
+$t1: #2C2C2C;
+$t2: #6E6E73;
+$t3: #9A9A9A;
+$line: #ECE7DF;
+$radius: 35rpx;
+$px: 38rpx;
+$shadow: 0 2rpx 20rpx rgba(44, 38, 30, 0.05);
+$serif: 'Songti SC', 'STSong', serif;
+
+.serif { font-family: $serif; }
+
+.earn-page { min-height: 100vh; background: $paper; display: flex; flex-direction: column; }
+
+/* 导航 */
+.earn-nav { background: $paper; }
+.earn-nav-inner { display: flex; align-items: center; justify-content: space-between; padding: 16rpx $px; height: 92rpx; }
+.earn-nav-btn { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; }
 .earn-nav-btn.spinning { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.earn-nav-title { font-size: 36rpx; font-weight: 600; color: #111827; }
+.earn-nav-title { font-size: 34rpx; font-weight: 600; color: $t1; }
 
-.earn-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx 32rpx; gap: 24rpx; }
-.earn-state-txt { font-size: 28rpx; color: #6b7280; }
-.earn-spinner { width: 56rpx; height: 56rpx; border: 6rpx solid #f0d0d4; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
-.earn-state-btn { margin-top: 8rpx; padding: 16rpx 48rpx; background: var(--brand); border-radius: 999rpx; }
+/* 三态 */
+.earn-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 160rpx $px; gap: 28rpx; }
+.earn-state-txt { font-size: 28rpx; color: $t2; text-align: center; }
+.earn-spinner { width: 56rpx; height: 56rpx; border: 6rpx solid rgba(196, 30, 58, 0.15); border-top-color: $red; border-radius: 50%; animation: spin 0.8s linear infinite; }
+.earn-state-btn { margin-top: 8rpx; min-height: 88rpx; padding: 0 56rpx; display: flex; align-items: center; justify-content: center; background: $red; border-radius: 999rpx; }
 .earn-state-btn-txt { color: #fff; font-size: 28rpx; }
 
-.earn-content { padding: 32rpx; }
+.earn-scroll { flex: 1; }
+.earn-content { padding: 12rpx $px 60rpx; }
 
-.earn-overview { background: linear-gradient(to bottom right, var(--brand), #A01830); border-radius: 32rpx; padding: 40rpx; margin-bottom: 32rpx; }
-.earn-overview-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32rpx; }
-.earn-ov-label { font-size: 28rpx; color: rgba(255, 255, 255, 0.8); margin-bottom: 8rpx; display: block; }
-.earn-ov-balance { font-size: 60rpx; font-weight: 700; color: #fff; }
-.earn-withdraw-btn { display: flex; align-items: center; gap: 8rpx; background: #fff; border-radius: 12rpx; padding: 16rpx 28rpx; }
-.earn-withdraw-txt { font-size: 28rpx; font-weight: 500; color: var(--brand); }
-.earn-ov-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32rpx; padding-top: 32rpx; border-top: 1rpx solid rgba(255, 255, 255, 0.2); }
-.earn-ov-stat-head { display: flex; align-items: center; gap: 8rpx; margin-bottom: 8rpx; }
-.earn-ov-stat-label { font-size: 22rpx; color: rgba(255, 255, 255, 0.7); }
-.earn-ov-stat-val { font-size: 30rpx; font-weight: 600; color: #fff; }
+/* 收益概览卡 · 朱红渐变 */
+.hero {
+  position: relative; overflow: hidden; border-radius: $radius; padding: 42rpx 40rpx; color: #fff;
+  background: linear-gradient(135deg, $red-deep, $red); box-shadow: 0 8rpx 32rpx rgba(196, 30, 58, 0.24);
+}
+.hero-top { display: flex; align-items: flex-start; justify-content: space-between; position: relative; z-index: 1; }
+.hero-main { display: flex; flex-direction: column; }
+.hero-label { font-size: 24rpx; color: rgba(255, 255, 255, 0.85); margin-bottom: 14rpx; }
+.hero-num { font-size: 74rpx; font-weight: 700; color: #fff; line-height: 1; letter-spacing: -1rpx; }
+.hero-num-sym { font-size: 38rpx; font-weight: 600; margin-right: 4rpx; }
+.hero-settle { display: flex; flex-direction: column; align-items: flex-end; }
+.hero-settle-h { font-size: 22rpx; color: rgba(255, 255, 255, 0.8); }
+.hero-settle-d { font-size: 38rpx; font-weight: 700; color: #fff; margin-top: 6rpx; }
 
-.earn-ov-saved { margin-top: 16rpx; display: flex; align-items: center; gap: 10rpx; padding: 14rpx 20rpx; background: rgba(255, 255, 255, 0.14); border-radius: 12rpx; }
-.earn-ov-saved-txt { font-size: 24rpx; color: rgba(255, 255, 255, 0.92); }
+.hero-row {
+  display: flex; margin-top: 38rpx; position: relative; z-index: 1;
+  background: rgba(255, 255, 255, 0.12); border-radius: 24rpx; padding: 26rpx 0;
+}
+.hero-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+.hero-item + .hero-item::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  height: 48rpx; width: 1rpx; background: rgba(255, 255, 255, 0.2);
+}
+.hero-item-num { font-size: 36rpx; font-weight: 700; color: #fff; }
+.hero-item-num.gold { color: #F2D9A6; }
+.hero-item-label { font-size: 22rpx; color: rgba(255, 255, 255, 0.82); margin-top: 8rpx; }
+.hero-item-btn .hero-item-label { color: rgba(255, 255, 255, 0.9); }
+.hero-withdraw { display: flex; align-items: center; gap: 8rpx; background: #fff; border-radius: 999rpx; min-height: 56rpx; padding: 0 24rpx; }
+.hero-withdraw-txt { font-size: 26rpx; font-weight: 600; color: $red; }
 
-.earn-section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16rpx; }
-.earn-section-title { font-size: 32rpx; font-weight: 600; color: #111827; }
-.earn-section-count { font-size: 24rpx; color: #9ca3af; }
+/* 自购已省 */
+.saved-tip {
+  margin-top: 20rpx; display: flex; align-items: center; gap: 12rpx; padding: 22rpx 28rpx;
+  background: rgba(201, 169, 110, 0.1); border: 1rpx solid rgba(201, 169, 110, 0.28); border-radius: 24rpx;
+}
+.saved-tip-txt { font-size: 24rpx; color: #8A6F3F; }
 
-.earn-filter-scroll { white-space: nowrap; margin-bottom: 16rpx; }
-.earn-filter-row { display: inline-flex; gap: 16rpx; padding-bottom: 12rpx; }
-.earn-filter { padding: 12rpx 24rpx; border-radius: 999rpx; background: #fff; }
-.earn-filter.active { background: var(--brand); }
-.earn-filter-txt { font-size: 28rpx; }
+/* 状态筛选 Tab · 下划线激活 */
+.tabs-scroll { white-space: nowrap; margin-top: 28rpx; }
+.tabs-row { display: inline-flex; gap: 40rpx; padding: 0 4rpx; }
+.tab { position: relative; height: 76rpx; display: flex; align-items: center; justify-content: center; }
+.tab-txt { font-size: 28rpx; color: $t2; }
+.tab-txt.on { color: $red; font-weight: 600; }
+.tab-underline { position: absolute; bottom: 6rpx; left: 50%; transform: translateX(-50%); width: 40rpx; height: 4rpx; background: $red; border-radius: 2rpx; }
 
-.earn-empty { background: #fff; border-radius: 16rpx; padding: 64rpx 32rpx; display: flex; flex-direction: column; align-items: center; }
-.earn-empty-txt { font-size: 28rpx; color: #6b7280; margin-top: 24rpx; }
+/* 结算说明 */
+.notice {
+  margin-top: 24rpx; background: rgba(201, 169, 110, 0.1); border: 1rpx solid rgba(201, 169, 110, 0.28);
+  border-radius: 24rpx; padding: 24rpx 28rpx;
+}
+.notice-txt { font-size: 24rpx; color: #8A6F3F; line-height: 1.7; }
+.notice-strong { color: $red-deep; font-weight: 600; }
 
-.earn-list { display: flex; flex-direction: column; gap: 24rpx; }
-.earn-item { background: #fff; border-radius: 16rpx; padding: 32rpx; }
-.earn-item-main { display: flex; align-items: flex-start; gap: 24rpx; }
-.earn-item-icon { width: 80rpx; height: 80rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: #fef2f4; }
-.earn-item-info { flex: 1; min-width: 0; }
-.earn-item-row1 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8rpx; }
-.earn-item-title { font-size: 30rpx; font-weight: 500; color: #111827; }
-.earn-item-amount { font-size: 30rpx; font-weight: 600; color: var(--brand); }
-.earn-item-desc { font-size: 26rpx; color: #6b7280; margin-bottom: 16rpx; display: block; }
-.earn-item-row2 { display: flex; align-items: center; justify-content: space-between; }
-.earn-item-time { font-size: 22rpx; color: #9ca3af; }
-.earn-item-order { font-size: 22rpx; color: #9ca3af; }
+/* 账单区标题 */
+.bills-head { display: flex; align-items: baseline; justify-content: space-between; margin: 36rpx 4rpx 20rpx; }
+.bills-head-title { font-size: 28rpx; font-weight: 600; color: $t1; }
+.bills-head-count { font-size: 24rpx; color: $t3; }
 
-.earn-more { padding: 32rpx; text-align: center; }
-.earn-more-txt { font-size: 26rpx; color: var(--brand); }
+/* 空态 */
+.empty { padding: 90rpx 60rpx; display: flex; flex-direction: column; align-items: center; }
+.empty-ic {
+  width: 160rpx; height: 160rpx; border-radius: 50%; margin-bottom: 32rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle, rgba(201, 169, 110, 0.18), rgba(201, 169, 110, 0.04));
+}
+.empty-t { font-size: 36rpx; font-weight: 600; color: $t1; margin-bottom: 16rpx; }
+.empty-d { font-size: 26rpx; color: $t2; line-height: 1.7; text-align: center; }
 
-.earn-tip { margin-top: 48rpx; padding: 32rpx; background: #fffbeb; border-radius: 16rpx; }
-.earn-tip-txt { font-size: 28rpx; color: #92400e; line-height: 1.6; }
-.earn-tip-bold { font-weight: 500; color: #92400e; }
+/* 账单列表 */
+.bills { display: flex; flex-direction: column; }
+.bill {
+  display: flex; align-items: center; gap: 24rpx; background: $card; border: 1rpx solid $line;
+  border-radius: 28rpx; padding: 28rpx; margin-bottom: 20rpx; box-shadow: $shadow;
+}
+.bill-ic { width: 84rpx; height: 84rpx; border-radius: 22rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.bill-ic-txt { font-size: 24rpx; font-weight: 600; color: #fff; }
+.bill-info { flex: 1; min-width: 0; }
+.bill-t { font-size: 30rpx; font-weight: 600; color: $t1; }
+.bill-s { font-size: 22rpx; color: $t3; margin-top: 8rpx; }
+.bill-r { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.bill-amt { font-size: 32rpx; font-weight: 700; color: $gold; font-family: $serif; }
+.bill-st { font-size: 22rpx; color: $t3; margin-top: 6rpx; }
+
+.loadmore { min-height: 88rpx; display: flex; align-items: center; justify-content: center; padding: 12rpx 0 20rpx; }
+.loadmore-txt { font-size: 24rpx; color: $t3; }
+.loadmore-end { color: #C8C2B8; }
 </style>

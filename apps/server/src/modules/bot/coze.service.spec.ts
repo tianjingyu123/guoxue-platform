@@ -44,6 +44,7 @@ describe("CozeService", () => {
     it("成功发起对话并返回结果", async () => {
       mockFetch
         .mockResolvedValueOnce({ json: async () => chatResponse })
+        .mockResolvedValueOnce({ json: async () => ({ code: 0, data: { status: "completed" } }) })
         .mockResolvedValueOnce({
           json: async () => ({ code: 0, data: [assistantMessage] }),
         });
@@ -56,7 +57,7 @@ describe("CozeService", () => {
         content: "你好，有什么可以帮助你的？",
         messages: [assistantMessage],
       });
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
       expect(mockFetch).toHaveBeenNthCalledWith(
         1,
         "https://api.coze.cn/v3/chat",
@@ -68,6 +69,11 @@ describe("CozeService", () => {
       );
       expect(mockFetch).toHaveBeenNthCalledWith(
         2,
+        expect.stringContaining("chat/retrieve"),
+        expect.any(Object),
+      );
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        3,
         expect.stringContaining("chat/message/list"),
         expect.any(Object),
       );
@@ -76,6 +82,7 @@ describe("CozeService", () => {
     it("支持 conversationId 和 additionalParams 参数传递", async () => {
       mockFetch
         .mockResolvedValueOnce({ json: async () => chatResponse })
+        .mockResolvedValueOnce({ json: async () => ({ code: 0, data: { status: "completed" } }) })
         .mockResolvedValueOnce({
           json: async () => ({ code: 0, data: [assistantMessage] }),
         });
@@ -94,6 +101,7 @@ describe("CozeService", () => {
     it("支持 chatHistory 参数传递", async () => {
       mockFetch
         .mockResolvedValueOnce({ json: async () => chatResponse })
+        .mockResolvedValueOnce({ json: async () => ({ code: 0, data: { status: "completed" } }) })
         .mockResolvedValueOnce({
           json: async () => ({ code: 0, data: [assistantMessage] }),
         });
@@ -124,6 +132,7 @@ describe("CozeService", () => {
     it("当前提问 query 必须作为最后一条 user 消息发送（无历史时）", async () => {
       mockFetch
         .mockResolvedValueOnce({ json: async () => chatResponse })
+        .mockResolvedValueOnce({ json: async () => ({ code: 0, data: { status: "completed" } }) })
         .mockResolvedValueOnce({
           json: async () => ({ code: 0, data: [assistantMessage] }),
         });
@@ -147,24 +156,24 @@ describe("CozeService", () => {
       expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it("pollChatResult 轮询超时抛出异常", async () => {
+    // 新逻辑：每轮先 GET /chat/retrieve 查 status，completed 才取 message list，failed 立即报错
+    it("pollChatResult 轮询超时(模型过慢)抛出异常", async () => {
+      // 每轮 retrieve 返回 in_progress → 一直轮询到超时
       mockFetch.mockResolvedValue({
-        json: async () => ({ code: 0, data: [] }),
+        json: async () => ({ code: 0, data: { status: "in_progress" } }),
       });
 
       await expect(
         (svc as any).pollChatResult("chat_001", "conv_001", "sk-test-key", 2),
-      ).rejects.toThrow("COZE对话超时，未获取到响应");
+      ).rejects.toThrow("COZE对话超时");
 
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(2); // 2 轮·in_progress 不取 list
     }, 15000);
 
-    it("pollChatResult 第2次才获取到结果", async () => {
+    it("pollChatResult completed 后取到结果", async () => {
       mockFetch
-        .mockResolvedValueOnce({ json: async () => ({ code: 0, data: [] }) })
-        .mockResolvedValueOnce({
-          json: async () => ({ code: 0, data: [assistantMessage] }),
-        });
+        .mockResolvedValueOnce({ json: async () => ({ code: 0, data: { status: "completed" } }) }) // retrieve
+        .mockResolvedValueOnce({ json: async () => ({ code: 0, data: [assistantMessage] }) }); // message list
 
       const result = await (svc as any).pollChatResult(
         "chat_001",
@@ -174,17 +183,17 @@ describe("CozeService", () => {
       );
 
       expect(result.content).toBe("你好，有什么可以帮助你的？");
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(2); // retrieve + list
     }, 15000);
 
-    it("pollChatResult 获取消息列表失败抛出异常", async () => {
+    it("pollChatResult chat.failed 立即抛出异常", async () => {
       mockFetch.mockResolvedValueOnce({
-        json: async () => ({ code: 500, msg: "internal error" }),
+        json: async () => ({ code: 0, data: { status: "failed", last_error: { code: 700, msg: "模型报错" } } }),
       });
 
       await expect(
         (svc as any).pollChatResult("chat_001", "conv_001", "sk-test-key"),
-      ).rejects.toThrow("获取消息列表失败: internal error");
+      ).rejects.toThrow("COZE对话失败");
     });
   });
 
@@ -242,9 +251,9 @@ describe("CozeService", () => {
       const observable = svc.chatStream(chatParams);
       const result = await lastValueFrom(observable.pipe(toArray()));
 
-      // type=answer 且 content_type=text 会发射两次：
-      // 一次通过 data.content 发射，一次通过 type=answer 分支
-      expect(result).toEqual(["最终答案", "最终答案"]);
+      // type=answer 且 content_type=text 只发射一次（旧实现 data.content 与
+      // type===answer 双分支各发一次是重复发送 bug，已修复）
+      expect(result).toEqual(["最终答案"]);
     });
 
     it("收到 event:done 时自动完成", async () => {

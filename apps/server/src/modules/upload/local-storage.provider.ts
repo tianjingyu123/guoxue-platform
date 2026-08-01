@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { extname, join } from "path";
+import { join } from "path";
 import { randomUUID } from "crypto";
 import { writeFile, mkdir } from "fs/promises";
 import { StorageProvider, UploadResult } from "./storage.interface";
@@ -37,6 +37,16 @@ export class LocalStorageProvider implements StorageProvider {
       "video/webm": ".webm",
       "video/x-msvideo": ".avi",
       "video/x-matroska": ".mkv",
+      // 文档附件（帖子文件卡 /upload/file）：白名单校验后的安全扩展名
+      "application/pdf": ".pdf",
+      "application/msword": ".doc",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+      "application/vnd.ms-excel": ".xls",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+      "application/vnd.ms-powerpoint": ".ppt",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",
+      "text/plain": ".txt", "text/markdown": ".md",
+      "application/zip": ".zip", "application/x-zip-compressed": ".zip",
     };
     return map[mime] || ".bin"; // 未识别类型用 .bin，不会被执行
   }

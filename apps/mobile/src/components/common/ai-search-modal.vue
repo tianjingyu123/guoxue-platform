@@ -1,6 +1,6 @@
 <template>
-  <view v-if="isOpen" class="ai-modal-mask" @click.self="onClose">
-    <view class="ai-modal-card">
+  <view v-if="isOpen" class="ai-modal-mask" role="dialog" aria-modal="true" aria-label="AI 智能搜索" @click.self="onClose" @touchmove.self.prevent>
+    <view class="ai-modal-card" tabindex="-1" @touchmove.stop>
       <!-- 头部 -->
       <view class="ai-modal-header">
         <view class="ai-avatar">
@@ -10,7 +10,14 @@
           <text class="ai-title">AI智能搜索</text>
           <text class="ai-subtitle">基于国学知识库的智能问答</text>
         </view>
-        <view class="ai-close-btn" @click="onClose">
+        <view
+          class="ai-close-btn"
+          role="button"
+          aria-label="关闭 AI 智能搜索"
+          tabindex="0"
+          @click="onClose"
+          @keydown="activateOnKeyboard($event, onClose)"
+        >
           <app-icon name="x" :size="40" color="var(--text-soft)" />
         </view>
       </view>
@@ -30,7 +37,12 @@
           <view
             class="ai-send-btn"
             :class="{ 'ai-send-btn--active': query.trim() }"
+            role="button"
+            aria-label="发送搜索问题"
+            :aria-disabled="!query.trim() || isSearching"
+            :tabindex="query.trim() && !isSearching ? 0 : -1"
             @click="handleSearch"
+            @keydown="activateOnKeyboard($event, handleSearch)"
           >
             <app-icon :name="isSearching ? 'loader-2' : 'send'" :size="28" :color="query.trim() ? '#ffffff' : 'var(--text-soft)'" :class="{ 'ai-spin': isSearching }" />
           </view>
@@ -42,7 +54,11 @@
             v-for="q in quickQuestions"
             :key="q"
             class="ai-quick-item"
+            role="button"
+            :aria-label="`快捷提问：${q}`"
+            tabindex="0"
             @click="askQuick(q)"
+            @keydown="activateOnKeyboard($event, () => askQuick(q))"
           >
             <text class="ai-quick-text">{{ q }}</text>
           </view>
@@ -74,6 +90,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { aiSearchApi } from '@/lib/ai-search-data'
 import { BRAND } from '@/lib/brand'
 
@@ -84,6 +101,15 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ (e: 'close'): void }>()
+
+useOverlayScrollLock(
+  () => props.isOpen,
+  {
+    onEscape: onClose,
+    focusContainerSelector: '.ai-modal-card',
+    initialFocusSelector: '.ai-modal-card .ai-input',
+  },
+)
 
 const placeholder = props.placeholder || '问我任何问题...'
 const quickQuestions = ['八字如何入门', '紫微斗数准吗', '如何看风水']
@@ -99,6 +125,12 @@ function onClose() {
 function askQuick(q: string) {
   query.value = q
   handleSearch()
+}
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<void>) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
 }
 
 async function handleSearch() {

@@ -14,3 +14,16 @@ modules:
       fail_if_not_ssl: false
       tls_config:
         insecure_skip_verify: false
+
+  # 第三方 API 根地址常以 401/403/404/405/429 响应，但仍代表网络、DNS 与 TLS 可达。
+  # 这里只判断“服务可到达”，业务鉴权和额度由应用指标单独告警。
+  http_reachable:
+    prober: http
+    timeout: 10s
+    http:
+      valid_status_codes: [200, 201, 204, 301, 302, 307, 308, 400, 401, 403, 404, 405, 429]
+      method: GET
+      no_follow_redirects: false
+      preferred_ip_protocol: ip4
+      tls_config:
+        insecure_skip_verify: false

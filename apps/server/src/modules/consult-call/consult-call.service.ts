@@ -1,6 +1,8 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedisService } from "../../redis/redis.service";
 import { CoinService } from "../coin/coin.service";
 import { RevenueService } from "../revenue/revenue.service";
 import { BusinessException } from "../../common/business.exception";
@@ -20,11 +22,49 @@ export class ConsultCallService {
   private readonly logger = new Logger(ConsultCallService.name);
   private readonly PREPAY_MINUTES = 10; // 预扣额度（分钟）
 
+  /** 未接通超时阈值：WAITING 超过此时长仍未被 accept → 视为未接通，全额退还预扣金币 */
+  private readonly WAITING_TIMEOUT_MS = 10 * 60 * 1000;
+
   constructor(
     private prisma: PrismaService,
+    private redis: RedisService,
     private coin: CoinService,
     private revenue: RevenueService,
   ) {}
+
+  /**
+   * 每 5 分钟自动退款「超时未接通」的通话（分布式锁防多实例·上限 200）。
+   * 修复(后端审计·缺cron)：达人不接听则 WAITING 恒挂、发起方预扣金币滞留,原仅靠双方手动 cancel。
+   * 复用 cancel 的原子退款逻辑(CAS: WHERE status='WAITING')但走系统身份、无 userId 校验;
+   * 退的是预扣金币(虚拟币)。CAS 保证若期间被 accept(→ONGOING)/cancel 则 claimed=0 跳过,不误退进行中通话。
+   */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async refundStaleWaitingCallsCron() {
+    await this.redis.runExclusive("consult_call_refund_stale_waiting", 300, async () => {
+      const cutoff = new Date(Date.now() - this.WAITING_TIMEOUT_MS);
+      const stale = await this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT "id","callerId","prepaidCoin" FROM "ConsultCall" WHERE "status"='WAITING' AND "createdAt" < $1 LIMIT 200`,
+        cutoff,
+      );
+      let refunded = 0;
+      for (const call of stale) {
+        try {
+          await this.prisma.$transaction(async (tx) => {
+            const claimed = await tx.$executeRawUnsafe(
+              `UPDATE "ConsultCall" SET "status"='MISSED', "endAt"=CURRENT_TIMESTAMP, "refundedCoin"=$2 WHERE "id"=$1 AND "status"='WAITING'`,
+              call.id, call.prepaidCoin,
+            );
+            if (claimed === 0) return; // 期间已被接听/取消,不重复退
+            await this.coin.refund(call.callerId, call.prepaidCoin, `通话超时未接通全额退还（通话ID ${call.id}）`, tx);
+          });
+          refunded++;
+        } catch (err) {
+          this.logger.warn(`通话超时退款失败 [${call.id}]`, err instanceof Error ? err.message : err);
+        }
+      }
+      if (refunded > 0) this.logger.log(`通话超时未接通自动退款: ${refunded}/${stale.length} 笔`);
+    });
+  }
 
   private async getCall(id: string): Promise<any> {
     const rows = await this.prisma.$queryRawUnsafe<any[]>(`SELECT * FROM "ConsultCall" WHERE "id" = $1`, id);
@@ -102,6 +142,17 @@ export class ConsultCallService {
       this.revenue
         .record({ userId: call.expertId, scene: "AUDIO_CALL", refId: callId, amountCoin: settledCoin, rate: 0.5 })
         .catch((err) => this.logger.warn(`通话分账记录失败（callId ${callId}），需补偿: ${err.message}`));
+
+      // 统一总账影子双写。scene 用 CONSULT_CALL（达人咨询·独立规则），与 call 模块的连麦
+      // AUDIO_CALL 区分；两条规则当前同为 达人50%/平台50%，与上方硬传的 rate 0.5 一致。
+      this.revenue.settleLedger({
+        scene: "CONSULT_CALL",
+        refType: "CONSULT_CALL",
+        refId: callId,
+        amountCoin: settledCoin,
+        payerId: call.callerId,
+        parties: { PROVIDER: { type: "USER", id: call.expertId, userId: call.expertId } },
+      }).catch(() => undefined);
     }
 
     return { id: callId, status: "ENDED", durationSec, minutes, settledCoin, refundedCoin };
@@ -125,7 +176,133 @@ export class ConsultCallService {
     return { id: callId, status: reason, refundedCoin: call.prepaidCoin };
   }
 
-  /** 我的通话记录（作为主叫或达人），join 对方昵称/头像 */
+  // ───────── 评价与账单申诉（待办 #31·列见 prisma/manual/2026-07-11-call-rating.sql·原生 SQL 访问） ─────────
+
+  /** 评价/申诉共用的 24 小时窗口（自通话结束 endAt 起算） */
+  private readonly POST_CALL_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+  private isWithinPostCallWindow(call: any): boolean {
+    const endMs = call.endAt ? new Date(call.endAt).getTime() : 0;
+    return endMs > 0 && Date.now() - endMs <= this.POST_CALL_WINDOW_MS;
+  }
+
+  /**
+   * 通话评价：仅发起方 · 仅 ENDED · 仅一次 · 结束后 24h 内。
+   * 星级 1-5 + 标签（逗号串存储）+ 文字 ≤200 字。幂等锚点 ratedAt IS NULL（原子 UPDATE 防并发重复评价）。
+   */
+  async rate(userId: string, callId: string, dto: { rating: number; tags?: string[]; comment?: string }) {
+    const call = await this.getCall(callId);
+    if (call.callerId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "仅通话发起方可评价");
+    if (call.status !== "ENDED") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已结算的通话可评价");
+    if (call.ratedAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "该通话已评价过");
+    if (!this.isWithinPostCallWindow(call)) throw new BusinessException(ErrorCode.BAD_REQUEST, "评价窗口已关闭（通话结束 24 小时内可评价）");
+
+    const rating = Math.floor(Number(dto.rating));
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) throw new BusinessException(ErrorCode.BAD_REQUEST, "评分须为 1-5 星");
+    const comment = (dto.comment || "").trim();
+    if (comment.length > 200) throw new BusinessException(ErrorCode.BAD_REQUEST, "评价文字最多 200 字");
+    const tags = (Array.isArray(dto.tags) ? dto.tags : [])
+      .map((t) => String(t).trim().replace(/,/g, "，"))
+      .filter(Boolean)
+      .slice(0, 5);
+
+    const claimed = await this.prisma.$executeRawUnsafe(
+      `UPDATE "ConsultCall" SET "rating"=$2, "ratingTags"=$3, "ratingComment"=$4, "ratedAt"=CURRENT_TIMESTAMP
+       WHERE "id"=$1 AND "ratedAt" IS NULL`,
+      callId, rating, tags.length ? tags.join(",") : null, comment || null,
+    );
+    if (claimed === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该通话已评价过");
+    return { id: callId, rating, tags, comment };
+  }
+
+  /**
+   * 24 小时账单申诉：通话双方任一 · 仅 ENDED · 仅一次 · 结束后 24h 内。
+   * 只落 PENDING 记录（资金零触碰）。幂等锚点 disputedAt IS NULL。
+   */
+  async dispute(userId: string, callId: string, dto: { reason: string }) {
+    const call = await this.getCall(callId);
+    if (call.callerId !== userId && call.expertId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此通话");
+    if (call.status !== "ENDED") throw new BusinessException(ErrorCode.BAD_REQUEST, "仅已结算的通话账单可申诉");
+    if (call.disputedAt) throw new BusinessException(ErrorCode.BAD_REQUEST, "该账单已提交过申诉");
+    if (!this.isWithinPostCallWindow(call)) throw new BusinessException(ErrorCode.BAD_REQUEST, "申诉窗口已关闭（通话结束 24 小时内可申诉）");
+
+    const reason = (dto.reason || "").trim();
+    if (!reason) throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写申诉原因");
+    if (reason.length > 500) throw new BusinessException(ErrorCode.BAD_REQUEST, "申诉原因最多 500 字");
+
+    const claimed = await this.prisma.$executeRawUnsafe(
+      `UPDATE "ConsultCall" SET "disputeReason"=$2, "disputedAt"=CURRENT_TIMESTAMP, "disputeStatus"='PENDING'
+       WHERE "id"=$1 AND "disputedAt" IS NULL`,
+      callId, reason,
+    );
+    if (claimed === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该账单已提交过申诉");
+    return { id: callId, disputeStatus: "PENDING", disputeReason: reason };
+  }
+
+  /**
+   * 达人好评率聚合（回流达人卡）：好评率 = rating≥4 占比。
+   * 只统计已评价通话；无评价的达人不出现在结果里（前端据此不渲染，不编数）。
+   */
+  async expertRatingStats(expertIds: string[]): Promise<Record<string, { ratingCount: number; goodRate: number }>> {
+    const ids = [...new Set((expertIds || []).map((s) => String(s).trim()).filter(Boolean))].slice(0, 50);
+    if (!ids.length) return {};
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
+    const rows = await this.prisma.$queryRawUnsafe<any[]>(
+      `SELECT "expertId", COUNT(*)::int AS "ratingCount", COUNT(*) FILTER (WHERE "rating" >= 4)::int AS "goodCount"
+       FROM "ConsultCall"
+       WHERE "rating" IS NOT NULL AND "expertId" IN (${placeholders})
+       GROUP BY "expertId"`,
+      ...ids,
+    );
+    const out: Record<string, { ratingCount: number; goodRate: number }> = {};
+    for (const r of rows) {
+      const count = Number(r.ratingCount) || 0;
+      if (count > 0) out[r.expertId] = { ratingCount: count, goodRate: Math.round((Number(r.goodCount) / count) * 100) };
+    }
+    return out;
+  }
+
+  /** 管理端：账单申诉队列（默认 PENDING），join 双方昵称 */
+  async listDisputes(status = "PENDING", rawPage = 1, rawPageSize = 20) {
+    const st = ["PENDING", "RESOLVED", "REJECTED"].includes(status) ? status : "PENDING";
+    const page = Math.max(1, Math.floor(Number(rawPage) || 1));
+    const pageSize = Math.min(100, Math.max(1, Math.floor(Number(rawPageSize) || 20)));
+    const [items, totalRows] = await Promise.all([
+      this.prisma.$queryRawUnsafe<any[]>(
+        `SELECT c."id", c."circleId", c."callerId", c."expertId", c."type", c."pricePerMinute", c."durationSec",
+                c."settledCoin", c."refundedCoin", c."endAt",
+                c."disputeReason", c."disputedAt", c."disputeStatus", c."disputeResolveNote", c."disputeResolvedAt",
+                caller."nickname" AS "callerName", expert."nickname" AS "expertName"
+         FROM "ConsultCall" c
+         LEFT JOIN "User" caller ON caller."id" = c."callerId"
+         LEFT JOIN "User" expert ON expert."id" = c."expertId"
+         WHERE c."disputeStatus" = $1
+         ORDER BY c."disputedAt" DESC LIMIT $2 OFFSET $3`,
+        st, pageSize, (page - 1) * pageSize,
+      ),
+      this.prisma.$queryRawUnsafe<any[]>(`SELECT COUNT(*)::int AS "count" FROM "ConsultCall" WHERE "disputeStatus" = $1`, st),
+    ]);
+    return { items, total: Number(totalRows[0]?.count) || 0, page, pageSize };
+  }
+
+  /**
+   * 管理端处理申诉：仅 PENDING → RESOLVED/REJECTED，只记结论与备注。
+   * ⚠️ 资金零触碰：本端点不动任何余额/流水；若核查属实需退款，由人工走现有金币退款审批流。
+   */
+  async resolveDispute(reviewerId: string, callId: string, dto: { status: "RESOLVED" | "REJECTED"; note?: string }) {
+    const call = await this.getCall(callId);
+    if (call.disputeStatus !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该申诉不在待处理状态");
+    const note = (dto.note || "").trim().slice(0, 500);
+    const claimed = await this.prisma.$executeRawUnsafe(
+      `UPDATE "ConsultCall" SET "disputeStatus"=$2, "disputeResolveNote"=$3, "disputeResolvedAt"=CURRENT_TIMESTAMP, "disputeReviewerId"=$4
+       WHERE "id"=$1 AND "disputeStatus"='PENDING'`,
+      callId, dto.status, note || null, reviewerId,
+    );
+    if (claimed === 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "该申诉不在待处理状态");
+    return { id: callId, disputeStatus: dto.status, disputeResolveNote: note || null };
+  }
+
+  /** 我的通话记录（作为主叫或达人），join 对方昵称/头像（SELECT c.* 已含评价/申诉列） */
   async myCalls(userId: string) {
     return this.prisma.$queryRawUnsafe<any[]>(
       `SELECT c.*,

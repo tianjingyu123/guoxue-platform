@@ -1,8 +1,41 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, MinLength, IsDateString,
+  IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, MinLength, IsDateString, ValidateNested,
+  ArrayMinSize, ArrayMaxSize,
 } from "class-validator";
 import { Type } from "class-transformer";
+
+// ─── 操作员管理（多操作员·官方旗舰店） ───
+
+export class AddMerchantMemberDto {
+  @ApiProperty({ description: "操作员手机号（须已注册平台）" })
+  @IsString()
+  @Matches(/^1[3-9]\d{9}$/, { message: "手机号格式不正确" })
+  phone: string;
+}
+
+export class MerchantQualificationFileDto {
+  @ApiProperty({ description: "资质类型，如 FOOD_LICENSE、BRAND_AUTH、OTHER" })
+  @IsString()
+  @MinLength(1)
+  type: string;
+
+  @ApiProperty({ description: "资质名称" })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  title: string;
+
+  @ApiProperty({ description: "资质文件 URL" })
+  @IsString()
+  @MinLength(1)
+  url: string;
+
+  @ApiPropertyOptional({ description: "资质有效期截止日" })
+  @IsOptional()
+  @IsDateString()
+  validUntil?: string;
+}
 
 // ─── 入驻申请 ───
 
@@ -45,9 +78,23 @@ export class CreateMerchantApplyDto {
   @IsOptional() @IsString()
   idCardBack?: string;
 
-  @ApiPropertyOptional({ description: "营业执照URL" })
-  @IsOptional() @IsString()
-  businessLicense?: string;
+  /**
+   * 营业执照 —— 新商家入驻必填（2026-07-14 资金架构拍板）。
+   *
+   * 不是形式要求，是合规架构的物理前提：
+   *   无执照 → 办不下商户号 → 无法进件 → 无法自己收款
+   *          → 只能平台代收再结算给商家 = 二清（无证清算·违法）。
+   * 商家必须自收款：钱直接进商家的渠道账户，平台通过分账收技术服务费。
+   * 开票关系随之厘清 —— 商家给用户开商品发票，平台给商家开服务费发票；
+   * 平台不需要「结算给商家」，因为钱压根没到过平台手上。
+   *
+   * 注：DB 列仍可空（存量商家兼容）。硬门槛在进件环节：
+   * PayeeAccount.submitToChannel 无执照直接拒绝提交，进不了件就自收不了款。
+   */
+  @ApiProperty({ description: "营业执照URL（必填·无执照无法进件收款）" })
+  @IsString()
+  @MinLength(1, { message: "营业执照为必填项：无营业执照无法开通商户号，也就无法自主收款" })
+  businessLicense: string;
 
   @ApiPropertyOptional({ description: "品牌授权书URL" })
   @IsOptional() @IsString()
@@ -57,10 +104,48 @@ export class CreateMerchantApplyDto {
   @IsOptional() @IsArray() @IsString({ each: true })
   categoryIds?: string[];
 
-  @ApiPropertyOptional({ description: "保证金金额（开启自动计算时忽略）" })
-  @IsOptional() @IsNumber() @Min(0)
-  @Type(() => Number)
-  depositAmount?: number;
+  @ApiPropertyOptional({ description: "主体类型", enum: ["ENTERPRISE", "INDIVIDUAL"] })
+  @IsOptional() @IsIn(["ENTERPRISE", "INDIVIDUAL"])
+  merchantType?: string;
+
+  @ApiProperty({ description: "统一社会信用代码" })
+  @IsString()
+  @Matches(/^[0-9A-Z]{18}$/, { message: "统一社会信用代码应为 18 位大写字母或数字" })
+  unifiedSocialCreditCode: string;
+
+  @ApiProperty({ description: "营业执照注册地址" })
+  @IsString() @MinLength(2) @MaxLength(200)
+  registeredAddress: string;
+
+  @ApiProperty({ description: "法定代表人或经营者姓名" })
+  @IsString() @MinLength(2) @MaxLength(50)
+  legalRepresentative: string;
+
+  @ApiPropertyOptional({ description: "营业执照有效期起始日" })
+  @IsOptional() @IsDateString()
+  licenseValidFrom?: string;
+
+  @ApiPropertyOptional({ description: "营业执照有效期截止日" })
+  @IsOptional() @IsDateString()
+  licenseValidUntil?: string;
+
+  @ApiPropertyOptional({ description: "营业执照是否长期有效" })
+  @IsOptional() @IsBoolean()
+  licenseLongTerm?: boolean;
+
+  @ApiPropertyOptional({ description: "行业许可、品牌授权等补充资质", type: [MerchantQualificationFileDto] })
+  @IsOptional() @IsArray() @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => MerchantQualificationFileDto)
+  qualificationFiles?: MerchantQualificationFileDto[];
+
+  @ApiProperty({ description: "同意敏感信息处理及资质核验授权" })
+  @IsBoolean()
+  privacyConsent: boolean;
+
+  @ApiProperty({ description: "确认提交材料真实、完整、持续有效" })
+  @IsBoolean()
+  complianceDeclaration: boolean;
 }
 
 export class UpdateMerchantApplyDto {
@@ -107,6 +192,49 @@ export class UpdateMerchantApplyDto {
   @ApiPropertyOptional({ description: "经营类目ID列表" })
   @IsOptional() @IsArray() @IsString({ each: true })
   categoryIds?: string[];
+
+  @ApiPropertyOptional({ description: "主体类型", enum: ["ENTERPRISE", "INDIVIDUAL"] })
+  @IsOptional() @IsIn(["ENTERPRISE", "INDIVIDUAL"])
+  merchantType?: string;
+
+  @ApiPropertyOptional({ description: "统一社会信用代码" })
+  @IsOptional() @IsString()
+  @Matches(/^[0-9A-Z]{18}$/, { message: "统一社会信用代码应为 18 位大写字母或数字" })
+  unifiedSocialCreditCode?: string;
+
+  @ApiPropertyOptional({ description: "营业执照注册地址" })
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(200)
+  registeredAddress?: string;
+
+  @ApiPropertyOptional({ description: "法定代表人或经营者姓名" })
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(50)
+  legalRepresentative?: string;
+
+  @ApiPropertyOptional({ description: "营业执照有效期起始日" })
+  @IsOptional() @IsDateString()
+  licenseValidFrom?: string;
+
+  @ApiPropertyOptional({ description: "营业执照有效期截止日" })
+  @IsOptional() @IsDateString()
+  licenseValidUntil?: string;
+
+  @ApiPropertyOptional({ description: "营业执照是否长期有效" })
+  @IsOptional() @IsBoolean()
+  licenseLongTerm?: boolean;
+
+  @ApiPropertyOptional({ description: "行业许可、品牌授权等补充资质", type: [MerchantQualificationFileDto] })
+  @IsOptional() @IsArray() @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => MerchantQualificationFileDto)
+  qualificationFiles?: MerchantQualificationFileDto[];
+
+  @ApiPropertyOptional({ description: "同意敏感信息处理及资质核验授权" })
+  @IsOptional() @IsBoolean()
+  privacyConsent?: boolean;
+
+  @ApiPropertyOptional({ description: "确认提交材料真实、完整、持续有效" })
+  @IsOptional() @IsBoolean()
+  complianceDeclaration?: boolean;
 }
 
 // ─── 保证金 ───
@@ -137,7 +265,7 @@ export class SignAgreementDto {
 // ─── 管理员审核 ───
 
 export class ApproveMerchantDto {
-  @ApiPropertyOptional({ description: "保证金金额" })
+  @ApiPropertyOptional({ description: "兼容字段：当前仅允许 0，正金额将被拒绝" })
   @IsOptional() @IsNumber() @Min(0)
   @Type(() => Number)
   depositAmount?: number;
@@ -150,6 +278,14 @@ export class ApproveMerchantDto {
   @ApiPropertyOptional({ description: "备注" })
   @IsOptional() @IsString()
   remark?: string;
+
+  @ApiPropertyOptional({ description: "审核后的风险等级", enum: ["LOW", "MEDIUM", "HIGH"] })
+  @IsOptional() @IsIn(["LOW", "MEDIUM", "HIGH"])
+  riskLevel?: string;
+
+  @ApiPropertyOptional({ description: "风险标签" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  riskFlags?: string[];
 }
 
 export class RejectMerchantDto {
@@ -427,6 +563,18 @@ export class MerchantOrderQueryDto {
   @IsOptional() @IsString()
   status?: string;
 
+  @ApiPropertyOptional({ description: "客户ID（商家客户档案下钻）" })
+  @IsOptional() @IsString()
+  customerId?: string;
+
+  @ApiPropertyOptional({ description: "下单时间起点（ISO 日期时间，含）" })
+  @IsOptional() @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: "下单时间终点（ISO 日期时间，不含）" })
+  @IsOptional() @IsDateString()
+  endDate?: string;
+
   @ApiPropertyOptional({ description: "页码", default: 1 })
   @IsOptional() @IsNumber() @Min(1)
   @Type(() => Number)
@@ -442,12 +590,31 @@ export class ShipOrderDto {
   @ApiProperty({ description: "物流公司" })
   @IsString()
   @MinLength(1)
+  @MaxLength(50)
   company: string;
 
   @ApiProperty({ description: "快递单号" })
   @IsString()
   @MinLength(1)
+  @MaxLength(80)
   trackingNo: string;
+}
+
+export class BatchShipOrderItemDto extends ShipOrderDto {
+  @ApiProperty({ description: "订单ID" })
+  @IsString()
+  @MinLength(1)
+  orderId: string;
+}
+
+export class BatchShipOrdersDto {
+  @ApiProperty({ type: [BatchShipOrderItemDto], description: "批量发货明细，最多50单" })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => BatchShipOrderItemDto)
+  items: BatchShipOrderItemDto[];
 }
 
 export class RejectRefundDto {
@@ -515,6 +682,11 @@ export class MerchantProductDto {
   @Type(() => Number)
   price: number;
 
+  @ApiPropertyOptional({ description: "原价（划线价·展示用，应大于售价）" })
+  @IsOptional() @IsNumber() @Min(0)
+  @Type(() => Number)
+  originalPrice?: number;
+
   @ApiProperty({ description: "库存数量" })
   @IsNumber() @Min(0)
   @Type(() => Number)
@@ -527,4 +699,213 @@ export class MerchantProductDto {
   @ApiPropertyOptional({ description: "商品标签" })
   @IsOptional() @IsArray() @IsString({ each: true })
   tags?: string[];
+}
+
+/** 商家后台 SKU（店铺身份·操作员经 merchant.guard 归一到 owner） */
+export class MerchantSkuDto {
+  @ApiPropertyOptional({ description: "规格名（如 颜色:红·与 specs 二选一）" })
+  @IsOptional() @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({ description: "规格键值对（如 {颜色:'红'}）" })
+  @IsOptional()
+  specs?: Record<string, string>;
+
+  @ApiProperty({ description: "SKU 价格" })
+  @IsNumber() @Min(0)
+  @Type(() => Number)
+  price: number;
+
+  @ApiPropertyOptional({ description: "库存" })
+  @IsOptional() @IsNumber() @Min(0)
+  @Type(() => Number)
+  stock?: number;
+}
+
+// ─── 商家进销存 ───
+
+export class InventoryListQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "商品标题搜索" })
+  @IsOptional() @IsString()
+  keyword?: string;
+
+  @ApiPropertyOptional({ description: "仅显示低库存" })
+  @IsOptional() @Type(() => Boolean) @IsBoolean()
+  lowStock?: boolean;
+}
+
+export class InventoryMovementQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "商品ID" })
+  @IsOptional() @IsString()
+  productId?: string;
+
+  @ApiPropertyOptional({ description: "流水类型" })
+  @IsOptional() @IsString()
+  type?: string;
+}
+
+export class InventoryAdjustmentDto {
+  @ApiProperty({ description: "幂等请求ID" })
+  @IsString() @MinLength(8) @MaxLength(100)
+  requestId: string;
+  @ApiProperty({ description: "商品ID" })
+  @IsString()
+  productId: string;
+  @ApiPropertyOptional({ description: "SKU ID；多规格商品必填" })
+  @IsOptional() @IsString()
+  skuId?: string;
+  @ApiProperty({ description: "调整方式", enum: ["INCREASE", "DECREASE", "SET"] })
+  @IsString() @IsIn(["INCREASE", "DECREASE", "SET"])
+  mode: "INCREASE" | "DECREASE" | "SET";
+  @ApiProperty({ description: "数量；SET 时为仓库实物总数（含待付款、待发货订单占用）" })
+  @IsNumber() @Min(0) @Type(() => Number)
+  quantity: number;
+  @ApiProperty({ description: "调整原因" })
+  @IsString() @MinLength(2) @MaxLength(200)
+  reason: string;
+}
+
+export class InventoryAlertSettingDto {
+  @ApiProperty({ description: "商品ID" })
+  @IsString()
+  productId: string;
+  @ApiPropertyOptional({ description: "SKU ID" })
+  @IsOptional() @IsString()
+  skuId?: string;
+  @ApiProperty({ description: "低库存阈值" })
+  @IsNumber() @Min(0) @Max(1000000) @Type(() => Number)
+  lowStockThreshold: number;
+  @ApiPropertyOptional({ description: "是否启用", default: true })
+  @IsOptional() @IsBoolean()
+  enabled?: boolean;
+}
+
+export class PurchaseOrderItemDto {
+  @ApiProperty({ description: "商品ID" })
+  @IsString()
+  productId: string;
+  @ApiPropertyOptional({ description: "SKU ID" })
+  @IsOptional() @IsString()
+  skuId?: string;
+  @ApiProperty({ description: "采购数量" })
+  @IsNumber() @Min(1) @Type(() => Number)
+  quantity: number;
+  @ApiProperty({ description: "采购单价" })
+  @IsNumber() @Min(0) @Type(() => Number)
+  unitCost: number;
+}
+
+export class SupplierQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "供应商名称或联系人搜索" })
+  @IsOptional() @IsString() @MaxLength(100)
+  keyword?: string;
+
+  @ApiPropertyOptional({ description: "档案状态", enum: ["ACTIVE", "INACTIVE"] })
+  @IsOptional() @IsString() @IsIn(["ACTIVE", "INACTIVE"])
+  status?: "ACTIVE" | "INACTIVE";
+}
+
+export class UpsertSupplierDto {
+  @ApiProperty({ description: "供应商名称" })
+  @IsString() @MinLength(1) @MaxLength(100)
+  name: string;
+  @ApiPropertyOptional({ description: "联系人" })
+  @IsOptional() @IsString() @MaxLength(50)
+  contactName?: string;
+  @ApiPropertyOptional({ description: "联系电话" })
+  @IsOptional() @IsString() @MaxLength(30)
+  contactPhone?: string;
+  @ApiPropertyOptional({ description: "发货或经营地址" })
+  @IsOptional() @IsString() @MaxLength(200)
+  address?: string;
+  @ApiPropertyOptional({ description: "结算约定" })
+  @IsOptional() @IsString() @MaxLength(100)
+  settlementTerms?: string;
+  @ApiPropertyOptional({ description: "常规交付周期（天）" })
+  @IsOptional() @IsNumber() @Min(0) @Max(365) @Type(() => Number)
+  leadTimeDays?: number;
+  @ApiPropertyOptional({ description: "内部备注" })
+  @IsOptional() @IsString() @MaxLength(500)
+  remark?: string;
+}
+
+export class SupplierStatusDto {
+  @ApiProperty({ description: "档案状态", enum: ["ACTIVE", "INACTIVE"] })
+  @IsString() @IsIn(["ACTIVE", "INACTIVE"])
+  status: "ACTIVE" | "INACTIVE";
+}
+
+export class CreatePurchaseOrderDto {
+  @ApiPropertyOptional({ description: "供应商档案ID；传入后会校验归属并保存采购快照" })
+  @IsOptional() @IsString()
+  supplierId?: string;
+  @ApiProperty({ description: "供应商名称" })
+  @IsString() @MinLength(1) @MaxLength(100)
+  supplierName: string;
+  @ApiPropertyOptional({ description: "联系人" })
+  @IsOptional() @IsString() @MaxLength(50)
+  contactName?: string;
+  @ApiPropertyOptional({ description: "联系电话" })
+  @IsOptional() @IsString() @MaxLength(30)
+  contactPhone?: string;
+  @ApiPropertyOptional({ description: "预计到货时间" })
+  @IsOptional() @IsDateString()
+  expectedAt?: string;
+  @ApiPropertyOptional({ description: "备注" })
+  @IsOptional() @IsString() @MaxLength(500)
+  remark?: string;
+  @ApiProperty({ description: "采购明细", type: [PurchaseOrderItemDto] })
+  @IsArray() @ValidateNested({ each: true }) @Type(() => PurchaseOrderItemDto)
+  items: PurchaseOrderItemDto[];
+}
+
+export class ReceivePurchaseItemDto {
+  @ApiProperty({ description: "采购明细ID" })
+  @IsString()
+  itemId: string;
+  @ApiProperty({ description: "本次验收合格并入可售库存的数量" })
+  @IsNumber() @Min(0) @Type(() => Number)
+  quantity: number;
+  @ApiPropertyOptional({ description: "本次验收不合格、拒收入库的数量" })
+  @IsOptional() @IsNumber() @Min(0) @Type(() => Number)
+  rejectedQuantity?: number;
+  @ApiPropertyOptional({ description: "不合格原因；存在拒收数量时必填" })
+  @IsOptional() @IsString() @MaxLength(200)
+  rejectionReason?: string;
+}
+
+export class ReceivePurchaseOrderDto {
+  @ApiProperty({ description: "幂等请求ID" })
+  @IsString() @MinLength(8) @MaxLength(100)
+  requestId: string;
+  @ApiProperty({ description: "本次到货明细", type: [ReceivePurchaseItemDto] })
+  @IsArray() @ValidateNested({ each: true }) @Type(() => ReceivePurchaseItemDto)
+  items: ReceivePurchaseItemDto[];
+  @ApiPropertyOptional({ description: "本次收货仓库或库位" })
+  @IsOptional() @IsString() @MaxLength(80)
+  warehouseName?: string;
+  @ApiPropertyOptional({ description: "本批验收备注" })
+  @IsOptional() @IsString() @MaxLength(300)
+  remark?: string;
+}
+
+export class PurchaseOrderQueryDto extends PaginationDto {
+  @ApiPropertyOptional({ description: "采购单状态" })
+  @IsOptional() @IsString()
+  status?: string;
+}
+
+export class ReturnInspectionDto {
+  @ApiProperty({ description: "幂等请求ID" })
+  @IsString() @MinLength(8) @MaxLength(100)
+  requestId: string;
+  @ApiProperty({ description: "退货验收是否合格；不合格不入库" })
+  @IsBoolean()
+  accepted: boolean;
+  @ApiPropertyOptional({ description: "合格入库数量；默认订单全部数量" })
+  @IsOptional() @IsNumber() @Min(1) @Type(() => Number)
+  quantity?: number;
+  @ApiPropertyOptional({ description: "验收备注" })
+  @IsOptional() @IsString() @MaxLength(300)
+  remark?: string;
 }

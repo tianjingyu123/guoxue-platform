@@ -4,6 +4,8 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { VodService } from "./vod.service";
 import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
+import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
+import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 const mockPrisma = {
   video: {
@@ -30,6 +32,9 @@ const mockPrisma = {
     upsert: jest.fn(),
     deleteMany: jest.fn(),
   },
+  configSystem: {
+    findUnique: jest.fn().mockResolvedValue(null), // 官方圈未配置：circleId 缺省保持 undefined
+  },
 };
 
 const mockVod = {
@@ -55,7 +60,17 @@ describe("VideoService", () => {
         VideoService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: VodService, useValue: mockVod },
-        { provide: AuditService, useValue: { moderateTextOrThrow: jest.fn().mockResolvedValue(undefined) } },
+        { provide: CirclePublishGrantService, useValue: { assertCanPublish: jest.fn() } },
+        {
+          provide: AuditService,
+          useValue: {
+            moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
+            // 默认按 CIRCLE_ONLY 直生效；分流逻辑本体在 audit.service.spec 覆盖
+            resolveContentVisibility: jest.fn().mockResolvedValue({ visibility: "CIRCLE_ONLY", auditStatus: "APPROVED" }),
+            openContentAudit: jest.fn().mockResolvedValue(undefined),
+            queueContentModeration: jest.fn(),
+          },
+        },
       ],
     }).compile();
     svc = mod.get(VideoService);
@@ -109,15 +124,77 @@ describe("VideoService", () => {
       const result = await svc.list({});
       expect(result).toHaveProperty("videos");
       expect(result.total).toBe(0);
+      expect(mockPrisma.video.findMany.mock.calls.at(-1)![0].where.id).toEqual({
+        notIn: [...PUBLIC_QUARANTINED_IDS.video],
+      });
     });
 
-    it("按 circleId 和 status 过滤", async () => {
+    it("按 circleId 和 status 过滤（圈内列表排除机审降级 SELF_ONLY）", async () => {
       mockPrisma.video.findMany.mockResolvedValue([]);
       mockPrisma.video.count.mockResolvedValue(0);
       await svc.list({ circleId: "c1", status: "PUBLISHED" });
       expect(mockPrisma.video.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { circleId: "c1", status: "PUBLISHED" } }),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            circleId: "c1",
+            status: "PUBLISHED",
+            visibility: { not: "SELF_ONLY" },
+            id: { notIn: [...PUBLIC_QUARANTINED_IDS.video] },
+          }),
+        }),
       );
+    });
+
+    it("管理端 scope=all 保留隔离记录用于审核", async () => {
+      mockPrisma.video.findMany.mockResolvedValue([]);
+      mockPrisma.video.count.mockResolvedValue(0);
+      await svc.list({ scope: "all" });
+      expect(mockPrisma.video.findMany.mock.calls.at(-1)![0].where.id).toBeUndefined();
+    });
+  });
+
+  describe("短视频封面数据", () => {
+    it("瀑布流返回 videoUrl，供无首图时提取第一帧", async () => {
+      mockPrisma.video.findMany.mockResolvedValue([{
+        id: "v1",
+        title: "测试视频",
+        coverUrl: "",
+        videoUrl: "https:&#x2F;&#x2F;cdn.example.com&#x2F;video.mp4",
+        duration: 8,
+        user: { nickname: "作者", avatar: null },
+        likeCount: 1,
+        viewCount: 2,
+        _count: { products: 0 },
+      }]);
+
+      const result = await svc.listItems(1, 10);
+
+      expect(result[0]).toEqual(expect.objectContaining({
+        coverUrl: "",
+        videoUrl: "https://cdn.example.com/video.mp4",
+      }));
+    });
+
+    it("搜索结果返回 videoUrl，保持搜索卡与发现页封面规则一致", async () => {
+      mockPrisma.video.findMany.mockResolvedValue([{
+        id: "v1",
+        title: "测试视频",
+        coverUrl: null,
+        videoUrl: "https:&#x2F;&#x2F;cdn.example.com&#x2F;video.mp4",
+        duration: 8,
+        user: { nickname: "作者", avatar: null },
+        viewCount: 2,
+        categoryLevel1: "国学",
+        createdAt: new Date(),
+      }]);
+      mockPrisma.video.count.mockResolvedValue(1);
+
+      const result = await svc.searchVideos({ page: 1, pageSize: 10 });
+
+      expect(result.items[0]).toEqual(expect.objectContaining({
+        cover: null,
+        videoUrl: "https://cdn.example.com/video.mp4",
+      }));
     });
   });
 

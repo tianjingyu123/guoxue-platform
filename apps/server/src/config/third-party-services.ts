@@ -51,8 +51,9 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("apiV3Key", "APIv3 密钥", "WECHAT_PAY_API_V3_KEY", true, "商户平台→账户中心→API安全→APIv3密钥（自己设一个32位字符串并牢记）"),
       S("serialNo", "证书序列号", "WECHAT_PAY_SERIAL_NO", false, "商户平台→账户中心→API安全→申请API证书后，证书详情里的序列号"),
       S("privateKey", "商户私钥（内容或路径）", "WECHAT_PAY_PRIVATE_KEY", true, "两种填法任选其一：① 用记事本打开 apiclient_key.pem，全选复制内容粘贴进来；② 或直接填服务器上证书文件的完整路径（如 /opt/guoxue/certs/apiclient_key.pem）。系统会自动识别是内容还是路径。", "", true, true),
-      S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/pay/notify"),
-      S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/refund/notify"),
+      S("publicKey", "微信支付公钥（内容或路径）", "WECHAT_PAY_PUBLIC_KEY", true, "2024年后的新商户号用「公钥模式」验回调：商户平台→账户中心→API安全→微信支付公钥→下载 pub_key.pem，粘贴内容进来。若你的商户号显示的是「平台证书」则此项留空。", "", true, true),
+      S("notifyUrl", "支付回调地址", "WECHAT_PAY_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/shop/pay/notify"),
+      S("refundNotifyUrl", "退款回调地址", "WECHAT_PAY_REFUND_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/shop/refund/notify"),
     ],
   },
   {
@@ -62,20 +63,21 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("appId", "应用 AppID", "ALIPAY_APP_ID", false, "开放平台→控制台→我的应用→APPID（16位数字）"),
       S("privateKey", "应用私钥（内容或路径）", "ALIPAY_PRIVATE_KEY", true, "填『应用私钥』内容（支付宝密钥工具生成，一长串），或服务器上私钥文件的完整路径。系统自动识别。", "", true, true),
       S("publicKey", "支付宝公钥（内容或路径）", "ALIPAY_PUBLIC_KEY", true, "填『支付宝公钥』内容（平台给你的），或服务器上公钥文件的完整路径。系统自动识别。", "", true, true),
-      S("notifyUrl", "异步通知地址", "ALIPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/alipay/notify"),
+      S("notifyUrl", "异步通知地址", "ALIPAY_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/shop/alipay/notify"),
     ],
   },
   {
     key: "huifu", label: "汇付天下", category: "支付",
-    note: "汇付斗拱（BsPay）聚合支付+分账。斗拱控制台 console.huifu.com→开发设置→开发者信息 获取商户号(huifu_id)/系统号(sys_id)/产品号(product_id)与 RSA 密钥对；接口走 v2 JSON 网关，SHA256withRSA 签名。",
+    note: "汇付斗拱（BsPay）聚合支付、退款、分账与下级商户进件。请先在合作伙伴控台完成主体签约并开通对应产品，再到“开发设置→开发者信息”取得 huifu_id、sys_id、product_id 和 RSA 密钥。商户私钥用于请求加签，汇付平台公钥用于响应/通知验签，二者方向不能填反。小程序 AppID 与 JSAPI 授权目录需在汇付控台的商户微信配置中单独维护，不在这里重复保存。",
     fields: [
-      S("merchantId", "商户号", "HUIFU_MERCHANT_ID", false, "汇付分配的商户号（huifuId）"),
-      S("appId", "系统号 sys_id", "HUIFU_APP_ID", false, "斗拱控制台·开发设置·开发者信息中查看（直连商户常与商户号相同）"),
-      S("productId", "产品号 product_id", "HUIFU_PRODUCT_ID", false, "斗拱控制台·开发设置·开发者信息中查看"),
-      S("secretKey", "密钥", "HUIFU_SECRET_KEY", true, "斗拱走RSA签名·此字段暂留空即可"),
-      S("rsaPrivateKey", "RSA 私钥（内容或路径）", "HUIFU_RSA_PRIVATE_KEY", true, "填 RSA 私钥内容，或服务器上私钥文件的完整路径。系统自动识别。", "", true, true),
-      S("rsaPublicKey", "RSA 公钥（内容或路径）", "HUIFU_RSA_PUBLIC_KEY", true, "填汇付 RSA 公钥内容，或服务器上公钥文件的完整路径。系统自动识别。", "", true, true),
-      S("notifyUrl", "回调地址", "HUIFU_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/huifu/notify"),
+      S("merchantId", "汇付客户号 huifu_id", "HUIFU_MERCHANT_ID", false, "合作伙伴控台→开发设置→开发者信息，填写本系统实际签约并开通支付/分账产品的 huifu_id；不要填写下级驿站或门店的 huifu_id。"),
+      S("upperHuifuId", "上级渠道号 upper_huifu_id", "HUIFU_UPPER_HUIFU_ID", false, "仅用于平台给驿站/商家提交汇付进件。请让汇付商务明确提供；只有汇付书面确认与平台收款 huifu_id 相同时才填写相同值。暂未开展下级商户进件可留空。"),
+      S("appId", "系统号 sys_id", "HUIFU_APP_ID", false, "合作伙伴控台→开发设置→开发者信息。请按汇付分配值原样填写，不要因示例相同就自行复制 huifu_id。"),
+      S("productId", "产品号 product_id", "HUIFU_PRODUCT_ID", false, "合作伙伴控台→开发设置→开发者信息或汇付签约产品资料。必须与正式开通的聚合支付/分账产品一致。"),
+      S("secretKey", "旧版对称密钥（本项目不使用）", "HUIFU_SECRET_KEY", true, "当前斗拱接口使用 RSA-SHA256，此字段保持为空；仅在汇付技术支持明确要求兼容旧协议时填写。"),
+      S("rsaPrivateKey", "商户 RSA 私钥（请求加签）", "HUIFU_RSA_PRIVATE_KEY", true, "填写你方生成并由汇付登记的商户私钥内容，或服务器私钥文件完整路径。不得填写商户公钥、汇付私钥或联调环境私钥。", "", true, true),
+      S("rsaPublicKey", "汇付平台 RSA 公钥（响应验签）", "HUIFU_RSA_PUBLIC_KEY", true, "填写汇付控台提供的正式环境平台公钥，用于验证同步响应和异步通知；不是你方私钥导出的商户公钥。", "", true, true),
+      S("notifyUrl", "支付/退款异步通知地址", "HUIFU_NOTIFY_URL", false, "使用页面给出的当前环境推荐值。汇付下单时由 notify_url 指定；地址必须公网 HTTPS 可达且不能要求登录。"),
     ],
   },
   {
@@ -85,7 +87,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("merId", "商户号", "UNIONPAY_MER_ID", false, "银联分配的商户号（15位）"),
       S("pfxPath", "证书路径(.pfx)", "UNIONPAY_PFX_PATH", true, "银联签名证书 .pfx 文件（需放服务器，路径找技术）"),
       S("pfxPassword", "证书密码", "UNIONPAY_PFX_PASSWORD", true, "申请 .pfx 证书时设置的密码"),
-      S("notifyUrl", "后台通知地址", "UNIONPAY_NOTIFY_URL", false, "填 https://api.rebugx.cn/api/v1/shop/unionpay/notify"),
+      S("notifyUrl", "后台通知地址", "UNIONPAY_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/shop/unionpay/notify"),
     ],
   },
   // ───────── 腾讯云全家桶 ─────────
@@ -101,11 +103,12 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   },
   {
     key: "tencent_sms", label: "腾讯云短信", category: "腾讯云",
-    note: "用于注册/登录验证码。★优先配这个。签名和模板都需在短信控制台提交审核、通过后才能用。",
+    note: "用于验证码与用户主动订阅后的召回短信。签名和两类模板都需在短信控制台分别审核通过，严禁混用。",
     fields: [
       S("sdkAppId", "短信 SdkAppId", "SMS_APP_ID", false, "短信控制台→应用管理→应用列表→SDKAppID（纯数字）"),
       S("signName", "签名内容", "SMS_SIGN_NAME", false, "短信控制台→国内短信→签名管理，填『审核通过』的签名内容（如：某某国学）"),
-      S("templateId", "模板 ID", "SMS_TEMPLATE_ID", false, "短信控制台→正文模板管理，填『审核通过』的模板ID（纯数字）"),
+      S("templateId", "验证码模板 ID", "SMS_TEMPLATE_ID", false, "审核通过的验证码模板ID（变量通常为验证码、有效分钟）"),
+      S("churnTemplateId", "召回短信模板 ID", "SMS_CHURN_TEMPLATE_ID", false, "审核通过的营销/通知类召回模板ID；未配置时动作自动转人工待办，不会借用验证码模板"),
     ],
   },
   {
@@ -191,6 +194,14 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   },
   // ───────── 微信 ─────────
   {
+    key: "wechat_official", label: "微信公众号", category: "微信",
+    note: "公众号内H5支付(JSAPI)+网页授权用。在微信公众平台 mp.weixin.qq.com（公众号后台）→设置与开发→基本配置获取。切换域名时，网页授权域名、JS安全域名和JSAPI支付授权目录必须同步改为当前 PUBLIC_H5_URL。",
+    fields: [
+      S("appId", "公众号 AppID", "WECHAT_OFFICIAL_APPID", false, "公众号后台→设置与开发→基本配置→开发者ID(AppID)，wx开头"),
+      S("appSecret", "公众号 AppSecret", "WECHAT_OFFICIAL_APP_SECRET", true, "公众号后台→基本配置→开发者密码(AppSecret)，需管理员扫码生成，只显示一次"),
+    ],
+  },
+  {
     key: "wechat_mini", label: "微信小程序", category: "微信",
     note: "★注意：这才是你说的 AppID+AppSecret！在微信公众平台 mp.weixin.qq.com（小程序后台）获取，和腾讯云无关。",
     fields: [
@@ -216,20 +227,43 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     ],
   },
   {
-    key: "coze", label: "Coze（智能体）", category: "AI",
-    note: "Coze智能体广场。coze.cn 获取访问令牌。",
+    key: "coze", label: "Coze（智能体·个人令牌）", category: "AI",
+    note: "【旧方式·个人访问令牌 PAT】coze.cn 获取访问令牌，最长30天需手动续期。★推荐改用下方「Coze OAuth（免维护授权）」，配好后本卡片可留空作过渡兜底。",
     fields: [
       S("apiKey", "API Token", "COZE_API_KEY", true, "Coze平台 coze.cn→个人头像→设置→API授权→个人访问令牌"),
       S("botIds", "Bot IDs（逗号分隔）", "COZE_BOT_IDS", false, "已发布的Bot ID，多个用英文逗号分隔"),
     ],
   },
+  {
+    key: "coze_oauth", label: "Coze OAuth（智能体·免维护授权）", category: "AI",
+    note: "★【推荐·服务端应用授权·免维护】用「OAuth JWT」授权，后端自动签名换取访问令牌并自动刷新，无需再像个人令牌那样每30天手动续期。申请步骤：登录 coze.cn→右上角头像→扣子 API→授权→创建 OAuth 应用→应用类型选『服务类应用』（Service application）→创建后在应用详情『公钥管理』里新增公钥（系统会生成公私钥对，下载保存好私钥文件）→把下面四项填进来即可。配好后与上方「个人令牌」并存，系统优先用 OAuth，换取失败自动回退个人令牌，过渡不断服务。",
+    fields: [
+      S("clientId", "应用 ID（client_id）", ["COZE_OAUTH_CLIENT_ID"], false, "OAuth 应用详情页顶部的『应用ID / Client ID』（一串数字）"),
+      S("publicKeyId", "公钥指纹（public_key_id）", ["COZE_OAUTH_PUBLIC_KEY_ID"], false, "OAuth 应用→公钥管理→新增公钥后生成的『公钥指纹 / 公钥ID』（一串字符）"),
+      S("privateKey", "私钥（PEM·内容或路径）", ["COZE_OAUTH_PRIVATE_KEY"], true, "新增公钥时下载的私钥文件（形如 private_key.pem）：用记事本打开全选复制内容粘贴进来，或直接填服务器上私钥文件的完整路径。系统自动识别。私钥加密存储、掩码显示，留空不覆盖已存值。", "", true, true),
+      S("apiBase", "Coze API 域名", ["COZE_API_BASE"], false, "国内版填 https://api.coze.cn（默认，一般不用改）；海外版填 https://api.coze.com", "https://api.coze.cn"),
+    ],
+  },
+  {
+    key: "hunyuan_embedding", label: "腾讯混元 Embedding（语义向量·内容理解内核）", category: "AI",
+    note: "★内容语义向量化内核：把文章/短视频/课程/商品/古籍/圈子帖等内容转成 1024 维语义向量，用于「猜你喜欢/相关推荐/智能客服召回」等真语义理解（替换过去的字符哈希降级）。★可直接复用平台已有的腾讯云密钥（同一个腾讯云账号，混元也是腾讯云服务）：下面 SecretId/SecretKey 留空即自动复用『腾讯云(通用)』或『COS』里已填的那一对；也可单独填。使用前请先在腾讯云控制台开通『混元大模型』服务。填好后把『启用』设为 true 即可生效。",
+    fields: [
+      S("secretId", "SecretId（可留空复用腾讯云）", ["HUNYUAN_SECRET_ID"], false, "留空则自动复用『腾讯云(通用)』或『COS』已填的 SecretId；如需单独用另一对密钥再填。CAM→API密钥管理，AKID 开头的那串"),
+      S("secretKey", "SecretKey（可留空复用腾讯云）", ["HUNYUAN_SECRET_KEY"], true, "留空则自动复用『腾讯云(通用)』或『COS』的 SecretKey；敏感·加密存储·掩码显示·留空不覆盖已存值"),
+      S("region", "服务地域", ["HUNYUAN_EMBEDDING_REGION"], false, "默认 ap-guangzhou，一般不用改；仅当在其它地域开通混元时才需改", "ap-guangzhou"),
+      S("model", "模型", ["HUNYUAN_EMBEDDING_MODEL"], false, "混元 embedding 模型名，默认官方 hunyuan-embedding（GetEmbedding 接口固定输出 1024 维，一般不用改）", "hunyuan-embedding"),
+      S("enabled", "启用（true/false）", ["HUNYUAN_EMBEDDING_ENABLED"], false, "填 true 开启用混元真语义向量；留空或填 false 则继续用降级方案（TF-IDF/字符哈希），不产生调用费用。开启前确认已在腾讯云控制台开通『混元大模型』并已配好上面的密钥（或复用腾讯云通用密钥）", "false"),
+    ],
+  },
   // ───────── 其他 ─────────
   {
     key: "kuaidi100", label: "快递100（物流）", category: "物流",
-    note: "物流轨迹查询只需前两项（签名=MD5(param+key+customer)）；secret/userid 是寄件、电子面单类接口才用到，平台当前不代发货可留空。",
+    note: "实时查询使用 Key+Customer；自动轨迹推送还需回调地址与独立 Salt。secret/userid 是寄件、电子面单类接口才用到，平台当前不代发货可留空。",
     fields: [
       S("apiKey", "授权 Key", "KUAIDI100_API_KEY", true, "快递100开放平台→我的→授权key（授权码）"),
       S("customer", "Customer", "KUAIDI100_CUSTOMER", true, "快递100→实时查询→customer 参数（轨迹查询必需）"),
+      S("callbackUrl", "订阅回调地址", "KUAIDI100_CALLBACK_URL", false, "当前 PUBLIC_API_URL 下的 /api/v1/shop/logistics/kuaidi100/callback 公网 HTTPS 地址"),
+      S("salt", "推送验签 Salt", "KUAIDI100_SALT", true, "自定义随机密钥；订阅时传给快递100，回调按 MD5(param+salt) 验签"),
       S("secret", "Secret（可选）", "KUAIDI100_SECRET", false, "寄件/电子面单类接口鉴权用；仅做轨迹查询无需填写"),
       S("userid", "UserID（可选）", "KUAIDI100_USERID", false, "快递100云平台账号ID；寄件类接口用，当前可留空"),
     ],

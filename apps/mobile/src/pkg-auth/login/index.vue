@@ -5,7 +5,14 @@
 
     <!-- 返回按钮 -->
     <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="back-btn" @tap="goBack">
+      <view
+        class="back-btn"
+        role="button"
+        aria-label="返回上一页"
+        tabindex="0"
+        @tap="goBack"
+        @keydown="activateOnKeyboard($event, goBack)"
+      >
         <AppIcon name="chevron-left" :size="24" color="#2c2c2c" />
       </view>
     </view>
@@ -20,12 +27,28 @@
         <text class="app-subtitle">{{ BRAND.slogan }}</text>
       </view>
 
-      <!-- 登录方式切换 -->
-      <view class="tabs">
-        <view class="tab" :class="{ active: loginType === 'phone' }" @tap="switchType('phone')">
+      <!-- 登录方式：手机验证码 + 密码 -->
+      <view class="tabs" role="tablist" aria-label="选择登录方式">
+        <view
+          class="tab"
+          :class="{ active: loginType === 'phone' }"
+          role="tab"
+          :aria-selected="loginType === 'phone' ? 'true' : 'false'"
+          :tabindex="loginType === 'phone' ? 0 : -1"
+          @tap="switchType('phone')"
+          @keydown="onLoginTypeKeydown($event, 'phone')"
+        >
           <text class="tab-text" :class="{ 'tab-text-active': loginType === 'phone' }">验证码登录</text>
         </view>
-        <view class="tab" :class="{ active: loginType === 'password' }" @tap="switchType('password')">
+        <view
+          class="tab"
+          :class="{ active: loginType === 'password' }"
+          role="tab"
+          :aria-selected="loginType === 'password' ? 'true' : 'false'"
+          :tabindex="loginType === 'password' ? 0 : -1"
+          @tap="switchType('password')"
+          @keydown="onLoginTypeKeydown($event, 'password')"
+        >
           <text class="tab-text" :class="{ 'tab-text-active': loginType === 'password' }">密码登录</text>
         </view>
       </view>
@@ -39,9 +62,11 @@
           </view>
           <input
             class="input"
-            type="text"
+            type="number"
+            inputmode="numeric"
             :value="phone"
             maxlength="11"
+            aria-label="手机号"
             placeholder="请输入手机号"
             placeholder-class="input-ph"
             @input="onPhoneInput"
@@ -55,9 +80,11 @@
           </view>
           <input
             class="input input-code"
-            type="text"
+            type="number"
+            inputmode="numeric"
             :value="code"
             maxlength="6"
+            aria-label="短信验证码"
             placeholder="请输入验证码"
             placeholder-class="input-ph"
             @input="onCodeInput"
@@ -65,7 +92,12 @@
           <view
             class="code-btn"
             :class="{ 'code-btn-disabled': countdown > 0 || !isPhoneValid || isSendingCode }"
+            role="button"
+            :aria-label="countdown > 0 ? `${countdown}秒后可重新获取验证码` : '获取验证码'"
+            :aria-disabled="countdown > 0 || !isPhoneValid || isSendingCode ? 'true' : 'false'"
+            tabindex="0"
             @tap="handleSendCode"
+            @keydown="activateOnKeyboard($event, handleSendCode)"
           >
             <AppIcon v-if="isSendingCode" name="loader-2" :size="16" color="#999999" class="spin" />
             <text v-else class="code-btn-text" :class="{ 'code-btn-text-disabled': countdown > 0 || !isPhoneValid }">
@@ -83,38 +115,81 @@
             class="input input-pwd"
             :password="!showPassword"
             :value="password"
+            aria-label="登录密码"
             placeholder="请输入密码"
             placeholder-class="input-ph"
             @input="onPasswordInput"
           />
-          <view class="eye-btn" @tap="showPassword = !showPassword">
+          <view
+            class="eye-btn"
+            role="button"
+            :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+            tabindex="0"
+            @tap="showPassword = !showPassword"
+            @keydown="activateOnKeyboard($event, () => showPassword = !showPassword)"
+          >
             <AppIcon :name="showPassword ? 'eye-off' : 'eye'" :size="20" color="#999999" />
           </view>
         </view>
 
         <!-- 错误提示 -->
-        <text v-if="error" class="error-text">{{ error }}</text>
+        <text v-if="error" class="error-text" role="alert" aria-live="polite">{{ error }}</text>
 
         <!-- 忘记密码 -->
         <view v-if="loginType === 'password'" class="forgot-row">
-          <text class="forgot-link" @tap="goForgot">忘记密码？</text>
+          <text
+            class="forgot-link"
+            role="link"
+            tabindex="0"
+            @tap="goForgot"
+            @keydown="activateOnKeyboard($event, goForgot)"
+          >忘记密码？</text>
         </view>
 
         <!-- 协议勾选 -->
-        <view class="terms-row">
-          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }" @tap="agreedTerms = !agreedTerms">
+        <!-- 整行可点切换勾选（协议链接 .stop 仍跳协议页）；checkbox 视觉不变，热区=整行 ≥88rpx -->
+        <view
+          class="terms-row"
+          role="checkbox"
+          :aria-checked="agreedTerms ? 'true' : 'false'"
+          tabindex="0"
+          @tap="agreedTerms = !agreedTerms"
+          @keydown="activateOnKeyboard($event, () => agreedTerms = !agreedTerms)"
+        >
+          <view class="checkbox" :class="{ 'checkbox-checked': agreedTerms }">
             <AppIcon v-if="agreedTerms" name="check" :size="12" color="#ffffff" />
           </view>
           <view class="terms-text">
             <text class="terms-normal">我已阅读并同意</text>
-            <text class="terms-link">《用户服务协议》</text>
+            <text
+              class="terms-link"
+              role="link"
+              tabindex="0"
+              @tap.stop="navigateTo('/legal/user-agreement')"
+              @keydown.stop="activateOnKeyboard($event, () => navigateTo('/legal/user-agreement'))"
+            >《用户服务协议》</text>
             <text class="terms-normal">和</text>
-            <text class="terms-link">《隐私政策》</text>
+            <text
+              class="terms-link"
+              role="link"
+              tabindex="0"
+              @tap.stop="navigateTo('/legal/privacy-policy')"
+              @keydown.stop="activateOnKeyboard($event, () => navigateTo('/legal/privacy-policy'))"
+            >《隐私政策》</text>
           </view>
         </view>
 
         <!-- 登录按钮 -->
-        <view class="submit-btn" :class="{ 'submit-btn-disabled': !canSubmit || isLoading }" @tap="handleLogin">
+        <view
+          class="submit-btn"
+          :class="{ 'submit-btn-disabled': !canSubmit || isLoading }"
+          role="button"
+          :aria-busy="isLoading ? 'true' : 'false'"
+          :aria-disabled="isLoading ? 'true' : 'false'"
+          tabindex="0"
+          @tap="handleLogin"
+          @keydown="activateOnKeyboard($event, handleLogin)"
+        >
           <AppIcon v-if="isLoading" name="loader-2" :size="16" color="#ffffff" class="spin" />
           <text class="submit-text">{{ isLoading ? '登录中...' : '登录' }}</text>
         </view>
@@ -122,11 +197,18 @@
         <!-- 注册入口 -->
         <view class="register-row">
           <text class="register-normal">还没有账号？</text>
-          <text class="register-link" @tap="goRegister">立即注册</text>
+          <text
+            class="register-link"
+            role="link"
+            tabindex="0"
+            @tap="goRegister"
+            @keydown="activateOnKeyboard($event, goRegister)"
+          >立即注册</text>
         </view>
       </view>
 
-      <!-- 第三方登录 -->
+      <!-- 第三方登录：当前只接了小程序 uni.login，H5 不展示不可用入口 -->
+      <!-- #ifdef MP-WEIXIN -->
       <view class="third-party">
         <view class="divider">
           <view class="divider-line" />
@@ -134,39 +216,42 @@
           <view class="divider-line" />
         </view>
         <view class="third-icons">
-          <view class="third-item" @tap="handleThirdParty('wechat')">
+          <view
+            class="third-item"
+            role="button"
+            aria-label="使用微信登录"
+            tabindex="0"
+            @tap="handleThirdParty('wechat')"
+            @keydown="activateOnKeyboard($event, () => handleThirdParty('wechat'))"
+          >
             <view class="third-circle wechat-circle">
               <AppIcon name="wechat" :size="28" color="#07C160" />
             </view>
-            <text class="third-label">微信</text>
-          </view>
-          <view class="third-item" @tap="handleThirdParty('apple')">
-            <view class="third-circle apple-circle">
-              <AppIcon name="apple" :size="28" color="#2c2c2c" />
-            </view>
-            <text class="third-label">Apple</text>
+            <text class="third-label">微信登录</text>
           </view>
         </view>
       </view>
+      <!-- #endif -->
     </view>
 
     <!-- 底部安全提示 -->
     <view class="footer">
-      <text class="footer-text">登录即代表您同意遵守平台规则，共建和谐社区</text>
+      <text class="footer-text">我们重视您的隐私与账号安全</text>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, navigateTo } from '@/utils/router'
+import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
-import { setToken, setUserInfo } from '@/utils/storage'
+import { setToken, setRefreshToken, setUserInfo } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
+import { hasCompletedInterestGuide } from '@/utils/interests'
 
 const statusBarHeight = ref(0)
-const logoSrc = ref('/images/logo.jpg')
+const logoSrc = ref('/static/logo.webp')
 
 // UI 临时状态
 const loginType = ref<'phone' | 'password'>('phone')
@@ -190,6 +275,26 @@ const canSubmit = computed(() =>
     ? isPhoneValid.value && isCodeValid.value && agreedTerms.value
     : isPhoneValid.value && isPasswordValid.value && agreedTerms.value,
 )
+
+function activateOnKeyboard(event: KeyboardEvent, action: () => unknown) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  void action()
+}
+
+function onLoginTypeKeydown(event: KeyboardEvent, type: 'phone' | 'password') {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    switchType(type)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+  event.preventDefault()
+  switchType(type === 'phone' ? 'password' : 'phone')
+  void nextTick(() => {
+    document.querySelector<HTMLElement>('.tab[aria-selected="true"]')?.focus()
+  })
+}
 
 function switchType(t: 'phone' | 'password') {
   loginType.value = t
@@ -231,9 +336,74 @@ async function handleSendCode() {
   }
 }
 
+/**
+ * 登录成功后的统一去向：
+ * 1) 未完成兴趣引导 → 仍先走欢迎峰值页（welcome→兴趣引导），不被回跳打断注册引导流；
+ * 2) 有 login:redirect（401 被踢时 request.ts 记录的原页面完整路径·含 query）→ reLaunch 回原页
+ *    （项目为自定义底部导航非原生 tabBar，主 tab 页与普通页统一走 reLaunch，无需 switchTab 分叉）；
+ * 3) 无 redirect → 维持原行为回首页。
+ * 🔴 消费顺序：读取时不删。只在「真正 reLaunch 回原页」的分支里才 remove（一次性凭证被用掉）；
+ * welcome 分支与非法值分支属明确放弃，也 remove（防残留下次登录误跳），但绝不"先删后判"——
+ * 原实现读到即删，命中 welcome 分支时 redirect 已删未用，纯属白丢。
+ * 拒绝 pkg-auth 自身路径防回跳成环。
+ */
+function goAfterLogin() {
+  // SWR 首页 feed 缓存跨账号防串号：登录成功即清（覆盖"未退出直接换号"路径，
+  // 与 settings 退出登录处的清理成对；两处都清=双保险）。key 与首页 FEED_CACHE_KEY 同名。
+  try { uni.removeStorageSync('feed:home:cache') } catch { /* 清缓存失败不阻断登录流 */ }
+  let redirect = ''
+  try {
+    redirect = uni.getStorageSync('login:redirect') || ''
+  } catch {
+    // 读取失败按无 redirect 处理
+  }
+  const consumeRedirect = () => {
+    try { uni.removeStorageSync('login:redirect') } catch { /* 清除失败不阻断跳转 */ }
+  }
+  if (!hasCompletedInterestGuide()) {
+    // 欢迎峰值页优先于回跳：此处是「明确放弃」redirect（预期行为·引导流不被打断），
+    // 放弃时同样 remove，避免残留到下次登录被误消费
+    if (redirect) consumeRedirect()
+    reLaunch('/welcome')
+    return
+  }
+  if (redirect && redirect.startsWith('/') && !redirect.startsWith('/pkg-auth/')) {
+    // 唯一「真正消费」redirect 的分支：到这里才 remove（一次性）
+    consumeRedirect()
+    uni.reLaunch({
+      url: redirect,
+      // 回跳失败（目标页被下架等）兜底回首页，不让用户卡在登录页
+      fail: () => uni.reLaunch({ url: '/pages/index/index' }),
+    })
+    return
+  }
+  // redirect 为空或非法（非 / 开头 / pkg-auth 自身路径被拒）：非法值也清掉，防脏数据长期滞留
+  if (redirect) consumeRedirect()
+  uni.reLaunch({ url: '/pages/index/index' })
+}
+
+/** 置灰按钮点击不再静默：按填写顺序提示第一个缺项（校验口径与 canSubmit 完全一致） */
+function showSubmitHint() {
+  const toast = (title: string) => uni.showToast({ title, icon: 'none' })
+  if (!phone.value) return toast('请输入手机号')
+  if (!isPhoneValid.value) return toast('请输入正确的11位手机号')
+  if (loginType.value === 'phone') {
+    if (!code.value) return toast('请输入验证码')
+    if (!isCodeValid.value) return toast('请输入6位验证码')
+  } else {
+    if (!password.value) return toast('请输入密码')
+    if (!isPasswordValid.value) return toast('密码长度不能少于6位')
+  }
+  if (!agreedTerms.value) return toast('请先阅读并同意用户协议和隐私政策')
+}
+
 // @data-needs: 登录, 参数 {phone, code} 或 {phone, password}, 返回 {success, data:{token, user}, message}
 async function handleLogin() {
-  if (!canSubmit.value || isLoading.value) return
+  if (isLoading.value) return
+  if (!canSubmit.value) {
+    showSubmitHint()
+    return
+  }
   isLoading.value = true
   error.value = ''
   try {
@@ -244,8 +414,10 @@ async function handleLogin() {
     )
     if (res.success && res.data?.token) {
       setToken(res.data.token)
+      setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
-      uni.reLaunch({ url: '/pages/index/index' })
+      // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
+      goAfterLogin()
     } else {
       error.value = res.message || '登录失败'
     }
@@ -256,8 +428,39 @@ async function handleLogin() {
   }
 }
 
-function handleThirdParty(_type: 'wechat' | 'apple') {
-  // 第三方登录 SDK 交给 @/lib 层
+// @data-needs: 微信登录, uni.login 拿 code → POST /auth/login/wechat, 返回 {token, user}
+async function handleThirdParty(_type: 'wechat') {
+  if (isLoading.value) return
+  // #ifdef MP-WEIXIN
+  isLoading.value = true
+  error.value = ''
+  try {
+    const code = await new Promise<string>((resolve, reject) => {
+      uni.login({
+        provider: 'weixin',
+        success: (res) => (res.code ? resolve(res.code) : reject(new Error('未获取到微信授权 code'))),
+        fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg || '微信授权失败')),
+      })
+    })
+    const res = await authApi.wechatLogin(code)
+    if (res.success && res.data?.token) {
+      setToken(res.data.token)
+      setRefreshToken(res.data.refreshToken || '')
+      setUserInfo(res.data.user)
+      // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
+      goAfterLogin()
+    } else {
+      uni.showToast({ title: res.message || '微信登录失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '微信登录失败', icon: 'none' })
+  } finally {
+    isLoading.value = false
+  }
+  // #endif
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '请在微信小程序内使用微信登录', icon: 'none' })
+  // #endif
 }
 
 function goForgot() {
@@ -302,8 +505,8 @@ onUnmounted(() => {
   height: 112rpx;
 }
 .back-btn {
-  width: 64rpx;
-  height: 64rpx;
+  width: 88rpx;
+  height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -357,7 +560,11 @@ onUnmounted(() => {
   margin-bottom: 48rpx;
 }
 .tab {
-  padding-bottom: 16rpx;
+  min-height: 88rpx;
+  padding: 0 8rpx;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
   border-bottom: 4rpx solid transparent;
 }
 .tab.active {
@@ -413,14 +620,14 @@ onUnmounted(() => {
 }
 .code-btn {
   position: absolute;
-  right: 16rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
   min-width: 128rpx;
-  height: 60rpx;
+  height: 88rpx;
   padding: 0 24rpx;
   border-radius: 16rpx;
   background: rgba(196, 30, 58, 0.1);
@@ -436,11 +643,17 @@ onUnmounted(() => {
 .code-btn-text-disabled {
   color: #999999;
 }
+/* 热区扩到 88×88rpx（图标 40rpx 视觉位置不变：right = 32 - (88-40)/2 = 8rpx） */
 .eye-btn {
   position: absolute;
-  right: 32rpx;
+  right: 8rpx;
   top: 50%;
   transform: translateY(-50%);
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 错误提示 */
@@ -456,16 +669,20 @@ onUnmounted(() => {
   justify-content: flex-end;
 }
 .forgot-link {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
   font-size: 26rpx;
   color: var(--brand);
 }
 
-/* 协议 */
+/* 协议：整行是勾选热区，min-height 撑到 ≥88rpx（checkbox 视觉尺寸不变） */
 .terms-row {
   display: flex;
   align-items: flex-start;
   gap: 16rpx;
   padding: 16rpx 0;
+  min-height: 88rpx;
 }
 .checkbox {
   width: 40rpx;
@@ -520,6 +737,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 88rpx;
 }
 .register-normal {
   font-size: 28rpx;
@@ -573,9 +791,6 @@ onUnmounted(() => {
 }
 .wechat-circle {
   background: rgba(7, 193, 96, 0.1);
-}
-.apple-circle {
-  background: rgba(44, 44, 44, 0.1);
 }
 .third-label {
   font-size: 24rpx;

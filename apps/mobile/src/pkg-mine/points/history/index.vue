@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import AppLoading from '@/components/common/app-loading.vue'
+import { navigateTo } from '@/utils/router'
 import { pointsApi, type PointsHistoryItem } from '@/lib/points-data'
 
 const info = ref({ balance: 0, totalEarned: 0, totalSpent: 0, todayEarned: 0 })
@@ -47,8 +49,9 @@ onMounted(() => {
 function goBack() {
   uni.navigateBack()
 }
+// 统一走 @/utils/router 的 navigateTo（自带失败兜底 toast），替代裸 uni.navigateTo
 function go(url: string) {
-  uni.navigateTo({ url })
+  navigateTo(url)
 }
 </script>
 
@@ -62,12 +65,21 @@ function go(url: string) {
       <view class="nav-placeholder" />
     </view>
 
-    <view v-if="loading" class="loading"><text>加载中...</text></view>
+    <view v-if="loading" class="loading"><AppLoading /></view>
     <view v-else-if="error" class="error-state">
       <text>{{ error }}</text>
       <view class="retry-btn" @tap="retry">重试</view>
     </view>
-    <view v-else-if="!historyItems.length" class="empty-page"><text>暂无记录</text></view>
+    <view v-else-if="!historyItems.length" class="empty-page">
+      <view class="empty-page-icon">
+        <AppIcon name="award" :size="56" color="#c9a96e" />
+      </view>
+      <text class="empty-page-title">暂无积分记录</text>
+      <text class="empty-page-hint">完成签到、学习等任务即可赚取积分</text>
+      <view class="empty-page-btn" @tap="go('/pkg-mine/points/tasks/index')">
+        <text class="empty-page-btn-text">去做任务赚积分</text>
+      </view>
+    </view>
     <scroll-view v-else scroll-y class="scroll">
       <!-- 积分统计 -->
       <view class="stat-grid">
@@ -87,10 +99,10 @@ function go(url: string) {
 
       <!-- 快捷操作 -->
       <view class="quick">
-        <view class="quick-btn quick-ghost" @tap="go('/pkg-mine/points/tasks')">
+        <view class="quick-btn quick-ghost" @tap="go('/pkg-mine/points/tasks/index')">
           <text class="quick-ghost-text">去做任务</text>
         </view>
-        <view class="quick-btn quick-primary" @tap="go('/pkg-mine/points/exchange')">
+        <view class="quick-btn quick-primary" @tap="go('/pkg-mine/points/exchange/index')">
           <text class="quick-primary-text">积分兑换</text>
         </view>
       </view>
@@ -129,7 +141,10 @@ function go(url: string) {
           </view>
         </template>
         <view v-else class="empty">
-          <text class="empty-text">暂无记录</text>
+          <text class="empty-text">这里还没有记录，做任务赚积分</text>
+          <view class="empty-btn" @tap="go('/pkg-mine/points/tasks/index')">
+            <text class="empty-btn-text">去做任务</text>
+          </view>
         </view>
       </view>
       <view class="bottom-space" />
@@ -325,6 +340,18 @@ function go(url: string) {
   font-size: 26rpx;
   color: #8a8178;
 }
+.empty-btn {
+  display: inline-block;
+  margin-top: 32rpx;
+  padding: 18rpx 56rpx;
+  background: #c9a96e;
+  border-radius: 999rpx;
+}
+.empty-btn-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #fff;
+}
 .bottom-space {
   height: 48rpx;
 }
@@ -332,5 +359,10 @@ function go(url: string) {
 .error-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 200rpx; gap: 24rpx; }
 .error-state text { font-size: 28rpx; color: #8a8178; }
 .retry-btn { padding: 16rpx 48rpx; background: var(--brand); color: #fff; border-radius: 12rpx; font-size: 26rpx; }
-.empty-page { flex: 1; display: flex; align-items: center; justify-content: center; padding-top: 200rpx; font-size: 28rpx; color: #8a8178; }
+.empty-page { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 200rpx; }
+.empty-page-icon { width: 128rpx; height: 128rpx; border-radius: 50%; background: #fdf6e9; display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
+.empty-page-title { font-size: 30rpx; font-weight: 600; color: #2d2a26; margin-bottom: 12rpx; }
+.empty-page-hint { font-size: 26rpx; color: #8a8178; margin-bottom: 40rpx; }
+.empty-page-btn { padding: 18rpx 56rpx; background: #c9a96e; border-radius: 999rpx; }
+.empty-page-btn-text { font-size: 28rpx; font-weight: 500; color: #fff; }
 </style>

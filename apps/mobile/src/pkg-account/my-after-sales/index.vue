@@ -32,7 +32,7 @@
           <view class="empty-icon">
             <app-icon name="package" :size="80" color="#999999" />
           </view>
-          <text class="empty-text">暂无售后记录</text>
+          <text class="empty-text">没有售后记录，一切顺利就最好</text>
           <view class="empty-btn" @tap="navigateTo('/orders')">
             <text class="empty-btn-text">查看订单</text>
           </view>
@@ -49,21 +49,22 @@
                 <app-icon :name="sCfg(item.status).icon" :size="22" :color="sCfg(item.status).color" />
                 <text class="as-status-text" :style="{ color: sCfg(item.status).color }">{{ sCfg(item.status).label }}</text>
               </view>
-              <text class="as-type">{{ item.type === 'refund_only' ? '仅退款' : '退货退款' }}</text>
+              <text class="as-type">{{ afterSaleTypeLabel(item.type) }}</text>
             </view>
             <text class="as-time">{{ item.createdAt }}</text>
           </view>
 
           <view class="as-body" @tap="navigateTo(`/shop/after-sale/${item.id}`)">
-            <image lazy-load class="as-cover" :src="item.product.cover" mode="aspectFill" />
+            <view class="as-cover"><smart-cover :src="item.product.cover" :title="item.product.name" type="product" deco :deco-size="44" /></view>
             <view class="as-info">
               <text class="as-name">{{ item.product.name }}</text>
               <text class="as-sku">{{ item.product.skuName }}</text>
               <view class="as-foot">
-                <view class="as-amount">
+                <view v-if="isRefundAfterSaleType(item.type)" class="as-amount">
                   <text class="amount-label">退款金额：</text>
-                  <text class="amount-value">¥{{ item.amount }}</text>
+                  <text class="amount-value">¥{{ formatPrice(item.amount) }}</text>
                 </view>
+                <text v-else class="exchange-hint">{{ afterSaleTypeLabel(item.type) }}</text>
                 <app-icon name="chevron-right" :size="28" color="#999999" />
               </view>
             </view>
@@ -116,7 +117,9 @@
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { goBack, navigateTo } from '@/utils/router'
-import { accountApi, afterSaleTabs, afterSaleStatusConfig, type AfterSaleListItem } from '@/lib/account-data'
+import SmartCover from '@/components/common/smart-cover.vue'
+import { accountApi, afterSaleTabs, afterSaleStatusConfig, afterSaleTypeLabel, isRefundAfterSaleType, type AfterSaleListItem } from '@/pkg-account/lib/account-data'
+import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(20)
 const navHeight = ref(108)
@@ -340,6 +343,8 @@ async function doCancel() {
   height: 150rpx;
   border-radius: 16rpx;
   background: #FAF8F5;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 .as-info {
   flex: 1;
@@ -374,6 +379,10 @@ async function doCancel() {
   font-size: 30rpx;
   font-weight: 600;
   color: var(--brand);
+}
+.exchange-hint {
+  font-size: 24rpx;
+  color: #666666;
 }
 
 .as-actions {

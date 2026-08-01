@@ -22,10 +22,14 @@ import { ContextBuilderService } from "./services/context-builder.service";
 import { CrossSellStrategy } from "./strategies/cross-sell.strategy";
 import { TfidfVectorProvider } from "./strategies/tfidf-vector.provider";
 import { OpenAIEmbeddingProvider } from "./strategies/openai-embedding.provider";
+import { HunyuanEmbeddingProvider } from "./strategies/hunyuan-embedding.provider";
+import { ContentVectorizeService } from "./services/content-vectorize.service";
+import { ContentVectorizeTask } from "./tasks/content-vectorize.task";
 import { AbTestService } from "./services/ab-test.service";
 import { AbTestController } from "./ab-test.controller";
 import { SmartFeedService } from "./smart-feed.service";
 import { SmartFeedController } from "./smart-feed.controller";
+import { HomeChannelFeedService } from "./home-channel-feed.service";
 import { SemanticTaggerService } from "./services/semantic-tagger.service";
 import { SemanticTagTask } from "./tasks/semantic-tag.task";
 import { TouchpointService } from "./touchpoint.service";
@@ -36,9 +40,10 @@ import { RecommendInsertService } from "./services/recommend-insert.service";
 import { RecommendSelectService } from "./services/recommend-select.service";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { StationPickModule } from "../station-pick/station-pick.module";
+import { AuthModule } from "../auth/auth.module";
 
 @Module({
-  imports: [AiGatewayModule, StationPickModule],
+  imports: [AiGatewayModule, StationPickModule, AuthModule],
   // ⚠️ TouchpointController 必须排在 RecommendController 之前（其 @Get(":scene") 通配会拦截 /recommend/touchpoint）
   controllers: [SmartFeedController, TouchpointController, RecommendController, RecommendRuleController, AbTestController],
   providers: [
@@ -67,8 +72,12 @@ import { StationPickModule } from "../station-pick/station-pick.module";
     CrossSellStrategy,
     TfidfVectorProvider,
     OpenAIEmbeddingProvider,
+    HunyuanEmbeddingProvider,
+    ContentVectorizeService,
+    ContentVectorizeTask,
     AbTestService,
     SmartFeedService,
+    HomeChannelFeedService,
     SemanticTaggerService,
     SemanticTagTask,
     TouchpointService,
@@ -80,6 +89,7 @@ import { StationPickModule } from "../station-pick/station-pick.module";
     RuleService,
     RecommendCacheService,
     SmartFeedService,
+    ContentVectorizeService,
   ],
 })
 export class RecommendModule {}

@@ -12,6 +12,7 @@ const mockPrisma = {
   classicChapter: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
   readingProgress: { findUnique: jest.fn(), upsert: jest.fn(), findMany: jest.fn(), count: jest.fn() },
   bookmark: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
+  classicReadingNote: { findMany: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
   classicAnnotation: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
   $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
 };
@@ -208,6 +209,32 @@ describe("ClassicService", () => {
     it("书签不存在抛出异常", async () => {
       mockPrisma.bookmark.findFirst.mockResolvedValue(null);
       await expect(svc.deleteBookmark("bm-1")).rejects.toThrow("书签不存在");
+    });
+  });
+
+  describe("createNote", () => {
+    it("保存原句与段落锚点", async () => {
+      mockPrisma.classicReadingNote.create.mockResolvedValue({
+        id: "n-1",
+        userId: "u1",
+        bookId: "b1",
+        chapterId: "ch-1",
+        content: "这里值得反复读。",
+        position: 3,
+        originalText: "学而时习之，不亦说乎？",
+      });
+      await svc.createNote("u1", "b1", {
+        chapterId: "ch-1",
+        content: "这里值得反复读。",
+        position: 3,
+        originalText: "学而时习之，不亦说乎？",
+      });
+      expect(mockPrisma.classicReadingNote.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          position: 3,
+          originalText: "学而时习之，不亦说乎？",
+        }),
+      });
     });
   });
 

@@ -1,6 +1,35 @@
-import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, Min, Max, MinLength } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, IsBoolean, Min, Max, MinLength, MaxLength, ArrayMaxSize, ArrayUnique } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+
+export class UpdateLiveWatchProgressDto {
+  @ApiProperty({ description: "当前播放位置（秒）", minimum: 0, maximum: 604800 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(604800)
+  positionSeconds: number;
+
+  @ApiProperty({ description: "回放总时长（秒）", minimum: 0, maximum: 604800 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(604800)
+  durationSeconds: number;
+
+  @ApiProperty({ description: "本次播放会话ID，用于识别重复上报", minLength: 8, maxLength: 100 })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(100)
+  clientSessionId: string;
+
+  @ApiProperty({ description: "会话内单调递增序号，用于抵御乱序上报", minimum: 1 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(2147483647)
+  clientSequence: number;
+}
 
 export class CreateRoomDto {
   @ApiPropertyOptional({ description: "圈子ID" })
@@ -11,6 +40,10 @@ export class CreateRoomDto {
   @IsString()
   @MinLength(1)
   title: string;
+
+  @ApiPropertyOptional({ description: "直播介绍；发布预告时必填", maxLength: 500 })
+  @IsOptional() @IsString() @MaxLength(500)
+  description?: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
   @IsOptional() @IsString()
@@ -32,21 +65,40 @@ export class CreateRoomDto {
   @IsOptional() @IsString() @IsIn(["basic", "hd", "uhd"])
   quality?: string;
 
+  @ApiPropertyOptional({ description: "画面方向: portrait=手机竖屏 / landscape=OBS横屏推流", enum: ["portrait", "landscape"] })
+  @IsOptional() @IsIn(["portrait", "landscape"])
+  orientation?: string;
+
   @ApiPropertyOptional({ description: "收费类型: FREE/PAID/CIRCLE_ONLY/MEMBER_FREE" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsString() @IsIn(["FREE", "PAID", "CIRCLE_ONLY", "MEMBER_FREE"])
   chargeType?: string;
 
   @ApiPropertyOptional({ description: "收费价格（元）" })
-  @IsOptional() @IsNumber()
+  @IsOptional() @IsNumber() @Min(0)
   chargePrice?: number;
 
   @ApiPropertyOptional({ description: "关联商品ID列表" })
   @IsOptional() @IsArray()
+  @ArrayMaxSize(5)
+  @ArrayUnique()
+  @IsString({ each: true })
   productIds?: string[];
 
   @ApiPropertyOptional({ description: "关联课程ID，回放将自动同步为课程章节" })
   @IsOptional() @IsString()
   courseId?: string;
+
+  @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈（默认）/ PLATFORM=全平台（需平台审核）", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
+
+  @ApiPropertyOptional({ description: "回放开放范围：CIRCLE_ONLY（默认）/ PLATFORM", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  replayVisibility?: "CIRCLE_ONLY" | "PLATFORM";
+
+  @ApiPropertyOptional({ description: "回放是否对圈外收费" })
+  @IsOptional() @IsBoolean()
+  replayCharge?: boolean;
 
   @ApiPropertyOptional({ description: "分站ID" })
   @IsOptional() @IsString()
@@ -58,9 +110,50 @@ export class UpdateRoomDto {
   @IsOptional() @IsString()
   title?: string;
 
+  @ApiPropertyOptional({ description: "直播介绍；发布预告时必填", maxLength: 500 })
+  @IsOptional() @IsString() @MaxLength(500)
+  description?: string;
+
   @ApiPropertyOptional({ description: "封面图URL" })
   @IsOptional() @IsString()
   cover?: string;
+
+  @ApiPropertyOptional({ description: "预约开播时间；null 表示改为立即开播", nullable: true })
+  @IsOptional() @IsString()
+  startTime?: string | null;
+
+  @ApiPropertyOptional({ description: "收费类型", enum: ["FREE", "PAID"] })
+  @IsOptional() @IsIn(["FREE", "PAID"])
+  chargeType?: "FREE" | "PAID";
+
+  @ApiPropertyOptional({ description: "收费价格（元）；免费时传 null", nullable: true })
+  @IsOptional() @IsNumber() @Min(0)
+  chargePrice?: number | null;
+
+  @ApiPropertyOptional({ description: "画质档", enum: ["basic", "hd", "uhd"] })
+  @IsOptional() @IsIn(["basic", "hd", "uhd"])
+  quality?: "basic" | "hd" | "uhd";
+
+  @ApiPropertyOptional({ description: "画面方向", enum: ["portrait", "landscape"] })
+  @IsOptional() @IsIn(["portrait", "landscape"])
+  orientation?: "portrait" | "landscape";
+
+  @ApiPropertyOptional({ description: "本场带货商品ID，按数组顺序展示", type: [String], maxItems: 5 })
+  @IsOptional() @IsArray()
+  @ArrayMaxSize(5)
+  @ArrayUnique()
+  @IsString({ each: true })
+  productIds?: string[];
+}
+
+/** 主播单独维护本场商品清单（可在直播中调整） */
+export class UpdateRoomProductsDto {
+  @ApiProperty({ description: "商品ID列表，数组顺序即观众端展示顺序", type: [String], maxItems: 5 })
+  @IsArray()
+  @ArrayMaxSize(5)
+  @ArrayUnique()
+  @IsString({ each: true })
+  productIds: string[];
 }
 
 // ───────── 麦位管理 ─────────
@@ -178,17 +271,24 @@ export class CreateGiftDto {
 }
 
 export class UpdateGiftDto {
+  // ⚠️ 每个字段必须带 class-validator 装饰器，否则 ValidationPipe(whitelist:true) 会静默 strip 掉→更新丢字段
   @ApiProperty({ description: "礼物名称", required: false })
+  @IsOptional() @IsString()
   name?: string;
   @ApiProperty({ description: "礼物图标", required: false })
+  @IsOptional() @IsString()
   icon?: string;
   @ApiProperty({ description: "价格(金币)", required: false })
+  @IsOptional() @IsInt() @Min(0)
   priceCoin?: number;
   @ApiProperty({ description: "礼物等级", required: false })
+  @IsOptional() @IsString()
   level?: string;
   @ApiProperty({ description: "状态", required: false })
+  @IsOptional() @IsString()
   status?: string;
   @ApiProperty({ description: "排序", required: false })
+  @IsOptional() @IsInt()
   sortOrder?: number;
 }
 

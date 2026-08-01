@@ -8,6 +8,7 @@ import { Logger } from "@nestjs/common";
 import { WsAuthService } from "./ws-auth.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { AuditService } from "../audit/audit.service";
 
 /**
  * 在线态 Redis 键（H2·cluster 跨实例共享）：
@@ -45,10 +46,14 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /** 单实例连接上限（cluster×N 时总容量随实例数扩展） */
   private readonly MAX_INSTANCE_CONNECTIONS = 5000;
 
+  /** 弹幕深审采样率（0~1·默认全量·高流量直播可下调降腾讯云成本；本地快拦不受此影响始终全量） */
+  private readonly DANMAKU_AUDIT_SAMPLE = Math.min(1, Math.max(0, Number(process.env.WS_DANMAKU_AUDIT_SAMPLE ?? 1)));
+
   constructor(
     private wsAuth: WsAuthService,
     private prisma: PrismaService,
     private redis: RedisService,
+    private audit: AuditService,
   ) {}
 
   /** 事件级频率检查 */
@@ -288,7 +293,15 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(room).emit("live:user_left", { userId, timestamp: Date.now() });
   }
 
-  /** 直播弹幕消息（WebSocket转发 + 后端持久化由HTTP API完成） */
+  /**
+   * 直播弹幕消息（WebSocket转发 + 后端持久化由HTTP API完成）。
+   *
+   * 审核策略（实时性优先·不同步阻塞广播）：
+   * 1. **本地词库同步快拦**（<1ms·零网络）：命中国学诈骗话术/导流词即拦，不广播，仅回执发送者；
+   * 2. 未命中 → **立即广播**（带 msgId 供撤回定位）；
+   * 3. 广播后 **异步深审**（腾讯云 TMS + DeepSeek·可采样）：判 severe/mild 则向直播间广播 `live:chat_revoke`
+   *    撤回该弹幕，severe 追加自动禁言 5 分钟。
+   */
   @SubscribeMessage("live:chat")
   handleLiveChat(
     @ConnectedSocket() client: Socket,
@@ -297,13 +310,55 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const userId = this.socketMap.get(client.id);
     if (!this.checkEventRate(client.id, "live:chat", 10, 1000)) return;
     if (!userId || !data?.roomId || !data?.content) return;
+
+    const content = data.content.slice(0, 500);
+
+    // ① 本地词库同步快拦（命中即不广播，仅回执发送者·敏感内容不落日志正文）
+    const localHits = this.audit.hasLocalViolation(content);
+    if (localHits.length > 0) {
+      client.emit("live:chat_blocked", { reason: "内容包含违规信息，未发送" });
+      return;
+    }
+
+    // ② 立即广播（实时性优先·带 msgId 供事后撤回）
     const room = `live:${data.roomId}`;
+    const msgId = `dm_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     this.server.to(room).emit("live:chat", {
+      msgId,
       userId,
       nickname: client.data?.nickname || "用户",
-      content: data.content.slice(0, 500),
+      content,
       timestamp: Date.now(),
     });
+
+    // ③ 异步深审（采样·不阻塞广播·失败/未配密钥 fail-open 不影响已广播弹幕）
+    if (this.DANMAKU_AUDIT_SAMPLE >= 1 || Math.random() < this.DANMAKU_AUDIT_SAMPLE) {
+      void this.auditDanmakuAsync(data.roomId, userId, content, msgId);
+    }
+  }
+
+  /** 弹幕事后深审：命中即撤回（广播 revoke）+ severe 自动禁言 5 分钟。全程 catch·不抛出。 */
+  private async auditDanmakuAsync(roomId: string, userId: string, content: string, msgId: string): Promise<void> {
+    try {
+      const risk = await this.audit.classifyTextRisk(content, { scene: "LIVE_DANMAKU", userId, dataId: roomId });
+      if (risk.verdict === "pass" || risk.verdict === "uncertain") return;
+
+      // 撤回该条弹幕（前端按 msgId 从弹幕流移除）
+      this.server.to(`live:${roomId}`).emit("live:chat_revoke", { msgId, reason: risk.category || "违规内容" });
+
+      // 严重违规：自动禁言 5 分钟（幂等 upsert·非群成员/表缺失等异常吞掉不影响撤回）
+      if (risk.verdict === "severe") {
+        await this.prisma.liveMutedUser
+          .upsert({
+            where: { liveRoomId_userId: { liveRoomId: roomId, userId } },
+            create: { liveRoomId: roomId, userId, mutedBy: "SYSTEM", expiresAt: new Date(Date.now() + 5 * 60_000) },
+            update: { mutedBy: "SYSTEM", mutedAt: new Date(), expiresAt: new Date(Date.now() + 5 * 60_000) },
+          })
+          .catch((err) => this.logger.warn(`弹幕自动禁言失败 room=${roomId}`, err instanceof Error ? err.message : err));
+      }
+    } catch (err) {
+      this.logger.warn(`弹幕深审异常（fail-open·不影响已广播）room=${roomId}`, err instanceof Error ? err.message : err);
+    }
   }
 
   /** 直播礼物消息（WebSocket转发到直播间） */

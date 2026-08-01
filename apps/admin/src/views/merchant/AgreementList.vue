@@ -38,8 +38,20 @@
       <el-table-column
         prop="version"
         label="版本号"
-        width="120"
-      />
+        width="150"
+      >
+        <template #default="{ row }">
+          {{ row.version }}
+          <el-tag
+            v-if="isEffective(row)"
+            size="small"
+            type="success"
+            style="margin-left:6px"
+          >
+            当前生效
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="title"
         label="协议标题"
@@ -55,10 +67,18 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="160"
+        width="200"
         fixed="right"
       >
         <template #default="{ row }">
+          <el-button
+            size="small"
+            text
+            type="primary"
+            @click="openPreview(row)"
+          >
+            预览
+          </el-button>
           <el-button
             size="small"
             text
@@ -71,7 +91,7 @@
             size="small"
             text
             type="danger"
-            @click="del(row.id)"
+            @click="del(row)"
           >
             删除
           </el-button>
@@ -94,6 +114,14 @@
       :title="editingId ? '编辑协议' : '新建协议'"
       width="700px"
     >
+      <el-alert
+        v-if="editingEffective"
+        type="error"
+        :closable="false"
+        show-icon
+        style="margin-bottom:12px"
+        title="正在编辑当前生效版本：保存后新入驻商家将立即签署修改后的内容（已签署商家保留签署时的快照）。协议为法律文件，修改前请与法务确认。"
+      />
       <el-form
         :model="form"
         label-width="80px"
@@ -142,6 +170,18 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 内容预览弹窗 -->
+    <el-dialog
+      v-model="previewVisible"
+      :title="previewRow ? `协议预览 · ${previewRow.title || ''}（${previewRow.version || ''}）` : '协议预览'"
+      width="700px"
+    >
+      <div
+        v-if="previewRow"
+        class="agreement-preview"
+      >{{ previewRow.content || '（无内容）' }}</div>
+    </el-dialog>
   </div>
 </template>
 
@@ -167,7 +207,18 @@ const error = ref(false)
 const saving = ref(false)
 const dialogVisible = ref(false)
 const editingId = ref('')
+const editingEffective = ref(false)
 const form = ref({ version: '', title: '', content: '' })
+const previewVisible = ref(false)
+const previewRow = ref<AgreementRow | null>(null)
+
+/**
+ * 当前生效版本判定：后端按创建时间倒序返回、新商家签署取最新一条（getLatestAgreement），
+ * 故第 1 页第 1 行即当前生效版本。
+ */
+function isEffective(row: AgreementRow) {
+  return page.value === 1 && list.value.length > 0 && list.value[0].id === row.id
+}
 
 onMounted(() => fetchList())
 
@@ -197,14 +248,30 @@ function openCreate() {
 function openEdit(row: AgreementRow) {
   resetForm()
   editingId.value = row.id
+  editingEffective.value = isEffective(row)
   form.value = { version: row.version || '', title: row.title || '', content: row.content || '' }
   dialogVisible.value = true
+}
+
+function openPreview(row: AgreementRow) {
+  previewRow.value = row
+  previewVisible.value = true
 }
 
 async function save() {
   if (!form.value.version || !form.value.title || !form.value.content) {
     ElMessage.warning('请填写完整信息')
     return
+  }
+  // 编辑当前生效版本：L3 影响预告二次确认（改的是后续商家签署真源）
+  if (editingId.value && editingEffective.value) {
+    try {
+      await ElMessageBox.confirm(
+        '该版本为当前生效版本，保存后新入驻商家将立即签署修改后的内容（已签署商家保留签署时快照）。确定保存？',
+        '修改生效版协议',
+        { type: 'error', confirmButtonText: '确认保存', cancelButtonText: '取消' },
+      )
+    } catch { return }
   }
   saving.value = true
   try {
@@ -213,7 +280,7 @@ async function save() {
       ElMessage.success('已更新')
     } else {
       await merchantApi.createAgreement(form.value)
-      ElMessage.success('已创建')
+      ElMessage.success('已创建，该版本将作为新商家签署的生效版本')
     }
     dialogVisible.value = false
     fetchList()
@@ -221,10 +288,18 @@ async function save() {
   } finally { saving.value = false }
 }
 
-async function del(id: string) {
+async function del(row: AgreementRow) {
+  const effective = isEffective(row)
+  const warn = effective
+    ? `版本 ${row.version || ''} 为当前生效版本，删除后新商家将改签上一版本；若无其他版本，商家入驻签署环节将不可用。已签署商家保留快照不受影响。`
+    : '删除后不可恢复（已签署商家保留快照不受影响）。'
   try {
-    await ElMessageBox.confirm('确定删除该协议版本？', '提示', { type: 'warning' })
-    await merchantApi.deleteAgreement(id)
+    await ElMessageBox.confirm(`${warn}确定删除？`, effective ? '删除生效版协议' : '删除协议版本', {
+      type: effective ? 'error' : 'warning',
+      confirmButtonText: '确认删除',
+      cancelButtonText: '取消',
+    })
+    await merchantApi.deleteAgreement(row.id)
     ElMessage.success('已删除')
     fetchList()
   } catch { /* cancelled */ }
@@ -234,4 +309,6 @@ async function del(id: string) {
 <style scoped>
 .page { padding: 20px; }
 .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+/* 协议内容预览：保留换行排版 */
+.agreement-preview { white-space: pre-wrap; word-break: break-word; max-height: 60vh; overflow-y: auto; font-size: 13px; line-height: 1.8; color: var(--el-text-color-primary); }
 </style>

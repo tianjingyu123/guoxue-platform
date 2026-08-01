@@ -58,6 +58,12 @@ export class CreateClientDto {
 
   @IsOptional()
   @IsIn(["male", "female"])
+  /** 出生地（排盘真太阳时校正用·非敏感，明文存） */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50, { message: "出生地最长50字" })
+  birthPlace?: string;
+
   gender?: string;
 
   @IsOptional()
@@ -96,6 +102,12 @@ export class UpdateClientDto {
 
   @IsOptional()
   @IsIn(["male", "female", ""])
+  /** 出生地（排盘真太阳时校正用·非敏感，明文存） */
+  @IsOptional()
+  @IsString()
+  @MaxLength(50, { message: "出生地最长50字" })
+  birthPlace?: string;
+
   gender?: string;
 
   @IsOptional()

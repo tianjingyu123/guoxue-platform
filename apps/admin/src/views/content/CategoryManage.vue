@@ -324,8 +324,11 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { useRouter } from "vue-router";
+import { ElMessage, ElMessageBox } from "element-plus";
 import { api, contentGenerationApi, systemApi } from "@/api";
+
+const router = useRouter();
 
 // 品类健康度行（字段宽松 optional）
 interface StatRow {
@@ -428,7 +431,11 @@ async function autoFillAll() {
 }
 
 function viewContent(row: StatRow) {
-  window.open(`/contents?level1=${encodeURIComponent(row.level1)}&level2=${encodeURIComponent(row.level2)}`, "_blank");
+  // 真实联动：内容列表后端只支持 keyword（标题/作者 contains），不支持 level1/level2 参数
+  // （content.dto.ts ContentListQueryDto 已核实）；此前带 level1/level2 跳转是假联动（列表不读也筛不了）。
+  // 用 router.resolve 生成带应用 base 的地址（此前硬拼 /contents 会丢 BASE_URL 打开 404）。
+  const href = router.resolve({ path: "/contents", query: { keyword: row.level2 } }).href;
+  window.open(href, "_blank");
 }
 
 // ── 品类树编辑 ──
@@ -468,19 +475,31 @@ function deleteLevel1(level1: string) {
 }
 
 async function saveTree() {
+  // 处理一级品类重命名
+  const finalTree: Record<string, string[]> = {};
+  for (const [oldKey, subs] of Object.entries(editTree.value)) {
+    const newName = editLevel1Names.value[oldKey] || oldKey;
+    finalTree[newName] = subs.filter((s) => s.trim());
+  }
+  // L3 影响预告：品类树是全平台内容归类与前台分类展示的依据
+  const level1Count = Object.keys(finalTree).length;
+  const level2Count = Object.values(finalTree).reduce((s, arr) => s + arr.length, 0);
+  try {
+    await ElMessageBox.confirm(
+      `即将保存品类树（${level1Count} 个一级品类 / ${level2Count} 个二级品类）。品类树影响全平台内容归类与前台分类展示：删除或重命名品类不会迁移已归类内容，可能产生「无主内容」。确定保存？`,
+      "保存品类树确认",
+      { type: "warning", confirmButtonText: "确认保存" },
+    );
+  } catch { return; /* 用户取消 */ }
   savingTree.value = true;
   try {
-    // 处理一级品类重命名
-    const finalTree: Record<string, string[]> = {};
-    for (const [oldKey, subs] of Object.entries(editTree.value)) {
-      const newName = editLevel1Names.value[oldKey] || oldKey;
-      finalTree[newName] = subs.filter((s) => s.trim());
-    }
     await api.put("/system/category-tree", finalTree);
     categoryTree.value = finalTree;
     ElMessage.success("品类树已更新");
     showEditTree.value = false;
     refresh();
+  } catch {
+    ElMessage.error("品类树保存失败，请重试");
   } finally { savingTree.value = false; }
 }
 

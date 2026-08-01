@@ -3,6 +3,7 @@ import { OfflineController } from "./offline.controller";
 import { OfflineService } from "./offline.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 
 const mockOfflineSvc = {
   createStation: jest.fn().mockResolvedValue({ id: "s1", name: "北京驿站" }),
@@ -12,8 +13,9 @@ const mockOfflineSvc = {
   auditStation: jest.fn().mockResolvedValue({ id: "s1", status: "APPROVED" }),
   getRevenueDashboard: jest.fn().mockResolvedValue({ revenue: 50000, orders: 200 }),
   createOfflineCourse: jest.fn().mockResolvedValue({ id: "oc1", title: "线下国学课" }),
+  updateOfflineCourse: jest.fn().mockResolvedValue({ id: "oc1", title: "更新后的线下课", auditStatus: "PENDING" }),
   listOfflineCourses: jest.fn().mockResolvedValue([{ id: "oc1", title: "线下国学课" }]),
-  getOfflineCourse: jest.fn().mockResolvedValue({ id: "oc1", title: "线下国学课", registrations: [] }),
+  getOfflineCourse: jest.fn().mockResolvedValue({ id: "oc1", title: "线下国学课", _count: { registrations: 0 } }),
   registerCourse: jest.fn().mockResolvedValue({ id: "reg1", courseId: "oc1" }),
   cancelRegistration: jest.fn().mockResolvedValue({ success: true }),
   signInCourse: jest.fn().mockResolvedValue({ id: "reg1", signedIn: true }),
@@ -46,6 +48,7 @@ describe("OfflineController", () => {
     })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
+      .overrideGuard(OptionalAuthGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(OfflineController);
   });
@@ -72,8 +75,10 @@ describe("OfflineController", () => {
   });
 
   it("GET /offline/stations/:id — 驿站详情", async () => {
-    const result: any = await ctrl.getStation("s1");
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getStation(req, "s1");
     expect(result.name).toBe("北京驿站");
+    expect(mockOfflineSvc.getStation).toHaveBeenCalledWith("s1", "u1");
   });
 
   it("PUT /offline/stations/:id/audit — 审核驿站", async () => {
@@ -82,9 +87,11 @@ describe("OfflineController", () => {
     expect(result.status).toBe("APPROVED");
   });
 
-  it("GET /offline/stations/:id/revenue-dashboard — 收益看板", async () => {
-    const result: any = await ctrl.getRevenueDashboard("s1");
+  it("GET /offline/stations/:id/revenue-dashboard — 收益看板（须带登录态·防越权）", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getRevenueDashboard(req, "s1");
     expect(result.revenue).toBe(50000);
+    expect(mockOfflineSvc.getRevenueDashboard).toHaveBeenCalledWith("u1", "s1");
   });
 
   // ─── 线下课程 ───
@@ -95,14 +102,27 @@ describe("OfflineController", () => {
     expect(result.title).toBe("线下国学课");
   });
 
+  it("PUT /offline/courses/:id — 驿站主编辑课程并重新提交审核", async () => {
+    const req: any = { user: { id: "u1" } };
+    const dto: any = { title: "更新后的线下课" };
+    const result: any = await ctrl.updateCourse(req, "oc1", dto);
+    expect(result.auditStatus).toBe("PENDING");
+    expect(mockOfflineSvc.updateOfflineCourse).toHaveBeenCalledWith("u1", "oc1", dto);
+  });
+
   it("GET /offline/courses — 课程列表", async () => {
-    const result: any = await ctrl.listCourses("s1", 1, 20);
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.listCourses(req, "s1", 1, 20);
     expect(result).toHaveLength(1);
+    expect(mockOfflineSvc.listOfflineCourses).toHaveBeenCalledWith("s1", 1, 20, "u1");
   });
 
   it("GET /offline/courses/:id — 课程详情", async () => {
-    const result: any = await ctrl.getCourse("oc1");
+    const req: any = { user: undefined };
+    const result: any = await ctrl.getCourse(req, "oc1");
     expect(result.title).toBe("线下国学课");
+    expect(result).not.toHaveProperty("registrations");
+    expect(mockOfflineSvc.getOfflineCourse).toHaveBeenCalledWith("oc1", undefined);
   });
 
   it("POST /offline/courses/:id/register — 报名课程", async () => {

@@ -51,7 +51,11 @@ export class MemberGrantService {
       for (const m of members) {
         try {
           const ok = await this.benefit.grantMonthlyBenefits(m.id, m.memberLevel);
-          ok ? granted++ : skipped++;
+          if (ok) {
+            granted++;
+          } else {
+            skipped++;
+          }
         } catch (err) {
           skipped++;
           this.logger.warn(`会员月度发放失败 userId=${m.id}`, err as Error);
@@ -96,7 +100,9 @@ export class MemberGrantService {
           title: daysLeft === 0 ? "书院会员今日到期" : "书院会员即将到期",
           content:
             daysLeft === 0
-              ? "你的书院会员今天到期。作为连续包年用户，现在续费仍享 ¥148/年 优惠价，AI 伴读与电子书畅读不间断。"
+              // 🔴 2026-07-14 撤掉"电子书畅读"：板块 07-08 已下线，兑现不了；
+              //    这条是发给**真付费会员**的到期召回文案，不能拿下线功能招揽续费。
+              ? "你的书院会员今天到期。作为连续包年用户，现在续费仍享 ¥148/年 优惠价，AI 伴读不间断。"
               : `你的书院会员将于 ${daysLeft} 天后到期。作为连续包年用户，续费仍享 ¥148/年 优惠价。`,
           targetType: "MEMBER",
           targetId: u.id,

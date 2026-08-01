@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, Min, Max, MinLength, MaxLength } from "class-validator";
+import { IsString, IsOptional, IsInt, IsBoolean, IsEnum, IsNumber, IsArray, IsDateString, IsIn, IsUrl, Min, Max, MinLength, MaxLength, ValidateIf } from "class-validator";
 import { Type, Transform } from "class-transformer";
 
 export enum CourseType {
@@ -9,6 +9,12 @@ export enum CourseType {
   EBOOK = "EBOOK",
   COMBO = "COMBO",
 }
+
+const PERSISTENT_MEDIA_URL_OPTIONS = {
+  protocols: ["http", "https"],
+  require_protocol: true,
+  require_tld: false,
+};
 
 export class CreateCourseDto {
   @ApiPropertyOptional({ description: "关联圈子ID" })
@@ -21,7 +27,10 @@ export class CreateCourseDto {
   title: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @ValidateIf((_o, value) => value !== "")
+  @IsString()
+  @IsUrl(PERSISTENT_MEDIA_URL_OPTIONS, { message: "封面图仅支持持久化 http/https 地址" })
   cover?: string;
 
   @ApiPropertyOptional({ description: "课程简介" })
@@ -60,9 +69,26 @@ export class CreateCourseDto {
   @IsOptional() @IsInt()
   validityDays?: number;
 
+  @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈（默认）/ PLATFORM=全平台（需平台审核）", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
+
+  @ApiPropertyOptional({ description: "课程介绍详情图（最多6张·展示在课程详情页介绍区）" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  @IsUrl(PERSISTENT_MEDIA_URL_OPTIONS, { each: true, message: "详情图仅支持持久化 http/https 地址" })
+  detailImages?: string[];
+
   @ApiPropertyOptional({ description: "定时发布时间" })
   @IsOptional() @IsDateString()
   scheduledAt?: string;
+
+  @ApiPropertyOptional({ description: "定时上架时间（到点自动 APPROVED·null/空串=清除）" })
+  @IsOptional() @ValidateIf((o) => o.scheduledOnAt !== null && o.scheduledOnAt !== "") @IsDateString()
+  scheduledOnAt?: string | null;
+
+  @ApiPropertyOptional({ description: "定时下架时间（到点自动 DRAFT·null/空串=清除）" })
+  @IsOptional() @ValidateIf((o) => o.scheduledOffAt !== null && o.scheduledOffAt !== "") @IsDateString()
+  scheduledOffAt?: string | null;
 }
 
 export class UpdateCourseDto {
@@ -71,7 +97,10 @@ export class UpdateCourseDto {
   title?: string;
 
   @ApiPropertyOptional({ description: "封面图URL" })
-  @IsOptional() @IsString()
+  @IsOptional()
+  @ValidateIf((_o, value) => value !== "")
+  @IsString()
+  @IsUrl(PERSISTENT_MEDIA_URL_OPTIONS, { message: "封面图仅支持持久化 http/https 地址" })
   cover?: string;
 
   @ApiPropertyOptional({ description: "课程简介" })
@@ -117,6 +146,23 @@ export class UpdateCourseDto {
   @ApiPropertyOptional({ description: "所属分站ID" })
   @IsOptional() @IsString()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "课程介绍详情图（最多6张·2026-07-11 编辑器重做：whitelist 会 strip 未声明字段，DTO 必须显式声明）" })
+  @IsOptional() @IsArray() @IsString({ each: true })
+  @IsUrl(PERSISTENT_MEDIA_URL_OPTIONS, { each: true, message: "详情图仅支持持久化 http/https 地址" })
+  detailImages?: string[];
+
+  @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈 / PLATFORM=全平台", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
+  visibility?: "CIRCLE_ONLY" | "PLATFORM";
+
+  @ApiPropertyOptional({ description: "定时上架时间（到点自动 APPROVED·null/空串=清除）" })
+  @IsOptional() @ValidateIf((o) => o.scheduledOnAt !== null && o.scheduledOnAt !== "") @IsDateString()
+  scheduledOnAt?: string | null;
+
+  @ApiPropertyOptional({ description: "定时下架时间（到点自动 DRAFT·null/空串=清除）" })
+  @IsOptional() @ValidateIf((o) => o.scheduledOffAt !== null && o.scheduledOffAt !== "") @IsDateString()
+  scheduledOffAt?: string | null;
 }
 
 export class CreateChapterDto {
@@ -237,6 +283,14 @@ export class CourseListQueryDto {
   @ApiPropertyOptional({ description: "仅看免费课程(price=0)" })
   @IsOptional() @Transform(({ value }) => value === "true" || value === true) @IsBoolean()
   free?: boolean;
+
+  @ApiPropertyOptional({ description: "价格区间下限(元·含)" })
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  minPrice?: number;
+
+  @ApiPropertyOptional({ description: "价格区间上限(元·含)" })
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  maxPrice?: number;
 }
 
 // ═══════════════════ 课程购买 ═══════════════════
@@ -249,6 +303,10 @@ export class PurchaseCourseDto {
   @ApiPropertyOptional({ description: "推荐人ID" })
   @IsOptional() @IsString()
   referrerId?: string;
+
+  @ApiPropertyOptional({ description: "最近一次分享链接推荐人ID（7天临时归因，优先于永久归属）" })
+  @IsOptional() @IsString()
+  tempReferrerId?: string;
 }
 
 // ═══════════════════ 课程评价 ═══════════════════

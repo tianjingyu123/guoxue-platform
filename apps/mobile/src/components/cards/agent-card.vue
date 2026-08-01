@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** 智能体卡(feed,品牌红渐变)- 从原型 components/cards/agent-card.tsx 迁移 */
 import AppIcon from '@/components/common/app-icon.vue'
+import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { navigateTo } from '@/utils/router'
 import { track } from '@/composables/useTrack'
 import { type AgentCardData, formatCount } from '@/lib/card-utils'
@@ -16,7 +17,7 @@ function open() {
   <view class="card" hover-class="card-press" @tap="open">
     <view class="inner">
       <view class="head">
-        <image lazy-load v-if="data.avatar" class="avatar" :src="data.avatar" mode="aspectFill" />
+        <smart-avatar :src="data.avatar" :name="data.name" class="avatar" />
         <view class="head-info">
           <view class="name-row">
             <text class="name">{{ data.name }}</text>
