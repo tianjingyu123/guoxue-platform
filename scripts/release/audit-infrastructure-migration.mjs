@@ -1589,6 +1589,33 @@ const infrastructureMigrationManual = read(
   "docs/operations/服务器数据库域名迁移手册-20260728.md",
 );
 add(
+  "构建机候选门禁不会冒充最终生产上线 GO",
+  !fullGateRunner.includes("完整上线门禁通过") &&
+    hasAll(fullGateRunner, [
+      "构建机 launch 候选门禁通过",
+      "尚未生成最终上线 GO",
+      "release:aggregate-evidence",
+      "release:finalize-launch",
+    ]) &&
+    hasAll(fullGateTest, [
+      "构建机 launch 候选门禁不得冒充最终上线 GO",
+      "assert.doesNotMatch(source, /完整上线门禁通过/u)",
+      "release:aggregate-evidence",
+      "release:finalize-launch",
+    ]) &&
+    hasAll(infrastructureHandoffChecklist, [
+      "构建机 launch 候选门禁",
+      "不是最终上线 GO",
+      "final-launch-decision.json",
+    ]) &&
+    hasAll(infrastructureMigrationManual, [
+      "构建机候选固定包门禁通过",
+      "绝不等于最终生产上线 `GO`",
+      "final-launch-decision.json=GO",
+    ]),
+  "release:gate:full 只生成候选固定包所需构建证据；服务器现场机器聚合与不同技术、业务负责人的双签全部通过后，才能宣布最终上线",
+);
+add(
   "正式资源到位后可在耗时构建前执行单命令预接入门禁",
   packageJson.includes(
     '"release:gate:predeploy": "node -- scripts/release/run-full-gate.mjs --stage predeploy"',

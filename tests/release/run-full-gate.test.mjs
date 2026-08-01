@@ -153,3 +153,13 @@ test("完整门禁源码把同一发布标识和提交传给三份客户端证�
   assert.match(source, /"--release-id",\s*releaseId/u);
   assert.match(source, /"--source-commit",\s*expectedCommit/u);
 });
+
+test("构建机 launch 候选门禁不得冒充最终上线 GO", async () => {
+  const source = await import("node:fs/promises").then(({ readFile }) => readFile(runner, "utf8"));
+
+  assert.doesNotMatch(source, /完整上线门禁通过/u);
+  assert.match(source, /构建机 launch 候选门禁通过/u);
+  assert.match(source, /尚未生成最终上线 GO/u);
+  assert.match(source, /release:aggregate-evidence/u);
+  assert.match(source, /release:finalize-launch/u);
+});

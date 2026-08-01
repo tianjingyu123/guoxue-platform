@@ -257,4 +257,7 @@ run("生成与发布标识、源提交绑定的客户端公开配置指纹", [
   path.join(resolvedReportDirectory, "client-config-binding.json"),
 ]);
 
-console.log("\n[full-gate] 完整上线门禁通过");
+console.log("\n[full-gate] 构建机 launch 候选门禁通过；已生成固定包所需客户端证据");
+console.log(
+  "[full-gate] 尚未生成最终上线 GO；仍需固定包服务器验真、最终数据库对账、公网运行时与版本保留证据、release:aggregate-evidence 机器聚合，以及 release:finalize-launch 技术/业务双签",
+);
