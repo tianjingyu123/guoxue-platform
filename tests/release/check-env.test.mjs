@@ -315,3 +315,44 @@ test("完整上线拒绝多个小程序 AppID 别名互相冲突", async () => {
   assert.match(result.stderr, /微信小程序 AppID 别名配置不一致/);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /wx-another-mini-app/);
 });
+
+test("邮件未启用时允许保持全部字段为空", async () => {
+  const result = await runChecker(createEnvironment(), "--deploy-target", "standard");
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+});
+
+test("SMTP一旦启用就必须具备完整凭据、合法端口和发件人", async () => {
+  const environment = `${createEnvironment()}EMAIL_MODE=smtp\nSMTP_HOST=smtp.guoxue.test\nSMTP_PORT=70000\nSMTP_USER=mailer\nSMTP_PASS=\nEMAIL_FROM=not-an-email\n`;
+  const result = await runChecker(environment, "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /SMTP 邮件配置不完整：SMTP_PASS/);
+  assert.match(result.stderr, /SMTP_PORT 必须是 1-65535 的整数/);
+  assert.match(result.stderr, /EMAIL_FROM 必须是合法邮箱/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /mailer|not-an-email/);
+});
+
+test("生产SMTP禁止关闭证书校验", async () => {
+  const environment = `${createEnvironment()}EMAIL_MODE=smtp\nSMTP_HOST=smtp.guoxue.test\nSMTP_PORT=465\nSMTP_USER=mailer\nSMTP_PASS=${"S".repeat(32)}\nEMAIL_FROM=国学平台 <noreply@mail.guoxue.test>\nSMTP_TLS_REJECT_UNAUTHORIZED=false\n`;
+  const result = await runChecker(environment, "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /生产环境禁止 SMTP_TLS_REJECT_UNAUTHORIZED=false/);
+});
+
+test("当前SMTP客户端拒绝587等非隐式TLS端口", async () => {
+  const environment = `${createEnvironment()}EMAIL_MODE=smtp\nSMTP_HOST=smtp.guoxue.test\nSMTP_PORT=587\nSMTP_USER=mailer\nSMTP_PASS=${"S".repeat(32)}\nEMAIL_FROM=国学平台 <noreply@mail.guoxue.test>\n`;
+  const result = await runChecker(environment, "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /当前内置 SMTP 客户端仅支持 465 隐式 TLS/);
+});
+
+test("邮件API必须显式使用HTTPS且配置完整", async () => {
+  const invalid = `${createEnvironment()}EMAIL_MODE=api\nEMAIL_API_URL=http://mail.guoxue.test/send\nEMAIL_API_KEY=\nEMAIL_FROM=noreply@mail.guoxue.test\n`;
+  const rejected = await runChecker(invalid, "--deploy-target", "standard");
+  assert.equal(rejected.status, 1, `${rejected.stdout}\n${rejected.stderr}`);
+  assert.match(rejected.stderr, /邮件 API 配置不完整：EMAIL_API_KEY/);
+  assert.match(rejected.stderr, /生产邮件 API 必须使用 HTTPS/);
+
+  const valid = `${createEnvironment()}EMAIL_MODE=api\nEMAIL_API_URL=https://mail.guoxue.test/send\nEMAIL_API_KEY=${"K".repeat(32)}\nEMAIL_FROM=国学平台 <noreply@mail.guoxue.test>\n`;
+  const accepted = await runChecker(valid, "--deploy-target", "standard");
+  assert.equal(accepted.status, 0, `${accepted.stdout}\n${accepted.stderr}`);
+});

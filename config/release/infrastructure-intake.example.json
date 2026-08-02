@@ -127,6 +127,19 @@
     "expectedEgressIpv4": [],
     "outboundDependencies": [],
     "outboundEvidenceReference": "pending-change-ticket",
+    "emailDelivery": {
+      "owner": "待填写",
+      "sendingDomain": "pending",
+      "returnPathDomain": "pending",
+      "evidenceReference": "pending-change-ticket",
+      "spfVerified": false,
+      "dkimVerified": false,
+      "dmarcVerified": false,
+      "bounceHandlingVerified": false,
+      "complaintHandlingVerified": false,
+      "unsubscribeVerified": false,
+      "deliverySmokeTestPassed": false
+    },
     "callbackUrls": [],
     "controlPlaneCallbacks": [],
     "clientDomainAllowlistEntries": [

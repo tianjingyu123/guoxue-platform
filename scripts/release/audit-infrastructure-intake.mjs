@@ -91,6 +91,26 @@ const websocketOrigin = (value) => {
   }
 };
 const normalizeHostname = (value) => text(value).toLowerCase().replace(/\.$/u, "");
+const isDomainName = (value) => {
+  const domain = normalizeHostname(value);
+  return (
+    domain.length <= 253 &&
+    domain.includes(".") &&
+    domain.split(".").every(
+      (label) =>
+        label.length > 0 &&
+        label.length <= 63 &&
+        /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/iu.test(label),
+    )
+  );
+};
+const parseMailbox = (value) => {
+  const input = text(value);
+  const bracketed = input.match(/^(.+?)\s*<([^<>\s]+@[^<>\s]+)>$/u);
+  const email = text(bracketed?.[2] || input).toLowerCase();
+  const match = email.match(/^[^@\s]+@([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)$/iu);
+  return match && isDomainName(match[1]) ? { email, domain: normalizeHostname(match[1]) } : null;
+};
 const normalizeAppLinkPath = (value) => {
   const pattern = text(value);
   return pattern.startsWith("/") &&
@@ -211,7 +231,9 @@ const deriveOutboundDependencyIds = () => {
   addWhen(enabled("DASHSCOPE_API_KEY"), "dashscope");
   addWhen(enabled("LOCAL_MODEL_BASE_URL"), "local-model");
   addWhen(enabled("COZE_API_KEY", "COZE_BOT_ID"), "coze");
-  addWhen(enabled("SMTP_HOST"), "email-smtp");
+  const emailMode = text(environmentValues.get("EMAIL_MODE")).toLowerCase();
+  addWhen(emailMode === "smtp" && enabled("SMTP_HOST"), "email-smtp");
+  addWhen(emailMode === "api" && enabled("EMAIL_API_URL"), "email-api");
   addWhen(enabled("WEWORK_WEBHOOK_URL", "WEWORK_WEBHOOK_ALERT_URL"), "wework-webhook");
   addWhen(enabled("WEWORK_CORP_ID", "WEWORK_AGENT_ID"), "wework-app");
   return [...ids].sort();
@@ -232,6 +254,7 @@ const targetStorageInventory = storageObjectMigration.targetInventory || {};
 const migration = intake.migration || {};
 const operations = intake.operations || {};
 const externalEndpoints = intake.externalEndpoints || {};
+const emailDelivery = externalEndpoints.emailDelivery || {};
 const deployTarget = text(intake.deployTarget).toLowerCase();
 let environmentValues = new Map();
 let reportBinding = null;
@@ -266,6 +289,11 @@ const outboundDependencies = (
   .sort((left, right) => left.serviceId.localeCompare(right.serviceId));
 const outboundDependencyIds = outboundDependencies.map((item) => item.serviceId);
 const expectedOutboundDependencyIds = deriveOutboundDependencyIds();
+const configuredEmailMode = text(environmentValues.get("EMAIL_MODE")).toLowerCase();
+const emailEnabled = configuredEmailMode === "smtp" || configuredEmailMode === "api";
+const configuredEmailMailbox = parseMailbox(environmentValues.get("EMAIL_FROM"));
+const sendingDomain = normalizeHostname(emailDelivery.sendingDomain);
+const returnPathDomain = normalizeHostname(emailDelivery.returnPathDomain);
 
 add(
   "接入清单契约有效",
@@ -658,6 +686,20 @@ add(
   "predeploy/launch 至少登记一个真实、固定、非私网/保留/文档地址的 IPv4 出口；使用 NAT 网关时只登记 NAT 固定出口，不得登记容器或数据库私网地址",
 );
 add(
+  "邮件发送域、退信域和交付责任已绑定",
+  !resourceReady ||
+    !emailEnabled ||
+    (configuredEmailMailbox &&
+      sendingDomain === configuredEmailMailbox.domain &&
+      isDomainName(sendingDomain) &&
+      isDomainName(returnPathDomain) &&
+      isFilled(emailDelivery.owner) &&
+      !isPlaceholder(emailDelivery.owner) &&
+      isFilled(emailDelivery.evidenceReference) &&
+      !isPlaceholder(emailDelivery.evidenceReference)),
+  "启用邮件后，接入清单发送域必须与 EMAIL_FROM 一致，并登记退信域、责任人和受控 DNS/供应商证据；报告不记录邮箱或原始域名",
+);
+add(
   "外部依赖清单与正式环境启用能力完全一致",
   !resourceReady ||
     (new Set(outboundDependencyIds).size === outboundDependencyIds.length &&
@@ -740,6 +782,14 @@ if (resourceReady) {
       externalEndpoints.owner,
       externalEndpoints.clientDomainAllowlistOwner,
       externalEndpoints.evidenceReference,
+      ...(emailEnabled
+        ? [
+            emailDelivery.owner,
+            emailDelivery.sendingDomain,
+            emailDelivery.returnPathDomain,
+            emailDelivery.evidenceReference,
+          ]
+        : []),
       ...plannedCallbackUrls,
       ...plannedControlPlaneCallbacks.flatMap((item) => [item.integrationId, item.callbackUrl]),
       ...plannedClientDomainAllowlistEntries.flatMap((item) => [item.surfaceId, item.origin]),
@@ -842,6 +892,18 @@ if (launch) {
           item.providerSourceIpPolicyVerified,
       ),
     "必须从新服务器实测固定出口 IP，并对每个启用依赖完成 DNS/TLS、只读或沙箱鉴权冒烟，以及供应商来源 IP 白名单/无限制策略复核；不得用本机或旧服务器结果代替",
+  );
+  add(
+    "邮件域名信誉、退信投诉与真实投递已现场验收",
+    !emailEnabled ||
+      (emailDelivery.spfVerified === true &&
+        emailDelivery.dkimVerified === true &&
+        emailDelivery.dmarcVerified === true &&
+        emailDelivery.bounceHandlingVerified === true &&
+        emailDelivery.complaintHandlingVerified === true &&
+        emailDelivery.unsubscribeVerified === true &&
+        emailDelivery.deliverySmokeTestPassed === true),
+    "启用邮件后必须从新服务器完成 SPF、DKIM、DMARC、退信/投诉处理、退订链路和至少一封真实投递验收，禁止只验证 TCP 端口可连",
   );
 }
 
@@ -960,6 +1022,7 @@ if (resourceReady) {
     controlPlaneCallbacksFingerprint: fingerprint(plannedControlPlaneCallbacks),
     clientDomainAllowlistFingerprint: fingerprint(plannedClientDomainAllowlistEntries),
     outboundDependencyFingerprint: fingerprint(outboundDependencyIds),
+    emailSendingDomainFingerprint: fingerprint(emailEnabled ? sendingDomain : "disabled"),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -1004,6 +1067,9 @@ if (resourceReady) {
     controlPlaneCallbacksFingerprint: fingerprint(expectedControlPlaneCallbacks),
     clientDomainAllowlistFingerprint: fingerprint(expectedClientDomainAllowlistEntries),
     outboundDependencyFingerprint: fingerprint(expectedOutboundDependencyIds),
+    emailSendingDomainFingerprint: fingerprint(
+      emailEnabled ? configuredEmailMailbox?.domain || "invalid" : "disabled",
+    ),
   };
   const bindingFields = Object.keys(intakeBinding);
   const mismatchedBindingFields = bindingFields.filter(
@@ -1083,6 +1149,20 @@ const report = {
               item.credentialSmokeTestPassed &&
               item.providerSourceIpPolicyVerified,
           ),
+      }
+    : null,
+  emailDeliveryEvidence: launch && emailEnabled
+    ? {
+        sendingDomainFingerprint: fingerprint(sendingDomain),
+        returnPathDomainFingerprint: fingerprint(returnPathDomain),
+        verified:
+          emailDelivery.spfVerified === true &&
+          emailDelivery.dkimVerified === true &&
+          emailDelivery.dmarcVerified === true &&
+          emailDelivery.bounceHandlingVerified === true &&
+          emailDelivery.complaintHandlingVerified === true &&
+          emailDelivery.unsubscribeVerified === true &&
+          emailDelivery.deliverySmokeTestPassed === true,
       }
     : null,
   success: failures.length === 0,

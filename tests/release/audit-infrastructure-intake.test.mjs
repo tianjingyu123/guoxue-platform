@@ -1002,3 +1002,85 @@ test("launch 阶段拒绝漏登记启用依赖、保留地址和未完成的鉴�
     await rm(audit.root, { recursive: true, force: true });
   }
 });
+
+test("启用邮件后发送域与信誉验收必须绑定且报告不泄露原始域名", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "email-api",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.emailDelivery = {
+    owner: "邮件交付负责人",
+    sendingDomain: "mail.guoxue.cn",
+    returnPathDomain: "bounce.guoxue.cn",
+    evidenceReference: "CHANGE-20260802-MAIL",
+    spfVerified: true,
+    dkimVerified: true,
+    dmarcVerified: true,
+    bounceHandlingVerified: true,
+    complaintHandlingVerified: true,
+    unsubscribeVerified: true,
+    deliverySmokeTestPassed: true,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    EMAIL_MODE: "api",
+    EMAIL_API_URL: "https://mailer.guoxue.cn/v1/send",
+    EMAIL_API_KEY: "not-recorded",
+    EMAIL_FROM: "国学平台 <noreply@mail.guoxue.cn>",
+  });
+  try {
+    assert.equal(audit.result.status, 0, audit.result.stderr || audit.result.stdout);
+    assert.equal(audit.report.emailDeliveryEvidence.verified, true);
+    assert.equal(audit.report.outboundAccessEvidence.dependencyCount, 2);
+    const serialized = JSON.stringify(audit.report);
+    assert.equal(serialized.includes("mail.guoxue.cn"), false);
+    assert.equal(serialized.includes("bounce.guoxue.cn"), false);
+    assert.equal(serialized.includes("not-recorded"), false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("启用邮件后拒绝发送域错绑和未完成的投递治理", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "email-smtp",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.emailDelivery = {
+    owner: "邮件交付负责人",
+    sendingDomain: "old.guoxue.cn",
+    returnPathDomain: "bounce.guoxue.cn",
+    evidenceReference: "CHANGE-20260802-MAIL",
+    spfVerified: true,
+    dkimVerified: true,
+    dmarcVerified: false,
+    bounceHandlingVerified: true,
+    complaintHandlingVerified: false,
+    unsubscribeVerified: true,
+    deliverySmokeTestPassed: false,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    EMAIL_MODE: "smtp",
+    SMTP_HOST: "smtp.guoxue.cn",
+    EMAIL_FROM: "noreply@mail.guoxue.cn",
+  });
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /邮件发送域、退信域和交付责任已绑定/u);
+    assert.match(failures, /邮件域名信誉、退信投诉与真实投递已现场验收/u);
+    assert.match(failures, /正式环境与新基础设施接入清单完全绑定/u);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});

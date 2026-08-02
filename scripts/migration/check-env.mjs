@@ -107,6 +107,15 @@ function hasAny(values, keys) {
   return keys.some((key) => Boolean(values.get(key)));
 }
 
+function parseMailbox(value) {
+  const input = String(value || "").trim();
+  const bracketed = input.match(/^(.+?)\s*<([^<>\s]+@[^<>\s]+)>$/u);
+  const email = (bracketed?.[2] || input).trim().toLowerCase();
+  const match = email.match(/^[^@\s]+@([a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)$/iu);
+  if (!match || !match[1].includes(".")) return null;
+  return { email, domain: match[1].toLowerCase() };
+}
+
 const resolvedEnvFile = path.resolve(envFile);
 let envContent;
 try {
@@ -216,6 +225,65 @@ if (!allowPlaceholders) {
   }
   if (bigscreenBytes > 0 && bigscreenBytes < 32) {
     errors.push("BIGSCREEN_SECRET 必须至少 32 字节");
+  }
+}
+
+const emailMode = (values.get("EMAIL_MODE") || "").trim().toLowerCase();
+const emailConnectionKeys = [
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_USER",
+  "SMTP_PASS",
+  "EMAIL_API_URL",
+  "EMAIL_API_KEY",
+  "EMAIL_FROM",
+];
+const emailConnectionConfigured = hasAny(values, emailConnectionKeys);
+if (emailMode && !["smtp", "api", "disabled"].includes(emailMode)) {
+  errors.push("EMAIL_MODE 仅允许 smtp、api 或 disabled");
+}
+if (!emailMode && emailConnectionConfigured) {
+  errors.push("邮件连接已填写但 EMAIL_MODE 未明确指定为 smtp 或 api");
+}
+if (emailMode === "disabled" && emailConnectionConfigured) {
+  errors.push("EMAIL_MODE=disabled 时不得残留 SMTP、邮件 API 或发件人配置");
+}
+const emailFromMailbox = parseMailbox(values.get("EMAIL_FROM"));
+if ((emailMode === "smtp" || emailMode === "api") && !emailFromMailbox) {
+  errors.push("启用邮件时 EMAIL_FROM 必须是合法邮箱或“名称 <邮箱>”格式");
+}
+if (emailMode === "smtp") {
+  const smtpKeys = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "EMAIL_FROM"];
+  if (!hasAll(values, smtpKeys)) {
+    errors.push(`SMTP 邮件配置不完整：${smtpKeys.filter((key) => !values.get(key)).join(", ")}`);
+  }
+  const smtpPort = Number(values.get("SMTP_PORT"));
+  if (!Number.isInteger(smtpPort) || smtpPort < 1 || smtpPort > 65535) {
+    errors.push("SMTP_PORT 必须是 1-65535 的整数");
+  } else if (smtpPort !== 465) {
+    errors.push("当前内置 SMTP 客户端仅支持 465 隐式 TLS；STARTTLS 请改用受支持的邮件 API 通道");
+  }
+  if (
+    values.get("NODE_ENV") === "production" &&
+    (values.get("SMTP_TLS_REJECT_UNAUTHORIZED") || "").trim().toLowerCase() === "false"
+  ) {
+    errors.push("生产环境禁止 SMTP_TLS_REJECT_UNAUTHORIZED=false");
+  }
+}
+if (emailMode === "api") {
+  const apiKeys = ["EMAIL_API_URL", "EMAIL_API_KEY", "EMAIL_FROM"];
+  if (!hasAll(values, apiKeys)) {
+    errors.push(`邮件 API 配置不完整：${apiKeys.filter((key) => !values.get(key)).join(", ")}`);
+  }
+  const configuredEmailApiUrl = values.get("EMAIL_API_URL");
+  if (configuredEmailApiUrl) {
+    try {
+      if (new URL(configuredEmailApiUrl).protocol !== "https:") {
+        errors.push("生产邮件 API 必须使用 HTTPS");
+      }
+    } catch {
+      errors.push("EMAIL_API_URL 不是有效 URL");
+    }
   }
 }
 

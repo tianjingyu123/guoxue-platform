@@ -1830,6 +1830,42 @@ add(
   "迁移到新服务器后不能只证明环境变量已填写；必须登记固定公网出口，按正式启用能力逐项验证 DNS/TLS、最小鉴权请求和供应商来源 IP 策略，且报告只保留脱敏摘要",
 );
 add(
+  "新域名邮件发送具备协议、发件域信誉与真实投递门禁",
+  infrastructureIntakeExample.includes('"emailDelivery"') &&
+    infrastructureIntakeExample.includes('"spfVerified"') &&
+    infrastructureIntakeExample.includes('"complaintHandlingVerified"') &&
+    hasAll(infrastructureIntakeAuditor, [
+      "邮件发送域、退信域和交付责任已绑定",
+      "邮件域名信誉、退信投诉与真实投递已现场验收",
+      "emailDeliveryEvidence",
+    ]) &&
+    hasAll(infrastructureIntakeTest, [
+      "启用邮件后发送域与信誉验收必须绑定且报告不泄露原始域名",
+      "启用邮件后拒绝发送域错绑和未完成的投递治理",
+    ]) &&
+    hasAll(environmentChecker, [
+      "EMAIL_MODE 仅允许 smtp、api 或 disabled",
+      "SMTP 邮件配置不完整",
+      "生产邮件 API 必须使用 HTTPS",
+      "当前内置 SMTP 客户端仅支持 465",
+    ]) &&
+    hasAll(environmentCheckerTest, [
+      "SMTP一旦启用就必须具备完整凭据、合法端口和发件人",
+      "当前SMTP客户端拒绝587等非隐式TLS端口",
+      "邮件API必须显式使用HTTPS且配置完整",
+    ]) &&
+    hasAll(infrastructureHandoffChecklist, [
+      "SPF、DKIM、DMARC",
+      "至少一封真实投递",
+    ]) &&
+    hasAll(infrastructureMigrationManual, [
+      "EMAIL_MODE=smtp",
+      "465 隐式 TLS",
+      "投诉、退订",
+    ]),
+  "邮件不能只验证端口和密钥；发送协议、发件域、DNS 信誉、退信投诉、退订与真实投递必须在新服务器和新域名下共同验收，报告仅保留脱敏指纹",
+);
+add(
   "构建机候选门禁不会冒充最终生产上线 GO",
   !fullGateRunner.includes("完整上线门禁通过") &&
     hasAll(fullGateRunner, [

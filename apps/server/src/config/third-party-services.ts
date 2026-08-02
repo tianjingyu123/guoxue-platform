@@ -270,13 +270,24 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   },
   {
     key: "email_smtp", label: "邮件（SMTP）", category: "通知",
-    note: "系统邮件通知。用任意邮箱的SMTP服务，密码填『授权码』不是登录密码。",
+    note: "系统邮件通知。当前内置客户端使用 465 隐式 TLS；密码填『授权码』不是登录密码。启用时还必须完成 SPF、DKIM、DMARC、退信投诉与退订验收。",
     fields: [
+      S("mode", "发送模式", "EMAIL_MODE", false, "使用本通道时固定填写 smtp"),
       S("host", "SMTP 服务器", "SMTP_HOST", false, "邮箱服务商SMTP地址，如 smtp.qq.com / smtp.163.com / smtp.exmail.qq.com"),
-      S("port", "端口", "SMTP_PORT", false, "SSL用465，STARTTLS用587", "587"),
+      S("port", "端口", "SMTP_PORT", false, "当前内置客户端仅支持隐式 TLS 465", "465"),
       S("user", "账号", "SMTP_USER", false, "发信邮箱完整地址，如 noreply@yourdomain.com"),
       S("pass", "密码/授权码", "SMTP_PASS", true, "邮箱设置里开启SMTP后生成的『授权码』（非邮箱登录密码）"),
       S("from", "发件人", "EMAIL_FROM", false, "发件人显示，如 国学平台<noreply@yourdomain.com>"),
+    ],
+  },
+  {
+    key: "email_api", label: "邮件（HTTPS API）", category: "通知",
+    note: "适用于已开通事务邮件 API 的服务商。接口必须使用 HTTPS，发件域仍需完成 SPF、DKIM、DMARC、退信投诉与退订验收。",
+    fields: [
+      S("mode", "发送模式", "EMAIL_MODE", false, "使用本通道时固定填写 api"),
+      S("url", "发送接口", "EMAIL_API_URL", false, "服务商提供的 HTTPS 发信接口"),
+      S("apiKey", "API Key", "EMAIL_API_KEY", true, "事务邮件服务商生成的发送密钥"),
+      S("from", "发件人", "EMAIL_FROM", false, "已在服务商验证的发件人，如 国学平台<noreply@yourdomain.com>"),
     ],
   },
   {

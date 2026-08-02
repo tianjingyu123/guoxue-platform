@@ -26,6 +26,7 @@ describe("EmailService", () => {
     process.env.SMTP_PORT = "465";
     process.env.SMTP_USER = "test@example.com";
     process.env.SMTP_PASS = "password";
+    process.env.EMAIL_FROM = "国学平台 <noreply@example.com>";
 
     const mod = await buildModule();
     svc = mod.get(EmailService);
@@ -44,6 +45,21 @@ describe("EmailService", () => {
     expect(s.isConfigured()).toBe(false);
   });
 
+  it("SMTP缺少密码或合法发件人时应为未配置", async () => {
+    delete process.env.SMTP_PASS;
+    process.env.EMAIL_FROM = "not-an-email";
+    const mod = await buildModule();
+    const s = mod.get(EmailService);
+    expect(s.isConfigured()).toBe(false);
+  });
+
+  it("SMTP模式仅接受当前客户端支持的465隐式TLS端口", async () => {
+    process.env.SMTP_PORT = "587";
+    const mod = await buildModule();
+    const s = mod.get(EmailService);
+    expect(s.isConfigured()).toBe(false);
+  });
+
   it("未配置时send应返回错误", async () => {
     delete process.env.SMTP_HOST;
     delete process.env.SMTP_USER;
@@ -56,10 +72,29 @@ describe("EmailService", () => {
 
   it("API模式配置后应可用", async () => {
     process.env.EMAIL_MODE = "api";
+    process.env.EMAIL_API_URL = "https://mail.example.com/send";
     process.env.EMAIL_API_KEY = "test-api-key";
     const mod = await buildModule();
     const s = mod.get(EmailService);
     expect(s.isConfigured()).toBe(true);
+  });
+
+  it("API模式拒绝非HTTPS或无效接口", async () => {
+    process.env.EMAIL_MODE = "api";
+    process.env.EMAIL_API_URL = "http://mail.example.com/send";
+    process.env.EMAIL_API_KEY = "test-api-key";
+    const mod = await buildModule();
+    const s = mod.get(EmailService);
+    expect(s.isConfigured()).toBe(false);
+  });
+
+  it("未知邮件模式不得被误当成API模式", async () => {
+    process.env.EMAIL_MODE = "log";
+    process.env.EMAIL_API_URL = "https://mail.example.com/send";
+    process.env.EMAIL_API_KEY = "test-api-key";
+    const mod = await buildModule();
+    const s = mod.get(EmailService);
+    expect(s.isConfigured()).toBe(false);
   });
 
   describe("模板管理", () => {

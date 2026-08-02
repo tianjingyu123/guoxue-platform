@@ -88,12 +88,12 @@ class ServerConfig {
 
   // ─── 邮件 ───
   get emailMode(): string {
-    return process.env.EMAIL_MODE || "log";
+    return process.env.EMAIL_MODE || "disabled";
   }
   get smtp(): { host: string; port: number; user: string; pass: string } {
     return {
       host: process.env.SMTP_HOST || "",
-      port: parseInt(process.env.SMTP_PORT || "587", 10),
+      port: parseInt(process.env.SMTP_PORT || "465", 10),
       user: process.env.SMTP_USER || "",
       pass: process.env.SMTP_PASS || "",
     };
