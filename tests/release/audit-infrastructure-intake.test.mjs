@@ -596,6 +596,14 @@ test("已启用的腾讯云能力必须逐项登记同源固定控制台回调",
       callbackUrl: "https://api.guoxue.cn/api/v1/im/callback",
     },
   ];
+  intake.externalEndpoints.mediaDelivery = {
+    owner: "媒体交付负责人",
+    evidenceReference: "CHANGE-20260802-MEDIA",
+    livePushDomain: "push.guoxue.cn",
+    livePlayDomain: "play.guoxue.cn",
+    vodSubAppId: "12345",
+    trtcSdkAppId: "",
+  };
   const environment = completeEnvironment({
     VOD_SUB_APP_ID: "12345",
     LIVE_PUSH_DOMAIN: "push.guoxue.cn",
@@ -1335,6 +1343,169 @@ test("启用物流后拒绝错绑账号和不完整轨迹异常退货闭环", as
       failures,
       /首发物流供应商已完成真实运单、轨迹回调、异常件和退货联动闭环/u,
     );
+    assert.match(failures, /正式环境与新基础设施接入清单完全绑定/u);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("启用直播点播语音后生产资源与多端真实媒体闭环必须绑定且报告脱敏", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push(
+    {
+      serviceId: "tencent-im",
+      dnsTlsReachabilityVerified: true,
+      credentialSmokeTestPassed: true,
+      providerSourceIpPolicyVerified: true,
+    },
+    {
+      serviceId: "tencent-live",
+      dnsTlsReachabilityVerified: true,
+      credentialSmokeTestPassed: true,
+      providerSourceIpPolicyVerified: true,
+    },
+    {
+      serviceId: "tencent-vod",
+      dnsTlsReachabilityVerified: true,
+      credentialSmokeTestPassed: true,
+      providerSourceIpPolicyVerified: true,
+    },
+  );
+  intake.externalEndpoints.controlPlaneCallbacks = [
+    {
+      integrationId: "tencent-vod",
+      callbackUrl: "https://api.guoxue.cn/api/v1/videos/vod/callback",
+    },
+    {
+      integrationId: "tencent-live",
+      callbackUrl: "https://api.guoxue.cn/api/v1/live/callback",
+    },
+    {
+      integrationId: "tencent-live-audit",
+      callbackUrl: "https://api.guoxue.cn/api/v1/live/audit/callback",
+    },
+  ];
+  intake.externalEndpoints.mediaDelivery = {
+    owner: "媒体交付负责人",
+    evidenceReference: "CHANGE-20260802-MEDIA",
+    livePushDomain: "push.guoxue.cn",
+    livePlayDomain: "play.guoxue.cn",
+    vodSubAppId: "1500000000",
+    trtcSdkAppId: "1400000000",
+    liveProductionAccountVerified: true,
+    livePushVerified: true,
+    livePlaybackVerified: true,
+    liveCallbackVerified: true,
+    liveAuditCallbackVerified: true,
+    vodProductionAccountVerified: true,
+    vodUploadVerified: true,
+    vodTranscodeVerified: true,
+    vodPlaybackVerified: true,
+    vodCallbackVerified: true,
+    voiceProductionAccountVerified: true,
+    voiceWebVerified: true,
+    voiceMiniProgramVerified: true,
+    voiceAppVerified: true,
+    voicePermissionRecoveryVerified: true,
+    voiceWeakNetworkRecoveryVerified: true,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    LIVE_PUSH_DOMAIN: "push.guoxue.cn",
+    LIVE_PLAY_DOMAIN: "play.guoxue.cn",
+    VOD_SUB_APP_ID: "1500000000",
+    TRTC_SDK_APP_ID: "1400000000",
+  });
+  try {
+    assert.equal(audit.result.status, 0, audit.result.stderr || audit.result.stdout);
+    assert.equal(audit.report.mediaDeliveryEvidence.liveVerified, true);
+    assert.equal(audit.report.mediaDeliveryEvidence.vodVerified, true);
+    assert.equal(audit.report.mediaDeliveryEvidence.voiceVerified, true);
+    const serialized = JSON.stringify(audit.report);
+    assert.equal(serialized.includes("push.guoxue.cn"), false);
+    assert.equal(serialized.includes("1500000000"), false);
+    assert.equal(serialized.includes("1400000000"), false);
+    assert.equal(serialized.includes("CHANGE-20260802-MEDIA"), false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("启用直播点播语音后拒绝资源错绑和缺失多端真实媒体验收", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push(
+    {
+      serviceId: "tencent-im",
+      dnsTlsReachabilityVerified: true,
+      credentialSmokeTestPassed: true,
+      providerSourceIpPolicyVerified: true,
+    },
+    {
+      serviceId: "tencent-live",
+      dnsTlsReachabilityVerified: true,
+      credentialSmokeTestPassed: true,
+      providerSourceIpPolicyVerified: true,
+    },
+    {
+      serviceId: "tencent-vod",
+      dnsTlsReachabilityVerified: true,
+      credentialSmokeTestPassed: true,
+      providerSourceIpPolicyVerified: true,
+    },
+  );
+  intake.externalEndpoints.controlPlaneCallbacks = [
+    {
+      integrationId: "tencent-vod",
+      callbackUrl: "https://api.guoxue.cn/api/v1/videos/vod/callback",
+    },
+    {
+      integrationId: "tencent-live",
+      callbackUrl: "https://api.guoxue.cn/api/v1/live/callback",
+    },
+    {
+      integrationId: "tencent-live-audit",
+      callbackUrl: "https://api.guoxue.cn/api/v1/live/audit/callback",
+    },
+  ];
+  intake.externalEndpoints.mediaDelivery = {
+    owner: "媒体交付负责人",
+    evidenceReference: "CHANGE-20260802-MEDIA",
+    livePushDomain: "wrong.guoxue.cn",
+    livePlayDomain: "play.guoxue.cn",
+    vodSubAppId: "1599999999",
+    trtcSdkAppId: "1499999999",
+    liveProductionAccountVerified: false,
+    livePushVerified: true,
+    livePlaybackVerified: false,
+    liveCallbackVerified: false,
+    liveAuditCallbackVerified: false,
+    vodProductionAccountVerified: false,
+    vodUploadVerified: true,
+    vodTranscodeVerified: false,
+    vodPlaybackVerified: false,
+    vodCallbackVerified: false,
+    voiceProductionAccountVerified: false,
+    voiceWebVerified: true,
+    voiceMiniProgramVerified: false,
+    voiceAppVerified: false,
+    voicePermissionRecoveryVerified: false,
+    voiceWeakNetworkRecoveryVerified: false,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    LIVE_PUSH_DOMAIN: "push.guoxue.cn",
+    LIVE_PLAY_DOMAIN: "play.guoxue.cn",
+    VOD_SUB_APP_ID: "1500000000",
+    TRTC_SDK_APP_ID: "1400000000",
+  });
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /直播、点播与实时语音生产资源和验收责任已绑定/u);
+    assert.match(failures, /直播、点播与实时语音已完成对应多端真实媒体闭环/u);
     assert.match(failures, /正式环境与新基础设施接入清单完全绑定/u);
   } finally {
     await rm(audit.root, { recursive: true, force: true });

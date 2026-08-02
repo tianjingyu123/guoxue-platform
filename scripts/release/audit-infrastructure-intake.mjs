@@ -258,6 +258,7 @@ const emailDelivery = externalEndpoints.emailDelivery || {};
 const smsDelivery = externalEndpoints.smsDelivery || {};
 const paymentDelivery = externalEndpoints.paymentDelivery || {};
 const logisticsDelivery = externalEndpoints.logisticsDelivery || {};
+const mediaDelivery = externalEndpoints.mediaDelivery || {};
 const deployTarget = text(intake.deployTarget).toLowerCase();
 let environmentValues = new Map();
 let reportBinding = null;
@@ -337,6 +338,26 @@ const logisticsEnabled = configuredLogisticsProviders.length > 0;
 const configuredPrimaryLogisticsProvider = configuredLogisticsProviders.find(
   (item) => item.providerId === text(logisticsDelivery.providerId).toLowerCase(),
 );
+const liveEnabled = enabled("LIVE_PUSH_DOMAIN", "LIVE_PLAY_DOMAIN");
+const vodEnabled = enabled("VOD_SUB_APP_ID");
+const voiceEnabled = enabled("TRTC_SDK_APP_ID");
+const mediaEnabled = liveEnabled || vodEnabled || voiceEnabled;
+const configuredMediaIdentity = {
+  livePushDomain: liveEnabled
+    ? normalizeHostname(environmentValues.get("LIVE_PUSH_DOMAIN"))
+    : "",
+  livePlayDomain: liveEnabled
+    ? normalizeHostname(environmentValues.get("LIVE_PLAY_DOMAIN"))
+    : "",
+  vodSubAppId: vodEnabled ? text(environmentValues.get("VOD_SUB_APP_ID")) : "",
+  trtcSdkAppId: voiceEnabled ? text(environmentValues.get("TRTC_SDK_APP_ID")) : "",
+};
+const plannedMediaIdentity = {
+  livePushDomain: liveEnabled ? normalizeHostname(mediaDelivery.livePushDomain) : "",
+  livePlayDomain: liveEnabled ? normalizeHostname(mediaDelivery.livePlayDomain) : "",
+  vodSubAppId: vodEnabled ? text(mediaDelivery.vodSubAppId) : "",
+  trtcSdkAppId: voiceEnabled ? text(mediaDelivery.trtcSdkAppId) : "",
+};
 
 add(
   "接入清单契约有效",
@@ -786,6 +807,17 @@ add(
   "启用物流后必须从正式环境已配置供应商中指定首发供应商，精确绑定账号身份、履约责任人与受控证据编号；报告只保存指纹",
 );
 add(
+  "直播、点播与实时语音生产资源和验收责任已绑定",
+  !resourceReady ||
+    !mediaEnabled ||
+    (JSON.stringify(plannedMediaIdentity) === JSON.stringify(configuredMediaIdentity) &&
+      isFilled(mediaDelivery.owner) &&
+      !isPlaceholder(mediaDelivery.owner) &&
+      isFilled(mediaDelivery.evidenceReference) &&
+      !isPlaceholder(mediaDelivery.evidenceReference)),
+  "启用直播、点播或实时语音后，必须把正式推拉流域名、VOD 子应用或 TRTC 应用与接入清单精确绑定，并登记验收责任人与受控证据编号；报告只保存指纹",
+);
+add(
   "外部依赖清单与正式环境启用能力完全一致",
   !resourceReady ||
     (new Set(outboundDependencyIds).size === outboundDependencyIds.length &&
@@ -899,6 +931,17 @@ if (resourceReady) {
             logisticsDelivery.providerId,
             logisticsDelivery.accountReference,
             logisticsDelivery.evidenceReference,
+          ]
+        : []),
+      ...(mediaEnabled
+        ? [
+            mediaDelivery.owner,
+            mediaDelivery.evidenceReference,
+            ...(liveEnabled
+              ? [mediaDelivery.livePushDomain, mediaDelivery.livePlayDomain]
+              : []),
+            ...(vodEnabled ? [mediaDelivery.vodSubAppId] : []),
+            ...(voiceEnabled ? [mediaDelivery.trtcSdkAppId] : []),
           ]
         : []),
       ...plannedCallbackUrls,
@@ -1055,6 +1098,30 @@ if (launch) {
         logisticsDelivery.duplicateCallbackReplayVerified === true),
     "正式开放实物发货前必须用所绑定生产账号完成受控真实运单、轨迹订阅、回调验签与状态落库，并验证异常件告警、退货退款联动和重复回调重放；只查询示例单号不能替代闭环",
   );
+  add(
+    "直播、点播与实时语音已完成对应多端真实媒体闭环",
+    !mediaEnabled ||
+      ((!liveEnabled ||
+        (mediaDelivery.liveProductionAccountVerified === true &&
+          mediaDelivery.livePushVerified === true &&
+          mediaDelivery.livePlaybackVerified === true &&
+          mediaDelivery.liveCallbackVerified === true &&
+          mediaDelivery.liveAuditCallbackVerified === true)) &&
+        (!vodEnabled ||
+          (mediaDelivery.vodProductionAccountVerified === true &&
+            mediaDelivery.vodUploadVerified === true &&
+            mediaDelivery.vodTranscodeVerified === true &&
+            mediaDelivery.vodPlaybackVerified === true &&
+            mediaDelivery.vodCallbackVerified === true)) &&
+        (!voiceEnabled ||
+          (mediaDelivery.voiceProductionAccountVerified === true &&
+            mediaDelivery.voiceWebVerified === true &&
+            mediaDelivery.voiceMiniProgramVerified === true &&
+            mediaDelivery.voiceAppVerified === true &&
+            mediaDelivery.voicePermissionRecoveryVerified === true &&
+            mediaDelivery.voiceWeakNetworkRecoveryVerified === true))),
+    "正式开放对应入口前，直播必须完成真实推流、横竖屏播放及开停播/审核回调；点播必须完成上传、转码、播放和回调；实时语音必须完成 H5、小程序、App 真机通话、权限拒绝恢复与弱网重连",
+  );
 }
 
 if (resourceReady) {
@@ -1199,6 +1266,7 @@ if (resourceReady) {
           }
         : "disabled",
     ),
+    mediaDeliveryFingerprint: fingerprint(mediaEnabled ? plannedMediaIdentity : "disabled"),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -1272,6 +1340,7 @@ if (resourceReady) {
           }
         : "disabled",
     ),
+    mediaDeliveryFingerprint: fingerprint(mediaEnabled ? configuredMediaIdentity : "disabled"),
   };
   const bindingFields = Object.keys(intakeBinding);
   const mismatchedBindingFields = bindingFields.filter(
@@ -1419,6 +1488,33 @@ const report = {
           logisticsDelivery.deliveryExceptionVerified === true &&
           logisticsDelivery.returnRefundLinkageVerified === true &&
           logisticsDelivery.duplicateCallbackReplayVerified === true,
+      }
+    : null,
+  mediaDeliveryEvidence: launch && mediaEnabled
+    ? {
+        configurationFingerprint: fingerprint(plannedMediaIdentity),
+        liveVerified:
+          !liveEnabled ||
+          (mediaDelivery.liveProductionAccountVerified === true &&
+            mediaDelivery.livePushVerified === true &&
+            mediaDelivery.livePlaybackVerified === true &&
+            mediaDelivery.liveCallbackVerified === true &&
+            mediaDelivery.liveAuditCallbackVerified === true),
+        vodVerified:
+          !vodEnabled ||
+          (mediaDelivery.vodProductionAccountVerified === true &&
+            mediaDelivery.vodUploadVerified === true &&
+            mediaDelivery.vodTranscodeVerified === true &&
+            mediaDelivery.vodPlaybackVerified === true &&
+            mediaDelivery.vodCallbackVerified === true),
+        voiceVerified:
+          !voiceEnabled ||
+          (mediaDelivery.voiceProductionAccountVerified === true &&
+            mediaDelivery.voiceWebVerified === true &&
+            mediaDelivery.voiceMiniProgramVerified === true &&
+            mediaDelivery.voiceAppVerified === true &&
+            mediaDelivery.voicePermissionRecoveryVerified === true &&
+            mediaDelivery.voiceWeakNetworkRecoveryVerified === true),
       }
     : null,
   success: failures.length === 0,

@@ -1701,6 +1701,28 @@ add(
     ]),
   "物流上线不能只证明查询接口或回调 URL 可达；必须绑定正式账号并保留真实运单、轨迹落库、异常件、退货退款和重复回调重放的脱敏证据",
 );
+add(
+  "直播点播与实时语音具备生产资源绑定和多端真实媒体门禁",
+  hasAll(environmentChecker, [
+    "LIVE_PUSH_DOMAIN",
+    "LIVE_PLAY_DOMAIN",
+    "VOD_SUB_APP_ID",
+    "TRTC_SDK_APP_ID",
+    "TRTC_SECRET_KEY",
+  ]) &&
+    hasAll(infrastructureIntakeAudit, [
+      "mediaDelivery",
+      "直播、点播与实时语音生产资源和验收责任已绑定",
+      "直播、点播与实时语音已完成对应多端真实媒体闭环",
+      "voiceWeakNetworkRecoveryVerified",
+      "mediaDeliveryEvidence",
+    ]) &&
+    hasAll(infrastructureIntakeTest, [
+      "启用直播点播语音后生产资源与多端真实媒体闭环必须绑定且报告脱敏",
+      "启用直播点播语音后拒绝资源错绑和缺失多端真实媒体验收",
+    ]),
+  "媒体能力上线不能只证明域名和控制台回调存在；必须绑定正式资源，并保留直播推拉流、VOD 上传转码播放及语音多端真机与弱网恢复的脱敏证据",
+);
 
 const clientBuilder = read("scripts/release/build-clients-with-env.mjs");
 const clientArtifactAudit = read("scripts/release/audit-client-artifacts.mjs");
