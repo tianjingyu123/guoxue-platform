@@ -15,6 +15,11 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8").replace(/\r\n?/gu, "\n");
 }
 
+function readOptional(relativePath) {
+  const absolutePath = path.join(repoRoot, relativePath);
+  return fs.existsSync(absolutePath) ? read(relativePath) : "";
+}
+
 function hasAll(source, snippets) {
   return snippets.every((snippet) => source.includes(snippet));
 }
@@ -385,16 +390,22 @@ add(
     hasAll(businessIntegrity, [
       "未验证的外键或检查约束",
       "无效或未就绪索引",
-      "微信 unionId 跨账号冲突",
       "微信认证缺少 openId",
       "密码认证缺少 credential",
-      "同一用户存在重复认证提供方",
       "库存流水前后余额不守恒",
       "经营中商家缺少上线必需资质",
       "已审核文章缺少首图",
       "pg_get_serial_sequence",
       "current_value < maximum_value",
-    ]),
+    ]) &&
+    (hasAll(businessIntegrity, ["微信 unionId 跨账号冲突", "同一用户存在重复认证提供方"]) ||
+      hasAll(businessIntegrity, [
+        "认证作用域身份缺少 namespace 或 subject",
+        "认证作用域身份重复或跨账号冲突",
+        "微信开放平台锚点跨账号冲突",
+        "有限权益余额为负或版本号非法",
+        "已退款订单的发放权益缺少 REVOKE 冲正",
+      ])),
   "迁移不仅核对表行数，还必须阻止身份归属冲突、认证凭据缺失、失效约束、负库存、账实不符、缺资质商家、缺图文章和序列倒退上线",
 );
 
@@ -1788,9 +1799,7 @@ const predeployEvidenceAggregator = read("scripts/release/aggregate-predeploy-ev
 const predeployDecisionVerifier = read("scripts/release/verify-predeploy-decision.mjs");
 const predeployDecisionVerifierTest = read("tests/release/verify-predeploy-decision.test.mjs");
 const predeployReadinessWorkflow = read(".github/workflows/predeploy-readiness.yml");
-const predeployReadinessWorkflowTest = read(
-  "tests/release/predeploy-readiness-workflow.test.mjs",
-);
+const predeployReadinessWorkflowTest = read("tests/release/predeploy-readiness-workflow.test.mjs");
 
 const baseProductionCompose = read("docker/docker-compose.prod.yml");
 const tencentProductionCompose = read("docker/docker-compose.tencent.yml");
@@ -1828,6 +1837,9 @@ const prismaSchema = read("apps/server/prisma/schema.prisma");
 const authProviderUniquenessMigration = read(
   "apps/server/prisma/migrations/20260802000000_enforce_auth_provider_uniqueness/migration.sql",
 );
+const unifiedAccountEntitlementMigration = readOptional(
+  "apps/server/prisma/migrations/20260802030000_unified_accounts_and_entitlements/migration.sql",
+);
 const redisService = read("apps/server/src/redis/redis.service.ts");
 const storageInventoryBuilder = read("scripts/release/build-storage-inventory.mjs");
 const storageInventoryComparer = read("scripts/release/compare-storage-inventories.mjs");
@@ -1862,21 +1874,23 @@ add(
   "迁域身份绑定与一次性会话令牌具备服务端防重放保护",
   hasAll(authService, [
     "AUTH_IDENTITY_CONFLICT",
-    "assertWechatIdentityCompatible",
     "this.redis.getDel(`refresh:${refreshToken}`)",
     "this.redis.getDel(`handoff:${code}`)",
   ]) &&
+    (authService.includes("assertWechatIdentityCompatible") ||
+      hasAll(authService, [
+        "linkWechatIdentityToUser",
+        "provider_namespace_subject",
+        "WECHAT_UNION",
+      ])) &&
     hasAll(redisService, ["async getDel(", "redis.call('GET'", "redis.call('DEL'"]) &&
     hasAll(authServiceTest, [
       "手机号用户绑定已归属其他账号的 openId 时拒绝登录",
       "同一 refreshToken 只能成功消费一次",
     ]) &&
-    hasAll(businessIntegrity, [
-      "微信 unionId 跨账号冲突",
-      "微信认证缺少 openId",
-      "密码认证缺少 credential",
-      "同一用户存在重复认证提供方",
-    ]),
+    hasAll(businessIntegrity, ["微信认证缺少 openId", "密码认证缺少 credential"]) &&
+    (hasAll(businessIntegrity, ["微信 unionId 跨账号冲突", "同一用户存在重复认证提供方"]) ||
+      hasAll(businessIntegrity, ["认证作用域身份重复或跨账号冲突", "微信开放平台锚点跨账号冲突"])),
   "微信身份归属冲突必须显式失败；refresh token 与跨端握手码必须原子一次性消费，恢复后的历史认证数据也必须通过完整性门禁",
 );
 add(
@@ -2535,13 +2549,21 @@ add(
 console.log("基础设施迁移门禁");
 add(
   "账号换绑、认证唯一性与撤销时钟具备数据库级保护",
-  prismaSchema.includes("@@unique([userId, provider])") &&
+  ((prismaSchema.includes("@@unique([userId, provider])") &&
     hasAll(authProviderUniquenessMigration, [
       'GROUP BY "userId", provider',
       "HAVING count(*) > 1",
       'CREATE UNIQUE INDEX IF NOT EXISTS "Auth_userId_provider_key"',
     ]) &&
-    !authProviderUniquenessMigration.includes("DROP INDEX") &&
+    !authProviderUniquenessMigration.includes("DROP INDEX")) ||
+    (prismaSchema.includes("@@unique([provider, namespace, subject])") &&
+      hasAll(unifiedAccountEntitlementMigration, [
+        'ADD COLUMN IF NOT EXISTS "namespace"',
+        'ADD COLUMN IF NOT EXISTS "subject"',
+        'WHERE "subject" IS NULL',
+        'DROP INDEX IF EXISTS "Auth_userId_provider_key"',
+        'CREATE UNIQUE INDEX IF NOT EXISTS "Auth_provider_namespace_subject_key"',
+      ]))) &&
     hasAll(authService, [
       "sessionIssuedAt: Date.now()",
       "this.prisma.$transaction(async (tx)",
@@ -2560,7 +2582,7 @@ add(
       "毫秒级签发时间避免同一秒重新登录被误判为旧会话",
       "仍拒绝毫秒级撤销时刻之前签发的新格式令牌",
     ]),
-  "同一用户同一认证方式只能保留一条记录；手机号身份和用户资料必须事务提交，换绑后旧会话失效，同时不能因 JWT 秒级 iat 误伤同秒重新登录",
+  "手机号等单作用域身份保持唯一，微信身份按应用作用域绑定并由开放平台锚点跨端归一；换绑必须事务提交并撤销旧会话，同时不能因 JWT 秒级 iat 误伤同秒重新登录",
 );
 
 const serverConfigSource = read("apps/server/src/config/server-config.ts");

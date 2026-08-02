@@ -50,6 +50,7 @@ SELECT pg_temp.assert_zero(
   $query$
 );
 
+-- unionId 字段作为旧数据和排障冗余依然必须保持跨账号一致；新模型还会额外检查 WECHAT_UNION 锚点。
 SELECT pg_temp.assert_zero(
   '微信 unionId 跨账号冲突',
   $query$
@@ -85,18 +86,78 @@ SELECT pg_temp.assert_zero(
   $query$
 );
 
-SELECT pg_temp.assert_zero(
-  '同一用户存在重复认证提供方',
-  $query$
-    SELECT count(*)
-    FROM (
-      SELECT "userId", provider
-      FROM "Auth"
-      GROUP BY "userId", provider
-      HAVING count(*) > 1
-    ) duplicate_record
-  $query$
-);
+-- 兼容旧版“每用户每提供方一行”和新版“提供方 + 应用作用域 + 稳定主体”身份模型。
+-- 新模型允许同一用户在多个微信应用中各有一条 WECHAT 身份，不得再按 userId + provider 误报。
+DO $$
+DECLARE
+  scoped_identity_enabled boolean;
+BEGIN
+  SELECT
+    EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'Auth' AND column_name = 'namespace'
+    )
+    AND EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'Auth' AND column_name = 'subject'
+    )
+  INTO scoped_identity_enabled;
+
+  IF scoped_identity_enabled THEN
+    PERFORM pg_temp.assert_zero(
+      '认证作用域身份缺少 namespace 或 subject',
+      $query$
+        SELECT count(*)
+        FROM "Auth"
+        WHERE NULLIF(btrim(COALESCE("namespace", '')), '') IS NULL
+           OR NULLIF(btrim(COALESCE("subject", '')), '') IS NULL
+      $query$
+    );
+
+    PERFORM pg_temp.assert_zero(
+      '认证作用域身份重复或跨账号冲突',
+      $query$
+        SELECT count(*)
+        FROM (
+          SELECT provider, "namespace", "subject"
+          FROM "Auth"
+          GROUP BY provider, "namespace", "subject"
+          HAVING count(*) > 1 OR count(DISTINCT "userId") > 1
+        ) conflict_record
+      $query$
+    );
+
+    PERFORM pg_temp.assert_zero(
+      '微信开放平台锚点跨账号冲突',
+      $query$
+        SELECT count(*)
+        FROM (
+          SELECT "namespace", "subject"
+          FROM "Auth"
+          WHERE provider = 'WECHAT_UNION'
+          GROUP BY "namespace", "subject"
+          HAVING count(DISTINCT "userId") > 1
+        ) conflict_record
+      $query$
+    );
+  ELSE
+    PERFORM pg_temp.assert_zero(
+      '同一用户存在重复认证提供方',
+      $query$
+        SELECT count(*)
+        FROM (
+          SELECT "userId", provider
+          FROM "Auth"
+          GROUP BY "userId", provider
+          HAVING count(*) > 1
+        ) duplicate_record
+      $query$
+    );
+  END IF;
+END;
+$$;
 
 SELECT pg_temp.assert_zero(
   '商品或 SKU 负库存',
@@ -149,6 +210,44 @@ SELECT pg_temp.assert_zero(
     WHERE status = 'REFUNDED' AND "refundedAt" IS NULL
   $query$
 );
+
+-- 权益中心为增量上线：旧库尚未创建权益表时跳过，新库则强制检查余额和退款冲正。
+DO $$
+BEGIN
+  IF to_regclass('public."EntitlementBalance"') IS NOT NULL THEN
+    PERFORM pg_temp.assert_zero(
+      '有限权益余额为负或版本号非法',
+      $query$
+        SELECT count(*)
+        FROM "EntitlementBalance"
+        WHERE (NOT unlimited AND quantity < 0)
+           OR version < 0
+      $query$
+    );
+  END IF;
+
+  IF to_regclass('public."EntitlementLedger"') IS NOT NULL THEN
+    PERFORM pg_temp.assert_zero(
+      '已退款订单的发放权益缺少 REVOKE 冲正',
+      $query$
+        SELECT count(*)
+        FROM "EntitlementLedger" grant_record
+        JOIN "Order" order_record
+          ON order_record.id = grant_record."sourceId"
+        WHERE grant_record.action = 'GRANT'
+          AND grant_record."sourceType" = 'ORDER'
+          AND order_record.status = 'REFUNDED'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM "EntitlementLedger" revoke_record
+            WHERE revoke_record.action = 'REVOKE'
+              AND revoke_record."reversesLedgerId" = grant_record.id
+          )
+      $query$
+    );
+  END IF;
+END;
+$$;
 
 SELECT pg_temp.assert_zero(
   '内容归因类型与内容 ID 不成对',
