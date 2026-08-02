@@ -367,9 +367,7 @@ if (deployTarget === "tencent") {
   }
   const tencentRegion = (values.get("TENCENT_REGION") || "").trim().toLowerCase();
   const tencentClbId = (values.get("TENCENT_CLB_ID") || "").trim();
-  const tencentCdnDomain = (values.get("TENCENT_CDN_DOMAIN") || "")
-    .trim()
-    .toLowerCase();
+  const tencentCdnDomain = (values.get("TENCENT_CDN_DOMAIN") || "").trim().toLowerCase();
   const tencentCertificateDomain = (values.get("TENCENT_CERTIFICATE_DOMAIN") || "")
     .trim()
     .toLowerCase();
@@ -527,14 +525,17 @@ if (cookieDomain && publicDomain && !publicDomain.endsWith(cookieDomain)) {
   warnings.push("COOKIE_DOMAIN 与 PUBLIC_DOMAIN 不在同一主域，请确认登录态策略");
 }
 
-const smsKeys = [
-  "TENCENT_SECRET_ID",
-  "TENCENT_SECRET_KEY",
+const smsCredentialKeys =
+  tencentCredentialMode === "instance-role"
+    ? ["TENCENT_CVM_ROLE_NAME"]
+    : ["TENCENT_SECRET_ID", "TENCENT_SECRET_KEY"];
+const smsKeys = [...smsCredentialKeys, "SMS_APP_ID", "SMS_SIGN_NAME", "SMS_TEMPLATE_ID"];
+const smsConnectionKeys = [
   "SMS_APP_ID",
   "SMS_SIGN_NAME",
   "SMS_TEMPLATE_ID",
+  "SMS_CHURN_TEMPLATE_ID",
 ];
-const smsConnectionKeys = ["SMS_APP_ID", "SMS_SIGN_NAME", "SMS_TEMPLATE_ID", "SMS_CHURN_TEMPLATE_ID"];
 if (hasAny(values, smsConnectionKeys)) {
   const missingSmsKeys = smsKeys.filter((key) => !values.get(key));
   if (missingSmsKeys.length > 0) {
@@ -546,7 +547,10 @@ if (hasAny(values, smsConnectionKeys)) {
   if (values.get("SMS_TEMPLATE_ID") && !/^\d{1,20}$/u.test(values.get("SMS_TEMPLATE_ID"))) {
     errors.push("SMS_TEMPLATE_ID 必须是审核通过的纯数字验证码模板 ID");
   }
-  if (values.get("SMS_CHURN_TEMPLATE_ID") && !/^\d{1,20}$/u.test(values.get("SMS_CHURN_TEMPLATE_ID"))) {
+  if (
+    values.get("SMS_CHURN_TEMPLATE_ID") &&
+    !/^\d{1,20}$/u.test(values.get("SMS_CHURN_TEMPLATE_ID"))
+  ) {
     errors.push("SMS_CHURN_TEMPLATE_ID 必须是审核通过的纯数字召回模板 ID");
   }
   const smsSignName = (values.get("SMS_SIGN_NAME") || "").trim();
@@ -627,14 +631,14 @@ if (fullCheck) {
 
   const miniAppIds = ["WECHAT_MINI_APP_ID", "MINIPROGRAM_APP_ID", "WECHAT_MP_APP_ID"];
   const miniAppSecrets = ["MINIPROGRAM_APP_SECRET", "WECHAT_APP_SECRET"];
-  const configuredMiniAppIds = miniAppIds
-    .map((key) => values.get(key))
-    .filter(Boolean);
+  const configuredMiniAppIds = miniAppIds.map((key) => values.get(key)).filter(Boolean);
   if (!hasAny(values, miniAppIds) || !hasAny(values, miniAppSecrets)) {
     errors.push("微信小程序登录配置不完整：需显式配置小程序 AppID 与 MINIPROGRAM_APP_SECRET");
   }
   if (new Set(configuredMiniAppIds).size > 1) {
-    errors.push("微信小程序 AppID 别名配置不一致：WECHAT_MINI_APP_ID、MINIPROGRAM_APP_ID 与 WECHAT_MP_APP_ID 不得指向不同应用");
+    errors.push(
+      "微信小程序 AppID 别名配置不一致：WECHAT_MINI_APP_ID、MINIPROGRAM_APP_ID 与 WECHAT_MP_APP_ID 不得指向不同应用",
+    );
   }
 
   try {
@@ -702,7 +706,9 @@ if (fullCheck) {
     },
   ];
   for (const channel of paymentChannels.filter((item) => item.configured && !item.complete)) {
-    errors.push(`${channel.id}生产配置不完整：必须具备签名材料、正式回调与退款闭环所需配置，且不得使用沙箱模式`);
+    errors.push(
+      `${channel.id}生产配置不完整：必须具备签名材料、正式回调与退款闭环所需配置，且不得使用沙箱模式`,
+    );
   }
   if (!paymentChannels.some((channel) => channel.complete)) {
     errors.push("尚未形成一条完整支付通道，完整上线前必须至少完成一条通道联调");

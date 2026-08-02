@@ -181,11 +181,30 @@ export class HealthService {
   private async checkSms(): Promise<HealthCheck> {
     const appId = process.env.SMS_APP_ID;
     if (!appId) return { status: "unconfigured" };
-    // SMS 无免费探测端点，仅验证配置完整
-    if (process.env.SMS_SIGN_NAME && process.env.SMS_TEMPLATE_ID) {
-      return { status: "ok" };
+    if (!process.env.SMS_SIGN_NAME || !process.env.SMS_TEMPLATE_ID) {
+      return { status: "unconfigured", error: "SMS 配置不完整" };
     }
-    return { status: "unconfigured", error: "SMS 配置不完整" };
+
+    const credentialMode = getTencentCredentialMode();
+    if (credentialMode === "static") {
+      const secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID;
+      const secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY;
+      return secretId && secretKey
+        ? { status: "ok" }
+        : { status: "unconfigured", error: "SMS 静态凭据未配置" };
+    }
+
+    if (!process.env.TENCENT_CVM_ROLE_NAME?.trim()) {
+      return { status: "unconfigured", error: "SMS 实例角色未配置" };
+    }
+    try {
+      const start = Date.now();
+      await getTencentInstanceRoleCredentialProvider().getCredentials();
+      return { status: "ok", latencyMs: Date.now() - start };
+    } catch (error) {
+      this.logger.warn("SMS 实例角色凭据检查失败", (error as Error).message);
+      return { status: "degraded", error: (error as Error).message };
+    }
   }
 
   private async checkCos(): Promise<HealthCheck> {

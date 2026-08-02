@@ -19,6 +19,7 @@ export function tc3Sign(params: {
   version: string;
   payload: Record<string, unknown>;
   region?: string;
+  securityToken?: string;
 }): {
   authorization: string;
   timestamp: number;
@@ -26,7 +27,16 @@ export function tc3Sign(params: {
   payloadStr: string;
   headers: Record<string, string>;
 } {
-  const { secretId, secretKey, service, action, version, payload: params_, region } = params;
+  const {
+    secretId,
+    secretKey,
+    service,
+    action,
+    version,
+    payload: params_,
+    region,
+    securityToken,
+  } = params;
   const timestamp = Math.floor(Date.now() / 1000);
   const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
   const payloadStr = JSON.stringify(params_);
@@ -44,13 +54,14 @@ export function tc3Sign(params: {
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json; charset=utf-8",
-    "Host": host,
+    Host: host,
     "X-TC-Action": action,
     "X-TC-Version": version,
     "X-TC-Timestamp": String(timestamp),
-    "Authorization": authorization,
+    Authorization: authorization,
   };
   if (region) headers["X-TC-Region"] = region;
+  if (securityToken) headers["X-TC-Token"] = securityToken;
 
   return { authorization, timestamp, host, payloadStr, headers };
 }

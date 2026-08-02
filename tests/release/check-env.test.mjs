@@ -75,12 +75,7 @@ test("完整上线拒绝只有下单配置而缺少商户私钥或退款回调�
   const incomplete = createFullEnvironment()
     .replace(/^WECHAT_PAY_PRIVATE_KEY=.*\r?\n/mu, "")
     .replace(/^WECHAT_PAY_REFUND_NOTIFY_URL=.*\r?\n/mu, "");
-  const result = await runChecker(
-    incomplete,
-    "--full",
-    "--deploy-target",
-    "standard",
-  );
+  const result = await runChecker(incomplete, "--full", "--deploy-target", "standard");
   assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stderr, /微信支付生产配置不完整/u);
   assert.match(result.stderr, /尚未形成一条完整支付通道/u);
@@ -182,6 +177,18 @@ test("短信配置一旦启用就必须具备完整凭据和合法审核标识",
     `${createEnvironment()}TENCENT_SECRET_ID=test-id\nTENCENT_SECRET_KEY=test-key\nSMS_APP_ID=1400000000\nSMS_SIGN_NAME=国学平台\nSMS_TEMPLATE_ID=123456\nSMS_CHURN_TEMPLATE_ID=654321\n`,
   );
   assert.equal(valid.status, 0, `${valid.stdout}\n${valid.stderr}`);
+});
+
+test("短信在实例角色模式下不要求长期静态密钥", async () => {
+  const environment = `${createEnvironment()
+    .replace("TENCENT_CREDENTIAL_MODE=static", "TENCENT_CREDENTIAL_MODE=instance-role")
+    .replace(/^COS_SECRET_ID=.*\r?\n/mu, "")
+    .replace(
+      /^COS_SECRET_KEY=.*\r?\n/mu,
+      "",
+    )}TENCENT_CVM_ROLE_NAME=RebugxProductionCvmRole\nSMS_APP_ID=1400000000\nSMS_SIGN_NAME=国学平台\nSMS_TEMPLATE_ID=123456\n`;
+  const result = await runChecker(environment, "--deploy-target", "standard");
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
 
 test("完整腾讯云上线强制使用受控的数据库 CA 证书绝对路径", async () => {
