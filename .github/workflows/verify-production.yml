@@ -23,6 +23,9 @@ on:
           - "24"
           - "48"
 
+permissions:
+  contents: read
+
 concurrency:
   group: verify-production-cutover
   cancel-in-progress: false

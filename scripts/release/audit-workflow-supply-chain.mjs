@@ -29,6 +29,23 @@ function isImmutableActionReference(reference) {
   return /^[^@\s]+@[0-9a-f]{40}$/iu.test(reference);
 }
 
+function readTopLevelPermissions(lines) {
+  const start = lines.findIndex((line) => /^permissions:\s*(?:#.*)?$/u.test(line));
+  if (start < 0) return null;
+
+  const permissions = new Map();
+  for (let index = start + 1; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (!line.trim() || /^\s*#/u.test(line)) continue;
+    if (!/^\s/u.test(line)) break;
+
+    const match = line.match(/^\s{2}([a-z-]+):\s*(read|write|none)\s*(?:#.*)?$/u);
+    if (match) permissions.set(match[1], match[2]);
+  }
+
+  return permissions;
+}
+
 export function auditWorkflowSupplyChain(repoRoot = defaultRepoRoot) {
   const resolvedRoot = path.resolve(repoRoot);
   const workflowFiles = listWorkflowFiles(path.join(resolvedRoot, ".github", "workflows"));
@@ -42,6 +59,22 @@ export function auditWorkflowSupplyChain(repoRoot = defaultRepoRoot) {
   for (const workflowFile of workflowFiles) {
     const relativePath = normalizeRelativePath(resolvedRoot, workflowFile);
     const lines = fs.readFileSync(workflowFile, "utf8").replace(/\r\n?/gu, "\n").split("\n");
+
+    const topLevelPermissions = readTopLevelPermissions(lines);
+    if (!topLevelPermissions) {
+      errors.push(`${relativePath} 必须显式设置顶层 permissions，禁止继承仓库默认令牌权限`);
+    } else {
+      if (topLevelPermissions.get("contents") !== "read") {
+        errors.push(`${relativePath} 顶层 permissions 必须包含 contents: read`);
+      }
+      for (const [scope, access] of topLevelPermissions) {
+        if (access === "write") {
+          errors.push(
+            `${relativePath} 顶层 permissions 不得授予 ${scope}: write；写权限必须缩小到具体 job`,
+          );
+        }
+      }
+    }
 
     lines.forEach((line, index) => {
       const match = line.match(/^\s*(?:-\s*)?uses:\s*(.+?)\s*$/u);

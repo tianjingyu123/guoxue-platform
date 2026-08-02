@@ -26,7 +26,7 @@ function withRepository(workflows, callback) {
 test("允许锁定提交 SHA、容器摘要和仓库内本地 Action", () => {
   withRepository(
     {
-      "release.yml": `jobs:\n  verify:\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)} # v4\n      - uses: ./github-actions/verify\n      - uses: docker://alpine@sha256:${"b".repeat(64)}\n`,
+      "release.yml": `permissions:\n  contents: read\n\njobs:\n  verify:\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)} # v4\n      - uses: ./github-actions/verify\n      - uses: docker://alpine@sha256:${"b".repeat(64)}\n`,
     },
     (root) => {
       const result = auditWorkflowSupplyChain(root);
@@ -40,7 +40,7 @@ test("允许锁定提交 SHA、容器摘要和仓库内本地 Action", () => {
 test("拒绝可变版本标签、分支和未锁定容器镜像", () => {
   withRepository(
     {
-      "release.yml": `jobs:\n  verify:\n    steps:\n      - uses: actions/checkout@v4\n      - uses: owner/action@main\n      - uses: docker://alpine:latest\n`,
+      "release.yml": `permissions:\n  contents: read\n\njobs:\n  verify:\n    steps:\n      - uses: actions/checkout@v4\n      - uses: owner/action@main\n      - uses: docker://alpine:latest\n`,
     },
     (root) => {
       const result = auditWorkflowSupplyChain(root);
@@ -48,6 +48,23 @@ test("拒绝可变版本标签、分支和未锁定容器镜像", () => {
       assert.match(result.errors[0], /actions\/checkout@v4/u);
       assert.match(result.errors[1], /owner\/action@main/u);
       assert.match(result.errors[2], /docker:\/\/alpine:latest/u);
+    },
+  );
+});
+
+test("拒绝缺失顶层权限限制或在顶层授予写权限", () => {
+  withRepository(
+    {
+      "missing.yml": `jobs:\n  verify:\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)}\n`,
+      "broad.yml": `permissions:\n  contents: write\n  packages: write\n\njobs:\n  publish:\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)}\n`,
+    },
+    (root) => {
+      const result = auditWorkflowSupplyChain(root);
+      assert.equal(result.errors.length, 4);
+      assert.ok(result.errors.some((error) => error.includes("必须显式设置顶层 permissions")));
+      assert.ok(result.errors.some((error) => error.includes("必须包含 contents: read")));
+      assert.ok(result.errors.some((error) => error.includes("contents: write")));
+      assert.ok(result.errors.some((error) => error.includes("packages: write")));
     },
   );
 });

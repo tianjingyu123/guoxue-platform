@@ -38,6 +38,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 concurrency:
   group: deploy-${{ inputs.environment }}
   cancel-in-progress: false
