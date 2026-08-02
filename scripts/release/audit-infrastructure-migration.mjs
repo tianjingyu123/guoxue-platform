@@ -2110,6 +2110,8 @@ add(
       'infrastructure.stage === "predeploy"',
       "environment.deployTarget === deployTarget",
       "blockers: sourceBlockers.map",
+      "阻断项（${report.blockers.length}）",
+      "[${blocker.source}] ${blocker.check}",
       "详情见脱敏源报告",
     ]) &&
     hasAll(predeployEvidenceTest, [

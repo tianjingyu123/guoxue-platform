@@ -219,6 +219,11 @@ test("基础设施阻断项名称进入统一报告但不复制详情或配置�
     const report = JSON.parse(raw);
     assert.ok(report.blockers.some((blocker) => blocker.check === "对象存储签名链接已实测"));
     assert.doesNotMatch(raw, /secret-value/u);
+    assert.match(
+      result.stdout,
+      /\[infrastructure-intake-predeploy\.json\] 对象存储签名链接已实测/u,
+    );
+    assert.doesNotMatch(result.stdout, /secret-value/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

@@ -276,5 +276,11 @@ writeFileSync(resolvedReportFile, `${JSON.stringify(report, null, 2)}\n`, {
 
 console.log(`预接入聚合判定：${decision}`);
 console.log(`汇总：${report.summary.passed}/${report.summary.total} 通过`);
+if (decision !== "GO") {
+  console.log(`阻断项（${report.blockers.length}）：`);
+  for (const blocker of report.blockers) {
+    console.log(`- [${blocker.source}] ${blocker.check}`);
+  }
+}
 console.log(`脱敏判定报告：${resolvedReportFile}`);
 if (decision !== "GO") process.exit(1);
