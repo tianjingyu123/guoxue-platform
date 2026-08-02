@@ -2363,16 +2363,33 @@ const privateInfrastructureIntakeIgnoreRules = [
   "config/release/infrastructure-intake.new-target.json",
   "config/release/infrastructure-intake.new-target.json.backup-*",
 ];
+const privateBuildContextIgnoreRulePairs = [
+  ["/artifacts/", "artifacts"],
+  ["release-evidence/*.json", "release-evidence"],
+  ["docker/.runtime-current.env", "docker/.runtime-current.env"],
+  ["config/release/store-release-evidence.json", "config/release/store-release-evidence.json"],
+  ["uploads/", "uploads"],
+  ["*.key", "*.key"],
+  ["*.crt", "*.crt"],
+  ["docker/nginx/ssl/", "docker/nginx/ssl"],
+  ["docker/monitoring/.generated/", "docker/monitoring/.generated"],
+  [
+    "apps/server/scripts/classics-prod-payload.json*",
+    "apps/server/scripts/classics-prod-payload.json*",
+  ],
+];
+const gitIgnoreRules = gitIgnore.split(/\r?\n/u);
+const dockerIgnoreRules = dockerIgnore.split(/\r?\n/u);
 add(
   "本地验收材料不会混入源码基线或容器构建上下文",
-  gitIgnore.split(/\r?\n/u).includes("/artifacts/") &&
-    dockerIgnore.split(/\r?\n/u).includes("artifacts") &&
+  privateBuildContextIgnoreRulePairs.every(
+    ([gitRule, dockerRule]) =>
+      gitIgnoreRules.includes(gitRule) && dockerIgnoreRules.includes(dockerRule),
+  ) &&
     privateInfrastructureIntakeIgnoreRules.every(
-      (rule) =>
-        gitIgnore.split(/\r?\n/u).includes(rule) &&
-        dockerIgnore.split(/\r?\n/u).includes(rule),
+      (rule) => gitIgnoreRules.includes(rule) && dockerIgnoreRules.includes(rule),
     ),
-  "构建包、截图、旧包审计副本、迁移演练证据与新旧目标私有接入清单保留在本机，但必须同时从 Git 和 Docker 上下文排除",
+  "构建包、用户上传、证书、运行时与商店验收证据、古籍生产载荷及新旧目标私有接入清单保留在本机，但必须同时从 Git 和 Docker 上下文排除",
 );
 add(
   "五端客户端构建强制注入生产公开配置",
