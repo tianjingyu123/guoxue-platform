@@ -1800,6 +1800,36 @@ add(
   "迁移新域名后必须重新生成并无重定向部署 iOS/Android 关联文件，绑定既有包身份和正式签名，最后用双端真机冷启动验证",
 );
 add(
+  "新服务器外部依赖具备固定出站身份、逐服务鉴权冒烟与来源白名单门禁",
+  infrastructureIntakeExample.includes('"expectedEgressIpv4"') &&
+    infrastructureIntakeExample.includes('"outboundDependencies"') &&
+    hasAll(infrastructureIntakeAuditor, [
+      "isPublicIpv4",
+      "deriveOutboundDependencyIds",
+      "新服务器固定公网出口身份已登记",
+      "外部依赖清单与正式环境启用能力完全一致",
+      "新服务器出口身份与全部外部依赖已现场验收",
+      "outboundAccessEvidence",
+      "outboundDependencyFingerprint",
+    ]) &&
+    hasAll(infrastructureIntakeTest, [
+      "外部依赖必须按正式环境启用能力逐项验收且报告不泄露出口 IP",
+      "采购阶段允许在新服务器到位前暂不登记实际出口地址",
+      "launch 阶段拒绝漏登记启用依赖、保留地址和未完成的鉴权冒烟",
+    ]) &&
+    hasAll(infrastructureHandoffChecklist, [
+      "新服务器出站依赖交接",
+      "providerSourceIpPolicyVerified",
+      "不落原始 IP、服务地址或任何 Secret",
+    ]) &&
+    hasAll(infrastructureMigrationManual, [
+      "新服务器出站身份",
+      "不得为了探测发送真实短信",
+      "来源 IP 白名单",
+    ]),
+  "迁移到新服务器后不能只证明环境变量已填写；必须登记固定公网出口，按正式启用能力逐项验证 DNS/TLS、最小鉴权请求和供应商来源 IP 策略，且报告只保留脱敏摘要",
+);
+add(
   "构建机候选门禁不会冒充最终生产上线 GO",
   !fullGateRunner.includes("完整上线门禁通过") &&
     hasAll(fullGateRunner, [

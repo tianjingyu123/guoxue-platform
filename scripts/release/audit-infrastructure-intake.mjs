@@ -131,6 +131,91 @@ const parseServiceUrl = (value) => {
   }
 };
 const fingerprint = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const isPublicIpv4 = (value) => {
+  const parts = text(value)
+    .split(".")
+    .map((part) => Number(part));
+  if (
+    parts.length !== 4 ||
+    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+  ) {
+    return false;
+  }
+  const [a, b, c] = parts;
+  if (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    a >= 224 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 192 && b === 0) ||
+    (a === 192 && b === 0 && c === 2) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    (a === 198 && b === 51 && c === 100) ||
+    (a === 203 && b === 0 && c === 113)
+  ) {
+    return false;
+  }
+  return true;
+};
+const enabled = (...keys) => keys.some((key) => {
+  const value = text(environmentValues.get(key));
+  return value && !isPlaceholder(value);
+});
+const deriveOutboundDependencyIds = () => {
+  const ids = new Set();
+  const addWhen = (condition, id) => {
+    if (condition) ids.add(id);
+  };
+  addWhen(
+    deployTarget === "tencent" ||
+      enabled(
+        "TENCENT_SECRET_ID",
+        "TENCENT_CVM_ROLE_NAME",
+        "COS_BUCKET",
+        "IM_APP_ID",
+        "TRTC_SDK_APP_ID",
+        "LIVE_PUSH_DOMAIN",
+        "LIVE_PLAY_DOMAIN",
+        "VOD_SUB_APP_ID",
+        "SMS_APP_ID",
+        "TENCENT_MAP_KEY",
+      ),
+    "tencent-cloud",
+  );
+  addWhen(enabled("IM_APP_ID", "TRTC_SDK_APP_ID"), "tencent-im");
+  addWhen(enabled("LIVE_PUSH_DOMAIN", "LIVE_PLAY_DOMAIN"), "tencent-live");
+  addWhen(enabled("VOD_SUB_APP_ID"), "tencent-vod");
+  addWhen(enabled("SMS_APP_ID"), "tencent-sms");
+  addWhen(enabled("TENCENT_MAP_KEY"), "tencent-map");
+  addWhen(
+    enabled(
+      "WECHAT_APP_ID",
+      "WECHAT_OFFICIAL_APPID",
+      "WECHAT_MINI_APP_ID",
+      "WECHAT_MP_APP_ID",
+      "MINIPROGRAM_APP_ID",
+    ),
+    "wechat-open",
+  );
+  addWhen(enabled("WECHAT_PAY_MCH_ID"), "wechat-pay");
+  addWhen(enabled("ALIPAY_APP_ID"), "alipay");
+  addWhen(enabled("UNIONPAY_MER_ID"), "unionpay");
+  addWhen(enabled("HUIFU_MERCHANT_ID", "HUIFU_APP_ID"), "huifu");
+  addWhen(enabled("KUAIDI100_API_KEY"), "kuaidi100");
+  addWhen(enabled("DEEPSEEK_API_KEY"), "deepseek");
+  addWhen(enabled("ANTHROPIC_API_KEY"), "anthropic");
+  addWhen(enabled("DASHSCOPE_API_KEY"), "dashscope");
+  addWhen(enabled("LOCAL_MODEL_BASE_URL"), "local-model");
+  addWhen(enabled("COZE_API_KEY", "COZE_BOT_ID"), "coze");
+  addWhen(enabled("SMTP_HOST"), "email-smtp");
+  addWhen(enabled("WEWORK_WEBHOOK_URL", "WEWORK_WEBHOOK_ALERT_URL"), "wework-webhook");
+  addWhen(enabled("WEWORK_CORP_ID", "WEWORK_AGENT_ID"), "wework-app");
+  return [...ids].sort();
+};
 const resourceReady = stage === "predeploy" || stage === "launch";
 const launch = stage === "launch";
 const server = intake.server || {};
@@ -159,6 +244,28 @@ if (envFileArg) {
     process.exit(2);
   }
 }
+const expectedEgressIpv4 = [
+  ...new Set(
+    (Array.isArray(externalEndpoints.expectedEgressIpv4)
+      ? externalEndpoints.expectedEgressIpv4
+      : []
+    ).map((value) => text(value)),
+  ),
+].sort();
+const outboundDependencies = (
+  Array.isArray(externalEndpoints.outboundDependencies)
+    ? externalEndpoints.outboundDependencies
+    : []
+)
+  .map((item) => ({
+    serviceId: text(item?.serviceId).toLowerCase(),
+    dnsTlsReachabilityVerified: item?.dnsTlsReachabilityVerified === true,
+    credentialSmokeTestPassed: item?.credentialSmokeTestPassed === true,
+    providerSourceIpPolicyVerified: item?.providerSourceIpPolicyVerified === true,
+  }))
+  .sort((left, right) => left.serviceId.localeCompare(right.serviceId));
+const outboundDependencyIds = outboundDependencies.map((item) => item.serviceId);
+const expectedOutboundDependencyIds = deriveOutboundDependencyIds();
 
 add(
   "接入清单契约有效",
@@ -534,9 +641,29 @@ add(
     !isPlaceholder(externalEndpoints.owner) &&
     isFilled(externalEndpoints.clientDomainAllowlistOwner) &&
     !isPlaceholder(externalEndpoints.clientDomainAllowlistOwner) &&
+    isFilled(externalEndpoints.outboundAccessOwner) &&
+    !isPlaceholder(externalEndpoints.outboundAccessOwner) &&
+    isFilled(externalEndpoints.outboundEvidenceReference) &&
+    !isPlaceholder(externalEndpoints.outboundEvidenceReference) &&
     isFilled(externalEndpoints.evidenceReference) &&
     !isPlaceholder(externalEndpoints.evidenceReference),
-  "必须明确第三方控制台、客户端域名白名单责任人和受控变更证据编号",
+  "必须明确第三方控制台、客户端域名白名单、出站依赖责任人和受控变更证据编号",
+);
+add(
+  "新服务器固定公网出口身份已登记",
+  !resourceReady ||
+    (expectedEgressIpv4.length > 0 &&
+      expectedEgressIpv4.every(isPublicIpv4) &&
+      new Set(expectedEgressIpv4).size === expectedEgressIpv4.length),
+  "predeploy/launch 至少登记一个真实、固定、非私网/保留/文档地址的 IPv4 出口；使用 NAT 网关时只登记 NAT 固定出口，不得登记容器或数据库私网地址",
+);
+add(
+  "外部依赖清单与正式环境启用能力完全一致",
+  !resourceReady ||
+    (new Set(outboundDependencyIds).size === outboundDependencyIds.length &&
+      outboundDependencyIds.length === expectedOutboundDependencyIds.length &&
+      outboundDependencyIds.every((id, index) => id === expectedOutboundDependencyIds[index])),
+  "predeploy/launch 会按正式环境变量推导腾讯云、微信、支付、物流、AI、邮件和企业微信依赖；缺项、多项或重复项都会阻断",
 );
 add(
   "第三方回调地址规划只指向新 API 入口",
@@ -703,6 +830,19 @@ if (launch) {
       externalEndpoints.clientDomainAllowlistVerified === true,
     "切流前必须完成已启用支付/物流/直播等控制台换址、回调可达性与验签重放、客户端 request/upload/download/socket/业务域名验收",
   );
+  add(
+    "新服务器出口身份与全部外部依赖已现场验收",
+    externalEndpoints.egressIdentityVerified === true &&
+      externalEndpoints.outboundDependencySmokeTestsPassed === true &&
+      outboundDependencies.length === expectedOutboundDependencyIds.length &&
+      outboundDependencies.every(
+        (item) =>
+          item.dnsTlsReachabilityVerified &&
+          item.credentialSmokeTestPassed &&
+          item.providerSourceIpPolicyVerified,
+      ),
+    "必须从新服务器实测固定出口 IP，并对每个启用依赖完成 DNS/TLS、只读或沙箱鉴权冒烟，以及供应商来源 IP 白名单/无限制策略复核；不得用本机或旧服务器结果代替",
+  );
 }
 
 if (resourceReady) {
@@ -819,6 +959,7 @@ if (resourceReady) {
     callbackUrlsFingerprint: fingerprint(plannedCallbackUrls),
     controlPlaneCallbacksFingerprint: fingerprint(plannedControlPlaneCallbacks),
     clientDomainAllowlistFingerprint: fingerprint(plannedClientDomainAllowlistEntries),
+    outboundDependencyFingerprint: fingerprint(outboundDependencyIds),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -862,6 +1003,7 @@ if (resourceReady) {
     ),
     controlPlaneCallbacksFingerprint: fingerprint(expectedControlPlaneCallbacks),
     clientDomainAllowlistFingerprint: fingerprint(expectedClientDomainAllowlistEntries),
+    outboundDependencyFingerprint: fingerprint(expectedOutboundDependencyIds),
   };
   const bindingFields = Object.keys(intakeBinding);
   const mismatchedBindingFields = bindingFields.filter(
@@ -924,6 +1066,23 @@ const report = {
         deviceVerificationPassed:
           appDeepLinksIos.deviceVerificationPassed === true &&
           appDeepLinksAndroid.deviceVerificationPassed === true,
+      }
+    : null,
+  outboundAccessEvidence: launch
+    ? {
+        expectedEgressIpv4Fingerprint: fingerprint(expectedEgressIpv4),
+        egressAddressCount: expectedEgressIpv4.length,
+        dependencyIdsFingerprint: fingerprint(outboundDependencyIds),
+        dependencyCount: outboundDependencies.length,
+        verified:
+          externalEndpoints.egressIdentityVerified === true &&
+          externalEndpoints.outboundDependencySmokeTestsPassed === true &&
+          outboundDependencies.every(
+            (item) =>
+              item.dnsTlsReachabilityVerified &&
+              item.credentialSmokeTestPassed &&
+              item.providerSourceIpPolicyVerified,
+          ),
       }
     : null,
   success: failures.length === 0,

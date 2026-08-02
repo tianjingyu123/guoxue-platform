@@ -123,6 +123,10 @@
   "externalEndpoints": {
     "owner": "待填写",
     "clientDomainAllowlistOwner": "待填写",
+    "outboundAccessOwner": "待填写",
+    "expectedEgressIpv4": [],
+    "outboundDependencies": [],
+    "outboundEvidenceReference": "pending-change-ticket",
     "callbackUrls": [],
     "controlPlaneCallbacks": [],
     "clientDomainAllowlistEntries": [
@@ -156,6 +160,8 @@
     "callbackAuthenticationVerified": false,
     "callbackRetryIdempotencyVerified": false,
     "clientDomainAllowlistVerified": false,
+    "egressIdentityVerified": false,
+    "outboundDependencySmokeTestsPassed": false,
     "evidenceReference": "pending-change-ticket"
   },
   "operations": {

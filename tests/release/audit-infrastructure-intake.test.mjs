@@ -136,6 +136,17 @@ function completeIntake() {
     externalEndpoints: {
       owner: "第三方平台配置负责人",
       clientDomainAllowlistOwner: "客户端域名负责人",
+      outboundAccessOwner: "外部服务出站负责人",
+      expectedEgressIpv4: ["93.184.216.34"],
+      outboundDependencies: [
+        {
+          serviceId: "tencent-cloud",
+          dnsTlsReachabilityVerified: true,
+          credentialSmokeTestPassed: true,
+          providerSourceIpPolicyVerified: true,
+        },
+      ],
+      outboundEvidenceReference: "CHANGE-20260802-OUTBOUND",
       callbackUrls: [
         "https://api.guoxue.cn/api/v1/shop/pay/notify",
         "https://api.guoxue.cn/api/v1/shop/refund/notify",
@@ -151,6 +162,8 @@ function completeIntake() {
       callbackAuthenticationVerified: true,
       callbackRetryIdempotencyVerified: true,
       clientDomainAllowlistVerified: true,
+      egressIdentityVerified: true,
+      outboundDependencySmokeTestsPassed: true,
       evidenceReference: "CHANGE-20260802-001",
     },
     operations: {
@@ -545,6 +558,26 @@ test("第三方回调仍指向旧域名或与正式环境登记不一致时阻�
 
 test("已启用的腾讯云能力必须逐项登记同源固定控制台回调", async () => {
   const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push(
+    {
+      serviceId: "tencent-im",
+      dnsTlsReachabilityVerified: true,
+      credentialSmokeTestPassed: true,
+      providerSourceIpPolicyVerified: true,
+    },
+    {
+      serviceId: "tencent-live",
+      dnsTlsReachabilityVerified: true,
+      credentialSmokeTestPassed: true,
+      providerSourceIpPolicyVerified: true,
+    },
+    {
+      serviceId: "tencent-vod",
+      dnsTlsReachabilityVerified: true,
+      credentialSmokeTestPassed: true,
+      providerSourceIpPolicyVerified: true,
+    },
+  );
   intake.externalEndpoints.controlPlaneCallbacks = [
     {
       integrationId: "tencent-vod",
@@ -597,6 +630,12 @@ test("已启用的腾讯云能力必须逐项登记同源固定控制台回调",
 
 test("启用微信客户端时必须逐项登记与正式环境绑定的合法域名", async () => {
   const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "wechat-open",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
   intake.externalEndpoints.clientDomainAllowlistEntries = [
     { surfaceId: "wechat-mini-request-api", origin: "https://api.guoxue.cn" },
     { surfaceId: "wechat-mini-upload-api", origin: "https://api.guoxue.cn" },
@@ -897,6 +936,68 @@ test("App 深链未完成客户端能力与双端真机验证时阻断 launch", 
     assert.equal(audit.report.appDeepLinkEvidence.deviceVerificationPassed, false);
     assert.equal(JSON.stringify(audit.report).includes("A1B2C3D4E5"), false);
     assert.equal(JSON.stringify(audit.report).includes("AA:BB:CC"), false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("外部依赖必须按正式环境启用能力逐项验收且报告不泄露出口 IP", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "deepseek",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    DEEPSEEK_API_KEY: "real-but-not-recorded",
+  });
+  try {
+    assert.equal(audit.result.status, 0, audit.result.stderr || audit.result.stdout);
+    assert.equal(audit.report.outboundAccessEvidence.verified, true);
+    assert.equal(audit.report.outboundAccessEvidence.dependencyCount, 2);
+    const serialized = JSON.stringify(audit.report);
+    assert.equal(serialized.includes("93.184.216.34"), false);
+    assert.equal(serialized.includes("real-but-not-recorded"), false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("采购阶段允许在新服务器到位前暂不登记实际出口地址", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.expectedEgressIpv4 = [];
+  intake.externalEndpoints.outboundDependencies = [];
+  intake.externalEndpoints.egressIdentityVerified = false;
+  intake.externalEndpoints.outboundDependencySmokeTestsPassed = false;
+  const audit = await runAudit(intake, "procurement");
+  try {
+    assert.equal(audit.result.status, 0, audit.result.stderr || audit.result.stdout);
+    assert.equal(audit.report.outboundAccessEvidence, null);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("launch 阶段拒绝漏登记启用依赖、保留地址和未完成的鉴权冒烟", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.expectedEgressIpv4 = ["203.0.113.8"];
+  intake.externalEndpoints.outboundDependencies[0].credentialSmokeTestPassed = false;
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    SMS_APP_ID: "1400000000",
+  });
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /固定公网出口身份/u);
+    assert.match(failures, /外部依赖清单/u);
+    assert.match(failures, /全部外部依赖/u);
+    assert.equal(JSON.stringify(audit.report).includes("203.0.113.8"), false);
   } finally {
     await rm(audit.root, { recursive: true, force: true });
   }
