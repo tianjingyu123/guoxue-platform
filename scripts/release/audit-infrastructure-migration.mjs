@@ -1511,6 +1511,9 @@ const infrastructureIntakeTemplate = read("config/release/infrastructure-intake.
 const infrastructureIntakeAudit = read("scripts/release/audit-infrastructure-intake.mjs");
 const infrastructureIntakePreparer = read("scripts/release/prepare-infrastructure-intake.mjs");
 const infrastructureIntakeTest = read("tests/release/audit-infrastructure-intake.test.mjs");
+const infrastructureIntakePrepareTest = read(
+  "tests/release/prepare-infrastructure-intake.test.mjs",
+);
 const infrastructureOperationsGuide = read(
   "docs/operations/新基础设施与正式凭据交接清单-20260731.md",
 );
@@ -1568,6 +1571,22 @@ add(
     read("package.json").includes('"release:prepare-infra-intake"') &&
     read("package.json").includes("tests/release/prepare-infrastructure-intake.test.mjs"),
   "新资源到位后必须从受控模板按 standard/tencent 初始化，不能覆盖已填写清单或复用旧环境配置",
+);
+add(
+  "已登记真实资源的私有接入清单可无损升级到最新模板",
+  hasAll(infrastructureIntakePreparer, [
+    'hasFlag("--upgrade-existing")',
+    "mergeMissingFields",
+    "copyFileSync(outputPath, backupPath)",
+    "existing.deployTarget !== deployTarget",
+  ]) &&
+    hasAll(infrastructureIntakePrepareTest, [
+      "升级现有接入清单时只补缺失字段并保留原值与备份",
+      "升级时拒绝改变现有部署架构",
+    ]) &&
+    hasAll(infrastructureOperationsGuide, ["--upgrade-existing", "只补缺失字段"]) &&
+    hasAll(infrastructureHandoff, ["--upgrade-existing", "禁止删除重建"]),
+  "模板新增门禁字段时必须先备份并只补缺项，禁止覆盖、改架构或人工重抄已登记资源",
 );
 add(
   "正式环境必须与新数据库、缓存、域名和对象存储接入清单逐项绑定",

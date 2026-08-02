@@ -29,3 +29,4 @@ kiki-prompt*.md
 *.keystore
 *.mobileprovision
 config/release/infrastructure-intake.json
+config/release/infrastructure-intake.json.backup-*

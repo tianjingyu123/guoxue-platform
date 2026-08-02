@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -68,6 +68,66 @@ test("缺少明确部署架构时拒绝生成接入清单", async () => {
     );
     assert.equal(result.status, 2);
     assert.match(result.stderr, /standard 或 tencent/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("升级现有接入清单时只补缺失字段并保留原值与备份", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "gx-infra-upgrade-"));
+  const output = path.join(root, "intake.json");
+  const existing = {
+    schemaVersion: 2,
+    kind: "guoxue-new-infrastructure-intake",
+    deployTarget: "tencent",
+    server: {
+      provider: "已登记供应商",
+      region: "ap-beijing",
+    },
+  };
+  try {
+    await writeFile(output, `${JSON.stringify(existing, null, 2)}\n`, "utf8");
+    const result = spawnSync(
+      process.execPath,
+      [preparer, "--deploy-target", "tencent", "--output", output, "--upgrade-existing"],
+      { cwd: projectRoot, encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+
+    const upgraded = JSON.parse(await readFile(output, "utf8"));
+    assert.equal(upgraded.server.provider, "已登记供应商");
+    assert.equal(upgraded.server.region, "ap-beijing");
+    assert.ok(upgraded.appDeepLinks);
+    assert.ok(upgraded.migration.publicCompliance);
+
+    const backups = (await readdir(root)).filter((name) => name.startsWith("intake.json.backup-"));
+    assert.equal(backups.length, 1);
+    assert.deepEqual(JSON.parse(await readFile(path.join(root, backups[0]), "utf8")), existing);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("升级时拒绝改变现有部署架构", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "gx-infra-upgrade-target-"));
+  const output = path.join(root, "intake.json");
+  try {
+    await writeFile(
+      output,
+      `${JSON.stringify({
+        schemaVersion: 2,
+        kind: "guoxue-new-infrastructure-intake",
+        deployTarget: "tencent",
+      })}\n`,
+      "utf8",
+    );
+    const result = spawnSync(
+      process.execPath,
+      [preparer, "--deploy-target", "standard", "--output", output, "--upgrade-existing"],
+      { cwd: projectRoot, encoding: "utf8" },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /部署架构/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

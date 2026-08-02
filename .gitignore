@@ -91,6 +91,7 @@ apps/server/scripts/classics-prod-payload.json*
 release-evidence/*.json
 docker/.runtime-current.env
 config/release/infrastructure-intake.json
+config/release/infrastructure-intake.json.backup-*
 
 # 本机 WorkBuddy/KIKI 云资源操作提示（保留文件，不进入源码基线）
 /kiki-prompt*.md
