@@ -911,7 +911,7 @@
             width="90"
           >
             <template #default="{ row }">
-              {{ ({ VIDEO: '视频', AUDIO: '音频', TEXT: '图文', EBOOK: '电子书', COMBO: '组合' } as Record<string, string>)[row.type] || row.type }}
+              {{ courseTypeLabel(row.type) }}
             </template>
           </el-table-column>
           <el-table-column
@@ -1223,7 +1223,7 @@
                 size="small"
                 :type="row.status === 'LIVE' ? 'danger' : row.status === 'SCHEDULED' ? 'warning' : 'info'"
               >
-                {{ ({ LIVE: '进行中', ENDED: '已结束', SCHEDULED: '预约中' } as Record<string, string>)[row.status] || row.status }}
+                {{ liveStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -2061,6 +2061,21 @@ const memberRoles = [
   { value: "VOLUNTEER", label: "志愿者" }, { value: "MEMBER", label: "成员" },
 ];
 const memberRoleLabel = (r: string) => memberRoles.find(x => x.value === r)?.label || r;
+
+const courseTypeLabels: Record<string, string> = {
+  VIDEO: "视频",
+  AUDIO: "音频",
+  TEXT: "图文",
+  EBOOK: "电子书",
+  COMBO: "组合",
+};
+const liveStatusLabels: Record<string, string> = {
+  LIVE: "进行中",
+  ENDED: "已结束",
+  SCHEDULED: "预约中",
+};
+const courseTypeLabel = (type?: string) => (type ? courseTypeLabels[type] || type : "-");
+const liveStatusLabel = (status?: string) => (status ? liveStatusLabels[status] || status : "-");
 
 // ─── 本地行/详情类型（字段宽松 optional，仅声明模板/脚本实际访问的字段）───
 /** 圈子详情 */

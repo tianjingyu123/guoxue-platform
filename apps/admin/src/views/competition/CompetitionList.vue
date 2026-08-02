@@ -40,6 +40,13 @@ const statusLabels: Record<string, { text: string; type: string }> = {
 };
 
 const levelLabels: Record<string, string> = { S: "S级", A: "A级", B: "B级" };
+const scoringModelLabels: Record<string, string> = {
+  A: "全自动",
+  B: "AI+评委",
+  C: "纯评委",
+  D: "对弈引擎",
+};
+const scoringModelLabel = (model?: string) => (model ? scoringModelLabels[model] || model : "-");
 
 const columns = [
   { prop: "title", label: "赛事名称", minWidth: 200, showOverflow: true },
@@ -307,7 +314,7 @@ function exportData() {
       </template>
 
       <template #scoringModel="{ row }">
-        <span>{{ ({ A: "全自动", B: "AI+评委", C: "纯评委", D: "对弈引擎" } as Record<string, string>)[row.scoringModel] || row.scoringModel }}</span>
+        <span>{{ scoringModelLabel(row.scoringModel) }}</span>
       </template>
 
       <template #status="{ row }">

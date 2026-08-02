@@ -90,7 +90,7 @@
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="评分模型">
-              {{ ({ A: "全自动评分", B: "AI+评委混合", C: "纯评委评分", D: "对弈引擎" } as Record<string, string>)[detail?.scoringModel] || detail?.scoringModel }}
+              {{ scoringModelLabel(detail?.scoringModel) }}
             </el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-tag
@@ -248,7 +248,7 @@
                 :type="row.roundType === 'FINAL' ? 'danger' : row.roundType === 'SEMIFINAL' ? 'warning' : 'info'"
                 size="small"
               >
-                {{ ({ PRELIMINARY: '初赛', SEMIFINAL: '复赛', FINAL: '决赛', CUSTOM: '自定义' } as Record<string, string>)[row.roundType] || row.roundType || '-' }}
+                {{ roundTypeLabel(row.roundType) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -367,7 +367,7 @@
             width="100"
           >
             <template #default="{ row }">
-              {{ ({ SINGLE_CHOICE: '单选', MULTI_CHOICE: '多选', FILL_IN: '填空', SCALE: '量表', SUBJECTIVE: '主观', ESSAY: '论述', JUDGMENT: '判断', CODE: '代码', UPLOAD: '上传', MATCHING: '配对' } as Record<string, string>)[row.type] || row.type }}
+              {{ questionTypeLabel(row.type) }}
             </template>
           </el-table-column>
           <el-table-column
@@ -508,10 +508,10 @@
           >
             <template #default="{ row }">
               <el-tag
-                :type="({ PENDING: 'warning', QUALIFIED: 'success', DISQUALIFIED: 'danger', CANCELLED: 'info' } as Record<string, string>)[row.status] || 'info'"
+                :type="registrationStatusType(row.status)"
                 size="small"
               >
-                {{ ({ PENDING: '待审核', QUALIFIED: '已确认', DISQUALIFIED: '已拒绝', CANCELLED: '已取消' } as Record<string, string>)[row.status] || row.status }}
+                {{ registrationStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -676,10 +676,10 @@
           >
             <template #default="{ row }">
               <el-tag
-                :type="({ CHAMPION: 'danger', RUNNER_UP: 'warning', THIRD_PLACE: 'success', ELIMINATED: 'info' } as Record<string, string>)[row.status] || 'info'"
+                :type="rankingStatusType(row.status)"
                 size="small"
               >
-                {{ ({ CHAMPION: '冠军', RUNNER_UP: '亚军', THIRD_PLACE: '季军', ELIMINATED: '淘汰' } as Record<string, string>)[row.status] || row.status }}
+                {{ rankingStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -1112,6 +1112,66 @@ const statusLabels: Record<string, { text: string; type: string }> = {
   IN_PROGRESS: { text: "进行中", type: "warning" },
   FINISHED: { text: "已结束", type: "" },
 };
+
+const scoringModelLabels: Record<string, string> = {
+  A: "全自动评分",
+  B: "AI+评委混合",
+  C: "纯评委评分",
+  D: "对弈引擎",
+};
+const roundTypeLabels: Record<string, string> = {
+  PRELIMINARY: "初赛",
+  SEMIFINAL: "复赛",
+  FINAL: "决赛",
+  CUSTOM: "自定义",
+};
+const questionTypeLabels: Record<string, string> = {
+  SINGLE_CHOICE: "单选",
+  MULTI_CHOICE: "多选",
+  FILL_IN: "填空",
+  SCALE: "量表",
+  SUBJECTIVE: "主观",
+  ESSAY: "论述",
+  JUDGMENT: "判断",
+  CODE: "代码",
+  UPLOAD: "上传",
+  MATCHING: "配对",
+};
+const registrationStatusLabels: Record<string, string> = {
+  PENDING: "待审核",
+  QUALIFIED: "已确认",
+  DISQUALIFIED: "已拒绝",
+  CANCELLED: "已取消",
+};
+const registrationStatusTypes: Record<string, "warning" | "success" | "danger" | "info"> = {
+  PENDING: "warning",
+  QUALIFIED: "success",
+  DISQUALIFIED: "danger",
+  CANCELLED: "info",
+};
+const rankingStatusLabels: Record<string, string> = {
+  CHAMPION: "冠军",
+  RUNNER_UP: "亚军",
+  THIRD_PLACE: "季军",
+  ELIMINATED: "淘汰",
+};
+const rankingStatusTypes: Record<string, "danger" | "warning" | "success" | "info"> = {
+  CHAMPION: "danger",
+  RUNNER_UP: "warning",
+  THIRD_PLACE: "success",
+  ELIMINATED: "info",
+};
+
+const labelOrFallback = (labels: Record<string, string>, value?: string) =>
+  value ? labels[value] || value : "-";
+const scoringModelLabel = (model?: string) => labelOrFallback(scoringModelLabels, model);
+const roundTypeLabel = (type?: string) => labelOrFallback(roundTypeLabels, type);
+const questionTypeLabel = (type?: string) => labelOrFallback(questionTypeLabels, type);
+const registrationStatusLabel = (status?: string) => labelOrFallback(registrationStatusLabels, status);
+const registrationStatusType = (status?: string) =>
+  (status && registrationStatusTypes[status]) || "info";
+const rankingStatusLabel = (status?: string) => labelOrFallback(rankingStatusLabels, status);
+const rankingStatusType = (status?: string) => (status && rankingStatusTypes[status]) || "info";
 
 // ─── 基本信息 ───
 const loading = ref(false);
