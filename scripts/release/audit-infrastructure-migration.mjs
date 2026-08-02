@@ -2109,6 +2109,8 @@ add(
       "freeze.sourceCommit === expectedCommit",
       'infrastructure.stage === "predeploy"',
       "environment.deployTarget === deployTarget",
+      "blockers: sourceBlockers.map",
+      "详情见脱敏源报告",
     ]) &&
     hasAll(predeployEvidenceTest, [
       "三份有效证据聚合为脱敏 GO 判定",
@@ -2117,6 +2119,7 @@ add(
       "正式环境失败或部署架构不一致时判定 BLOCK",
       "过期证据即使内容通过也判定 BLOCK",
       "缺少子审计报告时仍落盘统一 BLOCK 判定",
+      "基础设施阻断项名称进入统一报告但不复制详情或配置值",
     ]) &&
     hasAll(infrastructureHandoffChecklist, [
       "统一预接入门禁",

@@ -149,6 +149,16 @@ test("正式环境失败或部署架构不一致时判定 BLOCK", () => {
   try {
     const result = run(directory);
     assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const report = JSON.parse(
+      readFileSync(path.join(directory, "predeploy-decision.json"), "utf8"),
+    );
+    assert.ok(
+      report.blockers.some(
+        (blocker) =>
+          blocker.source === "environment-readiness.json" && blocker.check.includes("1 项错误"),
+      ),
+    );
+    assert.ok(report.blockers.every((blocker) => !Object.hasOwn(blocker, "detail")));
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -184,6 +194,31 @@ test("缺少子审计报告时仍落盘统一 BLOCK 判定", () => {
           check.name === "infrastructure-intake-predeploy.json 存在" && check.pass === false,
       ),
     );
+    assert.ok(
+      report.blockers.some(
+        (blocker) => blocker.check === "infrastructure-intake-predeploy.json 存在",
+      ),
+    );
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("基础设施阻断项名称进入统一报告但不复制详情或配置值", () => {
+  const directory = createEvidence({
+    "infrastructure-intake-predeploy.json": {
+      success: false,
+      summary: { passed: 0, failed: 1, total: 1 },
+      checks: [{ name: "对象存储签名链接已实测", pass: false, detail: "secret-value" }],
+    },
+  });
+  try {
+    const result = run(directory);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const raw = readFileSync(path.join(directory, "predeploy-decision.json"), "utf8");
+    const report = JSON.parse(raw);
+    assert.ok(report.blockers.some((blocker) => blocker.check === "对象存储签名链接已实测"));
+    assert.doesNotMatch(raw, /secret-value/u);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

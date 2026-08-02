@@ -87,12 +87,24 @@ const sourceFiles = {
 const checks = [];
 const sources = {};
 const loaded = {};
+const sourceBlockers = [];
 const now = Date.now();
 const maximumAgeMilliseconds = maxAgeHours * 60 * 60 * 1000;
 const futureToleranceMilliseconds = 5 * 60 * 1000;
 
 function addCheck(name, pass, detail, source) {
   checks.push({ name, pass: Boolean(pass), detail, source });
+}
+
+function addSourceBlocker(source, check) {
+  const normalized = String(check || "")
+    .replace(/[\r\n\t]+/gu, " ")
+    .trim()
+    .slice(0, 120);
+  if (!normalized) return;
+  const key = `${source}\u0000${normalized}`;
+  if (sourceBlockers.some((item) => item.key === key)) return;
+  sourceBlockers.push({ key, source, check: normalized });
 }
 
 for (const [key, fileName] of Object.entries(sourceFiles)) {
@@ -109,8 +121,7 @@ for (const [key, fileName] of Object.entries(sourceFiles)) {
     sources[key] = {
       file: fileName,
       sha256: createHash("sha256").update(raw).digest("hex"),
-      generatedAt:
-        typeof value.generatedAt === "string" ? value.generatedAt : null,
+      generatedAt: typeof value.generatedAt === "string" ? value.generatedAt : null,
     };
     addCheck(`${fileName} 可解析`, true, "JSON 结构有效", fileName);
 
@@ -153,13 +164,9 @@ if (freeze) {
     identityMatches ? "分支与提交身份完全匹配" : "分支或提交身份不匹配",
     sourceFiles.sourceFreeze,
   );
-  const zeroCounts = [
-    "total",
-    "staged",
-    "unstaged",
-    "untracked",
-    "conflicted",
-  ].every((key) => Number(counts[key] || 0) === 0);
+  const zeroCounts = ["total", "staged", "unstaged", "untracked", "conflicted"].every(
+    (key) => Number(counts[key] || 0) === 0,
+  );
   const freezeReady =
     freeze.schemaVersion === 2 &&
     freeze.strict === true &&
@@ -174,6 +181,9 @@ if (freeze) {
     freezeReady ? "严格、干净且无未归属变更" : "源码冻结未达到生产包要求",
     sourceFiles.sourceFreeze,
   );
+  if (!freezeReady) {
+    addSourceBlocker(sourceFiles.sourceFreeze, "源码冻结身份或工作树状态未通过");
+  }
 }
 
 const infrastructure = loaded.infrastructure;
@@ -200,6 +210,11 @@ if (infrastructure) {
       : "资源清单、环境绑定或预接入检查未通过",
     sourceFiles.infrastructure,
   );
+  for (const check of Array.isArray(infrastructure.checks) ? infrastructure.checks : []) {
+    if (check?.pass === false) {
+      addSourceBlocker(sourceFiles.infrastructure, check.name || "基础设施子检查未通过");
+    }
+  }
 }
 
 const environment = loaded.environment;
@@ -215,14 +230,24 @@ if (environment) {
   addCheck(
     "正式环境完整检查通过",
     environmentReady,
-    environmentReady
-      ? "正式环境与部署架构检查通过"
-      : "正式环境不完整、架构不匹配或存在错误",
+    environmentReady ? "正式环境与部署架构检查通过" : "正式环境不完整、架构不匹配或存在错误",
     sourceFiles.environment,
   );
+  if (!environmentReady) {
+    const errorCount = Array.isArray(environment.errors)
+      ? environment.errors.length
+      : Number(counts.errors || 0);
+    addSourceBlocker(
+      sourceFiles.environment,
+      `正式环境完整检查存在 ${errorCount} 项错误（详情见脱敏源报告）`,
+    );
+  }
 }
 
 const failed = checks.filter((check) => !check.pass);
+for (const check of failed) {
+  addSourceBlocker(check.source, check.name);
+}
 const decision = failed.length === 0 ? "GO" : "BLOCK";
 const report = {
   schemaVersion: 1,
@@ -239,6 +264,7 @@ const report = {
     failed: failed.length,
   },
   checks,
+  blockers: sourceBlockers.map(({ source, check }) => ({ source, check })),
   sources,
 };
 
