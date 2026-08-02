@@ -140,6 +140,18 @@
     "expectedEgressIpv4": [],
     "outboundDependencies": [],
     "outboundEvidenceReference": "pending-change-ticket",
+    "authenticationDelivery": {
+      "owner": "待填写",
+      "evidenceReference": "pending-change-ticket",
+      "migratedAccountPasswordLoginVerified": false,
+      "smsLoginVerified": false,
+      "miniProgramWechatLoginVerified": false,
+      "officialAccountWechatLoginVerified": false,
+      "passwordResetVerified": false,
+      "sessionRefreshVerified": false,
+      "logoutRevocationVerified": false,
+      "crossClientSessionVerified": false
+    },
     "emailDelivery": {
       "owner": "待填写",
       "sendingDomain": "pending",

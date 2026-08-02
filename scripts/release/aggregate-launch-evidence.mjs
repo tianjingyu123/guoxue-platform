@@ -243,6 +243,20 @@ const definitions = [
       ) {
         problems.push("公网合规、用户救济或旧域名处置人工证据无效");
       }
+      if (
+        data.authenticationDeliveryEvidence?.migratedAccountPasswordLoginVerified !== true ||
+        data.authenticationDeliveryEvidence?.passwordResetVerified !== true ||
+        data.authenticationDeliveryEvidence?.sessionLifecycleVerified !== true ||
+        data.authenticationDeliveryEvidence?.enabledChannelsVerified !== true ||
+        !/^[a-f0-9]{64}$/u.test(
+          String(data.authenticationDeliveryEvidence?.enabledChannelsFingerprint || ""),
+        ) ||
+        !/^[a-f0-9]{64}$/u.test(
+          String(data.authenticationDeliveryEvidence?.evidenceReferenceFingerprint || ""),
+        )
+      ) {
+        problems.push("登录迁域、密码找回或会话生命周期人工证据无效");
+      }
       return problems;
     },
   },
@@ -583,6 +597,7 @@ const definitions = [
         "report",
         "user-agreement",
       ];
+      const expectedAuthenticationRouteIds = ["forgot-password", "login", "register"];
       if (
         data.publicCompliance?.routeCount !== expectedComplianceRouteIds.length ||
         JSON.stringify(data.publicCompliance?.routeIds) !==
@@ -601,6 +616,13 @@ const definitions = [
         )
       ) {
         problems.push("公网协议隐私、用户救济页面或旧域名永久跳转证据无效");
+      }
+      if (
+        data.authenticationSurfaces?.routeCount !== expectedAuthenticationRouteIds.length ||
+        JSON.stringify(data.authenticationSurfaces?.routeIds) !==
+          JSON.stringify(expectedAuthenticationRouteIds)
+      ) {
+        problems.push("公网登录、注册或找回密码页面证据无效");
       }
 
       const cloud = sourceData.tencentCloud;

@@ -215,7 +215,13 @@ const publicComplianceRoutes = [
   { id: "report", path: "pkg-report/index/index" },
   { id: "delete-account", path: "pkg-mine/delete-account/index" },
 ];
+const authenticationSurfaceRoutes = [
+  { id: "login", path: "pkg-auth/login/index" },
+  { id: "register", path: "pkg-auth/register/index" },
+  { id: "forgot-password", path: "pkg-auth/forgot-password/index" },
+];
 let publicComplianceObservations = [];
+let authenticationSurfaceObservations = [];
 let legacyRedirectObservations = [];
 
 await check("公网 DNS 解析与地址安全", async () => {
@@ -361,6 +367,30 @@ await check("公网协议隐私与用户救济页面", async () => {
   return `${publicComplianceObservations.length} 个协议、隐私、反馈、举报与注销入口均可达`;
 });
 
+await check("公网登录注册与找回密码页面", async () => {
+  authenticationSurfaceObservations = await Promise.all(
+    authenticationSurfaceRoutes.map(async (route) => {
+      const target = new URL(route.path, h5Href);
+      target.searchParams.set("runtime_probe", expectedReleaseId || "cutover");
+      const { response, body, latencyMs } = await request(target.href);
+      assert(response.ok, `${route.id} 返回 HTTP ${response.status}`);
+      assert(
+        (response.headers.get("content-type") || "").includes("text/html"),
+        `${route.id} 未返回 HTML`,
+      );
+      assert(body.includes('id="app"') || body.includes("<uni-app"), `${route.id} 缺少应用入口`);
+      const finalUrl = new URL(response.url);
+      assert(finalUrl.origin === h5Url.origin, `${route.id} 被重定向到非正式 H5 来源`);
+      assert(
+        finalUrl.pathname === target.pathname,
+        `${route.id} 被重定向到其他页面 ${finalUrl.pathname}`,
+      );
+      return { id: route.id, status: response.status, latencyMs };
+    }),
+  );
+  return `${authenticationSurfaceObservations.length} 个登录、注册与找回密码入口均可达`;
+});
+
 await check("旧域名永久跳转到新 H5", async () => {
   if (legacyOrigins.length === 0) {
     assert(legacyOriginMode === "none", `legacyOriginMode=${legacyOriginMode || "缺失"}`);
@@ -484,6 +514,10 @@ const report = {
       .update(JSON.stringify(legacyOrigins))
       .digest("hex"),
     legacyRedirectObservations,
+  },
+  authenticationSurfaces: {
+    routeCount: authenticationSurfaceObservations.length,
+    routeIds: authenticationSurfaceObservations.map((item) => item.id).sort(),
   },
   summary: { passed: results.length - failed.length, failed: failed.length, total: results.length },
   results,

@@ -270,6 +270,7 @@ const migration = intake.migration || {};
 const publicCompliance = migration.publicCompliance || {};
 const operations = intake.operations || {};
 const externalEndpoints = intake.externalEndpoints || {};
+const authenticationDelivery = externalEndpoints.authenticationDelivery || {};
 const emailDelivery = externalEndpoints.emailDelivery || {};
 const smsDelivery = externalEndpoints.smsDelivery || {};
 const paymentDelivery = externalEndpoints.paymentDelivery || {};
@@ -802,6 +803,15 @@ add(
   "必须明确第三方控制台、客户端域名白名单、出站依赖责任人和受控变更证据编号",
 );
 add(
+  "登录迁域与会话验收责任已登记",
+  !resourceReady ||
+    (isFilled(authenticationDelivery.owner) &&
+      !isPlaceholder(authenticationDelivery.owner) &&
+      isFilled(authenticationDelivery.evidenceReference) &&
+      !isPlaceholder(authenticationDelivery.evidenceReference)),
+  "predeploy/launch 必须登记老用户登录、密码找回与会话生命周期验收责任人及受控证据编号；不得在清单中填写账号、密码或验证码",
+);
+add(
   "微信客户端身份与交付责任已绑定",
   !resourceReady ||
     (!miniProgramEnabled && !officialAccountEnabled) ||
@@ -1124,6 +1134,24 @@ if (launch) {
       externalEndpoints.callbackRetryIdempotencyVerified === true &&
       externalEndpoints.clientDomainAllowlistVerified === true,
     "切流前必须完成已启用支付/物流/直播等控制台换址、回调可达性与验签重放、客户端 request/upload/download/socket/业务域名验收",
+  );
+  add(
+    "迁移账号登录、找回密码与会话生命周期已现场验收",
+    authenticationDelivery.migratedAccountPasswordLoginVerified === true &&
+      authenticationDelivery.passwordResetVerified === true &&
+      authenticationDelivery.sessionRefreshVerified === true &&
+      authenticationDelivery.logoutRevocationVerified === true &&
+      authenticationDelivery.crossClientSessionVerified === true,
+    "正式切流前必须用已迁移老账号验证密码登录、找回密码、刷新登录态、退出后令牌失效，以及 H5/小程序/App 会话隔离与切换；不得用新建测试账号或仅访问登录页替代",
+  );
+  add(
+    "已启用短信与微信登录通道已逐端现场验收",
+    (!smsEnabled || authenticationDelivery.smsLoginVerified === true) &&
+      (!miniProgramEnabled ||
+        authenticationDelivery.miniProgramWechatLoginVerified === true) &&
+      (!officialAccountEnabled ||
+        authenticationDelivery.officialAccountWechatLoginVerified === true),
+    "正式环境启用短信、小程序微信或公众号微信登录时，必须分别在真实客户端完成登录并确认落到同一迁移账号，未启用通道不强制验收",
   );
   add(
     "微信 H5 授权分享与小程序合法域名已真机验收",
@@ -1668,6 +1696,32 @@ const report = {
             wechatClientDelivery.officialAccountOauthSmokeTestPassed === true &&
             wechatClientDelivery.officialAccountJsSdkConfigVerified === true &&
             wechatClientDelivery.officialAccountShareCardVerified === true),
+      }
+    : null,
+  authenticationDeliveryEvidence: launch
+    ? {
+        enabledChannelsFingerprint: fingerprint({
+          password: true,
+          sms: smsEnabled,
+          miniProgramWechat: miniProgramEnabled,
+          officialAccountWechat: officialAccountEnabled,
+        }),
+        migratedAccountPasswordLoginVerified:
+          authenticationDelivery.migratedAccountPasswordLoginVerified === true,
+        passwordResetVerified: authenticationDelivery.passwordResetVerified === true,
+        sessionLifecycleVerified:
+          authenticationDelivery.sessionRefreshVerified === true &&
+          authenticationDelivery.logoutRevocationVerified === true &&
+          authenticationDelivery.crossClientSessionVerified === true,
+        enabledChannelsVerified:
+          (!smsEnabled || authenticationDelivery.smsLoginVerified === true) &&
+          (!miniProgramEnabled ||
+            authenticationDelivery.miniProgramWechatLoginVerified === true) &&
+          (!officialAccountEnabled ||
+            authenticationDelivery.officialAccountWechatLoginVerified === true),
+        evidenceReferenceFingerprint: fingerprint(
+          text(authenticationDelivery.evidenceReference),
+        ),
       }
     : null,
   publicComplianceEvidence: launch

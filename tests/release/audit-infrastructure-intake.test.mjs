@@ -160,6 +160,18 @@ function completeIntake() {
         },
       ],
       outboundEvidenceReference: "CHANGE-20260802-OUTBOUND",
+      authenticationDelivery: {
+        owner: "登录迁域验收负责人",
+        evidenceReference: "CHANGE-20260802-AUTH",
+        migratedAccountPasswordLoginVerified: true,
+        smsLoginVerified: true,
+        miniProgramWechatLoginVerified: true,
+        officialAccountWechatLoginVerified: true,
+        passwordResetVerified: true,
+        sessionRefreshVerified: true,
+        logoutRevocationVerified: true,
+        crossClientSessionVerified: true,
+      },
       callbackUrls: [
         "https://api.guoxue.cn/api/v1/shop/pay/notify",
         "https://api.guoxue.cn/api/v1/shop/refund/notify",
@@ -283,6 +295,90 @@ test("公网合规闭环未验收时阻断 launch", async () => {
       .join("\n");
     assert.match(failures, /协议隐私、反馈举报与账号注销闭环已现场验收/u);
     assert.equal(audit.report.publicComplianceEvidence.legalAndSupportFlowsVerified, false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("迁移账号登录、密码找回或会话生命周期未闭环时阻断 launch", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.authenticationDelivery.migratedAccountPasswordLoginVerified = false;
+  intake.externalEndpoints.authenticationDelivery.passwordResetVerified = false;
+  intake.externalEndpoints.authenticationDelivery.logoutRevocationVerified = false;
+  const audit = await runAudit(intake);
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /迁移账号登录、找回密码与会话生命周期已现场验收/u);
+    assert.equal(
+      audit.report.authenticationDeliveryEvidence.migratedAccountPasswordLoginVerified,
+      false,
+    );
+    assert.equal(audit.report.authenticationDeliveryEvidence.passwordResetVerified, false);
+    assert.equal(audit.report.authenticationDeliveryEvidence.sessionLifecycleVerified, false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("正式环境启用的短信与微信登录通道必须逐端验收", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.authenticationDelivery.smsLoginVerified = false;
+  intake.externalEndpoints.authenticationDelivery.miniProgramWechatLoginVerified = false;
+  intake.externalEndpoints.authenticationDelivery.officialAccountWechatLoginVerified = false;
+  const environment = completeEnvironment({
+    TENCENT_SECRET_ID: "secret-id-not-recorded",
+    TENCENT_SECRET_KEY: "secret-key-not-recorded",
+    SMS_APP_ID: "1400000000",
+    SMS_SIGN_NAME: "国学平台",
+    SMS_TEMPLATE_ID: "123456",
+    WECHAT_MINI_APP_ID: "wx1234567890abcdef",
+    MINIPROGRAM_APP_SECRET: "mini-secret-not-recorded",
+    WECHAT_OFFICIAL_APPID: "wxabcdef1234567890",
+    WECHAT_OFFICIAL_SECRET: "official-secret-not-recorded",
+  });
+  intake.externalEndpoints.smsDelivery = {
+    owner: "短信负责人",
+    appId: "1400000000",
+    signName: "国学平台",
+    verificationTemplateId: "123456",
+    retentionTemplateId: "",
+    evidenceReference: "CHANGE-20260802-SMS",
+    signApproved: true,
+    verificationTemplateApproved: true,
+    retentionTemplateApproved: false,
+    deliveryReceiptVerified: true,
+    realNumberSmokeTestPassed: true,
+    alternateLoginVerified: true,
+    retentionConsentAndOptOutVerified: false,
+  };
+  intake.externalEndpoints.wechatClientDelivery = {
+    owner: "微信负责人",
+    evidenceReference: "CHANGE-20260802-WECHAT",
+    miniProgramAppId: "wx1234567890abcdef",
+    officialAccountAppId: "wxabcdef1234567890",
+    miniProgramRequestVerified: true,
+    miniProgramUploadVerified: true,
+    miniProgramDownloadVerified: true,
+    miniProgramSocketVerified: true,
+    miniProgramBusinessWebViewVerified: true,
+    officialAccountControlPlaneVerified: true,
+    officialAccountOauthSmokeTestPassed: true,
+    officialAccountJsSdkConfigVerified: true,
+    officialAccountShareCardVerified: true,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", environment);
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /已启用短信与微信登录通道已逐端现场验收/u);
+    assert.equal(audit.report.authenticationDeliveryEvidence.enabledChannelsVerified, false);
   } finally {
     await rm(audit.root, { recursive: true, force: true });
   }

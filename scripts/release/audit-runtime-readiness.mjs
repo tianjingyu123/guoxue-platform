@@ -183,8 +183,15 @@ add(
     "/socket.io/?EIO=4&transport=polling",
     "/api/v1/auth/me",
     "response.status === 401",
+    "公网登录注册与找回密码页面",
+    "forgot-password",
+    "authenticationSurfaces",
+  ]) &&
+    hasAll(evidenceAggregator, [
+      "公网登录、注册或找回密码页面证据无效",
+      "登录迁域、密码找回或会话生命周期人工证据无效",
   ]),
-  "新域名最常见的 CORS、Socket.IO 和鉴权回归必须自动阻断",
+  "新域名最常见的 CORS、Socket.IO、鉴权边界和登录入口回归必须自动阻断，真实账号与会话闭环另由受控人工证据兜底",
 );
 
 add(

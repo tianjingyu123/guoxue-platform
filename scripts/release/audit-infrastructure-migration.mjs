@@ -287,7 +287,6 @@ add(
     ]),
   "新域名可访问还不够；必须验收协议隐私、反馈举报、账号注销，并将旧入口永久跳转到新 H5",
 );
-
 const bootstrap = read(shellScripts[0]);
 add(
   "空库初始化具备硬保护",
@@ -1798,6 +1797,33 @@ const storageInventoryTest = read("tests/release/storage-inventory.test.mjs");
 const appLinkAssociationBuilder = read("scripts/release/build-app-link-associations.mjs");
 const appLinkAssociationProbe = read("scripts/release/probe-app-link-associations.mjs");
 const appLinkAssociationTest = read("tests/release/app-link-associations.test.mjs");
+add(
+  "登录迁域、找回密码与跨端会话纳入新基础设施交接",
+  infrastructureIntakeExample.includes('"authenticationDelivery"') &&
+    infrastructureIntakeExample.includes('"migratedAccountPasswordLoginVerified"') &&
+    hasAll(infrastructureIntakeAuditor, [
+      "登录迁域与会话验收责任已登记",
+      "迁移账号登录、找回密码与会话生命周期已现场验收",
+      "已启用短信与微信登录通道已逐端现场验收",
+      "authenticationDeliveryEvidence",
+      "sessionLifecycleVerified",
+    ]) &&
+    hasAll(infrastructureIntakeTest, [
+      "迁移账号登录、密码找回或会话生命周期未闭环时阻断 launch",
+      "正式环境启用的短信与微信登录通道必须逐端验收",
+    ]) &&
+    hasAll(infrastructureHandoffChecklist, [
+      "登录迁域与会话闭环",
+      "migratedAccountPasswordLoginVerified",
+      "crossClientSessionVerified",
+    ]) &&
+    hasAll(infrastructureMigrationManual, [
+      "已迁移老账号",
+      "退出后令牌失效",
+      "H5、小程序与 App",
+    ]),
+  "正式切流不能只看登录页可达；必须用已迁移老账号验证密码、找回、刷新、退出失效和已启用短信/微信通道，并证明多端会话边界正确",
+);
 add(
   "对象存储迁移具备逐对象内容清单、脱敏比对与旧桶回退门禁",
   hasAll(infrastructureIntakeAuditor, [

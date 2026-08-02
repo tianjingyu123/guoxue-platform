@@ -89,6 +89,14 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
         legacyOriginHandlingVerified: true,
         evidenceReferenceFingerprint: "c".repeat(64),
       },
+      authenticationDeliveryEvidence: {
+        enabledChannelsFingerprint: "d".repeat(64),
+        migratedAccountPasswordLoginVerified: true,
+        passwordResetVerified: true,
+        sessionLifecycleVerified: true,
+        enabledChannelsVerified: true,
+        evidenceReferenceFingerprint: "e".repeat(64),
+      },
     },
     "tencent-cloud-readiness.json": {
       schemaVersion: 2,
@@ -226,6 +234,10 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
         legacyOriginCount: 0,
         legacyOriginsFingerprint: "b".repeat(64),
         legacyRedirectObservations: [],
+      },
+      authenticationSurfaces: {
+        routeCount: 3,
+        routeIds: ["forgot-password", "login", "register"],
       },
       tlsCertificates: [
         {
@@ -452,6 +464,28 @@ test("公网合规人工验收证据缺失时阻断上线", async (t) => {
   );
 });
 
+test("登录迁域或会话生命周期人工证据缺失时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "infrastructure-intake-readiness.json": {
+      authenticationDeliveryEvidence: {
+        enabledChannelsFingerprint: "d".repeat(64),
+        migratedAccountPasswordLoginVerified: true,
+        passwordResetVerified: true,
+        sessionLifecycleVerified: false,
+        enabledChannelsVerified: true,
+        evidenceReferenceFingerprint: "e".repeat(64),
+      },
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.source === "infrastructure-intake-readiness.json")
+      ?.detail || "",
+    /登录迁域、密码找回或会话生命周期人工证据无效/u,
+  );
+});
+
 test("公网用户权益页面或旧域名永久跳转证据缺失时阻断上线", async (t) => {
   const { result, decision } = await runScenario(t, {
     "runtime-verification.json": {
@@ -470,6 +504,23 @@ test("公网用户权益页面或旧域名永久跳转证据缺失时阻断上�
   assert.match(
     decision.checks.find((item) => item.source === "runtime-verification.json")?.detail || "",
     /公网协议隐私、用户救济页面或旧域名永久跳转证据无效/u,
+  );
+});
+
+test("公网登录注册或找回密码页面证据缺失时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": {
+      authenticationSurfaces: {
+        routeCount: 2,
+        routeIds: ["login", "register"],
+      },
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.source === "runtime-verification.json")?.detail || "",
+    /公网登录、注册或找回密码页面证据无效/u,
   );
 });
 
