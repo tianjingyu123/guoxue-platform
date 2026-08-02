@@ -86,6 +86,19 @@ SELECT pg_temp.assert_zero(
 );
 
 SELECT pg_temp.assert_zero(
+  '同一用户存在重复认证提供方',
+  $query$
+    SELECT count(*)
+    FROM (
+      SELECT "userId", provider
+      FROM "Auth"
+      GROUP BY "userId", provider
+      HAVING count(*) > 1
+    ) duplicate_record
+  $query$
+);
+
+SELECT pg_temp.assert_zero(
   '商品或 SKU 负库存',
   $query$
     SELECT

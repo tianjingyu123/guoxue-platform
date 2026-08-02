@@ -388,6 +388,7 @@ add(
       "微信 unionId 跨账号冲突",
       "微信认证缺少 openId",
       "密码认证缺少 credential",
+      "同一用户存在重复认证提供方",
       "库存流水前后余额不守恒",
       "经营中商家缺少上线必需资质",
       "已审核文章缺少首图",
@@ -1796,6 +1797,12 @@ const infrastructureHandoffChecklist = read(
 const infrastructureMigrationManual = read("docs/operations/服务器数据库域名迁移手册-20260728.md");
 const authService = read("apps/server/src/modules/auth/auth.service.ts");
 const authServiceTest = read("apps/server/src/modules/auth/auth.service.spec.ts");
+const jwtStrategy = read("apps/server/src/common/jwt.strategy.ts");
+const jwtStrategyTest = read("apps/server/src/common/jwt.strategy.spec.ts");
+const prismaSchema = read("apps/server/prisma/schema.prisma");
+const authProviderUniquenessMigration = read(
+  "apps/server/prisma/migrations/20260802000000_enforce_auth_provider_uniqueness/migration.sql",
+);
 const redisService = read("apps/server/src/redis/redis.service.ts");
 const storageInventoryBuilder = read("scripts/release/build-storage-inventory.mjs");
 const storageInventoryComparer = read("scripts/release/compare-storage-inventories.mjs");
@@ -1847,6 +1854,7 @@ add(
       "微信 unionId 跨账号冲突",
       "微信认证缺少 openId",
       "密码认证缺少 credential",
+      "同一用户存在重复认证提供方",
     ]),
   "微信身份归属冲突必须显式失败；refresh token 与跨端握手码必须原子一次性消费，恢复后的历史认证数据也必须通过完整性门禁",
 );
@@ -2428,6 +2436,36 @@ add(
 );
 
 console.log("基础设施迁移门禁");
+add(
+  "账号换绑、认证唯一性与撤销时钟具备数据库级保护",
+  prismaSchema.includes("@@unique([userId, provider])") &&
+    hasAll(authProviderUniquenessMigration, [
+      'GROUP BY "userId", provider',
+      'HAVING count(*) > 1',
+      'CREATE UNIQUE INDEX IF NOT EXISTS "Auth_userId_provider_key"',
+    ]) &&
+    !authProviderUniquenessMigration.includes("DROP INDEX") &&
+    hasAll(authService, [
+      "sessionIssuedAt: Date.now()",
+      "this.prisma.$transaction(async (tx)",
+      "await this.revokeAllRefreshTokens(userId)",
+    ]) &&
+    hasAll(jwtStrategy, [
+      "sessionIssuedAt?: number",
+      "payload.sessionIssuedAt ??",
+      "payload.iat * 1000",
+    ]) &&
+    hasAll(authServiceTest, [
+      "在同一事务内更新手机号身份与用户资料，并撤销旧会话",
+      "并发换绑触发数据库唯一约束时返回手机号已占用",
+    ]) &&
+    hasAll(jwtStrategyTest, [
+      "毫秒级签发时间避免同一秒重新登录被误判为旧会话",
+      "仍拒绝毫秒级撤销时刻之前签发的新格式令牌",
+    ]),
+  "同一用户同一认证方式只能保留一条记录；手机号身份和用户资料必须事务提交，换绑后旧会话失效，同时不能因 JWT 秒级 iat 误伤同秒重新登录",
+);
+
 for (const item of checks) {
   console.log(`${item.pass ? "PASS" : "FAIL"} ${item.name}：${item.detail}`);
 }

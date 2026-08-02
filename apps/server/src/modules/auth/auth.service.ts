@@ -46,7 +46,7 @@ export class AuthService {
 
   /** 生成 accessToken（2小时） + refreshToken（30天，存Redis可撤销） */
   private async generateTokenPair(userId: string) {
-    const accessToken = this.jwt.sign({ sub: userId });
+    const accessToken = this.jwt.sign({ sub: userId, sessionIssuedAt: Date.now() });
     const refreshToken = crypto.randomUUID();
     // refreshToken 存 Redis，30 天过期；同时挂进用户维度索引，撤销时可精确删除
     await this.redis.set(`refresh:${refreshToken}`, userId, 30 * 24 * 3600);
@@ -549,27 +549,40 @@ export class AuthService {
 
   async bindPhone(userId: string, phone: string, code: string) {
     await this.sms.verifyCode(phone, code);
+    const phoneHash = phoneHmac(phone);
 
     // 检查手机号是否已被其他用户占用
-    const phoneTaken = await this.prisma.user.findUnique({ where: { phoneHash: phoneHmac(phone) } });
+    const phoneTaken = await this.prisma.user.findUnique({ where: { phoneHash } });
     if (phoneTaken && phoneTaken.id !== userId) {
       throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已被其他账号绑定");
     }
 
     // 检查 openId 是否已被其他 Auth 记录占用
-    const openIdTaken = await this.prisma.auth.findUnique({ where: { openId: phoneHmac(phone) } });
+    const openIdTaken = await this.prisma.auth.findUnique({ where: { openId: phoneHash } });
     if (openIdTaken && openIdTaken.userId !== userId) {
       throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已被其他账号绑定");
     }
 
-    // Auth: openId存手机号作为唯一标识
-    const existing = await this.prisma.auth.findFirst({ where: { userId, provider: "PHONE" } });
-    if (existing) {
-      await this.prisma.auth.update({ where: { id: existing.id }, data: { openId: phoneHmac(phone), credential: phoneHmac(phone)} });
-    } else {
-      await this.prisma.auth.create({ data: { userId, provider: "PHONE", openId: phoneHmac(phone), credential: phoneHmac(phone)} });
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Auth 与 User 必须同成同败，避免认证手机号已换而用户资料仍是旧号码。
+        const existing = await tx.auth.findFirst({ where: { userId, provider: "PHONE" } });
+        if (existing) {
+          await tx.auth.update({ where: { id: existing.id }, data: { openId: phoneHash, credential: phoneHash } });
+        } else {
+          await tx.auth.create({ data: { userId, provider: "PHONE", openId: phoneHash, credential: phoneHash } });
+        }
+        await tx.user.update({ where: { id: userId }, data: buildPhoneFields(phone) }); // M4 灰度双写
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new BusinessException(ErrorCode.AUTH_PHONE_EXISTS, "手机号已被其他账号绑定");
+      }
+      throw error;
     }
-    await this.prisma.user.update({ where: { id: userId }, data: buildPhoneFields(phone) }); // M4 灰度双写
+
+    // 手机号属于高敏登录凭据，换绑后让其他端旧会话立即失效。
+    await this.revokeAllRefreshTokens(userId);
     return { success: true };
   }
 

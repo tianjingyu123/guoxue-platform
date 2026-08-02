@@ -10,6 +10,7 @@ import { SmsService } from "../sms/sms.service";
 import { PermissionService } from "../system/permission.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { Prisma } from "@prisma/client";
 
 jest.mock("bcryptjs");
 import * as bcrypt from "bcryptjs";
@@ -22,6 +23,7 @@ const mockPrisma = {
   referralRelation: { create: jest.fn() },
   merchant: { findUnique: jest.fn() },
   merchantMember: { findFirst: jest.fn() },
+  $transaction: jest.fn(),
 };
 
 const mockJwt = { sign: jest.fn() };
@@ -79,6 +81,7 @@ describe("AuthService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation(async (callback: (tx: typeof mockPrisma) => unknown) => callback(mockPrisma));
     delete process.env.WECHAT_APP_ID;
     delete process.env.WECHAT_APP_SECRET;
     delete process.env.WECHAT_OFFICIAL_APPID;
@@ -214,6 +217,43 @@ describe("AuthService", () => {
         errorCode: ErrorCode.AUTH_IDENTITY_CONFLICT,
       });
       expect(mockPrisma.auth.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("bindPhone", () => {
+    it("在同一事务内更新手机号身份与用户资料，并撤销旧会话", async () => {
+      mockSms.verifyCode.mockResolvedValue(true);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.auth.findUnique.mockResolvedValue(null);
+      mockPrisma.auth.findFirst.mockResolvedValue({ id: "phone-auth" });
+      mockPrisma.auth.update.mockResolvedValue({ id: "phone-auth" });
+      mockPrisma.user.update.mockResolvedValue({ id: "user-1" });
+      mockRedis.smembers.mockResolvedValue([]);
+
+      await expect(svc.bindPhone("user-1", "13800138000", "123456")).resolves.toEqual({ success: true });
+
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.auth.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "phone-auth" },
+        data: expect.objectContaining({ openId: expect.any(String), credential: expect.any(String) }),
+      }));
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "user-1" } }));
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:user-1", expect.any(String), 2 * 3600 + 60);
+    });
+
+    it("并发换绑触发数据库唯一约束时返回手机号已占用", async () => {
+      mockSms.verifyCode.mockResolvedValue(true);
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.auth.findUnique.mockResolvedValue(null);
+      mockPrisma.$transaction.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed",
+        { code: "P2002", clientVersion: "test" },
+      ));
+
+      await expect(svc.bindPhone("user-1", "13800138000", "123456")).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_PHONE_EXISTS,
+      });
+      expect(mockRedis.set).not.toHaveBeenCalledWith("revoked:user:user-1", expect.any(String), expect.any(Number));
     });
   });
 

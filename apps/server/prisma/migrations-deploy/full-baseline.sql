@@ -5992,7 +5992,7 @@ CREATE INDEX "User_attributionStationId_idx" ON "User"("attributionStationId");
 CREATE UNIQUE INDEX "Auth_openId_key" ON "Auth"("openId");
 
 -- CreateIndex
-CREATE INDEX "Auth_userId_provider_idx" ON "Auth"("userId", "provider");
+CREATE UNIQUE INDEX "Auth_userId_provider_key" ON "Auth"("userId", "provider");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "LegacyMigrationBatch_batchKey_key" ON "LegacyMigrationBatch"("batchKey");

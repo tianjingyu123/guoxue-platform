@@ -68,10 +68,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; iat?: number }) {
+  async validate(payload: { sub: string; iat?: number; sessionIssuedAt?: number }) {
     // 改密/重置/封号会写入撤销时刻：撤销前签发的 accessToken 一律拒绝（M1 会话失效）
     const revokedAt = await this.redis.get(`revoked:user:${payload.sub}`);
-    if (revokedAt && payload.iat && payload.iat * 1000 < Number(revokedAt)) {
+    // 新令牌携带毫秒级签发时刻，避免改密后同一秒立即重登的新 token 被秒级 iat 误伤。
+    // 历史令牌没有该字段时继续兼容 JWT 标准 iat。
+    const issuedAt = payload.sessionIssuedAt ?? (payload.iat ? payload.iat * 1000 : undefined);
+    if (revokedAt && issuedAt && issuedAt < Number(revokedAt)) {
       throw new UnauthorizedException();
     }
     const user = await this.prisma.user.findUnique({
