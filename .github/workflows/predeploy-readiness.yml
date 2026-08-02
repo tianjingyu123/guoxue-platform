@@ -1,0 +1,173 @@
+name: Verify New Infrastructure Intake
+
+# 新资源到位后、构建与迁移演练前执行。只读取 production Environment 中的受控文件内容，
+# 不连接业务节点执行命令，不部署、不迁移数据、不修改 DNS，并且只上传统一脱敏判定。
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: "预备发布标识（8-80 位字母、数字、点、下划线或短横线）"
+        required: true
+        type: string
+      production_confirmation:
+        description: "再次输入完全相同的预备发布标识"
+        required: true
+        type: string
+      max_age_hours:
+        description: "本轮预接入证据最大有效小时数"
+        required: true
+        default: "24"
+        type: choice
+        options:
+          - "12"
+          - "24"
+          - "48"
+
+concurrency:
+  group: verify-new-infrastructure-intake
+  cancel-in-progress: false
+
+jobs:
+  predeploy-readiness:
+    name: 新基础设施只读预接入验收
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.33.3"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: 验证默认分支、源提交、部署架构与人工确认
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+          PRODUCTION_CONFIRMATION: ${{ inputs.production_confirmation }}
+          RUN_MIGRATION: "false"
+          MIGRATION_CONFIRMATION: ""
+          SCHEMA_COMPATIBILITY_CONFIRMATION: ""
+          EXPECTED_CURRENT_RELEASE_ID: ""
+          DISPATCH_OPERATION: predeploy
+          PRODUCTION_DEPLOY_READY: "false"
+          PRODUCTION_DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
+          PROD_NODE_A_CONFIGURED: "false"
+          PROD_NODE_B_CONFIGURED: "false"
+          SOURCE_REF: ${{ github.ref }}
+          SOURCE_SHA: ${{ github.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          MAX_AGE_HOURS: ${{ inputs.max_age_hours }}
+        run: |
+          set -euo pipefail
+          node scripts/release/validate-production-dispatch.mjs
+          case "$MAX_AGE_HOURS" in 12|24|48) ;; *) echo "BLOCK 证据有效期仅允许 12、24 或 48 小时"; exit 64 ;; esac
+
+      - name: 安装锁定依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 写入临时受控输入文件
+        env:
+          PRODUCTION_ENV_FILE_CONTENT: ${{ secrets.PRODUCTION_ENV_FILE_CONTENT }}
+          INFRASTRUCTURE_INTAKE_FILE_CONTENT: ${{ secrets.INFRASTRUCTURE_INTAKE_FILE_CONTENT }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$PRODUCTION_ENV_FILE_CONTENT" || { echo "BLOCK production Environment 缺少 PRODUCTION_ENV_FILE_CONTENT"; exit 64; }
+          test -n "$INFRASTRUCTURE_INTAKE_FILE_CONTENT" || { echo "BLOCK production Environment 缺少 INFRASTRUCTURE_INTAKE_FILE_CONTENT"; exit 64; }
+          INPUT_ROOT="$RUNNER_TEMP/guoxue-predeploy-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          install -d -m 0700 "$INPUT_ROOT"
+          printf '%s\n' "$PRODUCTION_ENV_FILE_CONTENT" > "$INPUT_ROOT/.env.production"
+          printf '%s\n' "$INFRASTRUCTURE_INTAKE_FILE_CONTENT" > "$INPUT_ROOT/infrastructure-intake.json"
+          chmod 0600 "$INPUT_ROOT/.env.production" "$INPUT_ROOT/infrastructure-intake.json"
+          printf 'PREDEPLOY_INPUT_ROOT=%s\n' "$INPUT_ROOT" >> "$GITHUB_ENV"
+
+      - name: 执行统一只读预接入门禁
+        id: predeploy_gate
+        continue-on-error: true
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
+          MAX_AGE_HOURS: ${{ inputs.max_age_hours }}
+        run: |
+          set +e
+          pnpm release:gate:predeploy -- \
+            --env-file "$PREDEPLOY_INPUT_ROOT/.env.production" \
+            --deploy-target "$DEPLOY_TARGET" \
+            --infrastructure-intake "$PREDEPLOY_INPUT_ROOT/infrastructure-intake.json" \
+            --report-dir artifacts/release-audit/predeploy-ci \
+            --expected-branch "$DEFAULT_BRANCH" \
+            --expected-commit "$GITHUB_SHA" \
+            --max-age-hours "$MAX_AGE_HOURS"
+          STATUS=$?
+          set -e
+          printf 'exit_code=%s\n' "$STATUS" >> "$GITHUB_OUTPUT"
+          exit "$STATUS"
+
+      - name: 删除临时受控输入文件
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -n "${PREDEPLOY_INPUT_ROOT:-}" ]; then
+            rm -f -- "$PREDEPLOY_INPUT_ROOT/.env.production" "$PREDEPLOY_INPUT_ROOT/infrastructure-intake.json"
+            rmdir -- "$PREDEPLOY_INPUT_ROOT" 2>/dev/null || true
+          fi
+
+      - name: 确认统一判定可安全归档
+        id: evidence_safety
+        if: always()
+        continue-on-error: true
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
+          MAX_AGE_HOURS: ${{ inputs.max_age_hours }}
+        run: |
+          set -euo pipefail
+          REPORT=artifacts/release-audit/predeploy-ci/predeploy-decision.json
+          node scripts/release/verify-predeploy-decision.mjs "$REPORT" \
+            --expected-branch "$DEFAULT_BRANCH" \
+            --expected-commit "$GITHUB_SHA" \
+            --deploy-target "$DEPLOY_TARGET" \
+            --max-age-hours "$MAX_AGE_HOURS" \
+            --safety-only
+
+      - name: 保存统一脱敏预接入判定
+        if: always() && steps.evidence_safety.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: predeploy-decision-${{ inputs.release_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/release-audit/predeploy-ci/predeploy-decision.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: 验真统一判定并决定工作流结果
+        if: always()
+        env:
+          GATE_OUTCOME: ${{ steps.predeploy_gate.outcome }}
+          EVIDENCE_SAFETY_OUTCOME: ${{ steps.evidence_safety.outcome }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DEPLOY_TARGET: ${{ vars.PRODUCTION_DEPLOY_TARGET }}
+          MAX_AGE_HOURS: ${{ inputs.max_age_hours }}
+        run: |
+          set -euo pipefail
+          REPORT=artifacts/release-audit/predeploy-ci/predeploy-decision.json
+          test -f "$REPORT" || { echo "BLOCK 统一预接入判定未生成"; exit 1; }
+          test "$EVIDENCE_SAFETY_OUTCOME" = "success" || { echo "BLOCK 统一判定未通过脱敏归档检查，已拒绝上传"; exit 1; }
+          if [ "$GATE_OUTCOME" != "success" ]; then
+            echo "BLOCK 统一预接入门禁未通过；请下载脱敏判定并按终端阻断清单修复"
+            exit 1
+          fi
+          node scripts/release/verify-predeploy-decision.mjs "$REPORT" \
+            --expected-branch "$DEFAULT_BRANCH" \
+            --expected-commit "$GITHUB_SHA" \
+            --deploy-target "$DEPLOY_TARGET" \
+            --max-age-hours "$MAX_AGE_HOURS"

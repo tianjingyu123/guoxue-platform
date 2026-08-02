@@ -138,6 +138,31 @@ test("predeploy 阶段不要求发布标识", () => {
   assert.match(`${result.stdout}\n${result.stderr}`, /not-needed\.env/u);
 });
 
+test("predeploy 证据时效必须合法并贯通到聚合判定", async () => {
+  const invalid = run([
+    "--stage",
+    "predeploy",
+    "--max-age-hours",
+    "0",
+    "--env-file",
+    "not-needed.env",
+    "--deploy-target",
+    "standard",
+    "--infrastructure-intake",
+    "not-needed.json",
+    "--expected-branch",
+    "main",
+    "--expected-commit",
+    validCommit,
+  ]);
+  assert.equal(invalid.status, 2, `${invalid.stdout}\n${invalid.stderr}`);
+  assert.match(`${invalid.stdout}\n${invalid.stderr}`, /--max-age-hours/u);
+  assert.doesNotMatch(`${invalid.stdout}\n${invalid.stderr}`, /\[full-gate\]/u);
+
+  const source = await import("node:fs/promises").then(({ readFile }) => readFile(runner, "utf8"));
+  assert.match(source, /"--max-age-hours",\s*String\(maxAgeHours\)/u);
+});
+
 test("完整门禁源码把同一发布标识和提交传给三份客户端证据", async () => {
   const source = await import("node:fs/promises").then(({ readFile }) => readFile(runner, "utf8"));
 

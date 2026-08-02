@@ -1785,6 +1785,12 @@ const sourceFreezeAudit = read("scripts/release/audit-source-freeze.mjs");
 const sourceFreezeTest = read("tests/release/audit-source-freeze.test.mjs");
 const fullGateTest = read("tests/release/run-full-gate.test.mjs");
 const predeployEvidenceAggregator = read("scripts/release/aggregate-predeploy-evidence.mjs");
+const predeployDecisionVerifier = read("scripts/release/verify-predeploy-decision.mjs");
+const predeployDecisionVerifierTest = read("tests/release/verify-predeploy-decision.test.mjs");
+const predeployReadinessWorkflow = read(".github/workflows/predeploy-readiness.yml");
+const predeployReadinessWorkflowTest = read(
+  "tests/release/predeploy-readiness-workflow.test.mjs",
+);
 
 const baseProductionCompose = read("docker/docker-compose.prod.yml");
 const tencentProductionCompose = read("docker/docker-compose.tencent.yml");
@@ -2135,6 +2141,77 @@ add(
       "predeploy 启动前清理固定报告名以阻断旧证据误判",
     ]),
   "新域名、数据库、Redis、对象存储和证书到位后先校验源码身份、资源清单、正式环境及逐项绑定；任一子审计失败仍继续完成其余只读审计并生成不含连接串或凭据的单一 BLOCK 判定，且复用目录时不得误用旧报告",
+);
+add(
+  "新基础设施可通过受保护的手动工作流完成只读预接入验收",
+  hasAll(predeployReadinessWorkflow, [
+    "workflow_dispatch:",
+    "environment:",
+    "name: production",
+    "permissions:",
+    "contents: read",
+    "DISPATCH_OPERATION: predeploy",
+    'RUN_MIGRATION: "false"',
+    "PRODUCTION_ENV_FILE_CONTENT",
+    "INFRASTRUCTURE_INTAKE_FILE_CONTENT",
+    "umask 077",
+    "chmod 0600",
+    "release:gate:predeploy",
+    "continue-on-error: true",
+    "--max-age-hours",
+    "--safety-only",
+    "steps.evidence_safety.outcome == 'success'",
+    "predeploy-decision.json",
+    "rm -f --",
+  ]) &&
+    !predeployReadinessWorkflow.includes("appleboy/ssh-action") &&
+    !predeployReadinessWorkflow.includes("appleboy/scp-action") &&
+    hasAll(productionDispatchGate, [
+      '"deploy", "verify", "predeploy"',
+      'values.operation !== "predeploy"',
+      "predeploy 只读预接入验收禁止执行数据库迁移",
+    ]) &&
+    hasAll(productionDispatchGateTest, [
+      "默认分支上的只读预接入验收不要求激活开关或双节点 Secret",
+      "只读预接入验收禁止携带数据库迁移开关",
+    ]) &&
+    hasAll(fullGateRunner, [
+      'arg === "--max-age-hours"',
+      '"--max-age-hours"',
+      "String(maxAgeHours)",
+    ]) &&
+    hasAll(predeployDecisionVerifier, [
+      "guoxue-predeploy-decision",
+      "预接入统一判定不是 GO",
+      "源证据文件集合不完整或重复",
+      "统一判定报告包含连接串、网址、私钥或本机路径",
+      'arg === "--safety-only"',
+      "requireGo: !options.safetyOnly",
+    ]) &&
+    hasAll(predeployDecisionVerifierTest, [
+      "当前默认分支、提交和部署架构的完整 GO 报告通过验真",
+      "统一报告意外包含连接串、网址、私钥或本机路径时拒绝上传",
+      "安全归档模式允许结构完整的 BLOCK",
+    ]) &&
+    hasAll(predeployReadinessWorkflowTest, [
+      "预接入工作流只能手动触发且受 production Environment 保护",
+      "预接入工作流只读运行且禁止迁移、SSH、部署和 DNS 修改通道",
+      "非脱敏报告拒绝上传",
+    ]) &&
+    packageJson.includes('"release:verify-predeploy-decision"') &&
+    packageJson.includes("tests/release/predeploy-readiness-workflow.test.mjs") &&
+    packageJson.includes("tests/release/verify-predeploy-decision.test.mjs") &&
+    hasAll(infrastructureHandoffChecklist, [
+      "Verify New Infrastructure Intake",
+      "PRODUCTION_ENV_FILE_CONTENT",
+      "只上传 `predeploy-decision.json`",
+    ]) &&
+    hasAll(infrastructureMigrationManual, [
+      "Verify New Infrastructure Intake",
+      "INFRASTRUCTURE_INTAKE_FILE_CONTENT",
+      "不能替代最终 `launch`",
+    ]),
+  "资源购买后允许经 production Environment 审批在默认分支一键执行预接入；工作流必须只读、临时文件权限收紧且必清理，只归档通过二次脱敏检查的统一判定，并且不能冒充迁移演练或最终上线",
 );
 add(
   "迁移现场文档区分公网 TLS 与托管数据服务证书链",

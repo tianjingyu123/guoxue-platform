@@ -29,8 +29,8 @@ export function validateProductionDispatch(input) {
   if (!RELEASE_ID_PATTERN.test(values.releaseId)) {
     errors.push("发布标识格式无效：仅允许 8-80 位字母、数字、点、下划线或短横线");
   }
-  if (!new Set(["deploy", "verify"]).has(values.operation)) {
-    errors.push("DISPATCH_OPERATION 仅允许 deploy 或 verify");
+  if (!new Set(["deploy", "verify", "predeploy"]).has(values.operation)) {
+    errors.push("DISPATCH_OPERATION 仅允许 deploy、verify 或 predeploy");
   }
   if (values.operation === "deploy") {
     if (!RELEASE_ID_PATTERN.test(values.expectedCurrentReleaseId)) {
@@ -39,16 +39,17 @@ export function validateProductionDispatch(input) {
       errors.push("EXPECTED_CURRENT_RELEASE_ID 不得与待发布标识相同");
     }
   }
-  if (values.productionDeployReady !== "true") {
+  const requiresActivatedInfrastructure = values.operation !== "predeploy";
+  if (requiresActivatedInfrastructure && values.productionDeployReady !== "true") {
     errors.push("production Environment 尚未设置 PRODUCTION_DEPLOY_READY=true");
   }
   if (!new Set(["standard", "tencent"]).has(values.deployTarget)) {
     errors.push("production Environment 必须显式配置 PRODUCTION_DEPLOY_TARGET=standard 或 tencent");
   }
-  if (values.productionNodeAConfigured !== "true") {
+  if (requiresActivatedInfrastructure && values.productionNodeAConfigured !== "true") {
     errors.push("production Environment 尚未完整配置 PROD_HOST_A 与 PROD_SSH_FINGERPRINT_A");
   }
-  if (values.productionNodeBConfigured !== "true") {
+  if (requiresActivatedInfrastructure && values.productionNodeBConfigured !== "true") {
     errors.push("production Environment 尚未完整配置 PROD_HOST_B 与 PROD_SSH_FINGERPRINT_B");
   }
   if (values.confirmation !== values.releaseId) {
@@ -66,6 +67,8 @@ export function validateProductionDispatch(input) {
   }
   if (!new Set(["true", "false"]).has(values.runMigration)) {
     errors.push("RUN_MIGRATION 仅允许 true 或 false");
+  } else if (values.operation === "predeploy" && values.runMigration !== "false") {
+    errors.push("predeploy 只读预接入验收禁止执行数据库迁移");
   } else if (
     values.runMigration === "true" &&
     values.migrationConfirmation !== `migrate:${values.releaseId}`
@@ -125,7 +128,7 @@ if (isMain) {
     process.exitCode = 64;
   } else {
     console.log(
-      `GO 生产发布请求校验通过：release=${result.releaseId} ref=${result.sourceRef} target=${result.deployTarget} migration=${result.runMigration}`,
+      `GO ${process.env.DISPATCH_OPERATION === "predeploy" ? "生产预接入" : "生产发布"}请求校验通过：release=${result.releaseId} ref=${result.sourceRef} target=${result.deployTarget} migration=${result.runMigration}`,
     );
   }
 }

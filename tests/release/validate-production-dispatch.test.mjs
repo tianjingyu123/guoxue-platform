@@ -80,9 +80,7 @@ test("双节点滚动发布缺少当前版本基线时被阻断", () => {
 });
 
 test("双节点滚动发布的当前版本不得等于待发布版本", () => {
-  const result = validateProductionDispatch(
-    validInput({ expectedCurrentReleaseId: releaseId }),
-  );
+  const result = validateProductionDispatch(validInput({ expectedCurrentReleaseId: releaseId }));
   assert.equal(result.success, false);
   assert.match(result.errors.join("\n"), /不得与待发布标识相同/);
 });
@@ -92,6 +90,36 @@ test("切流复核不要求提供滚动发布前版本", () => {
     validInput({ operation: "verify", expectedCurrentReleaseId: "" }),
   );
   assert.equal(result.success, true);
+});
+
+test("默认分支上的只读预接入验收不要求激活开关或双节点 Secret", () => {
+  const result = validateProductionDispatch(
+    validInput({
+      operation: "predeploy",
+      expectedCurrentReleaseId: "",
+      productionDeployReady: "false",
+      productionNodeAConfigured: "false",
+      productionNodeBConfigured: "false",
+    }),
+  );
+  assert.equal(result.success, true);
+  assert.equal(result.runMigration, false);
+});
+
+test("只读预接入验收禁止携带数据库迁移开关", () => {
+  const result = validateProductionDispatch(
+    validInput({
+      operation: "predeploy",
+      expectedCurrentReleaseId: "",
+      runMigration: "true",
+      migrationConfirmation: `migrate:${releaseId}`,
+      productionDeployReady: "false",
+      productionNodeAConfigured: "false",
+      productionNodeBConfigured: "false",
+    }),
+  );
+  assert.equal(result.success, false);
+  assert.match(result.errors.join("\n"), /禁止执行数据库迁移/u);
 });
 
 test("源提交不是完整 SHA 时被阻断", () => {

@@ -15,6 +15,7 @@ let expectedBranch = "";
 let expectedCommit = "";
 let releaseId = "";
 let stage = "launch";
+let maxAgeHours = 24;
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
@@ -94,6 +95,15 @@ for (let index = 0; index < args.length; index += 1) {
     index += 1;
     continue;
   }
+  if (arg === "--max-age-hours") {
+    if (!next || next.startsWith("--")) {
+      console.error("错误：--max-age-hours 后必须提供证据有效小时数");
+      process.exit(2);
+    }
+    maxAgeHours = Number(next);
+    index += 1;
+    continue;
+  }
   console.error(`错误：未知参数 ${arg}`);
   process.exit(2);
 }
@@ -120,6 +130,10 @@ if (!/^[a-f0-9]{40}$/iu.test(expectedCommit)) {
 }
 if (!["predeploy", "launch"].includes(stage)) {
   console.error("错误：--stage 仅允许 predeploy 或 launch");
+  process.exit(2);
+}
+if (!Number.isFinite(maxAgeHours) || maxAgeHours <= 0 || maxAgeHours > 168) {
+  console.error("错误：--max-age-hours 必须大于 0 且不超过 168");
   process.exit(2);
 }
 if (releaseId && !/^[A-Za-z0-9._-]{8,80}$/u.test(releaseId)) {
@@ -251,6 +265,8 @@ if (stage === "predeploy") {
       deployTarget,
       "--report",
       path.join(resolvedReportDirectory, "predeploy-decision.json"),
+      "--max-age-hours",
+      String(maxAgeHours),
     ],
     predeployRunOptions,
   );
