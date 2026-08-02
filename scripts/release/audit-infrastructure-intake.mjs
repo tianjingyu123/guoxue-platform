@@ -124,6 +124,9 @@ const database = intake.database || {};
 const cache = intake.cache || {};
 const domains = intake.domains || {};
 const storage = intake.storage || {};
+const storageObjectMigration = storage.objectMigration || {};
+const sourceStorageInventory = storageObjectMigration.sourceInventory || {};
+const targetStorageInventory = storageObjectMigration.targetInventory || {};
 const migration = intake.migration || {};
 const operations = intake.operations || {};
 const externalEndpoints = intake.externalEndpoints || {};
@@ -281,6 +284,13 @@ add(
   "生产文件不得依赖应用服务器本地盘或公共读 Bucket",
 );
 add(
+  "对象存储迁移方案使用逐对象内容摘要",
+  text(storageObjectMigration.mode).toLowerCase() === "copy" &&
+    text(storageObjectMigration.manifestAlgorithm).toLowerCase() === "sha256-content-v1" &&
+    Number(storageObjectMigration.oldBucketRetentionHours) >= 72,
+  "正式迁移必须按对象键排序后以对象键、字节数和文件内容 SHA-256 生成清单，不得用分片上传 ETag 代替内容摘要；旧桶至少保留 72 小时",
+);
+add(
   "备份、切流、回滚和双人审批责任人已登记",
   [
     operations.backupOwner,
@@ -436,6 +446,28 @@ const storageCorsAllowedOriginsValid =
       return false;
     }
   });
+const isIsoUtc = (value) => {
+  const normalized = text(value);
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(normalized) &&
+    Number.isFinite(Date.parse(normalized));
+};
+const storageManifestSha256Valid = (value) => /^[a-f0-9]{64}$/u.test(text(value));
+const storageInventorySummariesValid =
+  isIsoUtc(sourceStorageInventory.generatedAtUtc) &&
+  isIsoUtc(targetStorageInventory.generatedAtUtc) &&
+  Number(targetStorageInventory.objectCount) > 0 &&
+  Number.isSafeInteger(Number(sourceStorageInventory.objectCount)) &&
+  Number.isSafeInteger(Number(targetStorageInventory.objectCount)) &&
+  Number(sourceStorageInventory.objectCount) === Number(targetStorageInventory.objectCount) &&
+  Number(targetStorageInventory.totalBytes) > 0 &&
+  Number.isSafeInteger(Number(sourceStorageInventory.totalBytes)) &&
+  Number.isSafeInteger(Number(targetStorageInventory.totalBytes)) &&
+  Number(sourceStorageInventory.totalBytes) === Number(targetStorageInventory.totalBytes) &&
+  storageManifestSha256Valid(sourceStorageInventory.manifestSha256) &&
+  storageManifestSha256Valid(targetStorageInventory.manifestSha256) &&
+  text(sourceStorageInventory.manifestSha256) === text(targetStorageInventory.manifestSha256) &&
+  Date.parse(targetStorageInventory.generatedAtUtc) >=
+    Date.parse(sourceStorageInventory.generatedAtUtc);
 add(
   "第三方回调与客户端域名切换责任已登记",
   isFilled(externalEndpoints.owner) &&
@@ -490,6 +522,8 @@ if (resourceReady) {
       storage.bucket,
       storage.region,
       ...rawStorageCorsAllowedOrigins,
+      storageObjectMigration.owner,
+      storageObjectMigration.evidenceReference,
       operations.backupOwner,
       operations.cutoverOwner,
       operations.rollbackOwner,
@@ -528,6 +562,21 @@ if (resourceReady) {
 }
 
 if (launch) {
+  add(
+    "对象存储源目标清单已逐对象一致性核验",
+    storageObjectMigration.comparisonVerified === true && storageInventorySummariesValid,
+    "切流前必须在停写后的最终复制窗口分别生成源桶与目标桶清单，并确认对象数、总字节数和内容清单 SHA-256 完全一致；报告不记录 Bucket、对象键或下载地址",
+  );
+  add(
+    "旧对象存储回退窗口已保留",
+    storageObjectMigration.oldBucketRetentionConfirmed === true &&
+      Number(storageObjectMigration.oldBucketRetentionHours) >= 72 &&
+      isFilled(storageObjectMigration.owner) &&
+      !isPlaceholder(storageObjectMigration.owner) &&
+      isFilled(storageObjectMigration.evidenceReference) &&
+      !isPlaceholder(storageObjectMigration.evidenceReference),
+    "旧桶在至少 72 小时回退窗口内必须保持只读可恢复，并登记迁移责任人与受控证据编号",
+  );
   add(
     "证书续期兜底与公网握手已现场验证",
     domains.certificateRenewalProcedureVerified === true &&
@@ -745,6 +794,24 @@ const report = {
   deployTarget,
   inputSha256: createHash("sha256").update(raw).digest("hex"),
   configurationBinding: reportBinding,
+  storageMigrationEvidence: launch
+    ? {
+        algorithm: text(storageObjectMigration.manifestAlgorithm).toLowerCase(),
+        sourceSummaryFingerprint: fingerprint({
+          generatedAtUtc: sourceStorageInventory.generatedAtUtc,
+          objectCount: Number(sourceStorageInventory.objectCount),
+          totalBytes: Number(sourceStorageInventory.totalBytes),
+          manifestSha256: text(sourceStorageInventory.manifestSha256),
+        }),
+        targetSummaryFingerprint: fingerprint({
+          generatedAtUtc: targetStorageInventory.generatedAtUtc,
+          objectCount: Number(targetStorageInventory.objectCount),
+          totalBytes: Number(targetStorageInventory.totalBytes),
+          manifestSha256: text(targetStorageInventory.manifestSha256),
+        }),
+        matched: storageInventorySummariesValid,
+      }
+    : null,
   success: failures.length === 0,
   summary: {
     passed: checks.length - failures.length,

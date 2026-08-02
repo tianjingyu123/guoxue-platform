@@ -78,6 +78,27 @@ function completeIntake() {
       corsAllowedOrigins: ["https://api.guoxue.cn"],
       lifecycleConfigured: true,
       signedUrlVerified: true,
+      objectMigration: {
+        mode: "copy",
+        owner: "对象存储迁移负责人",
+        manifestAlgorithm: "sha256-content-v1",
+        sourceInventory: {
+          generatedAtUtc: "2026-08-02T01:00:00Z",
+          objectCount: 128,
+          totalBytes: 4096000,
+          manifestSha256: "a".repeat(64),
+        },
+        targetInventory: {
+          generatedAtUtc: "2026-08-02T01:30:00Z",
+          objectCount: 128,
+          totalBytes: 4096000,
+          manifestSha256: "a".repeat(64),
+        },
+        comparisonVerified: true,
+        evidenceReference: "CHANGE-20260802-STORAGE",
+        oldBucketRetentionHours: 168,
+        oldBucketRetentionConfirmed: true,
+      },
     },
     migration: {
       sourceDatabaseAccessVerified: true,
@@ -753,5 +774,48 @@ test("对象存储 CORS 来源必须精确绑定正式 H5 与后台入口且报�
   } finally {
     await rm(staleAudit.root, { recursive: true, force: true });
     await rm(unsafeAudit.root, { recursive: true, force: true });
+  }
+});
+
+test("launch 阶段对象存储源目标清单不一致时阻断且报告不泄露对象信息", async () => {
+  const intake = completeIntake();
+  intake.storage.objectMigration.targetInventory.objectCount = 127;
+  intake.storage.objectMigration.targetInventory.manifestSha256 = "b".repeat(64);
+  intake.storage.objectMigration.evidenceReference = "SECRET-OBJECT-KEY/private/avatar.png";
+  const audit = await runAudit(intake, "launch");
+  try {
+    assert.notEqual(audit.result.status, 0);
+    assert.match(
+      audit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => `${item.name} ${item.detail}`)
+        .join("\n"),
+      /对象存储源目标清单已逐对象一致性核验/u,
+    );
+    const serialized = JSON.stringify(audit.report);
+    assert.equal(serialized.includes("private/avatar.png"), false);
+    assert.equal(serialized.includes("SECRET-OBJECT-KEY"), false);
+    assert.equal(audit.report.storageMigrationEvidence.matched, false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("launch 阶段拒绝使用 ETag 清单或提前释放旧对象存储", async () => {
+  const intake = completeIntake();
+  intake.storage.objectMigration.manifestAlgorithm = "etag-v1";
+  intake.storage.objectMigration.oldBucketRetentionConfirmed = false;
+  intake.storage.objectMigration.oldBucketRetentionHours = 24;
+  const audit = await runAudit(intake, "launch");
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /对象存储迁移方案使用逐对象内容摘要/u);
+    assert.match(failures, /旧对象存储回退窗口已保留/u);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
   }
 });

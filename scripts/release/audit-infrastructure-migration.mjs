@@ -1706,6 +1706,50 @@ const infrastructureHandoffChecklist = read(
   "docs/operations/新基础设施与正式凭据交接清单-20260731.md",
 );
 const infrastructureMigrationManual = read("docs/operations/服务器数据库域名迁移手册-20260728.md");
+const storageInventoryBuilder = read("scripts/release/build-storage-inventory.mjs");
+const storageInventoryComparer = read("scripts/release/compare-storage-inventories.mjs");
+const storageInventoryTest = read("tests/release/storage-inventory.test.mjs");
+add(
+  "对象存储迁移具备逐对象内容清单、脱敏比对与旧桶回退门禁",
+  hasAll(infrastructureIntakeAuditor, [
+    "对象存储迁移方案使用逐对象内容摘要",
+    "对象存储源目标清单已逐对象一致性核验",
+    "旧对象存储回退窗口已保留",
+    "storageMigrationEvidence",
+    "sha256-content-v1",
+  ]) &&
+    infrastructureIntakeExample.includes('"objectMigration"') &&
+    hasAll(storageInventoryBuilder, [
+      "guoxue-storage-inventory-summary",
+      "createReadStream",
+      "清单目录不得包含符号链接或联接点",
+      "报告不包含目录、对象键或文件内容",
+    ]) &&
+    hasAll(storageInventoryComparer, [
+      "guoxue-storage-inventory-comparison",
+      "对象数量一致",
+      "对象总字节数一致",
+      "逐对象内容清单摘要一致",
+    ]) &&
+    hasAll(storageInventoryTest, [
+      "相同目录生成的脱敏对象清单可形成 GO 证据",
+      "对象内容不同即使文件大小相同也会 BLOCK",
+    ]) &&
+    packageJson.includes('"release:inventory-storage"') &&
+    packageJson.includes('"release:compare-storage-inventory"') &&
+    packageJson.includes("tests/release/storage-inventory.test.mjs") &&
+    hasAll(infrastructureHandoffChecklist, [
+      "对象存储旧文件迁移完整性",
+      "禁止用 COS/S3 分片上传的 ETag 代替文件内容摘要",
+      "停写后的最终增量复制",
+    ]) &&
+    hasAll(infrastructureMigrationManual, [
+      "storage-comparison.json",
+      "初次全量复制证据不能复用为正式切流证据",
+      "旧桶至少 `72` 小时只读可恢复",
+    ]),
+  "正式切流必须用文件内容 SHA-256 对旧桶和新桶逐对象核验，只归档脱敏摘要，并在回退窗口内保留旧桶",
+);
 add(
   "构建机候选门禁不会冒充最终生产上线 GO",
   !fullGateRunner.includes("完整上线门禁通过") &&
