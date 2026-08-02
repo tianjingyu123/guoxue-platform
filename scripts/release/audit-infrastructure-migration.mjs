@@ -1866,6 +1866,39 @@ add(
   "邮件不能只验证端口和密钥；发送协议、发件域、DNS 信誉、退信投诉、退订与真实投递必须在新服务器和新域名下共同验收，报告仅保留脱敏指纹",
 );
 add(
+  "新服务器短信具备签名模板审核、真实投递、回执与登录兜底门禁",
+  infrastructureIntakeExample.includes('"smsDelivery"') &&
+    infrastructureIntakeExample.includes('"alternateLoginVerified"') &&
+    hasAll(infrastructureIntakeAuditor, [
+      "短信签名、模板和交付责任已绑定",
+      "短信签名模板、回执、真实投递与登录兜底已现场验收",
+      "smsDeliveryEvidence",
+    ]) &&
+    hasAll(infrastructureIntakeTest, [
+      "启用短信后签名模板、回执和真实投递验收必须绑定且报告脱敏",
+      "启用短信后拒绝错绑模板、未审核签名和缺失登录兜底",
+    ]) &&
+    hasAll(environmentChecker, [
+      "短信配置不完整",
+      "SMS_APP_ID 必须是腾讯云短信控制台登记的纯数字 SdkAppId",
+      "SMS_TEMPLATE_ID 必须是审核通过的纯数字验证码模板 ID",
+    ]) &&
+    hasAll(environmentCheckerTest, [
+      "短信配置一旦启用就必须具备完整凭据和合法审核标识",
+    ]) &&
+    hasAll(infrastructureHandoffChecklist, [
+      "短信投递与登录兜底",
+      "状态回执",
+      "其他登录入口仍可用",
+    ]) &&
+    hasAll(infrastructureMigrationManual, [
+      "externalEndpoints.smsDelivery",
+      "受控真实号码投递",
+      "订阅、频控和退订策略",
+    ]),
+  "短信不能只验证 API 可达；签名、验证码/召回模板审核、受控真实号码投递、状态回执、登录兜底及用户订阅退订必须分别验收，报告仅保留脱敏指纹",
+);
+add(
   "构建机候选门禁不会冒充最终生产上线 GO",
   !fullGateRunner.includes("完整上线门禁通过") &&
     hasAll(fullGateRunner, [

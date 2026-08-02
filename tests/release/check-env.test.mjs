@@ -146,6 +146,27 @@ test("完整腾讯云上线拒绝缺失或错绑 CLB、CDN 与证书目标", asy
   assert.match(result.stderr, /TENCENT_CERTIFICATE_DOMAIN 必须与 PUBLIC_DOMAIN 一致/);
 });
 
+test("短信配置一旦启用就必须具备完整凭据和合法审核标识", async () => {
+  const incomplete = await runChecker(
+    `${createEnvironment()}SMS_APP_ID=1400000000\nSMS_SIGN_NAME=国学平台\n`,
+  );
+  assert.equal(incomplete.status, 1, `${incomplete.stdout}\n${incomplete.stderr}`);
+  assert.match(incomplete.stderr, /短信配置不完整/);
+
+  const invalid = await runChecker(
+    `${createEnvironment()}TENCENT_SECRET_ID=test-id\nTENCENT_SECRET_KEY=test-key\nSMS_APP_ID=app-x\nSMS_SIGN_NAME=国\nSMS_TEMPLATE_ID=template-x\n`,
+  );
+  assert.equal(invalid.status, 1, `${invalid.stdout}\n${invalid.stderr}`);
+  assert.match(invalid.stderr, /SMS_APP_ID 必须/);
+  assert.match(invalid.stderr, /SMS_TEMPLATE_ID 必须/);
+  assert.match(invalid.stderr, /SMS_SIGN_NAME 长度必须/);
+
+  const valid = await runChecker(
+    `${createEnvironment()}TENCENT_SECRET_ID=test-id\nTENCENT_SECRET_KEY=test-key\nSMS_APP_ID=1400000000\nSMS_SIGN_NAME=国学平台\nSMS_TEMPLATE_ID=123456\nSMS_CHURN_TEMPLATE_ID=654321\n`,
+  );
+  assert.equal(valid.status, 0, `${valid.stdout}\n${valid.stderr}`);
+});
+
 test("完整腾讯云上线强制使用受控的数据库 CA 证书绝对路径", async () => {
   const base = createFullEnvironment({
     databaseHost: "postgres.internal",

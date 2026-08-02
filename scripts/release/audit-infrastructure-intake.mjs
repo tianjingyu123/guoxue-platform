@@ -255,6 +255,7 @@ const migration = intake.migration || {};
 const operations = intake.operations || {};
 const externalEndpoints = intake.externalEndpoints || {};
 const emailDelivery = externalEndpoints.emailDelivery || {};
+const smsDelivery = externalEndpoints.smsDelivery || {};
 const deployTarget = text(intake.deployTarget).toLowerCase();
 let environmentValues = new Map();
 let reportBinding = null;
@@ -294,6 +295,17 @@ const emailEnabled = configuredEmailMode === "smtp" || configuredEmailMode === "
 const configuredEmailMailbox = parseMailbox(environmentValues.get("EMAIL_FROM"));
 const sendingDomain = normalizeHostname(emailDelivery.sendingDomain);
 const returnPathDomain = normalizeHostname(emailDelivery.returnPathDomain);
+const configuredSmsAppId = text(environmentValues.get("SMS_APP_ID"));
+const configuredSmsSignName = text(environmentValues.get("SMS_SIGN_NAME"));
+const configuredSmsVerificationTemplateId = text(environmentValues.get("SMS_TEMPLATE_ID"));
+const configuredSmsRetentionTemplateId = text(environmentValues.get("SMS_CHURN_TEMPLATE_ID"));
+const smsEnabled = [
+  configuredSmsAppId,
+  configuredSmsSignName,
+  configuredSmsVerificationTemplateId,
+  configuredSmsRetentionTemplateId,
+].some(Boolean);
+const smsRetentionEnabled = Boolean(configuredSmsRetentionTemplateId);
 
 add(
   "接入清单契约有效",
@@ -700,6 +712,23 @@ add(
   "启用邮件后，接入清单发送域必须与 EMAIL_FROM 一致，并登记退信域、责任人和受控 DNS/供应商证据；报告不记录邮箱或原始域名",
 );
 add(
+  "短信签名、模板和交付责任已绑定",
+  !resourceReady ||
+    !smsEnabled ||
+    (configuredSmsAppId &&
+      configuredSmsSignName &&
+      configuredSmsVerificationTemplateId &&
+      text(smsDelivery.appId) === configuredSmsAppId &&
+      text(smsDelivery.signName) === configuredSmsSignName &&
+      text(smsDelivery.verificationTemplateId) === configuredSmsVerificationTemplateId &&
+      text(smsDelivery.retentionTemplateId) === configuredSmsRetentionTemplateId &&
+      isFilled(smsDelivery.owner) &&
+      !isPlaceholder(smsDelivery.owner) &&
+      isFilled(smsDelivery.evidenceReference) &&
+      !isPlaceholder(smsDelivery.evidenceReference)),
+  "启用短信后，接入清单必须与 SMS_SIGN_NAME、SMS_TEMPLATE_ID、可选召回模板完全一致，并登记责任人与审核证据；报告只记录指纹",
+);
+add(
   "外部依赖清单与正式环境启用能力完全一致",
   !resourceReady ||
     (new Set(outboundDependencyIds).size === outboundDependencyIds.length &&
@@ -788,6 +817,15 @@ if (resourceReady) {
             emailDelivery.sendingDomain,
             emailDelivery.returnPathDomain,
             emailDelivery.evidenceReference,
+          ]
+        : []),
+      ...(smsEnabled
+        ? [
+            smsDelivery.owner,
+            smsDelivery.appId,
+            smsDelivery.signName,
+            smsDelivery.verificationTemplateId,
+            smsDelivery.evidenceReference,
           ]
         : []),
       ...plannedCallbackUrls,
@@ -904,6 +942,19 @@ if (launch) {
         emailDelivery.unsubscribeVerified === true &&
         emailDelivery.deliverySmokeTestPassed === true),
     "启用邮件后必须从新服务器完成 SPF、DKIM、DMARC、退信/投诉处理、退订链路和至少一封真实投递验收，禁止只验证 TCP 端口可连",
+  );
+  add(
+    "短信签名模板、回执、真实投递与登录兜底已现场验收",
+    !smsEnabled ||
+      (smsDelivery.signApproved === true &&
+        smsDelivery.verificationTemplateApproved === true &&
+        smsDelivery.deliveryReceiptVerified === true &&
+        smsDelivery.realNumberSmokeTestPassed === true &&
+        smsDelivery.alternateLoginVerified === true &&
+        (!smsRetentionEnabled ||
+          (smsDelivery.retentionTemplateApproved === true &&
+            smsDelivery.retentionConsentAndOptOutVerified === true))),
+    "启用短信后必须核验签名与验证码模板审核、受控真实号码投递及状态回执，并验证短信故障时仍可通过其他方式登录；启用召回模板时还必须核验独立模板、用户授权和退订策略",
   );
 }
 
@@ -1023,6 +1074,16 @@ if (resourceReady) {
     clientDomainAllowlistFingerprint: fingerprint(plannedClientDomainAllowlistEntries),
     outboundDependencyFingerprint: fingerprint(outboundDependencyIds),
     emailSendingDomainFingerprint: fingerprint(emailEnabled ? sendingDomain : "disabled"),
+    smsDeliveryFingerprint: fingerprint(
+      smsEnabled
+        ? {
+            appId: text(smsDelivery.appId),
+            signName: text(smsDelivery.signName),
+            verificationTemplateId: text(smsDelivery.verificationTemplateId),
+            retentionTemplateId: text(smsDelivery.retentionTemplateId),
+          }
+        : "disabled",
+    ),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -1069,6 +1130,16 @@ if (resourceReady) {
     outboundDependencyFingerprint: fingerprint(expectedOutboundDependencyIds),
     emailSendingDomainFingerprint: fingerprint(
       emailEnabled ? configuredEmailMailbox?.domain || "invalid" : "disabled",
+    ),
+    smsDeliveryFingerprint: fingerprint(
+      smsEnabled
+        ? {
+            appId: configuredSmsAppId,
+            signName: configuredSmsSignName,
+            verificationTemplateId: configuredSmsVerificationTemplateId,
+            retentionTemplateId: configuredSmsRetentionTemplateId,
+          }
+        : "disabled",
     ),
   };
   const bindingFields = Object.keys(intakeBinding);
@@ -1163,6 +1234,26 @@ const report = {
           emailDelivery.complaintHandlingVerified === true &&
           emailDelivery.unsubscribeVerified === true &&
           emailDelivery.deliverySmokeTestPassed === true,
+      }
+    : null,
+  smsDeliveryEvidence: launch && smsEnabled
+    ? {
+        configurationFingerprint: fingerprint({
+          appId: configuredSmsAppId,
+          signName: configuredSmsSignName,
+          verificationTemplateId: configuredSmsVerificationTemplateId,
+          retentionTemplateId: configuredSmsRetentionTemplateId,
+        }),
+        retentionEnabled: smsRetentionEnabled,
+        verified:
+          smsDelivery.signApproved === true &&
+          smsDelivery.verificationTemplateApproved === true &&
+          smsDelivery.deliveryReceiptVerified === true &&
+          smsDelivery.realNumberSmokeTestPassed === true &&
+          smsDelivery.alternateLoginVerified === true &&
+          (!smsRetentionEnabled ||
+            (smsDelivery.retentionTemplateApproved === true &&
+              smsDelivery.retentionConsentAndOptOutVerified === true)),
       }
     : null,
   success: failures.length === 0,

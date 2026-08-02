@@ -527,6 +527,34 @@ if (cookieDomain && publicDomain && !publicDomain.endsWith(cookieDomain)) {
   warnings.push("COOKIE_DOMAIN 与 PUBLIC_DOMAIN 不在同一主域，请确认登录态策略");
 }
 
+const smsKeys = [
+  "TENCENT_SECRET_ID",
+  "TENCENT_SECRET_KEY",
+  "SMS_APP_ID",
+  "SMS_SIGN_NAME",
+  "SMS_TEMPLATE_ID",
+];
+const smsConnectionKeys = ["SMS_APP_ID", "SMS_SIGN_NAME", "SMS_TEMPLATE_ID", "SMS_CHURN_TEMPLATE_ID"];
+if (hasAny(values, smsConnectionKeys)) {
+  const missingSmsKeys = smsKeys.filter((key) => !values.get(key));
+  if (missingSmsKeys.length > 0) {
+    errors.push(`短信配置不完整：${missingSmsKeys.join(", ")}`);
+  }
+  if (values.get("SMS_APP_ID") && !/^\d{6,20}$/u.test(values.get("SMS_APP_ID"))) {
+    errors.push("SMS_APP_ID 必须是腾讯云短信控制台登记的纯数字 SdkAppId");
+  }
+  if (values.get("SMS_TEMPLATE_ID") && !/^\d{1,20}$/u.test(values.get("SMS_TEMPLATE_ID"))) {
+    errors.push("SMS_TEMPLATE_ID 必须是审核通过的纯数字验证码模板 ID");
+  }
+  if (values.get("SMS_CHURN_TEMPLATE_ID") && !/^\d{1,20}$/u.test(values.get("SMS_CHURN_TEMPLATE_ID"))) {
+    errors.push("SMS_CHURN_TEMPLATE_ID 必须是审核通过的纯数字召回模板 ID");
+  }
+  const smsSignName = (values.get("SMS_SIGN_NAME") || "").trim();
+  if (smsSignName && (smsSignName.length < 2 || smsSignName.length > 20)) {
+    errors.push("SMS_SIGN_NAME 长度必须为 2 至 20 个字符，并与控制台审核通过内容完全一致");
+  }
+}
+
 if (fullCheck) {
   if (nodeRole === "operations") {
     const monitoringEnabled = (values.get("MONITORING_ENABLED") || "").trim().toLowerCase();

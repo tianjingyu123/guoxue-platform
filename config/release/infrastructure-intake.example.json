@@ -140,6 +140,21 @@
       "unsubscribeVerified": false,
       "deliverySmokeTestPassed": false
     },
+    "smsDelivery": {
+      "owner": "待填写",
+      "appId": "pending",
+      "signName": "pending",
+      "verificationTemplateId": "pending",
+      "retentionTemplateId": "",
+      "evidenceReference": "pending-change-ticket",
+      "signApproved": false,
+      "verificationTemplateApproved": false,
+      "retentionTemplateApproved": false,
+      "deliveryReceiptVerified": false,
+      "realNumberSmokeTestPassed": false,
+      "alternateLoginVerified": false,
+      "retentionConsentAndOptOutVerified": false
+    },
     "callbackUrls": [],
     "controlPlaneCallbacks": [],
     "clientDomainAllowlistEntries": [

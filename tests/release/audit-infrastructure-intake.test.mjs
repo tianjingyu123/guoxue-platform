@@ -1084,3 +1084,95 @@ test("启用邮件后拒绝发送域错绑和未完成的投递治理", async ()
     await rm(audit.root, { recursive: true, force: true });
   }
 });
+
+test("启用短信后签名模板、回执和真实投递验收必须绑定且报告脱敏", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "tencent-sms",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.smsDelivery = {
+    owner: "短信交付负责人",
+    appId: "1400000000",
+    signName: "国学平台",
+    verificationTemplateId: "123456",
+    retentionTemplateId: "654321",
+    evidenceReference: "CHANGE-20260802-SMS",
+    signApproved: true,
+    verificationTemplateApproved: true,
+    retentionTemplateApproved: true,
+    deliveryReceiptVerified: true,
+    realNumberSmokeTestPassed: true,
+    alternateLoginVerified: true,
+    retentionConsentAndOptOutVerified: true,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    TENCENT_SECRET_ID: "not-recorded-id",
+    TENCENT_SECRET_KEY: "not-recorded-key",
+    SMS_APP_ID: "1400000000",
+    SMS_SIGN_NAME: "国学平台",
+    SMS_TEMPLATE_ID: "123456",
+    SMS_CHURN_TEMPLATE_ID: "654321",
+  });
+  try {
+    assert.equal(audit.result.status, 0, audit.result.stderr || audit.result.stdout);
+    assert.equal(audit.report.smsDeliveryEvidence.verified, true);
+    assert.equal(audit.report.smsDeliveryEvidence.retentionEnabled, true);
+    assert.equal(audit.report.outboundAccessEvidence.dependencyCount, 2);
+    const serialized = JSON.stringify(audit.report);
+    assert.equal(serialized.includes("国学平台"), false);
+    assert.equal(serialized.includes("1400000000"), false);
+    assert.equal(serialized.includes("123456"), false);
+    assert.equal(serialized.includes("not-recorded-key"), false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("启用短信后拒绝错绑模板、未审核签名和缺失登录兜底", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "tencent-sms",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.smsDelivery = {
+    owner: "短信交付负责人",
+    appId: "1400000000",
+    signName: "旧签名",
+    verificationTemplateId: "999999",
+    retentionTemplateId: "",
+    evidenceReference: "CHANGE-20260802-SMS",
+    signApproved: false,
+    verificationTemplateApproved: false,
+    retentionTemplateApproved: false,
+    deliveryReceiptVerified: false,
+    realNumberSmokeTestPassed: false,
+    alternateLoginVerified: false,
+    retentionConsentAndOptOutVerified: false,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    TENCENT_SECRET_ID: "not-recorded-id",
+    TENCENT_SECRET_KEY: "not-recorded-key",
+    SMS_APP_ID: "1400000000",
+    SMS_SIGN_NAME: "国学平台",
+    SMS_TEMPLATE_ID: "123456",
+  });
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /短信签名、模板和交付责任已绑定/u);
+    assert.match(failures, /短信签名模板、回执、真实投递与登录兜底已现场验收/u);
+    assert.match(failures, /正式环境与新基础设施接入清单完全绑定/u);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
