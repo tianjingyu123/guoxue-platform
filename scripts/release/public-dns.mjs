@@ -11,7 +11,10 @@ function assert(condition, message) {
 }
 
 function normalizeHostname(value) {
-  return String(value || "").trim().toLowerCase().replace(/\.$/u, "");
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/u, "");
 }
 
 function normalizeAddressRecords(records) {
@@ -24,7 +27,10 @@ function normalizeAddressRecords(records) {
 
 function isPublicIpv4(address) {
   const parts = address.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) {
+  if (
+    parts.length !== 4 ||
+    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+  ) {
     return false;
   }
   const [a, b] = parts;
@@ -70,7 +76,10 @@ export function isPublicAddress(address) {
 
 export function createPublicDnsResolver(servers, options = {}) {
   assert(Array.isArray(servers) && servers.length > 0, "公网 DNS 解析器至少需要一个服务器地址");
-  assert(servers.every((server) => isIP(server) !== 0), "公网 DNS 解析器服务器必须使用 IP 地址");
+  assert(
+    servers.every((server) => isIP(server) !== 0),
+    "公网 DNS 解析器服务器必须使用 IP 地址",
+  );
   const resolver = new dns.Resolver({
     timeout: options.timeoutMs ?? 5_000,
     tries: options.tries ?? 2,
@@ -155,9 +164,9 @@ export async function probeAuthoritativeDns(hostname, options = {}) {
   const resolver = options.resolver ?? dns;
   const start = normalizeHostname(hostname);
   assert(start && isIP(start) === 0, "权威 DNS 探测必须使用域名，不能使用 IP");
-  const expectedNameServers = [...new Set(
-    (options.expectedNameServers || []).map(normalizeHostname).filter(Boolean),
-  )].sort();
+  const expectedNameServers = [
+    ...new Set((options.expectedNameServers || []).map(normalizeHostname).filter(Boolean)),
+  ].sort();
   assert(expectedNameServers.length >= 2, "权威 DNS 探测至少需要两个期望 NS");
 
   const labels = start.split(".");
@@ -170,13 +179,20 @@ export async function probeAuthoritativeDns(hostname, options = {}) {
       zone = candidate;
       break;
     } catch (error) {
-      if (!["ENODATA", "ENOTFOUND", "ENOENT", "ENODOMAIN"].includes(error?.code)) throw error;
+      const candidateIsSubdomain = index < labels.length - 2;
+      const cnameSoaResponse = candidateIsSubdomain && error?.code === "EBADRESP";
+      if (
+        !cnameSoaResponse &&
+        !["ENODATA", "ENOTFOUND", "ENOENT", "ENODOMAIN"].includes(error?.code)
+      ) {
+        throw error;
+      }
     }
   }
   assert(zone && soa, `域名 ${start} 未找到可核验的权威 SOA`);
-  const nameServers = [...new Set(
-    (await resolver.resolveNs(zone)).map(normalizeHostname).filter(Boolean),
-  )].sort();
+  const nameServers = [
+    ...new Set((await resolver.resolveNs(zone)).map(normalizeHostname).filter(Boolean)),
+  ].sort();
   assert(nameServers.length >= 2, `DNS 区域 ${zone} 的权威 NS 少于两个`);
   assert(
     JSON.stringify(nameServers) === JSON.stringify(expectedNameServers),

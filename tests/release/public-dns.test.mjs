@@ -17,13 +17,19 @@ function resolver(records) {
     },
     async resolve4(hostname, options) {
       const values = records.ipv4?.[hostname] || [];
-      return options?.ttl ? values.map((address) => ({ address, ttl: records.ttl ?? 300 })) : values;
+      return options?.ttl
+        ? values.map((address) => ({ address, ttl: records.ttl ?? 300 }))
+        : values;
     },
     async resolve6(hostname, options) {
       const values = records.ipv6?.[hostname] || [];
-      return options?.ttl ? values.map((address) => ({ address, ttl: records.ttl ?? 300 })) : values;
+      return options?.ttl
+        ? values.map((address) => ({ address, ttl: records.ttl ?? 300 }))
+        : values;
     },
     async resolveSoa(hostname) {
+      const errorCode = records.soaErrors?.[hostname];
+      if (errorCode) throw Object.assign(new Error("soa response error"), { code: errorCode });
       const value = records.soa?.[hostname];
       if (!value) throw Object.assign(new Error("no soa"), { code: "ENODATA" });
       return value;
@@ -143,5 +149,25 @@ test("权威 DNS 探测从子域向上定位区域并严格核对双 NS 委派",
       expectedNameServers: ["old1.example.net", "old2.example.net"],
     }),
     /权威 NS 与接入清单不一致/u,
+  );
+});
+
+test("权威 DNS 探测兼容 CNAME 子域查询 SOA 返回 EBADRESP", async () => {
+  const accepted = await probeAuthoritativeDns("pre-api.example.test", {
+    resolver: resolver({
+      soaErrors: { "pre-api.example.test": "EBADRESP" },
+      soa: { "example.test": { nsname: "ns1.dnspod.net" } },
+      ns: { "example.test": ["ns1.dnspod.net", "ns2.dnspod.net"] },
+    }),
+    expectedNameServers: ["ns1.dnspod.net", "ns2.dnspod.net"],
+  });
+
+  assert.equal(accepted.zone, "example.test");
+  await assert.rejects(
+    probeAuthoritativeDns("example.test", {
+      resolver: resolver({ soaErrors: { "example.test": "EBADRESP" } }),
+      expectedNameServers: ["ns1.dnspod.net", "ns2.dnspod.net"],
+    }),
+    (error) => error?.code === "EBADRESP",
   );
 });
