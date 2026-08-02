@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
+
+const scriptPath = fileURLToPath(import.meta.url);
+const defaultRepoRoot = path.resolve(path.dirname(scriptPath), "..", "..");
+const workflowExtensions = new Set([".yml", ".yaml"]);
+
+function listWorkflowFiles(workflowRoot) {
+  if (!fs.existsSync(workflowRoot)) return [];
+
+  return fs
+    .readdirSync(workflowRoot, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && workflowExtensions.has(path.extname(entry.name)))
+    .map((entry) => path.join(workflowRoot, entry.name))
+    .sort((left, right) => left.localeCompare(right, "en"));
+}
+
+function normalizeRelativePath(repoRoot, absolutePath) {
+  return path.relative(repoRoot, absolutePath).split(path.sep).join("/");
+}
+
+function isImmutableActionReference(reference) {
+  if (reference.startsWith("./")) return true;
+  if (/^docker:\/\/[^\s]+@sha256:[0-9a-f]{64}$/iu.test(reference)) return true;
+  return /^[^@\s]+@[0-9a-f]{40}$/iu.test(reference);
+}
+
+export function auditWorkflowSupplyChain(repoRoot = defaultRepoRoot) {
+  const resolvedRoot = path.resolve(repoRoot);
+  const workflowFiles = listWorkflowFiles(path.join(resolvedRoot, ".github", "workflows"));
+  const references = [];
+  const errors = [];
+
+  if (workflowFiles.length === 0) {
+    errors.push("没有找到 .github/workflows/*.yml 或 *.yaml，无法验证发布供应链");
+  }
+
+  for (const workflowFile of workflowFiles) {
+    const relativePath = normalizeRelativePath(resolvedRoot, workflowFile);
+    const lines = fs.readFileSync(workflowFile, "utf8").replace(/\r\n?/gu, "\n").split("\n");
+
+    lines.forEach((line, index) => {
+      const match = line.match(/^\s*(?:-\s*)?uses:\s*(.+?)\s*$/u);
+      if (!match) return;
+
+      const reference = match[1].replace(/\s+#.*$/u, "").trim();
+      const item = { file: relativePath, line: index + 1, reference };
+      references.push(item);
+
+      if (!isImmutableActionReference(reference)) {
+        errors.push(
+          `${relativePath}:${index + 1} 外部 Action 必须锁定 40 位提交 SHA（容器 Action 必须锁定 sha256 摘要）：${reference}`,
+        );
+      }
+    });
+  }
+
+  return {
+    workflowFiles: workflowFiles.map((file) => normalizeRelativePath(resolvedRoot, file)),
+    references,
+    errors,
+  };
+}
+
+function main() {
+  const result = auditWorkflowSupplyChain();
+  if (result.errors.length > 0) {
+    console.error(`GitHub Actions 供应链审计失败：${result.errors.length} 项`);
+    for (const error of result.errors) console.error(`- ${error}`);
+    process.exit(1);
+  }
+
+  console.log(
+    `GitHub Actions 供应链审计通过：${result.workflowFiles.length} 个工作流、${result.references.length} 个 Action 引用均使用不可变提交或摘要`,
+  );
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) main();

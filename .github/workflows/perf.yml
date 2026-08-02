@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       scenario:
-        description: '压测场景'
+        description: "压测场景"
         required: true
-        default: 'load'
+        default: "load"
         type: choice
         options:
           - smoke
@@ -15,22 +15,22 @@ on:
           - soak
           - spike
       base_url:
-        description: '目标服务地址（留空默认 localhost）'
+        description: "目标服务地址（留空默认 localhost）"
         required: false
         type: string
   schedule:
     # 每天凌晨 3:00 UTC（北京时间 11:00）执行负载测试
-    - cron: '0 3 * * *'
+    - cron: "0 3 * * *"
 
 env:
-  NODE_VERSION: '20'
-  PNPM_VERSION: '10.33.3'
-  DATABASE_URL: 'postgresql://guoxue:guoxue123@localhost:5432/guoxue'
-  REDIS_URL: 'redis://localhost:6379'
-  ENCRYPTION_KEY: 'perf-test-key-32bytes-long!!'
-  JWT_SECRET: 'perf-test-jwt-secret-key!!'
-  DISABLE_RATE_LIMIT: 'true'
-  BULLMQ_DISABLED: 'true'
+  NODE_VERSION: "20"
+  PNPM_VERSION: "10.33.3"
+  DATABASE_URL: "postgresql://guoxue:guoxue123@localhost:5432/guoxue"
+  REDIS_URL: "redis://localhost:6379"
+  ENCRYPTION_KEY: "perf-test-key-32bytes-long!!"
+  JWT_SECRET: "perf-test-jwt-secret-key!!"
+  DISABLE_RATE_LIMIT: "true"
+  BULLMQ_DISABLED: "true"
 
 jobs:
   perf-test:
@@ -65,18 +65,18 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: 安装 Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: 安装依赖
         run: pnpm install --frozen-lockfile
@@ -126,7 +126,7 @@ jobs:
           done
 
       - name: 安装 k6
-        uses: grafana/setup-k6-action@v1
+        uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1
 
       - name: 运行性能测试
         run: |
@@ -158,7 +158,7 @@ jobs:
 
       - name: 上传结果
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: perf-results-${{ env.SCENARIO }}-${{ github.run_id }}
           path: results/
