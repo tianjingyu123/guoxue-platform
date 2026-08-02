@@ -92,6 +92,8 @@ release-evidence/*.json
 docker/.runtime-current.env
 config/release/infrastructure-intake.json
 config/release/infrastructure-intake.json.backup-*
+config/release/infrastructure-intake.new-target.json
+config/release/infrastructure-intake.new-target.json.backup-*
 config/release/store-release-evidence.json
 
 # 本机 WorkBuddy/KIKI 云资源操作提示（保留文件，不进入源码基线）
