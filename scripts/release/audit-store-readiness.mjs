@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -15,13 +16,50 @@ function valueOf(name, fallback = "") {
   return index >= 0 && args[index + 1] ? args[index + 1] : fallback;
 }
 
-function readJson(relativePath) {
-  return JSON.parse(fs.readFileSync(path.join(repoRoot, relativePath), "utf8"));
+function resolveInput(inputPath) {
+  return path.isAbsolute(inputPath) ? inputPath : path.resolve(repoRoot, inputPath);
+}
+
+function readJson(inputPath) {
+  return JSON.parse(fs.readFileSync(resolveInput(inputPath), "utf8"));
+}
+
+function readOptionalJson(inputPath) {
+  if (!inputPath) return null;
+  const absolutePath = resolveInput(inputPath);
+  if (!fs.existsSync(absolutePath)) return null;
+  return JSON.parse(fs.readFileSync(absolutePath, "utf8"));
+}
+
+function isSha256(value) {
+  return /^[a-f0-9]{64}$/iu.test(String(value || ""));
+}
+
+function artifactMatchesEvidence(item) {
+  if (!isSha256(item?.artifactSha256) || !isEvidenceText(item?.artifactPath)) return false;
+  const artifactPath = resolveInput(item.artifactPath);
+  if (!fs.existsSync(artifactPath) || !fs.statSync(artifactPath).isFile()) return false;
+  const actual = createHash("sha256").update(fs.readFileSync(artifactPath)).digest("hex");
+  return actual.toLowerCase() === String(item.artifactSha256).toLowerCase();
+}
+
+function isEvidenceText(value) {
+  const normalized = String(value || "").trim();
+  return (
+    normalized.length >= 3 && normalized.length <= 160 && !/请填写|待补|TODO/iu.test(normalized)
+  );
+}
+
+function isVerifiedAt(value) {
+  const timestamp = Date.parse(String(value || ""));
+  return Number.isFinite(timestamp) && timestamp <= Date.now() + 5 * 60 * 1000;
 }
 
 function compareNumericVersions(left, right) {
   const parse = (value) => {
-    const normalized = String(value || "").replace(/^v/i, "").split("-")[0];
+    const normalized = String(value || "")
+      .replace(/^v/i, "")
+      .split("-")[0];
     if (!/^\d+(?:\.\d+){0,3}$/.test(normalized)) return null;
     return normalized.split(".").map(Number);
   };
@@ -37,21 +75,19 @@ function compareNumericVersions(left, right) {
   return 0;
 }
 
-const manifest = readJson("apps/mobile/src/manifest.json");
+const manifestPath = valueOf("--manifest", "apps/mobile/src/manifest.json");
+const manifest = readJson(manifestPath);
 const mobilePackage = readJson("apps/mobile/package.json");
 const expectedMiniAppId =
-  valueOf("--expected-wechat-appid") ||
-  process.env.EXPECTED_WECHAT_APP_ID ||
-  "wx06397e8ab26bed9e";
+  valueOf("--expected-wechat-appid") || process.env.EXPECTED_WECHAT_APP_ID || "wx06397e8ab26bed9e";
 const defaultBaseline = fs.existsSync(path.join(repoRoot, "config/release/store-baseline.json"))
   ? "config/release/store-baseline.json"
   : "";
-const baselinePath = valueOf(
-  "--baseline",
-  process.env.STORE_BASELINE_FILE || defaultBaseline,
-);
+const baselinePath = valueOf("--baseline", process.env.STORE_BASELINE_FILE || defaultBaseline);
 const reportArgument = valueOf("--report", process.env.STORE_READINESS_REPORT || "");
 const releaseId = valueOf("--release-id", process.env.RELEASE_ID || "").trim();
+const evidencePath = valueOf("--evidence", process.env.STORE_RELEASE_EVIDENCE_FILE || "");
+const releaseEvidence = readOptionalJson(evidencePath);
 
 if (reportArgument && !/^[A-Za-z0-9._-]{8,80}$/u.test(releaseId)) {
   throw new Error("生成商店正式审计报告时，必须通过 --release-id 提供 8-80 位发布标识");
@@ -63,10 +99,57 @@ const ios = distribute.ios || {};
 const harmony = manifest["app-harmony"]?.distribute || {};
 const mini = manifest["mp-weixin"] || {};
 
+const nativePluginNames = [
+  ...Object.keys(appPlus.nativePlugins || {}),
+  ...Object.keys(distribute.sdkConfigs || {}),
+];
+const hasVoiceRtcPlugin = nativePluginNames.some((name) =>
+  /(?:^|[-_.])(trtc|rtc|voice|audio)(?:$|[-_.])/iu.test(name),
+);
+const evidenceEnvelopeValid =
+  releaseEvidence?.schemaVersion === 1 &&
+  releaseEvidence?.kind === "guoxue-store-release-evidence" &&
+  Boolean(releaseId) &&
+  releaseEvidence?.releaseId === releaseId;
+const nativeVoiceEvidence = releaseEvidence?.nativeVoiceRtc || {};
+const nativeVoicePlatforms = nativeVoiceEvidence.platforms || {};
+const nativeVoiceEvidenceValid =
+  evidenceEnvelopeValid &&
+  nativeVoiceEvidence.verified === true &&
+  isVerifiedAt(nativeVoiceEvidence.verifiedAt) &&
+  isEvidenceText(nativeVoiceEvidence.verifiedBy) &&
+  isEvidenceText(nativeVoiceEvidence.evidenceId) &&
+  ["android", "ios"].every((platform) => {
+    const item = nativeVoicePlatforms[platform] || {};
+    return (
+      artifactMatchesEvidence(item) &&
+      isEvidenceText(item.deviceModel) &&
+      isEvidenceText(item.osVersion) &&
+      item.microphonePermissionPassed === true &&
+      item.callRoundTripPassed === true
+    );
+  });
+const harmonySigningEvidence = releaseEvidence?.harmonySigning || {};
+const harmonySigningEvidenceValid =
+  evidenceEnvelopeValid &&
+  harmonySigningEvidence.verified === true &&
+  harmonySigningEvidence.coverInstallPassed === true &&
+  isVerifiedAt(harmonySigningEvidence.verifiedAt) &&
+  isEvidenceText(harmonySigningEvidence.verifiedBy) &&
+  isEvidenceText(harmonySigningEvidence.evidenceId) &&
+  isEvidenceText(harmonySigningEvidence.deviceModel) &&
+  isEvidenceText(harmonySigningEvidence.osVersion) &&
+  artifactMatchesEvidence(harmonySigningEvidence) &&
+  isSha256(harmonySigningEvidence.signatureSha256);
+
 const checks = [];
 const add = (name, pass, detail, kind = "配置") => checks.push({ name, pass, detail, kind });
 
-add("DCloud AppID 已配置", Boolean(String(manifest.appid || "").trim()), "正式云打包需要沿用受控 DCloud AppID");
+add(
+  "DCloud AppID 已配置",
+  Boolean(String(manifest.appid || "").trim()),
+  "正式云打包需要沿用受控 DCloud AppID",
+);
 add(
   "Android 包名已冻结",
   Boolean(String(android.packagename || "").trim()),
@@ -99,16 +182,13 @@ add(
   mini.appid === expectedMiniAppId,
   `当前配置 ${mini.appid || "未配置"}；目标为热卜星火 ${expectedMiniAppId}`,
 );
-add(
-  "微信合法域名校验已开启",
-  mini.setting?.urlCheck === true,
-  "提审包不得使用 urlCheck:false",
-);
+add("微信合法域名校验已开启", mini.setting?.urlCheck === true, "提审包不得使用 urlCheck:false");
 add(
   "App 原生 SDK/插件配置已完成",
-  Object.keys(appPlus.nativePlugins || {}).length > 0 ||
-    Object.keys(distribute.sdkConfigs || {}).length > 0,
-  "语音/实时音视频能力需在正式真机包中注册原生插件或 SDK",
+  hasVoiceRtcPlugin && nativeVoiceEvidenceValid,
+  hasVoiceRtcPlugin
+    ? "还须提供与本次 releaseId 绑定的 Android/iOS 正式候选包麦克风授权及双向通话证据"
+    : "语音/实时音视频能力需在正式真机包中注册可识别的 TRTC/RTC/voice/audio 原生插件或 SDK",
   "外部",
 );
 add(
@@ -176,8 +256,7 @@ if (!baselinePath) {
     );
     add(
       "鸿蒙 Bundle Name 与旧版一致",
-      Boolean(harmonyBaseline.bundleName) &&
-        harmonyBundleName === harmonyBaseline.bundleName,
+      Boolean(harmonyBaseline.bundleName) && harmonyBundleName === harmonyBaseline.bundleName,
       "Bundle Name 不一致会被 AppGallery 识别为新应用，旧版无法覆盖升级",
     );
     const currentBuild = Number(manifest.versionCode);
@@ -221,8 +300,13 @@ if (!baselinePath) {
     );
     add(
       "鸿蒙正式签名资料已核验",
-      harmonyBaseline.signingProfileVerified === true,
-      "须在 HBuilderX/DevEco 使用受控发布证书生成 .app，并确认可覆盖安装线上旧版",
+      harmonyBaseline.signingProfileVerified === true &&
+        harmonySigningEvidenceValid &&
+        harmonySigningEvidence.oldVersion === String(harmonyBaseline.versionName || "") &&
+        harmonySigningEvidence.candidateVersion === String(manifest.versionName || ""),
+      harmonyBaseline.signingProfileVerified === true
+        ? "还须提供与本次 releaseId、旧版基线和候选版本绑定的正式 .app 文件、哈希、签名指纹及真机覆盖安装证据"
+        : "须在 HBuilderX/DevEco 核验受控发布证书，再生成 .app 并确认可覆盖安装线上旧版",
       "外部",
     );
   }
@@ -266,7 +350,9 @@ console.log("应用商店覆盖升级门禁");
 for (const item of checks) {
   console.log(`${item.pass ? "通过" : "阻断"}：[${item.kind}] ${item.name} —— ${item.detail}`);
 }
-console.log(`汇总：${checks.length - failed.length}/${checks.length} 通过，${failed.length} 项待完成`);
+console.log(
+  `汇总：${checks.length - failed.length}/${checks.length} 通过，${failed.length} 项待完成`,
+);
 
 if (strict && failed.length > 0) {
   console.error("商店提审门禁失败：上述阻断项完成前不得生成正式提审包。");

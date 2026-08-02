@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "kind": "guoxue-store-release-evidence",
+  "releaseId": "release-YYYYMMDD-change-id",
+  "nativeVoiceRtc": {
+    "verified": false,
+    "verifiedAt": "YYYY-MM-DDTHH:mm:ssZ",
+    "verifiedBy": "请填写验收人或团队",
+    "evidenceId": "请填写受控证据编号",
+    "platforms": {
+      "android": {
+        "artifactPath": "请填写正式 Android 候选包路径",
+        "artifactSha256": "请填写正式候选包 SHA-256",
+        "deviceModel": "请填写真机型号",
+        "osVersion": "请填写系统版本",
+        "microphonePermissionPassed": false,
+        "callRoundTripPassed": false
+      },
+      "ios": {
+        "artifactPath": "请填写正式 iOS 候选包路径",
+        "artifactSha256": "请填写正式候选包 SHA-256",
+        "deviceModel": "请填写真机型号",
+        "osVersion": "请填写系统版本",
+        "microphonePermissionPassed": false,
+        "callRoundTripPassed": false
+      }
+    }
+  },
+  "harmonySigning": {
+    "verified": false,
+    "verifiedAt": "YYYY-MM-DDTHH:mm:ssZ",
+    "verifiedBy": "请填写验收人或团队",
+    "evidenceId": "请填写受控证据编号",
+    "artifactPath": "请填写正式 Harmony .app 路径",
+    "artifactSha256": "请填写正式 .app 的 SHA-256",
+    "signatureSha256": "请填写正式签名证书 SHA-256 指纹",
+    "deviceModel": "请填写鸿蒙真机型号",
+    "osVersion": "请填写 HarmonyOS 版本",
+    "oldVersion": "请填写覆盖安装前版本",
+    "candidateVersion": "请填写覆盖安装后版本",
+    "coverInstallPassed": false
+  }
+}
