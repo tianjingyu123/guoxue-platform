@@ -84,6 +84,7 @@
     "owner": "待填写",
     "clientDomainAllowlistOwner": "待填写",
     "callbackUrls": [],
+    "controlPlaneCallbacks": [],
     "controlPlaneInventoryVerified": false,
     "callbackReachabilityVerified": false,
     "callbackAuthenticationVerified": false,

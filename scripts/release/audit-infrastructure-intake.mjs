@@ -295,6 +295,12 @@ const knownCallbackPaths = new Map([
   ["HUIFU_NOTIFY_URL", "/api/v1/huifu/notify"],
   ["KUAIDI100_CALLBACK_URL", "/api/v1/shop/logistics/kuaidi100/callback"],
 ]);
+const knownControlPlaneCallbackPaths = new Map([
+  ["tencent-vod", "/api/v1/videos/vod/callback"],
+  ["tencent-live", "/api/v1/live/callback"],
+  ["tencent-live-audit", "/api/v1/live/audit/callback"],
+  ["tencent-im", "/api/v1/im/callback"],
+]);
 const plannedCallbackUrls = [...new Set(
   (Array.isArray(externalEndpoints.callbackUrls) ? externalEndpoints.callbackUrls : [])
     .map(normalizeUrl)
@@ -320,6 +326,33 @@ const callbackPlanValid = plannedCallbackUrls.every((value) => {
     return false;
   }
 });
+const plannedControlPlaneCallbacks = (
+  Array.isArray(externalEndpoints.controlPlaneCallbacks)
+    ? externalEndpoints.controlPlaneCallbacks
+    : []
+)
+  .map((item) => ({
+    integrationId: text(item?.integrationId).toLowerCase(),
+    callbackUrl: normalizeUrl(item?.callbackUrl),
+  }))
+  .sort((left, right) => left.integrationId.localeCompare(right.integrationId));
+const plannedControlPlaneIds = plannedControlPlaneCallbacks.map((item) => item.integrationId);
+const controlPlaneCallbacksValid =
+  new Set(plannedControlPlaneIds).size === plannedControlPlaneIds.length &&
+  plannedControlPlaneCallbacks.every((item) => {
+    const expectedPath = knownControlPlaneCallbackPaths.get(item.integrationId);
+    if (!expectedPath) return false;
+    try {
+      const parsed = new URL(item.callbackUrl);
+      return (
+        parsed.protocol === "https:" &&
+        parsed.origin.toLowerCase() === apiOrigin &&
+        parsed.pathname.replace(/\/+$/u, "") === expectedPath
+      );
+    } catch {
+      return false;
+    }
+  });
 add(
   "第三方回调与客户端域名切换责任已登记",
   isFilled(externalEndpoints.owner) &&
@@ -332,8 +365,8 @@ add(
 );
 add(
   "第三方回调地址规划只指向新 API 入口",
-  callbackPlanValid,
-  "已登记回调必须使用 PUBLIC_API_URL 同源 HTTPS 地址和受控固定路径；未启用渠道可不登记",
+  callbackPlanValid && controlPlaneCallbacksValid,
+  "环境变量回调和云控制台回调必须使用 PUBLIC_API_URL 同源 HTTPS 地址、受控固定路径与唯一集成标识；未启用渠道可不登记",
 );
 
 if (resourceReady) {
@@ -374,6 +407,10 @@ if (resourceReady) {
       externalEndpoints.clientDomainAllowlistOwner,
       externalEndpoints.evidenceReference,
       ...plannedCallbackUrls,
+      ...plannedControlPlaneCallbacks.flatMap((item) => [
+        item.integrationId,
+        item.callbackUrl,
+      ]),
     ].every((value) => isFilled(value) && !isPlaceholder(value)),
     `${stage} 阶段禁止 example、pending、change-me 或待填写值`,
   );
@@ -446,6 +483,24 @@ if (resourceReady) {
       )
     : false;
   const cacheTls = redisUrl?.protocol === "rediss:";
+  const requiredControlPlaneIds = [
+    ...(environmentValues.get("VOD_SUB_APP_ID") ? ["tencent-vod"] : []),
+    ...(environmentValues.get("LIVE_PUSH_DOMAIN") || environmentValues.get("LIVE_PLAY_DOMAIN")
+      ? ["tencent-live", "tencent-live-audit"]
+      : []),
+    ...(environmentValues.get("IM_APP_ID") ? ["tencent-im"] : []),
+  ].sort();
+  add(
+    "已启用云能力均登记正式控制台回调",
+    JSON.stringify(plannedControlPlaneIds) === JSON.stringify(requiredControlPlaneIds),
+    "启用 VOD、直播或 IM 时必须逐项登记同源正式回调；报告只记录是否匹配，不记录原始地址",
+  );
+  const expectedControlPlaneCallbacks = requiredControlPlaneIds.map((integrationId) => ({
+    integrationId,
+    callbackUrl: normalizeUrl(
+      `${environmentValues.get("PUBLIC_API_URL")}${knownControlPlaneCallbackPaths.get(integrationId)}`,
+    ),
+  }));
   const intakeBinding = {
     deployTarget,
     region: text(server.region).toLowerCase(),
@@ -464,6 +519,7 @@ if (resourceReady) {
     storageBucket: text(storage.bucket),
     storageRegion: text(storage.region).toLowerCase(),
     callbackUrlsFingerprint: fingerprint(plannedCallbackUrls),
+    controlPlaneCallbacksFingerprint: fingerprint(plannedControlPlaneCallbacks),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -495,6 +551,7 @@ if (resourceReady) {
           .filter(Boolean),
       )].sort(),
     ),
+    controlPlaneCallbacksFingerprint: fingerprint(expectedControlPlaneCallbacks),
   };
   const bindingFields = Object.keys(intakeBinding);
   const mismatchedBindingFields = bindingFields.filter(

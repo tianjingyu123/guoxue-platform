@@ -99,6 +99,7 @@ function completeIntake() {
         "https://api.guoxue.cn/api/v1/huifu/notify",
         "https://api.guoxue.cn/api/v1/shop/logistics/kuaidi100/callback",
       ],
+      controlPlaneCallbacks: [],
       controlPlaneInventoryVerified: true,
       callbackReachabilityVerified: true,
       callbackAuthenticationVerified: true,
@@ -499,6 +500,58 @@ test("第三方回调仍指向旧域名或与正式环境登记不一致时阻�
   } finally {
     await rm(plannedOldDomain.root, { recursive: true, force: true });
     await rm(environmentOldDomain.root, { recursive: true, force: true });
+  }
+});
+
+test("已启用的腾讯云能力必须逐项登记同源固定控制台回调", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.controlPlaneCallbacks = [
+    {
+      integrationId: "tencent-vod",
+      callbackUrl: "https://api.guoxue.cn/api/v1/videos/vod/callback",
+    },
+    {
+      integrationId: "tencent-live",
+      callbackUrl: "https://api.guoxue.cn/api/v1/live/callback",
+    },
+    {
+      integrationId: "tencent-live-audit",
+      callbackUrl: "https://api.guoxue.cn/api/v1/live/audit/callback",
+    },
+    {
+      integrationId: "tencent-im",
+      callbackUrl: "https://api.guoxue.cn/api/v1/im/callback",
+    },
+  ];
+  const environment = completeEnvironment({
+    VOD_SUB_APP_ID: "12345",
+    LIVE_PUSH_DOMAIN: "push.guoxue.cn",
+    LIVE_PLAY_DOMAIN: "play.guoxue.cn",
+    IM_APP_ID: "1400000000",
+  });
+  const complete = await runAudit(intake, "predeploy", "tencent", environment);
+
+  const missingIntake = structuredClone(intake);
+  missingIntake.externalEndpoints.controlPlaneCallbacks =
+    missingIntake.externalEndpoints.controlPlaneCallbacks.filter(
+      (item) => item.integrationId !== "tencent-live-audit",
+    );
+  const missing = await runAudit(missingIntake, "predeploy", "tencent", environment);
+  try {
+    assert.equal(complete.result.status, 0, complete.result.stderr || complete.result.stdout);
+    assert.equal(complete.report.configurationBinding.success, true);
+    assert.notEqual(missing.result.status, 0);
+    assert.match(
+      missing.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /已启用云能力均登记正式控制台回调/u,
+    );
+    assert.equal(JSON.stringify(missing.report).includes("api.guoxue.cn"), false);
+  } finally {
+    await rm(complete.root, { recursive: true, force: true });
+    await rm(missing.root, { recursive: true, force: true });
   }
 });
 

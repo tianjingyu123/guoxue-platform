@@ -241,6 +241,9 @@ add(
     "第三方回调地址规划只指向新 API 入口",
     "第三方控制台、回调安全与客户端白名单已现场验收",
     "callbackUrlsFingerprint",
+    "controlPlaneCallbacks",
+    "已启用云能力均登记正式控制台回调",
+    "tencent-live-audit",
   ]) &&
     infrastructureIntakeExample.includes('"externalEndpoints"') &&
     hasAll(productionEnvAuditor, [
