@@ -75,6 +75,7 @@ function completeIntake() {
       region: "ap-beijing",
       privateRead: true,
       corsConfigured: true,
+      corsAllowedOrigins: ["https://api.guoxue.cn"],
       lifecycleConfigured: true,
       signedUrlVerified: true,
     },
@@ -717,5 +718,40 @@ test("正式环境连接到另一套数据库或对象存储时阻断且报告�
     assert.equal(serialized.includes("wrong-bucket-1250000000"), false);
   } finally {
     await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("对象存储 CORS 来源必须精确绑定正式 H5 与后台入口且报告不泄露旧域名", async () => {
+  const stale = completeIntake();
+  stale.storage.corsAllowedOrigins = ["https://old.guoxue.cn"];
+  const staleAudit = await runAudit(stale, "predeploy");
+
+  const unsafe = completeIntake();
+  unsafe.storage.corsAllowedOrigins = ["https://api.guoxue.cn/h5/?from=legacy"];
+  const unsafeAudit = await runAudit(unsafe, "predeploy");
+
+  try {
+    assert.notEqual(staleAudit.result.status, 0);
+    assert.match(
+      staleAudit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => `${item.name} ${item.detail}`)
+        .join("\n"),
+      /对象存储 CORS 来源与正式 H5 和后台入口完全绑定/,
+    );
+    assert.equal(JSON.stringify(staleAudit.report).includes("old.guoxue.cn"), false);
+
+    assert.notEqual(unsafeAudit.result.status, 0);
+    assert.match(
+      unsafeAudit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => `${item.name} ${item.detail}`)
+        .join("\n"),
+      /对象存储 CORS 仅登记精确 HTTPS origin/,
+    );
+    assert.equal(JSON.stringify(unsafeAudit.report).includes("from=legacy"), false);
+  } finally {
+    await rm(staleAudit.root, { recursive: true, force: true });
+    await rm(unsafeAudit.root, { recursive: true, force: true });
   }
 });

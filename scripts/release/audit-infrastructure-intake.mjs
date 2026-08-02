@@ -411,6 +411,31 @@ const clientDomainAllowlistEntriesValid =
       return false;
     }
   });
+const rawStorageCorsAllowedOrigins = Array.isArray(storage.corsAllowedOrigins)
+  ? storage.corsAllowedOrigins
+  : [];
+const plannedStorageCorsAllowedOrigins = rawStorageCorsAllowedOrigins
+  .map((origin) => normalizeOrigin(origin))
+  .sort();
+const storageCorsAllowedOriginsValid =
+  new Set(plannedStorageCorsAllowedOrigins).size === plannedStorageCorsAllowedOrigins.length &&
+  rawStorageCorsAllowedOrigins.every((rawOrigin) => {
+    const value = text(rawOrigin);
+    if (!normalizeOrigin(value)) return false;
+    try {
+      const parsed = new URL(value);
+      return (
+        parsed.protocol === "https:" &&
+        parsed.username === "" &&
+        parsed.password === "" &&
+        parsed.pathname === "/" &&
+        parsed.search === "" &&
+        parsed.hash === ""
+      );
+    } catch {
+      return false;
+    }
+  });
 add(
   "第三方回调与客户端域名切换责任已登记",
   isFilled(externalEndpoints.owner) &&
@@ -430,6 +455,11 @@ add(
   "客户端合法域名清单使用受控表面与安全 origin",
   clientDomainAllowlistEntriesValid,
   "仅允许登记受控的小程序/公众号表面；普通入口必须为 HTTPS origin，socket 必须为 WSS origin，禁止路径、查询参数、凭据和重复表面",
+);
+add(
+  "对象存储 CORS 仅登记精确 HTTPS origin",
+  storageCorsAllowedOriginsValid,
+  "禁止对象存储使用通配来源、HTTP、路径、查询参数、凭据或重复来源；上传仍经自家 API，不应为浏览器开放写入口",
 );
 
 if (resourceReady) {
@@ -459,6 +489,7 @@ if (resourceReady) {
       domains.certificateFallbackOwner,
       storage.bucket,
       storage.region,
+      ...rawStorageCorsAllowedOrigins,
       operations.backupOwner,
       operations.cutoverOwner,
       operations.rollbackOwner,
@@ -597,6 +628,14 @@ if (resourceReady) {
         ]
       : []),
   ].sort((left, right) => left.surfaceId.localeCompare(right.surfaceId));
+  const expectedStorageCorsAllowedOrigins = [
+    ...new Set([
+      normalizeOrigin(environmentValues.get("PUBLIC_H5_URL")),
+      normalizeOrigin(`${normalizeUrl(environmentValues.get("PUBLIC_API_URL"))}/admin/`),
+    ]),
+  ]
+    .filter(Boolean)
+    .sort();
   add(
     "已启用云能力均登记正式控制台回调",
     JSON.stringify(plannedControlPlaneIds) === JSON.stringify(requiredControlPlaneIds),
@@ -607,6 +646,12 @@ if (resourceReady) {
     JSON.stringify(plannedClientDomainAllowlistEntries) ===
       JSON.stringify(expectedClientDomainAllowlistEntries),
     "启用小程序时必须登记 request、upload、API/COS download、socket 与 H5 业务域名；启用公众号时必须登记网页授权与 JS-SDK 安全域名",
+  );
+  add(
+    "对象存储 CORS 来源与正式 H5 和后台入口完全绑定",
+    JSON.stringify(plannedStorageCorsAllowedOrigins) ===
+      JSON.stringify(expectedStorageCorsAllowedOrigins),
+    "新 Bucket/CDN 只允许正式 H5 与后台页面的精确 origin 读取资源；漏登、多登或旧域名残留都会阻断",
   );
   const expectedControlPlaneCallbacks = requiredControlPlaneIds.map((integrationId) => ({
     integrationId,
@@ -630,6 +675,7 @@ if (resourceReady) {
     storageProvider: text(storage.provider).toLowerCase(),
     storageBucket: text(storage.bucket),
     storageRegion: text(storage.region).toLowerCase(),
+    storageCorsAllowedOriginsFingerprint: fingerprint(plannedStorageCorsAllowedOrigins),
     callbackUrlsFingerprint: fingerprint(plannedCallbackUrls),
     controlPlaneCallbacksFingerprint: fingerprint(plannedControlPlaneCallbacks),
     clientDomainAllowlistFingerprint: fingerprint(plannedClientDomainAllowlistEntries),
@@ -657,6 +703,7 @@ if (resourceReady) {
     storageProvider: text(environmentValues.get("STORAGE_PROVIDER")).toLowerCase(),
     storageBucket: text(environmentValues.get("COS_BUCKET")),
     storageRegion: text(environmentValues.get("COS_REGION")).toLowerCase(),
+    storageCorsAllowedOriginsFingerprint: fingerprint(expectedStorageCorsAllowedOrigins),
     callbackUrlsFingerprint: fingerprint(
       [
         ...new Set(

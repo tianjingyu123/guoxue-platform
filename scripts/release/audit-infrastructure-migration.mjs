@@ -12,9 +12,7 @@ const checks = [];
 const add = (name, pass, detail) => checks.push({ name, pass, detail });
 
 function read(relativePath) {
-  return fs
-    .readFileSync(path.join(repoRoot, relativePath), "utf8")
-    .replace(/\r\n?/gu, "\n");
+  return fs.readFileSync(path.join(repoRoot, relativePath), "utf8").replace(/\r\n?/gu, "\n");
 }
 
 function hasAll(source, snippets) {
@@ -87,14 +85,14 @@ add(
     'DEPLOY_TARGET" != "standard"',
     "flock -n 9",
     'openssl x509 -checkend "$RENEW_BEFORE_SECONDS"',
-    'certbot_args+=(--dry-run)',
-    'certbot/certbot:v3.2.0',
-    'trap restore_nginx EXIT INT TERM',
+    "certbot_args+=(--dry-run)",
+    "certbot/certbot:v3.2.0",
+    "trap restore_nginx EXIT INT TERM",
     'mv -f "$tmp_fullchain" "$SSL_DIR/fullchain.pem"',
     'docker exec "$NGINX_CONTAINER" nginx -t',
   ]) &&
     hasAll(setupServer, [
-      "TLS_RENEW_SCRIPT=\"$RUNTIME_DIR/docker/renew-ssl.sh\"",
+      'TLS_RENEW_SCRIPT="$RUNTIME_DIR/docker/renew-ssl.sh"',
       "guoxue-tls-renewal.log",
       "certbot renew.*guoxue-nginx",
       "DEPLOY_TARGET=standard PLATFORM_ROOT=$PLATFORM_ROOT",
@@ -112,12 +110,12 @@ add(
   "CLB 部署与故障切换探测跟随目标环境域名",
   hasAll(nginxClbDeploy, [
     "read_env_value NGINX_SERVER_NAMES",
-    'CLB_PROBE_HOST:-',
+    "CLB_PROBE_HOST:-",
     '-e NGINX_SERVER_NAMES="${nginx_server_names}"',
     '-H "Host: ${probe_host}"',
   ]) &&
     hasAll(clbFailoverProbe, [
-      '${BASE_URL:?必须通过 BASE_URL 指定本次切换要探测的公网入口}',
+      "${BASE_URL:?必须通过 BASE_URL 指定本次切换要探测的公网入口}",
       'base_url="${BASE_URL%/}"',
       "https://[A-Za-z0-9.-]+",
     ]) &&
@@ -248,6 +246,9 @@ add(
     "已启用微信客户端均登记完整合法域名",
     "wechat-mini-socket-api",
     "wechat-official-js-sdk-h5",
+    "corsAllowedOrigins",
+    "对象存储 CORS 仅登记精确 HTTPS origin",
+    "对象存储 CORS 来源与正式 H5 和后台入口完全绑定",
   ]) &&
     infrastructureIntakeExample.includes('"externalEndpoints"') &&
     hasAll(productionEnvAuditor, [
@@ -1236,10 +1237,7 @@ add(
     "--report release-evidence/store-readiness.json",
     "release-evidence/store-readiness.json",
   ]) &&
-    hasAll(releasePackageJson, [
-      '"release:test-store-audit"',
-      "pnpm release:test-store-audit",
-    ]) &&
+    hasAll(releasePackageJson, ['"release:test-store-audit"', "pnpm release:test-store-audit"]) &&
     hasAll(read("scripts/release/audit-store-readiness.mjs"), [
       'kind: "guoxue-store-readiness"',
       "externalBlockers",
@@ -1273,11 +1271,7 @@ add(
     "docs/release/新基础设施上线移交总览-20260731.md",
     "docs/release/发布基线与上线缺口-20260728.md",
   ].every((document) =>
-    hasAll(read(document), [
-      "release:gate:full",
-      '--release-id "$RELEASE_ID"',
-      "客户端",
-    ]),
+    hasAll(read(document), ["release:gate:full", '--release-id "$RELEASE_ID"', "客户端"]),
   ),
   "任何面向发布人员的完整门禁说明都不能遗漏 release-id，否则客户端证据无法与固定包批次形成闭环",
 );
@@ -1291,9 +1285,7 @@ add(
     return (
       content.includes('SOURCE_BRANCH="$(git branch --show-current)"') &&
       !content.includes("SOURCE_BRANCH='main'") &&
-      content.includes(
-        "pnpm release:verify:runtime /opt/guoxue/shared/.env.production",
-      ) &&
+      content.includes("pnpm release:verify:runtime /opt/guoxue/shared/.env.production") &&
       !content.includes("pnpm release:verify:runtime docker/.env.production")
     );
   }),
@@ -1554,12 +1546,7 @@ add(
 );
 add(
   "正式环境必须与新数据库、缓存、域名和对象存储接入清单逐项绑定",
-  hasAll(infrastructureIntakeTemplate, [
-    '"endpointHost"',
-    '"bucket"',
-    '"region"',
-    '"clbId"',
-  ]) &&
+  hasAll(infrastructureIntakeTemplate, ['"endpointHost"', '"bucket"', '"region"', '"clbId"']) &&
     hasAll(infrastructureIntakeAudit, [
       'valueOf("--env-file")',
       'environmentValues.get("DATABASE_URL")',
@@ -1568,6 +1555,7 @@ add(
       'environmentValues.get("TENCENT_CLB_ID")',
       'environmentValues.get("COS_BUCKET")',
       'environmentValues.get("COS_REGION")',
+      "storageCorsAllowedOriginsFingerprint",
       "正式环境与新基础设施接入清单完全绑定",
       "configurationBinding: reportBinding",
     ]) &&
@@ -1638,7 +1626,7 @@ add(
   "正式环境门禁阻断小程序身份回退、别名冲突与支付错绑",
   hasAll(environmentChecker, [
     '"WECHAT_MINI_APP_ID", "MINIPROGRAM_APP_ID", "WECHAT_MP_APP_ID"',
-    'config/release/store-baseline.json',
+    "config/release/store-baseline.json",
     'values.get("WECHAT_PAY_APP_ID")',
     "正式环境的小程序 AppID 与受控商店发布基线不一致",
     "微信支付绑定 AppID 与受控商店发布基线不一致",
@@ -1683,18 +1671,12 @@ const clientConfigBindingTest = read("tests/release/client-config-binding.test.m
 const packageCreator = read("scripts/release/create-fixed-package.mjs");
 const packageVerifier = read("scripts/release/verify-fixed-package.mjs");
 const packageVerifierTest = read("tests/release/verify-fixed-package.test.mjs");
-const clientEvidenceConsistency = read(
-  "scripts/release/lib/client-evidence-consistency.mjs",
-);
-const clientEvidenceConsistencyTest = read(
-  "tests/release/client-evidence-consistency.test.mjs",
-);
+const clientEvidenceConsistency = read("scripts/release/lib/client-evidence-consistency.mjs");
+const clientEvidenceConsistencyTest = read("tests/release/client-evidence-consistency.test.mjs");
 const sourceFreezeAudit = read("scripts/release/audit-source-freeze.mjs");
 const sourceFreezeTest = read("tests/release/audit-source-freeze.test.mjs");
 const fullGateTest = read("tests/release/run-full-gate.test.mjs");
-const predeployEvidenceAggregator = read(
-  "scripts/release/aggregate-predeploy-evidence.mjs",
-);
+const predeployEvidenceAggregator = read("scripts/release/aggregate-predeploy-evidence.mjs");
 
 const baseProductionCompose = read("docker/docker-compose.prod.yml");
 const tencentProductionCompose = read("docker/docker-compose.tencent.yml");
@@ -1714,9 +1696,7 @@ add(
     ]),
   "standard 自建架构不得被腾讯云证书路径阻断；tencent 完整门禁必须要求受控宿主机 CA 证书，并以只读方式注入 Node 信任链",
 );
-const predeployEvidenceTest = read(
-  "tests/release/aggregate-predeploy-evidence.test.mjs",
-);
+const predeployEvidenceTest = read("tests/release/aggregate-predeploy-evidence.test.mjs");
 const pnpmInvocationResolver = read("scripts/release/resolve-pnpm-invocation.mjs");
 const pnpmInvocationTest = read("tests/release/resolve-pnpm-invocation.test.mjs");
 const packageJson = read("package.json");
@@ -1725,9 +1705,7 @@ const productionDeployWorkflow = read(".github/workflows/deploy.yml");
 const infrastructureHandoffChecklist = read(
   "docs/operations/新基础设施与正式凭据交接清单-20260731.md",
 );
-const infrastructureMigrationManual = read(
-  "docs/operations/服务器数据库域名迁移手册-20260728.md",
-);
+const infrastructureMigrationManual = read("docs/operations/服务器数据库域名迁移手册-20260728.md");
 add(
   "构建机候选门禁不会冒充最终生产上线 GO",
   !fullGateRunner.includes("完整上线门禁通过") &&
@@ -1780,9 +1758,9 @@ add(
       '"infrastructure-intake-predeploy.json"',
       '"environment-readiness.json"',
       'createHash("sha256")',
-      'freeze.sourceCommit === expectedCommit',
+      "freeze.sourceCommit === expectedCommit",
       'infrastructure.stage === "predeploy"',
-      'environment.deployTarget === deployTarget',
+      "environment.deployTarget === deployTarget",
     ]) &&
     hasAll(predeployEvidenceTest, [
       "三份有效证据聚合为脱敏 GO 判定",

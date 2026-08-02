@@ -64,6 +64,7 @@
     "region": "pending",
     "privateRead": true,
     "corsConfigured": false,
+    "corsAllowedOrigins": [],
     "lifecycleConfigured": false,
     "signedUrlVerified": false
   },
