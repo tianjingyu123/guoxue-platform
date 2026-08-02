@@ -30,3 +30,5 @@ kiki-prompt*.md
 *.mobileprovision
 config/release/infrastructure-intake.json
 config/release/infrastructure-intake.json.backup-*
+config/release/infrastructure-intake.new-target.json
+config/release/infrastructure-intake.new-target.json.backup-*

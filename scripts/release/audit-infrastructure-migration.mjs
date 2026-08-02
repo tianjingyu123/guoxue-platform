@@ -1596,8 +1596,14 @@ add(
       "升级时拒绝改变现有部署架构",
     ]) &&
     hasAll(infrastructureOperationsGuide, ["--upgrade-existing", "只补缺失字段"]) &&
-    hasAll(infrastructureHandoff, ["--upgrade-existing", "禁止删除重建"]),
-  "模板新增门禁字段时必须先备份并只补缺项，禁止覆盖、改架构或人工重抄已登记资源",
+    hasAll(infrastructureHandoff, [
+      "config/release/infrastructure-intake.new-target.json",
+      "绑定上一轮预接入入口",
+      "禁止对它执行 `--upgrade-existing`",
+      "同一目标清单补充新字段",
+      "禁止删除真实旧环境证据",
+    ]),
+  "模板新增门禁字段时仅允许升级同一批新目标清单；必须先备份并只补缺项，禁止覆盖、改架构、复用旧目标或人工重抄已登记资源",
 );
 add(
   "正式环境必须与新数据库、缓存、域名和对象存储接入清单逐项绑定",
@@ -2351,13 +2357,22 @@ add(
 );
 const gitIgnore = read(".gitignore");
 const dockerIgnore = read(".dockerignore");
+const privateInfrastructureIntakeIgnoreRules = [
+  "config/release/infrastructure-intake.json",
+  "config/release/infrastructure-intake.json.backup-*",
+  "config/release/infrastructure-intake.new-target.json",
+  "config/release/infrastructure-intake.new-target.json.backup-*",
+];
 add(
   "本地验收材料不会混入源码基线或容器构建上下文",
   gitIgnore.split(/\r?\n/u).includes("/artifacts/") &&
     dockerIgnore.split(/\r?\n/u).includes("artifacts") &&
-    gitIgnore.split(/\r?\n/u).includes("config/release/infrastructure-intake.json") &&
-    dockerIgnore.split(/\r?\n/u).includes("config/release/infrastructure-intake.json"),
-  "构建包、截图、旧包审计副本与迁移演练证据保留在本机 artifacts/，但必须同时从 Git 和 Docker 上下文排除",
+    privateInfrastructureIntakeIgnoreRules.every(
+      (rule) =>
+        gitIgnore.split(/\r?\n/u).includes(rule) &&
+        dockerIgnore.split(/\r?\n/u).includes(rule),
+    ),
+  "构建包、截图、旧包审计副本、迁移演练证据与新旧目标私有接入清单保留在本机，但必须同时从 Git 和 Docker 上下文排除",
 );
 add(
   "五端客户端构建强制注入生产公开配置",
