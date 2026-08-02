@@ -1,6 +1,7 @@
 import axios from "axios";
 import { ElMessage, ElNotification } from "element-plus";
 import { h } from "vue";
+import { clearAdminSession } from "@/utils/auth-session";
 
 export const api = axios.create({
   baseURL: "/api/v1",
@@ -108,11 +109,9 @@ api.interceptors.response.use(
       refreshQueue.forEach((cb) => cb(""));
       refreshQueue = [];
       ElMessage.warning("登录已过期，请重新登录");
-      localStorage.removeItem("token");
-      localStorage.removeItem("refresh_token");
-      localStorage.removeItem("user_roles");
       const currentPath = window.location.pathname;
       const loginPath = import.meta.env.BASE_URL + "login";
+      clearAdminSession();
       if (currentPath !== loginPath) {
         localStorage.setItem("redirect_after_login", currentPath);
       }

@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import { navigateTo } from '@/utils/router'
-import { clearToken, clearRefreshToken, clearUserInfo } from '@/utils/storage'
+import { clearAuthSession } from '@/utils/storage'
 import { mineApi, type SettingNotifyItem } from '@/lib/mine-data'
 
 /** 运行时读取正式包版本，避免发版时出现“商店已升级、设置页仍显示旧版本”。 */
@@ -177,9 +177,7 @@ function handleLogout() {
   showLogout.value = false
   // 退出必须清空本地登录凭证，否则「退出」只是跳页、登录态仍在 → 换账号会串号（安全事故）。
   // 与 request.ts 的 handleUnauthorized 同一范式：清 token + refreshToken + 用户缓存，再 reLaunch 登录页。
-  clearToken()
-  clearRefreshToken()
-  clearUserInfo()
+  clearAuthSession()
   // SWR 首页 feed 缓存（个性化推荐内容）也必须清：只清 token 不清它 → 换账号登录后
   // 首页会先闪现上一账号的推荐流（跨账号残留）。login 成功侧也清一次，双保险。
   try { uni.removeStorageSync('feed:home:cache') } catch { /* 清缓存失败不阻断退出 */ }

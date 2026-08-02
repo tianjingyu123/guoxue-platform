@@ -246,7 +246,7 @@ import { ref, computed, nextTick, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
-import { setToken, setRefreshToken, setUserInfo } from '@/utils/storage'
+import { setToken, setRefreshToken, setUserInfo, clearAuthSession } from '@/utils/storage'
 import { BRAND } from '@/lib/brand'
 import { hasCompletedInterestGuide } from '@/utils/interests'
 
@@ -413,6 +413,7 @@ async function handleLogin() {
         : { phone: phone.value, code: code.value },
     )
     if (res.success && res.data?.token) {
+      clearAuthSession({ preserveLoginRedirect: true })
       setToken(res.data.token)
       setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
@@ -444,6 +445,7 @@ async function handleThirdParty(_type: 'wechat') {
     })
     const res = await authApi.wechatLogin(code)
     if (res.success && res.data?.token) {
+      clearAuthSession({ preserveLoginRedirect: true })
       setToken(res.data.token)
       setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)

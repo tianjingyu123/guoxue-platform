@@ -64,6 +64,20 @@ describe("ServerConfig 生产启动门禁", () => {
     expect(serverConfig.validateRequiredEnv()).toEqual([]);
   });
 
+  it("统一规范化 H5 地址与 WebSocket 来源列表", () => {
+    process.env.NODE_ENV = "production";
+    process.env.PUBLIC_H5_URL = " https://new.example.com/h5/// ";
+    process.env.WS_CORS_ORIGIN =
+      "https://new.example.com/, https://admin.example.com/ , https://new.example.com";
+
+    expect(serverConfig.publicH5Url).toBe("https://new.example.com/h5/");
+    expect(serverConfig.publicH5BaseUrl).toBe("https://new.example.com/h5");
+    expect(serverConfig.wsCorsOrigin).toEqual([
+      "https://new.example.com",
+      "https://admin.example.com",
+    ]);
+  });
+
   it("生产环境公网域名、HTTPS 或跨域来源冲突时拒绝启动", () => {
     process.env.NODE_ENV = "production";
     process.env.REDIS_URL = "redis://redis:6379";

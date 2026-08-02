@@ -47,3 +47,38 @@ export function setUserInfo(user: Record<string, any> | null | undefined): void 
 }
 export const getUserInfo = <T = any>() => getStorage<T>(USERINFO_KEY, null as any)
 export const clearUserInfo = () => removeStorage(USERINFO_KEY)
+
+/**
+ * 清理当前账号在设备上的会话与私有缓存。
+ * 设备级偏好（如阅读字号、应用权限提示）保留；账号内容必须清理，避免串号。
+ */
+const AUTH_SESSION_KEYS = new Set([
+  TOKEN_KEY,
+  REFRESH_KEY,
+  USERINFO_KEY,
+  'wx_oa_openid',
+  'temp_referrer',
+  'user_interest_themes',
+  'user_interest_guide_completed',
+  'feed:home:cache',
+  'discover:home:cache',
+  'circles:home:cache',
+  'mine:browse-history:cache',
+  'circle_search_history',
+  'video_search_history',
+  'station_assistant_conversation_id',
+])
+const AUTH_SESSION_PREFIXES = ['rebu:', 'draft:', 'live_replay_pos_']
+
+export function clearAuthSession(options: { preserveLoginRedirect?: boolean } = {}): void {
+  let keys: string[] = []
+  try { keys = uni.getStorageInfoSync().keys || [] } catch { /* 使用固定键兜底 */ }
+
+  const candidates = new Set([...keys, ...AUTH_SESSION_KEYS])
+  for (const key of candidates) {
+    if (options.preserveLoginRedirect && key === 'login:redirect') continue
+    if (key === 'login:redirect' || AUTH_SESSION_KEYS.has(key) || AUTH_SESSION_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+      removeStorage(key)
+    }
+  }
+}

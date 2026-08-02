@@ -8,6 +8,7 @@ import { AuditService } from "../audit/audit.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { getTermByName } from "../solar-term/solar-term.constants";
+import { serverConfig } from "../../config/server-config";
 
 /**
  * 课-P1 AI 获客内容套件（获客环）
@@ -26,8 +27,7 @@ export const MARKETING_MONTHLY_LIMIT = 100;
 
 /** ref 归因短链模板（生产 H5 落地页） */
 const referralLink = (userId: string): string => {
-  const base = (process.env.PUBLIC_H5_URL || process.env.H5_BASE_URL || "").replace(/\/+$/, "");
-  return `${base}/?ref=${encodeURIComponent(userId)}`;
+  return `${serverConfig.publicH5BaseUrl}/?ref=${encodeURIComponent(userId)}`;
 };
 
 /** 合规定性系统约束（三类生成共用·A级禁词负面约束+B级替换引导） */

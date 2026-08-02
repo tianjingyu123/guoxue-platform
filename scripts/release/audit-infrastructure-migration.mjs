@@ -2466,6 +2466,59 @@ add(
   "同一用户同一认证方式只能保留一条记录；手机号身份和用户资料必须事务提交，换绑后旧会话失效，同时不能因 JWT 秒级 iat 误伤同秒重新登录",
 );
 
+const serverConfigSource = read("apps/server/src/config/server-config.ts");
+const websocketGatewaySource = read("apps/server/src/modules/websocket/websocket.gateway.ts");
+const h5LinkConsumers = [
+  "apps/server/src/modules/ai/marketing-content.service.ts",
+  "apps/server/src/modules/mentorship/mentorship.service.ts",
+  "apps/server/src/modules/paipan/couple.service.ts",
+  "apps/server/src/modules/recommend/smart-feed.service.ts",
+  "apps/server/src/modules/share/share.service.ts",
+  "apps/server/src/modules/shared-reading/shared-reading.service.ts",
+  "apps/server/src/modules/shop/shop-attribution.service.ts",
+  "apps/server/src/modules/shop/shop-payment.service.ts",
+].map(read);
+const mobileAuthStorage = read("apps/mobile/src/utils/storage.ts");
+const mobileAuthConsumers = [
+  "apps/mobile/src/utils/request.ts",
+  "apps/mobile/src/pkg-auth/login/index.vue",
+  "apps/mobile/src/pkg-auth/register/index.vue",
+  "apps/mobile/src/pkg-mine/change-password/index.vue",
+  "apps/mobile/src/pkg-mine/settings/index.vue",
+].map(read);
+const adminAuthSession = read("apps/admin/src/utils/auth-session.ts");
+const adminAuthConsumers = [
+  "apps/admin/src/api/index.ts",
+  "apps/admin/src/store/auth.ts",
+].map(read);
+add(
+  "新域名公网入口与跨账号私有缓存统一收口",
+  hasAll(serverConfigSource, [
+    "normalizeOriginList",
+    "publicH5BaseUrl",
+    "publicAssetOrigin",
+    "wsCorsOrigin",
+    "return this.isProduction",
+  ]) &&
+    hasAll(websocketGatewaySource, [
+      'import { serverConfig } from "../../config/server-config"',
+      "origin: serverConfig.wsCorsOrigin",
+    ]) &&
+    h5LinkConsumers.every(
+      (source) => source.includes("serverConfig") && !source.includes("process.env.H5_BASE_URL"),
+    ) &&
+    hasAll(mobileAuthStorage, [
+      "clearAuthSession",
+      "AUTH_SESSION_KEYS",
+      "AUTH_SESSION_PREFIXES",
+      "preserveLoginRedirect",
+    ]) &&
+    mobileAuthConsumers.every((source) => source.includes("clearAuthSession")) &&
+    hasAll(adminAuthSession, ["clearAdminSession", "user_roles", "admin_assistant_chat"]) &&
+    adminAuthConsumers.every((source) => source.includes("clearAdminSession")),
+  "迁域链接、HTTP/WS 来源白名单必须统一由配置中心生成；H5 与后台换账号、退出或会话失效时必须清理上一账号私有缓存",
+);
+
 for (const item of checks) {
   console.log(`${item.pass ? "PASS" : "FAIL"} ${item.name}：${item.detail}`);
 }

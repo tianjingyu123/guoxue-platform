@@ -3,7 +3,7 @@
  * 底层 fetch → uni.request；保持 ApiResponse<T> 信封与函数签名不变，后端无感知。
  * 契约见 docs/迁移准备/04-ClaudeCode对接说明.md。
  */
-import { getToken, clearToken, getRefreshToken, setToken, setRefreshToken, clearRefreshToken } from './storage'
+import { getToken, getRefreshToken, setToken, setRefreshToken, clearAuthSession } from './storage'
 import { track } from '@/composables/useTrack'
 
 export interface ApiResponse<T> {
@@ -98,8 +98,7 @@ function getCurrentFullPath(): string {
  */
 let _redirecting = false
 function handleUnauthorized() {
-  clearToken()
-  clearRefreshToken()
+  clearAuthSession({ preserveLoginRedirect: true })
   if (_redirecting) return
   _redirecting = true
   try {
@@ -129,8 +128,7 @@ function handleAuthExpired(mode: UnauthorizedMode) {
     handleUnauthorized()
     return
   }
-  clearToken()
-  clearRefreshToken()
+  clearAuthSession({ preserveLoginRedirect: true })
 }
 
 /**

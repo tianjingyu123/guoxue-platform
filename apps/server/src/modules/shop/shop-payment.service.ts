@@ -17,6 +17,7 @@ import { MemberBenefitService } from "../member/member-benefit.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
 import { RMB_TO_FEN } from "../../common/constants";
+import { serverConfig } from "../../config/server-config";
 
 /** 运营商档位高低序（用于开通/续期时「只升不降」判定；对齐 schema enum OperatorLevel） */
 const OPERATOR_LEVEL_RANK: Record<string, number> = {
@@ -311,7 +312,7 @@ export class ShopPaymentService {
           h5Info: {
             type: "Wap",
             appName: "热卜国学",
-            appUrl: process.env.PUBLIC_H5_URL || process.env.H5_BASE_URL || "",
+            appUrl: serverConfig.publicH5BaseUrl,
           },
         },
         attach: orderId,
@@ -418,7 +419,7 @@ export class ShopPaymentService {
         h5Info: {
           type: "Wap",
           appName: "热卜国学",
-          appUrl: process.env.PUBLIC_H5_URL || process.env.H5_BASE_URL || "",
+          appUrl: serverConfig.publicH5BaseUrl,
         },
       },
       attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin, amountFen: totalFen, bonusCoin }),

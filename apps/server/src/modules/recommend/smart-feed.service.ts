@@ -7,6 +7,7 @@ import {
   isPublicContentQuarantined,
   publicQuarantinedIds,
 } from "../../common/public-content-quarantine";
+import { serverConfig } from "../../config/server-config";
 
 /**
  * 首页聚合瀑布流「九类卡统一信封」。
@@ -128,12 +129,9 @@ const PRODUCT_SELECT = {
  * H5_BASE_URL 允许各环境覆盖，未配置时回退到平台公开生产域名。
  */
 const h5Asset = (path: string): string => {
-  const base = (
-    process.env.PUBLIC_ASSET_ORIGIN ||
-    process.env.PUBLIC_H5_URL ||
-    process.env.H5_BASE_URL ||
-    ""
-  ).replace(/\/+$/, "");
+  const base = process.env.PUBLIC_ASSET_ORIGIN
+    ? serverConfig.publicAssetOrigin
+    : serverConfig.publicH5BaseUrl;
   return `${base}${path}`;
 };
 

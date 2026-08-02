@@ -9,6 +9,7 @@ import { WsAuthService } from "./ws-auth.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { AuditService } from "../audit/audit.service";
+import { serverConfig } from "../../config/server-config";
 
 /**
  * 在线态 Redis 键（H2·cluster 跨实例共享）：
@@ -24,7 +25,7 @@ const IP_TTL = 3600;
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.WS_CORS_ORIGIN?.split(",") ?? (process.env.NODE_ENV === "production" ? [] : ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]),
+    origin: serverConfig.wsCorsOrigin,
     credentials: true,
   },
   namespace: "/ws",

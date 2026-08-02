@@ -7,6 +7,17 @@
  */
 import { Injectable } from "@nestjs/common";
 
+function normalizeOriginList(value: string): string[] {
+  return [
+    ...new Set(
+      value
+        .split(",")
+        .map((origin) => origin.trim().replace(/\/+$/, ""))
+        .filter(Boolean),
+    ),
+  ];
+}
+
 class ServerConfig {
   // ─── JWT ───
   get jwtSecret(): string {
@@ -59,6 +70,9 @@ class ServerConfig {
       true,
     );
   }
+  get publicH5BaseUrl(): string {
+    return this.publicH5Url.replace(/\/+$/, "");
+  }
   get publicAssetOrigin(): string {
     return this.normalizedUrl(process.env.PUBLIC_ASSET_ORIGIN || "", this.publicApiUrl);
   }
@@ -73,12 +87,16 @@ class ServerConfig {
 
   // ─── CORS ───
   get corsOrigin(): string[] {
-    const configured = (process.env.CORS_ORIGIN || "")
-      .split(",")
-      .map((origin) => origin.trim().replace(/\/+$/, ""))
-      .filter(Boolean);
-    if (configured.length > 0) return [...new Set(configured)];
+    const configured = normalizeOriginList(process.env.CORS_ORIGIN || "");
+    if (configured.length > 0) return configured;
     return ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"];
+  }
+  get wsCorsOrigin(): string[] {
+    const configured = normalizeOriginList(process.env.WS_CORS_ORIGIN || "");
+    if (configured.length > 0) return configured;
+    return this.isProduction
+      ? []
+      : ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"];
   }
 
   // ─── 限流 ───
@@ -238,13 +256,8 @@ class ServerConfig {
     }
 
     const h5Origin = parsed.get("PUBLIC_H5_URL")?.origin;
-    const splitOrigins = (value: string) =>
-      value
-        .split(",")
-        .map((origin) => origin.trim().replace(/\/+$/, ""))
-        .filter(Boolean);
-    const corsOrigins = splitOrigins(process.env.CORS_ORIGIN || "");
-    const wsOrigins = splitOrigins(process.env.WS_CORS_ORIGIN || "");
+    const corsOrigins = normalizeOriginList(process.env.CORS_ORIGIN || "");
+    const wsOrigins = normalizeOriginList(process.env.WS_CORS_ORIGIN || "");
 
     if (corsOrigins.includes("*") || wsOrigins.includes("*")) {
       errors.push("生产环境 CORS / WebSocket CORS 不允许使用 *");
@@ -332,6 +345,9 @@ export class ServerConfigService {
   get publicH5Url() {
     return serverConfig.publicH5Url;
   }
+  get publicH5BaseUrl() {
+    return serverConfig.publicH5BaseUrl;
+  }
   get publicAssetOrigin() {
     return serverConfig.publicAssetOrigin;
   }
@@ -344,6 +360,9 @@ export class ServerConfigService {
   }
   get corsOrigin() {
     return serverConfig.corsOrigin;
+  }
+  get wsCorsOrigin() {
+    return serverConfig.wsCorsOrigin;
   }
   get disableRateLimit() {
     return serverConfig.disableRateLimit;

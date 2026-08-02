@@ -264,7 +264,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
-import { setToken, setRefreshToken, setUserInfo } from '@/utils/storage'
+import { setToken, setRefreshToken, setUserInfo, clearAuthSession } from '@/utils/storage'
 import { hasCompletedInterestGuide } from '@/utils/interests'
 
 const statusBarHeight = ref(0)
@@ -409,6 +409,7 @@ async function handleRegister() {
       nickname: nickname.value,
     })
     if (res.success && res.data?.token) {
+      clearAuthSession()
       setToken(res.data.token)
       setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)

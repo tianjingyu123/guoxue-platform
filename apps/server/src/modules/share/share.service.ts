@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { serverConfig } from "../../config/server-config";
 
 @Injectable()
 export class ShareService {
@@ -8,6 +9,7 @@ export class ShareService {
   async getShareConfig(type: string, id: string) {
     const miniApps = await this.prisma.miniAppConfig.findMany({ where: { isActive: true } });
     const mainApp = miniApps.find(m => m.type === "MAIN") || miniApps[0];
+    const h5BaseUrl = serverConfig.publicH5BaseUrl;
 
     switch (type) {
       case "course": {
@@ -21,7 +23,7 @@ export class ShareService {
           desc: course.intro || course.title,
           image: course.cover,
           miniPath: `/pages/course/detail?id=${id}`,
-          h5Url: `${process.env.H5_BASE_URL || ""}/course/${id}`,
+          h5Url: `${h5BaseUrl}/course/${encodeURIComponent(id)}`,
           appId: mainApp?.appId,
         };
       }
@@ -36,7 +38,7 @@ export class ShareService {
           desc: article.content?.substring(0, 100) || article.title,
           image: article.cover,
           miniPath: `/pages/article/detail?id=${id}`,
-          h5Url: `${process.env.H5_BASE_URL || ""}/article/${id}`,
+          h5Url: `${h5BaseUrl}/article/${encodeURIComponent(id)}`,
           appId: mainApp?.appId,
         };
       }
@@ -45,7 +47,7 @@ export class ShareService {
           title: "直播分享",
           desc: "精彩直播正在进行",
           miniPath: `/pages/live/room?id=${id}`,
-          h5Url: `${process.env.H5_BASE_URL || ""}/live/${id}`,
+          h5Url: `${h5BaseUrl}/live/${encodeURIComponent(id)}`,
           appId: mainApp?.appId,
         };
       }
@@ -59,11 +61,11 @@ export class ShareService {
           title: bounty.title,
           desc: bounty.description || bounty.title,
           miniPath: `/pages/bounty/detail?id=${id}`,
-          h5Url: `${process.env.H5_BASE_URL || ""}/bounty/${id}`,
+          h5Url: `${h5BaseUrl}/bounty/${encodeURIComponent(id)}`,
           appId: mainApp?.appId,
         };
       }
     }
-    return { title: "国学传统文化", desc: "传承千年智慧", miniPath: "/pages/index/index", h5Url: process.env.H5_BASE_URL || "", appId: mainApp?.appId };
+    return { title: "国学传统文化", desc: "传承千年智慧", miniPath: "/pages/index/index", h5Url: h5BaseUrl, appId: mainApp?.appId };
   }
 }

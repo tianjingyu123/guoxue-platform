@@ -3,6 +3,7 @@ import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CommissionService } from "../commission/commission.service";
+import { serverConfig } from "../../config/server-config";
 
 /**
  * 商城分销归因域（从 shop.service 拆出·纯搬家不改逻辑）。
@@ -30,8 +31,7 @@ export class ShopAttributionService {
   private static readonly GIFT_CARD_DEFAULT_BLESSING = "山川异域，风月同天。愿此雅物承美意，伴君岁岁皆安澜。";
   /** 名片页 H5 链接模板（课题一 P2 从业者名片·扫码归因回流平台） */
   private static get giftCardQrBase(): string {
-    const base = (process.env.PUBLIC_H5_URL || process.env.H5_BASE_URL || "").replace(/\/+$/, "");
-    return `${base}/pkg-creator/teacher-profile/index`;
+    return `${serverConfig.publicH5BaseUrl}/pkg-creator/teacher-profile/index`;
   }
 
   /**
