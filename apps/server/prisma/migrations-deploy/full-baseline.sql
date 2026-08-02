@@ -198,12 +198,64 @@ CREATE TABLE "Auth" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
+    "namespace" TEXT NOT NULL DEFAULT 'legacy',
+    "subject" TEXT,
+    "appId" TEXT,
     "openId" TEXT,
     "unionId" TEXT,
     "credential" TEXT,
+    "metadata" JSONB,
+    "lastUsedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Auth_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EntitlementLedger" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "entitlementKey" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "resourceType" TEXT NOT NULL DEFAULT '',
+    "resourceId" TEXT NOT NULL DEFAULT '',
+    "scope" TEXT NOT NULL DEFAULT 'GLOBAL',
+    "action" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL DEFAULT 0,
+    "unlimited" BOOLEAN NOT NULL DEFAULT false,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validUntil" TIMESTAMP(3),
+    "sourceType" TEXT NOT NULL,
+    "sourceId" TEXT,
+    "reversesLedgerId" TEXT,
+    "idempotencyKey" TEXT NOT NULL,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EntitlementLedger_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "EntitlementBalance" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "entitlementKey" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "resourceType" TEXT NOT NULL DEFAULT '',
+    "resourceId" TEXT NOT NULL DEFAULT '',
+    "scope" TEXT NOT NULL DEFAULT 'GLOBAL',
+    "quantity" INTEGER NOT NULL DEFAULT 0,
+    "unlimited" BOOLEAN NOT NULL DEFAULT false,
+    "validFrom" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "validUntil" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "version" INTEGER NOT NULL DEFAULT 0,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "EntitlementBalance_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -273,12 +325,14 @@ CREATE TABLE "RolePermission" (
 CREATE TABLE "MemberPurchase" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
+    "orderId" TEXT,
     "memberType" "MemberLevel" NOT NULL,
     "amount" DECIMAL(10,2) NOT NULL,
     "sourcePage" TEXT,
     "referrerId" TEXT,
     "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "expireAt" TIMESTAMP(3),
+    "refundedAt" TIMESTAMP(3),
 
     CONSTRAINT "MemberPurchase_pkey" PRIMARY KEY ("id")
 );
@@ -5989,10 +6043,40 @@ CREATE INDEX "User_attributionSource_attributionStationId_idx" ON "User"("attrib
 CREATE INDEX "User_attributionStationId_idx" ON "User"("attributionStationId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Auth_openId_key" ON "Auth"("openId");
+CREATE INDEX "Auth_userId_provider_idx" ON "Auth"("userId", "provider");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Auth_userId_provider_key" ON "Auth"("userId", "provider");
+CREATE INDEX "Auth_provider_unionId_idx" ON "Auth"("provider", "unionId");
+
+-- CreateIndex
+CREATE INDEX "Auth_appId_openId_idx" ON "Auth"("appId", "openId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Auth_provider_namespace_subject_key" ON "Auth"("provider", "namespace", "subject");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EntitlementLedger_idempotencyKey_key" ON "EntitlementLedger"("idempotencyKey");
+
+-- CreateIndex
+CREATE INDEX "EntitlementLedger_userId_entitlementKey_createdAt_idx" ON "EntitlementLedger"("userId", "entitlementKey", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "EntitlementLedger_sourceType_sourceId_idx" ON "EntitlementLedger"("sourceType", "sourceId");
+
+-- CreateIndex
+CREATE INDEX "EntitlementLedger_reversesLedgerId_idx" ON "EntitlementLedger"("reversesLedgerId");
+
+-- CreateIndex
+CREATE INDEX "EntitlementLedger_validUntil_idx" ON "EntitlementLedger"("validUntil");
+
+-- CreateIndex
+CREATE INDEX "EntitlementBalance_userId_status_validUntil_idx" ON "EntitlementBalance"("userId", "status", "validUntil");
+
+-- CreateIndex
+CREATE INDEX "EntitlementBalance_entitlementKey_resourceId_idx" ON "EntitlementBalance"("entitlementKey", "resourceId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EntitlementBalance_userId_entitlementKey_resourceType_resou_key" ON "EntitlementBalance"("userId", "entitlementKey", "resourceType", "resourceId", "scope");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "LegacyMigrationBatch_batchKey_key" ON "LegacyMigrationBatch"("batchKey");
@@ -6026,6 +6110,9 @@ CREATE INDEX "RolePermission_roleType_idx" ON "RolePermission"("roleType");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RolePermission_roleType_permissionId_key" ON "RolePermission"("roleType", "permissionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "MemberPurchase_orderId_key" ON "MemberPurchase"("orderId");
 
 -- CreateIndex
 CREATE INDEX "MemberPurchase_userId_idx" ON "MemberPurchase"("userId");
@@ -8533,6 +8620,12 @@ ALTER TABLE "User" ADD CONSTRAINT "User_competitionInviteCodeId_fkey" FOREIGN KE
 ALTER TABLE "Auth" ADD CONSTRAINT "Auth_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "EntitlementLedger" ADD CONSTRAINT "EntitlementLedger_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "EntitlementBalance" ADD CONSTRAINT "EntitlementBalance_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "LegacyMigrationMap" ADD CONSTRAINT "LegacyMigrationMap_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "LegacyMigrationBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -8543,6 +8636,9 @@ ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_permissionId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "MemberPurchase" ADD CONSTRAINT "MemberPurchase_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MemberPurchase" ADD CONSTRAINT "MemberPurchase_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ReferralRelation" ADD CONSTRAINT "ReferralRelation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
