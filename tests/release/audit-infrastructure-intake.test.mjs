@@ -654,6 +654,21 @@ test("启用微信客户端时必须逐项登记与正式环境绑定的合法�
     { surfaceId: "wechat-official-oauth-h5", origin: "https://api.guoxue.cn" },
     { surfaceId: "wechat-official-js-sdk-h5", origin: "https://api.guoxue.cn" },
   ];
+  intake.externalEndpoints.wechatClientDelivery = {
+    owner: "微信客户端交付负责人",
+    evidenceReference: "CHANGE-20260802-WECHAT",
+    miniProgramAppId: "wx06397e8ab26bed9e",
+    officialAccountAppId: "wx1234567890abcdef",
+    miniProgramRequestVerified: true,
+    miniProgramUploadVerified: true,
+    miniProgramDownloadVerified: true,
+    miniProgramSocketVerified: true,
+    miniProgramBusinessWebViewVerified: true,
+    officialAccountControlPlaneVerified: true,
+    officialAccountOauthSmokeTestPassed: true,
+    officialAccountJsSdkConfigVerified: true,
+    officialAccountShareCardVerified: true,
+  };
   const environment = completeEnvironment({
     WECHAT_MINI_APP_ID: "wx06397e8ab26bed9e",
     WECHAT_OFFICIAL_APPID: "wx1234567890abcdef",
@@ -705,6 +720,84 @@ test("启用微信客户端时必须逐项登记与正式环境绑定的合法�
     await rm(staleAudit.root, { recursive: true, force: true });
     await rm(missingAudit.root, { recursive: true, force: true });
     await rm(pathBearingAudit.root, { recursive: true, force: true });
+  }
+});
+
+test("launch 阶段要求微信内授权分享与小程序合法域名完成真机闭环", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "wechat-open",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.clientDomainAllowlistEntries = [
+    { surfaceId: "wechat-mini-request-api", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-mini-upload-api", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-mini-download-api", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-mini-download-assets", origin: "https://static.guoxue.cn" },
+    { surfaceId: "wechat-mini-socket-api", origin: "wss://api.guoxue.cn" },
+    { surfaceId: "wechat-mini-business-h5", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-official-oauth-h5", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-official-js-sdk-h5", origin: "https://api.guoxue.cn" },
+  ];
+  intake.externalEndpoints.wechatClientDelivery = {
+    owner: "微信客户端交付负责人",
+    evidenceReference: "CHANGE-20260802-WECHAT",
+    miniProgramAppId: "wx06397e8ab26bed9e",
+    officialAccountAppId: "wx1234567890abcdef",
+    miniProgramRequestVerified: true,
+    miniProgramUploadVerified: true,
+    miniProgramDownloadVerified: true,
+    miniProgramSocketVerified: true,
+    miniProgramBusinessWebViewVerified: true,
+    officialAccountControlPlaneVerified: true,
+    officialAccountOauthSmokeTestPassed: true,
+    officialAccountJsSdkConfigVerified: true,
+    officialAccountShareCardVerified: true,
+  };
+  const environment = completeEnvironment({
+    WECHAT_MINI_APP_ID: "wx06397e8ab26bed9e",
+    WECHAT_OFFICIAL_APPID: "wx1234567890abcdef",
+  });
+  const complete = await runAudit(intake, "launch", "tencent", environment);
+
+  const incomplete = structuredClone(intake);
+  incomplete.externalEndpoints.wechatClientDelivery.officialAccountOauthSmokeTestPassed = false;
+  incomplete.externalEndpoints.wechatClientDelivery.officialAccountShareCardVerified = false;
+  incomplete.externalEndpoints.wechatClientDelivery.miniProgramSocketVerified = false;
+  const blocked = await runAudit(incomplete, "launch", "tencent", environment);
+
+  const mismatched = structuredClone(intake);
+  mismatched.externalEndpoints.wechatClientDelivery.officialAccountAppId =
+    "wx0000000000000000";
+  const mismatchedAudit = await runAudit(mismatched, "predeploy", "tencent", environment);
+  try {
+    assert.equal(complete.result.status, 0, complete.result.stderr || complete.result.stdout);
+    assert.equal(complete.report.wechatClientDeliveryEvidence.miniProgramVerified, true);
+    assert.equal(complete.report.wechatClientDeliveryEvidence.officialAccountVerified, true);
+    assert.equal(JSON.stringify(complete.report).includes("wx1234567890abcdef"), false);
+    assert.notEqual(blocked.result.status, 0);
+    assert.match(
+      blocked.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /微信 H5 授权分享与小程序合法域名已真机验收/u,
+    );
+    assert.notEqual(mismatchedAudit.result.status, 0);
+    assert.match(
+      mismatchedAudit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /微信客户端身份与交付责任已绑定/u,
+    );
+    assert.equal(JSON.stringify(mismatchedAudit.report).includes("wx0000000000000000"), false);
+  } finally {
+    await rm(complete.root, { recursive: true, force: true });
+    await rm(blocked.root, { recursive: true, force: true });
+    await rm(mismatchedAudit.root, { recursive: true, force: true });
   }
 });
 

@@ -259,6 +259,7 @@ const smsDelivery = externalEndpoints.smsDelivery || {};
 const paymentDelivery = externalEndpoints.paymentDelivery || {};
 const logisticsDelivery = externalEndpoints.logisticsDelivery || {};
 const mediaDelivery = externalEndpoints.mediaDelivery || {};
+const wechatClientDelivery = externalEndpoints.wechatClientDelivery || {};
 const deployTarget = text(intake.deployTarget).toLowerCase();
 let environmentValues = new Map();
 let reportBinding = null;
@@ -342,6 +343,16 @@ const liveEnabled = enabled("LIVE_PUSH_DOMAIN", "LIVE_PLAY_DOMAIN");
 const vodEnabled = enabled("VOD_SUB_APP_ID");
 const voiceEnabled = enabled("TRTC_SDK_APP_ID");
 const mediaEnabled = liveEnabled || vodEnabled || voiceEnabled;
+const configuredMiniProgramAppId = [
+  "WECHAT_MINI_APP_ID",
+  "MINIPROGRAM_APP_ID",
+  "WECHAT_MP_APP_ID",
+]
+  .map((key) => text(environmentValues.get(key)))
+  .find((value) => isFilled(value));
+const configuredOfficialAccountAppId = text(environmentValues.get("WECHAT_OFFICIAL_APPID"));
+const miniProgramEnabled = Boolean(configuredMiniProgramAppId);
+const officialAccountEnabled = isFilled(configuredOfficialAccountAppId);
 const configuredMediaIdentity = {
   livePushDomain: liveEnabled
     ? normalizeHostname(environmentValues.get("LIVE_PUSH_DOMAIN"))
@@ -742,6 +753,20 @@ add(
   "必须明确第三方控制台、客户端域名白名单、出站依赖责任人和受控变更证据编号",
 );
 add(
+  "微信客户端身份与交付责任已绑定",
+  !resourceReady ||
+    (!miniProgramEnabled && !officialAccountEnabled) ||
+    (isFilled(wechatClientDelivery.owner) &&
+      !isPlaceholder(wechatClientDelivery.owner) &&
+      isFilled(wechatClientDelivery.evidenceReference) &&
+      !isPlaceholder(wechatClientDelivery.evidenceReference) &&
+      (!miniProgramEnabled ||
+        text(wechatClientDelivery.miniProgramAppId) === configuredMiniProgramAppId) &&
+      (!officialAccountEnabled ||
+        text(wechatClientDelivery.officialAccountAppId) === configuredOfficialAccountAppId)),
+  "启用小程序或公众号后，必须把正式 AppID、责任人和受控证据编号写入 wechatClientDelivery；报告只保存配置指纹",
+);
+add(
   "新服务器固定公网出口身份已登记",
   !resourceReady ||
     (expectedEgressIpv4.length > 0 &&
@@ -1035,6 +1060,21 @@ if (launch) {
     "切流前必须完成已启用支付/物流/直播等控制台换址、回调可达性与验签重放、客户端 request/upload/download/socket/业务域名验收",
   );
   add(
+    "微信 H5 授权分享与小程序合法域名已真机验收",
+    (!miniProgramEnabled ||
+      (wechatClientDelivery.miniProgramRequestVerified === true &&
+        wechatClientDelivery.miniProgramUploadVerified === true &&
+        wechatClientDelivery.miniProgramDownloadVerified === true &&
+        wechatClientDelivery.miniProgramSocketVerified === true &&
+        wechatClientDelivery.miniProgramBusinessWebViewVerified === true)) &&
+      (!officialAccountEnabled ||
+        (wechatClientDelivery.officialAccountControlPlaneVerified === true &&
+          wechatClientDelivery.officialAccountOauthSmokeTestPassed === true &&
+          wechatClientDelivery.officialAccountJsSdkConfigVerified === true &&
+          wechatClientDelivery.officialAccountShareCardVerified === true)),
+    "启用公众号时必须在微信内完成网页授权、JS-SDK config 与图文分享卡片实测；启用小程序时必须真机验证 request/upload/download/socket 和 H5 WebView，不能用控制台截图代替",
+  );
+  add(
     "新服务器出口身份与全部外部依赖已现场验收",
     externalEndpoints.egressIdentityVerified === true &&
       externalEndpoints.outboundDependencySmokeTestsPassed === true &&
@@ -1140,10 +1180,6 @@ if (resourceReady) {
       : []),
     ...(environmentValues.get("IM_APP_ID") ? ["tencent-im"] : []),
   ].sort();
-  const miniProgramEnabled = ["WECHAT_MINI_APP_ID", "MINIPROGRAM_APP_ID", "WECHAT_MP_APP_ID"].some(
-    (key) => isFilled(environmentValues.get(key)),
-  );
-  const officialAccountEnabled = isFilled(environmentValues.get("WECHAT_OFFICIAL_APPID"));
   const expectedClientDomainAllowlistEntries = [
     ...(miniProgramEnabled
       ? [
@@ -1267,6 +1303,18 @@ if (resourceReady) {
         : "disabled",
     ),
     mediaDeliveryFingerprint: fingerprint(mediaEnabled ? plannedMediaIdentity : "disabled"),
+    wechatClientDeliveryFingerprint: fingerprint(
+      miniProgramEnabled || officialAccountEnabled
+        ? {
+            miniProgramAppId: miniProgramEnabled
+              ? text(wechatClientDelivery.miniProgramAppId)
+              : "disabled",
+            officialAccountAppId: officialAccountEnabled
+              ? text(wechatClientDelivery.officialAccountAppId)
+              : "disabled",
+          }
+        : "disabled",
+    ),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -1341,6 +1389,16 @@ if (resourceReady) {
         : "disabled",
     ),
     mediaDeliveryFingerprint: fingerprint(mediaEnabled ? configuredMediaIdentity : "disabled"),
+    wechatClientDeliveryFingerprint: fingerprint(
+      miniProgramEnabled || officialAccountEnabled
+        ? {
+            miniProgramAppId: miniProgramEnabled ? configuredMiniProgramAppId : "disabled",
+            officialAccountAppId: officialAccountEnabled
+              ? configuredOfficialAccountAppId
+              : "disabled",
+          }
+        : "disabled",
+    ),
   };
   const bindingFields = Object.keys(intakeBinding);
   const mismatchedBindingFields = bindingFields.filter(
@@ -1515,6 +1573,31 @@ const report = {
             mediaDelivery.voiceAppVerified === true &&
             mediaDelivery.voicePermissionRecoveryVerified === true &&
             mediaDelivery.voiceWeakNetworkRecoveryVerified === true),
+      }
+    : null,
+  wechatClientDeliveryEvidence: launch && (miniProgramEnabled || officialAccountEnabled)
+    ? {
+        configurationFingerprint: fingerprint({
+          miniProgramAppId: miniProgramEnabled
+            ? text(wechatClientDelivery.miniProgramAppId)
+            : "disabled",
+          officialAccountAppId: officialAccountEnabled
+            ? text(wechatClientDelivery.officialAccountAppId)
+            : "disabled",
+        }),
+        miniProgramVerified:
+          !miniProgramEnabled ||
+          (wechatClientDelivery.miniProgramRequestVerified === true &&
+            wechatClientDelivery.miniProgramUploadVerified === true &&
+            wechatClientDelivery.miniProgramDownloadVerified === true &&
+            wechatClientDelivery.miniProgramSocketVerified === true &&
+            wechatClientDelivery.miniProgramBusinessWebViewVerified === true),
+        officialAccountVerified:
+          !officialAccountEnabled ||
+          (wechatClientDelivery.officialAccountControlPlaneVerified === true &&
+            wechatClientDelivery.officialAccountOauthSmokeTestPassed === true &&
+            wechatClientDelivery.officialAccountJsSdkConfigVerified === true &&
+            wechatClientDelivery.officialAccountShareCardVerified === true),
       }
     : null,
   success: failures.length === 0,

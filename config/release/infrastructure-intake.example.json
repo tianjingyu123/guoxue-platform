@@ -207,6 +207,21 @@
       "voicePermissionRecoveryVerified": false,
       "voiceWeakNetworkRecoveryVerified": false
     },
+    "wechatClientDelivery": {
+      "owner": "待填写",
+      "evidenceReference": "pending-change-ticket",
+      "miniProgramAppId": "",
+      "officialAccountAppId": "",
+      "miniProgramRequestVerified": false,
+      "miniProgramUploadVerified": false,
+      "miniProgramDownloadVerified": false,
+      "miniProgramSocketVerified": false,
+      "miniProgramBusinessWebViewVerified": false,
+      "officialAccountControlPlaneVerified": false,
+      "officialAccountOauthSmokeTestPassed": false,
+      "officialAccountJsSdkConfigVerified": false,
+      "officialAccountShareCardVerified": false
+    },
     "callbackUrls": [],
     "controlPlaneCallbacks": [],
     "clientDomainAllowlistEntries": [
