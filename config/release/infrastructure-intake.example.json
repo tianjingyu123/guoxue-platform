@@ -46,10 +46,7 @@
     "assetOrigin": "https://static.example.com",
     "dnsProvider": "DNSPod",
     "ttlSeconds": 300,
-    "authoritativeNameServers": [
-      "pending-ns1.example.com",
-      "pending-ns2.example.com"
-    ],
+    "authoritativeNameServers": ["pending-ns1.example.com", "pending-ns2.example.com"],
     "certificateProvider": "pending",
     "certificateType": "pending",
     "certificateValidationMode": "pending",
@@ -85,6 +82,32 @@
     "clientDomainAllowlistOwner": "待填写",
     "callbackUrls": [],
     "controlPlaneCallbacks": [],
+    "clientDomainAllowlistEntries": [
+      {
+        "surfaceId": "wechat-mini-request-api",
+        "origin": "https://api.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-upload-api",
+        "origin": "https://api.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-download-api",
+        "origin": "https://api.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-download-assets",
+        "origin": "https://static.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-socket-api",
+        "origin": "wss://api.example.com"
+      },
+      {
+        "surfaceId": "wechat-mini-business-h5",
+        "origin": "https://api.example.com"
+      }
+    ],
     "controlPlaneInventoryVerified": false,
     "callbackReachabilityVerified": false,
     "callbackAuthenticationVerified": false,

@@ -29,9 +29,7 @@ if (!["procurement", "predeploy", "launch"].includes(stage)) {
   process.exit(2);
 }
 if (stage !== "procurement" && !envFileArg) {
-  console.error(
-    `错误：${stage} 阶段必须通过 --env-file 提供正式环境文件以绑定新基础设施配置`,
-  );
+  console.error(`错误：${stage} 阶段必须通过 --env-file 提供正式环境文件以绑定新基础设施配置`);
   process.exit(2);
 }
 
@@ -72,6 +70,22 @@ const normalizeUrl = (value) => {
     parsed.hash = "";
     parsed.search = "";
     return parsed.href.replace(/\/+$/u, "").toLowerCase();
+  } catch {
+    return "";
+  }
+};
+const normalizeOrigin = (value) => {
+  try {
+    return new URL(text(value)).origin.toLowerCase();
+  } catch {
+    return "";
+  }
+};
+const websocketOrigin = (value) => {
+  try {
+    const parsed = new URL(text(value));
+    if (parsed.protocol !== "https:") return "";
+    return `wss://${parsed.host}`.toLowerCase();
   } catch {
     return "";
   }
@@ -209,19 +223,19 @@ add(
     Number(domains.ttlSeconds) <= 600,
   "切流前 TTL 应设置为 60-600 秒并明确 DNS 服务商",
 );
-const authoritativeNameServers = [...new Set(
-  (Array.isArray(domains.authoritativeNameServers) ? domains.authoritativeNameServers : [])
-    .map(normalizeHostname)
-    .filter(Boolean),
-)].sort();
+const authoritativeNameServers = [
+  ...new Set(
+    (Array.isArray(domains.authoritativeNameServers) ? domains.authoritativeNameServers : [])
+      .map(normalizeHostname)
+      .filter(Boolean),
+  ),
+].sort();
 add(
   "权威 DNS 双 NS 委派已规划",
   authoritativeNameServers.length >= 2 &&
     authoritativeNameServers.every(
       (hostname) =>
-        hostname.includes(".") &&
-        !isPlaceholder(hostname) &&
-        !/[^a-z0-9.-]/u.test(hostname),
+        hostname.includes(".") && !isPlaceholder(hostname) && !/[^a-z0-9.-]/u.test(hostname),
     ),
   "必须登记至少两个真实、互不重复的权威 NS；最终切流将从公网逐路核验实际委派",
 );
@@ -236,9 +250,7 @@ add(
     !isPlaceholder(domains.certificateProvider) &&
     ["letsencrypt", "free", "paid"].includes(certificateType) &&
     ["http-01", "dns-auto", "dns-manual"].includes(certificateValidationMode) &&
-    ["local-nginx", "clb-cdn-managed", "clb-cdn-manual"].includes(
-      certificateDeploymentMode,
-    ) &&
+    ["local-nginx", "clb-cdn-managed", "clb-cdn-manual"].includes(certificateDeploymentMode) &&
     isFilled(domains.certificateRenewalOwner) &&
     !isPlaceholder(domains.certificateRenewalOwner) &&
     isFilled(domains.certificateFallbackOwner) &&
@@ -301,11 +313,23 @@ const knownControlPlaneCallbackPaths = new Map([
   ["tencent-live-audit", "/api/v1/live/audit/callback"],
   ["tencent-im", "/api/v1/im/callback"],
 ]);
-const plannedCallbackUrls = [...new Set(
-  (Array.isArray(externalEndpoints.callbackUrls) ? externalEndpoints.callbackUrls : [])
-    .map(normalizeUrl)
-    .filter(Boolean),
-)].sort();
+const knownClientDomainSurfaceProtocols = new Map([
+  ["wechat-mini-request-api", "https:"],
+  ["wechat-mini-upload-api", "https:"],
+  ["wechat-mini-download-api", "https:"],
+  ["wechat-mini-download-assets", "https:"],
+  ["wechat-mini-socket-api", "wss:"],
+  ["wechat-mini-business-h5", "https:"],
+  ["wechat-official-oauth-h5", "https:"],
+  ["wechat-official-js-sdk-h5", "https:"],
+]);
+const plannedCallbackUrls = [
+  ...new Set(
+    (Array.isArray(externalEndpoints.callbackUrls) ? externalEndpoints.callbackUrls : [])
+      .map(normalizeUrl)
+      .filter(Boolean),
+  ),
+].sort();
 const apiOrigin = (() => {
   try {
     return new URL(text(domains.apiUrl)).origin.toLowerCase();
@@ -353,6 +377,40 @@ const controlPlaneCallbacksValid =
       return false;
     }
   });
+const rawClientDomainAllowlistEntries = Array.isArray(
+  externalEndpoints.clientDomainAllowlistEntries,
+)
+  ? externalEndpoints.clientDomainAllowlistEntries
+  : [];
+const plannedClientDomainAllowlistEntries = rawClientDomainAllowlistEntries
+  .map((item) => ({
+    surfaceId: text(item?.surfaceId).toLowerCase(),
+    origin: normalizeOrigin(item?.origin),
+  }))
+  .sort((left, right) => left.surfaceId.localeCompare(right.surfaceId));
+const plannedClientDomainSurfaceIds = plannedClientDomainAllowlistEntries.map(
+  (item) => item.surfaceId,
+);
+const clientDomainAllowlistEntriesValid =
+  new Set(plannedClientDomainSurfaceIds).size === plannedClientDomainSurfaceIds.length &&
+  rawClientDomainAllowlistEntries.every((rawItem) => {
+    const surfaceId = text(rawItem?.surfaceId).toLowerCase();
+    const expectedProtocol = knownClientDomainSurfaceProtocols.get(surfaceId);
+    if (!expectedProtocol || !normalizeOrigin(rawItem?.origin)) return false;
+    try {
+      const parsed = new URL(text(rawItem?.origin));
+      return (
+        parsed.protocol === expectedProtocol &&
+        parsed.username === "" &&
+        parsed.password === "" &&
+        parsed.pathname === "/" &&
+        parsed.search === "" &&
+        parsed.hash === ""
+      );
+    } catch {
+      return false;
+    }
+  });
 add(
   "第三方回调与客户端域名切换责任已登记",
   isFilled(externalEndpoints.owner) &&
@@ -367,6 +425,11 @@ add(
   "第三方回调地址规划只指向新 API 入口",
   callbackPlanValid && controlPlaneCallbacksValid,
   "环境变量回调和云控制台回调必须使用 PUBLIC_API_URL 同源 HTTPS 地址、受控固定路径与唯一集成标识；未启用渠道可不登记",
+);
+add(
+  "客户端合法域名清单使用受控表面与安全 origin",
+  clientDomainAllowlistEntriesValid,
+  "仅允许登记受控的小程序/公众号表面；普通入口必须为 HTTPS origin，socket 必须为 WSS origin，禁止路径、查询参数、凭据和重复表面",
 );
 
 if (resourceReady) {
@@ -407,10 +470,8 @@ if (resourceReady) {
       externalEndpoints.clientDomainAllowlistOwner,
       externalEndpoints.evidenceReference,
       ...plannedCallbackUrls,
-      ...plannedControlPlaneCallbacks.flatMap((item) => [
-        item.integrationId,
-        item.callbackUrl,
-      ]),
+      ...plannedControlPlaneCallbacks.flatMap((item) => [item.integrationId, item.callbackUrl]),
+      ...plannedClientDomainAllowlistEntries.flatMap((item) => [item.surfaceId, item.origin]),
     ].every((value) => isFilled(value) && !isPlaceholder(value)),
     `${stage} 阶段禁止 example、pending、change-me 或待填写值`,
   );
@@ -490,10 +551,62 @@ if (resourceReady) {
       : []),
     ...(environmentValues.get("IM_APP_ID") ? ["tencent-im"] : []),
   ].sort();
+  const miniProgramEnabled = ["WECHAT_MINI_APP_ID", "MINIPROGRAM_APP_ID", "WECHAT_MP_APP_ID"].some(
+    (key) => isFilled(environmentValues.get(key)),
+  );
+  const officialAccountEnabled = isFilled(environmentValues.get("WECHAT_OFFICIAL_APPID"));
+  const expectedClientDomainAllowlistEntries = [
+    ...(miniProgramEnabled
+      ? [
+          {
+            surfaceId: "wechat-mini-request-api",
+            origin: normalizeOrigin(environmentValues.get("PUBLIC_API_URL")),
+          },
+          {
+            surfaceId: "wechat-mini-upload-api",
+            origin: normalizeOrigin(environmentValues.get("PUBLIC_API_URL")),
+          },
+          {
+            surfaceId: "wechat-mini-download-api",
+            origin: normalizeOrigin(environmentValues.get("PUBLIC_API_URL")),
+          },
+          {
+            surfaceId: "wechat-mini-download-assets",
+            origin: normalizeOrigin(environmentValues.get("PUBLIC_ASSET_ORIGIN")),
+          },
+          {
+            surfaceId: "wechat-mini-socket-api",
+            origin: websocketOrigin(environmentValues.get("PUBLIC_API_URL")),
+          },
+          {
+            surfaceId: "wechat-mini-business-h5",
+            origin: normalizeOrigin(environmentValues.get("PUBLIC_H5_URL")),
+          },
+        ]
+      : []),
+    ...(officialAccountEnabled
+      ? [
+          {
+            surfaceId: "wechat-official-oauth-h5",
+            origin: normalizeOrigin(environmentValues.get("PUBLIC_H5_URL")),
+          },
+          {
+            surfaceId: "wechat-official-js-sdk-h5",
+            origin: normalizeOrigin(environmentValues.get("PUBLIC_H5_URL")),
+          },
+        ]
+      : []),
+  ].sort((left, right) => left.surfaceId.localeCompare(right.surfaceId));
   add(
     "已启用云能力均登记正式控制台回调",
     JSON.stringify(plannedControlPlaneIds) === JSON.stringify(requiredControlPlaneIds),
     "启用 VOD、直播或 IM 时必须逐项登记同源正式回调；报告只记录是否匹配，不记录原始地址",
+  );
+  add(
+    "已启用微信客户端均登记完整合法域名",
+    JSON.stringify(plannedClientDomainAllowlistEntries) ===
+      JSON.stringify(expectedClientDomainAllowlistEntries),
+    "启用小程序时必须登记 request、upload、API/COS download、socket 与 H5 业务域名；启用公众号时必须登记网页授权与 JS-SDK 安全域名",
   );
   const expectedControlPlaneCallbacks = requiredControlPlaneIds.map((integrationId) => ({
     integrationId,
@@ -504,8 +617,7 @@ if (resourceReady) {
   const intakeBinding = {
     deployTarget,
     region: text(server.region).toLowerCase(),
-    clbId:
-      text(server.ingressMode).toLowerCase() === "clb" ? text(server.clbId) : "direct",
+    clbId: text(server.ingressMode).toLowerCase() === "clb" ? text(server.clbId) : "direct",
     databaseHost: text(database.endpointHost).toLowerCase(),
     databaseTls: database.tls === true,
     cacheHost: text(cache.endpointHost).toLowerCase(),
@@ -520,6 +632,7 @@ if (resourceReady) {
     storageRegion: text(storage.region).toLowerCase(),
     callbackUrlsFingerprint: fingerprint(plannedCallbackUrls),
     controlPlaneCallbacksFingerprint: fingerprint(plannedControlPlaneCallbacks),
+    clientDomainAllowlistFingerprint: fingerprint(plannedClientDomainAllowlistEntries),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -545,13 +658,16 @@ if (resourceReady) {
     storageBucket: text(environmentValues.get("COS_BUCKET")),
     storageRegion: text(environmentValues.get("COS_REGION")).toLowerCase(),
     callbackUrlsFingerprint: fingerprint(
-      [...new Set(
-        [...knownCallbackPaths.keys()]
-          .map((key) => normalizeUrl(environmentValues.get(key)))
-          .filter(Boolean),
-      )].sort(),
+      [
+        ...new Set(
+          [...knownCallbackPaths.keys()]
+            .map((key) => normalizeUrl(environmentValues.get(key)))
+            .filter(Boolean),
+        ),
+      ].sort(),
     ),
     controlPlaneCallbacksFingerprint: fingerprint(expectedControlPlaneCallbacks),
+    clientDomainAllowlistFingerprint: fingerprint(expectedClientDomainAllowlistEntries),
   };
   const bindingFields = Object.keys(intakeBinding);
   const mismatchedBindingFields = bindingFields.filter(

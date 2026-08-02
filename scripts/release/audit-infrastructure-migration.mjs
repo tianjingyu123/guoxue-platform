@@ -244,6 +244,10 @@ add(
     "controlPlaneCallbacks",
     "已启用云能力均登记正式控制台回调",
     "tencent-live-audit",
+    "clientDomainAllowlistEntries",
+    "已启用微信客户端均登记完整合法域名",
+    "wechat-mini-socket-api",
+    "wechat-official-js-sdk-h5",
   ]) &&
     infrastructureIntakeExample.includes('"externalEndpoints"') &&
     hasAll(productionEnvAuditor, [

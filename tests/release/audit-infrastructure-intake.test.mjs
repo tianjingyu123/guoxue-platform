@@ -100,6 +100,7 @@ function completeIntake() {
         "https://api.guoxue.cn/api/v1/shop/logistics/kuaidi100/callback",
       ],
       controlPlaneCallbacks: [],
+      clientDomainAllowlistEntries: [],
       controlPlaneInventoryVerified: true,
       callbackReachabilityVerified: true,
       callbackAuthenticationVerified: true,
@@ -141,8 +142,7 @@ function completeEnvironment(overrides = {}) {
     ALIPAY_NOTIFY_URL: "https://api.guoxue.cn/api/v1/shop/alipay/notify",
     UNIONPAY_NOTIFY_URL: "https://api.guoxue.cn/api/v1/shop/unionpay/notify",
     HUIFU_NOTIFY_URL: "https://api.guoxue.cn/api/v1/huifu/notify",
-    KUAIDI100_CALLBACK_URL:
-      "https://api.guoxue.cn/api/v1/shop/logistics/kuaidi100/callback",
+    KUAIDI100_CALLBACK_URL: "https://api.guoxue.cn/api/v1/shop/logistics/kuaidi100/callback",
     ...overrides,
   };
 }
@@ -350,11 +350,7 @@ test("predeploy 阶段可在迁移演练前验证真实资源和正式环境绑�
   const predeploy = await runAudit(intake, "predeploy");
   const launch = await runAudit(intake, "launch");
   try {
-    assert.equal(
-      predeploy.result.status,
-      0,
-      predeploy.result.stderr || predeploy.result.stdout,
-    );
+    assert.equal(predeploy.result.status, 0, predeploy.result.stderr || predeploy.result.stdout);
     assert.equal(predeploy.report.success, true);
     assert.equal(predeploy.report.configurationBinding.success, true);
     assert.notEqual(launch.result.status, 0);
@@ -474,8 +470,7 @@ test("接入清单部署架构与完整门禁不一致时阻断", async () => {
 
 test("第三方回调仍指向旧域名或与正式环境登记不一致时阻断", async () => {
   const wrongPlan = completeIntake();
-  wrongPlan.externalEndpoints.callbackUrls[0] =
-    "https://old.guoxue.cn/api/v1/shop/pay/notify";
+  wrongPlan.externalEndpoints.callbackUrls[0] = "https://old.guoxue.cn/api/v1/shop/pay/notify";
   const plannedOldDomain = await runAudit(wrongPlan, "predeploy");
   const environmentOldDomain = await runAudit(
     completeIntake(),
@@ -552,6 +547,72 @@ test("已启用的腾讯云能力必须逐项登记同源固定控制台回调",
   } finally {
     await rm(complete.root, { recursive: true, force: true });
     await rm(missing.root, { recursive: true, force: true });
+  }
+});
+
+test("启用微信客户端时必须逐项登记与正式环境绑定的合法域名", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.clientDomainAllowlistEntries = [
+    { surfaceId: "wechat-mini-request-api", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-mini-upload-api", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-mini-download-api", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-mini-download-assets", origin: "https://static.guoxue.cn" },
+    { surfaceId: "wechat-mini-socket-api", origin: "wss://api.guoxue.cn" },
+    { surfaceId: "wechat-mini-business-h5", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-official-oauth-h5", origin: "https://api.guoxue.cn" },
+    { surfaceId: "wechat-official-js-sdk-h5", origin: "https://api.guoxue.cn" },
+  ];
+  const environment = completeEnvironment({
+    WECHAT_MINI_APP_ID: "wx06397e8ab26bed9e",
+    WECHAT_OFFICIAL_APPID: "wx1234567890abcdef",
+  });
+  const complete = await runAudit(intake, "predeploy", "tencent", environment);
+
+  const stale = structuredClone(intake);
+  stale.externalEndpoints.clientDomainAllowlistEntries.find(
+    (item) => item.surfaceId === "wechat-mini-download-assets",
+  ).origin = "https://old.guoxue.cn";
+  const staleAudit = await runAudit(stale, "predeploy", "tencent", environment);
+
+  const missing = structuredClone(intake);
+  missing.externalEndpoints.clientDomainAllowlistEntries =
+    missing.externalEndpoints.clientDomainAllowlistEntries.filter(
+      (item) => item.surfaceId !== "wechat-mini-socket-api",
+    );
+  const missingAudit = await runAudit(missing, "predeploy", "tencent", environment);
+  const pathBearing = structuredClone(intake);
+  pathBearing.externalEndpoints.clientDomainAllowlistEntries.find(
+    (item) => item.surfaceId === "wechat-mini-request-api",
+  ).origin = "https://api.guoxue.cn/private/path?token=forbidden";
+  const pathBearingAudit = await runAudit(pathBearing, "predeploy", "tencent", environment);
+  try {
+    assert.equal(complete.result.status, 0, complete.result.stderr || complete.result.stdout);
+    assert.equal(complete.report.configurationBinding.success, true);
+    for (const audit of [staleAudit, missingAudit]) {
+      assert.notEqual(audit.result.status, 0);
+      assert.match(
+        audit.report.checks
+          .filter((item) => !item.pass)
+          .map((item) => item.name)
+          .join("\n"),
+        /已启用微信客户端均登记完整合法域名/u,
+      );
+      assert.equal(JSON.stringify(audit.report).includes("old.guoxue.cn"), false);
+    }
+    assert.notEqual(pathBearingAudit.result.status, 0);
+    assert.match(
+      pathBearingAudit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /客户端合法域名清单使用受控表面与安全 origin/u,
+    );
+    assert.equal(JSON.stringify(pathBearingAudit.report).includes("forbidden"), false);
+  } finally {
+    await rm(complete.root, { recursive: true, force: true });
+    await rm(staleAudit.root, { recursive: true, force: true });
+    await rm(missingAudit.root, { recursive: true, force: true });
+    await rm(pathBearingAudit.root, { recursive: true, force: true });
   }
 });
 
