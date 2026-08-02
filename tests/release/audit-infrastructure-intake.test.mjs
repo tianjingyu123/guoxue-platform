@@ -69,6 +69,29 @@ function completeIntake() {
       certificateRenewalProcedureVerified: true,
       certificatePublicHandshakeVerified: true,
     },
+    appDeepLinks: {
+      host: "api.guoxue.cn",
+      pathPatterns: ["/h5/*"],
+      owner: "App 深链负责人",
+      evidenceReference: "CHANGE-20260802-APP-LINKS",
+      ios: {
+        teamId: "A1B2C3D4E5",
+        bundleId: "com.rebu.iosapprebu",
+        associatedDomainsEnabled: true,
+        provisioningProfileRegenerated: true,
+        associationFileDeployed: true,
+        deviceVerificationPassed: true,
+      },
+      android: {
+        packageName: "com.rebu.apprebu",
+        sha256CertFingerprints: [
+          "AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99",
+        ],
+        autoVerifyIntentFilterConfigured: true,
+        associationFileDeployed: true,
+        deviceVerificationPassed: true,
+      },
+    },
     storage: {
       provider: "cos",
       bucket: "guoxue-prod-1250000000",
@@ -815,6 +838,65 @@ test("launch 阶段拒绝使用 ETag 清单或提前释放旧对象存储", asyn
       .join("\n");
     assert.match(failures, /对象存储迁移方案使用逐对象内容摘要/u);
     assert.match(failures, /旧对象存储回退窗口已保留/u);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("App 深链主机必须与正式 H5 主机绑定且报告不泄露域名", async () => {
+  const intake = completeIntake();
+  intake.appDeepLinks.host = "legacy.guoxue.cn";
+  const audit = await runAudit(intake, "predeploy");
+  try {
+    assert.notEqual(audit.result.status, 0);
+    assert.match(
+      audit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /App 深链主机、受控路径与责任已规划/u,
+    );
+    assert.equal(JSON.stringify(audit.report).includes("legacy.guoxue.cn"), false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("App 深链拒绝错误应用身份和无效签名指纹", async () => {
+  const intake = completeIntake();
+  intake.appDeepLinks.ios.bundleId = "com.example.rebu";
+  intake.appDeepLinks.android.sha256CertFingerprints = ["invalid"];
+  const audit = await runAudit(intake, "predeploy");
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /App 深链应用身份与现有发布包一致/u);
+    assert.match(failures, /App 深链正式 Team ID 与 Android 签名证书已登记/u);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("App 深链未完成客户端能力与双端真机验证时阻断 launch", async () => {
+  const intake = completeIntake();
+  intake.appDeepLinks.ios.provisioningProfileRegenerated = false;
+  intake.appDeepLinks.android.deviceVerificationPassed = false;
+  const audit = await runAudit(intake, "launch");
+  try {
+    assert.notEqual(audit.result.status, 0);
+    assert.match(
+      audit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /App 深链关联文件、客户端能力与真机跳转已现场验收/u,
+    );
+    assert.equal(audit.report.appDeepLinkEvidence.deviceVerificationPassed, false);
+    assert.equal(JSON.stringify(audit.report).includes("A1B2C3D4E5"), false);
+    assert.equal(JSON.stringify(audit.report).includes("AA:BB:CC"), false);
   } finally {
     await rm(audit.root, { recursive: true, force: true });
   }

@@ -91,6 +91,20 @@ const websocketOrigin = (value) => {
   }
 };
 const normalizeHostname = (value) => text(value).toLowerCase().replace(/\.$/u, "");
+const normalizeAppLinkPath = (value) => {
+  const pattern = text(value);
+  return pattern.startsWith("/") &&
+    pattern.endsWith("*") &&
+    !pattern.includes("//") &&
+    !pattern.includes("?") &&
+    !pattern.includes("#")
+    ? pattern
+    : "";
+};
+const normalizeAndroidCertificateFingerprint = (value) => {
+  const compact = text(value).replace(/:/gu, "").toUpperCase();
+  return /^[A-F0-9]{64}$/u.test(compact) ? compact.match(/.{2}/gu).join(":") : "";
+};
 const parseEnv = (content) => {
   const values = new Map();
   for (const rawLine of content.split(/\r?\n/u)) {
@@ -123,6 +137,9 @@ const server = intake.server || {};
 const database = intake.database || {};
 const cache = intake.cache || {};
 const domains = intake.domains || {};
+const appDeepLinks = intake.appDeepLinks || {};
+const appDeepLinksIos = appDeepLinks.ios || {};
+const appDeepLinksAndroid = appDeepLinks.android || {};
 const storage = intake.storage || {};
 const storageObjectMigration = storage.objectMigration || {};
 const sourceStorageInventory = storageObjectMigration.sourceInventory || {};
@@ -218,6 +235,49 @@ add(
   isFilled(domains.publicDomain) &&
     [domains.apiUrl, domains.h5Url, domains.adminUrl, domains.assetOrigin].every(isHttps),
   "四类公开入口必须显式登记 HTTPS 地址",
+);
+const appLinkHost = normalizeHostname(appDeepLinks.host);
+const h5Host = (() => {
+  try {
+    return normalizeHostname(new URL(text(domains.h5Url)).hostname);
+  } catch {
+    return "";
+  }
+})();
+const rawAppLinkPaths = Array.isArray(appDeepLinks.pathPatterns)
+  ? appDeepLinks.pathPatterns
+  : [];
+const plannedAppLinkPaths = rawAppLinkPaths.map(normalizeAppLinkPath).filter(Boolean).sort();
+const appLinkPathsValid =
+  rawAppLinkPaths.length > 0 &&
+  plannedAppLinkPaths.length === rawAppLinkPaths.length &&
+  new Set(plannedAppLinkPaths).size === plannedAppLinkPaths.length;
+const rawAndroidCertificateFingerprints = Array.isArray(
+  appDeepLinksAndroid.sha256CertFingerprints,
+)
+  ? appDeepLinksAndroid.sha256CertFingerprints
+  : [];
+const plannedAndroidCertificateFingerprints = rawAndroidCertificateFingerprints
+  .map(normalizeAndroidCertificateFingerprint)
+  .filter(Boolean)
+  .sort();
+add(
+  "App 深链主机、受控路径与责任已规划",
+  appLinkHost.includes(".") &&
+    appLinkHost === h5Host &&
+    !isPlaceholder(appLinkHost) &&
+    appLinkPathsValid &&
+    isFilled(appDeepLinks.owner) &&
+    !isPlaceholder(appDeepLinks.owner) &&
+    isFilled(appDeepLinks.evidenceReference) &&
+    !isPlaceholder(appDeepLinks.evidenceReference),
+  "深链必须使用正式 H5 同一 HTTPS 主机、只登记受控通配路径，并明确真机验收责任人与受控证据编号",
+);
+add(
+  "App 深链应用身份与现有发布包一致",
+  text(appDeepLinksIos.bundleId) === "com.rebu.iosapprebu" &&
+    text(appDeepLinksAndroid.packageName) === "com.rebu.apprebu",
+  "Universal Link 与 App Link 必须绑定当前 iOS Bundle ID 和 Android 包名，禁止迁移时生成新应用身份",
 );
 add(
   "DNS 切流窗口可控",
@@ -496,6 +556,17 @@ add(
 
 if (resourceReady) {
   add(
+    "App 深链正式 Team ID 与 Android 签名证书已登记",
+    /^[A-Z0-9]{10}$/u.test(text(appDeepLinksIos.teamId).toUpperCase()) &&
+      !isPlaceholder(appDeepLinksIos.teamId) &&
+      rawAndroidCertificateFingerprints.length > 0 &&
+      plannedAndroidCertificateFingerprints.length ===
+        rawAndroidCertificateFingerprints.length &&
+      new Set(plannedAndroidCertificateFingerprints).size ===
+        plannedAndroidCertificateFingerprints.length,
+    "预部署前必须登记 Apple Developer Team ID 与正式发布签名 SHA-256；使用应用商店重签名时必须登记商店实际签名指纹",
+  );
+  add(
     "接入清单不含占位值",
     [
       server.provider,
@@ -512,6 +583,14 @@ if (resourceReady) {
       domains.h5Url,
       domains.adminUrl,
       domains.assetOrigin,
+      appDeepLinks.host,
+      appDeepLinks.owner,
+      appDeepLinks.evidenceReference,
+      appDeepLinksIos.teamId,
+      appDeepLinksIos.bundleId,
+      appDeepLinksAndroid.packageName,
+      ...rawAppLinkPaths,
+      ...rawAndroidCertificateFingerprints,
       ...authoritativeNameServers,
       domains.certificateProvider,
       domains.certificateType,
@@ -562,6 +641,17 @@ if (resourceReady) {
 }
 
 if (launch) {
+  add(
+    "App 深链关联文件、客户端能力与真机跳转已现场验收",
+    appDeepLinksIos.associatedDomainsEnabled === true &&
+      appDeepLinksIos.provisioningProfileRegenerated === true &&
+      appDeepLinksIos.associationFileDeployed === true &&
+      appDeepLinksIos.deviceVerificationPassed === true &&
+      appDeepLinksAndroid.autoVerifyIntentFilterConfigured === true &&
+      appDeepLinksAndroid.associationFileDeployed === true &&
+      appDeepLinksAndroid.deviceVerificationPassed === true,
+    "上线前必须无重定向部署两份 .well-known 关联文件，重新生成 iOS 描述文件，合入 Android autoVerify，并分别完成 iOS/Android 真机冷启动跳转",
+  );
   add(
     "对象存储源目标清单已逐对象一致性核验",
     storageObjectMigration.comparisonVerified === true && storageInventorySummariesValid,
@@ -721,6 +811,7 @@ if (resourceReady) {
     h5Url: normalizeUrl(domains.h5Url),
     adminUrl: normalizeUrl(domains.adminUrl),
     assetOrigin: normalizeUrl(domains.assetOrigin),
+    appLinkHost,
     storageProvider: text(storage.provider).toLowerCase(),
     storageBucket: text(storage.bucket),
     storageRegion: text(storage.region).toLowerCase(),
@@ -749,6 +840,13 @@ if (resourceReady) {
     h5Url: normalizeUrl(environmentValues.get("PUBLIC_H5_URL")),
     adminUrl: normalizeUrl(`${publicApiUrl}/admin/`),
     assetOrigin: normalizeUrl(environmentValues.get("PUBLIC_ASSET_ORIGIN")),
+    appLinkHost: (() => {
+      try {
+        return normalizeHostname(new URL(text(environmentValues.get("PUBLIC_H5_URL"))).hostname);
+      } catch {
+        return "";
+      }
+    })(),
     storageProvider: text(environmentValues.get("STORAGE_PROVIDER")).toLowerCase(),
     storageBucket: text(environmentValues.get("COS_BUCKET")),
     storageRegion: text(environmentValues.get("COS_REGION")).toLowerCase(),
@@ -810,6 +908,22 @@ const report = {
           manifestSha256: text(targetStorageInventory.manifestSha256),
         }),
         matched: storageInventorySummariesValid,
+      }
+    : null,
+  appDeepLinkEvidence: launch
+    ? {
+        hostFingerprint: fingerprint(appLinkHost),
+        iosIdentityFingerprint: fingerprint(
+          `${text(appDeepLinksIos.teamId).toUpperCase()}.${text(appDeepLinksIos.bundleId)}`,
+        ),
+        androidIdentityFingerprint: fingerprint({
+          packageName: text(appDeepLinksAndroid.packageName),
+          sha256CertFingerprints: plannedAndroidCertificateFingerprints,
+        }),
+        pathPatternsFingerprint: fingerprint(plannedAppLinkPaths),
+        deviceVerificationPassed:
+          appDeepLinksIos.deviceVerificationPassed === true &&
+          appDeepLinksAndroid.deviceVerificationPassed === true,
       }
     : null,
   success: failures.length === 0,

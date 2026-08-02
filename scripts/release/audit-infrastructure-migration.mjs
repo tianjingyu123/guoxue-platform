@@ -1709,6 +1709,9 @@ const infrastructureMigrationManual = read("docs/operations/服务器数据库�
 const storageInventoryBuilder = read("scripts/release/build-storage-inventory.mjs");
 const storageInventoryComparer = read("scripts/release/compare-storage-inventories.mjs");
 const storageInventoryTest = read("tests/release/storage-inventory.test.mjs");
+const appLinkAssociationBuilder = read("scripts/release/build-app-link-associations.mjs");
+const appLinkAssociationProbe = read("scripts/release/probe-app-link-associations.mjs");
+const appLinkAssociationTest = read("tests/release/app-link-associations.test.mjs");
 add(
   "对象存储迁移具备逐对象内容清单、脱敏比对与旧桶回退门禁",
   hasAll(infrastructureIntakeAuditor, [
@@ -1749,6 +1752,52 @@ add(
       "旧桶至少 `72` 小时只读可恢复",
     ]),
   "正式切流必须用文件内容 SHA-256 对旧桶和新桶逐对象核验，只归档脱敏摘要，并在回退窗口内保留旧桶",
+);
+add(
+  "新域名 App 深链具备双端身份绑定、关联文件生成、公网探测与真机门禁",
+  infrastructureIntakeExample.includes('"appDeepLinks"') &&
+    hasAll(infrastructureIntakeAuditor, [
+      "App 深链主机、受控路径与责任已规划",
+      "App 深链应用身份与现有发布包一致",
+      "App 深链正式 Team ID 与 Android 签名证书已登记",
+      "App 深链关联文件、客户端能力与真机跳转已现场验收",
+      "appDeepLinkEvidence",
+      "appLinkHost",
+    ]) &&
+    hasAll(appLinkAssociationBuilder, [
+      "apple-app-site-association",
+      "assetlinks.json",
+      "com.apple.developer.associated-domains",
+      "com.rebu.iosapprebu",
+      "com.rebu.apprebu",
+      "sha256_cert_fingerprints",
+    ]) &&
+    hasAll(appLinkAssociationProbe, [
+      'redirect: "manual"',
+      "application/pkcs7-mime",
+      "expectedIdentityFingerprint",
+      "guoxue-app-link-association-probe",
+    ]) &&
+    hasAll(appLinkAssociationTest, [
+      "生成与现有双端应用身份一致的 Universal Link 和 App Link 文件",
+      "错误包名或签名指纹会在写出关联文件前阻断",
+      "占位域名与非受控路径不能生成公网关联文件",
+    ]) &&
+    packageJson.includes('"release:build-app-links"') &&
+    packageJson.includes('"release:probe-app-links"') &&
+    packageJson.includes("tests/release/app-link-associations.test.mjs") &&
+    hasAll(infrastructureHandoffChecklist, [
+      "apple-app-site-association",
+      "assetlinks.json",
+      "iOS 与 Android 真机",
+    ]) &&
+    hasAll(infrastructureMigrationManual, [
+      "release:build-app-links",
+      "release:probe-app-links",
+      "Associated Domains",
+      "autoVerify",
+    ]),
+  "迁移新域名后必须重新生成并无重定向部署 iOS/Android 关联文件，绑定既有包身份和正式签名，最后用双端真机冷启动验证",
 );
 add(
   "构建机候选门禁不会冒充最终生产上线 GO",

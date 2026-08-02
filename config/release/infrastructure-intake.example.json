@@ -58,6 +58,27 @@
     "certificateRenewalProcedureVerified": false,
     "certificatePublicHandshakeVerified": false
   },
+  "appDeepLinks": {
+    "host": "api.example.com",
+    "pathPatterns": ["/h5/*"],
+    "owner": "待填写",
+    "evidenceReference": "pending-change-ticket",
+    "ios": {
+      "teamId": "PENDING123",
+      "bundleId": "com.rebu.iosapprebu",
+      "associatedDomainsEnabled": false,
+      "provisioningProfileRegenerated": false,
+      "associationFileDeployed": false,
+      "deviceVerificationPassed": false
+    },
+    "android": {
+      "packageName": "com.rebu.apprebu",
+      "sha256CertFingerprints": ["pending"],
+      "autoVerifyIntentFilterConfigured": false,
+      "associationFileDeployed": false,
+      "deviceVerificationPassed": false
+    }
+  },
   "storage": {
     "provider": "cos",
     "bucket": "pending",
