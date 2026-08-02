@@ -81,6 +81,21 @@ const normalizeOrigin = (value) => {
     return "";
   }
 };
+const isPureHttpsOrigin = (value) => {
+  try {
+    const parsed = new URL(text(value));
+    return (
+      parsed.protocol === "https:" &&
+      !parsed.username &&
+      !parsed.password &&
+      !parsed.search &&
+      !parsed.hash &&
+      parsed.pathname === "/"
+    );
+  } catch {
+    return false;
+  }
+};
 const websocketOrigin = (value) => {
   try {
     const parsed = new URL(text(value));
@@ -252,6 +267,7 @@ const storageObjectMigration = storage.objectMigration || {};
 const sourceStorageInventory = storageObjectMigration.sourceInventory || {};
 const targetStorageInventory = storageObjectMigration.targetInventory || {};
 const migration = intake.migration || {};
+const publicCompliance = migration.publicCompliance || {};
 const operations = intake.operations || {};
 const externalEndpoints = intake.externalEndpoints || {};
 const emailDelivery = externalEndpoints.emailDelivery || {};
@@ -272,6 +288,20 @@ if (envFileArg) {
     process.exit(2);
   }
 }
+const rawPlannedLegacyOrigins = Array.isArray(publicCompliance.legacyOrigins)
+  ? publicCompliance.legacyOrigins
+  : [];
+const plannedLegacyOrigins = [...new Set(rawPlannedLegacyOrigins.map(normalizeOrigin).filter(Boolean))]
+  .sort();
+const configuredLegacyOrigins = [
+  ...new Set(
+    text(environmentValues.get("MIGRATION_OLD_ORIGINS"))
+      .split(/[\s,]+/u)
+      .map(normalizeOrigin)
+      .filter(Boolean),
+  ),
+].sort();
+const legacyOriginMode = text(publicCompliance.legacyOriginMode).toLowerCase();
 const expectedEgressIpv4 = [
   ...new Set(
     (Array.isArray(externalEndpoints.expectedEgressIpv4)
@@ -511,6 +541,25 @@ add(
         hostname.includes(".") && !isPlaceholder(hostname) && !/[^a-z0-9.-]/u.test(hostname),
     ),
   "必须登记至少两个真实、互不重复的权威 NS；最终切流将从公网逐路核验实际委派",
+);
+add(
+  "公网合规与旧域名处置责任已登记",
+  isFilled(publicCompliance.owner) &&
+    !isPlaceholder(publicCompliance.owner) &&
+    isFilled(publicCompliance.evidenceReference) &&
+    !isPlaceholder(publicCompliance.evidenceReference),
+  "必须明确协议隐私、反馈举报、账号注销和旧域名处置的验收责任人与受控证据编号",
+);
+add(
+  "旧域名处置计划完整且仅含 HTTPS origin",
+  rawPlannedLegacyOrigins.length === plannedLegacyOrigins.length &&
+    new Set(plannedLegacyOrigins).size === plannedLegacyOrigins.length &&
+    rawPlannedLegacyOrigins.every(
+      (origin) => isPureHttpsOrigin(origin) && !isPlaceholder(origin),
+    ) &&
+    ((plannedLegacyOrigins.length === 0 && legacyOriginMode === "none") ||
+      (plannedLegacyOrigins.length > 0 && legacyOriginMode === "redirect")),
+  "没有旧生产域名时选择 none；存在旧域名时必须逐项登记纯 HTTPS origin 并选择 redirect，切流期禁止静默废弃入口",
 );
 const certificateType = text(domains.certificateType).toLowerCase();
 const certificateValidationMode = text(domains.certificateValidationMode).toLowerCase();
@@ -1051,6 +1100,23 @@ if (launch) {
     "正式迁移前必须完成同版本演练，并确认旧环境在回退窗口内不被释放或覆盖",
   );
   add(
+    "协议隐私、反馈举报与账号注销闭环已现场验收",
+    publicCompliance.agreementConsentFlowVerified === true &&
+      publicCompliance.privacyConsentFlowVerified === true &&
+      publicCompliance.childPrivacyGateVerified === true &&
+      publicCompliance.feedbackFlowVerified === true &&
+      publicCompliance.reportFlowVerified === true &&
+      publicCompliance.accountDeletionFlowVerified === true,
+    "正式切流前必须在真实客户端分别验收协议同意、隐私授权、未成年人保护、反馈、举报查询和账号注销；自动页面探测不能替代真实提交闭环",
+  );
+  add(
+    "旧域名永久跳转已现场验收",
+    plannedLegacyOrigins.length === 0 ||
+      (legacyOriginMode === "redirect" &&
+        publicCompliance.legacyOriginHandlingVerified === true),
+    "存在旧生产域名时必须完成到新 H5 入口的 301/308 永久跳转并留存证据，禁止仅关闭旧站或使用临时跳转",
+  );
+  add(
     "第三方控制台、回调安全与客户端白名单已现场验收",
     externalEndpoints.controlPlaneInventoryVerified === true &&
       externalEndpoints.callbackReachabilityVerified === true &&
@@ -1315,6 +1381,8 @@ if (resourceReady) {
           }
         : "disabled",
     ),
+    legacyOriginMode,
+    legacyOriginsFingerprint: fingerprint(plannedLegacyOrigins),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -1399,6 +1467,8 @@ if (resourceReady) {
           }
         : "disabled",
     ),
+    legacyOriginMode: configuredLegacyOrigins.length > 0 ? "redirect" : "none",
+    legacyOriginsFingerprint: fingerprint(configuredLegacyOrigins),
   };
   const bindingFields = Object.keys(intakeBinding);
   const mismatchedBindingFields = bindingFields.filter(
@@ -1598,6 +1668,24 @@ const report = {
             wechatClientDelivery.officialAccountOauthSmokeTestPassed === true &&
             wechatClientDelivery.officialAccountJsSdkConfigVerified === true &&
             wechatClientDelivery.officialAccountShareCardVerified === true),
+      }
+    : null,
+  publicComplianceEvidence: launch
+    ? {
+        legacyOriginMode,
+        legacyOriginCount: plannedLegacyOrigins.length,
+        legacyOriginsFingerprint: fingerprint(plannedLegacyOrigins),
+        legalAndSupportFlowsVerified:
+          publicCompliance.agreementConsentFlowVerified === true &&
+          publicCompliance.privacyConsentFlowVerified === true &&
+          publicCompliance.childPrivacyGateVerified === true &&
+          publicCompliance.feedbackFlowVerified === true &&
+          publicCompliance.reportFlowVerified === true &&
+          publicCompliance.accountDeletionFlowVerified === true,
+        legacyOriginHandlingVerified:
+          plannedLegacyOrigins.length === 0 ||
+          publicCompliance.legacyOriginHandlingVerified === true,
+        evidenceReferenceFingerprint: fingerprint(text(publicCompliance.evidenceReference)),
       }
     : null,
   success: failures.length === 0,

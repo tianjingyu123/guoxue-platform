@@ -192,6 +192,31 @@ if (
 const infrastructureIntakeSha256 = createHash("sha256")
   .update(infrastructureIntakeRaw)
   .digest("hex");
+const publicCompliance = infrastructureIntake?.migration?.publicCompliance || {};
+const legacyOriginMode = String(publicCompliance.legacyOriginMode || "").trim().toLowerCase();
+const legacyOrigins = [
+  ...new Set(
+    (Array.isArray(publicCompliance.legacyOrigins) ? publicCompliance.legacyOrigins : [])
+      .map((value) => {
+        try {
+          return new URL(String(value || "").trim()).origin;
+        } catch {
+          return "";
+        }
+      })
+      .filter(Boolean),
+  ),
+].sort();
+const publicComplianceRoutes = [
+  { id: "user-agreement", path: "pkg-settings/user-agreement/index" },
+  { id: "privacy-policy", path: "pkg-settings/privacy-policy/index" },
+  { id: "child-privacy", path: "pkg-settings/child-privacy/index" },
+  { id: "feedback", path: "pkg-mine/feedback/index" },
+  { id: "report", path: "pkg-report/index/index" },
+  { id: "delete-account", path: "pkg-mine/delete-account/index" },
+];
+let publicComplianceObservations = [];
+let legacyRedirectObservations = [];
 
 await check("公网 DNS 解析与地址安全", async () => {
   dnsObservations = await Promise.all(
@@ -312,6 +337,55 @@ await check("H5 入口与安全头", async () => {
   return `HTML 与安全头有效，${latencyMs}ms`;
 });
 
+await check("公网协议隐私与用户救济页面", async () => {
+  publicComplianceObservations = await Promise.all(
+    publicComplianceRoutes.map(async (route) => {
+      const target = new URL(route.path, h5Href);
+      target.searchParams.set("runtime_probe", expectedReleaseId || "cutover");
+      const { response, body, latencyMs } = await request(target.href);
+      assert(response.ok, `${route.id} 返回 HTTP ${response.status}`);
+      assert(
+        (response.headers.get("content-type") || "").includes("text/html"),
+        `${route.id} 未返回 HTML`,
+      );
+      assert(body.includes('id="app"') || body.includes("<uni-app"), `${route.id} 缺少应用入口`);
+      const finalUrl = new URL(response.url);
+      assert(finalUrl.origin === h5Url.origin, `${route.id} 被重定向到非正式 H5 来源`);
+      assert(
+        finalUrl.pathname === target.pathname,
+        `${route.id} 被重定向到其他页面 ${finalUrl.pathname}`,
+      );
+      return { id: route.id, status: response.status, latencyMs };
+    }),
+  );
+  return `${publicComplianceObservations.length} 个协议、隐私、反馈、举报与注销入口均可达`;
+});
+
+await check("旧域名永久跳转到新 H5", async () => {
+  if (legacyOrigins.length === 0) {
+    assert(legacyOriginMode === "none", `legacyOriginMode=${legacyOriginMode || "缺失"}`);
+    legacyRedirectObservations = [];
+    return "未登记旧生产域名，无需跳转";
+  }
+  assert(legacyOriginMode === "redirect", `legacyOriginMode=${legacyOriginMode || "缺失"}`);
+  legacyRedirectObservations = await Promise.all(
+    legacyOrigins.map(async (origin) => {
+      const oldEntry = new URL(h5Url.pathname, `${origin}/`);
+      const { response, latencyMs } = await request(oldEntry.href, { redirect: "manual" });
+      assert([301, 308].includes(response.status), `旧入口返回 HTTP ${response.status}`);
+      const location = response.headers.get("location") || "";
+      const redirected = new URL(location, oldEntry);
+      assert(redirected.origin === h5Url.origin, "旧入口未跳转到新 H5 origin");
+      assert(
+        redirected.pathname.startsWith(h5Url.pathname),
+        `旧入口跳转路径错误 ${redirected.pathname}`,
+      );
+      return { status: response.status, latencyMs };
+    }),
+  );
+  return `${legacyRedirectObservations.length} 个旧生产入口均以 301/308 永久跳转到新 H5`;
+});
+
 await check("管理后台入口", async () => {
   const { response, latencyMs } = await request(adminHref);
   assert(response.ok, `HTTP ${response.status}`);
@@ -401,6 +475,16 @@ const report = {
   dnsObservations,
   dnsAuthorityObservations,
   tlsCertificates,
+  publicCompliance: {
+    routeCount: publicComplianceObservations.length,
+    routeIds: publicComplianceObservations.map((item) => item.id).sort(),
+    legacyOriginMode,
+    legacyOriginCount: legacyOrigins.length,
+    legacyOriginsFingerprint: createHash("sha256")
+      .update(JSON.stringify(legacyOrigins))
+      .digest("hex"),
+    legacyRedirectObservations,
+  },
   summary: { passed: results.length - failed.length, failed: failed.length, total: results.length },
   results,
 };

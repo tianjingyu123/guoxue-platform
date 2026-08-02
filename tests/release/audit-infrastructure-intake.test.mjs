@@ -132,6 +132,19 @@ function completeIntake() {
       maintenanceWindowUtc: "2026-08-02T02:00:00Z/2026-08-02T04:00:00Z",
       rollbackRetentionHours: 168,
       oldEnvironmentRetentionConfirmed: true,
+      publicCompliance: {
+        owner: "用户权益验收负责人",
+        evidenceReference: "CHANGE-20260802-PUBLIC-COMPLIANCE",
+        legacyOriginMode: "none",
+        legacyOrigins: [],
+        legacyOriginHandlingVerified: true,
+        agreementConsentFlowVerified: true,
+        privacyConsentFlowVerified: true,
+        childPrivacyGateVerified: true,
+        feedbackFlowVerified: true,
+        reportFlowVerified: true,
+        accountDeletionFlowVerified: true,
+      },
     },
     externalEndpoints: {
       owner: "第三方平台配置负责人",
@@ -188,6 +201,7 @@ function completeEnvironment(overrides = {}) {
     PUBLIC_API_URL: "https://api.guoxue.cn",
     PUBLIC_H5_URL: "https://api.guoxue.cn/h5/",
     PUBLIC_ASSET_ORIGIN: "https://static.guoxue.cn",
+    MIGRATION_OLD_ORIGINS: "",
     STORAGE_PROVIDER: "cos",
     COS_BUCKET: "guoxue-prod-1250000000",
     COS_REGION: "ap-beijing",
@@ -253,6 +267,57 @@ test("完整腾讯云接入清单通过 launch 门禁且报告不落原始地址
     assert.equal(JSON.stringify(audit.report).includes("not-recorded"), false);
   } finally {
     await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("公网合规闭环未验收时阻断 launch", async () => {
+  const intake = completeIntake();
+  intake.migration.publicCompliance.reportFlowVerified = false;
+  intake.migration.publicCompliance.accountDeletionFlowVerified = false;
+  const audit = await runAudit(intake);
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /协议隐私、反馈举报与账号注销闭环已现场验收/u);
+    assert.equal(audit.report.publicComplianceEvidence.legalAndSupportFlowsVerified, false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("旧域名计划必须与正式环境精确绑定并完成永久跳转验收", async () => {
+  const intake = completeIntake();
+  intake.migration.publicCompliance.legacyOriginMode = "redirect";
+  intake.migration.publicCompliance.legacyOrigins = ["https://old.guoxue.cn"];
+  intake.migration.publicCompliance.legacyOriginHandlingVerified = true;
+  const matching = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    MIGRATION_OLD_ORIGINS: "https://old.guoxue.cn",
+  });
+  try {
+    assert.equal(matching.result.status, 0, matching.result.stderr || matching.result.stdout);
+    assert.equal(matching.report.publicComplianceEvidence.legacyOriginCount, 1);
+    assert.equal(JSON.stringify(matching.report).includes("old.guoxue.cn"), false);
+  } finally {
+    await rm(matching.root, { recursive: true, force: true });
+  }
+
+  const mismatch = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    MIGRATION_OLD_ORIGINS: "https://another-old.guoxue.cn",
+  });
+  try {
+    assert.notEqual(mismatch.result.status, 0);
+    const failures = mismatch.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /正式环境与新基础设施接入清单完全绑定/u);
+  } finally {
+    await rm(mismatch.root, { recursive: true, force: true });
   }
 });
 

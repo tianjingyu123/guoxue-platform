@@ -228,6 +228,21 @@ const definitions = [
       ) {
         problems.push("新基础设施接入验收未全部通过");
       }
+      if (
+        data.publicComplianceEvidence?.legalAndSupportFlowsVerified !== true ||
+        data.publicComplianceEvidence?.legacyOriginHandlingVerified !== true ||
+        !["none", "redirect"].includes(data.publicComplianceEvidence?.legacyOriginMode) ||
+        !Number.isInteger(data.publicComplianceEvidence?.legacyOriginCount) ||
+        data.publicComplianceEvidence.legacyOriginCount < 0 ||
+        !/^[a-f0-9]{64}$/u.test(
+          String(data.publicComplianceEvidence?.legacyOriginsFingerprint || ""),
+        ) ||
+        !/^[a-f0-9]{64}$/u.test(
+          String(data.publicComplianceEvidence?.evidenceReferenceFingerprint || ""),
+        )
+      ) {
+        problems.push("公网合规、用户救济或旧域名处置人工证据无效");
+      }
       return problems;
     },
   },
@@ -559,6 +574,33 @@ const definitions = [
         )
       ) {
         problems.push("公网 TLS 证书链、域名、有效期或指纹证据无效");
+      }
+      const expectedComplianceRouteIds = [
+        "child-privacy",
+        "delete-account",
+        "feedback",
+        "privacy-policy",
+        "report",
+        "user-agreement",
+      ];
+      if (
+        data.publicCompliance?.routeCount !== expectedComplianceRouteIds.length ||
+        JSON.stringify(data.publicCompliance?.routeIds) !==
+          JSON.stringify(expectedComplianceRouteIds) ||
+        !["none", "redirect"].includes(data.publicCompliance?.legacyOriginMode) ||
+        !Number.isInteger(data.publicCompliance?.legacyOriginCount) ||
+        data.publicCompliance.legacyOriginCount < 0 ||
+        !/^[a-f0-9]{64}$/u.test(
+          String(data.publicCompliance?.legacyOriginsFingerprint || ""),
+        ) ||
+        !Array.isArray(data.publicCompliance?.legacyRedirectObservations) ||
+        data.publicCompliance.legacyRedirectObservations.length !==
+          data.publicCompliance.legacyOriginCount ||
+        data.publicCompliance.legacyRedirectObservations.some(
+          (item) => ![301, 308].includes(item?.status),
+        )
+      ) {
+        problems.push("公网协议隐私、用户救济页面或旧域名永久跳转证据无效");
       }
 
       const cloud = sourceData.tencentCloud;

@@ -269,6 +269,24 @@ add(
     !financeControlPlaneGuide.includes("pre-api.rebugx.cn"),
   "迁移门禁必须阻断旧回调域名，并要求支付/物流控制台、回调验签重放和小程序/App 域名白名单留下受控证据",
 );
+add(
+  "公网合规与旧域名处置纳入新基础设施交接",
+  infrastructureIntakeExample.includes('"publicCompliance"') &&
+    infrastructureIntakeExample.includes('"legacyOriginMode"') &&
+    hasAll(infrastructureIntakeAuditor, [
+      "公网合规与旧域名处置责任已登记",
+      "旧域名处置计划完整且仅含 HTTPS origin",
+      "协议隐私、反馈举报与账号注销闭环已现场验收",
+      "旧域名永久跳转已现场验收",
+      "publicComplianceEvidence",
+      "legacyOriginsFingerprint",
+    ]) &&
+    hasAll(productionEnvAuditor, [
+      "MIGRATION_OLD_ORIGINS 只能填写 origin",
+      "MIGRATION_OLD_ORIGINS 包含当前生产 origin",
+    ]),
+  "新域名可访问还不够；必须验收协议隐私、反馈举报、账号注销，并将旧入口永久跳转到新 H5",
+);
 
 const bootstrap = read(shellScripts[0]);
 add(

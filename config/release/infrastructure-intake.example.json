@@ -118,7 +118,20 @@
     "writeFreezeOwner": "待填写",
     "maintenanceWindowUtc": "pending",
     "rollbackRetentionHours": 168,
-    "oldEnvironmentRetentionConfirmed": false
+    "oldEnvironmentRetentionConfirmed": false,
+    "publicCompliance": {
+      "owner": "待填写",
+      "evidenceReference": "pending-change-ticket",
+      "legacyOriginMode": "none",
+      "legacyOrigins": [],
+      "legacyOriginHandlingVerified": false,
+      "agreementConsentFlowVerified": false,
+      "privacyConsentFlowVerified": false,
+      "childPrivacyGateVerified": false,
+      "feedbackFlowVerified": false,
+      "reportFlowVerified": false,
+      "accountDeletionFlowVerified": false
+    }
   },
   "externalEndpoints": {
     "owner": "待填写",

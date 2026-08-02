@@ -81,6 +81,14 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
       success: true,
       summary: { passed: 18, failed: 0, total: 18 },
       checks: [{ name: "新基础设施接入", pass: true, detail: "ok" }],
+      publicComplianceEvidence: {
+        legacyOriginMode: "none",
+        legacyOriginCount: 0,
+        legacyOriginsFingerprint: "b".repeat(64),
+        legalAndSupportFlowsVerified: true,
+        legacyOriginHandlingVerified: true,
+        evidenceReferenceFingerprint: "c".repeat(64),
+      },
     },
     "tencent-cloud-readiness.json": {
       schemaVersion: 2,
@@ -204,6 +212,21 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
       dnsAuthorityObservations: dnsAuthorityObservations(),
       summary: { failed: 0 },
       results: [{ name: "health", status: "PASS", detail: "ok" }],
+      publicCompliance: {
+        routeCount: 6,
+        routeIds: [
+          "child-privacy",
+          "delete-account",
+          "feedback",
+          "privacy-policy",
+          "report",
+          "user-agreement",
+        ],
+        legacyOriginMode: "none",
+        legacyOriginCount: 0,
+        legacyOriginsFingerprint: "b".repeat(64),
+        legacyRedirectObservations: [],
+      },
       tlsCertificates: [
         {
           origin: "https://new-guoxue.test",
@@ -404,6 +427,49 @@ test("公网证书剩余不足 14 天或缺少可信指纹时阻断上线", asyn
   assert.match(
     decision.checks.find((item) => item.name.includes("运行时"))?.detail || "",
     /公网 TLS 证书链、域名、有效期或指纹证据无效/u,
+  );
+});
+
+test("公网合规人工验收证据缺失时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "infrastructure-intake-readiness.json": {
+      publicComplianceEvidence: {
+        legacyOriginMode: "none",
+        legacyOriginCount: 0,
+        legacyOriginsFingerprint: "b".repeat(64),
+        legalAndSupportFlowsVerified: false,
+        legacyOriginHandlingVerified: true,
+        evidenceReferenceFingerprint: "c".repeat(64),
+      },
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.source === "infrastructure-intake-readiness.json")
+      ?.detail || "",
+    /公网合规、用户救济或旧域名处置人工证据无效/u,
+  );
+});
+
+test("公网用户权益页面或旧域名永久跳转证据缺失时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": {
+      publicCompliance: {
+        routeCount: 5,
+        routeIds: ["child-privacy", "feedback", "privacy-policy", "report", "user-agreement"],
+        legacyOriginMode: "redirect",
+        legacyOriginCount: 1,
+        legacyOriginsFingerprint: "b".repeat(64),
+        legacyRedirectObservations: [{ status: 302, latencyMs: 12 }],
+      },
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.source === "runtime-verification.json")?.detail || "",
+    /公网协议隐私、用户救济页面或旧域名永久跳转证据无效/u,
   );
 });
 

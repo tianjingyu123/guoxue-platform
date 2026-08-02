@@ -144,6 +144,25 @@ add(
 );
 
 add(
+  "公网合规页面与旧域名永久跳转纳入切流验收",
+  hasAll(verifier, [
+    "公网协议隐私与用户救济页面",
+    "user-agreement",
+    "privacy-policy",
+    "child-privacy",
+    "delete-account",
+    "旧域名永久跳转到新 H5",
+    "[301, 308]",
+    "legacyOriginsFingerprint",
+  ]) &&
+    hasAll(evidenceAggregator, [
+      "公网合规、用户救济或旧域名处置人工证据无效",
+      "公网协议隐私、用户救济页面或旧域名永久跳转证据无效",
+    ]),
+  "最终切流必须同时证明协议隐私、反馈举报和注销入口可达，并将旧生产入口以永久跳转方式导向新 H5",
+);
+
+add(
   "安全头与缓存策略纳入切流验收",
   hasAll(verifier, [
     "strict-transport-security",
