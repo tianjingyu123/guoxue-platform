@@ -10,9 +10,10 @@ import { HuifuService } from "../huifu/huifu.service"
 import { PaymentProviderFactory } from "./payment-factory"
 import { WebhookService } from "../webhook/webhook.service"
 import { BusinessException } from "../../common/business.exception"
+import { EntitlementService } from "../entitlement/entitlement.service"
 import {
   makeMockPrisma, makeMockRedis, makeMockCommission,
-  makeMockAlipay, makeMockUnionpay, makeMockPaymentFactory, makeMockWebhook, makeMockHuifu, makeMockWechatPay,
+  makeMockAlipay, makeMockUnionpay, makeMockPaymentFactory, makeMockWebhook, makeMockHuifu, makeMockWechatPay, makeMockEntitlement,
 } from "./shop-test-mocks"
 
 const mockPrisma = makeMockPrisma()
@@ -24,6 +25,7 @@ const mockUnionpay = makeMockUnionpay()
 const mockPaymentFactory = makeMockPaymentFactory()
 const mockWebhook = makeMockWebhook()
 const mockHuifu = makeMockHuifu()
+const mockEntitlement = makeMockEntitlement()
 const refundRequestedAt = new Date("2026-07-22T07:00:00.000Z")
 
 describe("ShopRefundService", () => {
@@ -43,6 +45,7 @@ describe("ShopRefundService", () => {
         { provide: HuifuService, useValue: mockHuifu },
         { provide: PaymentProviderFactory, useValue: mockPaymentFactory },
         { provide: WebhookService, useValue: mockWebhook },
+        { provide: EntitlementService, useValue: mockEntitlement },
       ],
     }).compile()
     svc = mod.get(ShopRefundService)
@@ -167,6 +170,21 @@ describe("ShopRefundService", () => {
         data: { stock: { increment: 3 } },
       })
       expect(mockPrisma.inventoryMovement.create).not.toHaveBeenCalled()
+    })
+
+    it("退款状态与该订单发放的跨端权益在同一事务内冲正", async () => {
+      const order = {
+        id: "o-course-refund", userId: "u1", merchantId: null, type: "COURSE",
+        targetId: "c1", skuId: null, quantity: 1, status: "PAID", amount: 99,
+      }
+      mockPrisma.order.findUnique.mockResolvedValue(order)
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 1 })
+
+      await (svc as any).applyRefundedBookkeeping(order.id, 99, "数字内容退款")
+
+      expect(mockEntitlement.revokeSourceWithTx).toHaveBeenCalledWith(
+        mockPrisma, "u1", "ORDER", "o-course-refund", "数字内容退款",
+      )
     })
 
     it("已发货订单退款：只退钱不自动回补库存", async () => {

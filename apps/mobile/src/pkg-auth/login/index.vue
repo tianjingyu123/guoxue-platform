@@ -207,8 +207,8 @@
         </view>
       </view>
 
-      <!-- 第三方登录：当前只接了小程序 uni.login，H5 不展示不可用入口 -->
-      <!-- #ifdef MP-WEIXIN -->
+      <!-- 微信登录：小程序走 code2session，原生 APP 走微信开放平台 OAuth。 -->
+      <!-- #if defined(MP-WEIXIN) || defined(APP-PLUS) -->
       <view class="third-party">
         <view class="divider">
           <view class="divider-line" />
@@ -432,7 +432,7 @@ async function handleLogin() {
 // @data-needs: 微信登录, uni.login 拿 code → POST /auth/login/wechat, 返回 {token, user}
 async function handleThirdParty(_type: 'wechat') {
   if (isLoading.value) return
-  // #ifdef MP-WEIXIN
+  // #if defined(MP-WEIXIN) || defined(APP-PLUS)
   isLoading.value = true
   error.value = ''
   try {
@@ -443,7 +443,12 @@ async function handleThirdParty(_type: 'wechat') {
         fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg || '微信授权失败')),
       })
     })
-    const res = await authApi.wechatLogin(code)
+    const res = await authApi.wechatLogin(
+      code
+      // #ifdef APP-PLUS
+      , 'app'
+      // #endif
+    )
     if (res.success && res.data?.token) {
       clearAuthSession({ preserveLoginRedirect: true })
       setToken(res.data.token)
@@ -460,8 +465,8 @@ async function handleThirdParty(_type: 'wechat') {
     isLoading.value = false
   }
   // #endif
-  // #ifndef MP-WEIXIN
-  uni.showToast({ title: '请在微信小程序内使用微信登录', icon: 'none' })
+  // #if !defined(MP-WEIXIN) && !defined(APP-PLUS)
+  uni.showToast({ title: '当前端请使用手机号登录', icon: 'none' })
   // #endif
 }
 

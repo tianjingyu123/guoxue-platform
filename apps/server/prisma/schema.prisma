@@ -63,6 +63,8 @@ model User {
   updatedAt            DateTime      @updatedAt
 
   auths                 Auth[]
+  entitlementLedgers    EntitlementLedger[]
+  entitlementBalances   EntitlementBalance[]
   roles                 UserRole[]
   memberPurchases       MemberPurchase[]
   circles               Circle[]
@@ -172,17 +174,83 @@ model User {
 }
 
 model Auth {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   userId     String
-  provider   String // PASSWORD, WECHAT, PHONE
-  openId     String?  @unique
-  unionId    String?
-  credential String? // password hash or access_token
-  createdAt  DateTime @default(now())
+  provider   String // PASSWORD / PHONE / WECHAT（渠道身份）/ WECHAT_UNION（开放平台锚点）/ APPLE 等
+  namespace  String    @default("legacy") // 身份作用域：wechat:miniprogram:appid / wechat-open:开放平台 / phone / password
+  subject    String? // 作用域内稳定标识：openid / unionid / phoneHash / Apple sub；迁移期兼容旧空值
+  appId      String? // 第三方应用公开标识，仅用于审计和选取支付/推送身份
+  openId     String? // 兼容微信通知/支付链路；openid 只在 appId 作用域内唯一
+  unionId    String? // 冗余便于排障；真正跨端唯一锚点由 WECHAT_UNION 行承载
+  credential String? // password hash；第三方 access_token 不落库
+  metadata   Json?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, provider])
+  @@unique([provider, namespace, subject])
+  @@index([userId, provider])
+  @@index([provider, unionId])
+  @@index([appId, openId])
+}
+
+// ─────────────────────────────────────────────────
+// 统一权益中心：不可变流水 + 当前投影
+// ─────────────────────────────────────────────────
+
+model EntitlementLedger {
+  id               String    @id @default(uuid())
+  userId           String
+  entitlementKey   String // membership.school / membership.practitioner / course.access / quota.xxx
+  kind             String // MEMBERSHIP / ACCESS / QUOTA / CREDIT / COUPON
+  resourceType     String    @default("")
+  resourceId       String    @default("")
+  scope            String    @default("GLOBAL") // GLOBAL / APP / CHANNEL / PRODUCT
+  action           String // GRANT / CONSUME / REVOKE / ADJUST / MIGRATE
+  quantity         Int       @default(0) // 正数发放、负数消费/冲正
+  unlimited        Boolean   @default(false)
+  validFrom        DateTime  @default(now())
+  validUntil       DateTime?
+  sourceType       String // ORDER / ADMIN / MIGRATION / ACTIVITY / SYSTEM
+  sourceId         String?
+  reversesLedgerId String?
+  idempotencyKey   String    @unique
+  metadata         Json?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, entitlementKey, createdAt])
+  @@index([sourceType, sourceId])
+  @@index([reversesLedgerId])
+  @@index([validUntil])
+}
+
+model EntitlementBalance {
+  id             String    @id @default(uuid())
+  userId         String
+  entitlementKey String
+  kind           String
+  resourceType   String    @default("")
+  resourceId     String    @default("")
+  scope          String    @default("GLOBAL")
+  quantity       Int       @default(0)
+  unlimited      Boolean   @default(false)
+  validFrom      DateTime  @default(now())
+  validUntil     DateTime?
+  status         String    @default("ACTIVE") // ACTIVE / EXPIRED / REVOKED
+  version        Int       @default(0) // 乐观锁；并发消费时原子递增
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, entitlementKey, resourceType, resourceId, scope])
+  @@index([userId, status, validUntil])
+  @@index([entitlementKey, resourceId])
 }
 
 // ─────────────────────────────────────────────────
@@ -279,14 +347,17 @@ model RolePermission {
 model MemberPurchase {
   id         String      @id @default(uuid())
   userId     String
+  orderId    String?     @unique // 新支付链路关联订单；旧数据/管理员赠送可为空
   memberType MemberLevel
   amount     Decimal     @db.Decimal(10, 2)
   sourcePage String? // 来源页面追踪
   referrerId String?
   paidAt     DateTime    @default(now())
   expireAt   DateTime?
+  refundedAt DateTime?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@index([userId])
 }
@@ -1241,19 +1312,19 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id               String        @id @default(uuid())
+  id               String                @id @default(uuid())
   purchaseOrderId  String
   productId        String
   skuId            String?
   productTitle     String
   skuLabel         String?
   quantity         Int
-  receivedQuantity Int           @default(0)
-  rejectedQuantity Int           @default(0)
-  unitCost         Decimal       @db.Decimal(10, 2)
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  receivedQuantity Int                   @default(0)
+  rejectedQuantity Int                   @default(0)
+  unitCost         Decimal               @db.Decimal(10, 2)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  purchaseOrder    PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   receiptItems     PurchaseReceiptItem[]
 
   @@index([purchaseOrderId])
@@ -1364,8 +1435,9 @@ model Order {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  user          User            @relation(fields: [userId], references: [id])
-  ToolPayRecord ToolPayRecord[]
+  user           User            @relation(fields: [userId], references: [id])
+  memberPurchase MemberPurchase?
+  ToolPayRecord  ToolPayRecord[]
 
   @@unique([payTransactionId])
   @@index([userId, createdAt])
@@ -4126,18 +4198,18 @@ enum WebhookEvent {
 }
 
 model WebhookSubscription {
-  id          String       @id @default(uuid())
+  id          String            @id @default(uuid())
   event       WebhookEvent
   url         String // 回调URL
   secret      String? // HMAC-SHA256 签名密钥
   description String? // 备注
-  isActive    Boolean      @default(true)
+  isActive    Boolean           @default(true)
   lastSentAt  DateTime?
   lastStatus  Int? // 最后一次发送HTTP状态码
-  retryCount  Int          @default(0) // 累计重试次数
-  maxRetries  Int          @default(3)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  retryCount  Int               @default(0) // 累计重试次数
+  maxRetries  Int               @default(3)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   deliveries  WebhookDelivery[]
 
   @@index([event, isActive])
@@ -5296,7 +5368,7 @@ model Merchant {
 /// 商家供应商档案：采购单保留名称与联系人快照，档案负责复用、停用和经营统计。
 /// 与 Product.userId 的平台供货归属无关，仅服务商家自己的采购协作。
 model MerchantSupplier {
-  id                  String          @id @default(uuid())
+  id                  String    @id @default(uuid())
   merchantId          String
   name                String
   contactName         String?
@@ -5305,14 +5377,14 @@ model MerchantSupplier {
   settlementTerms     String?
   leadTimeDays        Int?
   remark              String?
-  status              String          @default("ACTIVE") // ACTIVE / INACTIVE
-  purchaseCount       Int             @default(0)
-  totalPurchaseAmount Decimal         @default(0) @db.Decimal(12, 2)
+  status              String    @default("ACTIVE") // ACTIVE / INACTIVE
+  purchaseCount       Int       @default(0)
+  totalPurchaseAmount Decimal   @default(0) @db.Decimal(12, 2)
   lastPurchasedAt     DateTime?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  merchant      Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  merchant       Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   purchaseOrders PurchaseOrder[]
 
   @@unique([merchantId, name])

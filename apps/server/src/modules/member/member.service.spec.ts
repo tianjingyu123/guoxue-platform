@@ -2,23 +2,26 @@ import { Test } from "@nestjs/testing";
 import { MemberService } from "./member.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
+import { EntitlementService } from "../entitlement/entitlement.service";
 
 describe("MemberService", () => {
   let svc: MemberService;
   let prisma: any;
+  const entitlement = { grantWithTx: jest.fn(), revokeEntitlementWithTx: jest.fn() };
 
   beforeEach(async () => {
     prisma = {
       memberConfig: { findMany: jest.fn(), findUnique: jest.fn() },
       memberPurchase: { findMany: jest.fn(), create: jest.fn(), count: jest.fn(), aggregate: jest.fn() },
       user: { findUnique: jest.fn(), update: jest.fn(), count: jest.fn(), groupBy: jest.fn() },
-      $transaction: jest.fn((ops: any[]) => Promise.all(ops.map(o => typeof o === "function" ? o() : o))),
+      $transaction: jest.fn((input: any) => typeof input === "function" ? input(prisma) : Promise.all(input)),
     };
 
     const mod = await Test.createTestingModule({
       providers: [
         MemberService,
         { provide: PrismaService, useValue: prisma },
+        { provide: EntitlementService, useValue: entitlement },
       ],
     }).compile();
     svc = mod.get(MemberService);

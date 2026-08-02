@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, MinLength, MaxLength, Matches } from "class-validator";
+import { IsString, IsOptional, IsInt, IsIn, MinLength, MaxLength, Matches } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PhoneRegisterDto {
@@ -67,6 +67,12 @@ export class OaOpenidDto {
   @IsString()
   @MinLength(1)
   code: string;
+
+  @ApiPropertyOptional({ description: "微信登录客户端标识；多公众号/网站应用时必填" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  clientKey?: string;
 }
 
 export class WechatLoginDto {
@@ -75,10 +81,18 @@ export class WechatLoginDto {
   @MinLength(1)
   code: string;
 
-  @ApiPropertyOptional({ description: "登录类型：h5 或 miniprogram", example: "h5", default: "h5" })
+  @ApiPropertyOptional({ description: "登录类型：h5、miniprogram 或 app", example: "h5", default: "h5" })
   @IsString()
   @IsOptional()
+  @IsIn(["h5", "miniprogram", "app"])
   loginType?: string;
+
+  @ApiPropertyOptional({ description: "微信登录客户端标识；配置多个同类型应用时必填，也可传公开 appId" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  @Matches(/^[A-Za-z0-9_.:-]+$/)
+  clientKey?: string;
 
   @ApiPropertyOptional({ description: "用户昵称（新用户注册时使用）", example: "张三" })
   @IsString()
@@ -116,6 +130,33 @@ export class MiniPhoneLoginDto {
   @IsString()
   @IsOptional()
   referrerCode?: string;
+
+  @ApiPropertyOptional({ description: "小程序客户端标识；多小程序时必填，也可传公开 appId" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  @Matches(/^[A-Za-z0-9_.:-]+$/)
+  clientKey?: string;
+}
+
+export class BindWechatDto {
+  @ApiProperty({ description: "微信授权 code" })
+  @IsString()
+  @MinLength(1)
+  code: string;
+
+  @ApiPropertyOptional({ description: "登录类型：h5、miniprogram 或 app", default: "h5" })
+  @IsString()
+  @IsOptional()
+  @IsIn(["h5", "miniprogram", "app"])
+  loginType?: string;
+
+  @ApiPropertyOptional({ description: "微信登录客户端标识，也可传公开 appId" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(64)
+  @Matches(/^[A-Za-z0-9_.:-]+$/)
+  clientKey?: string;
 }
 
 export class UpdateProfileDto {

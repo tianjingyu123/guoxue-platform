@@ -10,13 +10,15 @@ import * as bcrypt from "bcryptjs";
 
 const mockPrisma = {
   user: { findUnique: jest.fn(), update: jest.fn() },
-  auth: { findFirst: jest.fn() },
+  auth: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
+  $transaction: jest.fn().mockImplementation((fn: (tx: any) => unknown) => fn(mockPrisma)),
 };
 
 const mockRedis = {
   get: jest.fn(),
   set: jest.fn(),
   del: jest.fn(),
+  smembers: jest.fn().mockResolvedValue([]),
 };
 
 const mockSms = {
@@ -52,6 +54,7 @@ describe("AccountService", () => {
 
       expect(result.message).toContain("已提交");
       expect(result.coolDownDays).toBe(7);
+      expect(mockPrisma.auth.findFirst).toHaveBeenCalledWith({ where: { userId: "u1", provider: "PASSWORD" } });
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: "u1" },
         data: expect.objectContaining({
@@ -168,6 +171,8 @@ describe("AccountService", () => {
       expect(result.message).toContain("更换成功");
       expect(mockSms.verifyCode).toHaveBeenCalledWith("13800138000", "111111", "change-phone-old");
       expect(mockSms.verifyCode).toHaveBeenCalledWith("13900139000", "222222", "change-phone-new");
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(mockRedis.set).toHaveBeenCalledWith("revoked:user:u1", expect.any(String), 2 * 3600 + 60);
     });
 
     it("当前未绑定手机号抛出异常", async () => {

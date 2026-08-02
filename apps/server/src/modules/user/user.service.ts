@@ -1034,11 +1034,12 @@ export class UserService {
   async getBoundAccounts(userId: string) {
     const auths = await this.prisma.auth.findMany({
       where: { userId },
-      select: { provider: true, openId: true, createdAt: true },
+      select: { provider: true, namespace: true, appId: true, openId: true, createdAt: true, lastUsedAt: true },
     });
     const providers = ["wechat", "qq", "apple"];
     return providers.map(provider => {
-      const binding = auths.find(a => a.provider.toUpperCase() === provider.toUpperCase() || a.provider === provider);
+      const bindings = auths.filter(a => a.provider.toUpperCase() === provider.toUpperCase() || a.provider === provider);
+      const binding = bindings[0];
       const nameMap: Record<string, string> = { wechat: "微信", qq: "QQ", apple: "Apple ID" };
       const colorMap: Record<string, string> = { wechat: "#07C160", qq: "#12B7F5", apple: "#000000" };
       return {
@@ -1046,6 +1047,13 @@ export class UserService {
         name: nameMap[provider] || provider,
         color: colorMap[provider] || "#666",
         isBound: !!binding,
+        boundCount: bindings.length,
+        channels: bindings.map((item) => ({
+          namespace: item.namespace,
+          appId: item.appId,
+          boundAt: item.createdAt.toISOString(),
+          lastUsedAt: item.lastUsedAt?.toISOString(),
+        })),
         accountInfo: binding?.openId ? `${provider}_user***${binding.openId.slice(-3)}` : undefined,
         boundAt: binding?.createdAt?.toISOString() || undefined,
       };
@@ -1063,19 +1071,31 @@ export class UserService {
     // 检查是否已绑定
     const auths = await this.prisma.auth.findMany({
       where: { userId },
-      select: { provider: true, id: true },
+      select: { provider: true, id: true, credential: true },
     });
-    const targetAuth = auths.find(a => a.provider.toLowerCase() === normalized);
-    if (!targetAuth) {
+    const targets = auths.filter(a => normalized === "wechat"
+      ? a.provider === "WECHAT"
+      : a.provider.toLowerCase() === normalized);
+    if (!targets.length) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "该账号未绑定");
     }
 
-    // 至少保留一种登录方式
-    if (auths.length <= 1) {
+    // WECHAT_UNION 只是跨端锚点，不是一种独立登录方式；按真实可登录提供方计数。
+    const remainingLoginMethods = auths.filter(a =>
+      a.provider !== "WECHAT_UNION" &&
+      !(normalized === "wechat" ? a.provider === "WECHAT" : a.provider.toLowerCase() === normalized) &&
+      (a.provider !== "PASSWORD" || Boolean(a.credential)),
+    );
+    if (remainingLoginMethods.length === 0) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "至少保留一种登录方式，无法解绑最后一个账号");
     }
 
-    await this.prisma.auth.delete({ where: { id: targetAuth.id } });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.auth.deleteMany({ where: { id: { in: targets.map((item) => item.id) } } });
+      if (normalized === "wechat") {
+        await tx.auth.deleteMany({ where: { userId, provider: "WECHAT_UNION" } });
+      }
+    });
     this.logger.log(`用户 ${userId} 解绑了 ${provider} 账号`);
     return { success: true, provider: normalized };
   }

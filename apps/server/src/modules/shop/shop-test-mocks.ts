@@ -53,6 +53,13 @@ export function makeMockWebhook() {
   return { fire: jest.fn().mockResolvedValue(undefined) };
 }
 
+export function makeMockEntitlement() {
+  return {
+    grantWithTx: jest.fn().mockResolvedValue({}),
+    revokeSourceWithTx: jest.fn().mockResolvedValue({ revoked: 0 }),
+  };
+}
+
 export function makeMockRedis() {
   return {
     getJson: jest.fn().mockResolvedValue(null),

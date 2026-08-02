@@ -13,10 +13,11 @@ import { HuifuService } from "../huifu/huifu.service"
 import { CoinService } from "../coin/coin.service"
 import { WebhookService } from "../webhook/webhook.service"
 import { MemberBenefitService } from "../member/member-benefit.service"
+import { EntitlementService } from "../entitlement/entitlement.service"
 import { BusinessException } from "../../common/business.exception"
 import {
   makeMockPrisma, makeMockRedis, makeMockUnifiedPricing, makeMockCommission,
-  makeMockWechatPay, makeMockAlipay, makeMockUnionpay, makeMockCoin, makeMockWebhook, makeMockMemberBenefit, makeMockHuifu,
+  makeMockWechatPay, makeMockAlipay, makeMockUnionpay, makeMockCoin, makeMockWebhook, makeMockMemberBenefit, makeMockHuifu, makeMockEntitlement,
 } from "./shop-test-mocks"
 
 const mockPrisma = makeMockPrisma()
@@ -30,6 +31,7 @@ const mockCoin = makeMockCoin()
 const mockWebhook = makeMockWebhook()
 const mockMemberBenefit = makeMockMemberBenefit()
 const mockHuifu = makeMockHuifu()
+const mockEntitlement = makeMockEntitlement()
 
 describe("ShopPaymentService", () => {
   let svc: ShopPaymentService
@@ -51,6 +53,7 @@ describe("ShopPaymentService", () => {
         { provide: CoinService, useValue: mockCoin },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: MemberBenefitService, useValue: mockMemberBenefit },
+        { provide: EntitlementService, useValue: mockEntitlement },
         { provide: HuifuService, useValue: mockHuifu },
       ],
     }).compile()
@@ -704,6 +707,45 @@ describe("ShopPaymentService", () => {
   })
 
   // ═══════════════════ 加盟费支付后处理（分站年租 / 运营商开通）═══════════════════
+
+  describe("统一权益支付后处理", () => {
+    it("数字内容付款后在订单事务内幂等发放跨端访问权", async () => {
+      const tx = { course: { findUnique: jest.fn().mockResolvedValue({ validityDays: 30 }) } };
+      await (svc as any).processAccessPaid({ id: "o-course", userId: "u1", type: "COURSE", targetId: "c1" }, tx);
+
+      expect(mockEntitlement.grantWithTx).toHaveBeenCalledWith(tx, expect.objectContaining({
+        userId: "u1",
+        entitlementKey: "course.access",
+        resourceType: "COURSE",
+        resourceId: "c1",
+        sourceType: "ORDER",
+        sourceId: "o-course",
+        idempotencyKey: "order:o-course:course.access",
+        validUntil: expect.any(Date),
+      }));
+    });
+
+    it("会员付款同时关联原订单并发放统一会员权益", async () => {
+      const tx = {
+        memberConfig: { findUnique: jest.fn().mockResolvedValue({ level: "MONTHLY" }) },
+        user: {
+          findUnique: jest.fn().mockResolvedValue({ memberLevel: "NONE", memberExpire: null }),
+          update: jest.fn(),
+        },
+        memberPurchase: { create: jest.fn() },
+      };
+      await (svc as any).processMemberPaid({ id: "o-member", userId: "u1", type: "MEMBER", targetId: "plan-1", amount: 19.9, referrerId: null }, tx);
+
+      expect(tx.memberPurchase.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ orderId: "o-member", userId: "u1" }),
+      }));
+      expect(mockEntitlement.grantWithTx).toHaveBeenCalledWith(tx, expect.objectContaining({
+        entitlementKey: "membership.school",
+        sourceId: "o-member",
+        idempotencyKey: "order:o-member:membership.school",
+      }));
+    });
+  });
 
   /** 极简 fake tx：只提供两个处理器实际用到的表 */
   const makeTx = (over: any = {}) => ({

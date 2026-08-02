@@ -48,6 +48,20 @@ function adaptAuthResult(data?: RawAuthData | null): AuthResponse {
   }
 }
 
+/** 多小程序构建优先读取显式 clientKey；未配置时直接上送当前公开 appId 供后端注册表匹配。 */
+function getWechatClientKey(): string | undefined {
+  const configured = ((import.meta as any).env?.VITE_WECHAT_CLIENT_KEY || '').trim()
+  if (configured) return configured
+  // #ifdef MP-WEIXIN
+  try {
+    return uni.getAccountInfoSync().miniProgram.appId || undefined
+  } catch { return undefined }
+  // #endif
+  // #ifndef MP-WEIXIN
+  return undefined
+  // #endif
+}
+
 export const authApi = {
   /** 发送短信验证码 — POST /auth/sms/send */
   async sendCode(phone: string, scene: 'login' | 'register' | 'reset'): Promise<{ success: boolean; message: string }> {
@@ -81,12 +95,13 @@ export const authApi = {
     }
   },
 
-  /** 微信登录（小程序）— POST /auth/login/wechat，code 由 uni.login 获取，后端 code2session 换 openId */
-  async wechatLogin(code: string): Promise<AuthResponse> {
+  /** 微信登录（小程序/APP/H5）— 同一接口按端类型解析 code，并落到同一个内部 userId。 */
+  async wechatLogin(code: string, loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram'): Promise<AuthResponse> {
     try {
       const data = await apiPost<RawAuthData>('/auth/login/wechat', {
         code,
-        loginType: 'miniprogram',
+        loginType,
+        clientKey: getWechatClientKey(),
         // 新用户自动注册时绑定最近分享者作为归属
         referrerCode: getTempReferrer(),
       })

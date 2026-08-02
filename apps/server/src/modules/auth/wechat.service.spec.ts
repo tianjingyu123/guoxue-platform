@@ -14,6 +14,11 @@ describe("WechatService", () => {
     svc = mod.get(WechatService);
   });
 
+  afterEach(() => {
+    delete process.env.WECHAT_LOGIN_CLIENTS_JSON;
+    delete process.env.WECHAT_OPEN_PLATFORM_ID;
+  });
+
   it("生成 OAuth URL（snsapi_userinfo）", () => {
     const url = svc.buildOAuthUrl("https://example.com/callback");
     expect(url).toContain("https://open.weixin.qq.com/connect/oauth2/authorize");
@@ -55,5 +60,38 @@ describe("WechatService", () => {
       delete process.env.MINIPROGRAM_APP_SECRET;
       global.fetch = originalFetch;
     }
+  });
+
+  it("多小程序按 clientKey 选取凭据，并共享开放平台命名空间", () => {
+    process.env.WECHAT_LOGIN_CLIENTS_JSON = JSON.stringify({
+      miniA: { type: "miniprogram", appId: "wx-a", appSecret: "secret-a", openPlatformId: "rebu" },
+      miniB: { type: "miniprogram", appId: "wx-b", appSecret: "secret-b", openPlatformId: "rebu" },
+    });
+    const a = svc.resolveLoginClient("miniprogram", "miniA");
+    const b = svc.resolveLoginClient("miniprogram", "wx-b");
+    expect(a.appId).toBe("wx-a");
+    expect(b.clientKey).toBe("miniB");
+    expect(a.unionNamespace).toBe("wechat-open:rebu");
+    expect(b.unionNamespace).toBe(a.unionNamespace);
+  });
+
+  it("未配置开放平台时按 AppID 隔离 UnionID 命名空间", () => {
+    process.env.WECHAT_LOGIN_CLIENTS_JSON = JSON.stringify({
+      miniA: { type: "miniprogram", appId: "wx-a", appSecret: "secret-a" },
+      miniB: { type: "miniprogram", appId: "wx-b", appSecret: "secret-b" },
+    });
+    const a = svc.resolveLoginClient("miniprogram", "miniA");
+    const b = svc.resolveLoginClient("miniprogram", "miniB");
+    expect(a.unionNamespace).toBe("wechat-open:isolated:wx-a");
+    expect(b.unionNamespace).toBe("wechat-open:isolated:wx-b");
+    expect(a.unionNamespace).not.toBe(b.unionNamespace);
+  });
+
+  it("多个同类型应用未指定 clientKey 时拒绝猜测", () => {
+    process.env.WECHAT_LOGIN_CLIENTS_JSON = JSON.stringify({
+      miniA: { type: "miniprogram", appId: "wx-a", appSecret: "secret-a" },
+      miniB: { type: "miniprogram", appId: "wx-b", appSecret: "secret-b" },
+    });
+    expect(() => svc.resolveLoginClient("miniprogram")).toThrow("请提供 clientKey");
   });
 });

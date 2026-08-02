@@ -5,12 +5,16 @@ import { ErrorCode } from "@guoxue/shared";
 import { maskPhone } from "../../common/crypto.util";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import { Prisma, MemberLevel } from "@prisma/client";
+import { EntitlementService } from "../entitlement/entitlement.service";
 
 @Injectable()
 export class MemberService {
   private readonly logger = new Logger(MemberService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly entitlement: EntitlementService,
+  ) {}
 
   /** 获取所有启用的会员套餐 */
   async getPlans() {
@@ -125,8 +129,8 @@ export class MemberService {
     const now = new Date();
     const expireAt = level === "LIFETIME" ? null : new Date(now.getTime() + durationDays * 86400000);
 
-    await this.prisma.$transaction([
-      this.prisma.memberPurchase.create({
+    await this.prisma.$transaction(async (tx) => {
+      const purchase = await tx.memberPurchase.create({
         data: {
           userId,
           memberType: level as any,
@@ -134,12 +138,24 @@ export class MemberService {
           paidAt: now,
           expireAt,
         },
-      }),
-      this.prisma.user.update({
+      });
+      await tx.user.update({
         where: { id: userId },
         data: { memberLevel: level as any, memberExpire: expireAt },
-      }),
-    ]);
+      });
+      await this.entitlement.grantWithTx(tx, {
+        userId,
+        entitlementKey: "membership.school",
+        kind: "MEMBERSHIP",
+        resourceType: "MEMBER_PLAN",
+        unlimited: true,
+        validUntil: expireAt,
+        sourceType: "ADMIN",
+        sourceId: purchase.id,
+        idempotencyKey: `admin-member-grant:${purchase.id}`,
+        metadata: { level, durationDays },
+      });
+    });
 
     this.logger.log(`管理员授予用户 ${userId} 会员 ${level}`);
     return { userId, level, expireAt };
@@ -147,9 +163,18 @@ export class MemberService {
 
   /** 管理员撤销会员 */
   async revokeMember(userId: string) {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { memberLevel: "NONE", memberExpire: null },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { memberLevel: "NONE", memberExpire: null },
+      });
+      await this.entitlement.revokeEntitlementWithTx(
+        tx,
+        userId,
+        "membership.school",
+        "管理员撤销会员",
+        `admin-member-revoke:${userId}:${Date.now()}`,
+      );
     });
     this.logger.log(`管理员撤销用户 ${userId} 会员`);
     return { userId, revoked: true };

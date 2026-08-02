@@ -16,6 +16,7 @@ import { WebhookService } from "../webhook/webhook.service";
 import { MemberBenefitService } from "../member/member-benefit.service";
 import { ShopAttributionService } from "./shop-attribution.service";
 import { ShopOrderService } from "./shop-order.service";
+import { EntitlementService } from "../entitlement/entitlement.service";
 import { RMB_TO_FEN } from "../../common/constants";
 import { serverConfig } from "../../config/server-config";
 
@@ -48,6 +49,7 @@ export class ShopPaymentService {
     private unionpay: UnionpayService,
     private webhook: WebhookService,
     private memberBenefit: MemberBenefitService,
+    private entitlement: EntitlementService,
     private attribution: ShopAttributionService,
     private orderSvc: ShopOrderService,
     @Optional() private huifu?: HuifuService,
@@ -823,6 +825,11 @@ export class ShopPaymentService {
     STATION_MASTER: (order, tx) => this.processStationMasterPaid(order, tx),
     OPERATOR: (order, tx) => this.processOperatorPaid(order, tx),
     PRACTITIONER_PRO: (order, tx) => this.processPractitionerProPaid(order, tx),
+    COURSE: (order, tx) => this.processAccessPaid(order, tx),
+    BUNDLE: (order, tx) => this.processAccessPaid(order, tx),
+    BOT_SERVICE: (order, tx) => this.processAccessPaid(order, tx),
+    PAIPAN: (order, tx) => this.processAccessPaid(order, tx),
+    LIVESTREAM: (order, tx) => this.processAccessPaid(order, tx),
   };
 
   /**
@@ -901,6 +908,7 @@ export class ShopPaymentService {
     await tx.memberPurchase.create({
       data: {
         userId: order.userId,
+        orderId: order.id,
         memberType: memberLevel as any,
         amount: order.amount,
         referrerId: order.referrerId,
@@ -910,6 +918,43 @@ export class ShopPaymentService {
     });
     // 权益③首月发放（同事务原子；月度 cron 按 member_monthly_YYYYMM 幂等，本月不会重复发）
     await this.memberBenefit.grantMonthlyBenefits(order.userId, planLevel, tx);
+    await this.entitlement.grantWithTx(tx, {
+      userId: order.userId,
+      entitlementKey: "membership.school",
+      kind: "MEMBERSHIP",
+      resourceType: "MEMBER_PLAN",
+      unlimited: true,
+      validUntil: expiresAt,
+      sourceType: "ORDER",
+      sourceId: order.id,
+      idempotencyKey: `order:${order.id}:membership.school`,
+      metadata: { planLevel, memberLevel: finalLevel, autoRenew: isAutoRenew },
+    });
+  }
+
+  /** 数字内容订单统一登记为全平台访问权益；原业务表继续兼容，权益中心负责跨端汇总。 */
+  private async processAccessPaid(order: Order, tx: any) {
+    let validUntil: Date | null = null;
+    if (order.type === "COURSE") {
+      const course = await tx.course.findUnique({ where: { id: order.targetId }, select: { validityDays: true } });
+      if (course?.validityDays > 0) {
+        validUntil = new Date();
+        validUntil.setDate(validUntil.getDate() + course.validityDays);
+      }
+    }
+    await this.entitlement.grantWithTx(tx, {
+      userId: order.userId,
+      entitlementKey: `${order.type.toLowerCase()}.access`,
+      kind: "ACCESS",
+      resourceType: order.type,
+      resourceId: order.targetId,
+      quantity: 1,
+      validUntil,
+      sourceType: "ORDER",
+      sourceId: order.id,
+      idempotencyKey: `order:${order.id}:${order.type.toLowerCase()}.access`,
+      metadata: { orderType: order.type },
+    });
   }
 
   /** 加盟费计费周期（月）— 真源 ConfigSystem，缺省 12（按年） */
@@ -1101,6 +1146,17 @@ export class ShopPaymentService {
         data: { userId: order.userId, proExpireAt: expire, proFirstAt: now },
       });
     }
+    await this.entitlement.grantWithTx(tx, {
+      userId: order.userId,
+      entitlementKey: "membership.practitioner",
+      kind: "MEMBERSHIP",
+      resourceType: "PRACTITIONER_PRO",
+      unlimited: true,
+      validUntil: expire,
+      sourceType: "ORDER",
+      sourceId: order.id,
+      idempotencyKey: `order:${order.id}:membership.practitioner`,
+    });
     this.logger.log(`从业者会员开通/续期 user=${order.userId} 到期=${expire.toISOString()}`);
   }
 }

@@ -20,10 +20,11 @@ import { RedisService } from "../../redis/redis.service"
 import { AuditService } from "../audit/audit.service"
 import { MemberBenefitService } from "../member/member-benefit.service"
 import { BusinessException } from "../../common/business.exception"
+import { EntitlementService } from "../entitlement/entitlement.service"
 import {
   makeMockPrisma, makeMockRedis, makeMockCommission, makeMockUnifiedPricing,
   makeMockWechatPay, makeMockAlipay, makeMockUnionpay, makeMockCoin, makeMockWebhook,
-  makeMockPaymentFactory, makeMockMemberBenefit, makeMockAudit, makeMockHuifu,
+  makeMockPaymentFactory, makeMockMemberBenefit, makeMockAudit, makeMockHuifu, makeMockEntitlement,
 } from "./shop-test-mocks"
 
 // ShopService 拆分后为 facade + 目录/履约辅助（评价/物流/运费/购物车）。
@@ -41,6 +42,7 @@ const mockPaymentFactory = makeMockPaymentFactory()
 const mockMemberBenefit = makeMockMemberBenefit()
 const mockAudit = makeMockAudit()
 const mockHuifu = makeMockHuifu()
+const mockEntitlement = makeMockEntitlement()
 
 describe("ShopService（facade·目录/履约辅助）", () => {
   let svc: ShopService
@@ -68,6 +70,7 @@ describe("ShopService（facade·目录/履约辅助）", () => {
         { provide: AuditService, useValue: mockAudit },
         { provide: MemberBenefitService, useValue: mockMemberBenefit },
         { provide: HuifuService, useValue: mockHuifu },
+        { provide: EntitlementService, useValue: mockEntitlement },
       ],
     }).compile()
     svc = mod.get(ShopService)

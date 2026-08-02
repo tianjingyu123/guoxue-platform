@@ -16,6 +16,7 @@ import {
   BindPhoneDto,
   ForgotPasswordDto,
   OaOpenidDto,
+  BindWechatDto,
 } from "./auth.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
@@ -130,9 +131,10 @@ export class AuthController {
   getWechatOAuthUrl(
     @Query("redirectUri") redirectUri: string,
     @Query("scope") scope?: string,
+    @Query("clientKey") clientKey?: string,
   ) {
     if (!redirectUri) throw new BadRequestException("redirectUri 参数必填");
-    const url = this.wechat.buildOAuthUrl(redirectUri, (scope || "snsapi_userinfo") as "snsapi_base" | "snsapi_userinfo");
+    const url = this.wechat.buildOAuthUrl(redirectUri, (scope || "snsapi_userinfo") as "snsapi_base" | "snsapi_userinfo", clientKey);
     return { url };
   }
 
@@ -146,7 +148,7 @@ export class AuthController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 401, description: "未登录" })
   async oaOpenid(@Body() dto: OaOpenidDto) {
-    const { openId } = await this.wechat.exchangeOAuthCode(dto.code);
+    const { openId } = await this.wechat.exchangeOAuthCode(dto.code, dto.clientKey);
     return { openid: openId };
   }
 
@@ -282,7 +284,7 @@ export class AuthController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  bindWechat(@Req() req: Request, @Body("code") code: string) {
-    return this.auth.bindWechat(req.user.id, code);
+  bindWechat(@Req() req: Request, @Body() dto: BindWechatDto) {
+    return this.auth.bindWechat(req.user.id, dto.code, (dto.loginType || "h5") as "h5" | "miniprogram" | "app", dto.clientKey);
   }
 }

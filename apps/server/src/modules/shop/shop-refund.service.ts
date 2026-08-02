@@ -14,6 +14,7 @@ import { isReturnRefundType } from "./after-sale-type";
 import { RMB_TO_FEN } from "../../common/constants";
 import { isStocklessOrderType } from "./shop-order-types.constants";
 import { HuifuService } from "../huifu/huifu.service";
+import { EntitlementService } from "../entitlement/entitlement.service";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -37,6 +38,7 @@ export class ShopRefundService {
     private huifu: HuifuService,
     private paymentFactory: PaymentProviderFactory,
     private webhook: WebhookService,
+    private entitlement: EntitlementService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
   ) {
     this.huifu.registerRefundNotifyHandler((payload) => this.handleHuifuRefundNotify(payload));
@@ -206,6 +208,10 @@ export class ShopRefundService {
           } });
         }
       }
+      // 数字权益与退款状态在同一事务内冲正，任何一个失败都不允许订单先显示已退款。
+      await this.entitlement.revokeSourceWithTx(tx, order.userId, "ORDER", order.id, reason || "订单退款");
+      if (order.type === "MEMBER") await this.rebuildSchoolMembershipAfterRefund(tx, order.userId, order.id);
+      if (order.type === "PRACTITIONER_PRO") await this.rebuildPractitionerMembershipAfterRefund(tx, order.userId);
       return true;
     });
     if (!changed) {
@@ -219,6 +225,66 @@ export class ShopRefundService {
       reason: reason || "用户申请退款",
     });
     return true;
+  }
+
+  /** 会员退款后从仍有效的购买记录重建状态，避免简单清空误伤其他续费。 */
+  private async rebuildSchoolMembershipAfterRefund(tx: any, userId: string, refundedOrderId: string) {
+    await tx.memberPurchase.updateMany({
+      where: { orderId: refundedOrderId, refundedAt: null },
+      data: { refundedAt: new Date() },
+    });
+    const purchases = await tx.memberPurchase.findMany({
+      where: { userId, refundedAt: null },
+      orderBy: { paidAt: "asc" },
+      select: { memberType: true, amount: true, paidAt: true, expireAt: true },
+    });
+    let level: string = "NONE";
+    let expireAt: Date | null = null;
+    for (const purchase of purchases) {
+      if (purchase.memberType === "LIFETIME") {
+        level = "LIFETIME";
+        expireAt = null;
+        break;
+      }
+      // 管理员自定义天数赠送以记录的确切到期日为准；付费套餐按标准周期重新叠加。
+      if (Number(purchase.amount) === 0 && purchase.expireAt) {
+        if (!expireAt || purchase.expireAt > expireAt) expireAt = purchase.expireAt;
+        level = purchase.memberType;
+        continue;
+      }
+      const base = expireAt && expireAt > purchase.paidAt ? new Date(expireAt) : new Date(purchase.paidAt);
+      if (purchase.memberType === "YEARLY") base.setFullYear(base.getFullYear() + 1);
+      else if (purchase.memberType === "QUARTERLY") base.setMonth(base.getMonth() + 3);
+      else base.setMonth(base.getMonth() + 1);
+      expireAt = base;
+      level = purchase.memberType;
+    }
+    if (level !== "LIFETIME" && (!expireAt || expireAt <= new Date())) {
+      level = "NONE";
+      expireAt = null;
+    }
+    await tx.user.update({
+      where: { id: userId },
+      data: { memberLevel: level, memberExpire: expireAt, ...(level === "NONE" ? { memberAutoRenew: false } : {}) },
+    });
+  }
+
+  /** 从业者会员没有独立购买表，按剩余未退款订单逐月重建有效期。 */
+  private async rebuildPractitionerMembershipAfterRefund(tx: any, userId: string) {
+    const orders = await tx.order.findMany({
+      where: { userId, type: "PRACTITIONER_PRO", status: { in: ["PAID", "COMPLETED"] } },
+      orderBy: { paidAt: "asc" },
+      select: { paidAt: true, createdAt: true },
+    });
+    let expireAt: Date | null = null;
+    for (const order of orders) {
+      const paidAt = order.paidAt || order.createdAt;
+      const base = expireAt && expireAt > paidAt ? new Date(expireAt) : new Date(paidAt);
+      base.setMonth(base.getMonth() + 1);
+      expireAt = base;
+    }
+    if (expireAt && expireAt <= new Date()) expireAt = null;
+    await tx.practitionerProfile.updateMany({ where: { userId }, data: { proExpireAt: expireAt } });
   }
 
   /** 申请退款（根据支付渠道自动路由，含分佣回收） */
