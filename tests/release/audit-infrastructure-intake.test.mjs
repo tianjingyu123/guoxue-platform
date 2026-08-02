@@ -1254,3 +1254,89 @@ test("启用支付后拒绝错绑商户、沙箱冒充生产和不完整退款�
     await rm(audit.root, { recursive: true, force: true });
   }
 });
+
+test("启用物流后首发供应商真实运单履约闭环必须绑定且报告脱敏", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "kuaidi100",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.logisticsDelivery = {
+    owner: "物流履约负责人",
+    providerId: "kuaidi100",
+    accountReference: "CUS-LOGISTICS-001",
+    evidenceReference: "CHANGE-20260802-LOGISTICS",
+    productionAccountVerified: true,
+    controlledWaybillVerified: true,
+    trackingSubscriptionVerified: true,
+    trackingCallbackAuthenticated: true,
+    trackingStatePersisted: true,
+    deliveryExceptionVerified: true,
+    returnRefundLinkageVerified: true,
+    duplicateCallbackReplayVerified: true,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    KUAIDI100_API_KEY: "not-recorded-api-key",
+    KUAIDI100_CUSTOMER: "CUS-LOGISTICS-001",
+    KUAIDI100_SALT: "not-recorded-callback-salt",
+  });
+  try {
+    assert.equal(audit.result.status, 0, audit.result.stderr || audit.result.stdout);
+    assert.equal(audit.report.logisticsDeliveryEvidence.verified, true);
+    assert.equal(audit.report.outboundAccessEvidence.dependencyCount, 2);
+    const serialized = JSON.stringify(audit.report);
+    assert.equal(serialized.includes("CUS-LOGISTICS-001"), false);
+    assert.equal(serialized.includes("CHANGE-20260802-LOGISTICS"), false);
+    assert.equal(serialized.includes("not-recorded-api-key"), false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("启用物流后拒绝错绑账号和不完整轨迹异常退货闭环", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "kuaidi100",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.logisticsDelivery = {
+    owner: "物流履约负责人",
+    providerId: "kuaidi100",
+    accountReference: "CUS-WRONG-ACCOUNT",
+    evidenceReference: "CHANGE-20260802-LOGISTICS",
+    productionAccountVerified: false,
+    controlledWaybillVerified: true,
+    trackingSubscriptionVerified: true,
+    trackingCallbackAuthenticated: false,
+    trackingStatePersisted: true,
+    deliveryExceptionVerified: false,
+    returnRefundLinkageVerified: false,
+    duplicateCallbackReplayVerified: false,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    KUAIDI100_API_KEY: "not-recorded-api-key",
+    KUAIDI100_CUSTOMER: "CUS-LOGISTICS-001",
+    KUAIDI100_SALT: "not-recorded-callback-salt",
+  });
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /首发物流供应商、账号身份和履约责任已绑定/u);
+    assert.match(
+      failures,
+      /首发物流供应商已完成真实运单、轨迹回调、异常件和退货联动闭环/u,
+    );
+    assert.match(failures, /正式环境与新基础设施接入清单完全绑定/u);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});

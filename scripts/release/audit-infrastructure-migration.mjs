@@ -1680,6 +1680,27 @@ add(
     ]),
   "支付上线不能只证明回调 URL 可达；必须绑定正式商户并保留真实实付、退款、入账、对账和重复回调重放的脱敏证据",
 );
+add(
+  "首发物流具备生产账号绑定、真实运单、轨迹回调和售后联动门禁",
+  hasAll(environmentChecker, [
+    "KUAIDI100_API_KEY",
+    "KUAIDI100_CUSTOMER",
+    "KUAIDI100_CALLBACK_URL",
+    "KUAIDI100_SALT",
+  ]) &&
+    hasAll(infrastructureIntakeAudit, [
+      "logisticsDelivery",
+      "首发物流供应商、账号身份和履约责任已绑定",
+      "首发物流供应商已完成真实运单、轨迹回调、异常件和退货联动闭环",
+      "returnRefundLinkageVerified",
+      "logisticsDeliveryEvidence",
+    ]) &&
+    hasAll(infrastructureIntakeTest, [
+      "启用物流后首发供应商真实运单履约闭环必须绑定且报告脱敏",
+      "启用物流后拒绝错绑账号和不完整轨迹异常退货闭环",
+    ]),
+  "物流上线不能只证明查询接口或回调 URL 可达；必须绑定正式账号并保留真实运单、轨迹落库、异常件、退货退款和重复回调重放的脱敏证据",
+);
 
 const clientBuilder = read("scripts/release/build-clients-with-env.mjs");
 const clientArtifactAudit = read("scripts/release/audit-client-artifacts.mjs");

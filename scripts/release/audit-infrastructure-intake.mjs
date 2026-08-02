@@ -257,6 +257,7 @@ const externalEndpoints = intake.externalEndpoints || {};
 const emailDelivery = externalEndpoints.emailDelivery || {};
 const smsDelivery = externalEndpoints.smsDelivery || {};
 const paymentDelivery = externalEndpoints.paymentDelivery || {};
+const logisticsDelivery = externalEndpoints.logisticsDelivery || {};
 const deployTarget = text(intake.deployTarget).toLowerCase();
 let environmentValues = new Map();
 let reportBinding = null;
@@ -322,6 +323,19 @@ const configuredPaymentChannels = paymentChannelDefinitions
 const paymentEnabled = configuredPaymentChannels.length > 0;
 const configuredPrimaryPaymentChannel = configuredPaymentChannels.find(
   (item) => item.channelId === text(paymentDelivery.channelId).toLowerCase(),
+);
+const configuredLogisticsProviders = [
+  {
+    providerId: "kuaidi100",
+    accountReference: text(environmentValues.get("KUAIDI100_CUSTOMER")),
+    enabled: isFilled(environmentValues.get("KUAIDI100_API_KEY")),
+  },
+].filter(
+  (item) => item.enabled && item.accountReference && !isPlaceholder(item.accountReference),
+);
+const logisticsEnabled = configuredLogisticsProviders.length > 0;
+const configuredPrimaryLogisticsProvider = configuredLogisticsProviders.find(
+  (item) => item.providerId === text(logisticsDelivery.providerId).toLowerCase(),
 );
 
 add(
@@ -759,6 +773,19 @@ add(
   "启用支付后必须从正式环境已配置通道中指定一条首发通道，精确绑定商户身份、闭环责任人与受控证据编号；报告只保存指纹",
 );
 add(
+  "首发物流供应商、账号身份和履约责任已绑定",
+  !resourceReady ||
+    !logisticsEnabled ||
+    (configuredPrimaryLogisticsProvider &&
+      text(logisticsDelivery.accountReference) ===
+        configuredPrimaryLogisticsProvider.accountReference &&
+      isFilled(logisticsDelivery.owner) &&
+      !isPlaceholder(logisticsDelivery.owner) &&
+      isFilled(logisticsDelivery.evidenceReference) &&
+      !isPlaceholder(logisticsDelivery.evidenceReference)),
+  "启用物流后必须从正式环境已配置供应商中指定首发供应商，精确绑定账号身份、履约责任人与受控证据编号；报告只保存指纹",
+);
+add(
   "外部依赖清单与正式环境启用能力完全一致",
   !resourceReady ||
     (new Set(outboundDependencyIds).size === outboundDependencyIds.length &&
@@ -864,6 +891,14 @@ if (resourceReady) {
             paymentDelivery.channelId,
             paymentDelivery.merchantReference,
             paymentDelivery.evidenceReference,
+          ]
+        : []),
+      ...(logisticsEnabled
+        ? [
+            logisticsDelivery.owner,
+            logisticsDelivery.providerId,
+            logisticsDelivery.accountReference,
+            logisticsDelivery.evidenceReference,
           ]
         : []),
       ...plannedCallbackUrls,
@@ -1007,6 +1042,19 @@ if (launch) {
         paymentDelivery.duplicateCallbackReplayVerified === true),
     "正式开放付费入口前必须用所绑定首发通道完成受控小额实付、验签入账、退款与退款通知、日终对账和重复回调重放；沙箱截图或仅能下单不能替代闭环",
   );
+  add(
+    "首发物流供应商已完成真实运单、轨迹回调、异常件和退货联动闭环",
+    !logisticsEnabled ||
+      (logisticsDelivery.productionAccountVerified === true &&
+        logisticsDelivery.controlledWaybillVerified === true &&
+        logisticsDelivery.trackingSubscriptionVerified === true &&
+        logisticsDelivery.trackingCallbackAuthenticated === true &&
+        logisticsDelivery.trackingStatePersisted === true &&
+        logisticsDelivery.deliveryExceptionVerified === true &&
+        logisticsDelivery.returnRefundLinkageVerified === true &&
+        logisticsDelivery.duplicateCallbackReplayVerified === true),
+    "正式开放实物发货前必须用所绑定生产账号完成受控真实运单、轨迹订阅、回调验签与状态落库，并验证异常件告警、退货退款联动和重复回调重放；只查询示例单号不能替代闭环",
+  );
 }
 
 if (resourceReady) {
@@ -1143,6 +1191,14 @@ if (resourceReady) {
           }
         : "disabled",
     ),
+    logisticsDeliveryFingerprint: fingerprint(
+      logisticsEnabled
+        ? {
+            providerId: text(logisticsDelivery.providerId).toLowerCase(),
+            accountReference: text(logisticsDelivery.accountReference),
+          }
+        : "disabled",
+    ),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -1205,6 +1261,14 @@ if (resourceReady) {
         ? {
             channelId: text(paymentDelivery.channelId).toLowerCase(),
             merchantReference: configuredPrimaryPaymentChannel?.merchantReference || "invalid",
+          }
+        : "disabled",
+    ),
+    logisticsDeliveryFingerprint: fingerprint(
+      logisticsEnabled
+        ? {
+            providerId: text(logisticsDelivery.providerId).toLowerCase(),
+            accountReference: configuredPrimaryLogisticsProvider?.accountReference || "invalid",
           }
         : "disabled",
     ),
@@ -1338,6 +1402,23 @@ const report = {
           paymentDelivery.refundCallbackVerified === true &&
           paymentDelivery.reconciliationVerified === true &&
           paymentDelivery.duplicateCallbackReplayVerified === true,
+      }
+    : null,
+  logisticsDeliveryEvidence: launch && logisticsEnabled
+    ? {
+        configurationFingerprint: fingerprint({
+          providerId: text(logisticsDelivery.providerId).toLowerCase(),
+          accountReference: text(logisticsDelivery.accountReference),
+        }),
+        verified:
+          logisticsDelivery.productionAccountVerified === true &&
+          logisticsDelivery.controlledWaybillVerified === true &&
+          logisticsDelivery.trackingSubscriptionVerified === true &&
+          logisticsDelivery.trackingCallbackAuthenticated === true &&
+          logisticsDelivery.trackingStatePersisted === true &&
+          logisticsDelivery.deliveryExceptionVerified === true &&
+          logisticsDelivery.returnRefundLinkageVerified === true &&
+          logisticsDelivery.duplicateCallbackReplayVerified === true,
       }
     : null,
   success: failures.length === 0,

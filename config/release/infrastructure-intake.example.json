@@ -169,6 +169,20 @@
       "reconciliationVerified": false,
       "duplicateCallbackReplayVerified": false
     },
+    "logisticsDelivery": {
+      "owner": "待填写",
+      "providerId": "pending",
+      "accountReference": "pending",
+      "evidenceReference": "pending-change-ticket",
+      "productionAccountVerified": false,
+      "controlledWaybillVerified": false,
+      "trackingSubscriptionVerified": false,
+      "trackingCallbackAuthenticated": false,
+      "trackingStatePersisted": false,
+      "deliveryExceptionVerified": false,
+      "returnRefundLinkageVerified": false,
+      "duplicateCallbackReplayVerified": false
+    },
     "callbackUrls": [],
     "controlPlaneCallbacks": [],
     "clientDomainAllowlistEntries": [
