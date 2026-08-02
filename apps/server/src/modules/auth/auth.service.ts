@@ -44,11 +44,11 @@ export class AuthService {
     private permSvc: PermissionService,
   ) {}
 
-  /** 生成 accessToken（2小时） + refreshToken（7天，存Redis可撤销） */
+  /** 生成 accessToken（2小时） + refreshToken（30天，存Redis可撤销） */
   private async generateTokenPair(userId: string) {
     const accessToken = this.jwt.sign({ sub: userId });
     const refreshToken = crypto.randomUUID();
-    // refreshToken 存 Redis，7 天过期；同时挂进用户维度索引，撤销时可精确删除
+    // refreshToken 存 Redis，30 天过期；同时挂进用户维度索引，撤销时可精确删除
     await this.redis.set(`refresh:${refreshToken}`, userId, 30 * 24 * 3600);
     await this.redis.sadd(`refresh:user:${userId}`, refreshToken);
     await this.redis.expire(`refresh:user:${userId}`, 30 * 24 * 3600);
@@ -68,9 +68,8 @@ export class AuthService {
   /** 用握手码换取新会话（用后即焚·单次）。攻击者无法伪造码（签发需登录态），故不产生会话注入。 */
   async exchangeHandoffCode(code: string) {
     if (!code) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "握手码无效");
-    const userId = await this.redis.get(`handoff:${code}`);
+    const userId = await this.redis.getDel(`handoff:${code}`);
     if (!userId) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "握手码无效或已过期");
-    await this.redis.del(`handoff:${code}`); // 单次消费，防重放
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
     if (!user || user.status === "DISABLED") throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "账号不可用");
     return this.generateTokenPair(userId);
@@ -78,12 +77,10 @@ export class AuthService {
 
   /** 使用 refreshToken 换取新的 accessToken（轮换刷新） */
   async refreshToken(refreshToken: string) {
-    const userId = await this.redis.get(`refresh:${refreshToken}`);
+    // 一次性原子消费，防止同一 refreshToken 被并发或截获后重复换取会话。
+    // 客户端已对进程内并发刷新做 Promise 去重，因此无需保留可重放宽限窗。
+    const userId = await this.redis.getDel(`refresh:${refreshToken}`);
     if (!userId) throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "refreshToken 无效或已过期");
-    // 轮换宽限（防误登出）：旧 refreshToken 不立即删除，保留 60 秒缓冲——
-    // 吸收 H5 多标签页/并发请求/页面刷新时对同一 token 的重复续期（否则第二次续期撞上"已作废"→前端清登录态→掉线）。
-    // 60 秒后自动失效，仍保留防重放能力。
-    await this.redis.expire(`refresh:${refreshToken}`, 60);
     await this.redis.srem(`refresh:user:${userId}`, refreshToken);
     // 封号用户不再续发（accessToken 侧由 JwtStrategy 拦截，此处断掉 refresh 链路）
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { status: true } });
@@ -262,6 +259,17 @@ export class AuthService {
     });
 
     if (existingAuth) {
+      // 迁移或历史脏数据下，openId 与 unionId 可能分别指向不同用户。
+      // 账号资产不可自动合并，必须明确拒绝并转人工处理。
+      if (unionId) {
+        const unionAuth = await this.prisma.auth.findFirst({
+          where: { unionId, userId: { not: existingAuth.userId } },
+          select: { userId: true },
+        });
+        if (unionAuth) {
+          throw new BusinessException(ErrorCode.AUTH_IDENTITY_CONFLICT);
+        }
+      }
       // 老用户：更新 unionId（如有）
       if (unionId && !existingAuth.unionId) {
         await this.prisma.auth.update({
@@ -360,7 +368,11 @@ export class AuthService {
 
     if (user) {
       // 已有用户：绑定微信 openId（如未绑定，并发时捕获 P2002）
-      const existingAuth = await this.prisma.auth.findUnique({ where: { openId } });
+      const { openAuth: existingAuth } = await this.assertWechatIdentityCompatible(
+        user.id,
+        openId,
+        session.unionId,
+      );
       if (!existingAuth) {
         try {
           await this.prisma.auth.create({
@@ -564,6 +576,7 @@ export class AuthService {
   async bindWechat(userId: string, code: string) {
     const wxUser = await this.wechat.exchangeOAuthCode(code);
     if (!wxUser?.openId) throw new BusinessException(ErrorCode.BAD_REQUEST, "获取微信信息失败");
+    await this.assertWechatIdentityCompatible(userId, wxUser.openId, wxUser.unionId);
     const existing = await this.prisma.auth.findFirst({ where: { userId, provider: "WECHAT" } });
     if (existing) {
       await this.prisma.auth.update({ where: { id: existing.id }, data: { openId: wxUser.openId, unionId: wxUser.unionId } });
@@ -574,6 +587,29 @@ export class AuthService {
   }
 
   // ───────── 私有方法 ─────────
+
+  /**
+   * 第三方身份绑定前置校验：openId 或 unionId 已归属其他用户时禁止静默换绑。
+   * 订单、余额、会员、圈子权益等账号资产只能通过受审计的人工合并流程处理。
+   */
+  private async assertWechatIdentityCompatible(userId: string, openId: string, unionId?: string) {
+    const [openAuth, unionAuth] = await Promise.all([
+      this.prisma.auth.findUnique({ where: { openId }, select: { userId: true } }),
+      unionId
+        ? this.prisma.auth.findFirst({
+            where: { unionId, userId: { not: userId } },
+            select: { userId: true },
+          })
+        : Promise.resolve(null),
+    ]);
+    if (
+      (openAuth && openAuth.userId !== userId) ||
+      unionAuth
+    ) {
+      throw new BusinessException(ErrorCode.AUTH_IDENTITY_CONFLICT);
+    }
+    return { openAuth, unionAuth };
+  }
 
   /** 触发用户注册 Webhook（异步，失败不影响注册流程） */
   private async fireUserRegistered(userId: string, nickname: string, phone?: string) {

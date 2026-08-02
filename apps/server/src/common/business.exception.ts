@@ -47,6 +47,7 @@ export class BusinessException extends HttpException {
     [ErrorCode.AUTH_WECHAT_FAILED]: "微信授权失败",
     [ErrorCode.AUTH_USER_BANNED]: "账号已被禁用",
     [ErrorCode.AUTH_NOT_LOGGED_IN]: "未登录",
+    [ErrorCode.AUTH_IDENTITY_CONFLICT]: "该第三方身份已关联其他账号，请使用原账号登录或联系客服处理",
 
     // 用户
     [ErrorCode.USER_NOT_FOUND]: "用户不存在",
@@ -235,6 +236,7 @@ export class BusinessException extends HttpException {
   private static CONFLICT_CODES = new Set<number>([
     ErrorCode.AUTH_PHONE_EXISTS,
     ErrorCode.AUTH_EMAIL_EXISTS,
+    ErrorCode.AUTH_IDENTITY_CONFLICT,
     ErrorCode.CIRCLE_MEMBER_EXISTS,
     ErrorCode.INTERACTION_DUPLICATE,
     ErrorCode.MERCHANT_ALREADY_EXISTS,

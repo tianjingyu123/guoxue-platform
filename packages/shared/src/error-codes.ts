@@ -24,6 +24,7 @@ export enum ErrorCode {
   AUTH_WECHAT_FAILED      = 200008,
   AUTH_USER_BANNED        = 200009,
   AUTH_NOT_LOGGED_IN      = 200010,
+  AUTH_IDENTITY_CONFLICT  = 200011,
 
   // ───── 用户 USER (201xxx) ─────
   USER_NOT_FOUND          = 201001,

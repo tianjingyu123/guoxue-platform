@@ -42,6 +42,20 @@ describe("RedisService", () => {
       const val = await service.get("key1")
       expect(val).toBe("second")
     })
+
+    it("getDel 原子消费后不可再次读取", async () => {
+      await service.set("one-time", "payload", 60)
+      await expect(service.getDel("one-time")).resolves.toBe("payload")
+      await expect(service.getDel("one-time")).resolves.toBeNull()
+      await expect(service.get("one-time")).resolves.toBeNull()
+    })
+
+    it("getDel 不返回已过期值", async () => {
+      await service.set("one-time-expired", "payload", 60)
+      const entry = (service as any).memory.get("one-time-expired")
+      entry.expiry = Date.now() - 1000
+      await expect(service.getDel("one-time-expired")).resolves.toBeNull()
+    })
   })
 
   // ═══════════════════ JSON ═══════════════════

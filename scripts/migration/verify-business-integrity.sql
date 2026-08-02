@@ -51,6 +51,41 @@ SELECT pg_temp.assert_zero(
 );
 
 SELECT pg_temp.assert_zero(
+  '微信 unionId 跨账号冲突',
+  $query$
+    SELECT count(*)
+    FROM (
+      SELECT "unionId"
+      FROM "Auth"
+      WHERE provider = 'WECHAT'
+        AND NULLIF(btrim(COALESCE("unionId", '')), '') IS NOT NULL
+      GROUP BY "unionId"
+      HAVING count(DISTINCT "userId") > 1
+    ) conflict_record
+  $query$
+);
+
+SELECT pg_temp.assert_zero(
+  '微信认证缺少 openId',
+  $query$
+    SELECT count(*)
+    FROM "Auth"
+    WHERE provider = 'WECHAT'
+      AND NULLIF(btrim(COALESCE("openId", '')), '') IS NULL
+  $query$
+);
+
+SELECT pg_temp.assert_zero(
+  '密码认证缺少 credential',
+  $query$
+    SELECT count(*)
+    FROM "Auth"
+    WHERE provider = 'PASSWORD'
+      AND NULLIF(btrim(COALESCE(credential, '')), '') IS NULL
+  $query$
+);
+
+SELECT pg_temp.assert_zero(
   '商品或 SKU 负库存',
   $query$
     SELECT

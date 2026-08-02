@@ -9,13 +9,14 @@ import { WebhookService } from "../webhook/webhook.service";
 import { SmsService } from "../sms/sms.service";
 import { PermissionService } from "../system/permission.service";
 import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 jest.mock("bcryptjs");
 import * as bcrypt from "bcryptjs";
 
 const mockPrisma = {
   user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
-  auth: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
+  auth: { findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
   userRole: { findMany: jest.fn() },
   station: { findUnique: jest.fn() },
   referralRelation: { create: jest.fn() },
@@ -28,6 +29,7 @@ const mockJwt = { sign: jest.fn() };
 const mockRedis = {
   set: jest.fn(),
   get: jest.fn(),
+  getDel: jest.fn(),
   del: jest.fn(),
   sadd: jest.fn(),
   srem: jest.fn(),
@@ -39,6 +41,8 @@ const mockWechat = {
   buildOAuthUrl: jest.fn(),
   exchangeOAuthCode: jest.fn(),
   exchangeMiniCode: jest.fn(),
+  decryptPhoneNumber: jest.fn(),
+  exchangePhoneNumber: jest.fn(),
   getUserInfo: jest.fn(),
 };
 
@@ -198,6 +202,46 @@ describe("AuthService", () => {
       await expect(svc.wechatLogin({ code: "code", loginType: "miniprogram" })).rejects.toThrow(BusinessException);
       expect(mockWechat.exchangeMiniCode).toHaveBeenCalledWith("code");
     });
+
+    it("openId 与 unionId 分属不同账号时拒绝静默登录", async () => {
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official";
+      process.env.WECHAT_OFFICIAL_APP_SECRET = "official-secret";
+      mockWechat.exchangeOAuthCode.mockResolvedValue({ openId: "wx-open", unionId: "wx-union" });
+      mockPrisma.auth.findUnique.mockResolvedValue({ id: "auth-open", userId: "user-open", unionId: null });
+      mockPrisma.auth.findFirst.mockResolvedValue({ userId: "user-union" });
+
+      await expect(svc.wechatLogin({ code: "code", loginType: "h5" })).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_IDENTITY_CONFLICT,
+      });
+      expect(mockPrisma.auth.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("微信身份绑定冲突", () => {
+    it("手机号用户绑定已归属其他账号的 openId 时拒绝登录", async () => {
+      mockWechat.exchangeMiniCode.mockResolvedValue({ openId: "wx-used", sessionKey: "session", unionId: "union-used" });
+      mockWechat.exchangePhoneNumber.mockResolvedValue({ purePhoneNumber: "13800138000" });
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "phone-user", nickname: "手机号用户", phone: "13800138000" });
+      mockPrisma.auth.findUnique.mockResolvedValue({ userId: "wechat-user" });
+      mockPrisma.auth.findFirst.mockResolvedValue(null);
+
+      await expect(svc.miniPhoneLogin({ wxCode: "wx-code", phoneCode: "phone-code" })).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_IDENTITY_CONFLICT,
+      });
+      expect(mockPrisma.auth.create).not.toHaveBeenCalled();
+    });
+
+    it("个人中心绑定已归属其他账号的微信身份时拒绝换绑", async () => {
+      mockWechat.exchangeOAuthCode.mockResolvedValue({ openId: "wx-used", unionId: "union-used" });
+      mockPrisma.auth.findUnique.mockResolvedValue({ userId: "other-user" });
+      mockPrisma.auth.findFirst.mockResolvedValue(null);
+
+      await expect(svc.bindWechat("current-user", "code")).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_IDENTITY_CONFLICT,
+      });
+      expect(mockPrisma.auth.update).not.toHaveBeenCalled();
+      expect(mockPrisma.auth.create).not.toHaveBeenCalled();
+    });
   });
 
   describe("getProfile", () => {
@@ -223,17 +267,17 @@ describe("AuthService", () => {
     });
 
     it("换取会话：有效码返回新 token 且单次消费(del)", async () => {
-      mockRedis.get.mockResolvedValueOnce("user-1");
+      mockRedis.getDel.mockResolvedValueOnce("user-1");
       mockPrisma.user.findUnique.mockResolvedValue({ status: "ACTIVE" });
       mockJwt.sign.mockReturnValue("access-token");
       const r = await svc.exchangeHandoffCode("good-code");
-      expect(mockRedis.del).toHaveBeenCalledWith("handoff:good-code");
+      expect(mockRedis.getDel).toHaveBeenCalledWith("handoff:good-code");
       expect(r.accessToken).toBe("access-token");
       expect(r.refreshToken).toBeDefined();
     });
 
     it("换取会话：无效/过期码抛错，不签发", async () => {
-      mockRedis.get.mockResolvedValueOnce(null);
+      mockRedis.getDel.mockResolvedValueOnce(null);
       await expect(svc.exchangeHandoffCode("bad-code")).rejects.toThrow();
     });
 
@@ -281,7 +325,7 @@ describe("AuthService", () => {
 
   describe("refreshToken", () => {
     it("有效 refreshToken 返回新 token 对", async () => {
-      mockRedis.get.mockResolvedValue("user-1");
+      mockRedis.getDel.mockResolvedValue("user-1");
       mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", nickname: "张三", avatar: null, phone: "13800138000", memberLevel: "NORMAL", memberExpire: null });
       mockPrisma.userRole.findMany.mockResolvedValue([]);
       mockJwt.sign.mockReturnValue("new-access-token");
@@ -290,13 +334,27 @@ describe("AuthService", () => {
 
       expect(result.accessToken).toBe("new-access-token");
       expect(result.refreshToken).toBeTruthy();
-      // 旧 token 进入 60 秒轮换宽限（吸收并发续期防误登出），而非立即删除
-      expect(mockRedis.expire).toHaveBeenCalledWith("refresh:valid-refresh", 60);
+      expect(mockRedis.getDel).toHaveBeenCalledWith("refresh:valid-refresh");
+      expect(mockRedis.srem).toHaveBeenCalledWith("refresh:user:user-1", "valid-refresh");
+      expect(mockRedis.expire).not.toHaveBeenCalledWith("refresh:valid-refresh", 60);
     });
 
     it("无效 refreshToken 抛出异常", async () => {
-      mockRedis.get.mockResolvedValue(null);
+      mockRedis.getDel.mockResolvedValue(null);
       await expect(svc.refreshToken("invalid")).rejects.toThrow(BusinessException);
+    });
+
+    it("同一 refreshToken 只能成功消费一次", async () => {
+      mockRedis.getDel
+        .mockResolvedValueOnce("user-1")
+        .mockResolvedValueOnce(null);
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", status: "ACTIVE" });
+      mockJwt.sign.mockReturnValue("new-access-token");
+
+      await expect(svc.refreshToken("one-time-refresh")).resolves.toMatchObject({ accessToken: "new-access-token" });
+      await expect(svc.refreshToken("one-time-refresh")).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_TOKEN_INVALID,
+      });
     });
   });
 

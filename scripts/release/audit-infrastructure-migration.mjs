@@ -385,13 +385,16 @@ add(
     hasAll(businessIntegrity, [
       "未验证的外键或检查约束",
       "无效或未就绪索引",
+      "微信 unionId 跨账号冲突",
+      "微信认证缺少 openId",
+      "密码认证缺少 credential",
       "库存流水前后余额不守恒",
       "经营中商家缺少上线必需资质",
       "已审核文章缺少首图",
       "pg_get_serial_sequence",
       "current_value < maximum_value",
     ]),
-  "迁移不仅核对表行数，还必须阻止失效约束、负库存、账实不符、缺资质商家、缺图文章和序列倒退上线",
+  "迁移不仅核对表行数，还必须阻止身份归属冲突、认证凭据缺失、失效约束、负库存、账实不符、缺资质商家、缺图文章和序列倒退上线",
 );
 
 const vectorService = read("apps/server/src/modules/ai-gateway/vector.service.ts");
@@ -1791,6 +1794,9 @@ const infrastructureHandoffChecklist = read(
   "docs/operations/新基础设施与正式凭据交接清单-20260731.md",
 );
 const infrastructureMigrationManual = read("docs/operations/服务器数据库域名迁移手册-20260728.md");
+const authService = read("apps/server/src/modules/auth/auth.service.ts");
+const authServiceTest = read("apps/server/src/modules/auth/auth.service.spec.ts");
+const redisService = read("apps/server/src/redis/redis.service.ts");
 const storageInventoryBuilder = read("scripts/release/build-storage-inventory.mjs");
 const storageInventoryComparer = read("scripts/release/compare-storage-inventories.mjs");
 const storageInventoryTest = read("tests/release/storage-inventory.test.mjs");
@@ -1823,6 +1829,26 @@ add(
       "H5、小程序与 App",
     ]),
   "正式切流不能只看登录页可达；必须用已迁移老账号验证密码、找回、刷新、退出失效和已启用短信/微信通道，并证明多端会话边界正确",
+);
+add(
+  "迁域身份绑定与一次性会话令牌具备服务端防重放保护",
+  hasAll(authService, [
+    "AUTH_IDENTITY_CONFLICT",
+    "assertWechatIdentityCompatible",
+    "this.redis.getDel(`refresh:${refreshToken}`)",
+    "this.redis.getDel(`handoff:${code}`)",
+  ]) &&
+    hasAll(redisService, ["async getDel(", "redis.call('GET'", "redis.call('DEL'"]) &&
+    hasAll(authServiceTest, [
+      "手机号用户绑定已归属其他账号的 openId 时拒绝登录",
+      "同一 refreshToken 只能成功消费一次",
+    ]) &&
+    hasAll(businessIntegrity, [
+      "微信 unionId 跨账号冲突",
+      "微信认证缺少 openId",
+      "密码认证缺少 credential",
+    ]),
+  "微信身份归属冲突必须显式失败；refresh token 与跨端握手码必须原子一次性消费，恢复后的历史认证数据也必须通过完整性门禁",
 );
 add(
   "对象存储迁移具备逐对象内容清单、脱敏比对与旧桶回退门禁",

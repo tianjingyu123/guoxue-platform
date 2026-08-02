@@ -97,6 +97,30 @@ export class RedisService implements OnModuleDestroy {
     return entry.value;
   }
 
+  /**
+   * 原子读取并删除。用于一次性票据、刷新令牌轮换等不可重放场景。
+   * Redis 连接使用 Lua 保证多实例原子性；内存降级在同一事件循环内同步完成读取与删除。
+   */
+  async getDel(key: string): Promise<string | null> {
+    const conn = await this.getConn();
+    if (conn) {
+      const lua = `
+        local value = redis.call('GET', KEYS[1])
+        if value then redis.call('DEL', KEYS[1]) end
+        return value
+      `;
+      return (await conn.eval(lua, 1, key)) as string | null;
+    }
+    const entry = this.memory.get(key);
+    if (!entry) return null;
+    if (entry.expiry > 0 && Date.now() > entry.expiry) {
+      this.memory.delete(key);
+      return null;
+    }
+    this.memory.delete(key);
+    return entry.value;
+  }
+
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
     const conn = await this.getConn();
     if (conn) {
