@@ -1849,11 +1849,7 @@ add(
       "migratedAccountPasswordLoginVerified",
       "crossClientSessionVerified",
     ]) &&
-    hasAll(infrastructureMigrationManual, [
-      "已迁移老账号",
-      "退出后令牌失效",
-      "H5、小程序与 App",
-    ]),
+    hasAll(infrastructureMigrationManual, ["已迁移老账号", "退出后令牌失效", "H5、小程序与 App"]),
   "正式切流不能只看登录页可达；必须用已迁移老账号验证密码、找回、刷新、退出失效和已启用短信/微信通道，并证明多端会话边界正确",
 );
 add(
@@ -2019,15 +2015,8 @@ add(
       "当前SMTP客户端拒绝587等非隐式TLS端口",
       "邮件API必须显式使用HTTPS且配置完整",
     ]) &&
-    hasAll(infrastructureHandoffChecklist, [
-      "SPF、DKIM、DMARC",
-      "至少一封真实投递",
-    ]) &&
-    hasAll(infrastructureMigrationManual, [
-      "EMAIL_MODE=smtp",
-      "465 隐式 TLS",
-      "投诉、退订",
-    ]),
+    hasAll(infrastructureHandoffChecklist, ["SPF、DKIM、DMARC", "至少一封真实投递"]) &&
+    hasAll(infrastructureMigrationManual, ["EMAIL_MODE=smtp", "465 隐式 TLS", "投诉、退订"]),
   "邮件不能只验证端口和密钥；发送协议、发件域、DNS 信誉、退信投诉、退订与真实投递必须在新服务器和新域名下共同验收，报告仅保留脱敏指纹",
 );
 add(
@@ -2048,9 +2037,7 @@ add(
       "SMS_APP_ID 必须是腾讯云短信控制台登记的纯数字 SdkAppId",
       "SMS_TEMPLATE_ID 必须是审核通过的纯数字验证码模板 ID",
     ]) &&
-    hasAll(environmentCheckerTest, [
-      "短信配置一旦启用就必须具备完整凭据和合法审核标识",
-    ]) &&
+    hasAll(environmentCheckerTest, ["短信配置一旦启用就必须具备完整凭据和合法审核标识"]) &&
     hasAll(infrastructureHandoffChecklist, [
       "短信投递与登录兜底",
       "状态回执",
@@ -2107,6 +2094,10 @@ add(
       '"infrastructure-intake-readiness.json"',
       '"release:aggregate-predeploy"',
       '"predeploy-decision.json"',
+      "const predeployStepFailures = []",
+      'continueOnFailure: stage === "predeploy"',
+      "已继续执行其余只读审计",
+      "rmSync(path.join(resolvedReportDirectory, reportName), { force: true })",
     ]) &&
     hasAll(predeployEvidenceAggregator, [
       'kind: "guoxue-predeploy-decision"',
@@ -2125,6 +2116,7 @@ add(
       "基础设施报告不是 predeploy 阶段时判定 BLOCK",
       "正式环境失败或部署架构不一致时判定 BLOCK",
       "过期证据即使内容通过也判定 BLOCK",
+      "缺少子审计报告时仍落盘统一 BLOCK 判定",
     ]) &&
     hasAll(infrastructureHandoffChecklist, [
       "统一预接入门禁",
@@ -2132,8 +2124,12 @@ add(
       "predeploy-decision.json",
       "只用于排查单项失败，不能代替统一门禁",
     ]) &&
-    fullGateTest.includes("预接入与完整上线门禁拒绝未知阶段且不会启动子门禁"),
-  "新域名、数据库、Redis、对象存储和证书到位后先校验源码身份、资源清单、正式环境及逐项绑定，再聚合为不含连接串或凭据的单一 GO/BLOCK 判定，避免等完整多端构建结束才暴露配置错误",
+    hasAll(fullGateTest, [
+      "预接入与完整上线门禁拒绝未知阶段且不会启动子门禁",
+      "predeploy 子审计失败后仍继续聚合并输出统一 BLOCK 报告",
+      "predeploy 启动前清理固定报告名以阻断旧证据误判",
+    ]),
+  "新域名、数据库、Redis、对象存储和证书到位后先校验源码身份、资源清单、正式环境及逐项绑定；任一子审计失败仍继续完成其余只读审计并生成不含连接串或凭据的单一 BLOCK 判定，且复用目录时不得误用旧报告",
 );
 add(
   "迁移现场文档区分公网 TLS 与托管数据服务证书链",
@@ -2460,7 +2456,7 @@ add(
   prismaSchema.includes("@@unique([userId, provider])") &&
     hasAll(authProviderUniquenessMigration, [
       'GROUP BY "userId", provider',
-      'HAVING count(*) > 1',
+      "HAVING count(*) > 1",
       'CREATE UNIQUE INDEX IF NOT EXISTS "Auth_userId_provider_key"',
     ]) &&
     !authProviderUniquenessMigration.includes("DROP INDEX") &&
@@ -2506,10 +2502,9 @@ const mobileAuthConsumers = [
   "apps/mobile/src/pkg-mine/settings/index.vue",
 ].map(read);
 const adminAuthSession = read("apps/admin/src/utils/auth-session.ts");
-const adminAuthConsumers = [
-  "apps/admin/src/api/index.ts",
-  "apps/admin/src/store/auth.ts",
-].map(read);
+const adminAuthConsumers = ["apps/admin/src/api/index.ts", "apps/admin/src/store/auth.ts"].map(
+  read,
+);
 add(
   "新域名公网入口与跨账号私有缓存统一收口",
   hasAll(serverConfigSource, [

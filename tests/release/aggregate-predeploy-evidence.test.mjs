@@ -6,10 +6,7 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
-const aggregator = path.join(
-  repoRoot,
-  "scripts/release/aggregate-predeploy-evidence.mjs",
-);
+const aggregator = path.join(repoRoot, "scripts/release/aggregate-predeploy-evidence.mjs");
 const branch = "release/integration-20260801";
 const commit = "0123456789abcdef0123456789abcdef01234567";
 
@@ -166,6 +163,27 @@ test("过期证据即使内容通过也判定 BLOCK", () => {
     const result = run(directory);
     assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stdout, /BLOCK/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("缺少子审计报告时仍落盘统一 BLOCK 判定", () => {
+  const directory = createEvidence();
+  try {
+    rmSync(path.join(directory, "infrastructure-intake-predeploy.json"));
+    const result = run(directory);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const report = JSON.parse(
+      readFileSync(path.join(directory, "predeploy-decision.json"), "utf8"),
+    );
+    assert.equal(report.decision, "BLOCK");
+    assert.ok(
+      report.checks.some(
+        (check) =>
+          check.name === "infrastructure-intake-predeploy.json 存在" && check.pass === false,
+      ),
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

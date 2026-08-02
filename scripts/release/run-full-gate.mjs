@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { spawnSync } from "node:child_process";
@@ -153,7 +153,9 @@ if (!pnpm) {
   process.exit(2);
 }
 
-function run(label, commandArgs) {
+const predeployStepFailures = [];
+
+function run(label, commandArgs, { continueOnFailure = false } = {}) {
   console.log(`\n[full-gate] ${label}`);
   const result = spawnSync(pnpm.command, [...pnpm.prefix, ...commandArgs], {
     cwd: process.cwd(),
@@ -162,61 +164,106 @@ function run(label, commandArgs) {
   });
   if (result.error) {
     console.error(`[full-gate] 无法启动 ${label}：${result.error.message}`);
-    process.exit(1);
+    if (!continueOnFailure) process.exit(1);
+    predeployStepFailures.push({ label, status: 1, launchError: true });
+    return false;
   }
   if (result.status !== 0) {
     console.error(`[full-gate] ${label} 失败，退出码 ${result.status}`);
-    process.exit(result.status || 1);
+    if (!continueOnFailure) process.exit(result.status || 1);
+    predeployStepFailures.push({ label, status: result.status || 1 });
+    return false;
+  }
+  return true;
+}
+
+if (stage === "predeploy") {
+  mkdirSync(resolvedReportDirectory, { recursive: true });
+  for (const reportName of [
+    "source-freeze-readiness.json",
+    infrastructureReportName,
+    "environment-readiness.json",
+    "predeploy-decision.json",
+  ]) {
+    rmSync(path.join(resolvedReportDirectory, reportName), { force: true });
   }
 }
 
-run("生产源代码冻结检查", [
-  "release:audit-source-freeze",
-  "--strict",
-  "--report",
-  path.join(resolvedReportDirectory, "source-freeze-readiness.json"),
-  "--expected-branch",
-  expectedBranch,
-  "--expected-commit",
-  expectedCommit,
-]);
-run("新基础设施接入与责任人检查", [
-  "release:audit-infra-intake",
-  "--input",
-  resolvedInfrastructureIntake,
-  "--stage",
-  stage,
-  "--expected-deploy-target",
-  deployTarget,
-  "--env-file",
-  resolvedEnvFile,
-  "--report",
-  path.join(resolvedReportDirectory, infrastructureReportName),
-]);
-run("正式环境与部署架构检查", [
-  "migration:check-env",
-  resolvedEnvFile,
-  "--full",
-  "--deploy-target",
-  deployTarget,
-  "--report",
-  path.join(resolvedReportDirectory, "environment-readiness.json"),
-]);
+const predeployRunOptions = { continueOnFailure: stage === "predeploy" };
 
-if (stage === "predeploy") {
-  run("聚合预接入证据并生成脱敏 GO/BLOCK 判定", [
-    "release:aggregate-predeploy",
-    "--evidence-dir",
-    resolvedReportDirectory,
+run(
+  "生产源代码冻结检查",
+  [
+    "release:audit-source-freeze",
+    "--strict",
+    "--report",
+    path.join(resolvedReportDirectory, "source-freeze-readiness.json"),
     "--expected-branch",
     expectedBranch,
     "--expected-commit",
     expectedCommit,
+  ],
+  predeployRunOptions,
+);
+run(
+  "新基础设施接入与责任人检查",
+  [
+    "release:audit-infra-intake",
+    "--input",
+    resolvedInfrastructureIntake,
+    "--stage",
+    stage,
+    "--expected-deploy-target",
+    deployTarget,
+    "--env-file",
+    resolvedEnvFile,
+    "--report",
+    path.join(resolvedReportDirectory, infrastructureReportName),
+  ],
+  predeployRunOptions,
+);
+run(
+  "正式环境与部署架构检查",
+  [
+    "migration:check-env",
+    resolvedEnvFile,
+    "--full",
     "--deploy-target",
     deployTarget,
     "--report",
-    path.join(resolvedReportDirectory, "predeploy-decision.json"),
-  ]);
+    path.join(resolvedReportDirectory, "environment-readiness.json"),
+  ],
+  predeployRunOptions,
+);
+
+if (stage === "predeploy") {
+  run(
+    "聚合预接入证据并生成脱敏 GO/BLOCK 判定",
+    [
+      "release:aggregate-predeploy",
+      "--evidence-dir",
+      resolvedReportDirectory,
+      "--expected-branch",
+      expectedBranch,
+      "--expected-commit",
+      expectedCommit,
+      "--deploy-target",
+      deployTarget,
+      "--report",
+      path.join(resolvedReportDirectory, "predeploy-decision.json"),
+    ],
+    predeployRunOptions,
+  );
+  if (predeployStepFailures.length > 0) {
+    console.error("\n[full-gate] 正式资源预接入门禁判定为 BLOCK：");
+    for (const failure of predeployStepFailures) {
+      console.error(`- ${failure.label}（退出码 ${failure.status}）`);
+    }
+    console.error(
+      `[full-gate] 已继续执行其余只读审计；统一脱敏判定见 ${path.join(resolvedReportDirectory, "predeploy-decision.json")}`,
+    );
+    process.exit(1);
+  }
   console.log(
     "\n[full-gate] 正式资源预接入门禁通过并生成 predeploy-decision.json；尚未执行耗时构建、客户端重建或 launch 现场验收",
   );

@@ -163,3 +163,29 @@ test("构建机 launch 候选门禁不得冒充最终上线 GO", async () => {
   assert.match(source, /release:aggregate-evidence/u);
   assert.match(source, /release:finalize-launch/u);
 });
+
+test("predeploy 子审计失败后仍继续聚合并输出统一 BLOCK 报告", async () => {
+  const source = await import("node:fs/promises").then(({ readFile }) => readFile(runner, "utf8"));
+
+  assert.match(source, /const predeployStepFailures = \[\]/u);
+  assert.match(source, /continueOnFailure: stage === "predeploy"/u);
+  assert.match(source, /predeployStepFailures\.push/u);
+  assert.match(source, /已继续执行其余只读审计/u);
+  assert.match(source, /predeploy-decision\.json/u);
+});
+
+test("predeploy 启动前清理固定报告名以阻断旧证据误判", async () => {
+  const source = await import("node:fs/promises").then(({ readFile }) => readFile(runner, "utf8"));
+
+  assert.match(
+    source,
+    /rmSync\(path\.join\(resolvedReportDirectory, reportName\), \{ force: true \}\)/u,
+  );
+  for (const reportName of [
+    "source-freeze-readiness.json",
+    "environment-readiness.json",
+    "predeploy-decision.json",
+  ]) {
+    assert.match(source, new RegExp(reportName.replace(".", "\\."), "u"));
+  }
+});
