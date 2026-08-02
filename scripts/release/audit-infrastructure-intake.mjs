@@ -256,6 +256,7 @@ const operations = intake.operations || {};
 const externalEndpoints = intake.externalEndpoints || {};
 const emailDelivery = externalEndpoints.emailDelivery || {};
 const smsDelivery = externalEndpoints.smsDelivery || {};
+const paymentDelivery = externalEndpoints.paymentDelivery || {};
 const deployTarget = text(intake.deployTarget).toLowerCase();
 let environmentValues = new Map();
 let reportBinding = null;
@@ -306,6 +307,22 @@ const smsEnabled = [
   configuredSmsRetentionTemplateId,
 ].some(Boolean);
 const smsRetentionEnabled = Boolean(configuredSmsRetentionTemplateId);
+const paymentChannelDefinitions = [
+  { channelId: "wechat-pay", merchantKey: "WECHAT_PAY_MCH_ID" },
+  { channelId: "alipay", merchantKey: "ALIPAY_APP_ID" },
+  { channelId: "unionpay", merchantKey: "UNIONPAY_MER_ID" },
+  { channelId: "huifu", merchantKey: "HUIFU_MERCHANT_ID" },
+];
+const configuredPaymentChannels = paymentChannelDefinitions
+  .map((item) => ({
+    channelId: item.channelId,
+    merchantReference: text(environmentValues.get(item.merchantKey)),
+  }))
+  .filter((item) => item.merchantReference && !isPlaceholder(item.merchantReference));
+const paymentEnabled = configuredPaymentChannels.length > 0;
+const configuredPrimaryPaymentChannel = configuredPaymentChannels.find(
+  (item) => item.channelId === text(paymentDelivery.channelId).toLowerCase(),
+);
 
 add(
   "接入清单契约有效",
@@ -729,6 +746,19 @@ add(
   "启用短信后，接入清单必须与 SMS_SIGN_NAME、SMS_TEMPLATE_ID、可选召回模板完全一致，并登记责任人与审核证据；报告只记录指纹",
 );
 add(
+  "首发支付通道、商户身份和闭环责任已绑定",
+  !resourceReady ||
+    !paymentEnabled ||
+    (configuredPrimaryPaymentChannel &&
+      text(paymentDelivery.merchantReference) ===
+        configuredPrimaryPaymentChannel.merchantReference &&
+      isFilled(paymentDelivery.owner) &&
+      !isPlaceholder(paymentDelivery.owner) &&
+      isFilled(paymentDelivery.evidenceReference) &&
+      !isPlaceholder(paymentDelivery.evidenceReference)),
+  "启用支付后必须从正式环境已配置通道中指定一条首发通道，精确绑定商户身份、闭环责任人与受控证据编号；报告只保存指纹",
+);
+add(
   "外部依赖清单与正式环境启用能力完全一致",
   !resourceReady ||
     (new Set(outboundDependencyIds).size === outboundDependencyIds.length &&
@@ -826,6 +856,14 @@ if (resourceReady) {
             smsDelivery.signName,
             smsDelivery.verificationTemplateId,
             smsDelivery.evidenceReference,
+          ]
+        : []),
+      ...(paymentEnabled
+        ? [
+            paymentDelivery.owner,
+            paymentDelivery.channelId,
+            paymentDelivery.merchantReference,
+            paymentDelivery.evidenceReference,
           ]
         : []),
       ...plannedCallbackUrls,
@@ -956,6 +994,19 @@ if (launch) {
             smsDelivery.retentionConsentAndOptOutVerified === true))),
     "启用短信后必须核验签名与验证码模板审核、受控真实号码投递及状态回执，并验证短信故障时仍可通过其他方式登录；启用召回模板时还必须核验独立模板、用户授权和退订策略",
   );
+  add(
+    "首发支付通道已完成真实收款、退款、回调和对账闭环",
+    !paymentEnabled ||
+      (paymentDelivery.productionAccountVerified === true &&
+        paymentDelivery.smallAmountPaymentPassed === true &&
+        paymentDelivery.paymentCallbackVerified === true &&
+        paymentDelivery.orderLedgerVerified === true &&
+        paymentDelivery.refundSmokeTestPassed === true &&
+        paymentDelivery.refundCallbackVerified === true &&
+        paymentDelivery.reconciliationVerified === true &&
+        paymentDelivery.duplicateCallbackReplayVerified === true),
+    "正式开放付费入口前必须用所绑定首发通道完成受控小额实付、验签入账、退款与退款通知、日终对账和重复回调重放；沙箱截图或仅能下单不能替代闭环",
+  );
 }
 
 if (resourceReady) {
@@ -1084,6 +1135,14 @@ if (resourceReady) {
           }
         : "disabled",
     ),
+    paymentDeliveryFingerprint: fingerprint(
+      paymentEnabled
+        ? {
+            channelId: text(paymentDelivery.channelId).toLowerCase(),
+            merchantReference: text(paymentDelivery.merchantReference),
+          }
+        : "disabled",
+    ),
   };
   const publicApiUrl = normalizeUrl(environmentValues.get("PUBLIC_API_URL"));
   const environmentBinding = {
@@ -1138,6 +1197,14 @@ if (resourceReady) {
             signName: configuredSmsSignName,
             verificationTemplateId: configuredSmsVerificationTemplateId,
             retentionTemplateId: configuredSmsRetentionTemplateId,
+          }
+        : "disabled",
+    ),
+    paymentDeliveryFingerprint: fingerprint(
+      paymentEnabled
+        ? {
+            channelId: text(paymentDelivery.channelId).toLowerCase(),
+            merchantReference: configuredPrimaryPaymentChannel?.merchantReference || "invalid",
           }
         : "disabled",
     ),
@@ -1254,6 +1321,23 @@ const report = {
           (!smsRetentionEnabled ||
             (smsDelivery.retentionTemplateApproved === true &&
               smsDelivery.retentionConsentAndOptOutVerified === true)),
+      }
+    : null,
+  paymentDeliveryEvidence: launch && paymentEnabled
+    ? {
+        configurationFingerprint: fingerprint({
+          channelId: text(paymentDelivery.channelId).toLowerCase(),
+          merchantReference: text(paymentDelivery.merchantReference),
+        }),
+        verified:
+          paymentDelivery.productionAccountVerified === true &&
+          paymentDelivery.smallAmountPaymentPassed === true &&
+          paymentDelivery.paymentCallbackVerified === true &&
+          paymentDelivery.orderLedgerVerified === true &&
+          paymentDelivery.refundSmokeTestPassed === true &&
+          paymentDelivery.refundCallbackVerified === true &&
+          paymentDelivery.reconciliationVerified === true &&
+          paymentDelivery.duplicateCallbackReplayVerified === true,
       }
     : null,
   success: failures.length === 0,

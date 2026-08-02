@@ -1176,3 +1176,81 @@ test("启用短信后拒绝错绑模板、未审核签名和缺失登录兜底",
     await rm(audit.root, { recursive: true, force: true });
   }
 });
+
+test("启用支付后首发通道真实收款退款闭环必须绑定且报告脱敏", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "wechat-pay",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.paymentDelivery = {
+    owner: "支付闭环负责人",
+    channelId: "wechat-pay",
+    merchantReference: "1900000109",
+    evidenceReference: "CHANGE-20260802-PAYMENT",
+    productionAccountVerified: true,
+    smallAmountPaymentPassed: true,
+    paymentCallbackVerified: true,
+    orderLedgerVerified: true,
+    refundSmokeTestPassed: true,
+    refundCallbackVerified: true,
+    reconciliationVerified: true,
+    duplicateCallbackReplayVerified: true,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    WECHAT_PAY_MCH_ID: "1900000109",
+  });
+  try {
+    assert.equal(audit.result.status, 0, audit.result.stderr || audit.result.stdout);
+    assert.equal(audit.report.paymentDeliveryEvidence.verified, true);
+    assert.equal(audit.report.outboundAccessEvidence.dependencyCount, 2);
+    const serialized = JSON.stringify(audit.report);
+    assert.equal(serialized.includes("1900000109"), false);
+    assert.equal(serialized.includes("CHANGE-20260802-PAYMENT"), false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("启用支付后拒绝错绑商户、沙箱冒充生产和不完整退款对账", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "wechat-pay",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.paymentDelivery = {
+    owner: "支付闭环负责人",
+    channelId: "wechat-pay",
+    merchantReference: "1900000999",
+    evidenceReference: "CHANGE-20260802-PAYMENT",
+    productionAccountVerified: false,
+    smallAmountPaymentPassed: true,
+    paymentCallbackVerified: true,
+    orderLedgerVerified: true,
+    refundSmokeTestPassed: false,
+    refundCallbackVerified: false,
+    reconciliationVerified: false,
+    duplicateCallbackReplayVerified: false,
+  };
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    WECHAT_PAY_MCH_ID: "1900000109",
+  });
+  try {
+    assert.notEqual(audit.result.status, 0);
+    const failures = audit.report.checks
+      .filter((item) => !item.pass)
+      .map((item) => item.name)
+      .join("\n");
+    assert.match(failures, /首发支付通道、商户身份和闭环责任已绑定/u);
+    assert.match(failures, /首发支付通道已完成真实收款、退款、回调和对账闭环/u);
+    assert.match(failures, /正式环境与新基础设施接入清单完全绑定/u);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});

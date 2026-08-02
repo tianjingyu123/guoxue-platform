@@ -58,7 +58,9 @@ function createFullEnvironment(options = {}) {
     "WECHAT_PAY_MCH_ID=1900000109",
     `WECHAT_PAY_SERIAL_NO=${"A".repeat(40)}`,
     `WECHAT_PAY_API_V3_KEY=${"V".repeat(32)}`,
+    `WECHAT_PAY_PRIVATE_KEY=${"K".repeat(64)}`,
     "WECHAT_PAY_NOTIFY_URL=https://api.guoxue.test/api/v1/shop/pay/notify",
+    "WECHAT_PAY_REFUND_NOTIFY_URL=https://api.guoxue.test/api/v1/shop/refund/notify",
     "MONITORING_ENABLED=true",
     `GF_ADMIN_PASSWORD=${"G".repeat(32)}`,
     "WEWORK_CORP_ID=ww1234567890abcdef",
@@ -68,6 +70,21 @@ function createFullEnvironment(options = {}) {
     "",
   ].join("\n");
 }
+
+test("完整上线拒绝只有下单配置而缺少商户私钥或退款回调的微信支付", async () => {
+  const incomplete = createFullEnvironment()
+    .replace(/^WECHAT_PAY_PRIVATE_KEY=.*\r?\n/mu, "")
+    .replace(/^WECHAT_PAY_REFUND_NOTIFY_URL=.*\r?\n/mu, "");
+  const result = await runChecker(
+    incomplete,
+    "--full",
+    "--deploy-target",
+    "standard",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /微信支付生产配置不完整/u);
+  assert.match(result.stderr, /尚未形成一条完整支付通道/u);
+});
 
 async function runChecker(content, ...args) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "guoxue-env-check-"));

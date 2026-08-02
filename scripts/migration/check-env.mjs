@@ -667,12 +667,44 @@ if (fullCheck) {
     errors.push("至少必须配置一个生产 AI 模型提供方");
   }
 
-  const paymentGroups = [
-    ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_SERIAL_NO", "WECHAT_PAY_API_V3_KEY", "WECHAT_PAY_NOTIFY_URL"],
-    ["ALIPAY_APP_ID", "ALIPAY_PRIVATE_KEY", "ALIPAY_PUBLIC_KEY", "ALIPAY_NOTIFY_URL"],
-    ["UNIONPAY_MER_ID", "UNIONPAY_PRIVATE_KEY", "UNIONPAY_PUBLIC_KEY", "UNIONPAY_NOTIFY_URL"],
+  const paymentChannels = [
+    {
+      id: "微信支付",
+      configured: hasAny(values, ["WECHAT_PAY_MCH_ID"]),
+      complete:
+        hasAll(values, [
+          "WECHAT_PAY_MCH_ID",
+          "WECHAT_PAY_SERIAL_NO",
+          "WECHAT_PAY_API_V3_KEY",
+          "WECHAT_PAY_NOTIFY_URL",
+          "WECHAT_PAY_REFUND_NOTIFY_URL",
+        ]) && hasAny(values, ["WECHAT_PAY_PRIVATE_KEY", "WECHAT_PAY_PRIVATE_KEY_PATH"]),
+    },
+    {
+      id: "支付宝",
+      configured: hasAny(values, ["ALIPAY_APP_ID"]),
+      complete:
+        hasAll(values, ["ALIPAY_APP_ID", "ALIPAY_NOTIFY_URL"]) &&
+        hasAny(values, ["ALIPAY_PRIVATE_KEY", "ALIPAY_PRIVATE_KEY_PATH"]) &&
+        hasAny(values, ["ALIPAY_PUBLIC_KEY", "ALIPAY_PUBLIC_KEY_PATH"]) &&
+        values.get("ALIPAY_SANDBOX") !== "true",
+    },
+    {
+      id: "银联支付",
+      configured: hasAny(values, ["UNIONPAY_MER_ID"]),
+      complete:
+        hasAll(values, ["UNIONPAY_MER_ID", "UNIONPAY_NOTIFY_URL"]) &&
+        ((hasAll(values, ["UNIONPAY_PFX_PATH", "UNIONPAY_PFX_PASSWORD"]) &&
+          hasAny(values, ["UNIONPAY_PUBLIC_KEY", "UNIONPAY_PUBLIC_KEY_PATH"])) ||
+          (hasAny(values, ["UNIONPAY_PRIVATE_KEY", "UNIONPAY_PRIVATE_KEY_PATH"]) &&
+            hasAny(values, ["UNIONPAY_PUBLIC_KEY", "UNIONPAY_PUBLIC_KEY_PATH"]))) &&
+        values.get("UNIONPAY_SANDBOX") !== "true",
+    },
   ];
-  if (!paymentGroups.some((group) => hasAll(values, group))) {
+  for (const channel of paymentChannels.filter((item) => item.configured && !item.complete)) {
+    errors.push(`${channel.id}生产配置不完整：必须具备签名材料、正式回调与退款闭环所需配置，且不得使用沙箱模式`);
+  }
+  if (!paymentChannels.some((channel) => channel.complete)) {
     errors.push("尚未形成一条完整支付通道，完整上线前必须至少完成一条通道联调");
   }
 }

@@ -155,6 +155,20 @@
       "alternateLoginVerified": false,
       "retentionConsentAndOptOutVerified": false
     },
+    "paymentDelivery": {
+      "owner": "待填写",
+      "channelId": "pending",
+      "merchantReference": "pending",
+      "evidenceReference": "pending-change-ticket",
+      "productionAccountVerified": false,
+      "smallAmountPaymentPassed": false,
+      "paymentCallbackVerified": false,
+      "orderLedgerVerified": false,
+      "refundSmokeTestPassed": false,
+      "refundCallbackVerified": false,
+      "reconciliationVerified": false,
+      "duplicateCallbackReplayVerified": false
+    },
     "callbackUrls": [],
     "controlPlaneCallbacks": [],
     "clientDomainAllowlistEntries": [

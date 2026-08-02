@@ -1659,6 +1659,27 @@ add(
   ]) && !environmentChecker.includes("Object.fromEntries(values)"),
   "完整上线必须至少具备一条支付通道，小程序密钥别名要与服务端一致，验收报告只能记录字段名级错误和计数",
 );
+add(
+  "首发支付具备生产商户绑定、真实收退款、回调入账和对账门禁",
+  hasAll(environmentChecker, [
+    "生产配置不完整",
+    "WECHAT_PAY_REFUND_NOTIFY_URL",
+    "ALIPAY_SANDBOX",
+    "UNIONPAY_SANDBOX",
+  ]) &&
+    hasAll(infrastructureIntakeAudit, [
+      "paymentDelivery",
+      "首发支付通道、商户身份和闭环责任已绑定",
+      "首发支付通道已完成真实收款、退款、回调和对账闭环",
+      "duplicateCallbackReplayVerified",
+      "paymentDeliveryEvidence",
+    ]) &&
+    hasAll(infrastructureIntakeTest, [
+      "启用支付后首发通道真实收款退款闭环必须绑定且报告脱敏",
+      "启用支付后拒绝错绑商户、沙箱冒充生产和不完整退款对账",
+    ]),
+  "支付上线不能只证明回调 URL 可达；必须绑定正式商户并保留真实实付、退款、入账、对账和重复回调重放的脱敏证据",
+);
 
 const clientBuilder = read("scripts/release/build-clients-with-env.mjs");
 const clientArtifactAudit = read("scripts/release/audit-client-artifacts.mjs");
