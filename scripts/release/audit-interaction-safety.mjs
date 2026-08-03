@@ -225,6 +225,15 @@ const checks = [
     ]),
   },
   {
+    name: "H5 仅在桌面宽屏启用 480px 壳层，平板保留完整视口避免 rpx 二次挤压",
+    file: "apps/mobile/src/App.vue",
+    pass:
+      hasAll(appRoot, [
+        "@media screen and (min-width: 960px)",
+        "max-width: 480px;",
+      ]) && !appRoot.includes("@media screen and (min-width: 600px)"),
+  },
+  {
     name: "万年历择日导航固定在底部且正文为导航和安全区留位",
     file: "apps/mobile/src/pkg-paipan/wannianli/index.vue",
     pass: hasAll(wannianli, [

@@ -253,7 +253,10 @@ uni-scroll-view .uni-scroll-view::-webkit-scrollbar {
    关键技巧：给 uni-app 容器加 transform 使其成为 fixed 子元素的包含块——
    底部导航/悬浮球/弹窗等 position:fixed 元素随之被约束在壳内，无需逐组件适配。
    小程序/App 端不受影响（条件编译）。真响应式(卡片重排/侧栏导航)在 backlog。 */
-@media screen and (min-width: 600px) {
+/* 仅桌面浏览器使用 480px 移动端壳层。
+   600–959px 的平板必须保留完整视口宽度：uni-app 的 rpx 会随视口换算，
+   若此时提前把壳层压到 480px，会造成卡片、标签和底部导航被二次挤压。 */
+@media screen and (min-width: 960px) {
   body {
     background: #ece7dc;
   }
