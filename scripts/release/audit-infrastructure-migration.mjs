@@ -669,12 +669,26 @@ add(
   hasAll(setupServer, [
     "node_24.x",
     "postgresql-client-${POSTGRES_CLIENT_MAJOR}",
-    "nodejs:22",
-    '"postgresql:${POSTGRES_CLIENT_MAJOR}"',
     "^(22|24)\\.",
     "宿主机运行时: Node.js",
   ]),
   "初始化必须安装受支持的 Node.js LTS 和与目标主版本一致的 PostgreSQL 客户端，避免迁移中途才暴露缺失命令",
+);
+add(
+  "服务器初始化在任何主机变更前锁定已验收操作系统矩阵",
+  hasAll(setupServer, [
+    "生产验收支持: Ubuntu 22.04 / 24.04 LTS",
+    'case "$OS:$OS_VERSION" in',
+    "ubuntu:22.04|ubuntu:24.04",
+    "生产初始化仅支持已验收的 Ubuntu 22.04 / 24.04 LTS",
+    "exit 65",
+  ]) &&
+    setupServer.indexOf('case "$OS:$OS_VERSION" in') <
+      setupServer.indexOf("执行安装前只读主机预检") &&
+    read("docs/operations/服务器数据库域名迁移手册-20260728.md").includes(
+      "生产初始化仅验收 Ubuntu 22.04/24.04 LTS",
+    ),
+  "不得继续声称或静默尝试未经运行手册验收的发行版；购买或重装新机时必须选择 Ubuntu 22.04/24.04 LTS",
 );
 const immutableNodeRuntimeImage =
   "node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d";
@@ -782,13 +796,11 @@ add(
     "6F71F525282841EEDAF851B42F59B5F99B1BE0B4",
     "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8",
     "9DC858229FC7DD38854AE2D88D81803C0EBFCD88",
-    "060A61C51B558A7F742B77AAC52FEB6B621E9F35",
     'gpg --batch --show-keys --with-colons "$key_file"',
-    "rpm --import /tmp/docker-centos-repo.gpg",
   ]) &&
-    countOccurrences(setupServer, "verify_openpgp_key \\") === 4 &&
+    countOccurrences(setupServer, "verify_openpgp_key \\") === 3 &&
     !/download\.docker\.com\/linux\/\$OS\/gpg[^\n]*\|/.test(setupServer),
-  "NodeSource、PostgreSQL、Docker DEB/RPM 密钥必须先落盘并核对主指纹，禁止远程密钥直接进入导入管道",
+  "NodeSource、PostgreSQL 与 Docker DEB 密钥必须先落盘并核对主指纹，禁止远程密钥直接进入导入管道",
 );
 add(
   "服务器首次初始化注入并核对固定发布标识",

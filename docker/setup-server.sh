@@ -7,7 +7,7 @@
 # 腾讯云托管数据库、Redis、CLB/TLS 模式必须改用 DEPLOY_TARGET=tencent，
 # 且正式环境文件中的 DATABASE_URL / REDIS_URL 必须指向托管服务私网地址。
 #
-# 支持: Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / Rocky 8+
+# 生产验收支持: Ubuntu 22.04 / 24.04 LTS
 set -euo pipefail
 
 GREEN='\033[0;32m'
@@ -106,6 +106,15 @@ else
 fi
 log "操作系统: $OS $OS_VERSION"
 
+case "$OS:$OS_VERSION" in
+  ubuntu:22.04|ubuntu:24.04) ;;
+  *)
+    err "生产初始化仅支持已验收的 Ubuntu 22.04 / 24.04 LTS，当前为: $OS $OS_VERSION"
+    err "请在购买或重装新服务器时选择受支持镜像，不得在迁移现场临时改写安装链"
+    exit 65
+    ;;
+esac
+
 # 在任何系统变更前完成只读预检。Docker 和部分基础命令允许本轮尚未安装，
 # 但容量、架构、DNS、端口和固定发布包身份必须先通过。
 log "执行安装前只读主机预检..."
@@ -154,7 +163,7 @@ fi
 # ── 3. 安装基础依赖与 Docker ──
 log "安装主机预检和发布所需基础依赖..."
 case "$OS" in
-  ubuntu|debian)
+  ubuntu)
     apt-get update -qq
     apt-get install -y -qq ca-certificates curl gnupg openssl tar coreutils iproute2 util-linux findutils
 
@@ -184,14 +193,6 @@ case "$OS" in
     apt-get update -qq
     apt-get install -y -qq nodejs "postgresql-client-${POSTGRES_CLIENT_MAJOR}"
     ;;
-  centos|rocky|rhel|almalinux)
-    dnf install -y ca-certificates curl gnupg2 openssl tar coreutils iproute util-linux findutils 2>/dev/null || \
-      yum install -y ca-certificates curl gnupg2 openssl tar coreutils iproute util-linux findutils 2>/dev/null
-    dnf module reset -y nodejs postgresql >/dev/null 2>&1 || true
-    dnf module enable -y nodejs:22 "postgresql:${POSTGRES_CLIENT_MAJOR}" >/dev/null 2>&1 || true
-    dnf install -y nodejs postgresql 2>/dev/null || \
-      yum install -y nodejs postgresql 2>/dev/null
-    ;;
 esac
 
 NODE_VERSION="$(node --version 2>/dev/null | sed 's/^v//' || true)"
@@ -209,7 +210,7 @@ log "宿主机运行时: Node.js $NODE_VERSION / PostgreSQL client $POSTGRES_CLI
 log "安装 Docker..."
 if ! command -v docker &>/dev/null; then
   case "$OS" in
-    ubuntu|debian)
+    ubuntu)
       install -m 0755 -d /etc/apt/keyrings
       curl -fsSL "https://download.docker.com/linux/$OS/gpg" -o /tmp/docker-repo.gpg
       verify_openpgp_key \
@@ -222,19 +223,6 @@ if ! command -v docker &>/dev/null; then
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
       apt-get update -qq
       apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
-      ;;
-    centos|rocky|rhel|almalinux)
-      curl -fsSL https://download.docker.com/linux/centos/gpg -o /tmp/docker-centos-repo.gpg
-      verify_openpgp_key \
-        /tmp/docker-centos-repo.gpg \
-        060A61C51B558A7F742B77AAC52FEB6B621E9F35 \
-        "Docker RPM"
-      rpm --import /tmp/docker-centos-repo.gpg
-      rm -f /tmp/docker-centos-repo.gpg
-      dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null || \
-        yum config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null || true
-      dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin 2>/dev/null || \
-        yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin 2>/dev/null
       ;;
     *)
       err "不支持的操作系统: $OS"
