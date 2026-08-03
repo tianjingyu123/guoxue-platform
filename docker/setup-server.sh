@@ -18,6 +18,24 @@ log()  { echo -e "${GREEN}[setup]${NC} $1"; }
 warn() { echo -e "${YELLOW}[warn]${NC} $1"; }
 err()  { echo -e "${RED}[err]${NC} $1"; }
 
+verify_openpgp_key() {
+  local key_file="$1"
+  local expected_fingerprint="$2"
+  local label="$3"
+  local actual_fingerprint
+
+  actual_fingerprint="$(
+    gpg --batch --show-keys --with-colons "$key_file" 2>/dev/null |
+      awk -F: '$1 == "fpr" { print toupper($10); exit }'
+  )"
+  if [ "$actual_fingerprint" != "$expected_fingerprint" ]; then
+    rm -f "$key_file"
+    err "$label 软件源密钥指纹不匹配: ${actual_fingerprint:-missing}"
+    exit 1
+  fi
+  log "$label 软件源密钥指纹已验证: $actual_fingerprint"
+}
+
 # ── 参数解析 ──
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -143,6 +161,10 @@ case "$OS" in
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
       -o /tmp/nodesource-repo.gpg.key
+    verify_openpgp_key \
+      /tmp/nodesource-repo.gpg.key \
+      6F71F525282841EEDAF851B42F59B5F99B1BE0B4 \
+      "NodeSource"
     gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg /tmp/nodesource-repo.gpg.key
     rm -f /tmp/nodesource-repo.gpg.key
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" \
@@ -150,6 +172,10 @@ case "$OS" in
 
     curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
       -o /tmp/postgresql-repo.asc
+    verify_openpgp_key \
+      /tmp/postgresql-repo.asc \
+      B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8 \
+      "PostgreSQL"
     gpg --dearmor --yes -o /etc/apt/keyrings/postgresql.gpg /tmp/postgresql-repo.asc
     rm -f /tmp/postgresql-repo.asc
     echo "deb [signed-by=/etc/apt/keyrings/postgresql.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
@@ -185,13 +211,26 @@ if ! command -v docker &>/dev/null; then
   case "$OS" in
     ubuntu|debian)
       install -m 0755 -d /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      curl -fsSL "https://download.docker.com/linux/$OS/gpg" -o /tmp/docker-repo.gpg
+      verify_openpgp_key \
+        /tmp/docker-repo.gpg \
+        9DC858229FC7DD38854AE2D88D81803C0EBFCD88 \
+        "Docker"
+      gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg /tmp/docker-repo.gpg
+      rm -f /tmp/docker-repo.gpg
       chmod a+r /etc/apt/keyrings/docker.gpg
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$OS $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
       apt-get update -qq
       apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
       ;;
     centos|rocky|rhel|almalinux)
+      curl -fsSL https://download.docker.com/linux/centos/gpg -o /tmp/docker-centos-repo.gpg
+      verify_openpgp_key \
+        /tmp/docker-centos-repo.gpg \
+        060A61C51B558A7F742B77AAC52FEB6B621E9F35 \
+        "Docker RPM"
+      rpm --import /tmp/docker-centos-repo.gpg
+      rm -f /tmp/docker-centos-repo.gpg
       dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null || \
         yum config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo 2>/dev/null || true
       dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin 2>/dev/null || \

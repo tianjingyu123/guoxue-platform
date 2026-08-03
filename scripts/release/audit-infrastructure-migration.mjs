@@ -776,6 +776,21 @@ add(
   "任何 swap、sysctl、防火墙或容器变更前先做只读检查，Docker 安装后再完整复核并保留无密钥验收报告",
 );
 add(
+  "服务器初始化校验第三方软件源密钥完整指纹",
+  hasAll(setupServer, [
+    "verify_openpgp_key",
+    "6F71F525282841EEDAF851B42F59B5F99B1BE0B4",
+    "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8",
+    "9DC858229FC7DD38854AE2D88D81803C0EBFCD88",
+    "060A61C51B558A7F742B77AAC52FEB6B621E9F35",
+    'gpg --batch --show-keys --with-colons "$key_file"',
+    "rpm --import /tmp/docker-centos-repo.gpg",
+  ]) &&
+    countOccurrences(setupServer, "verify_openpgp_key \\") === 4 &&
+    !/download\.docker\.com\/linux\/\$OS\/gpg[^\n]*\|/.test(setupServer),
+  "NodeSource、PostgreSQL、Docker DEB/RPM 密钥必须先落盘并核对主指纹，禁止远程密钥直接进入导入管道",
+);
+add(
   "服务器首次初始化注入并核对固定发布标识",
   hasAll(setupServer, [
     "scripts/release/validate-release-layout.sh",
