@@ -477,6 +477,17 @@ test("仓库内写旅程示例只使用 QA 环境变量且每条写旅程都声�
       `${journey.id} 必须核验资源名称以 QA_ 开头`,
     );
   }
+  const merchantJourney = example.journeys.find(
+    (journey) => journey.id === "merchant-purchase-order-cycle",
+  );
+  const supplierPreflight = merchantJourney.steps.find(
+    (step) => step.id === "verify-qa-merchant-supplier",
+  );
+  assert.deepEqual(
+    supplierPreflight.expectJson.map((assertion) => assertion.pointer),
+    ["/data/0/id", "/data/0/name", "/data/0/name"],
+    "供应商列表响应为 data[]，写旅程必须与部署态契约一致",
+  );
   assert.doesNotMatch(
     exampleText,
     /\/(?:pay(?:ment)?|refund|notify|callback|batch-ship|return-logistics)(?:\/|")/iu,

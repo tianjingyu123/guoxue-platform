@@ -36,9 +36,9 @@
           "auth": "merchant",
           "expectStatus": [200],
           "expectJson": [
-            { "pointer": "/data/items/0/id", "equals": "{{secret.merchantSupplierId}}" },
-            { "pointer": "/data/items/0/name", "equals": "{{secret.merchantSupplierName}}" },
-            { "pointer": "/data/items/0/name", "matches": "^QA_" }
+            { "pointer": "/data/0/id", "equals": "{{secret.merchantSupplierId}}" },
+            { "pointer": "/data/0/name", "equals": "{{secret.merchantSupplierName}}" },
+            { "pointer": "/data/0/name", "matches": "^QA_" }
           ]
         },
         {
