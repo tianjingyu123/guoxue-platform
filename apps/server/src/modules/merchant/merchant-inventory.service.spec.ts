@@ -471,6 +471,38 @@ describe("MerchantInventoryService", () => {
     });
   });
 
+  it("草稿或已下单的采购单可以取消并返回最新状态", async () => {
+    const { service, tx } = createService();
+    tx.purchaseOrder.findFirst.mockResolvedValue({
+      id: "po-1",
+      merchantId: "merchant-1",
+      status: "CANCELLED",
+      items: [],
+    });
+
+    const result = await service.cancelPurchaseOrder("merchant-1", "po-1");
+
+    expect(tx.purchaseOrder.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "po-1",
+        merchantId: "merchant-1",
+        status: { in: ["DRAFT", "ORDERED"] },
+      },
+      data: { status: "CANCELLED" },
+    });
+    expect(result).toEqual(expect.objectContaining({ status: "CANCELLED" }));
+  });
+
+  it("已入库或状态已变化的采购单拒绝取消", async () => {
+    const { service, tx } = createService();
+    tx.purchaseOrder.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      service.cancelPurchaseOrder("merchant-1", "po-received"),
+    ).rejects.toThrow("采购单已入库或当前状态不可取消");
+    expect(tx.purchaseOrder.findFirst).not.toHaveBeenCalled();
+  });
+
   it("已发货退货仅在验收合格后回补库存", async () => {
     const { service, tx, shopRefund } = createService();
     tx.afterSale.findUnique.mockResolvedValue({ id: "as-1", orderId: "o-1", type: "refund_with_return", status: "APPROVED", reason: "质量问题", logistics: JSON.stringify({ returnAddress: "退货地址", company: "顺丰", logisticsNo: "SF123" }) });
