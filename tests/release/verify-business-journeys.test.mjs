@@ -83,6 +83,10 @@ const server = http.createServer(async (request, response) => {
     response.end(JSON.stringify({ data: { id: "qa-user" } }));
     return;
   }
+  if (request.method === "GET" && pathname === "/api/v1/qa/stock") {
+    response.end(JSON.stringify({ data: { stock: 7 } }));
+    return;
+  }
   if (request.method === "POST" && pathname === "/api/v1/qa/items") {
     created += 1;
     response.statusCode = 201;
@@ -148,14 +152,34 @@ test("只读业务旅程通过并生成不含鉴权凭据的结构化证据", as
           id: "health",
           method: "GET",
           path: "/api/v1/health",
-          expectJson: [{ pointer: "/status", equals: "ok" }],
+          expectJson: [
+            { pointer: "/status", matches: "^o[k]$" },
+            { pointer: "/releaseId", equals: "{{releaseId}}" },
+          ],
+          capture: { release: "/releaseId" },
+        },
+        {
+          id: "stock-snapshot",
+          method: "GET",
+          path: "/api/v1/qa/stock",
+          expectJson: [{ pointer: "/data/stock", exists: true }],
+          capture: { stockBefore: "/data/stock" },
         },
         {
           id: "current-user",
           method: "GET",
           path: "/api/v1/auth/me",
           auth: "user",
-          expectJson: [{ pointer: "/data/id", exists: true }],
+          expectJson: [
+            { pointer: "/data/id", exists: true },
+            { pointer: "/data/id", matches: "^qa-" },
+          ],
+        },
+        {
+          id: "stock-unchanged",
+          method: "GET",
+          path: "/api/v1/qa/stock",
+          expectJson: [{ pointer: "/data/stock", equals: "{{capture.stockBefore}}" }],
         },
       ],
     },
@@ -173,7 +197,7 @@ test("只读业务旅程通过并生成不含鉴权凭据的结构化证据", as
   assert.equal(report.releaseBinding.observedReleaseId, releaseId);
   assert.equal(report.success, true);
   assert.equal(report.summary.passedJourneys, 1);
-  assert.equal(report.summary.passedSteps, 2);
+  assert.equal(report.summary.passedSteps, 4);
   assert.equal(reportText.includes(testToken), false);
   assert.equal(reportText.includes("Authorization"), false);
 });
@@ -440,6 +464,18 @@ test("仓库内写旅程示例只使用 QA 环境变量且每条写旅程都声�
     assert.ok(journey.cleanup.length > 0);
     assert.match(journey.cleanup[0].id, /^verify-cancelled-/u);
     assert.match(journey.cleanup.at(-1).id, /^cancel-/u);
+    const firstWriteIndex = journey.steps.findIndex(
+      (step) => !["GET", "HEAD"].includes(String(step.method || "GET").toUpperCase()),
+    );
+    assert.ok(firstWriteIndex > 0, `${journey.id} 必须先读取并核验 QA 资源`);
+    const preflightSteps = journey.steps.slice(0, firstWriteIndex);
+    assert.ok(preflightSteps.every((step) => step.method === "GET"));
+    assert.ok(
+      preflightSteps.some((step) =>
+        (step.expectJson || []).some((assertion) => assertion.matches === "^QA_"),
+      ),
+      `${journey.id} 必须核验资源名称以 QA_ 开头`,
+    );
   }
   assert.doesNotMatch(
     exampleText,

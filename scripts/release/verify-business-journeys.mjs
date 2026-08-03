@@ -230,7 +230,7 @@ function interpolate(value, context) {
   return value;
 }
 
-function assertResponse(step, response, json) {
+function assertResponse(step, response, json, context) {
   const expectedStatuses = Array.isArray(step.expectStatus)
     ? step.expectStatus
     : [step.expectStatus || 200];
@@ -239,11 +239,27 @@ function assertResponse(step, response, json) {
   }
   for (const assertion of step.expectJson || []) {
     const actual = readJsonPointer(json, assertion.pointer);
-    if (Object.hasOwn(assertion, "equals") && actual !== assertion.equals) {
+    let expected;
+    if (Object.hasOwn(assertion, "equals")) {
+      const captureMatch =
+        typeof assertion.equals === "string"
+          ? assertion.equals.match(/^\{\{capture\.([A-Za-z0-9_]+)\}\}$/u)
+          : null;
+      expected = captureMatch
+        ? context.capture[captureMatch[1]]
+        : interpolate(assertion.equals, context);
+    }
+    if (Object.hasOwn(assertion, "equals") && actual !== expected) {
       throw new Error(`${assertion.pointer} 的值不符合预期`);
     }
     if (assertion.exists === true && actual === undefined) {
       throw new Error(`${assertion.pointer} 不存在`);
+    }
+    if (Object.hasOwn(assertion, "matches")) {
+      const pattern = interpolateString(String(assertion.matches), context);
+      if (typeof actual !== "string" || !new RegExp(pattern, "u").test(actual)) {
+        throw new Error(`${assertion.pointer} 的值不符合 QA 资源命名规则`);
+      }
     }
   }
 }
@@ -291,7 +307,7 @@ async function executeStep(step, context, phase) {
       throw new Error("接口声明 JSON 但返回内容无法解析");
     }
   }
-  assertResponse(step, response, json);
+  assertResponse(step, response, json, context);
   for (const [name, pointer] of Object.entries(step.capture || {})) {
     const captured = readJsonPointer(json, pointer);
     if (captured === undefined || captured === null || captured === "") {

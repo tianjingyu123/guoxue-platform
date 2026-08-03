@@ -10,6 +10,7 @@
   "secrets": {
     "merchantProductId": "QA_MERCHANT_PRODUCT_ID",
     "merchantSupplierId": "QA_MERCHANT_SUPPLIER_ID",
+    "merchantSupplierName": "QA_MERCHANT_SUPPLIER_NAME",
     "shopProductId": "QA_SHOP_PRODUCT_ID"
   },
   "journeys": [
@@ -18,14 +19,37 @@
       "mode": "write",
       "steps": [
         {
+          "id": "verify-qa-merchant-product",
+          "method": "GET",
+          "path": "/api/v1/merchant-backend/products/{{secret.merchantProductId}}",
+          "auth": "merchant",
+          "expectStatus": [200],
+          "expectJson": [
+            { "pointer": "/data/id", "equals": "{{secret.merchantProductId}}" },
+            { "pointer": "/data/title", "matches": "^QA_" }
+          ]
+        },
+        {
+          "id": "verify-qa-merchant-supplier",
+          "method": "GET",
+          "path": "/api/v1/merchant-backend/suppliers?keyword={{secret.merchantSupplierName}}&status=ACTIVE&page=1&pageSize=1",
+          "auth": "merchant",
+          "expectStatus": [200],
+          "expectJson": [
+            { "pointer": "/data/items/0/id", "equals": "{{secret.merchantSupplierId}}" },
+            { "pointer": "/data/items/0/name", "equals": "{{secret.merchantSupplierName}}" },
+            { "pointer": "/data/items/0/name", "matches": "^QA_" }
+          ]
+        },
+        {
           "id": "create-purchase-order",
           "method": "POST",
           "path": "/api/v1/merchant-backend/purchase-orders",
           "auth": "merchant",
           "body": {
             "supplierId": "{{secret.merchantSupplierId}}",
-            "supplierName": "{{qaPrefix}} 验收供应商",
-            "remark": "{{qaPrefix}} {{releaseId}} 上线前采购闭环验收；禁止收货入库",
+            "supplierName": "{{secret.merchantSupplierName}}",
+            "remark": "{{qaPrefix}} {{releaseId}} 上线前采购闭环验收；禁止提交和收货入库",
             "items": [
               {
                 "productId": "{{secret.merchantProductId}}",
@@ -75,6 +99,20 @@
       "mode": "write",
       "steps": [
         {
+          "id": "verify-qa-shop-product",
+          "method": "GET",
+          "path": "/api/v1/shop/products/{{secret.shopProductId}}",
+          "expectStatus": [200],
+          "expectJson": [
+            { "pointer": "/data/id", "equals": "{{secret.shopProductId}}" },
+            { "pointer": "/data/title", "matches": "^QA_" },
+            { "pointer": "/data/status", "equals": "ON_SALE" }
+          ],
+          "capture": {
+            "shopProductStockBefore": "/data/stock"
+          }
+        },
+        {
           "id": "create-pending-order",
           "method": "POST",
           "path": "/api/v1/shop/orders",
@@ -102,6 +140,15 @@
         }
       ],
       "cleanup": [
+        {
+          "id": "verify-cancelled-stock-restored",
+          "method": "GET",
+          "path": "/api/v1/shop/products/{{secret.shopProductId}}",
+          "expectStatus": [200],
+          "expectJson": [
+            { "pointer": "/data/stock", "equals": "{{capture.shopProductStockBefore}}" }
+          ]
+        },
         {
           "id": "verify-cancelled-order",
           "method": "GET",
