@@ -358,3 +358,33 @@ test("手机号和密码等敏感业务字段只能从 QA 环境变量注入", a
   assert.equal(result.status, 2);
   assert.match(result.stderr, /必须通过 \{\{secret\.NAME\}\}/u);
 });
+
+test("仓库内写旅程示例只使用 QA 环境变量且每条写旅程都声明清理步骤", async () => {
+  const examplePath = path.join(
+    repoRoot,
+    "config",
+    "release",
+    "business-journeys.write.example.json",
+  );
+  const exampleText = await readFile(examplePath, "utf8");
+  const example = JSON.parse(exampleText);
+
+  assert.equal(example.kind, "guoxue-business-journeys");
+  assert.equal(example.schemaVersion, 1);
+  assert.match(example.qaPrefix, /^QA_/u);
+  assert.equal(example.journeys.length, 2);
+  for (const envName of [...Object.values(example.auth), ...Object.values(example.secrets)]) {
+    assert.match(envName, /^QA_[A-Z0-9_]+$/u);
+  }
+  for (const journey of example.journeys) {
+    assert.equal(journey.mode, "write");
+    assert.ok(journey.steps.length > 0);
+    assert.ok(journey.cleanup.length > 0);
+    assert.match(journey.cleanup[0].id, /^verify-cancelled-/u);
+    assert.match(journey.cleanup.at(-1).id, /^cancel-/u);
+  }
+  assert.doesNotMatch(
+    exampleText,
+    /\/(?:pay(?:ment)?|refund|notify|callback|batch-ship|return-logistics)(?:\/|")/iu,
+  );
+});

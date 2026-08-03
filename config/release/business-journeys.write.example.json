@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "kind": "guoxue-business-journeys",
+  "apiOrigin": "https://pre-api.example.com",
+  "qaPrefix": "QA_RELEASE_ACCEPTANCE",
+  "auth": {
+    "user": "QA_USER_TOKEN",
+    "merchant": "QA_MERCHANT_TOKEN"
+  },
+  "secrets": {
+    "merchantProductId": "QA_MERCHANT_PRODUCT_ID",
+    "merchantSupplierId": "QA_MERCHANT_SUPPLIER_ID",
+    "shopProductId": "QA_SHOP_PRODUCT_ID"
+  },
+  "journeys": [
+    {
+      "id": "merchant-purchase-order-cycle",
+      "mode": "write",
+      "steps": [
+        {
+          "id": "create-purchase-order",
+          "method": "POST",
+          "path": "/api/v1/merchant-backend/purchase-orders",
+          "auth": "merchant",
+          "body": {
+            "supplierId": "{{secret.merchantSupplierId}}",
+            "supplierName": "{{qaPrefix}} 验收供应商",
+            "remark": "{{qaPrefix}} {{releaseId}} 上线前采购闭环验收；禁止收货入库",
+            "items": [
+              {
+                "productId": "{{secret.merchantProductId}}",
+                "quantity": 1,
+                "unitCost": 0
+              }
+            ]
+          },
+          "expectStatus": [200, 201],
+          "capture": {
+            "purchaseOrderId": "/data/id"
+          }
+        },
+        {
+          "id": "read-purchase-order",
+          "method": "GET",
+          "path": "/api/v1/merchant-backend/purchase-orders/{{capture.purchaseOrderId}}",
+          "auth": "merchant",
+          "expectStatus": [200],
+          "expectJson": [
+            { "pointer": "/data/id", "exists": true },
+            { "pointer": "/data/status", "equals": "DRAFT" }
+          ]
+        }
+      ],
+      "cleanup": [
+        {
+          "id": "verify-cancelled-purchase-order",
+          "method": "GET",
+          "path": "/api/v1/merchant-backend/purchase-orders/{{capture.purchaseOrderId}}",
+          "auth": "merchant",
+          "expectStatus": [200],
+          "expectJson": [{ "pointer": "/data/status", "equals": "CANCELLED" }]
+        },
+        {
+          "id": "cancel-purchase-order",
+          "method": "POST",
+          "path": "/api/v1/merchant-backend/purchase-orders/{{capture.purchaseOrderId}}/cancel",
+          "auth": "merchant",
+          "expectStatus": [200, 201],
+          "expectJson": [{ "pointer": "/data/status", "equals": "CANCELLED" }]
+        }
+      ]
+    },
+    {
+      "id": "customer-order-cycle",
+      "mode": "write",
+      "steps": [
+        {
+          "id": "create-pending-order",
+          "method": "POST",
+          "path": "/api/v1/shop/orders",
+          "auth": "user",
+          "body": {
+            "type": "PRODUCT",
+            "targetId": "{{secret.shopProductId}}",
+            "amount": 1
+          },
+          "expectStatus": [200, 201],
+          "capture": {
+            "shopOrderId": "/data/id"
+          }
+        },
+        {
+          "id": "read-pending-order",
+          "method": "GET",
+          "path": "/api/v1/shop/orders/{{capture.shopOrderId}}",
+          "auth": "user",
+          "expectStatus": [200],
+          "expectJson": [
+            { "pointer": "/data/id", "exists": true },
+            { "pointer": "/data/status", "equals": "PENDING" }
+          ]
+        }
+      ],
+      "cleanup": [
+        {
+          "id": "verify-cancelled-order",
+          "method": "GET",
+          "path": "/api/v1/shop/orders/{{capture.shopOrderId}}",
+          "auth": "user",
+          "expectStatus": [200],
+          "expectJson": [{ "pointer": "/data/status", "equals": "CANCELLED" }]
+        },
+        {
+          "id": "cancel-pending-order",
+          "method": "PUT",
+          "path": "/api/v1/shop/orders/{{capture.shopOrderId}}/cancel",
+          "auth": "user",
+          "expectStatus": [200],
+          "expectJson": [{ "pointer": "/data/status", "equals": "CANCELLED" }]
+        }
+      ]
+    }
+  ]
+}
