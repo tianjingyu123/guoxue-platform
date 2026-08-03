@@ -66,6 +66,7 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
       releaseId,
       success: true,
       summary: { passed: 31, warned: 1, failed: 0, total: 32 },
+      hostPlatform: { osDistribution: "ubuntu", osVersion: "24.04" },
       hostIdentitySha256: "4".repeat(64),
       preflightScriptSha256: "5".repeat(64),
       sourceOutputSha256: "6".repeat(64),
@@ -314,12 +315,7 @@ test("标准部署无需腾讯云证据且九份证据有效时给出 GO", async
 });
 
 test("腾讯部署缺少云资源现场审计时阻断上线", async (t) => {
-  const { result, decision } = await runScenario(
-    t,
-    {},
-    [],
-    ["tencent-cloud-readiness.json"],
-  );
+  const { result, decision } = await runScenario(t, {}, [], ["tencent-cloud-readiness.json"]);
   assert.equal(result.status, 1);
   assert.equal(decision.decision, "BLOCK");
   assert.equal(decision.sources.tencentCloud.sha256, null);
@@ -417,6 +413,20 @@ test("运行实例版本不一致时阻断上线", async (t) => {
   assert.equal(result.status, 1);
   assert.equal(decision.decision, "BLOCK");
   assert.equal(decision.checks.find((item) => item.name.includes("运行时"))?.pass, false);
+});
+
+test("主机预检缺少受支持的 Ubuntu 发行版证据时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "host-preflight-readiness.json": {
+      hostPlatform: { osDistribution: "debian", osVersion: "12" },
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.source === "host-preflight-readiness.json")?.detail || "",
+    /Ubuntu/u,
+  );
 });
 
 test("公网证书剩余不足 14 天或缺少可信指纹时阻断上线", async (t) => {

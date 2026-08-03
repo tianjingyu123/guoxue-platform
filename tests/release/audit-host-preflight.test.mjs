@@ -7,6 +7,7 @@ import test from "node:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..", "..");
 const script = path.join(repoRoot, "scripts", "release", "audit-host-preflight.mjs");
+const preflightScript = path.join(repoRoot, "scripts", "release", "preflight-host.sh");
 const releaseId = "host-preflight-test";
 
 async function runScenario(t, lines, exitCode = 0, expectedReleaseId = releaseId) {
@@ -43,12 +44,22 @@ async function runScenario(t, lines, exitCode = 0, expectedReleaseId = releaseId
     ],
     { cwd: repoRoot, encoding: "utf8" },
   );
-  const report = await readFile(reportPath, "utf8").then(JSON.parse).catch(() => null);
+  const report = await readFile(reportPath, "utf8")
+    .then(JSON.parse)
+    .catch(() => null);
   return { result, report };
 }
 
+test("生产主机预检从 os-release 识别并限制 Ubuntu LTS 支持矩阵", async () => {
+  const content = await readFile(preflightScript, "utf8");
+  assert.match(content, /OS_RELEASE_FILE="\$\{OS_RELEASE_FILE:-\/etc\/os-release\}"/u);
+  assert.match(content, /ubuntu:22\.04\|ubuntu:24\.04\|ubuntu:26\.04/u);
+  assert.match(content, /\[EVIDENCE\] host-platform/u);
+});
+
 test("主机预检通过时生成脱敏且绑定版本的机器证据", async (t) => {
   const { result, report } = await runScenario(t, [
+    "[EVIDENCE] host-platform ubuntu 24.04",
     "[PASS] 操作系统为 Linux",
     "[WARN] 端口 80,443 已被占用；已显式放行",
     "[PASS] Docker Server 可用: 26.1.0",
@@ -56,6 +67,7 @@ test("主机预检通过时生成脱敏且绑定版本的机器证据", async (t
   assert.equal(result.status, 0, result.stderr);
   assert.equal(report.success, true);
   assert.equal(report.releaseId, releaseId);
+  assert.deepEqual(report.hostPlatform, { osDistribution: "ubuntu", osVersion: "24.04" });
   assert.deepEqual(report.summary, { passed: 2, warned: 1, failed: 0, total: 3 });
   assert.match(report.hostIdentitySha256, /^[a-f0-9]{64}$/u);
   assert.ok(report.checks.every((item) => !Object.hasOwn(item, "detail")));
@@ -65,7 +77,7 @@ test("主机预检通过时生成脱敏且绑定版本的机器证据", async (t
 test("主机预检失败时仍落盘阻断证据并返回失败", async (t) => {
   const { result, report } = await runScenario(
     t,
-    ["[PASS] 操作系统为 Linux", "[FAIL] 可用内存不足"],
+    ["[EVIDENCE] host-platform ubuntu 24.04", "[PASS] 操作系统为 Linux", "[FAIL] 可用内存不足"],
     1,
   );
   assert.notEqual(result.status, 0);
@@ -73,13 +85,25 @@ test("主机预检失败时仍落盘阻断证据并返回失败", async (t) => {
   assert.equal(report.summary.failed, 1);
 });
 
+test("缺少真实发行版证据时即使脚本退出成功也阻断", async (t) => {
+  const { result, report } = await runScenario(t, ["[PASS] 操作系统为 Linux"]);
+  assert.notEqual(result.status, 0);
+  assert.equal(report.success, false);
+  assert.equal(report.hostPlatform, null);
+});
+
+test("实际主机不是受支持的 Ubuntu 时阻断", async (t) => {
+  const { result, report } = await runScenario(t, [
+    "[EVIDENCE] host-platform debian 12",
+    "[PASS] 操作系统为 Linux",
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.equal(report.success, false);
+  assert.deepEqual(report.hostPlatform, { osDistribution: "debian", osVersion: "12" });
+});
+
 test("发布目录身份与预期不一致时拒绝执行预检", async (t) => {
-  const { result, report } = await runScenario(
-    t,
-    ["[PASS] 不应执行"],
-    0,
-    "host-preflight-other",
-  );
+  const { result, report } = await runScenario(t, ["[PASS] 不应执行"], 0, "host-preflight-other");
   assert.notEqual(result.status, 0);
   assert.equal(report, null);
   assert.match(result.stderr, /标识与预期不一致/u);

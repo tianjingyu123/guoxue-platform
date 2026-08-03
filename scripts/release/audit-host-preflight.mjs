@@ -85,7 +85,16 @@ if (execution.stderr) process.stderr.write(execution.stderr);
 
 const rawOutput = `${execution.stdout || ""}\n${execution.stderr || ""}`;
 const parsed = [];
+let hostPlatform = null;
 for (const line of rawOutput.split(/\r?\n/u)) {
+  const platformMatch = line.match(/^\[EVIDENCE\]\s+host-platform\s+([a-z0-9._-]+)\s+([0-9.]+)$/u);
+  if (platformMatch) {
+    hostPlatform = {
+      osDistribution: platformMatch[1],
+      osVersion: platformMatch[2],
+    };
+    continue;
+  }
   const match = line.match(/^\[(PASS|WARN|FAIL)\]\s+(.+)$/u);
   if (!match) continue;
   parsed.push({
@@ -102,7 +111,11 @@ const summary = {
   total: parsed.length,
 };
 const executionSucceeded = execution.status === 0 && !execution.error && !execution.signal;
-const success = executionSucceeded && summary.failed === 0 && summary.passed > 0;
+const supportedHostPlatform =
+  hostPlatform?.osDistribution === "ubuntu" &&
+  ["22.04", "24.04", "26.04"].includes(hostPlatform.osVersion);
+const success =
+  executionSucceeded && summary.failed === 0 && summary.passed > 0 && supportedHostPlatform;
 const report = {
   schemaVersion: 1,
   kind: "guoxue-host-preflight-readiness",
@@ -115,6 +128,7 @@ const report = {
     signal: execution.signal || null,
   },
   summary,
+  hostPlatform,
   hostIdentitySha256: createHash("sha256").update(machineIdentityParts.join("\n")).digest("hex"),
   preflightScriptSha256: createHash("sha256").update(scriptContent).digest("hex"),
   sourceOutputSha256: createHash("sha256").update(rawOutput).digest("hex"),
@@ -132,4 +146,6 @@ console.log(
   `主机预检证据：${success ? "PASS" : "FAIL"}（PASS=${summary.passed} WARN=${summary.warned} FAIL=${summary.failed}）`,
 );
 console.log(`证据报告：${reportPath}`);
-if (!success) process.exitCode = Number.isInteger(execution.status) && execution.status !== 0 ? execution.status : 1;
+if (!success)
+  process.exitCode =
+    Number.isInteger(execution.status) && execution.status !== 0 ? execution.status : 1;

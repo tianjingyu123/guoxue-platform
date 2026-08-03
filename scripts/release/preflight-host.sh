@@ -42,6 +42,20 @@ version_at_least() {
   (( actual_major > minimum_major || (actual_major == minimum_major && actual_minor >= minimum_minor) ))
 }
 
+read_os_release_value() {
+  local key="$1"
+  local source_file="$2"
+  awk -v expected="$key" '
+    index($0, "=") > 0 && substr($0, 1, index($0, "=") - 1) == expected {
+      value = substr($0, index($0, "=") + 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^"|"$/, "", value)
+      print value
+      exit
+    }
+  ' "$source_file" 2>/dev/null || true
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$REPO_ROOT}"
@@ -69,6 +83,23 @@ if [ "$(uname -s 2>/dev/null || true)" = "Linux" ]; then
 else
   fail "生产主机必须使用 Linux"
 fi
+
+OS_RELEASE_FILE="${OS_RELEASE_FILE:-/etc/os-release}"
+OS_DISTRIBUTION=""
+OS_VERSION=""
+if [ -r "$OS_RELEASE_FILE" ]; then
+  OS_DISTRIBUTION="$(read_os_release_value ID "$OS_RELEASE_FILE" | tr '[:upper:]' '[:lower:]')"
+  OS_VERSION="$(read_os_release_value VERSION_ID "$OS_RELEASE_FILE")"
+fi
+case "$OS_DISTRIBUTION:$OS_VERSION" in
+  ubuntu:22.04|ubuntu:24.04|ubuntu:26.04)
+    pass "Ubuntu 发行版受支持: $OS_VERSION"
+    ;;
+  *)
+    fail "生产主机发行版不受支持: ${OS_DISTRIBUTION:-unknown} ${OS_VERSION:-unknown}；仅支持 Ubuntu 22.04/24.04/26.04 LTS"
+    ;;
+esac
+printf '[EVIDENCE] host-platform %s %s\n' "${OS_DISTRIBUTION:-unknown}" "${OS_VERSION:-unknown}"
 
 ARCH="$(uname -m 2>/dev/null || true)"
 case "$ARCH" in

@@ -56,7 +56,10 @@ function isEmptyArray(value) {
 }
 
 function normalizeHostname(value) {
-  return String(value || "").trim().toLowerCase().replace(/\.$/u, "");
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\.$/u, "");
 }
 
 function endpointHostname(value) {
@@ -92,9 +95,9 @@ function isValidDnsRecord(record, maximumTtlSeconds = 600) {
 }
 
 function isValidDnsAuthority(record, expectedNameServers) {
-  const nameservers = [...new Set(
-    (record?.nameServers || []).map(normalizeHostname).filter(Boolean),
-  )].sort();
+  const nameservers = [
+    ...new Set((record?.nameServers || []).map(normalizeHostname).filter(Boolean)),
+  ].sort();
   return (
     Boolean(normalizeHostname(record?.hostname)) &&
     Boolean(normalizeHostname(record?.zone)) &&
@@ -181,7 +184,14 @@ const definitions = [
       if (data.kind !== "guoxue-host-preflight-readiness") {
         problems.push("主机预检证据类型无效");
       }
-      if (data.releaseId !== releaseId) problems.push(`主机预检发布标识为 ${String(data.releaseId)}`);
+      if (data.releaseId !== releaseId)
+        problems.push(`主机预检发布标识为 ${String(data.releaseId)}`);
+      if (
+        data.hostPlatform?.osDistribution !== "ubuntu" ||
+        !["22.04", "24.04", "26.04"].includes(data.hostPlatform?.osVersion)
+      ) {
+        problems.push("主机预检缺少受支持的 Ubuntu 发行版证据");
+      }
       if (
         data.success !== true ||
         data.summary?.failed !== 0 ||
@@ -467,9 +477,7 @@ const definitions = [
       }
       if (
         !data.endpoints ||
-        ["api", "h5", "admin", "asset"].some(
-          (key) => !endpointHostname(data.endpoints?.[key]),
-        )
+        ["api", "h5", "admin", "asset"].some((key) => !endpointHostname(data.endpoints?.[key]))
       ) {
         problems.push("公网运行时端点证据无效");
       }
@@ -478,11 +486,13 @@ const definitions = [
         .filter(Boolean);
       const uniqueEndpointHosts = [...new Set(endpointHosts)];
       const maximumTtlSeconds = Number(data.dnsTtlPolicy?.maximumSeconds);
-      const expectedNameServers = [...new Set(
-        (Array.isArray(data.authoritativeNameServers) ? data.authoritativeNameServers : [])
-          .map(normalizeHostname)
-          .filter(Boolean),
-      )].sort();
+      const expectedNameServers = [
+        ...new Set(
+          (Array.isArray(data.authoritativeNameServers) ? data.authoritativeNameServers : [])
+            .map(normalizeHostname)
+            .filter(Boolean),
+        ),
+      ].sort();
       if (
         !Number.isInteger(maximumTtlSeconds) ||
         maximumTtlSeconds < 60 ||
@@ -605,9 +615,7 @@ const definitions = [
         !["none", "redirect"].includes(data.publicCompliance?.legacyOriginMode) ||
         !Number.isInteger(data.publicCompliance?.legacyOriginCount) ||
         data.publicCompliance.legacyOriginCount < 0 ||
-        !/^[a-f0-9]{64}$/u.test(
-          String(data.publicCompliance?.legacyOriginsFingerprint || ""),
-        ) ||
+        !/^[a-f0-9]{64}$/u.test(String(data.publicCompliance?.legacyOriginsFingerprint || "")) ||
         !Array.isArray(data.publicCompliance?.legacyRedirectObservations) ||
         data.publicCompliance.legacyRedirectObservations.length !==
           data.publicCompliance.legacyOriginCount ||
@@ -631,11 +639,15 @@ const definitions = [
         const clbVips = new Set(clbInstance.loadBalancerVips || []);
         const clbDomain = normalizeHostname(clbInstance.domain);
         const assetHost = endpointHostname(data.endpoints?.asset);
-        const applicationHosts = [...new Set([
-          endpointHostname(data.endpoints?.api),
-          endpointHostname(data.endpoints?.h5),
-          endpointHostname(data.endpoints?.admin),
-        ].filter(Boolean))];
+        const applicationHosts = [
+          ...new Set(
+            [
+              endpointHostname(data.endpoints?.api),
+              endpointHostname(data.endpoints?.h5),
+              endpointHostname(data.endpoints?.admin),
+            ].filter(Boolean),
+          ),
+        ];
         const applicationsBound =
           dnsObservationMaps.length === expectedDnsResolvers.length &&
           dnsObservationMaps.every(({ byHost }) =>
