@@ -60,7 +60,7 @@ docker run --rm \
   -e "BASE_URL=${base_url}" \
   -e "VUS=${vus}" \
   -e "DURATION=${duration}" \
-  grafana/k6:latest run /script.js
+  grafana/k6:2.1.0@sha256:65c920dc067d5e2e00befbf982af6ad6ad0117034e8b1c65817c7975c52d4669 run /script.js
 k6_status=$?
 set -e
 

@@ -9,6 +9,8 @@ import { auditContainerImages } from "../../scripts/release/audit-container-imag
 
 const requiredFiles = [
   ".cnb.yml",
+  ".github/workflows/ci.yml",
+  ".github/workflows/perf.yml",
   "docker/Dockerfile",
   "docker/Dockerfile.dev",
   "docker/Dockerfile.test",
@@ -17,6 +19,13 @@ const requiredFiles = [
   "docker/docker-compose.test.yml",
   "docker/docker-compose.iiif.yml",
   "docker/monitoring/docker-compose.yml",
+  "docker/setup-server.sh",
+  "docker/renew-ssl.sh",
+  "docker/nginx/setup-ssl.sh",
+  "scripts/operations/deploy-monitoring-config.sh",
+  "scripts/operations/deploy-nginx-clb-config.sh",
+  "scripts/operations/restore-postgres-rehearsal-in-container.sh",
+  "scripts/operations/run-k6-node-capacity.sh",
 ];
 
 function withRepository(overrides, callback) {
@@ -64,6 +73,24 @@ test("拒绝 latest 与未锁摘要的普通版本标签", () => {
       assert.equal(result.errors.length, 2);
       assert.ok(result.errors.some((error) => error.includes("redis:7-alpine")));
       assert.ok(result.errors.some((error) => error.includes("禁止使用 latest")));
+    },
+  );
+});
+
+test("审计 CI 服务与 shell 中的变量、默认值及 docker run 镜像", () => {
+  withRepository(
+    {
+      ".github/workflows/ci.yml": `services:\n  db:\n    image: postgres:16@sha256:${"d".repeat(64)}\n`,
+      "docker/renew-ssl.sh": `CERTBOT_IMAGE="\${CERTBOT_IMAGE:-certbot/certbot:v3.2.0@sha256:${"e".repeat(64)}}"\n`,
+      "scripts/operations/restore-postgres-rehearsal-in-container.sh": `image="postgres:18.4@sha256:${"f".repeat(64)}"\n`,
+      "scripts/operations/run-k6-node-capacity.sh": `  grafana/k6:latest run /script.js\n`,
+    },
+    (root) => {
+      const result = auditContainerImages(root);
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0], /grafana\/k6:latest/u);
+      assert.ok(result.references.some((item) => item.reference.startsWith("certbot/certbot:")));
+      assert.ok(result.references.some((item) => item.reference.startsWith("postgres:18.4@")));
     },
   );
 });

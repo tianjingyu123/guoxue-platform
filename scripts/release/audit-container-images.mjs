@@ -10,6 +10,8 @@ const defaultRepoRoot = path.resolve(path.dirname(scriptPath), "..", "..");
 
 const auditedFiles = [
   ".cnb.yml",
+  ".github/workflows/ci.yml",
+  ".github/workflows/perf.yml",
   "docker/Dockerfile",
   "docker/Dockerfile.dev",
   "docker/Dockerfile.test",
@@ -18,6 +20,13 @@ const auditedFiles = [
   "docker/docker-compose.test.yml",
   "docker/docker-compose.iiif.yml",
   "docker/monitoring/docker-compose.yml",
+  "docker/setup-server.sh",
+  "docker/renew-ssl.sh",
+  "docker/nginx/setup-ssl.sh",
+  "scripts/operations/deploy-monitoring-config.sh",
+  "scripts/operations/deploy-nginx-clb-config.sh",
+  "scripts/operations/restore-postgres-rehearsal-in-container.sh",
+  "scripts/operations/run-k6-node-capacity.sh",
 ];
 
 // 该上游镜像目前匿名访问 GHCR 清单会返回 403；版本已固定，必须在新主机使用实际发布凭据拉取验收。
@@ -39,7 +48,19 @@ function extractImageReferences(content) {
   normalized.split("\n").forEach((line, index) => {
     const fromMatch = line.match(/^\s*FROM\s+([^\s]+)(?:\s+AS\s+[^\s]+)?\s*$/iu);
     const imageMatch = line.match(/^\s*image:\s*([^\s#]+)\s*(?:#.*)?$/u);
-    const reference = fromMatch?.[1] ?? imageMatch?.[1];
+    const shellDefaultMatch = line.match(
+      /^\s*(?:CERTBOT_IMAGE|image)=["']\$\{[^:}]+:-([^}]+)\}["']\s*$/u,
+    );
+    const shellAssignmentMatch = line.match(/^\s*(?:CERTBOT_IMAGE|image)=["']([^"'$]+)["']\s*$/u);
+    const shellLiteralMatch = line.match(
+      /^\s*((?:[a-z0-9.-]+\/)*[a-z0-9._-]+:[a-z0-9._-]+(?:@sha256:[0-9a-f]{64})?)(?:\s|\\|$)/iu,
+    );
+    const reference =
+      fromMatch?.[1] ??
+      imageMatch?.[1] ??
+      shellDefaultMatch?.[1] ??
+      shellAssignmentMatch?.[1] ??
+      shellLiteralMatch?.[1];
     if (reference) references.push({ line: index + 1, reference });
   });
 

@@ -13,15 +13,15 @@ test("standard 证书续期具备期限短路、互斥锁、演练和失败恢�
     'DEPLOY_TARGET" != "standard"',
     "flock -n 9",
     'openssl x509 -checkend "$RENEW_BEFORE_SECONDS"',
-    'certbot_args+=(--dry-run)',
-    'trap restore_nginx EXIT INT TERM',
+    "certbot_args+=(--dry-run)",
+    "trap restore_nginx EXIT INT TERM",
     'mv -f "$tmp_fullchain" "$SSL_DIR/fullchain.pem"',
     'mv -f "$tmp_privkey" "$SSL_DIR/privkey.pem"',
     'docker exec "$NGINX_CONTAINER" nginx -t',
   ]) {
     assert.ok(source.includes(snippet), `缺少续期保护：${snippet}`);
   }
-  assert.match(source, /certbot\/certbot:v\d+\.\d+\.\d+/u);
+  assert.match(source, /certbot\/certbot:v\d+\.\d+\.\d+@sha256:[0-9a-f]{64}/u);
   assert.equal(source.includes("latest"), false);
 });
 
@@ -37,14 +37,11 @@ test("初始化仅为 standard 架构安装续期计划并会清理旧重复项"
 });
 
 test("手工补证也复用固定镜像、共享目录与统一续期入口", async () => {
-  const source = await readFile(
-    path.join(projectRoot, "docker", "nginx", "setup-ssl.sh"),
-    "utf8",
-  );
+  const source = await readFile(path.join(projectRoot, "docker", "nginx", "setup-ssl.sh"), "utf8");
   for (const snippet of [
     "set -Eeuo pipefail",
     'SSL_DIR="${SSL_DIR:-$PLATFORM_ROOT/shared/nginx-ssl}"',
-    'CERTBOT_IMAGE="certbot/certbot:v3.2.0"',
+    'CERTBOT_IMAGE="certbot/certbot:v3.2.0@sha256:3ad1eb352f6b2ae3f359dce4b262f699cc178be0ab9d9f375210e8741404720e"',
     "flock -n 9",
     'openssl x509 -in "$CERT_SRC/fullchain.pem" -noout -checkend 2592000',
     'mv -f "$tmp_fullchain" "$SSL_DIR/fullchain.pem"',

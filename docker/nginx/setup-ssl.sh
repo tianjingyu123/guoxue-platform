@@ -10,7 +10,7 @@ PLATFORM_ROOT="${PLATFORM_ROOT:-/opt/guoxue}"
 ENV_FILE="${ENV_FILE:-$PLATFORM_ROOT/shared/.env.production}"
 SSL_DIR="${SSL_DIR:-$PLATFORM_ROOT/shared/nginx-ssl}"
 NGINX_CONTAINER="${NGINX_CONTAINER:-guoxue-nginx}"
-CERTBOT_IMAGE="certbot/certbot:v3.2.0"
+CERTBOT_IMAGE="certbot/certbot:v3.2.0@sha256:3ad1eb352f6b2ae3f359dce4b262f699cc178be0ab9d9f375210e8741404720e"
 RENEW_SCRIPT="$PLATFORM_ROOT/current/docker/renew-ssl.sh"
 LOCK_FILE="${LOCK_FILE:-/var/lock/guoxue-tls-renewal.lock}"
 

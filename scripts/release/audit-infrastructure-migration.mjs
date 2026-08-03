@@ -95,7 +95,7 @@ add(
     "flock -n 9",
     'openssl x509 -checkend "$RENEW_BEFORE_SECONDS"',
     "certbot_args+=(--dry-run)",
-    "certbot/certbot:v3.2.0",
+    "certbot/certbot:v3.2.0@sha256:3ad1eb352f6b2ae3f359dce4b262f699cc178be0ab9d9f375210e8741404720e",
     "trap restore_nginx EXIT INT TERM",
     'mv -f "$tmp_fullchain" "$SSL_DIR/fullchain.pem"',
     'docker exec "$NGINX_CONTAINER" nginx -t',
@@ -107,7 +107,7 @@ add(
       "DEPLOY_TARGET=standard PLATFORM_ROOT=$PLATFORM_ROOT",
     ]) &&
     hasAll(standardTlsBootstrap, [
-      'CERTBOT_IMAGE="certbot/certbot:v3.2.0"',
+      'CERTBOT_IMAGE="certbot/certbot:v3.2.0@sha256:3ad1eb352f6b2ae3f359dce4b262f699cc178be0ab9d9f375210e8741404720e"',
       "flock -n 9",
       'RENEW_SCRIPT="$PLATFORM_ROOT/current/docker/renew-ssl.sh"',
       "guoxue-tls-renewal.log",

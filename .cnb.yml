@@ -77,10 +77,10 @@ main:
                   -e POSTGRES_PASSWORD=test123 \
                   -e POSTGRES_DB=guoxue_test \
                   -p 5432:5432 \
-                  pgvector/pgvector:pg16 2>/dev/null || true
+                  pgvector/pgvector:pg16@sha256:a36250871de0833b8757561c72f2477ef1ddd1101afa4e617fb552e0de514c6b 2>/dev/null || true
                 docker run -d --name redis-test \
                   -p 6379:6379 \
-                  redis:7-alpine 2>/dev/null || true
+                  redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2 2>/dev/null || true
                 # 等待就绪
                 for i in $(seq 1 15); do
                   if docker exec pg-test pg_isready -U guoxue_test 2>/dev/null; then break; fi
@@ -295,10 +295,10 @@ main:
                   -e POSTGRES_PASSWORD=guoxue123 \
                   -e POSTGRES_DB=guoxue \
                   -p 5432:5432 \
-                  postgres:16-alpine 2>/dev/null || true
+                  postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777 2>/dev/null || true
                 docker run -d --name redis-perf \
                   -p 6379:6379 \
-                  redis:7-alpine 2>/dev/null || true
+                  redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2 2>/dev/null || true
                 for i in $(seq 1 15); do
                   if docker exec pg-perf pg_isready -U guoxue 2>/dev/null; then break; fi
                   sleep 2

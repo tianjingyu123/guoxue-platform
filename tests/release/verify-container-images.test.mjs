@@ -23,8 +23,11 @@ test("运维节点同时覆盖监控镜像，可显式追加 IIIF 受控例外",
     nodeRole: "operations",
     includeIiif: true,
   });
-  assert.equal(operations.length, 14);
-  assert.equal(withIiif.length, 16);
+  assert.equal(operations.length, 17);
+  assert.equal(withIiif.length, 19);
+  assert.ok(operations.some((item) => item.reference.startsWith("certbot/certbot:v3.2.0@")));
+  assert.ok(operations.some((item) => item.reference.startsWith("postgres:18.4@")));
+  assert.ok(operations.some((item) => item.reference.startsWith("grafana/k6:2.1.0@")));
   assert.equal(withIiif.filter((item) => item.controlledException).length, 1);
 });
 

@@ -540,7 +540,7 @@ openssl x509 -in docker/nginx/ssl/fullchain.pem -noout -enddate
 
 # 手动续期
 docker run --rm -v $(pwd)/docker/nginx/ssl:/etc/letsencrypt \
-  -p 80:80 certbot/certbot:v3.2.0 renew
+  -p 80:80 certbot/certbot:v3.2.0@sha256:3ad1eb352f6b2ae3f359dce4b262f699cc178be0ab9d9f375210e8741404720e renew
 
 # 重启 Nginx 生效
 docker compose restart nginx

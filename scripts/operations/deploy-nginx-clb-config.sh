@@ -76,7 +76,7 @@ docker run --rm \
   -e NGINX_SERVER_NAMES="${nginx_server_names}" \
   -v "${incoming[nginx/nginx.clb.conf.template]}:/tmp/nginx.clb.conf.template:ro" \
   -v "${incoming[nginx/security-headers.conf]}:/etc/nginx/snippets/security-headers.conf:ro" \
-  nginx:1.27-alpine \
+  nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 \
   sh -ec 'envsubst '\''$NGINX_SERVER_NAMES'\'' < /tmp/nginx.clb.conf.template > /etc/nginx/nginx.conf; nginx -t'
 
 install -d -m 0750 "${backup_dir}/nginx"

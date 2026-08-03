@@ -66,7 +66,7 @@ node "${project_root}/scripts/release/render-monitoring-config.mjs" "${env_file}
 docker run --rm --entrypoint /bin/promtool \
   -v "${monitoring_dir}/.generated/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
   -v "${monitoring_dir}/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro" \
-  prom/prometheus:v2.55.1 \
+  prom/prometheus:v2.55.1@sha256:2659f4c2ebb718e7695cb9b25ffa7d6be64db013daba13e05c875451cf51b0d3 \
   check config /etc/prometheus/prometheus.yml
 
 docker network inspect monitoring >/dev/null 2>&1 || docker network create monitoring >/dev/null

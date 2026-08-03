@@ -19,6 +19,15 @@ const productionFiles = new Set([
 ]);
 const monitoringFile = "docker/monitoring/docker-compose.yml";
 const iiifFile = "docker/docker-compose.iiif.yml";
+const operationsFiles = new Set([
+  "docker/setup-server.sh",
+  "docker/renew-ssl.sh",
+  "docker/nginx/setup-ssl.sh",
+  "scripts/operations/deploy-monitoring-config.sh",
+  "scripts/operations/deploy-nginx-clb-config.sh",
+  "scripts/operations/restore-postgres-rehearsal-in-container.sh",
+  "scripts/operations/run-k6-node-capacity.sh",
+]);
 
 function normalizeArchitecture(architecture) {
   const value = String(architecture || "")
@@ -61,7 +70,10 @@ export function collectTargetImages(
   }
 
   const selectedFiles = new Set(productionFiles);
-  if (nodeRole === "operations") selectedFiles.add(monitoringFile);
+  if (nodeRole === "operations") {
+    selectedFiles.add(monitoringFile);
+    for (const file of operationsFiles) selectedFiles.add(file);
+  }
   if (includeIiif) selectedFiles.add(iiifFile);
 
   const exceptions = new Set(audit.exceptions.map((item) => item.reference));

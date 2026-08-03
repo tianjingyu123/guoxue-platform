@@ -26,7 +26,7 @@ test -f "$DUMP_FILE" || {
 }
 
 container="guoxue-restore-drill-${DRILL_ID}"
-image="postgres:18.4"
+image="postgres:18.4@sha256:3a82e1f56c8f0f5616a11103ac3d47e632c3938698946a7ad26da0df1334744a"
 label_key="rebugx.restore-drill"
 
 if docker inspect "$container" >/dev/null 2>&1; then

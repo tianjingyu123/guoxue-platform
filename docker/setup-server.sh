@@ -331,7 +331,7 @@ if [ "$DEPLOY_TARGET" = "standard" ] && [ ! -f "$SSL_DIR/fullchain.pem" ] && [ -
   if docker run --rm \
     -v "$SSL_DIR:/etc/letsencrypt" \
     -p 80:80 \
-    certbot/certbot:v3.2.0 \
+    certbot/certbot:v3.2.0@sha256:3ad1eb352f6b2ae3f359dce4b262f699cc178be0ab9d9f375210e8741404720e \
     certonly --standalone --non-interactive --agree-tos \
     -m "$LETSENCRYPT_EMAIL" \
     -d "$DOMAIN"; then
