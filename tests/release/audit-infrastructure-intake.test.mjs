@@ -17,6 +17,8 @@ function completeIntake() {
       provider: "腾讯云",
       region: "ap-beijing",
       osFamily: "linux",
+      osDistribution: "ubuntu",
+      osVersion: "24.04",
       architecture: "x86_64",
       cpuCores: 4,
       memoryMb: 8192,
@@ -431,6 +433,26 @@ test("采购阶段阻断低配服务器和未启用恢复保护的数据库", as
         .map((item) => item.name)
         .join("\n"),
       /服务器容量达到首发最低线|PostgreSQL 规格与保护策略满足要求/,
+    );
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
+test("采购阶段阻断未经验收的服务器发行版与版本", async () => {
+  const intake = completeIntake();
+  intake.server.osDistribution = "debian";
+  intake.server.osVersion = "12";
+  const audit = await runAudit(intake, "procurement");
+  try {
+    assert.notEqual(audit.result.status, 0);
+    assert.equal(audit.report.success, false);
+    assert.match(
+      audit.report.checks
+        .filter((item) => !item.pass)
+        .map((item) => item.name)
+        .join("\n"),
+      /服务器系统属于生产验收支持矩阵/u,
     );
   } finally {
     await rm(audit.root, { recursive: true, force: true });
@@ -930,8 +952,7 @@ test("launch 阶段要求微信内授权分享与小程序合法域名完成真�
   const blocked = await runAudit(incomplete, "launch", "tencent", environment);
 
   const mismatched = structuredClone(intake);
-  mismatched.externalEndpoints.wechatClientDelivery.officialAccountAppId =
-    "wx0000000000000000";
+  mismatched.externalEndpoints.wechatClientDelivery.officialAccountAppId = "wx0000000000000000";
   const mismatchedAudit = await runAudit(mismatched, "predeploy", "tencent", environment);
   try {
     assert.equal(complete.result.status, 0, complete.result.stderr || complete.result.stdout);
@@ -1593,10 +1614,7 @@ test("启用物流后拒绝错绑账号和不完整轨迹异常退货闭环", as
       .map((item) => item.name)
       .join("\n");
     assert.match(failures, /首发物流供应商、账号身份和履约责任已绑定/u);
-    assert.match(
-      failures,
-      /首发物流供应商已完成真实运单、轨迹回调、异常件和退货联动闭环/u,
-    );
+    assert.match(failures, /首发物流供应商已完成真实运单、轨迹回调、异常件和退货联动闭环/u);
     assert.match(failures, /正式环境与新基础设施接入清单完全绑定/u);
   } finally {
     await rm(audit.root, { recursive: true, force: true });

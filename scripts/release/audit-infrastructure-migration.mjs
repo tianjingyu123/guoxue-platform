@@ -1593,6 +1593,22 @@ const infrastructureOperationsGuide = read(
   "docs/operations/新基础设施与正式凭据交接清单-20260731.md",
 );
 add(
+  "采购接入清单锁定生产系统支持矩阵",
+  hasAll(infrastructureIntakeTemplate, [
+    '"osFamily": "linux"',
+    '"osDistribution": "ubuntu"',
+    '"osVersion": "24.04"',
+  ]) &&
+    hasAll(infrastructureIntakeAudit, [
+      'text(server.osDistribution).toLowerCase() === "ubuntu"',
+      '["22.04", "24.04"].includes(text(server.osVersion))',
+      "服务器系统属于生产验收支持矩阵",
+    ]) &&
+    infrastructureIntakeTest.includes("采购阶段阻断未经验收的服务器发行版与版本") &&
+    hasAll(infrastructureOperationsGuide, ["Ubuntu 22.04/24.04 LTS", "发行版与版本"]),
+  "采购阶段必须明确记录 Ubuntu 发行版和 22.04/24.04 LTS 版本；不能等到初始化主机时才发现所购镜像不受支持",
+);
+add(
   "新基础设施接入门禁覆盖迁移权限、演练与旧环境回退保留",
   hasAll(infrastructureIntakeTemplate, [
     '"sourceDatabaseAccessVerified"',

@@ -111,12 +111,14 @@ const isDomainName = (value) => {
   return (
     domain.length <= 253 &&
     domain.includes(".") &&
-    domain.split(".").every(
-      (label) =>
-        label.length > 0 &&
-        label.length <= 63 &&
-        /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/iu.test(label),
-    )
+    domain
+      .split(".")
+      .every(
+        (label) =>
+          label.length > 0 &&
+          label.length <= 63 &&
+          /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/iu.test(label),
+      )
   );
 };
 const parseMailbox = (value) => {
@@ -196,10 +198,11 @@ const isPublicIpv4 = (value) => {
   }
   return true;
 };
-const enabled = (...keys) => keys.some((key) => {
-  const value = text(environmentValues.get(key));
-  return value && !isPlaceholder(value);
-});
+const enabled = (...keys) =>
+  keys.some((key) => {
+    const value = text(environmentValues.get(key));
+    return value && !isPlaceholder(value);
+  });
 const deriveOutboundDependencyIds = () => {
   const ids = new Set();
   const addWhen = (condition, id) => {
@@ -292,8 +295,9 @@ if (envFileArg) {
 const rawPlannedLegacyOrigins = Array.isArray(publicCompliance.legacyOrigins)
   ? publicCompliance.legacyOrigins
   : [];
-const plannedLegacyOrigins = [...new Set(rawPlannedLegacyOrigins.map(normalizeOrigin).filter(Boolean))]
-  .sort();
+const plannedLegacyOrigins = [
+  ...new Set(rawPlannedLegacyOrigins.map(normalizeOrigin).filter(Boolean)),
+].sort();
 const configuredLegacyOrigins = [
   ...new Set(
     text(environmentValues.get("MIGRATION_OLD_ORIGINS"))
@@ -363,9 +367,7 @@ const configuredLogisticsProviders = [
     accountReference: text(environmentValues.get("KUAIDI100_CUSTOMER")),
     enabled: isFilled(environmentValues.get("KUAIDI100_API_KEY")),
   },
-].filter(
-  (item) => item.enabled && item.accountReference && !isPlaceholder(item.accountReference),
-);
+].filter((item) => item.enabled && item.accountReference && !isPlaceholder(item.accountReference));
 const logisticsEnabled = configuredLogisticsProviders.length > 0;
 const configuredPrimaryLogisticsProvider = configuredLogisticsProviders.find(
   (item) => item.providerId === text(logisticsDelivery.providerId).toLowerCase(),
@@ -374,23 +376,15 @@ const liveEnabled = enabled("LIVE_PUSH_DOMAIN", "LIVE_PLAY_DOMAIN");
 const vodEnabled = enabled("VOD_SUB_APP_ID");
 const voiceEnabled = enabled("TRTC_SDK_APP_ID");
 const mediaEnabled = liveEnabled || vodEnabled || voiceEnabled;
-const configuredMiniProgramAppId = [
-  "WECHAT_MINI_APP_ID",
-  "MINIPROGRAM_APP_ID",
-  "WECHAT_MP_APP_ID",
-]
+const configuredMiniProgramAppId = ["WECHAT_MINI_APP_ID", "MINIPROGRAM_APP_ID", "WECHAT_MP_APP_ID"]
   .map((key) => text(environmentValues.get(key)))
   .find((value) => isFilled(value));
 const configuredOfficialAccountAppId = text(environmentValues.get("WECHAT_OFFICIAL_APPID"));
 const miniProgramEnabled = Boolean(configuredMiniProgramAppId);
 const officialAccountEnabled = isFilled(configuredOfficialAccountAppId);
 const configuredMediaIdentity = {
-  livePushDomain: liveEnabled
-    ? normalizeHostname(environmentValues.get("LIVE_PUSH_DOMAIN"))
-    : "",
-  livePlayDomain: liveEnabled
-    ? normalizeHostname(environmentValues.get("LIVE_PLAY_DOMAIN"))
-    : "",
+  livePushDomain: liveEnabled ? normalizeHostname(environmentValues.get("LIVE_PUSH_DOMAIN")) : "",
+  livePlayDomain: liveEnabled ? normalizeHostname(environmentValues.get("LIVE_PLAY_DOMAIN")) : "",
   vodSubAppId: vodEnabled ? text(environmentValues.get("VOD_SUB_APP_ID")) : "",
   trtcSdkAppId: voiceEnabled ? text(environmentValues.get("TRTC_SDK_APP_ID")) : "",
 };
@@ -425,6 +419,12 @@ add(
     text(server.osFamily).toLowerCase() === "linux" &&
     ["x86_64", "amd64", "aarch64", "arm64"].includes(text(server.architecture).toLowerCase()),
   "生产主机必须为受支持的 Linux 架构",
+);
+add(
+  "服务器系统属于生产验收支持矩阵",
+  text(server.osDistribution).toLowerCase() === "ubuntu" &&
+    ["22.04", "24.04"].includes(text(server.osVersion)),
+  "生产初始化仅验收 Ubuntu 22.04/24.04 LTS；采购阶段不得用笼统的 Linux、未验收发行版或滚动版本代替",
 );
 add(
   "服务器容量达到首发最低线",
@@ -485,17 +485,13 @@ const h5Host = (() => {
     return "";
   }
 })();
-const rawAppLinkPaths = Array.isArray(appDeepLinks.pathPatterns)
-  ? appDeepLinks.pathPatterns
-  : [];
+const rawAppLinkPaths = Array.isArray(appDeepLinks.pathPatterns) ? appDeepLinks.pathPatterns : [];
 const plannedAppLinkPaths = rawAppLinkPaths.map(normalizeAppLinkPath).filter(Boolean).sort();
 const appLinkPathsValid =
   rawAppLinkPaths.length > 0 &&
   plannedAppLinkPaths.length === rawAppLinkPaths.length &&
   new Set(plannedAppLinkPaths).size === plannedAppLinkPaths.length;
-const rawAndroidCertificateFingerprints = Array.isArray(
-  appDeepLinksAndroid.sha256CertFingerprints,
-)
+const rawAndroidCertificateFingerprints = Array.isArray(appDeepLinksAndroid.sha256CertFingerprints)
   ? appDeepLinksAndroid.sha256CertFingerprints
   : [];
 const plannedAndroidCertificateFingerprints = rawAndroidCertificateFingerprints
@@ -768,8 +764,10 @@ const storageCorsAllowedOriginsValid =
   });
 const isIsoUtc = (value) => {
   const normalized = text(value);
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(normalized) &&
-    Number.isFinite(Date.parse(normalized));
+  return (
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(normalized) &&
+    Number.isFinite(Date.parse(normalized))
+  );
 };
 const storageManifestSha256Valid = (value) => /^[a-f0-9]{64}$/u.test(text(value));
 const storageInventorySummariesValid =
@@ -931,8 +929,7 @@ if (resourceReady) {
     /^[A-Z0-9]{10}$/u.test(text(appDeepLinksIos.teamId).toUpperCase()) &&
       !isPlaceholder(appDeepLinksIos.teamId) &&
       rawAndroidCertificateFingerprints.length > 0 &&
-      plannedAndroidCertificateFingerprints.length ===
-        rawAndroidCertificateFingerprints.length &&
+      plannedAndroidCertificateFingerprints.length === rawAndroidCertificateFingerprints.length &&
       new Set(plannedAndroidCertificateFingerprints).size ===
         plannedAndroidCertificateFingerprints.length,
     "预部署前必须登记 Apple Developer Team ID 与正式发布签名 SHA-256；使用应用商店重签名时必须登记商店实际签名指纹",
@@ -1021,9 +1018,7 @@ if (resourceReady) {
         ? [
             mediaDelivery.owner,
             mediaDelivery.evidenceReference,
-            ...(liveEnabled
-              ? [mediaDelivery.livePushDomain, mediaDelivery.livePlayDomain]
-              : []),
+            ...(liveEnabled ? [mediaDelivery.livePushDomain, mediaDelivery.livePlayDomain] : []),
             ...(vodEnabled ? [mediaDelivery.vodSubAppId] : []),
             ...(voiceEnabled ? [mediaDelivery.trtcSdkAppId] : []),
           ]
@@ -1122,8 +1117,7 @@ if (launch) {
   add(
     "旧域名永久跳转已现场验收",
     plannedLegacyOrigins.length === 0 ||
-      (legacyOriginMode === "redirect" &&
-        publicCompliance.legacyOriginHandlingVerified === true),
+      (legacyOriginMode === "redirect" && publicCompliance.legacyOriginHandlingVerified === true),
     "存在旧生产域名时必须完成到新 H5 入口的 301/308 永久跳转并留存证据，禁止仅关闭旧站或使用临时跳转",
   );
   add(
@@ -1147,8 +1141,7 @@ if (launch) {
   add(
     "已启用短信与微信登录通道已逐端现场验收",
     (!smsEnabled || authenticationDelivery.smsLoginVerified === true) &&
-      (!miniProgramEnabled ||
-        authenticationDelivery.miniProgramWechatLoginVerified === true) &&
+      (!miniProgramEnabled || authenticationDelivery.miniProgramWechatLoginVerified === true) &&
       (!officialAccountEnabled ||
         authenticationDelivery.officialAccountWechatLoginVerified === true),
     "正式环境启用短信、小程序微信或公众号微信登录时，必须分别在真实客户端完成登录并确认落到同一迁移账号，未启用通道不强制验收",
@@ -1578,126 +1571,132 @@ const report = {
           ),
       }
     : null,
-  emailDeliveryEvidence: launch && emailEnabled
-    ? {
-        sendingDomainFingerprint: fingerprint(sendingDomain),
-        returnPathDomainFingerprint: fingerprint(returnPathDomain),
-        verified:
-          emailDelivery.spfVerified === true &&
-          emailDelivery.dkimVerified === true &&
-          emailDelivery.dmarcVerified === true &&
-          emailDelivery.bounceHandlingVerified === true &&
-          emailDelivery.complaintHandlingVerified === true &&
-          emailDelivery.unsubscribeVerified === true &&
-          emailDelivery.deliverySmokeTestPassed === true,
-      }
-    : null,
-  smsDeliveryEvidence: launch && smsEnabled
-    ? {
-        configurationFingerprint: fingerprint({
-          appId: configuredSmsAppId,
-          signName: configuredSmsSignName,
-          verificationTemplateId: configuredSmsVerificationTemplateId,
-          retentionTemplateId: configuredSmsRetentionTemplateId,
-        }),
-        retentionEnabled: smsRetentionEnabled,
-        verified:
-          smsDelivery.signApproved === true &&
-          smsDelivery.verificationTemplateApproved === true &&
-          smsDelivery.deliveryReceiptVerified === true &&
-          smsDelivery.realNumberSmokeTestPassed === true &&
-          smsDelivery.alternateLoginVerified === true &&
-          (!smsRetentionEnabled ||
-            (smsDelivery.retentionTemplateApproved === true &&
-              smsDelivery.retentionConsentAndOptOutVerified === true)),
-      }
-    : null,
-  paymentDeliveryEvidence: launch && paymentEnabled
-    ? {
-        configurationFingerprint: fingerprint({
-          channelId: text(paymentDelivery.channelId).toLowerCase(),
-          merchantReference: text(paymentDelivery.merchantReference),
-        }),
-        verified:
-          paymentDelivery.productionAccountVerified === true &&
-          paymentDelivery.smallAmountPaymentPassed === true &&
-          paymentDelivery.paymentCallbackVerified === true &&
-          paymentDelivery.orderLedgerVerified === true &&
-          paymentDelivery.refundSmokeTestPassed === true &&
-          paymentDelivery.refundCallbackVerified === true &&
-          paymentDelivery.reconciliationVerified === true &&
-          paymentDelivery.duplicateCallbackReplayVerified === true,
-      }
-    : null,
-  logisticsDeliveryEvidence: launch && logisticsEnabled
-    ? {
-        configurationFingerprint: fingerprint({
-          providerId: text(logisticsDelivery.providerId).toLowerCase(),
-          accountReference: text(logisticsDelivery.accountReference),
-        }),
-        verified:
-          logisticsDelivery.productionAccountVerified === true &&
-          logisticsDelivery.controlledWaybillVerified === true &&
-          logisticsDelivery.trackingSubscriptionVerified === true &&
-          logisticsDelivery.trackingCallbackAuthenticated === true &&
-          logisticsDelivery.trackingStatePersisted === true &&
-          logisticsDelivery.deliveryExceptionVerified === true &&
-          logisticsDelivery.returnRefundLinkageVerified === true &&
-          logisticsDelivery.duplicateCallbackReplayVerified === true,
-      }
-    : null,
-  mediaDeliveryEvidence: launch && mediaEnabled
-    ? {
-        configurationFingerprint: fingerprint(plannedMediaIdentity),
-        liveVerified:
-          !liveEnabled ||
-          (mediaDelivery.liveProductionAccountVerified === true &&
-            mediaDelivery.livePushVerified === true &&
-            mediaDelivery.livePlaybackVerified === true &&
-            mediaDelivery.liveCallbackVerified === true &&
-            mediaDelivery.liveAuditCallbackVerified === true),
-        vodVerified:
-          !vodEnabled ||
-          (mediaDelivery.vodProductionAccountVerified === true &&
-            mediaDelivery.vodUploadVerified === true &&
-            mediaDelivery.vodTranscodeVerified === true &&
-            mediaDelivery.vodPlaybackVerified === true &&
-            mediaDelivery.vodCallbackVerified === true),
-        voiceVerified:
-          !voiceEnabled ||
-          (mediaDelivery.voiceProductionAccountVerified === true &&
-            mediaDelivery.voiceWebVerified === true &&
-            mediaDelivery.voiceMiniProgramVerified === true &&
-            mediaDelivery.voiceAppVerified === true &&
-            mediaDelivery.voicePermissionRecoveryVerified === true &&
-            mediaDelivery.voiceWeakNetworkRecoveryVerified === true),
-      }
-    : null,
-  wechatClientDeliveryEvidence: launch && (miniProgramEnabled || officialAccountEnabled)
-    ? {
-        configurationFingerprint: fingerprint({
-          miniProgramAppId: miniProgramEnabled
-            ? text(wechatClientDelivery.miniProgramAppId)
-            : "disabled",
-          officialAccountAppId: officialAccountEnabled
-            ? text(wechatClientDelivery.officialAccountAppId)
-            : "disabled",
-        }),
-        miniProgramVerified:
-          !miniProgramEnabled ||
-          (wechatClientDelivery.miniProgramRequestVerified === true &&
-            wechatClientDelivery.miniProgramUploadVerified === true &&
-            wechatClientDelivery.miniProgramDownloadVerified === true &&
-            wechatClientDelivery.miniProgramSocketVerified === true &&
-            wechatClientDelivery.miniProgramBusinessWebViewVerified === true),
-        officialAccountVerified:
-          !officialAccountEnabled ||
-          (wechatClientDelivery.officialAccountControlPlaneVerified === true &&
-            wechatClientDelivery.officialAccountOauthSmokeTestPassed === true &&
-            wechatClientDelivery.officialAccountJsSdkConfigVerified === true &&
-            wechatClientDelivery.officialAccountShareCardVerified === true),
-      }
-    : null,
+  emailDeliveryEvidence:
+    launch && emailEnabled
+      ? {
+          sendingDomainFingerprint: fingerprint(sendingDomain),
+          returnPathDomainFingerprint: fingerprint(returnPathDomain),
+          verified:
+            emailDelivery.spfVerified === true &&
+            emailDelivery.dkimVerified === true &&
+            emailDelivery.dmarcVerified === true &&
+            emailDelivery.bounceHandlingVerified === true &&
+            emailDelivery.complaintHandlingVerified === true &&
+            emailDelivery.unsubscribeVerified === true &&
+            emailDelivery.deliverySmokeTestPassed === true,
+        }
+      : null,
+  smsDeliveryEvidence:
+    launch && smsEnabled
+      ? {
+          configurationFingerprint: fingerprint({
+            appId: configuredSmsAppId,
+            signName: configuredSmsSignName,
+            verificationTemplateId: configuredSmsVerificationTemplateId,
+            retentionTemplateId: configuredSmsRetentionTemplateId,
+          }),
+          retentionEnabled: smsRetentionEnabled,
+          verified:
+            smsDelivery.signApproved === true &&
+            smsDelivery.verificationTemplateApproved === true &&
+            smsDelivery.deliveryReceiptVerified === true &&
+            smsDelivery.realNumberSmokeTestPassed === true &&
+            smsDelivery.alternateLoginVerified === true &&
+            (!smsRetentionEnabled ||
+              (smsDelivery.retentionTemplateApproved === true &&
+                smsDelivery.retentionConsentAndOptOutVerified === true)),
+        }
+      : null,
+  paymentDeliveryEvidence:
+    launch && paymentEnabled
+      ? {
+          configurationFingerprint: fingerprint({
+            channelId: text(paymentDelivery.channelId).toLowerCase(),
+            merchantReference: text(paymentDelivery.merchantReference),
+          }),
+          verified:
+            paymentDelivery.productionAccountVerified === true &&
+            paymentDelivery.smallAmountPaymentPassed === true &&
+            paymentDelivery.paymentCallbackVerified === true &&
+            paymentDelivery.orderLedgerVerified === true &&
+            paymentDelivery.refundSmokeTestPassed === true &&
+            paymentDelivery.refundCallbackVerified === true &&
+            paymentDelivery.reconciliationVerified === true &&
+            paymentDelivery.duplicateCallbackReplayVerified === true,
+        }
+      : null,
+  logisticsDeliveryEvidence:
+    launch && logisticsEnabled
+      ? {
+          configurationFingerprint: fingerprint({
+            providerId: text(logisticsDelivery.providerId).toLowerCase(),
+            accountReference: text(logisticsDelivery.accountReference),
+          }),
+          verified:
+            logisticsDelivery.productionAccountVerified === true &&
+            logisticsDelivery.controlledWaybillVerified === true &&
+            logisticsDelivery.trackingSubscriptionVerified === true &&
+            logisticsDelivery.trackingCallbackAuthenticated === true &&
+            logisticsDelivery.trackingStatePersisted === true &&
+            logisticsDelivery.deliveryExceptionVerified === true &&
+            logisticsDelivery.returnRefundLinkageVerified === true &&
+            logisticsDelivery.duplicateCallbackReplayVerified === true,
+        }
+      : null,
+  mediaDeliveryEvidence:
+    launch && mediaEnabled
+      ? {
+          configurationFingerprint: fingerprint(plannedMediaIdentity),
+          liveVerified:
+            !liveEnabled ||
+            (mediaDelivery.liveProductionAccountVerified === true &&
+              mediaDelivery.livePushVerified === true &&
+              mediaDelivery.livePlaybackVerified === true &&
+              mediaDelivery.liveCallbackVerified === true &&
+              mediaDelivery.liveAuditCallbackVerified === true),
+          vodVerified:
+            !vodEnabled ||
+            (mediaDelivery.vodProductionAccountVerified === true &&
+              mediaDelivery.vodUploadVerified === true &&
+              mediaDelivery.vodTranscodeVerified === true &&
+              mediaDelivery.vodPlaybackVerified === true &&
+              mediaDelivery.vodCallbackVerified === true),
+          voiceVerified:
+            !voiceEnabled ||
+            (mediaDelivery.voiceProductionAccountVerified === true &&
+              mediaDelivery.voiceWebVerified === true &&
+              mediaDelivery.voiceMiniProgramVerified === true &&
+              mediaDelivery.voiceAppVerified === true &&
+              mediaDelivery.voicePermissionRecoveryVerified === true &&
+              mediaDelivery.voiceWeakNetworkRecoveryVerified === true),
+        }
+      : null,
+  wechatClientDeliveryEvidence:
+    launch && (miniProgramEnabled || officialAccountEnabled)
+      ? {
+          configurationFingerprint: fingerprint({
+            miniProgramAppId: miniProgramEnabled
+              ? text(wechatClientDelivery.miniProgramAppId)
+              : "disabled",
+            officialAccountAppId: officialAccountEnabled
+              ? text(wechatClientDelivery.officialAccountAppId)
+              : "disabled",
+          }),
+          miniProgramVerified:
+            !miniProgramEnabled ||
+            (wechatClientDelivery.miniProgramRequestVerified === true &&
+              wechatClientDelivery.miniProgramUploadVerified === true &&
+              wechatClientDelivery.miniProgramDownloadVerified === true &&
+              wechatClientDelivery.miniProgramSocketVerified === true &&
+              wechatClientDelivery.miniProgramBusinessWebViewVerified === true),
+          officialAccountVerified:
+            !officialAccountEnabled ||
+            (wechatClientDelivery.officialAccountControlPlaneVerified === true &&
+              wechatClientDelivery.officialAccountOauthSmokeTestPassed === true &&
+              wechatClientDelivery.officialAccountJsSdkConfigVerified === true &&
+              wechatClientDelivery.officialAccountShareCardVerified === true),
+        }
+      : null,
   authenticationDeliveryEvidence: launch
     ? {
         enabledChannelsFingerprint: fingerprint({
@@ -1715,13 +1714,10 @@ const report = {
           authenticationDelivery.crossClientSessionVerified === true,
         enabledChannelsVerified:
           (!smsEnabled || authenticationDelivery.smsLoginVerified === true) &&
-          (!miniProgramEnabled ||
-            authenticationDelivery.miniProgramWechatLoginVerified === true) &&
+          (!miniProgramEnabled || authenticationDelivery.miniProgramWechatLoginVerified === true) &&
           (!officialAccountEnabled ||
             authenticationDelivery.officialAccountWechatLoginVerified === true),
-        evidenceReferenceFingerprint: fingerprint(
-          text(authenticationDelivery.evidenceReference),
-        ),
+        evidenceReferenceFingerprint: fingerprint(text(authenticationDelivery.evidenceReference)),
       }
     : null,
   publicComplianceEvidence: launch

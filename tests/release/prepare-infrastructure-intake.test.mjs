@@ -25,6 +25,8 @@ test("腾讯云接入清单按私有权限生成且保留托管数据服务", as
     assert.equal(prepared.result.status, 0, prepared.result.stderr);
     const intake = JSON.parse(await readFile(prepared.output, "utf8"));
     assert.equal(intake.deployTarget, "tencent");
+    assert.equal(intake.server.osDistribution, "ubuntu");
+    assert.equal(intake.server.osVersion, "24.04");
     assert.equal(intake.database.topology, "managed");
     assert.equal(intake.cache.topology, "managed");
     if (process.platform !== "win32") {
@@ -97,6 +99,8 @@ test("升级现有接入清单时只补缺失字段并保留原值与备份", as
     const upgraded = JSON.parse(await readFile(output, "utf8"));
     assert.equal(upgraded.server.provider, "已登记供应商");
     assert.equal(upgraded.server.region, "ap-beijing");
+    assert.equal(upgraded.server.osDistribution, "ubuntu");
+    assert.equal(upgraded.server.osVersion, "24.04");
     assert.ok(upgraded.appDeepLinks);
     assert.ok(upgraded.migration.publicCompliance);
 
