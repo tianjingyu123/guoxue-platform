@@ -10,6 +10,7 @@ import {
   probeAuthoritativeDns,
   probePublicDns,
 } from "./public-dns.mjs";
+import { auditFeedItems } from "./audit-public-content-freshness.mjs";
 import { probePublicTls } from "./public-tls.mjs";
 
 const args = process.argv.slice(2);
@@ -105,9 +106,10 @@ let dnsEndpoints = [];
 let dnsObservations = [];
 let dnsAuthorityObservations = [];
 let tlsCertificates = [];
-const uniquePublicHostnames = [...new Set(
-  [apiUrl, h5Url, new URL(adminHref), assetUrl].map((url) => url.hostname),
-)];
+let publicContentFreshness = null;
+const uniquePublicHostnames = [
+  ...new Set([apiUrl, h5Url, new URL(adminHref), assetUrl].map((url) => url.hostname)),
+];
 const dnsResolvers = [
   { id: "system", resolver: undefined },
   ...defaultPublicDnsResolvers.map((item) => ({
@@ -157,9 +159,7 @@ function unwrapPayload(payload) {
   return payload;
 }
 if (!infrastructureIntakeFile || !fs.existsSync(infrastructureIntakeFile)) {
-  console.error(
-    "运行时验收失败：必须通过 --infrastructure-intake 提供实际新基础设施接入清单",
-  );
+  console.error("运行时验收失败：必须通过 --infrastructure-intake 提供实际新基础设施接入清单");
   process.exit(2);
 }
 
@@ -173,13 +173,21 @@ try {
   process.exit(2);
 }
 const plannedDnsTtlSeconds = Number(infrastructureIntake?.domains?.ttlSeconds);
-const authoritativeNameServers = [...new Set(
-  (Array.isArray(infrastructureIntake?.domains?.authoritativeNameServers)
-    ? infrastructureIntake.domains.authoritativeNameServers
-    : [])
-    .map((value) => String(value || "").trim().toLowerCase().replace(/\.$/u, ""))
-    .filter(Boolean),
-)].sort();
+const authoritativeNameServers = [
+  ...new Set(
+    (Array.isArray(infrastructureIntake?.domains?.authoritativeNameServers)
+      ? infrastructureIntake.domains.authoritativeNameServers
+      : []
+    )
+      .map((value) =>
+        String(value || "")
+          .trim()
+          .toLowerCase()
+          .replace(/\.$/u, ""),
+      )
+      .filter(Boolean),
+  ),
+].sort();
 if (
   !Number.isInteger(plannedDnsTtlSeconds) ||
   plannedDnsTtlSeconds < 60 ||
@@ -193,7 +201,9 @@ const infrastructureIntakeSha256 = createHash("sha256")
   .update(infrastructureIntakeRaw)
   .digest("hex");
 const publicCompliance = infrastructureIntake?.migration?.publicCompliance || {};
-const legacyOriginMode = String(publicCompliance.legacyOriginMode || "").trim().toLowerCase();
+const legacyOriginMode = String(publicCompliance.legacyOriginMode || "")
+  .trim()
+  .toLowerCase();
 const legacyOrigins = [
   ...new Set(
     (Array.isArray(publicCompliance.legacyOrigins) ? publicCompliance.legacyOrigins : [])
@@ -317,6 +327,22 @@ await check("完整依赖健康报告", async () => {
     );
   }
   return `${data.status}，${Object.keys(data.checks || {}).length} 项依赖，${latencyMs}ms`;
+});
+
+await check("公开推荐流内容新鲜度", async () => {
+  const target = `${apiBase}/api/v1/recommend/smart-feed/feed?page=1&pageSize=50&channel=recommend`;
+  const { response, body, latencyMs } = await request(target, { timeoutMs: 20_000 });
+  assert(response.ok, `HTTP ${response.status}`);
+  const payload = parseJson(body, "公开推荐流");
+  assert(payload?.code === 200 && Array.isArray(payload?.data?.items), "推荐流响应信封无效");
+  publicContentFreshness = auditFeedItems(payload.data.items);
+  assert(publicContentFreshness.totalItems > 0, "推荐流没有可展示内容");
+  assert(
+    publicContentFreshness.blockers === 0,
+    publicContentFreshness.findings.map((item) => `${item.code}:${item.title}`).join("；") ||
+      "存在公开内容阻断项",
+  );
+  return `检查 ${publicContentFreshness.totalItems} 条，0 个阻断项，${latencyMs}ms`;
 });
 
 await check("Prometheus 指标端点", async () => {
@@ -519,6 +545,7 @@ const report = {
     routeCount: authenticationSurfaceObservations.length,
     routeIds: authenticationSurfaceObservations.map((item) => item.id).sort(),
   },
+  publicContentFreshness,
   summary: { passed: results.length - failed.length, failed: failed.length, total: results.length },
   results,
 };

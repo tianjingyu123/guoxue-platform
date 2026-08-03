@@ -632,6 +632,16 @@ const definitions = [
       ) {
         problems.push("公网登录、注册或找回密码页面证据无效");
       }
+      if (
+        !Number.isFinite(Date.parse(data.publicContentFreshness?.checkedAt)) ||
+        !Number.isInteger(data.publicContentFreshness?.totalItems) ||
+        data.publicContentFreshness.totalItems < 1 ||
+        data.publicContentFreshness?.blockers !== 0 ||
+        !Array.isArray(data.publicContentFreshness?.findings) ||
+        data.publicContentFreshness.findings.some((item) => item?.severity === "P0")
+      ) {
+        problems.push("公网推荐流为空或存在缺图、过期直播等内容新鲜度阻断项");
+      }
 
       const cloud = sourceData.tencentCloud;
       if (sourceData.infrastructureIntake?.deployTarget === "tencent" && cloud) {

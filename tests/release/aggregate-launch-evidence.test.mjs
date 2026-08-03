@@ -240,6 +240,12 @@ async function writeEvidence(directory, overrides = {}, omittedFiles = []) {
         routeCount: 3,
         routeIds: ["forgot-password", "login", "register"],
       },
+      publicContentFreshness: {
+        checkedAt: freshTime(),
+        totalItems: 10,
+        blockers: 0,
+        findings: [],
+      },
       tlsCertificates: [
         {
           origin: "https://new-guoxue.test",
@@ -531,6 +537,25 @@ test("公网登录注册或找回密码页面证据缺失时阻断上线", async
   assert.match(
     decision.checks.find((item) => item.source === "runtime-verification.json")?.detail || "",
     /公网登录、注册或找回密码页面证据无效/u,
+  );
+});
+
+test("公网推荐流存在过期直播等内容阻断项时阻断上线", async (t) => {
+  const { result, decision } = await runScenario(t, {
+    "runtime-verification.json": {
+      publicContentFreshness: {
+        checkedAt: freshTime(),
+        totalItems: 10,
+        blockers: 1,
+        findings: [{ severity: "P0", code: "UPCOMING_LIVE_EXPIRED" }],
+      },
+    },
+  });
+  assert.equal(result.status, 1);
+  assert.equal(decision.decision, "BLOCK");
+  assert.match(
+    decision.checks.find((item) => item.source === "runtime-verification.json")?.detail || "",
+    /公网推荐流为空或存在缺图、过期直播等内容新鲜度阻断项/u,
   );
 });
 

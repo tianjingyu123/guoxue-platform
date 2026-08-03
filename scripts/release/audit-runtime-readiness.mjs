@@ -15,6 +15,7 @@ const add = (name, pass, detail) => checks.push({ name, pass, detail });
 const healthService = read("apps/server/src/modules/health/health.service.ts");
 const healthSpec = read("apps/server/src/modules/health/health.service.spec.ts");
 const verifier = read("scripts/release/verify-runtime.mjs");
+const publicContentAuditor = read("scripts/release/audit-public-content-freshness.mjs");
 const publicDns = read("scripts/release/public-dns.mjs");
 const publicTls = read("scripts/release/public-tls.mjs");
 const evidenceAggregator = read("scripts/release/aggregate-launch-evidence.mjs");
@@ -113,8 +114,8 @@ add(
       "private readonly limit: number = 1200",
       "private readonly subjectAware: boolean = false",
       'return `user:${this.hashIdentity("user", userId)}`',
-      'return `account:${this.hashIdentity(field, normalized)}`',
-      'return `ip:${ip}`',
+      "return `account:${this.hashIdentity(field, normalized)}`",
+      "return `ip:${ip}`",
       'super(redis, 10, 60, "rate:strict", true)',
     ]) &&
     hasAll(throttleSpec, [
@@ -141,6 +142,27 @@ add(
   "运行时门禁覆盖用户与管理入口",
   hasAll(verifier, ["PUBLIC_H5_URL", 'new URL("/admin/"', "H5 入口与安全头", "管理后台入口"]),
   "H5 和管理后台均需真实返回 HTML，不能只验证 API",
+);
+
+add(
+  "公开推荐流内容质量纳入最终运行时门禁",
+  hasAll(verifier, [
+    "auditFeedItems",
+    "公开推荐流内容新鲜度",
+    "/api/v1/recommend/smart-feed/feed",
+    "publicContentFreshness",
+    "推荐流没有可展示内容",
+  ]) &&
+    hasAll(publicContentAuditor, [
+      "ARTICLE_COVER_MISSING",
+      "UPCOMING_LIVE_EXPIRED",
+      "LIVE_STATUS_STALE",
+    ]) &&
+    hasAll(evidenceAggregator, [
+      "publicContentFreshness",
+      "公网推荐流为空或存在缺图、过期直播等内容新鲜度阻断项",
+    ]),
+  "最终切流必须阻断空推荐流、文章缺图、过期预约和长期未结束的直播状态",
 );
 
 add(
@@ -190,7 +212,7 @@ add(
     hasAll(evidenceAggregator, [
       "公网登录、注册或找回密码页面证据无效",
       "登录迁域、密码找回或会话生命周期人工证据无效",
-  ]),
+    ]),
   "新域名最常见的 CORS、Socket.IO、鉴权边界和登录入口回归必须自动阻断，真实账号与会话闭环另由受控人工证据兜底",
 );
 
@@ -205,18 +227,14 @@ add(
   hasAll(verifier, [
     "HTTP 强制跳转 HTTPS",
     "[301, 302, 307, 308]",
-    '/^https:\\/\\//iu.test(location)',
+    "/^https:\\/\\//iu.test(location)",
   ]),
   "非本地生产入口不得接受明文 URL，80 端口必须跳转 HTTPS",
 );
 
 add(
   "公网 DNS 解析与目标资源形成机器证据",
-  hasAll(verifier, [
-    "probePublicDns",
-    "公网 DNS 解析与地址安全",
-    "dnsEndpoints",
-  ]) &&
+  hasAll(verifier, ["probePublicDns", "公网 DNS 解析与地址安全", "dnsEndpoints"]) &&
     hasAll(publicDns, [
       "defaultPublicDnsResolvers",
       "createPublicDnsResolver",
