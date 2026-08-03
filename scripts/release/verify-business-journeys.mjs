@@ -317,8 +317,54 @@ function safeError(error) {
   return message.slice(0, 300);
 }
 
+async function verifyReleaseBinding() {
+  const startedAt = Date.now();
+  let observedReleaseId = null;
+  try {
+    const response = await fetch(`${apiOrigin}/api/v1/health`, {
+      headers: {
+        Accept: "application/json",
+        "X-QA-Run": `${qaPrefix}:${releaseId}`,
+      },
+      redirect: "error",
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) throw new Error(`健康检查返回 HTTP ${response.status}`);
+    const payload = await response.json();
+    const data = payload?.data && typeof payload.data === "object" ? payload.data : payload;
+    observedReleaseId = String(data?.releaseId || "").trim();
+    if (!observedReleaseId || observedReleaseId === "unversioned") {
+      throw new Error("目标实例未暴露固定发布标识");
+    }
+    if (observedReleaseId !== releaseId) {
+      throw new Error(`目标实例发布标识为 ${observedReleaseId}，期望 ${releaseId}`);
+    }
+    return {
+      status: "PASS",
+      expectedReleaseId: releaseId,
+      observedReleaseId,
+      durationMs: Date.now() - startedAt,
+    };
+  } catch (error) {
+    return {
+      status: "FAIL",
+      expectedReleaseId: releaseId,
+      observedReleaseId,
+      error: safeError(error),
+      durationMs: Date.now() - startedAt,
+    };
+  }
+}
+
+const releaseBinding = await verifyReleaseBinding();
+console.log(
+  `${releaseBinding.status === "PASS" ? "PASS" : "FAIL"} 固定发布版本绑定：${
+    releaseBinding.status === "PASS" ? releaseBinding.observedReleaseId : releaseBinding.error
+  }`,
+);
+
 const journeyResults = [];
-for (const journey of journeys) {
+for (const journey of releaseBinding.status === "PASS" ? journeys : []) {
   const context = { capture: {} };
   const result = {
     id: journey.id,
@@ -387,8 +433,10 @@ const report = {
   apiOrigin,
   qaPrefix,
   writeEnabled: writeJourneys.length > 0,
-  success: failedJourneys.length === 0,
+  releaseBinding,
+  success: releaseBinding.status === "PASS" && failedJourneys.length === 0,
   summary: {
+    requestedJourneys: journeys.length,
     journeys: journeyResults.length,
     passedJourneys: journeyResults.length - failedJourneys.length,
     failedJourneys: failedJourneys.length,
@@ -415,6 +463,6 @@ if (reportArgument) {
 }
 
 console.log(
-  `\n业务验收：${report.success ? "通过" : "失败"}，旅程 ${report.summary.passedJourneys}/${report.summary.journeys}，步骤 ${passedSteps}/${totalSteps}`,
+  `\n业务验收：${report.success ? "通过" : "失败"}，版本绑定 ${releaseBinding.status}，旅程 ${report.summary.passedJourneys}/${report.summary.requestedJourneys}，步骤 ${passedSteps}/${totalSteps}`,
 );
 process.exitCode = report.success ? 0 : 1;

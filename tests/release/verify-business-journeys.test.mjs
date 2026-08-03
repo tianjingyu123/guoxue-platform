@@ -63,13 +63,15 @@ before(async () => {
     serverPath,
     `import http from "node:http";
 let cleaned = 0;
+let created = 0;
 const server = http.createServer(async (request, response) => {
   const chunks = [];
   for await (const chunk of request) chunks.push(chunk);
   const pathname = new URL(request.url, "http://localhost").pathname;
   response.setHeader("Content-Type", "application/json");
   if (request.method === "GET" && pathname === "/api/v1/health") {
-    response.end(JSON.stringify({ status: "ok" }));
+    const mismatched = String(request.headers["x-qa-run"] || "").startsWith("QA_RELEASE_MISMATCH:");
+    response.end(JSON.stringify({ status: "ok", releaseId: mismatched ? "old-release-001" : "${releaseId}" }));
     return;
   }
   if (request.method === "GET" && pathname === "/api/v1/auth/me") {
@@ -82,6 +84,7 @@ const server = http.createServer(async (request, response) => {
     return;
   }
   if (request.method === "POST" && pathname === "/api/v1/qa/items") {
+    created += 1;
     response.statusCode = 201;
     response.end(JSON.stringify({ data: { id: "item-1" } }));
     return;
@@ -98,7 +101,7 @@ const server = http.createServer(async (request, response) => {
     return;
   }
   if (request.method === "GET" && pathname === "/api/v1/test/state") {
-    response.end(JSON.stringify({ cleaned }));
+    response.end(JSON.stringify({ cleaned, created }));
     return;
   }
   response.statusCode = 404;
@@ -166,11 +169,66 @@ test("只读业务旅程通过并生成不含鉴权凭据的结构化证据", as
   const report = JSON.parse(reportText);
   assert.equal(report.kind, "guoxue-business-journey-evidence");
   assert.equal(report.releaseId, releaseId);
+  assert.equal(report.releaseBinding.status, "PASS");
+  assert.equal(report.releaseBinding.observedReleaseId, releaseId);
   assert.equal(report.success, true);
   assert.equal(report.summary.passedJourneys, 1);
   assert.equal(report.summary.passedSteps, 2);
   assert.equal(reportText.includes(testToken), false);
   assert.equal(reportText.includes("Authorization"), false);
+});
+
+test("目标实例发布标识不一致时在任何业务写入前阻断", async () => {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "guoxue-business-release-mismatch-"));
+  const specPath = await writeSpec(
+    tempDir,
+    "release-mismatch",
+    [
+      {
+        id: "isolated-write",
+        mode: "write",
+        steps: [
+          {
+            id: "create-item",
+            method: "POST",
+            path: "/api/v1/qa/items",
+            body: { name: "{{qaPrefix}}" },
+            expectStatus: [201],
+          },
+        ],
+        cleanup: [
+          {
+            id: "cleanup-item",
+            method: "DELETE",
+            path: "/api/v1/qa/items/item-1",
+            expectStatus: [204],
+          },
+        ],
+      },
+    ],
+    { qaPrefix: "QA_RELEASE_MISMATCH" },
+  );
+  const reportPath = path.join(tempDir, "report.json");
+  const stateBefore = await fetch(`${apiOrigin}/api/v1/test/state`).then((response) =>
+    response.json(),
+  );
+
+  const result = runVerifier(specPath, reportPath, [
+    "--allow-write",
+    "--confirm-write",
+    `QA_WRITES:${releaseId}`,
+  ]);
+
+  assert.equal(result.status, 1, result.stderr || result.stdout);
+  const report = JSON.parse(await readFile(reportPath, "utf8"));
+  assert.equal(report.success, false);
+  assert.equal(report.releaseBinding.status, "FAIL");
+  assert.equal(report.releaseBinding.observedReleaseId, "old-release-001");
+  assert.equal(report.summary.journeys, 0);
+  const stateAfter = await fetch(`${apiOrigin}/api/v1/test/state`).then((response) =>
+    response.json(),
+  );
+  assert.equal(stateAfter.created, stateBefore.created);
 });
 
 test("可以只执行指定旅程而不要求其他旅程的鉴权环境变量", async () => {
