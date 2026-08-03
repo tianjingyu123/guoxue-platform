@@ -6,10 +6,24 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(scriptDir, "..", "..");
+const defaultRepoRoot = path.resolve(scriptDir, "..", "..");
+const args = process.argv.slice(2);
+
+function valueOf(name, fallback = "") {
+  const index = args.indexOf(name);
+  return index >= 0 && args[index + 1] ? args[index + 1] : fallback;
+}
+
+const repoRoot = path.resolve(valueOf("--repo-root", defaultRepoRoot));
+const reportArgument = valueOf("--report", process.env.CAPABILITY_READINESS_REPORT || "");
+const releaseId = valueOf("--release-id", process.env.RELEASE_ID || "").trim();
+
+function resolveInput(relativePath) {
+  return path.isAbsolute(relativePath) ? relativePath : path.join(repoRoot, relativePath);
+}
 
 function read(relativePath) {
-  return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
+  return fs.readFileSync(resolveInput(relativePath), "utf8");
 }
 
 function readJson(relativePath) {
@@ -21,13 +35,14 @@ function has(content, pattern) {
 }
 
 function collectSource(relativeDir) {
-  const absoluteDir = path.join(repoRoot, relativeDir);
+  const absoluteDir = resolveInput(relativeDir);
+  if (!fs.existsSync(absoluteDir)) return "";
   return fs
     .readdirSync(absoluteDir, { withFileTypes: true })
     .flatMap((entry) => {
       const child = path.join(relativeDir, entry.name);
       if (entry.isDirectory()) return collectSource(child);
-      return /\.(?:ts|js|vue)$/.test(entry.name) ? [read(child)] : [];
+      return /\.(?:ts|js|vue)$/u.test(entry.name) ? [read(child)] : [];
     })
     .join("\n");
 }
@@ -105,10 +120,12 @@ const checks = [
     file: "apps/mobile/src/manifest.json",
   },
   {
-    name: "Android 已声明录音和音频设置权限",
+    name: "Android 已声明录音和音频设备权限",
     pass:
       androidPermissions.some((item) => item.includes("android.permission.RECORD_AUDIO")) &&
-      androidPermissions.some((item) => item.includes("android.permission.MODIFY_AUDIO_SETTINGS")),
+      androidPermissions.some((item) =>
+        item.includes("android.permission.MODIFY_AUDIO_SETTINGS"),
+      ),
     file: "apps/mobile/src/manifest.json",
   },
   {
@@ -157,10 +174,10 @@ if (manifest["mp-weixin"]?.setting?.urlCheck === false) {
   warnings.push("微信小程序仍关闭合法域名校验；提审前必须恢复校验并配置新域名白名单。");
 }
 if (Object.keys(manifest["app-plus"]?.distribute?.sdkConfigs || {}).length === 0) {
-  warnings.push("App 原生 SDK 配置仍为空；TRTC/语音供应商原生插件需在真机基座与正式包中接入。");
+  warnings.push("App 原生 SDK 配置仍为空；语音供应商原生插件需在真机基座与正式包中接入。");
 }
 const bridgeRegistrationPattern =
-  /(?:__GUOXUE_VOICE_AGENT_RUNTIME__\s*=|defineProperty\([^)]*__GUOXUE_VOICE_AGENT_RUNTIME__)/;
+  /(?:__GUOXUE_VOICE_AGENT_RUNTIME__\s*=|defineProperty\([^)]*__GUOXUE_VOICE_AGENT_RUNTIME__)/u;
 if (!bridgeRegistrationPattern.test(collectSource("apps/mobile/src"))) {
   warnings.push(
     "仓库内未发现语音运行时 bridge 注册；当前样板会诚实阻断，待供应商 SDK 开通后接入。",
@@ -168,6 +185,40 @@ if (!bridgeRegistrationPattern.test(collectSource("apps/mobile/src"))) {
 }
 
 const failed = checks.filter((item) => !item.pass);
+const report = {
+  schemaVersion: 1,
+  kind: "guoxue-capability-readiness",
+  generatedAt: new Date().toISOString(),
+  releaseId: releaseId || null,
+  repoRoot,
+  success: failed.length === 0,
+  summary: {
+    total: checks.length,
+    passed: checks.length - failed.length,
+    failed: failed.length,
+    warnings: warnings.length,
+  },
+  checks,
+  warnings,
+};
+
+if (reportArgument) {
+  const reportPath = path.isAbsolute(reportArgument)
+    ? reportArgument
+    : path.resolve(repoRoot, reportArgument);
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  try {
+    fs.chmodSync(reportPath, 0o600);
+  } catch {
+    // Windows 不支持完整 POSIX 权限语义，写入成功即可。
+  }
+  console.log(`能力审计报告：${reportPath}`);
+}
+
 console.log("多端与智能能力发布审计");
 console.log(`代码能力：${checks.length - failed.length}/${checks.length} 通过`);
 for (const item of checks) {
