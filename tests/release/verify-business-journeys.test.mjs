@@ -482,3 +482,32 @@ test("仓库内写旅程示例只使用 QA 环境变量且每条写旅程都声�
     /\/(?:pay(?:ment)?|refund|notify|callback|batch-ship|return-logistics)(?:\/|")/iu,
   );
 });
+
+test("仓库内公开旅程持续覆盖上线核心内容入口且保持零写入", async () => {
+  const examplePath = path.join(
+    repoRoot,
+    "config",
+    "release",
+    "business-journeys.example.json",
+  );
+  const example = JSON.parse(await readFile(examplePath, "utf8"));
+  const publicJourney = example.journeys.find((journey) => journey.id === "public-readiness");
+  const requiredStepIds = new Set([
+    "health",
+    "home-aggregation",
+    "anonymous-smart-feed",
+    "classics-home",
+    "agent-catalog",
+    "video-feed",
+    "live-rooms",
+    "live-scheduled",
+    "live-replays",
+    "article-feed",
+    "product-catalog",
+  ]);
+
+  assert.equal(publicJourney.mode, "read");
+  assert.deepEqual(new Set(publicJourney.steps.map((step) => step.id)), requiredStepIds);
+  assert.ok(publicJourney.steps.every((step) => step.method === "GET"));
+  assert.ok(publicJourney.steps.every((step) => !step.auth));
+});

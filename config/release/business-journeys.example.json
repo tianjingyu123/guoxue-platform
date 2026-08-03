@@ -26,6 +26,60 @@
           ]
         },
         {
+          "id": "home-aggregation",
+          "method": "GET",
+          "path": "/api/v1/home?page=1&pageSize=6",
+          "expectStatus": [200]
+        },
+        {
+          "id": "anonymous-smart-feed",
+          "method": "GET",
+          "path": "/api/v1/recommend/smart-feed/feed?page=1&pageSize=6&channel=recommend",
+          "expectStatus": [200]
+        },
+        {
+          "id": "classics-home",
+          "method": "GET",
+          "path": "/api/v1/classics/home",
+          "expectStatus": [200]
+        },
+        {
+          "id": "agent-catalog",
+          "method": "GET",
+          "path": "/api/v1/bots",
+          "expectStatus": [200]
+        },
+        {
+          "id": "video-feed",
+          "method": "GET",
+          "path": "/api/v1/videos/items?page=1&pageSize=6&sort=recommend",
+          "expectStatus": [200]
+        },
+        {
+          "id": "live-rooms",
+          "method": "GET",
+          "path": "/api/v1/live/rooms?page=1&pageSize=6",
+          "expectStatus": [200]
+        },
+        {
+          "id": "live-scheduled",
+          "method": "GET",
+          "path": "/api/v1/live/scheduled?page=1&pageSize=6",
+          "expectStatus": [200]
+        },
+        {
+          "id": "live-replays",
+          "method": "GET",
+          "path": "/api/v1/live/replays?sortBy=latest",
+          "expectStatus": [200]
+        },
+        {
+          "id": "article-feed",
+          "method": "GET",
+          "path": "/api/v1/articles/feed?page=1&pageSize=6",
+          "expectStatus": [200]
+        },
+        {
           "id": "product-catalog",
           "method": "GET",
           "path": "/api/v1/shop/products?page=1&pageSize=1",
