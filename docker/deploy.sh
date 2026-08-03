@@ -120,7 +120,7 @@ else
     -v "$ENV_DIR:/runtime-env:ro" \
     -v "$PROJECT_DIR/release-evidence:/evidence" \
     -w /app \
-    node:20-slim \
+    node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d \
     node scripts/migration/check-env.mjs "/runtime-env/$ENV_NAME" --full \
       --deploy-target "$DEPLOY_TARGET" \
       --node-role "$NODE_ROLE" \

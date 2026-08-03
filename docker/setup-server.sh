@@ -145,7 +145,7 @@ case "$OS" in
       -o /tmp/nodesource-repo.gpg.key
     gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg /tmp/nodesource-repo.gpg.key
     rm -f /tmp/nodesource-repo.gpg.key
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_24.x nodistro main" \
       > /etc/apt/sources.list.d/nodesource.list
 
     curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
@@ -162,15 +162,15 @@ case "$OS" in
     dnf install -y ca-certificates curl gnupg2 openssl tar coreutils iproute util-linux findutils 2>/dev/null || \
       yum install -y ca-certificates curl gnupg2 openssl tar coreutils iproute util-linux findutils 2>/dev/null
     dnf module reset -y nodejs postgresql >/dev/null 2>&1 || true
-    dnf module enable -y nodejs:20 "postgresql:${POSTGRES_CLIENT_MAJOR}" >/dev/null 2>&1 || true
+    dnf module enable -y nodejs:22 "postgresql:${POSTGRES_CLIENT_MAJOR}" >/dev/null 2>&1 || true
     dnf install -y nodejs postgresql 2>/dev/null || \
       yum install -y nodejs postgresql 2>/dev/null
     ;;
 esac
 
 NODE_VERSION="$(node --version 2>/dev/null | sed 's/^v//' || true)"
-if [[ ! "$NODE_VERSION" =~ ^2[0-9]\. ]]; then
-  err "Node.js 20+ 安装失败或版本不满足要求: ${NODE_VERSION:-unknown}"
+if [[ ! "$NODE_VERSION" =~ ^(22|24)\. ]]; then
+  err "Node.js 版本必须为受支持的 LTS 主版本 22 或 24: ${NODE_VERSION:-unknown}"
   exit 1
 fi
 POSTGRES_CLIENT_VERSION="$(psql --version 2>/dev/null | sed -n 's/.* \([0-9][0-9.]*\).*/\1/p' | head -n 1)"
@@ -292,7 +292,7 @@ docker run --rm \
   -v "$ENV_DIR:/runtime-env:ro" \
   -v "$INSTALL_DIR/release-evidence:/evidence" \
   -w /app \
-  node:20-slim \
+  node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d \
   node scripts/migration/check-env.mjs "/runtime-env/$ENV_NAME" --full \
     --deploy-target "$DEPLOY_TARGET" \
     --node-role "$NODE_ROLE" \
@@ -414,7 +414,7 @@ if [ "$NODE_ROLE" = "operations" ]; then
     -v "$INSTALL_DIR:/app" \
     -v "$ENV_DIR:/runtime-env:ro" \
     -w /app \
-    node:20-slim \
+    node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d \
     node scripts/release/render-monitoring-config.mjs "/runtime-env/$ENV_NAME"
 
   MONITORING_COMPOSE=(

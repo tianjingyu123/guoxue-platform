@@ -24,6 +24,10 @@ function hasAll(source, snippets) {
   return snippets.every((snippet) => source.includes(snippet));
 }
 
+function countOccurrences(source, snippet) {
+  return source.split(snippet).length - 1;
+}
+
 function hasDirectShellScriptCommand(source) {
   return /^(?!\s*#)(?:\s*[A-Z_][A-Z0-9_]*=(?:"[^"\n]*"|'[^'\n]*'|\S+)\s+)*\s*(?:\.{0,2}\/|\/)[^\s`]+\.sh(?:\s|$)/mu.test(
     source,
@@ -651,7 +655,7 @@ add(
     "ENV_PERMISSIONS & 077",
     "docker info",
     "docker compose version",
-    "MIN_NODE_VERSION",
+    "SUPPORTED_NODE_MAJORS",
     "MIN_POSTGRES_CLIENT_VERSION",
     "pg_restore",
     "flock",
@@ -663,13 +667,46 @@ add(
 add(
   "服务器初始化补齐固定包与数据库核验所需宿主机运行时",
   hasAll(setupServer, [
-    "node_20.x",
+    "node_24.x",
     "postgresql-client-${POSTGRES_CLIENT_MAJOR}",
-    "nodejs:20",
+    "nodejs:22",
     '"postgresql:${POSTGRES_CLIENT_MAJOR}"',
+    "^(22|24)\\.",
     "宿主机运行时: Node.js",
   ]),
-  "初始化必须安装 Node.js 20 和与目标主版本一致的 PostgreSQL 客户端，避免迁移中途才暴露缺失命令",
+  "初始化必须安装受支持的 Node.js LTS 和与目标主版本一致的 PostgreSQL 客户端，避免迁移中途才暴露缺失命令",
+);
+const immutableNodeRuntimeImage =
+  "node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d";
+const immutableNodeDevImage =
+  "node:24.18.0-alpine3.23@sha256:595398b0081eacda8e1c4c5b97b76cd1020e4d58a8ebcb4843b9bca1e79e7436";
+const developmentDockerfile = read("docker/Dockerfile.dev");
+const testDockerfile = read("docker/Dockerfile.test");
+const nodeRuntimeCiWorkflow = read(".github/workflows/ci.yml");
+const nodeRuntimeDeployWorkflow = read(".github/workflows/deploy.yml");
+const nodeRuntimePerformanceWorkflow = read(".github/workflows/perf.yml");
+const nodeRuntimePredeployWorkflow = read(".github/workflows/predeploy-readiness.yml");
+const nodeRuntimeProductionVerificationWorkflow = read(".github/workflows/verify-production.yml");
+const nodeRuntimeCnbPipeline = read(".cnb.yml");
+add(
+  "Node.js 构建、验证与生产运行时统一使用受支持且不可变的 LTS 基线",
+  rootPackageJson.includes('"node": ">=22 <23 || >=24 <25"') &&
+    countOccurrences(productionDockerfile, immutableNodeRuntimeImage) === 2 &&
+    countOccurrences(setupServer, immutableNodeRuntimeImage) === 2 &&
+    countOccurrences(productionDeploy, immutableNodeRuntimeImage) === 1 &&
+    countOccurrences(developmentDockerfile, immutableNodeDevImage) === 2 &&
+    countOccurrences(testDockerfile, immutableNodeDevImage) === 1 &&
+    [nodeRuntimeCiWorkflow, nodeRuntimeDeployWorkflow, nodeRuntimePerformanceWorkflow].every(
+      (source) => source.includes('NODE_VERSION: "24.18.0"'),
+    ) &&
+    [nodeRuntimePredeployWorkflow, nodeRuntimeProductionVerificationWorkflow].every((source) =>
+      source.includes('node-version: "24.18.0"'),
+    ) &&
+    countOccurrences(nodeRuntimeCnbPipeline, immutableNodeRuntimeImage) === 4 &&
+    ![productionDockerfile, developmentDockerfile, testDockerfile, setupServer, productionDeploy]
+      .join("\n")
+      .includes("node:20"),
+  "Node.js 20 已退出维护；CI、CNB、开发/测试镜像、生产镜像和迁移期临时容器必须锁定同一受支持版本及 OCI 摘要",
 );
 add(
   "生产镜像只调用锁定安装的 Prisma CLI",

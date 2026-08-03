@@ -580,7 +580,7 @@ curl -X POST https://api.example.com/api/v1/shop/pay/notify -H "Content-Type: ap
 □ SSH 已禁用 root 密码登录，使用密钥
 □ Docker daemon 未暴露 TCP 端口
 □ Redis 已禁用 FLUSHALL/FLUSHDB/KEYS 命令
-□ 定期更新基础镜像（node:20-alpine, nginx:1.27-alpine）
+□ 定期复核基础镜像锁定版本与摘要（Node.js 24 LTS、Nginx 1.27）
 ```
 
 ### 10.2 密钥轮换

@@ -1,4 +1,4 @@
-FROM node:20-slim AS builder
+FROM node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d AS builder
 RUN sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null; \
     sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list 2>/dev/null; \
     apt-get update && apt-get install -y --no-install-recommends python3 make g++ ca-certificates curl && rm -rf /var/lib/apt/lists/*
@@ -36,7 +36,7 @@ RUN node scripts/migration/check-client-artifacts.mjs apps/admin/dist \
   --expect-origin "$VITE_PUBLIC_H5_URL"
 
 # ── 运行阶段 ──
-FROM node:20-slim
+FROM node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 

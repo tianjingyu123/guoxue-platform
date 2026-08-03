@@ -32,10 +32,10 @@ echo ""
 # ───── 1. 环境检查 ─────
 echo -e "${YELLOW}[1/6] 环境检查${NC}"
 
-command -v node >/dev/null 2>&1 || { echo -e "${RED}请先安装 Node.js >= 20${NC}"; exit 1; }
+command -v node >/dev/null 2>&1 || { echo -e "${RED}请先安装 Node.js 22 或 24 LTS${NC}"; exit 1; }
 NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
-if [ "$NODE_VER" -lt 20 ]; then
-  echo -e "${RED}Node.js >= 20  required, 当前: $(node -v)${NC}"
+if [ "$NODE_VER" -ne 22 ] && [ "$NODE_VER" -ne 24 ]; then
+  echo -e "${RED}Node.js 22 或 24 LTS required，当前: $(node -v)${NC}"
   exit 1
 fi
 echo "  Node.js: $(node -v)"

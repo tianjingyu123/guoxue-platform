@@ -115,7 +115,7 @@
     "prepare": "npx husky install 2>/dev/null || echo 'husky 初始化跳过（非 git 环境）'"
   },
   "engines": {
-    "node": ">=20",
+    "node": ">=22 <23 || >=24 <25",
     "pnpm": ">=10"
   },
   "pnpm": {

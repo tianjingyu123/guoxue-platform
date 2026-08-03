@@ -31,7 +31,7 @@
 |------|----------|
 | Docker | 24.0+ |
 | Docker Compose | 2.20+ |
-| Node.js (手动部署) | 20.x LTS |
+| Node.js (手动部署) | 22.x 或 24.x LTS |
 | pnpm (手动部署) | 10.x |
 | 内存 | ≥ 2GB |
 | 磁盘 | ≥ 20GB |

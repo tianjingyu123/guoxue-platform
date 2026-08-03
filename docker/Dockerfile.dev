@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────
 # 开发镜像 — 热重载 + 全量依赖
 # ─────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:24.18.0-alpine3.23@sha256:595398b0081eacda8e1c4c5b97b76cd1020e4d58a8ebcb4843b9bca1e79e7436 AS builder
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 WORKDIR /app
 
@@ -22,7 +22,7 @@ RUN pnpm --filter @guoxue/ziwei-engine build
 RUN pnpm build:server
 
 # ── 开发运行阶段 ──
-FROM node:20-alpine
+FROM node:24.18.0-alpine3.23@sha256:595398b0081eacda8e1c4c5b97b76cd1020e4d58a8ebcb4843b9bca1e79e7436
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 RUN apk add --no-cache curl
 WORKDIR /app

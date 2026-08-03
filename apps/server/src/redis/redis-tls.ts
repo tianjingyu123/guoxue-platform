@@ -1,7 +1,7 @@
 import { checkServerIdentity, ConnectionOptions, PeerCertificate } from "node:tls";
 
 /**
- * 部分托管 Redis 的服务端证书只有 CN，没有 IP SAN，Node 20 会拒绝直接按 IP 连接。
+ * 部分托管 Redis 的服务端证书只有 CN，没有 IP SAN，现代 Node.js LTS 会拒绝直接按 IP 连接。
  * 这里仍保留 CA 链严格校验，只在证书 CN 与连接目标完全一致时兼容该证书格式；
  * 禁止使用 rejectUnauthorized=false 绕过证书校验。
  */

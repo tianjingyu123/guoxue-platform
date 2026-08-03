@@ -25,24 +25,23 @@ include:
 # main 分支
 # ═══════════════════════════════════════════════════════════
 main:
-
   # ───────────────────────────────────────────────────────
   # 1. Push → CI 检查
   # ───────────────────────────────────────────────────────
   push:
     - name: CI — 类型检查 + 代码风格 + 测试 + 构建
       docker:
-        image: node:20
+        image: node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
       env:
         PNPM_VERSION: "10"
-        NODE_VERSION: "20"
+        NODE_VERSION: "24.18.0"
         # 测试用环境变量（生产凭据走 CNB 凭据管理）
         DATABASE_URL: postgresql://guoxue_test:test123@localhost:5432/guoxue_test
         REDIS_URL: redis://localhost:6379/0
         JWT_SECRET: test-jwt-secret-32-bytes-key-!
         ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
         NODE_ENV: test
-      ifModify:  # 跳过纯文档/计划文件变更
+      ifModify: # 跳过纯文档/计划文件变更
         - "!(*.md)"
         - "!(docs/**)"
         - "!('.claude/**')"
@@ -260,9 +259,9 @@ main:
   api_trigger_perf:
     - name: 性能压测
       docker:
-        image: node:20
+        image: node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
       env:
-        NODE_VERSION: "20"
+        NODE_VERSION: "24.18.0"
         PNPM_VERSION: "10"
         DATABASE_URL: postgresql://guoxue:guoxue123@localhost:5432/guoxue
         REDIS_URL: redis://localhost:6379
@@ -273,7 +272,7 @@ main:
         # 压测场景：可通过 API 触发时传入
         SCENARIO: "${CNB_SCENARIO:-load}"
         BASE_URL: "${CNB_BASE_URL:-http://localhost:3000}"
-      timeout: 3600  # 最长 1 小时
+      timeout: 3600 # 最长 1 小时
 
       stages:
         # ——— Stage 1: 环境准备 ———
@@ -380,7 +379,7 @@ develop:
   push:
     - name: CI — 开发分支快速检查
       docker:
-        image: node:20
+        image: node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
       stages:
         - name: 安装 & 类型检查
           stages:
@@ -402,7 +401,7 @@ $:
   push:
     - name: 轻量检查
       docker:
-        image: node:20
+        image: node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
       stages:
         - name: 安装 & 类型检查
           script: |

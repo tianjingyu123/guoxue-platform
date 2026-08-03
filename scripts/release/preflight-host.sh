@@ -53,7 +53,7 @@ MIN_DISK_GB="${MIN_DISK_GB:-40}"
 MIN_INODE_PERCENT="${MIN_INODE_PERCENT:-10}"
 MIN_DOCKER_VERSION="${MIN_DOCKER_VERSION:-24.0}"
 MIN_COMPOSE_VERSION="${MIN_COMPOSE_VERSION:-2.20}"
-MIN_NODE_VERSION="${MIN_NODE_VERSION:-20.0}"
+SUPPORTED_NODE_MAJORS="${SUPPORTED_NODE_MAJORS:-22 24}"
 MIN_POSTGRES_CLIENT_VERSION="${MIN_POSTGRES_CLIENT_VERSION:-16.0}"
 REQUIRE_DOCKER="${REQUIRE_DOCKER:-true}"
 REQUIRE_RELEASE_MANIFEST="${REQUIRE_RELEASE_MANIFEST:-true}"
@@ -144,13 +144,14 @@ done
 
 if command -v node >/dev/null 2>&1; then
   NODE_VERSION="$(node --version 2>/dev/null | sed 's/^v//' || true)"
-  if version_at_least "$NODE_VERSION" "$MIN_NODE_VERSION"; then
-    pass "Node.js 可用: $NODE_VERSION"
+  NODE_MAJOR="${NODE_VERSION%%.*}"
+  if [[ " $SUPPORTED_NODE_MAJORS " == *" $NODE_MAJOR "* ]]; then
+    pass "Node.js 受支持的 LTS 运行时可用: $NODE_VERSION"
   else
-    fail "Node.js 版本过低或不可识别: ${NODE_VERSION:-unknown}，至少需要 $MIN_NODE_VERSION"
+    fail "Node.js 版本不受支持: ${NODE_VERSION:-unknown}，允许的 LTS 主版本: $SUPPORTED_NODE_MAJORS"
   fi
 elif is_true "$REQUIRE_BASE_TOOLS"; then
-  fail "缺少 Node.js；固定包验真、激活、回滚和证据生成至少需要 Node.js $MIN_NODE_VERSION"
+  fail "缺少 Node.js；固定包验真、激活、回滚和证据生成需要 Node.js LTS（$SUPPORTED_NODE_MAJORS）"
 else
   warn "缺少 Node.js；安装阶段必须补齐"
 fi
