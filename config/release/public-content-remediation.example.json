@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "kind": "guoxue-public-content-remediation",
+  "releaseId": "release-YYYYMMDD-change-id",
+  "confirmation": "remediate-public-content:release-YYYYMMDD-change-id",
+  "target": "https://api.example.com",
+  "completedAt": "YYYY-MM-DDTHH:mm:ssZ",
+  "actionMode": "MIXED",
+  "counts": {
+    "LIVE_STATUS_STALE": 2,
+    "UPCOMING_LIVE_EXPIRED": 3
+  },
+  "total": 5,
+  "historicalRecordsDeleted": false,
+  "publicFeedExclusionVerified": false
+}

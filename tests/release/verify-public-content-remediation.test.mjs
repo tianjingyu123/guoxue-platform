@@ -9,6 +9,23 @@ const repoRoot = path.resolve(import.meta.dirname, "..", "..");
 const script = path.join(repoRoot, "scripts", "release", "verify-public-content-remediation.mjs");
 const releaseId = "release-content-test";
 
+test("仓库示例只记录脱敏汇总且默认不能冒充已完成", async () => {
+  const example = JSON.parse(
+    await readFile(
+      path.join(repoRoot, "config", "release", "public-content-remediation.example.json"),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(example.counts, {
+    LIVE_STATUS_STALE: 2,
+    UPCOMING_LIVE_EXPIRED: 3,
+  });
+  assert.equal(example.total, 5);
+  assert.equal(example.historicalRecordsDeleted, false);
+  assert.equal(example.publicFeedExclusionVerified, false);
+  assert.equal(/"(?:ids?|titles?|businessId|contentId)"/iu.test(JSON.stringify(example)), false);
+});
+
 async function runScenario(t, mutate = () => undefined) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "gx-content-remediation-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
