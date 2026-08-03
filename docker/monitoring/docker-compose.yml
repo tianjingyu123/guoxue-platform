@@ -6,7 +6,7 @@
 services:
   # ═══════════ Prometheus — 指标采集与时序存储 ═══════════
   prometheus:
-    image: prom/prometheus:v2.55.1
+    image: prom/prometheus:v2.55.1@sha256:2659f4c2ebb718e7695cb9b25ffa7d6be64db013daba13e05c875451cf51b0d3
     container_name: guoxue-prometheus
     volumes:
       - ./.generated/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -27,7 +27,7 @@ services:
 
   # ═══════════ Grafana — 可视化看板 ═══════════
   grafana:
-    image: grafana/grafana:11.5.0
+    image: grafana/grafana:11.5.0@sha256:0a2874cf39c6487093c682215f7c7903ed8646d78ae5f911af945d2dfcc0a447
     container_name: guoxue-grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
@@ -51,7 +51,7 @@ services:
 
   # ═══════════ Alertmanager — 告警路由 ═══════════
   alertmanager:
-    image: prom/alertmanager:v0.28.0
+    image: prom/alertmanager:v0.28.0@sha256:d5155cfac40a6d9250ffc97c19db2c5e190c7bc57c6b67125c94903358f8c7d8
     container_name: guoxue-alertmanager
     volumes:
       - ./.generated/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
@@ -66,7 +66,7 @@ services:
 
   # ═══════════ Loki — 日志聚合 ═══════════
   loki:
-    image: grafana/loki:3.3.0
+    image: grafana/loki:3.3.0@sha256:58b60b901255c209d3455d8a1979a3f73d1d09686a0a858c2c93025a969eb550
     container_name: guoxue-loki
     volumes:
       - loki_data:/loki
@@ -80,7 +80,7 @@ services:
 
   # ═══════════ Promtail — 日志采集 Agent ═══════════
   promtail:
-    image: grafana/promtail:3.3.0
+    image: grafana/promtail:3.3.0@sha256:5aa128328d6b0b47a41e1fedd3e5e599c02203c0368d2a2ffc736785ba5a22a3
     container_name: guoxue-promtail
     volumes:
       - /var/log:/var/log:ro
@@ -95,7 +95,7 @@ services:
 
   # ═══════════ Node Exporter — 主机指标 ═══════════
   node-exporter:
-    image: prom/node-exporter:v1.9.0
+    image: prom/node-exporter:v1.9.0@sha256:c99d7ee4d12a38661788f60d9eca493f08584e2e544bbd3b3fca64749f86b848
     container_name: guoxue-node-exporter
     volumes:
       - /proc:/host/proc:ro
@@ -111,7 +111,7 @@ services:
 
   # ═══════════ PostgreSQL Exporter — DB 指标 ═══════════
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.16.0
+    image: prometheuscommunity/postgres-exporter:v0.16.0@sha256:6999a7657e2f2fb0ca6ebf417213eebf6dc7d21b30708c622f6fcb11183a2bb0
     container_name: guoxue-postgres-exporter
     environment:
       DATA_SOURCE_NAME: ${DATABASE_URL:?监控栈必须读取生产 DATABASE_URL}
@@ -121,7 +121,7 @@ services:
 
   # ═══════════ Redis Exporter — 缓存指标 ═══════════
   redis-exporter:
-    image: oliver006/redis_exporter:v1.67.0
+    image: oliver006/redis_exporter:v1.67.0@sha256:120f7ec77293459ccfdad66bb1db75ab72e8bfeab99f58b1cc2564cadcd7a9e7
     container_name: guoxue-redis-exporter
     environment:
       REDIS_ADDR: ${REDIS_URL:?监控栈必须读取生产 REDIS_URL}
@@ -131,7 +131,7 @@ services:
 
   # ═══════════ Tempo — 分布式追踪后端 ═══════════
   tempo:
-    image: grafana/tempo:2.7.0
+    image: grafana/tempo:2.7.0@sha256:12e904cc509a8e0bd87815e0bc719b6167933bc3f2532716a85811af967780f6
     container_name: guoxue-tempo
     volumes:
       - ./tempo-config.yml:/etc/tempo/config.yml:ro
@@ -144,7 +144,7 @@ services:
 
   # ═══════════ Blackbox Exporter — 第三方服务拨测 ═══════════
   blackbox-exporter:
-    image: prom/blackbox-exporter:v0.25.0
+    image: prom/blackbox-exporter:v0.25.0@sha256:b04a9fef4fa086a02fc7fcd8dcdbc4b7b35cc30cdee860fdc6a19dd8b208d63e
     container_name: guoxue-blackbox-exporter
     command:
       - "--config.file=/etc/blackbox/blackbox.yml"

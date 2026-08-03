@@ -121,7 +121,7 @@ main:
     - stages:
         # 代码评审
         - name: 代码评审
-          image: cnbcool/code-review:latest
+          image: cnbcool/code-review@sha256:2b987c266aa77e732392cd5a65427c744bbf425fa67e92638f926339c14cc0c1
           settings:
             comment: true
             max_comments: 10
@@ -136,7 +136,7 @@ main:
   tag_push:
     - name: 生产部署
       docker:
-        image: docker:24-dind
+        image: docker:24-dind@sha256:9b17a9f25adf17b88d0a013b4f00160754adf4b07ccbe9986664a49886c2c98e
       services:
         - docker
       stages:

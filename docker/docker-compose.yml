@@ -3,7 +3,7 @@ version: "3.9"
 services:
   # ── 数据库 ──
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg16@sha256:a36250871de0833b8757561c72f2477ef1ddd1101afa4e617fb552e0de514c6b
     container_name: guoxue-postgres
     restart: unless-stopped
     environment:
@@ -22,7 +22,7 @@ services:
 
   # ── 数据库读副本（可选，启用 HA profile 时启动）──
   postgres-replica:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg16@sha256:a36250871de0833b8757561c72f2477ef1ddd1101afa4e617fb552e0de514c6b
     container_name: guoxue-postgres-replica
     restart: unless-stopped
     profiles: ["ha"]
@@ -43,7 +43,7 @@ services:
 
   # ── 缓存 ──
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     container_name: guoxue-redis
     restart: unless-stopped
     ports:
@@ -60,7 +60,7 @@ services:
 
   # ── Redis 从节点（可选，启用 HA profile 时启动）──
   redis-secondary:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     container_name: guoxue-redis-secondary
     restart: unless-stopped
     profiles: ["ha"]
@@ -73,7 +73,7 @@ services:
 
   # ── Redis Sentinel ×3（可选，启用 HA profile 时启动，生产建议至少 3 节点）──
   redis-sentinel-1:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     container_name: guoxue-redis-sentinel-1
     restart: unless-stopped
     profiles: ["ha"]
@@ -87,7 +87,7 @@ services:
       - redis-secondary
 
   redis-sentinel-2:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     container_name: guoxue-redis-sentinel-2
     restart: unless-stopped
     profiles: ["ha"]
@@ -101,7 +101,7 @@ services:
       - redis-secondary
 
   redis-sentinel-3:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
     container_name: guoxue-redis-sentinel-3
     restart: unless-stopped
     profiles: ["ha"]
@@ -116,7 +116,7 @@ services:
 
   # ── 反向代理 ──
   nginx:
-    image: nginx:1.25-alpine
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     container_name: guoxue-nginx
     restart: unless-stopped
     ports:
