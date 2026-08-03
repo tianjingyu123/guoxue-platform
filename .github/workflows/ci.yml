@@ -29,7 +29,7 @@ jobs:
   # ─── 类型检查 ───
   typecheck:
     name: TypeScript 类型检查
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -56,7 +56,7 @@ jobs:
   # ─── 代码风格 ───
   lint:
     name: ESLint + Prettier
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -82,7 +82,7 @@ jobs:
   # ─── 迁移与上线安全门禁 ───
   release-safety:
     name: 迁移与上线代码门禁
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -104,7 +104,7 @@ jobs:
   # ─── 单元测试 ───
   test:
     name: 单元测试 (${{ matrix.shard }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     needs: [typecheck]
     strategy:
@@ -174,7 +174,7 @@ jobs:
   # ─── 测试报告 ───
   test-report:
     name: 测试结果汇总
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [typecheck, lint, test, release-safety]
     if: always()
@@ -190,7 +190,7 @@ jobs:
   # ─── 构建 ───
   build:
     name: 构建产物
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [test, lint, release-safety]
     if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'

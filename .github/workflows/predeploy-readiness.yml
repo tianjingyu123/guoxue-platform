@@ -33,7 +33,7 @@ concurrency:
 jobs:
   predeploy-readiness:
     name: 新基础设施只读预接入验收
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     environment:
       name: production

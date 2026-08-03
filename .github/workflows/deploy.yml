@@ -55,7 +55,7 @@ jobs:
   gate-production:
     name: 生产确认、代码门禁与正式配置客户端成品
     if: inputs.environment == 'production'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     environment:
       name: production
@@ -165,7 +165,7 @@ jobs:
     name: 生成并验真固定发布包
     if: inputs.environment == 'production'
     needs: gate-production
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     permissions:
       contents: read
@@ -227,7 +227,7 @@ jobs:
     name: 固定包双节点滚动部署
     if: inputs.environment == 'production'
     needs: package-production
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 80
     environment:
       name: production
@@ -489,7 +489,7 @@ jobs:
   build-staging-image:
     name: 构建 Staging 镜像
     if: inputs.environment == 'staging'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     environment:
       name: staging
@@ -529,7 +529,7 @@ jobs:
     name: 部署到 Staging
     if: inputs.environment == 'staging'
     needs: build-staging-image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment:
       name: staging
@@ -584,7 +584,7 @@ jobs:
     name: 部署结果
     if: always()
     needs: [deploy-production, deploy-staging]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - name: 输出结果（不回显任何凭据）

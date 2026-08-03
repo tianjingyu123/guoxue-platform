@@ -879,7 +879,7 @@ add(
   "PR 与主分支在 Linux 提前执行统一迁移上线门禁",
   hasAll(ciReleaseSafetyJob, [
     "name: 迁移与上线代码门禁",
-    "runs-on: ubuntu-latest",
+    "runs-on: ubuntu-24.04",
     "pnpm install --frozen-lockfile",
     "run: pnpm release:gate:code",
   ]) &&

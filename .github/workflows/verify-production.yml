@@ -33,7 +33,7 @@ concurrency:
 jobs:
   verify-production-cutover:
     name: 公网切流后机器证据验收
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     environment:
       name: production

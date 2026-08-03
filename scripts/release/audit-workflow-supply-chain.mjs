@@ -50,6 +50,7 @@ export function auditWorkflowSupplyChain(repoRoot = defaultRepoRoot) {
   const resolvedRoot = path.resolve(repoRoot);
   const workflowFiles = listWorkflowFiles(path.join(resolvedRoot, ".github", "workflows"));
   const references = [];
+  const runners = [];
   const errors = [];
 
   if (workflowFiles.length === 0) {
@@ -77,6 +78,17 @@ export function auditWorkflowSupplyChain(repoRoot = defaultRepoRoot) {
     }
 
     lines.forEach((line, index) => {
+      const runnerMatch = line.match(/^\s*runs-on:\s*(.+?)\s*$/u);
+      if (runnerMatch) {
+        const runner = runnerMatch[1].replace(/\s+#.*$/u, "").trim();
+        runners.push({ file: relativePath, line: index + 1, runner });
+        if (/\b(?:ubuntu|windows|macos)-latest\b/u.test(runner)) {
+          errors.push(
+            `${relativePath}:${index + 1} GitHub 托管运行器不得使用会跨系统版本漂移的 latest 标签：${runner}`,
+          );
+        }
+      }
+
       const match = line.match(/^\s*(?:-\s*)?uses:\s*(.+?)\s*$/u);
       if (!match) return;
 
@@ -95,6 +107,7 @@ export function auditWorkflowSupplyChain(repoRoot = defaultRepoRoot) {
   return {
     workflowFiles: workflowFiles.map((file) => normalizeRelativePath(resolvedRoot, file)),
     references,
+    runners,
     errors,
   };
 }
@@ -108,7 +121,7 @@ function main() {
   }
 
   console.log(
-    `GitHub Actions 供应链审计通过：${result.workflowFiles.length} 个工作流、${result.references.length} 个 Action 引用均使用不可变提交或摘要`,
+    `GitHub Actions 供应链审计通过：${result.workflowFiles.length} 个工作流、${result.runners.length} 个运行器均固定系统版本、${result.references.length} 个 Action 引用均使用不可变提交或摘要`,
   );
 }
 

@@ -26,11 +26,12 @@ function withRepository(workflows, callback) {
 test("允许锁定提交 SHA、容器摘要和仓库内本地 Action", () => {
   withRepository(
     {
-      "release.yml": `permissions:\n  contents: read\n\njobs:\n  verify:\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)} # v4\n      - uses: ./github-actions/verify\n      - uses: docker://alpine@sha256:${"b".repeat(64)}\n`,
+      "release.yml": `permissions:\n  contents: read\n\njobs:\n  verify:\n    runs-on: ubuntu-24.04\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)} # v4\n      - uses: ./github-actions/verify\n      - uses: docker://alpine@sha256:${"b".repeat(64)}\n`,
     },
     (root) => {
       const result = auditWorkflowSupplyChain(root);
       assert.equal(result.workflowFiles.length, 1);
+      assert.equal(result.runners.length, 1);
       assert.equal(result.references.length, 3);
       assert.deepEqual(result.errors, []);
     },
@@ -40,7 +41,7 @@ test("允许锁定提交 SHA、容器摘要和仓库内本地 Action", () => {
 test("拒绝可变版本标签、分支和未锁定容器镜像", () => {
   withRepository(
     {
-      "release.yml": `permissions:\n  contents: read\n\njobs:\n  verify:\n    steps:\n      - uses: actions/checkout@v4\n      - uses: owner/action@main\n      - uses: docker://alpine:latest\n`,
+      "release.yml": `permissions:\n  contents: read\n\njobs:\n  verify:\n    runs-on: ubuntu-24.04\n    steps:\n      - uses: actions/checkout@v4\n      - uses: owner/action@main\n      - uses: docker://alpine:latest\n`,
     },
     (root) => {
       const result = auditWorkflowSupplyChain(root);
@@ -55,8 +56,8 @@ test("拒绝可变版本标签、分支和未锁定容器镜像", () => {
 test("拒绝缺失顶层权限限制或在顶层授予写权限", () => {
   withRepository(
     {
-      "missing.yml": `jobs:\n  verify:\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)}\n`,
-      "broad.yml": `permissions:\n  contents: write\n  packages: write\n\njobs:\n  publish:\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)}\n`,
+      "missing.yml": `jobs:\n  verify:\n    runs-on: ubuntu-24.04\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)}\n`,
+      "broad.yml": `permissions:\n  contents: write\n  packages: write\n\njobs:\n  publish:\n    runs-on: ubuntu-24.04\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)}\n`,
     },
     (root) => {
       const result = auditWorkflowSupplyChain(root);
@@ -65,6 +66,19 @@ test("拒绝缺失顶层权限限制或在顶层授予写权限", () => {
       assert.ok(result.errors.some((error) => error.includes("必须包含 contents: read")));
       assert.ok(result.errors.some((error) => error.includes("contents: write")));
       assert.ok(result.errors.some((error) => error.includes("packages: write")));
+    },
+  );
+});
+
+test("拒绝 GitHub 托管运行器跨系统版本漂移", () => {
+  withRepository(
+    {
+      "release.yml": `permissions:\n  contents: read\n\njobs:\n  verify:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)}\n`,
+    },
+    (root) => {
+      const result = auditWorkflowSupplyChain(root);
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0], /ubuntu-latest/u);
     },
   );
 });
