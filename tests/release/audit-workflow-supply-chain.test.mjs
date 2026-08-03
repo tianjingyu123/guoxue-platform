@@ -93,3 +93,23 @@ test("统一代码门禁持续执行供应链审计及其回归测试", () => {
   assert.match(gate, /pnpm release:audit-workflow-supply-chain/u);
   assert.match(gate, /pnpm release:test-workflow-supply-chain/u);
 });
+
+test("拒绝流水线使用 latest 下载地址或把远程内容直接管道执行", () => {
+  withRepository(
+    {
+      "release.yml": `permissions:\n  contents: read\n\njobs:\n  verify:\n    runs-on: ubuntu-24.04\n    steps:\n      - uses: actions/checkout@${"a".repeat(40)}\n`,
+    },
+    (root) => {
+      fs.writeFileSync(
+        path.join(root, ".cnb.yml"),
+        `steps:\n  - run: curl -sL https://example.com/releases/latest/download/tool.tar.gz | tar xz\n`,
+        "utf8",
+      );
+      const result = auditWorkflowSupplyChain(root);
+      assert.equal(result.pipelineFiles.length, 2);
+      assert.equal(result.remoteInstallChecks.length, 2);
+      assert.ok(result.errors.some((error) => error.includes("latest")));
+      assert.ok(result.errors.some((error) => error.includes("远程下载直接管道")));
+    },
+  );
+});

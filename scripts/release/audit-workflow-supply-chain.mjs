@@ -23,6 +23,13 @@ function normalizeRelativePath(repoRoot, absolutePath) {
   return path.relative(repoRoot, absolutePath).split(path.sep).join("/");
 }
 
+function listPipelineFiles(repoRoot, workflowFiles) {
+  const files = [...workflowFiles];
+  const cnbFile = path.join(repoRoot, ".cnb.yml");
+  if (fs.existsSync(cnbFile)) files.push(cnbFile);
+  return files;
+}
+
 function isImmutableActionReference(reference) {
   if (reference.startsWith("./")) return true;
   if (/^docker:\/\/[^\s]+@sha256:[0-9a-f]{64}$/iu.test(reference)) return true;
@@ -49,12 +56,31 @@ function readTopLevelPermissions(lines) {
 export function auditWorkflowSupplyChain(repoRoot = defaultRepoRoot) {
   const resolvedRoot = path.resolve(repoRoot);
   const workflowFiles = listWorkflowFiles(path.join(resolvedRoot, ".github", "workflows"));
+  const pipelineFiles = listPipelineFiles(resolvedRoot, workflowFiles);
   const references = [];
   const runners = [];
+  const remoteInstallChecks = [];
   const errors = [];
 
   if (workflowFiles.length === 0) {
     errors.push("没有找到 .github/workflows/*.yml 或 *.yaml，无法验证发布供应链");
+  }
+
+  for (const pipelineFile of pipelineFiles) {
+    const relativePath = normalizeRelativePath(resolvedRoot, pipelineFile);
+    const lines = fs.readFileSync(pipelineFile, "utf8").replace(/\r\n?/gu, "\n").split("\n");
+
+    lines.forEach((line, index) => {
+      const location = `${relativePath}:${index + 1}`;
+      if (/releases\/latest\/download/iu.test(line)) {
+        errors.push(`${location} 禁止从 latest 地址下载构建或测试工具，必须固定版本与校验来源`);
+        remoteInstallChecks.push({ file: relativePath, line: index + 1, kind: "latest-download" });
+      }
+      if (/\b(?:curl|wget)\b[^|\n]*\|\s*(?:bash|sh|tar)\b/iu.test(line)) {
+        errors.push(`${location} 禁止把远程下载直接管道交给解释器或解压器`);
+        remoteInstallChecks.push({ file: relativePath, line: index + 1, kind: "remote-pipe" });
+      }
+    });
   }
 
   for (const workflowFile of workflowFiles) {
@@ -106,8 +132,10 @@ export function auditWorkflowSupplyChain(repoRoot = defaultRepoRoot) {
 
   return {
     workflowFiles: workflowFiles.map((file) => normalizeRelativePath(resolvedRoot, file)),
+    pipelineFiles: pipelineFiles.map((file) => normalizeRelativePath(resolvedRoot, file)),
     references,
     runners,
+    remoteInstallChecks,
     errors,
   };
 }

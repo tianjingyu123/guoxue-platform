@@ -336,24 +336,22 @@ main:
                   sleep 2
                 done
 
-            - name: 安装 k6
+            - name: 验收固定 k6 镜像
               script: |
-                # 安装 k6 压测工具
-                apt-get update -qq && apt-get install -y -qq gnupg 2>/dev/null
-                gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69 2>/dev/null || true
-                echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | tee /etc/apt/sources.list.d/k6.list
-                apt-get update -qq && apt-get install -y -qq k6 2>/dev/null || \
-                  (curl -sL https://github.com/grafana/k6/releases/latest/download/k6-linux-amd64.tar.gz | tar xz && mv k6-linux-amd64/k6 /usr/local/bin/k6)
+                docker pull grafana/k6:2.1.0@sha256:65c920dc067d5e2e00befbf982af6ad6ad0117034e8b1c65817c7975c52d4669
 
             - name: 运行性能测试
               script: |
                 mkdir -p results
-                k6 run \
+                docker run --rm --network host \
+                  -v "$PWD/tests/performance/k6/main.js:/script.js:ro" \
+                  -v "$PWD/results:/results" \
                   --env SCENARIO="$SCENARIO" \
                   --env BASE_URL="$BASE_URL" \
-                  --out json=results/raw.json \
-                  --summary-export=results/summary.json \
-                  tests/performance/k6/main.js
+                  grafana/k6:2.1.0@sha256:65c920dc067d5e2e00befbf982af6ad6ad0117034e8b1c65817c7975c52d4669 \
+                  run --out json=/results/raw.json \
+                  --summary-export=/results/summary.json \
+                  /script.js
               allowFailure: true
 
             - name: 输出结果摘要
