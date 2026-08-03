@@ -116,6 +116,18 @@ test("处理记录包含业务 ID 或标题时拒绝归档", async (t) => {
   assert.ok(report.errors.some((item) => item.includes("业务身份字段")));
 });
 
+test("新鲜度报告包含业务 ID 或标题时拒绝归档", async (t) => {
+  const { result, report } = await runScenario(t, ({ freshness }) => {
+    freshness.auditContext = {
+      businessId: "do-not-archive",
+      title: "不应进入证据的标题",
+    };
+  });
+  assert.equal(result.status, 1);
+  assert.equal(report.decision, "BLOCK");
+  assert.ok(report.errors.some((item) => item.includes("脱敏新鲜度报告")));
+});
+
 test("新鲜度门禁早于处理完成时间时阻断", async (t) => {
   const { result, report } = await runScenario(t, ({ action, freshness }) => {
     action.completedAt = new Date().toISOString();

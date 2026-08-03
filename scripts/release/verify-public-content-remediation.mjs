@@ -126,6 +126,10 @@ async function main() {
   if (gate.schemaVersion !== 1 || gate.kind !== "guoxue-public-content-freshness") {
     errors.push("公开内容新鲜度报告类型无效");
   }
+  const forbiddenFreshnessFields = findForbiddenIdentityFields(gate);
+  if (forbiddenFreshnessFields.length > 0) {
+    errors.push(`脱敏新鲜度报告不得包含业务身份字段：${forbiddenFreshnessFields.join("、")}`);
+  }
   if (gate.target !== action.target) errors.push("处理记录与新鲜度门禁目标不一致");
   if (!Number.isInteger(gate.totalItems) || gate.totalItems < 1)
     errors.push("生产公开流没有可展示内容");
