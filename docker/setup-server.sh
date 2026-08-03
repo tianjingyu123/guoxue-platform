@@ -312,6 +312,13 @@ if [ "$DEPLOY_TARGET" = "tencent" ]; then
 fi
 "${COMPOSE[@]}" config -q
 
+log "在启动任何业务容器前拉取并验收当前节点所需的锁定镜像..."
+node "$INSTALL_DIR/scripts/release/verify-container-images.mjs" \
+  --project-dir "$INSTALL_DIR" \
+  --node-role "$NODE_ROLE" \
+  --report "$INSTALL_DIR/release-evidence/container-image-runtime-readiness.json"
+chmod 600 "$INSTALL_DIR/release-evidence/container-image-runtime-readiness.json"
+
 # ── 8. SSL 证书 ──
 SSL_DIR="$PLATFORM_ROOT/shared/nginx-ssl"
 if [ "$DEPLOY_TARGET" = "standard" ]; then

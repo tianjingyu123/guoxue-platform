@@ -137,6 +137,12 @@ PROJECT_DIR="$PROJECT_DIR" \
   ALLOW_OCCUPIED_PORTS=true \
   bash "$PROJECT_DIR/scripts/release/preflight-host.sh"
 "${COMPOSE[@]}" config -q
+log "  拉取并验收当前节点所需的锁定镜像"
+node "$PROJECT_DIR/scripts/release/verify-container-images.mjs" \
+  --project-dir "$PROJECT_DIR" \
+  --node-role "$NODE_ROLE" \
+  --report "$PROJECT_DIR/release-evidence/container-image-runtime-readiness.json"
+chmod 600 "$PROJECT_DIR/release-evidence/container-image-runtime-readiness.json"
 
 # 检查是否已有运行中的服务
 RUNNING_BEFORE=$("${COMPOSE[@]}" ps --status running -q 2>/dev/null | wc -l || echo 0)
