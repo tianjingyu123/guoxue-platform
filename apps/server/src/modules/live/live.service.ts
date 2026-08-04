@@ -16,7 +16,10 @@ import { AuditService } from "../audit/audit.service";
 import { NotificationService } from "../notification/notification.service";
 import { ImService } from "../im/im.service";
 import { safePagination } from "../../common/pagination";
-import { publicQuarantinedIds } from "../../common/public-content-quarantine";
+import {
+  PUBLIC_QA_TITLE_PREFIX,
+  publicQuarantinedIds,
+} from "../../common/public-content-quarantine";
 import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 @Injectable()
@@ -60,6 +63,7 @@ export class LiveService {
       where: {
         id: { in: normalized, notIn: [...publicQuarantinedIds("product")] },
         status: "ON_SALE",
+        NOT: { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } },
       },
       select: { id: true },
     });
@@ -589,7 +593,10 @@ export class LiveService {
 
   /** 主播带货商品库 — 平台在售商品供主播选入直播间带货（filter: all/on/off） */
   async getLiveProducts(filter?: string) {
-    const where: Prisma.ProductWhereInput = { id: { notIn: publicQuarantinedIds("product") } };
+    const where: Prisma.ProductWhereInput = {
+      id: { notIn: publicQuarantinedIds("product") },
+      NOT: { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } },
+    };
     if (filter === "on") where.status = "ON_SALE";
     else if (filter === "off") where.status = { not: "ON_SALE" };
     const products = await this.prisma.product.findMany({

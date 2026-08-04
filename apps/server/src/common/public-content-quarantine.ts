@@ -57,6 +57,9 @@ export const PUBLIC_QUARANTINED_IDS = {
 
 export type PublicQuarantineType = keyof typeof PUBLIC_QUARANTINED_IDS;
 
+/** 发布验收夹具的保留前缀。任何带此前缀的标题都不得进入公开内容流。 */
+export const PUBLIC_QA_TITLE_PREFIX = "QA_";
+
 const PUBLIC_QUARANTINED_ID_SETS: Record<PublicQuarantineType, ReadonlySet<string>> = {
   product: new Set(PUBLIC_QUARANTINED_IDS.product),
   course: new Set(PUBLIC_QUARANTINED_IDS.course),
@@ -76,4 +79,9 @@ export function isPublicContentQuarantined(type: string, id: string): boolean {
   const normalizedType = type.trim().toLowerCase() as PublicQuarantineType;
   const set = PUBLIC_QUARANTINED_ID_SETS[normalizedType];
   return set?.has(id) ?? false;
+}
+
+/** 精确识别发布验收夹具；仅匹配保留前缀，不按普通英文标题做模糊拦截。 */
+export function isPublicQaFixtureTitle(title?: string | null): boolean {
+  return String(title || "").trim().toUpperCase().startsWith(PUBLIC_QA_TITLE_PREFIX);
 }

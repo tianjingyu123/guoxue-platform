@@ -1,5 +1,6 @@
 import {
   PUBLIC_QUARANTINED_IDS,
+  isPublicQaFixtureTitle,
   isPublicContentQuarantined,
   publicQuarantinedIds,
 } from "./public-content-quarantine";
@@ -21,5 +22,12 @@ describe("公开内容精确隔离规则", () => {
     const ids = publicQuarantinedIds("product");
     ids.pop();
     expect(publicQuarantinedIds("product")).toHaveLength(PUBLIC_QUARANTINED_IDS.product.length);
+  });
+
+  it("QA 验收标题必须精确命中保留前缀，普通英文商品不误伤", () => {
+    expect(isPublicQaFixtureTitle("QA_RELEASE_PHYSICAL_PRODUCT")).toBe(true);
+    expect(isPublicQaFixtureTitle(" qa_only ")).toBe(true);
+    expect(isPublicQaFixtureTitle("English Learning Book")).toBe(false);
+    expect(isPublicQaFixtureTitle("国学好物")).toBe(false);
   });
 });

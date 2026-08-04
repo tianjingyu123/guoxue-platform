@@ -29,6 +29,16 @@ test("正常直播、未来预约和有首图文章通过审计", () => {
   assert.equal(result.totalItems, 3);
 });
 
+test("QA 发布验收夹具进入公开流时必须阻断", () => {
+  const result = auditFeedItems(
+    [{ id: "qa-product", type: "product", title: "QA_RELEASE_PHYSICAL_PRODUCT" }],
+    { now },
+  );
+
+  assert.equal(result.blockers, 1);
+  assert.equal(result.findings[0].code, "QA_FIXTURE_PUBLIC");
+});
+
 test("已过开播时间的预约直播被阻断", () => {
   const result = auditFeedItems(
     [

@@ -11,7 +11,10 @@ import {
   CreateProductDto, UpdateProductDto, ProductListQueryDto,
   PRODUCT_SCENE_TAGS,
 } from "./shop.dto";
-import { publicQuarantinedIds } from "../../common/public-content-quarantine";
+import {
+  PUBLIC_QA_TITLE_PREFIX,
+  publicQuarantinedIds,
+} from "../../common/public-content-quarantine";
 
 /** 缓存前缀（与 shop.service 一致） */
 const CACHE_PREFIX = "shop:";
@@ -248,6 +251,7 @@ export class ShopProductService {
     } else {
       where.status = "ON_SALE";
       where.id = { notIn: publicQuarantinedIds("product") };
+      where.NOT = { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } };
     }
     if (stationId) where.stationId = stationId;
     if (keyword) where.title = { contains: keyword, mode: "insensitive" };
@@ -329,6 +333,7 @@ export class ShopProductService {
         status: "ON_SALE",
         deletedAt: null,
         categoryLevel1: { not: null },
+        NOT: { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } },
       },
       _count: { _all: true },
     });
@@ -354,6 +359,7 @@ export class ShopProductService {
         id: { notIn: publicQuarantinedIds("product") },
         status: "ON_SALE",
         deletedAt: null,
+        NOT: { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } },
         sceneTags: { has: tag },
       },
       select: {
@@ -387,6 +393,7 @@ export class ShopProductService {
       id: { notIn: publicQuarantinedIds("product") },
       userId: merchant.userId,
       status: "ON_SALE",
+      NOT: { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } },
     };
     const [products, total, cumSalesAgg, cumOrderCount, ratingAgg] = await Promise.all([
       this.prisma.product.findMany({

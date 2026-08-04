@@ -8,7 +8,10 @@ import { Prisma } from "@prisma/client";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { AuditService } from "../audit/audit.service";
 import { safePagination } from "../../common/pagination";
-import { publicQuarantinedIds } from "../../common/public-content-quarantine";
+import {
+  PUBLIC_QA_TITLE_PREFIX,
+  publicQuarantinedIds,
+} from "../../common/public-content-quarantine";
 import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
 
 @Injectable()
@@ -528,6 +531,7 @@ export class VideoService {
         id: { notIn: publicQuarantinedIds("product") },
         status: "ON_SALE",
         deletedAt: null,
+        NOT: { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } },
       },
       orderBy: { salesCount: "desc" },
       skip,

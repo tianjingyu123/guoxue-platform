@@ -140,6 +140,7 @@ describe("ShopProductService", () => {
         id: { notIn: [...PUBLIC_QUARANTINED_IDS.product] },
         status: "ON_SALE",
         deletedAt: null,
+        NOT: { title: { startsWith: "QA_" } },
         sceneTags: { has: "节气时令" },
       })
       expect(args.orderBy).toEqual([{ salesCount: "desc" }, { createdAt: "desc" }])

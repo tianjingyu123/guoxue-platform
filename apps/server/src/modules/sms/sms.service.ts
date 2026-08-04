@@ -90,6 +90,40 @@ export class SmsService {
     return { secretId, secretKey };
   }
 
+  /**
+   * 腾讯云错误只写入内部日志，面向用户统一返回可理解、可执行的中文提示。
+   * 供应商的 Code 相对稳定；Message 仅用于兼容历史返回和号码级 SendStatusSet。
+   */
+  private userFacingProviderError(code?: string, message?: string): string {
+    const source = `${code || ""} ${message || ""}`.toLowerCase();
+
+    if (
+      source.includes("phonenumberdailylimit") ||
+      source.includes("single mobile number every day exceeds the upper limit")
+    ) {
+      return "该手机号今日获取验证码次数已达上限，请明日再试或更换手机号";
+    }
+    if (
+      source.includes("phonenumberonehourlimit") ||
+      source.includes("phone number one hour limit")
+    ) {
+      return "该手机号获取验证码过于频繁，请稍后再试";
+    }
+    if (
+      source.includes("phonenumberthirtysecondlimit") ||
+      source.includes("thirty second")
+    ) {
+      return "操作过于频繁，请稍后再获取验证码";
+    }
+    if (source.includes("dailylimit") || source.includes("insufficientbalance")) {
+      return "短信服务今日额度已用完，请稍后再试";
+    }
+    if (source.includes("template") || source.includes("signname")) {
+      return "短信服务配置异常，请联系平台客服";
+    }
+    return "短信服务暂时不可用，请稍后再试";
+  }
+
   /** TC3-HMAC-SHA256 签名调用 */
   private async callApi(action: string, params: Record<string, unknown>) {
     const credentials = await this.resolveCredentials();
@@ -121,11 +155,12 @@ export class SmsService {
 
       if (data.Response?.Error) {
         const reason = (data.Response.Error.Code || "unknown") as string;
+        const providerMessage = data.Response.Error.Message || "";
         this.metrics?.recordExternalApi("sms", action, false, duration, reason);
         this.logger.error(`SMS API错误 [${action}]`, data.Response.Error);
         throw new BusinessException(
           ErrorCode.THIRD_SMS_FAILED,
-          `短信发送失败: ${data.Response.Error.Message}`,
+          this.userFacingProviderError(reason, providerMessage),
         );
       }
 
@@ -145,7 +180,7 @@ export class SmsService {
           );
           throw new BusinessException(
             ErrorCode.THIRD_SMS_FAILED,
-            `短信发送失败: ${rejected.Message || reason}`,
+            this.userFacingProviderError(reason, rejected.Message),
           );
         }
       }
@@ -249,6 +284,10 @@ export class SmsService {
       await this.redis.del(rateKey);
 
       const errorMsg = (err as Error).message;
+      const userMessage =
+        err instanceof BusinessException
+          ? errorMsg
+          : "短信服务暂时不可用，请稍后再试";
       this.prisma.smsLog
         .create({
           data: {
@@ -261,7 +300,7 @@ export class SmsService {
         .catch((e) => this.logger.warn("SMS日志写入失败", e));
 
       this.logger.error(`短信发送失败: ${maskPhone(phone)}`, errorMsg);
-      return { ok: false, message: errorMsg };
+      return { ok: false, message: userMessage };
     }
   }
 

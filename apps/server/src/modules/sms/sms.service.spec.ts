@@ -81,6 +81,57 @@ describe("SmsService", () => {
     });
   });
 
+  describe("短信供应商错误提示", () => {
+    it("单手机号日限额应返回可操作的中文提示，不透传英文", async () => {
+      mockFetch.mockResolvedValue({
+        json: async () => ({
+          Response: {
+            RequestId: "req-daily-limit",
+            SendStatusSet: [
+              {
+                Code: "LimitExceeded.PhoneNumberDailyLimit",
+                Message:
+                  "the number of sms messages sent from a single mobile number every day exceeds the upper limit",
+              },
+            ],
+          },
+        }),
+      } as Response);
+
+      const result = await svc.sendVerifyCode("13800138000", "LOGIN");
+
+      expect(result).toEqual({
+        ok: false,
+        message: "该手机号今日获取验证码次数已达上限，请明日再试或更换手机号",
+      });
+      expect(result.message).not.toMatch(/[a-z]{4,}/i);
+    });
+
+    it("未知供应商英文错误应降级为通用中文提示", async () => {
+      mockFetch.mockResolvedValue({
+        json: async () => ({
+          Response: {
+            RequestId: "req-unknown",
+            Error: { Code: "InternalError", Message: "provider internal error" },
+          },
+        }),
+      } as Response);
+
+      const result = await svc.sendVerifyCode("13800138000", "LOGIN");
+
+      expect(result).toEqual({ ok: false, message: "短信服务暂时不可用，请稍后再试" });
+      expect(result.message).not.toContain("provider internal error");
+    });
+
+    it("网络异常不应直接展示底层英文", async () => {
+      mockFetch.mockRejectedValue(new Error("fetch failed"));
+
+      const result = await svc.sendVerifyCode("13800138000", "LOGIN");
+
+      expect(result).toEqual({ ok: false, message: "短信服务暂时不可用，请稍后再试" });
+    });
+  });
+
   describe("getAdminLogs", () => {
     it("page 为非法字符串时 skip 不为 NaN", async () => {
       mockPrisma.smsLog.findMany.mockResolvedValue([]);

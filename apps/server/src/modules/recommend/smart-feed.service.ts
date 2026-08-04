@@ -4,6 +4,8 @@ import { RecommendService } from "./recommend.service";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 import { RedisService } from "../../redis/redis.service";
 import {
+  PUBLIC_QA_TITLE_PREFIX,
+  isPublicQaFixtureTitle,
   isPublicContentQuarantined,
   publicQuarantinedIds,
 } from "../../common/public-content-quarantine";
@@ -347,6 +349,7 @@ export class SmartFeedService {
       (item) =>
         item.type !== "post" &&
         (item.type !== "article" || Boolean(item.cover?.trim())) &&
+        !isPublicQaFixtureTitle(item.title) &&
         !isPublicContentQuarantined(item.type, item.id),
     );
   }
@@ -368,7 +371,7 @@ export class SmartFeedService {
           return rows.map((a) => this.mapArticle(a, "热门文章"));
         }
         case "product": {
-          const rows = await this.prisma.product.findMany({ where: { id: { notIn: publicQuarantinedIds("product") }, status: "ON_SALE" }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: size, skip });
+          const rows = await this.prisma.product.findMany({ where: { id: { notIn: publicQuarantinedIds("product") }, status: "ON_SALE", NOT: { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } } }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: size, skip });
           return rows.map((p) => this.mapProduct(p, "严选好物"));
         }
         case "post": {
@@ -531,7 +534,7 @@ export class SmartFeedService {
       this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: CLASSIC_SELECT, orderBy: { viewCount: "desc" }, take: per }),
       this.getVideoItems(per, "为你推荐"),
       this.getLiveItems(per, "正在直播"),
-      this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: per }),
+      this.prisma.product.findMany({ where: { status: "ON_SALE", NOT: { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } } }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: per }),
     ]);
     return [
       ...articles.map((a): FeedItem => this.mapArticle(a, "新手推荐")),
@@ -586,7 +589,7 @@ export class SmartFeedService {
         take: half,
       }),
       this.prisma.product.findMany({
-        where: { status: "ON_SALE" },
+        where: { status: "ON_SALE", NOT: { title: { startsWith: PUBLIC_QA_TITLE_PREFIX } } },
         select: PRODUCT_SELECT,
         orderBy: { createdAt: "desc" },
         take: half,

@@ -33,6 +33,16 @@ export function auditFeedItems(
     const id = String(item?.id || "unknown");
     const title = String(item?.title || "未命名内容");
 
+    if (title.trim().toUpperCase().startsWith("QA_")) {
+      findings.push({
+        severity: "P0",
+        code: "QA_FIXTURE_PUBLIC",
+        id,
+        title,
+        message: "发布验收夹具进入公开内容流，必须下架或由公开查询精确排除",
+      });
+    }
+
     if (type === "article" && !String(item?.cover || "").trim()) {
       findings.push({
         severity: "P0",
