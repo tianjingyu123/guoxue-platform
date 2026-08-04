@@ -400,10 +400,20 @@ export class SmsService {
     }
 
     if (storedCode !== code) {
-      // 验证失败：递增失败计数并消耗本次验证码
-      await this.redis.set(failKey, String(failCount + 1), 1800); // 30分钟锁定
-      await this.redis.del(codeKey); // 消耗验证码，防止继续爆破
-      throw new BusinessException(ErrorCode.AUTH_SMS_CODE_INVALID, "验证码错误");
+      // 单次输错不应让仍在有效期内的验证码立即失效，否则用户只能反复发短信，
+      // 很容易撞上运营商单号日限额。失败计数使用 Redis 原子递增，最多允许 5 次尝试。
+      const { count } = await this.redis.incrWithTtl(failKey, 1800);
+      if (count >= 5) {
+        await this.redis.del(codeKey);
+        throw new BusinessException(
+          ErrorCode.AUTH_SMS_CODE_INVALID,
+          "验证码错误次数过多，请30分钟后再试",
+        );
+      }
+      throw new BusinessException(
+        ErrorCode.AUTH_SMS_CODE_INVALID,
+        `验证码错误，还可尝试${5 - count}次`,
+      );
     }
 
     // 验证成功：清除验证码和失败计数

@@ -9,6 +9,7 @@ const mockRedis: any = {
   set: jest.fn().mockResolvedValue("OK"),
   del: jest.fn().mockResolvedValue(1),
   ttl: jest.fn().mockResolvedValue(0),
+  incrWithTtl: jest.fn().mockResolvedValue({ count: 1, ttl: 1800 }),
 };
 const mockPrisma = { smsLog: { create: jest.fn(), findMany: jest.fn(), count: jest.fn() } };
 const mockMetrics = { recordExternalApi: jest.fn() };
@@ -66,12 +67,31 @@ describe("SmsService", () => {
       expect(mockRedis.del).toHaveBeenCalled();
     });
 
-    it("不匹配应抛出异常（验证码被消耗）", async () => {
+    it("首次输错不消耗验证码，改正后仍可验证成功", async () => {
       // failKey→null, codeKey→"654321"
       mockRedis.get.mockImplementation((key: string) =>
         key.startsWith("sms:fail:") ? Promise.resolve(null) : Promise.resolve("654321"),
       );
-      await expect(svc.verifyCode("13800138000", "123456")).rejects.toThrow("验证码错误");
+      await expect(svc.verifyCode("13800138000", "123456")).rejects.toThrow(
+        "验证码错误，还可尝试4次",
+      );
+      expect(mockRedis.del).not.toHaveBeenCalledWith("sms:code:LOGIN:13800138000");
+
+      await expect(svc.verifyCode("13800138000", "654321")).resolves.toBe(true);
+      expect(mockRedis.del).toHaveBeenCalledWith("sms:code:LOGIN:13800138000");
+      expect(mockRedis.del).toHaveBeenCalledWith("sms:fail:LOGIN:13800138000");
+    });
+
+    it("第5次输错才消耗验证码并进入30分钟保护", async () => {
+      mockRedis.get.mockImplementation((key: string) =>
+        key.startsWith("sms:fail:") ? Promise.resolve("4") : Promise.resolve("654321"),
+      );
+      mockRedis.incrWithTtl.mockResolvedValueOnce({ count: 5, ttl: 1800 });
+
+      await expect(svc.verifyCode("13800138000", "123456")).rejects.toThrow(
+        "验证码错误次数过多，请30分钟后再试",
+      );
+      expect(mockRedis.del).toHaveBeenCalledWith("sms:code:LOGIN:13800138000");
     });
 
     it("验证码不存在应抛出异常", async () => {
