@@ -157,6 +157,7 @@
       "@nestjs/graphql>ws": "8.21.0",
       "engine.io>ws": "8.21.0",
       "socket.io-adapter>ws": "8.21.0",
+      "socket.io-parser": "4.2.7",
       "@intlify/core-base": "9.14.5",
       "@intlify/message-compiler": "9.14.5",
       "@intlify/shared": "9.14.5"
