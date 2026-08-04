@@ -1104,11 +1104,15 @@ add(
   "运维节点监控切换与应用激活保持失败可恢复",
   hasAll(releaseActivator, [
     "restore_current_monitoring()",
+    'MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"',
+    'COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME"',
     "新监控栈启动失败，且无法恢复当前版本监控配置",
     "部署失败，且无法恢复当前版本监控配置",
   ]) &&
     hasAll(releaseRollback, [
       "restore_current_monitoring()",
+      'MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"',
+      'COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME"',
       "目标版本监控栈启动失败，且无法恢复当前版本监控配置",
       "应用回滚失败，且无法恢复当前版本监控配置",
     ]),

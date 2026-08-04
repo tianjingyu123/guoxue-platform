@@ -28,11 +28,13 @@ NODE_ROLE="${NODE_ROLE:-operations}"
 RUN_MIGRATION="${RUN_MIGRATION:-false}"
 MIGRATION_DEPLOY_CONFIRM="${MIGRATION_DEPLOY_CONFIRM:-}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guoxue}"
+MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"
 
 case "$DEPLOY_TARGET" in standard|tencent) ;; *) fail "DEPLOY_TARGET 仅允许 standard 或 tencent" ;; esac
 case "$NODE_ROLE" in app|operations) ;; *) fail "NODE_ROLE 仅允许 app 或 operations" ;; esac
 case "$RUN_MIGRATION" in true|false) ;; *) fail "RUN_MIGRATION 仅允许 true 或 false" ;; esac
 [[ "$COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "COMPOSE_PROJECT_NAME 格式无效"
+[[ "$MONITORING_COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "MONITORING_COMPOSE_PROJECT_NAME 格式无效"
 [[ "$EXPECTED_COMMIT" =~ ^[a-fA-F0-9]{40}$ ]] || fail "EXPECTED_COMMIT 必须是完整的 40 位提交 SHA，正式激活不得省略源提交身份"
 if [ -n "$EXPECTED_CURRENT_RELEASE_ID" ]; then
   [[ "$EXPECTED_CURRENT_RELEASE_ID" =~ ^[A-Za-z0-9._-]{8,80}$ ]] \
@@ -196,10 +198,10 @@ restore_current_monitoring() {
   local current_dir
   current_dir="$(realpath -e "$ROOT_DIR/current")" || return 1
   node "$current_dir/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE" || return 1
-  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+  COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
     docker compose -f "$current_dir/docker/monitoring/docker-compose.yml" \
       --env-file "$SHARED_ENV_FILE" config -q || return 1
-  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+  COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
     docker compose -f "$current_dir/docker/monitoring/docker-compose.yml" \
       --env-file "$SHARED_ENV_FILE" up -d
 }
@@ -208,10 +210,10 @@ if [ "$NODE_ROLE" = "operations" ]; then
   log "运维节点：渲染并复核监控告警配置"
   node "$FINAL_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE"
   docker network create monitoring >/dev/null 2>&1 || true
-  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+  COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
     docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
       --env-file "$SHARED_ENV_FILE" config -q
-  if ! COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
+  if ! COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
     docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
       --env-file "$SHARED_ENV_FILE" up -d; then
     restore_current_monitoring \

@@ -97,6 +97,21 @@ test("部署在完整验收前等待 Compose 容器完成健康启动", async ()
       deploySource.indexOf('bash "$SCRIPT_DIR/health-check.sh"; then'),
   );
 });
+
+test("业务与监控 Compose 使用独立项目名并在回滚时保持一致", async () => {
+  for (const relativePath of [
+    "scripts/release/activate-fixed-release.sh",
+    "scripts/release/rollback-fixed-release.sh",
+  ]) {
+    const source = await readFile(path.join(projectRoot, relativePath), "utf8");
+    assert.match(
+      source,
+      /MONITORING_COMPOSE_PROJECT_NAME="\$\{MONITORING_COMPOSE_PROJECT_NAME:-monitoring\}"/u,
+    );
+    assert.match(source, /COMPOSE_PROJECT_NAME="\$MONITORING_COMPOSE_PROJECT_NAME"/u);
+    assert.match(source, /COMPOSE_PROJECT_NAME="\$COMPOSE_PROJECT_NAME"/u);
+  }
+});
 const executableRuntimeScripts = new Set([
   "scripts/release/verify-fixed-package.mjs",
   "scripts/release/verify-client-config-binding.mjs",
