@@ -46,7 +46,7 @@
               >
                 <el-input
                   v-model="emailForm.to"
-                  placeholder="user@example.com"
+                  placeholder="name@your-domain.invalid"
                 />
               </el-form-item>
               <el-form-item
@@ -109,7 +109,7 @@
               >
                 <el-input
                   v-model="verifyEmail"
-                  placeholder="user@example.com"
+                  placeholder="name@your-domain.invalid"
                 />
               </el-form-item>
               <el-form-item>

@@ -155,7 +155,7 @@
         >
           <el-input
             v-model="form.url"
-            placeholder="https://example.com/webhook"
+            placeholder="https://callback.your-domain.invalid/webhook"
           />
         </el-form-item>
         <el-form-item label="签名密钥">

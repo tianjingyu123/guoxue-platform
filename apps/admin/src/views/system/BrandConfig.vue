@@ -81,12 +81,16 @@
         <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item label="主域名">
-              <el-input v-model="form.domain" maxlength="200" placeholder="api.example.com" />
+              <el-input v-model="form.domain" maxlength="200" placeholder="api.your-domain.invalid" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="H5 入口地址">
-              <el-input v-model="form.h5Url" maxlength="500" placeholder="https://api.example.com/h5/" />
+              <el-input
+                v-model="form.h5Url"
+                maxlength="500"
+                placeholder="https://api.your-domain.invalid/h5/"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">

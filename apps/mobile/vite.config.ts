@@ -3,6 +3,8 @@ import uni from "@dcloudio/vite-plugin-uni";
 import { resolve } from "path";
 
 const LEGACY_PUBLIC_ORIGIN = "https://api.rebugx.cn";
+const THIRD_PARTY_PROBE_ORIGIN = "https://example.com";
+const RESERVED_PROBE_ORIGIN = "https://example.invalid";
 
 function normalizeOrigin(value: string): string {
   return value.trim().replace(/\/+$/, "");
@@ -27,6 +29,24 @@ export function rewriteLegacyPublicAssets(publicAssetOrigin: string): Plugin {
       }
       return {
         code: code.replaceAll(`${LEGACY_PUBLIC_ORIGIN}/assets`, `${targetOrigin}/assets`),
+        map: null,
+      };
+    },
+  };
+}
+
+/** 避免 flv.js 的能力探测地址把公网示例域名带入正式 H5 产物。 */
+export function rewriteFlvProbeOrigin(): Plugin {
+  return {
+    name: "rewrite-flv-probe-origin",
+    enforce: "pre",
+    transform(code, id) {
+      const normalizedId = id.replaceAll("\\", "/");
+      if (!normalizedId.includes("/flv.js/") || !code.includes(THIRD_PARTY_PROBE_ORIGIN)) {
+        return null;
+      }
+      return {
+        code: code.replaceAll(THIRD_PARTY_PROBE_ORIGIN, RESERVED_PROBE_ORIGIN),
         map: null,
       };
     },
@@ -76,6 +96,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       rewriteLegacyPublicAssets(publicAssetOrigin),
+      rewriteFlvProbeOrigin(),
       uni(),
       harmonyIifeBuildCompatibility(),
     ],
