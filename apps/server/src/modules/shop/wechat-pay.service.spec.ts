@@ -12,6 +12,7 @@ jest.mock("crypto", () => ({
     update: jest.fn().mockReturnThis(),
     verify: jest.fn().mockReturnValue(true),
   }),
+  publicEncrypt: jest.fn().mockReturnValue(Buffer.from("encrypted")),
   createDecipheriv: jest.fn().mockReturnValue({
     setAuthTag: jest.fn().mockReturnThis(),
     setAAD: jest.fn().mockReturnThis(),
@@ -47,6 +48,10 @@ describe("WechatPayService", () => {
     process.env.WECHAT_APP_ID = "wx_test_app_id";
     process.env.WECHAT_PAY_NOTIFY_URL = "https://example.com/wxpay/notify";
     process.env.WECHAT_PAY_REFUND_NOTIFY_URL = "https://example.com/wxpay/refund-notify";
+    delete process.env.WECHAT_PAY_PUBLIC_KEY;
+    delete process.env.WECHAT_PAY_PUBLIC_KEY_ID;
+    delete process.env.WECHAT_PAY_TRANSFER_NOTIFY_URL;
+    delete process.env.WECHAT_TRANSFER_NOTIFY_URL;
     delete process.env.PUBLIC_API_URL;
     delete (global as any).fetch;
 
@@ -121,6 +126,44 @@ describe("WechatPayService", () => {
       const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
       expect(body.appid).toBe("wx_test_app_id");
       expect(result.paySign.appId).toBe("wx_test_app_id");
+    });
+  });
+
+  describe("微信支付公钥模式", () => {
+    it("公钥模式回调必须匹配配置的公钥ID", async () => {
+      process.env.WECHAT_PAY_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nmock\n-----END PUBLIC KEY-----";
+      process.env.WECHAT_PAY_PUBLIC_KEY_ID = "PUB_KEY_ID_EXPECTED";
+      const base = `timestamp="${Math.floor(Date.now() / 1000)}",nonce_str="nonce",signature="sig",serial_no="`;
+      await expect(service.verifyNotifySign(base + 'PUB_KEY_ID_EXPECTED"', "{}")).resolves.toBe(true);
+      await expect(service.verifyNotifySign(base + 'PUB_KEY_ID_OTHER"', "{}")).resolves.toBe(false);
+    });
+
+    it("敏感字段在公钥模式下使用公钥ID", async () => {
+      process.env.WECHAT_PAY_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nmock\n-----END PUBLIC KEY-----";
+      process.env.WECHAT_PAY_PUBLIC_KEY_ID = "PUB_KEY_ID_EXPECTED";
+      await expect(service.encryptSensitive("张三")).resolves.toEqual({
+        ciphertext: Buffer.from("encrypted").toString("base64"),
+        serialNo: "PUB_KEY_ID_EXPECTED",
+      });
+    });
+
+    it("商家转账使用公钥ID并自动采用当前域名回调", async () => {
+      process.env.WECHAT_PAY_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nmock\n-----END PUBLIC KEY-----";
+      process.env.WECHAT_PAY_PUBLIC_KEY_ID = "PUB_KEY_ID_EXPECTED";
+      process.env.PUBLIC_API_URL = "https://pre-api.rebugx.cn/";
+      mockFetchJson({ transfer_bill_no: "T1", out_bill_no: "WD1", state: "ACCEPTED" });
+
+      await service.transferToBalance({
+        outBillNo: "WD1",
+        openid: "openid",
+        amountFen: 200_000,
+        remark: "测试转账",
+        userName: "张三",
+      });
+
+      const options = ((global as any).fetch as jest.Mock).mock.calls[0][1];
+      expect(JSON.parse(options.body).notify_url).toBe("https://pre-api.rebugx.cn/api/v1/payout/wechat/transfer-notify");
+      expect(options.headers["Wechatpay-Serial"]).toBe("PUB_KEY_ID_EXPECTED");
     });
   });
 

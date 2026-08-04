@@ -43,6 +43,7 @@ export class SystemController {
       wechat_pay: {
         notifyUrl: `${publicApiUrl}/api/v1/shop/pay/notify`,
         refundNotifyUrl: `${publicApiUrl}/api/v1/shop/refund/notify`,
+        transferNotifyUrl: `${publicApiUrl}/api/v1/payout/wechat/transfer-notify`,
       },
       alipay: { notifyUrl: `${publicApiUrl}/api/v1/shop/alipay/notify` },
       huifu: { notifyUrl: `${publicApiUrl}/api/v1/huifu/notify` },

@@ -48,7 +48,10 @@ export class WechatPayService {
     return (process.env.WECHAT_PAY_PRIVATE_KEY || "").replace(/\\n/g, "\n");
   }
 
-  private callbackUrl(envKey: "WECHAT_PAY_NOTIFY_URL" | "WECHAT_PAY_REFUND_NOTIFY_URL", path: string): string {
+  private callbackUrl(
+    envKey: "WECHAT_PAY_NOTIFY_URL" | "WECHAT_PAY_REFUND_NOTIFY_URL" | "WECHAT_PAY_TRANSFER_NOTIFY_URL",
+    path: string,
+  ): string {
     const configured = process.env[envKey]?.trim();
     if (configured) return configured;
     const publicApiUrl = (process.env.PUBLIC_API_URL || process.env.API_BASE_URL || "").replace(/\/+$/, "");
@@ -209,7 +212,11 @@ export class WechatPayService {
       openid: params.openid,
       transfer_amount: params.amountFen,
       transfer_remark: params.remark.slice(0, 32),
-      notify_url: params.notifyUrl || process.env.WECHAT_TRANSFER_NOTIFY_URL || "",
+      notify_url:
+        params.notifyUrl ||
+        process.env.WECHAT_PAY_TRANSFER_NOTIFY_URL ||
+        process.env.WECHAT_TRANSFER_NOTIFY_URL ||
+        this.callbackUrl("WECHAT_PAY_TRANSFER_NOTIFY_URL", "/api/v1/payout/wechat/transfer-notify"),
       transfer_scene_report_infos:
         params.sceneReportInfos || [{ info_type: "岗位类型", info_content: "推广员" }, { info_type: "报酬说明", info_content: "推广佣金" }],
     };
@@ -279,6 +286,15 @@ export class WechatPayService {
    * 声明用的是哪个平台证书 —— 否则微信解不开。
    */
   async encryptSensitive(plaintext: string): Promise<{ ciphertext: string; serialNo: string }> {
+    const publicKey = this.getWechatPayPublicKey();
+    const publicKeyId = process.env.WECHAT_PAY_PUBLIC_KEY_ID || "";
+    if (publicKey && publicKeyId) {
+      const ciphertext = publicEncrypt(
+        { key: publicKey, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
+        Buffer.from(plaintext, "utf-8"),
+      ).toString("base64");
+      return { ciphertext, serialNo: publicKeyId };
+    }
     const certs = await this.getPlatformCerts();
     const [serialNo, entry] = [...certs.entries()][0] ?? [];
     if (!serialNo || !entry) {
@@ -555,8 +571,14 @@ export class WechatPayService {
       let pem: string;
       if (serialNo.startsWith("PUB_KEY_ID_")) {
         pem = this.getWechatPayPublicKey();
+        const configuredPublicKeyId = process.env.WECHAT_PAY_PUBLIC_KEY_ID || "";
         if (!pem) {
           this.logger.error(`回调为微信支付公钥模式但未配置公钥，请在后台「微信支付」卡片粘贴 pub_key.pem 内容: serial=${serialNo}`);
+          return false;
+        }
+        // 兼容迁移前已调通但尚未保存公钥ID的配置；一旦配置ID则严格匹配。
+        if (configuredPublicKeyId && serialNo !== configuredPublicKeyId) {
+          this.logger.error(`微信回调公钥ID不匹配: expected=${configuredPublicKeyId}, actual=${serialNo}`);
           return false;
         }
       } else {

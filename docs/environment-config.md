@@ -122,12 +122,17 @@
 
 | 变量名 | 开发 | 测试 | 生产 |
 |--------|------|------|------|
-| `WECHAT_PAY_MCH_ID` | 沙箱商户号 | 空 | **正式商户号** |
-| `WECHAT_PAY_SERIAL_NO` | 沙箱证书序列号 | 空 | **正式证书序列号** |
-| `WECHAT_PAY_API_V3_KEY` | 沙箱密钥 | 空 | **正式密钥** |
-| `WECHAT_PAY_PRIVATE_KEY` | 沙箱私钥 | 空 | **正式私钥** |
-| `WECHAT_PAY_NOTIFY_URL` | 本地回调地址 | 空 | **生产回调地址** |
-| `WECHAT_PAY_REFUND_NOTIFY_URL` | 本地回调地址 | 空 | **生产退款回调** |
+| `WECHAT_PAY_MCH_ID` | Mock/留空 | 受控正式商户 | **正式商户号** |
+| `WECHAT_PAY_SERIAL_NO` | Mock/留空 | 正式证书序列号 | **正式证书序列号** |
+| `WECHAT_PAY_API_V3_KEY` | Mock/留空 | 受控正式密钥 | **32字节正式密钥** |
+| `WECHAT_PAY_PRIVATE_KEY` | Mock/留空 | 正式私钥 | **商户API私钥** |
+| `WECHAT_PAY_PUBLIC_KEY` | Mock/留空 | 微信支付公钥 | **新商户公钥模式必填** |
+| `WECHAT_PAY_PUBLIC_KEY_ID` | Mock/留空 | 微信支付公钥ID | **与公钥成对填写** |
+| `WECHAT_PAY_NOTIFY_URL` | 不接真实回调 | 预发布公网回调 | **生产支付回调** |
+| `WECHAT_PAY_REFUND_NOTIFY_URL` | 不接真实回调 | 预发布公网回调 | **生产退款回调** |
+| `WECHAT_PAY_TRANSFER_NOTIFY_URL` | 不接真实回调 | 预发布公网回调 | **生产转账回调** |
+
+微信支付 APIv3 没有通用独立沙箱。日常开发和自动化测试使用 Mock；发布前在隔离预发布环境用正式商户号、白名单测试用户和小额真实交易完成支付—回调—退款闭环，禁止压测正式支付接口。
 
 ### 3.9 支付宝
 
