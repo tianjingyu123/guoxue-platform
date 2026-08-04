@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, chown, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -28,6 +28,7 @@ const alertmanagerKeys = [
 ];
 const monitoringUrlKeys = ["PUBLIC_API_URL", "PUBLIC_ASSET_ORIGIN"];
 const requiredKeys = [...alertmanagerKeys, ...monitoringUrlKeys];
+const monitoringContainerGid = 65534;
 
 function parseEnv(content) {
   const values = new Map();
@@ -110,16 +111,17 @@ async function renderTemplate(templateFile, outputFile, keys, label) {
     rendered = rendered.replaceAll(`\${${key}}`, escapeYamlDoubleQuoted(values.get(key)));
   }
 
-  const unresolved = [...rendered.matchAll(/\$\{([A-Z][A-Z0-9_]*)\}/g)].map(
-    (match) => match[1],
-  );
+  const unresolved = [...rendered.matchAll(/\$\{([A-Z][A-Z0-9_]*)\}/g)].map((match) => match[1]);
   if (unresolved.length > 0) {
     console.error(`错误：${label}仍有未渲染变量：${[...new Set(unresolved)].join(", ")}`);
     process.exit(2);
   }
 
-  await writeFile(outputFile, rendered, { encoding: "utf8", mode: 0o600 });
-  await chmod(outputFile, 0o600);
+  await writeFile(outputFile, rendered, { encoding: "utf8", mode: 0o640 });
+  if (process.platform !== "win32" && process.getuid?.() === 0) {
+    await chown(outputFile, 0, monitoringContainerGid);
+  }
+  await chmod(outputFile, 0o640);
 }
 
 await mkdir(outputDir, { recursive: true });

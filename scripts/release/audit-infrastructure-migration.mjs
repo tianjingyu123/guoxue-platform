@@ -928,6 +928,8 @@ add(
 );
 
 const releaseActivator = read("scripts/release/activate-fixed-release.sh");
+const monitoringConfigRenderer = read("scripts/release/render-monitoring-config.mjs");
+const monitoringCompose = read("docker/monitoring/docker-compose.yml");
 const releaseActivationBehaviorTest = read("tests/release/verify-fixed-package.test.mjs");
 const ciWorkflow = read(".github/workflows/ci.yml");
 const deploymentWorkflow = read(".github/workflows/deploy.yml");
@@ -1115,7 +1117,13 @@ add(
       'COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME"',
       "目标版本监控栈启动失败，且无法恢复当前版本监控配置",
       "应用回滚失败，且无法恢复当前版本监控配置",
-    ]),
+    ]) &&
+    hasAll(monitoringConfigRenderer, [
+      "monitoringContainerGid = 65534",
+      "chown(outputFile, 0, monitoringContainerGid)",
+      "chmod(outputFile, 0o640)",
+    ]) &&
+    (monitoringCompose.match(/user: "65534:65534"/gu) || []).length === 2,
   "运维节点先更新监控再部署应用时，任一阶段失败都必须恢复 current 对应的监控配置，不能留下新监控与旧应用的分裂状态",
 );
 add(

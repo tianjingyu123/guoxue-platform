@@ -7,6 +7,7 @@ import test from "node:test";
 
 const repoRoot = path.resolve(import.meta.dirname, "..", "..");
 const renderer = path.join(repoRoot, "scripts", "release", "render-monitoring-config.mjs");
+const monitoringCompose = path.join(repoRoot, "docker", "monitoring", "docker-compose.yml");
 
 function createEnv(directory, overrides = {}) {
   const values = {
@@ -55,13 +56,26 @@ test("拒绝把示例域名渲染为生产证书探测目标", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "guoxue-monitoring-render-"));
   try {
     const envFile = createEnv(directory, { PUBLIC_API_URL: "https://api.example.com" });
-    const result = spawnSync(process.execPath, [renderer, envFile, path.join(directory, "generated")], {
-      cwd: repoRoot,
-      encoding: "utf8",
-    });
+    const result = spawnSync(
+      process.execPath,
+      [renderer, envFile, path.join(directory, "generated")],
+      {
+        cwd: repoRoot,
+        encoding: "utf8",
+      },
+    );
     assert.equal(result.status, 2);
     assert.match(result.stderr, /PUBLIC_API_URL.*非占位符/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("监控配置仅授权固定非 root 容器组读取", () => {
+  const rendererSource = readFileSync(renderer, "utf8");
+  const composeSource = readFileSync(monitoringCompose, "utf8");
+  assert.match(rendererSource, /monitoringContainerGid = 65534/u);
+  assert.match(rendererSource, /chown\(outputFile, 0, monitoringContainerGid\)/u);
+  assert.match(rendererSource, /chmod\(outputFile, 0o640\)/u);
+  assert.equal((composeSource.match(/user: "65534:65534"/gu) || []).length, 2);
 });
