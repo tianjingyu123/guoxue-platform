@@ -213,6 +213,24 @@ export class SmsService {
     // 大小写不一致导致 Redis key(sms:code:{scene}:{phone}) 存读错位 → 码永远读不到 → "刚发就过期"
     // （2026-07-18 生产短信接通后首次真正走验证码登录时暴露）。
     scene = scene.toUpperCase();
+    const verifyFailKey = `sms:fail:${scene}:${phone}`;
+    const dailyVerifyFailKey = `sms:fail:daily:${scene}:${phone}`;
+    const [verifyFailCount, dailyVerifyFailCount] = await Promise.all([
+      this.redis.get(verifyFailKey),
+      this.redis.get(dailyVerifyFailKey),
+    ]);
+    if (parseInt(dailyVerifyFailCount || "0", 10) >= 10) {
+      throw new BusinessException(
+        ErrorCode.AUTH_SMS_CODE_INVALID,
+        "验证码错误次数过多，请明日再试",
+      );
+    }
+    if (parseInt(verifyFailCount || "0", 10) >= 5) {
+      throw new BusinessException(
+        ErrorCode.AUTH_SMS_CODE_INVALID,
+        "验证码错误次数过多，请30分钟后再试",
+      );
+    }
     // 频率限制：60秒内只能发一次
     const rateKey = `sms:rate:${phone}`;
     const lastSent = await this.redis.get(rateKey);
@@ -383,9 +401,21 @@ export class SmsService {
     scene = scene.toUpperCase(); // 与 sendVerifyCode 一致归一化，杜绝发码/校验大小写错位
     const codeKey = `sms:code:${scene}:${phone}`;
     const failKey = `sms:fail:${scene}:${phone}`;
+    const dailyFailKey = `sms:fail:daily:${scene}:${phone}`;
 
-    // 检查是否已被锁定
-    const failCount = parseInt((await this.redis.get(failKey)) || "0", 10);
+    // 两级保护：连续 5 次错误暂停 30 分钟；当天累计 10 次错误暂停到次日。
+    const [failCountRaw, dailyFailCountRaw] = await Promise.all([
+      this.redis.get(failKey),
+      this.redis.get(dailyFailKey),
+    ]);
+    const failCount = parseInt(failCountRaw || "0", 10);
+    const dailyFailCount = parseInt(dailyFailCountRaw || "0", 10);
+    if (dailyFailCount >= 10) {
+      throw new BusinessException(
+        ErrorCode.AUTH_SMS_CODE_INVALID,
+        "验证码错误次数过多，请明日再试",
+      );
+    }
     if (failCount >= 5) {
       throw new BusinessException(
         ErrorCode.AUTH_SMS_CODE_INVALID,
@@ -401,8 +431,23 @@ export class SmsService {
 
     if (storedCode !== code) {
       // 单次输错不应让仍在有效期内的验证码立即失效，否则用户只能反复发短信，
-      // 很容易撞上运营商单号日限额。失败计数使用 Redis 原子递增，最多允许 5 次尝试。
-      const { count } = await this.redis.incrWithTtl(failKey, 1800);
+      // 很容易撞上运营商单号日限额。失败计数使用 Redis 原子递增，并执行两级保护。
+      const now = new Date();
+      const secondsToMidnight = Math.ceil(
+        (new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime()) /
+          1000,
+      );
+      const [{ count }, { count: dailyCount }] = await Promise.all([
+        this.redis.incrWithTtl(failKey, 1800),
+        this.redis.incrWithTtl(dailyFailKey, secondsToMidnight),
+      ]);
+      if (dailyCount >= 10) {
+        await this.redis.del(codeKey);
+        throw new BusinessException(
+          ErrorCode.AUTH_SMS_CODE_INVALID,
+          "验证码错误次数过多，请明日再试",
+        );
+      }
       if (count >= 5) {
         await this.redis.del(codeKey);
         throw new BusinessException(
@@ -416,8 +461,12 @@ export class SmsService {
       );
     }
 
-    // 验证成功：清除验证码和失败计数
-    await Promise.all([this.redis.del(codeKey), this.redis.del(failKey)]);
+    // 验证成功：清除验证码及两级失败计数，不影响用户以后正常登录。
+    await Promise.all([
+      this.redis.del(codeKey),
+      this.redis.del(failKey),
+      this.redis.del(dailyFailKey),
+    ]);
 
     return true;
   }

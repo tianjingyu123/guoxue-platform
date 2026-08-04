@@ -58,7 +58,7 @@ describe("SmsService", () => {
 
   describe("校验码验证", () => {
     it("成功匹配应返回true", async () => {
-      // failKey→null, codeKey→"123456"
+      // 两级 failKey→null, codeKey→"123456"
       mockRedis.get.mockImplementation((key: string) =>
         key.startsWith("sms:fail:") ? Promise.resolve(null) : Promise.resolve("123456"),
       );
@@ -68,7 +68,7 @@ describe("SmsService", () => {
     });
 
     it("首次输错不消耗验证码，改正后仍可验证成功", async () => {
-      // failKey→null, codeKey→"654321"
+      // 两级 failKey→null, codeKey→"654321"
       mockRedis.get.mockImplementation((key: string) =>
         key.startsWith("sms:fail:") ? Promise.resolve(null) : Promise.resolve("654321"),
       );
@@ -84,14 +84,60 @@ describe("SmsService", () => {
 
     it("第5次输错才消耗验证码并进入30分钟保护", async () => {
       mockRedis.get.mockImplementation((key: string) =>
-        key.startsWith("sms:fail:") ? Promise.resolve("4") : Promise.resolve("654321"),
+        key === "sms:fail:LOGIN:13800138000"
+          ? Promise.resolve("4")
+          : key.startsWith("sms:fail:daily:")
+            ? Promise.resolve("4")
+            : Promise.resolve("654321"),
       );
-      mockRedis.incrWithTtl.mockResolvedValueOnce({ count: 5, ttl: 1800 });
+      mockRedis.incrWithTtl
+        .mockResolvedValueOnce({ count: 5, ttl: 1800 })
+        .mockResolvedValueOnce({ count: 5, ttl: 3600 });
 
       await expect(svc.verifyCode("13800138000", "123456")).rejects.toThrow(
         "验证码错误次数过多，请30分钟后再试",
       );
       expect(mockRedis.del).toHaveBeenCalledWith("sms:code:LOGIN:13800138000");
+    });
+
+    it("当天累计第10次输错应暂停到次日", async () => {
+      mockRedis.get.mockImplementation((key: string) =>
+        key === "sms:fail:LOGIN:13800138000"
+          ? Promise.resolve("4")
+          : key.startsWith("sms:fail:daily:")
+            ? Promise.resolve("9")
+            : Promise.resolve("654321"),
+      );
+      mockRedis.incrWithTtl
+        .mockResolvedValueOnce({ count: 5, ttl: 1800 })
+        .mockResolvedValueOnce({ count: 10, ttl: 3600 });
+
+      await expect(svc.verifyCode("13800138000", "123456")).rejects.toThrow(
+        "验证码错误次数过多，请明日再试",
+      );
+      expect(mockRedis.del).toHaveBeenCalledWith("sms:code:LOGIN:13800138000");
+    });
+
+    it("5次错误保护期内拒绝重复发码，避免浪费短信额度", async () => {
+      mockRedis.get.mockImplementation((key: string) =>
+        key === "sms:fail:LOGIN:13800138000" ? Promise.resolve("5") : Promise.resolve(null),
+      );
+
+      await expect(svc.sendVerifyCode("13800138000", "LOGIN")).rejects.toThrow(
+        "验证码错误次数过多，请30分钟后再试",
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("当天10次错误保护期内拒绝重复发码", async () => {
+      mockRedis.get.mockImplementation((key: string) =>
+        key === "sms:fail:daily:LOGIN:13800138000" ? Promise.resolve("10") : Promise.resolve(null),
+      );
+
+      await expect(svc.sendVerifyCode("13800138000", "LOGIN")).rejects.toThrow(
+        "验证码错误次数过多，请明日再试",
+      );
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
     it("验证码不存在应抛出异常", async () => {
