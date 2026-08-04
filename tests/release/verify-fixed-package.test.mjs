@@ -86,6 +86,17 @@ test("固定发布包携带目标主机镜像审计所需的 CI 工作流", asyn
   assert.match(creatorSource, /\.github\/workflows\/perf\.yml/u);
   assert.match(creatorSource, /runtimeImageAuditFiles\.has\(normalized\)/u);
 });
+
+test("部署在完整验收前等待 Compose 容器完成健康启动", async () => {
+  const deploySource = await readFile(path.join(projectRoot, "docker/deploy.sh"), "utf8");
+  assert.match(deploySource, /wait_for_compose_health\(\)/u);
+  assert.match(deploySource, /wait_for_compose_health 60/u);
+  assert.match(deploySource, /\.State\.Health\.Status/u);
+  assert.ok(
+    deploySource.indexOf("wait_for_compose_health 60") <
+      deploySource.indexOf('bash "$SCRIPT_DIR/health-check.sh"; then'),
+  );
+});
 const executableRuntimeScripts = new Set([
   "scripts/release/verify-fixed-package.mjs",
   "scripts/release/verify-client-config-binding.mjs",

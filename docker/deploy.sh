@@ -360,9 +360,46 @@ fi
 
 log "▸ 7/7 数据库迁移 $([ "$MIGRATION_APPLIED" = "true" ] && echo '(已在启动前应用)' || echo '(安全默认：已跳过)')"
 
+wait_for_compose_health() {
+  local max_wait="${1:-60}"
+  local waited=0
+  local container_ids=""
+  local ready="false"
+  local running=""
+  local health=""
+
+  while [ "$waited" -lt "$max_wait" ]; do
+    container_ids="$("${COMPOSE[@]}" ps -q 2>/dev/null || true)"
+    ready="true"
+    if [ -z "$container_ids" ]; then
+      ready="false"
+    fi
+    for container_id in $container_ids; do
+      running="$(docker inspect --format='{{.State.Running}}' "$container_id" 2>/dev/null || echo false)"
+      health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$container_id" 2>/dev/null || echo missing)"
+      if [ "$running" != "true" ] || { [ "$health" != "healthy" ] && [ "$health" != "none" ]; }; then
+        ready="false"
+        break
+      fi
+    done
+    if [ "$ready" = "true" ]; then
+      log "  ✓ Compose 容器全部就绪 (${waited}s)"
+      return 0
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
+  err "Compose 容器未在 ${max_wait}s 内全部就绪"
+  return 1
+}
+
 # 执行完整健康检查
 if [ "$SKIP_HEALTH" = "false" ]; then
   log "执行部署后验证..."
+  if ! wait_for_compose_health 60; then
+    rollback_server_image "❌ 容器健康等待超时" || true
+    exit 1
+  fi
   if ! DEPLOY_TARGET="$DEPLOY_TARGET" BASE_URL="${NODE_BASE_URL:-http://127.0.0.1}" \
     ENV_FILE="$ENV_FILE" bash "$SCRIPT_DIR/health-check.sh"; then
     rollback_server_image "❌ 部署后完整健康验证失败" || true

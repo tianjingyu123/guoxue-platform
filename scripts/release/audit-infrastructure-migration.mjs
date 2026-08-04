@@ -915,9 +915,13 @@ add(
     'RELEASE_ID="$rollback_release_id"',
     "已回滚并确认旧运行版本",
     'if ! DEPLOY_TARGET="$DEPLOY_TARGET"',
+    "wait_for_compose_health()",
+    "wait_for_compose_health 60",
     'rollback_server_image "❌ 部署后完整健康验证失败"',
     "✅ 部署完成!",
   ]) &&
+    deployScript.indexOf("wait_for_compose_health 60") <
+      deployScript.indexOf('bash "$SCRIPT_DIR/health-check.sh"; then') &&
     deployScript.indexOf('bash "$SCRIPT_DIR/health-check.sh"; then') <
       deployScript.lastIndexOf("✅ 部署完成!"),
   "部署成功只能在完整健康验证之后声明；任何后置验证失败都要恢复旧镜像、旧 RELEASE_ID 并复核回滚实例",
