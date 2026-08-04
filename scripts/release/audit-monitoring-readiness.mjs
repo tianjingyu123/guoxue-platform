@@ -144,12 +144,12 @@ add(
     "prometheusOutputFile",
     "normalizePublicHttpsUrl",
     "escapeYamlDoubleQuoted",
-    "mode: 0o600",
-    "chmod(outputFile, 0o600)",
+    "mode: 0o640",
+    "chmod(outputFile, 0o640)",
   ]) &&
     !renderer.includes("console.log(values") &&
     !renderer.includes("console.log(rendered"),
-  "渲染器只报告文件路径，生成文件权限为 0600",
+  "渲染器只报告文件路径，生成文件权限为 0640（root 可写、监控容器组只读）",
 );
 
 add(
