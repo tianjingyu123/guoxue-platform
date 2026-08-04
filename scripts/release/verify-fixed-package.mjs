@@ -191,7 +191,7 @@ try {
     }
   }
 
-  const listResult = spawnSync("tar", ["-tzf", archiveName], {
+  const listResult = spawnSync("tar", ["--quoting-style=literal", "-tzf", archiveName], {
     cwd: archiveDirectory,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
@@ -208,7 +208,7 @@ try {
     }
   }
 
-  const typeResult = spawnSync("tar", ["-tvzf", archiveName], {
+  const typeResult = spawnSync("tar", ["--quoting-style=literal", "-tvzf", archiveName], {
     cwd: archiveDirectory,
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,

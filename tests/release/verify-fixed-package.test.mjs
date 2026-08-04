@@ -28,8 +28,17 @@ test("固定包激活使用 literal tar 输出，避免中文文件名被误判�
     path.join(projectRoot, "scripts/release/activate-fixed-release.sh"),
     "utf8",
   );
+  const verifierSource = await readFile(verifier, "utf8");
   assert.match(activation, /tar --quoting-style=literal -tzf/);
   assert.match(activation, /tar --quoting-style=literal -tvzf/);
+  assert.match(
+    verifierSource,
+    /spawnSync\("tar", \["--quoting-style=literal", "-tzf", archiveName\]/,
+  );
+  assert.match(
+    verifierSource,
+    /spawnSync\("tar", \["--quoting-style=literal", "-tvzf", archiveName\]/,
+  );
 });
 
 const requiredFiles = [
