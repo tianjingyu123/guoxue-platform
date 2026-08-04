@@ -2362,13 +2362,16 @@ add(
     "release-evidence/client-config-binding.json",
     "release-evidence/client-artifact-audit.json",
     "release-evidence/source-freeze-readiness.json",
+    '".github/workflows/ci.yml"',
+    '".github/workflows/perf.yml"',
+    "runtimeImageAuditFiles.has(normalized)",
     "audit?.expectedCommit",
     "audit?.expectedBranch",
     "audit?.branch",
   ]) &&
     hasAll(packageVerifier, [
-      'spawnSync("tar", ["-tzf", archiveName]',
-      'spawnSync("tar", ["-tvzf", archiveName]',
+      'spawnSync("tar", ["--quoting-style=literal", "-tzf", archiveName]',
+      'spawnSync("tar", ["--quoting-style=literal", "-tvzf", archiveName]',
       "cwd: archiveDirectory",
       '"--no-same-owner"',
       "entryStat.isSymbolicLink()",
@@ -2382,6 +2385,8 @@ add(
       "release-evidence/client-config-binding.json",
       "release-evidence/client-artifact-audit.json",
       "release-evidence/source-freeze-readiness.json",
+      '".github/workflows/ci.yml"',
+      '".github/workflows/perf.yml"',
       "audit?.expectedCommit",
       "audit?.expectedBranch",
       "audit?.branch",
@@ -2392,6 +2397,7 @@ add(
       "固定包提交 SHA 与工作流源提交不一致时阻断",
       "冻结审计源提交与固定包提交不一致时阻断",
       "冻结审计来源分支与预期正式分支不一致时阻断",
+      "固定发布包携带目标主机镜像审计所需的 CI 工作流",
     ]) &&
     hasAll(sourceFreezeAudit, [
       'arg === "--strict"',

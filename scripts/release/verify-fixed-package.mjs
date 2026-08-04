@@ -314,6 +314,8 @@ try {
     }
 
     for (const requiredPath of [
+      ".github/workflows/ci.yml",
+      ".github/workflows/perf.yml",
       "package.json",
       "pnpm-lock.yaml",
       "docker/docker-compose.yml",

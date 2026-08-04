@@ -42,6 +42,8 @@ test("固定包激活使用 literal tar 输出，避免中文文件名被误判�
 });
 
 const requiredFiles = [
+  ".github/workflows/ci.yml",
+  ".github/workflows/perf.yml",
   "package.json",
   "pnpm-lock.yaml",
   "docker/docker-compose.yml",
@@ -74,6 +76,16 @@ const requiredFiles = [
   "release-evidence/client-artifact-verification.json",
   "release-evidence/source-freeze-readiness.json",
 ];
+
+test("固定发布包携带目标主机镜像审计所需的 CI 工作流", async () => {
+  const creatorSource = await readFile(
+    path.join(projectRoot, "scripts/release/create-fixed-package.mjs"),
+    "utf8",
+  );
+  assert.match(creatorSource, /\.github\/workflows\/ci\.yml/u);
+  assert.match(creatorSource, /\.github\/workflows\/perf\.yml/u);
+  assert.match(creatorSource, /runtimeImageAuditFiles\.has\(normalized\)/u);
+});
 const executableRuntimeScripts = new Set([
   "scripts/release/verify-fixed-package.mjs",
   "scripts/release/verify-client-config-binding.mjs",

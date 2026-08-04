@@ -90,9 +90,13 @@ function isExcluded(relativePath) {
     "tests",
     "v0-reference",
   ]);
+  const runtimeImageAuditFiles = new Set([
+    ".github/workflows/ci.yml",
+    ".github/workflows/perf.yml",
+  ]);
   return (
     segments.some((segment) => excludedSegments.has(segment)) ||
-    excludedRootDirs.has(segments[0]) ||
+    (excludedRootDirs.has(segments[0]) && !runtimeImageAuditFiles.has(normalized)) ||
     /^kiki-prompt.*\.md$/i.test(base) ||
     /^login(?:-data)?\.json$/i.test(base) ||
     (/^\.env(?:\.|$)/i.test(base) && !/\.example$/i.test(base)) ||
