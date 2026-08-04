@@ -66,7 +66,7 @@ log "校验发布包 SHA-256"
 ) || fail "发布包 SHA-256 校验失败"
 
 log "预检 tar 路径与文件类型"
-if ! LIST_OUTPUT="$(tar -tzf "$ARCHIVE")"; then
+if ! LIST_OUTPUT="$(tar --quoting-style=literal -tzf "$ARCHIVE")"; then
   fail "无法读取 tar 目录"
 fi
 while IFS= read -r raw_entry; do
@@ -78,7 +78,7 @@ while IFS= read -r raw_entry; do
   esac
 done <<< "$LIST_OUTPUT"
 
-if ! TYPE_OUTPUT="$(tar -tvzf "$ARCHIVE")"; then
+if ! TYPE_OUTPUT="$(tar --quoting-style=literal -tvzf "$ARCHIVE")"; then
   fail "无法读取 tar 文件类型"
 fi
 while IFS= read -r type_line; do

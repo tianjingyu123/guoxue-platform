@@ -22,6 +22,16 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const verifier = path.join(projectRoot, "scripts/release/verify-fixed-package.mjs");
 const commit = "a".repeat(40);
 const releaseId = "fixture-release-0001";
+
+test("固定包激活使用 literal tar 输出，避免中文文件名被误判为反斜杠路径", async () => {
+  const activation = await readFile(
+    path.join(projectRoot, "scripts/release/activate-fixed-release.sh"),
+    "utf8",
+  );
+  assert.match(activation, /tar --quoting-style=literal -tzf/);
+  assert.match(activation, /tar --quoting-style=literal -tvzf/);
+});
+
 const requiredFiles = [
   "package.json",
   "pnpm-lock.yaml",
