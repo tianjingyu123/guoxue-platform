@@ -11,6 +11,42 @@
         <text class="ps-paid__sub">{{ paidSub }}</text>
       </view>
 
+      <!-- 汇付扫码支付等待态：二维码仅代表支付凭据，绝不能当作支付成功。 -->
+      <view v-else-if="paymentPending" class="ps-pending">
+        <text class="ps-pending__title">等待支付</text>
+        <text class="ps-pending__sub">请使用{{ paymentMethodName }}扫描二维码支付 ¥{{ total }}</text>
+        <view class="ps-pending__qr-wrap">
+          <canvas
+            id="purchasePayQr"
+            canvas-id="purchasePayQr"
+            class="ps-pending__qr"
+            :style="{ width: QR_PX + 'px', height: QR_PX + 'px' }"
+          />
+          <text v-if="!qrReady" class="ps-pending__qr-loading">二维码生成中…</text>
+        </view>
+        <text class="ps-pending__status">{{ paymentStatusText }}</text>
+        <view
+          class="ps-pending__check"
+          :class="{ 'ps-pending__check--off': checkingPayment }"
+          role="button"
+          :aria-disabled="checkingPayment"
+          tabindex="0"
+          @tap="manualCheckPayment"
+          @keydown="activateOnKeyboard($event, manualCheckPayment)"
+        >
+          <text>{{ checkingPayment ? '查询中…' : '我已完成支付' }}</text>
+        </view>
+        <view
+          class="ps-pending__later"
+          role="button"
+          tabindex="0"
+          @tap="onClose"
+          @keydown="activateOnKeyboard($event, onClose)"
+        >
+          <text>稍后支付</text>
+        </view>
+      </view>
+
       <template v-else>
         <!-- 头部：商品信息 -->
         <view class="ps-head">
@@ -149,12 +185,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, getCurrentInstance, nextTick, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { navigateTo } from '@/utils/router'
 import { purchaseApi, type PurchaseProduct, type PurchaseBizType, type PayChannel } from '@/lib/purchase-data'
+import { drawQrToCanvas } from '@/utils/qrcode'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -166,6 +203,8 @@ const props = withDefaults(defineProps<{
 }>(), { allowQty: true })
 
 const emit = defineEmits<{ (e: 'close'): void; (e: 'paid', orderId: string): void }>()
+const instance = getCurrentInstance()?.proxy
+const QR_PX = 176
 
 useOverlayScrollLock(
   () => props.open && Boolean(props.product),
@@ -195,10 +234,25 @@ const payMethod = ref<string>('wechat')
 const paying = ref(false)
 const paid = ref(false)
 const paidSub = ref('请在订单中心完成支付')
+const paymentPending = ref(false)
+const paymentQr = ref('')
+const paymentOutTradeNo = ref('')
+const paymentOrderId = ref('')
+const paymentStatusText = ref('等待扫码支付…')
+const qrReady = ref(false)
+const checkingPayment = ref(false)
+const POLL_MAX = 100
+let pollCount = 0
+let pollTimer: ReturnType<typeof setTimeout> | null = null
+
+onUnmounted(stopPaymentPolling)
 
 const hasSku = computed(() => !!props.product?.skus && props.product.skus.length > 0)
 // 金额乘法用 Math.round(×100)/100 消除浮点误差(如 19.9×3=59.699999...)，避免小数点多位
 const total = computed(() => (props.product ? Math.round(props.product.price * quantity.value * 100) / 100 : 0))
+const paymentMethodName = computed(() =>
+  ALL_PAY_METHODS.find((item) => item.id === payMethod.value)?.name || '所选方式',
+)
 const tipText = computed(() => (props.bizType === 'PRODUCT' ? '正品保障 · 7天无理由退换' : '官方正版 · 购买后立即可用'))
 const payButtonText = computed(() => {
   if (paying.value) return '提交中…'
@@ -220,15 +274,90 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<v
   void action()
 }
 function reset() {
+  stopPaymentPolling()
   selectedSku.value = null
   quantity.value = 1
   payMethod.value = 'wechat'
   paying.value = false
   paid.value = false
+  paidSub.value = '请在订单中心完成支付'
+  paymentPending.value = false
+  paymentQr.value = ''
+  paymentOutTradeNo.value = ''
+  paymentOrderId.value = ''
+  paymentStatusText.value = '等待扫码支付…'
+  qrReady.value = false
+  checkingPayment.value = false
+  pollCount = 0
 }
 function onClose() {
   reset()
   emit('close')
+}
+
+function renderPaymentQr() {
+  if (!paymentQr.value) return
+  try {
+    const ctx = uni.createCanvasContext('purchasePayQr', instance)
+    const ok = drawQrToCanvas(ctx, paymentQr.value, 8, 8, QR_PX - 16, {})
+    ctx.draw(false, () => { qrReady.value = ok })
+  } catch {
+    qrReady.value = false
+    paymentStatusText.value = '二维码生成失败，请稍后重试'
+  }
+}
+
+function stopPaymentPolling() {
+  if (pollTimer) {
+    clearTimeout(pollTimer)
+    pollTimer = null
+  }
+}
+
+async function checkPaymentStatus(manual = false): Promise<boolean> {
+  if (checkingPayment.value || !paymentOutTradeNo.value || !paymentOrderId.value) return false
+  checkingPayment.value = true
+  try {
+    const result = await purchaseApi.queryHuifuPayment(paymentOutTradeNo.value)
+    const confirmed = result.paid === true || result.status === 'PAID' || result.trans_stat === 'S'
+    if (!confirmed) {
+      paymentStatusText.value = result.trans_stat === 'F' ? '支付未完成，请重新扫码' : '等待支付确认…'
+      return false
+    }
+
+    const paidOrderId = paymentOrderId.value
+    stopPaymentPolling()
+    paymentPending.value = false
+    paid.value = true
+    paidSub.value = '支付结果已由服务端确认'
+    emit('paid', paidOrderId)
+    onClose()
+    return true
+  } catch {
+    if (manual) uni.showToast({ title: '暂未查询到支付成功，请稍后再试', icon: 'none' })
+    return false
+  } finally {
+    checkingPayment.value = false
+  }
+}
+
+function manualCheckPayment() {
+  void checkPaymentStatus(true)
+}
+
+function startPaymentPolling() {
+  stopPaymentPolling()
+  pollCount = 0
+  const tick = async () => {
+    pollCount++
+    if (await checkPaymentStatus()) return
+    if (pollCount >= POLL_MAX) {
+      paymentStatusText.value = '暂未确认支付，可点击按钮重新查询'
+      return
+    }
+    pollTimer = setTimeout(tick, 3000)
+  }
+  pollTimer = setTimeout(tick, 3000)
 }
 
 /**
@@ -265,10 +394,19 @@ async function onPay() {
       // #ifdef H5
       if (jumpUrl) { window.location.href = jumpUrl; return }
       // #endif
-      if (pay?.qrCode || pay?.codeUrl) {
-        paidSub.value = '请使用所选方式扫码完成支付'
-        paid.value = true
-        setTimeout(() => { emit('paid', order.id); onClose() }, 1800)
+      const qrCode = pay?.qrCode || pay?.codeUrl
+      if (qrCode) {
+        if (!pay.outTradeNo) throw new Error('汇付未返回支付查询凭据')
+        paymentQr.value = qrCode
+        paymentOutTradeNo.value = pay.outTradeNo
+        paymentOrderId.value = order.id
+        paymentStatusText.value = '等待扫码支付…'
+        qrReady.value = false
+        paymentPending.value = true
+        paying.value = false
+        await nextTick()
+        renderPaymentQr()
+        startPaymentPolling()
         return
       }
     } catch { /* 聚合支付未接通 → 走下方诚实降级 */ }
@@ -291,6 +429,18 @@ async function onPay() {
 .ps-paid__icon { width: 128rpx; height: 128rpx; border-radius: 50%; background: #22c55e; display: flex; align-items: center; justify-content: center; margin-bottom: 32rpx; }
 .ps-paid__title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
 .ps-paid__sub { font-size: 26rpx; color: #999; margin-top: 8rpx; }
+
+/* 汇付扫码等待态 */
+.ps-pending { padding: 56rpx 48rpx calc(40rpx + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; }
+.ps-pending__title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
+.ps-pending__sub { margin-top: 12rpx; font-size: 25rpx; color: #666; text-align: center; }
+.ps-pending__qr-wrap { width: 208px; height: 208px; margin-top: 28rpx; border: 1px solid #eee; border-radius: 18rpx; background: #fff; display: flex; align-items: center; justify-content: center; position: relative; }
+.ps-pending__qr { width: 176px; height: 176px; }
+.ps-pending__qr-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 24rpx; background: rgba(255,255,255,0.92); }
+.ps-pending__status { margin-top: 20rpx; color: #8a8178; font-size: 24rpx; }
+.ps-pending__check { width: 100%; margin-top: 28rpx; padding: 24rpx 0; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 28rpx; text-align: center; }
+.ps-pending__check--off { opacity: 0.55; }
+.ps-pending__later { margin-top: 20rpx; padding: 16rpx 40rpx; color: #777; font-size: 25rpx; }
 
 /* 头部 */
 .ps-head { position: relative; padding: 32rpx; border-bottom: 1px solid #f0f0f0; display: flex; gap: 24rpx; }
