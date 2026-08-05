@@ -130,6 +130,19 @@ const readerPanelTouchStopCount = (reader.match(/@touchmove\.stop/g) || []).leng
 
 const checks = [
   {
+    name: "汇付扫码支付必须等待服务端确认，禁止收到二维码后直接宣告成功",
+    file: "apps/mobile/src/components/common/purchase-sheet.vue",
+    pass:
+      hasAll(purchaseSheet, [
+        "paymentPending",
+        "drawQrToCanvas",
+        "purchaseApi.queryHuifuPayment",
+        "result.trans_stat === 'S'",
+        "等待支付确认",
+      ]) &&
+      !purchaseSheet.includes("setTimeout(() => { emit('paid'"),
+  },
+  {
     name: "H5 内容详情支持左缘右滑收起并设置方向、距离和速度阈值",
     file: "apps/mobile/src/utils/content-detail-layer.ts",
     pass: hasAll(contentLayer, [
