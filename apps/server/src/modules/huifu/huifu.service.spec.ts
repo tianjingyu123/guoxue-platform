@@ -492,12 +492,13 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     });
 
     it("查询支付应回溯 org_req_date/org_req_seq_id", async () => {
-      mockPrisma.order.findFirst.mockResolvedValue({ userId: "user-1" });
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
+        orderId: "order-1",
         outTradeNo: "HF-OUT-1",
         createdAt: new Date(2026, 5, 30),
         rawRequest: { req_seq_id: "HF-OUT-1", req_date: "20260630", trade_type: "T_JSAPI" },
       });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "user-1", status: "PENDING" });
       mockFetchResponse({ resp_code: "00000000", trans_stat: "S", trans_amt: "1.00", org_hf_seq_id: "HF-CHANNEL-1" });
 
       const res = await svc.queryPayment("HF-OUT-1", "user-1");
@@ -515,15 +516,17 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
         trans_stat: "S",
         trans_amt: "1.00",
       }));
+      expect(res).toEqual(expect.objectContaining({ paid: true, status: "PAID" }));
     });
 
     it("查询支付：rawRequest 被分账覆写时应回退 createdAt 格式化", async () => {
-      mockPrisma.order.findFirst.mockResolvedValue({ userId: "user-1" });
       mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
+        orderId: "order-2",
         outTradeNo: "HF-OUT-2",
         createdAt: new Date(2026, 5, 28),
         rawRequest: { req_seq_id: "confirm-seq-xyz", req_date: "20260702" }, // 分账确认覆写
       });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "user-1", status: "PENDING" });
       mockFetchResponse({ resp_code: "00000000" });
 
       await svc.queryPayment("HF-OUT-2", "user-1");
@@ -531,8 +534,25 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     });
 
     it("查询他人支付单应被越权拦截", async () => {
-      mockPrisma.order.findFirst.mockResolvedValue({ userId: "other-user" });
+      mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({ orderId: "order-1" });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "other-user", status: "PENDING" });
       await expect(svc.queryPayment("HF-OUT-1", "user-1")).rejects.toThrow("订单不存在");
+    });
+
+    it("支付回调已完成且支付单号已替换时应直接返回成功", async () => {
+      mockPrisma.huifuSplitRecord.findUnique.mockResolvedValue({
+        orderId: "order-paid",
+        outTradeNo: "HF-OUT-PAID",
+      });
+      mockPrisma.order.findUnique.mockResolvedValue({ userId: "user-1", status: "PAID" });
+
+      await expect(svc.queryPayment("HF-OUT-PAID", "user-1")).resolves.toEqual({
+        paid: true,
+        status: "PAID",
+        trans_stat: "S",
+      });
+      expect(global.fetch).not.toHaveBeenCalled();
+      expect(paymentNotifyHandler).not.toHaveBeenCalled();
     });
   });
 

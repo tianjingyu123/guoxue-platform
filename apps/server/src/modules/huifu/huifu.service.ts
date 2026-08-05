@@ -556,19 +556,25 @@ export class HuifuService {
 
   /** 查询支付状态（/v3/trade/payment/scanpay/query） */
   async queryPayment(outTradeNo: string, userId: string) {
-    // 校验该支付单归属当前用户，防止越权查询/探测他人订单（userId 必传，fail-closed）
-    const order = await this.prisma.order.findFirst({
-      where: { payTransactionId: outTradeNo },
-      select: { userId: true },
-    });
-    if (!order || order.userId !== userId) {
-      throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
-    }
+    // 支付成功后订单的 payTransactionId 会改存汇付渠道流水号，因此必须先通过
+    // 永久保留的分账记录回溯原订单，不能继续依赖 payTransactionId=outTradeNo。
     const record = await this.prisma.huifuSplitRecord.findUnique({
       where: { outTradeNo },
     });
     if (!record) {
-      throw new BusinessException(ErrorCode.NOT_FOUND, "找不到支付记录");
+      throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    }
+    // 校验该支付单归属当前用户，防止越权查询/探测他人订单（userId 必传，fail-closed）。
+    const order = await this.prisma.order.findUnique({
+      where: { id: record.orderId },
+      select: { userId: true, status: true },
+    });
+    if (!order || order.userId !== userId) {
+      throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+    }
+    // 回调可能先于前端轮询完成；本地已入账时直接确认，避免再次请求渠道并重复履约。
+    if (["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
+      return { paid: true, status: "PAID", trans_stat: "S" };
     }
     const merchantId = await this.getConfig("merchantId");
     const data = {
@@ -587,6 +593,7 @@ export class HuifuService {
         req_seq_id: outTradeNo,
         hf_seq_id: result.hf_seq_id || result.org_hf_seq_id,
       });
+      return { ...result, paid: true, status: "PAID" };
     }
     return result;
   }
