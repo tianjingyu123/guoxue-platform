@@ -15,7 +15,7 @@ const publicApiOrigin = String((import.meta as any).env?.VITE_API_URL || "")
   .replace(/\/+$/, "");
 const DEFAULT_H5_URL = String(
   (import.meta as any).env?.VITE_PUBLIC_H5_URL ||
-    (publicApiOrigin ? `${publicApiOrigin}/h5/` : "https://api.rebugx.cn/h5/"),
+    (publicApiOrigin ? `${publicApiOrigin}/h5/` : "/h5/"),
 );
 
 export interface BrandConfig {

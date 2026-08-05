@@ -2,7 +2,11 @@
 import { readdirSync, statSync, readFileSync, writeFileSync, rmSync, existsSync } from 'fs'
 import { join } from 'path'
 
-const CDN = 'https://api.rebugx.cn/assets'
+const PUBLIC_ASSET_ORIGIN = String(process.env.PUBLIC_ASSET_ORIGIN || '').trim().replace(/\/+$/, '')
+if (!PUBLIC_ASSET_ORIGIN) {
+  throw new Error('请先设置 PUBLIC_ASSET_ORIGIN，再执行静态资源迁移')
+}
+const CDN = `${PUBLIC_ASSET_ORIGIN}/assets`
 const DIRS = ['images', 'live', 'experts', 'marketing', 'discover']
 
 function walk(d, out = []) {

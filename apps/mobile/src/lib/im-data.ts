@@ -2,7 +2,7 @@
  * IM 消息板块数据层（mock + 类型 + 工具）
  * v0 迁移：会话列表/聊天/通知三页公用
  */
-import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { apiGet, apiPost, apiPut, apiDelete, publicAssetUrl } from '@/utils/request'
 import { useTim, type TimMessage, type TimConversation, type TimGroup, type TimGroupMember, type TimFriendApplication } from '@/composables/useTim'
 
 export type ConversationType = 'private' | 'group' | 'service' | 'system'
@@ -393,10 +393,10 @@ export const mockNotifyMessages: NotifyMessage[] = [
   { id: 'm4', type: 'system', category: '活动', title: '新春祈福活动开启', content: '甲辰龙年新春祈福活动现已开启，参与即可领取专属开运礼包。', time: '01月12日', isRead: true },
 
   // 互动消息
-  { id: 'm5', type: 'interaction', category: '评论', title: '玄机子', content: '回复了你的帖子：「这篇关于紫微斗数的解读很到位，受教了。」', time: '30分钟前', isRead: false, avatar: 'https://api.rebugx.cn/assets/images/circles/circle-1.webp', link: '/pkg-circle/articles/detail' },
-  { id: 'm6', type: 'interaction', category: '点赞', title: '清风道长', content: '赞了你的文章《五行调和与日常养生》', time: '1小时前', isRead: false, avatar: 'https://api.rebugx.cn/assets/images/circles/circle-2.webp' },
-  { id: 'm7', type: 'interaction', category: '关注', title: '紫微星君', content: '关注了你', time: '3小时前', isRead: false, avatar: 'https://api.rebugx.cn/assets/images/circles/circle-3.webp', link: '/pages/profile' },
-  { id: 'm8', type: 'interaction', category: '点赞', title: '问道居士', content: '赞了你在「八字命理」圈子的评论', time: '01月14日', isRead: true, avatar: 'https://api.rebugx.cn/assets/images/circles/circle-4.webp' },
+  { id: 'm5', type: 'interaction', category: '评论', title: '玄机子', content: '回复了你的帖子：「这篇关于紫微斗数的解读很到位，受教了。」', time: '30分钟前', isRead: false, avatar: publicAssetUrl('/assets/images/circles/circle-1.webp'), link: '/pkg-circle/articles/detail' },
+  { id: 'm6', type: 'interaction', category: '点赞', title: '清风道长', content: '赞了你的文章《五行调和与日常养生》', time: '1小时前', isRead: false, avatar: publicAssetUrl('/assets/images/circles/circle-2.webp') },
+  { id: 'm7', type: 'interaction', category: '关注', title: '紫微星君', content: '关注了你', time: '3小时前', isRead: false, avatar: publicAssetUrl('/assets/images/circles/circle-3.webp'), link: '/pages/profile' },
+  { id: 'm8', type: 'interaction', category: '点赞', title: '问道居士', content: '赞了你在「八字命理」圈子的评论', time: '01月14日', isRead: true, avatar: publicAssetUrl('/assets/images/circles/circle-4.webp') },
 
   // 交易消息
   { id: 'm9', type: 'transaction', category: '订单', title: '订单发货通知', content: '您购买的「开光招财貔貅摆件」已发货，物流单号 SF1234567890，请注意查收。', time: '1小时前', isRead: false, link: '/pkg-order/detail' },

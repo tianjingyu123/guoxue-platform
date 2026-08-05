@@ -1,7 +1,7 @@
 // 分站版首页配置 —— 真连后端 station 模块
 // 主题色默认沿用演示分站紫色 #8B5CF6（仅作后端无 themeColor 时的兜底）
 
-import { apiGet } from '@/utils/request'
+import { apiGet, publicAssetUrl } from '@/utils/request'
 
 export interface StationFeaturedItem {
   id: string
@@ -40,7 +40,7 @@ export const featuredTypeConfig: Record<StationFeaturedItem['type'], { icon: str
 }
 
 // Hero 轮播兜底图（后端 Station 无 heroImages 字段，用既有 banner 素材保证轮播组件可渲染）
-const DEFAULT_HERO = 'https://api.rebugx.cn/assets/images/banners/banner-1.webp'
+const DEFAULT_HERO = publicAssetUrl('/assets/images/banners/banner-1.webp')
 
 function toYmd(d?: string | null): string {
   return d ? String(d).slice(0, 10) : ''

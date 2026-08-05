@@ -1,6 +1,6 @@
 /** 首页数据层（1:1 迁移自原型 components/home-feed.tsx + home/home-banner.tsx + common/daily-verse） */
 
-import { apiGet, apiGetOptionalAuth, apiGetPaged } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiGetPaged, publicAssetUrl } from '@/utils/request'
 import { getToken } from '@/utils/storage'
 import { getEffectiveThemes } from '@/utils/interests'
 
@@ -15,9 +15,9 @@ export interface BannerItem {
 }
 
 export const defaultBanners: BannerItem[] = [
-  { id: '1', image: 'https://api.rebugx.cn/assets/images/banners/banner-1.webp', title: '八字命理入门精讲 限时优惠', link: '/courses' },
-  { id: '2', image: 'https://api.rebugx.cn/assets/images/banners/banner-2.webp', title: '大师直播：2024下半年运势解读', link: '/pkg-live/plaza/index' },
-  { id: '3', image: 'https://api.rebugx.cn/assets/images/banners/banner-3.webp', title: '新人专享 首单立减50元', link: '/mall' },
+  { id: '1', image: publicAssetUrl('/assets/images/banners/banner-1.webp'), title: '八字命理入门精讲 限时优惠', link: '/courses' },
+  { id: '2', image: publicAssetUrl('/assets/images/banners/banner-2.webp'), title: '大师直播：2024下半年运势解读', link: '/pkg-live/plaza/index' },
+  { id: '3', image: publicAssetUrl('/assets/images/banners/banner-3.webp'), title: '新人专享 首单立减50元', link: '/mall' },
 ]
 
 // ============================================
@@ -69,27 +69,27 @@ export interface FeedItem {
 }
 
 export const feedItems: FeedItem[] = [
-  { id: 1, type: 'course', title: '八字入门实战课：从零开始学命理', author: '周易大师', authorAvatar: '周', price: 199, originalPrice: 399, students: 2860, cover: 'https://api.rebugx.cn/assets/images/feed/course-1.webp', coverRatio: '3:4' },
-  { id: 2, type: 'live', title: '八字看2026下半年运势走向', author: '周易大师', authorAvatar: '周', viewers: 1280, isLive: true, cover: 'https://api.rebugx.cn/assets/images/feed/live-1.webp', coverRatio: '3:4' },
-  { id: 3, type: 'article', title: '八字食神制杀格局详解与实例分析', author: '张玄风', authorAvatar: '张', likes: 328, comments: 56, excerpt: '食神制杀是八字中常见的贵格之一，具有文武双全的特点。通过实例来详细分析格局的形成条件和断语要点。', cover: 'https://api.rebugx.cn/assets/images/feed/article-1.webp', coverRatio: '3:4' },
-  { id: 4, type: 'product', title: '《渊海子平》精装典藏版', author: '', authorAvatar: '', price: 68, originalPrice: 128, sales: 1280, tag: '热销', cover: 'https://api.rebugx.cn/assets/images/feed/product-1.webp', coverRatio: '3:4' },
-  { id: 5, type: 'circle', circleName: '八字研习社', isMember: true, author: '张玄风', authorAvatar: '', content: '每日案例解析，从入门到精通的八字学习社区', members: 12800, likes: 42, comments: 18, cover: 'https://api.rebugx.cn/assets/images/feed/circle-1.webp', coverRatio: '4:3', price: 0, rating: 4.9, tags: ['活跃', '干货多'], isVerified: true, ownerTitle: '资深命理师', todayPosts: 56 },
-  { id: 8, type: 'live', title: '手把手教你排八字命盘', author: '李命理', authorAvatar: '李', viewers: 856, isLive: true, cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
-  { id: 9, type: 'video', title: '3分钟看懂十二地支含义', author: '国学小课堂', authorAvatar: '国', duration: '03:21', plays: '8.5万', likes: 1256, cover: 'https://api.rebugx.cn/assets/images/feed/video-1.webp', coverRatio: '3:4' },
-  { id: 10, type: 'article', title: '从易经看人生的三个重要阶段', author: '国学研究院', authorAvatar: '国', likes: 425, comments: 78, excerpt: '易经告诉我们，人生可分为三个重要阶段：少年为乾，壮年为坤，晚年为泰。理解这些帮助把握人生节奏。', cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
-  { id: 11, type: 'course', title: '紫微斗数命盘解读进阶班', author: '张玄风', authorAvatar: '张', price: 299, originalPrice: 599, students: 1560, cover: 'https://api.rebugx.cn/assets/images/feed/course-2.webp', coverRatio: '3:4' },
+  { id: 1, type: 'course', title: '八字入门实战课：从零开始学命理', author: '周易大师', authorAvatar: '周', price: 199, originalPrice: 399, students: 2860, cover: publicAssetUrl('/assets/images/feed/course-1.webp'), coverRatio: '3:4' },
+  { id: 2, type: 'live', title: '八字看2026下半年运势走向', author: '周易大师', authorAvatar: '周', viewers: 1280, isLive: true, cover: publicAssetUrl('/assets/images/feed/live-1.webp'), coverRatio: '3:4' },
+  { id: 3, type: 'article', title: '八字食神制杀格局详解与实例分析', author: '张玄风', authorAvatar: '张', likes: 328, comments: 56, excerpt: '食神制杀是八字中常见的贵格之一，具有文武双全的特点。通过实例来详细分析格局的形成条件和断语要点。', cover: publicAssetUrl('/assets/images/feed/article-1.webp'), coverRatio: '3:4' },
+  { id: 4, type: 'product', title: '《渊海子平》精装典藏版', author: '', authorAvatar: '', price: 68, originalPrice: 128, sales: 1280, tag: '热销', cover: publicAssetUrl('/assets/images/feed/product-1.webp'), coverRatio: '3:4' },
+  { id: 5, type: 'circle', circleName: '八字研习社', isMember: true, author: '张玄风', authorAvatar: '', content: '每日案例解析，从入门到精通的八字学习社区', members: 12800, likes: 42, comments: 18, cover: publicAssetUrl('/assets/images/feed/circle-1.webp'), coverRatio: '4:3', price: 0, rating: 4.9, tags: ['活跃', '干货多'], isVerified: true, ownerTitle: '资深命理师', todayPosts: 56 },
+  { id: 8, type: 'live', title: '手把手教你排八字命盘', author: '李命理', authorAvatar: '李', viewers: 856, isLive: true, cover: publicAssetUrl('/assets/images/feed/live-horizontal.webp'), coverRatio: '16:9' },
+  { id: 9, type: 'video', title: '3分钟看懂十二地支含义', author: '国学小课堂', authorAvatar: '国', duration: '03:21', plays: '8.5万', likes: 1256, cover: publicAssetUrl('/assets/images/feed/video-1.webp'), coverRatio: '3:4' },
+  { id: 10, type: 'article', title: '从易经看人生的三个重要阶段', author: '国学研究院', authorAvatar: '国', likes: 425, comments: 78, excerpt: '易经告诉我们，人生可分为三个重要阶段：少年为乾，壮年为坤，晚年为泰。理解这些帮助把握人生节奏。', cover: publicAssetUrl('/assets/images/feed/live-horizontal.webp'), coverRatio: '16:9' },
+  { id: 11, type: 'course', title: '紫微斗数命盘解读进阶班', author: '张玄风', authorAvatar: '张', price: 299, originalPrice: 599, students: 1560, cover: publicAssetUrl('/assets/images/feed/course-2.webp'), coverRatio: '3:4' },
   { id: 12, type: 'article', title: '为什么八字中财星不一定代表有钱', author: '命理研究院', authorAvatar: '命', likes: 856, comments: 124, excerpt: '很多人一看到八字中有财星就觉得会发财，但财星代表的是你能掌控的资源和机会，而非直接金钱收入。今天深入分析财星的真正含义和应用方法。', cover: null },
-  { id: 13, type: 'product', title: '专业堪舆罗盘套装', author: '', authorAvatar: '', price: 298, originalPrice: 498, sales: 860, tag: '新品', cover: 'https://api.rebugx.cn/assets/images/feed/product-2.webp', coverRatio: '3:4' },
-  { id: 14, type: 'video', title: '五行相生相克的本质原理详解', author: '易学研究', authorAvatar: '易', duration: '08:42', plays: '3.2万', likes: 1890, cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
-  { id: 15, type: 'circle', circleName: '六爻预测实战', isMember: false, author: '六爻居士', authorAvatar: '', content: '铜钱起卦、断卦技法，实战案例每日更新', members: 3280, likes: 35, comments: 22, cover: 'https://api.rebugx.cn/assets/images/feed/circle-1.webp', coverRatio: '4:3', price: 58, rating: 4.7, tags: ['进阶', '实战派'], isVerified: true, ownerTitle: '六爻研究者', todayPosts: 28 },
+  { id: 13, type: 'product', title: '专业堪舆罗盘套装', author: '', authorAvatar: '', price: 298, originalPrice: 498, sales: 860, tag: '新品', cover: publicAssetUrl('/assets/images/feed/product-2.webp'), coverRatio: '3:4' },
+  { id: 14, type: 'video', title: '五行相生相克的本质原理详解', author: '易学研究', authorAvatar: '易', duration: '08:42', plays: '3.2万', likes: 1890, cover: publicAssetUrl('/assets/images/feed/live-horizontal.webp'), coverRatio: '16:9' },
+  { id: 15, type: 'circle', circleName: '六爻预测实战', isMember: false, author: '六爻居士', authorAvatar: '', content: '铜钱起卦、断卦技法，实战案例每日更新', members: 3280, likes: 35, comments: 22, cover: publicAssetUrl('/assets/images/feed/circle-1.webp'), coverRatio: '4:3', price: 58, rating: 4.7, tags: ['进阶', '实战派'], isVerified: true, ownerTitle: '六爻研究者', todayPosts: 28 },
   { id: 16, type: 'post', title: '请教：甲木日主酉月身弱如何调整', author: '易学新人', authorAvatar: '易', likes: 42, comments: 28, content: '我的八字甲木日主，生在酉月，地支有申酉戌三会金局，这样的命局是不是身弱财旺？应该怎么调整？求各位老师指点！', cover: null },
-  { id: 17, type: 'article', title: '梅花易数预测实例深度分析', author: '梅花居士', authorAvatar: '梅', likes: 312, comments: 45, excerpt: '梅花易数以简洁著称，但其中蕴含的道理极为深刻。通过这个预测实例看看如何运用时间起卦法进行日常占断。', cover: 'https://api.rebugx.cn/assets/images/feed/article-1.webp', coverRatio: '3:4' },
-  { id: 18, type: 'course', title: '风水堪舆入门精讲', author: '陈风水', authorAvatar: '陈', price: 168, originalPrice: 299, students: 980, cover: 'https://api.rebugx.cn/assets/images/feed/course-3.webp', coverRatio: '3:4' },
-  { id: 19, type: 'live', title: '紫微斗数十二宫位详解直播', author: '紫微大师', authorAvatar: '紫', time: '明天19:30', reservations: 520, isLive: false, cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
-  { id: 20, type: 'product', title: '开运水晶手链套装', author: '', authorAvatar: '', price: 158, originalPrice: 258, sales: 2680, tag: '秒杀', cover: 'https://api.rebugx.cn/assets/images/feed/product-3.webp', coverRatio: '3:4' },
-  { id: 22, type: 'article', title: '如何通过八字看适合的职业方向', author: '职业规划师', authorAvatar: '职', likes: 568, comments: 89, excerpt: '八字中的十神代表了不同的社会角色和性格特点，分析日主旺衰找到最适合的职业发展方向。', cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
-  { id: 23, type: 'course', title: '奇门遁甲零基础入门精讲', author: '奇门研究院', authorAvatar: '奇', price: 399, originalPrice: 799, students: 1680, cover: 'https://api.rebugx.cn/assets/images/feed/live-horizontal.webp', coverRatio: '16:9' },
-  { id: 24, type: 'video', title: '天干地支快速记忆法', author: '玄学日历', authorAvatar: '玄', duration: '02:15', plays: '1.2万', likes: 2560, cover: 'https://api.rebugx.cn/assets/images/feed/video-1.webp', coverRatio: '3:4' },
+  { id: 17, type: 'article', title: '梅花易数预测实例深度分析', author: '梅花居士', authorAvatar: '梅', likes: 312, comments: 45, excerpt: '梅花易数以简洁著称，但其中蕴含的道理极为深刻。通过这个预测实例看看如何运用时间起卦法进行日常占断。', cover: publicAssetUrl('/assets/images/feed/article-1.webp'), coverRatio: '3:4' },
+  { id: 18, type: 'course', title: '风水堪舆入门精讲', author: '陈风水', authorAvatar: '陈', price: 168, originalPrice: 299, students: 980, cover: publicAssetUrl('/assets/images/feed/course-3.webp'), coverRatio: '3:4' },
+  { id: 19, type: 'live', title: '紫微斗数十二宫位详解直播', author: '紫微大师', authorAvatar: '紫', time: '明天19:30', reservations: 520, isLive: false, cover: publicAssetUrl('/assets/images/feed/live-horizontal.webp'), coverRatio: '16:9' },
+  { id: 20, type: 'product', title: '开运水晶手链套装', author: '', authorAvatar: '', price: 158, originalPrice: 258, sales: 2680, tag: '秒杀', cover: publicAssetUrl('/assets/images/feed/product-3.webp'), coverRatio: '3:4' },
+  { id: 22, type: 'article', title: '如何通过八字看适合的职业方向', author: '职业规划师', authorAvatar: '职', likes: 568, comments: 89, excerpt: '八字中的十神代表了不同的社会角色和性格特点，分析日主旺衰找到最适合的职业发展方向。', cover: publicAssetUrl('/assets/images/feed/live-horizontal.webp'), coverRatio: '16:9' },
+  { id: 23, type: 'course', title: '奇门遁甲零基础入门精讲', author: '奇门研究院', authorAvatar: '奇', price: 399, originalPrice: 799, students: 1680, cover: publicAssetUrl('/assets/images/feed/live-horizontal.webp'), coverRatio: '16:9' },
+  { id: 24, type: 'video', title: '天干地支快速记忆法', author: '玄学日历', authorAvatar: '玄', duration: '02:15', plays: '1.2万', likes: 2560, cover: publicAssetUrl('/assets/images/feed/video-1.webp'), coverRatio: '3:4' },
 ]
 
 // ============================================
