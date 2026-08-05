@@ -30,6 +30,29 @@
         <text class="cancel-link" @tap="handleCancel">取消支付</text>
       </block>
 
+      <!-- 普通浏览器不调用微信 H5 支付：扫码后在微信内走公众号 JSAPI -->
+      <block v-else-if="status === 'wechat_required'">
+        <view class="wechat-mark"><app-icon name="message-circle" :size="64" color="#FFFFFF" /></view>
+        <text class="title">请在微信中打开</text>
+        <text class="sub wechat-sub">使用微信扫描二维码，在微信内完成支付</text>
+        <!-- #ifdef H5 -->
+        <view class="wechat-qr-wrap">
+          <canvas
+            id="wechatPayQr"
+            canvas-id="wechatPayQr"
+            class="wechat-qr"
+            :style="{ width: WECHAT_QR_PX + 'px', height: WECHAT_QR_PX + 'px' }"
+          />
+          <text v-if="!wechatQrReady" class="wechat-qr-loading">二维码生成中…</text>
+        </view>
+        <view class="btn-row wechat-actions">
+          <view class="btn ghost" @tap="handleCancel"><text>{{ isRecharge ? '返回钱包' : '返回订单' }}</text></view>
+          <view class="btn primary" @tap="copyWechatPayLink"><app-icon name="copy" :size="28" color="#fff" /><text>复制链接</text></view>
+        </view>
+        <!-- #endif -->
+        <text class="wechat-waiting">{{ isRecharge ? '请在微信页面查看充值结果' : '扫码后本页面会自动查询支付结果' }}</text>
+      </block>
+
       <!-- 确认支付结果中（倒计时归零但仍在查单，不判失败） -->
       <block v-else-if="status === 'confirming'">
         <view class="spinner" />
@@ -89,6 +112,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
+// #ifdef H5
+import { getCurrentInstance, nextTick } from 'vue'
+// #endif
 import { onLoad } from '@dcloudio/uni-app'
 import { redirectTo, navigateTo } from '@/utils/router'
 import { apiGet, apiPost } from '@/utils/request'
@@ -97,8 +123,11 @@ import { mineApi } from '@/lib/mine-data'
 import { track } from '@/composables/useTrack'
 import { BRAND } from '@/lib/brand'
 import { formatPrice } from '@/utils/format'
+// #ifdef H5
+import { drawQrToCanvas } from '@/utils/qrcode'
+// #endif
 
-type Status = 'loading' | 'paying' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
+type Status = 'loading' | 'paying' | 'wechat_required' | 'confirming' | 'success' | 'failed' | 'timeout' | 'cancelled'
 
 const orderId = ref('')
 const scene = ref<'order' | 'recharge'>('order')
@@ -111,6 +140,12 @@ const status = ref<Status>('loading')
 const countdown = ref(180)
 const failReason = ref('')
 const submitting = ref(false)
+// #ifdef H5
+const instance = getCurrentInstance()?.proxy
+const WECHAT_QR_PX = 196
+const wechatPayUrl = ref('')
+const wechatQrReady = ref(false)
+// #endif
 
 let cdTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setTimeout> | null = null
@@ -217,13 +252,11 @@ async function startPaying() {
    *    走公众号 JSAPI：先经公众号网页授权(snsapi_base 静默)拿公众号 openid（ensureOaOpenid，
    *    sessionStorage 缓存 / URL code 兑换 / 无 code 则跳授权后回本页），
    *    再调 /shop/orders/:id/pay/jsapi（channel=OFFICIAL·公众号 appid 下单），
-   *    WeixinJSBridge 调起收银台；授权失败/调起失败 → 提示「请在外部浏览器打开支付」，
-   *    不阻断：继续轮询订单状态（用户可能换端完成支付）。
+   *    WeixinJSBridge 调起收银台；授权失败/调起失败 → 留在微信内提示重试，
+   *    不阻断：继续轮询订单状态。
    *    ⚠️不再依赖 Auth 表的微信记录——那是小程序 openid，与公众号 appid 不同应用，微信必拒。
-   * ② 外部浏览器：调 POST /shop/pay/h5 拿 mweb_url → 跳转微信收银台中间页，
-   *    携带 redirect_url 回跳当前页；回跳后页面重新加载走 onLoad→startPaying→startPolling，
-   *    轮询订单状态恢复（已支付则进成功态）。
-   * 无商户证书/H5 支付域名未配置时后端返回结构化 400，错误文案透出到失败态。
+   * ② 外部浏览器：绝不请求微信 H5 支付接口。展示当前支付页二维码，用户用微信扫码后
+   *    在微信内完成公众号 OAuth + JSAPI 支付；电脑页仅轮询原订单状态，不创建新支付单。
    */
   try {
     const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '').toLowerCase()
@@ -250,30 +283,18 @@ async function startPaying() {
           clearTimers('all')
           return
         }
-        // 授权失败/未配置/调起失败：引导外部浏览器，继续轮询兜底
-        uni.showToast({ title: msg.includes('未配置') || msg.includes('授权') ? msg : '微信内暂无法支付，请点击右上角在浏览器打开后支付', icon: 'none', duration: 3500 })
+        // 授权失败/未配置/调起失败：留在微信内重试，继续轮询兜底
+        uni.showToast({ title: msg.includes('未配置') || msg.includes('授权') ? msg : '微信支付暂未调起，请刷新页面后重试', icon: 'none', duration: 3500 })
       }
     } else {
-      // 外部浏览器 → 微信 H5 支付（mweb_url 跳转，redirect_url 回跳本页恢复轮询）
-      let mwebUrl = ''
-      let returnUrl = window.location.href
-      if (isRecharge.value) {
-        const recharge = await mineApi.rechargeWechatH5(amountCoin.value)
-        rechargeOrderNo.value = recharge.orderNo
-        amount.value = String(recharge.amountRmb)
-        mwebUrl = recharge.mwebUrl
-        const url = new URL(window.location.href)
-        url.searchParams.set('rechargeOrderNo', recharge.orderNo)
-        returnUrl = url.toString()
-      } else {
-        const result = await shopApi.payOrderH5(orderId.value)
-        mwebUrl = result.mwebUrl || ''
-      }
-      if (mwebUrl) {
-        window.location.href = mwebUrl + '&redirect_url=' + encodeURIComponent(returnUrl)
-      } else {
-        throw new Error('支付下单失败，请稍后重试')
-      }
+      // 外部浏览器 → 只展示微信打开引导；禁止调用 /shop/pay/h5 或充值 H5 下单接口。
+      // 二维码指向同一支付页，微信扫码后会命中上面的公众号 JSAPI 分支并支付原订单。
+      status.value = 'wechat_required'
+      clearTimers('all')
+      await renderWechatOpenQr()
+      // 商城订单在扫码前已存在，电脑页可以轮询同一订单；充值单要到微信内才创建，结果在微信页查看。
+      if (!isRecharge.value) startPolling(1000)
+      return
     }
   } catch (e) {
     // 结构化错误（如未配置商户证书 400）直接进入失败态，文案透出
@@ -298,6 +319,37 @@ async function startPaying() {
 
 // #ifdef H5
 const OA_OPENID_KEY = 'wx_oa_openid'
+
+function currentWechatPayUrl(): string {
+  const url = new URL(window.location.href)
+  // OAuth code/state 都是一次性参数，不能被复制或编码进二维码。
+  url.searchParams.delete('code')
+  url.searchParams.delete('state')
+  return url.toString()
+}
+
+async function renderWechatOpenQr(): Promise<void> {
+  wechatPayUrl.value = currentWechatPayUrl()
+  wechatQrReady.value = false
+  await nextTick()
+  const ctx = uni.createCanvasContext('wechatPayQr', instance)
+  const ok = drawQrToCanvas(ctx, wechatPayUrl.value, 8, 8, WECHAT_QR_PX - 16, {
+    padding: 0,
+    radius: 0,
+    foreground: '#1F2937',
+  })
+  if (!ok) return
+  await new Promise<void>((resolve) => ctx.draw(false, () => resolve()))
+  wechatQrReady.value = true
+}
+
+function copyWechatPayLink() {
+  const data = wechatPayUrl.value || currentWechatPayUrl()
+  uni.setClipboardData({
+    data,
+    success: () => uni.showToast({ title: '支付链接已复制，请发送到微信打开', icon: 'none' }),
+  })
+}
 
 /**
  * 公众号网页授权取 openid（微信内 JSAPI 支付前置）：
@@ -351,11 +403,11 @@ function invokeWechatJsapiPay(p: { appId: string; timeStamp: string; nonceStr: s
     const w = window as unknown as { WeixinJSBridge?: { invoke: (api: string, params: Record<string, string>, cb: (res: { err_msg?: string }) => void) => void } }
     if (w.WeixinJSBridge) { doInvoke(w.WeixinJSBridge); return }
     // 微信内注入 WeixinJSBridge 是异步的，页面加载早期可能未就绪 → 等 ready 事件（5s 超时兜底）
-    const timer = setTimeout(() => reject(new Error('微信支付环境未就绪，请在外部浏览器打开支付')), 5000)
+    const timer = setTimeout(() => reject(new Error('微信支付环境未就绪，请刷新页面重试')), 5000)
     document.addEventListener('WeixinJSBridgeReady', () => {
       clearTimeout(timer)
       if (w.WeixinJSBridge) doInvoke(w.WeixinJSBridge)
-      else reject(new Error('微信支付环境未就绪，请在外部浏览器打开支付'))
+      else reject(new Error('微信支付环境未就绪，请刷新页面重试'))
     }, { once: true })
     // #endif
     // #ifndef H5
@@ -402,9 +454,9 @@ function startCountdown() {
 function startPolling(delayMs?: number) {
   const delay = delayMs ?? (pollCount < 6 ? 1000 : 3000)
   pollTimer = setTimeout(async () => {
-    // 放行 paying 与 confirming 两态：慢支付晚 resolve、倒计时已归零进确认态时，都必须继续查单，
+    // 放行支付中、电脑扫码等待、结果确认三态：慢支付晚 resolve、倒计时已归零进确认态时，都必须继续查单，
     // 唯有已进 success/failed/timeout/cancelled 结果态才停（否则重复跳转/重复兑现）
-    if (status.value !== 'paying' && status.value !== 'confirming') return
+    if (status.value !== 'paying' && status.value !== 'wechat_required' && status.value !== 'confirming') return
     pollCount += 1
     try {
       if (isRecharge.value) {
@@ -545,6 +597,46 @@ onUnmounted(() => clearTimers('all'))
 .cd-text { font-size: 28rpx; color: #666666; }
 .cd-num { color: var(--brand); font-weight: bold; }
 .cancel-link { font-size: 26rpx; color: #666666; text-decoration: underline; }
+.wechat-mark {
+  width: 112rpx;
+  height: 112rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 32rpx;
+  background: #07C160;
+  box-shadow: 0 12rpx 32rpx rgba(7, 193, 96, 0.2);
+  margin-bottom: 32rpx;
+}
+.wechat-sub { margin-bottom: 28rpx; text-align: center; }
+.wechat-qr-wrap {
+  position: relative;
+  width: 212px;
+  height: 212px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 8px;
+  border-radius: 24rpx;
+  background: #FFFFFF;
+  box-shadow: 0 8rpx 32rpx rgba(44, 44, 44, 0.08);
+  margin-bottom: 32rpx;
+}
+.wechat-qr { width: 196px; height: 196px; }
+.wechat-qr-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.94);
+  color: #777777;
+  font-size: 24rpx;
+}
+.wechat-actions { margin-bottom: 24rpx; }
+.wechat-waiting { font-size: 24rpx; color: #999999; text-align: center; }
 .result-icon {
   width: 160rpx;
   height: 160rpx;
