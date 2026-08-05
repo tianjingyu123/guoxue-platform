@@ -6,7 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service"
 import { RedisService } from "../../redis/redis.service"
 import { UnifiedPricingService } from "../pricing/unified-pricing.service"
 import { CommissionService } from "../commission/commission.service"
-import { WechatPayService } from "./wechat-pay.service"
+import { WechatPayApiError, WechatPayService } from "./wechat-pay.service"
 import { AlipayService } from "./alipay.service"
 import { UnionpayService } from "./unionpay.service"
 import { HuifuService } from "../huifu/huifu.service"
@@ -579,6 +579,36 @@ describe("ShopPaymentService", () => {
       expect(mockWechatPay.closeOrder).toHaveBeenCalledWith("GX-old")
       expect(mockWechatPay.createH5Order).toHaveBeenCalledTimes(1)
       expect(mockRedis.setNX).toHaveBeenCalledWith("pay:init:wechat:o1", "1", 60)
+    })
+
+    it("更换商户后旧流水在当前商户关单和查单均不存在时允许安全重建", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...mockOrder, payTransactionId: "GX-old" })
+      mockWechatPay.closeOrder.mockRejectedValueOnce(
+        new WechatPayApiError("ORDER_NOT_EXIST", "订单不存在", 404),
+      )
+      mockWechatPay.queryOrder.mockRejectedValueOnce(
+        new WechatPayApiError("ORDER_NOT_EXIST", "订单不存在", 404),
+      )
+
+      const result = await svc.createH5Payment("o1", "u1", "1.2.3.4")
+
+      expect(result.mwebUrl).toBe("https://wx.tenpay.com/h5/pay/mock")
+      expect(mockWechatPay.createH5Order).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.order.updateMany).toHaveBeenCalledWith({
+        where: { id: "o1", status: "PENDING", payTransactionId: "GX-old" },
+        data: { payTransactionId: expect.stringMatching(/^GX\d+o1$/) },
+      })
+    })
+
+    it("旧流水关单或查单结果不确定时继续禁止创建第二笔", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...mockOrder, payTransactionId: "GX-old" })
+      mockWechatPay.closeOrder.mockRejectedValueOnce(new Error("network timeout"))
+      mockWechatPay.queryOrder.mockRejectedValueOnce(new Error("network timeout"))
+
+      await expect(svc.createH5Payment("o1", "u1", "1.2.3.4")).rejects.toThrow(
+        "原付款正在处理中",
+      )
+      expect(mockWechatPay.createH5Order).not.toHaveBeenCalled()
     })
 
     it("归属校验：别人的订单 403", async () => {
