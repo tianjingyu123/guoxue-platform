@@ -3,6 +3,10 @@ import { createHash, createHmac } from "crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
+import {
+  getTencentCredentialMode,
+  getTencentInstanceRoleCredentialProvider,
+} from "../../common/tencent-instance-role-credentials";
 
 /** 腾讯云点播回调事件数据结构 */
 interface VodCallbackEventData {
@@ -38,7 +42,7 @@ export class VodService {
     this.secretKey = process.env.COS_SECRET_KEY || process.env.TENCENT_SECRET_KEY || "";
     this.subAppId = process.env.VOD_SUB_APP_ID || "";
 
-    if (!this.secretId || !this.secretKey) {
+    if (getTencentCredentialMode() === "static" && (!this.secretId || !this.secretKey)) {
       this.logger.warn("腾讯云密钥未配置，VOD服务将不可用");
     }
   }
@@ -47,9 +51,11 @@ export class VodService {
 
   /** 调用腾讯云VOD API（v3签名） */
   private async callVodApi(action: string, params: Record<string, unknown> = {}) {
+    const credentials = await this.resolveCredentials();
     const { host, headers, payloadStr } = tc3Sign({
-      secretId: this.secretId,
-      secretKey: this.secretKey,
+      secretId: credentials.secretId,
+      secretKey: credentials.secretKey,
+      securityToken: credentials.securityToken,
       service: "vod",
       action,
       version: this.apiVersion,
@@ -71,6 +77,26 @@ export class VodService {
     return data.Response!;
   }
 
+  private async resolveCredentials(): Promise<{
+    secretId: string;
+    secretKey: string;
+    securityToken?: string;
+  }> {
+    if (getTencentCredentialMode() === "instance-role") {
+      const credentials = await getTencentInstanceRoleCredentialProvider().getCredentials();
+      return {
+        secretId: credentials.TmpSecretId,
+        secretKey: credentials.TmpSecretKey,
+        securityToken: credentials.SecurityToken,
+      };
+    }
+
+    if (!this.secretId || !this.secretKey) {
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, "VOD 静态凭据未配置");
+    }
+    return { secretId: this.secretId, secretKey: this.secretKey };
+  }
+
   // ───────── 上传签名 ─────────
 
   /** 生成客户端上传签名（用于Web/小程序直传VOD） */
@@ -80,6 +106,12 @@ export class VodService {
     classId?: number;
     expireSeconds?: number;
   } = {}) {
+    if (!this.secretId || !this.secretKey) {
+      throw new BusinessException(
+        ErrorCode.THIRD_AI_FAILED,
+        "VOD 客户端上传签名需要受限静态密钥；当前实例角色仅用于服务端 API",
+      );
+    }
     const currentTimeStamp = Math.floor(Date.now() / 1000);
     const expireTime = currentTimeStamp + (params.expireSeconds || 7200);
     const random = Math.floor(Math.random() * 0xffffffff);
