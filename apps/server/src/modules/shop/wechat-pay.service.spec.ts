@@ -27,7 +27,7 @@ jest.mock("fs", () => ({
   existsSync: jest.fn().mockReturnValue(false),
 }));
 
-import { WechatPayService } from "./wechat-pay.service";
+import { WechatPayApiError, WechatPayService } from "./wechat-pay.service";
 
 describe("WechatPayService", () => {
   let service: WechatPayService;
@@ -91,6 +91,21 @@ describe("WechatPayService", () => {
           payer: { openid: "oUser1" },
         }),
       ).rejects.toThrow("微信支付失败");
+    });
+
+    it("API错误应保留微信错误码供服务端安全分支判断", async () => {
+      mockFetchJson({ code: "ORDER_NOT_EXIST", message: "订单不存在" }, 404);
+
+      try {
+        await service.queryOrder("GX_MISSING");
+        throw new Error("预期微信支付 API 抛出异常");
+      } catch (error) {
+        expect(error).toBeInstanceOf(WechatPayApiError);
+        expect(error).toMatchObject({
+          wechatCode: "ORDER_NOT_EXIST",
+          upstreamStatus: 404,
+        });
+      }
     });
 
     it("appId 覆盖时（公众号内H5支付）下单与调起签名应使用同一覆盖 appid", async () => {
