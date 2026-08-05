@@ -67,8 +67,10 @@ interface PaymentGatewayResult {
   outTradeNo?: string
   status?: string
   paid?: boolean
+  // #ifdef H5
   trans_stat?: string
   resp_code?: string
+  // #endif
   [k: string]: unknown
 }
 
@@ -101,12 +103,14 @@ export const purchaseApi = {
    */
   payByChannel: (orderId: string, channel: PayChannel) =>
     apiPost<PaymentGatewayResult>('/huifu/pay', { orderId, payType: HUIFU_PAY_TYPE[channel] }),
+  // #ifdef H5
   /**
    * 主动查询汇付支付结果。服务端会验签汇付查单响应，并仅在 trans_stat=S 时完成订单入账。
    * 客户端不得根据“已返回二维码”推断支付成功。
    */
   queryHuifuPayment: (outTradeNo: string) =>
     apiPost<PaymentGatewayResult>('/huifu/query', { outTradeNo }),
+  // #endif
   /** 拉起微信 Native 扫码支付（PC 兜底）— POST /shop/orders/:id/pay/native */
   payNative: (orderId: string) => apiPost<PaymentGatewayResult>(`/shop/orders/${orderId}/pay/native`, {}),
   /** 查询订单支付状态 — GET /shop/orders/:id/payment-status */

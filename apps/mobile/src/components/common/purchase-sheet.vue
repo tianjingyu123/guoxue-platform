@@ -11,6 +11,7 @@
         <text class="ps-paid__sub">{{ paidSub }}</text>
       </view>
 
+      <!-- #ifdef H5 -->
       <!-- 汇付扫码支付等待态：二维码仅代表支付凭据，绝不能当作支付成功。 -->
       <view v-else-if="paymentPending" class="ps-pending">
         <text class="ps-pending__title">等待支付</text>
@@ -46,6 +47,7 @@
           <text>稍后支付</text>
         </view>
       </view>
+      <!-- #endif -->
 
       <template v-else>
         <!-- 头部：商品信息 -->
@@ -185,13 +187,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, getCurrentInstance, nextTick, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
+// #ifdef H5
+import { getCurrentInstance, nextTick, onUnmounted } from 'vue'
+// #endif
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { navigateTo } from '@/utils/router'
 import { purchaseApi, type PurchaseProduct, type PurchaseBizType, type PayChannel } from '@/lib/purchase-data'
+// #ifdef H5
 import { drawQrToCanvas } from '@/utils/qrcode'
+// #endif
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -203,8 +210,10 @@ const props = withDefaults(defineProps<{
 }>(), { allowQty: true })
 
 const emit = defineEmits<{ (e: 'close'): void; (e: 'paid', orderId: string): void }>()
+// #ifdef H5
 const instance = getCurrentInstance()?.proxy
 const QR_PX = 176
+// #endif
 
 useOverlayScrollLock(
   () => props.open && Boolean(props.product),
@@ -234,6 +243,7 @@ const payMethod = ref<string>('wechat')
 const paying = ref(false)
 const paid = ref(false)
 const paidSub = ref('请在订单中心完成支付')
+// #ifdef H5
 const paymentPending = ref(false)
 const paymentQr = ref('')
 const paymentOutTradeNo = ref('')
@@ -246,13 +256,16 @@ let pollCount = 0
 let pollTimer: ReturnType<typeof setTimeout> | null = null
 
 onUnmounted(stopPaymentPolling)
+// #endif
 
 const hasSku = computed(() => !!props.product?.skus && props.product.skus.length > 0)
 // 金额乘法用 Math.round(×100)/100 消除浮点误差(如 19.9×3=59.699999...)，避免小数点多位
 const total = computed(() => (props.product ? Math.round(props.product.price * quantity.value * 100) / 100 : 0))
+// #ifdef H5
 const paymentMethodName = computed(() =>
   ALL_PAY_METHODS.find((item) => item.id === payMethod.value)?.name || '所选方式',
 )
+// #endif
 const tipText = computed(() => (props.bizType === 'PRODUCT' ? '正品保障 · 7天无理由退换' : '官方正版 · 购买后立即可用'))
 const payButtonText = computed(() => {
   if (paying.value) return '提交中…'
@@ -274,13 +287,16 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<v
   void action()
 }
 function reset() {
+  // #ifdef H5
   stopPaymentPolling()
+  // #endif
   selectedSku.value = null
   quantity.value = 1
   payMethod.value = 'wechat'
   paying.value = false
   paid.value = false
   paidSub.value = '请在订单中心完成支付'
+  // #ifdef H5
   paymentPending.value = false
   paymentQr.value = ''
   paymentOutTradeNo.value = ''
@@ -289,12 +305,14 @@ function reset() {
   qrReady.value = false
   checkingPayment.value = false
   pollCount = 0
+  // #endif
 }
 function onClose() {
   reset()
   emit('close')
 }
 
+// #ifdef H5
 function renderPaymentQr() {
   if (!paymentQr.value) return
   try {
@@ -359,6 +377,7 @@ function startPaymentPolling() {
   }
   pollTimer = setTimeout(tick, 3000)
 }
+// #endif
 
 /**
  * 确认下单（2026-07-16 真支付接线）：
@@ -396,6 +415,7 @@ async function onPay() {
       // #endif
       const qrCode = pay?.qrCode || pay?.codeUrl
       if (qrCode) {
+        // #ifdef H5
         if (!pay.outTradeNo) throw new Error('汇付未返回支付查询凭据')
         paymentQr.value = qrCode
         paymentOutTradeNo.value = pay.outTradeNo
@@ -408,6 +428,7 @@ async function onPay() {
         renderPaymentQr()
         startPaymentPolling()
         return
+        // #endif
       }
     } catch { /* 聚合支付未接通 → 走下方诚实降级 */ }
     // 诚实降级：订单已创建但支付未发起，引导订单中心继续支付（不显示成功态）
@@ -430,6 +451,7 @@ async function onPay() {
 .ps-paid__title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
 .ps-paid__sub { font-size: 26rpx; color: #999; margin-top: 8rpx; }
 
+/* #ifdef H5 */
 /* 汇付扫码等待态 */
 .ps-pending { padding: 56rpx 48rpx calc(40rpx + env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: center; }
 .ps-pending__title { font-size: 34rpx; font-weight: 600; color: #1a1a1a; }
@@ -441,6 +463,7 @@ async function onPay() {
 .ps-pending__check { width: 100%; margin-top: 28rpx; padding: 24rpx 0; border-radius: 999rpx; background: var(--brand); color: #fff; font-size: 28rpx; text-align: center; }
 .ps-pending__check--off { opacity: 0.55; }
 .ps-pending__later { margin-top: 20rpx; padding: 16rpx 40rpx; color: #777; font-size: 25rpx; }
+/* #endif */
 
 /* 头部 */
 .ps-head { position: relative; padding: 32rpx; border-bottom: 1px solid #f0f0f0; display: flex; gap: 24rpx; }
