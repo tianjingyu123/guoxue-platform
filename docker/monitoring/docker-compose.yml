@@ -125,6 +125,8 @@ services:
     container_name: guoxue-redis-exporter
     environment:
       REDIS_ADDR: ${REDIS_URL:?监控栈必须读取生产 REDIS_URL}
+      # 仅用于托管 Redis 证书缺少 IP SAN 的兼容场景；业务连接仍须严格校验 CA 与 CN。
+      REDIS_EXPORTER_SKIP_TLS_VERIFICATION: ${REDIS_EXPORTER_SKIP_TLS_VERIFICATION:-false}
     networks:
       - monitoring
     restart: unless-stopped

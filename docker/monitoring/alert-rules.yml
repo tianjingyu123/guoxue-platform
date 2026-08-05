@@ -450,6 +450,11 @@ groups:
             /
             (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))
           ) < 0.8
+          and
+          (
+            rate(redis_keyspace_hits_total[5m])
+            + rate(redis_keyspace_misses_total[5m])
+          ) > 10
         for: 10m
         labels:
           severity: warning

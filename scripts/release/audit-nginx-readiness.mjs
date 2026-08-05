@@ -68,6 +68,19 @@ add(
 );
 
 add(
+  "公共",
+  "代理响应安全头去重",
+  hasAll(securityHeaders, [
+    "proxy_hide_header Strict-Transport-Security;",
+    "proxy_hide_header X-Frame-Options;",
+    "proxy_hide_header X-Content-Type-Options;",
+    "proxy_hide_header Referrer-Policy;",
+    "proxy_hide_header Permissions-Policy;",
+  ]),
+  "Helmet 与 Nginx 同时启用时只保留入口统一生成的一份安全响应头",
+);
+
+add(
   "部署编排",
   "安全响应头片段只读挂载",
   [
