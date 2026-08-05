@@ -7,7 +7,7 @@ import { MemberLevel, Order } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { CommissionService } from "../commission/commission.service";
-import { WechatPayService } from "./wechat-pay.service";
+import { WechatPayApiError, WechatPayService } from "./wechat-pay.service";
 import { AlipayService } from "./alipay.service";
 import { UnionpayService } from "./unionpay.service";
 import { HuifuService } from "../huifu/huifu.service";
@@ -76,6 +76,8 @@ export class ShopPaymentService {
     try {
       await this.wechatPay.closeOrder(outTradeNo);
     } catch (closeError) {
+      const missingFromCurrentMerchantOnClose =
+        closeError instanceof WechatPayApiError && closeError.wechatCode === "ORDER_NOT_EXIST";
       try {
         const queried = await this.wechatPay.queryOrder(outTradeNo);
         if (queried.trade_state === "SUCCESS") {
@@ -89,6 +91,16 @@ export class ShopPaymentService {
         }
       } catch (queryError) {
         if (queryError instanceof BusinessException && queryError.message.includes("订单已支付")) throw queryError;
+        if (
+          missingFromCurrentMerchantOnClose &&
+          queryError instanceof WechatPayApiError &&
+          queryError.wechatCode === "ORDER_NOT_EXIST"
+        ) {
+          this.logger.warn(
+            "旧付款单在当前微信商户下不存在，按商户切换遗留流水恢复 order=" + orderId,
+          );
+          return;
+        }
         this.logger.warn("旧付款单查单失败 order=" + orderId + ": " + (queryError as Error).message);
       }
       this.logger.warn("旧付款单关单失败 order=" + orderId + ": " + (closeError as Error).message);

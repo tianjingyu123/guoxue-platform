@@ -6,6 +6,25 @@ import { ErrorCode } from "../../common/error-codes";
 import { MetricsService } from "../../common/metrics.service";
 
 /**
+ * 微信支付 API 返回的结构化异常。
+ *
+ * 对外响应仍沿用 BusinessException 的安全结构；wechatCode 仅供服务端判断
+ * ORDER_NOT_EXIST 等可恢复状态，避免依赖上游中文文案。
+ */
+export class WechatPayApiError extends BusinessException {
+  constructor(
+    readonly wechatCode: string,
+    readonly wechatMessage: string,
+    readonly upstreamStatus: number,
+  ) {
+    super(
+      ErrorCode.PAY_FAILED,
+      `微信支付失败: ${wechatMessage || wechatCode || "未知错误"}`,
+    );
+  }
+}
+
+/**
  * 微信支付 V3 API 服务（纯原生HTTP+加密，不依赖SDK）
  * 文档: https://pay.weixin.qq.com/doc/v3
  */
@@ -116,7 +135,11 @@ export class WechatPayService {
         const reason = (respBody.code || respBody.message || "unknown") as string;
         this.metrics?.recordExternalApi("wechatpay", path, false, duration, reason);
         this.logger.error(`微信支付API错误 [${method} ${path}]`, respBody);
-        throw new BusinessException(ErrorCode.PAY_FAILED, `微信支付失败: ${respBody.message || respBody.code || "未知错误"}`);
+        throw new WechatPayApiError(
+          String(respBody.code || "UNKNOWN"),
+          String(respBody.message || respBody.code || "未知错误"),
+          resp.status,
+        );
       }
 
       this.metrics?.recordExternalApi("wechatpay", path, true, duration);
