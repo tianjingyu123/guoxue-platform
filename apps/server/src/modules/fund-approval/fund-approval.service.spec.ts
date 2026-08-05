@@ -15,6 +15,7 @@ const mockModel = {
   findMany: jest.fn(),
   count: jest.fn(),
   findUnique: jest.fn(),
+  findFirst: jest.fn(),
   updateMany: jest.fn(),
 };
 const mockPrisma = { fundApproval: mockModel };
@@ -110,6 +111,22 @@ describe("FundApprovalService", () => {
     it("不存在抛业务异常", async () => {
       mockModel.findUnique.mockResolvedValue(null);
       await expect(svc.findById("nope")).rejects.toThrow(BusinessException);
+    });
+  });
+
+  describe("findActiveByPayload", () => {
+    it("按审批类型、活跃状态和 JSON 业务键查询", async () => {
+      mockModel.findFirst.mockResolvedValue({ id: "fa-1", status: "PENDING" });
+      await expect(svc.findActiveByPayload("ORDER_REFUND", "orderId", "o1"))
+        .resolves.toEqual({ id: "fa-1", status: "PENDING" });
+      expect(mockModel.findFirst).toHaveBeenCalledWith({
+        where: {
+          type: "ORDER_REFUND",
+          status: { in: ["PENDING", "APPROVED"] },
+          payload: { path: ["orderId"], equals: "o1" },
+        },
+        orderBy: { createdAt: "desc" },
+      });
     });
   });
 

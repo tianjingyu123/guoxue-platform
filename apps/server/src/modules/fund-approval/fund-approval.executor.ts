@@ -9,6 +9,7 @@ import { CommissionService } from "../commission/commission.service";
 import { AdminReferralService } from "../station/admin-referral.service";
 import { SystemService } from "../system/system.service";
 import { SettlementRuleAdminService } from "../settlement/settlement-rule-admin.service";
+import { ShopRefundService } from "../shop/shop-refund.service";
 
 /**
  * 资金审批执行器：审批通过时按 type 调用对应模块的「真实执行方法」。
@@ -28,6 +29,7 @@ export class FundApprovalExecutor {
     private referrals: AdminReferralService,
     private system: SystemService,
     private settlementRules: SettlementRuleAdminService,
+    private shopRefunds: ShopRefundService,
   ) {}
 
   /** 审批：approve=true → 认领并执行；approve=false → 标记 REJECTED */
@@ -108,6 +110,8 @@ export class FundApprovalExecutor {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "未知会员配置审批方法");
       case "REFUND":
         return this.huifu.createRefund(p);
+      case "ORDER_REFUND":
+        return this.shopRefunds.refundOrder(p.orderId, p.reason);
       case "HUIFU_SPLIT":
         // 汇付分账（真金出款）：审批通过后才真正向渠道发起。createSplit 自带
         // 状态防重（PROCESSING/SUCCESS 拒绝）与总额≤已付校验，重复执行不会二次分账。

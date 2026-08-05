@@ -15,6 +15,7 @@ import { RMB_TO_FEN } from "../../common/constants";
 import { isStocklessOrderType } from "./shop-order-types.constants";
 import { HuifuService } from "../huifu/huifu.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
+import { FundApprovalService } from "../fund-approval/fund-approval.service";
 
 /** 缓存前缀 */
 const CACHE_PREFIX = "shop:";
@@ -39,6 +40,7 @@ export class ShopRefundService {
     private paymentFactory: PaymentProviderFactory,
     private webhook: WebhookService,
     private entitlement: EntitlementService,
+    private approvals: FundApprovalService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
   ) {
     this.huifu.registerRefundNotifyHandler((payload) => this.handleHuifuRefundNotify(payload));
@@ -110,6 +112,18 @@ export class ShopRefundService {
     return this.refundOrder(order.id, params.reason);
   }
 
+  /** 管理员支付宝退款仅发起审批，实际退款由另一位审批人执行。 */
+  async requestAlipayRefund(
+    params: { outTradeNo: string; refundAmount: number; outRefundNo: string; reason?: string },
+    requestedBy: string,
+  ) {
+    const order = await this.assertRefundAmountValid(params.outTradeNo, params.refundAmount);
+    if (String(order.payMethod || "").toUpperCase() !== "ALIPAY") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "订单原支付渠道不是支付宝");
+    }
+    return this.requestOrderRefund(order.id, params.reason || "支付宝退款", requestedBy);
+  }
+
   /** 银联订单查询 */
   async unionpayQuery(outTradeNo: string) {
     return this.unionpay.query(outTradeNo);
@@ -122,6 +136,74 @@ export class ShopRefundService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "订单原支付渠道不是银联");
     }
     return this.refundOrder(order.id, "银联退款");
+  }
+
+  /** 管理员银联退款仅发起审批，实际退款由另一位审批人执行。 */
+  async requestUnionpayRefund(
+    params: { outTradeNo: string; outRefundNo: string; amount: number; origQryId?: string },
+    requestedBy: string,
+  ) {
+    const order = await this.assertRefundAmountValid(params.outTradeNo, params.amount / RMB_TO_FEN);
+    if (String(order.payMethod || "").toUpperCase() !== "UNIONPAY") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "订单原支付渠道不是银联");
+    }
+    return this.requestOrderRefund(order.id, "银联退款", requestedBy);
+  }
+
+  /**
+   * 管理员主动退款统一四眼入口：这里只校验并创建审批单，不调用支付渠道。
+   * 自动拼团退款、商家售后等既有业务工作流继续调用 refundOrder，不受此入口影响。
+   */
+  async requestOrderRefund(orderId: string, reason: string | undefined, requestedBy: string) {
+    const normalizedReason = String(reason || "").trim();
+    if (!normalizedReason) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请填写退款理由");
+    }
+    const lockKey = `refund:approval:${orderId}`;
+    const locked = await this.redis.setNX(lockKey, "1", 15);
+    if (!locked) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "退款申请正在提交中，请勿重复操作");
+    }
+    try {
+      const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!order || !["PAID", "SHIPPED", "COMPLETED"].includes(order.status)) {
+        throw new BusinessException(ErrorCode.ORDER_REFUND_DENIED, "订单不可退款");
+      }
+      const amount = Number(order.payAmount ?? order.amount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "订单实付金额异常，暂时无法退款");
+      }
+      const payMethod = String(order.payMethod || "").toUpperCase();
+      if (!payMethod) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "订单缺少原支付渠道，无法自动退款");
+      }
+      if (!order.payTransactionId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "订单缺少原支付渠道交易号，无法自动退款");
+      }
+      if (!(await this.paymentFactory.isConfigured(payMethod))) {
+        throw new BusinessException(ErrorCode.INTERNAL_ERROR, "原支付渠道暂不可退款，请联系平台处理");
+      }
+
+      const active = await this.approvals.findActiveByPayload("ORDER_REFUND", "orderId", orderId);
+      if (active) {
+        return {
+          submitted: true,
+          approvalId: active.id,
+          status: active.status,
+          reused: true,
+          message: "该订单已有退款审批，请勿重复提交",
+        };
+      }
+      return this.approvals.create({
+        type: "ORDER_REFUND",
+        payload: { orderId, reason: normalizedReason },
+        amount,
+        summary: `订单全额原路退款：${orderId}`,
+        requestedBy,
+      });
+    } finally {
+      await this.redis.del(lockKey);
+    }
   }
 
   /**

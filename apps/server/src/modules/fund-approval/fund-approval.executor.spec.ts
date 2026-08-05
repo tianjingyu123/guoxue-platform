@@ -12,6 +12,7 @@ describe("FundApprovalExecutor 自审自批防护", () => {
   let referrals: any;
   let system: any;
   let settlementRules: any;
+  let shopRefunds: any;
 
   beforeEach(() => {
     approvals = {
@@ -34,8 +35,9 @@ describe("FundApprovalExecutor 自审自批防护", () => {
       createRule: jest.fn().mockResolvedValue({ id: "sr1" }),
       updateRule: jest.fn().mockResolvedValue({ id: "sr1" }),
     };
+    shopRefunds = { refundOrder: jest.fn().mockResolvedValue({ status: "PROCESSING" }) };
     executor = new FundApprovalExecutor(
-      approvals, {} as any, {} as any, coin, {} as any, referrals, system, settlementRules,
+      approvals, {} as any, {} as any, coin, {} as any, referrals, system, settlementRules, shopRefunds,
     );
   });
 
@@ -69,13 +71,25 @@ describe("FundApprovalExecutor 自审自批防护", () => {
   it("HUIFU_SPLIT 审批通过后执行 huifu.createSplit", async () => {
     const huifu = { createSplit: jest.fn().mockResolvedValue({ splitStatus: "PROCESSING" }) };
     const exec2 = new FundApprovalExecutor(
-      approvals, {} as any, huifu as any, coin, {} as any, referrals, system, settlementRules,
+      approvals, {} as any, huifu as any, coin, {} as any, referrals, system, settlementRules, shopRefunds,
     );
     const payload = { orderId: "order-1", amount: 100, receivers: [{ acctId: "A1", amount: 100, name: "张三" }] };
     approvals.findById.mockResolvedValue({ id: "a2", status: "PENDING", requestedBy: "admin-1", type: "HUIFU_SPLIT", payload });
     const res = await exec2.review("a2", true, undefined, "admin-2");
     expect(res.approved).toBe(true);
     expect(huifu.createSplit).toHaveBeenCalledWith(payload);
+  });
+
+  it("ORDER_REFUND 审批通过后才执行统一订单退款", async () => {
+    approvals.findById.mockResolvedValue({
+      id: "a-order", status: "PENDING", requestedBy: "admin-1", type: "ORDER_REFUND",
+      payload: { orderId: "order-1", reason: "测试退款" },
+    });
+
+    const res = await executor.review("a-order", true, undefined, "admin-2");
+
+    expect(res.approved).toBe(true);
+    expect(shopRefunds.refundOrder).toHaveBeenCalledWith("order-1", "测试退款");
   });
   it("临时分佣新增审批通过后执行真实创建，并保留发起人为创建人", async () => {
     const dto = { stationId: "station-1", commissionRate: 10, validFrom: "2026-07-20T00:00:00.000Z", validTo: "2026-07-27T00:00:00.000Z" };
