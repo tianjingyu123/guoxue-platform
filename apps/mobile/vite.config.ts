@@ -2,37 +2,11 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import uni from "@dcloudio/vite-plugin-uni";
 import { resolve } from "path";
 
-const LEGACY_PUBLIC_ORIGIN = "https://api.rebugx.cn";
 const THIRD_PARTY_PROBE_ORIGIN = "https://example.com";
 const RESERVED_PROBE_ORIGIN = "https://example.invalid";
 
 function normalizeOrigin(value: string): string {
   return value.trim().replace(/\/+$/, "");
-}
-
-/**
- * 历史演示数据中仍有旧站绝对资源地址。迁移期间不能逐条依赖旧域名，
- * 构建时统一改写到新对象存储/CDN；未配置时才保留现网地址供本地开发。
- */
-export function rewriteLegacyPublicAssets(publicAssetOrigin: string): Plugin {
-  const targetOrigin = normalizeOrigin(publicAssetOrigin) || LEGACY_PUBLIC_ORIGIN;
-  return {
-    name: "rewrite-legacy-public-assets",
-    enforce: "pre",
-    transform(code, id) {
-      const normalizedId = id.replaceAll("\\", "/");
-      if (
-        !normalizedId.includes("/apps/mobile/src/") ||
-        !code.includes(`${LEGACY_PUBLIC_ORIGIN}/assets`)
-      ) {
-        return null;
-      }
-      return {
-        code: code.replaceAll(`${LEGACY_PUBLIC_ORIGIN}/assets`, `${targetOrigin}/assets`),
-        map: null,
-      };
-    },
-  };
 }
 
 /** 避免 flv.js 的能力探测地址把公网示例域名带入正式 H5 产物。 */
@@ -89,13 +63,10 @@ export function harmonyIifeBuildCompatibility(): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, "");
   const isHarmonyApp = process.env.UNI_PLATFORM === "app-harmony";
-  const publicAssetOrigin =
-    env.VITE_PUBLIC_ASSET_ORIGIN || env.VITE_API_URL || LEGACY_PUBLIC_ORIGIN;
   const devProxyTarget = normalizeOrigin(env.VITE_DEV_PROXY_TARGET || "http://localhost:3000");
 
   return {
     plugins: [
-      rewriteLegacyPublicAssets(publicAssetOrigin),
       rewriteFlvProbeOrigin(),
       uni(),
       harmonyIifeBuildCompatibility(),
@@ -158,7 +129,6 @@ export default defineConfig(({ mode }) => {
     base: "/h5/",
     server: {
       port: 5173,
-      allowedHosts: ["api.rebugx.cn", ".rebugx.cn"],
       proxy: {
         "/api": {
           target: devProxyTarget,

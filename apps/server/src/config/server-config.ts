@@ -58,10 +58,13 @@ class ServerConfig {
     return trailingSlash ? `${normalized}/` : normalized;
   }
   get publicDomain(): string {
-    return (process.env.PUBLIC_DOMAIN || "api.rebugx.cn").trim();
+    return (process.env.PUBLIC_DOMAIN || "localhost").trim();
   }
   get publicApiUrl(): string {
-    return this.normalizedUrl(process.env.PUBLIC_API_URL || "", `https://${this.publicDomain}`);
+    return this.normalizedUrl(
+      process.env.PUBLIC_API_URL || "",
+      this.isProduction ? `https://${this.publicDomain}` : `http://localhost:${this.port}`,
+    );
   }
   get publicH5Url(): string {
     return this.normalizedUrl(

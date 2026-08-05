@@ -229,12 +229,12 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { operatorApi, type StationConfigData, type StationTemplateOption } from '@/pkg-operator/lib/operator-data'
 import { buildH5Url } from '@/utils/share'
-import { chooseAndUploadImage } from '@/utils/request'
+import { chooseAndUploadImage, publicAssetUrl } from '@/utils/request'
 
 const statusBarHeight = ref(20)
 uni.getSystemInfo({ success: (r) => { statusBarHeight.value = r.statusBarHeight || 20 } })
 
-const defaultAvatar = 'https://api.rebugx.cn/assets/experts/expert-1.webp'
+const defaultAvatar = publicAssetUrl('/assets/experts/expert-1.webp')
 
 // 预设主题色（仅前端展示标识，持久化只存主色 themeColor）
 const presets = [

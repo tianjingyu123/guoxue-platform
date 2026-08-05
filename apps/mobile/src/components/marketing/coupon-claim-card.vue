@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 优惠券领取卡 - 从原型 componentshttps://api.rebugx.cn/assets/marketing/marketing-slot.tsx CouponClaimCard 迁移 */
+/** 优惠券领取卡 - 从原型 marketing-slot.tsx CouponClaimCard 迁移 */
 import { ref } from 'vue'
 import { formatPrice } from '@/utils/format'
 

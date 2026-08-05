@@ -3388,8 +3388,8 @@ model BrandConfig {
   qrGuide       String   @default("长按识别 · 开启国学之旅") // 二维码引导语
   logoUrl       String   @default("") // Logo 图片地址（空=使用内置印章 Logo）
   primaryColor  String   @default("#c41e3a") // 品牌主色
-  domain        String   @default("api.rebugx.cn") // 主域名
-  h5Url         String   @default("https://api.rebugx.cn/h5/") // H5 入口地址
+  domain        String   @default("") // 主域名由环境配置注入
+  h5Url         String   @default("") // H5 入口地址由环境配置注入
   servicePhone  String   @default("") // 客服电话
   serviceEmail  String   @default("") // 客服邮箱
   serviceWechat String   @default("") // 客服微信
