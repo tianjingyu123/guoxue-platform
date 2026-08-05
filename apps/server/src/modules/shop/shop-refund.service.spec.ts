@@ -11,6 +11,7 @@ import { PaymentProviderFactory } from "./payment-factory"
 import { WebhookService } from "../webhook/webhook.service"
 import { BusinessException } from "../../common/business.exception"
 import { EntitlementService } from "../entitlement/entitlement.service"
+import { FundApprovalService } from "../fund-approval/fund-approval.service"
 import {
   makeMockPrisma, makeMockRedis, makeMockCommission,
   makeMockAlipay, makeMockUnionpay, makeMockPaymentFactory, makeMockWebhook, makeMockHuifu, makeMockWechatPay, makeMockEntitlement,
@@ -26,6 +27,10 @@ const mockPaymentFactory = makeMockPaymentFactory()
 const mockWebhook = makeMockWebhook()
 const mockHuifu = makeMockHuifu()
 const mockEntitlement = makeMockEntitlement()
+const mockApprovals = {
+  findActiveByPayload: jest.fn(),
+  create: jest.fn(),
+}
 const refundRequestedAt = new Date("2026-07-22T07:00:00.000Z")
 
 describe("ShopRefundService", () => {
@@ -46,6 +51,7 @@ describe("ShopRefundService", () => {
         { provide: PaymentProviderFactory, useValue: mockPaymentFactory },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: EntitlementService, useValue: mockEntitlement },
+        { provide: FundApprovalService, useValue: mockApprovals },
       ],
     }).compile()
     svc = mod.get(ShopRefundService)
@@ -63,6 +69,47 @@ describe("ShopRefundService", () => {
     mockPrisma.afterSale.updateMany.mockResolvedValue({ count: 1 })
     mockHuifu.createRefund.mockResolvedValue({ outRefundNo: "RForder1", refundStatus: "PROCESSING", raw: {} })
     mockWechatPay.queryRefund.mockResolvedValue({ status: "PROCESSING" })
+    mockApprovals.findActiveByPayload.mockResolvedValue(null)
+    mockApprovals.create.mockResolvedValue({ submitted: true, approvalId: "fa-order-1", status: "PENDING" })
+  })
+
+  describe("requestOrderRefund", () => {
+    it("仅创建订单退款审批，不直接调用支付渠道", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "o1", status: "PAID", payAmount: 88, amount: 99,
+        payMethod: "HUIFU", payTransactionId: "hf-txn-1",
+      })
+
+      const result = await svc.requestOrderRefund("o1", "用户申请全额退款", "admin-1")
+
+      expect(result).toEqual(expect.objectContaining({ submitted: true, status: "PENDING" }))
+      expect(mockApprovals.create).toHaveBeenCalledWith(expect.objectContaining({
+        type: "ORDER_REFUND",
+        payload: { orderId: "o1", reason: "用户申请全额退款" },
+        amount: 88,
+        requestedBy: "admin-1",
+      }))
+      expect(mockPaymentFactory.refund).not.toHaveBeenCalled()
+    })
+
+    it("已有未结束审批时幂等返回原审批", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({
+        id: "o1", status: "PAID", payAmount: 88, amount: 99,
+        payMethod: "HUIFU", payTransactionId: "hf-txn-1",
+      })
+      mockApprovals.findActiveByPayload.mockResolvedValue({ id: "fa-existing", status: "PENDING" })
+
+      const result = await svc.requestOrderRefund("o1", "重复提交", "admin-2")
+
+      expect(result).toEqual(expect.objectContaining({ approvalId: "fa-existing", reused: true }))
+      expect(mockApprovals.create).not.toHaveBeenCalled()
+      expect(mockPaymentFactory.refund).not.toHaveBeenCalled()
+    })
+
+    it("缺少退款理由时拒绝且不创建审批", async () => {
+      await expect(svc.requestOrderRefund("o1", "   ", "admin-1")).rejects.toThrow("请填写退款理由")
+      expect(mockApprovals.create).not.toHaveBeenCalled()
+    })
   })
 
   describe("refundExpiredGroupBuysCron (P1-3)", () => {

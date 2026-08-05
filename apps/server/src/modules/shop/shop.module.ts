@@ -29,9 +29,10 @@ import { PricingModule } from "../pricing/pricing.module";
 import { AuditModule } from "../audit/audit.module";
 import { MemberModule } from "../member/member.module";
 import { EntitlementModule } from "../entitlement/entitlement.module";
+import { FundApprovalCoreModule } from "../fund-approval/fund-approval-core.module";
 
 @Module({
-  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule, MemberModule, EntitlementModule],
+  imports: [CommissionModule, SystemModule, CoinModule, WebhookModule, HuifuModule, PricingModule, AuditModule, MemberModule, EntitlementModule, FundApprovalCoreModule],
   controllers: [ShopController, AddressController, ProductCategoryController],
   providers: [ShopService, ShopAttributionService, ShopProductService, ShopOrderService, ShopOrderLifecycleService, ShopPaymentService, ShopRefundService, ShopCouponService, AfterSaleSlaService, WechatPayService, AlipayService, UnionpayService, PaymentProviderFactory, LogisticsService, AddressService, ProductCategoryService, ActiveUserGuard, StationIsolationGuard],
   exports: [ShopService, ShopAttributionService, ShopOrderService, ShopCouponService, ShopRefundService, WechatPayService, AlipayService, UnionpayService, LogisticsService, AddressService, ProductCategoryService],

@@ -299,7 +299,7 @@ async function confirmRefund() {
   try {
     // 后端 RefundOrderDto 支持 reason（可选）·orderApi.refund 不传 body 故此处直调端点带上理由留痕
     await api.put(`/shop/orders/${target.id}/refund`, { reason });
-    ElMessage.success("退款已执行，资金将原路退回");
+    ElMessage.success("退款申请已提交，需另一位财务或超级管理员审批");
     refundVisible.value = false;
     fetchList();
   } catch { /* 拦截器已提示 */ } finally { acting.value = false; }

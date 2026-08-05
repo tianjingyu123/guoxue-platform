@@ -463,10 +463,10 @@ export class ShopController {
     @Req() req: AuthRequest,
     @Body() body?: RefundOrderDto,
   ) {
-    const result = await this.shop.refundOrder(id, body?.reason);
+    const result = await this.shop.requestOrderRefund(id, body?.reason, req.user.id);
     this.systemService.logAudit({
       userId: req.user?.id,
-      action: "REFUND",
+      action: "REFUND_REQUEST",
       targetType: "ORDER",
       targetId: id,
       detail: `退款: ${id}`,
@@ -583,10 +583,10 @@ export class ShopController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async alipayRefund(@Req() req: AuthRequest, @Body() body: AlipayRefundDto) {
-    const result = await this.shop.alipayRefund(body);
+    const result = await this.shop.requestAlipayRefund(body, req.user.id);
     this.systemService.logAudit({
       userId: req.user?.id,
-      action: "REFUND",
+      action: "REFUND_REQUEST",
       targetType: "ORDER",
       targetId: body.outTradeNo,
       detail: `支付宝退款: 订单 ${body.outTradeNo}, 退款单 ${body.outRefundNo}, 金额 ${body.refundAmount}元`,
@@ -619,10 +619,10 @@ export class ShopController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async unionpayRefund(@Req() req: AuthRequest, @Body() dto: UnionpayRefundDto) {
-    const result = await this.shop.unionpayRefund(dto);
+    const result = await this.shop.requestUnionpayRefund(dto, req.user.id);
     this.systemService.logAudit({
       userId: req.user?.id,
-      action: "REFUND",
+      action: "REFUND_REQUEST",
       targetType: "ORDER",
       targetId: dto.outTradeNo,
       detail: `银联退款: 订单 ${dto.outTradeNo}, 退款单 ${dto.outRefundNo}, 金额 ${dto.amount}分`,

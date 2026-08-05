@@ -8,6 +8,7 @@ import { CoinModule } from "../coin/coin.module";
 import { CommissionModule } from "../commission/commission.module";
 import { StationModule } from "../station/station.module";
 import { SettlementModule } from "../settlement/settlement.module";
+import { ShopModule } from "../shop/shop.module";
 
 /**
  * 资金审批「执行」模块：组合核心服务与各资金业务模块，
@@ -23,6 +24,7 @@ import { SettlementModule } from "../settlement/settlement.module";
     CommissionModule,
     StationModule,
     SettlementModule,
+    ShopModule,
   ],
   controllers: [FundApprovalController],
   providers: [FundApprovalExecutor],

@@ -21,6 +21,7 @@ import { AuditService } from "../audit/audit.service"
 import { MemberBenefitService } from "../member/member-benefit.service"
 import { BusinessException } from "../../common/business.exception"
 import { EntitlementService } from "../entitlement/entitlement.service"
+import { FundApprovalService } from "../fund-approval/fund-approval.service"
 import {
   makeMockPrisma, makeMockRedis, makeMockCommission, makeMockUnifiedPricing,
   makeMockWechatPay, makeMockAlipay, makeMockUnionpay, makeMockCoin, makeMockWebhook,
@@ -43,6 +44,7 @@ const mockMemberBenefit = makeMockMemberBenefit()
 const mockAudit = makeMockAudit()
 const mockHuifu = makeMockHuifu()
 const mockEntitlement = makeMockEntitlement()
+const mockApprovals = { findActiveByPayload: jest.fn(), create: jest.fn() }
 
 describe("ShopService（facade·目录/履约辅助）", () => {
   let svc: ShopService
@@ -71,6 +73,7 @@ describe("ShopService（facade·目录/履约辅助）", () => {
         { provide: MemberBenefitService, useValue: mockMemberBenefit },
         { provide: HuifuService, useValue: mockHuifu },
         { provide: EntitlementService, useValue: mockEntitlement },
+        { provide: FundApprovalService, useValue: mockApprovals },
       ],
     }).compile()
     svc = mod.get(ShopService)

@@ -200,12 +200,26 @@ export class ShopService {
     return this.refundSvc.alipayRefund(params);
   }
 
+  requestAlipayRefund(
+    params: { outTradeNo: string; refundAmount: number; outRefundNo: string; reason?: string },
+    requestedBy: string,
+  ) {
+    return this.refundSvc.requestAlipayRefund(params, requestedBy);
+  }
+
   unionpayQuery(outTradeNo: string) {
     return this.refundSvc.unionpayQuery(outTradeNo);
   }
 
   unionpayRefund(params: { outTradeNo: string; outRefundNo: string; amount: number; origQryId?: string }) {
     return this.refundSvc.unionpayRefund(params);
+  }
+
+  requestUnionpayRefund(
+    params: { outTradeNo: string; outRefundNo: string; amount: number; origQryId?: string },
+    requestedBy: string,
+  ) {
+    return this.refundSvc.requestUnionpayRefund(params, requestedBy);
   }
 
   createHuifuPayment(userId: string, orderId: string, openid?: string, payType?: string) {
@@ -222,6 +236,10 @@ export class ShopService {
 
   refundOrder(orderId: string, reason?: string) {
     return this.refundSvc.refundOrder(orderId, reason);
+  }
+
+  requestOrderRefund(orderId: string, reason: string | undefined, requestedBy: string) {
+    return this.refundSvc.requestOrderRefund(orderId, reason, requestedBy);
   }
 
   handleRefundNotify(body: Record<string, unknown>) {

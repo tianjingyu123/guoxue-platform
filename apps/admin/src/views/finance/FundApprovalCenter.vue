@@ -77,6 +77,7 @@ function amountDisplay(row: ApprovalRow): string {
 const TYPE_LABELS: Record<string, string> = {
   DIVIDEND: '研究院分红',
   REFUND: '汇付退款',
+  ORDER_REFUND: '订单原路退款',
   RECHARGE: '国学币充值',
   COIN_REFUND: '国学币退款',
   COMMISSION_CONFIG: '分佣/结算规则变更',
@@ -84,7 +85,7 @@ const TYPE_LABELS: Record<string, string> = {
 }
 function typeLabel(t: string) { return TYPE_LABELS[t] || t }
 function typeTagType(t: string) {
-  const m: Record<string, string> = { DIVIDEND: 'warning', REFUND: 'danger', RECHARGE: 'success', COIN_REFUND: 'danger', COMMISSION_CONFIG: 'primary', MEMBER_CONFIG: 'warning' }
+  const m: Record<string, string> = { DIVIDEND: 'warning', REFUND: 'danger', ORDER_REFUND: 'danger', RECHARGE: 'success', COIN_REFUND: 'danger', COMMISSION_CONFIG: 'primary', MEMBER_CONFIG: 'warning' }
   return m[t] || 'info'
 }
 
@@ -114,6 +115,8 @@ function payloadBrief(row: ApprovalRow): string {
       return `用户 ${p.userId ?? '—'} / 退回 ${p.amountCoin ?? '—'} 国学币${p.description ? ` — ${p.description}` : ''}`
     case 'REFUND':
       return `交易号 ${p.outTradeNo ?? p.orderId ?? '—'}`
+    case 'ORDER_REFUND':
+      return `订单 ${p.orderId ?? '—'}${p.reason ? ` / ${p.reason}` : ''}`
     case 'COMMISSION_CONFIG': {
       if (p.method === 'updateCommissionConfig') return `${p.type ?? '—'} → ${p.rate ?? '—'}`
       if (String(p.method || '').includes('TemporaryReferralConfig')) {

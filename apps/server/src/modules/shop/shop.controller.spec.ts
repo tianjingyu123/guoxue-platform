@@ -37,6 +37,7 @@ const mockShopSvc = {
   adminPayOrder: jest.fn().mockResolvedValue({ id: "o1", status: "PAID" }),
   completeOrder: jest.fn().mockResolvedValue({ id: "o1", status: "COMPLETED" }),
   refundOrder: jest.fn().mockResolvedValue({ id: "o1", status: "REFUNDING" }),
+  requestOrderRefund: jest.fn().mockResolvedValue({ submitted: true, approvalId: "fa1", status: "PENDING" }),
   verifyAndDecryptNotify: jest.fn().mockResolvedValue({ valid: true, data: { outTradeNo: "o1" } }),
   handlePaymentNotify: jest.fn().mockResolvedValue(true),
   verifyAlipayNotify: jest.fn().mockResolvedValue({ valid: true, data: {} }),
@@ -46,8 +47,10 @@ const mockShopSvc = {
   handleRefundNotify: jest.fn().mockResolvedValue(undefined),
   alipayQuery: jest.fn().mockResolvedValue({ tradeStatus: "TRADE_SUCCESS" }),
   alipayRefund: jest.fn().mockResolvedValue({ refundStatus: "SUCCESS" }),
+  requestAlipayRefund: jest.fn().mockResolvedValue({ submitted: true, approvalId: "fa2", status: "PENDING" }),
   unionpayQuery: jest.fn().mockResolvedValue({ origRespCode: "00" }),
   unionpayRefund: jest.fn().mockResolvedValue({ respCode: "00" }),
+  requestUnionpayRefund: jest.fn().mockResolvedValue({ submitted: true, approvalId: "fa3", status: "PENDING" }),
   cancelOrder: jest.fn().mockResolvedValue({ id: "o1", status: "CANCELLED" }),
   createCoupon: jest.fn().mockResolvedValue({ id: "cp1", type: "DISCOUNT" }),
   listCoupons: jest.fn().mockResolvedValue([{ id: "cp1", type: "DISCOUNT" }]),
@@ -302,7 +305,8 @@ describe("ShopController", () => {
   it("PUT /shop/orders/:id/refund — 退款", async () => {
     const req: any = { user: { id: "admin1" }, ip: "127.0.0.1" };
     const result: any = await ctrl.refundOrder("o1", req);
-    expect(result.status).toBe("REFUNDING");
+    expect(result.status).toBe("PENDING");
+    expect(mockShopSvc.requestOrderRefund).toHaveBeenCalledWith("o1", undefined, "admin1");
   });
 
   // ─── 支付回调 ───
@@ -408,7 +412,8 @@ describe("ShopController", () => {
     const req: any = { user: { id: "u1" }, ip: "127.0.0.1" };
     const body = { outTradeNo: "o1", refundAmount: 99, outRefundNo: "rf1" };
     const result: any = await ctrl.alipayRefund(req, body);
-    expect(result.refundStatus).toBe("SUCCESS");
+    expect(result.status).toBe("PENDING");
+    expect(mockShopSvc.requestAlipayRefund).toHaveBeenCalledWith(body, "u1");
     expect(mockSystemSvc.logAudit).toHaveBeenCalled();
   });
 
@@ -421,7 +426,8 @@ describe("ShopController", () => {
     const req: any = { user: { id: "u1" }, ip: "127.0.0.1" };
     const body = { outTradeNo: "o1", outRefundNo: "rf1", amount: 99 };
     const result: any = await ctrl.unionpayRefund(req, body);
-    expect(result.respCode).toBe("00");
+    expect(result.status).toBe("PENDING");
+    expect(mockShopSvc.requestUnionpayRefund).toHaveBeenCalledWith(body, "u1");
     expect(mockSystemSvc.logAudit).toHaveBeenCalled();
   });
 
