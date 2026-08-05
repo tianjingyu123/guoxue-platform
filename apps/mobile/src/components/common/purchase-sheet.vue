@@ -233,7 +233,7 @@ function onClose() {
 
 /**
  * 确认下单（2026-07-16 真支付接线）：
- * - 微信渠道 → 创建订单后跳统一收银页 /pkg-shop/paying（微信内公众号JSAPI/外部浏览器mweb/小程序requestPayment
+ * - 微信渠道 → 创建订单后跳统一收银页 /shop/paying（微信内公众号JSAPI/外部浏览器mweb/小程序requestPayment
  *   全端真支付+轮询到账，圈子/课程订单与商品同在 Order 表，pay/jsapi 可直接支付）。
  * - 支付宝/云闪付 → 仍走汇付聚合；未接通时**诚实降级**引导订单中心，
  *   不再吞异常后显示"成功"绿勾（原实现会误导用户以为已付款，实际订单还是 PENDING）。
@@ -255,7 +255,7 @@ async function onPay() {
       // 真支付：跳统一收银页（到账由支付回调驱动，入圈/开课等后处理自动完成）
       const payAmount = Number(order.amount ?? total.value) || total.value
       onClose()
-      navigateTo(`/pkg-shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
+      navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
       return
     }
     // 支付宝/云闪付：汇付聚合通道

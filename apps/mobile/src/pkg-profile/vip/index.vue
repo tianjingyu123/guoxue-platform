@@ -180,7 +180,7 @@
       </view>
     </view>
 
-    <!-- 支付方式选择 Sheet（V1：确认后创建订单跳统一收银页 /pkg-shop/paying，原 Native 扫码弹层已移除——
+    <!-- 支付方式选择 Sheet（V1：确认后创建订单跳统一收银页 /shop/paying，原 Native 扫码弹层已移除——
          手机端无从扫码属死路；收银页覆盖微信内 JSAPI/外部浏览器 mweb/小程序 requestPayment 全端） -->
     <view v-if="showPaySheet" class="sheet-mask" @tap="closePaySheet" @touchmove.self.prevent>
       <view class="sheet" @tap.stop @touchmove.stop>
@@ -419,7 +419,7 @@ function confirmAgreementRead() {
 }
 
 /**
- * V1 真实购买链路（2026-07-17 审计修复）：创建 MEMBER 订单 → 跳统一收银页 /pkg-shop/paying。
+ * V1 真实购买链路（2026-07-17 审计修复）：创建 MEMBER 订单 → 跳统一收银页 /shop/paying。
  * 原实现走 payOrderNative（Native 扫码协议）——手机上没有第二台设备扫码，就是死路；
  * 统一收银页对齐 purchase-sheet 范式，微信内公众号 JSAPI / 外部浏览器 mweb / 小程序 requestPayment
  * 全端可付，到账由支付回调驱动、收银页轮询订单状态并展示结果。
@@ -446,7 +446,7 @@ async function handlePurchase() {
     // 金额展示优先用订单真实应付额（服务端计价），异常时回退套餐标价
     const payAmount = Number(order.amount) || selectedPlan.value.price
     showPaySheet.value = false
-    navigateTo(`/pkg-shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
+    navigateTo(`/shop/paying?orderId=${order.id}&method=wechat&amount=${payAmount}`)
   } catch (e) {
     const msg = (e as Error)?.message || ''
     uni.showToast({ title: msg || '下单失败，请重试', icon: 'none' })
