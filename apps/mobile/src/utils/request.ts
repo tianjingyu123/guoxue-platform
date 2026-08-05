@@ -43,8 +43,14 @@ function reportApiError(path: string, status: number, code?: number): void {
 const BASE_URL = (import.meta as any).env?.VITE_API_URL || ''
 const PREFIX = '/api/v1'
 
-// 公共静态资源与 API 同源；H5 未配置 API 域名时自然回退当前站点。
-export const publicAssetUrl = /* @__NO_SIDE_EFFECTS__ */ (path: string): string => BASE_URL + path
+// 公共静态资源优先使用独立资源域名；未配置时仅回退 API/当前站点，不再回退旧生产域名。
+const PUBLIC_ASSET_ORIGIN = (
+  (import.meta as any).env?.VITE_PUBLIC_ASSET_ORIGIN || BASE_URL
+).replace(/\/+$/, '')
+export const publicAssetUrl = /* @__NO_SIDE_EFFECTS__ */ (path: string): string => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${PUBLIC_ASSET_ORIGIN}${normalizedPath}`
+}
 
 // 请求超时（弱网下避免长时间空等；各端默认值偏长，统一收敛为 15s）
 const TIMEOUT = 15000
