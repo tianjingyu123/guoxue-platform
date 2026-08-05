@@ -7,7 +7,7 @@
 # 腾讯云托管数据库、Redis、CLB/TLS 模式必须改用 DEPLOY_TARGET=tencent，
 # 且正式环境文件中的 DATABASE_URL / REDIS_URL 必须指向托管服务私网地址。
 #
-# 生产验收支持: Ubuntu 22.04 / 24.04 LTS
+# 生产验收支持: Ubuntu 22.04 / 24.04 / 26.04 LTS
 set -euo pipefail
 
 GREEN='\033[0;32m'
@@ -107,9 +107,9 @@ fi
 log "操作系统: $OS $OS_VERSION"
 
 case "$OS:$OS_VERSION" in
-  ubuntu:22.04|ubuntu:24.04) ;;
+  ubuntu:22.04|ubuntu:24.04|ubuntu:26.04) ;;
   *)
-    err "生产初始化仅支持已验收的 Ubuntu 22.04 / 24.04 LTS，当前为: $OS $OS_VERSION"
+    err "生产初始化仅支持已验收的 Ubuntu 22.04 / 24.04 / 26.04 LTS，当前为: $OS $OS_VERSION"
     err "请在购买或重装新服务器时选择受支持镜像，不得在迁移现场临时改写安装链"
     exit 65
     ;;

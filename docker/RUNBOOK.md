@@ -75,7 +75,7 @@
 | 内存 | 4 GB         | 8 GB               |
 | 磁盘 | 40 GB SSD    | 100 GB SSD         |
 | 带宽 | 5 Mbps       | 10 Mbps            |
-| 系统 | Ubuntu 22.04 | Ubuntu 22.04/24.04 |
+| 系统 | Ubuntu 22.04 | Ubuntu 22.04/24.04/26.04 |
 
 ### 2.2 必须安装
 

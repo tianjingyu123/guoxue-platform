@@ -423,8 +423,8 @@ add(
 add(
   "服务器系统属于生产验收支持矩阵",
   text(server.osDistribution).toLowerCase() === "ubuntu" &&
-    ["22.04", "24.04"].includes(text(server.osVersion)),
-  "生产初始化仅验收 Ubuntu 22.04/24.04 LTS；采购阶段不得用笼统的 Linux、未验收发行版或滚动版本代替",
+    ["22.04", "24.04", "26.04"].includes(text(server.osVersion)),
+  "生产初始化仅验收 Ubuntu 22.04/24.04/26.04 LTS；采购阶段不得用笼统的 Linux、未验收发行版或滚动版本代替",
 );
 add(
   "服务器容量达到首发最低线",

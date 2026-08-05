@@ -459,6 +459,19 @@ test("采购阶段阻断未经验收的服务器发行版与版本", async () =>
   }
 });
 
+test("采购阶段接受已在目标主机验收的 Ubuntu 26.04 LTS", async () => {
+  const intake = completeIntake();
+  intake.server.osDistribution = "ubuntu";
+  intake.server.osVersion = "26.04";
+  const audit = await runAudit(intake, "procurement");
+  try {
+    assert.equal(audit.result.status, 0, audit.result.stderr || audit.result.stdout);
+    assert.equal(audit.report.success, true);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
 test("旧版接入清单必须从最新模板重新生成", async () => {
   const intake = completeIntake();
   intake.schemaVersion = 1;

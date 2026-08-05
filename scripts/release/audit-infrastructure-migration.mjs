@@ -677,18 +677,18 @@ add(
 add(
   "服务器初始化在任何主机变更前锁定已验收操作系统矩阵",
   hasAll(setupServer, [
-    "生产验收支持: Ubuntu 22.04 / 24.04 LTS",
+    "生产验收支持: Ubuntu 22.04 / 24.04 / 26.04 LTS",
     'case "$OS:$OS_VERSION" in',
-    "ubuntu:22.04|ubuntu:24.04",
-    "生产初始化仅支持已验收的 Ubuntu 22.04 / 24.04 LTS",
+    "ubuntu:22.04|ubuntu:24.04|ubuntu:26.04",
+    "生产初始化仅支持已验收的 Ubuntu 22.04 / 24.04 / 26.04 LTS",
     "exit 65",
   ]) &&
     setupServer.indexOf('case "$OS:$OS_VERSION" in') <
       setupServer.indexOf("执行安装前只读主机预检") &&
     read("docs/operations/服务器数据库域名迁移手册-20260728.md").includes(
-      "生产初始化仅验收 Ubuntu 22.04/24.04 LTS",
+      "生产初始化仅验收 Ubuntu 22.04/24.04/26.04 LTS",
     ),
-  "不得继续声称或静默尝试未经运行手册验收的发行版；购买或重装新机时必须选择 Ubuntu 22.04/24.04 LTS",
+  "不得继续声称或静默尝试未经运行手册验收的发行版；购买或重装新机时必须选择 Ubuntu 22.04/24.04/26.04 LTS",
 );
 const immutableNodeRuntimeImage =
   "node:24.18.0-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d";
@@ -1601,12 +1601,12 @@ add(
   ]) &&
     hasAll(infrastructureIntakeAudit, [
       'text(server.osDistribution).toLowerCase() === "ubuntu"',
-      '["22.04", "24.04"].includes(text(server.osVersion))',
+      '["22.04", "24.04", "26.04"].includes(text(server.osVersion))',
       "服务器系统属于生产验收支持矩阵",
     ]) &&
     infrastructureIntakeTest.includes("采购阶段阻断未经验收的服务器发行版与版本") &&
-    hasAll(infrastructureOperationsGuide, ["Ubuntu 22.04/24.04 LTS", "发行版与版本"]),
-  "采购阶段必须明确记录 Ubuntu 发行版和 22.04/24.04 LTS 版本；不能等到初始化主机时才发现所购镜像不受支持",
+    hasAll(infrastructureOperationsGuide, ["Ubuntu 22.04/24.04/26.04 LTS", "发行版与版本"]),
+  "采购阶段必须明确记录 Ubuntu 发行版和 22.04/24.04/26.04 LTS 版本；不能等到初始化主机时才发现所购镜像不受支持",
 );
 add(
   "新基础设施接入门禁覆盖迁移权限、演练与旧环境回退保留",
