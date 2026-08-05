@@ -85,7 +85,7 @@ function handleSubmit() {
   const amountCoin = selectedOpt ? selectedOpt.coins : customBaseCoin.value
   if (amountCoin <= 0) return
   navigating.value = true
-  navigateTo(`/pkg-shop/paying?scene=recharge&amountCoin=${amountCoin}&amount=${selectedAmount.value}&method=wechat`)
+  navigateTo(`/shop/paying?scene=recharge&amountCoin=${amountCoin}&amount=${selectedAmount.value}&method=wechat`)
   setTimeout(() => { navigating.value = false }, 800)
 }
 </script>

@@ -177,6 +177,8 @@ const ROUTE_MAP: Record<string, string> = {
   '/checkout': '/pkg-shop/checkout/index', // 假结算页已删 → 真版结算
   '/shop/checkout': '/pkg-shop/checkout/index',
   '/shop/paying': '/pkg-shop/paying/index',
+  // 兼容历史代码/深链接误用的物理包路径（缺少 /index 时 uni-app 会跳转失败）
+  '/pkg-shop/paying': '/pkg-shop/paying/index',
   '/shop/pay-success': '/pkg-shop/pay-success/index',
   '/shop/pay-fail': '/pkg-shop/pay-fail/index',
   '/shop/pay-timeout': '/pkg-shop/pay-timeout/index',
