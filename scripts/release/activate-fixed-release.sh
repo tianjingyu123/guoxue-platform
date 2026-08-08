@@ -46,7 +46,7 @@ if [ -n "$EXPECTED_CURRENT_RELEASE_ID" ]; then
     || fail "当前版本与滚动发布基线不一致"
 fi
 
-for command_name in bash node docker tar sha256sum realpath flock stat cmp ln mv rm; do
+for command_name in bash node docker tar sha256sum realpath flock stat cmp ln mv rm curl seq; do
   command -v "$command_name" >/dev/null 2>&1 || fail "缺少必要命令：$command_name"
 done
 docker info >/dev/null 2>&1 || fail "Docker 未运行"
@@ -194,6 +194,19 @@ node "$FINAL_DIR/scripts/release/verify-release-directory.mjs" \
   --report "$REPORT_DIR/release-directory-verification.json"
 chmod 0600 "$REPORT_DIR/release-directory-verification.json"
 
+wait_for_monitoring() {
+  local attempt
+  for attempt in $(seq 1 45); do
+    if curl -fsS http://127.0.0.1:9090/-/ready >/dev/null 2>&1 \
+      && curl -fsS http://127.0.0.1:9093/-/ready >/dev/null 2>&1 \
+      && curl -fsS http://127.0.0.1:3001/api/health >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 restore_current_monitoring() {
   [ -f "$ROOT_DIR/current/.release-id" ] || return 1
   local current_dir
@@ -204,7 +217,8 @@ restore_current_monitoring() {
       --env-file "$SHARED_ENV_FILE" config -q || return 1
   COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
     docker compose -f "$current_dir/docker/monitoring/docker-compose.yml" \
-      --env-file "$SHARED_ENV_FILE" up -d
+      --env-file "$SHARED_ENV_FILE" up -d \
+    && wait_for_monitoring
 }
 
 if [ "$NODE_ROLE" = "operations" ]; then
@@ -216,7 +230,8 @@ if [ "$NODE_ROLE" = "operations" ]; then
       --env-file "$SHARED_ENV_FILE" config -q
   if ! COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
     docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
-      --env-file "$SHARED_ENV_FILE" up -d; then
+      --env-file "$SHARED_ENV_FILE" up -d \
+    || ! wait_for_monitoring; then
     restore_current_monitoring \
       || fail "新监控栈启动失败，且无法恢复当前版本监控配置"
     fail "新监控栈启动失败；已恢复当前版本监控配置"

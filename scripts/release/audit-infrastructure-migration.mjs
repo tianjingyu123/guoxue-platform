@@ -1099,10 +1099,15 @@ add(
     ]),
   "A/B 必须从同一已验真固定版本开始；任一后续步骤失败时先恢复 B 再恢复 A，迁移发布必须先证明旧应用兼容新结构",
 );
+const monitoringConfigRenderer = read("scripts/release/render-monitoring-config.mjs");
 add(
   "运维节点监控切换与应用激活保持失败可恢复",
   hasAll(releaseActivator, [
     "restore_current_monitoring()",
+    "wait_for_monitoring()",
+    "http://127.0.0.1:9090/-/ready",
+    "http://127.0.0.1:9093/-/ready",
+    "http://127.0.0.1:3001/api/health",
     'MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"',
     'COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME"',
     "业务栈与监控栈必须使用不同的 Compose 项目名",
@@ -1111,13 +1116,22 @@ add(
   ]) &&
     hasAll(releaseRollback, [
       "restore_current_monitoring()",
+      "wait_for_monitoring()",
+      "http://127.0.0.1:9090/-/ready",
+      "http://127.0.0.1:9093/-/ready",
+      "http://127.0.0.1:3001/api/health",
       'MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"',
       'COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME"',
       "业务栈与监控栈必须使用不同的 Compose 项目名",
       "目标版本监控栈启动失败，且无法恢复当前版本监控配置",
       "应用回滚失败，且无法恢复当前版本监控配置",
+    ]) &&
+    hasAll(monitoringConfigRenderer, [
+      "chown(outputFile, 0, 65534)",
+      "mode: 0o640",
+      "chmod(outputFile, 0o640)",
     ]),
-  "业务栈与监控栈必须使用独立 Compose 项目名；运维节点先更新监控再部署应用时，任一阶段失败都必须恢复 current 对应的监控配置",
+  "业务栈与监控栈必须使用独立 Compose 项目名；配置只读授权给容器运行组，且监控全部就绪后才允许继续应用激活或回滚",
 );
 add(
   "上线缺口审计覆盖未忽略的未跟踪生产源码并纳入总门禁",

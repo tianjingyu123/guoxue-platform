@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, chown, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -110,16 +110,19 @@ async function renderTemplate(templateFile, outputFile, keys, label) {
     rendered = rendered.replaceAll(`\${${key}}`, escapeYamlDoubleQuoted(values.get(key)));
   }
 
-  const unresolved = [...rendered.matchAll(/\$\{([A-Z][A-Z0-9_]*)\}/g)].map(
-    (match) => match[1],
-  );
+  const unresolved = [...rendered.matchAll(/\$\{([A-Z][A-Z0-9_]*)\}/g)].map((match) => match[1]);
   if (unresolved.length > 0) {
     console.error(`错误：${label}仍有未渲染变量：${[...new Set(unresolved)].join(", ")}`);
     process.exit(2);
   }
 
-  await writeFile(outputFile, rendered, { encoding: "utf8", mode: 0o600 });
-  await chmod(outputFile, 0o600);
+  await writeFile(outputFile, rendered, { encoding: "utf8", mode: 0o640 });
+  if (process.platform !== "win32" && process.getuid?.() === 0) {
+    // Prometheus 与 Alertmanager 镜像均以 nobody(65534:65534) 运行。
+    // 保持 root 独占写权限，仅把只读权限授予容器运行组。
+    await chown(outputFile, 0, 65534);
+  }
+  await chmod(outputFile, 0o640);
 }
 
 await mkdir(outputDir, { recursive: true });
