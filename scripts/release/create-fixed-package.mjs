@@ -9,6 +9,10 @@ import { assertClientEvidenceConsistency } from "./lib/client-evidence-consisten
 
 const projectRoot = process.cwd();
 const releaseRoot = path.resolve(projectRoot, "artifacts", "releases");
+const requiredRuntimeAuditFiles = new Set([
+  ".github/workflows/ci.yml",
+  ".github/workflows/perf.yml",
+]);
 
 let requestedId;
 let allowDirty = false;
@@ -69,6 +73,9 @@ function isExcluded(relativePath) {
   const normalized = relativePath.replaceAll("\\", "/");
   const base = path.posix.basename(normalized);
   const segments = normalized.split("/");
+  // 运行时镜像不可变性校验会复核这两个工作流中的服务镜像。
+  // 固定包必须携带审计输入，但仍排除其余与运行无关的 .github 内容。
+  if (requiredRuntimeAuditFiles.has(normalized)) return false;
   const excludedSegments = new Set([
     ".git",
     "artifacts",
