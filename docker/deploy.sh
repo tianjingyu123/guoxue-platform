@@ -182,19 +182,24 @@ rollback_server_image() {
 
   local rollback_waited=0
   local rollback_runtime_release_id=""
-  while [ "$rollback_waited" -lt 30 ]; do
+  local rollback_container_health=""
+  while [ "$rollback_waited" -lt 90 ]; do
     sleep 3
     rollback_waited=$((rollback_waited + 3))
     rollback_runtime_release_id=$("${COMPOSE[@]}" exec -T server node -e \
       "require('http').get('http://localhost:3000/api/v1/health/live',r=>{let b='';r.on('data',c=>b+=c);r.on('end',()=>{try{const p=JSON.parse(b);const d=p&&p.data&&typeof p.data==='object'?p.data:p;if(d.status!=='alive')process.exit(1);process.stdout.write(String(d.releaseId||''))}catch{process.exit(1)}})}).on('error',()=>process.exit(1))" \
       2>/dev/null || echo "")
-    if [ "$rollback_runtime_release_id" = "$rollback_release_id" ]; then
-      log "  ✓ 已回滚并确认旧运行版本: $rollback_runtime_release_id"
+    rollback_container_health=$(docker inspect --format \
+      '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
+      guoxue-server 2>/dev/null || echo "")
+    if [ "$rollback_runtime_release_id" = "$rollback_release_id" ] && \
+      [ "$rollback_container_health" = "healthy" ]; then
+      log "  ✓ 已回滚并确认旧运行版本与容器健康: $rollback_runtime_release_id"
       return 0
     fi
   done
 
-  err "旧镜像已恢复，但 30 秒内未能确认运行版本 $rollback_release_id"
+  err "旧镜像已恢复，但 90 秒内未能同时确认运行版本与容器健康: $rollback_release_id"
   return 1
 }
 
@@ -317,7 +322,8 @@ log "  ✓ 服务更新指令已发送"
 
 # ── 5. 等待健康 ──
 WAITED=0
-MAX_WAIT=60
+MAX_WAIT=120
+HEALTH_READY="false"
 if [ "$SKIP_HEALTH" = "false" ]; then
   log "▸ 6/7 等待服务健康检查..."
   while [ $WAITED -lt $MAX_WAIT ]; do
@@ -332,10 +338,21 @@ if [ "$SKIP_HEALTH" = "false" ]; then
     if [[ "$HEALTH_RESULT" == *$'\t'* ]]; then
       RUNTIME_RELEASE_ID="${HEALTH_RESULT#*$'\t'}"
     fi
+    CONTAINER_HEALTH_STATUS=$(docker inspect --format \
+      '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
+      guoxue-server 2>/dev/null || echo "")
     if [ "$HEALTH_STATUS" = "alive" ] && \
-      [ "$RUNTIME_RELEASE_ID" = "$RELEASE_ID" ]; then
-      log "  ✓ 服务存活且运行版本一致 (${WAITED}s, $RUNTIME_RELEASE_ID)"
+      [ "$RUNTIME_RELEASE_ID" = "$RELEASE_ID" ] && \
+      [ "$CONTAINER_HEALTH_STATUS" = "healthy" ]; then
+      HEALTH_READY="true"
+      log "  ✓ 服务存活、容器健康且运行版本一致 (${WAITED}s, $RUNTIME_RELEASE_ID)"
       break
+    fi
+
+    if [ "$HEALTH_STATUS" = "alive" ] && \
+      [ "$RUNTIME_RELEASE_ID" = "$RELEASE_ID" ] && \
+      [ "$CONTAINER_HEALTH_STATUS" != "healthy" ]; then
+      info "  业务接口已就绪，等待 Docker 健康状态: ${CONTAINER_HEALTH_STATUS:-unknown}"
     fi
 
     if [ -n "$RUNTIME_RELEASE_ID" ] && [ "$RUNTIME_RELEASE_ID" != "$RELEASE_ID" ]; then
@@ -345,8 +362,8 @@ if [ "$SKIP_HEALTH" = "false" ]; then
     info "  等待中... ${WAITED}s/$MAX_WAIT"
   done
 
-  if [ $WAITED -ge $MAX_WAIT ]; then
-    rollback_server_image "❌ 存活检查或运行版本确认超时" || true
+  if [ "$HEALTH_READY" != "true" ]; then
+    rollback_server_image "❌ 存活检查、容器健康或运行版本确认超时" || true
 
     # 恢复迁移状态
     if [ "$MIGRATION_APPLIED" = "true" ] && [ -f /tmp/migration-state-before.txt ]; then

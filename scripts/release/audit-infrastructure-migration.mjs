@@ -901,11 +901,14 @@ add(
   hasAll(deployScript, [
     "RUNTIME_RELEASE_ID",
     '[ "$RUNTIME_RELEASE_ID" = "$RELEASE_ID" ]',
+    "CONTAINER_HEALTH_STATUS",
+    ".State.Health.Status",
+    '[ "$CONTAINER_HEALTH_STATUS" = "healthy" ]',
     "服务已响应，但运行版本不一致",
-    "服务存活且运行版本一致",
+    "服务存活、容器健康且运行版本一致",
     "自动回滚",
   ]),
-  "存活检查必须同时返回本次固定包的发布标识；仍在响应的旧容器不能让部署任务误报成功",
+  "存活检查必须同时返回本次固定包的发布标识，并等待 Docker 原生健康状态；旧容器或仍在 starting 的新容器不能让部署任务误报成功",
 );
 add(
   "生产部署完整验证失败后恢复旧镜像与旧版本身份",
