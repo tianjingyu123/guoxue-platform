@@ -2367,8 +2367,8 @@ add(
     "audit?.branch",
   ]) &&
     hasAll(packageVerifier, [
-      'spawnSync("tar", ["-tzf", archiveName]',
-      'spawnSync("tar", ["-tvzf", archiveName]',
+      'spawnSync("tar", ["--quoting-style=literal", "-tzf", archiveName]',
+      'spawnSync("tar", ["--quoting-style=literal", "-tvzf", archiveName]',
       "cwd: archiveDirectory",
       '"--no-same-owner"',
       "entryStat.isSymbolicLink()",

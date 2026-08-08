@@ -49,6 +49,12 @@ jobs:
         working-directory: apps/server
         run: npx prisma generate
 
+      - name: 构建 Server 工作区前置包
+        run: |
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
+
       - name: tsc --noEmit
         working-directory: apps/server
         run: npx tsc --noEmit
@@ -212,6 +218,12 @@ jobs:
       - name: 生成 Prisma Client
         working-directory: apps/server
         run: npx prisma generate
+
+      - name: 构建 Server 工作区前置包
+        run: |
+          pnpm --filter @guoxue/shared build
+          pnpm --filter @guoxue/bazi-engine build
+          pnpm --filter @guoxue/ziwei-engine build
 
       - name: 构建后端
         working-directory: apps/server
