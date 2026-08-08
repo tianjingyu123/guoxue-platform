@@ -1103,15 +1103,21 @@ add(
   "运维节点监控切换与应用激活保持失败可恢复",
   hasAll(releaseActivator, [
     "restore_current_monitoring()",
+    'MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"',
+    'COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME"',
+    "业务栈与监控栈必须使用不同的 Compose 项目名",
     "新监控栈启动失败，且无法恢复当前版本监控配置",
     "部署失败，且无法恢复当前版本监控配置",
   ]) &&
     hasAll(releaseRollback, [
       "restore_current_monitoring()",
+      'MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"',
+      'COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME"',
+      "业务栈与监控栈必须使用不同的 Compose 项目名",
       "目标版本监控栈启动失败，且无法恢复当前版本监控配置",
       "应用回滚失败，且无法恢复当前版本监控配置",
     ]),
-  "运维节点先更新监控再部署应用时，任一阶段失败都必须恢复 current 对应的监控配置，不能留下新监控与旧应用的分裂状态",
+  "业务栈与监控栈必须使用独立 Compose 项目名；运维节点先更新监控再部署应用时，任一阶段失败都必须恢复 current 对应的监控配置",
 );
 add(
   "上线缺口审计覆盖未忽略的未跟踪生产源码并纳入总门禁",

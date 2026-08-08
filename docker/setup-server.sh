@@ -453,6 +453,7 @@ if [ "$NODE_ROLE" = "operations" ]; then
 
   MONITORING_COMPOSE=(
     docker compose
+    -p monitoring
     -f monitoring/docker-compose.yml
     --env-file "$ENV_FILE"
   )
@@ -519,11 +520,11 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-Environment=COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME
+Environment=COMPOSE_PROJECT_NAME=monitoring
 WorkingDirectory=$RUNTIME_DIR/docker
-ExecStart=/usr/bin/docker compose -f monitoring/docker-compose.yml --env-file $ENV_FILE up -d
-ExecStop=/usr/bin/docker compose -f monitoring/docker-compose.yml --env-file $ENV_FILE down
-ExecReload=/usr/bin/docker compose -f monitoring/docker-compose.yml --env-file $ENV_FILE restart
+ExecStart=/usr/bin/docker compose -p monitoring -f monitoring/docker-compose.yml --env-file $ENV_FILE up -d
+ExecStop=/usr/bin/docker compose -p monitoring -f monitoring/docker-compose.yml --env-file $ENV_FILE down
+ExecReload=/usr/bin/docker compose -p monitoring -f monitoring/docker-compose.yml --env-file $ENV_FILE restart
 StandardOutput=journal
 StandardError=journal
 
