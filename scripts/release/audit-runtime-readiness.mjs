@@ -46,10 +46,10 @@ add(
     hasAll(deploy, [
       "RUNTIME_RELEASE_ID",
       '[ "$RUNTIME_RELEASE_ID" = "$RELEASE_ID" ]',
-      "服务存活且运行版本一致",
+      "服务存活、容器健康且运行版本一致",
       "PREVIOUS_RELEASE_ID",
       'RELEASE_ID="$rollback_release_id"',
-      "已回滚并确认旧运行版本",
+      "已回滚并确认旧运行版本与容器健康",
     ]) &&
     hasAll(setupServer, [
       'RELEASE_ID="$(bash "$SOURCE_DIR/scripts/release/validate-release-layout.sh"',
