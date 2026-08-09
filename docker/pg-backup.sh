@@ -44,6 +44,17 @@ if [[ -z "$database_url" && -f "$ENV_FILE" ]]; then
   database_url="${database_url%\'}"
 fi
 
+# Prisma 在连接串中使用 schema 参数选择默认命名空间，但 libpq/pg_dump 不认识该参数。
+# 备份客户端只移除 schema，必须保留 sslmode、sslrootcert 等托管数据库 TLS 参数。
+database_cli_url="$database_url"
+if [[ -n "$database_cli_url" ]]; then
+  database_cli_url="$(printf '%s' "$database_cli_url" | sed -E \
+    -e 's/([?&])schema=[^&]*&/\1/' \
+    -e 's/([?&])schema=[^&]*$//' \
+    -e 's/\?&/?/' \
+    -e 's/\?$//')"
+fi
+
 mkdir -p "$BACKUP_DIR"
 BACKUP_LOCK_FILE="${BACKUP_LOCK_FILE:-$BACKUP_DIR/.backup.lock}"
 exec 9>"$BACKUP_LOCK_FILE"
@@ -76,10 +87,10 @@ if [[ "$DEPLOY_TARGET" == "tencent" ]]; then
   done
   # 使用宿主机锁定主版本的 PostgreSQL 客户端直接连接托管库；不依赖也不信任
   # 可能残留的 guoxue-postgres 容器，连接串只通过子进程环境传递。
-  PGDATABASE="$database_url" pg_dump \
+  pg_dump "$database_cli_url" \
     --format=custom --compress=9 --no-owner --no-privileges \
     >"$partial_file"
-  database_name="$(PGDATABASE="$database_url" psql -X -Atqc 'select current_database()')"
+  database_name="$(psql "$database_cli_url" -X -Atqc 'select current_database()')"
   pg_restore --list "$partial_file" >/dev/null
   source_mode="managed-database-url"
 else
@@ -95,11 +106,11 @@ else
   if [[ -n "$database_url" ]]; then
   # 通过始终存在的 pgvector 容器提供版本匹配的 PostgreSQL 客户端；
   # 连接串仅作为容器环境变量传入，不打印到日志。
-    printf '%s\n' "$database_url" | docker exec -i \
+    printf '%s\n' "$database_cli_url" | docker exec -i \
       "$CONTAINER_NAME" \
       sh -c 'IFS= read -r DATABASE_URL; export DATABASE_URL; exec pg_dump "$DATABASE_URL" --format=custom --compress=9 --no-owner --no-privileges' \
       >"$partial_file"
-    database_name="$(printf '%s\n' "$database_url" | docker exec -i \
+    database_name="$(printf '%s\n' "$database_cli_url" | docker exec -i \
       "$CONTAINER_NAME" \
       sh -c 'IFS= read -r DATABASE_URL; export DATABASE_URL; exec psql "$DATABASE_URL" -X -Atqc "select current_database()"')"
     source_mode="database-url-via-container"

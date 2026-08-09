@@ -112,7 +112,8 @@ function runBackup(fixture, deployTarget, extraEnv = {}) {
     BACKUP_SCRIPT: toBashPath(backupScript),
     BACKUP_DIR: toBashPath(fixture.backup),
     STUB_CAPTURE_DIR: toBashPath(fixture.capture),
-    DATABASE_URL: "postgresql://backup_user:super-secret@db.example/guoxue",
+    DATABASE_URL:
+      "postgresql://backup_user:super-secret@db.example/guoxue?schema=public&sslmode=require",
     ENV_FILE: toBashPath(path.join(fixture.root, "missing.env")),
     ...extraEnv,
   };
@@ -151,6 +152,18 @@ test("托管数据库备份使用宿主机 PostgreSQL 客户端且不接触本�
     const files = await readdir(fixture.backup);
     assert.ok(files.some((name) => name.endsWith(".dump")));
     assert.ok(files.some((name) => name.endsWith(".sha256")));
+    const pgDumpArgs = await readFile(
+      path.join(fixture.capture, "host-pg-dump-args.txt"),
+      "utf8",
+    );
+    const psqlArgs = await readFile(
+      path.join(fixture.capture, "host-psql-args.txt"),
+      "utf8",
+    );
+    for (const args of [pgDumpArgs, psqlArgs]) {
+      assert.match(args, /\?sslmode=require/u);
+      assert.doesNotMatch(args, /schema=/u);
+    }
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }
