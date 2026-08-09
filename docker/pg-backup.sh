@@ -44,13 +44,16 @@ if [[ -z "$database_url" && -f "$ENV_FILE" ]]; then
   database_url="${database_url%\'}"
 fi
 
-# Prisma 在连接串中使用 schema 参数选择默认命名空间，但 libpq/pg_dump 不认识该参数。
-# 备份客户端只移除 schema，必须保留 sslmode、sslrootcert 等托管数据库 TLS 参数。
+# Prisma 在连接串中使用 schema、connection_limit、pool_timeout 等客户端专用参数，
+# 但 libpq/pg_dump 不认识这些参数。备份客户端只移除 Prisma 专用项，必须保留
+# sslmode、sslrootcert、connect_timeout 等托管数据库原生连接与 TLS 参数。
 database_cli_url="$database_url"
 if [[ -n "$database_cli_url" ]]; then
   database_cli_url="$(printf '%s' "$database_cli_url" | sed -E \
-    -e 's/([?&])schema=[^&]*&/\1/' \
-    -e 's/([?&])schema=[^&]*$//' \
+    -e 's/([?&])(schema|connection_limit|pool_timeout)=[^&]*&/\1/g' \
+    -e 's/([?&])(schema|connection_limit|pool_timeout)=[^&]*&/\1/g' \
+    -e 's/([?&])(schema|connection_limit|pool_timeout)=[^&]*&/\1/g' \
+    -e 's/([?&])(schema|connection_limit|pool_timeout)=[^&]*$//' \
     -e 's/\?&/?/' \
     -e 's/\?$//')"
 fi

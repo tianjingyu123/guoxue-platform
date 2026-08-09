@@ -113,7 +113,7 @@ function runBackup(fixture, deployTarget, extraEnv = {}) {
     BACKUP_DIR: toBashPath(fixture.backup),
     STUB_CAPTURE_DIR: toBashPath(fixture.capture),
     DATABASE_URL:
-      "postgresql://backup_user:super-secret@db.example/guoxue?schema=public&sslmode=require",
+      "postgresql://backup_user:super-secret@db.example/guoxue?schema=public&connection_limit=12&pool_timeout=20&sslmode=require&connect_timeout=8",
     ENV_FILE: toBashPath(path.join(fixture.root, "missing.env")),
     ...extraEnv,
   };
@@ -161,8 +161,10 @@ test("托管数据库备份使用宿主机 PostgreSQL 客户端且不接触本�
       "utf8",
     );
     for (const args of [pgDumpArgs, psqlArgs]) {
-      assert.match(args, /\?sslmode=require/u);
+      assert.match(args, /\?sslmode=require&connect_timeout=8/u);
       assert.doesNotMatch(args, /schema=/u);
+      assert.doesNotMatch(args, /connection_limit=/u);
+      assert.doesNotMatch(args, /pool_timeout=/u);
     }
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
