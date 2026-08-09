@@ -81,6 +81,30 @@ test("完整上线拒绝只有下单配置而缺少商户私钥或退款回调�
   assert.match(result.stderr, /尚未形成一条完整支付通道/u);
 });
 
+test("完整上线接受数据库托管且绑定商户白名单的微信支付", async () => {
+  const databaseBacked = `${createFullEnvironment()
+    .split("\n")
+    .filter(
+      (line) =>
+        !/^(WECHAT_PAY_APP_ID|WECHAT_PAY_MCH_ID|WECHAT_PAY_SERIAL_NO|WECHAT_PAY_API_V3_KEY|WECHAT_PAY_PRIVATE_KEY)=/.test(
+          line,
+        ),
+    )
+    .join("\n")}\nWECHAT_PAY_ALLOWED_MCH_ID=1900000109\n`;
+  const result = await runChecker(databaseBacked, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+});
+
+test("完整上线的实例角色模式不误报腾讯云静态密钥缺失", async () => {
+  const instanceRole = `${createFullEnvironment()
+    .replace("TENCENT_CREDENTIAL_MODE=static", "TENCENT_CREDENTIAL_MODE=instance-role")
+    .replace(/^COS_SECRET_ID=.*\r?\n/mu, "")
+    .replace(/^COS_SECRET_KEY=.*\r?\n/mu, "")}TENCENT_CVM_ROLE_NAME=RebugxProductionCvmRole\n`;
+  const result = await runChecker(instanceRole, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.doesNotMatch(result.stdout, /腾讯云通用能力.*配置不完整/u);
+});
+
 async function runChecker(content, ...args) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "guoxue-env-check-"));
   const envFile = path.join(directory, ".env.production");

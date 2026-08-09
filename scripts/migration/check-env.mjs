@@ -588,7 +588,10 @@ if (fullCheck) {
     },
     {
       name: "腾讯云通用能力（内容审核 / ASR / TTS）",
-      keys: ["TENCENT_SECRET_ID", "TENCENT_SECRET_KEY"],
+      keys:
+        tencentCredentialMode === "instance-role"
+          ? ["TENCENT_CVM_ROLE_NAME"]
+          : ["TENCENT_SECRET_ID", "TENCENT_SECRET_KEY"],
     },
     {
       name: "即时通讯",
@@ -671,18 +674,30 @@ if (fullCheck) {
     errors.push("至少必须配置一个生产 AI 模型提供方");
   }
 
+  const wechatDatabaseBacked = hasAll(values, [
+    "WECHAT_PAY_ALLOWED_MCH_ID",
+    "WECHAT_PAY_NOTIFY_URL",
+    "WECHAT_PAY_REFUND_NOTIFY_URL",
+  ]);
+  const allowedWechatMerchantId = values.get("WECHAT_PAY_ALLOWED_MCH_ID");
+  if (allowedWechatMerchantId && !/^\d{6,20}$/u.test(allowedWechatMerchantId)) {
+    errors.push("WECHAT_PAY_ALLOWED_MCH_ID 必须是微信支付登记的纯数字商户号");
+  }
+
   const paymentChannels = [
     {
       id: "微信支付",
-      configured: hasAny(values, ["WECHAT_PAY_MCH_ID"]),
+      configured: hasAny(values, ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"]),
       complete:
-        hasAll(values, [
+        (hasAll(values, [
           "WECHAT_PAY_MCH_ID",
           "WECHAT_PAY_SERIAL_NO",
           "WECHAT_PAY_API_V3_KEY",
           "WECHAT_PAY_NOTIFY_URL",
           "WECHAT_PAY_REFUND_NOTIFY_URL",
-        ]) && hasAny(values, ["WECHAT_PAY_PRIVATE_KEY", "WECHAT_PAY_PRIVATE_KEY_PATH"]),
+        ]) &&
+          hasAny(values, ["WECHAT_PAY_PRIVATE_KEY", "WECHAT_PAY_PRIVATE_KEY_PATH"])) ||
+        wechatDatabaseBacked,
     },
     {
       id: "支付宝",

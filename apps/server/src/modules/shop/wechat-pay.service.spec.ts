@@ -48,6 +48,8 @@ describe("WechatPayService", () => {
     process.env.WECHAT_APP_ID = "wx_test_app_id";
     process.env.WECHAT_PAY_NOTIFY_URL = "https://example.com/wxpay/notify";
     process.env.WECHAT_PAY_REFUND_NOTIFY_URL = "https://example.com/wxpay/refund-notify";
+    process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE = "DB";
+    process.env.WECHAT_PAY_ALLOWED_MCH_ID = "test_mch_123456";
     delete process.env.WECHAT_PAY_PUBLIC_KEY;
     delete process.env.WECHAT_PAY_PUBLIC_KEY_ID;
     delete process.env.WECHAT_PAY_TRANSFER_NOTIFY_URL;
@@ -61,6 +63,46 @@ describe("WechatPayService", () => {
 
   afterEach(() => {
     delete (global as any).fetch;
+    delete process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE;
+    delete process.env.WECHAT_PAY_ALLOWED_MCH_ID;
+  });
+
+  it("生产环境未从数据库加载配置时拒绝资金请求", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE = "ERROR";
+
+    try {
+      expect(service.isConfigured).toBe(false);
+      await expect(service.queryRefund("RF-test")).rejects.toThrow(
+        "微信支付配置未从数据库安全加载，已拒绝资金操作",
+      );
+      expect((global as any).fetch).toBeUndefined();
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+    }
+  });
+
+  it("生产环境商户号不在白名单时拒绝资金请求", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE = "DB";
+    process.env.WECHAT_PAY_ALLOWED_MCH_ID = "1748964663";
+
+    try {
+      expect(service.isConfigured).toBe(false);
+      await expect(service.queryRefund("RF-test")).rejects.toThrow(
+        "微信支付商户号未通过生产白名单校验，已拒绝资金操作",
+      );
+      await expect(service.verifyAndDecryptNotify("signed", "{}")).rejects.toThrow(
+        "微信支付商户号未通过生产白名单校验，已拒绝资金操作",
+      );
+      expect((global as any).fetch).toBeUndefined();
+    } finally {
+      if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = previousNodeEnv;
+    }
   });
 
   // ───────── JSAPI 支付 ─────────
@@ -146,15 +188,19 @@ describe("WechatPayService", () => {
 
   describe("微信支付公钥模式", () => {
     it("公钥模式回调必须匹配配置的公钥ID", async () => {
-      process.env.WECHAT_PAY_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nmock\n-----END PUBLIC KEY-----";
+      process.env.WECHAT_PAY_PUBLIC_KEY =
+        "-----BEGIN PUBLIC KEY-----\nmock\n-----END PUBLIC KEY-----";
       process.env.WECHAT_PAY_PUBLIC_KEY_ID = "PUB_KEY_ID_EXPECTED";
       const base = `timestamp="${Math.floor(Date.now() / 1000)}",nonce_str="nonce",signature="sig",serial_no="`;
-      await expect(service.verifyNotifySign(base + 'PUB_KEY_ID_EXPECTED"', "{}")).resolves.toBe(true);
+      await expect(service.verifyNotifySign(base + 'PUB_KEY_ID_EXPECTED"', "{}")).resolves.toBe(
+        true,
+      );
       await expect(service.verifyNotifySign(base + 'PUB_KEY_ID_OTHER"', "{}")).resolves.toBe(false);
     });
 
     it("敏感字段在公钥模式下使用公钥ID", async () => {
-      process.env.WECHAT_PAY_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nmock\n-----END PUBLIC KEY-----";
+      process.env.WECHAT_PAY_PUBLIC_KEY =
+        "-----BEGIN PUBLIC KEY-----\nmock\n-----END PUBLIC KEY-----";
       process.env.WECHAT_PAY_PUBLIC_KEY_ID = "PUB_KEY_ID_EXPECTED";
       await expect(service.encryptSensitive("张三")).resolves.toEqual({
         ciphertext: Buffer.from("encrypted").toString("base64"),
@@ -163,7 +209,8 @@ describe("WechatPayService", () => {
     });
 
     it("商家转账使用公钥ID并自动采用当前域名回调", async () => {
-      process.env.WECHAT_PAY_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\nmock\n-----END PUBLIC KEY-----";
+      process.env.WECHAT_PAY_PUBLIC_KEY =
+        "-----BEGIN PUBLIC KEY-----\nmock\n-----END PUBLIC KEY-----";
       process.env.WECHAT_PAY_PUBLIC_KEY_ID = "PUB_KEY_ID_EXPECTED";
       process.env.PUBLIC_API_URL = "https://pre-api.rebugx.cn/";
       mockFetchJson({ transfer_bill_no: "T1", out_bill_no: "WD1", state: "ACCEPTED" });
@@ -177,7 +224,9 @@ describe("WechatPayService", () => {
       });
 
       const options = ((global as any).fetch as jest.Mock).mock.calls[0][1];
-      expect(JSON.parse(options.body).notify_url).toBe("https://pre-api.rebugx.cn/api/v1/payout/wechat/transfer-notify");
+      expect(JSON.parse(options.body).notify_url).toBe(
+        "https://pre-api.rebugx.cn/api/v1/payout/wechat/transfer-notify",
+      );
       expect(options.headers["Wechatpay-Serial"]).toBe("PUB_KEY_ID_EXPECTED");
     });
   });
@@ -320,7 +369,8 @@ describe("WechatPayService", () => {
   // ───────── 签名头解析 ─────────
   describe("parseNotifySign", () => {
     it("应正确解析签名头", () => {
-      const header = 'WECHATPAY2-SHA256-RSA2048 timestamp="1234567890",nonce_str="abc123",signature="sig-value",serial_no="SERIAL001"';
+      const header =
+        'WECHATPAY2-SHA256-RSA2048 timestamp="1234567890",nonce_str="abc123",signature="sig-value",serial_no="SERIAL001"';
       const result = service.parseNotifySign(header);
 
       expect(result).not.toBeNull();
@@ -362,7 +412,9 @@ describe("WechatPayService", () => {
     it("应添加分账接收方", async () => {
       mockFetchJson({ account: "partner_mch_001" });
       const result = await service.addProfitSharingReceiver({
-        type: "MERCHANT_ID", account: "partner_mch_001", relationType: "PARTNER",
+        type: "MERCHANT_ID",
+        account: "partner_mch_001",
+        relationType: "PARTNER",
       });
       expect(result.account).toBe("partner_mch_001");
     });
@@ -376,7 +428,8 @@ describe("WechatPayService", () => {
     it("应创建分账订单", async () => {
       mockFetchJson({ out_order_no: "ps_001" });
       const result = await service.createProfitSharing({
-        outTradeNo: "GX001", outOrderNo: "ps_001",
+        outTradeNo: "GX001",
+        outOrderNo: "ps_001",
         receivers: [{ type: "MERCHANT_ID", account: "m1", amount: 50, description: "分账" }],
       });
       expect(result.out_order_no).toBe("ps_001");
@@ -384,7 +437,10 @@ describe("WechatPayService", () => {
 
     it("应完结分账", async () => {
       mockFetchJson({});
-      const result = await service.finishProfitSharing({ outOrderNo: "ps_001", description: "完结" });
+      const result = await service.finishProfitSharing({
+        outOrderNo: "ps_001",
+        description: "完结",
+      });
       expect(result).toBeDefined();
     });
 
@@ -398,7 +454,9 @@ describe("WechatPayService", () => {
   // ───────── 账单 ─────────
   describe("bills", () => {
     it("应申请交易账单", async () => {
-      mockFetchJson({ download_url: "https://api.mch.weixin.qq.com/v3/billdownload/file?token=xxx" });
+      mockFetchJson({
+        download_url: "https://api.mch.weixin.qq.com/v3/billdownload/file?token=xxx",
+      });
       const result = await service.getTradeBill({ billDate: "2025-01-01" });
       expect(result.download_url).toBeDefined();
     });
@@ -409,7 +467,9 @@ describe("WechatPayService", () => {
         text: () => Promise.resolve("交易时间,商户订单号,交易金额\n2025-01-01,o1,100"),
       });
 
-      const result = await service.downloadBillFile("https://api.mch.weixin.qq.com/v3/billdownload/file?token=xxx");
+      const result = await service.downloadBillFile(
+        "https://api.mch.weixin.qq.com/v3/billdownload/file?token=xxx",
+      );
       expect(result).toContain("交易时间");
     });
   });
@@ -423,34 +483,55 @@ describe("WechatPayService", () => {
 
     it("已验签通知解密后 mchid 不匹配必须失败关闭", async () => {
       jest.spyOn(service as any, "verifyNotifySign").mockResolvedValue(true);
-      jest.spyOn(service, "aesGcmDecrypt").mockReturnValue(JSON.stringify({
-        mchid: "other_mch", out_trade_no: "o1", trade_state: "SUCCESS",
-      }));
-      const result = await service.verifyAndDecryptNotify("signed", JSON.stringify({
-        resource: { ciphertext: "x", associated_data: "ad", nonce: "nonce" },
-      }));
+      jest.spyOn(service, "aesGcmDecrypt").mockReturnValue(
+        JSON.stringify({
+          mchid: "other_mch",
+          out_trade_no: "o1",
+          trade_state: "SUCCESS",
+        }),
+      );
+      const result = await service.verifyAndDecryptNotify(
+        "signed",
+        JSON.stringify({
+          resource: { ciphertext: "x", associated_data: "ad", nonce: "nonce" },
+        }),
+      );
       expect(result.valid).toBe(false);
       expect(result.error).toContain("商户号不匹配");
     });
 
     it("已验签通知 mchid 一致才交给支付主链", async () => {
       jest.spyOn(service as any, "verifyNotifySign").mockResolvedValue(true);
-      jest.spyOn(service, "aesGcmDecrypt").mockReturnValue(JSON.stringify({
-        mchid: "test_mch_123456", out_trade_no: "o1", trade_state: "SUCCESS",
-      }));
-      const result = await service.verifyAndDecryptNotify("signed", JSON.stringify({
-        resource: { ciphertext: "x", associated_data: "ad", nonce: "nonce" },
-      }));
+      jest.spyOn(service, "aesGcmDecrypt").mockReturnValue(
+        JSON.stringify({
+          mchid: "test_mch_123456",
+          out_trade_no: "o1",
+          trade_state: "SUCCESS",
+        }),
+      );
+      const result = await service.verifyAndDecryptNotify(
+        "signed",
+        JSON.stringify({
+          resource: { ciphertext: "x", associated_data: "ad", nonce: "nonce" },
+        }),
+      );
       expect(result.valid).toBe(true);
-      expect(result.data).toEqual(expect.objectContaining({ mchid: "test_mch_123456", out_trade_no: "o1" }));
+      expect(result.data).toEqual(
+        expect.objectContaining({ mchid: "test_mch_123456", out_trade_no: "o1" }),
+      );
     });
 
     it("解密异常必须返回 valid=false，不能把异常通知标成已验签成功", async () => {
       jest.spyOn(service as any, "verifyNotifySign").mockResolvedValue(true);
-      jest.spyOn(service, "aesGcmDecrypt").mockImplementation(() => { throw new Error("decrypt failed"); });
-      const result = await service.verifyAndDecryptNotify("signed", JSON.stringify({
-        resource: { ciphertext: "x", associated_data: "ad", nonce: "nonce" },
-      }));
+      jest.spyOn(service, "aesGcmDecrypt").mockImplementation(() => {
+        throw new Error("decrypt failed");
+      });
+      const result = await service.verifyAndDecryptNotify(
+        "signed",
+        JSON.stringify({
+          resource: { ciphertext: "x", associated_data: "ad", nonce: "nonce" },
+        }),
+      );
       expect(result.valid).toBe(false);
       expect(result.error).toContain("解密失败");
     });
@@ -458,7 +539,8 @@ describe("WechatPayService", () => {
     it("应处理无资源字段的通知", async () => {
       mockFetchJson({ data: [] }); // getPlatformCerts -> callApi
 
-      const header = 'WECHATPAY2-SHA256-RSA2048 timestamp="1234567890",nonce_str="abc",signature="sig",serial_no="SERIAL001"';
+      const header =
+        'WECHATPAY2-SHA256-RSA2048 timestamp="1234567890",nonce_str="abc",signature="sig",serial_no="SERIAL001"';
       const body = JSON.stringify({ id: "evt-001", event_type: "TRANSACTION.SUCCESS" });
 
       const result = await service.verifyAndDecryptNotify(header, body);

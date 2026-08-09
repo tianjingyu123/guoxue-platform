@@ -1,6 +1,9 @@
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "0123456789abcdef0123456789abcdef"; // 32 字节，供 crypto 测试
 
-import { ThirdPartyConfigLoader } from "./third-party-config.loader";
+import {
+  ThirdPartyConfigLoader,
+  WECHAT_PAY_RUNTIME_CONFIG_SOURCE,
+} from "./third-party-config.loader";
 import { encrypt, decrypt } from "../../common/crypto.util";
 
 const mockPrisma: any = {
@@ -10,13 +13,17 @@ const mockPrisma: any = {
 describe("ThirdPartyConfigLoader", () => {
   let loader: ThirdPartyConfigLoader;
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockPrisma.configSystem.findMany.mockReset();
+    mockPrisma.configSystem.findUnique.mockReset();
+    delete process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE];
     loader = new ThirdPartyConfigLoader(mockPrisma);
   });
 
   it("syncToEnv：解密 DB 配置写回 process.env", async () => {
     const stored = encrypt(JSON.stringify({ apiKey: "sk-test-ABCD1234" }));
-    mockPrisma.configSystem.findMany.mockResolvedValue([{ configKey: "third_party.deepseek", configValue: stored }]);
+    mockPrisma.configSystem.findMany.mockResolvedValue([
+      { configKey: "third_party.deepseek", configValue: stored },
+    ]);
     delete process.env.DEEPSEEK_API_KEY;
     const n = await loader.syncToEnv();
     expect(n).toBe(1);
@@ -25,7 +32,9 @@ describe("ThirdPartyConfigLoader", () => {
 
   it("多套 env 命名：小程序 appId 写入全部变量名（兼容代码不统一命名）", async () => {
     const stored = encrypt(JSON.stringify({ appId: "wx-mini-123" }));
-    mockPrisma.configSystem.findMany.mockResolvedValue([{ configKey: "third_party.wechat_mini", configValue: stored }]);
+    mockPrisma.configSystem.findMany.mockResolvedValue([
+      { configKey: "third_party.wechat_mini", configValue: stored },
+    ]);
     await loader.syncToEnv();
     expect(process.env.WECHAT_MINI_APP_ID).toBe("wx-mini-123");
     expect(process.env.MINIPROGRAM_APP_ID).toBe("wx-mini-123");
@@ -58,5 +67,35 @@ describe("ThirdPartyConfigLoader", () => {
     const n = await loader.syncToEnv();
     expect(n).toBe(0);
     expect(process.env.DEEPSEEK_API_KEY).toBe("from-dotenv"); // 兜底不变
+    expect(process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE]).toBe("ENV");
+  });
+
+  it("微信支付配置完整时标记为数据库来源", async () => {
+    const stored = encrypt(
+      JSON.stringify({
+        appId: "wx-current",
+        mchId: "1748964663",
+        serialNo: "SERIAL_CURRENT",
+        apiV3Key: "12345678901234567890123456789012",
+        privateKey: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
+      }),
+    );
+    mockPrisma.configSystem.findMany.mockResolvedValue([
+      { configKey: "third_party.wechat_pay", configValue: stored },
+    ]);
+
+    await loader.syncToEnv();
+
+    expect(process.env.WECHAT_PAY_MCH_ID).toBe("1748964663");
+    expect(process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE]).toBe("DB");
+  });
+
+  it("数据库读取失败时禁止把环境变量视为安全支付配置", async () => {
+    process.env.WECHAT_PAY_MCH_ID = "1740184141";
+    mockPrisma.configSystem.findMany.mockRejectedValue(new Error("db unavailable"));
+
+    await loader.syncToEnv();
+
+    expect(process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE]).toBe("ERROR");
   });
 });

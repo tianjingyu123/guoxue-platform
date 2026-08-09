@@ -1,5 +1,12 @@
 import { Injectable, Logger, Inject, Optional } from "@nestjs/common";
-import { createSign, createVerify, randomUUID, createDecipheriv, publicEncrypt, constants } from "crypto";
+import {
+  createSign,
+  createVerify,
+  randomUUID,
+  createDecipheriv,
+  publicEncrypt,
+  constants,
+} from "crypto";
 import { readFileSync, existsSync } from "fs";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
@@ -17,10 +24,7 @@ export class WechatPayApiError extends BusinessException {
     readonly wechatMessage: string,
     readonly upstreamStatus: number,
   ) {
-    super(
-      ErrorCode.PAY_FAILED,
-      `微信支付失败: ${wechatMessage || wechatCode || "未知错误"}`,
-    );
+    super(ErrorCode.PAY_FAILED, `微信支付失败: ${wechatMessage || wechatCode || "未知错误"}`);
   }
 }
 
@@ -35,9 +39,7 @@ export class WechatPayService {
   // 平台证书序列号 → { pem, expireAt }
   private platformCerts: Map<string, { pem: string; expireAt: number }> = new Map();
 
-  constructor(
-    @Optional() @Inject(MetricsService) private metrics?: MetricsService,
-  ) {
+  constructor(@Optional() @Inject(MetricsService) private metrics?: MetricsService) {
     if (!this.mchId || !this.privateKey) {
       this.logger.warn("微信支付未配置，请在 .env 中设置 WECHAT_PAY_* 相关变量");
     }
@@ -58,7 +60,12 @@ export class WechatPayService {
   }
 
   private get appId(): string {
-    return process.env.WECHAT_PAY_APP_ID || process.env.WECHAT_MINI_APP_ID || process.env.WECHAT_APP_ID || "";
+    return (
+      process.env.WECHAT_PAY_APP_ID ||
+      process.env.WECHAT_MINI_APP_ID ||
+      process.env.WECHAT_APP_ID ||
+      ""
+    );
   }
 
   private get privateKey(): string {
@@ -67,25 +74,62 @@ export class WechatPayService {
     return (process.env.WECHAT_PAY_PRIVATE_KEY || "").replace(/\\n/g, "\n");
   }
 
+  private assertRuntimeConfigSource(): void {
+    if (process.env.NODE_ENV !== "production") return;
+
+    if (process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE !== "DB") {
+      throw new BusinessException(
+        ErrorCode.PAY_FAILED,
+        "微信支付配置未从数据库安全加载，已拒绝资金操作",
+      );
+    }
+
+    const allowedMchId = process.env.WECHAT_PAY_ALLOWED_MCH_ID?.trim();
+    if (!allowedMchId || this.mchId !== allowedMchId) {
+      throw new BusinessException(
+        ErrorCode.PAY_FAILED,
+        "微信支付商户号未通过生产白名单校验，已拒绝资金操作",
+      );
+    }
+  }
+
   private callbackUrl(
-    envKey: "WECHAT_PAY_NOTIFY_URL" | "WECHAT_PAY_REFUND_NOTIFY_URL" | "WECHAT_PAY_TRANSFER_NOTIFY_URL",
+    envKey:
+      | "WECHAT_PAY_NOTIFY_URL"
+      | "WECHAT_PAY_REFUND_NOTIFY_URL"
+      | "WECHAT_PAY_TRANSFER_NOTIFY_URL",
     path: string,
   ): string {
     const configured = process.env[envKey]?.trim();
     if (configured) return configured;
-    const publicApiUrl = (process.env.PUBLIC_API_URL || process.env.API_BASE_URL || "").replace(/\/+$/, "");
+    const publicApiUrl = (process.env.PUBLIC_API_URL || process.env.API_BASE_URL || "").replace(
+      /\/+$/,
+      "",
+    );
     return publicApiUrl ? `${publicApiUrl}${path}` : "";
   }
 
   /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */
   get isConfigured(): boolean {
+    if (
+      process.env.NODE_ENV === "production" &&
+      (process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE !== "DB" ||
+        !process.env.WECHAT_PAY_ALLOWED_MCH_ID?.trim() ||
+        this.mchId !== process.env.WECHAT_PAY_ALLOWED_MCH_ID.trim())
+    ) {
+      return false;
+    }
     return !!(this.mchId && this.privateKey);
   }
 
   // ───────── V3 签名与请求 ─────────
 
   /** 生成 V3 Authorization 头 */
-  private sign(method: string, path: string, body: string = ""): { authorization: string; timestamp: number; nonce: string } {
+  private sign(
+    method: string,
+    path: string,
+    body: string = "",
+  ): { authorization: string; timestamp: number; nonce: string } {
     const timestamp = Math.floor(Date.now() / 1000);
     const nonce = randomUUID().replace(/-/g, "");
     const signMessage = `${method}\n${path}\n${timestamp}\n${nonce}\n${body}\n`;
@@ -109,6 +153,7 @@ export class WechatPayService {
     body?: Record<string, any>,
     extraHeaders?: Record<string, string>,
   ): Promise<Record<string, unknown>> {
+    this.assertRuntimeConfigSource();
     const bodyStr = body ? JSON.stringify(body) : "";
     const { authorization } = this.sign(method, path, bodyStr);
     const start = Date.now();
@@ -117,11 +162,13 @@ export class WechatPayService {
       const resp = await fetch(`${this.baseUrl}${path}`, {
         method,
         headers: {
-          "Authorization": authorization,
+          Authorization: authorization,
           "Content-Type": "application/json",
-          "Accept": "application/json",
+          Accept: "application/json",
           "User-Agent": "guoxue-platform/1.0",
-          ...(method === "POST" ? { "Idempotency-Key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` } : {}),
+          ...(method === "POST"
+            ? { "Idempotency-Key": `${Date.now()}-${Math.random().toString(36).slice(2, 10)}` }
+            : {}),
           ...extraHeaders,
         },
         body: bodyStr || undefined,
@@ -129,7 +176,7 @@ export class WechatPayService {
       });
 
       const duration = Date.now() - start;
-      const respBody = await resp.json() as any;
+      const respBody = (await resp.json()) as any;
 
       if (resp.status >= 400) {
         const reason = (respBody.code || respBody.message || "unknown") as string;
@@ -172,9 +219,10 @@ export class WechatPayService {
     if (valid.size > 0) return valid;
 
     // 从微信获取最新证书列表
-    const resp = await this.callApi("GET", "/v3/certificates") as Record<string, unknown>;
+    const resp = (await this.callApi("GET", "/v3/certificates")) as Record<string, unknown>;
     const certList = (resp.data || []) as Array<Record<string, unknown>>;
-    if (certList.length === 0) throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, "获取平台证书失败");
+    if (certList.length === 0)
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, "获取平台证书失败");
 
     for (const certData of certList) {
       const serial = certData.serial_no as string;
@@ -240,8 +288,10 @@ export class WechatPayService {
         process.env.WECHAT_PAY_TRANSFER_NOTIFY_URL ||
         process.env.WECHAT_TRANSFER_NOTIFY_URL ||
         this.callbackUrl("WECHAT_PAY_TRANSFER_NOTIFY_URL", "/api/v1/payout/wechat/transfer-notify"),
-      transfer_scene_report_infos:
-        params.sceneReportInfos || [{ info_type: "岗位类型", info_content: "推广员" }, { info_type: "报酬说明", info_content: "推广佣金" }],
+      transfer_scene_report_infos: params.sceneReportInfos || [
+        { info_type: "岗位类型", info_content: "推广员" },
+        { info_type: "报酬说明", info_content: "推广佣金" },
+      ],
     };
 
     // 收款人姓名需用平台证书公钥加密，并在 Wechatpay-Serial 头声明证书序列号
@@ -292,14 +342,18 @@ export class WechatPayService {
 
   /** 撤销转账（仅 WAIT_USER_CONFIRM / ACCEPTED 可撤） */
   async cancelTransfer(outBillNo: string) {
-    return this.callApi("POST", `/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/${outBillNo}/cancel`);
+    return this.callApi(
+      "POST",
+      `/v3/fund-app/mch-transfer/transfer-bills/out-bill-no/${outBillNo}/cancel`,
+    );
   }
 
   /** 根据序列号获取指定平台证书 */
   async getPlatformCertBySerial(serialNo: string): Promise<string> {
     const certs = await this.getPlatformCerts();
     const pem = certs.get(serialNo);
-    if (!pem) throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `平台证书不存在: ${serialNo}`);
+    if (!pem)
+      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, `平台证书不存在: ${serialNo}`);
     return pem;
   }
 
@@ -321,7 +375,10 @@ export class WechatPayService {
     const certs = await this.getPlatformCerts();
     const [serialNo, entry] = [...certs.entries()][0] ?? [];
     if (!serialNo || !entry) {
-      throw new BusinessException(ErrorCode.THIRD_WECHAT_FAILED, "无可用的微信平台证书，无法加密敏感字段");
+      throw new BusinessException(
+        ErrorCode.THIRD_WECHAT_FAILED,
+        "无可用的微信平台证书，无法加密敏感字段",
+      );
     }
     const ciphertext = publicEncrypt(
       { key: entry, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha1" },
@@ -371,7 +428,8 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
+      notify_url:
+        params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total, // 分
         currency: params.amount.currency || "CNY",
@@ -380,7 +438,10 @@ export class WechatPayService {
     };
     if (params.attach) body.attach = params.attach;
 
-    const result = await this.callApi("POST", "/v3/pay/transactions/jsapi", body) as Record<string, unknown>;
+    const result = (await this.callApi("POST", "/v3/pay/transactions/jsapi", body)) as Record<
+      string,
+      unknown
+    >;
 
     // 二次签名用于小程序/公众号H5调起支付
     const prepayId = result.prepay_id as string;
@@ -402,7 +463,8 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
+      notify_url:
+        params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
@@ -410,7 +472,10 @@ export class WechatPayService {
     };
     if (params.attach) body.attach = params.attach;
 
-    const result = await this.callApi("POST", "/v3/pay/transactions/app", body) as Record<string, unknown>;
+    const result = (await this.callApi("POST", "/v3/pay/transactions/app", body)) as Record<
+      string,
+      unknown
+    >;
     return { prepayId: result.prepay_id as string, raw: result };
   }
 
@@ -427,7 +492,8 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
+      notify_url:
+        params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
@@ -435,7 +501,10 @@ export class WechatPayService {
     };
     if (params.attach) body.attach = params.attach;
 
-    const result = await this.callApi("POST", "/v3/pay/transactions/native", body) as Record<string, unknown>;
+    const result = (await this.callApi("POST", "/v3/pay/transactions/native", body)) as Record<
+      string,
+      unknown
+    >;
     return { codeUrl: result.code_url as string, raw: result };
   }
 
@@ -444,7 +513,10 @@ export class WechatPayService {
     outTradeNo: string;
     description: string;
     amount: { total: number; currency?: string };
-    sceneInfo: { payerClientIp: string; h5Info?: { type: string; appName?: string; appUrl?: string } };
+    sceneInfo: {
+      payerClientIp: string;
+      h5Info?: { type: string; appName?: string; appUrl?: string };
+    };
     attach?: string;
     notifyUrl?: string;
   }) {
@@ -453,7 +525,8 @@ export class WechatPayService {
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
+      notify_url:
+        params.notifyUrl || this.callbackUrl("WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"),
       amount: {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
@@ -464,14 +537,19 @@ export class WechatPayService {
         payer_client_ip: params.sceneInfo.payerClientIp,
         h5_info: {
           type: params.sceneInfo.h5Info?.type || "Wap",
-          ...(params.sceneInfo.h5Info?.appName ? { app_name: params.sceneInfo.h5Info.appName } : {}),
+          ...(params.sceneInfo.h5Info?.appName
+            ? { app_name: params.sceneInfo.h5Info.appName }
+            : {}),
           ...(params.sceneInfo.h5Info?.appUrl ? { app_url: params.sceneInfo.h5Info.appUrl } : {}),
         },
       },
     };
     if (params.attach) body.attach = params.attach;
 
-    const result = await this.callApi("POST", "/v3/pay/transactions/h5", body) as Record<string, unknown>;
+    const result = (await this.callApi("POST", "/v3/pay/transactions/h5", body)) as Record<
+      string,
+      unknown
+    >;
     return { h5Url: result.h5_url as string, raw: result };
   }
 
@@ -479,16 +557,17 @@ export class WechatPayService {
 
   /** 按商户订单号查询 */
   async queryOrder(outTradeNo: string) {
-    return this.callApi("GET", `/v3/pay/transactions/out-trade-no/${outTradeNo}?mchid=${this.mchId}`);
+    return this.callApi(
+      "GET",
+      `/v3/pay/transactions/out-trade-no/${outTradeNo}?mchid=${this.mchId}`,
+    );
   }
 
   /** 关闭尚未支付的商户订单；微信确认关单成功后才允许生成新的付款码。 */
   async closeOrder(outTradeNo: string) {
-    return this.callApi(
-      "POST",
-      "/v3/pay/transactions/out-trade-no/" + outTradeNo + "/close",
-      { mchid: this.mchId },
-    );
+    return this.callApi("POST", "/v3/pay/transactions/out-trade-no/" + outTradeNo + "/close", {
+      mchid: this.mchId,
+    });
   }
 
   /** 申请退款 */
@@ -509,7 +588,9 @@ export class WechatPayService {
         total: params.amount.total,
         currency: params.amount.currency || "CNY",
       },
-      notify_url: params.notifyUrl || this.callbackUrl("WECHAT_PAY_REFUND_NOTIFY_URL", "/api/v1/shop/refund/notify"),
+      notify_url:
+        params.notifyUrl ||
+        this.callbackUrl("WECHAT_PAY_REFUND_NOTIFY_URL", "/api/v1/shop/refund/notify"),
     };
     if (params.reason) body.reason = params.reason;
 
@@ -548,7 +629,9 @@ export class WechatPayService {
   // ───────── 回调处理 ─────────
 
   /** 解析回调请求头中的签名信息 */
-  parseNotifySign(header: string): { timestamp: string; nonce: string; signature: string; serialNo: string } | null {
+  parseNotifySign(
+    header: string,
+  ): { timestamp: string; nonce: string; signature: string; serialNo: string } | null {
     const params: Record<string, string> = {};
     // Wechatpay-Signature: timestamp="xxx",nonce_str="xxx",signature="xxx",serial_no="xxx"
     const regex = /(\w+)="([^"]*)"/g;
@@ -578,7 +661,9 @@ export class WechatPayService {
     if (v && !v.includes("BEGIN")) {
       try {
         if (existsSync(v)) v = readFileSync(v, "utf-8");
-      } catch { /* 按内容处理 */ }
+      } catch {
+        /* 按内容处理 */
+      }
     }
     return v.replace(/\\n/g, "\n");
   }
@@ -596,12 +681,16 @@ export class WechatPayService {
         pem = this.getWechatPayPublicKey();
         const configuredPublicKeyId = process.env.WECHAT_PAY_PUBLIC_KEY_ID || "";
         if (!pem) {
-          this.logger.error(`回调为微信支付公钥模式但未配置公钥，请在后台「微信支付」卡片粘贴 pub_key.pem 内容: serial=${serialNo}`);
+          this.logger.error(
+            `回调为微信支付公钥模式但未配置公钥，请在后台「微信支付」卡片粘贴 pub_key.pem 内容: serial=${serialNo}`,
+          );
           return false;
         }
         // 兼容迁移前已调通但尚未保存公钥ID的配置；一旦配置ID则严格匹配。
         if (configuredPublicKeyId && serialNo !== configuredPublicKeyId) {
-          this.logger.error(`微信回调公钥ID不匹配: expected=${configuredPublicKeyId}, actual=${serialNo}`);
+          this.logger.error(
+            `微信回调公钥ID不匹配: expected=${configuredPublicKeyId}, actual=${serialNo}`,
+          );
           return false;
         }
       } else {
@@ -624,7 +713,11 @@ export class WechatPayService {
   }
 
   /** 解密支付回调数据 */
-  async decryptNotify(ciphertext: string, associatedData: string, nonce: string): Promise<Record<string, unknown>> {
+  async decryptNotify(
+    ciphertext: string,
+    associatedData: string,
+    nonce: string,
+  ): Promise<Record<string, unknown>> {
     const decrypted = this.aesGcmDecrypt(associatedData, nonce, ciphertext);
     try {
       return JSON.parse(decrypted);
@@ -638,6 +731,7 @@ export class WechatPayService {
     signHeader: string,
     body: string,
   ): Promise<{ valid: boolean; data?: unknown; error?: string }> {
+    this.assertRuntimeConfigSource();
     // 1. 验签
     const valid = await this.verifyNotifySign(signHeader, body);
     if (!valid) {
@@ -682,7 +776,18 @@ export class WechatPayService {
     type: "MERCHANT_ID" | "PERSONAL_OPENID" | "PERSONAL_SUB_OPENID";
     account: string;
     name?: string;
-    relationType: "SERVICE_PROVIDER" | "STORE" | "STAFF" | "STORE_OWNER" | "PARTNER" | "HEADQUARTER" | "BRAND" | "DISTRIBUTOR" | "USER" | "SUPPLIER" | "CUSTOM";
+    relationType:
+      | "SERVICE_PROVIDER"
+      | "STORE"
+      | "STAFF"
+      | "STORE_OWNER"
+      | "PARTNER"
+      | "HEADQUARTER"
+      | "BRAND"
+      | "DISTRIBUTOR"
+      | "USER"
+      | "SUPPLIER"
+      | "CUSTOM";
   }) {
     const body: Record<string, unknown> = {
       appid: this.appId,
@@ -709,7 +814,10 @@ export class WechatPayService {
 
   /** 查询分账接收方列表 */
   async listProfitSharingReceivers(page: number = 1, pageSize: number = 20) {
-    return this.callApi("GET", `/v3/profitsharing/receivers?appid=${this.appId}&page=${page}&page_size=${pageSize}`);
+    return this.callApi(
+      "GET",
+      `/v3/profitsharing/receivers?appid=${this.appId}&page=${page}&page_size=${pageSize}`,
+    );
   }
 
   /** 请求分账 */
@@ -745,10 +853,7 @@ export class WechatPayService {
   }
 
   /** 完结分账 */
-  async finishProfitSharing(params: {
-    outOrderNo: string;
-    description: string;
-  }) {
+  async finishProfitSharing(params: { outOrderNo: string; description: string }) {
     const body = {
       appid: this.appId,
       sub_mchid: this.mchId,
@@ -778,7 +883,10 @@ export class WechatPayService {
 
   /** 查询分账回退结果 */
   async queryProfitSharingReturn(outReturnNo: string, outOrderNo: string) {
-    return this.callApi("GET", `/v3/profitsharing/return-orders/${outReturnNo}?out_order_no=${outOrderNo}&mchid=${this.mchId}`);
+    return this.callApi(
+      "GET",
+      `/v3/profitsharing/return-orders/${outReturnNo}?out_order_no=${outOrderNo}&mchid=${this.mchId}`,
+    );
   }
 
   /** 查询剩余待分金额 */
@@ -822,8 +930,8 @@ export class WechatPayService {
     const resp = await fetch(url, {
       method: "GET",
       headers: {
-        "Authorization": authorization,
-        "Accept": "application/json",
+        Authorization: authorization,
+        Accept: "application/json",
       },
     });
     return resp.text();
