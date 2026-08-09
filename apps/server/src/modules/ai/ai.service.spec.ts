@@ -43,6 +43,18 @@ describe("AiService", () => {
     });
   });
 
+  describe("一句话识别参数", () => {
+    it("DataLen 使用 Base64 解码后的原始字节数", async () => {
+      const audio = Buffer.from("audio-bytes");
+      await svc.sentenceRecognition(audio.toString("base64"), { format: "mp3" });
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(body.SourceType).toBe(1);
+      expect(body.Data).toBe(audio.toString("base64"));
+      expect(body.DataLen).toBe(audio.length);
+    });
+  });
+
   describe("翻译方法", () => {
     it("translateText应调API并返回结果", async () => {
       mockFetch.mockResolvedValueOnce({

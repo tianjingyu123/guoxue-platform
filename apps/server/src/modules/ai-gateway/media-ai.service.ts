@@ -189,7 +189,9 @@ export class MediaAiService {
           ProjectId: 0,
           SubServiceType: 2,
           EngSerViceType: process.env.TENCENT_ASR_ENGINE || ((params.language || "zh-CN").includes("en") ? "16k_en" : "16k_zh"),
-          SourceType: 1,
+          // 腾讯云约定：0=公网 URL，1=请求体内的 Base64 音频数据。
+          // 此处传入 Url，必须使用 0，否则会报缺少 Data/DataLen。
+          SourceType: 0,
           Url: params.audioUrl,
           VoiceFormat: "mp3",
           UsrAudioKey: params.audioUrl,

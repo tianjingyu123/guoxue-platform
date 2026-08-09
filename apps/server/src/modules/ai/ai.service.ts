@@ -120,6 +120,7 @@ export class AiService {
     rate?: 8000 | 16000;
     lang?: "16k_zh" | "8k_zh" | "16k_en";
   }) {
+    const audioBytes = Buffer.from(voiceBase64, "base64");
     return this.callApi("asr", "SentenceRecognition", {
       ProjectId: 0,
       SubServiceType: 2,
@@ -128,7 +129,8 @@ export class AiService {
       VoiceFormat: params?.format || "wav",
       UsrAudioKey: randomUUID(),
       Data: voiceBase64,
-      DataLen: voiceBase64.length,
+      // DataLen 是 Base64 解码前的原始音频字节数，不是字符串长度。
+      DataLen: audioBytes.length,
     });
   }
 

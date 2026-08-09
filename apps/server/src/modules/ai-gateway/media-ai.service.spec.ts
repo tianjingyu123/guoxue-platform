@@ -122,5 +122,35 @@ describe("MediaAiService", () => {
       expect(result.text).toBe("模拟转写结果");
       expect(result.model).toBe("deepseek");
     });
+
+    it("URL 音频按 SourceType=0 调用腾讯云一句话识别", async () => {
+      process.env.TENCENT_SECRET_ID = "test-id";
+      process.env.TENCENT_SECRET_KEY = "test-key";
+      const originalFetch = (global as any).fetch;
+      const fetchMock = jest.fn()
+        .mockResolvedValueOnce({ ok: true } as any)
+        .mockResolvedValueOnce({
+          json: async () => ({ Response: { Result: "识别成功", Confidence: 100 } }),
+        } as any);
+      (global as any).fetch = fetchMock;
+
+      try {
+        const audioUrl = "https://cos.ap-beijing.myqcloud.com/test.mp3";
+        const result = await svc.transcribeAudio({ audioUrl });
+        const request = fetchMock.mock.calls[1][1] as RequestInit;
+        const body = JSON.parse(String(request.body));
+
+        expect(body.SourceType).toBe(0);
+        expect(body.Url).toBe(audioUrl);
+        expect(body.Data).toBeUndefined();
+        expect(body.DataLen).toBeUndefined();
+        expect(result.text).toBe("识别成功");
+      } finally {
+        if (originalFetch) (global as any).fetch = originalFetch;
+        else delete (global as any).fetch;
+        delete process.env.TENCENT_SECRET_ID;
+        delete process.env.TENCENT_SECRET_KEY;
+      }
+    });
   });
 });
