@@ -2,6 +2,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { createHash } from "crypto";
 import { RedisService } from "../../redis/redis.service";
 import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
+import {
+  hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
+} from "../../common/tencent-instance-role-credentials";
 
 /**
  * 腾讯混元 Embedding 语义向量服务 —— 全平台「文本 → 真语义向量」的单一真源。
@@ -69,7 +73,8 @@ export class HunyuanEmbeddingService {
 
   /** 是否启用：显式开关 = true 且密钥齐备（复用腾讯云也算齐备） */
   get isEnabled(): boolean {
-    return process.env.HUNYUAN_EMBEDDING_ENABLED === "true" && !!this.secretId && !!this.secretKey;
+    return process.env.HUNYUAN_EMBEDDING_ENABLED === "true" &&
+      hasTencentCloudCredentialConfiguration(this.secretId, this.secretKey);
   }
 
   // ─────────── 公共接口 ───────────
@@ -141,9 +146,11 @@ export class HunyuanEmbeddingService {
   // ─────────── 腾讯云 GetEmbedding 调用 ───────────
 
   private async callGetEmbedding(inputs: string[]): Promise<number[][]> {
+    const credentials = await resolveTencentCloudCredentials(this.secretId, this.secretKey);
     const { host, headers, payloadStr } = tc3Sign({
-      secretId: this.secretId,
-      secretKey: this.secretKey,
+      secretId: credentials.secretId,
+      secretKey: credentials.secretKey,
+      securityToken: credentials.securityToken,
       service: "hunyuan",
       action: "GetEmbedding",
       version: "2023-09-01",

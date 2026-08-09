@@ -91,4 +91,43 @@ describe("ModerationService", () => {
       expect(svc.getBlockedLabels(result)).toEqual(["Spam"]);
     });
   });
+
+  describe("实例角色调用", () => {
+    afterEach(() => {
+      delete process.env.TENCENT_CREDENTIAL_MODE;
+      delete process.env.TENCENT_CVM_ROLE_NAME;
+    });
+
+    it("文本审核携带实例角色安全令牌", async () => {
+      process.env.TENCENT_CREDENTIAL_MODE = "instance-role";
+      process.env.TENCENT_CVM_ROLE_NAME = "RebugxModerationSpecRole";
+      const originalFetch = globalThis.fetch;
+      const fetchMock = jest.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            Code: "Success",
+            TmpSecretId: "role-id",
+            TmpSecretKey: "role-key",
+            Token: "role-token",
+            ExpiredTime: Math.floor(Date.now() / 1000) + 3600,
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({ Response: { Suggestion: "Pass" } }),
+        } as Response);
+      (globalThis as { fetch?: typeof fetch }).fetch = fetchMock;
+
+      try {
+        await expect(svc.textModeration({ content: "国学文化测试" })).resolves.toMatchObject({
+          Suggestion: "Pass",
+        });
+        expect(fetchMock.mock.calls[1][1].headers).toMatchObject({ "X-TC-Token": "role-token" });
+      } finally {
+        if (originalFetch === undefined) delete (globalThis as { fetch?: typeof fetch }).fetch;
+        else globalThis.fetch = originalFetch;
+      }
+    });
+  });
 });

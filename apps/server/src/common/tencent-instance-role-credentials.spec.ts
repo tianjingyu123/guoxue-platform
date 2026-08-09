@@ -1,15 +1,23 @@
 import {
   getTencentCredentialMode,
+  hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
   TencentInstanceRoleCredentialProvider,
 } from "./tencent-instance-role-credentials";
 
 describe("TencentInstanceRoleCredentialProvider", () => {
   const originalMode = process.env.TENCENT_CREDENTIAL_MODE;
+  const originalRoleName = process.env.TENCENT_CVM_ROLE_NAME;
+  const originalFetch = globalThis.fetch;
 
   afterEach(() => {
     jest.restoreAllMocks();
     if (originalMode === undefined) delete process.env.TENCENT_CREDENTIAL_MODE;
     else process.env.TENCENT_CREDENTIAL_MODE = originalMode;
+    if (originalRoleName === undefined) delete process.env.TENCENT_CVM_ROLE_NAME;
+    else process.env.TENCENT_CVM_ROLE_NAME = originalRoleName;
+    if (originalFetch === undefined) delete (globalThis as { fetch?: typeof fetch }).fetch;
+    else globalThis.fetch = originalFetch;
   });
 
   it("默认保持静态凭据兼容模式", () => {
@@ -77,5 +85,39 @@ describe("TencentInstanceRoleCredentialProvider", () => {
     await expect(provider.getCredentials()).rejects.toThrow(
       "CVM 实例角色凭据字段不完整",
     );
+  });
+
+  it("统一解析器在静态模式返回调用方传入的密钥", async () => {
+    process.env.TENCENT_CREDENTIAL_MODE = "static";
+
+    expect(hasTencentCloudCredentialConfiguration("static-id", "static-key")).toBe(true);
+    await expect(resolveTencentCloudCredentials("static-id", "static-key")).resolves.toEqual({
+      secretId: "static-id",
+      secretKey: "static-key",
+    });
+  });
+
+  it("统一解析器在实例角色模式返回临时密钥和安全令牌", async () => {
+    process.env.TENCENT_CREDENTIAL_MODE = "instance-role";
+    process.env.TENCENT_CVM_ROLE_NAME = "RebugxResolverSpecRole";
+    const expiredTime = Math.floor(Date.now() / 1000) + 3600;
+    (globalThis as { fetch?: typeof fetch }).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        Code: "Success",
+        TmpSecretId: "role-id",
+        TmpSecretKey: "role-key",
+        Token: "role-token",
+        ExpiredTime: expiredTime,
+      }),
+    } as Response);
+
+    expect(hasTencentCloudCredentialConfiguration()).toBe(true);
+    await expect(resolveTencentCloudCredentials()).resolves.toEqual({
+      secretId: "role-id",
+      secretKey: "role-key",
+      securityToken: "role-token",
+    });
   });
 });

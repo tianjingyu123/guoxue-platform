@@ -3,6 +3,10 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { AiGatewayService } from "./ai-gateway.service";
 import { tc3Sign } from "../../common/tc3.util";
+import {
+  hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
+} from "../../common/tencent-instance-role-credentials";
 
 const POLISH_PROMPT = `你是一个专业的国学内容编辑。请对以下文本进行润色：
 1. 保持原意不变
@@ -128,15 +132,17 @@ export class PublishAssistService {
 
   /** AI封面图生成 — 调用腾讯云AI绘画，失败时回退到文本提示 */
   async generateCover(prompt: string, userId?: string, style?: string) {
-    const secretId = process.env.TENCENT_SECRET_ID;
-    const secretKey = process.env.TENCENT_SECRET_KEY;
+    const secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "";
+    const secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
 
-    if (secretId && secretKey) {
+    if (hasTencentCloudCredentialConfiguration(secretId, secretKey)) {
       try {
+        const credentials = await resolveTencentCloudCredentials(secretId, secretKey);
         const enhancedPrompt = `国学风格插画，${prompt}，传统中国风，水墨画风格，留白构图`;
         const { host, headers, payloadStr } = tc3Sign({
-          secretId,
-          secretKey,
+          secretId: credentials.secretId,
+          secretKey: credentials.secretKey,
+          securityToken: credentials.securityToken,
           service: "aiart",
           action: "TextToImage",
           version: "2022-12-29",

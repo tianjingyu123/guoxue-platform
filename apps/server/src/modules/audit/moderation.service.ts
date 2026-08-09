@@ -2,6 +2,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
+import {
+  hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
+} from "../../common/tencent-instance-role-credentials";
 
 /**
  * 腾讯云内容审核服务
@@ -22,14 +26,12 @@ import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
 @Injectable()
 export class ModerationService {
   private readonly logger = new Logger(ModerationService.name);
-  private readonly secretId: string;
-  private readonly secretKey: string;
 
   constructor() {
-    this.secretId = process.env.COS_SECRET_ID || process.env.TENCENT_SECRET_ID || "";
-    this.secretKey = process.env.COS_SECRET_KEY || process.env.TENCENT_SECRET_KEY || "";
-
-    if (!this.secretId || !this.secretKey) {
+    if (!hasTencentCloudCredentialConfiguration(
+      process.env.COS_SECRET_ID || process.env.TENCENT_SECRET_ID || "",
+      process.env.COS_SECRET_KEY || process.env.TENCENT_SECRET_KEY || "",
+    )) {
       this.logger.warn("腾讯云密钥未配置，内容审核服务将不可用");
     }
   }
@@ -41,9 +43,14 @@ export class ModerationService {
     action: string,
     params: Record<string, unknown>,
   ) {
+    const credentials = await resolveTencentCloudCredentials(
+      process.env.COS_SECRET_ID || process.env.TENCENT_SECRET_ID || "",
+      process.env.COS_SECRET_KEY || process.env.TENCENT_SECRET_KEY || "",
+    );
     const { host, headers, payloadStr } = tc3Sign({
-      secretId: this.secretId,
-      secretKey: this.secretKey,
+      secretId: credentials.secretId,
+      secretKey: credentials.secretKey,
+      securityToken: credentials.securityToken,
       service,
       action,
       version: "2020-12-29",

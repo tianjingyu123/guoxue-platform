@@ -4,6 +4,11 @@ import { createHash, randomUUID } from "node:crypto"
 import { BusinessException } from "../../common/business.exception"
 import { ErrorCode } from "../../common/error-codes"
 import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util"
+import {
+  hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
+  type TencentResolvedCredentials,
+} from "../../common/tencent-instance-role-credentials"
 
 /**
  * TTS 文字转语音服务
@@ -83,11 +88,12 @@ export class TtsService {
 
   /** 实际合成：腾讯云优先，失败降级 Edge。 */
   private async doSynthesize(text: string, voiceKey: string, rate: string, style: TtsStyle): Promise<Buffer> {
-    const secretId = process.env.TENCENT_SECRET_ID
-    const secretKey = process.env.TENCENT_SECRET_KEY
-    if (secretId && secretKey) {
+    const secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || ""
+    const secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || ""
+    if (hasTencentCloudCredentialConfiguration(secretId, secretKey)) {
       try {
-        return await this.tencentSynthesize(text, voiceKey, rate, style, secretId, secretKey)
+        const credentials = await resolveTencentCloudCredentials(secretId, secretKey)
+        return await this.tencentSynthesize(text, voiceKey, rate, style, credentials)
       } catch (e: any) {
         this.logger.warn(`腾讯云 TTS 失败，降级 Edge：${e?.message || e}`)
       }
@@ -97,7 +103,11 @@ export class TtsService {
 
   /** 腾讯云 TextToVoice（一句话合成，≤150 汉字/段）。 */
   private async tencentSynthesize(
-    text: string, voiceKey: string, rate: string, style: TtsStyle, secretId: string, secretKey: string,
+    text: string,
+    voiceKey: string,
+    rate: string,
+    style: TtsStyle,
+    credentials: TencentResolvedCredentials,
   ): Promise<Buffer> {
     const voiceType = VOICES[voiceKey].tencent
     const region = process.env.TENCENT_TTS_REGION || "ap-guangzhou"
@@ -121,7 +131,10 @@ export class TtsService {
         } : {}),
       }
       const signed = tc3Sign({
-        secretId, secretKey, service: "tts", action: "TextToVoice",
+        secretId: credentials.secretId,
+        secretKey: credentials.secretKey,
+        securityToken: credentials.securityToken,
+        service: "tts", action: "TextToVoice",
         version: "2019-08-23", payload, region,
       })
       const res = await fetch(`https://${signed.host}`, {
