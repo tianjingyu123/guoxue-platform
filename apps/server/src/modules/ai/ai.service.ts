@@ -6,6 +6,10 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { tc3Sign } from "../../common/tc3.util";
 import { CircuitBreaker } from "../../common/circuit-breaker";
 import { safePagination } from "../../common/pagination";
+import {
+  hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
+} from "../../common/tencent-instance-role-credentials";
 
 /**
  * 腾讯云 AI 能力服务（语音识别/OCR/NLP/翻译）
@@ -14,17 +18,16 @@ import { safePagination } from "../../common/pagination";
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly secretId: string;
-  private readonly secretKey: string;
   private readonly translateCache = new MemoryCache<string>(300);
   private readonly circuitBreaker = new CircuitBreaker({ failureThreshold: 5, resetTimeoutMs: 30_000, halfOpenSuccessThreshold: 2 });
 
   constructor(
     private prisma: PrismaService,
   ) {
-    this.secretId = process.env.TENCENT_SECRET_ID || "";
-    this.secretKey = process.env.TENCENT_SECRET_KEY || "";
-    if (!this.secretId) {
+    if (!hasTencentCloudCredentialConfiguration(
+      process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "",
+      process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "",
+    )) {
       this.logger.warn("腾讯云AI凭证未配置");
     }
   }
@@ -39,9 +42,21 @@ export class AiService {
 
     const version = this.getVersion(service);
     const region_ = region || "ap-guangzhou";
+    let credentials;
+    try {
+      credentials = await resolveTencentCloudCredentials(
+        process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "",
+        process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "",
+      );
+    } catch (err) {
+      this.logger.error(`AI API凭据解析失败 [${service}/${action}]`, (err as Error).message);
+      this.circuitBreaker.recordFailure(service);
+      return null;
+    }
     const { host, headers, payloadStr } = tc3Sign({
-      secretId: this.secretId,
-      secretKey: this.secretKey,
+      secretId: credentials.secretId,
+      secretKey: credentials.secretKey,
+      securityToken: credentials.securityToken,
       service,
       action,
       version,

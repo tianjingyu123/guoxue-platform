@@ -21,7 +21,12 @@ describe("TtsService", () => {
   });
 
   beforeEach(() => { jest.clearAllMocks(); });
-  afterEach(() => { delete process.env.TENCENT_SECRET_ID; delete process.env.TENCENT_SECRET_KEY; });
+  afterEach(() => {
+    delete process.env.TENCENT_SECRET_ID;
+    delete process.env.TENCENT_SECRET_KEY;
+    delete process.env.TENCENT_CREDENTIAL_MODE;
+    delete process.env.TENCENT_CVM_ROLE_NAME;
+  });
 
   describe("synthesize", () => {
     it("缓存命中直接返回", async () => {
@@ -83,6 +88,33 @@ describe("TtsService", () => {
         expect.stringContaining("tts.tencentcloudapi.com"),
         expect.objectContaining({ method: "POST" }),
       );
+    });
+    it("实例角色模式使用临时凭据和安全令牌调用腾讯云 TTS", async () => {
+      process.env.TENCENT_CREDENTIAL_MODE = "instance-role";
+      process.env.TENCENT_CVM_ROLE_NAME = "RebugxTtsSpecRole";
+      mockRedis.getBuffer.mockResolvedValue(null);
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({
+            Code: "Success",
+            TmpSecretId: "role-id",
+            TmpSecretKey: "role-key",
+            Token: "role-token",
+            ExpiredTime: Math.floor(Date.now() / 1000) + 3600,
+          }),
+        })
+        .mockResolvedValueOnce({
+          json: () => Promise.resolve({ Response: { Audio: Buffer.from("role-audio").toString("base64") } }),
+        });
+      mockRedis.setBuffer.mockResolvedValue(undefined);
+
+      const result = await svc.synthesize({ text: "实例角色测试" });
+
+      expect(result.audio.toString()).toBe("role-audio");
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch.mock.calls[1][1].headers).toMatchObject({ "X-TC-Token": "role-token" });
     });
     it("把古籍朗读情感和断句参数传给腾讯云", async () => {
       process.env.TENCENT_SECRET_ID = "AKIDtest";

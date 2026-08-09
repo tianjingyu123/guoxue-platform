@@ -8,6 +8,12 @@ export interface TencentTemporaryCredentials {
   ExpiredTime: number;
 }
 
+export interface TencentResolvedCredentials {
+  secretId: string;
+  secretKey: string;
+  securityToken?: string;
+}
+
 interface TencentMetadataCredentialResponse {
   TmpSecretId?: unknown;
   TmpSecretKey?: unknown;
@@ -125,4 +131,42 @@ export function getTencentInstanceRoleCredentialProvider(): TencentInstanceRoleC
     defaultProvider = new TencentInstanceRoleCredentialProvider(roleName);
   }
   return defaultProvider;
+}
+
+/**
+ * 判断腾讯云 API 是否具备可用凭据来源。
+ *
+ * instance-role 模式只要求绑定角色；static 模式由调用方传入其服务专用密钥或通用密钥。
+ */
+export function hasTencentCloudCredentialConfiguration(
+  staticSecretId = "",
+  staticSecretKey = "",
+): boolean {
+  if (getTencentCredentialMode() === "instance-role") {
+    return Boolean(process.env.TENCENT_CVM_ROLE_NAME?.trim());
+  }
+  return Boolean(staticSecretId && staticSecretKey);
+}
+
+/**
+ * 为所有 TC3 调用统一解析静态密钥或 CVM 实例角色临时凭据。
+ * 临时凭据必须把 SecurityToken 传给 tc3Sign，否则腾讯云会拒绝请求。
+ */
+export async function resolveTencentCloudCredentials(
+  staticSecretId = "",
+  staticSecretKey = "",
+): Promise<TencentResolvedCredentials> {
+  if (getTencentCredentialMode() === "instance-role") {
+    const credentials = await getTencentInstanceRoleCredentialProvider().getCredentials();
+    return {
+      secretId: credentials.TmpSecretId,
+      secretKey: credentials.TmpSecretKey,
+      securityToken: credentials.SecurityToken,
+    };
+  }
+
+  if (!staticSecretId || !staticSecretKey) {
+    throw new Error("腾讯云静态凭据未配置");
+  }
+  return { secretId: staticSecretId, secretKey: staticSecretKey };
 }

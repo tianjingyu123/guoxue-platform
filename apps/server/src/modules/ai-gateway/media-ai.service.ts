@@ -4,6 +4,10 @@ import { ErrorCode } from "../../common/error-codes";
 import { AiGatewayService } from "./ai-gateway.service";
 import { TtsService } from "../tts/tts.service";
 import { tc3Sign } from "../../common/tc3.util";
+import {
+  hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
+} from "../../common/tencent-instance-role-credentials";
 
 interface AuditResult {
   safe: boolean;
@@ -163,10 +167,10 @@ export class MediaAiService {
     language?: string;
     userId?: string;
   }) {
-    const secretId = process.env.TENCENT_SECRET_ID;
-    const secretKey = process.env.TENCENT_SECRET_KEY;
+    const secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "";
+    const secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
 
-    if (!secretId || !secretKey) {
+    if (!hasTencentCloudCredentialConfiguration(secretId, secretKey)) {
       // 腾讯云未配置时回退到 AI 网关文本模拟
       return this.transcribeFallback(params);
     }
@@ -174,12 +178,14 @@ export class MediaAiService {
     try {
       // SSRF 防护：仅允许白名单域名
       this.validateAudioUrl(params.audioUrl);
+      const credentials = await resolveTencentCloudCredentials(secretId, secretKey);
       // 下载音频文件
       const audioResp = await fetch(params.audioUrl);
       if (!audioResp.ok) throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `下载音频失败: ${audioResp.status}`);
       const { host, headers, payloadStr } = tc3Sign({
-        secretId,
-        secretKey,
+        secretId: credentials.secretId,
+        secretKey: credentials.secretKey,
+        securityToken: credentials.securityToken,
         service: "asr",
         action: "SentenceRecognition",
         version: "2019-06-14",

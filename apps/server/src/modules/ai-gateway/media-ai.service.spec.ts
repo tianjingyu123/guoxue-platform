@@ -110,6 +110,8 @@ describe("MediaAiService", () => {
     beforeEach(() => {
       delete process.env.TENCENT_SECRET_ID;
       delete process.env.TENCENT_SECRET_KEY;
+      delete process.env.TENCENT_CREDENTIAL_MODE;
+      delete process.env.TENCENT_CVM_ROLE_NAME;
     });
 
     it("无腾讯云凭证时使用 AI 文本模拟回退", async () => {
@@ -150,6 +152,40 @@ describe("MediaAiService", () => {
         else delete (global as any).fetch;
         delete process.env.TENCENT_SECRET_ID;
         delete process.env.TENCENT_SECRET_KEY;
+      }
+    });
+
+    it("实例角色模式携带安全令牌调用腾讯云一句话识别", async () => {
+      process.env.TENCENT_CREDENTIAL_MODE = "instance-role";
+      process.env.TENCENT_CVM_ROLE_NAME = "RebugxMediaAsrSpecRole";
+      const originalFetch = (global as any).fetch;
+      const fetchMock = jest.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            Code: "Success",
+            TmpSecretId: "role-id",
+            TmpSecretKey: "role-key",
+            Token: "role-token",
+            ExpiredTime: Math.floor(Date.now() / 1000) + 3600,
+          }),
+        } as any)
+        .mockResolvedValueOnce({ ok: true } as any)
+        .mockResolvedValueOnce({
+          json: async () => ({ Response: { Result: "实例角色识别成功", Confidence: 99 } }),
+        } as any);
+      (global as any).fetch = fetchMock;
+
+      try {
+        const result = await svc.transcribeAudio({
+          audioUrl: "https://cos.ap-beijing.myqcloud.com/role-test.mp3",
+        });
+        expect(result.text).toBe("实例角色识别成功");
+        expect(fetchMock.mock.calls[2][1].headers).toMatchObject({ "X-TC-Token": "role-token" });
+      } finally {
+        if (originalFetch) (global as any).fetch = originalFetch;
+        else delete (global as any).fetch;
       }
     });
   });

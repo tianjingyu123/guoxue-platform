@@ -7,6 +7,10 @@ import { RedisService } from "../../redis/redis.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
 import { decrypt, maskPhone } from "../../common/crypto.util";
 import { createHash } from "node:crypto";
+import {
+  hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
+} from "../../common/tencent-instance-role-credentials";
 
 /** 审核列表行（按用户折叠后的最新状态） */
 export interface IdentityAuditRow {
@@ -68,17 +72,15 @@ const MAX_FOLD_SCAN = 10000;
 @Injectable()
 export class IdentityService {
   private readonly logger = new Logger(IdentityService.name);
-  private readonly secretId: string;
-  private readonly secretKey: string;
 
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
   ) {
-    this.secretId = process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "";
-    this.secretKey = process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "";
-
-    if (!this.secretId || !this.secretKey) {
+    if (!hasTencentCloudCredentialConfiguration(
+      process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "",
+      process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "",
+    )) {
       this.logger.warn("腾讯云密钥未配置，实名认证服务不可用");
     }
   }
@@ -99,9 +101,14 @@ export class IdentityService {
 
   /** TC3-HMAC-SHA256 通用签名调用 */
   private async callApi(service: string, action: string, params: Record<string, unknown>, version = "2018-11-19"): Promise<Record<string, unknown>> {
+    const credentials = await resolveTencentCloudCredentials(
+      process.env.TENCENT_SECRET_ID || process.env.COS_SECRET_ID || "",
+      process.env.TENCENT_SECRET_KEY || process.env.COS_SECRET_KEY || "",
+    );
     const { host, headers, payloadStr } = tc3Sign({
-      secretId: this.secretId,
-      secretKey: this.secretKey,
+      secretId: credentials.secretId,
+      secretKey: credentials.secretKey,
+      securityToken: credentials.securityToken,
       service,
       action,
       version,
