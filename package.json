@@ -58,7 +58,7 @@
     "release:test-db-baseline-generator": "node --test tests/release/database-baseline-generator.test.mjs",
     "release:audit-infra-migration": "node scripts/release/audit-infrastructure-migration.mjs",
     "release:audit-container-images": "node scripts/release/audit-container-images.mjs",
-    "release:test-container-images": "node --test tests/release/audit-container-images.test.mjs",
+    "release:test-container-images": "node --test tests/release/audit-container-images.test.mjs tests/release/compose-third-party-env.test.mjs",
     "release:verify-container-runtime": "node -- scripts/release/verify-container-images.mjs",
     "release:test-container-runtime": "node --test tests/release/verify-container-images.test.mjs",
     "release:audit-workflow-supply-chain": "node scripts/release/audit-workflow-supply-chain.mjs",
