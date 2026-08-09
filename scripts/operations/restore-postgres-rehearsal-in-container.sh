@@ -26,7 +26,9 @@ test -f "$DUMP_FILE" || {
 }
 
 container="guoxue-restore-drill-${DRILL_ID}"
-image="postgres:18.4@sha256:3a82e1f56c8f0f5616a11103ac3d47e632c3938698946a7ad26da0df1334744a"
+# 恢复目标必须同时兼容宿主机 PostgreSQL 18 客户端生成的 custom archive，
+# 并包含生产 schema 依赖的 vector 扩展。镜像锁定多架构索引摘要，避免漂移。
+image="pgvector/pgvector:0.8.6-pg18@sha256:691673308c99d2161ba298736f3147f1f22d79de2fb7ec93ae9b4afcab870b62"
 label_key="rebugx.restore-drill"
 
 if docker inspect "$container" >/dev/null 2>&1; then

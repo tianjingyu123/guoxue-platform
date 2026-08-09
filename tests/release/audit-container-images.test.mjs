@@ -82,7 +82,7 @@ test("审计 CI 服务与 shell 中的变量、默认值及 docker run 镜像", 
     {
       ".github/workflows/ci.yml": `services:\n  db:\n    image: postgres:16@sha256:${"d".repeat(64)}\n`,
       "docker/renew-ssl.sh": `CERTBOT_IMAGE="\${CERTBOT_IMAGE:-certbot/certbot:v3.2.0@sha256:${"e".repeat(64)}}"\n`,
-      "scripts/operations/restore-postgres-rehearsal-in-container.sh": `image="postgres:18.4@sha256:${"f".repeat(64)}"\n`,
+      "scripts/operations/restore-postgres-rehearsal-in-container.sh": `image="pgvector/pgvector:0.8.6-pg18@sha256:${"f".repeat(64)}"\n`,
       "scripts/operations/run-k6-node-capacity.sh": `  grafana/k6:latest run /script.js\n`,
     },
     (root) => {
@@ -90,7 +90,11 @@ test("审计 CI 服务与 shell 中的变量、默认值及 docker run 镜像", 
       assert.equal(result.errors.length, 1);
       assert.match(result.errors[0], /grafana\/k6:latest/u);
       assert.ok(result.references.some((item) => item.reference.startsWith("certbot/certbot:")));
-      assert.ok(result.references.some((item) => item.reference.startsWith("postgres:18.4@")));
+      assert.ok(
+        result.references.some((item) =>
+          item.reference.startsWith("pgvector/pgvector:0.8.6-pg18@"),
+        ),
+      );
     },
   );
 });
