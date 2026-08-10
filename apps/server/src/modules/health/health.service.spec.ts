@@ -34,6 +34,11 @@ describe("HealthService", () => {
     delete process.env.WECHAT_MINI_APP_ID;
     delete process.env.MINIPROGRAM_APP_SECRET;
     delete process.env.RELEASE_ID;
+    delete process.env.APPLE_IAP_REQUIRED;
+    delete process.env.APPLE_IAP_KEY_ID;
+    delete process.env.APPLE_IAP_ISSUER_ID;
+    delete process.env.APPLE_IAP_PRIVATE_KEY_BASE64;
+    delete process.env.APPLE_IAP_PRIVATE_KEY;
   });
 
   afterAll(() => {
@@ -96,6 +101,14 @@ describe("HealthService", () => {
       // DB/Redis 总是存在
       expect(result.checks.db.status).toBeDefined();
       expect(result.checks.redis.status).toBeDefined();
+      expect(result.checks).not.toHaveProperty("appleIap");
+    });
+
+    it("Apple IAP 被标记为必需但缺少凭据时阻断健康门禁", async () => {
+      process.env.APPLE_IAP_REQUIRED = "true";
+      const result = await svc.check();
+      expect(result.status).toBe("fail");
+      expect(result.checks.appleIap).toEqual(expect.objectContaining({ status: "fail" }));
     });
 
     it("公众号独立配置应出现在微信健康检查中", async () => {

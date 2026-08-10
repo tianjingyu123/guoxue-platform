@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createPrivateKey } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -561,6 +562,89 @@ if (hasAny(values, smsConnectionKeys)) {
   }
 }
 
+const appleIapRequiredValue = (values.get("APPLE_IAP_REQUIRED") || "false").trim().toLowerCase();
+if (!["true", "false"].includes(appleIapRequiredValue)) {
+  errors.push("APPLE_IAP_REQUIRED 仅允许 true 或 false");
+}
+
+if (fullCheck && appleIapRequiredValue === "true") {
+  const appleIapKeys = [
+    "APPLE_IAP_KEY_ID",
+    "APPLE_IAP_ISSUER_ID",
+    "APPLE_IAP_PRIVATE_KEY_BASE64",
+    "APPLE_IAP_BUNDLE_ID",
+    "APPLE_IAP_APP_APPLE_ID",
+    "APPLE_IAP_PRODUCTS_JSON",
+  ];
+  const missingAppleIapKeys = appleIapKeys.filter((key) => !values.get(key));
+  if (missingAppleIapKeys.length > 0) {
+    errors.push(`Apple IAP 配置不完整：${missingAppleIapKeys.join(", ")}`);
+  }
+  if (values.get("APPLE_IAP_KEY_ID") && !/^[A-Z0-9]{10}$/u.test(values.get("APPLE_IAP_KEY_ID"))) {
+    errors.push("APPLE_IAP_KEY_ID 必须是 10 位大写字母或数字");
+  }
+  if (
+    values.get("APPLE_IAP_ISSUER_ID") &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu.test(
+      values.get("APPLE_IAP_ISSUER_ID"),
+    )
+  ) {
+    errors.push("APPLE_IAP_ISSUER_ID 必须是 App Store Connect Issuer UUID");
+  }
+  const applePrivateKeyBase64 = values.get("APPLE_IAP_PRIVATE_KEY_BASE64");
+  if (applePrivateKeyBase64) {
+    try {
+      const privateKey = createPrivateKey(
+        Buffer.from(applePrivateKeyBase64, "base64").toString("utf8"),
+      );
+      if (
+        privateKey.asymmetricKeyType !== "ec" ||
+        privateKey.asymmetricKeyDetails?.namedCurve !== "prime256v1"
+      ) {
+        errors.push("APPLE_IAP_PRIVATE_KEY_BASE64 必须是 Apple P-256 PKCS#8 私钥");
+      }
+    } catch {
+      errors.push("APPLE_IAP_PRIVATE_KEY_BASE64 无法解析为 Apple P-256 PKCS#8 私钥");
+    }
+  }
+  const appleBundleId = values.get("APPLE_IAP_BUNDLE_ID");
+  if (
+    appleBundleId &&
+    !/^[A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9][A-Za-z0-9-]*){2,}$/u.test(appleBundleId)
+  ) {
+    errors.push("APPLE_IAP_BUNDLE_ID 格式无效");
+  }
+  const appleAppId = values.get("APPLE_IAP_APP_APPLE_ID");
+  if (appleAppId && !/^\d{6,20}$/u.test(appleAppId)) {
+    errors.push("APPLE_IAP_APP_APPLE_ID 必须是 App Store Connect 数字 Apple ID");
+  }
+  const appleProductsJson = values.get("APPLE_IAP_PRODUCTS_JSON");
+  if (appleProductsJson) {
+    try {
+      const products = JSON.parse(appleProductsJson);
+      const productIds = Array.isArray(products)
+        ? products.map((item) => String(item?.productId || "").trim())
+        : [];
+      const valid =
+        Array.isArray(products) &&
+        products.length > 0 &&
+        products.every(
+          (item) =>
+            item &&
+            typeof item === "object" &&
+            String(item.productId || "").startsWith(`${appleBundleId}.`) &&
+            Number.isInteger(Number(item.amountCoin)) &&
+            Number(item.amountCoin) > 0 &&
+            Number(item.referenceRmb) > 0,
+        ) &&
+        new Set(productIds).size === productIds.length;
+      if (!valid) errors.push("APPLE_IAP_PRODUCTS_JSON 商品格式、数量或 productId 无效");
+    } catch {
+      errors.push("APPLE_IAP_PRODUCTS_JSON 不是合法 JSON");
+    }
+  }
+}
+
 if (fullCheck) {
   if (nodeRole === "operations") {
     const monitoringEnabled = (values.get("MONITORING_ENABLED") || "").trim().toLowerCase();
@@ -678,20 +762,31 @@ if (fullCheck) {
 
   const wechatCallbackKeyMode = values.get("WECHAT_PAY_CALLBACK_KEY_MODE");
   const wechatDbConfigVerified = values.get("WECHAT_PAY_DB_CONFIG_VERIFIED") === "true";
-  const wechatDatabaseBacked = hasAll(values, [
-    "WECHAT_PAY_ALLOWED_MCH_ID",
-    "WECHAT_PAY_NOTIFY_URL",
-    "WECHAT_PAY_REFUND_NOTIFY_URL",
-    "WECHAT_PAY_TRANSFER_NOTIFY_URL",
-  ]) && wechatDbConfigVerified && ["PLATFORM_CERT", "PUBLIC_KEY"].includes(wechatCallbackKeyMode);
+  const wechatDatabaseBacked =
+    hasAll(values, [
+      "WECHAT_PAY_ALLOWED_MCH_ID",
+      "WECHAT_PAY_NOTIFY_URL",
+      "WECHAT_PAY_REFUND_NOTIFY_URL",
+      "WECHAT_PAY_TRANSFER_NOTIFY_URL",
+    ]) &&
+    wechatDbConfigVerified &&
+    ["PLATFORM_CERT", "PUBLIC_KEY"].includes(wechatCallbackKeyMode);
   const allowedWechatMerchantId = values.get("WECHAT_PAY_ALLOWED_MCH_ID");
   if (allowedWechatMerchantId && !/^\d{6,20}$/u.test(allowedWechatMerchantId)) {
     errors.push("WECHAT_PAY_ALLOWED_MCH_ID 必须是微信支付登记的纯数字商户号");
   }
-  if (hasAny(values, ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"]) && !wechatDbConfigVerified) {
-    errors.push("WECHAT_PAY_DB_CONFIG_VERIFIED 必须显式为 true，确认后台数据库中的微信支付配置已完成核验");
+  if (
+    hasAny(values, ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"]) &&
+    !wechatDbConfigVerified
+  ) {
+    errors.push(
+      "WECHAT_PAY_DB_CONFIG_VERIFIED 必须显式为 true，确认后台数据库中的微信支付配置已完成核验",
+    );
   }
-  if (hasAny(values, ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"]) && !["PLATFORM_CERT", "PUBLIC_KEY"].includes(wechatCallbackKeyMode)) {
+  if (
+    hasAny(values, ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"]) &&
+    !["PLATFORM_CERT", "PUBLIC_KEY"].includes(wechatCallbackKeyMode)
+  ) {
     errors.push("WECHAT_PAY_CALLBACK_KEY_MODE 必须显式为 PLATFORM_CERT 或 PUBLIC_KEY");
   }
 
@@ -725,8 +820,7 @@ if (fullCheck) {
       id: "汇付聚合支付",
       configured: hasAny(values, ["HUIFU_NOTIFY_URL", "HUIFU_MERCHANT_ID", "HUIFU_APP_ID"]),
       complete:
-        hasAll(values, ["HUIFU_NOTIFY_URL"]) &&
-        values.get("HUIFU_DB_CONFIG_VERIFIED") === "true",
+        hasAll(values, ["HUIFU_NOTIFY_URL"]) && values.get("HUIFU_DB_CONFIG_VERIFIED") === "true",
     },
   ];
   for (const channel of paymentChannels.filter((item) => item.configured && !item.complete)) {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { generateKeyPairSync } from "node:crypto";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -124,6 +125,36 @@ test("完整上线的实例角色模式不误报腾讯云静态密钥缺失", as
   const result = await runChecker(instanceRole, "--full", "--deploy-target", "standard");
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.doesNotMatch(result.stdout, /腾讯云通用能力.*配置不完整/u);
+});
+
+test("Apple IAP 标记为必需时拒绝缺少真实凭据", async () => {
+  const required = `${createFullEnvironment()}\nAPPLE_IAP_REQUIRED=true\n`;
+  const result = await runChecker(required, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /Apple IAP 配置不完整/u);
+});
+
+test("Apple IAP 完整 P-256 配置通过完整上线门禁", async () => {
+  const { privateKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  const privateKeyBase64 = Buffer.from(
+    privateKey.export({ type: "pkcs8", format: "pem" }).toString(),
+  ).toString("base64");
+  const products = JSON.stringify([
+    { productId: "com.rebu.iosapprebu.coins1000", amountCoin: 1000, referenceRmb: 100 },
+  ]);
+  const configured = [
+    createFullEnvironment(),
+    "APPLE_IAP_REQUIRED=true",
+    "APPLE_IAP_KEY_ID=52873GT6JV",
+    "APPLE_IAP_ISSUER_ID=123e4567-e89b-42d3-a456-426614174000",
+    `APPLE_IAP_PRIVATE_KEY_BASE64=${privateKeyBase64}`,
+    "APPLE_IAP_BUNDLE_ID=com.rebu.iosapprebu",
+    "APPLE_IAP_APP_APPLE_ID=6756602923",
+    `APPLE_IAP_PRODUCTS_JSON=${products}`,
+    "",
+  ].join("\n");
+  const result = await runChecker(configured, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
 
 async function runChecker(content, ...args) {

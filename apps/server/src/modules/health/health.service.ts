@@ -5,6 +5,7 @@ import {
 } from "../../common/tencent-instance-role-credentials";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { getAppleIapSettings } from "../apple-iap/apple-iap.config";
 
 export interface HealthCheck {
   status: "ok" | "degraded" | "fail" | "unconfigured";
@@ -65,6 +66,9 @@ export class HealthService {
       }),
       this.checkVod().then((r) => {
         if (r.status !== "unconfigured") checks.vod = r;
+      }),
+      this.checkAppleIap().then((r) => {
+        if (r.status !== "unconfigured") checks.appleIap = r;
       }),
     ]);
 
@@ -139,6 +143,16 @@ export class HealthService {
       this.logger.error("Redis 健康检查失败", (e as Error).message);
       return { status: "fail", error: (e as Error).message };
     }
+  }
+
+  private async checkAppleIap(): Promise<HealthCheck> {
+    const settings = getAppleIapSettings();
+    if (settings.enabled) return { status: "ok" };
+    if (!settings.required && !settings.configured) return { status: "unconfigured" };
+    return {
+      status: settings.required ? "fail" : "degraded",
+      error: `APPLE_IAP_CONFIG:${settings.problems.join(",")}`,
+    };
   }
 
   /** public：DegradeService 复用做定时降级探测 */
