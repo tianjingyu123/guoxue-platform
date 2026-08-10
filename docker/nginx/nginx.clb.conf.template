@@ -120,6 +120,16 @@ http {
       limit_req zone=api_limit burst=60;
     }
 
+    # 微信公众平台 JS 接口安全域名校验文件。
+    # 必须由域名根路径原样返回，不能落入下方 API JSON 兜底。
+    location = /MP_verify_OsVx8T2FCe2gXl62.txt {
+      default_type text/plain;
+      charset off;
+      return 200 'OsVx8T2FCe2gXl62';
+      add_header Cache-Control "no-store";
+      include /etc/nginx/snippets/security-headers.conf;
+    }
+
     # ── H5 SPA ──
     location = /h5 {
       return 301 https://$host/h5/;
