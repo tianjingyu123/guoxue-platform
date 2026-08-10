@@ -28,9 +28,16 @@ export class PinoLoggerService implements LoggerService {
           "token", "accessToken", "refreshToken",
           "authorization", "headers.authorization",
           "apiKey", "secretKey", "secret",
+          "privateKey", "rsaPrivateKey", "apiV3Key", "pfxPassword",
+          "signedPayload", "signedTransactionInfo", "transactionReceipt",
           "ENCRYPTION_KEY", "JWT_SECRET", "APPLE_IAP_PRIVATE_KEY", "APPLE_IAP_PRIVATE_KEY_BASE64",
+          "WECHAT_PAY_API_V3_KEY", "WECHAT_PAY_PRIVATE_KEY", "WECHAT_PAY_PUBLIC_KEY",
+          "ALIPAY_PRIVATE_KEY", "ALIPAY_PUBLIC_KEY",
+          "UNIONPAY_PRIVATE_KEY", "UNIONPAY_PUBLIC_KEY", "UNIONPAY_PFX_PASSWORD",
+          "HUIFU_SECRET_KEY", "HUIFU_RSA_PRIVATE_KEY", "HUIFU_RSA_PUBLIC_KEY",
           "bankAccount", "idCard", "creditCard",
           "req.headers.authorization", "req.headers.cookie",
+          "req.body.password", "req.body.token", "req.body.signedPayload", "req.body.transactionReceipt",
         ],
         censor: "[REDACTED]",
       },
@@ -95,6 +102,32 @@ export class PinoLoggerService implements LoggerService {
     const filtered = params.filter((p) => p !== undefined && p !== null);
     // NestJS Logger 将 context 作为最后一个参数传递
     const ctx = filtered.length > 0 ? String(filtered[filtered.length - 1]) : undefined;
-    return { msg: typeof message === "string" ? message : JSON.stringify(message), ctx };
+    return { msg: typeof message === "string" ? message : this.serialize(message), ctx };
+  }
+
+  private serialize(message: unknown): string {
+    return JSON.stringify(message, (key, value: unknown) =>
+      this.isSensitiveLogKey(key) ? "[REDACTED]" : value,
+    );
+  }
+
+  private isSensitiveLogKey(key: string): boolean {
+    const normalized = key.replace(/[_-]/g, "").toLowerCase();
+    return (
+      normalized === "authorization" ||
+      normalized === "cookie" ||
+      normalized === "secret" ||
+      normalized === "bankaccount" ||
+      normalized === "idcard" ||
+      normalized === "creditcard" ||
+      normalized.includes("password") ||
+      normalized.endsWith("token") ||
+      normalized.endsWith("privatekey") ||
+      normalized.endsWith("secretkey") ||
+      normalized === "apiv3key" ||
+      normalized.includes("signedpayload") ||
+      normalized.includes("signedtransactioninfo") ||
+      normalized.includes("transactionreceipt")
+    );
   }
 }
