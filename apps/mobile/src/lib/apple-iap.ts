@@ -69,7 +69,7 @@ function errorMessage(error: any, fallback: string): string {
 function getChannel(): Promise<IapChannel> {
   if (channelPromise) return channelPromise
   const pending = new Promise<IapChannel>((resolve, reject) => {
-    ;(uni as any).getProvider({
+    (uni as any).getProvider({
       service: 'payment',
       success: (result: { providers?: IapChannel[] }) => {
         const channel = result.providers?.find((item) => item.id === 'appleiap')
