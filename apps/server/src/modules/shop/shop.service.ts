@@ -130,20 +130,20 @@ export class ShopService {
     return this.orderSvc.getUserOrders(userId, page, pageSize, status);
   }
 
-  createJsapiPayment(userId: string, openid: string | undefined, orderId: string, notifyUrl?: string, channel?: "MINI" | "OFFICIAL") {
-    return this.paymentSvc.createJsapiPayment(userId, openid, orderId, notifyUrl, channel);
+  createJsapiPayment(userId: string, openid: string | undefined, orderId: string, channel?: "MINI" | "OFFICIAL") {
+    return this.paymentSvc.createJsapiPayment(userId, openid, orderId, channel);
   }
 
-  createNativePayment(orderId: string, userId: string, notifyUrl?: string) {
-    return this.paymentSvc.createNativePayment(orderId, userId, notifyUrl);
+  createNativePayment(orderId: string, userId: string) {
+    return this.paymentSvc.createNativePayment(orderId, userId);
   }
 
-  createH5Payment(orderId: string, userId: string, clientIp: string, notifyUrl?: string) {
-    return this.paymentSvc.createH5Payment(orderId, userId, clientIp, notifyUrl);
+  createH5Payment(orderId: string, userId: string, clientIp: string) {
+    return this.paymentSvc.createH5Payment(orderId, userId, clientIp);
   }
 
-  createRechargePayment(userId: string, openid: string, amountCoin: number, notifyUrl?: string, appId?: string) {
-    return this.paymentSvc.createRechargePayment(userId, openid, amountCoin, notifyUrl, appId);
+  createRechargePayment(userId: string, openid: string, amountCoin: number, appId?: string) {
+    return this.paymentSvc.createRechargePayment(userId, openid, amountCoin, appId);
   }
 
   createCoinRechargeJsapi(
@@ -151,13 +151,12 @@ export class ShopService {
     amountCoin: number,
     openid?: string,
     channel?: "MINI" | "OFFICIAL",
-    notifyUrl?: string,
   ) {
-    return this.paymentSvc.createCoinRechargeJsapi(userId, amountCoin, openid, channel, notifyUrl);
+    return this.paymentSvc.createCoinRechargeJsapi(userId, amountCoin, openid, channel);
   }
 
-  createCoinRechargeH5(userId: string, amountCoin: number, clientIp: string, notifyUrl?: string) {
-    return this.paymentSvc.createCoinRechargeH5(userId, amountCoin, clientIp, notifyUrl);
+  createCoinRechargeH5(userId: string, amountCoin: number, clientIp: string) {
+    return this.paymentSvc.createCoinRechargeH5(userId, amountCoin, clientIp);
   }
 
   queryCoinRechargeStatus(userId: string, orderNo: string) {

@@ -17,7 +17,7 @@ import {
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
-  CreateSkuDto, JsapiPayDto, NativePayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto, RechargeH5Dto,
+  CreateSkuDto, JsapiPayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto, RechargeH5Dto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
   UnionpayRefundDto, ApplyAfterSaleDto, SubmitReturnLogisticsDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
 } from "./shop.dto";
@@ -292,7 +292,7 @@ export class ShopController {
     @Param("id") id: string,
     @Body() body: JsapiPayDto,
   ) {
-    return this.shop.createJsapiPayment(req.user.id, body.openid, id, body.notifyUrl, body.channel);
+    return this.shop.createJsapiPayment(req.user.id, body.openid, id, body.channel);
   }
 
   @Post("recharge/jsapi")
@@ -352,7 +352,7 @@ export class ShopController {
     // 微信 H5 下单要求 payer_client_ip：优先代理头（生产 nginx 转发），否则连接 IP
     const fwd = req.headers["x-forwarded-for"];
     const clientIp = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(",")[0]?.trim() || req.ip || "127.0.0.1";
-    return this.shop.createH5Payment(body.orderId, req.user.id, clientIp, body.notifyUrl);
+    return this.shop.createH5Payment(body.orderId, req.user.id, clientIp);
   }
 
   @Post("orders/estimate")
@@ -376,9 +376,8 @@ export class ShopController {
   async nativePay(
     @Req() req: AuthRequest,
     @Param("id") id: string,
-    @Body() body?: NativePayDto,
   ) {
-    return this.shop.createNativePayment(id, req.user.id, body?.notifyUrl);
+    return this.shop.createNativePayment(id, req.user.id);
   }
 
   @Get("orders/:id/payment-status")

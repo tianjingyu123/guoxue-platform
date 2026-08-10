@@ -158,7 +158,6 @@ export class ShopPaymentService {
     userId: string,
     openid: string | undefined,
     orderId: string,
-    notifyUrl?: string,
     channel?: "MINI" | "OFFICIAL",
   ) {
     const order = await this.orderSvc.getOrder(orderId);
@@ -223,7 +222,6 @@ export class ShopPaymentService {
         amount: { total: totalFen },
         payer: { openid: payerOpenid },
         attach: orderId,
-        notifyUrl,
         appId: officialAppId,
       });
 
@@ -238,7 +236,7 @@ export class ShopPaymentService {
    * 同一本地订单在付款码有效期内复用同一码；缓存失效后必须先关掉旧微信订单，
    * 防止用户重进页面生成多张都能扣款的二维码。
    */
-  async createNativePayment(orderId: string, userId: string, notifyUrl?: string) {
+  async createNativePayment(orderId: string, userId: string) {
     const order = await this.orderSvc.getOrder(orderId);
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
@@ -273,7 +271,6 @@ export class ShopPaymentService {
         description: "国学平台订单-" + orderId.slice(0, 8),
         amount: { total: totalFen },
         attach: orderId,
-        notifyUrl,
       });
 
       await this.persistWechatPaymentIntent(freshOrder, outTradeNo);
@@ -287,7 +284,7 @@ export class ShopPaymentService {
    * 校验与 JSAPI/Native 同口径：归属（只能付自己的单·403）+ 状态（PENDING 才可发起·400）；
    * 未配置商户证书时返回结构化 400（非 500 裸奔）。微信内置浏览器不支持 H5 支付，前端分流走 JSAPI。
    */
-  async createH5Payment(orderId: string, userId: string, clientIp: string, notifyUrl?: string) {
+  async createH5Payment(orderId: string, userId: string, clientIp: string) {
     const order = await this.orderSvc.getOrder(orderId);
     if (!order) throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
     if (order.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
@@ -330,7 +327,6 @@ export class ShopPaymentService {
           },
         },
         attach: orderId,
-        notifyUrl,
       });
 
       await this.persistWechatPaymentIntent(freshOrder, outTradeNo);
@@ -400,7 +396,6 @@ export class ShopPaymentService {
     userId: string,
     openid: string,
     amountCoin: number,
-    notifyUrl?: string,
     appId?: string,
   ) {
     this.validateCoinRechargeAmount(amountCoin);
@@ -412,7 +407,6 @@ export class ShopPaymentService {
       amount: { total: totalFen },
       payer: { openid },
       attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin, amountFen: totalFen, bonusCoin }),
-      notifyUrl,
       appId,
     });
     await this.rememberCoinRechargeIntent(orderNo, userId);
@@ -420,7 +414,7 @@ export class ShopPaymentService {
   }
 
   /** 国学币充值 —— 微信外部浏览器 H5 下单。 */
-  async createCoinRechargeH5(userId: string, amountCoin: number, clientIp: string, notifyUrl?: string) {
+  async createCoinRechargeH5(userId: string, amountCoin: number, clientIp: string) {
     this.validateCoinRechargeAmount(amountCoin);
     const { amountRmb, totalFen, bonusCoin } = await this.resolveCoinRechargeAmount(amountCoin);
     const orderNo = this.createCoinRechargeOrderNo();
@@ -437,7 +431,6 @@ export class ShopPaymentService {
         },
       },
       attach: JSON.stringify({ type: "COIN_RECHARGE", userId, amountCoin, amountFen: totalFen, bonusCoin }),
-      notifyUrl,
     });
     await this.rememberCoinRechargeIntent(orderNo, userId);
     return { mwebUrl: result.h5Url, orderNo, amountRmb };
@@ -483,7 +476,6 @@ export class ShopPaymentService {
     amountCoin: number,
     openid?: string,
     channel?: "MINI" | "OFFICIAL",
-    notifyUrl?: string,
   ) {
     this.validateCoinRechargeAmount(amountCoin);
     let payerOpenid = openid;
@@ -506,7 +498,7 @@ export class ShopPaymentService {
       }
       payerOpenid = wechatAuth.openId;
     }
-    return this.createRechargePayment(userId, payerOpenid, amountCoin, notifyUrl, appId);
+    return this.createRechargePayment(userId, payerOpenid, amountCoin, appId);
   }
 
   /** 验签+解密支付回调 */

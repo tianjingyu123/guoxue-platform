@@ -321,10 +321,6 @@ export class JsapiPayDto {
   @IsOptional() @IsString()
   openid?: string;
 
-  @ApiPropertyOptional({ description: "回调通知地址" })
-  @IsOptional() @IsString()
-  notifyUrl?: string;
-
   @ApiPropertyOptional({ description: "支付渠道：缺省/MINI=小程序内；OFFICIAL=公众号内H5（用公众号appid下单）", enum: ["MINI", "OFFICIAL"] })
   @IsOptional() @IsIn(["MINI", "OFFICIAL"])
   channel?: "MINI" | "OFFICIAL";
@@ -359,12 +355,6 @@ export class RechargeH5Dto {
 
 }
 
-export class NativePayDto {
-  @ApiPropertyOptional({ description: "回调通知地址" })
-  @IsOptional() @IsString()
-  notifyUrl?: string;
-}
-
 /** H5 支付（外部浏览器 mweb_url 跳转微信收银台） */
 export class H5PayDto {
   @ApiProperty({ description: "订单ID" })
@@ -372,9 +362,6 @@ export class H5PayDto {
   @MinLength(1)
   orderId: string;
 
-  @ApiPropertyOptional({ description: "回调通知地址" })
-  @IsOptional() @IsString()
-  notifyUrl?: string;
 }
 
 export class RefundOrderDto {

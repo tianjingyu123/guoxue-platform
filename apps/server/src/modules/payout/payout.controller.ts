@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Param, Post, Req, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Logger, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
@@ -45,13 +45,20 @@ export class PayoutController {
    * 否则会出现「钱已到账、系统却没记上，微信还不再重试」的黑洞。
    */
   @Post("wechat/transfer-notify")
+  @HttpCode(200)
   @SkipFormat()
   @ApiOperation({ summary: "微信商家转账结果回调（微信服务器调用·无需登录）" })
-  @ApiResponse({ status: 201, description: "SUCCESS=已确凿处理；FAIL=请重试" })
+  @ApiResponse({ status: 200, description: "SUCCESS=已确凿处理；FAIL=请重试" })
   async handleTransferNotify(@Req() req: RawRequest) {
+    const timestamp = String(req.headers["wechatpay-timestamp"] ?? "");
+    if (!WechatPayService.isTimestampValid(timestamp)) {
+      this.logger.warn("转账回调时间戳无效或已过期");
+      return { code: "FAIL", message: "回调时间戳无效或已过期" };
+    }
+
     // 微信把签名信息拆在多个 header 里，需拼回 parseNotifySign 认的格式
     const signHeader =
-      `timestamp="${req.headers["wechatpay-timestamp"] ?? ""}",` +
+      `timestamp="${timestamp}",` +
       `nonce_str="${req.headers["wechatpay-nonce"] ?? ""}",` +
       `signature="${req.headers["wechatpay-signature"] ?? ""}",` +
       `serial_no="${req.headers["wechatpay-serial"] ?? ""}"`;

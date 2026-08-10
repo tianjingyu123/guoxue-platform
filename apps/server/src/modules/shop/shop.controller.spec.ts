@@ -215,9 +215,10 @@ describe("ShopController", () => {
 
   it("POST /shop/orders/:id/pay/jsapi — JSAPI支付", async () => {
     const req: any = { user: { id: "u1" } };
-    const body: any = { openid: "openid123" };
+    const body: any = { openid: "openid123", notifyUrl: "https://attacker.example/notify" };
     const result: any = await ctrl.jsapiPay(req, "o1", body);
     expect(result.prepayId).toBe("prepay123");
+    expect(mockShopSvc.createJsapiPayment).toHaveBeenCalledWith("u1", "openid123", "o1", undefined);
   });
 
   it("POST /shop/recharge/jsapi — 公众号充值参数完整透传", async () => {
@@ -258,13 +259,13 @@ describe("ShopController", () => {
     const result: any = await ctrl.h5Pay(req, { orderId: "o1" } as any);
     expect(result.mwebUrl).toContain("wx.tenpay.com");
     // 归属校验依赖：必须把当前登录用户 id 传给 service；IP 取 x-forwarded-for 首段
-    expect(mockShopSvc.createH5Payment).toHaveBeenCalledWith("o1", "u1", "8.8.8.8", undefined);
+    expect(mockShopSvc.createH5Payment).toHaveBeenCalledWith("o1", "u1", "8.8.8.8");
   });
 
   it("POST /shop/pay/h5 — 无代理头时回退连接 IP", async () => {
     const req: any = { user: { id: "u1" }, headers: {}, ip: "127.0.0.1" };
     await ctrl.h5Pay(req, { orderId: "o1" } as any);
-    expect(mockShopSvc.createH5Payment).toHaveBeenCalledWith("o1", "u1", "127.0.0.1", undefined);
+    expect(mockShopSvc.createH5Payment).toHaveBeenCalledWith("o1", "u1", "127.0.0.1");
   });
 
   it("POST /shop/orders/estimate — 订单试算（结算页价格明细）", async () => {

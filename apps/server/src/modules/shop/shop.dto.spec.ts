@@ -1,6 +1,14 @@
 import "reflect-metadata";
 import { validate } from "class-validator";
-import { CreateProductDto, UpdateProductDto, CreateOrderDto, ProductListQueryDto, OrderListQueryDto } from "./shop.dto";
+import {
+  CreateProductDto,
+  UpdateProductDto,
+  CreateOrderDto,
+  ProductListQueryDto,
+  OrderListQueryDto,
+  JsapiPayDto,
+  H5PayDto,
+} from "./shop.dto";
 
 describe("Shop DTO 校验", () => {
   describe("CreateProductDto", () => {
@@ -59,6 +67,26 @@ describe("Shop DTO 校验", () => {
     it("空对象通过", async () => {
       const dto = Object.assign(new OrderListQueryDto(), {});
       const errors = await validate(dto); expect(errors.length).toBe(0);
+    });
+  });
+
+  describe("支付回调地址", () => {
+    it("JSAPI DTO 应由白名单剥离客户端提交的 notifyUrl", async () => {
+      const dto = Object.assign(new JsapiPayDto(), {
+        openid: "openid-1",
+        notifyUrl: "https://attacker.example/notify",
+      });
+      await validate(dto, { whitelist: true });
+      expect((dto as unknown as Record<string, unknown>).notifyUrl).toBeUndefined();
+    });
+
+    it("H5 DTO 应由白名单剥离客户端提交的 notifyUrl", async () => {
+      const dto = Object.assign(new H5PayDto(), {
+        orderId: "order-1",
+        notifyUrl: "https://attacker.example/notify",
+      });
+      await validate(dto, { whitelist: true });
+      expect((dto as unknown as Record<string, unknown>).notifyUrl).toBeUndefined();
     });
   });
 });
