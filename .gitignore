@@ -9,6 +9,7 @@ dist/
 *.log
 .turbo
 .cache
+.pnpm-store/
 coverage/
 junit.xml
 junit-e2e.xml
