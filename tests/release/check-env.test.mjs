@@ -59,8 +59,12 @@ function createFullEnvironment(options = {}) {
     `WECHAT_PAY_SERIAL_NO=${"A".repeat(40)}`,
     `WECHAT_PAY_API_V3_KEY=${"V".repeat(32)}`,
     `WECHAT_PAY_PRIVATE_KEY=${"K".repeat(64)}`,
+    "WECHAT_PAY_ALLOWED_MCH_ID=1900000109",
+    "WECHAT_PAY_DB_CONFIG_VERIFIED=true",
+    "WECHAT_PAY_CALLBACK_KEY_MODE=PLATFORM_CERT",
     "WECHAT_PAY_NOTIFY_URL=https://api.guoxue.test/api/v1/shop/pay/notify",
     "WECHAT_PAY_REFUND_NOTIFY_URL=https://api.guoxue.test/api/v1/shop/refund/notify",
+    "WECHAT_PAY_TRANSFER_NOTIFY_URL=https://api.guoxue.test/api/v1/payout/wechat/transfer-notify",
     "MONITORING_ENABLED=true",
     `GF_ADMIN_PASSWORD=${"G".repeat(32)}`,
     "WEWORK_CORP_ID=ww1234567890abcdef",
@@ -90,9 +94,26 @@ test("完整上线接受数据库托管且绑定商户白名单的微信支付",
           line,
         ),
     )
-    .join("\n")}\nWECHAT_PAY_ALLOWED_MCH_ID=1900000109\n`;
+    .join("\n")}\n`;
   const result = await runChecker(databaseBacked, "--full", "--deploy-target", "standard");
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+});
+
+test("完整上线拒绝未显式核验数据库微信支付配置", async () => {
+  const unverified = createFullEnvironment().replace(
+    "WECHAT_PAY_DB_CONFIG_VERIFIED=true",
+    "WECHAT_PAY_DB_CONFIG_VERIFIED=false",
+  );
+  const result = await runChecker(unverified, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /WECHAT_PAY_DB_CONFIG_VERIFIED/u);
+});
+
+test("完整上线拒绝已配置回调但未核验数据库配置的汇付通道", async () => {
+  const unverified = `${createFullEnvironment()}\nHUIFU_NOTIFY_URL=https://api.guoxue.test/api/v1/huifu/notify\nHUIFU_DB_CONFIG_VERIFIED=false\n`;
+  const result = await runChecker(unverified, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /汇付聚合支付生产配置不完整/u);
 });
 
 test("完整上线的实例角色模式不误报腾讯云静态密钥缺失", async () => {
@@ -365,6 +386,27 @@ test("支付或物流回调仍指向旧域名时直接阻断", async () => {
   );
   assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stderr, /必须与 PUBLIC_API_URL 同源，禁止第三方平台继续回调旧域名/u);
+});
+
+test("微信转账回调仍指向旧域名时直接阻断", async () => {
+  const environment = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  }).replace(
+    "WECHAT_PAY_TRANSFER_NOTIFY_URL=https://api.guoxue.test/api/v1/payout/wechat/transfer-notify",
+    "WECHAT_PAY_TRANSFER_NOTIFY_URL=https://old.guoxue.test/api/v1/payout/wechat/transfer-notify",
+  );
+  const result = await runChecker(
+    environment,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /WECHAT_PAY_TRANSFER_NOTIFY_URL/u);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /old\.guoxue\.test/u);
 });
 
 test("完整上线拒绝多个小程序 AppID 别名互相冲突", async () => {

@@ -16,6 +16,7 @@ describe("ThirdPartyConfigLoader", () => {
     mockPrisma.configSystem.findMany.mockReset();
     mockPrisma.configSystem.findUnique.mockReset();
     delete process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE];
+    delete process.env.WECHAT_PAY_CALLBACK_KEY_MODE;
     loader = new ThirdPartyConfigLoader(mockPrisma);
   });
 
@@ -87,6 +88,48 @@ describe("ThirdPartyConfigLoader", () => {
     await loader.syncToEnv();
 
     expect(process.env.WECHAT_PAY_MCH_ID).toBe("1748964663");
+    expect(process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE]).toBe("DB");
+  });
+
+  it("微信支付公钥模式缺少公钥材料时拒绝标记为数据库来源", async () => {
+    const stored = encrypt(
+      JSON.stringify({
+        appId: "wx-current",
+        mchId: "1748964663",
+        serialNo: "SERIAL_CURRENT",
+        apiV3Key: "12345678901234567890123456789012",
+        privateKey: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
+        publicKeyId: "PUB_KEY_ID_CURRENT",
+      }),
+    );
+    mockPrisma.configSystem.findMany.mockResolvedValue([
+      { configKey: "third_party.wechat_pay", configValue: stored },
+    ]);
+
+    await loader.syncToEnv();
+
+    expect(process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE]).toBe("INVALID");
+  });
+
+  it("微信支付公钥和公钥 ID 成对配置时允许标记为数据库来源", async () => {
+    const stored = encrypt(
+      JSON.stringify({
+        appId: "wx-current",
+        mchId: "1748964663",
+        serialNo: "SERIAL_CURRENT",
+        apiV3Key: "12345678901234567890123456789012",
+        privateKey: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
+        publicKey: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----",
+        publicKeyId: "PUB_KEY_ID_CURRENT",
+      }),
+    );
+    mockPrisma.configSystem.findMany.mockResolvedValue([
+      { configKey: "third_party.wechat_pay", configValue: stored },
+    ]);
+
+    await loader.syncToEnv();
+
+    expect(process.env.WECHAT_PAY_PUBLIC_KEY_ID).toBe("PUB_KEY_ID_CURRENT");
     expect(process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE]).toBe("DB");
   });
 

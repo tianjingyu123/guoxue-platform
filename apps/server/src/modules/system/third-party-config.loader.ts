@@ -109,13 +109,22 @@ export class ThirdPartyConfigLoader {
       }
     }
     if (hasWechatPayConfig) {
-      const hasRequiredWechatPayConfig = [
+      const requiredWechatPayEnvNames = [
         "WECHAT_PAY_APP_ID",
         "WECHAT_PAY_MCH_ID",
         "WECHAT_PAY_SERIAL_NO",
         "WECHAT_PAY_API_V3_KEY",
         "WECHAT_PAY_PRIVATE_KEY",
-      ].every((envName) => syncedEnvNames.has(envName));
+      ];
+      const hasAnyWechatPublicKeyConfig =
+        syncedEnvNames.has("WECHAT_PAY_PUBLIC_KEY") ||
+        syncedEnvNames.has("WECHAT_PAY_PUBLIC_KEY_ID");
+      if (hasAnyWechatPublicKeyConfig) {
+        requiredWechatPayEnvNames.push("WECHAT_PAY_PUBLIC_KEY", "WECHAT_PAY_PUBLIC_KEY_ID");
+      }
+      const hasRequiredWechatPayConfig = requiredWechatPayEnvNames.every((envName) =>
+        syncedEnvNames.has(envName),
+      );
 
       if (hasRequiredWechatPayConfig) {
         process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE] = "DB";

@@ -296,6 +296,7 @@ const urlKeys = [
   "VITE_PUBLIC_ASSET_ORIGIN",
   "WECHAT_PAY_NOTIFY_URL",
   "WECHAT_PAY_REFUND_NOTIFY_URL",
+  "WECHAT_PAY_TRANSFER_NOTIFY_URL",
   "ALIPAY_NOTIFY_URL",
   "UNIONPAY_NOTIFY_URL",
   "HUIFU_NOTIFY_URL",
@@ -474,6 +475,7 @@ const apiOrigin = apiUrl?.origin;
 const callbackPaths = new Map([
   ["WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"],
   ["WECHAT_PAY_REFUND_NOTIFY_URL", "/api/v1/shop/refund/notify"],
+  ["WECHAT_PAY_TRANSFER_NOTIFY_URL", "/api/v1/payout/wechat/transfer-notify"],
   ["ALIPAY_NOTIFY_URL", "/api/v1/shop/alipay/notify"],
   ["UNIONPAY_NOTIFY_URL", "/api/v1/shop/unionpay/notify"],
   ["HUIFU_NOTIFY_URL", "/api/v1/huifu/notify"],
@@ -674,30 +676,30 @@ if (fullCheck) {
     errors.push("至少必须配置一个生产 AI 模型提供方");
   }
 
+  const wechatCallbackKeyMode = values.get("WECHAT_PAY_CALLBACK_KEY_MODE");
+  const wechatDbConfigVerified = values.get("WECHAT_PAY_DB_CONFIG_VERIFIED") === "true";
   const wechatDatabaseBacked = hasAll(values, [
     "WECHAT_PAY_ALLOWED_MCH_ID",
     "WECHAT_PAY_NOTIFY_URL",
     "WECHAT_PAY_REFUND_NOTIFY_URL",
-  ]);
+    "WECHAT_PAY_TRANSFER_NOTIFY_URL",
+  ]) && wechatDbConfigVerified && ["PLATFORM_CERT", "PUBLIC_KEY"].includes(wechatCallbackKeyMode);
   const allowedWechatMerchantId = values.get("WECHAT_PAY_ALLOWED_MCH_ID");
   if (allowedWechatMerchantId && !/^\d{6,20}$/u.test(allowedWechatMerchantId)) {
     errors.push("WECHAT_PAY_ALLOWED_MCH_ID 必须是微信支付登记的纯数字商户号");
+  }
+  if (hasAny(values, ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"]) && !wechatDbConfigVerified) {
+    errors.push("WECHAT_PAY_DB_CONFIG_VERIFIED 必须显式为 true，确认后台数据库中的微信支付配置已完成核验");
+  }
+  if (hasAny(values, ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"]) && !["PLATFORM_CERT", "PUBLIC_KEY"].includes(wechatCallbackKeyMode)) {
+    errors.push("WECHAT_PAY_CALLBACK_KEY_MODE 必须显式为 PLATFORM_CERT 或 PUBLIC_KEY");
   }
 
   const paymentChannels = [
     {
       id: "微信支付",
       configured: hasAny(values, ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"]),
-      complete:
-        (hasAll(values, [
-          "WECHAT_PAY_MCH_ID",
-          "WECHAT_PAY_SERIAL_NO",
-          "WECHAT_PAY_API_V3_KEY",
-          "WECHAT_PAY_NOTIFY_URL",
-          "WECHAT_PAY_REFUND_NOTIFY_URL",
-        ]) &&
-          hasAny(values, ["WECHAT_PAY_PRIVATE_KEY", "WECHAT_PAY_PRIVATE_KEY_PATH"])) ||
-        wechatDatabaseBacked,
+      complete: wechatDatabaseBacked,
     },
     {
       id: "支付宝",
@@ -718,6 +720,13 @@ if (fullCheck) {
           (hasAny(values, ["UNIONPAY_PRIVATE_KEY", "UNIONPAY_PRIVATE_KEY_PATH"]) &&
             hasAny(values, ["UNIONPAY_PUBLIC_KEY", "UNIONPAY_PUBLIC_KEY_PATH"]))) &&
         values.get("UNIONPAY_SANDBOX") !== "true",
+    },
+    {
+      id: "汇付聚合支付",
+      configured: hasAny(values, ["HUIFU_NOTIFY_URL", "HUIFU_MERCHANT_ID", "HUIFU_APP_ID"]),
+      complete:
+        hasAll(values, ["HUIFU_NOTIFY_URL"]) &&
+        values.get("HUIFU_DB_CONFIG_VERIFIED") === "true",
     },
   ];
   for (const channel of paymentChannels.filter((item) => item.configured && !item.complete)) {
