@@ -15,11 +15,23 @@ export class HealthController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: "基础就绪检查（DB + Redis）" })
+  @ApiOperation({ summary: "脱敏健康摘要（完整明细仅管理员可见）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 503, description: "数据库或 Redis 未就绪" })
   async check() {
-    return this.ensureReady();
+    const report = await this.health.check();
+    const summary = {
+      status: report.status,
+      timestamp: report.timestamp,
+      releaseId: report.releaseId,
+      checks: Object.fromEntries(
+        Object.entries(report.checks).map(([name, check]) => [name, { status: check.status }]),
+      ),
+    };
+    if (report.checks.db?.status !== "ok" || report.checks.redis?.status !== "ok") {
+      throw new ServiceUnavailableException(summary);
+    }
+    return summary;
   }
 
   @Get("detail")

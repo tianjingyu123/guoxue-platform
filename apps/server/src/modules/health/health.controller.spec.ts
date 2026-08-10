@@ -33,11 +33,14 @@ describe("HealthController", () => {
   it("应被定义", () => expect(ctrl).toBeDefined());
 
   describe("GET /health", () => {
-    it("DB和Redis都正常时返回ready", async () => {
+    it("DB和Redis都正常时返回脱敏健康摘要", async () => {
       const result = await ctrl.check();
-      expect(result.status).toBe("ready");
-      expect(result.db).toBe("ok");
-      expect(result.redis).toBe("ok");
+      expect(result.status).toBe("ok");
+      expect(result.checks.db.status).toBe("ok");
+      expect(result.checks.redis.status).toBe("ok");
+      expect(result).not.toHaveProperty("memory");
+      expect(result.checks.db).not.toHaveProperty("latencyMs");
+      expect(result.checks.db).not.toHaveProperty("error");
     });
 
     it("DB异常时返回503", async () => {

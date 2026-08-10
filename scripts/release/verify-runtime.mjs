@@ -310,10 +310,10 @@ await check("数据库与 Redis 就绪探针", async () => {
   return `ready，${latencyMs}ms`;
 });
 
-await check("完整依赖健康报告", async () => {
+await check("脱敏依赖健康摘要", async () => {
   const { response, body, latencyMs } = await request(`${apiBase}/api/v1/health`);
   assert(response.ok, `HTTP ${response.status}`);
-  const data = unwrapPayload(parseJson(body, "完整健康报告"));
+  const data = unwrapPayload(parseJson(body, "脱敏健康摘要"));
   const accepted = allowDegraded ? ["ok", "degraded"] : ["ok"];
   assert(accepted.includes(data.status), `状态为 ${String(data.status)}`);
   assert(data.checks?.db?.status === "ok", "数据库检查未通过");
@@ -326,7 +326,7 @@ await check("完整依赖健康报告", async () => {
       `发布标识不一致：期望 ${expectedReleaseId}，实际 ${observedReleaseId}`,
     );
   }
-  return `${data.status}，${Object.keys(data.checks || {}).length} 项依赖，${latencyMs}ms`;
+  return `${data.status}，${Object.keys(data.checks || {}).length} 项脱敏依赖状态，${latencyMs}ms`;
 });
 
 await check("公开推荐流内容新鲜度", async () => {

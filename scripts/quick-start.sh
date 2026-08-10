@@ -110,6 +110,9 @@ npx prisma db push --schema=apps/server/prisma/schema.prisma \
   --skip-generate 2>&1 | tail -3
 
 if [ "$NO_SEED" = false ]; then
+  : "${SEED_ADMIN_PASSWORD:?执行 seed 前请设置 SEED_ADMIN_PASSWORD（至少 12 个字符）}"
+  : "${SEED_TEACHER_PASSWORD:?执行 seed 前请设置 SEED_TEACHER_PASSWORD（至少 12 个字符）}"
+  : "${SEED_OPERATOR_PASSWORD:?执行 seed 前请设置 SEED_OPERATOR_PASSWORD（至少 12 个字符）}"
   echo "  正在填充种子数据..."
   npx tsx apps/server/prisma/seed.ts 2>&1 | tail -5
   echo -e "  ${GREEN}种子数据填充完成${NC}"
@@ -156,8 +159,8 @@ if [ "$NO_ADMIN" = false ]; then
   echo "  管理后台:    http://localhost:5173"
 fi
 echo ""
-echo "  管理员账号:  13800000000 / guoxue123"
-echo "  讲师账号:    13800000001 / teacher123"
+echo "  管理员账号:  13800000000 / 密码由 SEED_ADMIN_PASSWORD 提供"
+echo "  讲师账号:    13800000001 / 密码由 SEED_TEACHER_PASSWORD 提供"
 echo ""
 echo "  查看后端日志: tail -f /tmp/guoxue-server.log"
 if [ "$NO_ADMIN" = false ]; then
