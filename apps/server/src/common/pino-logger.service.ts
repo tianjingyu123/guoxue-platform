@@ -28,7 +28,7 @@ export class PinoLoggerService implements LoggerService {
           "token", "accessToken", "refreshToken",
           "authorization", "headers.authorization",
           "apiKey", "secretKey", "secret",
-          "ENCRYPTION_KEY", "JWT_SECRET",
+          "ENCRYPTION_KEY", "JWT_SECRET", "APPLE_IAP_PRIVATE_KEY", "APPLE_IAP_PRIVATE_KEY_BASE64",
           "bankAccount", "idCard", "creditCard",
           "req.headers.authorization", "req.headers.cookie",
         ],

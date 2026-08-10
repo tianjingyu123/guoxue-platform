@@ -7,19 +7,49 @@ import { goBack, navigateTo } from '@/utils/router'
 import { mineApi, type RechargeOption } from '@/lib/mine-data'
 import { formatPrice } from '@/utils/format'
 import { track } from '@/composables/useTrack'
+import {
+  loadAppleIapProducts,
+  purchaseAppleIap,
+  recoverPendingAppleIapTransactions,
+  type AppleIapProduct,
+} from '@/lib/apple-iap'
 
 const loading = ref(false)
 const error = ref('')
 const options = ref<RechargeOption[]>([])
 const configuredCoinRate = ref(10)
+const appleProducts = ref<AppleIapProduct[]>([])
+const isAppleIap = ref(false)
+let recoveryAttempted = false
+// #ifdef APP-IOS
+isAppleIap.value = true
+// #endif
 
 const retry = () => { error.value = ''; loadData() }
 async function loadData() {
   loading.value = true; error.value = ''
   try {
-    const config = await mineApi.getRechargeConfig()
-    options.value = config.options
-    configuredCoinRate.value = config.coinRate
+    if (isAppleIap.value) {
+      appleProducts.value = await loadAppleIapProducts()
+      options.value = appleProducts.value.map((item) => ({
+        coins: item.amountCoin,
+        price: item.price,
+        bonus: 0,
+        popular: item.popular,
+      }))
+      if (!recoveryAttempted) {
+        recoveryAttempted = true
+        recoverPendingAppleIapTransactions()
+          .then((count) => {
+            if (count > 0) uni.showToast({ title: `已恢复 ${count} 笔充值`, icon: 'none' })
+          })
+          .catch(() => { /* 保留未关闭订单，下次进入继续恢复 */ })
+      }
+    } else {
+      const config = await mineApi.getRechargeConfig()
+      options.value = config.options
+      configuredCoinRate.value = config.coinRate
+    }
     if (!selectedCoins.value) {
       selectedCoins.value = options.value.find((o) => o.popular)?.coins ?? options.value[0]?.coins ?? null
     }
@@ -72,10 +102,16 @@ const totalCoins = computed(() => {
   return o ? o.coins + o.bonus : 0
 })
 
+const selectedAppleProduct = computed(() => appleProducts.value.find((item) => item.amountCoin === selectedCoins.value))
+const selectedApplePriceText = computed(() => selectedAppleProduct.value?.priceText || '')
+function applePriceText(coins: number) {
+  return appleProducts.value.find((item) => item.amountCoin === coins)?.priceText || ''
+}
+
 function goService() {
   navigateTo('/customer-service')
 }
-function handleSubmit() {
+async function handleSubmit() {
   if (!canSubmit.value) {
     if (customAmountError.value) uni.showToast({ title: customAmountError.value, icon: 'none' })
     return
@@ -85,6 +121,34 @@ function handleSubmit() {
   const amountCoin = selectedOpt ? selectedOpt.coins : customBaseCoin.value
   if (amountCoin <= 0) return
   navigating.value = true
+  if (isAppleIap.value) {
+    const product = selectedAppleProduct.value
+    if (!product) {
+      navigating.value = false
+      uni.showToast({ title: '请选择 App Store 商品', icon: 'none' })
+      return
+    }
+    uni.showLoading({ title: 'Apple 支付处理中', mask: true })
+    try {
+      const result = await purchaseAppleIap(product.productId)
+      track.custom('recharge_success', { method: 'apple_iap', amountCoin: result.amountCoin })
+      uni.hideLoading()
+      uni.showModal({
+        title: '充值成功',
+        content: `${result.amountCoin} 国学币已到账`,
+        showCancel: false,
+        success: () => goBack(),
+      })
+    } catch (e) {
+      uni.hideLoading()
+      const message = (e as Error)?.message || 'Apple 支付未完成'
+      const cancelled = /取消|cancel/i.test(message)
+      uni.showToast({ title: cancelled ? '已取消支付' : message, icon: 'none', duration: 3500 })
+    } finally {
+      navigating.value = false
+    }
+    return
+  }
   navigateTo(`/shop/paying?scene=recharge&amountCoin=${amountCoin}&amount=${selectedAmount.value}&method=wechat`)
   setTimeout(() => { navigating.value = false }, 800)
 }
@@ -101,12 +165,14 @@ function handleSubmit() {
       <!-- 支付环境提示（W2：删除生产误导的「演示模式」横幅，改诚实说明） -->
       <view class="cs-banner">
         <app-icon name="alert-circle" :size="28" color="#C9A96E" />
-        <text class="cs-banner-txt">微信安全支付 · 小程序、微信内和手机浏览器均可完成，到账以支付回调为准</text>
+        <text v-if="isAppleIap" class="cs-banner-txt">由 Apple App Store 安全完成购买，服务端验签成功后自动到账</text>
+        <text v-else class="cs-banner-txt">微信安全支付 · 小程序、微信内和手机浏览器均可完成，到账以支付回调为准</text>
       </view>
 
       <!-- 说明文字 -->
       <view class="intro">
-        <text class="intro-main"
+        <text v-if="isAppleIap" class="intro-main">价格由 App Store 按当前地区显示</text>
+        <text v-else class="intro-main"
           >国学币与人民币比例为 <text class="ratio">{{ coinRateText }}:1</text></text
         >
         <text class="intro-sub">充值后可用于购买课程、加入圈子、打赏、付费问答等</text>
@@ -131,7 +197,7 @@ function handleSubmit() {
             <view class="opt-coins" :class="{ active: selectedCoins === o.coins }">
               {{ o.coins + o.bonus }}<text class="opt-unit">币</text>
             </view>
-            <text class="opt-price">¥{{ formatPrice(o.price) }}</text>
+            <text class="opt-price">{{ isAppleIap ? applePriceText(o.coins) : `¥${formatPrice(o.price)}` }}</text>
             <view v-if="selectedCoins === o.coins" class="opt-check">
               <app-icon name="check" :size="20" color="#FFFFFF" />
             </view>
@@ -140,7 +206,7 @@ function handleSubmit() {
       </view>
 
       <!-- 自定义金额 -->
-      <view class="section">
+      <view v-if="!isAppleIap" class="section">
         <text class="sec-title">自定义金额</text>
         <view class="custom-card" :class="{ active: !!customAmount }">
           <view class="custom-row">
@@ -169,10 +235,11 @@ function handleSubmit() {
         <view class="pay-list">
           <view class="pay-card active">
             <view class="pay-left">
-              <view class="pay-badge badge-wechat">微</view>
+              <view v-if="isAppleIap" class="pay-badge badge-apple"></view>
+              <view v-else class="pay-badge badge-wechat">微</view>
               <view class="pay-copy">
-                <text class="pay-name">微信支付</text>
-                <text class="pay-desc">微信官方安全收银台</text>
+                <text class="pay-name">{{ isAppleIap ? 'Apple App Store' : '微信支付' }}</text>
+                <text class="pay-desc">{{ isAppleIap ? 'Apple 应用内购买' : '微信官方安全收银台' }}</text>
               </view>
             </view>
             <view class="pay-radio active">
@@ -191,9 +258,9 @@ function handleSubmit() {
         </view>
         <view class="notice-item">
           <text class="dot">•</text>
-          <text class="notice-txt">充值后不支持退款，请确认后再进行充值</text>
+          <text class="notice-txt">{{ isAppleIap ? '退款申请与处理遵循 Apple 的退款政策' : '充值后不支持退款，请确认后再进行充值' }}</text>
         </view>
-        <view class="notice-item">
+        <view v-if="!isAppleIap" class="notice-item">
           <text class="dot">•</text>
           <text class="notice-txt">赠送的国学币有效期为充值后365天</text>
         </view>
@@ -218,7 +285,8 @@ function handleSubmit() {
         :class="{ disabled: !canSubmit }"
         @tap="handleSubmit"
       >
-        <text v-if="navigating">正在进入安全收银台...</text>
+        <text v-if="navigating">正在处理支付...</text>
+        <text v-else-if="isAppleIap && selectedApplePriceText">通过 Apple 购买 {{ selectedApplePriceText }}</text>
         <text v-else-if="selectedAmount > 0 && !customAmountError">安全充值 ¥{{ formatPrice(selectedAmount) }}</text>
         <text v-else>请选择充值金额</text>
       </view>
@@ -446,6 +514,11 @@ function handleSubmit() {
 }
 .badge-wechat {
   background: #22c55e;
+}
+.badge-apple {
+  background: #111;
+  font-size: 38rpx;
+  font-weight: 500;
 }
 .pay-copy {
   display: flex;

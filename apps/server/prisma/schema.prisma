@@ -115,6 +115,7 @@ model User {
   coinAccount           VirtualCoinAccount?
   coinTransactions      VirtualCoinTransaction[]
   coinRecharges         VirtualCoinRecharge[]
+  appleIapPurchases     AppleIapPurchase[]
   askedQuestions        PaidQuestion[]           @relation("QuestionAsker")
   answeredQuestions     PaidQuestion[]           @relation("QuestionAnswerer")
   audioCallsMade        AudioCallRecord[]        @relation("Caller")
@@ -3869,6 +3870,7 @@ enum CoinTransType {
   REFUND // 退款
   GRANT // 平台赠送
   INCOME // 收入（打赏分成等·可直接消费——董事长拍板 2026-07-10 打赏金币与虚拟币消费通用）
+  CHARGEBACK // 支付渠道退款/撤销后的冲正扣回
 }
 
 enum CoinScene {
@@ -3889,6 +3891,7 @@ enum CoinScene {
   LIVE_GIFT_INCOME // （预留）直播打赏分成直接入币·终版拍板改走 UserEarning+收益转金币
   EARNING_CONVERT // 收益转金币（可提现 RMB 收益 → 金币·单向·董事长拍板 2026-07-10）
   CASE_CONTRIBUTION // 案例投稿奖励（审核通过后按质量档发放）
+  APPLE_IAP_CHARGEBACK // Apple IAP 退款/撤销冲正
 }
 
 model VirtualCoinTransaction {
@@ -3945,6 +3948,60 @@ model VirtualCoinRecharge {
 
   @@index([userId, createdAt])
   @@index([orderNo])
+}
+
+enum AppleIapPurchaseStatus {
+  VERIFIED
+  REFUNDED
+  REVOKED
+}
+
+/// Apple 消耗型内购真源账本。transactionId 全局唯一，防止重复发币和跨账号重复领取。
+model AppleIapPurchase {
+  id                    String                 @id @default(uuid())
+  userId                String
+  productId             String
+  transactionId         String                 @unique
+  originalTransactionId String?
+  environment           String
+  amountCoin            Int
+  referenceRmb          Decimal                @db.Decimal(10, 2)
+  currency              String?
+  priceMilliunits       Int?
+  storefront            String?
+  receiptHash           String?
+  appAccountToken       String?
+  status                AppleIapPurchaseStatus @default(VERIFIED)
+  purchasedAt           DateTime?
+  verifiedAt            DateTime               @default(now())
+  refundedAt            DateTime?
+  revocationReason      Int?
+  signedTransactionInfo String?                @db.Text
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([originalTransactionId])
+  @@index([status, createdAt])
+}
+
+/// App Store Server Notifications V2 幂等记录；只保存摘要，不保存用户票据或私钥。
+model AppleIapNotification {
+  id               String   @id @default(uuid())
+  notificationUuid String   @unique
+  notificationType String
+  subtype           String?
+  environment       String?
+  transactionId    String?
+  payloadHash       String   @unique
+  result            String
+  processedAt       DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  @@index([transactionId])
+  @@index([notificationType, createdAt])
 }
 
 // ─────────────────────────────────────────────────

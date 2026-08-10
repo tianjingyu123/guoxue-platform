@@ -9,7 +9,9 @@
     "usingComponents": true,
     "optimization": { "codeSplitting": true },
     "splashscreen": { "alwaysShowBeforeRender": true, "waiting": true },
-    "modules": {},
+    "modules": {
+      "Payment": {}
+    },
     "distribute": {
       "android": {
         "packagename": "com.rebu.apprebu",
@@ -26,7 +28,11 @@
           "NSMicrophoneUsageDescription": "用于与国学智能体进行实时语音通话，仅在通话期间采集声音。"
         }
       },
-      "sdkConfigs": {}
+      "sdkConfigs": {
+        "payment": {
+          "appleiap": {}
+        }
+      }
     }
   },
   "quickapp": {},

@@ -243,6 +243,9 @@ importers:
       '@apollo/server':
         specifier: ^4.13.0
         version: 4.13.0(graphql@16.14.0)
+      '@apple/app-store-server-library':
+        specifier: ^3.1.0
+        version: 3.1.0
       '@bull-board/api':
         specifier: ^7.1.5
         version: 7.1.5(@bull-board/ui@7.1.5)
@@ -640,6 +643,9 @@ packages:
 
   '@apollographql/graphql-playground-html@1.6.29':
     resolution: {integrity: sha512-xCcXpoz52rI4ksJSdOCxeOCn2DLocxwHf9dVT/Q90Pte1LX+LY+91SFtJF3KXVHH8kEin+g1KKCQPKBjZJfWNA==}
+
+  '@apple/app-store-server-library@3.1.0':
+    resolution: {integrity: sha512-d26SICRz8BwCV2qPR0BSXBMxmw0NEvJLwsdREcBmCrus8NmyHw2XgOOP0fiFjcctPn/JXtmSDuGVnaHe+dqO+A==}
 
   '@aws-sdk/checksums@3.1000.13':
     resolution: {integrity: sha512-USI1N1d+NbCcfjeiYLKIl94PSYykl5IIjj4X3WqdL33Ln5qktA6sjXYct0o/gG2Cte7cuzbXKkDBkzUA4VPHrg==}
@@ -3696,6 +3702,9 @@ packages:
   '@types/jsonwebtoken@9.0.5':
     resolution: {integrity: sha512-VRLSGzik+Unrup6BsouBeHsf4d1hOEgYWTm/7Nmw1sXoN1+tRly/Gy/po3yeahnP4jfnQWWAhQAqcNfH7ngOkA==}
 
+  '@types/jsrsasign@10.5.15':
+    resolution: {integrity: sha512-3stUTaSRtN09PPzVWR6aySD9gNnuymz+WviNHoTb85dKu+BjaV4uBbWWGykBBJkfwPtcNZVfTn2lbX00U+yhpQ==}
+
   '@types/lodash-es@4.17.12':
     resolution: {integrity: sha512-0NgftHUcV4v34VhXm8QBSftKVXtbkBG3ViCjs6+eJ5a6y6Mi/jiFGPc1sC7QK+9BFhWrURE3EOggmWaSxL9OzQ==}
 
@@ -6346,6 +6355,9 @@ packages:
     resolution: {integrity: sha512-P2bSOMAc/ciLz6DzgjVlGJP9+BrJWu5UDGK70C2iweC5QBIeFf0ZXRvGjEj2uYgrY2MkAAhsSWHDWlFtEroZWw==}
     engines: {node: '>=0.6.0'}
 
+  jsrsasign@11.1.3:
+    resolution: {integrity: sha512-nPnK5D/4lv0Dwr7TlzrKtAd8JlLZwFTqTUUB3NQCbtdobcRcohGFxjbPySDVh74iWUudcCsapYT6OxoyhJLhhA==}
+
   jwa@1.4.2:
     resolution: {integrity: sha512-eeH5JO+21J78qMvTIDdBXidBd6nG2kZjg5Ohz/1fpa28Z4CcsWUzJ1ZZyFq/3z3N17aZy+ZuBoHljASbL1WfOw==}
 
@@ -8946,6 +8958,19 @@ snapshots:
   '@apollographql/graphql-playground-html@1.6.29':
     dependencies:
       xss: 1.0.15
+
+  '@apple/app-store-server-library@3.1.0':
+    dependencies:
+      '@types/jsonwebtoken': 9.0.10
+      '@types/jsrsasign': 10.5.15
+      '@types/node': 25.6.2
+      '@types/node-fetch': 2.6.13
+      base64url: 3.0.1
+      jsonwebtoken: 9.0.3
+      jsrsasign: 11.1.3
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
 
   '@aws-sdk/checksums@3.1000.13':
     dependencies:
@@ -12746,6 +12771,8 @@ snapshots:
     dependencies:
       '@types/node': 24.13.3
 
+  '@types/jsrsasign@10.5.15': {}
+
   '@types/lodash-es@4.17.12':
     dependencies:
       '@types/lodash': 4.17.24
@@ -12782,7 +12809,6 @@ snapshots:
   '@types/node@25.6.2':
     dependencies:
       undici-types: 7.19.2
-    optional: true
 
   '@types/passport-jwt@4.0.1':
     dependencies:
@@ -16333,6 +16359,8 @@ snapshots:
       json-schema: 0.4.0
       verror: 1.10.0
 
+  jsrsasign@11.1.3: {}
+
   jwa@1.4.2:
     dependencies:
       buffer-equal-constant-time: 1.0.1
@@ -18296,8 +18324,7 @@ snapshots:
 
   undici-types@7.18.2: {}
 
-  undici-types@7.19.2:
-    optional: true
+  undici-types@7.19.2: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 
