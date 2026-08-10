@@ -1,6 +1,8 @@
 import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
-const BASE = 'http://localhost:3000/api/v1'
+const BASE = process.env.E2E_API_BASE_URL || 'http://localhost:3000/api/v1'
+const TEST_PHONE = process.env.E2E_TEST_PHONE
+const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD
 const GB = '86c8dda5-b989-4eb9-9af0-ffd2589635bf' // 国学经典诵读播放器拼团 minMembers=2 groupPrice=279.30
 const USER_B = '2308a5a0-ea77-4d6a-b28a-c42b4e877fcf' // 李玄明
 async function j(method, path, body, token) {
@@ -13,11 +15,14 @@ async function j(method, path, body, token) {
 }
 const unwrap = (x) => (x && x.data !== undefined && x.code !== undefined ? x.data : x)
 ;(async () => {
+  if (!TEST_PHONE || !TEST_PASSWORD) {
+    throw new Error('必须通过 E2E_TEST_PHONE 和 E2E_TEST_PASSWORD 提供隔离测试账号，禁止在脚本中保存明文凭据')
+  }
   // 0) 清理旧无效 participant（orderId=null，浏览轮演示数据，不符付费拼团模型）
   const del = await prisma.groupBuyParticipant.deleteMany({ where: { orderId: null } })
   console.log('0) 清理旧无效 participant(orderId=null):', del.count)
 
-  const lg = await j('POST', '/auth/login/phone', { phone: '13800000000', password: 'guoxue123' })
+  const lg = await j('POST', '/auth/login/phone', { phone: TEST_PHONE, password: TEST_PASSWORD })
   const token = unwrap(lg.data)?.accessToken
   console.log('1) login admin:', lg.status, 'token?', !!token)
 
