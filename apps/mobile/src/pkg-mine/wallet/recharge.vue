@@ -7,18 +7,27 @@ import { goBack, navigateTo } from '@/utils/router'
 import { mineApi, type RechargeOption } from '@/lib/mine-data'
 import { formatPrice } from '@/utils/format'
 import { track } from '@/composables/useTrack'
+// #ifdef APP-IOS
 import {
   loadAppleIapProducts,
   purchaseAppleIap,
   recoverPendingAppleIapTransactions,
-  type AppleIapProduct,
 } from '@/lib/apple-iap'
+// #endif
+
+interface RechargeAppleProduct {
+  productId: string
+  amountCoin: number
+  popular: boolean
+  price: number
+  priceText: string
+}
 
 const loading = ref(false)
 const error = ref('')
 const options = ref<RechargeOption[]>([])
 const configuredCoinRate = ref(10)
-const appleProducts = ref<AppleIapProduct[]>([])
+const appleProducts = ref<RechargeAppleProduct[]>([])
 const isAppleIap = ref(false)
 let recoveryAttempted = false
 // #ifdef APP-IOS
@@ -29,6 +38,7 @@ const retry = () => { error.value = ''; loadData() }
 async function loadData() {
   loading.value = true; error.value = ''
   try {
+    // #ifdef APP-IOS
     if (isAppleIap.value) {
       appleProducts.value = await loadAppleIapProducts()
       options.value = appleProducts.value.map((item) => ({
@@ -45,7 +55,9 @@ async function loadData() {
           })
           .catch(() => { /* 保留未关闭订单，下次进入继续恢复 */ })
       }
-    } else {
+    } else
+    // #endif
+    {
       const config = await mineApi.getRechargeConfig()
       options.value = config.options
       configuredCoinRate.value = config.coinRate
@@ -121,6 +133,7 @@ async function handleSubmit() {
   const amountCoin = selectedOpt ? selectedOpt.coins : customBaseCoin.value
   if (amountCoin <= 0) return
   navigating.value = true
+  // #ifdef APP-IOS
   if (isAppleIap.value) {
     const product = selectedAppleProduct.value
     if (!product) {
@@ -149,6 +162,7 @@ async function handleSubmit() {
     }
     return
   }
+  // #endif
   navigateTo(`/shop/paying?scene=recharge&amountCoin=${amountCoin}&amount=${selectedAmount.value}&method=wechat`)
   setTimeout(() => { navigating.value = false }, 800)
 }
