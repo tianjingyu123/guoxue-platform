@@ -5,11 +5,32 @@ import { seedPoetry } from "./seeds/poetry.seed";
 
 const prisma = new PrismaClient();
 
+const isProduction = process.env.NODE_ENV === "production";
+
+function getSeedPassword(envName: string): string {
+  const configured = process.env[envName]?.trim();
+  if (!configured) {
+    throw new Error(`${envName} 未配置；seed 不再使用代码内置密码`);
+  }
+  if (configured.length < 12) {
+    throw new Error(`${envName} 至少需要 12 个字符`);
+  }
+  return configured;
+}
+
 async function main() {
+  if (isProduction && process.env.ALLOW_PRODUCTION_SEED !== "true") {
+    throw new Error("生产环境默认禁止执行演示 seed；完成备份和审批后才可显式设置 ALLOW_PRODUCTION_SEED=true");
+  }
+
+  const adminSeedPassword = getSeedPassword("SEED_ADMIN_PASSWORD");
+  const teacherSeedPassword = getSeedPassword("SEED_TEACHER_PASSWORD");
+  const operatorSeedPassword = getSeedPassword("SEED_OPERATOR_PASSWORD");
+
   console.log("🌱 开始填充种子数据...");
 
   // 1. 创建管理员用户
-  const adminPwd = await bcrypt.hash("guoxue123", 10);
+  const adminPwd = await bcrypt.hash(adminSeedPassword, 10);
   const admin = await prisma.user.upsert({
     where: { phone: "13800000000" },
     update: {},
@@ -24,7 +45,7 @@ async function main() {
   console.log("✅ 管理员: " + admin.nickname);
 
   // 2. 创建讲师用户
-  const teacherPwd = await bcrypt.hash("teacher123", 10);
+  const teacherPwd = await bcrypt.hash(teacherSeedPassword, 10);
   const teacher = await prisma.user.upsert({
     where: { phone: "13800000001" },
     update: {},
@@ -51,7 +72,7 @@ async function main() {
   console.log("✅ 讲师: " + teacher.nickname + ", " + teacher2.nickname);
 
   // 2.5 创建新管理角色用户
-  const adminPwd2 = await bcrypt.hash("admin123", 10);
+  const adminPwd2 = await bcrypt.hash(operatorSeedPassword, 10);
   await prisma.user.upsert({
     where: { phone: "13800000003" },
     update: {},
@@ -107,7 +128,7 @@ async function main() {
       roles: { create: { roleType: "CONTENT_AUDITOR" } },
     },
   });
-  console.log("✅ 新角色: 运营/内容审核/财务/客服/商品品控 (密码均为 admin123)");
+  console.log("✅ 新角色: 运营/内容审核/财务/客服/商品品控（密码由 SEED_OPERATOR_PASSWORD 提供，不输出明文）");
 
   // 3. 创建圈子
   const circlesData = [
@@ -2828,9 +2849,9 @@ async function main() {
   await seedPoetry(prisma);
 
   console.log("\n🎉 种子数据填充完成！");
-  console.log("   管理员: 13800000000 / guoxue123");
-  console.log("   讲师1:  13800000001 / teacher123");
-  console.log("   讲师2:  13800000002 / teacher123");
+  console.log("   管理员: 13800000000 / 密码由 SEED_ADMIN_PASSWORD 提供（不输出明文）");
+  console.log("   讲师1:  13800000001 / 密码由 SEED_TEACHER_PASSWORD 提供（不输出明文）");
+  console.log("   讲师2:  13800000002 / 密码由 SEED_TEACHER_PASSWORD 提供（不输出明文）");
 }
 
 main()
