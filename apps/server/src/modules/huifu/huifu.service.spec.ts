@@ -3,6 +3,7 @@ import { createSign, createVerify, generateKeyPairSync } from "crypto";
 import { HuifuService } from "./huifu.service";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
+import { decrypt, encrypt } from "../../common/crypto.util";
 
 // 两套独立真实 RSA 密钥：商户私钥给请求加签，汇付私钥模拟响应/回调签名。
 const { publicKey: MERCHANT_PUB_PEM, privateKey: MERCHANT_PRIV_PEM } = generateKeyPairSync("rsa", {
@@ -51,6 +52,7 @@ const mockPrisma = {
     findUnique: jest.fn(),
     upsert: jest.fn(),
     findMany: jest.fn(),
+    updateMany: jest.fn(),
   },
   huifuSplitRecord: {
     create: jest.fn(),
@@ -298,6 +300,43 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
       expect(mockRedis.del).toHaveBeenCalledWith("huifu:config:merchantId");
     });
 
+    it("setConfig 应加密保存汇付敏感配置", async () => {
+      mockPrisma.huifuConfig.upsert.mockResolvedValue({ key: "secretKey" });
+      await svc.setConfig("secretKey", "huifu-secret-value", "密钥");
+      const call = mockPrisma.huifuConfig.upsert.mock.calls[0][0];
+      expect(call.create.value).not.toBe("huifu-secret-value");
+      expect(call.create.value).toMatch(/^ENC:/);
+      expect(decrypt(call.create.value.slice(4))).toBe("huifu-secret-value");
+      expect(call.update.value).toBe(call.create.value);
+    });
+
+    it("启动时应原子迁移历史明文敏感配置", async () => {
+      mockPrisma.huifuConfig.findMany.mockResolvedValue([
+        { key: "secretKey", value: "legacy-secret-value" },
+      ]);
+      mockPrisma.huifuConfig.updateMany.mockResolvedValue({ count: 1 });
+
+      await svc.onModuleInit();
+
+      const call = mockPrisma.huifuConfig.updateMany.mock.calls[0][0];
+      expect(call.where).toEqual({ key: "secretKey", value: "legacy-secret-value" });
+      expect(call.data.value).toMatch(/^ENC:/);
+      expect(decrypt(call.data.value.slice(4))).toBe("legacy-secret-value");
+      expect(mockRedis.del).toHaveBeenCalledWith("huifu:config:secretKey");
+    });
+
+    it("生产环境敏感配置迁移失败时应阻止服务启动", async () => {
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+      mockPrisma.huifuConfig.findMany.mockRejectedValue(new Error("db unavailable"));
+      try {
+        await expect(svc.onModuleInit()).rejects.toThrow("db unavailable");
+      } finally {
+        if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
+        else process.env.NODE_ENV = originalNodeEnv;
+      }
+    });
+
     it("应能从环境变量获取配置（含新增 productId）", async () => {
       expect(await svc["getConfig"]("merchantId")).toBe("TEST-MCH-001");
       expect(await svc["getConfig"]("productId")).toBe("TEST-PRODUCT");
@@ -319,6 +358,12 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
       expect(mockPrisma.huifuConfig.findUnique).not.toHaveBeenCalled();
     });
 
+    it("应解密从 Redis 读取的汇付敏感配置", async () => {
+      svc["configCache"].clear();
+      mockRedis.get.mockResolvedValue(`ENC:${encrypt("redis-secret-value")}`);
+      expect(await svc["getConfig"]("secretKey")).toBe("redis-secret-value");
+    });
+
     it("isEnabled 在配置完整时返回true", async () => {
       const enabled = await svc.isEnabled();
       expect(enabled).toBe(true);
@@ -337,7 +382,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
 
     it("getAllConfigs 应对敏感字段脱敏", async () => {
       mockPrisma.huifuConfig.findMany.mockResolvedValue([
-        { key: "secretKey", value: "1234abcd5678efgh", description: "密钥" },
+        { key: "secretKey", value: `ENC:${encrypt("1234abcd5678efgh")}`, description: "密钥" },
         { key: "merchantId", value: "M001234567", description: "商户号" },
       ]);
       const configs = await svc.getAllConfigs();

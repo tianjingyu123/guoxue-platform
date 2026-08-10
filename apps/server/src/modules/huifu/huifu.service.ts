@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, Optional } from "@nestjs/common";
 import { createPrivateKey, createPublicKey, createSign, createVerify, randomUUID } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -6,6 +6,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { HuifuPayDto, HuifuSplitDto, HuifuRefundDto } from "./huifu.dto";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
+import { decrypt, encrypt } from "../../common/crypto.util";
 
 /**
  * 汇付斗拱（BsPay）支付分账服务 — v2 真实协议
@@ -19,18 +20,51 @@ import { FundApprovalService } from "../fund-approval/fund-approval.service";
  * 文档: https://paas.huifu.com
  */
 @Injectable()
-export class HuifuService {
+export class HuifuService implements OnModuleInit {
   private paymentNotifyHandler?: (payload: Record<string, unknown>) => Promise<void>;
   private refundNotifyHandler?: (payload: Record<string, unknown>) => Promise<void>;
   private readonly logger = new Logger(HuifuService.name);
   private readonly baseUrl: string;
   private configCache: Map<string, string> = new Map();
   private certCacheTime = 0;
+  private static readonly SENSITIVE_CONFIG_KEYS = new Set([
+    "secretKey",
+    "rsaPrivateKey",
+    "rsaPublicKey",
+  ]);
 
   /** 斗拱业务成功码 */
   private static readonly RESP_SUCCESS = "00000000";
   /** 聚合正扫/退款已受理，渠道处理中 */
   private static readonly RESP_PROCESSING = "00000100";
+
+  async onModuleInit(): Promise<void> {
+    try {
+      const legacyConfigs = await this.prisma.huifuConfig.findMany({
+        where: { key: { in: [...HuifuService.SENSITIVE_CONFIG_KEYS] } },
+      });
+      for (const config of legacyConfigs) {
+        if (config.value.startsWith("ENC:")) continue;
+        await this.prisma.huifuConfig.updateMany({
+          where: { key: config.key, value: config.value },
+          data: { value: this.encodeSensitiveConfig(config.value) },
+        });
+        await this.redis.del(`huifu:config:${config.key}`);
+      }
+    } catch (error) {
+      this.logger.error("汇付敏感配置自动加密迁移失败", error as Error);
+      if (process.env.NODE_ENV === "production") throw error;
+    }
+  }
+
+  private decodeConfigValue(key: string, value: string): string {
+    if (!HuifuService.SENSITIVE_CONFIG_KEYS.has(key) || !value.startsWith("ENC:")) return value;
+    return decrypt(value.slice(4));
+  }
+
+  private encodeSensitiveConfig(value: string): string {
+    return `ENC:${encrypt(value)}`;
+  }
 
   private static isAcceptedTradeRespCode(code: unknown): boolean {
     return code === HuifuService.RESP_SUCCESS || code === HuifuService.RESP_PROCESSING;
@@ -129,17 +163,19 @@ export class HuifuService {
     // Redis 缓存
     const cached = await this.redis.get(`huifu:config:${key}`);
     if (cached) {
-      this.configCache.set(key, cached);
+      const value = this.decodeConfigValue(key, cached);
+      this.configCache.set(key, value);
       this.certCacheTime = Date.now();
-      return cached;
+      return value;
     }
     // 数据库
     const record = await this.prisma.huifuConfig.findUnique({ where: { key } });
     if (record) {
       await this.redis.set(`huifu:config:${key}`, record.value, 600);
-      this.configCache.set(key, record.value);
+      const value = this.decodeConfigValue(key, record.value);
+      this.configCache.set(key, value);
       this.certCacheTime = Date.now();
-      return record.value;
+      return value;
     }
     // 回退到环境变量
     const envMap: Record<string, string | undefined> = {
@@ -156,10 +192,13 @@ export class HuifuService {
   }
 
   async setConfig(key: string, value: string, description?: string): Promise<void> {
+    const storedValue = HuifuService.SENSITIVE_CONFIG_KEYS.has(key)
+      ? this.encodeSensitiveConfig(value)
+      : value;
     await this.prisma.huifuConfig.upsert({
       where: { key },
-      create: { key, value, description, enabled: true },
-      update: { value, description },
+      create: { key, value: storedValue, description, enabled: true },
+      update: { value: storedValue, description },
     });
     await this.redis.del(`huifu:config:${key}`);
     this.configCache.delete(key);
@@ -168,11 +207,15 @@ export class HuifuService {
   async getAllConfigs() {
     const configs = await this.prisma.huifuConfig.findMany();
     // 脱敏：密钥类只显示前4后4
-    const sensitiveKeys = ["secretKey", "rsaPrivateKey", "rsaPublicKey"];
     return configs.map((c) => ({
       ...c,
-      value: sensitiveKeys.includes(c.key) && c.value.length > 8
-        ? `${c.value.slice(0, 4)}****${c.value.slice(-4)}`
+      value: HuifuService.SENSITIVE_CONFIG_KEYS.has(c.key)
+        ? (() => {
+            const plaintext = this.decodeConfigValue(c.key, c.value);
+            return plaintext.length > 8
+              ? `${plaintext.slice(0, 4)}****${plaintext.slice(-4)}`
+              : "****";
+          })()
         : c.value,
     }));
   }
