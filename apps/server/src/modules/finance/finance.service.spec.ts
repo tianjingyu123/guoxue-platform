@@ -85,6 +85,19 @@ describe("FinanceService", () => {
   // ─── 1. 对账中心 ───
 
   describe("triggerReconciliation", () => {
+    it("月度对账使用微信 V3 要求的 YYYY-MM-DD 账单日期", async () => {
+      const mockWechatPay = {
+        downloadTradeBill: jest.fn().mockResolvedValue("header\n"),
+      };
+      mockPrisma.order.findMany.mockResolvedValue([]);
+      mockPrisma.reconciliationRecord.create.mockImplementation(({ data }: { data: Record<string, unknown> }) => ({ id: "r-date", ...data }));
+      const service = new FinanceService(mockPrisma, mockWechatPay as any);
+
+      await service.triggerReconciliation({ source: "WECHAT", period: "2026-05" });
+
+      expect(mockWechatPay.downloadTradeBill).toHaveBeenCalledWith({ billDate: "2026-05-01" });
+    });
+
     // 🔴 假绿灯回归防护：有内部订单却拿不到渠道账单（此处未注入 wechatPay → billStatus 非 DOWNLOADED）
     //    时，绝不能判 MATCHED，必须 PENDING 待人工核。回显 create 的 data 才能断言真实计算的 status。
     it("有内部订单但无账单可比对时判 PENDING（不生成假绿灯 MATCHED）", async () => {

@@ -103,7 +103,7 @@ export class FinanceService {
       let anyDayUnavailable = billDatesToFetch.length === 0;
       for (const dayStr of billDatesToFetch) {
         try {
-          const billCsv = await this.wechatPay.downloadTradeBill({ billDate: dayStr.replace(/-/g, "") });
+          const billCsv = await this.wechatPay.downloadTradeBill({ billDate: dayStr });
           if (billCsv) {
             billEntries = billEntries.concat(this.parseBillCsv(billCsv));
           } else {
