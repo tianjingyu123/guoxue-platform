@@ -99,17 +99,17 @@ test("审计 CI 服务与 shell 中的变量、默认值及 docker run 镜像", 
   );
 });
 
-test("仅允许明确登记的 Cantaloupe 版本标签作为受控例外", () => {
+test("仅允许明确登记且构建输入已锁定的 Cantaloupe 本地镜像作为受控例外", () => {
   withRepository(
     {
       "docker/docker-compose.iiif.yml":
-        "services:\n  cantaloupe:\n    image: ghcr.io/uclalibrary/cantaloupe:5.0.5\n",
+        "services:\n  cantaloupe:\n    image: guoxue-cantaloupe:5.0.5-f8494ff9\n",
     },
     (root) => {
       const result = auditContainerImages(root);
       assert.deepEqual(result.errors, []);
       assert.equal(result.exceptions.length, 1);
-      assert.match(result.exceptions[0].reason, /目标主机/u);
+      assert.match(result.exceptions[0].reason, /SHA-256/u);
     },
   );
 });

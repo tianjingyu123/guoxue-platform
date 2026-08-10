@@ -32,8 +32,8 @@ const auditedFiles = [
 // 该上游镜像目前匿名访问 GHCR 清单会返回 403；版本已固定，必须在新主机使用实际发布凭据拉取验收。
 const approvedTagOnlyExceptions = new Map([
   [
-    "ghcr.io/uclalibrary/cantaloupe:5.0.5",
-    "可选 IIIF 服务；GHCR 匿名清单查询受限，必须在目标主机完成凭据拉取和启动验收",
+    "guoxue-cantaloupe:5.0.5-f8494ff9",
+    "可选 IIIF 服务；镜像由摘要锁定的基础镜像和 SHA-256 校验后的 Cantaloupe 5.0.5 官方包在目标主机构建，必须留存构建与启动验收证据",
   ],
 ]);
 
