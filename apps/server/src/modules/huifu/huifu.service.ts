@@ -39,6 +39,7 @@ export class HuifuService implements OnModuleInit {
   private static readonly RESP_PROCESSING = "00000100";
 
   async onModuleInit(): Promise<void> {
+    if (process.env.HUIFU_MIGRATE_LEGACY_CONFIG !== "true") return;
     try {
       const legacyConfigs = await this.prisma.huifuConfig.findMany({
         where: { key: { in: [...HuifuService.SENSITIVE_CONFIG_KEYS] } },

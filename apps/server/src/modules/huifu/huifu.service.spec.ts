@@ -95,6 +95,7 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
     process.env.HUIFU_SECRET_KEY = "test-secret-key";
     process.env.HUIFU_RSA_PRIVATE_KEY = MERCHANT_PRIV_PEM;
     process.env.HUIFU_RSA_PUBLIC_KEY = HUIFU_PUB_PEM;
+    delete process.env.HUIFU_MIGRATE_LEGACY_CONFIG;
 
     mockRedis.get.mockResolvedValue(null);
     mockPrisma.huifuConfig.findUnique.mockResolvedValue(null);
@@ -310,13 +311,21 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
       expect(call.update.value).toBe(call.create.value);
     });
 
-    it("启动时应原子迁移历史明文敏感配置", async () => {
+    it("默认不迁移历史明文敏感配置", async () => {
+      await svc.onModuleInit();
+      expect(mockPrisma.huifuConfig.findMany).not.toHaveBeenCalled();
+      expect(mockPrisma.huifuConfig.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("显式开启后应原子迁移历史明文敏感配置", async () => {
       mockPrisma.huifuConfig.findMany.mockResolvedValue([
         { key: "secretKey", value: "legacy-secret-value" },
       ]);
       mockPrisma.huifuConfig.updateMany.mockResolvedValue({ count: 1 });
 
+      process.env.HUIFU_MIGRATE_LEGACY_CONFIG = "true";
       await svc.onModuleInit();
+      delete process.env.HUIFU_MIGRATE_LEGACY_CONFIG;
 
       const call = mockPrisma.huifuConfig.updateMany.mock.calls[0][0];
       expect(call.where).toEqual({ key: "secretKey", value: "legacy-secret-value" });
@@ -327,13 +336,17 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
 
     it("生产环境敏感配置迁移失败时应阻止服务启动", async () => {
       const originalNodeEnv = process.env.NODE_ENV;
+      const originalMigrationFlag = process.env.HUIFU_MIGRATE_LEGACY_CONFIG;
       process.env.NODE_ENV = "production";
+      process.env.HUIFU_MIGRATE_LEGACY_CONFIG = "true";
       mockPrisma.huifuConfig.findMany.mockRejectedValue(new Error("db unavailable"));
       try {
         await expect(svc.onModuleInit()).rejects.toThrow("db unavailable");
       } finally {
         if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
         else process.env.NODE_ENV = originalNodeEnv;
+        if (originalMigrationFlag === undefined) delete process.env.HUIFU_MIGRATE_LEGACY_CONFIG;
+        else process.env.HUIFU_MIGRATE_LEGACY_CONFIG = originalMigrationFlag;
       }
     });
 
