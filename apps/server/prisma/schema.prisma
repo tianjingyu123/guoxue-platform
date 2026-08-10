@@ -3538,6 +3538,7 @@ model ClassicBook {
 
   chapters           ClassicChapter[]
   commentaries       ClassicCommentary[]
+  copyrights         ClassicCopyright[]
   progresses         ReadingProgress[]
   bookmarks          Bookmark[]
   images             ClassicImage[]
@@ -3736,6 +3737,30 @@ model ClassicBookList {
   updatedAt   DateTime @updatedAt
 
   @@index([status, sortOrder])
+}
+
+// ─────────────────────────────────────────────────
+// 古籍版权追溯
+// ─────────────────────────────────────────────────
+
+model ClassicCopyright {
+  id          String    @id @default(uuid())
+  bookId      String
+  sourceName  String // 来源机构/项目名（如"殆知阁/daizhige.org"、"哈佛燕京图书馆"）
+  sourceUrl   String? // 来源链接
+  license     String // 许可类型（CC0 / Public Domain / CC-BY / CC-BY-NC / Open Data）
+  licenseUrl  String? // 许可原文链接
+  auditNote   String? // 版权审计备注
+  auditedAt   DateTime? // 审计确认时间
+  auditedBy   String? // 审计人
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  book ClassicBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([bookId, sourceName])
+  @@index([bookId])
+  @@index([license])
 }
 
 // 古籍馆·我的收藏（用户收藏的古籍，无外键关系便于独立维护）

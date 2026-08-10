@@ -83,10 +83,13 @@ CREATE TYPE "TeamTaskStatus" AS ENUM ('OPEN', 'CLOSED');
 CREATE TYPE "InstituteRole" AS ENUM ('INITIATOR', 'TYPE_A', 'TYPE_B', 'PRESIDENT', 'VICE_PRESIDENT', 'SECRETARY_GENERAL');
 
 -- CreateEnum
-CREATE TYPE "CoinTransType" AS ENUM ('RECHARGE', 'SPEND', 'REFUND', 'GRANT', 'INCOME');
+CREATE TYPE "CoinTransType" AS ENUM ('RECHARGE', 'SPEND', 'REFUND', 'GRANT', 'INCOME', 'CHARGEBACK');
 
 -- CreateEnum
-CREATE TYPE "CoinScene" AS ENUM ('RECHARGE', 'CIRCLE_JOIN', 'PAID_QUESTION', 'PEEK_ANSWER', 'AUDIO_CALL', 'LIVE_GIFT', 'LIVE_QUALITY_PACKAGE', 'BOT_CALL', 'REFUND', 'PLATFORM_GRANT', 'BOUNTY', 'BOUNTY_UNFREEZE', 'POST_REWARD', 'CONSULT_CALL_PREPAY', 'LIVE_GIFT_INCOME', 'EARNING_CONVERT', 'CASE_CONTRIBUTION');
+CREATE TYPE "CoinScene" AS ENUM ('RECHARGE', 'CIRCLE_JOIN', 'PAID_QUESTION', 'PEEK_ANSWER', 'AUDIO_CALL', 'LIVE_GIFT', 'LIVE_QUALITY_PACKAGE', 'BOT_CALL', 'REFUND', 'PLATFORM_GRANT', 'BOUNTY', 'BOUNTY_UNFREEZE', 'POST_REWARD', 'CONSULT_CALL_PREPAY', 'LIVE_GIFT_INCOME', 'EARNING_CONVERT', 'CASE_CONTRIBUTION', 'APPLE_IAP_CHARGEBACK');
+
+-- CreateEnum
+CREATE TYPE "AppleIapPurchaseStatus" AS ENUM ('VERIFIED', 'REFUNDED', 'REVOKED');
 
 -- CreateEnum
 CREATE TYPE "EarningScene" AS ENUM ('QUESTION', 'PEEK', 'PEEK_ASKER', 'AUDIO_CALL', 'LIVE_GIFT');
@@ -2788,6 +2791,23 @@ CREATE TABLE "ClassicBookList" (
 );
 
 -- CreateTable
+CREATE TABLE "ClassicCopyright" (
+    "id" TEXT NOT NULL,
+    "bookId" TEXT NOT NULL,
+    "sourceName" TEXT NOT NULL,
+    "sourceUrl" TEXT,
+    "license" TEXT NOT NULL,
+    "licenseUrl" TEXT,
+    "auditNote" TEXT,
+    "auditedAt" TIMESTAMP(3),
+    "auditedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ClassicCopyright_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "ClassicFavorite" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -2944,6 +2964,49 @@ CREATE TABLE "VirtualCoinRecharge" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "VirtualCoinRecharge_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppleIapPurchase" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "productId" TEXT NOT NULL,
+    "transactionId" TEXT NOT NULL,
+    "originalTransactionId" TEXT,
+    "environment" TEXT NOT NULL,
+    "amountCoin" INTEGER NOT NULL,
+    "referenceRmb" DECIMAL(10,2) NOT NULL,
+    "currency" TEXT,
+    "priceMilliunits" INTEGER,
+    "storefront" TEXT,
+    "receiptHash" TEXT,
+    "appAccountToken" TEXT,
+    "status" "AppleIapPurchaseStatus" NOT NULL DEFAULT 'VERIFIED',
+    "purchasedAt" TIMESTAMP(3),
+    "verifiedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "refundedAt" TIMESTAMP(3),
+    "revocationReason" INTEGER,
+    "signedTransactionInfo" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AppleIapPurchase_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppleIapNotification" (
+    "id" TEXT NOT NULL,
+    "notificationUuid" TEXT NOT NULL,
+    "notificationType" TEXT NOT NULL,
+    "subtype" TEXT,
+    "environment" TEXT,
+    "transactionId" TEXT,
+    "payloadHash" TEXT NOT NULL,
+    "result" TEXT NOT NULL,
+    "processedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AppleIapNotification_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -7345,6 +7408,15 @@ CREATE INDEX "ClassicReadingNote_userId_chapterId_position_idx" ON "ClassicReadi
 CREATE INDEX "ClassicBookList_status_sortOrder_idx" ON "ClassicBookList"("status", "sortOrder");
 
 -- CreateIndex
+CREATE INDEX "ClassicCopyright_bookId_idx" ON "ClassicCopyright"("bookId");
+
+-- CreateIndex
+CREATE INDEX "ClassicCopyright_license_idx" ON "ClassicCopyright"("license");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClassicCopyright_bookId_sourceName_key" ON "ClassicCopyright"("bookId", "sourceName");
+
+-- CreateIndex
 CREATE INDEX "ClassicFavorite_userId_idx" ON "ClassicFavorite"("userId");
 
 -- CreateIndex
@@ -7412,6 +7484,30 @@ CREATE INDEX "VirtualCoinRecharge_userId_createdAt_idx" ON "VirtualCoinRecharge"
 
 -- CreateIndex
 CREATE INDEX "VirtualCoinRecharge_orderNo_idx" ON "VirtualCoinRecharge"("orderNo");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppleIapPurchase_transactionId_key" ON "AppleIapPurchase"("transactionId");
+
+-- CreateIndex
+CREATE INDEX "AppleIapPurchase_userId_createdAt_idx" ON "AppleIapPurchase"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AppleIapPurchase_originalTransactionId_idx" ON "AppleIapPurchase"("originalTransactionId");
+
+-- CreateIndex
+CREATE INDEX "AppleIapPurchase_status_createdAt_idx" ON "AppleIapPurchase"("status", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppleIapNotification_notificationUuid_key" ON "AppleIapNotification"("notificationUuid");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppleIapNotification_payloadHash_key" ON "AppleIapNotification"("payloadHash");
+
+-- CreateIndex
+CREATE INDEX "AppleIapNotification_transactionId_idx" ON "AppleIapNotification"("transactionId");
+
+-- CreateIndex
+CREATE INDEX "AppleIapNotification_notificationType_createdAt_idx" ON "AppleIapNotification"("notificationType", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "PaidQuestion_circleId_status_idx" ON "PaidQuestion"("circleId", "status");
@@ -9094,6 +9190,9 @@ ALTER TABLE "ClassicReadingNote" ADD CONSTRAINT "ClassicReadingNote_bookId_fkey"
 ALTER TABLE "ClassicReadingNote" ADD CONSTRAINT "ClassicReadingNote_chapterId_fkey" FOREIGN KEY ("chapterId") REFERENCES "ClassicChapter"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ClassicCopyright" ADD CONSTRAINT "ClassicCopyright_bookId_fkey" FOREIGN KEY ("bookId") REFERENCES "ClassicBook"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Withdrawal" ADD CONSTRAINT "Withdrawal_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -9110,6 +9209,9 @@ ALTER TABLE "VirtualCoinTransaction" ADD CONSTRAINT "VirtualCoinTransaction_user
 
 -- AddForeignKey
 ALTER TABLE "VirtualCoinRecharge" ADD CONSTRAINT "VirtualCoinRecharge_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppleIapPurchase" ADD CONSTRAINT "AppleIapPurchase_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PaidQuestion" ADD CONSTRAINT "PaidQuestion_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "Circle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
