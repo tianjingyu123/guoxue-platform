@@ -1511,6 +1511,49 @@ test("启用支付后首发通道真实收款退款闭环必须绑定且报告�
   }
 });
 
+test("数据库托管微信支付使用允许商户号并纳入转账回调绑定", async () => {
+  const intake = completeIntake();
+  intake.externalEndpoints.outboundDependencies.push({
+    serviceId: "wechat-pay",
+    dnsTlsReachabilityVerified: true,
+    credentialSmokeTestPassed: true,
+    providerSourceIpPolicyVerified: true,
+  });
+  intake.externalEndpoints.paymentDelivery = {
+    owner: "支付闭环负责人",
+    channelId: "wechat-pay",
+    merchantReference: "1900000109",
+    evidenceReference: "CHANGE-20260802-PAYMENT-DB",
+    productionAccountVerified: true,
+    smallAmountPaymentPassed: true,
+    paymentCallbackVerified: true,
+    orderLedgerVerified: true,
+    refundSmokeTestPassed: true,
+    refundCallbackVerified: true,
+    reconciliationVerified: true,
+    duplicateCallbackReplayVerified: true,
+  };
+  intake.externalEndpoints.callbackUrls.push(
+    "https://api.guoxue.cn/api/v1/payout/wechat/transfer-notify",
+  );
+  const audit = await runAudit(intake, "launch", "tencent", {
+    ...completeEnvironment(),
+    WECHAT_PAY_MCH_ID: "",
+    WECHAT_PAY_ALLOWED_MCH_ID: "1900000109",
+    WECHAT_PAY_TRANSFER_NOTIFY_URL:
+      "https://api.guoxue.cn/api/v1/payout/wechat/transfer-notify",
+  });
+  try {
+    assert.equal(audit.result.status, 0, audit.result.stderr || audit.result.stdout);
+    assert.equal(audit.report.paymentDeliveryEvidence.verified, true);
+    const serialized = JSON.stringify(audit.report);
+    assert.equal(serialized.includes("1900000109"), false);
+    assert.equal(serialized.includes("CHANGE-20260802-PAYMENT-DB"), false);
+  } finally {
+    await rm(audit.root, { recursive: true, force: true });
+  }
+});
+
 test("启用支付后拒绝错绑商户、沙箱冒充生产和不完整退款对账", async () => {
   const intake = completeIntake();
   intake.externalEndpoints.outboundDependencies.push({

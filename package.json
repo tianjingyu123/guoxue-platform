@@ -68,7 +68,7 @@
     "release:build-app-links": "node -- scripts/release/build-app-link-associations.mjs",
     "release:probe-app-links": "node -- scripts/release/probe-app-link-associations.mjs",
     "release:test-app-links": "node --test tests/release/app-link-associations.test.mjs",
-    "release:test-infra-intake": "node --test tests/release/audit-infrastructure-intake.test.mjs tests/release/prepare-infrastructure-intake.test.mjs tests/release/storage-inventory.test.mjs tests/release/app-link-associations.test.mjs",
+    "release:test-infra-intake": "node --test tests/release/audit-infrastructure-intake.test.mjs tests/release/prepare-infrastructure-intake.test.mjs tests/release/storage-inventory.test.mjs tests/release/app-link-associations.test.mjs tests/release/sanitize-wechat-payment-env.test.mjs",
     "release:inventory-storage": "node scripts/release/build-storage-inventory.mjs",
     "release:compare-storage-inventory": "node scripts/release/compare-storage-inventories.mjs",
     "release:test-storage-inventory": "node --test tests/release/storage-inventory.test.mjs",

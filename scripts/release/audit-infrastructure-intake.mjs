@@ -239,7 +239,7 @@ const deriveOutboundDependencyIds = () => {
     ),
     "wechat-open",
   );
-  addWhen(enabled("WECHAT_PAY_MCH_ID"), "wechat-pay");
+  addWhen(enabled("WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"), "wechat-pay");
   addWhen(enabled("ALIPAY_APP_ID"), "alipay");
   addWhen(enabled("UNIONPAY_MER_ID"), "unionpay");
   addWhen(enabled("HUIFU_MERCHANT_ID", "HUIFU_APP_ID"), "huifu");
@@ -346,15 +346,20 @@ const smsEnabled = [
 ].some(Boolean);
 const smsRetentionEnabled = Boolean(configuredSmsRetentionTemplateId);
 const paymentChannelDefinitions = [
-  { channelId: "wechat-pay", merchantKey: "WECHAT_PAY_MCH_ID" },
-  { channelId: "alipay", merchantKey: "ALIPAY_APP_ID" },
-  { channelId: "unionpay", merchantKey: "UNIONPAY_MER_ID" },
-  { channelId: "huifu", merchantKey: "HUIFU_MERCHANT_ID" },
+  {
+    channelId: "wechat-pay",
+    merchantKeys: ["WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID"],
+  },
+  { channelId: "alipay", merchantKeys: ["ALIPAY_APP_ID"] },
+  { channelId: "unionpay", merchantKeys: ["UNIONPAY_MER_ID"] },
+  { channelId: "huifu", merchantKeys: ["HUIFU_MERCHANT_ID"] },
 ];
 const configuredPaymentChannels = paymentChannelDefinitions
   .map((item) => ({
     channelId: item.channelId,
-    merchantReference: text(environmentValues.get(item.merchantKey)),
+    merchantReference: item.merchantKeys
+      .map((key) => text(environmentValues.get(key)))
+      .find((value) => value && !isPlaceholder(value)),
   }))
   .filter((item) => item.merchantReference && !isPlaceholder(item.merchantReference));
 const paymentEnabled = configuredPaymentChannels.length > 0;
@@ -628,6 +633,7 @@ add(
 const knownCallbackPaths = new Map([
   ["WECHAT_PAY_NOTIFY_URL", "/api/v1/shop/pay/notify"],
   ["WECHAT_PAY_REFUND_NOTIFY_URL", "/api/v1/shop/refund/notify"],
+  ["WECHAT_PAY_TRANSFER_NOTIFY_URL", "/api/v1/payout/wechat/transfer-notify"],
   ["ALIPAY_NOTIFY_URL", "/api/v1/shop/alipay/notify"],
   ["UNIONPAY_NOTIFY_URL", "/api/v1/shop/unionpay/notify"],
   ["HUIFU_NOTIFY_URL", "/api/v1/huifu/notify"],
