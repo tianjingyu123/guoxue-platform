@@ -12,6 +12,13 @@ interface ChapterRef { id: string; title: string }
 
 const bookId = ref('')
 const bookTitle = ref('')
+const copyright = ref<{
+  sourceName: string
+  sourceUrl?: string | null
+  license: string
+  licenseUrl?: string | null
+  modified?: boolean
+} | null>(null)
 const chapters = ref<ChapterRef[]>([])
 const curIndex = ref(0)
 const paragraphs = ref<string[]>([])
@@ -251,6 +258,7 @@ async function fetchBook(id: string, chapterId?: string) {
     const data = await classicsApi.detail(id)
     if (!data.book) throw new Error('书籍不存在')
     bookTitle.value = data.book.title
+    copyright.value = data.book.copyright ?? null
     chapters.value = (data.book.chapters || []).map((c: { id: string; title: string }) => ({ id: c.id, title: c.title }))
     if (!chapters.value.length) throw new Error('本书暂无可阅读章节')
     let idx = chapterId ? chapters.value.findIndex((c) => c.id === chapterId) : 0
@@ -300,6 +308,20 @@ function goCompanion() {
   if (!ch) { uni.showToast({ title: '请先选择章节', icon: 'none' }); return }
   const params = `chapterId=${ch.id}&bookTitle=${encodeURIComponent(bookTitle.value || '')}&chapterTitle=${encodeURIComponent(ch.title || '')}`
   uni.navigateTo({ url: `/pkg-classics/companion/index?${params}` })
+}
+
+function openExternal(url?: string | null) {
+  if (!url || !/^https:\/\//i.test(url)) return
+  // #ifdef H5
+  const opened = window.open(url, '_blank', 'noopener,noreferrer')
+  if (!opened) window.location.href = url
+  // #endif
+  // #ifdef APP-PLUS
+  plus.runtime.openURL(url, () => uni.showToast({ title: '无法打开链接', icon: 'none' }))
+  // #endif
+  // #ifdef MP
+  uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  // #endif
 }
 
 function goPrev() { if (hasPrev.value) { tocOpen.value = false; loadChapter(curIndex.value - 1) } }
@@ -596,6 +618,15 @@ onLoad((q) => {
         <view class="rd-tip">
           <app-icon name="sparkles" :size="26" :color="subColor" />
           <text class="rd-tip-txt">读到不懂之处，轻点该句即可获得 AI 白话对照与注释</text>
+        </view>
+        <view v-if="copyright" class="rd-license">
+          <text class="rd-license-text">
+            文本来源：{{ copyright.sourceName }} · {{ copyright.license }}{{ copyright.modified ? ' · 热卜已做格式整理' : '' }}
+          </text>
+          <view class="rd-license-links">
+            <text v-if="copyright.sourceUrl" class="rd-license-link" @tap="openExternal(copyright.sourceUrl)">来源</text>
+            <text v-if="copyright.licenseUrl" class="rd-license-link" @tap="openExternal(copyright.licenseUrl)">许可条款</text>
+          </view>
         </view>
         <!-- 触点 #1 古籍精讲课：章末读完位·文档流内静态卡（不悬浮不遮挡）·服务端无卡则不渲染 -->
         <touchpoint-card v-if="tp?.card" :card="tp.card" scene="classic_course" />
@@ -1115,6 +1146,10 @@ export default { options: { styleIsolation: 'shared' } }
 }
 .rd-tip { display: flex; align-items: center; justify-content: center; gap: 10rpx; margin: 40rpx 0; opacity: 0.7; }
 .rd-tip-txt { font-size: 22rpx; color: var(--rd-sub); }
+.rd-license { margin: 28rpx 0 40rpx; padding: 22rpx 24rpx; border: 1rpx solid rgba(139, 94, 36, 0.24); border-radius: 12rpx; }
+.rd-license-text { display: block; font-size: 22rpx; line-height: 1.7; color: var(--rd-sub); }
+.rd-license-links { display: flex; gap: 28rpx; margin-top: 10rpx; }
+.rd-license-link { font-size: 22rpx; color: var(--rd-brand); text-decoration: underline; }
 .rd-chapter-nav { display: flex; align-items: center; justify-content: space-between; padding: 32rpx 0 48rpx; border-top: 2rpx solid rgba(150,130,90,0.18); }
 .rd-cn-btn { display: flex; align-items: center; gap: 8rpx; }
 .rd-cn-disabled { opacity: 0.4; }

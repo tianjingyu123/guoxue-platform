@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { safePagination } from "../../common/pagination";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "./classic-publication-policy";
 
 export interface BookGroup {
   bookId: string;
@@ -40,7 +41,7 @@ export class BaziClassicQueryService {
   }): Promise<BookGroup[]> {
     const { tags, dayMaster, monthBranch, keyword, maxPerBook = 5 } = params;
 
-    const cacheKey = `bazi:classic:${JSON.stringify({ tags, dayMaster, monthBranch, keyword })}`;
+    const cacheKey = `bazi:classic:v2:${JSON.stringify({ tags, dayMaster, monthBranch, keyword })}`;
     const cached = await this.redis.getJson<BookGroup[]>(cacheKey);
     if (cached) return cached;
 
@@ -58,7 +59,7 @@ export class BaziClassicQueryService {
     }
 
     const baziBooks = await this.prisma.classicBook.findMany({
-      where: { category: "命", status: "PUBLISHED" },
+      where: { ...PUBLIC_CLASSIC_BOOK_WHERE, category: "命" },
       select: { id: true, title: true, author: true, dynasty: true },
     });
 
@@ -162,7 +163,8 @@ export class BaziClassicQueryService {
   async searchBaziClassics(keyword: string, rawPage = 1, rawPageSize = 20) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
     const where = {
-      book: { category: "命", status: "PUBLISHED" },
+      deletedAt: null,
+      book: { ...PUBLIC_CLASSIC_BOOK_WHERE, category: "命" },
       OR: [
         { content: { contains: keyword } },
         { title: { contains: keyword } },
@@ -196,7 +198,7 @@ export class BaziClassicQueryService {
    */
   async listBaziBooks() {
     return this.prisma.classicBook.findMany({
-      where: { category: "命", status: "PUBLISHED" },
+      where: { ...PUBLIC_CLASSIC_BOOK_WHERE, category: "命" },
       select: {
         id: true,
         title: true,
@@ -215,7 +217,7 @@ export class BaziClassicQueryService {
    * 获取可用的八字标签列表（用于前端筛选器）
    */
   async listAvailableTags(): Promise<string[]> {
-    const cacheKey = "bazi:classic:all-tags";
+    const cacheKey = "bazi:classic:v2:all-tags";
     const cached = await this.redis.getJson<string[]>(cacheKey);
     if (cached) return cached;
 

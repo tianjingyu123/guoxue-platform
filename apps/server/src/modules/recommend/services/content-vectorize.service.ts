@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "../../../prisma/prisma.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../../classic/classic-publication-policy";
 import { RedisService } from "../../../redis/redis.service";
 import { HunyuanEmbeddingService } from "../../ai-gateway/hunyuan-embedding.service";
 import { HunyuanEmbeddingProvider } from "../strategies/hunyuan-embedding.provider";
@@ -112,7 +113,7 @@ export class ContentVectorizeService {
     {
       type: "CLASSIC",
       loadApproved: (p, skip, take) =>
-        p.classicBook.findMany({ where: { status: "PUBLISHED" }, select: { id: true, title: true, author: true, intro: true, category: true }, skip, take, orderBy: { createdAt: "desc" } })
+        p.classicBook.findMany({ where: PUBLIC_CLASSIC_BOOK_WHERE, select: { id: true, title: true, author: true, intro: true, category: true }, skip, take, orderBy: { createdAt: "desc" } })
           .then((rows) => rows.map((r) => ({ id: r.id, raw: r as unknown as Record<string, unknown> }))),
       // 古籍 = 书名 + 作者 + 简介 + 分类（章节级向量为进阶：按 ClassicChapter 逐章 extractText 后入库）
       extractText: (r) => joinText(r.title, r.author, r.intro, r.category),

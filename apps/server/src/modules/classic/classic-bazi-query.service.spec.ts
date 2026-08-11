@@ -130,7 +130,13 @@ describe("BaziClassicQueryService", () => {
       const result = await svc.listBaziBooks();
       expect(result).toHaveLength(1);
       expect(mockPrisma.classicBook.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { category: "命", status: "PUBLISHED" } }),
+        expect.objectContaining({
+          where: expect.objectContaining({
+            category: "命",
+            status: "PUBLISHED",
+            copyrights: expect.any(Object),
+          }),
+        }),
       );
     });
   });

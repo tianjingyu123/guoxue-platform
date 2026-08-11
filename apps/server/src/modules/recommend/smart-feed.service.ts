@@ -8,6 +8,7 @@ import {
   publicQuarantinedIds,
 } from "../../common/public-content-quarantine";
 import { serverConfig } from "../../config/server-config";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
 
 /**
  * 首页聚合瀑布流「九类卡统一信封」。
@@ -360,7 +361,7 @@ export class SmartFeedService {
           return rows.map((c) => this.mapCourse(c, "精选课程"));
         }
         case "classic": {
-          const rows = await this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: CLASSIC_SELECT, orderBy: { viewCount: "desc" }, take: size, skip });
+          const rows = await this.prisma.classicBook.findMany({ where: PUBLIC_CLASSIC_BOOK_WHERE, select: CLASSIC_SELECT, orderBy: { viewCount: "desc" }, take: size, skip });
           return rows.map((b) => this.mapClassic(b, "经典古籍"));
         }
         case "article": {
@@ -502,7 +503,7 @@ export class SmartFeedService {
         take: quarter,
       }),
       this.prisma.classicBook.findMany({
-        where: { status: "PUBLISHED" },
+        where: PUBLIC_CLASSIC_BOOK_WHERE,
         select: CLASSIC_SELECT,
         orderBy: { viewCount: "desc" },
         take: quarter,
@@ -528,7 +529,7 @@ export class SmartFeedService {
     const [articles, courses, classics, videos, lives, products] = await Promise.all([
       this.prisma.article.findMany({ where: { auditStatus: "APPROVED", visibility: "PLATFORM", cover: { not: "" } }, select: ARTICLE_SELECT, orderBy: { viewCount: "desc" }, take: per }),
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: COURSE_SELECT, orderBy: { studentCount: "desc" }, take: per }),
-      this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: CLASSIC_SELECT, orderBy: { viewCount: "desc" }, take: per }),
+      this.prisma.classicBook.findMany({ where: PUBLIC_CLASSIC_BOOK_WHERE, select: CLASSIC_SELECT, orderBy: { viewCount: "desc" }, take: per }),
       this.getVideoItems(per, "为你推荐"),
       this.getLiveItems(per, "正在直播"),
       this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: PRODUCT_SELECT, orderBy: { createdAt: "desc" }, take: per }),
@@ -560,7 +561,7 @@ export class SmartFeedService {
         take: quarter,
       }),
       this.prisma.classicBook.findMany({
-        where: { status: "PUBLISHED" },
+        where: PUBLIC_CLASSIC_BOOK_WHERE,
         select: CLASSIC_SELECT,
         orderBy: { viewCount: "desc" },
         take: quarter,

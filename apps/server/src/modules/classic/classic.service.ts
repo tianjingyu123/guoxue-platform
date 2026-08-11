@@ -8,6 +8,10 @@ import { Prisma } from "@prisma/client";
 import { CreateAnnotationDto } from "./classic.dto";
 import { JwtService } from "@nestjs/jwt";
 import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
+import {
+  PUBLIC_CLASSIC_BOOK_WHERE,
+  PUBLIC_CLASSIC_COPYRIGHT_WHERE,
+} from "./classic-publication-policy";
 
 @Injectable()
 export class ClassicService {
@@ -31,14 +35,14 @@ export class ClassicService {
     const cat = (query.category && query.category !== "all") ? query.category : null;
     const kw = query.keyword || "";
     const sortBy = query.sortBy || "createdAt";
-    const cacheKey = `classic:books:${cat || "all"}:${kw}:${sortBy}:${page}:${pageSize}`;
+    const cacheKey = `classic:v2:books:${cat || "all"}:${kw}:${sortBy}:${page}:${pageSize}`;
 
     if (!query.keyword) {
       const cached = await this.redis.getJson<any>(cacheKey);
       if (cached) return cached;
     }
 
-    const where: Prisma.ClassicBookWhereInput = { status: "PUBLISHED" };
+    const where: Prisma.ClassicBookWhereInput = { ...PUBLIC_CLASSIC_BOOK_WHERE };
     if (cat) where.category = cat;
     if (query.keyword) {
       where.OR = [
@@ -76,9 +80,27 @@ export class ClassicService {
   }
 
   async getBook(id: string) {
-    const book = await this.prisma.classicBook.findUnique({
-      where: { id },
-      include: { chapters: { orderBy: { sortOrder: "asc" }, select: { id: true, title: true, sortOrder: true } } },
+    const book = await this.prisma.classicBook.findFirst({
+      where: { id, ...PUBLIC_CLASSIC_BOOK_WHERE },
+      include: {
+        chapters: {
+          where: { deletedAt: null },
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, title: true, sortOrder: true },
+        },
+        copyrights: {
+          where: PUBLIC_CLASSIC_COPYRIGHT_WHERE,
+          orderBy: { auditedAt: "desc" },
+          select: {
+            sourceName: true,
+            sourceUrl: true,
+            license: true,
+            licenseUrl: true,
+            auditNote: true,
+            auditedAt: true,
+          },
+        },
+      },
     });
     if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "书籍不存在");
     // 浏览计数延迟更新，不阻塞响应
@@ -110,13 +132,25 @@ export class ClassicService {
 
   // ── 章节 CRUD ──
   async getChapter(id: string) {
-    const cacheKey = `classic:chapter:${id}`;
+    const cacheKey = `classic:v2:chapter:${id}`;
     const cached = await this.redis.getJson<any>(cacheKey);
     if (cached) return cached;
 
-    const chapter = await this.prisma.classicChapter.findUnique({
-      where: { id },
-      include: { book: { select: { id: true, title: true } } },
+    const chapter = await this.prisma.classicChapter.findFirst({
+      where: { id, deletedAt: null, book: PUBLIC_CLASSIC_BOOK_WHERE },
+      include: {
+        book: {
+          select: {
+            id: true,
+            title: true,
+            copyrights: {
+              where: PUBLIC_CLASSIC_COPYRIGHT_WHERE,
+              orderBy: { auditedAt: "desc" },
+              select: { sourceName: true, sourceUrl: true, license: true, licenseUrl: true },
+            },
+          },
+        },
+      },
     });
     if (!chapter) throw new BusinessException(ErrorCode.NOT_FOUND, "章节不存在");
 
@@ -142,7 +176,7 @@ export class ClassicService {
 
   async listChaptersByBook(bookId: string) {
     return this.prisma.classicChapter.findMany({
-      where: { bookId },
+      where: { bookId, deletedAt: null, book: PUBLIC_CLASSIC_BOOK_WHERE },
       orderBy: { sortOrder: "asc" },
     });
   }
@@ -257,7 +291,7 @@ export class ClassicService {
     const ids = favs.map((f) => f.bookId);
     if (!ids.length) return { items: [] };
     const books = await this.prisma.classicBook.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, ...PUBLIC_CLASSIC_BOOK_WHERE },
       select: { id: true, title: true, author: true, dynasty: true, category: true, viewCount: true },
     });
     const items = favs
@@ -272,7 +306,10 @@ export class ClassicService {
   }
 
   async addFavorite(userId: string, bookId: string) {
-    const book = await this.prisma.classicBook.findUnique({ where: { id: bookId }, select: { id: true } });
+    const book = await this.prisma.classicBook.findFirst({
+      where: { id: bookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
+      select: { id: true },
+    });
     if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "书籍不存在");
     return this.prisma.classicFavorite.upsert({
       where: { userId_bookId: { userId, bookId } },
@@ -293,7 +330,7 @@ export class ClassicService {
 
   // ── 下载 ──
   async generateDownloadUrl(bookId: string, userId: string) {
-    const book = await this.prisma.classicBook.findUnique({ where: { id: bookId } });
+    const book = await this.prisma.classicBook.findFirst({ where: { id: bookId, ...PUBLIC_CLASSIC_BOOK_WHERE } });
     if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "书籍不存在");
 
     const token = this.jwt.sign({ bookId, userId, type: "classic_download" }, { expiresIn: "7d" });
@@ -310,8 +347,8 @@ export class ClassicService {
     if (payload.bookId !== bookId || payload.type !== "classic_download") {
       throw new BusinessException(ErrorCode.FORBIDDEN, "下载token不匹配");
     }
-    const book = await this.prisma.classicBook.findUnique({
-      where: { id: bookId },
+    const book = await this.prisma.classicBook.findFirst({
+      where: { id: bookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
       include: { chapters: { orderBy: { sortOrder: "asc" }, select: { title: true, content: true } } },
     });
     if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "书籍不存在");
@@ -589,14 +626,15 @@ export class ClassicService {
 
   // ── 版本管理 ──
   async getBookVersions(bookId: string) {
-    const book = await this.prisma.classicBook.findUnique({
-      where: { id: bookId },
+    const book = await this.prisma.classicBook.findFirst({
+      where: { id: bookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
       select: { title: true, author: true, dynasty: true },
     });
     if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "书籍不存在");
 
     const versions = await this.prisma.classicBook.findMany({
       where: {
+        ...PUBLIC_CLASSIC_BOOK_WHERE,
         title: { startsWith: book.title.slice(0, 2) },
         id: { not: bookId },
       },
@@ -610,8 +648,8 @@ export class ClassicService {
 
   // ── 引用生成 ──
   async generateCitation(bookId: string, style = "gbt7714", chapterId?: string, startPos?: number, endPos?: number) {
-    const book = await this.prisma.classicBook.findUnique({
-      where: { id: bookId },
+    const book = await this.prisma.classicBook.findFirst({
+      where: { id: bookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
       select: { id: true, title: true, author: true, dynasty: true, source: true },
     });
     if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "书籍不存在");

@@ -8,8 +8,8 @@ const mockRedis = { getJson: jest.fn().mockResolvedValue(null), setJson: jest.fn
 const mockPrisma = {
   classicImage: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), upsert: jest.fn(), delete: jest.fn(), count: jest.fn() },
   classicOcrText: { deleteMany: jest.fn(), create: jest.fn(), findMany: jest.fn() },
-  classicBook: { findUnique: jest.fn() },
-  classicChapter: { findUnique: jest.fn() },
+  classicBook: { findFirst: jest.fn(), findUnique: jest.fn() },
+  classicChapter: { findFirst: jest.fn(), findUnique: jest.fn() },
 };
 
 describe("ClassicImageService", () => {
@@ -26,7 +26,10 @@ describe("ClassicImageService", () => {
     svc = mod.get(ClassicImageService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrisma.classicBook.findFirst.mockResolvedValue({ id: "b1", title: "论语", author: "孔子" });
+  });
 
   describe("listBookImages", () => {
     it("返回书籍所有页面图像（分页）", async () => {
@@ -38,6 +41,12 @@ describe("ClassicImageService", () => {
       expect(result.items).toHaveLength(1);
       expect(result.items[0].pageNumber).toBe(1);
       expect(result.total).toBe(1);
+    });
+
+    it("未通过公开许可门禁时不返回图像", async () => {
+      mockPrisma.classicBook.findFirst.mockResolvedValue(null);
+      await expect(svc.listBookImages("blocked-book")).rejects.toThrow("书籍不存在");
+      expect(mockPrisma.classicImage.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -108,7 +117,7 @@ describe("ClassicImageService", () => {
       mockPrisma.classicImage.findMany.mockResolvedValue([
         { id: "img1", pageNumber: 1, label: "第1页", iiifUrl: "http://iiif.example.com/1", width: 2400, height: 3200 },
       ]);
-      mockPrisma.classicBook.findUnique.mockResolvedValue({
+      mockPrisma.classicBook.findFirst.mockResolvedValue({
         id: "b1", title: "论语", author: "孔子",
       });
       const manifest = await svc.generateManifest("b1", "http://localhost:3000/api/v1");
@@ -119,7 +128,7 @@ describe("ClassicImageService", () => {
     });
 
     it("书籍不存在返回 null", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue(null);
+      mockPrisma.classicBook.findFirst.mockResolvedValue(null);
       const result = await svc.generateManifest("nonexistent", "http://localhost:3000");
       expect(result).toBeNull();
     });
@@ -140,7 +149,7 @@ describe("ClassicImageService", () => {
   // ── 图文对照 ──
   describe("getChapterImageMapping", () => {
     it("有 OCR 数据时返回精确映射", async () => {
-      mockPrisma.classicChapter.findUnique.mockResolvedValue({
+      mockPrisma.classicChapter.findFirst.mockResolvedValue({
         id: "ch1", bookId: "b1", title: "学而篇", content: "子曰学而时习之",
       });
       mockPrisma.classicImage.findMany.mockResolvedValue([
@@ -161,7 +170,7 @@ describe("ClassicImageService", () => {
     });
 
     it("无 OCR 数据时返回启发式估算", async () => {
-      mockPrisma.classicChapter.findUnique.mockResolvedValue({
+      mockPrisma.classicChapter.findFirst.mockResolvedValue({
         id: "ch1", bookId: "b1", title: "学而篇", content: "子曰学而时习之".repeat(50),
       });
       mockPrisma.classicImage.findMany.mockResolvedValue([
@@ -176,7 +185,7 @@ describe("ClassicImageService", () => {
     });
 
     it("章节不存在返回 null", async () => {
-      mockPrisma.classicChapter.findUnique.mockResolvedValue(null);
+      mockPrisma.classicChapter.findFirst.mockResolvedValue(null);
       const result = await svc.getChapterImageMapping("nonexistent");
       expect(result).toBeNull();
     });
@@ -192,7 +201,7 @@ describe("ClassicImageService", () => {
           ],
         },
       ]);
-      mockPrisma.classicBook.findUnique.mockResolvedValue({ id: "b1", title: "论语", author: "孔子" });
+      mockPrisma.classicBook.findFirst.mockResolvedValue({ id: "b1", title: "论语", author: "孔子" });
       const manifest = await svc.generateManifestWithTextOverlay("b1", "http://localhost:3000/api/v1");
       expect(manifest).not.toBeNull();
       expect(manifest!["@context"]).toHaveLength(2);

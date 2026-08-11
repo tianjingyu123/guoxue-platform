@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ClassicService } from "./classic.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "./classic-publication-policy";
 
 /**
  * 古籍馆「页面聚合（BFF）」服务。
@@ -53,6 +54,14 @@ type BookRow = {
   id: string; title: string; author: string | null; dynasty: string | null;
   category: string; cover: string | null; intro: string | null;
   chapterCount: number; viewCount: number; createdAt?: Date; source?: string | null;
+  copyrights?: Array<{
+    sourceName: string;
+    sourceUrl: string | null;
+    license: string;
+    licenseUrl: string | null;
+    auditNote?: string | null;
+    auditedAt?: Date | null;
+  }>;
 };
 
 function pickColor(i: number): string {
@@ -158,10 +167,10 @@ export class ClassicsBffService {
     const [grouped, chapterTotal, topRes, listsFull] = await Promise.all([
       this.prisma.classicBook.groupBy({
         by: ["category"],
-        where: { status: "PUBLISHED" },
+        where: PUBLIC_CLASSIC_BOOK_WHERE,
         _count: { _all: true },
       }),
-      this.prisma.classicChapter.count(),
+      this.prisma.classicChapter.count({ where: { deletedAt: null, book: PUBLIC_CLASSIC_BOOK_WHERE } }),
       this.classic.listBooks({ sortBy: "viewCount", pageSize: 40 }),
       this.getLists(),
     ]);
@@ -225,7 +234,7 @@ export class ClassicsBffService {
   /** 分类书籍列表：jing/shi/zi/ji */
   async getCategory(cat: string, sort = "hot") {
     const tile = CATEGORY_TILES.find((t) => t.id === cat) || CATEGORY_TILES[0];
-    const where = { status: "PUBLISHED", category: { in: tile.cats } };
+    const where = { ...PUBLIC_CLASSIC_BOOK_WHERE, category: { in: tile.cats } };
     const [rows, count] = await Promise.all([
       this.prisma.classicBook.findMany({
         where,
@@ -283,6 +292,15 @@ export class ClassicsBffService {
       totalChapters: book.chapterCount,
       hasAI: true, hasAudio: true, hasTranslation: true, // AI 阅读(文白对照/查词) + AI 语音听书
       isFree: true, isInBookshelf: false,
+      copyright: book.copyrights?.[0]
+        ? {
+            sourceName: book.copyrights[0].sourceName,
+            sourceUrl: book.copyrights[0].sourceUrl,
+            license: book.copyrights[0].license,
+            licenseUrl: book.copyrights[0].licenseUrl,
+            modified: true,
+          }
+        : null,
       color: pickColor(0),
       chapters: (book.chapters || []).map((c) => ({ id: c.id, title: c.title })),
       relatedBooks,
@@ -381,7 +399,7 @@ export class ClassicsBffService {
       lists.map(async (l) => {
         const ids = (l.bookIds as string[]) || [];
         const covers = await this.prisma.classicBook.findMany({
-          where: { id: { in: ids.slice(0, 3) } },
+          where: { id: { in: ids.slice(0, 3) }, ...PUBLIC_CLASSIC_BOOK_WHERE },
           select: { id: true, title: true },
         });
         // 按 ids 顺序排封面
@@ -390,7 +408,7 @@ export class ClassicsBffService {
           .filter(Boolean) as { id: string; title: string }[];
         return {
           id: l.id, title: l.title, author: l.curator || "国学编辑部",
-          bookCount: ids.length, likes: l.likeCount,
+          bookCount: orderedCovers.length, likes: l.likeCount,
           desc: l.description || "", tags: (l.tags as string[]) || [],
           liked: false, color: l.coverColor,
           books: orderedCovers.map((b, i) => ({ title: b.title, color: pickColor(i) })),
@@ -405,7 +423,7 @@ export class ClassicsBffService {
     if (!l) return null;
     const ids = (l.bookIds as string[]) || [];
     const books = await this.prisma.classicBook.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, ...PUBLIC_CLASSIC_BOOK_WHERE },
       select: { id: true, title: true, author: true, dynasty: true, intro: true },
     });
     const ordered = ids
@@ -415,7 +433,7 @@ export class ClassicsBffService {
     return {
       id: l.id, title: l.title, description: l.description || "",
       cover: l.coverColor, curator: l.curator || "国学编辑部",
-      bookCount: ids.length, viewCount: l.viewCount, tags: (l.tags as string[]) || [],
+      bookCount: ordered.length, viewCount: l.viewCount, tags: (l.tags as string[]) || [],
       books: ordered.map((b, i) => ({
         id: b.id, title: b.title, author: b.author || "佚名", dynasty: b.dynasty || "—",
         description: this.cleanIntro(b.intro, b.title), hasAI: true, hasTranslation: true, coverColor: pickColor(i),

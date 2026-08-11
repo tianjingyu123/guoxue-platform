@@ -80,6 +80,23 @@
         </view>
       </view>
 
+      <!-- 开放许可来源：首发古籍必须可核验、可点击，并明确平台做过格式整理。 -->
+      <view v-if="book.copyright" class="cd-sec">
+        <view class="cd-card cd-license">
+          <view class="cd-license-head">
+            <app-icon name="shield-check" :size="28" color="#8b6b38" />
+            <text class="cd-license-title">内容来源与许可</text>
+          </view>
+          <text class="cd-license-text">
+            文本来源：{{ book.copyright.sourceName }}；许可：{{ book.copyright.license }}。{{ book.copyright.modified ? '热卜已做格式整理。' : '' }}
+          </text>
+          <view class="cd-license-links">
+            <text v-if="book.copyright.sourceUrl" class="cd-license-link" @tap="openExternal(book.copyright.sourceUrl)">查看来源</text>
+            <text v-if="book.copyright.licenseUrl" class="cd-license-link" @tap="openExternal(book.copyright.licenseUrl)">查看许可</text>
+          </view>
+        </view>
+      </view>
+
       <!-- 听书入口 -->
       <view v-if="book.hasAudio" class="cd-sec">
         <view class="cd-card cd-audio" @tap="toReader('audio')">
@@ -335,6 +352,20 @@ function buildShareUrl(): string {
 function onShare() {
   showShareSheet.value = true
 }
+
+function openExternal(url?: string | null) {
+  if (!url || !/^https:\/\//i.test(url)) return
+  // #ifdef H5
+  const opened = window.open(url, '_blank', 'noopener,noreferrer')
+  if (!opened) window.location.href = url
+  // #endif
+  // #ifdef APP-PLUS
+  plus.runtime.openURL(url, () => uni.showToast({ title: '无法打开链接', icon: 'none' }))
+  // #endif
+  // #ifdef MP
+  uni.setClipboardData({ data: url, success: () => uni.showToast({ title: '链接已复制', icon: 'none' }) })
+  // #endif
+}
 function toSharedReading() {
   if (!book.value) return
   uni.navigateTo({
@@ -520,6 +551,12 @@ async function toBook(id: string) {
   background: var(--card);
   box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
 }
+.cd-license { padding: 28rpx; }
+.cd-license-head { display: flex; align-items: center; gap: 10rpx; margin-bottom: 14rpx; }
+.cd-license-title { color: #5f4727; font-size: 28rpx; font-weight: 600; }
+.cd-license-text { color: #6f665c; font-size: 24rpx; line-height: 1.75; }
+.cd-license-links { display: flex; gap: 30rpx; margin-top: 16rpx; }
+.cd-license-link { color: #8b5e24; font-size: 24rpx; text-decoration: underline; }
 .cd-ai {
   padding: 32rpx;
 }

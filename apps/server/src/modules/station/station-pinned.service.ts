@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
 import {
   BOARD_LABELS,
   CatalogQueryDto,
@@ -398,7 +399,7 @@ export class StationPinnedService {
           break;
         }
         case "ebook": {
-          const rows = await this.prisma.classicBook.findMany({ where: { id: { in: ids }, ...(publicOnly ? { status: "PUBLISHED", deletedAt: null } : {}) }, select: { id: true, title: true, cover: true } });
+          const rows = await this.prisma.classicBook.findMany({ where: { id: { in: ids }, ...(publicOnly ? PUBLIC_CLASSIC_BOOK_WHERE : {}) }, select: { id: true, title: true, cover: true } });
           rows.forEach((r) => map.set(`ebook:${r.id}`, { id: r.id, title: r.title, cover: r.cover, price: null, contentType: "ebook", sourceBoard: "ebook" }));
           break;
         }

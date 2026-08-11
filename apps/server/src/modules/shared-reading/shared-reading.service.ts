@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { randomBytes } from "crypto";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
 import { RedisService } from "../../redis/redis.service";
 import { UserGrowthService } from "../user-growth/user-growth.service";
 import { BusinessException } from "../../common/business.exception";
@@ -91,7 +92,7 @@ export class SharedReadingService {
   // ── 1. 建组 ──
   async createGroup(userId: string, dto: CreateGroupDto) {
     const book = await this.prisma.classicBook.findFirst({
-      where: { id: dto.classicBookId, deletedAt: null },
+      where: { id: dto.classicBookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
       select: { id: true, title: true, chapterCount: true },
     });
     if (!book) throw new BusinessException(ErrorCode.CLASSIC_BOOK_NOT_FOUND);

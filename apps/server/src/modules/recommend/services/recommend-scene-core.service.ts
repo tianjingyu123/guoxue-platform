@@ -14,6 +14,7 @@ import { HunyuanEmbeddingProvider } from "../strategies/hunyuan-embedding.provid
 import { AbTestService } from "./ab-test.service";
 import { StrategyWeightOverride } from "../ab-test.dto";
 import { RecommendSelectService } from "./recommend-select.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../../classic/classic-publication-policy";
 
 /**
  * 推荐-基础召回场景域（从 recommend.service 拆出·纯搬家不改逻辑）。
@@ -64,7 +65,7 @@ export class RecommendSceneCoreService {
       this.prisma.product.findMany({ where: { status: "ON_SALE", tags: { hasSome: tags } }, select: this.selectSvc.productSelect(), take: 6, orderBy: { salesCount: "desc" } }),
       this.prisma.circle.findMany({ where: { status: "ACTIVE", tags: { hasSome: tags } }, select: this.selectSvc.circleSelect(), take: 6, orderBy: { memberCount: "desc" } }),
       this.prisma.video.findMany({ where: { status: "PUBLISHED", tags: { hasSome: tags } }, select: this.selectSvc.videoSelect(), take: 6, orderBy: { viewCount: "desc" } }),
-      this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: { id: true, title: true, author: true, cover: true, intro: true, viewCount: true, category: true }, take: 6, orderBy: { viewCount: "desc" } }).catch(() => []),
+      this.prisma.classicBook.findMany({ where: PUBLIC_CLASSIC_BOOK_WHERE, select: { id: true, title: true, author: true, cover: true, intro: true, viewCount: true, category: true }, take: 6, orderBy: { viewCount: "desc" } }).catch(() => []),
     ]);
 
     items.push(...courses.map((c) => ({ id: c.id, type: "COURSE" as const, title: c.title, cover: c.cover ?? undefined, excerpt: c.intro ?? undefined, tags: c.tags, score: c.studentCount ?? 0, reason: "热门课程推荐", strategies: ["hot-trending"], metadata: { price: Number(c.price), studentCount: c.studentCount } })));
@@ -177,7 +178,7 @@ export class RecommendSceneCoreService {
       this.prisma.course.findMany({ where: { auditStatus: "APPROVED" }, select: this.selectSvc.courseSelect(), take: 6, orderBy: { studentCount: "desc" } }),
       this.prisma.product.findMany({ where: { status: "ON_SALE" }, select: this.selectSvc.productSelect(), take: 6, orderBy: { salesCount: "desc" } }),
       this.prisma.circle.findMany({ where: { status: "ACTIVE" }, select: this.selectSvc.circleSelect(), take: 6, orderBy: { memberCount: "desc" } }),
-      this.prisma.classicBook.findMany({ where: { status: "PUBLISHED" }, select: { id: true, title: true, author: true, cover: true, intro: true, viewCount: true, category: true }, take: 6, orderBy: { viewCount: "desc" } }).catch(() => []),
+      this.prisma.classicBook.findMany({ where: PUBLIC_CLASSIC_BOOK_WHERE, select: { id: true, title: true, author: true, cover: true, intro: true, viewCount: true, category: true }, take: 6, orderBy: { viewCount: "desc" } }).catch(() => []),
     ]);
 
     items.push(...articles.map((a) => ({ id: a.id, type: "ARTICLE" as const, title: a.title, cover: a.cover ?? undefined, excerpt: a.excerpt ?? undefined, tags: a.tags, score: (a.viewCount ?? 0) * 0.3 + (a.likeCount ?? 0) * 2, reason: "全平台热门", strategies: ["hot-trending"], metadata: { viewCount: a.viewCount, likeCount: a.likeCount } })));

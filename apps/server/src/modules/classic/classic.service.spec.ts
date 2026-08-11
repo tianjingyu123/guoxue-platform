@@ -8,8 +8,8 @@ import { AiGatewayService } from "../ai-gateway/ai-gateway.service";
 const mockRedis = { getJson: jest.fn().mockResolvedValue(null), setJson: jest.fn(), del: jest.fn().mockResolvedValue(1), delByPattern: jest.fn() };
 
 const mockPrisma = {
-  classicBook: { findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn(), delete: jest.fn(), groupBy: jest.fn() },
-  classicChapter: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
+  classicBook: { findMany: jest.fn(), count: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn(), delete: jest.fn(), groupBy: jest.fn() },
+  classicChapter: { findMany: jest.fn(), findFirst: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
   readingProgress: { findUnique: jest.fn(), upsert: jest.fn(), findMany: jest.fn(), count: jest.fn() },
   bookmark: { findMany: jest.fn(), create: jest.fn(), delete: jest.fn(), count: jest.fn(), findFirst: jest.fn() },
   classicReadingNote: { findMany: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
@@ -58,7 +58,7 @@ describe("ClassicService", () => {
 
   describe("getBook", () => {
     it("返回书籍详情并增加浏览量", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({ id: "b1", title: "论语", chapters: [] });
+      mockPrisma.classicBook.findFirst.mockResolvedValue({ id: "b1", title: "论语", chapters: [], copyrights: [] });
       mockPrisma.classicBook.update.mockResolvedValue({});
       const result = await svc.getBook("b1");
       expect(result!.title).toBe("论语");
@@ -67,7 +67,7 @@ describe("ClassicService", () => {
       );
     });
     it("书籍不存在抛出异常", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue(null);
+      mockPrisma.classicBook.findFirst.mockResolvedValue(null);
       await expect(svc.getBook("invalid")).rejects.toThrow("书籍不存在");
     });
   });
@@ -100,12 +100,12 @@ describe("ClassicService", () => {
 
   describe("getChapter", () => {
     it("返回章节详情（含所属书籍信息）", async () => {
-      mockPrisma.classicChapter.findUnique.mockResolvedValue({ id: "ch-1", title: "学而篇", book: { id: "b1", title: "论语" } });
+      mockPrisma.classicChapter.findFirst.mockResolvedValue({ id: "ch-1", title: "学而篇", book: { id: "b1", title: "论语", copyrights: [] } });
       const result = await svc.getChapter("ch-1");
       expect(result!.book.title).toBe("论语");
     });
     it("章节不存在抛出异常", async () => {
-      mockPrisma.classicChapter.findUnique.mockResolvedValue(null);
+      mockPrisma.classicChapter.findFirst.mockResolvedValue(null);
       await expect(svc.getChapter("invalid")).rejects.toThrow("章节不存在");
     });
   });
@@ -354,7 +354,7 @@ describe("ClassicService", () => {
   // ── 版本管理 ──
   describe("getBookVersions", () => {
     it("返回同书其他版本", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({
+      mockPrisma.classicBook.findFirst.mockResolvedValue({
         title: "论语", author: "孔子", dynasty: "春秋",
       });
       mockPrisma.classicBook.findMany.mockResolvedValue([
@@ -370,7 +370,7 @@ describe("ClassicService", () => {
   // ── 引用生成 ──
   describe("generateCitation", () => {
     it("生成 GB/T 7714 格式引用", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({
+      mockPrisma.classicBook.findFirst.mockResolvedValue({
         id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
       });
       const result = await svc.generateCitation("b1", "gbt7714");
@@ -380,7 +380,7 @@ describe("ClassicService", () => {
     });
 
     it("生成所有格式引用", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({
+      mockPrisma.classicBook.findFirst.mockResolvedValue({
         id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
       });
       const result = await svc.generateCitation("b1", "all");
@@ -391,7 +391,7 @@ describe("ClassicService", () => {
     });
 
     it("含章节摘录的引用", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue({
+      mockPrisma.classicBook.findFirst.mockResolvedValue({
         id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
       });
       mockPrisma.classicChapter.findUnique
@@ -403,7 +403,7 @@ describe("ClassicService", () => {
     });
 
     it("书籍不存在抛出异常", async () => {
-      mockPrisma.classicBook.findUnique.mockResolvedValue(null);
+      mockPrisma.classicBook.findFirst.mockResolvedValue(null);
       await expect(svc.generateCitation("invalid")).rejects.toThrow("书籍不存在");
     });
   });

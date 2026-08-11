@@ -4,6 +4,7 @@ import { RedisService } from "../../redis/redis.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { safePagination } from "../../common/pagination";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "./classic-publication-policy";
 
 @Injectable()
 export class ClassicImageService {
@@ -14,8 +15,17 @@ export class ClassicImageService {
     private redis: RedisService,
   ) {}
 
+  private async assertPublicBook(bookId: string) {
+    const book = await this.prisma.classicBook.findFirst({
+      where: { id: bookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
+      select: { id: true },
+    });
+    if (!book) throw new BusinessException(ErrorCode.NOT_FOUND, "书籍不存在");
+  }
+
   /** 获取书籍页面图像（分页） */
   async listBookImages(bookId: string, page = 1, pageSize = 100) {
+    await this.assertPublicBook(bookId);
     const { skip, page: p, pageSize: ps } = safePagination(page, pageSize, 100);
     const [data, total] = await Promise.all([
       this.prisma.classicImage.findMany({
@@ -35,6 +45,7 @@ export class ClassicImageService {
 
   /** 获取单页图像 + OCR 坐标数据 */
   async getPageImage(bookId: string, pageNumber: number) {
+    await this.assertPublicBook(bookId);
     const image = await this.prisma.classicImage.findUnique({
       where: { bookId_pageNumber: { bookId, pageNumber } },
       include: {
@@ -100,16 +111,15 @@ export class ClassicImageService {
 
   /** 生成 IIIF Manifest（Presentation API 3.0） */
   async generateManifest(bookId: string, baseUrl: string) {
+    const book = await this.prisma.classicBook.findFirst({
+      where: { id: bookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
+      select: { id: true, title: true, author: true },
+    });
+    if (!book) return null;
     const images = await this.prisma.classicImage.findMany({
       where: { bookId },
       orderBy: { pageNumber: "asc" },
     });
-    const book = await this.prisma.classicBook.findUnique({
-      where: { id: bookId },
-      select: { id: true, title: true, author: true },
-    });
-    if (!book) return null;
-
     const canvases = images.map((img, _i) => ({
       id: `${baseUrl}/classic/books/${bookId}/canvas/${img.pageNumber}`,
       type: "Canvas",
@@ -167,6 +177,7 @@ export class ClassicImageService {
 
   /** 全文搜索 OCR 文本，返回匹配字符在图像上的坐标 */
   async searchOcrText(bookId: string, keyword: string) {
+    await this.assertPublicBook(bookId);
     const results = await this.prisma.classicOcrText.findMany({
       where: {
         image: { bookId },
@@ -190,8 +201,8 @@ export class ClassicImageService {
 
   /** 获取章节的文字→图像页面位置映射（可指定单页以减小响应体积） */
   async getChapterImageMapping(chapterId: string, targetPage?: number) {
-    const chapter = await this.prisma.classicChapter.findUnique({
-      where: { id: chapterId },
+    const chapter = await this.prisma.classicChapter.findFirst({
+      where: { id: chapterId, deletedAt: null, book: PUBLIC_CLASSIC_BOOK_WHERE },
       select: { id: true, bookId: true, title: true, content: true },
     });
     if (!chapter) return null;
@@ -354,17 +365,16 @@ export class ClassicImageService {
 
   /** 生成含文字叠加层的 IIIF Manifest */
   async generateManifestWithTextOverlay(bookId: string, baseUrl: string) {
+    const book = await this.prisma.classicBook.findFirst({
+      where: { id: bookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
+      select: { id: true, title: true, author: true },
+    });
+    if (!book) return null;
     const images = await this.prisma.classicImage.findMany({
       where: { bookId },
       orderBy: { pageNumber: "asc" },
       include: { ocrTexts: { orderBy: [{ lineNumber: "asc" }, { charIndex: "asc" }] } },
     });
-    const book = await this.prisma.classicBook.findUnique({
-      where: { id: bookId },
-      select: { id: true, title: true, author: true },
-    });
-    if (!book) return null;
-
     const canvases = images.map((img) => {
       // 基础 Annotation（图像本身）
       const paintingAnnotation = {

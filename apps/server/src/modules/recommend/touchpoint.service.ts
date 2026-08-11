@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
 import { RedisService } from "../../redis/redis.service";
 
 /**
@@ -178,7 +179,7 @@ export class TouchpointService {
     let book: { title: string; category: string } | null = null;
     if (bookId) {
       book = await this.prisma.classicBook.findFirst({
-        where: { id: bookId, status: "PUBLISHED", deletedAt: null },
+        where: { id: bookId, ...PUBLIC_CLASSIC_BOOK_WHERE },
         select: { title: true, category: true },
       });
     }

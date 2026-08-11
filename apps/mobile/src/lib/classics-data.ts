@@ -231,6 +231,15 @@ export interface BookInfo {
   color: CoverColor
   chapters: ChapterNode[]
   relatedBooks: { id: string; title: string; author: string; dynasty: string }[]
+  copyright?: ClassicCopyrightInfo | null
+}
+
+export interface ClassicCopyrightInfo {
+  sourceName: string
+  sourceUrl?: string | null
+  license: string
+  licenseUrl?: string | null
+  modified?: boolean
 }
 const _mockBookData: Record<string, BookInfo> = {
   '1': {
@@ -688,7 +697,16 @@ interface RawClassicChapter {
   translation?: string
   annotation?: string
   sortOrder?: number
-  book?: unknown
+  book?: {
+    id?: string
+    title?: string
+    copyrights?: Array<{
+      sourceName?: string
+      sourceUrl?: string | null
+      license?: string
+      licenseUrl?: string | null
+    }>
+  } | null
 }
 /** /classic/translate 文白翻译（notes 为白话注释字符串数组） */
 interface RawTranslate { original?: string; translation?: string; notes?: string[]; source?: string }

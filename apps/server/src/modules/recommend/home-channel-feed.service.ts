@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { isPublicContentQuarantined } from "../../common/public-content-quarantine";
 import type { FeedItem, SmartFeedResult } from "./smart-feed.service";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
 
 type TimedFeedItem = { at: number; item: FeedItem };
 
@@ -185,7 +186,7 @@ export class HomeChannelFeedService {
         take,
       }),
       this.prisma.classicBook.findMany({
-        where: { status: "PUBLISHED" },
+        where: PUBLIC_CLASSIC_BOOK_WHERE,
         select: {
           id: true, title: true, intro: true, cover: true,
           author: true, dynasty: true, category: true, viewCount: true,

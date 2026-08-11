@@ -3,6 +3,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { ContentQualityService } from "../content-quality/content-quality.service";
 import { BannerDto, DailyVerseDto, FeedItemDto, HomeResponseDto } from "./home.dto";
+import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
 
 /** 首页缓存 TTL（秒）— 全站最高频接口，短缓存即可大幅降压 */
 const HOME_CACHE_TTL = 30;
@@ -25,7 +26,7 @@ export class HomeService {
 
     // 仅缓存首页（page=1），后续页低频
     if (page === 1) {
-      const cacheKey = "home:page1";
+      const cacheKey = "home:v2:page1";
       const cached = await this.redis.getJson<HomeResponseDto>(cacheKey);
       if (cached) return cached;
 
@@ -57,19 +58,19 @@ export class HomeService {
   }
 
   private async getDailyVerse(): Promise<DailyVerseDto> {
-    const cacheKey = "home:dailyVerse";
+    const cacheKey = "home:v2:dailyVerse";
     try {
       const cached = await this.redis.getJson<DailyVerseDto>(cacheKey);
       if (cached) return cached;
 
       const book = await this.prisma.classicBook.findFirst({
-        where: { status: "PUBLISHED" },
+        where: PUBLIC_CLASSIC_BOOK_WHERE,
         orderBy: { viewCount: "desc" },
         select: { id: true, title: true, author: true },
       });
       if (book) {
         const chapter = await this.prisma.classicChapter.findFirst({
-          where: { bookId: book.id },
+          where: { bookId: book.id, deletedAt: null },
           orderBy: { id: "asc" },
           select: { content: true },
         });
