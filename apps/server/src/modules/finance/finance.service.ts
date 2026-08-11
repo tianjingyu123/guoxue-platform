@@ -78,10 +78,12 @@ export class FinanceService {
     }
     const billDateStr = dto.billDate || dto.period + "-01";
 
-    // 查询该窗口内已支付订单
+    // 交易账单记录的是支付发生时的原始交易，订单后续发货、完成或退款后仍必须参与对账。
+    // 同时按支付渠道隔离，避免把支付宝/银联订单拿去与微信账单比较。
     const orders = await this.prisma.order.findMany({
       where: {
-        status: "PAID",
+        status: { in: ["PAID", "SHIPPED", "COMPLETED", "REFUNDED"] },
+        payMethod: source,
         paidAt: { gte: rangeStart, lt: rangeEnd },
       },
       select: { id: true, payAmount: true, payMethod: true, payTransactionId: true },
@@ -103,8 +105,13 @@ export class FinanceService {
       let anyDayUnavailable = billDatesToFetch.length === 0;
       for (const dayStr of billDatesToFetch) {
         try {
-          const billCsv = await this.wechatPay.downloadTradeBill({ billDate: dayStr });
-          if (billCsv) {
+          // 交易对账只下载支付成功账单；ALL 还会混入同一订单的退款行，不能与原支付金额一一映射。
+          const billCsv = await this.wechatPay.downloadTradeBill({
+            billDate: dayStr,
+            billType: "SUCCESS",
+          });
+          // 空字符串表示微信明确返回 NO_STATEMENT_EXIST，即当天没有成功交易，是有效空账单。
+          if (billCsv !== null) {
             billEntries = billEntries.concat(this.parseBillCsv(billCsv));
           } else {
             anyDayUnavailable = true;
@@ -183,20 +190,30 @@ export class FinanceService {
 
   /** 解析微信交易账单CSV */
   private parseBillCsv(csv: string): BillEntry[] {
-    const lines = csv.trim().split("\n");
+    const lines = csv.split(/\r?\n/u).filter((line) => line.trim());
     if (lines.length < 2) return [];
 
-    // 微信账单CSV第一行为表头，数据从第二行开始
-    // 格式: 交易时间,公众账号ID,商户号,...,微信订单号(第6列),商户订单号(第7列),...,订单金额(第24列),...
+    const clean = (value: string) => value
+      .replace(/^\uFEFF/u, "")
+      .replace(/^`/u, "")
+      .replace(/`$/u, "")
+      .trim();
+    const headers = this.splitCsvLine(lines[0]).map(clean);
+    const orderNoIndex = headers.indexOf("商户订单号");
+    const amountIndex = ["订单金额", "应结订单金额", "总金额"]
+      .map((name) => headers.indexOf(name))
+      .find((index) => index >= 0) ?? -1;
+    if (orderNoIndex < 0 || amountIndex < 0) {
+      this.logger.warn("微信交易账单缺少商户订单号或订单金额表头，拒绝按固定列号猜测");
+      return [];
+    }
+
     const entries: BillEntry[] = [];
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(",");
-      if (cols.length < 10) continue;
-      // 字段位置去引号
-      const clean = (s: string) => s.replace(/^`|`$/g, "").trim();
-
-      const orderNo = clean(cols[6] || "");
-      const amountStr = clean(cols[23] || cols[22] || "0");
+      const cols = this.splitCsvLine(lines[i]);
+      if (cols.length <= Math.max(orderNoIndex, amountIndex)) continue;
+      const orderNo = clean(cols[orderNoIndex] || "");
+      const amountStr = clean(cols[amountIndex] || "0");
       const amount = parseFloat(amountStr) || 0;
 
       if (orderNo && amount > 0) {
@@ -204,6 +221,31 @@ export class FinanceService {
       }
     }
     return entries;
+  }
+
+  /** 按 RFC 4180 的双引号规则切分单行，避免商品名或商户数据包中的逗号错位金额列。 */
+  private splitCsvLine(line: string): string[] {
+    const values: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === "," && !inQuotes) {
+        values.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    values.push(current);
+    return values;
   }
 
   async getReconciliationList(dto: { source?: string; status?: string; page: number; pageSize: number }) {

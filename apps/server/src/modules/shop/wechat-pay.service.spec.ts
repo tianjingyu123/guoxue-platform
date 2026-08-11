@@ -472,6 +472,17 @@ describe("WechatPayService", () => {
       );
       expect(result).toContain("交易时间");
     });
+
+    it("无交易日期返回有效空账单而不是渠道故障", async () => {
+      jest.spyOn(service, "getTradeBill").mockRejectedValue(
+        new WechatPayApiError("NO_STATEMENT_EXIST", "请求的账单文件不存在", 404),
+      );
+
+      await expect(service.downloadTradeBill({
+        billDate: "2026-08-01",
+        billType: "SUCCESS",
+      })).resolves.toBe("");
+    });
   });
 
   // ───────── 回调验证 ─────────

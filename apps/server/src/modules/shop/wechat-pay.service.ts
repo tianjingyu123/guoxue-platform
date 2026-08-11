@@ -949,6 +949,12 @@ export class WechatPayService {
       }
       return null;
     } catch (err: unknown) {
+      // 微信对无交易日期不生成文件并返回 NO_STATEMENT_EXIST；这代表有效的空账单，
+      // 不能与鉴权、网络或文件下载失败一起折叠成不可用。
+      if (err instanceof WechatPayApiError && err.wechatCode === "NO_STATEMENT_EXIST") {
+        this.logger.log(`微信交易账单为空 [${params.billDate}]`);
+        return "";
+      }
       this.logger.error(`下载交易账单失败 [${params.billDate}]`, (err as Error).message);
       return null;
     }

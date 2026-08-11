@@ -95,7 +95,66 @@ describe("FinanceService", () => {
 
       await service.triggerReconciliation({ source: "WECHAT", period: "2026-05" });
 
-      expect(mockWechatPay.downloadTradeBill).toHaveBeenCalledWith({ billDate: "2026-05-01" });
+      expect(mockWechatPay.downloadTradeBill).toHaveBeenCalledWith({
+        billDate: "2026-05-01",
+        billType: "SUCCESS",
+      });
+    });
+
+    it("微信交易对账包含已退款订单并隔离其他支付渠道", async () => {
+      const headers = [
+        "交易时间", "公众账号ID", "商户号", "特约商户号", "设备号", "微信订单号",
+        "商户订单号", "用户标识", "交易类型", "交易状态", "付款银行", "货币种类",
+        "应结订单金额", "代金券金额", "商品名称", "商户数据包", "手续费", "费率",
+        "订单金额", "费率备注",
+      ];
+      const columns = Array(headers.length).fill("");
+      columns[6] = "order-refunded";
+      columns[12] = "0.01";
+      columns[14] = '"含,逗号的商品"';
+      columns[17] = "0.54%";
+      columns[18] = "0.01";
+      const mockWechatPay = {
+        downloadTradeBill: jest.fn().mockResolvedValue(
+          `${headers.join(",")}\n${columns.join(",")}\n总交易单数,应结订单总金额,手续费总金额,订单总金额\n1,0.01,0.00,0.01`,
+        ),
+      };
+      mockPrisma.order.findMany.mockResolvedValue([
+        {
+          id: "order-refunded",
+          payAmount: 0.01,
+          payMethod: "WECHAT",
+          payTransactionId: "wx-transaction-refunded",
+          status: "REFUNDED",
+        },
+      ]);
+      mockPrisma.reconciliationRecord.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => ({ id: "r-refunded", ...data }),
+      );
+      const service = new FinanceService(mockPrisma, mockWechatPay as any);
+
+      const result = await service.triggerReconciliation({
+        source: "WECHAT",
+        billDate: "2026-08-09",
+      });
+
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: { in: ["PAID", "SHIPPED", "COMPLETED", "REFUNDED"] },
+            payMethod: "WECHAT",
+          }),
+        }),
+      );
+      expect(mockWechatPay.downloadTradeBill).toHaveBeenCalledWith({
+        billDate: "2026-08-09",
+        billType: "SUCCESS",
+      });
+      expect(result).toEqual(expect.objectContaining({
+        status: "MATCHED",
+        totalAmount: 0.01,
+        diffCount: 0,
+      }));
     });
 
     // 🔴 假绿灯回归防护：有内部订单却拿不到渠道账单（此处未注入 wechatPay → billStatus 非 DOWNLOADED）
