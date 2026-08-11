@@ -1,0 +1,35 @@
+{
+  "version": "1",
+  "prompt": "template",
+  "title": "服务协议和隐私政策",
+  "message": "欢迎使用热卜国学。请您审慎阅读并充分理解《用户协议》和《隐私政策》。为保障账号安全、改进产品性能及提供直播语音连麦等功能，应用将在您同意后按功能需要处理设备标识、操作日志、网络状态和麦克风音频；麦克风仅在您主动申请连麦且主播批准后使用。<br/>您可阅读<a href=\"https://api.rebugx.cn/h5/pkg-settings/user-agreement/index\">《用户协议》</a>和<a href=\"https://api.rebugx.cn/h5/pkg-settings/privacy-policy/index\">《隐私政策》</a>了解详细信息。若您同意，请点击“同意并继续”。",
+  "buttonAccept": "同意并继续",
+  "buttonRefuse": "暂不同意",
+  "hrefLoader": "system",
+  "backToExit": "true",
+  "second": {
+    "title": "确认提示",
+    "message": "进入应用前，您需要先同意<a href=\"https://api.rebugx.cn/h5/pkg-settings/user-agreement/index\">《用户协议》</a>和<a href=\"https://api.rebugx.cn/h5/pkg-settings/privacy-policy/index\">《隐私政策》</a>；若仍不同意，应用将退出。",
+    "buttonAccept": "同意并继续",
+    "buttonRefuse": "退出应用"
+  },
+  "disagreeMode": {
+    "support": false,
+    "loadNativePlugins": false,
+    "visitorEntry": false,
+    "showAlways": false
+  },
+  "styles": {
+    "backgroundColor": "#FFFFFF",
+    "borderRadius": "12px",
+    "title": {
+      "color": "#27221D"
+    },
+    "buttonAccept": {
+      "color": "#8B1E2D"
+    },
+    "buttonRefuse": {
+      "color": "#6F655B"
+    }
+  }
+}

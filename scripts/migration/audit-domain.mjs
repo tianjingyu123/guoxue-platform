@@ -54,6 +54,13 @@ const compatibilityFallbacks = new Set([
   "scripts/migration/audit-domain.mjs",
 ]);
 
+const approvedFormalDomainFiles = new Set([
+  "apps/mobile/.env.production",
+  "apps/mobile/src/androidPrivacy.json",
+  "apps/mobile/src/manifest.json",
+]);
+const APPROVED_FORMAL_BASELINE_KIND = "正式发布基线";
+
 const demoDataPatterns = [
   /^apps\/mobile\/src\/lib\/(?:auth|course|discover|home|im|live|station-detail)-data\.ts$/,
   /^apps\/mobile\/src\/pkg-operator\/station-config\/index\.vue$/,
@@ -97,6 +104,9 @@ function isCommentOnly(line) {
 }
 
 function classify(relative, line) {
+  if (target === "api.rebugx.cn" && approvedFormalDomainFiles.has(relative)) {
+    return APPROVED_FORMAL_BASELINE_KIND;
+  }
   if (isCommentOnly(line)) return "注释";
   if (
     relative.includes("/prisma/migrations/") ||

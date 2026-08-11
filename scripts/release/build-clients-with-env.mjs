@@ -84,6 +84,7 @@ const buildEnv = {
   VITE_API_URL: values.VITE_API_URL,
   VITE_PUBLIC_H5_URL: values.VITE_PUBLIC_H5_URL,
   VITE_PUBLIC_ASSET_ORIGIN: values.VITE_PUBLIC_ASSET_ORIGIN,
+  VITE_RELEASE_CHANNEL: values.VITE_RELEASE_CHANNEL || "",
 };
 
 console.log(`生产客户端构建：已从 ${resolvedEnvFile} 注入 3 个公开 Vite 配置（未输出值）`);

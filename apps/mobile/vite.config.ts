@@ -5,9 +5,65 @@ import { resolve } from "path";
 const LEGACY_PUBLIC_ORIGIN = "https://api.rebugx.cn";
 const THIRD_PARTY_PROBE_ORIGIN = "https://example.com";
 const RESERVED_PROBE_ORIGIN = "https://example.invalid";
+const REQUIRED_PRODUCTION_CLIENT_ENV = [
+  "VITE_API_URL",
+  "VITE_PUBLIC_H5_URL",
+  "VITE_PUBLIC_ASSET_ORIGIN",
+] as const;
+const EXPLICIT_CLIENT_ENV = [...REQUIRED_PRODUCTION_CLIENT_ENV, "VITE_RELEASE_CHANNEL"] as const;
+const FORMAL_RELEASE_CHANNELS = new Set(["formal", "production"]);
+
+const FORMAL_CLIENT_ENV = {
+  VITE_API_URL: "https://api.rebugx.cn",
+  VITE_PUBLIC_H5_URL: "https://api.rebugx.cn/h5/",
+  VITE_PUBLIC_ASSET_ORIGIN: "https://static.rebugx.cn",
+} as const;
 
 function normalizeOrigin(value: string): string {
   return value.trim().replace(/\/+$/, "");
+}
+
+export function resolveClientEnv(
+  loadedEnv: Record<string, string>,
+  explicitEnv: Record<string, string | undefined>,
+): Record<string, string> {
+  const resolved = { ...loadedEnv };
+  for (const key of EXPLICIT_CLIENT_ENV) {
+    if (Object.prototype.hasOwnProperty.call(explicitEnv, key)) {
+      resolved[key] = explicitEnv[key] || "";
+    }
+  }
+  return resolved;
+}
+
+export function validateProductionClientEnv(mode: string, env: Record<string, string>): void {
+  if (mode !== "production") return;
+
+  const missing = REQUIRED_PRODUCTION_CLIENT_ENV.filter((key) => !env[key]?.trim());
+  if (missing.length > 0) {
+    throw new Error(`生产客户端构建缺少公开配置：${missing.join(", ")}`);
+  }
+
+  for (const key of REQUIRED_PRODUCTION_CLIENT_ENV) {
+    let parsed: URL;
+    try {
+      parsed = new URL(env[key]);
+    } catch {
+      throw new Error(`生产客户端构建配置 ${key} 不是有效 URL`);
+    }
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash) {
+      throw new Error(`生产客户端构建配置 ${key} 必须是无凭据、查询参数和片段的 HTTPS URL`);
+    }
+  }
+
+  if (FORMAL_RELEASE_CHANNELS.has(env.VITE_RELEASE_CHANNEL)) {
+    const mismatched = Object.entries(FORMAL_CLIENT_ENV)
+      .filter(([key, expected]) => env[key] !== expected)
+      .map(([key]) => key);
+    if (mismatched.length > 0) {
+      throw new Error(`正式客户端构建域名不符合发布基线：${mismatched.join(", ")}`);
+    }
+  }
 }
 
 /**
@@ -54,16 +110,16 @@ export function rewriteFlvProbeOrigin(): Plugin {
 }
 
 /**
- * DCloud 的 App-Harmony 编译器使用 IIFE 页面脚本；当前版本的编译插件会在
- * 合并用户 Vite 配置时覆盖 output 对象，因此需要在 post 阶段重新声明内联动态导入。
+ * App 原生运行时使用 IIFE 主服务脚本。Android/iOS 云端运行时未提供 AMD define，
+ * 因此动态导入必须内联；H5 与小程序仍保留原有分包策略。
  */
-export function harmonyIifeBuildCompatibility(): Plugin {
+export function nativeAppIifeBuildCompatibility(): Plugin {
   return {
-    name: "harmony-iife-build-compatibility",
+    name: "native-app-iife-build-compatibility",
     apply: "build",
     enforce: "post",
     config() {
-      if (process.env.UNI_PLATFORM !== "app-harmony") return;
+      if (process.env.UNI_PLATFORM !== "app-harmony" && process.env.UNI_PLATFORM !== "app") return;
       return {
         build: {
           rollupOptions: {
@@ -75,7 +131,7 @@ export function harmonyIifeBuildCompatibility(): Plugin {
       };
     },
     configResolved(config) {
-      if (process.env.UNI_PLATFORM !== "app-harmony") return;
+      if (process.env.UNI_PLATFORM !== "app-harmony" && process.env.UNI_PLATFORM !== "app") return;
       const output = config.build.rollupOptions.output;
       const outputs = Array.isArray(output) ? output : output ? [output] : [];
       for (const item of outputs) {
@@ -87,8 +143,10 @@ export function harmonyIifeBuildCompatibility(): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, __dirname, "");
-  const isHarmonyApp = process.env.UNI_PLATFORM === "app-harmony";
+  const env = resolveClientEnv(loadEnv(mode, __dirname, ""), process.env);
+  validateProductionClientEnv(mode, env);
+  const isNativeRuntimeApp =
+    process.env.UNI_PLATFORM === "app-harmony" || process.env.UNI_PLATFORM === "app";
   const publicAssetOrigin =
     env.VITE_PUBLIC_ASSET_ORIGIN || env.VITE_API_URL || LEGACY_PUBLIC_ORIGIN;
   const devProxyTarget = normalizeOrigin(env.VITE_DEV_PROXY_TARGET || "http://localhost:3000");
@@ -98,7 +156,7 @@ export default defineConfig(({ mode }) => {
       rewriteLegacyPublicAssets(publicAssetOrigin),
       rewriteFlvProbeOrigin(),
       uni(),
-      harmonyIifeBuildCompatibility(),
+      nativeAppIifeBuildCompatibility(),
     ],
     resolve: {
       alias: {
@@ -145,9 +203,9 @@ export default defineConfig(({ mode }) => {
       // preload 失败会导致整个分包 import 被 reject → 懒加载页(如设置页)在 iOS 白屏(安卓正常)。
       // 关闭 modulePreload：__vitePreload 不再注入会失败的 preload link，改用浏览器原生 import() 直接加载分包。
       modulePreload: false,
-      // App-Harmony 的页面脚本使用 IIFE 输出，Rollup 不允许 IIFE 与动态代码拆分同时启用。
-      // 仅鸿蒙 App 内联动态导入；H5、微信小程序与 Android/iOS 仍保留原有分包策略。
-      rollupOptions: isHarmonyApp
+      // App 原生运行时的页面脚本使用 IIFE，Rollup 不允许 IIFE 与动态代码拆分同时启用。
+      // 仅 App 原生平台内联动态导入；H5 与小程序仍保留原有分包策略。
+      rollupOptions: isNativeRuntimeApp
         ? {
             output: {
               inlineDynamicImports: true,

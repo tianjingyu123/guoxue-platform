@@ -120,12 +120,13 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
       "com.apple.developer.associated-domains"
     ];
 
-  assert.deepEqual(associatedDomains, ["applinks:pre-api.rebugx.cn"]);
+  assert.deepEqual(associatedDomains, ["applinks:api.rebugx.cn"]);
   assert.equal(deployedApple.applinks.details[0].appID, `WL5PA97667.${iosBundleId}`);
   assert.deepEqual(deployedApple.applinks.details[0].components, [{ "/": "/h5/*" }]);
   assert.equal(deployedAndroid[0].target.package_name, androidPackageName);
   assert.deepEqual(deployedAndroid[0].target.sha256_cert_fingerprints, [
     "73:7C:54:A4:5E:71:0B:CE:7C:68:75:A4:1A:5A:5C:0C:22:8C:09:BD:31:FC:08:DF:8E:01:63:64:B6:1B:9D:67",
+    "85:A8:1C:39:36:B9:5D:95:32:B7:1C:85:C6:7B:24:8D:40:DF:09:5F:E1:C2:AA:A0:AB:75:90:40:65:09:87:A7",
   ]);
 
   const directNginx = await readFile(path.join(projectRoot, "docker/nginx/nginx.conf.template"), "utf8");
@@ -134,7 +135,14 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
   const tencentCompose = await readFile(path.join(projectRoot, "docker/docker-compose.tencent.yml"), "utf8");
   const deployScript = await readFile(path.join(projectRoot, "docker/deploy.sh"), "utf8");
   const androidManifest = await readFile(
-    path.join(projectRoot, "apps/mobile/src/AndroidManifest.xml"),
+    path.join(projectRoot, "apps/mobile/AndroidManifest.xml"),
+    "utf8",
+  );
+  const androidNetworkSecurity = await readFile(
+    path.join(
+      projectRoot,
+      "apps/mobile/nativeResources/android/res/xml/network_security_config.xml",
+    ),
     "utf8",
   );
   for (const config of [directNginx, clbNginx]) {
@@ -152,9 +160,21 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
     "已有服务滚动发布必须同时刷新 Nginx，避免继续挂载旧发布目录",
   );
   assert.match(androidManifest, /package="com\.rebu\.apprebu"/u);
-  assert.match(androidManifest, /android:name="io\.dcloud\.PandoraEntryActivity"/u);
+  assert.equal(mobileManifest["app-plus"].distribute.android.usesCleartextTraffic, false);
+  assert.equal(
+    mobileManifest["app-plus"].distribute.android.permissions.some((permission) =>
+      permission.includes("FOREGROUND_SERVICE_MEDIA_PROJECTION"),
+    ),
+    false,
+  );
+  assert.match(androidManifest, /android:name="io\.dcloud\.PandoraEntry"/u);
   assert.match(androidManifest, /<intent-filter android:autoVerify="true">/u);
+  assert.match(androidManifest, /android:usesCleartextTraffic="false"/u);
+  assert.match(androidManifest, /android:networkSecurityConfig="@xml\/network_security_config"/u);
   assert.match(androidManifest, /android:scheme="https"/u);
-  assert.match(androidManifest, /android:host="pre-api\.rebugx\.cn"/u);
+  assert.match(androidManifest, /android:host="api\.rebugx\.cn"/u);
+  assert.doesNotMatch(androidManifest, /pre-api\.rebugx\.cn/u);
   assert.match(androidManifest, /android:pathPrefix="\/h5\/"/u);
+  assert.match(androidNetworkSecurity, /cleartextTrafficPermitted="false"/u);
+  assert.match(androidNetworkSecurity, /<certificates src="system" \/>/u);
 });
