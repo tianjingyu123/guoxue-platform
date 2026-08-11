@@ -344,9 +344,13 @@ if [ "$SKIP_HEALTH" = "false" ]; then
     CONTAINER_HEALTH_STATUS=$(docker inspect --format \
       '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
       guoxue-server 2>/dev/null || echo "")
+    NGINX_HEALTH_STATUS=$(docker inspect --format \
+      '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' \
+      guoxue-nginx 2>/dev/null || echo "")
     if [ "$HEALTH_STATUS" = "alive" ] && \
       [ "$RUNTIME_RELEASE_ID" = "$RELEASE_ID" ] && \
-      [ "$CONTAINER_HEALTH_STATUS" = "healthy" ]; then
+      [ "$CONTAINER_HEALTH_STATUS" = "healthy" ] && \
+      [ "$NGINX_HEALTH_STATUS" = "healthy" ]; then
       HEALTH_READY="true"
       log "  ✓ 服务存活、容器健康且运行版本一致 (${WAITED}s, $RUNTIME_RELEASE_ID)"
       break
@@ -356,6 +360,10 @@ if [ "$SKIP_HEALTH" = "false" ]; then
       [ "$RUNTIME_RELEASE_ID" = "$RELEASE_ID" ] && \
       [ "$CONTAINER_HEALTH_STATUS" != "healthy" ]; then
       info "  业务接口已就绪，等待 Docker 健康状态: ${CONTAINER_HEALTH_STATUS:-unknown}"
+    fi
+
+    if [ "$NGINX_HEALTH_STATUS" != "healthy" ]; then
+      info "  等待 Nginx Docker 健康状态: ${NGINX_HEALTH_STATUS:-unknown}"
     fi
 
     if [ -n "$RUNTIME_RELEASE_ID" ] && [ "$RUNTIME_RELEASE_ID" != "$RELEASE_ID" ]; then

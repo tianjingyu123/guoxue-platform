@@ -908,6 +908,8 @@ add(
     "CONTAINER_HEALTH_STATUS",
     ".State.Health.Status",
     '[ "$CONTAINER_HEALTH_STATUS" = "healthy" ]',
+    "NGINX_HEALTH_STATUS",
+    '[ "$NGINX_HEALTH_STATUS" = "healthy" ]',
     "服务已响应，但运行版本不一致",
     "服务存活、容器健康且运行版本一致",
     "自动回滚",
