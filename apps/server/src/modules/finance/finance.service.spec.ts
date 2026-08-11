@@ -157,6 +157,64 @@ describe("FinanceService", () => {
       }));
     });
 
+    it("按 GX 商户订单号匹配 UUID 订单并在 payAmount 为空时回退订单金额", async () => {
+      const orderId = "0bfeca3b-1d0e-459b-980a-b70e46d1ab3e";
+      const outTradeNo = "GX0bfeca3b1d0e459b980ab70e46d1ab";
+      const mockWechatPay = {
+        downloadTradeBill: jest.fn().mockResolvedValue(
+          `商户订单号,订单金额\n${outTradeNo},0.01`,
+        ),
+      };
+      mockPrisma.order.findMany.mockResolvedValue([{
+        id: orderId,
+        amount: 0.01,
+        payAmount: null,
+        payMethod: "WECHAT",
+        payTransactionId: "wx-channel-transaction-id",
+        status: "REFUNDED",
+      }]);
+      mockPrisma.reconciliationRecord.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) => ({ id: "r-gx", ...data }),
+      );
+      const service = new FinanceService(mockPrisma, mockWechatPay as any);
+
+      const result = await service.triggerReconciliation({
+        source: "WECHAT",
+        billDate: "2026-08-09",
+      });
+
+      expect(result).toEqual(expect.objectContaining({
+        status: "MATCHED",
+        totalAmount: 0.01,
+        matchAmount: 0.01,
+        diffCount: 0,
+      }));
+    });
+
+    it("北京时间次日上午十点前不提前拉取尚未生成的前一日账单", async () => {
+      jest.useFakeTimers().setSystemTime(new Date("2026-08-11T01:00:00.000Z"));
+      try {
+        const mockWechatPay = {
+          downloadTradeBill: jest.fn().mockResolvedValue("商户订单号,订单金额\n"),
+        };
+        mockPrisma.order.findMany.mockResolvedValue([]);
+        mockPrisma.reconciliationRecord.create.mockImplementation(
+          ({ data }: { data: Record<string, unknown> }) => ({ id: "r-cutoff", ...data }),
+        );
+        const service = new FinanceService(mockPrisma, mockWechatPay as any);
+
+        await service.triggerReconciliation({ source: "WECHAT", period: "2026-08" });
+
+        expect(mockWechatPay.downloadTradeBill).toHaveBeenCalledTimes(9);
+        expect(mockWechatPay.downloadTradeBill).toHaveBeenLastCalledWith({
+          billDate: "2026-08-09",
+          billType: "SUCCESS",
+        });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     // 🔴 假绿灯回归防护：有内部订单却拿不到渠道账单（此处未注入 wechatPay → billStatus 非 DOWNLOADED）
     //    时，绝不能判 MATCHED，必须 PENDING 待人工核。回显 create 的 data 才能断言真实计算的 status。
     it("有内部订单但无账单可比对时判 PENDING（不生成假绿灯 MATCHED）", async () => {

@@ -258,7 +258,12 @@ describe("ShopPaymentService", () => {
       expect(handled).toBe(true)
       expect(mockPrisma.order.updateMany).toHaveBeenCalledWith({
         where: { id: "o-wx-ok", status: "PENDING" },
-        data: expect.objectContaining({ status: "PAID", payMethod: "WECHAT", payTransactionId: "WX-CHANNEL-OK" }),
+        data: expect.objectContaining({
+          status: "PAID",
+          payMethod: "WECHAT",
+          payAmount: 88,
+          payTransactionId: "WX-CHANNEL-OK",
+        }),
       })
       expect(attribution).toHaveBeenCalledWith(expect.objectContaining({ id: "o-wx-ok" }))
       expect(mockWebhook.fire).toHaveBeenCalledWith("ORDER_PAID", expect.objectContaining({

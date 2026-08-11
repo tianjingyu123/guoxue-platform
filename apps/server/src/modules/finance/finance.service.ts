@@ -52,8 +52,7 @@ export class FinanceService {
     let rangeEnd: Date;
     let billDatesToFetch: string[];
     if (dto.billDate) {
-      const billDate = new Date(dto.billDate);
-      rangeStart = new Date(billDate.getFullYear(), billDate.getMonth(), billDate.getDate());
+      rangeStart = new Date(`${dto.billDate}T00:00:00+08:00`);
       rangeEnd = new Date(rangeStart.getTime() + 86400000);
       billDatesToFetch = [dto.billDate];
     } else if (dto.period) {
@@ -61,17 +60,18 @@ export class FinanceService {
       if (!year || !month || month < 1 || month > 12) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的对账月份格式，应为 YYYY-MM（如 2026-05）");
       }
-      rangeStart = new Date(year, month - 1, 1);
-      rangeEnd = new Date(year, month, 1);
-      // 逐日账单：只取已过去的日期（渠道当日账单要次日才出）
+      // 财务月份按中国业务时区划分，不能随容器或运维终端的本地时区漂移。
+      rangeStart = new Date(Date.UTC(year, month - 1, 1) - 8 * 3600000);
+      rangeEnd = new Date(Date.UTC(year, month, 1) - 8 * 3600000);
+      // 微信交易账单在次日上午 10 点后生成。北京时间未到 10 点时，前一日账单仍不可用；
+      // 此时只拉取到前两日，避免把“尚未出账”误判成账单下载失败。
       billDatesToFetch = [];
-      const today = new Date();
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      for (let d = new Date(rangeStart); d < rangeEnd && d < todayStart; d.setDate(d.getDate() + 1)) {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        billDatesToFetch.push(`${y}-${m}-${day}`);
+      const availableThrough = this.getWechatBillAvailableThrough();
+      const calendarEnd = Date.UTC(year, month, 1);
+      for (let cursor = Date.UTC(year, month - 1, 1); cursor < calendarEnd; cursor += 86400000) {
+        const dayStr = new Date(cursor).toISOString().slice(0, 10);
+        if (dayStr > availableThrough) break;
+        billDatesToFetch.push(dayStr);
       }
     } else {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "请提供对账月份(period)或账单日期(billDate)");
@@ -86,10 +86,12 @@ export class FinanceService {
         payMethod: source,
         paidAt: { gte: rangeStart, lt: rangeEnd },
       },
-      select: { id: true, payAmount: true, payMethod: true, payTransactionId: true },
+      select: { id: true, amount: true, payAmount: true, payMethod: true, payTransactionId: true },
     });
 
-    const totalAmount = orders.reduce((sum, o) => sum + Number(o.payAmount || 0), 0);
+    const paidAmountOf = (order: { amount?: unknown; payAmount?: unknown }) =>
+      Number(order.payAmount ?? order.amount ?? 0);
+    const totalAmount = orders.reduce((sum, order) => sum + paidAmountOf(order), 0);
 
     // 下载微信支付交易账单并逐笔比对
     let billEntries: BillEntry[] = [];
@@ -124,25 +126,41 @@ export class FinanceService {
       billStatus = anyDayUnavailable ? "BILL_UNAVAILABLE" : "DOWNLOADED";
     }
 
-    // 逐笔比对（内部订单 id = 微信账单中的商户订单号）
+    // 逐笔比对：微信账单使用支付初始化时派生的 GX 商户订单号，并非内部 UUID。
     if (billEntries.length > 0) {
-      const internalMap = new Map(orders.map((o) => [o.id, o]));
       const billMap = new Map(billEntries.map((b) => [b.orderNo, b]));
 
       // 检查内部订单是否在账单中
-      for (const [orderId, internalOrder] of internalMap) {
-        const billEntry = billMap.get(orderId);
+      for (const internalOrder of orders) {
+        const normalizedOrderId = internalOrder.id.replace(/[^A-Za-z0-9]/gu, "");
+        const initialOutTradeNo = `GX${normalizedOrderId.slice(0, 30)}`;
+        let matchedOrderNo = billMap.has(internalOrder.id)
+          ? internalOrder.id
+          : billMap.has(initialOutTradeNo)
+            ? initialOutTradeNo
+            : undefined;
+
+        // “重新支付”会生成 GX + 13位毫秒时间戳 + 订单ID前17位。旧数据未单独持久化该商户单号，
+        // 因此按确定性格式回溯；仅在唯一命中时匹配，避免碰撞时错误出绿灯。
+        if (!matchedOrderNo) {
+          const retryPattern = new RegExp(`^GX\\d{13}${normalizedOrderId.slice(0, 17)}$`, "u");
+          const retryMatches = [...billMap.keys()].filter((orderNo) => retryPattern.test(orderNo));
+          if (retryMatches.length === 1) matchedOrderNo = retryMatches[0];
+        }
+
+        const billEntry = matchedOrderNo ? billMap.get(matchedOrderNo) : undefined;
+        const internalAmount = paidAmountOf(internalOrder);
         if (!billEntry) {
-          mismatches.push({ orderNo: orderId, internalAmount: Number(internalOrder.payAmount || 0), reason: "账单中未找到此订单" });
-        } else if (Math.abs(Number(internalOrder.payAmount || 0) - billEntry.amount) > 0.01) {
+          mismatches.push({ orderNo: internalOrder.id, internalAmount, reason: "账单中未找到此订单" });
+        } else if (Math.abs(internalAmount - billEntry.amount) >= 0.01) {
           mismatches.push({
-            orderNo: orderId,
-            internalAmount: Number(internalOrder.payAmount || 0),
+            orderNo: internalOrder.id,
+            internalAmount,
             billAmount: billEntry.amount,
             reason: "金额不一致",
           });
         }
-        billMap.delete(orderId);
+        if (matchedOrderNo) billMap.delete(matchedOrderNo);
       }
 
       // 检查账单中是否有内部未记录的订单
@@ -186,6 +204,17 @@ export class FinanceService {
       `对账完成: source=${source}, billDate=${billDateStr}, 订单数=${orders.length}, 差异=${mismatches.length}`,
     );
     return record;
+  }
+
+  /** 返回北京时间下已经应当生成的最后一个微信交易账单日期。 */
+  private getWechatBillAvailableThrough(now = new Date()): string {
+    const shanghaiNow = new Date(now.getTime() + 8 * 3600000);
+    const daysBack = shanghaiNow.getUTCHours() >= 10 ? 1 : 2;
+    return new Date(Date.UTC(
+      shanghaiNow.getUTCFullYear(),
+      shanghaiNow.getUTCMonth(),
+      shanghaiNow.getUTCDate() - daysBack,
+    )).toISOString().slice(0, 10);
   }
 
   /** 解析微信交易账单CSV */

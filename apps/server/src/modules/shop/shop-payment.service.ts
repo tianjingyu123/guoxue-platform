@@ -761,7 +761,7 @@ export class ShopPaymentService {
       if (!orderLockKey) return false;
 
       try {
-        await this.processPaidOrder(order, payMethod, tradeNo);
+        await this.processPaidOrder(order, payMethod, tradeNo, Number(callbackAmount));
       } catch (e: unknown) {
         if (e instanceof BusinessException && e.message === "订单状态已变更") return true;
         if (isUniqueConstraintError(e)) {
@@ -848,13 +848,19 @@ export class ShopPaymentService {
   }
 
   /** 事务内更新订单状态为 PAID + 按类型触发后处理 */
-  private async processPaidOrder(order: { id: string; type: string; userId: string; amount: any; targetId?: string | null; referrerId?: string | null }, payMethod: string, tradeNo: string) {
+  private async processPaidOrder(
+    order: { id: string; type: string; userId: string; amount: any; targetId?: string | null; referrerId?: string | null },
+    payMethod: string,
+    tradeNo: string,
+    paidAmount = Number(order.amount),
+  ) {
     await this.prisma.$transaction(async (tx) => {
       const result = await tx.order.updateMany({
         where: { id: order.id, status: "PENDING" },
         data: {
           status: "PAID",
           payMethod,
+          payAmount: paidAmount,
           paidAt: new Date(),
           payTransactionId: tradeNo,
         },
