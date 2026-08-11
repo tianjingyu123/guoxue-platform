@@ -132,6 +132,7 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
   const clbNginx = await readFile(path.join(projectRoot, "docker/nginx/nginx.clb.conf.template"), "utf8");
   const prodCompose = await readFile(path.join(projectRoot, "docker/docker-compose.prod.yml"), "utf8");
   const tencentCompose = await readFile(path.join(projectRoot, "docker/docker-compose.tencent.yml"), "utf8");
+  const deployScript = await readFile(path.join(projectRoot, "docker/deploy.sh"), "utf8");
   const androidManifest = await readFile(
     path.join(projectRoot, "apps/mobile/src/AndroidManifest.xml"),
     "utf8",
@@ -145,6 +146,11 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
   for (const compose of [prodCompose, tencentCompose]) {
     assert.match(compose, /\.\/nginx\/well-known:\/var\/www\/\.well-known:ro/u);
   }
+  assert.match(
+    deployScript,
+    /"\$\{COMPOSE\[@\]\}" up -d --no-deps server nginx/u,
+    "已有服务滚动发布必须同时刷新 Nginx，避免继续挂载旧发布目录",
+  );
   assert.match(androidManifest, /package="com\.rebu\.apprebu"/u);
   assert.match(androidManifest, /android:name="io\.dcloud\.PandoraEntryActivity"/u);
   assert.match(androidManifest, /<intent-filter android:autoVerify="true">/u);

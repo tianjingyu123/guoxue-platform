@@ -312,8 +312,11 @@ fi
 # ── 4. 滚动更新 ──
 log "▸ 5/7 滚动更新服务"
 if [ "$RUNNING_BEFORE" -gt 0 ]; then
-  # 零停机更新：仅重建 server 容器
-  "${COMPOSE[@]}" up -d --no-deps server
+  # 单节点内同时刷新业务容器与 Nginx。Nginx 配置、静态客户端和
+  # /.well-known 关联文件都属于固定发布包；只重建 server 会让容器
+  # 继续挂载旧发布目录，造成代码版本已切换但入口配置仍滞后。
+  # 双节点按 operations -> app 顺序滚动时，CLB 仍可由另一节点承载流量。
+  "${COMPOSE[@]}" up -d --no-deps server nginx
 else
   # 首次启动
   "${COMPOSE[@]}" up -d
