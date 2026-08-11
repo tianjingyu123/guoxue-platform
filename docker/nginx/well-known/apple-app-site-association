@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "WL5PA97667.com.rebu.iosapprebu",
+        "components": [
+          {
+            "/": "/h5/*"
+          }
+        ]
+      }
+    ]
+  }
+}

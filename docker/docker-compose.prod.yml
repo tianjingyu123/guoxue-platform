@@ -205,6 +205,7 @@ services:
     volumes:
       - ./nginx/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
       - ./nginx/security-headers.conf:/etc/nginx/snippets/security-headers.conf:ro
+      - ./nginx/well-known:/var/www/.well-known:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - uploads_data:/var/www/uploads:ro
       - static_data:/var/www/static:ro

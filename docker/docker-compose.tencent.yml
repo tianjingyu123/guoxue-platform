@@ -66,6 +66,7 @@ services:
     volumes: !override # CLB 架构：容器启动时从模板生成完整 nginx.conf，避免依赖服务器上的未跟踪文件
       - ./nginx/nginx.clb.conf.template:/etc/nginx/templates/nginx.clb.conf.template:ro
       - ./nginx/security-headers.conf:/etc/nginx/snippets/security-headers.conf:ro
+      - ./nginx/well-known:/var/www/.well-known:ro
       # CLB 架构不需要本地 SSL 证书目录
       - uploads_data:/var/www/uploads:ro
       - static_data:/var/www/static:ro

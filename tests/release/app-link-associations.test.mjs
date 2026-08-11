@@ -102,3 +102,53 @@ test("占位域名与非受控路径不能生成公网关联文件", async () =>
     await rm(run.root, { recursive: true, force: true });
   }
 });
+
+test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述文件启用关联域", async () => {
+  const intake = JSON.parse(
+    await readFile(path.join(projectRoot, "config/release/infrastructure-intake.json"), "utf8"),
+  );
+  const run = await runBuilder(intake);
+  try {
+    assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
+    const generatedApple = JSON.parse(
+      await readFile(path.join(run.output, ".well-known/apple-app-site-association"), "utf8"),
+    );
+    const generatedAndroid = JSON.parse(
+      await readFile(path.join(run.output, ".well-known/assetlinks.json"), "utf8"),
+    );
+    const deployedApple = JSON.parse(
+      await readFile(path.join(projectRoot, "docker/nginx/well-known/apple-app-site-association"), "utf8"),
+    );
+    const deployedAndroid = JSON.parse(
+      await readFile(path.join(projectRoot, "docker/nginx/well-known/assetlinks.json"), "utf8"),
+    );
+    assert.deepEqual(deployedApple, generatedApple);
+    assert.deepEqual(deployedAndroid, generatedAndroid);
+
+    const directNginx = await readFile(path.join(projectRoot, "docker/nginx/nginx.conf.template"), "utf8");
+    const clbNginx = await readFile(path.join(projectRoot, "docker/nginx/nginx.clb.conf.template"), "utf8");
+    const prodCompose = await readFile(path.join(projectRoot, "docker/docker-compose.prod.yml"), "utf8");
+    const tencentCompose = await readFile(path.join(projectRoot, "docker/docker-compose.tencent.yml"), "utf8");
+    for (const config of [directNginx, clbNginx]) {
+      assert.match(config, /location = \/\.well-known\/apple-app-site-association/u);
+      assert.match(config, /location = \/\.well-known\/assetlinks\.json/u);
+      assert.match(config, /try_files \$uri =404/u);
+      assert.match(config, /default_type application\/json/u);
+    }
+    for (const compose of [prodCompose, tencentCompose]) {
+      assert.match(compose, /\.\/nginx\/well-known:\/var\/www\/\.well-known:ro/u);
+    }
+
+    const mobileManifest = JSON.parse(
+      await readFile(path.join(projectRoot, "apps/mobile/src/manifest.json"), "utf8"),
+    );
+    assert.deepEqual(
+      mobileManifest["app-plus"].distribute.ios.capabilities.entitlements[
+        "com.apple.developer.associated-domains"
+      ],
+      [`applinks:${intake.appDeepLinks.host}`],
+    );
+  } finally {
+    await rm(run.root, { recursive: true, force: true });
+  }
+});

@@ -145,6 +145,24 @@ http {
       limit_req zone=api_limit burst=60;
     }
 
+    # iOS Universal Links / Android App Links 关联文件。
+    # HTTPS 精确路径直接返回 JSON，禁止落入 API 兜底或发生重定向。
+    location = /.well-known/apple-app-site-association {
+      root /var/www;
+      try_files $uri =404;
+      default_type application/json;
+      add_header Cache-Control "public, max-age=300";
+      include /etc/nginx/snippets/security-headers.conf;
+    }
+
+    location = /.well-known/assetlinks.json {
+      root /var/www;
+      try_files $uri =404;
+      default_type application/json;
+      add_header Cache-Control "public, max-age=300";
+      include /etc/nginx/snippets/security-headers.conf;
+    }
+
     # ── H5 SPA ──
     location = /h5 {
       return 301 $scheme://$host/h5/;

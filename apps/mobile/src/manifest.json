@@ -26,6 +26,13 @@
         "appid": "com.rebu.iosapprebu",
         "privacyDescription": {
           "NSMicrophoneUsageDescription": "用于与国学智能体进行实时语音通话，仅在通话期间采集声音。"
+        },
+        "capabilities": {
+          "entitlements": {
+            "com.apple.developer.associated-domains": [
+              "applinks:pre-api.rebugx.cn"
+            ]
+          }
         }
       },
       "sdkConfigs": {

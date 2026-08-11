@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.rebu.apprebu",
+      "sha256_cert_fingerprints": [
+        "73:7C:54:A4:5E:71:0B:CE:7C:68:75:A4:1A:5A:5C:0C:22:8C:09:BD:31:FC:08:DF:8E:01:63:64:B6:1B:9D:67"
+      ]
+    }
+  }
+]
