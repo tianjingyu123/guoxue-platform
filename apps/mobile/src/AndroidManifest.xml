@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools"
+  package="com.rebu.apprebu">
+  <application>
+    <activity
+      android:name="io.dcloud.PandoraEntryActivity"
+      android:exported="true"
+      tools:node="merge">
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+          android:scheme="https"
+          android:host="pre-api.rebugx.cn"
+          android:pathPrefix="/h5/" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>

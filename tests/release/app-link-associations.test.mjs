@@ -132,6 +132,10 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
   const clbNginx = await readFile(path.join(projectRoot, "docker/nginx/nginx.clb.conf.template"), "utf8");
   const prodCompose = await readFile(path.join(projectRoot, "docker/docker-compose.prod.yml"), "utf8");
   const tencentCompose = await readFile(path.join(projectRoot, "docker/docker-compose.tencent.yml"), "utf8");
+  const androidManifest = await readFile(
+    path.join(projectRoot, "apps/mobile/src/AndroidManifest.xml"),
+    "utf8",
+  );
   for (const config of [directNginx, clbNginx]) {
     assert.match(config, /location = \/\.well-known\/apple-app-site-association/u);
     assert.match(config, /location = \/\.well-known\/assetlinks\.json/u);
@@ -141,4 +145,10 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
   for (const compose of [prodCompose, tencentCompose]) {
     assert.match(compose, /\.\/nginx\/well-known:\/var\/www\/\.well-known:ro/u);
   }
+  assert.match(androidManifest, /package="com\.rebu\.apprebu"/u);
+  assert.match(androidManifest, /android:name="io\.dcloud\.PandoraEntryActivity"/u);
+  assert.match(androidManifest, /<intent-filter android:autoVerify="true">/u);
+  assert.match(androidManifest, /android:scheme="https"/u);
+  assert.match(androidManifest, /android:host="pre-api\.rebugx\.cn"/u);
+  assert.match(androidManifest, /android:pathPrefix="\/h5\/"/u);
 });
