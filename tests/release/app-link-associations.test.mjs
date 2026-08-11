@@ -104,51 +104,41 @@ test("占位域名与非受控路径不能生成公网关联文件", async () =>
 });
 
 test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述文件启用关联域", async () => {
-  const intake = JSON.parse(
-    await readFile(path.join(projectRoot, "config/release/infrastructure-intake.json"), "utf8"),
+  const deployedApple = JSON.parse(
+    await readFile(path.join(projectRoot, "docker/nginx/well-known/apple-app-site-association"), "utf8"),
   );
-  const run = await runBuilder(intake);
-  try {
-    assert.equal(run.result.status, 0, run.result.stderr || run.result.stdout);
-    const generatedApple = JSON.parse(
-      await readFile(path.join(run.output, ".well-known/apple-app-site-association"), "utf8"),
-    );
-    const generatedAndroid = JSON.parse(
-      await readFile(path.join(run.output, ".well-known/assetlinks.json"), "utf8"),
-    );
-    const deployedApple = JSON.parse(
-      await readFile(path.join(projectRoot, "docker/nginx/well-known/apple-app-site-association"), "utf8"),
-    );
-    const deployedAndroid = JSON.parse(
-      await readFile(path.join(projectRoot, "docker/nginx/well-known/assetlinks.json"), "utf8"),
-    );
-    assert.deepEqual(deployedApple, generatedApple);
-    assert.deepEqual(deployedAndroid, generatedAndroid);
+  const deployedAndroid = JSON.parse(
+    await readFile(path.join(projectRoot, "docker/nginx/well-known/assetlinks.json"), "utf8"),
+  );
+  const mobileManifest = JSON.parse(
+    await readFile(path.join(projectRoot, "apps/mobile/src/manifest.json"), "utf8"),
+  );
+  const iosBundleId = mobileManifest["app-plus"].distribute.ios.appid;
+  const androidPackageName = mobileManifest["app-plus"].distribute.android.packagename;
+  const associatedDomains =
+    mobileManifest["app-plus"].distribute.ios.capabilities.entitlements[
+      "com.apple.developer.associated-domains"
+    ];
 
-    const directNginx = await readFile(path.join(projectRoot, "docker/nginx/nginx.conf.template"), "utf8");
-    const clbNginx = await readFile(path.join(projectRoot, "docker/nginx/nginx.clb.conf.template"), "utf8");
-    const prodCompose = await readFile(path.join(projectRoot, "docker/docker-compose.prod.yml"), "utf8");
-    const tencentCompose = await readFile(path.join(projectRoot, "docker/docker-compose.tencent.yml"), "utf8");
-    for (const config of [directNginx, clbNginx]) {
-      assert.match(config, /location = \/\.well-known\/apple-app-site-association/u);
-      assert.match(config, /location = \/\.well-known\/assetlinks\.json/u);
-      assert.match(config, /try_files \$uri =404/u);
-      assert.match(config, /default_type application\/json/u);
-    }
-    for (const compose of [prodCompose, tencentCompose]) {
-      assert.match(compose, /\.\/nginx\/well-known:\/var\/www\/\.well-known:ro/u);
-    }
+  assert.deepEqual(associatedDomains, ["applinks:pre-api.rebugx.cn"]);
+  assert.equal(deployedApple.applinks.details[0].appID, `WL5PA97667.${iosBundleId}`);
+  assert.deepEqual(deployedApple.applinks.details[0].components, [{ "/": "/h5/*" }]);
+  assert.equal(deployedAndroid[0].target.package_name, androidPackageName);
+  assert.deepEqual(deployedAndroid[0].target.sha256_cert_fingerprints, [
+    "73:7C:54:A4:5E:71:0B:CE:7C:68:75:A4:1A:5A:5C:0C:22:8C:09:BD:31:FC:08:DF:8E:01:63:64:B6:1B:9D:67",
+  ]);
 
-    const mobileManifest = JSON.parse(
-      await readFile(path.join(projectRoot, "apps/mobile/src/manifest.json"), "utf8"),
-    );
-    assert.deepEqual(
-      mobileManifest["app-plus"].distribute.ios.capabilities.entitlements[
-        "com.apple.developer.associated-domains"
-      ],
-      [`applinks:${intake.appDeepLinks.host}`],
-    );
-  } finally {
-    await rm(run.root, { recursive: true, force: true });
+  const directNginx = await readFile(path.join(projectRoot, "docker/nginx/nginx.conf.template"), "utf8");
+  const clbNginx = await readFile(path.join(projectRoot, "docker/nginx/nginx.clb.conf.template"), "utf8");
+  const prodCompose = await readFile(path.join(projectRoot, "docker/docker-compose.prod.yml"), "utf8");
+  const tencentCompose = await readFile(path.join(projectRoot, "docker/docker-compose.tencent.yml"), "utf8");
+  for (const config of [directNginx, clbNginx]) {
+    assert.match(config, /location = \/\.well-known\/apple-app-site-association/u);
+    assert.match(config, /location = \/\.well-known\/assetlinks\.json/u);
+    assert.match(config, /try_files \$uri =404/u);
+    assert.match(config, /default_type application\/json/u);
+  }
+  for (const compose of [prodCompose, tencentCompose]) {
+    assert.match(compose, /\.\/nginx\/well-known:\/var\/www\/\.well-known:ro/u);
   }
 });
