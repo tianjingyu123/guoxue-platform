@@ -17,6 +17,14 @@ describe("ThirdPartyConfigLoader", () => {
     mockPrisma.configSystem.findUnique.mockReset();
     delete process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE];
     delete process.env.WECHAT_PAY_CALLBACK_KEY_MODE;
+    delete process.env.APPLE_IAP_REQUIRED;
+    delete process.env.APPLE_IAP_KEY_ID;
+    delete process.env.APPLE_IAP_ISSUER_ID;
+    delete process.env.APPLE_IAP_PRIVATE_KEY;
+    delete process.env.APPLE_IAP_BUNDLE_ID;
+    delete process.env.APPLE_IAP_APP_APPLE_ID;
+    delete process.env.APPLE_IAP_ENVIRONMENT;
+    delete process.env.APPLE_IAP_PRODUCTS_JSON;
     loader = new ThirdPartyConfigLoader(mockPrisma);
   });
 
@@ -140,5 +148,39 @@ describe("ThirdPartyConfigLoader", () => {
     await loader.syncToEnv();
 
     expect(process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE]).toBe("ERROR");
+  });
+
+  it("Apple IAP 配置从数据库同步到运行时并保持私钥掩码", async () => {
+    const stored = encrypt(
+      JSON.stringify({
+        required: "true",
+        keyId: "52873GT6JV",
+        issuerId: "123e4567-e89b-42d3-a456-426614174000",
+        privateKey: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
+        bundleId: "com.rebu.iosapprebu",
+        appAppleId: "6756602923",
+        environment: "AUTO",
+        productsJson: JSON.stringify([
+          {
+            productId: "com.rebu.iosapprebu.coins1000",
+            amountCoin: 1000,
+            referenceRmb: 100,
+          },
+        ]),
+      }),
+    );
+    mockPrisma.configSystem.findMany.mockResolvedValue([
+      { configKey: "third_party.apple_iap", configValue: stored },
+    ]);
+
+    const written = await loader.syncToEnv();
+    const display = JSON.parse(loader.buildDisplayValue("third_party.apple_iap", stored));
+
+    expect(written).toBe(8);
+    expect(process.env.APPLE_IAP_KEY_ID).toBe("52873GT6JV");
+    expect(process.env.APPLE_IAP_ISSUER_ID).toBe("123e4567-e89b-42d3-a456-426614174000");
+    expect(process.env.APPLE_IAP_BUNDLE_ID).toBe("com.rebu.iosapprebu");
+    expect(process.env.APPLE_IAP_PRODUCTS_JSON).toContain("coins1000");
+    expect(display.privateKey).toBe("****----");
   });
 });
