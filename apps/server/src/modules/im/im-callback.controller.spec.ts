@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing";
 import { ImCallbackController } from "./im-callback.controller";
 import { AppGateway } from "../websocket/websocket.gateway";
-import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
+import { TencentImCallbackGuard } from "../../common/tencent-im-callback.guard";
 
 const mockWs = {
   notifyImMessage: jest.fn(),
@@ -16,7 +16,7 @@ describe("ImCallbackController", () => {
       controllers: [ImCallbackController],
       providers: [{ provide: AppGateway, useValue: mockWs }],
     })
-      .overrideGuard(TencentCallbackGuard).useValue({ canActivate: () => true })
+      .overrideGuard(TencentImCallbackGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(ImCallbackController);
   });

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, HttpCode } from "@nestjs/common";
 import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
@@ -39,7 +39,7 @@ export class LiveController {
   @Post("rooms")
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建直播间" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
@@ -339,7 +339,7 @@ export class LiveController {
   @Post("rooms/:id/mics")
   @UseGuards(JwtAuthGuard, ThrottleGuard)
   @ApiOperation({ summary: "申请上麦（需主播批准）" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
@@ -569,6 +569,7 @@ export class LiveController {
   // ───────── 腾讯云直播回调 ─────────
 
   @Post("callback")
+  @HttpCode(200)
   @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "腾讯云直播回调（推流/断流/录制/截图）" })
@@ -723,6 +724,7 @@ export class LiveController {
   // ───────── 内容审核 ─────────
 
   @Post("audit/callback")
+  @HttpCode(200)
   @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "腾讯云CMS审核回调" })

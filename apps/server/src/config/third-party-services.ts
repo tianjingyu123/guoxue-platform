@@ -133,7 +133,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("secretId", "SecretId", "TENCENT_SECRET_ID", false, "访问管理CAM→API密钥管理，AKID 开头的那串"),
       S("secretKey", "SecretKey", "TENCENT_SECRET_KEY", true, "与 SecretId 成对（仅新建时可完整查看，请务必保存）"),
       S("appId", "AppId", "TENCENT_APP_ID", false, "控制台→账号信息→APPID（10位数字，如 1300000000）"),
-      S("callbackKey", "回调验签密钥", "TENCENT_CALLBACK_KEY", true, "自定义一串随机字符串，用于校验腾讯云回调；不用回调可留空"),
+      S("callbackKey", "直播/点播回调验签密钥", "TENCENT_CALLBACK_KEY", true, "同一密钥需分别配置到云直播回调模板和云点播事件通知 SignKey；不用回调可留空"),
     ],
   },
   {
@@ -154,6 +154,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("sdkAppId", "IM SdkAppId", "IM_APP_ID", false, "IM控制台→应用列表→SDKAppID"),
       S("adminKey", "管理员密钥", "IM_ADMIN_KEY", true, "IM控制台→应用→基本配置→密钥（SecretKey）"),
       S("adminId", "管理员账号", "IM_ADMIN_ID", false, "IM管理员账号，一般填 administrator"),
+      S("callbackToken", "IM 回调鉴权 Token", "IM_CALLBACK_TOKEN", true, "IM控制台→回调配置→开启鉴权后填写的 Token；服务端必须与控制台一致"),
     ],
   },
   {

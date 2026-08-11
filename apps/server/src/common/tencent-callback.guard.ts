@@ -3,13 +3,10 @@ import { createHash, timingSafeEqual } from "crypto";
 import { Request } from "express";
 
 /**
- * 腾讯云回调签名验证守卫
+ * 腾讯云直播/点播回调签名验证守卫。
+ * 官方格式均为 MD5(key + 过期时间)，直播通常使用 sign/t，点播使用 Sign/T。
  *
- * 腾讯云回调鉴权方式：
- * - Header: X-TC-Signature = MD5(key + body)，X-TC-Timestamp
- * - Query:  ?sign=MD5(key + t)&t=timestamp
- *
- * 若未配置 TENCENT_CALLBACK_KEY 环境变量，则跳过验证（向后兼容），仅记录警告。
+ * 生产环境缺少 TENCENT_CALLBACK_KEY 时安全失败；仅非生产环境允许跳过。
  */
 @Injectable()
 export class TencentCallbackGuard implements CanActivate {
@@ -31,8 +28,6 @@ export class TencentCallbackGuard implements CanActivate {
       req.body && typeof req.body === "object"
         ? (req.body as Record<string, unknown>)
         : {};
-    const body = JSON.stringify(bodyRecord);
-
     // 方式1: Header 签名
     const sigHeader = this.readScalar(req.headers["x-tc-signature"]);
     const tsHeader = this.readScalar(req.headers["x-tc-timestamp"]);
@@ -43,8 +38,8 @@ export class TencentCallbackGuard implements CanActivate {
 
     // 腾讯云直播把 sign/t 放在 JSON 包体；旧实现只读 Header/Query，
     // 会把真实推流、断流和审核回调全部误判为未授权。
-    const signBody = this.readScalar(bodyRecord.sign);
-    const tBody = this.readScalar(bodyRecord.t);
+    const signBody = this.readScalar(bodyRecord.sign) || this.readScalar(bodyRecord.Sign);
+    const tBody = this.readScalar(bodyRecord.t) || this.readScalar(bodyRecord.T);
     const receivedSign = sigHeader || signQuery || signBody;
     const receivedTime = tsHeader || tQuery || tBody;
     if (
@@ -54,12 +49,6 @@ export class TencentCallbackGuard implements CanActivate {
       this.safeEqual(receivedSign, this.md5(this.callbackKey + receivedTime))
     ) {
       return true;
-    }
-
-    // 方式3: Body + key 签名（VOD 常见）
-    if (sigHeader && body !== "{}") {
-      const expected = this.md5(body + this.callbackKey);
-      if (this.safeEqual(sigHeader, expected)) return true;
     }
 
     this.logger.warn(`回调签名验证失败: ${req.method} ${req.url}`);

@@ -42,6 +42,19 @@ describe("TencentCallbackGuard", () => {
     ).toThrow(UnauthorizedException);
   });
 
+  it("接受云点播放在 JSON 包体中的大写 Sign/T", () => {
+    process.env = { ...originalEnv, NODE_ENV: "production", TENCENT_CALLBACK_KEY: "testKey123" };
+    const T = String(Math.floor(Date.now() / 1000) + 600);
+    const Sign = createHash("md5").update(`testKey123${T}`).digest("hex");
+    const guard = new TencentCallbackGuard();
+
+    expect(
+      guard.canActivate(
+        context({ body: { EventType: "ProcedureStateChanged", T, Sign }, headers: {}, query: {}, method: "POST", url: "/videos/vod/callback" }),
+      ),
+    ).toBe(true);
+  });
+
   it("生产环境未配置回调密钥时保持安全失败", () => {
     process.env = { ...originalEnv, NODE_ENV: "production" };
     delete process.env.TENCENT_CALLBACK_KEY;

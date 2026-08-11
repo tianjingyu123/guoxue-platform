@@ -135,7 +135,9 @@ async function bootstrap() {
   app.useGlobalInterceptors(
     new TracingInterceptor(),
     new LoggingInterceptor(),
-    new ResponseInterceptor(),
+    // 必须注入 Reflector，否则 @SkipFormat() 永远不会生效，微信/支付宝等
+    // 回调要求的原始 ACK 会被统一响应格式二次包装，导致渠道持续重试。
+    new ResponseInterceptor(app.get(Reflector)),
     new AuditInterceptor(app.get(AuditService)),
   );
   // 全局守卫：限流 + 红线硬闸（红线闸仅拦标了 @RedLineGate 的端点，其余放行；四红线永久人工闸·治理护栏 §2.2）

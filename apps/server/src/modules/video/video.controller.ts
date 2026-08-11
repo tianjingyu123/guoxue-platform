@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, HttpCode } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { VideoService } from "./video.service";
@@ -266,6 +266,7 @@ export class VideoController {
   // ───────── VOD 回调 ─────────
 
   @Post("vod/callback")
+  @HttpCode(200)
   @UseGuards(TencentCallbackGuard)
   @SkipFormat()
   @ApiOperation({ summary: "VOD事件回调（转码/截图/上传完成通知）" })

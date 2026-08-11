@@ -1,6 +1,7 @@
-import { Controller, Post, Body, Logger, UseGuards } from "@nestjs/common";
+import { Controller, Post, Body, Logger, UseGuards, HttpCode } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
+import { TencentImCallbackGuard } from "../../common/tencent-im-callback.guard";
+import { SkipFormat } from "../../common/skip-format.decorator";
 import { AppGateway } from "../websocket/websocket.gateway";
 
 /**
@@ -10,7 +11,7 @@ import { AppGateway } from "../websocket/websocket.gateway";
  * 包括：新消息回调、群组事件回调、状态变更回调等。
  * 配置路径：腾讯云 IM 控制台 → 回调配置 → 设置回调URL
  *
- * 回调URL: https://api.guoxue.com/api/v1/im/callback
+ * 回调URL: https://api.rebugx.cn/api/v1/im/callback
  */
 @ApiTags("IM 回调")
 @Controller("im")
@@ -21,9 +22,11 @@ export class ImCallbackController {
 
   /** 接收所有IM回调事件 */
   @Post("callback")
-  @UseGuards(TencentCallbackGuard)
+  @HttpCode(200)
+  @UseGuards(TencentImCallbackGuard)
+  @SkipFormat()
   @ApiOperation({ summary: "接收腾讯云IM回调事件，推送到WebSocket客户端" })
-  @ApiResponse({ status: 201, description: "创建成功" })
+  @ApiResponse({ status: 200, description: "回调处理成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleCallback(@Body() body: {
     CallbackCommand: string;
