@@ -11,10 +11,12 @@ import { Request } from "express";
 @Injectable()
 export class TencentCallbackGuard implements CanActivate {
   private readonly logger = new Logger(TencentCallbackGuard.name);
-  private readonly callbackKey = process.env.TENCENT_CALLBACK_KEY || "";
 
   canActivate(context: ExecutionContext): boolean {
-    if (!this.callbackKey) {
+    // 后台第三方配置保存后会热同步到 process.env；这里必须按请求读取，
+    // 不能在 Guard 构造时缓存，否则新密钥要等容器重启才会生效。
+    const callbackKey = process.env.TENCENT_CALLBACK_KEY || "";
+    if (!callbackKey) {
       if (process.env.NODE_ENV === "production") {
         this.logger.error("生产环境 TENCENT_CALLBACK_KEY 未配置，回调签名验证无法执行");
         throw new UnauthorizedException("回调签名验证未配置");
@@ -46,7 +48,7 @@ export class TencentCallbackGuard implements CanActivate {
       receivedSign &&
       receivedTime &&
       this.isAcceptableExpiry(receivedTime) &&
-      this.safeEqual(receivedSign, this.md5(this.callbackKey + receivedTime))
+      this.safeEqual(receivedSign, this.md5(callbackKey + receivedTime))
     ) {
       return true;
     }

@@ -74,4 +74,28 @@ describe("TencentImCallbackGuard", () => {
     expect(() => guard.canActivate(context({ body: {}, query: {}, method: "POST", url: "/im/callback" })))
       .toThrow(UnauthorizedException);
   });
+
+  it("Guard 已创建后热同步 IM Token 仍立即生效", () => {
+    process.env = { ...originalEnv, NODE_ENV: "production" };
+    delete process.env.IM_CALLBACK_TOKEN;
+    delete process.env.IM_APP_ID;
+    const guard = new TencentImCallbackGuard();
+    process.env.IM_APP_ID = "1400000000";
+    process.env.IM_CALLBACK_TOKEN = "hot-token";
+    const requestTime = String(Math.floor(Date.now() / 1000));
+    const sign = createHash("sha256").update(`hot-token${requestTime}`).digest("hex");
+
+    expect(guard.canActivate(context({
+      body: { CallbackCommand: "State.StateChange" },
+      headers: {},
+      query: {
+        SdkAppid: "1400000000",
+        CallbackCommand: "State.StateChange",
+        RequestTime: requestTime,
+        Sign: sign,
+      },
+      method: "POST",
+      url: "/im/callback",
+    }))).toBe(true);
+  });
 });

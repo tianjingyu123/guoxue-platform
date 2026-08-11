@@ -155,6 +155,12 @@ if (missing.length > 0) {
   process.exit(2);
 }
 
+const preReleaseOriginPattern = /^https?:\/\/pre-/iu;
+const preReleaseUrlPattern = /https?:\/\/pre-[a-z0-9.-]+(?=[:/?"'#\s]|$)/giu;
+const productionArtifactAudit = requiredKeys.every(
+  (key) => !preReleaseOriginPattern.test(values[key]),
+);
+
 const errors = [];
 let totalTextFiles = 0;
 let totalFiles = 0;
@@ -190,6 +196,7 @@ for (const target of targets) {
 
   const textFiles = files.filter((file) => textExtensions.has(path.extname(file).toLowerCase()));
   totalTextFiles += textFiles.length;
+  const preReleaseHits = [];
   const hits = new Map(
     [legacyOrigin, "example.com", ...target.expected.map((key) => values[key])].map((value) => [
       value,
@@ -199,6 +206,10 @@ for (const target of targets) {
 
   for (const file of textFiles) {
     const content = await readFile(file, "utf8");
+    if (productionArtifactAudit && preReleaseUrlPattern.test(content)) {
+      preReleaseHits.push(path.relative(root, file));
+    }
+    preReleaseUrlPattern.lastIndex = 0;
     for (const [needle, matches] of hits.entries()) {
       if (needle && content.includes(needle)) matches.push(path.relative(root, file));
     }
@@ -214,6 +225,13 @@ for (const target of targets) {
   }
   if (hits.get("example.com")?.length > 0) {
     errors.push(`${target.name} 仍包含 example.com 占位地址`);
+  }
+  if (preReleaseHits.length > 0) {
+    errors.push(
+      `${target.name} 正式成品仍包含 pre-* 预发布地址：${preReleaseHits
+        .slice(0, 3)
+        .join(", ")}`,
+    );
   }
   for (const key of target.expected) {
     const expected = values[key];
@@ -233,6 +251,7 @@ for (const target of targets) {
     contentSha256: fingerprint.contentSha256,
     success:
       mapFiles.length === 0 &&
+      preReleaseHits.length === 0 &&
       hits.get("example.com")?.length === 0 &&
       (values.VITE_API_URL === legacyOrigin || hits.get(legacyOrigin)?.length === 0) &&
       target.expected.every((key) => (hits.get(values[key]) || []).length > 0),

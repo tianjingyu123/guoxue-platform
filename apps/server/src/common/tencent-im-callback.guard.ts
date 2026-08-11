@@ -6,11 +6,12 @@ import { Request } from "express";
 @Injectable()
 export class TencentImCallbackGuard implements CanActivate {
   private readonly logger = new Logger(TencentImCallbackGuard.name);
-  private readonly callbackToken = process.env.IM_CALLBACK_TOKEN || "";
-  private readonly sdkAppId = process.env.IM_APP_ID || "";
 
   canActivate(context: ExecutionContext): boolean {
-    if (!this.callbackToken || !this.sdkAppId) {
+    // 后台保存第三方配置后会热同步到 process.env；按请求读取才能真正即时生效。
+    const callbackToken = process.env.IM_CALLBACK_TOKEN || "";
+    const sdkAppId = process.env.IM_APP_ID || "";
+    if (!callbackToken || !sdkAppId) {
       if (process.env.NODE_ENV === "production") {
         this.logger.error("生产环境 IM_CALLBACK_TOKEN 或 IM_APP_ID 未配置");
         throw new UnauthorizedException("IM 回调验签未配置");
@@ -31,10 +32,10 @@ export class TencentImCallbackGuard implements CanActivate {
     const timestamp = Number(requestTime);
     const isFresh = Number.isInteger(timestamp) && Math.abs(Math.floor(Date.now() / 1000) - timestamp) <= 60;
     const commandMatches = Boolean(queryCommand && bodyCommand && queryCommand === bodyCommand);
-    const expected = this.sha256(this.callbackToken + requestTime);
+    const expected = this.sha256(callbackToken + requestTime);
 
     if (
-      appId === this.sdkAppId &&
+      appId === sdkAppId &&
       sign &&
       isFresh &&
       commandMatches &&

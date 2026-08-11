@@ -133,3 +133,21 @@ test("任一客户端成品包含源码映射时失败但仍落盘审计报告",
     await rm(fixture.root, { recursive: true, force: true });
   }
 });
+
+test("正式客户端成品残留 pre-* 预发布地址时阻断审计", async () => {
+  const fixture = await createFixture();
+  try {
+    await writeFile(
+      path.join(fixture.root, "apps/mobile/dist/build/h5/index.js"),
+      `${apiUrl}\n${assetUrl}\nhttps://pre-api.rebugx.cn/api/v1/health`,
+    );
+    const result = runAudit(fixture);
+    assert.equal(result.status, 1);
+    const report = JSON.parse(await readFile(fixture.reportFile, "utf8"));
+    assert.equal(report.success, false);
+    assert.match(report.errors.join("\n"), /H5 正式成品仍包含 pre-\* 预发布地址/);
+    assert.equal(report.targets.find((target) => target.name === "H5")?.success, false);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
