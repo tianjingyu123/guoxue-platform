@@ -31,7 +31,10 @@ export class TencentImCallbackGuard implements CanActivate {
 
     const timestamp = Number(requestTime);
     const isFresh = Number.isInteger(timestamp) && Math.abs(Math.floor(Date.now() / 1000) - timestamp) <= 60;
-    const commandMatches = Boolean(queryCommand && bodyCommand && queryCommand === bodyCommand);
+    // 腾讯云控制台的 URL 校验请求可能只在查询参数中携带 CallbackCommand，
+    // 而正式事件回调通常会在请求体中重复该字段。请求体提供命令时必须一致；
+    // 未提供时仍由 SDKAppID、签名和一分钟时效窗口完成来源校验。
+    const commandMatches = Boolean(queryCommand && (!bodyCommand || queryCommand === bodyCommand));
     const expected = this.sha256(callbackToken + requestTime);
 
     if (

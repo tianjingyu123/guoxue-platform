@@ -98,4 +98,54 @@ describe("TencentImCallbackGuard", () => {
       url: "/im/callback",
     }))).toBe(true);
   });
+
+  it("接受腾讯云控制台仅在查询参数携带命令的 URL 校验请求", () => {
+    process.env = {
+      ...originalEnv,
+      NODE_ENV: "production",
+      IM_APP_ID: "1400000000",
+      IM_CALLBACK_TOKEN: "test-token",
+    };
+    const requestTime = String(Math.floor(Date.now() / 1000));
+    const sign = createHash("sha256").update(`test-token${requestTime}`).digest("hex");
+    const guard = new TencentImCallbackGuard();
+
+    expect(guard.canActivate(context({
+      body: {},
+      headers: {},
+      query: {
+        SdkAppid: "1400000000",
+        CallbackCommand: "State.StateChange",
+        RequestTime: requestTime,
+        Sign: sign,
+      },
+      method: "POST",
+      url: "/im/callback",
+    }))).toBe(true);
+  });
+
+  it("拒绝请求体与查询参数命令不一致的正式回调", () => {
+    process.env = {
+      ...originalEnv,
+      NODE_ENV: "production",
+      IM_APP_ID: "1400000000",
+      IM_CALLBACK_TOKEN: "test-token",
+    };
+    const requestTime = String(Math.floor(Date.now() / 1000));
+    const sign = createHash("sha256").update(`test-token${requestTime}`).digest("hex");
+    const guard = new TencentImCallbackGuard();
+
+    expect(() => guard.canActivate(context({
+      body: { CallbackCommand: "C2C.CallbackAfterSendMsg" },
+      headers: {},
+      query: {
+        SdkAppid: "1400000000",
+        CallbackCommand: "State.StateChange",
+        RequestTime: requestTime,
+        Sign: sign,
+      },
+      method: "POST",
+      url: "/im/callback",
+    }))).toThrow(UnauthorizedException);
+  });
 });
