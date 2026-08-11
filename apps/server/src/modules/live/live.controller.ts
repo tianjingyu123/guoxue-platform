@@ -4,7 +4,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
 import { LiveQualityService } from "./live-quality.service";
-import { CreateRoomDto, UpdateRoomDto, UpdateRoomProductsDto, UpdateLiveWatchProgressDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, UpdateRoomProductsDto, UpdateLiveWatchProgressDto, MicJoinDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -13,6 +13,7 @@ import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
 import { StationId } from "../../common/station-id.decorator";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -336,13 +337,13 @@ export class LiveController {
   // ───────── 麦位管理 ─────────
 
   @Post("rooms/:id/mics")
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "用户上麦" })
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "申请上麦（需主播批准）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
-  joinMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicManageDto) {
+  joinMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicJoinDto) {
     return this.svc.joinMic(id, req.user.id, dto.position);
   }
 
@@ -359,9 +360,8 @@ export class LiveController {
   }
 
   @Put("rooms/:id/mics/manage")
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
-  @ApiOperation({ summary: "麦位操作（静音/解除/踢人）" })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: "主播或管理员处理申请、静音、解除静音或踢人" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 404, description: "资源不存在" })
@@ -369,15 +369,25 @@ export class LiveController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   manageMic(@Param("id") id: string, @Req() req: AuthRequest, @Body() dto: MicManageDto) {
-    return this.svc.manageMic(id, req.user.id, dto);
+    return this.svc.manageMic(id, req.user.id, dto, this.isAdmin(req));
   }
 
   @Get("rooms/:id/mics")
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "获取麦位列表" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
-  listMics(@Param("id") id: string) {
-    return this.svc.listMics(id);
+  @ApiBearerAuth()
+  listMics(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.listMics(id, req.user.id, this.isAdmin(req));
+  }
+
+  @Get("rooms/:id/rtc-config")
+  @UseGuards(JwtAuthGuard, ThrottleGuard)
+  @ApiOperation({ summary: "获取直播连麦临时 TRTC 票据（仅主播或已获批嘉宾）" })
+  @ApiBearerAuth()
+  getRtcConfig(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.getRtcConfig(id, req.user.id);
   }
 
   // ───────── 预告与预约 ─────────

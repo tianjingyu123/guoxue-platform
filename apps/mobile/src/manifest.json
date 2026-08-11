@@ -12,6 +12,22 @@
     "modules": {
       "Payment": {}
     },
+    "nativePlugins": {
+      "TRTCCloudUniPlugin-TRTCCloudImpl": {
+        "__plugin_info__": {
+          "name": "【官方】腾讯云实时音视频SDK",
+          "description": "uni-app TRTC SDK 是腾讯云实时音视频通讯解决方案在 uni-app 上的 SDK，提供实时音视频服务",
+          "platforms": "Android,iOS",
+          "url": "https://ext.dcloud.net.cn/plugin?id=7774",
+          "android_package_name": "com.rebu.apprebu",
+          "ios_bundle_id": "com.rebu.iosapprebu",
+          "isCloud": true,
+          "bought": 1,
+          "pid": "7774",
+          "parameters": {}
+        }
+      }
+    },
     "distribute": {
       "android": {
         "packagename": "com.rebu.apprebu",
@@ -25,7 +41,7 @@
       "ios": {
         "appid": "com.rebu.iosapprebu",
         "privacyDescription": {
-          "NSMicrophoneUsageDescription": "用于与国学智能体进行实时语音通话，仅在通话期间采集声音。"
+          "NSMicrophoneUsageDescription": "用于直播连麦与实时语音互动，仅在用户主动连麦或通话期间采集声音。"
         },
         "capabilities": {
           "entitlements": {
@@ -53,7 +69,7 @@
     "setting": { "urlCheck": true, "es6": true, "minified": true },
     "permission": {
       "scope.record": {
-        "desc": "用于与国学智能体进行实时语音通话"
+        "desc": "用于直播连麦与实时语音互动，仅在用户主动使用时采集声音"
       }
     },
     "usingComponents": true,

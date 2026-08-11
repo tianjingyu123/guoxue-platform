@@ -114,6 +114,13 @@
         <view class="op-ic"><AppIcon name="ban" :size="28" color="#A89FA8" /></view>
         <text class="op-txt">禁言管理</text>
       </view>
+      <view v-if="canUseLiveMic" class="op" @tap="openMicSheet">
+        <view class="op-ic">
+          <AppIcon name="mic" :size="28" color="#A89FA8" />
+          <view v-if="pendingMicCount > 0" class="op-cnt"><text class="op-cnt-txt">{{ pendingMicCount }}</text></view>
+        </view>
+        <text class="op-txt">连麦</text>
+      </view>
       <view class="op" @tap="onShareRoom">
         <view class="op-ic"><AppIcon name="share-2" :size="28" color="#A89FA8" /></view>
         <text class="op-txt">分享</text>
@@ -216,6 +223,39 @@
         </scroll-view>
       </view>
     </view>
+
+    <view v-if="showMicSheet" class="mask sheet-mask" @tap="showMicSheet = false" @touchmove.self.prevent>
+      <view class="sheet" @tap.stop @touchmove.stop>
+        <view class="sheet-head">
+          <text class="sheet-title">语音连麦（{{ micItems.length }}）</text>
+          <view class="sheet-close" @tap="showMicSheet = false">
+            <AppIcon name="x" :size="32" color="#A89FA8" />
+          </view>
+        </view>
+        <scroll-view scroll-y class="sheet-body">
+          <view v-if="micLoading" class="sheet-state"><text class="sheet-state-txt">正在加载连麦申请…</text></view>
+          <view v-else-if="micItems.length === 0" class="sheet-empty"><text class="sheet-empty-txt">暂无连麦申请</text></view>
+          <view v-for="item in micItems" :key="item.id" class="mic-row">
+            <view class="mic-user">
+              <text class="mic-user-name">麦位 {{ item.position }} · 用户 {{ shortUserId(item.userId) }}</text>
+              <text class="mic-user-state">{{ micStatusText(item.status) }}</text>
+            </view>
+            <view class="mic-actions">
+              <template v-if="item.status === 'PENDING'">
+                <view class="mic-action mic-action--primary" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'ACCEPT')">接受</view>
+                <view class="mic-action" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'REJECT')">拒绝</view>
+              </template>
+              <template v-else>
+                <view class="mic-action" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, item.status === 'MUTED' ? 'UNMUTE' : 'MUTE')">
+                  {{ item.status === 'MUTED' ? '解除静音' : '静音' }}
+                </view>
+                <view class="mic-action mic-action--danger" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'KICK')">移出</view>
+              </template>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -229,6 +269,8 @@ import { formatPrice } from '@/utils/format'
 import { withRef } from '@/utils/referral'
 import { buildH5Url } from '@/utils/share'
 import { liveApi, type ConsoleDanmaku, type ConsoleProduct, type LiveMutedUserItem } from '@/lib/live-data'
+import { liveMicApi, type LiveMicItem } from '@/pkg-live/live-mic-data'
+import { isLiveTrtcSupported, joinLiveAudio, leaveLiveAudio } from '@/pkg-live/live-trtc-client'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const _goBack = goBack // 保留返回工具（顶栏无返回键时用于兜底）
@@ -259,13 +301,21 @@ const danmakuScrollTop = ref(0)
 const showEndDialog = ref(false)
 const showProductSheet = ref(false)
 const showMutedSheet = ref(false)
+const showMicSheet = ref(false)
 useOverlayScrollLock(() =>
-  showEndDialog.value || showProductSheet.value || showMutedSheet.value,
+  showEndDialog.value || showProductSheet.value || showMutedSheet.value || showMicSheet.value,
 )
 const mutedUsers = ref<LiveMutedUserItem[]>([])
 const mutedLoading = ref(false)
 const mutedError = ref('')
 const unmutingUserId = ref('')
+const canUseLiveMic = isLiveTrtcSupported()
+const micItems = ref<LiveMicItem[]>([])
+const micLoading = ref(false)
+const micBusyUserId = ref('')
+const pendingMicCount = computed(() => micItems.value.filter((item) => item.status === 'PENDING').length)
+let hostRtcJoined = false
+let micPollTimer: ReturnType<typeof setInterval> | null = null
 
 // 画质档来自直播间；付费档剩余分钟来自额度账户。额度接口失败时只显示档位，不伪造 0。
 const quality = ref<'basic' | 'hd' | 'uhd'>('basic')
@@ -348,6 +398,10 @@ let liveTimer: ReturnType<typeof setInterval> | null = null
 onLoad((options) => {
   if (options?.id) consoleId.value = String(options.id)
   fetchData()
+  if (canUseLiveMic) {
+    void loadMics()
+    micPollTimer = setInterval(() => { void loadMics(true) }, 2500)
+  }
   liveTimer = setInterval(() => {
     liveTime.value += 1
   }, 1000)
@@ -355,7 +409,66 @@ onLoad((options) => {
 
 onUnmounted(() => {
   if (liveTimer) clearInterval(liveTimer)
+  if (micPollTimer) clearInterval(micPollTimer)
+  leaveLiveAudio()
 })
+
+async function loadMics(silent = false) {
+  if (!canUseLiveMic || micLoading.value) return
+  if (!silent) micLoading.value = true
+  try {
+    micItems.value = await liveMicApi.list(consoleId.value)
+    if (hostRtcJoined && !micItems.value.some((item) => item.status === 'OCCUPIED' || item.status === 'MUTED')) {
+      leaveLiveAudio()
+      hostRtcJoined = false
+    }
+  } catch (error) {
+    if (!silent) uni.showToast({ title: (error as Error)?.message || '连麦列表加载失败', icon: 'none' })
+  } finally {
+    if (!silent) micLoading.value = false
+  }
+}
+
+function openMicSheet() {
+  showMicSheet.value = true
+  void loadMics()
+}
+
+function shortUserId(userId: string) {
+  return userId.length > 8 ? userId.slice(-8) : userId
+}
+
+function micStatusText(status: LiveMicItem['status']) {
+  if (status === 'PENDING') return '等待审批'
+  if (status === 'MUTED') return '连麦中 · 已静音'
+  return '连麦中'
+}
+
+async function ensureHostRtc() {
+  if (hostRtcJoined) return
+  const config = await liveMicApi.getRtcConfig(consoleId.value)
+  await joinLiveAudio(config)
+  hostRtcJoined = true
+}
+
+async function manageMic(item: LiveMicItem, action: 'ACCEPT' | 'REJECT' | 'MUTE' | 'UNMUTE' | 'KICK') {
+  if (micBusyUserId.value) return
+  micBusyUserId.value = item.userId
+  try {
+    // 先确保主播已进入 TRTC 房间，再放行观众，避免对方进房后无人接听。
+    if (action === 'ACCEPT') await ensureHostRtc()
+    await liveMicApi.manage(consoleId.value, item.userId, action, item.position)
+    await loadMics(true)
+    const message: Record<typeof action, string> = {
+      ACCEPT: '已接受连麦', REJECT: '已拒绝', MUTE: '已静音', UNMUTE: '已解除静音', KICK: '已移出连麦',
+    }
+    uni.showToast({ title: message[action], icon: 'none' })
+  } catch (error) {
+    uni.showToast({ title: (error as Error)?.message || '连麦操作失败', icon: 'none' })
+  } finally {
+    micBusyUserId.value = ''
+  }
+}
 
 // ===== 弹幕长按 → 禁言/复制 =====
 function onDanmakuLongPress(item: ConsoleDanmaku) {
@@ -505,6 +618,28 @@ async function onConfirmEnd() {
   display: flex;
   flex-direction: column;
 }
+
+.mic-row {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid #2a2530;
+}
+.mic-user { flex: 1; min-width: 0; }
+.mic-user-name { display: block; color: #f2edf3; font-size: 27rpx; }
+.mic-user-state { display: block; margin-top: 8rpx; color: #938995; font-size: 23rpx; }
+.mic-actions { display: flex; gap: 12rpx; }
+.mic-action {
+  padding: 14rpx 20rpx;
+  border-radius: 14rpx;
+  color: #d7ced9;
+  background-color: #332d3a;
+  font-size: 24rpx;
+}
+.mic-action--primary { color: #fff; background-color: #3978f6; }
+.mic-action--danger { color: #ffaca8; background-color: #472b30; }
+.mic-action.disabled { opacity: 0.45; pointer-events: none; }
 
 /* ── 顶部状态条 ── */
 .topbar {

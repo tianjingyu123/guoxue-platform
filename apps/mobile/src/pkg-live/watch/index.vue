@@ -270,13 +270,9 @@
         <view class="act-btn act-btn--gift" @tap="showGiftPanel = true">
           <AppIcon name="gift" :size="40" color="#fbbf24" />
         </view>
-        <!-- 连麦入口：🔴暂时下线。MicConnectSheet 为纯前端假实现（setTimeout 3.5s 假装主播同意，
-             无任何 API、无音频链路，观众进"通话态"实际对空气说话=假绿勾红线）。
-             TRTC 连麦链路接通后恢复（后端 voice-room 基建已有）。
-        <view class="act-btn act-btn--mic" @tap="showMicSheet = true">
+        <view v-if="canUseLiveMic" class="act-btn act-btn--mic" @tap="showMicSheet = true">
           <AppIcon name="phone" :size="40" color="#60a5fa" />
         </view>
-        -->
         <!-- 分享 -->
         <view class="act-btn" @tap="showShare = true">
           <AppIcon name="share-2" :size="40" color="rgba(255,255,255,0.8)" />
@@ -357,9 +353,12 @@
     <!-- 礼物面板（真连：真实礼物清单直传·送礼直接用礼物 uuid 扣费） -->
     <GiftPanel :open="showGiftPanel" :balance="coinBalance" :gifts="gifts" @close="showGiftPanel = false" @send="onSendGift" />
 
-    <!-- 连麦弹层：🔴随假连麦入口一并下线（组件为假实现·TRTC 链路接通后恢复）
-    <MicConnectSheet :open="showMicSheet" :host-name="room.hostName" @close="showMicSheet = false" />
-    -->
+    <MicConnectSheet
+      :open="showMicSheet"
+      :host-name="room.hostName"
+      :room-id="room.id"
+      @close="showMicSheet = false"
+    />
 
     <!-- 分享 -->
     <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false" @touchmove.self.prevent>
@@ -386,8 +385,9 @@ import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
-// import MicConnectSheet from '@/components/live/mic-connect-sheet.vue' // 🔴假连麦下线：TRTC 链路接通后恢复
+import MicConnectSheet from '@/pkg-live/mic-connect-sheet.vue'
 import LivePlayer from '@/components/live/live-player.vue'
+import { isLiveTrtcSupported } from '@/pkg-live/live-trtc-client'
 import { goBack, navigateTo } from '@/utils/router'
 import { gotoReport } from '@/lib/report-data'
 import { getToken, getUserInfo } from '@/utils/storage'
@@ -739,13 +739,15 @@ const commentText = ref('')
 const showRank = ref(false)
 const showProductList = ref(false)
 const showGiftPanel = ref(false)
-// const showMicSheet = ref(false) // 🔴假连麦下线：TRTC 链路接通后恢复
+const showMicSheet = ref(false)
+const canUseLiveMic = isLiveTrtcSupported()
 const showShare = ref(false)
 useOverlayScrollLock(() =>
   showCommentInput.value ||
   showRank.value ||
   showProductList.value ||
   showGiftPanel.value ||
+  showMicSheet.value ||
   showShare.value,
 )
 

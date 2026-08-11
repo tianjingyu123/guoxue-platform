@@ -158,21 +158,31 @@ export class UpdateRoomProductsDto {
 
 // ───────── 麦位管理 ─────────
 
+export class MicJoinDto {
+  @ApiProperty({ description: "申请的麦位序号 (1-6)", minimum: 1, maximum: 6 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1) @Max(6)
+  position: number;
+}
+
 export class MicManageDto {
   @ApiProperty({ description: "用户ID" })
   @IsString()
   @MinLength(1)
   userId: string;
 
-  @ApiProperty({ description: "麦位序号 (1-6)", minimum: 1, maximum: 6 })
+  @ApiPropertyOptional({ description: "麦位序号 (1-6)", minimum: 1, maximum: 6 })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1) @Max(6)
-  position: number;
+  position?: number;
 
-  @ApiPropertyOptional({ description: "操作: MUTE/UNMUTE/KICK/INVITE" })
-  @IsOptional() @IsString()
-  action?: string;
+  @ApiProperty({ description: "操作: ACCEPT/REJECT/MUTE/UNMUTE/KICK" })
+  @IsString()
+  @IsIn(["ACCEPT", "REJECT", "MUTE", "UNMUTE", "KICK"])
+  action: string;
 }
 
 // ───────── 课件管理 ─────────

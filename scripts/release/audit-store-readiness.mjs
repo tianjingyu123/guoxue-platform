@@ -104,6 +104,7 @@ const nativePluginNames = [
   ...Object.keys(distribute.sdkConfigs || {}),
 ];
 const hasVoiceRtcPlugin = nativePluginNames.some((name) =>
+  name === "TRTCCloudUniPlugin-TRTCCloudImpl" ||
   /(?:^|[-_.])(trtc|rtc|voice|audio)(?:$|[-_.])/iu.test(name),
 );
 const evidenceEnvelopeValid =

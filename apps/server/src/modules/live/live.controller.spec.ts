@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
+import { ThrottleGuard } from "../../common/throttle.guard";
 
 const mockLiveSvc = {
   createRoom: jest.fn().mockResolvedValue({ id: "r1", title: "国学直播" }),
@@ -24,6 +25,7 @@ const mockLiveSvc = {
   leaveMic: jest.fn().mockResolvedValue({ success: true }),
   manageMic: jest.fn().mockResolvedValue({ success: true }),
   listMics: jest.fn().mockResolvedValue([{ position: 1, userId: "u1" }]),
+  getRtcConfig: jest.fn().mockResolvedValue({ sdkAppId: 1600030106, strRoomId: "room_r1" }),
   listScheduled: jest.fn().mockResolvedValue([{ id: "r1", startTime: new Date() }]),
   bookRoom: jest.fn().mockResolvedValue({ booked: true }),
   unbookRoom: jest.fn().mockResolvedValue({ booked: false }),
@@ -71,6 +73,7 @@ describe("LiveController", () => {
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .overrideGuard(TencentCallbackGuard).useValue({ canActivate: () => true })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
+      .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(LiveController);
   });
@@ -208,15 +211,25 @@ describe("LiveController", () => {
   });
 
   it("PUT /live/rooms/:id/mics/manage — 麦位管理", async () => {
-    const req: any = { user: { id: "admin1" } };
+    const req: any = { user: { id: "host1", roles: [] } };
     const dto: any = { action: "MUTE", position: 1 };
     const result: any = await ctrl.manageMic("r1", req, dto);
     expect(result.success).toBe(true);
+    expect(mockLiveSvc.manageMic).toHaveBeenCalledWith("r1", "host1", dto, false);
   });
 
   it("GET /live/rooms/:id/mics — 麦位列表", async () => {
-    const result: any = await ctrl.listMics("r1");
+    const req: any = { user: { id: "u1", roles: [] } };
+    const result: any = await ctrl.listMics("r1", req);
     expect(result).toHaveLength(1);
+    expect(mockLiveSvc.listMics).toHaveBeenCalledWith("r1", "u1", false);
+  });
+
+  it("GET /live/rooms/:id/rtc-config — 获取临时连麦票据", async () => {
+    const req: any = { user: { id: "u1" } };
+    const result: any = await ctrl.getRtcConfig("r1", req);
+    expect(result.sdkAppId).toBe(1600030106);
+    expect(mockLiveSvc.getRtcConfig).toHaveBeenCalledWith("r1", "u1");
   });
 
   it("GET /live/scheduled — 直播预告", async () => {

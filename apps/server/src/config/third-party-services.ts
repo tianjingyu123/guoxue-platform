@@ -168,8 +168,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     ],
   },
   {
-    key: "tencent_trtc", label: "腾讯云 TRTC（连麦）", category: "腾讯云", enabled: false,
-    note: "实时音视频TRTC（连麦/通话）。控制台：实时音视频→应用管理。（连麦功能尚在对接，可暂缓）",
+    key: "tencent_trtc", label: "腾讯云 TRTC（直播连麦）", category: "腾讯云", enabled: true,
+    note: "首发必要能力：直播间语音连麦。必须绑定正式『热卜国学』应用，并完成原生插件、主播审批、混流旁路及 iOS/Android 真机证据后才能开放入口。付费通话问答暂缓。",
     fields: [
       S("sdkAppId", "TRTC SdkAppId", "TRTC_SDK_APP_ID", false, "TRTC控制台→应用管理→SDKAppID"),
       S("secretKey", "密钥", "TRTC_SECRET_KEY", true, "TRTC控制台→应用→应用信息→SDKSecretKey"),

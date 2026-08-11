@@ -1,10 +1,3 @@
-<!--
-  🔴 假实现·已从观看页下线（2026-07-17 R2 黑盒审计 P0）
-  本组件是纯前端演示壳：「申请连麦」后 setTimeout 3.5s 假装主播同意进入"通话态"，
-  全程无任何后端 API 调用、无 TRTC/音频链路 —— 观众会对着空气说话，属假绿勾红线。
-  观看页（pkg-live/watch/index.vue）的连麦入口与本组件挂载均已注释下线；
-  待 TRTC 连麦链路真实接通后再恢复（后端 voice-room 基建已有）。文件保留供接线时复用 UI。
--->
 <template>
   <!-- 通话中：紧凑悬浮条 -->
   <view v-if="open && state === 'connected'" class="mic-bar">
@@ -17,8 +10,8 @@
         <text class="mic-bar__name">与「{{ hostName }}」连麦中</text>
         <text class="mic-bar__timer">{{ fmt(duration) }}</text>
       </view>
-      <view class="mic-bar__btn" :class="{ 'mic-bar__btn--muted': muted }" @tap="muted = !muted">
-        <AppIcon :name="muted ? 'mic-off' : 'mic'" :size="16" color="#fff" />
+      <view class="mic-bar__btn" :class="{ 'mic-bar__btn--muted': effectiveMuted }" @tap="toggleMute">
+        <AppIcon :name="effectiveMuted ? 'mic-off' : 'mic'" :size="16" color="#fff" />
       </view>
       <view class="mic-bar__btn mic-bar__btn--hangup" @tap="hangUp">
         <AppIcon name="phone-off" :size="16" color="#fff" />
@@ -36,8 +29,8 @@
       <view v-if="state === 'idle'" class="mic-state">
         <view class="mic-icon mic-icon--blue"><AppIcon name="phone" :size="28" color="#93C5FD" /></view>
         <text class="mic-title">申请与主播连麦</text>
-        <text class="mic-sub">向「{{ hostName }}」发起连麦申请，主播同意后即可开始语音互动，连麦内容将对全场观众公开。</text>
-        <view class="mic-primary" @tap="state = 'requesting'">
+        <text class="mic-sub">向「{{ hostName }}」发起申请，主播批准后将进入 TRTC 语音房间。</text>
+        <view class="mic-primary" @tap="requestMic">
           <AppIcon name="phone" :size="20" color="#fff" />
           <text class="mic-primary-txt">申请连麦</text>
         </view>
@@ -49,7 +42,13 @@
         <view class="mic-icon mic-icon--blue-soft"><AppIcon name="loader-2" :size="28" color="#93C5FD" class="mic-spin" /></view>
         <text class="mic-title">等待主播同意…</text>
         <text class="mic-sub">已向「{{ hostName }}」发送连麦申请</text>
-        <view class="mic-secondary" @tap="reset"><text class="mic-secondary-txt">取消申请</text></view>
+        <view class="mic-secondary" @tap="closeAndLeave"><text class="mic-secondary-txt">取消申请</text></view>
+      </view>
+
+      <view v-else-if="state === 'connecting'" class="mic-state">
+        <view class="mic-icon mic-icon--blue-soft"><AppIcon name="loader-2" :size="28" color="#93C5FD" class="mic-spin" /></view>
+        <text class="mic-title">主播已同意</text>
+        <text class="mic-sub">正在建立安全语音链路…</text>
       </view>
 
       <!-- 超时未响应 -->
@@ -57,8 +56,15 @@
         <view class="mic-icon mic-icon--amber"><AppIcon name="alert-circle" :size="28" color="#FBBF24" /></view>
         <text class="mic-title">主播暂未响应</text>
         <text class="mic-sub">主播正在忙碌，可稍后再试</text>
-        <view class="mic-primary" @tap="state = 'requesting'"><text class="mic-primary-txt">重新申请</text></view>
+        <view class="mic-primary" @tap="requestMic"><text class="mic-primary-txt">重新申请</text></view>
         <view class="mic-ghost" @tap="reset"><text class="mic-ghost-txt">关闭</text></view>
+      </view>
+
+      <view v-else-if="state === 'error'" class="mic-state">
+        <view class="mic-icon mic-icon--amber"><AppIcon name="alert-circle" :size="28" color="#FBBF24" /></view>
+        <text class="mic-title">连麦未建立</text>
+        <text class="mic-sub">{{ errorMessage }}</text>
+        <view class="mic-secondary" @tap="reset"><text class="mic-secondary-txt">关闭</text></view>
       </view>
 
       <!-- 挂断总结 -->
@@ -77,21 +83,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { liveMicApi, type LiveMicItem } from '@/pkg-live/live-mic-data'
+import { isLiveTrtcSupported, joinLiveAudio, leaveLiveAudio, setLiveAudioMuted } from '@/pkg-live/live-trtc-client'
 
-type MicState = 'idle' | 'requesting' | 'connected' | 'ended' | 'timeout'
+type MicState = 'idle' | 'requesting' | 'connecting' | 'connected' | 'ended' | 'timeout' | 'error'
 
 const props = defineProps<{
   open: boolean
   hostName: string
+  roomId: string
 }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const state = ref<MicState>('idle')
-const muted = ref(false)
+const localMuted = ref(false)
+const hostMuted = ref(false)
 const duration = ref(0)
-let waitTimer: ReturnType<typeof setTimeout> | null = null
+const errorMessage = ref('')
+const effectiveMuted = computed(() => localMuted.value || hostMuted.value)
+let micUserId = ''
+let hadRemoteRequest = false
+let polling = false
+let pollTimer: ReturnType<typeof setInterval> | null = null
 let timeoutTimer: ReturnType<typeof setTimeout> | null = null
 let durTimer: ReturnType<typeof setInterval> | null = null
 
@@ -101,36 +116,134 @@ function fmt(sec: number) {
   return `${m}:${s}`
 }
 
-function clearAll() {
-  if (waitTimer) { clearTimeout(waitTimer); waitTimer = null }
+function clearTimers() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
   if (timeoutTimer) { clearTimeout(timeoutTimer); timeoutTimer = null }
   if (durTimer) { clearInterval(durTimer); durTimer = null }
 }
 
-// 申请连麦：模拟主播 3.5s 后同意；15s 无响应则超时
-watch(state, (s) => {
-  clearAll()
-  if (s === 'requesting') {
-    waitTimer = setTimeout(() => { if (state.value === 'requesting') state.value = 'connected' }, 3500)
-    timeoutTimer = setTimeout(() => { if (state.value === 'requesting') state.value = 'timeout' }, 15000)
-  } else if (s === 'connected') {
-    durTimer = setInterval(() => { duration.value += 1 }, 1000)
+async function pollMic() {
+  if (polling || !props.roomId) return
+  polling = true
+  try {
+    const items = await liveMicApi.list(props.roomId)
+    const mic = items[0]
+    if (!mic) {
+      if (hadRemoteRequest && state.value === 'requesting') fail('主播未接受本次申请')
+      else if (state.value === 'connected') await finishCall()
+      return
+    }
+    micUserId = mic.userId
+    if (mic.status === 'PENDING') return
+    if (state.value === 'requesting') await connectRtc(mic)
+    if (state.value === 'connected') {
+      hostMuted.value = mic.status === 'MUTED'
+      setLiveAudioMuted(effectiveMuted.value)
+    }
+  } catch (error) {
+    if (state.value === 'requesting' || state.value === 'connecting') {
+      fail((error as Error)?.message || '查询连麦状态失败')
+    }
+  } finally {
+    polling = false
   }
-})
+}
+
+async function connectRtc(mic: LiveMicItem) {
+  state.value = 'connecting'
+  hostMuted.value = mic.status === 'MUTED'
+  try {
+    const config = await liveMicApi.getRtcConfig(props.roomId)
+    await joinLiveAudio(config)
+    hostMuted.value = !config.canPublishAudio || mic.status === 'MUTED'
+    setLiveAudioMuted(effectiveMuted.value)
+    state.value = 'connected'
+    if (timeoutTimer) { clearTimeout(timeoutTimer); timeoutTimer = null }
+    if (!durTimer) durTimer = setInterval(() => { duration.value += 1 }, 1000)
+  } catch (error) {
+    leaveLiveAudio()
+    fail((error as Error)?.message || '语音链路建立失败')
+  }
+}
+
+async function requestMic() {
+  if (!isLiveTrtcSupported()) {
+    fail('当前安装包未包含 TRTC 原生插件，请升级到最新正式 App')
+    return
+  }
+  errorMessage.value = ''
+  state.value = 'requesting'
+  try {
+    const mic = await liveMicApi.request(props.roomId, 1)
+    micUserId = mic.userId
+    hadRemoteRequest = true
+    pollTimer ||= setInterval(() => { void pollMic() }, 2000)
+    timeoutTimer = setTimeout(() => {
+      if (state.value !== 'requesting') return
+      state.value = 'timeout'
+      void removeRemoteRequest()
+    }, 60_000)
+  } catch (error) {
+    fail((error as Error)?.message || '连麦申请失败')
+  }
+}
+
+function fail(message: string) {
+  clearTimers()
+  errorMessage.value = message
+  state.value = 'error'
+}
+
+async function removeRemoteRequest() {
+  if (!micUserId || !props.roomId) return
+  const userId = micUserId
+  micUserId = ''
+  try { await liveMicApi.leave(props.roomId, userId) } catch {}
+}
+
+function toggleMute() {
+  if (hostMuted.value) {
+    uni.showToast({ title: '主播已将你静音', icon: 'none' })
+    return
+  }
+  localMuted.value = !localMuted.value
+  setLiveAudioMuted(localMuted.value)
+}
+
+async function finishCall() {
+  clearTimers()
+  leaveLiveAudio()
+  state.value = 'ended'
+}
 
 // 弹窗关闭时重置内部状态
-watch(() => props.open, (o) => { if (!o) doReset() })
+watch(() => props.open, (o) => { if (!o) void cleanup() })
 
 function doReset() {
-  clearAll()
+  clearTimers()
+  leaveLiveAudio()
   state.value = 'idle'
   duration.value = 0
-  muted.value = false
+  localMuted.value = false
+  hostMuted.value = false
+  errorMessage.value = ''
+  micUserId = ''
+  hadRemoteRequest = false
 }
-function reset() { doReset(); emit('close') }
-function hangUp() { state.value = 'ended' }
+async function reset() { await cleanup(); emit('close') }
+async function cleanup() {
+  clearTimers()
+  leaveLiveAudio()
+  await removeRemoteRequest()
+  doReset()
+}
+async function closeAndLeave() { await cleanup(); emit('close') }
+async function hangUp() {
+  await removeRemoteRequest()
+  await finishCall()
+}
 
-onUnmounted(clearAll)
+onUnmounted(() => { void cleanup() })
 </script>
 
 <style scoped>

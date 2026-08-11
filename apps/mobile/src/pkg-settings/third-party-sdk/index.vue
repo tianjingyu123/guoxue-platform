@@ -194,7 +194,7 @@
       </view>
 
       <text class="updated-at">
-        核验日期：2026年7月19日
+        核验日期：2026年8月11日
       </text>
     </view>
   </view>
@@ -232,6 +232,19 @@ const sdkDisclosures: SdkDisclosure[] = [
     collectedData: ['设备型号', '操作系统版本', '网络连接状态'],
     privacyPolicyUrl: 'https://cloud.tencent.com/document/product/269/58094',
     officialWebsite: 'https://cloud.tencent.com/product/im',
+  },
+  {
+    id: 'tencent-trtc',
+    name: '腾讯云实时音视频 TRTC SDK',
+    provider: '腾讯云计算（北京）有限责任公司',
+    version: '1.4.7（DCloud 官方插件）',
+    purpose: '提供直播间低延时语音连麦、音频传输和弱网重连能力',
+    scene: '仅在用户主动申请连麦且主播批准后加载；退出连麦即释放麦克风',
+    processing: '房间凭据由热卜服务端临时签发，音频经腾讯云 TRTC 加密传输；不在客户端保存 SDKSecretKey',
+    permission: '麦克风、网络访问、蓝牙音频设备（用户可拒绝，拒绝后仅不能连麦）',
+    collectedData: ['麦克风音频', '设备型号', '操作系统版本', '网络质量', '临时房间标识与去标识化用户标识'],
+    privacyPolicyUrl: 'https://cloud.tencent.com/document/product/647/16788',
+    officialWebsite: 'https://cloud.tencent.com/product/trtc',
   },
 ]
 

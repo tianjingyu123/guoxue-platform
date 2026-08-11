@@ -63,6 +63,9 @@ const mockPrisma = {
     findUnique: jest.fn(),
     delete: jest.fn(),
   },
+  liveMic: {
+    deleteMany: jest.fn(),
+  },
   user: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
@@ -668,6 +671,7 @@ describe("LiveService", () => {
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "ENDED" });
       const result = await svc.endRoom("r1");
       expect(result.status).toBe("ENDED");
+      expect(mockPrisma.liveMic.deleteMany).toHaveBeenCalledWith({ where: { liveRoomId: "r1" } });
     });
 
     it("房主本人可结束直播", async () => {

@@ -18,6 +18,7 @@ import { ImService } from "../im/im.service";
 import { safePagination } from "../../common/pagination";
 import { publicQuarantinedIds } from "../../common/public-content-quarantine";
 import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
+import { buildLiveTrtcTicket } from "./live-trtc.util";
 
 @Injectable()
 export class LiveService {
@@ -398,6 +399,8 @@ export class LiveService {
       }
     }
     const result = await this.updateStatus(id, "ENDED");
+    // 下播后立即撤销所有连麦授权，避免旧票据在房间结束后继续占用麦克风。
+    await this.prisma.liveMic.deleteMany({ where: { liveRoomId: id } });
 
     await this.webhook.fire("LIVE_ENDED", {
       roomId: id,
@@ -1111,10 +1114,23 @@ export class LiveService {
 
   /** 用户上麦 */
   async joinMic(roomId: string, userId: string, position: number) {
-    const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: { id: true, status: true, hostUserId: true },
+    });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
+    if (room.hostUserId === userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "主播无需申请上麦");
 
-    // 检查麦位是否已被占用
+    // 客户端强退时无法保证发出取消请求；过期待审批申请自动释放麦位。
+    await this.prisma.liveMic.deleteMany({
+      where: { liveRoomId: roomId, status: "PENDING", joinedAt: { lt: new Date(Date.now() - 2 * 60_000) } },
+    });
+
+    const ownRequest = await this.prisma.liveMic.findFirst({ where: { liveRoomId: roomId, userId } });
+    if (ownRequest) throw new BusinessException(ErrorCode.BAD_REQUEST, "你已有待处理或进行中的连麦");
+
+    // 待审批申请同样占住该麦位，避免主播批准时出现位置竞争。
     const existing = await this.prisma.liveMic.findUnique({
       where: { liveRoomId_position: { liveRoomId: roomId, position } },
     });
@@ -1122,7 +1138,7 @@ export class LiveService {
 
     try {
       return this.prisma.liveMic.create({
-        data: { liveRoomId: roomId, userId, position, status: "OCCUPIED" },
+        data: { liveRoomId: roomId, userId, position, status: "PENDING" },
       });
     } catch (e: unknown) {
       if (isUniqueConstraintError(e)) throw new BusinessException(ErrorCode.BAD_REQUEST, "该麦位已被占用");
@@ -1144,8 +1160,22 @@ export class LiveService {
     return { success: true };
   }
 
-  /** 麦位操作（静音/解除静音/踢人） */
-  async manageMic(roomId: string, operatorId: string, dto: { userId: string; position?: number; action?: string }) {
+  /** 主播/管理员处理申请、静音、解除静音或踢人。 */
+  async manageMic(
+    roomId: string,
+    operatorId: string,
+    dto: { userId: string; position?: number; action: string },
+    isAdmin = false,
+  ) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: { hostUserId: true, status: true },
+    });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (!isAdmin && room.hostUserId !== operatorId) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "只有主播本人或管理员可以管理麦位");
+    }
+
     const where: Prisma.LiveMicWhereInput = { liveRoomId: roomId, userId: dto.userId };
     if (dto.position) where.position = dto.position;
 
@@ -1153,9 +1183,19 @@ export class LiveService {
     if (!mic) throw new BusinessException(ErrorCode.NOT_FOUND, "未在麦位上");
 
     switch (dto.action) {
+      case "ACCEPT":
+        if (room.status !== "LIVING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
+        if (mic.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "该申请已处理");
+        return this.prisma.liveMic.update({ where: { id: mic.id }, data: { status: "OCCUPIED", joinedAt: new Date() } });
+      case "REJECT":
+        if (mic.status !== "PENDING") throw new BusinessException(ErrorCode.BAD_REQUEST, "只能拒绝待处理申请");
+        await this.prisma.liveMic.delete({ where: { id: mic.id } });
+        return { success: true };
       case "MUTE":
+        if (mic.status !== "OCCUPIED") throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户尚未连麦");
         return this.prisma.liveMic.update({ where: { id: mic.id }, data: { status: "MUTED" } });
       case "UNMUTE":
+        if (mic.status !== "MUTED") throw new BusinessException(ErrorCode.BAD_REQUEST, "该用户未被静音");
         return this.prisma.liveMic.update({ where: { id: mic.id }, data: { status: "OCCUPIED" } });
       case "KICK":
         await this.prisma.liveMic.delete({ where: { id: mic.id } });
@@ -1166,11 +1206,53 @@ export class LiveService {
   }
 
   /** 获取麦位列表 */
-  async listMics(roomId: string) {
+  async listMics(roomId: string, userId: string, isAdmin = false) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: { hostUserId: true },
+    });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    const canManage = isAdmin || room.hostUserId === userId;
     return this.prisma.liveMic.findMany({
-      where: { liveRoomId: roomId },
+      where: { liveRoomId: roomId, ...(canManage ? {} : { userId }) },
       orderBy: { position: "asc" },
     });
+  }
+
+  /**
+   * 仅主播或已经主播批准的嘉宾可取得 TRTC 票据。
+   * 票据十分钟过期且绑定字符串房间号；未配置时硬失败，不返回假成功。
+   */
+  async getRtcConfig(roomId: string, userId: string) {
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id: roomId },
+      select: { status: true, hostUserId: true, trtcRoomId: true },
+    });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.status !== "LIVING" || !room.trtcRoomId) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "直播未开始或已结束");
+    }
+
+    let role: "HOST" | "GUEST" = "HOST";
+    let privilegeMap = 255;
+    if (room.hostUserId !== userId) {
+      const mic = await this.prisma.liveMic.findFirst({ where: { liveRoomId: roomId, userId } });
+      if (!mic || !["OCCUPIED", "MUTED"].includes(mic.status)) {
+        throw new BusinessException(ErrorCode.FORBIDDEN, "连麦申请尚未获主播批准");
+      }
+      role = "GUEST";
+      // 语音连麦：OCCUPIED 可收发音频；MUTED 只能进房和接收音频。
+      privilegeMap = mic.status === "MUTED" ? 10 : 15;
+    }
+
+    const ticket = buildLiveTrtcTicket(userId, room.trtcRoomId, privilegeMap);
+    if (!ticket) throw new BusinessException(ErrorCode.INTERNAL_ERROR, "TRTC 正式应用尚未配置");
+    return {
+      ...ticket,
+      role,
+      mediaMode: "AUDIO" as const,
+      canPublishAudio: privilegeMap !== 10,
+    };
   }
 
   // ───────── 课件管理 ─────────
