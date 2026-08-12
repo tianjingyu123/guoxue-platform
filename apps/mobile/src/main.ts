@@ -1,3 +1,6 @@
+// #ifdef APP-PLUS
+import './utils/url-search-params-polyfill'
+// #endif
 import { createSSRApp } from 'vue'
 import App from './App.vue'
 // import 'uno.css'
