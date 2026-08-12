@@ -197,7 +197,7 @@ export default defineConfig(({ mode }) => {
     build: {
       minify: "terser",
       terserOptions: {
-        compress: { drop_console: true, drop_debugger: true },
+        compress: { drop_console: true, drop_debugger: true, passes: 3 },
       },
       // iOS Safari/WebView 对 Vite 动态分包的 modulepreload/CSS preload link 处理与安卓 Chrome 不同，
       // preload 失败会导致整个分包 import 被 reject → 懒加载页(如设置页)在 iOS 白屏(安卓正常)。

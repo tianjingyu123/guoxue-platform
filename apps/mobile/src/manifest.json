@@ -5,6 +5,9 @@
     "versionName" : "1.1.0",
     "versionCode" : "200",
     "transformPx" : false,
+    "uniStatistics" : {
+        "enable" : false
+    },
     "app-plus" : {
         "usingComponents" : true,
         "splashscreen" : {
