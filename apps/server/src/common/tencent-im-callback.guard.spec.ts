@@ -148,6 +148,29 @@ describe("TencentImCallbackGuard", () => {
     }))).toBe(true);
   });
 
+  it("接受腾讯云控制台不携带 SdkAppid 的 URL 校验请求", () => {
+    process.env = {
+      ...originalEnv,
+      NODE_ENV: "production",
+      IM_APP_ID: "1400000000",
+      IM_CALLBACK_TOKEN: "test-token",
+    };
+    const requestTime = String(Math.floor(Date.now() / 1000));
+    const sign = createHash("sha256").update(`test-token${requestTime}`).digest("hex");
+    const guard = new TencentImCallbackGuard();
+
+    expect(guard.canActivate(context({
+      body: {},
+      headers: {},
+      query: {
+        RequestTime: requestTime,
+        Sign: sign,
+      },
+      method: "POST",
+      url: "/im/callback",
+    }))).toBe(true);
+  });
+
   it("拒绝请求体与查询参数命令不一致的正式回调", () => {
     process.env = {
       ...originalEnv,
