@@ -162,16 +162,24 @@
         <text v-else class="hint warn" @tap="openBuySheet">剩余时长不足，无法以本档开播，点此购买时长包或改用标清</text>
       </view>
 
-      <!-- 所属圈子 + 开播时间 -->
+      <!-- 所属圈子 + 可见范围 + 开播时间 -->
       <view class="sec">
         <view class="rows">
           <view class="row" :class="{ 'row-locked': isEdit }" @tap="isEdit ? undefined : openCirclePicker()">
             <text class="row-k">所属圈子{{ isEdit ? '（不可更改）' : '' }}</text>
             <view class="row-v">
-              <text class="row-v-txt">{{ selectedCircleName || '默认：我的圈子' }}</text>
+              <text class="row-v-txt">{{ selectedCircleName || '请选择直播所属圈子' }}</text>
               <AppIcon v-if="!isEdit" name="chevron-right" :size="32" color="#B8B2A8" />
             </view>
           </view>
+          <view v-if="!isEdit" class="row visibility-row">
+            <text class="row-k">可见范围</text>
+            <view class="visibility-options">
+              <view class="visibility-pill" :class="{ sel: visibility === 'CIRCLE_ONLY' }" @tap="visibility = 'CIRCLE_ONLY'">仅本圈</view>
+              <view class="visibility-pill" :class="{ sel: visibility === 'PLATFORM' }" @tap="visibility = 'PLATFORM'">全平台可见</view>
+            </view>
+          </view>
+          <text v-if="!isEdit && visibility === 'PLATFORM'" class="visibility-hint">全平台发布需具备发布资格，并受平台内容审核规则约束</text>
           <view class="row" @tap="toggleTimePicker">
             <text class="row-k">开播时间</text>
             <view class="row-v">
@@ -245,10 +253,6 @@
           <text class="sheet-x" @tap="showCirclePicker = false">×</text>
         </view>
         <scroll-view scroll-y class="circle-list">
-          <view class="circle-item" :class="{ sel: circleId === '' }" @tap="selectCircle('')">
-            <text class="circle-name">默认：我的圈子</text>
-            <AppIcon v-if="circleId === ''" name="check" :size="34" color="#C41E3A" />
-          </view>
           <view
             v-for="c in myOwnedCircles"
             :key="c.id"
@@ -337,7 +341,7 @@ const circleId = ref('')
 // 直播形态：竖屏手机直播（默认）/ OBS 电脑直播
 const liveMode = ref<'vertical' | 'obs'>('vertical')
 
-// 开放范围：V0 未在开播台暴露，统一默认「仅本圈」（后端 CreateRoomDto 默认值）
+// 默认仅本圈；只有主播主动选择时才申请全平台可见。
 const visibility = ref<'CIRCLE_ONLY' | 'PLATFORM'>('CIRCLE_ONLY')
 
 // 画质档位（C5 分档商业化）
@@ -580,6 +584,9 @@ async function fetchData() {
     packages.value = packagesRes
     coinBalance.value = balanceRes
     myCircles.value = circlesRes
+    if (!editRoomId.value && !circleId.value && myOwnedCircles.value.length) {
+      circleId.value = myOwnedCircles.value[0].id
+    }
     if (editRoom) fillEditForm(editRoom)
   } catch (e) {
     error.value = (e as Error)?.message || '加载直播信息失败，请重试'
@@ -604,6 +611,7 @@ const primaryText = computed(() => {
 })
 const primaryDisabled = computed(() =>
   !title.value.trim() ||
+  !circleId.value ||
   (!!startTime.value && (!cover.value.trim() || !description.value.trim())) ||
   coverUploading.value ||
   submitting.value ||
@@ -620,6 +628,7 @@ const retrying = ref(false)
 async function onPrimary() {
   if (primaryDisabled.value) {
     if (!title.value.trim()) uni.showToast({ title: '请输入直播标题', icon: 'none' })
+    else if (!circleId.value) uni.showToast({ title: '请选择直播所属圈子', icon: 'none' })
     else if (startTime.value && !cover.value.trim()) uni.showToast({ title: '发布预告前请上传首图', icon: 'none' })
     else if (startTime.value && !description.value.trim()) uni.showToast({ title: '发布预告前请填写直播介绍', icon: 'none' })
     else if (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0) openBuySheet()
@@ -662,7 +671,7 @@ async function onPrimary() {
     })
     createdId.value = created?.id || ''
     // 审核无感化：创建即生效，机审后台异步完成，无审核提示
-    // OBS 场景 → 跳 L2 完成开播；预约 → 回我的直播；立即+竖屏 → 直接开播进控制台
+    // OBS 场景 → 跳 L2 完成开播；预约 → 回我的直播；立即+竖屏 → 进入主播直播间
     if (liveMode.value === 'obs') {
       uni.showToast({ title: '创建成功', icon: 'success' })
       setTimeout(() => uni.redirectTo({ url: `/pkg-live/obs/index?id=${created.id}` }), 600)
@@ -679,11 +688,16 @@ async function onPrimary() {
   }
 }
 
-// 立即开播：成功进控制台；失败进推流失败态（A-06，可退化为通用文案）
+// 立即开播：主播页默认展示摄像头画面与公屏，控制台为页内可切换视图。
 async function startLiveNow(id: string) {
+  // #ifndef APP-PLUS
+  pushFailMsg.value = '手机视频开播需要使用热卜 App；当前端仅可创建预约或配置 OBS 直播'
+  pushFailed.value = true
+  return undefined
+  // #endif
   try {
     await liveApi.startLive(id)
-    uni.redirectTo({ url: `/pkg-live/console/index?id=${id}` })
+    uni.redirectTo({ url: `/pkg-live/host/index?id=${id}` })
   } catch (e) {
     pushFailMsg.value = (e as Error)?.message || '开播失败：推流未建立'
     pushFailed.value = true
@@ -691,10 +705,14 @@ async function startLiveNow(id: string) {
 }
 async function retryPush() {
   if (retrying.value || !createdId.value) return
+  // #ifndef APP-PLUS
+  uni.showToast({ title: '请在热卜 App 中进入「我的直播」开始手机视频直播', icon: 'none' })
+  return undefined
+  // #endif
   retrying.value = true
   try {
     await liveApi.startLive(createdId.value)
-    uni.redirectTo({ url: `/pkg-live/console/index?id=${createdId.value}` })
+    uni.redirectTo({ url: `/pkg-live/host/index?id=${createdId.value}` })
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '仍未成功，可稍后到「我的直播」重试', icon: 'none' })
   } finally {
@@ -809,6 +827,11 @@ function goManageLater() {
 .row-v { display: flex; align-items: center; gap: 8rpx; }
 .row-locked { opacity: .72; }
 .row-v-txt { font-size: 26rpx; color: #999; }
+.visibility-row { gap: 20rpx; }
+.visibility-options { display: flex; align-items: center; gap: 12rpx; }
+.visibility-pill { padding: 12rpx 20rpx; border: 1rpx solid #E8E2D8; border-radius: 999rpx; font-size: 24rpx; color: #777; background: #FAF8F5; }
+.visibility-pill.sel { color: #C41E3A; border-color: #C41E3A; background: #FBF0F2; font-weight: 600; }
+.visibility-hint { display: block; padding: 0 0 22rpx; color: #9A6B31; font-size: 22rpx; line-height: 1.5; }
 .time-expand { padding: 20rpx 0 24rpx; display: flex; flex-direction: column; gap: 16rpx; border-top: 1rpx solid #F5F1EA; }
 .time-pick-btn { height: 80rpx; border: 1rpx solid #E8E2D8; border-radius: 20rpx; background: #FAF8F5; display: flex; align-items: center; gap: 12rpx; padding: 0 24rpx; }
 .time-ph { font-size: 26rpx; color: #B8B2A8; }

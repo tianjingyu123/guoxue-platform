@@ -26,6 +26,7 @@ const requiredRuntimeKeys = [
   "CONTENT_MODERATION_REGION",
   "TENCENT_ASR_REGION",
   "TENCENT_TTS_REGION",
+  "IM_CALLBACK_TOKEN",
 ];
 
 test("生产容器透传已接入的第三方能力配置", () => {

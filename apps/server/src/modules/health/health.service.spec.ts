@@ -39,6 +39,12 @@ describe("HealthService", () => {
     delete process.env.APPLE_IAP_ISSUER_ID;
     delete process.env.APPLE_IAP_PRIVATE_KEY_BASE64;
     delete process.env.APPLE_IAP_PRIVATE_KEY;
+    delete process.env.LIVE_PUSH_DOMAIN;
+    delete process.env.LIVE_PLAY_DOMAIN;
+    delete process.env.LIVE_PUSH_KEY;
+    delete process.env.LIVE_PLAY_KEY;
+    delete process.env.TRTC_SDK_APP_ID;
+    delete process.env.TRTC_SECRET_KEY;
   });
 
   afterAll(() => {
@@ -133,6 +139,26 @@ describe("HealthService", () => {
       // 已配置的外部服务 fetch 失败 → degraded，所以 checks 中必有 ai 项
       expect(result.status).toBe("degraded");
       expect(result.checks.ai.status).toBe("degraded");
+    });
+    it("直播配置只填一部分时健康门禁失败并列出缺项", async () => {
+      process.env.LIVE_PUSH_DOMAIN = "push.example.com";
+      const result = await svc.check();
+      expect(result.status).toBe("fail");
+      expect(result.checks.live).toEqual(expect.objectContaining({
+        status: "fail",
+        error: expect.stringContaining("LIVE_PLAY_DOMAIN"),
+      }));
+    });
+
+    it("直播推拉流和 TRTC 必填项完整时健康门禁通过", async () => {
+      process.env.LIVE_PUSH_DOMAIN = "push.example.com";
+      process.env.LIVE_PLAY_DOMAIN = "play.example.com";
+      process.env.LIVE_PUSH_KEY = "push-key";
+      process.env.LIVE_PLAY_KEY = "play-key";
+      process.env.TRTC_SDK_APP_ID = "1600030106";
+      process.env.TRTC_SECRET_KEY = "trtc-key";
+      const result = await svc.check();
+      expect(result.checks.live).toEqual({ status: "ok" });
     });
   });
 });

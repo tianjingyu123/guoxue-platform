@@ -88,7 +88,7 @@
           <!-- 操作栏（按状态） -->
           <view class="lops">
             <template v-if="item.status === 'live'">
-              <view class="lbtn pri" @tap="enterConsole(item)">进入控制台</view>
+              <view class="lbtn pri" @tap="enterConsole(item)">{{ item.orientation === 'portrait' ? '进入直播间' : '进入控制台' }}</view>
             </template>
             <template v-else-if="item.status === 'preview'">
               <view class="lbtn txt" @tap="confirmDelete(item)">删除</view>
@@ -193,7 +193,19 @@ onShow(() => { fetchData() })
 // ── 操作 ──
 function goCreate() { navigateTo('/pkg-live/create/index') }
 function goEarnings() { navigateTo('/pkg-live/earnings/index') }
-function enterConsole(item: LiveManageItem) { navigateTo(`/pkg-live/console/index?id=${item.id}`) }
+function portraitRoomUrl(id: string | number) {
+  // #ifdef APP-PLUS
+  return `/pkg-live/host/index?id=${id}`
+  // #endif
+  // #ifndef APP-PLUS
+  return `/pkg-live/console/index?id=${id}`
+  // #endif
+}
+function enterConsole(item: LiveManageItem) {
+  navigateTo(item.orientation === 'landscape'
+    ? `/pkg-live/console/index?id=${item.id}&source=obs`
+    : portraitRoomUrl(item.id))
+}
 function editRoom(item: LiveManageItem) { navigateTo(`/pkg-live/create/index?id=${item.id}`) }
 function viewData(item: LiveManageItem) { navigateTo(`/pkg-live/analytics/index?id=${item.id}`) }
 function viewReplay(item: LiveManageItem) { navigateTo(`/pkg-live/watch/index?id=${item.id}`) }
@@ -202,6 +214,12 @@ function viewReplay(item: LiveManageItem) { navigateTo(`/pkg-live/watch/index?id
 const starting = ref(false)
 function startLive(item: LiveManageItem) {
   if (starting.value) return
+  if (item.orientation !== 'landscape') {
+    // #ifndef APP-PLUS
+    uni.showToast({ title: '手机视频开播需要使用热卜 App', icon: 'none' })
+    return undefined
+    // #endif
+  }
   uni.showModal({
     title: '开始直播', content: `确定现在开播「${item.title}」吗？`, confirmText: '开播',
     success: async (res) => {
@@ -211,7 +229,9 @@ function startLive(item: LiveManageItem) {
       try {
         await liveApi.startLive(String(item.id))
         uni.hideLoading()
-        navigateTo(`/pkg-live/console/index?id=${item.id}`)
+        navigateTo(item.orientation === 'landscape'
+          ? `/pkg-live/console/index?id=${item.id}&source=obs`
+          : portraitRoomUrl(item.id))
       } catch (e) {
         uni.hideLoading()
         uni.showToast({ title: (e as Error)?.message || '开播失败，请重试', icon: 'none' })

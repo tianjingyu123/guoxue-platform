@@ -40,13 +40,27 @@
       <view class="qtag" :class="{ warn: remainWarn }">
         <text class="qtag-txt">{{ qualityStatusLabel }}</text>
       </view>
+      <view v-if="isHostCompanion" class="modebtn" @tap="returnToHost">
+        <text class="modebtn-txt">返回直播间</text>
+      </view>
       <view class="endbtn" @tap="showEndDialog = true">
         <text class="endbtn-txt">下播</text>
       </view>
     </view>
 
+    <!-- 手机主播画面由上一层 .nvue TRTC 页面持续采集，本页只处理数据与运营控制。 -->
+    <view v-if="isHostCompanion" class="preview compact">
+      <view class="preview-unavailable">
+        <text class="preview-unavailable-title">直播画面正在后台持续推送</text>
+        <text class="preview-unavailable-sub">操作完成后返回直播间查看画面和公屏</text>
+      </view>
+      <view class="preview-actions">
+        <view class="preview-action preview-action--primary" @tap="returnToHost">返回直播间</view>
+      </view>
+    </view>
+
     <!-- ── 数据看板四格 ── -->
-    <view class="stats">
+    <view v-if="consoleMode || isObsMode" class="stats">
       <view class="stat">
         <text class="mono stat-n">{{ formatNum(stats.onlineCount) }}</text>
         <text class="stat-l">在线人数</text>
@@ -72,6 +86,10 @@
     </view>
 
     <!-- ── 弹幕流 ── -->
+    <view v-if="!consoleMode && !isObsMode" class="room-section-title">
+      <text>互动公屏</text>
+      <text class="room-section-meta">{{ formatNum(stats.onlineCount) }} 人在线</text>
+    </view>
     <scroll-view v-if="danmakuList.length > 0" scroll-y class="danmu" :scroll-top="danmakuScrollTop" :scroll-with-animation="false">
       <view class="sys">—— 以下为实时弹幕 ——</view>
       <view
@@ -261,7 +279,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onBackPress, onLoad, onShow } from '@dcloudio/uni-app'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -280,6 +298,9 @@ const loading = ref(true)
 const error = ref('')
 const consoleId = ref('1')
 const roomTitle = ref('')
+const isObsMode = ref(false)
+const isHostCompanion = ref(false)
+const consoleMode = ref(false)
 
 // ===== 数据（由 API 异步获取）=====
 const stats = ref({
@@ -369,8 +390,8 @@ async function fetchData(silent = false) {
       : 0
     scrollDanmakuToBottom()
   } catch (e) {
-    if (silent) uni.showToast({ title: (e as Error)?.message || '商品刷新失败', icon: 'none' })
-    else error.value = (e as Error)?.message || '加载失败，请重试'
+    // 后台轮询失败时保留上一帧数据，避免弱网下反复弹 Toast 干扰主播操作。
+    if (!silent) error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
     if (!silent) loading.value = false
   }
@@ -394,9 +415,13 @@ function scrollDanmakuToBottom() {
 
 // ===== 计时器 =====
 let liveTimer: ReturnType<typeof setInterval> | null = null
+let consolePollTimer: ReturnType<typeof setInterval> | null = null
 
 onLoad((options) => {
   if (options?.id) consoleId.value = String(options.id)
+  isObsMode.value = options?.source === 'obs'
+  isHostCompanion.value = options?.source === 'host'
+  consoleMode.value = isObsMode.value || isHostCompanion.value
   fetchData()
   if (canUseLiveMic) {
     void loadMics()
@@ -405,12 +430,28 @@ onLoad((options) => {
   liveTimer = setInterval(() => {
     liveTime.value += 1
   }, 1000)
+  consolePollTimer = setInterval(() => { void fetchData(true) }, 3000)
 })
+
+// 主播页禁止直接返回造成「本地推流已停、服务端仍直播中」；统一走下播确认。
+onBackPress(() => {
+  if (isHostCompanion.value) {
+    uni.navigateBack()
+    return true
+  }
+  if (!showEndDialog.value) showEndDialog.value = true
+  return true
+})
+
+function returnToHost() {
+  uni.navigateBack()
+}
 
 onUnmounted(() => {
   if (liveTimer) clearInterval(liveTimer)
   if (micPollTimer) clearInterval(micPollTimer)
-  leaveLiveAudio()
+  if (consolePollTimer) clearInterval(consolePollTimer)
+  if (!isHostCompanion.value) leaveLiveAudio()
 })
 
 async function loadMics(silent = false) {
@@ -597,8 +638,17 @@ async function onConfirmEnd() {
   uni.showLoading({ title: '正在下播…' })
   try {
     await liveApi.endLive(consoleId.value)
+    leaveLiveAudio()
     showEndDialog.value = false
     uni.hideLoading()
+    if (isHostCompanion.value) {
+      const endedRoomId = consoleId.value
+      uni.navigateBack({
+        success: () => setTimeout(() => uni.$emit('live:host-ended', endedRoomId), 80),
+        fail: () => uni.redirectTo({ url: `/pkg-live/end/index?id=${endedRoomId}` }),
+      })
+      return
+    }
     uni.redirectTo({ url: `/pkg-live/end/index?id=${consoleId.value}` })
   } catch (e) {
     uni.hideLoading()
@@ -697,8 +747,15 @@ async function onConfirmEnd() {
   color: #e8833a;
   font-weight: 600;
 }
-.endbtn {
+.modebtn {
   margin-left: auto;
+  border-radius: 999rpx;
+  padding: 10rpx 22rpx;
+  background: #302936;
+}
+.modebtn-txt { color: #f5f0eb; font-size: 23rpx; font-weight: 600; }
+.endbtn {
+  margin-left: 14rpx;
   border: 2rpx solid #4a424f;
   border-radius: 999rpx;
   padding: 10rpx 28rpx;
@@ -707,6 +764,31 @@ async function onConfirmEnd() {
   font-size: 24rpx;
   color: #a89fa8;
 }
+
+/* ── 主播画面：切换控制台时保留小窗，推流组件不销毁 ── */
+.preview {
+  height: 560rpx;
+  flex-shrink: 0;
+  background: #070709;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: height .2s ease;
+}
+.preview.compact { height: 230rpx; }
+.preview-unavailable { width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; }
+.preview-unavailable-title { color: #e8e1e9; font-size: 27rpx; }
+.preview-unavailable-sub { color: #817784; font-size: 23rpx; }
+.preview-status { order: -1; min-height: 48rpx; display: flex; align-items: center; gap: 10rpx; padding: 6rpx 22rpx; color: #e8e1e9; font-size: 22rpx; background: #100e12; }
+.preview-status.error { color: #ffb2ad; }
+.preview-dot { width: 13rpx; height: 13rpx; border-radius: 50%; background: #d18c33; }
+.preview-dot.connected { background: #33ca75; box-shadow: 0 0 12rpx rgba(51,202,117,.7); }
+.preview-actions { min-height: 70rpx; display: flex; justify-content: flex-end; align-items: center; gap: 12rpx; padding: 8rpx 18rpx; background: #100e12; }
+.preview-action { padding: 12rpx 18rpx; border-radius: 999rpx; color: #f5f0eb; font-size: 22rpx; background: rgba(23,20,26,.82); border: 1rpx solid rgba(255,255,255,.2); }
+.preview-action--retry { background: rgba(154,107,49,.92); border-color: #c8924c; font-weight: 600; }
+.preview-action--primary { background: rgba(196,30,58,.92); border-color: #c41e3a; font-weight: 600; }
+.room-section-title { display: flex; align-items: center; justify-content: space-between; padding: 22rpx 28rpx 10rpx; color: #f3edf4; font-size: 27rpx; font-weight: 600; }
+.room-section-meta { color: #8f8592; font-size: 22rpx; font-weight: 400; }
 
 /* ── 数据看板 ── */
 .stats {

@@ -88,7 +88,7 @@ export class CreateRoomDto {
   @IsOptional() @IsString()
   courseId?: string;
 
-  @ApiPropertyOptional({ description: "开放范围：CIRCLE_ONLY=仅本圈（默认）/ PLATFORM=全平台（需平台审核）", enum: ["CIRCLE_ONLY", "PLATFORM"] })
+  @ApiPropertyOptional({ description: "开放范围：默认 CIRCLE_ONLY；只有主播主动选择时才可设为 PLATFORM（需发布资格与平台审核）", enum: ["CIRCLE_ONLY", "PLATFORM"] })
   @IsOptional() @IsIn(["CIRCLE_ONLY", "PLATFORM"])
   visibility?: "CIRCLE_ONLY" | "PLATFORM";
 

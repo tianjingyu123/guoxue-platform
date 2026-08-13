@@ -28,6 +28,16 @@ export async function auditMobileNativeBundle({ manifest, bundle }) {
   const bundlePath = resolve(bundle);
   const manifestJson = JSON.parse(await readFile(manifestPath, "utf8"));
 
+  const appPlus = manifestJson["app-plus"] ?? {};
+  const modules = appPlus.modules ?? {};
+  const nativePlugins = appPlus.nativePlugins ?? {};
+  const hasTrtc = Object.keys(nativePlugins).some((name) => name.startsWith("TRTCCloudUniPlugin"));
+  if (hasTrtc && Object.hasOwn(modules, "LivePusher")) {
+    throw new Error(
+      `TRTC 原生插件不能与 DCloud LivePusher 同包：二者包含重复 LiteAV 类：${manifestPath}`,
+    );
+  }
+
   if (manifestJson["app-plus"]?.optimization?.codeSplitting === true) {
     throw new Error(
       `App 原生构建禁止启用 app-plus.optimization.codeSplitting：${manifestPath}`,

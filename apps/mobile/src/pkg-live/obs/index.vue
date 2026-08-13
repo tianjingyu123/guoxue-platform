@@ -298,7 +298,7 @@ async function onStart() {
   try {
     await liveApi.startLive(id.value)
     uni.showToast({ title: '已开播', icon: 'success' })
-    setTimeout(() => navigateTo(`/pkg-live/console/index?id=${id.value}`), 600)
+    setTimeout(() => navigateTo(`/pkg-live/console/index?id=${id.value}&source=obs`), 600)
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '开播失败，请重试', icon: 'none' })
   } finally {
@@ -307,7 +307,7 @@ async function onStart() {
 }
 
 function goConsole() {
-  navigateTo(`/pkg-live/console/index?id=${id.value}`)
+  navigateTo(`/pkg-live/console/index?id=${id.value}&source=obs`)
 }
 
 function goCreate() {

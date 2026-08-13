@@ -197,6 +197,7 @@ services:
       IM_ADMIN_KEY: ${IM_ADMIN_KEY:-}
       IM_ADMIN_ID: ${IM_ADMIN_ID:-}
       IM_AUDIT_SAMPLE: ${IM_AUDIT_SAMPLE:-}
+      IM_CALLBACK_TOKEN: ${IM_CALLBACK_TOKEN:-}
 
       # ── 腾讯云实时音视频 ──
       TRTC_SDK_APP_ID: ${TRTC_SDK_APP_ID:-}

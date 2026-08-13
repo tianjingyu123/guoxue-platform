@@ -67,6 +67,26 @@ test("当前仓库能力审计通过并生成可归档结构化报告", async ()
   assert.equal(report.checks.length, 12);
 });
 
+test("uni-app JSON 中包含条件编译指令时能力审计仍可解析", async () => {
+  const fixtureRoot = await createFixture();
+  const pagesPath = path.join(fixtureRoot, "apps/mobile/src/pages.json");
+  const pages = await readFile(pagesPath, "utf8");
+  await writeFile(
+    pagesPath,
+    pages.replace(
+      '"subPackages": [',
+      '"subPackages": [\n    // #ifdef APP-PLUS\n    // #endif',
+    ),
+  );
+  const reportPath = path.join(fixtureRoot, "capability-readiness.json");
+
+  const result = runAudit("--repo-root", fixtureRoot, "--report", reportPath);
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(await readFile(reportPath, "utf8"));
+  assert.equal(report.success, true);
+});
+
 test("语音运行时契约被删除时必须阻断发布", async () => {
   const fixtureRoot = await createFixture();
   const runtimePath = path.join(

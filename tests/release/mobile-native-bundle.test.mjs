@@ -56,6 +56,21 @@ test("AMD app-service 产物阻断构建", async () => {
   );
 });
 
+test("TRTC 与 LivePusher 同包时阻断构建", async () => {
+  await withFixture(
+    {
+      "app-plus": {
+        modules: { LivePusher: {} },
+        nativePlugins: { "TRTCCloudUniPlugin-TRTCCloudImpl": {} },
+      },
+    },
+    "(()=>{})();",
+    async (paths) => {
+      await assert.rejects(auditMobileNativeBundle(paths), /不能与 DCloud LivePusher 同包/);
+    },
+  );
+});
+
 test("显式预发布通道覆盖本地正式通道", () => {
   const env = resolveClientEnv(
     { VITE_RELEASE_CHANNEL: "formal" },

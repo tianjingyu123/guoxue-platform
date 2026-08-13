@@ -79,6 +79,22 @@ describe("LiveService 直播连麦", () => {
     expect(config.privateMapKey).toBeTruthy();
   });
 
+  it("主播取得视频开播票据，CDN 流标识与直播播放流一致", async () => {
+    process.env.TRTC_SDK_APP_ID = "1600030106";
+    process.env.TRTC_SECRET_KEY = "test-only-secret";
+
+    const config = await service.getRtcConfig("r1", "host-1");
+
+    expect(config).toMatchObject({
+      strRoomId: "room_r1",
+      role: "HOST",
+      mediaMode: "VIDEO",
+      canPublishAudio: true,
+      canPublishVideo: true,
+      streamId: "room_r1",
+    });
+  });
+
   it("待审批嘉宾不能取得票据", async () => {
     prisma.liveMic.findFirst.mockResolvedValue({ id: "m1", status: "PENDING" });
     await expect(service.getRtcConfig("r1", "guest-1")).rejects.toThrow("尚未获主播批准");

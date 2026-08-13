@@ -27,7 +27,13 @@ function read(relativePath) {
 }
 
 function readJson(relativePath) {
-  return JSON.parse(read(relativePath));
+  // uni-app 的 pages.json / manifest.json 允许使用条件编译行注释；
+  // 审计器只需忽略这些编译指令，实际 JSON 结构仍由各端构建器按目标裁剪。
+  const content = read(relativePath).replace(
+    /^\s*\/\/\s*#(?:ifn?def|endif)\b.*$/gmu,
+    "",
+  );
+  return JSON.parse(content);
 }
 
 function has(content, pattern) {

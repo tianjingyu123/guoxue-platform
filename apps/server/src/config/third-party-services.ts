@@ -158,8 +158,8 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     ],
   },
   {
-    key: "tencent_live", label: "腾讯云直播", category: "腾讯云", enabled: false,
-    note: "云直播。控制台：云直播→域名管理（需先备案域名）。（直播功能尚在对接，可暂缓）",
+    key: "tencent_live", label: "腾讯云直播", category: "腾讯云", enabled: true,
+    note: "首发必要能力。必须完成推流/播放域名、防盗链 Key、回调与 Android/iOS 真机推拉流验收后才可开放入口。",
     fields: [
       S("pushDomain", "推流域名", "LIVE_PUSH_DOMAIN", false, "直播控制台→域名管理→类型为『推流』的域名"),
       S("playDomain", "播放域名", "LIVE_PLAY_DOMAIN", false, "直播控制台→域名管理→类型为『播放』的域名"),

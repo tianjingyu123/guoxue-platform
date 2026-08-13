@@ -297,8 +297,19 @@ export class HealthService {
   }
 
   private async checkLiveService(): Promise<HealthCheck> {
-    const pushDomain = process.env.LIVE_PUSH_DOMAIN;
-    if (!pushDomain) return { status: "unconfigured" };
+    const required = [
+      "LIVE_PUSH_DOMAIN",
+      "LIVE_PLAY_DOMAIN",
+      "LIVE_PUSH_KEY",
+      "LIVE_PLAY_KEY",
+      "TRTC_SDK_APP_ID",
+      "TRTC_SECRET_KEY",
+    ] as const;
+    const missing = required.filter((key) => !String(process.env[key] || "").trim());
+    if (missing.length === required.length) return { status: "unconfigured" };
+    if (missing.length) {
+      return { status: "fail", error: `LIVE_CONFIG_MISSING:${missing.join(",")}` };
+    }
     return { status: "ok" };
   }
 

@@ -25,7 +25,19 @@
       <text class="lp-unmute-txt">🔊 点击开启声音</text>
     </view>
     <!-- #endif -->
-    <!-- #ifdef MP-WEIXIN || APP-PLUS -->
+    <!-- #ifdef APP-PLUS -->
+    <video
+      :id="videoId"
+      class="lp-media"
+      :src="props.hlsUrl"
+      autoplay
+      :controls="false"
+      :object-fit="h5ObjectFit"
+      @play="onAppReady"
+      @error="onAppError"
+    />
+    <!-- #endif -->
+    <!-- #ifdef MP-WEIXIN -->
     <live-player
       :id="videoId"
       :src="lpSrc"
@@ -67,7 +79,7 @@ const loadError = ref(false)
 const h5ObjectFit = computed(() => props.objectFit === 'fillCrop' ? 'cover' : props.objectFit)
 const nativeObjectFit = computed(() => props.objectFit === 'cover' ? 'fillCrop' : props.objectFit)
 
-// 小程序/App：live-player 优先 FLV（低延时），无则退 HLS
+// 小程序原生 live-player 优先 FLV（低延时），无则退 HLS；App 使用 HLS video，避免与 TRTC SDK 类冲突。
 const lpSrc = computed(() => props.flvUrl || props.hlsUrl || '')
 
 let lpIndex = 0
@@ -80,7 +92,7 @@ let retryTimer: ReturnType<typeof setTimeout> | null = null
 function clearRetryTimer() { if (retryTimer) { clearTimeout(retryTimer); retryTimer = null } }
 function resetRetry() { retryCount = 0; clearRetryTimer() }
 
-// #ifdef MP-WEIXIN || APP-PLUS
+// #ifdef MP-WEIXIN
 const mpInstance = getCurrentInstance()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mpCtx: any = null
@@ -104,10 +116,10 @@ function onStateChange(e: any) {
   // 2004=开始拉流（视为恢复），-2301=网络断连
   const code = e?.detail?.code
   if (code === -2301) {
-    // #ifdef MP-WEIXIN || APP-PLUS
+    // #ifdef MP-WEIXIN
     mpReconnect()
     // #endif
-    // #ifndef MP-WEIXIN || APP-PLUS
+    // #ifndef MP-WEIXIN
     loadError.value = true
     // #endif
   } else if (code === 2004) {
@@ -118,13 +130,26 @@ function onStateChange(e: any) {
 }
 function onLpError() {
   emit('error')
-  // #ifdef MP-WEIXIN || APP-PLUS
+  // #ifdef MP-WEIXIN
   mpReconnect()
   // #endif
-  // #ifndef MP-WEIXIN || APP-PLUS
+  // #ifndef MP-WEIXIN
   loadError.value = true
   // #endif
 }
+
+// #ifdef APP-PLUS
+function onAppReady() {
+  resetRetry()
+  loadError.value = false
+  emit('ready')
+}
+
+function onAppError() {
+  loadError.value = true
+  emit('error')
+}
+// #endif
 
 /* ================= H5：flv.js 低延时 ================= */
 // #ifdef H5

@@ -66,6 +66,9 @@ const mockPrisma = {
   liveMic: {
     deleteMany: jest.fn(),
   },
+  circleMember: {
+    findFirst: jest.fn(),
+  },
   user: {
     findMany: jest.fn(),
     findUnique: jest.fn(),
@@ -90,11 +93,14 @@ const mockNotification = {
   batchSend: jest.fn().mockResolvedValue({ success: true, count: 0 }),
 };
 const mockStream = {
+  isReady: jest.fn().mockReturnValue(true),
   genPushUrl: jest.fn().mockReturnValue("rtmp://push.example.com/live/room_r1"),
   genPlayUrls: jest.fn().mockReturnValue({ flv: "https://play.example.com/live/room_r1.flv" }),
+  genPlayUrlWithAuth: jest.fn().mockReturnValue({ flv: "https://play.example.com/live/room_r1.flv" }),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 const mockIm = { createGroup: jest.fn().mockResolvedValue({ GroupId: "live_r1" }) };
+const mockPublishGrants = { assertCanPublish: jest.fn().mockResolvedValue(undefined) };
 const mockAudit = {
   moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
   moderateImageOrThrow: jest.fn().mockResolvedValue(undefined),
@@ -116,7 +122,7 @@ describe("LiveService", () => {
         { provide: LiveStreamService, useValue: mockStream },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: AuditService, useValue: mockAudit },
-        { provide: CirclePublishGrantService, useValue: { assertCanPublish: jest.fn() } },
+        { provide: CirclePublishGrantService, useValue: mockPublishGrants },
         { provide: NotificationService, useValue: mockNotification },
         { provide: ImService, useValue: mockIm },
       ],
@@ -126,6 +132,7 @@ describe("LiveService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockStream.isReady.mockReturnValue(true);
     mockPrisma.$transaction.mockImplementation(async (run: (tx: typeof mockPrisma) => unknown) => run(mockPrisma));
   });
 
@@ -294,10 +301,53 @@ describe("LiveService", () => {
   });
 
   describe("createRoom", () => {
+    beforeEach(() => {
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "manager1" });
+    });
+
     it("创建直播间成功", async () => {
       mockPrisma.liveRoom.create.mockResolvedValue({ id: "r1", title: "国学直播", products: [] });
-      const result = await svc.createRoom("u1", { title: "国学直播", hostUserId: "u1" });
+      const result = await svc.createRoom("u1", { title: "国学直播", hostUserId: "u1", circleId: "c1" });
       expect(result.id).toBe("r1");
+      expect(mockPublishGrants.assertCanPublish).not.toHaveBeenCalled();
+      expect(mockAudit.resolveContentVisibility).toHaveBeenCalledWith(expect.objectContaining({
+        visibility: "CIRCLE_ONLY",
+        circleId: "c1",
+      }));
+    });
+
+    it("只有明确选择全平台时才申请平台发布资格", async () => {
+      mockPrisma.liveRoom.create.mockResolvedValue({ id: "r-platform", title: "平台直播", products: [] });
+      await svc.createRoom("u1", { title: "平台直播", circleId: "c1", visibility: "PLATFORM" });
+      expect(mockPublishGrants.assertCanPublish).toHaveBeenCalledWith("u1", "c1", "LIVE", false);
+      expect(mockAudit.resolveContentVisibility).toHaveBeenCalledWith(expect.objectContaining({ visibility: "PLATFORM" }));
+    });
+
+    it("拒绝没有所属圈子的仅圈子直播，避免产生广场不可见的孤立房间", async () => {
+      await expect(svc.createRoom("u1", {
+        title: "不可见直播",
+        visibility: "CIRCLE_ONLY",
+      })).rejects.toThrow("仅圈子可见的直播必须选择所属圈子");
+      expect(mockPrisma.liveRoom.create).not.toHaveBeenCalled();
+    });
+
+    it("拒绝普通成员冒用他人圈子发起直播", async () => {
+      mockPrisma.circleMember.findFirst.mockResolvedValue(null);
+      await expect(svc.createRoom("u1", {
+        title: "越权直播",
+        circleId: "c1",
+      })).rejects.toThrow("只有圈主或圈子管理员可以在该圈发起直播");
+      expect(mockPrisma.liveRoom.create).not.toHaveBeenCalled();
+    });
+
+    it("圈子合伙人与管理员一样可以在所属圈子开播", async () => {
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "partner1" });
+      mockPrisma.liveRoom.create.mockResolvedValue({ id: "partner-live", products: [] });
+      await expect(svc.createRoom("u1", { title: "合伙人直播", circleId: "c1" }))
+        .resolves.toEqual(expect.objectContaining({ id: "partner-live" }));
+      expect(mockPrisma.circleMember.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ role: { in: ["OWNER", "ADMIN", "PARTNER"] } }),
+      }));
     });
 
     it("带商品创建直播间成功", async () => {
@@ -306,7 +356,7 @@ describe("LiveService", () => {
         Promise.resolve({ id: "r1", ...data, products: [{ productId: "p1" }] }),
       );
       const result = await svc.createRoom("u1", {
-        title: "直播", hostUserId: "u1", productIds: ["p1"],
+        title: "直播", hostUserId: "u1", circleId: "c1", productIds: ["p1"],
       });
       expect(result.products).toBeDefined();
     });
@@ -315,7 +365,7 @@ describe("LiveService", () => {
       mockPrisma.liveRoom.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: "r1", ...data, products: [] }),
       );
-      const result = await svc.createRoom("u1", { title: "直播", hostUserId: "u1" });
+      const result = await svc.createRoom("u1", { title: "直播", hostUserId: "u1", circleId: "c1" });
       expect(result.hostUserId).toBe("u1");
     });
 
@@ -323,7 +373,7 @@ describe("LiveService", () => {
       mockPrisma.liveRoom.create.mockImplementation(({ data }) =>
         Promise.resolve({ id: "r1", ...data, products: [], courseId: "co1" }),
       );
-      const result = await svc.createRoom("u1", { title: "课程直播", hostUserId: "u1", courseId: "co1" });
+      const result = await svc.createRoom("u1", { title: "课程直播", hostUserId: "u1", circleId: "c1", courseId: "co1" });
       expect(result.courseId).toBe("co1");
     });
 
@@ -345,6 +395,7 @@ describe("LiveService", () => {
       mockPrisma.liveRoom.create.mockResolvedValue({ id: "preview1", products: [] });
       await svc.createRoom("u1", {
         title: "预约直播",
+        circleId: "c1",
         description: "  本场讲解十二宫位  ",
         cover: "https://img/cover.webp",
         startTime: "2026-08-01T12:00:00.000Z",
@@ -471,7 +522,7 @@ describe("LiveService", () => {
   describe("getRoom 观看计数", () => {
     const room = {
       id: "room1", hostUserId: "host1", userId: "creator1", visibility: "CIRCLE_ONLY",
-      auditStatus: "APPROVED", products: [], user: null, circle: null,
+      auditStatus: "APPROVED", circleId: "circle1", products: [], user: null, circle: null,
     };
 
     it("主播查看自己的管理详情不虚增观看量", async () => {
@@ -480,13 +531,21 @@ describe("LiveService", () => {
       expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
     });
 
-    it("普通观众查看公开详情仍正常计一次观看", async () => {
+    it("圈成员查看圈内详情正常计一次观看", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue(room);
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "member1" });
       mockPrisma.liveRoom.update.mockResolvedValue({});
       await svc.getRoom("room1", "viewer1");
       expect(mockPrisma.liveRoom.update).toHaveBeenCalledWith({
         where: { id: "room1" }, data: { viewCount: { increment: 1 } },
       });
+    });
+
+    it("非圈成员即使知道房间 ID 也无法读取圈内详情", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(room);
+      mockPrisma.circleMember.findFirst.mockResolvedValue(null);
+      await expect(svc.getRoom("room1", "outsider1")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
     });
   });
 
@@ -511,6 +570,17 @@ describe("LiveService", () => {
         completed: false,
         lastWatchedAt: null,
       });
+    });
+
+    it("非圈成员不能借回放进度接口探测圈内直播", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        ...replayRoom,
+        circleId: "circle1",
+        visibility: "CIRCLE_ONLY",
+      });
+      mockPrisma.circleMember.findFirst.mockResolvedValue(null);
+      await expect(svc.getWatchProgress("outsider1", "room1")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.liveWatchProgress.findUnique).not.toHaveBeenCalled();
     });
 
     it("保存进度时自动钳制播放位置并识别已看完", async () => {
@@ -557,6 +627,41 @@ describe("LiveService", () => {
 
       expect(result).toBe(current);
       expect(mockPrisma.liveWatchProgress.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("直播拉流可见性", () => {
+    it("圈成员可以获取正在直播的签名拉流地址", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "room1",
+        status: "LIVING",
+        hostUserId: "host1",
+        userId: "creator1",
+        circleId: "circle1",
+        visibility: "CIRCLE_ONLY",
+        auditStatus: "APPROVED",
+        quality: "basic",
+      });
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "member1" });
+
+      await expect(svc.getPlayUrl("room1", "viewer1")).resolves.toEqual(expect.objectContaining({ quality: "basic" }));
+      expect(mockStream.genPlayUrlWithAuth).toHaveBeenCalledWith("room_room1", "viewer1");
+    });
+
+    it("非圈成员不能通过拉流接口绕过圈内可见性", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "room1",
+        status: "LIVING",
+        hostUserId: "host1",
+        userId: "creator1",
+        circleId: "circle1",
+        visibility: "CIRCLE_ONLY",
+        auditStatus: "APPROVED",
+      });
+      mockPrisma.circleMember.findFirst.mockResolvedValue(null);
+
+      await expect(svc.getPlayUrl("room1", "outsider1")).rejects.toThrow(BusinessException);
+      expect(mockStream.genPlayUrlWithAuth).not.toHaveBeenCalled();
     });
   });
 
@@ -662,6 +767,23 @@ describe("LiveService", () => {
       const result: any = await svc.startLive("r1", "host1", false);
       expect(result.status).toBe("LIVING");
       expect(result.imGroupId).toBeUndefined();
+    });
+
+    it("推拉流配置不完整时拒绝进入 LIVING，避免产生假开播状态", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1",
+        status: "WAITING",
+        auditStatus: "APPROVED",
+        hostUserId: "host1",
+        title: "国学直播",
+        circleId: null,
+      });
+      mockStream.isReady.mockReturnValue(false);
+
+      await expect(svc.startLive("r1", "host1", false)).rejects.toThrow(
+        "直播推拉流配置不完整",
+      );
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
     });
   });
 
@@ -791,6 +913,26 @@ describe("LiveService", () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1", viewCount: 0, title: "直播", quality: "basic" });
       await expect(svc.getConsoleData("r1", "other")).rejects.toThrow(BusinessException);
       expect(mockPrisma.liveMinuteData.aggregate).not.toHaveBeenCalled();
+    });
+
+    it("公屏把数据库最新优先结果转为时间正序展示", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1", viewCount: 2, title: "直播", quality: "basic" });
+      mockPrisma.liveMinuteData.aggregate.mockResolvedValue({ _max: { onlineCount: 2 }, _avg: { onlineCount: 1 } });
+      mockPrisma.giftRecord.aggregate.mockResolvedValue({ _sum: { totalCoin: 0 } });
+      mockPrisma.giftRecord.groupBy.mockResolvedValue([]);
+      mockPrisma.order.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+      mockPrisma.comment.count.mockResolvedValue(2);
+      mockPrisma.comment.findMany.mockResolvedValue([
+        { userId: "u2", content: "后来消息", createdAt: new Date("2026-08-12T12:00:02Z") },
+        { userId: "u1", content: "先来消息", createdAt: new Date("2026-08-12T12:00:01Z") },
+      ]);
+      mockPrisma.like.count.mockResolvedValue(0);
+      mockPrisma.liveProduct.findMany.mockResolvedValue([]);
+      mockPrisma.user.findMany.mockResolvedValue([{ id: "u1", nickname: "甲" }, { id: "u2", nickname: "乙" }]);
+      mockPrisma.product.findMany.mockResolvedValue([]);
+
+      const result = await svc.getConsoleData("r1", "host1");
+      expect(result.danmaku.map((item) => item.content)).toEqual(["先来消息", "后来消息"]);
     });
   });
 

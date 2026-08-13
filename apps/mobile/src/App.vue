@@ -171,6 +171,8 @@ onPageNotFound((res) => {
 </template>
 
 <style lang="scss">
+/* nvue 页面使用原生渲染，只接受 class 选择器；其完整样式由页面自身声明。 */
+/* #ifndef APP-NVUE */
 /* 全局盒模型：与小程序/真机的 view 默认 border-box 一致，避免 H5 预览下 padding 撑宽溢出 */
 view,
 scroll-view,
@@ -270,5 +272,6 @@ uni-scroll-view .uni-scroll-view::-webkit-scrollbar {
     background-color: var(--bg-paper, #faf8f5);
   }
 }
+/* #endif */
 /* #endif */
 </style>

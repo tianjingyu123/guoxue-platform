@@ -39,18 +39,22 @@ export class TencentImCallbackGuard implements CanActivate {
     // 未提供时仍由 SDKAppID、签名和一分钟时效窗口完成来源校验。
     const commandMatches = !queryCommand || !bodyCommand || queryCommand === bodyCommand;
     const expected = this.sha256(callbackToken + requestTime);
+    const signatureMatches = Boolean(sign) && this.safeEqual(sign, expected);
 
     if (
       appIdMatches &&
-      sign &&
       isFresh &&
       commandMatches &&
-      this.safeEqual(sign, expected)
+      signatureMatches
     ) {
       return true;
     }
 
-    this.logger.warn(`IM 回调签名验证失败: ${req.method} ${req.url}`);
+    // 仅记录判定布尔值，严禁写入 Token、签名或请求正文；用于快速区分配置漂移与请求格式问题。
+    this.logger.warn(
+      `IM 回调签名验证失败: ${req.method} ${req.path}; ` +
+      `appId=${appIdMatches} fresh=${isFresh} command=${commandMatches} signature=${signatureMatches}`,
+    );
     throw new UnauthorizedException("IM 回调签名验证失败");
   }
 

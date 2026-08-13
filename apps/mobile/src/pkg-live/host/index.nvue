@@ -1,0 +1,248 @@
+<template>
+  <view class="page">
+    <TRTCCloudUniPlugin-TXLocalViewComponent
+      v-if="cameraMounted"
+      :viewId="localViewId"
+      class="camera"
+    />
+
+    <view class="shade-top" />
+    <view class="topbar safe-top">
+      <view class="live-badge">
+        <view class="live-dot" />
+        <text class="live-label">直播中</text>
+      </view>
+      <text class="time">{{ elapsedText }}</text>
+      <view class="console-btn" @click="openConsole">
+        <text class="console-btn-text">控制台</text>
+      </view>
+      <view class="end-btn" @click="requestEnd">
+        <text class="end-btn-text">下播</text>
+      </view>
+    </view>
+
+    <view v-if="joining || error" class="status-card">
+      <text class="status-title">{{ error ? '直播连接未建立' : '正在连接直播服务' }}</text>
+      <text class="status-detail">{{ error || '正在开启摄像头和麦克风…' }}</text>
+      <view v-if="error" class="retry-btn" @click="connect">
+        <text class="retry-btn-text">重新连接</text>
+      </view>
+    </view>
+
+    <view v-if="!joining && !error" class="room-meta">
+      <text class="room-title">{{ roomTitle || '我的直播间' }}</text>
+      <text class="room-state">画面与声音正在推送</text>
+    </view>
+
+    <view v-if="danmaku.length" class="danmaku-panel">
+      <view v-for="item in danmaku" :key="item.id" class="danmaku-row">
+        <text class="danmaku-user">{{ item.user }}</text>
+        <text class="danmaku-content">{{ item.content }}</text>
+      </view>
+    </view>
+
+    <view class="bottombar safe-bottom">
+      <view class="control" @click="toggleCamera">
+        <text class="control-icon">↻</text>
+        <text class="control-label">翻转</text>
+      </view>
+      <view class="control" :class="{ active: micMuted }" @click="toggleMic">
+        <text class="control-icon">{{ micMuted ? '×' : '●' }}</text>
+        <text class="control-label">{{ micMuted ? '打开麦克风' : '静音' }}</text>
+      </view>
+      <view class="control" :class="{ active: videoMuted }" @click="toggleVideo">
+        <text class="control-icon">{{ videoMuted ? '□' : '◇' }}</text>
+        <text class="control-label">{{ videoMuted ? '打开画面' : '关闭画面' }}</text>
+      </view>
+      <view class="control control-primary" @click="openConsole">
+        <text class="control-icon">≡</text>
+        <text class="control-label">互动与数据</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import { onBackPress, onLoad, onUnload } from '@dcloudio/uni-app'
+import { liveApi, type ConsoleDanmaku } from '@/lib/live-data'
+import { liveMicApi } from '@/pkg-live/live-mic-data'
+import {
+  joinLiveVideo,
+  leaveLiveVideo,
+  setLiveAudioMuted,
+  setLiveVideoMuted,
+  switchLiveCamera,
+} from '@/pkg-live/live-trtc-client'
+
+const roomId = ref('')
+const roomTitle = ref('')
+const joining = ref(false)
+const error = ref('')
+const cameraMounted = ref(true)
+const micMuted = ref(false)
+const videoMuted = ref(false)
+const frontCamera = ref(true)
+const elapsed = ref(0)
+const danmaku = ref<ConsoleDanmaku[]>([])
+const localViewId = `host-preview-${Date.now().toString(36)}`
+
+let elapsedTimer: ReturnType<typeof setInterval> | null = null
+let pollTimer: ReturnType<typeof setInterval> | null = null
+let ending = false
+
+const elapsedText = computed(() => {
+  const hours = Math.floor(elapsed.value / 3600)
+  const minutes = Math.floor((elapsed.value % 3600) / 60)
+  const seconds = elapsed.value % 60
+  return [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':')
+})
+
+async function connect() {
+  if (!roomId.value || joining.value && !error.value) return
+  joining.value = true
+  error.value = ''
+  leaveLiveVideo()
+  cameraMounted.value = false
+  setTimeout(async () => {
+    cameraMounted.value = true
+    try {
+      const config = await liveMicApi.getRtcConfig(roomId.value)
+      await joinLiveVideo(config, localViewId)
+      joining.value = false
+    } catch (cause) {
+      leaveLiveVideo()
+      joining.value = false
+      error.value = (cause as Error)?.message || '摄像头直播启动失败'
+    }
+  }, 80)
+}
+
+async function refreshRoom() {
+  try {
+    const data = await liveApi.getConsoleData(roomId.value)
+    roomTitle.value = data.title
+    danmaku.value = data.danmaku.slice(-4)
+  } catch {
+    // 推流不依赖控制台轮询；短暂网络波动不遮挡主播画面。
+  }
+}
+
+function toggleCamera() {
+  frontCamera.value = !frontCamera.value
+  switchLiveCamera(frontCamera.value)
+}
+
+function toggleMic() {
+  micMuted.value = !micMuted.value
+  setLiveAudioMuted(micMuted.value)
+}
+
+function toggleVideo() {
+  videoMuted.value = !videoMuted.value
+  setLiveVideoMuted(videoMuted.value)
+}
+
+function openConsole() {
+  if (joining.value || error.value) {
+    uni.showToast({ title: '请先连接直播服务', icon: 'none' })
+    return
+  }
+  uni.navigateTo({ url: `/pkg-live/console/index?id=${roomId.value}&source=host` })
+}
+
+function handleConsoleEnded(endedRoomId: string) {
+  if (String(endedRoomId) !== roomId.value) return
+  leaveLiveVideo()
+  uni.redirectTo({ url: `/pkg-live/end/index?id=${roomId.value}` })
+}
+
+function requestEnd() {
+  uni.showModal({
+    title: '确认结束直播？',
+    content: '结束后将停止摄像头、麦克风和观众播放。',
+    confirmText: '结束直播',
+    confirmColor: '#D84949',
+    success: (result) => {
+      if (result.confirm) void endLive()
+    },
+  })
+}
+
+async function endLive() {
+  if (ending) return
+  ending = true
+  uni.showLoading({ title: '正在下播…', mask: true })
+  try {
+    await liveApi.endLive(roomId.value)
+    leaveLiveVideo()
+    uni.hideLoading()
+    uni.redirectTo({ url: `/pkg-live/end/index?id=${roomId.value}` })
+  } catch (cause) {
+    ending = false
+    uni.hideLoading()
+    uni.showToast({ title: (cause as Error)?.message || '下播失败，请重试', icon: 'none' })
+  }
+}
+
+onLoad((options) => {
+  roomId.value = String(options?.id || '')
+  if (!roomId.value) {
+    joining.value = false
+    error.value = '缺少直播间编号'
+    return
+  }
+  void connect()
+  void refreshRoom()
+  elapsedTimer = setInterval(() => { elapsed.value += 1 }, 1000)
+  pollTimer = setInterval(() => { void refreshRoom() }, 3000)
+  uni.$on('live:host-ended', handleConsoleEnded)
+})
+
+onBackPress(() => {
+  requestEnd()
+  return true
+})
+
+onUnload(() => {
+  if (elapsedTimer) clearInterval(elapsedTimer)
+  if (pollTimer) clearInterval(pollTimer)
+  uni.$off('live:host-ended', handleConsoleEnded)
+  leaveLiveVideo()
+})
+</script>
+
+<style>
+.page { flex: 1; background-color: #08070a; }
+.camera { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.shade-top { position: absolute; left: 0; right: 0; top: 0; height: 220rpx; background-color: rgba(8, 7, 10, 0.38); }
+.safe-top { padding-top: 68rpx; }
+.topbar { position: absolute; left: 24rpx; right: 24rpx; top: 0; height: 100rpx; flex-direction: row; align-items: center; }
+.live-badge { height: 52rpx; padding-left: 18rpx; padding-right: 18rpx; border-radius: 26rpx; background-color: #D84949; flex-direction: row; align-items: center; }
+.live-dot { width: 12rpx; height: 12rpx; border-radius: 6rpx; background-color: #ffffff; margin-right: 10rpx; }
+.live-label { color: #ffffff; font-size: 24rpx; font-weight: 700; }
+.time { color: #ffffff; font-size: 25rpx; margin-left: 18rpx; flex: 1; }
+.console-btn { height: 56rpx; padding-left: 22rpx; padding-right: 22rpx; border-radius: 28rpx; background-color: rgba(20, 18, 22, 0.72); justify-content: center; margin-right: 12rpx; }
+.console-btn-text { color: #ffffff; font-size: 24rpx; }
+.end-btn { height: 56rpx; padding-left: 22rpx; padding-right: 22rpx; border-radius: 28rpx; border-width: 1rpx; border-color: rgba(255, 255, 255, 0.72); justify-content: center; }
+.end-btn-text { color: #ffffff; font-size: 24rpx; font-weight: 700; }
+.status-card { position: absolute; left: 56rpx; right: 56rpx; top: 40%; padding: 36rpx; border-radius: 24rpx; background-color: rgba(18, 16, 20, 0.88); align-items: center; }
+.status-title { color: #ffffff; font-size: 31rpx; font-weight: 700; }
+.status-detail { color: #c7bec9; font-size: 24rpx; margin-top: 16rpx; text-align: center; }
+.retry-btn { height: 64rpx; padding-left: 34rpx; padding-right: 34rpx; border-radius: 32rpx; background-color: #8C2F39; justify-content: center; margin-top: 26rpx; }
+.retry-btn-text { color: #ffffff; font-size: 25rpx; font-weight: 700; }
+.room-meta { position: absolute; left: 28rpx; right: 28rpx; bottom: 390rpx; }
+.room-title { color: #ffffff; font-size: 34rpx; font-weight: 700; lines: 1; text-overflow: ellipsis; }
+.room-state { color: rgba(255, 255, 255, 0.72); font-size: 23rpx; margin-top: 10rpx; }
+.danmaku-panel { position: absolute; left: 28rpx; right: 120rpx; bottom: 205rpx; }
+.danmaku-row { flex-direction: row; margin-top: 12rpx; }
+.danmaku-user { color: #D8B36A; font-size: 24rpx; margin-right: 12rpx; }
+.danmaku-content { color: #ffffff; font-size: 24rpx; flex: 1; lines: 1; text-overflow: ellipsis; }
+.safe-bottom { padding-bottom: 26rpx; }
+.bottombar { position: absolute; left: 0; right: 0; bottom: 0; height: 156rpx; padding-left: 22rpx; padding-right: 22rpx; background-color: rgba(10, 9, 12, 0.76); flex-direction: row; align-items: center; justify-content: space-between; }
+.control { width: 158rpx; height: 94rpx; border-radius: 20rpx; background-color: rgba(255, 255, 255, 0.12); align-items: center; justify-content: center; }
+.control.active { background-color: rgba(216, 73, 73, 0.68); }
+.control-primary { background-color: rgba(140, 47, 57, 0.86); }
+.control-icon { color: #ffffff; font-size: 32rpx; height: 40rpx; }
+.control-label { color: #ffffff; font-size: 20rpx; margin-top: 4rpx; }
+</style>

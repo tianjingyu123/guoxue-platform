@@ -17,8 +17,10 @@ export interface LiveRtcConfig {
   privateMapKey: string
   expiresAt: string
   role: 'HOST' | 'GUEST'
-  mediaMode: 'AUDIO'
+  mediaMode: 'AUDIO' | 'VIDEO'
   canPublishAudio: boolean
+  canPublishVideo?: boolean
+  streamId?: string
 }
 
 export const liveMicApi = {

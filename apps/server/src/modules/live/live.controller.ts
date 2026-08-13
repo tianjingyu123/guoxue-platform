@@ -183,7 +183,7 @@ export class LiveController {
 
   @Get("rooms/:id")
   @UseGuards(OptionalAuthGuard)
-  @ApiOperation({ summary: "获取直播间详情（SELF_ONLY/已下架直播间仅主播本人可见）" })
+  @ApiOperation({ summary: "获取直播间详情（圈内直播仅主播或有效圈成员可见）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getRoom(@Param("id") id: string, @Req() req: Request) {
@@ -243,7 +243,7 @@ export class LiveController {
 
   @Get("rooms/:id/play-url")
   @UseGuards(OptionalAuthGuard)
-  @ApiOperation({ summary: "获取公开直播的观众拉流地址（可选登录）" })
+  @ApiOperation({ summary: "获取观众拉流地址（全平台直播可匿名；圈内直播需有效圈成员）" })
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   playUrl(@Param("id") id: string, @Req() req: Request) {

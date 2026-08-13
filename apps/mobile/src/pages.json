@@ -1437,6 +1437,17 @@
             "navigationStyle": "custom"
           }
         },
+        // #ifdef APP-PLUS
+        {
+          "path": "host/index",
+          "style": {
+            "navigationStyle": "custom",
+            "app-plus": {
+              "bounce": "none"
+            }
+          }
+        },
+        // #endif
         {
           "path": "obs/index",
           "style": {

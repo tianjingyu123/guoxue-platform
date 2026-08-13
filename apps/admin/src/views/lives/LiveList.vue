@@ -192,6 +192,30 @@
               placeholder="不填则默认为当前账号"
             />
           </el-form-item>
+          <el-form-item label="所属圈子" required>
+            <el-select
+              v-model="form.circleId"
+              filterable
+              placeholder="请选择直播所属圈子"
+              style="width:100%"
+            >
+              <el-option
+                v-for="circle in circleOptions"
+                :key="circle.id"
+                :label="circle.name || circle.id"
+                :value="circle.id"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="可见范围">
+            <el-radio-group v-model="form.visibility">
+              <el-radio value="CIRCLE_ONLY">仅本圈</el-radio>
+              <el-radio value="PLATFORM">全平台可见</el-radio>
+            </el-radio-group>
+            <div v-if="form.visibility === 'PLATFORM'" class="form-hint">
+              只有主动选择时才全平台可见，并受发布资格与内容审核规则约束。
+            </div>
+          </el-form-item>
           <el-form-item label="收费类型">
             <el-select v-model="form.chargeType">
               <el-option
@@ -274,7 +298,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
-import { liveApi } from "@/api";
+import { circleApi, liveApi } from "@/api";
 
 /** 直播主播信息 */
 interface LiveHost { id?: string; nickname?: string }
@@ -285,6 +309,7 @@ interface LiveRow {
   chargeType?: string; chargePrice?: number; createdAt?: string;
   startedAt?: string; endedAt?: string;
 }
+interface CircleOption { id: string; name?: string }
 
 const list = ref<LiveRow[]>([]);
 const loading = ref(false);
@@ -292,18 +317,39 @@ const loadError = ref(false);
 const statusFilter = ref("");
 const detailVisible = ref(false);
 const detail = ref<LiveRow | null>(null);
+const circleOptions = ref<CircleOption[]>([]);
 
 // 创建/编辑
 const dialogVisible = ref(false);
 const saving = ref(false);
 const editingId = ref("");
-const form = reactive({ title: "", cover: "", hostUserId: "", chargeType: "FREE", chargePrice: 0 });
+const form = reactive({
+  title: "",
+  cover: "",
+  hostUserId: "",
+  circleId: "",
+  visibility: "CIRCLE_ONLY" as "CIRCLE_ONLY" | "PLATFORM",
+  chargeType: "FREE",
+  chargePrice: 0,
+});
 const dialogFormRef = ref<FormInstance>();
 const dialogRules = {
   title: [{ required: true, message: "请输入直播标题", trigger: "blur" }],
 };
 
-onMounted(() => fetchList());
+onMounted(() => {
+  fetchList();
+  fetchCircleOptions();
+});
+
+async function fetchCircleOptions() {
+  try {
+    const { data } = await circleApi.list({ page: 1, pageSize: 200 });
+    circleOptions.value = data.circles || data.items || [];
+  } catch {
+    circleOptions.value = [];
+  }
+}
 
 function statusLabel(s?: string) {
   // 后端 LiveStatus 枚举为 WAITING/LIVING/ENDED/REPLAY（schema.prisma），此前误写 PENDING 致"WAITING"生肉直出
@@ -347,6 +393,8 @@ function openEdit(row?: LiveRow) {
     form.title = "";
     form.cover = "";
     form.hostUserId = "";
+    form.circleId = "";
+    form.visibility = "CIRCLE_ONLY";
     form.chargeType = "FREE";
     form.chargePrice = 0;
   }
@@ -355,6 +403,7 @@ function openEdit(row?: LiveRow) {
 
 async function saveRoom() {
   if (!form.title || !form.title.trim()) { ElMessage.warning("请输入直播标题"); return; }
+  if (!editingId.value && !form.circleId) { ElMessage.warning("请选择直播所属圈子"); return; }
   saving.value = true;
   try {
     if (editingId.value) {
@@ -362,7 +411,11 @@ async function saveRoom() {
       await liveApi.update(editingId.value, { title: form.title, cover: form.cover });
       ElMessage.success("已更新");
     } else {
-      const payload: Record<string, string | number> = { title: form.title };
+      const payload: Record<string, string | number> = {
+        title: form.title,
+        circleId: form.circleId,
+        visibility: form.visibility,
+      };
       if (form.cover) payload.cover = form.cover;
       if (form.hostUserId) payload.hostUserId = form.hostUserId;
       if (form.chargeType) payload.chargeType = form.chargeType;
@@ -412,4 +465,5 @@ function del(id: string) {
 <style scoped>
 .page { padding: 0; }
 .detail p { margin: 6px 0; font-size: 14px; color: var(--color-text-title); }
+.form-hint { width: 100%; margin-top: 6px; color: var(--el-color-warning); font-size: 12px; line-height: 1.5; }
 </style>

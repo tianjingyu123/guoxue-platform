@@ -4,6 +4,7 @@ type NativeModule = Record<string, (...args: any[]) => any>
 
 const MODULE_NAME = 'TRTCCloudUniPlugin-TRTCCloudImpl'
 const EVENT_MODULE_NAME = 'globalEvent'
+const APP_SCENE_LIVE = 1
 const APP_SCENE_VOICE_CHAT_ROOM = 3
 const ROLE_ANCHOR = 20
 const AUDIO_QUALITY_SPEECH = 1
@@ -12,6 +13,7 @@ let trtcModule: NativeModule | null = null
 let eventModule: NativeModule | null = null
 const listeners = new Map<string, (payload: any) => void>()
 let joined = false
+let localPreviewActive = false
 
 function getNativePlugin(name: string): NativeModule | null {
   const loader = (uni as any)?.requireNativePlugin
@@ -98,6 +100,71 @@ export async function joinLiveAudio(config: LiveRtcConfig): Promise<void> {
   })
 }
 
+/** 主播进入视频直播间并启动本地预览。streamId 与云直播播放流保持一致。 */
+export async function joinLiveVideo(config: LiveRtcConfig, viewId: string): Promise<void> {
+  if (joined) return
+  if (config.role !== 'HOST' || config.mediaMode !== 'VIDEO' || !config.canPublishVideo) {
+    throw new Error('当前账号没有视频开播权限')
+  }
+  if (!config.streamId) throw new Error('服务端未返回直播流标识')
+
+  const { trtc } = ensureModules()
+  trtc.sharedInstance()
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true
+        reject(new Error('进入视频直播间超时，请检查网络后重试'))
+      }
+    }, 12_000)
+
+    on('onEnterRoom', (data) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      const result = Number(data[0] || 0)
+      if (result <= 0) {
+        reject(new Error(`进入视频直播间失败（${result}）`))
+        return
+      }
+      joined = true
+      trtc.startLocalPreview({ isFrontCamera: true, userId: viewId })
+      localPreviewActive = true
+      if (config.canPublishAudio) trtc.startLocalAudio(AUDIO_QUALITY_SPEECH)
+      resolve()
+    })
+    on('onError', (data) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      reject(new Error(`TRTC 视频直播失败（${Number(data[0] || -1)}）`))
+    })
+
+    trtc.enterRoom({
+      sdkAppId: config.sdkAppId,
+      userId: config.userId,
+      userSig: config.userSig,
+      strRoomId: config.strRoomId,
+      privateMapKey: config.privateMapKey,
+      streamId: config.streamId,
+      role: ROLE_ANCHOR,
+      appScene: APP_SCENE_LIVE,
+    })
+  })
+}
+
+export function switchLiveCamera(frontCamera: boolean) {
+  if (!joined || !trtcModule) return
+  trtcModule.switchCamera?.(frontCamera)
+}
+
+export function setLiveVideoMuted(muted: boolean) {
+  if (!joined || !trtcModule) return
+  trtcModule.muteLocalVideo?.({ streamType: 0, mute: muted })
+}
+
 export function setLiveAudioMuted(muted: boolean) {
   if (!joined || !trtcModule) return
   trtcModule.muteLocalAudio?.(muted)
@@ -105,12 +172,18 @@ export function setLiveAudioMuted(muted: boolean) {
 
 export function leaveLiveAudio() {
   if (trtcModule) {
+    if (localPreviewActive) {
+      try { trtcModule.stopLocalPreview?.() } catch {}
+    }
     try { trtcModule.stopLocalAudio?.() } catch {}
     try { trtcModule.exitRoom?.() } catch {}
   }
   joined = false
+  localPreviewActive = false
   removeListeners()
   try { trtcModule?.destroySharedInstance?.() } catch {}
   trtcModule = null
   eventModule = null
 }
+
+export const leaveLiveVideo = leaveLiveAudio
