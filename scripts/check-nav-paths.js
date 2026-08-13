@@ -4,7 +4,12 @@ const path = require('path')
 const repoRoot = path.resolve(__dirname, '..')
 const srcDir = path.join(repoRoot, 'apps', 'mobile', 'src')
 const pagesFile = path.join(srcDir, 'pages.json')
-const pagesConfig = JSON.parse(fs.readFileSync(pagesFile, 'utf8'))
+// uni-app 允许在 pages.json 中使用条件编译行。导航审计需要检查所有平台
+// 路由，因此只移除编译指令本身，保留指令包围的页面配置后再解析。
+const pagesSource = fs
+  .readFileSync(pagesFile, 'utf8')
+  .replace(/^\s*\/\/\s*#(?:if|ifdef|ifndef|elif|else|endif)\b.*$/gmu, '')
+const pagesConfig = JSON.parse(pagesSource)
 
 const validSet = new Set()
 const duplicateRoutes = []
