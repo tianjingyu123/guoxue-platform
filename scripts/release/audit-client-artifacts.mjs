@@ -46,6 +46,10 @@ const reportPath = reportArgument ? path.resolve(root, reportArgument) : "";
 // 分段构造旧地址，避免源码域名审计把检测器自己的样本误判为运行时依赖。
 const legacyHostParts = ["api", "rebugx", "cn"];
 const legacyOrigin = `https://${legacyHostParts.join(".")}`;
+const allowedLegacyLegalUrls = [
+  `${legacyOrigin}/h5/pkg-settings/user-agreement/index`,
+  `${legacyOrigin}/h5/pkg-settings/privacy-policy/index`,
+];
 const textExtensions = new Set([
   ".css",
   ".html",
@@ -161,6 +165,20 @@ const productionArtifactAudit = requiredKeys.every(
   (key) => !preReleaseOriginPattern.test(values[key]),
 );
 
+function findDisallowedLegacyOrigin(content) {
+  let index = content.indexOf(legacyOrigin);
+  while (index >= 0) {
+    const allowed = allowedLegacyLegalUrls.some((url) => {
+      if (!content.startsWith(url, index)) return false;
+      const next = content[index + url.length] || "";
+      return !next || /[\s"'<>),\]\\]/u.test(next);
+    });
+    if (!allowed) return true;
+    index = content.indexOf(legacyOrigin, index + legacyOrigin.length);
+  }
+  return false;
+}
+
 const errors = [];
 let totalTextFiles = 0;
 let totalFiles = 0;
@@ -198,14 +216,18 @@ for (const target of targets) {
   totalTextFiles += textFiles.length;
   const preReleaseHits = [];
   const hits = new Map(
-    [legacyOrigin, "example.com", ...target.expected.map((key) => values[key])].map((value) => [
+    ["example.com", ...target.expected.map((key) => values[key])].map((value) => [
       value,
       [],
     ]),
   );
+  const disallowedLegacyHits = [];
 
   for (const file of textFiles) {
     const content = await readFile(file, "utf8");
+    if (values.VITE_API_URL !== legacyOrigin && findDisallowedLegacyOrigin(content)) {
+      disallowedLegacyHits.push(path.relative(root, file));
+    }
     if (productionArtifactAudit && preReleaseUrlPattern.test(content)) {
       preReleaseHits.push(path.relative(root, file));
     }
@@ -215,10 +237,9 @@ for (const target of targets) {
     }
   }
 
-  if (values.VITE_API_URL !== legacyOrigin && hits.get(legacyOrigin)?.length > 0) {
+  if (disallowedLegacyHits.length > 0) {
     errors.push(
-      `${target.name} 仍包含旧域名 ${legacyOrigin}：${hits
-        .get(legacyOrigin)
+      `${target.name} 仍包含旧域名 ${legacyOrigin}：${disallowedLegacyHits
         .slice(0, 3)
         .join(", ")}`,
     );
@@ -253,7 +274,7 @@ for (const target of targets) {
       mapFiles.length === 0 &&
       preReleaseHits.length === 0 &&
       hits.get("example.com")?.length === 0 &&
-      (values.VITE_API_URL === legacyOrigin || hits.get(legacyOrigin)?.length === 0) &&
+      disallowedLegacyHits.length === 0 &&
       target.expected.every((key) => (hits.get(values[key]) || []).length > 0),
   });
 

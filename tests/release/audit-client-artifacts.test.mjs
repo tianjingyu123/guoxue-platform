@@ -151,3 +151,57 @@ test("正式客户端成品残留 pre-* 预发布地址时阻断审计", async (
     await rm(fixture.root, { recursive: true, force: true });
   }
 });
+
+test("预发布原生包仅允许引用正式用户协议和隐私政策页面", async () => {
+  const fixture = await createFixture();
+  try {
+    await writeFile(
+      fixture.envFile,
+      [
+        "VITE_API_URL=https://pre-api.rebugx.cn",
+        "VITE_PUBLIC_H5_URL=https://pre-api.rebugx.cn/h5",
+        "VITE_PUBLIC_ASSET_ORIGIN=https://pre-static.rebugx.cn",
+        "",
+      ].join("\n"),
+    );
+    for (const [directory] of targets) {
+      const expected = directory === "apps/admin/dist"
+        ? "https://pre-api.rebugx.cn\nhttps://pre-api.rebugx.cn/h5"
+        : "https://pre-api.rebugx.cn\nhttps://pre-static.rebugx.cn";
+      await writeFile(
+        path.join(fixture.root, directory, "index.js"),
+        `${expected}\nhttps://api.rebugx.cn/h5/pkg-settings/user-agreement/index\nhttps://api.rebugx.cn/h5/pkg-settings/privacy-policy/index`,
+      );
+    }
+
+    const result = runAudit(fixture);
+    assert.equal(result.status, 0, result.stderr);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("预发布原生包中的其他正式业务地址及法律链接扩展路径仍被阻断", async () => {
+  const fixture = await createFixture();
+  try {
+    await writeFile(
+      fixture.envFile,
+      [
+        "VITE_API_URL=https://pre-api.rebugx.cn",
+        "VITE_PUBLIC_H5_URL=https://pre-api.rebugx.cn/h5",
+        "VITE_PUBLIC_ASSET_ORIGIN=https://pre-static.rebugx.cn",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      path.join(fixture.root, "apps/mobile/dist/build/app/index.js"),
+      "https://pre-api.rebugx.cn\nhttps://pre-static.rebugx.cn\nhttps://api.rebugx.cn/api/v1/health\nhttps://api.rebugx.cn/h5/pkg-settings/privacy-policy/index/extra",
+    );
+
+    const result = runAudit(fixture);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /App 仍包含旧域名/u);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
