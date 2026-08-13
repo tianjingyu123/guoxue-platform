@@ -35,7 +35,10 @@ describe("HealthController", () => {
     expect(["ok", "degraded"]).toContain(result.status);
     expect(result.checks.db.status).toBe("ok");
     expect(result.checks.redis.status).toBe("ok");
-    expect(result.uptime).toBeGreaterThan(0);
+    expect(result.releaseId).toBeDefined();
+    expect(result).not.toHaveProperty("uptime");
+    expect(result).not.toHaveProperty("memory");
+    expect(result.checks.db).not.toHaveProperty("latencyMs");
   });
 
   it("数据库故障时返回 fail", async () => {
@@ -54,8 +57,14 @@ describe("HealthController", () => {
       ],
     }).compile();
     const ctrl = mod.get(HealthController);
-    const result = await ctrl.check();
-    expect(result.status).toBe("fail");
-    expect(result.checks.db.status).toBe("fail");
+    await expect(ctrl.check()).rejects.toMatchObject({
+      response: {
+        status: "fail",
+        checks: {
+          db: { status: "fail" },
+        },
+      },
+      status: 503,
+    });
   });
 });
