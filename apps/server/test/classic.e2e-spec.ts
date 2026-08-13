@@ -64,7 +64,7 @@ describe("Classic E2E", () => {
   describe("GET /api/v1/classic/books/:id", () => {
     it("返回书籍详情含章节列表", async () => {
       prisma.classicBook.update.mockResolvedValue({})
-      prisma.classicBook.findUnique.mockResolvedValue({
+      prisma.classicBook.findFirst.mockResolvedValue({
         id: "b1", title: "论语", author: "孔子", dynasty: "春秋", category: "儒家",
         cover: null, intro: "儒学经典", chapterCount: 20,
         chapters: [
@@ -82,7 +82,7 @@ describe("Classic E2E", () => {
     })
 
     it("不存在的书籍返回 404", async () => {
-      prisma.classicBook.findUnique.mockResolvedValue(null)
+      prisma.classicBook.findFirst.mockResolvedValue(null)
 
       await request(app.getHttpServer())
         .get("/api/v1/classic/books/nonexistent")
@@ -94,7 +94,7 @@ describe("Classic E2E", () => {
 
   describe("GET /api/v1/classic/chapters/:id", () => {
     it("返回章节内容含书名", async () => {
-      prisma.classicChapter.findUnique.mockResolvedValue({
+      prisma.classicChapter.findFirst.mockResolvedValue({
         id: "ch1", title: "学而第一", content: "子曰：学而时习之...",
         translation: "孔子说：...", annotation: null,
         book: { id: "b1", title: "论语" },
@@ -264,6 +264,7 @@ describe("Classic E2E", () => {
 
   describe("GET /api/v1/classic/books/:id/images", () => {
     it("返回书籍所有页面图像（分页）", async () => {
+      prisma.classicBook.findFirst.mockResolvedValue({ id: "b1" })
       prisma.classicImage.findMany.mockResolvedValue([
         { id: "img1", pageNumber: 1, label: "第1页", iiifUrl: "http://iiif.example.com/1", width: 2400, height: 3200, source: "harvard" },
       ])
@@ -281,6 +282,7 @@ describe("Classic E2E", () => {
 
   describe("GET /api/v1/classic/books/:id/images/:page", () => {
     it("返回单页图像含OCR坐标", async () => {
+      prisma.classicBook.findFirst.mockResolvedValue({ id: "b1" })
       prisma.classicImage.findUnique.mockResolvedValue({
         id: "img1", pageNumber: 1, iiifUrl: "http://iiif.example.com/1",
         ocrTexts: [{ content: "子曰", x: 100, y: 50, w: 200, h: 30, lineNumber: 1, charIndex: 1 }],
@@ -299,7 +301,7 @@ describe("Classic E2E", () => {
       prisma.classicImage.findMany.mockResolvedValue([
         { id: "img1", pageNumber: 1, label: "第1页", iiifUrl: "http://iiif.example.com/1", width: 2400, height: 3200 },
       ])
-      prisma.classicBook.findUnique.mockResolvedValue({ id: "b1", title: "论语", author: "孔子" })
+      prisma.classicBook.findFirst.mockResolvedValue({ id: "b1", title: "论语", author: "孔子" })
 
       const res = await request(app.getHttpServer())
         .get("/api/v1/classic/books/b1/manifest")
@@ -360,7 +362,7 @@ describe("Classic E2E", () => {
 
   describe("GET /api/v1/classic/books/:id/versions", () => {
     it("返回同书其他版本", async () => {
-      prisma.classicBook.findUnique.mockResolvedValue({ title: "论语", author: "孔子", dynasty: "春秋" })
+      prisma.classicBook.findFirst.mockResolvedValue({ title: "论语", author: "孔子", dynasty: "春秋" })
       prisma.classicBook.findMany.mockResolvedValue([
         { id: "b2", title: "论语集注", author: "朱熹", dynasty: "宋", category: "经", cover: null, source: "宋刻本" },
       ])
@@ -378,7 +380,7 @@ describe("Classic E2E", () => {
 
   describe("GET /api/v1/classic/chapters/:id/image-locations", () => {
     it("返回文字→图像位置映射", async () => {
-      prisma.classicChapter.findUnique.mockResolvedValue({
+      prisma.classicChapter.findFirst.mockResolvedValue({
         id: "ch1", bookId: "b1", title: "学而篇", content: "子曰学而时习之",
       })
       prisma.classicImage.findMany.mockResolvedValue([
@@ -405,7 +407,7 @@ describe("Classic E2E", () => {
           ocrTexts: [{ content: "子", x: 100, y: 50, w: 80, h: 40, lineNumber: 1, charIndex: 1 }],
         },
       ])
-      prisma.classicBook.findUnique.mockResolvedValue({ id: "b1", title: "论语", author: "孔子" })
+      prisma.classicBook.findFirst.mockResolvedValue({ id: "b1", title: "论语", author: "孔子" })
 
       const res = await request(app.getHttpServer())
         .get("/api/v1/classic/books/b1/manifest?textOverlay=true")
@@ -418,7 +420,7 @@ describe("Classic E2E", () => {
 
   describe("GET /api/v1/classic/books/:id/cite", () => {
     it("生成 GB/T 7714 引用", async () => {
-      prisma.classicBook.findUnique.mockResolvedValue({
+      prisma.classicBook.findFirst.mockResolvedValue({
         id: "b1", title: "论语", author: "孔子", dynasty: "春秋", source: "宋刻本",
       })
 

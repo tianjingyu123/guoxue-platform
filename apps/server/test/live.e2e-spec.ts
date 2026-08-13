@@ -48,21 +48,23 @@ describe("Live E2E", () => {
     })
 
     it("创建直播间成功", async () => {
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
       prisma.liveRoom.create.mockResolvedValue({ id: "r1", title: "国学直播", products: [] })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms")
         .set("Authorization", `Bearer ${token}`)
-        .send({ title: "国学直播", hostUserId: "u1" })
+        .send({ title: "国学直播", hostUserId: "u1", circleId: "c1" })
         .expect(201)
       expect(res.body.id).toBe("r1")
     })
 
     it("关联课程创建直播间", async () => {
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
       prisma.liveRoom.create.mockResolvedValue({ id: "r2", title: "课程直播", courseId: "co1", products: [] })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms")
         .set("Authorization", `Bearer ${token}`)
-        .send({ title: "课程直播", hostUserId: "u1", courseId: "co1" })
+        .send({ title: "课程直播", hostUserId: "u1", courseId: "co1", circleId: "c1" })
         .expect(201)
       expect(res.body.courseId).toBe("co1")
     })
@@ -215,13 +217,14 @@ describe("Live E2E", () => {
 
   describe("POST /api/v1/live/rooms/:id/mics", () => {
     it("上麦成功", async () => {
-      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1" })
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING", hostUserId: "host1" })
+      prisma.liveMic.findFirst.mockResolvedValue(null)
       prisma.liveMic.findUnique.mockResolvedValue(null)
       prisma.liveMic.create.mockResolvedValue({ id: "m1", liveRoomId: "r1", userId: "u1", position: 1, status: "OCCUPIED" })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms/r1/mics")
         .set("Authorization", `Bearer ${token}`)
-        .send({ userId: "u1", position: 1 })
+        .send({ position: 1 })
         .expect(201)
       expect(res.body.position).toBe(1)
     })
@@ -229,9 +232,11 @@ describe("Live E2E", () => {
 
   describe("GET /api/v1/live/rooms/:id/mics", () => {
     it("获取麦位列表", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", hostUserId: "host1" })
       prisma.liveMic.findMany.mockResolvedValue([])
       const res = await request(app.getHttpServer())
         .get("/api/v1/live/rooms/r1/mics")
+        .set("Authorization", `Bearer ${token}`)
         .expect(200)
       expect(Array.isArray(res.body)).toBe(true)
     })
@@ -308,7 +313,7 @@ describe("Live E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/callback")
         .send({ stream_param: "room_r1", event_type: 100, video_url: "https://replay.example.com/live.mp4" })
-        .expect(201)
+        .expect(200)
       expect(res.body.code).toBe(0)
     })
 
@@ -316,7 +321,7 @@ describe("Live E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/callback")
         .send({ stream_param: "room_r1", event_type: 1 })
-        .expect(201)
+        .expect(200)
       expect(res.body.code).toBe(0)
     })
   })

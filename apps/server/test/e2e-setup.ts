@@ -10,6 +10,7 @@ import { UnionpayService } from "../src/modules/shop/unionpay.service"
 import { VodService } from "../src/modules/video/vod.service"
 import { FeatureFlagService } from "../src/modules/feature-flag/feature-flag.service"
 import { ModerationService } from "../src/modules/audit/moderation.service"
+import { LiveStreamService } from "../src/modules/live/live-stream.service"
 
 const modelMethods = [
   "findUnique", "findUniqueOrThrow", "findFirst", "findMany", "create",
@@ -199,6 +200,21 @@ function createModerationMock() {
   }
 }
 
+/** E2E 不访问真实腾讯云直播，固定返回可验证的推拉流地址 */
+function createLiveStreamMock() {
+  const playUrls = {
+    flv: "https://play.example.com/live/room_r1.flv",
+    hls: "https://play.example.com/live/room_r1.m3u8",
+    rtmp: "rtmp://play.example.com/live/room_r1",
+  }
+  return {
+    isReady: jest.fn().mockReturnValue(true),
+    genPushUrl: jest.fn().mockReturnValue("rtmp://push.example.com/live/room_r1?txSecret=mock"),
+    genPlayUrls: jest.fn().mockReturnValue(playUrls),
+    genPlayUrlWithAuth: jest.fn().mockReturnValue(playUrls),
+  }
+}
+
 export async function createE2eApp(): Promise<{
   app: INestApplication
   prisma: ReturnType<typeof createPrismaMock>
@@ -214,6 +230,7 @@ export async function createE2eApp(): Promise<{
   const unionpay = createUnionpayMock()
   const featureFlag = createFeatureFlagMock()
   const moderation = createModerationMock()
+  const liveStream = createLiveStreamMock()
 
   const moduleFixture: TestingModule = await Test.createTestingModule({
     imports: [AppModule],
@@ -236,6 +253,8 @@ export async function createE2eApp(): Promise<{
     .useValue(featureFlag)
     .overrideProvider(ModerationService)
     .useValue(moderation)
+    .overrideProvider(LiveStreamService)
+    .useValue(liveStream)
     .compile()
 
   const app = moduleFixture.createNestApplication()

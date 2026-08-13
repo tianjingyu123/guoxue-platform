@@ -195,7 +195,7 @@ describe("Video E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/videos/vod/callback")
         .send({ EventType: "TranscodeComplete", FileId: "f1", Status: "FINISH" })
-        .expect(201)
+        .expect(200)
 
       expect(res.body.code).toBe(0)
     })
