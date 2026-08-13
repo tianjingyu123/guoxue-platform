@@ -2474,6 +2474,7 @@ const privateInfrastructureIntakeIgnoreRules = [
 ];
 const privateBuildContextIgnoreRulePairs = [
   ["/artifacts/", "artifacts"],
+  ["/backups/", "/backups/"],
   ["release-evidence/*.json", "release-evidence"],
   ["docker/.runtime-current.env", "docker/.runtime-current.env"],
   ["config/release/store-release-evidence.json", "config/release/store-release-evidence.json"],

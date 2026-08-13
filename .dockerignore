@@ -16,6 +16,7 @@ temp_*
 .pm2-logs
 output
 artifacts
+/backups/
 release-evidence
 test-results
 playwright-report

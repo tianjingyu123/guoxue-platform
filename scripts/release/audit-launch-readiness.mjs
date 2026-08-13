@@ -33,11 +33,33 @@ function gitPaths(args) {
     : []
 }
 
+function gitObjectPaths(args) {
+  const output = execFileSync('git', args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    windowsHide: true,
+  })
+  return output
+    .split(/\r?\n/u)
+    .map((line) => {
+      const separator = line.indexOf(' ')
+      return separator >= 0 ? line.slice(separator + 1).replaceAll('\\', '/') : ''
+    })
+    .filter((file, index, files) => file && files.indexOf(file) === index)
+}
+
 // 必须同时扫描已跟踪文件和未被 .gitignore 排除的未跟踪文件。
 // 上线前的大型工作树往往仍在整理正式提交；只使用 `git ls-files`
 // 会让新源码中的假令牌、501 或未接通标记绕过发布门禁。
 const trackedPathSet = new Set(gitPaths(['ls-files', '--cached', '-z']))
 const untrackedPathSet = new Set(gitPaths(['ls-files', '--others', '--exclude-standard', '-z']))
+const historicalPathSet = new Set(gitObjectPaths(['rev-list', '--objects', '--all']))
+const databaseRuntimeArtifacts = [...new Set([...trackedPathSet, ...historicalPathSet])].filter(
+  (file) =>
+    file.startsWith('backups/wal/') ||
+    /(^|\/)(?:backups?|database)(?:\/|$).*\.(?:backup|dump|wal)$/i.test(file),
+)
 const discoveredSourceFiles = [...new Set([...trackedPathSet, ...untrackedPathSet])]
   .filter((file) => sourceRoots.some((root) => file.startsWith(root)))
   .filter((file) => !/\.(spec|test)\.[cm]?[jt]sx?$/.test(file))
@@ -114,7 +136,17 @@ function lineNumber(content, offset) {
   return content.slice(0, offset).split(/\r?\n/).length
 }
 
-const findings = []
+const findings = databaseRuntimeArtifacts.map((file) => ({
+  id: 'P0_TRACKED_DATABASE_RUNTIME_DATA',
+  severity: 'P0',
+  title: '数据库运行数据存在于 Git 当前树或历史',
+  file,
+  line: 1,
+  excerpt: trackedPathSet.has(file)
+    ? 'Git 当前跟踪了 WAL 或数据库二进制备份'
+    : 'Git 历史仍保留 WAL 或数据库二进制备份',
+  advice: '立即停止继续分发，评估数据影响并从所有远端历史清除；备份只允许进入受控备份存储。',
+}))
 for (const file of sourceFiles) {
   const absolutePath = path.join(repoRoot, file)
   // 工作树中已删除但尚未提交的追踪文件不应让审计脚本自身崩溃；

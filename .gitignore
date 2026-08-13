@@ -30,6 +30,7 @@ uploads/
 # backup
 .backup/
 .reference/
+/backups/
 
 # SSL 证书和密钥（绝对不可提交）
 *.pem

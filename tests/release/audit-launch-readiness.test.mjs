@@ -77,3 +77,61 @@ test('上线缺口审计不会扫描被 gitignore 排除的生成文件', () => 
     fs.rmSync(root, { recursive: true, force: true })
   }
 })
+
+test('上线缺口审计阻断被 Git 跟踪的数据库 WAL', () => {
+  const root = createRepo()
+  try {
+    const walDirectory = path.join(root, 'backups', 'wal')
+    fs.mkdirSync(walDirectory, { recursive: true })
+    const walPath = path.join(walDirectory, '000000010000000000000001')
+    fs.writeFileSync(walPath, Buffer.from([0, 1, 2, 3]))
+    execFileSync('git', ['add', 'backups/wal/000000010000000000000001'], {
+      cwd: root,
+      windowsHide: true,
+    })
+
+    const result = runAudit(root, '--strict')
+    assert.equal(result.status, 1)
+    const report = JSON.parse(result.stdout)
+    assert.equal(report.counts.P0, 1)
+    assert.equal(report.findings[0].id, 'P0_TRACKED_DATABASE_RUNTIME_DATA')
+    assert.equal(report.findings[0].file, 'backups/wal/000000010000000000000001')
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('上线缺口审计阻断已从当前树删除但仍存在于 Git 历史的 WAL', () => {
+  const root = createRepo()
+  try {
+    execFileSync('git', ['config', 'user.name', 'Release Audit'], { cwd: root, windowsHide: true })
+    execFileSync('git', ['config', 'user.email', 'release-audit@example.invalid'], {
+      cwd: root,
+      windowsHide: true,
+    })
+    const walDirectory = path.join(root, 'backups', 'wal')
+    fs.mkdirSync(walDirectory, { recursive: true })
+    const relativeWalPath = 'backups/wal/000000010000000000000002'
+    fs.writeFileSync(path.join(root, relativeWalPath), Buffer.from([4, 5, 6, 7]))
+    execFileSync('git', ['add', '.'], { cwd: root, windowsHide: true })
+    execFileSync('git', ['commit', '--quiet', '-m', 'add historical wal'], {
+      cwd: root,
+      windowsHide: true,
+    })
+    execFileSync('git', ['rm', '--quiet', relativeWalPath], { cwd: root, windowsHide: true })
+    execFileSync('git', ['commit', '--quiet', '-m', 'remove wal from head'], {
+      cwd: root,
+      windowsHide: true,
+    })
+
+    const result = runAudit(root, '--strict')
+    assert.equal(result.status, 1)
+    const report = JSON.parse(result.stdout)
+    assert.equal(report.counts.P0, 1)
+    assert.equal(report.findings[0].id, 'P0_TRACKED_DATABASE_RUNTIME_DATA')
+    assert.equal(report.findings[0].file, relativeWalPath)
+    assert.match(report.findings[0].excerpt, /历史/u)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
