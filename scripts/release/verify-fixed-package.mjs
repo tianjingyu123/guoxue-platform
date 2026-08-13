@@ -96,6 +96,28 @@ function isForbiddenSecretPath(relativePath) {
   );
 }
 
+function isForbiddenNonRuntimePath(relativePath) {
+  const segments = relativePath.split("/");
+  const runtimeScriptFiles = new Set([
+    "scripts/backup-db.sh",
+    "scripts/db-ops.sh",
+    "scripts/restore-db.sh",
+  ]);
+  const runtimeScriptDirectories = [
+    "scripts/migration/",
+    "scripts/operations/",
+    "scripts/release/",
+    "scripts/security/",
+  ];
+  return (
+    segments.includes("docs") ||
+    relativePath.startsWith("apps/server/scripts/") ||
+    (relativePath.startsWith("scripts/") &&
+      !runtimeScriptFiles.has(relativePath) &&
+      !runtimeScriptDirectories.some((directory) => relativePath.startsWith(directory)))
+  );
+}
+
 function containsSecretContent(content) {
   return (
     /AKID[A-Za-z0-9]{20,}/.test(content) ||
@@ -290,6 +312,9 @@ try {
       manifestSet.add(relativePath);
       if (isForbiddenSecretPath(relativePath)) {
         addError(`发布包包含禁止的敏感文件名：${relativePath}`);
+      }
+      if (isForbiddenNonRuntimePath(relativePath)) {
+        addError(`发布包包含非运行时源码：${relativePath}`);
       }
       if (!actualSet.has(relativePath)) {
         addError(`发布清单文件缺失：${relativePath}`);

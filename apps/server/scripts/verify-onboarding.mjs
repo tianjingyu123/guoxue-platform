@@ -1,7 +1,12 @@
 // 入驻状态机闭环验证：注册→申请→提交(自动审核)→缴保证金(模拟支付)→签协议→ACTIVE
 const BASE = 'http://localhost:3000/api/v1'
 const PHONE = '13912340077'
-const PASS = 'Test1234'
+const PASS = process.env.TEST_ACCOUNT_PASSWORD
+
+if (!PASS) {
+  console.error('缺少 TEST_ACCOUNT_PASSWORD，拒绝使用仓库内固定口令执行验证')
+  process.exit(2)
+}
 
 async function call(method, p, token, body) {
   const res = await fetch(`${BASE}${p}`, {

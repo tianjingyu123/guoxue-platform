@@ -80,6 +80,60 @@ http {
     ~^live\. "LIVE";
   }
 
+  # 未匹配声明域名的 HTTP 请求仅允许容器/负载均衡存活探针，其余直接丢弃。
+  server {
+    listen 80 default_server;
+    server_name "";
+
+    location = /nginx-health {
+      return 200 'ok';
+      add_header Content-Type text/plain;
+      include /etc/nginx/snippets/security-headers.conf;
+    }
+
+    # 容器监控可能使用服务名作为 Host，仅精确放行应用健康端点。
+    location = /api/v1/health {
+      proxy_pass http://server_backend;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /api/v1/health/live {
+      proxy_pass http://server_backend;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /api/v1/health/ready {
+      proxy_pass http://server_backend;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+      return 444;
+    }
+  }
+
+  # 未匹配声明域名的 HTTPS/SNI 在握手阶段拒绝，避免借默认虚拟主机访问业务接口。
+  server {
+    listen 443 ssl default_server;
+    server_name "";
+    ssl_reject_handshake on;
+  }
+
   # ── HTTP — ACME 验证 + 重定向到 HTTPS ──
   server {
     listen 80;
@@ -195,6 +249,11 @@ http {
       proxy_set_header X-Real-IP $remote_addr;
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Prometheus 仅通过 Docker 内网直连 server 抓取，禁止公网代理指标。
+    location = /api/v1/metrics {
+      return 404;
     }
 
     # ── Socket.IO / WebSocket ──

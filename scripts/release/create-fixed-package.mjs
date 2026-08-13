@@ -76,12 +76,32 @@ function isExcluded(relativePath) {
   // 运行时镜像不可变性校验会复核这两个工作流中的服务镜像。
   // 固定包必须携带审计输入，但仍排除其余与运行无关的 .github 内容。
   if (requiredRuntimeAuditFiles.has(normalized)) return false;
+  if (normalized.startsWith("scripts/")) {
+    const runtimeScriptFiles = new Set([
+      "scripts/backup-db.sh",
+      "scripts/db-ops.sh",
+      "scripts/restore-db.sh",
+    ]);
+    const runtimeScriptDirectories = [
+      "scripts/migration/",
+      "scripts/operations/",
+      "scripts/release/",
+      "scripts/security/",
+    ];
+    if (
+      !runtimeScriptFiles.has(normalized) &&
+      !runtimeScriptDirectories.some((directory) => normalized.startsWith(directory))
+    ) {
+      return true;
+    }
+  }
   const excludedSegments = new Set([
     ".git",
     "artifacts",
     "backups",
     "coverage",
     "dist",
+    "docs",
     "node_modules",
     "output",
     "playwright-report",
@@ -100,6 +120,7 @@ function isExcluded(relativePath) {
   return (
     segments.some((segment) => excludedSegments.has(segment)) ||
     excludedRootDirs.has(segments[0]) ||
+    normalized.startsWith("apps/server/scripts/") ||
     /^kiki-prompt.*\.md$/i.test(base) ||
     /^login(?:-data)?\.json$/i.test(base) ||
     (/^\.env(?:\.|$)/i.test(base) && !/\.example$/i.test(base)) ||

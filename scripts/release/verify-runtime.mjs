@@ -345,13 +345,10 @@ await check("公开推荐流内容新鲜度", async () => {
   return `检查 ${publicContentFreshness.totalItems} 条，0 个阻断项，${latencyMs}ms`;
 });
 
-await check("Prometheus 指标端点", async () => {
-  const { response, body, latencyMs } = await request(`${apiBase}/api/v1/metrics`);
-  assert(response.ok, `HTTP ${response.status}`);
-  const contentType = response.headers.get("content-type") || "";
-  assert(contentType.includes("text/plain"), `Content-Type=${contentType || "缺失"}`);
-  assert(body.includes("# HELP") && body.includes("# TYPE"), "缺少 Prometheus 指标元数据");
-  return `指标格式有效，${latencyMs}ms`;
+await check("Prometheus 指标公网边界", async () => {
+  const { response, latencyMs } = await request(`${apiBase}/api/v1/metrics`);
+  assert([401, 403, 404].includes(response.status), `公网指标端点未拒绝访问：HTTP ${response.status}`);
+  return `公网访问已拒绝（HTTP ${response.status}），内网采集由 Prometheus up 指标独立验收，${latencyMs}ms`;
 });
 
 let h5Html = "";

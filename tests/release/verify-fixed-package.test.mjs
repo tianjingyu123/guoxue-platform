@@ -91,6 +91,7 @@ async function createFixture({
   sourceFreezeBranch = "main",
   sourceFreezeExpectedBranch = sourceFreezeBranch,
   artifactVerificationReleaseId = releaseId,
+  extraFiles = [],
 } = {}) {
   const root = await mkdtemp(path.join(tmpdir(), "guoxue-fixed-package-"));
   const payload = path.join(root, "payload");
@@ -98,7 +99,7 @@ async function createFixture({
 
   const files = [];
   const hasActivationRuntime = activationRuntime || retryActivationRuntime;
-  const fixtureFiles = hasActivationRuntime
+  const baseFixtureFiles = hasActivationRuntime
     ? [
         ...new Set([
           ...requiredFiles,
@@ -113,6 +114,7 @@ async function createFixture({
         ]),
       ]
     : requiredFiles;
+  const fixtureFiles = [...new Set([...baseFixtureFiles, ...extraFiles])];
   const publicClientConfig = {
     VITE_API_URL: "https://api.example.test/api/v1",
     VITE_PUBLIC_H5_URL: "https://api.example.test/h5",
@@ -273,6 +275,51 @@ test("固定包提交 SHA 与工作流源提交一致时通过", async () => {
     assert.equal(report.success, true);
     assert.equal(report.commit, commit);
     assert.equal(report.expectedCommit, commit);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("固定包包含服务端运维脚本或嵌套文档时阻断", async () => {
+  const fixture = await createFixture({
+    extraFiles: [
+      "apps/server/scripts/setup-test-merchant.cjs",
+      "apps/server/docs/SECURITY.md",
+      "scripts/set-github-secret.js",
+    ],
+  });
+  try {
+    const reportPath = path.join(fixture.root, "non-runtime-source-report.json");
+    const result = spawnSync(
+      process.execPath,
+      [verifier, fixture.archivePath, fixture.checksumPath, "--report", reportPath],
+      { cwd: projectRoot, encoding: "utf8" },
+    );
+    assert.notEqual(result.status, 0);
+    const report = JSON.parse(await readFile(reportPath, "utf8"));
+    assert.equal(report.success, false);
+    assert.match(report.errors.join("\n"), /apps\/server\/scripts\/setup-test-merchant\.cjs/u);
+    assert.match(report.errors.join("\n"), /apps\/server\/docs\/SECURITY\.md/u);
+    assert.match(report.errors.join("\n"), /scripts\/set-github-secret\.js/u);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("固定包保留受保护的数据库值班入口", async () => {
+  const fixture = await createFixture({
+    extraFiles: ["scripts/backup-db.sh", "scripts/db-ops.sh", "scripts/restore-db.sh"],
+  });
+  try {
+    const reportPath = path.join(fixture.root, "database-entry-report.json");
+    const result = spawnSync(
+      process.execPath,
+      [verifier, fixture.archivePath, fixture.checksumPath, "--report", reportPath],
+      { cwd: projectRoot, encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const report = JSON.parse(await readFile(reportPath, "utf8"));
+    assert.equal(report.success, true);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }

@@ -13,11 +13,30 @@ const templates = [
     name: "直连 HTTPS",
     file: "docker/nginx/nginx.conf.template",
     forwardedProto: "$scheme",
+    unknownHostSnippets: [
+      "listen 80 default_server;",
+      "listen 443 ssl default_server;",
+      "ssl_reject_handshake on;",
+      "return 444;",
+    ],
+    defaultHealthPaths: [
+      "/nginx-health",
+      "/api/v1/health",
+      "/api/v1/health/live",
+      "/api/v1/health/ready",
+    ],
   },
   {
     name: "CLB 回源",
     file: "docker/nginx/nginx.clb.conf.template",
     forwardedProto: "$real_scheme",
+    unknownHostSnippets: ["listen 80 default_server;", "return 444;"],
+    defaultHealthPaths: [
+      "/nginx-health",
+      "/api/v1/health",
+      "/api/v1/health/live",
+      "/api/v1/health/ready",
+    ],
   },
 ];
 
@@ -32,9 +51,9 @@ function hasAll(source, snippets) {
   return snippets.every((snippet) => source.includes(snippet));
 }
 
-function extractLocationBlocks(source) {
+function extractDirectiveBlocks(source, directive) {
   const blocks = [];
-  const matcher = /\blocation\b[^\{]*\{/gu;
+  const matcher = new RegExp(`\\b${directive}\\b[^\\{]*\\{`, "gu");
   for (const match of source.matchAll(matcher)) {
     const start = match.index;
     const openingBrace = source.indexOf("{", start);
@@ -49,6 +68,10 @@ function extractLocationBlocks(source) {
     }
   }
   return blocks;
+}
+
+function extractLocationBlocks(source) {
+  return extractDirectiveBlocks(source, "location");
 }
 
 const securityInclude = "include /etc/nginx/snippets/security-headers.conf;";
@@ -97,6 +120,9 @@ add(
 
 for (const template of templates) {
   const source = read(template.file);
+  const defaultServer = extractDirectiveBlocks(source, "server").find((block) =>
+    block.includes("default_server"),
+  );
   const customHeaderLocations = extractLocationBlocks(source).filter((block) =>
     block.includes("add_header "),
   );
@@ -152,6 +178,19 @@ for (const template of templates) {
 
   add(
     template.name,
+    "Prometheus 指标禁止公网访问",
+    source.includes("location = /api/v1/metrics {") &&
+      extractLocationBlocks(source).some(
+        (block) =>
+          block.includes("location = /api/v1/metrics {") &&
+          block.includes("return 404;") &&
+          !block.includes("proxy_pass"),
+      ),
+    "Prometheus 通过 Docker 内网直连应用抓取，公网 Nginx 不应暴露运行指标",
+  );
+
+  add(
+    template.name,
     "WebSocket 实时链路完整",
     hasAll(source, [
       "location /socket.io/",
@@ -166,9 +205,17 @@ for (const template of templates) {
 
   add(
     template.name,
-    "服务端只暴露声明的域名",
-    source.includes("server_name ${NGINX_SERVER_NAMES};") && !/server_name\s+_;/.test(source),
-    "防止新服务器 IP 或未备案 Host 绕过正式域名策略",
+    "未知 Host 由默认站点拒绝",
+    source.includes("server_name ${NGINX_SERVER_NAMES};") &&
+      source.includes('server_name "";') &&
+      hasAll(source, template.unknownHostSnippets) &&
+      Boolean(defaultServer) &&
+      defaultServer.includes("location / {") &&
+      defaultServer.includes("return 444;") &&
+      template.defaultHealthPaths.every((healthPath) =>
+        defaultServer.includes(`location = ${healthPath} {`),
+      ),
+    "只允许声明域名访问业务接口，同时精确保留容器和负载均衡健康探针",
   );
 }
 

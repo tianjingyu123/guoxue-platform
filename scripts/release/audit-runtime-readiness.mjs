@@ -217,9 +217,14 @@ add(
 );
 
 add(
-  "监控与降级能力可从公网入口验证",
-  hasAll(verifier, ["/api/v1/metrics", 'body.includes("# HELP")', "/api/v1/health/degrade"]),
-  "指标格式和客户端降级状态必须在切流后可用",
+  "监控内网可用且指标禁止公网读取",
+  hasAll(verifier, [
+    "/api/v1/metrics",
+    "公网指标端点未拒绝访问",
+    "内网采集由 Prometheus up 指标独立验收",
+    "/api/v1/health/degrade",
+  ]),
+  "Prometheus 继续通过 Docker 内网采集，公网只能验证拒绝边界和客户端降级状态",
 );
 
 add(
