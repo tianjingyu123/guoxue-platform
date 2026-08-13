@@ -10,14 +10,26 @@ import {
   validateProductionClientEnv,
 } from "../../apps/mobile/vite.config.ts";
 
-async function withFixture(manifest, bundle, callback) {
+async function withFixture(
+  manifest,
+  bundle,
+  callback,
+  nvue = "",
+  pages = '{"pages":[{"path":"pkg-live/host/index"}],"subPackages":[]}',
+) {
   const directory = await mkdtemp(join(tmpdir(), "mobile-native-bundle-"));
   const manifestPath = join(directory, "manifest.json");
   const bundlePath = join(directory, "app-service.js");
+  const nvuePath = join(directory, "nvue-app.js");
+  const pagesPath = join(directory, "pages.json");
   try {
     await writeFile(manifestPath, JSON.stringify(manifest), "utf8");
     await writeFile(bundlePath, bundle, "utf8");
-    await callback({ manifest: manifestPath, bundle: bundlePath });
+    if (nvue !== null) {
+      await writeFile(nvuePath, nvue, "utf8");
+    }
+    await writeFile(pagesPath, pages, "utf8");
+    await callback({ manifest: manifestPath, bundle: bundlePath, nvue: nvuePath, pages: pagesPath });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -68,6 +80,67 @@ test("TRTC 与 LivePusher 同包时阻断构建", async () => {
     async (paths) => {
       await assert.rejects(auditMobileNativeBundle(paths), /不能与 DCloud LivePusher 同包/);
     },
+  );
+});
+
+test("TRTC nvue 入口缺失时阻断构建", async () => {
+  await withFixture(
+    {
+      "app-plus": {
+        nativePlugins: { "TRTCCloudUniPlugin-TRTCCloudImpl": {} },
+      },
+    },
+    "(()=>{})();",
+    async (paths) => {
+      await assert.rejects(auditMobileNativeBundle(paths), /TRTC 原生 nvue 入口不存在/);
+    },
+    null,
+  );
+});
+
+test("TRTC nvue 入口包含原生插件时通过门禁", async () => {
+  await withFixture(
+    {
+      "app-plus": {
+        nativePlugins: { "TRTCCloudUniPlugin-TRTCCloudImpl": {} },
+      },
+    },
+    "(()=>{})();",
+    async (paths) => {
+      await assert.doesNotReject(auditMobileNativeBundle(paths));
+    },
+    "const plugin = 'TRTCCloudUniPlugin-TRTCCloudImpl';",
+  );
+});
+
+test("TRTC nvue 直播页注册在分包时阻断构建", async () => {
+  await withFixture(
+    {
+      "app-plus": {
+        nativePlugins: { "TRTCCloudUniPlugin-TRTCCloudImpl": {} },
+      },
+    },
+    "(()=>{})();",
+    async (paths) => {
+      await assert.rejects(auditMobileNativeBundle(paths), /必须注册在主包/);
+    },
+    "const plugin = 'TRTCCloudUniPlugin-TRTCCloudImpl';",
+    '{"pages":[],"subPackages":[{"root":"pkg-live","pages":[{"path":"host/index"}]}]}',
+  );
+});
+
+test("TRTC nvue 直播页注册在主包时通过门禁", async () => {
+  await withFixture(
+    {
+      "app-plus": {
+        nativePlugins: { "TRTCCloudUniPlugin-TRTCCloudImpl": {} },
+      },
+    },
+    "(()=>{})();",
+    async (paths) => {
+      await assert.doesNotReject(auditMobileNativeBundle(paths));
+    },
+    "const plugin = 'TRTCCloudUniPlugin-TRTCCloudImpl';",
   );
 });
 
