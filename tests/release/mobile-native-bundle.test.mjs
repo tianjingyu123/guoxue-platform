@@ -7,6 +7,7 @@ import test from "node:test";
 import { auditMobileNativeBundle } from "../../scripts/release/audit-mobile-native-bundle.mjs";
 import {
   resolveClientEnv,
+  shouldInlineNativeDynamicImports,
   validateProductionClientEnv,
 } from "../../apps/mobile/vite.config.ts";
 
@@ -109,7 +110,7 @@ test("TRTC nvue 入口包含原生插件时通过门禁", async () => {
     async (paths) => {
       await assert.doesNotReject(auditMobileNativeBundle(paths));
     },
-    "const plugin = 'TRTCCloudUniPlugin-TRTCCloudImpl';",
+    '"use weex:vue"; const plugin = \'TRTCCloudUniPlugin-TRTCCloudImpl\';',
   );
 });
 
@@ -124,7 +125,7 @@ test("TRTC nvue 直播页注册在分包时阻断构建", async () => {
     async (paths) => {
       await assert.rejects(auditMobileNativeBundle(paths), /必须注册在主包/);
     },
-    "const plugin = 'TRTCCloudUniPlugin-TRTCCloudImpl';",
+    '"use weex:vue"; const plugin = \'TRTCCloudUniPlugin-TRTCCloudImpl\';',
     '{"pages":[],"subPackages":[{"root":"pkg-live","pages":[{"path":"host/index"}]}]}',
   );
 });
@@ -139,6 +140,28 @@ test("TRTC nvue 直播页注册在主包时通过门禁", async () => {
     "(()=>{})();",
     async (paths) => {
       await assert.doesNotReject(auditMobileNativeBundle(paths));
+    },
+    '"use weex:vue"; const plugin = \'TRTCCloudUniPlugin-TRTCCloudImpl\';',
+  );
+});
+
+test("App 主服务内联动态导入，但 nvue 页面构建保持独立入口", () => {
+  assert.equal(shouldInlineNativeDynamicImports("app", "vue"), true);
+  assert.equal(shouldInlineNativeDynamicImports("app", "nvue"), false);
+  assert.equal(shouldInlineNativeDynamicImports("app-harmony", "vue"), true);
+  assert.equal(shouldInlineNativeDynamicImports("h5", "vue"), false);
+});
+
+test("TRTC nvue 中间产物不能冒充最终 Weex 页面产物", async () => {
+  await withFixture(
+    {
+      "app-plus": {
+        nativePlugins: { "TRTCCloudUniPlugin-TRTCCloudImpl": {} },
+      },
+    },
+    "(()=>{})();",
+    async (paths) => {
+      await assert.rejects(auditMobileNativeBundle(paths), /尚未生成 Weex 运行产物/);
     },
     "const plugin = 'TRTCCloudUniPlugin-TRTCCloudImpl';",
   );

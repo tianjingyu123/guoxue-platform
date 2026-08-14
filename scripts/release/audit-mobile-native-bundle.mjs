@@ -1,11 +1,12 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
 function parseArguments(argv) {
   const options = {
     manifest: "apps/mobile/src/manifest.json",
     bundle: "apps/mobile/dist/build/app/app-service.js",
-    nvue: "apps/mobile/dist/build/.nvue/app.js",
+    nvue: "apps/mobile/dist/build/app/pkg-live/host/index.js",
     pages: "apps/mobile/src/pages.json",
   };
 
@@ -33,7 +34,7 @@ function parseArguments(argv) {
 export async function auditMobileNativeBundle({ manifest, bundle, nvue, pages }) {
   const manifestPath = resolve(manifest);
   const bundlePath = resolve(bundle);
-  let nvuePath = resolve(nvue ?? "apps/mobile/dist/build/.nvue/app.js");
+  const nvuePath = resolve(nvue ?? resolve(dirname(bundlePath), "pkg-live", "host", "index.js"));
   const pagesPath = resolve(pages ?? "apps/mobile/src/pages.json");
   const manifestJson = JSON.parse(await readFile(manifestPath, "utf8"));
 
@@ -77,9 +78,6 @@ export async function auditMobileNativeBundle({ manifest, bundle, nvue, pages })
       );
     }
 
-    if (!nvue && !bundlePath.endsWith(resolve("apps/mobile/dist/build/app/app-service.js"))) {
-      nvuePath = resolve(bundlePath, "..", "..", ".nvue", "app.js");
-    }
     let nvueBundle;
     try {
       nvueBundle = await readFile(nvuePath, "utf8");
@@ -92,6 +90,11 @@ export async function auditMobileNativeBundle({ manifest, bundle, nvue, pages })
     if (!nvueBundle.includes("TRTCCloudUniPlugin")) {
       throw new Error(`TRTC 原生 nvue 入口未包含插件代码，直播间将白屏：${nvuePath}`);
     }
+    if (!nvueBundle.includes("use weex:vue")) {
+      throw new Error(
+        `TRTC 原生 nvue 页面尚未生成 Weex 运行产物，不能使用 .nvue 中间产物代替：${nvuePath}`,
+      );
+    }
   }
 
   return { manifestPath, bundlePath, nvuePath, pagesPath };
@@ -103,7 +106,7 @@ async function main() {
   console.log(`移动端原生脚本门禁通过：${result.bundlePath}`);
 }
 
-if (import.meta.url === `file://${process.argv[1]?.replaceAll("\\", "/")}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     console.error(`移动端原生脚本门禁失败：${error.message}`);
     process.exitCode = 1;

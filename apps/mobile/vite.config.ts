@@ -113,13 +113,20 @@ export function rewriteFlvProbeOrigin(): Plugin {
  * App 原生运行时使用 IIFE 主服务脚本。Android/iOS 云端运行时未提供 AMD define，
  * 因此动态导入必须内联；H5 与小程序仍保留原有分包策略。
  */
+export function shouldInlineNativeDynamicImports(
+  platform = process.env.UNI_PLATFORM,
+  compiler = process.env.UNI_COMPILER,
+): boolean {
+  return (platform === "app-harmony" || platform === "app") && compiler !== "nvue";
+}
+
 export function nativeAppIifeBuildCompatibility(): Plugin {
   return {
     name: "native-app-iife-build-compatibility",
     apply: "build",
     enforce: "post",
     config() {
-      if (process.env.UNI_PLATFORM !== "app-harmony" && process.env.UNI_PLATFORM !== "app") return;
+      if (!shouldInlineNativeDynamicImports()) return;
       return {
         build: {
           rollupOptions: {
@@ -131,7 +138,7 @@ export function nativeAppIifeBuildCompatibility(): Plugin {
       };
     },
     configResolved(config) {
-      if (process.env.UNI_PLATFORM !== "app-harmony" && process.env.UNI_PLATFORM !== "app") return;
+      if (!shouldInlineNativeDynamicImports()) return;
       const output = config.build.rollupOptions.output;
       const outputs = Array.isArray(output) ? output : output ? [output] : [];
       for (const item of outputs) {
@@ -145,8 +152,7 @@ export function nativeAppIifeBuildCompatibility(): Plugin {
 export default defineConfig(({ mode }) => {
   const env = resolveClientEnv(loadEnv(mode, __dirname, ""), process.env);
   validateProductionClientEnv(mode, env);
-  const isNativeRuntimeApp =
-    process.env.UNI_PLATFORM === "app-harmony" || process.env.UNI_PLATFORM === "app";
+  const isNativeRuntimeApp = shouldInlineNativeDynamicImports();
   const publicAssetOrigin =
     env.VITE_PUBLIC_ASSET_ORIGIN || env.VITE_API_URL || LEGACY_PUBLIC_ORIGIN;
   const devProxyTarget = normalizeOrigin(env.VITE_DEV_PROXY_TARGET || "http://localhost:3000");
