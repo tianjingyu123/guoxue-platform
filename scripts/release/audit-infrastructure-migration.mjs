@@ -555,6 +555,9 @@ add(
     "Environment=NODE_ROLE=$NODE_ROLE",
     "guoxue-monitoring.service",
     "systemctl disable --now guoxue-monitoring.service",
+    "label=com.docker.compose.project=monitoring",
+    "docker rm -f",
+    "业务节点：已停止重复监控栈，保留数据卷与镜像",
     "节点角色:",
   ]) &&
     hasAll(productionDeploy, ['NODE_ROLE="${NODE_ROLE:-operations}"', '--node-role "$NODE_ROLE"']),
@@ -1076,16 +1079,20 @@ add(
   hasAll(releaseActivator, [
     'NODE_ROLE="${NODE_ROLE:-operations}"',
     'if [ "$NODE_ROLE" = "operations" ]; then',
-    "业务节点：跳过监控栈",
+    "label=com.docker.compose.project=$MONITORING_COMPOSE_PROJECT_NAME",
+    "业务节点：已停止重复监控栈，保留数据卷与镜像",
+    "业务节点：跳过监控栈启动",
     'NODE_ROLE="$NODE_ROLE"',
   ]) &&
     hasAll(releaseRollback, [
       'NODE_ROLE="${NODE_ROLE:-operations}"',
       'if [ "$NODE_ROLE" = "operations" ]; then',
-      "业务节点：跳过监控栈回滚",
+      "label=com.docker.compose.project=$MONITORING_COMPOSE_PROJECT_NAME",
+      "业务节点：已停止重复监控栈，保留数据卷与镜像",
+      "业务节点：跳过监控栈回滚启动",
       'NODE_ROLE="$NODE_ROLE"',
     ]),
-  "A/B 节点激活和回滚必须把同一角色传入环境检查与部署，业务节点不得意外启动第二套监控和告警",
+  "A/B 节点激活和回滚必须把同一角色传入环境检查与部署，并主动清理业务节点重复监控容器但保留数据卷与镜像",
 );
 add(
   "双节点滚动发布固定共同基线并在失败时逆序恢复",

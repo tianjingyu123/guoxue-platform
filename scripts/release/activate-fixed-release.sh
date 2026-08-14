@@ -221,6 +221,20 @@ restore_current_monitoring() {
     && wait_for_monitoring
 }
 
+stop_duplicate_monitoring_on_app() {
+  local -a monitoring_container_ids=()
+  mapfile -t monitoring_container_ids < <(
+    docker ps -aq \
+      --filter "label=com.docker.compose.project=$MONITORING_COMPOSE_PROJECT_NAME"
+  )
+  if [ "${#monitoring_container_ids[@]}" -gt 0 ]; then
+    docker rm -f "${monitoring_container_ids[@]}" >/dev/null
+  fi
+  [ -z "$(docker ps -aq --filter "label=com.docker.compose.project=$MONITORING_COMPOSE_PROJECT_NAME")" ] \
+    || fail "业务节点重复监控容器清理失败"
+  log "业务节点：已停止重复监控栈，保留数据卷与镜像"
+}
+
 if [ "$NODE_ROLE" = "operations" ]; then
   log "运维节点：渲染并复核监控告警配置"
   node "$FINAL_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE"
@@ -237,7 +251,8 @@ if [ "$NODE_ROLE" = "operations" ]; then
     fail "新监控栈启动失败；已恢复当前版本监控配置"
   fi
 else
-  log "业务节点：跳过监控栈，避免重复告警和复制运维密钥"
+  stop_duplicate_monitoring_on_app
+  log "业务节点：跳过监控栈启动，避免重复告警和复制运维密钥"
 fi
 
 # 在启动新容器前预制权威 current 的候选软链。部署失败时 cleanup 会删除该候选，

@@ -475,7 +475,16 @@ if [ "$NODE_ROLE" = "operations" ]; then
     fi
   done
 else
-  log "业务节点：跳过监控栈，避免重复告警和复制运维密钥"
+  mapfile -t DUPLICATE_MONITORING_CONTAINERS < <(
+    docker ps -aq --filter 'label=com.docker.compose.project=monitoring'
+  )
+  if [ "${#DUPLICATE_MONITORING_CONTAINERS[@]}" -gt 0 ]; then
+    docker rm -f "${DUPLICATE_MONITORING_CONTAINERS[@]}" >/dev/null
+  fi
+  [ -z "$(docker ps -aq --filter 'label=com.docker.compose.project=monitoring')" ] \
+    || { err "业务节点重复监控容器清理失败"; exit 1; }
+  log "业务节点：已停止重复监控栈，保留数据卷与镜像"
+  log "业务节点：跳过监控栈启动，避免重复告警和复制运维密钥"
 fi
 
 # ── 13. 配置自启动 ──

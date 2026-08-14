@@ -213,9 +213,12 @@ add(
     "systemctl enable guoxue.service",
     "systemctl enable guoxue-monitoring.service",
     "systemctl disable --now guoxue-monitoring.service",
-    "业务节点：跳过监控栈",
+    "label=com.docker.compose.project=monitoring",
+    "docker rm -f",
+    "业务节点：已停止重复监控栈，保留数据卷与镜像",
+    "业务节点：跳过监控栈启动",
   ]) && (setupServer.match(/exit 1/g) || []).length >= 3,
-  "运维节点必须完成配置渲染、容器启动、三组件健康等待和 systemd 自启动；业务节点必须明确停用重复监控",
+  "运维节点必须完成配置渲染、容器启动、三组件健康等待和 systemd 自启动；业务节点必须删除重复监控容器但保留数据卷与镜像",
 );
 
 console.log("监控与告警上线门禁");
