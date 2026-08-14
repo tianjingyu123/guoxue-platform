@@ -427,6 +427,30 @@ const apiUrl = parsedUrls.get("PUBLIC_API_URL");
 const h5Url = parsedUrls.get("PUBLIC_H5_URL");
 const assetUrl = parsedUrls.get("PUBLIC_ASSET_ORIGIN");
 const publicDomain = values.get("PUBLIC_DOMAIN") || "";
+const productionPublicUrls = new Map([
+  ["PUBLIC_API_URL", apiUrl],
+  ["PUBLIC_H5_URL", h5Url],
+  ["PUBLIC_ASSET_ORIGIN", assetUrl],
+  ["VITE_API_URL", parsedUrls.get("VITE_API_URL")],
+  ["VITE_PUBLIC_H5_URL", parsedUrls.get("VITE_PUBLIC_H5_URL")],
+  ["VITE_PUBLIC_ASSET_ORIGIN", parsedUrls.get("VITE_PUBLIC_ASSET_ORIGIN")],
+]);
+const isPreproductionHostname = (hostname) =>
+  hostname
+    .toLowerCase()
+    .split(".")
+    .some((label) => label === "pre" || label.startsWith("pre-"));
+if (fullCheck) {
+  const preproductionKeys = [...productionPublicUrls]
+    .filter(([, url]) => url && isPreproductionHostname(url.hostname))
+    .map(([key]) => key);
+  if (isPreproductionHostname(publicDomain)) preproductionKeys.push("PUBLIC_DOMAIN");
+  if (preproductionKeys.length > 0) {
+    errors.push(
+      `正式上线配置禁止使用 pre-* 预发布域名：${[...new Set(preproductionKeys)].join(", ")}`,
+    );
+  }
+}
 if (apiUrl && apiUrl.pathname !== "/") {
   errors.push("PUBLIC_API_URL 只能填写站点根地址，不要包含 /api/v1 或其他路径");
 }

@@ -302,6 +302,27 @@ test("完整上线检查不允许省略部署架构", async () => {
   assert.match(result.stderr, /完整上线检查必须通过 --deploy-target 显式指定/);
 });
 
+test("完整上线配置拒绝预发布 API、H5 与静态资源域名", async () => {
+  const preproduction = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  })
+    .replaceAll("api.guoxue.test", "pre-api.rebugx.cn")
+    .replaceAll("static.guoxue.test", "pre-static.rebugx.cn");
+  const result = await runChecker(
+    preproduction,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /正式上线配置禁止使用 pre-\* 预发布域名/u);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /pre-api\.rebugx\.cn/u);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /pre-static\.rebugx\.cn/u);
+});
+
 test("数据库与缓存连接协议错误时直接阻断", async () => {
   const invalid = createEnvironment()
     .replace("postgresql://", "mysql://")

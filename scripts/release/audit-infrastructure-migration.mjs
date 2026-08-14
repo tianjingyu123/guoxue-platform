@@ -239,6 +239,7 @@ add(
 );
 
 const productionEnvAuditor = read("scripts/migration/check-env.mjs");
+const productionEnvAuditorTests = read("tests/release/check-env.test.mjs");
 const paymentControlPlaneGuide = read("docs/operations/支付小程序人工配置清单-20260731.md");
 const financeControlPlaneGuide = read("docs/operations/发给财务的支付后台变更提示词-20260731.md");
 add(
@@ -277,6 +278,20 @@ add(
     !paymentControlPlaneGuide.includes("pre-api.rebugx.cn") &&
     !financeControlPlaneGuide.includes("pre-api.rebugx.cn"),
   "迁移门禁必须阻断旧回调域名，并要求支付/物流控制台、回调验签重放和小程序/App 域名白名单留下受控证据",
+);
+add(
+  "正式上线配置阻断预发布域名混入",
+  hasAll(productionEnvAuditor, [
+    "isPreproductionHostname",
+    "正式上线配置禁止使用 pre-* 预发布域名",
+    'label === "pre" || label.startsWith("pre-")',
+  ]) &&
+    hasAll(productionEnvAuditorTests, [
+      "完整上线配置拒绝预发布 API、H5 与静态资源域名",
+      "pre-api.rebugx.cn",
+      "pre-static.rebugx.cn",
+    ]),
+  "正式包和正式服务器配置不得复用 pre-* API、H5、静态资源或客户端公开地址",
 );
 add(
   "公网合规与旧域名处置纳入新基础设施交接",
