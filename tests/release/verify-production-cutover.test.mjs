@@ -42,6 +42,26 @@ test("部署架构未显式选择时被阻断", () => {
   assert.match(result.stderr, /必须显式设置为 standard 或 tencent/);
 });
 
+test("正式切换在汇总 GO 前强制验证直播 rtc-config 路由", async () => {
+  const runtimeVerifier = await readFile(
+    path.join(repoRoot, "scripts", "release", "verify-runtime.mjs"),
+    "utf8",
+  );
+  const cutoverVerifier = await readFile(verifier, "utf8");
+
+  assert.match(
+    runtimeVerifier,
+    /\/api\/v1\/live\/rooms\/00000000-0000-4000-8000-000000000000\/rtc-config/u,
+  );
+  assert.match(runtimeVerifier, /\[401, 403\]\.includes\(response\.status\)/u);
+  assert.match(runtimeVerifier, /response\.status === 404/u);
+  assert.match(runtimeVerifier, /正式 API 缺少直播 rtc-config 路由/u);
+  assert.ok(
+    cutoverVerifier.indexOf("verify-runtime.mjs") <
+      cutoverVerifier.indexOf("aggregate-launch-evidence.mjs"),
+  );
+});
+
 test(
   "同版 current、最终数据库证据与共享配置齐全时重建证据并给出 GO",
   { skip: process.platform === "win32" ? "Windows NTFS 不提供可靠 POSIX 权限语义" : false },

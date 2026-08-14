@@ -107,6 +107,7 @@ let dnsObservations = [];
 let dnsAuthorityObservations = [];
 let tlsCertificates = [];
 let publicContentFreshness = null;
+let liveRtcConfigRoute = null;
 const uniquePublicHostnames = [
   ...new Set([apiUrl, h5Url, new URL(adminHref), assetUrl].map((url) => url.hostname)),
 ];
@@ -299,6 +300,24 @@ await check("API 存活探针", async () => {
   const data = unwrapPayload(parseJson(body, "存活探针"));
   assert(data.status === "alive", `状态为 ${String(data.status)}`);
   return `alive，${latencyMs}ms`;
+});
+
+await check("直播 RTC 配置路由与鉴权边界", async () => {
+  const routePath =
+    "/api/v1/live/rooms/00000000-0000-4000-8000-000000000000/rtc-config";
+  const { response, latencyMs } = await request(`${apiBase}${routePath}`);
+  liveRtcConfigRoute = {
+    pathTemplate: "/api/v1/live/rooms/:id/rtc-config",
+    unauthenticatedStatus: response.status,
+    latencyMs,
+  };
+  assert(
+    [401, 403].includes(response.status),
+    response.status === 404
+      ? "正式 API 缺少直播 rtc-config 路由"
+      : `未登录探测返回 HTTP ${response.status}，预期 401/403`,
+  );
+  return `路由存在且未登录访问被拒绝（HTTP ${response.status}），${latencyMs}ms`;
 });
 
 await check("数据库与 Redis 就绪探针", async () => {
@@ -542,6 +561,7 @@ const report = {
     routeCount: authenticationSurfaceObservations.length,
     routeIds: authenticationSurfaceObservations.map((item) => item.id).sort(),
   },
+  liveRtcConfigRoute,
   publicContentFreshness,
   summary: { passed: results.length - failed.length, failed: failed.length, total: results.length },
   results,

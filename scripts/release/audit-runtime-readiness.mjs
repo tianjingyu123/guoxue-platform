@@ -139,6 +139,23 @@ add(
 );
 
 add(
+  "正式切换阻断缺失的直播 RTC 配置路由",
+  hasAll(verifier, [
+    "直播 RTC 配置路由与鉴权边界",
+    "/api/v1/live/rooms/00000000-0000-4000-8000-000000000000/rtc-config",
+    'pathTemplate: "/api/v1/live/rooms/:id/rtc-config"',
+    "[401, 403].includes(response.status)",
+    "response.status === 404",
+    "正式 API 缺少直播 rtc-config 路由",
+    "liveRtcConfigRoute",
+  ]) &&
+    productionCutover.includes("verify-runtime.mjs") &&
+    productionCutover.indexOf("verify-runtime.mjs") <
+      productionCutover.indexOf("aggregate-launch-evidence.mjs"),
+  "正式 API 必须在汇总 GO 前证明 rtc-config 路由已部署且保持鉴权；404 直接阻断客户端直播发布",
+);
+
+add(
   "运行时门禁覆盖用户与管理入口",
   hasAll(verifier, ["PUBLIC_H5_URL", 'new URL("/admin/"', "H5 入口与安全头", "管理后台入口"]),
   "H5 和管理后台均需真实返回 HTML，不能只验证 API",
