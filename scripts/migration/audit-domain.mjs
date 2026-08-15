@@ -47,6 +47,7 @@ const compatibilityFallbacks = new Set([
   "apps/server/src/modules/system/system.service.ts",
   "apps/server/prisma/schema.prisma",
   "apps/mobile/src/lib/brand.ts",
+  "apps/mobile/src/lib/remote-config.ts",
   "apps/mobile/src/utils/share.ts",
   "apps/mobile/vite.config.ts",
   "apps/admin/src/lib/brand.ts",
@@ -141,13 +142,35 @@ for (const file of files) {
   });
 }
 
+// 预发布域名是正式 API 域名的后缀超集。远程配置允许同时识别两者，但必须先匹配
+// pre-api，再匹配 api；否则预发布包会被错误归类为 production。
+const remoteConfigPath = "apps/mobile/src/lib/remote-config.ts";
+const remoteConfigFile = files.find((file) => normalize(file) === remoteConfigPath);
+const policyViolations = [];
+if (remoteConfigFile) {
+  const content = await readFile(remoteConfigFile, "utf8");
+  const stagingIndex = content.indexOf("apiUrl.includes('pre-api.rebugx.cn')");
+  const productionIndex = content.indexOf("apiUrl.includes('api.rebugx.cn')");
+  if (productionIndex >= 0 && (stagingIndex < 0 || stagingIndex > productionIndex)) {
+    policyViolations.push({
+      relative: remoteConfigPath,
+      line: content.slice(0, Math.max(0, productionIndex)).split(/\r?\n/).length,
+      kind: "运行时",
+      preview: "正式环境判断必须位于预发布环境判断之后",
+    });
+  }
+}
+
 if (hits.length === 0) {
   console.log(`域名审计通过：未发现 ${target}`);
   process.exit(0);
 }
 
-const runtime = hits.filter((hit) => hit.kind === "运行时");
-for (const hit of verbose ? hits : runtime) {
+const runtime = [
+  ...hits.filter((hit) => hit.kind === "运行时"),
+  ...policyViolations,
+];
+for (const hit of verbose ? [...hits, ...policyViolations] : runtime) {
   console.log(`[${hit.kind}] ${hit.relative}:${hit.line} ${hit.preview}`);
 }
 

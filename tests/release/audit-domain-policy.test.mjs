@@ -56,3 +56,36 @@ test("正式域名硬编码到未批准的运行时代码时仍阻断", async ()
     },
   );
 });
+
+test("远程配置先识别预发布再识别正式域名时通过", async () => {
+  await withWorkspace(
+    {
+      "apps/mobile/src/lib/remote-config.ts": [
+        "const apiUrl = 'https://pre-api.rebugx.cn'",
+        "if (apiUrl.includes('pre-api.rebugx.cn')) return 'staging'",
+        "if (apiUrl.includes('api.rebugx.cn')) return 'production'",
+      ].join("\n"),
+    },
+    async (workspace) => {
+      const result = runAudit(workspace);
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+    },
+  );
+});
+
+test("远程配置先识别正式域名会阻断预发布误判", async () => {
+  await withWorkspace(
+    {
+      "apps/mobile/src/lib/remote-config.ts": [
+        "const apiUrl = 'https://pre-api.rebugx.cn'",
+        "if (apiUrl.includes('api.rebugx.cn')) return 'production'",
+        "if (apiUrl.includes('pre-api.rebugx.cn')) return 'staging'",
+      ].join("\n"),
+    },
+    async (workspace) => {
+      const result = runAudit(workspace);
+      assert.equal(result.status, 1);
+      assert.match(result.stdout, /正式环境判断必须位于预发布环境判断之后/);
+    },
+  );
+});
