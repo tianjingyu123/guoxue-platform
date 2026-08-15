@@ -67,6 +67,15 @@
           "bounce": "none"
         }
       }
+    },
+    {
+      "path": "pkg-live/watch/index",
+      "style": {
+        "navigationStyle": "custom",
+        "app-plus": {
+          "bounce": "none"
+        }
+      }
     }
     // #endif
   ],
@@ -1424,12 +1433,14 @@
             "navigationStyle": "custom"
           }
         },
+        // #ifndef APP-PLUS
         {
           "path": "watch/index",
           "style": {
             "navigationStyle": "custom"
           }
         },
+        // #endif
         {
           "path": "end/index",
           "style": {

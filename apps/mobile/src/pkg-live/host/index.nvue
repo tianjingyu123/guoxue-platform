@@ -7,19 +7,41 @@
     />
 
     <view class="shade-top" :style="shadeTopStyle" />
-    <view class="topbar" :style="topbarStyle">
-      <view class="live-badge">
-        <view class="live-dot" />
-        <text class="live-label">直播中</text>
+    <view class="shade-bottom" :style="shadeBottomStyle" />
+    <cover-view class="topbar" :style="topbarStyle">
+      <view class="live-cluster">
+        <view class="live-badge">
+          <view class="live-dot" />
+          <text class="live-label">直播</text>
+        </view>
+        <text class="time">{{ elapsedText }}</text>
       </view>
-      <text class="time">{{ elapsedText }}</text>
-      <view class="console-btn" @click="openConsole">
-        <text class="console-btn-text">控制台</text>
+      <view class="top-actions">
+        <view class="viewer-chip">
+          <view class="viewer-dot" />
+          <text class="viewer-chip-text">{{ stats.onlineCount }} 人</text>
+        </view>
+        <view class="console-btn" @click="openConsole">
+          <text class="console-btn-text">{{ pendingMics.length ? `连麦 ${pendingMics.length}` : '控制台' }}</text>
+        </view>
+        <view class="end-btn" @click="requestEnd">
+          <text class="end-btn-text">结束</text>
+        </view>
       </view>
-      <view class="end-btn" @click="requestEnd">
-        <text class="end-btn-text">下播</text>
+    </cover-view>
+
+    <cover-view v-if="endConfirmVisible" class="end-confirm" :style="endConfirmStyle">
+      <text class="end-confirm-title">确认结束直播？</text>
+      <text class="end-confirm-detail">结束后将停止摄像头、麦克风和观众播放。</text>
+      <view class="end-confirm-actions">
+        <view class="end-confirm-button cancel" @click="cancelEnd">
+          <text class="end-confirm-button-text">继续直播</text>
+        </view>
+        <view class="end-confirm-button confirm" @click="endLive">
+          <text class="end-confirm-button-text">结束直播</text>
+        </view>
       </view>
-    </view>
+    </cover-view>
 
     <view v-if="joining || error" class="status-card">
       <text class="status-title">{{ error ? '直播连接未建立' : '正在连接直播服务' }}</text>
@@ -29,36 +51,75 @@
       </view>
     </view>
 
-    <view v-if="!joining && !error" class="room-meta" :style="roomMetaStyle">
+    <cover-view v-if="!joining && !error" class="room-meta" :style="roomMetaStyle">
+      <text class="room-kicker">主播视角 · {{ stats.totalViews }} 次进入</text>
       <text class="room-title">{{ roomTitle || '我的直播间' }}</text>
-      <text class="room-state">画面与声音正在推送</text>
-    </view>
+      <view class="room-state-row">
+        <view class="signal-dot" />
+        <text class="room-state">画面与声音正在推送</text>
+      </view>
+    </cover-view>
 
-    <view v-if="danmaku.length" class="danmaku-panel" :style="danmakuStyle">
+    <cover-view class="danmaku-panel" :style="danmakuStyle">
+      <view class="danmaku-head">
+        <text class="danmaku-head-title">公屏</text>
+        <text class="danmaku-head-sub">实时互动</text>
+      </view>
+      <view v-if="!danmaku.length" class="danmaku-empty">
+        <text class="danmaku-empty-text">观众消息会显示在这里</text>
+      </view>
       <view v-for="item in danmaku" :key="item.id" class="danmaku-row">
         <text class="danmaku-user">{{ item.user }}</text>
         <text class="danmaku-content">{{ item.content }}</text>
       </view>
-    </view>
+    </cover-view>
 
-    <view class="bottombar" :style="bottombarStyle">
+    <cover-view v-if="pendingMics.length" class="mic-request-card" :style="micRequestStyle">
+      <view class="mic-request-avatar"><text class="mic-request-avatar-text">麦</text></view>
+      <view class="mic-request-copy">
+        <text class="mic-request-kicker">观众申请连麦</text>
+        <text class="mic-request-user">{{ shortUserId(pendingMics[0].userId) }} · 等待接通</text>
+      </view>
+      <view class="mic-request-action reject" @click="managePendingMic('REJECT')">
+        <text class="mic-request-action-text">拒绝</text>
+      </view>
+      <view class="mic-request-action accept" @click="managePendingMic('ACCEPT')">
+        <text class="mic-request-action-text">接通</text>
+      </view>
+    </cover-view>
+
+    <cover-view v-else-if="connectedMic" class="mic-request-card mic-connected-card" :style="micRequestStyle">
+      <view class="mic-request-avatar mic-request-avatar-live"><view class="mic-connected-dot" /></view>
+      <view class="mic-request-copy">
+        <text class="mic-request-kicker mic-connected-kicker">正在连麦</text>
+        <text class="mic-request-user">{{ shortUserId(connectedMic.userId) }} · 双向语音</text>
+      </view>
+      <view class="mic-request-action manage" @click="manageActiveMic(connectedMic.status === 'MUTED' ? 'UNMUTE' : 'MUTE')">
+        <text class="mic-request-action-text">{{ connectedMic.status === 'MUTED' ? '开麦' : '静音' }}</text>
+      </view>
+      <view class="mic-request-action hangup" @click="manageActiveMic('KICK')">
+        <text class="mic-request-action-text">断开</text>
+      </view>
+    </cover-view>
+
+    <cover-view class="bottombar" :style="bottombarStyle">
       <view class="control" @click="toggleCamera">
-        <text class="control-icon">↻</text>
+        <view class="control-icon-shell"><text class="control-icon">↻</text></view>
         <text class="control-label">翻转</text>
       </view>
       <view class="control" :class="{ active: micMuted }" @click="toggleMic">
-        <text class="control-icon">{{ micMuted ? '×' : '●' }}</text>
+        <view class="control-icon-shell" :class="{ 'control-icon-alert': micMuted }"><text class="control-icon">{{ micMuted ? '×' : '麦' }}</text></view>
         <text class="control-label">{{ micMuted ? '打开麦克风' : '静音' }}</text>
       </view>
       <view class="control" :class="{ active: videoMuted }" @click="toggleVideo">
-        <text class="control-icon">{{ videoMuted ? '□' : '◇' }}</text>
+        <view class="control-icon-shell" :class="{ 'control-icon-alert': videoMuted }"><text class="control-icon">{{ videoMuted ? '□' : '镜' }}</text></view>
         <text class="control-label">{{ videoMuted ? '打开画面' : '关闭画面' }}</text>
       </view>
       <view class="control control-primary" @click="openConsole">
-        <text class="control-icon">≡</text>
-        <text class="control-label">互动与数据</text>
+        <view class="control-icon-shell control-icon-primary"><text class="control-icon">控</text></view>
+        <text class="control-label">更多控制</text>
       </view>
-    </view>
+    </cover-view>
   </view>
 </template>
 
@@ -66,13 +127,14 @@
 import { computed, ref } from 'vue'
 import { onBackPress, onLoad, onUnload } from '@dcloudio/uni-app'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
-import { liveApi, type ConsoleDanmaku } from '@/lib/live-data'
-import { liveMicApi } from '@/pkg-live/live-mic-data'
+import { liveApi, type ConsoleDanmaku, type ConsoleLiveStats } from '@/lib/live-data'
+import { liveMicApi, type LiveMicItem } from '@/pkg-live/live-mic-data'
 import { ensureLiveCapturePermissions } from '@/pkg-live/app-capture-permissions'
 import {
   joinLiveVideo,
   leaveLiveVideo,
   setLiveAudioMuted,
+  setLiveRemoteUserLeaveHandler,
   setLiveVideoMuted,
   switchLiveCamera,
 } from '@/pkg-live/live-trtc-client'
@@ -87,10 +149,25 @@ const videoMuted = ref(false)
 const frontCamera = ref(true)
 const elapsed = ref(0)
 const danmaku = ref<ConsoleDanmaku[]>([])
+const micItems = ref<LiveMicItem[]>([])
+const micBusy = ref(false)
+const endConfirmVisible = ref(false)
+const stats = ref<ConsoleLiveStats>({
+  onlineCount: 0,
+  totalViews: 0,
+  newFollowers: 0,
+  totalGift: 0,
+  totalSales: 0,
+  peakOnline: 0,
+  avgWatchTime: '--',
+  interactionRate: '0%',
+})
+const pendingMics = computed(() => micItems.value.filter((item) => item.status === 'PENDING'))
+const connectedMic = computed(() => micItems.value.find((item) => item.status === 'OCCUPIED' || item.status === 'MUTED') || null)
 const localViewId = `host-preview-${Date.now().toString(36)}`
 const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
 const topbarStyle = computed(() => ({
-  paddingTop: `${safeTop.value}px`,
+  top: `${safeTop.value}px`,
   paddingLeft: `${safeLeft.value + uni.upx2px(24)}px`,
   paddingRight: `${safeRight.value + uni.upx2px(24)}px`,
 }))
@@ -100,13 +177,30 @@ const bottombarStyle = computed(() => ({
   paddingRight: `${safeRight.value + uni.upx2px(22)}px`,
 }))
 const shadeTopStyle = computed(() => ({
-  height: `${safeTop.value + uni.upx2px(220)}px`,
+  height: `${safeTop.value + uni.upx2px(260)}px`,
+}))
+const shadeBottomStyle = computed(() => ({
+  height: `${safeBottom.value + uni.upx2px(500)}px`,
 }))
 const roomMetaStyle = computed(() => ({
-  bottom: `${safeBottom.value + uni.upx2px(390)}px`,
+  top: `${safeTop.value + uni.upx2px(116)}px`,
+  left: `${safeLeft.value + uni.upx2px(28)}px`,
+  right: `${safeRight.value + uni.upx2px(28)}px`,
 }))
 const danmakuStyle = computed(() => ({
-  bottom: `${safeBottom.value + uni.upx2px(205)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(168)}px`,
+  left: `${safeLeft.value + uni.upx2px(28)}px`,
+  right: `${safeRight.value + uni.upx2px(154)}px`,
+}))
+const micRequestStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(326)}px`,
+  left: `${safeLeft.value + uni.upx2px(28)}px`,
+  right: `${safeRight.value + uni.upx2px(28)}px`,
+}))
+const endConfirmStyle = computed(() => ({
+  top: `${safeTop.value + uni.upx2px(92)}px`,
+  left: `${safeLeft.value + uni.upx2px(28)}px`,
+  right: `${safeRight.value + uni.upx2px(28)}px`,
 }))
 
 let elapsedTimer: ReturnType<typeof setInterval> | null = null
@@ -145,9 +239,54 @@ async function refreshRoom() {
   try {
     const data = await liveApi.getConsoleData(roomId.value)
     roomTitle.value = data.title
+    stats.value = data.stats
     danmaku.value = data.danmaku.slice(-4)
   } catch {
     // 推流不依赖控制台轮询；短暂网络波动不遮挡主播画面。
+  }
+}
+
+async function refreshPendingMics() {
+  try {
+    const items = await liveMicApi.list(roomId.value)
+    micItems.value = items
+  } catch {
+    // 连麦列表短暂失败不影响直播采集；下一轮继续拉取。
+  }
+}
+
+function shortUserId(userId: string) {
+  return userId.length > 8 ? userId.slice(-8) : userId
+}
+
+async function managePendingMic(action: 'ACCEPT' | 'REJECT') {
+  const item = pendingMics.value[0]
+  if (!item || micBusy.value) return
+  micBusy.value = true
+  try {
+    await liveMicApi.manage(roomId.value, item.userId, action, item.position)
+    await refreshPendingMics()
+    uni.showToast({ title: action === 'ACCEPT' ? '已接通观众连麦' : '已拒绝连麦申请', icon: 'none' })
+  } catch (cause) {
+    uni.showToast({ title: (cause as Error)?.message || '连麦操作失败', icon: 'none' })
+  } finally {
+    micBusy.value = false
+  }
+}
+
+async function manageActiveMic(action: 'MUTE' | 'UNMUTE' | 'KICK') {
+  const item = connectedMic.value
+  if (!item || micBusy.value) return
+  micBusy.value = true
+  try {
+    await liveMicApi.manage(roomId.value, item.userId, action, item.position)
+    await refreshPendingMics()
+    const title = action === 'MUTE' ? '已将连麦观众静音' : action === 'UNMUTE' ? '已恢复连麦声音' : '已结束本次连麦'
+    uni.showToast({ title, icon: 'none' })
+  } catch (cause) {
+    uni.showToast({ title: (cause as Error)?.message || '连麦操作失败', icon: 'none' })
+  } finally {
+    micBusy.value = false
   }
 }
 
@@ -181,20 +320,23 @@ function handleConsoleEnded(endedRoomId: string) {
 }
 
 function requestEnd() {
-  uni.showModal({
-    title: '确认结束直播？',
-    content: '结束后将停止摄像头、麦克风和观众播放。',
-    confirmText: '结束直播',
-    confirmColor: '#D84949',
-    success: (result) => {
-      if (result.confirm) void endLive()
-    },
-  })
+  if (ending) return
+  endConfirmVisible.value = true
+}
+
+function cancelEnd() {
+  endConfirmVisible.value = false
+}
+
+function handleRemoteUserLeave() {
+  if (!connectedMic.value || micBusy.value) return
+  void manageActiveMic('KICK')
 }
 
 async function endLive() {
   if (ending) return
   ending = true
+  endConfirmVisible.value = false
   uni.showLoading({ title: '正在下播…', mask: true })
   try {
     await liveApi.endLive(roomId.value)
@@ -217,8 +359,13 @@ onLoad((options) => {
   }
   void connect()
   void refreshRoom()
+  void refreshPendingMics()
+  setLiveRemoteUserLeaveHandler(handleRemoteUserLeave)
   elapsedTimer = setInterval(() => { elapsed.value += 1 }, 1000)
-  pollTimer = setInterval(() => { void refreshRoom() }, 3000)
+  pollTimer = setInterval(() => {
+    void refreshRoom()
+    void refreshPendingMics()
+  }, 2000)
   uni.$on('live:host-ended', handleConsoleEnded)
 })
 
@@ -231,6 +378,7 @@ onUnload(() => {
   if (elapsedTimer) clearInterval(elapsedTimer)
   if (pollTimer) clearInterval(pollTimer)
   uni.$off('live:host-ended', handleConsoleEnded)
+  setLiveRemoteUserLeaveHandler(null)
   leaveLiveVideo()
 })
 </script>
@@ -238,32 +386,71 @@ onUnload(() => {
 <style>
 .page { flex: 1; background-color: #08070a; }
 .camera { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
-.shade-top { position: absolute; left: 0; right: 0; top: 0; height: 220rpx; background-color: rgba(8, 7, 10, 0.38); }
-.topbar { position: absolute; left: 0; right: 0; top: 0; height: 100rpx; flex-direction: row; align-items: center; }
-.live-badge { height: 52rpx; padding-left: 18rpx; padding-right: 18rpx; border-radius: 26rpx; background-color: #D84949; flex-direction: row; align-items: center; }
-.live-dot { width: 12rpx; height: 12rpx; border-radius: 6rpx; background-color: #ffffff; margin-right: 10rpx; }
-.live-label { color: #ffffff; font-size: 24rpx; font-weight: 700; }
-.time { color: #ffffff; font-size: 25rpx; margin-left: 18rpx; flex: 1; }
-.console-btn { height: 56rpx; padding-left: 22rpx; padding-right: 22rpx; border-radius: 28rpx; background-color: rgba(20, 18, 22, 0.72); justify-content: center; margin-right: 12rpx; }
-.console-btn-text { color: #ffffff; font-size: 24rpx; }
-.end-btn { height: 56rpx; padding-left: 22rpx; padding-right: 22rpx; border-radius: 28rpx; border-width: 1rpx; border-color: rgba(255, 255, 255, 0.72); justify-content: center; }
-.end-btn-text { color: #ffffff; font-size: 24rpx; font-weight: 700; }
+.shade-top { position: absolute; left: 0; right: 0; top: 0; background-image: linear-gradient(to bottom, rgba(8,7,10,0.82), rgba(8,7,10,0)); }
+.shade-bottom { position: absolute; left: 0; right: 0; bottom: 0; background-image: linear-gradient(to top, rgba(8,7,10,0.92), rgba(8,7,10,0)); }
+.topbar { position: absolute; left: 0; right: 0; top: 0; height: 98rpx; flex-direction: row; align-items: center; }
+.live-cluster { flex: 1; flex-direction: row; align-items: center; }
+.live-badge { height: 42rpx; padding-left: 13rpx; padding-right: 13rpx; border-radius: 9rpx; background-color: #C93445; flex-direction: row; align-items: center; }
+.live-dot { width: 9rpx; height: 9rpx; border-radius: 5rpx; background-color: #ffffff; margin-right: 8rpx; }
+.live-label { color: #ffffff; font-size: 19rpx; font-weight: 700; }
+.time { color: rgba(255,255,255,0.88); font-size: 22rpx; margin-left: 12rpx; }
+.top-actions { flex-direction: row; align-items: center; }
+.viewer-chip { height: 50rpx; padding-left: 13rpx; padding-right: 13rpx; border-radius: 25rpx; background-color: rgba(12,11,14,0.62); flex-direction: row; align-items: center; }
+.viewer-dot { width: 8rpx; height: 8rpx; margin-right: 8rpx; border-radius: 4rpx; background-color: #76D89B; }
+.viewer-chip-text { color: #FFFFFF; font-size: 19rpx; }
+.console-btn { height: 50rpx; padding-left: 16rpx; padding-right: 16rpx; border-radius: 25rpx; background-color: rgba(12,11,14,0.66); justify-content: center; margin-left: 8rpx; }
+.console-btn-text { color: #ffffff; font-size: 20rpx; }
+.end-btn { height: 50rpx; padding-left: 16rpx; padding-right: 16rpx; margin-left: 8rpx; border-radius: 25rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.48); background-color: rgba(12,11,14,0.42); justify-content: center; }
+.end-btn-text { color: #ffffff; font-size: 20rpx; font-weight: 700; }
+.end-confirm { position: absolute; padding: 24rpx; border-radius: 24rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.12); background-color: rgba(16,14,18,0.96); }
+.end-confirm-title { color: #ffffff; font-size: 28rpx; font-weight: 700; }
+.end-confirm-detail { color: rgba(255,255,255,0.68); font-size: 21rpx; margin-top: 10rpx; }
+.end-confirm-actions { margin-top: 20rpx; flex-direction: row; justify-content: flex-end; }
+.end-confirm-button { height: 58rpx; padding-left: 24rpx; padding-right: 24rpx; margin-left: 12rpx; border-radius: 20rpx; align-items: center; justify-content: center; }
+.end-confirm-button.cancel { background-color: #37323A; }
+.end-confirm-button.confirm { background-color: #B73747; }
+.end-confirm-button-text { color: #ffffff; font-size: 21rpx; font-weight: 700; }
 .status-card { position: absolute; left: 56rpx; right: 56rpx; top: 40%; padding: 36rpx; border-radius: 24rpx; background-color: rgba(18, 16, 20, 0.88); align-items: center; }
 .status-title { color: #ffffff; font-size: 31rpx; font-weight: 700; }
 .status-detail { color: #c7bec9; font-size: 24rpx; margin-top: 16rpx; text-align: center; }
 .retry-btn { height: 64rpx; padding-left: 34rpx; padding-right: 34rpx; border-radius: 32rpx; background-color: #8C2F39; justify-content: center; margin-top: 26rpx; }
 .retry-btn-text { color: #ffffff; font-size: 25rpx; font-weight: 700; }
-.room-meta { position: absolute; left: 28rpx; right: 28rpx; bottom: 390rpx; }
-.room-title { color: #ffffff; font-size: 34rpx; font-weight: 700; lines: 1; text-overflow: ellipsis; }
-.room-state { color: rgba(255, 255, 255, 0.72); font-size: 23rpx; margin-top: 10rpx; }
-.danmaku-panel { position: absolute; left: 28rpx; right: 120rpx; bottom: 205rpx; }
-.danmaku-row { flex-direction: row; margin-top: 12rpx; }
-.danmaku-user { color: #D8B36A; font-size: 24rpx; margin-right: 12rpx; }
-.danmaku-content { color: #ffffff; font-size: 24rpx; flex: 1; lines: 1; text-overflow: ellipsis; }
-.bottombar { position: absolute; left: 0; right: 0; bottom: 0; height: 156rpx; background-color: rgba(10, 9, 12, 0.76); flex-direction: row; align-items: center; justify-content: space-between; }
-.control { width: 158rpx; height: 94rpx; border-radius: 20rpx; background-color: rgba(255, 255, 255, 0.12); align-items: center; justify-content: center; }
-.control.active { background-color: rgba(216, 73, 73, 0.68); }
-.control-primary { background-color: rgba(140, 47, 57, 0.86); }
-.control-icon { color: #ffffff; font-size: 32rpx; height: 40rpx; }
-.control-label { color: #ffffff; font-size: 20rpx; margin-top: 4rpx; }
+.room-meta { position: absolute; }
+.room-kicker { color: rgba(255,255,255,0.62); font-size: 19rpx; }
+.room-title { color: #ffffff; font-size: 28rpx; font-weight: 700; margin-top: 7rpx; lines: 1; text-overflow: ellipsis; }
+.room-state-row { margin-top: 9rpx; flex-direction: row; align-items: center; }
+.signal-dot { width: 9rpx; height: 9rpx; border-radius: 5rpx; background-color: #76D89B; margin-right: 8rpx; }
+.room-state { color: rgba(255,255,255,0.72); font-size: 20rpx; }
+.danmaku-panel { position: absolute; }
+.danmaku-head { flex-direction: row; align-items: center; margin-bottom: 3rpx; }
+.danmaku-head-title { color: #E7C17B; font-size: 20rpx; font-weight: 700; }
+.danmaku-head-sub { color: rgba(255,255,255,0.48); font-size: 18rpx; margin-left: 9rpx; }
+.danmaku-empty { margin-top: 8rpx; padding-left: 13rpx; padding-right: 13rpx; padding-top: 8rpx; padding-bottom: 8rpx; border-radius: 15rpx; background-color: rgba(12,11,14,0.42); }
+.danmaku-empty-text { color: rgba(255,255,255,0.64); font-size: 20rpx; }
+.danmaku-row { flex-direction: row; margin-top: 7rpx; padding-left: 13rpx; padding-right: 14rpx; padding-top: 7rpx; padding-bottom: 7rpx; border-radius: 15rpx; background-color: rgba(12,11,14,0.48); }
+.mic-request-card { position: absolute; height: 96rpx; padding-left: 13rpx; padding-right: 12rpx; border-radius: 24rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.10); background-color: rgba(15,13,17,0.90); flex-direction: row; align-items: center; }
+.mic-request-avatar { width: 62rpx; height: 62rpx; border-radius: 31rpx; background-color: #3D65B0; align-items: center; justify-content: center; }
+.mic-request-avatar-live { background-color: rgba(51,121,83,0.34); }
+.mic-request-avatar-text { color: #FFFFFF; font-size: 23rpx; font-weight: 700; }
+.mic-connected-dot { width: 18rpx; height: 18rpx; border-radius: 9rpx; background-color: #76D89B; }
+.mic-request-copy { flex: 1; }
+.mic-request-copy { margin-left: 13rpx; }
+.mic-request-kicker { color: #E7C17B; font-size: 20rpx; font-weight: 700; }
+.mic-connected-kicker { color: #76D89B; }
+.mic-request-user { color: #FFFFFF; font-size: 21rpx; margin-top: 5rpx; }
+.mic-request-action { height: 56rpx; padding-left: 17rpx; padding-right: 17rpx; margin-left: 8rpx; border-radius: 18rpx; align-items: center; justify-content: center; }
+.mic-request-action.reject { background-color: #3A343D; }
+.mic-request-action.accept { background-color: #3D65B0; }
+.mic-request-action.manage { background-color: rgba(61,101,176,0.78); }
+.mic-request-action.hangup { background-color: #B73747; }
+.mic-request-action-text { color: #FFFFFF; font-size: 20rpx; font-weight: 700; }
+.danmaku-user { color: #E7C17B; font-size: 22rpx; font-weight: 700; margin-right: 10rpx; }
+.danmaku-content { color: #ffffff; font-size: 22rpx; flex: 1; lines: 2; text-overflow: ellipsis; }
+.bottombar { position: absolute; left: 0; right: 0; bottom: 0; height: 138rpx; flex-direction: row; align-items: center; justify-content: space-between; }
+.control { width: 128rpx; align-items: center; justify-content: center; }
+.control-icon-shell { width: 70rpx; height: 70rpx; border-radius: 35rpx; background-color: rgba(12,11,14,0.62); border-width: 1rpx; border-color: rgba(255,255,255,0.16); align-items: center; justify-content: center; }
+.control-icon-alert { background-color: rgba(183,55,71,0.78); }
+.control-icon-primary { background-color: rgba(140,47,57,0.82); }
+.control-icon { color: #ffffff; font-size: 26rpx; font-weight: 700; }
+.control-label { color: rgba(255,255,255,0.90); font-size: 19rpx; margin-top: 7rpx; }
 </style>

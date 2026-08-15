@@ -5,7 +5,6 @@ type NativeModule = Record<string, (...args: any[]) => any>
 const MODULE_NAME = 'TRTCCloudUniPlugin-TRTCCloudImpl'
 const EVENT_MODULE_NAME = 'globalEvent'
 const APP_SCENE_LIVE = 1
-const APP_SCENE_VOICE_CHAT_ROOM = 3
 const ROLE_ANCHOR = 20
 const AUDIO_QUALITY_SPEECH = 1
 
@@ -14,6 +13,7 @@ let eventModule: NativeModule | null = null
 const listeners = new Map<string, (payload: any) => void>()
 let joined = false
 let localPreviewActive = false
+let remoteUserLeaveHandler: (() => void) | null = null
 
 function getNativePlugin(name: string): NativeModule | null {
   const loader = (uni as any)?.requireNativePlugin
@@ -52,6 +52,14 @@ export function isLiveTrtcSupported(): boolean {
   } catch {
     return false
   }
+}
+
+/**
+ * 主播页用它清理异常退出的连麦观众。常规观众只播放云直播流，
+ * 因而 TRTC 房间里的远端用户就是已经获准的连麦观众。
+ */
+export function setLiveRemoteUserLeaveHandler(handler: (() => void) | null) {
+  remoteUserLeaveHandler = handler
 }
 
 export async function joinLiveAudio(config: LiveRtcConfig): Promise<void> {
@@ -95,7 +103,8 @@ export async function joinLiveAudio(config: LiveRtcConfig): Promise<void> {
       strRoomId: config.strRoomId,
       privateMapKey: config.privateMapKey,
       role: ROLE_ANCHOR,
-      appScene: APP_SCENE_VOICE_CHAT_ROOM,
+      // 连麦观众与视频主播必须使用同一直播场景，否则同一房间可能无法互通。
+      appScene: APP_SCENE_LIVE,
     })
   })
 }
@@ -110,6 +119,10 @@ export async function joinLiveVideo(config: LiveRtcConfig, viewId: string): Prom
 
   const { trtc } = ensureModules()
   trtc.sharedInstance()
+
+  on('onRemoteUserLeaveRoom', () => {
+    remoteUserLeaveHandler?.()
+  })
 
   await new Promise<void>((resolve, reject) => {
     let settled = false
