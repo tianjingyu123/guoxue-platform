@@ -17,6 +17,7 @@ let allowPlaceholders = false;
 let fullCheck = false;
 let deployTarget = "";
 let nodeRole = "operations";
+let releaseChannel = "production";
 
 for (let index = 0; index < args.length; index += 1) {
   const arg = args[index];
@@ -45,6 +46,16 @@ for (let index = 0; index < args.length; index += 1) {
       process.exit(2);
     }
     nodeRole = value.trim().toLowerCase();
+    index += 1;
+    continue;
+  }
+  if (arg === "--release-channel") {
+    const value = args[index + 1];
+    if (!value || value.startsWith("--")) {
+      console.error("错误：--release-channel 后必须提供 production 或 staging");
+      process.exit(2);
+    }
+    releaseChannel = value.trim().toLowerCase();
     index += 1;
     continue;
   }
@@ -147,6 +158,9 @@ if (fullCheck && !deployTarget) {
 }
 if (!new Set(["app", "operations"]).has(nodeRole)) {
   errors.push("NODE_ROLE 仅允许 app 或 operations");
+}
+if (!new Set(["production", "staging"]).has(releaseChannel)) {
+  errors.push("RELEASE_CHANNEL 仅允许 production 或 staging");
 }
 const required = [
   "NODE_ENV",
@@ -440,7 +454,7 @@ const isPreproductionHostname = (hostname) =>
     .toLowerCase()
     .split(".")
     .some((label) => label === "pre" || label.startsWith("pre-"));
-if (fullCheck) {
+if (fullCheck && releaseChannel === "production") {
   const preproductionKeys = [...productionPublicUrls]
     .filter(([, url]) => url && isPreproductionHostname(url.hostname))
     .map(([key]) => key);
@@ -448,6 +462,17 @@ if (fullCheck) {
   if (preproductionKeys.length > 0) {
     errors.push(
       `正式上线配置禁止使用 pre-* 预发布域名：${[...new Set(preproductionKeys)].join(", ")}`,
+    );
+  }
+}
+if (fullCheck && releaseChannel === "staging") {
+  const productionKeys = [...productionPublicUrls]
+    .filter(([, url]) => url && !isPreproductionHostname(url.hostname))
+    .map(([key]) => key);
+  if (publicDomain && !isPreproductionHostname(publicDomain)) productionKeys.push("PUBLIC_DOMAIN");
+  if (productionKeys.length > 0) {
+    errors.push(
+      `预发布配置必须使用 pre-* 隔离域名：${[...new Set(productionKeys)].join(", ")}`,
     );
   }
 }
@@ -858,7 +883,7 @@ if (fullCheck) {
 }
 
 console.log(
-  `环境检查：读取 ${values.size} 个键（未输出任何值；模式：${fullCheck ? "完整上线" : "核心"}；架构：${deployTarget || "未指定"}；节点角色：${nodeRole}）`,
+  `环境检查：读取 ${values.size} 个键（未输出任何值；模式：${fullCheck ? "完整上线" : "核心"}；架构：${deployTarget || "未指定"}；节点角色：${nodeRole}；发布通道：${releaseChannel}）`,
 );
 warnings.forEach((message) => console.log(`警告：${message}`));
 errors.forEach((message) => console.error(`错误：${message}`));
@@ -876,6 +901,7 @@ if (reportFile) {
     fullCheck,
     deployTarget: deployTarget || null,
     nodeRole,
+    releaseChannel,
     success: errors.length === 0,
     counts: {
       configuredKeys: values.size,

@@ -24,6 +24,7 @@ SHARED_SSL_DIR="${SHARED_SSL_DIR:-$ROOT_DIR/shared/nginx-ssl}"
 BACKUP_DIR="${BACKUP_DIR:-$ROOT_DIR/backups}"
 DEPLOY_TARGET="${DEPLOY_TARGET:-}"
 NODE_ROLE="${NODE_ROLE:-operations}"
+RELEASE_CHANNEL="${RELEASE_CHANNEL:-production}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guoxue}"
 MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"
 SCHEMA_COMPATIBILITY="${ALLOW_SCHEMA_COMPATIBLE_ROLLBACK:-false}"
@@ -33,6 +34,7 @@ VERIFY_ONLY="${ROLLBACK_VERIFY_ONLY:-false}"
 [ "$CONFIRMATION" = "$TARGET_RELEASE_ID" ] || fail "回滚确认值必须与目标发布标识完全一致"
 case "$DEPLOY_TARGET" in standard|tencent) ;; *) fail "DEPLOY_TARGET 仅允许 standard 或 tencent" ;; esac
 case "$NODE_ROLE" in app|operations) ;; *) fail "NODE_ROLE 仅允许 app 或 operations" ;; esac
+case "$RELEASE_CHANNEL" in production|staging) ;; *) fail "RELEASE_CHANNEL 仅允许 production 或 staging" ;; esac
 case "$SCHEMA_COMPATIBILITY" in false|reviewed) ;; *) fail "ALLOW_SCHEMA_COMPATIBLE_ROLLBACK 仅允许 false 或 reviewed" ;; esac
 case "$VERIFY_ONLY" in true|false) ;; *) fail "ROLLBACK_VERIFY_ONLY 仅允许 true 或 false" ;; esac
 [[ "$COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "COMPOSE_PROJECT_NAME 格式无效"
@@ -178,6 +180,7 @@ if ! ENV_FILE="$SHARED_ENV_FILE" \
   RELEASE_ID="$TARGET_RELEASE_ID" \
   DEPLOY_TARGET="$DEPLOY_TARGET" \
   NODE_ROLE="$NODE_ROLE" \
+  RELEASE_CHANNEL="$RELEASE_CHANNEL" \
   COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
     bash "$TARGET_DIR/docker/deploy.sh" --skip-migrate; then
   if [ "$NODE_ROLE" = "operations" ]; then

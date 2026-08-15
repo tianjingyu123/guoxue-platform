@@ -25,6 +25,7 @@ EXPECTED_COMMIT="${EXPECTED_COMMIT:-}"
 EXPECTED_CURRENT_RELEASE_ID="${EXPECTED_CURRENT_RELEASE_ID:-}"
 DEPLOY_TARGET="${DEPLOY_TARGET:-}"
 NODE_ROLE="${NODE_ROLE:-operations}"
+RELEASE_CHANNEL="${RELEASE_CHANNEL:-production}"
 RUN_MIGRATION="${RUN_MIGRATION:-false}"
 MIGRATION_DEPLOY_CONFIRM="${MIGRATION_DEPLOY_CONFIRM:-}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guoxue}"
@@ -32,6 +33,7 @@ MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"
 
 case "$DEPLOY_TARGET" in standard|tencent) ;; *) fail "DEPLOY_TARGET 仅允许 standard 或 tencent" ;; esac
 case "$NODE_ROLE" in app|operations) ;; *) fail "NODE_ROLE 仅允许 app 或 operations" ;; esac
+case "$RELEASE_CHANNEL" in production|staging) ;; *) fail "RELEASE_CHANNEL 仅允许 production 或 staging" ;; esac
 case "$RUN_MIGRATION" in true|false) ;; *) fail "RUN_MIGRATION 仅允许 true 或 false" ;; esac
 [[ "$COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "COMPOSE_PROJECT_NAME 格式无效"
 [[ "$MONITORING_COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "MONITORING_COMPOSE_PROJECT_NAME 格式无效"
@@ -281,6 +283,7 @@ if ! ENV_FILE="$SHARED_ENV_FILE" \
   RELEASE_ID="$RELEASE_ID" \
   DEPLOY_TARGET="$DEPLOY_TARGET" \
   NODE_ROLE="$NODE_ROLE" \
+  RELEASE_CHANNEL="$RELEASE_CHANNEL" \
   COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" \
   MIGRATION_DEPLOY_CONFIRM="$MIGRATION_DEPLOY_CONFIRM" \
   bash "$FINAL_DIR/docker/deploy.sh" "${DEPLOY_ARGS[@]}"; then

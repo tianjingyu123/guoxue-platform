@@ -323,6 +323,47 @@ test("完整上线配置拒绝预发布 API、H5 与静态资源域名", async (
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /pre-static\.rebugx\.cn/u);
 });
 
+test("预发布通道接受隔离的 pre-* API、H5 与静态资源域名", async () => {
+  const preproduction = createFullEnvironment({
+    databaseHost: "postgres.internal",
+    redisHost: "redis.internal",
+  })
+    .replaceAll("api.guoxue.test", "pre-api.rebugx.cn")
+    .replaceAll("static.guoxue.test", "pre-static.rebugx.cn");
+  const result = await runChecker(
+    preproduction,
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+    "--release-channel",
+    "staging",
+  );
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /发布通道：staging/u);
+});
+
+test("预发布通道拒绝混入正式 API、H5 与静态资源域名", async () => {
+  const result = await runChecker(
+    createFullEnvironment({
+      databaseHost: "postgres.internal",
+      redisHost: "redis.internal",
+    }),
+    "--full",
+    "--deploy-target",
+    "tencent",
+    "--node-role",
+    "app",
+    "--release-channel",
+    "staging",
+  );
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /预发布配置必须使用 pre-\* 隔离域名/u);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /api\.guoxue\.test/u);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /static\.guoxue\.test/u);
+});
+
 test("数据库与缓存连接协议错误时直接阻断", async () => {
   const invalid = createEnvironment()
     .replace("postgresql://", "mysql://")

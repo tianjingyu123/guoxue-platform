@@ -47,6 +47,7 @@ SKIP_SWAP="${SKIP_SWAP:-false}"
 DATABASE_MODE="${DATABASE_MODE:-prepare}"
 DEPLOY_TARGET="${DEPLOY_TARGET:-}"
 NODE_ROLE="${NODE_ROLE:-operations}"
+RELEASE_CHANNEL="${RELEASE_CHANNEL:-production}"
 POSTGRES_CLIENT_MAJOR="${POSTGRES_CLIENT_MAJOR:-16}"
 PLATFORM_ROOT="${PLATFORM_ROOT:-/opt/guoxue}"
 RUNTIME_DIR="$PLATFORM_ROOT/current"
@@ -87,6 +88,10 @@ esac
 case "$NODE_ROLE" in
   app|operations) ;;
   *) err "NODE_ROLE 仅允许 app / operations"; exit 64 ;;
+esac
+case "$RELEASE_CHANNEL" in
+  production|staging) ;;
+  *) err "RELEASE_CHANNEL 仅允许 production / staging"; exit 64 ;;
 esac
 
 if [ "$EUID" -ne 0 ]; then
@@ -323,6 +328,7 @@ docker run --rm \
   node scripts/migration/check-env.mjs "/runtime-env/$ENV_NAME" --full \
     --deploy-target "$DEPLOY_TARGET" \
     --node-role "$NODE_ROLE" \
+    --release-channel "$RELEASE_CHANNEL" \
     --report /evidence/environment-readiness.json
 chmod 600 "$INSTALL_DIR/release-evidence/environment-readiness.json"
 

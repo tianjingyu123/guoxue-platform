@@ -72,6 +72,7 @@ $NODE_BIN "$RELEASE_DIR/scripts/release/verify-client-config-binding.mjs" \
 $NODE_BIN "$RELEASE_DIR/scripts/migration/check-env.mjs" "$ENV_FILE" --full \
   --deploy-target "$DEPLOY_TARGET" \
   --node-role "$NODE_ROLE" \
+  --release-channel production \
   --report "$REPORT_DIR/environment-readiness.json"
 $NODE_BIN -- "$RELEASE_DIR/scripts/release/audit-infrastructure-intake.mjs" \
   --input "$INFRASTRUCTURE_INTAKE_FILE" --stage launch \
