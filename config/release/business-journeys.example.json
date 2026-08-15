@@ -26,6 +26,38 @@
           ]
         },
         {
+          "id": "client-remote-config",
+          "method": "GET",
+          "path": "/api/v1/config/client",
+          "expectStatus": [200],
+          "expectJson": [
+            {
+              "pointer": "/data/schemaVersion",
+              "equals": 1
+            },
+            {
+              "pointer": "/data/revision",
+              "matches": "^[0-9a-f]{16}$"
+            },
+            {
+              "pointer": "/data/environment",
+              "exists": true
+            },
+            {
+              "pointer": "/data/features",
+              "exists": true
+            },
+            {
+              "pointer": "/data/ui",
+              "exists": true
+            },
+            {
+              "pointer": "/data/maintenance/enabled",
+              "exists": true
+            }
+          ]
+        },
+        {
           "id": "home-aggregation",
           "method": "GET",
           "path": "/api/v1/home?page=1&pageSize=6",

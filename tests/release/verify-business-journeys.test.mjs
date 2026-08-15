@@ -505,6 +505,7 @@ test("仓库内公开旅程持续覆盖上线核心内容入口且保持零写�
   const publicJourney = example.journeys.find((journey) => journey.id === "public-readiness");
   const requiredStepIds = new Set([
     "health",
+    "client-remote-config",
     "home-aggregation",
     "anonymous-smart-feed",
     "classics-home",
@@ -521,4 +522,19 @@ test("仓库内公开旅程持续覆盖上线核心内容入口且保持零写�
   assert.deepEqual(new Set(publicJourney.steps.map((step) => step.id)), requiredStepIds);
   assert.ok(publicJourney.steps.every((step) => step.method === "GET"));
   assert.ok(publicJourney.steps.every((step) => !step.auth));
+  const remoteConfigStep = publicJourney.steps.find(
+    (step) => step.id === "client-remote-config",
+  );
+  assert.equal(remoteConfigStep.path, "/api/v1/config/client");
+  assert.deepEqual(
+    remoteConfigStep.expectJson.map((assertion) => assertion.pointer),
+    [
+      "/data/schemaVersion",
+      "/data/revision",
+      "/data/environment",
+      "/data/features",
+      "/data/ui",
+      "/data/maintenance/enabled",
+    ],
+  );
 });
