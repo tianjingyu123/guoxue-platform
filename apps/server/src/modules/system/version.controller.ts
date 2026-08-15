@@ -8,6 +8,7 @@ import { CheckAppVersionDto, CreateAppVersionDto, UpdateAppVersionDto } from "./
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { isAppUpdateAvailable, isValidDownloadUrl } from "./version.util";
+import { Auditable } from "../../common/audit.decorator";
 
 @ApiTags("版本更新")
 @Controller("system/version")
@@ -17,35 +18,60 @@ export class VersionController {
   @Get("check")
   @ApiOperation({ summary: "检查更新（公开）" })
   @ApiResponse({ status: 200, description: "成功" })
-  @ApiQuery({ name: "platform", required: true, description: "ios/android" })
+  @ApiQuery({ name: "platform", required: true, description: "ios/android/harmony" })
   @ApiQuery({ name: "version", required: true, description: "当前版本号 如 1.0.0" })
   @ApiQuery({ name: "buildNumber", required: false, description: "当前构建号" })
   async check(@Query() query: CheckAppVersionDto) {
-    const latest = await this.prisma.appVersion.findFirst({
-      where: { platform: query.platform },
-      orderBy: { publishedAt: "desc" },
-    });
+    const [latest, forceFloor] = await Promise.all([
+      this.prisma.appVersion.findFirst({
+        where: { platform: query.platform },
+        orderBy: { publishedAt: "desc" },
+      }),
+      this.prisma.appVersion.findFirst({
+        where: { platform: query.platform, forceUpdate: true },
+        orderBy: { publishedAt: "desc" },
+      }),
+    ]);
     if (!latest) return { hasUpdate: false, latest: null };
 
-    const hasUpdate = isAppUpdateAvailable(
-      latest.version,
+    // 强制更新是一条持续有效的最低版本线。后续发布可选更新时，不能意外解除
+    // 旧版本的强制升级要求；已达到最低线的用户仍只收到最新可选版本。
+    const belowForceFloor = !!forceFloor && isAppUpdateAvailable(
+      forceFloor.version,
       query.version,
+      forceFloor.buildNumber,
+      query.buildNumber,
+    );
+    // 低于强制最低线的用户直接获得当前最新包，避免先装最低线版本、随后
+    // 又升级一次。仅在数据异常（强制线反而比“最新”记录更新）时使用强制线包。
+    const forceFloorNewerThanLatest = !!forceFloor && isAppUpdateAvailable(
+      forceFloor.version,
+      latest.version,
+      forceFloor.buildNumber,
       latest.buildNumber,
+    );
+    const target = belowForceFloor && forceFloorNewerThanLatest ? forceFloor : latest;
+    const hasUpdate = isAppUpdateAvailable(
+      target.version,
+      query.version,
+      target.buildNumber,
       query.buildNumber,
     );
     return {
       hasUpdate,
       latest: hasUpdate ? {
-        version: latest.version,
-        buildNumber: latest.buildNumber,
-        changelog: latest.changelog,
-        forceUpdate: latest.forceUpdate,
-        downloadUrl: latest.downloadUrl,
+        version: target.version,
+        buildNumber: target.buildNumber,
+        changelog: target.changelog,
+        forceUpdate: belowForceFloor || target.forceUpdate,
+        downloadUrl: target.downloadUrl,
+        policy: belowForceFloor || target.forceUpdate ? "required" : "recommended",
       } : null,
     };
   }
 
   @Post()
+  @Auditable({ action: "发布客户端版本", targetType: "APP_VERSION" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -73,6 +99,7 @@ export class VersionController {
   }
 
   @Put(":id")
+  @Auditable({ action: "更新客户端版本策略", targetType: "APP_VERSION" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -94,7 +121,8 @@ export class VersionController {
 
   @Delete(":id")
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @Roles("SUPER_ADMIN")
+  @Auditable({ action: "删除客户端版本记录", targetType: "APP_VERSION" })
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除版本" })
   @ApiResponse({ status: 200, description: "删除成功" })

@@ -78,7 +78,7 @@ async function save() {
           headline: '即将发布强制更新版本',
           headlineTone: 'danger',
           rows: [
-            { label: '平台', value: form.platform === 'ios' ? 'iOS' : 'Android' },
+            { label: '平台', value: platformLabel(form.platform) },
             { label: '版本', value: form.version, tone: 'warning' },
           ],
           description: '所有低于该版本的用户打开 App 后将被强制要求升级，不升级无法继续使用。请确认下载地址有效、更新包已就绪。',
@@ -103,7 +103,7 @@ async function save() {
 
 async function del(row: AppVersionRow) {
   try {
-    await ElMessageBox.confirm(`确定删除 ${row.platform === 'ios' ? 'iOS' : 'Android'} 版本 ${row.version}？删除后该版本记录将不再用于客户端版本检测。`, '删除确认', { type: 'warning', confirmButtonText: '确定删除' })
+    await ElMessageBox.confirm(`确定删除 ${platformLabel(row.platform)} 版本 ${row.version}？删除后该版本记录将不再用于客户端版本检测。`, '删除确认', { type: 'warning', confirmButtonText: '确定删除' })
     await api.delete(`${BASE}/${row.id}`)
     ElMessage.success('已删除')
     fetchList()
@@ -111,6 +111,11 @@ async function del(row: AppVersionRow) {
 }
 
 function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
+function platformLabel(platform: string) {
+  if (platform === 'ios') return 'iOS'
+  if (platform === 'harmony') return '鸿蒙'
+  return 'Android'
+}
 </script>
 
 <template>
@@ -132,6 +137,10 @@ function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' 
           <el-option
             label="iOS"
             value="ios"
+          />
+          <el-option
+            label="鸿蒙"
+            value="harmony"
           />
         </el-select>
         <el-button
@@ -178,7 +187,7 @@ function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' 
             :type="row.platform === 'ios' ? 'success' : ''"
             size="small"
           >
-            {{ row.platform === 'ios' ? 'iOS' : 'Android' }}
+            {{ platformLabel(row.platform) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -263,6 +272,10 @@ function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' 
             <el-option
               label="iOS"
               value="ios"
+            />
+            <el-option
+              label="鸿蒙"
+              value="harmony"
             />
           </el-select>
         </el-form-item>

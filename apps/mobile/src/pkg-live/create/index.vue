@@ -328,6 +328,7 @@ import { liveApi, type LiveQuota, type LiveQualityPackage, type LivePickerProduc
 import { circleApi, type MyCircle } from '@/lib/circle-data'
 import { getCoinBalance } from '@/lib/circle-consult-data'
 import { uploadImage } from '@/utils/request'
+import { isClientFeatureEnabled } from '@/lib/remote-config'
 
 // 三态 UI
 const loading = ref(true)
@@ -650,6 +651,12 @@ async function onPrimary() {
     else if (startTime.value && !cover.value.trim()) uni.showToast({ title: '发布预告前请上传首图', icon: 'none' })
     else if (startTime.value && !description.value.trim()) uni.showToast({ title: '发布预告前请填写直播介绍', icon: 'none' })
     else if (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0) openBuySheet()
+    return
+  }
+  // 立即手机开播在创建房间前先检查远程开关，避免开关关闭时生成重复待开播记录。
+  // 预约直播和 OBS 配置仍可创建，真正 start 时由 liveApi.startLive 再统一校验。
+  if (!isEdit.value && liveMode.value === 'vertical' && !startTime.value && !isClientFeatureEnabled('live_start', true)) {
+    uni.showToast({ title: '直播开播功能正在维护，请稍后重试', icon: 'none' })
     return
   }
   const price = isCharge.value ? Number(chargePrice.value) : 0

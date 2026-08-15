@@ -3,8 +3,8 @@ import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateAppVersionDto {
-  @ApiProperty({ description: "平台: ios/android" })
-  @IsString() @IsIn(["ios", "android"])
+  @ApiProperty({ description: "平台: ios/android/harmony" })
+  @IsString() @IsIn(["ios", "android", "harmony"])
   platform: string;
 
   @ApiProperty({ description: "版本号 如 1.0.0" })
@@ -55,8 +55,8 @@ export class UpdateAppVersionDto {
 }
 
 export class CheckAppVersionDto {
-  @ApiProperty({ description: "平台: ios/android" })
-  @IsString() @IsIn(["ios", "android"])
+  @ApiProperty({ description: "平台: ios/android/harmony" })
+  @IsString() @IsIn(["ios", "android", "harmony"])
   platform: string;
 
   @ApiProperty({ description: "当前展示版本号，如 1.0.0" })

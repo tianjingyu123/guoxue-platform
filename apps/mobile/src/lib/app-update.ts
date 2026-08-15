@@ -28,7 +28,7 @@ function buildMessage(info: AppUpdateInfo): string {
 }
 
 function openDownload(url: string): void {
-  if (!/^(?:https?:\/\/|market:\/\/|itms-apps:\/\/)/i.test(url)) {
+  if (!/^(?:https?:\/\/|market:\/\/|itms-apps:\/\/|appmarket:\/\/)/i.test(url)) {
     uni.showToast({ title: '下载地址未正确配置，请联系客服', icon: 'none' })
     return
   }
@@ -38,6 +38,20 @@ function openDownload(url: string): void {
     url,
     () => uni.showToast({ title: '无法打开应用商店，请稍后重试', icon: 'none' }),
   )
+  // #endif
+
+  // 鸿蒙端不提供 HTML5+ runtime；上线前先以复制应用市场/下载地址兜底，
+  // 避免更新策略完全失效。后续接入审核通过的 App Linking 后可无版本替换链接。
+  // #ifdef APP-HARMONY
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showModal({
+      title: '升级地址已复制',
+      content: '请打开浏览器或应用市场粘贴访问，完成升级后重新打开应用。',
+      showCancel: false,
+    }),
+    fail: () => uni.showToast({ title: '无法复制升级地址，请联系客服', icon: 'none' }),
+  })
   // #endif
 }
 
@@ -67,7 +81,7 @@ function promptUpdate(info: AppUpdateInfo): void {
  * 强制更新会持续复检且不展示取消按钮；网络故障时允许启动，避免更新服务抖动导致全量用户被锁死。
  */
 export async function checkForAppUpdate(): Promise<void> {
-  // #ifdef APP-PLUS
+  // #ifdef APP
   const now = Date.now()
   const interval = forceUpdateActive ? FORCE_CHECK_INTERVAL : NORMAL_CHECK_INTERVAL
   if (checking || now - lastCheckedAt < interval) return
@@ -77,8 +91,9 @@ export async function checkForAppUpdate(): Promise<void> {
   try {
     const app = uni.getAppBaseInfo()
     const device = uni.getSystemInfoSync()
-    const platform = String(device.platform || '').toLowerCase()
-    if (platform !== 'ios' && platform !== 'android') return
+    const rawPlatform = String(device.platform || '').toLowerCase()
+    const platform = rawPlatform.includes('harmony') ? 'harmony' : rawPlatform
+    if (platform !== 'ios' && platform !== 'android' && platform !== 'harmony') return
 
     const version = String(app.appVersion || '').trim()
     const buildNumber = String(app.appVersionCode || '').trim()

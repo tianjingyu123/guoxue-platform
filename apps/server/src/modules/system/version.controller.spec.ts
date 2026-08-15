@@ -86,6 +86,54 @@ describe("VersionController", () => {
       expect(result.hasUpdate).toBe(true);
       expect(result.latest.buildNumber).toBe("201");
     });
+
+    it("检查更新——后续可选版本不会解除既有强制更新最低线", async () => {
+      mockPrisma.appVersion.findFirst
+        .mockResolvedValueOnce({
+          version: "2.1.0", buildNumber: "210", changelog: "体验优化",
+          forceUpdate: false, downloadUrl: "https://example.com/app-210",
+        })
+        .mockResolvedValueOnce({
+          version: "2.0.0", buildNumber: "200", changelog: "安全更新",
+          forceUpdate: true, downloadUrl: "https://example.com/app-200",
+        });
+
+      const result: any = await ctrl.check({
+        platform: "android",
+        version: "1.9.0",
+        buildNumber: "190",
+      });
+
+      expect(result.latest).toMatchObject({
+        version: "2.1.0",
+        forceUpdate: true,
+        policy: "required",
+      });
+    });
+
+    it("检查更新——达到强制线后继续收到最新可选版本", async () => {
+      mockPrisma.appVersion.findFirst
+        .mockResolvedValueOnce({
+          version: "2.1.0", buildNumber: "210", changelog: "体验优化",
+          forceUpdate: false, downloadUrl: "https://example.com/app-210",
+        })
+        .mockResolvedValueOnce({
+          version: "2.0.0", buildNumber: "200", changelog: "安全更新",
+          forceUpdate: true, downloadUrl: "https://example.com/app-200",
+        });
+
+      const result: any = await ctrl.check({
+        platform: "android",
+        version: "2.0.0",
+        buildNumber: "200",
+      });
+
+      expect(result.latest).toMatchObject({
+        version: "2.1.0",
+        forceUpdate: false,
+        policy: "recommended",
+      });
+    });
   });
 
   describe("管理接口", () => {
@@ -96,6 +144,19 @@ describe("VersionController", () => {
       });
       const result: any = await ctrl.adminCreate({ platform: "ios", version: "1.1.0", buildNumber: "5" } as any);
       expect(result.version).toBe("1.1.0");
+    });
+
+    it("发布鸿蒙版本", async () => {
+      mockPrisma.appVersion.findFirst.mockResolvedValue(null);
+      mockPrisma.appVersion.create.mockResolvedValue({
+        id: "v-harmony", platform: "harmony", version: "1.1.0", buildNumber: "5",
+        forceUpdate: true, downloadUrl: "appmarket://details?id=com.rebu.iosapprebu",
+      });
+      const result: any = await ctrl.adminCreate({
+        platform: "harmony", version: "1.1.0", buildNumber: "5",
+        forceUpdate: true, downloadUrl: "appmarket://details?id=com.rebu.iosapprebu",
+      } as any);
+      expect(result.platform).toBe("harmony");
     });
 
     it("发布版本——拒绝覆盖为更低构建", async () => {

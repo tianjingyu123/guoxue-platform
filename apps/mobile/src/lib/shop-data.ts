@@ -7,6 +7,7 @@ import { apiGet, apiGetOptionalAuth, apiGetPaged, apiPost, apiPut, apiDelete } f
 import { getTempReferrer } from '@/utils/referral'
 import { couponApi } from '@/lib/coupon-data'
 import { unescapeEntities, normalizeRichContent } from '@/utils/rich-content'
+import { isClientFeatureEnabled } from '@/lib/remote-config'
 
 /* ============================================================
    内容来源暂存（佣-V2-P3）：文章/内容页 → 商品详情 → 结算的间接购买链路
@@ -1758,11 +1759,18 @@ export const shopApi = {
    * 未显式传入时回落会话内暂存来源（文章→商品详情→结算的间接链路），仅当商品匹配才带上。
    */
   async createOrder(payload: { type?: string; targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId?: string; sourceContentType?: string; sourceContentId?: string }): Promise<{ id: string; amount: number; status: string }> {
+    const orderType = String(payload.type || 'PRODUCT').toUpperCase()
+    const featureKey = orderType === 'MEMBER' ? 'member_purchase' : 'shop_checkout'
+    if (!isClientFeatureEnabled(featureKey, true)) {
+      throw new Error(orderType === 'MEMBER'
+        ? '会员购买正在维护，已有会员权益不受影响，请稍后重试'
+        : '商城结算正在维护，购物车内容不会丢失，请稍后重试')
+    }
     const source = (payload.sourceContentType && payload.sourceContentId)
       ? { type: payload.sourceContentType, id: payload.sourceContentId }
       : peekOrderSource(payload.targetId)
     const res = await apiPost<{ id?: string; amount?: number | string; status?: string }>('/shop/orders', {
-      type: payload.type || 'PRODUCT',
+      type: orderType,
       targetId: payload.targetId,
       skuId: payload.skuId || undefined,
       amount: Math.max(1, Number(payload.quantity) || 1),

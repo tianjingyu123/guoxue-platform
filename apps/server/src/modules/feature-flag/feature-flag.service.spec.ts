@@ -10,6 +10,12 @@ const mockPrisma = {
     upsert: jest.fn(),
     delete: jest.fn(),
   },
+  configVersion: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+  },
+  $transaction: jest.fn(async (callback: (tx: any) => Promise<any>) => callback(mockPrisma)),
 };
 
 const mockRedis = {
@@ -35,6 +41,10 @@ describe("FeatureFlagService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRedis.getJson.mockResolvedValue(null);
+    mockPrisma.featureFlag.findUnique.mockResolvedValue(null);
+    mockPrisma.configVersion.findFirst.mockResolvedValue(null);
+    mockPrisma.configVersion.findMany.mockResolvedValue([]);
+    mockPrisma.configVersion.create.mockResolvedValue({});
   });
 
   describe("isEnabled", () => {
@@ -120,6 +130,25 @@ describe("FeatureFlagService", () => {
     });
   });
 
+  describe("getClientFeatures", () => {
+    it("仅下发 client_ 前缀和显式兼容白名单，内部开关不公开", async () => {
+      const flags = [
+        { key: "client_home_v2", enabled: true, percentage: 100, targetUserIds: [] },
+        { key: "live_start", enabled: true, percentage: 100, targetUserIds: [] },
+        { key: "risk_fraud_scan", enabled: true, percentage: 100, targetUserIds: [] },
+      ];
+      mockPrisma.featureFlag.findMany.mockResolvedValue(flags);
+      mockPrisma.featureFlag.findUnique.mockImplementation(async ({ where }: any) =>
+        flags.find((flag) => flag.key === where.key) ?? null,
+      );
+
+      const result = await svc.getClientFeatures("u1");
+
+      expect(result).toEqual({ client_home_v2: true, live_start: true });
+      expect(result).not.toHaveProperty("risk_fraud_scan");
+    });
+  });
+
   describe("getByKey", () => {
     it("返回开关详情", async () => {
       const flag = { key: "f1", enabled: true, percentage: 100, targetUserIds: [] };
@@ -138,7 +167,7 @@ describe("FeatureFlagService", () => {
 
   describe("upsert", () => {
     it("创建新开关", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "new_key", enabled: true, percentage: 100, targetUserIds: [] });
+      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "new_key", name: "new_key", description: null, enabled: true, percentage: 100, targetUserIds: [] });
       const result = await svc.upsert("new_key", { enabled: true });
       expect(result.key).toBe("new_key");
       expect(mockRedis.del).toHaveBeenCalledWith("feature:new_key");
@@ -146,16 +175,116 @@ describe("FeatureFlagService", () => {
     });
 
     it("更新现有开关", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "existing", enabled: false, percentage: 50, targetUserIds: ["u1"] });
+      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "existing", name: "existing", description: null, enabled: false, percentage: 50, targetUserIds: ["u1"] });
       const result = await svc.upsert("existing", { percentage: 50, targetUserIds: ["u1"] });
       expect(result.percentage).toBe(50);
     });
 
     it("upsert 后清除缓存", async () => {
-      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "k1" });
+      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "k1", name: "k1", description: null, enabled: false, percentage: 100, targetUserIds: [] });
       await svc.upsert("k1", {});
       expect(mockRedis.del).toHaveBeenCalledWith("feature:k1");
       expect(mockRedis.del).toHaveBeenCalledWith("feature:list");
+    });
+
+    it("拒绝不合法 key，避免通过路径或大小写创建影子开关", async () => {
+      await expect(svc.upsert("../BAD", {})).rejects.toThrow("功能开关 key 格式不合法");
+      expect(mockPrisma.featureFlag.upsert).not.toHaveBeenCalled();
+    });
+
+    it("清理并去重指定用户列表", async () => {
+      mockPrisma.featureFlag.upsert.mockResolvedValue({ key: "client_demo", name: "client_demo", description: null, enabled: false, percentage: 100, targetUserIds: ["u1", "u2"] });
+      await svc.upsert("client_demo", { targetUserIds: [" u1 ", "u1", "", "u2"] });
+      expect(mockPrisma.featureFlag.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        create: expect.objectContaining({ targetUserIds: ["u1", "u2"] }),
+        update: expect.objectContaining({ targetUserIds: ["u1", "u2"] }),
+      }));
+    });
+
+    it("每次有效变更写入可回滚快照", async () => {
+      mockPrisma.featureFlag.upsert.mockResolvedValue({
+        key: "client_demo", name: "演示", description: null,
+        enabled: true, percentage: 25, targetUserIds: ["u1"],
+      });
+      mockPrisma.configVersion.findFirst.mockResolvedValue({ version: 2 });
+
+      await svc.upsert("client_demo", {
+        name: "演示", enabled: true, percentage: 25, targetUserIds: ["u1"],
+      }, "admin");
+
+      expect(mockPrisma.configVersion.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          configKey: "feature_flag:client_demo",
+          version: 3,
+          changedBy: "admin",
+          value: expect.objectContaining({ enabled: true, percentage: 25 }),
+        }),
+      });
+    });
+
+    it("既有开关首次变更时先保存变更前快照", async () => {
+      mockPrisma.featureFlag.findUnique.mockResolvedValue({
+        key: "client_demo", name: "演示", description: "旧说明",
+        enabled: false, percentage: 10, targetUserIds: ["u1"],
+      });
+      mockPrisma.featureFlag.upsert.mockResolvedValue({
+        key: "client_demo", name: "演示", description: "新说明",
+        enabled: true, percentage: 100, targetUserIds: [],
+      });
+      mockPrisma.configVersion.findFirst.mockResolvedValue(null);
+
+      await svc.upsert("client_demo", {
+        description: "新说明", enabled: true, percentage: 100, targetUserIds: [],
+      }, "admin");
+
+      expect(mockPrisma.configVersion.create).toHaveBeenNthCalledWith(1, {
+        data: expect.objectContaining({
+          configKey: "feature_flag:client_demo",
+          version: 1,
+          value: expect.objectContaining({ enabled: false, percentage: 10 }),
+        }),
+      });
+      expect(mockPrisma.configVersion.create).toHaveBeenNthCalledWith(2, {
+        data: expect.objectContaining({
+          configKey: "feature_flag:client_demo",
+          version: 2,
+          changedBy: "admin",
+          value: expect.objectContaining({ enabled: true, percentage: 100 }),
+        }),
+      });
+    });
+  });
+
+  describe("history / rollback", () => {
+    it("查询最近 50 条开关历史", async () => {
+      mockPrisma.configVersion.findMany.mockResolvedValue([{ version: 2 }, { version: 1 }]);
+      const result = await svc.getHistory("client_demo");
+      expect(result).toHaveLength(2);
+      expect(mockPrisma.configVersion.findMany).toHaveBeenCalledWith({
+        where: { configKey: "feature_flag:client_demo" },
+        orderBy: { version: "desc" },
+        take: 50,
+      });
+    });
+
+    it("回滚前校验快照并生成新的历史版本", async () => {
+      mockPrisma.configVersion.findFirst.mockResolvedValue({
+        value: {
+          key: "client_demo", name: "演示", description: "历史值",
+          enabled: false, percentage: 10, targetUserIds: ["u1"],
+        },
+      });
+      mockPrisma.featureFlag.upsert.mockResolvedValue({
+        key: "client_demo", name: "演示", description: "历史值",
+        enabled: false, percentage: 10, targetUserIds: ["u1"],
+      });
+
+      const result = await svc.rollback("client_demo", 1, "admin");
+
+      expect(result.enabled).toBe(false);
+      expect(mockPrisma.featureFlag.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        update: expect.objectContaining({ enabled: false, percentage: 10 }),
+      }));
     });
   });
 

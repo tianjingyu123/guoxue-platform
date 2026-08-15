@@ -5,8 +5,18 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { coreEntries, serviceGroups } from '@/lib/discover-data'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
+import { isClientFeatureEnabled } from '@/lib/remote-config'
 
 const emit = defineEmits<{ close: [] }>()
+
+const visibleServiceGroups = serviceGroups
+  .map((group) => ({
+    ...group,
+    items: group.items.filter((item) =>
+      item.id !== 'merchant' || isClientFeatureEnabled('merchant_onboarding', false),
+    ),
+  }))
+  .filter((group) => group.items.length > 0)
 
 useOverlayScrollLock(
   () => true,
@@ -64,7 +74,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
           </view>
         </view>
         <!-- 分组服务（学习互动 / 经营变现等） -->
-        <view v-for="g in serviceGroups" :key="g.title" class="af-group">
+        <view v-for="g in visibleServiceGroups" :key="g.title" class="af-group">
           <view class="af-group-head"><view class="af-bar" /><text class="af-group-title">{{ g.title }}</text></view>
           <view class="af-grid">
             <view

@@ -7,6 +7,7 @@ import { hydrateBrandConfig } from '@/lib/brand'
 import { beginAuthHandoff, exchangeHandoff } from '@/utils/request'
 import { requestParentContentLayerClose } from '@/utils/content-detail-layer'
 import { checkForAppUpdate } from '@/lib/app-update'
+import { hydrateRemoteConfig, notifyMaintenanceIfNeeded } from '@/lib/remote-config'
 
 type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
 
@@ -110,6 +111,8 @@ onLaunch((options?: { query?: Record<string, unknown> }) => {
   try { bootstrapHandoff(options?.query) } catch { /* 不影响启动 */ }
   // 品牌配置水合（租-T0）：从后端拉取站名/标语/主色等，失败静默用内置默认值
   hydrateBrandConfig()
+  // 远程配置 V1：失败时自动使用最近有效快照/内置默认值，绝不阻断启动。
+  void hydrateRemoteConfig().then(notifyMaintenanceIfNeeded)
   // RUM 性能采集（T3 可观测·仅 H5 生效）
   initWebVitals()
   // 推荐归因：冷启动落地页携带 ref（分享链接）时记录最近分享者
@@ -146,6 +149,8 @@ onShow((options?: { query?: Record<string, unknown> }) => {
   // 仅 App 正式包会执行；H5/小程序编译时为空操作。
   // 网络失败不阻断启动，强制更新由服务端版本策略控制。
   void checkForAppUpdate()
+  // 热启动按服务端 TTL 复检；命中缓存不会重复发请求。
+  void hydrateRemoteConfig().then(notifyMaintenanceIfNeeded)
 })
 // 切后台主动 flush 埋点队列，避免残留事件丢失
 onHide(() => { track.flushNow() })

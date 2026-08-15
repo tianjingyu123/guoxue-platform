@@ -15,6 +15,14 @@ const CONFIG_CACHE_TTL = 3600; // 1小时
 const CONFIG_CACHE_PREFIX = "sys:config:";
 const MEMBER_PLAN_LEVELS = new Set(["MONTHLY", "QUARTERLY", "YEARLY", "YEARLY_AUTO", "LIFETIME"]);
 
+function isVersionedRemoteConfigKey(key: string): boolean {
+  return key === "maintenance_mode"
+    || key.startsWith("home")
+    || key.startsWith("client.")
+    || key.startsWith("client_")
+    || key.startsWith("agent_card.");
+}
+
 type MemberConfigCreateInput = {
   level: string;
   name: string;
@@ -102,7 +110,19 @@ export class SystemService {
         办公效率: "g-office",
       }),
     ]);
-    return { home: { bigCardInterval }, agentCard: { categoryColors: agentCardColors } };
+    const safeCategoryColors = Object.fromEntries(
+      Object.entries(agentCardColors)
+        .filter(([category, cssClass]) =>
+          category.length <= 40
+          && typeof cssClass === "string"
+          && /^g-[a-z0-9-]{1,32}$/.test(cssClass),
+        )
+        .slice(0, 50),
+    );
+    return {
+      home: { bigCardInterval: Math.min(30, Math.max(1, Math.round(bigCardInterval))) },
+      agentCard: { categoryColors: safeCategoryColors },
+    };
   }
 
   async setConfig(key: string, value: string, description?: string, updatedBy?: string) {
@@ -110,11 +130,50 @@ export class SystemService {
     const storedValue = this.thirdParty.isThirdPartyKey(key)
       ? await this.thirdParty.buildStoredValue(key, value)
       : value;
-    const result = await this.prisma.configSystem.upsert({
-      where: { configKey: key },
-      create: { configKey: key, configValue: storedValue, description, updatedBy },
-      update: { configValue: storedValue, description, updatedBy },
-    });
+    const shouldVersion = !this.thirdParty.isThirdPartyKey(key) && isVersionedRemoteConfigKey(key);
+    const result = shouldVersion
+      ? await this.prisma.$transaction(async (tx) => {
+          const existing = await tx.configSystem.findUnique({ where: { configKey: key } });
+          const saved = await tx.configSystem.upsert({
+            where: { configKey: key },
+            create: { configKey: key, configValue: storedValue, description, updatedBy },
+            update: { configValue: storedValue, description, updatedBy },
+          });
+          if (existing?.configValue !== storedValue) {
+            const latest = await tx.configVersion.findFirst({
+              where: { configKey: key },
+              orderBy: { version: "desc" },
+              select: { version: true },
+            });
+            let nextVersion = latest?.version ?? 0;
+            if (!latest && existing) {
+              await tx.configVersion.create({
+                data: {
+                  configKey: key,
+                  value: existing.configValue,
+                  version: 1,
+                  comment: "首次纳入版本管理（变更前快照）",
+                },
+              });
+              nextVersion = 1;
+            }
+            await tx.configVersion.create({
+              data: {
+                configKey: key,
+                value: storedValue,
+                version: nextVersion + 1,
+                changedBy: updatedBy,
+                comment: description,
+              },
+            });
+          }
+          return saved;
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+      : await this.prisma.configSystem.upsert({
+          where: { configKey: key },
+          create: { configKey: key, configValue: storedValue, description, updatedBy },
+          update: { configValue: storedValue, description, updatedBy },
+        });
     // 失效缓存
     await this.redis.del(CONFIG_CACHE_PREFIX + key);
     await this.redis.del(CONFIG_CACHE_PREFIX + "all");
@@ -711,7 +770,7 @@ export class SystemService {
 
     const value = versionRecord.value;
     const rollbackValue = typeof value === "string" ? value : JSON.stringify(value);
-    await this.setConfig(configKey, rollbackValue, `回滚到版本 v${version}`);
+    await this.setConfig(configKey, rollbackValue, `回滚到版本 v${version}`, operator);
 
     await this.audit.log({
       action: "config.rollback",

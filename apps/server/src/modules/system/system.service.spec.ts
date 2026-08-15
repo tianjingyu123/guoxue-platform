@@ -16,6 +16,10 @@ const mockPrisma = {
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
+  configVersion: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+  },
   brandConfig: { findUnique: jest.fn(), upsert: jest.fn() },
   auditLog: { findMany: jest.fn(), count: jest.fn() },
   siteNotice: { findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
@@ -27,6 +31,7 @@ const mockPrisma = {
     delete: jest.fn(),
   },
   order: { count: jest.fn() },
+  $transaction: jest.fn(async (callback: (tx: any) => Promise<any>) => callback(mockPrisma)),
 };
 const mockRedis = {
   get: jest.fn(),
@@ -121,6 +126,109 @@ describe("SystemService", () => {
       await svc.setConfig("new_key", "value", "描述", "admin");
       expect(mockRedis.del).toHaveBeenCalledWith("sys:config:new_key");
       expect(mockRedis.del).toHaveBeenCalledWith("sys:config:all");
+    });
+
+    it("远程配置变更写入可回滚版本，重复保存相同值不制造噪声版本", async () => {
+      mockPrisma.configSystem.findUnique.mockResolvedValue({
+        configKey: "home:layout",
+        configValue: "old-layout",
+      });
+      mockPrisma.configSystem.upsert.mockResolvedValue({
+        configKey: "home:layout",
+        configValue: "new-layout",
+      });
+      mockPrisma.configVersion.findFirst.mockResolvedValue({ version: 3 });
+      mockPrisma.configVersion.create.mockResolvedValue({});
+
+      await svc.setConfig("home:layout", "new-layout", "首页布局调整", "admin");
+
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(mockPrisma.configVersion.create).toHaveBeenCalledWith({
+        data: {
+          configKey: "home:layout",
+          value: "new-layout",
+          version: 4,
+          changedBy: "admin",
+          comment: "首页布局调整",
+        },
+      });
+
+      jest.clearAllMocks();
+      mockPrisma.configSystem.findUnique.mockResolvedValue({
+        configKey: "home:layout",
+        configValue: "new-layout",
+      });
+      mockPrisma.configSystem.upsert.mockResolvedValue({
+        configKey: "home:layout",
+        configValue: "new-layout",
+      });
+      await svc.setConfig("home:layout", "new-layout", "重复保存", "admin");
+      expect(mockPrisma.configVersion.create).not.toHaveBeenCalled();
+    });
+
+    it("第三方密钥不进入配置版本表，避免历史表泄露凭据", async () => {
+      mockThirdParty.isThirdPartyKey.mockReturnValue(true);
+      mockPrisma.configSystem.upsert.mockResolvedValue({ configKey: "wechat_pay", configValue: "ciphertext" });
+
+      await svc.setConfig("wechat_pay", "masked-json", "支付配置", "admin");
+
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockPrisma.configVersion.create).not.toHaveBeenCalled();
+      mockThirdParty.isThirdPartyKey.mockReturnValue(false);
+    });
+  });
+
+  describe("远程配置首次版本与 UI 安全边界", () => {
+    it("既有远程配置首次变更时保留变更前快照", async () => {
+      mockPrisma.configSystem.findUnique.mockResolvedValue({
+        configKey: "home.bigCardInterval",
+        configValue: "6",
+      });
+      mockPrisma.configSystem.upsert.mockResolvedValue({
+        configKey: "home.bigCardInterval",
+        configValue: "8",
+      });
+      mockPrisma.configVersion.findFirst.mockResolvedValue(null);
+      mockPrisma.configVersion.create.mockResolvedValue({});
+
+      await svc.setConfig("home.bigCardInterval", "8", "调整首页轮播", "admin");
+
+      expect(mockPrisma.configVersion.create).toHaveBeenNthCalledWith(1, {
+        data: expect.objectContaining({
+          configKey: "home.bigCardInterval",
+          value: "6",
+          version: 1,
+        }),
+      });
+      expect(mockPrisma.configVersion.create).toHaveBeenNthCalledWith(2, {
+        data: expect.objectContaining({
+          configKey: "home.bigCardInterval",
+          value: "8",
+          version: 2,
+          changedBy: "admin",
+        }),
+      });
+    });
+
+    it("限制数值范围并过滤非白名单样式", async () => {
+      mockRedis.getJson.mockResolvedValue(null);
+      mockPrisma.configSystem.findUnique.mockImplementation(async ({ where }: any) => {
+        if (where.configKey === "home.bigCardInterval") {
+          return { configKey: where.configKey, configValue: "999" };
+        }
+        return {
+          configKey: where.configKey,
+          configValue: JSON.stringify({
+            合法分类: "g-safe",
+            非法分类: "url(javascript:alert(1))",
+          }),
+        };
+      });
+
+      const result = await svc.getUiConfig();
+
+      expect(result.home.bigCardInterval).toBe(30);
+      expect(result.agentCard.categoryColors).toEqual({ 合法分类: "g-safe" });
     });
   });
 

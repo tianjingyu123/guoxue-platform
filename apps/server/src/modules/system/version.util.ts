@@ -88,5 +88,5 @@ export function isValidAppVersion(value: string): boolean {
 
 export function isValidDownloadUrl(value?: string | null): boolean {
   if (!value) return false;
-  return /^(?:https?:\/\/|market:\/\/|itms-apps:\/\/)/i.test(value.trim());
+  return /^(?:https?:\/\/|market:\/\/|itms-apps:\/\/|appmarket:\/\/)/i.test(value.trim());
 }

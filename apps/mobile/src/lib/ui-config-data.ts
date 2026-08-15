@@ -1,9 +1,9 @@
 /**
  * 前端 UI 运营配置（P1 运营配置最小闭环）
- * 真连 GET /system/ui-config（公开）：后台改 ConfigSystem 对应键 → 前端展示随之变化。
+ * 统一复用 GET /config/client 远程配置快照：后台改 ConfigSystem 对应键 → 前端展示随之变化。
  * 失败/未配置 → 用内置默认，绝不影响页面可用。
  */
-import { apiGet } from '@/utils/request'
+import { getRemoteConfig, hydrateRemoteConfig } from '@/lib/remote-config'
 
 export interface UiConfig {
   home: { bigCardInterval: number }
@@ -21,9 +21,8 @@ const DEFAULT_UI_CONFIG: UiConfig = {
 let cached: UiConfig | null = null
 
 export async function getUiConfig(force = false): Promise<UiConfig> {
-  if (cached && !force) return cached
   try {
-    const data = await apiGet<Partial<UiConfig>>('/system/ui-config')
+    const data = (await hydrateRemoteConfig(force)).ui
     cached = {
       home: { bigCardInterval: Number(data?.home?.bigCardInterval) || DEFAULT_UI_CONFIG.home.bigCardInterval },
       agentCard: {
@@ -40,5 +39,7 @@ export async function getUiConfig(force = false): Promise<UiConfig> {
 
 /** 同步取已缓存配置（未拉取则返回默认）——供叶子组件同步读取 */
 export function getCachedUiConfig(): UiConfig {
-  return cached || DEFAULT_UI_CONFIG
+  if (cached) return cached
+  const data = getRemoteConfig().ui
+  return data || DEFAULT_UI_CONFIG
 }

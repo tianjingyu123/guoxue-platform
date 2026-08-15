@@ -10,7 +10,18 @@ interface FeatureFlagRow {
   name?: string
   description?: string
   enabled?: boolean
+  percentage?: number
+  targetUserIds?: string[]
   updatedAt?: string
+}
+
+interface FeatureFlagHistoryRow {
+  id: string
+  version: number
+  value?: FeatureFlagRow
+  changedBy?: string
+  comment?: string
+  createdAt?: string
 }
 
 const loading = ref(false)
@@ -21,12 +32,18 @@ const total = ref(0)
 const page = ref(1)
 const vis = ref(false)
 const editingId = ref('')
+const historyVis = ref(false)
+const historyLoading = ref(false)
+const historyFlag = ref<FeatureFlagRow | null>(null)
+const historyRows = ref<FeatureFlagHistoryRow[]>([])
 
 const form = reactive({
   key: '',
   name: '',
   description: '',
   enabled: false,
+  percentage: 100,
+  targetUserIdsText: '',
 })
 
 const BASE = '/admin/feature-flags'
@@ -47,16 +64,18 @@ async function fetchList() {
 
 function openCreate() {
   editingId.value = ''
-  Object.assign(form, { key: '', name: '', description: '', enabled: false })
+  Object.assign(form, { key: '', name: '', description: '', enabled: false, percentage: 100, targetUserIdsText: '' })
   vis.value = true
 }
 
 function openEdit(row: FeatureFlagRow) {
-  editingId.value = row.id || row.key
+  editingId.value = row.key
   form.key = row.key
   form.name = row.name || ''
   form.description = row.description || ''
   form.enabled = !!row.enabled
+  form.percentage = Number.isFinite(row.percentage) ? Number(row.percentage) : 100
+  form.targetUserIdsText = (row.targetUserIds || []).join('\n')
   vis.value = true
 }
 
@@ -65,10 +84,17 @@ async function save() {
   if (!form.name) { ElMessage.warning('请输入功能名称'); return }
   saving.value = true
   try {
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim(),
+      enabled: form.enabled,
+      percentage: form.percentage,
+      targetUserIds: [...new Set(form.targetUserIdsText.split(/[\n,，]/).map((id) => id.trim()).filter(Boolean))],
+    }
     if (editingId.value) {
-      await api.put(`${BASE}/${editingId.value}`, form)
+      await api.put(`${BASE}/${form.key}`, payload)
     } else {
-      await api.post(BASE, form)
+      await api.post(BASE, { key: form.key.trim(), ...payload })
     }
     ElMessage.success('已保存')
     vis.value = false
@@ -98,7 +124,13 @@ async function toggleEnabled(row: FeatureFlagRow) {
   const oldVal = row.enabled
   row.enabled = target
   try {
-    await api.put(`${BASE}/${row.key}`, { ...row, enabled: row.enabled })
+    await api.put(`${BASE}/${row.key}`, {
+      name: row.name || row.key,
+      description: row.description || '',
+      enabled: row.enabled,
+      percentage: Number.isFinite(row.percentage) ? row.percentage : 100,
+      targetUserIds: row.targetUserIds || [],
+    })
     ElMessage.success(row.enabled ? '已开启' : '已关闭')
   } catch {
     row.enabled = oldVal
@@ -113,9 +145,38 @@ async function del(row: FeatureFlagRow) {
       '删除开关确认',
       { type: 'warning', confirmButtonText: '确定删除' },
     )
-    await api.delete(`${BASE}/${row.id || row.key}`)
+    await api.delete(`${BASE}/${row.key}`)
     ElMessage.success('已删除')
     fetchList()
+  } catch { /* cancelled */ }
+}
+
+async function openHistory(row: FeatureFlagRow) {
+  historyFlag.value = row
+  historyRows.value = []
+  historyVis.value = true
+  historyLoading.value = true
+  try {
+    const { data } = await api.get(`${BASE}/${row.key}/history`)
+    historyRows.value = Array.isArray(data) ? data : []
+  } catch {
+    ElMessage.error('历史版本加载失败')
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+async function rollbackHistory(row: FeatureFlagHistoryRow) {
+  if (!historyFlag.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确定将功能开关「${historyFlag.value.name || historyFlag.value.key}」回滚到 v${row.version}？回滚会立即生成一条新的历史版本。`,
+      '回滚功能开关',
+      { type: 'warning', confirmButtonText: '确认回滚' },
+    )
+    await api.post(`${BASE}/${historyFlag.value.key}/rollback/${row.version}`)
+    ElMessage.success('回滚成功')
+    await Promise.all([fetchList(), openHistory(historyFlag.value)])
   } catch { /* cancelled */ }
 }
 </script>
@@ -130,6 +191,14 @@ async function del(row: FeatureFlagRow) {
         添加开关
       </el-button>
     </div>
+
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      title="客户端可见开关请使用 client_ 前缀；服务端内部开关不会下发到客户端。灰度用户始终优先于百分比。"
+      style="margin-bottom:12px"
+    />
 
     <el-alert
       v-if="loadError"
@@ -179,6 +248,15 @@ async function del(row: FeatureFlagRow) {
         </template>
       </el-table-column>
       <el-table-column
+        prop="percentage"
+        label="灰度比例"
+        width="100"
+      >
+        <template #default="{ row }">
+          {{ Number.isFinite(row.percentage) ? row.percentage : 100 }}%
+        </template>
+      </el-table-column>
+      <el-table-column
         prop="description"
         label="描述"
         min-width="220"
@@ -194,7 +272,7 @@ async function del(row: FeatureFlagRow) {
       </el-table-column>
       <el-table-column
         label="操作"
-        width="140"
+        width="220"
         fixed="right"
       >
         <template #default="{ row }">
@@ -205,6 +283,15 @@ async function del(row: FeatureFlagRow) {
             编辑
           </el-button>
           <el-button
+            v-permission="['SUPER_ADMIN']"
+            size="small"
+            type="warning"
+            @click="openHistory(row)"
+          >
+            历史
+          </el-button>
+          <el-button
+            v-permission="['SUPER_ADMIN']"
             size="small"
             type="danger"
             @click="del(row)"
@@ -273,6 +360,22 @@ async function del(row: FeatureFlagRow) {
             inactive-text="关闭"
           />
         </el-form-item>
+        <el-form-item label="灰度比例">
+          <el-slider
+            v-model="form.percentage"
+            :min="0"
+            :max="100"
+            show-input
+          />
+        </el-form-item>
+        <el-form-item label="指定用户">
+          <el-input
+            v-model="form.targetUserIdsText"
+            type="textarea"
+            :rows="4"
+            placeholder="每行一个用户 ID；指定用户不受灰度比例限制"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="vis = false">
@@ -286,6 +389,48 @@ async function del(row: FeatureFlagRow) {
           保存
         </el-button>
       </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="historyVis"
+      :title="`功能开关历史：${historyFlag?.name || historyFlag?.key || ''}`"
+      width="760px"
+    >
+      <el-table
+        v-loading="historyLoading"
+        :data="historyRows"
+        max-height="480"
+      >
+        <el-table-column label="版本" width="80">
+          <template #default="{ row }">v{{ row.version }}</template>
+        </el-table-column>
+        <el-table-column label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.value?.enabled ? 'success' : 'info'">
+              {{ row.value?.enabled ? '开启' : '关闭' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="灰度" width="80">
+          <template #default="{ row }">{{ row.value?.percentage ?? 100 }}%</template>
+        </el-table-column>
+        <el-table-column prop="changedBy" label="操作人" width="120" />
+        <el-table-column prop="comment" label="说明" min-width="140" />
+        <el-table-column label="时间" width="170">
+          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="90" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              type="warning"
+              @click="rollbackHistory(row)"
+            >
+              回滚
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
     </el-dialog>
   </div>
 </template>

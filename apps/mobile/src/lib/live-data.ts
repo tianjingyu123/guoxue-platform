@@ -2,6 +2,7 @@
 // 说明：原型封面/头像为 mock 配图，dev 下回退占位；此处统一用 /marketing 占位路径，比对时会被中和
 
 import { apiGet, apiGetOptionalAuth, apiPost, apiPostOptionalAuth, apiPut, apiDelete } from '@/utils/request'
+import { isClientFeatureEnabled } from '@/lib/remote-config'
 
 export type LiveStatus = 'live' | 'upcoming' | 'replay'
 export type LiveType = 'knowledge' | 'commerce'
@@ -1522,6 +1523,9 @@ export const liveApi = {
 
   /** 开始直播（房主本人或管理员） — PUT /live/rooms/:id/start（后端生成推拉流地址+建 IM 弹幕群） */
   async startLive(roomId: string): Promise<{ id: string; status?: string; imGroupId?: string }> {
+    if (!isClientFeatureEnabled('live_start', true)) {
+      throw new Error('直播开播功能正在维护，已创建的直播不会丢失，请稍后重试')
+    }
     return await apiPut<{ id: string; status?: string; imGroupId?: string }>(`/live/rooms/${roomId}/start`)
   },
 
