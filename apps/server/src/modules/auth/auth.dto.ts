@@ -13,6 +13,11 @@ export class PhoneRegisterDto {
   @MinLength(1)
   phone: string;
 
+  @ApiProperty({ description: "注册短信验证码", example: "123456" })
+  @IsString()
+  @Matches(/^\d{6}$/, { message: "验证码必须为 6 位数字" })
+  code: string;
+
   @ApiProperty({ description: "密码，至少8位，需包含大小写字母和数字", example: "Abc12345" })
   @IsString()
   @MinLength(8)

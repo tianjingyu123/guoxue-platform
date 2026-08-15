@@ -53,7 +53,7 @@ describe("AuthController", () => {
 
   describe("注册", () => {
     it("POST /auth/register/phone — 手机号注册", async () => {
-      const dto: any = { phone: "13800000001", password: "Abc@1234", nickname: "张三" };
+      const dto: any = { phone: "13800000001", code: "123456", password: "Abc@1234", nickname: "张三" };
       const result = await ctrl.phoneRegister(dto, mockReq());
       expect(result.user.nickname).toBe("张三");
       expect(mockAuthSvc.phoneRegister).toHaveBeenCalledWith(dto);

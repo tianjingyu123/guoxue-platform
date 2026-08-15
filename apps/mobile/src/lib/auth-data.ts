@@ -116,6 +116,7 @@ export const authApi = {
     try {
       const data = await apiPost<RawAuthData>('/auth/register/phone', {
         phone: params.phone,
+        code: params.code,
         password: params.password,
         nickname: params.nickname,
         // 推荐归因：注册时绑定永久归属分站（值=分享者用户ID或分站推广码，后端解析）

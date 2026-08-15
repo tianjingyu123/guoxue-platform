@@ -138,8 +138,10 @@ describe("AuthService", () => {
       const result = await svc.phoneRegister({
         nickname: "张三",
         phone: "13800138000",
+        code: "123456",
         password: "123456",
       });
+      expect(mockSms.verifyCode).toHaveBeenCalledWith("13800138000", "123456", "REGISTER");
       expect(result.accessToken).toBe("token");
       expect(result.user).toBeTruthy();
       expect(mockPrisma.user.create).toHaveBeenCalledWith(
@@ -161,10 +163,25 @@ describe("AuthService", () => {
         ]),
       );
     });
+    it("验证码未通过时不查询或创建账号", async () => {
+      mockSms.verifyCode.mockRejectedValueOnce(
+        new BusinessException(ErrorCode.AUTH_SMS_CODE_INVALID, "验证码错误"),
+      );
+      await expect(
+        svc.phoneRegister({
+          nickname: "张三",
+          phone: "13800138000",
+          code: "000000",
+          password: "123456",
+        }),
+      ).rejects.toThrow(BusinessException);
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    });
     it("手机号已注册抛出 ConflictException", async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: "existing" });
       await expect(
-        svc.phoneRegister({ nickname: "张三", phone: "13800138000", password: "123456" }),
+        svc.phoneRegister({ nickname: "张三", phone: "13800138000", code: "123456", password: "123456" }),
       ).rejects.toThrow(BusinessException);
     });
     it("带推荐码注册成功", async () => {
@@ -187,6 +204,7 @@ describe("AuthService", () => {
       const result = await svc.phoneRegister({
         nickname: "李四",
         phone: "13900000000",
+        code: "123456",
         password: "123456",
         referrerCode: "ABC123",
       });

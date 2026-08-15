@@ -16,6 +16,7 @@ import { WechatPayService } from "../src/modules/shop/wechat-pay.service"
 describe("核心业务流程 E2E", () => {
   let app: INestApplication
   let prisma: any
+  let redis: any
   let jwt: JwtService
   let bcrypt: any
 
@@ -23,6 +24,7 @@ describe("核心业务流程 E2E", () => {
     const ctx = await createE2eApp()
     app = ctx.app
     prisma = ctx.prisma
+    redis = ctx.redis
     jwt = app.get(JwtService)
     try { bcrypt = require("bcryptjs") } catch { /* will use plain compare */ }
   })
@@ -47,10 +49,13 @@ describe("核心业务流程 E2E", () => {
         id: "u-flow-1", nickname: "测试用户A", phone: "13800000001",
       })
       prisma.userRole.findMany.mockResolvedValue([])
+      redis.get.mockImplementation((key: string) =>
+        key === "sms:code:REGISTER:13800000001" ? "123456" : null,
+      )
 
       const registerRes = await request(app.getHttpServer())
         .post("/api/v1/auth/register/phone")
-        .send({ nickname: "测试用户A", phone: "13800000001", password: "Pass1234" })
+        .send({ nickname: "测试用户A", phone: "13800000001", code: "123456", password: "Pass1234" })
         .expect(201)
 
       expect(registerRes.body.accessToken).toBeDefined()
@@ -100,10 +105,13 @@ describe("核心业务流程 E2E", () => {
 
     it("注册时手机号已存在应返回 409", async () => {
       prisma.user.findUnique.mockResolvedValue({ id: "u-exist", phone: "13800000001" })
+      redis.get.mockImplementation((key: string) =>
+        key === "sms:code:REGISTER:13800000001" ? "123456" : null,
+      )
 
       await request(app.getHttpServer())
         .post("/api/v1/auth/register/phone")
-        .send({ nickname: "重复用户", phone: "13800000001", password: "Pass1234" })
+        .send({ nickname: "重复用户", phone: "13800000001", code: "123456", password: "Pass1234" })
         .expect(409)
     })
 

@@ -112,15 +112,14 @@
         </view>
         <view
           class="btn"
-          :class="{ 'btn-disabled': code.length !== 6 || isVerifying }"
+          :class="{ 'btn-disabled': code.length !== 6 }"
           role="button"
-          :aria-busy="isVerifying ? 'true' : 'false'"
-          :aria-disabled="code.length !== 6 || isVerifying ? 'true' : 'false'"
+          :aria-disabled="code.length !== 6 ? 'true' : 'false'"
           tabindex="0"
           @tap="verifyCode"
           @keydown="activateOnKeyboard($event, verifyCode)"
         >
-          <text class="btn-text">{{ isVerifying ? '校验中...' : '下一步' }}</text>
+          <text class="btn-text">下一步</text>
         </view>
       </view>
 
@@ -283,12 +282,8 @@ const showConfirmPassword = ref(false)
 const agreed = ref(false)
 const countdown = ref(0)
 const isLoading = ref(false)
-// 第 2 步验证码真校验中（防重复提交）
-const isVerifying = ref(false)
 // 发码请求在途锁（防快速双击连发短信·与 login 页同范式）
 const isSendingCode = ref(false)
-// 与 request.ts 同源的 API 地址（BASE_URL/PREFIX 未导出，此处按同一规则拼装）
-const API_BASE = `${(import.meta as any).env?.VITE_API_URL || ''}/api/v1`
 
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -354,14 +349,7 @@ async function sendCode() {
   }
 }
 
-/**
- * 第 2 步「下一步」真校验验证码 — POST /sms/verify（公开端点·仅限流保护）。
- * 错码当步就报，不再等到最后一步注册时才失败。
- * 🔴 不走 apiPost：后端错码返回 HTTP 401（AUTH_SMS_CODE_INVALID=200004 → mod 200 → 401），
- * 而 /sms/verify 不在 request.ts 的 isAuthEntryPath 白名单里，走 apiPost 会触发
- * refresh→handleUnauthorized 把未登录用户踢出注册流，故此处用裸 uni.request 自行处理。
- * 注：后端校验成功即消费验证码，但 /auth/register/phone 注册端点不收也不验 code，不会被阻断。
- */
+/** 第 2 步仅校验输入格式；验证码由最终注册请求在服务端原子校验并消费。 */
 function verifyCode() {
   if (!code.value) {
     uni.showToast({ title: '请输入验证码', icon: 'none' })
@@ -371,30 +359,7 @@ function verifyCode() {
     uni.showToast({ title: '请输入6位验证码', icon: 'none' })
     return
   }
-  if (isVerifying.value) return
-  isVerifying.value = true
-  uni.request({
-    url: `${API_BASE}/sms/verify`,
-    method: 'POST',
-    // scene 必须与发码时一致（sendCode 用的 'register'，后端按 sms:code:register:{phone} 存取）
-    data: { phone: phone.value, code: code.value, scene: 'register' },
-    timeout: 15000,
-    success: (res) => {
-      // 成功契约与 request.ts apiFetch 一致：ResponseInterceptor 包壳 body.code === 200
-      const body = res.data as { code?: number; message?: string } | undefined
-      if (body && body.code === 200) {
-        step.value = 'password'
-      } else {
-        uni.showToast({ title: body?.message || '验证码错误', icon: 'none' })
-      }
-    },
-    fail: () => {
-      uni.showToast({ title: '网络连接失败，请检查网络后重试', icon: 'none' })
-    },
-    complete: () => {
-      isVerifying.value = false
-    },
-  })
+  step.value = 'password'
 }
 
 // @data-needs: 注册, 参数 {phone, code, password, nickname}, 返回 {success, data:{token, user}, message}

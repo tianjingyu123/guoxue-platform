@@ -113,6 +113,9 @@ export class AuthService {
   }
 
   async phoneRegister(dto: PhoneRegisterDto) {
+    // 注册必须在创建账号前由服务端原子消费短信验证码，禁止绕过客户端直接占用手机号。
+    await this.sms.verifyCode(dto.phone, dto.code, "REGISTER");
+
     const existing = await this.prisma.user.findUnique({
       where: { phoneHash: phoneHmac(dto.phone) },
     });
