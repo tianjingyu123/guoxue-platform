@@ -58,6 +58,90 @@
           ]
         },
         {
+          "id": "android-version-policy",
+          "method": "GET",
+          "path": "/api/v1/system/version/check?platform=android&version=0.0.0&buildNumber=0",
+          "expectStatus": [200],
+          "expectJson": [
+            {
+              "pointer": "/data/hasUpdate",
+              "equals": true
+            },
+            {
+              "pointer": "/data/latest/version",
+              "matches": "^v?[0-9]+(?:\\.[0-9]+){0,3}(?:-[0-9A-Za-z.-]+)?$"
+            },
+            {
+              "pointer": "/data/latest/buildNumber",
+              "matches": "^[0-9]+$"
+            },
+            {
+              "pointer": "/data/latest/downloadUrl",
+              "matches": "^(?:https://|itms-apps://|appmarket://|market://)"
+            },
+            {
+              "pointer": "/data/latest/policy",
+              "matches": "^(?:recommended|required)$"
+            }
+          ]
+        },
+        {
+          "id": "ios-version-policy",
+          "method": "GET",
+          "path": "/api/v1/system/version/check?platform=ios&version=0.0.0&buildNumber=0",
+          "expectStatus": [200],
+          "expectJson": [
+            {
+              "pointer": "/data/hasUpdate",
+              "equals": true
+            },
+            {
+              "pointer": "/data/latest/version",
+              "matches": "^v?[0-9]+(?:\\.[0-9]+){0,3}(?:-[0-9A-Za-z.-]+)?$"
+            },
+            {
+              "pointer": "/data/latest/buildNumber",
+              "matches": "^[0-9]+$"
+            },
+            {
+              "pointer": "/data/latest/downloadUrl",
+              "matches": "^(?:https://|itms-apps://|appmarket://|market://)"
+            },
+            {
+              "pointer": "/data/latest/policy",
+              "matches": "^(?:recommended|required)$"
+            }
+          ]
+        },
+        {
+          "id": "harmony-version-policy",
+          "method": "GET",
+          "path": "/api/v1/system/version/check?platform=harmony&version=0.0.0&buildNumber=0",
+          "expectStatus": [200],
+          "expectJson": [
+            {
+              "pointer": "/data/hasUpdate",
+              "equals": true
+            },
+            {
+              "pointer": "/data/latest/version",
+              "matches": "^v?[0-9]+(?:\\.[0-9]+){0,3}(?:-[0-9A-Za-z.-]+)?$"
+            },
+            {
+              "pointer": "/data/latest/buildNumber",
+              "matches": "^[0-9]+$"
+            },
+            {
+              "pointer": "/data/latest/downloadUrl",
+              "matches": "^(?:https://|itms-apps://|appmarket://|market://)"
+            },
+            {
+              "pointer": "/data/latest/policy",
+              "matches": "^(?:recommended|required)$"
+            }
+          ]
+        },
+        {
           "id": "home-aggregation",
           "method": "GET",
           "path": "/api/v1/home?page=1&pageSize=6",

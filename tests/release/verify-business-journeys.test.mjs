@@ -506,6 +506,9 @@ test("仓库内公开旅程持续覆盖上线核心内容入口且保持零写�
   const requiredStepIds = new Set([
     "health",
     "client-remote-config",
+    "android-version-policy",
+    "ios-version-policy",
+    "harmony-version-policy",
     "home-aggregation",
     "anonymous-smart-feed",
     "classics-home",
@@ -537,4 +540,23 @@ test("仓库内公开旅程持续覆盖上线核心内容入口且保持零写�
       "/data/maintenance/enabled",
     ],
   );
+  for (const platform of ["android", "ios", "harmony"]) {
+    const versionStep = publicJourney.steps.find(
+      (step) => step.id === `${platform}-version-policy`,
+    );
+    assert.match(
+      versionStep.path,
+      new RegExp(`platform=${platform}.*version=0\\.0\\.0.*buildNumber=0`, "u"),
+    );
+    assert.deepEqual(
+      versionStep.expectJson.map((assertion) => assertion.pointer),
+      [
+        "/data/hasUpdate",
+        "/data/latest/version",
+        "/data/latest/buildNumber",
+        "/data/latest/downloadUrl",
+        "/data/latest/policy",
+      ],
+    );
+  }
 });
