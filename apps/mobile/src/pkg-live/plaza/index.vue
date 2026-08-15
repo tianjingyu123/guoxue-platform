@@ -11,6 +11,7 @@ import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import DegradedBanner from '@/components/degraded-banner.vue'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   liveApi,
@@ -31,6 +32,7 @@ const replays = ref<LiveReplay[]>([])
 // 预约态本地会话乐观维护（后端无「我是否已约」查询）
 const bookedMap = ref<Record<string, boolean>>({})
 const booking = ref<Record<string, boolean>>({})
+const { safeTop, safeBottom } = useAppSafeArea()
 
 const filtered = computed<LiveItem[]>(() => {
   return list.value.filter((live) => {
@@ -191,7 +193,7 @@ async function toggleBook(item: LiveItem) {
     <DegradedBanner dep="live" text="直播服务临时维护中，观看可能不稳定，请稍后再试" />
 
     <!-- 固定头部：返回 + 页题 + 搜索 -->
-    <view class="header">
+    <view class="header" :style="{ paddingTop: safeTop + 'px' }">
       <view
         class="nav-back"
         role="button"
@@ -236,7 +238,13 @@ async function toggleBook(item: LiveItem) {
     </view>
 
     <!-- 内容区 -->
-    <scroll-view scroll-y class="content" role="region" aria-label="直播广场内容">
+    <scroll-view
+      scroll-y
+      class="content"
+      :style="{ paddingBottom: (safeBottom + 24) + 'px' }"
+      role="region"
+      aria-label="直播广场内容"
+    >
       <!-- 骨架 -->
       <view v-if="loading" class="skeleton" role="status" aria-live="polite" aria-label="直播广场加载中">
         <view class="sk-grid">
@@ -539,6 +547,7 @@ async function toggleBook(item: LiveItem) {
   padding: 0 24rpx;
   background: rgba(250, 248, 245, 0.94);
   backdrop-filter: blur(20rpx);
+  box-sizing: content-box;
 }
 .nav-back,
 .nav-search {

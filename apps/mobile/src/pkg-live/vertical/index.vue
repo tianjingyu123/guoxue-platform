@@ -25,7 +25,7 @@
     </view>
 
     <!-- 顶部信息栏 -->
-    <view class="top-bar">
+    <view class="top-bar" :style="topBarSafeStyle">
       <view class="top-row">
         <!-- 主播信息 -->
         <view class="host-pill">
@@ -83,7 +83,7 @@
     </view>
 
     <!-- 飘心动画区域（右侧底部上方） -->
-    <view class="hearts-layer">
+    <view class="hearts-layer" :style="floatingLayerSafeStyle">
       <view
         v-for="heart in floatingHearts"
         :key="heart.id"
@@ -95,7 +95,7 @@
     </view>
 
     <!-- 弹幕区域 -->
-    <view class="danmaku">
+    <view class="danmaku" :style="floatingLayerSafeStyle">
       <view v-for="c in comments" :key="c.id" class="dm-item">
         <!-- 系统 -->
         <view v-if="c.type === 'system'" class="dm-system">
@@ -120,7 +120,7 @@
     </view>
 
     <!-- 商品浮窗 -->
-    <view v-if="currentProduct" class="product-float" @tap="onOpenProductDetail(currentProduct)">
+    <view v-if="currentProduct" class="product-float" :style="productFloatSafeStyle" @tap="onOpenProductDetail(currentProduct)">
       <view class="pf-card">
         <view class="pf-img-wrap">
           <image lazy-load class="pf-img" :src="currentProduct.cover" mode="aspectFill" />
@@ -138,7 +138,7 @@
     </view>
 
     <!-- 底部操作栏 -->
-    <view class="bottom-bar">
+    <view class="bottom-bar" :style="bottomBarSafeStyle">
       <view class="bottom-inner">
         <view class="dm-input" @tap="onOpenCommentInput">说点什么...</view>
         <view class="action-btn action-cart" @tap="onOpenProductList">
@@ -159,7 +159,7 @@
 
     <!-- ========== 弹幕输入框弹窗 ========== -->
     <view v-if="showCommentInput" class="ci-mask" @tap="onCloseCommentInput">
-      <view class="ci-bar" @tap.stop>
+      <view class="ci-bar" :style="panelSafeStyle" @tap.stop>
         <input
           v-model="commentInput"
           class="ci-field"
@@ -177,7 +177,7 @@
 
     <!-- ========== 礼物面板 ========== -->
     <view v-if="showGiftPanel" class="gp-mask" @tap="onCloseGiftPanel">
-      <view class="gp-sheet" @tap.stop>
+      <view class="gp-sheet" :style="panelSafeStyle" @tap.stop>
         <view class="gp-head">
           <text class="gp-title">送礼物</text>
           <view @tap="onCloseGiftPanel">
@@ -200,7 +200,7 @@
 
     <!-- ========== 商品列表弹窗 ========== -->
     <view v-if="showProductList" class="pl-mask" @tap="onCloseProductList">
-      <view class="pl-sheet" @tap.stop>
+      <view class="pl-sheet" :style="{ paddingBottom: safeBottom + 'px' }" @tap.stop>
         <view class="pl-head">
           <text class="pl-title">直播间好物</text>
           <view @tap="onCloseProductList">
@@ -235,6 +235,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
@@ -251,6 +252,28 @@ import {
 
 const loading = ref(true)
 const error = ref('')
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const topBarSafeStyle = computed(() => ({
+  paddingTop: `${safeTop.value + uni.upx2px(32)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(32)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(32)}px`,
+}))
+const bottomBarSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value}px`,
+  paddingLeft: `${safeLeft.value}px`,
+  paddingRight: `${safeRight.value}px`,
+}))
+const panelSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value + uni.upx2px(64)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(32)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(32)}px`,
+}))
+const floatingLayerSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(352)}px`,
+}))
+const productFloatSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(240)}px`,
+}))
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
 // 评论列表，元素结构由后端/TIM 返回，保留 any[]
@@ -532,7 +555,7 @@ function onOpenProductDetail(product: VerticalLiveProduct) {
   left: 0;
   right: 0;
   z-index: 20;
-  padding: 96rpx 32rpx 0;
+  padding-bottom: 0;
 }
 .top-row {
   display: flex;
@@ -883,7 +906,7 @@ function onOpenProductDetail(product: VerticalLiveProduct) {
   left: 0;
   right: 0;
   z-index: 20;
-  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: content-box;
 }
 .bottom-inner {
   padding: 16rpx 32rpx 32rpx;
@@ -946,7 +969,7 @@ function onOpenProductDetail(product: VerticalLiveProduct) {
   left: 0;
   right: 0;
   background: #1a1a1a;
-  padding: 32rpx 32rpx 64rpx;
+  padding-top: 32rpx;
   display: flex;
   align-items: center;
   gap: 24rpx;
@@ -988,7 +1011,7 @@ function onOpenProductDetail(product: VerticalLiveProduct) {
 .gp-sheet {
   background: #1a1a1a;
   border-radius: 48rpx 48rpx 0 0;
-  padding: 32rpx 32rpx 64rpx;
+  padding-top: 32rpx;
 }
 .gp-head {
   display: flex;

@@ -6,8 +6,8 @@
       class="camera"
     />
 
-    <view class="shade-top" />
-    <view class="topbar safe-top">
+    <view class="shade-top" :style="shadeTopStyle" />
+    <view class="topbar" :style="topbarStyle">
       <view class="live-badge">
         <view class="live-dot" />
         <text class="live-label">直播中</text>
@@ -29,19 +29,19 @@
       </view>
     </view>
 
-    <view v-if="!joining && !error" class="room-meta">
+    <view v-if="!joining && !error" class="room-meta" :style="roomMetaStyle">
       <text class="room-title">{{ roomTitle || '我的直播间' }}</text>
       <text class="room-state">画面与声音正在推送</text>
     </view>
 
-    <view v-if="danmaku.length" class="danmaku-panel">
+    <view v-if="danmaku.length" class="danmaku-panel" :style="danmakuStyle">
       <view v-for="item in danmaku" :key="item.id" class="danmaku-row">
         <text class="danmaku-user">{{ item.user }}</text>
         <text class="danmaku-content">{{ item.content }}</text>
       </view>
     </view>
 
-    <view class="bottombar safe-bottom">
+    <view class="bottombar" :style="bottombarStyle">
       <view class="control" @click="toggleCamera">
         <text class="control-icon">↻</text>
         <text class="control-label">翻转</text>
@@ -65,8 +65,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onBackPress, onLoad, onUnload } from '@dcloudio/uni-app'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { liveApi, type ConsoleDanmaku } from '@/lib/live-data'
 import { liveMicApi } from '@/pkg-live/live-mic-data'
+import { ensureLiveCapturePermissions } from '@/pkg-live/app-capture-permissions'
 import {
   joinLiveVideo,
   leaveLiveVideo,
@@ -86,6 +88,26 @@ const frontCamera = ref(true)
 const elapsed = ref(0)
 const danmaku = ref<ConsoleDanmaku[]>([])
 const localViewId = `host-preview-${Date.now().toString(36)}`
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const topbarStyle = computed(() => ({
+  paddingTop: `${safeTop.value}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(24)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(24)}px`,
+}))
+const bottombarStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(22)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(22)}px`,
+}))
+const shadeTopStyle = computed(() => ({
+  height: `${safeTop.value + uni.upx2px(220)}px`,
+}))
+const roomMetaStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(390)}px`,
+}))
+const danmakuStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(205)}px`,
+}))
 
 let elapsedTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
@@ -107,6 +129,7 @@ async function connect() {
   setTimeout(async () => {
     cameraMounted.value = true
     try {
+      await ensureLiveCapturePermissions()
       const config = await liveMicApi.getRtcConfig(roomId.value)
       await joinLiveVideo(config, localViewId)
       joining.value = false
@@ -216,8 +239,7 @@ onUnload(() => {
 .page { flex: 1; background-color: #08070a; }
 .camera { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
 .shade-top { position: absolute; left: 0; right: 0; top: 0; height: 220rpx; background-color: rgba(8, 7, 10, 0.38); }
-.safe-top { padding-top: 68rpx; }
-.topbar { position: absolute; left: 24rpx; right: 24rpx; top: 0; height: 100rpx; flex-direction: row; align-items: center; }
+.topbar { position: absolute; left: 0; right: 0; top: 0; height: 100rpx; flex-direction: row; align-items: center; }
 .live-badge { height: 52rpx; padding-left: 18rpx; padding-right: 18rpx; border-radius: 26rpx; background-color: #D84949; flex-direction: row; align-items: center; }
 .live-dot { width: 12rpx; height: 12rpx; border-radius: 6rpx; background-color: #ffffff; margin-right: 10rpx; }
 .live-label { color: #ffffff; font-size: 24rpx; font-weight: 700; }
@@ -238,8 +260,7 @@ onUnload(() => {
 .danmaku-row { flex-direction: row; margin-top: 12rpx; }
 .danmaku-user { color: #D8B36A; font-size: 24rpx; margin-right: 12rpx; }
 .danmaku-content { color: #ffffff; font-size: 24rpx; flex: 1; lines: 1; text-overflow: ellipsis; }
-.safe-bottom { padding-bottom: 26rpx; }
-.bottombar { position: absolute; left: 0; right: 0; bottom: 0; height: 156rpx; padding-left: 22rpx; padding-right: 22rpx; background-color: rgba(10, 9, 12, 0.76); flex-direction: row; align-items: center; justify-content: space-between; }
+.bottombar { position: absolute; left: 0; right: 0; bottom: 0; height: 156rpx; background-color: rgba(10, 9, 12, 0.76); flex-direction: row; align-items: center; justify-content: space-between; }
 .control { width: 158rpx; height: 94rpx; border-radius: 20rpx; background-color: rgba(255, 255, 255, 0.12); align-items: center; justify-content: center; }
 .control.active { background-color: rgba(216, 73, 73, 0.68); }
 .control-primary { background-color: rgba(140, 47, 57, 0.86); }

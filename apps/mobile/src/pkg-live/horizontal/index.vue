@@ -15,7 +15,7 @@
       <!-- 左：视频/课件主区 -->
       <view class="stage-main">
         <!-- 顶部信息栏 -->
-        <view class="host-bar">
+        <view class="host-bar" :style="hostBarSafeStyle">
           <view class="host-bar__left">
             <view class="host-bar__close" @tap="goBack">
               <AppIcon name="x" :size="20" unit="px" color="rgba(255,255,255,0.8)" />
@@ -56,17 +56,17 @@
             </view>
             <!-- 非跟随时显示翻页按钮 -->
             <template v-if="!followSlide">
-              <view class="slide-nav slide-nav--prev" @tap="onPrevSlide">
+              <view class="slide-nav slide-nav--prev" :style="{ left: safeLeft + 16 + 'px' }" @tap="onPrevSlide">
                 <AppIcon name="chevron-left" :size="24" unit="px" color="#fff" />
               </view>
-              <view class="slide-nav slide-nav--next" @tap="onNextSlide">
+              <view class="slide-nav slide-nav--next" :style="{ right: safeRight + 16 + 'px' }" @tap="onNextSlide">
                 <AppIcon name="chevron-right" :size="24" unit="px" color="#fff" />
               </view>
             </template>
           </view>
 
           <!-- 讲师视频画面（showVideo=true 铺满；否则缩为右下角小窗） -->
-          <view class="teacher-cam" :class="{ 'teacher-cam--pip': !showVideo }">
+          <view class="teacher-cam" :class="{ 'teacher-cam--pip': !showVideo }" :style="!showVideo ? pipSafeStyle : undefined">
             <!-- 低延时直播画面（FLV）；未开播/加载时退回占位 -->
             <LivePlayer
               v-if="playUrl"
@@ -84,23 +84,23 @@
           </view>
 
           <!-- 切换课件/视频 -->
-          <view v-if="slides.length" class="switch-btn" @tap="onToggleVideo">
+          <view v-if="slides.length" class="switch-btn" :style="{ left: safeLeft + 16 + 'px', bottom: safeBottom + 16 + 'px' }" @tap="onToggleVideo">
             <AppIcon name="book-open" :size="16" unit="px" color="#fff" />
             <text class="switch-btn__txt">{{ showVideo ? '显示课件' : '显示视频' }}</text>
           </view>
 
           <!-- 全屏按钮 -->
-          <view class="round-btn round-btn--fullscreen" @tap="onToggleFullscreen">
+          <view class="round-btn round-btn--fullscreen" :style="{ top: safeTop + 64 + 'px', right: safeRight + 16 + 'px' }" @tap="onToggleFullscreen">
             <AppIcon :name="isFullscreen ? 'minimize-2' : 'maximize-2'" :size="20" unit="px" color="#fff" />
           </view>
 
           <!-- 音量按钮 -->
-          <view class="round-btn round-btn--volume" @tap="onToggleMute">
+          <view class="round-btn round-btn--volume" :style="{ top: safeTop + 64 + 'px', right: safeRight + 64 + 'px' }" @tap="onToggleMute">
             <AppIcon :name="isMuted ? 'volume-x' : 'volume-2'" :size="20" unit="px" color="#fff" />
           </view>
 
           <!-- 连麦中状态 -->
-          <view v-if="supportsMic && micStatus === 'connected'" class="mic-badge">
+          <view v-if="supportsMic && micStatus === 'connected'" class="mic-badge" :style="{ top: safeTop + 64 + 'px', left: safeLeft + 16 + 'px' }">
             <AppIcon name="mic" :size="16" unit="px" color="#fff" />
             <text class="mic-badge__txt">连麦中</text>
             <view class="mic-badge__close" @tap="micStatus = 'none'">
@@ -140,7 +140,7 @@
       </view>
 
       <!-- 右：互动面板（320px） -->
-      <view class="stage-panel">
+      <view class="stage-panel" :style="{ paddingRight: safeRight + 'px', paddingBottom: safeBottom + 'px' }">
         <!-- Tab 头 -->
         <view class="panel-tabs">
           <view
@@ -321,7 +321,7 @@
     </view>
 
     <!-- ============ 窄屏（<1024px）旋转引导遮罩，照原型 lg:hidden ============ -->
-    <view class="rotate-overlay">
+    <view class="rotate-overlay" :style="{ paddingTop: safeTop + 'px', paddingRight: safeRight + 32 + 'px', paddingBottom: safeBottom + 'px', paddingLeft: safeLeft + 32 + 'px' }">
       <view class="rotate-overlay__icon">
         <AppIcon name="smartphone" :size="32" unit="px" color="#fff" />
       </view>
@@ -338,6 +338,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
@@ -351,6 +352,17 @@ import { liveApi } from '@/lib/live-data'
 const loading = ref(true)
 const error = ref('')
 const currentRoomId = ref('')
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const hostBarSafeStyle = computed(() => ({
+  paddingTop: `${safeTop.value + 12}px`,
+  paddingRight: `${safeRight.value + 16}px`,
+  paddingBottom: '12px',
+  paddingLeft: `${safeLeft.value + 16}px`,
+}))
+const pipSafeStyle = computed(() => ({
+  right: `${safeRight.value + 16}px`,
+  bottom: `${safeBottom.value + 16}px`,
+}))
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({})
 // 幻灯片/问答/消息/资料列表，元素结构由后端返回，保留 any[]
@@ -783,12 +795,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
 }
-.round-btn--fullscreen { top: 64px; right: 16px; }
-.round-btn--volume { top: 64px; right: 64px; }
 .mic-badge {
   position: absolute;
-  top: 64px;
-  left: 16px;
   z-index: 30;
   display: flex;
   align-items: center;
@@ -895,6 +903,7 @@ onUnmounted(() => {
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 .panel-tabs {
   display: flex;
@@ -1326,6 +1335,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 0 32px;
+  box-sizing: border-box;
 }
 .rotate-overlay__icon {
   width: 64px;

@@ -23,6 +23,12 @@ const muted = ref(false)
 const elapsed = ref(0)
 const runtimeAvailable = ref(false)
 const transcripts = ref<VoiceTranscript[]>([])
+const voiceSystemInfo = uni.getSystemInfoSync()
+const safeTop = ref(Math.max(0, voiceSystemInfo.statusBarHeight || 0, voiceSystemInfo.safeAreaInsets?.top || 0, voiceSystemInfo.safeArea?.top || 0))
+const safeBottom = ref(Math.max(0, voiceSystemInfo.safeAreaInsets?.bottom || 0,
+  voiceSystemInfo.screenHeight && voiceSystemInfo.safeArea?.bottom != null
+    ? voiceSystemInfo.screenHeight - voiceSystemInfo.safeArea.bottom
+    : 0))
 let timer: ReturnType<typeof setInterval> | null = null
 
 const experience = computed(() => resolveAgentExperience(detail.value || { name: '', description: '', type: '' }))
@@ -155,7 +161,7 @@ onUnmounted(() => {
 
 <template>
   <view class="voice-page">
-    <view class="voice-head safe-pt">
+    <view class="voice-head" :style="{ paddingTop: (safeTop + 9) + 'px' }">
       <view class="head-btn" @tap="goBack"><AppIcon name="arrow-left" :size="42" color="#17223a" /></view>
       <view class="head-copy">
         <text class="head-kicker">VOICE COMPANION</text>
@@ -209,7 +215,7 @@ onUnmounted(() => {
       </view>
     </view>
 
-    <view class="voice-actions safe-pb">
+    <view class="voice-actions" :style="{ paddingBottom: (safeBottom + 17) + 'px' }">
       <view v-if="active" class="call-controls">
         <view class="round-action" :class="{ on: muted }" @tap="toggleMute">
           <AppIcon :name="muted ? 'mic-off' : 'mic'" :size="46" :color="muted ? '#fff' : '#25364d'" />

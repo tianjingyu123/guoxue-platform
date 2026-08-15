@@ -19,7 +19,7 @@
       <view class="cover-mask" />
 
       <!-- 顶部导航 -->
-      <view class="cover-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="cover-nav" :style="{ paddingTop: safeTop + 'px' }">
         <view class="nav-back" @tap="goBack">
           <AppIcon name="chevron-left" :size="40" color="#fff" />
         </view>
@@ -135,7 +135,7 @@
     </view>
 
     <!-- 底部固定按钮 -->
-    <view class="bottom-bar" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 16rpx)' }">
+    <view class="bottom-bar" :style="{ paddingBottom: (safeBottom + 8) + 'px' }">
       <view class="bottom-btn bottom-btn-outline" @tap="goPlaza">
         <text class="bottom-btn-txt-outline">返回直播广场</text>
       </view>
@@ -156,8 +156,9 @@ import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
 import { formatPrice } from '@/utils/format'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 
-const statusBarHeight = ref(0)
+const { safeTop, safeBottom } = useAppSafeArea()
 
 // 数据状态
 const loading = ref(true)

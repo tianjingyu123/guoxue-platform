@@ -30,8 +30,10 @@ import { consultApi, type ConsultExpert } from '@/lib/circle-consult-data'
 import { postDetailApi } from '@/pkg-circle/lib/post-detail-data'
 import { gotoReport } from '@/lib/report-data'
 import { growthApi } from '@/lib/circle-growth-data'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 
 const circleId = ref('1')
+const { safeTop } = useAppSafeArea()
 const circle = ref<CircleDetail | null>(null)
 const posts = ref<CirclePost[]>([])
 const members = ref<CircleMember[]>([])
@@ -354,7 +356,7 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 <template>
   <view class="cd-page" v-if="!isLoading && !error && circle">
     <!-- 顶部导航 -->
-    <view class="nav">
+    <view class="nav" :style="{ paddingTop: safeTop + 'px' }">
       <view class="nav-back" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <text class="nav-title">{{ circle.name }}</text>
       <view class="nav-action" @tap="openShare"><app-icon name="share-2" :size="34" color="#6E6E73" /></view>
@@ -683,7 +685,7 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
 .nav {
   position: sticky; top: 0; z-index: 20;
   display: flex; align-items: center; gap: 16rpx; height: 88rpx; padding: 0 24rpx;
-  padding-top: var(--status-bar-height, 0px);
+  box-sizing: content-box;
   background: rgba(250, 248, 245, 0.92); backdrop-filter: blur(20rpx);
 }
 .nav-back { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; margin-left: -16rpx; }

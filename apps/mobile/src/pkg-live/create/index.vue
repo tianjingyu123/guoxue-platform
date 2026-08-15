@@ -18,7 +18,7 @@
   <!-- 正常内容 -->
   <view v-else class="page">
     <!-- 顶部导航 -->
-    <view class="nav">
+    <view class="nav" :style="{ paddingTop: safeTop + 'px' }">
       <view class="nav-btn" @tap="goBack">
         <AppIcon name="chevron-left" :size="44" color="#2C2C2C" />
       </view>
@@ -210,13 +210,13 @@
     </scroll-view>
 
     <!-- 底部主按钮（双文案 + 置灰） -->
-    <view class="footer">
+    <view class="footer" :style="footerSafeStyle">
       <view class="cta" :class="{ dis: primaryDisabled }" @tap="onPrimary">{{ primaryText }}</view>
     </view>
 
     <!-- 时长包购买半屏弹层 -->
     <view v-if="showBuySheet" class="mask" @tap="showBuySheet = false" @touchmove.self.prevent>
-      <view class="sheet" @tap.stop @touchmove.stop>
+      <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="sheet-h">
           <text class="sheet-title">购买直播时长包</text>
           <text class="sheet-x" @tap="showBuySheet = false">×</text>
@@ -247,7 +247,7 @@
 
     <!-- 圈子选择弹层 -->
     <view v-if="showCirclePicker" class="mask" @tap="showCirclePicker = false" @touchmove.self.prevent>
-      <view class="sheet" @tap.stop @touchmove.stop>
+      <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="sheet-h">
           <text class="sheet-title">选择所属圈子</text>
           <text class="sheet-x" @tap="showCirclePicker = false">×</text>
@@ -270,7 +270,7 @@
 
     <!-- 带货选品抽屉（半屏 · 多选 · 上限 5 件） -->
     <view v-if="showProductSheet" class="mask" @tap="showProductSheet = false" @touchmove.self.prevent>
-      <view class="sheet" @tap.stop @touchmove.stop>
+      <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="sheet-h">
           <text class="sheet-title">选择带货商品</text>
           <text class="sheet-x" @tap="showProductSheet = false">×</text>
@@ -320,6 +320,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -331,6 +332,17 @@ import { uploadImage } from '@/utils/request'
 // 三态 UI
 const loading = ref(true)
 const error = ref('')
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const footerSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value + uni.upx2px(20)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(40)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(40)}px`,
+}))
+const sheetSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value + uni.upx2px(40)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(40)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(40)}px`,
+}))
 
 // 发布归属圈子：从圈子发布入口带来则默认归该圈子
 const editRoomId = ref('')
@@ -605,6 +617,7 @@ onLoad((q) => {
 // ── 主按钮：双文案 + 置灰 ──
 const primaryText = computed(() => {
   if (submitting.value) return isEdit.value ? '保存中…' : '创建中…'
+  if (!isEdit.value && createdId.value) return retrying.value ? '重试中…' : '重试开播'
   if (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0) return '余量不足 · 请购买时长包'
   if (isEdit.value) return '保存修改'
   return liveMode.value === 'obs' || startTime.value ? '创建直播间' : '开始直播'
@@ -615,6 +628,7 @@ const primaryDisabled = computed(() =>
   (!!startTime.value && (!cover.value.trim() || !description.value.trim())) ||
   coverUploading.value ||
   submitting.value ||
+  retrying.value ||
   (!isEdit.value && quality.value !== 'basic' && remainingForSelected.value <= 0),
 )
 
@@ -626,6 +640,10 @@ const pushFailMsg = ref('')
 const retrying = ref(false)
 
 async function onPrimary() {
+  if (!isEdit.value && createdId.value) {
+    await retryPush()
+    return
+  }
   if (primaryDisabled.value) {
     if (!title.value.trim()) uni.showToast({ title: '请输入直播标题', icon: 'none' })
     else if (!circleId.value) uni.showToast({ title: '请选择直播所属圈子', icon: 'none' })
@@ -753,7 +771,7 @@ function goManageLater() {
 .page { display: flex; flex-direction: column; height: 100vh; background: #FAF8F5; }
 
 /* 导航 */
-.nav { flex-shrink: 0; background: #FAF8F5; height: 96rpx; padding: 0 32rpx; display: flex; align-items: center; justify-content: space-between; }
+.nav { flex-shrink: 0; background: #FAF8F5; height: 96rpx; padding: 0 32rpx; display: flex; align-items: center; justify-content: space-between; box-sizing: content-box; }
 .nav-btn { margin-left: -20rpx; width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; }
 .nav-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
 .nav-placeholder { width: 88rpx; }
@@ -851,13 +869,13 @@ function goManageLater() {
 .foot-space { height: 48rpx; }
 
 /* 底部按钮 */
-.footer { flex-shrink: 0; background: #FAF8F5; padding: 20rpx 40rpx calc(20rpx + env(safe-area-inset-bottom)); }
+.footer { flex-shrink: 0; background: #FAF8F5; padding-top: 20rpx; }
 .cta { height: 100rpx; border-radius: 999rpx; background: #C41E3A; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 32rpx; font-weight: 600; box-shadow: 0 8rpx 24rpx rgba(196,30,58,.25); }
 .cta.dis { background: #DDD5C8; box-shadow: none; }
 
 /* 半屏弹层 */
 .mask { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; }
-.sheet { width: 100%; background: #FAF8F5; border-radius: 36rpx 36rpx 0 0; padding: 40rpx; box-sizing: border-box; }
+.sheet { width: 100%; background: #FAF8F5; border-radius: 36rpx 36rpx 0 0; padding-top: 40rpx; box-sizing: border-box; }
 .sheet-h { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 32rpx; }
 .sheet-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }
 .sheet-x { position: absolute; right: 0; top: -8rpx; font-size: 40rpx; color: #999; line-height: 1; }

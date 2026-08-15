@@ -1,7 +1,7 @@
 <template>
   <!-- 加载骨架屏（深色 shimmer） -->
   <view v-if="loading" class="sk-page">
-    <view class="sk-topbar">
+    <view class="sk-topbar" :style="topbarSafeStyle">
       <view class="sk sk-pill sk-w96" />
       <view class="sk sk-pill sk-w180" />
       <view class="sk sk-pill sk-w96 sk-ml-auto" />
@@ -17,7 +17,7 @@
       <view class="sk-dm-row"><view class="sk sk-av" /><view class="sk sk-dm-bd sk-w340" /></view>
       <view class="sk-dm-row"><view class="sk sk-av" /><view class="sk sk-dm-bd sk-w240" /></view>
     </view>
-    <view class="sk-opbar">
+    <view class="sk-opbar" :style="opbarSafeStyle">
       <view class="sk sk-op" /><view class="sk sk-op" /><view class="sk sk-op" /><view class="sk sk-op" /><view class="sk sk-op" />
     </view>
   </view>
@@ -31,7 +31,7 @@
   <!-- 正常内容（直播中驾驶舱·深色） -->
   <view v-else class="page">
     <!-- ── 顶部状态条 ── -->
-    <view class="topbar">
+    <view class="topbar" :style="topbarSafeStyle">
       <view class="live">
         <view class="dot" />
         <text class="live-txt">直播中</text>
@@ -118,7 +118,7 @@
     </view>
 
     <!-- ── 底部操作栏 ── -->
-    <view class="opbar">
+    <view class="opbar" :style="opbarSafeStyle">
       <view class="op" @tap="showProductSheet = true">
         <view class="op-ic">
           <AppIcon name="shopping-bag" :size="28" color="#A89FA8" />
@@ -163,7 +163,7 @@
 
     <!-- ── 商品半屏列表 ── -->
     <view v-if="showProductSheet" class="mask sheet-mask" @tap="showProductSheet = false" @touchmove.self.prevent>
-      <view class="sheet" @tap.stop @touchmove.stop>
+      <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="sheet-head">
           <text class="sheet-title">本场商品（{{ products.length }}）</text>
           <view class="sheet-actions">
@@ -200,7 +200,7 @@
 
     <!-- ── 禁言管理半屏列表 ── -->
     <view v-if="showMutedSheet" class="mask sheet-mask" @tap="showMutedSheet = false" @touchmove.self.prevent>
-      <view class="sheet" @tap.stop @touchmove.stop>
+      <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="sheet-head">
           <text class="sheet-title">禁言名单（{{ mutedUsers.length }}）</text>
           <view class="sheet-close" @tap="showMutedSheet = false">
@@ -243,7 +243,7 @@
     </view>
 
     <view v-if="showMicSheet" class="mask sheet-mask" @tap="showMicSheet = false" @touchmove.self.prevent>
-      <view class="sheet" @tap.stop @touchmove.stop>
+      <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="sheet-head">
           <text class="sheet-title">语音连麦（{{ micItems.length }}）</text>
           <view class="sheet-close" @tap="showMicSheet = false">
@@ -280,6 +280,7 @@
 <script setup lang="ts">
 import { ref, computed, onUnmounted } from 'vue'
 import { onBackPress, onLoad, onShow } from '@dcloudio/uni-app'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
@@ -301,6 +302,22 @@ const roomTitle = ref('')
 const isObsMode = ref(false)
 const isHostCompanion = ref(false)
 const consoleMode = ref(false)
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const topbarSafeStyle = computed(() => ({
+  paddingTop: `${safeTop.value}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(28)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(28)}px`,
+}))
+const opbarSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value}px`,
+  paddingLeft: `${safeLeft.value}px`,
+  paddingRight: `${safeRight.value}px`,
+}))
+const sheetSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value}px`,
+  paddingLeft: `${safeLeft.value}px`,
+  paddingRight: `${safeRight.value}px`,
+}))
 
 // ===== 数据（由 API 异步获取）=====
 const stats = ref({
@@ -436,15 +453,35 @@ onLoad((options) => {
 // 主播页禁止直接返回造成「本地推流已停、服务端仍直播中」；统一走下播确认。
 onBackPress(() => {
   if (isHostCompanion.value) {
-    uni.navigateBack()
-    return true
+    return false
   }
   if (!showEndDialog.value) showEndDialog.value = true
   return true
 })
 
+function forceCloseCurrentConsole() {
+  // #ifdef APP-PLUS
+  try {
+    (globalThis as any)?.plus?.webview?.currentWebview?.()?.close?.('auto')
+  } catch {
+    uni.showToast({ title: '返回直播间失败，请使用系统返回键重试', icon: 'none' })
+  }
+  // #endif
+}
+
 function returnToHost() {
-  uni.navigateBack()
+  const stackDepth = getCurrentPages().length
+  uni.navigateBack({
+    delta: 1,
+    fail: forceCloseCurrentConsole,
+  })
+  setTimeout(() => {
+    const pages = getCurrentPages()
+    const topRoute = String(pages[pages.length - 1]?.route || '')
+    if (pages.length >= stackDepth && topRoute.includes('pkg-live/console/index')) {
+      forceCloseCurrentConsole()
+    }
+  }, 350)
 }
 
 onUnmounted(() => {
@@ -667,6 +704,7 @@ async function onConfirmEnd() {
   background: #17141a;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 .mic-row {
@@ -696,9 +734,11 @@ async function onConfirmEnd() {
   height: 104rpx;
   display: flex;
   align-items: center;
-  padding: 0 28rpx;
+  padding-left: 28rpx;
+  padding-right: 28rpx;
   border-bottom: 2rpx solid #2a2530;
   flex-shrink: 0;
+  box-sizing: content-box;
 }
 .live {
   display: flex;
@@ -932,6 +972,7 @@ async function onConfirmEnd() {
   align-items: stretch;
   flex-shrink: 0;
   background: #17141a;
+  box-sizing: content-box;
 }
 .op {
   flex: 1;
@@ -1287,6 +1328,7 @@ async function onConfirmEnd() {
   background: #17141a;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 .sk {
   background: linear-gradient(90deg, #221e28 25%, #2c2733 50%, #221e28 75%);
@@ -1303,8 +1345,10 @@ async function onConfirmEnd() {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding: 0 28rpx;
+  padding-left: 28rpx;
+  padding-right: 28rpx;
   border-bottom: 2rpx solid #2a2530;
+  box-sizing: content-box;
 }
 .sk-pill {
   height: 48rpx;
@@ -1347,7 +1391,8 @@ async function onConfirmEnd() {
   display: flex;
   align-items: center;
   gap: 24rpx;
-  padding: 0 28rpx;
+  padding-left: 28rpx;
+  padding-right: 28rpx;
   border-top: 2rpx solid #2a2530;
 }
 .sk-op {

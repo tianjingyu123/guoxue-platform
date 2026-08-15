@@ -65,6 +65,12 @@ const showCongrats = ref(false)
 const showCert = ref(false)
 const cert = ref<Certificate | null>(null)
 const certLoading = ref(false)
+const playerSystemInfo = uni.getSystemInfoSync()
+const safeTop = ref(Math.max(0, playerSystemInfo.statusBarHeight || 0, playerSystemInfo.safeAreaInsets?.top || 0, playerSystemInfo.safeArea?.top || 0))
+const safeBottom = ref(Math.max(0, playerSystemInfo.safeAreaInsets?.bottom || 0,
+  playerSystemInfo.screenHeight && playerSystemInfo.safeArea?.bottom != null
+    ? playerSystemInfo.screenHeight - playerSystemInfo.safeArea.bottom
+    : 0))
 
 const progressPercent = computed(() => duration.value ? (currentTime.value / duration.value) * 100 : 0)
 
@@ -349,7 +355,7 @@ onShow(() => {
   <!-- ══════════ 图文态：整页沉浸阅读 ══════════ -->
   <view v-else-if="isArticleMode" class="page">
     <!-- 完课横幅 -->
-    <view v-if="showCongrats" class="congrats">
+    <view v-if="showCongrats" class="congrats" :style="{ paddingTop: (safeTop + 16) + 'px' }">
       <view class="congrats-title serif">
         <app-icon name="award" :size="40" color="#C9A96E" />
         <text class="congrats-title-txt">恭喜完成全部课程</text>
@@ -362,7 +368,7 @@ onShow(() => {
     </view>
 
     <!-- 顶栏：返回 + 课时切换入口 -->
-    <view class="a-nav">
+    <view class="a-nav" :style="{ paddingTop: (safeTop + 12) + 'px' }">
       <view class="a-nav-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="a-nav-mid" @tap="showChapterDrawer = true">
         <text class="a-nav-mid-txt">第 {{ lessonIndex }}/{{ lessonTotal }} 讲 · 目录</text>
@@ -393,7 +399,7 @@ onShow(() => {
     <view v-if="showChapterDrawer" class="drawer-modal">
       <view class="drawer-mask" @tap="showChapterDrawer = false" />
       <view class="drawer">
-        <view class="drawer-hdr">
+        <view class="drawer-hdr" :style="{ paddingTop: (safeTop + 16) + 'px' }">
           <text class="drawer-title serif">课程目录</text>
           <view @tap="showChapterDrawer = false"><app-icon name="x" :size="36" color="#2C2C2C" /></view>
         </view>
@@ -460,7 +466,7 @@ onShow(() => {
   <!-- ══════════ 视频态 / 音频态 / 试看态 ══════════ -->
   <view v-else class="page">
     <!-- 完课横幅（顶部下弹） -->
-    <view v-if="showCongrats" class="congrats">
+    <view v-if="showCongrats" class="congrats" :style="{ paddingTop: (safeTop + 16) + 'px' }">
       <view class="congrats-title serif">
         <app-icon name="award" :size="40" color="#C9A96E" />
         <text class="congrats-title-txt">恭喜完成全部课程</text>
@@ -475,7 +481,7 @@ onShow(() => {
     <!-- ── 播放区（深色沉浸 #111） ── -->
     <view class="player-zone">
       <!-- 顶条：返回 + 课程名 -->
-      <view class="player-top">
+      <view class="player-top" :style="{ paddingTop: (safeTop + 12) + 'px' }">
         <view class="p-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
         <text class="p-top-title">{{ content.courseTitle }}</text>
         <view class="p-btn-ph" />
@@ -628,7 +634,7 @@ onShow(() => {
         <app-icon name="message-circle" :size="64" color="#C9A96E" />
         <text class="discuss-empty-t">还没有讨论，来问老师第一个问题</text>
       </view>
-      <view class="input-bar" @tap="showQuestionPanel = true">
+      <view class="input-bar" :style="{ paddingBottom: (safeBottom + 10) + 'px' }" @tap="showQuestionPanel = true">
         <view class="input-box"><text class="input-box-t">说说你的想法…</text></view>
       </view>
     </view>
@@ -637,7 +643,7 @@ onShow(() => {
     <view v-if="showChapterDrawer" class="drawer-modal">
       <view class="drawer-mask" @tap="showChapterDrawer = false" />
       <view class="drawer">
-        <view class="drawer-hdr">
+        <view class="drawer-hdr" :style="{ paddingTop: (safeTop + 16) + 'px' }">
           <text class="drawer-title serif">课程目录</text>
           <view @tap="showChapterDrawer = false"><app-icon name="x" :size="36" color="#2C2C2C" /></view>
         </view>
@@ -682,7 +688,7 @@ onShow(() => {
         <view class="q-sheet-body">
           <textarea v-model="questionContent" class="q-input" placeholder="描述你的问题，老师会尽快回复..." placeholder-class="q-ph" />
         </view>
-        <view class="q-sheet-foot">
+        <view class="q-sheet-foot" :style="{ paddingBottom: (safeBottom + 16) + 'px' }">
           <view class="q-submit" :class="{ disabled: !questionContent.trim() || submittingQuestion }" @tap="submitQuestion">
             <text class="q-submit-txt">{{ submittingQuestion ? '提交中...' : '提交问题' }}</text>
           </view>
@@ -845,7 +851,7 @@ onShow(() => {
 .discuss-body { min-height: 400rpx; }
 .discuss-empty { display: flex; flex-direction: column; align-items: center; gap: 20rpx; padding: 72rpx 0; }
 .discuss-empty-t { font-size: 26rpx; color: #999999; }
-.input-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom)); }
+.input-bar { position: fixed; left: 0; right: 0; bottom: 0; background: #FFFFFF; border-top: 1rpx solid #EDE7DD; padding: 20rpx 32rpx; }
 .input-box { height: 76rpx; border-radius: 999rpx; background: #F8F4EC; display: flex; align-items: center; padding: 0 32rpx; }
 .input-box-t { font-size: 28rpx; color: #999999; }
 
@@ -903,7 +909,7 @@ onShow(() => {
 .q-sheet-body { padding: 32rpx; }
 .q-input { width: 100%; height: 256rpx; background: #F8F4EC; border-radius: 20rpx; padding: 28rpx; font-size: 28rpx; color: #2C2C2C; box-sizing: border-box; }
 .q-ph { color: #999999; }
-.q-sheet-foot { padding: 24rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); }
+.q-sheet-foot { padding: 24rpx 32rpx 32rpx; }
 .q-submit { width: 100%; height: 92rpx; background: #C41E3A; border-radius: 20rpx; display: flex; align-items: center; justify-content: center; }
 .q-submit.disabled { opacity: 0.5; }
 .q-submit-txt { font-size: 30rpx; font-weight: 600; color: #fff; }

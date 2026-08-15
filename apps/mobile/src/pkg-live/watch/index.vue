@@ -23,7 +23,7 @@
           <!-- 预约人数：真实值（0 或拉取失败不显示该行） -->
           <text v-if="bookingCount > 0" class="pre__count">已有 {{ bookingCount }} 人预约</text>
         </view>
-        <view class="state-back" :style="{ top: (statusBarHeight + 10) + 'px' }" @tap="onClose">
+        <view class="state-back" :style="{ top: (safeTop + 10) + 'px', left: (safeLeft + 10) + 'px' }" @tap="onClose">
           <AppIcon name="chevron-left" :size="30" color="#fff" />
         </view>
       </view>
@@ -68,7 +68,7 @@
             <AppIcon name="play" :size="40" color="#ffffff" :fill="true" />
           </view>
         </template>
-        <view class="state-back" :style="{ top: (statusBarHeight + 10) + 'px' }" @tap="onClose">
+        <view class="state-back" :style="{ top: (safeTop + 10) + 'px', left: (safeLeft + 10) + 'px' }" @tap="onClose">
           <AppIcon name="chevron-left" :size="30" color="#fff" />
         </view>
       </view>
@@ -123,8 +123,8 @@
     </view>
 
     <!-- 顶部信息栏 -->
-    <view class="watch__top" :style="{ paddingTop: statusBarHeight + 'px' }">
-      <view class="watch__top-inner">
+    <view class="watch__top">
+      <view class="watch__top-inner" :style="watchTopInnerStyle">
         <view class="watch__top-row">
           <!-- 主播信息胶囊 -->
           <view class="host-card">
@@ -184,7 +184,7 @@
     </view>
 
     <!-- 商品讲解卡（电商直播） -->
-    <view v-if="room.type === 'commerce' && explainingProduct" class="explain-card" @tap="openQuickBuy(explainingProduct)">
+    <view v-if="room.type === 'commerce' && explainingProduct" class="explain-card" :style="explainCardSafeStyle" @tap="openQuickBuy(explainingProduct)">
       <image lazy-load class="explain-card__img" :src="explainingProduct.cover" mode="aspectFill" />
       <view class="explain-card__info">
         <view class="explain-card__tag"><text class="explain-card__tag-txt">讲解中</text></view>
@@ -220,13 +220,13 @@
     </view>
 
     <!-- 电商实时已售通知 -->
-    <view v-if="room.type === 'commerce' && saleNotif" class="sale-notif">
+    <view v-if="room.type === 'commerce' && saleNotif" class="sale-notif" :style="saleNoticeSafeStyle">
       <AppIcon name="shopping-cart" :size="26" color="#C41E3A" />
       <text class="sale-notif__txt">{{ saleNotif }}</text>
     </view>
 
     <!-- 左侧弹幕区 -->
-    <scroll-view scroll-y class="danmaku" :scroll-top="danmakuScrollTop" :scroll-with-animation="true">
+    <scroll-view scroll-y class="danmaku" :style="danmakuSafeStyle" :scroll-top="danmakuScrollTop" :scroll-with-animation="true">
       <view class="danmaku__inner">
         <view v-for="c in comments" :key="c.id" class="danmaku__item">
           <view class="danmaku__row">
@@ -238,7 +238,7 @@
     </scroll-view>
 
     <!-- 飘心 -->
-    <view class="hearts">
+    <view class="hearts" :style="heartsSafeStyle">
       <view
         v-for="h in floatingHearts"
         :key="h.id"
@@ -250,8 +250,8 @@
     </view>
 
     <!-- 底部互动栏 -->
-    <view class="watch__bottom" :style="{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12rpx)' }">
-      <view class="watch__bottom-row">
+    <view class="watch__bottom" :style="watchBottomSafeStyle">
+      <view class="watch__bottom-row" :style="watchBottomRowStyle">
         <!-- 输入框 -->
         <view class="input-box" @tap="showCommentInput = true">
           <text class="input-box__ph">说点什么...</text>
@@ -288,7 +288,7 @@
 
     <!-- 弹幕输入 -->
     <view v-if="showCommentInput" class="modal-mask modal-mask--bottom" @tap="showCommentInput = false" @touchmove.self.prevent>
-      <view class="comment-input" @tap.stop @touchmove.stop>
+      <view class="comment-input" :style="commentSheetStyle" @tap.stop @touchmove.stop>
         <input
           class="comment-input__field"
           v-model="commentText"
@@ -306,7 +306,7 @@
 
     <!-- 榜单 -->
     <view v-if="showRank" class="modal-mask modal-mask--bottom" @tap="showRank = false" @touchmove.self.prevent>
-      <view class="rank-sheet" @tap.stop @touchmove.stop>
+      <view class="rank-sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="rank-sheet__head">
           <text class="rank-sheet__title">打赏榜</text>
           <view @tap="showRank = false"><AppIcon name="x" :size="40" color="#999" /></view>
@@ -326,7 +326,7 @@
 
     <!-- 商品列表 -->
     <view v-if="showProductList" class="modal-mask modal-mask--bottom" @tap="showProductList = false" @touchmove.self.prevent>
-      <view class="product-sheet" @tap.stop @touchmove.stop>
+      <view class="product-sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="product-sheet__head">
           <text class="product-sheet__title">全部商品（{{ products.length }}）</text>
           <view @tap="showProductList = false"><AppIcon name="x" :size="40" color="#999" /></view>
@@ -362,7 +362,7 @@
 
     <!-- 分享 -->
     <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false" @touchmove.self.prevent>
-      <view class="share-sheet" @tap.stop @touchmove.stop>
+      <view class="share-sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <text class="share-sheet__title">分享直播间</text>
         <view class="share-sheet__grid">
           <view v-for="s in shareChannels" :key="s.key" class="share-item" @tap="onShare(s.key)">
@@ -382,6 +382,7 @@ import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
@@ -403,8 +404,49 @@ import {
   type LiveWatchRankItem,
 } from '@/lib/live-data'
 
-// ===== 系统信息（状态栏） =====
-const statusBarHeight = ref(0)
+// ===== 系统安全区（状态栏、挖孔与底部手势区） =====
+const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const watchTopInnerStyle = computed(() => ({
+  paddingTop: `${safeTop.value + uni.upx2px(24)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(32)}px`,
+  paddingBottom: `${uni.upx2px(24)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(32)}px`,
+}))
+const watchBottomRowStyle = computed(() => ({
+  paddingRight: `${safeRight.value + uni.upx2px(24)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(24)}px`,
+}))
+const commentSheetStyle = computed(() => ({
+  paddingTop: `${uni.upx2px(20)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(24)}px`,
+  paddingBottom: `${safeBottom.value + uni.upx2px(20)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(24)}px`,
+}))
+const sheetSafeStyle = computed(() => ({
+  paddingRight: `${safeRight.value + uni.upx2px(32)}px`,
+  paddingBottom: `${safeBottom.value + uni.upx2px(32)}px`,
+  paddingLeft: `${safeLeft.value + uni.upx2px(32)}px`,
+}))
+const explainCardSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(300)}px`,
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+}))
+const saleNoticeSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(640)}px`,
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+}))
+const danmakuSafeStyle = computed(() => ({
+  bottom: `${safeBottom.value + uni.upx2px(176)}px`,
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+  right: `${safeRight.value + uni.upx2px(192)}px`,
+}))
+const heartsSafeStyle = computed(() => ({
+  right: `${safeRight.value + uni.upx2px(40)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(200)}px`,
+}))
+const watchBottomSafeStyle = computed(() => ({
+  paddingBottom: `${safeBottom.value + uni.upx2px(12)}px`,
+}))
 // 组件实例（uni.createVideoContext 在组件内需传 this·回放章节 seek 用）
 const instance = getCurrentInstance()
 
@@ -945,10 +987,6 @@ onLoad((opts) => {
 })
 
 onMounted(() => {
-  try {
-    const sys = uni.getSystemInfoSync()
-    statusBarHeight.value = sys.statusBarHeight || 0
-  } catch (e) {}
   // 预约态倒计时每分钟刷新（常驻轻量 ticker·非 WAITING 态无副作用）
   countdownTimer = setInterval(() => { nowTs.value = Date.now() }, 60000)
 })
@@ -1326,7 +1364,7 @@ onUnmounted(() => {
 .comment-input {
   display: flex; align-items: center; gap: 16rpx;
   background-color: #1c1c1e;
-  padding: 20rpx 24rpx calc(env(safe-area-inset-bottom) + 20rpx);
+  padding: 20rpx 24rpx;
 }
 .comment-input__field {
   flex: 1;
@@ -1373,7 +1411,7 @@ onUnmounted(() => {
 .product-row__buy-txt { font-size: 24rpx; color: #fff; font-weight: 600; white-space: nowrap; }
 
 /* 分享 sheet */
-.share-sheet { background-color: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx calc(env(safe-area-inset-bottom) + 32rpx); }
+.share-sheet { background-color: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx; }
 .share-sheet__title { font-size: 28rpx; font-weight: 600; color: #1c1c1e; text-align: center; display: block; margin-bottom: 32rpx; }
 .share-sheet__grid { display: flex; gap: 48rpx; padding: 0 16rpx; }
 .share-item { display: flex; flex-direction: column; align-items: center; gap: 12rpx; }

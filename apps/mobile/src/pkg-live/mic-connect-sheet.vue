@@ -1,6 +1,6 @@
 <template>
   <!-- 通话中：紧凑悬浮条 -->
-  <view v-if="open && state === 'connected'" class="mic-bar">
+  <view v-if="open && state === 'connected'" class="mic-bar" :style="micBarStyle">
     <view class="mic-bar__inner">
       <view class="mic-bar__avatar-wrap">
         <view class="mic-bar__avatar"><text class="mic-bar__avatar-emoji">🎙️</text></view>
@@ -77,7 +77,7 @@
         </view>
         <view class="mic-secondary" @tap="reset"><text class="mic-secondary-txt">完成</text></view>
       </view>
-      <view class="mic-safe" />
+      <view class="mic-safe" :style="{ height: safeBottom + 'px' }" />
     </view>
   </view>
 </template>
@@ -85,6 +85,8 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
+import { ensureLiveAudioPermission } from '@/pkg-live/app-capture-permissions'
 import { liveMicApi, type LiveMicItem } from '@/pkg-live/live-mic-data'
 import { isLiveTrtcSupported, joinLiveAudio, leaveLiveAudio, setLiveAudioMuted } from '@/pkg-live/live-trtc-client'
 
@@ -103,6 +105,12 @@ const hostMuted = ref(false)
 const duration = ref(0)
 const errorMessage = ref('')
 const effectiveMuted = computed(() => localMuted.value || hostMuted.value)
+const { safeRight, safeBottom, safeLeft } = useAppSafeArea()
+const micBarStyle = computed(() => ({
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+  right: `${safeRight.value + uni.upx2px(24)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(160)}px`,
+}))
 let micUserId = ''
 let hadRemoteRequest = false
 let polling = false
@@ -174,6 +182,7 @@ async function requestMic() {
   errorMessage.value = ''
   state.value = 'requesting'
   try {
+    await ensureLiveAudioPermission()
     const mic = await liveMicApi.request(props.roomId, 1)
     micUserId = mic.userId
     hadRemoteRequest = true
@@ -250,9 +259,6 @@ onUnmounted(() => { void cleanup() })
 /* ===== 通话中悬浮条 ===== */
 .mic-bar {
   position: absolute;
-  left: 24rpx;
-  right: 24rpx;
-  bottom: 160rpx;
   z-index: 55;
 }
 .mic-bar__inner {
@@ -451,6 +457,6 @@ onUnmounted(() => { void cleanup() })
   font-variant-numeric: tabular-nums;
 }
 .mic-safe {
-  height: env(safe-area-inset-bottom, 0px);
+  height: 0;
 }
 </style>
