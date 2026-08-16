@@ -23,6 +23,7 @@
             :enable-progress-gesture="false"
             :muted="micRealtimeAudioActive"
             :object-fit="room.orientation === 'landscape' ? 'contain' : 'cover'"
+            @loadedmetadata="ensureAudiencePlayback"
             @play="onPlayerReady"
             @error="onPlayerError"
           />
@@ -896,6 +897,8 @@ async function loadRoom() {
     const cached = playUrlCache.get(targetRoomId)
     playUrl.value = cached || await liveApi.getPlayUrl(targetRoomId)
     playUrlCache.set(targetRoomId, playUrl.value)
+    await nextTick()
+    ensureAudiencePlayback()
     if (detail.room.imGroupId) void joinPublicScreen(detail.room.imGroupId)
     if (getToken() && detail.room.circleId) void liveApi.reportCircleChannelClick(detail.room.circleId)
   } catch (cause) {
@@ -1031,6 +1034,21 @@ function onPlayerReady() {
   error.value = ''
   playerNotice.value = ''
   void touchPresence()
+}
+
+/**
+ * App 原生 video 在部分 Android 机型上只会完成 PREPARED，不会因为布尔 autoplay 自动 start。
+ * 直播间已隐藏原生中央播放按钮，因此必须由页面在元数据就绪、切房和回到前台时显式起播。
+ */
+function ensureAudiencePlayback() {
+  if (!playUrl.value || roomEnded.value) return
+  void nextTick(() => {
+    try {
+      uni.createVideoContext('live-audience-player').play()
+    } catch {
+      // 元素仍在挂载时由 loadedmetadata 再次驱动，不把短暂竞态升级成播放错误。
+    }
+  })
 }
 
 async function touchPresence() {
@@ -1618,7 +1636,10 @@ onLoad((options) => {
 onShow(() => {
   if (roomId.value && !loading.value && !playUrl.value) void loadRoom()
   startRoomPolling()
-  if (roomId.value && playUrl.value) void touchPresence()
+  if (roomId.value && playUrl.value) {
+    ensureAudiencePlayback()
+    void touchPresence()
+  }
   if (appBackgroundSuspended) {
     appBackgroundSuspended = false
     if (micState.value === 'preflight' && micMediaMode.value === 'VIDEO') {
@@ -1633,6 +1654,7 @@ onShow(() => {
 
 onHide(() => {
   clearPlayerRetry()
+  try { uni.createVideoContext('live-audience-player').pause() } catch { /* 页面切换竞态可忽略 */ }
   void leavePresence()
   if (micState.value === 'preflight') {
     appBackgroundSuspended = true

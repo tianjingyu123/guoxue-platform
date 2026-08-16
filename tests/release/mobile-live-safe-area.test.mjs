@@ -235,6 +235,9 @@ test('观众直播进入即自动播放且隐藏原生播放控件', () => {
   const audience = source('apps/mobile/src/pkg-live/watch/index.nvue')
 
   assert.match(audience, /\bautoplay\b/)
+  assert.match(audience, /@loadedmetadata="ensureAudiencePlayback"/)
+  assert.match(audience, /uni\.createVideoContext\('live-audience-player'\)\.play\(\)/)
+  assert.match(audience, /onShow\(\(\) => \{[\s\S]*ensureAudiencePlayback\(\)/)
   assert.match(audience, /:controls="false"/)
   assert.match(audience, /:show-center-play-btn="false"/)
   assert.match(audience, /:show-play-btn="false"/)
