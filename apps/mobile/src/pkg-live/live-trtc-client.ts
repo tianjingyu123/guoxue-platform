@@ -7,13 +7,18 @@ const EVENT_MODULE_NAME = 'globalEvent'
 const APP_SCENE_LIVE = 1
 const ROLE_ANCHOR = 20
 const AUDIO_QUALITY_SPEECH = 1
+const VIDEO_STREAM_BIG = 0
 
 let trtcModule: NativeModule | null = null
 let eventModule: NativeModule | null = null
 const listeners = new Map<string, (payload: any) => void>()
 let joined = false
 let localPreviewActive = false
-let remoteUserLeaveHandler: (() => void) | null = null
+let localPreviewViewId = ''
+let remoteUserLeaveHandler: ((userId?: string) => void) | null = null
+let remoteVideoAvailabilityHandler: ((userId: string, available: boolean) => void) | null = null
+let connectionStateHandler: ((state: 'connected' | 'reconnecting' | 'lost') => void) | null = null
+const remoteVideoUsers = new Set<string>()
 
 function getNativePlugin(name: string): NativeModule | null {
   const loader = (uni as any)?.requireNativePlugin
@@ -58,14 +63,87 @@ export function isLiveTrtcSupported(): boolean {
  * 主播页用它清理异常退出的连麦观众。常规观众只播放云直播流，
  * 因而 TRTC 房间里的远端用户就是已经获准的连麦观众。
  */
-export function setLiveRemoteUserLeaveHandler(handler: (() => void) | null) {
+export function setLiveRemoteUserLeaveHandler(handler: ((userId?: string) => void) | null) {
   remoteUserLeaveHandler = handler
+}
+
+export function setLiveRemoteVideoAvailabilityHandler(
+  handler: ((userId: string, available: boolean) => void) | null,
+) {
+  remoteVideoAvailabilityHandler = handler
+}
+
+export function setLiveConnectionStateHandler(handler: ((state: 'connected' | 'reconnecting' | 'lost') => void) | null) {
+  connectionStateHandler = handler
+}
+
+function bindConnectionEvents() {
+  on('onConnectionLost', () => connectionStateHandler?.('lost'))
+  on('onTryToReconnect', () => connectionStateHandler?.('reconnecting'))
+  on('onConnectionRecovery', () => connectionStateHandler?.('connected'))
+}
+
+function bindRemoteMediaEvents() {
+  on('onRemoteUserLeaveRoom', (data) => {
+    const userId = String(data[0] || '')
+    if (userId) {
+      stopLiveRemoteVideo(userId)
+      remoteVideoAvailabilityHandler?.(userId, false)
+    }
+    remoteUserLeaveHandler?.(userId || undefined)
+  })
+  on('onUserVideoAvailable', (data) => {
+    const userId = String(data[0] || '')
+    if (!userId) return
+    const rawAvailable = data[1]
+    const available = rawAvailable === true || rawAvailable === 1 || rawAvailable === 'true'
+    if (!available) stopLiveRemoteVideo(userId)
+    remoteVideoAvailabilityHandler?.(userId, available)
+  })
+}
+
+/** 原生远端视图必须先挂载，再把同一个 viewId 交给 TRTC。 */
+export function startLiveRemoteVideo(userId: string, viewId: string) {
+  if (!joined || !trtcModule || !userId || !viewId) return
+  trtcModule.startRemoteView?.({ userId, streamType: VIDEO_STREAM_BIG, viewId })
+  remoteVideoUsers.add(userId)
+}
+
+export function stopLiveRemoteVideo(userId: string) {
+  if (!trtcModule || !userId) return
+  try { trtcModule.stopRemoteView?.({ userId, streamType: VIDEO_STREAM_BIG }) } catch {}
+  remoteVideoUsers.delete(userId)
+}
+
+/**
+ * 连麦候场本地预览：只打开本机摄像头画面，不进 TRTC 房间、不发布音视频。
+ * 用户点击“加入直播”后才由 joinLiveVideo 进入房间并开始上行。
+ */
+export function startLiveDevicePreview(viewId: string, frontCamera = true) {
+  if (!viewId) throw new Error('连麦预览视图未就绪')
+  const { trtc } = ensureModules()
+  trtc.sharedInstance()
+  if (localPreviewActive && localPreviewViewId === viewId) return
+  if (localPreviewActive) {
+    try { trtc.stopLocalPreview?.() } catch {}
+  }
+  trtc.startLocalPreview({ isFrontCamera: frontCamera, userId: viewId })
+  localPreviewActive = true
+  localPreviewViewId = viewId
+}
+
+export function stopLiveDevicePreview() {
+  if (!localPreviewActive || !trtcModule) return
+  try { trtcModule.stopLocalPreview?.() } catch {}
+  localPreviewActive = false
+  localPreviewViewId = ''
 }
 
 export async function joinLiveAudio(config: LiveRtcConfig): Promise<void> {
   if (joined) return
   const { trtc } = ensureModules()
   trtc.sharedInstance()
+  bindConnectionEvents()
 
   await new Promise<void>((resolve, reject) => {
     let settled = false
@@ -109,20 +187,18 @@ export async function joinLiveAudio(config: LiveRtcConfig): Promise<void> {
   })
 }
 
-/** 主播进入视频直播间并启动本地预览。streamId 与云直播播放流保持一致。 */
+/** 主播或获批视频嘉宾进入直播房间并启动本地预览。 */
 export async function joinLiveVideo(config: LiveRtcConfig, viewId: string): Promise<void> {
   if (joined) return
-  if (config.role !== 'HOST' || config.mediaMode !== 'VIDEO' || !config.canPublishVideo) {
-    throw new Error('当前账号没有视频开播权限')
+  if (config.mediaMode !== 'VIDEO' || !config.canPublishVideo) {
+    throw new Error('当前账号没有视频连麦权限')
   }
-  if (!config.streamId) throw new Error('服务端未返回直播流标识')
+  if (config.role === 'HOST' && !config.streamId) throw new Error('服务端未返回直播流标识')
 
   const { trtc } = ensureModules()
   trtc.sharedInstance()
-
-  on('onRemoteUserLeaveRoom', () => {
-    remoteUserLeaveHandler?.()
-  })
+  bindConnectionEvents()
+  bindRemoteMediaEvents()
 
   await new Promise<void>((resolve, reject) => {
     let settled = false
@@ -143,8 +219,11 @@ export async function joinLiveVideo(config: LiveRtcConfig, viewId: string): Prom
         return
       }
       joined = true
-      trtc.startLocalPreview({ isFrontCamera: true, userId: viewId })
-      localPreviewActive = true
+      if (!localPreviewActive || localPreviewViewId !== viewId) {
+        trtc.startLocalPreview({ isFrontCamera: true, userId: viewId })
+        localPreviewActive = true
+        localPreviewViewId = viewId
+      }
       if (config.canPublishAudio) trtc.startLocalAudio(AUDIO_QUALITY_SPEECH)
       resolve()
     })
@@ -161,7 +240,7 @@ export async function joinLiveVideo(config: LiveRtcConfig, viewId: string): Prom
       userSig: config.userSig,
       strRoomId: config.strRoomId,
       privateMapKey: config.privateMapKey,
-      streamId: config.streamId,
+      ...(config.streamId ? { streamId: config.streamId } : {}),
       role: ROLE_ANCHOR,
       appScene: APP_SCENE_LIVE,
     })
@@ -169,7 +248,7 @@ export async function joinLiveVideo(config: LiveRtcConfig, viewId: string): Prom
 }
 
 export function switchLiveCamera(frontCamera: boolean) {
-  if (!joined || !trtcModule) return
+  if ((!joined && !localPreviewActive) || !trtcModule) return
   trtcModule.switchCamera?.(frontCamera)
 }
 
@@ -185,6 +264,7 @@ export function setLiveAudioMuted(muted: boolean) {
 
 export function leaveLiveAudio() {
   if (trtcModule) {
+    for (const userId of [...remoteVideoUsers]) stopLiveRemoteVideo(userId)
     if (localPreviewActive) {
       try { trtcModule.stopLocalPreview?.() } catch {}
     }
@@ -193,6 +273,8 @@ export function leaveLiveAudio() {
   }
   joined = false
   localPreviewActive = false
+  localPreviewViewId = ''
+  remoteVideoUsers.clear()
   removeListeners()
   try { trtcModule?.destroySharedInstance?.() } catch {}
   trtcModule = null

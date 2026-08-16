@@ -1,21 +1,68 @@
 <template>
   <view class="viewer-page">
-    <video
-      v-if="playUrl"
-      id="live-audience-player"
-      class="live-video"
-      :src="playUrl.hls"
-      autoplay
-      :controls="false"
-      :muted="micRealtimeAudioActive"
-      object-fit="cover"
-      @play="onPlayerReady"
-      @error="onPlayerError"
+    <swiper
+      class="room-feed"
+      vertical
+      :current="feedIndex"
+      :duration="280"
+      @change="onFeedChange"
+    >
+      <swiper-item v-for="item in feedItems" :key="item.id">
+        <view class="feed-stage">
+          <video
+            v-if="item.id === roomId && playUrl"
+            id="live-audience-player"
+            class="live-video"
+            :src="playUrl.hls"
+            autoplay
+            :controls="false"
+            :show-center-play-btn="false"
+            :show-play-btn="false"
+            :show-fullscreen-btn="false"
+            :show-progress="false"
+            :enable-progress-gesture="false"
+            :muted="micRealtimeAudioActive"
+            :object-fit="room.orientation === 'landscape' ? 'contain' : 'cover'"
+            @play="onPlayerReady"
+            @error="onPlayerError"
+          />
+          <image v-else-if="item.cover" class="feed-cover" :src="item.cover" mode="aspectFill" />
+          <view v-else class="feed-ink-placeholder">
+            <view class="feed-seal"><text class="feed-seal-text">热卜</text></view>
+            <text class="feed-placeholder-title">国学直播</text>
+          </view>
+        </view>
+      </swiper-item>
+    </swiper>
+
+    <TRTCCloudUniPlugin-TXRemoteViewComponent
+      v-for="(item, index) in orderedRemoteVideoUsers"
+      :key="item.viewId"
+      :userId="item.userId"
+      :viewId="item.viewId"
+      class="rtc-remote-video"
+      :style="rtcRemoteVideoStyle(index)"
     />
-    <view v-else class="video-placeholder">
+    <cover-view
+      v-for="(item, index) in orderedRemoteVideoUsers"
+      :key="`label-${item.viewId}`"
+      class="rtc-remote-label-layer"
+      :style="rtcRemoteVideoStyle(index)"
+    >
+      <text class="rtc-remote-label">{{ remoteVideoLabel(item.userId) }}</text>
+    </cover-view>
+    <TRTCCloudUniPlugin-TXLocalViewComponent
+      v-if="micMediaMode === 'VIDEO' && (micState === 'preflight' || micState === 'connecting' || micState === 'connected')"
+      :viewId="rtcGuestViewId"
+      class="rtc-guest-preview"
+      :style="rtcGuestPreviewStyle"
+    />
+
+    <view v-if="!playUrl" class="video-placeholder">
+      <view class="loading-seal"><text class="loading-seal-text">播</text></view>
       <text class="placeholder-title">{{ loading ? '正在进入直播间' : '暂时无法播放直播' }}</text>
       <text class="placeholder-detail">{{ error || '正在获取直播画面…' }}</text>
-      <view v-if="!loading" class="retry-button" @click="loadRoom">
+      <view v-if="!loading" class="retry-button" @click="retryPlayback">
         <text class="retry-button-text">重新连接</text>
       </view>
     </view>
@@ -30,8 +77,11 @@
           <text class="host-avatar-text">{{ hostInitial }}</text>
         </view>
         <view class="host-copy">
-          <text class="host-name">{{ room.hostName || '主播' }}</text>
-          <text class="host-sub">{{ room.circleName || '热卜直播' }}</text>
+          <view class="host-name-row">
+            <text class="host-name">{{ room.hostName || '主播' }}</text>
+            <view class="host-verified"><text class="host-verified-text">卜</text></view>
+          </view>
+          <text class="host-sub">{{ room.followers != null ? `${formatCount(room.followers)} 关注者` : (room.circleName || '热卜直播') }}</text>
         </view>
         <view class="follow-button" :class="{ followed: isFollowing }" @click="toggleFollow">
           <text class="follow-button-text">{{ isFollowing ? '已关注' : '关注' }}</text>
@@ -40,6 +90,16 @@
 
       <view class="top-actions">
         <view class="viewer-count">
+          <view v-if="visibleAudienceAvatars.length" class="audience-stack">
+            <image
+              v-for="(avatar, index) in visibleAudienceAvatars"
+              :key="`${avatar}-${index}`"
+              class="audience-avatar"
+              :class="{ 'audience-avatar-overlap': index > 0 }"
+              :src="avatar"
+              mode="aspectFill"
+            />
+          </view>
           <view class="viewer-live-dot" />
           <text class="viewer-count-text">{{ formatCount(room.viewerCount) }}</text>
         </view>
@@ -55,10 +115,57 @@
           <view class="live-dot" />
           <text class="live-seal-text">直播</text>
         </view>
-        <text class="room-scope">{{ room.circleName ? `圈内 · ${room.circleName}` : '全平台可见' }}</text>
+        <text class="room-scope">{{ room.visibility === 'CIRCLE_ONLY' ? `圈内${room.circleName ? ` · ${room.circleName}` : ''}` : '全平台可见' }}</text>
+        <view v-if="publicConnectedMics.length" class="cohost-chip">
+          <text class="cohost-chip-text">连麦 {{ publicConnectedMics.length }}</text>
+        </view>
+        <view v-if="qualityLabel" class="quality-chip">
+          <text class="quality-chip-text">{{ qualityLabel }}</text>
+        </view>
       </view>
       <text class="room-title">{{ room.title || '直播间' }}</text>
+      <view class="live-safety-strip">
+        <text class="live-safety-mark">i</text>
+        <text class="live-safety-text">文明互动 · 理性消费 · 内容仅供文化交流参考</text>
+      </view>
       <text v-if="playerNotice" class="player-notice">{{ playerNotice }}</text>
+      <text v-else-if="feedItems.length > 1" class="swipe-hint">上下滑动，切换直播间</text>
+    </cover-view>
+
+    <cover-view v-if="products.length" class="product-float" :style="productFloatStyle" @click="openProductPanel">
+      <image v-if="products[0].cover" class="product-float-cover" :src="products[0].cover" mode="aspectFill" />
+      <view v-else class="product-float-cover product-float-fallback"><text class="product-float-fallback-text">品</text></view>
+      <view class="product-float-copy">
+        <text class="product-float-kicker">{{ products[0].isExplaining ? '主播正在讲解' : `本场好物 · ${products.length} 件` }}</text>
+        <text class="product-float-name">{{ products[0].name }}</text>
+      </view>
+      <text class="product-float-price">¥{{ formatPrice(products[0].price) }}</text>
+    </cover-view>
+
+    <cover-view class="social-rail" :style="socialRailStyle">
+      <view v-if="products.length" class="rail-action" @click="openProductPanel">
+        <view class="rail-icon-shell commerce-shell">
+          <text class="rail-icon-word">品</text>
+          <view class="rail-count-badge"><text class="rail-count-text">{{ products.length }}</text></view>
+        </view>
+        <text class="rail-label">好物</text>
+      </view>
+      <view class="rail-action" @click="openGiftPanel">
+        <view class="rail-icon-shell gift-shell"><text class="rail-icon-word">礼</text></view>
+        <text class="rail-label">心意</text>
+      </view>
+      <view class="rail-action" @click="sendLike">
+        <view class="rail-icon-shell like-shell"><text class="rail-icon-like">♥</text></view>
+        <text class="rail-label">{{ room.likeCount ? formatCount(room.likeCount) : '点赞' }}</text>
+      </view>
+      <view v-if="canUseLiveMic" class="rail-action" @click="openMicSheet">
+        <view class="rail-icon-shell mic-badge"><text class="rail-icon-word">麦</text></view>
+        <text class="rail-label">{{ micState === 'connected' ? '连麦中' : micState === 'requesting' ? '等待中' : '连麦' }}</text>
+      </view>
+      <view class="rail-action" @click="openMorePanel">
+        <view class="rail-icon-shell"><text class="rail-icon-more">•••</text></view>
+        <text class="rail-label">更多</text>
+      </view>
     </cover-view>
 
     <cover-view class="comment-stack" :style="commentStackStyle">
@@ -66,7 +173,8 @@
         <text class="system-tip-mark">热卜</text>
         <text class="system-tip-text">和主播打个招呼吧</text>
       </view>
-      <view v-for="item in visibleComments" :key="String(item.id)" class="comment-row">
+      <view v-for="item in visibleComments" :key="String(item.id)" class="comment-row" :class="{ 'comment-row-gift': item.type === 'gift' }">
+        <text v-if="item.type === 'gift'" class="comment-gift-mark">心意</text>
         <text class="comment-user">{{ item.userName || '观众' }}</text>
         <text class="comment-content">{{ item.content }}</text>
       </view>
@@ -77,18 +185,20 @@
         <text class="comment-entry-text">说点什么…</text>
         <text class="comment-entry-send">➤</text>
       </view>
-      <view class="dock-action" @click="sendLike">
-        <view class="dock-icon-shell like-shell"><text class="dock-icon dock-icon-like">♥</text></view>
-        <text class="dock-label">{{ room.likeCount ? formatCount(room.likeCount) : '点赞' }}</text>
+      <view class="dock-share" @click="shareRoom">
+        <text class="dock-share-icon">↗</text>
+        <text class="dock-share-label">分享</text>
       </view>
-      <view v-if="canUseLiveMic" class="dock-action mic-action" @click="openMicSheet">
-        <view class="dock-icon-shell mic-badge"><text class="mic-badge-text">麦</text></view>
-        <text class="dock-label">{{ micState === 'connected' ? '连麦中' : micState === 'requesting' ? '等待中' : '连麦' }}</text>
-      </view>
-      <view class="dock-action" @click="shareRoom">
-        <view class="dock-icon-shell"><text class="dock-icon share-icon">↗</text></view>
-        <text class="dock-label">分享</text>
-      </view>
+    </cover-view>
+
+    <cover-view v-if="likeParticles.length" class="like-feedback" :style="likeFeedbackStyle">
+      <text
+        v-for="particle in likeParticles"
+        :key="particle.id"
+        class="like-particle"
+        :class="`like-particle-${particle.variant}`"
+        :style="likeParticleStyle(particle)"
+      >♥</text>
     </cover-view>
 
     <cover-view v-if="showCommentComposer" class="composer-mask" @click="closeCommentComposer">
@@ -121,8 +231,18 @@
         <view v-if="micState === 'idle'" class="mic-state">
           <view class="mic-symbol"><text class="mic-symbol-text">连</text></view>
           <text class="mic-title">申请与主播连麦</text>
-          <text class="mic-detail">主播同意后，将建立低延时双向语音；申请前只请求麦克风权限。</text>
-          <view class="mic-primary" @click="requestMic"><text class="mic-primary-text">申请连麦</text></view>
+          <text class="mic-detail">选择语音或视频；主播同意后才会开启对应设备和低延时链路。</text>
+          <view class="mic-mode-row">
+            <view class="mic-mode" :class="{ selected: micMediaMode === 'AUDIO' }" @click="micMediaMode = 'AUDIO'">
+              <text class="mic-mode-title">语音连麦</text>
+              <text class="mic-mode-detail">只使用麦克风</text>
+            </view>
+            <view class="mic-mode mic-mode-video" :class="{ selected: micMediaMode === 'VIDEO' }" @click="micMediaMode = 'VIDEO'">
+              <text class="mic-mode-title">视频连麦</text>
+              <text class="mic-mode-detail">相机与麦克风</text>
+            </view>
+          </view>
+          <view class="mic-primary" @click="requestMic"><text class="mic-primary-text">申请{{ micMediaMode === 'VIDEO' ? '视频' : '语音' }}连麦</text></view>
           <view class="mic-ghost" @click="closeMicSheet"><text class="mic-ghost-text">暂不连麦</text></view>
         </view>
         <view v-else-if="micState === 'requesting'" class="mic-state">
@@ -130,6 +250,30 @@
           <text class="mic-title">等待主播同意</text>
           <text class="mic-detail">申请已送达；主播可在直播间或控制台接受。</text>
           <view class="mic-secondary" @click="closeMicSheet"><text class="mic-primary-text">取消申请</text></view>
+        </view>
+        <view v-else-if="micState === 'invited'" class="mic-state">
+          <view class="mic-symbol mic-symbol-invite"><text class="mic-symbol-text">邀</text></view>
+          <text class="mic-title">主播邀请你{{ micMediaMode === 'VIDEO' ? '视频' : '语音' }}连麦</text>
+          <text class="mic-detail">接受后才会申请{{ micMediaMode === 'VIDEO' ? '摄像头与麦克风' : '麦克风' }}权限；你可以随时静音或退出。</text>
+          <view class="mic-primary" @click="acceptMicInvite"><text class="mic-primary-text">接受邀请</text></view>
+          <view class="mic-ghost" @click="declineMicInvite"><text class="mic-ghost-text">暂不连麦</text></view>
+        </view>
+        <view v-else-if="micState === 'preflight'" class="mic-state">
+          <view class="mic-symbol mic-symbol-ready"><text class="mic-symbol-text">检</text></view>
+          <text class="mic-title">加入前设备检查</text>
+          <text class="mic-detail">{{ micMediaMode === 'VIDEO' ? '右上角是仅本机可见的摄像头预览；确认后才会进入直播。' : '麦克风权限已确认；你可以选择静音加入。' }}</text>
+          <view class="mic-mode-row mic-device-row">
+            <view class="mic-mode selected" @click="toggleMicMute">
+              <text class="mic-mode-title">{{ micMuted ? '静音加入' : '麦克风开启' }}</text>
+              <text class="mic-mode-detail">点击切换</text>
+            </view>
+            <view v-if="micMediaMode === 'VIDEO'" class="mic-mode selected" @click="flipGuestCamera">
+              <text class="mic-mode-title">翻转镜头</text>
+              <text class="mic-mode-detail">检查取景</text>
+            </view>
+          </view>
+          <view class="mic-primary" @click="confirmMicJoin"><text class="mic-primary-text">加入直播</text></view>
+          <view class="mic-ghost" @click="closeMicSheet"><text class="mic-ghost-text">取消连麦</text></view>
         </view>
         <view v-else-if="micState === 'connecting'" class="mic-state">
           <view class="mic-symbol mic-symbol-wait"><text class="mic-symbol-text">✓</text></view>
@@ -149,14 +293,142 @@
     <cover-view v-if="showMicSheet && micState === 'connected'" class="mic-connected" :style="micConnectedStyle">
       <view class="mic-live-dot" />
       <view class="mic-connected-copy">
-        <text class="mic-connected-title">正在与主播连麦</text>
+        <text class="mic-connected-title">正在{{ micMediaMode === 'VIDEO' ? '视频' : '语音' }}连麦</text>
         <text class="mic-connected-time">{{ formatDuration(micDuration) }}</text>
       </view>
-      <view class="mic-mini-button" :class="{ muted: micMuted }" @click="toggleMicMute">
-        <text class="mic-mini-button-text">{{ micMuted ? '开麦' : '静音' }}</text>
+      <view v-if="micMediaMode === 'VIDEO'" class="mic-mini-button" :class="{ muted: micVideoMuted }" @click="toggleMicVideo">
+        <text class="mic-mini-button-text">{{ micVideoMuted ? '开画面' : '关画面' }}</text>
+      </view>
+      <view v-if="micMediaMode === 'VIDEO'" class="mic-mini-button" @click="flipGuestCamera">
+        <text class="mic-mini-button-text">翻转</text>
+      </view>
+      <view class="mic-mini-button" :class="{ muted: micMuted || micHostMuted }" @click="toggleMicMute">
+        <text class="mic-mini-button-text">{{ micHostMuted ? '主播静音' : micMuted ? '开麦' : '静音' }}</text>
       </view>
       <view class="mic-mini-button hangup" @click="hangUpMic">
         <text class="mic-mini-button-text">断开</text>
+      </view>
+    </cover-view>
+
+    <cover-view v-if="showProductPanel" class="action-mask" @click="closeActionPanels">
+      <view class="action-sheet product-sheet" :style="actionSheetStyle" @click.stop>
+        <view class="sheet-handle" />
+        <view class="sheet-heading">
+          <view>
+            <text class="sheet-kicker">本场商品</text>
+            <text class="sheet-title">边看边选，不离开直播画面</text>
+          </view>
+          <text class="sheet-close" @click="closeActionPanels">×</text>
+        </view>
+        <scroll-view v-if="products.length" scroll-y class="product-list">
+          <view v-for="product in products" :key="product.id" class="product-row">
+            <image v-if="product.cover" class="product-cover" :src="product.cover" mode="aspectFill" />
+            <view v-else class="product-cover product-cover-fallback"><text class="product-cover-text">品</text></view>
+            <view class="product-copy">
+              <text class="product-name">{{ product.name }}</text>
+              <text class="product-stock">{{ product.stock > 0 ? `库存 ${product.stock}` : '已售罄' }}</text>
+              <view class="product-price-row">
+                <text class="product-price">¥{{ formatPrice(product.price) }}</text>
+                <text v-if="product.originalPrice > product.price" class="product-original">¥{{ formatPrice(product.originalPrice) }}</text>
+              </view>
+            </view>
+            <view class="product-buy" :class="{ disabled: product.stock <= 0 }" @click="openProduct(product)">
+              <text class="product-buy-text">{{ product.stock > 0 ? '去购买' : '已售罄' }}</text>
+            </view>
+          </view>
+        </scroll-view>
+        <view v-else class="sheet-empty">
+          <text class="sheet-empty-title">本场暂未上架商品</text>
+          <text class="sheet-empty-detail">主播添加商品后会自动显示，这里不展示虚拟货品。</text>
+        </view>
+      </view>
+    </cover-view>
+
+    <cover-view v-if="showGiftPanel" class="action-mask" @click="closeActionPanels">
+      <view class="action-sheet gift-sheet" :style="actionSheetStyle" @click.stop>
+        <view class="sheet-handle" />
+        <view class="sheet-heading">
+          <view>
+            <text class="sheet-kicker">表达心意</text>
+            <text class="sheet-title">余额 {{ coinBalance }} 国学币</text>
+          </view>
+          <text class="sheet-close" @click="closeActionPanels">×</text>
+        </view>
+        <view v-if="giftPolicyLoading" class="gift-policy-card">
+          <text class="gift-policy-title">正在读取消费保护设置…</text>
+        </view>
+        <view v-else-if="giftPolicy && !giftPolicy.eligible" class="gift-policy-card warning">
+          <text class="gift-policy-title">暂不能赠送礼物</text>
+          <text class="gift-policy-detail">{{ giftPolicyReason }}</text>
+        </view>
+        <view v-else-if="giftPolicy && !giftPolicy.configured" class="gift-policy-card">
+          <text class="gift-policy-title">首次赠送前，请先设置消费限额</text>
+          <text class="gift-policy-detail">限额由你决定，提醒默认开启；以后可以继续调低或调整。</text>
+          <view class="gift-limit-row">
+            <view class="gift-limit-field">
+              <text class="gift-limit-label">单次上限</text>
+              <input v-model="singleLimitDraft" type="number" class="gift-limit-input" placeholder="如 100" />
+            </view>
+            <view class="gift-limit-field">
+              <text class="gift-limit-label">每日上限</text>
+              <input v-model="dailyLimitDraft" type="number" class="gift-limit-input" placeholder="如 500" />
+            </view>
+          </view>
+          <view class="gift-policy-save" :class="{ disabled: savingGiftPolicy }" @click="saveGiftPolicy">
+            <text class="gift-policy-save-text">{{ savingGiftPolicy ? '保存中…' : '确认限额并开启提醒' }}</text>
+          </view>
+        </view>
+        <scroll-view v-if="giftPolicyReady && gifts.length" scroll-y class="gift-scroll">
+          <view class="gift-grid">
+            <view
+              v-for="gift in gifts"
+              :key="gift.id"
+              class="gift-item"
+              :class="{ selected: selectedGiftId === gift.id }"
+              @click="selectedGiftId = gift.id"
+            >
+              <image v-if="gift.icon" class="gift-icon" :src="gift.icon" mode="aspectFit" />
+              <view v-else class="gift-icon gift-icon-fallback"><text class="gift-icon-text">礼</text></view>
+              <text class="gift-name">{{ gift.name }}</text>
+              <text class="gift-price">{{ gift.price }} 币</text>
+            </view>
+          </view>
+        </scroll-view>
+        <view v-else-if="giftPolicyReady" class="sheet-empty">
+          <text class="sheet-empty-title">暂未配置礼物</text>
+          <text class="sheet-empty-detail">运营配置后会自动显示，这里不展示虚拟数据。</text>
+        </view>
+        <view v-if="giftPolicyReady && gifts.length" class="gift-submit-row">
+          <view class="ranking-copy">
+            <text class="ranking-title">理性表达</text>
+            <text class="ranking-detail">今日已送 {{ giftPolicy?.spentTodayCoin || 0 }} / {{ giftPolicy?.dailyLimitCoin || 0 }} 币</text>
+          </view>
+          <view class="gift-submit" :class="{ disabled: !selectedGift }" @click="confirmSendGift">
+            <text class="gift-submit-text">{{ sendingGift ? '发送中…' : '送出心意' }}</text>
+          </view>
+        </view>
+      </view>
+    </cover-view>
+
+    <cover-view v-if="showMorePanel" class="action-mask" @click="closeActionPanels">
+      <view class="action-sheet more-sheet" :style="actionSheetStyle" @click.stop>
+        <view class="sheet-handle" />
+        <text class="sheet-kicker">直播工具</text>
+        <text class="sheet-title">真实操作，结果可追溯</text>
+        <view class="more-grid">
+          <view class="more-item" @click="shareRoom">
+            <view class="more-symbol"><text class="more-symbol-text">↗</text></view>
+            <text class="more-label">分享直播</text>
+          </view>
+          <view class="more-item" @click="reportRoom">
+            <view class="more-symbol warning"><text class="more-symbol-text">!</text></view>
+            <text class="more-label">举报直播</text>
+          </view>
+          <view class="more-item" @click="showPlaybackInfo">
+            <view class="more-symbol"><text class="more-symbol-text">清</text></view>
+            <text class="more-label">播放信息</text>
+          </view>
+        </view>
       </view>
     </cover-view>
 
@@ -164,9 +436,9 @@
       <view class="ended-card" :style="endedCardStyle">
         <view class="ended-mark"><text class="ended-mark-text">✓</text></view>
         <text class="ended-title">直播已结束</text>
-        <text class="ended-detail">感谢观看，主播已经结束本场直播</text>
+        <text class="ended-detail">{{ hasNextRoom ? `${endCountdown} 秒后进入下一场直播` : `${endCountdown} 秒后返回` }}</text>
         <view class="ended-button" @click="leaveEndedRoom">
-          <text class="ended-button-text">返回圈子</text>
+          <text class="ended-button-text">{{ hasNextRoom ? '立即进入下一场' : '立即返回' }}</text>
         </view>
       </view>
     </cover-view>
@@ -174,21 +446,47 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue'
-import { onBackPress, onLoad, onShow } from '@dcloudio/uni-app'
-import { liveApi, type LiveWatchRoomInfo, type VerticalLiveComment } from '@/lib/live-data'
+import { computed, nextTick, onUnmounted, ref } from 'vue'
+import { onBackPress, onHide, onLoad, onShow } from '@dcloudio/uni-app'
+import {
+  liveApi,
+  type LiveGift,
+  type LiveItem,
+  type LiveWatchRoomInfo,
+  type VerticalLiveComment,
+  type VerticalLiveProduct,
+} from '@/lib/live-data'
+import { getLiveFeed, leaveLivePresence, touchLivePresence } from './presence-api'
+import {
+  getLiveGiftSpendingPreference,
+  likeLiveRoom,
+  sendLiveGift,
+  updateLiveGiftSpendingPreference,
+  type LiveGiftSpendingPreference,
+} from '@/pkg-live/live-interaction-api'
 import { useTim, type TimMessage } from '@/composables/useTim'
-import { getToken } from '@/utils/storage'
+import { getToken, getUserInfo } from '@/utils/storage'
 import { buildH5Url } from '@/utils/share'
 import { withRef } from '@/utils/referral'
+import { gotoReport } from '@/lib/report-data'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
-import { ensureLiveAudioPermission } from '@/pkg-live/app-capture-permissions'
+import { ensureLiveAudioPermission, ensureLiveCapturePermissions } from '@/pkg-live/app-capture-permissions'
 import { liveMicApi, type LiveMicItem } from '@/pkg-live/live-mic-data'
+import { formatLiveGiftTimEvent, readLiveGiftTimEvent } from '@/pkg-live/live-tim-events'
 import {
   isLiveTrtcSupported,
   joinLiveAudio,
+  joinLiveVideo,
   leaveLiveAudio,
   setLiveAudioMuted,
+  setLiveConnectionStateHandler,
+  setLiveRemoteVideoAvailabilityHandler,
+  setLiveVideoMuted,
+  startLiveDevicePreview,
+  stopLiveDevicePreview,
+  startLiveRemoteVideo,
+  stopLiveRemoteVideo,
+  switchLiveCamera,
 } from '@/pkg-live/live-trtc-client'
 
 const emptyRoom: LiveWatchRoomInfo = {
@@ -205,6 +503,8 @@ const emptyRoom: LiveWatchRoomInfo = {
   onlineAvatars: [],
   imGroupId: '',
   circleId: '',
+  orientation: 'portrait',
+  visibility: 'CIRCLE_ONLY',
   status: '',
   cover: '',
   startTime: '',
@@ -218,7 +518,8 @@ const emptyRoom: LiveWatchRoomInfo = {
 
 const roomId = ref('')
 const room = ref<LiveWatchRoomInfo>({ ...emptyRoom })
-const playUrl = ref<{ flv: string; hls: string } | null>(null)
+type LivePlayUrl = { flv: string; hls: string; streamMode?: 'ORIGIN' | 'MIXED' }
+const playUrl = ref<LivePlayUrl | null>(null)
 const comments = ref<VerticalLiveComment[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -227,18 +528,59 @@ const isFollowing = ref(false)
 const commentDraft = ref('')
 const showCommentComposer = ref(false)
 const showMicSheet = ref(false)
+const showGiftPanel = ref(false)
+const showProductPanel = ref(false)
+const showMorePanel = ref(false)
+const products = ref<VerticalLiveProduct[]>([])
+const gifts = ref<LiveGift[]>([])
+const coinBalance = ref(0)
+const giftPolicy = ref<LiveGiftSpendingPreference | null>(null)
+const giftPolicyLoading = ref(false)
+const savingGiftPolicy = ref(false)
+const singleLimitDraft = ref('100')
+const dailyLimitDraft = ref('500')
+const selectedGiftId = ref('')
+const sendingGift = ref(false)
+type FeedItem = Pick<LiveItem, 'id' | 'title' | 'cover' | 'hostName' | 'hostAvatar'>
+const feedItems = ref<FeedItem[]>([])
+const feedIndex = ref(0)
+const endCountdown = ref(3)
 const canUseLiveMic = isLiveTrtcSupported()
-type MicState = 'idle' | 'requesting' | 'connecting' | 'connected' | 'error'
+type MicState = 'idle' | 'requesting' | 'invited' | 'preflight' | 'connecting' | 'connected' | 'error'
 const micState = ref<MicState>('idle')
 const micError = ref('')
 const micDuration = ref(0)
 const micMuted = ref(false)
+const micHostMuted = ref(false)
+const micVideoMuted = ref(false)
+const micMediaMode = ref<'AUDIO' | 'VIDEO'>('AUDIO')
+const rtcHostUserId = ref('')
+const roomMics = ref<LiveMicItem[]>([])
+const remoteVideoUsers = ref<Array<{ userId: string; viewId: string }>>([])
+const rtcGuestViewId = `guest-preview-${Date.now().toString(36)}`
+const guestFrontCamera = ref(true)
 const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
 
 const hostInitial = computed(() => String(room.value.hostName || '热').trim().slice(0, 1))
+const qualityLabel = computed(() => room.value.quality === 'uhd' ? '超清' : room.value.quality === 'hd' ? '高清' : '')
 const visibleComments = computed(() => comments.value.slice(-5))
+const visibleAudienceAvatars = computed(() => room.value.onlineAvatars.filter(Boolean).slice(0, 3))
 const micRealtimeAudioActive = computed(() => micState.value === 'connecting' || micState.value === 'connected')
 const roomEnded = computed(() => ['ENDED', 'REPLAY'].includes(String(room.value.status || '').toUpperCase()))
+const selectedGift = computed(() => gifts.value.find((gift) => gift.id === selectedGiftId.value) || null)
+const giftPolicyReady = computed(() => Boolean(giftPolicy.value?.eligible && giftPolicy.value?.configured))
+const giftPolicyReason = computed(() => {
+  if (giftPolicy.value?.ineligibleReason === 'MINOR_NOT_ALLOWED') return '未成年人禁止直播打赏。'
+  if (giftPolicy.value?.ineligibleReason === 'AGE_REQUIRED') return '请先补全年龄信息并完成核验。'
+  return '请先完成实名认证与年龄核验。'
+})
+const hasNextRoom = computed(() => feedIndex.value + 1 < feedItems.value.length)
+const orderedRemoteVideoUsers = computed(() => [...remoteVideoUsers.value].sort((left, right) => {
+  if (left.userId === rtcHostUserId.value) return -1
+  if (right.userId === rtcHostUserId.value) return 1
+  return left.userId.localeCompare(right.userId)
+}))
+const publicConnectedMics = computed(() => roomMics.value.filter((item) => item.status === 'OCCUPIED' || item.status === 'MUTED'))
 const topbarStyle = computed(() => ({
   paddingTop: `${safeTop.value + uni.upx2px(18)}px`,
   paddingLeft: `${safeLeft.value + uni.upx2px(22)}px`,
@@ -253,13 +595,17 @@ const roomMetaStyle = computed(() => ({
 }))
 const commentStackStyle = computed(() => ({
   left: `${safeLeft.value + uni.upx2px(24)}px`,
-  right: `${safeRight.value + uni.upx2px(166)}px`,
+  right: `${safeRight.value + uni.upx2px(178)}px`,
   bottom: `${safeBottom.value + uni.upx2px(146)}px`,
 }))
 const bottomDockStyle = computed(() => ({
   paddingLeft: `${safeLeft.value + uni.upx2px(22)}px`,
   paddingRight: `${safeRight.value + uni.upx2px(22)}px`,
   paddingBottom: `${safeBottom.value + uni.upx2px(18)}px`,
+}))
+const likeFeedbackStyle = computed(() => ({
+  right: `${safeRight.value + uni.upx2px(46)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(226)}px`,
 }))
 const composerSheetStyle = computed(() => ({
   paddingLeft: `${safeLeft.value + uni.upx2px(28)}px`,
@@ -276,10 +622,54 @@ const micConnectedStyle = computed(() => ({
   right: `${safeRight.value + uni.upx2px(24)}px`,
   bottom: `${safeBottom.value + uni.upx2px(138)}px`,
 }))
+const rtcGuestPreviewStyle = computed(() => ({
+  top: `${safeTop.value + uni.upx2px(126)}px`,
+  right: `${safeRight.value + uni.upx2px(20)}px`,
+}))
 const endedCardStyle = computed(() => ({
   marginLeft: `${safeLeft.value + uni.upx2px(44)}px`,
   marginRight: `${safeRight.value + uni.upx2px(44)}px`,
 }))
+const productFloatStyle = computed(() => ({
+  left: `${safeLeft.value + uni.upx2px(24)}px`,
+  right: `${safeRight.value + uni.upx2px(178)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(344)}px`,
+}))
+const socialRailStyle = computed(() => ({
+  right: `${safeRight.value + uni.upx2px(18)}px`,
+  bottom: `${safeBottom.value + uni.upx2px(150)}px`,
+}))
+const actionSheetStyle = computed(() => ({
+  paddingLeft: `${safeLeft.value + uni.upx2px(28)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(28)}px`,
+  paddingBottom: `${safeBottom.value + uni.upx2px(28)}px`,
+}))
+
+function rtcRemoteVideoStyle(index: number) {
+  const count = orderedRemoteVideoUsers.value.length
+  if (count <= 1) return { left: '0px', right: '0px', top: '0px', bottom: '0px' }
+  if (index === 0) return { left: '0px', right: '0px', top: '0px', height: '60%' }
+  const guestCount = count - 1
+  const columns = guestCount <= 1 ? 1 : guestCount <= 4 ? 2 : 3
+  const rows = Math.ceil(guestCount / columns)
+  const guestIndex = index - 1
+  const row = Math.floor(guestIndex / columns)
+  const column = guestIndex % columns
+  const width = 100 / columns
+  const height = 40 / rows
+  return {
+    left: `${column * width}%`,
+    width: `${width}%`,
+    top: `${60 + row * height}%`,
+    height: `${height}%`,
+  }
+}
+
+function remoteVideoLabel(userId: string) {
+  if (userId === rtcHostUserId.value) return room.value.hostName || '主播'
+  const mic = roomMics.value.find((item) => item.trtcUserId === userId)
+  return mic?.nickname || `连麦嘉宾 ${mic?.position || ''}`.trim()
+}
 
 const tim = useTim()
 let timGroupId = ''
@@ -287,11 +677,82 @@ let offTimMessage: (() => void) | null = null
 let sendingComment = false
 let followBusy = false
 let micUserId = ''
+let micInvitePending = false
+let preflightMic: LiveMicItem | null = null
 let micPolling = false
+let appliedMicMuteState: boolean | null = null
 let micPollTimer: ReturnType<typeof setInterval> | null = null
 let micDurationTimer: ReturnType<typeof setInterval> | null = null
+let lastMicReadyAt = 0
 let roomPollTimer: ReturnType<typeof setInterval> | null = null
+let presenceTimer: ReturnType<typeof setInterval> | null = null
+let endAdvanceTimer: ReturnType<typeof setInterval> | null = null
+let playerRetryTimer: ReturnType<typeof setTimeout> | null = null
+let playerRetryCount = 0
 let roomPolling = false
+let presenceActive = false
+let switchingRoom = false
+let appBackgroundSuspended = false
+let giftsLoaded = false
+let feedInitialized = false
+const presenceSessionId = `live-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
+const playUrlCache = new Map<string, LivePlayUrl>()
+const pendingLocalEchoes = new Map<string, Set<number>>()
+let localEchoSequence = 0
+type LikeParticle = { id: number; variant: number; frame: number }
+const likeParticles = ref<LikeParticle[]>([])
+let likeParticleSequence = 0
+let likeParticleTimer: ReturnType<typeof setInterval> | null = null
+
+function likeParticleStyle(particle: LikeParticle) {
+  const progress = Math.min(1, particle.frame / 12)
+  const offset = particle.variant === 1 ? -uni.upx2px(22) : particle.variant === 2 ? uni.upx2px(22) : 0
+  const rise = uni.upx2px(176) * progress
+  const scale = progress < 0.24 ? 0.62 + progress * 1.75 : 1.04 - (progress - 0.24) * 0.18
+  const opacity = progress < 0.18 ? progress / 0.18 : Math.max(0, (1 - progress) / 0.82)
+  return {
+    opacity,
+    transform: `translate(${offset}px, -${rise}px) scale(${scale}) rotate(${Math.round(-8 + progress * 18)}deg)`,
+  }
+}
+
+function startLikeParticleTicker() {
+  if (likeParticleTimer) return
+  likeParticleTimer = setInterval(() => {
+    likeParticles.value = likeParticles.value
+      .map((particle) => ({ ...particle, frame: particle.frame + 1 }))
+      .filter((particle) => particle.frame <= 12)
+    if (likeParticles.value.length) return
+    if (likeParticleTimer) clearInterval(likeParticleTimer)
+    likeParticleTimer = null
+  }, 55)
+}
+
+function rememberLocalEcho(content: string) {
+  const token = ++localEchoSequence
+  const tokens = pendingLocalEchoes.get(content) || new Set<number>()
+  tokens.add(token)
+  pendingLocalEchoes.set(content, tokens)
+  setTimeout(() => forgetLocalEcho(content, token), 15_000)
+  return token
+}
+
+function forgetLocalEcho(content: string, token?: number) {
+  const tokens = pendingLocalEchoes.get(content)
+  if (!tokens?.size) return
+  const target = token ?? tokens.values().next().value
+  if (target !== undefined) tokens.delete(target)
+  if (!tokens.size) pendingLocalEchoes.delete(content)
+}
+
+function consumeLocalEcho(message: TimMessage, content: string) {
+  const profile = getUserInfo<{ id?: string; userId?: string }>()
+  const currentUserId = String(profile?.id || profile?.userId || '')
+  const isOwnMessage = message.flow === 'out' || (!!currentUserId && message.from === currentUserId)
+  if (!isOwnMessage || !content || !pendingLocalEchoes.has(content)) return false
+  forgetLocalEcho(content)
+  return true
+}
 
 function formatCount(value: number) {
   const n = Math.max(0, Number(value) || 0)
@@ -305,6 +766,76 @@ function formatDuration(value: number) {
   return `${minutes}:${seconds}`
 }
 
+function formatPrice(value: number) {
+  const amount = Math.max(0, Number(value) || 0)
+  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2)
+}
+
+function toFeedItem(item: FeedItem): FeedItem {
+  return {
+    id: item.id,
+    title: item.title || '直播间',
+    cover: item.cover || '',
+    hostName: item.hostName || '主播',
+    hostAvatar: item.hostAvatar || '',
+  }
+}
+
+function syncCurrentFeedItem() {
+  const current: FeedItem = {
+    id: room.value.id || roomId.value,
+    title: room.value.title,
+    cover: room.value.cover,
+    hostName: room.value.hostName,
+    hostAvatar: room.value.hostAvatar,
+  }
+  const index = feedItems.value.findIndex((item) => item.id === current.id)
+  if (index >= 0) feedItems.value.splice(index, 1, toFeedItem(current))
+  else feedItems.value.push(toFeedItem(current))
+}
+
+async function initializeFeed() {
+  if (feedInitialized || !room.value.id) return
+  feedInitialized = true
+  try {
+    const circleId = room.value.visibility === 'CIRCLE_ONLY' ? room.value.circleId : undefined
+    const candidates = await getLiveFeed(circleId)
+    const current = toFeedItem({
+      id: room.value.id,
+      title: room.value.title,
+      cover: room.value.cover,
+      hostName: room.value.hostName,
+      hostAvatar: room.value.hostAvatar,
+    })
+    const rest = candidates
+      .filter((item) => item.id && item.id !== current.id)
+      .map((item) => toFeedItem(item))
+    feedItems.value = [current, ...rest]
+    feedIndex.value = 0
+    void preloadAdjacentRooms()
+  } catch {
+    // 推荐流不可用不影响当前直播；仍保留单房间观看。
+  }
+}
+
+async function preloadAdjacentRooms() {
+  const indexes = [feedIndex.value - 1, feedIndex.value + 1]
+  for (const index of indexes) {
+    const item = feedItems.value[index]
+    if (!item || playUrlCache.has(item.id)) continue
+    void liveApi.getPlayUrl(item.id)
+      .then((url) => playUrlCache.set(item.id, url))
+      .catch(() => undefined)
+  }
+}
+
+async function leavePublicScreen() {
+  if (offTimMessage) { offTimMessage(); offTimMessage = null }
+  const groupId = timGroupId
+  timGroupId = ''
+  if (groupId) await tim.quitGroup(groupId).catch(() => undefined)
+}
+
 async function joinPublicScreen(groupId: string) {
   if (!groupId || groupId === timGroupId) return
   try {
@@ -312,14 +843,17 @@ async function joinPublicScreen(groupId: string) {
     await tim.joinGroup(groupId)
     offTimMessage = tim.onMessage((messages: TimMessage[]) => {
       const incoming = messages.filter((message) =>
-        message.conversationType === 'GROUP' && message.to === timGroupId && message.payload?.text,
+        message.conversationType === 'GROUP' && message.to === timGroupId,
       )
       for (const message of incoming) {
+        const giftEvent = readLiveGiftTimEvent(message)
+        const content = giftEvent ? formatLiveGiftTimEvent(giftEvent) : message.payload?.text || ''
+        if (!content || consumeLocalEcho(message, content)) continue
         comments.value.push({
           id: message.ID,
           userName: message.nick || '观众',
-          content: message.payload.text || '',
-          type: 'text',
+          content,
+          type: giftEvent ? 'gift' : 'text',
         })
       }
       if (comments.value.length > 60) comments.value.splice(0, comments.value.length - 60)
@@ -330,22 +864,38 @@ async function joinPublicScreen(groupId: string) {
 }
 
 async function loadRoom() {
-  if (!roomId.value) return
+  const targetRoomId = roomId.value
+  if (!targetRoomId) return
   loading.value = true
   error.value = ''
   playerNotice.value = ''
   try {
-    const detail = await liveApi.getWatchRoom(roomId.value)
+    const detail = await liveApi.getWatchRoom(targetRoomId)
+    if (targetRoomId !== roomId.value) return
     room.value = detail.room
     comments.value = detail.comments
+    products.value = detail.products
     isFollowing.value = detail.room.isFollowing
+    syncCurrentFeedItem()
+    if (!giftsLoaded) {
+      giftsLoaded = true
+      void liveApi.getGifts().then((data) => {
+        gifts.value = data.gifts
+        coinBalance.value = data.balance
+        selectedGiftId.value ||= data.gifts[0]?.id || ''
+      }).catch(() => undefined)
+    }
+    void initializeFeed()
     if (roomEnded.value) {
       playUrl.value = null
       await finishMic()
       stopRoomPolling()
+      scheduleEndAdvance()
       return
     }
-    playUrl.value = await liveApi.getPlayUrl(roomId.value)
+    const cached = playUrlCache.get(targetRoomId)
+    playUrl.value = cached || await liveApi.getPlayUrl(targetRoomId)
+    playUrlCache.set(targetRoomId, playUrl.value)
     if (detail.room.imGroupId) void joinPublicScreen(detail.room.imGroupId)
     if (getToken() && detail.room.circleId) void liveApi.reportCircleChannelClick(detail.room.circleId)
   } catch (cause) {
@@ -354,6 +904,57 @@ async function loadRoom() {
   } finally {
     loading.value = false
   }
+}
+
+function clearEndAdvance() {
+  if (endAdvanceTimer) { clearInterval(endAdvanceTimer); endAdvanceTimer = null }
+  endCountdown.value = 3
+}
+
+function scheduleEndAdvance() {
+  if (endAdvanceTimer) return
+  endCountdown.value = 3
+  endAdvanceTimer = setInterval(() => {
+    endCountdown.value -= 1
+    if (endCountdown.value > 0) return
+    clearEndAdvance()
+    if (hasNextRoom.value) void switchToFeedIndex(feedIndex.value + 1)
+    else uni.navigateBack()
+  }, 1000)
+}
+
+async function switchToFeedIndex(index: number) {
+  const next = feedItems.value[index]
+  if (!next || next.id === roomId.value || switchingRoom) return
+  switchingRoom = true
+  const previousRoomId = roomId.value
+  clearEndAdvance()
+  clearPlayerRetry()
+  playerRetryCount = 0
+  closeActionPanels()
+  await leavePresence(previousRoomId)
+  await removeMicRequest()
+  await finishMic()
+  await leavePublicScreen()
+  playUrl.value = null
+  products.value = []
+  comments.value = []
+  roomId.value = next.id
+  room.value = { ...emptyRoom, id: next.id, title: next.title, cover: next.cover, hostName: next.hostName, hostAvatar: next.hostAvatar }
+  feedIndex.value = index
+  try {
+    await loadRoom()
+    startRoomPolling()
+    void preloadAdjacentRooms()
+  } finally {
+    switchingRoom = false
+  }
+}
+
+function onFeedChange(event: { detail?: { current?: number } }) {
+  const index = Number(event?.detail?.current)
+  if (!Number.isInteger(index) || index < 0) return
+  void switchToFeedIndex(index)
 }
 
 function stopRoomPolling() {
@@ -374,12 +975,16 @@ async function pollRoomStatus() {
   try {
     const detail = await liveApi.getWatchRoom(roomId.value)
     room.value = detail.room
+    products.value = detail.products
+    if (micState.value === 'idle' && getToken() && canUseLiveMic) await checkMicInvitation()
+    await refreshPlaybackMode()
     if (!roomEnded.value) return
     comments.value = detail.comments
     playUrl.value = null
     playerNotice.value = ''
     await finishMic()
     stopRoomPolling()
+    scheduleEndAdvance()
   } catch {
     // 房间状态短暂查询失败不打断当前播放；下一轮继续确认。
   } finally {
@@ -387,13 +992,95 @@ async function pollRoomStatus() {
   }
 }
 
+async function checkMicInvitation() {
+  if (!roomId.value || micState.value !== 'idle') return
+  try {
+    const items = await liveMicApi.list(roomId.value)
+    roomMics.value = items
+    const invitation = items.find((item) => item.status === 'PENDING' && item.source === 'INVITE')
+    if (!invitation) return
+    micUserId = invitation.userId
+    micInvitePending = true
+    micMediaMode.value = invitation.mediaMode === 'VIDEO' ? 'VIDEO' : 'AUDIO'
+    micState.value = 'invited'
+    showMicSheet.value = true
+  } catch {
+    // 邀请发现失败不影响观看；房间轮询下一轮继续。
+  }
+}
+
+/** 连麦开始/结束时在原流与独立混流间切换；只在模式变化时重载播放器。 */
+async function refreshPlaybackMode() {
+  if (!roomId.value || roomEnded.value || !playUrl.value) return
+  try {
+    const next = await liveApi.getPlayUrl(roomId.value)
+    const currentMode = playUrl.value.streamMode || 'ORIGIN'
+    const nextMode = next.streamMode || 'ORIGIN'
+    if (currentMode === nextMode) return
+    playUrlCache.set(roomId.value, next)
+    playUrl.value = next
+    playerNotice.value = nextMode === 'MIXED' ? '已切换至多人连麦画面' : '已返回主播画面'
+  } catch {
+    // 切流查询失败不打断当前画面，下一轮房间轮询继续恢复。
+  }
+}
+
 function onPlayerReady() {
+  clearPlayerRetry()
+  playerRetryCount = 0
+  error.value = ''
   playerNotice.value = ''
+  void touchPresence()
+}
+
+async function touchPresence() {
+  if (!roomId.value || roomEnded.value) return
+  try {
+    const state = await touchLivePresence(roomId.value, presenceSessionId)
+    presenceActive = true
+    room.value.viewerCount = state.onlineCount
+    if (!presenceTimer) presenceTimer = setInterval(() => { void touchPresence() }, 20_000)
+  } catch {
+    // 在线心跳不应中断观看；详情轮询和下一次心跳会继续恢复。
+  }
+}
+
+async function leavePresence(targetRoomId = roomId.value) {
+  if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = null }
+  if (!presenceActive || !targetRoomId) return
+  presenceActive = false
+  await leaveLivePresence(targetRoomId, presenceSessionId)
+}
+
+function clearPlayerRetry() {
+  if (playerRetryTimer) {
+    clearTimeout(playerRetryTimer)
+    playerRetryTimer = null
+  }
+}
+
+function retryPlayback() {
+  clearPlayerRetry()
+  playerRetryCount = 0
+  void loadRoom()
 }
 
 function onPlayerError() {
-  playerNotice.value = '网络波动，正在重新连接画面…'
-  setTimeout(() => { void loadRoom() }, 1200)
+  if (roomEnded.value || playerRetryTimer) return
+  playerRetryCount += 1
+  if (playerRetryCount > 5) {
+    playUrl.value = null
+    loading.value = false
+    error.value = '画面连续恢复失败，请检查网络后重试，或上下滑动切换其他直播间'
+    playerNotice.value = ''
+    return
+  }
+  const delay = Math.min(800 * (2 ** (playerRetryCount - 1)), 8_000)
+  playerNotice.value = `网络波动，${Math.ceil(delay / 1000)} 秒后尝试第 ${playerRetryCount} 次恢复…`
+  playerRetryTimer = setTimeout(() => {
+    playerRetryTimer = null
+    void loadRoom()
+  }, delay)
 }
 
 function openCommentComposer() {
@@ -406,6 +1093,123 @@ function openCommentComposer() {
 
 function closeCommentComposer() {
   showCommentComposer.value = false
+}
+
+function closeActionPanels() {
+  showGiftPanel.value = false
+  showProductPanel.value = false
+  showMorePanel.value = false
+}
+
+function openProductPanel() {
+  if (!products.value.length) return
+  closeActionPanels()
+  showProductPanel.value = true
+}
+
+function openGiftPanel() {
+  if (!getToken()) {
+    uni.showToast({ title: '登录后可以表达心意', icon: 'none' })
+    return
+  }
+  closeActionPanels()
+  showGiftPanel.value = true
+  giftPolicyLoading.value = true
+  void Promise.all([liveApi.getGifts(), getLiveGiftSpendingPreference()])
+    .then(([data, preference]) => {
+      gifts.value = data.gifts
+      coinBalance.value = data.balance
+      giftPolicy.value = preference
+      singleLimitDraft.value = String(preference.singleLimitCoin || 100)
+      dailyLimitDraft.value = String(preference.dailyLimitCoin || 500)
+      if (!gifts.value.some((gift) => gift.id === selectedGiftId.value)) {
+        selectedGiftId.value = gifts.value[0]?.id || ''
+      }
+    })
+    .catch((cause) => {
+      uni.showToast({ title: (cause as Error)?.message || '消费保护设置读取失败', icon: 'none' })
+    })
+    .finally(() => { giftPolicyLoading.value = false })
+}
+
+async function saveGiftPolicy() {
+  if (savingGiftPolicy.value) return
+  const singleLimitCoin = Number(singleLimitDraft.value)
+  const dailyLimitCoin = Number(dailyLimitDraft.value)
+  if (!Number.isInteger(singleLimitCoin) || !Number.isInteger(dailyLimitCoin) || singleLimitCoin < 1 || dailyLimitCoin < singleLimitCoin) {
+    uni.showToast({ title: '每日限额须为整数且不低于单次限额', icon: 'none' })
+    return
+  }
+  savingGiftPolicy.value = true
+  try {
+    giftPolicy.value = await updateLiveGiftSpendingPreference({
+      singleLimitCoin,
+      dailyLimitCoin,
+      reminderEnabled: true,
+    })
+    uni.showToast({ title: '消费限额已生效', icon: 'none' })
+  } catch (cause) {
+    uni.showToast({ title: (cause as Error)?.message || '限额保存失败', icon: 'none' })
+  } finally {
+    savingGiftPolicy.value = false
+  }
+}
+
+function openMorePanel() {
+  closeActionPanels()
+  showMorePanel.value = true
+}
+
+function openProduct(product: VerticalLiveProduct) {
+  if (product.stock <= 0) return
+  closeActionPanels()
+  uni.navigateTo({
+    url: `/pkg-shop/checkout/index?productId=${encodeURIComponent(product.id)}&quantity=1&sourceContentType=LIVE&sourceContentId=${encodeURIComponent(room.value.id)}`,
+  })
+}
+
+function confirmSendGift() {
+  const gift = selectedGift.value
+  if (!gift || sendingGift.value) return
+  if (!giftPolicyReady.value) {
+    uni.showToast({ title: '请先完成消费保护设置', icon: 'none' })
+    return
+  }
+  if (coinBalance.value < gift.price) {
+    uni.showToast({ title: '国学币余额不足', icon: 'none' })
+    return
+  }
+  uni.showModal({
+    title: '确认送出心意',
+    content: `${gift.name} · ${gift.price} 国学币\n当前余额 ${coinBalance.value} 国学币`,
+    confirmText: '确认送出',
+    success: (result) => { if (result.confirm) void sendGift(gift) },
+  })
+}
+
+async function sendGift(gift: LiveGift) {
+  if (sendingGift.value) return
+  sendingGift.value = true
+  const echoContent = `送出 ${gift.name} x1`
+  const echoToken = rememberLocalEcho(echoContent)
+  try {
+    await sendLiveGift(room.value.id, gift.id, 1)
+    coinBalance.value = Math.max(0, coinBalance.value - gift.price)
+    if (giftPolicy.value) giftPolicy.value.spentTodayCoin += gift.price
+    comments.value.push({
+      id: `gift-${Date.now()}`,
+      userName: '我',
+      content: echoContent,
+      type: 'gift',
+    })
+    showGiftPanel.value = false
+    uni.showToast({ title: '心意已送达', icon: 'none' })
+  } catch (cause) {
+    forgetLocalEcho(echoContent, echoToken)
+    uni.showToast({ title: (cause as Error)?.message || '发送失败，请重试', icon: 'none' })
+  } finally {
+    sendingGift.value = false
+  }
 }
 
 function clearMicTimers() {
@@ -426,8 +1230,9 @@ async function requestMic() {
   micError.value = ''
   micState.value = 'requesting'
   try {
-    await ensureLiveAudioPermission()
-    const mic = await liveMicApi.request(room.value.id, 1)
+    if (micMediaMode.value === 'VIDEO') await ensureLiveCapturePermissions()
+    else await ensureLiveAudioPermission()
+    const mic = await liveMicApi.request(room.value.id, micMediaMode.value)
     micUserId = mic.userId
     micPollTimer ||= setInterval(() => { void pollMicStatus() }, 1600)
   } catch (cause) {
@@ -441,9 +1246,16 @@ async function pollMicStatus() {
   micPolling = true
   try {
     const items = await liveMicApi.list(room.value.id)
+    roomMics.value = items
     const mic = items.find((item) => !micUserId || item.userId === micUserId)
     if (!mic) {
       if (micState.value === 'connected') await finishMic()
+      else if (micState.value === 'preflight' || micState.value === 'connecting') {
+        await finishMic()
+        micError.value = '本次连麦已取消或失效'
+        micState.value = 'error'
+        showMicSheet.value = true
+      }
       else if (micState.value === 'requesting') {
         clearMicTimers()
         micError.value = '主播未接受本次申请'
@@ -453,10 +1265,12 @@ async function pollMicStatus() {
     }
     micUserId = mic.userId
     if (mic.status === 'PENDING') return
-    if (micState.value === 'requesting') await connectMic(mic)
+    if (micState.value === 'requesting') await prepareMicPreflight(mic)
     if (micState.value === 'connected') {
       const hostMuted = mic.status === 'MUTED'
-      setLiveAudioMuted(hostMuted || micMuted.value)
+      micHostMuted.value = hostMuted
+      applyMicMuteState(hostMuted || micMuted.value)
+      if (Date.now() - lastMicReadyAt > 15_000) void renewMicReady()
     }
   } catch (cause) {
     if (micState.value === 'requesting' || micState.value === 'connecting') {
@@ -469,13 +1283,27 @@ async function pollMicStatus() {
   }
 }
 
-async function connectMic(_mic: LiveMicItem) {
+async function connectMic(mic: LiveMicItem) {
   micState.value = 'connecting'
+  micMediaMode.value = mic.mediaMode === 'VIDEO' ? 'VIDEO' : 'AUDIO'
   try {
     const config = await liveMicApi.getRtcConfig(room.value.id)
-    await joinLiveAudio(config)
+    rtcHostUserId.value = config.hostTrtcUserId || config.hostUserId || ''
+    appliedMicMuteState = null
+    if (config.mediaMode === 'VIDEO') {
+      await nextTick()
+      await joinLiveVideo(config, rtcGuestViewId)
+    } else {
+      await joinLiveAudio(config)
+    }
     micState.value = 'connected'
+    preflightMic = null
+    micInvitePending = false
+    applyMicMuteState(micMuted.value)
+    if (micMediaMode.value === 'VIDEO') setLiveVideoMuted(micVideoMuted.value)
     micDurationTimer ||= setInterval(() => { micDuration.value += 1 }, 1000)
+    lastMicReadyAt = 0
+    void renewMicReady()
   } catch (cause) {
     leaveLiveAudio()
     micError.value = (cause as Error)?.message || '语音链路建立失败'
@@ -483,9 +1311,124 @@ async function connectMic(_mic: LiveMicItem) {
   }
 }
 
+async function acceptMicInvite() {
+  if (!room.value.id || micState.value !== 'invited') return
+  try {
+    const items = await liveMicApi.list(room.value.id)
+    roomMics.value = items
+    const invitation = items.find((item) => item.status === 'PENDING' && item.source === 'INVITE')
+    if (!invitation) throw new Error('连麦邀请已失效')
+    await prepareMicPreflight(invitation)
+  } catch (cause) {
+    micError.value = (cause as Error)?.message || '连麦邀请接受失败'
+    // 权限或响应请求失败时邀请仍可能有效，保留“接受邀请”语义，禁止重试误发新申请。
+    micState.value = 'invited'
+  }
+}
+
+async function prepareMicPreflight(mic: LiveMicItem) {
+  micUserId = mic.userId
+  micMediaMode.value = mic.mediaMode === 'VIDEO' ? 'VIDEO' : 'AUDIO'
+  if (micMediaMode.value === 'VIDEO') {
+    await ensureLiveCapturePermissions()
+    micState.value = 'preflight'
+    showMicSheet.value = true
+    await nextTick()
+    startLiveDevicePreview(rtcGuestViewId, guestFrontCamera.value)
+  } else {
+    await ensureLiveAudioPermission()
+    micState.value = 'preflight'
+    showMicSheet.value = true
+  }
+  preflightMic = mic
+}
+
+async function confirmMicJoin() {
+  if (!room.value.id || micState.value !== 'preflight' || !preflightMic) return
+  micError.value = ''
+  try {
+    let active = preflightMic
+    if (micInvitePending) {
+      active = await liveMicApi.respondInvite(room.value.id, 'ACCEPT') as LiveMicItem
+    }
+    await connectMic(active)
+    micPollTimer ||= setInterval(() => { void pollMicStatus() }, 1600)
+  } catch (cause) {
+    micError.value = (cause as Error)?.message || '连麦加入失败'
+    micState.value = 'error'
+  }
+}
+
+async function declineMicInvite() {
+  if (!room.value.id) return
+  try { await liveMicApi.respondInvite(room.value.id, 'DECLINE') } catch {}
+  micUserId = ''
+  micInvitePending = false
+  preflightMic = null
+  showMicSheet.value = false
+  micState.value = 'idle'
+}
+
+async function renewMicReady() {
+  if (!room.value.id || micState.value !== 'connected') return
+  lastMicReadyAt = Date.now()
+  try {
+    await liveMicApi.ready(room.value.id)
+  } catch {
+    // 混流是普通观众的增强链路；续租失败不能切断已建立的 TRTC 连麦。
+  }
+}
+
+function handleRemoteVideoAvailability(userId: string, available: boolean) {
+  const existing = remoteVideoUsers.value.find((item) => item.userId === userId)
+  if (!available) {
+    stopLiveRemoteVideo(userId)
+    remoteVideoUsers.value = remoteVideoUsers.value.filter((item) => item.userId !== userId)
+    return
+  }
+  if (existing) {
+    void nextTick(() => startLiveRemoteVideo(userId, existing.viewId))
+    return
+  }
+  const viewId = `guest-remote-${remoteVideoUsers.value.length}-${Date.now().toString(36)}`
+  remoteVideoUsers.value.push({ userId, viewId })
+  void nextTick(() => startLiveRemoteVideo(userId, viewId))
+}
+
+function handleMicConnectionState(state: 'connected' | 'reconnecting' | 'lost') {
+  if (micState.value !== 'connected' && micState.value !== 'connecting') return
+  if (state === 'connected') {
+    micError.value = ''
+    micState.value = 'connected'
+    return
+  }
+  micState.value = 'connecting'
+  micError.value = state === 'lost' ? '连麦网络已断开，正在自动恢复…' : ''
+}
+
 function toggleMicMute() {
+  if (micHostMuted.value) {
+    uni.showToast({ title: '主播已将你静音', icon: 'none' })
+    return
+  }
   micMuted.value = !micMuted.value
-  setLiveAudioMuted(micMuted.value)
+  if (micState.value === 'connected') applyMicMuteState(micMuted.value)
+}
+
+function applyMicMuteState(muted: boolean) {
+  if (appliedMicMuteState === muted) return
+  appliedMicMuteState = muted
+  setLiveAudioMuted(muted)
+}
+
+function toggleMicVideo() {
+  micVideoMuted.value = !micVideoMuted.value
+  setLiveVideoMuted(micVideoMuted.value)
+}
+
+function flipGuestCamera() {
+  guestFrontCamera.value = !guestFrontCamera.value
+  switchLiveCamera(guestFrontCamera.value)
 }
 
 async function removeMicRequest() {
@@ -497,10 +1440,20 @@ async function removeMicRequest() {
 
 async function finishMic() {
   clearMicTimers()
+  for (const item of remoteVideoUsers.value) stopLiveRemoteVideo(item.userId)
+  remoteVideoUsers.value = []
+  roomMics.value = []
   leaveLiveAudio()
   micState.value = 'idle'
   micDuration.value = 0
   micMuted.value = false
+  micHostMuted.value = false
+  appliedMicMuteState = null
+  micVideoMuted.value = false
+  rtcHostUserId.value = ''
+  micInvitePending = false
+  preflightMic = null
+  lastMicReadyAt = 0
   showMicSheet.value = false
 }
 
@@ -520,8 +1473,32 @@ function resetMic() {
 }
 
 async function retryMic() {
-  resetMic()
-  await requestMic()
+  if (!room.value.id) return
+  micError.value = ''
+  try {
+    const items = await liveMicApi.list(room.value.id)
+    roomMics.value = items
+    const existing = items.find((item) => !micUserId || item.userId === micUserId)
+    if (existing?.status === 'PENDING' && existing.source === 'INVITE') {
+      micUserId = existing.userId
+      micMediaMode.value = existing.mediaMode === 'VIDEO' ? 'VIDEO' : 'AUDIO'
+      micInvitePending = true
+      micState.value = 'invited'
+      await acceptMicInvite()
+      return
+    }
+    if (existing && (existing.status === 'OCCUPIED' || existing.status === 'MUTED')) {
+      micUserId = existing.userId
+      micInvitePending = false
+      await prepareMicPreflight(existing)
+      return
+    }
+    resetMic()
+    await requestMic()
+  } catch (cause) {
+    micError.value = (cause as Error)?.message || '连麦状态恢复失败'
+    micState.value = 'error'
+  }
 }
 
 async function sendComment() {
@@ -530,16 +1507,14 @@ async function sendComment() {
   sendingComment = true
   const localId = `local-${Date.now()}`
   comments.value.push({ id: localId, userName: '我', content, type: 'text' })
+  const echoToken = rememberLocalEcho(content)
   commentDraft.value = ''
   showCommentComposer.value = false
   try {
-    const apiTask = liveApi.sendComment(room.value.id, content).then(() => true).catch(() => false)
-    const imTask = timGroupId
-      ? tim.sendGroupText(timGroupId, content).then(() => true).catch(() => false)
-      : Promise.resolve(false)
-    const [apiSent, imSent] = await Promise.all([apiTask, imTask])
-    if (!apiSent && !imSent) throw new Error('消息发送失败')
+    // 服务端审核、禁言和慢速模式通过后统一中继到 TIM；客户端禁止绕过业务闸门直发。
+    await liveApi.sendComment(room.value.id, content)
   } catch (cause) {
+    forgetLocalEcho(content, echoToken)
     comments.value = comments.value.filter((item) => String(item.id) !== localId)
     commentDraft.value = content
     showCommentComposer.value = true
@@ -550,10 +1525,16 @@ async function sendComment() {
 }
 
 async function sendLike() {
+  const particle: LikeParticle = {
+    id: ++likeParticleSequence,
+    variant: likeParticleSequence % 3,
+    frame: 0,
+  }
+  likeParticles.value.push(particle)
+  startLikeParticleTicker()
   try {
-    await liveApi.likeRoom(room.value.id)
-    room.value.likeCount += 1
-    uni.showToast({ title: '已点赞', icon: 'none' })
+    const result = await likeLiveRoom(room.value.id)
+    room.value.likeCount = result.likeCount
   } catch (cause) {
     uni.showToast({ title: (cause as Error)?.message || '点赞失败，请重试', icon: 'none' })
   }
@@ -576,10 +1557,29 @@ async function toggleFollow() {
 }
 
 function shareRoom() {
+  closeActionPanels()
   const url = withRef(buildH5Url('pkg-live/watch/index', { id: roomId.value }))
   uni.setClipboardData({
     data: url,
     success: () => uni.showToast({ title: '直播链接已复制', icon: 'none' }),
+  })
+}
+
+function reportRoom() {
+  closeActionPanels()
+  gotoReport('LIVE', room.value.id, room.value.title, room.value.hostName)
+}
+
+function showPlaybackInfo() {
+  closeActionPanels()
+  const quality = room.value.quality === 'uhd' ? '超清' : room.value.quality === 'hd' ? '高清' : '标清'
+  const streamMode = micState.value === 'connected'
+    ? 'TRTC 低延时连麦'
+    : playUrl.value?.streamMode === 'MIXED' ? '多人云端合流' : '主播原始直播流'
+  uni.showModal({
+    title: '播放信息',
+    content: `当前画质：${quality}\n当前链路：${streamMode}\n在线观众：${room.value.viewerCount}\n本次自动恢复：${playerRetryCount}/5\n播放方式：进入即自动播放`,
+    showCancel: false,
   })
 }
 
@@ -588,12 +1588,17 @@ function requestClose() {
     content: '确认退出直播间？',
     confirmText: '退出',
     cancelText: '继续观看',
-    success: (result) => { if (result.confirm) uni.navigateBack() },
+    success: (result) => {
+      if (!result.confirm) return
+      void removeMicRequest().finally(() => uni.navigateBack())
+    },
   })
 }
 
 function leaveEndedRoom() {
-  uni.navigateBack()
+  clearEndAdvance()
+  if (hasNextRoom.value) void switchToFeedIndex(feedIndex.value + 1)
+  else uni.navigateBack()
 }
 
 onLoad((options) => {
@@ -603,6 +1608,9 @@ onLoad((options) => {
     error.value = '缺少直播间编号'
     return
   }
+  feedItems.value = [{ id: roomId.value, title: '直播间', cover: '', hostName: '主播', hostAvatar: '' }]
+  setLiveConnectionStateHandler(handleMicConnectionState)
+  setLiveRemoteVideoAvailabilityHandler(handleRemoteVideoAvailability)
   void loadRoom()
   startRoomPolling()
 })
@@ -610,10 +1618,38 @@ onLoad((options) => {
 onShow(() => {
   if (roomId.value && !loading.value && !playUrl.value) void loadRoom()
   startRoomPolling()
+  if (roomId.value && playUrl.value) void touchPresence()
+  if (appBackgroundSuspended) {
+    appBackgroundSuspended = false
+    if (micState.value === 'preflight' && micMediaMode.value === 'VIDEO') {
+      void nextTick(() => startLiveDevicePreview(rtcGuestViewId, guestFrontCamera.value))
+    } else if (micState.value === 'connected') {
+      applyMicMuteState(micHostMuted.value || micMuted.value)
+      if (micMediaMode.value === 'VIDEO') setLiveVideoMuted(micVideoMuted.value)
+      void renewMicReady()
+    }
+  }
+})
+
+onHide(() => {
+  clearPlayerRetry()
+  void leavePresence()
+  if (micState.value === 'preflight') {
+    appBackgroundSuspended = true
+    if (micMediaMode.value === 'VIDEO') stopLiveDevicePreview()
+  } else if (micState.value === 'connecting' || micState.value === 'connected') {
+    appBackgroundSuspended = true
+    applyMicMuteState(true)
+    if (micMediaMode.value === 'VIDEO') setLiveVideoMuted(true)
+  }
 })
 
 onBackPress(() => {
   if (roomEnded.value) return false
+  if (showGiftPanel.value || showProductPanel.value || showMorePanel.value) {
+    closeActionPanels()
+    return true
+  }
   if (showCommentComposer.value) {
     closeCommentComposer()
     return true
@@ -627,70 +1663,127 @@ onBackPress(() => {
 })
 
 onUnmounted(() => {
+  if (likeParticleTimer) clearInterval(likeParticleTimer)
+  likeParticleTimer = null
+  likeParticles.value = []
   if (offTimMessage) offTimMessage()
   if (timGroupId) void tim.quitGroup(timGroupId)
   stopRoomPolling()
+  clearEndAdvance()
+  clearPlayerRetry()
   clearMicTimers()
+  setLiveConnectionStateHandler(null)
+  setLiveRemoteVideoAvailabilityHandler(null)
   leaveLiveAudio()
+  void removeMicRequest()
+  void leavePresence()
 })
 </script>
 
 <style>
-.viewer-page { flex: 1; background-color: #08070A; }
+.viewer-page { flex: 1; background-color: #181614; }
+.room-feed { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.feed-stage { flex: 1; background-color: #181614; }
+.feed-cover { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.feed-ink-placeholder { flex: 1; align-items: center; justify-content: center; background-color: #211D19; }
+.feed-seal { width: 92rpx; height: 92rpx; border-width: 2rpx; border-color: rgba(201,169,110,0.56); border-radius: 20rpx; align-items: center; justify-content: center; }
+.feed-seal-text { color: #C9A96E; font-size: 28rpx; font-weight: 700; }
+.feed-placeholder-title { margin-top: 24rpx; color: rgba(247,243,236,0.76); font-size: 26rpx; }
 .live-video { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
-.video-placeholder { position: absolute; left: 0; right: 0; top: 0; bottom: 0; align-items: center; justify-content: center; background-color: #131116; }
+.rtc-remote-video { position: absolute; background-color: #181614; }
+.rtc-remote-label-layer { position: absolute; padding-left: 16rpx; padding-bottom: 14rpx; justify-content: flex-end; align-items: flex-start; }
+.rtc-remote-label { padding-left: 12rpx; padding-right: 12rpx; padding-top: 6rpx; padding-bottom: 6rpx; border-radius: 15rpx; background-color: rgba(12,11,14,0.58); color: #FFFFFF; font-size: 18rpx; }
+.rtc-guest-preview { position: absolute; width: 188rpx; height: 260rpx; border-radius: 22rpx; border-width: 2rpx; border-color: rgba(247,243,236,0.72); background-color: #181614; }
+.video-placeholder { position: absolute; left: 0; right: 0; top: 0; bottom: 0; align-items: center; justify-content: center; background-color: rgba(24,22,20,0.92); }
+.loading-seal { width: 84rpx; height: 84rpx; margin-bottom: 24rpx; border-radius: 18rpx; border-width: 2rpx; border-color: #C41E3A; align-items: center; justify-content: center; background-color: rgba(196,30,58,0.14); }
+.loading-seal-text { color: #F7F3EC; font-size: 30rpx; font-weight: 700; }
 .placeholder-title { color: #F7F2E8; font-size: 32rpx; font-weight: 700; }
 .placeholder-detail { color: #BEB5C2; font-size: 24rpx; margin-top: 14rpx; }
-.retry-button { height: 72rpx; padding-left: 36rpx; padding-right: 36rpx; margin-top: 28rpx; border-radius: 36rpx; background-color: #8C2F39; align-items: center; justify-content: center; }
+.retry-button { height: 88rpx; padding-left: 40rpx; padding-right: 40rpx; margin-top: 28rpx; border-radius: 44rpx; background-color: #C41E3A; align-items: center; justify-content: center; }
 .retry-button-text { color: #FFFFFF; font-size: 25rpx; font-weight: 700; }
-.shade-top { position: absolute; left: 0; right: 0; top: 0; background-image: linear-gradient(to bottom, rgba(8,7,10,0.84), rgba(8,7,10,0)); }
-.shade-bottom { position: absolute; left: 0; right: 0; bottom: 0; background-image: linear-gradient(to top, rgba(8,7,10,0.94), rgba(8,7,10,0)); }
+.shade-top { position: absolute; left: 0; right: 0; top: 0; background-image: linear-gradient(to bottom, rgba(24,22,20,0.82), rgba(24,22,20,0)); }
+.shade-bottom { position: absolute; left: 0; right: 0; bottom: 0; background-image: linear-gradient(to top, rgba(24,22,20,0.92), rgba(24,22,20,0)); }
 .topbar { position: absolute; left: 0; right: 0; top: 0; height: 104rpx; flex-direction: row; align-items: center; }
-.host-card { width: 474rpx; height: 72rpx; padding-left: 7rpx; padding-right: 8rpx; border-radius: 36rpx; background-color: rgba(12,11,14,0.72); flex-direction: row; align-items: center; }
+.host-card { flex: 1; height: 78rpx; padding-left: 7rpx; padding-right: 8rpx; border-radius: 39rpx; border-width: 1rpx; border-color: rgba(201,169,110,0.28); background-color: rgba(19,17,15,0.78); flex-direction: row; align-items: center; }
 .host-avatar { width: 58rpx; height: 58rpx; border-radius: 29rpx; border-width: 2rpx; border-color: #C93445; }
 .host-avatar-fallback { align-items: center; justify-content: center; background-color: #5D3C2A; }
 .host-avatar-text { color: #F7F2E8; font-size: 25rpx; font-weight: 700; }
-.host-copy { width: 238rpx; margin-left: 11rpx; }
+.host-copy { flex: 1; margin-left: 11rpx; }
+.host-name-row { flex-direction: row; align-items: center; }
 .host-name { color: #FFFFFF; font-size: 24rpx; font-weight: 700; lines: 1; text-overflow: ellipsis; }
-.host-sub { color: #CFC5D1; font-size: 18rpx; margin-top: 2rpx; lines: 1; text-overflow: ellipsis; }
-.follow-button { width: 88rpx; height: 48rpx; margin-left: 8rpx; border-radius: 24rpx; background-color: #C93445; align-items: center; justify-content: center; }
+.host-verified { width: 26rpx; height: 26rpx; margin-left: 7rpx; border-radius: 13rpx; background-color: #315C61; align-items: center; justify-content: center; }
+.host-verified-text { color: #F7F2E8; font-size: 15rpx; font-weight: 700; }
+.host-sub { color: #CFC5D1; font-size: 19rpx; margin-top: 1rpx; lines: 1; text-overflow: ellipsis; }
+.follow-button { width: 96rpx; height: 54rpx; margin-left: 8rpx; border-radius: 27rpx; background-color: #C41E3A; align-items: center; justify-content: center; }
 .follow-button.followed { background-color: rgba(255,255,255,0.15); }
-.follow-button-text { color: #FFFFFF; font-size: 20rpx; font-weight: 700; }
-.top-actions { margin-left: 10rpx; flex-direction: row; align-items: center; }
+.follow-button-text { color: #FFFFFF; font-size: 22rpx; font-weight: 700; }
+.top-actions { margin-left: 8rpx; flex-direction: row; align-items: center; }
 .viewer-count { height: 54rpx; padding-left: 14rpx; padding-right: 14rpx; border-radius: 27rpx; background-color: rgba(12,11,14,0.68); flex-direction: row; align-items: center; justify-content: center; }
+.audience-stack { height: 38rpx; margin-right: 8rpx; flex-direction: row; align-items: center; }
+.audience-avatar { width: 36rpx; height: 36rpx; border-radius: 18rpx; border-width: 1rpx; border-color: rgba(247,242,232,0.78); background-color: #312C29; }
+.audience-avatar-overlap { margin-left: -10rpx; }
 .viewer-live-dot { width: 8rpx; height: 8rpx; margin-right: 8rpx; border-radius: 4rpx; background-color: #76D89B; }
-.viewer-count-text { color: #FFFFFF; font-size: 20rpx; }
-.round-button { width: 54rpx; height: 54rpx; margin-left: 8rpx; border-radius: 27rpx; background-color: rgba(12,11,14,0.68); align-items: center; justify-content: center; }
+.viewer-count-text { color: #FFFFFF; font-size: 22rpx; }
+.round-button { width: 88rpx; height: 88rpx; margin-left: 4rpx; border-radius: 44rpx; background-color: rgba(12,11,14,0.68); align-items: center; justify-content: center; }
 .round-button-icon { color: #FFFFFF; font-size: 36rpx; font-weight: 300; }
 .room-meta { position: absolute; }
 .room-kicker-row { flex-direction: row; align-items: center; }
 .live-seal { height: 34rpx; padding-left: 10rpx; padding-right: 10rpx; border-radius: 7rpx; background-color: #C93445; flex-direction: row; align-items: center; }
 .live-dot { width: 8rpx; height: 8rpx; margin-right: 7rpx; border-radius: 4rpx; background-color: #FFFFFF; }
 .live-seal-text { color: #FFFFFF; font-size: 17rpx; font-weight: 700; }
-.room-scope { color: rgba(255,255,255,0.72); font-size: 19rpx; margin-left: 10rpx; lines: 1; text-overflow: ellipsis; }
+.room-scope { color: rgba(255,255,255,0.72); font-size: 22rpx; margin-left: 10rpx; lines: 1; text-overflow: ellipsis; }
+.cohost-chip { height: 34rpx; padding-left: 10rpx; padding-right: 10rpx; margin-left: 10rpx; border-radius: 17rpx; background-color: rgba(79,116,91,0.82); align-items: center; justify-content: center; }
+.cohost-chip-text { color: #FFFFFF; font-size: 21rpx; font-weight: 700; }
+.quality-chip { height: 34rpx; padding-left: 10rpx; padding-right: 10rpx; margin-left: 10rpx; border-radius: 17rpx; border-width: 1rpx; border-color: rgba(201,169,110,0.42); background-color: rgba(24,22,20,0.68); align-items: center; justify-content: center; }
+.quality-chip-text { color: #E7C17B; font-size: 19rpx; font-weight: 700; }
 .room-title { color: #FFFFFF; font-size: 27rpx; font-weight: 700; margin-top: 10rpx; lines: 1; text-overflow: ellipsis; }
-.player-notice { color: #E7C17B; font-size: 20rpx; margin-top: 8rpx; }
+.live-safety-strip { width: 520rpx; height: 40rpx; margin-top: 10rpx; padding-left: 10rpx; padding-right: 13rpx; border-radius: 20rpx; border-width: 1rpx; border-color: rgba(247,242,232,0.10); background-color: rgba(12,11,14,0.52); flex-direction: row; align-items: center; }
+.live-safety-mark { width: 24rpx; height: 24rpx; border-radius: 12rpx; background-color: rgba(201,169,110,0.24); color: #E7C17B; font-size: 16rpx; font-weight: 700; text-align: center; }
+.live-safety-text { margin-left: 8rpx; color: rgba(255,255,255,0.70); font-size: 18rpx; }
+.player-notice { color: #E7C17B; font-size: 22rpx; margin-top: 8rpx; }
+.swipe-hint { color: rgba(255,255,255,0.60); font-size: 22rpx; margin-top: 7rpx; }
 .comment-stack { position: absolute; }
 .system-tip { padding-left: 13rpx; padding-right: 15rpx; padding-top: 8rpx; padding-bottom: 8rpx; border-radius: 15rpx; background-color: rgba(12,11,14,0.48); flex-direction: row; }
 .system-tip-mark { color: #E7C17B; font-size: 19rpx; font-weight: 700; margin-right: 10rpx; }
 .system-tip-text { color: rgba(255,255,255,0.82); font-size: 20rpx; }
 .comment-row { margin-top: 7rpx; padding-left: 13rpx; padding-right: 15rpx; padding-top: 7rpx; padding-bottom: 7rpx; border-radius: 15rpx; background-color: rgba(12,11,14,0.50); flex-direction: row; }
+.comment-row-gift { border-width: 1rpx; border-color: rgba(231,193,123,0.44); background-color: rgba(98,67,34,0.72); }
+.comment-gift-mark { color: #2D2216; font-size: 17rpx; font-weight: 700; margin-right: 9rpx; padding-left: 8rpx; padding-right: 8rpx; border-radius: 8rpx; background-color: #E7C17B; }
 .comment-user { color: #E7C17B; font-size: 22rpx; font-weight: 700; margin-right: 9rpx; }
 .comment-content { color: #FFFFFF; font-size: 23rpx; flex: 1; lines: 2; text-overflow: ellipsis; }
-.bottom-dock { position: absolute; left: 0; right: 0; bottom: 0; height: 112rpx; flex-direction: row; align-items: center; }
-.comment-entry { height: 68rpx; flex: 1; padding-left: 22rpx; padding-right: 16rpx; border-radius: 34rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.16); background-color: rgba(12,11,14,0.68); flex-direction: row; align-items: center; }
+.bottom-dock { position: absolute; left: 0; right: 0; bottom: 0; height: 116rpx; flex-direction: row; align-items: center; }
+.comment-entry { height: 88rpx; flex: 1; padding-left: 22rpx; padding-right: 16rpx; border-radius: 44rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.16); background-color: rgba(12,11,14,0.68); flex-direction: row; align-items: center; }
 .comment-entry-text { color: #D5CDD7; font-size: 23rpx; flex: 1; }
 .comment-entry-send { color: rgba(255,255,255,0.64); font-size: 22rpx; }
-.dock-action { width: 66rpx; margin-left: 10rpx; align-items: center; justify-content: center; }
+.dock-share { width: 88rpx; height: 88rpx; margin-left: 14rpx; border-radius: 44rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.16); background-color: rgba(12,11,14,0.68); align-items: center; justify-content: center; }
+.dock-share-icon { color: #FFFFFF; font-size: 32rpx; line-height: 34rpx; }
+.dock-share-label { color: rgba(255,255,255,0.82); font-size: 17rpx; margin-top: 1rpx; }
+.social-rail { position: absolute; width: 96rpx; align-items: center; }
+.rail-action { width: 96rpx; height: 92rpx; margin-top: 8rpx; align-items: center; justify-content: center; }
+.rail-icon-shell { width: 66rpx; height: 66rpx; border-radius: 33rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.18); background-color: rgba(12,11,14,0.72); align-items: center; justify-content: center; }
+.rail-icon-word { color: #FFFFFF; font-size: 24rpx; font-weight: 700; }
+.rail-icon-like { color: #F06476; font-size: 39rpx; font-weight: 700; }
+.rail-icon-more { color: #FFFFFF; font-size: 22rpx; font-weight: 700; }
+.rail-label { margin-top: 5rpx; color: rgba(255,255,255,0.92); font-size: 19rpx; font-weight: 600; }
+.rail-count-badge { position: absolute; top: -5rpx; right: -6rpx; width: 28rpx; height: 28rpx; border-radius: 14rpx; background-color: #C93445; align-items: center; justify-content: center; }
+.rail-count-text { color: #FFFFFF; font-size: 15rpx; font-weight: 700; }
+.dock-action { width: 88rpx; height: 104rpx; align-items: center; justify-content: center; }
 .dock-icon-shell { width: 50rpx; height: 50rpx; border-radius: 25rpx; background-color: rgba(12,11,14,0.62); border-width: 1rpx; border-color: rgba(255,255,255,0.14); align-items: center; justify-content: center; }
 .dock-icon { color: #FFFFFF; font-size: 31rpx; line-height: 34rpx; }
 .dock-icon-like { color: #F06476; font-size: 31rpx; }
 .like-shell { background-color: rgba(90,24,37,0.46); }
-.share-icon { font-size: 28rpx; }
-.dock-label { color: rgba(255,255,255,0.90); font-size: 17rpx; margin-top: 2rpx; }
-.mic-action { width: 72rpx; }
-.mic-badge { background-color: rgba(61,101,176,0.78); }
-.mic-badge-text { color: #FFFFFF; font-size: 20rpx; font-weight: 700; }
+.commerce-shell { background-color: rgba(79,116,91,0.72); }
+.gift-shell { background-color: rgba(126,91,45,0.74); }
+.dock-icon-word { font-size: 21rpx; font-weight: 700; }
+.more-icon { font-size: 20rpx; }
+.dock-label { color: rgba(255,255,255,0.90); font-size: 22rpx; margin-top: 2rpx; }
+.mic-action { width: 88rpx; }
+.mic-badge { background-color: rgba(79,116,91,0.82); }
+.mic-badge-text { color: #FFFFFF; font-size: 22rpx; font-weight: 700; }
+.like-feedback { position: absolute; width: 88rpx; height: 210rpx; align-items: center; justify-content: flex-end; }
+.like-particle { position: absolute; bottom: 0; color: #F06476; font-size: 42rpx; opacity: 0; }
+.like-particle-1 { color: #F7F2E8; margin-left: -22rpx; }
+.like-particle-2 { color: #C9A96E; margin-left: 22rpx; }
 .composer-mask { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0,0,0,0.46); justify-content: flex-end; }
 .composer-sheet { background-color: #171419; padding-top: 26rpx; border-top-left-radius: 28rpx; border-top-right-radius: 28rpx; }
 .composer-head { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
@@ -714,13 +1807,22 @@ onUnmounted(() => {
 .mic-sheet { background-color: #171419; padding-top: 22rpx; border-top-left-radius: 30rpx; border-top-right-radius: 30rpx; }
 .sheet-handle { width: 72rpx; height: 8rpx; margin-left: 299rpx; margin-bottom: 28rpx; border-radius: 4rpx; background-color: #514A53; }
 .mic-state { align-items: center; }
-.mic-symbol { width: 104rpx; height: 104rpx; border-radius: 52rpx; background-color: #5B8DEF; align-items: center; justify-content: center; }
+.mic-symbol { width: 104rpx; height: 104rpx; border-radius: 52rpx; background-color: #315C61; align-items: center; justify-content: center; }
 .mic-symbol-wait { background-color: #7A5A32; }
+.mic-symbol-invite { background-color: #4F745B; }
+.mic-symbol-ready { background-color: #8A6D3B; }
+.mic-device-row { margin-top: 22rpx; }
 .mic-symbol-error { background-color: #8C2F39; }
 .mic-symbol-text { color: #FFFFFF; font-size: 36rpx; font-weight: 700; }
 .mic-title { color: #F7F2E8; font-size: 33rpx; font-weight: 700; margin-top: 24rpx; }
 .mic-detail { color: #BEB5C2; font-size: 25rpx; line-height: 38rpx; text-align: center; margin-top: 12rpx; }
-.mic-primary { width: 670rpx; height: 88rpx; margin-top: 34rpx; border-radius: 24rpx; background-color: #5B8DEF; align-items: center; justify-content: center; }
+.mic-mode-row { width: 670rpx; margin-top: 26rpx; flex-direction: row; }
+.mic-mode { flex: 1; height: 118rpx; padding-left: 22rpx; padding-right: 22rpx; border-radius: 22rpx; border-width: 2rpx; border-color: rgba(255,255,255,0.12); background-color: #29242C; align-items: center; justify-content: center; }
+.mic-mode-video { margin-left: 16rpx; }
+.mic-mode.selected { border-color: #6FA4A7; background-color: rgba(49,92,97,0.42); }
+.mic-mode-title { color: #F7F2E8; font-size: 26rpx; font-weight: 700; }
+.mic-mode-detail { color: #AFA6B2; font-size: 20rpx; margin-top: 7rpx; }
+.mic-primary { width: 670rpx; height: 88rpx; margin-top: 34rpx; border-radius: 24rpx; background-color: #315C61; align-items: center; justify-content: center; }
 .mic-secondary { width: 670rpx; height: 88rpx; margin-top: 34rpx; border-radius: 24rpx; background-color: #3A343D; align-items: center; justify-content: center; }
 .mic-primary-text { color: #FFFFFF; font-size: 27rpx; font-weight: 700; }
 .mic-ghost { height: 74rpx; align-items: center; justify-content: center; }
@@ -729,9 +1831,76 @@ onUnmounted(() => {
 .mic-live-dot { width: 18rpx; height: 18rpx; border-radius: 9rpx; background-color: #6ED7A0; }
 .mic-connected-copy { flex: 1; margin-left: 14rpx; }
 .mic-connected-title { color: #FFFFFF; font-size: 24rpx; font-weight: 700; }
-.mic-connected-time { color: #84B4FF; font-size: 20rpx; margin-top: 3rpx; }
+.mic-connected-time { color: #8BC6C8; font-size: 22rpx; margin-top: 3rpx; }
 .mic-mini-button { height: 58rpx; padding-left: 18rpx; padding-right: 18rpx; margin-left: 10rpx; border-radius: 18rpx; background-color: #3A343D; align-items: center; justify-content: center; }
 .mic-mini-button.muted { background-color: #9A6B29; }
 .mic-mini-button.hangup { background-color: #D84949; }
 .mic-mini-button-text { color: #FFFFFF; font-size: 21rpx; font-weight: 700; }
+.product-float { position: absolute; height: 104rpx; padding: 10rpx; border-radius: 22rpx; border-width: 1rpx; border-color: rgba(201,169,110,0.28); background-color: rgba(24,22,20,0.82); flex-direction: row; align-items: center; }
+.product-float-cover { width: 82rpx; height: 82rpx; border-radius: 15rpx; background-color: #302A24; }
+.product-float-fallback { align-items: center; justify-content: center; }
+.product-float-fallback-text { color: #C9A96E; font-size: 26rpx; font-weight: 700; }
+.product-float-copy { flex: 1; margin-left: 12rpx; }
+.product-float-kicker { color: #C9A96E; font-size: 20rpx; font-weight: 700; }
+.product-float-name { color: #FFFFFF; font-size: 22rpx; margin-top: 5rpx; lines: 1; text-overflow: ellipsis; }
+.product-float-price { color: #F7F3EC; font-size: 24rpx; font-weight: 700; margin-left: 10rpx; }
+.action-mask { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(8,7,6,0.52); justify-content: flex-end; }
+.action-sheet { padding-top: 20rpx; border-top-left-radius: 34rpx; border-top-right-radius: 34rpx; background-color: #F7F3EC; }
+.product-sheet { height: 880rpx; }
+.gift-sheet { height: 760rpx; }
+.gift-policy-card { margin-left: 28rpx; margin-right: 28rpx; margin-bottom: 18rpx; padding: 22rpx; border-width: 1rpx; border-color: rgba(201,169,110,0.34); border-radius: 20rpx; background-color: #F4EEE5; }
+.gift-policy-card.warning { border-color: rgba(196,30,58,0.36); background-color: #F8E9EB; }
+.gift-policy-title { color: #2D2216; font-size: 23rpx; font-weight: 700; }
+.gift-policy-detail { margin-top: 8rpx; color: #75695C; font-size: 19rpx; line-height: 30rpx; }
+.gift-limit-row { margin-top: 18rpx; flex-direction: row; }
+.gift-limit-field { flex: 1; margin-right: 12rpx; }
+.gift-limit-label { color: #75695C; font-size: 18rpx; }
+.gift-limit-input { height: 64rpx; margin-top: 8rpx; padding-left: 16rpx; padding-right: 16rpx; border-width: 1rpx; border-color: rgba(45,34,22,0.16); border-radius: 14rpx; background-color: #FFFFFF; color: #181614; font-size: 22rpx; }
+.gift-policy-save { height: 68rpx; margin-top: 18rpx; border-radius: 34rpx; background-color: #C41E3A; align-items: center; justify-content: center; }
+.gift-policy-save.disabled { background-color: #B8B0A7; }
+.gift-policy-save-text { color: #FFFFFF; font-size: 22rpx; font-weight: 700; }
+.more-sheet { height: 360rpx; }
+.sheet-heading { flex-direction: row; align-items: center; justify-content: space-between; margin-bottom: 22rpx; }
+.sheet-kicker { color: #8A6940; font-size: 22rpx; font-weight: 700; }
+.sheet-title { color: #181614; font-size: 30rpx; font-weight: 700; margin-top: 6rpx; }
+.sheet-close { width: 64rpx; height: 64rpx; color: #6C6257; font-size: 40rpx; text-align: center; }
+.sheet-empty { padding-top: 70rpx; padding-bottom: 80rpx; align-items: center; }
+.sheet-empty-title { color: #181614; font-size: 27rpx; font-weight: 700; }
+.sheet-empty-detail { color: #776E64; font-size: 22rpx; margin-top: 12rpx; text-align: center; }
+.product-list { height: 680rpx; }
+.product-row { height: 176rpx; padding-top: 16rpx; padding-bottom: 16rpx; border-top-width: 1rpx; border-top-color: rgba(24,22,20,0.08); flex-direction: row; align-items: center; }
+.product-cover { width: 112rpx; height: 112rpx; border-radius: 18rpx; background-color: #EAE2D7; }
+.product-cover-fallback { align-items: center; justify-content: center; }
+.product-cover-text { color: #8A6940; font-size: 30rpx; font-weight: 700; }
+.product-copy { flex: 1; margin-left: 16rpx; }
+.product-name { color: #181614; font-size: 24rpx; font-weight: 700; lines: 2; text-overflow: ellipsis; }
+.product-stock { color: #81776C; font-size: 19rpx; margin-top: 7rpx; }
+.product-price-row { flex-direction: row; align-items: flex-end; margin-top: 7rpx; }
+.product-price { color: #C41E3A; font-size: 27rpx; font-weight: 700; }
+.product-original { color: #A69D93; font-size: 18rpx; text-decoration: line-through; margin-left: 9rpx; }
+.product-buy { width: 124rpx; height: 88rpx; margin-left: 12rpx; border-radius: 44rpx; background-color: #C41E3A; align-items: center; justify-content: center; }
+.product-buy.disabled { background-color: #B8B0A7; }
+.product-buy-text { color: #FFFFFF; font-size: 21rpx; font-weight: 700; }
+.gift-scroll { height: 300rpx; }
+.gift-grid { flex-direction: row; flex-wrap: wrap; }
+.gift-item { width: 156rpx; height: 190rpx; margin-right: 12rpx; margin-bottom: 14rpx; border-width: 1rpx; border-color: rgba(24,22,20,0.08); border-radius: 22rpx; background-color: #EFE8DE; align-items: center; justify-content: center; }
+.gift-item.selected { border-width: 2rpx; border-color: #C41E3A; background-color: #F5E4E5; }
+.gift-icon { width: 72rpx; height: 72rpx; }
+.gift-icon-fallback { border-radius: 18rpx; background-color: rgba(201,169,110,0.22); align-items: center; justify-content: center; }
+.gift-icon-text { color: #8A6940; font-size: 28rpx; font-weight: 700; }
+.gift-name { color: #181614; font-size: 22rpx; font-weight: 700; margin-top: 10rpx; }
+.gift-price { color: #8A6940; font-size: 18rpx; margin-top: 4rpx; }
+.gift-submit-row { height: 116rpx; margin-top: 10rpx; padding-top: 16rpx; border-top-width: 1rpx; border-top-color: rgba(24,22,20,0.10); flex-direction: row; align-items: center; }
+.ranking-copy { flex: 1; }
+.ranking-title { color: #181614; font-size: 22rpx; font-weight: 700; }
+.ranking-detail { color: #81776C; font-size: 19rpx; margin-top: 5rpx; }
+.gift-submit { width: 220rpx; height: 88rpx; border-radius: 44rpx; background-color: #C41E3A; align-items: center; justify-content: center; }
+.gift-submit.disabled { background-color: #B8B0A7; }
+.gift-submit-text { color: #FFFFFF; font-size: 24rpx; font-weight: 700; }
+.more-grid { flex-direction: row; margin-top: 30rpx; }
+.more-item { width: 180rpx; margin-right: 28rpx; align-items: center; }
+.more-symbol { width: 92rpx; height: 92rpx; border-radius: 46rpx; background-color: #EAE2D7; align-items: center; justify-content: center; }
+.more-symbol.warning { background-color: #F3E1E3; }
+.more-symbol-text { color: #493E34; font-size: 30rpx; font-weight: 700; }
+.more-label { color: #181614; font-size: 22rpx; margin-top: 12rpx; }
 </style>

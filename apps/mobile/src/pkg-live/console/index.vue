@@ -48,6 +48,16 @@
       </view>
     </view>
 
+    <view class="studio-strip">
+      <view>
+        <text class="studio-strip-kicker">REBUGX LIVE STUDIO</text>
+        <text class="studio-strip-title">主播运营台</text>
+      </view>
+      <view class="studio-strip-right">
+        <view class="studio-health" /><text class="studio-sync">公屏与数据每 3 秒同步</text>
+      </view>
+    </view>
+
     <!-- 手机主播画面由上一层 .nvue TRTC 页面持续采集，本页只处理数据与运营控制。 -->
     <view v-if="isHostCompanion" class="preview compact">
       <view class="preview-unavailable">
@@ -70,13 +80,18 @@
         <text class="stat-l">累计观看</text>
       </view>
       <view class="stat">
-        <text class="mono stat-n">{{ formatNum(stats.newFollowers) }}</text>
-        <text class="stat-l">新增粉丝</text>
+        <text class="mono stat-n">{{ stats.newFollowersAvailable ? formatNum(stats.newFollowers) : '--' }}</text>
+        <text class="stat-l">开播后新增</text>
       </view>
       <view class="stat">
-        <text class="mono stat-n gold">¥{{ formatNum(sessionIncome) }}</text>
-        <text class="stat-l">本场收入</text>
+        <text class="mono stat-n gold">¥{{ formatPrice(stats.totalSales) }}</text>
+        <text class="stat-l">成交额</text>
       </view>
+    </view>
+    <view v-if="consoleMode || isObsMode" class="secondary-stats">
+      <text class="secondary-stat">礼物 {{ formatNum(stats.totalGift) }} 国学币</text>
+      <text class="secondary-divider">·</text>
+      <text class="secondary-stat">峰值在线 {{ formatNum(stats.peakOnline) }}</text>
     </view>
 
     <!-- ── 时长警示横幅（剩余<15分钟） ── -->
@@ -139,6 +154,10 @@
         </view>
         <text class="op-txt">连麦</text>
       </view>
+      <view class="op" @tap="openInteractionRules">
+        <view class="op-ic"><AppIcon name="shield" :size="28" color="#A89FA8" /></view>
+        <text class="op-txt">互动规则</text>
+      </view>
       <view class="op" @tap="onShareRoom">
         <view class="op-ic"><AppIcon name="share-2" :size="28" color="#A89FA8" /></view>
         <text class="op-txt">分享</text>
@@ -193,6 +212,13 @@
                 <text class="prod-stock">库存 {{ p.stock }} · 已售 {{ p.sold }}</text>
               </view>
             </view>
+            <view
+              class="prod-explain"
+              :class="{ active: p.isLive, disabled: productBusyId === p.id }"
+              @tap.stop="toggleFeaturedProduct(p)"
+            >
+              {{ productBusyId === p.id ? '处理中…' : p.isLive ? '停止讲解' : '开始讲解' }}
+            </view>
           </view>
         </scroll-view>
       </view>
@@ -245,7 +271,7 @@
     <view v-if="showMicSheet" class="mask sheet-mask" @tap="showMicSheet = false" @touchmove.self.prevent>
       <view class="sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
         <view class="sheet-head">
-          <text class="sheet-title">语音连麦（{{ micItems.length }}）</text>
+          <text class="sheet-title">连麦管理（{{ micItems.length }}）</text>
           <view class="sheet-close" @tap="showMicSheet = false">
             <AppIcon name="x" :size="32" color="#A89FA8" />
           </view>
@@ -255,13 +281,13 @@
           <view v-else-if="micItems.length === 0" class="sheet-empty"><text class="sheet-empty-txt">暂无连麦申请</text></view>
           <view v-for="item in micItems" :key="item.id" class="mic-row">
             <view class="mic-user">
-              <text class="mic-user-name">麦位 {{ item.position }} · 用户 {{ shortUserId(item.userId) }}</text>
-              <text class="mic-user-state">{{ micStatusText(item.status) }}</text>
+              <text class="mic-user-name">麦位 {{ item.position }} · {{ item.nickname || shortUserId(item.userId) }}</text>
+              <text class="mic-user-state">{{ item.status === 'PENDING' && item.source === 'INVITE' ? '等待对方接受' : micStatusText(item.status) }}</text>
             </view>
             <view class="mic-actions">
               <template v-if="item.status === 'PENDING'">
-                <view class="mic-action mic-action--primary" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'ACCEPT')">接受</view>
-                <view class="mic-action" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'REJECT')">拒绝</view>
+                <view v-if="item.source !== 'INVITE'" class="mic-action mic-action--primary" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'ACCEPT')">接受</view>
+                <view class="mic-action" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, 'REJECT')">{{ item.source === 'INVITE' ? '取消邀请' : '拒绝' }}</view>
               </template>
               <template v-else>
                 <view class="mic-action" :class="{ disabled: micBusyUserId === item.userId }" @tap="manageMic(item, item.status === 'MUTED' ? 'UNMUTE' : 'MUTE')">
@@ -288,6 +314,7 @@ import { formatPrice } from '@/utils/format'
 import { withRef } from '@/utils/referral'
 import { buildH5Url } from '@/utils/share'
 import { liveApi, type ConsoleDanmaku, type ConsoleProduct, type LiveMutedUserItem } from '@/lib/live-data'
+import { setFeaturedProduct } from './api'
 import { liveMicApi, type LiveMicItem } from '@/pkg-live/live-mic-data'
 import { isLiveTrtcSupported, joinLiveAudio, leaveLiveAudio } from '@/pkg-live/live-trtc-client'
 
@@ -324,6 +351,7 @@ const stats = ref({
   onlineCount: 0,
   totalViews: 0,
   newFollowers: 0,
+  newFollowersAvailable: false,
   totalGift: 0,
   totalSales: 0,
   peakOnline: 0,
@@ -332,6 +360,7 @@ const stats = ref({
 })
 const danmakuList = ref<ConsoleDanmaku[]>([])
 const products = ref<ConsoleProduct[]>([])
+const productBusyId = ref('')
 
 // ===== UI 状态 =====
 const liveTime = ref(0) // 已播秒数
@@ -364,9 +393,6 @@ const qualityStatusLabel = computed(() =>
   quality.value === 'basic' || !quotaLoaded.value ? qualityLabel.value : `${qualityLabel.value} · 剩余 ${remainMinutes.value} 分钟`,
 )
 const remainWarn = computed(() => quality.value !== 'basic' && quotaLoaded.value && remainMinutes.value > 0 && remainMinutes.value < 15)
-
-// 本场收入 = 打赏 + 带货 GMV（金额单位分→元由 formatPrice 处理，这里 stats 已是元口径展示值）
-const sessionIncome = computed(() => (stats.value.totalGift || 0) + (stats.value.totalSales || 0))
 
 // ===== 格式化 =====
 function formatNum(n: number) {
@@ -401,6 +427,7 @@ async function fetchData(silent = false) {
     danmakuList.value = res.danmaku
     products.value = res.products
     quality.value = res.quality
+    liveTime.value = res.liveDurationSeconds
     quotaLoaded.value = quota !== null
     remainMinutes.value = quota
       ? (res.quality === 'uhd' ? quota.uhdMinutes : res.quality === 'hd' ? quota.hdMinutes : 0)
@@ -469,6 +496,23 @@ function forceCloseCurrentConsole() {
   // #endif
 }
 
+async function toggleFeaturedProduct(product: ConsoleProduct) {
+  if (productBusyId.value) return
+  productBusyId.value = product.id
+  try {
+    await setFeaturedProduct(consoleId.value, product.isLive ? null : product.id)
+    products.value = products.value.map((item) => ({
+      ...item,
+      isLive: product.isLive ? false : item.id === product.id,
+    }))
+    uni.showToast({ title: product.isLive ? '已停止讲解' : '已设为讲解商品', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
+  } finally {
+    productBusyId.value = ''
+  }
+}
+
 function returnToHost() {
   const stackDepth = getCurrentPages().length
   uni.navigateBack({
@@ -534,7 +578,9 @@ async function manageMic(item: LiveMicItem, action: 'ACCEPT' | 'REJECT' | 'MUTE'
   micBusyUserId.value = item.userId
   try {
     // 先确保主播已进入 TRTC 房间，再放行观众，避免对方进房后无人接听。
-    if (action === 'ACCEPT') await ensureHostRtc()
+    // 手机主播页已在后台持有 TRTC 视频房间；控制台不能重复 enterRoom 破坏正在推送的画面。
+    // OBS 主播没有手机端 TRTC 会话，才由控制台建立语音接听链路。
+    if (action === 'ACCEPT' && !isHostCompanion.value) await ensureHostRtc()
     await liveMicApi.manage(consoleId.value, item.userId, action, item.position)
     await loadMics(true)
     const message: Record<typeof action, string> = {
@@ -548,13 +594,38 @@ async function manageMic(item: LiveMicItem, action: 'ACCEPT' | 'REJECT' | 'MUTE'
   }
 }
 
-// ===== 弹幕长按 → 禁言/复制 =====
+// ===== 弹幕长按 → 连麦邀请/禁言/复制 =====
 function onDanmakuLongPress(item: ConsoleDanmaku) {
   uni.showActionSheet({
-    itemList: ['禁言该用户', '复制内容'],
+    itemList: ['邀请语音连麦', '邀请视频连麦', '禁言该用户', '复制内容'],
     success: (res) => {
-      if (res.tapIndex === 0) confirmMute(item)
-      else if (res.tapIndex === 1) copyContent(item)
+      if (res.tapIndex === 0) inviteFromComment(item, 'AUDIO')
+      else if (res.tapIndex === 1) inviteFromComment(item, 'VIDEO')
+      else if (res.tapIndex === 2) confirmMute(item)
+      else if (res.tapIndex === 3) copyContent(item)
+    },
+  })
+}
+
+function inviteFromComment(item: ConsoleDanmaku, mediaMode: 'AUDIO' | 'VIDEO') {
+  if (!item.userId) {
+    uni.showToast({ title: '无法定位该用户', icon: 'none' })
+    return
+  }
+  const mediaLabel = mediaMode === 'VIDEO' ? '视频' : '语音'
+  uni.showModal({
+    title: `邀请${mediaLabel}连麦`,
+    content: `向「${item.user}」发送${mediaLabel}连麦邀请？对方主动接受后才会开启设备。`,
+    confirmText: '发送邀请',
+    success: async (result) => {
+      if (!result.confirm) return
+      try {
+        await liveMicApi.invite(consoleId.value, item.userId!, mediaMode)
+        await loadMics(true)
+        uni.showToast({ title: '邀请已发送', icon: 'success' })
+      } catch (cause) {
+        uni.showToast({ title: (cause as Error)?.message || '邀请发送失败', icon: 'none' })
+      }
     },
   })
 }
@@ -667,6 +738,44 @@ function onRenewDuration() {
   uni.navigateTo({ url: '/pkg-live/quality-packages/index' })
 }
 
+async function openInteractionRules() {
+  try {
+    const current = await liveApi.getModerationSettings(consoleId.value)
+    uni.showActionSheet({
+      itemList: [
+        `慢速模式：${current.slowModeSeconds ? `${current.slowModeSeconds} 秒` : '关闭'}`,
+        `${current.followersOnly ? '关闭' : '开启'}仅关注者评论`,
+      ],
+      success: (result) => {
+        if (result.tapIndex === 0) chooseSlowMode(current)
+        else if (result.tapIndex === 1) void saveInteractionRules({
+          ...current,
+          followersOnly: !current.followersOnly,
+        })
+      },
+    })
+  } catch (cause) {
+    uni.showToast({ title: (cause as Error)?.message || '互动规则加载失败', icon: 'none' })
+  }
+}
+
+function chooseSlowMode(current: { slowModeSeconds: number; followersOnly: boolean }) {
+  const values = [0, 3, 5, 10, 30]
+  uni.showActionSheet({
+    itemList: ['关闭慢速模式', '每 3 秒一条', '每 5 秒一条', '每 10 秒一条', '每 30 秒一条'],
+    success: (result) => void saveInteractionRules({ ...current, slowModeSeconds: values[result.tapIndex] || 0 }),
+  })
+}
+
+async function saveInteractionRules(settings: { slowModeSeconds: number; followersOnly: boolean }) {
+  try {
+    await liveApi.updateModerationSettings(consoleId.value, settings)
+    uni.showToast({ title: '互动规则已生效', icon: 'success' })
+  } catch (cause) {
+    uni.showToast({ title: (cause as Error)?.message || '互动规则保存失败', icon: 'none' })
+  }
+}
+
 // ===== 下播 — PUT /live/rooms/:id/end（房主本人有权）=====
 const ending = ref(false)
 async function onConfirmEnd() {
@@ -706,6 +815,20 @@ async function onConfirmEnd() {
   flex-direction: column;
   box-sizing: border-box;
 }
+.studio-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 28rpx 18rpx;
+  border-bottom: 1rpx solid #2a2530;
+  background: linear-gradient(90deg, #17141a, #221c25);
+  flex-shrink: 0;
+}
+.studio-strip-kicker { display: block; color: #c9a96e; font-size: 17rpx; line-height: 1; letter-spacing: 3rpx; font-weight: 800; }
+.studio-strip-title { display: block; margin-top: 7rpx; color: #f5f0eb; font-size: 28rpx; font-weight: 700; }
+.studio-strip-right { display: flex; align-items: center; gap: 9rpx; }
+.studio-health { width: 12rpx; height: 12rpx; border-radius: 50%; background: #49c77a; box-shadow: 0 0 12rpx rgba(73,199,122,.65); }
+.studio-sync { color: #817784; font-size: 20rpx; }
 
 .mic-row {
   display: flex;
@@ -858,6 +981,25 @@ async function onConfirmEnd() {
   font-size: 20rpx;
   color: #6e6470;
   margin-top: 6rpx;
+}
+.secondary-stats {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14rpx;
+  margin: -8rpx 28rpx 18rpx;
+  padding: 14rpx 20rpx;
+  border-radius: 16rpx;
+  background: #1e1a23;
+  border: 1rpx solid #302936;
+}
+.secondary-stat {
+  color: #a89fa8;
+  font-size: 22rpx;
+}
+.secondary-divider {
+  color: #514858;
+  font-size: 22rpx;
 }
 
 /* ── 时长警示横幅 ── */
@@ -1216,6 +1358,25 @@ async function onConfirmEnd() {
   font-size: 22rpx;
   color: #6e6470;
 }
+.prod-explain {
+  min-width: 118rpx;
+  height: 64rpx;
+  padding: 0 18rpx;
+  border: 1rpx solid #6e6470;
+  border-radius: 999rpx;
+  color: #c7bdc8;
+  font-size: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.prod-explain.active {
+  border-color: #c9a96e;
+  color: #c9a96e;
+  background: #2e281f;
+}
+.prod-explain.disabled { opacity: .55; }
 
 .sheet-state {
   min-height: 320rpx;

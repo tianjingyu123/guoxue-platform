@@ -183,7 +183,7 @@ async function requestMic() {
   state.value = 'requesting'
   try {
     await ensureLiveAudioPermission()
-    const mic = await liveMicApi.request(props.roomId, 1)
+    const mic = await liveMicApi.request(props.roomId)
     micUserId = mic.userId
     hadRemoteRequest = true
     pollTimer ||= setInterval(() => { void pollMic() }, 2000)

@@ -15,12 +15,11 @@ import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   liveApi,
-  liveTabs,
-  formatLiveDuration,
-  formatLiveViews,
   type LiveItem,
   type LiveReplay,
 } from '@/lib/live-data'
+import { formatLiveDuration, formatLiveViews, liveTabs } from '@/pkg-live/live-format'
+import { getBookingStatus } from './api'
 
 type LiveTab = (typeof liveTabs)[number]
 
@@ -39,7 +38,8 @@ const filtered = computed<LiveItem[]>(() => {
     if (activeTab.value === '全部') return true
     if (activeTab.value === '知识授课') return live.type === 'knowledge'
     if (activeTab.value === '电商带货') return live.type === 'commerce'
-    if (activeTab.value === '关注的') return false
+    // 「关注的」已由服务端按当前用户关注关系过滤，客户端保留返回结果。
+    if (activeTab.value === '关注的') return true
     return true
   })
 })
@@ -89,6 +89,17 @@ async function fetchData() {
     ])
     list.value = plaza
     replays.value = rp
+    const upcoming = plaza.filter((item) => item.status === 'upcoming').slice(0, 20)
+    const bookingStates = await Promise.all(upcoming.map(async (item) => ({
+      id: item.id,
+      state: await getBookingStatus(item.id).catch(() => null),
+    })))
+    for (const item of bookingStates) {
+      if (!item.state) continue
+      bookedMap.value[item.id] = item.state.isBooked
+      const target = list.value.find((live) => live.id === item.id)
+      if (target) target.viewerCount = item.state.bookingCount
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -177,8 +188,8 @@ async function toggleBook(item: LiveItem) {
   booking.value[id] = true
   bookedMap.value[id] = next
   try {
-    if (next) await liveApi.bookRoom(id)
-    else await liveApi.unbookRoom(id)
+    const state = next ? await liveApi.bookRoom(id) : await liveApi.unbookRoom(id)
+    item.viewerCount = state.bookingCount
   } catch (e) {
     bookedMap.value[id] = !next // 回滚
     uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
@@ -205,7 +216,10 @@ async function toggleBook(item: LiveItem) {
       >
         <AppIcon name="chevron-left" :size="36" color="#2B2620" />
       </view>
-      <text class="nav-title">直播广场</text>
+      <view class="nav-brand">
+        <text class="nav-eyebrow">LIVE DISCOVERY</text>
+        <text class="nav-title">热卜直播</text>
+      </view>
       <view
         class="nav-search"
         role="link"
@@ -272,10 +286,45 @@ async function toggleBook(item: LiveItem) {
       <template v-else>
         <station-pinned-rail board="live" :inset="false" />
 
+        <!-- 直播发现主舞台：先建立内容氛围，再进入瀑布流。 -->
+        <view
+          v-if="livesNow[0]"
+          class="discovery-hero"
+          role="link"
+          :aria-label="liveAccessibilityLabel(livesNow[0])"
+          tabindex="0"
+          hover-class="hero-press"
+          @tap="openLive(livesNow[0].id)"
+          @keydown="activateOnKeyboard($event, () => openLive(livesNow[0].id))"
+        >
+          <live-card-media
+            class="discovery-media"
+            :room-id="livesNow[0].id"
+            :cover="livesNow[0].cover"
+            :title="livesNow[0].title"
+            status="live"
+            deco
+          />
+          <view class="discovery-shade" />
+          <view class="discovery-top">
+            <view class="discovery-live"><view class="discovery-dot" /><text class="discovery-live-txt">LIVE NOW</text></view>
+            <text class="discovery-audience">{{ formatLiveViews(livesNow[0].viewerCount) }} 人正在看</text>
+          </view>
+          <view class="discovery-copy">
+            <text class="discovery-kicker">今日现场 · 知识与生活正在发生</text>
+            <text class="discovery-title">{{ livesNow[0].title }}</text>
+            <view class="discovery-host">
+              <smart-avatar :src="livesNow[0].hostAvatar" :name="livesNow[0].hostName" class="discovery-avatar" />
+              <text class="discovery-host-name">{{ livesNow[0].hostName }}</text>
+              <text class="discovery-enter">进入直播  ›</text>
+            </view>
+          </view>
+        </view>
+
         <!-- ══ 直播中 ══（0 场时整区收起） -->
         <block v-if="livesNow.length > 0">
           <view class="sec">
-            <text class="sec-h">直播中</text>
+            <view class="sec-title-wrap"><text class="sec-overline">LIVE NOW</text><text class="sec-h">正在直播</text></view>
             <text class="sec-count">{{ livesNow.length }} 场</text>
           </view>
           <view class="grid">
@@ -351,7 +400,7 @@ async function toggleBook(item: LiveItem) {
         <!-- ══ 直播预告 ══ 时间轴 + 预约钮双态 -->
         <block v-if="livesUpcoming.length > 0">
           <view class="sec">
-            <text class="sec-h">直播预告</text>
+            <view class="sec-title-wrap"><text class="sec-overline gold">UP NEXT</text><text class="sec-h">直播预告</text></view>
             <text class="sec-count">{{ livesUpcoming.length }} 场</text>
           </view>
 
@@ -450,7 +499,7 @@ async function toggleBook(item: LiveItem) {
         <!-- ══ 直播回放 ══ 双列网格 -->
         <block v-if="replays.length > 0">
           <view class="sec">
-            <text class="sec-h">直播回放</text>
+            <view class="sec-title-wrap"><text class="sec-overline replay">REPLAY</text><text class="sec-h">精彩回放</text></view>
             <text class="sec-count">结束时间倒序</text>
           </view>
           <view class="grid">
@@ -560,11 +609,25 @@ async function toggleBook(item: LiveItem) {
   background: #ffffff;
   box-shadow: 0 2rpx 6rpx rgba(60, 50, 40, 0.08);
 }
-.nav-title {
+.nav-brand {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.nav-eyebrow {
+  font-size: 18rpx;
+  line-height: 1.1;
+  letter-spacing: 3rpx;
+  color: #c41e3a;
+  font-weight: 700;
+}
+.nav-title {
+  margin-top: 4rpx;
   text-align: center;
   font-family: var(--font-serif);
-  font-size: 34rpx;
+  font-size: 32rpx;
   font-weight: 700;
   color: #2b2620;
 }
@@ -615,6 +678,56 @@ async function toggleBook(item: LiveItem) {
   padding-bottom: 48rpx;
 }
 
+/* ── 直播发现主舞台 ── */
+.discovery-hero {
+  position: relative;
+  height: 570rpx;
+  margin: 20rpx 24rpx 4rpx;
+  border-radius: 34rpx;
+  overflow: hidden;
+  background: #121015;
+  box-shadow: 0 20rpx 44rpx rgba(25, 17, 20, .2);
+  transition: transform .16s ease-out;
+}
+.hero-press { transform: scale(.985); }
+.discovery-media,
+.discovery-shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.discovery-shade {
+  background: linear-gradient(180deg, rgba(8,7,9,.08) 10%, rgba(8,7,9,.1) 38%, rgba(8,7,9,.92) 100%);
+}
+.discovery-top {
+  position: absolute;
+  top: 24rpx;
+  left: 24rpx;
+  right: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.discovery-live {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  background: #c41e3a;
+}
+.discovery-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: #fff; }
+.discovery-live-txt { color: #fff; font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
+.discovery-audience { color: rgba(255,255,255,.88); font-size: 22rpx; padding: 10rpx 16rpx; border-radius: 999rpx; background: rgba(12,10,14,.56); }
+.discovery-copy { position: absolute; left: 28rpx; right: 28rpx; bottom: 28rpx; }
+.discovery-kicker { display: block; color: #d7bd8b; font-size: 22rpx; letter-spacing: 1rpx; }
+.discovery-title { display: block; margin-top: 12rpx; color: #fff; font-family: var(--font-serif); font-size: 40rpx; line-height: 1.3; font-weight: 700; }
+.discovery-host { display: flex; align-items: center; gap: 12rpx; margin-top: 20rpx; }
+.discovery-avatar { width: 44rpx; height: 44rpx; border-radius: 50%; border: 2rpx solid rgba(255,255,255,.7); }
+.discovery-host-name { flex: 1; color: rgba(255,255,255,.82); font-size: 24rpx; }
+.discovery-enter { color: #fff; font-size: 24rpx; font-weight: 700; }
+
 /* 区块头：上 36 下 20（18/10px），题 34rpx 衬线 700 + 计数右对齐 */
 .sec {
   display: flex;
@@ -622,6 +735,10 @@ async function toggleBook(item: LiveItem) {
   justify-content: space-between;
   padding: 36rpx 24rpx 20rpx;
 }
+.sec-title-wrap { display: flex; flex-direction: column; }
+.sec-overline { font-size: 18rpx; line-height: 1; letter-spacing: 3rpx; color: #c41e3a; font-weight: 800; margin-bottom: 8rpx; }
+.sec-overline.gold { color: #a77a2f; }
+.sec-overline.replay { color: #4f745b; }
 .sec-h {
   font-family: var(--font-serif);
   font-size: 34rpx;

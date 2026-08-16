@@ -347,6 +347,7 @@ import { withRef } from '@/utils/referral'
 import { buildH5Url } from '@/utils/share'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { liveApi } from '@/lib/live-data'
+import { likeLiveRoom } from '@/pkg-live/live-interaction-api'
 
 // ===== 直播间数据 =====
 const loading = ref(true)
@@ -463,7 +464,7 @@ async function onLike() {
   liked.value = true
   likeCount.value += 1
   try {
-    await liveApi.likeRoom(room.value.id)
+    await likeLiveRoom(room.value.id)
   } catch (e) {
     liked.value = false
     likeCount.value = Math.max(0, likeCount.value - 1)
@@ -472,7 +473,7 @@ async function onLike() {
 }
 // 后端暂无连麦信令，入口隐藏；保留诚实降级防未来误开放。
 function onApplyMic() { uni.showToast({ title: '连麦功能暂未开放', icon: 'none' }) }
-// 发送聊天消息：TIM 群实时下发给其他观众 + 后端持久化，乐观上屏
+// 发送聊天消息：服务端审核与持久化成功后统一中继到 TIM，客户端只做乐观上屏。
 let sendingChat = false
 async function onSendChat() {
   const text = chatDraft.value.trim()
@@ -482,12 +483,7 @@ async function onSendChat() {
   messages.value.push({ id: localId, userName: '我', content: text, time: nowTime() })
   chatDraft.value = ''
   try {
-    let delivered = false
-    if (danmakuGroupId) {
-      try { await tim.sendGroupText(danmakuGroupId, text); delivered = true } catch { /* 继续尝试服务端 */ }
-    }
-    try { await liveApi.sendComment(room.value.id, text); delivered = true } catch { /* 由统一失败态处理 */ }
-    if (!delivered) throw new Error('消息发送失败')
+    await liveApi.sendComment(room.value.id, text)
   } catch (e) {
     const index = messages.value.findIndex((item) => item.id === localId)
     if (index >= 0) messages.value.splice(index, 1)

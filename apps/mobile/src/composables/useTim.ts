@@ -32,7 +32,7 @@ export interface TimMessage {
   flow: 'in' | 'out'
   time: number
   type: string
-  payload: { text?: string }
+  payload: { text?: string; data?: string; description?: string; extension?: string }
   nick?: string
   avatar?: string
 }

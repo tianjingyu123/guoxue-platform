@@ -174,15 +174,6 @@
       </view>
     </view>
 
-    <!-- 右上角榜单入口 -->
-    <view class="rank-entry-wrap">
-      <view class="rank-entry" @tap="showRank = true">
-        <AppIcon name="crown" :size="28" color="#fff" />
-        <text class="rank-entry__txt">榜单</text>
-        <AppIcon name="chevron-down" :size="24" color="#fff" />
-      </view>
-    </view>
-
     <!-- 商品讲解卡（电商直播） -->
     <view v-if="room.type === 'commerce' && explainingProduct" class="explain-card" :style="explainCardSafeStyle" @tap="openQuickBuy(explainingProduct)">
       <image lazy-load class="explain-card__img" :src="explainingProduct.cover" mode="aspectFill" />
@@ -304,26 +295,6 @@
       </view>
     </view>
 
-    <!-- 榜单 -->
-    <view v-if="showRank" class="modal-mask modal-mask--bottom" @tap="showRank = false" @touchmove.self.prevent>
-      <view class="rank-sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
-        <view class="rank-sheet__head">
-          <text class="rank-sheet__title">打赏榜</text>
-          <view @tap="showRank = false"><AppIcon name="x" :size="40" color="#999" /></view>
-        </view>
-        <view class="rank-sheet__list">
-          <view v-for="item in rankList" :key="item.rank" class="rank-row">
-            <text class="rank-row__no" :class="`rank-row__no--${item.rank}`">{{ item.rank }}</text>
-            <text class="rank-row__user">{{ item.user }}</text>
-            <view class="rank-row__amount">
-              <AppIcon name="coins" :size="26" color="#C9A96E" />
-              <text class="rank-row__amount-txt">{{ formatCount(item.amount) }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
-
     <!-- 商品列表 -->
     <view v-if="showProductList" class="modal-mask modal-mask--bottom" @tap="showProductList = false" @touchmove.self.prevent>
       <view class="product-sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
@@ -401,8 +372,8 @@ import {
   type LiveGift,
   type VerticalLiveComment,
   type VerticalLiveProduct,
-  type LiveWatchRankItem,
 } from '@/lib/live-data'
+import { likeLiveRoom, sendLiveGift } from '@/pkg-live/live-interaction-api'
 
 // ===== 系统安全区（状态栏、挖孔与底部手势区） =====
 const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
@@ -484,7 +455,6 @@ const defaultWatchRoom = {
 const room = ref<any>({ ...defaultWatchRoom })
 const comments = ref<VerticalLiveComment[]>([])
 const products = ref<VerticalLiveProduct[]>([])
-const rankList = ref<LiveWatchRankItem[]>([])
 const coinBalance = ref(0)
 const isFollowing = ref(false)
 
@@ -759,26 +729,17 @@ async function fetchGifts() {
   } catch {}
 }
 
-/** 打赏榜真连 — GET /live/rooms/:id/gift-ranking（无打赏则空列表） */
-async function fetchRanking(roomId: string) {
-  try {
-    rankList.value = await liveApi.getGiftRanking(roomId)
-  } catch { rankList.value = [] }
-}
-
 function retry() {
   // 🔴修重试死循环：首载失败时 room.value.id 恒为空串（默认对象没被真实数据填充），
   // 用 room.value.id 重试必然再 404 → 统一改用 onLoad 存下的路由 roomId
   const rid = loadedRoomId.value || room.value.id
   fetchRoomData(rid)
   fetchGifts()
-  fetchRanking(rid)
 }
 
 // ===== UI 状态（弹窗开关、临时输入，仅 UI 层） =====
 const showCommentInput = ref(false)
 const commentText = ref('')
-const showRank = ref(false)
 const showProductList = ref(false)
 const showGiftPanel = ref(false)
 const showMicSheet = ref(false)
@@ -786,7 +747,6 @@ const canUseLiveMic = isLiveTrtcSupported()
 const showShare = ref(false)
 useOverlayScrollLock(() =>
   showCommentInput.value ||
-  showRank.value ||
   showProductList.value ||
   showGiftPanel.value ||
   showMicSheet.value ||
@@ -859,18 +819,13 @@ async function onSendComment() {
   scrollDanmakuToBottom()
   showCommentInput.value = false
   try {
-    const timDelivery = danmakuGroupId
-      ? tim.sendGroupText(danmakuGroupId, text).then(() => true).catch(() => false)
-      : Promise.resolve(false)
-    const apiDelivery = liveApi.sendComment(room.value.id, text).then(() => true).catch(() => false)
-    const [timDelivered, apiDelivered] = await Promise.all([timDelivery, apiDelivery])
-    if (!timDelivered && !apiDelivered) {
-      comments.value = comments.value.filter((comment) => comment.id !== localId)
-      commentText.value = text
-      showCommentInput.value = true
-      scrollDanmakuToBottom()
-      uni.showToast({ title: '评论发送失败，请重试', icon: 'none' })
-    }
+    await liveApi.sendComment(room.value.id, text)
+  } catch (e) {
+    comments.value = comments.value.filter((comment) => comment.id !== localId)
+    commentText.value = text
+    showCommentInput.value = true
+    scrollDanmakuToBottom()
+    uni.showToast({ title: (e as Error)?.message || '评论发送失败，请重试', icon: 'none' })
   } finally {
     sendingComment = false
   }
@@ -879,7 +834,7 @@ async function onSendComment() {
 async function onTapLike() {
   const id = spawnHeart()
   try {
-    await liveApi.likeRoom(room.value.id)
+    await likeLiveRoom(room.value.id)
   } catch (e) {
     floatingHearts.value = floatingHearts.value.filter((heart) => heart.id !== id)
     uni.showToast({ title: (e as Error)?.message || '点赞失败，请重试', icon: 'none' })
@@ -908,7 +863,7 @@ async function onSendGift(gift: LiveGift, quantity: number) {
   showGiftPanel.value = false
   try {
     // 真实送礼：直接用后端礼物 uuid（后端事务扣国学币 + 记打赏）
-    await liveApi.sendGift(room.value.id, gift.id, count)
+    await sendLiveGift(room.value.id, gift.id, count)
     // 成功后飘屏 + 弹幕 + 扣余额（icon 为图片链接时飘屏文本位传空串容错）
     const flyIcon = gift.icon && !/^https?:\/\//.test(gift.icon) ? gift.icon : ''
     const fid = ++flyerId
@@ -919,9 +874,7 @@ async function onSendGift(gift: LiveGift, quantity: number) {
     comments.value.push({ id: 'gift-' + Date.now(), userName: '我', content: `送出 ${gift.name} x${count}`, type: 'gift', giftInfo: { name: gift.name, icon: flyIcon, count } })
     scrollDanmakuToBottom()
     coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
-    // 送礼后刷新打赏榜 + 通过 TIM 群广播（让其他观众看到）
-    fetchRanking(room.value.id)
-    if (danmakuGroupId) tim.sendGroupText(danmakuGroupId, `送出 ${gift.name} x${count}`).catch(() => {})
+    // 实时广播由服务端在扣款事务成功后统一中继，客户端不能伪造礼物事件。
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '送礼失败', icon: 'none' })
   } finally {
@@ -983,7 +936,6 @@ onLoad((opts) => {
   if (opts?.type === 'commerce') room.value.type = 'commerce'
   fetchRoomData(roomId) // 播放地址在 fetchRoomData 内按 LIVING 态条件拉取
   fetchGifts()
-  fetchRanking(roomId)
 })
 
 onMounted(() => {
@@ -1215,16 +1167,6 @@ onUnmounted(() => {
 .rp__chapter-name { flex: 1; min-width: 0; font-size: 26rpx; color: #B8B2A8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp__resume-tip { display: block; margin: 20rpx 4rpx 0; font-size: 22rpx; color: #7A7468; }
 
-/* 右上角榜单入口 */
-.rank-entry-wrap { position: absolute; top: 220rpx; right: 24rpx; z-index: 20; }
-.rank-entry {
-  display: flex; align-items: center; gap: 8rpx;
-  padding: 8rpx 16rpx;
-  background: linear-gradient(to right, rgba(245,158,11,0.8), rgba(249,115,22,0.8));
-  border-radius: 999rpx;
-}
-.rank-entry__txt { font-size: 20rpx; font-weight: 500; color: #fff; white-space: nowrap; }
-
 /* 商品讲解卡 */
 .explain-card {
   position: absolute;
@@ -1376,20 +1318,6 @@ onUnmounted(() => {
 .comment-input__send { flex-shrink: 0; background-color: rgba(255,255,255,0.18); border-radius: 36rpx; padding: 16rpx 32rpx; }
 .comment-input__send--on { background-color: var(--brand); }
 .comment-input__send-txt { font-size: 26rpx; color: #fff; }
-
-/* 榜单 sheet */
-.rank-sheet { background-color: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx; max-height: 70vh; }
-.rank-sheet__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }
-.rank-sheet__title { font-size: 32rpx; font-weight: 700; color: #1c1c1e; }
-.rank-sheet__list { display: flex; flex-direction: column; gap: 8rpx; }
-.rank-row { display: flex; align-items: center; gap: 20rpx; padding: 18rpx 8rpx; }
-.rank-row__no { width: 44rpx; text-align: center; font-size: 28rpx; font-weight: 700; color: #999; flex-shrink: 0; }
-.rank-row__no--1 { color: var(--brand); }
-.rank-row__no--2 { color: #C9A96E; }
-.rank-row__no--3 { color: #E0A458; }
-.rank-row__user { flex: 1; font-size: 26rpx; color: #1c1c1e; }
-.rank-row__amount { display: flex; align-items: center; gap: 6rpx; }
-.rank-row__amount-txt { font-size: 24rpx; color: #C9A96E; font-weight: 600; }
 
 /* 商品 sheet */
 .product-sheet { background-color: #fff; border-radius: 32rpx 32rpx 0 0; padding: 32rpx 32rpx 0; max-height: 70vh; display: flex; flex-direction: column; }

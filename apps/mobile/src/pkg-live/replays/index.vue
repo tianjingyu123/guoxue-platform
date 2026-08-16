@@ -115,7 +115,8 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack } from '@/utils/router'
-import { liveApi, replaySortOptions, formatLiveDuration, formatLiveViews } from '@/lib/live-data'
+import { liveApi, replaySortOptions } from '@/lib/live-data'
+import { formatLiveDuration, formatLiveViews } from '@/pkg-live/live-format'
 
 const statusBarHeight = ref(20)
 

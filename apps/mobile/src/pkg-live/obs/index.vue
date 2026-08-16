@@ -36,6 +36,17 @@
       </view>
     </view>
 
+    <view class="obs-masthead">
+      <text class="obs-eyebrow">OBS LIVE CONTROL</text>
+      <text class="obs-title">专业推流工作台</text>
+      <text class="obs-desc">从媒体流检测到正式开播，每一步都可确认、可回退、可追踪。</text>
+      <view class="obs-capabilities">
+        <text class="obs-capability">TRTC 同房连麦</text>
+        <text class="obs-capability">真实媒体流检测</text>
+        <text class="obs-capability secure">短期密钥保护</text>
+      </view>
+    </view>
+
     <!-- ============ 未创建房间态 ============ -->
     <view v-if="stage === 'none'" class="empty">
       <view class="empty-icon">
@@ -44,6 +55,15 @@
       <text class="empty-title">还没有可开播的 OBS 直播间</text>
       <text class="empty-desc">先创建一个「OBS 电脑直播」形态的直播间，再回到这里获取推流码</text>
       <view class="cta empty-cta" @tap="goCreate">去创建直播间</view>
+    </view>
+
+    <view v-else-if="stage === 'ended'" class="empty">
+      <view class="empty-icon">
+        <AppIcon name="check-circle" :size="88" color="#4F745B" />
+      </view>
+      <text class="empty-title">本场直播已经结束</text>
+      <text class="empty-desc">如需再次直播，请新建场次；本场回放生成后可在直播记录中查看。</text>
+      <view class="cta empty-cta" @tap="goCreate">创建新直播</view>
     </view>
 
     <!-- ============ 待开播 / 已开播 ============ -->
@@ -55,23 +75,34 @@
           <view class="live-dot" />
           <text class="livebadge-txt">直播中</text>
         </view>
-        <text v-else-if="qualityLabel" class="summary-quality">{{ qualityLabel }}</text>
+        <view v-else-if="stage === 'connected'" class="livebadge connected-badge">
+          <view class="live-dot connected-dot" />
+          <text class="livebadge-txt connected-txt">推流已连接</text>
+        </view>
+        <view v-else-if="stage === 'interrupted'" class="livebadge interrupted-badge">
+          <view class="live-dot interrupted-dot" />
+          <text class="livebadge-txt interrupted-txt">推流中断</text>
+        </view>
+        <view v-else class="summary-tags">
+          <text v-if="runtime?.ingestMode === 'TRTC_RTMP'" class="summary-mode">同房连麦</text>
+          <text v-if="qualityLabel" class="summary-quality">{{ qualityLabel }}</text>
+        </view>
       </view>
 
       <!-- 步骤指示条 -->
       <view class="steps">
         <view class="stepn" :class="{ on: true }"><text class="stepn-txt">1</text></view>
         <text :class="stage === 'ready' ? 'steplab' : 'steptxt'">获取推流码</text>
-        <view class="stepline" :class="{ done: stage === 'living' }" />
-        <view class="stepn" :class="{ on: stage === 'living' }"><text class="stepn-txt">2</text></view>
+        <view class="stepline" :class="{ done: stage !== 'ready' }" />
+        <view class="stepn" :class="{ on: stage !== 'ready' }"><text class="stepn-txt">2</text></view>
         <text class="steptxt">配置 OBS</text>
-        <view class="stepline" :class="{ done: stage === 'living' }" />
-        <view class="stepn" :class="{ on: stage === 'living' }"><text class="stepn-txt">3</text></view>
-        <text :class="stage === 'living' ? 'steplab' : 'steptxt'">{{ stage === 'living' ? '直播中' : '开始直播' }}</text>
+        <view class="stepline" :class="{ done: stage === 'connected' || stage === 'living' }" />
+        <view class="stepn" :class="{ on: stage === 'connected' || stage === 'living' }"><text class="stepn-txt">3</text></view>
+        <text :class="stage === 'living' || stage === 'connected' ? 'steplab' : 'steptxt'">{{ stage === 'living' ? '直播中' : stage === 'connected' ? '确认开播' : '检测推流' }}</text>
       </view>
 
       <!-- ===== 待开播主态 ===== -->
-      <template v-if="stage === 'ready'">
+      <template v-if="stage !== 'living'">
         <!-- 第一步 · 推流码 -->
         <view class="card">
           <view class="card-h">
@@ -102,7 +133,7 @@
             </view>
           </view>
 
-          <text class="tip">密钥请勿泄露给他人，泄露可能被冒名开播</text>
+          <text class="tip">推流密钥含短期 UserSig，请勿截图或转发；到期或疑似泄露时重新进入本页获取</text>
         </view>
 
         <!-- 第二步 · 配置 OBS -->
@@ -134,9 +165,16 @@
             <view class="no"><text class="no-txt">3</text></view>
             <text class="card-h-txt">开始直播</text>
           </view>
-          <text class="step3-desc">在电脑 OBS 上点击「开始推流」，然后回到本页点击下方按钮正式开播。</text>
+          <view class="connection-panel" :class="`connection-${stage}`">
+            <view class="connection-head">
+              <view class="connection-dot" />
+              <text class="connection-title">{{ connectionTitle }}</text>
+            </view>
+            <text class="connection-desc">{{ connectionDescription }}</text>
+            <text v-if="lastEventText" class="connection-time">{{ lastEventText }}</text>
+          </view>
           <view class="cta card-cta" :class="{ dis: starting }" @tap="onStart">
-            {{ starting ? '开播中…' : '开始直播' }}
+            {{ starting ? '检测中…' : startButtonText }}
           </view>
         </view>
       </template>
@@ -147,6 +185,11 @@
           <view class="card-h">
             <view class="no ok"><AppIcon name="check" :size="24" color="#fff" /></view>
             <text class="card-h-txt">推流已连接</text>
+          </view>
+          <view class="runtime-grid">
+            <view class="runtime-cell"><text class="runtime-value">{{ formattedDuration }}</text><text class="runtime-label">推流时长</text></view>
+            <view class="runtime-cell"><text class="runtime-value">{{ fpsText }}</text><text class="runtime-label">帧率</text></view>
+            <view class="runtime-cell"><text class="runtime-value">{{ bitrateText }}</text><text class="runtime-label">码率</text></view>
           </view>
           <view class="living-row" @tap="showKeyLiving = !showKeyLiving">
             <text class="living-desc">直播已开始，推流码可展开查看</text>
@@ -187,40 +230,54 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
+import { getObsStream, startObsLive, type ObsStreamRuntime } from './api'
 
-// 三态 UI
+type ObsStage = 'none' | 'ready' | 'connected' | 'living' | 'interrupted' | 'ended'
+
 const loading = ref(true)
 const error = ref('')
-
-// 从 L1 创建 OBS 房后跳来带 ?id=；无 id 则走「未创建房间态」
 const id = ref('')
-onLoad((q) => {
-  id.value = (q as Record<string, string> | undefined)?.id || ''
-})
-
 const statusBarHeight = ref(0)
-
-// 推流码（真连 getObsStream，缺失诚实降级为空 → 模板显示「未配置」）
 const serverUrl = ref('')
 const streamKey = ref('')
-
-// 直播间概要与阶段
 const roomTitle = ref('')
 const qualityLabel = ref('')
-// stage：none=无可开播 OBS 房 / ready=待开播 / living=已开播
-const stage = ref<'none' | 'ready' | 'living'>('none')
-
-// 交互态
+const stage = ref<ObsStage>('none')
+const runtime = ref<ObsStreamRuntime | null>(null)
 const showKey = ref(false)
 const showKeyLiving = ref(false)
 const copiedField = ref<string | null>(null)
 const starting = ref(false)
+let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const maskedKey = computed(() => '•'.repeat(Math.min(streamKey.value.length, 24)) || '••••••••••••')
+const connectionTitle = computed(() => {
+  if (stage.value === 'connected') return '已检测到 OBS 推流'
+  if (stage.value === 'interrupted') return '推流连接已中断'
+  return '等待 OBS 推流连接'
+})
+const connectionDescription = computed(() => {
+  if (stage.value === 'connected') return runtime.value?.ingestMode === 'TRTC_RTMP'
+    ? 'OBS 已进入与手机嘉宾相同的 TRTC 房间。确认画面和声音后，再建立 CDN 输出并正式开播。'
+    : '媒体流已到达腾讯云。确认画面和声音后，再正式向观众开播。'
+  if (stage.value === 'interrupted') return '直播仍保留，请在 OBS 中检查网络并重新推流；恢复后页面会自动更新。'
+  return '先在电脑 OBS 点击「开始推流」。本页检测到真实媒体流后，才会允许正式开播。'
+})
+const startButtonText = computed(() => stage.value === 'connected' ? '确认画面正常并正式开播' : '重新检测推流')
+const lastEventText = computed(() => runtime.value?.lastEventAt ? `最近状态：${formatClock(runtime.value.lastEventAt)}` : '')
+const formattedDuration = computed(() => {
+  const seconds = runtime.value?.duration || 0
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
+})
+const fpsText = computed(() => runtime.value?.fps == null ? '--' : `${runtime.value.fps}`)
+const bitrateText = computed(() => runtime.value?.bitrate == null ? '--' : `${runtime.value.bitrate}k`)
 
 const qualityMap: Record<string, string> = {
   basic: '标清',
@@ -228,35 +285,54 @@ const qualityMap: Record<string, string> = {
   uhd: '超清 1080P',
 }
 
+function pad(value: number) {
+  return String(value).padStart(2, '0')
+}
+
+function formatClock(iso: string) {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '未知'
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function applyRuntime(value: ObsStreamRuntime) {
+  runtime.value = value
+  serverUrl.value = value.serverUrl
+  streamKey.value = value.streamKey
+  if (value.roomStatus === 'ENDED' || value.roomStatus === 'REPLAY' || value.roomStatus === 'CANCELLED') {
+    stage.value = 'ended'
+  } else if (value.roomStatus === 'LIVING') {
+    stage.value = value.status === 'online' ? 'living' : 'interrupted'
+  } else {
+    stage.value = value.status === 'online' ? 'connected' : 'ready'
+  }
+}
+
+async function refreshRuntime(silent = true) {
+  if (!id.value) return
+  try {
+    applyRuntime(await getObsStream(id.value))
+  } catch (e) {
+    if (!silent) throw e
+  }
+}
+
 async function fetchData() {
   loading.value = true
   error.value = ''
   try {
-    // 无 id → 未创建可开播房间态，引导去 L1；不请求推流码
     if (!id.value) {
       stage.value = 'none'
-      loading.value = false
       return
     }
-
-    // 房间详情：判定待开播 / 已开播；推流码：真实推流地址+密钥
-    const [room, cfg] = await Promise.all([
-      liveApi.getWatch(id.value).catch(() => undefined),
-      liveApi.getObsStream().catch(() => ({ serverUrl: '', streamKey: '' })),
+    const [room, streamRuntime] = await Promise.all([
+      liveApi.getWatch(id.value),
+      getObsStream(id.value),
     ])
-
-    serverUrl.value = cfg?.serverUrl || ''
-    streamKey.value = cfg?.streamKey || ''
-
-    if (room) {
-      roomTitle.value = room.title || ''
-      qualityLabel.value = qualityMap[String((room as { quality?: string }).quality || '')] || ''
-      // live=已开播；upcoming=待开播；replay/已结束仍按待开播引导（避免误挡）
-      stage.value = room.status === 'live' ? 'living' : 'ready'
-    } else {
-      // 拿不到房间但带了 id：仍展示待开播流程（推流码为主）
-      stage.value = 'ready'
-    }
+    if (!room) throw new Error('直播间不存在或已不可访问')
+    roomTitle.value = room.title || ''
+    qualityLabel.value = qualityMap[String((room as { quality?: string }).quality || '')] || ''
+    applyRuntime(streamRuntime)
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -264,15 +340,28 @@ async function fetchData() {
   }
 }
 
-onLoad(() => {
+function startPolling() {
+  if (pollTimer || !id.value) return
+  pollTimer = setInterval(() => refreshRuntime(true), 5000)
+}
+
+function stopPolling() {
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = null
+}
+
+onLoad((query) => {
+  id.value = (query as Record<string, string> | undefined)?.id || ''
   try {
     const info = uni.getSystemInfoSync()
     statusBarHeight.value = info.statusBarHeight || 0
   } catch (e) {}
-  fetchData()
+  fetchData().then(startPolling)
 })
+onShow(startPolling)
+onHide(stopPolling)
+onUnload(stopPolling)
 
-// 复制（真连剪贴板 API + toast，修「复制没调 API」问题）
 function copy(text: string, field: string) {
   if (!text) {
     uni.showToast({ title: '暂无可复制内容', icon: 'none' })
@@ -288,7 +377,6 @@ function copy(text: string, field: string) {
   })
 }
 
-// 开始直播（真连 startLive → 进控制台）
 async function onStart() {
   if (starting.value || !id.value) {
     if (!id.value) uni.showToast({ title: '缺少直播间信息', icon: 'none' })
@@ -296,9 +384,18 @@ async function onStart() {
   }
   starting.value = true
   try {
-    await liveApi.startLive(id.value)
-    uni.showToast({ title: '已开播', icon: 'success' })
-    setTimeout(() => navigateTo(`/pkg-live/console/index?id=${id.value}&source=obs`), 600)
+    const latest = await getObsStream(id.value)
+    applyRuntime(latest)
+    if (latest.status !== 'online') {
+      uni.showToast({ title: '尚未检测到 OBS 推流', icon: 'none' })
+      return
+    }
+    if (latest.roomStatus === 'WAITING') {
+      await startObsLive(id.value)
+      await refreshRuntime(false)
+      uni.showToast({ title: '已正式开播', icon: 'success' })
+      setTimeout(() => navigateTo(`/pkg-live/console/index?id=${id.value}&source=obs`), 600)
+    }
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '开播失败，请重试', icon: 'none' })
   } finally {
@@ -352,6 +449,20 @@ function onBack() {
 .nav-placeholder {
   width: 56rpx;
 }
+
+.obs-masthead {
+  margin: 22rpx 32rpx 10rpx;
+  padding: 36rpx 34rpx 32rpx;
+  border-radius: 32rpx;
+  background: linear-gradient(145deg, #151217 0%, #27212a 70%, #342719 100%);
+  box-shadow: 0 18rpx 40rpx rgba(31,23,28,.17);
+}
+.obs-eyebrow { display: block; color: #d4ad66; font-size: 19rpx; font-weight: 800; letter-spacing: 3rpx; }
+.obs-title { display: block; margin-top: 14rpx; color: #fff; font-size: 38rpx; line-height: 1.35; font-weight: 700; font-family: var(--font-serif); }
+.obs-desc { display: block; margin-top: 10rpx; color: #aaa0ad; font-size: 23rpx; line-height: 1.6; }
+.obs-capabilities { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 22rpx; }
+.obs-capability { padding: 9rpx 15rpx; border-radius: 999rpx; color: #d7cfd8; background: rgba(255,255,255,.08); border: 1rpx solid rgba(255,255,255,.13); font-size: 20rpx; }
+.obs-capability.secure { color: #8fd0a4; border-color: rgba(79,116,91,.7); background: rgba(79,116,91,.16); }
 
 /* 直播间概要 */
 .summary {
@@ -407,6 +518,14 @@ function onBack() {
   color: #C41E3A;
   font-weight: 600;
 }
+.summary-tags { flex-shrink: 0; margin-left: 16rpx; display: flex; align-items: center; gap: 10rpx; }
+.summary-mode { font-size: 22rpx; color: #4F745B; background: #EDF4EF; border-radius: 999rpx; padding: 6rpx 14rpx; font-weight: 600; }
+.connected-badge { background: #EDF4EF; }
+.connected-dot { background: #4F745B; animation: none; }
+.connected-txt { color: #4F745B; }
+.interrupted-badge { background: #FFF4E5; }
+.interrupted-dot { background: #C77A22; }
+.interrupted-txt { color: #9A5A12; }
 
 /* 步骤指示条 */
 .steps {
@@ -608,6 +727,77 @@ function onBack() {
   font-size: 26rpx;
   color: #6E6E73;
   line-height: 1.7;
+}
+.connection-panel {
+  margin-top: 8rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: #F7F3EC;
+  border: 1rpx solid #E6DED1;
+}
+.connection-connected {
+  background: #EDF4EF;
+  border-color: #C9DACD;
+}
+.connection-interrupted {
+  background: #FFF4E5;
+  border-color: #EACBA2;
+}
+.connection-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.connection-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: #9B948A;
+}
+.connection-connected .connection-dot { background: #4F745B; }
+.connection-interrupted .connection-dot { background: #C77A22; }
+.connection-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #181614;
+}
+.connection-desc {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #68615A;
+}
+.connection-time {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #8C847A;
+}
+.runtime-grid {
+  display: flex;
+  margin: 20rpx 0 8rpx;
+  padding: 20rpx 0;
+  border-radius: 14rpx;
+  background: #F7F3EC;
+}
+.runtime-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-right: 1rpx solid #E6DED1;
+}
+.runtime-cell:last-child { border-right: 0; }
+.runtime-value {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #181614;
+}
+.runtime-label {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #8C847A;
 }
 .card-cta {
   margin-top: 28rpx;

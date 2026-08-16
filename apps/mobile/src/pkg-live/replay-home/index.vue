@@ -185,10 +185,9 @@ import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import {
   liveApi,
-  formatLiveDuration,
-  formatLiveViews,
   type ReplayHomeItem,
 } from '@/lib/live-data'
+import { formatLiveDuration, formatLiveViews } from '@/pkg-live/live-format'
 
 const statusBarHeight = ref(20)
 

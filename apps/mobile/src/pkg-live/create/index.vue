@@ -27,6 +27,17 @@
     </view>
 
     <scroll-view scroll-y class="scroll">
+      <view class="studio-hero">
+        <text class="studio-eyebrow">LIVE CREATOR STUDIO</text>
+        <text class="studio-title">把一场直播，策划成一次值得停留的现场</text>
+        <text class="studio-desc">从内容、舞台到互动与发布范围，开播前逐项确认。</text>
+        <view class="studio-chips">
+          <text class="studio-chip">{{ liveMode === 'obs' ? 'OBS 专业直播' : '手机竖屏直播' }}</text>
+          <text class="studio-chip">{{ visibility === 'PLATFORM' ? '全平台可见' : '仅本圈可见' }}</text>
+          <text class="studio-chip studio-chip-gold">{{ quality === 'uhd' ? '1080P 超清' : quality === 'hd' ? '720P 高清' : '标清稳定' }}</text>
+        </view>
+      </view>
+
       <!-- 封面（9:16 竖版，占屏上部，X5 用固定高度不用 aspect-ratio） -->
       <view class="cover" @tap="uploadCover">
         <template v-if="coverUploading">
@@ -59,6 +70,8 @@
         </view>
       </view>
 
+      <view class="flow-head"><text class="flow-index">01</text><view><text class="flow-title">内容策划</text><text class="flow-desc">让观众一眼知道为什么值得留下</text></view></view>
+
       <!-- 直播标题 -->
       <view class="sec">
         <view class="label">直播标题 <text class="label-sm">{{ title.length }}/30</text></view>
@@ -81,6 +94,8 @@
         />
       </view>
 
+      <view class="flow-head"><text class="flow-index">02</text><view><text class="flow-title">舞台与画质</text><text class="flow-desc">选择与你的内容匹配的呈现方式</text></view></view>
+
       <!-- 直播形态 -->
       <view class="sec">
         <view class="label">直播形态</view>
@@ -94,6 +109,8 @@
           <text class="guide-link">查看 OBS 开播流程 ›</text>
         </view>
       </view>
+
+      <view class="flow-head"><text class="flow-index">03</text><view><text class="flow-title">互动与经营</text><text class="flow-desc">定价、商品与观众关系保持清晰克制</text></view></view>
 
       <!-- 付费设置 -->
       <view class="sec">
@@ -161,6 +178,8 @@
         <text v-else-if="remainingForSelected > 0" class="hint">我的剩余时长：<text class="gold">{{ remainingForSelected }} 分钟</text>{{ playableHours }}</text>
         <text v-else class="hint warn" @tap="openBuySheet">剩余时长不足，无法以本档开播，点此购买时长包或改用标清</text>
       </view>
+
+      <view class="flow-head"><text class="flow-index">04</text><view><text class="flow-title">发布检查</text><text class="flow-desc">确认圈子、可见范围与开播时间</text></view></view>
 
       <!-- 所属圈子 + 可见范围 + 开播时间 -->
       <view class="sec">
@@ -785,8 +804,27 @@ function goManageLater() {
 
 .scroll { flex: 1; }
 
+.studio-hero {
+  margin: 20rpx 32rpx 28rpx;
+  padding: 38rpx 34rpx 34rpx;
+  border-radius: 36rpx;
+  background: linear-gradient(145deg, #17141a 0%, #26202a 68%, #352817 100%);
+  box-shadow: 0 18rpx 40rpx rgba(31, 23, 28, .16);
+}
+.studio-eyebrow { display: block; color: #d4ad66; font-size: 19rpx; font-weight: 800; letter-spacing: 3rpx; }
+.studio-title { display: block; margin-top: 16rpx; color: #fff; font-size: 36rpx; line-height: 1.38; font-weight: 700; font-family: var(--font-serif); }
+.studio-desc { display: block; margin-top: 12rpx; color: #aaa0ad; font-size: 23rpx; line-height: 1.6; }
+.studio-chips { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 24rpx; }
+.studio-chip { padding: 10rpx 16rpx; border-radius: 999rpx; color: #d8d0da; background: rgba(255,255,255,.08); border: 1rpx solid rgba(255,255,255,.12); font-size: 20rpx; }
+.studio-chip-gold { color: #e0c28b; border-color: rgba(212,173,102,.38); background: rgba(212,173,102,.1); }
+
+.flow-head { display: flex; align-items: center; gap: 18rpx; margin: 44rpx 40rpx 0; padding-bottom: 18rpx; border-bottom: 1rpx solid #e5ddd0; }
+.flow-index { width: 54rpx; height: 54rpx; border-radius: 50%; color: #fff; background: #221e28; display: flex; align-items: center; justify-content: center; font-size: 21rpx; font-weight: 800; letter-spacing: 1rpx; }
+.flow-title { display: block; color: #2b2620; font-size: 30rpx; font-weight: 700; font-family: var(--font-serif); }
+.flow-desc { display: block; margin-top: 4rpx; color: #9a9286; font-size: 21rpx; }
+
 /* 封面 9:16 竖版（固定高度，X5 安全） */
-.cover { height: 464rpx; background: #F0EBE2; border-top: 1rpx solid #E8E2D8; border-bottom: 1rpx solid #E8E2D8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; position: relative; overflow: hidden; }
+.cover { height: 520rpx; margin: 0 32rpx; background: linear-gradient(145deg, #e8e0d4, #f6f1e8); border: 1rpx solid #E1D8CA; border-radius: 32rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; position: relative; overflow: hidden; box-shadow: 0 12rpx 32rpx rgba(60,50,40,.08); }
 .cover-img { width: 100%; height: 100%; }
 .cover-change { position: absolute; right: 20rpx; bottom: 20rpx; background: rgba(0,0,0,.55); color: #fff; font-size: 22rpx; padding: 8rpx 20rpx; border-radius: 999rpx; }
 .cover-plus { width: 88rpx; height: 88rpx; border-radius: 50%; background: #fff; border: 1rpx solid #E8E2D8; display: flex; align-items: center; justify-content: center; font-size: 48rpx; color: #C9A96E; }

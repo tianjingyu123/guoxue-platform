@@ -249,6 +249,7 @@ import {
   type VerticalLiveProduct,
   type LiveGift,
 } from '@/lib/live-data'
+import { likeLiveRoom, sendLiveGift } from '@/pkg-live/live-interaction-api'
 
 const loading = ref(true)
 const error = ref('')
@@ -420,7 +421,7 @@ async function onDoubleTap() {
   }, 1500)
   if (!room.value.id) return
   try {
-    await liveApi.likeRoom(room.value.id)
+    await likeLiveRoom(room.value.id)
   } catch (e) {
     likeCount.value = Math.max(0, likeCount.value - 1)
     uni.showToast({ title: (e as Error)?.message || '点赞失败，请重试', icon: 'none' })
@@ -428,7 +429,7 @@ async function onDoubleTap() {
 }
 function onOpenCommentInput() { showCommentInput.value = true }
 function onCloseCommentInput() { showCommentInput.value = false }
-// 发弹幕：走 TIM 群实时下发 + 后端持久化（并行），乐观上屏，防重
+// 发弹幕：服务端审核与持久化成功后统一中继到 TIM，客户端只做乐观上屏。
 let sendingComment = false
 async function onSendComment() {
   const text = commentInput.value.trim()
@@ -439,12 +440,7 @@ async function onSendComment() {
   commentInput.value = ''
   showCommentInput.value = false
   try {
-    let delivered = false
-    if (danmakuGroupId) {
-      try { await tim.sendGroupText(danmakuGroupId, text); delivered = true } catch { /* 继续尝试服务端 */ }
-    }
-    try { await liveApi.sendComment(room.value.id, text); delivered = true } catch { /* 由统一失败态处理 */ }
-    if (!delivered) throw new Error('消息发送失败')
+    await liveApi.sendComment(room.value.id, text)
   } catch (e) {
     const index = comments.value.findIndex((item) => item.id === localId)
     if (index >= 0) comments.value.splice(index, 1)
@@ -475,7 +471,7 @@ async function onSendGift(gift: LiveGift) {
   sendingGift = true
   showGiftPanel.value = false
   try {
-    await liveApi.sendGift(room.value.id, gift.id, count)
+    await sendLiveGift(room.value.id, gift.id, count)
     // 成功后飘屏 + 弹幕 + 扣余额
     const id = Date.now() + Math.random()
     giftAnimations.value.push({ id, gift, user: '我' })
@@ -490,8 +486,7 @@ async function onSendGift(gift: LiveGift) {
       giftInfo: { name: gift.name, icon: gift.icon, count },
     })
     coinBalance.value = Math.max(0, coinBalance.value - gift.price * count)
-    // 通过 TIM 群广播，让其他观众看到
-    if (danmakuGroupId) tim.sendGroupText(danmakuGroupId, `送出 ${gift.name} x${count}`).catch(() => {})
+    // 礼物广播由服务端在真实扣款成功后统一中继，客户端不能伪造礼物事件。
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '送礼失败', icon: 'none' })
   } finally {

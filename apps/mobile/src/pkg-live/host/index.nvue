@@ -4,7 +4,24 @@
       v-if="cameraMounted"
       :viewId="localViewId"
       class="camera"
+      :style="localCameraStyle"
     />
+    <TRTCCloudUniPlugin-TXRemoteViewComponent
+      v-for="(item, index) in remoteVideoUsers"
+      :key="item.userId"
+      :userId="item.userId"
+      :viewId="item.viewId"
+      class="remote-camera"
+      :style="remoteVideoStyle(index)"
+    />
+    <cover-view
+      v-for="(item, index) in remoteVideoUsers"
+      :key="`label-${item.viewId}`"
+      class="remote-camera-label-layer"
+      :style="remoteVideoStyle(index)"
+    >
+      <text class="remote-camera-label">{{ remoteVideoLabel(item.userId) }}</text>
+    </cover-view>
 
     <view class="shade-top" :style="shadeTopStyle" />
     <view class="shade-bottom" :style="shadeBottomStyle" />
@@ -12,7 +29,7 @@
       <view class="live-cluster">
         <view class="live-badge">
           <view class="live-dot" />
-          <text class="live-label">直播</text>
+          <text class="live-label">直播中</text>
         </view>
         <text class="time">{{ elapsedText }}</text>
       </view>
@@ -28,6 +45,9 @@
           <text class="end-btn-text">结束</text>
         </view>
       </view>
+    </cover-view>
+    <cover-view v-if="outputWarning" class="output-warning" :style="outputWarningStyle">
+      <text class="output-warning-text">{{ outputWarning }}</text>
     </cover-view>
 
     <cover-view v-if="endConfirmVisible" class="end-confirm" :style="endConfirmStyle">
@@ -52,53 +72,92 @@
     </view>
 
     <cover-view v-if="!joining && !error" class="room-meta" :style="roomMetaStyle">
-      <text class="room-kicker">主播视角 · {{ stats.totalViews }} 次进入</text>
+      <view class="room-eyebrow-row">
+        <text class="room-studio">热卜 LIVE STUDIO</text>
+        <view class="room-output-pill"><view class="signal-dot" /><text class="room-output-text">推流稳定</text></view>
+      </view>
       <text class="room-title">{{ roomTitle || '我的直播间' }}</text>
+      <text class="room-kicker">主播实时预览 · {{ stats.totalViews }} 位累计观众</text>
       <view class="room-state-row">
-        <view class="signal-dot" />
-        <text class="room-state">画面与声音正在推送</text>
+        <text class="room-state">观众看到的画面与声音正从这里推送</text>
+      </view>
+      <view class="room-metric-row">
+        <view class="room-metric"><text class="room-metric-label">在线</text><text class="room-metric-value">{{ stats.onlineCount }}</text></view>
+        <view class="room-metric"><text class="room-metric-label">峰值</text><text class="room-metric-value">{{ stats.peakOnline }}</text></view>
+        <view class="room-metric"><text class="room-metric-label">互动</text><text class="room-metric-value">{{ stats.interactionRate }}</text></view>
+        <view class="room-metric"><text class="room-metric-label">收益</text><text class="room-metric-value">¥{{ formatMoney(stats.totalSales) }}</text></view>
       </view>
     </cover-view>
 
     <cover-view class="danmaku-panel" :style="danmakuStyle">
       <view class="danmaku-head">
         <text class="danmaku-head-title">公屏</text>
-        <text class="danmaku-head-sub">实时互动</text>
+        <text class="danmaku-head-sub">实时互动 · {{ danmaku.length }} 条</text>
+        <view class="danmaku-reply" @click="openReplyComposer"><text class="danmaku-reply-text">回复</text></view>
       </view>
       <view v-if="!danmaku.length" class="danmaku-empty">
         <text class="danmaku-empty-text">观众消息会显示在这里</text>
       </view>
-      <view v-for="item in danmaku" :key="item.id" class="danmaku-row">
+      <view v-for="item in danmaku" :key="item.id" class="danmaku-row" :class="{ 'danmaku-row-gift': item.isVip }">
+        <text v-if="item.isVip" class="danmaku-gift-mark">心意</text>
         <text class="danmaku-user">{{ item.user }}</text>
         <text class="danmaku-content">{{ item.content }}</text>
       </view>
     </cover-view>
 
     <cover-view v-if="pendingMics.length" class="mic-request-card" :style="micRequestStyle">
-      <view class="mic-request-avatar"><text class="mic-request-avatar-text">麦</text></view>
+      <view class="mic-request-avatar"><text class="mic-request-avatar-text">{{ pendingMics[0].mediaMode === 'VIDEO' ? '像' : '麦' }}</text></view>
       <view class="mic-request-copy">
-        <text class="mic-request-kicker">观众申请连麦</text>
-        <text class="mic-request-user">{{ shortUserId(pendingMics[0].userId) }} · 等待接通</text>
+        <text class="mic-request-kicker">{{ pendingMics[0].source === 'INVITE' ? '已邀请' : '观众申请' }}{{ pendingMics[0].mediaMode === 'VIDEO' ? '视频' : '语音' }}连麦</text>
+        <text class="mic-request-user">{{ pendingMics[0].nickname || shortUserId(pendingMics[0].userId) }} · {{ pendingMics[0].source === 'INVITE' ? '等待对方确认' : '等待接通' }}{{ pendingMics.length > 1 ? ` · 另有 ${pendingMics.length - 1} 人` : '' }}</text>
       </view>
       <view class="mic-request-action reject" @click="managePendingMic('REJECT')">
-        <text class="mic-request-action-text">拒绝</text>
+        <text class="mic-request-action-text">{{ pendingMics[0].source === 'INVITE' ? '取消' : '拒绝' }}</text>
       </view>
-      <view class="mic-request-action accept" @click="managePendingMic('ACCEPT')">
+      <view v-if="pendingMics[0].source !== 'INVITE'" class="mic-request-action accept" @click="managePendingMic('ACCEPT')">
         <text class="mic-request-action-text">接通</text>
       </view>
     </cover-view>
 
-    <cover-view v-else-if="connectedMic" class="mic-request-card mic-connected-card" :style="micRequestStyle">
-      <view class="mic-request-avatar mic-request-avatar-live"><view class="mic-connected-dot" /></view>
-      <view class="mic-request-copy">
-        <text class="mic-request-kicker mic-connected-kicker">正在连麦</text>
-        <text class="mic-request-user">{{ shortUserId(connectedMic.userId) }} · 双向语音</text>
+    <cover-view v-if="compactSeatMics.length" class="mic-seat-panel" :style="micSeatStyle">
+      <view class="mic-seat-head">
+        <view class="mic-connected-dot" />
+        <text class="mic-seat-title">音频席位 {{ compactSeatMics.length }}/6</text>
       </view>
-      <view class="mic-request-action manage" @click="manageActiveMic(connectedMic.status === 'MUTED' ? 'UNMUTE' : 'MUTE')">
-        <text class="mic-request-action-text">{{ connectedMic.status === 'MUTED' ? '开麦' : '静音' }}</text>
+      <view v-for="item in compactSeatMics" :key="item.id" class="mic-seat-row" @click="openMicActions(item)">
+        <view class="mic-seat-avatar"><text class="mic-seat-avatar-text">{{ item.position }}</text></view>
+        <view class="mic-seat-copy">
+          <text class="mic-seat-user">{{ item.nickname || shortUserId(item.userId) }}</text>
+          <text class="mic-seat-state">{{ item.mediaMode === 'VIDEO' ? '视频 · ' : '语音 · ' }}{{ item.status === 'MUTED' ? '已静音' : '正在发言' }}</text>
+        </view>
+        <text class="mic-seat-more">•••</text>
       </view>
-      <view class="mic-request-action hangup" @click="manageActiveMic('KICK')">
-        <text class="mic-request-action-text">断开</text>
+    </cover-view>
+
+    <cover-view v-if="replyComposerVisible" class="host-composer-mask" @click="closeReplyComposer">
+      <view class="host-composer-sheet" :style="replyComposerStyle" @click.stop>
+        <view class="host-composer-head">
+          <view>
+            <text class="host-composer-kicker">主播发言</text>
+            <text class="host-composer-title">回复直播公屏</text>
+          </view>
+          <text class="host-composer-close" @click="closeReplyComposer">取消</text>
+        </view>
+        <view class="host-composer-row">
+          <input
+            v-model="replyDraft"
+            class="host-composer-input"
+            :focus="replyComposerVisible"
+            maxlength="120"
+            confirm-type="send"
+            placeholder="回复观众，或补充讲解内容…"
+            placeholder-class="host-composer-placeholder"
+            @confirm="sendHostReply"
+          />
+          <view class="host-composer-send" :class="{ disabled: !replyDraft.trim() || sendingReply }" @click="sendHostReply">
+            <text class="host-composer-send-text">{{ sendingReply ? '发送中' : '发送' }}</text>
+          </view>
+        </view>
       </view>
     </cover-view>
 
@@ -124,18 +183,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { onBackPress, onLoad, onUnload } from '@dcloudio/uni-app'
+import { computed, nextTick, ref } from 'vue'
+import { onBackPress, onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { liveApi, type ConsoleDanmaku, type ConsoleLiveStats } from '@/lib/live-data'
 import { liveMicApi, type LiveMicItem } from '@/pkg-live/live-mic-data'
 import { ensureLiveCapturePermissions } from '@/pkg-live/app-capture-permissions'
+import { useTim, type TimMessage } from '@/composables/useTim'
+import { formatLiveGiftTimEvent, readLiveGiftTimEvent } from '@/pkg-live/live-tim-events'
 import {
   joinLiveVideo,
   leaveLiveVideo,
   setLiveAudioMuted,
+  setLiveConnectionStateHandler,
+  setLiveRemoteVideoAvailabilityHandler,
   setLiveRemoteUserLeaveHandler,
   setLiveVideoMuted,
+  startLiveRemoteVideo,
+  stopLiveRemoteVideo,
   switchLiveCamera,
 } from '@/pkg-live/live-trtc-client'
 
@@ -143,15 +208,21 @@ const roomId = ref('')
 const roomTitle = ref('')
 const joining = ref(false)
 const error = ref('')
+const outputWarning = ref('')
 const cameraMounted = ref(true)
 const micMuted = ref(false)
 const videoMuted = ref(false)
 const frontCamera = ref(true)
 const elapsed = ref(0)
-const danmaku = ref<ConsoleDanmaku[]>([])
+const persistedDanmaku = ref<ConsoleDanmaku[]>([])
+const realtimeDanmaku = ref<ConsoleDanmaku[]>([])
 const micItems = ref<LiveMicItem[]>([])
+const remoteVideoUsers = ref<Array<{ userId: string; viewId: string }>>([])
 const micBusy = ref(false)
 const endConfirmVisible = ref(false)
+const replyComposerVisible = ref(false)
+const replyDraft = ref('')
+const sendingReply = ref(false)
 const stats = ref<ConsoleLiveStats>({
   onlineCount: 0,
   totalViews: 0,
@@ -163,8 +234,21 @@ const stats = ref<ConsoleLiveStats>({
   interactionRate: '0%',
 })
 const pendingMics = computed(() => micItems.value.filter((item) => item.status === 'PENDING'))
-const connectedMic = computed(() => micItems.value.find((item) => item.status === 'OCCUPIED' || item.status === 'MUTED') || null)
+const connectedMics = computed(() => micItems.value.filter((item) => item.status === 'OCCUPIED' || item.status === 'MUTED'))
+const compactSeatMics = computed(() => connectedMics.value.filter((item) =>
+  item.mediaMode === 'AUDIO' || !remoteVideoUsers.value.some((remote) => remote.userId === item.trtcUserId),
+))
+const danmaku = computed(() => {
+  const merged = new Map<string, ConsoleDanmaku>()
+  for (const item of [...persistedDanmaku.value, ...realtimeDanmaku.value]) {
+    merged.set(`${item.userId || item.user}:${item.content}`, item)
+  }
+  return [...merged.values()].slice(-4)
+})
 const localViewId = `host-preview-${Date.now().toString(36)}`
+const localCameraStyle = computed(() => remoteVideoUsers.value.length
+  ? { left: '0px', right: '0px', top: '0px', height: '50%' }
+  : { left: '0px', right: '0px', top: '0px', bottom: '0px' })
 const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
 const topbarStyle = computed(() => ({
   top: `${safeTop.value}px`,
@@ -187,6 +271,11 @@ const roomMetaStyle = computed(() => ({
   left: `${safeLeft.value + uni.upx2px(28)}px`,
   right: `${safeRight.value + uni.upx2px(28)}px`,
 }))
+const outputWarningStyle = computed(() => ({
+  top: `${safeTop.value + uni.upx2px(116)}px`,
+  left: `${safeLeft.value + uni.upx2px(28)}px`,
+  right: `${safeRight.value + uni.upx2px(28)}px`,
+}))
 const danmakuStyle = computed(() => ({
   bottom: `${safeBottom.value + uni.upx2px(168)}px`,
   left: `${safeLeft.value + uni.upx2px(28)}px`,
@@ -197,15 +286,51 @@ const micRequestStyle = computed(() => ({
   left: `${safeLeft.value + uni.upx2px(28)}px`,
   right: `${safeRight.value + uni.upx2px(28)}px`,
 }))
+const micSeatStyle = computed(() => ({
+  top: `${safeTop.value + uni.upx2px(210)}px`,
+  right: `${safeRight.value + uni.upx2px(24)}px`,
+}))
 const endConfirmStyle = computed(() => ({
   top: `${safeTop.value + uni.upx2px(92)}px`,
   left: `${safeLeft.value + uni.upx2px(28)}px`,
   right: `${safeRight.value + uni.upx2px(28)}px`,
 }))
+const replyComposerStyle = computed(() => ({
+  paddingLeft: `${safeLeft.value + uni.upx2px(28)}px`,
+  paddingRight: `${safeRight.value + uni.upx2px(28)}px`,
+  paddingBottom: `${safeBottom.value + uni.upx2px(28)}px`,
+}))
+
+function remoteVideoStyle(index: number) {
+  const count = remoteVideoUsers.value.length
+  if (count <= 1) return { left: '0px', right: '0px', top: '50%', bottom: '0px' }
+  const columns = 2
+  const rows = Math.ceil(count / columns)
+  const row = Math.floor(index / columns)
+  const column = index % columns
+  const height = 50 / rows
+  return {
+    left: `${column * 50}%`,
+    width: '50%',
+    top: `${50 + row * height}%`,
+    height: `${height}%`,
+  }
+}
+
+function remoteVideoLabel(userId: string) {
+  const mic = micItems.value.find((item) => item.trtcUserId === userId)
+  return mic?.nickname || `连麦嘉宾 ${mic?.position || ''}`.trim()
+}
 
 let elapsedTimer: ReturnType<typeof setInterval> | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
+let outputLeaseTimer: ReturnType<typeof setInterval> | null = null
 let ending = false
+let appVideoSuspended = false
+let navigatingToConsole = false
+const tim = useTim()
+let timGroupId = ''
+let offTimMessage: (() => void) | null = null
 
 const elapsedText = computed(() => {
   const hours = Math.floor(elapsed.value / 3600)
@@ -213,6 +338,11 @@ const elapsedText = computed(() => {
   const seconds = elapsed.value % 60
   return [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':')
 })
+
+function formatMoney(value: number) {
+  const amount = Math.max(0, Number(value) || 0)
+  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2)
+}
 
 async function connect() {
   if (!roomId.value || joining.value && !error.value) return
@@ -226,6 +356,8 @@ async function connect() {
       await ensureLiveCapturePermissions()
       const config = await liveMicApi.getRtcConfig(roomId.value)
       await joinLiveVideo(config, localViewId)
+      await renewHostOutput()
+      startOutputLease()
       joining.value = false
     } catch (cause) {
       leaveLiveVideo()
@@ -235,14 +367,81 @@ async function connect() {
   }, 80)
 }
 
+async function renewHostOutput() {
+  if (!roomId.value) return
+  try {
+    const state = await liveMicApi.hostReady(roomId.value)
+    outputWarning.value = state.active ? '' : '观众分发链路尚未建立，正在自动重试'
+  } catch {
+    outputWarning.value = '观众分发链路续租失败，正在自动重试'
+  }
+}
+
+function startOutputLease() {
+  if (outputLeaseTimer) return
+  outputLeaseTimer = setInterval(() => { void renewHostOutput() }, 20_000)
+}
+
+function stopOutputLease(release = false) {
+  if (outputLeaseTimer) clearInterval(outputLeaseTimer)
+  outputLeaseTimer = null
+  if (release && roomId.value) void liveMicApi.hostNotReady(roomId.value).catch(() => undefined)
+}
+
 async function refreshRoom() {
   try {
     const data = await liveApi.getConsoleData(roomId.value)
     roomTitle.value = data.title
     stats.value = data.stats
-    danmaku.value = data.danmaku.slice(-4)
+    elapsed.value = data.liveDurationSeconds
+    persistedDanmaku.value = data.danmaku.slice(-20)
+    void joinHostPublicScreen(data.imGroupId)
   } catch {
     // 推流不依赖控制台轮询；短暂网络波动不遮挡主播画面。
+  }
+}
+
+async function leaveHostPublicScreen() {
+  if (offTimMessage) { offTimMessage(); offTimMessage = null }
+  const groupId = timGroupId
+  timGroupId = ''
+  if (groupId) await tim.quitGroup(groupId).catch(() => undefined)
+}
+
+async function joinHostPublicScreen(groupId: string) {
+  if (!groupId || groupId === timGroupId) return
+  await leaveHostPublicScreen()
+  try {
+    timGroupId = groupId
+    await tim.joinGroup(groupId)
+    offTimMessage = tim.onMessage((messages: TimMessage[]) => {
+      const incoming = messages.filter((message) =>
+        message.conversationType === 'GROUP' && message.to === timGroupId,
+      )
+      for (const message of incoming) {
+        const giftEvent = readLiveGiftTimEvent(message)
+        const content = giftEvent ? formatLiveGiftTimEvent(giftEvent) : message.payload?.text || ''
+        if (!content) continue
+        const item: ConsoleDanmaku = {
+          id: `tim:${message.ID}`,
+          userId: message.from,
+          user: message.nick || '观众',
+          content,
+          time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+          level: 1,
+          isVip: !!giftEvent,
+        }
+        realtimeDanmaku.value.push(item)
+        setTimeout(() => {
+          realtimeDanmaku.value = realtimeDanmaku.value.filter((entry) => entry.id !== item.id)
+        }, 30_000)
+      }
+      if (realtimeDanmaku.value.length > 30) {
+        realtimeDanmaku.value.splice(0, realtimeDanmaku.value.length - 30)
+      }
+    })
+  } catch {
+    // TIM 暂不可用时保留数据库轮询，主播仍能在最多 2 秒内看到持久化公屏。
   }
 }
 
@@ -274,8 +473,7 @@ async function managePendingMic(action: 'ACCEPT' | 'REJECT') {
   }
 }
 
-async function manageActiveMic(action: 'MUTE' | 'UNMUTE' | 'KICK') {
-  const item = connectedMic.value
+async function manageActiveMic(item: LiveMicItem, action: 'MUTE' | 'UNMUTE' | 'KICK') {
   if (!item || micBusy.value) return
   micBusy.value = true
   try {
@@ -288,6 +486,19 @@ async function manageActiveMic(action: 'MUTE' | 'UNMUTE' | 'KICK') {
   } finally {
     micBusy.value = false
   }
+}
+
+function openMicActions(item: LiveMicItem) {
+  const muteLabel = item.status === 'MUTED' ? '恢复发言' : '静音该席位'
+  uni.showActionSheet({
+    itemList: [muteLabel, '结束该席位连麦'],
+    success: (result) => {
+      const action = result.tapIndex === 0
+        ? (item.status === 'MUTED' ? 'UNMUTE' : 'MUTE')
+        : 'KICK'
+      void manageActiveMic(item, action)
+    },
+  })
 }
 
 function toggleCamera() {
@@ -310,12 +521,17 @@ function openConsole() {
     uni.showToast({ title: '请先连接直播服务', icon: 'none' })
     return
   }
-  uni.navigateTo({ url: `/pkg-live/console/index?id=${roomId.value}&source=host` })
+  navigatingToConsole = true
+  uni.navigateTo({
+    url: `/pkg-live/console/index?id=${roomId.value}&source=host`,
+    fail: () => { navigatingToConsole = false },
+  })
 }
 
 function handleConsoleEnded(endedRoomId: string) {
   if (String(endedRoomId) !== roomId.value) return
   leaveLiveVideo()
+  stopOutputLease(true)
   uni.redirectTo({ url: `/pkg-live/end/index?id=${roomId.value}` })
 }
 
@@ -328,9 +544,68 @@ function cancelEnd() {
   endConfirmVisible.value = false
 }
 
-function handleRemoteUserLeave() {
-  if (!connectedMic.value || micBusy.value) return
-  void manageActiveMic('KICK')
+function openReplyComposer() {
+  if (joining.value || error.value) return
+  replyComposerVisible.value = true
+}
+
+function closeReplyComposer() {
+  if (sendingReply.value) return
+  replyComposerVisible.value = false
+}
+
+async function sendHostReply() {
+  const content = replyDraft.value.trim()
+  if (!content || sendingReply.value) return
+  sendingReply.value = true
+  try {
+    await liveApi.sendComment(roomId.value, content)
+    replyDraft.value = ''
+    replyComposerVisible.value = false
+    await refreshRoom()
+  } catch (cause) {
+    uni.showToast({ title: (cause as Error)?.message || '公屏消息发送失败', icon: 'none' })
+  } finally {
+    sendingReply.value = false
+  }
+}
+
+function handleRemoteUserLeave(_userId?: string) {
+  // TRTC 远端离开只说明媒体连接已经释放；观众主动下麦可能已先删业务麦位。
+  // 这里只刷新服务端事实，避免重复 KICK 制造 404 和错误提示。
+  void refreshPendingMics()
+}
+
+function handleRemoteVideoAvailability(userId: string, available: boolean) {
+  const existing = remoteVideoUsers.value.find((item) => item.userId === userId)
+  if (!available) {
+    stopLiveRemoteVideo(userId)
+    remoteVideoUsers.value = remoteVideoUsers.value.filter((item) => item.userId !== userId)
+    return
+  }
+  if (existing) {
+    void nextTick(() => startLiveRemoteVideo(userId, existing.viewId))
+    return
+  }
+  const viewId = `host-remote-${remoteVideoUsers.value.length}-${Date.now().toString(36)}`
+  remoteVideoUsers.value.push({ userId, viewId })
+  void nextTick(() => startLiveRemoteVideo(userId, viewId))
+}
+
+function handleConnectionState(state: 'connected' | 'reconnecting' | 'lost') {
+  if (state === 'connected') {
+    joining.value = false
+    error.value = ''
+    void renewHostOutput().then(startOutputLease)
+    return
+  }
+  joining.value = true
+  if (state === 'lost') {
+    stopOutputLease(true)
+    error.value = '直播网络已断开，正在尝试恢复…'
+    return
+  }
+  error.value = ''
 }
 
 async function endLive() {
@@ -340,6 +615,7 @@ async function endLive() {
   uni.showLoading({ title: '正在下播…', mask: true })
   try {
     await liveApi.endLive(roomId.value)
+    stopOutputLease(true)
     leaveLiveVideo()
     uni.hideLoading()
     uni.redirectTo({ url: `/pkg-live/end/index?id=${roomId.value}` })
@@ -357,10 +633,12 @@ onLoad((options) => {
     error.value = '缺少直播间编号'
     return
   }
+  setLiveRemoteVideoAvailabilityHandler(handleRemoteVideoAvailability)
+  setLiveRemoteUserLeaveHandler(handleRemoteUserLeave)
+  setLiveConnectionStateHandler(handleConnectionState)
   void connect()
   void refreshRoom()
   void refreshPendingMics()
-  setLiveRemoteUserLeaveHandler(handleRemoteUserLeave)
   elapsedTimer = setInterval(() => { elapsed.value += 1 }, 1000)
   pollTimer = setInterval(() => {
     void refreshRoom()
@@ -374,34 +652,59 @@ onBackPress(() => {
   return true
 })
 
+onHide(() => {
+  if (navigatingToConsole) return
+  if (joining.value || error.value || videoMuted.value) return
+  appVideoSuspended = true
+  setLiveVideoMuted(true)
+  stopOutputLease(true)
+})
+
+onShow(() => {
+  navigatingToConsole = false
+  if (!appVideoSuspended) return
+  appVideoSuspended = false
+  if (!videoMuted.value) setLiveVideoMuted(false)
+  void renewHostOutput().then(startOutputLease)
+})
+
 onUnload(() => {
   if (elapsedTimer) clearInterval(elapsedTimer)
   if (pollTimer) clearInterval(pollTimer)
+  stopOutputLease(true)
   uni.$off('live:host-ended', handleConsoleEnded)
   setLiveRemoteUserLeaveHandler(null)
+  setLiveRemoteVideoAvailabilityHandler(null)
+  setLiveConnectionStateHandler(null)
+  void leaveHostPublicScreen()
   leaveLiveVideo()
 })
 </script>
 
 <style>
-.page { flex: 1; background-color: #08070a; }
+.page { flex: 1; background-color: #181614; }
 .camera { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
-.shade-top { position: absolute; left: 0; right: 0; top: 0; background-image: linear-gradient(to bottom, rgba(8,7,10,0.82), rgba(8,7,10,0)); }
-.shade-bottom { position: absolute; left: 0; right: 0; bottom: 0; background-image: linear-gradient(to top, rgba(8,7,10,0.92), rgba(8,7,10,0)); }
+.remote-camera { position: absolute; background-color: #181614; border-width: 1rpx; border-color: rgba(247,243,236,0.18); }
+.remote-camera-label-layer { position: absolute; padding-left: 16rpx; padding-bottom: 14rpx; justify-content: flex-end; align-items: flex-start; }
+.remote-camera-label { padding-left: 12rpx; padding-right: 12rpx; padding-top: 6rpx; padding-bottom: 6rpx; border-radius: 15rpx; background-color: rgba(12,11,14,0.58); color: #FFFFFF; font-size: 18rpx; }
+.shade-top { position: absolute; left: 0; right: 0; top: 0; background-image: linear-gradient(to bottom, rgba(24,22,20,0.82), rgba(24,22,20,0)); }
+.shade-bottom { position: absolute; left: 0; right: 0; bottom: 0; background-image: linear-gradient(to top, rgba(24,22,20,0.92), rgba(24,22,20,0)); }
 .topbar { position: absolute; left: 0; right: 0; top: 0; height: 98rpx; flex-direction: row; align-items: center; }
+.output-warning { position: absolute; height: 58rpx; padding-left: 22rpx; padding-right: 22rpx; border-radius: 20rpx; border-width: 1rpx; border-color: rgba(231,193,123,0.52); background-color: rgba(72,49,25,0.92); align-items: center; justify-content: center; }
+.output-warning-text { color: #F6DFC0; font-size: 20rpx; text-align: center; }
 .live-cluster { flex: 1; flex-direction: row; align-items: center; }
-.live-badge { height: 42rpx; padding-left: 13rpx; padding-right: 13rpx; border-radius: 9rpx; background-color: #C93445; flex-direction: row; align-items: center; }
+.live-badge { height: 46rpx; padding-left: 14rpx; padding-right: 14rpx; border-radius: 10rpx; background-color: #C41E3A; flex-direction: row; align-items: center; }
 .live-dot { width: 9rpx; height: 9rpx; border-radius: 5rpx; background-color: #ffffff; margin-right: 8rpx; }
 .live-label { color: #ffffff; font-size: 19rpx; font-weight: 700; }
 .time { color: rgba(255,255,255,0.88); font-size: 22rpx; margin-left: 12rpx; }
 .top-actions { flex-direction: row; align-items: center; }
-.viewer-chip { height: 50rpx; padding-left: 13rpx; padding-right: 13rpx; border-radius: 25rpx; background-color: rgba(12,11,14,0.62); flex-direction: row; align-items: center; }
+.viewer-chip { height: 54rpx; padding-left: 14rpx; padding-right: 14rpx; border-radius: 27rpx; border-width: 1rpx; border-color: rgba(201,169,110,0.18); background-color: rgba(24,22,20,0.62); flex-direction: row; align-items: center; }
 .viewer-dot { width: 8rpx; height: 8rpx; margin-right: 8rpx; border-radius: 4rpx; background-color: #76D89B; }
-.viewer-chip-text { color: #FFFFFF; font-size: 19rpx; }
-.console-btn { height: 50rpx; padding-left: 16rpx; padding-right: 16rpx; border-radius: 25rpx; background-color: rgba(12,11,14,0.66); justify-content: center; margin-left: 8rpx; }
-.console-btn-text { color: #ffffff; font-size: 20rpx; }
-.end-btn { height: 50rpx; padding-left: 16rpx; padding-right: 16rpx; margin-left: 8rpx; border-radius: 25rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.48); background-color: rgba(12,11,14,0.42); justify-content: center; }
-.end-btn-text { color: #ffffff; font-size: 20rpx; font-weight: 700; }
+.viewer-chip-text { color: #FFFFFF; font-size: 22rpx; }
+.console-btn { height: 88rpx; padding-left: 18rpx; padding-right: 18rpx; border-radius: 44rpx; background-color: rgba(79,116,91,0.80); justify-content: center; margin-left: 6rpx; }
+.console-btn-text { color: #ffffff; font-size: 22rpx; }
+.end-btn { height: 88rpx; padding-left: 20rpx; padding-right: 20rpx; margin-left: 6rpx; border-radius: 44rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.54); background-color: rgba(24,22,20,0.48); justify-content: center; }
+.end-btn-text { color: #ffffff; font-size: 22rpx; font-weight: 700; }
 .end-confirm { position: absolute; padding: 24rpx; border-radius: 24rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.12); background-color: rgba(16,14,18,0.96); }
 .end-confirm-title { color: #ffffff; font-size: 28rpx; font-weight: 700; }
 .end-confirm-detail { color: rgba(255,255,255,0.68); font-size: 21rpx; margin-top: 10rpx; }
@@ -416,20 +719,32 @@ onUnload(() => {
 .retry-btn { height: 64rpx; padding-left: 34rpx; padding-right: 34rpx; border-radius: 32rpx; background-color: #8C2F39; justify-content: center; margin-top: 26rpx; }
 .retry-btn-text { color: #ffffff; font-size: 25rpx; font-weight: 700; }
 .room-meta { position: absolute; }
-.room-kicker { color: rgba(255,255,255,0.62); font-size: 19rpx; }
-.room-title { color: #ffffff; font-size: 28rpx; font-weight: 700; margin-top: 7rpx; lines: 1; text-overflow: ellipsis; }
-.room-state-row { margin-top: 9rpx; flex-direction: row; align-items: center; }
+.room-eyebrow-row { flex-direction: row; align-items: center; }
+.room-studio { color: #E7C17B; font-size: 18rpx; font-weight: 700; }
+.room-output-pill { height: 34rpx; margin-left: 12rpx; padding-left: 10rpx; padding-right: 10rpx; border-radius: 17rpx; border-width: 1rpx; border-color: rgba(118,216,155,0.26); background-color: rgba(35,77,57,0.46); flex-direction: row; align-items: center; }
+.room-output-text { color: #9EE6B9; font-size: 18rpx; font-weight: 700; }
+.room-kicker { color: rgba(255,255,255,0.66); font-size: 20rpx; margin-top: 7rpx; }
+.room-title { color: #ffffff; font-size: 30rpx; font-weight: 700; margin-top: 8rpx; lines: 1; text-overflow: ellipsis; }
+.room-state-row { margin-top: 6rpx; flex-direction: row; align-items: center; }
 .signal-dot { width: 9rpx; height: 9rpx; border-radius: 5rpx; background-color: #76D89B; margin-right: 8rpx; }
-.room-state { color: rgba(255,255,255,0.72); font-size: 20rpx; }
+.room-state { color: rgba(255,255,255,0.74); font-size: 20rpx; }
+.room-metric-row { margin-top: 12rpx; flex-direction: row; }
+.room-metric { height: 44rpx; margin-right: 8rpx; padding-left: 11rpx; padding-right: 11rpx; border-radius: 22rpx; border-width: 1rpx; border-color: rgba(247,242,232,0.13); background-color: rgba(19,17,15,0.58); flex-direction: row; align-items: center; }
+.room-metric-label { color: rgba(255,255,255,0.54); font-size: 18rpx; margin-right: 6rpx; }
+.room-metric-value { color: #F7F2E8; font-size: 20rpx; font-weight: 700; }
 .danmaku-panel { position: absolute; }
 .danmaku-head { flex-direction: row; align-items: center; margin-bottom: 3rpx; }
-.danmaku-head-title { color: #E7C17B; font-size: 20rpx; font-weight: 700; }
-.danmaku-head-sub { color: rgba(255,255,255,0.48); font-size: 18rpx; margin-left: 9rpx; }
+.danmaku-head-title { color: #E7C17B; font-size: 22rpx; font-weight: 700; }
+.danmaku-head-sub { color: rgba(255,255,255,0.54); font-size: 22rpx; margin-left: 9rpx; }
+.danmaku-reply { height: 48rpx; margin-left: 12rpx; padding-left: 16rpx; padding-right: 16rpx; border-radius: 24rpx; border-width: 1rpx; border-color: rgba(247,242,232,0.18); background-color: rgba(19,17,15,0.54); align-items: center; justify-content: center; }
+.danmaku-reply-text { color: #F7F2E8; font-size: 22rpx; font-weight: 700; }
 .danmaku-empty { margin-top: 8rpx; padding-left: 13rpx; padding-right: 13rpx; padding-top: 8rpx; padding-bottom: 8rpx; border-radius: 15rpx; background-color: rgba(12,11,14,0.42); }
 .danmaku-empty-text { color: rgba(255,255,255,0.64); font-size: 20rpx; }
 .danmaku-row { flex-direction: row; margin-top: 7rpx; padding-left: 13rpx; padding-right: 14rpx; padding-top: 7rpx; padding-bottom: 7rpx; border-radius: 15rpx; background-color: rgba(12,11,14,0.48); }
+.danmaku-row-gift { border-width: 1rpx; border-color: rgba(231,193,123,0.44); background-color: rgba(98,67,34,0.72); }
+.danmaku-gift-mark { color: #2D2216; font-size: 17rpx; font-weight: 700; margin-right: 9rpx; padding-left: 8rpx; padding-right: 8rpx; border-radius: 8rpx; background-color: #E7C17B; }
 .mic-request-card { position: absolute; height: 96rpx; padding-left: 13rpx; padding-right: 12rpx; border-radius: 24rpx; border-width: 1rpx; border-color: rgba(255,255,255,0.10); background-color: rgba(15,13,17,0.90); flex-direction: row; align-items: center; }
-.mic-request-avatar { width: 62rpx; height: 62rpx; border-radius: 31rpx; background-color: #3D65B0; align-items: center; justify-content: center; }
+.mic-request-avatar { width: 62rpx; height: 62rpx; border-radius: 31rpx; background-color: #4F745B; align-items: center; justify-content: center; }
 .mic-request-avatar-live { background-color: rgba(51,121,83,0.34); }
 .mic-request-avatar-text { color: #FFFFFF; font-size: 23rpx; font-weight: 700; }
 .mic-connected-dot { width: 18rpx; height: 18rpx; border-radius: 9rpx; background-color: #76D89B; }
@@ -438,19 +753,41 @@ onUnload(() => {
 .mic-request-kicker { color: #E7C17B; font-size: 20rpx; font-weight: 700; }
 .mic-connected-kicker { color: #76D89B; }
 .mic-request-user { color: #FFFFFF; font-size: 21rpx; margin-top: 5rpx; }
-.mic-request-action { height: 56rpx; padding-left: 17rpx; padding-right: 17rpx; margin-left: 8rpx; border-radius: 18rpx; align-items: center; justify-content: center; }
+.mic-request-action { width: 104rpx; height: 76rpx; margin-left: 8rpx; border-radius: 24rpx; align-items: center; justify-content: center; }
 .mic-request-action.reject { background-color: #3A343D; }
-.mic-request-action.accept { background-color: #3D65B0; }
-.mic-request-action.manage { background-color: rgba(61,101,176,0.78); }
+.mic-request-action.accept { background-color: #4F745B; }
+.mic-request-action.manage { background-color: rgba(79,116,91,0.82); }
 .mic-request-action.hangup { background-color: #B73747; }
 .mic-request-action-text { color: #FFFFFF; font-size: 20rpx; font-weight: 700; }
 .danmaku-user { color: #E7C17B; font-size: 22rpx; font-weight: 700; margin-right: 10rpx; }
 .danmaku-content { color: #ffffff; font-size: 22rpx; flex: 1; lines: 2; text-overflow: ellipsis; }
 .bottombar { position: absolute; left: 0; right: 0; bottom: 0; height: 138rpx; flex-direction: row; align-items: center; justify-content: space-between; }
-.control { width: 128rpx; align-items: center; justify-content: center; }
+.control { width: 128rpx; height: 112rpx; align-items: center; justify-content: center; }
 .control-icon-shell { width: 70rpx; height: 70rpx; border-radius: 35rpx; background-color: rgba(12,11,14,0.62); border-width: 1rpx; border-color: rgba(255,255,255,0.16); align-items: center; justify-content: center; }
 .control-icon-alert { background-color: rgba(183,55,71,0.78); }
-.control-icon-primary { background-color: rgba(140,47,57,0.82); }
+.control-icon-primary { background-color: rgba(196,30,58,0.82); }
 .control-icon { color: #ffffff; font-size: 26rpx; font-weight: 700; }
-.control-label { color: rgba(255,255,255,0.90); font-size: 19rpx; margin-top: 7rpx; }
+.control-label { color: rgba(255,255,255,0.90); font-size: 22rpx; margin-top: 7rpx; }
+.mic-seat-panel { position: absolute; width: 250rpx; padding: 14rpx; border-radius: 22rpx; border-width: 1rpx; border-color: rgba(201,169,110,0.22); background-color: rgba(24,22,20,0.78); }
+.mic-seat-head { height: 40rpx; flex-direction: row; align-items: center; }
+.mic-seat-title { color: #F7F3EC; font-size: 22rpx; font-weight: 700; margin-left: 9rpx; }
+.mic-seat-row { height: 74rpx; margin-top: 9rpx; padding-left: 8rpx; padding-right: 6rpx; border-radius: 16rpx; background-color: rgba(255,255,255,0.08); flex-direction: row; align-items: center; }
+.mic-seat-avatar { width: 46rpx; height: 46rpx; border-radius: 23rpx; background-color: rgba(79,116,91,0.78); align-items: center; justify-content: center; }
+.mic-seat-avatar-text { color: #FFFFFF; font-size: 19rpx; font-weight: 700; }
+.mic-seat-copy { flex: 1; margin-left: 9rpx; }
+.mic-seat-user { color: #FFFFFF; font-size: 21rpx; lines: 1; text-overflow: ellipsis; }
+.mic-seat-state { color: #C9A96E; font-size: 20rpx; margin-top: 3rpx; }
+.mic-seat-more { color: rgba(255,255,255,0.60); font-size: 20rpx; }
+.host-composer-mask { position: absolute; left: 0; right: 0; top: 0; bottom: 0; background-color: rgba(0,0,0,0.52); justify-content: flex-end; }
+.host-composer-sheet { padding-top: 24rpx; border-top-left-radius: 32rpx; border-top-right-radius: 32rpx; border-top-width: 1rpx; border-top-color: rgba(201,169,110,0.24); background-color: #151311; }
+.host-composer-head { margin-bottom: 18rpx; flex-direction: row; align-items: center; justify-content: space-between; }
+.host-composer-kicker { color: #C9A96E; font-size: 20rpx; font-weight: 700; }
+.host-composer-title { margin-top: 5rpx; color: #F7F2E8; font-size: 29rpx; font-weight: 700; }
+.host-composer-close { height: 64rpx; padding-left: 18rpx; padding-right: 18rpx; color: rgba(247,242,232,0.66); font-size: 23rpx; line-height: 64rpx; }
+.host-composer-row { flex-direction: row; align-items: center; }
+.host-composer-input { height: 84rpx; flex: 1; padding-left: 22rpx; padding-right: 22rpx; border-radius: 22rpx; border-width: 1rpx; border-color: rgba(247,242,232,0.12); background-color: #292521; color: #FFFFFF; font-size: 26rpx; }
+.host-composer-placeholder { color: rgba(247,242,232,0.42); }
+.host-composer-send { height: 84rpx; padding-left: 28rpx; padding-right: 28rpx; margin-left: 12rpx; border-radius: 22rpx; background-color: #C93A4A; align-items: center; justify-content: center; }
+.host-composer-send.disabled { background-color: #4A4541; }
+.host-composer-send-text { color: #FFFFFF; font-size: 24rpx; font-weight: 700; }
 </style>
