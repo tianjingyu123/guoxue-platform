@@ -64,6 +64,16 @@ describe("Interaction E2E", () => {
 
       expect(res.body.liked).toBe(false)
     })
+
+    it("拒绝通过通用入口点赞直播", async () => {
+      stubUser("u1")
+      await request(app.getHttpServer())
+        .post("/api/v1/interaction/like")
+        .set("Authorization", `Bearer ${authAs("u1")}`)
+        .send({ targetType: "LIVESTREAM", targetId: "room1" })
+        .expect(400)
+      expect(prisma.like.create).not.toHaveBeenCalled()
+    })
   })
 
   describe("GET /api/v1/interaction/like/check", () => {
@@ -112,6 +122,16 @@ describe("Interaction E2E", () => {
 
       expect(res.body.content).toBe("好文章")
     })
+
+    it("拒绝通过通用入口创建直播评论", async () => {
+      stubUser("u1")
+      await request(app.getHttpServer())
+        .post("/api/v1/interaction/comment")
+        .set("Authorization", `Bearer ${authAs("u1")}`)
+        .send({ targetType: "LIVESTREAM", targetId: "room1", content: "绕过评论" })
+        .expect(400)
+      expect(prisma.comment.create).not.toHaveBeenCalled()
+    })
   })
 
   describe("GET /api/v1/interaction/comment", () => {
@@ -129,12 +149,23 @@ describe("Interaction E2E", () => {
       expect(res.body.comments).toHaveLength(2)
       expect(res.body.total).toBe(2)
     })
+
+    it("拒绝无范围、HIDDEN 和 LIVESTREAM 公开读取", async () => {
+      await request(app.getHttpServer()).get("/api/v1/interaction/comment").expect(400)
+      await request(app.getHttpServer())
+        .get("/api/v1/interaction/comment?targetType=ARTICLE&targetId=a1&status=HIDDEN")
+        .expect(403)
+      await request(app.getHttpServer())
+        .get("/api/v1/interaction/comment?targetType=LIVESTREAM&targetId=room1")
+        .expect(400)
+      expect(prisma.comment.findMany).not.toHaveBeenCalled()
+    })
   })
 
   describe("DELETE /api/v1/interaction/comment/:id", () => {
     it("删除评论成功", async () => {
       stubUser("u1")
-      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1" })
+      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1", targetType: "ARTICLE", targetId: "a1" })
       prisma.comment.deleteMany.mockResolvedValue({ count: 0 })
       prisma.comment.delete.mockResolvedValue({})
 

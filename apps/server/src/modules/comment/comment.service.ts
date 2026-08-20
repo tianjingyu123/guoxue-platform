@@ -23,15 +23,29 @@ export class CommentService {
     private audit: AuditService,
   ) {}
 
+  /** 直播互动只能通过 live 专属端点访问，防止通用评论接口绕过房间可见性。 */
+  private assertGenericCommentTarget(targetType?: string, targetId?: string) {
+    if (!targetType?.trim() || !targetId?.trim()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "必须指定评论目标");
+    }
+    if (targetType.trim().toUpperCase() === "LIVESTREAM") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "直播互动请使用直播专属接口");
+    }
+  }
+
   // 发布评论后立刻失效该目标的列表缓存（findByTarget @Cacheable ttl15s·否则新评论要等缓存过期才可见）
   @CacheEvict({ key: (args: any[]) => `comment:target:${args[1]?.targetType || ""}:${args[1]?.targetId || ""}:*`, pattern: true })
   async create(userId: string, dto: CreateCommentDto) {
+    this.assertGenericCommentTarget(dto.targetType, dto.targetId);
     if (dto.parentId) {
       const parent = await this.prisma.comment.findUnique({
         where: { id: dto.parentId },
-        select: { id: true, targetType: true, targetId: true, parentId: true },
+        select: { id: true, targetType: true, targetId: true, parentId: true, status: true, deletedAt: true },
       });
-      if (!parent) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "父评论不存在");
+      if (!parent || parent.status !== "PUBLISHED" || parent.deletedAt) {
+        throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "父评论不存在");
+      }
+      this.assertGenericCommentTarget(parent.targetType, parent.targetId);
       if (parent.targetType !== dto.targetType || parent.targetId !== dto.targetId) {
         throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "回复评论与目标不匹配");
       }
@@ -73,14 +87,20 @@ export class CommentService {
     return comment;
   }
 
-  @Cacheable({ key: (args: any[]) => `comment:target:${args[0]?.targetType || ""}:${args[0]?.targetId || ""}:${args[0]?.page || 1}:${args[0]?.pageSize || 20}`, ttl: 15 })
   async findByTarget(dto: CommentQueryDto) {
+    // 授权/目标类型校验必须发生在缓存装饰器之前，避免旧缓存绕过直播隔离。
+    this.assertGenericCommentTarget(dto.targetType, dto.targetId);
+    return this.findByTargetCached(dto);
+  }
+
+  @Cacheable({ key: (args: any[]) => `comment:target:${args[0]?.targetType || ""}:${args[0]?.targetId || ""}:${args[0]?.page || 1}:${args[0]?.pageSize || 20}`, ttl: 15 })
+  private async findByTargetCached(dto: CommentQueryDto) {
     const { targetType, targetId } = dto;
     const { skip, page, pageSize } = safePagination(dto.page, dto.pageSize);
 
     const [items, total] = await Promise.all([
       this.prisma.comment.findMany({
-        where: { targetType, targetId, parentId: null, status: "PUBLISHED" },
+        where: { targetType, targetId, parentId: null, status: "PUBLISHED", deletedAt: null },
         orderBy: { createdAt: "desc" },
         skip,
         take: pageSize,
@@ -89,7 +109,7 @@ export class CommentService {
         },
       }),
       this.prisma.comment.count({
-        where: { targetType, targetId, parentId: null, status: "PUBLISHED" },
+        where: { targetType, targetId, parentId: null, status: "PUBLISHED", deletedAt: null },
       }),
     ]);
 
@@ -124,7 +144,7 @@ export class CommentService {
   /** 单次查询拉取该目标下所有非顶级回复，利用 (targetType, targetId, parentId, status) 复合索引 */
   private async fetchNestedReplies(targetType: string, targetId: string) {
     return this.prisma.comment.findMany({
-      where: { targetType, targetId, parentId: { not: null }, status: "PUBLISHED" },
+      where: { targetType, targetId, parentId: { not: null }, status: "PUBLISHED", deletedAt: null },
       orderBy: { createdAt: "asc" },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
     });
@@ -132,10 +152,13 @@ export class CommentService {
 
   async findReplies(parentId: string) {
     const parent = await this.prisma.comment.findUnique({ where: { id: parentId } });
-    if (!parent) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+    if (!parent || parent.status !== "PUBLISHED" || parent.deletedAt) {
+      throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+    }
+    this.assertGenericCommentTarget(parent.targetType, parent.targetId);
 
     return this.prisma.comment.findMany({
-      where: { parentId, status: "PUBLISHED" },
+      where: { parentId, status: "PUBLISHED", deletedAt: null },
       orderBy: { createdAt: "asc" },
       include: { user: { select: { id: true, nickname: true, avatar: true } } },
     });
@@ -144,6 +167,7 @@ export class CommentService {
   async update(userId: string, commentId: string, dto: UpdateCommentDto) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
     if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+    this.assertGenericCommentTarget(comment.targetType, comment.targetId);
     if (comment.userId !== userId) throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "只能编辑自己的评论");
 
     await this.audit.moderateTextOrThrow(dto.content, { scene: "COMMENT_EDIT", userId, dataId: commentId });
@@ -161,7 +185,10 @@ export class CommentService {
 
   async like(commentId: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
-    if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+    if (!comment || comment.status !== "PUBLISHED" || comment.deletedAt) {
+      throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+    }
+    this.assertGenericCommentTarget(comment.targetType, comment.targetId);
 
     return this.prisma.comment.update({
       where: { id: commentId },
@@ -173,6 +200,7 @@ export class CommentService {
   async delete(userId: string, commentId: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
     if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+    this.assertGenericCommentTarget(comment.targetType, comment.targetId);
     if (comment.userId !== userId) throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "只能删除自己的评论");
 
     await this.prisma.comment.delete({ where: { id: commentId } });
@@ -203,8 +231,9 @@ export class CommentService {
   }
 
   async getCommentCount(targetType: string, targetId: string) {
+    this.assertGenericCommentTarget(targetType, targetId);
     return this.prisma.comment.count({
-      where: { targetType, targetId, status: "PUBLISHED" },
+      where: { targetType, targetId, status: "PUBLISHED", deletedAt: null },
     });
   }
 

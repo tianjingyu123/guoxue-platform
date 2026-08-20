@@ -38,9 +38,9 @@ describe("Comment DTO 校验", () => {
       const dto = Object.assign(new CommentQueryDto(), { targetType: "ARTICLE", targetId: "art-1", page: 0 });
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
-    it("仅 targetId 也可通过（targetType 是可选的）", async () => {
+    it("缺 targetType 报错，禁止无范围读取评论", async () => {
       const dto = Object.assign(new CommentQueryDto(), { targetId: "art-1" });
-      const errors = await validate(dto); expect(errors.length).toBe(0);
+      const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
     });
   });
 });

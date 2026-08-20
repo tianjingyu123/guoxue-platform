@@ -23,9 +23,20 @@ export class InteractionService {
     @Optional() private notification?: NotificationService,
   ) {}
 
+  /** 直播互动只能走 live 专属端点，避免通用互动接口绕过房间可见性。 */
+  private assertGenericInteractionTarget(targetType?: string, targetId?: string) {
+    if (!targetType?.trim() || !targetId?.trim()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "必须指定互动目标");
+    }
+    if (targetType.trim().toUpperCase() === "LIVESTREAM") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "直播互动请使用直播专属接口");
+    }
+  }
+
   // ═══════════════════ 点赞 ═══════════════════
 
   async toggleLike(userId: string, dto: LikeDto) {
+    this.assertGenericInteractionTarget(dto.targetType, dto.targetId);
     const where = { userId_targetType_targetId: { userId, targetType: dto.targetType, targetId: dto.targetId } };
     const existing = await this.prisma.like.findUnique({ where });
 
@@ -49,9 +60,10 @@ export class InteractionService {
   async removeLike(userId: string, likeId: string) {
     const like = await this.prisma.like.findUnique({
       where: { id: likeId },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, targetType: true, targetId: true },
     });
     if (!like) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "点赞记录不存在");
+    this.assertGenericInteractionTarget(like.targetType, like.targetId);
     if (like.userId !== userId) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "只能取消自己的点赞");
     }
@@ -60,6 +72,10 @@ export class InteractionService {
   }
 
   async isLiked(userId: string, targetType: string, targetIds: string[]) {
+    if (!targetIds.length || targetIds.some((targetId) => !targetId.trim())) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "必须指定互动目标");
+    }
+    this.assertGenericInteractionTarget(targetType, targetIds[0]);
     const likes = await this.prisma.like.findMany({
       where: { userId, targetType, targetId: { in: targetIds } },
       select: { targetId: true },
@@ -69,6 +85,7 @@ export class InteractionService {
   }
 
   async getLikeCount(targetType: string, targetId: string) {
+    this.assertGenericInteractionTarget(targetType, targetId);
     return this.prisma.like.count({ where: { targetType, targetId } });
   }
 
@@ -100,6 +117,20 @@ export class InteractionService {
   // ═══════════════════ 评论 ═══════════════════
 
   async createComment(userId: string, dto: CreateCommentDto) {
+    this.assertGenericInteractionTarget(dto.targetType, dto.targetId);
+    if (dto.parentId) {
+      const parent = await this.prisma.comment.findUnique({
+        where: { id: dto.parentId },
+        select: { targetType: true, targetId: true, status: true, deletedAt: true },
+      });
+      if (!parent || parent.status !== "PUBLISHED" || parent.deletedAt) {
+        throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "父评论不存在");
+      }
+      this.assertGenericInteractionTarget(parent.targetType, parent.targetId);
+      if (parent.targetType !== dto.targetType || parent.targetId !== dto.targetId) {
+        throw new BusinessException(ErrorCode.COMMENT_FORBIDDEN, "回复评论与目标不匹配");
+      }
+    }
     const comment = await this.prisma.comment.create({
       data: {
         userId,
@@ -149,14 +180,16 @@ export class InteractionService {
 
   async listComments(dto: CommentListQueryDto) {
     const { targetType, targetId, userId, status } = dto;
+    this.assertGenericInteractionTarget(targetType, targetId);
+    if (status && status !== "PUBLISHED") {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "隐藏评论仅供管理端审核");
+    }
     const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
-    const where: Prisma.CommentWhereInput = { parentId: null };
+    const where: Prisma.CommentWhereInput = { parentId: null, status: "PUBLISHED", deletedAt: null };
 
-    if (targetType) where.targetType = targetType;
-    if (targetId) where.targetId = targetId;
+    where.targetType = targetType;
+    where.targetId = targetId;
     if (userId) where.userId = userId;
-    if (status) where.status = status;
-    else where.status = "PUBLISHED";
 
     const total = await this.prisma.comment.count({ where });
 
@@ -165,7 +198,7 @@ export class InteractionService {
       include: {
         user: { select: { id: true, nickname: true, avatar: true } },
         replies: {
-          where: { status: "PUBLISHED" },
+          where: { status: "PUBLISHED", deletedAt: null },
           include: {
             user: { select: { id: true, nickname: true, avatar: true } },
           },
@@ -183,6 +216,7 @@ export class InteractionService {
   async deleteComment(commentId: string, userId: string, isAdmin = false) {
     const comment = await this.prisma.comment.findUnique({ where: { id: commentId } });
     if (!comment) throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "评论不存在");
+    this.assertGenericInteractionTarget(comment.targetType, comment.targetId);
     if (comment.userId !== userId && !isAdmin) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的评论");
     }

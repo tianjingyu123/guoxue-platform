@@ -62,6 +62,16 @@ describe("Comment E2E", () => {
         .send({ targetType: "ARTICLE", targetId: "a1", content: "" })
         .expect(400)
     })
+
+    it("拒绝通过通用入口创建直播评论", async () => {
+      stubUser("u1")
+      await request(app.getHttpServer())
+        .post("/api/v1/comment")
+        .set("Authorization", `Bearer ${authAs("u1")}`)
+        .send({ targetType: "LIVESTREAM", targetId: "room1", content: "绕过评论" })
+        .expect(400)
+      expect(prisma.comment.create).not.toHaveBeenCalled()
+    })
   })
 
   // ═══════════════════ 评论列表 ═══════════════════
@@ -82,6 +92,25 @@ describe("Comment E2E", () => {
       expect(res.body.data).toHaveLength(2)
       expect(res.body.total).toBe(2)
     })
+
+    it("拒绝无目标范围和 LIVESTREAM 通用读取", async () => {
+      await request(app.getHttpServer()).get("/api/v1/comment").expect(400)
+      await request(app.getHttpServer())
+        .get("/api/v1/comment?targetType=LIVESTREAM&targetId=room1")
+        .expect(400)
+      expect(prisma.comment.findMany).not.toHaveBeenCalled()
+    })
+
+    it("公开查询固定过滤隐藏和软删除评论", async () => {
+      prisma.comment.count.mockResolvedValue(0)
+      prisma.comment.findMany.mockResolvedValue([])
+      await request(app.getHttpServer())
+        .get("/api/v1/comment?targetType=ARTICLE&targetId=a1")
+        .expect(200)
+      expect(prisma.comment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ status: "PUBLISHED", deletedAt: null }),
+      }))
+    })
   })
 
   // ═══════════════════ 编辑评论 ═══════════════════
@@ -96,7 +125,7 @@ describe("Comment E2E", () => {
 
     it("编辑自己的评论成功", async () => {
       stubUser("u1")
-      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1" })
+      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1", targetType: "ARTICLE", targetId: "a1" })
       prisma.comment.update.mockResolvedValue({
         id: "c1", content: "修改后", user: { id: "u1", nickname: "张三", avatar: null },
       })
@@ -112,7 +141,7 @@ describe("Comment E2E", () => {
 
     it("非作者返回 403", async () => {
       stubUser("u2")
-      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1" })
+      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1", targetType: "ARTICLE", targetId: "a1" })
 
       await request(app.getHttpServer())
         .put("/api/v1/comment/c1")
@@ -133,7 +162,7 @@ describe("Comment E2E", () => {
 
     it("删除自己的评论成功", async () => {
       stubUser("u1")
-      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1" })
+      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1", targetType: "ARTICLE", targetId: "a1" })
       prisma.comment.delete.mockResolvedValue({})
 
       const res = await request(app.getHttpServer())
@@ -146,7 +175,7 @@ describe("Comment E2E", () => {
 
     it("非作者返回 403", async () => {
       stubUser("u2")
-      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1" })
+      prisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1", targetType: "ARTICLE", targetId: "a1" })
 
       await request(app.getHttpServer())
         .delete("/api/v1/comment/c1")

@@ -111,11 +111,16 @@ describe("InteractionService", () => {
       expect(result.liked).toBe(false)
       expect(mockPrisma.like.delete).toHaveBeenCalled()
     })
+
+    it("拒绝通过通用接口点赞直播", async () => {
+      await expect(svc.toggleLike("u1", { targetType: "LIVESTREAM", targetId: "room1" })).rejects.toThrow(BusinessException)
+      expect(mockPrisma.like.create).not.toHaveBeenCalled()
+    })
   })
 
   describe("removeLike", () => {
     it("按记录 ID 删除自己的点赞", async () => {
-      mockPrisma.like.findUnique.mockResolvedValue({ id: "l1", userId: "u1" })
+      mockPrisma.like.findUnique.mockResolvedValue({ id: "l1", userId: "u1", targetType: "ARTICLE", targetId: "a1" })
       mockPrisma.like.delete.mockResolvedValue({})
 
       const result = await svc.removeLike("u1", "l1")
@@ -125,7 +130,7 @@ describe("InteractionService", () => {
     })
 
     it("不能删除他人的点赞", async () => {
-      mockPrisma.like.findUnique.mockResolvedValue({ id: "l1", userId: "u2" })
+      mockPrisma.like.findUnique.mockResolvedValue({ id: "l1", userId: "u2", targetType: "ARTICLE", targetId: "a1" })
       await expect(svc.removeLike("u1", "l1")).rejects.toThrow(BusinessException)
       expect(mockPrisma.like.delete).not.toHaveBeenCalled()
     })
@@ -202,6 +207,13 @@ describe("InteractionService", () => {
       expect(result.content).toBe("好文章")
       expect(mockPrisma.comment.create).toHaveBeenCalled()
     })
+
+    it("拒绝通过通用接口创建直播评论", async () => {
+      await expect(svc.createComment("u1", {
+        targetType: "LIVESTREAM", targetId: "room1", content: "绕过评论",
+      })).rejects.toThrow(BusinessException)
+      expect(mockPrisma.comment.create).not.toHaveBeenCalled()
+    })
   })
 
   describe("listComments", () => {
@@ -213,13 +225,25 @@ describe("InteractionService", () => {
       expect(result.comments).toHaveLength(1)
     })
 
-    it("默认过滤已隐藏评论", async () => {
+    it("公开读取固定过滤隐藏和软删除评论", async () => {
       mockPrisma.comment.findMany.mockResolvedValue([])
       mockPrisma.comment.count.mockResolvedValue(0)
-      await svc.listComments({})
+      await svc.listComments({ targetType: "ARTICLE", targetId: "a1" })
       expect(mockPrisma.comment.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ status: "PUBLISHED" }) }),
+        expect.objectContaining({
+          where: expect.objectContaining({ status: "PUBLISHED", deletedAt: null }),
+          include: expect.objectContaining({
+            replies: expect.objectContaining({ where: { status: "PUBLISHED", deletedAt: null } }),
+          }),
+        }),
       )
+    })
+
+    it("拒绝无目标范围、隐藏状态和直播评论读取", async () => {
+      await expect(svc.listComments({})).rejects.toThrow(BusinessException)
+      await expect(svc.listComments({ targetType: "ARTICLE", targetId: "a1", status: "HIDDEN" })).rejects.toThrow(BusinessException)
+      await expect(svc.listComments({ targetType: "LIVESTREAM", targetId: "room1" })).rejects.toThrow(BusinessException)
+      expect(mockPrisma.comment.findMany).not.toHaveBeenCalled()
     })
   })
 
@@ -230,7 +254,7 @@ describe("InteractionService", () => {
     })
 
     it("删除评论及子回复", async () => {
-      mockPrisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1" })
+      mockPrisma.comment.findUnique.mockResolvedValue({ id: "c1", userId: "u1", targetType: "ARTICLE", targetId: "a1" })
       mockPrisma.comment.deleteMany.mockResolvedValue({})
       mockPrisma.comment.delete.mockResolvedValue({})
       const result = await svc.deleteComment("c1", "u1")
