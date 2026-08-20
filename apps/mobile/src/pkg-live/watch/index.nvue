@@ -519,6 +519,11 @@ const emptyRoom: LiveWatchRoomInfo = {
 }
 
 const roomId = ref('')
+const returnRoute = ref('')
+// 所有异步房间读取均绑定当前页面可见性与代次，防止 A 房的晚响应覆盖 B 房。
+const pageVisible = ref(true)
+const presenceActive = ref(true)
+let roomLoadVersion = 0
 const room = ref<LiveWatchRoomInfo>({ ...emptyRoom })
 type LivePlayUrl = { flv: string; hls: string; streamMode?: 'ORIGIN' | 'MIXED' }
 const playUrl = ref<LivePlayUrl | null>(null)
@@ -650,12 +655,17 @@ const actionSheetStyle = computed(() => ({
 const { leavePresence, touchPresence } = useLiveWatchPresence({
   roomId: () => roomId.value,
   isEnded: () => roomEnded.value,
+  isActive: () => pageVisible.value && presenceActive.value,
   onOnlineCount: (onlineCount) => { room.value.viewerCount = onlineCount },
   onFailure: ({ roomId: failedRoomId, retryInMs, status, code }) => {
     // 只保留可行动的脱敏诊断字段；失败会退避重试，不能因统计链路影响观看。
     console.warn('[live] presence heartbeat retry', { roomId: failedRoomId, retryInMs, status, code })
   },
 })
+
+function isCurrentRoomRequest(targetRoomId: string, requestVersion: number) {
+  return pageVisible.value && roomId.value === targetRoomId && roomLoadVersion === requestVersion
+}
 
 function rtcRemoteVideoStyle(index: number) {
   const count = orderedRemoteVideoUsers.value.length
@@ -703,8 +713,9 @@ let playerRetryCount = 0
 let roomPolling = false
 let switchingRoom = false
 let appBackgroundSuspended = false
+let resumeAfterHide = false
 let giftsLoaded = false
-let feedInitialized = false
+let feedInitializedRoomId = ''
 const playUrlCache = new Map<string, LivePlayUrl>()
 const pendingLocalEchoes = new Map<string, Set<number>>()
 let localEchoSequence = 0
@@ -803,12 +814,12 @@ function syncCurrentFeedItem() {
   else feedItems.value.push(toFeedItem(current))
 }
 
-async function initializeFeed() {
-  if (feedInitialized || !room.value.id) return
-  feedInitialized = true
+async function initializeFeed(targetRoomId: string, requestVersion: number) {
+  if (feedInitializedRoomId === targetRoomId || !isCurrentRoomRequest(targetRoomId, requestVersion)) return
   try {
     const circleId = room.value.visibility === 'CIRCLE_ONLY' ? room.value.circleId : undefined
     const candidates = await getLiveFeed(circleId)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
     const current = toFeedItem({
       id: room.value.id,
       title: room.value.title,
@@ -821,6 +832,7 @@ async function initializeFeed() {
       .map((item) => toFeedItem(item))
     feedItems.value = [current, ...rest]
     feedIndex.value = 0
+    feedInitializedRoomId = targetRoomId
     void preloadAdjacentRooms()
   } catch {
     // 推荐流不可用不影响当前直播；仍保留单房间观看。
@@ -845,14 +857,21 @@ async function leavePublicScreen() {
   if (groupId) await tim.quitGroup(groupId).catch(() => undefined)
 }
 
-async function joinPublicScreen(groupId: string) {
-  if (!groupId || groupId === timGroupId) return
+async function joinPublicScreen(groupId: string, targetRoomId: string, requestVersion: number) {
+  if (!groupId || !isCurrentRoomRequest(targetRoomId, requestVersion) || groupId === timGroupId) return
+  await leavePublicScreen()
+  if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
   try {
-    timGroupId = groupId
     await tim.joinGroup(groupId)
+    // 切房期间旧群可能在 join 返回后才完成，必须主动退回，不能覆盖新群订阅。
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) {
+      await tim.quitGroup(groupId).catch(() => undefined)
+      return
+    }
+    timGroupId = groupId
     offTimMessage = tim.onMessage((messages: TimMessage[]) => {
       const incoming = messages.filter((message) =>
-        message.conversationType === 'GROUP' && message.to === timGroupId,
+        timGroupId === groupId && message.conversationType === 'GROUP' && message.to === groupId,
       )
       for (const message of incoming) {
         const giftEvent = readLiveGiftTimEvent(message)
@@ -875,12 +894,13 @@ async function joinPublicScreen(groupId: string) {
 async function loadRoom() {
   const targetRoomId = roomId.value
   if (!targetRoomId) return
+  const requestVersion = ++roomLoadVersion
   loading.value = true
   error.value = ''
   playerNotice.value = ''
   try {
     const detail = await liveApi.getWatchRoom(targetRoomId)
-    if (targetRoomId !== roomId.value) return
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
     room.value = detail.room
     comments.value = detail.comments
     products.value = detail.products
@@ -894,28 +914,33 @@ async function loadRoom() {
         selectedGiftId.value ||= data.gifts[0]?.id || ''
       }).catch(() => undefined)
     }
-    void initializeFeed()
+    void initializeFeed(targetRoomId, requestVersion)
     if (roomEnded.value) {
       playUrl.value = null
       await finishMic()
+      if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
       stopRoomPolling()
       scheduleEndAdvance()
       return
     }
     const cached = playUrlCache.get(targetRoomId)
-    playUrl.value = cached || await liveApi.getPlayUrl(targetRoomId)
-    playUrlCache.set(targetRoomId, playUrl.value)
+    const nextPlayUrl = cached || await liveApi.getPlayUrl(targetRoomId)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+    playUrl.value = nextPlayUrl
+    playUrlCache.set(targetRoomId, nextPlayUrl)
     await nextTick()
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
     ensureAudiencePlayback()
     // 原生 video 的 @play 回调不是在线事实源；起播请求发出后立即登记观看会话。
     void touchPresence()
-    if (detail.room.imGroupId) void joinPublicScreen(detail.room.imGroupId)
+    if (detail.room.imGroupId) void joinPublicScreen(detail.room.imGroupId, targetRoomId, requestVersion)
     if (getToken() && detail.room.circleId) void liveApi.reportCircleChannelClick(detail.room.circleId)
   } catch (cause) {
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
     playUrl.value = null
     error.value = (cause as Error)?.message || '直播间加载失败，请重试'
   } finally {
-    loading.value = false
+    if (isCurrentRoomRequest(targetRoomId, requestVersion)) loading.value = false
   }
 }
 
@@ -924,15 +949,39 @@ function clearEndAdvance() {
   endCountdown.value = 3
 }
 
+function normalizeReturnRoute(value: unknown) {
+  const source = String(value || '').trim()
+  if (!source) return ''
+  try {
+    const route = decodeURIComponent(source)
+    return route.startsWith('/') && !route.startsWith('//') && !route.includes('\\') ? route : ''
+  } catch {
+    return ''
+  }
+}
+
+function returnToLiveEntrance() {
+  if (returnRoute.value) {
+    uni.reLaunch({ url: returnRoute.value })
+    return
+  }
+  if (getCurrentPages().length > 1) {
+    uni.navigateBack()
+    return
+  }
+  // 深链或冷启动没有历史栈时，明确回到直播入口，不能落到与直播无关的首页。
+  uni.reLaunch({ url: '/pkg-live/plaza/index' })
+}
+
 function scheduleEndAdvance() {
-  if (endAdvanceTimer) return
+  if (endAdvanceTimer || !pageVisible.value) return
   endCountdown.value = 3
   endAdvanceTimer = setInterval(() => {
     endCountdown.value -= 1
     if (endCountdown.value > 0) return
     clearEndAdvance()
     if (hasNextRoom.value) void switchToFeedIndex(feedIndex.value + 1)
-    else uni.navigateBack()
+    else returnToLiveEntrance()
   }, 1000)
 }
 
@@ -941,26 +990,34 @@ async function switchToFeedIndex(index: number) {
   if (!next || next.id === roomId.value || switchingRoom) return
   switchingRoom = true
   const previousRoomId = roomId.value
+  // 先使旧房间的详情、播放地址、TIM 订阅与轮询响应失效，再开始离房。
+  roomLoadVersion += 1
+  presenceActive.value = false
   clearEndAdvance()
+  stopRoomPolling()
   clearPlayerRetry()
   playerRetryCount = 0
   closeActionPanels()
-  await leavePresence(previousRoomId)
-  await removeMicRequest()
-  await finishMic()
-  await leavePublicScreen()
+  // 在线统计、麦位释放和 TIM 退群都是尽力清理，不能让弱网阻塞上下滑切房。
+  void leavePresence(previousRoomId)
+  void removeMicRequest()
+  void finishMic()
+  void leavePublicScreen()
   playUrl.value = null
   products.value = []
   comments.value = []
   roomId.value = next.id
   room.value = { ...emptyRoom, id: next.id, title: next.title, cover: next.cover, hostName: next.hostName, hostAvatar: next.hostAvatar }
   feedIndex.value = index
+  presenceActive.value = true
   try {
     await loadRoom()
     startRoomPolling()
     void preloadAdjacentRooms()
   } finally {
     switchingRoom = false
+    // 任一步骤异常时仍恢复当前可见房间的会话资格，不能把观众永久留在无心跳状态。
+    presenceActive.value = pageVisible.value
   }
 }
 
@@ -978,24 +1035,30 @@ function stopRoomPolling() {
 }
 
 function startRoomPolling() {
-  if (roomPollTimer || roomEnded.value) return
+  if (roomPollTimer || roomEnded.value || !pageVisible.value) return
   roomPollTimer = setInterval(() => { void pollRoomStatus() }, 5000)
 }
 
 async function pollRoomStatus() {
-  if (roomPolling || !roomId.value || roomEnded.value) return
+  const targetRoomId = roomId.value
+  const requestVersion = roomLoadVersion
+  if (roomPolling || !targetRoomId || roomEnded.value || !pageVisible.value) return
   roomPolling = true
   try {
-    const detail = await liveApi.getWatchRoom(roomId.value)
+    const detail = await liveApi.getWatchRoom(targetRoomId)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
     room.value = detail.room
     products.value = detail.products
-    if (micState.value === 'idle' && getToken() && canUseLiveMic) await checkMicInvitation()
-    await refreshPlaybackMode()
+    if (micState.value === 'idle' && getToken() && canUseLiveMic) await checkMicInvitation(targetRoomId, requestVersion)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+    await refreshPlaybackMode(targetRoomId, requestVersion)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
     if (!roomEnded.value) return
     comments.value = detail.comments
     playUrl.value = null
     playerNotice.value = ''
     await finishMic()
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
     stopRoomPolling()
     scheduleEndAdvance()
   } catch {
@@ -1005,10 +1068,11 @@ async function pollRoomStatus() {
   }
 }
 
-async function checkMicInvitation() {
-  if (!roomId.value || micState.value !== 'idle') return
+async function checkMicInvitation(targetRoomId = roomId.value, requestVersion = roomLoadVersion) {
+  if (!targetRoomId || micState.value !== 'idle' || !isCurrentRoomRequest(targetRoomId, requestVersion)) return
   try {
-    const items = await liveMicApi.list(roomId.value)
+    const items = await liveMicApi.list(targetRoomId)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion) || micState.value !== 'idle') return
     roomMics.value = items
     const invitation = items.find((item) => item.status === 'PENDING' && item.source === 'INVITE')
     if (!invitation) return
@@ -1023,14 +1087,15 @@ async function checkMicInvitation() {
 }
 
 /** 连麦开始/结束时在原流与独立混流间切换；只在模式变化时重载播放器。 */
-async function refreshPlaybackMode() {
-  if (!roomId.value || roomEnded.value || !playUrl.value) return
+async function refreshPlaybackMode(targetRoomId = roomId.value, requestVersion = roomLoadVersion) {
+  if (!targetRoomId || roomEnded.value || !playUrl.value || !isCurrentRoomRequest(targetRoomId, requestVersion)) return
   try {
-    const next = await liveApi.getPlayUrl(roomId.value)
+    const next = await liveApi.getPlayUrl(targetRoomId)
+    if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
     const currentMode = playUrl.value.streamMode || 'ORIGIN'
     const nextMode = next.streamMode || 'ORIGIN'
     if (currentMode === nextMode) return
-    playUrlCache.set(roomId.value, next)
+    playUrlCache.set(targetRoomId, next)
     playUrl.value = next
     playerNotice.value = nextMode === 'MIXED' ? '已切换至多人连麦画面' : '已返回主播画面'
   } catch {
@@ -1599,7 +1664,7 @@ function requestClose() {
     cancelText: '继续观看',
     success: (result) => {
       if (!result.confirm) return
-      void removeMicRequest().finally(() => uni.navigateBack())
+      void removeMicRequest().finally(() => returnToLiveEntrance())
     },
   })
 }
@@ -1607,11 +1672,14 @@ function requestClose() {
 function leaveEndedRoom() {
   clearEndAdvance()
   if (hasNextRoom.value) void switchToFeedIndex(feedIndex.value + 1)
-  else uni.navigateBack()
+  else returnToLiveEntrance()
 }
 
 onLoad((options) => {
+  pageVisible.value = true
+  presenceActive.value = true
   roomId.value = String(options?.id || '')
+  returnRoute.value = normalizeReturnRoute(options?.returnRoute)
   if (!roomId.value) {
     loading.value = false
     error.value = '缺少直播间编号'
@@ -1625,7 +1693,16 @@ onLoad((options) => {
 })
 
 onShow(() => {
-  if (roomId.value && !loading.value && !playUrl.value) void loadRoom()
+  pageVisible.value = true
+  presenceActive.value = true
+  const shouldResume = resumeAfterHide
+  resumeAfterHide = false
+  if (roomEnded.value) {
+    scheduleEndAdvance()
+  } else if (roomId.value && !playUrl.value && (shouldResume || !loading.value)) {
+    // 后台期间的加载请求已被代次取消，回到前台后总是由新的请求恢复。
+    void loadRoom()
+  }
   startRoomPolling()
   if (roomId.value && playUrl.value) {
     ensureAudiencePlayback()
@@ -1644,6 +1721,13 @@ onShow(() => {
 })
 
 onHide(() => {
+  // 先使所有在飞行请求失效，避免后台晚响应重新登记在线或改写当前房间。
+  pageVisible.value = false
+  presenceActive.value = false
+  resumeAfterHide = true
+  roomLoadVersion += 1
+  stopRoomPolling()
+  clearEndAdvance()
   clearPlayerRetry()
   try { uni.createVideoContext('live-audience-player').pause() } catch { /* 页面切换竞态可忽略 */ }
   void leavePresence()
@@ -1676,6 +1760,9 @@ onBackPress(() => {
 })
 
 onUnmounted(() => {
+  pageVisible.value = false
+  presenceActive.value = false
+  roomLoadVersion += 1
   if (likeParticleTimer) clearInterval(likeParticleTimer)
   likeParticleTimer = null
   likeParticles.value = []
@@ -1688,6 +1775,7 @@ onUnmounted(() => {
   setLiveConnectionStateHandler(null)
   setLiveRemoteVideoAvailabilityHandler(null)
   leaveLiveAudio()
+  void leavePresence()
   void removeMicRequest()
 })
 </script>
