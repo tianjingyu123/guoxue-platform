@@ -5,18 +5,18 @@
  *  1) 工具图标(tool)：components/paipan/icons/tool-icons.tsx 的自定义 SVG（48x48，
  *     含 rect/line/circle/path + currentColor + fillOpacity，须完整提取 body 才能高保真）。
  *  2) 通用图标(lucide)：node_modules/lucide-react/dist/esm/icons/<name>.js 的 __iconNode。
- * 产物：vue3/src/lib/icons-registry.ts -> { name: { body, kind, viewBox } }
- * 运行：node vue3/scripts/gen-icons.mjs （仓库根执行）
+ * 产物：apps/mobile/src/lib/icons-registry.ts -> { name: { body, kind?, viewBox? } }
+ * 运行：node apps/mobile/scripts/gen-icons.mjs （仓库根执行）
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = resolve(__dirname, '../../')
-const TOOL_ICONS_SRC = resolve(REPO_ROOT, 'components/paipan/icons/tool-icons.tsx')
+const REPO_ROOT = resolve(__dirname, '../../../')
+const TOOL_ICONS_SRC = resolve(REPO_ROOT, 'v0-reference/components/paipan/icons/tool-icons.tsx')
 const LUCIDE_DIR = resolve(REPO_ROOT, 'node_modules/lucide-react/dist/esm/icons')
-const OUT = resolve(REPO_ROOT, 'vue3/src/lib/icons-registry.ts')
+const OUT = resolve(REPO_ROOT, 'apps/mobile/src/lib/icons-registry.ts')
 
 const LUCIDE_NAMES = [
   'history', 'chevron-right', 'chevron-down', 'chevron-up', 'sparkles', 'stethoscope',
@@ -87,7 +87,11 @@ function extractToolIcons() {
     const innerMatch = svg.match(/<svg[^>]*>([\s\S]*?)<\/svg>/)
     if (!innerMatch) continue
     const body = normalizeJsxSvgBody(innerMatch[1])
-    if (!result[id]) result[id] = { body, kind: 'tool', viewBox }
+    if (!result[id]) {
+      const entry = { body, kind: 'tool' }
+      if (viewBox !== '0 0 48 48') entry.viewBox = viewBox
+      result[id] = entry
+    }
   }
   return result
 }
@@ -118,28 +122,58 @@ function extractLucide(name, _depth = 0) {
     parts.push(`<${tag} ${attrs.join(' ')}/>`)
   }
   if (parts.length === 0) return null
-  return { body: parts.join(''), kind: 'lucide', viewBox: '0 0 24 24' }
+  return { body: parts.join('') }
+}
+
+function readExistingRegistry() {
+  if (!existsSync(OUT)) return {}
+  const source = readFileSync(OUT, 'utf8')
+  const declaration = source.indexOf('export const ICON_REGISTRY')
+  const jsonStart = source.indexOf('{', declaration)
+  if (declaration < 0 || jsonStart < 0) return {}
+  return JSON.parse(source.slice(jsonStart).trim())
+}
+
+function compactEntry(entry) {
+  const kind = entry.kind === 'tool' ? 'tool' : undefined
+  const defaultViewBox = kind === 'tool' ? '0 0 48 48' : '0 0 24 24'
+  const result = { body: entry.body }
+  if (kind) result.kind = kind
+  if (entry.viewBox && entry.viewBox !== defaultViewBox) result.viewBox = entry.viewBox
+  return result
 }
 
 function main() {
-  const registry = {}
+  const existing = readExistingRegistry()
+  const registry = Object.fromEntries(
+    Object.entries(existing).map(([name, entry]) => [name, compactEntry(entry)]),
+  )
   const tools = extractToolIcons()
-  Object.assign(registry, tools)
+  for (const [name, entry] of Object.entries(tools)) {
+    if (registry[name]?.kind === 'tool') registry[name] = compactEntry(entry)
+  }
   const toolCount = Object.keys(tools).length
   let lucideOk = 0
   const lucideMiss = []
   for (const name of LUCIDE_NAMES) {
     const r = extractLucide(name)
-    if (r) { registry[name] = r; lucideOk++ } else lucideMiss.push(name)
+    if (r) {
+      if (registry[name]) registry[name] = compactEntry(r)
+      lucideOk++
+    } else if (registry[name]) {
+      lucideOk++
+    } else {
+      lucideMiss.push(name)
+    }
   }
   const header = `/**
  * 图标注册表（自动生成，请勿手改）
- * 由 vue3/scripts/gen-icons.mjs 从原型 tool-icons.tsx 与 lucide-react 提取。
- * 重新生成：node vue3/scripts/gen-icons.mjs
- * kind='tool'  : 原型自定义 SVG，body 用 currentColor，运行时替换为目标色即可 1:1 还原。
- * kind='lucide': 描边图标，运行时在外层 <svg> 注入 stroke/stroke-width。
+ * 由 apps/mobile/scripts/gen-icons.mjs 从原型 tool-icons.tsx 与 lucide-react 提取。
+ * 重新生成：node apps/mobile/scripts/gen-icons.mjs
+ * kind='tool'：原型自定义 SVG；缺省 kind 为 lucide。
+ * 两类默认画布分别为 48x48 和 24x24，仅非默认画布写入 viewBox，减少小程序主包体积。
  */
-export interface IconEntry { body: string; kind: 'tool' | 'lucide'; viewBox: string }
+export interface IconEntry { body: string; kind?: 'tool'; viewBox?: string }
 
 export const ICON_REGISTRY: Record<string, IconEntry> = `
   writeFileSync(OUT, header + JSON.stringify(registry, null, 2) + '\n', 'utf8')

@@ -46,14 +46,15 @@ export function iconDataUri(name: string, color = '#c41e3a', strokeWidth = 2, fi
     const fb = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="${color}" stroke-width="1.5"><circle cx="24" cy="24" r="16"/><circle cx="24" cy="24" r="4" fill="${color}"/></svg>`
     return `data:image/svg+xml,${encodeURIComponent(fb)}`
   }
+  const viewBox = entry.viewBox || (entry.kind === 'tool' ? '0 0 48 48' : '0 0 24 24')
   let svg: string
   if (entry.kind === 'tool') {
     // currentColor -> 目标色
     const body = entry.body.split('currentColor').join(color)
-    svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${entry.viewBox}" fill="none">${body}</svg>`
+    svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" fill="none">${body}</svg>`
   } else {
     const fill = filled ? color : 'none'
-    svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${entry.viewBox}" fill="${fill}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${entry.body}</svg>`
+    svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" fill="${fill}" stroke="${color}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round">${entry.body}</svg>`
   }
   return `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
