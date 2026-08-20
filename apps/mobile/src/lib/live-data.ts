@@ -1292,17 +1292,39 @@ interface RawCompare { changes?: Record<string, string>; previous?: unknown }
 interface RawAudience { gender?: string }
 
 // 观看页只能使用直播专属的权限与公屏接口，绝不回退到通用 /comment。
-// 新旧服务端滚动期间若专属上下文尚未可用，当前会话按“只看不可互动”安全降级，避免每次 5 秒轮询重复请求不存在的端点。
+// 新旧服务端滚动期间若专属上下文尚未可用，当前会话按“只看不可互动”安全降级。
+// 失败只能短暂退避，不能永久负缓存：网络恢复或滚动命中新节点后，onShow/显式刷新必须能重新探测。
 let liveWatchContextEndpointAvailable: boolean | null = null
+let liveWatchContextRetryAt = 0
+let liveWatchContextFailureCount = 0
+
+function isMissingLiveWatchContextEndpoint(cause: unknown): boolean {
+  const message = String((cause as { message?: unknown } | null)?.message || '')
+  return /(?:请求失败\(404\)|\b404\b|Cannot GET)/i.test(message)
+}
+
+function scheduleLiveWatchContextRetry(cause: unknown) {
+  liveWatchContextFailureCount = Math.min(5, liveWatchContextFailureCount + 1)
+  const missingEndpoint = isMissingLiveWatchContextEndpoint(cause)
+  // 404 常见于双节点滚动期间命中旧节点，仍只做 15 秒短缓存；网络/5xx 保持 unknown 并更快重试。
+  const retryInMs = missingEndpoint
+    ? 15_000
+    : Math.min(10_000, 1_000 * (2 ** (liveWatchContextFailureCount - 1)))
+  liveWatchContextEndpointAvailable = missingEndpoint ? false : null
+  liveWatchContextRetryAt = Date.now() + retryInMs
+}
 
 async function getLiveWatchContext(roomId: string): Promise<RawLiveWatchContext | null> {
-  if (liveWatchContextEndpointAvailable === false) return null
+  if (Date.now() < liveWatchContextRetryAt) return null
+  if (liveWatchContextEndpointAvailable === false) liveWatchContextEndpointAvailable = null
   try {
     const context = await apiGetOptionalAuth<RawLiveWatchContext>(`/live/rooms/${roomId}/watch-context`)
     liveWatchContextEndpointAvailable = true
+    liveWatchContextRetryAt = 0
+    liveWatchContextFailureCount = 0
     return context
-  } catch {
-    liveWatchContextEndpointAvailable = false
+  } catch (cause) {
+    scheduleLiveWatchContextRetry(cause)
     return null
   }
 }

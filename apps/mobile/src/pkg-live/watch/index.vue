@@ -246,7 +246,7 @@
     <view class="watch__bottom" :style="watchBottomSafeStyle">
       <view class="watch__bottom-row" :style="watchBottomRowStyle">
         <!-- 输入框 -->
-        <view class="input-box" @tap="showCommentInput = true">
+        <view class="input-box" @tap="openCommentInput">
           <text class="input-box__ph">说点什么...</text>
           <view class="input-box__send"><AppIcon name="send" :size="24" color="#fff" /></view>
         </view>
@@ -260,7 +260,7 @@
           <AppIcon name="heart" :size="40" color="#ef4444" :fill="true" />
         </view>
         <!-- 礼物 -->
-        <view class="act-btn act-btn--gift" @tap="showGiftPanel = true">
+        <view class="act-btn act-btn--gift" @tap="openGiftPanel">
           <AppIcon name="gift" :size="40" color="#fbbf24" />
         </view>
         <view v-if="canUseLiveMic" class="act-btn act-btn--mic" @tap="showMicSheet = true">
@@ -579,6 +579,9 @@ async function fetchRoomData(roomId: string) {
     room.value = { ...defaultWatchRoom, ...data.room }
     comments.value = data.comments
     products.value = data.products
+    // H5/小程序与 App 共用同一安全契约：互动上下文异步增强，绝不阻塞自动起播。
+    // 新旧服务端滚动或接口异常时保留默认的“只看不可互动”状态。
+    void refreshWatchContext(roomId, requestVersion)
     // 直播中且有弹幕群 → 加入 TIM 群实时弹幕
     if (room.value.imGroupId) void joinDanmaku(room.value.imGroupId, roomId, requestVersion)
     // 关注态初始化（未登录/失败降级为未关注，不阻断）
@@ -615,6 +618,37 @@ async function fetchRoomData(roomId: string) {
   } finally {
     if (isCurrentRoomRequest(roomId, requestVersion)) loading.value = false
   }
+}
+
+function mergeWatchComments(history: VerticalLiveComment[]) {
+  const byId = new Map<string, VerticalLiveComment>()
+  for (const item of history) byId.set(String(item.id), item)
+  for (const item of comments.value) byId.set(String(item.id), item)
+  comments.value = Array.from(byId.values()).slice(-80)
+}
+
+async function refreshWatchContext(targetRoomId: string, requestVersion: number) {
+  const context = await liveApi.getWatchContext(targetRoomId)
+  if (!context || !isCurrentRoomRequest(targetRoomId, requestVersion)) return
+
+  room.value = {
+    ...room.value,
+    status: context.room.status || room.value.status,
+    visibility: context.room.visibility || room.value.visibility,
+    allowComment: context.interaction.allowComment,
+    allowLike: context.interaction.allowLike,
+    allowGift: context.interaction.allowGift && context.room.allowGift,
+    canComment: context.viewer.canComment,
+    canLike: context.viewer.canLike,
+    canGift: context.viewer.canGift,
+    onlineAvatars: [],
+  }
+  if (Number.isFinite(context.online.count)) room.value.viewerCount = Math.max(0, context.online.count)
+
+  const history = await liveApi.getWatchComments(targetRoomId, room.value.hostId)
+  if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+  mergeWatchComments(history)
+  scrollDanmakuToBottom()
 }
 
 // ===== 房间状态三分支（WAITING 预约态 / ENDED·REPLAY 回放态 / 其余走既有沉浸层） =====
@@ -1019,9 +1053,22 @@ async function onFollow() {
 }
 
 let sendingComment = false
+function openCommentInput() {
+  if (!room.value.canComment) {
+    uni.showToast({ title: room.value.allowComment ? '当前账号暂不能评论' : '本场暂未开放评论', icon: 'none' })
+    return
+  }
+  showCommentInput.value = true
+}
+
 async function onSendComment() {
   const text = commentText.value.trim()
   if (!text || sendingComment) return
+  if (!room.value.canComment) {
+    showCommentInput.value = false
+    uni.showToast({ title: room.value.allowComment ? '当前账号暂不能评论' : '本场暂未开放评论', icon: 'none' })
+    return
+  }
   sendingComment = true
   const localId = `local-${Date.now()}`
   comments.value.push({ id: localId, userName: '我', content: text, type: 'text' })
@@ -1042,6 +1089,10 @@ async function onSendComment() {
 }
 
 async function onTapLike() {
+  if (!room.value.canLike) {
+    uni.showToast({ title: room.value.allowLike ? '当前账号暂不能点赞' : '本场暂未开放点赞', icon: 'none' })
+    return
+  }
   const id = spawnHeart()
   try {
     await likeLiveRoom(room.value.id)
@@ -1061,8 +1112,21 @@ function spawnHeart(): number {
 }
 
 let sendingGift = false
+function openGiftPanel() {
+  if (!room.value.canGift) {
+    uni.showToast({ title: room.value.allowGift ? '当前账号暂不能表达心意' : '本场暂未开放心意互动', icon: 'none' })
+    return
+  }
+  showGiftPanel.value = true
+}
+
 async function onSendGift(gift: LiveGift, quantity: number) {
   if (sendingGift) return
+  if (!room.value.canGift) {
+    showGiftPanel.value = false
+    uni.showToast({ title: room.value.allowGift ? '当前账号暂不能表达心意' : '本场暂未开放心意互动', icon: 'none' })
+    return
+  }
   const count = Math.min(99, Math.max(1, Math.floor(quantity) || 1))
   // 送礼前余额校验（面板已禁用不足态·此处为后端事务前的最后即时反馈）
   if (coinBalance.value < gift.price * count) {

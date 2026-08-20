@@ -333,6 +333,7 @@ test('观众连麦仅在主播接受后才申请设备权限', () => {
 test('观看页只接入直播专属互动上下文和公屏', () => {
   const liveData = source('apps/mobile/src/lib/live-data.ts')
   const audience = source('apps/mobile/src/pkg-live/watch/index.nvue')
+  const webAudience = source('apps/mobile/src/pkg-live/watch/index.vue')
   const watchAdapter = liveData.slice(
     liveData.indexOf('async getWatchRoom(id: string'),
     liveData.indexOf('/** 获取登录用户的跨设备回放进度'),
@@ -343,6 +344,11 @@ test('观看页只接入直播专属互动上下文和公屏', () => {
   )
 
   assert.match(liveData, /let liveWatchContextEndpointAvailable: boolean \| null = null/)
+  assert.match(liveData, /let liveWatchContextRetryAt = 0/)
+  assert.match(liveData, /liveWatchContextEndpointAvailable = missingEndpoint \? false : null/)
+  assert.match(liveData, /if \(Date\.now\(\) < liveWatchContextRetryAt\) return null/)
+  assert.match(liveData, /liveWatchContextRetryAt = 0/)
+  assert.doesNotMatch(liveData, /if \(liveWatchContextEndpointAvailable === false\) return null/)
   assert.match(liveData, /\/live\/rooms\/\$\{roomId\}\/watch-context/)
   assert.match(liveData, /\/live\/rooms\/\$\{roomId\}\/comments\?page=1&pageSize=20/)
   assert.match(watchAdapter, /async getWatchContext\(roomId: string\): Promise<LiveWatchContext \| null>/)
@@ -359,6 +365,14 @@ test('观看页只接入直播专属互动上下文和公屏', () => {
   assert.match(audience, /room\.value\.canComment/)
   assert.match(audience, /room\.value\.canGift/)
   assert.match(audience, /room\.value\.canLike/)
+  assert.match(webAudience, /void refreshWatchContext\(roomId, requestVersion\)/)
+  assert.match(webAudience, /const context = await liveApi\.getWatchContext\(targetRoomId\)/)
+  assert.match(webAudience, /const history = await liveApi\.getWatchComments\(targetRoomId, room\.value\.hostId\)/)
+  assert.match(webAudience, /if \(!room\.value\.canComment\)/)
+  assert.match(webAudience, /if \(!room\.value\.canLike\)/)
+  assert.match(webAudience, /if \(!room\.value\.canGift\)/)
+  assert.match(webAudience, /onlineAvatars: \[\]/)
+  assert.doesNotMatch(webAudience, /\/comment\?targetType=/)
 })
 
 test('直播送礼先执行年龄与用户自设限额，观众端不公开消费排行', () => {
