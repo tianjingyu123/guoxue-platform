@@ -74,7 +74,10 @@
     <cover-view v-if="!joining && !error" class="room-meta" :style="roomMetaStyle">
       <view class="room-eyebrow-row">
         <text class="room-studio">热卜 LIVE STUDIO</text>
-        <view class="room-output-pill"><view class="signal-dot" /><text class="room-output-text">推流稳定</text></view>
+        <view class="room-output-pill" :class="{ recovering: !!outputWarning }">
+          <view class="signal-dot" />
+          <text class="room-output-text">{{ outputWarning ? '分发恢复中' : '推流稳定' }}</text>
+        </view>
       </view>
       <text class="room-title">{{ roomTitle || '我的直播间' }}</text>
       <text class="room-kicker">主播实时预览 · {{ stats.totalViews }} 位累计观众</text>
@@ -267,7 +270,8 @@ const shadeBottomStyle = computed(() => ({
   height: `${safeBottom.value + uni.upx2px(500)}px`,
 }))
 const roomMetaStyle = computed(() => ({
-  top: `${safeTop.value + uni.upx2px(116)}px`,
+  // 分发告警与直播信息不可占用同一视觉层；告警出现时为标题整体下移，避免遮挡。
+  top: `${safeTop.value + uni.upx2px(outputWarning.value ? 196 : 116)}px`,
   left: `${safeLeft.value + uni.upx2px(28)}px`,
   right: `${safeRight.value + uni.upx2px(28)}px`,
 }))
@@ -722,7 +726,9 @@ onUnload(() => {
 .room-eyebrow-row { flex-direction: row; align-items: center; }
 .room-studio { color: #E7C17B; font-size: 18rpx; font-weight: 700; }
 .room-output-pill { height: 34rpx; margin-left: 12rpx; padding-left: 10rpx; padding-right: 10rpx; border-radius: 17rpx; border-width: 1rpx; border-color: rgba(118,216,155,0.26); background-color: rgba(35,77,57,0.46); flex-direction: row; align-items: center; }
+.room-output-pill.recovering { border-color: rgba(231,193,123,0.54); background-color: rgba(92,62,27,0.78); }
 .room-output-text { color: #9EE6B9; font-size: 18rpx; font-weight: 700; }
+.room-output-pill.recovering .room-output-text { color: #F6DFC0; }
 .room-kicker { color: rgba(255,255,255,0.66); font-size: 20rpx; margin-top: 7rpx; }
 .room-title { color: #ffffff; font-size: 30rpx; font-weight: 700; margin-top: 8rpx; lines: 1; text-overflow: ellipsis; }
 .room-state-row { margin-top: 6rpx; flex-direction: row; align-items: center; }
