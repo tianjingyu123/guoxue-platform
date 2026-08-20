@@ -157,6 +157,20 @@ test('App 观众端使用同路由 nvue 承载原生视频与互动层', () => {
   assert.match(liveSubPackage, /#ifndef APP-PLUS[\s\S]*"path":\s*"watch\/index"[\s\S]*#endif/)
 })
 
+test('App 全屏直播 nvue 页面不允许被自动滚动容器包裹', () => {
+  const pages = source('apps/mobile/src/pages.json')
+  for (const route of ['pkg-live/host/index', 'pkg-live/watch/index']) {
+    const routeStart = pages.indexOf(`"path": "${route}"`)
+    assert.notEqual(routeStart, -1, `${route} 未注册为 App 主包页面`)
+    const routeConfig = pages.slice(routeStart, routeStart + 320)
+    assert.match(
+      routeConfig,
+      /"disableScroll"\s*:\s*true/,
+      `${route} 必须禁用 nvue 自动 scroller，确保视频层和互动覆盖层共用全屏坐标系`,
+    )
+  }
+})
+
 test('直播全域视觉保留主舞台与专业工作台层级', () => {
   const plaza = source('apps/mobile/src/pkg-live/plaza/index.vue')
   const create = source('apps/mobile/src/pkg-live/create/index.vue')

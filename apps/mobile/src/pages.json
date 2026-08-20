@@ -63,6 +63,7 @@
       "path": "pkg-live/host/index",
       "style": {
         "navigationStyle": "custom",
+        "disableScroll": true,
         "app-plus": {
           "bounce": "none"
         }
@@ -72,6 +73,7 @@
       "path": "pkg-live/watch/index",
       "style": {
         "navigationStyle": "custom",
+        "disableScroll": true,
         "app-plus": {
           "bounce": "none"
         }
