@@ -8,6 +8,7 @@ describe("古籍公开许可门禁", () => {
   it("只接受受控的可商用许可值，不包含非商业许可", () => {
     expect(COMMERCIAL_CLASSIC_LICENSES).toContain("CC-BY-SA-4.0");
     expect(COMMERCIAL_CLASSIC_LICENSES).toContain("OWNED");
+    expect(COMMERCIAL_CLASSIC_LICENSES).toContain("AUTHORIZED");
     expect(COMMERCIAL_CLASSIC_LICENSES).not.toContain("CC-BY-NC-4.0");
   });
 
