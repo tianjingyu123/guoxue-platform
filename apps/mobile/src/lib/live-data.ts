@@ -311,6 +311,12 @@ export const liveWatchRoom = {
   onlineAvatars: ['https://api.rebugx.cn/assets/marketing/course.webp', 'https://api.rebugx.cn/assets/marketing/course.webp', 'https://api.rebugx.cn/assets/marketing/course.webp'],
   imGroupId: '', // TIM 弹幕群 ID
   circleId: '', // 发起直播的圈子 ID（佣-V2-P3：进房上报圈子渠道点击/购买带 LIVE 来源）
+  allowComment: false,
+  allowLike: false,
+  allowGift: false,
+  canComment: false,
+  canLike: false,
+  canGift: false,
 }
 
 /** 观看页房间数据（getWatchRoom 适配后的完整形状·三态改造：预约/直播中/回放共用） */
@@ -345,6 +351,21 @@ export interface LiveWatchRoomInfo {
   /** #21 回放章节点（主播标注·无则空数组） */
   replayChapters: { t: number; title: string }[]
   circleName: string
+  /** 直播专属观看上下文返回的服务端能力；缺失或读取失败时均按 false 处理。 */
+  allowComment: boolean
+  allowLike: boolean
+  allowGift: boolean
+  canComment: boolean
+  canLike: boolean
+  canGift: boolean
+}
+
+/** 直播专属观看上下文：服务端能力仅用于 UI 显隐，写入端点仍会重复鉴权。 */
+export interface LiveWatchContext {
+  room: { id: string; status: string; visibility: string; allowGift: boolean }
+  viewer: { authenticated: boolean; isHost: boolean; canComment: boolean; canLike: boolean; canGift: boolean }
+  interaction: { allowComment: boolean; allowLike: boolean; allowGift: boolean }
+  online: { count: number; avatars: [] }
 }
 
 export interface LiveWatchProgress {
@@ -1181,6 +1202,21 @@ interface RawLiveRoomDetail extends RawLiveRoom {
   circle?: { id?: string; name?: string } | null // 圈子关联（观看页展示「来自圈子」）
   onlineCount?: number // 45 秒活跃窗口内的唯一在线观众数
 }
+/** GET /live/rooms/:id/watch-context（只声明观看页实际消费的字段） */
+interface RawLiveWatchContext {
+  room?: { id?: string; status?: string; visibility?: string; allowGift?: boolean }
+  viewer?: { authenticated?: boolean; isHost?: boolean; canComment?: boolean; canLike?: boolean; canGift?: boolean }
+  interaction?: { allowComment?: boolean; allowLike?: boolean; allowGift?: boolean }
+  online?: { count?: number; avatars?: unknown[] }
+}
+/** GET /live/rooms/:id/comments 的直播专属公屏响应 */
+interface RawLiveWatchComment {
+  id?: string
+  content?: string
+  userId?: string
+  user?: { id?: string; nickname?: string; avatar?: string | null } | null
+}
+interface RawLiveWatchCommentsResponse { comments?: RawLiveWatchComment[] }
 /** GET /shop/products/:id 精简形状（直播带货商品充实用·仅声明访问到的字段） */
 interface RawLiveShopProduct {
   id?: string; title?: string; price?: number | string; originalPrice?: number | string | null
@@ -1254,6 +1290,32 @@ interface RawReportSummary { avgOnline?: number; durationMinutes?: number; total
 interface RawReport { summary?: RawReportSummary }
 interface RawCompare { changes?: Record<string, string>; previous?: unknown }
 interface RawAudience { gender?: string }
+
+// 观看页只能使用直播专属的权限与公屏接口，绝不回退到通用 /comment。
+// 新旧服务端滚动期间若专属上下文尚未可用，当前会话按“只看不可互动”安全降级，避免每次 5 秒轮询重复请求不存在的端点。
+let liveWatchContextEndpointAvailable: boolean | null = null
+
+async function getLiveWatchContext(roomId: string): Promise<RawLiveWatchContext | null> {
+  if (liveWatchContextEndpointAvailable === false) return null
+  try {
+    const context = await apiGetOptionalAuth<RawLiveWatchContext>(`/live/rooms/${roomId}/watch-context`)
+    liveWatchContextEndpointAvailable = true
+    return context
+  } catch {
+    liveWatchContextEndpointAvailable = false
+    return null
+  }
+}
+
+async function getLiveWatchComments(roomId: string): Promise<RawLiveWatchCommentsResponse | null> {
+  if (liveWatchContextEndpointAvailable !== true) return null
+  try {
+    return await apiGetOptionalAuth<RawLiveWatchCommentsResponse>(`/live/rooms/${roomId}/comments?page=1&pageSize=20`)
+  } catch {
+    // 公屏历史失败不能中断观看，TIM 仍可承接后续实时消息。
+    return null
+  }
+}
 
 /** 后端 LiveStatus（WAITING/LIVING/ENDED/REPLAY）→ 前端（live/upcoming/replay） */
 function mapLiveStatus(s: string): LiveStatus {
@@ -2013,8 +2075,8 @@ export const liveApi = {
   },
 
   /**
-   * 获取直播间观看页数据 — 前端组装 GET /live/rooms/:id
-   * 弹幕(comments)走 TIM 群·初始空；商品详情关联表无字段 → 降级空。
+   * 获取直播间观看页基础数据。互动能力和初始公屏由专属端点异步增强，
+   * 不能阻塞进房自动起播，也绝不回退通用评论接口。
    */
   async getWatchRoom(id: string): Promise<{
     room: LiveWatchRoomInfo; comments: VerticalLiveComment[]; products: VerticalLiveProduct[]
@@ -2031,6 +2093,13 @@ export const liveApi = {
       viewerCount: String(r.status || '').toUpperCase() === 'LIVING' ? (r.onlineCount ?? 0) : (r.viewCount ?? 0),
       likeCount: r.likeCount ?? 0,
       isFollowing: false, // 后端房间未返回关注态 → 降级(页面按钮默认未关注)
+      // 专属上下文尚未返回前一律关闭互动入口，避免用 token 或旧通用接口臆测权限。
+      allowComment: false,
+      allowLike: false,
+      allowGift: false,
+      canComment: false,
+      canLike: false,
+      canGift: false,
       onlineAvatars: [],
       imGroupId: r.imGroupId || '',
       circleId: r.circleId || '', // 佣-V2-P3：进房渠道点击上报 + 购买 LIVE 来源归因
@@ -2072,6 +2141,61 @@ export const liveApi = {
     const products = enriched.filter((p): p is VerticalLiveProduct => !!p)
       .sort((a, b) => Number(!!b.isExplaining) - Number(!!a.isExplaining))
     return { room, comments: [], products }
+  },
+
+  /**
+   * 读取观看页专属能力。不可用、响应不完整或房间 ID 不匹配时返回 null；
+   * 调用方应保留“只看不可互动”安全空态，不能自行猜测权限。
+   */
+  async getWatchContext(roomId: string): Promise<LiveWatchContext | null> {
+    const raw = await getLiveWatchContext(roomId)
+    if (!raw || String(raw.room?.id || '') !== roomId) return null
+    const count = Number(raw.online?.count)
+    return {
+      room: {
+        id: roomId,
+        status: String(raw.room?.status || ''),
+        visibility: String(raw.room?.visibility || ''),
+        allowGift: raw.room?.allowGift === true,
+      },
+      viewer: {
+        authenticated: raw.viewer?.authenticated === true,
+        isHost: raw.viewer?.isHost === true,
+        canComment: raw.viewer?.canComment === true,
+        canLike: raw.viewer?.canLike === true,
+        canGift: raw.viewer?.canGift === true,
+      },
+      interaction: {
+        allowComment: raw.interaction?.allowComment === true,
+        allowLike: raw.interaction?.allowLike === true,
+        allowGift: raw.interaction?.allowGift === true && raw.room?.allowGift === true,
+      },
+      // 在线身份不能从 presence 哈希反查；页面只消费真实计数。
+      online: { count: Number.isFinite(count) ? Math.max(0, count) : 0, avatars: [] },
+    }
+  },
+
+  /** 读取最多 20 条已审核的直播公屏；服务端不可用时安全返回空数组。 */
+  async getWatchComments(roomId: string, hostUserId = ''): Promise<VerticalLiveComment[]> {
+    const payload = await getLiveWatchComments(roomId)
+    return (payload?.comments || [])
+      .slice(0, 20)
+      .map((comment): VerticalLiveComment | null => {
+        const id = String(comment?.id || '').trim()
+        const content = String(comment?.content || '').trim()
+        if (!id || !content) return null
+        const authorId = String(comment?.user?.id || comment?.userId || '')
+        return {
+          id,
+          userName: String(comment?.user?.nickname || '观众').trim() || '观众',
+          content,
+          type: 'text',
+          isHost: !!authorId && authorId === hostUserId,
+        }
+      })
+      .filter((comment): comment is VerticalLiveComment => !!comment)
+      // 服务端倒序返回，观看页按时间正序展示，让后续 TIM 消息自然接在末尾。
+      .reverse()
   },
 
   /** 获取登录用户的跨设备回放进度；未产生记录时后端返回零进度。 */

@@ -453,6 +453,7 @@ import {
   liveApi,
   type LiveGift,
   type LiveItem,
+  type LiveWatchContext,
   type LiveWatchRoomInfo,
   type VerticalLiveComment,
   type VerticalLiveProduct,
@@ -516,6 +517,12 @@ const emptyRoom: LiveWatchRoomInfo = {
   replayUrl: '',
   replayChapters: [],
   circleName: '',
+  allowComment: false,
+  allowLike: false,
+  allowGift: false,
+  canComment: false,
+  canLike: false,
+  canGift: false,
 }
 
 const roomId = ref('')
@@ -891,6 +898,54 @@ async function joinPublicScreen(groupId: string, targetRoomId: string, requestVe
   }
 }
 
+function retainWatchCapabilities(next: LiveWatchRoomInfo): LiveWatchRoomInfo {
+  return {
+    ...next,
+    allowComment: room.value.allowComment,
+    allowLike: room.value.allowLike,
+    allowGift: room.value.allowGift,
+    canComment: room.value.canComment,
+    canLike: room.value.canLike,
+    canGift: room.value.canGift,
+  }
+}
+
+function applyWatchContext(context: LiveWatchContext) {
+  room.value = {
+    ...room.value,
+    viewerCount: context.online.count,
+    status: context.room.status || room.value.status,
+    visibility: context.room.visibility || room.value.visibility,
+    allowComment: context.interaction.allowComment,
+    allowLike: context.interaction.allowLike,
+    allowGift: context.interaction.allowGift && context.room.allowGift,
+    canComment: context.viewer.canComment,
+    canLike: context.viewer.canLike,
+    canGift: context.viewer.canGift,
+    // 服务端有意不暴露在线身份；保持空数组，不伪造头像。
+    onlineAvatars: [],
+  }
+}
+
+function mergeHistoricalComments(history: VerticalLiveComment[]) {
+  if (!history.length) return
+  const byId = new Map<string, VerticalLiveComment>()
+  for (const item of history) byId.set(String(item.id), item)
+  for (const item of comments.value) byId.set(String(item.id), item)
+  comments.value = Array.from(byId.values()).slice(-60)
+}
+
+async function refreshWatchContext(targetRoomId = roomId.value, requestVersion = roomLoadVersion, includeComments = false) {
+  if (!targetRoomId) return
+  const context = await liveApi.getWatchContext(targetRoomId)
+  if (!context || !isCurrentRoomRequest(targetRoomId, requestVersion)) return
+  applyWatchContext(context)
+  if (!includeComments) return
+  const history = await liveApi.getWatchComments(targetRoomId, room.value.hostId)
+  if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
+  mergeHistoricalComments(history)
+}
+
 async function loadRoom() {
   const targetRoomId = roomId.value
   if (!targetRoomId) return
@@ -904,6 +959,8 @@ async function loadRoom() {
     room.value = detail.room
     comments.value = detail.comments
     products.value = detail.products
+    // 不等待互动上下文和历史公屏，保证进房后尽快开始拉流；接口未部署时自然保持只看空态。
+    void refreshWatchContext(targetRoomId, requestVersion, true)
     isFollowing.value = detail.room.isFollowing
     // 详情接口当前不携带观众私有的关注态；复用已有用户接口回读，避免已关注用户被误导为未关注。
     if (getToken() && detail.room.hostId) {
@@ -1055,7 +1112,8 @@ async function pollRoomStatus() {
   try {
     const detail = await liveApi.getWatchRoom(targetRoomId)
     if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
-    room.value = detail.room
+    // 高频房间状态轮询只刷新基础事实；互动权限由首次进房、回前台和写入拒绝时的专属上下文刷新。
+    room.value = retainWatchCapabilities(detail.room)
     products.value = detail.products
     if (micState.value === 'idle' && getToken() && canUseLiveMic) await checkMicInvitation(targetRoomId, requestVersion)
     if (!isCurrentRoomRequest(targetRoomId, requestVersion)) return
@@ -1170,6 +1228,10 @@ function openCommentComposer() {
     uni.showToast({ title: '登录后可以参与公屏互动', icon: 'none' })
     return
   }
+  if (!room.value.canComment) {
+    uni.showToast({ title: room.value.allowComment ? '当前账号暂不能发言' : '本场暂未开放公屏互动', icon: 'none' })
+    return
+  }
   showCommentComposer.value = true
 }
 
@@ -1192,6 +1254,10 @@ function openProductPanel() {
 function openGiftPanel() {
   if (!getToken()) {
     uni.showToast({ title: '登录后可以表达心意', icon: 'none' })
+    return
+  }
+  if (!room.value.canGift) {
+    uni.showToast({ title: room.value.allowGift ? '当前账号暂不能表达心意' : '本场暂未开放心意互动', icon: 'none' })
     return
   }
   closeActionPanels()
@@ -1253,6 +1319,10 @@ function openProduct(product: VerticalLiveProduct) {
 function confirmSendGift() {
   const gift = selectedGift.value
   if (!gift || sendingGift.value) return
+  if (!room.value.canGift) {
+    uni.showToast({ title: room.value.allowGift ? '当前账号暂不能表达心意' : '本场暂未开放心意互动', icon: 'none' })
+    return
+  }
   if (!giftPolicyReady.value) {
     uni.showToast({ title: '请先完成消费保护设置', icon: 'none' })
     return
@@ -1271,6 +1341,11 @@ function confirmSendGift() {
 
 async function sendGift(gift: LiveGift) {
   if (sendingGift.value) return
+  if (!room.value.canGift) {
+    uni.showToast({ title: room.value.allowGift ? '当前账号暂不能表达心意' : '本场暂未开放心意互动', icon: 'none' })
+    void refreshWatchContext(room.value.id, roomLoadVersion)
+    return
+  }
   sendingGift.value = true
   const echoContent = `送出 ${gift.name} x1`
   const echoToken = rememberLocalEcho(echoContent)
@@ -1288,6 +1363,7 @@ async function sendGift(gift: LiveGift) {
     uni.showToast({ title: '心意已送达', icon: 'none' })
   } catch (cause) {
     forgetLocalEcho(echoContent, echoToken)
+    void refreshWatchContext(room.value.id, roomLoadVersion)
     uni.showToast({ title: (cause as Error)?.message || '发送失败，请重试', icon: 'none' })
   } finally {
     sendingGift.value = false
@@ -1591,6 +1667,10 @@ async function retryMic() {
 async function sendComment() {
   const content = commentDraft.value.trim()
   if (!content || sendingComment) return
+  if (!room.value.canComment) {
+    uni.showToast({ title: room.value.allowComment ? '当前账号暂不能发言' : '本场暂未开放公屏互动', icon: 'none' })
+    return
+  }
   sendingComment = true
   const localId = `local-${Date.now()}`
   comments.value.push({ id: localId, userName: '我', content, type: 'text' })
@@ -1605,6 +1685,7 @@ async function sendComment() {
     comments.value = comments.value.filter((item) => String(item.id) !== localId)
     commentDraft.value = content
     showCommentComposer.value = true
+    void refreshWatchContext(room.value.id, roomLoadVersion)
     uni.showToast({ title: (cause as Error)?.message || '消息发送失败，请重试', icon: 'none' })
   } finally {
     sendingComment = false
@@ -1612,6 +1693,11 @@ async function sendComment() {
 }
 
 async function sendLike() {
+  if (!room.value.canLike) {
+    const title = !getToken() ? '登录后可以点赞' : room.value.allowLike ? '当前账号暂不能点赞' : '本场暂未开放点赞'
+    uni.showToast({ title, icon: 'none' })
+    return
+  }
   const particle: LikeParticle = {
     id: ++likeParticleSequence,
     variant: likeParticleSequence % 3,
@@ -1623,6 +1709,7 @@ async function sendLike() {
     const result = await likeLiveRoom(room.value.id)
     room.value.likeCount = result.likeCount
   } catch (cause) {
+    void refreshWatchContext(room.value.id, roomLoadVersion)
     uni.showToast({ title: (cause as Error)?.message || '点赞失败，请重试', icon: 'none' })
   }
 }
@@ -1717,6 +1804,7 @@ onShow(() => {
     void loadRoom()
   }
   startRoomPolling()
+  if (roomId.value && !loading.value) void refreshWatchContext(roomId.value, roomLoadVersion)
   if (roomId.value && playUrl.value) {
     ensureAudiencePlayback()
     void touchPresence()

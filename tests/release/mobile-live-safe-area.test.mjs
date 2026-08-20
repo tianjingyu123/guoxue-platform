@@ -330,6 +330,37 @@ test('观众连麦仅在主播接受后才申请设备权限', () => {
   assert.match(preflight, /void removeMicRequest\(\)\s*throw cause/)
 })
 
+test('观看页只接入直播专属互动上下文和公屏', () => {
+  const liveData = source('apps/mobile/src/lib/live-data.ts')
+  const audience = source('apps/mobile/src/pkg-live/watch/index.nvue')
+  const watchAdapter = liveData.slice(
+    liveData.indexOf('async getWatchRoom(id: string'),
+    liveData.indexOf('/** 获取登录用户的跨设备回放进度'),
+  )
+  const audiencePoll = audience.slice(
+    audience.indexOf('async function pollRoomStatus()'),
+    audience.indexOf('async function checkMicInvitation('),
+  )
+
+  assert.match(liveData, /let liveWatchContextEndpointAvailable: boolean \| null = null/)
+  assert.match(liveData, /\/live\/rooms\/\$\{roomId\}\/watch-context/)
+  assert.match(liveData, /\/live\/rooms\/\$\{roomId\}\/comments\?page=1&pageSize=20/)
+  assert.match(watchAdapter, /async getWatchContext\(roomId: string\): Promise<LiveWatchContext \| null>/)
+  assert.match(watchAdapter, /async getWatchComments\(roomId: string, hostUserId = ''\): Promise<VerticalLiveComment\[\]>/)
+  assert.match(watchAdapter, /allowGift: raw\.interaction\?\.allowGift === true && raw\.room\?\.allowGift === true/)
+  assert.match(watchAdapter, /\.slice\(0, 20\)/)
+  assert.match(watchAdapter, /\.filter\(\(comment\): comment is VerticalLiveComment => !!comment\)/)
+  assert.doesNotMatch(watchAdapter, /\/comment\?targetType=/)
+  assert.match(audience, /void refreshWatchContext\(targetRoomId, requestVersion, true\)/)
+  assert.match(audience, /const context = await liveApi\.getWatchContext\(targetRoomId\)/)
+  assert.match(audience, /const history = await liveApi\.getWatchComments\(targetRoomId, room\.value\.hostId\)/)
+  assert.match(audiencePoll, /room\.value = retainWatchCapabilities\(detail\.room\)/)
+  assert.doesNotMatch(audiencePoll, /refreshWatchContext\(/)
+  assert.match(audience, /room\.value\.canComment/)
+  assert.match(audience, /room\.value\.canGift/)
+  assert.match(audience, /room\.value\.canLike/)
+})
+
 test('直播送礼先执行年龄与用户自设限额，观众端不公开消费排行', () => {
   const appAudience = source('apps/mobile/src/pkg-live/watch/index.nvue')
   const webAudience = source('apps/mobile/src/pkg-live/watch/index.vue')

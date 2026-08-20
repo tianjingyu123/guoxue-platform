@@ -468,6 +468,12 @@ const defaultWatchRoom = {
   replayUrl: '',
   replayChapters: [] as { t: number; title: string }[], // #21 回放章节点
   circleName: '',
+  allowComment: false,
+  allowLike: false,
+  allowGift: false,
+  canComment: false,
+  canLike: false,
+  canGift: false,
 }
 // 模板裸访问大量房间字段，保留 any 避免收敛触发大量报错
 const room = ref<any>({ ...defaultWatchRoom })
