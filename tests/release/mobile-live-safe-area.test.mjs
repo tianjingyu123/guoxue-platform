@@ -245,6 +245,26 @@ test('观众直播进入即自动播放且隐藏原生播放控件', () => {
   assert.match(audience, /:enable-progress-gesture="false"/)
 })
 
+test('全端观众在线心跳不依赖播放器回调，并在下播后自动离场', () => {
+  const appAudience = source('apps/mobile/src/pkg-live/watch/index.nvue')
+  const crossPlatformAudience = source('apps/mobile/src/pkg-live/watch/index.vue')
+  const presence = source('apps/mobile/src/pkg-live/watch/use-live-watch-presence.ts')
+
+  assert.match(presence, /setInterval\(\(\) => \{ void touchPresence\(\) \}, 20_000\)/)
+  assert.match(presence, /const retryInMs = Math\.min\(1_000 \* \(2 \*\* retryAttempt\), 20_000\)/)
+  assert.match(presence, /onOnlineCount\(state\.onlineCount\)/)
+  assert.match(presence, /leaveLivePresence\(roomId, sessionId\)/)
+  assert.match(appAudience, /ensureAudiencePlayback\(\)\s*\/\/ 原生 video 的 @play 回调不是在线事实源；起播请求发出后立即登记观看会话。\s*void touchPresence\(\)/)
+  assert.match(appAudience, /useLiveWatchPresence\(/)
+  assert.match(crossPlatformAudience, /useLiveWatchPresence\(/)
+  assert.match(crossPlatformAudience, /@ready="onLivePlayerReady"/)
+  assert.match(crossPlatformAudience, /function scheduleEndAdvance\(\)/)
+  assert.match(crossPlatformAudience, /void refreshLiveFeed\(\)/)
+  assert.match(crossPlatformAudience, /if \(!playUrl\.value\) await fetchPlayUrl\(targetRoomId\)/)
+  assert.match(crossPlatformAudience, /onHide\(\(\) => \{\s*stopRoomPolling\(\)/)
+  assert.match(crossPlatformAudience, /uni\.redirectTo\(\{ url: `\/pkg-live\/watch\/index\?id=\$\{encodeURIComponent\(next\.id\)\}` \}\)/)
+})
+
 test('观众连麦仅在静音状态变化时调用原生 TRTC', () => {
   const audience = source('apps/mobile/src/pkg-live/watch/index.nvue')
 

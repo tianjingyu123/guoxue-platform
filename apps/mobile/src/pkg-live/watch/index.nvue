@@ -457,7 +457,8 @@ import {
   type VerticalLiveComment,
   type VerticalLiveProduct,
 } from '@/lib/live-data'
-import { getLiveFeed, leaveLivePresence, touchLivePresence } from './presence-api'
+import { getLiveFeed } from './presence-api'
+import { useLiveWatchPresence } from './use-live-watch-presence'
 import {
   getLiveGiftSpendingPreference,
   likeLiveRoom,
@@ -646,6 +647,16 @@ const actionSheetStyle = computed(() => ({
   paddingBottom: `${safeBottom.value + uni.upx2px(28)}px`,
 }))
 
+const { leavePresence, touchPresence } = useLiveWatchPresence({
+  roomId: () => roomId.value,
+  isEnded: () => roomEnded.value,
+  onOnlineCount: (onlineCount) => { room.value.viewerCount = onlineCount },
+  onFailure: ({ roomId: failedRoomId, retryInMs, status, code }) => {
+    // 只保留可行动的脱敏诊断字段；失败会退避重试，不能因统计链路影响观看。
+    console.warn('[live] presence heartbeat retry', { roomId: failedRoomId, retryInMs, status, code })
+  },
+})
+
 function rtcRemoteVideoStyle(index: number) {
   const count = orderedRemoteVideoUsers.value.length
   if (count <= 1) return { left: '0px', right: '0px', top: '0px', bottom: '0px' }
@@ -686,17 +697,14 @@ let micPollTimer: ReturnType<typeof setInterval> | null = null
 let micDurationTimer: ReturnType<typeof setInterval> | null = null
 let lastMicReadyAt = 0
 let roomPollTimer: ReturnType<typeof setInterval> | null = null
-let presenceTimer: ReturnType<typeof setInterval> | null = null
 let endAdvanceTimer: ReturnType<typeof setInterval> | null = null
 let playerRetryTimer: ReturnType<typeof setTimeout> | null = null
 let playerRetryCount = 0
 let roomPolling = false
-let presenceActive = false
 let switchingRoom = false
 let appBackgroundSuspended = false
 let giftsLoaded = false
 let feedInitialized = false
-const presenceSessionId = `live-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`
 const playUrlCache = new Map<string, LivePlayUrl>()
 const pendingLocalEchoes = new Map<string, Set<number>>()
 let localEchoSequence = 0
@@ -899,6 +907,8 @@ async function loadRoom() {
     playUrlCache.set(targetRoomId, playUrl.value)
     await nextTick()
     ensureAudiencePlayback()
+    // 原生 video 的 @play 回调不是在线事实源；起播请求发出后立即登记观看会话。
+    void touchPresence()
     if (detail.room.imGroupId) void joinPublicScreen(detail.room.imGroupId)
     if (getToken() && detail.room.circleId) void liveApi.reportCircleChannelClick(detail.room.circleId)
   } catch (cause) {
@@ -1049,25 +1059,6 @@ function ensureAudiencePlayback() {
       // 元素仍在挂载时由 loadedmetadata 再次驱动，不把短暂竞态升级成播放错误。
     }
   })
-}
-
-async function touchPresence() {
-  if (!roomId.value || roomEnded.value) return
-  try {
-    const state = await touchLivePresence(roomId.value, presenceSessionId)
-    presenceActive = true
-    room.value.viewerCount = state.onlineCount
-    if (!presenceTimer) presenceTimer = setInterval(() => { void touchPresence() }, 20_000)
-  } catch {
-    // 在线心跳不应中断观看；详情轮询和下一次心跳会继续恢复。
-  }
-}
-
-async function leavePresence(targetRoomId = roomId.value) {
-  if (presenceTimer) { clearInterval(presenceTimer); presenceTimer = null }
-  if (!presenceActive || !targetRoomId) return
-  presenceActive = false
-  await leaveLivePresence(targetRoomId, presenceSessionId)
 }
 
 function clearPlayerRetry() {
@@ -1698,7 +1689,6 @@ onUnmounted(() => {
   setLiveRemoteVideoAvailabilityHandler(null)
   leaveLiveAudio()
   void removeMicRequest()
-  void leavePresence()
 })
 </script>
 

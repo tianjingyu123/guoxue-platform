@@ -111,6 +111,8 @@
         :hls-url="playUrl.hls"
         object-fit="contain"
         class="watch__stage-player"
+        @ready="onLivePlayerReady"
+        @error="onLivePlayerError"
       />
       <view class="watch__stage-mask" />
       <!-- 未直播/加载中占位 -->
@@ -345,12 +347,22 @@
       </view>
     </view>
     </template>
+
+    <view v-if="endingLiveSession" class="live-ended-mask">
+      <view class="live-ended-card">
+        <text class="live-ended-kicker">本场直播已结束</text>
+        <text class="live-ended-title">{{ endCountdown }} 秒后{{ hasNextLive ? '进入下一场直播' : '返回上一页' }}</text>
+        <view class="live-ended-action" @tap="advanceAfterEnd">
+          <text class="live-ended-action-text">{{ hasNextLive ? '立即进入下一场' : '立即返回' }}</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onHide, onLoad, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
@@ -374,6 +386,8 @@ import {
   type VerticalLiveProduct,
 } from '@/lib/live-data'
 import { likeLiveRoom, sendLiveGift } from '@/pkg-live/live-interaction-api'
+import { getLiveFeed } from './presence-api'
+import { useLiveWatchPresence } from './use-live-watch-presence'
 
 // ===== 系统安全区（状态栏、挖孔与底部手势区） =====
 const { safeTop, safeRight, safeBottom, safeLeft } = useAppSafeArea()
@@ -483,6 +497,23 @@ async function joinDanmaku(groupId: string) {
 
 // ===== 低延时播放地址（C1）=====
 const playUrl = ref<{ flv: string; hls: string } | null>(null)
+const liveSessionActive = ref(false)
+const endingLiveSession = ref(false)
+const endCountdown = ref(3)
+const liveFeed = ref<Array<{ id: string; title: string; cover: string; hostName: string; hostAvatar: string }>>([])
+const hasNextLive = computed(() => liveFeed.value.some((item) => item.id && item.id !== loadedRoomId.value))
+let roomPollTimer: ReturnType<typeof setInterval> | null = null
+let roomPolling = false
+let endAdvanceTimer: ReturnType<typeof setInterval> | null = null
+
+const { leavePresence, touchPresence } = useLiveWatchPresence({
+  roomId: () => loadedRoomId.value,
+  isEnded: () => !liveSessionActive.value || endingLiveSession.value,
+  onOnlineCount: (onlineCount) => { room.value.viewerCount = onlineCount },
+  onFailure: ({ roomId, retryInMs, status, code }) => {
+    console.warn('[live] presence heartbeat retry', { roomId, retryInMs, status, code })
+  },
+})
 
 // 未开播占位文案：由房间真实状态判定（后端 play-url 错误信息「直播未开始或已结束」两态同文，
 // 不能用字符串包含'结束'来区分，否则 WAITING 预告房会被误标为「已结束」）。
@@ -525,8 +556,20 @@ async function fetchRoomData(roomId: string) {
     if (isWaiting.value) fetchBookingCount(room.value.id)
     // 回放态 → 合并本地离线缓存和服务端跨设备进度（#21 续播记忆）
     if (isReplayState.value) await loadReplayPos(room.value.id || roomId)
-    // 播放地址只在直播中才拉（预告/回放态请求必被后端 400 拒，白耗一次请求+控制台报错）
-    if (roomStatus.value === 'LIVING') fetchPlayUrl(room.value.id || roomId)
+    // 播放地址只在直播中才拉（预告/回放态请求必被后端 400 拒，白耗一次请求+控制台报错）。
+    // 观看会话不依赖播放器 ready：H5/小程序的首帧与原生事件时机不同，先登记才不会漏在线。
+    if (roomStatus.value === 'LIVING') {
+      liveSessionActive.value = true
+      await fetchPlayUrl(room.value.id || roomId)
+      startRoomPolling()
+      if (playUrl.value) {
+        void touchPresence()
+        void refreshLiveFeed()
+      }
+    } else {
+      liveSessionActive.value = false
+      stopRoomPolling()
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -538,6 +581,96 @@ async function fetchRoomData(roomId: string) {
 const roomStatus = computed(() => String(room.value?.status || '').toUpperCase())
 const isWaiting = computed(() => roomStatus.value === 'WAITING')
 const isReplayState = computed(() => roomStatus.value === 'ENDED' || roomStatus.value === 'REPLAY')
+
+function stopRoomPolling() {
+  if (!roomPollTimer) return
+  clearInterval(roomPollTimer)
+  roomPollTimer = null
+}
+
+function startRoomPolling() {
+  if (roomPollTimer || !liveSessionActive.value || endingLiveSession.value) return
+  roomPollTimer = setInterval(() => { void pollRoomStatus() }, 5_000)
+}
+
+async function refreshLiveFeed() {
+  try {
+    const items = await getLiveFeed(room.value.circleId || undefined)
+    liveFeed.value = items.filter((item) => Boolean(item.id))
+  } catch {
+    // 推荐流暂时不可用时保留上一份快照；下播时仍会重新拉取一次再决定回退。
+  }
+}
+
+function clearEndAdvance() {
+  if (!endAdvanceTimer) return
+  clearInterval(endAdvanceTimer)
+  endAdvanceTimer = null
+  endCountdown.value = 3
+}
+
+async function advanceAfterEnd() {
+  if (!endingLiveSession.value) return
+  clearEndAdvance()
+  const previousRoomId = loadedRoomId.value
+  await refreshLiveFeed()
+  const next = liveFeed.value.find((item) => item.id && item.id !== previousRoomId)
+  await leavePresence(previousRoomId)
+  if (next) {
+    uni.redirectTo({ url: `/pkg-live/watch/index?id=${encodeURIComponent(next.id)}` })
+    return
+  }
+  goBack()
+}
+
+function scheduleEndAdvance() {
+  if (endingLiveSession.value || endAdvanceTimer) return
+  endingLiveSession.value = true
+  liveSessionActive.value = false
+  playUrl.value = null
+  stopRoomPolling()
+  void leavePresence()
+  endCountdown.value = 3
+  void refreshLiveFeed()
+  endAdvanceTimer = setInterval(() => {
+    endCountdown.value -= 1
+    if (endCountdown.value > 0) return
+    void advanceAfterEnd()
+  }, 1_000)
+}
+
+async function pollRoomStatus() {
+  const targetRoomId = loadedRoomId.value
+  if (!targetRoomId || !liveSessionActive.value || roomPolling) return
+  roomPolling = true
+  try {
+    const data = await liveApi.getWatchRoom(targetRoomId)
+    if (targetRoomId !== loadedRoomId.value) return
+    room.value = { ...defaultWatchRoom, ...data.room }
+    products.value = data.products
+    if (String(data.room.status || '').toUpperCase() === 'LIVING') {
+      // 首次签名地址偶发失败时，状态轮询继续尝试恢复，不能让观众永久停在占位页。
+      if (!playUrl.value) await fetchPlayUrl(targetRoomId)
+      if (playUrl.value) void touchPresence()
+      return
+    }
+    scheduleEndAdvance()
+  } catch {
+    // 房间状态短暂失败不能打断当前画面；下一轮轮询会继续确认。
+  } finally {
+    roomPolling = false
+  }
+}
+
+function onLivePlayerReady() {
+  void touchPresence()
+}
+
+function onLivePlayerError() {
+  // 下播时播放器常比轮询更早感知断流，立即确认可避免额外等待一轮。
+  void pollRoomStatus()
+}
+
 /** 付费场：只如实展示票价（移动端无 LIVESTREAM 支付接线 → 不做购票按钮） */
 const isPaidRoom = computed(() => room.value?.chargeType && room.value.chargeType !== 'FREE' && Number(room.value.chargePrice) > 0)
 
@@ -938,6 +1071,17 @@ onLoad((opts) => {
   fetchGifts()
 })
 
+onShow(() => {
+  if (!liveSessionActive.value || endingLiveSession.value) return
+  void touchPresence()
+  startRoomPolling()
+})
+
+onHide(() => {
+  stopRoomPolling()
+  if (liveSessionActive.value) void leavePresence()
+})
+
 onMounted(() => {
   // 预约态倒计时每分钟刷新（常驻轻量 ticker·非 WAITING 态无副作用）
   countdownTimer = setInterval(() => { nowTs.value = Date.now() }, 60000)
@@ -951,6 +1095,8 @@ onUnmounted(() => {
   if (danmakuGroupId) tim.quitGroup(danmakuGroupId)
   // 清理倒计时定时器
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null }
+  stopRoomPolling()
+  clearEndAdvance()
 })
 </script>
 
@@ -962,6 +1108,39 @@ onUnmounted(() => {
   overflow: hidden;
   background: #000;
 }
+
+.live-ended-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 180;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  background: rgba(10, 9, 11, 0.74);
+}
+.live-ended-card {
+  width: 100%;
+  max-width: 560rpx;
+  padding: 46rpx 40rpx;
+  border: 1rpx solid rgba(201, 169, 110, 0.46);
+  border-radius: 28rpx;
+  background: rgba(29, 25, 24, 0.96);
+  box-shadow: 0 24rpx 64rpx rgba(0, 0, 0, 0.38);
+  text-align: center;
+}
+.live-ended-kicker { display: block; color: #c9a96e; font-size: 25rpx; letter-spacing: 2rpx; }
+.live-ended-title { display: block; margin-top: 18rpx; color: #fffaf1; font-size: 32rpx; font-weight: 700; }
+.live-ended-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80rpx;
+  margin-top: 34rpx;
+  border-radius: 40rpx;
+  background: #c41e3a;
+}
+.live-ended-action-text { color: #fff; font-size: 27rpx; font-weight: 700; }
 
 /* 加载/错误覆盖层 */
 .watch-loading, .watch-error { position: absolute; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; }
