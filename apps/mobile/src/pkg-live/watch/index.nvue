@@ -905,6 +905,12 @@ async function loadRoom() {
     comments.value = detail.comments
     products.value = detail.products
     isFollowing.value = detail.room.isFollowing
+    // 详情接口当前不携带观众私有的关注态；复用已有用户接口回读，避免已关注用户被误导为未关注。
+    if (getToken() && detail.room.hostId) {
+      void liveApi.isFollowingHost(detail.room.hostId).then((following) => {
+        if (isCurrentRoomRequest(targetRoomId, requestVersion)) isFollowing.value = following
+      }).catch(() => undefined)
+    }
     syncCurrentFeedItem()
     if (!giftsLoaded) {
       giftsLoaded = true

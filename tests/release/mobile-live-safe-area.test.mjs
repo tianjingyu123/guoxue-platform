@@ -131,6 +131,7 @@ test('App 观众端使用同路由 nvue 承载原生视频与互动层', () => {
   assert.match(audience, /class="audience-stack"/)
   assert.match(audience, /class="host-verified"/)
   assert.match(audience, /room\.followers != null/)
+  assert.match(audience, /liveApi\.isFollowingHost\(detail\.room\.hostId\)/)
   assert.match(audience, /class="quality-chip"/)
   assert.match(audience, /class="live-safety-strip"/)
   assert.match(audience, /文明互动 · 理性消费/)
