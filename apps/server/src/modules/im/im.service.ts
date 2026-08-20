@@ -192,6 +192,9 @@ export class ImService {
 
   /** 在群内发送消息 */
   async sendGroupMsg(groupId: string, text: string, fromUserId?: string) {
+    if (fromUserId && groupId.startsWith("live_")) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "直播消息必须通过直播互动接口发送");
+    }
     // 越权防护：真实用户发言前校验其为该群成员（fromUserId 缺省时为系统/管理员消息，放行）
     if (fromUserId) {
       const isMember = await this.isGroupMember(groupId, fromUserId);
@@ -205,6 +208,55 @@ export class ImService {
         {
           MsgType: "TIMTextElem",
           MsgContent: { Text: text },
+        },
+      ],
+    });
+  }
+
+  /**
+   * 仅供评论审核或礼物扣款成功后的服务端内部中继。
+   * 保留真实发言人身份用于客户端展示，但腾讯云请求仍由管理员账号签名执行。
+   */
+  async relayLiveGroupMsg(groupId: string, text: string, fromUserId: string) {
+    if (!groupId.startsWith("live_")) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "直播中继只允许发送到直播群");
+    }
+    return this.callImApi("group_open_http_svc/send_group_msg", {
+      GroupId: groupId,
+      From_Account: fromUserId,
+      ForbidCallbackControl: ["ForbidBeforeSendMsgCallback"],
+      Random: Math.floor(Math.random() * 0xffffffff),
+      MsgBody: [
+        {
+          MsgType: "TIMTextElem",
+          MsgContent: { Text: text },
+        },
+      ],
+    });
+  }
+
+  /** 扣款成功后的结构化礼物事件；普通文本不能伪装成礼物。 */
+  async relayLiveGift(
+    groupId: string,
+    event: { recordId: string; giftId: string; giftName: string; quantity: number },
+    fromUserId: string,
+  ) {
+    if (!groupId.startsWith("live_")) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "直播礼物中继只允许发送到直播群");
+    }
+    return this.callImApi("group_open_http_svc/send_group_msg", {
+      GroupId: groupId,
+      From_Account: fromUserId,
+      ForbidCallbackControl: ["ForbidBeforeSendMsgCallback"],
+      Random: Math.floor(Math.random() * 0xffffffff),
+      MsgBody: [
+        {
+          MsgType: "TIMCustomElem",
+          MsgContent: {
+            Data: JSON.stringify({ type: "LIVE_GIFT", ...event }),
+            Desc: "LIVE_GIFT",
+            Ext: "v1",
+          },
         },
       ],
     });

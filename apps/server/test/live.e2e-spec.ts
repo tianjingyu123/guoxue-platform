@@ -110,6 +110,109 @@ describe("Live E2E", () => {
     })
   })
 
+  describe("GET /api/v1/live/rooms/:id/comments", () => {
+    const circleRoom = {
+      id: "r1", hostUserId: "host1", userId: "creator1", circleId: "c1",
+      visibility: "CIRCLE_ONLY", auditStatus: "APPROVED", status: "LIVING",
+    }
+
+    it("匿名和圈外用户不能读取圈内直播公屏", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      await request(app.getHttpServer()).get("/api/v1/live/rooms/r1/comments").expect(404)
+
+      prisma.circleMember.findFirst.mockResolvedValue(null)
+      await request(app.getHttpServer())
+        .get("/api/v1/live/rooms/r1/comments")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(404)
+      expect(prisma.comment.findMany).not.toHaveBeenCalled()
+    })
+
+    it("圈成员只能读取公开且未软删除评论，页大小最多20", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
+      prisma.comment.findMany.mockResolvedValue([{ id: "comment1", status: "PUBLISHED", deletedAt: null }])
+      prisma.comment.count.mockResolvedValue(1)
+
+      const res = await request(app.getHttpServer())
+        .get("/api/v1/live/rooms/r1/comments?pageSize=100")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200)
+      expect(res.body.pageSize).toBe(20)
+      expect(prisma.comment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          targetType: "LIVESTREAM", targetId: "r1", parentId: null,
+          status: "PUBLISHED", deletedAt: null,
+        },
+        include: expect.objectContaining({
+          replies: expect.objectContaining({ where: { status: "PUBLISHED", deletedAt: null } }),
+        }),
+        take: 20,
+      }))
+    })
+
+    it("watch-context 返回服务端能力布尔且在线头像固定为空", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
+      prisma.liveMutedUser.findUnique.mockResolvedValue(null)
+
+      const res = await request(app.getHttpServer())
+        .get("/api/v1/live/rooms/r1/watch-context")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(200)
+      expect(res.body.viewer).toEqual(expect.objectContaining({
+        canComment: true, canLike: true, canGift: true,
+      }))
+      expect(res.body.interaction.allowGift).toBe(true)
+      expect(res.body.online.avatars).toEqual([])
+    })
+  })
+
+  describe("POST /api/v1/live/rooms/:id/comment|like", () => {
+    const circleRoom = {
+      id: "r1", hostUserId: "host1", userId: "creator1", circleId: "c1",
+      visibility: "CIRCLE_ONLY", auditStatus: "APPROVED", status: "LIVING",
+      imGroupId: null,
+    }
+
+    it("圈外用户不能写入评论或点赞", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      prisma.circleMember.findFirst.mockResolvedValue(null)
+
+      await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/comment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ content: "绕过评论" })
+        .expect(404)
+      await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/like")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(404)
+      expect(prisma.comment.create).not.toHaveBeenCalled()
+      expect(prisma.like.upsert).not.toHaveBeenCalled()
+    })
+
+    it("有效圈成员可通过专属端点评论和点赞", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue(circleRoom)
+      prisma.circleMember.findFirst.mockResolvedValue({ id: "cm1" })
+      prisma.liveMutedUser.findUnique.mockResolvedValue(null)
+      prisma.comment.create.mockResolvedValue({ id: "comment1", content: "讲得好" })
+      prisma.like.upsert.mockResolvedValue({ id: "like1" })
+      prisma.like.count.mockResolvedValue(1)
+
+      await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/comment")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ content: "讲得好" })
+        .expect(201)
+      const likeRes = await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/like")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(201)
+      expect(likeRes.body.likeCount).toBe(1)
+    })
+  })
+
   describe("PUT /api/v1/live/rooms/:id", () => {
     it("更新直播间成功", async () => {
       prisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "u1" })

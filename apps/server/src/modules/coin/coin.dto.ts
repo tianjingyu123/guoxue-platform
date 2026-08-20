@@ -1,4 +1,4 @@
-import { MinLength,  IsInt, IsOptional, IsString, IsIn, Min } from "class-validator";
+import { Max, MaxLength, MinLength, IsInt, IsOptional, IsString, IsIn, Min } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class RechargeDto {
@@ -162,8 +162,16 @@ export class SendGiftDto {
   giftId: string;
 
   @ApiPropertyOptional({ description: "赠送数量", default: 1, minimum: 1 })
-  @IsOptional() @IsInt() @Min(1)
+  @IsOptional() @IsInt() @Min(1) @Max(99)
   quantity?: number;
+
+  @ApiPropertyOptional({
+    description: "本次明确送礼动作的幂等键；新版客户端必传，暂时兼容尚未升级的旧客户端",
+    minLength: 16,
+    maxLength: 128,
+  })
+  @IsOptional() @IsString() @MinLength(16) @MaxLength(128)
+  idempotencyKey?: string;
 }
 
 export class RechargeConfigDto {

@@ -159,11 +159,53 @@ export class UpdateRoomProductsDto {
 // ───────── 麦位管理 ─────────
 
 export class MicJoinDto {
-  @ApiProperty({ description: "申请的麦位序号 (1-6)", minimum: 1, maximum: 6 })
+  @ApiPropertyOptional({ description: "指定麦位序号 (1-6)；不传时服务端自动分配空闲位", minimum: 1, maximum: 6 })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1) @Max(6)
-  position: number;
+  position?: number;
+
+  @ApiPropertyOptional({ description: "连麦媒体模式", enum: ["AUDIO", "VIDEO"], default: "AUDIO" })
+  @IsOptional()
+  @IsString()
+  @IsIn(["AUDIO", "VIDEO"])
+  mediaMode?: "AUDIO" | "VIDEO";
+}
+
+export class MicInviteDto extends MicJoinDto {
+  @ApiProperty({ description: "受邀用户ID" })
+  @IsString()
+  @MinLength(1)
+  userId: string;
+}
+
+export class MicInviteResponseDto {
+  @ApiProperty({ description: "受邀用户操作", enum: ["ACCEPT", "DECLINE"] })
+  @IsString()
+  @IsIn(["ACCEPT", "DECLINE"])
+  action: "ACCEPT" | "DECLINE";
+}
+
+export class LiveModerationSettingsDto {
+  @ApiProperty({ description: "同一用户两条评论的最小间隔秒数", enum: [0, 3, 5, 10, 30] })
+  @Type(() => Number)
+  @IsInt()
+  @IsIn([0, 3, 5, 10, 30])
+  slowModeSeconds: number;
+
+  @ApiProperty({ description: "是否只允许已关注主播的用户评论" })
+  @IsBoolean()
+  followersOnly: boolean;
+}
+
+/** 直播观看会话心跳；随机会话只用于游客去重，不承载登录凭证。 */
+export class LivePresenceDto {
+  @ApiProperty({ description: "客户端本次观看会话ID", minLength: 16, maxLength: 100 })
+  @IsString()
+  @MinLength(16)
+  @MaxLength(100)
+  clientSessionId: string;
 }
 
 export class MicManageDto {
@@ -308,13 +350,42 @@ export class SendGiftDto {
   giftId: string;
 
   @ApiPropertyOptional({ description: "数量", default: 1 })
-  @IsOptional() @IsInt() @Min(1)
+  @IsOptional() @IsInt() @Min(1) @Max(99)
   @Type(() => Number)
   quantity?: number;
+
+  @ApiPropertyOptional({
+    description: "本次明确送礼动作的幂等键；新版客户端必传，暂时兼容尚未升级的旧客户端",
+    minLength: 16,
+    maxLength: 128,
+  })
+  @IsOptional() @IsString() @MinLength(16) @MaxLength(128)
+  idempotencyKey?: string;
+}
+
+export class UpdateLiveGiftSpendingPreferenceDto {
+  @ApiProperty({ description: "单次送礼限额（国学币）", minimum: 1, maximum: 10000 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10000)
+  singleLimitCoin: number;
+
+  @ApiProperty({ description: "每日累计送礼限额（国学币）", minimum: 1, maximum: 30000 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(30000)
+  dailyLimitCoin: number;
+
+  @ApiPropertyOptional({ description: "消费提醒；首次设置默认开启", default: true })
+  @IsOptional()
+  @IsBoolean()
+  reminderEnabled?: boolean;
 }
 
 export class SendCommentDto {
   @ApiProperty({ description: "评论内容" })
-  @IsString() @MinLength(1)
+  @IsString() @MinLength(1) @MaxLength(500)
   content: string;
 }

@@ -9,6 +9,9 @@ import { CommissionService } from "../commission/commission.service";
 import { SystemService } from "../system/system.service";
 import { FundApprovalService } from "../fund-approval/fund-approval.service";
 import { safePagination, NO_PAGE_LIMIT } from "../../common/pagination";
+import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { randomUUID } from "crypto";
+import { ImService } from "../im/im.service";
 
 /** 默认充值档位（ConfigSystem 未配置时的兜底）——董事长拍板 2026-07-10：100元/200元/500元 三档 + 自定义 */
 const DEFAULT_RECHARGE_TIERS = [
@@ -16,6 +19,27 @@ const DEFAULT_RECHARGE_TIERS = [
   { amountRmb: 200, amountCoin: 2000, bonus: 0 },
   { amountRmb: 500, amountCoin: 5000, bonus: 0 },
 ];
+
+const LIVE_GIFT_SINGLE_MAX_COIN = 10_000;
+const LIVE_GIFT_DAILY_MAX_COIN = 30_000;
+
+function chinaDayRange(now = new Date()) {
+  const chinaNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const start = new Date(Date.UTC(
+    chinaNow.getUTCFullYear(),
+    chinaNow.getUTCMonth(),
+    chinaNow.getUTCDate(),
+  ) - 8 * 60 * 60 * 1000);
+  return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) };
+}
+
+function ageAt(birthday: Date, now = new Date()) {
+  let age = now.getUTCFullYear() - birthday.getUTCFullYear();
+  const beforeBirthday = now.getUTCMonth() < birthday.getUTCMonth()
+    || (now.getUTCMonth() === birthday.getUTCMonth() && now.getUTCDate() < birthday.getUTCDate());
+  if (beforeBirthday) age -= 1;
+  return age;
+}
 
 @Injectable()
 export class CoinService {
@@ -27,6 +51,7 @@ export class CoinService {
     @Optional() private commission?: CommissionService,
     @Optional() private systemService?: SystemService,
     @Optional() private fundApproval?: FundApprovalService,
+    @Optional() private im?: ImService,
   ) {}
 
   /**
@@ -71,6 +96,123 @@ export class CoinService {
       account = await this.prisma.virtualCoinAccount.create({ data: { userId } });
     }
     return account;
+  }
+
+  /** 查询当前用户的直播送礼消费保护状态，不返回身份证明或出生日期原文。 */
+  async getLiveGiftSpendingPreference(userId: string) {
+    const { start, end } = chinaDayRange();
+    const [user, preference, spent] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { identityVerified: true, birthday: true },
+      }),
+      this.prisma.liveGiftSpendingPreference.findUnique({ where: { userId } }),
+      this.prisma.giftRecord.aggregate({
+        where: { userId, createdAt: { gte: start, lt: end } },
+        _sum: { totalCoin: true },
+      }),
+    ]);
+    if (!user) throw new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+
+    const identityVerified = Boolean(user.identityVerified);
+    const ageVerified = Boolean(user.birthday) && ageAt(user.birthday as Date) >= 18;
+    const reason = !identityVerified
+      ? "IDENTITY_REQUIRED"
+      : !user.birthday
+        ? "AGE_REQUIRED"
+        : !ageVerified
+          ? "MINOR_NOT_ALLOWED"
+          : null;
+
+    return {
+      configured: Boolean(preference),
+      eligible: identityVerified && ageVerified,
+      ineligibleReason: reason,
+      singleLimitCoin: preference?.singleLimitCoin ?? null,
+      dailyLimitCoin: preference?.dailyLimitCoin ?? null,
+      reminderEnabled: preference?.reminderEnabled ?? true,
+      spentTodayCoin: Number(spent._sum.totalCoin || 0),
+      platformSingleMaxCoin: LIVE_GIFT_SINGLE_MAX_COIN,
+      platformDailyMaxCoin: LIVE_GIFT_DAILY_MAX_COIN,
+    };
+  }
+
+  /** 用户主动设置送礼限额；提醒默认开启但允许用户后续调整。 */
+  async updateLiveGiftSpendingPreference(
+    userId: string,
+    input: { singleLimitCoin: number; dailyLimitCoin: number; reminderEnabled?: boolean },
+  ) {
+    const singleLimitCoin = Number(input.singleLimitCoin);
+    const dailyLimitCoin = Number(input.dailyLimitCoin);
+    if (!Number.isInteger(singleLimitCoin) || singleLimitCoin < 1 || singleLimitCoin > LIVE_GIFT_SINGLE_MAX_COIN) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `单次限额须为 1-${LIVE_GIFT_SINGLE_MAX_COIN} 国学币`);
+    }
+    if (!Number.isInteger(dailyLimitCoin) || dailyLimitCoin < singleLimitCoin || dailyLimitCoin > LIVE_GIFT_DAILY_MAX_COIN) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        `日累计限额须不低于单次限额且不超过 ${LIVE_GIFT_DAILY_MAX_COIN} 国学币`,
+      );
+    }
+
+    await this.prisma.liveGiftSpendingPreference.upsert({
+      where: { userId },
+      create: {
+        userId,
+        singleLimitCoin,
+        dailyLimitCoin,
+        reminderEnabled: input.reminderEnabled ?? true,
+      },
+      update: {
+        singleLimitCoin,
+        dailyLimitCoin,
+        reminderEnabled: input.reminderEnabled ?? true,
+      },
+    });
+    return this.getLiveGiftSpendingPreference(userId);
+  }
+
+  /**
+   * 在扣币事务内执行年龄、实名与限额校验。
+   * 锁定用户偏好行，使同一用户的并发送礼请求依次核对当日最终消费，防止绕过日限额。
+   */
+  async assertLiveGiftSpendAllowed(
+    userId: string,
+    amountCoin: number,
+    db: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    await db.$executeRawUnsafe(
+      'SELECT 1 FROM "LiveGiftSpendingPreference" WHERE "userId" = $1 FOR UPDATE',
+      userId,
+    );
+    const { start, end } = chinaDayRange();
+    const [user, preference, spent] = await Promise.all([
+      db.user.findUnique({
+        where: { id: userId },
+        select: { identityVerified: true, birthday: true },
+      }),
+      db.liveGiftSpendingPreference.findUnique({ where: { userId } }),
+      db.giftRecord.aggregate({
+        where: { userId, createdAt: { gte: start, lt: end } },
+        _sum: { totalCoin: true },
+      }),
+    ]);
+    if (!user?.identityVerified || !user.birthday) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "完成实名认证与年龄核验后才能赠送礼物");
+    }
+    if (ageAt(user.birthday) < 18) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "未成年人禁止直播打赏");
+    }
+    if (!preference) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请先设置直播送礼的单次与日累计限额");
+    }
+    if (amountCoin > preference.singleLimitCoin) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, `本次金额超过你设置的 ${preference.singleLimitCoin} 国学币单次限额`);
+    }
+    const spentTodayCoin = Number(spent._sum.totalCoin || 0);
+    if (spentTodayCoin + amountCoin > preference.dailyLimitCoin) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "本次送礼将超过你设置的日累计限额");
+    }
+    return { spentTodayCoin, reminderEnabled: preference.reminderEnabled };
   }
 
   /** 获取账户余额 */
@@ -394,35 +536,94 @@ export class CoinService {
   }
 
   /** 打赏（扣币与记录在同一事务，防丢币） */
-  async sendGift(userId: string, liveRoomId: string, toUserId: string, giftId: string, quantity = 1) {
+  async sendGift(
+    userId: string,
+    liveRoomId: string,
+    toUserId: string,
+    giftId: string,
+    quantity: number,
+    idempotencyKey?: string,
+  ) {
+    // 旧客户端没有幂等键时只保证兼容可用；新版客户端的显式键才具备跨重试幂等语义。
+    const normalizedKey = String(
+      idempotencyKey || `legacy-coin-gift:${userId}:${liveRoomId}:${randomUUID()}`,
+    ).trim();
+    if (normalizedKey.length < 16 || normalizedKey.length > 128) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "送礼幂等键格式错误");
+    }
+    const existing = await this.prisma.giftRecord.findUnique({ where: { idempotencyKey: normalizedKey } });
+    if (existing) {
+      if (
+        existing.userId !== userId || existing.liveRoomId !== liveRoomId ||
+        existing.toUserId !== toUserId || existing.giftId !== giftId || existing.quantity !== quantity
+      ) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "送礼幂等键已被其他请求使用");
+      }
+      return existing;
+    }
+
     const gift = await this.prisma.gift.findUnique({ where: { id: giftId } });
     if (!gift) throw new BusinessException(ErrorCode.NOT_FOUND, "礼物不存在");
 
     const totalCoin = gift.priceCoin * quantity;
 
     // 扣币与打赏记录在同一事务
-    const record = await this.prisma.$transaction(async (tx) => {
-      await this.spend(userId, {
-        amountCoin: totalCoin,
-        scene: "LIVE_GIFT",
-        refId: liveRoomId,
-        description: `赠送 ${gift.name} x${quantity}`,
-      }, tx);
+    let created = false;
+    let record;
+    try {
+      record = await this.prisma.$transaction(async (tx) => {
+        await this.assertLiveGiftSpendAllowed(userId, totalCoin, tx);
+        await this.spend(userId, {
+          amountCoin: totalCoin,
+          scene: "LIVE_GIFT",
+          refId: normalizedKey,
+          description: `赠送 ${gift.name} x${quantity}`,
+        }, tx);
 
-      return tx.giftRecord.create({
-        data: { userId, liveRoomId, toUserId, giftId, quantity, totalCoin },
+        return tx.giftRecord.create({
+          data: { idempotencyKey: normalizedKey, userId, liveRoomId, toUserId, giftId, quantity, totalCoin },
+        });
       });
-    });
+      created = true;
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      const concurrent = await this.prisma.giftRecord.findUnique({ where: { idempotencyKey: normalizedKey } });
+      if (!concurrent) throw error;
+      if (
+        concurrent.userId !== userId || concurrent.liveRoomId !== liveRoomId ||
+        concurrent.toUserId !== toUserId || concurrent.giftId !== giftId || concurrent.quantity !== quantity
+      ) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "送礼幂等键已被其他请求使用");
+      }
+      record = concurrent;
+    }
 
     // 平台抽成 + 圈主收益（fire-and-forget）
     // 换算：CircleRevenue 以「元」为口径（circle_join 传的是 priceYuan），礼物按币值除以币率转元。
     // 曾误用乘法致收益放大 coinRate(=10) 倍，污染圈主分成账目与研究院「创收」准入门槛，已修。
-    if (this.commission) {
+    if (created && this.commission) {
       const coinRate = await this.getCoinRate();
       const giftAmountYuan = coinRate > 0 ? (gift.priceCoin * quantity) / coinRate : 0;
       this.recordGiftCommission(liveRoomId, record.id, giftAmountYuan).catch(
         (err) => this.logger.warn("礼物抽成记录失败", err),
       );
+    }
+
+    if (created && this.im && liveRoomId !== "admin") {
+      void this.prisma.liveRoom.findUnique({
+        where: { id: liveRoomId },
+        select: { imGroupId: true },
+      }).then((room) => {
+        if (!room?.imGroupId) return;
+        return this.im?.relayLiveGift(room.imGroupId, {
+          recordId: record.id,
+          giftId: gift.id,
+          giftName: gift.name,
+          quantity,
+        }, userId);
+      }).catch((error) => {
+        this.logger.warn(`直播礼物 IM 实时中继失败 room=${liveRoomId}`, error);
+      });
     }
 
     return record;

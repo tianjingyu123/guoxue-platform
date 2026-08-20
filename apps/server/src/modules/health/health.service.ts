@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import {
   getTencentCredentialMode,
   getTencentInstanceRoleCredentialProvider,
+  hasTencentCloudCredentialConfiguration,
 } from "../../common/tencent-instance-role-credentials";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -309,6 +310,20 @@ export class HealthService {
     if (missing.length === required.length) return { status: "unconfigured" };
     if (missing.length) {
       return { status: "fail", error: `LIVE_CONFIG_MISSING:${missing.join(",")}` };
+    }
+    const mixingEnabled = /^(1|true|yes|on)$/i.test(String(process.env.LIVE_MULTI_GUEST_MIXING_ENABLED || ""));
+    const obsTrtcEnabled = /^(1|true|yes|on)$/i.test(String(process.env.LIVE_OBS_TRTC_INGEST_ENABLED || ""));
+    if (obsTrtcEnabled && !mixingEnabled) {
+      return { status: "fail", error: "LIVE_OBS_TRTC_REQUIRES_MIXING" };
+    }
+    if (obsTrtcEnabled && !String(process.env.TRTC_CALLBACK_KEY || process.env.TENCENT_CALLBACK_KEY || "").trim()) {
+      return { status: "fail", error: "LIVE_OBS_TRTC_CALLBACK_KEY_MISSING" };
+    }
+    if (mixingEnabled && !hasTencentCloudCredentialConfiguration(
+      process.env.TENCENT_SECRET_ID || "",
+      process.env.TENCENT_SECRET_KEY || "",
+    )) {
+      return { status: "fail", error: "LIVE_MIXING_CREDENTIAL_MISSING" };
     }
     return { status: "ok" };
   }

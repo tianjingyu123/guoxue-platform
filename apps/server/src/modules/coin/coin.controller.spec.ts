@@ -102,20 +102,20 @@ describe("CoinController", () => {
 
   it("POST /coin/gifts/send — 赠送礼物", async () => {
     const req: any = { user: { id: "u1" } };
-    const dto: any = { liveRoomId: "r1", toUserId: "u2", giftId: "g1", quantity: 3 };
+    const dto: any = { liveRoomId: "r1", toUserId: "u2", giftId: "g1", quantity: 3, idempotencyKey: "coin-gift:r1:request-001" };
     const result: any = await ctrl.sendGift(req, dto);
     expect(result.success).toBe(true);
-    expect(mockCoinSvc.sendGift).toHaveBeenCalledWith("u1", "r1", "u2", "g1", 3);
+    expect(mockCoinSvc.sendGift).toHaveBeenCalledWith("u1", "r1", "u2", "g1", 3, "coin-gift:r1:request-001");
   });
 
   it("POST /coin/gifts/send — 默认数量为1", async () => {
     const req: any = { user: { id: "u1" } };
-    const dto: any = { liveRoomId: "r1", toUserId: "u2", giftId: "g1" };
+    const dto: any = { liveRoomId: "r1", toUserId: "u2", giftId: "g1", idempotencyKey: "coin-gift:r1:request-002" };
     await ctrl.sendGift(req, dto);
-    expect(mockCoinSvc.sendGift).toHaveBeenCalledWith("u1", "r1", "u2", "g1", 1);
+    expect(mockCoinSvc.sendGift).toHaveBeenCalledWith("u1", "r1", "u2", "g1", 1, "coin-gift:r1:request-002");
   });
 
-  it("GET /coin/gifts/rank/:liveRoomId — 礼物排行", async () => {
+  it("GET /coin/gifts/rank/:liveRoomId — 授权管理角色读取礼物经营明细", async () => {
     const result: any = await ctrl.getGiftRank("r1");
     expect(result).toHaveLength(1);
     expect(mockCoinSvc.getGiftRank).toHaveBeenCalledWith("r1");

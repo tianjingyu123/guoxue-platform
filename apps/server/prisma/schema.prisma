@@ -121,6 +121,7 @@ model User {
   audioCallsMade        AudioCallRecord[]        @relation("Caller")
   audioCallsReceived    AudioCallRecord[]        @relation("Callee")
   giftRecords           GiftRecord[]
+  liveGiftSpendingPreference LiveGiftSpendingPreference?
   ebookProgresses       EbookProgress[]
   ebookBookmarks        EbookBookmark[]
   ebookNotes            EbookNote[]
@@ -1778,6 +1779,8 @@ model LiveMic {
   userId     String
   position   Int // 麦位序号 (1-6)
   status     String   @default("OCCUPIED") // OCCUPIED, MUTED, LOCKED, OPEN
+  mediaMode  String   @default("AUDIO") // AUDIO / VIDEO；由观众申请、主播批准后签发对应最小 TRTC 权限
+  source     String   @default("REQUEST") // REQUEST=观众申请 / INVITE=主播邀请
   joinedAt   DateTime @default(now())
 
   liveRoom LiveRoom @relation(fields: [liveRoomId], references: [id], onDelete: Cascade)
@@ -4128,14 +4131,15 @@ model Gift {
 }
 
 model GiftRecord {
-  id         String   @id @default(uuid())
-  userId     String // 赠送者
-  liveRoomId String // 直播间
-  toUserId   String // 接收者（主播）
-  giftId     String // 礼物ID
-  quantity   Int      @default(1) // 数量
-  totalCoin  Int // 总消费币数
-  createdAt  DateTime @default(now())
+  id             String   @id @default(uuid())
+  idempotencyKey String?  @unique // 兼容滚动发布：新客户端必传；旧节点退场后再迁移为非空
+  userId         String // 赠送者
+  liveRoomId     String // 直播间
+  toUserId       String // 接收者（主播）
+  giftId         String // 礼物ID
+  quantity       Int      @default(1) // 数量
+  totalCoin      Int // 总消费币数
+  createdAt      DateTime @default(now())
 
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   liveRoom LiveRoom @relation(fields: [liveRoomId], references: [id], onDelete: Cascade)
@@ -4145,6 +4149,19 @@ model GiftRecord {
   @@index([userId])
   @@index([giftId])
   @@index([toUserId])
+}
+
+/// 直播送礼消费保护：用户主动设置的单次/日累计限额与默认提醒。
+/// 送礼事务会锁定本行后核对当日已消费金额，防并发绕过日限额。
+model LiveGiftSpendingPreference {
+  userId          String   @id
+  singleLimitCoin Int
+  dailyLimitCoin  Int
+  reminderEnabled Boolean  @default(true)
+  configuredAt   DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ─────────────────────────────────────────────────

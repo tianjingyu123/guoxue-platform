@@ -22,8 +22,43 @@ describe("ImCallbackController", () => {
   });
 
   beforeEach(() => jest.clearAllMocks());
+  afterAll(() => { delete process.env.IM_ADMIN_ID; });
 
   it("应被定义", () => expect(ctrl).toBeDefined());
+
+  describe("Group.CallbackBeforeSendMsg", () => {
+    beforeEach(() => { process.env.IM_ADMIN_ID = "admin-001"; });
+
+    it("直播群拒绝客户端绕过业务审核直发", async () => {
+      await expect(ctrl.handleCallback({
+        CallbackCommand: "Group.CallbackBeforeSendMsg",
+        GroupId: "live_room1",
+        From_Account: "viewer1",
+        Operator_Account: "viewer1",
+      })).resolves.toEqual({
+        ActionStatus: "OK",
+        ErrorCode: 1,
+        ErrorInfo: "请通过直播互动接口发送消息",
+      });
+    });
+
+    it("直播群允许业务服务 REST 中继消息", async () => {
+      await expect(ctrl.handleCallback({
+        CallbackCommand: "Group.CallbackBeforeSendMsg",
+        GroupId: "live_room1",
+        From_Account: "viewer1",
+        Operator_Account: "admin-001",
+      })).resolves.toEqual({ ActionStatus: "OK", ErrorCode: 0, ErrorInfo: "" });
+    });
+
+    it("非直播群保持现有聊天链路", async () => {
+      await expect(ctrl.handleCallback({
+        CallbackCommand: "Group.CallbackBeforeSendMsg",
+        GroupId: "circle_1",
+        From_Account: "viewer1",
+      })).resolves.toEqual({ ActionStatus: "OK", ErrorCode: 0, ErrorInfo: "" });
+    });
+  });
 
   describe("C2C.CallbackAfterSendMsg", () => {
     it("单聊消息推送给接收方", async () => {

@@ -45,6 +45,13 @@ describe("HealthService", () => {
     delete process.env.LIVE_PLAY_KEY;
     delete process.env.TRTC_SDK_APP_ID;
     delete process.env.TRTC_SECRET_KEY;
+    delete process.env.LIVE_MULTI_GUEST_MIXING_ENABLED;
+    delete process.env.LIVE_OBS_TRTC_INGEST_ENABLED;
+    delete process.env.TRTC_CALLBACK_KEY;
+    delete process.env.TENCENT_CALLBACK_KEY;
+    delete process.env.TENCENT_SECRET_ID;
+    delete process.env.TENCENT_SECRET_KEY;
+    process.env.TENCENT_CREDENTIAL_MODE = "static";
   });
 
   afterAll(() => {
@@ -159,6 +166,43 @@ describe("HealthService", () => {
       process.env.TRTC_SECRET_KEY = "trtc-key";
       const result = await svc.check();
       expect(result.checks.live).toEqual({ status: "ok" });
+    });
+
+    it("多人混流启用但缺腾讯云 API 凭据时健康门禁失败", async () => {
+      process.env.LIVE_PUSH_DOMAIN = "push.example.com";
+      process.env.LIVE_PLAY_DOMAIN = "play.example.com";
+      process.env.LIVE_PUSH_KEY = "push-key";
+      process.env.LIVE_PLAY_KEY = "play-key";
+      process.env.TRTC_SDK_APP_ID = "1600030106";
+      process.env.TRTC_SECRET_KEY = "trtc-key";
+      process.env.LIVE_MULTI_GUEST_MIXING_ENABLED = "true";
+      const result = await svc.check();
+      expect(result.checks.live).toEqual({ status: "fail", error: "LIVE_MIXING_CREDENTIAL_MISSING" });
+    });
+
+    it("OBS 进 TRTC 启用但未启用统一混流时健康门禁失败", async () => {
+      process.env.LIVE_PUSH_DOMAIN = "push.example.com";
+      process.env.LIVE_PLAY_DOMAIN = "play.example.com";
+      process.env.LIVE_PUSH_KEY = "push-key";
+      process.env.LIVE_PLAY_KEY = "play-key";
+      process.env.TRTC_SDK_APP_ID = "1600030106";
+      process.env.TRTC_SECRET_KEY = "trtc-key";
+      process.env.LIVE_OBS_TRTC_INGEST_ENABLED = "true";
+      const result = await svc.check();
+      expect(result.checks.live).toEqual({ status: "fail", error: "LIVE_OBS_TRTC_REQUIRES_MIXING" });
+    });
+
+    it("OBS 进 TRTC 启用但缺回调验签密钥时健康门禁失败", async () => {
+      process.env.LIVE_PUSH_DOMAIN = "push.example.com";
+      process.env.LIVE_PLAY_DOMAIN = "play.example.com";
+      process.env.LIVE_PUSH_KEY = "push-key";
+      process.env.LIVE_PLAY_KEY = "play-key";
+      process.env.TRTC_SDK_APP_ID = "1600030106";
+      process.env.TRTC_SECRET_KEY = "trtc-key";
+      process.env.LIVE_MULTI_GUEST_MIXING_ENABLED = "true";
+      process.env.LIVE_OBS_TRTC_INGEST_ENABLED = "true";
+      const result = await svc.check();
+      expect(result.checks.live).toEqual({ status: "fail", error: "LIVE_OBS_TRTC_CALLBACK_KEY_MISSING" });
     });
   });
 });

@@ -158,6 +158,8 @@ export class RedisService implements OnModuleDestroy {
       return;
     }
     this.memory.delete(key);
+    this.setMemory.delete(key);
+    this.zsetMemory.delete(key);
   }
 
   /**
@@ -428,6 +430,26 @@ export class RedisService implements OnModuleDestroy {
     if (conn) return conn.zcard(key);
     const arr = this.zsetMemory.get(key);
     return arr ? arr.length : 0;
+  }
+
+  async zrem(key: string, member: string): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) return conn.zrem(key, member);
+    const arr = this.zsetMemory.get(key);
+    if (!arr) return 0;
+    const next = arr.filter((entry) => entry.member !== member);
+    this.zsetMemory.set(key, next);
+    return arr.length - next.length;
+  }
+
+  async zremrangebyscore(key: string, min: number, max: number): Promise<number> {
+    const conn = await this.getConn();
+    if (conn) return conn.zremrangebyscore(key, min, max);
+    const arr = this.zsetMemory.get(key);
+    if (!arr) return 0;
+    const next = arr.filter((entry) => entry.score < min || entry.score > max);
+    this.zsetMemory.set(key, next);
+    return arr.length - next.length;
   }
 
   async zremrangebyrank(key: string, start: number, stop: number): Promise<number> {

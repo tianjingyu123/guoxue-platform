@@ -4,6 +4,7 @@ import { PrismaService } from "../../prisma/prisma.service"
 import { RedisService } from "../../redis/redis.service"
 import { WechatPayService } from "../shop/wechat-pay.service"
 import { BusinessException } from "../../common/business.exception"
+import { ImService } from "../im/im.service"
 
 const mockWechatPay = {
   createNativeOrder: jest.fn().mockResolvedValue({ code_url: "weixin://wxpay/mock" }),
@@ -37,8 +38,21 @@ const mockPrisma: any = {
   },
   giftRecord: {
     create: jest.fn(),
+    findUnique: jest.fn(),
     findMany: jest.fn(),
+    aggregate: jest.fn(),
   },
+  user: {
+    findUnique: jest.fn(),
+  },
+  liveGiftSpendingPreference: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+  },
+  liveRoom: {
+    findUnique: jest.fn(),
+  },
+  $executeRawUnsafe: jest.fn().mockResolvedValue(1),
   $transaction: jest.fn((arg: any): any => {
     if (typeof arg === "function") {
       const tx: Record<string, any> = {
@@ -60,8 +74,13 @@ const mockPrisma: any = {
         },
         giftRecord: {
           create: mockPrisma.giftRecord.create,
+          findUnique: mockPrisma.giftRecord.findUnique,
           findMany: mockPrisma.giftRecord.findMany,
+          aggregate: mockPrisma.giftRecord.aggregate,
         },
+        user: mockPrisma.user,
+        liveGiftSpendingPreference: mockPrisma.liveGiftSpendingPreference,
+        $executeRawUnsafe: mockPrisma.$executeRawUnsafe,
       };
       return arg(tx);
     }
@@ -74,6 +93,12 @@ const mockRedis = {
   setJson: jest.fn(),
 }
 
+const mockIm = {
+  sendGroupMsg: jest.fn().mockResolvedValue({ ActionStatus: "OK", ErrorCode: 0 }),
+  relayLiveGroupMsg: jest.fn().mockResolvedValue({ ActionStatus: "OK", ErrorCode: 0 }),
+  relayLiveGift: jest.fn().mockResolvedValue({ ActionStatus: "OK", ErrorCode: 0 }),
+}
+
 describe("CoinService", () => {
   let svc: CoinService
 
@@ -84,6 +109,7 @@ describe("CoinService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedis },
         { provide: WechatPayService, useValue: mockWechatPay },
+        { provide: ImService, useValue: mockIm },
       ],
     }).compile()
     svc = mod.get(CoinService)
@@ -295,20 +321,116 @@ describe("CoinService", () => {
     });
   });
 
+  describe("直播送礼消费保护", () => {
+    beforeEach(() => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        identityVerified: true,
+        birthday: new Date("1990-01-01T00:00:00.000Z"),
+      })
+      mockPrisma.liveGiftSpendingPreference.findUnique.mockResolvedValue({
+        userId: "u1",
+        singleLimitCoin: 100,
+        dailyLimitCoin: 500,
+        reminderEnabled: true,
+      })
+      mockPrisma.giftRecord.aggregate.mockResolvedValue({ _sum: { totalCoin: 80 } })
+    })
+
+    it("返回脱敏后的年龄资格、限额与当日消费", async () => {
+      const result = await svc.getLiveGiftSpendingPreference("u1")
+      expect(result).toEqual(expect.objectContaining({
+        configured: true,
+        eligible: true,
+        singleLimitCoin: 100,
+        dailyLimitCoin: 500,
+        spentTodayCoin: 80,
+        reminderEnabled: true,
+      }))
+      expect(result).not.toHaveProperty("birthday")
+    })
+
+    it("首次设置默认开启消费提醒", async () => {
+      mockPrisma.liveGiftSpendingPreference.upsert.mockResolvedValue({})
+      jest.spyOn(svc, "getLiveGiftSpendingPreference").mockResolvedValueOnce({ configured: true } as any)
+      await svc.updateLiveGiftSpendingPreference("u1", { singleLimitCoin: 50, dailyLimitCoin: 200 })
+      expect(mockPrisma.liveGiftSpendingPreference.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        create: expect.objectContaining({ reminderEnabled: true }),
+        update: expect.objectContaining({ reminderEnabled: true }),
+      }))
+    })
+
+    it("拒绝未成年人、未设置限额及超限送礼", async () => {
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        identityVerified: true,
+        birthday: new Date(),
+      })
+      await expect(svc.assertLiveGiftSpendAllowed("u1", 5)).rejects.toThrow("未成年人禁止")
+
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        identityVerified: true,
+        birthday: new Date("1990-01-01T00:00:00.000Z"),
+      })
+      mockPrisma.liveGiftSpendingPreference.findUnique.mockResolvedValueOnce(null)
+      await expect(svc.assertLiveGiftSpendAllowed("u1", 5)).rejects.toThrow("请先设置")
+
+      await expect(svc.assertLiveGiftSpendAllowed("u1", 101)).rejects.toThrow("单次限额")
+      mockPrisma.giftRecord.aggregate.mockResolvedValueOnce({ _sum: { totalCoin: 480 } })
+      await expect(svc.assertLiveGiftSpendAllowed("u1", 30)).rejects.toThrow("日累计限额")
+    })
+  })
+
   describe("sendGift", () => {
+    beforeEach(() => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        identityVerified: true,
+        birthday: new Date("1990-01-01T00:00:00.000Z"),
+      })
+      mockPrisma.liveGiftSpendingPreference.findUnique.mockResolvedValue({
+        userId: "u1",
+        singleLimitCoin: 100,
+        dailyLimitCoin: 500,
+        reminderEnabled: true,
+      })
+      mockPrisma.giftRecord.aggregate.mockResolvedValue({ _sum: { totalCoin: 0 } })
+    })
     it("打赏成功", async () => {
+      mockPrisma.giftRecord.findUnique.mockResolvedValue(null)
       mockPrisma.gift.findUnique.mockResolvedValue({ id: "g1", name: "玫瑰", priceCoin: 5 })
       mockPrisma.virtualCoinAccount.findUnique.mockResolvedValue({ userId: "u1", balance: 100 })
       mockPrisma.virtualCoinAccount.updateMany.mockResolvedValue({ count: 1 })
       mockPrisma.virtualCoinTransaction.create.mockResolvedValue({ id: "gt" })
-      mockPrisma.giftRecord.create.mockResolvedValue({ id: "gr1", totalCoin: 5 })
-      const result = await svc.sendGift("u1", "room1", "host1", "g1", 1)
+      mockPrisma.giftRecord.create.mockResolvedValue({
+        id: "gr1", idempotencyKey: "coin-gift:room1:request-001", userId: "u1", liveRoomId: "room1",
+        toUserId: "host1", giftId: "g1", quantity: 1, totalCoin: 5,
+      })
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ imGroupId: "live_room1" })
+      const result = await svc.sendGift("u1", "room1", "host1", "g1", 1, "coin-gift:room1:request-001")
       expect(result.totalCoin).toBe(5)
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(mockIm.relayLiveGift).toHaveBeenCalledWith("live_room1", {
+        recordId: "gr1",
+        giftId: "g1",
+        giftName: "玫瑰",
+        quantity: 1,
+      }, "u1")
     })
 
     it("礼物不存在", async () => {
+      mockPrisma.giftRecord.findUnique.mockResolvedValue(null)
       mockPrisma.gift.findUnique.mockResolvedValue(null)
-      await expect(svc.sendGift("u1", "room1", "host1", "no", 1)).rejects.toThrow(BusinessException)
+      await expect(svc.sendGift("u1", "room1", "host1", "no", 1, "coin-gift:room1:request-002")).rejects.toThrow(BusinessException)
+    })
+
+    it("相同幂等键重放不再次扣币", async () => {
+      mockPrisma.giftRecord.findUnique.mockResolvedValue({
+        id: "gr1", idempotencyKey: "coin-gift:room1:request-001", userId: "u1", liveRoomId: "room1",
+        toUserId: "host1", giftId: "g1", quantity: 1, totalCoin: 5,
+      })
+
+      const result = await svc.sendGift("u1", "room1", "host1", "g1", 1, "coin-gift:room1:request-001")
+
+      expect(result.id).toBe("gr1")
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled()
     })
   })
 

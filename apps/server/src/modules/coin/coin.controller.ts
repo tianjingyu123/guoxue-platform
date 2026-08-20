@@ -192,12 +192,23 @@ export class CoinController {
   sendGift(@Req() req: Request, @Body() dto: SendGiftDto) {
     const targetUserId = dto.toUserId || dto.userId;
     if (!targetUserId) throw new BadRequestException("请指定接收用户ID");
-    return this.coin.sendGift(req.user.id, dto.liveRoomId || "admin", targetUserId, dto.giftId, dto.quantity || 1);
+    return this.coin.sendGift(
+      req.user.id,
+      dto.liveRoomId || "admin",
+      targetUserId,
+      dto.giftId,
+      dto.quantity || 1,
+      dto.idempotencyKey,
+    );
   }
 
   @Get("gifts/rank/:liveRoomId")
-  @ApiOperation({ summary: "直播礼物排行榜", description: "获取指定直播间的送礼排行" })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
+  @ApiOperation({ summary: "直播礼物经营明细", description: "仅授权管理角色可查看指定直播间的送礼经营明细" })
   @ApiResponse({ status: 200, description: "成功" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
   getGiftRank(@Param("liveRoomId") liveRoomId: string) {
     return this.coin.getGiftRank(liveRoomId);
   }

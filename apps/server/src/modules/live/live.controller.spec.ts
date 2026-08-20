@@ -5,6 +5,7 @@ import { LiveQualityService } from "./live-quality.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
+import { TrtcCallbackGuard } from "../../common/trtc-callback.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
@@ -13,10 +14,22 @@ const mockLiveSvc = {
   listRooms: jest.fn().mockResolvedValue([{ id: "r1", title: "国学直播" }]),
   listCourseRooms: jest.fn().mockResolvedValue([{ id: "r1", courseId: "c1" }]),
   getRoom: jest.fn().mockResolvedValue({ id: "r1", title: "国学直播", status: "LIVE" }),
+  getWatchContext: jest.fn().mockResolvedValue({
+    room: { id: "r1", status: "LIVING", allowGift: true },
+    viewer: { canComment: true, canLike: true, canGift: true },
+    interaction: { allowComment: true, allowLike: true, allowGift: true },
+    online: { count: 1, avatars: [] },
+  }),
+  listComments: jest.fn().mockResolvedValue({ comments: [], total: 0, page: 1, pageSize: 20 }),
+  touchPresence: jest.fn().mockResolvedValue({ onlineCount: 1, firstVisit: true }),
+  leavePresence: jest.fn().mockResolvedValue({ onlineCount: 0 }),
   updateRoom: jest.fn().mockResolvedValue({ id: "r1", title: "更新标题" }),
   updateRoomProducts: jest.fn().mockResolvedValue({ success: true, count: 2, productIds: ["p2", "p1"] }),
+  featureRoomProduct: jest.fn().mockResolvedValue({ featuredProductId: "p1" }),
   startLive: jest.fn().mockResolvedValue({ pushUrl: "rtmp://...", playUrl: "https://..." }),
+  startObsLive: jest.fn().mockResolvedValue({ id: "r1", status: "LIVING" }),
   getStreamUrls: jest.fn().mockResolvedValue({ pushUrl: "rtmp://...", playUrl: "https://..." }),
+  getStreamStatus: jest.fn().mockResolvedValue({ roomId: "r1", roomStatus: "WAITING", status: "online" }),
   getPlayUrl: jest.fn().mockResolvedValue({ playUrl: "https://...flv" }),
   endRoom: jest.fn().mockResolvedValue({ id: "r1", status: "ENDED" }),
   updateStatus: jest.fn().mockResolvedValue({ id: "r1", status: "REPLAY" }),
@@ -26,6 +39,8 @@ const mockLiveSvc = {
   manageMic: jest.fn().mockResolvedValue({ success: true }),
   listMics: jest.fn().mockResolvedValue([{ position: 1, userId: "u1" }]),
   getRtcConfig: jest.fn().mockResolvedValue({ sdkAppId: 1600030106, strRoomId: "room_r1" }),
+  markHostReady: jest.fn().mockResolvedValue({ active: true, streamMode: "MIXED" }),
+  markHostNotReady: jest.fn().mockResolvedValue({ active: false, streamMode: "ORIGIN" }),
   listScheduled: jest.fn().mockResolvedValue([{ id: "r1", startTime: new Date() }]),
   bookRoom: jest.fn().mockResolvedValue({ booked: true }),
   unbookRoom: jest.fn().mockResolvedValue({ booked: false }),
@@ -42,8 +57,11 @@ const mockLiveSvc = {
   endFlashSale: jest.fn().mockResolvedValue({ id: "fs1", status: "ENDED" }),
   listFlashSales: jest.fn().mockResolvedValue([{ id: "fs1" }]),
   handleLiveEvent: jest.fn(),
+  handleTrtcEvent: jest.fn(),
   handleAuditCallback: jest.fn().mockResolvedValue({ success: true }),
   listAuditLogs: jest.fn().mockResolvedValue([{ id: "log1", result: "PASS" }]),
+  getGiftSpendingPreference: jest.fn().mockResolvedValue({ configured: false, eligible: true }),
+  updateGiftSpendingPreference: jest.fn().mockResolvedValue({ configured: true, eligible: true }),
   giftRanking: jest.fn().mockResolvedValue([]),
   getStreamerSettings: jest.fn().mockResolvedValue({ profile: { name: "直播间" } }),
   saveStreamerSettings: jest.fn().mockResolvedValue({ success: true }),
@@ -72,6 +90,7 @@ describe("LiveController", () => {
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => true })
       .overrideGuard(RolesGuard).useValue({ canActivate: () => true })
       .overrideGuard(TencentCallbackGuard).useValue({ canActivate: () => true })
+      .overrideGuard(TrtcCallbackGuard).useValue({ canActivate: () => true })
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .overrideGuard(ThrottleGuard).useValue({ canActivate: () => true })
       .compile();
@@ -132,6 +151,20 @@ describe("LiveController", () => {
   it("GET /live/rooms/:id — 直播间详情", async () => {
     const result: any = await ctrl.getRoom("r1", { user: undefined } as any);
     expect(result.status).toBe("LIVE");
+  });
+
+  it("GET /live/rooms/:id/comments — 可选登录身份透传直播公屏", async () => {
+    const req: any = { user: { id: "viewer1" } };
+    const result: any = await ctrl.listComments("r1", req, 1 as any, 100 as any);
+    expect(result.total).toBe(0);
+    expect(mockLiveSvc.listComments).toHaveBeenCalledWith("r1", "viewer1", 1, 100);
+  });
+
+  it("GET /live/rooms/:id/watch-context — 返回服务端互动能力契约", async () => {
+    const result: any = await ctrl.getWatchContext("r1", { user: { id: "viewer1" } } as any);
+    expect(result.viewer.canComment).toBe(true);
+    expect(result.online.avatars).toEqual([]);
+    expect(mockLiveSvc.getWatchContext).toHaveBeenCalledWith("r1", "viewer1");
   });
 
   it("PUT /live/rooms/:id — 更新直播间", async () => {
@@ -218,6 +251,27 @@ describe("LiveController", () => {
     expect(mockLiveSvc.manageMic).toHaveBeenCalledWith("r1", "host1", dto, false);
   });
 
+  it("PUT /live/rooms/:id/featured-product — 设置讲解商品", async () => {
+    const req: any = { user: { id: "host1", roles: [] } };
+    const result: any = await ctrl.featureRoomProduct(req, "r1", "p1");
+    expect(result.featuredProductId).toBe("p1");
+    expect(mockLiveSvc.featureRoomProduct).toHaveBeenCalledWith("host1", "r1", "p1", false);
+  });
+
+  it("PUT /live/rooms/:id/presence — 游客心跳透传会话", async () => {
+    const req: any = {};
+    const dto = { clientSessionId: "live-session-0001" };
+    await expect(ctrl.touchPresence("r1", dto, req)).resolves.toEqual({ onlineCount: 1, firstVisit: true });
+    expect(mockLiveSvc.touchPresence).toHaveBeenCalledWith("r1", dto.clientSessionId, undefined);
+  });
+
+  it("POST /live/rooms/:id/presence/leave — 登录用户离房透传身份", async () => {
+    const req: any = { user: { id: "viewer1" } };
+    const dto = { clientSessionId: "live-session-0001" };
+    await expect(ctrl.leavePresence("r1", dto, req)).resolves.toEqual({ onlineCount: 0 });
+    expect(mockLiveSvc.leavePresence).toHaveBeenCalledWith("r1", dto.clientSessionId, "viewer1");
+  });
+
   it("GET /live/rooms/:id/mics — 麦位列表", async () => {
     const req: any = { user: { id: "u1", roles: [] } };
     const result: any = await ctrl.listMics("r1", req);
@@ -250,8 +304,9 @@ describe("LiveController", () => {
   });
 
   it("GET /live/rooms/:id/bookings — 预约人数", async () => {
-    const result: any = await ctrl.getBookingCount("r1");
+    const result: any = await ctrl.getBookingCount("r1", {} as any);
     expect(result.count).toBe(50);
+    expect(mockLiveSvc.getBookingCount).toHaveBeenCalledWith("r1", undefined);
   });
 
   it("GET /live/rooms/:id/muted-users — 房主读取禁言名单", async () => {
@@ -266,6 +321,26 @@ describe("LiveController", () => {
     expect(mockLiveSvc.listMutedUsers).toHaveBeenCalledWith("r1", "admin1", true);
   });
 
+  it("GET /live/rooms/:id/gift-ranking — 仅向服务层透传主播或管理员身份", async () => {
+    const req: any = { user: { id: "host1", roles: [] } };
+    await ctrl.giftRanking("r1", req);
+    expect(mockLiveSvc.giftRanking).toHaveBeenCalledWith("r1", "host1", false);
+
+    const adminReq: any = { user: { id: "admin1", roles: ["OPERATION_ADMIN"] } };
+    await ctrl.giftRanking("r1", adminReq);
+    expect(mockLiveSvc.giftRanking).toHaveBeenCalledWith("r1", "admin1", true);
+  });
+
+  it("GET/PUT /live/gift-spending-preference — 只操作当前用户的消费保护设置", async () => {
+    const req: any = { user: { id: "viewer1", roles: [] } };
+    await ctrl.getGiftSpendingPreference(req);
+    expect(mockLiveSvc.getGiftSpendingPreference).toHaveBeenCalledWith("viewer1");
+
+    const dto = { singleLimitCoin: 100, dailyLimitCoin: 500, reminderEnabled: true };
+    await ctrl.updateGiftSpendingPreference(req, dto);
+    expect(mockLiveSvc.updateGiftSpendingPreference).toHaveBeenCalledWith("viewer1", dto);
+  });
+
   it("DELETE /live/rooms/:id/mute/:userId — 解除禁言", async () => {
     const req: any = { user: { id: "host1", roles: [] } };
     await ctrl.unmuteUser("r1", "u1", req);
@@ -277,6 +352,35 @@ describe("LiveController", () => {
     const result: any = await ctrl.handleCallback(body);
     expect(result.code).toBe(0);
     expect(mockLiveSvc.handleLiveEvent).toHaveBeenCalled();
+  });
+
+  it("POST /live/trtc/callback — TRTC 房间与媒体回调", async () => {
+    const body = { EventGroupId: 2, EventType: 201, EventInfo: { RoomId: "room_r1", UserId: "u_1" } };
+    const result: any = await ctrl.handleTrtcCallback(body);
+    expect(result.code).toBe(0);
+    expect(mockLiveSvc.handleTrtcEvent).toHaveBeenCalledWith(body);
+  });
+
+  it("PUT/DELETE /live/rooms/:id/host/ready — 主播统一输出租约", async () => {
+    const req: any = { user: { id: "host1", roles: [] } };
+    await expect(ctrl.markHostReady("r1", req)).resolves.toEqual({ active: true, streamMode: "MIXED" });
+    await expect(ctrl.markHostNotReady("r1", req)).resolves.toEqual({ active: false, streamMode: "ORIGIN" });
+    expect(mockLiveSvc.markHostReady).toHaveBeenCalledWith("r1", "host1");
+    expect(mockLiveSvc.markHostNotReady).toHaveBeenCalledWith("r1", "host1");
+  });
+
+  it("GET /live/rooms/:id/stream-status — 主播读取真实推流态", async () => {
+    const req: any = { user: { id: "host1", roles: [] } };
+    const result: any = await ctrl.getStreamStatus("r1", req);
+    expect(result.status).toBe("online");
+    expect(mockLiveSvc.getStreamStatus).toHaveBeenCalledWith("r1", "host1", false);
+  });
+
+  it("PUT /live/rooms/:id/start-obs — OBS 验流后开播", async () => {
+    const req: any = { user: { id: "host1", roles: [] } };
+    const result: any = await ctrl.startObsRoom("r1", req);
+    expect(result.status).toBe("LIVING");
+    expect(mockLiveSvc.startObsLive).toHaveBeenCalledWith("r1", "host1", false);
   });
 
   it("POST /live/audit/callback — 审核回调", async () => {

@@ -3,6 +3,7 @@ import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { LiveQualityService } from "./live-quality.service";
+import { LivePresenceService } from "./live-presence.service";
 
 @Injectable()
 export class LiveDataCollectorService {
@@ -12,6 +13,7 @@ export class LiveDataCollectorService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly quality: LiveQualityService,
+    private readonly presence: LivePresenceService,
   ) {}
 
   @Cron("* * * * *")
@@ -34,7 +36,7 @@ export class LiveDataCollectorService {
     for (const room of liveRooms) {
       try {
         const [onlineCount, comments, likes, gifts, orders] = await Promise.all([
-          this.redis.get(`live:online:${room.id}`).then(v => parseInt(v || "0") || 0).catch((err) => { this.logger.error(`获取直播间在线人数失败`, err.stack); return 0; }),
+          this.presence.getOnlineCount(room.id).catch((err) => { this.logger.error(`获取直播间在线人数失败`, err.stack); return 0; }),
           this.prisma.comment.count({
             where: { targetType: "LIVESTREAM", targetId: room.id, createdAt: { gte: oneMinuteAgo, lt: minuteStart } },
           }),

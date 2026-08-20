@@ -10,11 +10,15 @@ import { ImService } from "../im/im.service";
 import { BusinessException } from "../../common/business.exception";
 import { PUBLIC_QUARANTINED_IDS } from "../../common/public-content-quarantine";
 import { CirclePublishGrantService } from "../circle/circle-publish-grant.service";
+import { LivePresenceService } from "./live-presence.service";
+import { toLiveObsTrtcUserId, toLiveTrtcRoomId } from "./live-trtc.util";
+import { CoinService } from "../coin/coin.service";
 
 const mockPrisma = {
   liveRoom: {
     create: jest.fn(),
     findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
@@ -40,6 +44,11 @@ const mockPrisma = {
   giftRecord: {
     aggregate: jest.fn(),
     groupBy: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+  },
+  gift: {
+    findUnique: jest.fn(),
   },
   order: {
     aggregate: jest.fn(),
@@ -47,13 +56,16 @@ const mockPrisma = {
   comment: {
     count: jest.fn(),
     findMany: jest.fn(),
+    create: jest.fn(),
   },
   like: {
     count: jest.fn(),
+    upsert: jest.fn(),
   },
   liveProduct: {
     deleteMany: jest.fn(),
     createMany: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
   },
   liveMutedUser: {
@@ -65,6 +77,7 @@ const mockPrisma = {
   },
   liveMic: {
     deleteMany: jest.fn(),
+    findMany: jest.fn(),
   },
   circleMember: {
     findFirst: jest.fn(),
@@ -76,17 +89,25 @@ const mockPrisma = {
   },
   follow: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     count: jest.fn(),
   },
   $transaction: jest.fn(),
 };
 
 const mockRedis = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+  del: jest.fn().mockResolvedValue(undefined),
+  getJson: jest.fn().mockResolvedValue(null),
+  setJson: jest.fn().mockResolvedValue(undefined),
   sadd: jest.fn().mockResolvedValue(1),
   srem: jest.fn().mockResolvedValue(1),
   scard: jest.fn().mockResolvedValue(5),
   sismember: jest.fn().mockResolvedValue(false),
   smembers: jest.fn().mockResolvedValue([]),
+  setNX: jest.fn().mockResolvedValue(true),
+  ttl: jest.fn().mockResolvedValue(3),
 };
 const mockNotification = {
   send: jest.fn().mockResolvedValue({ id: "n1" }),
@@ -99,8 +120,25 @@ const mockStream = {
   genPlayUrlWithAuth: jest.fn().mockReturnValue({ flv: "https://play.example.com/live/room_r1.flv" }),
 };
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
-const mockIm = { createGroup: jest.fn().mockResolvedValue({ GroupId: "live_r1" }) };
+const mockIm = {
+  createGroup: jest.fn().mockResolvedValue({ GroupId: "live_r1" }),
+  sendGroupMsg: jest.fn().mockResolvedValue({ ActionStatus: "OK", ErrorCode: 0 }),
+  relayLiveGroupMsg: jest.fn().mockResolvedValue({ ActionStatus: "OK", ErrorCode: 0 }),
+  relayLiveGift: jest.fn().mockResolvedValue({ ActionStatus: "OK", ErrorCode: 0 }),
+};
 const mockPublishGrants = { assertCanPublish: jest.fn().mockResolvedValue(undefined) };
+const mockPresence = {
+  getOnlineCount: jest.fn().mockResolvedValue(2),
+  touch: jest.fn().mockResolvedValue({ onlineCount: 2, firstVisit: true }),
+  leave: jest.fn().mockResolvedValue({ onlineCount: 1 }),
+  clearActive: jest.fn().mockResolvedValue(undefined),
+};
+const mockCoin = {
+  getLiveGiftSpendingPreference: jest.fn().mockResolvedValue({ configured: false, eligible: true }),
+  updateLiveGiftSpendingPreference: jest.fn().mockResolvedValue({ configured: true, eligible: true }),
+  assertLiveGiftSpendAllowed: jest.fn().mockResolvedValue({ spentTodayCoin: 0, reminderEnabled: true }),
+  spend: jest.fn().mockResolvedValue({ remaining: 100 }),
+};
 const mockAudit = {
   moderateTextOrThrow: jest.fn().mockResolvedValue(undefined),
   moderateImageOrThrow: jest.fn().mockResolvedValue(undefined),
@@ -123,6 +161,8 @@ describe("LiveService", () => {
         { provide: WebhookService, useValue: mockWebhook },
         { provide: AuditService, useValue: mockAudit },
         { provide: CirclePublishGrantService, useValue: mockPublishGrants },
+        { provide: LivePresenceService, useValue: mockPresence },
+        { provide: CoinService, useValue: mockCoin },
         { provide: NotificationService, useValue: mockNotification },
         { provide: ImService, useValue: mockIm },
       ],
@@ -133,6 +173,11 @@ describe("LiveService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockStream.isReady.mockReturnValue(true);
+    mockRedis.getJson.mockResolvedValue(null);
+    mockRedis.setNX.mockResolvedValue(true);
+    delete process.env.LIVE_OBS_TRTC_INGEST_ENABLED;
+    delete process.env.TRTC_SDK_APP_ID;
+    delete process.env.TRTC_SECRET_KEY;
     mockPrisma.$transaction.mockImplementation(async (run: (tx: typeof mockPrisma) => unknown) => run(mockPrisma));
   });
 
@@ -519,7 +564,7 @@ describe("LiveService", () => {
     });
   });
 
-  describe("getRoom 观看计数", () => {
+  describe("getRoom 纯读取", () => {
     const room = {
       id: "room1", hostUserId: "host1", userId: "creator1", visibility: "CIRCLE_ONLY",
       auditStatus: "APPROVED", circleId: "circle1", products: [], user: null, circle: null,
@@ -531,14 +576,11 @@ describe("LiveService", () => {
       expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
     });
 
-    it("圈成员查看圈内详情正常计一次观看", async () => {
+    it("圈成员轮询详情不会虚增观看量", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue(room);
       mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "member1" });
-      mockPrisma.liveRoom.update.mockResolvedValue({});
       await svc.getRoom("room1", "viewer1");
-      expect(mockPrisma.liveRoom.update).toHaveBeenCalledWith({
-        where: { id: "room1" }, data: { viewCount: { increment: 1 } },
-      });
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
     });
 
     it("非圈成员即使知道房间 ID 也无法读取圈内详情", async () => {
@@ -546,6 +588,29 @@ describe("LiveService", () => {
       mockPrisma.circleMember.findFirst.mockResolvedValue(null);
       await expect(svc.getRoom("room1", "outsider1")).rejects.toThrow(BusinessException);
       expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("直播观看会话", () => {
+    const livingRoom = {
+      id: "room1", hostUserId: "host1", userId: "creator1", status: "LIVING",
+      visibility: "PLATFORM", auditStatus: "APPROVED", circleId: null,
+    };
+
+    it("观众心跳进入唯一在线服务", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(livingRoom);
+
+      await expect(svc.touchPresence("room1", "live-session-0001", "viewer1"))
+        .resolves.toEqual({ onlineCount: 2, firstVisit: true });
+      expect(mockPresence.touch).toHaveBeenCalledWith("room1", "live-session-0001", "viewer1");
+    });
+
+    it("主播查看自己的直播不计为观众", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(livingRoom);
+
+      await expect(svc.touchPresence("room1", "live-session-0001", "host1"))
+        .resolves.toEqual({ onlineCount: 2, firstVisit: false });
+      expect(mockPresence.touch).not.toHaveBeenCalled();
     });
   });
 
@@ -662,6 +727,134 @@ describe("LiveService", () => {
 
       await expect(svc.getPlayUrl("room1", "outsider1")).rejects.toThrow(BusinessException);
       expect(mockStream.genPlayUrlWithAuth).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("直播公屏可见性", () => {
+    const circleRoom = {
+      id: "room1",
+      hostUserId: "host1",
+      userId: "creator1",
+      circleId: "circle1",
+      visibility: "CIRCLE_ONLY",
+      auditStatus: "APPROVED",
+      status: "LIVING",
+    };
+
+    it("匿名和圈外用户不能读取圈内直播评论", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(circleRoom);
+      await expect(svc.listComments("room1")).rejects.toThrow(BusinessException);
+
+      mockPrisma.circleMember.findFirst.mockResolvedValue(null);
+      await expect(svc.listComments("room1", "outsider1")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.comment.findMany).not.toHaveBeenCalled();
+    });
+
+    it("有效圈成员只读取公开且未软删除评论，并强制每页最多20条", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(circleRoom);
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "member1" });
+      mockPrisma.comment.findMany.mockResolvedValue([{ id: "comment1", status: "PUBLISHED", deletedAt: null }]);
+      mockPrisma.comment.count.mockResolvedValue(1);
+
+      await expect(svc.listComments("room1", "member1", 1, 100)).resolves.toEqual(
+        expect.objectContaining({ total: 1, pageSize: 20 }),
+      );
+      expect(mockPrisma.comment.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          targetType: "LIVESTREAM",
+          targetId: "room1",
+          parentId: null,
+          status: "PUBLISHED",
+          deletedAt: null,
+        },
+        include: expect.objectContaining({
+          replies: expect.objectContaining({ where: { status: "PUBLISHED", deletedAt: null } }),
+        }),
+        take: 20,
+      }));
+    });
+
+    it("圈外用户不能通过直播专属评论或点赞写接口绕过可见性", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(circleRoom);
+      mockPrisma.circleMember.findFirst.mockResolvedValue(null);
+
+      await expect(svc.sendComment("room1", "outsider1", "绕过评论")).rejects.toThrow(BusinessException);
+      await expect(svc.toggleLike("room1", "outsider1")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.comment.create).not.toHaveBeenCalled();
+      expect(mockPrisma.like.upsert).not.toHaveBeenCalled();
+    });
+
+    it("watch-context 返回真实互动能力且不暴露在线身份", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue(circleRoom);
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "member1" });
+      mockPrisma.user.findUnique.mockResolvedValue({ creatorSettings: { livePrivacy: { allowGift: false } } });
+      mockPrisma.liveMutedUser.findUnique.mockResolvedValue(null);
+      mockRedis.getJson.mockResolvedValue({ followersOnly: false });
+
+      await expect(svc.getWatchContext("room1", "member1")).resolves.toEqual(expect.objectContaining({
+        room: expect.objectContaining({ allowGift: false }),
+        viewer: expect.objectContaining({ canComment: true, canLike: true, canGift: false }),
+        interaction: { allowComment: true, allowLike: true, allowGift: false },
+        online: { count: 2, avatars: [] },
+      }));
+    });
+  });
+
+  describe("直播互动治理", () => {
+    beforeEach(() => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "room1",
+        status: "LIVING",
+        hostUserId: "host1",
+      });
+      mockPrisma.liveMutedUser.findUnique.mockResolvedValue(null);
+      mockPrisma.comment.create.mockResolvedValue({ id: "comment1", content: "你好" });
+    });
+
+    it("慢速模式使用 Redis 原子租约阻止同一用户连续刷屏", async () => {
+      mockRedis.getJson.mockResolvedValue({ slowModeSeconds: 5, followersOnly: false });
+      mockRedis.setNX.mockResolvedValue(false);
+      mockRedis.ttl.mockResolvedValue(4);
+
+      await expect(svc.sendComment("room1", "viewer1", "你好")).rejects.toThrow("4 秒后再评论");
+      expect(mockPrisma.comment.create).not.toHaveBeenCalled();
+    });
+
+    it("仅关注者评论模式拒绝未关注用户但不影响主播", async () => {
+      mockRedis.getJson.mockResolvedValue({ slowModeSeconds: 0, followersOnly: true });
+      mockPrisma.follow.findUnique.mockResolvedValue(null);
+
+      await expect(svc.sendComment("room1", "viewer1", "你好")).rejects.toThrow("仅允许已关注主播");
+      await expect(svc.sendComment("room1", "host1", "欢迎大家")).resolves.toEqual(
+        expect.objectContaining({ id: "comment1" }),
+      );
+    });
+
+    it("主播可设置互动规则并获得规范化回读", async () => {
+      await expect(svc.updateModerationSettings("room1", "host1", {
+        slowModeSeconds: 10,
+        followersOnly: true,
+      })).resolves.toEqual({ slowModeSeconds: 10, followersOnly: true });
+      expect(mockRedis.setJson).toHaveBeenCalledWith(
+        "live:moderation:room1",
+        { slowModeSeconds: 10, followersOnly: true },
+        26 * 60 * 60,
+      );
+    });
+
+    it("评论通过审核并持久化后由服务端中继到直播 IM 群", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "room1",
+        status: "LIVING",
+        hostUserId: "host1",
+        imGroupId: "live_room1",
+      });
+
+      await expect(svc.sendComment("room1", "viewer1", "讲得很好")).resolves.toEqual(
+        expect.objectContaining({ id: "comment1" }),
+      );
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(mockIm.relayLiveGroupMsg).toHaveBeenCalledWith("live_room1", "你好", "viewer1");
     });
   });
 
@@ -828,6 +1021,18 @@ describe("LiveService", () => {
       );
     });
 
+    it("直播列表返回实时在线人数，不再用累计观看冒充在线", async () => {
+      mockPrisma.liveRoom.findMany.mockResolvedValue([{
+        id: "r1", status: "LIVING", viewCount: 999, user: null, circle: null, _count: { products: 0 },
+      }]);
+      mockPrisma.liveRoom.count.mockResolvedValue(1);
+      mockPresence.getOnlineCount.mockResolvedValueOnce(7);
+
+      const result = await svc.listRooms("LIVING");
+
+      expect(result.rooms[0]).toMatchObject({ id: "r1", viewCount: 999, onlineCount: 7 });
+    });
+
     it("带 circleId（圈内列表）不加开放范围过滤，但排除 SELF_ONLY/已下架", async () => {
       mockPrisma.liveRoom.findMany.mockResolvedValue([]);
       mockPrisma.liveRoom.count.mockResolvedValue(0);
@@ -885,8 +1090,9 @@ describe("LiveService", () => {
 
   describe("getConsoleData", () => {
     it("返回直播间真实画质档位且空数据使用零值", async () => {
+      mockPresence.getOnlineCount.mockResolvedValueOnce(0);
       mockPrisma.liveRoom.findUnique.mockResolvedValue({
-        hostUserId: "host1", viewCount: 0, title: "测试直播", quality: "uhd",
+        hostUserId: "host1", viewCount: 0, title: "测试直播", quality: "uhd", startTime: null, imGroupId: "live_r1",
       });
       mockPrisma.liveMinuteData.aggregate.mockResolvedValue({ _max: { onlineCount: null }, _avg: { onlineCount: null } });
       mockPrisma.giftRecord.aggregate.mockResolvedValue({ _sum: { totalCoin: null } });
@@ -902,10 +1108,11 @@ describe("LiveService", () => {
       const result = await svc.getConsoleData("r1", "host1");
 
       expect(result.quality).toBe("uhd");
+      expect(result.imGroupId).toBe("live_r1");
       expect(result.stats).toMatchObject({ onlineCount: 0, totalViews: 0, totalGift: 0, totalSales: 0 });
       expect(mockPrisma.liveRoom.findUnique).toHaveBeenCalledWith({
         where: { id: "r1" },
-        select: { hostUserId: true, viewCount: true, title: true, quality: true },
+        select: { hostUserId: true, viewCount: true, title: true, quality: true, startTime: true, imGroupId: true },
       });
     });
 
@@ -933,6 +1140,25 @@ describe("LiveService", () => {
 
       const result = await svc.getConsoleData("r1", "host1");
       expect(result.danmaku.map((item) => item.content)).toEqual(["先来消息", "后来消息"]);
+    });
+  });
+
+  describe("featureRoomProduct", () => {
+    it("主播只能把本场真实商品设为讲解中", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1", status: "LIVING" });
+      mockPrisma.liveProduct.findFirst.mockResolvedValue({ productId: "p1" });
+
+      const result = await svc.featureRoomProduct("host1", "r1", "p1");
+
+      expect(result).toEqual({ featuredProductId: "p1" });
+      expect(mockRedis.set).toHaveBeenCalledWith("live:featured-product:r1", "p1", 172800);
+    });
+
+    it("取消讲解会清除实时状态", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1", status: "LIVING" });
+
+      await expect(svc.featureRoomProduct("host1", "r1", null)).resolves.toEqual({ featuredProductId: null });
+      expect(mockRedis.del).toHaveBeenCalledWith("live:featured-product:r1");
     });
   });
 
@@ -1059,13 +1285,15 @@ describe("LiveService", () => {
   });
 
   describe("handleLiveEvent - 课程联动", () => {
-    it("录制回调自动同步回放为课程章节", async () => {
+      it("录制回调自动同步回放为课程章节", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({
         id: "r1", courseId: "co1", title: "国学直播课",
       });
       mockPrisma.liveRoom.update.mockResolvedValue({});
       mockPrisma.course.findUnique.mockResolvedValue({ id: "co1" });
-      mockPrisma.courseChapter.findFirst.mockResolvedValue({ sortOrder: 3 });
+        mockPrisma.courseChapter.findFirst
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ sortOrder: 3 });
       mockPrisma.courseChapter.create.mockResolvedValue({ id: "ch_new", title: "直播回放: 国学直播课" });
 
       await svc.handleLiveEvent("room_r1", 100, {
@@ -1084,7 +1312,7 @@ describe("LiveService", () => {
       }));
     });
 
-    it("录制回调但房间未关联课程不创建章节", async () => {
+      it("录制回调但房间未关联课程不创建章节", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({
         id: "r2", courseId: null, title: "普通直播",
       });
@@ -1094,7 +1322,230 @@ describe("LiveService", () => {
         video_url: "https://replay.example.com/other.mp4",
       });
 
-      expect(mockPrisma.courseChapter.create).not.toHaveBeenCalled();
+        expect(mockPrisma.courseChapter.create).not.toHaveBeenCalled();
+      });
+
+      it("同一录制回调重复投递时不重复创建课程章节", async () => {
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({
+          id: "r1", courseId: "co1", title: "国学直播课", replayUrl: "https://replay.example.com/live.mp4",
+        });
+
+        const result = await svc.handleLiveEvent("room_r1", 100, {
+          video_url: "https://replay.example.com/live.mp4",
+        });
+
+        expect(result).toEqual({ roomId: "r1", duplicate: true });
+        expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+        expect(mockPrisma.courseChapter.create).not.toHaveBeenCalled();
+      });
+
+      it("推流与断流回调写入真实连接态", async () => {
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1" });
+        mockRedis.getJson.mockResolvedValue(null);
+
+        await svc.handleLiveEvent("room_r1", 1, { width: 1280, height: 720, video_fps: 30 });
+        expect(mockRedis.setJson).toHaveBeenLastCalledWith(
+          "live:stream-status:r1",
+          expect.objectContaining({
+            status: "online",
+            metrics: { resolution: "1280x720", fps: 30 },
+          }),
+          172800,
+        );
+
+        mockRedis.getJson.mockResolvedValue({ status: "online", connectedAt: "2026-08-15T00:00:00.000Z" });
+        await svc.handleLiveEvent("room_r1", 0, { errmsg: "network" });
+        expect(mockRedis.setJson).toHaveBeenLastCalledWith(
+          "live:stream-status:r1",
+          expect.objectContaining({ status: "offline", reason: "network" }),
+          172800,
+        );
+      });
+
+      it("OBS 未收到推流回调时拒绝进入 LIVING", async () => {
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", hostUserId: "host1", status: "WAITING" });
+        mockRedis.getJson.mockResolvedValue({ status: "offline" });
+
+        await expect(svc.startObsLive("r1", "host1", false)).rejects.toThrow("尚未检测到 OBS 推流");
+        expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+      });
+
+      it("OBS 同房模式返回 TRTC RTMP 地址并登记回调房间映射", async () => {
+        process.env.LIVE_OBS_TRTC_INGEST_ENABLED = "true";
+        process.env.TRTC_SDK_APP_ID = "1600030106";
+        process.env.TRTC_SECRET_KEY = "test-only-secret";
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({
+          id: "r1", hostUserId: "host1", status: "WAITING", pushUrl: null,
+          orientation: "landscape", trtcRoomId: null,
+        });
+
+        const result = await svc.getStreamUrls("r1", "host1", false);
+
+        expect(result.ingestMode).toBe("TRTC_RTMP");
+        expect(result.pushUrl).toMatch(/^rtmp:\/\/rtmp\.rtc\.qq\.com\/push\/room_r1\?/);
+        expect(JSON.stringify(result)).not.toContain("test-only-secret");
+        expect(mockRedis.set).toHaveBeenCalledWith("live:trtc-room-map:room_r1", "r1", 172800);
+      });
+
+      it("TRTC OBS 进房事件不冒充媒体在线，收到视频事件后才放行", async () => {
+        process.env.LIVE_OBS_TRTC_INGEST_ENABLED = "true";
+        mockRedis.get.mockResolvedValue("r1");
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({
+          id: "r1", hostUserId: "host1", orientation: "landscape", status: "WAITING",
+        });
+        const userId = toLiveObsTrtcUserId("r1");
+
+        await svc.handleTrtcEvent({
+          EventGroupId: 1, EventType: 103,
+          EventInfo: { RoomId: toLiveTrtcRoomId("r1"), UserId: userId, Reason: 1 },
+        });
+        expect(mockRedis.setJson).toHaveBeenLastCalledWith(
+          "live:stream-status:r1",
+          expect.objectContaining({ status: "offline", reason: "1", media: { audio: false, video: false } }),
+          172800,
+        );
+
+        mockRedis.getJson.mockResolvedValue({ status: "offline", media: { audio: false, video: false } });
+        await svc.handleTrtcEvent({
+          EventGroupId: 2, EventType: 201,
+          EventInfo: { RoomId: toLiveTrtcRoomId("r1"), UserId: userId, width: 1280, height: 720 },
+        });
+        expect(mockRedis.setJson).toHaveBeenLastCalledWith(
+          "live:stream-status:r1",
+          expect.objectContaining({ status: "online", media: { audio: false, video: true } }),
+          172800,
+        );
+      });
+    });
+
+  describe("直播互动资金与重复操作保护", () => {
+    beforeEach(() => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1", hostUserId: "host1", userId: "creator1", status: "LIVING", title: "国学直播",
+      });
+      mockPrisma.user.findUnique.mockResolvedValue({ creatorSettings: { livePrivacy: { allowGift: true } } });
+    });
+
+    it("首次送礼将幂等键与扣币结果绑定到同一赠礼记录", async () => {
+      mockPrisma.giftRecord.findUnique.mockResolvedValue(null);
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1",
+        hostUserId: "host1",
+        status: "LIVING",
+        title: "国学直播",
+        imGroupId: "live_r1",
+      });
+      mockPrisma.gift.findUnique.mockResolvedValue({ id: "g1", status: "ACTIVE", priceCoin: 12, name: "心意" });
+      mockPrisma.giftRecord.create.mockResolvedValue({
+        id: "gr1", idempotencyKey: "live-gift:r1:request-001", userId: "u1", liveRoomId: "r1",
+        toUserId: "host1", giftId: "g1", quantity: 2, totalCoin: 24,
+      });
+
+      const result = await svc.sendGift("r1", "u1", "g1", 2, "live-gift:r1:request-001");
+
+      expect(result.id).toBe("gr1");
+      expect(mockPrisma.giftRecord.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ idempotencyKey: "live-gift:r1:request-001", totalCoin: 24 }),
+      }));
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(mockIm.relayLiveGift).toHaveBeenCalledWith("live_r1", {
+        recordId: "gr1",
+        giftId: "g1",
+        giftName: "心意",
+        quantity: 2,
+      }, "u1");
+    });
+
+    it("相同幂等键重放直接返回原记录且不重新进入扣币事务", async () => {
+      mockPrisma.giftRecord.findUnique.mockResolvedValue({
+        id: "gr1", idempotencyKey: "live-gift:r1:request-001", userId: "u1", liveRoomId: "r1",
+        toUserId: "host1", giftId: "g1", quantity: 2, totalCoin: 24,
+      });
+
+      const result = await svc.sendGift("r1", "u1", "g1", 2, "live-gift:r1:request-001");
+
+      expect(result.id).toBe("gr1");
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockPrisma.liveRoom.findUnique).toHaveBeenCalledWith({ where: { id: "r1" } });
+      expect(mockIm.relayLiveGift).not.toHaveBeenCalled();
+    });
+
+    it("拒绝用同一幂等键更换礼物或数量", async () => {
+      mockPrisma.giftRecord.findUnique.mockResolvedValue({
+        id: "gr1", idempotencyKey: "live-gift:r1:request-001", userId: "u1", liveRoomId: "r1",
+        toUserId: "host1", giftId: "g1", quantity: 1, totalCoin: 12,
+      });
+
+      await expect(svc.sendGift("r1", "u1", "g2", 1, "live-gift:r1:request-001"))
+        .rejects.toThrow("送礼幂等键已被其他请求使用");
+    });
+
+    it("服务端拒绝圈外用户或主播关闭礼物后的送礼请求", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1", hostUserId: "host1", userId: "creator1", circleId: "circle1",
+        visibility: "CIRCLE_ONLY", auditStatus: "APPROVED", status: "LIVING",
+      });
+      mockPrisma.circleMember.findFirst.mockResolvedValue(null);
+      await expect(svc.sendGift("r1", "outsider1", "g1", 1, "live-gift:r1:outsider-001"))
+        .rejects.toThrow(BusinessException);
+
+      mockPrisma.circleMember.findFirst.mockResolvedValue({ id: "member1" });
+      mockPrisma.user.findUnique.mockResolvedValue({ creatorSettings: { livePrivacy: { allowGift: false } } });
+      await expect(svc.sendGift("r1", "member1", "g1", 1, "live-gift:r1:disabled-001"))
+        .rejects.toThrow("未开放礼物功能");
+      expect(mockPrisma.giftRecord.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("重复点赞使用 upsert 并返回服务端真实计数", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING" });
+      mockPrisma.like.upsert.mockResolvedValue({ id: "like1" });
+      mockPrisma.like.count.mockResolvedValue(7);
+
+      await expect(svc.toggleLike("r1", "u1")).resolves.toEqual({ liked: true, likeCount: 7 });
+      expect(mockPrisma.like.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: { userId_targetType_targetId: { userId: "u1", targetType: "LIVESTREAM", targetId: "r1" } },
+      }));
+    });
+  });
+
+  describe("礼物经营统计权限", () => {
+    it("允许主播本人读取经营统计", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+      mockPrisma.giftRecord.groupBy.mockResolvedValue([
+        { userId: "viewer1", _sum: { totalCoin: 88 } },
+      ]);
+      mockPrisma.user.findMany.mockResolvedValue([
+        { id: "viewer1", nickname: "用户一", avatar: null },
+      ]);
+
+      await expect(svc.giftRanking("r1", "host1")).resolves.toEqual([
+        { userId: "viewer1", nickname: "用户一", avatar: null, totalCoin: 88 },
+      ]);
+    });
+
+    it("允许管理员读取经营统计", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+      mockPrisma.giftRecord.groupBy.mockResolvedValue([]);
+      mockPrisma.user.findMany.mockResolvedValue([]);
+
+      await expect(svc.giftRanking("r1", "admin1", true)).resolves.toEqual([]);
+    });
+
+    it("拒绝普通观众读取他人的消费统计", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({ hostUserId: "host1" });
+
+      await expect(svc.giftRanking("r1", "viewer1")).rejects.toThrow("只有主播本人或管理员");
+      expect(mockPrisma.giftRecord.groupBy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("直播送礼消费保护设置", () => {
+    it("读取与更新都委托统一币账户策略服务", async () => {
+      await expect(svc.getGiftSpendingPreference("viewer1")).resolves.toEqual({ configured: false, eligible: true });
+      const input = { singleLimitCoin: 100, dailyLimitCoin: 500, reminderEnabled: true };
+      await expect(svc.updateGiftSpendingPreference("viewer1", input)).resolves.toEqual({ configured: true, eligible: true });
+      expect(mockCoin.getLiveGiftSpendingPreference).toHaveBeenCalledWith("viewer1");
+      expect(mockCoin.updateLiveGiftSpendingPreference).toHaveBeenCalledWith("viewer1", input);
     });
   });
 

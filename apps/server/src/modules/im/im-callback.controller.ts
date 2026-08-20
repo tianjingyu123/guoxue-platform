@@ -37,6 +37,8 @@ export class ImCallbackController {
 
     try {
       switch (cmd) {
+        case "Group.CallbackBeforeSendMsg":
+          return this.handleBeforeGroupMsg(body);
         case "C2C.CallbackAfterSendMsg":
           return this.handleC2CMsg(body);
         case "Group.CallbackAfterSendMsg":
@@ -61,6 +63,24 @@ export class ImCallbackController {
       this.logger.error(`IM回调处理失败 [${cmd}]: ${err instanceof Error ? err.message : String(err)}`);
       return { ActionStatus: "FAIL", ErrorCode: 1, ErrorInfo: "internal error" };
     }
+  }
+
+  /**
+   * 直播群消息只允许由业务服务审核/扣款成功后通过 IM REST API 转发。
+   * 客户端 SDK 直发会绕过直播禁言、慢速模式、关注者限制和礼物账务真实性，必须拦截。
+   */
+  private handleBeforeGroupMsg(body: Record<string, unknown>) {
+    const groupId = String(body.GroupId || "");
+    if (!groupId.startsWith("live_")) {
+      return { ActionStatus: "OK", ErrorCode: 0, ErrorInfo: "" };
+    }
+    const operator = String(body.Operator_Account || "");
+    const adminId = process.env.IM_ADMIN_ID || "administrator";
+    if (operator === adminId) {
+      return { ActionStatus: "OK", ErrorCode: 0, ErrorInfo: "" };
+    }
+    this.logger.warn(`已拦截直播群客户端直发消息: group=${groupId}`);
+    return { ActionStatus: "OK", ErrorCode: 1, ErrorInfo: "请通过直播互动接口发送消息" };
   }
 
   /** 单聊消息回调 — 推送给接收方 */

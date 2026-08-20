@@ -133,7 +133,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("secretId", "SecretId", "TENCENT_SECRET_ID", false, "访问管理CAM→API密钥管理，AKID 开头的那串"),
       S("secretKey", "SecretKey", "TENCENT_SECRET_KEY", true, "与 SecretId 成对（仅新建时可完整查看，请务必保存）"),
       S("appId", "AppId", "TENCENT_APP_ID", false, "控制台→账号信息→APPID（10位数字，如 1300000000）"),
-      S("callbackKey", "直播/点播回调验签密钥", "TENCENT_CALLBACK_KEY", true, "同一密钥需分别配置到云直播回调模板和云点播事件通知 SignKey；不用回调可留空"),
+      S("callbackKey", "直播/点播/TRTC 回调验签密钥", "TENCENT_CALLBACK_KEY", true, "需配置到云直播回调、云点播事件通知及 TRTC 房间/媒体回调；TRTC 使用 HMAC-SHA256 原文签名，云直播使用 MD5(key+t)"),
     ],
   },
   {
@@ -170,10 +170,14 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   },
   {
     key: "tencent_trtc", label: "腾讯云 TRTC（直播连麦）", category: "腾讯云", enabled: true,
-    note: "首发必要能力：直播间语音连麦。必须绑定正式『热卜国学』应用，并完成原生插件、主播审批、混流旁路及 iOS/Android 真机证据后才能开放入口。付费通话问答暂缓。",
+    note: "首发必要能力：直播间音视频连麦。必须绑定正式『热卜国学』应用，并完成原生插件、主播审批、云端混流旁路及 iOS/Android 真机证据后才能开放入口。云端混流会产生 MCU 转码费用，必须先完成费用告警与真实小额验收再启用。付费通话问答暂缓。",
     fields: [
       S("sdkAppId", "TRTC SdkAppId", "TRTC_SDK_APP_ID", false, "TRTC控制台→应用管理→SDKAppID"),
       S("secretKey", "密钥", "TRTC_SECRET_KEY", true, "TRTC控制台→应用→应用信息→SDKSecretKey"),
+      S("mixingEnabled", "多人连麦云端混流开关", "LIVE_MULTI_GUEST_MIXING_ENABLED", false, "填 true 才会让普通 CDN 观众看到多人连麦合成画面；启用前需确认 MCU 转码计费、直播推流域名及账号级 API 密钥均可用", "false"),
+      S("mixingRegion", "云端混流 API 地域", "TRTC_MIXING_REGION", false, "国内正式应用可填 ap-beijing；必须是 StartPublishCdnStream 支持地域", "ap-beijing"),
+      S("obsTrtcIngestEnabled", "OBS 进入同一 TRTC 房间", "LIVE_OBS_TRTC_INGEST_ENABLED", false, "填 true 后 OBS 将不再直推割裂的普通 CDN 流，而是进入同一 TRTC 房间与手机嘉宾连麦；必须同时启用云端混流并配置 TRTC 回调", "false"),
+      S("callbackKey", "TRTC 回调专用密钥（可选）", "TRTC_CALLBACK_KEY", true, "TRTC 控制台→应用→回调配置。留空时复用上方腾讯云通用回调密钥；如单独填写，两边必须完全一致"),
     ],
   },
   {

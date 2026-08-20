@@ -249,6 +249,26 @@ describe("RedisService", () => {
     })
   })
 
+  // ═══════════════════ SORTED SET 操作 ═══════════════════
+
+  describe("zset presence helpers", () => {
+    it("按成员删除与按分数清理过期项", async () => {
+      await service.zadd("presence:1", 100, "a")
+      await service.zadd("presence:1", 200, "b")
+      await service.zadd("presence:1", 300, "c")
+
+      await expect(service.zrem("presence:1", "b")).resolves.toBe(1)
+      await expect(service.zremrangebyscore("presence:1", 0, 150)).resolves.toBe(1)
+      await expect(service.zcard("presence:1")).resolves.toBe(1)
+    })
+
+    it("DEL 在内存降级模式同时清理 sorted set", async () => {
+      await service.zadd("presence:2", 100, "a")
+      await service.del("presence:2")
+      await expect(service.zcard("presence:2")).resolves.toBe(0)
+    })
+  })
+
   // ═══════════════════ 限流 incrWithTtl ═══════════════════
 
   describe("incrWithTtl", () => {

@@ -1310,6 +1310,8 @@ CREATE TABLE "LiveMic" (
     "userId" TEXT NOT NULL,
     "position" INTEGER NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'OCCUPIED',
+    "mediaMode" TEXT NOT NULL DEFAULT 'AUDIO',
+    "source" TEXT NOT NULL DEFAULT 'REQUEST',
     "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "LiveMic_pkey" PRIMARY KEY ("id")
@@ -3083,6 +3085,7 @@ CREATE TABLE "Gift" (
 -- CreateTable
 CREATE TABLE "GiftRecord" (
     "id" TEXT NOT NULL,
+    "idempotencyKey" TEXT,
     "userId" TEXT NOT NULL,
     "liveRoomId" TEXT NOT NULL,
     "toUserId" TEXT NOT NULL,
@@ -3092,6 +3095,18 @@ CREATE TABLE "GiftRecord" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "GiftRecord_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveGiftSpendingPreference" (
+    "userId" TEXT NOT NULL,
+    "singleLimitCoin" INTEGER NOT NULL,
+    "dailyLimitCoin" INTEGER NOT NULL,
+    "reminderEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "configuredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LiveGiftSpendingPreference_pkey" PRIMARY KEY ("userId")
 );
 
 -- CreateTable
@@ -7537,6 +7552,9 @@ CREATE INDEX "AudioCallRecord_stationId_idx" ON "AudioCallRecord"("stationId");
 CREATE INDEX "AudioCallBilling_callRecordId_idx" ON "AudioCallBilling"("callRecordId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "GiftRecord_idempotencyKey_key" ON "GiftRecord"("idempotencyKey");
+
+-- CreateIndex
 CREATE INDEX "GiftRecord_liveRoomId_createdAt_idx" ON "GiftRecord"("liveRoomId", "createdAt");
 
 -- CreateIndex
@@ -9245,6 +9263,9 @@ ALTER TABLE "GiftRecord" ADD CONSTRAINT "GiftRecord_liveRoomId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "GiftRecord" ADD CONSTRAINT "GiftRecord_giftId_fkey" FOREIGN KEY ("giftId") REFERENCES "Gift"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveGiftSpendingPreference" ADD CONSTRAINT "LiveGiftSpendingPreference_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "WebhookDelivery" ADD CONSTRAINT "WebhookDelivery_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "WebhookSubscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;

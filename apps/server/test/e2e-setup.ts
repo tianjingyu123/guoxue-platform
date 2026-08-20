@@ -143,6 +143,11 @@ function createRedisMock() {
     scard: jest.fn().mockResolvedValue(5),
     smembers: jest.fn().mockResolvedValue([]),
     expire: jest.fn().mockResolvedValue(undefined),
+    zadd: jest.fn().mockResolvedValue(1),
+    zrem: jest.fn().mockResolvedValue(1),
+    zremrangebyscore: jest.fn().mockResolvedValue(0),
+    zcard: jest.fn().mockResolvedValue(0),
+    runExclusive: jest.fn(async (_key: string, _ttl: number, task: () => Promise<unknown>) => task()),
     incrWithTtl: jest.fn().mockResolvedValue({ count: 1, ttl: 60 }),
     setNX: jest.fn().mockResolvedValue(true),
   }
