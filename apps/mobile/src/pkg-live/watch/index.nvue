@@ -981,6 +981,8 @@ function returnToLiveEntrance() {
 
 function scheduleEndAdvance() {
   if (endAdvanceTimer || !pageVisible.value) return
+  // 下播后的三秒停留只用于给观众看清结束提示；在线会话要立即结束，不能把离场时机推迟到切房或卸载。
+  void leavePresence()
   endCountdown.value = 3
   endAdvanceTimer = setInterval(() => {
     endCountdown.value -= 1
@@ -1310,8 +1312,7 @@ async function requestMic() {
   micError.value = ''
   micState.value = 'requesting'
   try {
-    if (micMediaMode.value === 'VIDEO') await ensureLiveCapturePermissions()
-    else await ensureLiveAudioPermission()
+    // 申请排队不应触发系统相机/麦克风弹窗；只有主播接受后才进入设备预检。
     const mic = await liveMicApi.request(room.value.id, micMediaMode.value)
     micUserId = mic.userId
     micPollTimer ||= setInterval(() => { void pollMicStatus() }, 1600)
@@ -1409,18 +1410,24 @@ async function acceptMicInvite() {
 async function prepareMicPreflight(mic: LiveMicItem) {
   micUserId = mic.userId
   micMediaMode.value = mic.mediaMode === 'VIDEO' ? 'VIDEO' : 'AUDIO'
-  if (micMediaMode.value === 'VIDEO') {
-    await ensureLiveCapturePermissions()
-    micState.value = 'preflight'
-    showMicSheet.value = true
-    await nextTick()
-    startLiveDevicePreview(rtcGuestViewId, guestFrontCamera.value)
-  } else {
-    await ensureLiveAudioPermission()
-    micState.value = 'preflight'
-    showMicSheet.value = true
+  try {
+    if (micMediaMode.value === 'VIDEO') {
+      await ensureLiveCapturePermissions()
+      micState.value = 'preflight'
+      showMicSheet.value = true
+      await nextTick()
+      startLiveDevicePreview(rtcGuestViewId, guestFrontCamera.value)
+    } else {
+      await ensureLiveAudioPermission()
+      micState.value = 'preflight'
+      showMicSheet.value = true
+    }
+    preflightMic = mic
+  } catch (cause) {
+    // 主播已接受但设备预检失败时立即释放麦位，不能让一次拒绝授权占住申请。
+    void removeMicRequest()
+    throw cause
   }
-  preflightMic = mic
 }
 
 async function confirmMicJoin() {

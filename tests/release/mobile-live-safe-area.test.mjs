@@ -285,6 +285,7 @@ test('全端观众在线心跳不依赖播放器回调，并在下播后自动�
   assert.match(appAudience, /async function joinPublicScreen\(groupId: string, targetRoomId: string, requestVersion: number\)/)
   assert.match(appAudience, /pageVisible\.value = false\s*presenceActive\.value = false\s*resumeAfterHide = true\s*roomLoadVersion \+= 1\s*stopRoomPolling\(\)/)
   assert.match(appAudience, /void leavePresence\(previousRoomId\)\s*void removeMicRequest\(\)\s*void finishMic\(\)\s*void leavePublicScreen\(\)/)
+  assert.match(appAudience, /function scheduleEndAdvance\(\) \{\s*if \(endAdvanceTimer \|\| !pageVisible\.value\) return\s*\/\/ 下播后的三秒停留[\s\S]*void leavePresence\(\)\s*endCountdown\.value = 3/)
   assert.match(appAudience, /function returnToLiveEntrance\(\)/)
   assert.match(appAudience, /uni\.reLaunch\(\{ url: '\/pkg-live\/plaza\/index' \}\)/)
   assert.match(crossPlatformAudience, /useLiveWatchPresence\(/)
@@ -309,6 +310,24 @@ test('观众连麦仅在静音状态变化时调用原生 TRTC', () => {
   assert.match(audience, /if \(appliedMicMuteState === muted\) return/)
   assert.match(audience, /micHostMuted\.value = hostMuted/)
   assert.match(audience, /主播已将你静音/)
+})
+
+test('观众连麦仅在主播接受后才申请设备权限', () => {
+  const audience = source('apps/mobile/src/pkg-live/watch/index.nvue')
+  const requestMic = audience.slice(
+    audience.indexOf('async function requestMic()'),
+    audience.indexOf('async function pollMicStatus()'),
+  )
+  const preflight = audience.slice(
+    audience.indexOf('async function prepareMicPreflight('),
+    audience.indexOf('async function confirmMicJoin()'),
+  )
+
+  assert.match(requestMic, /const mic = await liveMicApi\.request\(room\.value\.id, micMediaMode\.value\)/)
+  assert.doesNotMatch(requestMic, /ensureLive(?:CapturePermissions|AudioPermission)\(\)/)
+  assert.match(preflight, /await ensureLiveCapturePermissions\(\)/)
+  assert.match(preflight, /await ensureLiveAudioPermission\(\)/)
+  assert.match(preflight, /void removeMicRequest\(\)\s*throw cause/)
 })
 
 test('直播送礼先执行年龄与用户自设限额，观众端不公开消费排行', () => {
