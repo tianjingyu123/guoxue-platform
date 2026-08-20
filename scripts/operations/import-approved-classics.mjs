@@ -7,7 +7,7 @@
  * - 默认仅校验；必须显式传入 --mode dry-run 或 --mode apply。
  * - 校验批次清单、全部登记文件哈希、审核报告、许可与候选结构。
  * - 同名书最多一条；已有真实阅读数据时拒绝替换。
- * - 全批次单事务写入，失败时整批回滚。
+ * - 支持按清单索引分段校验和写入，避免大型批次耗尽容器内存。
  * - 替换前完整备份已有书籍、章节和版权记录。
  */
 
@@ -135,7 +135,13 @@ function requireString(value, field, title) {
   }
 }
 
-async function validateBatch(batchDir, expectedBatch, excludedTitles = [], authorization = null) {
+async function validateBatch(
+  batchDir,
+  expectedBatch,
+  excludedTitles = [],
+  authorization = null,
+  selection = {},
+) {
   const manifestPath = path.join(batchDir, "manifest.json");
   const auditPath = path.join(batchDir, "audit-intake.json");
   const [manifest, audit] = await Promise.all([readJson(manifestPath), readJson(auditPath)]);
@@ -163,7 +169,25 @@ async function validateBatch(batchDir, expectedBatch, excludedTitles = [], autho
     throw new Error("候选数量、完成数量或待发布数量不一致");
   }
 
-  const registeredFiles = collectManifestFiles(manifest);
+  const startIndex = Number(selection.startIndex ?? 0);
+  const maxBooks = Number(selection.maxBooks ?? manifest.candidates.length);
+  if (!Number.isInteger(startIndex) || startIndex < 0) {
+    throw new Error("startIndex 必须是非负整数");
+  }
+  if (!Number.isInteger(maxBooks) || maxBooks <= 0) {
+    throw new Error("maxBooks 必须是正整数");
+  }
+  if (startIndex >= manifest.candidates.length) {
+    throw new Error(`startIndex 超出候选范围：${startIndex}/${manifest.candidates.length}`);
+  }
+  if (startIndex > 0 && excludedTitles.length > 0) {
+    throw new Error("分段导入不支持 --exclude-titles，请先生成不含排除项的冻结批次");
+  }
+  const selectedEntries = manifest.candidates.slice(startIndex, startIndex + maxBooks);
+  const selectedFiles = new Set(selectedEntries.map((entry) => entry.file));
+  const registeredFiles = collectManifestFiles(manifest).filter((entry) =>
+    selectedFiles.has(entry.file),
+  );
   const seenFiles = new Set();
   for (const entry of registeredFiles) {
     if (seenFiles.has(entry.file)) throw new Error(`清单文件重复：${entry.file}`);
@@ -181,7 +205,7 @@ async function validateBatch(batchDir, expectedBatch, excludedTitles = [], autho
   const manifestTitles = new Set();
   const titles = new Set();
   const candidates = [];
-  for (const entry of manifest.candidates) {
+  for (const entry of selectedEntries) {
     const file = canonicalPath(batchDir, entry.file);
     const candidate = await readJson(file);
     requireString(candidate.title, "title", entry.file);
@@ -299,6 +323,12 @@ async function validateBatch(batchDir, expectedBatch, excludedTitles = [], autho
       (sum, item) => sum + (item.candidate._releaseAudit?.unresolvedIssues?.length || 0),
       0,
     ),
+    selection: {
+      startIndex,
+      maxBooks,
+      selectedBooks: selectedEntries.length,
+      totalBooks: manifest.candidates.length,
+    },
   };
 }
 
@@ -601,11 +631,17 @@ async function main() {
     .map((title) => title.trim())
     .filter(Boolean);
   const authorization = await loadAuthorization(args.authorization);
+  const selection = {
+    startIndex: args.start_index === undefined ? 0 : Number(args.start_index),
+    maxBooks:
+      args.max_books === undefined ? Number.MAX_SAFE_INTEGER : Number(args.max_books),
+  };
   const validated = await validateBatch(
     batchDir,
     args.expected_batch,
     excludedTitles,
     authorization,
+    selection,
   );
   let result = {
     mode: args.mode,
@@ -616,6 +652,7 @@ async function main() {
     warnings: validated.warnings,
     excludedTitles: validated.excludedTitles,
     validated: true,
+    selection: validated.selection,
   };
   if (args.mode !== "validate") {
     result = { ...result, ...(await runDatabaseMode(validated, args)) };

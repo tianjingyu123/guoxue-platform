@@ -119,3 +119,81 @@ test("公司授权台账只解除登记书目的许可阻断并生成 AUTHORIZED
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("大型授权批次可按索引分段校验，且只读取当前分段候选", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "authorized-classics-range-"));
+  try {
+    await mkdir(path.join(root, "经"), { recursive: true });
+    const entries = [];
+    const auditResults = [];
+    for (const [index, title] of ["第一部", "第二部", "第三部"].entries()) {
+      const candidate = {
+        title,
+        author: "佚名",
+        dynasty: "古代",
+        category: "经",
+        intro: "分段校验测试",
+        source: "冻结候选",
+        chapters: [{ title: "全文", content: `正文${index + 1}` }],
+        _releaseAudit: { status: "CANDIDATE", unresolvedIssues: [] },
+        _copyright: {
+          sourceName: "测试来源",
+          sourceUrl: "https://example.invalid/source",
+          license: "PUBLIC-DOMAIN",
+          licenseUrl: "https://creativecommons.org/publicdomain/mark/1.0/",
+          attributionText: "测试来源",
+          modificationNotice: "格式结构化",
+          rightsBoundary: "测试",
+        },
+      };
+      const content = `${JSON.stringify(candidate, null, 2)}\n`;
+      const file = `经/${title}.json`;
+      await writeFile(path.join(root, file), content, "utf8");
+      entries.push({ file, sha256: sha256(content), bytes: Buffer.byteLength(content) });
+      auditResults.push({ file, title, blockers: 0, chapterCount: 1 });
+    }
+    await writeFile(
+      path.join(root, "manifest.json"),
+      `${JSON.stringify({
+        standard: "REBU-CLASSICS-OPEN-V4",
+        batchId: "range-test-batch",
+        blockedBooks: 0,
+        completedBooks: 3,
+        candidates: entries,
+      })}\n`,
+      "utf8",
+    );
+    await writeFile(
+      path.join(root, "audit-intake.json"),
+      `${JSON.stringify({
+        standard: "REBU-CLASSICS-OPEN-V4",
+        batchId: "range-test-batch",
+        blockedBooks: 0,
+        blockers: 0,
+        completedBooks: 3,
+        queueReadyBooks: 3,
+        results: auditResults,
+      })}\n`,
+      "utf8",
+    );
+
+    const validated = await validateBatch(
+      root,
+      "range-test-batch",
+      [],
+      null,
+      { startIndex: 1, maxBooks: 1 },
+    );
+    assert.equal(validated.candidates.length, 1);
+    assert.equal(validated.candidates[0].candidate.title, "第二部");
+    assert.equal(validated.registeredFileCount, 1);
+    assert.deepEqual(validated.selection, {
+      startIndex: 1,
+      maxBooks: 1,
+      selectedBooks: 1,
+      totalBooks: 3,
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
