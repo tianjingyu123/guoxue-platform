@@ -70,8 +70,11 @@
       <view v-else-if="filteredStations.length === 0" class="c1-empty">
         <app-icon name="map-pin" :size="72" color="#d3c9b6" />
         <text class="c1-empty-title serif">该地区暂无驿站</text>
-        <text class="c1-empty-sub">当前城市 / 搜索条件下没有找到线下驿站{{ '\n' }}试试切换城市或清空筛选</text>
+        <text class="c1-empty-sub">当前城市 / 搜索条件下没有找到线下驿站{{ '\n' }}你也可以申请开设线下驿站</text>
         <view class="c1-empty-btns">
+          <view v-if="!hasFilter" class="c1-btn" @tap="goApplyStation">
+            <text class="c1-btn-text">申请开设驿站</text>
+          </view>
           <view class="c1-btn o" @tap="showCityPicker">
             <text class="c1-btn-text o">切换城市</text>
           </view>
@@ -253,6 +256,10 @@ function clearFilter() {
 
 function goDetail(id: string) {
   navigateTo(`/offline/stations/${id}`)
+}
+
+function goApplyStation() {
+  navigateTo('/pkg-mine/role-apply/index?role=offline_station')
 }
 </script>
 

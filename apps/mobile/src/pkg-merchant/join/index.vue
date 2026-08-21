@@ -194,7 +194,7 @@ function agreeFromSheet() {
 function onCta() {
   // 已提交申请：直接进状态页（M3），不重复申请
   if (hasApplied.value) {
-    navigateTo('/pkg-merchant/apply/index')
+    navigateTo('/merchant/application-status')
     return
   }
   if (!agreed.value) {
