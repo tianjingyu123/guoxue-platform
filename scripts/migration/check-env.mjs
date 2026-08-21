@@ -420,8 +420,8 @@ const paipanLegacyMode = (values.get("PAIPAN_LEGACY_MODE") || "").trim().toLower
 if (paipanLegacyMode && !["true", "false"].includes(paipanLegacyMode)) {
   errors.push("PAIPAN_LEGACY_MODE 仅支持 true 或 false");
 }
-if (fullCheck && paipanLegacyMode !== "true") {
-  errors.push("首发迁移期 PAIPAN_LEGACY_MODE 必须为 true，稳定后方可评审切换自研排盘");
+if (fullCheck && paipanLegacyMode !== "false") {
+  errors.push("新系统首发 PAIPAN_LEGACY_MODE 必须为 false；旧排盘仅允许作为显式回滚兼容入口");
 }
 const paipanBaseUrl = parsedUrls.get("PAIPAN_H5_BASE");
 if (

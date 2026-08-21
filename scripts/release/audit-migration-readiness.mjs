@@ -73,34 +73,36 @@ const paipanService = read(
   "apps/server/src/modules/station/station-paipan-sync.service.ts",
 );
 add(
-  "旧排盘入口使用已核验手机号签名协议",
+  "旧排盘回滚入口使用已核验手机号签名协议",
   controller.includes('@Controller("legacy-paipan")') &&
     controller.includes('@Get("entry")') &&
     paipanService.includes('createHash("md5")') &&
     paipanService.includes("`${phone}@rebuguoxue${phone}`") &&
     paipanService.includes("https://www.yrydai.com/guoxueApp.php") &&
     !paipanService.includes("paipan.rebu.com"),
-  "服务端生成 key，客户端和日志不得暴露固定密钥材料",
+  "兼容入口仅作显式回滚；服务端生成 key，客户端和日志不得暴露固定密钥材料",
 );
 
 const paipanPage = read("apps/mobile/src/pages/paipan/index.vue");
 const paipanClient = read("apps/mobile/src/lib/legacy-paipan-data.ts");
 add(
-  "四端首发均由旧排盘兼容入口接管",
+  "四端原生排盘默认启用并保留显式回滚能力",
   paipanClient.includes("/legacy-paipan/entry") &&
+    paipanService.includes('process.env.PAIPAN_LEGACY_MODE !== "true"') &&
+    paipanService.includes('return { mode: "native", url: null') &&
     paipanPage.includes("window.location.replace(entry.url)") &&
     paipanPage.includes('<web-view v-else-if="legacyEntryUrl"'),
-  "H5 整页跳转，App/小程序/Harmony 使用 web-view，失败时必须关闭自研入口",
+  "默认返回 native；仅显式开启回滚开关时，H5 整页跳转且 App/小程序/Harmony 使用 web-view",
 );
 
 const productionTemplate = read("docker/.env.production.example");
 add(
-  "生产模板默认启用旧排盘兼容模式",
-  /^PAIPAN_LEGACY_MODE=true$/m.test(productionTemplate) &&
+  "生产模板默认启用原生排盘",
+  /^PAIPAN_LEGACY_MODE=false$/m.test(productionTemplate) &&
     /^PAIPAN_H5_BASE=https:\/\/www\.yrydai\.com\/guoxueApp\.php$/m.test(
       productionTemplate,
     ),
-  "首发稳定期不得因漏配变量直接暴露自研排盘",
+  "旧排盘地址仅保留为回滚参数，正式首发不得默认跳转第三方",
 );
 
 const runbook = read(
@@ -116,7 +118,7 @@ add(
   "旧更新接口保留期、停写窗口和回滚门槛必须在切换前确认",
 );
 
-console.log("旧系统迁移与旧排盘兼容代码门禁");
+console.log("旧系统迁移与原生排盘首发代码门禁");
 for (const item of checks) {
   console.log(`${item.pass ? "通过" : "阻断"}：${item.name} —— ${item.detail}`);
 }
