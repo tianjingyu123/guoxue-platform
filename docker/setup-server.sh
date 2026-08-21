@@ -555,9 +555,12 @@ else
   systemctl disable --now guoxue-monitoring.service >/dev/null 2>&1 || true
 fi
 
-# ── 14. 仅由运维节点执行数据库备份与镜像清理 ──
+# ── 14. 仅运维节点执行数据库备份；所有应用节点清理本机镜像缓存 ──
 BACKUP_SCRIPT="$RUNTIME_DIR/docker/pg-backup.sh"
 TLS_RENEW_SCRIPT="$RUNTIME_DIR/docker/renew-ssl.sh"
+CLEANUP_SCRIPT="$RUNTIME_DIR/scripts/operations/cleanup-docker-retention.sh"
+[ -f "$CLEANUP_SCRIPT" ] || { err "缺少 Docker 安全清理脚本: $CLEANUP_SCRIPT"; exit 64; }
+chmod +x "$CLEANUP_SCRIPT"
 EXISTING_CRON="$(crontab -l 2>/dev/null || true)"
 FILTERED_CRON="$(
   printf '%s\n' "$EXISTING_CRON" \
@@ -567,26 +570,21 @@ FILTERED_CRON="$(
     | grep -v 'certbot renew.*guoxue-nginx' \
     || true
 )"
-if [ "$NODE_ROLE" = "operations" ]; then
-  log "运维节点：配置定时备份与安全镜像清理..."
-  {
-    printf '%s\n' "$FILTERED_CRON"
+{
+  printf '%s\n' "$FILTERED_CRON"
+  if [ "$NODE_ROLE" = "operations" ]; then
+    log "运维节点：配置定时数据库备份..." >&2
     echo "0 3 * * * DEPLOY_TARGET=$DEPLOY_TARGET ENV_FILE=$ENV_FILE BACKUP_DIR=$BACKUP_DIR bash $BACKUP_SCRIPT 30 >> /var/log/guoxue-backup.log 2>&1"
-    # 只清理悬空镜像和过期构建缓存；禁止 system prune -a 删除旧版回滚镜像。
-    echo "0 4 * * 0 ( docker image prune -f && docker builder prune -f --filter 'until=168h' ) >> /var/log/guoxue-cleanup.log 2>&1"
-    if [ "$DEPLOY_TARGET" = "standard" ]; then
-      echo "17 3 * * * DEPLOY_TARGET=standard PLATFORM_ROOT=$PLATFORM_ROOT ENV_FILE=$ENV_FILE DOMAIN=$DOMAIN bash $TLS_RENEW_SCRIPT >> /var/log/guoxue-tls-renewal.log 2>&1"
-    fi
-  } | sed '/^[[:space:]]*$/d' | crontab -
-else
-  log "业务节点：移除重复数据库备份计划，保留其他既有定时任务"
-  {
-    printf '%s\n' "$FILTERED_CRON"
-    if [ "$DEPLOY_TARGET" = "standard" ]; then
-      echo "17 3 * * * DEPLOY_TARGET=standard PLATFORM_ROOT=$PLATFORM_ROOT ENV_FILE=$ENV_FILE DOMAIN=$DOMAIN bash $TLS_RENEW_SCRIPT >> /var/log/guoxue-tls-renewal.log 2>&1"
-    fi
-  } | sed '/^[[:space:]]*$/d' | crontab -
-fi
+  else
+    log "业务节点：移除重复数据库备份计划" >&2
+  fi
+  # 两类节点都会在本机产生镜像与 BuildKit 缓存，因此必须各自清理；
+  # 脚本与发布共用互斥锁、保留最近回滚点，并禁止 system prune -a 和数据卷清理。
+  echo "0 4 * * 0 ROOT_DIR=$PLATFORM_ROOT ROLLBACK_IMAGE_KEEP=2 BUILDER_CACHE_MAX_AGE=168h bash $CLEANUP_SCRIPT >> /var/log/guoxue-cleanup.log 2>&1"
+  if [ "$DEPLOY_TARGET" = "standard" ]; then
+    echo "17 3 * * * DEPLOY_TARGET=standard PLATFORM_ROOT=$PLATFORM_ROOT ENV_FILE=$ENV_FILE DOMAIN=$DOMAIN bash $TLS_RENEW_SCRIPT >> /var/log/guoxue-tls-renewal.log 2>&1"
+  fi
+} | sed '/^[[:space:]]*$/d' | crontab -
 
 # ── 15. 显示状态 ──
 echo ""
