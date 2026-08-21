@@ -39,6 +39,8 @@ export interface ProductCardData {
   tag?: string
   /** 官方自营（归属官方旗舰店）→ 卡片显示「官方自营」角标 */
   isOfficialSelfOwned?: boolean
+  /** 平台严选（仅服务端明确认证后为 true） */
+  isSelected?: boolean
 }
 
 export interface CourseCardData {

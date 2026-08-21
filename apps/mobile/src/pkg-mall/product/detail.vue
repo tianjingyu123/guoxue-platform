@@ -268,7 +268,7 @@ async function toggleFavorite() {
           <text class="price-off">{{ discount }}% OFF</text>
         </template>
       </view>
-      <text class="p-title"><text v-if="product.isOfficialSelfOwned" class="p-official">官方自营</text>{{ product.title }}</text>
+      <text class="p-title"><text v-if="product.isOfficialSelfOwned" class="p-official">官方自营</text><text v-else-if="product.isSelected" class="p-official">平台严选</text>{{ product.title }}</text>
       <text class="p-sub">{{ product.subtitle }}</text>
       <view class="p-meta">
         <text>销量 {{ product.sales }}</text>
@@ -301,7 +301,7 @@ async function toggleFavorite() {
         <view class="guard-item"><view class="guard-icon"><AppIcon name="shield" :size="32" color="var(--brand)" /></view><view><text class="guard-name">正品保障</text><text class="guard-desc">假一赔十</text></view></view>
         <view class="guard-item"><view class="guard-icon"><AppIcon name="truck" :size="32" color="var(--brand)" /></view><view><text class="guard-name">急速发货</text><text class="guard-desc">48小时内</text></view></view>
         <view class="guard-item"><view class="guard-icon"><AppIcon name="refresh-cw" :size="32" color="var(--brand)" /></view><view><text class="guard-name">7天退换</text><text class="guard-desc">无理由退换</text></view></view>
-        <view class="guard-item"><view class="guard-icon"><AppIcon name="award" :size="32" color="var(--brand)" /></view><view><text class="guard-name">品质认证</text><text class="guard-desc">平台严选</text></view></view>
+        <view class="guard-item"><view class="guard-icon"><AppIcon :name="product.isOfficialSelfOwned || product.isSelected ? 'award' : 'shield'" :size="32" color="var(--brand)" /></view><view><text class="guard-name">{{ product.isOfficialSelfOwned ? '官方自营' : product.isSelected ? '品质认证' : '平台交易保障' }}</text><text class="guard-desc">{{ product.isOfficialSelfOwned ? '官方直营' : product.isSelected ? '平台严选' : '订单售后可追踪' }}</text></view></view>
       </view>
     </view>
 

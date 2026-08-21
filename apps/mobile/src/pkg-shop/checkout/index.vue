@@ -28,7 +28,7 @@
 
     <scroll-view scroll-y class="content">
       <!-- 地址 -->
-      <view class="address-card" @tap="showAddress = true">
+      <view class="address-card" @tap="onAddressCardTap">
         <app-icon name="map-pin" :size="40" color="#C41E3A" />
         <view class="address-info" v-if="currentAddress">
           <view class="addr-top">
@@ -37,6 +37,10 @@
             <view v-if="currentAddress.isDefault" class="default-tag"><text>默认</text></view>
           </view>
           <text class="addr-detail">{{ currentAddress.province }}{{ currentAddress.city }}{{ currentAddress.district }}{{ currentAddress.address }}</text>
+        </view>
+        <view v-else class="address-empty">
+          <text class="address-empty-title">{{ addresses.length > 0 ? '选择收货地址' : '添加收货地址' }}</text>
+          <text class="address-empty-hint">{{ addresses.length > 0 ? '请选择已有地址，或添加新地址' : '请填写收货人、手机号和详细地址' }}</text>
         </view>
         <app-icon name="chevron-right" :size="32" color="#CCCCCC" />
       </view>
@@ -280,6 +284,15 @@ onUnmounted(() => { if (timer) clearInterval(timer) })
 function selectAddress(a: ShippingAddress) { currentAddress.value = a; showAddress.value = false }
 function selectCoupon(c: CheckoutCoupon | null) { selectedCoupon.value = c; showCoupon.value = false }
 
+// 无地址时从卡片直接进入新增页；已有地址时保留地址选择弹层。
+function onAddressCardTap() {
+  if (!currentAddress.value && addresses.value.length === 0) {
+    goAddAddress()
+    return
+  }
+  showAddress.value = true
+}
+
 // 跳地址编辑页新增地址（结算弹层无地址时的入口）
 function goAddAddress() {
   showAddress.value = false
@@ -348,6 +361,9 @@ function onTimeout() { redirectTo('/shop/pay-timeout') }
 .content { flex: 1; }
 .address-card { display: flex; align-items: center; gap: 16rpx; background: #FFFFFF; margin: 20rpx; padding: 28rpx 24rpx; border-radius: 20rpx; }
 .address-info { flex: 1; display: flex; flex-direction: column; gap: 10rpx; }
+.address-empty { flex: 1; display: flex; flex-direction: column; gap: 8rpx; }
+.address-empty-title { font-size: 30rpx; font-weight: 600; color: #1A1A1A; }
+.address-empty-hint { font-size: 24rpx; line-height: 1.4; color: #999999; }
 .addr-top { display: flex; align-items: center; gap: 16rpx; }
 .addr-name { font-size: 30rpx; font-weight: 600; color: #1A1A1A; }
 .addr-phone { font-size: 26rpx; color: #666666; }

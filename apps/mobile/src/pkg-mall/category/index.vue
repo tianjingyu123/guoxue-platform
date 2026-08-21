@@ -91,7 +91,9 @@ function toProductCard(p: CategoryProduct): ProductCardData {
     sales: p.sales,
     stock: p.stock,
     tags: p.tags,
-    reason: '严选好物',
+    reason: p.isOfficialSelfOwned ? '官方自营' : p.isSelected ? '平台严选' : '商家商品',
+    isOfficialSelfOwned: !!p.isOfficialSelfOwned,
+    isSelected: !!p.isSelected,
   }
 }
 function pickSort(id: string) { sortBy.value = id; showSortMenu.value = false; refresh() }

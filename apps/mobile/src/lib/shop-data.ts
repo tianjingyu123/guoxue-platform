@@ -231,6 +231,8 @@ export interface ProductDetail {
   merchant?: { id: string; shopName: string; shopLogo?: string } | null
   /** 官方自营（归属官方旗舰店）→ 详情页显示「官方自营」标识 */
   isOfficialSelfOwned?: boolean
+  /** 平台严选（由服务端商家资质判定） */
+  isSelected?: boolean
 }
 
 /** C 端店铺主页 — 商家公开信息 */
@@ -302,6 +304,8 @@ export interface CategoryProduct {
   cover: string
   isMemberFree: boolean
   createdAt?: string
+  isOfficialSelfOwned?: boolean
+  isSelected?: boolean
 }
 export const categoryProducts: CategoryProduct[] = [
   { id: 1, name: '《渊海子平》精装典藏版', price: 128, originalPrice: 168, sales: 2856, category: 'books', cover: `.webp`, isMemberFree: false },
@@ -1205,6 +1209,7 @@ interface RawShopProduct {
   merchant?: RawShopMerchant | null
   skus?: RawShopSku[]
   isOfficialSelfOwned?: boolean
+  isSelected?: boolean
 }
 interface RawShopReview { id?: string; user?: { nickname?: string; avatar?: string } | null; rating?: number; content?: string; images?: string[]; reply?: string | null; repliedAt?: string | null; createdAt?: string }
 interface RawReviewStats { average?: number; count?: number; withImages?: number; distribution?: Record<string, number> }
@@ -1304,6 +1309,7 @@ function adaptProductDetail(p: RawShopProduct): ProductDetail {
       ? { id: p.merchant.id || '', shopName: p.merchant.shopName || '', shopLogo: p.merchant.shopLogo || undefined }
       : null,
     isOfficialSelfOwned: !!p.isOfficialSelfOwned,
+    isSelected: !!p.isSelected,
   }
 }
 
@@ -1451,9 +1457,10 @@ function adaptProductCard(p: RawShopProduct): ProductCardData {
     sales: p.salesCount ?? 0,
     stock: shopNum(p.stock),
     tags: Array.isArray(p.tags) ? p.tags.slice(0, 2) : [],
-    reason: p.isOfficialSelfOwned ? '官方严选' : '严选好物',
+    reason: p.isOfficialSelfOwned ? '官方自营' : p.isSelected ? '平台严选' : '商家商品',
     tag: p.hasPromotion ? (p.promotionTag || '促销') : undefined,
     isOfficialSelfOwned: !!p.isOfficialSelfOwned,
+    isSelected: !!p.isSelected,
     coverRatio: '1:1', // 商城商品主图规范=1:1（电商通用 800×800）；此处仅商城板块数据源，不影响发现页 feed 的 3:4 容器
   }
 }
@@ -1482,6 +1489,8 @@ function adaptCategoryProduct(p: RawShopProduct): CategoryProduct {
     cover: fixImgUrl(p.images?.[0] || ''),
     isMemberFree: false, // 后端无会员免费标记
     createdAt: p.createdAt || '',
+    isOfficialSelfOwned: !!p.isOfficialSelfOwned,
+    isSelected: !!p.isSelected,
   }
 }
 

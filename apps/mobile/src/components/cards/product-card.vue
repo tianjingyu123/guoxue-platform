@@ -12,6 +12,11 @@ const saving = computed(() => {
   const original = Number(props.data.originalPrice || 0)
   return original > price ? original - price : 0
 })
+const trustLabel = computed(() => {
+  if (props.data.isOfficialSelfOwned) return '官方自营'
+  if (props.data.isSelected) return '平台严选'
+  return '商家商品'
+})
 
 const accessibilityLabel = computed(() => {
   const subtitle = props.data.subtitle ? `，${props.data.subtitle}` : ''
@@ -46,7 +51,7 @@ function openOnKeyboard(event: KeyboardEvent) {
     </view>
     <view class="body">
       <view class="eyebrow">
-        <text class="select-tag">{{ data.reason || (data.isOfficialSelfOwned ? '官方严选' : '严选好物') }}</text>
+        <text class="select-tag">{{ trustLabel }}</text>
         <text v-for="tag in (data.tags || []).slice(0, 2)" :key="tag" class="benefit-tag">{{ tag }}</text>
       </view>
       <text class="title">{{ data.title }}</text>
