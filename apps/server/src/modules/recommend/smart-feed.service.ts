@@ -9,6 +9,7 @@ import {
 } from "../../common/public-content-quarantine";
 import { serverConfig } from "../../config/server-config";
 import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
+import { toPublicClassicIntro } from "../classic/classic-public-copy";
 
 /**
  * 首页聚合瀑布流「九类卡统一信封」。
@@ -764,7 +765,7 @@ export class SmartFeedService {
       id: b.id,
       type: "classic",
       title: b.title,
-      subtitle: b.intro || "",
+      subtitle: toPublicClassicIntro(b.intro, b.title),
       cover: b.cover || "",
       score: 0,
       reason,

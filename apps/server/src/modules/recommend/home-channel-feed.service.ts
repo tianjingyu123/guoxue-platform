@@ -4,6 +4,7 @@ import { RedisService } from "../../redis/redis.service";
 import { isPublicContentQuarantined } from "../../common/public-content-quarantine";
 import type { FeedItem, SmartFeedResult } from "./smart-feed.service";
 import { PUBLIC_CLASSIC_BOOK_WHERE } from "../classic/classic-publication-policy";
+import { toPublicClassicIntro } from "../classic/classic-public-copy";
 
 type TimedFeedItem = { at: number; item: FeedItem };
 
@@ -318,7 +319,8 @@ export class HomeChannelFeedService {
 
   private mapClassic(row: any, reason: string): FeedItem {
     return {
-      id: row.id, type: "classic", title: row.title, subtitle: row.intro || "",
+      id: row.id, type: "classic", title: row.title,
+      subtitle: toPublicClassicIntro(row.intro, row.title),
       cover: row.cover || "", score: 0, reason, coverRatio: "3:4",
       author: row.author ? { name: row.author } : undefined,
       metric: { kind: "readers", value: this.toNum(row.viewCount) },

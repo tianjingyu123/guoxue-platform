@@ -15,6 +15,7 @@ import { AbTestService } from "./ab-test.service";
 import { StrategyWeightOverride } from "../ab-test.dto";
 import { RecommendSelectService } from "./recommend-select.service";
 import { PUBLIC_CLASSIC_BOOK_WHERE } from "../../classic/classic-publication-policy";
+import { toPublicClassicIntro } from "../../classic/classic-public-copy";
 
 /**
  * 推荐-基础召回场景域（从 recommend.service 拆出·纯搬家不改逻辑）。
@@ -73,7 +74,7 @@ export class RecommendSceneCoreService {
     items.push(...products.map((p) => ({ id: p.id, type: "PRODUCT" as const, title: p.title, cover: p.images?.[0], excerpt: p.intro ?? undefined, tags: p.tags, score: p.salesCount ?? 0, reason: "热销商品推荐", strategies: ["hot-trending"], metadata: { price: Number(p.price), salesCount: p.salesCount } })));
     items.push(...circles.map((c) => ({ id: c.id, type: "CIRCLE" as const, title: c.name, cover: c.cover ?? undefined, excerpt: c.intro ?? undefined, tags: c.tags, score: c.memberCount ?? 0, reason: "热门圈子推荐", strategies: ["hot-trending"], metadata: { memberCount: c.memberCount } })));
     items.push(...videos.map((v) => ({ id: v.id, type: "VIDEO" as const, title: v.title ?? "", cover: v.coverUrl ?? undefined, tags: v.tags, score: v.viewCount ?? 0, reason: "热门视频推荐", strategies: ["hot-trending"], metadata: { viewCount: v.viewCount, likeCount: v.likeCount } })));
-    items.push(...(Array.isArray(classics) ? classics : []).map((b) => ({ id: b.id, type: "CLASSIC" as const, title: b.title, cover: b.cover ?? undefined, excerpt: b.intro ?? undefined, tags: [b.category].filter(Boolean) as string[], score: b.viewCount ?? 0, reason: "热门古籍推荐", strategies: ["hot-trending"], metadata: { author: b.author, viewCount: b.viewCount } })));
+    items.push(...(Array.isArray(classics) ? classics : []).map((b) => ({ id: b.id, type: "CLASSIC" as const, title: b.title, cover: b.cover ?? undefined, excerpt: toPublicClassicIntro(b.intro, b.title), tags: [b.category].filter(Boolean) as string[], score: b.viewCount ?? 0, reason: "热门古籍推荐", strategies: ["hot-trending"], metadata: { author: b.author, viewCount: b.viewCount } })));
 
     return items.sort((a, b) => b.score - a.score);
   }
@@ -185,7 +186,7 @@ export class RecommendSceneCoreService {
     items.push(...courses.map((c) => ({ id: c.id, type: "COURSE" as const, title: c.title, cover: c.cover ?? undefined, excerpt: c.intro ?? undefined, tags: c.tags, score: c.studentCount ?? 0, reason: "全平台热门", strategies: ["hot-trending"], metadata: { price: Number(c.price), studentCount: c.studentCount } })));
     items.push(...products.map((p) => ({ id: p.id, type: "PRODUCT" as const, title: p.title, cover: p.images?.[0], excerpt: p.intro ?? undefined, tags: p.tags, score: p.salesCount ?? 0, reason: "全平台热门", strategies: ["hot-trending"], metadata: { price: Number(p.price), salesCount: p.salesCount } })));
     items.push(...circles.map((c) => ({ id: c.id, type: "CIRCLE" as const, title: c.name, cover: c.cover ?? undefined, excerpt: c.intro ?? undefined, tags: c.tags, score: c.memberCount ?? 0, reason: "全平台热门", strategies: ["hot-trending"], metadata: { memberCount: c.memberCount } })));
-    items.push(...(Array.isArray(classics) ? classics : []).map((b) => ({ id: b.id, type: "CLASSIC" as const, title: b.title, cover: b.cover ?? undefined, excerpt: b.intro ?? undefined, tags: [b.category].filter(Boolean) as string[], score: b.viewCount ?? 0, reason: "全平台热门", strategies: ["hot-trending"], metadata: { author: b.author, viewCount: b.viewCount } })));
+    items.push(...(Array.isArray(classics) ? classics : []).map((b) => ({ id: b.id, type: "CLASSIC" as const, title: b.title, cover: b.cover ?? undefined, excerpt: toPublicClassicIntro(b.intro, b.title), tags: [b.category].filter(Boolean) as string[], score: b.viewCount ?? 0, reason: "全平台热门", strategies: ["hot-trending"], metadata: { author: b.author, viewCount: b.viewCount } })));
 
     return items.sort((a, b) => b.score - a.score);
   }

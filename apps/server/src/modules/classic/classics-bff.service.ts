@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { ClassicService } from "./classic.service";
 import { PUBLIC_CLASSIC_BOOK_WHERE } from "./classic-publication-policy";
+import { toPublicClassicIntro } from "./classic-public-copy";
 
 /**
  * 古籍馆「页面聚合（BFF）」服务。
@@ -203,15 +204,7 @@ export class ClassicsBffService {
    * 对读者无价值，识别后替换为得体的通用描述。
    */
   private cleanIntro(intro: string | null | undefined, title: string): string {
-    const raw = (intro || "").trim();
-    const isMeta =
-      !raw ||
-      /^来源[:：]/.test(raw) ||
-      /殆知阁收录古籍/.test(raw) ||
-      /(?:本次候选|候选素材|数字来源|数据快照|冻结\s*Markdown|批次终审|定期\s*Codex\s*复核)/i.test(raw) ||
-      /原文共\s*\d+\s*字/.test(raw) ||
-      /共\s*\d+\s*章，\s*\d+\s*字/.test(raw);
-    return isMeta ? `《${title}》，中华传统典籍，点击阅读全文。` : raw;
+    return toPublicClassicIntro(intro, title);
   }
 
   /** 清洗版本来源：殆知阁/汉籍/URL 等脚本来源对读者无意义，归为「通行本」。 */
