@@ -208,6 +208,7 @@ export class ClassicsBffService {
       !raw ||
       /^来源[:：]/.test(raw) ||
       /殆知阁收录古籍/.test(raw) ||
+      /(?:本次候选|候选素材|数字来源|数据快照|冻结\s*Markdown|批次终审|定期\s*Codex\s*复核)/i.test(raw) ||
       /原文共\s*\d+\s*字/.test(raw) ||
       /共\s*\d+\s*章，\s*\d+\s*字/.test(raw);
     return isMeta ? `《${title}》，中华传统典籍，点击阅读全文。` : raw;
