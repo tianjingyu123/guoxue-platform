@@ -63,6 +63,7 @@ const shellScripts = [
   "scripts/operations/deploy-nginx-clb-config.sh",
   "scripts/operations/deploy-monitoring-config.sh",
   "scripts/operations/probe-clb-failover.sh",
+  "scripts/operations/cleanup-docker-retention.sh",
   "scripts/db-ops.sh",
   "scripts/backup-db.sh",
   "scripts/restore-db.sh",
@@ -86,6 +87,7 @@ const nginxClbDeploy = read("scripts/operations/deploy-nginx-clb-config.sh");
 const clbFailoverProbe = read("scripts/operations/probe-clb-failover.sh");
 const tencentCloudAudit = read("scripts/operations/audit-tencent-cloud-readiness.py");
 const setupServer = read("docker/setup-server.sh");
+const dockerCleanup = read("scripts/operations/cleanup-docker-retention.sh");
 const standardTlsRenewal = read("docker/renew-ssl.sh");
 const standardTlsBootstrap = read("docker/nginx/setup-ssl.sh");
 add(
@@ -882,11 +884,18 @@ add(
 add(
   "主机清理与数据库备份不得破坏回滚或并发写入",
   hasAll(setupServer, [
-    "docker image prune -f",
-    "docker builder prune -f --filter 'until=168h'",
-    "禁止 system prune -a 删除旧版回滚镜像",
+    'CLEANUP_SCRIPT="$RUNTIME_DIR/scripts/operations/cleanup-docker-retention.sh"',
+    "ROLLBACK_IMAGE_KEEP=2 BUILDER_CACHE_MAX_AGE=168h",
   ]) &&
-    !setupServer.includes("docker system prune -af") &&
+    hasAll(dockerCleanup, [
+      'exec 8>"$ROOT_DIR/.release-activation.lock"',
+      "flock -n 8",
+      'docker builder prune -af --filter "until=$BUILDER_CACHE_MAX_AGE"',
+      "docker image prune -f",
+      "保留最近 $ROLLBACK_IMAGE_KEEP 个回滚镜像",
+    ]) &&
+    !dockerCleanup.includes("docker system prune") &&
+    !dockerCleanup.includes("docker volume prune") &&
     hasAll(productionBackup, [
       'BACKUP_LOCK_FILE="${BACKUP_LOCK_FILE:-$BACKUP_DIR/.backup.lock}"',
       "flock -n 9",
