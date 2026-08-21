@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "1.0",
+  "packageId": "rebu-official-onboarding-course-20260821-v1",
+  "topic": "热卜国学新用户入门",
+  "publisher": {
+    "displayName": "热卜国学官方",
+    "legalName": "河北热卜运维网络科技有限公司",
+    "phone": "18631243959"
+  },
+  "labels": ["官方发布", "操作指南", "免费课程"],
+  "channels": ["ARTICLE"],
+  "claims": [
+    {
+      "text": "预发布首页已提供首页、圈子、工具、发现和我的主导航。",
+      "source": "https://pre-api.rebugx.cn/h5/",
+      "verifiedAt": "2026-08-21",
+      "environment": "preproduction"
+    },
+    {
+      "text": "古籍详情、章节目录和连续阅读器已完成真实页面验收。",
+      "source": "https://pre-api.rebugx.cn/h5/pkg-classics/detail/index?id=e0b97369-0275-4216-a1d8-add6d53c6187",
+      "verifiedAt": "2026-08-21",
+      "environment": "preproduction"
+    },
+    {
+      "text": "原生排盘首页已展示黄历、案例、智能解盘和全部工具入口，不再跳转第三方旧站。",
+      "source": "https://pre-api.rebugx.cn/h5/pages/paipan/index",
+      "verifiedAt": "2026-08-21",
+      "environment": "preproduction"
+    },
+    {
+      "text": "智能体列表已展示可用智能体和搜索入口。",
+      "source": "https://pre-api.rebugx.cn/h5/pkg-agent/agents/index",
+      "verifiedAt": "2026-08-21",
+      "environment": "preproduction"
+    }
+  ],
+  "assets": [
+    {
+      "file": "course.json",
+      "source": "热卜当前产品真实页面与功能验收记录",
+      "rights": "河北热卜运维网络科技有限公司自制；AI 辅助起草，Codex 完成事实与合规核验",
+      "aiGenerated": true
+    }
+  ],
+  "disclaimers": [
+    "古籍原文、标点和译注以平台标注的版本与来源为准。",
+    "AI 伴读内容仅作阅读辅助，不替代专业研究与学术判断。",
+    "排盘与分析属于传统文化研究与交流，不构成现实决策、医疗、法律或投资建议。"
+  ],
+  "review": {
+    "owner": "热卜官方内容运营",
+    "status": "APPROVED",
+    "version": "1.0.0",
+    "approvedBy": "项目负责人已授权持续推进上线运营内容补齐",
+    "approvedAt": "2026-08-21T05:45:00Z"
+  },
+  "publication": {
+    "contentIds": [],
+    "urls": [],
+    "publishedAt": null,
+    "rollbackVersion": "remove-course-by-courseKey:rebu-official-onboarding-20260821"
+  }
+}
