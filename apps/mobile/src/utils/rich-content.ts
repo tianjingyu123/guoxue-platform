@@ -159,6 +159,66 @@ export function normalizeArticleContent(html?: string): string {
 }
 
 /* ============================================================================
+ * 课程正文安全归一化
+ *
+ * 课程正文会进入 H5、微信小程序、App 与 Harmony 的 rich-text。即使后台编辑器和
+ * 服务端已有清洗，这里仍做客户端最后一道防线，避免存量数据中的脚本、事件属性或
+ * javascript: URL 在某个端的 rich-text 实现中被意外执行。
+ * ========================================================================== */
+
+const COURSE_BLOCKED_TAGS =
+  'script|style|iframe|object|embed|link|meta|base|form|input|button|textarea|select|option|svg|math'
+
+function decodeNumericEntities(value: string): string {
+  return value.replace(/&#(?:x([0-9a-f]+)|(\d+));?/gi, (_m, hex: string, dec: string) => {
+    const code = Number.parseInt(hex || dec, hex ? 16 : 10)
+    return Number.isFinite(code) ? String.fromCharCode(code) : ''
+  })
+}
+
+function isUnsafeRichUrl(value: string): boolean {
+  const normalized = Array.from(decodeNumericEntities(unescapeEntities(value)))
+    .filter((char) => {
+      const code = char.charCodeAt(0)
+      return code > 0x20 && code !== 0x7f
+    })
+    .join('')
+    .toLowerCase()
+  return /^(?:javascript|vbscript|data):/.test(normalized)
+}
+
+/** 课程富文本白名单式风险剥离；不改变正文语义和安全的 http(s) 图片/链接。 */
+export function sanitizeCourseRichContent(html?: string): string {
+  let s = String(html ?? '')
+  if (!s.trim()) return ''
+  // 先还原被历史 SanitizePipe 整段转义的 HTML，再做危险节点清理，防止编码绕过。
+  if (!s.includes('<') && s.includes('&lt;')) s = unescapeEntities(s)
+  s = s.replace(/<!--[\s\S]*?-->/g, '')
+  s = s.replace(new RegExp(`<(${COURSE_BLOCKED_TAGS})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, 'gi'), '')
+  s = s.replace(new RegExp(`<\\/?(?:${COURSE_BLOCKED_TAGS})\\b[^>]*>`, 'gi'), '')
+  s = s.replace(/\s+on[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+  s = s.replace(/\s+(href|src)\s*=\s*(["'])([\s\S]*?)\2/gi, (_match, name: string, quote: string, value: string) =>
+    isUnsafeRichUrl(value) ? '' : ` ${name}=${quote}${value}${quote}`,
+  )
+  s = s.replace(/\s+style\s*=\s*(["'])([\s\S]*?)\1/gi, (_match, quote: string, value: string) => {
+    const normalized = decodeNumericEntities(value).replace(/\s+/g, '').toLowerCase()
+    return /expression\(|url\([^)]*(?:javascript|vbscript|data):|behavior:|-moz-binding/i.test(normalized)
+      ? ''
+      : ` style=${quote}${value}${quote}`
+  })
+  return s
+}
+
+/** 课程正文统一入口：安全清洗 + 纯文本分段 + 跨端文章排版。 */
+export function normalizeCourseContent(html?: string): string {
+  let s = sanitizeCourseRichContent(html)
+  if (!s.trim()) return ''
+  // 普通正文里的“小于号”不应被误判成 HTML；只有真实标签才保留为富文本。
+  if (!/<\/?[a-z][^>]*>/i.test(s)) s = plainTextToHtml(s)
+  return normalizeArticleContent(s)
+}
+
+/* ============================================================================
  * 文章编辑器「占位标记式插图」组装/反解（editor.vue 文章模式专用）。
  *
  * 编辑侧是纯 textarea（uni-app 无跨端富文本编辑器），采用微博长文同款方案：

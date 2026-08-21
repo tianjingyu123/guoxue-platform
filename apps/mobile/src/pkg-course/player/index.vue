@@ -55,8 +55,12 @@ const courseDetail = ref<any>(null)
 const showPurchase = ref(false)
 // 试看态：付费课未购（能进播放页的必是免费试看章节，后端 content 端点已鉴权）
 const trialMode = computed(() => !!courseDetail.value && !courseDetail.value.isFree && !hasAccess.value)
-// 图文态判定：课时无播放媒体地址（videoUrl 为空）→ 图文课时，走沉浸阅读
-const isArticleMode = computed(() => !!content.value && !content.value.videoUrl)
+// 图文态判定：以课程类型为主，空媒体+有正文为兼容兜底；TEXT/EBOOK 即使正文为空也
+// 必须进入诚实的图文空态，绝不能回退到 video 组件。
+const isArticleMode = computed(() => {
+  const type = String(content.value?.courseType || '').toUpperCase()
+  return !!content.value && (type === 'TEXT' || type === 'EBOOK' || (!content.value.videoUrl && !!content.value.content))
+})
 
 // 完课态：全部课时学完（getProgress 完成数==总数）
 const completedAll = ref(false)
@@ -107,7 +111,10 @@ function scheduleHideControls() {
 }
 onUnmounted(() => { if (hideTimer) clearTimeout(hideTimer) })
 // 切页/切后台时暂停视频，根除后台多音轨（点讲师/作者头像跳转时原视频不再后台出声）
-onHide(() => { try { playerCtx().pause() } catch { /* 图文态无 video 元素·忽略 */ } })
+onHide(() => {
+  try { playerCtx().pause() } catch { /* 图文态无 video 元素·忽略 */ }
+  if (isArticleMode.value) void ensureArticleReadingProgress()
+})
 // 起播/暂停事件：首次 @play 后封面层永久隐藏（autoplay 被浏览器拦截时封面层单钮点一次即播）
 function onPlay() {
   isPlaying.value = true; started.value = true; showControls.value = true; scheduleHideControls()
@@ -197,6 +204,7 @@ async function switchLesson(id: string) {
     playError.value = false
     lastSaveTs = 0
     started.value = next.videoUrl ? started.value : true
+    if (isArticleMode.value) void ensureArticleReadingProgress()
     // 换源后立即续播（用户已有交互，程序化播放不被拦截）
     if (next.videoUrl) setTimeout(() => playerCtx().play(), 60)
   } catch (e) {
@@ -241,10 +249,41 @@ function onPurchased() {
   uni.showToast({ title: '购买成功，已解锁全部章节', icon: 'success' })
 }
 
-// 图文态「完成本讲」：切换到下一课时（末讲则触发完课横幅刷新）
-function onArticleDone() {
-  if (content.value?.nextLesson) switchLesson(content.value.nextLesson.id)
-  else refreshProgress()
+function currentArticleCompleted() {
+  return (chapters.value as PlayerChapter[]).some((chapter) =>
+    (chapter.lessons || []).some((lesson) => lesson.id === currentLessonId.value && lesson.isCompleted))
+}
+
+function markArticleCompleted(id: string) {
+  chapters.value = (chapters.value as PlayerChapter[]).map((chapter) => ({
+    ...chapter,
+    lessons: (chapter.lessons || []).map((lesson) => lesson.id === id ? { ...lesson, isCompleted: true } : lesson),
+  }))
+  if (content.value?.id === id) content.value = { ...content.value, progressPercent: 100 }
+}
+
+async function ensureArticleReadingProgress() {
+  if (!isArticleMode.value || !currentLessonId.value || currentArticleCompleted() || Number(content.value?.progressPercent || 0) > 0) return
+  await courseApi.saveProgress(currentLessonId.value, 1, true)
+    .then(() => { content.value = { ...content.value, progressPercent: 1 } })
+    .catch(() => { /* 阅读态恢复失败不遮挡正文 */ })
+}
+
+const articleCompleting = ref(false)
+// 图文态「完成本讲」：先可靠落 100% 进度，再切下一讲；失败不伪造已完成。
+async function onArticleDone() {
+  if (!currentLessonId.value || articleCompleting.value) return
+  articleCompleting.value = true
+  try {
+    await courseApi.saveProgress(currentLessonId.value, 100, true)
+    markArticleCompleted(currentLessonId.value)
+    if (content.value?.nextLesson) await switchLesson(content.value.nextLesson.id)
+    else await refreshProgress()
+  } catch (e) {
+    uni.showToast({ title: (e as Error)?.message || '进度保存失败，请重试', icon: 'none' })
+  } finally {
+    articleCompleting.value = false
+  }
 }
 
 // 完课进度检查（静默）：全部课时学完则展示祝贺横幅
@@ -300,7 +339,10 @@ async function loadData() {
     playError.value = false
     lastSaveTs = 0
     // 图文课时无视频，无需起播封面
-    if (isArticleMode.value) started.value = true
+    if (isArticleMode.value) {
+      started.value = true
+      void ensureArticleReadingProgress()
+    }
     // 权限 + 课程概要 + 完课进度并行静默回填（不阻塞播放主链路）
     void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v }).catch(() => { /* 静默 */ })
     void courseApi.getDetail(courseId.value).then((d) => { courseDetail.value = d }).catch(() => { /* 静默：无概要则不显示试看条 */ })
@@ -329,6 +371,7 @@ let firstShowDone = false
 onShow(() => {
   if (!firstShowDone) { firstShowDone = true; return }
   if (!courseId.value) return
+  if (isArticleMode.value) void ensureArticleReadingProgress()
   void courseApi.checkAccess(courseId.value).then((v) => { hasAccess.value = v }).catch(() => { /* 静默 */ })
 })
 </script>
@@ -353,7 +396,7 @@ onShow(() => {
   </view>
 
   <!-- ══════════ 图文态：整页沉浸阅读 ══════════ -->
-  <view v-else-if="isArticleMode" class="page">
+  <view v-else-if="isArticleMode" class="page article-page">
     <!-- 完课横幅 -->
     <view v-if="showCongrats" class="congrats" :style="{ paddingTop: (safeTop + 16) + 'px' }">
       <view class="congrats-title serif">
@@ -386,9 +429,9 @@ onShow(() => {
         <text v-else class="a-body-text">本讲为图文课时，暂无正文内容。</text>
       </view>
       <!-- 完成本讲 -->
-      <view class="done-zone">
-        <view class="done-btn" @tap="onArticleDone">
-          <text class="done-btn-txt">{{ content.nextLesson ? '完成本讲，下一讲' : '完成本讲' }}</text>
+      <view class="done-zone" :style="{ paddingBottom: (safeBottom + 40) + 'px' }">
+        <view class="done-btn" :class="{ disabled: articleCompleting }" @tap="onArticleDone">
+          <text class="done-btn-txt">{{ articleCompleting ? '正在保存…' : content.nextLesson ? '完成本讲，下一讲' : '完成本讲' }}</text>
           <app-icon name="chevron-right" :size="30" color="#ffffff" />
         </view>
         <text v-if="content.nextLesson" class="done-hint">下一讲 · {{ content.nextLesson.title }}</text>
@@ -731,6 +774,7 @@ onShow(() => {
 
 <style scoped>
 .page { min-height: 100vh; background: #FAF8F5; position: relative; }
+.article-page { height: 100vh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
 
 /* ═══ 播放区（深色 #111） ═══ */
@@ -869,10 +913,11 @@ onShow(() => {
 
 /* ═══ 图文态 ═══ */
 .a-nav { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; background: #FAF8F5; border-bottom: 1rpx solid #EDE7DD; z-index: 10; }
+.article-page .a-nav { position: relative; flex-shrink: 0; }
 .a-nav-btn { width: 68rpx; height: 68rpx; border-radius: 50%; background: #FFFFFF; display: flex; align-items: center; justify-content: center; box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.04); }
 .a-nav-mid { display: flex; align-items: center; gap: 10rpx; }
 .a-nav-mid-txt { font-size: 26rpx; color: #6E6E73; }
-.a-scroll { height: 100vh; }
+.a-scroll { flex: 1; height: 0; }
 .article { padding: 44rpx 40rpx 28rpx; }
 .a-title { display: block; font-size: 44rpx; font-weight: 700; line-height: 1.45; color: #2C2C2C; }
 .a-meta { display: block; font-size: 26rpx; color: #999999; margin-top: 20rpx; padding-bottom: 36rpx; border-bottom: 1rpx solid #EDE7DD; }
@@ -880,6 +925,7 @@ onShow(() => {
 .a-body-text { display: block; margin-top: 36rpx; font-size: 32rpx; line-height: 1.8; color: #2C2C2C; }
 .done-zone { padding: 16rpx 40rpx 80rpx; }
 .done-btn { height: 96rpx; border-radius: 999rpx; background: #C41E3A; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
+.done-btn.disabled { opacity: 0.58; }
 .done-btn-txt { font-size: 32rpx; font-weight: 700; color: #fff; }
 .done-hint { display: block; text-align: center; font-size: 24rpx; color: #999999; margin-top: 20rpx; }
 

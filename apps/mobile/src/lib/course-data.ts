@@ -2,6 +2,7 @@
 import type { CourseCardData } from '@/lib/card-utils'
 import type { BannerItem } from '@/lib/home-data'
 import { apiGet, apiGetOptionalAuth, apiPost, apiPut, apiPutOptionalAuth, apiGetPaged } from '@/utils/request'
+import { normalizeCourseContent } from '@/utils/rich-content'
 
 // 课程首页 Banner
 export const courseBanners: BannerItem[] = [
@@ -72,7 +73,21 @@ export interface LearnQuestion { id: string; content: string; author: { id: stri
 // ============ 视频播放页(player) mock(从原型 courses/[id]/player 迁移) ============
 // @data-needs: 课时播放内容, 参数 lessonId, 返回 ChapterContent
 export interface PlayerLesson { id: string; title: string; chapterId: string }
-export interface ChapterContent { id: string; title: string; courseId: string; courseTitle: string; cover: string; videoUrl: string; duration: number; currentProgress: number; nextLesson?: PlayerLesson; prevLesson?: PlayerLesson }
+export interface ChapterContent {
+  id: string
+  title: string
+  courseId: string
+  courseTitle: string
+  courseType: string
+  cover: string
+  videoUrl: string
+  content: string
+  duration: number
+  currentProgress: number
+  progressPercent: number
+  nextLesson?: PlayerLesson
+  prevLesson?: PlayerLesson
+}
 // @data-needs: 播放页章节目录, 参数 courseId, 返回 PlayerChapter[]
 export interface PlayerChapterLesson { id: string; title: string; duration: number; isFree: boolean; isCompleted: boolean }
 export interface PlayerChapter { id: string; title: string; duration: number; isFree: boolean; lessons: PlayerChapterLesson[] }
@@ -517,15 +532,26 @@ export const courseApi = {
     const next = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : undefined
     const myProg = toList<RawProgress>(progress).find((p) => p.chapterId === lessonId)
     const duration = toNum(ch.duration)
+    const courseType = String(course?.type || 'VIDEO').toUpperCase()
+    const isTextCourse = courseType === 'TEXT' || courseType === 'EBOOK'
+    const rawContent = String(ch.content || '')
+    // TEXT/EBOOK 的 content 是正文，绝不能再回退成 video src；其余存量课程继续兼容
+    // “mediaUrl 为空、content 存媒体地址”的历史数据。
+    const videoUrl = isTextCourse ? '' : String(ch.mediaUrl || rawContent)
+    const articleContent = isTextCourse ? normalizeCourseContent(rawContent) : ''
+    const progressPercent = Math.max(0, Math.min(100, toNum(myProg?.progress)))
     return {
       id: ch.id || '',
       title: ch.title || '',
       courseId,
       courseTitle: course?.title || '',
+      courseType,
       cover: course?.cover || '',
-      videoUrl: ch.mediaUrl || ch.content || '',
+      videoUrl,
+      content: articleContent,
       duration,
-      currentProgress: myProg ? Math.round((toNum(myProg.progress) / 100) * duration) : 0,
+      currentProgress: duration ? Math.round((progressPercent / 100) * duration) : 0,
+      progressPercent,
       nextLesson: next ? { id: next.id || '', title: next.title || '', chapterId: next.id || '' } : undefined,
       prevLesson: prev ? { id: prev.id || '', title: prev.title || '', chapterId: prev.id || '' } : undefined,
     }
