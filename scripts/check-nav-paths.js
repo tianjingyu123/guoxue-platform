@@ -4,28 +4,77 @@ const path = require('path')
 const repoRoot = path.resolve(__dirname, '..')
 const srcDir = path.join(repoRoot, 'apps', 'mobile', 'src')
 const pagesFile = path.join(srcDir, 'pages.json')
-// uni-app 允许在 pages.json 中使用条件编译行。导航审计需要检查所有平台
-// 路由，因此只移除编译指令本身，保留指令包围的页面配置后再解析。
-const pagesSource = fs
-  .readFileSync(pagesFile, 'utf8')
-  .replace(/^\s*\/\/\s*#(?:if|ifdef|ifndef|elif|else|endif)\b.*$/gmu, '')
-const pagesConfig = JSON.parse(pagesSource)
+// uni-app 允许在 pages.json 中用条件编译把同一路由分别注册为 App 主包页和
+// 非 App 分包页。直接删除编译指令会把两个互斥分支拼在一起，误报重复路由。
+// 分别解析 APP-PLUS 与非 APP-PLUS 两个实际配置，再对路由取并集。
+const rawPagesSource = fs.readFileSync(pagesFile, 'utf8')
+
+function compilePagesSource(source, appPlus) {
+  const stack = []
+  let active = true
+  const output = []
+
+  for (const line of source.split(/\r?\n/)) {
+    const directive = line.match(/^\s*\/\/\s*#(ifdef|ifndef|else|endif)\b\s*(.*)$/u)
+    if (!directive) {
+      if (active) output.push(line)
+      continue
+    }
+
+    const [, kind, expression] = directive
+    if (kind === 'ifdef' || kind === 'ifndef') {
+      const symbol = expression.trim()
+      if (symbol !== 'APP-PLUS') {
+        throw new Error(`pages.json 含导航审计尚未支持的条件编译标识：${symbol}`)
+      }
+      const condition = kind === 'ifdef' ? appPlus : !appPlus
+      stack.push({ parentActive: active, condition, hasElse: false })
+      active = active && condition
+      continue
+    }
+
+    if (!stack.length) throw new Error(`pages.json 条件编译指令缺少起始分支：#${kind}`)
+    const current = stack[stack.length - 1]
+    if (kind === 'else') {
+      if (current.hasElse) throw new Error('pages.json 同一条件分支不能包含多个 #else')
+      current.hasElse = true
+      active = current.parentActive && !current.condition
+      continue
+    }
+
+    stack.pop()
+    active = current.parentActive
+  }
+
+  if (stack.length) throw new Error('pages.json 条件编译指令缺少 #endif')
+  return output.join('\n')
+}
+
+const pagesConfigs = [true, false].map((appPlus) =>
+  JSON.parse(compilePagesSource(rawPagesSource, appPlus)),
+)
 
 const validSet = new Set()
-const duplicateRoutes = []
-function registerRoute(route) {
+const duplicateRouteSet = new Set()
+function registerRoute(route, platformSet) {
   const normalized = route.replace(/^\/+/, '')
-  if (validSet.has(normalized)) duplicateRoutes.push(normalized)
+  if (platformSet.has(normalized)) duplicateRouteSet.add(normalized)
+  platformSet.add(normalized)
   validSet.add(normalized)
 }
-for (const page of pagesConfig.pages || []) {
-  registerRoute(page.path)
-}
-for (const pkg of pagesConfig.subPackages || []) {
-  for (const page of pkg.pages || []) {
-    registerRoute(`${pkg.root}/${page.path}`)
+
+for (const pagesConfig of pagesConfigs) {
+  const platformSet = new Set()
+  for (const page of pagesConfig.pages || []) {
+    registerRoute(page.path, platformSet)
+  }
+  for (const pkg of pagesConfig.subPackages || []) {
+    for (const page of pkg.pages || []) {
+      registerRoute(`${pkg.root}/${page.path}`, platformSet)
+    }
   }
 }
+const duplicateRoutes = [...duplicateRouteSet]
 
 const missingPageFiles = [...validSet].filter(
   (route) =>
