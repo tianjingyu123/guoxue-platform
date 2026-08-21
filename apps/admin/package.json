@@ -13,6 +13,7 @@
     "@element-plus/icons-vue": "^2.3.2",
     "@guoxue/bazi-engine": "workspace:*",
     "@guoxue/shared": "workspace:*",
+    "@guoxue/ziwei-engine": "workspace:*",
     "@wangeditor/editor": "^5.1.23",
     "@wangeditor/editor-for-vue": "^5.1.12",
     "axios": "^1.18.0",
