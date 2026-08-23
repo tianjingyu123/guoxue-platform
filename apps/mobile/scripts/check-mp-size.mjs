@@ -20,6 +20,8 @@ let main = 0
 const subs = []
 for (const name of readdirSync(DIST)) {
   const p = join(DIST, name)
+  // 微信开发者工具的本地工程元数据不会进入上传代码包，不能计入主包体积。
+  if (name === 'project.config.json') continue
   const isDir = statSync(p).isDirectory()
   if (isDir && name.startsWith('pkg-')) {
     subs.push([name, sizeOf(p)])

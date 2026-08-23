@@ -4,6 +4,7 @@ import { authApi } from "@/api";
 import { ElMessage } from "element-plus";
 import { buildMenus } from "@/lib/menu-structure";
 import { clearAdminSession } from "@/utils/auth-session";
+import { isNativePaipanEnabled, refreshPaipanMode } from "@/lib/paipan-runtime";
 
 export interface MenuItem {
   title: string;
@@ -106,7 +107,8 @@ export const useAuthStore = defineStore("auth", () => {
     // 后端 /auth/menus 仅作兜底（前端构建异常/为空时回退旧菜单·后端不动可随时回滚）
     let base: MenuItem[] = [];
     try {
-      base = buildMenus(roles.value);
+      await refreshPaipanMode();
+      base = buildMenus(roles.value, isNativePaipanEnabled());
     } catch {
       base = [];
     }
@@ -117,6 +119,14 @@ export const useAuthStore = defineStore("auth", () => {
       } catch {
         base = [];
       }
+    }
+    if (!isNativePaipanEnabled()) {
+      const nativePaths = new Set(["/bazi", "/ziwei", "/qimen", "/liuyao", "/daliuren", "/paipan-records"]);
+      const stripNative = (items: MenuItem[]): MenuItem[] => items
+        .filter((item) => !item.path || !nativePaths.has(item.path))
+        .map((item) => ({ ...item, children: item.children ? stripNative(item.children) : undefined }))
+        .filter((item) => !item.children || item.children.length > 0);
+      base = stripNative(base);
     }
     // 商家用户追加商家后台菜单
     menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
@@ -130,5 +140,19 @@ export const useAuthStore = defineStore("auth", () => {
     ElMessage.success("已退出登录");
   }
 
-  return { user, token, menus, isLogin, roles, roleLabels, isSuperAdmin, isMerchant, hasRole, login, fetchProfile, fetchMenus, logout };
+  return {
+    user,
+    token,
+    menus,
+    isLogin,
+    roles,
+    roleLabels,
+    isSuperAdmin,
+    isMerchant,
+    hasRole,
+    login,
+    fetchProfile,
+    fetchMenus,
+    logout,
+  };
 });

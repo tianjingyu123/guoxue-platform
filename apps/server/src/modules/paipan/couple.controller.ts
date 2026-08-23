@@ -14,6 +14,7 @@ import { CoupleService } from "./couple.service";
 import { CoupleInviteDto, CoupleAcceptDto } from "./couple.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
+import { NativePaipanGuard } from "../../common/paipan-runtime.service";
 
 /**
  * V4 双人合盘（合婚裂变）——独立于现有 hehun 端点
@@ -21,6 +22,7 @@ import { OptionalAuthGuard } from "../../common/optional-auth.guard";
  */
 @ApiTags("双人合盘")
 @Controller("paipan/couple")
+@UseGuards(NativePaipanGuard)
 export class CoupleController {
   constructor(private couple: CoupleService) {}
 

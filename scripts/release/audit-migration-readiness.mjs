@@ -60,25 +60,19 @@ add(
     schema.includes("model LegacyMigrationMap") &&
     migrationSql.includes('CREATE TABLE IF NOT EXISTS "LegacyMigrationBatch"') &&
     migrationSql.includes('CREATE TABLE IF NOT EXISTS "LegacyMigrationMap"') &&
-    migrationSql.includes(
-      '"LegacyMigrationMap_sourceSystem_entityType_legacyId_key"',
-    ),
+    migrationSql.includes('"LegacyMigrationMap_sourceSystem_entityType_legacyId_key"'),
   "重复干跑、差异追踪与定向回滚必须依赖稳定批次和旧新 ID 映射",
 );
 
-const controller = read(
-  "apps/server/src/modules/station/legacy-paipan.controller.ts",
-);
-const paipanService = read(
-  "apps/server/src/modules/station/station-paipan-sync.service.ts",
-);
+const controller = read("apps/server/src/modules/station/legacy-paipan.controller.ts");
+const paipanService = read("apps/server/src/modules/station/station-paipan-sync.service.ts");
 add(
   "旧排盘回滚入口使用已核验手机号签名协议",
   controller.includes('@Controller("legacy-paipan")') &&
     controller.includes('@Get("entry")') &&
     paipanService.includes('createHash("md5")') &&
     paipanService.includes("`${phone}@rebuguoxue${phone}`") &&
-    paipanService.includes("https://www.yrydai.com/guoxueApp.php") &&
+    paipanService.includes("https://www.yrydai.cn/guoxueApp.php") &&
     !paipanService.includes("paipan.rebu.com"),
   "兼容入口仅作显式回滚；服务端生成 key，客户端和日志不得暴露固定密钥材料",
 );
@@ -86,28 +80,28 @@ add(
 const paipanPage = read("apps/mobile/src/pages/paipan/index.vue");
 const paipanClient = read("apps/mobile/src/lib/legacy-paipan-data.ts");
 add(
-  "四端原生排盘默认启用并保留显式回滚能力",
+  "四端旧排盘默认启用且第三方失败不回退自研",
   paipanClient.includes("/legacy-paipan/entry") &&
-    paipanService.includes('process.env.PAIPAN_LEGACY_MODE !== "true"') &&
+    paipanService.includes("this.runtime.isNative()") &&
     paipanService.includes('return { mode: "native", url: null') &&
     paipanPage.includes("window.location.replace(entry.url)") &&
-    paipanPage.includes('<web-view v-else-if="legacyEntryUrl"'),
-  "默认返回 native；仅显式开启回滚开关时，H5 整页跳转且 App/小程序/Harmony 使用 web-view",
+    paipanPage.includes('<web-view v-else-if="legacyEntryUrl"') &&
+    !paipanPage.includes("核心工具仍可使用"),
+  "默认返回 legacy；H5 整页跳转且 App/小程序/Harmony 使用 web-view，失败只允许重试",
 );
 
 const productionTemplate = read("docker/.env.production.example");
 add(
-  "生产模板默认启用原生排盘",
-  /^PAIPAN_LEGACY_MODE=false$/m.test(productionTemplate) &&
-    /^PAIPAN_H5_BASE=https:\/\/www\.yrydai\.com\/guoxueApp\.php$/m.test(
+  "生产模板默认启用旧排盘并关闭 QA",
+  /^PAIPAN_MODE=legacy$/m.test(productionTemplate) &&
+    /^PAIPAN_NATIVE_QA_ENABLED=false$/m.test(productionTemplate) &&
+    /^PAIPAN_OPERATION_H5_BASE=https:\/\/www\.yrydai\.cn\/guoxueApp\.php$/m.test(
       productionTemplate,
     ),
-  "旧排盘地址仅保留为回滚参数，正式首发不得默认跳转第三方",
+  "正式运营默认走旧排盘；自研排盘仅由受控 QA 门禁访问",
 );
 
-const runbook = read(
-  "docs/release/热卜旧系统迁移与覆盖升级执行手册-20260730.md",
-);
+const runbook = read("docs/release/热卜旧系统迁移与覆盖升级执行手册-20260730.md");
 add(
   "迁移手册覆盖增量切换、强更桥接和回滚",
   runbook.includes("T-14") &&

@@ -21,12 +21,14 @@ import {
   type MicroPageView,
 } from '@/pkg-operator/lib/station-home-data'
 import { formatPrice } from '@/utils/format'
+import { legacyStationPaipanApi, type LegacyStationSyncState } from '@/pkg-operator/lib/legacy-paipan-station'
 
 const loading = ref(true)
 const error = ref('')
 const notFound = ref(false)
 
 const stationCode = ref('')
+const ownPreview = ref(false)
 const brand = ref<StationBrandFull>({} as StationBrandFull)
 const features = ref<StationFeature[]>([])
 const feedList = ref<StationFeedCard[]>([])
@@ -46,6 +48,7 @@ onLoad((q: Record<string, string> = {}) => {
   // 分享链接统一使用 ref；既加载对应分站品牌，也写入七天临时归因（最近点击优先）。
   captureRefFromQuery(q)
   stationCode.value = q.ref || q.s || q.code || q.station || ''
+  ownPreview.value = !stationCode.value
   loadData()
 })
 
@@ -83,7 +86,33 @@ async function loadData() {
 }
 async function retry() { await loadData() }
 
-function openFeature(f: StationFeature) {
+function openStationPaipan() {
+  navigateTo(`/pages/paipan/index?target=station&stationId=${encodeURIComponent(brand.value.id)}`)
+}
+
+function handleStationSyncState(state: LegacyStationSyncState) {
+  if (state.state === 'SYNCED') return openStationPaipan()
+  if (state.state === 'PENDING_AUTHORIZATION' && state.authorizationUrl) {
+    navigateTo('/pkg-operator/station-paipan-auth/index')
+    return
+  }
+  uni.showToast({ title: '分站排盘正在同步，请稍后重试', icon: 'none' })
+}
+
+async function openFeature(f: StationFeature) {
+  if (f.key === 'paipan') {
+    if (!ownPreview.value) return openStationPaipan()
+    try {
+      let state = await legacyStationPaipanApi.getState()
+      if (state.state === 'FAILED' || state.state === 'PENDING') {
+        state = await legacyStationPaipanApi.retry()
+      }
+      handleStationSyncState(state)
+    } catch {
+      uni.showToast({ title: '分站排盘暂时不可用，请稍后重试', icon: 'none' })
+    }
+    return
+  }
   navigateTo(f.path)
 }
 function openFeed(item: StationFeedCard) {

@@ -48,6 +48,7 @@ export class ShopOrderLifecycleService {
       // 首次确认已翻状态但外发箱落库失败时，后台用同一流水重试即可补齐通知；分佣记录自身幂等。
       await this.attribution.recordOrderCommissionAndFee(order);
       await this.paymentSvc.emitOrderPaidEvent(order, order.id, "MANUAL", payTransactionId);
+      this.paymentSvc.triggerPostCommitTasks?.(order);
       await this.orderSvc.settleGroupBuyIfNeeded(orderId)
         .catch((e) => this.logger.error(`拼团成团结算失败 order=${orderId}`, e));
       return { success: true, orderId, payTransactionId, replayed: true };
@@ -65,6 +66,7 @@ export class ShopOrderLifecycleService {
       if (flipped.count === 0) throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态已变更");
       await this.paymentSvc.runPaidPostProcessors(order, tx);
     });
+    this.paymentSvc.triggerPostCommitTasks?.(order);
     await this.orderSvc.invalidateOrderCache(orderId, order.userId);
     // 线下确认收款同样记分佣 + 平台费（与网关支付路径一致，避免账目漏记）
     await this.attribution.recordOrderCommissionAndFee(order);

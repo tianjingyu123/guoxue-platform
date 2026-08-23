@@ -12,11 +12,12 @@ import { ZiweiKnowledgeController } from "./ziwei-knowledge.controller";
 import { ZiweiKnowledgeSeeder } from "./ziwei-knowledge-seeder.service";
 import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
 import { CoinModule } from "../coin/coin.module";
+import { NativePaipanGuard, PaipanRuntimeService } from "../../common/paipan-runtime.service";
 
 @Module({
   imports: [AiGatewayModule, CoinModule],
   controllers: [PaipanController, CoupleController, BaziKnowledgeController, ZiweiKnowledgeController],
-  providers: [PaipanService, PaipanAiService, CoupleService, BaziKnowledgeService, BaziKnowledgeSeeder, ZiweiKnowledgeService, ZiweiKnowledgeSeeder],
+  providers: [PaipanService, PaipanAiService, CoupleService, BaziKnowledgeService, BaziKnowledgeSeeder, ZiweiKnowledgeService, ZiweiKnowledgeSeeder, PaipanRuntimeService, NativePaipanGuard],
   exports: [PaipanService, PaipanAiService, BaziKnowledgeService, ZiweiKnowledgeService],
 })
 export class PaipanModule {}

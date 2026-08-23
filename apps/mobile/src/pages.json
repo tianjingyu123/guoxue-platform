@@ -1896,6 +1896,12 @@
           }
         },
         {
+          "path": "station-paipan-auth/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
           "path": "station-poster/index",
           "style": {
             "navigationStyle": "custom"

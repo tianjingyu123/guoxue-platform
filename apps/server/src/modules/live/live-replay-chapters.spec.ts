@@ -13,7 +13,7 @@ function buildSvc() {
     $queryRaw: jest.fn(),
     $executeRaw: jest.fn(),
   };
-  const redis = {};
+  const redis = { get: jest.fn().mockResolvedValue(null) };
   const stream = {};
   const webhook = { fire: jest.fn().mockResolvedValue(undefined) };
   const audit = {};

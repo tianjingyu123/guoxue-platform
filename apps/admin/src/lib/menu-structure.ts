@@ -36,7 +36,11 @@ interface GroupDef {
   children: Array<LeafDef | GroupDef>;
 }
 
-const M = (path: string, title?: string, workspace?: Workspace): LeafDef => ({ path, title, workspace });
+const M = (path: string, title?: string, workspace?: Workspace): LeafDef => ({
+  path,
+  title,
+  workspace,
+});
 
 function isGroup(d: LeafDef | GroupDef): d is GroupDef {
   return Array.isArray((d as GroupDef).children);
@@ -96,9 +100,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       },
       {
         title: "互动社区",
-        children: [
-          M("/comments"),
-        ],
+        children: [M("/comments")],
       },
       {
         title: "推荐与搜索",
@@ -172,12 +174,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
       M("/user-tags"),
       {
         title: "会员",
-        children: [
-          M("/member/manage"),
-          M("/member/purchases"),
-          M("/member/stats"),
-          M("/renewal"),
-        ],
+        children: [M("/member/manage"), M("/member/purchases"), M("/member/stats"), M("/renewal")],
       },
       {
         title: "创作者",
@@ -303,10 +300,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
     title: "📋 任务池",
     icon: "List",
     workspace: "ai",
-    children: [
-      M("/system/ops-tasks", "系统任务池"),
-      M("/operation/tasks", "运营任务池"),
-    ],
+    children: [M("/system/ops-tasks", "系统任务池"), M("/operation/tasks", "运营任务池")],
   },
   {
     title: "⚙️ 模型与运行",
@@ -439,7 +433,7 @@ const NOT_IN_MENU = new Set<string>([
  * - 空组自动折叠不显示
  * - 覆盖护栏：未被认领的可见路由兜底进「📦 其他」组
  */
-export function buildMenus(userRoles: string[]): MenuNode[] {
+export function buildMenus(userRoles: string[], nativePaipanEnabled = false): MenuNode[] {
   const isSuper = userRoles.includes("SUPER_ADMIN");
   const claimed = new Set<string>();
 
@@ -454,12 +448,16 @@ export function buildMenus(userRoles: string[]): MenuNode[] {
     // 死路径防呆（如后端菜单里遗留的 /poetry 类已删板块）
     if (r.name === "NotFound" || r.matched.length === 0) return null;
     claimed.add(leaf.path);
-    const meta = r.meta as { title?: string; roles?: string[] };
+    const meta = r.meta as { title?: string; roles?: string[]; nativePaipan?: boolean };
+    if (meta?.nativePaipan && !nativePaipanEnabled) return null;
     if (!roleAllows(meta?.roles)) return null;
     return { title: leaf.title || meta?.title || leaf.path, path: leaf.path, workspace: ws };
   };
 
-  const buildList = (defs: Array<LeafDef | GroupDef>, inheritedWs: Workspace = "human"): MenuNode[] => {
+  const buildList = (
+    defs: Array<LeafDef | GroupDef>,
+    inheritedWs: Workspace = "human",
+  ): MenuNode[] => {
     const out: MenuNode[] = [];
     for (const d of defs) {
       const ws = d.workspace ?? inheritedWs;

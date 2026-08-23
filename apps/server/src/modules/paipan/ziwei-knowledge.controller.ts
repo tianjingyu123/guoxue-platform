@@ -6,9 +6,11 @@ import { CreateZiweiKnowledgeDto, UpdateZiweiKnowledgeDto } from "./ziwei-knowle
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { NativePaipanGuard } from "../../common/paipan-runtime.service";
 
 @ApiTags("紫微知识库")
 @Controller("ziwei/knowledge")
+@UseGuards(NativePaipanGuard)
 export class ZiweiKnowledgeController {
   constructor(
     private readonly svc: ZiweiKnowledgeService,

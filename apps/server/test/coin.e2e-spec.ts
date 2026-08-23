@@ -161,8 +161,17 @@ describe("Coin E2E", () => {
   describe("POST /api/v1/coin/gifts/send", () => {
     it("送礼成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({
+        id: "u1", status: "ACTIVE", roles: [], identityVerified: true,
+        birthday: new Date("1990-01-01T00:00:00.000Z"),
+      })
       prisma.gift.findUnique.mockResolvedValue({ id: "g1", name: "鲜花", priceCoin: 10 })
+      prisma.liveGiftSpendingPreference.findUnique.mockResolvedValue({
+        singleLimitCoin: 100,
+        dailyLimitCoin: 1000,
+        reminderEnabled: true,
+      })
+      prisma.giftRecord.aggregate.mockResolvedValue({ _sum: { totalCoin: 0 } })
       prisma.virtualCoinAccount.findUnique.mockResolvedValue({
         userId: "u1", balance: 100, totalRecharged: 100, totalSpent: 0,
       })
@@ -180,7 +189,15 @@ describe("Coin E2E", () => {
               findUnique: prisma.virtualCoinAccount.findUnique,
             },
             virtualCoinTransaction: { create: prisma.virtualCoinTransaction.create },
-            giftRecord: { create: prisma.giftRecord.create },
+            giftRecord: {
+              create: prisma.giftRecord.create,
+              aggregate: prisma.giftRecord.aggregate,
+            },
+            user: { findUnique: prisma.user.findUnique },
+            liveGiftSpendingPreference: {
+              findUnique: prisma.liveGiftSpendingPreference.findUnique,
+            },
+            $executeRawUnsafe: prisma.$executeRawUnsafe,
           })
         }
         return Promise.all(arg)
