@@ -10,7 +10,9 @@ const wechatService = read("apps/server/src/modules/auth/wechat.service.ts");
 const authController = read("apps/server/src/modules/auth/auth.controller.ts");
 
 test("H5 登录页公开微信登录入口，并保留小程序/App 入口", () => {
-  assert.match(loginPage, /defined\(H5\).*defined\(MP-WEIXIN\).*defined\(APP-PLUS\)/u);
+  assert.match(loginPage, /v-if="showWechatLogin"/u);
+  assert.match(loginPage, /#ifdef H5[\s\S]*showWechatLogin\.value = true/u);
+  assert.match(loginPage, /defined\(MP-WEIXIN\).*defined\(APP-PLUS\)[\s\S]*showWechatLogin\.value = true/u);
   assert.match(loginPage, /<text class="third-label">微信登录<\/text>/u);
   assert.match(loginPage, /await startH5WechatLogin\(\)/u);
   assert.match(loginPage, /provider:\s*'weixin'/u);

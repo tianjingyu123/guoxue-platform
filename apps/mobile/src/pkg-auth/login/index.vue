@@ -208,8 +208,7 @@
       </view>
 
       <!-- 微信登录：H5 走公众号 OAuth，小程序走 code2session，原生 APP 走微信开放平台 OAuth。 -->
-      <!-- #if defined(H5) || defined(MP-WEIXIN) || defined(APP-PLUS) -->
-      <view class="third-party">
+      <view v-if="showWechatLogin" class="third-party">
         <view class="divider">
           <view class="divider-line" />
           <text class="divider-text">其他登录方式</text>
@@ -231,7 +230,6 @@
           </view>
         </view>
       </view>
-      <!-- #endif -->
     </view>
 
     <!-- 底部安全提示 -->
@@ -267,6 +265,15 @@ const isLoading = ref(false)
 const isSendingCode = ref(false)
 const agreedTerms = ref(false)
 const error = ref('')
+const showWechatLogin = ref(false)
+
+// H5 的模板条件表达式在部分 UniApp 编译器中不会定义 defined(H5)，改由可靠的脚本条件控制展示。
+// #ifdef H5
+showWechatLogin.value = true
+// #endif
+// #if defined(MP-WEIXIN) || defined(APP-PLUS)
+showWechatLogin.value = true
+// #endif
 
 let timer: ReturnType<typeof setInterval> | null = null
 
