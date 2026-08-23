@@ -109,6 +109,7 @@ function isExcluded(relativePath) {
     "test-results",
   ]);
   const excludedRootDirs = new Set([
+    ".claude",
     ".github",
     ".husky",
     "docs",

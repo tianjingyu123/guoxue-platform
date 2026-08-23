@@ -110,6 +110,7 @@ function isForbiddenNonRuntimePath(relativePath) {
     "scripts/security/",
   ];
   return (
+    segments.includes(".claude") ||
     segments.includes("docs") ||
     relativePath.startsWith("apps/server/scripts/") ||
     (relativePath.startsWith("scripts/") &&

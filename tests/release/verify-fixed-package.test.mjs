@@ -41,6 +41,16 @@ test("固定包激活使用 literal tar 输出，避免中文文件名被误判�
   );
 });
 
+test("固定包生成与验真均阻断本机 Claude 配置", async () => {
+  const creatorSource = await readFile(
+    path.join(projectRoot, "scripts/release/create-fixed-package.mjs"),
+    "utf8",
+  );
+  const verifierSource = await readFile(verifier, "utf8");
+  assert.match(creatorSource, /excludedRootDirs[\s\S]*"\.claude"/u);
+  assert.match(verifierSource, /segments\.includes\("\.claude"\)/u);
+});
+
 const requiredFiles = [
   "package.json",
   "pnpm-lock.yaml",
@@ -283,6 +293,7 @@ test("固定包提交 SHA 与工作流源提交一致时通过", async () => {
 test("固定包包含服务端运维脚本或嵌套文档时阻断", async () => {
   const fixture = await createFixture({
     extraFiles: [
+      ".claude/settings.local.json",
       "apps/server/scripts/setup-test-merchant.cjs",
       "apps/server/docs/SECURITY.md",
       "scripts/set-github-secret.js",
@@ -298,6 +309,7 @@ test("固定包包含服务端运维脚本或嵌套文档时阻断", async () =>
     assert.notEqual(result.status, 0);
     const report = JSON.parse(await readFile(reportPath, "utf8"));
     assert.equal(report.success, false);
+    assert.match(report.errors.join("\n"), /\.claude\/settings\.local\.json/u);
     assert.match(report.errors.join("\n"), /apps\/server\/scripts\/setup-test-merchant\.cjs/u);
     assert.match(report.errors.join("\n"), /apps\/server\/docs\/SECURITY\.md/u);
     assert.match(report.errors.join("\n"), /scripts\/set-github-secret\.js/u);
