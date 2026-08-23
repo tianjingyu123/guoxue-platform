@@ -3,6 +3,9 @@
  * 负责前端 UI 的数据格式与后端 API 响应的适配
  */
 import { apiPost } from '@/utils/request'
+// #ifdef H5
+import { apiGet } from '@/utils/request'
+// #endif
 import { getTempReferrer } from '@/utils/referral'
 
 export interface UserInfo {
@@ -63,6 +66,22 @@ function getWechatClientKey(): string | undefined {
 }
 
 export const authApi = {
+  // #ifdef H5
+  /** 获取公众号网页授权地址。redirectUri/state 由登录页生成，服务端仍会校验回调域名。 */
+  async getWechatOAuthUrl(redirectUri: string, state: string): Promise<string> {
+    const clientKey = getWechatClientKey()
+    const query = [
+      `redirectUri=${encodeURIComponent(redirectUri)}`,
+      'scope=snsapi_userinfo',
+      `state=${encodeURIComponent(state)}`,
+      ...(clientKey ? [`clientKey=${encodeURIComponent(clientKey)}`] : []),
+    ].join('&')
+    const data = await apiGet<{ url: string }>(`/auth/wechat/oauth-url?${query}`)
+    if (!data?.url) throw new Error('微信登录配置暂不可用')
+    return data.url
+  },
+  // #endif
+
   /** 发送短信验证码 — POST /auth/sms/send */
   async sendCode(phone: string, scene: 'login' | 'register' | 'reset'): Promise<{ success: boolean; message: string }> {
     try {

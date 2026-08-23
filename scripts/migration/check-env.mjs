@@ -797,6 +797,28 @@ if (fullCheck) {
     );
   }
 
+  const officialAppId = values.get("WECHAT_OFFICIAL_APPID");
+  const officialAppSecret = values.get("WECHAT_OFFICIAL_APP_SECRET");
+  if (!officialAppId || !officialAppSecret) {
+    errors.push("微信公众号登录配置不完整：需同时配置 WECHAT_OFFICIAL_APPID 与 WECHAT_OFFICIAL_APP_SECRET");
+  }
+  const extraWechatOAuthOrigins = (values.get("WECHAT_OAUTH_ALLOWED_ORIGINS") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  for (const origin of extraWechatOAuthOrigins) {
+    try {
+      const parsed = new URL(origin);
+      if (parsed.protocol !== "https:" || parsed.origin !== origin.replace(/\/+$/u, "")) {
+        errors.push("WECHAT_OAUTH_ALLOWED_ORIGINS 只能填写 HTTPS 源（协议+域名+可选端口），禁止路径和参数");
+        break;
+      }
+    } catch {
+      errors.push("WECHAT_OAUTH_ALLOWED_ORIGINS 包含无效地址");
+      break;
+    }
+  }
+
   try {
     const storeBaseline = JSON.parse(
       await readFile(path.join(repoRoot, "config/release/store-baseline.json"), "utf8"),

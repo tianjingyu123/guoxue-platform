@@ -289,11 +289,65 @@ export class WechatService {
   }
 
 
+  /**
+   * 校验公众号 OAuth 回调地址。
+   * 只允许回到本系统公开 H5/API 域名，避免公开 oauth-url 接口被滥用为开放重定向器。
+   */
+  private validateOAuthRedirectUri(redirectUri: string): string {
+    let parsed: URL;
+    try {
+      parsed = new URL(redirectUri);
+    } catch {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "微信授权回调地址无效");
+    }
+
+    const isLocalDev = ["localhost", "127.0.0.1"].includes(parsed.hostname) && process.env.NODE_ENV !== "production";
+    if (parsed.protocol !== "https:" && !(isLocalDev && parsed.protocol === "http:")) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "微信授权回调地址必须使用 HTTPS");
+    }
+    if (parsed.username || parsed.password || parsed.hash) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "微信授权回调地址格式无效");
+    }
+
+    const configured = [
+      process.env.PUBLIC_H5_URL,
+      process.env.PUBLIC_API_URL,
+      ...(process.env.WECHAT_OAUTH_ALLOWED_ORIGINS || "").split(","),
+    ].filter((value): value is string => Boolean(value?.trim()));
+    const allowedOrigins = new Set<string>();
+    for (const value of configured) {
+      try {
+        allowedOrigins.add(new URL(value.trim()).origin);
+      } catch {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "微信授权允许域名配置无效");
+      }
+    }
+    if (allowedOrigins.size === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "微信授权回调域名未配置");
+    }
+    if (!allowedOrigins.has(parsed.origin) && !isLocalDev) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "微信授权回调地址不在允许范围内");
+    }
+    return parsed.toString();
+  }
+
   /** 生成 H5 微信 OAuth 授权 URL（公众号网页授权，appid 必须为公众号的） */
-  buildOAuthUrl(redirectUri: string, scope: "snsapi_base" | "snsapi_userinfo" = "snsapi_userinfo", clientKey?: string): string {
+  buildOAuthUrl(
+    redirectUri: string,
+    scope: "snsapi_base" | "snsapi_userinfo" = "snsapi_userinfo",
+    clientKey?: string,
+    state = "wechat",
+  ): string {
+    if (!["snsapi_base", "snsapi_userinfo"].includes(scope)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的微信授权范围");
+    }
+    const normalizedState = state.trim();
+    if (!/^[A-Za-z0-9_.:-]{1,128}$/.test(normalizedState)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "微信授权 state 无效");
+    }
     const client = this.resolveLoginClient("h5", clientKey);
-    const encoded = encodeURIComponent(redirectUri);
-    return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${client.appId}&redirect_uri=${encoded}&response_type=code&scope=${scope}&state=wechat#wechat_redirect`;
+    const encoded = encodeURIComponent(this.validateOAuthRedirectUri(redirectUri));
+    return `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${client.appId}&redirect_uri=${encoded}&response_type=code&scope=${scope}&state=${encodeURIComponent(normalizedState)}#wechat_redirect`;
   }
 
   /** H5 OAuth: 用 code 换取 access_token 和 openId（公众号网页授权） */

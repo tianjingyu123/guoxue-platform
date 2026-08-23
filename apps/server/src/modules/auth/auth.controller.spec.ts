@@ -97,8 +97,14 @@ describe("AuthController", () => {
 
   describe("微信", () => {
     it("GET /auth/wechat/oauth-url — 获取微信OAuth授权URL", async () => {
-      const result = await ctrl.getWechatOAuthUrl("https://example.com/callback", "snsapi_userinfo");
+      const result = await ctrl.getWechatOAuthUrl("https://example.com/callback", "snsapi_userinfo", undefined, "state-1234567890");
       expect(result.url).toContain("open.weixin.qq.com");
+      expect(mockWechatSvc.buildOAuthUrl).toHaveBeenCalledWith(
+        "https://example.com/callback",
+        "snsapi_userinfo",
+        undefined,
+        "state-1234567890",
+      );
     });
 
     it("GET /auth/wechat/oauth-url — 缺少 redirectUri 抛异常", () => {

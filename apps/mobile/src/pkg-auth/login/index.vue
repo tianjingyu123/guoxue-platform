@@ -207,8 +207,8 @@
         </view>
       </view>
 
-      <!-- 微信登录：小程序走 code2session，原生 APP 走微信开放平台 OAuth。 -->
-      <!-- #if defined(MP-WEIXIN) || defined(APP-PLUS) -->
+      <!-- 微信登录：H5 走公众号 OAuth，小程序走 code2session，原生 APP 走微信开放平台 OAuth。 -->
+      <!-- #if defined(H5) || defined(MP-WEIXIN) || defined(APP-PLUS) -->
       <view class="third-party">
         <view class="divider">
           <view class="divider-line" />
@@ -243,6 +243,9 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onUnmounted } from 'vue'
+// #ifdef H5
+import { onLoad } from '@dcloudio/uni-app'
+// #endif
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
@@ -266,6 +269,17 @@ const agreedTerms = ref(false)
 const error = ref('')
 
 let timer: ReturnType<typeof setInterval> | null = null
+
+// #ifdef H5
+const WECHAT_OAUTH_ATTEMPT_KEY = 'wechat:h5:oauth-attempt'
+const WECHAT_OAUTH_MAX_AGE_MS = 10 * 60 * 1000
+let h5OauthHandled = false
+
+interface WechatOAuthAttempt {
+  state: string
+  createdAt: number
+}
+// #endif
 
 const isPhoneValid = computed(() => phone.value.length === 11)
 const isCodeValid = computed(() => code.value.length === 6)
@@ -300,6 +314,116 @@ function switchType(t: 'phone' | 'password') {
   loginType.value = t
   error.value = ''
 }
+
+// #ifdef H5
+function isWechatBrowser(): boolean {
+  return /MicroMessenger/i.test(window.navigator.userAgent)
+}
+
+function createWechatOAuthState(): string {
+  if (!window.crypto?.getRandomValues) throw new Error('当前浏览器不支持安全的微信登录')
+  const bytes = new Uint8Array(24)
+  window.crypto.getRandomValues(bytes)
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('')
+}
+
+function clearWechatCallbackParams(): void {
+  const cleanUrl = new URL(window.location.href)
+  cleanUrl.searchParams.delete('code')
+  cleanUrl.searchParams.delete('state')
+  cleanUrl.searchParams.delete('wx_login')
+  window.history.replaceState({}, document.title, cleanUrl.toString())
+}
+
+function consumeWechatOAuthAttempt(receivedState: string): boolean {
+  let attempt: WechatOAuthAttempt | null = null
+  try {
+    const raw = window.sessionStorage.getItem(WECHAT_OAUTH_ATTEMPT_KEY)
+    if (raw) attempt = JSON.parse(raw) as WechatOAuthAttempt
+  } catch {
+    attempt = null
+  } finally {
+    window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
+  }
+  return Boolean(
+    attempt?.state &&
+    receivedState &&
+    attempt.state === receivedState &&
+    Number.isFinite(attempt.createdAt) &&
+    Date.now() - attempt.createdAt >= 0 &&
+    Date.now() - attempt.createdAt <= WECHAT_OAUTH_MAX_AGE_MS,
+  )
+}
+
+async function startH5WechatLogin(): Promise<void> {
+  if (!isWechatBrowser()) {
+    uni.showToast({ title: '请在微信内打开本页后使用微信登录', icon: 'none' })
+    return
+  }
+  isLoading.value = true
+  error.value = ''
+  try {
+    const state = createWechatOAuthState()
+    window.sessionStorage.setItem(
+      WECHAT_OAUTH_ATTEMPT_KEY,
+      JSON.stringify({ state, createdAt: Date.now() } satisfies WechatOAuthAttempt),
+    )
+    const callbackUrl = new URL(window.location.href)
+    callbackUrl.searchParams.delete('code')
+    callbackUrl.searchParams.delete('state')
+    callbackUrl.searchParams.set('wx_login', '1')
+    const oauthUrl = await authApi.getWechatOAuthUrl(callbackUrl.toString(), state)
+    window.location.assign(oauthUrl)
+  } catch (e) {
+    window.sessionStorage.removeItem(WECHAT_OAUTH_ATTEMPT_KEY)
+    error.value = (e as Error)?.message || '微信登录暂时不可用'
+    isLoading.value = false
+  }
+}
+
+async function completeH5WechatLogin(query: Record<string, string | undefined>): Promise<void> {
+  if (h5OauthHandled || query.wx_login !== '1') return
+  h5OauthHandled = true
+  const oauthCode = String(query.code || '')
+  const oauthState = String(query.state || '')
+  const stateValid = consumeWechatOAuthAttempt(oauthState)
+  clearWechatCallbackParams()
+
+  if (!oauthCode) {
+    error.value = '微信授权未完成，请重试'
+    return
+  }
+  if (!stateValid) {
+    error.value = '微信登录请求已失效，请重新发起'
+    return
+  }
+
+  agreedTerms.value = true
+  isLoading.value = true
+  error.value = ''
+  try {
+    const res = await authApi.wechatLogin(oauthCode, 'h5')
+    const loginData = res.data
+    if (res.success && loginData && loginData.token) {
+      clearAuthSession({ preserveLoginRedirect: true })
+      setToken(loginData.token)
+      setRefreshToken(loginData.refreshToken || '')
+      setUserInfo(loginData.user)
+      goAfterLogin()
+      return
+    }
+    error.value = res.message || '微信登录失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || '微信登录失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onLoad((query) => {
+  void completeH5WechatLogin((query || {}) as Record<string, string | undefined>)
+})
+// #endif
 function onPhoneInput(e: any /* uni 表单事件经 vue-tsc 按原生签名校验，参数须 any */) {
   phone.value = String(e.detail.value).replace(/\D/g, '').slice(0, 11)
   error.value = ''
@@ -412,11 +536,12 @@ async function handleLogin() {
         ? { phone: phone.value, password: password.value }
         : { phone: phone.value, code: code.value },
     )
-    if (res.success && res.data?.token) {
+    const loginData = res.data
+    if (res.success && loginData && loginData.token) {
       clearAuthSession({ preserveLoginRedirect: true })
-      setToken(res.data.token)
-      setRefreshToken(res.data.refreshToken || '')
-      setUserInfo(res.data.user)
+      setToken(loginData.token)
+      setRefreshToken(loginData.refreshToken || '')
+      setUserInfo(loginData.user)
       // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
       goAfterLogin()
     } else {
@@ -432,6 +557,16 @@ async function handleLogin() {
 // @data-needs: 微信登录, uni.login 拿 code → POST /auth/login/wechat, 返回 {token, user}
 async function handleThirdParty(_type: 'wechat') {
   if (isLoading.value) return
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+  // #ifdef H5
+  if (typeof window !== 'undefined') {
+    await startH5WechatLogin()
+    return
+  }
+  // #endif
   // #if defined(MP-WEIXIN) || defined(APP-PLUS)
   isLoading.value = true
   error.value = ''
@@ -449,11 +584,12 @@ async function handleThirdParty(_type: 'wechat') {
       , 'app'
       // #endif
     )
-    if (res.success && res.data?.token) {
+    const loginData = res.data
+    if (res.success && loginData && loginData.token) {
       clearAuthSession({ preserveLoginRedirect: true })
-      setToken(res.data.token)
-      setRefreshToken(res.data.refreshToken || '')
-      setUserInfo(res.data.user)
+      setToken(loginData.token)
+      setRefreshToken(loginData.refreshToken || '')
+      setUserInfo(loginData.user)
       // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
       goAfterLogin()
     } else {
@@ -464,9 +600,6 @@ async function handleThirdParty(_type: 'wechat') {
   } finally {
     isLoading.value = false
   }
-  // #endif
-  // #if !defined(MP-WEIXIN) && !defined(APP-PLUS)
-  uni.showToast({ title: '当前端请使用手机号登录', icon: 'none' })
   // #endif
 }
 

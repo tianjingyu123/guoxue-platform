@@ -61,6 +61,8 @@ function createFullEnvironment(options = {}) {
     `DEEPSEEK_API_KEY=${"D".repeat(48)}`,
     "WECHAT_MINI_APP_ID=wx06397e8ab26bed9e",
     `MINIPROGRAM_APP_SECRET=${"M".repeat(32)}`,
+    "WECHAT_OFFICIAL_APPID=wx-official-test",
+    `WECHAT_OFFICIAL_APP_SECRET=${"O".repeat(32)}`,
     "WECHAT_PAY_APP_ID=wx06397e8ab26bed9e",
     "WECHAT_PAY_MCH_ID=1900000109",
     `WECHAT_PAY_SERIAL_NO=${"A".repeat(40)}`,
@@ -81,6 +83,20 @@ function createFullEnvironment(options = {}) {
     "",
   ].join("\n");
 }
+
+test("完整上线拒绝缺少微信公众号网页授权凭据", async () => {
+  const environment = createFullEnvironment().replace(/^WECHAT_OFFICIAL_APP_SECRET=.*\r?\n/mu, "");
+  const result = await runChecker(environment, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /微信公众号登录配置不完整/u);
+});
+
+test("完整上线拒绝带路径的额外微信 OAuth 回调源", async () => {
+  const environment = `${createFullEnvironment()}WECHAT_OAUTH_ALLOWED_ORIGINS=https://h5.guoxue.test/callback\n`;
+  const result = await runChecker(environment, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /只能填写 HTTPS 源/u);
+});
 
 test("完整上线拒绝只有下单配置而缺少商户私钥或退款回调的微信支付", async () => {
   const incomplete = createFullEnvironment()

@@ -128,13 +128,20 @@ export class AuthController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiQuery({ name: "redirectUri", description: "授权后回调地址", example: "https://example.com/callback" })
   @ApiQuery({ name: "scope", description: "授权范围", example: "snsapi_userinfo", required: false })
+  @ApiQuery({ name: "state", description: "前端生成的一次性 OAuth state", required: false })
   getWechatOAuthUrl(
     @Query("redirectUri") redirectUri: string,
     @Query("scope") scope?: string,
     @Query("clientKey") clientKey?: string,
+    @Query("state") state?: string,
   ) {
     if (!redirectUri) throw new BadRequestException("redirectUri 参数必填");
-    const url = this.wechat.buildOAuthUrl(redirectUri, (scope || "snsapi_userinfo") as "snsapi_base" | "snsapi_userinfo", clientKey);
+    const url = this.wechat.buildOAuthUrl(
+      redirectUri,
+      (scope || "snsapi_userinfo") as "snsapi_base" | "snsapi_userinfo",
+      clientKey,
+      state,
+    );
     return { url };
   }
 
