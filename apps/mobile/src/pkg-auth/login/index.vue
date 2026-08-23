@@ -265,14 +265,15 @@ const isLoading = ref(false)
 const isSendingCode = ref(false)
 const agreedTerms = ref(false)
 const error = ref('')
-const showWechatLogin = ref(false)
+// 仅由编译期平台条件赋值，不需要响应式包装；同时减少小程序主包体积。
+let showWechatLogin = false
 
 // H5 的模板条件表达式在部分 UniApp 编译器中不会定义 defined(H5)，改由可靠的脚本条件控制展示。
 // #ifdef H5
-showWechatLogin.value = true
+showWechatLogin = true
 // #endif
 // #if defined(MP-WEIXIN) || defined(APP-PLUS)
-showWechatLogin.value = true
+showWechatLogin = true
 // #endif
 
 let timer: ReturnType<typeof setInterval> | null = null
