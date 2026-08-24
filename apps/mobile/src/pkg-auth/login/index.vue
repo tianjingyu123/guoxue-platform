@@ -225,7 +225,16 @@
             @keydown="activateOnKeyboard($event, () => handleThirdParty('wechat'))"
           >
             <view class="third-circle wechat-circle">
-              <AppIcon name="wechat" :size="28" color="#07C160" />
+              <view class="wechat-mark" aria-hidden="true">
+                <view class="wechat-bubble wechat-bubble-primary">
+                  <view class="wechat-dot" />
+                  <view class="wechat-dot" />
+                </view>
+                <view class="wechat-bubble wechat-bubble-secondary">
+                  <view class="wechat-dot wechat-dot-small" />
+                  <view class="wechat-dot wechat-dot-small" />
+                </view>
+              </view>
             </view>
             <text class="third-label">微信登录</text>
           </view>
@@ -798,6 +807,44 @@ onUnmounted(() => {
 }
 .wechat-circle {
   background: rgba(7, 193, 96, 0.1);
+}
+.wechat-mark {
+  position: relative;
+  width: 58rpx;
+  height: 48rpx;
+}
+.wechat-bubble {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  background: #07c160;
+}
+.wechat-bubble-primary {
+  left: 0;
+  top: 0;
+  width: 42rpx;
+  height: 34rpx;
+  border-radius: 50%;
+}
+.wechat-bubble-secondary {
+  right: 0;
+  bottom: 0;
+  width: 34rpx;
+  height: 28rpx;
+  border: 3rpx solid #e8f8ef;
+  border-radius: 50%;
+}
+.wechat-dot {
+  width: 5rpx;
+  height: 5rpx;
+  border-radius: 50%;
+  background: #ffffff;
+}
+.wechat-dot-small {
+  width: 4rpx;
+  height: 4rpx;
 }
 .third-label {
   font-size: 24rpx;
