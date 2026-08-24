@@ -42,6 +42,41 @@ export class SmsService {
   /** 腾讯云短信必需 Region（与短信应用 SdkAppId 所在地域一致；默认广州） */
   private readonly region: string;
 
+  /**
+   * 第三方短信错误只用于服务端日志；用户端始终返回稳定中文提示。
+   * 腾讯云的顶层 Error 与 SendStatusSet.Message 均可能是英文，禁止原样透传。
+   */
+  private toUserFacingSendFailure(code?: string, message?: string): string {
+    const source = `${code || ""} ${message || ""}`.toLowerCase();
+
+    if (
+      /phonenumberdailylimit|daily.?limit|day.?limit|exceed.*daily|daily.*exceed|发送.*上限/.test(
+        source,
+      )
+    ) {
+      return "今日验证码发送次数已达上限，请明日再试；您也可以使用密码登录";
+    }
+    if (
+      /frequency|frequent|ratelimit|rate.?limit|limitexceeded.*phone|too many|频繁|60秒/.test(
+        source,
+      )
+    ) {
+      return "验证码请求过于频繁，请稍后再试；您也可以使用密码登录";
+    }
+    if (/insufficient|balance|arrears|欠费|余额/.test(source)) {
+      return "短信服务暂不可用，请使用密码登录或稍后再试";
+    }
+    if (/template|sign(name)?|unapproved|incorrectorunapproved|模板|签名/.test(source)) {
+      return "短信服务配置异常，请使用密码登录或稍后再试";
+    }
+
+    // 项目自身抛出的纯中文业务提示可以保留；中英混合或第三方未知错误统一降级。
+    if (message && /[\u4e00-\u9fff]/.test(message) && !/[A-Za-z]{4,}/.test(message)) {
+      return message;
+    }
+    return "短信发送失败，请稍后重试或使用密码登录";
+  }
+
   constructor(
     private redis: RedisService,
     private prisma: PrismaService,
@@ -125,7 +160,7 @@ export class SmsService {
         this.logger.error(`SMS API错误 [${action}]`, data.Response.Error);
         throw new BusinessException(
           ErrorCode.THIRD_SMS_FAILED,
-          `短信发送失败: ${data.Response.Error.Message}`,
+          this.toUserFacingSendFailure(reason, data.Response.Error.Message),
         );
       }
 
@@ -145,7 +180,7 @@ export class SmsService {
           );
           throw new BusinessException(
             ErrorCode.THIRD_SMS_FAILED,
-            `短信发送失败: ${rejected.Message || reason}`,
+            this.toUserFacingSendFailure(reason, rejected.Message),
           );
         }
       }
@@ -248,7 +283,8 @@ export class SmsService {
       await this.redis.del(codeKey);
       await this.redis.del(rateKey);
 
-      const errorMsg = (err as Error).message;
+      const rawErrorMsg = (err as Error).message;
+      const errorMsg = this.toUserFacingSendFailure(undefined, rawErrorMsg);
       this.prisma.smsLog
         .create({
           data: {

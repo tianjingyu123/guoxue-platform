@@ -81,6 +81,61 @@ describe("SmsService", () => {
     });
   });
 
+  describe("验证码发送错误中文化", () => {
+    it("腾讯云号码每日上限必须返回中文且不得透传英文", async () => {
+      mockFetch.mockResolvedValue({
+        json: async () => ({
+          Response: {
+            RequestId: "req-daily-limit",
+            SendStatusSet: [
+              {
+                Code: "LimitExceeded.PhoneNumberDailyLimit",
+                Message: "The number of messages sent to a single phone number has exceeded the daily limit",
+              },
+            ],
+          },
+        }),
+      } as Response);
+
+      const result = await svc.sendVerifyCode("13800138000", "login");
+
+      expect(result).toEqual({
+        ok: false,
+        message: "今日验证码发送次数已达上限，请明日再试；您也可以使用密码登录",
+      });
+      expect(result.message).not.toMatch(/[A-Za-z]{4,}/);
+    });
+
+    it("腾讯云顶层频控错误必须返回中文", async () => {
+      mockFetch.mockResolvedValue({
+        json: async () => ({
+          Response: {
+            RequestId: "req-frequency-limit",
+            Error: {
+              Code: "LimitExceeded.PhoneNumberCountLimit",
+              Message: "Request rate limit exceeded",
+            },
+          },
+        }),
+      } as Response);
+
+      const result = await svc.sendVerifyCode("13800138000", "LOGIN");
+
+      expect(result.ok).toBe(false);
+      expect(result.message).toBe("验证码请求过于频繁，请稍后再试；您也可以使用密码登录");
+      expect(result.message).not.toMatch(/[A-Za-z]{4,}/);
+    });
+
+    it("未知网络错误不得向用户泄露英文内部信息", async () => {
+      mockFetch.mockRejectedValue(new Error("fetch failed: socket hang up"));
+
+      const result = await svc.sendVerifyCode("13800138000", "LOGIN");
+
+      expect(result).toEqual({ ok: false, message: "短信发送失败，请稍后重试或使用密码登录" });
+      expect(result.message).not.toContain("fetch");
+    });
+  });
+
   describe("getAdminLogs", () => {
     it("page 为非法字符串时 skip 不为 NaN", async () => {
       mockPrisma.smsLog.findMany.mockResolvedValue([]);
