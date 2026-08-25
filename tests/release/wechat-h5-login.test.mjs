@@ -8,6 +8,8 @@ const loginPage = read("apps/mobile/src/pkg-auth/login/index.vue");
 const authData = read("apps/mobile/src/lib/auth-data.ts");
 const wechatService = read("apps/server/src/modules/auth/wechat.service.ts");
 const authController = read("apps/server/src/modules/auth/auth.controller.ts");
+const manifest = JSON.parse(read("apps/mobile/src/manifest.json"));
+const thirdPartyServices = read("apps/server/src/config/third-party-services.ts");
 
 test("H5 登录页公开微信登录入口，并保留小程序/App 入口", () => {
   assert.match(loginPage, /v-if="showWechatLogin"/u);
@@ -38,6 +40,29 @@ test("OAuth URL 由服务端生成，客户端不持有 AppSecret", () => {
   assert.match(authData, /redirectUri=\$\{encodeURIComponent\(redirectUri\)\}/u);
   assert.doesNotMatch(authData, /APP_SECRET|appSecret/u);
   assert.match(authController, /@Query\("state"\) state\?: string/u);
+});
+
+test("APP 与 Harmony 微信登录模块已启用，且客户端不嵌入 AppSecret", () => {
+  const appPlus = manifest["app-plus"];
+  const weixinOAuth = appPlus?.distribute?.sdkConfigs?.oauth?.weixin;
+  const harmonyOAuth = manifest["app-harmony"]?.distribute?.modules?.["uni-oauth"]?.weixin;
+
+  assert.deepEqual(appPlus?.modules?.OAuth, {});
+  assert.match(weixinOAuth?.appid || "", /^wx[0-9a-f]+$/u);
+  assert.equal(weixinOAuth?.UniversalLinks, "https://pre-api.rebugx.cn/h5/");
+  assert.equal("appsecret" in (weixinOAuth || {}), false);
+  assert.equal(harmonyOAuth?.appid, weixinOAuth?.appid);
+});
+
+test("后台开放平台卡片写入 APP 登录实际读取的独立变量", () => {
+  const start = thirdPartyServices.indexOf('key: "wechat_open"');
+  const end = thirdPartyServices.indexOf("\n  },", start);
+  const wechatOpenSection = thirdPartyServices.slice(start, end);
+
+  assert.match(thirdPartyServices, /WECHAT_OPEN_APP_ID/u);
+  assert.match(thirdPartyServices, /WECHAT_OPEN_APP_SECRET/u);
+  assert.ok(start >= 0 && end > start);
+  assert.doesNotMatch(wechatOpenSection, /"WECHAT_APP_ID"/u);
 });
 
 test("服务端限制回调域名、HTTPS、scope 与 state", () => {

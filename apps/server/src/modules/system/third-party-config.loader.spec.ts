@@ -17,6 +17,8 @@ describe("ThirdPartyConfigLoader", () => {
     mockPrisma.configSystem.findUnique.mockReset();
     delete process.env[WECHAT_PAY_RUNTIME_CONFIG_SOURCE];
     delete process.env.WECHAT_PAY_CALLBACK_KEY_MODE;
+    delete process.env.WECHAT_OPEN_APP_ID;
+    delete process.env.WECHAT_OPEN_APP_SECRET;
     delete process.env.APPLE_IAP_REQUIRED;
     delete process.env.APPLE_IAP_KEY_ID;
     delete process.env.APPLE_IAP_ISSUER_ID;
@@ -48,6 +50,18 @@ describe("ThirdPartyConfigLoader", () => {
     expect(process.env.WECHAT_MINI_APP_ID).toBe("wx-mini-123");
     expect(process.env.MINIPROGRAM_APP_ID).toBe("wx-mini-123");
     expect(process.env.WECHAT_MP_APP_ID).toBe("wx-mini-123");
+  });
+
+  it("开放平台移动应用配置写入 APP 微信登录实际读取的变量", async () => {
+    const stored = encrypt(JSON.stringify({ appId: "wx-open-app", appSecret: "open-secret" }));
+    mockPrisma.configSystem.findMany.mockResolvedValue([
+      { configKey: "third_party.wechat_open", configValue: stored },
+    ]);
+
+    await loader.syncToEnv();
+
+    expect(process.env.WECHAT_OPEN_APP_ID).toBe("wx-open-app");
+    expect(process.env.WECHAT_OPEN_APP_SECRET).toBe("open-secret");
   });
 
   it("buildDisplayValue：敏感字段掩码、非敏感原样（明文不出后端）", () => {
