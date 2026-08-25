@@ -14,6 +14,7 @@ import { ImService } from "../im/im.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { SmsService } from "../sms/sms.service";
 import { PermissionService } from "../system/permission.service";
+import { FeatureFlagService } from "../feature-flag/feature-flag.service";
 import {
   PhoneRegisterDto,
   PhoneLoginDto,
@@ -29,6 +30,7 @@ import {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private static readonly WECHAT_APP_LOGIN_FEATURE = "client_wechat_app_login";
 
   constructor(
     private prisma: PrismaService,
@@ -39,7 +41,20 @@ export class AuthService {
     private webhook: WebhookService,
     private sms: SmsService,
     private permSvc: PermissionService,
+    private featureFlag: FeatureFlagService,
   ) {}
+
+  /**
+   * App 微信登录必须由运行时开关显式放行。开关缺失、关闭或缓存异常时均拒绝，
+   * 从而允许先部署代码和客户端，再在旧系统凭据确认后完成秒级切换。
+   */
+  private async assertWechatAppLoginEnabled(loginType: WechatLoginType): Promise<void> {
+    if (loginType !== "app") return;
+    const enabled = await this.featureFlag
+      .isEnabled(AuthService.WECHAT_APP_LOGIN_FEATURE)
+      .catch(() => false);
+    if (!enabled) throw new BusinessException(ErrorCode.NOT_FOUND, "资源不存在");
+  }
 
   /** 生成 accessToken（2小时） + refreshToken（30天，存Redis可撤销） */
   private async generateTokenPair(userId: string) {
@@ -265,6 +280,7 @@ export class AuthService {
 
   async wechatLogin(dto: WechatLoginDto) {
     const loginType = (dto.loginType || "h5") as WechatLoginType;
+    await this.assertWechatAppLoginEnabled(loginType);
     const client = this.wechat.resolveLoginClient(loginType, dto.clientKey);
     let openId: string;
     let unionId: string | undefined;
@@ -694,6 +710,7 @@ export class AuthService {
     loginType: WechatLoginType = "h5",
     clientKey?: string,
   ) {
+    await this.assertWechatAppLoginEnabled(loginType);
     const client = this.wechat.resolveLoginClient(loginType, clientKey);
     const wxUser =
       loginType === "miniprogram"

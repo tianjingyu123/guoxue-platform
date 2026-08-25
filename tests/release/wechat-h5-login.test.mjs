@@ -10,11 +10,15 @@ const wechatService = read("apps/server/src/modules/auth/wechat.service.ts");
 const authController = read("apps/server/src/modules/auth/auth.controller.ts");
 const manifest = JSON.parse(read("apps/mobile/src/manifest.json"));
 const thirdPartyServices = read("apps/server/src/config/third-party-services.ts");
+const authService = read("apps/server/src/modules/auth/auth.service.ts");
+const remoteConfig = read("apps/mobile/src/lib/remote-config.ts");
 
-test("H5 登录页公开微信登录入口，并保留小程序/App 入口", () => {
+test("H5 与小程序公开微信登录入口，App 入口由运行时开关放行", () => {
   assert.match(loginPage, /v-if="showWechatLogin"/u);
-  assert.match(loginPage, /#ifdef H5[\s\S]*showWechatLogin = true/u);
-  assert.match(loginPage, /defined\(MP-WEIXIN\).*defined\(APP-PLUS\)[\s\S]*showWechatLogin = true/u);
+  assert.match(loginPage, /#ifdef H5[\s\S]*showWechatLogin\.value = true/u);
+  assert.match(loginPage, /#ifdef MP-WEIXIN[\s\S]*showWechatLogin\.value = true/u);
+  assert.match(loginPage, /client_wechat_app_login/u);
+  assert.match(remoteConfig, /client_wechat_app_login:\s*false/u);
   assert.match(loginPage, /<text class="third-label">微信登录<\/text>/u);
   assert.match(loginPage, /await startH5WechatLogin\(\)/u);
   assert.match(loginPage, /provider:\s*'weixin'/u);
@@ -40,6 +44,16 @@ test("OAuth URL 由服务端生成，客户端不持有 AppSecret", () => {
   assert.match(authData, /redirectUri=\$\{encodeURIComponent\(redirectUri\)\}/u);
   assert.doesNotMatch(authData, /APP_SECRET|appSecret/u);
   assert.match(authController, /@Query\("state"\) state\?: string/u);
+});
+
+test("App 微信登录开关在服务端强制执行，关闭时不解析凭据", () => {
+  const gateIndex = authService.indexOf("await this.assertWechatAppLoginEnabled(loginType)");
+  const resolveIndex = authService.indexOf("this.wechat.resolveLoginClient(loginType");
+
+  assert.match(authService, /WECHAT_APP_LOGIN_FEATURE\s*=\s*"client_wechat_app_login"/u);
+  assert.match(authService, /loginType !== "app"/u);
+  assert.match(authService, /ErrorCode\.NOT_FOUND/u);
+  assert.ok(gateIndex >= 0 && resolveIndex > gateIndex);
 });
 
 test("APP 与 Harmony 微信登录模块已启用，且客户端不嵌入 AppSecret", () => {

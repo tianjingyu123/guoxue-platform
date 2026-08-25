@@ -252,7 +252,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   },
   {
     key: "wechat_open", label: "微信开放平台（APP登录/分享）", category: "微信",
-    note: "APP 微信登录使用开放平台移动应用凭据；H5 网页授权继续使用“微信公众号”卡片，小程序登录继续使用“微信小程序”卡片。",
+    note: "APP 微信登录使用开放平台移动应用凭据；保存凭据不会自动开放入口，只有功能开关 client_wechat_app_login 显式开启后才生效。H5 网页授权继续使用“微信公众号”卡片，小程序登录继续使用“微信小程序”卡片。",
     fields: [
       S("appId", "移动应用 AppID", "WECHAT_OPEN_APP_ID", false, "微信开放平台→管理中心→移动应用→应用详情→AppID"),
       S("appSecret", "移动应用 AppSecret", "WECHAT_OPEN_APP_SECRET", true, "微信开放平台→移动应用→应用详情→AppSecret"),

@@ -241,13 +241,16 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onUnmounted } from 'vue'
-// #ifdef H5
+// #if defined(H5) || defined(APP-PLUS)
 import { onLoad } from '@dcloudio/uni-app'
 // #endif
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
 import { setToken, setRefreshToken, setUserInfo, clearAuthSession } from '@/utils/storage'
+// #ifdef APP-PLUS
+import { hydrateRemoteConfig, isClientFeatureEnabled } from '@/lib/remote-config'
+// #endif
 import { BRAND } from '@/lib/brand'
 import { hasCompletedInterestGuide } from '@/utils/interests'
 
@@ -265,15 +268,23 @@ const isLoading = ref(false)
 const isSendingCode = ref(false)
 const agreedTerms = ref(false)
 const error = ref('')
-// 仅由编译期平台条件赋值，不需要响应式包装；同时减少小程序主包体积。
-let showWechatLogin = false
+// App 端必须由服务端运行时开关显式放行；拉取失败时保持隐藏，避免密钥切换前误开放。
+const showWechatLogin = ref(false)
 
 // H5 的模板条件表达式在部分 UniApp 编译器中不会定义 defined(H5)，改由可靠的脚本条件控制展示。
 // #ifdef H5
-showWechatLogin = true
+showWechatLogin.value = true
 // #endif
-// #if defined(MP-WEIXIN) || defined(APP-PLUS)
-showWechatLogin = true
+// #ifdef MP-WEIXIN
+showWechatLogin.value = true
+// #endif
+
+// #ifdef APP-PLUS
+onLoad(() => {
+  void hydrateRemoteConfig(true).then(() => {
+    showWechatLogin.value = isClientFeatureEnabled('client_wechat_app_login', false)
+  })
+})
 // #endif
 
 let timer: ReturnType<typeof setInterval> | null = null

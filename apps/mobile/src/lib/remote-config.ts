@@ -48,6 +48,7 @@ const STORAGE_KEY = `client:remote-config:v1:${EXPECTED_ENVIRONMENT}`
 const MAINTENANCE_NOTICE_KEY = `client:maintenance:last-revision:${EXPECTED_ENVIRONMENT}`
 
 const DEFAULT_FEATURES: Record<string, boolean> = {
+  client_wechat_app_login: false,
   live_start: true,
   member_purchase: true,
   merchant_onboarding: false,
