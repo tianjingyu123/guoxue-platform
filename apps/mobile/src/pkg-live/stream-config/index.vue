@@ -1,7 +1,7 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="nav" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view class="nav-bar">
         <view class="nav-btn" @tap="goBack">
           <AppIcon name="chevron-left" :size="48" color="#2C2C2C" />
@@ -182,6 +182,7 @@ import { goBack } from '@/utils/router'
 import { liveApi, obsConfigSteps, streamConfigFaq, type StreamConfig } from '@/lib/live-data'
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const loading = ref(true)
 const error = ref('')
 const config = ref<StreamConfig>({

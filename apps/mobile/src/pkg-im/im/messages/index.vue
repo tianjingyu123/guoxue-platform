@@ -6,7 +6,7 @@
   </view>
   <view v-else class="msg-page">
     <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view class="navbar__inner">
         <view class="navbar__left">
           <view class="navbar__back" @tap="goBack">
@@ -106,6 +106,7 @@ import {
 } from '@/lib/im-data'
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 
 // 列表数据
 const messages = ref<NotifyMessage[]>([])

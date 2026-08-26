@@ -4,7 +4,7 @@
     <view class="top-decor" />
 
     <!-- 返回按钮 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view
         v-if="step !== 3"
         class="back-btn"
@@ -226,6 +226,7 @@ import { goBack, navigateTo } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 
 // UI 临时状态
 const step = ref<1 | 2 | 3>(1)

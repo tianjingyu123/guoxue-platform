@@ -4,7 +4,7 @@
     <view class="top-decor" />
 
     <!-- 返回按钮 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view
         class="back-btn"
         role="button"
@@ -260,6 +260,7 @@ import { BRAND } from '@/lib/brand'
 import { hasCompletedInterestGuide } from '@/utils/interests'
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const logoSrc = ref('/static/logo.webp')
 
 // UI 临时状态

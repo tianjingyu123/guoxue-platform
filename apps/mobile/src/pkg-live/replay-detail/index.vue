@@ -16,7 +16,7 @@
     <!-- 播放器区域 -->
     <view class="player">
       <!-- 返回按钮 -->
-      <view class="player-back" :style="{ top: statusBarHeight + 16 + 'px' }" @tap="goBack">
+      <view class="player-back" :style="{ top: `calc(max(${statusBarHeight}px, env(safe-area-inset-top)) + 16px)` }" @tap="goBack">
         <AppIcon name="arrow-left" :size="40" color="#fff" />
       </view>
 
@@ -28,7 +28,7 @@
       </view>
 
       <!-- 回放标签 -->
-      <view class="player-tag-tr" :style="{ top: statusBarHeight + 16 + 'px' }">
+      <view class="player-tag-tr" :style="{ top: `calc(max(${statusBarHeight}px, env(safe-area-inset-top)) + 16px)` }">
         <view class="tag-replay">
           <AppIcon name="clock" :size="24" color="#fff" />
           <text class="tag-replay-txt">回放</text>
@@ -36,7 +36,7 @@
       </view>
 
       <!-- 当前章节 -->
-      <view class="player-chapter" :style="{ top: statusBarHeight + 16 + 'px' }">
+      <view class="player-chapter" :style="{ top: `calc(max(${statusBarHeight}px, env(safe-area-inset-top)) + 16px)` }">
         <text class="player-chapter-txt">{{ currentChapter.title }}</text>
       </view>
 
@@ -245,6 +245,7 @@ import { liveApi } from '@/lib/live-data'
 import { formatPrice } from '@/utils/format'
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 
 // 数据状态
 const loading = ref(true)

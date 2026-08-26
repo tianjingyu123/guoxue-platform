@@ -1,7 +1,7 @@
 <template>
   <view class="page">
     <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view class="navbar-inner">
         <view
           class="back-btn"
@@ -267,6 +267,7 @@ import { setToken, setRefreshToken, setUserInfo, clearAuthSession } from '@/util
 import { hasCompletedInterestGuide } from '@/utils/interests'
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const steps = ['phone', 'verify', 'password'] as const
 type Step = (typeof steps)[number]
 

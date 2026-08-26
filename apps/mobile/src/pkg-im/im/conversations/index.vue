@@ -7,7 +7,7 @@
   <view v-else class="page">
     <DegradedBanner dep="im" text="消息服务临时维护中，收发可能延迟，请稍后再试" />
     <!-- 顶部导航 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view class="nav-left">
         <view class="back-btn" @tap="goBack">
           <AppIcon name="arrow-left" :size="24" color="#2c2c2c" />
@@ -80,7 +80,7 @@
     </view>
 
     <!-- 搜索弹层 -->
-    <view v-if="showSearch" class="search-overlay" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view v-if="showSearch" class="search-overlay" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view class="search-head">
         <view class="search-input-wrap">
           <AppIcon name="search" :size="16" color="#8a8178" class="search-input-icon" />
@@ -177,6 +177,7 @@ import {
 import { useTim } from '@/composables/useTim'
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const tim = useTim()
 
 // 列表数据

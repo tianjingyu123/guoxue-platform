@@ -67,6 +67,47 @@ test('所有自定义导航页面必须声明状态栏、刘海或挖孔安全�
   assert.deepEqual(missing, [], `以下自定义导航页面没有安全区证据：\n${missing.join('\n')}`)
 })
 
+test('动态状态栏高度不能停留在未赋值的零值占位', () => {
+  const missingRuntimeHeight = []
+
+  for (const [route, page] of registeredPages()) {
+    if (page.style?.navigationStyle !== 'custom') continue
+    const content = pageSource(route)
+    if (!/const\s+statusBarHeight\s*=\s*ref\(0\)/u.test(content)) continue
+    if (!/statusBarHeight\.value\s*=/u.test(content)) missingRuntimeHeight.push(route)
+  }
+
+  assert.deepEqual(
+    missingRuntimeHeight,
+    [],
+    `以下自定义导航页面声明了 statusBarHeight，但从未读取真机状态栏高度：\n${missingRuntimeHeight.join('\n')}`,
+  )
+})
+
+const h5NotchFallbackPages = [
+  'pkg-auth/login/index',
+  'pkg-auth/register/index',
+  'pkg-auth/forgot-password/index',
+  'pkg-im/im/chat/index',
+  'pkg-im/im/group-chat/index',
+  'pkg-im/im/messages/index',
+  'pkg-im/im/conversations/index',
+  'pkg-live/obs-guide/index',
+  'pkg-live/replay-detail/index',
+  'pkg-live/stream-config/index',
+]
+
+test('认证、即时通信与直播关键页同时保留 H5 刘海安全区兜底', () => {
+  const missingCssFallback = h5NotchFallbackPages.filter(
+    (route) => !/env\(safe-area-inset-top\)/u.test(pageSource(route)),
+  )
+  assert.deepEqual(
+    missingCssFallback,
+    [],
+    `以下自定义导航页面缺少 H5 刘海安全区兜底：\n${missingCssFallback.join('\n')}`,
+  )
+})
+
 const stickySafePages = [
   'pkg-order/appeal/index',
   'pkg-classics/search/index',

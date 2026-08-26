@@ -6,7 +6,7 @@
   </view>
   <view v-else class="page">
     <!-- 导航栏 -->
-    <view class="navbar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="navbar" :style="{ paddingTop: `max(${statusBarHeight}px, env(safe-area-inset-top))` }">
       <view class="nav-left">
         <view class="icon-btn" @tap="goBack">
           <AppIcon name="arrow-left" :size="20" color="#2c2c2c" />
@@ -243,6 +243,7 @@ const props = defineProps<{ groupId?: string; id?: string }>()
 const gid = computed(() => props.groupId || props.id || '')
 
 const statusBarHeight = ref(0)
+try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
 const tim = useTim()
 
 // 数据状态
