@@ -206,7 +206,7 @@ async function doDelete() {
         <view class="confirm-icon"><AppIcon name="trash-2" :size="28" color="#ef4444" /></view>
         <text class="confirm-title">最终确认</text>
         <text class="confirm-desc">请输入 <text class="hl">"确认注销"</text> 以继续</text>
-        <input v-model="confirmText" class="confirm-input" placeholder='请输入"确认注销"' placeholder-class="ph" />
+        <input v-model="confirmText" class="confirm-input" placeholder="请输入确认注销" placeholder-class="ph" />
         <text v-if="confirmText && confirmText !== '确认注销'" class="confirm-err">请输入正确的确认文字</text>
         <view class="confirm-actions">
           <view class="confirm-btn ghost" @tap="showConfirm = false; confirmText = ''"><text class="confirm-btn-text">取消</text></view>
