@@ -87,7 +87,7 @@
                 },
                 "capabilities" : {
                     "entitlements" : {
-                        "com.apple.developer.associated-domains" : [ "applinks:api.rebugx.cn" ]
+                        "com.apple.developer.associated-domains" : [ "applinks:api.rebugx.cn", "applinks:pre-api.rebugx.cn" ]
                     }
                 },
                 "dSYMs" : false
