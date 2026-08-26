@@ -690,7 +690,10 @@ export class LiveController {
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async handleCallback(@Body() body: Record<string, unknown>) {
-    const streamKey = (body.stream_param as string) || (body.StreamName as string) || "";
+    // 腾讯云 CSS 推断流回调使用 stream_id 表示直播流名称；stream_param
+    // 只是推流 URL 携带的查询参数（通常包含 txSecret/txTime），不能当作流名。
+    // StreamName 仅用于兼容其他腾讯云事件的字段命名。
+    const streamKey = (body.stream_id as string) || (body.StreamName as string) || (body.stream_param as string) || "";
     const eventType = Number(body.event_type);
     await this.svc.handleLiveEvent(streamKey, eventType, body);
     return { code: 0 };

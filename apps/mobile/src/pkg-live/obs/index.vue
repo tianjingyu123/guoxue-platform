@@ -1,7 +1,7 @@
 <template>
   <!-- 加载骨架屏 -->
   <view v-if="loading" class="page">
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="nav" :style="{ '--obs-safe-top': statusBarHeight + 'px' }">
       <view class="nav-bar">
         <view class="nav-btn" @tap="onBack">
           <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
@@ -26,7 +26,7 @@
   <!-- 正常内容 -->
   <view v-else class="page">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="nav" :style="{ '--obs-safe-top': statusBarHeight + 'px' }">
       <view class="nav-bar">
         <view class="nav-btn" @tap="onBack">
           <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
@@ -425,6 +425,11 @@ function onBack() {
 
 /* 顶部导航 */
 .nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  box-sizing: content-box;
+  padding-top: max(var(--obs-safe-top, 0px), env(safe-area-inset-top));
   background: #FAF8F5;
   border-bottom: 1rpx solid #E8E2D8;
 }

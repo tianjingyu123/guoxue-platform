@@ -222,6 +222,21 @@ test('直播全域视觉保留主舞台与专业工作台层级', () => {
   assert.match(obs, /短期密钥保护/)
 })
 
+test('OBS 工作台滚动后导航仍吸附在系统安全区下方', () => {
+  const obs = source('apps/mobile/src/pkg-live/obs/index.vue')
+  const nav = obs.match(/\.nav\s*\{[^}]*\}/s)?.[0] || ''
+
+  assert.match(obs, /'--obs-safe-top': statusBarHeight \+ 'px'/)
+  assert.match(obs, /statusBarHeight\.value\s*=\s*info\.statusBarHeight\s*\|\|\s*0/)
+  assert.match(nav, /position:\s*sticky/)
+  assert.match(nav, /top:\s*0/)
+  assert.match(nav, /z-index:\s*\d+/)
+  assert.match(
+    nav,
+    /padding-top:\s*max\(var\(--obs-safe-top,\s*0px\),\s*env\(safe-area-inset-top\)\)/,
+  )
+})
+
 test('直播 nvue 不使用已知跨机型不稳定的样式属性', () => {
   for (const relativePath of [
     'apps/mobile/src/pkg-live/host/index.nvue',

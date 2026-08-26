@@ -348,10 +348,24 @@ describe("LiveController", () => {
   });
 
   it("POST /live/callback — 腾讯云回调", async () => {
-    const body = { event_type: 1, stream_param: "r1" };
+    const body = {
+      event_type: 1,
+      stream_id: "room_r1",
+      stream_param: "txSecret=secret&txTime=12345678",
+    };
     const result: any = await ctrl.handleCallback(body);
     expect(result.code).toBe(0);
-    expect(mockLiveSvc.handleLiveEvent).toHaveBeenCalled();
+    expect(mockLiveSvc.handleLiveEvent).toHaveBeenCalledWith("room_r1", 1, body);
+  });
+
+  it("POST /live/callback — 兼容 StreamName，并且不让 stream_param 覆盖真实流名", async () => {
+    const body = {
+      event_type: 0,
+      StreamName: "room_r2",
+      stream_param: "txSecret=secret&txTime=12345678",
+    };
+    await ctrl.handleCallback(body);
+    expect(mockLiveSvc.handleLiveEvent).toHaveBeenCalledWith("room_r2", 0, body);
   });
 
   it("POST /live/trtc/callback — TRTC 房间与媒体回调", async () => {

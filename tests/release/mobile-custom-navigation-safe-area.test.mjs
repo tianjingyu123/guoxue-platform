@@ -93,6 +93,7 @@ const h5NotchFallbackPages = [
   'pkg-im/im/messages/index',
   'pkg-im/im/conversations/index',
   'pkg-live/obs-guide/index',
+  'pkg-live/obs/index',
   'pkg-live/replay-detail/index',
   'pkg-live/stream-config/index',
 ]

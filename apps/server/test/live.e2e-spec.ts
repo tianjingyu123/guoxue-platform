@@ -6,6 +6,7 @@ import { createE2eApp } from "./e2e-setup"
 describe("Live E2E", () => {
   let app: INestApplication
   let prisma: any
+  let redis: any
   let jwt: JwtService
   let token: string
   let adminToken: string
@@ -14,6 +15,7 @@ describe("Live E2E", () => {
     const ctx = await createE2eApp()
     app = ctx.app
     prisma = ctx.prisma
+    redis = ctx.redis
     jwt = app.get(JwtService)
     token = jwt.sign({ sub: "u1" })
     adminToken = jwt.sign({ sub: "admin1" })
@@ -420,12 +422,27 @@ describe("Live E2E", () => {
       expect(res.body.code).toBe(0)
     })
 
-    it("推流回调处理成功", async () => {
+    it("按腾讯云 stream_id 识别推流，并忽略 stream_param 中的鉴权参数", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1" })
+      redis.getJson.mockResolvedValue(null)
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/callback")
-        .send({ stream_param: "room_r1", event_type: 1 })
+        .send({
+          stream_id: "room_r1",
+          stream_param: "txSecret=secret&txTime=12345678",
+          event_type: 1,
+        })
         .expect(200)
       expect(res.body.code).toBe(0)
+      expect(prisma.liveRoom.findUnique).toHaveBeenCalledWith({
+        where: { id: "r1" },
+        select: { id: true },
+      })
+      expect(redis.setJson).toHaveBeenCalledWith(
+        "live:stream-status:r1",
+        expect.objectContaining({ status: "online" }),
+        expect.any(Number),
+      )
     })
   })
 
