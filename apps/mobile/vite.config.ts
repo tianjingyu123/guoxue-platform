@@ -147,6 +147,46 @@ export function loadKangxiDictionaryForWechat(): Plugin {
   };
 }
 
+const WECHAT_SUBPACKAGE_ENGINE_SOURCES = new Map([
+  [
+    "/src/pkg-paipan/lib/qimen-engine.ts",
+    "../../packages/shared/src/paipan/qimen-engine.ts",
+  ],
+  [
+    "/src/pkg-paipan/lib/daliuren-engine.ts",
+    "../../packages/shared/src/paipan/daliuren-engine.ts",
+  ],
+] as const);
+
+/**
+ * uni-app 会把工作区共享包中的模块归入根目录 common/vendor.js。奇门、大六壬
+ * 引擎实际只由排盘分包使用，若继续转发共享包，微信仍会把算法代码
+ * 计入主包。小程序构建时从唯一真源读取源码并注入分包内的转发模块，使算法跟随
+ * 页面分包分发；H5、App、Harmony 与后端仍直接引用共享包，不改变运行逻辑。
+ */
+export function loadPaipanEnginesIntoWechatSubpackages(
+  platform = process.env.UNI_PLATFORM,
+): Plugin {
+  const enabled = platform === "mp-weixin";
+  return {
+    name: "load-paipan-engines-into-wechat-subpackages",
+    enforce: "pre",
+    load(id) {
+      if (!enabled) return null;
+      const normalizedId = id.replaceAll("\\", "/").split("?", 1)[0];
+      const matched = [...WECHAT_SUBPACKAGE_ENGINE_SOURCES.entries()].find(([suffix]) =>
+        normalizedId.endsWith(suffix),
+      );
+      if (!matched) return null;
+
+      const source = readFileSync(resolve(__dirname, matched[1]), "utf8");
+      return source
+        .replaceAll('from "./ganzhi"', 'from "@/lib/paipan/ganzhi"')
+        .replaceAll('from "./jieqi"', 'from "@/lib/paipan/jieqi"');
+    },
+  };
+}
+
 /**
  * App 原生运行时使用 IIFE 主服务脚本。Android/iOS 云端运行时未提供 AMD define，
  * 因此动态导入必须内联；H5 与小程序仍保留原有分包策略。
@@ -200,6 +240,7 @@ export default defineConfig(({ mode }) => {
       rewriteLegacyPublicAssets(publicAssetOrigin),
       rewriteFlvProbeOrigin(),
       loadKangxiDictionaryForWechat(),
+      loadPaipanEnginesIntoWechatSubpackages(),
       uni(),
       nativeAppIifeBuildCompatibility(),
     ],

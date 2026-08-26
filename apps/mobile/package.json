@@ -8,7 +8,7 @@
     "dev:mp-harmony": "uni -p mp-harmony",
     "build:app": "uni build -p app",
     "build:app-harmony": "uni build -p app-harmony",
-    "build:mp-weixin": "uni build -p mp-weixin && node scripts/validate-mp-wxml.mjs && node scripts/prune-mp-static.mjs && node scripts/check-mp-size.mjs",
+    "build:mp-weixin": "uni build -p mp-weixin && node scripts/relocate-mp-shared-components.mjs && node scripts/prune-mp-static.mjs && node scripts/validate-mp-wxml.mjs && node scripts/validate-mp-artifacts.mjs && node scripts/check-mp-size.mjs",
     "build:mp-harmony": "uni build -p mp-harmony",
     "dev:h5": "uni -p h5",
     "build:h5": "uni build -p h5",

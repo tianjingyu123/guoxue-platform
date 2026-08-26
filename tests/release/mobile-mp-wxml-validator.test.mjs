@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { validateWxml } from "../../apps/mobile/scripts/validate-mp-wxml.mjs";
+import { validateMpTextArtifact } from "../../apps/mobile/scripts/validate-mp-artifacts.mjs";
 
 test("WXML 校验器接受正常属性、指令与自闭合标签", () => {
   const source = `
@@ -39,4 +40,16 @@ test("WXML 校验器拦截未加引号和未闭合的属性", () => {
 
   assert.match(unquoted[0].message, /必须使用引号包裹/u);
   assert.match(unclosed[0].message, /引号未闭合/u);
+});
+
+test("微信文本产物门禁拦截历史编码损坏字符", () => {
+  assert.deepEqual(validateMpTextArtifact('const title = "损坏�文本";', ".js"), [
+    "包含 Unicode 替换字符 U+FFFD",
+  ]);
+});
+
+test("微信文本产物门禁拦截不兼容 WXSS 选择器", () => {
+  assert.equal(validateMpTextArtifact(".body > * { margin: 1px; }", ".wxss").length, 1);
+  assert.equal(validateMpTextArtifact(".pickers > :first-child { flex: 1; }", ".wxss").length, 1);
+  assert.deepEqual(validateMpTextArtifact(".body > view { margin: 1px; }", ".wxss"), []);
 });
