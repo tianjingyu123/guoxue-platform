@@ -6,6 +6,9 @@ import { join } from 'path'
 const DIST = join(process.cwd(), 'dist/build/mp-weixin')
 const MAIN_LIMIT_MB = 1.8
 const SUBPACKAGE_LIMIT_MB = 1.95
+// 微信开发者工具的平台计数会高于本地文件求和。2026-08-26 实测
+// pkg-paipan 高约 0.17 MiB，因此对该核心大包保留至少约 0.20 MiB 的平台余量。
+const PACKAGE_SPECIFIC_LIMIT_MB = new Map([['pkg-paipan', 1.75]])
 
 function sizeOf(dir) {
   let total = 0
@@ -36,9 +39,13 @@ if (main > MAIN_LIMIT_MB * 1024 * 1024) {
   console.error(`❌ 主包超过警戒线 ${MAIN_LIMIT_MB}MB！新增图片>50KB 必须走 COS，本地图必须 WebP（见 docs/knowledge/项目Prompt知识库.md）`)
   process.exit(1)
 }
-const oversizedSubpackage = subs.find(([, size]) => size > SUBPACKAGE_LIMIT_MB * 1024 * 1024)
+const oversizedSubpackage = subs.find(([name, size]) => {
+  const limit = PACKAGE_SPECIFIC_LIMIT_MB.get(name) ?? SUBPACKAGE_LIMIT_MB
+  return size > limit * 1024 * 1024
+})
 if (oversizedSubpackage) {
-  console.error(`❌ 分包 ${oversizedSubpackage[0]} 超过警戒线 ${SUBPACKAGE_LIMIT_MB}MB（当前 ${mb(oversizedSubpackage[1])}MB）`)
+  const limit = PACKAGE_SPECIFIC_LIMIT_MB.get(oversizedSubpackage[0]) ?? SUBPACKAGE_LIMIT_MB
+  console.error(`❌ 分包 ${oversizedSubpackage[0]} 超过警戒线 ${limit}MB（当前 ${mb(oversizedSubpackage[1])}MB）`)
   process.exit(1)
 }
 console.log('✅ 主包及分包体积达标')

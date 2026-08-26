@@ -427,7 +427,7 @@ function isRising(gua: string) { return RISING.has(gua) }
           </view>
           <view
             class="link-btn"
-            @tap="navigateTo('/pkg-paipan/jinqianke/index')"
+            @tap="navigateTo('/pkg-paipan3/jinqianke/index')"
           >
             <text class="link-btn-text">
               金钱课

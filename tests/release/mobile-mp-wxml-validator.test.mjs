@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { validateWxml } from "../../apps/mobile/scripts/validate-mp-wxml.mjs";
-import { validateMpTextArtifact } from "../../apps/mobile/scripts/validate-mp-artifacts.mjs";
+import {
+  validateMpArtifactPath,
+  validateMpTextArtifact,
+} from "../../apps/mobile/scripts/validate-mp-artifacts.mjs";
 
 test("WXML 校验器接受正常属性、指令与自闭合标签", () => {
   const source = `
@@ -52,4 +55,9 @@ test("微信文本产物门禁拦截不兼容 WXSS 选择器", () => {
   assert.equal(validateMpTextArtifact(".body > * { margin: 1px; }", ".wxss").length, 1);
   assert.equal(validateMpTextArtifact(".pickers > :first-child { flex: 1; }", ".wxss").length, 1);
   assert.deepEqual(validateMpTextArtifact(".body > view { margin: 1px; }", ".wxss"), []);
+});
+
+test("微信产物门禁拦截平台会忽略的双下划线保留目录", () => {
+  assert.equal(validateMpArtifactPath("pkg-paipan/__shared__/tool.js").length, 1);
+  assert.equal(validateMpArtifactPath("pkg-paipan/shared-components/tool.js").length, 0);
 });

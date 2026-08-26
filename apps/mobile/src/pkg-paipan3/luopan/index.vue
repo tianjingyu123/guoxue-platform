@@ -23,7 +23,7 @@ import {
   sittingFacing,
   bearingToDirection,
   type PlateStyle,
-} from '@/pkg-paipan/lib/luopan-data'
+} from '@/pkg-paipan3/lib/luopan-data'
 
 /** 传统罗盘制式为上南下北：无传感器数据时静置于正南 180°（午上、子下） */
 const heading = ref(180) // 归一化 0~360，供读数/判读

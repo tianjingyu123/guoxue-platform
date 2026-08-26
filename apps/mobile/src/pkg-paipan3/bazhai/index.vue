@@ -15,8 +15,8 @@ import SectionTitle from '@/components/paipan/section-title.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { MOUNTAINS } from '@/pkg-paipan/lib/xuankong-data'
-import { sittingGua, mingGua, GUA_INFO, groupName } from '@/pkg-paipan/lib/bazhai-data'
+import { MOUNTAINS } from '@/pkg-paipan3/lib/xuankong-data'
+import { sittingGua, mingGua, GUA_INFO, groupName } from '@/pkg-paipan3/lib/bazhai-data'
 import {
   loadBazhaiHistory,
   clearBazhaiHistory,
@@ -87,7 +87,7 @@ function onClearHistory() {
 }
 
 function openRecord(h: BazhaiHistoryItem) {
-  navigateTo(`/pkg-paipan/bazhai/result?payload=${encodeURIComponent(JSON.stringify(h.params))}`)
+  navigateTo(`/pkg-paipan3/bazhai/result?payload=${encodeURIComponent(JSON.stringify(h.params))}`)
 }
 
 // ── 开始排盘 ──
@@ -102,7 +102,7 @@ function handleSubmit() {
     gender: gender.value,
     birthYear: birthYear.value ?? 0,
   }
-  navigateTo(`/pkg-paipan/bazhai/result?payload=${encodeURIComponent(JSON.stringify(params))}`)
+  navigateTo(`/pkg-paipan3/bazhai/result?payload=${encodeURIComponent(JSON.stringify(params))}`)
 }
 </script>
 

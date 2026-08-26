@@ -236,18 +236,6 @@
           }
         },
         {
-          "path": "kongming/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "luopan/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "ziwei/index",
           "style": {
             "navigationStyle": "custom"
@@ -279,12 +267,6 @@
         },
         {
           "path": "jinkoujue/result",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "jinqianke/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -398,25 +380,7 @@
           }
         },
         {
-          "path": "bazhai/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bazhai/result",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
           "path": "wuyunliuqi/index",
-          "style": {
-            "navigationStyle": "custom"
-          }
-        },
-        {
-          "path": "bazhai/history/index",
           "style": {
             "navigationStyle": "custom"
           }
@@ -495,6 +459,47 @@
         },
         {
           "path": "cases/submit",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        }
+      ]
+    },
+    {
+      "root": "pkg-paipan3",
+      "pages": [
+        {
+          "path": "jinqianke/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "kongming/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "bazhai/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "bazhai/result",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "bazhai/history/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "luopan/index",
           "style": {
             "navigationStyle": "custom"
           }

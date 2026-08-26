@@ -20,6 +20,9 @@ const mpRoot = resolve(process.cwd(), "dist", "build", "mp-weixin");
 const appConfig = JSON.parse(readFileSync(join(mpRoot, "app.json"), "utf8"));
 const packageRoots = (appConfig.subPackages || []).map(({ root }) => root);
 const componentRoot = join(mpRoot, "components");
+// 微信开发者工具会忽略名称以双下划线包裹的保留目录（例如 __shared__）。
+// 使用普通目录名，确保迁入分包的组件会被平台真实打包。
+const relocatedComponentDirectory = "shared-components";
 const relocatableNamespaces = ["bazi", "qimen"];
 const relocatableRoots = relocatableNamespaces.map((name) => join(componentRoot, name));
 const artifactExtensions = [".js", ".json", ".wxml", ".wxss"];
@@ -69,7 +72,7 @@ function copyComponent(sourceBase, packageRoot) {
   if (!relativeComponent) return sourceBase;
 
   const packageDirectory = join(mpRoot, packageRoot);
-  const targetBase = join(packageDirectory, "__shared__", "components", relativeComponent);
+  const targetBase = join(packageDirectory, relocatedComponentDirectory, relativeComponent);
   const cacheKey = `${packageRoot}:${sourceBase}`;
   if (copied.has(cacheKey)) return copied.get(cacheKey);
   copied.set(cacheKey, targetBase);
@@ -123,7 +126,7 @@ let rewrittenConfigs = 0;
 for (const packageRoot of packageRoots) {
   const packageDirectory = join(mpRoot, packageRoot);
   for (const jsonFile of walkFiles(packageDirectory, ".json")) {
-    if (jsonFile.includes(`${sep}__shared__${sep}`)) continue;
+    if (jsonFile.includes(`${sep}${relocatedComponentDirectory}${sep}`)) continue;
     const config = JSON.parse(readFileSync(jsonFile, "utf8"));
     if (!rewriteUsingComponents(config, dirname(jsonFile), dirname(jsonFile), packageRoot)) continue;
     writeFileSync(jsonFile, JSON.stringify(config), "utf8");
@@ -147,7 +150,9 @@ for (const jsonFile of walkFiles(mpRoot, ".json")) {
   }
 }
 
-for (const jsFile of walkFiles(mpRoot, ".js").filter((file) => file.includes(`${sep}__shared__${sep}`))) {
+for (const jsFile of walkFiles(mpRoot, ".js").filter((file) =>
+  file.includes(`${sep}${relocatedComponentDirectory}${sep}`),
+)) {
   const source = readFileSync(jsFile, "utf8");
   for (const match of source.matchAll(/(["'])(\.\.?\/[^"'\\]+\.js)\1/g)) {
     const target = resolve(dirname(jsFile), match[2]);

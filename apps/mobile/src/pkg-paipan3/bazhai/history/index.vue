@@ -27,7 +27,7 @@ const vms = computed<HistoryVM[]>(() =>
 
 function open(vm: HistoryVM) {
   const r = vm.raw
-  navigateTo(`/pkg-paipan/bazhai/result?payload=${encodeURIComponent(JSON.stringify(r.params))}`)
+  navigateTo(`/pkg-paipan3/bazhai/result?payload=${encodeURIComponent(JSON.stringify(r.params))}`)
 }
 function onPin(ids: string[]) {
   pinBazhaiHistory(ids)

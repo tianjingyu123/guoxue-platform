@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 八宅排盘·结果页（自 V0 app/bazhai/result/page.tsx 还原）
- * onLoad 解析 payload 后本地重算（@/pkg-paipan/lib/bazhai-data），无后端依赖。
+ * onLoad 解析 payload 后本地重算（@/pkg-paipan3/lib/bazhai-data），无后端依赖。
  * 结构：信息表（客户/宅卦/坐向/命卦/宅命）→ 宅卦盘/命卦盘切换 → 大游年九宫盘
  *       → 四吉四凶总览 → 门主灶布局建议 → 方位详情抽屉 → 合规声明。
  * 取舍：底部工具栏（客服/笔记）与 AI 区块按批次规范砍掉，分享收口到顶栏（复制盘面摘要）；
@@ -15,7 +15,7 @@ import PaperCard from '@/components/paipan/paper-card.vue'
 import Disclaimer from '@/components/compliance/disclaimer.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
-import { MOUNTAINS } from '@/pkg-paipan/lib/xuankong-data'
+import { MOUNTAINS } from '@/pkg-paipan3/lib/xuankong-data'
 import {
   type Gua,
   type StarName,
@@ -27,7 +27,7 @@ import {
   mingGua,
   isMatch,
   groupName,
-} from '@/pkg-paipan/lib/bazhai-data'
+} from '@/pkg-paipan3/lib/bazhai-data'
 import { saveBazhaiHistory, type BazhaiParams } from './bazhai-history'
 
 // R4 合规：小程序端无占卜类目，标题改文化研究表述（仅展示文案）
@@ -136,7 +136,7 @@ onLoad((q: Record<string, string> = {}) => {
 })
 
 function goInput() {
-  navigateTo('/pkg-paipan/bazhai/index')
+  navigateTo('/pkg-paipan3/bazhai/index')
 }
 
 /** 分享：复制盘面文字摘要 */
@@ -173,7 +173,7 @@ const guaDetail = computed(() => {
     <tool-header
       :title="hdrTitle"
       :subtitle="zhai ? `${zhai}宅 ${shanxiangLabel}${ming ? ` · ${ming}命` : ''}` : ''"
-      back-href="/pkg-paipan/bazhai/index"
+      back-href="/pkg-paipan3/bazhai/index"
       @share="onShare"
     />
 

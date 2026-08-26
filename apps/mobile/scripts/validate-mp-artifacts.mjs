@@ -21,21 +21,35 @@ export function validateMpTextArtifact(source, extension) {
   return issues;
 }
 
-async function findTextFiles(directory) {
+/** 微信会忽略形如 __name__ 的保留路径段，产物中出现即视为发布阻断。 */
+export function validateMpArtifactPath(artifactPath) {
+  const segments = String(artifactPath).replaceAll("\\", "/").split("/");
+  return segments.some((segment) => /^__.+__$/u.test(segment))
+    ? ["包含微信会忽略的双下划线保留路径段"]
+    : [];
+}
+
+async function findArtifactFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const nested = await Promise.all(
     entries.map(async (entry) => {
       const target = resolve(directory, entry.name);
-      if (entry.isDirectory()) return findTextFiles(target);
-      return entry.isFile() && TEXT_EXTENSIONS.has(extname(entry.name)) ? [target] : [];
+      if (entry.isDirectory()) return findArtifactFiles(target);
+      return entry.isFile() ? [target] : [];
     }),
   );
   return nested.flat().sort((left, right) => left.localeCompare(right));
 }
 
 export async function validateMpArtifactDirectory(directory = DEFAULT_DIST) {
-  const files = await findTextFiles(directory);
+  const artifactFiles = await findArtifactFiles(directory);
+  const files = artifactFiles.filter((file) => TEXT_EXTENSIONS.has(extname(file)));
   const failures = [];
+  for (const file of artifactFiles) {
+    for (const message of validateMpArtifactPath(relative(directory, file))) {
+      failures.push({ file, message });
+    }
+  }
   for (const file of files) {
     const source = await readFile(file, "utf8");
     for (const message of validateMpTextArtifact(source, extname(file))) {
