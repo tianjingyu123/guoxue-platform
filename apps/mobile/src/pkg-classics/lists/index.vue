@@ -45,6 +45,7 @@ function fmtLikes(n: number): string {
 </script>
 
 <template>
+  <app-safe-area-top />
   <view class="lp-page">
     <ClassicsHeader title="精选书单" />
 

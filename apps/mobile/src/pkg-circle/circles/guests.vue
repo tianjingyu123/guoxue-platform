@@ -128,6 +128,7 @@ async function doRemove(g: CircleGuest) {
 </script>
 
 <template>
+  <app-safe-area-top />
   <view class="gt">
     <!-- Header -->
     <view class="gt-nav">
@@ -217,7 +218,7 @@ async function doRemove(g: CircleGuest) {
 
 <style lang="scss" scoped>
 .gt { min-height: 100vh; background: #FAF8F5; }
-.gt-nav { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1rpx solid #F2EFEA; }
+.gt-nav { position: sticky; top: var(--status-bar-height, 0px); z-index: 10; background: #fff; border-bottom: 1rpx solid #F2EFEA; }
 .gt-nav-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; height: 96rpx; }
 .gt-back, .gt-invite-btn { padding: 8rpx; }
 .gt-title { font-size: 32rpx; font-weight: 600; color: #2C2C2C; }

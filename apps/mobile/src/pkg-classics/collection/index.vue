@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="cd-page">
     <!-- 顶部导航 -->
     <view class="cd-header">
@@ -201,7 +202,7 @@ function startReading() {
 }
 .cd-header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 50;
   background: rgba(250, 248, 245, 0.8);
   backdrop-filter: blur(8rpx);

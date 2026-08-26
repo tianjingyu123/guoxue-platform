@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="nt-page">
     <!-- 顶部导航 -->
     <view class="nt-header">
@@ -356,7 +357,7 @@ async function saveEdit() {
 }
 .nt-header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 50;
   background: var(--classics-bg, #f4f2ee);
   border-bottom: 1rpx solid rgba(196, 30, 58, 0.08);

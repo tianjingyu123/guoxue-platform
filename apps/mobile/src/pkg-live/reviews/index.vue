@@ -254,8 +254,8 @@ onMounted(() => { fetchData() })
   z-index: 50;
   display: flex;
   align-items: center;
-  height: 96rpx;
-  padding: 0 32rpx;
+  height: calc(96rpx + var(--status-bar-height));
+  padding: var(--status-bar-height) 32rpx 0;
   background: #faf8f5;
   border-bottom: 1px solid #ece8e1;
 }

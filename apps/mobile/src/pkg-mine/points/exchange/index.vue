@@ -121,6 +121,7 @@ async function confirmExchange() {
 </script>
 
 <template>
+  <app-safe-area-top />
   <view class="page">
     <view class="nav">
       <view class="nav-back" @tap="goBack">
@@ -248,7 +249,7 @@ async function confirmExchange() {
 }
 .nav {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 10;
   display: flex;
   align-items: center;

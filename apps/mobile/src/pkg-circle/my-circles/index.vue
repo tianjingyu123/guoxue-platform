@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav-bar">
@@ -279,7 +280,7 @@ function roleColor(role: MyCircleRole) {
 }
 .nav-bar {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 40;
   display: flex;
   align-items: center;

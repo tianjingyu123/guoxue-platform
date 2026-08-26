@@ -473,7 +473,7 @@ onLoad((options) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16rpx 24rpx;
+  padding: calc(var(--status-bar-height) + 16rpx) 24rpx 16rpx;
   background: rgba(250, 248, 245, 0.95);
   border-bottom: 1px solid #ece8e1;
   gap: 16rpx;

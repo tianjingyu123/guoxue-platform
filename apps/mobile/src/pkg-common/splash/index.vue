@@ -195,7 +195,7 @@ onUnmounted(clearAll)
 
 .skip-btn {
   position: absolute;
-  top: 96rpx;
+  top: calc(max(var(--status-bar-height, 0px), env(safe-area-inset-top)) + 48rpx);
   right: 32rpx;
   z-index: 20;
   padding: 12rpx 24rpx;
@@ -273,7 +273,7 @@ onUnmounted(clearAll)
 
 .copyright {
   position: absolute;
-  bottom: 64rpx;
+  bottom: calc(64rpx + env(safe-area-inset-bottom));
   left: 0;
   right: 0;
   text-align: center;

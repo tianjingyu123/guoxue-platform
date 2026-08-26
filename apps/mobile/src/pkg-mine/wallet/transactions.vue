@@ -195,6 +195,7 @@ function closePickers() {
 </script>
 
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 顶部导航(红色渐变) -->
     <view class="topbar">
@@ -348,7 +349,7 @@ function closePickers() {
 /* 顶部导航 */
 .topbar {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 10;
   background: linear-gradient(90deg, var(--brand), #e85a6b);
   display: flex;

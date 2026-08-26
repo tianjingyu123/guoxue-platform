@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view v-if="error" class="load-state">
     <text class="load-state-text">{{ error }}</text>
     <view class="retry-btn" @tap="loadData"><text class="retry-text">重试</text></view>
@@ -274,7 +275,7 @@ async function handleApproveAll() {
 .page { min-height: 100vh; background: #ffffff; }
 
 /* 导航栏 */
-.nav { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; height: 112rpx; padding: 0 32rpx; background: #ffffff; border-bottom: 2rpx solid #e5e7eb; }
+.nav { position: sticky; top: var(--status-bar-height, 0px); z-index: 50; display: flex; align-items: center; justify-content: space-between; height: 112rpx; padding: 0 32rpx; background: #ffffff; border-bottom: 2rpx solid #e5e7eb; }
 .nav-btn { padding: 16rpx; margin-left: -16rpx; display: flex; align-items: center; justify-content: center; }
 .nav-title { font-size: 32rpx; font-weight: 500; color: #111827; }
 .nav-placeholder { width: 72rpx; }

@@ -164,7 +164,7 @@ function fmtViewers(n?: number) {
 
 <style scoped lang="scss">
 .page { min-height: 100vh; background: var(--surface-sunken); }
-.header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 24rpx; height: 96rpx; padding: 0 32rpx; background: var(--surface); border-bottom: 2rpx solid var(--border, #ebe6de); }
+.header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 24rpx; height: calc(96rpx + var(--status-bar-height)); padding: var(--status-bar-height) 32rpx 0; background: var(--surface); border-bottom: 2rpx solid var(--border, #ebe6de); }
 .nav-back { display: flex; align-items: center; }
 .nav-title { font-size: 32rpx; font-weight: 600; color: #2c2c2c; }
 

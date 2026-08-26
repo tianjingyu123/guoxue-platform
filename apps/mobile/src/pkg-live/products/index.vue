@@ -359,8 +359,8 @@ onLoad((q) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 96rpx;
-  padding: 0 24rpx;
+  height: calc(96rpx + var(--status-bar-height));
+  padding: var(--status-bar-height) 24rpx 0;
   background: #faf8f5;
   border-bottom: 1px solid #f0ebe2;
 }

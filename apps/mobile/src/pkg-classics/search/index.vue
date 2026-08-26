@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="cs-page">
     <!-- 搜索头部 - 毛玻璃 -->
     <view class="cs-header">
@@ -276,7 +277,7 @@ function goDetail(id: string) {
 /* 头部 */
 .cs-header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 50;
   background: color-mix(in srgb, var(--classics-bg) 80%, transparent);
   backdrop-filter: blur(20rpx);

@@ -7,6 +7,7 @@
       "^app-empty$": "@/components/common/app-empty.vue",
       "^app-error$": "@/components/common/app-error.vue",
       "^app-nav-bar$": "@/components/common/app-nav-bar.vue",
+      "^app-safe-area-top$": "@/components/common/app-safe-area-top.vue",
       "^app-load-more$": "@/components/common/app-load-more.vue",
       "^app-network-bar$": "@/components/common/app-network-bar.vue",
       "^customer-service-fab$": "@/components/common/customer-service-fab.vue",
@@ -2742,6 +2743,15 @@
           "path": "growth-card/index",
           "style": {
             "navigationStyle": "custom"
+          }
+        },
+        {
+          "path": "legacy-paipan/index",
+          "style": {
+            "navigationBarTitleText": "旧版排盘",
+            "navigationBarTextStyle": "black",
+            "navigationBarBackgroundColor": "#FAF8F5",
+            "disableScroll": true
           }
         }
       ]

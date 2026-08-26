@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 顶部导航 + Tab -->
     <view class="header">
@@ -221,7 +222,7 @@ function goCourseList() {
 }
 .header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 50;
   background: #faf8f5;
   border-bottom: 1rpx solid #e8e3db;

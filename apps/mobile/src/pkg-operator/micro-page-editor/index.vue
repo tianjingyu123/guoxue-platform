@@ -227,6 +227,7 @@ function summarize(comp: MicroComponent): string {
 </script>
 
 <template>
+  <app-safe-area-top />
   <view class="mp">
     <!-- Header -->
     <view class="mp-header">

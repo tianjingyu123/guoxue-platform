@@ -316,7 +316,7 @@ const descLines = computed(() => {
   top: 0;
   left: 0;
   right: 0;
-  padding: 32rpx;
+  padding: calc(var(--status-bar-height) + 32rpx) 32rpx 32rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -332,7 +332,7 @@ const descLines = computed(() => {
 }
 .preview-badge {
   position: absolute;
-  top: 32rpx;
+  top: calc(var(--status-bar-height) + 32rpx);
   left: 50%;
   transform: translateX(-50%);
   display: flex;

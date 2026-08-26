@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="ai-page">
     <!-- 顶部导航 -->
     <view class="ai-header">
@@ -221,7 +222,7 @@ function regenerate() {
 /* 顶部导航 */
 .ai-header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 50;
   display: flex;
   align-items: center;

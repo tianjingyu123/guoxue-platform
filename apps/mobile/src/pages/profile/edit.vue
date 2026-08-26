@@ -27,12 +27,14 @@ onLoad(() => {
 <style scoped>
 .redirect-page {
   min-height: 100vh;
+  padding-top: max(var(--status-bar-height, 0px), env(safe-area-inset-top));
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 24rpx;
   background: #faf8f5;
+  box-sizing: border-box;
 }
 .redirect-spinner {
   width: 52rpx;

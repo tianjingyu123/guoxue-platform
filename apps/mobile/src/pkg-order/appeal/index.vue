@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="appeal-page">
     <!-- 已提交状态 -->
     <template v-if="isSubmitted">
@@ -346,7 +347,7 @@ function goService() {
 
 .nav-bar {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 50;
   display: flex;
   align-items: center;

@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="ig-page">
     <!-- 顶部装饰背景 -->
     <view class="ig-deco">

@@ -27,6 +27,20 @@ const highRiskCustomNavigationPages = [
   'apps/mobile/src/pkg-agent/agent/voice-call.vue',
 ]
 
+const liveOperationsPages = [
+  'apps/mobile/src/pkg-live/hosts/index.vue',
+  'apps/mobile/src/pkg-live/quality-packages/index.vue',
+  'apps/mobile/src/pkg-live/preview/index.vue',
+  'apps/mobile/src/pkg-live/schedule/index.vue',
+  'apps/mobile/src/pkg-live/team/index.vue',
+  'apps/mobile/src/pkg-live/analytics/index.vue',
+  'apps/mobile/src/pkg-live/reviews/index.vue',
+  'apps/mobile/src/pkg-live/settings/index.vue',
+  'apps/mobile/src/pkg-live/products/index.vue',
+  'apps/mobile/src/pkg-live/earnings/index.vue',
+  'apps/mobile/src/pkg-live/manage/index.vue',
+]
+
 test('直播沉浸式页面统一使用运行时安全区', () => {
   for (const relativePath of immersiveLivePages) {
     const content = source(relativePath)
@@ -36,6 +50,21 @@ test('直播沉浸式页面统一使用运行时安全区', () => {
       /env\(safe-area-inset-(?:top|right|bottom|left)\)/,
       `${relativePath} 仍依赖 App WebView 中不稳定的 CSS safe-area env`,
     )
+  }
+})
+
+test('直播安全区在 App 使用原生状态栏高度兜底并在恢复前台时刷新', () => {
+  const content = source('apps/mobile/src/pkg-live/use-app-safe-area.ts')
+  assert.match(content, /getStatusbarHeight/)
+  assert.match(content, /windowWidth/)
+  assert.match(content, /windowHeight/)
+  assert.match(content, /onShow\(refreshSafeArea\)/)
+})
+
+test('直播预告与运营后台的自绘导航全部为系统状态栏留出真实高度', () => {
+  for (const relativePath of liveOperationsPages) {
+    const content = source(relativePath)
+    assert.match(content, /--status-bar-height/, `${relativePath} 的顶部控件可能被状态栏或挖孔遮挡`)
   }
 })
 

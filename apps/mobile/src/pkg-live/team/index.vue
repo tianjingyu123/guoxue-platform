@@ -350,8 +350,8 @@ onMounted(() => { fetchData() })
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 88rpx;
-  padding: 0 24rpx;
+  height: calc(88rpx + var(--status-bar-height));
+  padding: var(--status-bar-height) 24rpx 0;
   background: rgba(250, 248, 245, 0.95);
   border-bottom: 1px solid #ece8e1;
 }

@@ -145,7 +145,8 @@ onMounted(() => { fetchData() })
 .qp-nav {
   position: sticky; top: 0; z-index: 10;
   background: #fff; border-bottom: 1rpx solid #E8E3DB;
-  height: 96rpx; padding: 0 32rpx;
+  height: calc(96rpx + var(--status-bar-height));
+  padding: var(--status-bar-height) 32rpx 0;
   display: flex; align-items: center; justify-content: space-between;
 }
 .qp-nav-btn { margin-left: -8rpx; width: 48rpx; height: 48rpx; display: flex; align-items: center; }

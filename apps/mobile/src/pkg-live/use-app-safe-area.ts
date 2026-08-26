@@ -1,11 +1,25 @@
 import { onMounted, onUnmounted, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 
 interface SystemInfoWithSafeArea {
   statusBarHeight?: number
   screenWidth?: number
   screenHeight?: number
+  windowWidth?: number
+  windowHeight?: number
   safeArea?: { left?: number; right?: number; top?: number; bottom?: number }
   safeAreaInsets?: { left?: number; right?: number; top?: number; bottom?: number }
+}
+
+function readNativeStatusBarHeight() {
+  // #ifdef APP-PLUS
+  const navigator = (globalThis as typeof globalThis & {
+    plus?: { navigator?: { getStatusbarHeight?: () => number } }
+  }).plus?.navigator
+  const height = Number(navigator?.getStatusbarHeight?.() || 0)
+  if (Number.isFinite(height) && height > 0) return height
+  // #endif
+  return 0
 }
 
 function readAppSafeArea() {
@@ -13,13 +27,15 @@ function readAppSafeArea() {
     const info = uni.getSystemInfoSync() as SystemInfoWithSafeArea
     const safeArea = info.safeArea || {}
     const insets = info.safeAreaInsets || {}
+    const viewportWidth = info.windowWidth || info.screenWidth || 0
+    const viewportHeight = info.windowHeight || info.screenHeight || 0
     return {
-      safeTop: Math.max(0, info.statusBarHeight || 0, insets.top || 0, safeArea.top || 0),
-      safeRight: Math.max(0, insets.right || 0, info.screenWidth && safeArea.right != null
-        ? info.screenWidth - safeArea.right
+      safeTop: Math.max(0, info.statusBarHeight || 0, insets.top || 0, safeArea.top || 0, readNativeStatusBarHeight()),
+      safeRight: Math.max(0, insets.right || 0, viewportWidth && safeArea.right != null
+        ? viewportWidth - safeArea.right
         : 0),
-      safeBottom: Math.max(0, insets.bottom || 0, info.screenHeight && safeArea.bottom != null
-        ? info.screenHeight - safeArea.bottom
+      safeBottom: Math.max(0, insets.bottom || 0, viewportHeight && safeArea.bottom != null
+        ? viewportHeight - safeArea.bottom
         : 0),
       safeLeft: Math.max(0, insets.left || 0, safeArea.left || 0),
     }
@@ -54,6 +70,7 @@ export function useAppSafeArea() {
     uni.onWindowResize?.(handleResize)
     // #endif
   })
+  onShow(refreshSafeArea)
 
   // #ifdef APP-PLUS
   onUnmounted(() => uni.offWindowResize?.(handleResize))

@@ -35,7 +35,7 @@ const editing = ref(false);
 const favIds = ref<string[]>([]);
 const entryLoading = ref(true);
 const entryError = ref("");
-const legacyEntryUrl = ref("");
+const legacyRouting = ref(false);
 
 // ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
 let pageTitle = "排盘工具";
@@ -196,17 +196,20 @@ function removeFav(id: string) {
 async function loadPaipanEntry() {
   entryLoading.value = true;
   entryError.value = "";
-  legacyEntryUrl.value = "";
   try {
     const entry = await legacyPaipanApi.entry();
     if (entry.mode === "legacy") {
       if (!entry.url || !entry.url.startsWith("https://")) {
         throw new Error("排盘服务地址未正确配置");
       }
-      legacyEntryUrl.value = entry.url;
-      // #ifdef H5
-      window.location.replace(entry.url);
-      // #endif
+      legacyRouting.value = true;
+      uni.navigateTo({
+        url: "/pkg-common/legacy-paipan/index",
+        fail: () => {
+          legacyRouting.value = false;
+          entryError.value = "旧排盘兼容页暂时无法打开";
+        },
+      });
       return;
     }
     favIds.value = getFavorites();
@@ -225,30 +228,21 @@ onMounted(() => {
   void loadPaipanEntry();
 });
 onShow(() => {
+  if (legacyRouting.value) {
+    legacyRouting.value = false;
+    uni.reLaunch({ url: "/pages/index/index" });
+    return;
+  }
   favIds.value = getFavorites();
 });
 </script>
 
 <template>
-  <view v-if="entryLoading" class="entry-gate" role="status" aria-live="polite">
+  <view v-if="entryLoading || legacyRouting" class="entry-gate" role="status" aria-live="polite">
     <view class="entry-gate-spinner" />
     <text class="entry-gate-title">正在进入排盘工具</text>
     <text class="entry-gate-desc">正在安全连接原有排盘记录与服务</text>
   </view>
-
-  <!-- H5 端拿到地址后会整页跳转；跳转完成前保持遮罩，绝不闪现自研排盘入口。 -->
-  <!-- #ifdef H5 -->
-  <view v-else-if="legacyEntryUrl" class="entry-gate" role="status">
-    <view class="entry-gate-spinner" />
-    <text class="entry-gate-title">正在打开排盘服务</text>
-  </view>
-  <!-- #endif -->
-
-  <!-- App / 小程序沿用旧系统的内嵌 H5 形态；小程序正式发布前须配置业务域名。 -->
-  <!-- #ifndef H5 -->
-  <!-- eslint-disable-next-line vue/no-dupe-v-else-if -- uni-app condition compilation makes this branch mutually exclusive with the H5 branch -->
-  <web-view v-else-if="legacyEntryUrl" :src="legacyEntryUrl" />
-  <!-- #endif -->
 
   <view v-else class="paipan">
     <app-network-bar />
@@ -756,6 +750,7 @@ onShow(() => {
   background: var(--brand, #c41e3a);
   color: #fff;
 }
+
 @keyframes entry-spin {
   to {
     transform: rotate(360deg);
@@ -769,8 +764,8 @@ onShow(() => {
   left: 0;
   right: 0;
   z-index: 40;
-  height: 88rpx;
-  padding: 0 32rpx;
+  height: calc(88rpx + var(--status-bar-height));
+  padding: var(--status-bar-height) 32rpx 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -789,7 +784,7 @@ onShow(() => {
 
 .content {
   position: absolute;
-  top: 88rpx;
+  top: calc(88rpx + var(--status-bar-height));
   bottom: 112rpx;
   left: 0;
   right: 0;

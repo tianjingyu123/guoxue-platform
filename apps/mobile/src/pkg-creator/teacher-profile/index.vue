@@ -89,6 +89,7 @@ onLoad((options) => {
 </script>
 
 <template>
+  <app-safe-area-top />
   <!-- Loading -->
   <view v-if="loading" class="state-wrap">
     <text class="state-text">加载中...</text>
@@ -251,7 +252,7 @@ onLoad((options) => {
 /* 顶栏 */
 .nav {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 20;
   display: flex;
   align-items: center;

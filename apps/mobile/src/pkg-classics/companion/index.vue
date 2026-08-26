@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="cp-page">
     <!-- 顶部导航 -->
     <view class="cp-header">
@@ -415,7 +416,7 @@ function copyMsg(content: string) {
 /* 顶部导航 */
 .cp-header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 50;
   display: flex;
   align-items: center;

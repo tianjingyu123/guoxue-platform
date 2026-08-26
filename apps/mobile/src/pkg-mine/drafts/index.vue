@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 顶部导航 -->
     <view class="header">
@@ -145,7 +146,7 @@ function goBack() {
 }
 .header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 40;
   background: rgba(245, 245, 245, 0.95);
   backdrop-filter: blur(12px);

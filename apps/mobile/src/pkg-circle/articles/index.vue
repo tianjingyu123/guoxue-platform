@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- AI 搜索弹窗（公共组件，待 AI 搜索后端接入，本批不动） -->
     <AiSearchModal :is-open="aiOpen" context="文章" @close="aiOpen = false" />
@@ -443,7 +444,7 @@ function formatDate(dateStr: string) {
 }
 .header {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 40;
   background: rgba(250, 248, 245, 0.96);
   border-bottom: 2rpx solid #ece7df;

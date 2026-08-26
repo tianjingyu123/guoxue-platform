@@ -117,6 +117,9 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
+  padding-top: max(var(--status-bar-height, 0px), env(safe-area-inset-top));
+  padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
   overflow: hidden;
   background: linear-gradient(180deg, #f7f0e3 0%, #efe4cf 100%);
 }
@@ -140,7 +143,8 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   padding: 0 64rpx;
 }
 
@@ -253,7 +257,7 @@ onUnmounted(() => {
 
 .footer {
   position: absolute;
-  bottom: 64rpx;
+  bottom: calc(64rpx + env(safe-area-inset-bottom));
   left: 0;
   right: 0;
   text-align: center;

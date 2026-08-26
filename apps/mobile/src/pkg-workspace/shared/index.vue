@@ -58,6 +58,7 @@ function dateText(iso?: string): string {
 </script>
 
 <template>
+  <app-safe-area-top />
   <view class="sr">
     <view v-if="loading" class="sr-loading">
       <text class="sr-loading-txt">载入中…</text>

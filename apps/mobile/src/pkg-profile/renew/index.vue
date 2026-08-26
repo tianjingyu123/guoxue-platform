@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <!-- 续费已并入会员中心（/vip 同页选套餐续费），本页仅作历史入口的薄重定向防断链 -->
   <view class="page">
     <text class="tip">正在前往会员中心…</text>

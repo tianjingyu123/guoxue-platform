@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 导航栏 -->
     <view class="navbar">
@@ -265,7 +266,7 @@ function onBack() {
 /* 导航栏 */
 .navbar {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 10;
   display: flex;
   align-items: center;

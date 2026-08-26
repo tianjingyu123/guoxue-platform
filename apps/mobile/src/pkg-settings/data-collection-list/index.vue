@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 导航栏 -->
     <view class="navbar">
@@ -307,7 +308,7 @@ const contactService = () => navigateTo('/customer-service')
 /* 导航栏 */
 .navbar {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 10;
   background-color: rgba(250, 248, 245, 0.95);
   border-bottom: 2rpx solid #e8e0d5;

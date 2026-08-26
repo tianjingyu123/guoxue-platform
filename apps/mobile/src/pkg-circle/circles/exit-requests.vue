@@ -84,6 +84,7 @@ async function confirmReject() {
 </script>
 
 <template>
+  <app-safe-area-top />
   <view class="er">
     <!-- 顶部导航 -->
     <view class="er-nav">
@@ -209,7 +210,7 @@ async function confirmReject() {
 
 <style lang="scss" scoped>
 .er { min-height: 100vh; background: #FAF8F5; }
-.er-nav { position: sticky; top: 0; z-index: 40; background: #fff; border-bottom: 1rpx solid #F2EFEA; }
+.er-nav { position: sticky; top: var(--status-bar-height, 0px); z-index: 40; background: #fff; border-bottom: 1rpx solid #F2EFEA; }
 .er-nav-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 24rpx; height: 96rpx; }
 .er-back { margin-left: -8rpx; }
 .er-title { font-size: 34rpx; font-weight: 600; color: #2C2C2C; }

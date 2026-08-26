@@ -1,4 +1,5 @@
 <template>
+  <app-safe-area-top />
   <view class="page">
     <!-- 顶部导航 -->
     <view class="nav">
@@ -338,7 +339,7 @@ function copyInviteLink() {
 /* 导航 */
 .nav {
   position: sticky;
-  top: 0;
+  top: var(--status-bar-height, 0px);
   z-index: 10;
   display: flex;
   align-items: center;
