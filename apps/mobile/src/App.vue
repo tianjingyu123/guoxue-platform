@@ -92,43 +92,213 @@ function bootstrapHandoff(query?: Record<string, unknown>): void {
 
 type AppPlusRuntime = {
   arguments?: string
-  addEventListener?: (event: 'newintent', listener: () => void, capture?: boolean) => void
 }
+
+type AppEntrySource = 'lifecycle' | 'newintent'
+
+type AppEntryOptions = {
+  appLink?: unknown
+  appScheme?: unknown
+}
+
+let appEntryListenerInstalled = false
+let appEntryGlobalEventInstalled = false
+let lastHandledAppEntryArgument = ''
+let lastHandledAppEntryAt = 0
+let lastHandledAndroidIntentCleared = false
+let appEntryReadRetryTimer: ReturnType<typeof setTimeout> | undefined
 
 /**
  * 接管 Android App Link / iOS Universal Link：冷启动读取一次参数，热启动监听 newintent。
  * 解析器先完成域名、协议、路径和敏感参数校验，再交给统一路由表；未知旧链接跳转失败时
  * 回到首页，不把系统 URL 当作任意页面或外部地址执行。
  */
-function installAppEntryLinkRouting(): void {
+function readCurrentAndroidIntentData(): string {
   // #ifdef APP-PLUS
-  const runtime = (globalThis as typeof globalThis & { plus?: { runtime?: AppPlusRuntime } }).plus?.runtime
-  if (!runtime) return
-
-  const openCurrentArgument = () => {
-    const route = parseAppEntryLink(runtime.arguments)
-    if (!route) return
-
-    const queryText = route.includes('?') ? route.slice(route.indexOf('?') + 1) : ''
-    if (queryText) {
-      try {
-        const query: Record<string, unknown> = {}
-        new URLSearchParams(queryText).forEach((value, key) => { query[key] = value })
-        bootstrapHandoff(query)
-      } catch { /* 不影响跳转 */ }
+  const plusApi = (globalThis as typeof globalThis & {
+    plus?: {
+      android?: {
+        runtimeMainActivity?: () => unknown
+        invoke?: (instance: unknown, method: string, ...args: unknown[]) => unknown
+      }
     }
+  }).plus
+  try {
+    const android = plusApi?.android
+    const activity = android?.runtimeMainActivity?.()
+    const intent = activity ? android?.invoke?.(activity, 'getIntent') : null
+    return String(intent ? android?.invoke?.(intent, 'getDataString') || '' : '')
+  } catch { /* 非 Android 或原生桥尚未就绪时使用其他来源 */ }
+  // #endif
+  return ''
+}
 
-    const target = resolveRoute(route)
-    setTimeout(() => {
-      uni.reLaunch({
-        url: target,
-        fail: () => uni.reLaunch({ url: '/pages/index/index' }),
-      })
-    }, 0)
+function readCurrentAppEntryArgument(
+  options?: AppEntryOptions,
+  source: AppEntrySource = 'lifecycle',
+): string {
+  // #ifdef APP-PLUS
+  let enterOptions: AppEntryOptions = {}
+  let launchOptions: AppEntryOptions = {}
+  try { enterOptions = uni.getEnterOptionsSync() as AppEntryOptions } catch { /* 使用其他来源 */ }
+  try { launchOptions = uni.getLaunchOptionsSync() as AppEntryOptions } catch { /* 使用其他来源 */ }
+  const plusApi = (globalThis as typeof globalThis & { plus?: { runtime?: AppPlusRuntime } }).plus
+  const nativeIntentData = readCurrentAndroidIntentData()
+  const optionCandidates = [
+    options?.appLink,
+    enterOptions.appLink,
+    launchOptions.appLink,
+    options?.appScheme,
+    enterOptions.appScheme,
+    launchOptions.appScheme,
+  ]
+  // Activity.getIntent() 在热唤起时可能仍是上一条 Intent；DCloud 会把 newintent
+  // 的最新参数写入 runtime.arguments。冷启动则相反，原生 Intent 最可靠。
+  const runtimeArgument = plusApi?.runtime?.arguments
+  const candidates = source === 'newintent'
+    ? [...optionCandidates, runtimeArgument, nativeIntentData]
+    : [...optionCandidates, nativeIntentData, runtimeArgument]
+  return candidates.map((item) => String(item || '').trim()).find((item) => parseAppEntryLink(item)) || ''
+  // #endif
+  return ''
+}
+
+function openCurrentAppEntryArgument(
+  source: AppEntrySource = 'lifecycle',
+  options?: AppEntryOptions,
+  retries = 20,
+): void {
+  // #ifdef APP-PLUS
+  const rawArgument = readCurrentAppEntryArgument(options, source)
+  const route = parseAppEntryLink(rawArgument)
+  if (!route) {
+    // Android 冷启动时 onShow 可能早于原生 Intent 桥接完成。单定时器短轮询，
+    // 最多等待 2 秒；普通启动无深链时也会自行停止，不阻塞首屏。
+    if (retries > 0 && !appEntryReadRetryTimer) {
+      appEntryReadRetryTimer = setTimeout(() => {
+        appEntryReadRetryTimer = undefined
+        openCurrentAppEntryArgument(source, options, retries - 1)
+      }, 100)
+    }
+    return
+  }
+  if (appEntryReadRetryTimer) {
+    clearTimeout(appEntryReadRetryTimer)
+    appEntryReadRetryTimer = undefined
   }
 
-  runtime.addEventListener?.('newintent', openCurrentArgument, false)
-  openCurrentArgument()
+  const now = Date.now()
+  const explicitLifecycleDelivery = [options?.appLink, options?.appScheme]
+    .map((item) => String(item || '').trim())
+    .some((item) => item === rawArgument)
+  const repeatedAndroidIntentDelivery = lastHandledAndroidIntentCleared
+    && readCurrentAndroidIntentData() === rawArgument
+  const isFreshDelivery = source === 'newintent'
+    || explicitLifecycleDelivery
+    || repeatedAndroidIntentDelivery
+  if (rawArgument === lastHandledAppEntryArgument) {
+    // runtime.arguments 可能持续保留上一次值：普通 onShow 不得反复跳转；同一链接被再次
+    // 唤起时会收到 newintent、onShow 显式参数或一条新的原生 Intent，超过事件去抖
+    // 窗口后仍允许再次处理。
+    if (!isFreshDelivery || now - lastHandledAppEntryAt < 1200) return
+  }
+  lastHandledAppEntryArgument = rawArgument
+  lastHandledAppEntryAt = now
+  lastHandledAndroidIntentCleared = consumeAndroidAppLinkIntent(rawArgument)
+
+  const queryText = route.includes('?') ? route.slice(route.indexOf('?') + 1) : ''
+  if (queryText) {
+    try {
+      bootstrapHandoff(parseAppEntryQuery(queryText))
+    } catch { /* 不影响跳转 */ }
+  }
+
+  const target = resolveRoute(route)
+  reLaunchAppEntryWhenReady(target)
+  // #endif
+}
+
+/** DCloud Android 运行时无 WHATWG URL，深链 query 同样使用最小兼容解析。 */
+function parseAppEntryQuery(queryText: string): Record<string, unknown> {
+  const query: Record<string, unknown> = {}
+  queryText.split('&').forEach((field) => {
+    if (!field) return
+    const separator = field.indexOf('=')
+    const rawKey = separator >= 0 ? field.slice(0, separator) : field
+    const rawValue = separator >= 0 ? field.slice(separator + 1) : ''
+    const key = decodeURIComponent(rawKey.replace(/\+/gu, ' '))
+    if (key) query[key] = decodeURIComponent(rawValue.replace(/\+/gu, ' '))
+  })
+  return query
+}
+
+/** 清空已消费的 Android Intent data，避免普通前后台切换重复执行旧深链。 */
+function consumeAndroidAppLinkIntent(rawArgument: string): boolean {
+  // #ifdef APP-PLUS
+  try {
+    const plusApi = (globalThis as typeof globalThis & {
+      plus?: { android?: {
+        runtimeMainActivity?: () => unknown
+        invoke?: (instance: unknown, method: string, ...args: unknown[]) => unknown
+      } }
+    }).plus
+    const android = plusApi?.android
+    const activity = android?.runtimeMainActivity?.()
+    const intent = activity ? android?.invoke?.(activity, 'getIntent') : null
+    const intentData = String(intent ? android?.invoke?.(intent, 'getDataString') || '' : '')
+    if (intent && intentData === rawArgument) {
+      android?.invoke?.(intent, 'setData', null)
+      return !readCurrentAndroidIntentData()
+    }
+  } catch { /* 清理失败只会由现有去重逻辑兜底，不影响本次跳转 */ }
+  // #endif
+  return false
+}
+
+/**
+ * App 冷启动时 onShow 早于首个页面入栈，立即 reLaunch 会先成功、随后又被首页初始化覆盖。
+ * 等页面栈就绪再执行一次确定性跳转；热启动已有页面栈，因此不会引入可感知等待。
+ */
+function reLaunchAppEntryWhenReady(target: string, retries = 20): void {
+  // #ifdef APP-PLUS
+  if (getCurrentPages().length === 0 && retries > 0) {
+    setTimeout(() => reLaunchAppEntryWhenReady(target, retries - 1), 100)
+    return
+  }
+  uni.reLaunch({
+    url: target,
+    fail: () => uni.reLaunch({ url: '/pages/index/index' }),
+  })
+  // #endif
+}
+
+function installAppEntryLinkRouting(): void {
+  // #ifdef APP-PLUS
+  if (appEntryListenerInstalled) return
+  appEntryListenerInstalled = true
+
+  if (typeof document !== 'undefined') {
+    const handleNewIntent = () => {
+      // Android 在事件派发后才刷新 runtime.arguments，下一任务读取更稳妥。
+      setTimeout(() => openCurrentAppEntryArgument('newintent'), 100)
+    }
+    document.addEventListener('newintent', handleNewIntent, false)
+    const installGlobalEvent = () => {
+      if (appEntryGlobalEventInstalled) return
+      const plusApi = (globalThis as typeof globalThis & {
+        plus?: { globalEvent?: { addEventListener?: (name: string, listener: () => void) => void } }
+      }).plus
+      if (!plusApi?.globalEvent?.addEventListener) return
+      plusApi.globalEvent.addEventListener('newintent', handleNewIntent)
+      appEntryGlobalEventInstalled = true
+    }
+    installGlobalEvent()
+    document.addEventListener('plusready', () => {
+      installGlobalEvent()
+      openCurrentAppEntryArgument()
+    }, { once: true })
+  }
+  openCurrentAppEntryArgument()
   // #endif
 }
 
@@ -185,7 +355,10 @@ onLaunch((options?: { query?: Record<string, unknown> }) => {
   installAppEntryLinkRouting()
 })
 // 热启动（小程序从分享卡片再次进入）同样捕获 ref
-onShow((options?: { query?: Record<string, unknown> }) => {
+onShow((options?: { query?: Record<string, unknown>; appLink?: unknown; appScheme?: unknown }) => {
+  // DCloud 官方约定：冷启动/恢复前台在 onShow 读取 runtime.arguments；热启动同时由
+  // newintent 全局事件接管。去重逻辑会阻止持久化的旧参数造成循环跳转。
+  openCurrentAppEntryArgument('lifecycle', options)
   try {
     captureRefFromQuery(options?.query)
   } catch {

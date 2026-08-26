@@ -9,10 +9,12 @@
     android:networkSecurityConfig="@xml/network_security_config"
     android:usesCleartextTraffic="false"
     tools:replace="android:networkSecurityConfig,android:usesCleartextTraffic">
-    <activity
-      android:name="io.dcloud.PandoraEntry"
+    <!-- App Link 直接进入承载 JS 的 singleTask 主 Activity。若挂在一次性透明
+         PandoraEntry，前台再次唤起时链接会随透明页退出而丢失。 -->
+    <activity-alias
+      android:name="com.rebu.apprebu.AppLinkEntry"
       android:exported="true"
-      tools:node="merge">
+      android:targetActivity="io.dcloud.PandoraEntryActivity">
       <intent-filter android:autoVerify="true">
         <action android:name="android.intent.action.VIEW" />
         <category android:name="android.intent.category.DEFAULT" />
@@ -22,6 +24,6 @@
           android:host="api.rebugx.cn"
           android:pathPrefix="/h5/" />
       </intent-filter>
-    </activity>
+    </activity-alias>
   </application>
 </manifest>
