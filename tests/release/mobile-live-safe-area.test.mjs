@@ -222,14 +222,18 @@ test('直播全域视觉保留主舞台与专业工作台层级', () => {
   assert.match(obs, /短期密钥保护/)
 })
 
-test('OBS 工作台滚动后导航仍吸附在系统安全区下方', () => {
+test('OBS 工作台使用固定导航隔离原生状态栏，滚动后内容不进入系统图标区', () => {
   const obs = source('apps/mobile/src/pkg-live/obs/index.vue')
+  const page = obs.match(/\.page\s*\{[^}]*\}/s)?.[0] || ''
   const nav = obs.match(/\.nav\s*\{[^}]*\}/s)?.[0] || ''
 
-  assert.match(obs, /'--obs-safe-top': statusBarHeight \+ 'px'/)
-  assert.match(obs, /statusBarHeight\.value\s*=\s*info\.statusBarHeight\s*\|\|\s*0/)
-  assert.match(nav, /position:\s*sticky/)
+  assert.match(obs, /'--obs-safe-top': safeTop \+ 'px'/)
+  assert.match(obs, /useAppSafeArea\(\)/)
+  assert.match(page, /padding-top:\s*calc\(max\(var\(--obs-safe-top,\s*0px\),\s*env\(safe-area-inset-top\)\)\s*\+\s*88rpx\)/)
+  assert.match(nav, /position:\s*fixed/)
   assert.match(nav, /top:\s*0/)
+  assert.match(nav, /left:\s*0/)
+  assert.match(nav, /right:\s*0/)
   assert.match(nav, /z-index:\s*\d+/)
   assert.match(
     nav,

@@ -1,7 +1,7 @@
 <template>
   <!-- 加载骨架屏 -->
-  <view v-if="loading" class="page">
-    <view class="nav" :style="{ '--obs-safe-top': statusBarHeight + 'px' }">
+  <view v-if="loading" class="page" :style="{ '--obs-safe-top': safeTop + 'px' }">
+    <view class="nav">
       <view class="nav-bar">
         <view class="nav-btn" @tap="onBack">
           <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
@@ -24,9 +24,9 @@
   </view>
 
   <!-- 正常内容 -->
-  <view v-else class="page">
+  <view v-else class="page" :style="{ '--obs-safe-top': safeTop + 'px' }">
     <!-- 顶部导航 -->
-    <view class="nav" :style="{ '--obs-safe-top': statusBarHeight + 'px' }">
+    <view class="nav">
       <view class="nav-bar">
         <view class="nav-btn" @tap="onBack">
           <AppIcon name="chevron-left" :size="40" color="#2C2C2C" />
@@ -234,6 +234,7 @@ import { onHide, onLoad, onShow, onUnload } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { liveApi } from '@/lib/live-data'
+import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
 import { getObsStream, startObsLive, type ObsStreamRuntime } from './api'
 
 type ObsStage = 'none' | 'ready' | 'connected' | 'living' | 'interrupted' | 'ended'
@@ -241,7 +242,7 @@ type ObsStage = 'none' | 'ready' | 'connected' | 'living' | 'interrupted' | 'end
 const loading = ref(true)
 const error = ref('')
 const id = ref('')
-const statusBarHeight = ref(0)
+const { safeTop } = useAppSafeArea()
 const serverUrl = ref('')
 const streamKey = ref('')
 const roomTitle = ref('')
@@ -352,10 +353,6 @@ function stopPolling() {
 
 onLoad((query) => {
   id.value = (query as Record<string, string> | undefined)?.id || ''
-  try {
-    const info = uni.getSystemInfoSync()
-    statusBarHeight.value = info.statusBarHeight || 0
-  } catch (e) {}
   fetchData().then(startPolling)
 })
 onShow(startPolling)
@@ -420,15 +417,19 @@ function onBack() {
 .page {
   min-height: 100vh;
   background: #FAF8F5;
+  box-sizing: border-box;
+  padding-top: calc(max(var(--obs-safe-top, 0px), env(safe-area-inset-top)) + 88rpx);
   padding-bottom: 48rpx;
 }
 
 /* 顶部导航 */
 .nav {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 30;
-  box-sizing: content-box;
+  box-sizing: border-box;
   padding-top: max(var(--obs-safe-top, 0px), env(safe-area-inset-top));
   background: #FAF8F5;
   border-bottom: 1rpx solid #E8E2D8;
