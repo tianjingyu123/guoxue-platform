@@ -288,7 +288,7 @@ function dateText(iso?: string | null): string {
   box-sizing: border-box;
 }
 
-.pro-body > * {
+.pro-body > view {
   margin-bottom: 24rpx;
 }
 

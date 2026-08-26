@@ -145,10 +145,10 @@ function handleSubmit() {
             </view>
           </view>
           <view class="dt-pickers">
-            <picker mode="date" :value="dateStr" @change="onDateChange">
+            <picker class="date-picker" mode="date" :value="dateStr" @change="onDateChange">
               <view class="dt-box"><text class="dt-text">{{ dateText }}</text></view>
             </picker>
-            <picker mode="time" :value="timeStr" @change="onTimeChange">
+            <picker class="time-picker" mode="time" :value="timeStr" @change="onTimeChange">
               <view class="dt-box dt-box-time"><text class="dt-text">{{ timeStr }}</text></view>
             </picker>
           </view>
@@ -252,8 +252,8 @@ function handleSubmit() {
 .now-btn { display: flex; align-items: center; gap: 8rpx; padding: 8rpx; &:active { opacity: 0.7; } }
 .now-btn-text { font-size: 24rpx; color: var(--brand); }
 .dt-pickers { margin-top: 16rpx; display: flex; gap: 16rpx; }
-.dt-pickers > :first-child { flex: 1.4; }
-.dt-pickers > :last-child { flex: 1; }
+.date-picker { flex: 1.4; }
+.time-picker { flex: 1; }
 .dt-box {
   border: 1rpx solid var(--line);
   background: var(--bg-paper);

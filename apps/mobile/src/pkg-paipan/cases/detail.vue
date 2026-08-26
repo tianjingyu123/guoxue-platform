@@ -351,7 +351,7 @@ function labelOf(k: string) {
   padding: 24rpx;
   box-sizing: border-box;
 }
-.cd-body > * {
+.cd-body > view {
   margin-bottom: 24rpx;
 }
 

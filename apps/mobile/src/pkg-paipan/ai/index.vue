@@ -201,7 +201,7 @@ function bodyOf(res: any): string {
   box-sizing: border-box;
 }
 
-.ai-body > * {
+.ai-body > view {
   margin-bottom: 24rpx;
 }
 

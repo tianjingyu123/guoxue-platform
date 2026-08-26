@@ -163,10 +163,10 @@ function handleSubmit() {
               </view>
             </view>
             <view class="dt-pickers">
-              <picker mode="date" :value="dateStr" @change="onDateChange">
+              <picker class="date-picker" mode="date" :value="dateStr" @change="onDateChange">
                 <view class="pick-box"><text class="pick-text">{{ dateText }}</text></view>
               </picker>
-              <picker mode="time" :value="timeStr" @change="onTimeChange">
+              <picker class="time-picker" mode="time" :value="timeStr" @change="onTimeChange">
                 <view class="pick-box"><text class="pick-text">{{ timeStr }}</text></view>
               </picker>
             </view>
@@ -322,8 +322,8 @@ $serif: Georgia, 'Times New Roman', 'Songti SC', 'SimSun', serif;
 
 /* 时间选择 */
 .dt-pickers { display: flex; gap: 16rpx; }
-.dt-pickers > :first-child { flex: 1.4; }
-.dt-pickers > :last-child { flex: 1; }
+.date-picker { flex: 1.4; }
+.time-picker { flex: 1; }
 .pick-box {
   display: flex; align-items: center; justify-content: space-between; gap: 8rpx;
   border: 1rpx solid var(--line);

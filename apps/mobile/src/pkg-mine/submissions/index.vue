@@ -266,7 +266,7 @@ function openCase(item: Contribution) {
   box-sizing: border-box;
 }
 
-.mc-body > * { margin-bottom: 20rpx; }
+.mc-body > view { margin-bottom: 20rpx; }
 
 .mc-summary {
   display: flex;
