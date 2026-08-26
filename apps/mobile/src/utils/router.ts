@@ -394,7 +394,7 @@ const ROUTE_MAP: Record<string, string> = {
   // 短视频列表 / 搜索（v0新迁，video-card 浮窗发布按钮、同城feed视频卡等入口）
   '/videos': '/pkg-video/list/index',
   '/videos/search': '/pkg-video/search/index',
-  // 视频���布(列表页/creator页发布入口)：三步select->edit->publish+商品带货佣金。/publish/video孤儿页(仅drafts链接,未迁)跳过
+  // 视频发布(列表页/creator页发布入口)：三步select->edit->publish+商品带货佣金。/publish/video孤儿页(仅drafts链接,未迁)跳过
   '/videos/publish': '/pkg-video/publish/index',
   // 视频创作者中心(发布页"商品管理"入口、首页内6页跳转)。原型嵌套路径->扁平vue路径
   '/videos/creator': '/pkg-video/creator/index',
@@ -458,7 +458,7 @@ const ROUTE_MAP: Record<string, string> = {
 
 /**
  * 动态路由映射：原型 /mall/product/123 → uni /pkg-mall/product/detail?id=123
- * 每条 [正则, 目标页, 参数名]，命中��把捕获组拼为 query。迁移含 :id 的页登记于此。
+ * 每条 [正则, 目标页, 参数名]，命中后把捕获组拼为 query。迁移含 :id 的页登记于此。
  * 注意顺序：更具体的 /reviews 必须在通用 detail 之前匹配。
  */
 const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
@@ -493,12 +493,12 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/mall\/product\/([^/?]+)\/reviews$/, '/pkg-mall/product/reviews', 'id'],
   [/^\/mall\/product\/([^/?]+)$/, '/pkg-mall/product/detail', 'id'],
   [/^\/shop\/group-buy\/([^/?]+)$/, '/pkg-shop/group-buy/detail', 'id'],
-  // 订单详情 / 评价（/reviews 规则��具体，须在通用 detail 之前）
+  // 订单详情 / 评价（/reviews 规则更具体，须在通用 detail 之前）
   [/^\/orders\/([^/?]+)\/review$/, '/pkg-order/review/index', 'id'],
   [/^\/orders\/([^/?]+)$/, '/pkg-order/detail/index', 'id'],
   // 售后详情（/shop/after-sale/:id；静态 /shop/after-sale 已在 ROUTE_MAP 优先命中）
   [/^\/shop\/after-sale\/([^/?]+)$/, '/pkg-account/after-sale-detail/index', 'id'],
-  // shop 商品评价（/shop/:id/reviews 更具体，须在通用商品详情之前��
+  // shop 商品评价（/shop/:id/reviews 更具体，须在通用商品详情之前）
   // shop C 端店铺主页（/shop/store/:merchantId 两段，须先于通用 /shop/:id 单段兜底）
   [/^\/shop\/store\/([^/?]+)$/, '/pkg-shop/store/index', 'id'],
   [/^\/shop\/([^/?]+)\/reviews$/, '/pkg-mall/product/reviews', 'id'], // 旧 shop 评价页已删 → mall 商品评价
@@ -512,7 +512,7 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/courses\/([^/?]+)$/, '/pkg-course/detail/index', 'id'],
   // 课程卡片 /course/:id（单数）暂复用课程详情
   [/^\/course\/([^/?]+)$/, '/pkg-course/detail/index', 'id'],
-  // ��章详情 /articles/:id（复数为真源，单数 /article/:id 原型为重定向，统一指向详情）
+  // 文章详情 /articles/:id（复数为真源，单数 /article/:id 原型为重定向，统一指向详情）
   [/^\/articles\/([^/?]+)$/, '/pkg-circle/articles/detail', 'id'],
   [/^\/article\/([^/?]+)$/, '/pkg-circle/articles/detail', 'id'],
   // 单聊 /im/chat/:id
@@ -521,9 +521,9 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   [/^\/im\/group-chat\/([^/?]+)$/, '/pkg-im/im/group-chat/index', 'id'],
   // 群聊设置 /im/group-detail/:id
   [/^\/im\/group-detail\/([^/?]+)$/, '/pkg-im/im/group-detail/index', 'id'],
-  // ���师详情 /instructor/:id（课程详情页讲师卡入口）
+  // 讲师详情 /instructor/:id（课程详情页讲师卡入口）
   [/^\/instructor\/([^/?]+)$/, '/pkg-course/instructor/index', 'id'],
-  // 圈子详情 /circles/:id（原型��格路径，搜索结果等入口使用��
+  // 圈子详情 /circles/:id（原型严格路径，搜索结果等入口使用）
   [/^\/circles\/([^/?]+)$/, '/pkg-circle/circles/detail', 'id'],
   // 回放详情 /live/replay/:id（直播广场「看回放」入口 —— 页面早就在，别名漏登记，点了没反应）
   // 必须先于下面的 /live/:id 单段兜底，否则 "replay" 会被当成 roomId
@@ -536,7 +536,7 @@ const DYNAMIC_ROUTES: Array<[RegExp, string, string]> = [
   //    两种写法都收，别再因为单复数丢一整类内容的入口。
   [/^\/classics\/([^/?]+)$/, '/pkg-classics/detail/index', 'id'],
   [/^\/classic\/([^/?]+)$/, '/pkg-classics/detail/index', 'id'],
-  // 悬赏���情 /bounty/:id（静态 /bounty、/bounty/create、/bounty/answer、/bounty/my 已在 ROUTE_MAP 优先命中）
+  // 悬赏详情 /bounty/:id（静态 /bounty、/bounty/create、/bounty/answer、/bounty/my 已在 ROUTE_MAP 优先命中）
   [/^\/bounty\/([^/?]+)$/, '/pkg-bounty/detail/index', 'id'],
   // 通用内容页 /content/:slug（静态如 /content/community-rules 优先命中）
   [/^\/content\/([^/?]+)$/, '/pkg-common/content/index', 'slug'],

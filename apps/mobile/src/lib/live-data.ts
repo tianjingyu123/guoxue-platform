@@ -96,7 +96,7 @@ export const liveReplays: LiveReplay[] = [
   { id: '2', title: '紫微斗数入门：命盘基础解读', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', hostName: '李命师', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-2.webp', category: '紫微斗数', viewers: 6230, duration: 5400, dateText: '1月14日' },
   { id: '3', title: '八字命理：如何看流年运势', cover: 'https://api.rebugx.cn/assets/live/live-2.webp', hostName: '王半仙', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', category: '八字命理', viewers: 12800, duration: 6800, dateText: '1月13日' },
   { id: '4', title: '梅花易数：起卦与断卦技巧', cover: 'https://api.rebugx.cn/assets/live/live-3.webp', hostName: '赵易师', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-2.webp', category: '梅花易数', viewers: 4520, duration: 4800, dateText: '1月12日' },
-  { id: '5', title: '风水布���：家居风水入门', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', hostName: '陈风水', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', category: '风水', viewers: 9800, duration: 5600, dateText: '1月11日' },
+  { id: '5', title: '风水布局：家居风水入门', cover: 'https://api.rebugx.cn/assets/live/live-1.webp', hostName: '陈风水', hostAvatar: 'https://api.rebugx.cn/assets/experts/expert-1.webp', category: '风水', viewers: 9800, duration: 5600, dateText: '1月11日' },
 ]
 
 // ============ 回放首页(live/replay-home) ============
