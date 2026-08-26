@@ -429,7 +429,7 @@ async function submit() {
   padding: 24rpx;
   box-sizing: border-box;
 }
-.sb-body > * {
+.sb-body > view {
   margin-bottom: 24rpx;
 }
 

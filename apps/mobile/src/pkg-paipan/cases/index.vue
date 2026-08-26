@@ -338,7 +338,7 @@ const emptyText = computed(() =>
   padding: 20rpx 24rpx;
   box-sizing: border-box;
 }
-.cs-body > * {
+.cs-body > view {
   margin-bottom: 20rpx;
 }
 

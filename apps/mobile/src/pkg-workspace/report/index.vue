@@ -340,7 +340,7 @@ function archive() {
   box-sizing: border-box;
 }
 
-.re-body > * {
+.re-body > view {
   margin-bottom: 24rpx;
 }
 
