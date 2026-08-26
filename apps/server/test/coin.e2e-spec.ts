@@ -161,30 +161,27 @@ describe("Coin E2E", () => {
   describe("POST /api/v1/coin/gifts/send", () => {
     it("送礼成功", async () => {
       const token = jwt.sign({ sub: "u1" })
-      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.user.findUnique.mockResolvedValue({
+        id: "u1",
+        status: "ACTIVE",
+        roles: [],
+        identityVerified: true,
+        birthday: new Date("1990-01-01T00:00:00.000Z"),
+      })
       prisma.gift.findUnique.mockResolvedValue({ id: "g1", name: "鲜花", priceCoin: 10 })
+      prisma.liveGiftSpendingPreference.findUnique.mockResolvedValue({
+        userId: "u1",
+        singleLimitCoin: 100,
+        dailyLimitCoin: 1000,
+        reminderEnabled: true,
+      })
+      prisma.giftRecord.aggregate.mockResolvedValue({ _sum: { totalCoin: 0 } })
       prisma.virtualCoinAccount.findUnique.mockResolvedValue({
         userId: "u1", balance: 100, totalRecharged: 100, totalSpent: 0,
       })
       prisma.virtualCoinAccount.updateMany.mockResolvedValue({ count: 1 })
       prisma.virtualCoinTransaction.create.mockResolvedValue({})
       prisma.giftRecord.create.mockResolvedValue({ id: "gr1", giftId: "g1", senderId: "u1", receiverId: "u2", liveRoomId: "lr1" })
-      // 自建 tx 须含 giftRecord（sendGift 在事务内 tx.giftRecord.create）；
-      // 否则会复用前一测试遗留的 $transaction 实现（clearAllMocks 不清实现）导致 tx.giftRecord 为 undefined
-      prisma.$transaction.mockImplementation((arg: any) => {
-        if (typeof arg === "function") {
-          return arg({
-            virtualCoinAccount: {
-              update: prisma.virtualCoinAccount.update,
-              updateMany: prisma.virtualCoinAccount.updateMany,
-              findUnique: prisma.virtualCoinAccount.findUnique,
-            },
-            virtualCoinTransaction: { create: prisma.virtualCoinTransaction.create },
-            giftRecord: { create: prisma.giftRecord.create },
-          })
-        }
-        return Promise.all(arg)
-      })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/coin/gifts/send")

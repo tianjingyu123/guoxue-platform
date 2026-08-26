@@ -44,17 +44,8 @@ function showToast(msg: string) {
   toast.value = msg
   setTimeout(() => (toast.value = ''), 2000)
 }
-async function handleBind(acc: BoundAccount) {
-  if (processing.value) return
-  processing.value = true
-  try {
-    await mineApi.toggleBind(acc.provider, true)
-    showToast(`即将跳转到${acc.name}授权页面`)
-  } catch (e) {
-    showToast((e as Error)?.message || '操作失败')
-  } finally {
-    processing.value = false
-  }
+function explainComingSoon(acc: BoundAccount) {
+  showToast(`${acc.name}新绑定即将开放`)
 }
 async function handleUnbind() {
   if (!unbindTarget.value || processing.value) return
@@ -90,15 +81,15 @@ async function handleUnbind() {
         <view class="tip-card">
           <view class="tip-icon"><AppIcon name="alert-triangle" :size="16" color="#d97706" /></view>
           <view class="tip-body">
-            <text class="tip-title">绑定提示</text>
-            <text class="tip-text">绑定第三方账号后，可使用该账号快速登录。解绑后将无法使用该方式登录，请确保已绑定其他登录方式。</text>
+            <text class="tip-title">新绑定能力即将开放</text>
+            <text class="tip-text">当前可查看和解绑历史已绑定账号；微信、QQ 与 Apple 的新绑定入口仍在联调，开放前不会发起授权。</text>
           </view>
         </view>
       </view>
 
       <!-- 统计 -->
       <view class="stats">
-        <text class="stats-text">已绑定 {{ boundCount }}/3 个账号</text>
+        <text class="stats-text">已绑定 {{ boundCount }}/3 个账号 · 新绑定即将开放</text>
         <view v-if="boundCount >= 2" class="stats-badge"><text class="stats-badge-text">账号安全</text></view>
       </view>
 
@@ -117,21 +108,28 @@ async function handleUnbind() {
               </view>
             </view>
             <text v-if="acc.isBound" class="acc-sub">{{ acc.accountInfo }} · 绑定于 {{ acc.boundAt }}</text>
-            <text v-else class="acc-sub">未绑定，绑定后可快速登录</text>
+            <text v-else class="acc-sub">暂不支持新绑定，开放后可用于快速登录</text>
           </view>
           <view v-if="acc.isBound" class="unbind-btn" @tap="unbindTarget = acc">
             <text class="unbind-btn-text">解绑</text>
           </view>
-          <view v-else class="bind-btn" :style="{ background: acc.color }" @tap="handleBind(acc)">
-            <AppIcon name="plus" :size="16" color="#fff" />
-            <text class="bind-btn-text">绑定</text>
+          <view
+            v-else
+            class="soon-btn"
+            role="button"
+            aria-disabled="true"
+            :aria-label="`${acc.name}新绑定即将开放`"
+            @tap="explainComingSoon(acc)"
+          >
+            <AppIcon name="clock" :size="14" color="#8a8178" />
+            <text class="soon-btn-text">即将开放</text>
           </view>
         </view>
       </view>
 
       <!-- 权益 -->
       <view class="benefits">
-        <text class="benefits-title">绑定后可享受</text>
+        <text class="benefits-title">开放后可享受</text>
         <view class="benefits-grid">
           <view v-for="(b, i) in bindBenefits" :key="i" class="benefit-cell">
             <view class="benefit-icon"><AppIcon :name="b.icon" :size="20" color="#C41E3A" /></view>
@@ -311,16 +309,18 @@ async function handleUnbind() {
   font-size: 26rpx;
   color: #666;
 }
-.bind-btn {
+.soon-btn {
   display: flex;
   align-items: center;
   gap: 6rpx;
-  padding: 16rpx 28rpx;
+  padding: 14rpx 20rpx;
   border-radius: 16rpx;
+  background: #f3f0eb;
+  border: 1rpx solid #e3ddd4;
 }
-.bind-btn-text {
-  font-size: 26rpx;
-  color: #fff;
+.soon-btn-text {
+  font-size: 22rpx;
+  color: #8a8178;
 }
 .benefits {
   padding: 48rpx 32rpx 0;

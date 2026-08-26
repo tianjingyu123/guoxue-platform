@@ -264,6 +264,48 @@ function handleLogout() {
       <view class="group">
         <text class="group-title">隐私设置</text>
         <view class="card">
+          <view
+            class="row list-press"
+            role="link"
+            tabindex="0"
+            aria-label="查看用户服务协议 V2026.07"
+            @tap="navigateTo('/legal/user-agreement')"
+            @keydown.enter="navigateTo('/legal/user-agreement')"
+            @keydown.space.prevent="navigateTo('/legal/user-agreement')"
+          >
+            <AppIcon name="file-text" :size="18" color="#666" />
+            <text class="row-label">用户服务协议</text>
+            <text class="row-sub">V2026.07</text>
+            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          </view>
+          <view
+            class="row list-press"
+            role="link"
+            tabindex="0"
+            aria-label="查看隐私政策 V2026.08"
+            @tap="navigateTo('/legal/privacy-policy')"
+            @keydown.enter="navigateTo('/legal/privacy-policy')"
+            @keydown.space.prevent="navigateTo('/legal/privacy-policy')"
+          >
+            <AppIcon name="shield-check" :size="18" color="#666" />
+            <text class="row-label">隐私政策</text>
+            <text class="row-sub">V2026.08</text>
+            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          </view>
+          <view
+            class="row list-press"
+            role="link"
+            tabindex="0"
+            aria-label="查看未满14周岁儿童隐私保护声明"
+            @tap="navigateTo('/legal/child-privacy')"
+            @keydown.enter="navigateTo('/legal/child-privacy')"
+            @keydown.space.prevent="navigateTo('/legal/child-privacy')"
+          >
+            <AppIcon name="users" :size="18" color="#666" />
+            <text class="row-label">儿童隐私保护</text>
+            <text class="row-sub">未满14周岁</text>
+            <AppIcon name="chevron-right" :size="16" color="#C9A96E" />
+          </view>
           <view class="row" @tap="navigateTo('/mine/blacklist')">
             <AppIcon name="user-x" :size="18" color="#666" />
             <text class="row-label">黑名单管理</text>

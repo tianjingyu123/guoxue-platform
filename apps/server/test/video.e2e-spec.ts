@@ -179,9 +179,19 @@ describe("Video E2E", () => {
   // ═══════════════════ VOD 媒资信息 ═══════════════════
 
   describe("GET /api/v1/videos/vod/media/:fileId", () => {
+    it("未登录不能读取云媒资内部信息", async () => {
+      await request(app.getHttpServer())
+        .get("/api/v1/videos/vod/media/file123")
+        .expect(401)
+    })
+
     it("获取媒资信息成功", async () => {
+      const token = jwt.sign({ sub: "u1" })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [{ roleType: "CONTENT_AUDITOR" }] })
+
       const res = await request(app.getHttpServer())
         .get("/api/v1/videos/vod/media/file123")
+        .set("Authorization", `Bearer ${token}`)
         .expect(200)
 
       expect(res.body).toHaveProperty("MediaInfoSet")

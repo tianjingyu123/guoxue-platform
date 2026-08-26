@@ -9,13 +9,18 @@ function openEntry(href: string) {
 </script>
 
 <template>
-  <view class="core-entry-grid">
+  <view class="core-entry-grid" role="navigation" aria-label="核心功能">
     <view
       v-for="entry in coreEntries"
       :key="entry.id"
       class="core-entry"
+      role="link"
+      tabindex="0"
+      :aria-label="entry.label"
       hover-class="core-entry-press"
       @tap="openEntry(entry.href)"
+      @keydown.enter="openEntry(entry.href)"
+      @keydown.space.prevent="openEntry(entry.href)"
     >
       <view class="core-entry-icon">
         <AppIcon :name="entry.icon" :size="44" color="#C41E3A" />

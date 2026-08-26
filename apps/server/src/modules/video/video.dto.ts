@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsString, IsOptional, IsInt, IsNumber, IsArray, IsBoolean, Min, Max, ValidateNested, MinLength, IsIn } from "class-validator";
+import { IsString, IsOptional, IsInt, IsNumber, IsArray, IsBoolean, Min, Max, ValidateNested, MinLength, IsIn, IsUrl, ArrayMinSize, ArrayMaxSize, MaxLength } from "class-validator";
 import { Type, Transform } from "class-transformer";
 
 export class CreateVideoDto {
@@ -108,6 +108,8 @@ export class VideoListQueryDto {
 export class PullUploadDto {
   @ApiProperty({ description: "拉取URL列表", type: [Object] })
   @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => PullUrlItem)
   urls: PullUrlItem[];
@@ -117,7 +119,7 @@ export class PullUploadDto {
   mediaName?: string;
 
   @ApiPropertyOptional({ description: "封面URL" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsUrl({ protocols: ["http", "https"], require_protocol: true })
   coverUrl?: string;
 
   @ApiPropertyOptional({ description: "上传后执行的任务流" })
@@ -131,12 +133,11 @@ export class PullUploadDto {
 
 export class PullUrlItem {
   @ApiProperty({ description: "视频源URL" })
-  @IsString()
-  @MinLength(1)
+  @IsUrl({ protocols: ["http", "https"], require_protocol: true })
   url: string;
 
   @ApiPropertyOptional({ description: "文件名" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsString() @MaxLength(128)
   fileName?: string;
 }
 
@@ -165,11 +166,11 @@ export class ClipVideoDto {
   fileId: string;
 
   @ApiProperty({ description: "起始偏移（秒）" })
-  @IsNumber()
+  @IsNumber() @Min(0)
   startTimeOffset: number;
 
   @ApiProperty({ description: "结束偏移（秒）" })
-  @IsNumber()
+  @IsNumber() @Min(0)
   endTimeOffset: number;
 
   @ApiPropertyOptional({ description: "剪辑后文件名" })

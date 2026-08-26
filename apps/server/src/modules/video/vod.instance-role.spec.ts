@@ -52,6 +52,10 @@ describe("VodService 实例角色", () => {
     const headers = init.headers as Record<string, string>;
     expect(headers["X-TC-Token"]).toBe("temporary-token");
     expect(headers.Authorization).toContain("Credential=temporary-id/");
+    expect(JSON.parse(init.body as string)).toEqual({
+      FileIds: ["file-test"],
+      SubAppId: 1325351100,
+    });
   });
 
   it("实例角色模式拒绝生成不支持安全令牌的旧式客户端上传签名", () => {

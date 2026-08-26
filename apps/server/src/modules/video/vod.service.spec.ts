@@ -1,5 +1,6 @@
 import { VodService } from './vod.service';
 import { Logger } from '@nestjs/common';
+import { createHmac } from 'crypto';
 
 const ORIGINAL_ENV = process.env;
 
@@ -12,6 +13,7 @@ describe('VodService', () => {
     process.env.COS_SECRET_ID = 'test-secret-id';
     process.env.COS_SECRET_KEY = 'test-secret-key';
     process.env.VOD_SUB_APP_ID = '1500012345';
+    process.env.VOD_PLAY_KEY = 'test-vod-play-key';
 
     // Jest node 环境中 global.fetch 不存在属性，直接赋值 mock
     (global as any).fetch = jest.fn().mockResolvedValue({
@@ -78,6 +80,7 @@ describe('VodService', () => {
       expect(decoded).toContain('currentTimeStamp=');
       expect(decoded).toContain('expireTime=');
       expect(decoded).toContain('random=');
+      expect(decoded).toContain('oneTimeValid=1');
       expect(decoded).toContain('vodSubAppId=1500012345');
       expect(result.expiredTime).toBeGreaterThan(Math.floor(Date.now() / 1000));
     });
@@ -110,56 +113,48 @@ describe('VodService', () => {
 
   // ── 3. 播放器签名 genPlayerSignature ─────────────────────────
   describe('genPlayerSignature', () => {
-    it('contentKey 存在时应生成 HMAC-SHA1 base64url psign', async () => {
-      mockFetch.mockResolvedValueOnce({
-        json: jest.fn().mockResolvedValue({
-          Response: {
-            MediaInfoSet: [
-              { BasicInfo: { ContentKey: 'test-content-key' } },
-            ],
-          },
-        }),
-        status: 200,
-      } as any);
-
-      const result = await service.genPlayerSignature('file-123');
+    it('应使用独立播放密钥生成符合腾讯云规范的 HS256 JWT', async () => {
+      const result = await service.genPlayerSignature('file-123', 3600);
       expect(result.fileId).toBe('file-123');
-      // base64url 只含字母数字和 -_，无 = 号填充
-      expect(result.psign).toMatch(/^[A-Za-z0-9_-]+$/);
-      expect(result.psign).not.toContain('=');
+      const [header, payload, signature] = result.psign.split('.');
+      expect(JSON.parse(Buffer.from(header, 'base64url').toString('utf8'))).toEqual({
+        alg: 'HS256',
+        typ: 'JWT',
+      });
+      expect(JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))).toEqual(expect.objectContaining({
+        appId: 1500012345,
+        fileId: 'file-123',
+        contentInfo: { audioVideoType: 'Original' },
+        currentTimeStamp: expect.any(Number),
+        expireTimeStamp: expect.any(Number),
+        urlAccessInfo: { t: expect.any(String) },
+      }));
+      expect(signature).toBe(
+        createHmac('sha256', 'test-vod-play-key').update(`${header}.${payload}`).digest('base64url'),
+      );
       expect(result.expireTime).toBeGreaterThan(Date.now());
       expect(result.expireTime).toBeLessThan(Date.now() + 4000 * 1000);
+      expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('getMediaInfo 失败时应降级为 MD5 签名', async () => {
-      const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
-      mockFetch.mockResolvedValueOnce({
-        json: jest.fn().mockResolvedValue({
-          Response: { Error: { Code: 'ResourceNotFound', Message: '媒体不存在' } },
-        }),
-        status: 200,
-      } as any);
-
-      const result = await service.genPlayerSignature('file-123');
-      expect(warnSpy).toHaveBeenCalledWith('获取媒资信息失败 file-123，降级为无密钥签名', expect.any(Object));
-      // MD5 hex 为 32 字符
-      expect(result.psign).toMatch(/^[0-9a-f]{32}$/);
+    it('缺少独立播放密钥时拒绝签发，禁止使用云 API 密钥降级', async () => {
+      delete process.env.VOD_PLAY_KEY;
+      const svc = new VodService();
+      await expect(svc.genPlayerSignature('file-123')).rejects.toThrow('VOD 播放密钥未配置');
     });
 
     it('应返回 { fileId, psign, expireTime } 结构', async () => {
-      mockFetch.mockResolvedValueOnce({
-        json: jest.fn().mockResolvedValue({
-          Response: { MediaInfoSet: [{ BasicInfo: {} }] },
-        }),
-        status: 200,
-      } as any);
-
       const result = await service.genPlayerSignature('file-123');
       expect(result).toEqual({
         fileId: 'file-123',
         psign: expect.any(String),
         expireTime: expect.any(Number),
       });
+    });
+
+    it('拒绝超出安全窗口的有效期', async () => {
+      await expect(service.genPlayerSignature('file-123', 59)).rejects.toThrow('60 到 86400 秒');
+      await expect(service.genPlayerSignature('file-123', 86401)).rejects.toThrow('60 到 86400 秒');
     });
   });
 
@@ -170,7 +165,7 @@ describe('VodService', () => {
       expect(data).toEqual({ RequestId: 'mock-rid' });
       const call = getFetchCall();
       expect(call.action).toBe('DescribeMediaInfos');
-      expect(call.body).toEqual({ FileIds: ['file-123'] });
+      expect(call.body).toEqual({ FileIds: ['file-123'], SubAppId: 1500012345 });
     });
 
     it('API 错误时应抛出异常', async () => {
@@ -182,7 +177,7 @@ describe('VodService', () => {
       } as any);
 
       await expect(service.getMediaInfo('bad-id')).rejects.toThrow(
-        'VOD DescribeMediaInfos 失败: 媒体不存在',
+        'VOD DescribeMediaInfos 请求失败（ResourceNotFound）',
       );
     });
   });
@@ -202,19 +197,37 @@ describe('VodService', () => {
       expect(call.body.ExtInfo).toBeUndefined();
     });
 
-    it('URL 超过 1 个时应批量拉取（含 ExtInfo）', async () => {
-      await service.pullUpload([
+    it('URL 超过 1 个时应为每个媒资创建独立 PullUpload 任务', async () => {
+      const result = await service.pullUpload([
         { url: 'https://example.com/v1.mp4', fileName: 'v1.mp4' },
         { url: 'https://example.com/v2.mp4', fileName: 'v2.mp4' },
       ]);
-      const call = getFetchCall();
-      expect(call.action).toBe('PullUpload');
-      expect(call.body.MediaUrl).toBe('https://example.com/v1.mp4');
-      expect(call.body.ExtInfo).toBeDefined();
-      const extInfo = JSON.parse(call.body.ExtInfo);
-      expect(extInfo.MediaUrlList).toHaveLength(2);
-      expect(extInfo.MediaUrlList[0].Url).toBe('https://example.com/v1.mp4');
-      expect(extInfo.MediaUrlList[1].Url).toBe('https://example.com/v2.mp4');
+      expect(result).toEqual({
+        count: 2,
+        tasks: [{ RequestId: 'mock-rid' }, { RequestId: 'mock-rid' }],
+      });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const first = getFetchCall(0);
+      const second = getFetchCall(1);
+      expect(first.action).toBe('PullUpload');
+      expect(first.body).toMatchObject({
+        MediaUrl: 'https://example.com/v1.mp4',
+        MediaName: 'v1.mp4',
+        SubAppId: 1500012345,
+      });
+      expect(second.body).toMatchObject({
+        MediaUrl: 'https://example.com/v2.mp4',
+        MediaName: 'v2.mp4',
+        SubAppId: 1500012345,
+      });
+      expect(first.body).not.toHaveProperty('ExtInfo');
+      expect(second.body).not.toHaveProperty('ExtInfo');
+    });
+
+    it('拒绝非 HTTP/HTTPS 拉取地址', async () => {
+      await expect(service.pullUpload([{ url: 'file:///etc/passwd' }]))
+        .rejects.toThrow('仅支持 HTTP/HTTPS');
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
@@ -231,6 +244,7 @@ describe('VodService', () => {
         FileId: 'file-123',
         Name: '新名称',
         Description: '新描述',
+        SubAppId: 1500012345,
       });
     });
   });
@@ -241,7 +255,7 @@ describe('VodService', () => {
       await service.deleteMedia('file-123');
       const call = getFetchCall();
       expect(call.action).toBe('DeleteMedia');
-      expect(call.body).toEqual({ FileId: 'file-123' });
+      expect(call.body).toEqual({ FileId: 'file-123', SubAppId: 1500012345 });
     });
   });
 
@@ -256,6 +270,7 @@ describe('VodService', () => {
         Sort: { Field: 'CreateTime', Order: 'Desc' },
         Offset: 10,
         Limit: 5,
+        SubAppId: 1500012345,
       });
     });
 
@@ -281,6 +296,7 @@ describe('VodService', () => {
       expect(call.body.MediaProcessTask.CoverBySnapshotTaskSet).toEqual([
         { Definition: 10 },
       ]);
+      expect(call.body.AiContentReviewTask).toEqual({ Definition: 10 });
     });
 
     it('应使用自定义转码模板', async () => {
@@ -317,6 +333,19 @@ describe('VodService', () => {
         { Definition: 10 },
       ]);
     });
+
+    it('水印应附着到每个转码任务而不是静默丢弃', async () => {
+      await service.processMedia('file-123', {
+        transcodeDefinitions: [20, 30],
+        watermarkDefinition: 15780,
+      });
+      const call = getFetchCall();
+      expect(call.body.MediaProcessTask.TranscodeTaskSet).toEqual([
+        { Definition: 20, WatermarkSet: [{ Definition: 15780 }] },
+        { Definition: 30, WatermarkSet: [{ Definition: 15780 }] },
+      ]);
+      expect(call.body.AiContentReviewTask).toEqual({ Definition: 10 });
+    });
   });
 
   // ── 10. clipVideo / clipVideoByUrl ──────────────────────────
@@ -329,30 +358,36 @@ describe('VodService', () => {
         clipName: '片段',
       });
       const call = getFetchCall();
-      expect(call.action).toBe('ClipMedia');
+      expect(call.action).toBe('EditMedia');
       expect(call.body).toMatchObject({
-        FileId: 'file-123',
-        StartTimeOffset: 10,
-        EndTimeOffset: 60,
-        Name: '片段',
+        InputType: 'File',
+        FileInfos: [{
+          FileId: 'file-123',
+          StartTimeOffset: 10,
+          EndTimeOffset: 60,
+        }],
+        OutputConfig: { MediaName: '片段' },
+        SubAppId: 1500012345,
       });
     });
 
-    it('clipVideoByUrl 应按 URL 剪辑', async () => {
-      await service.clipVideoByUrl({
+    it('clipVideoByUrl 应拒绝生成腾讯云不支持的伪 ClipMedia 请求', async () => {
+      await expect(service.clipVideoByUrl({
         url: 'https://example.com/video.mp4',
         startTimeOffset: 5,
         endTimeOffset: 30,
         clipName: 'url片段',
-      });
-      const call = getFetchCall();
-      expect(call.action).toBe('ClipMedia');
-      expect(call.body).toMatchObject({
-        Url: 'https://example.com/video.mp4',
-        StartTimeOffset: 5,
-        EndTimeOffset: 30,
-        Name: 'url片段',
-      });
+      })).rejects.toThrow('请先拉取上传并取得 FileId');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('拒绝结束时间不大于起始时间的剪辑请求', async () => {
+      await expect(service.clipVideo({
+        fileId: 'file-123',
+        startTimeOffset: 30,
+        endTimeOffset: 30,
+      })).rejects.toThrow('结束时间必须大于起始时间');
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 
@@ -401,14 +436,14 @@ describe('VodService', () => {
       await service.pullEvents();
       const call = getFetchCall();
       expect(call.action).toBe('PullEvents');
-      expect(call.body).toEqual({});
+      expect(call.body).toEqual({ SubAppId: 1500012345 });
     });
 
     it('confirmEvent 应确认事件处理完成', async () => {
       await service.confirmEvent('handle-001');
       const call = getFetchCall();
       expect(call.action).toBe('ConfirmEvents');
-      expect(call.body).toEqual({ EventHandles: ['handle-001'] });
+      expect(call.body).toEqual({ EventHandles: ['handle-001'], SubAppId: 1500012345 });
     });
   });
 
@@ -553,8 +588,8 @@ describe('VodService', () => {
         status: 200,
       } as any);
       await expect(
-        service.pullUpload([{ url: 'bad-url' }]),
-      ).rejects.toThrow('VOD PullUpload 失败: URL不合法');
+        service.pullUpload([{ url: 'https://bad.example/video.mp4' }]),
+      ).rejects.toThrow('VOD PullUpload 请求失败（InvalidParameterValue）');
     });
 
     it('processMedia API 错误时应抛出异常', async () => {
@@ -568,7 +603,7 @@ describe('VodService', () => {
       } as any);
       await expect(
         service.processMedia('not-exist'),
-      ).rejects.toThrow('VOD ProcessMedia 失败: 文件不存在');
+      ).rejects.toThrow('VOD ProcessMedia 请求失败（ResourceNotFound）');
     });
   });
 });

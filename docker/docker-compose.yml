@@ -210,6 +210,7 @@ services:
 
       # ── 腾讯云点播 ──
       VOD_SUB_APP_ID: ${VOD_SUB_APP_ID:-}
+      VOD_PLAY_KEY: ${VOD_PLAY_KEY:-}
 
       # ── 腾讯云短信 ──
       SMS_APP_ID: ${SMS_APP_ID:-}

@@ -344,14 +344,26 @@ function backToTop() {
     </view>
 
     <!-- 顶部内容频道：同一套双列瀑布流，仅检索策略不同 -->
-    <scroll-view class="tabs" scroll-x :show-scrollbar="false">
+    <scroll-view
+      class="tabs"
+      scroll-x
+      :show-scrollbar="false"
+      role="tablist"
+      aria-label="首页内容频道"
+    >
       <view class="tabs-inner">
         <view
           v-for="tab in tabs"
           :key="tab.id"
           class="tab"
           :class="{ on: activeTab === tab.id, disabled: tab.soon }"
+          role="tab"
+          :aria-selected="activeTab === tab.id ? 'true' : 'false'"
+          :aria-disabled="tab.soon ? 'true' : 'false'"
+          :tabindex="tab.soon ? -1 : 0"
           @tap="switchTab(tab.id)"
+          @keydown.enter="switchTab(tab.id)"
+          @keydown.space.prevent="switchTab(tab.id)"
         >
           <text class="tab-label">{{ tab.label }}</text>
           <text v-if="tab.soon" class="tab-soon">即将开放</text>

@@ -12,8 +12,9 @@
           <view class="reward-title-row">
             <app-icon name="sparkles" :size="36" color="#FFFFFF" />
             <text class="reward-title">邀请好友，双方有礼</text>
+            <text class="reward-soon">即将开放</text>
           </view>
-          <text class="reward-desc">邀请1位好友注册，双方各得 7天会员体验。多邀多得，上不封顶。</text>
+          <text class="reward-desc">邀请体系正在建设，开放时间、会员奖励与发放规则以正式公告为准。</text>
           <view class="reward-stats">
             <view class="rstat">
               <text class="rstat-num">{{ invitedFriends.length }}</text>
@@ -34,23 +35,26 @@
       <!-- 邀请方式 -->
       <text class="section-title">邀请方式</text>
       <view class="ways">
-        <view class="way" @tap="onShare">
+        <view class="way" role="button" aria-disabled="true" aria-label="分享链接即将开放" @tap="onShare">
           <view class="way-icon" style="background:rgba(196,30,45,0.1)">
             <app-icon name="share-2" :size="40" color="#C41E2D" />
           </view>
           <text class="way-label">分享链接</text>
+          <text class="way-status">即将开放</text>
         </view>
-        <view class="way" @tap="showPoster = true">
+        <view class="way" role="button" aria-disabled="true" aria-label="生成海报即将开放" @tap="onPoster">
           <view class="way-icon" style="background:rgba(201,169,110,0.12)">
             <app-icon name="image" :size="40" color="#C9A96E" />
           </view>
           <text class="way-label">生成海报</text>
+          <text class="way-status">即将开放</text>
         </view>
-        <view class="way" @tap="onCopy">
+        <view class="way" role="button" aria-disabled="true" aria-label="复制邀请码即将开放" @tap="onCopy">
           <view class="way-icon" style="background:rgba(46,160,67,0.1)">
-            <app-icon :name="copied ? 'check' : 'copy'" :size="40" :color="'#2EA043'" />
+            <app-icon name="copy" :size="40" color="#2EA043" />
           </view>
-          <text class="way-label">{{ copied ? '已复制' : '复制邀请码' }}</text>
+          <text class="way-label">复制邀请码</text>
+          <text class="way-status">即将开放</text>
         </view>
       </view>
 
@@ -58,7 +62,7 @@
       <view class="code-card">
         <view class="code-left">
           <text class="code-hint">我的邀请码</text>
-          <text class="code-val pending">生成中</text>
+          <text class="code-val pending">即将开放</text>
         </view>
       </view>
 
@@ -111,47 +115,19 @@
       <view class="empty" v-else>
         <view class="empty-icon"><app-icon name="users" :size="64" color="#9A8F80" /></view>
         <text class="empty-t">还没有邀请好友</text>
-        <text class="empty-s">快去分享邀请链接吧</text>
+        <text class="empty-s">开放后可在这里查看邀请与激活记录</text>
       </view>
 
       <view class="safe-bottom" />
     </scroll-view>
 
-    <!-- 海报弹窗 -->
-    <view class="mask" v-if="showPoster" @tap="showPoster = false">
-      <view class="poster-wrap" @tap.stop>
-        <view class="poster">
-          <view class="poster-top">
-            <view class="poster-logo"><text class="poster-logo-txt">卜</text></view>
-            <text class="poster-brand">{{ BRAND.name }}</text>
-            <text class="poster-sub">探索易学智慧</text>
-          </view>
-          <view class="poster-mid">
-            <text class="poster-mid-t">邀请你一起学习国学</text>
-            <text class="poster-mid-s">注册即送7天会员体验</text>
-          </view>
-          <view class="poster-qr">
-            <view class="qr-box"><text class="qr-txt">二维码</text></view>
-            <text class="qr-hint">长按识别二维码</text>
-            <text class="qr-code">邀请码生成中</text>
-          </view>
-        </view>
-        <view class="poster-actions">
-          <view class="pa-btn pa-cancel" @tap="showPoster = false"><text class="pa-cancel-txt">取消</text></view>
-          <view class="pa-btn pa-save" @tap="onSavePoster"><text class="pa-save-txt">保存海报</text></view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { navigateTo } from '@/utils/router'
-import { BRAND } from '@/lib/brand'
 
-const copied = ref(false)
-const showPoster = ref(false)
 const leaderboardTab = ref<'today' | 'total'>('total')
 
 // 后端暂无用户侧邀请数据聚合接口（user/auth 控制器无 invite 端点）→ 诚实降级为空，不伪造好友/排行
@@ -163,14 +139,13 @@ const registeredCount = computed(() => invitedFriends.value.filter(f => f.status
 function go(path: string) { navigateTo(path) }
 // 邀请码尚未生成（后端无用户专属码来源），复制/分享暂不可用，诚实提示
 function onCopy() {
-  uni.showToast({ title: '邀请码生成中，敬请期待', icon: 'none' })
+  uni.showToast({ title: '邀请码即将开放', icon: 'none' })
 }
 function onShare() {
   uni.showToast({ title: '邀请功能即将开放', icon: 'none' })
 }
-function onSavePoster() {
-  uni.showToast({ title: '海报已保存到相册', icon: 'none' })
-  showPoster.value = false
+function onPoster() {
+  uni.showToast({ title: '邀请海报即将开放', icon: 'none' })
 }
 </script>
 
@@ -186,6 +161,7 @@ function onSavePoster() {
 .reward-body { position: relative; z-index: 1; }
 .reward-title-row { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }
 .reward-title { font-size: 36rpx; font-weight: 700; color: #FFFFFF; }
+.reward-soon { margin-left: auto; padding: 5rpx 12rpx; border: 1rpx solid rgba(255,255,255,0.5); border-radius: 999rpx; font-size: 18rpx; color: #FFFFFF; background: rgba(255,255,255,0.12); }
 .reward-desc { display: block; font-size: 26rpx; color: rgba(255,255,255,0.9); line-height: 1.6; }
 .reward-stats { display: flex; gap: 48rpx; margin-top: 32rpx; padding-top: 32rpx; border-top: 1rpx solid rgba(255,255,255,0.2); }
 .rstat { display: flex; flex-direction: column; align-items: center; }
@@ -194,9 +170,10 @@ function onSavePoster() {
 
 /* 邀请方式 */
 .ways { display: flex; gap: 24rpx; padding: 0 32rpx; }
-.way { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 16rpx; padding: 32rpx 0; background: #FFFFFF; border-radius: 20rpx; border: 1rpx solid #EFEAE2; }
+.way { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10rpx; padding: 28rpx 0; background: #FFFFFF; border-radius: 20rpx; border: 1rpx solid #EFEAE2; }
 .way-icon { width: 88rpx; height: 88rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .way-label { font-size: 24rpx; color: #2C2C2C; font-weight: 500; }
+.way-status { padding: 3rpx 10rpx; border-radius: 999rpx; background: #F3F0EB; color: #9A8F80; font-size: 18rpx; }
 
 /* 邀请码 */
 .code-card { display: flex; align-items: center; justify-content: space-between; margin: 32rpx; padding: 32rpx; background: rgba(201,169,110,0.08); border: 2rpx dashed #D9CDB8; border-radius: 20rpx; }
@@ -249,27 +226,4 @@ function onSavePoster() {
 
 .safe-bottom { height: 48rpx; }
 
-/* 海报弹窗 */
-.mask { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; padding: 32rpx; }
-.poster-wrap { width: 100%; max-width: 560rpx; }
-.poster { border-radius: 20rpx; overflow: hidden; aspect-ratio: 9/16; background: linear-gradient(135deg, #C41E2D 0%, #B01828 55%, #C9A96E 100%); display: flex; flex-direction: column; justify-content: space-between; padding: 48rpx; }
-.poster-top { text-align: center; }
-.poster-logo { width: 96rpx; height: 96rpx; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; margin: 0 auto 24rpx; }
-.poster-logo-txt { font-size: 44rpx; font-weight: 700; color: #FFFFFF; }
-.poster-brand { display: block; font-size: 40rpx; font-weight: 700; color: #FFFFFF; }
-.poster-sub { display: block; font-size: 24rpx; color: rgba(255,255,255,0.8); margin-top: 8rpx; }
-.poster-mid { text-align: center; }
-.poster-mid-t { display: block; font-size: 34rpx; font-weight: 600; color: #FFFFFF; margin-bottom: 12rpx; }
-.poster-mid-s { display: block; font-size: 26rpx; color: rgba(255,255,255,0.8); }
-.poster-qr { background: #FFFFFF; border-radius: 20rpx; padding: 32rpx; display: flex; flex-direction: column; align-items: center; }
-.qr-box { width: 160rpx; height: 160rpx; background: #EFEAE2; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; margin-bottom: 16rpx; }
-.qr-txt { font-size: 22rpx; color: #9A8F80; }
-.qr-hint { font-size: 22rpx; color: #9A8F80; }
-.qr-code { font-size: 20rpx; color: #9A8F80; margin-top: 8rpx; }
-.poster-actions { display: flex; gap: 24rpx; margin-top: 32rpx; }
-.pa-btn { flex: 1; padding: 28rpx 0; border-radius: 20rpx; text-align: center; }
-.pa-cancel { background: rgba(255,255,255,0.2); }
-.pa-cancel-txt { font-size: 28rpx; color: #FFFFFF; font-weight: 500; }
-.pa-save { background: #FFFFFF; }
-.pa-save-txt { font-size: 28rpx; color: #C41E2D; font-weight: 600; }
 </style>

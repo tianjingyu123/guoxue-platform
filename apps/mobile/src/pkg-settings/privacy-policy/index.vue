@@ -186,7 +186,7 @@ async function handleConfirm() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24rpx 32rpx;
+  padding: calc(24rpx + var(--status-bar-height, 0px)) 32rpx 24rpx;
   background-color: rgba(250, 248, 245, 0.95);
   border-bottom: 2rpx solid #e8e0d5;
 }
@@ -383,7 +383,7 @@ async function handleConfirm() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 32rpx;
+  padding: calc(32rpx + var(--status-bar-height, 0px)) 32rpx 32rpx;
   border-bottom: 2rpx solid #e8e0d5;
 }
 .toc-title {

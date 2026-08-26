@@ -206,8 +206,13 @@ export class VideoController {
   // ───────── VOD 媒资信息 ─────────
 
   @Get("vod/media/:fileId")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "获取VOD媒资信息" })
+  @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回媒资信息" })
+  @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无媒资管理权限" })
   getMediaInfo(@Param("fileId") fileId: string) {
     return this.svc.getMediaInfo(fileId);
   }
@@ -226,10 +231,12 @@ export class VideoController {
   // ───────── VOD 搜索 ─────────
 
   @Get("vod/search")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "搜索VOD媒资库" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回搜索结果" })
+  @ApiResponse({ status: 403, description: "无媒资管理权限" })
   searchVodMedia(
     @Query("keyword") keyword?: string,
     @Query("offset") offset?: number,
@@ -241,11 +248,13 @@ export class VideoController {
   // ───────── VOD 播放统计 ─────────
 
   @Get("vod/playback-stats/:fileId")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "获取视频播放统计（按天）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回播放统计数据" })
   @ApiResponse({ status: 401, description: "未认证" })
+  @ApiResponse({ status: 403, description: "无内容数据权限" })
   getPlaybackStats(
     @Param("fileId") fileId: string,
     @Query() q: PlaybackStatsQueryDto,
@@ -254,7 +263,8 @@ export class VideoController {
   }
 
   @Get("vod/playback-summary")
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "获取播放统计概览（全站）" })
   @ApiBearerAuth()
   @ApiResponse({ status: 200, description: "返回播放统计概览" })

@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { AxiosRequestConfig } from "axios";
 import { ElMessage, ElNotification } from "element-plus";
 import { h } from "vue";
 import { clearAdminSession } from "@/utils/auth-session";
@@ -7,6 +8,9 @@ export const api = axios.create({
   baseURL: "/api/v1",
   timeout: 10000,
 });
+
+type AdminRequestConfig = AxiosRequestConfig & { silentError?: boolean };
+const SILENT_ERROR_REQUEST: AdminRequestConfig = { silentError: true };
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
@@ -58,6 +62,11 @@ api.interceptors.response.use(
   async (err) => {
     const status = err.response?.status;
     const original = err.config;
+
+    // 启动期可降级配置（如品牌信息）失败时由调用方使用内置默认值，避免在登录页制造误报。
+    if ((original as AdminRequestConfig | undefined)?.silentError) {
+      return Promise.reject(err);
+    }
 
     if (
       status === 401 &&
@@ -935,7 +944,7 @@ export const systemApi = {
   listConfigs: () => api.get("/system/configs"),
   getThirdPartySchema: () => api.get("/system/third-party-schema"),
   // 品牌配置（租-T0 品牌抽象）
-  getBrandConfig: () => api.get("/system/public/brand-config"),
+  getBrandConfig: () => api.get("/system/public/brand-config", SILENT_ERROR_REQUEST),
   updateBrandConfig: (data: Record<string, string>) => api.put("/system/brand-config", data),
   setConfig: (key: string, data: { value: string; description?: string }) =>
     api.put(`/system/configs/${key}`, data),

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { createHash, createHmac } from "crypto";
+import { createHmac } from "crypto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
@@ -34,6 +34,7 @@ export class VodService {
   private readonly secretId: string;
   private readonly secretKey: string;
   private readonly subAppId: string;
+  private readonly playKey: string;
   private readonly host = "vod.tencentcloudapi.com";
   private readonly apiVersion = "2018-07-17";
 
@@ -41,6 +42,7 @@ export class VodService {
     this.secretId = process.env.COS_SECRET_ID || process.env.TENCENT_SECRET_ID || "";
     this.secretKey = process.env.COS_SECRET_KEY || process.env.TENCENT_SECRET_KEY || "";
     this.subAppId = process.env.VOD_SUB_APP_ID || "";
+    this.playKey = process.env.VOD_PLAY_KEY || "";
 
     if (getTencentCredentialMode() === "static" && (!this.secretId || !this.secretKey)) {
       this.logger.warn("腾讯云密钥未配置，VOD服务将不可用");
@@ -52,6 +54,18 @@ export class VodService {
   /** 调用腾讯云VOD API（v3签名） */
   private async callVodApi(action: string, params: Record<string, unknown> = {}) {
     const credentials = await this.resolveCredentials();
+    const scopedParams = { ...params };
+    if (this.subAppId && scopedParams.SubAppId === undefined) {
+      const subAppId = Number(this.subAppId);
+      if (!Number.isSafeInteger(subAppId) || subAppId <= 0) {
+        throw new BusinessException(
+          ErrorCode.VALIDATION_ERROR,
+          "VOD_SUB_APP_ID 必须是正整数",
+        );
+      }
+      // 腾讯云要求访问点播应用资源时显式携带 SubAppId，且该字段参与 TC3 签名。
+      scopedParams.SubAppId = subAppId;
+    }
     const { host, headers, payloadStr } = tc3Sign({
       secretId: credentials.secretId,
       secretKey: credentials.secretKey,
@@ -59,7 +73,7 @@ export class VodService {
       service: "vod",
       action,
       version: this.apiVersion,
-      payload: params,
+      payload: scopedParams,
     });
 
     const resp = await fetch(`https://${host}`, {
@@ -72,7 +86,11 @@ export class VodService {
     const data = await resp.json() as TencentCloudResponse;
     if (data.Response?.Error) {
       this.logger.error(`VOD API错误 [${action}]`, data.Response.Error);
-      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, `VOD ${action} 失败: ${data.Response.Error.Message}`);
+      const code = data.Response.Error.Code || "UnknownError";
+      const message = code.includes("UnauthorizedOperation")
+        ? `VOD ${action} 权限不足`
+        : `VOD ${action} 请求失败（${code}）`;
+      throw new BusinessException(ErrorCode.THIRD_AI_FAILED, message);
     }
     return data.Response!;
   }
@@ -128,6 +146,8 @@ export class VodService {
       `currentTimeStamp=${currentTimeStamp}`,
       `expireTime=${expireTime}`,
       `random=${random}`,
+      // 用户上传签名默认单次有效，缩小签名泄露后的重放窗口。
+      "oneTimeValid=1",
     ];
     if (this.subAppId) parts.push(`vodSubAppId=${this.subAppId}`);
     if (params.procedure) parts.push(`procedure=${encodeURIComponent(params.procedure)}`);
@@ -143,41 +163,51 @@ export class VodService {
   // ───────── 播放器签名 ─────────
 
   /**
-   * 生成播放器鉴权签名（psign）
-   * 基于媒体 contentKey 的 HMAC-SHA1 签名，用于防盗链
+   * 生成播放器鉴权签名（psign）。
+   * 腾讯云播放器签名是使用“默认分发配置-播放密钥”的 HS256 JWT，
+   * 不能复用云 API SecretKey、媒资 ContentKey 或直播播放 Key。
    */
   async genPlayerSignature(fileId: string, expireSeconds: number = 3600): Promise<{
     fileId: string;
     psign: string;
     expireTime: number;
   }> {
-    // 先获取媒资信息，拿到播放密钥 contentKey
-    let contentKey: string | undefined;
-    try {
-      const info = await this.getMediaInfo(fileId) as Record<string, unknown>;
-      const mediaSet = info?.MediaInfoSet as Array<Record<string, unknown>> | undefined;
-      if (mediaSet && mediaSet.length > 0) {
-        const basicInfo = mediaSet[0].BasicInfo as Record<string, unknown> | undefined;
-        contentKey = (basicInfo?.ContentKey as string) || undefined;
-      }
-    } catch (err) {
-      this.logger.warn(`获取媒资信息失败 ${fileId}，降级为无密钥签名`, err);
+    const appId = Number(this.subAppId);
+    if (!Number.isSafeInteger(appId) || appId <= 0) {
+      throw new BusinessException(ErrorCode.VALIDATION_ERROR, "VOD_SUB_APP_ID 必须是正整数");
+    }
+    if (!this.playKey) {
+      throw new BusinessException(
+        ErrorCode.THIRD_AI_FAILED,
+        "VOD 播放密钥未配置，不能签发播放器签名",
+      );
+    }
+    if (!fileId.trim()) {
+      throw new BusinessException(ErrorCode.VALIDATION_ERROR, "VOD FileId 不能为空");
+    }
+    if (!Number.isInteger(expireSeconds) || expireSeconds < 60 || expireSeconds > 86400) {
+      throw new BusinessException(
+        ErrorCode.VALIDATION_ERROR,
+        "播放器签名有效期必须在 60 到 86400 秒之间",
+      );
     }
 
-    if (contentKey) {
-      const currentTime = Math.floor(Date.now() / 1000);
-      const expireTime = currentTime + expireSeconds;
-      const plainText = `${fileId}|${currentTime}|${expireTime}`;
-      const psign = createHmac("sha1", contentKey).update(plainText).digest("base64url");
-
-      return { fileId, psign, expireTime: expireTime * 1000 };
-    }
-
-    // 无 contentKey 时使用密钥签名作为降级
     const currentTime = Math.floor(Date.now() / 1000);
     const expireTime = currentTime + expireSeconds;
-    const signContent = `${fileId}${currentTime}${expireTime}`;
-    const psign = createHash("md5").update(signContent + this.secretKey).digest("hex");
+    const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({
+      appId,
+      fileId,
+      contentInfo: { audioVideoType: "Original" },
+      currentTimeStamp: currentTime,
+      expireTimeStamp: expireTime,
+      urlAccessInfo: { t: expireTime.toString(16) },
+    })).toString("base64url");
+    const signingInput = `${header}.${payload}`;
+    const signature = createHmac("sha256", this.playKey)
+      .update(signingInput)
+      .digest("base64url");
+    const psign = `${signingInput}.${signature}`;
 
     return { fileId, psign, expireTime: expireTime * 1000 };
   }
@@ -196,23 +226,32 @@ export class VodService {
     classId?: number;
     sourceContext?: string;    // 来源上下文（用于回调关联）
   }) {
-    return this.callVodApi("PullUpload", {
-      MediaUrl: urls[0].url,
-      MediaName: options?.mediaName || urls[0].fileName || `pull_${Date.now()}`,
+    if (!urls.length || urls.length > 10) {
+      throw new BusinessException(ErrorCode.VALIDATION_ERROR, "VOD 拉取上传每次仅允许 1 到 10 个 URL");
+    }
+    for (const item of urls) {
+      let parsed: URL;
+      try {
+        parsed = new URL(item.url);
+      } catch {
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "VOD 拉取地址格式无效");
+      }
+      if (!(["http:", "https:"] as string[]).includes(parsed.protocol)) {
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "VOD 拉取地址仅支持 HTTP/HTTPS");
+      }
+    }
+
+    const tasks = await Promise.all(urls.map((item, index) => this.callVodApi("PullUpload", {
+      MediaUrl: item.url,
+      MediaName: (urls.length === 1 ? options?.mediaName : undefined)
+        || item.fileName
+        || `pull_${Date.now()}_${index}`,
       CoverUrl: options?.coverUrl,
       Procedure: options?.procedure || "SimpleHlsEncrypt",
       ClassId: options?.classId,
       SourceContext: options?.sourceContext,
-      // 批量拉取
-      ...(urls.length > 1 ? {
-        ExtInfo: JSON.stringify({
-          MediaUrlList: urls.map(u => ({
-            Url: u.url,
-            MediaName: u.fileName || u.url.split("/").pop() || `pull_${Date.now()}`,
-          })),
-        }),
-      } : {}),
-    });
+    })));
+    return tasks.length === 1 ? tasks[0] : { count: tasks.length, tasks };
   }
 
   // ───────── 媒资管理 ─────────
@@ -283,7 +322,12 @@ export class VodService {
     const mediaProcessTask: Record<string, unknown> = {};
 
     if (transcodeDefs.length > 0) {
-      mediaProcessTask.TranscodeTaskSet = transcodeDefs.map(d => ({ Definition: d }));
+      mediaProcessTask.TranscodeTaskSet = transcodeDefs.map(d => ({
+        Definition: d,
+        ...(options?.watermarkDefinition
+          ? { WatermarkSet: [{ Definition: options.watermarkDefinition }] }
+          : {}),
+      }));
     }
 
     if (options?.adaptiveDynamicStreamingDefinition) {
@@ -291,9 +335,6 @@ export class VodService {
         { Definition: options.adaptiveDynamicStreamingDefinition },
       ];
     }
-
-    // 视频 AI 智能审核：自动检测色情/暴恐/涉政内容
-    mediaProcessTask.AiContentReviewTask = { Definition: 10 };
 
     if (options?.snapshotDefinition || transcodeDefs.length > 0) {
       mediaProcessTask.CoverBySnapshotTaskSet = [
@@ -311,11 +352,8 @@ export class VodService {
       req.MediaProcessTask = mediaProcessTask;
     }
 
-    if (options?.watermarkDefinition) {
-      // 水印需通过任务流（Procedure）方式应用
-      // 这里直接内联水印到转码模板中
-      req.AiContentReviewTask = undefined;
-    }
+    // AiContentReviewTask 是 ProcessMedia 顶层参数，不能嵌套在 MediaProcessTask 内。
+    req.AiContentReviewTask = { Definition: 10 };
 
     if (options?.tasksPriority) {
       req.TasksPriority = options.tasksPriority;
@@ -335,13 +373,28 @@ export class VodService {
     classId?: number;
     procedure?: string;
   }) {
-    return this.callVodApi("ClipMedia", {
-      FileId: params.fileId,
-      StartTimeOffset: params.startTimeOffset,
-      EndTimeOffset: params.endTimeOffset,
-      Name: params.clipName || `clip_${Date.now()}`,
-      ClassId: params.classId,
-      Procedure: params.procedure || "",
+    if (!Number.isFinite(params.startTimeOffset)
+      || !Number.isFinite(params.endTimeOffset)
+      || params.startTimeOffset < 0
+      || params.endTimeOffset <= params.startTimeOffset) {
+      throw new BusinessException(
+        ErrorCode.VALIDATION_ERROR,
+        "视频剪辑结束时间必须大于起始时间，且均为非负数",
+      );
+    }
+    const outputConfig: Record<string, unknown> = {};
+    if (params.clipName) outputConfig.MediaName = params.clipName;
+    if (params.classId !== undefined) outputConfig.ClassId = params.classId;
+
+    return this.callVodApi("EditMedia", {
+      InputType: "File",
+      FileInfos: [{
+        FileId: params.fileId,
+        StartTimeOffset: params.startTimeOffset,
+        EndTimeOffset: params.endTimeOffset,
+      }],
+      ...(params.procedure ? { ProcedureName: params.procedure } : {}),
+      ...(Object.keys(outputConfig).length ? { OutputConfig: outputConfig } : {}),
     });
   }
 
@@ -355,13 +408,11 @@ export class VodService {
     clipName?: string;
     procedure?: string;
   }) {
-    return this.callVodApi("ClipMedia", {
-      Url: params.url,
-      StartTimeOffset: params.startTimeOffset,
-      EndTimeOffset: params.endTimeOffset,
-      Name: params.clipName || `clip_url_${Date.now()}`,
-      Procedure: params.procedure || "",
-    });
+    void params;
+    throw new BusinessException(
+      ErrorCode.VALIDATION_ERROR,
+      "腾讯云 EditMedia 不支持直接按 URL 剪辑，请先拉取上传并取得 FileId",
+    );
   }
 
   // ───────── 播放统计 ─────────

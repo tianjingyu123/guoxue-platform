@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack } from '@/utils/router'
 
@@ -79,7 +79,23 @@ const props = withDefaults(
 
 const emit = defineEmits<{ (e: 'back'): void }>()
 
-const barStyle = computed(() => ({ background: props.background }))
+const safeTop = ref(0)
+try {
+  const systemInfo = uni.getSystemInfoSync()
+  safeTop.value = Math.max(
+    0,
+    systemInfo.statusBarHeight || 0,
+    systemInfo.safeAreaInsets?.top || 0,
+    systemInfo.safeArea?.top || 0,
+  )
+} catch {
+  safeTop.value = 0
+}
+
+const barStyle = computed<Record<string, string>>(() => ({
+  background: props.background,
+  '--app-nav-safe-top': `${safeTop.value}px`,
+}))
 
 function onBack() {
   emit('back')
@@ -100,9 +116,12 @@ function onBackKeydown(event: KeyboardEvent) {
   left: 0;
   right: 0;
   z-index: 100;
-  /* 顶部安全区：H5 下为 0，匹配原型；真机自动撑开状态栏 */
-  padding-top: constant(safe-area-inset-top);
-  padding-top: env(safe-area-inset-top);
+  /*
+   * App WebView 中 env(safe-area-inset-top) 可能错误返回 0；以系统状态栏高度兜底，
+   * 同时保留 iOS 浏览器的 CSS 安全区，取两者较大值避免刘海/灵动岛遮挡。
+   */
+  padding-top: var(--app-nav-safe-top, 0px);
+  padding-top: max(var(--app-nav-safe-top, 0px), env(safe-area-inset-top));
   border-bottom: 2rpx solid #e8e3db;
   backdrop-filter: blur(16rpx);
   -webkit-backdrop-filter: blur(16rpx);

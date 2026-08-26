@@ -4,7 +4,14 @@
  * H5 / App 构建继续保留完整静态资源；这里只清理微信构建产物中已有远端来源、
  * 动态生成或已无源码引用的副本，避免占用主包额度。
  */
-import { existsSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 const mpRoot = join(process.cwd(), "dist", "build", "mp-weixin");
@@ -30,3 +37,28 @@ if (removed > 0) {
     `已移除 ${removed} 项微信包冗余静态资源，运行时由静态托管或动态 Canvas 提供。`,
   );
 }
+
+// uni-app 会把页面配置以便于阅读的缩进 JSON 写入产物。微信按原始字节计算包体，
+// 因此在不改变语义的前提下压缩 JSON，可为主包保留稳定的功能增长余量。
+let compacted = 0;
+let savedBytes = 0;
+function compactJson(directory) {
+  for (const name of readdirSync(directory)) {
+    const target = join(directory, name);
+    if (statSync(target).isDirectory()) {
+      compactJson(target);
+      continue;
+    }
+    if (!name.endsWith(".json")) continue;
+
+    const source = readFileSync(target, "utf8");
+    const compact = JSON.stringify(JSON.parse(source));
+    if (compact.length >= source.length) continue;
+    writeFileSync(target, compact, "utf8");
+    compacted += 1;
+    savedBytes += Buffer.byteLength(source) - Buffer.byteLength(compact);
+  }
+}
+
+compactJson(mpRoot);
+console.log(`已压缩 ${compacted} 个小程序 JSON 配置，节省 ${(savedBytes / 1024).toFixed(1)} KB。`);

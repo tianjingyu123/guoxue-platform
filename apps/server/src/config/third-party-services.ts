@@ -183,7 +183,10 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
   {
     key: "tencent_vod", label: "腾讯云点播 VOD", category: "腾讯云", enabled: false,
     note: "视频点播VOD（长视频/短视频的服务端存储与转码）。控制台：云点播→应用管理。与下方『短视频 SDK』配合使用（VOD 负责存储转码，SDK 负责端上采集编辑）。",
-    fields: [S("subAppId", "子应用 ID", "VOD_SUB_APP_ID", false, "云点播控制台→应用管理→子应用→应用ID")],
+    fields: [
+      S("subAppId", "应用 ID", "VOD_SUB_APP_ID", false, "云点播控制台→应用管理→应用ID"),
+      S("playKey", "播放器签名密钥", "VOD_PLAY_KEY", true, "目标应用→分发播放设置→默认分发配置→播放密钥；不得复用云 API 或直播密钥"),
+    ],
   },
   {
     key: "tencent_ugsv", label: "腾讯云短视频 SDK（UGSV）", category: "腾讯云", enabled: false,

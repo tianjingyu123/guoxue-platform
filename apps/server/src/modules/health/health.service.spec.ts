@@ -51,6 +51,11 @@ describe("HealthService", () => {
     delete process.env.TENCENT_CALLBACK_KEY;
     delete process.env.TENCENT_SECRET_ID;
     delete process.env.TENCENT_SECRET_KEY;
+    delete process.env.COS_SECRET_ID;
+    delete process.env.COS_SECRET_KEY;
+    delete process.env.VOD_SUB_APP_ID;
+    delete process.env.VOD_PLAY_KEY;
+    delete process.env.TENCENT_CVM_ROLE_NAME;
     process.env.TENCENT_CREDENTIAL_MODE = "static";
   });
 
@@ -147,6 +152,93 @@ describe("HealthService", () => {
       expect(result.status).toBe("degraded");
       expect(result.checks.ai.status).toBe("degraded");
     });
+
+    it("VOD 已配置时执行 SearchMedia 只读实探测并限定应用", async () => {
+      process.env.VOD_SUB_APP_ID = "1500012345";
+      process.env.COS_SECRET_ID = "vod-test-id";
+      process.env.COS_SECRET_KEY = "vod-test-key";
+      process.env.VOD_PLAY_KEY = "vod-play-key";
+      (global.fetch as jest.Mock).mockImplementation(async (input: string | URL, init?: RequestInit) => {
+        if (String(input) === "https://vod.tencentcloudapi.com" && init?.method === "POST") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ Response: { RequestId: "vod-health-rid", MediaInfoSet: [] } }),
+          } as any;
+        }
+        return { ok: true, status: 200 } as any;
+      });
+
+      const result = await svc.check();
+      expect(result.checks.vod).toEqual(expect.objectContaining({ status: "ok" }));
+      const vodCall = (global.fetch as jest.Mock).mock.calls.find(
+        ([input, init]) => String(input) === "https://vod.tencentcloudapi.com" && init?.method === "POST",
+      );
+      expect(vodCall).toBeDefined();
+      expect(vodCall[1].headers["X-TC-Action"]).toBe("SearchMedia");
+      expect(JSON.parse(vodCall[1].body)).toEqual(expect.objectContaining({
+        SubAppId: 1500012345,
+        Offset: 0,
+        Limit: 1,
+      }));
+    });
+
+    it("VOD SearchMedia 权限缺失时降级且不向健康响应泄露云端详情", async () => {
+      process.env.VOD_SUB_APP_ID = "1500012345";
+      process.env.COS_SECRET_ID = "vod-test-id";
+      process.env.COS_SECRET_KEY = "vod-test-key";
+      (global.fetch as jest.Mock).mockImplementation(async (input: string | URL, init?: RequestInit) => {
+        if (String(input) === "https://vod.tencentcloudapi.com" && init?.method === "POST") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              Response: {
+                Error: {
+                  Code: "AuthFailure.UnauthorizedOperation",
+                  Message: "account and role details must remain private",
+                },
+              },
+            }),
+          } as any;
+        }
+        return { ok: true, status: 200 } as any;
+      });
+
+      const result = await svc.check();
+      expect(result.status).toBe("degraded");
+      expect(result.checks.vod).toEqual({
+        status: "degraded",
+        error: "VOD_SEARCH_PERMISSION_MISSING",
+      });
+      expect(JSON.stringify(result)).not.toContain("account and role details");
+    });
+
+    it("VOD 管理探测成功但缺播放器密钥时仍如实降级", async () => {
+      process.env.VOD_SUB_APP_ID = "1500012345";
+      process.env.COS_SECRET_ID = "vod-test-id";
+      process.env.COS_SECRET_KEY = "vod-test-key";
+      (global.fetch as jest.Mock).mockImplementation(async (input: string | URL, init?: RequestInit) => {
+        if (String(input) === "https://vod.tencentcloudapi.com" && init?.method === "POST") {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ Response: { RequestId: "vod-health-rid" } }),
+          } as any;
+        }
+        return { ok: true, status: 200 } as any;
+      });
+      const result = await svc.check();
+      expect(result.checks.vod).toEqual({ status: "degraded", error: "VOD_PLAY_KEY_MISSING" });
+    });
+
+    it("VOD 应用 ID 非法时阻断健康门禁", async () => {
+      process.env.VOD_SUB_APP_ID = "not-a-number";
+      const result = await svc.check();
+      expect(result.status).toBe("fail");
+      expect(result.checks.vod).toEqual({ status: "fail", error: "VOD_SUB_APP_ID_INVALID" });
+    });
+
     it("直播配置只填一部分时健康门禁失败并列出缺项", async () => {
       process.env.LIVE_PUSH_DOMAIN = "push.example.com";
       const result = await svc.check();

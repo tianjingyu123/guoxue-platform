@@ -3,7 +3,9 @@ import {
   getTencentCredentialMode,
   getTencentInstanceRoleCredentialProvider,
   hasTencentCloudCredentialConfiguration,
+  resolveTencentCloudCredentials,
 } from "../../common/tencent-instance-role-credentials";
+import { tc3Sign, TencentCloudResponse } from "../../common/tc3.util";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { getAppleIapSettings } from "../apple-iap/apple-iap.config";
@@ -348,9 +350,67 @@ export class HealthService {
   }
 
   private async checkVod(): Promise<HealthCheck> {
-    const subAppId = process.env.VOD_SUB_APP_ID;
+    const subAppId = process.env.VOD_SUB_APP_ID?.trim();
     if (!subAppId) return { status: "unconfigured" };
-    return { status: "ok" };
+
+    const numericSubAppId = Number(subAppId);
+    if (!Number.isSafeInteger(numericSubAppId) || numericSubAppId <= 0) {
+      return { status: "fail", error: "VOD_SUB_APP_ID_INVALID" };
+    }
+
+    const secretId = process.env.COS_SECRET_ID || process.env.TENCENT_SECRET_ID || "";
+    const secretKey = process.env.COS_SECRET_KEY || process.env.TENCENT_SECRET_KEY || "";
+    if (!hasTencentCloudCredentialConfiguration(secretId, secretKey)) {
+      return { status: "fail", error: "VOD_CREDENTIAL_MISSING" };
+    }
+
+    try {
+      const start = Date.now();
+      const credentials = await resolveTencentCloudCredentials(secretId, secretKey);
+      const { host, headers, payloadStr } = tc3Sign({
+        secretId: credentials.secretId,
+        secretKey: credentials.secretKey,
+        securityToken: credentials.securityToken,
+        service: "vod",
+        action: "SearchMedia",
+        version: "2018-07-17",
+        payload: {
+          SubAppId: numericSubAppId,
+          Offset: 0,
+          Limit: 1,
+        },
+      });
+      const response = await fetch(`https://${host}`, {
+        method: "POST",
+        headers,
+        body: payloadStr,
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) {
+        this.logger.warn("VOD 健康检查返回非成功状态", `HTTP ${response.status}`);
+        return { status: "degraded", error: `VOD_API_HTTP_${response.status}` };
+      }
+
+      const payload = await response.json() as TencentCloudResponse;
+      const apiError = payload.Response?.Error;
+      if (apiError) {
+        this.logger.warn("VOD 健康检查 API 拒绝", `${apiError.Code}: ${apiError.Message}`);
+        const permissionMissing = apiError.Code.includes("UnauthorizedOperation");
+        return {
+          status: "degraded",
+          error: permissionMissing
+            ? "VOD_SEARCH_PERMISSION_MISSING"
+            : "VOD_API_REJECTED",
+        };
+      }
+      if (!process.env.VOD_PLAY_KEY?.trim()) {
+        return { status: "degraded", error: "VOD_PLAY_KEY_MISSING" };
+      }
+      return { status: "ok", latencyMs: Date.now() - start };
+    } catch (error) {
+      this.logger.warn("VOD 健康检查失败", (error as Error).message);
+      return { status: "degraded", error: "VOD_API_UNAVAILABLE" };
+    }
   }
 
   private fmt(bytes: number): string {
