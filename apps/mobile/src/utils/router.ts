@@ -557,7 +557,7 @@ function normalize(url: string): string {
 }
 
 /** 解析原型路径到 uni 路径，保留 query 串 */
-function resolve(url: string): string {
+export function resolveRoute(url: string): string {
   const u = normalize(url)
   const qIdx = u.indexOf('?')
   const path = qIdx >= 0 ? u.slice(0, qIdx) : u
@@ -580,19 +580,19 @@ export function toastComingSoon() {
 }
 
 export function navigateTo(url: string) {
-  const target = resolve(url)
+  const target = resolveRoute(url)
   const path = target.split('?')[0]
   if (MAIN_TABS.includes(path)) { uni.reLaunch({ url: target }); return }
   uni.navigateTo({ url: target, fail: () => toastComingSoon() })
 }
 /** 内容卡专用：H5 从来源卡片原位打开详情层；其他终端自动走普通详情页。 */
 export function navigateToContent(url: string, source?: unknown) {
-  const target = resolve(url)
+  const target = resolveRoute(url)
   if (tryOpenContentDetailLayer(target, source)) return
   uni.navigateTo({ url: target, fail: () => toastComingSoon() })
 }
-export function redirectTo(url: string) { uni.redirectTo({ url: resolve(url), fail: () => toastComingSoon() }) }
-export function reLaunch(url: string) { uni.reLaunch({ url: resolve(url) }) }
+export function redirectTo(url: string) { uni.redirectTo({ url: resolveRoute(url), fail: () => toastComingSoon() }) }
+export function reLaunch(url: string) { uni.reLaunch({ url: resolveRoute(url) }) }
 export function navigateBack(delta = 1) {
   if (requestParentContentLayerClose()) return
   uni.navigateBack({ delta })

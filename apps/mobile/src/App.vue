@@ -8,6 +8,8 @@ import { beginAuthHandoff, exchangeHandoff } from '@/utils/request'
 import { requestParentContentLayerClose } from '@/utils/content-detail-layer'
 import { checkForAppUpdate } from '@/lib/app-update'
 import { hydrateRemoteConfig, notifyMaintenanceIfNeeded } from '@/lib/remote-config'
+import { parseAppEntryLink } from '@/utils/app-entry-link'
+import { resolveRoute } from '@/utils/router'
 
 type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
 
@@ -88,6 +90,48 @@ function bootstrapHandoff(query?: Record<string, unknown>): void {
   exchangeHandoff(code).finally(release)
 }
 
+type AppPlusRuntime = {
+  arguments?: string
+  addEventListener?: (event: 'newintent', listener: () => void, capture?: boolean) => void
+}
+
+/**
+ * 接管 Android App Link / iOS Universal Link：冷启动读取一次参数，热启动监听 newintent。
+ * 解析器先完成域名、协议、路径和敏感参数校验，再交给统一路由表；未知旧链接跳转失败时
+ * 回到首页，不把系统 URL 当作任意页面或外部地址执行。
+ */
+function installAppEntryLinkRouting(): void {
+  // #ifdef APP-PLUS
+  const runtime = (globalThis as typeof globalThis & { plus?: { runtime?: AppPlusRuntime } }).plus?.runtime
+  if (!runtime) return
+
+  const openCurrentArgument = () => {
+    const route = parseAppEntryLink(runtime.arguments)
+    if (!route) return
+
+    const queryText = route.includes('?') ? route.slice(route.indexOf('?') + 1) : ''
+    if (queryText) {
+      try {
+        const query: Record<string, unknown> = {}
+        new URLSearchParams(queryText).forEach((value, key) => { query[key] = value })
+        bootstrapHandoff(query)
+      } catch { /* 不影响跳转 */ }
+    }
+
+    const target = resolveRoute(route)
+    setTimeout(() => {
+      uni.reLaunch({
+        url: target,
+        fail: () => uni.reLaunch({ url: '/pages/index/index' }),
+      })
+    }, 0)
+  }
+
+  runtime.addEventListener?.('newintent', openCurrentArgument, false)
+  openCurrentArgument()
+  // #endif
+}
+
 /** 从跳转参数中取出页面路径（去 query），用于全局 page_view 埋点 */
 function pickUrl(args: string | { url?: string }): string {
   const url = typeof args === 'string' ? args : args?.url
@@ -138,6 +182,7 @@ onLaunch((options?: { query?: Record<string, unknown> }) => {
       },
     })
   })
+  installAppEntryLinkRouting()
 })
 // 热启动（小程序从分享卡片再次进入）同样捕获 ref
 onShow((options?: { query?: Record<string, unknown> }) => {
