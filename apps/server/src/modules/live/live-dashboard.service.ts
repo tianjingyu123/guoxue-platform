@@ -30,7 +30,7 @@ export class LiveDashboardService {
       this.prisma.comment.count({ where: { targetType: "LIVESTREAM", targetId: roomId } }),
       this.prisma.like.count({ where: { targetType: "LIVESTREAM", targetId: roomId } }),
       this.prisma.giftRecord.aggregate({ where: { liveRoomId: roomId }, _sum: { totalCoin: true }, _count: true }),
-      this.prisma.order.aggregate({ where: { type: "LIVESTREAM", targetId: roomId, status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true }, _count: true }),
+      this.prisma.order.aggregate({ where: { type: "PRODUCT", sourceContentType: "LIVE", sourceContentId: roomId, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } }, _sum: { amount: true }, _count: true }),
       this.prisma.liveMinuteData.findFirst({ where: { roomId }, orderBy: { onlineCount: "desc" }, select: { onlineCount: true } }),
     ]);
 
@@ -96,12 +96,18 @@ export class LiveDashboardService {
     const orderStats = productIds.length > 0
       ? await this.prisma.order.groupBy({
           by: ["targetId"],
-          where: { type: "PRODUCT", targetId: { in: productIds }, status: { in: ["PAID", "COMPLETED"] } },
-          _sum: { amount: true },
+          where: {
+            type: "PRODUCT",
+            targetId: { in: productIds },
+            sourceContentType: "LIVE",
+            sourceContentId: roomId,
+            status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+          },
+          _sum: { amount: true, quantity: true },
           _count: true,
         })
       : [];
-    const orderMap = new Map(orderStats.map(o => [o.targetId, { sales: o._count, revenue: Number(o._sum.amount || 0) }]));
+    const orderMap = new Map(orderStats.map(o => [o.targetId, { sales: Number(o._sum.quantity || 0), revenue: Number(o._sum.amount || 0) }]));
 
     return {
       products: products.map(p => {

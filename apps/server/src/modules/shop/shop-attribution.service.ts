@@ -151,6 +151,24 @@ export class ShopAttributionService {
     }
   }
 
+  /**
+   * 校验“直播来源商品”确实属于该直播间挂车。
+   * sourceContentId 来自客户端，不能仅凭直播间存在就参与分佣或经营统计，
+   * 否则可伪造任意直播间为未挂车商品导流并错误路由圈主佣金。
+   */
+  async isLiveProductSource(liveRoomId: string, productId: string): Promise<boolean> {
+    try {
+      const linked = await this.prisma.liveProduct.findUnique({
+        where: { liveId_productId: { liveId: liveRoomId, productId } },
+        select: { id: true, liveRoom: { select: { status: true } } },
+      });
+      return !!linked && ["LIVING", "REPLAY"].includes(linked.liveRoom.status);
+    } catch (e) {
+      this.logger.warn("直播商品来源校验失败，按无直播来源处理", e);
+      return false;
+    }
+  }
+
   async resolveReferrerUserId(ref: string | undefined | null, buyerId: string): Promise<string | null> {
     if (!ref) return null;
     if (ref === buyerId) return buyerId;

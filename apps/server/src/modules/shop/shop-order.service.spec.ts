@@ -278,6 +278,7 @@ describe("ShopOrderService", () => {
       })
       mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", price: 100, status: "ON_SALE" })
       mockPrisma.order.create.mockResolvedValue({ id: "o-src", status: "PENDING" })
+      mockPrisma.liveProduct.findUnique.mockResolvedValue({ id: "lp1", liveRoom: { status: "LIVING" } })
     }
     /** 灰度开关 mock：commission_v2_attribution 按 on 返回，其余配置键（贺卡等）返回 null=默认 */
     function setAttributionFlag(on: boolean) {
@@ -292,6 +293,8 @@ describe("ShopOrderService", () => {
       mockPrisma.channelClick.findFirst.mockResolvedValue(null)
       mockPrisma.liveRoom.findUnique.mockReset()
       mockPrisma.liveRoom.findUnique.mockResolvedValue(null)
+      mockPrisma.liveProduct.findUnique.mockReset()
+      mockPrisma.liveProduct.findUnique.mockResolvedValue(null)
       mockPrisma.circle.findFirst.mockReset()
       mockPrisma.circle.findFirst.mockResolvedValue(null)
     })
@@ -333,6 +336,38 @@ describe("ShopOrderService", () => {
       expect(data.tempRefSubjectType).toBe("CIRCLE")
       expect(data.sourceContentType).toBe("LIVE")
       expect(data.sourceContentId).toBe("live1")
+      expect(mockPrisma.liveProduct.findUnique).toHaveBeenCalledWith({
+        where: { liveId_productId: { liveId: "live1", productId: "p1" } },
+        select: { id: true, liveRoom: { select: { status: true } } },
+      })
+    })
+
+    it("伪造直播来源：商品未在该直播间挂车时剥离来源且不路由圈主分佣", async () => {
+      setupSourceOrder()
+      setAttributionFlag(true)
+      mockPrisma.liveProduct.findUnique.mockResolvedValueOnce(null)
+      mockPrisma.channelClick.findFirst.mockResolvedValueOnce(null)
+
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, sourceContentType: "LIVE", sourceContentId: "forged-live" })
+
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.sourceContentType).toBeNull()
+      expect(data.sourceContentId).toBeNull()
+      expect(data.tempReferrerId).toBeNull()
+      expect(data.tempRefSubjectType).toBeNull()
+      expect(mockPrisma.liveRoom.findUnique).not.toHaveBeenCalled()
+    })
+
+    it("未开播预约场不允许提前形成直播带货归因", async () => {
+      setupSourceOrder()
+      setAttributionFlag(true)
+      mockPrisma.liveProduct.findUnique.mockResolvedValueOnce({ id: "lp1", liveRoom: { status: "WAITING" } })
+
+      await svc.createOrder("u1", { type: "PRODUCT", targetId: "p1", amount: 1, sourceContentType: "LIVE", sourceContentId: "waiting-live" })
+
+      const data = mockPrisma.order.create.mock.calls[0][0].data
+      expect(data.sourceContentType).toBeNull()
+      expect(data.sourceContentId).toBeNull()
     })
 
     it("开关关：直播来源不做受益人路由（不查 LiveRoom），来源字段照常落库（回滚路径）", async () => {

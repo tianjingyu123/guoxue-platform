@@ -48,7 +48,13 @@ export class LiveDataCollectorService {
             _sum: { totalCoin: true },
           }),
           this.prisma.order.aggregate({
-            where: { type: "LIVESTREAM", targetId: room.id, status: { in: ["PAID", "COMPLETED"] }, createdAt: { gte: oneMinuteAgo, lt: minuteStart } },
+            where: {
+              type: "PRODUCT",
+              sourceContentType: "LIVE",
+              sourceContentId: room.id,
+              status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+              paidAt: { gte: oneMinuteAgo, lt: minuteStart },
+            },
             _sum: { amount: true },
             _count: true,
           }),

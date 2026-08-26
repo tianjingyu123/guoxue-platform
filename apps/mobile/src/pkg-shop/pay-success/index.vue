@@ -70,6 +70,10 @@
 
       <!-- 操作按钮 -->
       <view class="actions" :class="{ show: showAnim }">
+        <view v-if="returnLiveRoomId" class="action-btn live" @tap="backToLive">
+          <app-icon name="radio" :size="36" color="#fff" />
+          <text>返回直播间</text>
+        </view>
         <view class="action-btn primary" @tap="goOrder">
           <app-icon name="shopping-bag" :size="36" color="#fff" />
           <text>查看订单</text>
@@ -106,7 +110,7 @@
 import { ref, reactive } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import BrandSeal from '@/components/common/brand-seal.vue'
-import { navigateTo, reLaunch } from '@/utils/router'
+import { navigateTo, redirectTo, reLaunch } from '@/utils/router'
 import { shopApi } from '@/lib/shop-data'
 
 const orderInfo = reactive({
@@ -121,9 +125,11 @@ const showAnim = ref(false)
 const submitting = ref(false)
 const viewState = ref<'loading' | 'success' | 'error'>('loading')
 const errorMessage = ref('')
+const returnLiveRoomId = ref('')
 
 onLoad(async (q) => {
   orderInfo.orderId = String(q?.orderId || '').trim()
+  returnLiveRoomId.value = String(q?.returnLiveRoomId || '').trim()
   if (!orderInfo.orderId) {
     viewState.value = 'error'
     errorMessage.value = '缺少订单信息，无法核验支付结果。'
@@ -167,6 +173,17 @@ function goOrder() {
   // 走订单详情真路由 /orders/:id（原 /shop/orders/:id 无映射为死链）
   navigateTo(`/orders/${orderInfo.orderId}`)
   setTimeout(() => { submitting.value = false }, 500)
+}
+function backToLive() {
+  if (submitting.value || !returnLiveRoomId.value) return
+  submitting.value = true
+  const pages = getCurrentPages()
+  const previous = pages.length > 1 ? pages[pages.length - 2] : null
+  if (String(previous?.route || '').includes('pkg-live/watch/index')) {
+    uni.navigateBack({ delta: 1 })
+    return
+  }
+  redirectTo(`/pkg-live/watch/index?id=${encodeURIComponent(returnLiveRoomId.value)}`)
 }
 function goOrders() {
   if (submitting.value) return
@@ -326,6 +343,7 @@ function goShop() {
   gap: 12rpx;
   font-size: 30rpx;
   font-weight: 500;
+  &.live { background: linear-gradient(135deg, #C41E3A, #A81832); color: #FFFFFF; }
   &.primary { background: var(--brand); color: #FFFFFF; }
   &.ghost { background: #FFFFFF; border: 1rpx solid #E8E3DB; color: #2C2C2C; }
 }

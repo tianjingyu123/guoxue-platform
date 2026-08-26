@@ -718,15 +718,14 @@ export class LiveService {
   }
 
   /**
-   * 主播端收益聚合 — 按周期统计「带货」(LIVESTREAM 订单) 与「打赏」(GiftRecord 金币折现) 收益。
-   * 数据均来自当前主播名下直播间的真实订单/打赏；金币按 10:1 折算为元。
+   * 主播端收益聚合 — 区分直播商品 GMV、主播实际带货佣金与真实打赏入账。
+   * GMV 来自已校验 LIVE 来源订单；可提现口径只读取统一佣金总账与 UserEarning，不能把成交额冒充收益。
    */
   async getEarnings(userId: string, range = "7d") {
     const days = range === "90d" ? 90 : range === "30d" ? 30 : 7;
     const now = Date.now();
     const since = new Date(now - days * 86400000);
     const prevSince = new Date(now - 2 * days * 86400000);
-    const COIN_TO_YUAN = 0.1;
     const ranges = [
       { key: "7d", label: "近7天" },
       { key: "30d", label: "近30天" },
@@ -741,34 +740,64 @@ export class LiveService {
     const roomTitle = new Map(rooms.map((r) => [r.id, r.title]));
 
     if (!roomIds.length) {
-      return { ranges, stats: { total: 0, reward: 0, goods: 0, trend: 0 }, records: [] };
+      return { ranges, stats: { total: 0, reward: 0, goods: 0, gmv: 0, trend: 0 }, records: [] };
     }
 
-    const [orders, prevOrderAgg, gifts, prevGiftAgg] = await Promise.all([
+    const [orders, prevOrders, gifts] = await Promise.all([
       this.prisma.order.findMany({
-        where: { type: "LIVESTREAM", targetId: { in: roomIds }, status: { in: ["PAID", "COMPLETED"] }, paidAt: { gte: since } },
-        orderBy: { paidAt: "desc" }, take: 50,
+        where: { type: "PRODUCT", sourceContentType: "LIVE", sourceContentId: { in: roomIds }, status: { in: ["PAID", "SHIPPED", "COMPLETED"] }, paidAt: { gte: since } },
+        orderBy: { paidAt: "desc" },
+        select: { id: true, targetId: true, sourceContentId: true, amount: true, paidAt: true, createdAt: true },
       }),
-      this.prisma.order.aggregate({
-        where: { type: "LIVESTREAM", targetId: { in: roomIds }, status: { in: ["PAID", "COMPLETED"] }, paidAt: { gte: prevSince, lt: since } },
-        _sum: { amount: true },
+      this.prisma.order.findMany({
+        where: { type: "PRODUCT", sourceContentType: "LIVE", sourceContentId: { in: roomIds }, status: { in: ["PAID", "SHIPPED", "COMPLETED"] }, paidAt: { gte: prevSince, lt: since } },
+        select: { id: true },
       }),
       this.prisma.giftRecord.findMany({
         where: { liveRoomId: { in: roomIds }, createdAt: { gte: since } },
         orderBy: { createdAt: "desc" }, take: 50,
       }),
-      this.prisma.giftRecord.aggregate({
-        where: { liveRoomId: { in: roomIds }, createdAt: { gte: prevSince, lt: since } },
-        _sum: { totalCoin: true },
+    ]);
+
+    const orderIds = orders.map((o) => o.id);
+    const prevOrderIds = prevOrders.map((o) => o.id);
+    const giftIds = gifts.map((g) => g.id);
+    const [commissions, prevCommissionAgg, giftEarnings, giftEarningAgg, prevGiftEarningAgg] = await Promise.all([
+      this.prisma.ledgerEntry.findMany({
+        where: {
+          refType: "ORDER", refId: { in: orderIds }, beneficiaryType: "USER", beneficiaryId: userId,
+          category: "COMMISSION", amount: { gt: 0 }, status: { in: ["PENDING", "SETTLED"] },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      this.prisma.ledgerEntry.aggregate({
+        where: {
+          refType: "ORDER", refId: { in: prevOrderIds }, beneficiaryType: "USER", beneficiaryId: userId,
+          category: "COMMISSION", amount: { gt: 0 }, status: { in: ["PENDING", "SETTLED"] },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.userEarning.findMany({
+        where: { userId, scene: "LIVE_GIFT", refId: { in: giftIds }, createdAt: { gte: since } },
+        orderBy: { createdAt: "desc" }, take: 50,
+      }),
+      this.prisma.userEarning.aggregate({
+        where: { userId, scene: "LIVE_GIFT", createdAt: { gte: since } },
+        _sum: { amountRmb: true },
+      }),
+      this.prisma.userEarning.aggregate({
+        where: { userId, scene: "LIVE_GIFT", createdAt: { gte: prevSince, lt: since } },
+        _sum: { amountRmb: true },
       }),
     ]);
 
-    const goods = orders.reduce((s, o) => s + Number(o.amount), 0);
-    const reward = Math.round(gifts.reduce((s, g) => s + g.totalCoin, 0) * COIN_TO_YUAN);
+    const goods = commissions.reduce((s, entry) => s + Number(entry.amount), 0);
+    const gmv = orders.reduce((s, o) => s + Number(o.amount), 0);
+    const reward = Number(giftEarningAgg._sum.amountRmb || 0);
     const total = goods + reward;
 
-    const prevGoods = Number(prevOrderAgg._sum.amount || 0);
-    const prevReward = Math.round(Number(prevGiftAgg._sum.totalCoin || 0) * COIN_TO_YUAN);
+    const prevGoods = Number(prevCommissionAgg._sum.amount || 0);
+    const prevReward = Number(prevGiftEarningAgg._sum.amountRmb || 0);
     const prevTotal = prevGoods + prevReward;
     const trend = prevTotal > 0 ? Number((((total - prevTotal) / prevTotal) * 100).toFixed(1)) : total > 0 ? 100 : 0;
 
@@ -777,22 +806,31 @@ export class LiveService {
     const nick = new Map(users.map((u) => [u.id, u.nickname]));
     const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+    const orderById = new Map(orders.map((o) => [o.id, o]));
+    const giftById = new Map(gifts.map((g) => [g.id, g]));
     const records = [
-      ...orders.map((o) => ({
-        _ts: (o.paidAt || o.createdAt).getTime(),
-        id: o.id, date: fmtDate(o.paidAt || o.createdAt), type: "goods" as const,
-        desc: `带货成交 · ${roomTitle.get(o.targetId) || "直播间"}`,
-        amount: Number(o.amount), live: roomTitle.get(o.targetId) || "",
-      })),
-      ...gifts.map((g) => ({
-        _ts: g.createdAt.getTime(),
-        id: g.id, date: fmtDate(g.createdAt), type: "reward" as const,
-        desc: `${nick.get(g.userId) || "观众"} 的打赏`,
-        amount: Math.round(g.totalCoin * COIN_TO_YUAN), live: roomTitle.get(g.liveRoomId) || "",
-      })),
+      ...commissions.map((entry) => {
+        const order = orderById.get(entry.refId);
+        const liveTitle = roomTitle.get(order?.sourceContentId || "") || "直播间";
+        return {
+          _ts: entry.createdAt.getTime(),
+          id: entry.id, date: fmtDate(entry.createdAt), type: "goods" as const,
+          desc: `带货佣金 · ${liveTitle}`,
+          amount: Number(entry.amount), live: liveTitle,
+        };
+      }),
+      ...giftEarnings.map((earning) => {
+        const gift = giftById.get(earning.refId);
+        return {
+          _ts: earning.createdAt.getTime(),
+          id: earning.id, date: fmtDate(earning.createdAt), type: "reward" as const,
+          desc: `${nick.get(gift?.userId || "") || "观众"} 的打赏收益`,
+          amount: Number(earning.amountRmb), live: roomTitle.get(gift?.liveRoomId || "") || "",
+        };
+      }),
     ].sort((a, b) => b._ts - a._ts).slice(0, 30).map(({ _ts, ...r }) => r);
 
-    return { ranges, stats: { total, reward, goods, trend }, records };
+    return { ranges, stats: { total, reward, goods, gmv, trend }, records };
   }
 
   /** 主播带货商品库 — 平台在售商品供主播选入直播间带货（filter: all/on/off） */
@@ -1016,7 +1054,7 @@ export class LiveService {
       this.getOnlineCount(roomId),
       this.prisma.liveMinuteData.aggregate({ where: { roomId }, _max: { onlineCount: true }, _avg: { onlineCount: true } }),
       this.prisma.giftRecord.aggregate({ where: { liveRoomId: roomId }, _sum: { totalCoin: true } }),
-      this.prisma.order.aggregate({ where: { type: "LIVESTREAM", targetId: roomId, status: { in: ["PAID", "COMPLETED"] } }, _sum: { amount: true } }),
+      this.prisma.order.aggregate({ where: { type: "PRODUCT", sourceContentType: "LIVE", sourceContentId: roomId, status: { in: ["PAID", "SHIPPED", "COMPLETED"] } }, _sum: { amount: true } }),
       this.prisma.comment.count({ where: { targetType: "LIVESTREAM", targetId: roomId } }),
       this.prisma.like.count({ where: { targetType: "LIVESTREAM", targetId: roomId } }),
       this.prisma.comment.findMany({ where: { targetType: "LIVESTREAM", targetId: roomId }, orderBy: { createdAt: "desc" }, take: 20, select: { content: true, createdAt: true, userId: true } }),
@@ -2179,21 +2217,12 @@ export class LiveService {
     });
   }
 
-  /** 秒杀下单（原子扣减库存） */
-  async flashSaleOrder(saleId: string, userId: string) {
-    const sale = await this.prisma.liveFlashSale.findUnique({ where: { id: saleId } });
-    if (!sale) throw new BusinessException(ErrorCode.FLASH_SALE_NOT_FOUND);
-    if (sale.status !== "ACTIVE") throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀未开始或已结束");
-    if (new Date() > sale.endTime) throw new BusinessException(ErrorCode.BAD_REQUEST, "秒杀已结束");
-
-    // 原子扣减：where 加 soldCount < stock 防止超卖
-    const updated = await this.prisma.liveFlashSale.updateMany({
-      where: { id: saleId, soldCount: { lt: sale.stock } },
-      data: { soldCount: { increment: 1 } },
-    });
-    if (updated.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "秒杀库存不足");
-
-    return { saleId, userId, flashPrice: sale.flashPrice, productId: sale.productId };
+  /** 旧直播专属秒杀下单入口（未接统一订单引擎，明确关闭） */
+  async flashSaleOrder(_saleId: string, _userId: string) {
+    // 旧接口只递增 LiveFlashSale.soldCount，却未创建可支付订单、未扣商品库存，
+    // 会造成“显示抢购成功但无订单”及恶意占库存。直播购买已统一走商城结算，
+    // 在专属秒杀接入统一价格/订单引擎前明确关闭该写入口。
+    throw new BusinessException(ErrorCode.BAD_REQUEST, "直播专属秒杀即将开放，请使用直播间商品卡正常购买");
   }
 
   /** 结束秒杀 */

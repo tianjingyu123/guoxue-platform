@@ -360,8 +360,20 @@ export class ShopOrderService {
     // 无命中 → 现行归因逻辑不变。查询失败不阻塞下单。
     let tempRefSubjectType: string | null = null;
     // ── 佣-V2-P3 内容来源（拍板规则6）：纯记录下单入口的内容场景（LIVE/ARTICLE/VIDEO·成对才落库·不改金额库存支付）
-    const sourceContentType = dto.sourceContentType && dto.sourceContentId ? dto.sourceContentType : null;
-    const sourceContentId = sourceContentType ? dto.sourceContentId ?? null : null;
+    let sourceContentType = dto.sourceContentType && dto.sourceContentId ? dto.sourceContentType : null;
+    let sourceContentId = sourceContentType ? dto.sourceContentId ?? null : null;
+    // 直播来源参与圈主分佣与直播经营统计，必须由服务端验证“商品确实在该直播间挂车”。
+    // 对无效/过期来源只剥离归因，不阻断用户按正常商城价继续购买。
+    if (sourceContentType === "LIVE") {
+      const isValidLiveSource = dto.type === "PRODUCT"
+        && !!sourceContentId
+        && await this.attribution.isLiveProductSource(sourceContentId, dto.targetId);
+      if (!isValidLiveSource) {
+        this.logger.warn(`忽略无效直播商品来源: live=${sourceContentId || "-"}, product=${dto.targetId}`);
+        sourceContentType = null;
+        sourceContentId = null;
+      }
+    }
     try {
       if (await this.attribution.isChannelAttributionEnabled()) {
         const click = await this.attribution.findLatestChannelClick(userId, dto.targetId);

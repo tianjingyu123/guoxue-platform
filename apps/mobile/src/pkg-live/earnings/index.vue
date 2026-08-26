@@ -60,10 +60,14 @@
             <view class="ov-item">
               <view class="ov-item-head">
                 <AppIcon name="shopping-bag" :size="28" color="#C41E3A" />
-                <text class="ov-item-label">带货收益</text>
+                <text class="ov-item-label">带货佣金</text>
               </view>
               <text class="ov-item-val">¥{{ formatMoney(stats.goods) }}</text>
             </view>
+          </view>
+          <view class="gmv-line">
+            <text class="gmv-label">直播成交额（GMV，不等于收益）</text>
+            <text class="gmv-value">¥{{ formatMoney(stats.gmv) }}</text>
           </view>
         </view>
       </view>
@@ -77,7 +81,7 @@
             </view>
             <view>
               <text class="wd-title">收益提现</text>
-              <text class="wd-desc">收益已计入国学钱包，提现 T+1 到账</text>
+              <text class="wd-desc">佣金与打赏按结算规则入账，GMV 不计入可提现余额</text>
             </view>
           </view>
           <AppIcon name="chevron-right" :size="32" color="#B8B2A8" />
@@ -145,7 +149,7 @@ const error = ref('')
 
 const range = ref('30d')
 const typeFilter = ref('all')
-const stats = ref<LiveEarningStats>({ total: 0, reward: 0, goods: 0, trend: 0 })
+const stats = ref<LiveEarningStats>({ total: 0, reward: 0, goods: 0, gmv: 0, trend: 0 })
 const records = ref<LiveEarningRecord[]>([])
 
 /** 金额（后端返回单位为元）格式化：两位精度 + 千分位 */
@@ -251,6 +255,9 @@ fetchData()
 .ov-item-head { display: flex; align-items: center; gap: 10rpx; margin-bottom: 12rpx; }
 .ov-item-label { font-size: 24rpx; color: #999; }
 .ov-item-val { font-size: 34rpx; font-weight: 700; color: #2C2C2C; }
+.gmv-line { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; margin-top: 20rpx; padding-top: 20rpx; border-top: 1rpx solid #F0EBE2; }
+.gmv-label { font-size: 22rpx; color: #8A847B; }
+.gmv-value { flex-shrink: 0; font-size: 28rpx; font-weight: 700; color: #2C2C2C; }
 
 /* 提现入口 */
 .withdraw { display: flex; align-items: center; justify-content: space-between; background: #FBF0F2; border: 1rpx solid #F0C9CF; border-radius: 36rpx; padding: 28rpx 32rpx; }

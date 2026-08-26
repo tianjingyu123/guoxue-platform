@@ -1073,12 +1073,7 @@ export const liveEarningRanges: LiveEarningRange[] = [
   { key: '30d', label: '近30天' },
   { key: '90d', label: '近90天' },
 ]
-export interface LiveEarningStats { total: number; reward: number; goods: number; trend: number }
-export const liveEarningStatsByRange: Record<string, LiveEarningStats> = {
-  '7d': { total: 3680, reward: 1280, goods: 2400, trend: 12.5 },
-  '30d': { total: 18600, reward: 5400, goods: 13200, trend: 8.3 },
-  '90d': { total: 52400, reward: 14800, goods: 37600, trend: -2.1 },
-}
+export interface LiveEarningStats { total: number; reward: number; goods: number; gmv: number; trend: number }
 // @data-needs: 收益明细列表, 参数 typeFilter, 返回 LiveEarningRecord[]
 export interface LiveEarningRecord {
   id: string
@@ -1088,17 +1083,6 @@ export interface LiveEarningRecord {
   amount: number
   live: string
 }
-export const liveEarningRecords: LiveEarningRecord[] = [
-  { id: '1', date: '2024-01-15', type: 'reward', desc: '用户「星空」打赏', amount: 520, live: '八字命理精讲第12课' },
-  { id: '2', date: '2024-01-15', type: 'goods', desc: '带货成交：《渊海子平》', amount: 168, live: '八字命理精讲第12课' },
-  { id: '3', date: '2024-01-14', type: 'goods', desc: '带货成交：紫微斗数入门', amount: 88, live: '紫微斗数专题' },
-  { id: '4', date: '2024-01-14', type: 'reward', desc: '用户「山河」打赏', amount: 200, live: '紫微斗数专题' },
-  { id: '5', date: '2024-01-13', type: 'reward', desc: '用户「云上」打赏', amount: 360, live: '奇门遁甲入门' },
-  { id: '6', date: '2024-01-12', type: 'goods', desc: '带货成交：铜制罗盘', amount: 480, live: '风水堂第8课' },
-  { id: '7', date: '2024-01-12', type: 'reward', desc: '用户「墨言」打赏', amount: 100, live: '风水堂第8课' },
-  { id: '8', date: '2024-01-11', type: 'goods', desc: '带货成交：手抄本', amount: 240, live: '八字命理精讲第11课' },
-]
-
 // ============ 直播管理首页(creator/live) ============
 // @data-needs: 直播管理数据概览, 返回 LiveManageStat[]
 export interface LiveManageStat {
@@ -1887,12 +1871,12 @@ export const liveApi = {
       const data = await apiGet<RawEarnings>(url)
       return {
         ranges: data?.ranges || liveEarningRanges,
-        stats: data?.stats || { total: 0, reward: 0, goods: 0, trend: 0 },
+        stats: data?.stats || { total: 0, reward: 0, goods: 0, gmv: 0, trend: 0 },
         records: data?.records || [],
       }
     } catch {
       // 未登录 / 无收益 → 空概览 + 空明细（ranges 为周期 tab 配置，保留）
-      return { ranges: liveEarningRanges, stats: { total: 0, reward: 0, goods: 0, trend: 0 }, records: [] }
+      return { ranges: liveEarningRanges, stats: { total: 0, reward: 0, goods: 0, gmv: 0, trend: 0 }, records: [] }
     }
   },
 

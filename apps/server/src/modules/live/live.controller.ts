@@ -650,7 +650,7 @@ export class LiveController {
 
   @Post("flash-sales/:saleId/order")
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: "秒杀下单" })
+  @ApiOperation({ summary: "直播专属秒杀下单（即将开放）", deprecated: true })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   @ApiResponse({ status: 401, description: "未登录" })

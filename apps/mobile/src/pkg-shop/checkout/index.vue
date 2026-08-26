@@ -341,7 +341,10 @@ async function submitOrder() {
     if (orders.length > 1) {
       uni.showToast({ title: `已创建${orders.length}笔订单，先支付第一笔`, icon: 'none' })
     }
-    redirectTo(`/shop/paying?orderId=${first.id}&method=${payMethod.value}&amount=${first.amount}`)
+    const liveReturn = contentSource.value.type === 'LIVE' && contentSource.value.id
+      ? `&returnLiveRoomId=${encodeURIComponent(contentSource.value.id)}`
+      : ''
+    redirectTo(`/shop/paying?orderId=${first.id}&method=${payMethod.value}&amount=${first.amount}${liveReturn}`)
     // 成功跳转后不重置 submitting（页面已离开）
   } catch (e) {
     uni.showToast({ title: (e as Error)?.message || '下单失败，请重试', icon: 'none' })

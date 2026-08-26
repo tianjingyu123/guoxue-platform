@@ -209,6 +209,9 @@ export function makeMockPrisma(): any {
     liveRoom: {
       findUnique: jest.fn().mockResolvedValue(null),
     },
+    liveProduct: {
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
     afterSale: {
       findUnique: jest.fn(),
       findFirst: jest.fn().mockResolvedValue(null),

@@ -53,7 +53,7 @@ const mockLiveSvc = {
   listMutedUsers: jest.fn().mockResolvedValue([]),
   createFlashSale: jest.fn().mockResolvedValue({ id: "fs1", productId: "p1" }),
   startFlashSale: jest.fn().mockResolvedValue({ id: "fs1", status: "ACTIVE" }),
-  flashSaleOrder: jest.fn().mockResolvedValue({ orderId: "o1" }),
+  flashSaleOrder: jest.fn().mockRejectedValue(new Error("直播专属秒杀即将开放")),
   endFlashSale: jest.fn().mockResolvedValue({ id: "fs1", status: "ENDED" }),
   listFlashSales: jest.fn().mockResolvedValue([{ id: "fs1" }]),
   handleLiveEvent: jest.fn(),

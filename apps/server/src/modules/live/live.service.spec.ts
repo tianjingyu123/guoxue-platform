@@ -44,6 +44,7 @@ const mockPrisma = {
   giftRecord: {
     aggregate: jest.fn(),
     groupBy: jest.fn(),
+    findMany: jest.fn(),
     findUnique: jest.fn(),
     create: jest.fn(),
   },
@@ -51,6 +52,15 @@ const mockPrisma = {
     findUnique: jest.fn(),
   },
   order: {
+    aggregate: jest.fn(),
+    findMany: jest.fn(),
+  },
+  ledgerEntry: {
+    findMany: jest.fn(),
+    aggregate: jest.fn(),
+  },
+  userEarning: {
+    findMany: jest.fn(),
     aggregate: jest.fn(),
   },
   comment: {
@@ -1110,6 +1120,15 @@ describe("LiveService", () => {
       expect(result.quality).toBe("uhd");
       expect(result.imGroupId).toBe("live_r1");
       expect(result.stats).toMatchObject({ onlineCount: 0, totalViews: 0, totalGift: 0, totalSales: 0 });
+      expect(mockPrisma.order.aggregate).toHaveBeenCalledWith({
+        where: {
+          type: "PRODUCT",
+          sourceContentType: "LIVE",
+          sourceContentId: "r1",
+          status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+        },
+        _sum: { amount: true },
+      });
       expect(mockPrisma.liveRoom.findUnique).toHaveBeenCalledWith({
         where: { id: "r1" },
         select: { hostUserId: true, viewCount: true, title: true, quality: true, startTime: true, imGroupId: true },
@@ -1140,6 +1159,49 @@ describe("LiveService", () => {
 
       const result = await svc.getConsoleData("r1", "host1");
       expect(result.danmaku.map((item) => item.content)).toEqual(["先来消息", "后来消息"]);
+    });
+  });
+
+  describe("getEarnings", () => {
+    it("带货页区分直播 GMV 与主播实际佣金，不把成交额冒充可提现收益", async () => {
+      const paidAt = new Date();
+      mockPrisma.liveRoom.findMany.mockResolvedValue([{ id: "r1", title: "测试直播" }]);
+      mockPrisma.order.findMany.mockResolvedValue([{ id: "o1", targetId: "p1", sourceContentId: "r1", amount: 88, paidAt, createdAt: paidAt }]);
+      mockPrisma.giftRecord.findMany.mockResolvedValue([]);
+      mockPrisma.ledgerEntry.findMany.mockResolvedValue([{ id: "le1", refId: "o1", amount: 8.8, createdAt: paidAt }]);
+      mockPrisma.ledgerEntry.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+      mockPrisma.userEarning.findMany.mockResolvedValue([]);
+      mockPrisma.userEarning.aggregate.mockResolvedValue({ _sum: { amountRmb: 0 } });
+      mockPrisma.user.findMany.mockResolvedValue([]);
+
+      const result = await svc.getEarnings("host1", "7d");
+
+      expect(result.stats).toMatchObject({ goods: 8.8, gmv: 88, total: 8.8 });
+      expect(result.records[0]).toMatchObject({ type: "goods", amount: 8.8, live: "测试直播" });
+      expect(mockPrisma.order.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          type: "PRODUCT",
+          sourceContentType: "LIVE",
+          sourceContentId: { in: ["r1"] },
+          status: { in: ["PAID", "SHIPPED", "COMPLETED"] },
+        }),
+      }));
+      expect(mockPrisma.ledgerEntry.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          refType: "ORDER",
+          refId: { in: ["o1"] },
+          beneficiaryType: "USER",
+          beneficiaryId: "host1",
+          category: "COMMISSION",
+          status: { in: ["PENDING", "SETTLED"] },
+        }),
+      }));
+    });
+  });
+
+  describe("flashSaleOrder", () => {
+    it("旧直播秒杀伪下单入口明确关闭，不返回无支付订单的成功结果", async () => {
+      await expect(svc.flashSaleOrder("fs1", "u1")).rejects.toThrow("直播专属秒杀即将开放");
     });
   });
 

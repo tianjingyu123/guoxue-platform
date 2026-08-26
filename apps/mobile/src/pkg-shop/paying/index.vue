@@ -35,7 +35,7 @@
         <view class="spinner" />
         <text class="title">正在确认支付结果...</text>
         <text class="sub">若已完成支付请稍候，系统正在核对到账状态</text>
-        <text class="cancel-link" @tap="handleCancel">{{ isRecharge ? '返回钱包查看' : '返回订单查看' }}</text>
+        <text class="cancel-link" @tap="handleCancel">{{ isRecharge ? '返回钱包查看' : returnLiveRoomId ? '返回直播间' : '返回订单查看' }}</text>
       </block>
 
       <!-- 成功 -->
@@ -51,7 +51,7 @@
         <text class="title">支付失败</text>
         <text class="sub">{{ failReason || '请重新尝试' }}</text>
         <view class="btn-row">
-          <view class="btn ghost" @tap="handleCancel"><text>{{ isRecharge ? '返回钱包' : '返回订单' }}</text></view>
+          <view class="btn ghost" @tap="handleCancel"><text>{{ isRecharge ? '返回钱包' : returnLiveRoomId ? '返回直播间' : '返回订单' }}</text></view>
           <view class="btn primary" @tap="handleRetry"><app-icon name="refresh-cw" :size="30" color="#fff" /><text>{{ rechargeOrderNo ? '继续查询' : '重新支付' }}</text></view>
         </view>
       </block>
@@ -106,6 +106,7 @@ const amountCoin = ref(0)
 const rechargeOrderNo = ref('')
 const payMethod = ref('wechat')
 const amount = ref('0')
+const returnLiveRoomId = ref('')
 const isRecharge = computed(() => scene.value === 'recharge')
 const status = ref<Status>('loading')
 const countdown = ref(180)
@@ -141,6 +142,7 @@ onLoad((q) => {
   rechargeOrderNo.value = (q?.rechargeOrderNo as string) || ''
   payMethod.value = (q?.method as string) || 'wechat'
   amount.value = (q?.amount as string) || '0'
+  returnLiveRoomId.value = String(q?.returnLiveRoomId || '').trim()
   if (isRecharge.value) {
     if (!Number.isInteger(amountCoin.value) || amountCoin.value <= 0) {
       status.value = 'failed'
@@ -431,7 +433,10 @@ function startPolling(delayMs?: number) {
           status.value = 'success'
           track.purchase({ type: 'shop_order', orderId: orderId.value, amount: amount.value, method: payMethod.value })
           clearTimers('all')
-          setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}`), 900)
+          const liveReturn = returnLiveRoomId.value
+            ? `&returnLiveRoomId=${encodeURIComponent(returnLiveRoomId.value)}`
+            : ''
+          setTimeout(() => redirectTo(`/shop/pay-success?orderId=${orderId.value}${liveReturn}`), 900)
           return
         }
       }
@@ -460,6 +465,16 @@ function handleCancel() {
   if (cancelling) return
   cancelling = true
   clearTimers('all')
+  if (returnLiveRoomId.value) {
+    const pages = getCurrentPages()
+    const previous = pages.length > 1 ? pages[pages.length - 2] : null
+    if (String(previous?.route || '').includes('pkg-live/watch/index')) {
+      uni.navigateBack({ delta: 1 })
+    } else {
+      redirectTo(`/pkg-live/watch/index?id=${encodeURIComponent(returnLiveRoomId.value)}`)
+    }
+    return
+  }
   navigateTo(returnTarget())
   setTimeout(() => { cancelling = false }, 500)
 }
