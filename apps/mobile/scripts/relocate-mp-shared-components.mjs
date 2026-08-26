@@ -1,5 +1,5 @@
 /**
- * 将仅供排盘分包使用的共享组件从微信主包迁入实际使用它们的分包。
+ * 将仅供分包使用的共享组件从微信主包迁入实际使用它们的分包。
  *
  * 源码仍保留在 src/components，避免多份业务实现；这里只处理构建产物。复制时会
  * 递归跟随 usingComponents，并同时重写 JS 内生成的组件路径和模块 require 路径。
@@ -23,8 +23,33 @@ const componentRoot = join(mpRoot, "components");
 // 微信开发者工具会忽略名称以双下划线包裹的保留目录（例如 __shared__）。
 // 使用普通目录名，确保迁入分包的组件会被平台真实打包。
 const relocatedComponentDirectory = "shared-components";
-const relocatableNamespaces = ["bazi", "qimen"];
+// 这些命名空间没有任何主包页面消费者。uni-app 默认仍会把 src/components 下的
+// 组件全部输出到主包，微信上传则按源码体积计入 2 MiB 门禁。构建后按实际页面
+// 分包复制，可在不复制业务源码、不改变运行时行为的前提下释放主包空间。
+// 若未来主包新增引用，末尾的完整引用校验会直接让构建失败，避免误删后带病发布。
+const relocatableNamespaces = [
+  "bazi",
+  "qimen",
+  "cards",
+  "circle",
+  "classics",
+  "comment",
+  "compliance",
+  "courses",
+  "marketing",
+  "paipan",
+  "shop",
+  "video",
+  "workbench",
+];
 const relocatableRoots = relocatableNamespaces.map((name) => join(componentRoot, name));
+// paipan 首页和首页信息流仍在主包，必须保留其直接依赖；其余同命名空间组件均只在分包使用。
+const retainedComponentBases = new Set([
+  join(componentRoot, "classics", "flat-cover"),
+  join(componentRoot, "paipan", "today-hero"),
+  join(componentRoot, "paipan", "tool-ai-analysis"),
+  join(componentRoot, "paipan", "tool-icon"),
+]);
 const artifactExtensions = [".js", ".json", ".wxml", ".wxss"];
 
 function walkFiles(directory, extension = "") {
@@ -44,6 +69,7 @@ function isInside(target, root) {
 
 function relocatableRelativePath(sourceBase) {
   if (!relocatableRoots.some((root) => isInside(sourceBase, root))) return null;
+  if (retainedComponentBases.has(sourceBase)) return null;
   return relative(componentRoot, sourceBase);
 }
 
@@ -134,8 +160,27 @@ for (const packageRoot of packageRoots) {
   }
 }
 
-// 所有使用点均已改写到分包后，主包不再需要这些组件。
-for (const root of relocatableRoots) rmSync(root, { recursive: true, force: true });
+function removeEmptyDirectories(directory) {
+  if (!existsSync(directory) || !statSync(directory).isDirectory()) return;
+  for (const name of readdirSync(directory)) {
+    const target = join(directory, name);
+    if (statSync(target).isDirectory()) removeEmptyDirectories(target);
+  }
+  if (readdirSync(directory).length === 0) rmSync(directory, { recursive: true, force: true });
+}
+
+// 所有使用点均已改写到分包后，主包不再需要对应组件产物。按组件基名清理，
+// 允许同一命名空间保留少量主包首屏组件（例如 paipan/today-hero）。
+for (const root of relocatableRoots) {
+  if (!existsSync(root)) continue;
+  for (const file of walkFiles(root)) {
+    const extension = extname(file);
+    if (!artifactExtensions.includes(extension)) continue;
+    const sourceBase = file.slice(0, -extension.length);
+    if (relocatableRelativePath(sourceBase) !== null) rmSync(file, { force: true });
+  }
+  removeEmptyDirectories(root);
+}
 
 // 防止迁移遗漏：非分包 JSON 不得继续引用已移除的组件；所有相对依赖必须存在。
 const missing = [];
@@ -164,5 +209,5 @@ if (missing.length > 0) {
 }
 
 console.log(
-  `已将 ${copiedComponents} 个排盘共享组件迁入分包，改写 ${rewrittenConfigs} 个页面配置，分包新增 ${(copiedBytes / 1024).toFixed(1)} KB。`,
+  `已将 ${copiedComponents} 个分包专用共享组件迁入分包，改写 ${rewrittenConfigs} 个页面配置，分包新增 ${(copiedBytes / 1024).toFixed(1)} KB。`,
 );
