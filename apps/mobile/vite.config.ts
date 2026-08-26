@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import uni from "@dcloudio/vite-plugin-uni";
 import { resolve } from "path";
+import { readFileSync } from "fs";
 
 const LEGACY_PUBLIC_ORIGIN = "https://api.rebugx.cn";
 const THIRD_PARTY_PROBE_ORIGIN = "https://example.com";
@@ -110,6 +111,43 @@ export function rewriteFlvProbeOrigin(): Plugin {
 }
 
 /**
+ * 微信开发者工具的旧解析器无法稳定处理康熙字典被压缩成的超大汉字键对象。
+ * 小程序构建时改为分段字符串并在运行时解析，避免超长单一语法节点；
+ * 其他平台继续沿用 Vite 的 JSON 模块处理，不改变现有产物。
+ */
+export function loadKangxiDictionaryForWechat(): Plugin {
+  const virtualId = "\0rebu-kangxi-dictionary-wechat";
+  const enabled = process.env.UNI_PLATFORM === "mp-weixin";
+  return {
+    name: "load-kangxi-dictionary-for-wechat",
+    enforce: "pre",
+    resolveId(source, importer) {
+      const normalizedImporter = importer?.replaceAll("\\", "/") || "";
+      if (
+        enabled &&
+        source.endsWith("kangxi-strokes.json") &&
+        normalizedImporter.includes("/src/pkg-paipan2/lib/")
+      ) {
+        return virtualId;
+      }
+      return null;
+    },
+    load(id) {
+      if (id !== virtualId) return null;
+      const source = readFileSync(
+        resolve(__dirname, "src/pkg-paipan2/lib/data/kangxi-strokes.json"),
+        "utf8",
+      );
+      const chunks: string[] = [];
+      for (let offset = 0; offset < source.length; offset += 8192) {
+        chunks.push(JSON.stringify(source.slice(offset, offset + 8192)));
+      }
+      return `const chunks=[${chunks.join(",")}];export default JSON.parse(chunks.join(""));`;
+    },
+  };
+}
+
+/**
  * App 原生运行时使用 IIFE 主服务脚本。Android/iOS 云端运行时未提供 AMD define，
  * 因此动态导入必须内联；H5 与小程序仍保留原有分包策略。
  */
@@ -161,6 +199,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       rewriteLegacyPublicAssets(publicAssetOrigin),
       rewriteFlvProbeOrigin(),
+      loadKangxiDictionaryForWechat(),
       uni(),
       nativeAppIifeBuildCompatibility(),
     ],
