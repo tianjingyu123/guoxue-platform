@@ -6,7 +6,7 @@
  * 收藏与频次本地持久化（lib/paipan/tool-prefs），拖拽交互降级为「管理」编辑模式（uni-app 多端稳妥）。
  * R4 合规（微信小程序无占卜类目）：占卜类工具 MP 端隐藏入口，八字类改历法表述——仅展示层，路由/逻辑不变。
  */
-import { ref, computed, onMounted } from "vue";
+import { ref, computed } from "vue";
 import { onLoad, onShow } from "@dcloudio/uni-app";
 import AppIcon from "@/components/common/app-icon.vue";
 import SmartAvatar from "@/components/common/smart-avatar.vue";
@@ -25,7 +25,7 @@ import {
 } from "@/lib/paipan/tool-prefs";
 import { legacyPaipanApi } from "@/lib/legacy-paipan-data";
 import { navigateTo } from "@/utils/router";
-import { setNativeQaSession } from "@/lib/paipan-runtime";
+import { hydratePaipanRuntime, setNativeQaSession } from "@/lib/paipan-runtime";
 
 const GRID_COLS = 4;
 const COLLAPSED_ROWS = 3;
@@ -42,6 +42,9 @@ const qaNotFound = ref(false);
 let entryTarget: "tool" | "account" | "station" = "tool";
 let entryStationId = "";
 let nativeQaRequested = false;
+// #ifdef APP-PLUS
+const legacyWebviewStyles = { progress: { color: "#C41E3A" } };
+// #endif
 
 // ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
 let pageTitle = "排盘工具";
@@ -215,6 +218,7 @@ async function loadPaipanEntry() {
       await loadPlatformAgents();
       return;
     }
+    const runtimeMode = await hydratePaipanRuntime();
     const entry =
       entryTarget === "account"
         ? await legacyPaipanApi.account()
@@ -223,13 +227,16 @@ async function loadPaipanEntry() {
           : await legacyPaipanApi.entry();
     if (entry.mode === "legacy") {
       if (!entry.url || !entry.url.startsWith("https://")) {
-        throw new Error("排盘服务地址未正确配置");
+        throw new Error("排盘配置错误");
       }
       legacyEntryUrl.value = entry.url;
       // #ifdef H5
       window.location.replace(entry.url);
       // #endif
       return;
+    }
+    if (runtimeMode !== "native") {
+      throw new Error();
     }
     allowNative.value = true;
     favIds.value = getFavorites();
@@ -239,7 +246,7 @@ async function loadPaipanEntry() {
     qaNotFound.value = nativeQaRequested;
     entryError.value = nativeQaRequested
       ? "页面不存在"
-      : (error as Error)?.message || "排盘服务暂时不可用，请稍后重试";
+      : (error as Error)?.message || "排盘不可用，请重试";
   } finally {
     entryLoading.value = false;
   }
@@ -264,11 +271,9 @@ onLoad((query?: Record<string, string>) => {
   // #endif
 });
 
-onMounted(() => {
-  void loadPaipanEntry();
-});
 onShow(() => {
   favIds.value = getFavorites();
+  void loadPaipanEntry();
 });
 </script>
 
@@ -276,7 +281,7 @@ onShow(() => {
   <view v-if="entryLoading" class="entry-gate" role="status" aria-live="polite">
     <view class="entry-gate-spinner" />
     <text class="entry-gate-title">正在进入排盘工具</text>
-    <text class="entry-gate-desc">正在安全连接原有排盘记录与服务</text>
+    <text class="entry-gate-desc">正在连接原有排盘服务</text>
   </view>
 
   <!-- H5 端拿到地址后会整页跳转；跳转完成前保持遮罩，绝不闪现自研排盘入口。 -->
@@ -289,8 +294,18 @@ onShow(() => {
 
   <!-- App / 小程序沿用旧系统的内嵌 H5 形态；小程序正式发布前须配置业务域名。 -->
   <!-- #ifndef H5 -->
+  <!-- #ifdef APP-PLUS -->
+  <!-- eslint-disable-next-line vue/no-dupe-v-else-if -- uni-app condition compilation makes this branch mutually exclusive with the H5 branch -->
+  <web-view
+    v-else-if="legacyEntryUrl"
+    :src="legacyEntryUrl"
+    :webview-styles="legacyWebviewStyles"
+  />
+  <!-- #endif -->
+  <!-- #ifndef APP-PLUS -->
   <!-- eslint-disable-next-line vue/no-dupe-v-else-if -- uni-app condition compilation makes this branch mutually exclusive with the H5 branch -->
   <web-view v-else-if="legacyEntryUrl" :src="legacyEntryUrl" />
+  <!-- #endif -->
   <!-- #endif -->
 
   <view v-else-if="allowNative" class="paipan">

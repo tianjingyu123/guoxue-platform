@@ -22,6 +22,10 @@ test("第三方失败不会回退或闪现自研排盘", () => {
   const page = read("apps/mobile/src/pages/paipan/index.vue");
   assert.doesNotMatch(page, /核心工具仍可使用/u);
   assert.doesNotMatch(page, /本地工具不受影响/u);
+  assert.match(page, /await hydratePaipanRuntime\(\)/u);
+  assert.match(page, /runtimeMode !== "native"/u);
+  assert.match(page, /onShow\([\s\S]*void loadPaipanEntry\(\)/u);
+  assert.match(page, /:webview-styles="legacyWebviewStyles"/u);
   assert.match(page, /v-else-if="allowNative"/u);
   assert.match(page, /重新连接/u);
 });
