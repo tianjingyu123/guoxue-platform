@@ -214,12 +214,14 @@ function viewReplay(item: LiveManageItem) { navigateTo(`/pkg-live/watch/index?id
 const starting = ref(false)
 function startLive(item: LiveManageItem) {
   if (starting.value) return
-  if (item.orientation !== 'landscape') {
-    // #ifndef APP-PLUS
-    uni.showToast({ title: '手机视频开播需要使用热卜 App', icon: 'none' })
-    return undefined
-    // #endif
+  if (item.orientation === 'landscape') {
+    navigateTo(`/pkg-live/obs/index?id=${item.id}`)
+    return
   }
+  // #ifndef APP-PLUS
+  uni.showToast({ title: '手机视频开播需要使用热卜 App', icon: 'none' })
+  return undefined
+  // #endif
   uni.showModal({
     title: '开始直播', content: `确定现在开播「${item.title}」吗？`, confirmText: '开播',
     success: async (res) => {
@@ -229,9 +231,7 @@ function startLive(item: LiveManageItem) {
       try {
         await liveApi.startLive(String(item.id))
         uni.hideLoading()
-        navigateTo(item.orientation === 'landscape'
-          ? `/pkg-live/console/index?id=${item.id}&source=obs`
-          : portraitRoomUrl(item.id))
+        navigateTo(portraitRoomUrl(item.id))
       } catch (e) {
         uni.hideLoading()
         uni.showToast({ title: (e as Error)?.message || '开播失败，请重试', icon: 'none' })

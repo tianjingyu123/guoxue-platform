@@ -963,6 +963,18 @@ describe("LiveService", () => {
       expect(result.status).toBe("LIVING");
     });
 
+    it("CSS 模式下横屏 OBS 房间也禁止绕过媒体预检直接开播", async () => {
+      mockPrisma.liveRoom.findUnique.mockResolvedValue({
+        ...waitingRoom,
+        orientation: "landscape",
+      });
+
+      await expect(svc.startLive("r1", "host1", false)).rejects.toThrow(
+        "OBS 直播必须先通过专用页面检测到真实媒体流",
+      );
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+    });
+
     it("IM 建群失败 fail-open：只记日志，开播不受影响", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue(waitingRoom);
       mockPrisma.liveRoom.update.mockImplementation(({ data }) => Promise.resolve({ id: "r1", ...data }));
@@ -1430,6 +1442,33 @@ describe("LiveService", () => {
 
         await expect(svc.startObsLive("r1", "host1", false)).rejects.toThrow("尚未检测到 OBS 推流");
         expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+      });
+
+      it("CSS 模式也拒绝通过 OBS 专用接口启动竖屏房间", async () => {
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({
+          id: "r1", hostUserId: "host1", status: "WAITING", orientation: "portrait",
+        });
+        mockRedis.getJson.mockResolvedValue({ status: "online" });
+
+        await expect(svc.startObsLive("r1", "host1", false)).rejects.toThrow(
+          "该直播间不是 OBS 电脑直播形态",
+        );
+        expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
+      });
+
+      it("CSS 模式收到在线回调后通过 OBS 专用入口开播", async () => {
+        const room = {
+          id: "r1", hostUserId: "host1", status: "WAITING", auditStatus: "APPROVED",
+          title: "OBS 直播", circleId: null, orientation: "landscape",
+        };
+        mockPrisma.liveRoom.findUnique.mockResolvedValue(room);
+        mockRedis.getJson.mockResolvedValue({ status: "online", connectedAt: "2026-08-27T00:00:00.000Z" });
+        mockPrisma.liveRoom.update.mockImplementation(({ data }) => Promise.resolve({ id: "r1", ...data }));
+
+        const result: any = await svc.startObsLive("r1", "host1", false);
+
+        expect(result.status).toBe("LIVING");
+        expect(mockPrisma.liveRoom.update).toHaveBeenCalled();
       });
 
       it("OBS 同房模式返回 TRTC RTMP 地址并登记回调房间映射", async () => {

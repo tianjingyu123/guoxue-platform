@@ -16,7 +16,7 @@ describe("TencentCallbackGuard", () => {
     } as unknown as ExecutionContext;
   }
 
-  it("接受腾讯云直播放在 JSON 包体中的 sign/t", () => {
+  it.each([0, 1])("接受腾讯云直播 event_type=%s 放在 JSON 包体中的 sign/t", (eventType) => {
     process.env = { ...originalEnv, NODE_ENV: "production", TENCENT_CALLBACK_KEY: "testKey123" };
     const t = String(Math.floor(Date.now() / 1000) + 600);
     const sign = createHash("md5").update(`testKey123${t}`).digest("hex");
@@ -24,7 +24,16 @@ describe("TencentCallbackGuard", () => {
 
     expect(
       guard.canActivate(
-        context({ body: { event_type: 1, t, sign }, headers: {}, query: {}, method: "POST", url: "/live/callback" }),
+        context({
+          body: {
+            event_type: eventType,
+            stream_id: "room_qa-live-callback",
+            appname: "live",
+            t,
+            sign,
+          },
+          headers: {}, query: {}, method: "POST", url: "/live/callback",
+        }),
       ),
     ).toBe(true);
   });

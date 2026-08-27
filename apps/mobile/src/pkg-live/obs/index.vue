@@ -41,7 +41,7 @@
       <text class="obs-title">专业推流工作台</text>
       <text class="obs-desc">从媒体流检测到正式开播，每一步都可确认、可回退、可追踪。</text>
       <view class="obs-capabilities">
-        <text class="obs-capability">TRTC 同房连麦</text>
+        <text class="obs-capability">{{ obsCapabilityLabel }}</text>
         <text class="obs-capability">真实媒体流检测</text>
         <text class="obs-capability secure">短期密钥保护</text>
       </view>
@@ -261,6 +261,9 @@ const connectionTitle = computed(() => {
   if (stage.value === 'interrupted') return '推流连接已中断'
   return '等待 OBS 推流连接'
 })
+const obsCapabilityLabel = computed(() => runtime.value?.ingestMode === 'TRTC_RTMP'
+  ? 'TRTC 同房连麦'
+  : '腾讯云标准推流')
 const connectionDescription = computed(() => {
   if (stage.value === 'connected') return runtime.value?.ingestMode === 'TRTC_RTMP'
     ? 'OBS 已进入与手机嘉宾相同的 TRTC 房间。确认画面和声音后，再建立 CDN 输出并正式开播。'

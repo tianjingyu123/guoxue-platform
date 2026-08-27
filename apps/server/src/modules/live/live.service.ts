@@ -390,10 +390,11 @@ export class LiveService {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "直播推拉流配置不完整，请联系平台管理员后重试");
     }
 
-    const useObsTrtc = room.orientation === "landscape" && this.obsTrtcIngestEnabled();
-    if (useObsTrtc && !options.obsPreflight) {
+    const isObsRoom = room.orientation === "landscape";
+    if (isObsRoom && !options.obsPreflight) {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "OBS 直播必须先通过专用页面检测到真实媒体流");
     }
+    const useObsTrtc = isObsRoom && this.obsTrtcIngestEnabled();
 
     const streamKey = `room_${id}`;
     const obsPush = useObsTrtc ? buildLiveObsRtmpPushUrl(id) : null;
@@ -525,9 +526,11 @@ export class LiveService {
     if (status.status !== "online") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "尚未检测到 OBS 推流，请先在 OBS 中点击开始推流");
     }
-    if (!this.obsTrtcIngestEnabled()) return this.startLive(id, operatorId, isAdmin);
     if (status.orientation !== "landscape") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "该直播间不是 OBS 电脑直播形态");
+    }
+    if (!this.obsTrtcIngestEnabled()) {
+      return this.startLive(id, operatorId, isAdmin, { obsPreflight: true });
     }
     if (!this.mixing) throw new BusinessException(ErrorCode.BAD_REQUEST, "OBS 云端输出服务不可用");
 

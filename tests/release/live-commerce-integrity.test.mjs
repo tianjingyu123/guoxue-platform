@@ -82,6 +82,18 @@ test('未接统一订单与支付引擎的旧直播秒杀入口明确标记即�
   assert.match(controller, /直播专属秒杀下单（即将开放）[\s\S]*?deprecated: true/u)
 })
 
+test('横屏 OBS 开播必须经过真实媒体在线预检，前后端均不可绕过', () => {
+  const manage = source('apps/mobile/src/pkg-live/manage/index.vue')
+  const obs = source('apps/mobile/src/pkg-live/obs/index.vue')
+  const live = source('apps/server/src/modules/live/live.service.ts')
+
+  assert.match(manage, /if \(item\.orientation === 'landscape'\) \{[\s\S]*?pkg-live\/obs\/index\?id=\$\{item\.id\}[\s\S]*?return/u)
+  assert.match(live, /const isObsRoom = room\.orientation === "landscape";[\s\S]*?if \(isObsRoom && !options\.obsPreflight\)/u)
+  assert.match(live, /if \(!this\.obsTrtcIngestEnabled\(\)\) \{[\s\S]*?startLive\(id, operatorId, isAdmin, \{ obsPreflight: true \}\)/u)
+  assert.match(obs, /obsCapabilityLabel/u)
+  assert.match(obs, /runtime\.value\?\.ingestMode === 'TRTC_RTMP'[\s\S]*?'TRTC 同房连麦'[\s\S]*?'腾讯云标准推流'/u)
+})
+
 test('直播带货完整性回归已接入移动端正式门禁', () => {
   const pkg = JSON.parse(source('package.json'))
   assert.match(pkg.scripts['release:test-mobile-native-bundle'], /live-commerce-integrity\.test\.mjs/u)
