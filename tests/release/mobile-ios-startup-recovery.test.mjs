@@ -40,7 +40,7 @@ test("App 仅在冷启动接入 iOS 页面栈恢复，回到前台不得再次�
   assert.equal(source.match(/repairIosStartupRoute\(\)/g)?.length, 1);
 });
 
-test("启动更新检查不依赖 URLSearchParams，且 221 版本号已冻结", async () => {
+test("启动更新检查不依赖 URLSearchParams，且 222 版本号已冻结", async () => {
   const [update, manifestRaw] = await Promise.all([
     readFile(updateSource, "utf8"),
     readFile(manifestSource, "utf8"),
@@ -48,5 +48,5 @@ test("启动更新检查不依赖 URLSearchParams，且 221 版本号已冻结",
   assert.doesNotMatch(update, /new URLSearchParams/);
   assert.match(update, /encodeURIComponent\(platform\)/);
   assert.match(update, /encodeURIComponent\(version\)/);
-  assert.equal(JSON.parse(manifestRaw).versionCode, "221");
+  assert.equal(JSON.parse(manifestRaw).versionCode, "222");
 });

@@ -9,6 +9,7 @@ import {
   SmsLoginDto,
   SendCodeDto,
   WechatLoginDto,
+  AppleLoginDto,
   MiniPhoneLoginDto,
   UpdateProfileDto,
   ChangePasswordDto,
@@ -166,6 +167,15 @@ export class AuthController {
   @UseGuards(StrictRedisThrottleGuard)
   wechatLogin(@Body() dto: WechatLoginDto) {
     return this.auth.wechatLogin(dto);
+  }
+
+  @Post("login/apple")
+  @ApiOperation({ summary: "通过 Apple 登录", description: "验证 Apple identityToken 并登录或创建内部账号" })
+  @ApiResponse({ status: 201, description: "登录成功" })
+  @ApiResponse({ status: 400, description: "Apple 授权无效" })
+  @UseGuards(StrictRedisThrottleGuard)
+  appleLogin(@Body() dto: AppleLoginDto) {
+    return this.auth.appleLogin(dto);
   }
 
   @Post("login/mini-phone")

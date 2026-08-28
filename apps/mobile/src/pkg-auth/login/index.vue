@@ -207,14 +207,28 @@
         </view>
       </view>
 
-      <!-- 微信登录：H5 走公众号 OAuth，小程序走 code2session，原生 APP 走微信开放平台 OAuth。 -->
-      <view v-if="showWechatLogin" class="third-party">
+      <!-- 第三方登录：iOS 同级提供 Apple 登录，满足 App Store 4.8。 -->
+      <view v-if="showWechatLogin || showAppleLogin" class="third-party">
         <view class="divider">
           <view class="divider-line" />
           <text class="divider-text">其他登录方式</text>
           <view class="divider-line" />
         </view>
-        <view class="third-icons">
+        <!-- #ifdef APP-PLUS -->
+        <view
+          v-if="showAppleLogin"
+          class="apple-login-btn"
+          role="button"
+          aria-label="通过 Apple 登录"
+          tabindex="0"
+          @tap="handleAppleLogin"
+          @keydown="activateOnKeyboard($event, handleAppleLogin)"
+        >
+          <text class="apple-mark"></text>
+          <text class="apple-label">通过 Apple 登录</text>
+        </view>
+        <!-- #endif -->
+        <view v-if="showWechatLogin" class="third-icons" :class="{ 'third-icons-after-apple': showAppleLogin }">
           <view
             class="third-item"
             role="button"
@@ -270,6 +284,7 @@ const agreedTerms = ref(false)
 const error = ref('')
 // App 端必须由服务端运行时开关显式放行；拉取失败时保持隐藏，避免密钥切换前误开放。
 const showWechatLogin = ref(false)
+const showAppleLogin = ref(false)
 
 // H5 的模板条件表达式在部分 UniApp 编译器中不会定义 defined(H5)，改由可靠的脚本条件控制展示。
 // #ifdef H5
@@ -281,6 +296,12 @@ showWechatLogin.value = true
 
 // #ifdef APP-PLUS
 onLoad(() => {
+  try {
+    const system = uni.getSystemInfoSync()
+    showAppleLogin.value = String(system.platform || '').toLowerCase() === 'ios'
+  } catch {
+    showAppleLogin.value = false
+  }
   void hydrateRemoteConfig(true).then(() => {
     showWechatLogin.value = isClientFeatureEnabled('client_wechat_app_login', false)
   })
@@ -622,6 +643,59 @@ async function handleThirdParty(_type: 'wechat') {
   // #endif
 }
 
+// #ifdef APP-PLUS
+interface AppleFullName {
+  familyName?: string
+  givenName?: string
+}
+
+async function handleAppleLogin() {
+  if (isLoading.value) return
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+
+  isLoading.value = true
+  error.value = ''
+  try {
+    const appleInfo = await new Promise<UniApp.AppleLoginAppleInfo>((resolve, reject) => {
+      uni.login({
+        provider: 'apple',
+        success: (result) => {
+          if (result.appleInfo?.identityToken) resolve(result.appleInfo)
+          else reject(new Error('未获取到 Apple 身份凭证'))
+        },
+        fail: (result: { code?: number; errMsg?: string }) => {
+          const message = result?.code === 1001 ? '已取消 Apple 登录' : (result?.errMsg || 'Apple 授权失败')
+          reject(new Error(message))
+        },
+      })
+    })
+    const fullName = (appleInfo.fullName || {}) as AppleFullName
+    const res = await authApi.appleLogin({
+      identityToken: appleInfo.identityToken!,
+      familyName: fullName.familyName,
+      givenName: fullName.givenName,
+    })
+    const loginData = res.data
+    if (res.success && loginData?.token) {
+      clearAuthSession({ preserveLoginRedirect: true })
+      setToken(loginData.token)
+      setRefreshToken(loginData.refreshToken || '')
+      setUserInfo(loginData.user)
+      goAfterLogin()
+      return
+    }
+    error.value = res.message || 'Apple 登录失败'
+  } catch (e) {
+    error.value = (e as Error)?.message || 'Apple 登录失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+// #endif
+
 function goForgot() {
   navigateTo('/forgot-password')
 }
@@ -933,6 +1007,29 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 64rpx;
+}
+.third-icons-after-apple {
+  margin-top: 32rpx;
+}
+.apple-login-btn {
+  width: 100%;
+  min-height: 88rpx;
+  border-radius: 12rpx;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+}
+.apple-mark {
+  color: #ffffff;
+  font-size: 42rpx;
+  line-height: 1;
+}
+.apple-label {
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 500;
 }
 .third-item {
   display: flex;

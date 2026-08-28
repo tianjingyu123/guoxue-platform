@@ -13,6 +13,7 @@ const mockAuthSvc = {
   smsLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1", nickname: "张三" } }),
   sendSmsCode: jest.fn().mockResolvedValue({ success: true, message: "验证码已发送" } as any),
   wechatLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1" } }),
+  appleLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1" } }),
   miniPhoneLogin: jest.fn().mockResolvedValue({ accessToken: "t1", refreshToken: "rt1", user: { id: "u1" } }),
   getProfile: jest.fn().mockResolvedValue({ id: "u1", nickname: "张三", phone: "138****1234" }),
   refreshToken: jest.fn().mockResolvedValue({ accessToken: "t2", refreshToken: "rt2" }),
@@ -115,6 +116,13 @@ describe("AuthController", () => {
       const dto: any = { code: "wx_code_123" };
       const result = await ctrl.wechatLogin(dto);
       expect(result.accessToken).toBe("t1");
+    });
+
+    it("POST /auth/login/apple — Apple 登录", async () => {
+      const dto: any = { identityToken: "token" };
+      const result = await ctrl.appleLogin(dto);
+      expect(result.accessToken).toBe("t1");
+      expect(mockAuthSvc.appleLogin).toHaveBeenCalledWith(dto);
     });
 
     it("POST /auth/login/mini-phone — 小程序手机号快速登录", async () => {

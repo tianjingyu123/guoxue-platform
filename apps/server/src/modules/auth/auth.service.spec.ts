@@ -9,6 +9,7 @@ import { WebhookService } from "../webhook/webhook.service";
 import { SmsService } from "../sms/sms.service";
 import { PermissionService } from "../system/permission.service";
 import { FeatureFlagService } from "../feature-flag/feature-flag.service";
+import { AppleLoginService } from "./apple-login.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
@@ -64,6 +65,7 @@ const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 const mockSms = { sendVerifyCode: jest.fn(), verifyCode: jest.fn() };
 const mockPermSvc = { getUserPermissions: jest.fn().mockResolvedValue([]) };
 const mockFeatureFlag = { isEnabled: jest.fn().mockResolvedValue(true) };
+const mockAppleLogin = { verifyIdentityToken: jest.fn() };
 
 describe("AuthService", () => {
   let svc: AuthService;
@@ -79,6 +81,7 @@ describe("AuthService", () => {
         { provide: JwtService, useValue: mockJwt },
         { provide: RedisService, useValue: mockRedis },
         { provide: WechatService, useValue: mockWechat },
+        { provide: AppleLoginService, useValue: mockAppleLogin },
         { provide: ImService, useValue: mockIm },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: SmsService, useValue: mockSms },
@@ -441,6 +444,74 @@ describe("AuthService", () => {
           },
         }),
       );
+    });
+  });
+
+  describe("appleLogin", () => {
+    it("拒绝无法通过 Apple 公钥校验的令牌", async () => {
+      mockAppleLogin.verifyIdentityToken.mockRejectedValueOnce(new Error("invalid"));
+      await expect(svc.appleLogin({ identityToken: "x".repeat(100) })).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_TOKEN_INVALID,
+      });
+      expect(mockPrisma.auth.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("已有 Apple 身份直接登录且不重复注册", async () => {
+      mockAppleLogin.verifyIdentityToken.mockResolvedValueOnce({
+        subject: "apple-subject",
+        audience: "com.rebu.iosapprebu",
+        emailVerified: true,
+        isPrivateEmail: true,
+      });
+      mockPrisma.auth.findUnique.mockResolvedValueOnce({ id: "apple-auth", userId: "user-1" });
+      mockPrisma.auth.update.mockResolvedValueOnce({ id: "apple-auth" });
+      mockPrisma.user.findUnique.mockResolvedValueOnce({ id: "user-1", nickname: "老用户" });
+      mockPrisma.userRole.findMany.mockResolvedValueOnce([]);
+      mockJwt.sign.mockReturnValueOnce("token");
+
+      const result = await svc.appleLogin({ identityToken: "x".repeat(100) });
+
+      expect(result.user.id).toBe("user-1");
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+      expect(mockPrisma.auth.update).toHaveBeenCalledWith({
+        where: { id: "apple-auth" },
+        data: { lastUsedAt: expect.any(Date) },
+      });
+    });
+
+    it("首次 Apple 授权创建内部账号并绑定稳定 subject", async () => {
+      mockAppleLogin.verifyIdentityToken.mockResolvedValueOnce({
+        subject: "apple-subject-new",
+        audience: "com.rebu.iosapprebu",
+        emailVerified: true,
+        isPrivateEmail: false,
+        realUserStatus: 2,
+      });
+      mockPrisma.auth.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.user.create.mockResolvedValueOnce({ id: "user-new", nickname: "热卜" });
+      mockPrisma.user.findUnique.mockResolvedValueOnce({ id: "user-new", nickname: "热卜" });
+      mockPrisma.userRole.findMany.mockResolvedValueOnce([]);
+      mockJwt.sign.mockReturnValueOnce("token");
+
+      const result = await svc.appleLogin({
+        identityToken: "x".repeat(100),
+        familyName: "热",
+        givenName: "卜",
+      });
+
+      expect(result.user.id).toBe("user-new");
+      expect(mockPrisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          nickname: "热卜",
+          auths: {
+            create: expect.objectContaining({
+              provider: "APPLE",
+              namespace: "apple:com.rebu.iosapprebu",
+              subject: "apple-subject-new",
+            }),
+          },
+        }),
+      });
     });
   });
 

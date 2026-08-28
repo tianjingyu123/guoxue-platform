@@ -130,6 +130,25 @@ export const authApi = {
     }
   },
 
+  // #ifdef APP-PLUS
+  /** Apple 原生登录 — identityToken 只发送给服务端验签，不在客户端持久化。 */
+  async appleLogin(params: {
+    identityToken: string
+    familyName?: string
+    givenName?: string
+  }): Promise<AuthResponse> {
+    try {
+      const data = await apiPost<RawAuthData>('/auth/login/apple', {
+        ...params,
+        referrerCode: getTempReferrer(),
+      })
+      return adaptAuthResult(data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || 'Apple 登录失败' }
+    }
+  },
+  // #endif
+
   /** 手机号注册 — POST /auth/register/phone */
   async register(params: { phone: string; code: string; password: string; nickname: string }): Promise<AuthResponse> {
     try {

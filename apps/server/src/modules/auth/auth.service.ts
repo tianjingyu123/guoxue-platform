@@ -8,6 +8,7 @@ import { User } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { WechatService, WechatLoginClient, WechatLoginType } from "./wechat.service";
+import { AppleLoginService, VerifiedAppleIdentity } from "./apple-login.service";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { buildPhoneFields, phoneHmac } from "../../common/crypto.util";
 import { ImService } from "../im/im.service";
@@ -21,6 +22,7 @@ import {
   SmsLoginDto,
   SendCodeDto,
   WechatLoginDto,
+  AppleLoginDto,
   MiniPhoneLoginDto,
   UpdateProfileDto,
   ChangePasswordDto,
@@ -37,6 +39,7 @@ export class AuthService {
     private jwt: JwtService,
     private redis: RedisService,
     private wechat: WechatService,
+    private appleVerifier: AppleLoginService,
     private im: ImService,
     private webhook: WebhookService,
     private sms: SmsService,
@@ -345,6 +348,78 @@ export class AuthService {
 
     await this.fireUserRegistered(user.id, user.nickname);
     this.importToIm(user.id, user.nickname, user.avatar || undefined);
+    return this.buildLoginResult(user.id);
+  }
+
+  async appleLogin(dto: AppleLoginDto) {
+    let identity: VerifiedAppleIdentity;
+    try {
+      identity = await this.appleVerifier.verifyIdentityToken(dto.identityToken);
+    } catch {
+      this.logger.warn("Apple identityToken 验证失败");
+      throw new BusinessException(ErrorCode.AUTH_TOKEN_INVALID, "Apple 授权已失效，请重试");
+    }
+
+    const namespace = `apple:${identity.audience}`;
+    const existing = await this.prisma.auth.findUnique({
+      where: {
+        provider_namespace_subject: {
+          provider: "APPLE",
+          namespace,
+          subject: identity.subject,
+        },
+      },
+      select: { id: true, userId: true },
+    });
+    if (existing) {
+      await this.prisma.auth.update({
+        where: { id: existing.id },
+        data: { lastUsedAt: new Date() },
+      });
+      return this.buildLoginResult(existing.userId);
+    }
+
+    const nickname = this.buildAppleNickname(dto.familyName, dto.givenName, identity.subject);
+    let user: User;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          nickname,
+          auths: {
+            create: {
+              provider: "APPLE",
+              namespace,
+              subject: identity.subject,
+              appId: identity.audience,
+              lastUsedAt: new Date(),
+              metadata: {
+                emailVerified: identity.emailVerified,
+                isPrivateEmail: identity.isPrivateEmail,
+                realUserStatus: identity.realUserStatus,
+              },
+            },
+          },
+        },
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) throw error;
+      const resolved = await this.prisma.auth.findUnique({
+        where: {
+          provider_namespace_subject: {
+            provider: "APPLE",
+            namespace,
+            subject: identity.subject,
+          },
+        },
+        select: { userId: true },
+      });
+      if (!resolved) throw error;
+      return this.buildLoginResult(resolved.userId);
+    }
+
+    if (dto.referrerCode) await this.bindReferral(user.id, dto.referrerCode);
+    await this.fireUserRegistered(user.id, user.nickname);
+    this.importToIm(user.id, user.nickname);
     return this.buildLoginResult(user.id);
   }
 
@@ -722,6 +797,20 @@ export class AuthService {
   }
 
   // ───────── 私有方法 ─────────
+
+  private buildAppleNickname(familyName?: string, givenName?: string, subject?: string): string {
+    const clean = `${familyName || ""}${givenName || ""}`
+      .split("")
+      .filter((char) => {
+        const code = char.charCodeAt(0);
+        return code >= 32 && code !== 127 && char !== "<" && char !== ">";
+      })
+      .join("")
+      .trim()
+      .slice(0, 20);
+    if (clean.length >= 2) return clean;
+    return `Apple用户${(subject || "user").slice(-6)}`;
+  }
 
   /** 补齐已验证手机号身份；发现历史归属冲突时只拒绝，不允许 upsert 静默改绑。 */
   private async ensurePhoneIdentity(userId: string, phone: string): Promise<void> {

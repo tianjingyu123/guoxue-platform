@@ -115,6 +115,32 @@ export class WechatLoginDto {
   referrerCode?: string;
 }
 
+export class AppleLoginDto {
+  @ApiProperty({ description: "Sign in with Apple 返回的身份令牌" })
+  @IsString()
+  @MinLength(100)
+  @MaxLength(8192)
+  identityToken: string;
+
+  @ApiPropertyOptional({ description: "用户首次授权时选择共享的姓" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  familyName?: string;
+
+  @ApiPropertyOptional({ description: "用户首次授权时选择共享的名" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(50)
+  givenName?: string;
+
+  @ApiPropertyOptional({ description: "推荐码（可选）" })
+  @IsString()
+  @IsOptional()
+  @MaxLength(128)
+  referrerCode?: string;
+}
+
 export class MiniPhoneLoginDto {
   @ApiProperty({ description: "wx.login 返回的 code", example: "081xxx" })
   @IsString()

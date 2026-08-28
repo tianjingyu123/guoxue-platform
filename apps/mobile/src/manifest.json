@@ -3,7 +3,7 @@
     "appid" : "__UNI__277B108",
     "description" : "国学知识平台 · 探寻东方智慧",
     "versionName" : "1.1.0",
-    "versionCode" : "221",
+    "versionCode" : "222",
     "transformPx" : false,
     "uniStatistics" : {
         "enable" : false
@@ -87,7 +87,8 @@
                 },
                 "capabilities" : {
                     "entitlements" : {
-                        "com.apple.developer.associated-domains" : [ "applinks:api.rebugx.cn", "applinks:pre-api.rebugx.cn" ]
+                        "com.apple.developer.associated-domains" : [ "applinks:api.rebugx.cn", "applinks:pre-api.rebugx.cn" ],
+                        "com.apple.developer.applesignin" : [ "Default" ]
                     }
                 },
                 "dSYMs" : false
@@ -120,6 +121,7 @@
             },
             "sdkConfigs" : {
                 "oauth" : {
+                    "apple" : {},
                     "weixin" : {
                         "appid" : "wxb3c0f47634f99c0b",
                         "UniversalLinks" : "https://pre-api.rebugx.cn/h5/"
