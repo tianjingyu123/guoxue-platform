@@ -94,7 +94,7 @@
     "release:verify-predeploy-decision": "node scripts/release/verify-predeploy-decision.mjs",
     "release:test-predeploy-evidence": "node --test tests/release/aggregate-predeploy-evidence.test.mjs tests/release/verify-predeploy-decision.test.mjs",
     "release:audit-monitoring": "node scripts/release/audit-monitoring-readiness.mjs",
-    "release:test-monitoring-renderer": "node --test tests/release/render-monitoring-config.test.mjs",
+    "release:test-monitoring-renderer": "node --test tests/release/render-monitoring-config.test.mjs tests/release/monitoring-rollout-readiness.test.mjs",
     "release:test-tencent-cloud-audit": "node --test tests/release/audit-tencent-cloud-readiness.test.mjs",
     "release:audit-runtime": "node scripts/release/audit-runtime-readiness.mjs",
     "release:render-monitoring": "node scripts/release/render-monitoring-config.mjs",

@@ -118,7 +118,7 @@ fi
 
 wait_for_monitoring() {
   local attempt
-  for attempt in $(seq 1 45); do
+  for attempt in $(seq 1 120); do
     if curl -fsS http://127.0.0.1:9090/-/ready >/dev/null 2>&1 \
       && curl -fsS http://127.0.0.1:9093/-/ready >/dev/null 2>&1 \
       && curl -fsS http://127.0.0.1:3001/api/health >/dev/null 2>&1; then
@@ -126,7 +126,24 @@ wait_for_monitoring() {
     fi
     sleep 2
   done
+  printf '[rollback] 监控就绪超时：prometheus=%s alertmanager=%s grafana=%s\n' \
+    "$(curl -sS -o /dev/null -w '%{http_code}' -m 8 http://127.0.0.1:9090/-/ready 2>/dev/null || printf 000)" \
+    "$(curl -sS -o /dev/null -w '%{http_code}' -m 8 http://127.0.0.1:9093/-/ready 2>/dev/null || printf 000)" \
+    "$(curl -sS -o /dev/null -w '%{http_code}' -m 8 http://127.0.0.1:3001/api/health 2>/dev/null || printf 000)" >&2
   return 1
+}
+
+monitoring_compose_fingerprint() {
+  local release_dir="$1"
+  local resolved_dir escaped_dir
+  resolved_dir="$(realpath -e "$release_dir")" || return 1
+  escaped_dir="$(printf '%s' "$resolved_dir" | sed 's/[#&]/\\&/g')"
+  COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
+    docker compose -f "$resolved_dir/docker/monitoring/docker-compose.yml" \
+      --env-file "$SHARED_ENV_FILE" config 2>/dev/null \
+    | sed "s#$escaped_dir#__RELEASE_DIR__#g" \
+    | sha256sum \
+    | awk '{print $1}'
 }
 
 restore_current_monitoring() {
@@ -161,13 +178,21 @@ if [ "$NODE_ROLE" = "operations" ]; then
   COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
     docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
       --env-file "$SHARED_ENV_FILE" config -q
-  if ! COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
-    docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
-      --env-file "$SHARED_ENV_FILE" up -d \
-    || ! wait_for_monitoring; then
-    restore_current_monitoring \
-      || fail "目标版本监控栈启动失败，且无法恢复当前版本监控配置"
-    fail "目标版本监控栈启动失败；已恢复当前版本监控配置"
+  current_monitoring_fingerprint="$(monitoring_compose_fingerprint "$CURRENT_DIR" || true)"
+  target_monitoring_fingerprint="$(monitoring_compose_fingerprint "$TARGET_DIR" || true)"
+  if [ -n "$current_monitoring_fingerprint" ] \
+    && [ "$current_monitoring_fingerprint" = "$target_monitoring_fingerprint" ] \
+    && wait_for_monitoring; then
+    log "监控配置指纹未变化且现有监控栈健康，跳过无意义重建"
+  else
+    if ! COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
+      docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
+        --env-file "$SHARED_ENV_FILE" up -d \
+      || ! wait_for_monitoring; then
+      restore_current_monitoring \
+        || fail "目标版本监控栈启动失败，且无法恢复当前版本监控配置"
+      fail "目标版本监控栈启动失败；已恢复当前版本监控配置"
+    fi
   fi
 else
   stop_duplicate_monitoring_on_app

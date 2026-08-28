@@ -21,6 +21,8 @@ const alertmanagerTemplate = read("docker/monitoring/alertmanager.yml.template")
 const renderer = read("scripts/release/render-monitoring-config.mjs");
 const deployMonitoring = read("scripts/operations/deploy-monitoring-config.sh");
 const setupServer = read("docker/setup-server.sh");
+const releaseActivator = read("scripts/release/activate-fixed-release.sh");
+const releaseRollback = read("scripts/release/rollback-fixed-release.sh");
 const envExample = read("docker/.env.production.example");
 const packageJson = read("package.json");
 
@@ -179,8 +181,24 @@ add(
 add(
   "监控门禁已接入统一发布门禁",
   packageJson.includes('"release:audit-monitoring"') &&
-    packageJson.includes("pnpm release:audit-monitoring"),
+    packageJson.includes("pnpm release:audit-monitoring") &&
+    packageJson.includes("tests/release/monitoring-rollout-readiness.test.mjs"),
   "每次发布自动阻断路径、网络、端口与告警配置回归",
+);
+
+add(
+  "固定包滚动部署避免无变化监控栈重建",
+  [releaseActivator, releaseRollback].every((source) =>
+    hasAll(source, [
+      "monitoring_compose_fingerprint()",
+      "__RELEASE_DIR__",
+      "seq 1 120",
+      "prometheus=%s alertmanager=%s grafana=%s",
+      "监控配置指纹未变化且现有监控栈健康，跳过无意义重建",
+      "&& wait_for_monitoring; then",
+    ]),
+  ),
+  "配置指纹未变化且现有监控健康时必须跳过重建；确需重建时须给三组件充分就绪时间并输出精确状态码",
 );
 
 add(
