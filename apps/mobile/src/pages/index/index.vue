@@ -26,6 +26,9 @@ import {
 } from "@/lib/feed-data";
 import { getPublishedLayout, type LayoutBlock } from "@/lib/page-layout-data";
 import BlockRenderer from "@/components/layout/block-renderer.vue";
+// #ifdef APP-PLUS
+import { markIosStartupHomeReady } from "@/lib/ios-startup-recovery";
+// #endif
 
 // 自定义导航栏留白
 const statusBarHeight = ref(0);
@@ -157,6 +160,10 @@ async function init() {
 }
 
 onMounted(() => {
+  // #ifdef APP-PLUS
+  // iOS 冷启动看门狗以页面真实挂载为准，避免首页正常显示后又被 reLaunch 成白屏。
+  markIosStartupHomeReady();
+  // #endif
   init();
 });
 
