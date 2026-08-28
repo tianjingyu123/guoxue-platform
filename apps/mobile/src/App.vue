@@ -97,8 +97,8 @@ function pickUrl(args: string | { url?: string }): string {
 }
 
 onLaunch((options?: { path?: string; query?: Record<string, unknown> }) => {
-  // iOS 覆盖升级可能恢复旧版本已不存在的 WebView/页面栈，表现为旧首页快照一闪后白屏。
-  // 每个构建只执行一次首页重建，不清登录态和业务缓存；成功后写入构建标记，避免重复跳转。
+  // iOS 覆盖升级可能恢复仍带首页 route、但已经不可渲染的旧 WebView。
+  // 启动看门狗只重建首页/空栈，不打断深链或已进入的业务页。
   repairIosStartupRoute()
   // #ifdef H5
   // 动态分包加载失败自愈：部署后旧 index.html 被浏览器(尤其 iOS Safari/WebView)顽固缓存、
@@ -151,6 +151,8 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown> }) => {
 })
 // 热启动（小程序从分享卡片再次进入）同样捕获 ref
 onShow((options?: { query?: Record<string, unknown> }) => {
+  // iOS 从后台恢复时也可能丢失首页 WebView；与 onLaunch 共用防重入看门狗。
+  repairIosStartupRoute()
   try {
     captureRefFromQuery(options?.query)
   } catch {
