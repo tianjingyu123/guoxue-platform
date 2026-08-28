@@ -128,6 +128,31 @@ trap cleanup EXIT
 mkdir -m 0750 "$TEMP_DIR"
 tar --no-same-owner --no-same-permissions -xzf "$ARCHIVE" -C "$TEMP_DIR"
 
+# 固定包以最小权限解压时，公开关联文件可能被收紧为 0600/0700。
+# Nginx worker 以非 root 用户运行，绑定挂载后会因此把存在的文件误判为 404。
+# 仅归一化这两个本应公开读取的精确文件，禁止放宽其他发布内容。
+normalize_public_association_permissions() {
+  local release_dir="$1"
+  local association_dir="$release_dir/docker/nginx/well-known"
+  local apple_file="$association_dir/apple-app-site-association"
+  local android_file="$association_dir/assetlinks.json"
+
+  [ -d "$association_dir" ] && [ ! -L "$association_dir" ] \
+    || fail "关联文件目录缺失或不是可信普通目录：$association_dir"
+  [ -f "$apple_file" ] && [ ! -L "$apple_file" ] \
+    || fail "iOS 关联文件缺失或不是可信普通文件：$apple_file"
+  [ -f "$android_file" ] && [ ! -L "$android_file" ] \
+    || fail "Android 关联文件缺失或不是可信普通文件：$android_file"
+
+  chmod 0755 "$association_dir"
+  chmod 0644 "$apple_file" "$android_file"
+  [ "$(stat -c '%a' "$association_dir")" = "755" ] \
+    && [ "$(stat -c '%a' "$apple_file")" = "644" ] \
+    && [ "$(stat -c '%a' "$android_file")" = "644" ] \
+    || fail "公开关联文件权限归一化失败"
+  log "公开关联文件权限已归一化：目录 0755，文件 0644"
+}
+
 REPORT_DIR="$EVIDENCE_DIR/$RELEASE_ID"
 mkdir -p -m 0750 "$REPORT_DIR"
 VERIFY_ARGS=(
@@ -200,6 +225,7 @@ node "$FINAL_DIR/scripts/release/verify-release-directory.mjs" \
   "$FINAL_DIR" --shared-ssl "$SHARED_SSL_DIR" \
   --report "$REPORT_DIR/release-directory-verification.json"
 chmod 0600 "$REPORT_DIR/release-directory-verification.json"
+normalize_public_association_permissions "$FINAL_DIR"
 
 monitoring_http_code() {
   local url="$1" code

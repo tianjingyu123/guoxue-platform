@@ -134,6 +134,10 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
   const prodCompose = await readFile(path.join(projectRoot, "docker/docker-compose.prod.yml"), "utf8");
   const tencentCompose = await readFile(path.join(projectRoot, "docker/docker-compose.tencent.yml"), "utf8");
   const deployScript = await readFile(path.join(projectRoot, "docker/deploy.sh"), "utf8");
+  const releaseActivator = await readFile(
+    path.join(projectRoot, "scripts/release/activate-fixed-release.sh"),
+    "utf8",
+  );
   const androidManifest = await readFile(
     path.join(projectRoot, "apps/mobile/AndroidManifest.xml"),
     "utf8",
@@ -159,6 +163,14 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
     /"\$\{COMPOSE\[@\]\}" up -d --no-deps server nginx/u,
     "已有服务滚动发布必须同时刷新 Nginx，避免继续挂载旧发布目录",
   );
+  assert.match(releaseActivator, /normalize_public_association_permissions\(\)/u);
+  assert.match(releaseActivator, /chmod 0755 "\$association_dir"/u);
+  assert.match(releaseActivator, /chmod 0644 "\$apple_file" "\$android_file"/u);
+  assert.match(
+    releaseActivator,
+    /normalize_public_association_permissions "\$FINAL_DIR"/u,
+    "固定包首次激活和可重入恢复都必须让 Nginx worker 可读取公开关联文件",
+  );
   assert.match(androidManifest, /package="com\.rebu\.apprebu"/u);
   assert.equal(mobileManifest["app-plus"].distribute.android.usesCleartextTraffic, false);
   assert.equal(
@@ -167,7 +179,8 @@ test("当前接入清单生成物已纳入 Nginx 固定发布包且 iOS 描述�
     ),
     false,
   );
-  assert.match(androidManifest, /android:name="io\.dcloud\.PandoraEntry"/u);
+  assert.match(androidManifest, /android:name="com\.rebu\.apprebu\.AppLinkEntry"/u);
+  assert.match(androidManifest, /android:targetActivity="io\.dcloud\.PandoraEntryActivity"/u);
   assert.match(androidManifest, /<intent-filter android:autoVerify="true">/u);
   assert.match(androidManifest, /android:usesCleartextTraffic="false"/u);
   assert.match(androidManifest, /android:networkSecurityConfig="@xml\/network_security_config"/u);

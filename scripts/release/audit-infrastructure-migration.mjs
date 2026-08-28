@@ -1036,6 +1036,10 @@ add(
     "检测到同一固定包留下的发布目录，逐文件复核后执行可重入恢复",
     "同一发布标识已存在不同清单的正式目录，拒绝复用",
     'cmp -s "$TEMP_DIR/RELEASE-MANIFEST.json" "$FINAL_DIR/RELEASE-MANIFEST.json"',
+    "normalize_public_association_permissions()",
+    'chmod 0755 "$association_dir"',
+    'chmod 0644 "$apple_file" "$android_file"',
+    'normalize_public_association_permissions "$FINAL_DIR"',
   ]) &&
     releaseActivator.indexOf("正式落盘前复核候选目录完整性") <
       releaseActivator.indexOf('mv "$TEMP_DIR" "$FINAL_DIR"') &&
