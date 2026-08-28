@@ -30,6 +30,7 @@ RUN_MIGRATION="${RUN_MIGRATION:-false}"
 MIGRATION_DEPLOY_CONFIRM="${MIGRATION_DEPLOY_CONFIRM:-}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guoxue}"
 MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"
+MONITORING_READY_ATTEMPTS="${MONITORING_READY_ATTEMPTS:-120}"
 
 case "$DEPLOY_TARGET" in standard|tencent) ;; *) fail "DEPLOY_TARGET 仅允许 standard 或 tencent" ;; esac
 case "$NODE_ROLE" in app|operations) ;; *) fail "NODE_ROLE 仅允许 app 或 operations" ;; esac
@@ -38,6 +39,10 @@ case "$RUN_MIGRATION" in true|false) ;; *) fail "RUN_MIGRATION 仅允许 true �
 [[ "$COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "COMPOSE_PROJECT_NAME 格式无效"
 [[ "$MONITORING_COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "MONITORING_COMPOSE_PROJECT_NAME 格式无效"
 [ "$MONITORING_COMPOSE_PROJECT_NAME" != "$COMPOSE_PROJECT_NAME" ] || fail "业务栈与监控栈必须使用不同的 Compose 项目名"
+[[ "$MONITORING_READY_ATTEMPTS" =~ ^[0-9]+$ ]] \
+  || fail "MONITORING_READY_ATTEMPTS 必须是正整数"
+[ "$MONITORING_READY_ATTEMPTS" -ge 1 ] && [ "$MONITORING_READY_ATTEMPTS" -le 300 ] \
+  || fail "MONITORING_READY_ATTEMPTS 必须在 1 到 300 之间"
 [[ "$EXPECTED_COMMIT" =~ ^[a-fA-F0-9]{40}$ ]] || fail "EXPECTED_COMMIT 必须是完整的 40 位提交 SHA，正式激活不得省略源提交身份"
 if [ -n "$EXPECTED_CURRENT_RELEASE_ID" ]; then
   [[ "$EXPECTED_CURRENT_RELEASE_ID" =~ ^[A-Za-z0-9._-]{8,80}$ ]] \
@@ -196,16 +201,43 @@ node "$FINAL_DIR/scripts/release/verify-release-directory.mjs" \
   --report "$REPORT_DIR/release-directory-verification.json"
 chmod 0600 "$REPORT_DIR/release-directory-verification.json"
 
+monitoring_http_code() {
+  local url="$1" code
+  code="$(curl -sS --connect-timeout 2 --max-time 5 -o /dev/null \
+    -w '%{http_code}' "$url" 2>/dev/null || true)"
+  [[ "$code" =~ ^[0-9]{3}$ ]] || code="000"
+  printf '%s' "$code"
+}
+
+probe_monitoring_endpoints() {
+  PROMETHEUS_READY_CODE="$(monitoring_http_code http://127.0.0.1:9090/-/ready)"
+  ALERTMANAGER_READY_CODE="$(monitoring_http_code http://127.0.0.1:9093/-/ready)"
+  GRAFANA_READY_CODE="$(monitoring_http_code http://127.0.0.1:3001/api/health)"
+  [[ "$PROMETHEUS_READY_CODE" =~ ^2[0-9]{2}$ ]] \
+    && [[ "$ALERTMANAGER_READY_CODE" =~ ^2[0-9]{2}$ ]] \
+    && [[ "$GRAFANA_READY_CODE" =~ ^2[0-9]{2}$ ]]
+}
+
+log_monitoring_endpoint_status() {
+  log "监控端点状态：Prometheus=$PROMETHEUS_READY_CODE Alertmanager=$ALERTMANAGER_READY_CODE Grafana=$GRAFANA_READY_CODE"
+}
+
 wait_for_monitoring() {
   local attempt
-  for attempt in $(seq 1 45); do
-    if curl -fsS http://127.0.0.1:9090/-/ready >/dev/null 2>&1 \
-      && curl -fsS http://127.0.0.1:9093/-/ready >/dev/null 2>&1 \
-      && curl -fsS http://127.0.0.1:3001/api/health >/dev/null 2>&1; then
+  for ((attempt = 1; attempt <= MONITORING_READY_ATTEMPTS; attempt += 1)); do
+    if probe_monitoring_endpoints; then
+      log_monitoring_endpoint_status
       return 0
+    fi
+    if [ "$attempt" -eq 1 ] || [ $((attempt % 15)) -eq 0 ]; then
+      log "等待监控栈就绪：$attempt/$MONITORING_READY_ATTEMPTS"
+      log_monitoring_endpoint_status
     fi
     sleep 2
   done
+  probe_monitoring_endpoints || true
+  log "监控栈就绪等待超时：$MONITORING_READY_ATTEMPTS 次"
+  log_monitoring_endpoint_status
   return 1
 }
 
@@ -244,13 +276,42 @@ if [ "$NODE_ROLE" = "operations" ]; then
   COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
     docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
       --env-file "$SHARED_ENV_FILE" config -q
-  if ! COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
-    docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
-      --env-file "$SHARED_ENV_FILE" up -d \
-    || ! wait_for_monitoring; then
-    restore_current_monitoring \
-      || fail "新监控栈启动失败，且无法恢复当前版本监控配置"
-    fail "新监控栈启动失败；已恢复当前版本监控配置"
+  MONITORING_CONFIG_UNCHANGED="false"
+  if [ -f "$ROOT_DIR/current/.release-id" ]; then
+    CURRENT_MONITORING_DIR="$(realpath -e "$ROOT_DIR/current")"
+    node "$CURRENT_MONITORING_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE"
+    if ! CURRENT_MONITORING_FINGERPRINT="$(node \
+      "$FINAL_DIR/scripts/release/monitoring-config-fingerprint.mjs" \
+      "$CURRENT_MONITORING_DIR/docker/monitoring")"; then
+      fail "无法计算当前监控配置指纹"
+    fi
+    if ! FINAL_MONITORING_FINGERPRINT="$(node \
+      "$FINAL_DIR/scripts/release/monitoring-config-fingerprint.mjs" \
+      "$FINAL_DIR/docker/monitoring")"; then
+      fail "无法计算候选监控配置指纹"
+    fi
+    if [ "$CURRENT_MONITORING_FINGERPRINT" = "$FINAL_MONITORING_FINGERPRINT" ]; then
+      MONITORING_CONFIG_UNCHANGED="true"
+    fi
+  fi
+  if [ "$MONITORING_CONFIG_UNCHANGED" = "true" ] && probe_monitoring_endpoints; then
+    log_monitoring_endpoint_status
+    log "监控配置指纹未变化且端点已就绪，跳过监控容器重建"
+  else
+    if [ "$MONITORING_CONFIG_UNCHANGED" = "true" ]; then
+      log "监控配置指纹未变化，但现有端点未全部就绪，执行受控恢复"
+      log_monitoring_endpoint_status
+    else
+      log "监控配置指纹已变化，应用新监控配置"
+    fi
+    if ! COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
+      docker compose -f "$FINAL_DIR/docker/monitoring/docker-compose.yml" \
+        --env-file "$SHARED_ENV_FILE" up -d \
+      || ! wait_for_monitoring; then
+      restore_current_monitoring \
+        || fail "新监控栈启动失败，且无法恢复当前版本监控配置"
+      fail "新监控栈启动失败；已恢复当前版本监控配置"
+    fi
   fi
 else
   stop_duplicate_monitoring_on_app

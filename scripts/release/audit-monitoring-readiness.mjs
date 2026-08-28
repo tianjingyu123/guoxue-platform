@@ -20,6 +20,8 @@ const alerts = read("docker/monitoring/alert-rules.yml");
 const alertmanagerTemplate = read("docker/monitoring/alertmanager.yml.template");
 const renderer = read("scripts/release/render-monitoring-config.mjs");
 const deployMonitoring = read("scripts/operations/deploy-monitoring-config.sh");
+const releaseActivator = read("scripts/release/activate-fixed-release.sh");
+const releaseRollback = read("scripts/release/rollback-fixed-release.sh");
 const setupServer = read("docker/setup-server.sh");
 const envExample = read("docker/.env.production.example");
 const packageJson = read("package.json");
@@ -219,6 +221,21 @@ add(
     "业务节点：跳过监控栈启动",
   ]) && (setupServer.match(/exit 1/g) || []).length >= 3,
   "运维节点必须完成配置渲染、容器启动、三组件健康等待和 systemd 自启动；业务节点必须删除重复监控容器但保留数据卷与镜像",
+);
+
+add(
+  "固定发布仅在监控配置变化或端点异常时重建监控栈",
+  [releaseActivator, releaseRollback].every((source) =>
+    hasAll(source, [
+      "monitoring-config-fingerprint.mjs",
+      "MONITORING_READY_ATTEMPTS",
+      "probe_monitoring_endpoints()",
+      "监控端点状态：Prometheus=",
+      "监控配置指纹未变化且端点已就绪，跳过监控容器重建",
+      "监控配置指纹未变化，但现有端点未全部就绪，执行受控恢复",
+    ]),
+  ),
+  "配置未变化且三个端点健康时不得重建监控容器；确需重建时必须延长等待并逐项输出状态",
 );
 
 console.log("监控与告警上线门禁");

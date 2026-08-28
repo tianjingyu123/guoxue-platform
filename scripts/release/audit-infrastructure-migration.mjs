@@ -1142,6 +1142,10 @@ add(
   hasAll(releaseActivator, [
     "restore_current_monitoring()",
     "wait_for_monitoring()",
+    "monitoring-config-fingerprint.mjs",
+    "MONITORING_READY_ATTEMPTS",
+    "监控端点状态：Prometheus=",
+    "监控配置指纹未变化且端点已就绪，跳过监控容器重建",
     "http://127.0.0.1:9090/-/ready",
     "http://127.0.0.1:9093/-/ready",
     "http://127.0.0.1:3001/api/health",
@@ -1154,6 +1158,10 @@ add(
     hasAll(releaseRollback, [
       "restore_current_monitoring()",
       "wait_for_monitoring()",
+      "monitoring-config-fingerprint.mjs",
+      "MONITORING_READY_ATTEMPTS",
+      "监控端点状态：Prometheus=",
+      "监控配置指纹未变化且端点已就绪，跳过监控容器重建",
       "http://127.0.0.1:9090/-/ready",
       "http://127.0.0.1:9093/-/ready",
       "http://127.0.0.1:3001/api/health",

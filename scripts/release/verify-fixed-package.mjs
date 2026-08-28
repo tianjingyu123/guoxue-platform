@@ -359,6 +359,7 @@ try {
       "scripts/release/audit-release-retention.mjs",
       "scripts/release/current-compose.sh",
       "scripts/release/finalize-launch-acceptance.mjs",
+      "scripts/release/monitoring-config-fingerprint.mjs",
       "scripts/release/render-monitoring-config.mjs",
       "scripts/release/rollback-fixed-release.sh",
       "scripts/release/verify-release-directory.mjs",

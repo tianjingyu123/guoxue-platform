@@ -27,6 +27,7 @@ NODE_ROLE="${NODE_ROLE:-operations}"
 RELEASE_CHANNEL="${RELEASE_CHANNEL:-production}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-guoxue}"
 MONITORING_COMPOSE_PROJECT_NAME="${MONITORING_COMPOSE_PROJECT_NAME:-monitoring}"
+MONITORING_READY_ATTEMPTS="${MONITORING_READY_ATTEMPTS:-120}"
 SCHEMA_COMPATIBILITY="${ALLOW_SCHEMA_COMPATIBLE_ROLLBACK:-false}"
 VERIFY_ONLY="${ROLLBACK_VERIFY_ONLY:-false}"
 
@@ -40,6 +41,10 @@ case "$VERIFY_ONLY" in true|false) ;; *) fail "ROLLBACK_VERIFY_ONLY 仅允许 tr
 [[ "$COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "COMPOSE_PROJECT_NAME 格式无效"
 [[ "$MONITORING_COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]{1,62}$ ]] || fail "MONITORING_COMPOSE_PROJECT_NAME 格式无效"
 [ "$MONITORING_COMPOSE_PROJECT_NAME" != "$COMPOSE_PROJECT_NAME" ] || fail "业务栈与监控栈必须使用不同的 Compose 项目名"
+[[ "$MONITORING_READY_ATTEMPTS" =~ ^[0-9]+$ ]] \
+  || fail "MONITORING_READY_ATTEMPTS 必须是正整数"
+[ "$MONITORING_READY_ATTEMPTS" -ge 1 ] && [ "$MONITORING_READY_ATTEMPTS" -le 300 ] \
+  || fail "MONITORING_READY_ATTEMPTS 必须在 1 到 300 之间"
 
 for command_name in bash node tar sha256sum realpath flock stat awk ln mv rm curl seq; do
   command -v "$command_name" >/dev/null 2>&1 || fail "缺少必要命令：$command_name"
@@ -116,16 +121,43 @@ if [ "$VERIFY_ONLY" = "true" ]; then
   exit 0
 fi
 
+monitoring_http_code() {
+  local url="$1" code
+  code="$(curl -sS --connect-timeout 2 --max-time 5 -o /dev/null \
+    -w '%{http_code}' "$url" 2>/dev/null || true)"
+  [[ "$code" =~ ^[0-9]{3}$ ]] || code="000"
+  printf '%s' "$code"
+}
+
+probe_monitoring_endpoints() {
+  PROMETHEUS_READY_CODE="$(monitoring_http_code http://127.0.0.1:9090/-/ready)"
+  ALERTMANAGER_READY_CODE="$(monitoring_http_code http://127.0.0.1:9093/-/ready)"
+  GRAFANA_READY_CODE="$(monitoring_http_code http://127.0.0.1:3001/api/health)"
+  [[ "$PROMETHEUS_READY_CODE" =~ ^2[0-9]{2}$ ]] \
+    && [[ "$ALERTMANAGER_READY_CODE" =~ ^2[0-9]{2}$ ]] \
+    && [[ "$GRAFANA_READY_CODE" =~ ^2[0-9]{2}$ ]]
+}
+
+log_monitoring_endpoint_status() {
+  log "监控端点状态：Prometheus=$PROMETHEUS_READY_CODE Alertmanager=$ALERTMANAGER_READY_CODE Grafana=$GRAFANA_READY_CODE"
+}
+
 wait_for_monitoring() {
   local attempt
-  for attempt in $(seq 1 45); do
-    if curl -fsS http://127.0.0.1:9090/-/ready >/dev/null 2>&1 \
-      && curl -fsS http://127.0.0.1:9093/-/ready >/dev/null 2>&1 \
-      && curl -fsS http://127.0.0.1:3001/api/health >/dev/null 2>&1; then
+  for ((attempt = 1; attempt <= MONITORING_READY_ATTEMPTS; attempt += 1)); do
+    if probe_monitoring_endpoints; then
+      log_monitoring_endpoint_status
       return 0
+    fi
+    if [ "$attempt" -eq 1 ] || [ $((attempt % 15)) -eq 0 ]; then
+      log "等待监控栈就绪：$attempt/$MONITORING_READY_ATTEMPTS"
+      log_monitoring_endpoint_status
     fi
     sleep 2
   done
+  probe_monitoring_endpoints || true
+  log "监控栈就绪等待超时：$MONITORING_READY_ATTEMPTS 次"
+  log_monitoring_endpoint_status
   return 1
 }
 
@@ -161,13 +193,39 @@ if [ "$NODE_ROLE" = "operations" ]; then
   COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
     docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
       --env-file "$SHARED_ENV_FILE" config -q
-  if ! COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
-    docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
-      --env-file "$SHARED_ENV_FILE" up -d \
-    || ! wait_for_monitoring; then
-    restore_current_monitoring \
-      || fail "目标版本监控栈启动失败，且无法恢复当前版本监控配置"
-    fail "目标版本监控栈启动失败；已恢复当前版本监控配置"
+  node "$CURRENT_DIR/scripts/release/render-monitoring-config.mjs" "$SHARED_ENV_FILE"
+  if ! CURRENT_MONITORING_FINGERPRINT="$(node \
+    "$CURRENT_DIR/scripts/release/monitoring-config-fingerprint.mjs" \
+    "$CURRENT_DIR/docker/monitoring")"; then
+    fail "无法计算当前监控配置指纹"
+  fi
+  if ! TARGET_MONITORING_FINGERPRINT="$(node \
+    "$CURRENT_DIR/scripts/release/monitoring-config-fingerprint.mjs" \
+    "$TARGET_DIR/docker/monitoring")"; then
+    fail "无法计算目标监控配置指纹"
+  fi
+  MONITORING_CONFIG_UNCHANGED="false"
+  if [ "$CURRENT_MONITORING_FINGERPRINT" = "$TARGET_MONITORING_FINGERPRINT" ]; then
+    MONITORING_CONFIG_UNCHANGED="true"
+  fi
+  if [ "$MONITORING_CONFIG_UNCHANGED" = "true" ] && probe_monitoring_endpoints; then
+    log_monitoring_endpoint_status
+    log "监控配置指纹未变化且端点已就绪，跳过监控容器重建"
+  else
+    if [ "$MONITORING_CONFIG_UNCHANGED" = "true" ]; then
+      log "监控配置指纹未变化，但现有端点未全部就绪，执行受控恢复"
+      log_monitoring_endpoint_status
+    else
+      log "监控配置指纹已变化，应用目标监控配置"
+    fi
+    if ! COMPOSE_PROJECT_NAME="$MONITORING_COMPOSE_PROJECT_NAME" \
+      docker compose -f "$TARGET_DIR/docker/monitoring/docker-compose.yml" \
+        --env-file "$SHARED_ENV_FILE" up -d \
+      || ! wait_for_monitoring; then
+      restore_current_monitoring \
+        || fail "目标版本监控栈启动失败，且无法恢复当前版本监控配置"
+      fail "目标版本监控栈启动失败；已恢复当前版本监控配置"
+    fi
   fi
 else
   stop_duplicate_monitoring_on_app
