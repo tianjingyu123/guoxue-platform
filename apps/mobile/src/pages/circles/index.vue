@@ -19,6 +19,7 @@ import {
 } from '@/lib/circle-data'
 import { circleDetailApi } from '@/lib/circle-detail-data'
 import { growthApi } from '@/lib/circle-growth-data'
+import { markMainTabReady } from '@/lib/main-tab-runtime'
 
 const category = ref('')
 const circles = ref<Circle[]>([])
@@ -212,6 +213,9 @@ onPullDownRefresh(async () => {
 // 返回本页刷新「已加入」态（详情页加入/退出后回来即时反映）
 let _firstShow = true
 onShow(() => {
+  // #ifdef APP-PLUS
+  markMainTabReady('/pages/circles/index')
+  // #endif
   if (_firstShow) { _firstShow = false; return }
   loadExtras()
 })

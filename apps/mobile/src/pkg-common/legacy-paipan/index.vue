@@ -2,13 +2,14 @@
 import { onMounted, ref } from 'vue'
 import { onBackPress } from '@dcloudio/uni-app'
 import { legacyPaipanApi } from '@/lib/legacy-paipan-data'
+import { navigateTo } from '@/utils/router'
 
 const loading = ref(true)
 const error = ref('')
 const legacyUrl = ref('')
 
 function returnToNewSystem() {
-  uni.reLaunch({ url: '/pages/index/index' })
+  navigateTo('/pages/index/index')
 }
 
 async function loadEntry() {
@@ -18,7 +19,7 @@ async function loadEntry() {
   try {
     const entry = await legacyPaipanApi.entry()
     if (entry.mode !== 'legacy') {
-      uni.reLaunch({ url: '/pages/paipan/index' })
+      navigateTo('/pages/paipan/index')
       return
     }
     if (!entry.url || !entry.url.startsWith('https://')) throw new Error('旧排盘地址未正确配置')

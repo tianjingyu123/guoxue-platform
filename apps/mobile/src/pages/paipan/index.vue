@@ -26,6 +26,7 @@ import {
 import { legacyPaipanApi } from "@/lib/legacy-paipan-data";
 import { navigateTo } from "@/utils/router";
 import { setNativeQaSession } from "@/lib/paipan-runtime";
+import { consumeMainTabIntent, markMainTabReady } from "@/lib/main-tab-runtime";
 
 const GRID_COLS = 4;
 const COLLAPSED_ROWS = 3;
@@ -42,6 +43,18 @@ const qaNotFound = ref(false);
 let entryTarget: "tool" | "account" | "station" = "tool";
 let entryStationId = "";
 let nativeQaRequested = false;
+let entryInitialized = false;
+
+function applyEntryQuery(query?: Record<string, string>) {
+  entryTarget =
+    query?.target === "account"
+      ? "account"
+      : query?.target === "station"
+        ? "station"
+        : "tool";
+  entryStationId = String(query?.stationId || "");
+  nativeQaRequested = query?.nativeQa === "1";
+}
 
 // ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
 let pageTitle = "排盘工具";
@@ -249,14 +262,7 @@ async function loadPaipanEntry() {
 }
 
 onLoad((query?: Record<string, string>) => {
-  entryTarget =
-    query?.target === "account"
-      ? "account"
-      : query?.target === "station"
-        ? "station"
-        : "tool";
-  entryStationId = String(query?.stationId || "");
-  nativeQaRequested = query?.nativeQa === "1";
+  applyEntryQuery(query);
   // #ifdef H5
   if (nativeQaRequested && typeof document !== "undefined") {
     const meta = document.createElement("meta");
@@ -268,14 +274,28 @@ onLoad((query?: Record<string, string>) => {
 });
 
 onMounted(() => {
+  entryInitialized = true;
   void loadPaipanEntry();
 });
 onShow(() => {
+  // #ifdef APP-PLUS
+  markMainTabReady("/pages/paipan/index");
+  // #endif
   if (legacyRouting.value) {
     legacyRouting.value = false;
-    uni.reLaunch({ url: "/pages/index/index" });
+    navigateTo("/pages/index/index");
     return;
   }
+  // App 原生 switchTab 不携带 query；消费路由层保存的一次性安全参数。
+  // 缓存 tab 再次打开“我的排盘/分站排盘”时，必须按新入口重新取旧排盘地址。
+  // #ifdef APP-PLUS
+  const intent = consumeMainTabIntent("/pages/paipan/index");
+  if (intent) {
+    applyEntryQuery(intent);
+    if (entryInitialized) void loadPaipanEntry();
+    return;
+  }
+  // #endif
   favIds.value = getFavorites();
 });
 </script>

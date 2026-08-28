@@ -1,4 +1,5 @@
 import { legacyPaipanApi } from "@/lib/legacy-paipan-data";
+import { navigateTo } from "@/utils/router";
 
 const MODE_KEY = "paipan:runtime-mode";
 const QA_KEY = "paipan:native-qa-session";
@@ -38,6 +39,6 @@ export async function hydratePaipanRuntime(): Promise<"legacy" | "native"> {
 
 export function redirectNativePaipanToLegacy(url: string): boolean {
   if (!isNativePaipanPath(url) || canOpenNativePaipan()) return false;
-  uni.reLaunch({ url: "/pages/paipan/index" });
+  navigateTo("/pages/paipan/index");
   return true;
 }

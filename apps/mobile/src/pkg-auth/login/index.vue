@@ -544,16 +544,12 @@ function goAfterLogin() {
   if (redirect && redirect.startsWith('/') && !redirect.startsWith('/pkg-auth/')) {
     // 唯一「真正消费」redirect 的分支：到这里才 remove（一次性）
     consumeRedirect()
-    uni.reLaunch({
-      url: redirect,
-      // 回跳失败（目标页被下架等）兜底回首页，不让用户卡在登录页
-      fail: () => uni.reLaunch({ url: '/pages/index/index' }),
-    })
+    reLaunch(redirect)
     return
   }
   // redirect 为空或非法（非 / 开头 / pkg-auth 自身路径被拒）：非法值也清掉，防脏数据长期滞留
   if (redirect) consumeRedirect()
-  uni.reLaunch({ url: '/pages/index/index' })
+  reLaunch('/pages/index/index')
 }
 
 /** 置灰按钮点击不再静默：按填写顺序提示第一个缺项（校验口径与 canSubmit 完全一致） */

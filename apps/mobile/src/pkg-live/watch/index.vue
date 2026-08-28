@@ -372,7 +372,7 @@ import GiftPanel from '@/components/live/gift-panel.vue'
 import MicConnectSheet from '@/pkg-live/mic-connect-sheet.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { isLiveTrtcSupported } from '@/pkg-live/live-trtc-client'
-import { goBack, navigateTo } from '@/utils/router'
+import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { gotoReport } from '@/lib/report-data'
 import { getToken, getUserInfo } from '@/utils/storage'
 import { withRef } from '@/utils/referral'
@@ -700,7 +700,7 @@ function normalizeReturnRoute(value: unknown) {
 
 function returnToLiveEntrance() {
   if (returnRoute.value) {
-    uni.reLaunch({ url: returnRoute.value })
+    reLaunch(returnRoute.value)
     return
   }
   if (getCurrentPages().length > 1) {
@@ -708,7 +708,7 @@ function returnToLiveEntrance() {
     return
   }
   // 深链或冷启动没有历史栈时，明确回到直播入口，不能落到与直播无关的首页。
-  uni.reLaunch({ url: '/pkg-live/plaza/index' })
+  reLaunch('/pkg-live/plaza/index')
 }
 
 async function advanceAfterEnd() {

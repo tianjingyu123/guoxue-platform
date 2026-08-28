@@ -381,7 +381,7 @@ async function handleRegister() {
       setUserInfo(res.data.user)
       // 未完成兴趣引导 → 先走欢迎峰值页；已选择或明确跳过的用户直接进首页
       if (hasCompletedInterestGuide()) {
-        uni.reLaunch({ url: '/pages/index/index' })
+        reLaunch('/pages/index/index')
       } else {
         reLaunch('/welcome')
       }

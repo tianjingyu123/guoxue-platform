@@ -9,8 +9,9 @@ import { requestParentContentLayerClose } from '@/utils/content-detail-layer'
 import { checkForAppUpdate } from '@/lib/app-update'
 import { hydrateRemoteConfig, notifyMaintenanceIfNeeded } from '@/lib/remote-config'
 import { parseAppEntryLink } from '@/utils/app-entry-link'
-import { resolveRoute } from '@/utils/router'
+import { resolveRoute, reLaunch as routeReLaunch } from '@/utils/router'
 import { hydratePaipanRuntime, redirectNativePaipanToLegacy } from '@/lib/paipan-runtime'
+import { recoverPendingMainTabSwitch } from '@/lib/main-tab-runtime'
 
 type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
 
@@ -57,7 +58,7 @@ function installH5BackExperience() {
     if (requestParentContentLayerClose()) return
     const pages = getCurrentPages()
     if (pages.length > 1) uni.navigateBack({ delta: 1 })
-    else uni.reLaunch({ url: '/pages/index/index' })
+    else routeReLaunch('/pages/index/index')
   }
   const cancel = () => { tracking = false }
   document.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -266,10 +267,7 @@ function reLaunchAppEntryWhenReady(target: string, retries = 20): void {
     setTimeout(() => reLaunchAppEntryWhenReady(target, retries - 1), 100)
     return
   }
-  uni.reLaunch({
-    url: target,
-    fail: () => uni.reLaunch({ url: '/pages/index/index' }),
-  })
+  routeReLaunch(target)
   // #endif
 }
 
@@ -322,6 +320,10 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown> }) => {
   })
   // #endif
   installH5BackExperience()
+  // App 上次主 tab 切换若没有被目标页确认，提供一次原生中文恢复入口。
+  // #ifdef APP-PLUS
+  recoverPendingMainTabSwitch()
+  // #endif
   // 无感登录：URL 带一次性握手码（后台跳转发文链接）→ 换取会话，赶在业务请求之前上闩
   try { bootstrapHandoff(options?.query) } catch { /* 不影响启动 */ }
   // 品牌配置水合（租-T0）：从后端拉取站名/标语/主色等，失败静默用内置默认值
@@ -398,7 +400,7 @@ onError((err) => {
 // 回首页而非留白屏（uni onPageNotFound 在 H5 亦触发；首页路径恒存在，不会循环）。
 onPageNotFound((res) => {
   try { track.custom('page_not_found', { path: res?.path || '' }) } catch { /* 上报失败不影响兜底 */ }
-  uni.reLaunch({ url: '/pages/index/index' })
+  routeReLaunch('/pages/index/index')
 })
 </script>
 
