@@ -3,7 +3,7 @@
     "appid" : "__UNI__277B108",
     "description" : "国学知识平台 · 探寻东方智慧",
     "versionName" : "1.1.0",
-    "versionCode" : "218",
+    "versionCode" : "224",
     "transformPx" : false,
     "uniStatistics" : {
         "enable" : false
@@ -30,6 +30,7 @@
             }
         },
         "modules" : {
+            "OAuth" : {},
             "Payment" : {},
             "VideoPlayer" : {}
         },
@@ -86,12 +87,46 @@
                 },
                 "capabilities" : {
                     "entitlements" : {
-                        "com.apple.developer.associated-domains" : [ "applinks:api.rebugx.cn" ]
+                        "com.apple.developer.associated-domains" : [ "applinks:api.rebugx.cn" ],
+                        "com.apple.developer.applesignin" : [ "Default" ]
                     }
                 },
                 "dSYMs" : false
             },
+            "icons" : {
+                "ios" : {
+                    "appstore" : "unpackage/res/icons/1024x1024.png",
+                    "iphone" : {
+                        "app@2x" : "unpackage/res/icons/120x120.png",
+                        "app@3x" : "unpackage/res/icons/180x180.png",
+                        "notification@2x" : "unpackage/res/icons/40x40.png",
+                        "notification@3x" : "unpackage/res/icons/60x60.png",
+                        "settings@2x" : "unpackage/res/icons/58x58.png",
+                        "settings@3x" : "unpackage/res/icons/87x87.png",
+                        "spotlight@2x" : "unpackage/res/icons/80x80.png",
+                        "spotlight@3x" : "unpackage/res/icons/120x120.png"
+                    },
+                    "ipad" : {
+                        "app" : "unpackage/res/icons/76x76.png",
+                        "app@2x" : "unpackage/res/icons/152x152.png",
+                        "notification" : "unpackage/res/icons/20x20.png",
+                        "notification@2x" : "unpackage/res/icons/40x40.png",
+                        "proapp@2x" : "unpackage/res/icons/167x167.png",
+                        "settings" : "unpackage/res/icons/29x29.png",
+                        "settings@2x" : "unpackage/res/icons/58x58.png",
+                        "spotlight" : "unpackage/res/icons/40x40.png",
+                        "spotlight@2x" : "unpackage/res/icons/80x80.png"
+                    }
+                }
+            },
             "sdkConfigs" : {
+                "oauth" : {
+                    "apple" : {},
+                    "weixin" : {
+                        "appid" : "wxb3c0f47634f99c0b",
+                        "UniversalLinks" : "https://api.rebugx.cn/h5/"
+                    }
+                },
                 "payment" : {
                     "appleiap" : {}
                 }
@@ -101,7 +136,14 @@
     "quickapp" : {},
     "app-harmony" : {
         "distribute" : {
-            "bundleName" : "com.rebu.apprebu"
+            "bundleName" : "com.rebu.apprebu",
+            "modules" : {
+                "uni-oauth" : {
+                    "weixin" : {
+                        "appid" : "wxb3c0f47634f99c0b"
+                    }
+                }
+            }
         }
     },
     "mp-weixin" : {

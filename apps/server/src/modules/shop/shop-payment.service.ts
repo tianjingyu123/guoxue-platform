@@ -19,6 +19,7 @@ import { ShopOrderService } from "./shop-order.service";
 import { EntitlementService } from "../entitlement/entitlement.service";
 import { RMB_TO_FEN } from "../../common/constants";
 import { serverConfig } from "../../config/server-config";
+import { StationPaipanSyncService } from "../station/station-paipan-sync.service";
 
 /** 运营商档位高低序（用于开通/续期时「只升不降」判定；对齐 schema enum OperatorLevel） */
 const OPERATOR_LEVEL_RANK: Record<string, number> = {
@@ -55,6 +56,7 @@ export class ShopPaymentService {
     @Optional() private huifu?: HuifuService,
     @Inject(CommissionService) private commissionSvc?: CommissionService,
     @Inject(CoinService) private coinSvc?: CoinService,
+    @Optional() private readonly stationPaipan?: StationPaipanSyncService,
   ) {
     this.huifu?.registerPaymentNotifyHandler((payload) => this.handleHuifuNotify(payload));
   }
@@ -847,6 +849,14 @@ export class ShopPaymentService {
     if (processor) await processor(order, tx);
   }
 
+  /** 只能在支付事务提交后触发；第三方异常不影响已经确认的支付结果。 */
+  triggerPostCommitTasks(order: Pick<Order, "type" | "userId">): void {
+    if (order.type !== "STATION_MASTER" || !this.stationPaipan) return;
+    void this.stationPaipan.syncByUserId(order.userId).catch(() => {
+      this.logger.warn("旧排盘分站异步同步未完成 code=POST_COMMIT_SYNC_FAILED");
+    });
+  }
+
   /** 事务内更新订单状态为 PAID + 按类型触发后处理 */
   private async processPaidOrder(
     order: { id: string; type: string; userId: string; amount: any; targetId?: string | null; referrerId?: string | null },
@@ -873,6 +883,7 @@ export class ShopPaymentService {
       const processor = this.paidPostProcessors[order.type];
       if (processor) await processor(order as Order, tx);
     });
+    this.triggerPostCommitTasks(order as Order);
     // 入账成功后立即清订单缓存：否则 getOrder 命中旧 PENDING 缓存(TTL 300s)，
     // 导致支付页轮询 getOrderPayState 永远读到未支付(不跳转)、订单详情显示「待付款」。
     await this.orderSvc.invalidateOrderCache(order.id, order.userId).catch((e) => this.logger.warn(`订单缓存清除失败 order=${order.id}`, e));

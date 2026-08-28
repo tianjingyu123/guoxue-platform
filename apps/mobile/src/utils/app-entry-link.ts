@@ -1,5 +1,3 @@
-/** 原生 App Link 的最小可信边界。预发布域名仅用于真机验收，正式包仍只声明生产域名。 */
-const TRUSTED_APP_LINK_HOSTS = new Set(['api.rebugx.cn', 'pre-api.rebugx.cn'])
 const APP_LINK_PATH_PREFIX = '/h5/'
 const MAX_APP_LINK_LENGTH = 2048
 const SENSITIVE_QUERY_KEYS = new Set([
@@ -20,10 +18,20 @@ const SENSITIVE_QUERY_KEYS = new Set([
  * 编码斜杠/反斜杠/空字节或可复用凭据。一次性 handoff 码可以保留，后续仍由后端
  * 单次兑换并立即失效。
  */
-export function parseAppEntryLink(raw: unknown): string | null {
+export function parseAppEntryLink(
+  raw: unknown,
+  apiOrigin: unknown = (import.meta as any).env?.VITE_API_URL,
+): string | null {
   if (typeof raw !== 'string') return null
   const value = raw.trim()
   if (!value || value.length > MAX_APP_LINK_LENGTH) return null
+
+  // 可信主机来自构建时已审计的 API Origin，避免在运行时代码中固化环境域名。
+  // 这里只接受 HTTPS、默认端口且不带路径的 Origin。
+  const configuredOrigin = String(apiOrigin || '').trim()
+  const configuredMatch = /^https:\/\/([a-z0-9.-]+)(?::443)?\/?$/iu.exec(configuredOrigin)
+  if (!configuredMatch) return null
+  const trustedHostname = configuredMatch[1].toLowerCase()
 
   // DCloud Android JS 运行时不保证提供 WHATWG URL。这里按 App Link 所需的
   // HTTPS 子集严格拆分，既避免运行时兼容问题，也不把任意 URL 当站内路由。
@@ -42,7 +50,7 @@ export function parseAppEntryLink(raw: unknown): string | null {
   const portSeparator = authority.lastIndexOf(':')
   const hostname = (portSeparator >= 0 ? authority.slice(0, portSeparator) : authority).toLowerCase()
   const port = portSeparator >= 0 ? authority.slice(portSeparator + 1) : ''
-  if (!TRUSTED_APP_LINK_HOSTS.has(hostname) || (portSeparator >= 0 && port !== '443')) return null
+  if (hostname !== trustedHostname || (portSeparator >= 0 && port !== '443')) return null
 
   const fragmentIndex = remainder.indexOf('#')
   const withoutFragment = fragmentIndex >= 0 ? remainder.slice(0, fragmentIndex) : remainder

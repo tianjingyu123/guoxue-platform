@@ -254,11 +254,11 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     ],
   },
   {
-    key: "wechat_open", label: "微信开放平台（登录/分享）", category: "微信", enabled: false,
-    note: "网站/APP的微信登录，在开放平台 open.weixin.qq.com 创建。（H5微信登录用到再配）",
+    key: "wechat_open", label: "微信开放平台（APP登录/分享）", category: "微信",
+    note: "APP 微信登录使用开放平台移动应用凭据；保存凭据不会自动开放入口，只有功能开关 client_wechat_app_login 显式开启后才生效。H5 网页授权继续使用“微信公众号”卡片，小程序登录继续使用“微信小程序”卡片。",
     fields: [
-      S("appId", "AppID", "WECHAT_APP_ID", false, "微信开放平台→管理中心→网站/移动应用→应用详情→AppID"),
-      S("appSecret", "AppSecret", "WECHAT_APP_SECRET", true, "微信开放平台→应用详情→AppSecret"),
+      S("appId", "移动应用 AppID", "WECHAT_OPEN_APP_ID", false, "微信开放平台→管理中心→移动应用→应用详情→AppID"),
+      S("appSecret", "移动应用 AppSecret", "WECHAT_OPEN_APP_SECRET", true, "微信开放平台→移动应用→应用详情→AppSecret"),
     ],
   },
   // ───────── AI ─────────

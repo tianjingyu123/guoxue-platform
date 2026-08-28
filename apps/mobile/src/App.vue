@@ -10,6 +10,7 @@ import { checkForAppUpdate } from '@/lib/app-update'
 import { hydrateRemoteConfig, notifyMaintenanceIfNeeded } from '@/lib/remote-config'
 import { parseAppEntryLink } from '@/utils/app-entry-link'
 import { resolveRoute } from '@/utils/router'
+import { hydratePaipanRuntime, redirectNativePaipanToLegacy } from '@/lib/paipan-runtime'
 
 type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
 
@@ -308,7 +309,7 @@ function pickUrl(args: string | { url?: string }): string {
   return url ? String(url).split('?')[0] : ''
 }
 
-onLaunch((options?: { query?: Record<string, unknown> }) => {
+onLaunch((options?: { path?: string; query?: Record<string, unknown> }) => {
   // #ifdef H5
   // 动态分包加载失败自愈：部署后旧 index.html 被浏览器(尤其 iOS Safari/WebView)顽固缓存、
   // 引用了已被替换的旧 chunk 时，懒加载分包(如设置页)会 preloadError 导致白屏。
@@ -327,6 +328,10 @@ onLaunch((options?: { query?: Record<string, unknown> }) => {
   hydrateBrandConfig()
   // 远程配置 V1：失败时自动使用最近有效快照/内置默认值，绝不阻断启动。
   void hydrateRemoteConfig().then(notifyMaintenanceIfNeeded)
+  // 排盘运行模式必须由服务端决定；取不到配置时按 legacy 关闭自研入口。
+  void hydratePaipanRuntime().then(() => {
+    if (options?.path) redirectNativePaipanToLegacy(`/${options.path}`)
+  })
   // RUM 性能采集（T3 可观测·仅 H5 生效）
   initWebVitals()
   // 推荐归因：冷启动落地页携带 ref（分享链接）时记录最近分享者
@@ -340,6 +345,7 @@ onLaunch((options?: { query?: Record<string, unknown> }) => {
   routeApis.forEach((api) => {
     uni.addInterceptor(api, {
       invoke(args: { url?: string }) {
+        if (args?.url && redirectNativePaipanToLegacy(args.url)) return false
         // 埋点/归因拦截器自身异常绝不能影响跳转放行
         try {
           const path = pickUrl(args)
@@ -369,6 +375,13 @@ onShow((options?: { query?: Record<string, unknown>; appLink?: unknown; appSchem
   void checkForAppUpdate()
   // 热启动按服务端 TTL 复检；命中缓存不会重复发请求。
   void hydrateRemoteConfig().then(notifyMaintenanceIfNeeded)
+  void hydratePaipanRuntime().then(() => {
+    try {
+      const pages = getCurrentPages()
+      const current = pages[pages.length - 1] as { route?: string }
+      if (current?.route) redirectNativePaipanToLegacy(`/${current.route}`)
+    } catch { /* 门禁复检失败时不放行新的自研跳转 */ }
+  })
 })
 // 切后台主动 flush 埋点队列，避免残留事件丢失
 onHide(() => { track.flushNow() })

@@ -2,7 +2,7 @@ import "reflect-metadata";
 import { validate } from "class-validator";
 import {
   PhoneRegisterDto, PhoneLoginDto, SmsLoginDto,
-  SendCodeDto, WechatLoginDto, UpdateProfileDto, ChangePasswordDto,
+  SendCodeDto, WechatLoginDto, AppleLoginDto, UpdateProfileDto, ChangePasswordDto,
 } from "./auth.dto";
 
 describe("Auth DTO 校验", () => {
@@ -92,6 +92,18 @@ describe("Auth DTO 校验", () => {
     it("缺 code 报错", async () => {
       const dto = Object.assign(new WechatLoginDto(), {});
       const errors = await validate(dto); expect(errors.length).toBeGreaterThan(0);
+    });
+  });
+  describe("AppleLoginDto", () => {
+    it("合法 identityToken 通过", async () => {
+      const dto = Object.assign(new AppleLoginDto(), { identityToken: "x".repeat(100) });
+      expect((await validate(dto)).length).toBe(0);
+    });
+    it("拒绝缺失或过短的 identityToken", async () => {
+      const missing = Object.assign(new AppleLoginDto(), {});
+      const short = Object.assign(new AppleLoginDto(), { identityToken: "short" });
+      expect((await validate(missing)).length).toBeGreaterThan(0);
+      expect((await validate(short)).length).toBeGreaterThan(0);
     });
   });
   describe("UpdateProfileDto", () => {

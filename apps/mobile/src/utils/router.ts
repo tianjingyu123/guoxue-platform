@@ -582,7 +582,10 @@ export function toastComingSoon() {
 export function navigateTo(url: string) {
   const target = resolveRoute(url)
   const path = target.split('?')[0]
-  if (MAIN_TABS.includes(path)) { uni.reLaunch({ url: target }); return }
+  // 五个主页面使用自定义底部导航，并非原生 tabBar。连续 reLaunch 会反复销毁并重建
+  // App 页面 WebView，iOS 真机表现为页面先出现、随后白屏；redirectTo 只替换当前页，
+  // 保持单页主导航语义且不触发整个页面栈重建。
+  if (MAIN_TABS.includes(path)) { uni.redirectTo({ url: target, fail: () => toastComingSoon() }); return }
   uni.navigateTo({ url: target, fail: () => toastComingSoon() })
 }
 /** 内容卡专用：H5 从来源卡片原位打开详情层；其他终端自动走普通详情页。 */

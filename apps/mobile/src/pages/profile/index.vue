@@ -128,7 +128,7 @@ const orderStatus = computed(() => [
    这些页面全是"做完了但没人跳得进去"的孤岛，用户体感就是"这个没做"。
    （lib/profile-data 里那份 quickFunctions 是死常量、没人读，已删。） */
 const matrixItems: { icon: string; label: string; href: string; star?: boolean }[] = [
-  { icon: 'compass', label: '我的排盘记录', href: '/paipan', star: true },
+  { icon: 'compass', label: '我的排盘记录', href: '/pages/paipan/index?target=account', star: true },
   { icon: 'book-open', label: '我的课程', href: '/courses/my-learning' },
   // 我的圈子 → 圈子板块「我的」门户 /pkg-circle/circles/me（与圈子页右上角头像入口指向同一页）
   { icon: 'users', label: '我的圈子', href: '/pkg-circle/circles/me' },

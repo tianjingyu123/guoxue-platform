@@ -1902,6 +1902,13 @@
           }
         },
         {
+          "path": "station-paipan-auth/index",
+          "style": {
+            "navigationStyle": "default",
+            "navigationBarTitleText": "排盘授权"
+          }
+        },
+        {
           "path": "station-poster/index",
           "style": {
             "navigationStyle": "custom"

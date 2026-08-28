@@ -181,8 +181,14 @@ const required = [
   "VITE_API_URL",
   "VITE_PUBLIC_H5_URL",
   "VITE_PUBLIC_ASSET_ORIGIN",
-  "PAIPAN_LEGACY_MODE",
-  "PAIPAN_H5_BASE",
+  "PAIPAN_MODE",
+  "PAIPAN_LEGACY_DISPLAY_VERSION",
+  "PAIPAN_NATIVE_QA_ENABLED",
+  "PAIPAN_OPERATION_H5_BASE",
+  "PAIPAN_USER_LOOKUP_URL",
+  "PAIPAN_PARTNER_OPEN_URL",
+  "PAIPAN_PARTNER_OAUTH_URL",
+  "PAIPAN_REFERRAL_BASE",
 ];
 if (fullCheck && deployTarget === "tencent") {
   required.push(
@@ -316,7 +322,11 @@ const urlKeys = [
   "UNIONPAY_NOTIFY_URL",
   "HUIFU_NOTIFY_URL",
   "KUAIDI100_CALLBACK_URL",
-  "PAIPAN_H5_BASE",
+  "PAIPAN_OPERATION_H5_BASE",
+  "PAIPAN_USER_LOOKUP_URL",
+  "PAIPAN_PARTNER_OPEN_URL",
+  "PAIPAN_PARTNER_OAUTH_URL",
+  "PAIPAN_REFERRAL_BASE",
 ];
 const parsedUrls = new Map();
 for (const key of urlKeys) {
@@ -416,24 +426,34 @@ if (deployTarget === "tencent") {
   }
 }
 
-const paipanLegacyMode = (values.get("PAIPAN_LEGACY_MODE") || "").trim().toLowerCase();
-if (paipanLegacyMode && !["true", "false"].includes(paipanLegacyMode)) {
-  errors.push("PAIPAN_LEGACY_MODE 仅支持 true 或 false");
+const paipanMode = (values.get("PAIPAN_MODE") || "").trim().toLowerCase();
+if (!["legacy", "native"].includes(paipanMode)) errors.push("PAIPAN_MODE 仅支持 legacy 或 native");
+if (fullCheck && releaseChannel === "production" && paipanMode !== "legacy") {
+  errors.push("正式运营首发 PAIPAN_MODE 必须为 legacy；自研排盘需重新验收后再切换");
 }
-if (fullCheck && paipanLegacyMode !== "false") {
-  errors.push("新系统首发 PAIPAN_LEGACY_MODE 必须为 false；旧排盘仅允许作为显式回滚兼容入口");
+if ((values.get("PAIPAN_LEGACY_DISPLAY_VERSION") || "").trim() !== "1") {
+  errors.push("PAIPAN_LEGACY_DISPLAY_VERSION 当前必须固定为 1");
 }
-const paipanBaseUrl = parsedUrls.get("PAIPAN_H5_BASE");
+const paipanQaEnabled = (values.get("PAIPAN_NATIVE_QA_ENABLED") || "").trim().toLowerCase();
+if (!["true", "false"].includes(paipanQaEnabled))
+  errors.push("PAIPAN_NATIVE_QA_ENABLED 仅支持 true 或 false");
+if (releaseChannel === "production" && paipanQaEnabled !== "false") {
+  errors.push("正式生产必须关闭 PAIPAN_NATIVE_QA_ENABLED");
+}
+if (paipanQaEnabled === "true" && !(values.get("PAIPAN_NATIVE_QA_ALLOWLIST") || "").trim()) {
+  errors.push("开启自研排盘 QA 时必须配置 PAIPAN_NATIVE_QA_ALLOWLIST");
+}
+const paipanBaseUrl = parsedUrls.get("PAIPAN_OPERATION_H5_BASE");
 if (
-  paipanLegacyMode === "true" &&
+  paipanMode === "legacy" &&
   paipanBaseUrl &&
-  (paipanBaseUrl.hostname !== "www.yrydai.com" ||
+  (paipanBaseUrl.hostname !== "www.yrydai.cn" ||
     paipanBaseUrl.pathname !== "/guoxueApp.php" ||
     paipanBaseUrl.search ||
     paipanBaseUrl.hash)
 ) {
   errors.push(
-    "PAIPAN_H5_BASE 必须为已核验的 https://www.yrydai.com/guoxueApp.php，手机号、key 与 go 参数由服务端生成",
+    "PAIPAN_OPERATION_H5_BASE 必须为已核验的 yrydai.cn 入口，手机号、key 与 go 参数由服务端生成",
   );
 }
 
@@ -471,9 +491,7 @@ if (fullCheck && releaseChannel === "staging") {
     .map(([key]) => key);
   if (publicDomain && !isPreproductionHostname(publicDomain)) productionKeys.push("PUBLIC_DOMAIN");
   if (productionKeys.length > 0) {
-    errors.push(
-      `预发布配置必须使用 pre-* 隔离域名：${[...new Set(productionKeys)].join(", ")}`,
-    );
+    errors.push(`预发布配置必须使用 pre-* 隔离域名：${[...new Set(productionKeys)].join(", ")}`);
   }
 }
 if (apiUrl && apiUrl.pathname !== "/") {
@@ -777,6 +795,28 @@ if (fullCheck) {
     errors.push(
       "微信小程序 AppID 别名配置不一致：WECHAT_MINI_APP_ID、MINIPROGRAM_APP_ID 与 WECHAT_MP_APP_ID 不得指向不同应用",
     );
+  }
+
+  const officialAppId = values.get("WECHAT_OFFICIAL_APPID");
+  const officialAppSecret = values.get("WECHAT_OFFICIAL_APP_SECRET");
+  if (!officialAppId || !officialAppSecret) {
+    errors.push("微信公众号登录配置不完整：需同时配置 WECHAT_OFFICIAL_APPID 与 WECHAT_OFFICIAL_APP_SECRET");
+  }
+  const extraWechatOAuthOrigins = (values.get("WECHAT_OAUTH_ALLOWED_ORIGINS") || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  for (const origin of extraWechatOAuthOrigins) {
+    try {
+      const parsed = new URL(origin);
+      if (parsed.protocol !== "https:" || parsed.origin !== origin.replace(/\/+$/u, "")) {
+        errors.push("WECHAT_OAUTH_ALLOWED_ORIGINS 只能填写 HTTPS 源（协议+域名+可选端口），禁止路径和参数");
+        break;
+      }
+    } catch {
+      errors.push("WECHAT_OAUTH_ALLOWED_ORIGINS 包含无效地址");
+      break;
+    }
   }
 
   try {

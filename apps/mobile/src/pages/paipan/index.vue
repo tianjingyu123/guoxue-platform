@@ -7,7 +7,7 @@
  * R4 合规（微信小程序无占卜类目）：占卜类工具 MP 端隐藏入口，八字类改历法表述——仅展示层，路由/逻辑不变。
  */
 import { ref, computed, onMounted } from "vue";
-import { onShow } from "@dcloudio/uni-app";
+import { onLoad, onShow } from "@dcloudio/uni-app";
 import AppIcon from "@/components/common/app-icon.vue";
 import SmartAvatar from "@/components/common/smart-avatar.vue";
 import ToolIcon from "@/components/paipan/tool-icon.vue";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/paipan/tool-prefs";
 import { legacyPaipanApi } from "@/lib/legacy-paipan-data";
 import { navigateTo } from "@/utils/router";
+import { setNativeQaSession } from "@/lib/paipan-runtime";
 
 const GRID_COLS = 4;
 const COLLAPSED_ROWS = 3;
@@ -36,6 +37,11 @@ const favIds = ref<string[]>([]);
 const entryLoading = ref(true);
 const entryError = ref("");
 const legacyRouting = ref(false);
+const allowNative = ref(false);
+const qaNotFound = ref(false);
+let entryTarget: "tool" | "account" | "station" = "tool";
+let entryStationId = "";
+let nativeQaRequested = false;
 
 // ── R4 合规（微信小程序无占卜类目）：仅展示层差异，路由/数据/逻辑不动 ──
 let pageTitle = "排盘工具";
@@ -196,8 +202,24 @@ function removeFav(id: string) {
 async function loadPaipanEntry() {
   entryLoading.value = true;
   entryError.value = "";
+  allowNative.value = false;
+  qaNotFound.value = false;
   try {
-    const entry = await legacyPaipanApi.entry();
+    if (nativeQaRequested) {
+      const access = await legacyPaipanApi.nativeQaAccess();
+      if (!access.allowed) throw new Error("页面不存在");
+      setNativeQaSession(true);
+      allowNative.value = true;
+      favIds.value = getFavorites();
+      await loadPlatformAgents();
+      return;
+    }
+    const entry =
+      entryTarget === "account"
+        ? await legacyPaipanApi.account()
+        : entryTarget === "station"
+          ? await legacyPaipanApi.stationEntry(entryStationId)
+          : await legacyPaipanApi.entry();
     if (entry.mode === "legacy") {
       if (!entry.url || !entry.url.startsWith("https://")) {
         throw new Error("排盘服务地址未正确配置");
@@ -212,17 +234,38 @@ async function loadPaipanEntry() {
       });
       return;
     }
+    allowNative.value = true;
     favIds.value = getFavorites();
     await loadPlatformAgents();
   } catch (error) {
-    entryError.value = (error as Error)?.message || "排盘服务暂时不可用";
-    // 迁移或短时网络故障不应阻断本地排盘能力，保留工具入口并降级提示。
-    favIds.value = getFavorites();
-    await loadPlatformAgents();
+    setNativeQaSession(false);
+    qaNotFound.value = nativeQaRequested;
+    entryError.value = nativeQaRequested
+      ? "页面不存在"
+      : (error as Error)?.message || "排盘服务暂时不可用，请稍后重试";
   } finally {
     entryLoading.value = false;
   }
 }
+
+onLoad((query?: Record<string, string>) => {
+  entryTarget =
+    query?.target === "account"
+      ? "account"
+      : query?.target === "station"
+        ? "station"
+        : "tool";
+  entryStationId = String(query?.stationId || "");
+  nativeQaRequested = query?.nativeQa === "1";
+  // #ifdef H5
+  if (nativeQaRequested && typeof document !== "undefined") {
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex,nofollow,noarchive";
+    document.head.appendChild(meta);
+  }
+  // #endif
+});
 
 onMounted(() => {
   void loadPaipanEntry();
@@ -244,7 +287,7 @@ onShow(() => {
     <text class="entry-gate-desc">正在安全连接原有排盘记录与服务</text>
   </view>
 
-  <view v-else class="paipan">
+  <view v-else-if="allowNative" class="paipan">
     <app-network-bar />
     <customer-service-fab />
     <!-- 顶部标题栏 -->
@@ -267,21 +310,6 @@ onShow(() => {
     </view>
 
     <scroll-view scroll-y class="content" role="main" aria-label="排盘工具与国学服务">
-      <view v-if="entryError" class="section-px degraded-wrap" role="status" aria-live="polite">
-        <view class="degraded-notice">
-          <view class="degraded-icon">
-            <app-icon name="wifi-off" :size="30" color="#9A6B12" />
-          </view>
-          <view class="degraded-copy">
-            <text class="degraded-title">核心工具仍可使用</text>
-            <text class="degraded-desc">联网服务暂未连接，排盘与本地工具不受影响</text>
-          </view>
-          <button class="degraded-retry" aria-label="重新连接联网服务" @tap="loadPaipanEntry">
-            重试
-          </button>
-        </view>
-      </view>
-
       <!-- 今日时刻 Hero -->
       <view class="section-px hero-wrap">
         <today-hero />
@@ -688,12 +716,18 @@ onShow(() => {
 
     <bottom-nav active="paipan" />
   </view>
+
+  <view v-else class="entry-gate" role="alert" aria-live="assertive">
+    <app-icon :name="qaNotFound ? 'file-x' : 'wifi-off'" :size="56" color="#8A6A3F" />
+    <text class="entry-gate-title">{{ qaNotFound ? "页面不存在" : "排盘服务暂时不可用" }}</text>
+    <text v-if="!qaNotFound" class="entry-gate-desc">{{ entryError }}</text>
+    <button v-if="!qaNotFound" class="degraded-retry" @tap="loadPaipanEntry">重新连接</button>
+  </view>
 </template>
 
 <style scoped lang="scss">
 .paipan {
   min-height: 100vh;
-  background: var(--bg-paper, #faf8f5);
 }
 .entry-gate {
   min-height: 100vh;
@@ -704,8 +738,7 @@ onShow(() => {
   justify-content: center;
   gap: 18rpx;
   box-sizing: border-box;
-  background: var(--bg-paper, #faf8f5);
-  text-align: center;
+  background: #faf8f5;
 }
 .entry-gate-spinner {
   width: 52rpx;
@@ -726,30 +759,7 @@ onShow(() => {
   line-height: 1.6;
   color: var(--text-soft, #777);
 }
-.entry-gate-actions {
-  margin-top: 12rpx;
-  display: flex;
-  gap: 16rpx;
-}
-.entry-gate-btn {
-  min-width: 190rpx;
-  height: 76rpx;
-  padding: 0 28rpx;
-  border: 1rpx solid var(--line, #ddd4ca);
-  border-radius: 38rpx;
-  background: #fff;
-  font-size: 25rpx;
-  line-height: 74rpx;
-  color: var(--text-ink, #2c2723);
-}
-.entry-gate-btn::after {
-  border: 0;
-}
-.entry-gate-btn.primary {
-  border-color: var(--brand, #c41e3a);
-  background: var(--brand, #c41e3a);
-  color: #fff;
-}
+
 
 @keyframes entry-spin {
   to {
@@ -794,52 +804,7 @@ onShow(() => {
   padding-right: 32rpx;
 }
 
-.degraded-wrap {
-  padding-top: 20rpx;
-}
-.degraded-notice {
-  min-height: 86rpx;
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  padding: 14rpx 16rpx;
-  border: 1rpx solid rgba(180, 131, 42, 0.28);
-  border-radius: 18rpx;
-  background: linear-gradient(135deg, #fffaf0 0%, #fffdf8 100%);
-  box-shadow: 0 8rpx 24rpx rgba(86, 58, 17, 0.05);
-}
-.degraded-icon {
-  width: 52rpx;
-  height: 52rpx;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16rpx;
-  background: rgba(180, 131, 42, 0.1);
-}
-.degraded-copy {
-  min-width: 0;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-}
-.degraded-title {
-  font-size: 25rpx;
-  font-weight: 700;
-  color: #5f451b;
-}
-.degraded-desc {
-  overflow: hidden;
-  font-size: 21rpx;
-  line-height: 1.35;
-  color: #8f7445;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .degraded-retry {
-  min-width: 86rpx;
   height: 54rpx;
   margin: 0;
   padding: 0 18rpx;
@@ -848,9 +813,7 @@ onShow(() => {
   background: #fff;
   color: #9a6b12;
   font-size: 22rpx;
-  font-weight: 600;
   line-height: 54rpx;
-  box-shadow: inset 0 0 0 1rpx rgba(180, 131, 42, 0.28);
 }
 .degraded-retry::after {
   border: 0;

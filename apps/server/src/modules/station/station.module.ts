@@ -11,7 +11,7 @@ import { AdminReferralController } from "./admin-referral.controller";
 import { AdminReferralService } from "./admin-referral.service";
 import { PromotionController } from "./promotion.controller";
 import { PromotionService } from "./promotion.service";
-import { StationPaipanSyncService } from "./station-paipan-sync.service";
+import { StationPaipanSyncModule } from "./station-paipan-sync.module";
 import { TeamTaskService } from "./team-task.service";
 import { StationMicroPageController } from "./station-micro-page.controller";
 import {
@@ -38,6 +38,7 @@ import { LegacyPaipanController } from "./legacy-paipan.controller";
     FundApprovalCoreModule,
     NotificationModule,
     AiGatewayModule,
+    StationPaipanSyncModule,
   ],
   controllers: [
     StationController,
@@ -57,7 +58,6 @@ import { LegacyPaipanController } from "./legacy-paipan.controller";
     AdminReferralService,
     PromotionService,
     StationDashboardService,
-    StationPaipanSyncService,
     TeamTaskService,
     StationPinnedService,
     StationBillingService,
@@ -68,7 +68,7 @@ import { LegacyPaipanController } from "./legacy-paipan.controller";
     AdminReferralService,
     PromotionService,
     StationDashboardService,
-    StationPaipanSyncService,
+    StationPaipanSyncModule,
     TeamTaskService,
     StationBillingService,
   ],

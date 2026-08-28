@@ -6,9 +6,11 @@ import { CreateBaziKnowledgeDto, UpdateBaziKnowledgeDto } from "./bazi-knowledge
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { NativePaipanGuard } from "../../common/paipan-runtime.service";
 
 @ApiTags("八字·知识库")
 @Controller("bazi/knowledge")
+@UseGuards(NativePaipanGuard)
 export class BaziKnowledgeController {
   constructor(
     private readonly svc: BaziKnowledgeService,

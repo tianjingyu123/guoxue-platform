@@ -99,12 +99,14 @@ export async function checkForAppUpdate(): Promise<void> {
     const buildNumber = String(app.appVersionCode || '').trim()
     if (!version) return
 
-    const query = new URLSearchParams({
-      platform,
-      version,
-      ...(buildNumber ? { buildNumber } : {}),
-    })
-    const result = await apiGet<AppUpdateResponse>(`/system/version/check?${query.toString()}`)
+    // App-Plus 的原生 JS 运行时并非所有版本都完整提供 URLSearchParams。
+    // 启动阶段使用基础编码拼接，避免兼容性异常影响首屏，同时保持参数值严格转义。
+    const query = [
+      `platform=${encodeURIComponent(platform)}`,
+      `version=${encodeURIComponent(version)}`,
+      ...(buildNumber ? [`buildNumber=${encodeURIComponent(buildNumber)}`] : []),
+    ].join('&')
+    const result = await apiGet<AppUpdateResponse>(`/system/version/check?${query}`)
     if (result.hasUpdate && result.latest) {
       promptUpdate(result.latest)
     } else {

@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import { refreshPaipanMode } from "@/lib/paipan-runtime";
 
 // 所有管理角色
 const ALL_ADMIN = [
@@ -186,37 +187,37 @@ const routes = [
         path: "bazi",
         name: "BaziPan",
         component: () => import("@/views/bazi/BaziPan.vue"),
-        meta: { title: "八字排盘", roles: ALL_ADMIN },
+        meta: { title: "八字排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "ziwei",
         name: "ZiweiPan",
         component: () => import("@/views/bazi/ZiweiPan.vue"),
-        meta: { title: "紫微排盘", roles: ALL_ADMIN },
+        meta: { title: "紫微排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "qimen",
         name: "QimenPan",
         component: () => import("@/views/qimen/QimenPan.vue"),
-        meta: { title: "奇门排盘", roles: ALL_ADMIN },
+        meta: { title: "奇门排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "liuyao",
         name: "LiuYaoPan",
         component: () => import("@/views/liuyao/LiuYaoPan.vue"),
-        meta: { title: "六爻排盘", roles: ALL_ADMIN },
+        meta: { title: "六爻排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "daliuren",
         name: "DaLiuRenPan",
         component: () => import("@/views/daliuren/DaLiuRenPan.vue"),
-        meta: { title: "大六壬排盘", roles: ALL_ADMIN },
+        meta: { title: "大六壬排盘", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "paipan-records",
         name: "PaipanRecords",
         component: () => import("@/views/PaipanRecords.vue"),
-        meta: { title: "排盘记录", roles: ALL_ADMIN },
+        meta: { title: "排盘记录", roles: ALL_ADMIN, nativePaipan: true },
       },
       {
         path: "bots",
@@ -1526,7 +1527,7 @@ const router = createRouter({
 });
 
 // 全局路由守卫
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   // 仅开发环境的真实数据态视觉验收页，不进入生产路由表。
   if (import.meta.env.DEV && to.meta?.devPreview === true) return next();
 
@@ -1543,6 +1544,11 @@ router.beforeEach((to, _from, next) => {
 
   // 403/404 页面直接放行
   if (to.name === "Forbidden" || to.name === "NotFound") return next();
+
+  // 菜单隐藏之外再做直达路由门禁；配置读取失败按 legacy 返回 404。
+  if (to.meta?.nativePaipan === true && (await refreshPaipanMode()) !== "native") {
+    return next({ name: "NotFound", params: { pathMatch: ["page-not-found"] } });
+  }
 
   // 角色检查：从 localStorage 读取缓存的角色
   try {

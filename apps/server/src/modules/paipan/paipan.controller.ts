@@ -21,6 +21,7 @@ import { BaziInputDto, BaziRecordQueryDto, AdminRecordQueryDto, ZiweiInputDto, Q
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { NativePaipanGuard } from "../../common/paipan-runtime.service";
 
 /**
  * 存库的 resultData 经 sanitizeResult 脱敏后不含 input（生辰单独加密于 clientBirth），
@@ -51,6 +52,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 
 @ApiTags("排盘")
 @Controller("paipan")
+@UseGuards(NativePaipanGuard)
 export class PaipanController {
   constructor(
     private paipan: PaipanService,

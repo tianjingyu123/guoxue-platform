@@ -8,6 +8,8 @@ import { RedisService } from "../../redis/redis.service";
 import { WebhookService } from "../webhook/webhook.service";
 import { SmsService } from "../sms/sms.service";
 import { PermissionService } from "../system/permission.service";
+import { FeatureFlagService } from "../feature-flag/feature-flag.service";
+import { AppleLoginService } from "./apple-login.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Prisma } from "@prisma/client";
@@ -62,6 +64,8 @@ const mockIm = {
 const mockWebhook = { fire: jest.fn().mockResolvedValue(undefined) };
 const mockSms = { sendVerifyCode: jest.fn(), verifyCode: jest.fn() };
 const mockPermSvc = { getUserPermissions: jest.fn().mockResolvedValue([]) };
+const mockFeatureFlag = { isEnabled: jest.fn().mockResolvedValue(true) };
+const mockAppleLogin = { verifyIdentityToken: jest.fn() };
 
 describe("AuthService", () => {
   let svc: AuthService;
@@ -77,10 +81,12 @@ describe("AuthService", () => {
         { provide: JwtService, useValue: mockJwt },
         { provide: RedisService, useValue: mockRedis },
         { provide: WechatService, useValue: mockWechat },
+        { provide: AppleLoginService, useValue: mockAppleLogin },
         { provide: ImService, useValue: mockIm },
         { provide: WebhookService, useValue: mockWebhook },
         { provide: SmsService, useValue: mockSms },
         { provide: PermissionService, useValue: mockPermSvc },
+        { provide: FeatureFlagService, useValue: mockFeatureFlag },
       ],
     }).compile();
     svc = mod.get(AuthService);
@@ -88,6 +94,7 @@ describe("AuthService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFeatureFlag.isEnabled.mockResolvedValue(true);
     mockPrisma.$transaction.mockImplementation(
       async (callback: (tx: typeof mockPrisma) => unknown) => callback(mockPrisma),
     );
@@ -99,21 +106,28 @@ describe("AuthService", () => {
     delete process.env.MINIPROGRAM_APP_ID;
     delete process.env.WECHAT_MP_APP_ID;
     delete process.env.MINIPROGRAM_APP_SECRET;
+    delete process.env.WECHAT_OPEN_APP_ID;
+    delete process.env.WECHAT_OPEN_APP_SECRET;
     mockWechat.resolveLoginClient.mockImplementation((loginType: string, clientKey?: string) => {
       const isMini = loginType === "miniprogram";
+      const isApp = loginType === "app";
       const appId = isMini
         ? process.env.WECHAT_MINI_APP_ID ||
           process.env.MINIPROGRAM_APP_ID ||
           process.env.WECHAT_MP_APP_ID ||
           process.env.WECHAT_APP_ID
-        : process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID;
+        : isApp
+          ? process.env.WECHAT_OPEN_APP_ID
+          : process.env.WECHAT_OFFICIAL_APPID || process.env.WECHAT_APP_ID;
       const appSecret = isMini
         ? process.env.MINIPROGRAM_APP_SECRET || process.env.WECHAT_APP_SECRET
-        : process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET;
+        : isApp
+          ? process.env.WECHAT_OPEN_APP_SECRET
+          : process.env.WECHAT_OFFICIAL_APP_SECRET || process.env.WECHAT_APP_SECRET;
       if (!appId || !appSecret)
         throw new BusinessException(ErrorCode.BAD_REQUEST, "微信登录未配置");
       return {
-        clientKey: clientKey || (isMini ? "legacy-mini" : "legacy-h5"),
+        clientKey: clientKey || (isMini ? "legacy-mini" : isApp ? "legacy-app" : "legacy-h5"),
         type: loginType,
         appId,
         appSecret,
@@ -326,6 +340,29 @@ describe("AuthService", () => {
   });
 
   describe("wechatLogin", () => {
+    it("App 开关关闭时返回 404，且不读取或调用任何微信凭据", async () => {
+      mockFeatureFlag.isEnabled.mockResolvedValue(false);
+
+      await expect(svc.wechatLogin({ code: "code", loginType: "app" })).rejects.toMatchObject({
+        errorCode: ErrorCode.NOT_FOUND,
+        status: 404,
+      });
+      expect(mockWechat.resolveLoginClient).not.toHaveBeenCalled();
+      expect(mockWechat.exchangeOAuthCode).not.toHaveBeenCalled();
+    });
+
+    it("App 开关开启且凭据已就绪时才进入 code 换取流程", async () => {
+      process.env.WECHAT_OPEN_APP_ID = "wx-open-app";
+      process.env.WECHAT_OPEN_APP_SECRET = "open-secret";
+      mockWechat.exchangeOAuthCode.mockRejectedValueOnce(new Error("测试到此为止"));
+
+      await expect(svc.wechatLogin({ code: "code", loginType: "app" })).rejects.toThrow(
+        BusinessException,
+      );
+      expect(mockFeatureFlag.isEnabled).toHaveBeenCalledWith("client_wechat_app_login");
+      expect(mockWechat.exchangeOAuthCode).toHaveBeenCalledWith("code", "legacy-app", "app");
+    });
+
     it("未配置任何微信应用时拒绝登录", async () => {
       await expect(svc.wechatLogin({ code: "code" })).rejects.toThrow(BusinessException);
       expect(mockWechat.exchangeOAuthCode).not.toHaveBeenCalled();
@@ -407,6 +444,74 @@ describe("AuthService", () => {
           },
         }),
       );
+    });
+  });
+
+  describe("appleLogin", () => {
+    it("拒绝无法通过 Apple 公钥校验的令牌", async () => {
+      mockAppleLogin.verifyIdentityToken.mockRejectedValueOnce(new Error("invalid"));
+      await expect(svc.appleLogin({ identityToken: "x".repeat(100) })).rejects.toMatchObject({
+        errorCode: ErrorCode.AUTH_TOKEN_INVALID,
+      });
+      expect(mockPrisma.auth.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("已有 Apple 身份直接登录且不重复注册", async () => {
+      mockAppleLogin.verifyIdentityToken.mockResolvedValueOnce({
+        subject: "apple-subject",
+        audience: "com.rebu.iosapprebu",
+        emailVerified: true,
+        isPrivateEmail: true,
+      });
+      mockPrisma.auth.findUnique.mockResolvedValueOnce({ id: "apple-auth", userId: "user-1" });
+      mockPrisma.auth.update.mockResolvedValueOnce({ id: "apple-auth" });
+      mockPrisma.user.findUnique.mockResolvedValueOnce({ id: "user-1", nickname: "老用户" });
+      mockPrisma.userRole.findMany.mockResolvedValueOnce([]);
+      mockJwt.sign.mockReturnValueOnce("token");
+
+      const result = await svc.appleLogin({ identityToken: "x".repeat(100) });
+
+      expect(result.user.id).toBe("user-1");
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+      expect(mockPrisma.auth.update).toHaveBeenCalledWith({
+        where: { id: "apple-auth" },
+        data: { lastUsedAt: expect.any(Date) },
+      });
+    });
+
+    it("首次 Apple 授权创建内部账号并绑定稳定 subject", async () => {
+      mockAppleLogin.verifyIdentityToken.mockResolvedValueOnce({
+        subject: "apple-subject-new",
+        audience: "com.rebu.iosapprebu",
+        emailVerified: true,
+        isPrivateEmail: false,
+        realUserStatus: 2,
+      });
+      mockPrisma.auth.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.user.create.mockResolvedValueOnce({ id: "user-new", nickname: "热卜" });
+      mockPrisma.user.findUnique.mockResolvedValueOnce({ id: "user-new", nickname: "热卜" });
+      mockPrisma.userRole.findMany.mockResolvedValueOnce([]);
+      mockJwt.sign.mockReturnValueOnce("token");
+
+      const result = await svc.appleLogin({
+        identityToken: "x".repeat(100),
+        familyName: "热",
+        givenName: "卜",
+      });
+
+      expect(result.user.id).toBe("user-new");
+      expect(mockPrisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          nickname: "热卜",
+          auths: {
+            create: expect.objectContaining({
+              provider: "APPLE",
+              namespace: "apple:com.rebu.iosapprebu",
+              subject: "apple-subject-new",
+            }),
+          },
+        }),
+      });
     });
   });
 

@@ -7,6 +7,7 @@ describe("WechatService", () => {
   beforeAll(async () => {
     process.env.WECHAT_APP_ID = "wx-test-app-id";
     process.env.WECHAT_APP_SECRET = "test-secret";
+    process.env.PUBLIC_H5_URL = "https://example.com/h5/";
 
     const mod = await Test.createTestingModule({
       providers: [WechatService],
@@ -17,6 +18,10 @@ describe("WechatService", () => {
   afterEach(() => {
     delete process.env.WECHAT_LOGIN_CLIENTS_JSON;
     delete process.env.WECHAT_OPEN_PLATFORM_ID;
+  });
+
+  afterAll(() => {
+    delete process.env.PUBLIC_H5_URL;
   });
 
   it("生成 OAuth URL（snsapi_userinfo）", () => {
@@ -35,6 +40,19 @@ describe("WechatService", () => {
   it("redirect_uri 正确编码特殊字符", () => {
     const url = svc.buildOAuthUrl("https://example.com/callback?a=1&b=2");
     expect(url).not.toContain("callback?a=1"); // 应该被编码
+  });
+
+  it("携带前端一次性 state", () => {
+    const url = svc.buildOAuthUrl("https://example.com/h5/pkg-auth/login/index", "snsapi_userinfo", undefined, "secure_state-123");
+    expect(url).toContain("state=secure_state-123");
+  });
+
+  it("拒绝跳转到非本系统域名", () => {
+    expect(() => svc.buildOAuthUrl("https://evil.example/callback")).toThrow("不在允许范围内");
+  });
+
+  it("拒绝不安全的 state", () => {
+    expect(() => svc.buildOAuthUrl("https://example.com/callback", "snsapi_userinfo", undefined, "bad state&next=evil")).toThrow("state 无效");
   });
 
   it("小程序凭据在后台热更新后立即生效", async () => {

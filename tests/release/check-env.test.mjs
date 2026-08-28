@@ -38,8 +38,14 @@ function createEnvironment({
     "VITE_API_URL=https://api.guoxue.test",
     "VITE_PUBLIC_H5_URL=https://api.guoxue.test/h5/",
     "VITE_PUBLIC_ASSET_ORIGIN=https://static.guoxue.test",
-    "PAIPAN_LEGACY_MODE=false",
-    "PAIPAN_H5_BASE=https://www.yrydai.com/guoxueApp.php",
+    "PAIPAN_MODE=legacy",
+    "PAIPAN_LEGACY_DISPLAY_VERSION=1",
+    "PAIPAN_NATIVE_QA_ENABLED=false",
+    "PAIPAN_OPERATION_H5_BASE=https://www.yrydai.cn/guoxueApp.php",
+    "PAIPAN_USER_LOOKUP_URL=https://www.yrydai.cn/recommend/mobileUser.php",
+    "PAIPAN_PARTNER_OPEN_URL=https://www.yrydai.cn/recommend/partner.php",
+    "PAIPAN_PARTNER_OAUTH_URL=https://www.yrydai.cn/my.php?mod=member&act=addPartner",
+    "PAIPAN_REFERRAL_BASE=https://www.yrydai.com/p1.php",
     "TENCENT_CREDENTIAL_MODE=static",
     "COS_SECRET_ID=AKID1234567890",
     "COS_SECRET_KEY=CosCredentialValue987654321",
@@ -55,6 +61,8 @@ function createFullEnvironment(options = {}) {
     `DEEPSEEK_API_KEY=${"D".repeat(48)}`,
     "WECHAT_MINI_APP_ID=wx06397e8ab26bed9e",
     `MINIPROGRAM_APP_SECRET=${"M".repeat(32)}`,
+    "WECHAT_OFFICIAL_APPID=wx-official-test",
+    `WECHAT_OFFICIAL_APP_SECRET=${"O".repeat(32)}`,
     "WECHAT_PAY_APP_ID=wx06397e8ab26bed9e",
     "WECHAT_PAY_MCH_ID=1900000109",
     `WECHAT_PAY_SERIAL_NO=${"A".repeat(40)}`,
@@ -75,6 +83,20 @@ function createFullEnvironment(options = {}) {
     "",
   ].join("\n");
 }
+
+test("完整上线拒绝缺少微信公众号网页授权凭据", async () => {
+  const environment = createFullEnvironment().replace(/^WECHAT_OFFICIAL_APP_SECRET=.*\r?\n/mu, "");
+  const result = await runChecker(environment, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /微信公众号登录配置不完整/u);
+});
+
+test("完整上线拒绝带路径的额外微信 OAuth 回调源", async () => {
+  const environment = `${createFullEnvironment()}WECHAT_OAUTH_ALLOWED_ORIGINS=https://h5.guoxue.test/callback\n`;
+  const result = await runChecker(environment, "--full", "--deploy-target", "standard");
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /只能填写 HTTPS 源/u);
+});
 
 test("完整上线拒绝只有下单配置而缺少商户私钥或退款回调的微信支付", async () => {
   const incomplete = createFullEnvironment()
@@ -100,14 +122,11 @@ test("完整上线接受数据库托管且绑定商户白名单的微信支付",
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
 
-test("完整上线拒绝重新启用第三方旧排盘入口", async () => {
-  const legacyPaipan = createFullEnvironment().replace(
-    "PAIPAN_LEGACY_MODE=false",
-    "PAIPAN_LEGACY_MODE=true",
-  );
-  const result = await runChecker(legacyPaipan, "--full", "--deploy-target", "standard");
+test("正式运营在重新验收前拒绝切换到自研排盘", async () => {
+  const nativePaipan = createFullEnvironment().replace("PAIPAN_MODE=legacy", "PAIPAN_MODE=native");
+  const result = await runChecker(nativePaipan, "--full", "--deploy-target", "standard");
   assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stderr, /旧排盘仅允许作为显式回滚兼容入口/u);
+  assert.match(result.stderr, /自研排盘需重新验收/u);
 });
 
 test("完整上线拒绝未显式核验数据库微信支付配置", async () => {

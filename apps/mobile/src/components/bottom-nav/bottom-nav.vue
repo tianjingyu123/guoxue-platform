@@ -2,7 +2,7 @@
 import { onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { reLaunch } from '@/utils/router'
+import { redirectTo } from '@/utils/router'
 
 /** active: home | circle | paipan | discover | profile */
 const props = defineProps<{ active: string }>()
@@ -45,7 +45,7 @@ const tabs = [
 const isActive = (id: string) => props.active === id
 function go(url: string, id: string) {
   if (isActive(id)) return
-  reLaunch(url)
+  redirectTo(url)
 }
 
 function onNavKeydown(event: KeyboardEvent, url: string, id: string) {

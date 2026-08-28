@@ -182,6 +182,30 @@ describe("Coin E2E", () => {
       prisma.virtualCoinAccount.updateMany.mockResolvedValue({ count: 1 })
       prisma.virtualCoinTransaction.create.mockResolvedValue({})
       prisma.giftRecord.create.mockResolvedValue({ id: "gr1", giftId: "g1", senderId: "u1", receiverId: "u2", liveRoomId: "lr1" })
+      // 自建 tx 须含 giftRecord（sendGift 在事务内 tx.giftRecord.create）；
+      // 否则会复用前一测试遗留的 $transaction 实现（clearAllMocks 不清实现）导致 tx.giftRecord 为 undefined
+      prisma.$transaction.mockImplementation((arg: any) => {
+        if (typeof arg === "function") {
+          return arg({
+            virtualCoinAccount: {
+              update: prisma.virtualCoinAccount.update,
+              updateMany: prisma.virtualCoinAccount.updateMany,
+              findUnique: prisma.virtualCoinAccount.findUnique,
+            },
+            virtualCoinTransaction: { create: prisma.virtualCoinTransaction.create },
+            giftRecord: {
+              create: prisma.giftRecord.create,
+              aggregate: prisma.giftRecord.aggregate,
+            },
+            user: { findUnique: prisma.user.findUnique },
+            liveGiftSpendingPreference: {
+              findUnique: prisma.liveGiftSpendingPreference.findUnique,
+            },
+            $executeRawUnsafe: prisma.$executeRawUnsafe,
+          })
+        }
+        return Promise.all(arg)
+      })
 
       const res = await request(app.getHttpServer())
         .post("/api/v1/coin/gifts/send")
