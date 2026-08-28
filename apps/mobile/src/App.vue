@@ -151,8 +151,6 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown> }) => {
 })
 // 热启动（小程序从分享卡片再次进入）同样捕获 ref
 onShow((options?: { query?: Record<string, unknown> }) => {
-  // iOS 从后台恢复时也可能丢失首页 WebView；与 onLaunch 共用防重入看门狗。
-  repairIosStartupRoute()
   try {
     captureRefFromQuery(options?.query)
   } catch {
