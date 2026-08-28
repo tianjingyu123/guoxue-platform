@@ -9,7 +9,6 @@ import { requestParentContentLayerClose } from '@/utils/content-detail-layer'
 import { checkForAppUpdate } from '@/lib/app-update'
 import { hydrateRemoteConfig, notifyMaintenanceIfNeeded } from '@/lib/remote-config'
 import { hydratePaipanRuntime, redirectNativePaipanToLegacy } from '@/lib/paipan-runtime'
-import { repairIosStartupRoute } from '@/lib/ios-startup-recovery'
 
 type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
 
@@ -97,9 +96,6 @@ function pickUrl(args: string | { url?: string }): string {
 }
 
 onLaunch((options?: { path?: string; query?: Record<string, unknown> }) => {
-  // iOS 覆盖升级可能恢复仍带首页 route、但已经不可渲染的旧 WebView。
-  // 启动看门狗只重建首页/空栈，不打断深链或已进入的业务页。
-  repairIosStartupRoute()
   // #ifdef H5
   // 动态分包加载失败自愈：部署后旧 index.html 被浏览器(尤其 iOS Safari/WebView)顽固缓存、
   // 引用了已被替换的旧 chunk 时，懒加载分包(如设置页)会 preloadError 导致白屏。

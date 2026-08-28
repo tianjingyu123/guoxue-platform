@@ -2,57 +2,40 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const recoverySource = new URL(
-  "../../apps/mobile/src/lib/ios-startup-recovery.ts",
-  import.meta.url,
-);
 const appSource = new URL("../../apps/mobile/src/App.vue", import.meta.url);
 const homeSource = new URL("../../apps/mobile/src/pages/index/index.vue", import.meta.url);
+const routerSource = new URL("../../apps/mobile/src/utils/router.ts", import.meta.url);
+const bottomNavSource = new URL(
+  "../../apps/mobile/src/components/bottom-nav/bottom-nav.vue",
+  import.meta.url,
+);
 const updateSource = new URL("../../apps/mobile/src/lib/app-update.ts", import.meta.url);
 const manifestSource = new URL("../../apps/mobile/src/manifest.json", import.meta.url);
 
-test("iOS 冷启动恢复编译进 APP-PLUS，同一进程只执行一次且不形成首页循环", async () => {
-  const source = await readFile(recoverySource, "utf8");
-  assert.match(source, /#ifdef APP-PLUS/);
-  assert.match(source, /platform !== "ios"/);
-  assert.match(source, /appVersionCode/);
-  assert.match(source, /shouldRecoverIosStartupRoute/);
-  assert.match(source, /markIosStartupHomeReady/);
-  assert.match(source, /startupHomeReady = true/);
-  assert.match(source, /if \(pendingRecovery\) clearTimeout\(pendingRecovery\)/);
-  assert.match(source, /getCurrentPages\(\)\.map/);
-  assert.match(source, /normalized\.length === 0/);
-  assert.match(source, /normalized\[normalized\.length - 1\] === HOME_ROUTE_KEY/);
-  assert.match(source, /if \(homeReady\) return false/);
-  assert.match(source, /if \(!shouldRecoverIosStartupRoute\(routes, startupHomeReady\)\)/);
-  assert.match(source, /uni\.reLaunch\(\{/);
-  assert.match(source, /url: HOME_ROUTE/);
-  assert.match(source, /success:[\s\S]*setStorageSync\(IOS_STARTUP_RECOVERY_KEY, buildNumber\)/);
-  assert.match(source, /attempts < 2/);
-  assert.match(source, /startupRecoveryStarted/);
-  assert.match(source, /if \(startupRecoveryStarted\) return/);
-  assert.match(source, /recoveryInFlight/);
-  assert.doesNotMatch(source, /RECOVERY_COOLDOWN_MS|lastRecoveryAt/);
-  assert.doesNotMatch(source, /clearStorage|clearAuthSession|removeStorageSync/);
+test("自定义底部主导航只替换当前页，不再重建整个页面栈", async () => {
+  const [router, bottomNav] = await Promise.all([
+    readFile(routerSource, "utf8"),
+    readFile(bottomNavSource, "utf8"),
+  ]);
+  assert.match(router, /if \(MAIN_TABS\.includes\(path\)\) \{ uni\.redirectTo/);
+  assert.doesNotMatch(router, /if \(MAIN_TABS\.includes\(path\)\) \{ uni\.reLaunch/);
+  assert.match(bottomNav, /import \{ redirectTo \} from ['"]@\/utils\/router['"]/);
+  assert.match(bottomNav, /function go\([\s\S]*redirectTo\(url\)/);
+  assert.doesNotMatch(bottomNav, /import \{ reLaunch \}/);
 });
 
-test("App 仅在冷启动接入 iOS 页面栈恢复，回到前台不得再次重建首页", async () => {
-  const source = await readFile(appSource, "utf8");
-  assert.match(source, /import \{ repairIosStartupRoute \}/);
-  assert.match(source, /onLaunch\([\s\S]*repairIosStartupRoute\(\)/);
-  const onShowBlock = source.slice(source.indexOf("onShow("), source.indexOf("onHide("));
-  assert.doesNotMatch(onShowBlock, /repairIosStartupRoute\(\)/);
-  assert.equal(source.match(/repairIosStartupRoute\(\)/g)?.length, 1);
+test("首页与 App 启动阶段不再安装 iOS 定时 reLaunch 看门狗", async () => {
+  const [source, home] = await Promise.all([
+    readFile(appSource, "utf8"),
+    readFile(homeSource, "utf8"),
+  ]);
+  assert.doesNotMatch(source, /repairIosStartupRoute|markIosStartupHomeReady/);
+  assert.doesNotMatch(home, /ios-startup-recovery|markIosStartupHomeReady/);
+  const onLaunchBlock = source.slice(source.indexOf("onLaunch("), source.indexOf("onShow("));
+  assert.doesNotMatch(onLaunchBlock, /uni\.reLaunch\(\{\s*url: ['"]\/pages\/index\/index/);
 });
 
-test("首页真实挂载后立即取消 iOS 启动恢复，禁止正常首页闪现后再次重建", async () => {
-  const source = await readFile(homeSource, "utf8");
-  assert.match(source, /#ifdef APP-PLUS[\s\S]*import \{ markIosStartupHomeReady \}/);
-  assert.match(source, /import \{ markIosStartupHomeReady \}/);
-  assert.match(source, /onMounted\(\(\) => \{[\s\S]*#ifdef APP-PLUS[\s\S]*markIosStartupHomeReady\(\);[\s\S]*#endif[\s\S]*init\(\);/);
-});
-
-test("启动更新检查不依赖 URLSearchParams，且 223 版本号已冻结", async () => {
+test("启动更新检查不依赖 URLSearchParams，且 224 候选版本已冻结", async () => {
   const [update, manifestRaw] = await Promise.all([
     readFile(updateSource, "utf8"),
     readFile(manifestSource, "utf8"),
@@ -60,5 +43,5 @@ test("启动更新检查不依赖 URLSearchParams，且 223 版本号已冻结",
   assert.doesNotMatch(update, /new URLSearchParams/);
   assert.match(update, /encodeURIComponent\(platform\)/);
   assert.match(update, /encodeURIComponent\(version\)/);
-  assert.equal(JSON.parse(manifestRaw).versionCode, "223");
+  assert.equal(JSON.parse(manifestRaw).versionCode, "224");
 });
