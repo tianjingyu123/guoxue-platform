@@ -264,9 +264,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onUnmounted } from 'vue'
-// #if defined(H5) || defined(APP-PLUS)
 import { onLoad } from '@dcloudio/uni-app'
-// #endif
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
