@@ -25,7 +25,7 @@ test('排盘首页区分需要登录和真实服务故障，并允许游客返�
 
 test('旧排盘兼容页直接访问时同样不强制重启到登录页', () => {
   assert.match(gateway, /const loginRequired = ref\(false\)/u)
-  assert.match(gateway, /登录后进入旧版排盘/u)
+  assert.match(gateway, /登录后进入排盘工具/u)
   assert.match(gateway, /navigateTo\('\/login'\)/u)
   assert.match(gateway, /返回热卜首页/u)
 })

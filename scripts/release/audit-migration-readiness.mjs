@@ -95,7 +95,7 @@ add(
     legacyPaipanPage.includes('@message="handleLegacyMessage"') &&
     legacyPaipanPage.includes('onBackPress(() =>') &&
     legacyRouteStart >= 0 &&
-    legacyRouteConfig.includes('"navigationBarTitleText": "旧版排盘"') &&
+    legacyRouteConfig.includes('"navigationBarTitleText": "排盘工具"') &&
     !legacyRouteConfig.includes('"navigationStyle": "custom"') &&
     !paipanPage.includes("核心工具仍可使用"),
   "默认返回 legacy；H5 用户手势新窗口保留返回入口，App/小程序/Harmony 使用原生导航兼容页，失败只允许重试",
