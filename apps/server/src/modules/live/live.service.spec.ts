@@ -1471,6 +1471,25 @@ describe("LiveService", () => {
         expect(mockPrisma.liveRoom.update).toHaveBeenCalled();
       });
 
+      it("CSS 直播中重新进入 OBS 工作台时重新签发推流地址", async () => {
+        mockPrisma.liveRoom.findUnique.mockResolvedValue({
+          id: "r1", hostUserId: "host1", status: "LIVING",
+          pushUrl: "rtmp://push.example.com/live/room_r1?txTime=EXPIRED",
+          orientation: "landscape", trtcRoomId: null,
+        });
+        mockStream.genPushUrl.mockReturnValueOnce(
+          "rtmp://push.example.com/live/room_r1?txSecret=fresh&txTime=FRESH",
+        );
+
+        const result = await svc.getStreamUrls("r1", "host1", false);
+
+        expect(mockStream.genPushUrl).toHaveBeenCalledWith("room_r1");
+        expect(result.pushUrl).toBe(
+          "rtmp://push.example.com/live/room_r1?txSecret=fresh&txTime=FRESH",
+        );
+        expect(result.pushUrl).not.toContain("EXPIRED");
+      });
+
       it("OBS 同房模式返回 TRTC RTMP 地址并登记回调房间映射", async () => {
         process.env.LIVE_OBS_TRTC_INGEST_ENABLED = "true";
         process.env.TRTC_SDK_APP_ID = "1600030106";
