@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { onBackPress } from '@dcloudio/uni-app'
-import { legacyPaipanApi } from '@/lib/legacy-paipan-data'
+import { consumeLegacyPaipanEntry, legacyPaipanApi } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
 
@@ -155,21 +155,22 @@ async function loadEntry() {
   try {
     if (!getToken()) {
       loginRequired.value = true
-      error.value = '登录后即可安全进入旧版排盘；其他公开内容仍可直接浏览。'
+      error.value = '登录后即可安全进入排盘工具；其他公开内容仍可直接浏览。'
       return
     }
-    const entry = await legacyPaipanApi.entry()
+    // 正常入口由上一页一次性交接已生成的地址；直接深链进入时才回源请求。
+    const entry = consumeLegacyPaipanEntry() || await legacyPaipanApi.entry()
     if (entry.mode !== 'legacy') {
       uni.reLaunch({ url: '/pages/paipan/index' })
       return
     }
-    if (!entry.url || !entry.url.startsWith('https://')) throw new Error('旧排盘地址未正确配置')
+    if (!entry.url || !entry.url.startsWith('https://')) throw new Error('排盘工具地址未正确配置')
     legacyUrl.value = entry.url
   } catch (cause) {
-    const message = (cause as Error)?.message || '旧排盘暂时无法打开'
+    const message = (cause as Error)?.message || '排盘工具暂时无法打开'
     loginRequired.value = /未登录|登录已过期/u.test(message)
     error.value = loginRequired.value
-      ? '登录后即可安全进入旧版排盘；其他公开内容仍可直接浏览。'
+      ? '登录后即可安全进入排盘工具；其他公开内容仍可直接浏览。'
       : message
   } finally {
     loading.value = false
@@ -200,7 +201,7 @@ function handleLegacyMessage(event: { detail?: { data?: unknown } }) {
 }
 
 function handleLegacyLoadError() {
-  uni.showToast({ title: '旧排盘暂时无法打开', icon: 'none' })
+  uni.showToast({ title: '排盘工具暂时无法打开', icon: 'none' })
   returnToNewSystem()
 }
 
@@ -220,25 +221,25 @@ onBackPress(() => {
 <template>
   <view v-if="loading" class="state" role="status" aria-live="polite">
     <view class="spinner" />
-    <text class="title">正在连接旧版排盘</text>
-    <text class="desc">连接期间不会向页面暴露热卜登录凭据</text>
+    <text class="title">排盘工具</text>
+    <text class="desc">正在安全连接，请稍候</text>
   </view>
 
   <view v-else-if="error" class="state" role="alert">
-    <text class="title">{{ loginRequired ? '登录后进入旧版排盘' : '暂时无法进入旧版排盘' }}</text>
+    <text class="title">{{ loginRequired ? '登录后进入排盘工具' : '暂时无法进入排盘工具' }}</text>
     <text class="desc">{{ error }}</text>
-    <button v-if="loginRequired" class="action primary" @tap="openLogin">登录后进入旧版排盘</button>
+    <button v-if="loginRequired" class="action primary" @tap="openLogin">登录后进入排盘工具</button>
     <button v-else class="action primary" @tap="loadEntry">重试</button>
     <button class="action" @tap="returnToNewSystem">返回热卜首页</button>
   </view>
 
   <!-- #ifdef H5 -->
-  <view v-if="!loading && !error" class="state legacy-gateway" role="main" aria-label="旧版排盘兼容入口">
+  <view v-if="!loading && !error" class="state legacy-gateway" role="main" aria-label="排盘工具入口">
     <view class="gateway-card">
       <view class="brand">热卜</view>
-      <text class="title">旧版排盘兼容服务</text>
-      <text class="desc">旧版排盘将在新页面打开；当前热卜页面会保留，完成后关闭新页面即可返回。</text>
-      <button class="action primary" @tap="openLegacyH5">打开旧版排盘</button>
+      <text class="title">排盘工具</text>
+      <text class="desc">排盘工具将在新页面打开；当前热卜页面会保留，完成后关闭新页面即可返回。</text>
+      <button class="action primary" @tap="openLegacyH5">打开排盘工具</button>
       <button class="action" @tap="returnToNewSystem">返回热卜首页</button>
       <text class="tip">若浏览器阻止新页面，将改在当前页打开，可使用浏览器返回键回到热卜。</text>
     </view>

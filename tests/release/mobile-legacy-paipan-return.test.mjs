@@ -3,6 +3,8 @@ import fs from 'node:fs'
 import test from 'node:test'
 
 const page = fs.readFileSync('apps/mobile/src/pkg-common/legacy-paipan/index.vue', 'utf8')
+const paipanPage = fs.readFileSync('apps/mobile/src/pages/paipan/index.vue', 'utf8')
+const legacyData = fs.readFileSync('apps/mobile/src/lib/legacy-paipan-data.ts', 'utf8')
 const pages = fs.readFileSync('apps/mobile/src/pages.json', 'utf8')
 const videoPage = fs.readFileSync('apps/mobile/src/pkg-video/detail/index.vue', 'utf8')
 
@@ -15,8 +17,8 @@ test('H5 旧排盘由用户手势新窗口打开并保留可见返回入口', ()
   assert.match(page, />返回热卜首页</u)
 })
 
-test('App 与小程序旧排盘使用默认原生导航安全区、硬件返回和受控消息桥', () => {
-  assert.match(pages, /"path": "legacy-paipan\/index"[\s\S]*?"navigationBarTitleText": "旧版排盘"/u)
+test('App 与小程序排盘工具使用统一标题、默认原生导航安全区、硬件返回和受控消息桥', () => {
+  assert.match(pages, /"path": "legacy-paipan\/index"[\s\S]*?"navigationBarTitleText": "排盘工具"/u)
   const routeConfig = pages.slice(pages.indexOf('"path": "legacy-paipan/index"'), pages.indexOf('"path": "legacy-paipan/index"') + 320)
   assert.doesNotMatch(routeConfig, /"navigationStyle": "custom"/u)
   assert.match(page, /@message="handleLegacyMessage"/u)
@@ -24,6 +26,14 @@ test('App 与小程序旧排盘使用默认原生导航安全区、硬件返回�
   assert.match(page, /message\.action === 'return-to-rebu'/u)
   assert.match(page, /onBackPress\(\(\) =>/u)
   assert.match(page, /navigateTo\('\/pages\/index\/index'\)/u)
+})
+
+test('旧排盘签名地址只在内存中一次性交接，承接页不会重复请求造成停顿', () => {
+  assert.match(legacyData, /pendingLegacyEntry/u)
+  assert.match(legacyData, /pendingLegacyEntry = null/u)
+  assert.match(paipanPage, /stageLegacyPaipanEntry\(/u)
+  assert.match(page, /consumeLegacyPaipanEntry\(\) \|\| await legacyPaipanApi\.entry\(\)/u)
+  assert.doesNotMatch(page, />旧版排盘</u)
 })
 
 test('App 旧排盘只在受信域名内兼容新窗口工具，并保留子页面返回', () => {

@@ -23,7 +23,7 @@ import {
   removeFavorite,
   recordToolUsage,
 } from "@/lib/paipan/tool-prefs";
-import { legacyPaipanApi } from "@/lib/legacy-paipan-data";
+import { legacyPaipanApi, stageLegacyPaipanEntry } from "@/lib/legacy-paipan-data";
 import { navigateTo } from "@/utils/router";
 import { getToken } from "@/utils/storage";
 import { setNativeQaSession } from "@/lib/paipan-runtime";
@@ -232,6 +232,12 @@ async function loadPaipanEntry() {
       if (!entry.url || !entry.url.startsWith("https://")) {
         throw new Error("排盘服务地址未正确配置");
       }
+      // 承接页立即复用本次结果，避免再次请求签名地址造成可见停顿。
+      stageLegacyPaipanEntry({
+        mode: entry.mode,
+        url: entry.url,
+        attributionReady: "attributionReady" in entry ? Boolean(entry.attributionReady) : false,
+      });
       legacyRouting.value = true;
       uni.navigateTo({
         url: "/pkg-common/legacy-paipan/index",
