@@ -2,20 +2,34 @@
 import { onMounted, ref } from 'vue'
 import { onBackPress } from '@dcloudio/uni-app'
 import { legacyPaipanApi } from '@/lib/legacy-paipan-data'
+import { navigateTo } from '@/utils/router'
+import { getToken } from '@/utils/storage'
 
 const loading = ref(true)
 const error = ref('')
 const legacyUrl = ref('')
+const loginRequired = ref(false)
 
 function returnToNewSystem() {
-  uni.reLaunch({ url: '/pages/index/index' })
+  navigateTo('/pages/index/index')
+}
+
+function openLogin() {
+  try { uni.setStorageSync('login:redirect', '/pkg-common/legacy-paipan/index') } catch { /* 登录仍可继续 */ }
+  navigateTo('/login')
 }
 
 async function loadEntry() {
   loading.value = true
   error.value = ''
   legacyUrl.value = ''
+  loginRequired.value = false
   try {
+    if (!getToken()) {
+      loginRequired.value = true
+      error.value = '登录后即可安全进入旧版排盘；其他公开内容仍可直接浏览。'
+      return
+    }
     const entry = await legacyPaipanApi.entry()
     if (entry.mode !== 'legacy') {
       uni.reLaunch({ url: '/pages/paipan/index' })
@@ -24,7 +38,11 @@ async function loadEntry() {
     if (!entry.url || !entry.url.startsWith('https://')) throw new Error('旧排盘地址未正确配置')
     legacyUrl.value = entry.url
   } catch (cause) {
-    error.value = (cause as Error)?.message || '旧排盘暂时无法打开'
+    const message = (cause as Error)?.message || '旧排盘暂时无法打开'
+    loginRequired.value = /未登录|登录已过期/u.test(message)
+    error.value = loginRequired.value
+      ? '登录后即可安全进入旧版排盘；其他公开内容仍可直接浏览。'
+      : message
   } finally {
     loading.value = false
   }
@@ -73,9 +91,10 @@ onBackPress(() => {
   </view>
 
   <view v-else-if="error" class="state" role="alert">
-    <text class="title">暂时无法进入旧版排盘</text>
+    <text class="title">{{ loginRequired ? '登录后进入旧版排盘' : '暂时无法进入旧版排盘' }}</text>
     <text class="desc">{{ error }}</text>
-    <button class="action primary" @tap="loadEntry">重试</button>
+    <button v-if="loginRequired" class="action primary" @tap="openLogin">登录后进入旧版排盘</button>
+    <button v-else class="action primary" @tap="loadEntry">重试</button>
     <button class="action" @tap="returnToNewSystem">返回热卜首页</button>
   </view>
 

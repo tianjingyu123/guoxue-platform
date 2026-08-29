@@ -22,5 +22,5 @@ test('App 与小程序旧排盘使用默认原生导航安全区、硬件返回�
   assert.match(page, /message\.type === 'rebu:return'/u)
   assert.match(page, /message\.action === 'return-to-rebu'/u)
   assert.match(page, /onBackPress\(\(\) =>/u)
-  assert.match(page, /uni\.reLaunch\(\{ url: '\/pages\/index\/index' \}\)/u)
+  assert.match(page, /navigateTo\('\/pages\/index\/index'\)/u)
 })

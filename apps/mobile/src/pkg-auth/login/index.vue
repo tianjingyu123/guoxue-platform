@@ -205,6 +205,17 @@
             @keydown="activateOnKeyboard($event, goRegister)"
           >立即注册</text>
         </view>
+
+        <view
+          class="guest-entry"
+          role="button"
+          tabindex="0"
+          aria-label="暂不登录，浏览公开内容"
+          @tap="browseAsGuest"
+          @keydown="activateOnKeyboard($event, browseAsGuest)"
+        >
+          <text>暂不登录，先逛逛</text>
+        </view>
       </view>
 
       <!-- 第三方登录：iOS 同级提供 Apple 登录，满足 App Store 4.8。 -->
@@ -710,6 +721,10 @@ function goForgot() {
 function goRegister() {
   navigateTo('/register')
 }
+function browseAsGuest() {
+  try { uni.removeStorageSync('login:redirect') } catch { /* 清理失败不阻断返回公开页面 */ }
+  navigateTo('/pages/index/index')
+}
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
@@ -988,6 +1003,16 @@ onUnmounted(() => {
   font-size: 28rpx;
   color: var(--brand);
   margin-left: 8rpx;
+}
+.guest-entry {
+  min-height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #76695f;
+  font-size: 27rpx;
+  text-decoration: underline;
+  text-underline-offset: 6rpx;
 }
 
 /* 第三方 */

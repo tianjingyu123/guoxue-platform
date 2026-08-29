@@ -25,6 +25,7 @@ import {
 } from "@/lib/paipan/tool-prefs";
 import { legacyPaipanApi } from "@/lib/legacy-paipan-data";
 import { navigateTo } from "@/utils/router";
+import { getToken } from "@/utils/storage";
 import { setNativeQaSession } from "@/lib/paipan-runtime";
 
 const GRID_COLS = 4;
@@ -39,6 +40,7 @@ const entryError = ref("");
 const legacyRouting = ref(false);
 const allowNative = ref(false);
 const qaNotFound = ref(false);
+const loginRequired = ref(false);
 let entryTarget: "tool" | "account" | "station" = "tool";
 let entryStationId = "";
 let nativeQaRequested = false;
@@ -204,6 +206,7 @@ async function loadPaipanEntry() {
   entryError.value = "";
   allowNative.value = false;
   qaNotFound.value = false;
+  loginRequired.value = false;
   try {
     if (nativeQaRequested) {
       const access = await legacyPaipanApi.nativeQaAccess();
@@ -212,6 +215,11 @@ async function loadPaipanEntry() {
       allowNative.value = true;
       favIds.value = getFavorites();
       await loadPlatformAgents();
+      return;
+    }
+    if (entryTarget !== "station" && !getToken()) {
+      loginRequired.value = true;
+      entryError.value = "登录后即可安全进入旧版排盘；首页、圈子、发现等内容仍可直接浏览。";
       return;
     }
     const entry =
@@ -240,12 +248,38 @@ async function loadPaipanEntry() {
   } catch (error) {
     setNativeQaSession(false);
     qaNotFound.value = nativeQaRequested;
+    const message = (error as Error)?.message || "排盘服务暂时不可用，请稍后重试";
+    loginRequired.value = !nativeQaRequested && /未登录|登录已过期/u.test(message);
     entryError.value = nativeQaRequested
       ? "页面不存在"
-      : (error as Error)?.message || "排盘服务暂时不可用，请稍后重试";
+      : loginRequired.value
+        ? "登录后即可安全进入旧版排盘；首页、圈子、发现等内容仍可直接浏览。"
+        : message;
   } finally {
     entryLoading.value = false;
   }
+}
+
+function paipanReturnPath() {
+  const params: string[] = [];
+  if (entryTarget !== "tool") params.push(`target=${entryTarget}`);
+  if (entryTarget === "station" && entryStationId) {
+    params.push(`stationId=${encodeURIComponent(entryStationId)}`);
+  }
+  return `/pages/paipan/index${params.length ? `?${params.join("&")}` : ""}`;
+}
+
+function openLoginForPaipan() {
+  try {
+    uni.setStorageSync("login:redirect", paipanReturnPath());
+  } catch {
+    // 回跳记录失败不影响用户主动登录。
+  }
+  navigateTo('/login');
+}
+
+function browsePublicContent() {
+  navigateTo('/pages/index/index');
 }
 
 onLoad((query?: Record<string, string>) => {
@@ -718,10 +752,13 @@ onShow(() => {
   </view>
 
   <view v-else class="entry-gate" role="alert" aria-live="assertive">
-    <app-icon :name="qaNotFound ? 'file-x' : 'wifi-off'" :size="56" color="#8A6A3F" />
-    <text class="entry-gate-title">{{ qaNotFound ? "页面不存在" : "排盘服务暂时不可用" }}</text>
+    <app-icon :name="qaNotFound ? 'file-x' : loginRequired ? 'user' : 'wifi-off'" :size="56" color="#8A6A3F" />
+    <text class="entry-gate-title">{{ qaNotFound ? "页面不存在" : loginRequired ? "登录后使用排盘" : "排盘服务暂时不可用" }}</text>
     <text v-if="!qaNotFound" class="entry-gate-desc">{{ entryError }}</text>
-    <button v-if="!qaNotFound" class="degraded-retry" @tap="loadPaipanEntry">重新连接</button>
+    <button v-if="loginRequired" class="degraded-retry degraded-primary" @tap="openLoginForPaipan">登录后进入排盘</button>
+    <button v-if="loginRequired" class="degraded-retry" @tap="browsePublicContent">先逛逛</button>
+    <button v-else-if="!qaNotFound" class="degraded-retry" @tap="loadPaipanEntry">重新连接</button>
+    <button v-if="!qaNotFound && !loginRequired" class="degraded-retry" @tap="browsePublicContent">返回首页</button>
   </view>
 </template>
 
@@ -817,6 +854,10 @@ onShow(() => {
 }
 .degraded-retry::after {
   border: 0;
+}
+.degraded-primary {
+  background: var(--brand, #c41e3a);
+  color: #fff;
 }
 
 /* 今日时刻 */
