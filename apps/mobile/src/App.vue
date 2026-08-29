@@ -102,12 +102,24 @@ type AppEntryOptions = {
   appScheme?: unknown
 }
 
+type AppRuntimePlatform = 'android' | 'ios' | 'other'
+
 let appEntryListenerInstalled = false
 let appEntryGlobalEventInstalled = false
 let lastHandledAppEntryArgument = ''
 let lastHandledAppEntryAt = 0
 let lastHandledAndroidIntentCleared = false
 let appEntryReadRetryTimer: ReturnType<typeof setTimeout> | undefined
+
+function readAppRuntimePlatform(): AppRuntimePlatform {
+  // #ifdef APP-PLUS
+  try {
+    const platform = String(uni.getSystemInfoSync().platform || '').toLowerCase()
+    if (platform === 'android' || platform === 'ios') return platform
+  } catch { /* 原生信息不可用时按 other，不读取持久化启动参数 */ }
+  // #endif
+  return 'other'
+}
 
 /**
  * 接管 Android App Link / iOS Universal Link：冷启动读取一次参数，热启动监听 newintent。
@@ -139,6 +151,17 @@ function readCurrentAppEntryArgument(
   source: AppEntrySource = 'lifecycle',
 ): string {
   // #ifdef APP-PLUS
+  const platform = readAppRuntimePlatform()
+  const explicitCandidates = [options?.appLink, options?.appScheme]
+  // iOS 的 plus.runtime.arguments / getLaunchOptionsSync 可能在普通启动和页面切换后
+  // 持续返回历史值。把它当成新深链会异步 reLaunch 当前 WebView，表现为首页先闪现、
+  // 随后白屏且下次启动继续复现。iOS 只接受本次生命周期显式交付的链接。
+  if (platform !== 'android') {
+    return explicitCandidates
+      .map((item) => String(item || '').trim())
+      .find((item) => parseAppEntryLink(item)) || ''
+  }
+
   let enterOptions: AppEntryOptions = {}
   let launchOptions: AppEntryOptions = {}
   try { enterOptions = uni.getEnterOptionsSync() as AppEntryOptions } catch { /* 使用其他来源 */ }
@@ -146,10 +169,9 @@ function readCurrentAppEntryArgument(
   const plusApi = (globalThis as typeof globalThis & { plus?: { runtime?: AppPlusRuntime } }).plus
   const nativeIntentData = readCurrentAndroidIntentData()
   const optionCandidates = [
-    options?.appLink,
+    ...explicitCandidates,
     enterOptions.appLink,
     launchOptions.appLink,
-    options?.appScheme,
     enterOptions.appScheme,
     launchOptions.appScheme,
   ]
@@ -175,7 +197,7 @@ function openCurrentAppEntryArgument(
   if (!route) {
     // Android 冷启动时 onShow 可能早于原生 Intent 桥接完成。单定时器短轮询，
     // 最多等待 2 秒；普通启动无深链时也会自行停止，不阻塞首屏。
-    if (retries > 0 && !appEntryReadRetryTimer) {
+    if (readAppRuntimePlatform() === 'android' && retries > 0 && !appEntryReadRetryTimer) {
       appEntryReadRetryTimer = setTimeout(() => {
         appEntryReadRetryTimer = undefined
         openCurrentAppEntryArgument(source, options, retries - 1)
@@ -198,6 +220,8 @@ function openCurrentAppEntryArgument(
     || explicitLifecycleDelivery
     || repeatedAndroidIntentDelivery
   if (rawArgument === lastHandledAppEntryArgument) {
+    // iOS 生命周期/系统 API 会重放同一份历史 URL；同一进程内永不把它当成新交付。
+    if (readAppRuntimePlatform() !== 'android') return
     // runtime.arguments 可能持续保留上一次值：普通 onShow 不得反复跳转；同一链接被再次
     // 唤起时会收到 newintent、onShow 显式参数或一条新的原生 Intent，超过事件去抖
     // 窗口后仍允许再次处理。
@@ -273,8 +297,12 @@ function reLaunchAppEntryWhenReady(target: string, retries = 20): void {
   // #endif
 }
 
-function installAppEntryLinkRouting(): void {
+function installAppEntryLinkRouting(options?: AppEntryOptions): void {
   // #ifdef APP-PLUS
+  if (readAppRuntimePlatform() !== 'android') {
+    openCurrentAppEntryArgument('lifecycle', options, 0)
+    return
+  }
   if (appEntryListenerInstalled) return
   appEntryListenerInstalled = true
 
@@ -309,7 +337,7 @@ function pickUrl(args: string | { url?: string }): string {
   return url ? String(url).split('?')[0] : ''
 }
 
-onLaunch((options?: { path?: string; query?: Record<string, unknown> }) => {
+onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: unknown; appScheme?: unknown }) => {
   // #ifdef H5
   // 动态分包加载失败自愈：部署后旧 index.html 被浏览器(尤其 iOS Safari/WebView)顽固缓存、
   // 引用了已被替换的旧 chunk 时，懒加载分包(如设置页)会 preloadError 导致白屏。
@@ -358,7 +386,7 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown> }) => {
       },
     })
   })
-  installAppEntryLinkRouting()
+  installAppEntryLinkRouting(options)
 })
 // 热启动（小程序从分享卡片再次进入）同样捕获 ref
 onShow((options?: { query?: Record<string, unknown>; appLink?: unknown; appScheme?: unknown }) => {
