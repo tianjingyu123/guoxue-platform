@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { onBackPress } from '@dcloudio/uni-app'
 import { legacyPaipanApi } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
@@ -9,6 +9,134 @@ const loading = ref(true)
 const error = ref('')
 const legacyUrl = ref('')
 const loginRequired = ref(false)
+const windowWidth = uni.getSystemInfoSync().windowWidth || 375
+let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
+let rightGestureActive = false
+let rightGestureStartX = 0
+let rightGestureStartY = 0
+let rightGestureStartAt = 0
+
+/** 只允许对旧排盘官方域名的子 WebView 注入兼容桥，避免影响其他页面。 */
+function isTrustedLegacyUrl(url: string): boolean {
+  return /^https:\/\/(?:[^./]+\.)?yrydai\.(?:cn|com)(?:[/:?#]|$)/iu.test(url)
+}
+
+/**
+ * 第三方旧站大量工具仍用 target=_blank/window.open；App 原生 WebView 不会自动创建新窗口。
+ * 在受信任子 WebView 内把这些动作降级为同页导航，既保留工具可用性，也不泄露签名地址。
+ */
+function legacyNavigationBridgeScript(): string {
+  return `;(function(){
+    if(window.__rebuLegacyNavigationBridgeInstalled)return;
+    window.__rebuLegacyNavigationBridgeInstalled=true;
+    function normalize(){
+      var links=document.querySelectorAll('a[target="_blank"],a[target="_new"]');
+      for(var i=0;i<links.length;i++)links[i].setAttribute('target','_self');
+    }
+    document.addEventListener('click',function(event){
+      var node=event.target;
+      while(node&&node.tagName!=='A')node=node.parentNode;
+      if(!node)return;
+      var target=String(node.getAttribute('target')||'').toLowerCase();
+      if((target==='_blank'||target==='_new')&&node.href){
+        event.preventDefault();
+        window.location.assign(node.href);
+      }
+    },true);
+    window.open=function(url){
+      if(typeof url==='string'&&url)window.location.assign(url);
+      return window;
+    };
+    normalize();
+    if(window.MutationObserver){
+      new MutationObserver(normalize).observe(document.documentElement,{childList:true,subtree:true});
+    }
+  })();`
+}
+
+// #ifdef APP-PLUS
+function findLegacyChildWebview(): any | null {
+  try {
+    const current = plus.webview.currentWebview()
+    const children = current.children?.() || []
+    return children.find((child: any) => {
+      try { return isTrustedLegacyUrl(String(child.getURL?.() || '')) } catch { return false }
+    }) || null
+  } catch { return null }
+}
+
+function installLegacyNavigationBridge() {
+  const child = findLegacyChildWebview()
+  if (!child) return false
+  try {
+    child.evalJS(legacyNavigationBridgeScript())
+    return true
+  } catch { return false }
+}
+// #endif
+
+function scheduleLegacyNavigationBridge() {
+  // #ifdef APP-PLUS
+  bridgeTimers.forEach(clearTimeout)
+  bridgeTimers = [0, 250, 700, 1500].map((delay) => setTimeout(() => {
+    const child = findLegacyChildWebview()
+    if (!child) return
+    try {
+      const bridgedChild = child as any
+      if (!bridgedChild.__rebuLoadedBridgeBound) {
+        bridgedChild.__rebuLoadedBridgeBound = true
+        child.addEventListener?.('loaded', installLegacyNavigationBridge)
+      }
+    } catch { /* 当前页面仍可继续加载 */ }
+    installLegacyNavigationBridge()
+  }, delay))
+  // #endif
+}
+
+function navigateLegacyBack() {
+  // #ifdef APP-PLUS
+  const child = findLegacyChildWebview()
+  if (!child) { returnToNewSystem(); return }
+  try {
+    child.canBack((event: { canBack?: boolean }) => {
+      if (event?.canBack) child.back()
+      else returnToNewSystem()
+    })
+  } catch { returnToNewSystem() }
+  return undefined
+  // #endif
+  returnToNewSystem()
+}
+
+function touchPoint(event: any, changed = false) {
+  const point = (changed ? event?.changedTouches?.[0] : event?.touches?.[0])
+    || event?.changedTouches?.[0]
+    || event?.touches?.[0]
+    || {}
+  return { x: Number(point.clientX) || 0, y: Number(point.clientY) || 0 }
+}
+
+/** 右手从屏幕右缘向左划，也可返回第三方上一级；左缘系统返回手势保持不变。 */
+function onRightGestureStart(event: any) {
+  const point = touchPoint(event)
+  rightGestureActive = point.x >= windowWidth - 48
+  rightGestureStartX = point.x
+  rightGestureStartY = point.y
+  rightGestureStartAt = Date.now()
+}
+
+function onRightGestureEnd(event: any) {
+  if (!rightGestureActive) return
+  rightGestureActive = false
+  const point = touchPoint(event, true)
+  const dx = point.x - rightGestureStartX
+  const dy = point.y - rightGestureStartY
+  if (dx <= -64 && Math.abs(dx) > Math.abs(dy) * 1.25 && Date.now() - rightGestureStartAt <= 1100) {
+    navigateLegacyBack()
+  }
+}
+
+function onRightGestureCancel() { rightGestureActive = false }
 
 function returnToNewSystem() {
   navigateTo('/pages/index/index')
@@ -76,9 +204,15 @@ function handleLegacyLoadError() {
   returnToNewSystem()
 }
 
+function handleLegacyLoaded() { scheduleLegacyNavigationBridge() }
+
 onMounted(() => { void loadEntry() })
+onUnmounted(() => {
+  bridgeTimers.forEach(clearTimeout)
+  bridgeTimers = []
+})
 onBackPress(() => {
-  returnToNewSystem()
+  navigateLegacyBack()
   return true
 })
 </script>
@@ -117,9 +251,20 @@ onBackPress(() => {
     v-if="!loading && !error && legacyUrl"
     class="legacy-webview"
     :src="legacyUrl"
+    @load="handleLegacyLoaded"
     @message="handleLegacyMessage"
     @error="handleLegacyLoadError"
   />
+  <!-- #ifdef APP-PLUS -->
+  <!-- cover-view 可覆盖原生 WebView；仅占右缘窄条，不遮挡页面主体工具。 -->
+  <cover-view
+    v-if="!loading && !error && legacyUrl"
+    class="legacy-right-back-gesture"
+    @touchstart.stop="onRightGestureStart"
+    @touchend.stop="onRightGestureEnd"
+    @touchcancel.stop="onRightGestureCancel"
+  />
+  <!-- #endif -->
   <!-- #endif -->
 </template>
 
@@ -191,5 +336,14 @@ onBackPress(() => {
 .gateway-card .action { display: block; margin: 12px auto 0; }
 .tip { display: block; margin-top: 16px; color: #9a8d82; font-size: 12px; line-height: 1.6; }
 .legacy-webview { width: 100%; height: 100%; }
+.legacy-right-back-gesture {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 38px;
+  z-index: 9999;
+  background-color: transparent;
+}
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>

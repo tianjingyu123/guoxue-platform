@@ -56,9 +56,15 @@
             :show-fullscreen-btn="false"
             :show-progress="false"
             :enable-progress-gesture="false"
+            :enable-play-gesture="false"
             :loop="true"
             autoplay
             :object-fit="currentLandscape ? 'contain' : 'cover'"
+            @tap.stop="onSingleTap"
+            @touchstart.stop="onPressStart"
+            @touchmove.stop="onPressMove"
+            @touchend.stop="onPressEnd"
+            @touchcancel.stop="onPressCancel"
             @play="onVideoPlay"
             @pause="onVideoPause"
             @error="onVideoError"
@@ -560,6 +566,11 @@ let pressTimer: ReturnType<typeof setTimeout> | null = null
 let suppressTap = false // 长按松手后紧随的 tap 属于长按残留 → 吞掉，不触发暂停/双击
 let pressStartX = 0
 let pressStartY = 0
+let swipeLastX = 0
+let swipeLastY = 0
+let swipeStartAt = 0
+let swipeStartIndex = 0
+let swipeTracking = false
 function setPlaybackRate(rate: number) {
   // #ifdef H5
   const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
@@ -568,13 +579,25 @@ function setPlaybackRate(rate: number) {
   getVideoCtx()?.playbackRate(rate)
 }
 function clearPressTimer() { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null } }
+function pressPoint(e: any, changed = false) {
+  const t = (changed ? e?.changedTouches?.[0] : e?.touches?.[0])
+    || e?.changedTouches?.[0]
+    || e?.touches?.[0]
+    || {}
+  return { x: Number(t.clientX) || 0, y: Number(t.clientY) || 0 }
+}
 function onPressStart(e: any /* uni touch 事件跨端形状不一，参数须 any */) {
   clearPressTimer()
+  const t = pressPoint(e)
+  pressStartX = t.x
+  pressStartY = t.y
+  swipeLastX = t.x
+  swipeLastY = t.y
+  swipeStartAt = Date.now()
+  swipeStartIndex = currentIndex.value
+  swipeTracking = true
   // 仅播放中的真实视频可倍速；暂停态长按不响应（避免吞掉恢复播放的点按）
   if (!currentVideo.value?.videoUrl || playError.value || !isPlaying.value) return
-  const t = e?.touches?.[0] || {}
-  pressStartX = Number(t.clientX) || 0
-  pressStartY = Number(t.clientY) || 0
   // 480ms 判定长按（> 双击窗口 280ms·短按/双击在 touchend 时先清掉计时器，互不冲突）
   pressTimer = setTimeout(() => {
     pressTimer = null
@@ -583,13 +606,15 @@ function onPressStart(e: any /* uni touch 事件跨端形状不一，参数须 a
   }, 480)
 }
 function onPressMove(e: any) {
-  if (!pressTimer) return
-  const t = e?.touches?.[0] || {}
-  const dx = (Number(t.clientX) || 0) - pressStartX
-  const dy = (Number(t.clientY) || 0) - pressStartY
+  if (!swipeTracking) return
+  const t = pressPoint(e)
+  swipeLastX = t.x
+  swipeLastY = t.y
+  const dx = t.x - pressStartX
+  const dy = t.y - pressStartY
   if (Math.abs(dx) > 10 || Math.abs(dy) > 10) clearPressTimer() // 手指位移 → 视为滑动，取消长按
 }
-function onPressEnd() {
+function onPressEnd(e?: any) {
   clearPressTimer()
   if (speeding.value) {
     speeding.value = false
@@ -597,6 +622,35 @@ function onPressEnd() {
     suppressTap = true
     setTimeout(() => { suppressTap = false }, 350) // 兜底自清（部分端长按后不派发 tap）
   }
+  if (!swipeTracking) return
+  const point = pressPoint(e, true)
+  if (point.x || point.y) { swipeLastX = point.x; swipeLastY = point.y }
+  swipeTracking = false
+  const dx = swipeLastX - pressStartX
+  const dy = swipeLastY - pressStartY
+  const elapsed = Date.now() - swipeStartAt
+  // Android App 的原生 video 可能吞掉 swiper 手势：满足明确纵向滑动时手动切页兜底。
+  // 若 swiper 已先完成切页，currentIndex 已变化，本逻辑自动跳过，避免一次滑两条。
+  if (
+    currentIndex.value === swipeStartIndex
+    && Math.abs(dy) >= 56
+    && Math.abs(dy) > Math.abs(dx) * 1.2
+    && elapsed <= 1200
+  ) {
+    const target = Math.max(0, Math.min(videos.value.length - 1, swipeStartIndex + (dy < 0 ? 1 : -1)))
+    if (target !== swipeStartIndex) {
+      suppressTap = true
+      setTimeout(() => { suppressTap = false }, 350)
+      currentIndex.value = target
+      currentLandscape.value = false
+      if (videos.value.length - target <= 3) loadMoreFeed()
+    }
+  }
+}
+function onPressCancel() {
+  clearPressTimer()
+  swipeTracking = false
+  if (speeding.value) { speeding.value = false; setPlaybackRate(1) }
 }
 
 // ===== 播放进度（V0 底部细进度条）=====
