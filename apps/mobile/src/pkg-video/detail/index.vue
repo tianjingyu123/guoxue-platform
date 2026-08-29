@@ -44,6 +44,25 @@
           <image lazy-load class="vp__cover" :src="v.coverUrl" mode="aspectFill" />
           <!-- 视频播放器：仅当前条挂载（H5=原生 video，小程序/App=原生组件）·不静音（董事长拍板：
                自动播放被浏览器拦截时显示中央播放按钮让用户点一下，而不是静音自动播） -->
+          <!-- #ifdef APP-PLUS -->
+          <AppWebVideo
+            v-if="i === currentIndex && v.videoUrl && !playError"
+            :key="v.id"
+            class="vp__video"
+            :src="v.videoUrl"
+            :poster="v.coverUrl"
+            :autoplay="true"
+            :loop="true"
+            :object-fit="currentLandscape ? 'contain' : 'cover'"
+            :command="appPlayerCommand"
+            @play="onVideoPlay"
+            @pause="onVideoPause"
+            @error="onVideoError"
+            @timeupdate="onTimeUpdate"
+            @loadedmetadata="onVideoMeta"
+          />
+          <!-- #endif -->
+          <!-- #ifndef APP-PLUS -->
           <video
             v-if="i === currentIndex && v.videoUrl && !playError"
             :key="v.id"
@@ -71,6 +90,7 @@
             @timeupdate="onTimeUpdate"
             @loadedmetadata="onVideoMeta"
           />
+          <!-- #endif -->
           <!-- 不可播诚实态：源加载失败（如 .mov 格式安卓不支持/转码中）-->
           <view v-if="i === currentIndex && playError" class="vp__unplayable">
             <AppIcon name="video-off" :size="64" color="rgba(255,255,255,0.65)" />
@@ -414,6 +434,9 @@ import { onLoad, onShareAppMessage, onShareTimeline, onHide } from '@dcloudio/un
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+// #ifdef APP-PLUS
+import AppWebVideo, { type AppWebVideoCommand } from '@/components/media/app-web-video.vue'
+// #endif
 import { goBack, navigateTo } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
@@ -429,6 +452,7 @@ interface CartItem { productId: string; quantity: number; product: VideoProduct 
 
 // ===== 系统信息 =====
 const sysInfo = uni.getSystemInfoSync()
+const isAppPlusRuntime = (sysInfo as typeof sysInfo & { uniPlatform?: string }).uniPlatform === 'app'
 const statusBarHeight = ref(sysInfo.statusBarHeight || 0)
 const safeBottom = ref(sysInfo.safeAreaInsets?.bottom || 0)
 const windowH = ref(sysInfo.windowHeight || 0)
@@ -511,6 +535,11 @@ const playError = ref(false) // 视频源加载失败 → 隐藏 player 回退�
 // 横屏视频适配：竖屏(9:16)用 cover 填满；横屏(16:9 如 OBS 录屏/风景课)用 contain 居中留黑边，
 // 完整显示画面不裁切（抖音式）。宽>高×1.1 判为横屏。由 @loadedmetadata 跨端拿真实宽高。
 const currentLandscape = ref(false)
+let appPlayerCommandSeq = 0
+const appPlayerCommand = ref<AppWebVideoCommand>({ seq: 0, type: 'pause' })
+function commandAppPlayer(type: AppWebVideoCommand['type'], value?: number) {
+  appPlayerCommand.value = { seq: ++appPlayerCommandSeq, type, value }
+}
 function onVideoMeta(e: any /* uni video @loadedmetadata：detail.{width,height}·vue-tsc 按 HTML video 校验须 any */) {
   const w = Number(e?.detail?.width) || 0
   const h = Number(e?.detail?.height) || 0
@@ -533,6 +562,7 @@ function getVideoCtx() {
  * 拦截时同样拒绝。H5 直接驱动原生 <video> 并 catch，播放成败交给 @play 事件回写 isPlaying。
  */
 function safePlay() {
+  if (isAppPlusRuntime) { commandAppPlayer('play'); return }
   // #ifdef H5
   const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
   if (media) {
@@ -543,13 +573,17 @@ function safePlay() {
   // #endif
   getVideoCtx()?.play()
 }
+function safePause() {
+  if (isAppPlusRuntime) { commandAppPlayer('pause'); return }
+  getVideoCtx()?.pause()
+}
 function togglePlay() {
   // 无真实视频源：仅切换占位播放态（封面模式）
   if (!currentVideo.value?.videoUrl || playError.value) {
     isPlaying.value = !isPlaying.value
     return
   }
-  if (isPlaying.value) { getVideoCtx()?.pause(); isPlaying.value = false }
+  if (isPlaying.value) { safePause(); isPlaying.value = false }
   else { safePlay() } // isPlaying 由 @play 事件置 true（播放失败则按钮保留·诚实）
 }
 function onVideoPlay() { isPlaying.value = true }
@@ -558,7 +592,7 @@ function onVideoError() { playError.value = true; isPlaying.value = false }
 
 // 切页/切后台时暂停视频，根除后台多音轨（点作者头像/圈子跳转时原视频不再后台出声）
 // 长按 2x 中切页：倍速一并复位（否则回来续播仍是 2x）
-onHide(() => { getVideoCtx()?.pause(); isPlaying.value = false; if (speeding.value) { speeding.value = false; setPlaybackRate(1) } clearPressTimer() })
+onHide(() => { safePause(); isPlaying.value = false; if (speeding.value) { speeding.value = false; setPlaybackRate(1) } clearPressTimer() })
 
 // ===== 长按 2 倍速（抖音式）=====
 const speeding = ref(false)
@@ -572,6 +606,7 @@ let swipeStartAt = 0
 let swipeStartIndex = 0
 let swipeTracking = false
 function setPlaybackRate(rate: number) {
+  if (isAppPlusRuntime) { commandAppPlayer('rate', rate); return }
   // #ifdef H5
   const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
   if (media) { media.playbackRate = rate; return }
@@ -700,6 +735,7 @@ function onSeekEnd() {
   playProgress.value = seekProgress.value // 先回写视觉，防 seek 生效前跳回旧进度
   seekSettleUntil = Date.now() + 600
   seeking.value = false
+  if (isAppPlusRuntime) { commandAppPlayer('seek', target); return }
   // #ifdef H5
   // 与 safePlay 同思路：H5 直接驱动原生 <video>（uni videoContext.seek 在 H5 偶发不生效）
   const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
@@ -1178,7 +1214,15 @@ function onBack() {
 /* 关注钮：44rpx 可点面积（原 32rpx 安卓难命中）·已关注变√灰底 */
 .vp__follow-plus { position: absolute; bottom: -20rpx; left: 50%; transform: translateX(-50%); width: 44rpx; height: 44rpx; border-radius: 999rpx; background: var(--brand); border: 3rpx solid rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
 .vp__follow-plus--ok { background: rgba(120,120,128,0.75); }
-.vp__act { display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
+.vp__act {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 88rpx;
+  min-height: 88rpx;
+  gap: 8rpx;
+}
 /* 图标 wrap：柔投影保任意画面可读（V0 drop-shadow 0 2px 5px .45）·激活动效作用于此层（纯 transform·X5 禁 filter 动画） */
 .vp__act-ico { display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 2rpx 5rpx rgba(0,0,0,0.45)); transform: scale(1); }
 /* 点赞「爆红心」：80ms 放大 1.28 → 200ms 回 1（transform/opacity·无 filter 动画） */

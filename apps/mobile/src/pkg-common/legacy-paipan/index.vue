@@ -9,12 +9,8 @@ const loading = ref(true)
 const error = ref('')
 const legacyUrl = ref('')
 const loginRequired = ref(false)
-const windowWidth = uni.getSystemInfoSync().windowWidth || 375
 let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
-let rightGestureActive = false
-let rightGestureStartX = 0
-let rightGestureStartY = 0
-let rightGestureStartAt = 0
+let legacyChildWebview: any | null = null
 
 /** 只允许对旧排盘官方域名的子 WebView 注入兼容桥，避免影响其他页面。 */
 function isTrustedLegacyUrl(url: string): boolean {
@@ -32,6 +28,8 @@ function legacyNavigationBridgeScript(): string {
     function normalize(){
       var links=document.querySelectorAll('a[target="_blank"],a[target="_new"]');
       for(var i=0;i<links.length;i++)links[i].setAttribute('target','_self');
+      var forms=document.querySelectorAll('form[target="_blank"],form[target="_new"]');
+      for(var j=0;j<forms.length;j++)forms[j].setAttribute('target','_self');
     }
     document.addEventListener('click',function(event){
       var node=event.target;
@@ -42,6 +40,12 @@ function legacyNavigationBridgeScript(): string {
         event.preventDefault();
         window.location.assign(node.href);
       }
+    },true);
+    document.addEventListener('submit',function(event){
+      var form=event.target;
+      if(!form||form.tagName!=='FORM')return;
+      var target=String(form.getAttribute('target')||'').toLowerCase();
+      if(target==='_blank'||target==='_new')form.setAttribute('target','_self');
     },true);
     window.open=function(url){
       if(typeof url==='string'&&url)window.location.assign(url);
@@ -57,19 +61,63 @@ function legacyNavigationBridgeScript(): string {
 // #ifdef APP-PLUS
 function findLegacyChildWebview(): any | null {
   try {
+    if (legacyChildWebview) {
+      // 已绑定的子 WebView 可能暂时跳到微信/支付宝 HTTPS 收银页；返回动作仍应操作它，
+      // 但脚本注入会在 installLegacyNavigationBridge 内继续受可信域名限制。
+      try { legacyChildWebview.getURL?.(); return legacyChildWebview } catch { legacyChildWebview = null }
+    }
     const current = plus.webview.currentWebview()
     const children = current.children?.() || []
-    return children.find((child: any) => {
+    const trusted = children.find((child: any) => {
       try { return isTrustedLegacyUrl(String(child.getURL?.() || '')) } catch { return false }
+    })
+    if (trusted) {
+      legacyChildWebview = trusted
+      return trusted
+    }
+    // web-view 初建时常是 about:blank；先绑定 loaded，真正跳到旧站后再校验域名注入。
+    const initialChild = children.find((child: any) => {
+      try {
+        const url = String(child.getURL?.() || '')
+        return !url || url === 'about:blank'
+      } catch { return false }
     }) || null
+    if (initialChild) legacyChildWebview = initialChild
+    return initialChild
   } catch { return null }
 }
 
-function installLegacyNavigationBridge() {
-  const child = findLegacyChildWebview()
+function installLegacyNavigationBridge(child = findLegacyChildWebview()) {
   if (!child) return false
   try {
+    if (!isTrustedLegacyUrl(String(child.getURL?.() || ''))) return false
     child.evalJS(legacyNavigationBridgeScript())
+    return true
+  } catch { return false }
+}
+
+function bindLegacyChildWebview(child: any) {
+  if (!child) return false
+  try {
+    legacyChildWebview = child
+    const boundChild = child as any
+    if (!boundChild.__rebuLoadedBridgeBound) {
+      boundChild.__rebuLoadedBridgeBound = true
+      const reinject = () => {
+        // 第三方内部整页跳转会重建 JS 上下文，每次 loaded 都必须重新注入。
+        installLegacyNavigationBridge(child)
+      }
+      child.addEventListener?.('loading', reinject)
+      child.addEventListener?.('loaded', reinject)
+      child.overrideUrlLoading?.(
+        { mode: 'reject', match: '^(weixin|alipays|tel|mailto):.*' },
+        (event: { url?: string }) => {
+          const url = String(event?.url || '')
+          if (/^(?:weixin|alipays|tel|mailto):/iu.test(url)) plus.runtime.openURL(url)
+        },
+      )
+    }
+    installLegacyNavigationBridge(child)
     return true
   } catch { return false }
 }
@@ -78,17 +126,10 @@ function installLegacyNavigationBridge() {
 function scheduleLegacyNavigationBridge() {
   // #ifdef APP-PLUS
   bridgeTimers.forEach(clearTimeout)
-  bridgeTimers = [0, 250, 700, 1500].map((delay) => setTimeout(() => {
+  bridgeTimers = [0, 250, 700, 1500, 3000, 5000, 8000, 12000].map((delay) => setTimeout(() => {
     const child = findLegacyChildWebview()
     if (!child) return
-    try {
-      const bridgedChild = child as any
-      if (!bridgedChild.__rebuLoadedBridgeBound) {
-        bridgedChild.__rebuLoadedBridgeBound = true
-        child.addEventListener?.('loaded', installLegacyNavigationBridge)
-      }
-    } catch { /* 当前页面仍可继续加载 */ }
-    installLegacyNavigationBridge()
+    bindLegacyChildWebview(child)
   }, delay))
   // #endif
 }
@@ -107,36 +148,6 @@ function navigateLegacyBack() {
   // #endif
   returnToNewSystem()
 }
-
-function touchPoint(event: any, changed = false) {
-  const point = (changed ? event?.changedTouches?.[0] : event?.touches?.[0])
-    || event?.changedTouches?.[0]
-    || event?.touches?.[0]
-    || {}
-  return { x: Number(point.clientX) || 0, y: Number(point.clientY) || 0 }
-}
-
-/** 右手从屏幕右缘向左划，也可返回第三方上一级；左缘系统返回手势保持不变。 */
-function onRightGestureStart(event: any) {
-  const point = touchPoint(event)
-  rightGestureActive = point.x >= windowWidth - 48
-  rightGestureStartX = point.x
-  rightGestureStartY = point.y
-  rightGestureStartAt = Date.now()
-}
-
-function onRightGestureEnd(event: any) {
-  if (!rightGestureActive) return
-  rightGestureActive = false
-  const point = touchPoint(event, true)
-  const dx = point.x - rightGestureStartX
-  const dy = point.y - rightGestureStartY
-  if (dx <= -64 && Math.abs(dx) > Math.abs(dy) * 1.25 && Date.now() - rightGestureStartAt <= 1100) {
-    navigateLegacyBack()
-  }
-}
-
-function onRightGestureCancel() { rightGestureActive = false }
 
 function returnToNewSystem() {
   navigateTo('/pages/index/index')
@@ -211,6 +222,7 @@ onMounted(() => { void loadEntry() })
 onUnmounted(() => {
   bridgeTimers.forEach(clearTimeout)
   bridgeTimers = []
+  legacyChildWebview = null
 })
 onBackPress(() => {
   navigateLegacyBack()
@@ -256,16 +268,6 @@ onBackPress(() => {
     @message="handleLegacyMessage"
     @error="handleLegacyLoadError"
   />
-  <!-- #ifdef APP-PLUS -->
-  <!-- cover-view 可覆盖原生 WebView；仅占右缘窄条，不遮挡页面主体工具。 -->
-  <cover-view
-    v-if="!loading && !error && legacyUrl"
-    class="legacy-right-back-gesture"
-    @touchstart.stop="onRightGestureStart"
-    @touchend.stop="onRightGestureEnd"
-    @touchcancel.stop="onRightGestureCancel"
-  />
-  <!-- #endif -->
   <!-- #endif -->
 </template>
 
@@ -337,14 +339,5 @@ onBackPress(() => {
 .gateway-card .action { display: block; margin: 12px auto 0; }
 .tip { display: block; margin-top: 16px; color: #9a8d82; font-size: 12px; line-height: 1.6; }
 .legacy-webview { width: 100%; height: 100%; }
-.legacy-right-back-gesture {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 38px;
-  z-index: 9999;
-  background-color: transparent;
-}
 @keyframes spin { to { transform: rotate(360deg); } }
 </style>
