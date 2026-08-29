@@ -28,7 +28,12 @@
     </view>
 
     <!-- 错误态 -->
-    <app-error v-else-if="error" :message="error" @retry="loadData" />
+    <app-error
+      v-else-if="error"
+      title="会员中心暂不可用"
+      :desc="error"
+      @retry="loadData"
+    />
 
     <!-- 正常内容 -->
     <view v-else-if="data" class="body">

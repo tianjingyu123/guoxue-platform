@@ -428,8 +428,8 @@ if (deployTarget === "tencent") {
 
 const paipanMode = (values.get("PAIPAN_MODE") || "").trim().toLowerCase();
 if (!["legacy", "native"].includes(paipanMode)) errors.push("PAIPAN_MODE 仅支持 legacy 或 native");
-if (fullCheck && releaseChannel === "production" && paipanMode !== "legacy") {
-  errors.push("正式运营首发 PAIPAN_MODE 必须为 legacy；自研排盘需重新验收后再切换");
+if (fullCheck && releaseChannel === "production" && paipanMode !== "native") {
+  errors.push("正式运营 PAIPAN_MODE 必须为 native；旧排盘仅允许作为受控回滚入口");
 }
 if ((values.get("PAIPAN_LEGACY_DISPLAY_VERSION") || "").trim() !== "1") {
   errors.push("PAIPAN_LEGACY_DISPLAY_VERSION 当前必须固定为 1");

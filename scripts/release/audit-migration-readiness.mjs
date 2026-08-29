@@ -84,7 +84,7 @@ const legacyRouteStart = mobilePages.indexOf('"path": "legacy-paipan/index"');
 const legacyRouteConfig = mobilePages.slice(legacyRouteStart, legacyRouteStart + 320);
 const paipanClient = read("apps/mobile/src/lib/legacy-paipan-data.ts");
 add(
-  "四端旧排盘默认启用且第三方失败不回退自研",
+  "四端原生排盘默认启用且旧排盘保留受控回滚",
   paipanClient.includes("/legacy-paipan/entry") &&
     paipanService.includes("this.runtime.isNative()") &&
     paipanService.includes('return { mode: "native", url: null') &&
@@ -98,18 +98,18 @@ add(
     legacyRouteConfig.includes('"navigationBarTitleText": "排盘工具"') &&
     !legacyRouteConfig.includes('"navigationStyle": "custom"') &&
     !paipanPage.includes("核心工具仍可使用"),
-  "默认返回 legacy；H5 用户手势新窗口保留返回入口，App/小程序/Harmony 使用原生导航兼容页，失败只允许重试",
+  "默认返回 native；旧系统仅作显式回滚，H5/App/小程序/Harmony 均保留稳定退出路径",
 );
 
 const productionTemplate = read("docker/.env.production.example");
 add(
-  "生产模板默认启用旧排盘并关闭 QA",
-  /^PAIPAN_MODE=legacy$/m.test(productionTemplate) &&
+  "生产模板默认启用原生排盘并关闭 QA",
+  /^PAIPAN_MODE=native$/m.test(productionTemplate) &&
     /^PAIPAN_NATIVE_QA_ENABLED=false$/m.test(productionTemplate) &&
     /^PAIPAN_OPERATION_H5_BASE=https:\/\/www\.yrydai\.cn\/guoxueApp\.php$/m.test(
       productionTemplate,
     ),
-  "正式运营默认走旧排盘；自研排盘仅由受控 QA 门禁访问",
+  "正式运营默认走平台原生排盘；旧排盘仅保留受控回滚能力",
 );
 
 const runbook = read("docs/release/热卜旧系统迁移与覆盖升级执行手册-20260730.md");

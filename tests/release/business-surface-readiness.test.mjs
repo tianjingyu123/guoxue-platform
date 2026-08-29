@@ -40,6 +40,26 @@ test("上线迁移包含分站、运营商和研究院最小启动数据", async
   }
 });
 
+test("会员中心具备真实套餐基础数据且错误态不会伪报网络异常", async () => {
+  const [migration, bootstrap, vipPage, recordsPage] = await Promise.all([
+    read("apps/server/prisma/migrations/20260829100000_bootstrap_member_plans/migration.sql"),
+    read("apps/server/prisma/migrations-deploy/bootstrap-empty-database.sh"),
+    read("apps/mobile/src/pkg-profile/vip/index.vue"),
+    read("apps/mobile/src/pkg-profile/vip/records/index.vue"),
+  ]);
+
+  for (const level of ["MONTHLY", "QUARTERLY", "YEARLY", "YEARLY_AUTO"]) {
+    assert.ok(migration.includes(`'${level}'`), `会员基础迁移缺少 ${level}`);
+  }
+  assert.match(migration, /ON CONFLICT \("level"\) DO NOTHING/u);
+  assert.doesNotMatch(migration, /付费精品电子书|优惠券/u);
+  assert.match(bootstrap, /MEMBER_PLANS_DML=.*20260829100000_bootstrap_member_plans/u);
+  assert.match(bootstrap, /--file="\$MEMBER_PLANS_DML"/u);
+  assert.match(vipPage, /title="会员中心暂不可用"[\s\S]*:desc="error"/u);
+  assert.match(recordsPage, /title="开通记录加载失败"[\s\S]*:desc="error"/u);
+  assert.doesNotMatch(`${vipPage}\n${recordsPage}`, /<app-error[^>]*:message=/u);
+});
+
 test("驿站空态和个人中心商家入驻均有正确后续路径", async () => {
   const [offlineSource, merchantSource] = await Promise.all([
     read("apps/mobile/src/pkg-offline/stations/index.vue"),

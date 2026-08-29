@@ -10,7 +10,7 @@ export class PaipanRuntimeService {
       .trim()
       .toLowerCase();
     if (configured === "legacy" || configured === "native") return configured;
-    // 兼容旧变量；全新环境缺省必须安全地使用旧排盘。
+    // 兼容旧变量；全新环境默认使用平台自研排盘，旧系统仅保留显式回滚入口。
     if (
       String(process.env.PAIPAN_LEGACY_MODE || "")
         .trim()
@@ -18,7 +18,7 @@ export class PaipanRuntimeService {
     ) {
       return "native";
     }
-    return "legacy";
+    return "native";
   }
 
   isNative(): boolean {

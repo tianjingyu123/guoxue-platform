@@ -54,6 +54,6 @@ test('Android 短视频原生播放器不吞掉上下翻页手势', () => {
   assert.match(videoPage, /@touchmove\.stop="onPressMove"/u)
   assert.match(videoPage, /@touchend\.stop="onPressEnd"/u)
   assert.match(videoPage, /Math\.abs\(dy\) >= 56/u)
-  assert.match(videoPage, /swipeStartIndex \+ \(dy < 0 \? 1 : -1\)/u)
+  assert.match(videoPage, /\(swipeStartIndex \+ delta \+ count\) % count/u)
   assert.match(videoPage, /currentIndex\.value === swipeStartIndex/u)
 })

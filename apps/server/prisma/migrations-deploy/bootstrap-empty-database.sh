@@ -7,6 +7,7 @@ SCHEMA="$SERVER_DIR/prisma/schema.prisma"
 BASELINE="$SCRIPT_DIR/full-baseline.sql"
 MIGRATIONS_DIR="$SERVER_DIR/prisma/migrations"
 OPERATIONAL_DDL="$MIGRATIONS_DIR/20260730100000_repair_operational_database_objects/migration.sql"
+MEMBER_PLANS_DML="$MIGRATIONS_DIR/20260829100000_bootstrap_member_plans/migration.sql"
 
 if [ "${CONFIRM_EMPTY_DATABASE:-}" != "YES" ]; then
   echo "[db-bootstrap] 拒绝执行：必须显式设置 CONFIRM_EMPTY_DATABASE=YES"
@@ -18,8 +19,8 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 64
 fi
 
-if [ ! -f "$SCHEMA" ] || [ ! -f "$BASELINE" ] || [ ! -f "$OPERATIONAL_DDL" ]; then
-  echo "[db-bootstrap] 缺少 schema.prisma、full-baseline.sql 或 operational DDL"
+if [ ! -f "$SCHEMA" ] || [ ! -f "$BASELINE" ] || [ ! -f "$OPERATIONAL_DDL" ] || [ ! -f "$MEMBER_PLANS_DML" ]; then
+  echo "[db-bootstrap] 缺少 schema.prisma、full-baseline.sql、operational DDL 或会员基础套餐 DML"
   exit 66
 fi
 
@@ -65,7 +66,8 @@ psql "$DATABASE_URL" \
   -v ON_ERROR_STOP=1 \
   --single-transaction \
   --file="$BASELINE" \
-  --file="$OPERATIONAL_DDL"
+  --file="$OPERATIONAL_DDL" \
+  --file="$MEMBER_PLANS_DML"
 
 echo "[db-bootstrap] 在单个事务中登记全量基线覆盖的历史迁移..."
 MIGRATIONS_DIR="$MIGRATIONS_DIR" node <<'NODE'

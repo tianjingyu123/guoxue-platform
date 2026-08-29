@@ -6,10 +6,13 @@ describe("PaipanRuntimeService", () => {
     process.env = { ...originalEnv };
   });
 
-  it("全新环境默认 legacy，旧变量仍兼容", () => {
+  it("全新环境默认 native，显式模式与旧变量仍兼容", () => {
     delete process.env.PAIPAN_MODE;
     delete process.env.PAIPAN_LEGACY_MODE;
+    expect(new PaipanRuntimeService().getMode()).toBe("native");
+    process.env.PAIPAN_MODE = "legacy";
     expect(new PaipanRuntimeService().getMode()).toBe("legacy");
+    delete process.env.PAIPAN_MODE;
     process.env.PAIPAN_LEGACY_MODE = "false";
     expect(new PaipanRuntimeService().getMode()).toBe("native");
   });

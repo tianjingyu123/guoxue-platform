@@ -25,7 +25,7 @@
       :vertical="true"
       :current="currentIndex"
       :duration="300"
-      :circular="false"
+      :circular="videos.length > 1"
       @change="onSwiperChange"
     >
       <swiper-item v-for="(v, i) in videos" :key="v.id">
@@ -44,6 +44,26 @@
           <image lazy-load class="vp__cover" :src="v.coverUrl" mode="aspectFill" />
           <!-- 视频播放器：仅当前条挂载（H5=原生 video，小程序/App=原生组件）·不静音（董事长拍板：
                自动播放被浏览器拦截时显示中央播放按钮让用户点一下，而不是静音自动播） -->
+          <!-- #ifdef APP-PLUS -->
+          <AppWebVideo
+            v-if="i === currentIndex && v.videoUrl && !playError"
+            :key="v.id"
+            class="vp__video"
+            :src="v.videoUrl"
+            :poster="v.coverUrl"
+            :autoplay="true"
+            :loop="true"
+            :object-fit="currentLandscape ? 'contain' : 'cover'"
+            :command="appPlayerCommand"
+            @play="onVideoPlay"
+            @pause="onVideoPause"
+            @error="onVideoError"
+            @timeupdate="onTimeUpdate"
+            @loadedmetadata="onVideoMeta"
+            @gesture="onAppPlayerGesture"
+          />
+          <!-- #endif -->
+          <!-- #ifndef APP-PLUS -->
           <video
             v-if="i === currentIndex && v.videoUrl && !playError"
             :key="v.id"
@@ -71,6 +91,7 @@
             @timeupdate="onTimeUpdate"
             @loadedmetadata="onVideoMeta"
           />
+          <!-- #endif -->
           <!-- 不可播诚实态：源加载失败（如 .mov 格式安卓不支持/转码中）-->
           <view v-if="i === currentIndex && playError" class="vp__unplayable">
             <AppIcon name="video-off" :size="64" color="rgba(255,255,255,0.65)" />
@@ -414,6 +435,9 @@ import { onLoad, onShareAppMessage, onShareTimeline, onHide } from '@dcloudio/un
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+// #ifdef APP-PLUS
+import AppWebVideo, { type AppWebVideoCommand } from '@/components/media/app-web-video.vue'
+// #endif
 import { goBack, navigateTo } from '@/utils/router'
 import { useShare } from '@/composables/useShare'
 import { withRef } from '@/utils/referral'
@@ -429,6 +453,7 @@ interface CartItem { productId: string; quantity: number; product: VideoProduct 
 
 // ===== 系统信息 =====
 const sysInfo = uni.getSystemInfoSync()
+const isAppPlusRuntime = (sysInfo as typeof sysInfo & { uniPlatform?: string }).uniPlatform === 'app'
 const statusBarHeight = ref(sysInfo.statusBarHeight || 0)
 const safeBottom = ref(sysInfo.safeAreaInsets?.bottom || 0)
 const windowH = ref(sysInfo.windowHeight || 0)
@@ -450,7 +475,7 @@ async function loadFeed() {
   loading.value = true
   error.value = ''
   try {
-    const list = await videoApi.list({ page: 1, pageSize: FEED_PAGE_SIZE })
+    const list = await videoApi.listFeed({ page: 1, pageSize: FEED_PAGE_SIZE })
     videos.value = list
     feedPage.value = 1
     feedHasMore.value = list.length > 0
@@ -485,20 +510,21 @@ function retry() { loadFeed() }
 /**
  * 追加下一页：滑到倒数第 3 条触发（onSwiperChange 挂钩）。
  * 按 id + 标题双去重（list() 单页内已按标题去重·seed 重复数据跨页仍需防），
- * 同时过滤本会话「不感兴趣」的作者；空页视为断粮 → 最后一条自然滑不动（不加 toast 打扰）。
+ * 同时过滤本会话「不感兴趣」的作者；空页视为断粮，现有条目仍可循环观看。
  */
 async function loadMoreFeed() {
   if (feedLoadingMore.value || !feedHasMore.value) return
   feedLoadingMore.value = true
   try {
     const next = feedPage.value + 1
-    const list = await videoApi.list({ page: next, pageSize: FEED_PAGE_SIZE })
+    const list = await videoApi.listFeed({ page: next, pageSize: FEED_PAGE_SIZE })
     feedPage.value = next
     if (!list.length) { feedHasMore.value = false; return }
     const seenIds = new Set(videos.value.map((v) => v.id))
     const seenTitles = new Set(videos.value.map((v) => v.title))
     const fresh = list.filter((v) => !seenIds.has(v.id) && !seenTitles.has(v.title) && !(v.author?.id && dislikedAuthors.has(v.author.id)))
     if (fresh.length) videos.value.push(...fresh)
+    else feedHasMore.value = false
   } catch { /* 静默失败：下次滑动重试，不打断观看 */ }
   finally { feedLoadingMore.value = false }
 }
@@ -511,6 +537,11 @@ const playError = ref(false) // 视频源加载失败 → 隐藏 player 回退�
 // 横屏视频适配：竖屏(9:16)用 cover 填满；横屏(16:9 如 OBS 录屏/风景课)用 contain 居中留黑边，
 // 完整显示画面不裁切（抖音式）。宽>高×1.1 判为横屏。由 @loadedmetadata 跨端拿真实宽高。
 const currentLandscape = ref(false)
+let appPlayerCommandSeq = 0
+const appPlayerCommand = ref<AppWebVideoCommand>({ seq: 0, type: 'pause' })
+function commandAppPlayer(type: AppWebVideoCommand['type'], value?: number) {
+  appPlayerCommand.value = { seq: ++appPlayerCommandSeq, type, value }
+}
 function onVideoMeta(e: any /* uni video @loadedmetadata：detail.{width,height}·vue-tsc 按 HTML video 校验须 any */) {
   const w = Number(e?.detail?.width) || 0
   const h = Number(e?.detail?.height) || 0
@@ -533,6 +564,7 @@ function getVideoCtx() {
  * 拦截时同样拒绝。H5 直接驱动原生 <video> 并 catch，播放成败交给 @play 事件回写 isPlaying。
  */
 function safePlay() {
+  if (isAppPlusRuntime) { commandAppPlayer('play'); return }
   // #ifdef H5
   const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
   if (media) {
@@ -543,13 +575,17 @@ function safePlay() {
   // #endif
   getVideoCtx()?.play()
 }
+function safePause() {
+  if (isAppPlusRuntime) { commandAppPlayer('pause'); return }
+  getVideoCtx()?.pause()
+}
 function togglePlay() {
   // 无真实视频源：仅切换占位播放态（封面模式）
   if (!currentVideo.value?.videoUrl || playError.value) {
     isPlaying.value = !isPlaying.value
     return
   }
-  if (isPlaying.value) { getVideoCtx()?.pause(); isPlaying.value = false }
+  if (isPlaying.value) { safePause(); isPlaying.value = false }
   else { safePlay() } // isPlaying 由 @play 事件置 true（播放失败则按钮保留·诚实）
 }
 function onVideoPlay() { isPlaying.value = true }
@@ -558,7 +594,7 @@ function onVideoError() { playError.value = true; isPlaying.value = false }
 
 // 切页/切后台时暂停视频，根除后台多音轨（点作者头像/圈子跳转时原视频不再后台出声）
 // 长按 2x 中切页：倍速一并复位（否则回来续播仍是 2x）
-onHide(() => { getVideoCtx()?.pause(); isPlaying.value = false; if (speeding.value) { speeding.value = false; setPlaybackRate(1) } clearPressTimer() })
+onHide(() => { safePause(); isPlaying.value = false; if (speeding.value) { speeding.value = false; setPlaybackRate(1) } clearPressTimer() })
 
 // ===== 长按 2 倍速（抖音式）=====
 const speeding = ref(false)
@@ -572,6 +608,7 @@ let swipeStartAt = 0
 let swipeStartIndex = 0
 let swipeTracking = false
 function setPlaybackRate(rate: number) {
+  if (isAppPlusRuntime) { commandAppPlayer('rate', rate); return }
   // #ifdef H5
   const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
   if (media) { media.playbackRate = rate; return }
@@ -637,13 +674,15 @@ function onPressEnd(e?: any) {
     && Math.abs(dy) > Math.abs(dx) * 1.2
     && elapsed <= 1200
   ) {
-    const target = Math.max(0, Math.min(videos.value.length - 1, swipeStartIndex + (dy < 0 ? 1 : -1)))
+    const count = videos.value.length
+    const delta = dy < 0 ? 1 : -1
+    const target = count > 1 ? (swipeStartIndex + delta + count) % count : swipeStartIndex
     if (target !== swipeStartIndex) {
       suppressTap = true
       setTimeout(() => { suppressTap = false }, 350)
       currentIndex.value = target
       currentLandscape.value = false
-      if (videos.value.length - target <= 3) loadMoreFeed()
+      if (dy < 0 && videos.value.length - swipeStartIndex <= 3) loadMoreFeed()
     }
   }
 }
@@ -651,6 +690,29 @@ function onPressCancel() {
   clearPressTimer()
   swipeTracking = false
   if (speeding.value) { speeding.value = false; setPlaybackRate(1) }
+}
+
+type AppPlayerGesture = { phase?: 'start' | 'move' | 'end' | 'cancel'; x?: number; y?: number }
+let appGestureStartX = 0
+let appGestureStartY = 0
+function onAppPlayerGesture(payload: AppPlayerGesture) {
+  const x = Number(payload?.x) || 0
+  const y = Number(payload?.y) || 0
+  const point = { clientX: x, clientY: y }
+  if (payload?.phase === 'start') {
+    appGestureStartX = x
+    appGestureStartY = y
+    onPressStart({ touches: [point] })
+  } else if (payload?.phase === 'move') {
+    onPressMove({ touches: [point] })
+  } else if (payload?.phase === 'cancel') {
+    onPressCancel()
+  } else if (payload?.phase === 'end') {
+    const dx = x - appGestureStartX
+    const dy = y - appGestureStartY
+    onPressEnd({ changedTouches: [point] })
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) onSingleTap({ changedTouches: [point] })
+  }
 }
 
 // ===== 播放进度（V0 底部细进度条）=====
@@ -700,6 +762,7 @@ function onSeekEnd() {
   playProgress.value = seekProgress.value // 先回写视觉，防 seek 生效前跳回旧进度
   seekSettleUntil = Date.now() + 600
   seeking.value = false
+  if (isAppPlusRuntime) { commandAppPlayer('seek', target); return }
   // #ifdef H5
   // 与 safePlay 同思路：H5 直接驱动原生 <video>（uni videoContext.seek 在 H5 偶发不生效）
   const media = document.querySelector<HTMLVideoElement>('.vp__video video') || document.querySelector<HTMLVideoElement>('video')
@@ -930,6 +993,17 @@ watch(() => currentVideo.value?.id, async () => {
   })
   if (!v?.author?.id) return
   try { v.author.isFollowed = await videoApi.isFollowing(v.author.id) } catch { /* 未登录/失败保持默认 */ }
+})
+
+// 瀑布流补入的精简项切到当前后再拉一次完整详情，补齐作者 id、圈子、评论计数等互动字段。
+watch(() => currentVideo.value?.id, async (id) => {
+  const index = currentIndex.value
+  const item = videos.value[index]
+  if (!id || !item || item.author.id) return
+  try {
+    const detail = await videoApi.getById(id)
+    if (detail?.id === id && videos.value[index]?.id === id) videos.value[index] = detail
+  } catch { /* 播放与切换不依赖详情补全；失败时保留基础项 */ }
 })
 
 // ===== 评论子系统（真连通用 comment 端点·小红书/抖音式面板）=====

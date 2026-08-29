@@ -46,11 +46,12 @@ test("自研排盘接口、移动深链与后台直达均有运行时门禁", ()
   assert.match(router, /name: "NotFound"/u);
 });
 
-test("QA 默认关闭，拒绝时 404，且不进入公开导航真源", () => {
+test("平台原生排盘默认公开，旧排盘仅保留受控回滚入口", () => {
   const template = read("docker/.env.production.example");
-  assert.match(template, /^PAIPAN_MODE=legacy$/mu);
+  assert.match(template, /^PAIPAN_MODE=native$/mu);
   assert.match(template, /^PAIPAN_NATIVE_QA_ENABLED=false$/mu);
   const runtime = read("apps/server/src/common/paipan-runtime.service.ts");
+  assert.match(runtime, /return "native";/u);
   assert.match(runtime, /pre-api\.rebugx\.cn/u);
   assert.ok((runtime.match(/new NotFoundException\("页面不存在"\)/gu) || []).length >= 2);
   const qaController = read("apps/server/src/modules/station/legacy-paipan.controller.ts");
@@ -65,7 +66,7 @@ test("QA 默认关闭，拒绝时 404，且不进入公开导航真源", () => {
     assert.doesNotMatch(read(file), /native-qa|nativeQa/u, file);
 });
 
-test("支付事务内不调用第三方，提交后才触发异步同步", () => {
+test("支付事务内不调用第三方，回滚模式下提交后才允许异步同步", () => {
   const payment = read("apps/server/src/modules/shop/shop-payment.service.ts");
   const txEnd = payment.indexOf("this.triggerPostCommitTasks(order as Order)");
   const transaction = payment.indexOf("await this.prisma.$transaction(async (tx)");

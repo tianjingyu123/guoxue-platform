@@ -38,7 +38,7 @@ function createEnvironment({
     "VITE_API_URL=https://api.guoxue.test",
     "VITE_PUBLIC_H5_URL=https://api.guoxue.test/h5/",
     "VITE_PUBLIC_ASSET_ORIGIN=https://static.guoxue.test",
-    "PAIPAN_MODE=legacy",
+    "PAIPAN_MODE=native",
     "PAIPAN_LEGACY_DISPLAY_VERSION=1",
     "PAIPAN_NATIVE_QA_ENABLED=false",
     "PAIPAN_OPERATION_H5_BASE=https://www.yrydai.cn/guoxueApp.php",
@@ -122,11 +122,11 @@ test("完整上线接受数据库托管且绑定商户白名单的微信支付",
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
 });
 
-test("正式运营在重新验收前拒绝切换到自研排盘", async () => {
-  const nativePaipan = createFullEnvironment().replace("PAIPAN_MODE=legacy", "PAIPAN_MODE=native");
-  const result = await runChecker(nativePaipan, "--full", "--deploy-target", "standard");
+test("正式运营拒绝重新启用旧排盘", async () => {
+  const legacyPaipan = createFullEnvironment().replace("PAIPAN_MODE=native", "PAIPAN_MODE=legacy");
+  const result = await runChecker(legacyPaipan, "--full", "--deploy-target", "standard");
   assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stderr, /自研排盘需重新验收/u);
+  assert.match(result.stderr, /旧排盘仅允许作为受控回滚入口/u);
 });
 
 test("完整上线拒绝未显式核验数据库微信支付配置", async () => {

@@ -395,6 +395,32 @@ function adaptVideoItem(v: RawVideo): VideoItem {
   }
 }
 
+/** 瀑布流精简项 → 全屏流基础项；切到该条后详情页会按 id 懒加载完整作者/圈子/商品字段。 */
+function adaptVideoListItem(v: VideoListItem): VideoItem {
+  return {
+    id: v.id,
+    title: v.title,
+    author: {
+      id: '',
+      name: v.author?.name || '',
+      avatar: v.author?.avatar || '',
+      isFollowed: false,
+      followers: 0,
+      verified: false,
+    },
+    coverUrl: unescapeUrl(v.coverUrl),
+    videoUrl: unescapeUrl(v.videoUrl),
+    likes: v.likes ?? 0,
+    comments: 0,
+    shares: 0,
+    isLiked: false,
+    isCollected: false,
+    music: '原声',
+    products: [],
+    hotComments: [],
+  }
+}
+
 export const videoApi = {
   /** 发布视频 — POST /videos（错误传播给页面；visibility 开放范围 CIRCLE_ONLY=仅本圈默认/PLATFORM=全平台·发布即可见，机审后台异步） */
   async publish(data: { circleId?: string; title: string; description?: string; videoUrl: string; coverUrl?: string; duration?: number; tags?: string[]; isPrivate?: boolean; products?: string[]; visibility?: 'CIRCLE_ONLY' | 'PLATFORM' }): Promise<unknown> {
@@ -422,6 +448,27 @@ export const videoApi = {
       if (v.title) seenTitles.add(v.title)
       return true
     })
+  },
+
+  /**
+   * 全屏流统一数据源：详情接口字段完整，但在分站口径下可能少于瀑布流；两者按 id 合并，
+   * 避免列表明明有多条、进入详情却永远只有一条而无法上下滑动。
+   */
+  async listFeed(params?: { page?: number; pageSize?: number }): Promise<VideoItem[]> {
+    const page = params?.page ?? 1
+    const pageSize = params?.pageSize ?? 50
+    const [detailResult, itemResult] = await Promise.allSettled([
+      videoApi.list({ page, pageSize }),
+      videoApi.listItems({ page, pageSize, sort: 'recommend' }),
+    ])
+    const detailed = detailResult.status === 'fulfilled' ? detailResult.value : []
+    const compact = itemResult.status === 'fulfilled' ? itemResult.value : []
+    if (!detailed.length && !compact.length) {
+      const reason = detailResult.status === 'rejected' ? detailResult.reason : itemResult.status === 'rejected' ? itemResult.reason : null
+      throw reason instanceof Error ? reason : new Error('视频加载失败，请重试')
+    }
+    const seen = new Set(detailed.map((v) => v.id).filter(Boolean))
+    return [...detailed, ...compact.filter((v) => !seen.has(v.id)).map(adaptVideoListItem)]
   },
 
   /** 视频详情 — GET /videos/:id（错误传播） */
@@ -486,9 +533,10 @@ export const videoApi = {
    * 瀑布流列表 — GET /videos/items（后端结构已对齐 VideoListItem；seed 有大量重复→按标题去重）
    * sort: recommend(默认)/hot/follow —— 三 tab 各驱动不同查询；错误传播给页面三态，不回退假 mock。
    */
-  async listItems(params?: { sort?: string }): Promise<VideoListItem[]> {
+  async listItems(params?: { page?: number; pageSize?: number; sort?: string }): Promise<VideoListItem[]> {
     const q = new URLSearchParams()
-    q.set('pageSize', '50')
+    q.set('page', String(params?.page ?? 1))
+    q.set('pageSize', String(params?.pageSize ?? 50))
     if (params?.sort) q.set('sort', params.sort)
     const res = await apiGet<VideoListItem[] | { data?: VideoListItem[]; items?: VideoListItem[] }>(`/videos/items?${q.toString()}`)
     const arr = Array.isArray(res) ? res : (res?.data ?? res?.items ?? [])

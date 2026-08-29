@@ -325,7 +325,7 @@ services:
       COZE_OAUTH_PRIVATE_KEY: ${COZE_OAUTH_PRIVATE_KEY:-}
 
       # ── 旧排盘兼容入口（切换期保留） ──
-      PAIPAN_MODE: ${PAIPAN_MODE:-legacy}
+      PAIPAN_MODE: ${PAIPAN_MODE:-native}
       PAIPAN_LEGACY_DISPLAY_VERSION: ${PAIPAN_LEGACY_DISPLAY_VERSION:-1}
       PAIPAN_NATIVE_QA_ENABLED: ${PAIPAN_NATIVE_QA_ENABLED:-false}
       PAIPAN_NATIVE_QA_HOST: ${PAIPAN_NATIVE_QA_HOST:-pre-api.rebugx.cn}
@@ -335,7 +335,7 @@ services:
       PAIPAN_PARTNER_OPEN_URL: ${PAIPAN_PARTNER_OPEN_URL:-https://www.yrydai.cn/recommend/partner.php}
       PAIPAN_PARTNER_OAUTH_URL: ${PAIPAN_PARTNER_OAUTH_URL:-https://www.yrydai.cn/my.php?mod=member&act=addPartner}
       PAIPAN_REFERRAL_BASE: ${PAIPAN_REFERRAL_BASE:-https://www.yrydai.com/p1.php}
-      PAIPAN_LEGACY_MODE: ${PAIPAN_LEGACY_MODE:-true}
+      PAIPAN_LEGACY_MODE: ${PAIPAN_LEGACY_MODE:-false}
       PAIPAN_H5_BASE: ${PAIPAN_H5_BASE:-https://www.yrydai.cn/guoxueApp.php}
 
       # ── 邮件服务 ──

@@ -8,7 +8,12 @@
     </view>
 
     <!-- 错误态 -->
-    <app-error v-else-if="error" :message="error" @retry="load" />
+    <app-error
+      v-else-if="error"
+      title="开通记录加载失败"
+      :desc="error"
+      @retry="load"
+    />
 
     <!-- 记录列表（真源 GET /member/purchases） -->
     <view v-else class="list">
