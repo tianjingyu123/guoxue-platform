@@ -50,6 +50,7 @@ const allowedLegacyLegalUrls = [
   `${legacyOrigin}/h5/pkg-settings/user-agreement/index`,
   `${legacyOrigin}/h5/pkg-settings/privacy-policy/index`,
 ];
+const nativeUniversalLink = `${legacyOrigin}/h5/`;
 const textExtensions = new Set([
   ".css",
   ".html",
@@ -165,10 +166,18 @@ const productionArtifactAudit = requiredKeys.every(
   (key) => !preReleaseOriginPattern.test(values[key]),
 );
 
-function findDisallowedLegacyOrigin(content) {
+function findDisallowedLegacyOrigin(content, file) {
+  const relativeFile = path.relative(root, file).split(path.sep).join("/");
+  const allowsNativeUniversalLink = new Set([
+    "apps/mobile/dist/build/app/manifest.json",
+    "apps/mobile/dist/build/app-harmony/manifest.json",
+  ]).has(relativeFile);
   let index = content.indexOf(legacyOrigin);
   while (index >= 0) {
-    const allowed = allowedLegacyLegalUrls.some((url) => {
+    const allowedUrl = allowsNativeUniversalLink
+      ? [...allowedLegacyLegalUrls, nativeUniversalLink]
+      : allowedLegacyLegalUrls;
+    const allowed = allowedUrl.some((url) => {
       if (!content.startsWith(url, index)) return false;
       const next = content[index + url.length] || "";
       return !next || /[\s"'<>),\]\\]/u.test(next);
@@ -225,7 +234,7 @@ for (const target of targets) {
 
   for (const file of textFiles) {
     const content = await readFile(file, "utf8");
-    if (values.VITE_API_URL !== legacyOrigin && findDisallowedLegacyOrigin(content)) {
+    if (values.VITE_API_URL !== legacyOrigin && findDisallowedLegacyOrigin(content, file)) {
       disallowedLegacyHits.push(path.relative(root, file));
     }
     if (productionArtifactAudit && preReleaseUrlPattern.test(content)) {
