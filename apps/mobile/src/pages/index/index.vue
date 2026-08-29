@@ -9,7 +9,6 @@
  * X5 合规：padding-top 撑比例不用 aspect-ratio；吸顶实色+透明度不用毛玻璃；负反馈浮层纯色。
  */
 import { ref, computed, onMounted, nextTick } from "vue";
-import { onShow } from "@dcloudio/uni-app";
 import AppIcon from "@/components/common/app-icon.vue";
 import PlatformSupportActions from "@/components/common/platform-support-actions.vue";
 import FeedCard from "@/components/feed/feed-card.vue";
@@ -27,7 +26,6 @@ import {
 } from "@/lib/feed-data";
 import { getPublishedLayout, type LayoutBlock } from "@/lib/page-layout-data";
 import BlockRenderer from "@/components/layout/block-renderer.vue";
-import { markMainTabReady } from "@/lib/main-tab-runtime";
 
 // 自定义导航栏留白
 const statusBarHeight = ref(0);
@@ -160,12 +158,6 @@ async function init() {
 
 onMounted(() => {
   init();
-});
-
-onShow(() => {
-  // #ifdef APP-PLUS
-  markMainTabReady("/pages/index/index");
-  // #endif
 });
 
 // 加载失败后重试：清错误标志，重新首屏加载

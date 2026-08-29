@@ -537,7 +537,7 @@ function goBack() {
   // #endif
   const pages = getCurrentPages()
   if (pages.length > 1) uni.navigateBack()
-  else navigateTo('/pages/paipan/index')
+  else uni.reLaunch({ url: '/pages/paipan/index' })
 }
 </script>
 

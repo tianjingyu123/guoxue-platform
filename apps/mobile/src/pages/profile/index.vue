@@ -12,7 +12,6 @@ import { mineApi } from '@/lib/mine-data'
 import { recommendApi } from '@/lib/recommend-data'
 import { growthApi } from '@/lib/growth-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
-import { markMainTabReady } from '@/lib/main-tab-runtime'
 
 const loading = ref(true)
 const error = ref('')
@@ -190,9 +189,6 @@ onMounted(() => {
 
 // 每次显示都刷新铃铛未读（从通知中心读完返回即时消红点）；onShow 首屏也会触发
 onShow(() => {
-  // #ifdef APP-PLUS
-  markMainTabReady('/pages/profile/index')
-  // #endif
   fetchUnreadNotify()
 })
 

@@ -264,7 +264,6 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo } from '@/utils/router'
 
 interface Coupon {
   id: number
@@ -412,7 +411,7 @@ async function handleSend() {
 }
 
 function goBack() {
-  uni.navigateBack({ fail: () => navigateTo('/pages/index/index') })
+  uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/index/index' }) })
 }
 
 onMounted(async () => {

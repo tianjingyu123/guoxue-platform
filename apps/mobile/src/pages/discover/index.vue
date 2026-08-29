@@ -13,7 +13,7 @@
  * 首屏三态：骨架（.skeleton 微光）→ 六类全空视为整页错误给重试 → 正常分区。
  */
 import { ref, reactive, onMounted } from 'vue'
-import { onPullDownRefresh, onShow } from '@dcloudio/uni-app'
+import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import PlatformSupportActions from '@/components/common/platform-support-actions.vue'
 import BottomNav from '@/components/bottom-nav/bottom-nav.vue'
@@ -24,7 +24,6 @@ import BlockRenderer from '@/components/layout/block-renderer.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import BusinessEntryGrid from '@/components/navigation/business-entry-grid.vue'
 import { getCategoryFeed, isRenderablePublicFeedItem, type FeedEnvelope } from '@/lib/feed-data'
-import { markMainTabReady } from '@/lib/main-tab-runtime'
 
 // 状态栏适配：照首页模式动态取 statusBarHeight（原来写死 padding-top:96rpx，
 // 刘海屏会顶进状态栏、H5 无状态栏又留大白），搜索行 padding-top = 状态栏高 + 8px 呼吸位
@@ -178,12 +177,6 @@ onMounted(() => {
   if (restoreSectionsCache()) firstLoading.value = false
   loadFirstPages()
   getPublishedLayout('discover').then((l) => { discoverBlocks.value = l.blocks }).catch(() => {})
-})
-
-onShow(() => {
-  // #ifdef APP-PLUS
-  markMainTabReady('/pages/discover/index')
-  // #endif
 })
 
 // 下拉刷新：重拉各分区首屏 + 运营楼层，完成后收起刷新态

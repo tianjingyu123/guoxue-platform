@@ -2,8 +2,7 @@
 import { onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { navigateTo } from '@/utils/router'
-import { markMainTabReady } from '@/lib/main-tab-runtime'
+import { redirectTo } from '@/utils/router'
 
 /** active: home | circle | paipan | discover | profile */
 const props = defineProps<{ active: string }>()
@@ -12,13 +11,6 @@ const BRAND_RED = '#c41e3a'
 const MUTED = '#999999'
 const visible = ref(true)
 const NAV_ACTIVE_EVENT = 'gx-bottom-nav-active'
-const ACTIVE_PATH: Record<string, string> = {
-  home: '/pages/index/index',
-  circle: '/pages/circles/index',
-  paipan: '/pages/paipan/index',
-  discover: '/pages/discover/index',
-  profile: '/pages/profile/index',
-}
 
 // H5 使用 Teleport 挂到 body。主页面之间切换时广播唯一 active，避免路由栈同时残留两套导航。
 function syncActive(active: string) {
@@ -26,10 +18,6 @@ function syncActive(active: string) {
 }
 function activateCurrent() {
   uni.$emit(NAV_ACTIVE_EVENT, props.active)
-  // App 的自定义导航模板虽被条件编译隐藏，组件生命周期仍用于确认目标页已完成挂载。
-  // #ifdef APP-PLUS
-  markMainTabReady(ACTIVE_PATH[props.active] || '')
-  // #endif
 }
 onMounted(() => {
   uni.$on(NAV_ACTIVE_EVENT, syncActive)
@@ -57,7 +45,7 @@ const tabs = [
 const isActive = (id: string) => props.active === id
 function go(url: string, id: string) {
   if (isActive(id)) return
-  navigateTo(url)
+  redirectTo(url)
 }
 
 function onNavKeydown(event: KeyboardEvent, url: string, id: string) {
@@ -68,9 +56,6 @@ function onNavKeydown(event: KeyboardEvent, url: string, id: string) {
 </script>
 
 <template>
-  <!-- App 使用 pages.json 原生 tabBar + switchTab，避免 iOS 反复销毁主 WebView；
-       H5/小程序继续使用现有品牌化自定义导航。 -->
-  <!-- #ifndef APP-PLUS -->
   <!-- H5 挂到 body，避免桌面限宽容器的 transform 改变 fixed 定位基准。 -->
   <!-- #ifdef H5 -->
   <Teleport to="body">
@@ -114,7 +99,6 @@ function onNavKeydown(event: KeyboardEvent, url: string, id: string) {
   </view>
   <!-- #ifdef H5 -->
   </Teleport>
-  <!-- #endif -->
   <!-- #endif -->
 </template>
 

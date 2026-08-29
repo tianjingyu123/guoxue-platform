@@ -264,9 +264,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onUnmounted } from 'vue'
-// #if defined(H5) || defined(APP-PLUS)
 import { onLoad } from '@dcloudio/uni-app'
-// #endif
 import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
@@ -544,12 +542,16 @@ function goAfterLogin() {
   if (redirect && redirect.startsWith('/') && !redirect.startsWith('/pkg-auth/')) {
     // 唯一「真正消费」redirect 的分支：到这里才 remove（一次性）
     consumeRedirect()
-    reLaunch(redirect)
+    uni.reLaunch({
+      url: redirect,
+      // 回跳失败（目标页被下架等）兜底回首页，不让用户卡在登录页
+      fail: () => uni.reLaunch({ url: '/pages/index/index' }),
+    })
     return
   }
   // redirect 为空或非法（非 / 开头 / pkg-auth 自身路径被拒）：非法值也清掉，防脏数据长期滞留
   if (redirect) consumeRedirect()
-  reLaunch('/pages/index/index')
+  uni.reLaunch({ url: '/pages/index/index' })
 }
 
 /** 置灰按钮点击不再静默：按填写顺序提示第一个缺项（校验口径与 canSubmit 完全一致） */

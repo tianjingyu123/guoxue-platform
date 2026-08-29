@@ -2863,36 +2863,6 @@
       ]
     }
   ],
-  // #ifdef APP-PLUS
-  "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#C41E3A",
-    "backgroundColor": "#FAF8F5",
-    "borderStyle": "black",
-    "list": [
-      {
-        "pagePath": "pages/index/index",
-        "text": "首页"
-      },
-      {
-        "pagePath": "pages/circles/index",
-        "text": "圈子"
-      },
-      {
-        "pagePath": "pages/paipan/index",
-        "text": "工具"
-      },
-      {
-        "pagePath": "pages/discover/index",
-        "text": "发现"
-      },
-      {
-        "pagePath": "pages/profile/index",
-        "text": "我的"
-      }
-    ]
-  },
-  // #endif
   "preloadRule": {
     "pages/index/index": {
       "network": "wifi",

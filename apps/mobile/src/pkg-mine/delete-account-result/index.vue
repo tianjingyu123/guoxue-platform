@@ -3,7 +3,6 @@ import { ref, computed, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import { BRAND } from '@/lib/brand'
-import { navigateTo } from '@/utils/router'
 
 const status = ref<'pending' | 'completed'>('pending')
 const expireAt = ref('')
@@ -54,7 +53,7 @@ const doneList = [
 ]
 
 function goBack() {
-  uni.navigateBack({ fail: () => navigateTo('/pages/index/index') })
+  uni.navigateBack({ fail: () => uni.reLaunch({ url: '/pages/index/index' }) })
 }
 function confirmCancel() {
   cancelling.value = true
@@ -65,7 +64,7 @@ function confirmCancel() {
   }, 1500)
 }
 function goHome() {
-  navigateTo('/pages/index/index')
+  uni.reLaunch({ url: '/pages/index/index' })
 }
 function goCustomerService() {
   uni.navigateTo({ url: '/pkg-agent/agent/customer-service' })
