@@ -472,8 +472,10 @@ export class LiveService {
         expiresAt: obsPush.expiresAt,
       };
     }
+    // 推流鉴权地址是短期凭证，不能复用房间中历史持久化的 pushUrl。
+    // 主播重新进入 OBS 工作台时必须重新签发，否则 LIVING 房间会持续拿到已过期的 txTime。
     return {
-      pushUrl: room.status === "LIVING" ? room.pushUrl : this.stream.genPushUrl(streamKey),
+      pushUrl: this.stream.genPushUrl(streamKey),
       playUrls: this.stream.genPlayUrls(streamKey),
       ingestMode: "CSS_RTMP" as const,
     };
