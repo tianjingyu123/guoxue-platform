@@ -73,6 +73,14 @@ export default {
   mounted() {
     this.ensureVideo()
   },
+  beforeDestroy() {
+    if (!this.video) return
+    this.video.pause()
+    this.video.removeAttribute('src')
+    this.video.load()
+    this.video.remove()
+    this.video = null
+  },
   methods: {
     ensureVideo() {
       if (this.video) return this.video

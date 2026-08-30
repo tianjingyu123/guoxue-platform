@@ -41,3 +41,8 @@ test('短视频滑动、评论和返回仍由 Vue 互动层接管', () => {
   assert.match(data, /async listFeed\([\s\S]*videoApi\.listItems\(\{ page, pageSize, sort: 'recommend' \}\)/u)
   assert.match(data, /async listItems\(params\?: \{ page\?: number; pageSize\?: number; sort\?: string \}\)/u)
 })
+
+test('短视频互动按钮满足至少 44px 的触控目标', () => {
+  const page = read('apps/mobile/src/pkg-video/detail/index.vue')
+  assert.match(page, /\.vp__act\s*\{[\s\S]*min-width:\s*88rpx;[\s\S]*min-height:\s*88rpx;/u)
+})

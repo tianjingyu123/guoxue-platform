@@ -5,7 +5,7 @@
  * 后台在「微页面编辑器」搭平台级页面（stationId=null）并发布 → H5 按 route 拉取渲染。
  * 无已发布页 → 返回空 blocks，页面回退各自硬编码默认（平滑迁移不留白）。
  */
-import { apiGet } from '@/utils/request'
+import { apiGetOptionalAuth } from '@/utils/request'
 
 /** 单个区块（对齐 MarketingPageComponent）*/
 export interface LayoutBlock {
@@ -47,7 +47,7 @@ function adapt(route: string, raw: RawPage | null): PageLayout {
  */
 export async function getPublishedLayout(route: string): Promise<PageLayout> {
   try {
-    const raw = await apiGet<RawPage | null>(`/marketing/pages/by-route?route=${encodeURIComponent(route)}`)
+    const raw = await apiGetOptionalAuth<RawPage | null>(`/marketing/pages/by-route?route=${encodeURIComponent(route)}`)
     return adapt(route, raw)
   } catch {
     return { id: null, route, blocks: [] }

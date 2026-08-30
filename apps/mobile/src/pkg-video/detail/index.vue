@@ -1252,7 +1252,15 @@ function onBack() {
 /* 关注钮：44rpx 可点面积（原 32rpx 安卓难命中）·已关注变√灰底 */
 .vp__follow-plus { position: absolute; bottom: -20rpx; left: 50%; transform: translateX(-50%); width: 44rpx; height: 44rpx; border-radius: 999rpx; background: var(--brand); border: 3rpx solid rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
 .vp__follow-plus--ok { background: rgba(120,120,128,0.75); }
-.vp__act { display: flex; flex-direction: column; align-items: center; gap: 8rpx; }
+.vp__act {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 88rpx;
+  min-height: 88rpx;
+  gap: 8rpx;
+}
 /* 图标 wrap：柔投影保任意画面可读（V0 drop-shadow 0 2px 5px .45）·激活动效作用于此层（纯 transform·X5 禁 filter 动画） */
 .vp__act-ico { display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 2rpx 5rpx rgba(0,0,0,0.45)); transform: scale(1); }
 /* 点赞「爆红心」：80ms 放大 1.28 → 200ms 回 1（transform/opacity·无 filter 动画） */
