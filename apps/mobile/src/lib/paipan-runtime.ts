@@ -1,43 +1,42 @@
 import { legacyPaipanApi } from "@/lib/legacy-paipan-data";
 
 const MODE_KEY = "paipan:runtime-mode";
-const QA_KEY = "paipan:native-qa-session";
+const MODE_OBSERVED_AT_KEY = "paipan:runtime-mode-observed-at";
+const LEGACY_SNAPSHOT_TTL_MS = 10 * 60 * 1000;
+let pendingRuntimeRequest: Promise<PaipanRuntimeMode> | null = null;
 
-export function isNativePaipanPath(url: string): boolean {
-  const path = String(url || "").split("?")[0];
-  return (
-    path.startsWith("/pkg-paipan/") ||
-    path.startsWith("/pkg-paipan2/") ||
-    path.startsWith("/pkg-workspace/")
-  );
-}
+export type PaipanRuntimeMode = "legacy" | "native" | "unknown";
 
-export function canOpenNativePaipan(): boolean {
-  return uni.getStorageSync(MODE_KEY) === "native" || uni.getStorageSync(QA_KEY) === "allowed";
-}
+function readModeSnapshot(): PaipanRuntimeMode {
+  const mode = uni.getStorageSync(MODE_KEY);
+  if (mode !== "legacy" && mode !== "native") return "unknown";
+  if (mode === "native") return mode;
 
-export function setNativeQaSession(allowed: boolean): void {
-  if (allowed) uni.setStorageSync(QA_KEY, "allowed");
-  else uni.removeStorageSync(QA_KEY);
-}
-
-export async function hydratePaipanRuntime(): Promise<"legacy" | "native"> {
-  try {
-    const result = await legacyPaipanApi.runtime();
-    const mode = result.mode === "native" ? "native" : "legacy";
-    uni.setStorageSync(MODE_KEY, mode);
-    if (mode === "legacy") uni.removeStorageSync(QA_KEY);
-    return mode;
-  } catch {
-    // 门禁接口不可用时按 legacy 关闭自研能力，绝不以网络失败为由放行。
-    uni.setStorageSync(MODE_KEY, "legacy");
-    uni.removeStorageSync(QA_KEY);
-    return "legacy";
+  const observedAt = Number(uni.getStorageSync(MODE_OBSERVED_AT_KEY));
+  if (!Number.isFinite(observedAt) || Date.now() - observedAt > LEGACY_SNAPSHOT_TTL_MS) {
+    return "unknown";
   }
+  return mode;
 }
 
-export function redirectNativePaipanToLegacy(url: string): boolean {
-  if (!isNativePaipanPath(url) || canOpenNativePaipan()) return false;
-  uni.reLaunch({ url: "/pages/paipan/index" });
-  return true;
+export function hydratePaipanRuntime(): Promise<PaipanRuntimeMode> {
+  if (pendingRuntimeRequest) return pendingRuntimeRequest;
+  pendingRuntimeRequest = legacyPaipanApi
+    .runtime()
+    .then((result) => {
+      const mode = result.mode === "native" ? "native" : "legacy";
+      uni.setStorageSync(MODE_KEY, mode);
+      uni.setStorageSync(MODE_OBSERVED_AT_KEY, Date.now());
+      return mode;
+    })
+    .catch(() => {
+      // 运行模式探针短暂不可用时，不得把整个排盘导航永久污染成旧版。
+      // 只复用十分钟内服务端明确下发的 legacy；其余情况保持平台原生主路径，
+      // 具体工具的数据请求再按各自错误态诚实提示。
+      return readModeSnapshot();
+    })
+    .finally(() => {
+      pendingRuntimeRequest = null;
+    });
+  return pendingRuntimeRequest;
 }

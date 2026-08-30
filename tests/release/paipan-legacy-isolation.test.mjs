@@ -31,7 +31,25 @@ test("第三方失败不会回退或闪现自研排盘", () => {
   assert.match(page, /重新连接/u);
 });
 
-test("自研排盘接口、移动深链与后台直达均有运行时门禁", () => {
+test("旧排盘状态不再因网络失败永久劫持原生工具", () => {
+  const runtime = read("apps/mobile/src/lib/paipan-runtime.ts");
+  const page = read("apps/mobile/src/pages/paipan/index.vue");
+  assert.match(runtime, /LEGACY_SNAPSHOT_TTL_MS = 10 \* 60 \* 1000/u);
+  assert.match(runtime, /\.catch\(\(\) => \{[\s\S]*return readModeSnapshot\(\);/u);
+  assert.doesNotMatch(runtime, /\.catch\(\(\) => \{[\s\S]*setStorageSync\(MODE_KEY, "legacy"\)/u);
+  assert.match(runtime, /if \(pendingRuntimeRequest\) return pendingRuntimeRequest/u);
+  assert.match(runtime, /Date\.now\(\) - observedAt > LEGACY_SNAPSHOT_TTL_MS[\s\S]*return "unknown"/u);
+  assert.doesNotMatch(runtime, /uni\.reLaunch/u);
+  assert.match(page, /const runtimeMode = await hydratePaipanRuntime\(\)/u);
+  assert.match(page, /if \(runtimeMode !== "legacy"\)[\s\S]*allowNative\.value = true/u);
+  assert.ok(
+    page.indexOf("const runtimeMode = await hydratePaipanRuntime()") <
+      page.indexOf('if (entryTarget !== "station" && !getToken())'),
+    "游客必须先判定原生模式，不能在主路径前被旧版登录门禁拦住",
+  );
+});
+
+test("自研排盘接口与后台直达有服务端门禁，移动端不做全局路由劫持", () => {
   for (const file of [
     "apps/server/src/modules/paipan/paipan.controller.ts",
     "apps/server/src/modules/paipan/couple.controller.ts",
@@ -40,7 +58,12 @@ test("自研排盘接口、移动深链与后台直达均有运行时门禁", ()
   ])
     assert.match(read(file), /@UseGuards\(NativePaipanGuard\)/u, file);
 
-  assert.match(read("apps/mobile/src/App.vue"), /redirectNativePaipanToLegacy/u);
+  const app = read("apps/mobile/src/App.vue");
+  const mobileRuntime = read("apps/mobile/src/lib/paipan-runtime.ts");
+  assert.doesNotMatch(app, /redirectNativePaipanToLegacy/u);
+  assert.doesNotMatch(app, /redirectNativePaipanToLegacy\(args\.url\)/u);
+  assert.doesNotMatch(mobileRuntime, /uni\.reLaunch/u);
+  assert.doesNotMatch(mobileRuntime, /QA_KEY|native-qa-session/u);
   const router = read("apps/admin/src/router/index.ts");
   assert.equal((router.match(/nativePaipan: true/gu) || []).length, 6);
   assert.match(router, /name: "NotFound"/u);

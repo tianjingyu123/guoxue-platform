@@ -67,7 +67,11 @@ const circleCtaText = computed(() => (
 
 // 评论计数（初值取文章详情·后续由 CommentSection count-change 联动刷新）
 const commentCount = ref(0)
-// 互动栏「评论」按钮 → scroll-view 滚动到评论区锚点（原聚焦输入框改为定位评论区）
+const commentSectionRef = ref<{
+  focusInput: () => Promise<void> | void
+} | null>(null)
+// 互动栏「评论」按钮 → 定位评论区并立即聚焦输入框。
+// 只滚动在用户已处于文章底部时没有可见反馈，真机会被认为「按钮无反应」。
 const scrollAnchor = ref('')
 
 async function load() {
@@ -199,10 +203,13 @@ async function toggleFollow() {
   catch { isFollowed.value = prev; uni.showToast({ title: '操作失败，请重试', icon: 'none' }) }
   finally { followActing.value = false }
 }
-/** 底栏「评论」图标：滚动定位到统一评论区锚点（清空后 nextTick 重设，保证重复点击也触发） */
-function focusComment() {
+/** 底栏「评论」图标：锚定评论区后聚焦真输入框，确保每次点击都有可见反馈。 */
+async function focusComment() {
   scrollAnchor.value = ''
-  nextTick(() => { scrollAnchor.value = 'adCommentsAnchor' })
+  await nextTick()
+  scrollAnchor.value = 'adCommentsAnchor'
+  await nextTick()
+  await commentSectionRef.value?.focusInput()
 }
 </script>
 
@@ -341,6 +348,7 @@ function focusComment() {
       <view id="adCommentsAnchor" class="ad-comments-block">
         <text class="ad-comments-head">评论{{ commentCount ? ' ' + commentCount : '' }}</text>
         <comment-section
+          ref="commentSectionRef"
           target-type="ARTICLE"
           :target-id="articleId"
           :author-id="article.author.id"

@@ -307,15 +307,17 @@ async function toggleFollow() {
 
 // ─── 评论区（统一 CommentSection 组件·点赞/回复/发送/楼中楼逻辑均在组件内） ───
 
-/**
- * 互动栏「评论」按钮：滚动到评论区。
- * CommentSection 只 expose 了 refresh()（无 focusInput）→ 用 scroll-view 的 scroll-into-view 锚点方案；
- * 先清空再 nextTick 赋值，保证连点也能重新触发滚动。
- */
+/** 互动栏「评论」按钮：滚动到评论区并聚焦真输入框。 */
 const scrollAnchor = ref('')
-function scrollToComments() {
+const commentSectionRef = ref<{
+  focusInput: () => Promise<void> | void
+} | null>(null)
+async function scrollToComments() {
   scrollAnchor.value = ''
-  nextTick(() => { scrollAnchor.value = 'pd-comments-anchor' })
+  await nextTick()
+  scrollAnchor.value = 'pd-comments-anchor'
+  await nextTick()
+  await commentSectionRef.value?.focusInput()
 }
 
 /** 评论计数联动：CommentSection 首载/发送/回滚时 emit count-change → 同步互动栏与评论区标题 */
@@ -498,6 +500,7 @@ onUnmounted(() => { if (audioCtx) { try { audioCtx.destroy() } catch {} } })
       <view id="pd-comments-anchor" class="pd-csec">
         <text class="pd-comments-head">评论 {{ post.comments }}</text>
         <comment-section
+          ref="commentSectionRef"
           target-type="POST"
           :target-id="postId"
           :author-id="post.author.id"

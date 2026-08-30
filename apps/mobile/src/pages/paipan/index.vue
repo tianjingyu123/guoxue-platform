@@ -26,7 +26,7 @@ import {
 import { legacyPaipanApi, stageLegacyPaipanEntry } from "@/lib/legacy-paipan-data";
 import { navigateTo } from "@/utils/router";
 import { getToken } from "@/utils/storage";
-import { setNativeQaSession } from "@/lib/paipan-runtime";
+import { hydratePaipanRuntime } from "@/lib/paipan-runtime";
 
 const GRID_COLS = 4;
 const COLLAPSED_ROWS = 3;
@@ -211,12 +211,22 @@ async function loadPaipanEntry() {
     if (nativeQaRequested) {
       const access = await legacyPaipanApi.nativeQaAccess();
       if (!access.allowed) throw new Error("页面不存在");
-      setNativeQaSession(true);
       allowNative.value = true;
       favIds.value = getFavorites();
       await loadPlatformAgents();
       return;
     }
+
+    // 原生排盘是平台主路径。只有服务端本次明确返回 legacy 时，才进入旧版兼容流程；
+    // 探针网络失败或陈旧缓存不能继续劫持工具入口。
+    const runtimeMode = await hydratePaipanRuntime();
+    if (runtimeMode !== "legacy") {
+      allowNative.value = true;
+      favIds.value = getFavorites();
+      await loadPlatformAgents();
+      return;
+    }
+
     if (entryTarget !== "station" && !getToken()) {
       loginRequired.value = true;
       entryError.value = "登录后即可安全进入旧版排盘；首页、圈子、发现等内容仍可直接浏览。";
@@ -252,7 +262,6 @@ async function loadPaipanEntry() {
     favIds.value = getFavorites();
     await loadPlatformAgents();
   } catch (error) {
-    setNativeQaSession(false);
     qaNotFound.value = nativeQaRequested;
     const message = (error as Error)?.message || "排盘服务暂时不可用，请稍后重试";
     loginRequired.value = !nativeQaRequested && /未登录|登录已过期/u.test(message);

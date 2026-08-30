@@ -272,7 +272,7 @@ async function toggleFavorite() {
       <text class="p-sub">{{ product.subtitle }}</text>
       <view class="p-meta">
         <text>销量 {{ product.sales }}</text>
-        <text>库存 {{ product.stock }}</text>
+        <text>库存 {{ currentStock }}</text>
       </view>
       <!-- 优惠券入口整块已删（2026-07-17 真金审计 P1-11）：「领取」无任何点击处理是死按钮，
            后端商品券体系接通前不留死入口（coupon 占位 {0,0} 本就恒隐藏，假数据雷一并排掉） -->

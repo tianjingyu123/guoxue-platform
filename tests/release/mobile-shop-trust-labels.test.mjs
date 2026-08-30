@@ -26,5 +26,6 @@ test('商品详情认证文案严格跟随自营或严选标记', async () => {
   assert.match(detail, /v-else-if="product\.isSelected"[^>]*>平台严选</u)
   assert.match(detail, /product\.isOfficialSelfOwned \? '官方自营' : product\.isSelected \? '品质认证' : '平台交易保障'/u)
   assert.match(detail, /product\.isOfficialSelfOwned \? '官方直营' : product\.isSelected \? '平台严选' : '订单售后可追踪'/u)
+  assert.match(detail, /库存 \{\{ currentStock \}\}/u, '商品详情与规格弹层必须显示同一 SKU 库存口径')
   assert.doesNotMatch(detail, /<text class="guard-desc">平台严选<\/text>/u)
 })
