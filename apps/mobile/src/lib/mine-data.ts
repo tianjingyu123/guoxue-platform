@@ -3,7 +3,7 @@
  * 对应原型 app/mine/{settings,security,change-password,change-phone,payment-password,bind-accounts}
  * 主题色沿用原型 #C41E3A
  */
-import { apiGet, apiPost, apiPut, apiDelete } from '@/utils/request'
+import { apiGet, apiGetOptionalAuth, apiPost, apiPut, apiDelete } from '@/utils/request'
 
 /* —— 头像生成辅助（沿用工程 dicebear 约定） —— */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
@@ -2003,7 +2003,9 @@ export const mineApi = {
   /** 未读通知数量 —— GET /notifications/unread-count（铃铛角标，未登录/异常时降级为 0） */
   async getUnreadNotifyCount(): Promise<number> {
     try {
-      const res = await apiGet<{ unreadCount?: number }>('/notifications/unread-count')
+      // 铃铛同时出现在首页、发现、搜索等公开枢纽，必须静默可选登录；
+      // 无会话或陈旧凭证都只降级为 0，不能把正在浏览的游客劫持到登录页。
+      const res = await apiGetOptionalAuth<{ unreadCount?: number }>('/notifications/unread-count')
       return Number(res?.unreadCount) || 0
     } catch {
       return 0

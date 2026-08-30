@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
-import { onBackPress } from '@dcloudio/uni-app'
+import { getCurrentInstance, onMounted, onUnmounted, ref } from 'vue'
+import { onBackPress, onReady } from '@dcloudio/uni-app'
 import { consumeLegacyPaipanEntry, legacyPaipanApi } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
 import { getToken } from '@/utils/storage'
@@ -11,6 +11,7 @@ const legacyUrl = ref('')
 const loginRequired = ref(false)
 let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
 let legacyChildWebview: any | null = null
+const componentInstance = getCurrentInstance()
 
 /** 只允许对旧排盘官方域名的子 WebView 注入兼容桥，避免影响其他页面。 */
 function isTrustedLegacyUrl(url: string): boolean {
@@ -51,6 +52,23 @@ function legacyNavigationBridgeScript(): string {
       if(typeof url==='string'&&url)window.location.assign(url);
       return window;
     };
+    var edgeStart=null;
+    document.addEventListener('touchstart',function(event){
+      var touch=event.touches&&event.touches[0];
+      edgeStart=touch&&touch.clientX<=24?{x:touch.clientX,y:touch.clientY}:null;
+    },true);
+    document.addEventListener('touchend',function(event){
+      if(!edgeStart)return;
+      var touch=event.changedTouches&&event.changedTouches[0];
+      var start=edgeStart;
+      edgeStart=null;
+      if(!touch)return;
+      var dx=touch.clientX-start.x;
+      var dy=Math.abs(touch.clientY-start.y);
+      if(dx>=80&&dy<=Math.max(48,dx*0.55)&&window.history.length>1){
+        window.history.back();
+      }
+    },true);
     normalize();
     if(window.MutationObserver){
       new MutationObserver(normalize).observe(document.documentElement,{childList:true,subtree:true});
@@ -59,6 +77,21 @@ function legacyNavigationBridgeScript(): string {
 }
 
 // #ifdef APP-PLUS
+/**
+ * uni-app Vue 页面必须从当前页面实例取得承载 WebView；使用全局“当前 WebView”在页面脚本
+ * 上下文中不保证返回该页面，曾导致旧排盘子 WebView 永远找不到、桥接脚本未注入。
+ */
+function getLegacyParentWebview(): any | null {
+  try {
+    const proxy = componentInstance?.proxy as any
+    const fromScope = proxy?.$scope?.$getAppWebview?.()
+    if (fromScope) return fromScope
+    const pages = getCurrentPages() as any[]
+    const page = pages[pages.length - 1]
+    return page?.$getAppWebview?.() || page?.$scope?.$getAppWebview?.() || null
+  } catch { return null }
+}
+
 function findLegacyChildWebview(): any | null {
   try {
     if (legacyChildWebview) {
@@ -66,8 +99,8 @@ function findLegacyChildWebview(): any | null {
       // 但脚本注入会在 installLegacyNavigationBridge 内继续受可信域名限制。
       try { legacyChildWebview.getURL?.(); return legacyChildWebview } catch { legacyChildWebview = null }
     }
-    const current = plus.webview.currentWebview()
-    const children = current.children?.() || []
+    const parent = getLegacyParentWebview()
+    const children = parent?.children?.() || []
     const trusted = children.find((child: any) => {
       try { return isTrustedLegacyUrl(String(child.getURL?.() || '')) } catch { return false }
     })
@@ -219,6 +252,7 @@ function handleLegacyLoadError() {
 function handleLegacyLoaded() { scheduleLegacyNavigationBridge() }
 
 onMounted(() => { void loadEntry() })
+onReady(() => { scheduleLegacyNavigationBridge() })
 onUnmounted(() => {
   bridgeTimers.forEach(clearTimeout)
   bridgeTimers = []

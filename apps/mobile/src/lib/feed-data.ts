@@ -10,7 +10,7 @@
  *  - POST /users/feedback  { type, content }          → 负反馈（不感兴趣）
  */
 
-import { apiGet, apiGetOptionalAuth, apiPostOptionalAuth } from '@/utils/request'
+import { apiGetOptionalAuth, apiPostOptionalAuth } from '@/utils/request'
 import { getCachedUiConfig } from '@/lib/ui-config-data'
 import { resolveAgentTheme } from '@/lib/agent-experience'
 
@@ -322,7 +322,7 @@ export async function getCategoryFeed(type: string, page = 1, size = 6): Promise
   // 前端防御：即使旧页面或缓存仍请求 post，也不渲染到发现页。
   if (type === 'post') return []
   try {
-    const data = await apiGet<{ items?: RawFeedItem[] }>(
+    const data = await apiGetOptionalAuth<{ items?: RawFeedItem[] }>(
       `/recommend/smart-feed/category?type=${encodeURIComponent(type)}&page=${page}&size=${size}`,
     )
     const raw = Array.isArray(data?.items) ? data.items : []

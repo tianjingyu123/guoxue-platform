@@ -12,16 +12,19 @@ import { mineApi } from '@/lib/mine-data'
 import { recommendApi } from '@/lib/recommend-data'
 import { growthApi } from '@/lib/growth-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
+import { getToken } from '@/utils/storage'
 
 const loading = ref(true)
 const error = ref('')
 const greeting = getGreeting()
+const isGuest = ref(!getToken())
 
 // 状态栏高度（自定义导航顶栏 paddingTop）
 const statusBarHeight = ref(20)
 
 // 从 API 获取的数据（响应式）
-const userData = ref({
+function createEmptyUserData() {
+  return {
   name: '',
   avatar: '',
   bio: '',
@@ -39,13 +42,20 @@ const userData = ref({
   points: null as number | null,
   orders: { pending: null as number | null, shipped: null as number | null, received: null as number | null, refund: null as number | null },
   continueLearning: null as { id: number; title: string; progress: number; lastLesson: string } | null,
-})
+  }
+}
+const userData = ref(createEmptyUserData())
+const displayName = computed(() => isGuest.value ? '登录 / 注册' : (userData.value.name || '热卜用户'))
+const displayBio = computed(() => isGuest.value
+  ? '暂不登录也可以浏览首页、圈子和发现内容'
+  : (userData.value.bio || greeting + '，欢迎回来'))
 const recItems = ref<RecommendItem[]>([])
 
 // 铃铛未读数：旁路 profile-data 的占位常量（messages 无聚合端点恒 0），
 // 直接用真实聚合端点 GET /notifications/unread-count 驱动红点（内部已 try/catch 降级 0）
 const unreadNotify = ref(0)
 async function fetchUnreadNotify() {
+  if (!getToken()) { unreadNotify.value = 0; return }
   unreadNotify.value = await mineApi.getUnreadNotifyCount()
 }
 
@@ -99,6 +109,7 @@ const hasMoreRoles = computed(() => roleRows.value.length > 3)
 // 钱包余额（可提现·真接口）：失败/未登录显示 —，不造假
 const walletBalance = ref<number | null>(null)
 async function loadWalletBalance() {
+  if (!getToken()) { walletBalance.value = null; return }
   try {
     const info = await mineApi.getWithdrawInfo()
     walletBalance.value = info.availableBalance
@@ -150,6 +161,11 @@ const matrixItems: { icon: string; label: string; href: string; star?: boolean }
 ]
 
 async function fetchData() {
+  if (!getToken()) {
+    enterGuestMode()
+    return
+  }
+  isGuest.value = false
   loading.value = true
   error.value = ''
   try {
@@ -169,6 +185,7 @@ const equippedTitle = ref<{ code: string; name: string } | null>(null)
 
 /** 拉取佩戴称号（失败静默不显示，绝不影响主档案加载） */
 async function fetchEquippedTitle() {
+  if (!getToken()) { equippedTitle.value = null; return }
   try {
     const growth = await growthApi.me()
     equippedTitle.value = growth.equippedTitle
@@ -177,24 +194,53 @@ async function fetchEquippedTitle() {
   }
 }
 
+function enterGuestMode() {
+  isGuest.value = true
+  loading.value = false
+  error.value = ''
+  unreadNotify.value = 0
+  walletBalance.value = null
+  equippedTitle.value = null
+  recItems.value = []
+  userData.value = createEmptyUserData()
+}
+
+function openLogin() {
+  try { uni.setStorageSync('login:redirect', '/pages/profile/index') } catch { /* 回跳记录失败不阻断登录 */ }
+  navigateTo('/login')
+}
+
 onMounted(() => {
   try {
     const sys = uni.getSystemInfoSync()
     if (sys?.statusBarHeight) statusBarHeight.value = sys.statusBarHeight
   } catch { /* 降级默认 20 */ }
-  fetchData()
-  fetchEquippedTitle()
-  loadWalletBalance()
+  if (!getToken()) {
+    enterGuestMode()
+    return
+  }
+  void fetchData()
+  void fetchEquippedTitle()
+  void loadWalletBalance()
 })
 
 // 每次显示都刷新铃铛未读（从通知中心读完返回即时消红点）；onShow 首屏也会触发
 onShow(() => {
-  fetchUnreadNotify()
+  if (!getToken()) {
+    enterGuestMode()
+    return
+  }
+  isGuest.value = false
+  void fetchUnreadNotify()
 })
 
 // 下拉刷新：重拉个人资料与装备称号 + 铃铛未读
 onPullDownRefresh(async () => {
   try {
+    if (!getToken()) {
+      enterGuestMode()
+      return
+    }
     await Promise.all([fetchData(), fetchEquippedTitle(), loadWalletBalance(), fetchUnreadNotify()])
   } finally {
     uni.stopPullDownRefresh()
@@ -202,7 +248,12 @@ onPullDownRefresh(async () => {
 })
 
 function go(href?: string) {
-  if (href) navigateTo(href)
+  if (!href) return
+  if (isGuest.value && href !== '/vip' && href !== '/paipan') {
+    openLogin()
+    return
+  }
+  navigateTo(href)
 }
 function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<unknown>) {
   if (event.key !== 'Enter' && event.key !== ' ') return
@@ -214,6 +265,7 @@ function toggleRoles() {
 }
 /** 我的页订单状态入口：售后是独立状态机，进入专属列表；其余进入订单筛选。 */
 function openOrderStatus(key: 'pending' | 'shipped' | 'received' | 'refund') {
+  if (isGuest.value) { openLogin(); return }
   if (key === 'refund') {
     navigateTo('/shop/my-after-sales')
     return
@@ -223,10 +275,12 @@ function openOrderStatus(key: 'pending' | 'shipped' | 'received' | 'refund') {
 }
 /** 点击已有身份卡 → 进入对应工作台 */
 function openRole(href: string) {
+  if (isGuest.value) { openLogin(); return }
   if (href) navigateTo(href)
 }
 /** 点击「申请加入」→ 角色申请页（六角色共用模板，role 驱动） */
 function applyRole(role: string) {
+  if (isGuest.value) { openLogin(); return }
   navigateTo(`/pkg-mine/role-apply/index?role=${role}`)
 }
 </script>
@@ -290,16 +344,16 @@ function applyRole(role: string) {
           class="id-avatar"
           role="link"
           tabindex="0"
-          aria-label="编辑个人资料"
+          :aria-label="isGuest ? '登录或注册' : '编辑个人资料'"
           @tap="go('/mine/edit-profile')"
           @keydown="activateOnKeyboard($event, () => go('/mine/edit-profile'))"
         >
           <!-- smart-avatar：头像 URL 失效自动翻昵称首字色块（原 image 裂图时是纯红空圈） -->
-          <smart-avatar class="avatar-img" :src="userData.avatar" :name="userData.name || '国'" />
+          <smart-avatar class="avatar-img" :src="userData.avatar" :name="displayName" />
         </view>
         <view class="id-info">
           <view class="id-name-row">
-            <text class="id-name" role="heading" aria-level="1">{{ userData.name }}</text>
+            <text class="id-name" role="heading" aria-level="1">{{ displayName }}</text>
             <AppIcon v-if="userData.isVerified" name="shield" :size="28" color="#4A90D9" />
             <view
               v-if="equippedTitle"
@@ -313,7 +367,7 @@ function applyRole(role: string) {
               <text class="title-chip-txt">{{ equippedTitle.name }}</text>
             </view>
           </view>
-          <text class="id-sign">{{ userData.bio || greeting + '，欢迎回来' }}</text>
+          <text class="id-sign">{{ displayBio }}</text>
         </view>
       </view>
 

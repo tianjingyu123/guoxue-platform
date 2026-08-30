@@ -723,7 +723,9 @@ function goRegister() {
 }
 function browseAsGuest() {
   try { uni.removeStorageSync('login:redirect') } catch { /* 清理失败不阻断返回公开页面 */ }
-  navigateTo('/pages/index/index')
+  // 登录页可能由 401 使用 reLaunch 打开；redirectTo 在部分 iOS WebView 栈上首次点击无响应。
+  // 游客退出鉴权流只做一次 reLaunch，直接建立稳定的公开首页根栈。
+  uni.reLaunch({ url: '/pages/index/index' })
 }
 
 onUnmounted(() => {

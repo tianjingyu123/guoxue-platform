@@ -9,6 +9,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { mineApi } from '@/lib/mine-data'
+import { getToken } from '@/utils/storage'
 
 withDefaults(defineProps<{
   compact?: boolean
@@ -21,6 +22,7 @@ withDefaults(defineProps<{
 const unreadCount = ref(0)
 
 async function loadUnread() {
+  if (!getToken()) { unreadCount.value = 0; return }
   unreadCount.value = await mineApi.getUnreadNotifyCount()
 }
 
