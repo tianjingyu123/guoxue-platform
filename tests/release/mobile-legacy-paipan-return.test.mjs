@@ -44,6 +44,11 @@ test('App 旧排盘只在受信域名内兼容新窗口工具，并保留子页�
   assert.match(page, /document\.addEventListener\('submit'/u)
   assert.match(page, /window\.open=function\(url\)/u)
   assert.match(page, /window\.location\.assign\(url\)/u)
+  assert.match(page, /if\(!window\.webviewJS\)/u)
+  assert.match(page, /openUrl:function\(url\)\{openTrustedLegacyUrl\(url\);\}/u)
+  assert.match(page, /payWX:function\(\)\{openRebuAction\('legacy-payment'\);\}/u)
+  assert.match(page, /\^\(rebu\|weixin\|alipays\|tel\|mailto\)/u)
+  assert.match(page, /旧排盘会员支付尚未接通/u)
   assert.match(page, /child\.evalJS\(legacyNavigationBridgeScript\(\)\)/u)
   assert.match(page, /\$scope\?\.\$getAppWebview\?\.\(\)/u)
   assert.match(page, /page\?\.\$getAppWebview\?\.\(\)/u)
@@ -75,8 +80,9 @@ test('旧排盘兼容桥真实接管新窗口链接、表单和 iOS 左边缘返
   const form = { tagName: 'FORM', target: '_new', getAttribute: () => form.target, setAttribute: (_key, value) => { form.target = value } }
   let backCount = 0
   const sandbox = {
+    URL,
     window: {
-      location: { assign: (url) => assigned.push(url) },
+      location: { href: 'https://www.yrydai.cn/guoxueApp.php', assign: (url) => assigned.push(url) },
       history: { length: 2, back: () => { backCount += 1 } },
     },
     document: {
@@ -93,6 +99,13 @@ test('旧排盘兼容桥真实接管新窗口链接、表单和 iOS 左边缘返
   assert.equal(form.target, '_self')
   sandbox.window.open('https://www.yrydai.cn/qimen')
   assert.deepEqual(assigned, ['https://www.yrydai.cn/qimen'])
+
+  sandbox.window.webviewJS.openUrl('https://www.yrydai.cn/bazi')
+  assert.equal(assigned.at(-1), 'https://www.yrydai.cn/bazi')
+  sandbox.window.webviewJS.openUrl('https://attacker.example/bazi')
+  assert.equal(assigned.at(-1), 'https://www.yrydai.cn/bazi')
+  sandbox.window.webviewJS.payWX('untrusted-payment-payload')
+  assert.equal(assigned.at(-1), 'rebu://legacy-payment')
 
   const dynamicLink = { tagName: 'A', href: 'https://www.yrydai.cn/bazi', target: '_blank', getAttribute: () => dynamicLink.target, parentNode: null }
   let prevented = false

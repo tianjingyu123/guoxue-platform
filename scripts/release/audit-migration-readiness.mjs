@@ -67,14 +67,14 @@ add(
 const controller = read("apps/server/src/modules/station/legacy-paipan.controller.ts");
 const paipanService = read("apps/server/src/modules/station/station-paipan-sync.service.ts");
 add(
-  "旧排盘回滚入口使用已核验手机号签名协议",
+  "旧排盘正式入口使用已核验手机号签名协议",
   controller.includes('@Controller("legacy-paipan")') &&
     controller.includes('@Get("entry")') &&
     paipanService.includes('createHash("md5")') &&
     paipanService.includes("`${phone}@rebuguoxue${phone}`") &&
     paipanService.includes("https://www.yrydai.cn/guoxueApp.php") &&
     !paipanService.includes("paipan.rebu.com"),
-  "兼容入口仅作显式回滚；服务端生成 key，客户端和日志不得暴露固定密钥材料",
+  "服务端生成本次签名地址，客户端只在内存中一次性交接，日志不得暴露签名材料",
 );
 
 const paipanPage = read("apps/mobile/src/pages/paipan/index.vue");
@@ -84,10 +84,13 @@ const legacyRouteStart = mobilePages.indexOf('"path": "legacy-paipan/index"');
 const legacyRouteConfig = mobilePages.slice(legacyRouteStart, legacyRouteStart + 320);
 const paipanClient = read("apps/mobile/src/lib/legacy-paipan-data.ts");
 add(
-  "四端原生排盘默认启用且旧排盘保留受控回滚",
+  "四端旧排盘正式承接且新排盘仅隔离 QA 开放",
   paipanClient.includes("/legacy-paipan/entry") &&
     paipanService.includes("this.runtime.isNative()") &&
     paipanService.includes('return { mode: "native", url: null') &&
+    paipanPage.includes('if (runtimeMode === "native")') &&
+    paipanPage.includes('if (runtimeMode !== "legacy")') &&
+    paipanPage.includes("排盘服务状态暂时无法确认") &&
     paipanPage.includes('/pkg-common/legacy-paipan/index') &&
     legacyPaipanPage.includes("window.open('', '_blank')") &&
     legacyPaipanPage.includes('opened.location.replace(legacyUrl.value)') &&
@@ -98,18 +101,18 @@ add(
     legacyRouteConfig.includes('"navigationBarTitleText": "排盘工具"') &&
     !legacyRouteConfig.includes('"navigationStyle": "custom"') &&
     !paipanPage.includes("核心工具仍可使用"),
-  "默认返回 native；旧系统仅作显式回滚，H5/App/小程序/Harmony 均保留稳定退出路径",
+  "服务端明确 legacy 时普通用户统一进入旧排盘；探针失败不泄露新排盘，四端保留稳定退出路径",
 );
 
 const productionTemplate = read("docker/.env.production.example");
 add(
-  "生产模板默认启用原生排盘并关闭 QA",
-  /^PAIPAN_MODE=native$/m.test(productionTemplate) &&
+  "生产模板默认启用旧排盘并关闭新排盘 QA",
+  /^PAIPAN_MODE=legacy$/m.test(productionTemplate) &&
     /^PAIPAN_NATIVE_QA_ENABLED=false$/m.test(productionTemplate) &&
     /^PAIPAN_OPERATION_H5_BASE=https:\/\/www\.yrydai\.cn\/guoxueApp\.php$/m.test(
       productionTemplate,
     ),
-  "正式运营默认走平台原生排盘；旧排盘仅保留受控回滚能力",
+  "正式运营默认走旧排盘；新排盘仅允许预发布 QA 白名单隔离测试",
 );
 
 const runbook = read("docs/release/热卜旧系统迁移与覆盖升级执行手册-20260730.md");
@@ -123,7 +126,7 @@ add(
   "旧更新接口保留期、停写窗口和回滚门槛必须在切换前确认",
 );
 
-console.log("旧系统迁移与原生排盘首发代码门禁");
+console.log("旧系统迁移与排盘运营模式代码门禁");
 for (const item of checks) {
   console.log(`${item.pass ? "通过" : "阻断"}：${item.name} —— ${item.detail}`);
 }

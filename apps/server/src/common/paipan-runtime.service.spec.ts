@@ -6,15 +6,14 @@ describe("PaipanRuntimeService", () => {
     process.env = { ...originalEnv };
   });
 
-  it("全新环境默认 native，显式模式与旧变量仍兼容", () => {
+  it("全新环境默认 legacy，只有显式 PAIPAN_MODE 才开放 native", () => {
     delete process.env.PAIPAN_MODE;
     delete process.env.PAIPAN_LEGACY_MODE;
+    expect(new PaipanRuntimeService().getMode()).toBe("legacy");
+    process.env.PAIPAN_MODE = "native";
     expect(new PaipanRuntimeService().getMode()).toBe("native");
     process.env.PAIPAN_MODE = "legacy";
     expect(new PaipanRuntimeService().getMode()).toBe("legacy");
-    delete process.env.PAIPAN_MODE;
-    process.env.PAIPAN_LEGACY_MODE = "false";
-    expect(new PaipanRuntimeService().getMode()).toBe("native");
   });
 
   it("QA 仅允许预发布双重域名校验与明确白名单角色", () => {

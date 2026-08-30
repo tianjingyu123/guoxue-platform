@@ -10,15 +10,10 @@ export class PaipanRuntimeService {
       .trim()
       .toLowerCase();
     if (configured === "legacy" || configured === "native") return configured;
-    // 兼容旧变量；全新环境默认使用平台自研排盘，旧系统仅保留显式回滚入口。
-    if (
-      String(process.env.PAIPAN_LEGACY_MODE || "")
-        .trim()
-        .toLowerCase() === "false"
-    ) {
-      return "native";
-    }
-    return "native";
+    // 未显式配置时按正式业务口径失败关闭为 legacy。旧变量
+    // PAIPAN_LEGACY_MODE 不再具备开放 native 的能力；新排盘必须显式配置
+    // PAIPAN_MODE=native，并受预发布域名与 QA 白名单限制。
+    return "legacy";
   }
 
   isNative(): boolean {

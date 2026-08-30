@@ -73,6 +73,9 @@ function splitCols<T>(arr: T[]): [T[], T[]] {
 }
 const liveCols = computed(() => splitCols(livesNow.value))
 const replayCols = computed(() => splitCols(replays.value))
+const emptyMessage = computed(() => activeTab.value === '全部'
+  ? '暂时没有正在直播或精彩回放，稍后再来看看'
+  : `“${activeTab.value}”分类暂时没有直播`)
 
 // 预告「明日」判定（scheduledTime 含「明天/明日」→ 金色节点）
 function isTomorrow(t?: string): boolean {
@@ -573,7 +576,19 @@ async function toggleBook(item: LiveItem) {
           aria-live="polite"
         >
           <view class="empty-icon"><AppIcon name="calendar" :size="56" color="#B0A99A" /></view>
-          <text class="empty-txt">这个分类还没有直播，去看看全部直播或精彩回放</text>
+          <text class="empty-txt">{{ emptyMessage }}</text>
+          <view
+            v-if="activeTab !== '全部'"
+            class="empty-action"
+            role="button"
+            aria-label="查看全部直播"
+            tabindex="0"
+            hover-class="tap"
+            @tap="onTabChange('全部')"
+            @keydown="activateOnKeyboard($event, () => onTabChange('全部'))"
+          >
+            <text class="empty-action-txt">查看全部直播</text>
+          </view>
         </view>
       </template>
     </scroll-view>
@@ -1080,6 +1095,20 @@ async function toggleBook(item: LiveItem) {
 .empty-txt {
   font-size: 28rpx;
   color: #b0a99a;
+  padding: 0 48rpx;
+  line-height: 1.55;
+  text-align: center;
+}
+.empty-action {
+  margin-top: 32rpx;
+  padding: 20rpx 40rpx;
+  border-radius: 999rpx;
+  background: rgba(196, 30, 58, 0.1);
+}
+.empty-action-txt {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #c41e3a;
 }
 
 /* 骨架 */

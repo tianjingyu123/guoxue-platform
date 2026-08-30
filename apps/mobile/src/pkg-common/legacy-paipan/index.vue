@@ -26,6 +26,44 @@ function legacyNavigationBridgeScript(): string {
   return `;(function(){
     if(window.__rebuLegacyNavigationBridgeInstalled)return;
     window.__rebuLegacyNavigationBridgeInstalled=true;
+    function trustedLegacyUrl(value){
+      try{
+        var resolved=new URL(String(value||''),window.location.href);
+        var hostname=String(resolved.hostname||'').toLowerCase();
+        var trusted=hostname==='yrydai.cn'||hostname.endsWith('.yrydai.cn')||hostname==='yrydai.com'||hostname.endsWith('.yrydai.com');
+        return resolved.protocol==='https:'&&trusted?resolved.href:'';
+      }catch(_error){return '';}
+    }
+    function openTrustedLegacyUrl(value){
+      var resolved=trustedLegacyUrl(value);
+      if(resolved)window.location.assign(resolved);
+    }
+    function openRebuAction(action){
+      window.location.assign('rebu://'+action);
+    }
+    /*
+     * 旧版官方 Android APK 通过 addJavascriptInterface 注入 webviewJS；工具宫格主要调用
+     * webviewJS.openUrl，而不是 a[target=_blank]。新容器没有这个原生对象时必须提供最小
+     * 等价接口，否则页面看似可点、实际完全不跳转。只允许站内 HTTPS，绝不执行网页传入
+     * 的支付参数或任意外链。
+     */
+    if(!window.webviewJS){
+      window.webviewJS={
+        openUrl:function(url){openTrustedLegacyUrl(url);},
+        openBrowser:function(url){openTrustedLegacyUrl(url);},
+        home:function(){openRebuAction('home');},
+        exitLogin:function(){openRebuAction('login');},
+        mobileLogin:function(){openRebuAction('login');},
+        serviceWX:function(){openRebuAction('customer-service');},
+        payWX:function(){openRebuAction('legacy-payment');},
+        openWXmini:function(){openRebuAction('unsupported');},
+        clearWeb:function(){},
+        hideTitle:function(){},
+        showTitle:function(){},
+        setTitle:function(){},
+        parentUpdate:function(){}
+      };
+    }
     function normalize(){
       var links=document.querySelectorAll('a[target="_blank"],a[target="_new"]');
       for(var i=0;i<links.length;i++)links[i].setAttribute('target','_self');
@@ -143,9 +181,27 @@ function bindLegacyChildWebview(child: any) {
       child.addEventListener?.('loading', reinject)
       child.addEventListener?.('loaded', reinject)
       child.overrideUrlLoading?.(
-        { mode: 'reject', match: '^(weixin|alipays|tel|mailto):.*' },
+        { mode: 'reject', match: '^(rebu|weixin|alipays|tel|mailto):.*' },
         (event: { url?: string }) => {
           const url = String(event?.url || '')
+          if (/^rebu:\/\//iu.test(url)) {
+            const action = url.slice('rebu://'.length).split(/[/?#]/u, 1)[0]
+            if (action === 'home') returnToNewSystem()
+            else if (action === 'login') openLogin()
+            else if (action === 'customer-service') navigateTo('/customer-service')
+            else if (action === 'legacy-payment') {
+              uni.showModal({
+                title: '旧排盘会员支付尚未接通',
+                content: '为避免付款后权益无法同步，当前版本不会直接执行旧站支付。可先联系平台客服处理。',
+                confirmText: '联系客服',
+                cancelText: '稍后再说',
+                success: (result) => { if (result.confirm) navigateTo('/customer-service') },
+              })
+            } else if (action === 'unsupported') {
+              uni.showToast({ title: '该旧版扩展功能暂不支持', icon: 'none' })
+            }
+            return
+          }
           if (/^(?:weixin|alipays|tel|mailto):/iu.test(url)) plus.runtime.openURL(url)
         },
       )

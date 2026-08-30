@@ -217,14 +217,18 @@ async function loadPaipanEntry() {
       return;
     }
 
-    // 原生排盘是平台主路径。只有服务端本次明确返回 legacy 时，才进入旧版兼容流程；
-    // 探针网络失败或陈旧缓存不能继续劫持工具入口。
+    // 正式运营由服务端统一决定 legacy/native。只有本次明确返回 native
+    // 才可展示隔离的平台新排盘；探针失败或快照过期必须停在错误态，
+    // 不得在 legacy 模式下自动回退或泄露新排盘。
     const runtimeMode = await hydratePaipanRuntime();
-    if (runtimeMode !== "legacy") {
+    if (runtimeMode === "native") {
       allowNative.value = true;
       favIds.value = getFavorites();
       await loadPlatformAgents();
       return;
+    }
+    if (runtimeMode !== "legacy") {
+      throw new Error("排盘服务状态暂时无法确认，请稍后重试");
     }
 
     if (entryTarget !== "station" && !getToken()) {

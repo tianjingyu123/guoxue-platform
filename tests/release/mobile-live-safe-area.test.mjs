@@ -89,6 +89,15 @@ test('直播广场、课程播放器和语音通话不再依赖隐式安全区',
   }
 })
 
+test('直播广场空态不在全部分类误导用户，并给分类空态真实出口', () => {
+  const content = source('apps/mobile/src/pkg-live/plaza/index.vue')
+  assert.match(content, /activeTab\.value === '全部'/)
+  assert.match(content, /暂时没有正在直播或精彩回放，稍后再来看看/)
+  assert.match(content, /v-if="activeTab !== '全部'"/)
+  assert.match(content, /@tap="onTabChange\('全部'\)"/)
+  assert.doesNotMatch(content, /这个分类还没有直播，去看看全部直播或精彩回放/)
+})
+
 test('主播页不允许回退到固定安全区占位', () => {
   const content = source('apps/mobile/src/pkg-live/host/index.nvue')
   assert.doesNotMatch(content, /safe-top|safe-bottom/)
