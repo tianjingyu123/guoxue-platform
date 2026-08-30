@@ -84,6 +84,19 @@ test('动态状态栏高度不能停留在未赋值的零值占位', () => {
   )
 })
 
+test('SimpleChat 共享导航必须读取真机安全区，不能把组件名当作安全区通过证据', () => {
+  const content = readFileSync(path.join(mobileSource, 'components/agent/simple-chat.vue'), 'utf8')
+  assert.match(content, /const\s+safeTop\s*=\s*ref\(0\)/u)
+  assert.match(content, /uni\.getSystemInfoSync\(\)/u)
+  assert.match(content, /statusBarHeight\s*\|\|\s*0/u)
+  assert.match(content, /safeAreaInsets\?\.top\s*\|\|\s*0/u)
+  assert.match(content, /safeArea\?\.top\s*\|\|\s*0/u)
+  assert.match(
+    content,
+    /class="header"\s+:style="\{ paddingTop: `max\(\$\{safeTop\}px, env\(safe-area-inset-top\)\)` \}"/u,
+  )
+})
+
 const h5NotchFallbackPages = [
   'pkg-auth/login/index',
   'pkg-auth/register/index',

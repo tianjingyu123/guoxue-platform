@@ -85,6 +85,19 @@ const experienceStyle = computed(() => agentThemeStyle(experience.value.theme.ke
 const input = ref('')
 const loading = ref(false)
 const scrollId = ref('')
+const safeTop = ref(0)
+
+try {
+  const systemInfo = uni.getSystemInfoSync()
+  safeTop.value = Math.max(
+    0,
+    systemInfo.statusBarHeight || 0,
+    systemInfo.safeAreaInsets?.top || 0,
+    systemInfo.safeArea?.top || 0,
+  )
+} catch {
+  safeTop.value = 0
+}
 
 // ── 自动滚底 + 用户上滑暂停 ──
 const autoFollow = ref(true)
@@ -304,7 +317,7 @@ function reset() {
 <template>
   <view class="page" :style="experienceStyle">
     <!-- 头部 -->
-    <view class="header safe-pt">
+    <view class="header" :style="{ paddingTop: `max(${safeTop}px, env(safe-area-inset-top))` }">
       <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="head-info">
         <view class="head-avatar" :style="{ background: iconBg }"><AppIcon :name="iconName" :size="28" :color="iconColor" /></view>
@@ -415,7 +428,6 @@ function reset() {
 
 <style scoped lang="scss">
 .page { display: flex; flex-direction: column; height: 100vh; background: #f7f5f0; }
-.safe-pt { padding-top: var(--status-bar-height, 0); }
 .safe-pb { padding-bottom: constant(safe-area-inset-bottom); padding-bottom: env(safe-area-inset-bottom); }
 
 .header {

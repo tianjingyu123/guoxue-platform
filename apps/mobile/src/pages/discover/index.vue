@@ -280,8 +280,18 @@ $ink: #2C2C2C; $sub: #6E6E73; $faint: #999999; $wash: #F6F1E7; $line: #F2EDE4;
 
 .page { min-height: 100vh; background: $paper; padding-bottom: 140rpx; }
 
-/* ① 搜索：padding-top 由内联 style 按 statusBarHeight 动态计算（此处仅兜底） */
-.search-row { display: flex; align-items: center; gap: 12rpx; padding: 16rpx 24rpx 8rpx; }
+/* ① 搜索：同时承担发现主页面滚动后的状态栏隔离层，内容不能进入系统图标区。 */
+.search-row {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx 24rpx 8rpx;
+  background: rgba(250, 248, 245, 0.96);
+  backdrop-filter: blur(20rpx);
+}
 .discover-search { flex: 1; min-width: 0; }
 /* ② 运营楼层（微页面区块） */
 .disc-blocks { padding: 8rpx 0 4rpx; }

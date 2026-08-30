@@ -289,6 +289,12 @@ function applyRole(role: string) {
   <view class="page">
     <app-network-bar />
     <customer-service-fab />
+    <!-- 页面滚动后用不接管触摸的实色层隔离系统状态栏，避免订单/入口文字进入时间与挖孔区域。 -->
+    <view
+      class="status-bar-scrim"
+      :style="{ height: statusBarHeight + 'px' }"
+      aria-hidden="true"
+    />
     <!-- 骨架屏 -->
     <view v-if="loading" class="skeleton" role="status" aria-live="polite">
       <view class="skeleton-hero" />
@@ -606,6 +612,16 @@ function applyRole(role: string) {
 
 <style scoped lang="scss">
 .page { min-height: 100vh; background: #FAF8F5; padding-bottom: 160rpx; }
+
+.status-bar-scrim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  background: #FFFFFF;
+  pointer-events: none;
+}
 
 /* ① 头部身份区 */
 .id-area { position: relative; background: #FFFFFF; padding: 20rpx 32rpx 32rpx; }

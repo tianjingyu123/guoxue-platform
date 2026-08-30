@@ -45,7 +45,7 @@ test("登录页生命周期必须无条件导入，防止 iOS 跳登录后永久
   );
 });
 
-test("启动更新检查不依赖 URLSearchParams，且统一候选使用新构建号 232", async () => {
+test("启动更新检查不依赖 URLSearchParams，且统一候选使用新构建号 234", async () => {
   const [update, manifestRaw] = await Promise.all([
     readFile(updateSource, "utf8"),
     readFile(manifestSource, "utf8"),
@@ -53,5 +53,5 @@ test("启动更新检查不依赖 URLSearchParams，且统一候选使用新构�
   assert.doesNotMatch(update, /new URLSearchParams/);
   assert.match(update, /encodeURIComponent\(platform\)/);
   assert.match(update, /encodeURIComponent\(version\)/);
-  assert.equal(JSON.parse(manifestRaw).versionCode, "232");
+  assert.equal(JSON.parse(manifestRaw).versionCode, "234");
 });
