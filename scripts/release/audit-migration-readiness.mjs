@@ -98,8 +98,8 @@ add(
     legacyPaipanPage.includes('@message="handleLegacyMessage"') &&
     legacyPaipanPage.includes('onBackPress(() =>') &&
     legacyRouteStart >= 0 &&
-    legacyRouteConfig.includes('"navigationBarTitleText": "排盘工具"') &&
-    !legacyRouteConfig.includes('"navigationStyle": "custom"') &&
+    legacyRouteConfig.includes('"navigationStyle": "custom"') &&
+    !legacyRouteConfig.includes('"navigationBarTitleText"') &&
     !paipanPage.includes("核心工具仍可使用"),
   "服务端明确 legacy 时普通用户统一进入旧排盘；探针失败不泄露新排盘，四端保留稳定退出路径",
 );
