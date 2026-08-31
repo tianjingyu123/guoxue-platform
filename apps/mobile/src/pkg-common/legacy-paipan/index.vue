@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getCurrentInstance, onMounted, onUnmounted, ref } from 'vue'
+import { getCurrentInstance, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { onBackPress, onReady } from '@dcloudio/uni-app'
 import { consumeLegacyPaipanEntry, legacyPaipanApi } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
@@ -12,6 +12,8 @@ const loginRequired = ref(false)
 let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
 let legacyChildWebview: any | null = null
 const componentInstance = getCurrentInstance()
+const legacyAppMounted = ref(false)
+let appPageReady = false
 
 /** 只允许对旧排盘官方域名的子 WebView 注入兼容桥，避免影响其他页面。 */
 function isTrustedLegacyUrl(url: string): boolean {
@@ -41,6 +43,32 @@ function legacyNavigationBridgeScript(): string {
     function openRebuAction(action){
       window.location.assign('rebu://'+action);
     }
+    function openLegacyPayload(value){
+      var match=String(value||'').match(/[?&]url=([^&#]+)/);
+      if(match){
+        try{openTrustedLegacyUrl(decodeURIComponent(match[1]));return;}catch(_error){}
+      }
+      openTrustedLegacyUrl(value);
+    }
+    function handleWebUniMessage(message){
+      var data=message&&message.data?message.data:message||{};
+      var action=String(data.action||'').toLowerCase();
+      if(action==='pay')openRebuAction('legacy-payment');
+      else if(action==='service')openRebuAction('customer-service');
+      else if(action==='location'||action==='share')openRebuAction('unsupported');
+    }
+    function installWebkitCompatibility(){
+      var webkit=window.webkit||(window.webkit={});
+      var handlers=webkit.messageHandlers||(webkit.messageHandlers={});
+      function add(name,callback){if(!handlers[name])handlers[name]={postMessage:callback};}
+      add('openUrl',function(value){openLegacyPayload(value);});
+      add('openBrowser',function(value){openTrustedLegacyUrl(value);});
+      add('home',function(){openRebuAction('home');});
+      add('serviceWX',function(){openRebuAction('customer-service');});
+      add('location',function(){openRebuAction('unsupported');});
+      add('openWXmini',function(){openRebuAction('unsupported');});
+      add('payWX',function(){openRebuAction('legacy-payment');});
+    }
     /*
      * 旧版官方 Android APK 通过 addJavascriptInterface 注入 webviewJS；工具宫格主要调用
      * webviewJS.openUrl，而不是 a[target=_blank]。新容器没有这个原生对象时必须提供最小
@@ -49,7 +77,7 @@ function legacyNavigationBridgeScript(): string {
      */
     if(!window.webviewJS){
       window.webviewJS={
-        openUrl:function(url){openTrustedLegacyUrl(url);},
+        openUrl:function(url){openLegacyPayload(url);},
         openBrowser:function(url){openTrustedLegacyUrl(url);},
         home:function(){openRebuAction('home');},
         exitLogin:function(){openRebuAction('login');},
@@ -57,13 +85,34 @@ function legacyNavigationBridgeScript(): string {
         serviceWX:function(){openRebuAction('customer-service');},
         payWX:function(){openRebuAction('legacy-payment');},
         openWXmini:function(){openRebuAction('unsupported');},
+        shareWX:function(){openRebuAction('unsupported');},
+        sharePicture:function(){openRebuAction('unsupported');},
+        savePicture:function(){openRebuAction('unsupported');},
+        location:function(){openRebuAction('unsupported');},
+        openCompass:function(){openRebuAction('unsupported');},
+        playVoice:function(){openRebuAction('unsupported');},
+        stopVoice:function(){},
+        voiceRecordReady:function(){openRebuAction('unsupported');},
+        voiceRecordStart:function(){openRebuAction('unsupported');},
+        voiceRecordStop:function(){},
+        voiceUpload:function(){openRebuAction('unsupported');},
+        errorBack:function(){if(window.history.length>1)window.history.back();else openRebuAction('home');},
+        errorReload:function(){window.location.reload();},
         clearWeb:function(){},
         hideTitle:function(){},
         showTitle:function(){},
         setTitle:function(){},
-        parentUpdate:function(){}
+        parentUpdate:function(){},
+        redDot:function(){},
+        cancelRedDot:function(){}
       };
     }
+    installWebkitCompatibility();
+    window.webUni={
+      navigateTo:function(options){openLegacyPayload(options&&options.url);},
+      navigateBack:function(){openRebuAction('home');},
+      postMessage:function(message){handleWebUniMessage(message);}
+    };
     function normalize(){
       var links=document.querySelectorAll('a[target="_blank"],a[target="_new"]');
       for(var i=0;i<links.length;i++)links[i].setAttribute('target','_self');
@@ -74,6 +123,11 @@ function legacyNavigationBridgeScript(): string {
       var node=event.target;
       while(node&&node.tagName!=='A')node=node.parentNode;
       if(!node)return;
+      if(node.href&&!trustedLegacyUrl(node.href)){
+        event.preventDefault();
+        openRebuAction('unsupported');
+        return;
+      }
       var target=String(node.getAttribute('target')||'').toLowerCase();
       if((target==='_blank'||target==='_new')&&node.href){
         event.preventDefault();
@@ -83,6 +137,11 @@ function legacyNavigationBridgeScript(): string {
     document.addEventListener('submit',function(event){
       var form=event.target;
       if(!form||form.tagName!=='FORM')return;
+      if(!trustedLegacyUrl(form.action||window.location.href)){
+        event.preventDefault();
+        openRebuAction('unsupported');
+        return;
+      }
       var target=String(form.getAttribute('target')||'').toLowerCase();
       if(target==='_blank'||target==='_new')form.setAttribute('target','_self');
     },true);
@@ -176,10 +235,23 @@ function bindLegacyChildWebview(child: any) {
       boundChild.__rebuLoadedBridgeBound = true
       const reinject = () => {
         // 第三方内部整页跳转会重建 JS 上下文，每次 loaded 都必须重新注入。
-        installLegacyNavigationBridge(child)
+        return installLegacyNavigationBridge(child)
+      }
+      const reveal = () => {
+        // create('') 可能先触发 about:blank 的 loaded，必须等受信旧站真正加载后再显示。
+        if (!reinject()) return
+        try { child.setContentVisible?.(true) } catch { /* 旧内核不支持时继续 */ }
+        legacyAppMounted.value = true
       }
       child.addEventListener?.('loading', reinject)
-      child.addEventListener?.('loaded', reinject)
+      child.addEventListener?.('loaded', reveal)
+      child.addEventListener?.('error', () => {
+        try { child.setContentVisible?.(false) } catch { /* 失败页保持隐藏 */ }
+        try { child.close?.('none') } catch { /* 父窗口仍会兜底回收 */ }
+        if (legacyChildWebview === child) legacyChildWebview = null
+        legacyAppMounted.value = false
+        error.value = '排盘工具暂时无法打开，请稍后重试'
+      })
       child.overrideUrlLoading?.(
         { mode: 'reject', match: '^(rebu|weixin|alipays|tel|mailto):.*' },
         (event: { url?: string }) => {
@@ -209,6 +281,45 @@ function bindLegacyChildWebview(child: any) {
     installLegacyNavigationBridge(child)
     return true
   } catch { return false }
+}
+
+/**
+ * App 端先创建受控子 WebView、挂载本地兼容脚本，再加载第三方地址。
+ * 这样 webviewJS 在旧站首屏脚本执行前就存在，避免八字、奇门等按钮首次点击失效。
+ */
+function mountLegacyAppWebview() {
+  // #ifdef APP-PLUS
+  if (!appPageReady || !legacyUrl.value || loading.value || error.value || legacyChildWebview) return false
+  const parent = getLegacyParentWebview()
+  if (!parent) return false
+  let child: any | null = null
+  try {
+    const childStyle: any = {
+      top: '0px',
+      bottom: '0px',
+      background: '#FAF8F5',
+      scrollIndicator: 'none',
+      plusrequire: 'none',
+      'uni-app': 'none',
+      popGesture: 'none',
+    }
+    child = plus.webview.create('', `rebu-legacy-paipan-${Date.now()}`, childStyle)
+    legacyChildWebview = child
+    try { child.setContentVisible?.(false) } catch { /* 旧内核不支持时继续 */ }
+    child.setJsFile?.('_www/static/legacy-paipan-preload.js')
+    bindLegacyChildWebview(child)
+    parent.append(child)
+    child.loadURL(legacyUrl.value)
+    return true
+  } catch {
+    try { child?.close?.('none') } catch { /* 创建中断时尽力回收 */ }
+    legacyChildWebview = null
+    legacyAppMounted.value = false
+    error.value = '排盘工具暂时无法打开，请稍后重试'
+    return false
+  }
+  // #endif
+  return false
 }
 // #endif
 
@@ -274,6 +385,10 @@ async function loadEntry() {
       : message
   } finally {
     loading.value = false
+    await nextTick()
+    // #ifdef APP-PLUS
+    mountLegacyAppWebview()
+    // #endif
   }
 }
 
@@ -308,11 +423,19 @@ function handleLegacyLoadError() {
 function handleLegacyLoaded() { scheduleLegacyNavigationBridge() }
 
 onMounted(() => { void loadEntry() })
-onReady(() => { scheduleLegacyNavigationBridge() })
+onReady(() => {
+  appPageReady = true
+  // #ifdef APP-PLUS
+  mountLegacyAppWebview()
+  // #endif
+  scheduleLegacyNavigationBridge()
+})
 onUnmounted(() => {
   bridgeTimers.forEach(clearTimeout)
   bridgeTimers = []
+  try { legacyChildWebview?.close?.('none') } catch { /* 页面关闭时由父窗口兜底回收 */ }
   legacyChildWebview = null
+  legacyAppMounted.value = false
 })
 onBackPress(() => {
   navigateLegacyBack()
@@ -348,8 +471,17 @@ onBackPress(() => {
   </view>
   <!-- #endif -->
 
-  <!-- 默认原生导航栏由系统负责状态栏/刘海/挖孔安全区，WebView 只占正文窗口。 -->
+  <!-- #ifdef APP-PLUS -->
+  <view v-if="!loading && !error && legacyUrl && !legacyAppMounted" class="state" role="status" aria-live="polite">
+    <view class="spinner" />
+    <text class="title">排盘工具</text>
+    <text class="desc">正在加载工具，请稍候</text>
+  </view>
+  <!-- #endif -->
+
+  <!-- 小程序与 Harmony 继续使用标准 web-view；App 使用加载前预注入的受控原生子 WebView。 -->
   <!-- #ifndef H5 -->
+  <!-- #ifndef APP-PLUS -->
   <web-view
     v-if="!loading && !error && legacyUrl"
     class="legacy-webview"
@@ -358,6 +490,7 @@ onBackPress(() => {
     @message="handleLegacyMessage"
     @error="handleLegacyLoadError"
   />
+  <!-- #endif -->
   <!-- #endif -->
 </template>
 
