@@ -56,3 +56,12 @@ test('文字课静态门禁已接入正式客户端构建门禁', () => {
   assert.match(pkg.scripts['release:test-mobile-native-bundle'], /mobile-course-text-player\.test\.mjs/)
   assert.match(pkg.scripts['release:gate:code'], /release:test-mobile-native-bundle/)
 })
+
+test('视频课程播放器使用有安全区的品牌化画框，不退回原始全宽播放器', () => {
+  const player = source('apps/mobile/src/pkg-course/player/index.vue')
+  assert.match(player, /class="video-shell"/)
+  assert.match(player, /class="p-top-seal">课程</)
+  assert.match(player, /border: 1rpx solid rgba\(198,161,91,0\.48\)/)
+  assert.match(player, /linear-gradient\(90deg, #b3263b, #c6a15b\)/)
+  assert.match(player, /@media \(prefers-reduced-motion: reduce\)/)
+})

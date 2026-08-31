@@ -14,6 +14,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import PurchaseSheet from '@/components/common/purchase-sheet.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import TeacherCertBadge from '@/components/common/teacher-cert-badge.vue'
 import { courseApi } from '@/lib/course-data'
 import { purchaseApi } from '@/lib/purchase-data'
@@ -23,6 +24,8 @@ import { track } from '@/composables/useTrack'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { gotoComplaint } from '@/lib/trust-entry'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
+import { buildH5Url } from '@/utils/share'
+import { withRef } from '@/utils/referral'
 
 const loading = ref(true)
 const error = ref('')
@@ -49,9 +52,10 @@ const showConsultPanel = ref(false)
 const showGroupPanel = ref(false)
 const hasAccess = ref(false)
 const showPurchase = ref(false)
+const showShare = ref(false)
 const isLiked = ref(false)
 
-useOverlayScrollLock(() => showConsultPanel.value || showGroupPanel.value)
+useOverlayScrollLock(() => showConsultPanel.value || showGroupPanel.value || showShare.value)
 // onShow 回刷防抖：首次 onShow（进页）跳过，仅从收银台/其他页返回时回刷购买态
 let firstShowDone = false
 // 播放页「写个评价」跳来（?tab=review）→ 加载完成后滚动定位到评价区
@@ -111,9 +115,9 @@ async function toggleFavorite() {
     favSubmitting.value = false
   }
 }
-// 分享：H5/App 走统一分享海报页（小程序另有原生 onShareAppMessage）
+// 分享：App/H5 直接展示多渠道面板，小程序继续使用原生分享钩子。
 function onShare() {
-  openPoster('course', course.value?.id || courseId.value)
+  showShare.value = true
 }
 async function onPurchase() {
   if (hasAccess.value) { onContinueLearning(); return }
@@ -262,13 +266,31 @@ function scrollToReviews() {
 
 // 微信原生分享（好友 / 朋友圈）
 const { toAppMessage, toTimeline, openPoster } = useShare()
+const courseShareTitle = computed(() => `和我一起学《${course.value?.title || '国学好课'}》`)
+const courseShareSummary = computed(() => {
+  const raw = course.value?.subtitle || course.value?.description || '精选课程内容，随时随地系统学习。'
+  return String(raw).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90)
+})
+const courseShareMeta = computed(() => {
+  const parts = []
+  if (course.value?.instructor?.name) parts.push(`讲师 ${course.value.instructor.name}`)
+  if (Number(course.value?.students) > 0) parts.push(`${fmtStudents(course.value.students)} 人在学`)
+  if (Number(course.value?.rating) > 0) parts.push(`评分 ${course.value.rating}`)
+  return parts.join(' · ')
+})
+const courseShareUrl = computed(() => withRef(buildH5Url('pkg-course/detail/index', {
+  id: course.value?.id || courseId.value,
+})))
+function openCoursePoster() {
+  openPoster('course', course.value?.id || courseId.value)
+}
 onShareAppMessage(() => toAppMessage({
-  title: course.value?.title || '国学好课',
+  title: courseShareTitle.value,
   path: `/courses/${course.value?.id || courseId.value}`,
   cover: course.value?.cover,
 }))
 onShareTimeline(() => toTimeline({
-  title: course.value?.title || '国学好课',
+  title: courseShareTitle.value,
   path: `/courses/${course.value?.id || courseId.value}`,
   cover: course.value?.cover,
 }))
@@ -596,6 +618,18 @@ onMounted(() => {
         </view>
       </view>
     </view>
+
+    <content-share-sheet
+      :visible="showShare"
+      kind="course"
+      :title="courseShareTitle"
+      :summary="courseShareSummary"
+      :meta="courseShareMeta"
+      :cover="course?.cover || ''"
+      :url="courseShareUrl"
+      @close="showShare = false"
+      @poster="openCoursePoster"
+    />
   </view>
 </template>
 

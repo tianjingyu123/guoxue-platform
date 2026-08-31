@@ -19,10 +19,10 @@ test('H5 旧排盘由用户手势新窗口打开并保留可见返回入口', ()
   assert.match(page, />返回热卜首页</u)
 })
 
-test('App 与小程序排盘工具使用统一标题、默认原生导航安全区、硬件返回和受控消息桥', () => {
-  assert.match(pages, /"path": "legacy-paipan\/index"[\s\S]*?"navigationBarTitleText": "排盘工具"/u)
+test('App 与小程序排盘工具不叠加原生标题，并保留硬件返回和受控消息桥', () => {
+  assert.match(pages, /"path": "legacy-paipan\/index"[\s\S]*?"navigationStyle": "custom"/u)
   const routeConfig = pages.slice(pages.indexOf('"path": "legacy-paipan/index"'), pages.indexOf('"path": "legacy-paipan/index"') + 320)
-  assert.doesNotMatch(routeConfig, /"navigationStyle": "custom"/u)
+  assert.doesNotMatch(routeConfig, /"navigationBarTitleText"/u)
   assert.match(page, /@message="handleLegacyMessage"/u)
   assert.match(page, /message\.type === 'rebu:return'/u)
   assert.match(page, /message\.action === 'return-to-rebu'/u)
@@ -47,7 +47,7 @@ test('App 旧排盘只在受信域名内兼容新窗口工具，并保留子页�
   assert.match(page, /window\.location\.assign\(url\)/u)
   assert.match(page, /if\(!window\.webviewJS\)/u)
   assert.match(page, /openUrl:function\(url\)\{openLegacyPayload\(url\);\}/u)
-  assert.match(page, /payWX:function\(\)\{openRebuAction\('legacy-payment'\);\}/u)
+  assert.match(page, /payWX:function\(value\)\{openLegacyPayment\(value\);\}/u)
   assert.match(page, /errorBack:function\(\)\{if\(window\.history\.length>1\)window\.history\.back\(\);else openRebuAction\('home'\);\}/u)
   assert.match(page, /errorReload:function\(\)\{window\.location\.reload\(\);\}/u)
   assert.match(page, /webkit\.messageHandlers\|\|\(webkit\.messageHandlers=\{\}\)/u)
@@ -55,13 +55,15 @@ test('App 旧排盘只在受信域名内兼容新窗口工具，并保留子页�
   assert.match(page, /window\.webUni=\{/u)
   assert.match(page, /postMessage:function\(message\)\{handleWebUniMessage\(message\);\}/u)
   assert.match(page, /\^\(rebu\|weixin\|alipays\|tel\|mailto\)/u)
-  assert.match(page, /旧排盘会员支付尚未接通/u)
+  assert.match(page, /paymentUrl\.searchParams\.set\('mod','pay'\)/u)
+  assert.doesNotMatch(page, /旧排盘会员支付尚未接通/u)
   assert.match(page, /child\.evalJS\(legacyNavigationBridgeScript\(\)\)/u)
   assert.match(page, /plus\.webview\.create\('', `rebu-legacy-paipan-/u)
   assert.match(page, /child\.setJsFile\?\.\('_www\/static\/legacy-paipan-preload\.js'\)/u)
   assert.match(page, /parent\.append\(child\)/u)
   assert.match(page, /child\.loadURL\(legacyUrl\.value\)/u)
-  assert.match(page, /top: '0px'/u)
+  assert.match(page, /top: `\$\{safeTop\.value\}px`/u)
+  assert.match(page, /bottom: `\$\{safeBottom\.value\}px`/u)
   assert.match(page, /plusrequire: 'none'/u)
   assert.match(page, /\$scope\?\.\$getAppWebview\?\.\(\)/u)
   assert.match(page, /page\?\.\$getAppWebview\?\.\(\)/u)
@@ -79,7 +81,9 @@ test('App 旧排盘只在受信域名内兼容新窗口工具，并保留子页�
   assert.match(page, /child\.canBack/u)
   assert.match(page, /if \(event\?\.canBack\) child\.back\(\)/u)
   assert.match(page, /touch\.clientX<=24/u)
+  assert.match(page, /touch\.clientX>=viewportWidth-24/u)
   assert.match(page, /dx>=80/u)
+  assert.match(page, /dx<=-80/u)
   assert.match(page, /window\.history\.back\(\)/u)
   assert.doesNotMatch(page, /legacy-right-back-gesture/u)
   assert.doesNotMatch(page, /rightGestureActive/u)
@@ -89,7 +93,7 @@ test('App 预载桥在旧站首屏执行前补齐旧 APK 的 webviewJS 导航接
   assert.match(preload, /window\.__rebuLegacyNavigationPreloadInstalled/u)
   assert.match(preload, /window\.webviewJS = \{/u)
   assert.match(preload, /openUrl: function \(url\) \{ openLegacyPayload\(url\) \}/u)
-  assert.match(preload, /payWX: function \(\) \{ openRebuAction\('legacy-payment'\) \}/u)
+  assert.match(preload, /payWX: function \(value\) \{ openLegacyPayment\(value\) \}/u)
   assert.match(preload, /serviceWX: function \(\) \{ openRebuAction\('customer-service'\) \}/u)
   assert.match(preload, /add\('openUrl', function \(value\) \{ openLegacyPayload\(value\) \}\)/u)
   assert.match(preload, /window\.webUni = \{/u)
@@ -100,7 +104,7 @@ test('App 预载桥在旧站首屏执行前补齐旧 APK 的 webviewJS 导航接
   assert.doesNotMatch(preload, /console\./u)
 })
 
-test('预载桥只允许旧排盘官方 HTTPS 域名且不转发支付参数', () => {
+test('预载桥只允许排盘官方 HTTPS 域名，并在同域保留原支付链路', () => {
   const assigned = []
   const listeners = new Map()
   let backCount = 0
@@ -136,12 +140,12 @@ test('预载桥只允许旧排盘官方 HTTPS 域名且不转发支付参数', (
   assert.equal(assigned.at(-1), 'https://www.yrydai.cn/tool/qimen')
   sandbox.window.webUni.navigateTo({ url: '/pkg-common/webview?url=' + encodeURIComponent('https://www.yrydai.com/tool/liuyao') })
   assert.equal(assigned.at(-1), 'https://www.yrydai.com/tool/liuyao')
-  sandbox.window.webviewJS.payWX('sensitive-trade-number')
-  assert.equal(assigned.at(-1), 'rebu://legacy-payment')
-  assert.doesNotMatch(assigned.at(-1), /sensitive-trade-number/u)
-  sandbox.window.webUni.postMessage({ data: { action: 'pay', payload: { trade_no: 'another-sensitive-number' } } })
-  assert.equal(assigned.at(-1), 'rebu://legacy-payment')
-  assert.doesNotMatch(assigned.at(-1), /another-sensitive-number/u)
+  sandbox.window.webviewJS.payWX('trade-number-1')
+  assert.equal(assigned.at(-1), 'https://www.yrydai.cn/my.php?mod=pay&trade_no=trade-number-1')
+  sandbox.window.webUni.postMessage({ data: { action: 'pay', payload: { trade_no: 'trade-number-2' } } })
+  assert.equal(assigned.at(-1), 'https://www.yrydai.cn/my.php?mod=pay&trade_no=trade-number-2')
+  sandbox.window.webviewJS.payWX('bad/trade')
+  assert.equal(assigned.at(-1), 'rebu://unsupported')
   sandbox.window.webviewJS.errorBack()
   sandbox.window.webviewJS.errorReload()
   assert.equal(backCount, 1)
@@ -161,7 +165,7 @@ test('预载桥只允许旧排盘官方 HTTPS 域名且不转发支付参数', (
   assert.equal(assigned.at(-1), 'rebu://unsupported')
 })
 
-test('旧排盘兼容桥真实接管新窗口链接、表单和 iOS 左边缘返回手势', () => {
+test('排盘兼容桥真实接管新窗口、原支付和 iOS 双侧边缘返回手势', () => {
   const scriptMatch = page.match(/function legacyNavigationBridgeScript\(\): string \{\s*return `([\s\S]*?)`\s*\}/u)
   assert.ok(scriptMatch, '应能提取旧排盘桥接脚本')
 
@@ -175,6 +179,7 @@ test('旧排盘兼容桥真实接管新窗口链接、表单和 iOS 左边缘返
     window: {
       location: { href: 'https://www.yrydai.cn/guoxueApp.php', assign: (url) => assigned.push(url) },
       history: { length: 2, back: () => { backCount += 1 } },
+      innerWidth: 390,
     },
     document: {
       documentElement: {},
@@ -195,8 +200,8 @@ test('旧排盘兼容桥真实接管新窗口链接、表单和 iOS 左边缘返
   assert.equal(assigned.at(-1), 'https://www.yrydai.cn/bazi')
   sandbox.window.webviewJS.openUrl('https://attacker.example/bazi')
   assert.equal(assigned.at(-1), 'https://www.yrydai.cn/bazi')
-  sandbox.window.webviewJS.payWX('untrusted-payment-payload')
-  assert.equal(assigned.at(-1), 'rebu://legacy-payment')
+  sandbox.window.webviewJS.payWX('trade-number-3')
+  assert.equal(assigned.at(-1), 'https://www.yrydai.cn/my.php?mod=pay&trade_no=trade-number-3')
 
   const dynamicLink = { tagName: 'A', href: 'https://www.yrydai.cn/bazi', target: '_blank', getAttribute: () => dynamicLink.target, parentNode: null }
   let prevented = false
@@ -207,6 +212,9 @@ test('旧排盘兼容桥真实接管新窗口链接、表单和 iOS 左边缘返
   listeners.get('touchstart')({ touches: [{ clientX: 12, clientY: 240 }] })
   listeners.get('touchend')({ changedTouches: [{ clientX: 120, clientY: 250 }] })
   assert.equal(backCount, 1)
+  listeners.get('touchstart')({ touches: [{ clientX: 380, clientY: 240 }] })
+  listeners.get('touchend')({ changedTouches: [{ clientX: 280, clientY: 250 }] })
+  assert.equal(backCount, 2)
 })
 
 test('Android 短视频原生播放器不吞掉上下翻页手势', () => {

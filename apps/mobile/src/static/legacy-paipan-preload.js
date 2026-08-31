@@ -23,6 +23,22 @@
     window.location.assign('rebu://' + action)
   }
 
+  function openLegacyPayment(value) {
+    var tradeNo = String(value || '').trim()
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(tradeNo)) {
+      openRebuAction('unsupported')
+      return
+    }
+    try {
+      var paymentUrl = new URL('/my.php', window.location.href)
+      paymentUrl.searchParams.set('mod', 'pay')
+      paymentUrl.searchParams.set('trade_no', tradeNo)
+      openTrustedLegacyUrl(paymentUrl.href)
+    } catch (_error) {
+      openRebuAction('unsupported')
+    }
+  }
+
   function openLegacyPayload(value) {
     var match = String(value || '').match(/[?&]url=([^&#]+)/)
     if (match) {
@@ -37,7 +53,7 @@
   function handleWebUniMessage(message) {
     var data = message && message.data ? message.data : message || {}
     var action = String(data.action || '').toLowerCase()
-    if (action === 'pay') openRebuAction('legacy-payment')
+    if (action === 'pay') openLegacyPayment(data.payload && data.payload.trade_no)
     else if (action === 'service') openRebuAction('customer-service')
     else if (action === 'location' || action === 'share') openRebuAction('unsupported')
   }
@@ -54,7 +70,7 @@
     add('serviceWX', function () { openRebuAction('customer-service') })
     add('location', function () { openRebuAction('unsupported') })
     add('openWXmini', function () { openRebuAction('unsupported') })
-    add('payWX', function () { openRebuAction('legacy-payment') })
+    add('payWX', function (value) { openLegacyPayment(value) })
   }
 
   function sameWindowOpen(url) {
@@ -70,7 +86,7 @@
       exitLogin: function () { openRebuAction('login') },
       mobileLogin: function () { openRebuAction('login') },
       serviceWX: function () { openRebuAction('customer-service') },
-      payWX: function () { openRebuAction('legacy-payment') },
+      payWX: function (value) { openLegacyPayment(value) },
       openWXmini: function () { openRebuAction('unsupported') },
       shareWX: function () { openRebuAction('unsupported') },
       sharePicture: function () { openRebuAction('unsupported') },
@@ -147,7 +163,9 @@
   var edgeStart = null
   document.addEventListener('touchstart', function (event) {
     var touch = event.touches && event.touches[0]
-    edgeStart = touch && touch.clientX <= 24 ? { x: touch.clientX, y: touch.clientY } : null
+    var viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0
+    edgeStart = touch && touch.clientX <= 24 ? { x: touch.clientX, y: touch.clientY, side: 'left' }
+      : touch && viewportWidth && touch.clientX >= viewportWidth - 24 ? { x: touch.clientX, y: touch.clientY, side: 'right' } : null
   }, true)
   document.addEventListener('touchend', function (event) {
     if (!edgeStart) return
@@ -157,7 +175,9 @@
     if (!touch) return
     var dx = touch.clientX - start.x
     var dy = Math.abs(touch.clientY - start.y)
-    if (dx >= 80 && dy <= Math.max(48, dx * 0.55) && window.history.length > 1) window.history.back()
+    var distance = Math.abs(dx)
+    var isBack = (start.side === 'left' && dx >= 80) || (start.side === 'right' && dx <= -80)
+    if (isBack && dy <= Math.max(48, distance * 0.55) && window.history.length > 1) window.history.back()
   }, true)
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', normalizeTargets, { once: true })

@@ -340,6 +340,18 @@ describe("AuthService", () => {
   });
 
   describe("wechatLogin", () => {
+    it("排盘快捷进入找不到已关联身份时不自动创建无手机号账号", async () => {
+      process.env.WECHAT_OFFICIAL_APPID = "wx-official";
+      process.env.WECHAT_OFFICIAL_APP_SECRET = "official-secret";
+      mockWechat.exchangeOAuthCode.mockResolvedValue({ openId: "wx-new" });
+      mockPrisma.auth.findUnique.mockResolvedValue(null);
+
+      await expect(
+        svc.wechatLogin({ code: "code", loginType: "h5", createIfMissing: false }),
+      ).rejects.toMatchObject({ errorCode: ErrorCode.AUTH_NOT_LOGGED_IN });
+      expect(mockPrisma.user.create).not.toHaveBeenCalled();
+    });
+
     it("App 开关关闭时返回 404，且不读取或调用任何微信凭据", async () => {
       mockFeatureFlag.isEnabled.mockResolvedValue(false);
 

@@ -349,23 +349,17 @@
       </view>
     </view>
 
-    <!-- 分享面板（深色·复制链接 + 微信内转发引导） -->
-    <view v-if="showShare" class="cs-mask" @tap="showShare = false" @touchmove.self.prevent>
-      <view class="cs cs--share" @tap.stop @touchmove.stop>
-        <view class="cs__grabber" />
-        <view class="cs__head">
-          <text class="cs__title">分享给朋友</text>
-          <view class="cs__close" @tap="showShare = false"><AppIcon name="x" :size="34" color="rgba(255,255,255,0.55)" /></view>
-        </view>
-        <view class="share-opts">
-          <view class="share-opt" @tap="copyShareLink">
-            <view class="share-opt__ico"><AppIcon name="link-2" :size="44" color="#E9E4DD" /></view>
-            <text class="share-opt__txt">复制链接</text>
-          </view>
-        </view>
-        <text class="share-tip">复制链接发给微信好友，或点浏览器/微信右上角「···」直接转发本页</text>
-      </view>
-    </view>
+    <ContentShareSheet
+      :visible="showShare"
+      kind="video"
+      :title="videoShareTitle"
+      :summary="currentVideo?.title || ''"
+      :meta="currentVideo ? `${currentVideo.author.name} · ${fmt(currentVideo.likes)} 次赞` : ''"
+      :cover="currentVideo?.coverUrl || ''"
+      :url="buildShareUrl()"
+      @close="showShare = false"
+      @poster="openVideoPoster"
+    />
 
     <!-- 商品弹层 -->
     <view v-if="showProducts" class="sheet-mask" @tap="showProducts = false" @touchmove.self.prevent>
@@ -435,6 +429,7 @@ import { onLoad, onShareAppMessage, onShareTimeline, onHide } from '@dcloudio/un
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 // #ifdef APP-PLUS
 import AppWebVideo, { type AppWebVideoCommand } from '@/components/media/app-web-video.vue'
 // #endif
@@ -930,18 +925,14 @@ function buildShareUrl(): string {
   const vid = currentVideo.value?.id || ''
   return withRef(buildH5Url('pkg-video/detail/index', { id: vid })) // 携带分享者 ref（推荐归因）
 }
-async function copyShareLink() {
-  const v = currentVideo.value
-  if (!v) return
-  uni.setClipboardData({
-    data: buildShareUrl(),
-    success: () => uni.showToast({ title: '链接已复制，粘贴给好友吧', icon: 'none' }),
-  })
-  showShare.value = false
-  v.shares += 1
-  try { await videoApi.share(v.id) } catch { v.shares -= 1 /* 计数失败回滚·不打扰 */ }
+const videoShareTitle = computed(() => {
+  const video = currentVideo.value
+  return video ? `${video.author.name}分享：${video.title}` : '热卜精选短视频'
+})
+function openVideoPoster() {
+  const id = currentVideo.value?.id
+  if (id) navigateTo(`/pkg-circle/common/share-poster?type=video&targetId=${id}`)
 }
-
 /**
  * 不感兴趣（负反馈）：后端 video 模块无 dislike/负反馈端点（已核 controller 全部路由）→
  * 纯本地过滤：本会话内移除当前作者的全部视频（无作者 id 时仅移除当前条），

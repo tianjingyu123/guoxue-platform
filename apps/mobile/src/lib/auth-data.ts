@@ -115,18 +115,33 @@ export const authApi = {
   },
 
   /** 微信登录（小程序/APP/H5）— 同一接口按端类型解析 code，并落到同一个内部 userId。 */
-  async wechatLogin(code: string, loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram'): Promise<AuthResponse> {
+  async wechatLogin(
+    code: string,
+    loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram',
+    options: { createIfMissing?: boolean } = {},
+  ): Promise<AuthResponse> {
     try {
       const data = await apiPost<RawAuthData>('/auth/login/wechat', {
         code,
         loginType,
         clientKey: getWechatClientKey(),
+        createIfMissing: options.createIfMissing,
         // 新用户自动注册时绑定最近分享者作为归属
         referrerCode: getTempReferrer(),
       })
       return adaptAuthResult(data)
     } catch (e: any) {
       return { success: false, message: e?.message || '微信登录失败' }
+    }
+  },
+
+  /** 将当前已登录手机号账号与微信身份绑定，后续可一键进入排盘。 */
+  async bindWechat(code: string, loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram'): Promise<{ success: boolean; message: string }> {
+    try {
+      await apiPost('/auth/bind/wechat', { code, loginType, clientKey: getWechatClientKey() })
+      return { success: true, message: '微信账号已关联' }
+    } catch (e: any) {
+      return { success: false, message: e?.message || '微信账号关联失败' }
     }
   },
 

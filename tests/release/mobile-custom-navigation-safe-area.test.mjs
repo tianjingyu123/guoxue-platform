@@ -91,10 +91,11 @@ test('SimpleChat 共享导航必须读取真机安全区，不能把组件名当
   assert.match(content, /statusBarHeight\s*\|\|\s*0/u)
   assert.match(content, /safeAreaInsets\?\.top\s*\|\|\s*0/u)
   assert.match(content, /safeArea\?\.top\s*\|\|\s*0/u)
-  assert.match(
-    content,
-    /class="header"\s+:style="\{ paddingTop: `max\(\$\{safeTop\}px, env\(safe-area-inset-top\)\)` \}"/u,
-  )
+  assert.match(content, /const\s+safeBottom\s*=\s*ref\(0\)/u)
+  assert.match(content, /'--chat-safe-top': `\$\{safeTop\.value\}px`/u)
+  assert.match(content, /'--chat-safe-bottom': `\$\{safeBottom\.value\}px`/u)
+  assert.match(content, /padding: calc\(var\(--chat-safe-top, 0px\) \+ 12rpx\)/u)
+  assert.match(content, /padding: 8rpx 24rpx calc\(var\(--chat-safe-bottom, 0px\) \+ 16rpx\)/u)
 })
 
 const h5NotchFallbackPages = [

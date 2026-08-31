@@ -301,9 +301,15 @@ const isLoading = ref(false)
 const isSendingCode = ref(false)
 const agreedTerms = ref(false)
 const error = ref('')
+const paipanEntry = ref(false)
+const bindWechatAfterPhone = ref(false)
 // App 端必须由服务端运行时开关显式放行；拉取失败时保持隐藏，避免密钥切换前误开放。
 const showWechatLogin = ref(false)
 const showAppleLogin = ref(false)
+
+onLoad((query) => {
+  paipanEntry.value = String(query?.paipan || '') === '1'
+})
 
 // H5 的模板条件表达式在部分 UniApp 编译器中不会定义 defined(H5)，改由可靠的脚本条件控制展示。
 // #ifdef H5
@@ -461,7 +467,7 @@ async function completeH5WechatLogin(query: Record<string, string | undefined>):
   isLoading.value = true
   error.value = ''
   try {
-    const res = await authApi.wechatLogin(oauthCode, 'h5')
+    const res = await authApi.wechatLogin(oauthCode, 'h5', { createIfMissing: !paipanEntry.value })
     const loginData = res.data
     if (res.success && loginData && loginData.token) {
       clearAuthSession({ preserveLoginRedirect: true })
@@ -471,7 +477,12 @@ async function completeH5WechatLogin(query: Record<string, string | undefined>):
       goAfterLogin()
       return
     }
-    error.value = res.message || '微信登录失败'
+    if (paipanEntry.value && /尚未关联|手机号验证/u.test(res.message || '')) {
+      loginType.value = 'phone'
+      error.value = '首次使用请验证手机号；已关联账号后可使用微信快捷进入。'
+    } else {
+      error.value = res.message || '微信登录失败'
+    }
   } catch (e) {
     error.value = (e as Error)?.message || '微信登录失败'
   } finally {
@@ -601,6 +612,10 @@ async function handleLogin() {
       setToken(loginData.token)
       setRefreshToken(loginData.refreshToken || '')
       setUserInfo(loginData.user)
+      if (bindWechatAfterPhone.value) {
+        const bound = await bindCurrentWechatIdentity()
+        if (!bound) uni.showToast({ title: '已登录，微信快捷进入可稍后再试', icon: 'none' })
+      }
       // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
       goAfterLogin()
     } else {
@@ -611,6 +626,35 @@ async function handleLogin() {
   } finally {
     isLoading.value = false
   }
+}
+
+async function requestWechatLoginCode(): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    uni.login({
+      provider: 'weixin',
+      success: (res) => (res.code ? resolve(res.code) : reject(new Error('未获取到微信授权 code'))),
+      fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg || '微信授权失败')),
+    })
+  })
+}
+
+async function bindCurrentWechatIdentity(): Promise<boolean> {
+  // #if defined(MP-WEIXIN) || defined(APP-PLUS)
+  try {
+    const wxCode = await requestWechatLoginCode()
+    let channel: 'miniprogram' | 'app' = 'miniprogram'
+    // #ifdef APP-PLUS
+    channel = 'app'
+    // #endif
+    const result = await authApi.bindWechat(wxCode, channel)
+    return result.success
+  } catch { return false }
+  // #endif
+  // #ifndef MP-WEIXIN
+  // #ifndef APP-PLUS
+  return false
+  // #endif
+  // #endif
 }
 
 // @data-needs: 微信登录, uni.login 拿 code → POST /auth/login/wechat, 返回 {token, user}
@@ -630,19 +674,12 @@ async function handleThirdParty(_type: 'wechat') {
   isLoading.value = true
   error.value = ''
   try {
-    const code = await new Promise<string>((resolve, reject) => {
-      uni.login({
-        provider: 'weixin',
-        success: (res) => (res.code ? resolve(res.code) : reject(new Error('未获取到微信授权 code'))),
-        fail: (err: { errMsg?: string }) => reject(new Error(err?.errMsg || '微信授权失败')),
-      })
-    })
-    const res = await authApi.wechatLogin(
-      code
-      // #ifdef APP-PLUS
-      , 'app'
-      // #endif
-    )
+    const code = await requestWechatLoginCode()
+    let channel: 'miniprogram' | 'app' = 'miniprogram'
+    // #ifdef APP-PLUS
+    channel = 'app'
+    // #endif
+    const res = await authApi.wechatLogin(code, channel, { createIfMissing: !paipanEntry.value })
     const loginData = res.data
     if (res.success && loginData && loginData.token) {
       clearAuthSession({ preserveLoginRedirect: true })
@@ -651,6 +688,10 @@ async function handleThirdParty(_type: 'wechat') {
       setUserInfo(loginData.user)
       // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
       goAfterLogin()
+    } else if (paipanEntry.value && /尚未关联|手机号验证/u.test(res.message || '')) {
+      bindWechatAfterPhone.value = true
+      loginType.value = 'phone'
+      error.value = '首次使用请验证手机号；验证完成后会自动关联微信，下次可快捷进入。'
     } else {
       uni.showToast({ title: res.message || '微信登录失败', icon: 'none' })
     }

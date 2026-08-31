@@ -712,7 +712,7 @@ onLoad((q) => {
             @keydown.space.prevent="closeAi"
           >关闭</text>
         </view>
-        <scroll-view scroll-y class="rd-sheet-body">
+        <scroll-view scroll-y enable-flex class="rd-sheet-body" @touchmove.stop>
           <view class="rd-orig"><text class="rd-orig-txt">{{ aiSeg }}</text></view>
           <!-- AI 研读中动态卡（阶段文案+墨点晕开+伪进度·关抽屉不中断请求，重开续接进度） -->
           <view v-if="aiLoading" class="rd-ai-wait"><ai-thinking mode="translate" :since="aiThinkStart" /></view>
@@ -797,7 +797,7 @@ onLoad((q) => {
           </view>
         </view>
         <!-- 目录 -->
-        <scroll-view v-if="tocTab === 'toc'" scroll-y class="rd-toc-body" :scroll-into-view="tocScrollId">
+        <scroll-view v-if="tocTab === 'toc'" scroll-y enable-flex class="rd-toc-body" :scroll-into-view="tocScrollId" @touchmove.stop>
           <view
             v-for="(c, i) in chapters"
             :id="'toc-' + i"
@@ -816,7 +816,7 @@ onLoad((q) => {
           </view>
         </scroll-view>
         <!-- 本书书签 -->
-        <scroll-view v-else-if="tocTab === 'marks'" scroll-y class="rd-toc-body">
+        <scroll-view v-else-if="tocTab === 'marks'" scroll-y enable-flex class="rd-toc-body" @touchmove.stop>
           <view v-if="!isLoggedIn()" class="rd-mk-empty"><text class="rd-mk-empty-txt">登录后可查看本书书签</text></view>
           <view v-else-if="marksLoading && !marksLoaded" class="rd-mk-empty"><text class="rd-mk-empty-txt">加载中…</text></view>
           <template v-else>
@@ -837,7 +837,7 @@ onLoad((q) => {
           </template>
         </scroll-view>
         <!-- 本书笔记 -->
-        <scroll-view v-else scroll-y class="rd-toc-body">
+        <scroll-view v-else scroll-y enable-flex class="rd-toc-body" @touchmove.stop>
           <view v-if="!isLoggedIn()" class="rd-mk-empty"><text class="rd-mk-empty-txt">登录后可查看本书笔记</text></view>
           <view v-else-if="marksLoading && !marksLoaded" class="rd-mk-empty"><text class="rd-mk-empty-txt">加载中…</text></view>
           <template v-else>
@@ -942,7 +942,7 @@ onLoad((q) => {
           <input v-model="dictWord" class="rd-dict-field" placeholder="输入要查的字或词，如「仁」「逍遥」" confirm-type="search" @confirm="doLookup" />
           <view class="rd-dict-go" @tap="doLookup"><text>查询</text></view>
         </view>
-        <scroll-view scroll-y class="rd-sheet-body">
+        <scroll-view scroll-y enable-flex class="rd-sheet-body" @touchmove.stop>
           <view v-if="dictLoading" class="rd-ai-wait"><ai-thinking mode="lookup" /></view>
           <view v-else-if="dictError" class="rd-ai-loading"><text class="rd-ai-err">{{ dictError }}</text></view>
           <template v-else-if="dictResult">
@@ -1172,8 +1172,9 @@ export default { options: { styleIsolation: 'shared' } }
 
 /* 抽屉通用 */
 .rd-mask { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,0.45); display: flex; flex-direction: column; justify-content: flex-end; }
-.rd-sheet { background: var(--rd-card, #fff); border-radius: 32rpx 32rpx 0 0; max-height: 70vh; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); }
-.rd-sheet-tall { max-height: 82vh; }
+.rd-sheet { background: var(--rd-card, #fff); border-radius: 32rpx 32rpx 0 0; max-height: 70vh; display: flex; flex-direction: column; padding-bottom: env(safe-area-inset-bottom); overflow: hidden; }
+.rd-sheet--ai, .rd-sheet--dict { height: 70vh; max-height: 70vh; }
+.rd-sheet-tall { height: 82vh; max-height: 82vh; }
 .rd-sheet-bar { display: flex; justify-content: center; padding: 16rpx 0 8rpx; }
 .rd-sheet-handle { width: 64rpx; height: 8rpx; border-radius: 999rpx; background: rgba(150,130,90,0.3); }
 .rd-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; padding: 12rpx 40rpx 20rpx; }
@@ -1194,7 +1195,7 @@ export default { options: { styleIsolation: 'shared' } }
 .rd-ai-badge { width: 44rpx; height: 44rpx; border-radius: 999rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(150deg,#c8324c,#9e1b30); }
 /* 滚动穿透修复（照 .rd-toc-body 已验证模式）：AI 对照/查词抽屉共用此类，
    原无约束高度 → scroll-view 不产生内滚，在 AI 内容上滑动滚的是底层原文页 */
-.rd-sheet-body { padding: 0 40rpx 40rpx; flex: 1; min-height: 0; }
+.rd-sheet-body { height: 0; padding: 0 40rpx 40rpx; flex: 1; min-height: 0; overflow: hidden; }
 .rd-sheet-body :deep(.uni-scroll-view),
 .rd-sheet-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 
@@ -1245,7 +1246,7 @@ export default { options: { styleIsolation: 'shared' } }
 /* 滚动穿透修复：scroll-view 在 H5 无约束高度时不产生内部滚动，触摸会落到底层正文页。
    flex:1 + min-height:0 让它在抽屉（max-height 定界的 flex 列）内拿到确定高度自己滚；
    overscroll-behavior: contain 阻断滚到边界后把滚动链回传给底层页面。 */
-.rd-toc-body { padding: 0 24rpx 40rpx; flex: 1; min-height: 0; }
+.rd-toc-body { height: 0; padding: 0 24rpx 40rpx; flex: 1; min-height: 0; overflow: hidden; }
 .rd-toc-body :deep(.uni-scroll-view),
 .rd-toc-body :deep(.uni-scroll-view-content) { overscroll-behavior: contain; }
 .rd-toc-item { display: flex; align-items: center; gap: 20rpx; padding: 26rpx 16rpx; border-bottom: 2rpx solid rgba(150,130,90,0.12); &:active { opacity: 0.6; } }

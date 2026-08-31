@@ -44,11 +44,8 @@ test("排盘模式探针失败时不泄露新排盘，且只复用短时快照",
   assert.match(page, /const runtimeMode = await hydratePaipanRuntime\(\)/u);
   assert.match(page, /if \(runtimeMode === "native"\)[\s\S]*allowNative\.value = true/u);
   assert.match(page, /if \(runtimeMode !== "legacy"\)[\s\S]*排盘服务状态暂时无法确认/u);
-  assert.ok(
-    page.indexOf("const runtimeMode = await hydratePaipanRuntime()") <
-      page.indexOf('if (entryTarget !== "station" && !getToken())'),
-    "游客必须先判定原生模式，不能在主路径前被旧版登录门禁拦住",
-  );
+  assert.doesNotMatch(page, /if \(entryTarget !== "station" && !getToken\(\)\)/u);
+  assert.match(page, /const entry =\s*entryTarget === "account"/u);
 });
 
 test("自研排盘接口与后台直达有服务端门禁，移动端不做全局路由劫持", () => {

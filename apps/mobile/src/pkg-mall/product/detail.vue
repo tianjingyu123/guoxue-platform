@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -14,6 +15,8 @@ import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { formatPrice } from '@/utils/format'
 import { gotoComplaint } from '@/lib/trust-entry'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
+import { buildH5Url } from '@/utils/share'
+import { withRef } from '@/utils/referral'
 
 const loading = ref(true)
 const error = ref(false)
@@ -25,6 +28,7 @@ const isFavorite = ref(false)
 const cartCount = ref(0)
 const showSpecPanel = ref(false)
 const showVideo = ref(false)
+const showShare = ref(false)
 const specAction = ref<'cart' | 'buy'>('cart')
 // SKU 选择（R4 P1-1）：选项即 SKU（option.id = skuId），多规格必须选中后才能加购/下单
 const selectedSkuId = ref('')
@@ -33,7 +37,7 @@ const quantity = ref(1)
 const submitting = ref(false)
 const recItems = ref<RecommendItem[]>([])
 
-useOverlayScrollLock(() => showSpecPanel.value || showVideo.value)
+useOverlayScrollLock(() => showSpecPanel.value || showVideo.value || showShare.value)
 
 // 当前商品 id（P1-12：重试必须传回真实 id，禁 || '1' 兜底跳到别的商品）
 const currentId = ref('')
@@ -77,13 +81,30 @@ onLoad((query) => {
 
 // 微信原生分享（好友 / 朋友圈）
 const { toAppMessage, toTimeline, openPoster } = useShare()
+const productShareTitle = computed(() => `发现一件值得看看好物：${product.value?.title || '平台严选'}`)
+const productShareSummary = computed(() => {
+  const raw = product.value?.subtitle || product.value?.description || '平台严选好物，详情、评价与服务保障一页看清。'
+  return String(raw).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90)
+})
+const productShareMeta = computed(() => {
+  const parts = [`¥${formatPrice(product.value?.price || 0)}`]
+  if (Number(product.value?.sales) > 0) parts.push(`已售 ${product.value.sales}`)
+  if (Number(product.value?.rating) > 0) parts.push(`评分 ${product.value.rating}`)
+  return parts.join(' · ')
+})
+const productShareUrl = computed(() => withRef(buildH5Url('pkg-mall/product/detail', {
+  id: product.value?.id || currentId.value,
+})))
+function openProductPoster() {
+  openPoster('product', product.value?.id || currentId.value)
+}
 onShareAppMessage(() => toAppMessage({
-  title: product.value?.title || '精选好物',
+  title: productShareTitle.value,
   path: `/mall/product/${product.value?.id || '1'}`,
   cover: product.value?.images?.[0],
 }))
 onShareTimeline(() => toTimeline({
-  title: product.value?.title || '精选好物',
+  title: productShareTitle.value,
   path: `/mall/product/${product.value?.id || '1'}`,
   cover: product.value?.images?.[0],
 }))
@@ -241,7 +262,7 @@ async function toggleFavorite() {
     <!-- 图片轮播 -->
     <view class="carousel">
       <view class="nav-btn nav-back" @tap="navigateBack()"><AppIcon name="chevron-left" :size="40" color="#1f1f1f" /></view>
-      <view class="nav-btn nav-share" @tap="openPoster('product', product.id)"><AppIcon name="share-2" :size="32" color="#1f1f1f" /></view>
+      <view class="nav-btn nav-share" @tap="showShare = true"><AppIcon name="share-2" :size="32" color="#1f1f1f" /></view>
       <swiper v-if="product.images && product.images.length" class="swiper" circular @change="onSwiperChange">
         <swiper-item v-for="(src, i) in product.images" :key="i">
           <view class="slide">
@@ -433,6 +454,17 @@ async function toggleFavorite() {
       </view>
     </view>
     </template>
+    <content-share-sheet
+      :visible="showShare"
+      kind="product"
+      :title="productShareTitle"
+      :summary="productShareSummary"
+      :meta="productShareMeta"
+      :cover="product?.images?.[0] || ''"
+      :url="productShareUrl"
+      @close="showShare = false"
+      @poster="openProductPoster"
+    />
   </view>
 </template>
 

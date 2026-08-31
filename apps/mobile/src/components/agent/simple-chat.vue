@@ -86,6 +86,7 @@ const input = ref('')
 const loading = ref(false)
 const scrollId = ref('')
 const safeTop = ref(0)
+const safeBottom = ref(0)
 
 try {
   const systemInfo = uni.getSystemInfoSync()
@@ -95,9 +96,16 @@ try {
     systemInfo.safeAreaInsets?.top || 0,
     systemInfo.safeArea?.top || 0,
   )
+  safeBottom.value = Math.max(0, systemInfo.safeAreaInsets?.bottom || 0)
 } catch {
   safeTop.value = 0
+  safeBottom.value = 0
 }
+const chatPageStyle = computed(() => ({
+  ...experienceStyle.value,
+  '--chat-safe-top': `${safeTop.value}px`,
+  '--chat-safe-bottom': `${safeBottom.value}px`,
+}))
 
 // ── 自动滚底 + 用户上滑暂停 ──
 const autoFollow = ref(true)
@@ -315,16 +323,16 @@ function reset() {
 </script>
 
 <template>
-  <view class="page" :style="experienceStyle">
+  <view class="page" :style="chatPageStyle">
     <!-- 头部 -->
-    <view class="header" :style="{ paddingTop: `max(${safeTop}px, env(safe-area-inset-top))` }">
-      <view class="back" @tap="goBack()"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
+    <view class="header">
+      <view class="back" role="button" aria-label="返回上一页" @tap="goBack()"><AppIcon name="arrow-left" :size="44" color="#1A1A1A" /></view>
       <view class="head-info">
         <view class="head-avatar" :style="{ background: iconBg }"><AppIcon :name="iconName" :size="28" :color="iconColor" /></view>
         <text class="head-title">{{ title }}</text>
         <text class="head-online">在线</text>
       </view>
-      <view class="refresh" @tap="reset"><AppIcon name="refresh-cw" :size="32" color="#999" /></view>
+      <view class="refresh" role="button" aria-label="重新开始对话" @tap="reset"><AppIcon name="refresh-cw" :size="32" color="#999" /></view>
     </view>
 
     <!-- 消息区 -->
@@ -409,7 +417,7 @@ function reset() {
     </scroll-view>
 
     <!-- 输入栏 -->
-    <view class="input-bar safe-pb">
+    <view class="input-bar">
       <textarea
         class="input"
         v-model="input"
@@ -422,21 +430,30 @@ function reset() {
         <AppIcon name="send" :size="32" color="#ffffff" />
       </view>
     </view>
-    <view class="tip safe-pb">内容由 AI 生成，仅供参考，不构成专业建议，请理性看待。</view>
+    <view class="tip">内容由 AI 生成，仅供参考，不构成专业建议，请理性看待。</view>
   </view>
 </template>
 
 <style scoped lang="scss">
-.page { display: flex; flex-direction: column; height: 100vh; background: #f7f5f0; }
-.safe-pb { padding-bottom: constant(safe-area-inset-bottom); padding-bottom: env(safe-area-inset-bottom); }
+.page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; background: #f7f5f0; }
 
 .header {
   flex-shrink: 0;
   display: flex; align-items: center; gap: 16rpx;
-  padding: 0 24rpx; height: 88rpx;
+  min-height: 88rpx;
+  height: auto;
+  padding: calc(var(--chat-safe-top, 0px) + 12rpx) 24rpx 12rpx;
+  box-sizing: border-box;
   background: #fff;
   border-bottom: 1rpx solid #ececec;
 }
+.back, .refresh {
+  width: 80rpx; height: 80rpx; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  margin: -8rpx;
+  border-radius: 50%;
+}
+.back:active, .refresh:active { background: rgba(0, 0, 0, 0.05); }
 .head-info { display: flex; align-items: center; gap: 12rpx; flex: 1; }
 .head-avatar { width: 52rpx; height: 52rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 .head-title { font-size: 32rpx; font-weight: 600; color: #1a1a1a; }
@@ -532,5 +549,11 @@ function reset() {
   background: var(--brand); display: flex; align-items: center; justify-content: center;
 }
 .send-btn.disabled { opacity: 0.5; }
-.tip { font-size: 22rpx; color: #aaa; text-align: center; padding: 8rpx 24rpx 16rpx; background: #fff; }
+.tip {
+  flex-shrink: 0;
+  font-size: 22rpx; color: #aaa; text-align: center;
+  padding: 8rpx 24rpx calc(var(--chat-safe-bottom, 0px) + 16rpx);
+  background: #fff;
+  box-sizing: border-box;
+}
 </style>

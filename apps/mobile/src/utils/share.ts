@@ -4,6 +4,7 @@ export interface ShareLinkOptions {
   title?: string;
   text?: string;
   url?: string;
+  imageUrl?: string;
 }
 export type ShareQuery = Record<string, string | number | boolean | undefined | null>;
 
@@ -67,6 +68,26 @@ export async function shareLink(options: ShareLinkOptions = {}): Promise<boolean
     uni.showToast({ title: "分享链接生成失败", icon: "none" });
     return false;
   }
+  // #ifdef APP-PLUS
+  try {
+    await new Promise<void>((resolve, reject) => {
+      plus.share.sendWithSystem(
+        {
+          type: "web",
+          title: options.title,
+          content: options.text || options.title,
+          href: url,
+          thumbs: options.imageUrl ? [options.imageUrl] : undefined,
+        },
+        () => resolve(),
+        (error) => reject(error),
+      );
+    });
+    return true;
+  } catch {
+    // 系统分享不可用时继续尝试浏览器分享，最终才复制链接。
+  }
+  // #endif
   if (typeof navigator !== "undefined") {
     const nav = navigator as Navigator & {
       share?: (data: { title?: string; text?: string; url?: string }) => Promise<void>;

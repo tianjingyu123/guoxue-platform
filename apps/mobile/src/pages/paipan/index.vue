@@ -25,7 +25,6 @@ import {
 } from "@/lib/paipan/tool-prefs";
 import { legacyPaipanApi, stageLegacyPaipanEntry } from "@/lib/legacy-paipan-data";
 import { navigateTo } from "@/utils/router";
-import { getToken } from "@/utils/storage";
 import { hydratePaipanRuntime } from "@/lib/paipan-runtime";
 
 const GRID_COLS = 4;
@@ -231,11 +230,6 @@ async function loadPaipanEntry() {
       throw new Error("排盘服务状态暂时无法确认，请稍后重试");
     }
 
-    if (entryTarget !== "station" && !getToken()) {
-      loginRequired.value = true;
-      entryError.value = "登录后即可安全进入旧版排盘；首页、圈子、发现等内容仍可直接浏览。";
-      return;
-    }
     const entry =
       entryTarget === "account"
         ? await legacyPaipanApi.account()
@@ -257,7 +251,7 @@ async function loadPaipanEntry() {
         url: "/pkg-common/legacy-paipan/index",
         fail: () => {
           legacyRouting.value = false;
-          entryError.value = "旧排盘兼容页暂时无法打开";
+          entryError.value = "排盘工具暂时无法打开";
         },
       });
       return;
@@ -272,7 +266,7 @@ async function loadPaipanEntry() {
     entryError.value = nativeQaRequested
       ? "页面不存在"
       : loginRequired.value
-        ? "登录后即可安全进入旧版排盘；首页、圈子、发现等内容仍可直接浏览。"
+        ? "登录后即可安全进入排盘工具；首页、圈子、发现等内容仍可直接浏览。"
         : message;
   } finally {
     entryLoading.value = false;
@@ -294,7 +288,7 @@ function openLoginForPaipan() {
   } catch {
     // 回跳记录失败不影响用户主动登录。
   }
-  navigateTo('/login');
+  navigateTo('/login?paipan=1');
 }
 
 function browsePublicContent() {
@@ -337,7 +331,7 @@ onShow(() => {
   <view v-if="entryLoading || legacyRouting" class="entry-gate" role="status" aria-live="polite">
     <view class="entry-gate-spinner" />
     <text class="entry-gate-title">正在进入排盘工具</text>
-    <text class="entry-gate-desc">正在安全连接原有排盘记录与服务</text>
+    <text class="entry-gate-desc">正在安全连接排盘记录与服务</text>
   </view>
 
   <view v-else-if="allowNative" class="paipan">
@@ -774,7 +768,7 @@ onShow(() => {
     <app-icon :name="qaNotFound ? 'file-x' : loginRequired ? 'user' : 'wifi-off'" :size="56" color="#8A6A3F" />
     <text class="entry-gate-title">{{ qaNotFound ? "页面不存在" : loginRequired ? "登录后使用排盘" : "排盘服务暂时不可用" }}</text>
     <text v-if="!qaNotFound" class="entry-gate-desc">{{ entryError }}</text>
-    <button v-if="loginRequired" class="degraded-retry degraded-primary" @tap="openLoginForPaipan">登录后进入排盘</button>
+    <button v-if="loginRequired" class="degraded-retry degraded-primary" @tap="openLoginForPaipan">微信或手机号快捷进入</button>
     <button v-if="loginRequired" class="degraded-retry" @tap="browsePublicContent">先逛逛</button>
     <button v-else-if="!qaNotFound" class="degraded-retry" @tap="loadPaipanEntry">重新连接</button>
     <button v-if="!qaNotFound && !loginRequired" class="degraded-retry" @tap="browsePublicContent">返回首页</button>

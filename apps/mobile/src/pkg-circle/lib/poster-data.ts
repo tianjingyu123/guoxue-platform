@@ -14,12 +14,13 @@ import { liveApi } from '@/lib/live-data'
 import { shopApi } from '@/lib/shop-data'
 import { courseApi } from '@/lib/course-data'
 import { classicsApi } from '@/lib/classics-data'
+import { videoApi } from '@/lib/video-data'
 import { apiGet } from '@/utils/request'
 import { getStorage } from '@/utils/storage'
 import { formatPrice } from '@/utils/format'
 import { buildH5Url } from '@/utils/share'
 
-export type PosterType = 'invite' | 'circle' | 'post' | 'article' | 'live' | 'product' | 'course' | 'classic'
+export type PosterType = 'invite' | 'circle' | 'post' | 'article' | 'video' | 'live' | 'product' | 'course' | 'classic'
 
 export interface PosterData {
   type: PosterType
@@ -132,6 +133,7 @@ const TYPE_TITLE: Record<PosterType, string> = {
   circle: '分享圈子',
   post: '分享动态',
   article: '分享文章',
+  video: '分享视频',
   live: '分享直播',
   product: '分享商品',
   course: '分享课程',
@@ -217,6 +219,26 @@ export async function getPosterData(type: PosterType, targetId?: string, circleI
         qrLabel: '长按识别，阅读全文',
         tag: '文章',
         link: h5Link(`pkg-circle/articles/detail?id=${targetId}`),
+      },
+    }
+  }
+
+  if (type === 'video') {
+    const v = await videoApi.getById(targetId)
+    if (!v) throw new Error('视频不存在或已下架')
+    return {
+      code: 200,
+      data: {
+        type: 'video',
+        title: v.title,
+        subtitle: v.circle?.name || '精选短视频',
+        desc: v.author?.name ? `${v.author.name} 分享的精彩视频` : '',
+        author: v.author?.name || '',
+        authorAvatar: v.author?.avatar || '',
+        qrcode: '',
+        qrLabel: '长按识别，观看视频',
+        tag: '视频',
+        link: h5Link(`pkg-video/detail/index?id=${targetId}`),
       },
     }
   }

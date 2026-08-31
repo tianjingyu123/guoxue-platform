@@ -167,55 +167,33 @@
       </view>
     </view>
 
-    <!-- 分享弹窗 -->
-    <view v-if="showShare && shareTarget" class="share-mask" @tap="showShare = false">
-      <view class="share-panel" @tap.stop>
-        <view class="share-close" @tap="showShare = false">
-          <app-icon name="x" :size="32" color="#b8ab94" />
-        </view>
-        <text class="share-title">邀请好友参团</text>
-        <text class="share-sub">还差 <text class="share-num">{{ shareTarget.minMembers - shareTarget.currentMembers }}</text> 人即可成团</text>
-        <view class="share-product">
-          <smart-cover class="share-cover" :src="shareTarget.productCover" :title="shareTarget.productName" type="product" deco :deco-size="40" />
-          <view class="share-pinfo">
-            <text class="share-pname">{{ shareTarget.productName }}</text>
-            <text class="price-now">¥{{ formatPrice(shareTarget.price) }}</text>
-          </view>
-        </view>
-        <text class="share-label">分享至</text>
-        <view class="share-ways">
-          <view class="way">
-            <view class="way-icon way-wx"><app-icon name="message-circle" :size="44" color="#fff" /></view>
-            <text class="way-text">微信好友</text>
-          </view>
-          <view class="way">
-            <view class="way-icon way-wx"><app-icon name="users" :size="44" color="#fff" /></view>
-            <text class="way-text">朋友圈</text>
-          </view>
-          <view class="way">
-            <view class="way-icon way-qr"><app-icon name="grid" :size="44" color="#fff" /></view>
-            <text class="way-text">二维码</text>
-          </view>
-          <view class="way" @tap="copyLink">
-            <view class="way-icon way-copy"><app-icon name="copy" :size="44" color="#3a3024" /></view>
-            <text class="way-text">复制链接</text>
-          </view>
-        </view>
-        <view class="share-tip">
-          <text class="share-tip-text">分享给好友，TA购买后即可帮你成团，成团后自动发货</text>
-        </view>
-      </view>
-    </view>
+    <content-share-sheet
+      v-if="shareTarget"
+      :visible="showShare"
+      kind="product"
+      :title="groupShareTitle"
+      :summary="groupShareSummary"
+      :meta="groupShareMeta"
+      :cover="shareTarget.productCover || ''"
+      :url="groupShareUrl"
+      :poster-enabled="false"
+      @close="showShare = false"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import SmartCover from '@/components/common/smart-cover.vue'
 import AppLoading from '@/components/common/app-loading.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { shopApi, formatCountdown, type MyGroupBuyItem } from '@/lib/shop-data'
 import { formatPrice } from '@/utils/format'
+import { useShare } from '@/composables/useShare'
+import { buildH5Url } from '@/utils/share'
+import { withRef } from '@/utils/referral'
 
 interface GroupBuyItem {
   id: string
@@ -240,6 +218,28 @@ const loading = ref(true)
 const error = ref('')
 const showShare = ref(false)
 const shareTarget = ref<MyGroupBuyItem | null>(null)
+const groupShareTitle = computed(() => `邀请你一起拼「${shareTarget.value?.productName || '平台好物'}」`)
+const groupShareSummary = computed(() => {
+  const item = shareTarget.value
+  if (!item) return '邀请好友一起拼团，达到人数即可享受拼团价。'
+  const needed = Math.max(0, item.minMembers - item.currentMembers)
+  return `还差 ${needed} 人成团，好友打开即可查看商品与参团进度。`
+})
+const groupShareMeta = computed(() => shareTarget.value ? `拼团价 ¥${formatPrice(shareTarget.value.price)}` : '')
+const groupShareUrl = computed(() => withRef(buildH5Url('pkg-shop/group-buy/detail', {
+  id: shareTarget.value?.id,
+})))
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: groupShareTitle.value,
+  path: `/pkg-shop/group-buy/detail?id=${shareTarget.value?.id || ''}`,
+  cover: shareTarget.value?.productCover,
+}))
+onShareTimeline(() => toTimeline({
+  title: groupShareTitle.value,
+  path: `/pkg-shop/group-buy/detail?id=${shareTarget.value?.id || ''}`,
+  cover: shareTarget.value?.productCover,
+}))
 
 // 倒计时基准（各项 endTime 固定）
 const endMap: Record<string, number> = {}
@@ -295,10 +295,6 @@ function openMyResult(item: MyGroupBuyItem) {
   if (item.status === 'success') navigateTo(`/shop/group-buy-success?id=${item.id}`)
   else if (item.status === 'failed') navigateTo(`/shop/group-buy-fail?id=${item.id}`)
   else navigateTo(`/shop/group-buy/${item.id}`)
-}
-function copyLink() {
-  uni.setClipboardData({ data: `https://rebu.app/shop/group-buy/${shareTarget.value?.id}` })
-  showShare.value = false
 }
 async function retry() {
   loading.value = true

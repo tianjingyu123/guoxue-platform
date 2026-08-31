@@ -2755,9 +2755,7 @@
         {
           "path": "legacy-paipan/index",
           "style": {
-            "navigationBarTitleText": "排盘工具",
-            "navigationBarTextStyle": "black",
-            "navigationBarBackgroundColor": "#FAF8F5",
+            "navigationStyle": "custom",
             "disableScroll": true
           }
         }

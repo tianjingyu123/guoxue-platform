@@ -526,7 +526,10 @@ onShow(() => {
       <!-- 顶条：返回 + 课程名 -->
       <view class="player-top" :style="{ paddingTop: (safeTop + 12) + 'px' }">
         <view class="p-btn" @tap="goBack"><app-icon name="arrow-left" :size="44" color="#ffffff" /></view>
-        <text class="p-top-title">{{ content.courseTitle }}</text>
+        <view class="p-top-copy">
+          <text class="p-top-seal">课程</text>
+          <text class="p-top-title">{{ content.courseTitle }}</text>
+        </view>
         <view class="p-btn-ph" />
       </view>
 
@@ -555,6 +558,7 @@ onShow(() => {
            🔴 音频模式修复：此前 v-else 会把 video 整个卸载，playerCtx 指向已销毁元素，
            音频台播放/暂停/进度/倍速控件全部空转。现改为音频模式下仅视觉收起（height:0 overflow:hidden），
            video 元素常驻 DOM，切换前后 uni.createVideoContext('courseVideo') 始终作用于同一元素。 -->
+      <view class="video-shell" :class="{ 'video-shell--audio': isAudioMode }">
       <view class="video" :class="{ 'video--audio': isAudioMode }" @tap="onPlayerTap">
         <video
           id="courseVideo"
@@ -616,6 +620,7 @@ onShow(() => {
           <text class="trial-txt">试看中 · 购买解锁全部 {{ lessonTotal }} 讲</text>
           <view class="trial-buy" @tap="showPurchase = true"><text class="trial-buy-t">¥{{ courseDetail?.price }} 购买</text></view>
         </view>
+      </view>
       </view>
     </view>
 
@@ -778,14 +783,18 @@ onShow(() => {
 .serif { font-family: "Songti SC", "STSong", "SimSun", serif; }
 
 /* ═══ 播放区（深色 #111） ═══ */
-.player-zone { background: #111; position: relative; }
+.player-zone { padding-bottom: 28rpx; background: radial-gradient(circle at 72% 0%, #29251f 0%, #171614 42%, #10100f 100%); position: relative; }
 .player-top { display: flex; align-items: center; justify-content: space-between; padding: 24rpx 32rpx; }
-.p-btn { width: 64rpx; height: 64rpx; border-radius: 50%; background: rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; }
+.p-btn { width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255,255,255,0.09); border: 1rpx solid rgba(198,161,91,0.34); display: flex; align-items: center; justify-content: center; }
 .p-btn-ph { width: 64rpx; }
-.p-top-title { flex: 1; text-align: center; color: rgba(255,255,255,0.85); font-size: 26rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin: 0 16rpx; }
+.p-top-copy { flex: 1; min-width: 0; margin: 0 16rpx; display: flex; align-items: center; justify-content: center; gap: 12rpx; }
+.p-top-seal { flex-shrink: 0; padding: 4rpx 7rpx; border: 1rpx solid rgba(198,161,91,0.7); color: #e2c98f; font-family: "Songti SC", "STSong", serif; font-size: 19rpx; line-height: 1; letter-spacing: 2rpx; }
+.p-top-title { min-width: 0; color: rgba(255,255,255,0.9); font-size: 26rpx; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 /* 视频 16:9（padding-top 撑高，X5 安全） */
-.video { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
+.video-shell { margin: 0 24rpx; padding: 5rpx; border: 1rpx solid rgba(198,161,91,0.48); border-radius: 24rpx; background: rgba(198,161,91,0.08); box-shadow: 0 22rpx 64rpx rgba(0,0,0,0.34); overflow: hidden; }
+.video-shell--audio { height: 0; margin: 0; padding: 0; border: 0; box-shadow: none; overflow: hidden; }
+.video { position: relative; width: 100%; padding-top: 56.25%; border-radius: 19rpx; overflow: hidden; background: #000; }
 /* 音频模式：video 收起不卸载（尺寸归零仍在 DOM，声音/timeupdate/seek 全部继续；恢复视频只是撑回高度） */
 .video--audio { padding-top: 0; height: 0; overflow: hidden; }
 .video-el { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
@@ -797,7 +806,7 @@ onShow(() => {
 
 /* 起播前封面层 */
 .start-cover { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.28); }
-.start-btn { width: 128rpx; height: 128rpx; border-radius: 50%; background: rgba(196,30,58,0.9); display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.4); }
+.start-btn { width: 112rpx; height: 112rpx; border-radius: 50%; background: rgba(179,38,59,0.94); border: 2rpx solid rgba(226,201,143,0.82); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 12rpx rgba(255,255,255,0.08), 0 12rpx 38rpx rgba(0,0,0,0.45); }
 
 /* 控制条 */
 .ctrl { position: absolute; left: 0; right: 0; bottom: 0; padding: 44rpx 28rpx 20rpx; background: linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0)); transition: opacity 0.3s; }
@@ -805,7 +814,7 @@ onShow(() => {
 .ctrl-progress { display: flex; align-items: center; gap: 16rpx; }
 .time { color: #fff; font-size: 22rpx; font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .track { flex: 1; height: 6rpx; border-radius: 4rpx; background: rgba(255,255,255,0.28); position: relative; }
-.track-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4rpx; background: #C41E3A; }
+.track-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4rpx; background: linear-gradient(90deg, #b3263b, #c6a15b); }
 .track-dot { position: absolute; top: 50%; width: 24rpx; height: 24rpx; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.4); }
 .ctrl-row { display: flex; align-items: center; gap: 32rpx; margin-top: 16rpx; }
 .ctrl-play { display: flex; align-items: center; }
@@ -815,6 +824,7 @@ onShow(() => {
 .speed-menu { position: absolute; bottom: 100%; right: 0; margin-bottom: 16rpx; background: #27272A; border-radius: 16rpx; padding: 8rpx 0; min-width: 108rpx; }
 .speed-item { display: block; padding: 14rpx 24rpx; font-size: 24rpx; color: #fff; text-align: center; }
 .speed-item.active { color: #C41E3A; }
+@media (prefers-reduced-motion: reduce) { .ctrl { transition: none; } }
 
 /* 试看提示条 */
 .trial-bar { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.66); display: flex; align-items: center; gap: 20rpx; padding: 18rpx 28rpx; }

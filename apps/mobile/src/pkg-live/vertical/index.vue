@@ -241,7 +241,7 @@ import SmartAvatar from '@/components/common/smart-avatar.vue'
 import LivePlayer from '@/components/live/live-player.vue'
 import { goBack, navigateTo } from '@/utils/router'
 import { withRef } from '@/utils/referral'
-import { buildH5Url } from '@/utils/share'
+import { buildH5Url, shareLink } from '@/utils/share'
 import { useTim, type TimMessage } from '@/composables/useTim'
 import { formatPrice } from '@/utils/format'
 import {
@@ -408,8 +408,13 @@ async function onToggleFollow() {
 function buildShareUrl(): string {
   return withRef(buildH5Url('pkg-live/vertical/index', { id: currentRoomId.value }))
 }
-function onShare() {
-  uni.setClipboardData({ data: buildShareUrl(), success: () => uni.showToast({ title: '链接已复制，粘贴给好友吧', icon: 'none' }), fail: () => uni.showToast({ title: '复制失败，请重试', icon: 'none' }) })
+async function onShare() {
+  await shareLink({
+    title: room.value?.title || '国学直播',
+    text: room.value?.hostName ? `来自主播 ${room.value.hostName}` : '进入直播间一起交流学习',
+    url: buildShareUrl(),
+    imageUrl: room.value?.hostAvatar,
+  })
 }
 // 双击点赞保留即时动画；服务端失败时回滚计数并明确提示。
 async function onDoubleTap() {

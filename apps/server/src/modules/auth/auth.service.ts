@@ -313,6 +313,13 @@ export class AuthService {
     const existingUserId = await this.resolveWechatUserId(client, openId, unionId);
     if (existingUserId) return this.buildLoginResult(existingUserId);
 
+    if (dto.createIfMissing === false) {
+      throw new BusinessException(
+        ErrorCode.AUTH_NOT_LOGGED_IN,
+        "微信账号尚未关联，请先使用手机号验证后继续",
+      );
+    }
+
     // 新用户：自动注册（并发时捕获 P2002）
     const nickname = dto.nickname || `微信用户${openId.slice(-6)}`;
     const avatar = dto.avatar || undefined;

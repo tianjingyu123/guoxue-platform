@@ -333,19 +333,17 @@
       @close="showMicSheet = false"
     />
 
-    <!-- 分享 -->
-    <view v-if="showShare" class="modal-mask modal-mask--bottom" @tap="showShare = false" @touchmove.self.prevent>
-      <view class="share-sheet" :style="sheetSafeStyle" @tap.stop @touchmove.stop>
-        <text class="share-sheet__title">分享直播间</text>
-        <view class="share-sheet__grid">
-          <view v-for="s in shareChannels" :key="s.key" class="share-item" @tap="onShare(s.key)">
-            <view class="share-item__icon"><AppIcon :name="s.icon" :size="52" color="#666" /></view>
-            <text class="share-item__label">{{ s.label }}</text>
-          </view>
-        </view>
-        <view class="share-sheet__cancel" @tap="showShare = false"><text class="share-sheet__cancel-txt">取消</text></view>
-      </view>
-    </view>
+    <content-share-sheet
+      :visible="showShare"
+      kind="live"
+      :title="liveShareTitle"
+      :summary="liveShareSummary"
+      :meta="liveShareMeta"
+      :cover="room.cover || ''"
+      :url="buildShareUrl()"
+      @close="showShare = false"
+      @poster="openLivePoster"
+    />
     </template>
 
     <view v-if="endingLiveSession" class="live-ended-mask">
@@ -362,7 +360,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, getCurrentInstance } from 'vue'
-import { onHide, onLoad, onShow } from '@dcloudio/uni-app'
+import { onHide, onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
@@ -371,6 +369,8 @@ import Disclaimer from '@/components/compliance/disclaimer.vue'
 import GiftPanel from '@/components/live/gift-panel.vue'
 import MicConnectSheet from '@/pkg-live/mic-connect-sheet.vue'
 import LivePlayer from '@/components/live/live-player.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
+import { useShare } from '@/composables/useShare'
 import { isLiveTrtcSupported } from '@/pkg-live/live-trtc-client'
 import { goBack, navigateTo } from '@/utils/router'
 import { gotoReport } from '@/lib/report-data'
@@ -1003,11 +1003,19 @@ const giftFlyers = ref<Array<{ id: number; user: string; avatar: string; giftNam
 const systemBanners = ref<Array<{ id: number; type: string; user: string; content: string; giftIcon?: string }>>([])
 const saleNotif = ref('')
 
-const shareChannels = [
-  { key: 'wechat', label: '微信', icon: 'message-circle' },
-  { key: 'moments', label: '朋友圈', icon: 'users' },
-  { key: 'copy', label: '复制链接', icon: 'file-text' },
-]
+const { toAppMessage, toTimeline, openPoster } = useShare()
+const liveShareTitle = computed(() => `${room.value?.hostName ? `${room.value.hostName} 的` : ''}${room.value?.title || '国学直播'}`)
+const liveShareSummary = computed(() => {
+  if (isReplayState.value) return '精彩内容已经生成回放，点击即可观看。'
+  if (isWaiting.value) return `${startTimeText.value || '即将'}开播，预约后及时收到提醒。`
+  return '正在直播，进入直播间一起交流学习。'
+})
+const liveShareMeta = computed(() => {
+  const parts = []
+  if (room.value?.hostName) parts.push(`主播 ${room.value.hostName}`)
+  if (Number(room.value?.viewerCount) > 0) parts.push(`${formatCount(room.value.viewerCount)} 人观看`)
+  return parts.join(' · ')
+})
 
 let heartId = 0
 let flyerId = 0
@@ -1170,20 +1178,19 @@ function buildShareUrl(): string {
   const rid = loadedRoomId.value || room.value.id || ''
   return withRef(buildH5Url('pkg-live/watch/index', { id: rid }))
 }
-/**
- * 分享：原三渠道只关面板=空操作。H5 无原生微信转发 → 统一复制链接 +
- * 按渠道给转发引导文案（与短视频页 copyShareLink 同一套范式）；小程序端可后续接 onShareAppMessage。
- */
-function onShare(key: string) {
-  showShare.value = false
-  uni.setClipboardData({
-    data: buildShareUrl(),
-    success: () => uni.showToast({
-      title: key === 'copy' ? '链接已复制，粘贴给好友吧' : '链接已复制，去微信粘贴发送即可分享',
-      icon: 'none',
-    }),
-  })
+function openLivePoster() {
+  openPoster('live', loadedRoomId.value || room.value.id)
 }
+onShareAppMessage(() => toAppMessage({
+  title: liveShareTitle.value,
+  path: `/pkg-live/watch/index?id=${loadedRoomId.value || room.value.id}`,
+  cover: room.value.cover,
+}))
+onShareTimeline(() => toTimeline({
+  title: liveShareTitle.value,
+  path: `/pkg-live/watch/index?id=${loadedRoomId.value || room.value.id}`,
+  cover: room.value.cover,
+}))
 
 /**
  * 举报直播间

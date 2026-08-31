@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsIn, MinLength, MaxLength, Matches } from "class-validator";
+import { IsString, IsOptional, IsInt, IsIn, IsBoolean, MinLength, MaxLength, Matches } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PhoneRegisterDto {
@@ -29,6 +29,7 @@ export class PhoneRegisterDto {
   @IsString()
   @IsOptional()
   referrerCode?: string;
+
 }
 
 export class PhoneLoginDto {
@@ -113,6 +114,11 @@ export class WechatLoginDto {
   @IsString()
   @IsOptional()
   referrerCode?: string;
+
+  @ApiPropertyOptional({ description: "微信身份未关联时是否允许自动创建账号；排盘快捷进入传 false，避免产生无手机号重复账号", default: true })
+  @IsBoolean()
+  @IsOptional()
+  createIfMissing?: boolean;
 }
 
 export class AppleLoginDto {

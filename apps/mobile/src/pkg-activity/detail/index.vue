@@ -246,28 +246,28 @@
       </view>
     </view>
 
-    <!-- 分享弹窗 -->
-    <view v-if="showShare" class="mask" @tap="showShare = false">
-      <view class="share-sheet" @tap.stop>
-        <view class="share-sheet-head"><text class="share-sheet-title">分享活动</text></view>
-        <view class="share-grid">
-          <view v-for="it in shareItems" :key="it.icon" class="share-item">
-            <view class="share-icon" :style="{ background: it.color }">
-              <app-icon name="share-2" :size="40" color="#FFFFFF" />
-            </view>
-            <text class="share-item-label">{{ it.label }}</text>
-          </view>
-        </view>
-        <view class="share-cancel" @tap="showShare = false"><text class="share-cancel-txt">取消</text></view>
-      </view>
-    </view>
+    <content-share-sheet
+      :visible="showShare"
+      kind="activity"
+      :title="activityShareTitle"
+      :summary="activityShareSummary"
+      meta="限时活动 · 打开查看完整规则与商品"
+      :url="activityShareUrl"
+      :poster-enabled="false"
+      @close="showShare = false"
+    />
   </view>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { navigateBack, navigateTo } from '@/utils/router'
 import { formatPrice } from '@/utils/format'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
+import { useShare } from '@/composables/useShare'
+import { buildH5Url } from '@/utils/share'
+import { withRef } from '@/utils/referral'
 
 const statusBarHeight = ref(0)
 const navH = ref(44)
@@ -302,12 +302,18 @@ const config = {
   ],
 }
 
-const shareItems = [
-  { icon: 'wechat', label: '微信好友', color: '#22C55E' },
-  { icon: 'moments', label: '朋友圈', color: '#16A34A' },
-  { icon: 'poster', label: '生成海报', color: '#C41E3A' },
-  { icon: 'copy', label: '复制链接', color: '#E5E5E5' },
-]
+const activityShareTitle = `正在进行：${config.title}`
+const activityShareSummary = config.banners[0]?.subtitle || '精选活动内容，打开即可查看完整规则。'
+const activityShareUrl = withRef(buildH5Url('pkg-activity/detail/index'))
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: activityShareTitle,
+  path: '/pkg-activity/detail/index',
+}))
+onShareTimeline(() => toTimeline({
+  title: activityShareTitle,
+  path: '/pkg-activity/detail/index',
+}))
 
 const rulesExpanded = ref(false)
 const currentBanner = ref(0)

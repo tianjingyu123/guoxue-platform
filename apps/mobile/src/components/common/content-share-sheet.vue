@@ -4,7 +4,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
 import { shareLink } from '@/utils/share'
 
-type ShareKind = 'classic' | 'article' | 'video' | 'live' | 'course' | 'product' | 'circle' | 'agent' | 'tool'
+type ShareKind = 'classic' | 'article' | 'video' | 'live' | 'course' | 'product' | 'circle' | 'station' | 'activity' | 'agent' | 'tool'
 
 const props = withDefaults(defineProps<{
   visible: boolean
@@ -14,11 +14,13 @@ const props = withDefaults(defineProps<{
   meta?: string
   cover?: string
   url: string
+  posterEnabled?: boolean
 }>(), {
   kind: 'article',
   summary: '',
   meta: '',
   cover: '',
+  posterEnabled: true,
 })
 
 const emit = defineEmits<{
@@ -44,6 +46,8 @@ const kindInfo = computed(() => {
     course: { label: '精品课程', glyph: '课', gradient: 'linear-gradient(145deg, #856147, #583a2b)' },
     product: { label: '严选好物', glyph: '物', gradient: 'linear-gradient(145deg, #957047, #62472e)' },
     circle: { label: '兴趣圈子', glyph: '圈', gradient: 'linear-gradient(145deg, #52677c, #314655)' },
+    station: { label: '主题分站', glyph: '站', gradient: 'linear-gradient(145deg, #7f5743, #4d342b)' },
+    activity: { label: '精选活动', glyph: '惠', gradient: 'linear-gradient(145deg, #a9413d, #6e292d)' },
     agent: { label: 'AI 学伴', glyph: '智', gradient: 'linear-gradient(145deg, #376fc6, #7740bd)' },
     tool: { label: '国学工具', glyph: '术', gradient: 'linear-gradient(145deg, #4d7766, #2f5548)' },
   }
@@ -61,7 +65,7 @@ async function shareFriend() {
     href: props.url,
     imageUrl: props.cover || undefined,
     success: () => emit('close'),
-    fail: () => uni.showToast({ title: '未完成分享', icon: 'none' }),
+    fail: () => { void shareMore() },
   })
   return
   // #endif
@@ -70,9 +74,15 @@ async function shareFriend() {
   const ok = await shareLink({ title: props.title, text: props.summary, url: props.url })
   if (ok) emit('close')
   // #endif
+
+  // #ifndef APP-PLUS
+  // #ifndef H5
+  await shareMore()
+  // #endif
+  // #endif
 }
 
-function shareTimeline() {
+async function shareTimeline() {
   // #ifdef APP-PLUS
   (uni as any).share({
     provider: 'weixin',
@@ -90,6 +100,7 @@ function shareTimeline() {
 
   // #ifdef MP-WEIXIN
   uni.showToast({ title: '请点右上角“分享到朋友圈”', icon: 'none' })
+  return
   // #endif
 
   // #ifdef H5
@@ -97,6 +108,38 @@ function shareTimeline() {
   emit('close')
   uni.showToast({ title: '保存海报后可发布朋友圈', icon: 'none' })
   // #endif
+
+  // #ifndef APP-PLUS
+  // #ifndef MP-WEIXIN
+  // #ifndef H5
+  await shareMore()
+  // #endif
+  // #endif
+  // #endif
+}
+
+async function shareMore() {
+  // #ifdef APP-PLUS
+  try {
+    await new Promise<void>((resolve, reject) => {
+      plus.share.sendWithSystem(
+        {
+          type: 'web',
+          title: props.title,
+          content: props.summary || props.title,
+          href: props.url,
+          thumbs: props.cover ? [props.cover] : undefined,
+        },
+        () => resolve(),
+        (error) => reject(error),
+      )
+    })
+    emit('close')
+    return
+  } catch { /* 系统分享不可用时继续走正式链接兜底 */ }
+  // #endif
+  const ok = await shareLink({ title: props.title, text: props.summary, url: props.url })
+  if (ok) emit('close')
 }
 
 function openPoster() {
@@ -157,7 +200,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<v
         </view>
       </view>
 
-      <view class="css-actions">
+      <view class="css-actions" :class="{ 'css-actions--compact': !posterEnabled }">
         <!-- #ifdef MP-WEIXIN -->
         <button class="css-action css-action--button" open-type="share">
           <view class="css-action-icon css-action-icon--wechat">
@@ -197,6 +240,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<v
         </view>
 
         <view
+          v-if="posterEnabled"
           class="css-action"
           role="button"
           aria-label="生成分享海报"
@@ -208,6 +252,20 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<v
             <app-icon name="image" :size="40" color="#ffffff" />
           </view>
           <text class="css-action-label">分享海报</text>
+        </view>
+
+        <view
+          class="css-action"
+          role="button"
+          aria-label="分享到更多平台"
+          tabindex="0"
+          @tap="shareMore"
+          @keydown="activateOnKeyboard($event, shareMore)"
+        >
+          <view class="css-action-icon css-action-icon--more">
+            <app-icon name="more-horizontal" :size="40" color="#ffffff" />
+          </view>
+          <text class="css-action-label">更多平台</text>
         </view>
 
         <view
@@ -375,10 +433,11 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<v
 }
 .css-actions {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 12rpx;
   margin-top: 30rpx;
 }
+.css-actions--compact { grid-template-columns: repeat(4, 1fr); }
 .css-action {
   display: flex;
   flex-direction: column;
@@ -404,6 +463,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void | Promise<v
 .css-action-icon--wechat { background: #2fbd68; }
 .css-action-icon--moments { background: #4d8e72; }
 .css-action-icon--poster { background: #b07b43; }
+.css-action-icon--more { background: #765d86; }
 .css-action-icon--link { background: #5d6c80; }
 .css-action-label {
   font-size: 23rpx;

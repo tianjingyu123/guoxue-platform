@@ -10,6 +10,7 @@
 import { ref, computed } from 'vue'
 import { onLoad, onShow, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useShare } from '@/composables/useShare'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
@@ -31,6 +32,8 @@ import { postDetailApi } from '@/pkg-circle/lib/post-detail-data'
 import { gotoReport } from '@/lib/report-data'
 import { growthApi } from '@/lib/circle-growth-data'
 import { useAppSafeArea } from '@/pkg-live/use-app-safe-area'
+import { buildH5Url } from '@/utils/share'
+import { withRef } from '@/utils/referral'
 
 const circleId = ref('1')
 const { safeTop } = useAppSafeArea()
@@ -71,6 +74,7 @@ const likedPosts = ref<Set<string>>(new Set())
 const showBenefits = ref(false)
 const showPurchase = ref(false)
 const showPublish = ref(false)
+const showShare = ref(false)
 // FAB 滚动半透明：滚动中降不透明度，停止 400ms 恢复
 const fabDim = ref(false)
 let fabTimer: ReturnType<typeof setTimeout> | null = null
@@ -144,7 +148,18 @@ function refresh() {
   loadData()
 }
 
-const { toAppMessage, toTimeline } = useShare()
+const { toAppMessage, toTimeline, openPoster } = useShare()
+const circleShareTitle = computed(() => `邀请你加入「${circle.value?.name || '国学圈子'}」`)
+const circleShareSummary = computed(() => circle.value?.description || '和同好一起交流、学习与分享。')
+const circleShareMeta = computed(() => {
+  const parts = []
+  if (Number(circle.value?.members) > 0) parts.push(`${fmt(circle.value?.members || 0)} 位成员`)
+  if (circle.value?.owner?.name) parts.push(`圈主 ${circle.value.owner.name}`)
+  return parts.join(' · ')
+})
+const circleShareUrl = computed(() => withRef(buildH5Url('pkg-circle/circles/detail', {
+  id: circle.value?.id || circleId.value,
+})))
 onShareAppMessage(() => toAppMessage({
   title: circle.value?.name || '国学圈子',
   path: `/circles/${circle.value?.id || circleId.value}`,
@@ -289,7 +304,8 @@ function handleReportPost(postId: string) {
 }
 
 function fmt(n: number) { return n.toLocaleString() }
-function openShare() { navigateTo(`/pkg-circle/common/share-poster?type=circle&targetId=${circleId.value}`) }
+function openShare() { showShare.value = true }
+function openCirclePoster() { openPoster('circle', circle.value?.id || circleId.value) }
 function openPost(id: string) { navigateTo(`/pkg-circle/circles/post?circleId=${circleId.value}&id=${id}`) }
 function openQuickPost() { navigateTo(`/pkg-circle/circles/editor?circleId=${circleId.value}`) }
 /**
@@ -663,6 +679,17 @@ function openShowcase() { navigateTo('/pkg-mall/home/index') }
         </view>
       </view>
     </view>
+    <content-share-sheet
+      :visible="showShare"
+      kind="circle"
+      :title="circleShareTitle"
+      :summary="circleShareSummary"
+      :meta="circleShareMeta"
+      :cover="circle.cover || ''"
+      :url="circleShareUrl"
+      @close="showShare = false"
+      @poster="openCirclePoster"
+    />
   </view>
 
   <!-- 骨架屏 -->

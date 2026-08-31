@@ -2,8 +2,9 @@
 /** 品牌定制分站首页 — 千人千面：品牌(logo/名称/主题色)+模板(特色入口/楼层)由站长配置真实渲染，
  *  内容来自平台真实推荐流。用户扫站长推广码进入，看到站长专属品牌的国学首页。 */
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import { navigateTo } from '@/utils/router'
 import { captureRefFromQuery } from '@/utils/referral'
 import { buildH5Url } from '@/utils/share'
@@ -22,6 +23,7 @@ import {
 } from '@/pkg-operator/lib/station-home-data'
 import { formatPrice } from '@/utils/format'
 import { legacyStationPaipanApi, type LegacyStationSyncState } from '@/pkg-operator/lib/legacy-paipan-station'
+import { useShare } from '@/composables/useShare'
 
 const loading = ref(true)
 const error = ref('')
@@ -131,9 +133,20 @@ const shareLink = computed(() => {
 })
 function handleShare() { showShare.value = true }
 function closeShare() { showShare.value = false }
-function copyLink() {
-  uni.setClipboardData({ data: shareLink.value, success: () => uni.showToast({ title: '推广链接已复制', icon: 'none' }) })
-}
+const stationShareTitle = computed(() => `欢迎来到${brand.value.name || '主题分站'}`)
+const stationShareSummary = computed(() => brand.value.intro || '精选国学内容、课程与服务，从这里开始探索。')
+const stationShareMeta = computed(() => `${recFeed.value.length} 项精选内容`)
+const { toAppMessage, toTimeline } = useShare()
+onShareAppMessage(() => toAppMessage({
+  title: stationShareTitle.value,
+  path: `/pkg-operator/station-home/index?ref=${encodeURIComponent(stationCode.value)}`,
+  cover: brand.value.logo,
+}))
+onShareTimeline(() => toTimeline({
+  title: stationShareTitle.value,
+  path: `/pkg-operator/station-home/index?ref=${encodeURIComponent(stationCode.value)}`,
+  cover: brand.value.logo,
+}))
 
 function goBack() {
   uni.navigateBack({ delta: 1, fail: () => uni.switchTab({ url: '/pages/index/index', fail: () => {} }) })
@@ -311,27 +324,17 @@ function goBack() {
       </template>
     </scroll-view>
 
-    <!-- 分享弹层（真实推广链接） -->
-    <view v-if="showShare" class="sh-poster-mask" @tap="closeShare">
-      <view class="sh-poster-sheet" @tap.stop>
-        <view class="sh-poster-head">
-          <text class="sh-poster-head-title">分享我的分站</text>
-          <view class="sh-poster-close" @tap="closeShare"><app-icon name="x" :size="40" color="#666" /></view>
-        </view>
-        <view class="sh-poster-body">
-          <view class="sh-share-card" :style="{ borderColor: primary }">
-            <image lazy-load v-if="brand.logo" class="sh-share-logo" :src="brand.logo" mode="aspectFill" />
-            <text class="sh-share-name">{{ brand.name }}</text>
-            <text v-if="brand.intro" class="sh-share-intro">{{ brand.intro }}</text>
-            <view class="sh-share-link"><text class="sh-share-link-txt">{{ shareLink }}</text></view>
-          </view>
-          <view class="sh-poster-actions">
-            <view class="sh-poster-btn primary" :style="{ background: primary }" @tap="copyLink"><text class="sh-poster-btn-txt primary">复制推广链接</text></view>
-          </view>
-          <text class="sh-poster-hint">分享链接给好友，好友下单你得佣金</text>
-        </view>
-      </view>
-    </view>
+    <content-share-sheet
+      :visible="showShare"
+      kind="station"
+      :title="stationShareTitle"
+      :summary="stationShareSummary"
+      :meta="stationShareMeta"
+      :cover="brand.logo || ''"
+      :url="shareLink"
+      :poster-enabled="false"
+      @close="closeShare"
+    />
   </view>
 </template>
 

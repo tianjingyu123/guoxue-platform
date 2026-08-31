@@ -13,8 +13,9 @@
  * 其余数据逻辑保留：articleApi 加载/互动/recommends/related/sourceCircle，乐观更新+回滚+防重复。
  */
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+import ContentShareSheet from '@/components/common/content-share-sheet.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import CommentSection from '@/components/comment/comment-section.vue'
 import { goBack, navigateTo, toastComingSoon } from '@/utils/router'
@@ -26,11 +27,15 @@ import {
 import { circleDetailApi } from '@/lib/circle-detail-data'
 import { setOrderSource } from '@/lib/shop-data'
 import { gotoReport } from '@/lib/report-data'
+import { useShare } from '@/composables/useShare'
+import { buildH5Url } from '@/utils/share'
+import { withRef } from '@/utils/referral'
 
 const articleId = ref('')
 const loading = ref(true)
 const error = ref('')
 const article = ref<ArticleDetail | null>(null)
+const showShare = ref(false)
 
 // 带货商品抽屉（抖音式：底部 2/3 屏弹层·单品直达详情/多品列表）
 const products = ref<ArticleProductCard[]>([])
@@ -134,8 +139,33 @@ async function openCircle() {
     circleNavigating.value = false
   }
 }
-/** 分享 → 海报页（替换原 toastComingSoon 死按钮） */
-function openShare() { if (article.value) navigateTo('/pkg-circle/common/share-poster?type=article&targetId=' + article.value.id) }
+const { toAppMessage, toTimeline, openPoster } = useShare()
+const articleShareTitle = computed(() => `推荐阅读：${article.value?.title || '精选文章'}`)
+const articleShareSummary = computed(() => String(article.value?.content || '')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, 90) || '精选内容，点击阅读全文。')
+const articleShareMeta = computed(() => [
+  article.value?.author?.name ? `作者 ${article.value.author.name}` : '',
+  Number(article.value?.views) > 0 ? `${article.value?.views} 阅读` : '',
+  `${readMinutes.value} 分钟读完`,
+].filter(Boolean).join(' · '))
+const articleShareUrl = computed(() => withRef(buildH5Url('pkg-circle/articles/detail', {
+  id: article.value?.id || articleId.value,
+})))
+function openShare() { if (article.value) showShare.value = true }
+function openArticlePoster() { if (article.value) openPoster('article', article.value.id) }
+onShareAppMessage(() => toAppMessage({
+  title: articleShareTitle.value,
+  path: `/pkg-circle/articles/detail?id=${article.value?.id || articleId.value}`,
+  cover: article.value?.cover || undefined,
+}))
+onShareTimeline(() => toTimeline({
+  title: articleShareTitle.value,
+  path: `/pkg-circle/articles/detail?id=${article.value?.id || articleId.value}`,
+  cover: article.value?.cover || undefined,
+}))
 /** 内容举报走审核举报池，与交易投诉工单分开。 */
 function reportArticle() {
   if (!article.value) return
@@ -419,6 +449,17 @@ async function focusComment() {
         </scroll-view>
       </view>
     </view>
+    <content-share-sheet
+      :visible="showShare"
+      kind="article"
+      :title="articleShareTitle"
+      :summary="articleShareSummary"
+      :meta="articleShareMeta"
+      :cover="article?.cover || ''"
+      :url="articleShareUrl"
+      @close="showShare = false"
+      @poster="openArticlePoster"
+    />
   </view>
 </template>
 

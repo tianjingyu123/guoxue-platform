@@ -3,7 +3,6 @@ import { getCurrentInstance, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { onBackPress, onReady } from '@dcloudio/uni-app'
 import { consumeLegacyPaipanEntry, legacyPaipanApi } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
-import { getToken } from '@/utils/storage'
 
 const loading = ref(true)
 const error = ref('')
@@ -14,8 +13,16 @@ let legacyChildWebview: any | null = null
 const componentInstance = getCurrentInstance()
 const legacyAppMounted = ref(false)
 let appPageReady = false
+const safeTop = ref(0)
+const safeBottom = ref(0)
 
-/** 只允许对旧排盘官方域名的子 WebView 注入兼容桥，避免影响其他页面。 */
+try {
+  const systemInfo = uni.getSystemInfoSync()
+  safeTop.value = Math.max(0, systemInfo.statusBarHeight || 0, systemInfo.safeAreaInsets?.top || 0)
+  safeBottom.value = Math.max(0, systemInfo.safeAreaInsets?.bottom || 0)
+} catch { /* 系统安全区不可用时使用零值降级 */ }
+
+/** 只允许对排盘服务官方域名的子 WebView 注入兼容桥，避免影响其他页面。 */
 function isTrustedLegacyUrl(url: string): boolean {
   return /^https:\/\/(?:[^./]+\.)?yrydai\.(?:cn|com)(?:[/:?#]|$)/iu.test(url)
 }
@@ -43,6 +50,16 @@ function legacyNavigationBridgeScript(): string {
     function openRebuAction(action){
       window.location.assign('rebu://'+action);
     }
+    function openLegacyPayment(value){
+      var tradeNo=String(value||'').trim();
+      if(!/^[A-Za-z0-9_-]{1,128}$/.test(tradeNo)){openRebuAction('unsupported');return;}
+      try{
+        var paymentUrl=new URL('/my.php',window.location.href);
+        paymentUrl.searchParams.set('mod','pay');
+        paymentUrl.searchParams.set('trade_no',tradeNo);
+        openTrustedLegacyUrl(paymentUrl.href);
+      }catch(_error){openRebuAction('unsupported');}
+    }
     function openLegacyPayload(value){
       var match=String(value||'').match(/[?&]url=([^&#]+)/);
       if(match){
@@ -53,7 +70,7 @@ function legacyNavigationBridgeScript(): string {
     function handleWebUniMessage(message){
       var data=message&&message.data?message.data:message||{};
       var action=String(data.action||'').toLowerCase();
-      if(action==='pay')openRebuAction('legacy-payment');
+      if(action==='pay')openLegacyPayment(data.payload&&data.payload.trade_no);
       else if(action==='service')openRebuAction('customer-service');
       else if(action==='location'||action==='share')openRebuAction('unsupported');
     }
@@ -67,7 +84,7 @@ function legacyNavigationBridgeScript(): string {
       add('serviceWX',function(){openRebuAction('customer-service');});
       add('location',function(){openRebuAction('unsupported');});
       add('openWXmini',function(){openRebuAction('unsupported');});
-      add('payWX',function(){openRebuAction('legacy-payment');});
+      add('payWX',function(value){openLegacyPayment(value);});
     }
     /*
      * 旧版官方 Android APK 通过 addJavascriptInterface 注入 webviewJS；工具宫格主要调用
@@ -83,7 +100,7 @@ function legacyNavigationBridgeScript(): string {
         exitLogin:function(){openRebuAction('login');},
         mobileLogin:function(){openRebuAction('login');},
         serviceWX:function(){openRebuAction('customer-service');},
-        payWX:function(){openRebuAction('legacy-payment');},
+        payWX:function(value){openLegacyPayment(value);},
         openWXmini:function(){openRebuAction('unsupported');},
         shareWX:function(){openRebuAction('unsupported');},
         sharePicture:function(){openRebuAction('unsupported');},
@@ -152,7 +169,9 @@ function legacyNavigationBridgeScript(): string {
     var edgeStart=null;
     document.addEventListener('touchstart',function(event){
       var touch=event.touches&&event.touches[0];
-      edgeStart=touch&&touch.clientX<=24?{x:touch.clientX,y:touch.clientY}:null;
+      var viewportWidth=window.innerWidth||document.documentElement.clientWidth||0;
+      edgeStart=touch&&touch.clientX<=24?{x:touch.clientX,y:touch.clientY,side:'left'}:
+        touch&&viewportWidth&&touch.clientX>=viewportWidth-24?{x:touch.clientX,y:touch.clientY,side:'right'}:null;
     },true);
     document.addEventListener('touchend',function(event){
       if(!edgeStart)return;
@@ -162,7 +181,9 @@ function legacyNavigationBridgeScript(): string {
       if(!touch)return;
       var dx=touch.clientX-start.x;
       var dy=Math.abs(touch.clientY-start.y);
-      if(dx>=80&&dy<=Math.max(48,dx*0.55)&&window.history.length>1){
+      var distance=Math.abs(dx);
+      var isBack=(start.side==='left'&&dx>=80)||(start.side==='right'&&dx<=-80);
+      if(isBack&&dy<=Math.max(48,distance*0.55)&&window.history.length>1){
         window.history.back();
       }
     },true);
@@ -176,7 +197,7 @@ function legacyNavigationBridgeScript(): string {
 // #ifdef APP-PLUS
 /**
  * uni-app Vue 页面必须从当前页面实例取得承载 WebView；使用全局“当前 WebView”在页面脚本
- * 上下文中不保证返回该页面，曾导致旧排盘子 WebView 永远找不到、桥接脚本未注入。
+ * 上下文中不保证返回该页面，曾导致排盘服务子 WebView 永远找不到、桥接脚本未注入。
  */
 function getLegacyParentWebview(): any | null {
   try {
@@ -261,16 +282,8 @@ function bindLegacyChildWebview(child: any) {
             if (action === 'home') returnToNewSystem()
             else if (action === 'login') openLogin()
             else if (action === 'customer-service') navigateTo('/customer-service')
-            else if (action === 'legacy-payment') {
-              uni.showModal({
-                title: '旧排盘会员支付尚未接通',
-                content: '为避免付款后权益无法同步，当前版本不会直接执行旧站支付。可先联系平台客服处理。',
-                confirmText: '联系客服',
-                cancelText: '稍后再说',
-                success: (result) => { if (result.confirm) navigateTo('/customer-service') },
-              })
-            } else if (action === 'unsupported') {
-              uni.showToast({ title: '该旧版扩展功能暂不支持', icon: 'none' })
+            else if (action === 'unsupported') {
+              uni.showToast({ title: '该功能暂不支持', icon: 'none' })
             }
             return
           }
@@ -295,8 +308,8 @@ function mountLegacyAppWebview() {
   let child: any | null = null
   try {
     const childStyle: any = {
-      top: '0px',
-      bottom: '0px',
+      top: `${safeTop.value}px`,
+      bottom: `${safeBottom.value}px`,
       background: '#FAF8F5',
       scrollIndicator: 'none',
       plusrequire: 'none',
@@ -355,7 +368,7 @@ function returnToNewSystem() {
 
 function openLogin() {
   try { uni.setStorageSync('login:redirect', '/pkg-common/legacy-paipan/index') } catch { /* 登录仍可继续 */ }
-  navigateTo('/login')
+  navigateTo('/login?paipan=1')
 }
 
 async function loadEntry() {
@@ -364,11 +377,6 @@ async function loadEntry() {
   legacyUrl.value = ''
   loginRequired.value = false
   try {
-    if (!getToken()) {
-      loginRequired.value = true
-      error.value = '登录后即可安全进入排盘工具；其他公开内容仍可直接浏览。'
-      return
-    }
     // 正常入口由上一页一次性交接已生成的地址；直接深链进入时才回源请求。
     const entry = consumeLegacyPaipanEntry() || await legacyPaipanApi.entry()
     if (entry.mode !== 'legacy') {
@@ -453,7 +461,7 @@ onBackPress(() => {
   <view v-else-if="error" class="state" role="alert">
     <text class="title">{{ loginRequired ? '登录后进入排盘工具' : '暂时无法进入排盘工具' }}</text>
     <text class="desc">{{ error }}</text>
-    <button v-if="loginRequired" class="action primary" @tap="openLogin">登录后进入排盘工具</button>
+    <button v-if="loginRequired" class="action primary" @tap="openLogin">微信或手机号快捷进入</button>
     <button v-else class="action primary" @tap="loadEntry">重试</button>
     <button class="action" @tap="returnToNewSystem">返回热卜首页</button>
   </view>
