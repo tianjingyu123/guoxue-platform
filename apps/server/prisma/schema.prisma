@@ -6200,17 +6200,27 @@ model LegalDocument {
 // ─────────────────────────────────────────────────
 
 model AppVersion {
-  id          String   @id @default(uuid())
-  platform    String // ios / android / harmony
-  version     String
-  buildNumber String?
-  changelog   String?
-  forceUpdate Boolean  @default(false)
-  downloadUrl String?
-  publishedAt DateTime @default(now())
-  createdAt   DateTime @default(now())
+  id                      String    @id @default(uuid())
+  platform                String // ios / android / harmony
+  version                 String
+  buildNumber             String?
+  changelog               String?
+  forceUpdate             Boolean   @default(false)
+  downloadUrl             String?
+  checksumSha256          String?
+  minSupportedVersion     String?
+  minSupportedBuildNumber String?
+  status                  String    @default("DRAFT") // DRAFT / ACTIVE / RETIRED
+  activePlatformKey       String?   @unique // 仅 ACTIVE 记录写 platform，数据库层保证每端最多一个当前版本
+  publishedAt             DateTime?
+  publishedBy             String?
+  retiredAt               DateTime?
+  retiredBy               String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
-  @@index([platform, publishedAt])
+  @@index([platform, status, publishedAt])
+  @@index([platform, version, buildNumber])
 }
 
 // ─────────────────────────────────────────────────

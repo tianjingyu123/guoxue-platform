@@ -88,5 +88,30 @@ export function isValidAppVersion(value: string): boolean {
 
 export function isValidDownloadUrl(value?: string | null): boolean {
   if (!value) return false;
-  return /^(?:https?:\/\/|market:\/\/|itms-apps:\/\/|appmarket:\/\/)/i.test(value.trim());
+  return /^(?:https:\/\/|market:\/\/|itms-apps:\/\/|appmarket:\/\/)/i.test(value.trim());
+}
+
+/**
+ * 发布地址必须是 TLS 链接或对应平台的官方应用市场协议。这里只校验分发入口，
+ * 不主动访问外部 URL，避免后台“预检”演变成 SSRF。
+ */
+export function isValidPlatformDownloadUrl(platform: string, value?: string | null): boolean {
+  if (!isValidDownloadUrl(value)) return false;
+  const normalized = String(value).trim();
+  if (platform === "ios" && /^itms-apps:\/\//i.test(normalized)) return true;
+  if (platform === "android" && /^market:\/\//i.test(normalized)) return true;
+  if (platform === "harmony" && /^appmarket:\/\//i.test(normalized)) return true;
+  if (!/^https:\/\//i.test(normalized)) return false;
+
+  try {
+    const url = new URL(normalized);
+    const host = url.hostname.toLowerCase();
+    if (url.username || url.password || !host || host === "localhost") return false;
+    if (/^(?:127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(host)) return false;
+    if (/^172\.(?:1[6-9]|2\d|3[01])\./.test(host)) return false;
+    if (host === "::1" || host.endsWith(".local")) return false;
+    return true;
+  } catch {
+    return false;
+  }
 }

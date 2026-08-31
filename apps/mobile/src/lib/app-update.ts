@@ -28,7 +28,7 @@ function buildMessage(info: AppUpdateInfo): string {
 }
 
 function openDownload(url: string): void {
-  if (!/^(?:https?:\/\/|market:\/\/|itms-apps:\/\/|appmarket:\/\/)/i.test(url)) {
+  if (!/^(?:https:\/\/|market:\/\/|itms-apps:\/\/|appmarket:\/\/)/i.test(url)) {
     uni.showToast({ title: '下载地址未正确配置，请联系客服', icon: 'none' })
     return
   }

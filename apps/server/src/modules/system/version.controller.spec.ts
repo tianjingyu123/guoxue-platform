@@ -5,7 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 
-const mockPrisma = {
+const mockPrisma: any = {
   appVersion: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
@@ -14,6 +14,8 @@ const mockPrisma = {
     update: jest.fn(),
     delete: jest.fn(),
   },
+  $queryRawUnsafe: jest.fn(),
+  $transaction: jest.fn(),
 };
 
 const mockGuard: CanActivate = { canActivate: () => true };
@@ -32,7 +34,10 @@ describe("VersionController", () => {
     ctrl = mod.get(VersionController);
   });
 
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrisma.$transaction.mockImplementation((callback: any) => callback(mockPrisma));
+  });
 
   it("应被定义", () => expect(ctrl).toBeDefined());
 
@@ -47,7 +52,7 @@ describe("VersionController", () => {
     it("检查更新——有更新", async () => {
       mockPrisma.appVersion.findFirst.mockResolvedValue({
         version: "1.2.0", buildNumber: 10, changelog: "bug修复",
-        forceUpdate: false, downloadUrl: "https://example.com/app",
+        forceUpdate: false, status: "ACTIVE", downloadUrl: "https://example.com/app",
       });
       const result: any = await ctrl.check({ platform: "android", version: "1.0.0" });
       expect(result.hasUpdate).toBe(true);
@@ -75,7 +80,8 @@ describe("VersionController", () => {
       mockPrisma.appVersion.findFirst.mockResolvedValue({
         version: "2.0.0",
         buildNumber: "201",
-        forceUpdate: true,
+        minSupportedVersion: "2.0.0",
+        minSupportedBuildNumber: "201",
         downloadUrl: "https://example.com/app",
       });
       const result: any = await ctrl.check({
@@ -88,15 +94,11 @@ describe("VersionController", () => {
     });
 
     it("检查更新——后续可选版本不会解除既有强制更新最低线", async () => {
-      mockPrisma.appVersion.findFirst
-        .mockResolvedValueOnce({
-          version: "2.1.0", buildNumber: "210", changelog: "体验优化",
-          forceUpdate: false, downloadUrl: "https://example.com/app-210",
-        })
-        .mockResolvedValueOnce({
-          version: "2.0.0", buildNumber: "200", changelog: "安全更新",
-          forceUpdate: true, downloadUrl: "https://example.com/app-200",
-        });
+      mockPrisma.appVersion.findFirst.mockResolvedValue({
+        version: "2.1.0", buildNumber: "210", changelog: "体验优化",
+        forceUpdate: false, downloadUrl: "https://example.com/app-210",
+        minSupportedVersion: "2.0.0", minSupportedBuildNumber: "200",
+      });
 
       const result: any = await ctrl.check({
         platform: "android",
@@ -112,15 +114,11 @@ describe("VersionController", () => {
     });
 
     it("检查更新——达到强制线后继续收到最新可选版本", async () => {
-      mockPrisma.appVersion.findFirst
-        .mockResolvedValueOnce({
-          version: "2.1.0", buildNumber: "210", changelog: "体验优化",
-          forceUpdate: false, downloadUrl: "https://example.com/app-210",
-        })
-        .mockResolvedValueOnce({
-          version: "2.0.0", buildNumber: "200", changelog: "安全更新",
-          forceUpdate: true, downloadUrl: "https://example.com/app-200",
-        });
+      mockPrisma.appVersion.findFirst.mockResolvedValue({
+        version: "2.1.0", buildNumber: "210", changelog: "体验优化",
+        forceUpdate: false, downloadUrl: "https://example.com/app-210",
+        minSupportedVersion: "2.0.0", minSupportedBuildNumber: "200",
+      });
 
       const result: any = await ctrl.check({
         platform: "android",
@@ -137,16 +135,21 @@ describe("VersionController", () => {
   });
 
   describe("管理接口", () => {
-    it("发布新版本", async () => {
+    const req = { user: { id: "admin-1" } } as any;
+
+    it("创建新版本只生成草稿", async () => {
       mockPrisma.appVersion.findFirst.mockResolvedValue(null);
       mockPrisma.appVersion.create.mockResolvedValue({
-        id: "v1", platform: "ios", version: "1.1.0", buildNumber: "5",
+        id: "v1", platform: "ios", version: "1.1.0", buildNumber: "5", status: "DRAFT",
       });
       const result: any = await ctrl.adminCreate({ platform: "ios", version: "1.1.0", buildNumber: "5" } as any);
-      expect(result.version).toBe("1.1.0");
+      expect(result.status).toBe("DRAFT");
+      expect(mockPrisma.appVersion.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: "DRAFT", publishedAt: null }),
+      }));
     });
 
-    it("发布鸿蒙版本", async () => {
+    it("鸿蒙应用市场地址可以保存为草稿", async () => {
       mockPrisma.appVersion.findFirst.mockResolvedValue(null);
       mockPrisma.appVersion.create.mockResolvedValue({
         id: "v-harmony", platform: "harmony", version: "1.1.0", buildNumber: "5",
@@ -159,40 +162,72 @@ describe("VersionController", () => {
       expect(result.platform).toBe("harmony");
     });
 
+    it("发布草稿时原子退役旧版本并继承最低支持线", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue({
+        id: "draft-1", status: "DRAFT", platform: "android", version: "2.1.0",
+        buildNumber: "210", changelog: "体验优化", downloadUrl: "https://download.example.com/app.apk",
+        forceUpdate: false,
+      });
+      mockPrisma.appVersion.findFirst
+        .mockResolvedValueOnce({
+          id: "active-1", status: "ACTIVE", platform: "android", version: "2.0.0",
+          buildNumber: "200", minSupportedVersion: "1.9.0", minSupportedBuildNumber: "190",
+        })
+        .mockResolvedValueOnce(null);
+      mockPrisma.appVersion.update.mockResolvedValue({ id: "draft-1", status: "ACTIVE" });
+
+      await ctrl.publish("draft-1", req);
+
+      expect(mockPrisma.appVersion.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "active-1" },
+        data: expect.objectContaining({
+          status: "RETIRED", activePlatformKey: null, retiredBy: "admin-1",
+        }),
+      }));
+      expect(mockPrisma.appVersion.update).toHaveBeenLastCalledWith(expect.objectContaining({
+        where: { id: "draft-1" },
+        data: expect.objectContaining({
+          status: "ACTIVE",
+          activePlatformKey: "android",
+          minSupportedVersion: "1.9.0",
+          minSupportedBuildNumber: "190",
+        }),
+      }));
+    });
+
     it("发布版本——拒绝覆盖为更低构建", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue({
+        id: "draft-low", status: "DRAFT", platform: "ios", version: "1.0.9",
+        buildNumber: "109", changelog: "旧包", downloadUrl: "https://apps.apple.com/app/id1",
+        forceUpdate: false,
+      });
       mockPrisma.appVersion.findFirst.mockResolvedValue({
-        version: "1.1.0",
-        buildNumber: "110",
+        id: "active-1", status: "ACTIVE", version: "1.1.0", buildNumber: "110",
       });
       await expect(
-        ctrl.adminCreate({
-          platform: "ios",
-          version: "1.0.9",
-          buildNumber: "109",
-        } as any),
+        ctrl.publish("draft-low", req),
       ).rejects.toThrow("新版本必须高于当前已发布版本");
-      expect(mockPrisma.appVersion.create).not.toHaveBeenCalled();
+      expect(mockPrisma.appVersion.update).not.toHaveBeenCalled();
     });
 
-    it("发布强制更新——下载地址缺失时拒绝", async () => {
-      mockPrisma.appVersion.findFirst.mockResolvedValue(null);
+    it("发布版本——最终下载地址缺失时拒绝", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue({
+        id: "draft-no-url", status: "DRAFT", platform: "android", version: "1.1.0",
+        buildNumber: "110", changelog: "安全修复", forceUpdate: true, downloadUrl: null,
+      });
       await expect(
-        ctrl.adminCreate({
-          platform: "android",
-          version: "1.1.0",
-          buildNumber: "110",
-          forceUpdate: true,
-        } as any),
-      ).rejects.toThrow("强制更新必须配置有效下载地址");
-      expect(mockPrisma.appVersion.create).not.toHaveBeenCalled();
+        ctrl.publish("draft-no-url", req),
+      ).rejects.toThrow("发布地址必须是安全 HTTPS 链接");
+      expect(mockPrisma.appVersion.update).not.toHaveBeenCalled();
     });
 
-    it("更新版本信息", async () => {
+    it("只允许更新草稿", async () => {
       mockPrisma.appVersion.findUnique.mockResolvedValue({
         id: "v1",
         platform: "ios",
         version: "1.0.0",
         forceUpdate: false,
+        status: "DRAFT",
       });
       mockPrisma.appVersion.update.mockResolvedValue({ id: "v1", forceUpdate: true });
       const result: any = await ctrl.adminUpdate("v1", {
@@ -202,11 +237,36 @@ describe("VersionController", () => {
       expect(result.forceUpdate).toBe(true);
     });
 
-    it("删除版本", async () => {
-      mockPrisma.appVersion.findUnique.mockResolvedValue({ id: "v1", platform: "ios", version: "1.0.0" });
+    it("删除草稿", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue({ id: "v1", status: "DRAFT", platform: "ios", version: "1.0.0" });
       mockPrisma.appVersion.delete.mockResolvedValue({ id: "v1" });
       await ctrl.adminDelete("v1");
       expect(mockPrisma.appVersion.delete).toHaveBeenCalledWith({ where: { id: "v1" } });
+    });
+
+    it("已发布记录作为审计证据不可删除", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue({ id: "v1", status: "ACTIVE" });
+      await expect(ctrl.adminDelete("v1")).rejects.toThrow("已发布记录属于审计证据");
+      expect(mockPrisma.appVersion.delete).not.toHaveBeenCalled();
+    });
+
+    it("回退只重新激活已退役记录", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue({
+        id: "old-1", status: "RETIRED", platform: "harmony", version: "1.5.0",
+        buildNumber: "150", changelog: "稳定版本", downloadUrl: "appmarket://details?id=com.rebu.app",
+        forceUpdate: false, minSupportedVersion: "1.0.0", minSupportedBuildNumber: "100",
+      });
+      mockPrisma.appVersion.findFirst
+        .mockResolvedValueOnce({ id: "active-1", status: "ACTIVE", platform: "harmony", version: "1.6.0", buildNumber: "160" })
+        .mockResolvedValueOnce(null);
+      mockPrisma.appVersion.update.mockResolvedValue({ id: "old-1", status: "ACTIVE" });
+
+      await ctrl.rollback("old-1", req);
+
+      expect(mockPrisma.appVersion.update).toHaveBeenLastCalledWith(expect.objectContaining({
+        where: { id: "old-1" },
+        data: expect.objectContaining({ status: "ACTIVE", minSupportedVersion: "1.0.0" }),
+      }));
     });
 
     it("版本列表", async () => {

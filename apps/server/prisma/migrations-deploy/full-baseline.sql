@@ -4773,8 +4773,17 @@ CREATE TABLE "AppVersion" (
     "changelog" TEXT,
     "forceUpdate" BOOLEAN NOT NULL DEFAULT false,
     "downloadUrl" TEXT,
-    "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "checksumSha256" TEXT,
+    "minSupportedVersion" TEXT,
+    "minSupportedBuildNumber" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "activePlatformKey" TEXT,
+    "publishedAt" TIMESTAMP(3),
+    "publishedBy" TEXT,
+    "retiredAt" TIMESTAMP(3),
+    "retiredBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "AppVersion_pkey" PRIMARY KEY ("id")
 );
@@ -8194,7 +8203,13 @@ CREATE INDEX "GrowthRecord_userId_createdAt_idx" ON "GrowthRecord"("userId", "cr
 CREATE INDEX "LegalDocument_type_status_idx" ON "LegalDocument"("type", "status");
 
 -- CreateIndex
-CREATE INDEX "AppVersion_platform_publishedAt_idx" ON "AppVersion"("platform", "publishedAt");
+CREATE UNIQUE INDEX "AppVersion_activePlatformKey_key" ON "AppVersion"("activePlatformKey");
+
+-- CreateIndex
+CREATE INDEX "AppVersion_platform_status_publishedAt_idx" ON "AppVersion"("platform", "status", "publishedAt");
+
+-- CreateIndex
+CREATE INDEX "AppVersion_platform_version_buildNumber_idx" ON "AppVersion"("platform", "version", "buildNumber");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TopicTag_name_key" ON "TopicTag"("name");
