@@ -1,4 +1,5 @@
-import { IsString, IsDateString, IsOptional, IsArray, IsNumber, IsObject, IsIn, IsBoolean, IsNotEmpty, Min, Max, MaxLength } from "class-validator";
+import { Type } from "class-transformer";
+import { IsString, IsDateString, IsOptional, IsArray, IsNumber, IsInt, IsObject, IsIn, IsBoolean, IsNotEmpty, Min, Max, MaxLength } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PublishEventDto {
@@ -58,12 +59,17 @@ export class QueryEventDto {
 
   @ApiPropertyOptional({ description: "每页数量", default: 50 })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
   limit?: number;
 
   @ApiPropertyOptional({ description: "偏移量", default: 0 })
   @IsOptional()
-  @IsNumber()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
   offset?: number;
 }
 
