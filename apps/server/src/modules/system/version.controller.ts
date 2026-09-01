@@ -10,6 +10,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { isAppUpdateAvailable, isValidPlatformDownloadUrl } from "./version.util";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("版本更新")
 @Controller("system/version")
@@ -117,6 +118,7 @@ export class VersionController {
   }
 
   @Post(":id/publish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @Auditable({ action: "发布客户端版本", targetType: "APP_VERSION" })
@@ -127,6 +129,7 @@ export class VersionController {
   }
 
   @Post(":id/rollback")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @Auditable({ action: "回退客户端版本", targetType: "APP_VERSION" })
@@ -137,6 +140,7 @@ export class VersionController {
   }
 
   @Post(":id/retire")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @Auditable({ action: "紧急停用客户端版本", targetType: "APP_VERSION" })

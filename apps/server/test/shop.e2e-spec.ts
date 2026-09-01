@@ -114,7 +114,12 @@ describe("Shop E2E", () => {
         id: "u1", status: "ACTIVE", roles: [],
       })
       prisma.product.findUnique.mockResolvedValue({
-        id: "p1", price: 99, status: "ON_SALE",
+        id: "p1", price: 99, stock: 10, status: "ON_SALE", deletedAt: null,
+        supplierType: null, userId: "seller1", skus: [], freightTemplateId: null,
+      })
+      prisma.shippingAddress.findFirst.mockResolvedValue({
+        name: "测试收货人", phone: "13800000000", province: "广东省",
+        city: "深圳市", district: "南山区", detail: "预发布隔离地址",
       })
       prisma.order.create.mockResolvedValue({
         id: "o1", status: "PENDING", amount: "99",
@@ -123,7 +128,7 @@ describe("Shop E2E", () => {
       const res = await request(app.getHttpServer())
         .post("/api/v1/shop/orders")
         .set("Authorization", `Bearer ${token}`)
-        .send({ type: "PRODUCT", targetId: "p1", amount: 99 })
+        .send({ type: "PRODUCT", targetId: "p1", amount: 1, addressId: "addr1" })
         .expect(201)
 
       expect(res.body.id).toBe("o1")

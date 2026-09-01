@@ -13,6 +13,7 @@ import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { TrtcCallbackGuard } from "../../common/trtc-callback.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 import { StationId } from "../../common/station-id.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
 
@@ -250,6 +251,7 @@ export class LiveController {
   }
 
   @Put("rooms/:id/start")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @RequireFeature("live_start")
   @ApiOperation({ summary: "开始直播（房主或管理员·生成推拉流地址）" })
@@ -286,6 +288,7 @@ export class LiveController {
   }
 
   @Put("rooms/:id/start-obs")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, FeatureFlagGuard)
   @RequireFeature("live_start")
   @ApiOperation({ summary: "OBS 正式开播（必须已收到真实推流回调）" })
@@ -319,6 +322,7 @@ export class LiveController {
   }
 
   @Put("rooms/:id/replay")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置直播回放" })
@@ -333,6 +337,7 @@ export class LiveController {
   }
 
   @Put("rooms/:id/replay/unpublish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "下架直播回放并保留录像草稿" })

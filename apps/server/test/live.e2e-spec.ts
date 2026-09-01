@@ -275,7 +275,9 @@ describe("Live E2E", () => {
   describe("PUT /api/v1/live/rooms/:id/replay", () => {
     it("设置直播回放成功", async () => {
       mockAdminUser()
-      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING" })
+      prisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1", status: "ENDED", userId: "host1", circleId: null, courseId: null, title: "直播",
+      })
       prisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "REPLAY", replayUrl: "https://replay.example.com/v.mp4" })
       const res = await request(app.getHttpServer())
         .put("/api/v1/live/rooms/r1/replay")
@@ -290,7 +292,9 @@ describe("Live E2E", () => {
 
   describe("POST /api/v1/live/rooms/:id/book", () => {
     it("预约直播成功", async () => {
-      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "WAITING" })
+      prisma.liveRoom.findUnique.mockResolvedValue({
+        id: "r1", status: "WAITING", startTime: new Date(Date.now() + 60 * 60 * 1000),
+      })
       const res = await request(app.getHttpServer())
         .post("/api/v1/live/rooms/r1/book")
         .set("Authorization", `Bearer ${token}`)

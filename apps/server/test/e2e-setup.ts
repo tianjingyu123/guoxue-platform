@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing"
 import { INestApplication, ValidationPipe } from "@nestjs/common"
+import { Reflector } from "@nestjs/core"
 import { AppModule } from "../src/app.module"
 import { PrismaService } from "../src/prisma/prisma.service"
 import { RedisService } from "../src/redis/redis.service"
@@ -11,6 +12,7 @@ import { VodService } from "../src/modules/video/vod.service"
 import { FeatureFlagService } from "../src/modules/feature-flag/feature-flag.service"
 import { ModerationService } from "../src/modules/audit/moderation.service"
 import { LiveStreamService } from "../src/modules/live/live-stream.service"
+import { RedLineGuard } from "../src/common/red-lines"
 
 const modelMethods = [
   "findUnique", "findUniqueOrThrow", "findFirst", "findMany", "create",
@@ -147,6 +149,8 @@ function createRedisMock() {
     zrem: jest.fn().mockResolvedValue(1),
     zremrangebyscore: jest.fn().mockResolvedValue(0),
     zcard: jest.fn().mockResolvedValue(0),
+    publish: jest.fn().mockResolvedValue(1),
+    subscribe: jest.fn().mockResolvedValue(async () => undefined),
     runExclusive: jest.fn(async (_key: string, _ttl: number, task: () => Promise<unknown>) => task()),
     incrWithTtl: jest.fn().mockResolvedValue({ count: 1, ttl: 60 }),
     setNX: jest.fn().mockResolvedValue(true),
@@ -268,6 +272,8 @@ export async function createE2eApp(): Promise<{
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
   )
+  // 与生产 main.ts 保持一致：E2E 必须真实覆盖自动化红线守卫，避免只测到控制器元数据。
+  app.useGlobalGuards(new RedLineGuard(app.get(Reflector)))
 
   await app.init()
   return { app, prisma, redis }

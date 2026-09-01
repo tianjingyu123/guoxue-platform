@@ -29,6 +29,7 @@ import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /** 已认证请求，附带 JWT 解析后的 user 信息 */
 type AuthRequest = Omit<Request, "user"> & {
@@ -51,6 +52,7 @@ export class ShopController {
   // ───────── 商品 ─────────
 
   @Post("products")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "创建商品" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -116,6 +118,7 @@ export class ShopController {
   }
 
   @Put("products/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商品编辑（含价格变更）", targetType: "PRODUCT" })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新商品" })
@@ -130,6 +133,7 @@ export class ShopController {
   }
 
   @Put("products/:id/status")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商品状态变更", targetType: "PRODUCT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
@@ -185,6 +189,7 @@ export class ShopController {
   }
 
   @Delete("products/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除商品" })
   @ApiResponse({ status: 200, description: "删除成功" })
