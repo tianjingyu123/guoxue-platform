@@ -37,6 +37,14 @@ describe("UnionpayService", () => {
   });
 
   describe("支付与查询", () => {
+    it("后台热更新验签公钥后当前实例立即读取新配置", () => {
+      expect(service.isConfigured).toBe(true);
+      delete process.env.UNIONPAY_PUBLIC_KEY;
+      expect(service.isConfigured).toBe(false);
+      process.env.UNIONPAY_PUBLIC_KEY = "new-unionpay-public-key";
+      expect(service.isConfigured).toBe(true);
+    });
+
     it("APP支付应请求并返回TN", async () => {
       (global as any).fetch = jest.fn().mockResolvedValue({
         ok: true,

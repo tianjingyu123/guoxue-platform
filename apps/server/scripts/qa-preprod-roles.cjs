@@ -302,15 +302,39 @@ async function verifyApi() {
     const actualRoles = Array.isArray(me.roles) ? me.roles.map((item) => item.roleType).filter(Boolean).sort() : [];
     // 商家身份由业务绑定动态注入，不存入 UserRole；API 复验必须覆盖这一差异。
     const expectedRoles = [...spec.roles, ...(spec.key === "merchant" ? ["MERCHANT"] : [])].sort();
-    const roleOk = expectedRoles.every((role) => actualRoles.includes(role));
-    results.push({ key: spec.key, login: true, me: meResponse.ok, roleOk, expectedRoles, actualRoles });
+    // 最小权限必须做精确集合比较：只检查“应有角色未缺失”会漏掉普通用户被意外授予后台角色。
+    const missingRoles = expectedRoles.filter((role) => !actualRoles.includes(role));
+    const unexpectedRoles = actualRoles.filter((role) => !expectedRoles.includes(role));
+    const roleOk = missingRoles.length === 0 && unexpectedRoles.length === 0;
+    results.push({
+      key: spec.key,
+      login: true,
+      me: meResponse.ok,
+      roleOk,
+      expectedRoles,
+      actualRoles,
+      missingRoles,
+      unexpectedRoles,
+    });
   }
   const ok = results.every((item) => item.login && item.me && item.roleOk);
   const evidence = fs.existsSync(EVIDENCE_FILE) ? JSON.parse(fs.readFileSync(EVIDENCE_FILE, "utf8")) : { batch: BATCH };
   evidence.apiVerifiedAt = new Date().toISOString();
   evidence.apiVerification = results;
   fs.writeFileSync(EVIDENCE_FILE, JSON.stringify(evidence, null, 2), "utf8");
-  console.log(JSON.stringify({ ok, verified: results.length, failed: results.filter((item) => !item.login || !item.me || !item.roleOk).map((item) => ({ key: item.key, status: item.status, roleOk: item.roleOk })) }));
+  console.log(JSON.stringify({
+    ok,
+    verified: results.length,
+    failed: results
+      .filter((item) => !item.login || !item.me || !item.roleOk)
+      .map((item) => ({
+        key: item.key,
+        status: item.status,
+        roleOk: item.roleOk,
+        missingRoles: item.missingRoles || [],
+        unexpectedRoles: item.unexpectedRoles || [],
+      })),
+  }));
   if (!ok) process.exitCode = 2;
 }
 

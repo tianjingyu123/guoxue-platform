@@ -145,11 +145,19 @@ export class BountyService {
 
   // ───────── 列表/详情 ─────────
 
-  list(rawPage = 1, rawPageSize = 20, category?: string, status?: string, stationId?: string) {
+  list(rawPage = 1, rawPageSize = 20, category?: string, status?: string, stationId?: string, includeNonPublic = false) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize, NO_PAGE_LIMIT);
     const where: Prisma.BountyQuestionWhereInput = {};
     if (category) where.category = category;
-    if (status) where.status = status;
+    const publicStatuses = ["OPEN", "CLAIMED", "ANSWERED", "SETTLED"];
+    if (includeNonPublic) {
+      if (status) where.status = status;
+    } else if (status && publicStatuses.includes(status)) {
+      where.status = status;
+    } else {
+      // 关闭/退款记录属于后台与当事人的资金证据，不进入公开悬赏广场。
+      where.status = { in: publicStatuses };
+    }
     if (stationId !== undefined) where.stationId = stationId;
     return Promise.all([
       this.prisma.bountyQuestion.findMany({
@@ -169,17 +177,43 @@ export class BountyService {
 
   // ───────── 管理端 ─────────
 
-  async closeQuestion(id: string) {
-    const question = await this.prisma.bountyQuestion.findUnique({ where: { id } });
-    if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "悬赏不存在");
-    // 如果是未回答的悬赏，退还款项
-    if (["OPEN", "CLAIMED"].includes(question.status) && this.coinSvc) {
-      await this.coinSvc.unfreeze(question.askerId, question.bountyCoin);
-    }
-    return this.prisma.bountyQuestion.update({
-      where: { id },
-      data: { status: "CLOSED" },
+  async closeQuestion(id: string, reason: string, operator: string) {
+    const normalizedReason = reason.trim();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const question = await tx.bountyQuestion.findUnique({ where: { id } });
+      if (!question) throw new BusinessException(ErrorCode.NOT_FOUND, "悬赏不存在");
+      if (!["OPEN", "CLAIMED"].includes(question.status)) {
+        throw new BusinessException(
+          ErrorCode.BAD_REQUEST,
+          question.status === "ANSWERED"
+            ? "该悬赏已有待结算回答，请先完成赏金归属处理"
+            : "当前状态不可关闭",
+        );
+      }
+
+      // 以悬赏 ID 精确核销冻结记录，并与关闭状态同事务提交，任何一步失败都会整体回滚。
+      if (this.coinSvc) {
+        await this.coinSvc.unfreeze(
+          question.askerId,
+          question.bountyCoin,
+          question.id,
+          tx,
+        );
+      }
+      return tx.bountyQuestion.update({
+        where: { id },
+        data: {
+          status: "CLOSED",
+          closeReason: normalizedReason,
+          closedBy: operator,
+          closedAt: new Date(),
+        },
+      });
     });
+    this.logger.log(
+      `管理员关闭悬赏 [审计] 操作人=${operator} 悬赏=${id} 原因=${normalizedReason}`,
+    );
+    return updated;
   }
 
   async listReviews(rawPage = 1, rawPageSize = 20, status?: string) {

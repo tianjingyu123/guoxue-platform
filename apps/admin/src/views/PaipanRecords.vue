@@ -198,6 +198,7 @@ import { formatDateTime } from "@/utils/datetime"
 import PageHeader from "@/components/PageHeader.vue"
 import SearchFilter, { type FilterDef } from "@/components/SearchFilter.vue"
 import DataTable, { type TableColumn } from "@/components/DataTable.vue"
+import { downloadCsvRows } from "@/utils/export"
 
 // 排盘类型中文标签（与后端 PaipanRecord.paipanType 一一对应）
 const TYPE_LABELS: Record<string, string> = {
@@ -401,16 +402,7 @@ function exportCurrentPage() {
     r.user?.nickname || r.user?.phone || "未知",
     formatDate(r.createdAt),
   ])
-  const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`
-  // BOM 前缀：Excel 打开中文 CSV 不乱码
-  const csv = "﻿" + [header, ...rows].map((row) => row.map(esc).join(",")).join("\r\n")
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `排盘记录-第${page.value}页-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadCsvRows(`排盘记录-第${page.value}页-${new Date().toISOString().slice(0, 10)}`, [header, ...rows])
   ElMessage.success(`已导出当前页 ${records.value.length} 条记录`)
 }
 </script>

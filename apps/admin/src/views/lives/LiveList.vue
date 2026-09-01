@@ -41,6 +41,14 @@
       </template>
     </PageHeader>
 
+    <div class="duty-strip" aria-label="直播运营值班摘要">
+      <div><span>待开播</span><strong>{{ dutySummary.waiting }}</strong></div>
+      <div><span>直播中</span><strong class="living">{{ dutySummary.living }}</strong></div>
+      <div><span>回放草稿待发布</span><strong class="draft">{{ dutySummary.replayDraft }}</strong></div>
+      <div><span>已发布回放</span><strong>{{ dutySummary.published }}</strong></div>
+      <p>运营顺序：排期与素材 → 推流预检 → 开播值守 → 结束 → 回放草稿复核 → 发布/下架</p>
+    </div>
+
     <!-- 错误态 -->
     <el-result
       v-if="loadError"
@@ -116,17 +124,30 @@
         width="80"
       />
       <el-table-column
-        prop="createdAt"
-        label="创建时间"
-        width="170"
+        label="排期 / 预约"
+        width="185"
       >
         <template #default="{ row }">
-          {{ row.createdAt?.slice(0,16).replace('T',' ') }}
+          <div>{{ row.startTime ? row.startTime.slice(0,16).replace('T',' ') : '未排期' }}</div>
+          <small v-if="row.status === 'WAITING'">{{ row.bookingCount || 0 }} 人预约</small>
+        </template>
+      </el-table-column>
+      <el-table-column label="形态 / 商品" width="135">
+        <template #default="{ row }">
+          <div>{{ row.orientation === 'landscape' ? 'OBS 横屏' : '客户端竖屏' }}</div>
+          <small>{{ row.quality || 'basic' }} · {{ row._count?.products || 0 }} 件商品</small>
+        </template>
+      </el-table-column>
+      <el-table-column label="回放" width="105">
+        <template #default="{ row }">
+          <el-tag v-if="row.replayStatus === 'DRAFT'" size="small" type="warning">草稿</el-tag>
+          <el-tag v-else-if="row.replayStatus === 'PUBLISHED'" size="small" type="success">已发布</el-tag>
+          <span v-else>—</span>
         </template>
       </el-table-column>
       <el-table-column
         label="操作"
-        width="250"
+        width="420"
         fixed="right"
       >
         <template #default="{ row }">
@@ -138,12 +159,36 @@
             编辑
           </el-button>
           <el-button
+            v-if="row.status === 'WAITING'"
+            size="small"
+            type="success"
+            @click="openStreamConsole(row)"
+          >
+            开播准备
+          </el-button>
+          <el-button
             v-if="row.status === 'LIVING'"
             size="small"
             type="danger"
             @click="endRoom(row)"
           >
             结束
+          </el-button>
+          <el-button
+            v-if="row.status === 'ENDED' || row.replayStatus === 'DRAFT'"
+            size="small"
+            type="success"
+            @click="openReplay(row)"
+          >
+            发布回放
+          </el-button>
+          <el-button
+            v-if="row.status === 'REPLAY' && row.replayStatus === 'PUBLISHED'"
+            size="small"
+            type="warning"
+            @click="unpublishReplay(row)"
+          >
+            下架回放
           </el-button>
           <el-button
             size="small"
@@ -166,7 +211,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="editingId ? '编辑直播' : '添加直播'"
-      width="500px"
+      width="720px"
     >
       <el-form
         ref="dialogFormRef"
@@ -183,14 +228,34 @@
         <el-form-item label="封面图片">
           <CosImageUpload v-model="form.cover" />
         </el-form-item>
-        <!-- 编辑态只保留后端真收字段（UpdateRoomDto 仅 title/cover）；
-             主播/收费仅创建时可设（CreateRoomDto），编辑传了也不会生效，不摆假表单 -->
+        <el-form-item label="直播介绍">
+          <el-input v-model="form.description" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="预约预告必填；说明主题、嘉宾和观众收益" />
+        </el-form-item>
+        <el-form-item label="预约开播">
+          <el-date-picker
+            v-model="form.startTime"
+            type="datetime"
+            value-format="YYYY-MM-DD HH:mm:ss"
+            placeholder="不排期则不可被用户预约"
+            clearable
+            style="width:100%"
+          />
+          <div class="form-hint">填写排期后，封面和介绍必须完整；系统会在开播前约 15 分钟提醒已预约用户。</div>
+        </el-form-item>
         <template v-if="!editingId">
-          <el-form-item label="主播用户ID">
-            <el-input
+          <el-form-item label="主播" required>
+            <el-select
               v-model="form.hostUserId"
-              placeholder="不填则默认为当前账号"
-            />
+              filterable
+              remote
+              reserve-keyword
+              :remote-method="searchHosts"
+              :loading="hostSearching"
+              placeholder="输入昵称或手机号查找主播"
+              style="width:100%"
+            >
+              <el-option v-for="host in hostOptions" :key="host.id" :label="`${host.nickname || '未命名'} · ${host.phone || host.id}`" :value="host.id" />
+            </el-select>
           </el-form-item>
           <el-form-item label="所属圈子" required>
             <el-select
@@ -237,13 +302,55 @@
               :min="0"
             />
           </el-form-item>
+          <el-form-item label="回放范围">
+            <el-radio-group v-model="form.replayVisibility">
+              <el-radio value="CIRCLE_ONLY">仅本圈</el-radio>
+              <el-radio value="PLATFORM">全平台</el-radio>
+            </el-radio-group>
+            <el-checkbox v-model="form.replayCharge" style="margin-left:16px">圈外观看收费</el-checkbox>
+          </el-form-item>
         </template>
+        <template v-else>
+          <el-form-item label="收费类型">
+            <el-select v-model="form.chargeType">
+              <el-option label="免费" value="FREE" />
+              <el-option label="付费" value="PAID" />
+            </el-select>
+          </el-form-item>
+          <el-form-item v-if="form.chargeType === 'PAID'" label="收费价格">
+            <el-input-number v-model="form.chargePrice" :min="0.01" :precision="2" />
+          </el-form-item>
+        </template>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="直播形态">
+              <el-radio-group v-model="form.orientation">
+                <el-radio value="portrait">客户端竖屏</el-radio>
+                <el-radio value="landscape">OBS 横屏</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="画质档位">
+              <el-select v-model="form.quality" style="width:100%">
+                <el-option label="标清（basic）" value="basic" />
+                <el-option label="高清 720p（hd）" value="hd" />
+                <el-option label="超清 1080p（uhd）" value="uhd" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item label="带货商品">
+          <el-select v-model="form.productIds" multiple :multiple-limit="5" filterable collapse-tags :max-collapse-tags="3" placeholder="最多 5 件在售商品" style="width:100%">
+            <el-option v-for="product in productOptions" :key="product.id" :label="`${product.title || product.id} · 库存 ${product.stock ?? 0}`" :value="product.id" />
+          </el-select>
+        </el-form-item>
         <el-alert
-          v-else
+          v-if="editingId"
           type="info"
           :closable="false"
           show-icon
-          title="编辑仅支持修改标题与封面；主播与收费设置在创建时确定，不可在此修改"
+          title="直播开始后，排期、收费、画质和形态将锁定；标题、介绍、封面仍可按权限修正并重新进入机审。"
         />
       </el-form>
       <template #footer>
@@ -273,32 +380,81 @@
         <p><b>标题：</b>{{ detail.title }}</p>
         <p><b>主播：</b>{{ detail.user?.nickname || detail.host?.nickname || '—' }}</p>
         <p><b>状态：</b>{{ statusLabel(detail.status) }}</p>
-        <p v-if="detail.coverUrl">
-          <b>封面：</b>{{ detail.coverUrl }}
+        <p v-if="detail.cover || detail.coverUrl">
+          <b>封面：</b>{{ detail.cover || detail.coverUrl }}
         </p>
+        <p v-if="detail.description"><b>介绍：</b>{{ detail.description }}</p>
+        <p><b>直播形态：</b>{{ detail.orientation === 'landscape' ? 'OBS 横屏' : '客户端竖屏' }} · {{ detail.quality || 'basic' }}</p>
+        <p><b>预约人数：</b>{{ detail.bookingCount || 0 }}</p>
         <p v-if="detail.replayUrl">
           <b>回放：</b>{{ detail.replayUrl }}
         </p>
         <p><b>观众数：</b>{{ detail.viewCount }}</p>
         <p><b>创建时间：</b>{{ detail.createdAt?.slice(0,16).replace('T',' ') }}</p>
-        <p v-if="detail.startedAt">
-          <b>开播时间：</b>{{ detail.startedAt?.slice(0,16).replace('T',' ') }}
+        <p v-if="detail.startTime">
+          <b>开播/排期：</b>{{ detail.startTime?.slice(0,16).replace('T',' ') }}
         </p>
-        <p v-if="detail.endedAt">
-          <b>结束时间：</b>{{ detail.endedAt?.slice(0,16).replace('T',' ') }}
+        <p v-if="detail.endTime">
+          <b>结束时间：</b>{{ detail.endTime?.slice(0,16).replace('T',' ') }}
         </p>
       </div>
+    </el-dialog>
+
+    <el-dialog v-model="streamVisible" title="开播准备与推流值班" width="720px" @closed="stopStreamPolling">
+      <div v-loading="streamLoading" class="stream-console">
+        <el-alert
+          :type="streamStatus?.status === 'online' ? 'success' : 'warning'"
+          :closable="false"
+          show-icon
+          :title="streamStatus?.status === 'online' ? '已检测到真实媒体流，可以开播' : '尚未检测到推流，请先配置主播端或 OBS'"
+        />
+        <div class="evidence-grid">
+          <div><span>房间</span><strong>{{ streamRoom?.title }}</strong></div>
+          <div><span>形态</span><strong>{{ streamRoom?.orientation === 'landscape' ? 'OBS 横屏' : '客户端竖屏' }}</strong></div>
+          <div><span>回调状态</span><strong>{{ streamStatus?.status || 'offline' }}</strong></div>
+          <div><span>最近事件</span><strong>{{ streamStatus?.lastEventAt ? streamStatus.lastEventAt.slice(0,19).replace('T',' ') : '暂无' }}</strong></div>
+        </div>
+        <el-input v-if="streamInfo?.pushUrl" :model-value="streamInfo.pushUrl" readonly type="textarea" :rows="3">
+          <template #append><el-button @click="copyPushUrl">复制</el-button></template>
+        </el-input>
+        <p class="secret-tip">推流地址含短期鉴权凭证，仅向本场主播/OBS 操作员提供；重新打开本窗口会重新签发。</p>
+      </div>
+      <template #footer>
+        <el-button @click="refreshStreamStatus">刷新状态</el-button>
+        <el-button @click="streamVisible = false">关闭</el-button>
+        <el-button
+          type="primary"
+          :disabled="streamRoom?.orientation === 'landscape' && streamStatus?.status !== 'online'"
+          @click="startPreparedRoom"
+        >
+          {{ streamRoom?.orientation === 'landscape' ? '确认 OBS 开播' : '确认切换为直播中' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="replayVisible" title="回放复核与发布" width="620px">
+      <el-alert type="info" :closable="false" show-icon title="录制回调只生成草稿；确认内容、可见范围与地址后，才会对观众发布。" />
+      <el-form label-position="top" style="margin-top:16px">
+        <el-form-item label="直播场次"><el-input :model-value="replayRoom?.title" disabled /></el-form-item>
+        <el-form-item label="HTTPS 回放地址" required>
+          <el-input v-model="replayUrl" type="textarea" :rows="3" placeholder="https://.../replay.mp4" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="replayVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="publishReplay">确认发布并进入机审</el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance } from "element-plus";
 import PageHeader from "@/components/PageHeader.vue";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
-import { circleApi, liveApi } from "@/api";
+import { circleApi, liveApi, productApi, userApi } from "@/api";
 
 /** 直播主播信息 */
 interface LiveHost { id?: string; nickname?: string }
@@ -307,9 +463,13 @@ interface LiveRow {
   id: string; title?: string; cover?: string; coverUrl?: string; replayUrl?: string;
   hostUserId?: string; host?: LiveHost; user?: LiveHost; status?: string; viewCount?: number;
   chargeType?: string; chargePrice?: number; createdAt?: string;
-  startedAt?: string; endedAt?: string;
+  description?: string; startTime?: string; endTime?: string; orientation?: string; quality?: string;
+  replayStatus?: string; bookingCount?: number; onlineCount?: number; visibility?: string;
+  replayVisibility?: string; replayCharge?: boolean; _count?: { products?: number }; products?: Array<{ productId?: string }>;
 }
 interface CircleOption { id: string; name?: string }
+interface ProductOption { id: string; title?: string; stock?: number }
+interface UserOption { id: string; nickname?: string; phone?: string }
 
 const list = ref<LiveRow[]>([]);
 const loading = ref(false);
@@ -318,6 +478,16 @@ const statusFilter = ref("");
 const detailVisible = ref(false);
 const detail = ref<LiveRow | null>(null);
 const circleOptions = ref<CircleOption[]>([]);
+const productOptions = ref<ProductOption[]>([]);
+const hostOptions = ref<UserOption[]>([]);
+const hostSearching = ref(false);
+
+const dutySummary = computed(() => ({
+  waiting: list.value.filter((room) => room.status === "WAITING").length,
+  living: list.value.filter((room) => room.status === "LIVING").length,
+  replayDraft: list.value.filter((room) => room.replayStatus === "DRAFT").length,
+  published: list.value.filter((room) => room.status === "REPLAY" && room.replayStatus === "PUBLISHED").length,
+}));
 
 // 创建/编辑
 const dialogVisible = ref(false);
@@ -326,11 +496,18 @@ const editingId = ref("");
 const form = reactive({
   title: "",
   cover: "",
+  description: "",
+  startTime: "",
   hostUserId: "",
   circleId: "",
   visibility: "CIRCLE_ONLY" as "CIRCLE_ONLY" | "PLATFORM",
   chargeType: "FREE",
   chargePrice: 0,
+  quality: "basic" as "basic" | "hd" | "uhd",
+  orientation: "portrait" as "portrait" | "landscape",
+  productIds: [] as string[],
+  replayVisibility: "CIRCLE_ONLY" as "CIRCLE_ONLY" | "PLATFORM",
+  replayCharge: false,
 });
 const dialogFormRef = ref<FormInstance>();
 const dialogRules = {
@@ -340,7 +517,10 @@ const dialogRules = {
 onMounted(() => {
   fetchList();
   fetchCircleOptions();
+  fetchProductOptions();
 });
+
+onUnmounted(() => stopStreamPolling());
 
 async function fetchCircleOptions() {
   try {
@@ -349,6 +529,26 @@ async function fetchCircleOptions() {
   } catch {
     circleOptions.value = [];
   }
+}
+
+async function fetchProductOptions() {
+  try {
+    const { data } = await productApi.list({ page: 1, pageSize: 100, status: "ON_SALE" });
+    productOptions.value = data.items || data.products || [];
+  } catch { productOptions.value = []; }
+}
+
+let hostSearchTimer: ReturnType<typeof setTimeout> | null = null;
+function searchHosts(keyword: string) {
+  if (hostSearchTimer) clearTimeout(hostSearchTimer);
+  hostSearchTimer = setTimeout(async () => {
+    hostSearching.value = true;
+    try {
+      const { data } = await userApi.list({ keyword: keyword.trim() || undefined, page: 1, pageSize: 30 });
+      hostOptions.value = data.users || data.items || [];
+    } catch { hostOptions.value = []; }
+    finally { hostSearching.value = false; }
+  }, 250);
 }
 
 function statusLabel(s?: string) {
@@ -360,7 +560,7 @@ function statusLabel(s?: string) {
 /** LIVING 且开播超过 24h：大概率是推流断了没走正常结束流程的僵尸房间 */
 function isZombieLiving(row: LiveRow) {
   if (row.status !== "LIVING") return false;
-  const started = row.startedAt || row.createdAt;
+  const started = row.startTime || row.createdAt;
   if (!started) return false;
   return Date.now() - new Date(started).getTime() > 24 * 60 * 60 * 1000;
 }
@@ -380,61 +580,164 @@ async function fetchList() {
   } finally { loading.value = false; }
 }
 
-function openEdit(row?: LiveRow) {
+async function openEdit(row?: LiveRow) {
   if (row) {
     editingId.value = row.id;
-    form.title = row.title || "";
-    form.cover = row.cover || "";
-    form.hostUserId = row.hostUserId || (row.host?.id || "");
-    form.chargeType = row.chargeType || "FREE";
-    form.chargePrice = row.chargePrice ?? 0;
+    let source = row;
+    try { source = (await liveApi.detail(row.id)).data || row; } catch { /* 使用列表已有字段 */ }
+    form.title = source.title || "";
+    form.cover = source.cover || "";
+    form.description = source.description || "";
+    form.startTime = source.startTime ? toLocalDateTime(source.startTime) : "";
+    form.hostUserId = source.hostUserId || (source.host?.id || "");
+    form.chargeType = source.chargeType || "FREE";
+    form.chargePrice = source.chargePrice ?? 0;
+    form.quality = (source.quality as "basic" | "hd" | "uhd") || "basic";
+    form.orientation = (source.orientation as "portrait" | "landscape") || "portrait";
+    form.productIds = source.products?.map((item) => item.productId || "").filter(Boolean) as string[] || [];
+    form.replayVisibility = (source.replayVisibility as "CIRCLE_ONLY" | "PLATFORM") || "CIRCLE_ONLY";
+    form.replayCharge = source.replayCharge || false;
   } else {
     editingId.value = "";
     form.title = "";
     form.cover = "";
+    form.description = "";
+    form.startTime = "";
     form.hostUserId = "";
     form.circleId = "";
     form.visibility = "CIRCLE_ONLY";
     form.chargeType = "FREE";
     form.chargePrice = 0;
+    form.quality = "basic";
+    form.orientation = "portrait";
+    form.productIds = [];
+    form.replayVisibility = "CIRCLE_ONLY";
+    form.replayCharge = false;
   }
   dialogVisible.value = true;
+}
+
+function toLocalDateTime(value: string): string {
+  const date = new Date(value);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function toIso(value: string): string | null {
+  if (!value) return null;
+  const date = new Date(value.replace(" ", "T"));
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 async function saveRoom() {
   if (!form.title || !form.title.trim()) { ElMessage.warning("请输入直播标题"); return; }
   if (!editingId.value && !form.circleId) { ElMessage.warning("请选择直播所属圈子"); return; }
+  if (!editingId.value && !form.hostUserId) { ElMessage.warning("请选择主播，避免直播归属到当前管理员账号"); return; }
+  if (form.startTime && (!form.cover || !form.description.trim())) {
+    ElMessage.warning("发布预约预告必须同时填写封面和直播介绍"); return;
+  }
+  const startTime = toIso(form.startTime);
+  if (form.startTime && !startTime) { ElMessage.warning("开播时间格式错误"); return; }
   saving.value = true;
   try {
     if (editingId.value) {
-      // 编辑只传后端真收的字段（UpdateRoomDto 仅 title/cover）
-      await liveApi.update(editingId.value, { title: form.title, cover: form.cover });
+      await liveApi.update(editingId.value, {
+        title: form.title, cover: form.cover, description: form.description,
+        startTime, chargeType: form.chargeType,
+        chargePrice: form.chargeType === "PAID" ? form.chargePrice : null,
+        quality: form.quality, orientation: form.orientation, productIds: form.productIds,
+      });
       ElMessage.success("已更新");
     } else {
-      const payload: Record<string, string | number> = {
+      const payload: Record<string, unknown> = {
         title: form.title,
         circleId: form.circleId,
         visibility: form.visibility,
       };
       if (form.cover) payload.cover = form.cover;
+      if (form.description.trim()) payload.description = form.description.trim();
+      if (startTime) payload.startTime = startTime;
       if (form.hostUserId) payload.hostUserId = form.hostUserId;
       if (form.chargeType) payload.chargeType = form.chargeType;
       if (form.chargeType === "PAID" && form.chargePrice > 0) payload.chargePrice = form.chargePrice;
+      payload.quality = form.quality;
+      payload.orientation = form.orientation;
+      payload.productIds = form.productIds;
+      payload.replayVisibility = form.replayVisibility;
+      payload.replayCharge = form.replayCharge;
       await liveApi.create(payload);
       ElMessage.success("已添加");
     }
     dialogVisible.value = false;
     fetchList();
   } catch (e: any) {
-    // 管理员编辑他人直播间可能 403（后端管理员豁免灰度中），给人话提示而非裸报错
     if (e?.response?.status === 403) {
-      ElMessage.error("暂无权限编辑该直播间：目前仅主播本人可改，管理员编辑权限正在开通中");
+      ElMessage.error("当前账号没有管理该直播间的权限");
     } else {
       ElMessage.error("保存失败，请重试");
     }
   } finally {
     saving.value = false;
   }
+}
+
+// ── 推流值班台：凭证短期签发，状态以腾讯回调为准 ──
+const streamVisible = ref(false);
+const streamRoom = ref<LiveRow | null>(null);
+const streamInfo = ref<Record<string, any> | null>(null);
+const streamStatus = ref<Record<string, any> | null>(null);
+const streamLoading = ref(false);
+let streamPollTimer: ReturnType<typeof setInterval> | null = null;
+function stopStreamPolling() { if (streamPollTimer) clearInterval(streamPollTimer); streamPollTimer = null; }
+async function openStreamConsole(row: LiveRow) {
+  stopStreamPolling(); streamRoom.value = row; streamVisible.value = true; streamLoading.value = true;
+  try {
+    const [urls, status] = await Promise.all([liveApi.streamUrls(row.id), liveApi.streamStatus(row.id)]);
+    streamInfo.value = urls.data || null; streamStatus.value = status.data || null;
+    streamPollTimer = setInterval(() => refreshStreamStatus(), 5000);
+  } catch { ElMessage.error("推流准备信息加载失败，请检查直播配置"); }
+  finally { streamLoading.value = false; }
+}
+async function refreshStreamStatus() {
+  if (!streamRoom.value) return;
+  try { streamStatus.value = (await liveApi.streamStatus(streamRoom.value.id)).data || null; } catch { /* 保留上次状态 */ }
+}
+async function copyPushUrl() {
+  const value = String(streamInfo.value?.pushUrl || "");
+  if (!value) return;
+  await navigator.clipboard.writeText(value);
+  ElMessage.success("推流地址已复制；该地址含短期凭证，请勿外传");
+}
+async function startPreparedRoom() {
+  if (!streamRoom.value) return;
+  try {
+    if (streamRoom.value.orientation === "landscape") await liveApi.startObsRoom(streamRoom.value.id);
+    else {
+      await ElMessageBox.confirm("竖屏直播通常由主播客户端发起。确认由后台将房间切换为直播中？", "确认开播", { type: "warning" });
+      await liveApi.startRoom(streamRoom.value.id);
+    }
+    ElMessage.success("已开播"); streamVisible.value = false; stopStreamPolling(); fetchList();
+  } catch (e: any) {
+    if (e !== "cancel" && e !== "close") ElMessage.error(e?.response?.data?.message || "开播失败，请确认真实推流状态");
+  }
+}
+
+// ── 回放发布台：录制回调只进草稿，运营明确发布后才对外可见 ──
+const replayVisible = ref(false);
+const replayRoom = ref<LiveRow | null>(null);
+const replayUrl = ref("");
+function openReplay(row: LiveRow) { replayRoom.value = row; replayUrl.value = row.replayUrl || ""; replayVisible.value = true; }
+async function publishReplay() {
+  if (!replayRoom.value || !/^https:\/\//i.test(replayUrl.value.trim())) { ElMessage.warning("请填写 HTTPS 回放地址"); return; }
+  saving.value = true;
+  try { await liveApi.publishReplay(replayRoom.value.id, replayUrl.value.trim()); ElMessage.success("回放已发布并进入内容机审"); replayVisible.value = false; fetchList(); }
+  finally { saving.value = false; }
+}
+async function unpublishReplay(row: LiveRow) {
+  try {
+    await ElMessageBox.confirm("下架后观众端立即不可见，但录像地址会保留为草稿，确认下架？", "下架回放", { type: "warning" });
+    await liveApi.unpublishReplay(row.id); ElMessage.success("回放已下架并保留草稿"); fetchList();
+  } catch { /* 取消或请求拦截器提示 */ }
 }
 
 async function viewDetail(row: LiveRow) {
@@ -464,6 +767,20 @@ function del(id: string) {
 
 <style scoped>
 .page { padding: 0; }
+.duty-strip { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 1px; margin: 0 0 16px; padding: 1px; color: #f7f2e6; background: #b79a62; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 24px rgba(22, 55, 43, .1); }
+.duty-strip > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 15px 18px; background: #173c30; }
+.duty-strip span { font-size: 12px; color: rgba(247, 242, 230, .72); }
+.duty-strip strong { font: 600 24px/1 Georgia, "Times New Roman", serif; color: #f7f2e6; }
+.duty-strip strong.living { color: #ff8a80; }
+.duty-strip strong.draft { color: #f0c36a; }
+.duty-strip p { grid-column: 1 / -1; margin: 0; padding: 9px 16px; color: #5d513b; background: #f7f2e6; font-size: 12px; }
+.stream-console { min-height: 220px; }
+.evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin: 16px 0; padding: 1px; background: #e2ddd0; }
+.evidence-grid > div { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: #fbfaf6; }
+.evidence-grid span { color: #8a8171; font-size: 11px; letter-spacing: .08em; }
+.evidence-grid strong { color: #173c30; font-size: 14px; }
+.secret-tip { margin: 8px 0 0; color: #9a6b25; font-size: 12px; }
 .detail p { margin: 6px 0; font-size: 14px; color: var(--color-text-title); }
 .form-hint { width: 100%; margin-top: 6px; color: var(--el-color-warning); font-size: 12px; line-height: 1.5; }
+@media (max-width: 900px) { .duty-strip { grid-template-columns: 1fr 1fr; } .evidence-grid { grid-template-columns: 1fr; } }
 </style>

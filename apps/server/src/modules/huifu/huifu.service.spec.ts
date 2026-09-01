@@ -355,7 +355,8 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
       expect(await svc["getConfig"]("productId")).toBe("TEST-PRODUCT");
     });
 
-    it("应优先使用内存缓存", async () => {
+    it("统一后台配置缺失时应优先使用内存缓存", async () => {
+      delete process.env.HUIFU_APP_ID;
       svc["configCache"].set("appId", "cached-app-id");
       svc["certCacheTime"] = Date.now();
       const appId = await svc["getConfig"]("appId");
@@ -363,7 +364,8 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
       expect(mockRedis.get).not.toHaveBeenCalled();
     });
 
-    it("应能从Redis获取配置", async () => {
+    it("统一后台配置缺失时应能从Redis获取历史配置", async () => {
+      delete process.env.HUIFU_MERCHANT_ID;
       svc["configCache"].clear();
       mockRedis.get.mockResolvedValue("redis-merchant-id");
       const merchantId = await svc["getConfig"]("merchantId");
@@ -371,10 +373,19 @@ describe("HuifuService（斗拱 BsPay v2/v3 协议）", () => {
       expect(mockPrisma.huifuConfig.findUnique).not.toHaveBeenCalled();
     });
 
-    it("应解密从 Redis 读取的汇付敏感配置", async () => {
+    it("统一后台配置缺失时应解密 Redis 中的历史敏感配置", async () => {
+      delete process.env.HUIFU_SECRET_KEY;
       svc["configCache"].clear();
       mockRedis.get.mockResolvedValue(`ENC:${encrypt("redis-secret-value")}`);
       expect(await svc["getConfig"]("secretKey")).toBe("redis-secret-value");
+    });
+
+    it("统一后台配置必须覆盖历史内存与 Redis 残留", async () => {
+      svc["configCache"].set("merchantId", "legacy-memory-id");
+      svc["certCacheTime"] = Date.now();
+      mockRedis.get.mockResolvedValue("legacy-redis-id");
+      expect(await svc["getConfig"]("merchantId")).toBe("TEST-MCH-001");
+      expect(mockRedis.get).not.toHaveBeenCalled();
     });
 
     it("isEnabled 在配置完整时返回true", async () => {

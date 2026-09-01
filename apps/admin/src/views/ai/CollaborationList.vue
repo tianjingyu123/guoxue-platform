@@ -2,7 +2,7 @@
   <div class="page">
     <div class="toolbar">
       <h3>AI 协作审核</h3>
-      <span style="color:var(--color-text-secondary);font-size:13px">人机协作提案审核：低风险自动执行、中风险需确认、高风险必须人工审批</span>
+      <span style="color:var(--color-text-secondary);font-size:13px">低风险高置信度可自动批准；只有绑定受控动作处理器后才会真实执行</span>
     </div>
 
     <!-- 概览卡片 -->
@@ -271,15 +271,17 @@
               v-if="row.status === 'approved'"
               size="small"
               type="primary"
+              :disabled="!row.executionReady || !auth.isSuperAdmin"
               :loading="execId === row.id"
               @click.stop="execute(row)"
             >
-              执行
+              {{ row.executionReady ? '执行' : '待接入执行器' }}
             </el-button>
             <el-button
               v-if="row.status === 'executed'"
               size="small"
               type="warning"
+              :disabled="!row.rollbackReady || !auth.isSuperAdmin"
               @click.stop="rollback(row)"
             >
               回滚
@@ -316,7 +318,7 @@
         <el-form-item label="审核人">
           <span>{{ currentReviewerLabel }}</span>
         </el-form-item>
-        <el-form-item :required="reviewAction === 'reject'">
+        <el-form-item :required="reviewAction === 'reject' || (reviewAction === 'approve' && currentItem?.riskLevel === 'high')">
           <template #label>
             {{ reviewAction === 'approve' ? '备注' : '驳回原因' }}
           </template>
@@ -324,7 +326,7 @@
             v-model="reviewForm.note"
             type="textarea"
             :rows="3"
-            :placeholder="reviewAction === 'approve' ? '批准备注（可选）' : '驳回原因（必填）'"
+            :placeholder="reviewAction === 'approve' && currentItem?.riskLevel === 'high' ? '高风险批准依据（必填）' : reviewAction === 'approve' ? '批准备注（可选）' : '驳回原因（必填）'"
           />
         </el-form-item>
       </el-form>
@@ -414,6 +416,14 @@
           <pre style="margin:0;font-size:12px;max-height:150px;overflow:auto">{{ JSON.stringify(detail.executionPlan || {}, null, 2) }}</pre>
         </el-descriptions-item>
         <el-descriptions-item
+          label="受控执行器"
+          :span="2"
+        >
+          <el-tag :type="detail.executionCapability?.executionReady ? 'success' : 'warning'">
+            {{ detail.executionCapability?.executionReady ? `已就绪：${detail.executionCapability.handlerKey}` : '未绑定，系统禁止标记为已执行' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item
           label="回滚方案"
           :span="2"
         >
@@ -495,6 +505,14 @@ interface ProposalRow {
   executionPlan?: unknown
   rollbackPlan?: unknown
   reviewNote?: string
+  executionReady?: boolean
+  rollbackReady?: boolean
+  handlerKey?: string | null
+  executionCapability?: {
+    executionReady?: boolean
+    rollbackReady?: boolean
+    handlerKey?: string | null
+  }
 }
 /** 概览统计 */
 interface Overview {
@@ -598,17 +616,18 @@ async function confirmReview() {
     ElMessage.warning('请填写驳回原因')
     return
   }
+  if (reviewAction.value === 'approve' && currentItem.value.riskLevel === 'high' && !reviewForm.note.trim()) {
+    ElMessage.warning('高风险提案必须填写批准依据')
+    return
+  }
   reviewLoading.value = true
   try {
     const action = reviewAction.value === 'approve' ? 'approved' : 'rejected'
-    const u = auth.user as { id?: string } | null
     await aiCollaborationApi.review(currentItem.value.id, {
       action,
-      // 审核人固定为当前登录管理员（原可手输任意 ID 留痕可伪造）
-      reviewer: u?.id || undefined,
       note: reviewForm.note.trim() || undefined,
     })
-    ElMessage.success(reviewAction.value === 'approve' ? '已批准' : '已驳回')
+    ElMessage.success(reviewAction.value === 'approve' ? '已批准；绑定受控执行器后方可执行' : '已驳回')
     reviewVis.value = false
     fetchList(); fetchOverview()
   } catch (e) {

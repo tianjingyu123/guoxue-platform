@@ -58,6 +58,17 @@ describe("ShopProductService", () => {
       mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", title: "书", skus: [], circle: null })
       const result = await svc.getProduct("p1")
       expect(result.id).toBe("p1")
+      expect(mockPrisma.product.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "p1", deletedAt: null, status: "ON_SALE" },
+      }))
+    })
+
+    it("管理审核详情可查看未发布商品，但仍排除已删除商品", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p-pending", title: "待审商品", skus: [], circle: null })
+      await svc.getProduct("p-pending", undefined, undefined, true)
+      expect(mockPrisma.product.findUnique).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "p-pending", deletedAt: null },
+      }))
     })
 
     it("商品不存在抛出 NotFoundException", async () => {
@@ -208,10 +219,20 @@ describe("ShopProductService", () => {
   })
 
   describe("deleteProduct", () => {
-    it("删除成功", async () => {
-      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", userId: "u1" })
+    it("删除采用软删除并保留订单关联", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", userId: "u1", status: "OFF_SHELF" })
       const result = await svc.deleteProduct("u1", "p1")
       expect(result.success).toBe(true)
+      expect(mockPrisma.product.update).toHaveBeenCalledWith({
+        where: { id: "p1" },
+        data: { status: "OFF_SHELF", deletedAt: expect.any(Date) },
+      })
+      expect(mockPrisma.product.delete).not.toHaveBeenCalled()
+    })
+
+    it("普通用户不能直接删除在售商品", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({ id: "p1", userId: "u1", status: "ON_SALE" })
+      await expect(svc.deleteProduct("u1", "p1")).rejects.toThrow("请先下架商品")
     })
   })
 

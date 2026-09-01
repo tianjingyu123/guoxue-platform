@@ -189,4 +189,27 @@ describe("ShopService（facade·目录/履约辅助）", () => {
       await expect(svc.updateLogistics("o1", { logisticsNo: "SF456" })).rejects.toThrow(BusinessException)
     })
   })
+
+  describe("购物车 SKU 归属与生命周期", () => {
+    it("拒绝把其他商品的 SKU 加入当前商品", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({
+        id: "p1", status: "ON_SALE", deletedAt: null, stock: 10,
+        skus: [{ id: "sku-p1", stock: 5 }],
+      })
+
+      await expect(svc.addToCart("u1", "p1", "sku-other", 1))
+        .rejects.toThrow("SKU不存在、已停用或与商品不匹配")
+      expect(mockRedis.setJson).not.toHaveBeenCalled()
+    })
+
+    it("多规格商品必须先选择有效 SKU", async () => {
+      mockPrisma.product.findUnique.mockResolvedValue({
+        id: "p1", status: "ON_SALE", deletedAt: null, stock: 10,
+        skus: [{ id: "sku-p1", stock: 5 }],
+      })
+
+      await expect(svc.addToCart("u1", "p1", undefined, 1)).rejects.toThrow("请选择商品规格")
+      expect(mockRedis.setJson).not.toHaveBeenCalled()
+    })
+  })
 })

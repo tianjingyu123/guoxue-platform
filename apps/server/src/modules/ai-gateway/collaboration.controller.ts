@@ -58,7 +58,8 @@ export class CollaborationController {
   }
 
   @Post(":id/execute")
-  @ApiOperation({ summary: "执行已批准的建议" })
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "通过已注册的受控动作处理器执行建议" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async execute(@Param("id") id: string, @Req() req: AuthRequest) {
@@ -68,7 +69,8 @@ export class CollaborationController {
   }
 
   @Post(":id/rollback")
-  @ApiOperation({ summary: "回滚已执行的建议" })
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "通过已注册的回滚处理器回滚建议" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async rollback(
@@ -88,8 +90,9 @@ export class CollaborationController {
   async feedback(
     @Param("id") id: string,
     @Body() body: FeedbackCollaborationDto,
+    @Req() req: AuthRequest,
   ) {
-    await this.collaboration.feedback(id, body.rating, body.comment);
+    await this.collaboration.feedback(id, body.rating, req.user.id, body.comment);
     return { success: true };
   }
 

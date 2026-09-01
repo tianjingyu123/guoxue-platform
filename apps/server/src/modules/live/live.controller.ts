@@ -4,7 +4,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiResponse } from "@ne
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { LiveService } from "./live.service";
 import { LiveQualityService } from "./live-quality.service";
-import { CreateRoomDto, UpdateRoomDto, UpdateRoomProductsDto, UpdateLiveWatchProgressDto, LivePresenceDto, MicJoinDto, MicInviteDto, MicInviteResponseDto, LiveModerationSettingsDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto, UpdateLiveGiftSpendingPreferenceDto } from "./live.dto";
+import { CreateRoomDto, UpdateRoomDto, UpdateRoomProductsDto, UpdateLiveWatchProgressDto, LivePresenceDto, MicJoinDto, MicInviteDto, MicInviteResponseDto, LiveModerationSettingsDto, MicManageDto, SlideCreateDto, MuteUserDto, FlashSaleDto, CreateGiftDto, UpdateGiftDto, SendGiftDto, SendCommentDto, UpdateLiveGiftSpendingPreferenceDto, PublishReplayDto } from "./live.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -188,7 +188,9 @@ export class LiveController {
   @ApiResponse({ status: 200, description: "成功" })
   @ApiResponse({ status: 404, description: "资源不存在" })
   getRoom(@Param("id") id: string, @Req() req: Request) {
-    return this.svc.getRoom(id, req.user?.id);
+    const roles = (req.user as { roles?: string[] } | undefined)?.roles || [];
+    const isAdmin = roles.some((role) => ["SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR"].includes(role));
+    return this.svc.getRoom(id, req.user?.id, isAdmin);
   }
 
   @Put("rooms/:id/presence")
@@ -326,8 +328,17 @@ export class LiveController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
-  setReplay(@Param("id") id: string, @Body("replayUrl") replayUrl: string) {
-    return this.svc.updateStatus(id, "REPLAY", { replayUrl });
+  setReplay(@Param("id") id: string, @Body() body: PublishReplayDto, @Req() req: AuthRequest) {
+    return this.svc.publishReplay(id, body.replayUrl, req.user.id);
+  }
+
+  @Put("rooms/:id/replay/unpublish")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
+  @ApiOperation({ summary: "下架直播回放并保留录像草稿" })
+  @ApiBearerAuth()
+  unpublishReplay(@Param("id") id: string, @Req() req: AuthRequest) {
+    return this.svc.unpublishReplay(id, req.user.id);
   }
 
   @Put("rooms/:id/replay-chapters")

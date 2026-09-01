@@ -277,6 +277,7 @@ import { sanitize } from "@/utils/sanitize";
 import { articleApi, circleApi, api } from "@/api";
 import DataTable from "@/components/DataTable.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
+import { downloadCsvRows } from "@/utils/export";
 
 /** 文章作者 */
 interface ArticleAuthor { nickname?: string }
@@ -470,13 +471,7 @@ function exportCSV() {
     r.title, r.user?.nickname || r.author?.nickname || shortId(r.authorId || r.userId), r.circle?.name || "—",
     tagsText(r), statusText(r.auditStatus), r.viewCount ?? 0, fmtDate(r.createdAt),
   ]);
-  const csv = [headers, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `文章管理_当前页_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  downloadCsvRows(`文章管理_当前页_${new Date().toISOString().slice(0, 10)}`, [headers, ...rows]);
   ElMessage.success(`已导出当前页 ${list.value.length} 条（非全量）`);
 }
 </script>

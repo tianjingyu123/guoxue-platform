@@ -46,6 +46,7 @@ const mockThirdParty = {
   buildDisplayValue: jest.fn((_k: string, v: string) => v),
   buildStoredValue: jest.fn(async (_k: string, v: string) => v),
   syncToEnv: jest.fn().mockResolvedValue(undefined),
+  broadcastReload: jest.fn().mockResolvedValue(1),
 };
 const mockFundApproval = { create: jest.fn() };
 

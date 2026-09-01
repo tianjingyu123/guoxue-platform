@@ -13,6 +13,14 @@ export interface MenuItem {
   children?: MenuItem[];
 }
 
+interface AdminProfile {
+  id?: string;
+  nickname?: string;
+  roles?: Array<string | { roleType?: string }>;
+  merchant?: { status?: string } | null;
+  [key: string]: unknown;
+}
+
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: "超级管理员",
   OPERATION_ADMIN: "运营管理员",
@@ -30,14 +38,16 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export const useAuthStore = defineStore("auth", () => {
-  const user = ref<any>(null);
+  const user = ref<AdminProfile | null>(null);
   const token = ref<string | null>(localStorage.getItem("token"));
   const menus = ref<MenuItem[]>([]);
   const isLogin = computed(() => !!token.value && !!user.value);
 
   // 当前用户角色列表
   const roles = computed<string[]>(() => {
-    return (user.value?.roles || []).map((r: any) => r.roleType);
+    return (user.value?.roles || [])
+      .map((role: unknown) => typeof role === "string" ? role : (role as { roleType?: unknown })?.roleType)
+      .filter((role: unknown): role is string => typeof role === "string" && role.length > 0);
   });
 
   // 角色中文标签（用于 header 展示）
@@ -94,10 +104,9 @@ export const useAuthStore = defineStore("auth", () => {
       const { data } = await authApi.getProfile();
       user.value = data;
       // 缓存角色供路由守卫使用
-      const roleList = (data?.roles || []).map((r: any) => r.roleType);
-      localStorage.setItem("user_roles", JSON.stringify(roleList));
+      localStorage.setItem("user_roles", JSON.stringify(roles.value));
     } catch {
-      logout();
+      logout({ notify: false });
       throw new Error("获取用户信息失败");
     }
   }
@@ -132,12 +141,12 @@ export const useAuthStore = defineStore("auth", () => {
     menus.value = isMerchant.value ? [...base, ...MERCHANT_MENUS] : base;
   }
 
-  function logout() {
+  function logout(options: { notify?: boolean } = {}) {
     token.value = null;
     user.value = null;
     menus.value = [];
     clearAdminSession();
-    ElMessage.success("已退出登录");
+    if (options.notify !== false) ElMessage.success("已退出登录");
   }
 
   return {

@@ -315,6 +315,7 @@
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { api } from "@/api";
+import { downloadCsvRows } from "@/utils/export";
 
 // 退款审核基于「售后申请(AfterSale)」实体：其 status 枚举(PENDING/APPROVED/REJECTED/...)
 // 与本页标签完全对应，且平台侧仅 AfterSale 有「带原因拒绝退款」的真实端点
@@ -544,14 +545,7 @@ function exportCSV() {
     r.orderId, r.user?.nickname || r.userId, typeLabel(r.type ?? ""),
     r.amount, r.reason || "-", activeTab.value, formatDate(r.createdAt ?? ""),
   ]);
-  const csv = [headers, ...rows].map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `退款记录_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadCsvRows(`退款记录_${new Date().toISOString().slice(0, 10)}`, [headers, ...rows]);
   ElMessage.success("导出成功");
 }
 </script>

@@ -46,6 +46,7 @@ import { CollaborationService } from "./collaboration.service";
 import { CollaborationController } from "./collaboration.controller";
 import { AnomalyDetectorService } from "./anomaly-detector.service";
 import { AnomalyDetectorController } from "./anomaly-detector.controller";
+import { AiOpsBridgeService } from "./ai-ops-bridge.service";
 import { DataExplorerService } from "./data-explorer.service";
 import { DataExplorerController } from "./data-explorer.controller";
 import { SystemModule } from "../system/system.module";
@@ -94,6 +95,7 @@ import { RecommendationService } from "../bot/recommendation.service";
     DecisionLedgerService,
     CollaborationService,
     AnomalyDetectorService,
+    AiOpsBridgeService,
     DataExplorerService,
   ],
   exports: [AiGatewayService, ModelRouterService, AiLoggerService, VectorService, HunyuanEmbeddingService, RagService, KnowledgeSyncService, SemanticCacheService, StreamUnifierService, MultiAgentService, MultimodalService, EdgeAiService, KnowledgeGraphService, UserKnowledgeService, PlatformKnowledgeService, AiEventBusService, CapabilityRegistryService, DecisionLedgerService, CollaborationService, AnomalyDetectorService, DataExplorerService],

@@ -59,6 +59,8 @@ const approvedFormalDomainFiles = new Set([
   "apps/mobile/.env.production",
   "apps/mobile/src/androidPrivacy.json",
   "apps/mobile/src/manifest.json",
+  // 原生 App Link 解析器必须精确校验正式/预发布可信主机；这是安全白名单而非 API 地址兜底。
+  "apps/mobile/src/utils/app-entry-link.ts",
 ]);
 const APPROVED_FORMAL_BASELINE_KIND = "正式发布基线";
 

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, IsBoolean, Min, Max, MinLength, MaxLength, ArrayMaxSize, ArrayUnique } from "class-validator";
+import { IsString, IsOptional, IsNumber, IsArray, IsInt, IsIn, IsBoolean, IsUrl, Min, Max, MinLength, MaxLength, ArrayMaxSize, ArrayUnique } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -171,6 +171,13 @@ export class MicJoinDto {
   @IsString()
   @IsIn(["AUDIO", "VIDEO"])
   mediaMode?: "AUDIO" | "VIDEO";
+}
+
+export class PublishReplayDto {
+  @ApiProperty({ description: "HTTPS 回放地址" })
+  @IsString()
+  @IsUrl({ protocols: ["https"], require_protocol: true })
+  replayUrl: string;
 }
 
 export class MicInviteDto extends MicJoinDto {

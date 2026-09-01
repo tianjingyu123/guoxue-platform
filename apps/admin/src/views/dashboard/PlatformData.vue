@@ -10,6 +10,7 @@ import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import ChartCard from '@/components/ChartCard.vue'
 import { User, Document, Goods, Money, Plus, Coin, ChatDotRound, View } from '@element-plus/icons-vue'
+import { downloadCsvRows } from '@/utils/export'
 
 const router = useRouter()
 const loading = ref(true)
@@ -169,14 +170,7 @@ function exportCSV() {
       rows.push([String(i + 1), a.title ?? '', String(a.pageViews ?? 0), String(a.likes ?? 0), String(a.comments ?? 0)])
     })
   }
-  const csv = '﻿' + rows.map((r) => r.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = '平台总数据.csv'
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadCsvRows('平台总数据', rows)
 }
 
 onMounted(fetchData)

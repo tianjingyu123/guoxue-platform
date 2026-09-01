@@ -66,14 +66,17 @@ export class ShopProductService {
 
     return this.prisma.product.create({
       data,
-      include: { skus: true },
+      include: { skus: { where: { isActive: true } } },
     });
   }
 
-  async updateProduct(userId: string, productId: string, dto: UpdateProductDto) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+  async updateProduct(userId: string, productId: string, dto: UpdateProductDto, isAdmin = false) {
+    const product = await this.prisma.product.findUnique({ where: { id: productId, deletedAt: null } });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
-    if (product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的商品");
+    if (!isAdmin && product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能修改自己的商品");
+    if (!isAdmin && dto.status !== undefined && dto.status !== product.status && dto.status !== "OFF_SHELF") {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "商品上架与审核状态只能由平台审核人员变更");
+    }
     if (
       dto.status === "ON_SALE" &&
       !(dto.images ?? product.images).some((image) => image.trim())
@@ -90,6 +93,21 @@ export class ShopProductService {
     if (dto.images !== undefined) {
       await this.audit.moderateImageOrThrow(dto.images, { scene: "PRODUCT_IMAGE", userId, dataId: productId });
     }
+    if (dto.freightTemplateId) {
+      const template = await this.prisma.freightTemplate.findFirst({
+        where: { id: dto.freightTemplateId, isActive: true },
+        select: { id: true },
+      });
+      if (!template) throw new BusinessException(ErrorCode.BAD_REQUEST, "运费模板不存在或已停用");
+    }
+
+    const sensitiveChanged = [
+      dto.title, dto.intro, dto.detail, dto.images, dto.price,
+      dto.sceneTags, dto.freightTemplateId,
+    ].some((value) => value !== undefined);
+    const reviewRequired = !isAdmin
+      && ["ON_SALE", "OFF_SHELF"].includes(product.status)
+      && sensitiveChanged;
 
     const data: Prisma.ProductUpdateInput = {};
     if (dto.title !== undefined) data.title = dto.title;
@@ -100,11 +118,17 @@ export class ShopProductService {
     if (dto.stock !== undefined) data.stock = dto.stock;
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.sceneTags !== undefined) data.sceneTags = dto.sceneTags; // 场景打标即生效（白名单已在 DTO 校验）
+    if (dto.freightTemplateId !== undefined) {
+      data.freightTemplate = dto.freightTemplateId
+        ? { connect: { id: dto.freightTemplateId } }
+        : { disconnect: true };
+    }
+    if (reviewRequired) data.status = "PENDING";
 
     const updated = await this.prisma.product.update({
       where: { id: productId },
       data,
-      include: { skus: true },
+      include: { skus: { where: { isActive: true } } },
     });
     // 清除商品缓存
     await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
@@ -112,18 +136,27 @@ export class ShopProductService {
   }
 
   async deleteProduct(userId: string, productId: string, isAdmin = false) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    const product = await this.prisma.product.findUnique({ where: { id: productId, deletedAt: null } });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
     if (!isAdmin && product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己的商品");
-    await this.prisma.product.delete({ where: { id: productId } });
+    if (!isAdmin && product.status === "ON_SALE") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请先下架商品，再执行删除");
+    }
+    await this.prisma.product.update({
+      where: { id: productId },
+      data: { status: "OFF_SHELF", deletedAt: new Date() },
+    });
     await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
     return { success: true };
   }
 
   /** 更新商品状态 */
   async updateProductStatus(productId: string, status: string) {
+    if (!["PENDING", "ON_SALE", "OFF_SHELF"].includes(status)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "商品状态无效");
+    }
     const product = await this.prisma.product.findUniqueOrThrow({
-      where: { id: productId },
+      where: { id: productId, deletedAt: null },
       select: { images: true },
     });
     if (status === "ON_SALE" && !product.images.some((image) => image.trim())) {
@@ -136,7 +169,7 @@ export class ShopProductService {
 
   /** 设置商品站长推广佣金率（佣-V2-P1·admin-only 由 controller 守卫·null=清除逐品配置回落类目默认 rateA） */
   async setProductCommissionRate(productId: string, rate: number | null) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+    const product = await this.prisma.product.findUnique({ where: { id: productId, deletedAt: null }, select: { id: true } });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
     const updated = await this.prisma.product.update({
       where: { id: productId },
@@ -155,12 +188,17 @@ export class ShopProductService {
    * 违规原因通过审计日志持久化（无需新增 Product 列），返回结果供前端反馈。
    */
   async moderateProduct(productId: string, action: string, reason?: string) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    const product = await this.prisma.product.findUnique({ where: { id: productId, deletedAt: null } });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
 
     let status = product.status;
     if (action === "takedown") status = "OFF_SHELF";
-    else if (action === "restore") status = "ON_SALE";
+    else if (action === "restore") {
+      if (!product.images.some((image) => image.trim())) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "商品必须上传至少一张首图后才能恢复上架");
+      }
+      status = "ON_SALE";
+    }
     else if (action !== "warn") throw new BusinessException(ErrorCode.BAD_REQUEST, "无效的操作类型");
 
     if (status !== product.status) {
@@ -185,11 +223,15 @@ export class ShopProductService {
     return m?.userId ?? null;
   }
 
-  async getProduct(productId: string, scene?: string, pageId?: string) {
+  async getProduct(productId: string, scene?: string, pageId?: string, includeUnpublished = false) {
     const product = await this.prisma.product.findUnique({
-      where: { id: productId },
+      where: {
+        id: productId,
+        deletedAt: null,
+        ...(includeUnpublished ? {} : { status: "ON_SALE" }),
+      },
       include: {
-        skus: true,
+        skus: { where: { isActive: true }, orderBy: { createdAt: "asc" } },
         circle: { select: { id: true, name: true } },
       },
     });
@@ -232,7 +274,7 @@ export class ShopProductService {
     const { categoryId, status, stationId, circleId, keyword, categoryLevel1, priceMin, priceMax, sort } = dto;
     const { page, pageSize, skip } = safePagination(dto.page, dto.pageSize);
 
-    const where: Prisma.ProductWhereInput = {};
+    const where: Prisma.ProductWhereInput = { deletedAt: null };
     if (categoryId) where.categoryId = categoryId;
     if (circleId) where.circleId = circleId;
     // P0 状态过滤（商城收敛·断流止血 2026-07）：C 端不传 status 默认只出在售，
@@ -272,7 +314,7 @@ export class ShopProductService {
     const [products, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
-        include: { skus: true },
+        include: { skus: { where: { isActive: true } } },
         skip,
         take: pageSize,
         orderBy,
@@ -387,11 +429,12 @@ export class ShopProductService {
       id: { notIn: publicQuarantinedIds("product") },
       userId: merchant.userId,
       status: "ON_SALE",
+      deletedAt: null,
     };
     const [products, total, cumSalesAgg, cumOrderCount, ratingAgg] = await Promise.all([
       this.prisma.product.findMany({
         where,
-        include: { skus: true },
+        include: { skus: { where: { isActive: true } } },
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
@@ -436,7 +479,7 @@ export class ShopProductService {
   // ═══════════════════ SKU 管理 ═══════════════════
 
   async addSku(userId: string, productId: string, dto: { name?: string; specs?: Record<string, string>; price: number; stock?: number; skuCode?: string }, isAdmin = false) {
-    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    const product = await this.prisma.product.findUnique({ where: { id: productId, deletedAt: null } });
     if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
     if (!isAdmin && product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能给自己的商品添加SKU");
     let specs = dto.specs || {};
@@ -448,22 +491,40 @@ export class ShopProductService {
         specs = { name: dto.name };
       }
     }
-    return this.prisma.productSku.create({
-      data: {
-        productId,
-        specs,
-        price: dto.price,
-        stock: dto.stock ?? 0,
-        skuCode: dto.skuCode,
-      },
+    const reviewRequired = !isAdmin && ["ON_SALE", "OFF_SHELF"].includes(product.status);
+    const sku = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.productSku.create({
+        data: {
+          productId,
+          specs,
+          price: dto.price,
+          stock: dto.stock ?? 0,
+          skuCode: dto.skuCode,
+          isActive: true,
+        },
+      });
+      if (reviewRequired) {
+        await tx.product.update({ where: { id: productId }, data: { status: "PENDING" } });
+      }
+      return created;
     });
+    await this.redis.del(`${CACHE_PREFIX}product:${productId}`);
+    return { ...sku, reviewRequired };
   }
 
   async deleteSku(userId: string, skuId: string, isAdmin = false) {
     const sku = await this.prisma.productSku.findUnique({ where: { id: skuId }, include: { product: true } });
-    if (!sku) throw new BusinessException(ErrorCode.NOT_FOUND, "SKU不存在");
+    if (!sku || sku.product.deletedAt) throw new BusinessException(ErrorCode.NOT_FOUND, "SKU不存在");
     if (!isAdmin && sku.product.userId !== userId) throw new BusinessException(ErrorCode.FORBIDDEN, "只能删除自己商品的SKU");
-    await this.prisma.productSku.delete({ where: { id: skuId } });
-    return { success: true };
+    if (!sku.isActive) return { success: true, reviewRequired: false };
+    const reviewRequired = !isAdmin && ["ON_SALE", "OFF_SHELF"].includes(sku.product.status);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.productSku.update({ where: { id: skuId }, data: { isActive: false } });
+      if (reviewRequired) {
+        await tx.product.update({ where: { id: sku.productId }, data: { status: "PENDING" } });
+      }
+    });
+    await this.redis.del(`${CACHE_PREFIX}product:${sku.productId}`);
+    return { success: true, reviewRequired };
   }
 }

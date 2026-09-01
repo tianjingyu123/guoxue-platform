@@ -48,6 +48,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
     fields: [
       S("appId", "绑定 AppID", "WECHAT_PAY_APP_ID", false, "与商户号完成绑定的小程序/公众号 AppID（未填时自动使用「微信小程序」卡片的 AppID）"),
       S("mchId", "商户号", "WECHAT_PAY_MCH_ID", false, "商户平台→账户中心→商户信息→商户号（10位数字）"),
+      S("allowedMchId", "生产商户号白名单", "WECHAT_PAY_ALLOWED_MCH_ID", false, "必须与上方商户号完全一致；生产资金操作会做二次校验，避免误切到测试或历史商户号"),
       S("apiV3Key", "APIv3 密钥", "WECHAT_PAY_API_V3_KEY", true, "商户平台→账户中心→API安全→APIv3密钥（自己设一个32位字符串并牢记）"),
       S("serialNo", "证书序列号", "WECHAT_PAY_SERIAL_NO", false, "商户平台→账户中心→API安全→申请API证书后，证书详情里的序列号"),
       S("privateKey", "商户私钥（内容或路径）", "WECHAT_PAY_PRIVATE_KEY", true, "两种填法任选其一：① 用记事本打开 apiclient_key.pem，全选复制内容粘贴进来；② 或直接填服务器上证书文件的完整路径（如 /opt/guoxue/certs/apiclient_key.pem）。系统会自动识别是内容还是路径。", "", true, true),
@@ -122,6 +123,7 @@ export const THIRD_PARTY_SERVICES: ThirdPartyService[] = [
       S("merId", "商户号", "UNIONPAY_MER_ID", false, "银联分配的商户号（15位）"),
       S("pfxPath", "证书路径(.pfx)", "UNIONPAY_PFX_PATH", true, "银联签名证书 .pfx 文件（需放服务器，路径找技术）"),
       S("pfxPassword", "证书密码", "UNIONPAY_PFX_PASSWORD", true, "申请 .pfx 证书时设置的密码"),
+      S("publicKey", "银联验签公钥（内容或路径）", "UNIONPAY_PUBLIC_KEY", true, "银联正式环境提供的验签公钥/证书内容，或服务器文件绝对路径；用于验证支付、查询和退款响应，不能使用商户自身私钥替代", "", true, true),
       S("notifyUrl", "后台通知地址", "UNIONPAY_NOTIFY_URL", false, "填写当前 PUBLIC_API_URL 下的 /api/v1/shop/unionpay/notify"),
     ],
   },

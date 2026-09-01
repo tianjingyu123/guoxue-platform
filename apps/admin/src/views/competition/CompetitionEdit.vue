@@ -434,6 +434,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import { Delete } from "@element-plus/icons-vue";
 import { competitionApi } from "@/api";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 
 const route = useRoute();
 const router = useRouter();
@@ -482,6 +483,10 @@ const form = reactive({
   tags: [] as string[],
   status: "DRAFT" as string,
 });
+const { captureBaseline } = useUnsavedChanges(
+  () => ({ ...form, status: undefined }),
+  { message: "赛事资料仍有未保存修改，离开后将丢失。确定离开？" },
+);
 
 const rules = {
   title: [{ required: true, message: "请输入赛事标题", trigger: "blur" }],
@@ -532,6 +537,7 @@ onMounted(async () => {
         tags: data.tags || [],
         status: data.status || "DRAFT",
       });
+      captureBaseline();
     } catch {
       ElMessage.error("加载赛事数据失败");
     }
@@ -558,6 +564,7 @@ async function save() {
     if (isEdit.value) {
       await competitionApi.update(competitionId, payload);
       ElMessage.success("保存成功");
+      captureBaseline();
     } else {
       const { data } = await competitionApi.create(payload);
       ElMessage.success("创建成功");
@@ -598,6 +605,7 @@ async function handleDelete() {
     deleting.value = true;
     await competitionApi.delete(competitionId);
     ElMessage.success("已删除");
+    captureBaseline();
     router.push("/competitions");
   } catch (e) {
     if (e !== "cancel" && e !== "close") ElMessage.error("删除失败");

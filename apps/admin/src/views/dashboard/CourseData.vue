@@ -15,6 +15,7 @@ import type { Component } from 'vue'
 import { dashboardApi, courseApi } from '@/api'
 import ChartCard from '@/components/ChartCard.vue'
 import { Reading, Avatar, Money, Goods, CircleCheckFilled, User } from '@element-plus/icons-vue'
+import { downloadCsvRows } from '@/utils/export'
 
 // ==================== 后端契约类型 ====================
 interface CourseDashboard {
@@ -191,16 +192,9 @@ function exportCSV() {
   const churn = d.churnNodes ?? []
   if (churn.length) {
     rows.push([], ['章节', '完课人数', '较上一章流失率'])
-    for (const c of churn) rows.push([`"${(c.chapterTitle ?? '').replace(/"/g, '""')}"`, c.completedCount ?? 0, c.churnRate ?? ''])
+    for (const c of churn) rows.push([c.chapterTitle ?? '', c.completedCount ?? 0, c.churnRate ?? ''])
   }
-  const csv = '﻿' + rows.map((r) => r.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `课程数据_${d.basicInfo?.title ?? entityId.value}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadCsvRows(`课程数据_${d.basicInfo?.title ?? entityId.value}`, rows)
 }
 </script>
 

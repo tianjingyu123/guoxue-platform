@@ -14,6 +14,16 @@ html, body, #app {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 键盘操作统一焦点：后台所有自定义按钮、菜单与快捷入口均可明确定位。 */
+:where(a, button, input, textarea, select, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-gold-dark);
+  outline-offset: 2px;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ── 滚动条 ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -428,4 +438,16 @@ html, body, #app {
   .el-table .el-table__cell .cell { gap: 2px; }
   .el-card__body { padding: 12px !important; }
   .el-dialog { width: 95% !important; }
+}
+
+/* 尊重系统减少动态效果设置，避免页面切换、悬浮和加载动画造成不适。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

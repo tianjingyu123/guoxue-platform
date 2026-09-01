@@ -14,13 +14,17 @@ interface CronJob {
   lastRunAt?: string;
   nextRun?: string;
   nextRunAt?: string;
+  source?: "process" | "webhook";
+  label?: string;
+  manualRunnable?: boolean;
+  durationMs?: number | null;
 }
 
 const jobs = ref<CronJob[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const notImplemented = ref(false);
-const triggering = ref(false);
+const triggering = ref("");
 const status = ref<Record<string, unknown>>({});
 
 onMounted(() => fetchStatus());
@@ -34,12 +38,26 @@ async function fetchStatus() {
     // 修"页空转"根因——旧 /system/cron-status 只查 OperationLog(webhook触发型)，@Cron 任务不落库故永远空。
     const { data } = await systemApi.getCronJobs();
     const registered = (data as any)?.registered ?? [];
-    jobs.value = registered.map((r: any) => ({
+    const processJobs = registered.map((r: any) => ({
       name: r.name,
       schedule: r.cronTime,
       status: r.running ? "running" : "idle",
+      lastRun: r.lastRun,
       nextRun: r.nextRun,
+      source: "process" as const,
+      manualRunnable: false,
     }));
+    const manualJobs = ((data as any)?.manual ?? []).map((r: any) => ({
+      name: r.name,
+      label: r.label,
+      schedule: r.schedule,
+      status: r.lastStatus === "success" ? "success" : r.lastStatus,
+      lastRun: r.lastRunAt,
+      source: "webhook" as const,
+      manualRunnable: true,
+      durationMs: r.durationMs,
+    }));
+    jobs.value = [...manualJobs, ...processJobs];
     status.value = data ?? {};
   } catch (e: any) {
     // 404 兜底：z8 前的后端无 /system/cron，降级回旧 cron-status（webhook触发记录）
@@ -66,19 +84,25 @@ async function triggerJob(jobName: string) {
   if (triggering.value) return;
   try {
     await ElMessageBox.confirm(`确认手动触发 "${jobName}" 任务？`, "操作确认", { type: "warning" });
-    triggering.value = true;
-    await systemApi.triggerCron(jobName);
-    ElMessage.success(`任务 ${jobName} 已触发`);
+    triggering.value = jobName;
+    const { data } = await systemApi.triggerCron(jobName);
+    if ((data as any)?.skipped) ElMessage.warning((data as any)?.reason || "任务已在执行，本次未重复触发");
+    else ElMessage.success(`任务 ${jobName} 执行完成`);
     fetchStatus();
-  } catch { /* 用户取消 */ } finally {
-    triggering.value = false;
+  } catch (error: any) {
+    if (error !== "cancel" && error !== "close") {
+      ElMessage.error(error?.response?.data?.message || "任务触发失败");
+    }
+  } finally {
+    triggering.value = "";
   }
 }
 
 function getStatusTag(s?: string) {
-  if (s === "running" || s === "active") return "success";
+  if (s === "running" || s === "active" || s === "success") return "success";
   if (s === "idle" || s === "pending") return "info";
   if (s === "error" || s === "failed") return "danger";
+  if (s === "never_run") return "warning";
   return "info";
 }
 
@@ -87,6 +111,7 @@ function statusLabel(s?: string) {
     running: "运行中", active: "已启用",
     idle: "空闲", pending: "等待中",
     error: "出错", failed: "失败",
+    success: "成功", never_run: "尚未执行",
     disabled: "已停用", stopped: "已停止",
   };
   return (s && map[s]) || s || "-";
@@ -149,7 +174,19 @@ function formatLastRun(v?: string) {
         prop="name"
         label="任务名称"
         width="250"
-      />
+      >
+        <template #default="{ row }">
+          <div>{{ row.label || row.name }}</div>
+          <code v-if="row.label" style="font-size:11px;color:var(--color-text-secondary)">{{ row.name }}</code>
+        </template>
+      </el-table-column>
+      <el-table-column label="来源" width="110">
+        <template #default="{ row }">
+          <el-tag size="small" :type="row.source === 'webhook' ? 'warning' : 'info'">
+            {{ row.source === 'webhook' ? '外部调度' : '进程内' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column
         label="调度规则"
         width="200"
@@ -212,13 +249,16 @@ function formatLastRun(v?: string) {
       >
         <template #default="{ row }">
           <el-button
+            v-if="row.manualRunnable"
             size="small"
             type="primary"
-            :loading="triggering"
+            :loading="triggering === row.name"
+            :disabled="Boolean(triggering)"
             @click="triggerJob(row.name)"
           >
             手动触发
           </el-button>
+          <span v-else style="color:var(--color-text-secondary);font-size:12px">仅自动调度</span>
         </template>
       </el-table-column>
     </el-table>

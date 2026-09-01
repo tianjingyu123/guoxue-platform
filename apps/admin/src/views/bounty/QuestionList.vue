@@ -206,7 +206,7 @@
       >
         <template #default="{ row }">
           <el-button
-            v-if="['OPEN', 'CLAIMED', 'ANSWERED'].includes(row.status || '')"
+            v-if="['OPEN', 'CLAIMED'].includes(row.status || '')"
             size="small"
             type="danger"
             :loading="closingId === row.id"
@@ -329,9 +329,7 @@ async function handleClose(row: QuestionRow) {
   // L2 理由必填：关闭悬赏属下架类危险操作；未回答（悬赏中/已认领）会退还提问者赏金
   let reason = "";
   try {
-    const refundHint = ["OPEN", "CLAIMED"].includes(row.status || "")
-      ? "该悬赏尚未回答，关闭后赏金将解冻退还提问者。"
-      : "该悬赏已有回答，关闭不影响已发生的结算。";
+    const refundHint = "关闭后赏金将按本悬赏业务单号解冻退还提问者。";
     const { value } = await ElMessageBox.prompt(
       `确定关闭悬赏"${row.title}"吗？${refundHint}请填写关闭理由：`,
       "确认关闭",
@@ -347,8 +345,6 @@ async function handleClose(row: QuestionRow) {
   } catch { return; /* 用户取消 */ }
   closingId.value = row.id;
   try {
-    // 后端 POST /admin/bounty/questions/:id/close 暂未消费 reason（body 会被 whitelist 剥离），
-    // 前端先行收集并随请求带上，后端补契约后即留痕；页面内直调不动 api/index.ts
     await api.post(`/admin/bounty/questions/${row.id}/close`, { reason });
     ElMessage.success("已关闭");
     fetchList();

@@ -157,6 +157,18 @@ export class HuifuService implements OnModuleInit {
   // ───────── 配置管理 ─────────
 
   private async getConfig(key: string): Promise<string> {
+    // 统一第三方配置页同步到 env，必须优先于历史 HuifuConfig；否则旧表残留会静默覆盖新配置。
+    const envMap: Record<string, string | undefined> = {
+      merchantId: process.env.HUIFU_MERCHANT_ID,
+      upperHuifuId: process.env.HUIFU_UPPER_HUIFU_ID,
+      appId: process.env.HUIFU_APP_ID,
+      productId: process.env.HUIFU_PRODUCT_ID,
+      secretKey: process.env.HUIFU_SECRET_KEY,
+      rsaPrivateKey: process.env.HUIFU_RSA_PRIVATE_KEY,
+      rsaPublicKey: process.env.HUIFU_RSA_PUBLIC_KEY,
+      notifyUrl: process.env.HUIFU_NOTIFY_URL,
+    };
+    if (envMap[key]) return envMap[key] || "";
     // 先从内存缓存读取
     if (this.configCache.has(key) && Date.now() - this.certCacheTime < 300_000) {
       return this.configCache.get(key)!;
@@ -178,17 +190,7 @@ export class HuifuService implements OnModuleInit {
       this.certCacheTime = Date.now();
       return value;
     }
-    // 回退到环境变量
-    const envMap: Record<string, string | undefined> = {
-      merchantId: process.env.HUIFU_MERCHANT_ID,
-      upperHuifuId: process.env.HUIFU_UPPER_HUIFU_ID,
-      appId: process.env.HUIFU_APP_ID,
-      productId: process.env.HUIFU_PRODUCT_ID,
-      secretKey: process.env.HUIFU_SECRET_KEY,
-      rsaPrivateKey: process.env.HUIFU_RSA_PRIVATE_KEY,
-      rsaPublicKey: process.env.HUIFU_RSA_PUBLIC_KEY,
-      notifyUrl: process.env.HUIFU_NOTIFY_URL,
-    };
+    // 兼容历史 HuifuConfig；统一配置与旧表都没有时返回空。
     return envMap[key] || "";
   }
 

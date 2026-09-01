@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Put, Body, Param, Query, UseGuards, Req } from "@nestjs/common";
+import type { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { BountyService } from "./bounty.service";
-import { RejectReviewDto } from "./bounty.dto";
+import { CloseBountyQuestionDto, RejectReviewDto } from "./bounty.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -23,15 +24,19 @@ export class BountyAdminController {
     @Query("category") category?: string,
     @Query("status") status?: string,
   ) {
-    return this.svc.list(page ? +page : 1, pageSize ? +pageSize : 20, category, status);
+    return this.svc.list(page ? +page : 1, pageSize ? +pageSize : 20, category, status, undefined, true);
   }
 
   @Post("questions/:id/close")
   @ApiOperation({ summary: "管理员关闭悬赏" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  closeQuestion(@Param("id") id: string) {
-    return this.svc.closeQuestion(id);
+  closeQuestion(
+    @Param("id") id: string,
+    @Body() body: CloseBountyQuestionDto,
+    @Req() req: Request,
+  ) {
+    return this.svc.closeQuestion(id, body.reason, req.user.id);
   }
 
   @Get("reviews")

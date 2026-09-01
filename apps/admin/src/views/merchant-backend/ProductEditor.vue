@@ -16,12 +16,12 @@
  * - 封面+轮播 → Product.images（images[0]=封面·其余=轮播）
  * - 详情图+补充说明 → Product.detail（HTML：<img> 序列 + 富文本·编辑时按"起始连续图片"还原拆分）
  * - 商品创建/更新 → /merchant-backend/products（MerchantProductDto）
- * - SKU 增删 → /shop/products/:id/skus + /shop/skus/:skuId（owner 校验·无更新端点·改=删+重建）
+ * - SKU 与商品主体同一事务保存，避免部分成功；运费模板随商品绑定并进入审核敏感字段。
  */
 import { ref, reactive, computed, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Delete, InfoFilled } from "@element-plus/icons-vue";
-import { merchantBackendApi, productApi } from "@/api";
+import { merchantBackendApi, productApi, api } from "@/api";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import ImageListUpload from "@/components/upload/ImageListUpload.vue";
 import RichEditor from "@/components/editor/RichEditor.vue";
@@ -51,6 +51,7 @@ const form = reactive({
   originalPrice: null as number | null, // 划线价（选填·须大于售价）
   stock: 0,
   categoryId: "",
+  freightTemplateId: "",
   tags: [] as string[],
 });
 
@@ -66,7 +67,6 @@ interface SkuRow {
 }
 const skuRows = ref<SkuRow[]>([]);
 /** 打开时的 SKU 快照（保存时 diff：改=删+重建·删=删·新=增） */
-let origSkus: Array<SkuRow & { id: string }> = [];
 
 const loading = ref(false);
 const saving = ref(false);
@@ -96,6 +96,17 @@ async function loadCategories() {
       children: n.children?.length ? n.children : undefined,
     }));
   } catch { /* 分类树加载失败不阻塞编辑 */ }
+}
+
+interface FreightOption { id: string; name: string; type: string; defaultFee: number | string; isActive: boolean }
+const freightOptions = ref<FreightOption[]>([]);
+async function loadFreightTemplates() {
+  try {
+    const { data } = await api.get("/shop/freight-templates", { params: { page: 1, pageSize: 100 } });
+    freightOptions.value = (data?.items || []).filter((item: FreightOption) => item.isActive);
+  } catch {
+    freightOptions.value = [];
+  }
 }
 
 /* ══════════════ detail HTML ⇄ 详情图+补充说明 ══════════════ */
@@ -164,11 +175,10 @@ function parseDetail(html: string): { images: string[]; supplement: string } {
 function resetForm() {
   Object.assign(form, {
     title: "", intro: "", cover: "", carousel: [], detailImages: [],
-    supplement: "", price: null, originalPrice: null, stock: 0, categoryId: "", tags: [],
+    supplement: "", price: null, originalPrice: null, stock: 0, categoryId: "", freightTemplateId: "", tags: [],
   });
   multiSpec.value = false;
   skuRows.value = [];
-  origSkus = [];
   supplementOpen.value = [];
   tagInputVisible.value = false;
   tagInputValue.value = "";
@@ -178,7 +188,7 @@ interface SkuData { id: string; specs?: Record<string, string>; price: number | 
 interface ProductDetailData {
   id: string; title?: string; intro?: string; detail?: string;
   images?: string[]; price?: number | string; originalPrice?: number | string | null; stock?: number;
-  categoryId?: string; tags?: string[]; skus?: SkuData[];
+  categoryId?: string; freightTemplateId?: string | null; tags?: string[]; skus?: SkuData[];
 }
 
 async function loadProduct(id: string) {
@@ -200,6 +210,7 @@ async function loadProduct(id: string) {
     form.originalPrice = p.originalPrice != null ? Number(p.originalPrice) : null;
     form.stock = Number(p.stock) || 0;
     form.categoryId = p.categoryId || "";
+    form.freightTemplateId = p.freightTemplateId || "";
     form.tags = [...(p.tags || [])];
     // SKU：specs Json → 规格名/规格值（多维规格用 " / " 拼接展示·保存改动时会重建为单维）
     const skus = p.skus || [];
@@ -213,7 +224,6 @@ async function loadProduct(id: string) {
         stock: Number(s.stock) || 0,
       };
     });
-    origSkus = skuRows.value.filter((r): r is SkuRow & { id: string } => !!r.id).map((r) => ({ ...r, id: r.id as string }));
     multiSpec.value = skuRows.value.length > 0;
     baseline = snapshot(); // 加载完成后的状态作为"未改动"基准
   } catch {
@@ -229,6 +239,7 @@ watch(visible, (v) => {
   resetForm();
   baseline = snapshot(); // 新建：空表单为基准（编辑态在 loadProduct 完成后覆盖）
   loadCategories();
+  loadFreightTemplates();
   if (props.productId) loadProduct(props.productId);
 });
 
@@ -317,39 +328,6 @@ function validate(): string | null {
   return null;
 }
 
-/** SKU 同步（diff）：无更新端点·改动的行=删旧+建新 */
-async function syncSkus(productId: string): Promise<number> {
-  const rows = multiSpec.value ? skuRows.value : []; // 关掉多规格 = 清空全部 SKU
-  const keptIds = new Set<string>();
-  const toAdd: SkuRow[] = [];
-  for (const row of rows) {
-    if (row.id) {
-      const orig = origSkus.find((o) => o.id === row.id);
-      const unchanged = orig && orig.specName === row.specName && orig.specValue === row.specValue
-        && orig.price === row.price && orig.stock === row.stock;
-      if (unchanged) { keptIds.add(row.id); continue; }
-      toAdd.push(row); // 改过：旧的删（下方统一删）·内容重建
-    } else {
-      toAdd.push(row);
-    }
-  }
-  const toDelete = origSkus.filter((o) => !keptIds.has(o.id));
-  let failed = 0;
-  for (const sku of toDelete) {
-    try { await merchantBackendApi.deleteSku(sku.id); } catch { failed++; }
-  }
-  for (const row of toAdd) {
-    try {
-      await merchantBackendApi.addSku(productId, {
-        name: `${row.specName.trim() || "规格"}:${row.specValue.trim()}`,
-        price: row.price as number,
-        stock: Number(row.stock) || 0,
-      });
-    } catch { failed++; }
-  }
-  return failed;
-}
-
 async function save() {
   const err = validate();
   if (err) { ElMessage.warning(err); return; }
@@ -363,31 +341,36 @@ async function save() {
       // 多规格：商品级售价=最低规格价（列表"¥X起"）·库存=规格库存之和
       price: multiSpec.value ? (minSkuPrice.value ?? 0) : Number(form.price),
       // 划线价（选填·后端 originalPrice 已支持）：无值不传
-      ...(form.originalPrice != null && form.originalPrice > 0 ? { originalPrice: Number(form.originalPrice) } : {}),
+      originalPrice: form.originalPrice != null && form.originalPrice > 0 ? Number(form.originalPrice) : null,
       stock: multiSpec.value ? totalSkuStock.value : Number(form.stock) || 0,
       tags: form.tags,
       // 空分类传 null（编辑时可清空分类·@IsOptional 放行 null）
       categoryId: form.categoryId || null,
+      freightTemplateId: form.freightTemplateId || null,
+      // 商品主体与规格由服务端在同一事务保存，任何一项失败都不会留下半套规格。
+      skus: multiSpec.value
+        ? skuRows.value.map((row) => ({
+            ...(row.id ? { id: row.id } : {}),
+            specs: { [row.specName.trim() || "规格"]: row.specValue.trim() },
+            price: Number(row.price),
+            stock: Number(row.stock) || 0,
+          }))
+        : [],
     };
 
-    let id = props.productId || "";
+    const id = props.productId || "";
+    let reviewRequired = false;
     if (id) {
-      await merchantBackendApi.updateProduct(id, payload);
+      const { data } = await merchantBackendApi.updateProduct(id, payload);
+      reviewRequired = Boolean((data as { reviewRequired?: boolean })?.reviewRequired);
     } else {
-      const { data } = await merchantBackendApi.createProduct(payload);
-      id = (data as { id?: string })?.id || "";
+      await merchantBackendApi.createProduct(payload);
     }
-
-    // SKU 同步（新建失败拿不到 id 时跳过并提示）
-    let skuFailed = 0;
-    if (id && (multiSpec.value || origSkus.length > 0)) {
-      skuFailed = await syncSkus(id);
-    }
-    if (skuFailed > 0) {
-      ElMessage.warning(`商品已保存，但 ${skuFailed} 条规格同步失败，请重新编辑规格`);
-    } else {
-      ElMessage.success(props.productId ? "保存成功" : "发布成功");
-    }
+    ElMessage.success(
+      reviewRequired
+        ? "保存成功，核心信息有变更，商品已转为待审核"
+        : props.productId ? "保存成功" : "已提交发布",
+    );
     baseline = snapshot(); // 已保存：关闭不再提示未保存
     visible.value = false;
     emit("saved");
@@ -522,6 +505,19 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
                 </el-form-item>
               </el-col>
             </el-row>
+            <el-form-item label="运费模板">
+              <el-select v-model="form.freightTemplateId" clearable placeholder="平台包邮（不绑定模板）" style="width: 100%">
+                <el-option
+                  v-for="item in freightOptions"
+                  :key="item.id"
+                  :label="`${item.name} · ${item.type === 'FREE' ? '包邮' : '默认 ¥' + Number(item.defaultFee).toFixed(2)}`"
+                  :value="item.id"
+                />
+              </el-select>
+              <div class="field-help">
+                不选择表示平台包邮；固定运费、地区运费与满额包邮均在“运费模板”中统一维护。
+              </div>
+            </el-form-item>
           </el-form>
         </section>
 

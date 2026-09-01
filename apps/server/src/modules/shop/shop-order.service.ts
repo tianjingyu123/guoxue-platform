@@ -26,6 +26,12 @@ const OPERATOR_LEVELS = ["SILVER", "GOLD", "DIAMOND", "BLACK_GOLD"];
  */
 const FRANCHISE_ORDER_TYPES = ["STATION_MASTER", "OPERATOR"];
 
+interface FreightQuote {
+  shippingFee: number;
+  freightTemplateId: string | null;
+  snapshot: Prisma.InputJsonValue;
+}
+
 /**
  * 商城订单-下单与查询域（从 shop.service 拆出·纯搬家不改逻辑）。
  * 职责：下单(含归因/秒杀/优惠券/自购立减)、拼团下单与成团结算、订单查询/列表补全。
@@ -107,9 +113,20 @@ export class ShopOrderService {
       if (dto.skuId) {
         const sku = await this.prisma.productSku.findUnique({
           where: { id: dto.skuId },
-          select: { price: true, product: { select: { id: true, status: true, supplierType: true, userId: true } } },
+          select: {
+            price: true,
+            productId: true,
+            isActive: true,
+            product: { select: { id: true, status: true, deletedAt: true, supplierType: true, userId: true } },
+          },
         });
-        if (!sku || sku.product.status !== "ON_SALE") {
+        if (
+          !sku
+          || !sku.isActive
+          || sku.productId !== productId
+          || sku.product.deletedAt
+          || sku.product.status !== "ON_SALE"
+        ) {
           throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
         }
         supplierType = sku.product.supplierType;
@@ -117,10 +134,21 @@ export class ShopOrderService {
       } else {
         const product = await this.prisma.product.findUnique({
           where: { id: productId },
-          select: { id: true, price: true, status: true, supplierType: true, userId: true },
+          select: {
+            id: true,
+            price: true,
+            status: true,
+            deletedAt: true,
+            supplierType: true,
+            userId: true,
+            skus: { where: { isActive: true }, take: 1, select: { id: true } },
+          },
         });
-        if (!product || product.status !== "ON_SALE") {
+        if (!product || product.deletedAt || product.status !== "ON_SALE") {
           throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
+        }
+        if (product.skus?.length) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择商品规格后再购买");
         }
         supplierType = product.supplierType;
         supplierUserId = product.userId ?? undefined;
@@ -148,7 +176,10 @@ export class ShopOrderService {
       merchantId = merchant?.id;
     }
 
-    // 收货地址校验与快照（实物订单）：校验归属当前用户，存下单时快照（地址表可改可删，订单存快照最可靠）
+    // 收货地址校验与快照（实物订单）：API 直调也必须有地址，不能只依赖前端页面拦截。
+    if (dto.type === "PRODUCT" && !dto.addressId) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "实物商品下单必须选择收货地址");
+    }
     let shippingInfo: Record<string, string> | undefined;
     if (dto.addressId) {
       const addr = await this.prisma.shippingAddress.findFirst({
@@ -161,6 +192,9 @@ export class ShopOrderService {
         city: addr.city, district: addr.district, detail: addr.detail,
       };
     }
+    const freightQuote: FreightQuote = dto.type === "PRODUCT"
+      ? await this.quoteFreight(dto.targetId, shippingInfo?.province, actualAmount)
+      : { shippingFee: 0, freightTemplateId: null, snapshot: { type: "NOT_APPLICABLE", shippingFee: 0 } };
 
     // 归因 + 分销自购立减解析（与 estimateOrder 共用同一实现，保证试算与实付一致）
     const {
@@ -229,6 +263,10 @@ export class ShopOrderService {
           selfDiscount = Math.round(actualAmount * selfPurchaseRate * 100) / 100;
           actualAmount = Math.max(0.01, Math.round((actualAmount - selfDiscount) * 100) / 100);
         }
+        // 运费独立于商品优惠计算：优惠券/自购立减只抵商品，运费按下单前展示的同一模板快照计入实付。
+        if (dto.type === "PRODUCT") {
+          actualAmount = Math.round((actualAmount + freightQuote.shippingFee) * 100) / 100;
+        }
 
         // ── 秒杀两道闸（每人限购 + 秒杀条目量原子扣减）──
         // FlashSaleItem 按 @@unique([flashSaleId, productId]) 唯一定位；
@@ -285,6 +323,9 @@ export class ShopOrderService {
             merchantId,
             addressId: dto.addressId,
             shippingInfo: shippingInfo as any,
+            shippingFee: freightQuote.shippingFee,
+            freightTemplateId: freightQuote.freightTemplateId,
+            freightSnapshot: freightQuote.snapshot,
             referrerId: selfDiscount > 0 ? null : permanentReferrerId,
             tempReferrerId: selfDiscount > 0 ? null : tempReferrerId,
             tempRefSubjectType: selfDiscount > 0 ? null : tempRefSubjectType, // 渠道主体类型（佣-V2-P2·分佣受益人路由依据·与推荐关系同生共灭）
@@ -303,7 +344,7 @@ export class ShopOrderService {
           let movementProductId = dto.targetId;
           if (dto.skuId) {
             const skuResult = await tx.productSku.updateMany({
-              where: { id: dto.skuId, stock: { gte: qty } },
+              where: { id: dto.skuId, productId: dto.targetId, isActive: true, stock: { gte: qty } },
               data: { stock: { decrement: qty } },
             });
             if (skuResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "SKU库存不足");
@@ -314,7 +355,7 @@ export class ShopOrderService {
             }
           } else {
             const productResult = await tx.product.updateMany({
-              where: { id: dto.targetId, stock: { gte: qty } },
+              where: { id: dto.targetId, status: "ON_SALE", deletedAt: null, stock: { gte: qty } },
               data: { stock: { decrement: qty } },
             });
             if (productResult.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
@@ -470,25 +511,36 @@ export class ShopOrderService {
    * 活动单价×数量（统一定价引擎）→ 优惠券折扣（同一 applyCouponPricing，不核销）→ 分销自购立减（同一 resolveAttribution）。
    * 只读：不建单、不占券、不扣库存、不做秒杀限购/库存闸（那些在真实下单时拦截）。
    */
-  async estimateOrder(userId: string, dto: { targetId: string; skuId?: string; quantity?: number; couponId?: string; tempReferrerId?: string }) {
+  async estimateOrder(userId: string, dto: { targetId: string; skuId?: string; quantity?: number; couponId?: string; tempReferrerId?: string; addressId?: string }) {
     const qty = Math.max(1, Math.floor(Number(dto.quantity) || 1));
 
     // 商品可购校验（与 createOrder 同口径）
     if (dto.skuId) {
       const sku = await this.prisma.productSku.findUnique({
         where: { id: dto.skuId },
-        select: { product: { select: { status: true } } },
+        select: {
+          productId: true,
+          isActive: true,
+          product: { select: { status: true, deletedAt: true } },
+        },
       });
-      if (!sku || sku.product.status !== "ON_SALE") {
+      if (!sku || !sku.isActive || sku.productId !== dto.targetId || sku.product.deletedAt || sku.product.status !== "ON_SALE") {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
       }
     } else {
       const product = await this.prisma.product.findUnique({
         where: { id: dto.targetId },
-        select: { status: true },
+        select: {
+          status: true,
+          deletedAt: true,
+          skus: { where: { isActive: true }, take: 1, select: { id: true } },
+        },
       });
-      if (!product || product.status !== "ON_SALE") {
+      if (!product || product.deletedAt || product.status !== "ON_SALE") {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
+      }
+      if (product.skus?.length) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择商品规格后再购买");
       }
     }
 
@@ -497,6 +549,13 @@ export class ShopOrderService {
       dto.targetId, dto.skuId, userId, { scene: "checkout" },
     );
     const goodsAmount = Math.round(pricing.effectivePrice * qty * 100) / 100;
+    if (!dto.addressId) throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择收货地址后再核算运费");
+    const address = await this.prisma.shippingAddress.findFirst({
+      where: { id: dto.addressId, userId },
+      select: { province: true },
+    });
+    if (!address) throw new BusinessException(ErrorCode.BAD_REQUEST, "收货地址不存在或不属于当前用户");
+    const freightQuote = await this.quoteFreight(dto.targetId, address.province, goodsAmount);
 
     // 券后价（同一计算实现·只读不核销）
     let payableAmount = goodsAmount;
@@ -512,9 +571,12 @@ export class ShopOrderService {
       selfDiscount = Math.round(payableAmount * selfPurchaseRate * 100) / 100;
       payableAmount = Math.max(0.01, Math.round((payableAmount - selfDiscount) * 100) / 100);
     }
+    payableAmount = Math.round((payableAmount + freightQuote.shippingFee) * 100) / 100;
 
     return {
       goodsAmount,
+      shippingFee: freightQuote.shippingFee,
+      freightTemplateId: freightQuote.freightTemplateId,
       couponDiscount,
       selfDiscount,
       selfDiscountRate: selfPurchaseRate,
@@ -522,6 +584,66 @@ export class ShopOrderService {
       unitPrice: pricing.effectivePrice,
       quantity: qty,
       appliedPromotion: pricing.appliedPromotion ?? null,
+    };
+  }
+
+  /** 运费唯一计算口径：商品绑定模板 + 收货省份 + 优惠前商品金额，试算与建单共用。 */
+  private async quoteFreight(productId: string, province: string | undefined, goodsAmount: number): Promise<FreightQuote> {
+    if (!province) throw new BusinessException(ErrorCode.BAD_REQUEST, "收货地址缺少省份，无法核算运费");
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        freightTemplateId: true,
+        freightTemplate: {
+          select: { id: true, name: true, type: true, defaultFee: true, conditionFree: true, regions: true, isActive: true },
+        },
+      },
+    });
+    if (!product) throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
+    if (!product.freightTemplateId) {
+      return {
+        shippingFee: 0,
+        freightTemplateId: null,
+        snapshot: { templateName: "平台包邮（未绑定模板）", type: "FREE", province, shippingFee: 0 },
+      };
+    }
+    const template = product.freightTemplate;
+    if (!template?.isActive) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品运费模板已停用，请联系商家处理后再下单");
+
+    const regions = template.regions && typeof template.regions === "object" && !Array.isArray(template.regions)
+      ? template.regions as Record<string, unknown>
+      : {};
+    const provinceSuffix = /(壮族自治区|回族自治区|维吾尔自治区|特别行政区|自治区|省|市)$/u;
+    const normalizedProvince = province.replace(provinceSuffix, "");
+    const regionEntry = Object.entries(regions).find(([key]) => {
+      const normalizedKey = key.replace(provinceSuffix, "");
+      return key === province || normalizedKey === normalizedProvince;
+    });
+    const defaultFee = Math.max(0, Number(template.defaultFee));
+    const regionFee = regionEntry && Number.isFinite(Number(regionEntry[1])) ? Math.max(0, Number(regionEntry[1])) : defaultFee;
+    const condition = template.conditionFree && typeof template.conditionFree === "object"
+      ? (Array.isArray(template.conditionFree) ? template.conditionFree[0] : template.conditionFree) as Record<string, unknown>
+      : {};
+    const freeThreshold = Math.max(0, Number(condition?.threshold ?? 0));
+    const shippingFee = template.type === "FREE"
+      ? 0
+      : template.type === "CONDITIONAL" && freeThreshold > 0 && goodsAmount >= freeThreshold
+        ? 0
+        : regionFee;
+
+    return {
+      shippingFee: Math.round(shippingFee * 100) / 100,
+      freightTemplateId: template.id,
+      snapshot: {
+        templateName: template.name,
+        type: template.type,
+        province,
+        defaultFee,
+        regionFee,
+        freeThreshold: template.type === "CONDITIONAL" ? freeThreshold : null,
+        goodsAmount,
+        shippingFee: Math.round(shippingFee * 100) / 100,
+      },
     };
   }
 
@@ -534,10 +656,28 @@ export class ShopOrderService {
   }) {
     const product = await this.prisma.product.findUnique({
       where: { id: params.productId },
-      select: { id: true, status: true, supplierType: true, userId: true },
+      select: {
+        id: true,
+        status: true,
+        deletedAt: true,
+        supplierType: true,
+        userId: true,
+        skus: { where: { isActive: true }, take: 1, select: { id: true } },
+      },
     });
-    if (!product || product.status !== "ON_SALE") {
+    if (!product || product.deletedAt || product.status !== "ON_SALE") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不可购买");
+    }
+    if (params.skuId) {
+      const sku = await this.prisma.productSku.findUnique({
+        where: { id: params.skuId },
+        select: { productId: true, isActive: true },
+      });
+      if (!sku || !sku.isActive || sku.productId !== params.productId) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "商品规格不可购买");
+      }
+    } else if (product.skus?.length) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择商品规格后再购买");
     }
     let merchantId: string | undefined;
     if (product.supplierType === "CERTIFIED_MERCHANT" && product.userId) {
@@ -556,10 +696,10 @@ export class ShopOrderService {
         },
       });
       if (params.skuId) {
-        const r = await tx.productSku.updateMany({ where: { id: params.skuId, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } });
+        const r = await tx.productSku.updateMany({ where: { id: params.skuId, productId: params.productId, isActive: true, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } });
         if (r.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "SKU库存不足");
       } else {
-        const r = await tx.product.updateMany({ where: { id: params.productId, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } });
+        const r = await tx.product.updateMany({ where: { id: params.productId, status: "ON_SALE", deletedAt: null, stock: { gte: 1 } }, data: { stock: { decrement: 1 } } });
         if (r.count === 0) throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
       }
       return order;

@@ -877,6 +877,7 @@ CREATE TABLE "Product" (
     "title" TEXT NOT NULL,
     "titleEn" TEXT,
     "categoryId" TEXT,
+    "freightTemplateId" TEXT,
     "intro" TEXT,
     "introEn" TEXT,
     "detail" TEXT NOT NULL,
@@ -911,6 +912,7 @@ CREATE TABLE "ProductSku" (
     "price" DECIMAL(10,2) NOT NULL,
     "stock" INTEGER NOT NULL DEFAULT 0,
     "skuCode" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -1041,6 +1043,9 @@ CREATE TABLE "Order" (
     "merchantId" TEXT,
     "addressId" TEXT,
     "shippingInfo" JSONB,
+    "shippingFee" DECIMAL(10,2) NOT NULL DEFAULT 0,
+    "freightTemplateId" TEXT,
+    "freightSnapshot" JSONB,
     "groupId" TEXT,
     "selfDiscount" DECIMAL(10,2),
     "giftCardMeta" JSONB,
@@ -1193,6 +1198,9 @@ CREATE TABLE "LiveRoom" (
     "startTime" TIMESTAMP(3),
     "endTime" TIMESTAMP(3),
     "replayUrl" TEXT,
+    "replayStatus" TEXT NOT NULL DEFAULT 'NONE',
+    "replayPublishedAt" TIMESTAMP(3),
+    "replayPublishedBy" TEXT,
     "courseId" TEXT,
     "auditStatus" TEXT NOT NULL DEFAULT 'APPROVED',
     "auditReason" TEXT,
@@ -1205,6 +1213,20 @@ CREATE TABLE "LiveRoom" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "LiveRoom_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LiveBooking" (
+    "id" TEXT NOT NULL,
+    "roomId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'BOOKED',
+    "remindedAt" TIMESTAMP(3),
+    "notifiedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LiveBooking_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1626,6 +1648,8 @@ CREATE TABLE "AiEvent" (
     "status" TEXT NOT NULL DEFAULT 'published',
     "processedBy" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "processResult" JSONB,
+    "attemptCount" INTEGER NOT NULL DEFAULT 0,
+    "processingStartedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "processedAt" TIMESTAMP(3),
 
@@ -1678,6 +1702,7 @@ CREATE TABLE "AiDecision" (
     "outcomeExpected" DOUBLE PRECISION,
     "outcomeActual" DOUBLE PRECISION,
     "outcomeMeasuredAt" TIMESTAMP(3),
+    "outcomeMeasuredBy" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AiDecision_pkey" PRIMARY KEY ("id")
@@ -4016,6 +4041,9 @@ CREATE TABLE "BountyQuestion" (
     "answerImages" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "answerAudioUrl" TEXT,
     "lockExpireAt" TIMESTAMP(3),
+    "closeReason" VARCHAR(500),
+    "closedBy" TEXT,
+    "closedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "answeredAt" TIMESTAMP(3),
     "settledAt" TIMESTAMP(3),
@@ -4517,6 +4545,13 @@ CREATE TABLE "OpsTask" (
     "result" JSONB,
     "reviewReason" TEXT,
     "needsApproval" BOOLEAN NOT NULL DEFAULT false,
+    "approvalStatus" TEXT NOT NULL DEFAULT 'not_required',
+    "approvedBy" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "approvalNote" TEXT,
+    "sourceEventId" TEXT,
+    "rollbackData" JSONB,
+    "completedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -6502,6 +6537,9 @@ CREATE UNIQUE INDEX "StationBundleAccess_bundleId_operatorId_key" ON "StationBun
 CREATE INDEX "Product_categoryId_idx" ON "Product"("categoryId");
 
 -- CreateIndex
+CREATE INDEX "Product_freightTemplateId_idx" ON "Product"("freightTemplateId");
+
+-- CreateIndex
 CREATE INDEX "Product_status_idx" ON "Product"("status");
 
 -- CreateIndex
@@ -6520,7 +6558,7 @@ CREATE INDEX "Product_circleId_idx" ON "Product"("circleId");
 CREATE INDEX "Product_supplierType_status_idx" ON "Product"("supplierType", "status");
 
 -- CreateIndex
-CREATE INDEX "ProductSku_productId_idx" ON "ProductSku"("productId");
+CREATE INDEX "ProductSku_productId_isActive_idx" ON "ProductSku"("productId", "isActive");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "InventoryMovement_idempotencyKey_key" ON "InventoryMovement"("idempotencyKey");
@@ -6677,6 +6715,15 @@ CREATE INDEX "LiveRoom_status_startTime_idx" ON "LiveRoom"("status", "startTime"
 
 -- CreateIndex
 CREATE INDEX "LiveRoom_hostUserId_status_idx" ON "LiveRoom"("hostUserId", "status");
+
+-- CreateIndex
+CREATE INDEX "LiveBooking_roomId_status_idx" ON "LiveBooking"("roomId", "status");
+
+-- CreateIndex
+CREATE INDEX "LiveBooking_userId_status_createdAt_idx" ON "LiveBooking"("userId", "status", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "LiveBooking_roomId_userId_key" ON "LiveBooking"("roomId", "userId");
 
 -- CreateIndex
 CREATE INDEX "LiveWatchProgress_userId_lastWatchedAt_idx" ON "LiveWatchProgress"("userId", "lastWatchedAt");
@@ -7951,6 +7998,9 @@ CREATE INDEX "BountyQuestion_category_status_idx" ON "BountyQuestion"("category"
 CREATE INDEX "BountyQuestion_stationId_idx" ON "BountyQuestion"("stationId");
 
 -- CreateIndex
+CREATE INDEX "BountyQuestion_closedBy_closedAt_idx" ON "BountyQuestion"("closedBy", "closedAt");
+
+-- CreateIndex
 CREATE INDEX "BountyReview_questionId_idx" ON "BountyReview"("questionId");
 
 -- CreateIndex
@@ -8117,6 +8167,9 @@ CREATE INDEX "TaskTransferLog_taskId_idx" ON "TaskTransferLog"("taskId");
 
 -- CreateIndex
 CREATE INDEX "TaskTransferLog_createdAt_idx" ON "TaskTransferLog"("createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OpsTask_sourceEventId_key" ON "OpsTask"("sourceEventId");
 
 -- CreateIndex
 CREATE INDEX "OpsTask_status_priority_idx" ON "OpsTask"("status", "priority");
@@ -8905,6 +8958,9 @@ ALTER TABLE "Product" ADD CONSTRAINT "Product_circleId_fkey" FOREIGN KEY ("circl
 ALTER TABLE "Product" ADD CONSTRAINT "Product_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Product" ADD CONSTRAINT "Product_freightTemplateId_fkey" FOREIGN KEY ("freightTemplateId") REFERENCES "FreightTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ProductSku" ADD CONSTRAINT "ProductSku_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -8951,6 +9007,9 @@ ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_courseId_fkey" FOREIGN KEY ("cou
 
 -- AddForeignKey
 ALTER TABLE "LiveRoom" ADD CONSTRAINT "LiveRoom_stationId_fkey" FOREIGN KEY ("stationId") REFERENCES "Station"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LiveBooking" ADD CONSTRAINT "LiveBooking_roomId_fkey" FOREIGN KEY ("roomId") REFERENCES "LiveRoom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "LiveWatchProgress" ADD CONSTRAINT "LiveWatchProgress_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -549,6 +549,7 @@ import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Delete } from "@element-plus/icons-vue";
 import { competitionApi } from "@/api";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 
 const router = useRouter();
 
@@ -596,6 +597,10 @@ const form = reactive({
   prizes: [] as { rank: string; title: string; prize: number; description: string }[],
   shareCommitmentRequired: false,
 });
+const { captureBaseline } = useUnsavedChanges(
+  () => form,
+  { message: "赛事创建向导中还有未提交的配置，离开后将丢失。确定离开？" },
+);
 
 const basicRules = {
   title: [{ required: true, message: "请输入赛事标题", trigger: "blur" }],
@@ -706,6 +711,7 @@ async function submit() {
     // 按 stagesConfig 生成 CompetitionStage 行（幂等）
     await competitionApi.generateStages(data.id);
     ElMessage.success("赛事创建成功，阶段已生成");
+    captureBaseline();
     router.replace(`/competitions/${data.id}`);
   } catch {
     ElMessage.error("创建失败，请检查配置后重试");

@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { api } from "@/api";
+import { api, type AdminRequestConfig } from "@/api";
 
 type Status = "checking" | "online" | "offline";
 const status = ref<Status>("checking");
@@ -45,7 +45,7 @@ async function check() {
   status.value = "checking";
   statusText.value = STATUS_MAP.checking;
   try {
-    await api.get("/health", { timeout: 5000 });
+    await api.get("/health", { timeout: 5000, silentError: true } as AdminRequestConfig);
     status.value = "online";
     statusText.value = STATUS_MAP.online;
   } catch {

@@ -1,7 +1,7 @@
 import {
   Controller, Get, Put, Delete, Post,
   Param, Body, Query, UseGuards, Req, Res,
-  UploadedFile, UseInterceptors, BadRequestException,
+  UploadedFile, UseInterceptors, BadRequestException, ForbiddenException,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiConsumes, ApiResponse } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -31,6 +31,14 @@ export class SystemController {
     private readonly exportService: ExportService,
     private readonly opsActionService: OpsActionService,
   ) {}
+
+  private assertThirdPartyWriteAccess(key: string, req: Request): void {
+    if (!key.startsWith("third_party.")) return;
+    const user = req.user as { roles?: string[] } | undefined;
+    if (!user?.roles?.includes("SUPER_ADMIN")) {
+      throw new ForbiddenException("第三方密钥仅允许超级管理员修改");
+    }
+  }
 
   @Get("third-party-schema")
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -70,6 +78,15 @@ export class SystemController {
     };
   }
 
+  @Get("third-party-readiness")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "支付渠道配置就绪度（不返回密钥值，不代替真实小额验收）" })
+  @ApiBearerAuth()
+  getThirdPartyReadiness() {
+    return this.systemService.getPaymentReadiness();
+  }
+
   @Get("configs")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -103,6 +120,7 @@ export class SystemController {
   @ApiResponse({ status: 403, description: "无权限" })
   @ApiBearerAuth()
   async createConfig(@Body() body: CreateConfigDto, @Req() req: Request) {
+    this.assertThirdPartyWriteAccess(body.key, req);
     const u = req.user as { nickname?: string; id?: string } | undefined;
     const updatedBy = u?.nickname || u?.id;
     return this.systemService.setConfig(body.key, body.value, body.description, updatedBy);
@@ -135,6 +153,7 @@ export class SystemController {
     @Body() body: SetConfigDto,
     @Req() req: Request,
   ) {
+    this.assertThirdPartyWriteAccess(key, req);
     const u = req.user as { nickname?: string; id?: string } | undefined;
     const updatedBy = u?.nickname || u?.id;
     return this.systemService.setConfig(key, body.value, body.description, updatedBy);
@@ -475,7 +494,20 @@ export class SystemController {
     @Query("secret") secret?: string,
   ) {
     this.systemService.validateCronSecret(secret);
-    return this.systemService.executeCronJob(jobName);
+    return this.systemService.executeCronJob(jobName, "WEBHOOK");
+  }
+
+  @Post("cron/:jobName/manual")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("SUPER_ADMIN")
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "超级管理员手动触发受控定时任务（不暴露 Webhook 密钥）" })
+  @ApiResponse({ status: 201, description: "任务执行完成或因重复运行安全跳过" })
+  @ApiResponse({ status: 401, description: "未登录" })
+  @ApiResponse({ status: 403, description: "无权限" })
+  async triggerCronManually(@Param("jobName") jobName: string, @Req() req: Request) {
+    const user = req.user as { id?: string } | undefined;
+    return this.systemService.executeCronJob(jobName, user?.id || "SUPER_ADMIN");
   }
 
   @Get("cron-status")

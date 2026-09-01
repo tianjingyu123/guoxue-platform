@@ -14,6 +14,7 @@ import { ref, onMounted, type Component } from "vue"
 import { useRoute } from "vue-router"
 import { stationApi, dashboardApi } from "@/api"
 import ChartCard from "@/components/ChartCard.vue"
+import { downloadCsvRows } from "@/utils/export"
 import {
   OfficeBuilding, User, Postcard, CircleCheck,
   View, Goods, DataLine, Money, Coin, Wallet, Share,
@@ -190,14 +191,7 @@ function exportCSV() {
     rows.push([], ["推广渠道", "点击", "转化"])
     for (const c of ch) rows.push([c.channel || "未标注", c.clicks ?? 0, c.conversions ?? 0])
   }
-  const csv = rows.map((r) => r.join(",")).join("\n")
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `分站数据_${d.basicInfo?.name ?? entityId.value}_${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadCsvRows(`分站数据_${d.basicInfo?.name ?? entityId.value}_${new Date().toISOString().slice(0, 10)}`, rows)
 }
 </script>
 

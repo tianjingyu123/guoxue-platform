@@ -1228,10 +1228,12 @@ interface RawFlashSale { id?: string; name?: string; startTime?: string; endTime
 interface RawShopOrder { id?: string; targetId?: string; skuId?: string; status?: string; amount?: number | string; payAmount?: number | string; payMethod?: string; paidAt?: string; quantity?: number; product?: { id?: string; title?: string; cover?: string } | null; sku?: { skuName?: string } | null }
 
 /* —— 订单试算（结算页价格明细预估·与后端定价引擎同口径） —— */
-interface RawOrderEstimate { goodsAmount?: number | string; couponDiscount?: number | string; selfDiscount?: number | string; payableAmount?: number | string }
+interface RawOrderEstimate { goodsAmount?: number | string; shippingFee?: number | string; couponDiscount?: number | string; selfDiscount?: number | string; payableAmount?: number | string }
 export interface OrderEstimate {
   /** 商品金额（活动单价×数量） */
   goodsAmount: number
+  /** 运费（按商品模板与收货省份计算） */
+  shippingFee: number
   /** 优惠券抵扣 */
   couponDiscount: number
   /** 分销自购立减（非分销身份为 0） */
@@ -1822,17 +1824,19 @@ export const shopApi = {
    * 订单试算 — POST /shop/orders/estimate（服务端定价引擎同口径预演，不落库不占券）。
    * 结算页价格明细用它展示券后/分销自购立减后的应付金额，保证展示价与下单实付一致。
    */
-  async estimateOrder(payload: { targetId: string; skuId?: string; quantity?: number; couponId?: string }): Promise<OrderEstimate> {
+  async estimateOrder(payload: { targetId: string; skuId?: string; quantity?: number; couponId?: string; addressId: string }): Promise<OrderEstimate> {
     const res = await apiPost<RawOrderEstimate>('/shop/orders/estimate', {
       targetId: payload.targetId,
       skuId: payload.skuId || undefined,
       quantity: Math.max(1, Number(payload.quantity) || 1),
       couponId: payload.couponId || undefined,
+      addressId: payload.addressId,
       // 与 createOrder 同源：带临时推荐人，保证归因判定（自购立减是否生效）一致
       tempReferrerId: getTempReferrer(),
     })
     return {
       goodsAmount: shopNum(res?.goodsAmount),
+      shippingFee: shopNum(res?.shippingFee),
       couponDiscount: shopNum(res?.couponDiscount),
       selfDiscount: shopNum(res?.selfDiscount),
       payableAmount: shopNum(res?.payableAmount),

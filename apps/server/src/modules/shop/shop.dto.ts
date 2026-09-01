@@ -114,6 +114,10 @@ export class UpdateProductDto {
   @ApiPropertyOptional({ description: "场景标签（白名单七值·可多挂·打标即生效）", enum: PRODUCT_SCENE_TAGS, isArray: true })
   @IsOptional() @IsArray() @ArrayMaxSize(7) @IsIn(PRODUCT_SCENE_TAGS, { each: true })
   sceneTags?: ProductSceneTag[];
+
+  @ApiPropertyOptional({ description: "运费模板 ID；空值表示平台包邮" })
+  @IsOptional() @IsString()
+  freightTemplateId?: string | null;
 }
 
 /** 商品站长推广佣金率设置（佣-V2-P1·仅平台运营可设·商家不可自设）。不传 commissionRate = 清除逐品配置回落类目默认 */
@@ -212,6 +216,10 @@ export class EstimateOrderDto {
   @ApiPropertyOptional({ description: "临时推荐人ID（与 createOrder 同源传入，保证自购立减判定一致）" })
   @IsOptional() @IsString()
   tempReferrerId?: string;
+
+  @ApiPropertyOptional({ description: "收货地址 ID；用于按省份核算运费" })
+  @IsOptional() @IsString()
+  addressId?: string;
 }
 
 export class CreateCouponDto {
@@ -384,7 +392,7 @@ export class OrderListQueryDto {
   orderNo?: string;
 
   @ApiPropertyOptional({ description: "订单类型" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsIn(["FREE", "FIXED", "CONDITIONAL"])
   type?: string;
 
   @ApiPropertyOptional({ description: "订单状态" })
@@ -498,7 +506,7 @@ export class CreateFreightTemplateDto {
   type?: string;
 
   @ApiProperty({ description: "默认运费" })
-  @IsOptional() @IsNumber()
+  @IsOptional() @IsNumber() @Min(0)
   defaultFee?: number;
 
   @ApiProperty({ description: "包邮条件JSON" })
@@ -520,11 +528,11 @@ export class UpdateFreightTemplateDto {
   name?: string;
 
   @ApiPropertyOptional({ description: "计费方式" })
-  @IsOptional() @IsString()
+  @IsOptional() @IsIn(["FREE", "FIXED", "CONDITIONAL"])
   type?: string;
 
   @ApiPropertyOptional({ description: "默认运费" })
-  @IsOptional() @IsNumber()
+  @IsOptional() @IsNumber() @Min(0)
   defaultFee?: number;
 
   @ApiPropertyOptional({ description: "包邮条件JSON" })

@@ -46,8 +46,8 @@ export class ShopService {
     return this.product.createProduct(userId, dto, autoPublish);
   }
 
-  updateProduct(userId: string, productId: string, dto: UpdateProductDto) {
-    return this.product.updateProduct(userId, productId, dto);
+  updateProduct(userId: string, productId: string, dto: UpdateProductDto, isAdmin = false) {
+    return this.product.updateProduct(userId, productId, dto, isAdmin);
   }
 
   deleteProduct(userId: string, productId: string, isAdmin = false) {
@@ -66,8 +66,8 @@ export class ShopService {
     return this.product.moderateProduct(productId, action, reason);
   }
 
-  getProduct(productId: string, scene?: string, pageId?: string) {
-    return this.product.getProduct(productId, scene, pageId);
+  getProduct(productId: string, scene?: string, pageId?: string, includeUnpublished = false) {
+    return this.product.getProduct(productId, scene, pageId, includeUnpublished);
   }
 
   listProducts(dto: ProductListQueryDto) {
@@ -478,6 +478,7 @@ export class ShopService {
   // ═══════════════════ 运费模板 ═══════════════════
 
   async createFreightTemplate(dto: CreateFreightTemplateDto) {
+    this.validateFreightTemplate(dto);
     const data: Prisma.FreightTemplateCreateInput = {
       name: dto.name,
       type: dto.type ?? "FIXED",
@@ -493,6 +494,18 @@ export class ShopService {
   async updateFreightTemplate(id: string, dto: UpdateFreightTemplateDto) {
     const existing = await this.prisma.freightTemplate.findUnique({ where: { id } });
     if (!existing) throw new BusinessException(ErrorCode.NOT_FOUND, "运费模板不存在");
+    this.validateFreightTemplate({
+      name: dto.name ?? existing.name,
+      type: dto.type ?? existing.type,
+      defaultFee: dto.defaultFee ?? Number(existing.defaultFee),
+      conditionFree: dto.conditionFree ?? (existing.conditionFree as Record<string, unknown> | undefined),
+      regions: dto.regions ?? (existing.regions as Record<string, unknown> | undefined),
+      isActive: dto.isActive ?? existing.isActive,
+    });
+    if (dto.isActive === false && existing.isActive) {
+      const inUse = await this.prisma.product.count({ where: { freightTemplateId: id, status: "ON_SALE", deletedAt: null } });
+      if (inUse > 0) throw new BusinessException(ErrorCode.BAD_REQUEST, `仍有 ${inUse} 个在售商品使用此模板，请先换绑或下架商品`);
+    }
 
     const data: Prisma.FreightTemplateUpdateInput = {};
     if (dto.name !== undefined) data.name = dto.name;
@@ -510,13 +523,15 @@ export class ShopService {
 
   async deleteFreightTemplate(id: string) {
     await this.prisma.freightTemplate.findUniqueOrThrow({ where: { id } });
+    const inUse = await this.prisma.product.count({ where: { freightTemplateId: id, deletedAt: null } });
+    if (inUse > 0) throw new BusinessException(ErrorCode.BAD_REQUEST, `仍有 ${inUse} 个商品使用此模板，不能删除`);
     await this.prisma.freightTemplate.delete({ where: { id } });
     return { success: true };
   }
 
   async getFreightTemplates(rawPage = 1, rawPageSize = 20) {
     const { page, pageSize, skip } = safePagination(rawPage, rawPageSize);
-    const where = { isActive: true };
+    const where = {};
     const [items, total] = await Promise.all([
       this.prisma.freightTemplate.findMany({
         where,
@@ -535,6 +550,32 @@ export class ShopService {
     return template;
   }
 
+  private validateFreightTemplate(dto: {
+    name: string;
+    type?: string;
+    defaultFee?: number;
+    conditionFree?: Record<string, unknown>;
+    regions?: Record<string, unknown>;
+    isActive?: boolean;
+  }): void {
+    const type = dto.type ?? "FIXED";
+    if (!["FREE", "FIXED", "CONDITIONAL"].includes(type)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "不支持的运费计费方式");
+    }
+    if (Number(dto.defaultFee ?? 0) < 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "默认运费不能为负数");
+    if (dto.regions) {
+      for (const [province, fee] of Object.entries(dto.regions)) {
+        if (!province.trim() || !Number.isFinite(Number(fee)) || Number(fee) < 0) {
+          throw new BusinessException(ErrorCode.BAD_REQUEST, `区域运费配置无效：${province || "空省份"}`);
+        }
+      }
+    }
+    if (type === "CONDITIONAL") {
+      const threshold = Number(dto.conditionFree?.threshold ?? 0);
+      if (!(threshold > 0)) throw new BusinessException(ErrorCode.BAD_REQUEST, "条件包邮必须设置大于 0 的包邮阈值");
+    }
+  }
+
   // ═══════════════════ 购物车（Redis） ═══════════════════
 
   private cartKey(userId: string) { return `shop:cart:${userId}`; }
@@ -547,7 +588,7 @@ export class ShopService {
     // 补全商品信息
     const productIds = [...new Set(items.map(i => i.productId))];
     const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds }, status: "ON_SALE" },
+      where: { id: { in: productIds }, status: "ON_SALE", deletedAt: null },
       select: { id: true, title: true, price: true, images: true, stock: true, status: true },
     });
     const productMap = new Map(products.map(p => [p.id, p]));
@@ -555,7 +596,7 @@ export class ShopService {
     // 补全SKU信息
     const skuIds = items.filter(i => i.skuId).map(i => i.skuId!);
     const skus = skuIds.length > 0 ? await this.prisma.productSku.findMany({
-      where: { id: { in: skuIds } },
+      where: { id: { in: skuIds }, isActive: true },
       select: { id: true, specs: true, price: true, stock: true, skuCode: true },
     }) : [];
     const skuMap = new Map(skus.map(s => [s.id, s]));
@@ -604,10 +645,27 @@ export class ShopService {
     // 校验商品存在且上架
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
-      select: { id: true, status: true, stock: true },
+      select: {
+        id: true,
+        status: true,
+        deletedAt: true,
+        stock: true,
+        skus: { where: { isActive: true }, select: { id: true, stock: true } },
+      },
     });
-    if (!product || product.status !== "ON_SALE") {
+    if (!product || product.deletedAt || product.status !== "ON_SALE") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在或已下架");
+    }
+    const sku = skuId ? product.skus.find((item) => item.id === skuId) : null;
+    if (skuId && !sku) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "SKU不存在、已停用或与商品不匹配");
+    }
+    if (!skuId && product.skus.length) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请选择商品规格");
+    }
+    const availableStock = sku?.stock ?? product.stock;
+    if (availableStock < quantity) {
+      throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
     }
 
     const key = this.cartKey(userId);
@@ -617,7 +675,11 @@ export class ShopService {
       i => i.productId === productId && (i.skuId || null) === (skuId || null),
     );
     if (existingIdx >= 0) {
-      items[existingIdx].quantity += quantity;
+      const nextQuantity = Number(items[existingIdx].quantity || 0) + quantity;
+      if (nextQuantity > availableStock) {
+        throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK, "商品库存不足");
+      }
+      items[existingIdx].quantity = nextQuantity;
     } else {
       items.push({
         id: `${productId}_${skuId || "default"}`,

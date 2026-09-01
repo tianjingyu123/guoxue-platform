@@ -9,6 +9,7 @@ import { ThrottleGuard } from "../../common/throttle.guard";
 const mockSystemSvc = {
   getAllConfigs: jest.fn().mockResolvedValue([]),
   getConfig: jest.fn().mockResolvedValue({ configKey: "test", configValue: "val" }),
+  getPaymentReadiness: jest.fn().mockResolvedValue({ items: [], summary: { complete: 0, incomplete: 0, total: 0 } }),
   setConfig: jest.fn().mockResolvedValue({ configKey: "test", configValue: "val" }),
   deleteConfig: jest.fn().mockResolvedValue(undefined),
   healthCheck: jest.fn().mockResolvedValue({ status: "ok" }),
@@ -89,6 +90,20 @@ describe("SystemController", () => {
     const req: any = { user: { id: "admin1", nickname: "管理员" } };
     const result: any = await ctrl.setConfig("test", { value: "newval" } as any, req);
     expect(result.configValue).toBe("val");
+  });
+
+  it("第三方密钥即使绕过前端路由也只允许超级管理员写入", async () => {
+    const operationReq: any = { user: { id: "ops1", roles: ["OPERATION_ADMIN"] } };
+    await expect(ctrl.setConfig("third_party.wechat_pay", { value: "{}" } as any, operationReq))
+      .rejects.toThrow("仅允许超级管理员");
+    expect(mockSystemSvc.setConfig).not.toHaveBeenCalled();
+
+    const superReq: any = { user: { id: "root1", roles: ["SUPER_ADMIN"] } };
+    await expect(ctrl.setConfig("third_party.wechat_pay", { value: "{}" } as any, superReq)).resolves.toBeDefined();
+  });
+
+  it("GET /system/third-party-readiness — 只返回安全就绪度摘要", async () => {
+    await expect(ctrl.getThirdPartyReadiness()).resolves.toEqual(expect.objectContaining({ items: [] }));
   });
 
   it("DELETE /system/configs/:key — 删除配置", async () => {

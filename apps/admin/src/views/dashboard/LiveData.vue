@@ -16,6 +16,7 @@ import type { Component } from 'vue'
 import { dashboardApi, liveApi } from '@/api'
 import ChartCard from '@/components/ChartCard.vue'
 import { VideoCamera, Avatar, View, TrendCharts, Coin, Money, Timer, Goods } from '@element-plus/icons-vue'
+import { downloadCsvRows } from '@/utils/export'
 
 // ==================== 后端契约类型 ====================
 interface LiveDashboard {
@@ -149,15 +150,8 @@ function exportCSV() {
   const d = data.value
   if (!d) return
   const rows: string[][] = [['指标', '数值']]
-  cards.value.forEach((c) => rows.push([c.label, `"${c.value}"`]))
-  const csv = '﻿' + rows.map((r) => r.join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `直播数据_${d.basicInfo?.title ?? entityId.value}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  cards.value.forEach((c) => rows.push([c.label, c.value]))
+  downloadCsvRows(`直播数据_${d.basicInfo?.title ?? entityId.value}`, rows)
 }
 </script>
 

@@ -23,6 +23,7 @@ import { courseApi } from "@/api";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import ImageListUpload from "@/components/upload/ImageListUpload.vue";
 import VodUpload from "@/components/upload/VodUpload.vue";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
 
 const route = useRoute();
 const router = useRouter();
@@ -64,6 +65,11 @@ interface ChapterDraft {
 const chapters = ref<ChapterDraft[]>([]);
 /** 打开时章节快照（保存时 diff：删/改/增） */
 let origChapters: Array<ChapterDraft & { id: string; sortOrder: number }> = [];
+
+const { captureBaseline } = useUnsavedChanges(
+  () => ({ form, memberFree: memberFree.value, chapters: chapters.value }),
+  { message: "课程信息或章节仍有未保存修改，离开后将丢失。确定离开？" },
+);
 
 const loading = ref(false);
 const saving = ref(false);
@@ -155,6 +161,7 @@ onMounted(async () => {
       freeTrial: !!c.freeTrial,
     }));
     origChapters = chapters.value.map((c, i) => ({ ...c, id: c.id as string, sortOrder: i + 1 }));
+    captureBaseline();
   } catch {
     ElMessage.error("课程加载失败，请重试");
     router.push("/courses");
@@ -243,7 +250,10 @@ async function syncChapters(id: string): Promise<number> {
   const keptIds = new Set(chapters.value.filter((c) => c.id).map((c) => c.id as string));
   for (const orig of origChapters) {
     if (!keptIds.has(orig.id)) {
-      try { await courseApi.deleteChapter(id, orig.id); } catch { failed++; }
+      try {
+        await courseApi.deleteChapter(id, orig.id);
+        origChapters = origChapters.filter((item) => item.id !== orig.id);
+      } catch { failed++; }
     }
   }
   for (let i = 0; i < chapters.value.length; i++) {
@@ -263,8 +273,16 @@ async function syncChapters(id: string): Promise<number> {
           && orig.mediaUrl === payload.mediaUrl && (orig.duration ?? undefined) === payload.duration
           && orig.freeTrial === payload.freeTrial && orig.sortOrder === payload.sortOrder;
         if (!unchanged) await courseApi.updateChapter(id, ch.id, payload);
+        const next = { ...ch, id: ch.id, sortOrder: i + 1 };
+        const originalIndex = origChapters.findIndex((item) => item.id === ch.id);
+        if (originalIndex >= 0) origChapters[originalIndex] = next;
+        else origChapters.push(next);
       } else {
-        await courseApi.addChapter(id, payload);
+        const { data } = await courseApi.addChapter(id, payload);
+        const createdId = (data as { id?: string } | undefined)?.id;
+        if (!createdId) throw new Error("章节创建成功但未返回 ID");
+        ch.id = createdId;
+        origChapters.push({ ...ch, id: createdId, sortOrder: i + 1 });
       }
     } catch { failed++; }
   }
@@ -289,7 +307,9 @@ async function save(publish: boolean | null) {
       if (!id) { ElMessage.error("课程创建失败，请重试"); return; }
     }
 
+    courseId.value = id;
     const chapterFailed = await syncChapters(id);
+    let auxiliaryFailed = false;
 
     // 会员精品课标记（独立端点·仅变化时调用）
     if (memberFree.value !== origMemberFree) {
@@ -297,6 +317,7 @@ async function save(publish: boolean | null) {
         await courseApi.setMemberFree(id, memberFree.value);
         origMemberFree = memberFree.value;
       } catch { ElMessage.warning("会员精品课标记设置失败（仅平台运营可操作）"); }
+      if (memberFree.value !== origMemberFree) auxiliaryFailed = true;
     }
 
     if (publish !== null) {
@@ -307,11 +328,17 @@ async function save(publish: boolean | null) {
       }
     }
 
-    if (chapterFailed > 0) {
-      ElMessage.warning(`课程已保存，但 ${chapterFailed} 个章节同步失败，请进入编辑页重试`);
+    if (chapterFailed > 0 || auxiliaryFailed) {
+      const details = [
+        chapterFailed > 0 ? `${chapterFailed} 个章节同步失败` : "",
+        auxiliaryFailed ? "会员精品课标记保存失败" : "",
+      ].filter(Boolean).join("；");
+      ElMessage.warning(`课程主体已保存，但${details}。已保留当前编辑现场，请修正后重试。`);
+      return;
     } else {
       ElMessage.success(publish === true ? "已保存并上架" : publish === false ? "已存为草稿" : "保存成功");
     }
+    captureBaseline();
     router.push("/courses");
   } catch { /* 请求错误已由拦截器提示 */ } finally {
     saving.value = false;

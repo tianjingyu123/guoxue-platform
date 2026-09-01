@@ -1197,6 +1197,7 @@ model Product {
   title          String
   titleEn        String? // 英文标题（国际化预留）
   categoryId     String?
+  freightTemplateId String? // 空=平台包邮；非空必须绑定启用中的运费模板
   intro          String?
   introEn        String? // 英文简介（国际化预留）
   detail         String // 详情HTML
@@ -1222,10 +1223,12 @@ model Product {
 
   circle  Circle?         @relation(fields: [circleId], references: [id])
   station Station?        @relation(fields: [stationId], references: [id])
+  freightTemplate FreightTemplate? @relation(fields: [freightTemplateId], references: [id], onDelete: Restrict)
   skus    ProductSku[]
   reviews ProductReview[]
 
   @@index([categoryId])
+  @@index([freightTemplateId])
   @@index([status])
   @@index([status, salesCount])
   @@index([stationId])
@@ -1241,12 +1244,13 @@ model ProductSku {
   price     Decimal  @db.Decimal(10, 2)
   stock     Int      @default(0)
   skuCode   String?
+  isActive  Boolean  @default(true) // false=停售但保留历史订单规格与库存冲正能力
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([productId])
+  @@index([productId, isActive])
 }
 
 /// 商家库存不可变流水：余额真源仍是 Product.stock / ProductSku.stock。
@@ -1418,6 +1422,9 @@ model Order {
   merchantId         String? // 商家ID（商家商品订单，用于分佣和数据隔离）
   addressId          String? // 收货地址ID（实物订单，引用 ShippingAddress）
   shippingInfo       Json? // 下单时收货地址快照 {name,phone,province,city,district,detail}（地址表可改可删，订单存快照最可靠）
+  shippingFee        Decimal     @default(0) @db.Decimal(10, 2) // 实付运费；与商品金额分开留痕
+  freightTemplateId  String? // 下单时模板 ID 快照（不建订单外键，模板后续可变更）
+  freightSnapshot    Json? // {templateName,type,province,defaultFee,regionFee,freeThreshold,shippingFee}
   groupId            String? // 拼团组ID（promotionType=GROUP_BUY 时标识具体团；支付成功后据此创建拼团参与者）
   selfDiscount       Decimal?    @db.Decimal(10, 2) // 站长自购立减金额（下单时按佣金比例直接立减·不产生佣金·用于"自购已省"统计）
   giftCardMeta       Json? // 白标贺卡任务（供-P2）：{fromName 从业者署名, blessing 祝语·可选, qrRef 名片码内容}·归因实物订单下单时自动组装·全局开关 ConfigSystem shop.gift_card.enabled 默认开
@@ -1631,6 +1638,9 @@ model LiveRoom {
   startTime        DateTime?
   endTime          DateTime?
   replayUrl        String?
+  replayStatus     String       @default("NONE") // NONE | DRAFT | PUBLISHED | REJECTED
+  replayPublishedAt DateTime?
+  replayPublishedBy String?
   courseId         String? // 关联课程（课程直播联动）
   auditStatus      String       @default("APPROVED") // 平台审核态：PENDING/APPROVED/REJECTED（CIRCLE_ONLY 默认 APPROVED；PLATFORM 建审核记录置 PENDING）
   auditReason      String? // 审核驳回原因
@@ -1654,6 +1664,7 @@ model LiveRoom {
   flashSales      LiveFlashSale[]
   auditLogs       LiveAuditLog[]
   watchProgresses LiveWatchProgress[]
+  bookings        LiveBooking[]
 
   @@index([userId])
   @@index([status])
@@ -1664,6 +1675,24 @@ model LiveRoom {
   @@index([stationId])
   @@index([status, startTime])
   @@index([hostUserId, status])
+}
+
+/// 直播预约必须持久化，Redis 只可作为加速层，不能作为用户预约事实真源。
+model LiveBooking {
+  id          String   @id @default(uuid())
+  roomId      String
+  userId      String
+  status      String   @default("BOOKED") // BOOKED | CANCELLED
+  remindedAt  DateTime?
+  notifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  room LiveRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([roomId, status])
+  @@index([userId, status, createdAt])
 }
 
 /// 直播回放观看进度——支持跨设备断点续播，并用客户端会话与递增序号抵御重复、乱序上报。
@@ -2181,6 +2210,8 @@ model AiEvent {
   status        String    @default("published") // published / processing / processed / failed
   processedBy   String[]  @default([]) // 处理了此事件的Agent列表
   processResult Json? // 处理结果汇总
+  attemptCount  Int       @default(0) // 原子认领次数；全失败最多补偿重试 3 次
+  processingStartedAt DateTime? // 崩溃恢复依据，不能用事件创建时间替代
   createdAt     DateTime  @default(now())
   processedAt   DateTime?
 
@@ -2228,7 +2259,7 @@ model AiDecision {
   modelVersion      String // 模型版本
   inputSummary      String // 输入摘要（脱敏）
   contextKeys       String[] // 使用的上下文字段
-  reasoning         Json? // 推理链: { chainOfThought, confidence, alternatives }
+  reasoning         Json? // 可审计的推理摘要/置信度/备选项；禁止存储模型私有思维链
   output            Json // 决策输出
   confidence        Float // 0-1 置信度
   riskLevel         String    @default("low") // low / medium / high
@@ -2240,6 +2271,7 @@ model AiDecision {
   outcomeExpected   Float? // 预期值
   outcomeActual     Float? // 实际值
   outcomeMeasuredAt DateTime? // 效果测量时间
+  outcomeMeasuredBy String? // 效果数据录入人；防止把人工录入伪装成系统观测
   createdAt         DateTime  @default(now())
 
   @@index([agentId, createdAt])
@@ -5255,6 +5287,9 @@ model BountyQuestion {
   answerImages   String[]  @default([])
   answerAudioUrl String?
   lockExpireAt   DateTime?
+  closeReason    String?   @db.VarChar(500)
+  closedBy       String?
+  closedAt       DateTime?
   createdAt      DateTime  @default(now())
   answeredAt     DateTime?
   settledAt      DateTime?
@@ -5264,6 +5299,7 @@ model BountyQuestion {
   @@index([status, createdAt])
   @@index([category, status])
   @@index([stationId])
+  @@index([closedBy, closedAt])
 }
 
 model BountyReview {
@@ -5347,6 +5383,8 @@ model FreightTemplate {
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  products      Product[]
 }
 
 // ─────────────────────────────────────────────────
@@ -5899,6 +5937,13 @@ model OpsTask {
   result        Json? // 执行结果
   reviewReason  String? // 转 needs_review 的原因
   needsApproval Boolean  @default(false) // 高风险操作（退款/删数据/改价/资金）永远 true 走人工
+  approvalStatus String  @default("not_required") // not_required | pending | approved | rejected
+  approvedBy     String? // 审批人用户 ID（必须与执行者分离）
+  approvedAt     DateTime?
+  approvalNote   String?
+  sourceEventId  String?  @unique // AI 事件来源；防补偿投递重复建任务
+  rollbackData   Json? // 仅保存受控动作处理器生成的回滚快照，禁止任意 URL 回调
+  completedAt    DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

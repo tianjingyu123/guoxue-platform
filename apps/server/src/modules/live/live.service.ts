@@ -1,4 +1,5 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
 import { Cacheable } from "../../common/cache.decorator";
@@ -111,6 +112,9 @@ export class LiveService {
       if (Number.isNaN(parsedStartTime.getTime())) {
         throw new BusinessException(ErrorCode.BAD_REQUEST, "开播时间格式错误");
       }
+      if (parsedStartTime <= new Date()) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "预约开播时间必须晚于当前时间");
+      }
     }
     const productIds = dto.productIds ? await this.validateLiveProductIds(dto.productIds) : [];
     const chargeType = dto.chargeType || "FREE";
@@ -208,6 +212,7 @@ export class LiveService {
       else {
         const parsed = new Date(dto.startTime);
         if (Number.isNaN(parsed.getTime())) throw new BusinessException(ErrorCode.BAD_REQUEST, "开播时间格式错误");
+        if (parsed <= new Date()) throw new BusinessException(ErrorCode.BAD_REQUEST, "预约开播时间必须晚于当前时间");
         data.startTime = parsed;
       }
     }
@@ -228,12 +233,23 @@ export class LiveService {
     if (dto.orientation !== undefined) data.orientation = dto.orientation;
 
     const productIds = dto.productIds === undefined ? undefined : await this.validateLiveProductIds(dto.productIds);
-    const updated = productIds === undefined
+    const nextStartTime = data.startTime === undefined ? room.startTime : data.startTime as Date | null;
+    const startTimeChanged = dto.startTime !== undefined
+      && (room.startTime?.getTime() ?? null) !== (nextStartTime?.getTime() ?? null);
+    const updated = productIds === undefined && !startTimeChanged
       ? await this.prisma.liveRoom.update({ where: { id }, data })
       : await this.prisma.$transaction(async (tx) => {
           const row = await tx.liveRoom.update({ where: { id }, data });
-          await this.replaceLiveProducts(tx, id, productIds);
-          return { ...row, products: productIds.map((productId, sortOrder) => ({ productId, sortOrder })) };
+          if (productIds !== undefined) await this.replaceLiveProducts(tx, id, productIds);
+          if (startTimeChanged) {
+            await tx.liveBooking.updateMany({
+              where: { roomId: id, status: "BOOKED" },
+              data: { remindedAt: null },
+            });
+          }
+          return productIds === undefined
+            ? row
+            : { ...row, products: productIds.map((productId, sortOrder) => ({ productId, sortOrder })) };
         });
 
     // 编辑同样进入异步机审，避免“先发合规标题、再编辑绕审”；审核故障不阻断主播保存。
@@ -302,7 +318,7 @@ export class LiveService {
 
   private static readonly STATE_MACHINE: Record<string, string[]> = {
     WAITING: ["LIVING", "CANCELLED"],
-    LIVING: ["REPLAY", "ENDED"],
+    LIVING: ["ENDED"],
     REPLAY: ["ENDED"],
   };
 
@@ -321,7 +337,6 @@ export class LiveService {
       if (extra?.pullUrl) data.pullUrl = extra.pullUrl;
       if (extra?.trtcRoomId) data.trtcRoomId = extra.trtcRoomId;
     }
-    if (status === "REPLAY" && extra?.replayUrl) data.replayUrl = extra.replayUrl;
     if (status === "ENDED") data.endTime = new Date();
 
     const updated = await this.prisma.liveRoom.update({ where: { id }, data: data as Prisma.LiveRoomUpdateInput });
@@ -335,33 +350,154 @@ export class LiveService {
     // 直播回放画面+音频机审（先发后审·VM 异步轮询·四档处置）：回放是可下载录像，VM 适用。
     // 命中 severe → 回放下架 + 通知（applyModerationVerdict 对 LIVE 走 auditStatus=REJECTED）。
     // 注：LIVING 实时流审核需腾讯云「直播流审核」独立能力（Type=LIVE_VIDEO/推流回调），非本次录像任务制覆盖，后续接入。
-    if (status === "REPLAY" && extra?.replayUrl) {
-      this.audit.queueContentModeration({
-        contentType: "LIVE",
-        contentId: id,
-        userId: updated.userId,
-        circleId: updated.circleId,
-        video: extra.replayUrl,
-      });
-    }
-
     return updated;
   }
 
-  /** 开播时通知 Redis 预约集合中的用户（live:bookings:{roomId}·bookRoom 写入） */
+  /** 人工确认发布回放：录制回调只生成草稿，只有此入口会让回放进入观众端。 */
+  async publishReplay(id: string, replayUrl: string, operator: string) {
+    let parsed: URL;
+    try { parsed = new URL(replayUrl); } catch { throw new BusinessException(ErrorCode.BAD_REQUEST, "回放地址格式错误"); }
+    if (parsed.protocol !== "https:") throw new BusinessException(ErrorCode.BAD_REQUEST, "回放地址必须使用 HTTPS");
+    const room = await this.prisma.liveRoom.findUnique({
+      where: { id },
+      select: { id: true, status: true, userId: true, circleId: true, courseId: true, title: true },
+    });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (!['ENDED', 'REPLAY'].includes(room.status)) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "直播结束后才能发布回放");
+    }
+    const updated = await this.prisma.liveRoom.update({
+      where: { id },
+      data: {
+        replayUrl,
+        replayStatus: "PUBLISHED",
+        replayPublishedAt: new Date(),
+        replayPublishedBy: operator,
+        status: "REPLAY",
+      },
+    });
+    this.audit.queueContentModeration({
+      contentType: "LIVE",
+      contentId: id,
+      userId: room.userId,
+      circleId: room.circleId,
+      video: replayUrl,
+    });
+    if (room.courseId) {
+      await this.syncReplayToCourse(id, room.courseId, replayUrl, room.title);
+    }
+    return updated;
+  }
+
+  /** 回放下架但保留录像草稿，便于修正地址或复核后重新发布。 */
+  async unpublishReplay(id: string, operator: string) {
+    const room = await this.prisma.liveRoom.findUnique({ where: { id }, select: { status: true, replayUrl: true } });
+    if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
+    if (room.status !== "REPLAY" || !room.replayUrl) throw new BusinessException(ErrorCode.BAD_REQUEST, "当前没有已发布回放");
+    const updated = await this.prisma.liveRoom.update({
+      where: { id },
+      data: { status: "ENDED", replayStatus: "DRAFT", replayPublishedAt: null, replayPublishedBy: operator },
+    });
+    return updated;
+  }
+
+  private static readonly BOOKING_NOTIFICATION_BATCH_SIZE = 500;
+  private static readonly BOOKING_NOTIFICATION_MAX_BATCHES_PER_RUN = 20;
+
+  /** 开播时分批通知持久化预约用户；分钟级补偿任务会继续处理失败或超量余批。 */
   private async notifyBookedUsers(room: { id: string; title: string | null; circleId: string | null }) {
+    const notification = this.notification;
+    if (!notification) return;
+    await this.redis.runExclusive(`live-booking-started:${room.id}`, 50, async () => {
+      for (let batch = 0; batch < LiveService.BOOKING_NOTIFICATION_MAX_BATCHES_PER_RUN; batch += 1) {
+        const bookings = await this.prisma.liveBooking.findMany({
+          where: { roomId: room.id, status: "BOOKED", notifiedAt: null },
+          select: { id: true, userId: true },
+          orderBy: { createdAt: "asc" },
+          take: LiveService.BOOKING_NOTIFICATION_BATCH_SIZE,
+        });
+        if (!bookings.length) return;
+        await notification.batchSend({
+          userIds: bookings.map((item) => item.userId),
+          type: "LIVE_STARTED",
+          title: "你预约的直播已开播",
+          content: `直播「${room.title || "直播间"}」已开播，点击进入直播间观看`,
+          targetType: "LIVE_ROOM",
+          targetId: room.id,
+          category: "LIVE",
+          circleId: room.circleId ?? undefined,
+        });
+        await this.prisma.liveBooking.updateMany({
+          where: { id: { in: bookings.map((item) => item.id) }, notifiedAt: null },
+          data: { notifiedAt: new Date() },
+        });
+        if (bookings.length < LiveService.BOOKING_NOTIFICATION_BATCH_SIZE) return;
+      }
+    });
+  }
+
+  /** 开播通知补偿：服务重启、瞬时通知失败或单场超 1 万预约时，后续分钟继续投递。 */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async reconcileStartedBookingNotifications(): Promise<void> {
     if (!this.notification) return;
-    const userIds = await this.redis.smembers(`live:bookings:${room.id}`);
-    if (!userIds?.length) return;
-    await this.notification.batchSend({
-      userIds,
-      type: "LIVE_STARTED",
-      title: "你预约的直播已开播",
-      content: `直播「${room.title || "直播间"}」已开播，点击进入直播间观看`,
-      targetType: "LIVE_ROOM",
-      targetId: room.id,
-      category: "LIVE",
-      circleId: room.circleId ?? undefined,
+    const rooms = await this.prisma.liveRoom.findMany({
+      where: {
+        status: "LIVING",
+        bookings: { some: { status: "BOOKED", notifiedAt: null } },
+      },
+      select: { id: true, title: true, circleId: true },
+      orderBy: { startTime: "asc" },
+      take: 100,
+    });
+    for (const room of rooms) {
+      await this.notifyBookedUsers(room);
+    }
+  }
+
+  /** 开播前 15 分钟提醒。DB 是预约真源，分布式锁只负责避免多节点重复扫描。 */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async remindUpcomingBookings(): Promise<void> {
+    const notification = this.notification;
+    if (!notification) return;
+    await this.redis.runExclusive("live-booking-reminder", 50, async () => {
+      const now = Date.now();
+      const rooms = await this.prisma.liveRoom.findMany({
+        where: {
+          status: "WAITING",
+          startTime: { gt: new Date(now), lte: new Date(now + 16 * 60_000) },
+          bookings: { some: { status: "BOOKED", remindedAt: null } },
+        },
+        select: { id: true, title: true, circleId: true, startTime: true },
+        orderBy: { startTime: "asc" },
+        take: 100,
+      });
+      for (const room of rooms) {
+        const minutesUntilStart = Math.max(1, Math.ceil(((room.startTime?.getTime() ?? now) - now) / 60_000));
+        for (let batch = 0; batch < LiveService.BOOKING_NOTIFICATION_MAX_BATCHES_PER_RUN; batch += 1) {
+          const bookings = await this.prisma.liveBooking.findMany({
+            where: { roomId: room.id, status: "BOOKED", remindedAt: null },
+            select: { id: true, userId: true },
+            orderBy: { createdAt: "asc" },
+            take: LiveService.BOOKING_NOTIFICATION_BATCH_SIZE,
+          });
+          if (!bookings.length) break;
+          await notification.batchSend({
+            userIds: bookings.map((item) => item.userId),
+            type: "LIVE_REMINDER",
+            title: "预约直播即将开始",
+            content: `直播「${room.title || "直播间"}」将在约 ${minutesUntilStart} 分钟后开始`,
+            targetType: "LIVE_ROOM",
+            targetId: room.id,
+            category: "LIVE",
+            circleId: room.circleId ?? undefined,
+          });
+          await this.prisma.liveBooking.updateMany({
+            where: { id: { in: bookings.map((item) => item.id) }, remindedAt: null },
+            data: { remindedAt: new Date() },
+          });
+          if (bookings.length < LiveService.BOOKING_NOTIFICATION_BATCH_SIZE) break;
+        }
+      }
     });
   }
 
@@ -666,14 +802,21 @@ export class LiveService {
       this.prisma.liveRoom.count({ where }),
     ]);
 
+    const waitingRoomIds = rooms.filter((room) => room.status === "WAITING").map((room) => room.id);
+    const bookingGroups = waitingRoomIds.length
+      ? await this.prisma.liveBooking.groupBy({
+          by: ["roomId"],
+          where: { roomId: { in: waitingRoomIds }, status: "BOOKED" },
+          _count: { _all: true },
+        })
+      : [];
+    const bookingCountByRoom = new Map(bookingGroups.map((row) => [row.roomId, row._count._all]));
     const roomsWithPresence = await Promise.all(rooms.map(async (room) => ({
       ...room,
       onlineCount: room.status === "LIVING" && this.presence
         ? await this.presence.getOnlineCount(room.id)
         : 0,
-      bookingCount: room.status === "WAITING"
-        ? await this.redis.scard(`live:bookings:${room.id}`)
-        : 0,
+      bookingCount: room.status === "WAITING" ? bookingCountByRoom.get(room.id) ?? 0 : 0,
     })));
 
     return { rooms: roomsWithPresence, total, page, pageSize };
@@ -1119,7 +1262,7 @@ export class LiveService {
     };
   }
 
-  async getRoom(id: string, viewerId?: string) {
+  async getRoom(id: string, viewerId?: string, isAdmin = false) {
     const room = await this.prisma.liveRoom.findUnique({
       where: { id },
       include: {
@@ -1129,7 +1272,7 @@ export class LiveService {
       },
     });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
-    await this.assertRoomVisibilityAccess(room, viewerId);
+    if (!isAdmin) await this.assertRoomVisibilityAccess(room, viewerId);
     const host = room.hostUserId === room.userId
       ? room.user
       : await this.prisma.user.findUnique({
@@ -1224,6 +1367,7 @@ export class LiveService {
         userId: true,
         status: true,
         replayUrl: true,
+        replayStatus: true,
         circleId: true,
         visibility: true,
         auditStatus: true,
@@ -1231,7 +1375,7 @@ export class LiveService {
     });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     await this.assertRoomVisibilityAccess(room, userId);
-    if (!room.replayUrl || !["ENDED", "REPLAY"].includes(String(room.status))) {
+    if (!room.replayUrl || room.status !== "REPLAY" || room.replayStatus !== "PUBLISHED") {
       throw new BusinessException(ErrorCode.BAD_REQUEST, "当前直播间暂无可观看回放");
     }
     return room;
@@ -1371,27 +1515,36 @@ export class LiveService {
     const room = await this.prisma.liveRoom.findUnique({ where: { id: roomId } });
     if (!room) throw new BusinessException(ErrorCode.LIVE_ROOM_NOT_FOUND);
     if (room.status !== "WAITING") throw new BusinessException(ErrorCode.BAD_REQUEST, "直播已开始或已结束，无法预约");
-
-    const key = `live:bookings:${roomId}`;
-    await this.redis.sadd(key, userId);
-    const count = await this.redis.scard(key);
+    if (!room.startTime || room.startTime <= new Date()) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该直播尚未发布有效开播时间，暂不能预约");
+    }
+    await this.prisma.liveBooking.upsert({
+      where: { roomId_userId: { roomId, userId } },
+      create: { roomId, userId, status: "BOOKED" },
+      update: { status: "BOOKED", remindedAt: null, notifiedAt: null },
+    });
+    const count = await this.prisma.liveBooking.count({ where: { roomId, status: "BOOKED" } });
     return { booked: true, bookingCount: count };
   }
 
   /** 取消预约 */
   async unbookRoom(roomId: string, userId: string) {
-    const key = `live:bookings:${roomId}`;
-    await this.redis.srem(key, userId);
-    const count = await this.redis.scard(key);
+    await this.prisma.liveBooking.updateMany({
+      where: { roomId, userId, status: "BOOKED" },
+      data: { status: "CANCELLED" },
+    });
+    const count = await this.prisma.liveBooking.count({ where: { roomId, status: "BOOKED" } });
     return { booked: false, bookingCount: count };
   }
 
   /** 获取预约人数 */
   async getBookingCount(roomId: string, userId?: string) {
-    const key = `live:bookings:${roomId}`;
     const [count, isBooked] = await Promise.all([
-      this.redis.scard(key),
-      userId ? this.redis.sismember(key, userId) : Promise.resolve(false),
+      this.prisma.liveBooking.count({ where: { roomId, status: "BOOKED" } }),
+      userId
+        ? this.prisma.liveBooking.findUnique({ where: { roomId_userId: { roomId, userId } }, select: { status: true } })
+            .then((row) => row?.status === "BOOKED")
+        : Promise.resolve(false),
     ]);
     return { roomId, bookingCount: count, isBooked };
   }
@@ -1549,19 +1702,19 @@ export class LiveService {
         if (videoUrl && roomId) {
           const room = await this.prisma.liveRoom.findUnique({
             where: { id: roomId },
-            select: { id: true, courseId: true, title: true, replayUrl: true },
+            select: { id: true, status: true, replayUrl: true },
           });
           if (!room || room.replayUrl === videoUrl) return { roomId, duplicate: room?.replayUrl === videoUrl };
           await this.prisma.liveRoom.update({
             where: { id: roomId },
-            data: { replayUrl: videoUrl as string, status: "REPLAY" as const },
+            data: {
+              replayUrl: videoUrl as string,
+              replayStatus: "DRAFT",
+              replayPublishedAt: null,
+              replayPublishedBy: null,
+              ...(room.status === "REPLAY" ? { status: "ENDED" as const } : {}),
+            },
           });
-          // 关联了课程 → 回放自动同步为课程章节
-          if (room.courseId) {
-            await this.syncReplayToCourse(roomId, room.courseId, videoUrl as string, room.title).catch((e: unknown) => {
-              this.logger.warn(`回放同步课程章节失败: ${roomId}: ${e instanceof Error ? e.message : String(e)}`);
-            });
-          }
         }
         return { roomId, recorded: !!videoUrl };
       }
@@ -2718,7 +2871,7 @@ export class LiveService {
   async getReplays(sortBy?: string) {
     const rooms = await this.prisma.liveRoom.findMany({
       // 回放列表含「已结束(ENDED)」与「已生成回放(REPLAY)」两态（原仅 ENDED 漏掉 REPLAY 房）
-      where: { status: { in: ["ENDED", "REPLAY"] }, replayVisibility: "PLATFORM", auditStatus: "APPROVED" },
+      where: { status: "REPLAY", replayStatus: "PUBLISHED", replayUrl: { not: null }, replayVisibility: "PLATFORM", auditStatus: "APPROVED" },
       select: { id: true, title: true, cover: true, replayUrl: true, viewCount: true, startTime: true, endTime: true, createdAt: true, user: { select: { nickname: true, avatar: true } } },
       take: 20,
       orderBy: sortBy === 'popular' ? { viewCount: 'desc' } : { createdAt: 'desc' },
@@ -2742,10 +2895,12 @@ export class LiveService {
           where: { id: room.hostUserId },
           select: { id: true, nickname: true, avatar: true, bio: true },
         });
-    const key = `live:bookings:${id}`;
     const [bookedCount, isBooked, hostFollowers] = await Promise.all([
-      this.redis.scard(key).catch(() => 0),
-      viewerId ? this.redis.sismember(key, viewerId).catch(() => false) : false,
+      this.prisma.liveBooking.count({ where: { roomId: id, status: "BOOKED" } }).catch(() => 0),
+      viewerId
+        ? this.prisma.liveBooking.findUnique({ where: { roomId_userId: { roomId: id, userId: viewerId } }, select: { status: true } })
+            .then((booking) => booking?.status === "BOOKED").catch(() => false)
+        : false,
       this.prisma.follow.count({ where: { followedUserId: room.hostUserId } }).catch(() => 0),
     ]);
     const durationSeconds = this.calcDuration(room.startTime, room.endTime);
@@ -2771,7 +2926,10 @@ export class LiveService {
   }
 
   async getReplayDetail(id: string) {
-    const room = await this.prisma.liveRoom.findFirst({ where: { id, status: { in: ['ENDED', 'REPLAY'] } }, include: { user: { select: { nickname: true, avatar: true } } } });
+    const room = await this.prisma.liveRoom.findFirst({
+      where: { id, status: 'REPLAY', replayStatus: 'PUBLISHED', replayVisibility: 'PLATFORM', auditStatus: 'APPROVED' },
+      include: { user: { select: { nickname: true, avatar: true } } },
+    });
     if (!room) return null;
     return { id: room.id, title: room.title, cover: room.cover || '', hostName: room.user?.nickname || '', hostAvatar: room.user?.avatar || '', duration: this.calcDuration(room.startTime, room.endTime), viewerCount: room.viewCount, chapters: [], discussions: [], qaList: [], products: [] };
   }
@@ -2794,7 +2952,7 @@ export class LiveService {
         duration: this.calcDuration(room.startTime, room.endTime),
         likeCount: Number(likeSum._sum.likeCount || 0),
         giftCoin: Number(giftAgg._sum.totalCoin || 0), // 打赏金币总额
-        hasReplay: room.status === "REPLAY",
+        hasReplay: room.status === "REPLAY" && room.replayStatus === "PUBLISHED",
       },
       recommendLives: [],
       recommendCourses: [],

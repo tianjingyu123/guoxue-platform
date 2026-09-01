@@ -45,7 +45,7 @@ export class MerchantInventoryService {
   private async resolveTarget(db: DbClient, shopUserId: string, productId: string, skuId?: string | null): Promise<StockTarget> {
     const product = await db.product.findFirst({
       where: { id: productId, userId: shopUserId, deletedAt: null },
-      include: { skus: true },
+      include: { skus: { where: { isActive: true } } },
     });
     if (!product) return this.bad("商品不存在或不属于当前店铺");
     if (product.skus.length) {
@@ -61,7 +61,7 @@ export class MerchantInventoryService {
   async overview(merchantId: string, shopUserId: string) {
     const products = await this.prisma.product.findMany({
       where: { userId: shopUserId, deletedAt: null },
-      select: { id: true, stock: true, skus: { select: { id: true, stock: true } } },
+      select: { id: true, stock: true, skus: { where: { isActive: true }, select: { id: true, stock: true } } },
     });
     const settings = await this.prisma.inventoryAlertSetting.findMany({ where: { merchantId, enabled: true } });
     const thresholds = new Map(settings.map((item) => [item.stockKey, item.lowStockThreshold]));
@@ -143,7 +143,7 @@ export class MerchantInventoryService {
     const [products, settings, reservations] = await Promise.all([
       this.prisma.product.findMany({
         where: { userId: shopUserId, deletedAt: null, ...(q.keyword ? { title: { contains: q.keyword, mode: "insensitive" as const } } : {}) },
-        include: { skus: { orderBy: { createdAt: "asc" } } }, orderBy: { updatedAt: "desc" },
+        include: { skus: { where: { isActive: true }, orderBy: { createdAt: "asc" } } }, orderBy: { updatedAt: "desc" },
       }),
       this.prisma.inventoryAlertSetting.findMany({ where: { merchantId } }),
       this.prisma.order.groupBy({

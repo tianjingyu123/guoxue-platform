@@ -8,11 +8,15 @@
           placeholder="全部状态"
           clearable
           style="width:130px"
-          @change="fetchList"
+          @change="handleFilterChange"
         >
           <el-option
             label="在售"
             value="ON_SALE"
+          />
+          <el-option
+            label="待平台审核"
+            value="PENDING"
           />
           <el-option
             label="已下架"
@@ -97,10 +101,10 @@
       >
         <template #default="{ row }">
           <el-tag
-            :type="row.status === 'ON_SALE' ? 'success' : 'info'"
+            :type="statusMeta(row.status).type"
             size="small"
           >
-            {{ row.status === "ON_SALE" ? "在售" : "已下架" }}
+            {{ statusMeta(row.status).label }}
           </el-tag>
         </template>
       </el-table-column>
@@ -136,7 +140,7 @@
             下架
           </el-button>
           <el-button
-            v-else
+            v-else-if="row.status === 'OFF_SHELF'"
             size="small"
             text
             type="success"
@@ -144,7 +148,15 @@
           >
             上架
           </el-button>
+          <el-tooltip
+            v-else-if="row.status === 'PENDING'"
+            content="平台审核通过后才能上架"
+            placement="top"
+          >
+            <span class="pending-hint">审核中</span>
+          </el-tooltip>
           <el-button
+            v-if="row.status !== 'ON_SALE'"
             size="small"
             text
             type="danger"
@@ -202,6 +214,17 @@ const filterStatus = ref("");
 const editorVisible = ref(false);
 const editingId = ref("");
 
+type TagType = "success" | "warning" | "info" | "danger";
+
+function statusMeta(status?: string): { label: string; type: TagType } {
+  const map: Record<string, { label: string; type: TagType }> = {
+    ON_SALE: { label: "在售", type: "success" },
+    PENDING: { label: "待审核", type: "warning" },
+    OFF_SHELF: { label: "已下架", type: "info" },
+  };
+  return map[status || ""] || { label: status || "未知", type: "danger" };
+}
+
 /** 金额：千分位两位小数，空值显示 — */
 function fmtMoney(v?: number | string | null): string {
   if (v == null || v === "") return "—";
@@ -220,6 +243,11 @@ function fmtTime(d?: string | null): string {
 }
 
 onMounted(() => fetchList());
+
+function handleFilterChange() {
+  page.value = 1;
+  fetchList();
+}
 
 async function fetchList() {
   loading.value = true;
@@ -262,7 +290,11 @@ async function toggleStatus(row: ProductRow, action: string) {
 
 async function handleDelete(row: ProductRow) {
   try {
-    await ElMessageBox.confirm(`确定删除商品"${row.title}"？此操作不可恢复。`, "警告", { type: "error", confirmButtonClass: "el-button--danger" });
+    await ElMessageBox.confirm(
+      `确定删除商品“${row.title || "未命名商品"}”吗？删除后不再展示，历史订单与审计记录仍会保留。`,
+      "删除商品",
+      { type: "warning", confirmButtonClass: "el-button--danger" },
+    );
     await merchantBackendApi.deleteProduct(row.id);
     ElMessage.success("已删除");
     fetchList();
@@ -277,4 +309,5 @@ async function handleDelete(row: ProductRow) {
 .header-right { display: flex; gap: 12px; }
 .prod-img { width: 50px; height: 50px; border-radius: 4px; object-fit: cover; }
 .prod-img-placeholder { width: 50px; height: 50px; border-radius: 4px; background: var(--color-bg-page); display: flex; align-items: center; justify-content: center; color: var(--color-text-placeholder); font-size: 12px; }
+.pending-hint { color: var(--el-color-warning); font-size: 13px; margin: 0 8px; cursor: help; }
 </style>

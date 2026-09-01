@@ -13,7 +13,7 @@ export interface AiDecisionRecord {
   inputSummary: string;
   contextKeys: string[];
   reasoning?: {
-    chainOfThought?: string;
+    summary?: string;
     confidence: number;
     alternatives: Array<{ option: string; score: number }>;
   };
@@ -71,6 +71,16 @@ export class DecisionLedgerService {
 
   /** 记录 AI 决策 */
   async record(decision: AiDecisionRecord): Promise<string> {
+    const safeReasoning = decision.reasoning
+      ? {
+          summary: decision.reasoning.summary?.slice(0, 2000),
+          confidence: decision.reasoning.confidence,
+          alternatives: decision.reasoning.alternatives.slice(0, 20).map((item) => ({
+            option: item.option.slice(0, 500),
+            score: item.score,
+          })),
+        }
+      : undefined;
     const created = await this.prisma.aiDecision.create({
       data: {
         agentId: decision.agentId,
@@ -79,7 +89,8 @@ export class DecisionLedgerService {
         modelVersion: decision.modelVersion,
         inputSummary: decision.inputSummary,
         contextKeys: decision.contextKeys,
-        reasoning: (decision.reasoning as any) || undefined,
+        // 仅保存可解释摘要和证据化备选项，不接收/保存模型私有思维链。
+        reasoning: safeReasoning as any,
         output: decision.output as any,
         confidence: decision.confidence,
         riskLevel: decision.riskLevel,
@@ -118,6 +129,7 @@ export class DecisionLedgerService {
     metric: string,
     expectedValue: number,
     actualValue: number,
+    measuredBy: string,
   ): Promise<void> {
     await this.prisma.aiDecision.update({
       where: { id: decisionId },
@@ -126,6 +138,7 @@ export class DecisionLedgerService {
         outcomeExpected: expectedValue,
         outcomeActual: actualValue,
         outcomeMeasuredAt: new Date(),
+        outcomeMeasuredBy: measuredBy,
       },
     });
   }

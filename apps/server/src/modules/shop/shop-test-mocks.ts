@@ -94,6 +94,7 @@ export function makeMockPrisma(): any {
     productSku: {
       create: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       delete: jest.fn(),
@@ -208,6 +209,9 @@ export function makeMockPrisma(): any {
     // 佣-V2-P3 直播来源→圈子受益人解析（默认查无房间）
     liveRoom: {
       findUnique: jest.fn().mockResolvedValue(null),
+    },
+    shippingAddress: {
+      findFirst: jest.fn(),
     },
     liveProduct: {
       findUnique: jest.fn().mockResolvedValue(null),

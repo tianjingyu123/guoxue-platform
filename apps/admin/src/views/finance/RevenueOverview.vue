@@ -278,6 +278,7 @@ import { ElMessage } from "element-plus";
 import { revenueApi } from "@/api";
 import echarts from "@/utils/echarts";
 import type { EChartsType } from "echarts/core";
+import { downloadCsvRows } from "@/utils/export";
 
 const router = useRouter();
 
@@ -478,14 +479,7 @@ function exportCSV() {
   for (const item of breakdownItems.value) {
     rows.push([item.label, String(item.value), item.percent]);
   }
-  const csv = rows.map((r) => r.join(",")).join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `用户收益报表_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadCsvRows(`用户收益报表_${new Date().toISOString().slice(0, 10)}`, rows);
   ElMessage.success("导出成功");
 }
 

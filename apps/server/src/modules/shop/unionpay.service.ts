@@ -13,41 +13,37 @@ import { ErrorCode } from "../../common/error-codes";
 @Injectable()
 export class UnionpayService {
   private readonly logger = new Logger(UnionpayService.name);
-  private readonly merId: string;
-  private readonly privateKey: string;
-  private readonly publicKey: string;
-  private readonly gateway: string;
-  private readonly notifyUrl: string;
-
+  private privateKeyCache?: { source: string; value: string };
 
   constructor() {
-    this.merId = process.env.UNIONPAY_MER_ID || "";
-    this.notifyUrl = process.env.UNIONPAY_NOTIFY_URL || "";
-    const sandbox = process.env.UNIONPAY_SANDBOX === "true";
-
-    // 网关URL
-    this.gateway = sandbox
-      ? "https://gateway.test.95516.com/gateway/api"
-      : "https://gateway.95516.com/gateway/api";
-
-    // 证书加载
-    const pfxPath = process.env.UNIONPAY_PFX_PATH || "";
-    const pfxPass = process.env.UNIONPAY_PFX_PASSWORD || "";
-    if (pfxPath) {
-      const { privateKey } = this.loadPfx(readFileSync(pfxPath), pfxPass);
-      this.privateKey = privateKey;
-    } else {
-      this.privateKey = (process.env.UNIONPAY_PRIVATE_KEY || "").replace(/\\n/g, "\n");
-    }
-
-    const pubKeyPath = process.env.UNIONPAY_PUBLIC_KEY_PATH || "";
-    this.publicKey = pubKeyPath
-      ? readFileSync(pubKeyPath, "utf-8")
-      : (process.env.UNIONPAY_PUBLIC_KEY || "").replace(/\\n/g, "\n");
-
     if (!this.merId || !this.privateKey) {
       this.logger.warn("银联支付未配置");
     }
+  }
+
+  // 后台密钥保存会跨节点刷新 process.env；运行时读取并仅按配置指纹缓存 PFX 解析结果。
+  private get merId(): string { return process.env.UNIONPAY_MER_ID || ""; }
+  private get notifyUrl(): string { return process.env.UNIONPAY_NOTIFY_URL || ""; }
+  private get gateway(): string {
+    return process.env.UNIONPAY_SANDBOX === "true"
+      ? "https://gateway.test.95516.com/gateway/api"
+      : "https://gateway.95516.com/gateway/api";
+  }
+  private get privateKey(): string {
+    const pfxPath = process.env.UNIONPAY_PFX_PATH || "";
+    const pfxPass = process.env.UNIONPAY_PFX_PASSWORD || "";
+    const inline = process.env.UNIONPAY_PRIVATE_KEY || "";
+    const source = `${pfxPath}\u0000${pfxPass}\u0000${inline}`;
+    if (this.privateKeyCache?.source === source) return this.privateKeyCache.value;
+    const value = pfxPath
+      ? this.loadPfx(readFileSync(pfxPath), pfxPass).privateKey
+      : inline.replace(/\\n/g, "\n");
+    this.privateKeyCache = { source, value };
+    return value;
+  }
+  private get publicKey(): string {
+    const path = process.env.UNIONPAY_PUBLIC_KEY_PATH || "";
+    return path ? readFileSync(path, "utf-8") : (process.env.UNIONPAY_PUBLIC_KEY || "").replace(/\\n/g, "\n");
   }
 
   /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */

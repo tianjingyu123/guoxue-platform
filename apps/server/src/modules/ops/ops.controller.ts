@@ -4,11 +4,10 @@ import { Request } from "express";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
-import { RequireAutomation } from "../../common/require-automation.decorator";
 import { Autonomy, AutonomyLevel } from "../../common/autonomy";
 import { OpsService } from "./ops.service";
 import { InspectionService } from "./inspection.service";
-import { ClaimOpsTaskDto, CompleteOpsTaskDto, CreateOpsTaskDto, QueryOpsTaskDto, ReviewOpsTaskDto } from "./ops.dto";
+import { ApproveOpsTaskDto, CompleteOpsTaskDto, CreateOpsTaskDto, QueryOpsTaskDto, ReviewOpsTaskDto } from "./ops.dto";
 
 /** 数字员工运营 OS — 任务池（OS-P1）：数字员工与真人从同一池取任务 */
 @ApiTags("运营任务池")
@@ -42,6 +41,12 @@ export class OpsController {
     return this.opsService.list(query);
   }
 
+  @Get("overview")
+  @ApiOperation({ summary: "数字员工运营总览（任务状态、待审批、24小时 AI 产出）" })
+  async overview() {
+    return this.opsService.overview();
+  }
+
   @Post("tasks")
   @ApiOperation({ summary: "创建任务（巡检/修复/审核/运营动作）" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -58,21 +63,30 @@ export class OpsController {
   @ApiResponse({ status: 400, description: "状态不可认领" })
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiResponse({ status: 403, description: "无权限" })
-  async claim(@Param("id") id: string, @Body() body: ClaimOpsTaskDto, @Req() req: Request) {
+  async claim(@Param("id") id: string, @Req() req: Request) {
     const operator = this.operator(req);
-    return this.opsService.claim(id, body.executor || operator, operator);
+    // 管理端只能以当前登录人身份认领，禁止通过请求体冒充数字员工或其他管理员。
+    return this.opsService.claim(id, operator, operator);
   }
 
   @Put("tasks/:id/complete")
-  @RequireAutomation() // 一键接管示范：automation_enabled=false 时本写操作 403
   @Autonomy(AutonomyLevel.L2_ONE_CLICK) // 人点/AI 执行的一键动作
-  @ApiOperation({ summary: "完成任务（in_progress → completed，落 result；受一键接管开关约束）" })
+  @ApiOperation({ summary: "完成任务（in_progress → completed；真人接管不受自动化总开关阻断）" })
   @ApiResponse({ status: 200, description: "完成成功" })
   @ApiResponse({ status: 400, description: "状态不可完成" })
   @ApiResponse({ status: 401, description: "未登录" })
-  @ApiResponse({ status: 403, description: "无权限或自动化已被管理员暂停" })
+  @ApiResponse({ status: 403, description: "无权限、非当前执行者或高风险任务尚未审批" })
   async complete(@Param("id") id: string, @Body() body: CompleteOpsTaskDto, @Req() req: Request) {
     return this.opsService.complete(id, body.result, this.operator(req));
+  }
+
+  @Put("tasks/:id/approval")
+  @Roles("SUPER_ADMIN")
+  @ApiOperation({ summary: "审批或驳回高风险任务（执行与审批职责分离）" })
+  @ApiResponse({ status: 200, description: "审批状态已更新" })
+  @ApiResponse({ status: 400, description: "任务无需审批、状态错误或执行者自审" })
+  async approve(@Param("id") id: string, @Body() body: ApproveOpsTaskDto, @Req() req: Request) {
+    return this.opsService.approve(id, body.approved, this.operator(req), body.note);
   }
 
   @Put("tasks/:id/review")

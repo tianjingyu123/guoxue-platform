@@ -2,14 +2,14 @@ import axios from "axios";
 import type { AxiosRequestConfig } from "axios";
 import { ElMessage, ElNotification } from "element-plus";
 import { h } from "vue";
-import { clearAdminSession } from "@/utils/auth-session";
+import { clearAdminSession, rememberAdminRedirect } from "@/utils/auth-session";
 
 export const api = axios.create({
   baseURL: "/api/v1",
   timeout: 10000,
 });
 
-type AdminRequestConfig = AxiosRequestConfig & { silentError?: boolean };
+export type AdminRequestConfig = AxiosRequestConfig & { silentError?: boolean };
 const SILENT_ERROR_REQUEST: AdminRequestConfig = { silentError: true };
 
 api.interceptors.request.use((config) => {
@@ -23,8 +23,17 @@ api.interceptors.request.use((config) => {
 let refreshing = false;
 let refreshQueue: Array<(token: string) => void> = [];
 
+let lastErrorFingerprint = "";
+let lastErrorShownAt = 0;
+
 /** 展示错误消息：多条用通知框，单条用顶部提示 */
 function showError(msg: string | string[]) {
+  // 多个并发卡片/图表命中同一故障时只提示一次，避免后台首页出现 toast 风暴。
+  const fingerprint = Array.isArray(msg) ? msg.join("\n") : msg;
+  const now = Date.now();
+  if (fingerprint === lastErrorFingerprint && now - lastErrorShownAt < 2000) return;
+  lastErrorFingerprint = fingerprint;
+  lastErrorShownAt = now;
   if (Array.isArray(msg)) {
     ElNotification({
       title: "提交失败，请检查以下问题",
@@ -118,11 +127,11 @@ api.interceptors.response.use(
       refreshQueue.forEach((cb) => cb(""));
       refreshQueue = [];
       ElMessage.warning("登录已过期，请重新登录");
-      const currentPath = window.location.pathname;
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       const loginPath = import.meta.env.BASE_URL + "login";
       clearAdminSession();
       if (currentPath !== loginPath) {
-        localStorage.setItem("redirect_after_login", currentPath);
+        rememberAdminRedirect(currentPath);
       }
       window.location.href = loginPath;
       return Promise.reject(err);
@@ -472,7 +481,13 @@ export const liveApi = {
   detail: (id: string) => api.get(`/live/rooms/${id}`),
   create: (data: Record<string, unknown>) => api.post("/live/rooms", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/live/rooms/${id}`, data),
+  startRoom: (id: string) => api.put(`/live/rooms/${id}/start`),
+  startObsRoom: (id: string) => api.put(`/live/rooms/${id}/start-obs`),
   endRoom: (id: string) => api.put(`/live/rooms/${id}/end`),
+  streamUrls: (id: string) => api.get(`/live/rooms/${id}/stream-urls`),
+  streamStatus: (id: string) => api.get(`/live/rooms/${id}/stream-status`),
+  publishReplay: (id: string, replayUrl: string) => api.put(`/live/rooms/${id}/replay`, { replayUrl }),
+  unpublishReplay: (id: string) => api.put(`/live/rooms/${id}/replay/unpublish`),
   remove: (id: string) => api.delete(`/live/rooms/${id}`),
   // 礼物管理
   gifts: () => api.get("/live/gifts"),
@@ -943,6 +958,7 @@ export const systemApi = {
   // 配置管理
   listConfigs: () => api.get("/system/configs"),
   getThirdPartySchema: () => api.get("/system/third-party-schema"),
+  getThirdPartyReadiness: () => api.get("/system/third-party-readiness"),
   // 品牌配置（租-T0 品牌抽象）
   getBrandConfig: () => api.get("/system/public/brand-config", SILENT_ERROR_REQUEST),
   updateBrandConfig: (data: Record<string, string>) => api.put("/system/brand-config", data),
@@ -988,7 +1004,7 @@ export const systemApi = {
   getCronStatus: () => api.get("/system/cron-status"),
   // 定时任务总览：进程内真实注册的 @Cron 任务(registered) + DB执行记录(recent)·修"cron页空转"
   getCronJobs: () => api.get("/system/cron"),
-  triggerCron: (jobName: string) => api.post(`/system/cron/${jobName}`),
+  triggerCron: (jobName: string) => api.post(`/system/cron/${jobName}/manual`),
 };
 
 // 法律文件管理
@@ -1105,7 +1121,7 @@ export const notificationApi = {
     targetId?: string;
   }) => api.post("/notifications/batch", data),
   delete: (id: string) => api.delete(`/notifications/${id}`),
-  unreadCount: () => api.get("/notifications/unread-count"),
+  unreadCount: (config?: AdminRequestConfig) => api.get("/notifications/unread-count", config),
   markRead: (id: string) => api.put(`/notifications/${id}/read`),
   markAllRead: () => api.put("/notifications/read-all"),
   getPreferences: () => api.get("/notifications/preferences"),
@@ -1456,6 +1472,8 @@ export const complianceScanApi = {
 
 // 数字员工运营 OS — 任务池（OS-P1）
 export const opsTaskApi = {
+  overview: () => api.get("/ops/overview"),
+  inspect: () => api.post("/ops/inspect"),
   list: (params?: {
     status?: string;
     type?: string;
@@ -1470,11 +1488,12 @@ export const opsTaskApi = {
     payload?: Record<string, unknown>;
     needsApproval?: boolean;
   }) => api.post("/ops/tasks", data),
-  claim: (id: string, executor?: string) =>
-    api.put(`/ops/tasks/${id}/claim`, executor ? { executor } : {}),
+  claim: (id: string) => api.put(`/ops/tasks/${id}/claim`, {}),
   complete: (id: string, result?: Record<string, unknown>) =>
     api.put(`/ops/tasks/${id}/complete`, { result }),
   review: (id: string, reason: string) => api.put(`/ops/tasks/${id}/review`, { reason }),
+  approve: (id: string, approved: boolean, note: string) =>
+    api.put(`/ops/tasks/${id}/approval`, { approved, note }),
 };
 
 // Webhook管理
@@ -2175,13 +2194,6 @@ export const backupApi = {
 
 // ───────── AI事件总线 ─────────
 export const aiEventApi = {
-  publish: (data: {
-    type: string;
-    source: string;
-    severity?: string;
-    payload?: unknown;
-    context?: unknown;
-  }) => api.post("/ai/events/publish", data),
   list: (params?: {
     page?: number;
     pageSize?: number;
@@ -2191,7 +2203,6 @@ export const aiEventApi = {
     status?: string;
   }) => api.get("/ai/events", { params }),
   stats: () => api.get("/ai/events/stats"),
-  process: (id: string) => api.post(`/ai/events/${id}/process`),
 };
 
 // ───────── AI能力注册中心 ─────────
@@ -2239,7 +2250,7 @@ export const aiCollaborationApi = {
   detail: (id: string) => api.get(`/ai/collaborations/${id}`),
   review: (
     id: string,
-    data: { action: string; reviewer?: string; note?: string; modifications?: unknown },
+    data: { action: string; note?: string; modifications?: unknown },
   ) => api.post(`/ai/collaborations/${id}/review`, data),
   execute: (id: string) => api.post(`/ai/collaborations/${id}/execute`),
   rollback: (id: string, reason?: string) =>

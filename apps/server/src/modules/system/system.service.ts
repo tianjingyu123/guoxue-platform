@@ -14,6 +14,14 @@ import { serverConfig } from "../../config/server-config";
 const CONFIG_CACHE_TTL = 3600; // 1小时
 const CONFIG_CACHE_PREFIX = "sys:config:";
 const MEMBER_PLAN_LEVELS = new Set(["MONTHLY", "QUARTERLY", "YEARLY", "YEARLY_AUTO", "LIFETIME"]);
+const MANUAL_CRON_JOBS = [
+  { name: "health_check", label: "基础设施健康检查", schedule: "每 5 分钟（外部调度）" },
+  { name: "daily_report", label: "每日运营报告", schedule: "每天 08:00（外部调度）" },
+  { name: "content_audit", label: "待审内容扫描", schedule: "每 30 分钟（外部调度）" },
+  { name: "user_growth", label: "用户增长分析", schedule: "每天 09:00（外部调度）" },
+  { name: "feedback_process", label: "用户反馈处理", schedule: "每 10 分钟（外部调度）" },
+  { name: "db_backup_check", label: "数据库备份核验", schedule: "每天 03:00（外部调度）" },
+] as const;
 
 function isVersionedRemoteConfigKey(key: string): boolean {
   return key === "maintenance_mode"
@@ -75,6 +83,10 @@ export class SystemService {
       return { ...config, configValue: this.thirdParty.buildDisplayValue(key, config.configValue) };
     }
     return config;
+  }
+
+  async getPaymentReadiness() {
+    return this.thirdParty.getPaymentReadiness();
   }
 
   /**
@@ -180,6 +192,7 @@ export class SystemService {
     // 第三方密钥：保存后立即同步到 process.env（热生效，无需重启）
     if (this.thirdParty.isThirdPartyKey(key)) {
       await this.thirdParty.syncToEnv();
+      await this.thirdParty.broadcastReload(key);
     }
     return result;
   }
@@ -829,9 +842,26 @@ export class SystemService {
   }
 
   /** 执行定时任务 */
-  async executeCronJob(jobName: string) {
+  async executeCronJob(jobName: string, triggeredBy = "WEBHOOK") {
+    const result = await this.redis.runExclusive(
+      `system-webhook-${jobName}`,
+      900,
+      () => this.executeCronJobUnlocked(jobName, triggeredBy),
+    );
+    if (result === undefined) {
+      return {
+        ok: false,
+        skipped: true,
+        job: jobName,
+        reason: "任务已在其他节点执行，本次未重复触发",
+      };
+    }
+    return result;
+  }
+
+  private async executeCronJobUnlocked(jobName: string, triggeredBy: string) {
     const startTime = Date.now();
-    this.logger.log(`Cron 任务触发: ${jobName}`);
+    this.logger.log(`Cron 任务触发: ${jobName} (${triggeredBy})`);
 
     try {
       let result: any;
@@ -860,10 +890,11 @@ export class SystemService {
 
       await this.prisma.operationLog.create({
         data: {
+          userId: triggeredBy === "WEBHOOK" ? null : triggeredBy,
           action: `cron.${jobName}`,
           targetType: "cron",
           targetId: jobName,
-          detail: { duration: Date.now() - startTime, result } as any,
+          detail: { duration: Date.now() - startTime, result, triggeredBy } as any,
         },
       });
 
@@ -873,10 +904,11 @@ export class SystemService {
       this.logger.error(`Cron 任务失败: ${jobName}`, err.message);
       await this.prisma.operationLog.create({
         data: {
+          userId: triggeredBy === "WEBHOOK" ? null : triggeredBy,
           action: `cron.${jobName}.error`,
           targetType: "cron",
           targetId: jobName,
-          detail: { error: err.message, duration: Date.now() - startTime } as any,
+          detail: { error: err.message, duration: Date.now() - startTime, triggeredBy } as any,
         },
       });
       throw err;
@@ -903,18 +935,26 @@ export class SystemService {
       name: string;
       cronTime: string | null;
       nextRun: string | null;
+      lastRun: string | null;
       running: boolean;
     }> = [];
     try {
       const jobs = this.scheduler.getCronJobs();
       for (const [name, job] of jobs) {
         let nextRun: string | null = null;
+        let lastRun: string | null = null;
         let cronTime: string | null = null;
         try {
           const nd = (job as { nextDate?: () => unknown }).nextDate?.();
           nextRun = this.toIso(nd);
         } catch {
           nextRun = null;
+        }
+        try {
+          const ld = (job as { lastDate?: () => unknown }).lastDate?.();
+          lastRun = this.toIso(ld);
+        } catch {
+          lastRun = null;
         }
         try {
           // cronTime.source 在不同版本形态各异，尽量取到表达式字符串
@@ -929,7 +969,7 @@ export class SystemService {
         } catch {
           running = false;
         }
-        registered.push({ name, cronTime, nextRun, running });
+        registered.push({ name, cronTime, nextRun, lastRun, running });
       }
     } catch (err) {
       this.logger.warn(`枚举注册 cron 失败: ${err instanceof Error ? err.message : String(err)}`);
@@ -937,7 +977,28 @@ export class SystemService {
     registered.sort((a, b) => a.name.localeCompare(b.name));
 
     const recent = await this.getRecentCronJobs(recentLimit);
-    return { registered, registeredCount: registered.length, recent };
+    const manual = MANUAL_CRON_JOBS.map((definition) => {
+      const latest = recent.find(
+        (item) => item.action === `cron.${definition.name}`
+          || item.action === `cron.${definition.name}.error`,
+      );
+      const detail = latest?.detail && typeof latest.detail === "object"
+        ? latest.detail as Record<string, unknown>
+        : {};
+      return {
+        ...definition,
+        lastRunAt: latest?.createdAt ?? null,
+        lastStatus: latest?.action.endsWith(".error") ? "failed" : latest ? "success" : "never_run",
+        durationMs: typeof detail.duration === "number" ? detail.duration : null,
+      };
+    });
+    return {
+      registered,
+      registeredCount: registered.length,
+      manual,
+      manualCount: manual.length,
+      recent,
+    };
   }
 
   /** 将 luxon DateTime / Date / 字符串统一转 UTC ISO（cron 下次执行时间展示） */

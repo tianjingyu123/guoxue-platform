@@ -99,8 +99,10 @@ export class ShopController {
   @ApiResponse({ status: 404, description: "资源不存在" })
   @ApiQuery({ name: "scene", required: false, description: "场景: detail/cart/checkout" })
   @ApiQuery({ name: "pageId", required: false, description: "当前微页面ID" })
-  getProduct(@Param("id") id: string, @Query("scene") scene?: string, @Query("pageId") pageId?: string) {
-    return this.shop.getProduct(id, scene, pageId);
+  getProduct(@Param("id") id: string, @Req() req?: Request, @Query("scene") scene?: string, @Query("pageId") pageId?: string) {
+    const roles = ((req?.user as { roles?: string[] } | undefined)?.roles) || [];
+    const includeUnpublished = roles.some((role) => ["SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR"].includes(role));
+    return this.shop.getProduct(id, scene, pageId, includeUnpublished);
   }
 
   @Get("store/:merchantId")
@@ -123,7 +125,8 @@ export class ShopController {
   @ApiResponse({ status: 401, description: "未登录" })
   @ApiBearerAuth()
   updateProduct(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: UpdateProductDto) {
-    return this.shop.updateProduct(req.user.id, id, dto);
+    const isAdmin = req.user.roles?.some((role) => ["SUPER_ADMIN", "OPERATION_ADMIN"].includes(role)) ?? false;
+    return this.shop.updateProduct(req.user.id, id, dto, isAdmin);
   }
 
   @Put("products/:id/status")

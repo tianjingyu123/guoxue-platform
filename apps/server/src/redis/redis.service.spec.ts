@@ -249,6 +249,22 @@ describe("RedisService", () => {
     })
   })
 
+  describe("publish/subscribe", () => {
+    it("无 Redis 时仍在当前进程可靠广播并可取消订阅", async () => {
+      const received: string[] = []
+      const unsubscribe = await service.subscribe("ops:test", async (message) => {
+        received.push(message)
+      })
+
+      await expect(service.publish("ops:test", "first")).resolves.toBe(1)
+      expect(received).toEqual(["first"])
+
+      await unsubscribe()
+      await expect(service.publish("ops:test", "second")).resolves.toBe(0)
+      expect(received).toEqual(["first"])
+    })
+  })
+
   // ═══════════════════ SORTED SET 操作 ═══════════════════
 
   describe("zset presence helpers", () => {

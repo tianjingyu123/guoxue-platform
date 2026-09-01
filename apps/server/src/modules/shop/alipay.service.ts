@@ -13,34 +13,30 @@ import { ErrorCode } from "../../common/error-codes";
 @Injectable()
 export class AlipayService {
   private readonly logger = new Logger(AlipayService.name);
-  private readonly appId: string;
-  private readonly privateKey: string;
-  private readonly alipayPublicKey: string;
-  private readonly gateway: string;
-  private readonly notifyUrl: string;
-
 
   constructor(
     @Optional() @Inject(MetricsService) private metrics?: MetricsService,
   ) {
-    this.appId = process.env.ALIPAY_APP_ID || "";
-    this.notifyUrl = process.env.ALIPAY_NOTIFY_URL || "";
-    const sandbox = process.env.ALIPAY_SANDBOX === "true";
-    this.gateway = sandbox
-      ? "https://openapi.alipaydev.com/gateway.do"
-      : "https://openapi.alipay.com/gateway.do";
-
-    const keyPath = process.env.ALIPAY_PRIVATE_KEY_PATH || "";
-    const keyContent = process.env.ALIPAY_PRIVATE_KEY || "";
-    this.privateKey = keyPath ? readFileSync(keyPath, "utf-8") : keyContent.replace(/\\n/g, "\n");
-
-    const pubKeyPath = process.env.ALIPAY_PUBLIC_KEY_PATH || "";
-    const pubKeyContent = process.env.ALIPAY_PUBLIC_KEY || "";
-    this.alipayPublicKey = pubKeyPath ? readFileSync(pubKeyPath, "utf-8") : pubKeyContent.replace(/\\n/g, "\n");
-
     if (!this.appId || !this.privateKey) {
       this.logger.warn("支付宝未配置，请设置 ALIPAY_* 环境变量");
     }
+  }
+
+  // 后台密钥保存会跨节点刷新 process.env；运行时动态读取，避免服务实例继续使用旧密钥。
+  private get appId(): string { return process.env.ALIPAY_APP_ID || ""; }
+  private get notifyUrl(): string { return process.env.ALIPAY_NOTIFY_URL || ""; }
+  private get gateway(): string {
+    return process.env.ALIPAY_SANDBOX === "true"
+      ? "https://openapi.alipaydev.com/gateway.do"
+      : "https://openapi.alipay.com/gateway.do";
+  }
+  private get privateKey(): string {
+    const path = process.env.ALIPAY_PRIVATE_KEY_PATH || "";
+    return path ? readFileSync(path, "utf-8") : (process.env.ALIPAY_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+  }
+  private get alipayPublicKey(): string {
+    const path = process.env.ALIPAY_PUBLIC_KEY_PATH || "";
+    return path ? readFileSync(path, "utf-8") : (process.env.ALIPAY_PUBLIC_KEY || "").replace(/\\n/g, "\n");
   }
 
   /** 支付渠道是否已配置（缺密钥则无法签名/退款，调用方据此降级为线下处理） */

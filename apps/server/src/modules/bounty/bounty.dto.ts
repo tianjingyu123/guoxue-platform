@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsArray, Min } from "class-validator";
+import { IsString, IsOptional, IsInt, IsArray, Min, MinLength, MaxLength } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class CreateBountyDto {
@@ -27,6 +27,14 @@ export class CreateBountyDto {
 export class RejectReviewDto {
   @IsOptional() @IsString()
   reason?: string;
+}
+
+export class CloseBountyQuestionDto {
+  @ApiProperty({ description: "关闭原因", minLength: 2, maxLength: 500 })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(500)
+  reason: string;
 }
 
 export class AnswerBountyDto {

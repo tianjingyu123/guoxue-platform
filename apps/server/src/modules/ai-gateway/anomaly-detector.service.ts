@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../prisma/prisma.service";
 import { RedisService } from "../../redis/redis.service";
@@ -7,10 +7,13 @@ import { AiGatewayService } from "./ai-gateway.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 
+const ANOMALY_EVENT_COOLDOWN_SECONDS = 6 * 3600;
+
 export interface AnomalyRule {
   id: string;
   metric: string;
   dimension: "revenue" | "user" | "content" | "performance";
+  direction: "up" | "down" | "both";
   baselineWindow: number; // 基线窗口天数
   deviationThreshold: number; // 偏离阈值（标准差倍数）
   severity: "info" | "warning" | "critical";
@@ -42,9 +45,10 @@ export interface AnomalyReport {
  * - 性能异常：API延迟飙升/错误率上升
  */
 @Injectable()
-export class AnomalyDetectorService {
+export class AnomalyDetectorService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AnomalyDetectorService.name);
   private rules: AnomalyRule[] = [];
+  private unsubscribeRuleReload?: () => Promise<void>;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -55,22 +59,32 @@ export class AnomalyDetectorService {
     this.initDefaultRules();
   }
 
-  /** 注册检测规则 */
-  registerRule(rule: AnomalyRule): void {
+  async onModuleInit(): Promise<void> {
+    await this.loadPersistedRules();
+    this.unsubscribeRuleReload = await this.redis.subscribe("ai:anomaly-rules:reload", async () => {
+      await this.loadPersistedRules();
+    });
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.unsubscribeRuleReload?.();
+  }
+
+  /** 只允许调整已绑定真实查询适配器的规则；禁止注册一个永远不取数的“展示规则”。 */
+  async registerRule(rule: Omit<AnomalyRule, "direction"> & { direction?: AnomalyRule["direction"] }): Promise<void> {
     const idx = this.rules.findIndex((r) => r.id === rule.id);
-    if (idx >= 0) {
-      this.rules[idx] = rule;
-    } else {
-      this.rules.push(rule);
-    }
+    if (idx < 0) throw new BusinessException(ErrorCode.BAD_REQUEST, "规则未绑定真实指标数据源，不能启用");
+    this.rules[idx] = { ...rule, direction: rule.direction ?? this.rules[idx].direction };
+    await this.persistRules();
     this.logger.log(`异常检测规则已注册: ${rule.id}`);
   }
 
-  /** 启用/停用规则（内存态·翻转 enabled；停用后 runRule/runAllRules 跳过该规则） */
-  toggleRule(ruleId: string, enabled?: boolean): { id: string; enabled: boolean } {
+  /** 启用/停用规则：持久化并广播所有节点，重启后不会悄悄恢复默认值。 */
+  async toggleRule(ruleId: string, enabled?: boolean): Promise<{ id: string; enabled: boolean }> {
     const rule = this.rules.find((r) => r.id === ruleId);
     if (!rule) throw new BusinessException(ErrorCode.NOT_FOUND, "规则不存在");
     rule.enabled = enabled === undefined ? !rule.enabled : enabled;
+    await this.persistRules();
     this.logger.log(`异常检测规则 ${ruleId} → ${rule.enabled ? "启用" : "停用"}`);
     return { id: rule.id, enabled: rule.enabled };
   }
@@ -92,19 +106,25 @@ export class AnomalyDetectorService {
       baseline.values.reduce((s, v) => s + (v - mean) ** 2, 0) /
       baseline.values.length;
     const std = Math.sqrt(variance);
-
-    if (std === 0) return null;
-
-    const deviation = Math.abs(currentValue - mean) / std;
+    // 历史值完全相同时仍能识别突变，同时用 10% 均值或 1 作为噪声下限，避免零方差失明。
+    const effectiveStd = Math.max(std, Math.abs(mean) * 0.1, 1);
+    const signedDeviation = (currentValue - mean) / effectiveStd;
+    if (rule.direction === "up" && signedDeviation <= 0) return null;
+    if (rule.direction === "down" && signedDeviation >= 0) return null;
+    const deviation = Math.abs(signedDeviation);
     if (deviation < rule.deviationThreshold) return null;
 
     const direction = currentValue > mean ? "上升" : "下降";
-    const severity =
+    const detectedSeverity =
       deviation > rule.deviationThreshold * 3
         ? "critical"
         : deviation > rule.deviationThreshold * 2
           ? "warning"
           : "info";
+    const severityRank = { info: 0, warning: 1, critical: 2 } as const;
+    const severity = severityRank[rule.severity] > severityRank[detectedSeverity]
+      ? rule.severity
+      : detectedSeverity;
 
     const report: AnomalyReport = {
       ruleId: rule.id,
@@ -114,18 +134,27 @@ export class AnomalyDetectorService {
       baselineStd: Math.round(std * 100) / 100,
       deviation: Math.round(deviation * 100) / 100,
       severity,
-      summary: `${rule.metric} 当前值 ${currentValue}，较基线均值 ${Math.round(mean)} ${direction} ${Math.round(deviation * 100)}%（${severity === "critical" ? "严重" : severity === "warning" ? "需关注" : "提示"}）`,
+      summary: `${rule.metric} 当前值 ${Math.round(currentValue * 100) / 100}，较基线均值 ${Math.round(mean * 100) / 100} ${direction}，偏离 ${Math.round(deviation * 100) / 100} 个基准波动单位（${severity === "critical" ? "严重" : severity === "warning" ? "需关注" : "提示"}）`,
       detectedAt: new Date(),
     };
 
-    // 发现异常 → 发布事件
+    // 同一规则持续异常时按 6 小时冷却，避免每小时重复创建同类运营任务；严重度升级使用独立键可立即上报。
     if (severity !== "info") {
-      await this.eventBus.publish({
-        type: `anomaly.detected.${rule.dimension}`,
-        source: "ops",
-        severity: severity as "info" | "warning" | "critical",
-        payload: report as any,
-      });
+      const shouldPublish = await this.redis.setNX(
+        `ai:anomaly:cooldown:${rule.id}:${severity}`,
+        report.detectedAt.toISOString(),
+        ANOMALY_EVENT_COOLDOWN_SECONDS,
+      );
+      if (shouldPublish) {
+        await this.eventBus.publish({
+          type: `anomaly.detected.${rule.dimension}`,
+          source: "ops",
+          severity: severity as "info" | "warning" | "critical",
+          payload: report as any,
+        });
+      } else {
+        this.logger.debug(`异常 ${rule.id} 仍在冷却窗口，保留检测结果但不重复建单`);
+      }
     }
 
     return report;
@@ -187,7 +216,7 @@ export class AnomalyDetectorService {
     return [...this.rules];
   }
 
-  /** 每日自动巡检（分布式锁防多实例重复执行） */
+  /** 每小时自动巡检（分布式锁防多实例重复执行） */
   @Cron(CronExpression.EVERY_HOUR)
   async scheduledCheck(): Promise<void> {
     await this.redis.runExclusive("anomaly_detector_scheduled_check", 1800, () =>
@@ -203,6 +232,15 @@ export class AnomalyDetectorService {
           (r) => r.severity === "critical",
         ).length;
         if (criticalCount > 0) {
+          const shouldPublishReport = await this.redis.setNX(
+            "ai:anomaly:report:cooldown",
+            new Date().toISOString(),
+            ANOMALY_EVENT_COOLDOWN_SECONDS,
+          );
+          if (!shouldPublishReport) {
+            this.logger.debug("严重异常综合报告仍在冷却窗口，跳过重复 AI 调用与建单");
+            return;
+          }
           const aiReport = await this.generateReport(reports);
           this.logger.warn(
             `异常巡检: ${reports.length} 项异常，${criticalCount} 项严重`,
@@ -232,6 +270,7 @@ export class AnomalyDetectorService {
         id: "revenue-daily-drop",
         metric: "日营收（元）",
         dimension: "revenue",
+        direction: "down",
         baselineWindow: 14,
         deviationThreshold: 2.0,
         severity: "warning",
@@ -241,6 +280,7 @@ export class AnomalyDetectorService {
         id: "user-registration-spike",
         metric: "日注册用户数",
         dimension: "user",
+        direction: "up",
         baselineWindow: 14,
         deviationThreshold: 3.0,
         severity: "info",
@@ -250,6 +290,7 @@ export class AnomalyDetectorService {
         id: "user-registration-drop",
         metric: "日注册用户数（下降）",
         dimension: "user",
+        direction: "down",
         baselineWindow: 14,
         deviationThreshold: 2.5,
         severity: "warning",
@@ -259,6 +300,7 @@ export class AnomalyDetectorService {
         id: "content-publish-drop",
         metric: "日内容发布量",
         dimension: "content",
+        direction: "down",
         baselineWindow: 7,
         deviationThreshold: 2.5,
         severity: "warning",
@@ -266,8 +308,9 @@ export class AnomalyDetectorService {
       },
       {
         id: "api-latency-spike",
-        metric: "API平均延迟（ms）",
+        metric: "AI 调用平均延迟（ms）",
         dimension: "performance",
+        direction: "up",
         baselineWindow: 7,
         deviationThreshold: 3.0,
         severity: "critical",
@@ -275,8 +318,9 @@ export class AnomalyDetectorService {
       },
       {
         id: "api-error-rate-spike",
-        metric: "API错误率（%）",
+        metric: "前端错误率（每百次页面浏览）",
         dimension: "performance",
+        direction: "up",
         baselineWindow: 7,
         deviationThreshold: 3.0,
         severity: "critical",
@@ -299,47 +343,41 @@ export class AnomalyDetectorService {
   private async getCurrentValue(
     rule: AnomalyRule,
   ): Promise<number | null> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today.getTime() + 86400_000);
+    // 统一使用完整的滚动 24 小时，避免凌晨把“今天尚未结束”误报为营收/注册骤降。
+    const end = new Date();
+    const start = new Date(end.getTime() - 86400_000);
 
     try {
       switch (rule.id) {
         case "revenue-daily-drop": {
           // 从订单表统计今日营收（简化版，实际需接入真实数据源）
-          return this.getRevenueBetween(today, tomorrow);
+          return this.getRevenueBetween(start, end);
         }
         case "user-registration-spike":
         case "user-registration-drop": {
           const count = await this.prisma.user.count({
-            where: { createdAt: { gte: today, lt: tomorrow } },
+            where: { createdAt: { gte: start, lt: end } },
           });
           return count;
         }
         case "content-publish-drop": {
           const count = await this.prisma.content.count({
             where: {
-              createdAt: { gte: today, lt: tomorrow },
+              createdAt: { gte: start, lt: end },
               status: "PUBLISHED",
             },
           });
           return count;
         }
         case "api-latency-spike": {
-          const result = await this.prisma.aiCacheEntry.aggregate({
-            where: { lastHitAt: { gte: today } },
-            _count: true,
+          const result = await this.prisma.aiAnalysisRecord.aggregate({
+            where: { createdAt: { gte: start, lt: end }, latency: { not: null } },
+            _avg: { latency: true },
           });
-          return result._count || 0;
+          return Number(result._avg.latency ?? 0);
         }
         case "api-error-rate-spike": {
-          const errors = await this.prisma.aiEvent.count({
-            where: {
-              severity: "critical",
-              createdAt: { gte: today, lt: tomorrow },
-            },
-          });
-          return errors;
+          return this.getFrontendErrorRate(start, end);
         }
         default:
           return null;
@@ -355,14 +393,13 @@ export class AnomalyDetectorService {
   ): Promise<{ values: number[] } | null> {
     const values: number[] = [];
     const now = new Date();
-    now.setHours(0, 0, 0, 0);
 
     // 简化基线：使用过去N天的每日数据
     // 实际生产可接入 Prometheus / TimescaleDB 获取更精确的时序数据
     try {
       for (let i = 1; i <= rule.baselineWindow; i++) {
-        const dayStart = new Date(now.getTime() - i * 86400_000);
-        const dayEnd = new Date(dayStart.getTime() + 86400_000);
+        const dayEnd = new Date(now.getTime() - i * 86400_000);
+        const dayStart = new Date(dayEnd.getTime() - 86400_000);
 
         let value = 0;
         switch (rule.id) {
@@ -385,18 +422,13 @@ export class AnomalyDetectorService {
             });
             break;
           case "api-latency-spike":
-            value =
-              (await this.prisma.aiCacheEntry.count({
-                where: { lastHitAt: { gte: dayStart, lt: dayEnd } },
-              })) || 0;
+            value = Number((await this.prisma.aiAnalysisRecord.aggregate({
+              where: { createdAt: { gte: dayStart, lt: dayEnd }, latency: { not: null } },
+              _avg: { latency: true },
+            }))._avg.latency ?? 0);
             break;
           case "api-error-rate-spike":
-            value = await this.prisma.aiEvent.count({
-              where: {
-                severity: "critical",
-                createdAt: { gte: dayStart, lt: dayEnd },
-              },
-            });
+            value = await this.getFrontendErrorRate(dayStart, dayEnd);
             break;
         }
         values.push(value);
@@ -407,5 +439,43 @@ export class AnomalyDetectorService {
     }
 
     return { values };
+  }
+
+  private async getFrontendErrorRate(start: Date, end: Date): Promise<number> {
+    const occurredAt = { gte: start, lt: end };
+    const [errors, pageViews] = await Promise.all([
+      this.prisma.trackEvent.count({ where: { action: "error", occurredAt } }),
+      this.prisma.trackEvent.count({ where: { action: "page_view", occurredAt } }),
+    ]);
+    return pageViews > 0 ? (errors / pageViews) * 100 : 0;
+  }
+
+  private async loadPersistedRules(): Promise<void> {
+    try {
+      const row = await this.prisma.configSystem.findUnique({ where: { configKey: "ai.anomaly.rules.v1" } });
+      if (!row?.configValue) return;
+      const saved = JSON.parse(row.configValue) as Partial<AnomalyRule>[];
+      if (!Array.isArray(saved)) return;
+      for (const override of saved) {
+        const idx = this.rules.findIndex((rule) => rule.id === override.id);
+        if (idx >= 0) this.rules[idx] = { ...this.rules[idx], ...override } as AnomalyRule;
+      }
+    } catch (err: any) {
+      this.logger.warn(`异常规则持久化配置加载失败，保留当前安全配置: ${err.message}`);
+    }
+  }
+
+  private async persistRules(): Promise<void> {
+    await this.prisma.configSystem.upsert({
+      where: { configKey: "ai.anomaly.rules.v1" },
+      create: {
+        configKey: "ai.anomaly.rules.v1",
+        configValue: JSON.stringify(this.rules),
+        description: "AI 异常检测规则（仅限已绑定真实数据源的规则）",
+        updatedBy: "AI_OPS_GOVERNANCE",
+      },
+      update: { configValue: JSON.stringify(this.rules), updatedBy: "AI_OPS_GOVERNANCE" },
+    });
+    await this.redis.publish("ai:anomaly-rules:reload", JSON.stringify({ changedAt: new Date().toISOString() }));
   }
 }

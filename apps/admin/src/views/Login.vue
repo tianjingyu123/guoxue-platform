@@ -88,6 +88,7 @@ import type { FormInstance, FormRules } from "element-plus";
 import { useAuthStore } from "@/store/auth";
 import BrandLogo from "@/components/BrandLogo.vue";
 import { BRAND } from "@/lib/brand";
+import { consumeAdminRedirect } from "@/utils/auth-session";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -110,9 +111,8 @@ async function handleLogin() {
   loading.value = true;
   try {
     await auth.login(form.phone, form.password);
-    const redirect = localStorage.getItem("redirect_after_login");
+    const redirect = consumeAdminRedirect();
     if (redirect) {
-      localStorage.removeItem("redirect_after_login");
       window.location.href = redirect;
       return;
     }

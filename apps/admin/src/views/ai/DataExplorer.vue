@@ -137,6 +137,7 @@ import { ChatUI } from '@/components/ChatUI'
 import type { ChatUIConfig, ChatMessage } from '@/components/ChatUI/types'
 import { aiDataExplorerApi } from '@/api'
 import { ElMessage } from 'element-plus'
+import { downloadCsvRows } from '@/utils/export'
 
 const chatRef = ref<InstanceType<typeof ChatUI>>()
 // 保留 any：模板 v-else 分支内对可空字段做算术比较（rowCount > 0）并绑定 el-table :data，
@@ -268,21 +269,8 @@ function exportCsv() {
   const data = currentResult.value?.data
   if (!data?.length) return
   const cols = dataColumns.value
-  const header = cols.join(',')
-  const rows = data.map((r: Record<string, unknown>) =>
-    cols.map((c: string) => {
-      const v = r[c]
-      if (v === null || v === undefined) return ''
-      const s = String(v)
-      return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s
-    }).join(',')
-  )
-  const csv = '﻿' + [header, ...rows].join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url; a.download = `data-export-${Date.now()}.csv`
-  a.click(); URL.revokeObjectURL(url)
+  const rows = data.map((row: Record<string, unknown>) => cols.map((column: string) => row[column] ?? ''))
+  downloadCsvRows(`data-export-${Date.now()}`, [cols, ...rows])
 }
 </script>
 

@@ -5,6 +5,15 @@ import { systemApi, api } from '@/api'
 
 interface Field { key: string; label: string; sensitive: boolean; placeholder: string; hint: string; multiline: boolean; recommendedValue?: string }
 interface Service { key: string; label: string; category: string; enabled: boolean; note: string; fields: Field[] }
+interface ReadinessItem {
+  key: string
+  label: string
+  configurationStatus: 'COMPLETE' | 'INCOMPLETE'
+  source: 'DATABASE' | 'ENVIRONMENT' | 'MIXED' | 'NONE'
+  missingFields: string[]
+  invalidFields: string[]
+  requiresLiveVerification: boolean
+}
 
 const loading = ref(false)
 const loadError = ref(false)
@@ -29,6 +38,7 @@ async function pingHuifu() {
   }
 }
 const services = ref<Service[]>([])
+const readiness = ref<Record<string, ReadinessItem>>({})
 const activeTab = ref('')
 // formData[serviceKey][fieldKey] = value（掩码值/空值保存时后端不会覆盖真值）
 const formData = reactive<Record<string, Record<string, string>>>({})
@@ -45,7 +55,11 @@ async function load() {
   loadError.value = false
   try {
     // 1. 拉 schema（服务/字段定义，不含值）
-    const schemaRes = await systemApi.getThirdPartySchema()
+    const [schemaRes, cfgRes, readinessRes] = await Promise.all([
+      systemApi.getThirdPartySchema(),
+      systemApi.listConfigs(),
+      systemApi.getThirdPartyReadiness(),
+    ])
     const svcs = (pick<Service[]>(schemaRes, 'services')) ?? []
     // 先初始化 formData，再赋 services，保证模板 v-model 有对象可绑
     svcs.forEach((s) => {
@@ -58,7 +72,6 @@ async function load() {
     if (!activeTab.value && svcs.length) activeTab.value = svcs[0].category
 
     // 2. 拉现有值（后端已解密+敏感字段掩码）
-    const cfgRes = await systemApi.listConfigs()
     const items = (pick<Array<{ configKey?: string; key?: string; configValue?: string; value?: string }>>(cfgRes, 'configs')) ?? []
     ;(Array.isArray(items) ? items : []).forEach((item) => {
       const key = item.configKey ?? item.key
@@ -69,6 +82,8 @@ async function load() {
         if (formData[svcKey]) Object.assign(formData[svcKey], parsed)
       }
     })
+    const readinessItems = pick<ReadinessItem[]>(readinessRes, 'items') ?? []
+    readiness.value = Object.fromEntries(readinessItems.map((item) => [item.key, item]))
   } catch {
     loadError.value = true
     ElMessage.error('加载失败，请重试')
@@ -83,6 +98,22 @@ const categories = computed(() => {
   services.value.forEach((s) => { (map[s.category] ??= []).push(s) })
   return Object.entries(map).map(([category, list]) => ({ category, list }))
 })
+
+function readinessText(svc: Service): string {
+  const item = readiness.value[svc.key]
+  if (!item) return '未检测'
+  return item.configurationStatus === 'COMPLETE' ? '配置完整·待真实验收' : '配置不完整'
+}
+
+function readinessType(svc: Service): 'success' | 'warning' | 'info' {
+  const item = readiness.value[svc.key]
+  if (!item) return 'info'
+  return item.configurationStatus === 'COMPLETE' ? 'success' : 'warning'
+}
+
+function sourceText(source: ReadinessItem['source']): string {
+  return { DATABASE: '后台安全配置', ENVIRONMENT: '环境变量兜底', MIXED: '后台与环境混合', NONE: '未配置' }[source]
+}
 
 async function saveService(svc: Service) {
   saving.value = true
@@ -149,6 +180,13 @@ async function saveService(svc: Service) {
             <template #header>
               <span class="svc-title">{{ svc.label }}</span>
               <el-tag
+                v-if="readiness[svc.key]"
+                :type="readinessType(svc)"
+                size="small"
+              >
+                {{ readinessText(svc) }}
+              </el-tag>
+              <el-tag
                 v-if="!svc.enabled"
                 size="small"
                 type="info"
@@ -162,6 +200,28 @@ async function saveService(svc: Service) {
             >
               {{ svc.note }}
             </p>
+            <el-alert
+              v-if="readiness[svc.key]"
+              :type="readiness[svc.key].configurationStatus === 'COMPLETE' ? 'success' : 'warning'"
+              :closable="false"
+              show-icon
+              class="readiness-alert"
+            >
+              <template #title>
+                配置来源：{{ sourceText(readiness[svc.key].source) }}
+              </template>
+              <template #default>
+                <div v-if="readiness[svc.key].missingFields.length">
+                  缺少：{{ readiness[svc.key].missingFields.join('、') }}
+                </div>
+                <div v-if="readiness[svc.key].invalidFields.length">
+                  需修正：{{ readiness[svc.key].invalidFields.join('；') }}
+                </div>
+                <div v-if="readiness[svc.key].configurationStatus === 'COMPLETE'">
+                  本地必填项与格式已通过；正式启用前仍须完成受控小额支付、异步回调、退款和对账验收。
+                </div>
+              </template>
+            </el-alert>
             <el-form
               label-width="150px"
               label-position="left"
@@ -259,6 +319,7 @@ async function saveService(svc: Service) {
 .svc-card { margin-bottom: 14px; }
 .svc-title { font-weight: 600; margin-right: 8px; }
 .svc-note { color: #606266; font-size: 13px; line-height: 1.6; margin: 0 0 14px; padding: 8px 12px; background: #f4f4f5; border-radius: 4px; border-left: 3px solid #409eff; }
+.readiness-alert { margin-bottom: 14px; }
 .field-hint { color: #909399; font-size: 12px; line-height: 1.5; margin-top: 4px; }
 .recommended-value { color: #606266; font-size: 12px; line-height: 1.5; margin-top: 4px; }
 .recommended-value code { word-break: break-all; }

@@ -24,6 +24,9 @@ function maskRedisUrl(url: string): string {
 export class RedisService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private client: Redis | null = null;
+  private subscriber: Redis | null = null;
+  private subscribedChannels = new Set<string>();
+  private subscriptionHandlers = new Map<string, Set<(message: string) => void | Promise<void>>>();
   private memory = new Map<string, { value: string; expiry: number }>();
   private connected = false;
   private triedConnect = false;
@@ -64,6 +67,9 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async onModuleDestroy() {
+    if (this.subscriber) {
+      await this.subscriber.quit().catch((err) => this.logger.warn("Redis 订阅连接关闭失败", err));
+    }
     if (this.client) {
       await this.client.quit().catch((err) => this.logger.warn("Redis 连接关闭失败", err));
     }
@@ -194,11 +200,67 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
-  /** Redis Pub/Sub 发布（仅真实连接可用，内存模式静默忽略） */
+  /** Redis Pub/Sub 发布；无 Redis 时退化为当前进程内广播，便于本地与单测保持同一语义。 */
   async publish(channel: string, message: string): Promise<number> {
     const conn = await this.getConn();
     if (conn) return conn.publish(channel, message);
-    return 0; // 内存模式不支持 Pub/Sub
+    const handlers = [...(this.subscriptionHandlers.get(channel) ?? [])];
+    await Promise.all(handlers.map(async (handler) => {
+      try {
+        await handler(message);
+      } catch (err) {
+        this.logger.warn(`Redis 内存广播处理失败 channel=${channel}`, err);
+      }
+    }));
+    return handlers.length;
+  }
+
+  /**
+   * Redis Pub/Sub 订阅。真实 Redis 使用独立 duplicate 连接，避免普通命令连接进入 subscriber mode；
+   * 无 Redis 时保留进程内订阅，调用方无需写两套降级逻辑。
+   */
+  async subscribe(
+    channel: string,
+    handler: (message: string) => void | Promise<void>,
+  ): Promise<() => Promise<void>> {
+    let handlers = this.subscriptionHandlers.get(channel);
+    if (!handlers) {
+      handlers = new Set();
+      this.subscriptionHandlers.set(channel, handlers);
+    }
+    handlers.add(handler);
+
+    const conn = await this.getConn();
+    if (conn && !this.subscribedChannels.has(channel)) {
+      if (!this.subscriber) {
+        this.subscriber = conn.duplicate();
+        this.subscriber.on("message", (incomingChannel, message) => {
+          const callbacks = [...(this.subscriptionHandlers.get(incomingChannel) ?? [])];
+          for (const callback of callbacks) {
+            void Promise.resolve(callback(message)).catch((err) =>
+              this.logger.warn(`Redis 订阅处理失败 channel=${incomingChannel}`, err),
+            );
+          }
+        });
+        if (this.subscriber.status === "wait") await this.subscriber.connect();
+      }
+      await this.subscriber.subscribe(channel);
+      this.subscribedChannels.add(channel);
+    }
+
+    return async () => {
+      const current = this.subscriptionHandlers.get(channel);
+      current?.delete(handler);
+      if (current && current.size === 0) {
+        this.subscriptionHandlers.delete(channel);
+        if (this.subscriber && this.subscribedChannels.has(channel)) {
+          await this.subscriber.unsubscribe(channel).catch((err) =>
+            this.logger.warn(`Redis 取消订阅失败 channel=${channel}`, err),
+          );
+          this.subscribedChannels.delete(channel);
+        }
+      }
+    };
   }
 
   async ttl(key: string): Promise<number> {

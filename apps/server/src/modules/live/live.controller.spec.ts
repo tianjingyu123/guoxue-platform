@@ -33,6 +33,8 @@ const mockLiveSvc = {
   getPlayUrl: jest.fn().mockResolvedValue({ playUrl: "https://...flv" }),
   endRoom: jest.fn().mockResolvedValue({ id: "r1", status: "ENDED" }),
   updateStatus: jest.fn().mockResolvedValue({ id: "r1", status: "REPLAY" }),
+  publishReplay: jest.fn().mockResolvedValue({ id: "r1", status: "REPLAY", replayStatus: "PUBLISHED" }),
+  unpublishReplay: jest.fn().mockResolvedValue({ id: "r1", status: "ENDED", replayStatus: "DRAFT" }),
   deleteRoom: jest.fn().mockResolvedValue({ success: true }),
   joinMic: jest.fn().mockResolvedValue({ position: 1, userId: "u1" }),
   leaveMic: jest.fn().mockResolvedValue({ success: true }),
@@ -220,8 +222,17 @@ describe("LiveController", () => {
   });
 
   it("PUT /live/rooms/:id/replay — 设置回放", async () => {
-    const result: any = await ctrl.setReplay("r1", "https://...replay.mp4");
+    const req: any = { user: { id: "admin1", roles: ["OPERATION_ADMIN"] } };
+    const result: any = await ctrl.setReplay("r1", { replayUrl: "https://example.com/replay.mp4" }, req);
     expect(result.status).toBe("REPLAY");
+    expect(mockLiveSvc.publishReplay).toHaveBeenCalledWith("r1", "https://example.com/replay.mp4", "admin1");
+  });
+
+  it("PUT /live/rooms/:id/replay/unpublish — 下架回放但保留录像草稿", async () => {
+    const req: any = { user: { id: "admin1", roles: ["OPERATION_ADMIN"] } };
+    const result: any = await ctrl.unpublishReplay("r1", req);
+    expect(result).toEqual(expect.objectContaining({ status: "ENDED", replayStatus: "DRAFT" }));
+    expect(mockLiveSvc.unpublishReplay).toHaveBeenCalledWith("r1", "admin1");
   });
 
   it("DELETE /live/rooms/:id — 删除直播间", async () => {

@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsString, IsOptional, IsArray, IsBoolean, IsNumber, IsIn, Min, Max, MaxLength, Matches, MinLength, IsDateString, ValidateNested,
-  ArrayMinSize, ArrayMaxSize,
+  ArrayMinSize, ArrayMaxSize, IsObject,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -658,6 +658,26 @@ export class ProcessAfterSaleDto {
   remark?: string;
 }
 
+export class MerchantProductSkuDto {
+  @ApiPropertyOptional({ description: "已有 SKU ID；编辑时用于原位更新，禁止跨商品复用" })
+  @IsOptional() @IsString()
+  id?: string;
+
+  @ApiProperty({ description: "规格键值对，如 {颜色:'红'}" })
+  @IsObject()
+  specs: Record<string, string>;
+
+  @ApiProperty({ description: "SKU 售价" })
+  @IsNumber() @Min(0)
+  @Type(() => Number)
+  price: number;
+
+  @ApiPropertyOptional({ description: "SKU 库存", default: 0 })
+  @IsOptional() @IsNumber() @Min(0)
+  @Type(() => Number)
+  stock?: number;
+}
+
 export class MerchantProductDto {
   @ApiProperty({ description: "商品标题" })
   @IsString()
@@ -685,7 +705,7 @@ export class MerchantProductDto {
   @ApiPropertyOptional({ description: "原价（划线价·展示用，应大于售价）" })
   @IsOptional() @IsNumber() @Min(0)
   @Type(() => Number)
-  originalPrice?: number;
+  originalPrice?: number | null;
 
   @ApiProperty({ description: "库存数量" })
   @IsNumber() @Min(0)
@@ -696,9 +716,19 @@ export class MerchantProductDto {
   @IsOptional() @IsString()
   categoryId?: string;
 
+  @ApiPropertyOptional({ description: "运费模板 ID；空值表示平台包邮" })
+  @IsOptional() @IsString()
+  freightTemplateId?: string | null;
+
   @ApiPropertyOptional({ description: "商品标签" })
   @IsOptional() @IsArray() @IsString({ each: true })
   tags?: string[];
+
+  @ApiPropertyOptional({ description: "商品规格；传入时与商品主体在同一事务内保存", type: [MerchantProductSkuDto] })
+  @IsOptional() @IsArray() @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => MerchantProductSkuDto)
+  skus?: MerchantProductSkuDto[];
 }
 
 /** 商家后台 SKU（店铺身份·操作员经 merchant.guard 归一到 owner） */

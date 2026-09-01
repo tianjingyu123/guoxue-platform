@@ -20,16 +20,17 @@
       </div>
     </template>
     <div class="po-grid">
-      <div
+      <button
         v-for="it in items"
         :key="it.link"
+        type="button"
         class="po-item"
         :class="{ hot: it.count > 0 }"
         @click="go(it.link)"
       >
         <span class="po-count">{{ it.count }}</span>
         <span class="po-label">{{ it.title }}</span>
-      </div>
+      </button>
     </div>
   </el-card>
 </template>
@@ -39,7 +40,7 @@
 // 真连各审核队列既有列表端点取 PENDING 计数；某项请求失败/无权限则该项不显示（诚实降级）
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { api } from "@/api";
+import { api, type AdminRequestConfig } from "@/api";
 
 interface QueueItem {
   title: string;
@@ -108,7 +109,11 @@ async function load() {
     const results = await Promise.all(
       QUEUES.filter((q) => allowed(q.link)).map(async (q) => {
         try {
-          const { data } = await api.get(q.url, q.params ? { params: q.params } : undefined);
+          const config: AdminRequestConfig = {
+            ...(q.params ? { params: q.params } : {}),
+            silentError: true,
+          };
+          const { data } = await api.get(q.url, config);
           const total = extractTotal(data);
           if (total === null) return null;
           return { title: q.title, link: q.link, count: total };
@@ -158,6 +163,9 @@ onMounted(load);
   gap: 10px;
 }
 .po-item {
+  width: 100%;
+  font: inherit;
+  text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;

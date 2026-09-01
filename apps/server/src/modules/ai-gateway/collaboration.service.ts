@@ -30,6 +30,20 @@ export interface CollaborationResult {
   executedAt: Date | null;
   feedbackRating: number | null;
   createdAt: Date;
+  executionReady: boolean;
+  rollbackReady: boolean;
+  handlerKey: string | null;
+}
+
+export interface CollaborationActionHandler {
+  execute: (
+    proposal: Record<string, unknown>,
+    executor: string,
+  ) => Promise<Record<string, unknown> | void>;
+  rollback?: (
+    proposal: Record<string, unknown>,
+    operator: string,
+  ) => Promise<Record<string, unknown> | void>;
 }
 
 /**
@@ -38,25 +52,43 @@ export interface CollaborationResult {
  * 标准化 AI 建议 → 人工审核 → 执行/驳回 → 反馈 闭环。
  *
  * 风险级别 → 处理策略：
- *   low    → AI 自动执行，事后通知
+ *   low    → 高置信度可自动批准；仅绑定受控动作处理器后才能执行
  *   medium → AI 建议 + 一键确认
  *   high   → AI 分析 + 必须人工审批
  *
  * 使用方式：
  * - AI Agent 调用 propose() 发起建议
  * - 管理员通过 review() 审核（批准/驳回/修改）
- * - 批准后调用 execute() 执行
+ * - 批准后调用 execute()；未绑定真实处理器时拒绝伪执行
  * - 执行后调用 feedback() 记录效果评分
  */
 @Injectable()
 export class CollaborationService {
   private readonly logger = new Logger(CollaborationService.name);
+  private readonly actionHandlers = new Map<string, CollaborationActionHandler>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventBus: AiEventBusService,
     private readonly ledger: DecisionLedgerService,
   ) {}
+
+  /**
+   * 业务模块显式注册受控动作。没有真实处理器的建议只能审核，不能被标记为已执行。
+   * 返回注销函数，便于模块卸载时清理。
+   */
+  registerActionHandler(
+    handlerKey: string,
+    handler: CollaborationActionHandler,
+  ): () => void {
+    const key = handlerKey.trim();
+    if (!key) throw new Error("协作动作处理器标识不能为空");
+    if (this.actionHandlers.has(key)) {
+      throw new Error(`协作动作处理器重复注册: ${key}`);
+    }
+    this.actionHandlers.set(key, handler);
+    return () => this.actionHandlers.delete(key);
+  }
 
   /** AI 发起协作建议 */
   async propose(proposal: CollaborationProposal): Promise<string> {
@@ -113,13 +145,13 @@ export class CollaborationService {
       },
     });
 
-    // 低风险自动批准并执行
+    // 低风险高置信度只自动批准；执行必须进入已注册的受控动作处理器。
     if (proposal.riskLevel === "low" && proposal.confidence >= 0.9) {
       try {
         await this.autoApprove(created.id);
-        this.logger.log(`低风险建议自动执行: ${proposal.title}`);
+        this.logger.log(`低风险建议自动批准，等待受控执行: ${proposal.title}`);
       } catch (err: any) {
-        this.logger.warn(`自动执行失败: ${proposal.title} - ${err.message}`);
+        this.logger.warn(`自动批准失败: ${proposal.title} - ${err.message}`);
       }
     }
 
@@ -140,6 +172,20 @@ export class CollaborationService {
     if (!proposal) throw new BusinessException(ErrorCode.NOT_FOUND, "建议不存在");
     if (proposal.status !== "pending_review")
       throw new BusinessException(ErrorCode.BAD_REQUEST, "建议状态不允许审核");
+    if (
+      action === "approved" &&
+      proposal.riskLevel === "high" &&
+      !note?.trim()
+    ) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "高风险建议批准时必须填写审核依据");
+    }
+    if (
+      action === "approved" &&
+      proposal.riskLevel === "high" &&
+      proposal.proposedBy === reviewer
+    ) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "高风险建议禁止提议人与审批人为同一人");
+    }
 
     await this.prisma.aiCollaboration.update({
       where: { id: proposalId },
@@ -176,10 +222,6 @@ export class CollaborationService {
 
     this.logger.log(`协作审核: ${proposalId} → ${action} (${reviewer})`);
 
-    // 批准后自动执行
-    if (action === "approved") {
-      await this.execute(proposalId, reviewer);
-    }
   }
 
   /** 执行建议 */
@@ -188,17 +230,31 @@ export class CollaborationService {
       where: { id: proposalId },
     });
     if (!proposal) throw new BusinessException(ErrorCode.NOT_FOUND, "建议不存在");
-    if (!["approved", "executing"].includes(proposal.status))
+    if (proposal.status !== "approved")
       throw new BusinessException(ErrorCode.BAD_REQUEST, "建议未审核通过，不可执行");
 
-    await this.prisma.aiCollaboration.update({
-      where: { id: proposalId },
+    const handlerKey = this.getHandlerKey(proposal.executionPlan);
+    const handler = handlerKey ? this.actionHandlers.get(handlerKey) : undefined;
+    if (!handlerKey || !handler) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "该建议尚未绑定受控动作处理器，不能标记为已执行",
+      );
+    }
+
+    const claimed = await this.prisma.aiCollaboration.updateMany({
+      where: { id: proposalId, status: "approved" },
       data: { status: "executing" },
     });
+    if (claimed.count === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "建议已被其他操作处理，请刷新后重试");
+    }
 
     try {
-      // 实际执行逻辑由调用方通过 executionPlan 实现
-      // 这里只是状态机和记录
+      const handlerResult = await handler.execute(
+        proposal as unknown as Record<string, unknown>,
+        executor,
+      );
 
       await this.prisma.aiCollaboration.update({
         where: { id: proposalId },
@@ -207,7 +263,9 @@ export class CollaborationService {
           executedAt: new Date(),
           executionResult: {
             executor,
+            handlerKey,
             executedAt: new Date().toISOString(),
+            result: handlerResult || {},
           } as any,
         },
       });
@@ -237,11 +295,34 @@ export class CollaborationService {
     if (proposal.status !== "executed")
       throw new BusinessException(ErrorCode.BAD_REQUEST, "只能回滚已执行的建议");
 
+    const handlerKey = this.getHandlerKey(proposal.executionPlan);
+    const handler = handlerKey ? this.actionHandlers.get(handlerKey) : undefined;
+    if (!handlerKey || !handler?.rollback) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        "该建议没有可用的真实回滚处理器，不能伪造回滚完成状态",
+      );
+    }
+
+    const rollbackResult = await handler.rollback(
+      proposal as unknown as Record<string, unknown>,
+      operator,
+    );
+
     await this.prisma.aiCollaboration.update({
       where: { id: proposalId },
       data: {
         status: "rolled_back",
         rolledBackAt: new Date(),
+        executionResult: {
+          previous: proposal.executionResult,
+          rollback: {
+            operator,
+            handlerKey,
+            rolledBackAt: new Date().toISOString(),
+            result: rollbackResult || {},
+          },
+        } as any,
       },
     });
 
@@ -259,6 +340,7 @@ export class CollaborationService {
   async feedback(
     proposalId: string,
     rating: number,
+    operator: string,
     comment?: string,
   ): Promise<void> {
     await this.prisma.aiCollaboration.update({
@@ -277,6 +359,7 @@ export class CollaborationService {
         "feedback_rating",
         5,
         rating,
+        operator,
       );
     }
   }
@@ -314,12 +397,20 @@ export class CollaborationService {
           executedAt: true,
           feedbackRating: true,
           createdAt: true,
+          executionPlan: true,
         },
       }),
       this.prisma.aiCollaboration.count({ where: where as any }),
     ]);
 
-    return { items, total };
+    return {
+      items: items.map((item) => ({
+        ...item,
+        ...this.getExecutionCapability((item as any).executionPlan),
+        executionPlan: undefined,
+      })) as CollaborationResult[],
+      total,
+    };
   }
 
   /** 获取待审核列表 */
@@ -339,15 +430,25 @@ export class CollaborationService {
         executedAt: true,
         feedbackRating: true,
         createdAt: true,
+        executionPlan: true,
       },
       take: 100,
     });
-    return items;
+    return items.map((item) => ({
+      ...item,
+      ...this.getExecutionCapability((item as any).executionPlan),
+      executionPlan: undefined,
+    })) as CollaborationResult[];
   }
 
   /** 获取详情 */
   async getDetail(id: string): Promise<Record<string, unknown> | null> {
-    return this.prisma.aiCollaboration.findUnique({ where: { id } });
+    const item = await this.prisma.aiCollaboration.findUnique({ where: { id } });
+    if (!item) return null;
+    return {
+      ...item,
+      executionCapability: this.getExecutionCapability(item.executionPlan),
+    };
   }
 
   /** 获取统计概览 */
@@ -382,7 +483,7 @@ export class CollaborationService {
     };
   }
 
-  /** 低风险自动批准 */
+  /** 低风险自动批准：不越过真实动作处理器伪造执行结果。 */
   private async autoApprove(proposalId: string): Promise<void> {
     await this.prisma.aiCollaboration.update({
       where: { id: proposalId },
@@ -393,17 +494,35 @@ export class CollaborationService {
       },
     });
 
-    await this.prisma.aiCollaboration.update({
-      where: { id: proposalId },
-      data: {
-        status: "executed",
-        executedAt: new Date(),
-        executionResult: {
-          executor: "ai-system",
-          autoApproved: true,
-          executedAt: new Date().toISOString(),
-        } as any,
+    await this.eventBus.publish({
+      type: "collaboration.auto_approved",
+      source: "ops",
+      payload: {
+        proposalId,
+        nextStep: "等待已注册的受控动作处理器执行",
       },
     });
+  }
+
+  private getHandlerKey(executionPlan: unknown): string | null {
+    if (!executionPlan || typeof executionPlan !== "object" || Array.isArray(executionPlan)) {
+      return null;
+    }
+    const value = (executionPlan as Record<string, unknown>).handlerKey;
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+  }
+
+  private getExecutionCapability(executionPlan: unknown): {
+    executionReady: boolean;
+    rollbackReady: boolean;
+    handlerKey: string | null;
+  } {
+    const handlerKey = this.getHandlerKey(executionPlan);
+    const handler = handlerKey ? this.actionHandlers.get(handlerKey) : undefined;
+    return {
+      executionReady: Boolean(handler),
+      rollbackReady: Boolean(handler?.rollback),
+      handlerKey,
+    };
   }
 }

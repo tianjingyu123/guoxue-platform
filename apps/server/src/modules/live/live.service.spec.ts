@@ -24,6 +24,13 @@ const mockPrisma = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  liveBooking: {
+    count: jest.fn(),
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    upsert: jest.fn(),
+    updateMany: jest.fn(),
+  },
   liveWatchProgress: {
     findUnique: jest.fn(),
     upsert: jest.fn(),
@@ -118,6 +125,7 @@ const mockRedis = {
   smembers: jest.fn().mockResolvedValue([]),
   setNX: jest.fn().mockResolvedValue(true),
   ttl: jest.fn().mockResolvedValue(3),
+  runExclusive: jest.fn((_name: string, _ttl: number, run: () => Promise<unknown>) => run()),
 };
 const mockNotification = {
   send: jest.fn().mockResolvedValue({ id: "n1" }),
@@ -185,6 +193,11 @@ describe("LiveService", () => {
     mockStream.isReady.mockReturnValue(true);
     mockRedis.getJson.mockResolvedValue(null);
     mockRedis.setNX.mockResolvedValue(true);
+    mockRedis.runExclusive.mockImplementation((_name: string, _ttl: number, run: () => Promise<unknown>) => run());
+    mockPrisma.liveBooking.count.mockResolvedValue(0);
+    mockPrisma.liveBooking.findUnique.mockResolvedValue(null);
+    mockPrisma.liveBooking.findMany.mockResolvedValue([]);
+    mockPrisma.liveBooking.updateMany.mockResolvedValue({ count: 0 });
     delete process.env.LIVE_OBS_TRTC_INGEST_ENABLED;
     delete process.env.TRTC_SDK_APP_ID;
     delete process.env.TRTC_SECRET_KEY;
@@ -325,8 +338,8 @@ describe("LiveService", () => {
         endTime: new Date("2026-08-01T13:30:00.000Z"),
         user: { id: "host1", nickname: "主播甲", avatar: "avatar.webp", bio: "讲解周易" },
       });
-      mockRedis.scard.mockResolvedValue(12);
-      mockRedis.sismember.mockResolvedValue(true);
+      mockPrisma.liveBooking.count.mockResolvedValue(12);
+      mockPrisma.liveBooking.findUnique.mockResolvedValue({ status: "BOOKED" });
       mockPrisma.follow.count.mockResolvedValue(34);
 
       const result = await svc.getPreview("room1", "viewer1");
@@ -435,12 +448,12 @@ describe("LiveService", () => {
     it("发布预约预告时必须同时提供首图和介绍", async () => {
       await expect(svc.createRoom("u1", {
         title: "预约直播",
-        startTime: "2026-08-01T12:00:00.000Z",
+        startTime: "2099-08-01T12:00:00.000Z",
         description: "本场介绍",
       })).rejects.toThrow("发布直播预告前请上传首图");
       await expect(svc.createRoom("u1", {
         title: "预约直播",
-        startTime: "2026-08-01T12:00:00.000Z",
+        startTime: "2099-08-01T12:00:00.000Z",
         cover: "https://img/cover.webp",
       })).rejects.toThrow("发布直播预告前请填写直播介绍");
       expect(mockPrisma.liveRoom.create).not.toHaveBeenCalled();
@@ -453,13 +466,13 @@ describe("LiveService", () => {
         circleId: "c1",
         description: "  本场讲解十二宫位  ",
         cover: "https://img/cover.webp",
-        startTime: "2026-08-01T12:00:00.000Z",
+        startTime: "2099-08-01T12:00:00.000Z",
       });
       expect(mockPrisma.liveRoom.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({
           description: "本场讲解十二宫位",
           cover: "https://img/cover.webp",
-          startTime: new Date("2026-08-01T12:00:00.000Z"),
+          startTime: new Date("2099-08-01T12:00:00.000Z"),
         }),
       }));
     });
@@ -528,7 +541,7 @@ describe("LiveService", () => {
     it("待开播场次可原位更新配置和商品，不会新建直播间", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({
         hostUserId: "host1", status: "WAITING", circleId: "circle1",
-        cover: "https://img/cover.webp", description: "本场介绍", startTime: new Date("2026-08-01T12:00:00.000Z"),
+        cover: "https://img/cover.webp", description: "本场介绍", startTime: new Date("2099-08-01T12:00:00.000Z"),
       });
       mockPrisma.product.findMany.mockResolvedValue([{ id: "p1" }]);
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "room1", title: "新标题", status: "WAITING" });
@@ -536,7 +549,7 @@ describe("LiveService", () => {
       mockPrisma.liveProduct.createMany.mockResolvedValue({ count: 1 });
 
       const result: any = await svc.updateRoom("host1", "room1", {
-        title: "新标题", description: "新介绍", startTime: "2026-08-01 20:00", chargeType: "PAID", chargePrice: 9.9,
+        title: "新标题", description: "新介绍", startTime: "2099-08-01 20:00", chargeType: "PAID", chargePrice: 9.9,
         quality: "hd", orientation: "landscape", productIds: ["p1"],
       });
 
@@ -546,6 +559,10 @@ describe("LiveService", () => {
         data: expect.objectContaining({ title: "新标题", description: "新介绍", chargeType: "PAID", chargePrice: 9.9, quality: "hd", orientation: "landscape" }),
       }));
       expect(mockPrisma.liveProduct.createMany).toHaveBeenCalledWith({ data: [{ liveId: "room1", productId: "p1", sortOrder: 0 }] });
+      expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledWith({
+        where: { roomId: "room1", status: "BOOKED" },
+        data: { remindedAt: null },
+      });
       expect(result.id).toBe("room1");
       expect(mockAudit.queueContentModeration).toHaveBeenCalledWith(expect.objectContaining({
         contentType: "LIVE",
@@ -631,6 +648,7 @@ describe("LiveService", () => {
       userId: "creator1",
       status: "REPLAY",
       replayUrl: "https://example.com/replay.mp4",
+      replayStatus: "PUBLISHED",
       visibility: "PLATFORM",
       auditStatus: "APPROVED",
     };
@@ -886,22 +904,25 @@ describe("LiveService", () => {
       expect(result.endTime).toBeInstanceOf(Date);
     });
 
-    it("LIVING → REPLAY 成功", async () => {
+    it("LIVING 不能绕过人工发布入口直接进入回放", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "LIVING" });
-      mockPrisma.liveRoom.update.mockImplementation(({ data }) =>
-        Promise.resolve({ id: "r1", ...data }),
-      );
-      const result = await svc.updateStatus("r1", "REPLAY", { replayUrl: "https://example.com/replay.mp4" });
-      expect(result.replayUrl).toBe("https://example.com/replay.mp4");
+      await expect(svc.updateStatus("r1", "REPLAY", { replayUrl: "https://example.com/replay.mp4" }))
+        .rejects.toThrow("不允许从 LIVING 变更为 REPLAY");
+      expect(mockPrisma.liveRoom.update).not.toHaveBeenCalled();
     });
 
     it("开播（→LIVING）时给预约用户发 LIVE 类圈内通知（#25/#36）", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "WAITING" });
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "LIVING", title: "客厅布局答疑", circleId: "c1" });
-      mockRedis.smembers.mockResolvedValue(["u1", "u2"]);
+      mockPrisma.liveBooking.findMany.mockResolvedValue([
+        { id: "b1", userId: "u1" },
+        { id: "b2", userId: "u2" },
+      ]);
       await svc.updateStatus("r1", "LIVING", { pushUrl: "rtmp://example.com" });
       await new Promise((r) => setImmediate(r)); // fire-and-forget 刷微任务
-      expect(mockRedis.smembers).toHaveBeenCalledWith("live:bookings:r1");
+      expect(mockPrisma.liveBooking.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { roomId: "r1", status: "BOOKED", notifiedAt: null },
+      }));
       expect(mockNotification.batchSend).toHaveBeenCalledWith(expect.objectContaining({
         userIds: ["u1", "u2"],
         type: "LIVE_STARTED",
@@ -910,12 +931,15 @@ describe("LiveService", () => {
         targetType: "LIVE_ROOM",
         targetId: "r1",
       }));
+      expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: { in: ["b1", "b2"] }, notifiedAt: null },
+      }));
     });
 
     it("开播但无人预约：不发通知", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({ status: "WAITING" });
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "LIVING", title: "t", circleId: null });
-      mockRedis.smembers.mockResolvedValue([]);
+      mockPrisma.liveBooking.findMany.mockResolvedValue([]);
       await svc.updateStatus("r1", "LIVING");
       await new Promise((r) => setImmediate(r));
       expect(mockNotification.batchSend).not.toHaveBeenCalled();
@@ -926,8 +950,46 @@ describe("LiveService", () => {
       mockPrisma.liveRoom.update.mockResolvedValue({ id: "r1", status: "ENDED" });
       await svc.updateStatus("r1", "ENDED");
       await new Promise((r) => setImmediate(r));
-      expect(mockRedis.smembers).not.toHaveBeenCalled();
+      expect(mockPrisma.liveBooking.findMany).not.toHaveBeenCalled();
       expect(mockNotification.batchSend).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("直播预约通知补偿", () => {
+    it("调度延迟后仍会提醒 16 分钟内即将开播的未提醒预约", async () => {
+      const startTime = new Date(Date.now() + 5 * 60_000);
+      mockPrisma.liveRoom.findMany.mockResolvedValue([{ id: "r-catchup", title: "临近直播", circleId: null, startTime }]);
+      mockPrisma.liveBooking.findMany.mockResolvedValueOnce([{ id: "b1", userId: "u1" }]);
+
+      await svc.remindUpcomingBookings();
+
+      expect(mockPrisma.liveRoom.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({
+          status: "WAITING",
+          startTime: { gt: expect.any(Date), lte: expect.any(Date) },
+          bookings: { some: { status: "BOOKED", remindedAt: null } },
+        }),
+      }));
+      expect(mockNotification.batchSend).toHaveBeenCalledWith(expect.objectContaining({
+        userIds: ["u1"],
+        type: "LIVE_REMINDER",
+        content: expect.stringMatching(/约 [45] 分钟后开始/),
+      }));
+    });
+
+    it("开播补偿会分批处理超过单批上限的预约用户", async () => {
+      const firstBatch = Array.from({ length: 500 }, (_, index) => ({ id: `b${index}`, userId: `u${index}` }));
+      mockPrisma.liveRoom.findMany.mockResolvedValue([{ id: "r-large", title: "万人预约", circleId: "c1" }]);
+      mockPrisma.liveBooking.findMany
+        .mockResolvedValueOnce(firstBatch)
+        .mockResolvedValueOnce([{ id: "b500", userId: "u500" }]);
+
+      await svc.reconcileStartedBookingNotifications();
+
+      expect(mockNotification.batchSend).toHaveBeenCalledTimes(2);
+      expect(mockNotification.batchSend.mock.calls[0][0].userIds).toHaveLength(500);
+      expect(mockNotification.batchSend.mock.calls[1][0].userIds).toEqual(["u500"]);
+      expect(mockPrisma.liveBooking.updateMany).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -1359,7 +1421,7 @@ describe("LiveService", () => {
   });
 
   describe("handleLiveEvent - 课程联动", () => {
-      it("录制回调自动同步回放为课程章节", async () => {
+      it("录制回调只保存回放草稿，不自动公开或同步课程章节", async () => {
       mockPrisma.liveRoom.findUnique.mockResolvedValue({
         id: "r1", courseId: "co1", title: "国学直播课",
       });
@@ -1376,14 +1438,14 @@ describe("LiveService", () => {
 
       expect(mockPrisma.liveRoom.update).toHaveBeenCalledWith(expect.objectContaining({
         where: { id: "r1" },
-        data: expect.objectContaining({ status: "REPLAY" }),
-      }));
-      expect(mockPrisma.courseChapter.create).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({
-          courseId: "co1",
-          mediaUrl: "https://replay.example.com/live.mp4",
+          replayUrl: "https://replay.example.com/live.mp4",
+          replayStatus: "DRAFT",
+          replayPublishedAt: null,
+          replayPublishedBy: null,
         }),
       }));
+      expect(mockPrisma.courseChapter.create).not.toHaveBeenCalled();
     });
 
       it("录制回调但房间未关联课程不创建章节", async () => {

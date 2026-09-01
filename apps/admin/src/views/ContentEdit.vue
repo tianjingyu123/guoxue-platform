@@ -165,6 +165,7 @@ import { contentApi } from '@/api'
 import { ElMessage } from 'element-plus'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 import RichEditor from '@/components/editor/RichEditor.vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 
 const route = useRoute()
 const router = useRouter()
@@ -186,6 +187,10 @@ const form = reactive({
 })
 
 const tagInput = ref('')
+const { captureBaseline } = useUnsavedChanges(
+  () => form,
+  { message: '内容正文或属性尚未保存，离开后将丢失。确定离开？' },
+)
 
 onMounted(async () => {
   if (isEdit && id) {
@@ -202,6 +207,7 @@ onMounted(async () => {
       tags: data.tags || [],
       status: data.status || 'PUBLISHED',
       })
+      captureBaseline()
     } catch {
       ElMessage.error('内容加载失败，请返回重试')
     }
@@ -242,6 +248,7 @@ async function handleSave(status?: string) {
       await contentApi.create(payload)
     }
     ElMessage.success('保存成功')
+    captureBaseline()
     router.push('/contents')
   } catch {
   } finally {

@@ -44,7 +44,14 @@ const mockPrisma: any = {
     findUnique: jest.fn(), findFirst: jest.fn(), findMany: jest.fn(),
     count: jest.fn(), update: jest.fn(), updateMany: jest.fn(),
   },
-  product: { count: jest.fn(), findMany: jest.fn() },
+  product: {
+    count: jest.fn(), findMany: jest.fn(), findFirst: jest.fn(),
+    findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn(),
+  },
+  productSku: {
+    updateMany: jest.fn(), update: jest.fn(), create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
+  },
+  configSystem: { findUnique: jest.fn() },
   article: { count: jest.fn(), aggregate: jest.fn() },
   user: { findMany: jest.fn(), findFirst: jest.fn() },
   merchantMember: { findMany: jest.fn(), upsert: jest.fn(), updateMany: jest.fn() },
@@ -128,6 +135,89 @@ describe("MerchantService", () => {
     it("无申请记录抛出 NotFoundException", async () => {
       mockPrisma.merchant.findUnique.mockResolvedValue(null);
       await expect(svc.getApplication("u1")).rejects.toThrow(BusinessException);
+    });
+  });
+
+  describe("商品编辑审核与规格事务", () => {
+    const baseProduct = {
+      id: "p1",
+      userId: "u1",
+      title: "原商品",
+      intro: "原简介",
+      detail: "<p>原详情</p>",
+      images: ["cover.jpg"],
+      price: 99,
+      originalPrice: 129,
+      stock: 10,
+      categoryId: "c1",
+      tags: ["国学"],
+      status: "ON_SALE",
+      skus: [],
+    };
+
+    beforeEach(() => {
+      mockPrisma.configSystem.findUnique.mockResolvedValue(null);
+      mockPrisma.merchant.findUnique.mockResolvedValue({ id: "m1", userId: "u1" });
+      mockPrisma.product.findFirst.mockResolvedValue(baseProduct);
+      mockPrisma.product.update.mockImplementation(({ data }: any) => Promise.resolve({ ...baseProduct, ...data }));
+      mockPrisma.productSku.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.productSku.findMany.mockResolvedValue([]);
+    });
+
+    it("普通商家修改在售商品核心信息后必须重新审核", async () => {
+      const result = await svc.updateProduct("u1", "p1", { title: "新商品名" });
+
+      expect(mockPrisma.product.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ title: "新商品名", status: "PENDING" }),
+      }));
+      expect((result as any).reviewRequired).toBe(true);
+    });
+
+    it("仅调整商品库存不触发重新审核", async () => {
+      const result = await svc.updateProduct("u1", "p1", { stock: 20 });
+
+      expect(mockPrisma.product.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: { stock: 20 },
+      }));
+      expect((result as any).reviewRequired).toBe(false);
+    });
+
+    it("规格在商品事务中原位更新并保留已有 SKU ID", async () => {
+      mockPrisma.product.findFirst.mockResolvedValue({
+        ...baseProduct,
+        skus: [{ id: "sku1", specs: { 颜色: "红" }, price: 99, stock: 3 }],
+      });
+      mockPrisma.productSku.update.mockResolvedValue({ id: "sku1" });
+      mockPrisma.productSku.findMany.mockResolvedValue([
+        { id: "sku1", specs: { 颜色: "红" }, price: 99, stock: 8 },
+      ]);
+
+      await svc.updateProduct("u1", "p1", {
+        skus: [{ id: "sku1", specs: { 颜色: "红" }, price: 99, stock: 8 }],
+      });
+
+      expect(mockPrisma.productSku.update).toHaveBeenCalledWith({
+        where: { id: "sku1" },
+        data: { specs: { 颜色: "红" }, price: 99, stock: 8, isActive: true },
+      });
+      expect(mockPrisma.productSku.create).not.toHaveBeenCalled();
+      expect(mockPrisma.product.update).toHaveBeenCalledWith(expect.objectContaining({ data: {} }));
+    });
+
+    it("移除规格时只停用 SKU，保留历史订单规格记录", async () => {
+      mockPrisma.product.findFirst.mockResolvedValue({
+        ...baseProduct,
+        status: "PENDING",
+        skus: [{ id: "sku-old", specs: { 颜色: "旧款" }, price: 99, stock: 0, isActive: true }],
+      });
+
+      await svc.updateProduct("u1", "p1", { skus: [] });
+
+      expect(mockPrisma.productSku.updateMany).toHaveBeenCalledWith({
+        where: { productId: "p1", isActive: true },
+        data: { isActive: false },
+      });
+      expect(mockPrisma.productSku.deleteMany).toBeUndefined();
     });
   });
 

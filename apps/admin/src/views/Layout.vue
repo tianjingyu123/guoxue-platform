@@ -46,9 +46,11 @@
       </div>
 
       <!-- 底部收缩 -->
-      <div
+      <button
+        type="button"
         class="aside-footer"
         :class="{ 'is-collapsed': isCollapse }"
+        :aria-label="isCollapse ? '展开侧边菜单' : '收起侧边菜单'"
         @click="isCollapse = !isCollapse"
       >
         <span class="collapse-icon">{{ isCollapse ? '»' : '«' }}</span>
@@ -56,16 +58,22 @@
           v-if="!isCollapse"
           class="collapse-text"
         >收起菜单</span>
-      </div>
+      </button>
     </el-aside>
 
     <el-container>
       <!-- 顶栏 -->
       <el-header>
         <div class="header-left">
-          <div class="mobile-toggle" @click="mobileMenuOpen = !mobileMenuOpen">
+          <button
+            type="button"
+            class="mobile-toggle"
+            :aria-label="mobileMenuOpen ? '关闭导航菜单' : '打开导航菜单'"
+            :aria-expanded="mobileMenuOpen"
+            @click="mobileMenuOpen = !mobileMenuOpen"
+          >
             <span v-if="!mobileMenuOpen">☰</span><span v-else>✕</span>
-          </div>
+          </button>
           <el-breadcrumb separator="">
             <el-breadcrumb-item :to="{ path: '/dashboard' }">
               <span class="breadcrumb-home">首页</span>
@@ -83,6 +91,19 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
+          <button
+            type="button"
+            class="command-trigger"
+            aria-label="搜索后台功能，快捷键 Ctrl K"
+            @click="commandOpen = true"
+          >
+            <span
+              class="command-trigger-icon"
+              aria-hidden="true"
+            >⌕</span>
+            <span class="command-trigger-label">搜索功能</span>
+            <kbd>Ctrl K</kbd>
+          </button>
           <!-- 角色标签：同名合并计数（原"圈主"×6 重复铺满顶栏）·最多显 2 枚·其余收进悬浮 -->
           <el-tag
             v-for="t in roleTagsInline"
@@ -131,6 +152,7 @@
                 <el-button
                   text
                   class="notify-btn"
+                  aria-label="打开通知中心"
                 >
                   🔔
                 </el-button>
@@ -159,23 +181,30 @@
                 >
                   暂无通知，一切安好
                 </div>
-                <div
+                <button
                   v-for="n in notifications"
                   :key="n.id"
+                  type="button"
                   class="notify-item"
                   :class="{ 'is-unread': !n.isRead }"
                   @click="readOneNotification(n)"
                 >
                   <span class="notify-dot" />
                   <div class="notify-body">
-                    <div class="notify-item-title">{{ n.title }}</div>
+                    <div class="notify-item-title">
+                      {{ n.title }}
+                    </div>
                     <div
                       v-if="n.content"
                       class="notify-item-content"
-                    >{{ n.content }}</div>
-                    <div class="notify-item-time">{{ humanTime(n.createdAt) }}</div>
+                    >
+                      {{ n.content }}
+                    </div>
+                    <div class="notify-item-time">
+                      {{ humanTime(n.createdAt) }}
+                    </div>
                   </div>
-                </div>
+                </button>
               </div>
               <div
                 v-if="notifyHasMore"
@@ -261,6 +290,11 @@
 
     <!-- 全局悬浮运营助手（答疑指导 + 反馈问题） -->
     <AdminAssistant />
+    <!-- 200+ 页面统一入口：支持 Ctrl/Cmd+K、最近访问与键盘导航 -->
+    <AdminCommandPalette
+      v-model="commandOpen"
+      :items="auth.menus"
+    />
   </el-container>
 </template>
 
@@ -272,6 +306,7 @@ import { useAuthStore, type MenuItem } from "@/store/auth";
 import { filterMenusByWorkspace, pathWorkspace, type Workspace } from "@/lib/menu-structure";
 import SidebarMenu from "@/components/SidebarMenu.vue";
 import AdminAssistant from "@/components/AdminAssistant.vue";
+import AdminCommandPalette from "@/components/AdminCommandPalette.vue";
 import ConnectionStatus from "@/components/ConnectionStatus.vue";
 import BrandLogo from "@/components/BrandLogo.vue";
 import { notificationApi } from "@/api";
@@ -283,6 +318,7 @@ const auth = useAuthStore();
 const isCollapse = ref(false);
 const unreadCount = ref(0);
 const mobileMenuOpen = ref(false);
+const commandOpen = ref(false);
 
 // 路由跳转后自动收起移动端抽屉（点菜单项即关）
 watch(
@@ -379,7 +415,7 @@ const notifyHasMore = computed(() => notifications.value.length < notifyTotal.va
 
 async function fetchUnread() {
   try {
-    const { data } = await notificationApi.unreadCount();
+    const { data } = await notificationApi.unreadCount({ silentError: true });
     unreadCount.value = data?.unreadCount ?? data?.count ?? 0;
   } catch {
     // 顶栏轮询静默失败：不打扰工作流·下个周期自动重试
@@ -449,8 +485,8 @@ let unreadTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
   try {
-    await auth.fetchProfile();
-    await auth.fetchMenus();
+    if (!auth.user) await auth.fetchProfile();
+    if (auth.menus.length === 0) await auth.fetchMenus();
     fetchUnread();
     unreadTimer = setInterval(fetchUnread, 60000);
   } catch {
@@ -616,15 +652,21 @@ async function logout() {
 
 /* ── 底部收缩钮 ── */
 .aside-footer {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   padding: 14px;
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  background: transparent;
   border-top: 1px solid rgba(201, 169, 110, 0.08);
   cursor: pointer;
   color: rgba(255, 255, 255, 0.35);
   font-size: var(--font-size-caption);
+  font-family: var(--font-family);
   transition: all var(--transition-base);
   user-select: none;
 }
@@ -677,6 +719,12 @@ async function logout() {
   margin-right: var(--spacing-sm);
   cursor: pointer;
   color: var(--color-text-secondary);
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
 }
 @media (max-width: 768px) {
   .mobile-toggle { display: block; }
@@ -741,6 +789,42 @@ async function logout() {
   color: var(--color-gold-dark);
   background: var(--color-gold-lighter);
   font-weight: 500;
+}
+
+/* 全局目录索引：大后台的主导航捷径 */
+.command-trigger {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px 0 10px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-paper);
+  color: var(--color-text-secondary);
+  font: 12px/1 var(--font-family);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+.command-trigger:hover {
+  border-color: var(--color-gold);
+  background: var(--color-gold-lighter);
+  color: var(--color-text-title);
+}
+.command-trigger-icon { color: var(--color-gold-dark); font-size: 17px; }
+.command-trigger kbd {
+  padding: 2px 5px;
+  border: 1px solid var(--color-divider);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--color-text-secondary);
+  font: 10px/1.4 var(--font-family);
+}
+@media (max-width: 1080px) {
+  .command-trigger-label,
+  .command-trigger kbd { display: none; }
+  .command-trigger { width: 34px; justify-content: center; padding: 0; }
 }
 
 /* 通知 */
@@ -820,10 +904,18 @@ async function logout() {
   font-size: 13px;
 }
 .notify-popper .notify-item {
+  width: 100%;
   display: flex;
   gap: 8px;
   padding: 10px 4px;
   cursor: pointer;
+  border-top: 0;
+  border-right: 0;
+  border-left: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   border-bottom: 1px solid var(--color-divider, #f2f3f5);
   transition: background 0.15s;
 }

@@ -269,6 +269,18 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <el-form-item label="运费模板">
+          <el-select v-model="form.freightTemplateId" clearable placeholder="平台包邮（不绑定模板）" style="width:100%">
+            <el-option
+              v-for="item in freightTemplates"
+              :key="item.id"
+              :label="`${item.name}${item.isActive ? '' : '（已停用）'}`"
+              :value="item.id"
+              :disabled="!item.isActive"
+            />
+          </el-select>
+          <span class="rate-hint">修改后，结算页按收货省份实时试算并在订单保留模板快照。</span>
+        </el-form-item>
         <!-- 逐品站长推广佣金（佣-V2·按商品利润逐品定·2026-07-04拍板·独立端点保存） -->
         <el-form-item label="推广佣金">
           <el-input-number
@@ -509,6 +521,7 @@ interface ProductRow {
   status?: string
   images?: string[]
   sceneTags?: string[]
+  freightTemplateId?: string | null
 }
 /** SKU 行（字段宽松 optional） */
 interface SkuRow {
@@ -528,6 +541,7 @@ const saving = ref(false)
 const uploading = ref(false)
 // 商品分类下拉数据（来自后端商品分类树 /shop/categories/tree）
 const categories = ref<Array<{ id: string; name: string }>>([])
+const freightTemplates = ref<Array<{ id: string; name: string; isActive: boolean }>>([])
 async function loadCategories() {
   try {
     const { data } = await api.get('/shop/categories/tree')
@@ -536,6 +550,12 @@ async function loadCategories() {
     walk(Array.isArray(data) ? data : ((data as any)?.items || (data as any)?.list || []))
     categories.value = flat
   } catch { /* 分类加载失败不阻断表单 */ }
+}
+async function loadFreightTemplates() {
+  try {
+    const { data } = await api.get('/shop/freight-templates', { params: { page: 1, pageSize: 100 } })
+    freightTemplates.value = data?.items || []
+  } catch { freightTemplates.value = [] }
 }
 const acting = ref(false)
 
@@ -551,6 +571,7 @@ const form = reactive({
   title: '', intro: '', detail: '', price: 0, stock: 0,
   images: [] as string[], status: 'ON_SALE' as string,
   sceneTags: [] as string[],
+  freightTemplateId: '' as string,
   // 逐品站长推广佣金率（%显示·null=用类目默认·佣-V2·独立端点保存，与 UpdateProductDto 白名单无关）
   commissionRatePct: null as number | null,
 })
@@ -579,7 +600,7 @@ const columns = [
   { prop: "sceneTags", label: "场景标签", minWidth: 150, slot: "sceneTags" },
 ]
 
-onMounted(() => { fetchList(); loadCategories() })
+onMounted(() => { fetchList(); loadCategories(); loadFreightTemplates() })
 
 function statusLabel(s: string) { return ({ ON_SALE: '在售', PENDING: '待审', OFF_SHELF: '下架' } as Record<string, string>)[s] || s }
 function statusType(s: string) { return ({ ON_SALE: 'success', PENDING: 'warning', OFF_SHELF: 'info' } as Record<string, string>)[s] || 'info' }
@@ -626,7 +647,7 @@ async function onImageFile(e: Event) {
 }
 
 function resetForm() {
-  Object.assign(form, { title: '', intro: '', detail: '', price: 0, stock: 0, images: [], status: 'ON_SALE', sceneTags: [], commissionRatePct: null })
+  Object.assign(form, { title: '', intro: '', detail: '', price: 0, stock: 0, images: [], status: 'ON_SALE', sceneTags: [], freightTemplateId: '', commissionRatePct: null })
   editingId.value = ''; imgUrl.value = ''
 }
 
@@ -639,6 +660,7 @@ async function openEdit(row: ProductRow) {
     stock: p.stock || 0,
     images: p.images || [], status: p.status || 'ON_SALE',
     sceneTags: p.sceneTags || [],
+    freightTemplateId: p.freightTemplateId || '',
     commissionRatePct: p.commissionRate != null ? Math.round(Number(p.commissionRate) * 10000) / 100 : null,
   })
   dialogVisible.value = true
@@ -653,6 +675,7 @@ async function saveProduct() {
     const payload = {
       title: form.title, intro: form.intro, detail: form.detail, images: form.images,
       price: form.price, stock: form.stock, status: form.status, sceneTags: form.sceneTags,
+      freightTemplateId: form.freightTemplateId || null,
     }
     await productApi.update(editingId.value, payload)
     // 佣金率走独立 admin 端点（不在 UpdateProductDto 白名单·商家不可自设）·%转 0-1 小数

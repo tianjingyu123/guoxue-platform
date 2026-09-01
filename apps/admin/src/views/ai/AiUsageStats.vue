@@ -312,6 +312,7 @@ import { ElMessage } from "element-plus";
 import { api } from "@/api";
 import echarts from "@/utils/echarts";
 import type { EChartsType } from "echarts/core";
+import { downloadCsvRows } from "@/utils/export";
 
 /** GET /ai/usage-stats 真实返回体（ai.service.ts getAiUsageStats） */
 interface UsageStatsResponse {
@@ -482,14 +483,7 @@ function exportCSV() {
     r.isCached ? "是" : "否",
     r.createdAt || "",
   ]);
-  const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `ai-call-logs-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadCsvRows(`ai-call-logs-${new Date().toISOString().slice(0, 10)}`, [headers, ...rows]);
   ElMessage.success("导出成功");
 }
 </script>

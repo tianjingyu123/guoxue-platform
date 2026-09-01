@@ -79,7 +79,7 @@ export class DashboardService {
       this.prisma.product.count({ where: { stock: 0, status: "ON_SALE" } }),
       this.prisma.product.count({ where: { status: "PENDING" } }),
       this.prisma.product.count({ where: { status: "ON_SALE" } }),
-      this.prisma.productSku.count(),
+      this.prisma.productSku.count({ where: { isActive: true } }),
       this.prisma.order.count({ where: { status: "PAID" } }),
     ]);
 

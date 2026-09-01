@@ -41,17 +41,19 @@ export class AnomalyDetectorController {
   }
 
   @Post("rules")
+  @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "注册/更新检测规则" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
   async registerRule(
     @Body() body: RegisterAnomalyRuleDto,
   ) {
-    this.detector.registerRule(body);
+    await this.detector.registerRule(body);
     return { success: true };
   }
 
   @Post("rules/:ruleId/toggle")
+  @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "启用/停用检测规则" })
   @ApiResponse({ status: 201, description: "操作成功" })
   @ApiResponse({ status: 404, description: "规则不存在" })

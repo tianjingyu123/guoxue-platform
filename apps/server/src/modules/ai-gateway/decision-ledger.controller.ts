@@ -2,7 +2,7 @@ import { Controller, Get, Post, Query, Body, Param, Req, UseGuards } from "@nest
 import type { Request } from "express";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { DecisionLedgerService } from "./decision-ledger.service";
-import { RecordDecisionDto, ReviewDecisionDto, RecordOutcomeDto } from "./dto/ai-infra.dto";
+import { ReviewDecisionDto, RecordOutcomeDto } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -18,15 +18,6 @@ type AuthRequest = Omit<Request, "user"> & {
 @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
 export class DecisionLedgerController {
   constructor(private readonly ledger: DecisionLedgerService) {}
-
-  @Post()
-  @ApiOperation({ summary: "记录AI决策" })
-  @ApiResponse({ status: 201, description: "创建成功" })
-  @ApiResponse({ status: 400, description: "参数校验失败" })
-  async record(@Body() dto: RecordDecisionDto) {
-    const id = await this.ledger.record(dto as any);
-    return { decisionId: id };
-  }
 
   @Post(":id/review")
   @ApiOperation({ summary: "人工审核决策" })
@@ -46,12 +37,14 @@ export class DecisionLedgerController {
   @ApiOperation({ summary: "记录决策效果" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
-  async recordOutcome(@Param("id") id: string, @Body() body: RecordOutcomeDto) {
+  @Roles("SUPER_ADMIN")
+  async recordOutcome(@Param("id") id: string, @Body() body: RecordOutcomeDto, @Req() req: AuthRequest) {
     await this.ledger.recordOutcome(
       id,
       body.metric,
       body.expectedValue,
       body.actualValue,
+      req.user.id,
     );
     return { success: true };
   }

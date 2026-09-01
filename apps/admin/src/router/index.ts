@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { refreshPaipanMode } from "@/lib/paipan-runtime";
+import { useAuthStore } from "@/store/auth";
+import { clearAdminSession, rememberAdminRedirect } from "@/utils/auth-session";
 
 // 所有管理角色
 const ALL_ADMIN = [
@@ -954,7 +956,7 @@ const routes = [
         path: "system/export",
         name: "DataExport",
         component: () => import("@/views/system/DataExport.vue"),
-        meta: { title: "数据导出", roles: ["SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN"] },
+        meta: { title: "数据导出", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
         path: "system/cron",
@@ -1381,67 +1383,67 @@ const routes = [
         path: "merchant-backend/dashboard",
         name: "MerchantDashboard",
         component: () => import("@/views/merchant-backend/MerchantDashboard.vue"),
-        meta: { title: "商家数据概览" },
+        meta: { title: "商家数据概览", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/products",
         name: "MerchantProducts",
         component: () => import("@/views/merchant-backend/MerchantProducts.vue"),
-        meta: { title: "商品管理" },
+        meta: { title: "商品管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/inventory",
         name: "MerchantInventory",
         component: () => import("@/views/merchant-backend/MerchantInventory.vue"),
-        meta: { title: "库存与采购" },
+        meta: { title: "库存与采购", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/orders",
         name: "MerchantOrders",
         component: () => import("@/views/merchant-backend/MerchantOrders.vue"),
-        meta: { title: "订单管理" },
+        meta: { title: "订单管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/shipping",
         name: "MerchantShipping",
         component: () => import("@/views/merchant-backend/MerchantShipping.vue"),
-        meta: { title: "发货管理" },
+        meta: { title: "发货管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/after-sales",
         name: "MerchantAfterSales",
         component: () => import("@/views/merchant-backend/MerchantAfterSales.vue"),
-        meta: { title: "售后管理" },
+        meta: { title: "售后管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/customers",
         name: "MerchantCustomers",
         component: () => import("@/views/merchant-backend/MerchantCustomers.vue"),
-        meta: { title: "客户管理" },
+        meta: { title: "客户管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/reviews",
         name: "MerchantReviews",
         component: () => import("@/views/merchant-backend/MerchantReviews.vue"),
-        meta: { title: "评价管理" },
+        meta: { title: "评价管理", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/revenue",
         name: "MerchantRevenue",
         component: () => import("@/views/merchant-backend/MerchantRevenue.vue"),
-        meta: { title: "收入结算" },
+        meta: { title: "收入结算", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/violations",
         name: "MerchantViolations",
         component: () => import("@/views/merchant-backend/MerchantViolations.vue"),
-        meta: { title: "违规记录" },
+        meta: { title: "违规记录", roles: ["MERCHANT"] },
       },
       {
         path: "merchant-backend/profile",
         name: "MerchantProfile",
         component: () => import("@/views/merchant-backend/MerchantProfile.vue"),
-        meta: { title: "店铺设置" },
+        meta: { title: "店铺设置", roles: ["MERCHANT"] },
       },
       // === 分站后台（站长自管理）===
       {
@@ -1510,6 +1512,12 @@ const routes = [
           component: () => import("@/views/merchant-backend/MerchantRevenue.vue"),
           meta: { hidden: true, title: "资金对账视觉验收", devPreview: true },
         },
+        {
+          path: "/__qa/admin-command-palette",
+          name: "AdminCommandPalettePreview",
+          component: () => import("@/views/qa/AdminCommandPalettePreview.vue"),
+          meta: { hidden: true, title: "运营目录索引视觉验收", devPreview: true },
+        },
       ]
     : []),
   // === 404 ===
@@ -1526,53 +1534,91 @@ const router = createRouter({
   routes,
 });
 
-// 全局路由守卫
-router.beforeEach(async (to, _from, next) => {
+interface VerifiedAccess {
+  roles: string[];
+}
+
+let verifiedToken = "";
+let verifiedAccess: VerifiedAccess | null = null;
+let accessPromise: Promise<VerifiedAccess | null> | null = null;
+
+/**
+ * 每次整页启动至少向服务端核验一次身份；同一 token 后续路由复用结果。
+ * 不再把可被用户修改、可能过期的 localStorage 角色缓存当作授权依据。
+ */
+async function getVerifiedAccess(token: string): Promise<VerifiedAccess | null> {
+  if (verifiedToken === token && verifiedAccess) return verifiedAccess;
+  if (accessPromise) return accessPromise;
+
+  accessPromise = (async () => {
+    try {
+      const auth = useAuthStore();
+      await auth.fetchProfile();
+      const roles = Array.from(new Set(auth.roles));
+      verifiedToken = localStorage.getItem("token") || token;
+      verifiedAccess = { roles };
+      return verifiedAccess;
+    } catch {
+      verifiedToken = "";
+      verifiedAccess = null;
+      clearAdminSession({ preserveRedirect: true });
+      return null;
+    } finally {
+      accessPromise = null;
+    }
+  })();
+  return accessPromise;
+}
+
+function defaultEntry(roles: string[]): string {
+  const adminRoles = new Set(ALL_ADMIN);
+  if (roles.some((role) => adminRoles.has(role))) return "/dashboard";
+  if (roles.includes("MERCHANT")) return "/merchant-backend/dashboard";
+  if (roles.includes("STATION_MASTER")) return "/station-backend";
+  if (roles.includes("OPERATOR")) return "/operator-backend";
+  return "/403";
+}
+
+function rememberTarget(path: string): void {
+  if (!path || path === "/login" || path === "/403") return;
+  const base = import.meta.env.BASE_URL;
+  const browserPath = base === "/"
+    ? path
+    : `${base.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+  rememberAdminRedirect(browserPath);
+}
+
+// 全局路由守卫：身份与角色均默认拒绝，服务端仍会对每个 API 做最终资源级鉴权。
+router.beforeEach(async (to) => {
   // 仅开发环境的真实数据态视觉验收页，不进入生产路由表。
-  if (import.meta.env.DEV && to.meta?.devPreview === true) return next();
+  if (import.meta.env.DEV && to.meta?.devPreview === true) return true;
 
   const token = localStorage.getItem("token");
-
-  // 登录页：已登录则跳转首页
-  if (to.name === "Login") {
-    if (token) return next("/dashboard");
-    return next();
+  if (!token) {
+    if (to.name === "Login") return true;
+    rememberTarget(to.fullPath);
+    return "/login";
   }
 
-  // 无 token → 登录页
-  if (!token) return next("/login");
+  const access = await getVerifiedAccess(token);
+  if (!access) {
+    rememberTarget(to.fullPath);
+    return to.name === "Login" ? true : "/login";
+  }
 
-  // 403/404 页面直接放行
-  if (to.name === "Forbidden" || to.name === "NotFound") return next();
+  if (to.name === "Login") return defaultEntry(access.roles);
+  if (to.name === "Forbidden" || to.name === "NotFound") return true;
 
   // 菜单隐藏之外再做直达路由门禁；配置读取失败按 legacy 返回 404。
   if (to.meta?.nativePaipan === true && (await refreshPaipanMode()) !== "native") {
-    return next({ name: "NotFound", params: { pathMatch: ["page-not-found"] } });
+    return { name: "NotFound", params: { pathMatch: ["page-not-found"] } };
   }
 
-  // 角色检查：从 localStorage 读取缓存的角色
-  try {
-    const cached = localStorage.getItem("user_roles");
-    const userRoles: string[] = cached ? JSON.parse(cached) : [];
-    const requiredRoles = (to.meta?.roles as string[]) || [];
-
-    // 如果没有配置角色限制，允许所有已登录用户
-    if (requiredRoles.length === 0) return next();
-
-    // 角色缓存为空时放行（Layout.onMounted 会 fetchProfile 补充缓存）
-    if (userRoles.length === 0) return next();
-
-    // 超管全部放行
-    if (userRoles.includes("SUPER_ADMIN")) return next();
-
-    // 检查交集
-    const hasAccess = requiredRoles.some((r) => userRoles.includes(r));
-    if (!hasAccess) return next("/403");
-  } catch {
-    // 解析失败不阻塞
-  }
-
-  next();
+  const requiredRoles = (to.meta?.roles as string[] | undefined) || [];
+  // 管理后台受保护页面必须显式声明角色；遗漏配置时不再默认放行。
+  if (requiredRoles.length === 0) return "/403";
+  // 不做“超管天然拥有全部身份”的隐式绕过；商家等外部经营身份必须在路由上明确授权。
+  return requiredRoles.some((role) => access.roles.includes(role)) ? true : "/403";
 });
 
 export default router;

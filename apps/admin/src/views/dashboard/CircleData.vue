@@ -12,6 +12,7 @@
 import { ref, type Component } from "vue"
 import { circleApi, api } from "@/api"
 import ChartCard from "@/components/ChartCard.vue"
+import { downloadCsvRows } from "@/utils/export"
 import {
   ChatDotRound, User, Document, Calendar,
   Plus, ChatLineRound, StarFilled, Money,
@@ -189,16 +190,9 @@ function exportCSV() {
   const top = d.topContent ?? []
   if (top.length) {
     rows.push([], ["热门内容", "作者", "浏览", "评论", "点赞"])
-    for (const t of top) rows.push([`"${(t.title ?? "").replace(/"/g, '""')}"`, t.author ?? "", t.viewCount ?? 0, t.commentCount ?? 0, t.likeCount ?? 0])
+    for (const t of top) rows.push([t.title ?? "", t.author ?? "", t.viewCount ?? 0, t.commentCount ?? 0, t.likeCount ?? 0])
   }
-  const csv = rows.map((r) => r.join(",")).join("\n")
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `圈子数据_${d.basicInfo?.name ?? entityId.value}_${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadCsvRows(`圈子数据_${d.basicInfo?.name ?? entityId.value}_${new Date().toISOString().slice(0, 10)}`, rows)
 }
 </script>
 

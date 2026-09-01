@@ -48,6 +48,14 @@ describe("AlipayService", () => {
   });
 
   describe("支付请求", () => {
+    it("后台热更新密钥后当前实例立即读取新配置", () => {
+      expect(service.isConfigured).toBe(true);
+      delete process.env.ALIPAY_PUBLIC_KEY;
+      expect(service.isConfigured).toBe(false);
+      process.env.ALIPAY_PUBLIC_KEY = "new-public-key-content";
+      expect(service.isConfigured).toBe(true);
+    });
+
     it("APP支付应生成已签名参数串", async () => {
       const result = await service.appPay({ outTradeNo: "GXALI001", totalAmount: 99.99, subject: "测试商品" });
       expect(result).toContain("alipay.trade.app.pay");

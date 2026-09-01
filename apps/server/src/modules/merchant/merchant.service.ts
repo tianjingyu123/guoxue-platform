@@ -669,7 +669,7 @@ export class MerchantService {
   async listProducts(userId: string, q: ProductQueryDto) {
     const { status } = q;
     const { page, pageSize, skip } = safePagination(q.page, q.pageSize, NO_PAGE_LIMIT);
-    const where: Record<string, unknown> = { userId, supplierType: "CERTIFIED_MERCHANT" };
+    const where: Record<string, unknown> = { userId, supplierType: "CERTIFIED_MERCHANT", deletedAt: null };
     if (status) where.status = status;
 
     const [list, total] = await Promise.all([
@@ -723,67 +723,197 @@ export class MerchantService {
   async createProduct(userId: string, dto: MerchantProductDto) {
     await this.assertMerchantQualificationForPublish(userId);
     const official = await this.isOfficialMerchant(userId);
+    const { skus, ...productInput } = dto;
+    if (productInput.freightTemplateId) await this.assertActiveFreightTemplate(productInput.freightTemplateId);
     return this.prisma.product.create({
       data: {
-        userId, title: dto.title, intro: dto.intro, detail: dto.detail,
-        images: dto.images ?? [], price: dto.price, originalPrice: dto.originalPrice, stock: dto.stock,
-        categoryId: dto.categoryId, tags: dto.tags ?? [],
+        userId, title: productInput.title, intro: productInput.intro, detail: productInput.detail,
+        images: productInput.images ?? [], price: productInput.price, originalPrice: productInput.originalPrice, stock: productInput.stock,
+        categoryId: productInput.categoryId, freightTemplateId: productInput.freightTemplateId, tags: productInput.tags ?? [],
         isPlatform: false, supplierType: "CERTIFIED_MERCHANT",
         // 官方旗舰店免审自动上架；普通商家仍走 PENDING 审核（标准不变）
         status: official ? "ON_SALE" : "PENDING",
+        ...(skus?.length
+          ? {
+              skus: {
+                create: skus.map((sku) => ({
+                  specs: sku.specs as Prisma.InputJsonValue,
+                  price: sku.price,
+                  stock: sku.stock ?? 0,
+                })),
+              },
+            }
+          : {}),
       },
+      include: { skus: { where: { isActive: true }, orderBy: { createdAt: "asc" } } },
     });
   }
 
   async getProduct(userId: string, productId: string) {
     // include skus：编辑态需回填多规格矩阵（B3 商品编辑器）
     const product = await this.prisma.product.findFirst({
-      where: { id: productId, userId },
-      include: { skus: { orderBy: { createdAt: "asc" } } },
+      where: { id: productId, userId, deletedAt: null },
+      include: { skus: { where: { isActive: true }, orderBy: { createdAt: "asc" } } },
     });
     if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
     return product;
   }
 
   async updateProduct(userId: string, productId: string, dto: Partial<MerchantProductDto>) {
-    const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, userId, deletedAt: null },
+      include: { skus: { where: { isActive: true }, orderBy: { createdAt: "asc" } } },
+    });
     if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
-    return this.prisma.product.update({ where: { id: productId }, data: dto });
+
+    const { skus, ...changes } = dto;
+    if (changes.freightTemplateId) await this.assertActiveFreightTemplate(changes.freightTemplateId);
+    const scalarChanged = (key: keyof typeof changes, current: unknown) => {
+      if (changes[key] === undefined) return false;
+      const incoming = changes[key];
+      if (Array.isArray(incoming) || Array.isArray(current)) {
+        return JSON.stringify(incoming ?? []) !== JSON.stringify(current ?? []);
+      }
+      if (key === "price" || key === "originalPrice") {
+        const left = incoming === null ? null : Number(incoming);
+        const right = current === null || current === undefined ? null : Number(current);
+        return left !== right;
+      }
+      return (incoming ?? null) !== (current ?? null);
+    };
+    const sensitiveProductChanged =
+      scalarChanged("title", product.title)
+      || scalarChanged("intro", product.intro)
+      || scalarChanged("detail", product.detail)
+      || scalarChanged("images", product.images)
+      || scalarChanged("price", product.price)
+      || scalarChanged("originalPrice", product.originalPrice)
+      || scalarChanged("categoryId", product.categoryId)
+      || scalarChanged("freightTemplateId", product.freightTemplateId)
+      || scalarChanged("tags", product.tags);
+
+    const existingSkuById = new Map(product.skus.map((sku) => [sku.id, sku]));
+    if (skus) {
+      const foreignId = skus.find((sku) => sku.id && !existingSkuById.has(sku.id));
+      if (foreignId) throw new BusinessException(ErrorCode.BAD_REQUEST, "SKU 不属于当前商品，无法保存");
+    }
+    const incomingIds = new Set((skus ?? []).flatMap((sku) => (sku.id ? [sku.id] : [])));
+    const skuStructureChanged = skus !== undefined && (
+      skus.some((sku) => {
+        if (!sku.id) return true;
+        const current = existingSkuById.get(sku.id)!;
+        return JSON.stringify(current.specs) !== JSON.stringify(sku.specs)
+          || Number(current.price) !== Number(sku.price);
+      })
+      || product.skus.some((sku) => !incomingIds.has(sku.id))
+    );
+
+    const official = await this.isOfficialMerchant(userId);
+    const mustReaudit = !official
+      && ["ON_SALE", "OFF_SHELF"].includes(product.status)
+      && (sensitiveProductChanged || skuStructureChanged);
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.product.update({
+        where: { id: productId },
+        data: {
+          ...changes,
+          ...(mustReaudit ? { status: "PENDING" } : {}),
+        },
+      });
+
+      if (skus !== undefined) {
+        await tx.productSku.updateMany({
+          where: { productId, isActive: true, ...(incomingIds.size ? { id: { notIn: [...incomingIds] } } : {}) },
+          data: { isActive: false },
+        });
+        for (const sku of skus) {
+          const data = {
+            specs: sku.specs as Prisma.InputJsonValue,
+            price: sku.price,
+            stock: sku.stock ?? 0,
+            isActive: true,
+          };
+          if (sku.id) await tx.productSku.update({ where: { id: sku.id }, data });
+          else await tx.productSku.create({ data: { productId, ...data } });
+        }
+      }
+
+      return {
+        ...updated,
+        skus: skus === undefined
+          ? product.skus
+          : await tx.productSku.findMany({ where: { productId, isActive: true }, orderBy: { createdAt: "asc" } }),
+        reviewRequired: mustReaudit,
+      };
+    });
+  }
+
+  private async assertActiveFreightTemplate(id: string): Promise<void> {
+    const template = await this.prisma.freightTemplate.findFirst({ where: { id, isActive: true }, select: { id: true } });
+    if (!template) throw new BusinessException(ErrorCode.BAD_REQUEST, "运费模板不存在或已停用");
   }
 
   /** 店铺身份加 SKU（操作员经 merchant.guard 归一到 owner·与 shop.addSku 同校验逻辑） */
   async addProductSku(userId: string, productId: string, dto: { name?: string; specs?: Record<string, string>; price: number; stock?: number }) {
-    const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
+    const product = await this.prisma.product.findFirst({ where: { id: productId, userId, deletedAt: null } });
     if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
     let specs = dto.specs || {};
     if (!dto.specs && dto.name) {
       const parts = dto.name.split(":");
       specs = parts.length >= 2 ? { [parts[0].trim()]: parts.slice(1).join(":").trim() } : { name: dto.name };
     }
-    return this.prisma.productSku.create({
-      data: { productId, specs, price: dto.price, stock: dto.stock ?? 0 },
+    const official = await this.isOfficialMerchant(userId);
+    const reviewRequired = !official && ["ON_SALE", "OFF_SHELF"].includes(product.status);
+    return this.prisma.$transaction(async (tx) => {
+      const sku = await tx.productSku.create({
+        data: { productId, specs, price: dto.price, stock: dto.stock ?? 0, isActive: true },
+      });
+      if (reviewRequired) {
+        await tx.product.update({ where: { id: productId }, data: { status: "PENDING" } });
+      }
+      return { ...sku, reviewRequired };
     });
   }
 
   /** 店铺身份删 SKU */
   async deleteProductSku(userId: string, skuId: string) {
-    const sku = await this.prisma.productSku.findUnique({ where: { id: skuId }, include: { product: { select: { userId: true } } } });
-    if (!sku || sku.product.userId !== userId) throw new BusinessException(ErrorCode.BAD_REQUEST, "SKU不存在或无权操作");
-    await this.prisma.productSku.delete({ where: { id: skuId } });
-    return { success: true };
+    const sku = await this.prisma.productSku.findUnique({
+      where: { id: skuId },
+      include: { product: { select: { id: true, userId: true, status: true, deletedAt: true } } },
+    });
+    if (!sku || sku.product.userId !== userId || sku.product.deletedAt) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "SKU不存在或无权操作");
+    }
+    if (!sku.isActive) return { success: true, reviewRequired: false };
+    const official = await this.isOfficialMerchant(userId);
+    const reviewRequired = !official && ["ON_SALE", "OFF_SHELF"].includes(sku.product.status);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.productSku.update({ where: { id: skuId }, data: { isActive: false } });
+      if (reviewRequired) {
+        await tx.product.update({ where: { id: sku.product.id }, data: { status: "PENDING" } });
+      }
+    });
+    return { success: true, reviewRequired };
   }
 
   async deleteProduct(userId: string, productId: string) {
-    const product = await this.prisma.product.findFirst({ where: { id: productId, userId } });
+    const product = await this.prisma.product.findFirst({ where: { id: productId, userId, deletedAt: null } });
     if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
-    return this.prisma.product.delete({ where: { id: productId } });
+    if (product.status === "ON_SALE") {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "请先下架商品，再执行删除");
+    }
+    return this.prisma.product.update({
+      where: { id: productId },
+      data: { status: "OFF_SHELF", deletedAt: new Date() },
+    });
   }
 
   async listProduct(userId: string, productId: string) {
     await this.assertMerchantQualificationForPublish(userId);
     // 🔴 上架前置状态校验：只有「已下架(OFF_SHELF)」的商品可自助重新上架。
     //    PENDING(待审核)商品若允许自助上架 = 商家绕过平台审核直接售卖，属审核旁路漏洞。
-    const product = await this.prisma.product.findFirst({ where: { id: productId, userId }, select: { id: true, status: true } });
+    const product = await this.prisma.product.findFirst({ where: { id: productId, userId, deletedAt: null }, select: { id: true, status: true } });
     if (!product) throw new BusinessException(ErrorCode.BAD_REQUEST, "商品不存在");
     if (product.status === "ON_SALE") return { count: 0, message: "商品已在售" };
     if (product.status !== "OFF_SHELF") {
@@ -791,13 +921,13 @@ export class MerchantService {
     }
     // where 带 status 条件 = CAS，防并发下 PENDING 被套进来
     return this.prisma.product.updateMany({
-      where: { id: productId, userId, status: "OFF_SHELF" }, data: { status: "ON_SALE" },
+      where: { id: productId, userId, status: "OFF_SHELF", deletedAt: null }, data: { status: "ON_SALE" },
     });
   }
 
   async unlistProduct(userId: string, productId: string) {
     return this.prisma.product.updateMany({
-      where: { id: productId, userId }, data: { status: "OFF_SHELF" },
+      where: { id: productId, userId, deletedAt: null }, data: { status: "OFF_SHELF" },
     });
   }
 
