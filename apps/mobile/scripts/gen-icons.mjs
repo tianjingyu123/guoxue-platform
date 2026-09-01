@@ -71,6 +71,8 @@ function normalizeJsxSvgBody(inner) {
   s = s.replace(/\s+className=("[^"]*"|\{[^}]*\})/g, '')
   s = s.replace(/\b([a-z]+[A-Z][a-zA-Z]*)=/g, (m, name) => `${jsxAttrToHtml(name)}=`)
   s = s.replace(/\s+/g, ' ').trim()
+  // SVG 标签之间的空白不参与渲染，却会作为字符串进入微信小程序主包。
+  s = s.replace(/>\s+</g, '><')
   return s
 }
 
