@@ -10,6 +10,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { AuditListQueryDto, ModerateImageDto, ModerateTextDto, OperationLogListQueryDto, AddSensitiveWordDto, AddSensitiveWordsDto, CheckSensitiveDto, ComplianceScanQueryDto, ComplianceScanStatusDto, ContentAuditListQueryDto, ContentAuditReviewDto } from "./audit.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("审核与审计")
 @Controller("audit")
@@ -102,6 +103,7 @@ export class AuditController {
   }
 
   @Put("reports/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "处理举报" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -143,6 +145,7 @@ export class AuditController {
   }
 
   @Post("sensitive-words")
+  @RedLineGate(RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "添加敏感词" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -156,6 +159,7 @@ export class AuditController {
   }
 
   @Post("sensitive-words/batch")
+  @RedLineGate(RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "批量添加敏感词" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -169,6 +173,7 @@ export class AuditController {
   }
 
   @Delete("sensitive-words/:word")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "删除敏感词" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -232,6 +237,7 @@ export class AuditController {
   }
 
   @Put("compliance-scan/records/:id/status")
+  @RedLineGate(RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "处置合规扫描记录（RESOLVED已整改/IGNORED误报忽略/OPEN重开）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -275,6 +281,7 @@ export class AuditController {
   }
 
   @Put("content-audits/:id/review")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @ApiOperation({ summary: "审核裁决（通过→进平台公共池 / 驳回→记原因·内容保持圈内可见）" })
   @ApiResponse({ status: 200, description: "更新成功" })

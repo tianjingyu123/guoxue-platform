@@ -18,6 +18,7 @@ import {
   CreateCourseReviewDto, UpdateStationBrandDto,
 } from "./offline.dto";
 import { CreateTeacherDto, UpdateTeacherDto, SetAvailabilityDto, CreateTeacherFromSignedDto } from "./dto/teacher.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("线下驿站")
 @Controller("offline")
@@ -81,6 +82,7 @@ export class OfflineController {
   }
 
   @Put("stations/my/brand")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "驿站长更新品牌主页资料（brandStory/photos/讲师阵容·驿-P1）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -111,6 +113,7 @@ export class OfflineController {
   }
 
   @Put("stations/:id/audit")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审核线下驿站" })
@@ -203,6 +206,7 @@ export class OfflineController {
   }
 
   @Put("admin/courses/:id/audit")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审核通过/驳回课程" })
@@ -217,6 +221,7 @@ export class OfflineController {
   }
 
   @Put("admin/courses/:id/recommend")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "推荐/取消推荐课程" })
@@ -352,6 +357,7 @@ export class OfflineController {
   // ───────── 课后同学圈（T8 OMO·驿站主经营后台） ─────────
 
   @Post("dashboard/courses/:id/study-circle")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "为课程创建同学圈（驿站主·幂等：已建则直接返回 circleId）" })
   @ApiResponse({ status: 201, description: "创建成功/已存在，返回 { circleId }" })
@@ -366,6 +372,7 @@ export class OfflineController {
   // ───────── 驿站商品 ─────────
 
   @Post("stations/:id/products")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加驿站商品" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -377,6 +384,7 @@ export class OfflineController {
   }
 
   @Put("products/:productId")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新商品信息" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -401,6 +409,7 @@ export class OfflineController {
   }
 
   @Delete("products/:productId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "下架商品" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -519,6 +528,7 @@ export class OfflineController {
   // ───────── 结算 ─────────
 
   @Post("stations/:id/settlements")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "驿站自动结算预留接口（当前禁止手填金额）" })
@@ -546,6 +556,7 @@ export class OfflineController {
   }
 
   @Put("settlements/:settlementId/settle")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "驿站真实打款预留接口（当前 fail-closed）" })
@@ -561,6 +572,7 @@ export class OfflineController {
   // ───────── 讲师管理（管理后台） ─────────
 
   @Post("admin/teachers")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "新增讲师" })
@@ -618,6 +630,7 @@ export class OfflineController {
   }
 
   @Put("admin/teachers/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新讲师信息" })
@@ -632,6 +645,7 @@ export class OfflineController {
   }
 
   @Delete("admin/teachers/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除讲师" })
@@ -660,6 +674,7 @@ export class OfflineController {
   }
 
   @Post("admin/teachers/:id/availability")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置讲师可预约时段" })
@@ -727,6 +742,7 @@ export class OfflineController {
   }
 
   @Put("institute/members/:id")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新研究院成员" })

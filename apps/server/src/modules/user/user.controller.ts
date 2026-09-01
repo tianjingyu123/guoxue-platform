@@ -222,7 +222,7 @@ export class UserController {
   }
 
   @Delete(":id/roles/:roleType")
-  @RedLineGate(RedLine.USER_DATA)
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @Auditable({ action: "移除用户角色", targetType: "USER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
@@ -443,6 +443,7 @@ export class UserController {
   // ───────── 白名单管理 ─────────
 
   @Post("whitelist")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "添加用户到附加限流白名单" })
@@ -455,6 +456,7 @@ export class UserController {
   }
 
   @Delete("whitelist/:userId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "从附加限流白名单移除用户" })

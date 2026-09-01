@@ -7,6 +7,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { SystemService } from "../system/system.service";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 type AuthRequest = Omit<Request, "user"> & { user: { id: string; [key: string]: unknown } };
 
@@ -33,6 +34,7 @@ export class TeacherAdminController {
   }
 
   @Put("certifications/:id/review")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @ApiOperation({ summary: "审核讲师认证（通过 / 驳回）" })

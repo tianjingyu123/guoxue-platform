@@ -6,6 +6,7 @@ import { CloseBountyQuestionDto, RejectReviewDto } from "./bounty.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("悬赏管理-管理端")
 @Controller("admin/bounty")
@@ -28,6 +29,7 @@ export class BountyAdminController {
   }
 
   @Post("questions/:id/close")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "管理员关闭悬赏" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -51,6 +53,7 @@ export class BountyAdminController {
   }
 
   @Put("reviews/:id/approve")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "通过审核" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -60,6 +63,7 @@ export class BountyAdminController {
   }
 
   @Put("reviews/:id/reject")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "拒绝审核" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

@@ -5,6 +5,7 @@ import { WeeklyBriefService } from "./weekly-brief.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * 每日运营简报（看-P2）：手动触发发送（幂等·当日已发跳过）
@@ -21,6 +22,7 @@ export class DailyBriefController {
   ) {}
 
   @Post("brief/weekly/send")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "手动触发运营周报（上周·同周已发则幂等跳过·D-T4）" })
   @ApiResponse({ status: 201, description: "发送成功或幂等跳过" })
@@ -31,6 +33,7 @@ export class DailyBriefController {
   }
 
   @Post("brief/send")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "手动触发每日运营简报（默认昨日·同日已发则幂等跳过）" })
   @ApiQuery({ name: "date", required: false, description: "YYYY-MM-DD，缺省为昨日" })

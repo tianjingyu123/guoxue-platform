@@ -15,6 +15,7 @@ import { Roles } from "../../common/roles.decorator";
 import { TencentCallbackGuard } from "../../common/tencent-callback.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("视频")
 @Controller("videos")
@@ -95,6 +96,7 @@ export class VideoController {
   }
 
   @Put("admin/:id/audit")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "视频审核", targetType: "VIDEO" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
@@ -109,6 +111,7 @@ export class VideoController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除视频" })
   @ApiBearerAuth()
@@ -218,6 +221,7 @@ export class VideoController {
   }
 
   @Delete("vod/media/:fileId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除VOD媒资" })
@@ -324,6 +328,7 @@ export class VideoController {
   // ───────── 商品关联 ─────────
 
   @Post(":id/products/:productId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加视频商品关联" })
   @ApiBearerAuth()
@@ -334,6 +339,7 @@ export class VideoController {
   }
 
   @Delete(":id/products/:productId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "移除视频商品关联" })
   @ApiBearerAuth()

@@ -7,6 +7,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { CreateTempReferralDto, UpdateTempReferralDto } from "./dto/admin-referral.dto";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("临时推荐管理")
 @Controller("admin/referral")
@@ -16,6 +17,7 @@ export class AdminReferralController {
   constructor(private readonly svc: AdminReferralService) {}
 
   @Post("temp-configs")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提交临时分佣新增审批", targetType: "TEMPORARY_REFERRAL_CONFIG" })
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建临时推荐配置" })
@@ -63,6 +65,7 @@ export class AdminReferralController {
   }
 
   @Put("temp-configs/:id")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提交临时分佣修改审批", targetType: "TEMPORARY_REFERRAL_CONFIG" })
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新临时推荐配置" })
@@ -74,6 +77,7 @@ export class AdminReferralController {
   }
 
   @Delete("temp-configs/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @Auditable({ action: "提交临时分佣删除审批", targetType: "TEMPORARY_REFERRAL_CONFIG" })
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除临时推荐配置" })

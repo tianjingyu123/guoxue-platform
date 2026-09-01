@@ -149,6 +149,7 @@ export class ShopController {
   }
 
   @Put("products/:id/commission-rate")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "商品佣金率设置", targetType: "PRODUCT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -164,6 +165,7 @@ export class ShopController {
   }
 
   @Put("admin/products/:id/moderate")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商品品控", targetType: "PRODUCT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
@@ -205,6 +207,7 @@ export class ShopController {
   // ───────── SKU ─────────
 
   @Post("products/:id/skus")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "添加商品SKU" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -217,6 +220,7 @@ export class ShopController {
   }
 
   @Delete("skus/:skuId")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除商品SKU" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -400,6 +404,7 @@ export class ShopController {
   }
 
   @Put("orders/:id/ship")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "发货（管理员）" })
@@ -414,6 +419,7 @@ export class ShopController {
   }
 
   @Put("orders/:id/pay")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "管理员确认支付", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
@@ -440,6 +446,7 @@ export class ShopController {
   }
 
   @Put("orders/:id/complete")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "完成订单（管理员）" })
@@ -454,6 +461,7 @@ export class ShopController {
   }
 
   @Put("orders/:id/refund")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "订单退款", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   // 权限修复(角色断裂)：财务角色前端路由放行退款页(/orders/refund)，后端对齐放行 FINANCE_ADMIN。仅加角色，逻辑不动。
@@ -580,6 +588,7 @@ export class ShopController {
   }
 
   @Post("alipay/refund")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "支付宝退款", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -616,6 +625,7 @@ export class ShopController {
   }
 
   @Post("unionpay/refund")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "银联退款", targetType: "ORDER" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -664,6 +674,7 @@ export class ShopController {
   }
 
   @Post("group-buys/refund-expired")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "扫描并退款超时未成团的拼团（管理员/定时触发）" })
@@ -678,6 +689,7 @@ export class ShopController {
   // ───────── 优惠券 ─────────
 
   @Post("coupons")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "创建优惠券" })
@@ -728,6 +740,7 @@ export class ShopController {
   }
 
   @Put("coupons/:id")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "更新优惠券" })
@@ -742,6 +755,7 @@ export class ShopController {
   }
 
   @Delete("coupons/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "删除优惠券" })
@@ -756,6 +770,7 @@ export class ShopController {
   }
 
   @Put("coupons/:id/status")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "更新优惠券状态" })
@@ -781,6 +796,7 @@ export class ShopController {
   }
 
   @Post("coupons/:id/grant")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "发放优惠券给用户" })
@@ -794,6 +810,7 @@ export class ShopController {
   }
 
   @Post("coupons/:id/batch-grant")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "GOODS_AUDITOR")
   @ApiOperation({ summary: "批量发放优惠券（券体系统一后的唯一批量发放口）" })
@@ -808,6 +825,7 @@ export class ShopController {
   // ───────── 运费模板 ─────────
 
   @Post("freight-templates")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建运费模板" })
@@ -838,6 +856,7 @@ export class ShopController {
   }
 
   @Put("freight-templates/:id")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新运费模板" })
@@ -852,6 +871,7 @@ export class ShopController {
   }
 
   @Delete("freight-templates/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除运费模板" })
@@ -891,6 +911,7 @@ export class ShopController {
   }
 
   @Post("reviews/:id/reply")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理员回复评价" })
@@ -904,6 +925,7 @@ export class ShopController {
   }
 
   @Delete("reviews/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员删除评价" })
@@ -920,6 +942,7 @@ export class ShopController {
   // ───────── 评价治理（管理员） ─────────
 
   @Put("admin/reviews/:id/hide")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @Auditable({ action: "评价隐藏", targetType: "PRODUCT_REVIEW" })
@@ -934,6 +957,7 @@ export class ShopController {
   }
 
   @Put("admin/reviews/:id/show")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CONTENT_AUDITOR")
   @Auditable({ action: "评价恢复展示", targetType: "PRODUCT_REVIEW" })
@@ -1005,6 +1029,7 @@ export class ShopController {
   }
 
   @Put("orders/:id/logistics")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新物流信息（管理员）" })
@@ -1104,6 +1129,7 @@ export class ShopController {
   }
 
   @Put("admin/after-sales/:id/process")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "售后处理", targetType: "AFTER_SALE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   // 客服可查看并处理非资金售后；真实退款仍由运营/财务/超级管理员批准。

@@ -164,6 +164,7 @@ export class VersionController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @Auditable({ action: "删除客户端版本记录", targetType: "APP_VERSION" })

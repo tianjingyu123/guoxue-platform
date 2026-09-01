@@ -9,6 +9,7 @@ import { Roles } from "../../common/roles.decorator";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("课程组合包")
 @Controller("bundles")
@@ -21,6 +22,7 @@ export class BundleController {
   // ── 管理端 CRUD ──
 
   @Post()
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -49,6 +51,7 @@ export class BundleController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -63,6 +66,7 @@ export class BundleController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()

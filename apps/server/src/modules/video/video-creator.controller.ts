@@ -79,6 +79,7 @@ export class VideoCreatorController {
   }
 
   @Post("withdraw")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "提交提现申请" })
   @ApiResponse({ status: 201, description: "提现申请已提交" })
   @ApiResponse({ status: 400, description: "余额不足" })

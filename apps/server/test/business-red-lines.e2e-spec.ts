@@ -40,6 +40,23 @@ describe("关键业务红线 E2E", () => {
     ["post", "/api/v1/system/version/v1/publish", undefined],
     ["post", "/api/v1/system/version/v1/rollback", undefined],
     ["post", "/api/v1/system/version/v1/retire", undefined],
+    ["delete", "/api/v1/system/version/v1", undefined],
+    ["put", "/api/v1/live/rooms/r1/end", undefined],
+    ["delete", "/api/v1/live/rooms/r1", undefined],
+    ["post", "/api/v1/merchant-backend/products", { title: "自动化商家商品", price: 1, stock: 1 }],
+    ["post", "/api/v1/merchant-backend/products/p1/list", undefined],
+    ["post", "/api/v1/merchant-backend/orders/o1/refund/approve", { remark: "自动化退款审批" }],
+    ["post", "/api/v1/huifu/split", { orderId: "o1" }],
+    ["post", "/api/v1/huifu/refund", { orderId: "o1", amount: 1 }],
+    ["post", "/api/v1/email/send", { to: "qa@example.com", subject: "QA", html: "QA" }],
+    ["post", "/api/v1/email/send-template", { to: "qa@example.com", templateCode: "QA", variables: {} }],
+    ["post", "/api/v1/courses/drafts/d1/publish", undefined],
+    ["post", "/api/v1/admin/competitions/c1/publish", undefined],
+    ["put", "/api/v1/ops/tasks/t1/approval", { approved: true }],
+    ["post", "/api/v1/system/automation/toggle", { enabled: true }],
+    ["put", "/api/v1/admin/roles/OPERATION_ADMIN/permissions", { permissions: [] }],
+    ["post", "/api/v1/identity/admin/approve/i1", { remark: "QA" }],
+    ["post", "/api/v1/system/backup/upload-cos", undefined],
   ] as const;
 
   it.each(cases)("AUTOMATION %s %s 应在进入业务层前返回 403", async (method, path, body) => {
@@ -66,5 +83,18 @@ describe("关键业务红线 E2E", () => {
       .post("/api/v1/system/version/not-found/publish")
       .set("Authorization", `Bearer ${token}`)
       .expect(404);
+  });
+
+  it.each([
+    ["put", "/api/v1/shop/orders/not-found/refund", "MONEY", { reason: "人工退款校验" }],
+    ["delete", "/api/v1/system/version/not-found", "IRREVERSIBLE", undefined],
+    ["post", "/api/v1/identity/admin/approve/not-found", "USER_DATA", { remark: "人工实名审核" }],
+    ["post", "/api/v1/system/automation/toggle", "COMPLIANCE", { enabled: true }],
+  ] as const)("真人 %s %s 可越过 %s 红线并进入既有业务链路", async (method, path, _redLine, body) => {
+    const call = request(app.getHttpServer())[method](path)
+      .set("Authorization", `Bearer ${token}`);
+    if (body !== undefined) call.send(body);
+    const response = await call;
+    expect(response.status).not.toBe(403);
   });
 });

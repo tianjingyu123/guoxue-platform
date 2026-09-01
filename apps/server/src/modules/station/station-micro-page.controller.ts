@@ -6,6 +6,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { CreatePageComponentDto, UpdatePageComponentDto, SortComponentsDto, UpdateMarketingPageDto } from "../marketing/marketing.dto";
 import { StationCreatePageDto } from "./station.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * 分站微页面 — 站长自服务（P2 微页面下放）
@@ -73,6 +74,7 @@ export class StationMicroPageController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除微页面" })
   @ApiResponse({ status: 200, description: "删除成功" })
   async remove(@Req() req: Request, @Param("id") id: string) {
@@ -110,6 +112,7 @@ export class StationMicroPageController {
   }
 
   @Delete(":id/components/:compId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除楼层组件" })
   @ApiResponse({ status: 200, description: "删除成功" })
   async deleteComponent(@Req() req: Request, @Param("id") id: string, @Param("compId") compId: string) {
@@ -119,6 +122,7 @@ export class StationMicroPageController {
   }
 
   @Post(":id/publish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "发布微页面（用户可见）" })
   @ApiResponse({ status: 200, description: "发布成功" })
   async publish(@Req() req: Request, @Param("id") id: string) {

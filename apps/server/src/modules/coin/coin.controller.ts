@@ -9,6 +9,7 @@ import { ActiveUserGuard } from "../../common/active-user.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("虚拟币")
 @ApiBearerAuth()
@@ -50,6 +51,7 @@ export class CoinController {
   // FINANCE_ADMIN 可发起（写）：此端点只创建 FundApproval 审批单不直接动账，
   // 且执行器禁自审自批（发起人≠审批人），财务发起仍需另一名审批人放行，无单人成环风险
   @Post("admin/recharge")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "管理员充值", targetType: "COIN" })
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -63,6 +65,7 @@ export class CoinController {
   }
 
   @Post("admin/refund")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "管理员发起虚拟币退款", targetType: "COIN" })
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
@@ -143,6 +146,7 @@ export class CoinController {
   // 礼物 CRUD 对 FINANCE_ADMIN 放行（写）：礼物单价即虚拟币定价（财务口径），
   // 且不直接产生出入账（送礼扣币走 sendGift 独立链路），@Auditable 全程留痕可追责
   @Post("gifts")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "创建礼物", targetType: "GIFT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -156,6 +160,7 @@ export class CoinController {
   }
 
   @Put("gifts/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "更新礼物", targetType: "GIFT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -170,6 +175,7 @@ export class CoinController {
   }
 
   @Delete("gifts/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @Auditable({ action: "删除礼物", targetType: "GIFT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")

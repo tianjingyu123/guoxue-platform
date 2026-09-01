@@ -11,6 +11,7 @@ import {
 } from "./circle-publish-grant.dto";
 import { CirclePublishGrantService } from "./circle-publish-grant.service";
 import { CirclePublishGrantStatus } from "@prisma/client";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈子全平台发布授权")
 @ApiBearerAuth()
@@ -45,6 +46,7 @@ export class CirclePublishGrantController {
   }
 
   @Post("admin/:id/approve")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批准圈子全平台发布授权" })
@@ -53,6 +55,7 @@ export class CirclePublishGrantController {
   }
 
   @Post("admin/:id/reject")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "驳回圈子全平台发布授权" })

@@ -6,6 +6,7 @@ import { CatalogQueryDto, PublicPinnedQueryDto, SavePinnedBatchDto } from "./sta
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { StationMasterGuard } from "../../common/station-master.guard";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * 分站主推位（S2 主推位管理面板 + S3 选品库 + S1 汇总）
@@ -37,12 +38,14 @@ export class StationPinnedController {
   }
 
   @Put(":stationId/batch")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "S2 保存某板块全部主推位（快照式覆盖写）" })
   saveBatch(@Param("stationId") stationId: string, @Body() dto: SavePinnedBatchDto, @Req() req: Request) {
     return this.svc.saveBatch(stationId, req.user.id, dto);
   }
 
   @Delete(":stationId/:board/:slotIndex")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "S2 清空某个主推位" })
   removeSlot(
     @Param("stationId") stationId: string,

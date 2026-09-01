@@ -9,6 +9,7 @@ import { Roles } from "../../common/roles.decorator";
 import { SkipFormat } from "../../common/skip-format.decorator";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("汇付天下支付")
 @Controller("huifu")
@@ -30,6 +31,7 @@ export class HuifuController {
   }
 
   @Put("config")
+  @RedLineGate(RedLine.MONEY, RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
@@ -70,6 +72,7 @@ export class HuifuController {
   // ───────── 支付 ─────────
 
   @Post("pay")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "创建汇付天下支付" })
@@ -114,6 +117,7 @@ export class HuifuController {
   // ───────── 分账 ─────────
 
   @Post("split")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
   @ApiBearerAuth()
@@ -141,6 +145,7 @@ export class HuifuController {
   // ───────── 退款 ─────────
 
   @Post("refund")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()

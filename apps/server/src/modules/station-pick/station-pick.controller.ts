@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StationMasterGuard } from "../../common/station-master.guard";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("站长精选")
 @Controller("station-pick")
@@ -20,6 +21,7 @@ export class StationPickController {
   }
 
   @Post(":stationId/items")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, StationMasterGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "添加精选内容" })
@@ -31,6 +33,7 @@ export class StationPickController {
   }
 
   @Delete(":stationId/items/:pickId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, StationMasterGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "移除精选内容" })
@@ -42,6 +45,7 @@ export class StationPickController {
   }
 
   @Put(":stationId/items/reorder")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, StationMasterGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "批量调整排序" })
@@ -77,6 +81,7 @@ export class StationPickController {
   }
 
   @Delete("admin/:stationId/items/:pickId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -90,6 +95,7 @@ export class StationPickController {
   }
 
   @Put("admin/:stationId/config")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()

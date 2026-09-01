@@ -6,6 +6,7 @@ import { ReviewDecisionDto, RecordOutcomeDto } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 type AuthRequest = Omit<Request, "user"> & {
   user: { id: string; roles: string[]; [key: string]: unknown };
@@ -20,6 +21,7 @@ export class DecisionLedgerController {
   constructor(private readonly ledger: DecisionLedgerService) {}
 
   @Post(":id/review")
+  @RedLineGate(RedLine.COMPLIANCE)
   @ApiOperation({ summary: "人工审核决策" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

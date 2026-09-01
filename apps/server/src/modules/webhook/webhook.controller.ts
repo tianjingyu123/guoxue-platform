@@ -5,6 +5,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { WebhookService, WebhookEvent } from "./webhook.service";
 import { CreateWebhookDto, UpdateWebhookDto, ToggleWebhookDto } from "./webhook.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("Webhook")
 @Controller("webhooks")
@@ -15,6 +16,7 @@ export class WebhookController {
   constructor(private readonly svc: WebhookService) {}
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "注册 Webhook 订阅" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -48,12 +50,14 @@ export class WebhookController {
   }
 
   @Post("deliveries/:id/retry")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "人工重试一笔失败的 Webhook 投递" })
   retryDelivery(@Param("id") id: string) {
     return this.svc.retryDelivery(id);
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "编辑 Webhook 订阅" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -63,6 +67,7 @@ export class WebhookController {
   }
 
   @Post(":id/toggle")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "启用/禁用 Webhook 订阅" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -71,6 +76,7 @@ export class WebhookController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除 Webhook 订阅" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

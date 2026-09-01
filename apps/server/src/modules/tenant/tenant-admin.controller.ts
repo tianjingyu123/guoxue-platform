@@ -6,6 +6,7 @@ import { CreateTenantDto, UpdateTenantDto, TenantRechargeDto } from "./tenant.dt
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("SaaS租户管理（Admin）")
 @ApiBearerAuth()
@@ -16,6 +17,7 @@ export class TenantAdminController {
   constructor(private svc: TenantService) {}
 
   @Post()
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "创建租户" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -39,6 +41,7 @@ export class TenantAdminController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "更新租户" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -48,6 +51,7 @@ export class TenantAdminController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除租户" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -57,6 +61,7 @@ export class TenantAdminController {
   }
 
   @Post(":id/recharge")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "充值配额" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -65,6 +70,7 @@ export class TenantAdminController {
   }
 
   @Post(":id/reset-key")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "重置 API Key" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

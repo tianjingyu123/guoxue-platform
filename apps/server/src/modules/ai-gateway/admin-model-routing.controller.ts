@@ -7,6 +7,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { UpdateRoutingConfigDto, UpdateSceneRoutingDto } from "./dto/admin-model-routing.dto";
 import { SystemService } from "../system/system.service";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("AI模型路由配置")
 @Controller("admin/ai/routing")
@@ -27,6 +28,7 @@ export class AdminModelRoutingController {
   }
 
   @Put("config")
+  @RedLineGate(RedLine.COMPLIANCE)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新完整路由配置" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -40,6 +42,7 @@ export class AdminModelRoutingController {
   }
 
   @Put("scenes/:scene")
+  @RedLineGate(RedLine.COMPLIANCE)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新单个场景配置" })
   @ApiResponse({ status: 200, description: "更新成功" })

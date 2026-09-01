@@ -8,6 +8,7 @@ import { Autonomy, AutonomyLevel } from "../../common/autonomy";
 import { OpsService } from "./ops.service";
 import { InspectionService } from "./inspection.service";
 import { ApproveOpsTaskDto, CompleteOpsTaskDto, CreateOpsTaskDto, QueryOpsTaskDto, ReviewOpsTaskDto } from "./ops.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /** 数字员工运营 OS — 任务池（OS-P1）：数字员工与真人从同一池取任务 */
 @ApiTags("运营任务池")
@@ -81,6 +82,7 @@ export class OpsController {
   }
 
   @Put("tasks/:id/approval")
+  @RedLineGate(RedLine.COMPLIANCE)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "审批或驳回高风险任务（执行与审批职责分离）" })
   @ApiResponse({ status: 200, description: "审批状态已更新" })

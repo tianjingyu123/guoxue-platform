@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { BaziCaseService } from "./bazi-case.service";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * 八字案例库
@@ -145,6 +146,7 @@ export class BaziCaseAdminController {
   }
 
   @Post(":id/approve")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "通过（用户投稿按质量档发国学币·幂等，不重复发）" })
   approve(@Req() req: Request, @Param("id") id: string, @Body() dto: { note?: string }) {
@@ -152,6 +154,7 @@ export class BaziCaseAdminController {
   }
 
   @Post(":id/reject")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "驳回（须给理由，投稿人可见）" })
   reject(@Req() req: Request, @Param("id") id: string, @Body() dto: { note: string }) {

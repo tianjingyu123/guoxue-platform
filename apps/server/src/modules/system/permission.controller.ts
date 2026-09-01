@@ -7,6 +7,7 @@ import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
 import { PermissionService } from "./permission.service";
 import { SetRolePermissionsDto } from "./system.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("角色权限")
 @ApiBearerAuth()
@@ -26,6 +27,7 @@ export class PermissionController {
   }
 
   @Put(":role/permissions")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @Auditable({ action: "更新角色权限", targetType: "ROLE" })
   @ApiOperation({ summary: "更新角色权限" })
   @ApiResponse({ status: 200, description: "更新成功" })

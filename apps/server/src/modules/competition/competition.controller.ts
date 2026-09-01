@@ -19,6 +19,7 @@ import {
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 // ═══════════════════ 管理后台接口 ═══════════════════
 
@@ -43,6 +44,7 @@ export class CompetitionAdminController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "更新赛事（未开赛可改）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -71,6 +73,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/stages/:seq/advance")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "人工强制推进阶段（兜底·状态机单步·审计留痕）" })
   @ApiResponse({ status: 201, description: "推进成功" })
   @ApiResponse({ status: 400, description: "阶段不可推进或推进失败" })
@@ -97,6 +100,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/publish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "发布赛事" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -105,6 +109,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/start")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "开始赛事" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -113,6 +118,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/finish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "结束赛事" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -220,6 +226,7 @@ export class CompetitionAdminController {
   }
 
   @Put(":id/registrations/:regId")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "更新报名状态" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -248,6 +255,7 @@ export class CompetitionAdminController {
   }
 
   @Post(":id/calculate-ranking")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "计算排名" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -267,6 +275,7 @@ export class CompetitionAdminController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @HttpCode(204)
   @ApiOperation({ summary: "删除赛事（仅草稿状态）" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -277,6 +286,7 @@ export class CompetitionAdminController {
   }
 
   @Delete(":id/rounds/:roundId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @HttpCode(204)
   @ApiOperation({ summary: "删除赛程" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -287,6 +297,7 @@ export class CompetitionAdminController {
   }
 
   @Delete(":id/questions/:questionId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @HttpCode(204)
   @ApiOperation({ summary: "删除题目" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -469,6 +480,7 @@ export class CompetitionJudgeController {
   }
 
   @Post("submissions/:id/score")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "提交评分", description: "对作品进行打分" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -481,6 +493,7 @@ export class CompetitionJudgeController {
   }
 
   @Post("answers/:answerId/grade")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "评委评分（按答案ID）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

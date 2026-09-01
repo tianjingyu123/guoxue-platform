@@ -6,6 +6,7 @@ import { Roles } from "../../common/roles.decorator";
 import { ClassicCommentaryService } from "./classic-commentary.service";
 import { ClassicCommentarySeeder } from "./classic-commentary-seeder.service";
 import { CreateCommentaryDto, UpdateCommentaryDto } from "./classic-commentary.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("经典·学术解释库")
 @Controller("classic/commentaries")
@@ -75,6 +76,7 @@ export class ClassicCommentaryController {
   }
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -88,6 +90,7 @@ export class ClassicCommentaryController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -102,6 +105,7 @@ export class ClassicCommentaryController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()

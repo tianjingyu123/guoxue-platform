@@ -5,6 +5,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { AbTestService } from "./services/ab-test.service";
 import { CreateAbTestDto, UpdateAbTestDto } from "./ab-test.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("A/B实验管理")
 @Controller("admin/recommend/ab-tests")
@@ -30,6 +31,7 @@ export class AbTestController {
   }
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "创建新实验" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -38,6 +40,7 @@ export class AbTestController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "更新实验配置" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -47,6 +50,7 @@ export class AbTestController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除实验" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -56,6 +60,7 @@ export class AbTestController {
   }
 
   @Post(":id/start")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "启动实验" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -64,6 +69,7 @@ export class AbTestController {
   }
 
   @Post(":id/pause")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "暂停实验" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -72,6 +78,7 @@ export class AbTestController {
   }
 
   @Post(":id/complete")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "完成实验" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

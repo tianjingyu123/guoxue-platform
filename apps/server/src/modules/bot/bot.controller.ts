@@ -12,6 +12,7 @@ import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { SkipFormat } from "../../common/skip-format.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * 智能体管理控制器
@@ -51,6 +52,7 @@ export class BotController {
 
   /** 通过 Coze API 一键创建+发布智能体，并同步到本地 BotConfig */
   @Post("create-coze")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "Coze 创建智能体并同步" })
@@ -170,6 +172,7 @@ export class BotController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除智能体" })
@@ -197,6 +200,7 @@ export class BotController {
   }
 
   @Delete(":id/unbind-circle/:circleId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "解绑智能体与圈子（管理端）" })
@@ -228,6 +232,7 @@ export class BotController {
   }
 
   @Delete("knowledge/:knowledgeId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除知识库条目" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -437,6 +442,7 @@ export class BotController {
   }
 
   @Post("manage/approvals/:circleId/approve")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批准圈主助理开通" })
@@ -450,6 +456,7 @@ export class BotController {
   }
 
   @Post("manage/approvals/:circleId/reject")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "驳回圈主助理开通" })
@@ -513,6 +520,7 @@ export class BotController {
   }
 
   @Delete("manage/knowledge/:knowledgeId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除圈主助理知识库条目" })

@@ -9,6 +9,7 @@ import { Roles } from "../../common/roles.decorator";
 import { TaskService } from "./task.service";
 import { CreateTaskDto, UpdateTaskDto, TransferTaskDto, ClaimTaskDto, ApproveTaskDto } from "./task.dto";
 import { Request } from "express";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("任务池")
 @Controller("tasks")
@@ -134,6 +135,7 @@ export class TaskController {
   }
 
   @Post(":id/approve")
+  @RedLineGate(RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审批任务" })
@@ -152,6 +154,7 @@ export class TaskController {
   }
 
   @Post(":id/rollback")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "回滚任务操作" })

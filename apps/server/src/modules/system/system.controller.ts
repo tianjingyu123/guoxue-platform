@@ -110,6 +110,7 @@ export class SystemController {
   }
 
   @Post("configs")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "系统配置创建（含第三方密钥）", targetType: "CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -139,6 +140,7 @@ export class SystemController {
   }
 
   @Put("configs/:key")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "系统配置变更（含第三方密钥）", targetType: "CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -160,6 +162,7 @@ export class SystemController {
   }
 
   @Delete("configs/:key")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @Auditable({ action: "系统配置删除（含第三方密钥）", targetType: "CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
@@ -202,6 +205,7 @@ export class SystemController {
   }
 
   @Put("maintenance")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "切换维护模式" })
@@ -228,6 +232,7 @@ export class SystemController {
   }
 
   @Post("automation/toggle")
+  @RedLineGate(RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "一键接管 — 开/关自动化（关闭后 Claude 权限降为只读）" })
@@ -257,6 +262,7 @@ export class SystemController {
   }
 
   @Post("automation/rollback/:auditId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "一键回滚 — 按审计快照还原某次自动化配置变更（SUPER_ADMIN·真人纠错）" })
@@ -287,6 +293,7 @@ export class SystemController {
   }
 
   @Post("ops-actions/execute")
+  @RedLineGate(RedLine.COMPLIANCE)
   @Autonomy(AutonomyLevel.L2_ONE_CLICK)
   @RequireAutomation() // 受一键接管开关约束：接管后此写操作 403
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -364,6 +371,7 @@ export class SystemController {
   }
 
   @Put("brand-config")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新品牌配置（改一处配置全端生效）" })
@@ -468,6 +476,7 @@ export class SystemController {
   }
 
   @Post("audit-logs/:id/rollback")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "回滚操作 — 根据审计日志快照恢复状态" })
@@ -498,6 +507,7 @@ export class SystemController {
   }
 
   @Post("cron/:jobName/manual")
+  @RedLineGate(RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
@@ -555,6 +565,7 @@ export class SystemController {
   }
 
   @Post("export/orders")
+  @RedLineGate(RedLine.USER_DATA)
   @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -570,6 +581,7 @@ export class SystemController {
   }
 
   @Post("export/contents")
+  @RedLineGate(RedLine.USER_DATA)
   @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -585,6 +597,7 @@ export class SystemController {
   }
 
   @Post("export/audit-logs")
+  @RedLineGate(RedLine.USER_DATA)
   @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -600,6 +613,7 @@ export class SystemController {
   }
 
   @Post("export/earnings")
+  @RedLineGate(RedLine.MONEY, RedLine.USER_DATA)
   @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -615,6 +629,7 @@ export class SystemController {
   }
 
   @Post("export/excel")
+  @RedLineGate(RedLine.USER_DATA)
   @SkipFormat()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -633,6 +648,7 @@ export class SystemController {
   }
 
   @Post("import-products")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量导入商品（CSV/TSV 格式）" })
@@ -673,6 +689,7 @@ export class SystemController {
   }
 
   @Post("page-content")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建或更新页面文案" })
@@ -754,6 +771,7 @@ export class SystemController {
   }
 
   @Delete("site-notices/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除全站公告" })
@@ -802,6 +820,7 @@ export class SystemController {
   }
 
   @Post("config-versions/rollback")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "回滚配置到指定版本" })
@@ -865,6 +884,7 @@ export class SystemController {
   }
 
   @Put("category-tree")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新品类标签树" })
@@ -899,6 +919,7 @@ export class SystemController {
   }
 
   @Put("course-category-tree")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "更新课程品类树" })
@@ -928,6 +949,7 @@ export class SystemController {
   }
 
   @Post("member-configs")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提交会员套餐新增审批", targetType: "MEMBER_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
@@ -942,6 +964,7 @@ export class SystemController {
   }
 
   @Put("member-configs/:id")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "提交会员套餐修改审批", targetType: "MEMBER_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -957,6 +980,7 @@ export class SystemController {
   }
 
   @Delete("member-configs/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @Auditable({ action: "提交会员套餐删除审批", targetType: "MEMBER_CONFIG" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")

@@ -6,6 +6,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { MiniService } from "./mini.service";
 import { MiniHomeQueryDto, MiniContentQueryDto, MiniShareQueryDto, CreateMiniAppDto } from "./mini.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("小程序")
 @Controller("mini")
@@ -75,6 +76,7 @@ export class MiniController {
   }
 
   @Post("admin/apps")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -88,6 +90,7 @@ export class MiniController {
   }
 
   @Put("admin/apps/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -102,6 +105,7 @@ export class MiniController {
   }
 
   @Delete("admin/apps/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()

@@ -7,6 +7,7 @@ import { Roles } from "../../common/roles.decorator";
 import { CreateLegalDto, UpdateLegalDto } from "./dto/legal.dto";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("法律文件")
 @Controller("system/legal")
@@ -36,6 +37,7 @@ export class LegalController {
   }
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -49,6 +51,7 @@ export class LegalController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()
@@ -65,6 +68,7 @@ export class LegalController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()

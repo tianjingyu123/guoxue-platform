@@ -16,6 +16,7 @@ import {
   UpdatePermissionMatrixDto,
   UpdateRuleDto,
 } from "./circle-governance.dto";
+import { RedLineGate, RedLine } from "../../../common/red-lines";
 
 /**
  * 圈子治理（待办 #8-#14）。
@@ -42,6 +43,7 @@ export class CircleGovernanceController {
   }
 
   @Post("admin/appeals/:appealId/resolve")
+  @RedLineGate(RedLine.USER_DATA, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "平台裁决申诉（成立=撤销处理并清记录）" })
@@ -91,6 +93,7 @@ export class CircleGovernanceController {
   }
 
   @Delete(":circleId/rules/:ruleId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除条文（圈主）" })
   deleteRule(@Req() req: Request, @Param("circleId") circleId: string, @Param("ruleId") ruleId: string) {
     return this.svc.deleteRule(circleId, req.user.id, ruleId);
@@ -154,6 +157,7 @@ export class CircleGovernanceController {
   }
 
   @Post(":circleId/posts/:postId/review")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "审核待审帖子（通过=发布并计数·驳回=隐藏并通知作者）" })
   reviewPost(
     @Req() req: Request,

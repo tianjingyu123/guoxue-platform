@@ -8,6 +8,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("分站系统")
 @ApiBearerAuth()
@@ -141,6 +142,7 @@ export class StationController {
   // ───────── 分站 CRUD ─────────
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建分站" })
@@ -184,6 +186,7 @@ export class StationController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新分站（含品牌配置）" })
@@ -197,6 +200,7 @@ export class StationController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除分站" })
@@ -223,6 +227,7 @@ export class StationController {
   // ───────── 运营商 ─────────
 
   @Post("operator")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建运营商" })
@@ -291,6 +296,7 @@ export class StationController {
   }
 
   @Put(":id/template")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "设置分站模版" })
@@ -327,6 +333,7 @@ export class StationController {
   // ───────── 运营商品牌与小程序 ─────────
 
   @Put("operator/:id/brand")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()

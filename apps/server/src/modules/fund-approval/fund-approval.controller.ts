@@ -9,6 +9,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("资金审批")
 @ApiBearerAuth()
@@ -38,6 +39,7 @@ export class FundApprovalController {
   }
 
   @Post("admin/:id/review")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "资金审批", targetType: "FUND_APPROVAL" })
   @UseGuards(JwtAuthGuard, RolesGuard, StrictRedisThrottleGuard)
   @Roles("SUPER_ADMIN", "FINANCE_ADMIN")

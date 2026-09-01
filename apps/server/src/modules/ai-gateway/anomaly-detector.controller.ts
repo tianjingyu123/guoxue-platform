@@ -5,6 +5,7 @@ import { RegisterAnomalyRuleDto } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("🤖 AI异常检测")
 @Controller("ai/anomalies")
@@ -41,6 +42,7 @@ export class AnomalyDetectorController {
   }
 
   @Post("rules")
+  @RedLineGate(RedLine.COMPLIANCE)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "注册/更新检测规则" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -53,6 +55,7 @@ export class AnomalyDetectorController {
   }
 
   @Post("rules/:ruleId/toggle")
+  @RedLineGate(RedLine.COMPLIANCE)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "启用/停用检测规则" })
   @ApiResponse({ status: 201, description: "操作成功" })

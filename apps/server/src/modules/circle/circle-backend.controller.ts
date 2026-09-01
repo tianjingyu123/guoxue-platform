@@ -8,6 +8,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { SetGuestShareRateDto } from "./circle.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈主个人中心")
 @Controller("circle-backend")
@@ -135,6 +136,7 @@ export class CircleBackendController {
   }
 
   @Put("guests/:userId/share-rate")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "设置嘉宾分账比例" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

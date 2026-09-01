@@ -5,6 +5,7 @@ import { CreateChurnRuleDto, UpdateChurnRuleDto } from "./churn.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("流失预警")
 @Controller()
@@ -78,6 +79,7 @@ export class ChurnController {
   updateRule(@Param("id") id: string, @Body() dto: UpdateChurnRuleDto) { return this.svc.updateRule(id, dto); }
 
   @Delete("admin/churn/rules/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiBearerAuth()

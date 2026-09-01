@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { CreateImageDto } from "./classic-image.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * IIIF Manifest 对外可访问的基础 URL。
@@ -82,6 +83,7 @@ export class ClassicImageController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @Post("books/:id/images")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "添加书籍图像记录（需超级管理员）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -94,6 +96,7 @@ export class ClassicImageController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @Put("images/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "更新图像记录（需超级管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -107,6 +110,7 @@ export class ClassicImageController {
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
   @Delete("images/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除图像记录（需超级管理员）" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

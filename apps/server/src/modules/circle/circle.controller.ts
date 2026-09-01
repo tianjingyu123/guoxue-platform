@@ -14,6 +14,7 @@ import { SanitizePipe } from "../../common/sanitize.pipe";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { Request } from "express";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈子")
 @Controller("circles")
@@ -182,6 +183,7 @@ export class CircleController {
   // ───────── 管理端专用（SUPER_ADMIN/OPERATION_ADMIN·不走本人所有权校验） ─────────
 
   @Put(":id/admin-status")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @Auditable({ action: "管理员启停圈子", targetType: "CIRCLE" })
@@ -195,6 +197,7 @@ export class CircleController {
   }
 
   @Put(":id/admin-update")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @UsePipes(new SanitizePipe())
@@ -209,6 +212,7 @@ export class CircleController {
   }
 
   @Post(":id/admin-add-member")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @Auditable({ action: "管理员添加圈子成员", targetType: "CIRCLE" })
@@ -230,6 +234,7 @@ export class CircleController {
   }
 
   @Put(":id/announcement")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @UsePipes(new SanitizePipe())
   @ApiOperation({ summary: "设置圈子公告（圈主/管理员）" })
@@ -245,6 +250,7 @@ export class CircleController {
   }
 
   @Delete(":id/announcement/:announcementId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除公告（圈主/管理员）" })
   @ApiBearerAuth()
@@ -298,6 +304,7 @@ export class CircleController {
   }
 
   @Put(":id/recommended-ebooks")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "设置圈子推荐的电子书" })
   @ApiBearerAuth()
@@ -419,6 +426,7 @@ export class CircleController {
   }
 
   @Delete(":id/members/:userId")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "移除圈子成员" })
   @ApiBearerAuth()
@@ -489,6 +497,7 @@ export class CircleController {
   }
 
   @Delete(":id/posts/:postId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除帖子" })
   @ApiBearerAuth()
@@ -505,6 +514,7 @@ export class CircleController {
   }
 
   @Post(":id/posts/:postId/publish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "发布草稿帖子" })
   @ApiBearerAuth()
@@ -513,6 +523,7 @@ export class CircleController {
   }
 
   @Post(":id/posts/:postId/essence")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "切换帖子精华状态" })
   @ApiBearerAuth()
@@ -524,6 +535,7 @@ export class CircleController {
   }
 
   @Post(":id/posts/:postId/top")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "切换帖子置顶状态" })
   @ApiBearerAuth()
@@ -537,6 +549,7 @@ export class CircleController {
   // ───────── 达人咨询配置 ─────────
 
   @Post(":id/expert/config")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "配置达人咨询价格", description: "圈主/嘉宾设置提问价格和连麦价格" })
   @ApiBearerAuth()
@@ -640,6 +653,7 @@ export class CircleController {
   }
 
   @Delete(":id/member-groups/:groupId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除成员分组" })
   @ApiBearerAuth()
@@ -656,6 +670,7 @@ export class CircleController {
   }
 
   @Delete(":id/member-groups/:groupId/members/:userId")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "从分组移除成员" })
   @ApiBearerAuth()
@@ -711,6 +726,7 @@ export class CircleController {
   // ───────── 帖子打赏 ─────────
 
   @Post(":id/posts/:postId/reward")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "打赏帖子" })
   @ApiBearerAuth()

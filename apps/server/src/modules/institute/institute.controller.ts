@@ -25,6 +25,7 @@ import {
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("研究院")
 @Controller("institute")
@@ -288,6 +289,7 @@ export class InstituteController {
   }
 
   @Put("manage/members/:id/approve")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "审核成员（通过/拒绝）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -300,6 +302,7 @@ export class InstituteController {
   }
 
   @Put("manage/members/:id/role")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "任命管理层角色（主席/副主席/秘书长）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -330,6 +333,7 @@ export class InstituteController {
   }
 
   @Post("manage/dividends")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "发起分红/奖励分配审批（通过后生成分配记录，非到账凭证）" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -341,6 +345,7 @@ export class InstituteController {
   }
 
   @Post("manage/members/:id/points")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "人工记分/积分调整（研究院管理层·可负分纠错·记录操作者）" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -354,6 +359,7 @@ export class InstituteController {
   }
 
   @Put("manage/members/:id/recommend")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "推荐成员进入人才库" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -388,6 +394,7 @@ export class InstituteController {
   }
 
   @Post("manage/board-groups")
+  @RedLineGate(RedLine.USER_DATA, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
@@ -403,6 +410,7 @@ export class InstituteController {
   }
 
   @Put("manage/board-groups/:id/disband")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "解散私董会小组（研究院管理层·标记 DISBANDED·圈子本体保留由圈主自管）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -469,6 +477,7 @@ export class InstituteController {
   }
 
   @Put("events/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新活动" })
@@ -507,6 +516,7 @@ export class InstituteController {
     });
   }
   @Post("admin/members/invite")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({
@@ -523,6 +533,7 @@ export class InstituteController {
   }
 
   @Put("members/:id")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新研究院成员信息" })
@@ -537,6 +548,7 @@ export class InstituteController {
   }
 
   @Put("members/:id/lecturer-level")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新讲师等级" })
@@ -564,6 +576,7 @@ export class InstituteController {
 
   // 任务管理（保留兼容）
   @Post("members/:id/tasks")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "添加年度任务（管理员）" })
@@ -577,6 +590,7 @@ export class InstituteController {
   }
 
   @Post("tasks/:id/verify")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "验证任务" })

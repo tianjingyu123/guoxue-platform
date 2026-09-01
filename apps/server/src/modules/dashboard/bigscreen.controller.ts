@@ -7,6 +7,7 @@ import { BigScreenAuthGuard } from "./bigscreen-auth.guard";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("对外数字大屏")
 @Controller("bigscreen")
@@ -71,6 +72,7 @@ export class BigScreenTokenController {
   constructor(private readonly authSvc: BigScreenAuthService) {}
 
   @Post()
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "创建大屏访问令牌" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -80,6 +82,7 @@ export class BigScreenTokenController {
   }
 
   @Post(":id/approve")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "审批大屏令牌" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -89,6 +92,7 @@ export class BigScreenTokenController {
   }
 
   @Post(":id/revoke")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "撤销大屏令牌" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -112,6 +116,7 @@ export class BigScreenTokenController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除大屏令牌" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -121,6 +126,7 @@ export class BigScreenTokenController {
   }
 
   @Post("clean-expired")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "清理过期令牌" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

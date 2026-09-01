@@ -150,6 +150,7 @@ export class LiveController {
   }
 
   @Post("reviews/:reviewId/reply")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "回复直播评价（仅评价所属直播间的房主）" })
   @ApiResponse({ status: 201, description: "回复成功" })
@@ -211,6 +212,7 @@ export class LiveController {
   }
 
   @Put("rooms/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "更新直播间" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -224,6 +226,7 @@ export class LiveController {
   }
 
   @Put("rooms/:id/products")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "保存本场带货商品及展示顺序（房主或管理员）" })
   @ApiResponse({ status: 200, description: "保存成功" })
@@ -237,6 +240,7 @@ export class LiveController {
   }
 
   @Put("rooms/:id/featured-product")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "设置或取消本场正在讲解的商品（房主或管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -309,6 +313,7 @@ export class LiveController {
   }
 
   @Put("rooms/:id/end")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "结束直播（房主或管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -391,6 +396,7 @@ export class LiveController {
   }
 
   @Delete("rooms/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除直播间（房主或管理员）" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -473,6 +479,7 @@ export class LiveController {
   }
 
   @Put("rooms/:id/mics/manage")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "主播或管理员处理申请、静音、解除静音或踢人" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -549,6 +556,7 @@ export class LiveController {
   // ───────── 课件管理 ─────────
 
   @Post("rooms/:id/slides")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "上传课件" })
@@ -562,6 +570,7 @@ export class LiveController {
   }
 
   @Delete("slides/:slideId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除课件" })
@@ -639,6 +648,7 @@ export class LiveController {
   // ───────── 限时秒杀 ─────────
 
   @Post("rooms/:id/flash-sales")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建秒杀活动" })
@@ -652,6 +662,7 @@ export class LiveController {
   }
 
   @Post("flash-sales/:saleId/start")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "开始秒杀" })
@@ -676,6 +687,7 @@ export class LiveController {
   }
 
   @Post("flash-sales/:saleId/end")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "结束秒杀" })
@@ -759,6 +771,7 @@ export class LiveController {
   }
 
   @Post("gifts")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建礼物（管理员）" })
@@ -772,6 +785,7 @@ export class LiveController {
   }
 
   @Put("gifts/:giftId")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新礼物（管理员）" })
@@ -785,6 +799,7 @@ export class LiveController {
   }
 
   @Delete("gifts/:giftId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除礼物（管理员）" })

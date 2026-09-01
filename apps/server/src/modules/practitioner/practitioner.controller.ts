@@ -4,6 +4,7 @@ import { Request } from "express";
 import { PractitionerService } from "./practitioner.service";
 import { ReportAiService } from "./report-ai.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 /**
  * 从业者工作台
@@ -109,6 +110,7 @@ export class PractitionerController {
   }
 
   @Delete("reports/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除报告" })
@@ -126,6 +128,7 @@ export class PractitionerController {
   }
 
   @Delete("reports/:id/share")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "撤回交付链接" })
@@ -160,6 +163,7 @@ export class PractitionerController {
   }
 
   @Delete("cases/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除案例" })
@@ -199,6 +203,7 @@ export class PractitionerController {
   }
 
   @Delete("appointments/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除预约" })
@@ -225,6 +230,7 @@ export class PractitionerController {
   }
 
   @Delete("ledger/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "删除一笔线下手记（平台收益不可删）" })

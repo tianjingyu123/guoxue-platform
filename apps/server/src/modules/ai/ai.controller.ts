@@ -6,6 +6,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { ThrottleGuard } from "../../common/throttle.guard";
 import { SentenceRecognizeDto, CreateRecTaskDto, ImageOcrDto, SentimentAnalyzeDto, ExtractKeywordsDto, TranslateTextDto } from "./ai.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("AI能力")
 @Controller("ai")
@@ -202,6 +203,7 @@ export class AiController {
   }
 
   @Post("circle-assistants/:circleId/approve")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "审批通过圈主助理" })
@@ -215,6 +217,7 @@ export class AiController {
   }
 
   @Post("circle-assistants/:circleId/reject")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "驳回圈主助理" })
@@ -267,6 +270,7 @@ export class AiController {
   }
 
   @Delete("knowledge/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除知识库条目" })

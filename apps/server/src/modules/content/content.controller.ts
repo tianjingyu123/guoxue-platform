@@ -14,6 +14,7 @@ import { StationIsolationGuard } from "../../common/station-isolation.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("内容管理")
 @Controller("contents")
@@ -25,6 +26,7 @@ export class ContentController {
   ) {}
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "创建内容", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -95,6 +97,7 @@ export class ContentController {
   }
 
   @Put(":id/audit")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "内容审核", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   // 权限修复(角色断裂)：内容审核员只有审核权（改 status+理由），没有全量编辑权，故独立于 PUT /:id。
@@ -128,6 +131,7 @@ export class ContentController {
   }
 
   @Put(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "内容审核/编辑", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -151,6 +155,7 @@ export class ContentController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @Auditable({ action: "删除内容", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -177,6 +182,7 @@ export class ContentController {
   // ───────── 批量操作 & 统计 ─────────
 
   @Put("batch/status")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "内容批量审核", targetType: "CONTENT" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")

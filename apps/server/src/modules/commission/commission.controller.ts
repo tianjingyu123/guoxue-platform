@@ -137,6 +137,7 @@ export class CommissionController {
   // ───────── 提现 ─────────
 
   @Post("withdrawal")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, ActiveUserGuard, FeatureFlagGuard, StrictRedisThrottleGuard)
   @RequireFeature("commission_withdrawal")
   @ApiOperation({ summary: "申请提现" })

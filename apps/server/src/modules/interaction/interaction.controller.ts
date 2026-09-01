@@ -12,6 +12,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { Request } from "express";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("互动")
 @Controller("interaction")
@@ -111,6 +112,7 @@ export class InteractionController {
   }
 
   @Put("comment/:id/hide")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "隐藏评论（管理员）" })
@@ -251,6 +253,7 @@ export class InteractionController {
   }
 
   @Put("report/:id/process")
+  @RedLineGate(RedLine.USER_DATA, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   // 权限修复(角色断裂)：客服工作台负责举报处理，放行 CUSTOMER_SERVICE。
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")
@@ -271,6 +274,7 @@ export class InteractionController {
   }
 
   @Put("report/:id/dismiss")
+  @RedLineGate(RedLine.USER_DATA)
   @UseGuards(JwtAuthGuard, RolesGuard)
   // 权限修复(角色断裂)：客服工作台负责举报处理，放行 CUSTOMER_SERVICE。
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "CUSTOMER_SERVICE")

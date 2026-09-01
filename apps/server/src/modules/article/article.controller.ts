@@ -140,6 +140,7 @@ export class ArticleController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除文章" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -187,6 +188,7 @@ export class ArticleController {
   }
 
   @Delete(":id/recommends/:recId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "移除推荐" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -224,6 +226,7 @@ export class ArticleController {
   }
 
   @Delete("drafts/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除草稿" })
   @ApiResponse({ status: 200, description: "删除成功" })
@@ -269,6 +272,7 @@ export class ArticleController {
   }
 
   @Delete("admin/drafts/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理端-删除任意草稿" })

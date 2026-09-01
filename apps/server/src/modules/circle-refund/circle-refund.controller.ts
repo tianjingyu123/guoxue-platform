@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈子退款")
 @Controller("circle-refund")
@@ -59,6 +60,7 @@ export class CircleRefundController {
   }
 
   @Post(":id/owner-review")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "圈子退款圈主审核", targetType: "CIRCLE_REFUND" })
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "圈主审核退款（同意/驳回）" })
@@ -81,6 +83,7 @@ export class CircleRefundController {
   }
 
   @Post(":id/admin-review")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "圈子退款平台审核", targetType: "CIRCLE_REFUND" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")

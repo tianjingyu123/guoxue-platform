@@ -9,6 +9,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { UploadService } from "./upload.service";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("文件上传")
 @ApiBearerAuth()
@@ -140,6 +141,7 @@ export class UploadController {
   }
 
   @Delete(":key")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除已上传的文件（仅管理员）" })

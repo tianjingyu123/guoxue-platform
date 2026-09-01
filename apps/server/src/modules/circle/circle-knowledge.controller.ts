@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import { CircleKnowledgeService } from "./circle-knowledge.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { SkipFormat } from "../../common/skip-format.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈子知识库")
 @Controller("circles")
@@ -74,6 +75,7 @@ export class CircleKnowledgeController {
   }
 
   @Delete(":circleId/knowledge/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除知识条目" })
   @ApiResponse({ status: 200, description: "删除成功" })

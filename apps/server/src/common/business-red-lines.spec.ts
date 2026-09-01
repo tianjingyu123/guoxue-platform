@@ -23,10 +23,9 @@ describe("关键业务动作红线元数据", () => {
     expect(Reflect.getMetadata(RED_LINE_KEY, handler)).toEqual(expected);
   });
 
-  it("草稿创建、直播结束和只读检查不应被误标为红线", () => {
+  it("草稿创建、草稿更新和只读检查不应被误标为红线", () => {
     expect(Reflect.getMetadata(RED_LINE_KEY, VersionController.prototype.adminCreate)).toBeUndefined();
     expect(Reflect.getMetadata(RED_LINE_KEY, VersionController.prototype.adminUpdate)).toBeUndefined();
-    expect(Reflect.getMetadata(RED_LINE_KEY, LiveController.prototype.endRoom)).toBeUndefined();
     expect(Reflect.getMetadata(RED_LINE_KEY, VersionController.prototype.check)).toBeUndefined();
   });
 });

@@ -11,6 +11,7 @@ import {
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 type AuthRequest = Omit<Request, "user"> & {
   user: { id: string; roles: string[]; [key: string]: unknown };
@@ -38,6 +39,7 @@ export class CollaborationController {
   }
 
   @Post(":id/review")
+  @RedLineGate(RedLine.COMPLIANCE)
   @ApiOperation({ summary: "人工审核建议" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -69,6 +71,7 @@ export class CollaborationController {
   }
 
   @Post(":id/rollback")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "通过已注册的回滚处理器回滚建议" })
   @ApiResponse({ status: 201, description: "创建成功" })

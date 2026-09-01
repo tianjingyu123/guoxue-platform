@@ -20,6 +20,7 @@ import {
   SendCustomDto,
   UpdatePolicyConfigDto,
 } from "./im.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("IM 即时通讯")
 @Controller("im")
@@ -54,6 +55,7 @@ export class ImController {
   }
 
   @Put("policy/config")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @ApiOperation({ summary: "更新私信社交策略配置（管理员）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -127,6 +129,7 @@ export class ImController {
   // ───────── 群组管理 ─────────
 
   @Post("groups")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "创建群组", description: "为圈子/直播间等创建 IM 群组" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -140,6 +143,7 @@ export class ImController {
   }
 
   @Delete("groups/:groupId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "解散群组" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -153,6 +157,7 @@ export class ImController {
   }
 
   @Post("groups/:groupId/members")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "添加群成员" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -169,6 +174,7 @@ export class ImController {
   }
 
   @Delete("groups/:groupId/members")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除群成员" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

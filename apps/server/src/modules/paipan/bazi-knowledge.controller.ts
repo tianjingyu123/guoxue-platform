@@ -7,6 +7,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { NativePaipanGuard } from "../../common/paipan-runtime.service";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("八字·知识库")
 @Controller("bazi/knowledge")
@@ -106,6 +107,7 @@ export class BaziKnowledgeController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")

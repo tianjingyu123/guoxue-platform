@@ -138,6 +138,7 @@ export class FinanceController {
   }
 
   @Put("invoices/:id/issue")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "开具发票", targetType: "INVOICE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -152,6 +153,7 @@ export class FinanceController {
   }
 
   @Put("invoices/:id/mail")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @Auditable({ action: "发票邮寄", targetType: "INVOICE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")
@@ -166,6 +168,7 @@ export class FinanceController {
   }
 
   @Put("invoices/:id/reject")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "发票驳回", targetType: "INVOICE" })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN", "FINANCE_ADMIN")

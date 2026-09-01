@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { StrictRedisThrottleGuard } from "../../common/redis-throttle.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("圈主助理知识库同步")
 @ApiBearerAuth()
@@ -72,6 +73,7 @@ export class KnowledgeSyncController {
   }
 
   @Post("admin/remove/:knowledgeId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "管理端从知识库移除内容（超管/运营·后台管理任意圈子）" })

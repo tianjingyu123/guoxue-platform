@@ -13,6 +13,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { RequireFeature } from "../../common/feature-flag.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("会员")
 @Controller("member")
@@ -133,6 +134,7 @@ export class MemberController {
   }
 
   @Post("admin/grant")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()
@@ -155,6 +157,7 @@ export class MemberController {
   }
 
   @Post("admin/revoke/:userId")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiBearerAuth()

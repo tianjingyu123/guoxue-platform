@@ -23,6 +23,7 @@ import { MemberGuard } from "../../common/member.guard";
 import { CourseCreatorGuard } from "../../common/course-creator.guard";
 import { StationId } from "../../common/station-id.decorator";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 type AuthRequest = Omit<Request, "user"> & {
   user: Express.User;
@@ -219,6 +220,7 @@ export class CourseController {
   }
 
   @Put(":id/member-free")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "标记/取消会员专属精品课（平台运营专用·讲师不可自标）" })
   @ApiBearerAuth()
@@ -238,6 +240,7 @@ export class CourseController {
   }
 
   @Delete(":id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除课程" })
   @ApiBearerAuth()
@@ -333,6 +336,7 @@ export class CourseController {
   }
 
   @Delete(":id/chapters/:chapterId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除课程章节" })
   @ApiBearerAuth()
@@ -434,6 +438,7 @@ export class CourseController {
   }
 
   @Put("reviews/:reviewId/reply")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, CourseCreatorGuard)
   @ApiOperation({ summary: "讲师回复课程评价（仅本人课程）" })
   @ApiBearerAuth()
@@ -564,6 +569,7 @@ export class CourseController {
   }
 
   @Delete("drafts/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "删除课程草稿" })
   @ApiBearerAuth()
@@ -572,6 +578,7 @@ export class CourseController {
   }
 
   @Post("drafts/:id/publish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "发布课程草稿" })
   @ApiBearerAuth()

@@ -6,6 +6,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { DedupDecideDto, DedupBatchDto, DedupCandidateQueryDto } from "./dto/admin-dedup.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("知识库去重审核")
 @Controller("admin/knowledge/dedup")
@@ -32,6 +33,7 @@ export class AdminDedupController {
   }
 
   @Post("candidates/:id/decide")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "执行去重决策（override/keepBoth/keepExisting）" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -46,6 +48,7 @@ export class AdminDedupController {
   }
 
   @Post("batch")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量审核" })
   @ApiResponse({ status: 201, description: "创建成功" })

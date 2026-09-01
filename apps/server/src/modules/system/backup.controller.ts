@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { BackupService } from "./backup.service";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("系统-数据库备份")
 @Controller("system/backup")
@@ -15,6 +16,7 @@ export class BackupController {
   constructor(private readonly svc: BackupService) {}
 
   @Post("manual")
+  @RedLineGate(RedLine.USER_DATA)
   @ApiOperation({ summary: "手动触发数据库备份" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -37,6 +39,7 @@ export class BackupController {
   }
 
   @Post("upload-cos")
+  @RedLineGate(RedLine.USER_DATA, RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "上传备份到COS" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })

@@ -6,6 +6,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { EntitlementService } from "./entitlement.service";
 import { GrantEntitlementDto, RevokeEntitlementSourceDto } from "./entitlement.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("统一权益")
 @ApiBearerAuth()
@@ -27,6 +28,7 @@ export class EntitlementController {
   }
 
   @Post("admin/grant")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员幂等发放权益" })
@@ -41,6 +43,7 @@ export class EntitlementController {
   }
 
   @Post("admin/revoke-source")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "管理员按来源冲正权益" })

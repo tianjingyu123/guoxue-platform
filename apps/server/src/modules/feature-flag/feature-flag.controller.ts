@@ -11,6 +11,7 @@ import { Auditable } from "../../common/audit.decorator";
 import { SystemService } from "../system/system.service";
 import { serverConfig } from "../../config/server-config";
 import { createHash } from "crypto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 // ═══════════════════ 管理后台接口 ═══════════════════
 
@@ -37,6 +38,7 @@ export class FeatureFlagController {
   }
 
   @Post()
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "创建功能开关", targetType: "FEATURE_FLAG" })
   @ApiOperation({ summary: "创建功能开关" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -46,6 +48,7 @@ export class FeatureFlagController {
   }
 
   @Put(":key")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "更新功能开关", targetType: "FEATURE_FLAG" })
   @ApiOperation({ summary: "创建或更新功能开关" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -65,6 +68,7 @@ export class FeatureFlagController {
   }
 
   @Post(":key/rollback/:version")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Roles("SUPER_ADMIN")
   @Auditable({ action: "回滚功能开关", targetType: "FEATURE_FLAG" })
   @ApiOperation({ summary: "回滚功能开关到指定版本" })
@@ -77,6 +81,7 @@ export class FeatureFlagController {
   }
 
   @Delete(":key")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @Roles("SUPER_ADMIN")
   @Auditable({ action: "删除功能开关", targetType: "FEATURE_FLAG" })
   @ApiOperation({ summary: "删除功能开关" })

@@ -13,6 +13,7 @@ import { StationId } from "../../common/station-id.decorator";
 import { RecommendQueryDto, RecommendLogDto, RecommendScene, SaveUserInterestsDto, InsertContentDto } from "./recommend.dto";
 import { ColdStartService } from "./services/cold-start.service";
 import { RECOMMEND_FEATURE_FLAG } from "./recommend-feature.constants";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("智能推荐")
 @Controller("recommend")
@@ -80,6 +81,7 @@ export class RecommendController {
   // ───── 分区强插管理 ─────
 
   @Put("insert")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard, FeatureFlagGuard)
   @RequireFeature(RECOMMEND_FEATURE_FLAG)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
@@ -94,6 +96,7 @@ export class RecommendController {
   }
 
   @Delete("insert/:position")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "移除分区强插" })

@@ -3,6 +3,7 @@ import { Request } from "express";
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { Auditable } from "../../common/audit.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 import { MerchantService } from "./merchant.service";
 import { MerchantSettlementService } from "./merchant-settlement.service";
 import { MerchantInventoryService } from "./merchant-inventory.service";
@@ -67,6 +68,7 @@ export class MerchantBackendController {
   }
 
   @Put("profile")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "更新店铺信息" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -84,6 +86,7 @@ export class MerchantBackendController {
   }
 
   @Post("products")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "发布商品" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -100,6 +103,7 @@ export class MerchantBackendController {
   }
 
   @Put("products/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商家商品编辑（含价格变更）", targetType: "PRODUCT" })
   @ApiOperation({ summary: "更新商品" })
   @ApiResponse({ status: 200, description: "更新成功" })
@@ -110,6 +114,7 @@ export class MerchantBackendController {
   }
 
   @Delete("products/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除商品" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -119,6 +124,7 @@ export class MerchantBackendController {
   }
 
   @Post("products/:id/skus")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "添加商品SKU（店铺身份·操作员可用）" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -127,6 +133,7 @@ export class MerchantBackendController {
   }
 
   @Delete("skus/:skuId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "删除商品SKU（店铺身份·操作员可用）" })
   @ApiResponse({ status: 200, description: "删除成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -135,6 +142,7 @@ export class MerchantBackendController {
   }
 
   @Post("products/:id/list")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "上架商品" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -143,6 +151,7 @@ export class MerchantBackendController {
   }
 
   @Post("products/:id/unlist")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "下架商品" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -168,6 +177,7 @@ export class MerchantBackendController {
   }
 
   @Put("orders/:id/ship")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "发货" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -177,6 +187,7 @@ export class MerchantBackendController {
   }
 
   @Post("orders/batch-ship")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "批量发货（逐单隔离，返回成功与失败明细）" })
   @ApiResponse({ status: 201, description: "批量处理完成" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -193,6 +204,7 @@ export class MerchantBackendController {
   }
 
   @Put("orders/:id/shipment")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "修改已发货订单运单" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -201,6 +213,7 @@ export class MerchantBackendController {
   }
 
   @Post("orders/:id/refund/approve")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "同意退款" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -209,6 +222,7 @@ export class MerchantBackendController {
   }
 
   @Post("orders/:id/refund/reject")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "拒绝退款" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -226,6 +240,7 @@ export class MerchantBackendController {
   }
 
   @Post("reviews/:id/reply")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @ApiOperation({ summary: "回复评价" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -294,6 +309,7 @@ export class MerchantBackendController {
   }
 
   @Put("after-sales/:id/process")
+  @RedLineGate(RedLine.MONEY)
   @ApiOperation({ summary: "处理售后（approve/reject/complete）" })
   @ApiResponse({ status: 200, description: "更新成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -363,6 +379,7 @@ export class MerchantBackendController {
   }
 
   @Post("after-sales/:id/return-inspection")
+  @RedLineGate(RedLine.MONEY)
   @Auditable({ action: "商家退货验收入库", targetType: "AFTER_SALE" })
   @ApiOperation({ summary: "退货验收；合格才回补库存" })
   inspectReturn(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: ReturnInspectionDto) {
@@ -393,6 +410,7 @@ export class MerchantBackendController {
   }
 
   @Post("inventory/adjustments")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @Auditable({ action: "商家库存调整", targetType: "PRODUCT" })
   @ApiOperation({ summary: "手工调整或盘点库存（幂等）" })
   adjustInventory(@Req() req: AuthRequest, @Body() dto: InventoryAdjustmentDto) {
@@ -469,12 +487,14 @@ export class MerchantBackendController {
   }
 
   @Post("purchase-orders/:id/submit")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "确认采购下单" })
   submitPurchaseOrder(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.inventoryService.submitPurchaseOrder(this.getMerchant(req).id, id);
   }
 
   @Post("purchase-orders/:id/receive")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @Auditable({ action: "采购到货入库", targetType: "PURCHASE_ORDER" })
   @ApiOperation({ summary: "采购到货入库（支持部分到货、幂等）" })
   receivePurchaseOrder(@Req() req: AuthRequest, @Param("id") id: string, @Body() dto: ReceivePurchaseOrderDto) {
@@ -485,6 +505,7 @@ export class MerchantBackendController {
   }
 
   @Post("purchase-orders/:id/cancel")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @ApiOperation({ summary: "取消未入库采购单" })
   cancelPurchaseOrder(@Req() req: AuthRequest, @Param("id") id: string) {
     return this.inventoryService.cancelPurchaseOrder(this.getMerchant(req).id, id);
@@ -523,6 +544,7 @@ export class MerchantBackendController {
   }
 
   @Post("members")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @Auditable({ action: "商家操作员添加", targetType: "MERCHANT" })
   @ApiOperation({ summary: "添加操作员（按手机号·须已注册平台）" })
   @ApiResponse({ status: 201, description: "添加成功" })
@@ -538,6 +560,7 @@ export class MerchantBackendController {
   }
 
   @Delete("members/:userId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @Auditable({ action: "商家操作员移除", targetType: "MERCHANT" })
   @ApiOperation({ summary: "移除操作员（软删·不可移除店主）" })
   @ApiResponse({ status: 200, description: "移除成功" })

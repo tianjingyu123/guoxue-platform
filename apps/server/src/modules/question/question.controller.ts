@@ -9,6 +9,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { Auditable } from "../../common/audit.decorator";
 import { SanitizePipe } from "../../common/sanitize.pipe";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("付费问答")
 @ApiBearerAuth()
@@ -75,6 +76,7 @@ export class QuestionController {
   }
 
   @Post(":id/refund")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @Auditable({ action: "问答退款", targetType: "QUESTION" })
@@ -89,6 +91,7 @@ export class QuestionController {
   }
 
   @Post("admin/refund-expired")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "超时退款", description: "对超时未回答的提问执行自动退款（按各自超时配置）" })

@@ -20,6 +20,7 @@ import {
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 @ApiTags("营销管理")
 @Controller("marketing")
@@ -33,6 +34,7 @@ export class MarketingController {
   // ═══════════════════════════════════════
 
   @Post("flash-sales")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建秒杀活动" })
@@ -61,6 +63,7 @@ export class MarketingController {
   }
 
   @Put("flash-sales/:id")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新秒杀活动" })
@@ -75,6 +78,7 @@ export class MarketingController {
   }
 
   @Delete("flash-sales/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除秒杀活动" })
@@ -89,6 +93,7 @@ export class MarketingController {
   }
 
   @Post("flash-sales/:id/items")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "添加秒杀商品" })
@@ -102,6 +107,7 @@ export class MarketingController {
   }
 
   @Put("flash-sales/:id/items/:itemId")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新秒杀商品" })
@@ -120,6 +126,7 @@ export class MarketingController {
   }
 
   @Delete("flash-sales/:id/items/:itemId")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除秒杀商品" })
@@ -134,6 +141,7 @@ export class MarketingController {
   }
 
   @Post("flash-sales/:id/start")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "启动秒杀活动" })
@@ -147,6 +155,7 @@ export class MarketingController {
   }
 
   @Post("flash-sales/:id/end")
+  @RedLineGate(RedLine.MONEY, RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "提前结束秒杀活动" })
@@ -164,6 +173,7 @@ export class MarketingController {
   // ═══════════════════════════════════════
 
   @Post("group-buys")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建拼团活动" })
@@ -192,6 +202,7 @@ export class MarketingController {
   }
 
   @Put("group-buys/:id")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新拼团活动" })
@@ -206,6 +217,7 @@ export class MarketingController {
   }
 
   @Delete("group-buys/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除拼团活动" })
@@ -237,6 +249,7 @@ export class MarketingController {
   // ═══════════════════════════════════════
 
   @Post("coupons")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建优惠券模板" })
@@ -266,6 +279,7 @@ export class MarketingController {
   }
 
   @Put("coupons/:id")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新优惠券模板" })
@@ -280,6 +294,7 @@ export class MarketingController {
   }
 
   @Delete("coupons/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除优惠券模板" })
@@ -294,6 +309,7 @@ export class MarketingController {
   }
 
   @Post("coupons/:id/grant")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "发放优惠券给指定用户（券体系已统一，:id 为「商城优惠券」ID，发放即建可下单核销的 UserCoupon）" })
@@ -307,6 +323,7 @@ export class MarketingController {
   }
 
   @Post("coupons/:id/batch-grant")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "批量发放优惠券（券体系已统一，:id 为「商城优惠券」ID，发放即建可下单核销的 UserCoupon）" })
@@ -377,6 +394,7 @@ export class MarketingController {
   // ═══════════════════════════════════════
 
   @Post("discounts")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建限时折扣" })
@@ -405,6 +423,7 @@ export class MarketingController {
   }
 
   @Put("discounts/:id")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新限时折扣" })
@@ -419,6 +438,7 @@ export class MarketingController {
   }
 
   @Delete("discounts/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除限时折扣" })
@@ -498,6 +518,7 @@ export class MarketingController {
   }
 
   @Delete("pages/:id")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除微页面" })
@@ -543,6 +564,7 @@ export class MarketingController {
   }
 
   @Delete("pages/:id/components/:compId")
+  @RedLineGate(RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除页面组件" })
@@ -571,6 +593,7 @@ export class MarketingController {
   }
 
   @Post("pages/:id/publish")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "发布微页面" })
@@ -597,6 +620,7 @@ export class MarketingController {
   }
 
   @Post("pages/:id/rollback/:versionId")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "回滚微页面到指定版本" })
@@ -614,6 +638,7 @@ export class MarketingController {
   // ═══════════════════════════════════════
 
   @Post("activities")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建活动" })
@@ -642,6 +667,7 @@ export class MarketingController {
   }
 
   @Put("activities/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新活动" })
@@ -656,6 +682,7 @@ export class MarketingController {
   }
 
   @Delete("activities/:id")
+  @RedLineGate(RedLine.EXTERNAL_PUBLISH, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "删除活动" })
@@ -687,6 +714,7 @@ export class MarketingController {
   // ═══════════════════════════════════════
 
   @Post("full-reductions")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "创建满减送活动" })
@@ -700,6 +728,7 @@ export class MarketingController {
   }
 
   @Put("full-reductions/:id")
+  @RedLineGate(RedLine.MONEY)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "更新满减送活动" })
@@ -714,6 +743,7 @@ export class MarketingController {
   }
 
   @Delete("full-reductions/:id")
+  @RedLineGate(RedLine.MONEY, RedLine.IRREVERSIBLE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "删除满减送活动" })

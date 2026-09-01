@@ -5,6 +5,7 @@ import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
 import { IdCardOcrDto, IdCardVerifyDto, FaceTokenDto, AuditIdentityDto } from "./identity.dto";
+import { RedLineGate, RedLine } from "../../common/red-lines";
 
 interface AuthRequest extends Request {
   user: { id: string; role: string };
@@ -71,6 +72,7 @@ export class IdentityController {
   }
 
   @Post("admin/approve/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "通过实名认证" })
@@ -83,6 +85,7 @@ export class IdentityController {
   }
 
   @Post("admin/reject/:id")
+  @RedLineGate(RedLine.USER_DATA, RedLine.COMPLIANCE)
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "OPERATION_ADMIN")
   @ApiOperation({ summary: "拒绝实名认证" })
