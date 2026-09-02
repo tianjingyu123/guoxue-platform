@@ -4,6 +4,8 @@ import { VersionController } from "./version.controller";
 import { PrismaService } from "../../prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 const mockPrisma: any = {
   appVersion: {
@@ -14,7 +16,7 @@ const mockPrisma: any = {
     update: jest.fn(),
     delete: jest.fn(),
   },
-  $queryRawUnsafe: jest.fn(),
+  $executeRawUnsafe: jest.fn(),
   $transaction: jest.fn(),
 };
 
@@ -136,6 +138,15 @@ describe("VersionController", () => {
 
   describe("管理接口", () => {
     const req = { user: { id: "admin-1" } } as any;
+    const missingVersionId = "00000000-0000-4000-8000-566093a50000";
+
+    async function expectNotFound(operation: Promise<unknown>) {
+      const error = await operation.catch((caught) => caught);
+      expect(error).toBeInstanceOf(BusinessException);
+      if (!(error instanceof BusinessException)) throw error;
+      expect(error.errorCode).toBe(ErrorCode.NOT_FOUND);
+      expect(error.getStatus()).toBe(404);
+    }
 
     it("创建新版本只生成草稿", async () => {
       mockPrisma.appVersion.findFirst.mockResolvedValue(null);
@@ -178,6 +189,21 @@ describe("VersionController", () => {
 
       await ctrl.publish("draft-1", req);
 
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
+        1,
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "app-version:draft-1",
+      );
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
+        2,
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "app-version-platform:android",
+      );
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
+        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[1])
+        .toBeLessThan(mockPrisma.appVersion.findFirst.mock.invocationCallOrder[0]);
+
       expect(mockPrisma.appVersion.update).toHaveBeenCalledWith(expect.objectContaining({
         where: { id: "active-1" },
         data: expect.objectContaining({
@@ -193,6 +219,19 @@ describe("VersionController", () => {
           minSupportedBuildNumber: "190",
         }),
       }));
+    });
+
+    it("发布不存在的合法 UUID 返回 404，且先取得事务级记录锁", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue(null);
+
+      await expectNotFound(ctrl.publish(missingVersionId, req));
+
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        `app-version:${missingVersionId}`,
+      );
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
+        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
     });
 
     it("发布版本——拒绝覆盖为更低构建", async () => {
@@ -263,10 +302,38 @@ describe("VersionController", () => {
 
       await ctrl.rollback("old-1", req);
 
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
+        1,
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "app-version:old-1",
+      );
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenNthCalledWith(
+        2,
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        "app-version-platform:harmony",
+      );
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
+        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[1])
+        .toBeLessThan(mockPrisma.appVersion.findFirst.mock.invocationCallOrder[0]);
+
       expect(mockPrisma.appVersion.update).toHaveBeenLastCalledWith(expect.objectContaining({
         where: { id: "old-1" },
         data: expect.objectContaining({ status: "ACTIVE", minSupportedVersion: "1.0.0" }),
       }));
+    });
+
+    it("回退不存在的合法 UUID 返回 404，且先取得事务级记录锁", async () => {
+      mockPrisma.appVersion.findUnique.mockResolvedValue(null);
+
+      await expectNotFound(ctrl.rollback(missingVersionId, req));
+
+      expect(mockPrisma.$executeRawUnsafe).toHaveBeenCalledWith(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        `app-version:${missingVersionId}`,
+      );
+      expect(mockPrisma.$executeRawUnsafe.mock.invocationCallOrder[0])
+        .toBeLessThan(mockPrisma.appVersion.findUnique.mock.invocationCallOrder[0]);
     });
 
     it("版本列表", async () => {

@@ -203,7 +203,7 @@ export class VersionController {
 
   private activate(id: string, operatorId: string, rollback: boolean) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRawUnsafe(
+      await tx.$executeRawUnsafe(
         "SELECT pg_advisory_xact_lock(hashtext($1))",
         `app-version:${id}`,
       );
@@ -230,7 +230,7 @@ export class VersionController {
       }
 
       // 按平台串行切换，而不是按记录锁；确保多节点并发发布也只有一个 ACTIVE。
-      await tx.$queryRawUnsafe(
+      await tx.$executeRawUnsafe(
         "SELECT pg_advisory_xact_lock(hashtext($1))",
         `app-version-platform:${target.platform}`,
       );
