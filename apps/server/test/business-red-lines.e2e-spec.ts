@@ -4,6 +4,7 @@ import request from "supertest";
 import { createE2eApp } from "./e2e-setup";
 
 describe("关键业务红线 E2E", () => {
+  const missingVersionId = "00000000-0000-4000-8000-566093a50000";
   let app: INestApplication;
   let prisma: any;
   let token: string;
@@ -77,10 +78,18 @@ describe("关键业务红线 E2E", () => {
     expect(response.body.id).toBe("human-product");
   });
 
-  it("真人管理员调用版本发布可越过红线并进入业务校验", async () => {
+  it("真人管理员发布不存在的合法 UUID 版本返回 404", async () => {
     prisma.appVersion.findUnique.mockResolvedValue(null);
     await request(app.getHttpServer())
-      .post("/api/v1/system/version/not-found/publish")
+      .post(`/api/v1/system/version/${missingVersionId}/publish`)
+      .set("Authorization", `Bearer ${token}`)
+      .expect(404);
+  });
+
+  it("真人管理员回退不存在的合法 UUID 版本返回 404", async () => {
+    prisma.appVersion.findUnique.mockResolvedValue(null);
+    await request(app.getHttpServer())
+      .post(`/api/v1/system/version/${missingVersionId}/rollback`)
       .set("Authorization", `Bearer ${token}`)
       .expect(404);
   });
