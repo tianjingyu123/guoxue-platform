@@ -17,7 +17,7 @@ import {
   CreateCouponV2Dto, CreateReviewDto, UpdateLogisticsDto,
   CreateFreightTemplateDto, UpdateFreightTemplateDto, ReplyReviewDto,
   ProductListQueryDto, OrderListQueryDto,
-  CreateSkuDto, JsapiPayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto, RechargeH5Dto,
+  CreateSkuDto, AppPayDto, JsapiPayDto, H5PayDto, EstimateOrderDto, RefundOrderDto, RechargeJsapiDto, RechargeH5Dto,
   AddToCartDto, AdminPayOrderDto, AlipayRefundDto,
   UnionpayRefundDto, ApplyAfterSaleDto, SubmitReturnLogisticsDto, ModerateProductDto, SetCommissionRateDto, BatchGrantShopCouponDto,
 } from "./shop.dto";
@@ -290,6 +290,15 @@ export class ShopController {
   getOrder(@Req() req: AuthRequest, @Param("id") id: string) {
     const isAdmin = req.user.roles?.includes("SUPER_ADMIN") || req.user.roles?.includes("OPERATION_ADMIN");
     return this.shop.getOrder(id, req.user.id, isAdmin);
+  }
+
+  @Post("orders/:id/pay/app")
+  @RedLineGate(RedLine.MONEY)
+  @UseGuards(JwtAuthGuard, StrictRedisThrottleGuard)
+  @ApiOperation({ summary: "App 微信支付（返回原生 SDK 调起参数）" })
+  @ApiBearerAuth()
+  appPay(@Req() req: AuthRequest, @Param("id") id: string, @Body() body: AppPayDto) {
+    return this.shop.createAppPayment(id, req.user.id, body.platform);
   }
 
   @Post("orders/:id/pay/jsapi")

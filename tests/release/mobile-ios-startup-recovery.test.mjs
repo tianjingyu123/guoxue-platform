@@ -36,6 +36,18 @@ test("首页与 App 启动阶段不再安装 iOS 定时 reLaunch 看门狗", asy
   assert.doesNotMatch(onLaunchBlock, /uni\.reLaunch\(\{\s*url: ['"]\/pages\/index\/index/);
 });
 
+test("App 单页主导航在 renderjs 视图层支持左缘返回，子页面仍交给原生返回栈", async () => {
+  const gesture = await readFile(new URL('../../apps/mobile/src/components/common/app-root-back-gesture.vue', import.meta.url), 'utf8');
+  const nav = await readFile(bottomNavSource, 'utf8');
+  assert.match(gesture, /lang="renderjs"/);
+  assert.match(gesture, /if \(pages\.length !== 1\) return/);
+  assert.match(gesture, /uni\.redirectTo\(\{ url: '\/pages\/index\/index' \}\)/);
+  assert.match(gesture, /point\.clientX - origin\.x < 82/);
+  assert.match(gesture, /removeEventListener/);
+  assert.match(nav, /<AppRootBackGesture :enabled="visible && active !== 'home'"/);
+  assert.doesNotMatch(await readFile(appSource, 'utf8'), /installAppRootBackGesture/);
+});
+
 test("登录页生命周期必须无条件导入，防止 iOS 跳登录后永久白屏", async () => {
   const login = await readFile(loginSource, "utf8");
   assert.match(login, /import \{ onLoad \} from ['"]@dcloudio\/uni-app['"]/);
@@ -45,7 +57,7 @@ test("登录页生命周期必须无条件导入，防止 iOS 跳登录后永久
   );
 });
 
-test("启动更新检查不依赖 URLSearchParams，且统一候选使用新构建号 238", async () => {
+test("启动更新检查不依赖 URLSearchParams，且统一候选使用新构建号 239", async () => {
   const [update, manifestRaw] = await Promise.all([
     readFile(updateSource, "utf8"),
     readFile(manifestSource, "utf8"),
@@ -53,5 +65,5 @@ test("启动更新检查不依赖 URLSearchParams，且统一候选使用新构�
   assert.doesNotMatch(update, /new URLSearchParams/);
   assert.match(update, /encodeURIComponent\(platform\)/);
   assert.match(update, /encodeURIComponent\(version\)/);
-  assert.equal(JSON.parse(manifestRaw).versionCode, "238");
+  assert.equal(JSON.parse(manifestRaw).versionCode, "239");
 });

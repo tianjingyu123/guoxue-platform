@@ -3,7 +3,7 @@
     "appid" : "__UNI__277B108",
     "description" : "国学知识平台 · 探寻东方智慧",
     "versionName" : "1.1.0",
-    "versionCode" : "238",
+    "versionCode" : "239",
     "transformPx" : false,
     "uniStatistics" : {
         "enable" : false
@@ -30,6 +30,7 @@
             }
         },
         "modules" : {
+            "Geolocation" : {},
             "OAuth" : {},
             "Payment" : {},
             "Share" : {},
@@ -72,6 +73,8 @@
                     "<uses-permission android:name=\"android.permission.INTERNET\"/>",
                     "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
                     "<uses-permission android:name=\"android.permission.ACCESS_WIFI_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\"/>",
                     "<uses-permission android:name=\"android.permission.CAMERA\"/>",
                     "<uses-permission android:name=\"android.permission.RECORD_AUDIO\"/>",
                     "<uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>",
@@ -84,7 +87,8 @@
                 "appid" : "com.rebu.iosapprebu",
                 "privacyDescription" : {
                     "NSCameraUsageDescription" : "用于主播发起视频直播，仅在用户主动开播期间采集画面。",
-                    "NSMicrophoneUsageDescription" : "用于主播视频直播、直播连麦与实时语音互动，仅在用户主动开播、连麦或通话期间采集声音。"
+                    "NSMicrophoneUsageDescription" : "用于主播视频直播、直播连麦与实时语音互动，仅在用户主动开播、连麦或通话期间采集声音。",
+                    "NSLocationWhenInUseUsageDescription" : "用于排盘真太阳时读取当前位置，仅在您主动使用定位功能时访问。"
                 },
                 "capabilities" : {
                     "entitlements" : {
@@ -135,6 +139,10 @@
                     }
                 },
                 "payment" : {
+                    "weixin" : {
+                        "appid" : "wxb3c0f47634f99c0b",
+                        "UniversalLinks" : "https://api.rebugx.cn/h5/"
+                    },
                     "appleiap" : {}
                 }
             }

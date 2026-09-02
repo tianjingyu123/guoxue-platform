@@ -8,6 +8,8 @@ export function makeMockWechatPay() {
   return {
     // 真实服务是 getter；mock 为可改写属性（"无证书优雅 400" 用例会临时置 false）
     isConfigured: true,
+    isAppConfigured: true,
+    createAppOrder: jest.fn(),
     createNativeOrder: jest.fn().mockResolvedValue({ codeUrl: "weixin://wxpay/mock" }),
     createJsapiOrder: jest.fn().mockResolvedValue({ prepay_id: "mock-prepay" }),
     createH5Order: jest.fn().mockResolvedValue({ h5Url: "https://wx.tenpay.com/h5/pay/mock" }),

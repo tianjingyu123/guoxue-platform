@@ -353,6 +353,74 @@ describe("ShopPaymentService", () => {
     });
   });
 
+  describe("createAppPayment", () => {
+    const order = { id: "app-order", userId: "u1", type: "PRODUCT", amount: "12.34", status: "PENDING", payTransactionId: null, shippingInfo: { province: "测试省" } }
+    const orderInfo = { appid: "wx-mobile", partnerid: "test-mch", prepayid: "test-prepay", package: "Sign=WXPay", noncestr: "test-nonce", timestamp: "123", sign: "test-sign" }
+
+    beforeEach(() => {
+      process.env.WECHAT_OPEN_APP_ID = "wx-mobile"
+      mockWechatPay.isAppConfigured = true
+      mockWechatPay.createAppOrder.mockReset().mockResolvedValue({ prepayId: "test-prepay", orderInfo })
+      mockWechatPay.closeOrder.mockReset().mockResolvedValue({})
+      mockRedis.getJson.mockReset().mockResolvedValue(null)
+      mockRedis.setNX.mockReset().mockResolvedValue(true)
+      mockPrisma.order.findUnique.mockReset().mockResolvedValue(order)
+      mockPrisma.order.updateMany.mockReset().mockResolvedValue({ count: 1 })
+    })
+
+    afterEach(() => { delete process.env.WECHAT_OPEN_APP_ID })
+
+    it("使用服务端订单金额和归属，返回 SDK 白名单参数", async () => {
+      await expect(svc.createAppPayment(order.id, "u1", "ios")).resolves.toEqual(orderInfo)
+      expect(mockWechatPay.createAppOrder).toHaveBeenCalledWith(expect.objectContaining({ amount: { total: 1234 }, attach: order.id }))
+      expect(mockRedis.setNX).toHaveBeenCalledWith("pay:init:wechat:" + order.id, "1", 60)
+      expect(mockRedis.setJson).toHaveBeenCalledWith("shop:pay:app:" + order.id, expect.objectContaining({ orderInfo }), 300)
+    })
+
+    it("拒绝代付别人的订单", async () => {
+      await expect(svc.createAppPayment(order.id, "u2", "android")).rejects.toThrow("订单不存在")
+      expect(mockWechatPay.createAppOrder).not.toHaveBeenCalled()
+    })
+
+    it.each(["PAID", "CANCELLED"])("拒绝 %s 订单", async (status) => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...order, status })
+      await expect(svc.createAppPayment(order.id, "u1", "android")).rejects.toThrow("订单状态不可支付")
+      expect(mockWechatPay.createAppOrder).not.toHaveBeenCalled()
+    })
+
+    it("iOS 数字权益不通过新增微信 App 入口绕过应用内购买", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...order, type: "MEMBER" })
+      await expect(svc.createAppPayment(order.id, "u1", "ios")).rejects.toThrow("应用内购买")
+      expect(mockWechatPay.createAppOrder).not.toHaveBeenCalled()
+    })
+
+    it("短期重进复用当前渠道单，避免重复付款", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...order, payTransactionId: "GX-existing" })
+      mockRedis.getJson.mockResolvedValue({ outTradeNo: "GX-existing", orderInfo })
+      await expect(svc.createAppPayment(order.id, "u1", "android")).resolves.toEqual(orderInfo)
+      expect(mockWechatPay.createAppOrder).not.toHaveBeenCalled()
+    })
+
+    it("缓存过期跨入口重建前先关闭旧支付意图", async () => {
+      mockPrisma.order.findUnique.mockResolvedValue({ ...order, payTransactionId: "GX-old" })
+      await svc.createAppPayment(order.id, "u1", "android")
+      expect(mockWechatPay.closeOrder).toHaveBeenCalledWith("GX-old")
+      expect(mockRedis.del).toHaveBeenCalledWith("shop:pay:app:" + order.id)
+    })
+
+    it("CAS 失败后关闭新单，不留下可支付孤儿单", async () => {
+      mockPrisma.order.updateMany.mockResolvedValue({ count: 0 })
+      await expect(svc.createAppPayment(order.id, "u1", "android")).rejects.toThrow("订单状态已变更")
+      expect(mockWechatPay.closeOrder).toHaveBeenCalledTimes(1)
+    })
+
+    it("初始化互斥失败不得外发下单", async () => {
+      mockRedis.setNX.mockResolvedValue(false)
+      await expect(svc.createAppPayment(order.id, "u1", "android")).rejects.toThrow("支付正在初始化")
+      expect(mockWechatPay.createAppOrder).not.toHaveBeenCalled()
+    })
+  })
+
   describe("createJsapiPayment", () => {
     const mockOrder = { id: "o1", userId: "u1", type: "PRODUCT", amount: "99", status: "PENDING", payTransactionId: null }
 

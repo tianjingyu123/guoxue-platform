@@ -122,6 +122,11 @@ export class WechatPayService {
     return !!(this.mchId && this.privateKey);
   }
 
+  /** App 支付必须使用开放平台移动应用 AppID，不能借用小程序或公众号 AppID。 */
+  get isAppConfigured(): boolean {
+    return this.isConfigured && !!process.env.WECHAT_OPEN_APP_ID?.trim();
+  }
+
   // ───────── V3 签名与请求 ─────────
 
   /** 生成 V3 Authorization 头 */
@@ -458,8 +463,12 @@ export class WechatPayService {
     attach?: string;
     notifyUrl?: string;
   }) {
+    const appId = process.env.WECHAT_OPEN_APP_ID?.trim();
+    if (!appId || !this.isAppConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信 App 支付尚未配置，请联系平台");
+    }
     const body: Record<string, unknown> = {
-      appid: this.appId,
+      appid: appId,
       mchid: this.mchId,
       description: params.description,
       out_trade_no: params.outTradeNo,
@@ -476,7 +485,27 @@ export class WechatPayService {
       string,
       unknown
     >;
-    return { prepayId: result.prepay_id as string, raw: result };
+    const prepayId = result.prepay_id;
+    if (typeof prepayId !== "string" || !prepayId) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信支付未返回有效预支付订单");
+    }
+    // API v3 App 二次签名最后一行是 prepay_id 本身，不是 JSAPI 的 prepay_id=...。
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const noncestr = randomUUID().replace(/-/g, "");
+    const signer = createSign("sha256WithRSAEncryption");
+    signer.update(`${appId}\n${timestamp}\n${noncestr}\n${prepayId}\n`);
+    return {
+      prepayId,
+      orderInfo: {
+        appid: appId,
+        partnerid: this.mchId,
+        prepayid: prepayId,
+        package: "Sign=WXPay",
+        noncestr,
+        timestamp,
+        sign: signer.sign(this.privateKey, "base64"),
+      },
+    };
   }
 
   /** Native 支付（PC扫码支付） */

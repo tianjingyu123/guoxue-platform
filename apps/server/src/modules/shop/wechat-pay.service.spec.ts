@@ -28,6 +28,7 @@ jest.mock("fs", () => ({
 }));
 
 import { WechatPayApiError, WechatPayService } from "./wechat-pay.service";
+import { createSign } from "crypto";
 
 describe("WechatPayService", () => {
   let service: WechatPayService;
@@ -46,6 +47,7 @@ describe("WechatPayService", () => {
     process.env.WECHAT_PAY_API_V3_KEY = "test-api-v3-key-32chars!!!!!";
     process.env.WECHAT_PAY_PRIVATE_KEY = "mock-private-key-content";
     process.env.WECHAT_APP_ID = "wx_test_app_id";
+    process.env.WECHAT_OPEN_APP_ID = "wx_open_mobile";
     process.env.WECHAT_PAY_NOTIFY_URL = "https://example.com/wxpay/notify";
     process.env.WECHAT_PAY_REFUND_NOTIFY_URL = "https://example.com/wxpay/refund-notify";
     process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE = "DB";
@@ -65,6 +67,7 @@ describe("WechatPayService", () => {
     delete (global as any).fetch;
     delete process.env.WECHAT_PAY_RUNTIME_CONFIG_SOURCE;
     delete process.env.WECHAT_PAY_ALLOWED_MCH_ID;
+    delete process.env.WECHAT_OPEN_APP_ID;
   });
 
   it("生产环境未从数据库加载配置时拒绝资金请求", async () => {
@@ -243,6 +246,29 @@ describe("WechatPayService", () => {
       });
 
       expect(result.prepayId).toBe("prepay_app_001");
+      const requestBody = JSON.parse((global as any).fetch.mock.calls[0][1].body);
+      expect(requestBody.appid).toBe("wx_open_mobile");
+      expect(result.orderInfo).toEqual({
+        appid: "wx_open_mobile", partnerid: "test_mch_123456", prepayid: "prepay_app_001",
+        package: "Sign=WXPay", noncestr: "mockuuidnodashes", timestamp: expect.any(String),
+        sign: "bW9ja193eHBheV9zaWduYXR1cmU=",
+      });
+      expect(createSign("sha256WithRSAEncryption").update).toHaveBeenLastCalledWith(
+        `wx_open_mobile\n${result.orderInfo.timestamp}\nmockuuidnodashes\nprepay_app_001\n`,
+      );
+    });
+
+    it("缺开放平台 AppID 时不得回退公众号或小程序 AppID 下单", async () => {
+      delete process.env.WECHAT_OPEN_APP_ID;
+      await expect(service.createAppOrder({ outTradeNo: "GX_APP_2", description: "商品", amount: { total: 100 } }))
+        .rejects.toThrow("App 支付尚未配置");
+      expect((global as any).fetch).toBeUndefined();
+    });
+
+    it("上游缺少预支付 ID 时不签发无效 SDK 参数", async () => {
+      mockFetchJson({});
+      await expect(service.createAppOrder({ outTradeNo: "GX_APP_3", description: "商品", amount: { total: 100 } }))
+        .rejects.toThrow("未返回有效预支付订单");
     });
   });
 

@@ -138,6 +138,10 @@ export class ShopService {
     return this.paymentSvc.createNativePayment(orderId, userId);
   }
 
+  createAppPayment(orderId: string, userId: string, platform: "ios" | "android") {
+    return this.paymentSvc.createAppPayment(orderId, userId, platform);
+  }
+
   createH5Payment(orderId: string, userId: string, clientIp: string) {
     return this.paymentSvc.createH5Payment(orderId, userId, clientIp);
   }

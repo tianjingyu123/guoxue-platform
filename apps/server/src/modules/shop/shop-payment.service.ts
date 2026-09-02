@@ -61,7 +61,7 @@ export class ShopPaymentService {
     this.huifu?.registerPaymentNotifyHandler((payload) => this.handleHuifuNotify(payload));
   }
 
-  /** 同一本地订单的微信 JSAPI / Native / H5 初始化必须串行，避免跨入口生成多笔可支付渠道单。 */
+  /** 同一本地订单的微信 JSAPI / App / Native / H5 初始化必须串行，避免跨入口生成多笔可支付渠道单。 */
   private async withWechatPaymentInit<T>(orderId: string, busyMessage: string, task: () => Promise<T>): Promise<T> {
     const lockKey = "pay:init:wechat:" + orderId;
     const locked = await this.redis.setNX(lockKey, "1", 60);
@@ -150,9 +150,55 @@ export class ShopPaymentService {
     await Promise.all([
       this.redis.del("shop:pay:native:" + orderId),
       this.redis.del("shop:pay:h5:" + orderId),
+      this.redis.del("shop:pay:app:" + orderId),
       this.redis.del("shop:pay:jsapi:MINI:" + orderId),
       this.redis.del("shop:pay:jsapi:OFFICIAL:" + orderId),
     ]);
+  }
+
+  /** App 收银台：金额只取服务端订单；复用其他微信入口的锁、关单和 CAS 落库。 */
+  async createAppPayment(orderId: string, userId: string, platform: "ios" | "android") {
+    if (!this.wechatPay.isAppConfigured) {
+      throw new BusinessException(ErrorCode.PAY_FAILED, "微信 App 支付尚未配置，请联系平台");
+    }
+    return this.withWechatPaymentInit(orderId, "支付正在初始化，请稍后重试", async () => {
+      const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!order || order.userId !== userId) {
+        throw new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+      }
+      if (order.status !== "PENDING") {
+        throw new BusinessException(ErrorCode.ORDER_STATUS_INVALID, "订单状态不可支付", HttpStatus.BAD_REQUEST);
+      }
+      if (platform === "ios" && (order.type !== "PRODUCT" || !order.shippingInfo)) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "iOS 数字权益请使用应用内购买，此入口仅支持实物商品");
+      }
+      const totalFen = Math.round(Number(order.amount) * RMB_TO_FEN);
+      if (!Number.isSafeInteger(totalFen) || totalFen <= 0) {
+        throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额无效，请返回订单确认");
+      }
+      const cacheKey = "shop:pay:app:" + orderId;
+      const cached = await this.redis.getJson<{
+        outTradeNo: string;
+        orderInfo: Awaited<ReturnType<WechatPayService["createAppOrder"]>>["orderInfo"];
+      }>(cacheKey);
+      if (cached?.orderInfo && cached.outTradeNo === order.payTransactionId &&
+          cached.orderInfo.appid === process.env.WECHAT_OPEN_APP_ID?.trim()) return cached.orderInfo;
+
+      const previousOutTradeNo = order.payTransactionId || "";
+      if (previousOutTradeNo) await this.closePreviousWechatPayment(orderId, previousOutTradeNo);
+      await this.clearWechatPaymentResultCaches(orderId);
+      const outTradeNo = this.buildWechatOutTradeNo(orderId, !!previousOutTradeNo);
+      const result = await this.wechatPay.createAppOrder({
+        outTradeNo,
+        description: "国学平台订单-" + orderId.slice(0, 8),
+        amount: { total: totalFen },
+        attach: orderId,
+      });
+      await this.persistWechatPaymentIntent(order, outTradeNo);
+      // 调起签名采用短缓存；过期后按既有安全关单流程重建，不重放陈旧 SDK 参数。
+      await this.redis.setJson(cacheKey, { outTradeNo, orderInfo: result.orderInfo }, 5 * 60);
+      return result.orderInfo;
+    });
   }
 
   /** 创建微信支付JSAPI订单（channel 缺省/MINI=小程序内支付；OFFICIAL=公众号内H5支付） */

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { getCurrentInstance, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { onBackPress, onReady } from '@dcloudio/uni-app'
+import { onBackPress, onHide, onReady, onShow } from '@dcloudio/uni-app'
 import { consumeLegacyPaipanEntry, legacyPaipanApi } from '@/lib/legacy-paipan-data'
 import { navigateTo } from '@/utils/router'
+// #ifdef APP-PLUS
+import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
+// #endif
 
 const loading = ref(true)
 const error = ref('')
@@ -10,6 +13,18 @@ const legacyUrl = ref('')
 const loginRequired = ref(false)
 let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
 let legacyChildWebview: any | null = null
+// #ifdef APP-PLUS
+let legacyCompassHandler: ((event: { direction?: number }) => void) | null = null
+let legacyCompassTimer: ReturnType<typeof setTimeout> | null = null
+let legacyCompassSession = 0
+let legacyCompassWanted = false
+let legacyPageVisible = true
+let locationRequestId = 0
+let legacyDocumentVersion = 0
+let legacyPaymentBusy = false
+let legacyPaymentLoading = false
+let pendingLegacyPayment: { child: any; url: string; documentVersion: number; outcome: LegacyPaymentOutcome } | null = null
+// #endif
 const componentInstance = getCurrentInstance()
 const legacyAppMounted = ref(false)
 let appPageReady = false
@@ -50,15 +65,12 @@ function legacyNavigationBridgeScript(): string {
     function openRebuAction(action){
       window.location.assign('rebu://'+action);
     }
+    function openNativeLocation(){openRebuAction('location');}
+    function openNativeCompass(){openRebuAction('compass-start');}
     function openLegacyPayment(value){
       var tradeNo=String(value||'').trim();
       if(!/^[A-Za-z0-9_-]{1,128}$/.test(tradeNo)){openRebuAction('unsupported');return;}
-      try{
-        var paymentUrl=new URL('/my.php',window.location.href);
-        paymentUrl.searchParams.set('mod','pay');
-        paymentUrl.searchParams.set('trade_no',tradeNo);
-        openTrustedLegacyUrl(paymentUrl.href);
-      }catch(_error){openRebuAction('unsupported');}
+      openRebuAction('legacy-payment?trade_no='+tradeNo);
     }
     function openLegacyPayload(value){
       var match=String(value||'').match(/[?&]url=([^&#]+)/);
@@ -72,7 +84,9 @@ function legacyNavigationBridgeScript(): string {
       var action=String(data.action||'').toLowerCase();
       if(action==='pay')openLegacyPayment(data.payload&&data.payload.trade_no);
       else if(action==='service')openRebuAction('customer-service');
-      else if(action==='location'||action==='share')openRebuAction('unsupported');
+      else if(action==='location')openNativeLocation();
+      else if(action==='compass'||action==='opencompass')openNativeCompass();
+      else if(action==='share')openRebuAction('unsupported');
     }
     function installWebkitCompatibility(){
       var webkit=window.webkit||(window.webkit={});
@@ -82,7 +96,8 @@ function legacyNavigationBridgeScript(): string {
       add('openBrowser',function(value){openTrustedLegacyUrl(value);});
       add('home',function(){openRebuAction('home');});
       add('serviceWX',function(){openRebuAction('customer-service');});
-      add('location',function(){openRebuAction('unsupported');});
+      add('location',function(){openNativeLocation();});
+      add('openCompass',function(){openNativeCompass();});
       add('openWXmini',function(){openRebuAction('unsupported');});
       add('payWX',function(value){openLegacyPayment(value);});
     }
@@ -105,8 +120,8 @@ function legacyNavigationBridgeScript(): string {
         shareWX:function(){openRebuAction('unsupported');},
         sharePicture:function(){openRebuAction('unsupported');},
         savePicture:function(){openRebuAction('unsupported');},
-        location:function(){openRebuAction('unsupported');},
-        openCompass:function(){openRebuAction('unsupported');},
+        location:function(){openNativeLocation();},
+        openCompass:function(){openNativeCompass();},
         playVoice:function(){openRebuAction('unsupported');},
         stopVoice:function(){},
         voiceRecordReady:function(){openRebuAction('unsupported');},
@@ -140,6 +155,8 @@ function legacyNavigationBridgeScript(): string {
       var node=event.target;
       while(node&&node.tagName!=='A')node=node.parentNode;
       if(!node)return;
+      var rawHref=String(node.getAttribute('href')||'').trim();
+      if(!rawHref||rawHref.charAt(0)==='#'||/^javascript:/i.test(rawHref)||/^(?:rebu|weixin|alipays|tel|mailto):/i.test(rawHref))return;
       if(node.href&&!trustedLegacyUrl(node.href)){
         event.preventDefault();
         openRebuAction('unsupported');
@@ -163,7 +180,7 @@ function legacyNavigationBridgeScript(): string {
       if(target==='_blank'||target==='_new')form.setAttribute('target','_self');
     },true);
     window.open=function(url){
-      if(typeof url==='string'&&url)window.location.assign(url);
+      if(typeof url==='string'&&url)openTrustedLegacyUrl(url);
       return window;
     };
     var edgeStart=null;
@@ -238,6 +255,102 @@ function findLegacyChildWebview(): any | null {
   } catch { return null }
 }
 
+function evalLegacyLocation(latitude: number, longitude: number) {
+  const child = findLegacyChildWebview()
+  if (!child || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return false
+  try {
+    if (!legacyPageVisible || !isTrustedLegacyUrl(String(child.getURL?.() || ''))) return false
+    child.evalJS(`;(function(){var callback=window.setLocation;if(typeof callback==='function')callback(${latitude},${longitude});})();`)
+    return true
+  } catch { return false }
+}
+
+function evalLegacyCompass(direction: number) {
+  const child = findLegacyChildWebview()
+  if (!child || !Number.isFinite(direction)) return false
+  try {
+    if (!legacyPageVisible || !isTrustedLegacyUrl(String(child.getURL?.() || ''))) return false
+    child.evalJS(`;(function(){var callback=window.compassChange;if(typeof callback==='function')callback(${direction});})();`)
+    return true
+  } catch { return false }
+}
+
+function requestLegacyLocation() {
+  const child = findLegacyChildWebview()
+  const requestUrl = String(child?.getURL?.() || '')
+  if (!legacyPageVisible || !isTrustedLegacyUrl(requestUrl)) return
+  const requestId = ++locationRequestId
+  uni.getLocation({
+    type: 'wgs84',
+    altitude: false,
+    geocode: false,
+    success: (result) => {
+      // 用户离开或子窗口换页后丢弃异步坐标，不能把位置交给后续收银页或其他站点。
+      if (requestId !== locationRequestId || !legacyPageVisible || child !== legacyChildWebview || child.getURL?.() !== requestUrl) return
+      if (!evalLegacyLocation(Number(result.latitude), Number(result.longitude))) {
+        uni.showToast({ title: '定位结果暂时无法传给排盘工具，请重试', icon: 'none' })
+      }
+    },
+    fail: () => {
+      if (requestId !== locationRequestId || !legacyPageVisible) return
+      uni.showModal({
+        title: '需要定位权限',
+        content: '真太阳时需要读取当前位置。请在系统设置中允许“热卜国学”使用位置后重试。',
+        showCancel: false,
+      })
+    },
+  })
+}
+
+function stopLegacyCompass(clearRequest = true) {
+  legacyCompassSession += 1
+  if (clearRequest) legacyCompassWanted = false
+  if (legacyCompassTimer !== null) clearTimeout(legacyCompassTimer)
+  legacyCompassTimer = null
+  if (legacyCompassHandler) {
+    try { (uni as any).offCompassChange?.(legacyCompassHandler) } catch { /* 旧运行时不支持注销时继续停止传感器 */ }
+  }
+  legacyCompassHandler = null
+  try { uni.stopCompass() } catch { /* 尚未启动时无需处理 */ }
+}
+
+function showLegacyCompassUnavailable() {
+  stopLegacyCompass()
+  if (!legacyPageVisible) return
+  uni.showModal({
+    title: '罗盘暂不可用',
+    content: '暂未收到有效方向数据，请返回后重试。若仍无响应，请更新应用或联系客服；这不表示您漏开了“方向权限”。',
+    showCancel: false,
+  })
+}
+
+function startLegacyCompass() {
+  stopLegacyCompass()
+  const child = findLegacyChildWebview()
+  if (!legacyPageVisible || !isTrustedLegacyUrl(String(child?.getURL?.() || ''))) return
+  legacyCompassWanted = true
+  const session = legacyCompassSession
+  const fail = () => {
+    if (session === legacyCompassSession) showLegacyCompassUnavailable()
+  }
+  legacyCompassHandler = (event) => {
+    if (session !== legacyCompassSession || !legacyPageVisible) return
+    const direction = event?.direction
+    // 不把 null、字符串或无效值伪装成朝北；首个有效数据到达才视为传感器可用。
+    if (typeof direction !== 'number' || !Number.isFinite(direction)) return
+    if (legacyCompassTimer !== null) clearTimeout(legacyCompassTimer)
+    legacyCompassTimer = null
+    evalLegacyCompass(((direction % 360) + 360) % 360)
+  }
+  legacyCompassTimer = setTimeout(fail, 8000)
+  try {
+    uni.onCompassChange(legacyCompassHandler)
+    uni.startCompass({ fail })
+  } catch {
+    fail()
+  }
+}
+
 function installLegacyNavigationBridge(child = findLegacyChildWebview()) {
   if (!child) return false
   try {
@@ -245,6 +358,68 @@ function installLegacyNavigationBridge(child = findLegacyChildWebview()) {
     child.evalJS(legacyNavigationBridgeScript())
     return true
   } catch { return false }
+}
+
+function hideLegacyPaymentLoading() {
+  if (!legacyPaymentLoading) return
+  legacyPaymentLoading = false
+  uni.hideLoading()
+}
+
+function flushLegacyPaymentResult() {
+  const pending = pendingLegacyPayment
+  if (!pending || !legacyPageVisible) return
+  pendingLegacyPayment = null
+  try {
+    if (pending.child !== legacyChildWebview || pending.documentVersion !== legacyDocumentVersion
+      || pending.child.getURL?.() !== pending.url || !isTrustedLegacyUrl(pending.url)) return
+    pending.child.evalJS(LEGACY_PAYMENT_REFRESH_SCRIPT)
+    const title = pending.outcome === 'cancelled' ? '已取消支付，可在旧排盘订单中继续查看'
+      : pending.outcome === 'submitted' ? '已返回排盘，正在由旧系统确认支付结果'
+        : '支付结果尚未确认，请在旧排盘订单中查看'
+    uni.showToast({ title, icon: 'none', duration: 3000 })
+  } catch { /* 页面已关闭时不把结果交给新页面 */ }
+}
+
+async function requestLegacyPayment(url: string, child: any) {
+  if (legacyPaymentBusy || child !== legacyChildWebview || !legacyPageVisible) return
+  let requestUrl = ''
+  try { requestUrl = String(child.getURL?.() || '') } catch { return }
+  if (!isTrustedLegacyUrl(requestUrl)) return
+  const tradeNo = parseLegacyPaymentBridgeUrl(url)
+  if (!tradeNo) {
+    uni.showToast({ title: '旧排盘订单无效，请返回订单页重新操作', icon: 'none' })
+    return
+  }
+  const documentVersion = legacyDocumentVersion
+  const sameDocument = () => {
+    try {
+      return child === legacyChildWebview && documentVersion === legacyDocumentVersion && child.getURL?.() === requestUrl
+    } catch { return false }
+  }
+  legacyPaymentBusy = true
+  try {
+    legacyPaymentLoading = true
+    uni.showLoading({ title: '正在准备旧排盘支付', mask: true })
+    const outcome = await payLegacyPaipanOrder(tradeNo, {
+      canProceed: () => legacyPageVisible && sameDocument(),
+      beforeNativePay: hideLegacyPaymentLoading,
+    })
+    if (!sameDocument()) return
+    pendingLegacyPayment = { child, url: requestUrl, documentVersion, outcome }
+    // 微信返回时 onShow 可能晚于支付回调，保留内存结果待原页面重新可见再刷新。
+    flushLegacyPaymentResult()
+  } catch (cause) {
+    if (!sameDocument() || !legacyPageVisible) return
+    uni.showToast({
+      title: cause instanceof LegacyPaymentError ? cause.message : '旧排盘支付暂不可用，请稍后在订单页重试',
+      icon: 'none',
+      duration: 3000,
+    })
+  } finally {
+    hideLegacyPaymentLoading()
+    legacyPaymentBusy = false
+  }
 }
 
 function bindLegacyChildWebview(child: any) {
@@ -264,9 +439,16 @@ function bindLegacyChildWebview(child: any) {
         try { child.setContentVisible?.(true) } catch { /* 旧内核不支持时继续 */ }
         legacyAppMounted.value = true
       }
-      child.addEventListener?.('loading', reinject)
+      child.addEventListener?.('loading', () => {
+        legacyDocumentVersion += 1
+        locationRequestId += 1
+        pendingLegacyPayment = null
+        stopLegacyCompass()
+        reinject()
+      })
       child.addEventListener?.('loaded', reveal)
       child.addEventListener?.('error', () => {
+        stopLegacyCompass()
         try { child.setContentVisible?.(false) } catch { /* 失败页保持隐藏 */ }
         try { child.close?.('none') } catch { /* 父窗口仍会兜底回收 */ }
         if (legacyChildWebview === child) legacyChildWebview = null
@@ -282,6 +464,10 @@ function bindLegacyChildWebview(child: any) {
             if (action === 'home') returnToNewSystem()
             else if (action === 'login') openLogin()
             else if (action === 'customer-service') navigateTo('/customer-service')
+            else if (action === 'legacy-payment') void requestLegacyPayment(url, child)
+            else if (action === 'location') requestLegacyLocation()
+            else if (action === 'compass-start') startLegacyCompass()
+            else if (action === 'compass-stop') stopLegacyCompass()
             else if (action === 'unsupported') {
               uni.showToast({ title: '该功能暂不支持', icon: 'none' })
             }
@@ -431,6 +617,19 @@ function handleLegacyLoadError() {
 function handleLegacyLoaded() { scheduleLegacyNavigationBridge() }
 
 onMounted(() => { void loadEntry() })
+// #ifdef APP-PLUS
+onHide(() => {
+  legacyPageVisible = false
+  hideLegacyPaymentLoading()
+  locationRequestId += 1
+  stopLegacyCompass(false)
+})
+onShow(() => {
+  legacyPageVisible = true
+  flushLegacyPaymentResult()
+  if (legacyCompassWanted) startLegacyCompass()
+})
+// #endif
 onReady(() => {
   appPageReady = true
   // #ifdef APP-PLUS
@@ -439,6 +638,14 @@ onReady(() => {
   scheduleLegacyNavigationBridge()
 })
 onUnmounted(() => {
+  // #ifdef APP-PLUS
+  legacyPageVisible = false
+  legacyDocumentVersion += 1
+  pendingLegacyPayment = null
+  hideLegacyPaymentLoading()
+  locationRequestId += 1
+  stopLegacyCompass()
+  // #endif
   bridgeTimers.forEach(clearTimeout)
   bridgeTimers = []
   try { legacyChildWebview?.close?.('none') } catch { /* 页面关闭时由父窗口兜底回收 */ }

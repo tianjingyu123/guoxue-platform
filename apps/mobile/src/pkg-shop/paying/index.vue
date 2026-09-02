@@ -285,9 +285,43 @@ async function startPaying() {
     return
   }
   // #endif
-  // #ifndef MP-WEIXIN || H5
-  // App 等其他端：微信 APP 支付需客户端 SDK 接入（未接），提示改用小程序/H5 支付；仍轮询兜底（可换端支付）
-  uni.showToast({ title: '当前端暂不支持在线支付，请在小程序或浏览器中完成支付', icon: 'none', duration: 3000 })
+  // #ifdef APP-PLUS
+  try {
+    if (payMethod.value !== 'wechat') throw new Error('当前 App 尚未开通此支付方式，请返回选择微信支付')
+    if (isRecharge.value) throw new Error('请返回钱包选择已开通的充值方式；iOS 请使用 Apple 应用内购买')
+    await new Promise<void>((resolve, reject) => {
+      uni.getProvider({
+        service: 'payment',
+        success: (result) => (result.provider as string[]).includes('wxpay') ? resolve() : reject(new Error('当前安装包未包含微信支付，请更新应用后重试')),
+        fail: () => reject(new Error('无法读取微信支付能力，请重新打开应用后重试')),
+      })
+    })
+    const platform = uni.getSystemInfoSync().platform === 'ios' ? 'ios' : 'android'
+    const orderInfo = await shopApi.payOrderApp(orderId.value, platform)
+    await new Promise<void>((resolve, reject) => {
+      uni.requestPayment({
+        provider: 'wxpay',
+        orderInfo,
+        success: () => resolve(),
+        fail: (error) => {
+          const cancelled = /cancel|取消/i.test(error.errMsg || '') || Number(error.errCode) === -2
+          reject(new Error(cancelled ? '支付已取消' : '微信收银台未完成支付，请确认已安装微信；如已扣款，请返回订单核对结果'))
+        },
+      })
+    })
+  } catch (error) {
+    const message = (error as Error)?.message || '微信支付暂时不可用，请稍后重试'
+    status.value = message.includes('取消') ? 'cancelled' : 'failed'
+    failReason.value = message
+    clearTimers('all')
+    return
+  }
+  // #endif
+  // #ifndef MP-WEIXIN || H5 || APP-PLUS
+  status.value = 'failed'
+  failReason.value = '当前平台尚未开通此支付方式，请返回订单选择可用方式'
+  clearTimers('all')
+  return
   // #endif
     // 首查用 600ms 短延迟：支付唤起成功后回调多在 1~2s 内到账，快探能把感知等待压到 ~1s
     startPolling(600)

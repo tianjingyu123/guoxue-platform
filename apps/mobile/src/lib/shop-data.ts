@@ -773,6 +773,17 @@ export interface WechatJsapiPayParams {
   paySign: string
 }
 
+/** App 微信 SDK 参数由服务端签发，不包含商户私钥。 */
+export interface WechatAppPayParams {
+  appid: string
+  partnerid: string
+  prepayid: string
+  package: string
+  noncestr: string
+  timestamp: string
+  sign: string
+}
+
 export interface PayMethodOption { id: string; name: string; badge: string; badgeColor: string }
 export const payMethods: PayMethodOption[] = [
   { id: 'wechat', name: '微信支付', badge: '微', badgeColor: '#07C160' },
@@ -1803,6 +1814,12 @@ export const shopApi = {
   async payOrderJsapi(orderId: string, opts?: { openid?: string; channel?: 'MINI' | 'OFFICIAL' }): Promise<WechatJsapiPayParams> {
     return await apiPost<WechatJsapiPayParams>(`/shop/orders/${orderId}/pay/jsapi`, { ...(opts?.openid ? { openid: opts.openid } : {}), ...(opts?.channel ? { channel: opts.channel } : {}) })
   },
+
+  // #ifdef APP-PLUS
+  async payOrderApp(orderId: string, platform: 'ios' | 'android'): Promise<WechatAppPayParams> {
+    return apiPost<WechatAppPayParams>(`/shop/orders/${orderId}/pay/app`, { platform })
+  },
+  // #endif
 
   /** 发起微信 Native 扫码支付 — POST /shop/orders/:id/pay/native（返回 code_url 二维码；本地无商户证书会失败，走错误态） */
   async payOrderNative(orderId: string): Promise<{ codeUrl?: string; raw: unknown }> {

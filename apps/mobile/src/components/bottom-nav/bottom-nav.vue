@@ -2,6 +2,9 @@
 import { onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
+// #ifdef APP-PLUS
+import AppRootBackGesture from '@/components/common/app-root-back-gesture.vue'
+// #endif
 import { redirectTo } from '@/utils/router'
 
 /** active: home | circle | paipan | discover | profile */
@@ -56,6 +59,9 @@ function onNavKeydown(event: KeyboardEvent, url: string, id: string) {
 </script>
 
 <template>
+  <!-- #ifdef APP-PLUS -->
+  <AppRootBackGesture :enabled="visible && active !== 'home'" />
+  <!-- #endif -->
   <!-- H5 挂到 body，避免桌面限宽容器的 transform 改变 fixed 定位基准。 -->
   <!-- #ifdef H5 -->
   <Teleport to="body">

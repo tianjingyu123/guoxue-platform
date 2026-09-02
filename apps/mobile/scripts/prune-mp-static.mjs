@@ -22,6 +22,8 @@ const redundantPaths = [
   // 旧占位图已无源码引用；分享二维码由 uqrcodejs 在 Canvas 动态生成。
   ["static", "placeholder.png"],
   ["static", "images", "poster-qrcode.webp"],
+  // 只由 App 的 plus.webview.setJsFile 使用，小程序没有原生 WebView 预载桥。
+  ["static", "legacy-paipan-preload.js"],
 ];
 
 let removed = 0;
@@ -34,7 +36,7 @@ for (const segments of redundantPaths) {
 
 if (removed > 0) {
   console.log(
-    `已移除 ${removed} 项微信包冗余静态资源，运行时由静态托管或动态 Canvas 提供。`,
+    `已移除 ${removed} 项微信包冗余资源（App 专用桥、远端图片或动态 Canvas 副本）。`,
   );
 }
 

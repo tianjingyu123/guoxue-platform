@@ -324,6 +324,12 @@ export class ModerateProductDto {
   reason?: string;
 }
 
+export class AppPayDto {
+  @ApiProperty({ description: "客户端平台（iOS 数字权益不得走微信 App 支付）", enum: ["ios", "android"] })
+  @IsIn(["ios", "android"])
+  platform: "ios" | "android";
+}
+
 export class JsapiPayDto {
   @ApiPropertyOptional({ description: "微信openid（可选；不传则后端从用户已绑定的微信授权记录中查取。channel=OFFICIAL 时必传，须为公众号网页授权取得的 openid）" })
   @IsOptional() @IsString()

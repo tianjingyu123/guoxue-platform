@@ -23,20 +23,16 @@
     window.location.assign('rebu://' + action)
   }
 
+  function openNativeLocation() { openRebuAction('location') }
+  function openNativeCompass() { openRebuAction('compass-start') }
+
   function openLegacyPayment(value) {
     var tradeNo = String(value || '').trim()
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(tradeNo)) {
       openRebuAction('unsupported')
       return
     }
-    try {
-      var paymentUrl = new URL('/my.php', window.location.href)
-      paymentUrl.searchParams.set('mod', 'pay')
-      paymentUrl.searchParams.set('trade_no', tradeNo)
-      openTrustedLegacyUrl(paymentUrl.href)
-    } catch (_error) {
-      openRebuAction('unsupported')
-    }
+    openRebuAction('legacy-payment?trade_no=' + tradeNo)
   }
 
   function openLegacyPayload(value) {
@@ -55,7 +51,9 @@
     var action = String(data.action || '').toLowerCase()
     if (action === 'pay') openLegacyPayment(data.payload && data.payload.trade_no)
     else if (action === 'service') openRebuAction('customer-service')
-    else if (action === 'location' || action === 'share') openRebuAction('unsupported')
+    else if (action === 'location') openNativeLocation()
+    else if (action === 'compass' || action === 'opencompass') openNativeCompass()
+    else if (action === 'share') openRebuAction('unsupported')
   }
 
   function installWebkitCompatibility() {
@@ -68,7 +66,8 @@
     add('openBrowser', function (value) { openTrustedLegacyUrl(value) })
     add('home', function () { openRebuAction('home') })
     add('serviceWX', function () { openRebuAction('customer-service') })
-    add('location', function () { openRebuAction('unsupported') })
+    add('location', function () { openNativeLocation() })
+    add('openCompass', function () { openNativeCompass() })
     add('openWXmini', function () { openRebuAction('unsupported') })
     add('payWX', function (value) { openLegacyPayment(value) })
   }
@@ -91,8 +90,8 @@
       shareWX: function () { openRebuAction('unsupported') },
       sharePicture: function () { openRebuAction('unsupported') },
       savePicture: function () { openRebuAction('unsupported') },
-      location: function () { openRebuAction('unsupported') },
-      openCompass: function () { openRebuAction('unsupported') },
+      location: function () { openNativeLocation() },
+      openCompass: function () { openNativeCompass() },
       playVoice: function () { openRebuAction('unsupported') },
       stopVoice: function () {},
       voiceRecordReady: function () { openRebuAction('unsupported') },
@@ -135,6 +134,8 @@
     var node = event.target
     while (node && node.tagName !== 'A') node = node.parentNode
     if (!node) return
+    var rawHref = String(node.getAttribute('href') || '').trim()
+    if (!rawHref || rawHref.charAt(0) === '#' || /^javascript:/i.test(rawHref) || /^(?:rebu|weixin|alipays|tel|mailto):/i.test(rawHref)) return
     if (node.href && !trustedLegacyUrl(node.href)) {
       event.preventDefault()
       openRebuAction('unsupported')
