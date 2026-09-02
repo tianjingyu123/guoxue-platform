@@ -2219,20 +2219,23 @@ export const aiCapabilityApi = {
 // ───────── AI决策账本 ─────────
 export const aiDecisionApi = {
   list: (params?: {
-    page?: number;
-    pageSize?: number;
+    limit?: number;
+    offset?: number;
     agentId?: string;
+    capabilityId?: string;
     riskLevel?: string;
     humanAction?: string;
+    startDate?: string;
+    endDate?: string;
   }) => api.get("/ai/decisions", { params }),
   overview: () => api.get("/ai/decisions/overview"),
   trace: (id: string) => api.get(`/ai/decisions/trace/${id}`),
   retrospective: (id: string) => api.get(`/ai/decisions/retrospective/${id}`),
-  review: (id: string, data: { humanAction: string; humanReviewer?: string; humanNote?: string }) =>
+  review: (id: string, data: { action: "approved" | "rejected" | "modified"; note?: string }) =>
     api.post(`/ai/decisions/${id}/review`, data),
-  outcome: (id: string, data: { outcomeMetric: string; outcomeActual: number }) =>
+  outcome: (id: string, data: { metric: string; expectedValue: number; actualValue: number }) =>
     api.post(`/ai/decisions/${id}/outcome`, data),
-  compare: (params?: { agentId1?: string; agentId2?: string; days?: number }) =>
+  compare: (params: { modelA: string; modelB: string; agentId: string }) =>
     api.get("/ai/decisions/compare", { params }),
 };
 

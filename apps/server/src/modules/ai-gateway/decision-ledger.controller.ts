@@ -2,7 +2,12 @@ import { Controller, Get, Post, Query, Body, Param, Req, UseGuards } from "@nest
 import type { Request } from "express";
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth, ApiResponse } from "@nestjs/swagger";
 import { DecisionLedgerService } from "./decision-ledger.service";
-import { ReviewDecisionDto, RecordOutcomeDto } from "./dto/ai-infra.dto";
+import {
+  CompareDecisionModelsDto,
+  QueryDecisionDto,
+  RecordOutcomeDto,
+  ReviewDecisionDto,
+} from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -36,6 +41,7 @@ export class DecisionLedgerController {
   }
 
   @Post(":id/outcome")
+  @RedLineGate(RedLine.COMPLIANCE)
   @ApiOperation({ summary: "记录决策效果" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -54,33 +60,16 @@ export class DecisionLedgerController {
   @Get()
   @ApiOperation({ summary: "查询决策历史" })
   @ApiResponse({ status: 200, description: "成功" })
-  @ApiQuery({ name: "agentId", required: false })
-  @ApiQuery({ name: "capabilityId", required: false })
-  @ApiQuery({ name: "riskLevel", required: false })
-  @ApiQuery({ name: "humanAction", required: false })
-  @ApiQuery({ name: "startDate", required: false })
-  @ApiQuery({ name: "endDate", required: false })
-  @ApiQuery({ name: "limit", required: false })
-  @ApiQuery({ name: "offset", required: false })
-  async query(
-    @Query("agentId") agentId?: string,
-    @Query("capabilityId") capabilityId?: string,
-    @Query("riskLevel") riskLevel?: string,
-    @Query("humanAction") humanAction?: string,
-    @Query("startDate") startDate?: string,
-    @Query("endDate") endDate?: string,
-    @Query("limit") limit?: string,
-    @Query("offset") offset?: string,
-  ) {
+  async query(@Query() query: QueryDecisionDto) {
     return this.ledger.query({
-      agentId,
-      capabilityId,
-      riskLevel,
-      humanAction,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
-      limit: limit ? Number(limit) : 50,
-      offset: offset ? Number(offset) : 0,
+      agentId: query.agentId,
+      capabilityId: query.capabilityId,
+      riskLevel: query.riskLevel,
+      humanAction: query.humanAction,
+      startDate: query.startDate ? new Date(query.startDate) : undefined,
+      endDate: query.endDate ? new Date(query.endDate) : undefined,
+      limit: query.limit ?? 50,
+      offset: query.offset ?? 0,
     });
   }
 
@@ -113,11 +102,7 @@ export class DecisionLedgerController {
   @ApiQuery({ name: "modelA", required: true })
   @ApiQuery({ name: "modelB", required: true })
   @ApiQuery({ name: "agentId", required: true })
-  async compareModels(
-    @Query("modelA") modelA: string,
-    @Query("modelB") modelB: string,
-    @Query("agentId") agentId: string,
-  ) {
-    return this.ledger.compareModels(modelA, modelB, agentId);
+  async compareModels(@Query() query: CompareDecisionModelsDto) {
+    return this.ledger.compareModels(query.modelA, query.modelB, query.agentId);
   }
 }

@@ -171,7 +171,77 @@ export class ReviewDecisionDto {
   @ApiPropertyOptional({ description: "审核备注" })
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   note?: string;
+}
+
+export class QueryDecisionDto {
+  @ApiPropertyOptional({ description: "智能体标识" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  agentId?: string;
+
+  @ApiPropertyOptional({ description: "能力标识" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  capabilityId?: string;
+
+  @ApiPropertyOptional({ description: "风险级别", enum: ["low", "medium", "high"] })
+  @IsOptional()
+  @IsIn(["low", "medium", "high"])
+  riskLevel?: "low" | "medium" | "high";
+
+  @ApiPropertyOptional({ description: "人工审核结论", enum: ["pending", "approved", "rejected", "modified"] })
+  @IsOptional()
+  @IsIn(["pending", "approved", "rejected", "modified"])
+  humanAction?: "pending" | "approved" | "rejected" | "modified";
+
+  @ApiPropertyOptional({ description: "开始日期" })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: "结束日期" })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 50, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @ApiPropertyOptional({ description: "偏移量", default: 0, minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  offset?: number;
+}
+
+export class CompareDecisionModelsDto {
+  @ApiProperty({ description: "模型 A 标识" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  modelA: string;
+
+  @ApiProperty({ description: "模型 B 标识" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  modelB: string;
+
+  @ApiProperty({ description: "智能体标识" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  agentId: string;
 }
 
 // ─────────── 人机协作协议 DTO ───────────

@@ -284,7 +284,15 @@
               <span>人工采纳率 {{ decisions.data.approvedRate }}%</span>
               <span>平均置信度 {{ decisions.data.avgConfidence }}</span>
             </div>
-            <div class="card-foot muted-foot">每条 AI 决策全程留痕·近 90 天可回溯</div>
+            <div class="card-foot">
+              <el-button
+                link
+                type="primary"
+                @click="$router.push('/ai/decisions')"
+              >
+                审核、追溯与复盘 →
+              </el-button>
+            </div>
           </template>
           <CardFallback
             v-else-if="decisions.status !== 'loading'"

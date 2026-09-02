@@ -78,6 +78,7 @@ const REQUIRED_ROUTES: Array<[string, RedLine[]]> = [
   ["PUT ops/tasks/:id/approval", [RedLine.COMPLIANCE]],
   ["POST ai/collaborations/:id/review", [RedLine.COMPLIANCE]],
   ["POST ai/decisions/:id/review", [RedLine.COMPLIANCE]],
+  ["POST ai/decisions/:id/outcome", [RedLine.COMPLIANCE]],
   ["POST system/automation/toggle", [RedLine.COMPLIANCE]],
   ["POST system/cron/:jobName/manual", [RedLine.COMPLIANCE]],
   ["POST system/ops-actions/execute", [RedLine.COMPLIANCE]],

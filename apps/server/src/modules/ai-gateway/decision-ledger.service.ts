@@ -110,15 +110,33 @@ export class DecisionLedgerService {
     reviewer: string,
     note?: string,
   ): Promise<void> {
-    await this.prisma.aiDecision.update({
+    const before = await this.prisma.aiDecision.findUnique({
       where: { id: decisionId },
+      select: { humanAction: true, riskLevel: true },
+    });
+    if (!before) throw new BusinessException(ErrorCode.NOT_FOUND, "AI 决策不存在");
+    if (before.humanAction) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该 AI 决策已审结，不可重复审核");
+    }
+    if ((action !== "approved" || before.riskLevel === "high") && !note?.trim()) {
+      throw new BusinessException(
+        ErrorCode.BAD_REQUEST,
+        action === "approved" ? "高风险决策必须填写批准依据" : "驳回或修改决策必须填写原因",
+      );
+    }
+
+    const changed = await this.prisma.aiDecision.updateMany({
+      where: { id: decisionId, humanAction: null },
       data: {
         humanAction: action,
         humanReviewer: reviewer,
-        humanNote: note || null,
+        humanNote: note?.trim() || null,
         humanReviewedAt: new Date(),
       },
     });
+    if (changed.count === 0) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该 AI 决策已被其他管理员审核，请刷新列表");
+    }
 
     this.logger.log(`决策审核: ${decisionId} → ${action} (${reviewer})`);
   }
@@ -131,7 +149,7 @@ export class DecisionLedgerService {
     actualValue: number,
     measuredBy: string,
   ): Promise<void> {
-    await this.prisma.aiDecision.update({
+    const changed = await this.prisma.aiDecision.updateMany({
       where: { id: decisionId },
       data: {
         outcomeMetric: metric,
@@ -141,6 +159,7 @@ export class DecisionLedgerService {
         outcomeMeasuredBy: measuredBy,
       },
     });
+    if (changed.count === 0) throw new BusinessException(ErrorCode.NOT_FOUND, "AI 决策不存在");
   }
 
   /** 查询决策历史 */
@@ -152,7 +171,9 @@ export class DecisionLedgerService {
     if (filters.agentId) where.agentId = filters.agentId;
     if (filters.capabilityId) where.capabilityId = filters.capabilityId;
     if (filters.riskLevel) where.riskLevel = filters.riskLevel;
-    if (filters.humanAction) where.humanAction = filters.humanAction;
+    if (filters.humanAction) {
+      where.humanAction = filters.humanAction === "pending" ? null : filters.humanAction;
+    }
     if (filters.startDate || filters.endDate) {
       where.createdAt = {};
       if (filters.startDate)
@@ -179,7 +200,7 @@ export class DecisionLedgerService {
     const decision = await this.prisma.aiDecision.findUnique({
       where: { id: decisionId },
     });
-    if (!decision) return null;
+    if (!decision) throw new BusinessException(ErrorCode.NOT_FOUND, "AI 决策不存在");
 
     // 查找相关决策（同一 agent、时间相近）
     const relatedDecisions = await this.prisma.aiDecision.findMany({

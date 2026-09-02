@@ -723,6 +723,12 @@ const routes = [
         meta: { title: "AI用量统计", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        path: "ai/decisions",
+        name: "AiDecisionLedger",
+        component: () => import("@/views/ai/DecisionLedger.vue"),
+        meta: { title: "AI决策账本", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "ai/chat-logs",
         name: "BotChatLogs",
         component: () => import("@/views/ai/BotChatLogs.vue"),
