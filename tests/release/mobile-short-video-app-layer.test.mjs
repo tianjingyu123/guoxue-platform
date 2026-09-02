@@ -9,6 +9,7 @@ const read = (file) => readFileSync(path.join(root, file), 'utf8')
 test('App 短视频使用 WebView 同层播放器，不再由原生 video 覆盖互动区', () => {
   const page = read('apps/mobile/src/pkg-video/detail/index.vue')
   const player = read('apps/mobile/src/components/media/app-web-video.vue')
+  const cover = read('apps/mobile/src/components/common/smart-cover.vue')
 
   assert.match(page, /#ifdef APP-PLUS[\s\S]*<AppWebVideo/u)
   assert.match(page, /#ifndef APP-PLUS[\s\S]*<video/u)
@@ -23,6 +24,9 @@ test('App 短视频使用 WebView 同层播放器，不再由原生 video 覆盖
   assert.match(player, /host\.addEventListener\('touchstart'[\s\S]*event\.stopPropagation\(\)/u)
   assert.match(player, /host\.addEventListener\('touchmove'[\s\S]*event\.stopPropagation\(\)[\s\S]*event\.preventDefault\(\)/u)
   assert.match(player, /owner\.callMethod\('onRenderPlayerEvent'/u)
+  assert.match(cover, /App-Plus 的原生 video 会脱离 WebView 普通层级/u)
+  assert.match(cover, /#ifndef APP-PLUS[\s\S]*<video[\s\S]*#endif/u)
+  assert.doesNotMatch(cover, /#ifdef APP-PLUS[\s\S]*<video/u)
 })
 
 test('短视频滑动、评论和返回仍由 Vue 互动层接管', () => {

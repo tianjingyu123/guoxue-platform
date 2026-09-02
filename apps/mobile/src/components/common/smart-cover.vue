@@ -230,6 +230,11 @@ const decoChars = computed(() => {
       <view class="sc-frame" />
       <text v-if="!plain" class="sc-deco serif" :style="{ fontSize: decoSize + 'rpx' }">{{ decoChars }}</text>
     </view>
+    <!--
+      App-Plus 的原生 video 会脱离 WebView 普通层级：即使 opacity:0，仍可能显示黑色原生层并吞掉父卡片点击。
+      App 端保留上方生成封面；真实播放只在详情页的同层播放器中进行。H5/小程序继续用视频首帧兜底。
+    -->
+    <!-- #ifndef APP-PLUS -->
     <video
       class="sc-full sc-video-el"
       :class="{ 'sc-video-el--ready': videoFrameReady }"
@@ -247,6 +252,7 @@ const decoChars = computed(() => {
       @canplay="onVideoFrameReady"
       @error="onVideoError"
     />
+    <!-- #endif -->
   </view>
   <view v-else class="sc-full sc-gen" :style="{ background: grad }">
     <!-- 国学底纹：柔和光晕 + 内描边 -->
