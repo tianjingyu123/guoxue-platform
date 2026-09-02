@@ -20,6 +20,7 @@ overrides:
   deepmerge-ts: 8.0.0
   picomatch: 4.0.4
   postcss: 8.5.18
+  browserslist: 4.28.7
   rollup: 4.59.0
   protobufjs: 8.4.1
   glob: 10.5.0
@@ -4516,10 +4517,10 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
     peerDependencies:
-      browserslist: '*'
+      browserslist: 4.28.7
 
-  browserslist@4.28.2:
-    resolution: {integrity: sha512-48xSriZYYg+8qXna9kwqjIVzuQxi+KYWp2+5nCYnYKPTr0LvD89Jqk2Or5ogxz0NUMfIjhh2lIUX/LyX9B4oIg==}
+  browserslist@4.28.7:
+    resolution: {integrity: sha512-JxV13hNrFxqjOc8alRbq9dK1MM79NEXYpma2B2J4wAtpWS5zIEIKqWPGCl7N4o7Uc7B7itylh7SuDujATRyyTw==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
@@ -8351,7 +8352,7 @@ packages:
     resolution: {integrity: sha512-Js0m9cx+qOgDxo0eMiFGEueWztz+d4+M3rGlmKPT+T4IS/jP4ylw3Nwpu6cpTTP8R1MAC1kF4VbdLt3ARf209w==}
     hasBin: true
     peerDependencies:
-      browserslist: '>= 4.21.0'
+      browserslist: 4.28.7
 
   uqrcodejs@4.0.7:
     resolution: {integrity: sha512-84+aZmD2godCVI+93lxE3YUAPNY8zAJvNA7xRS7R7U+q57KzMDepBSfNCwoRUhWOfR6eHFoAOcHRPwsP6ka1cA==}
@@ -9242,7 +9243,7 @@ snapshots:
     dependencies:
       '@babel/compat-data': 7.29.3
       '@babel/helper-validator-option': 7.27.1
-      browserslist: 4.28.2
+      browserslist: 4.28.7
       lru-cache: 5.1.1
       semver: 6.3.1
 
@@ -13053,8 +13054,8 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.0
       '@babel/preset-env': 7.29.5(@babel/core@7.29.0)
-      browserslist: 4.28.2
-      browserslist-to-esbuild: 2.1.1(browserslist@4.28.2)
+      browserslist: 4.28.7
+      browserslist-to-esbuild: 2.1.1(browserslist@4.28.7)
       core-js: 3.49.0
       magic-string: 0.30.21
       regenerator-runtime: 0.14.1
@@ -13613,7 +13614,7 @@ snapshots:
 
   autoprefixer@10.4.20(postcss@8.5.18):
     dependencies:
-      browserslist: 4.28.2
+      browserslist: 4.28.7
       caniuse-lite: 1.0.30001792
       fraction.js: 4.3.7
       normalize-range: 0.1.2
@@ -13623,7 +13624,7 @@ snapshots:
 
   autoprefixer@10.5.0(postcss@8.5.18):
     dependencies:
-      browserslist: 4.28.2
+      browserslist: 4.28.7
       caniuse-lite: 1.0.30001792
       fraction.js: 5.3.4
       picocolors: 1.1.1
@@ -13867,18 +13868,18 @@ snapshots:
 
   browser-process-hrtime@1.0.0: {}
 
-  browserslist-to-esbuild@2.1.1(browserslist@4.28.2):
+  browserslist-to-esbuild@2.1.1(browserslist@4.28.7):
     dependencies:
-      browserslist: 4.28.2
+      browserslist: 4.28.7
       meow: 13.2.0
 
-  browserslist@4.28.2:
+  browserslist@4.28.7:
     dependencies:
       baseline-browser-mapping: 2.10.27
       caniuse-lite: 1.0.30001792
       electron-to-chromium: 1.5.352
       node-releases: 2.0.38
-      update-browserslist-db: 1.2.3(browserslist@4.28.2)
+      update-browserslist-db: 1.2.3(browserslist@4.28.7)
 
   bs-logger@0.2.6:
     dependencies:
@@ -14191,7 +14192,7 @@ snapshots:
 
   core-js-compat@3.49.0:
     dependencies:
-      browserslist: 4.28.2
+      browserslist: 4.28.7
 
   core-js-pure@3.49.0: {}
 
@@ -18474,9 +18475,9 @@ snapshots:
 
   unquote@1.1.1: {}
 
-  update-browserslist-db@1.2.3(browserslist@4.28.2):
+  update-browserslist-db@1.2.3(browserslist@4.28.7):
     dependencies:
-      browserslist: 4.28.2
+      browserslist: 4.28.7
       escalade: 3.2.0
       picocolors: 1.1.1
 
@@ -18675,7 +18676,7 @@ snapshots:
       '@webassemblyjs/wasm-edit': 1.14.1
       '@webassemblyjs/wasm-parser': 1.14.1
       acorn: 8.16.0
-      browserslist: 4.28.2
+      browserslist: 4.28.7
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.21.0
       es-module-lexer: 1.7.0
