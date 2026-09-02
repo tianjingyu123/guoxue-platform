@@ -2,6 +2,7 @@ import { INestApplication } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import request from "supertest";
 import { createE2eApp } from "./e2e-setup";
+import { InspectionService } from "../src/modules/ops/inspection.service";
 
 describe("关键业务红线 E2E", () => {
   const missingVersionId = "00000000-0000-4000-8000-566093a50000";
@@ -54,6 +55,9 @@ describe("关键业务红线 E2E", () => {
     ["post", "/api/v1/courses/drafts/d1/publish", undefined],
     ["post", "/api/v1/admin/competitions/c1/publish", undefined],
     ["put", "/api/v1/ops/tasks/t1/approval", { approved: true }],
+    ["post", "/api/v1/ai/collaborations/p1/review", { action: "approved" }],
+    ["post", "/api/v1/ai/collaborations/p1/execute", undefined],
+    ["post", "/api/v1/ai/collaborations/p1/feedback", { rating: 5 }],
     ["post", "/api/v1/system/automation/toggle", { enabled: true }],
     ["put", "/api/v1/admin/roles/OPERATION_ADMIN/permissions", { permissions: [] }],
     ["post", "/api/v1/identity/admin/approve/i1", { remark: "QA" }],
@@ -92,6 +96,55 @@ describe("关键业务红线 E2E", () => {
       .post(`/api/v1/system/version/${missingVersionId}/rollback`)
       .set("Authorization", `Bearer ${token}`)
       .expect(404);
+  });
+
+  it("真人协作执行和反馈进入业务层，不存在提案返回 404", async () => {
+    prisma.aiCollaboration.findUnique.mockResolvedValue(null);
+    await request(app.getHttpServer()).post("/api/v1/ai/collaborations/missing/execute")
+      .set("Authorization", `Bearer ${token}`).expect(404);
+    await request(app.getHttpServer()).post("/api/v1/ai/collaborations/missing/feedback")
+      .set("Authorization", `Bearer ${token}`).send({ rating: 4 }).expect(404);
+  });
+
+  it("生产模块注册安全巡检处理器，真人执行后保留报告证据", async () => {
+    prisma.aiCollaboration.findUnique.mockResolvedValue({
+      id: "p1", status: "approved", riskLevel: "low",
+      executionPlan: { handlerKey: "ops.run_inspection" },
+    });
+    const inspection = jest.spyOn(app.get(InspectionService), "runInspection").mockResolvedValue({
+      date: "2026-09-02", trigger: "MANUAL", automationEnabled: false,
+      anomalies: 0, autoFixed: 0, tasksCreated: 0, reportTaskId: "report-e2e", items: [],
+    });
+    try {
+      const detail = await request(app.getHttpServer()).get("/api/v1/ai/collaborations/p1")
+        .set("Authorization", `Bearer ${token}`).expect(200);
+      expect(detail.body.executionCapability).toMatchObject({ executionReady: true, rollbackReady: false });
+      await request(app.getHttpServer()).post("/api/v1/ai/collaborations/p1/execute")
+        .set("Authorization", `Bearer ${token}`).expect(201);
+      expect(inspection).toHaveBeenCalledWith("MANUAL", { allowAutoFix: false });
+      expect(prisma.aiCollaboration.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ status: "executed", executionResult: expect.objectContaining({
+          executor: "admin-red-line", result: expect.objectContaining({ reportTaskId: "report-e2e" }),
+        }) }),
+      }));
+    } finally { inspection.mockRestore(); }
+  });
+
+  it("运营管理员可以查看提案，但不能替代超管执行", async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: "ops-admin", status: "ACTIVE", roles: [{ roleType: "OPERATION_ADMIN" }] });
+    prisma.aiCollaboration.findUnique.mockResolvedValue({ id: "p1", executionPlan: {} });
+    await request(app.getHttpServer()).get("/api/v1/ai/collaborations/p1")
+      .set("Authorization", `Bearer ${token}`).expect(200);
+    await request(app.getHttpServer()).post("/api/v1/ai/collaborations/p1/execute")
+      .set("Authorization", `Bearer ${token}`).expect(403);
+  });
+
+  it("协作反馈拒绝小数评分，账本入口拒绝绕过协作单独审结", async () => {
+    await request(app.getHttpServer()).post("/api/v1/ai/collaborations/p1/feedback")
+      .set("Authorization", `Bearer ${token}`).send({ rating: 1.5 }).expect(400);
+    prisma.aiCollaboration.findFirst.mockResolvedValueOnce({ id: "p1" });
+    await request(app.getHttpServer()).post("/api/v1/ai/decisions/d1/review")
+      .set("Authorization", `Bearer ${token}`).send({ action: "approved" }).expect(400);
   });
 
   it.each([

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import type { Prisma } from "@prisma/client";
 import { BusinessException } from "../../common/business.exception";
 import { ErrorCode } from "../../common/error-codes";
 import { PrismaService } from "../../prisma/prisma.service";
@@ -70,7 +71,7 @@ export class DecisionLedgerService {
   ) {}
 
   /** 记录 AI 决策 */
-  async record(decision: AiDecisionRecord): Promise<string> {
+  async record(decision: AiDecisionRecord, tx?: Prisma.TransactionClient): Promise<string> {
     const safeReasoning = decision.reasoning
       ? {
           summary: decision.reasoning.summary?.slice(0, 2000),
@@ -81,7 +82,7 @@ export class DecisionLedgerService {
           })),
         }
       : undefined;
-    const created = await this.prisma.aiDecision.create({
+    const created = await (tx ?? this.prisma).aiDecision.create({
       data: {
         agentId: decision.agentId,
         capabilityId: decision.capabilityId || null,
@@ -109,8 +110,11 @@ export class DecisionLedgerService {
     action: "approved" | "rejected" | "modified",
     reviewer: string,
     note?: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    const before = await this.prisma.aiDecision.findUnique({
+    if (!tx) await this.assertStandaloneDecision(decisionId);
+    const client = tx ?? this.prisma;
+    const before = await client.aiDecision.findUnique({
       where: { id: decisionId },
       select: { humanAction: true, riskLevel: true },
     });
@@ -125,7 +129,7 @@ export class DecisionLedgerService {
       );
     }
 
-    const changed = await this.prisma.aiDecision.updateMany({
+    const changed = await client.aiDecision.updateMany({
       where: { id: decisionId, humanAction: null },
       data: {
         humanAction: action,
@@ -148,8 +152,10 @@ export class DecisionLedgerService {
     expectedValue: number,
     actualValue: number,
     measuredBy: string,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    const changed = await this.prisma.aiDecision.updateMany({
+    if (!tx) await this.assertStandaloneDecision(decisionId);
+    const changed = await (tx ?? this.prisma).aiDecision.updateMany({
       where: { id: decisionId },
       data: {
         outcomeMetric: metric,
@@ -160,6 +166,17 @@ export class DecisionLedgerService {
       },
     });
     if (changed.count === 0) throw new BusinessException(ErrorCode.NOT_FOUND, "AI 决策不存在");
+  }
+
+  /** 协作关联决策由协作事务统一维护，禁止另一入口单独审结或改写反馈。 */
+  private async assertStandaloneDecision(decisionId: string): Promise<void> {
+    const linked = await this.prisma.aiCollaboration.findFirst({
+      where: { decisionId },
+      select: { id: true },
+    });
+    if (linked) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "该决策关联协作提案，请在 AI 协作审核中处理审核和反馈");
+    }
   }
 
   /** 查询决策历史 */

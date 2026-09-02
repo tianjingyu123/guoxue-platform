@@ -7,6 +7,7 @@ import {
   ReviewCollaborationDto,
   RollbackCollaborationDto,
   FeedbackCollaborationDto,
+  QueryCollaborationDto,
 } from "./dto/ai-infra.dto";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
@@ -53,13 +54,14 @@ export class CollaborationController {
       id,
       body.action,
       req.user.id,
-      body.modifications as any,
+      body.modifications,
       body.note,
     );
     return { success: true };
   }
 
   @Post(":id/execute")
+  @RedLineGate(RedLine.COMPLIANCE)
   @Roles("SUPER_ADMIN")
   @ApiOperation({ summary: "通过已注册的受控动作处理器执行建议" })
   @ApiResponse({ status: 201, description: "创建成功" })
@@ -79,14 +81,15 @@ export class CollaborationController {
   async rollback(
     @Param("id") id: string,
     @Req() req: AuthRequest,
-    @Body() _body?: RollbackCollaborationDto,
+    @Body() body?: RollbackCollaborationDto,
   ) {
     // operator 从登录态注入
-    await this.collaboration.rollback(id, req.user.id);
+    await this.collaboration.rollback(id, req.user.id, body?.reason);
     return { success: true };
   }
 
   @Post(":id/feedback")
+  @RedLineGate(RedLine.COMPLIANCE)
   @ApiOperation({ summary: "记录反馈评分" })
   @ApiResponse({ status: 201, description: "创建成功" })
   @ApiResponse({ status: 400, description: "参数校验失败" })
@@ -108,22 +111,8 @@ export class CollaborationController {
   @ApiQuery({ name: "proposedBy", required: false })
   @ApiQuery({ name: "limit", required: false })
   @ApiQuery({ name: "offset", required: false })
-  async query(
-    @Query("status") status?: string,
-    @Query("riskLevel") riskLevel?: string,
-    @Query("type") type?: string,
-    @Query("proposedBy") proposedBy?: string,
-    @Query("limit") limit?: string,
-    @Query("offset") offset?: string,
-  ) {
-    return this.collaboration.query({
-      status,
-      riskLevel,
-      type,
-      proposedBy,
-      limit: limit ? Number(limit) : undefined,
-      offset: offset ? Number(offset) : undefined,
-    });
+  async query(@Query() query: QueryCollaborationDto) {
+    return this.collaboration.query(query);
   }
 
   @Get("pending")

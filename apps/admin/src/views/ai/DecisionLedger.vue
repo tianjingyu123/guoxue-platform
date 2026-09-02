@@ -247,7 +247,7 @@
         >
           <template #default="{ row }">
             <el-button
-              v-if="!row.humanAction"
+              v-if="!row.humanAction && row.modelId !== 'collaboration'"
               size="small"
               text
               type="primary"
@@ -256,7 +256,7 @@
               审核
             </el-button>
             <el-button
-              v-if="isSuperAdmin"
+              v-if="isSuperAdmin && row.modelId !== 'collaboration'"
               size="small"
               text
               type="success"
@@ -264,6 +264,13 @@
             >
               {{ row.outcomeMetric ? "更新效果" : "记录效果" }}
             </el-button>
+            <router-link
+              v-if="row.modelId === 'collaboration'"
+              to="/ai/collaborations"
+              @click.stop
+            >
+              前往协作审核
+            </router-link>
             <el-button
               size="small"
               text
@@ -488,6 +495,12 @@
       title="模型版本对比"
       width="520px"
     >
+      <el-alert
+        title="当前仅对比模型自评置信度，不代表准确率或业务效果，不能据此自动切换模型。"
+        type="warning"
+        :closable="false"
+        style="margin-bottom:16px"
+      />
       <el-form label-width="90px">
         <el-form-item
           label="智能体"
@@ -661,7 +674,7 @@ const comparisonTitle = computed(() => {
   if (!comparison.value) return "";
   return comparison.value.winner === "tie"
     ? "两个模型当前持平"
-    : `${comparison.value.winner} 当前指标更优`;
+    : `${comparison.value.winner} 自评置信度较高`;
 });
 
 onMounted(refreshAll);

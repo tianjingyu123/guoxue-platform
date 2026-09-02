@@ -2,6 +2,8 @@ import { Module } from "@nestjs/common";
 import { OpsController } from "./ops.controller";
 import { OpsService } from "./ops.service";
 import { InspectionService } from "./inspection.service";
+import { AiGatewayModule } from "../ai-gateway/ai-gateway.module";
+import { CollaborationInspectionService } from "./collaboration-inspection.service";
 
 /**
  * 数字员工运营 OS（OS-P1/P2）— 任务池 + 一键接管守卫示范 + 每日巡检分级处置
@@ -12,8 +14,9 @@ import { InspectionService } from "./inspection.service";
  * strict:false 惰性取全局单例，不在此重复注册 provider（避免 @Cron 重复挂载）。
  */
 @Module({
+  imports: [AiGatewayModule],
   controllers: [OpsController],
-  providers: [OpsService, InspectionService],
+  providers: [OpsService, InspectionService, CollaborationInspectionService],
   exports: [OpsService, InspectionService],
 })
 export class OpsModule {}

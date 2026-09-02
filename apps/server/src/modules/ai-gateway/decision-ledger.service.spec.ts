@@ -16,6 +16,7 @@ describe("DecisionLedgerService", () => {
       deleteMany: jest.fn(),
     },
     aiEvent: { findFirst: jest.fn() },
+    aiCollaboration: { findFirst: jest.fn() },
   };
   const redis = { runExclusive: jest.fn() };
   let service: DecisionLedgerService;
@@ -26,6 +27,7 @@ describe("DecisionLedgerService", () => {
     prisma.aiDecision.findMany.mockResolvedValue([]);
     prisma.aiDecision.count.mockResolvedValue(0);
     prisma.aiEvent.findFirst.mockResolvedValue(null);
+    prisma.aiCollaboration.findFirst.mockResolvedValue(null);
     service = new DecisionLedgerService(
       prisma as unknown as LedgerConstructorArgs[0],
       redis as unknown as LedgerConstructorArgs[1],
@@ -118,5 +120,12 @@ describe("DecisionLedgerService", () => {
       status: 404,
     });
     expect(prisma.aiDecision.findMany).not.toHaveBeenCalled();
+  });
+
+  it("协作关联决策不可从账本入口独立审核或覆盖验收", async () => {
+    prisma.aiCollaboration.findFirst.mockResolvedValue({ id: "p1" });
+    await expect(service.reviewDecision("d1", "approved", "a1")).rejects.toThrow("AI 协作审核");
+    await expect(service.recordOutcome("d1", "score", 5, 5, "a1")).rejects.toThrow("AI 协作审核");
+    expect(prisma.aiDecision.updateMany).not.toHaveBeenCalled();
   });
 });

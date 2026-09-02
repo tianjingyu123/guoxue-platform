@@ -9,6 +9,8 @@ import { DashboardDailyService } from "../dashboard/dashboard-daily.service";
 import { MerchantMetricService } from "../merchant/merchant-metric.service";
 import { OpsService } from "./ops.service";
 import { OpsTaskPriority } from "./ops.dto";
+import { BusinessException } from "../../common/business.exception";
+import { ErrorCode } from "../../common/error-codes";
 
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -100,19 +102,34 @@ export class InspectionService {
   async dailyInspectionCron(): Promise<void> {
     await this.redis.runExclusive("ops-inspection", 600, async () => {
       try {
-        const r = await this.runInspection("CRON");
+        const r = await this.runLockedInspection("CRON");
         this.logger.log(`每日巡检完成 ${r.date}：异常 ${r.anomalies} 项·自动处置 ${r.autoFixed}·转人工 ${r.tasksCreated}`);
       } catch (e) {
         this.logger.error("每日巡检失败", e instanceof Error ? e.stack : String(e));
       }
-    });
+    }, { critical: true });
   }
 
   /** 执行一轮巡检（五项检查 → 分级处置 → 落巡检报告任务）。手动端点与 cron 共用 */
-  async runInspection(trigger: "CRON" | "MANUAL" = "MANUAL"): Promise<InspectionReport> {
+  async runInspection(
+    trigger: "CRON" | "MANUAL" = "MANUAL",
+    options: { allowAutoFix?: boolean } = {},
+  ): Promise<InspectionReport> {
+    const report = await this.redis.runExclusive("ops-inspection", 600,
+      () => this.runLockedInspection(trigger, options), { critical: true });
+    if (!report) {
+      throw new BusinessException(ErrorCode.BAD_REQUEST, "巡检正在运行或分布式锁不可用，请稍后重试");
+    }
+    return report;
+  }
+
+  private async runLockedInspection(
+    trigger: "CRON" | "MANUAL",
+    options: { allowAutoFix?: boolean } = {},
+  ): Promise<InspectionReport> {
     const date = this.dateStrShanghai(0);
     // 开关读取失败按"关"保守处理：只建任务不动手
-    const automationEnabled = await this.systemService.isAutomationEnabled().catch((e) => {
+    const automationEnabled = options.allowAutoFix !== false && await this.systemService.isAutomationEnabled().catch((e) => {
       this.logger.warn(`自动化开关读取失败，本轮按关闭处理：${e instanceof Error ? e.message : String(e)}`);
       return false;
     });
