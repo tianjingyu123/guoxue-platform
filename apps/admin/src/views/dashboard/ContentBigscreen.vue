@@ -137,13 +137,15 @@
   </TopicScreenFrame>
 </template>
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { bigscreenApi } from '@/api'
 import TopicScreenFrame from '@/components/TopicScreenFrame.vue'
 import { useTopicSnapshot } from '@/composables/useTopicSnapshot'
 import { contentKinds, contentMosaic, distribution, metric, percent, proportion, type ContentScreen } from '@/utils/topic-screen'
 const { snapshot, data, refresh } = useTopicSnapshot<ContentScreen>(token => bigscreenApi.contentEco(token, true))
 const selected = ref<string | null>(null)
+// 权限快照清空时同步丢弃交互上下文；普通断线保留快照，不重置有效选择。
+watch(() => snapshot.value.data, value => { if (!value) selected.value = null }, { flush: 'sync' })
 const selectedKind = computed(() => contentKinds.find(kind => kind.key === selected.value))
 const mosaic = computed(() => contentMosaic(data.value))
 const creators = computed(() => Array.isArray(data.value.topCreators) ? data.value.topCreators : [])

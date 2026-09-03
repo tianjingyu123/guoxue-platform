@@ -139,6 +139,8 @@ import { useTopicSnapshot } from '@/composables/useTopicSnapshot'
 import { distribution, metric, percent, proportion, type AiScreen } from '@/utils/topic-screen'
 const { snapshot, data, refresh } = useTopicSnapshot<AiScreen>(token => bigscreenApi.aiCapability(token, true))
 const selectedScene = ref<string | null>(null), selectedModel = ref<string | null>(null)
+// 必须在新身份响应到达前同步清空，不能仅依赖异步分布监听清理旧选择。
+watch(() => snapshot.value.data, value => { if (!value) { selectedScene.value = null; selectedModel.value = null } }, { flush: 'sync' })
 const scenes = computed(() => distribution(Array.isArray(data.value.sceneDistribution) ? data.value.sceneDistribution.map(item => ({ key: JSON.stringify(item.scene), label: item.scene || '未标注场景', value: item.count })) : undefined))
 const models = computed(() => distribution(Array.isArray(data.value.modelDistribution) ? data.value.modelDistribution.map(item => ({ key: JSON.stringify(item.model), label: item.model || '未标注模型', value: item.count })) : undefined))
 const selectedSceneItem = computed(() => scenes.value.items.find(item => item.key === selectedScene.value))

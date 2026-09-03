@@ -190,6 +190,8 @@ import { compactMetric, distribution, metric, percent, quotient, selectedDistrib
 const { snapshot, data, refresh } = useTopicSnapshot<TransactionScreen>(token => bigscreenApi.transactions(token, true), 15000)
 const mode = ref<'amount' | 'count'>('amount')
 const selected = ref<string | null>(null)
+// 筛选与统计视角属于当前权限快照，不跨账号、令牌或撤权恢复继承。
+watch(() => snapshot.value.data, value => { if (!value) { selected.value = null; mode.value = 'amount' } }, { flush: 'sync' })
 const orders = computed(() => Array.isArray(data.value.recentOrders) ? data.value.recentOrders : [])
 const breakdown = computed(() => Array.isArray(data.value.typeBreakdown) ? data.value.typeBreakdown : undefined)
 const kinds = computed(() => Array.from(new Set([...(breakdown.value ?? []).map(item => item.type), ...orders.value.map(order => order.type)])))

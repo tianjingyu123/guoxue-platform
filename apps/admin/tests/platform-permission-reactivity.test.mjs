@@ -26,6 +26,18 @@ const source = file => readFileSync(new URL(`../src/${file}`, import.meta.url), 
 const topic = moduleFrom(source('utils/topic-screen.ts'), {})
 const signals = moduleFrom(source('utils/platform-signals.ts'), {})
 const platform = moduleFrom(source('utils/platform-screen.ts'), {})
+const topicViews = {
+  transaction: { file: 'TransactionBigscreen', key: 'transactions', selected: { selected: 'PRODUCT', mode: 'count' }, cleared: { selected: null, mode: 'amount' } },
+  content: { file: 'ContentBigscreen', key: 'content', selected: { selected: 'totalPosts' }, cleared: { selected: null } },
+  ai: { file: 'AiBigscreen', key: 'ai', selected: { selectedScene: '"测试场景"', selectedModel: '"测试模型"' }, cleared: { selectedScene: null, selectedModel: null } },
+  offline: { file: 'OfflineBigscreen', key: 'offline', selected: { query: '测试驿站', selectedCity: '测试城市' }, cleared: { query: '', selectedCity: null } },
+}
+const topicData = {
+  transactions: { typeBreakdown: [{ type: 'PRODUCT', amount: 10, count: 1 }], recentOrders: [{ id: 'fake-order', type: 'PRODUCT', amount: 10 }] },
+  content: { totalArticles: 1, totalPosts: 2, totalCourses: 0, totalVideos: 0, totalContent: 3 },
+  ai: { sceneDistribution: [{ scene: '测试场景', count: 1 }], modelDistribution: [{ model: '测试模型', count: 1 }] },
+  offline: { cityDistribution: [{ city: '测试城市', count: 1 }], stations: [{ id: 'fake-station', city: '测试城市', name: '测试驿站' }] },
+}
 const renderer = vue.createRenderer({
   createElement: type => ({ type }), createText: text => ({ text }), createComment: text => ({ text }),
   insert() {}, remove() {}, setText(node, text) { node.text = text }, setElementText() {},
@@ -44,7 +56,7 @@ function fixture(t, mode = 'platform') {
   const calls = [], replies = {}
   const request = key => async (token, inlineError) => {
     calls.push({ key, token, inlineError })
-    return replies[key] ? replies[key]() : { data: key === 'platform' ? { totalUsers: 15, totalCircles: 1, updatedAt: '2026-09-03T10:00:00Z' } : { marker: `private-${key}` } }
+    return replies[key] ? replies[key]() : { data: key === 'platform' ? { totalUsers: 15, totalCircles: 1, updatedAt: '2026-09-03T10:00:00Z' } : { marker: `private-${key}`, updatedAt: '2026-09-03T10:00:00Z', ...topicData[key] } }
   }
   const stubs = {
     'vue-router': { useRoute: () => route }, '@/store/auth': { useAuthStore: () => auth },
@@ -53,14 +65,18 @@ function fixture(t, mode = 'platform') {
   }
   stubs['@/composables/useBigscreenContext'] = moduleFrom(source('composables/useBigscreenContext.ts'), stubs)
   stubs['@/composables/usePlatformSignals'] = moduleFrom(source('composables/usePlatformSignals.ts'), stubs)
+  stubs['@/composables/useTopicSnapshot'] = moduleFrom(source('composables/useTopicSnapshot.ts'), stubs)
+  stubs['@/components/TopicScreenFrame.vue'] = {}
+  stubs['@/components/TopicBreakdown.vue'] = {}
   stubs['@/components/BigscreenActions.vue'] = {}
   stubs['@/components/PlatformIntelligence.vue'] = {}
   stubs['@/lib/brand'] = { BRAND: { platformName: '隔离测试' } }
   stubs['@element-plus/icons-vue'] = { Box: {}, Collection: {}, Connection: {}, Document: {}, Reading: {} }
   stubs['@/styles/platform-command.css'] = {}
   let setup
-  if (mode === 'platform') {
-    const { descriptor } = parse(source('views/dashboard/PlatformBigscreen.vue'))
+  if (mode !== 'topic') {
+    const file = mode === 'platform' ? 'PlatformBigscreen' : topicViews[mode].file
+    const { descriptor } = parse(source(`views/dashboard/${file}.vue`))
     const script = compileScript(descriptor, { id: 'permission-regression-test' }).content
     setup = moduleFrom(script.replaceAll('import.meta.env.DEV', 'false'), stubs).default.setup
   } else {
@@ -173,3 +189,100 @@ test('跨标签会话变化同步失效；同页无感续期不清空同主体�
   await tick()
   assert.equal(f.exposed.data.value.totalUsers, 15)
 })
+
+function selectTopic(f, config) {
+  for (const [key, value] of Object.entries(config.selected)) f.exposed[key].value = value
+}
+function assertTopicState(f, expected) {
+  for (const [key, value] of Object.entries(expected)) assert.equal(f.exposed[key].value, value, `${key}必须符合当前权限上下文`)
+}
+
+for (const [mode, config] of Object.entries(topicViews)) {
+  for (const status of [401, 403]) test(`${mode}真实SFC ${status}后同步清空全部筛选，恢复同数据不重现旧选择`, async t => {
+    const f = fixture(t, mode)
+    await tick()
+    selectTopic(f, config)
+    await tick()
+    assertTopicState(f, config.selected)
+    f.replies[config.key] = async () => { throw deny(status) }
+    await f.exposed.refresh()
+    assertTopicState(f, config.cleared)
+    assert.deepEqual(f.exposed.data.value, {})
+    assert.equal(f.exposed.snapshot.value.forbidden, true)
+    delete f.replies[config.key]
+    await f.exposed.refresh()
+    await tick()
+    assert.equal(f.exposed.data.value.marker, `private-${config.key}`)
+    assertTopicState(f, config.cleared)
+  })
+
+  test(`${mode}真实SFC上下文切换立即重置筛选，晚到响应不恢复旧状态`, async t => {
+    const f = fixture(t, mode)
+    await tick()
+    selectTopic(f, config)
+    const late = deferred()
+    f.replies[config.key] = () => late.promise
+    const pending = f.exposed.refresh()
+    f.auth.user = { id: 'account-B' }
+    assertTopicState(f, config.cleared)
+    delete f.replies[config.key]
+    await tick()
+    selectTopic(f, config)
+    late.resolve({ data: { ...topicData[config.key], marker: 'account-A-late' } })
+    await pending
+    assert.notEqual(f.exposed.data.value.marker, 'account-A-late')
+    assertTopicState(f, config.selected)
+    const changes = [
+      () => { f.auth.roles = ['FINANCE_ADMIN'] },
+      () => { f.auth.token = 'fake-account-B-relogin' },
+      () => { f.route.query = { token: 'fake-new-topic-token' } },
+      () => { const event = new Event('storage'); Object.assign(event, { key: 'token', storageArea: f.local }); f.hostWindow.dispatchEvent(event) },
+    ]
+    for (const change of changes) {
+      selectTopic(f, config)
+      change()
+      assertTopicState(f, config.cleared)
+      await tick()
+    }
+  })
+
+  test(`${mode}真实SFC空值或数组专题令牌清空筛选且不降级登录JWT`, async t => {
+    const f = fixture(t, mode)
+    await tick()
+    for (const token of ['', null, ['fake-a', 'fake-b']]) {
+      selectTopic(f, config)
+      const before = f.calls.length
+      f.route.query = { token }
+      assertTopicState(f, config.cleared)
+      await tick()
+      assert.equal(f.calls.length, before)
+      assert.equal(f.exposed.snapshot.value.forbidden, true)
+      f.route.query = {}
+      await tick()
+      assertTopicState(f, config.cleared)
+    }
+  })
+
+  test(`${mode}普通刷新、断线恢复与同主体续期保留有效筛选`, async t => {
+    const f = fixture(t, mode)
+    await tick()
+    selectTopic(f, config)
+    await f.exposed.refresh()
+    await tick()
+    assertTopicState(f, config.selected)
+    f.replies[config.key] = async () => { throw new Error('offline') }
+    await f.exposed.refresh()
+    await tick()
+    assertTopicState(f, config.selected)
+    assert.equal(f.exposed.snapshot.value.failed, true)
+    assert.equal(f.exposed.snapshot.value.forbidden, false)
+    assert.equal(f.exposed.data.value.marker, `private-${config.key}`)
+    f.local.setItem('token', 'fake-same-account-refresh')
+    await tick()
+    assertTopicState(f, config.selected)
+    delete f.replies[config.key]
+    await f.exposed.refresh()
+    await tick()
+    assertTopicState(f, config.selected)
+  })
+}

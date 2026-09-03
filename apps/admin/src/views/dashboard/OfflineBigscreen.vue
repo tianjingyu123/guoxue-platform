@@ -142,5 +142,7 @@ const cities = computed(() => distribution(cityRows.value?.map(city => ({ key: c
 const cityCount = computed(() => coveredCityCount(cityRows.value))
 const filtered = computed(() => filterStations(Array.isArray(data.value.stations) ? data.value.stations : undefined, selectedCity.value, query.value))
 function clearFilters() { query.value = ''; selectedCity.value = null }
+// 隐藏列表不等于清除状态，撤权或身份切换时同步清理搜索词和城市。
+watch(() => snapshot.value.data, value => { if (!value) clearFilters() }, { flush: 'sync' })
 watch(cities, value => { if (selectedCity.value !== null && !value.items.some(item => item.key === selectedCity.value)) selectedCity.value = null })
 </script>
