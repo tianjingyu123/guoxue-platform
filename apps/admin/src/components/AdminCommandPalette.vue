@@ -5,6 +5,7 @@
     class="command-dialog"
     :show-close="false"
     :lock-scroll="true"
+    @opened="focusSearchInput"
     @closed="reset"
   >
     <template #header>
@@ -23,6 +24,8 @@
       size="large"
       clearable
       aria-label="搜索后台功能"
+      aria-controls="admin-command-results"
+      :aria-activedescendant="activeOptionId"
       placeholder="输入页面或业务名称，例如：退款、商家、审计日志"
       class="command-input"
       @keydown="handleInputKeydown"
@@ -39,12 +42,14 @@
 
     <div
       v-if="displayEntries.length"
+      id="admin-command-results"
       class="command-results"
       role="listbox"
       aria-label="后台页面搜索结果"
     >
       <button
         v-for="(entry, index) in displayEntries"
+        :id="`admin-command-option-${index}`"
         :key="entry.path"
         type="button"
         role="option"
@@ -106,13 +111,18 @@ const props = defineProps<{
   modelValue: boolean;
   items: MenuItem[];
 }>();
-const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
+const emit = defineEmits<{
+  "update:modelValue": [value: boolean];
+  navigated: [];
+}>();
 
 const router = useRouter();
 const route = useRoute();
 const inputRef = ref<InputInstance>();
 const query = ref("");
 const activeIndex = ref(0);
+const pendingFocusPath = ref<string | null>(null);
+const dialogHasClosed = ref(false);
 
 const visible = computed({
   get: () => props.modelValue,
@@ -164,15 +174,21 @@ const displayEntries = computed(() => {
     .slice(0, 12)
     .map(({ entry }) => entry);
 });
+const activeOptionId = computed(() => displayEntries.value.length ? `admin-command-option-${activeIndex.value}` : undefined);
 
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return;
+    dialogHasClosed.value = false;
     activeIndex.value = 0;
-    void nextTick(() => inputRef.value?.focus());
   },
 );
+
+function focusSearchInput() {
+  // 等弹窗记录原焦点后再聚焦输入框，关闭时才能正确回到触发位置。
+  void nextTick(() => inputRef.value?.focus());
+}
 
 watch(query, () => { activeIndex.value = 0; });
 
@@ -221,13 +237,25 @@ function onGlobalShortcut(event: KeyboardEvent) {
 }
 
 async function go(path: string) {
+  pendingFocusPath.value = path;
   visible.value = false;
   if (route.path !== path) await router.push(path);
+  emitNavigationReady();
 }
 
 function reset() {
+  dialogHasClosed.value = true;
   query.value = "";
   activeIndex.value = 0;
+  emitNavigationReady();
+}
+
+function emitNavigationReady() {
+  if (!dialogHasClosed.value || !pendingFocusPath.value) return;
+  const expectedPath = router.resolve(pendingFocusPath.value).path;
+  if (route.path !== expectedPath) return;
+  pendingFocusPath.value = null;
+  emit("navigated");
 }
 
 onMounted(() => window.addEventListener("keydown", onGlobalShortcut));

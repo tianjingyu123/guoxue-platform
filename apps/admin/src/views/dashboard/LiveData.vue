@@ -12,6 +12,7 @@
  * Route meta: roles ["SUPER_ADMIN", "OPERATION_ADMIN"]
  */
 import { ref } from 'vue'
+import type { ChartOption } from '@/utils/chart'
 import type { Component } from 'vue'
 import { dashboardApi, liveApi } from '@/api'
 import ChartCard from '@/components/ChartCard.vue'
@@ -61,8 +62,7 @@ const data = ref<LiveDashboard | null>(null)
 
 interface CardDef { label: string; value: string; icon: Component; hint?: string }
 const cards = ref<CardDef[]>([])
-// ECharts option 为复杂联合类型，保留 any
-const interactionOption = ref<any>(null)
+const interactionOption = ref<ChartOption | null>(null)
 
 // ==================== 格式化 ====================
 function fmtNum(v: number | null | undefined): string {

@@ -63,61 +63,61 @@
         </el-result>
 
         <!-- 正常结果 -->
-        <template v-else>
+        <template v-else-if="currentResult">
           <el-collapse v-model="resultCollapse">
-          <el-collapse-item
-            title="生成的 SQL"
-            name="sql"
-          >
-            <pre class="sql-block">{{ currentResult.sql }}</pre>
-          </el-collapse-item>
-        </el-collapse>
+            <el-collapse-item
+              title="生成的 SQL"
+              name="sql"
+            >
+              <pre class="sql-block">{{ currentResult.sql }}</pre>
+            </el-collapse-item>
+          </el-collapse>
 
-        <div
-          v-if="currentResult.chartSuggestion"
-          class="chart-suggestion"
-        >
-          <el-icon><TrendCharts /></el-icon>
-          <el-tag
-            :type="chartTagType(currentResult.chartSuggestion.type)"
-            size="small"
+          <div
+            v-if="currentResult.chartSuggestion"
+            class="chart-suggestion"
           >
-            {{ chartLabel(currentResult.chartSuggestion.type) }}
-          </el-tag>
-          <span style="font-size:13px;font-weight:500">{{ currentResult.chartSuggestion.title }}</span>
-        </div>
+            <el-icon><TrendCharts /></el-icon>
+            <el-tag
+              :type="chartTagType(currentResult.chartSuggestion.type)"
+              size="small"
+            >
+              {{ chartLabel(currentResult.chartSuggestion.type) }}
+            </el-tag>
+            <span style="font-size:13px;font-weight:500">{{ currentResult.chartSuggestion.title }}</span>
+          </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span style="font-size:13px;color:var(--color-text-body)">
-            查询结果（{{ currentResult.rowCount || 0 }} 条）
-          </span>
-          <el-button
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <span style="font-size:13px;color:var(--color-text-body)">
+              查询结果（{{ currentResult.rowCount || 0 }} 条）
+            </span>
+            <el-button
+              v-if="currentResult.rowCount > 0"
+              size="small"
+              @click="exportCsv"
+            >
+              导出 CSV
+            </el-button>
+          </div>
+
+          <el-table
             v-if="currentResult.rowCount > 0"
+            :data="currentResult.data"
+            stripe
+            border
             size="small"
-            @click="exportCsv"
+            max-height="300"
+            style="width:100%"
           >
-            导出 CSV
-          </el-button>
-        </div>
-
-        <el-table
-          v-if="currentResult.rowCount > 0"
-          :data="currentResult.data"
-          stripe
-          border
-          size="small"
-          max-height="300"
-          style="width:100%"
-        >
-          <el-table-column
-            v-for="col in dataColumns"
-            :key="col"
-            :prop="col"
-            :label="col"
-            min-width="100"
-            show-overflow-tooltip
-          />
-        </el-table>
+            <el-table-column
+              v-for="col in dataColumns"
+              :key="col"
+              :prop="col"
+              :label="col"
+              min-width="100"
+              show-overflow-tooltip
+            />
+          </el-table>
           <el-empty
             v-else
             description="无数据"
@@ -140,9 +140,14 @@ import { ElMessage } from 'element-plus'
 import { downloadCsvRows } from '@/utils/export'
 
 const chatRef = ref<InstanceType<typeof ChatUI>>()
-// 保留 any：模板 v-else 分支内对可空字段做算术比较（rowCount > 0）并绑定 el-table :data，
-// 收敛为具体类型会触发多处 possibly-null/undefined 报错，且无法在不改模板结构下消除
-const currentResult = ref<any>(null)
+interface DataExplorerResult {
+  sql: string
+  rowCount: number
+  data: Record<string, unknown>[]
+  aiSummary?: string
+  chartSuggestion?: { type: string; title: string }
+}
+const currentResult = ref<DataExplorerResult | null>(null)
 const resultCollapse = ref<string[]>(['sql'])
 const loading = ref(false)
 const queryErr = ref(false)

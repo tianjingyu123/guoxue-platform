@@ -265,6 +265,13 @@ const filterDefs = [
   ]},
 ]
 
+interface CommentListResponse {
+  items?: CommentRow[]
+  list?: CommentRow[]
+  data?: CommentRow[]
+  total?: number
+}
+
 const columns = [
   { prop: "id", label: "评论ID", width: 110, slot: "id" },
   { prop: "userName", label: "用户", width: 120 },
@@ -282,8 +289,7 @@ const { loading, tableData, pagination, filters, selection, fetchList, handleSea
   fetchApi: commentApi.getModerationList,
   defaultPageSize: 10,
   initialFilters: { status: "PUBLISHED" },
-  // data 为后端原始响应（useTable 回调边界，保留 any）
-  transformResponse: (data: any) => ({
+  transformResponse: (data: CommentListResponse) => ({
     items: (data.items ?? data.list ?? data.data ?? []).map((c: CommentRow) => ({
       ...c,
       userName: c.user?.nickname ?? '未知',
@@ -368,8 +374,9 @@ async function showComment(row: CommentRow) {
     await api.put(`/comment/${row.id}/show`)
     ElMessage.success("已恢复显示")
     fetchList()
-  } catch (err: any) {
-    if (err?.response?.status === 404) {
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status
+    if (status === 404) {
       showSupported.value = false
       ElMessage.warning("恢复显示接口待后端部署，暂不可用")
     }

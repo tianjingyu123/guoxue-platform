@@ -9,7 +9,7 @@ const props = defineProps<{
   result: BaziResult
 }>()
 
-const { siZhu, qiYun, fenXiTiShi, shenSha, geJu, wuXingEnergy, wangXiang, kongWang } = props.result
+const { fenXiTiShi, shenSha, geJu, wuXingEnergy, wangXiang, kongWang } = props.result
 
 const wuXingNames: Record<string, string> = { mu: '木', huo: '火', tu: '土', jin: '金', shui: '水' }
 

@@ -20,6 +20,12 @@ interface CompetitionRow {
   _count?: { registrations?: number };
 }
 
+interface CompetitionListResponse {
+  items?: CompetitionRow[]
+  data?: CompetitionRow[]
+  total?: number
+}
+
 const router = useRouter();
 
 const typeLabels: Record<string, string> = {
@@ -39,7 +45,6 @@ const statusLabels: Record<string, { text: string; type: string }> = {
   FINISHED: { text: "已结束", type: "" },
 };
 
-const levelLabels: Record<string, string> = { S: "S级", A: "A级", B: "B级" };
 const scoringModelLabels: Record<string, string> = {
   A: "全自动",
   B: "AI+评委",
@@ -61,7 +66,7 @@ const columns = [
 
 const error = ref(false);
 
-const { loading, tableData, pagination, filters, fetchList, handleSearch, handleReset } = useTable({
+const { loading, tableData, pagination, filters, fetchList, handleSearch } = useTable({
   fetchApi: async (params: Record<string, string | number>) => {
     error.value = false;
     try {
@@ -72,7 +77,7 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch, handle
     }
   },
   defaultPageSize: 20,
-  transformResponse: (data: any) => ({
+  transformResponse: (data: CompetitionListResponse) => ({
     items: data.items ?? data.data ?? [],
     total: data.total || 0,
   }),

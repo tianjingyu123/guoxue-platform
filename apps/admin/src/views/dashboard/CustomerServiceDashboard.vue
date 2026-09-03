@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, type Component } from 'vue'
+import { ref, shallowRef, onMounted, type Component } from 'vue'
+import type { ChartOption } from '@/utils/chart'
 import { useRouter } from 'vue-router'
 import { api } from '@/api'
 import {
@@ -15,21 +16,21 @@ interface AlertItem { text: string; count: number; level: 'critical' | 'warning'
 interface TrendInfo { pct: number }
 interface CardItem { label: string; value: number; icon: Component; highlight?: boolean; trend?: TrendInfo | null; route?: string }
 // option 为 echarts 配置对象，结构复杂，保留 any（框架类型）
-interface ChartItem { title: string; option: any }
+interface ChartItem { title: string; option: ChartOption }
 interface QuickAction { label: string; path: string; icon: Component; badge?: number }
 
 const username = ref('客服专员')
 const router = useRouter()
 
 // 角色专属快捷操作（仅指向 CUSTOMER_SERVICE 有权访问的管理页，避免 403）
-const quickActions = ref<QuickAction[]>([])
+const quickActions = shallowRef<QuickAction[]>([])
 
 function onCardClick(card: CardItem) {
   if (card.route) router.push(card.route)
 }
 
 const alerts = ref<AlertItem[]>([])
-const cards = ref<CardItem[]>([])
+const cards = shallowRef<CardItem[]>([])
 const charts = ref<ChartItem[]>([])
 const loading = ref(true)
 const loadError = ref(false)
@@ -157,111 +158,111 @@ async function load() {
       </template>
     </el-result>
     <template v-else>
-    <!-- 角色专属快捷操作 -->
-    <div class="quick-actions">
-      <div class="quick-actions__title">
-        快捷操作
-      </div>
-      <div class="quick-actions__grid">
-        <div
-          v-for="qa in quickActions"
-          :key="qa.path"
-          class="qa-card"
-          @click="router.push(qa.path)"
-        >
-          <el-badge
-            :value="qa.badge ?? 0"
-            :hidden="!qa.badge"
-            :max="99"
-            class="qa-badge"
-          >
-            <div class="qa-icon">
-              <el-icon :size="22">
-                <component :is="qa.icon" />
-              </el-icon>
-            </div>
-          </el-badge>
-          <span class="qa-label">{{ qa.label }}</span>
+      <!-- 角色专属快捷操作 -->
+      <div class="quick-actions">
+        <div class="quick-actions__title">
+          快捷操作
         </div>
-      </div>
-    </div>
-    <div
-      v-if="alerts.length"
-      class="alerts-row"
-    >
-      <AnomalyAlert
-        v-for="a in alerts"
-        :key="a.text"
-        v-bind="a"
-      />
-    </div>
-    <el-row
-      :gutter="20"
-      class="stats-row"
-    >
-      <el-col
-        v-for="card in cards"
-        :key="card.label"
-        :xs="24"
-        :sm="12"
-        :md="6"
-      >
-        <div
-          class="stat-card"
-          :class="{ 'stat-card--link': card.route }"
-          @click="onCardClick(card)"
-        >
-          <div class="stat-card__top">
-            <span class="stat-card__label">{{ card.label }}</span>
-            <div class="stat-card__icon">
-              <el-icon :size="18">
-                <component :is="card.icon" />
-              </el-icon>
-            </div>
-          </div>
-          <div class="stat-card__value">
-            <AnimatedCounter
-              :value="card.value"
-              :highlight="card.highlight"
-            />
-          </div>
+        <div class="quick-actions__grid">
           <div
-            v-if="card.trend"
-            class="stat-card__trend"
-            :class="card.trend.pct >= 0 ? 'up' : 'down'"
+            v-for="qa in quickActions"
+            :key="qa.path"
+            class="qa-card"
+            @click="router.push(qa.path)"
           >
-            <el-icon :size="12">
-              <component :is="card.trend.pct >= 0 ? CaretTop : CaretBottom" />
-            </el-icon>
-            <span>较昨日 {{ Math.abs(card.trend.pct) }}%</span>
+            <el-badge
+              :value="qa.badge ?? 0"
+              :hidden="!qa.badge"
+              :max="99"
+              class="qa-badge"
+            >
+              <div class="qa-icon">
+                <el-icon :size="22">
+                  <component :is="qa.icon" />
+                </el-icon>
+              </div>
+            </el-badge>
+            <span class="qa-label">{{ qa.label }}</span>
           </div>
         </div>
-      </el-col>
-    </el-row>
-    <el-row
-      :gutter="20"
-      class="charts-row"
-    >
-      <el-col
-        v-for="ch in charts"
-        :key="ch.title"
-        :xs="24"
-        :md="24"
+      </div>
+      <div
+        v-if="alerts.length"
+        class="alerts-row"
       >
-        <ChartCard
-          :title="ch.title"
-          :option="ch.option"
-          :height="320"
+        <AnomalyAlert
+          v-for="a in alerts"
+          :key="a.text"
+          v-bind="a"
         />
-      </el-col>
-      <el-col
-        v-if="!charts.length"
-        :xs="24"
-        :md="24"
+      </div>
+      <el-row
+        :gutter="20"
+        class="stats-row"
       >
-        <el-empty description="暂无订单趋势数据" />
-      </el-col>
-    </el-row>
+        <el-col
+          v-for="card in cards"
+          :key="card.label"
+          :xs="24"
+          :sm="12"
+          :md="6"
+        >
+          <div
+            class="stat-card"
+            :class="{ 'stat-card--link': card.route }"
+            @click="onCardClick(card)"
+          >
+            <div class="stat-card__top">
+              <span class="stat-card__label">{{ card.label }}</span>
+              <div class="stat-card__icon">
+                <el-icon :size="18">
+                  <component :is="card.icon" />
+                </el-icon>
+              </div>
+            </div>
+            <div class="stat-card__value">
+              <AnimatedCounter
+                :value="card.value"
+                :highlight="card.highlight"
+              />
+            </div>
+            <div
+              v-if="card.trend"
+              class="stat-card__trend"
+              :class="card.trend.pct >= 0 ? 'up' : 'down'"
+            >
+              <el-icon :size="12">
+                <component :is="card.trend.pct >= 0 ? CaretTop : CaretBottom" />
+              </el-icon>
+              <span>较昨日 {{ Math.abs(card.trend.pct) }}%</span>
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+      <el-row
+        :gutter="20"
+        class="charts-row"
+      >
+        <el-col
+          v-for="ch in charts"
+          :key="ch.title"
+          :xs="24"
+          :md="24"
+        >
+          <ChartCard
+            :title="ch.title"
+            :option="ch.option"
+            :height="320"
+          />
+        </el-col>
+        <el-col
+          v-if="!charts.length"
+          :xs="24"
+          :md="24"
+        >
+          <el-empty description="暂无订单趋势数据" />
+        </el-col>
+      </el-row>
     </template>
   </div>
 </template>

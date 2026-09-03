@@ -384,7 +384,7 @@ onMounted(fetchList)
             v-model="conditionText"
             type="textarea"
             :rows="5"
-            placeholder='JSON 对象，例如 {"op":"lt","value":1000,"window":"7d"}'
+            placeholder="JSON 对象，例如 {&quot;op&quot;:&quot;lt&quot;,&quot;value&quot;:1000,&quot;window&quot;:&quot;7d&quot;}"
           />
           <div class="field-tip">
             condition 为 JSON 对象，保存前会做格式校验
@@ -425,7 +425,7 @@ onMounted(fetchList)
             v-model="actionsText"
             type="textarea"
             :rows="5"
-            placeholder='JSON 数组，例如 [{"label":"查看数据","type":"navigate","target":"/station/analysis"}]'
+            placeholder="JSON 数组，例如 [{&quot;label&quot;:&quot;查看数据&quot;,&quot;type&quot;:&quot;navigate&quot;,&quot;target&quot;:&quot;/station/analysis&quot;}]"
           />
           <div class="field-tip">
             actions 为 JSON 数组（每项含 label / type / target），保存前会做格式校验

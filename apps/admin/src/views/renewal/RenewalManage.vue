@@ -194,55 +194,55 @@
             width="120"
             prop="user.nickname"
           />
-        <el-table-column
-          label="类型"
-          width="120"
-        >
-          <template #default="{ row }">
-            <el-tag size="small">
-              {{ typeLabel(row.targetType) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="金额"
-          width="100"
-          align="right"
-        >
-          <template #default="{ row }">
-            {{ fmtAmount(row.amount) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="续费天数"
-          width="100"
-          align="center"
-          prop="periodDays"
-        />
-        <el-table-column
-          label="原到期"
-          width="170"
-        >
-          <template #default="{ row }">
-            {{ row.prevExpireAt ? new Date(row.prevExpireAt).toLocaleString('zh-CN') : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="新到期"
-          width="170"
-        >
-          <template #default="{ row }">
-            {{ row.newExpireAt ? new Date(row.newExpireAt).toLocaleString('zh-CN') : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="时间"
-          width="170"
-        >
-          <template #default="{ row }">
-            {{ row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-' }}
-          </template>
-        </el-table-column>
+          <el-table-column
+            label="类型"
+            width="120"
+          >
+            <template #default="{ row }">
+              <el-tag size="small">
+                {{ typeLabel(row.targetType) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="金额"
+            width="100"
+            align="right"
+          >
+            <template #default="{ row }">
+              {{ fmtAmount(row.amount) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="续费天数"
+            width="100"
+            align="center"
+            prop="periodDays"
+          />
+          <el-table-column
+            label="原到期"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ row.prevExpireAt ? new Date(row.prevExpireAt).toLocaleString('zh-CN') : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="新到期"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ row.newExpireAt ? new Date(row.newExpireAt).toLocaleString('zh-CN') : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="时间"
+            width="170"
+          >
+            <template #default="{ row }">
+              {{ row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-' }}
+            </template>
+          </el-table-column>
         </el-table>
         <div
           v-if="historyTotal > pageSize"
@@ -330,9 +330,12 @@ async function fetchExpiring() {
     const { data } = await renewalApi.getExpiringUsers();
     const items: ExpiringRow[] = [];
     // userId 供「发送提醒」用：分站/研究院记录带 userId 字段，VIP 即用户本身（已亲核 renewal.service.ts select）
-    (data.expiringStations || []).forEach((s: any) => items.push({ _type: "STATION", name: s.name, expireAt: s.expireAt, daysLeft: calcDays(s.expireAt), userId: s.userId }));
-    (data.expiringInstituteMembers || []).forEach((m: any) => items.push({ _type: "INSTITUTE_MEMBER", name: m.institute?.name || m.id, expireAt: m.expireAt, daysLeft: calcDays(m.expireAt), userId: m.userId }));
-    (data.expiringVip || []).forEach((u: any) => items.push({ _type: "VIP", nickname: u.nickname, memberLevel: u.memberLevel, expireAt: u.memberExpire, daysLeft: calcDays(u.memberExpire), userId: u.id }));
+    const stations = (data.expiringStations || []) as Array<{ name?: string; expireAt?: string; userId?: string }>;
+    const members = (data.expiringInstituteMembers || []) as Array<{ id: string; institute?: { name?: string }; expireAt?: string; userId?: string }>;
+    const vips = (data.expiringVip || []) as Array<{ id: string; nickname?: string; memberLevel?: string; memberExpire?: string }>;
+    stations.forEach((s) => items.push({ _type: "STATION", name: s.name, expireAt: s.expireAt, daysLeft: calcDays(s.expireAt ?? null), userId: s.userId }));
+    members.forEach((m) => items.push({ _type: "INSTITUTE_MEMBER", name: m.institute?.name || m.id, expireAt: m.expireAt, daysLeft: calcDays(m.expireAt ?? null), userId: m.userId }));
+    vips.forEach((u) => items.push({ _type: "VIP", nickname: u.nickname, memberLevel: u.memberLevel, expireAt: u.memberExpire, daysLeft: calcDays(u.memberExpire ?? null), userId: u.id }));
     expiringData.value = items.sort((a, b) => (a.daysLeft || 999) - (b.daysLeft || 999));
   } catch {
     expiringData.value = [];

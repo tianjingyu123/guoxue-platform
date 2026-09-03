@@ -250,7 +250,7 @@
               size="small"
               effect="plain"
             >
-              {{ row.executorType === 'CLAUDE' ? '🤖 Claude' : '👤 人工' }}
+              {{ row.executorType === 'CLAUDE' ? 'Claude' : '人工' }}
             </el-tag>
             {{ row.executorId || '-' }}
           </span>
@@ -392,10 +392,10 @@
         <el-form-item label="执行者">
           <el-radio-group v-model="createForm.executorType">
             <el-radio-button value="CLAUDE">
-              🤖 Claude
+              Claude
             </el-radio-button>
             <el-radio-button value="HUMAN">
-              👤 人工
+              人工
             </el-radio-button>
           </el-radio-group>
           <el-input
@@ -469,7 +469,7 @@
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="执行者">
-            {{ current.executorType === 'CLAUDE' ? '🤖 Claude' : '👤 人工' }} {{ current.executorId || '-' }}
+            {{ current.executorType === 'CLAUDE' ? 'Claude' : '人工' }} {{ current.executorId || '-' }}
           </el-descriptions-item>
           <el-descriptions-item label="创建时间">
             {{ formatDate(current.createdAt) }}
@@ -553,10 +553,10 @@
         <el-form-item label="目标类型">
           <el-radio-group v-model="transferForm.toType">
             <el-radio-button value="CLAUDE">
-              🤖 Claude
+              Claude
             </el-radio-button>
             <el-radio-button value="HUMAN">
-              👤 人工
+              人工
             </el-radio-button>
           </el-radio-group>
         </el-form-item>

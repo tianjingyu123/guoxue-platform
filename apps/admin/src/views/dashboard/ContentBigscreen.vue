@@ -1,15 +1,18 @@
 <template>
   <div
     v-loading="loading"
-    class="bigscreen content-eco"
+    class="bigscreen tech-screen content-eco"
     element-loading-background="rgba(11,19,32,0.6)"
   >
     <header class="bs-header">
       <div class="bs-title">
         内容生态数据大屏
       </div>
-      <div class="bs-time">
-        {{ nowStr }}
+      <div class="bs-header-tools">
+        <div class="bs-time">
+          {{ nowStr }}
+        </div>
+        <BigscreenActions @resize="onResize" />
       </div>
     </header>
 
@@ -31,7 +34,8 @@
 
     <div
       v-else
-      class="bs-body">
+      class="bs-body"
+    >
       <!-- 总量指标 -->
       <div class="kpi-bar">
         <div class="kpi-item">
@@ -54,7 +58,7 @@
       <div class="bs-grid-2">
         <!-- 本月增长 -->
         <div class="bs-panel">
-          <h3>📈 近30天增长</h3>
+          <h3>近 30 天增长</h3>
           <div class="growth-cards">
             <div class="growth-card">
               <span>新增文章</span><strong>{{ data.monthGrowth?.articles || 0 }}</strong>
@@ -66,7 +70,7 @@
         </div>
         <!-- 创作者排行 -->
         <div class="bs-panel">
-          <h3>✍️ 创作者贡献榜 Top10</h3>
+          <h3>创作者贡献榜 · Top 10</h3>
           <div class="creator-list">
             <div
               v-for="(c, i) in (data.topCreators || [])"
@@ -91,7 +95,7 @@
 
       <!-- 内容构成（填充下半屏·补 mini 图表·仅有数据时渲染） -->
       <div class="bs-panel bs-panel--full">
-        <h3>📊 内容类型构成</h3>
+        <h3>内容类型构成</h3>
         <div
           v-show="hasComposition"
           ref="compChartRef"
@@ -113,6 +117,7 @@
 </template>
 
 <script setup lang="ts">
+import BigscreenActions from "@/components/BigscreenActions.vue";
 import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
@@ -149,7 +154,7 @@ const hasComposition = ref(false);
 
 function fmt(v: number | string | null | undefined) { return v != null ? Number(v).toLocaleString() : "0"; }
 
-function renderComposition() {
+async function renderComposition() {
   const d = data.value;
   const items = [
     { name: "文章", value: Number(d.totalArticles || 0), color: "#5cdb8a" },
@@ -163,9 +168,11 @@ function renderComposition() {
     compChart = null;
     return;
   }
+  // v-show 从隐藏切到可见需要等待布局提交，否则 ECharts 会按 0 宽容器初始化。
+  await nextTick();
   if (!compChartRef.value) return;
   if (!compChart) {
-    compChart = echarts.init(compChartRef.value);
+    compChart = echarts.init(compChartRef.value, "tech-screen");
     window.addEventListener("resize", onResize);
   }
   compChart.setOption({
@@ -192,7 +199,7 @@ async function fetchData() {
     data.value = d || {};
     loadError.value = false;
     await nextTick();
-    renderComposition();
+    await renderComposition();
   } catch {
     loadError.value = true;
   } finally {

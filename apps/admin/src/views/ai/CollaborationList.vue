@@ -14,7 +14,7 @@
         <div
           class="stat-card warn"
           style="cursor:pointer"
-          @click="filterStatus='pending_review';fetchList()"
+          @click="filterStatus='pending_review';resetFilters()"
         >
           <span class="value">{{ overview.pendingCount || 0 }}</span>
           <span class="label">待审核</span>
@@ -24,7 +24,7 @@
         <div
           class="stat-card info"
           style="cursor:pointer"
-          @click="filterStatus='approved';fetchList()"
+          @click="filterStatus='approved';resetFilters()"
         >
           <span class="value">{{ overview.approvedCount || 0 }}</span>
           <span class="label">已批准</span>
@@ -34,7 +34,7 @@
         <div
           class="stat-card"
           style="cursor:pointer"
-          @click="filterStatus='executed';fetchList()"
+          @click="filterStatus='executed';resetFilters()"
         >
           <span class="value">{{ overview.executedCount || 0 }}</span>
           <span class="label">已执行</span>
@@ -44,7 +44,7 @@
         <div
           class="stat-card danger"
           style="cursor:pointer"
-          @click="filterStatus='rejected';fetchList()"
+          @click="filterStatus='rejected';resetFilters()"
         >
           <span class="value">{{ overview.rejectedCount || 0 }}</span>
           <span class="label">已驳回</span>
@@ -72,7 +72,7 @@
         size="small"
         clearable
         style="width:130px"
-        @change="fetchList"
+        @change="resetFilters"
       >
         <el-option
           label="待审核"
@@ -94,6 +94,26 @@
           label="已回滚"
           value="rolled_back"
         />
+        <el-option
+          label="执行中"
+          value="executing"
+        />
+        <el-option
+          label="执行失败·待核查"
+          value="failed"
+        />
+        <el-option
+          label="回滚中"
+          value="rolling_back"
+        />
+        <el-option
+          label="回滚失败·待核查"
+          value="rollback_failed"
+        />
+        <el-option
+          label="已修改·需重新提案"
+          value="modified"
+        />
       </el-select>
       <el-select
         v-model="filterRisk"
@@ -101,7 +121,7 @@
         size="small"
         clearable
         style="width:120px"
-        @change="fetchList"
+        @change="resetFilters"
       >
         <el-option
           label="低风险"
@@ -199,7 +219,7 @@
         </el-table-column>
         <el-table-column
           label="状态"
-          width="100"
+          width="160"
         >
           <template #default="{ row }">
             <el-tag
@@ -247,7 +267,7 @@
         </el-table-column>
         <el-table-column
           label="操作"
-          width="200"
+          width="270"
           fixed="right"
         >
           <template #default="{ row }">
@@ -287,6 +307,14 @@
               回滚
             </el-button>
             <el-button
+              v-if="['executed', 'rolled_back'].includes(row.status) && row.feedbackRating == null"
+              size="small"
+              type="success"
+              @click.stop="openFeedback(row)"
+            >
+              验收反馈
+            </el-button>
+            <el-button
               size="small"
               @click.stop="showDetail(row)"
             >
@@ -311,7 +339,7 @@
     <el-dialog
       v-model="reviewVis"
       :title="reviewAction === 'approve' ? '批准提案' : '驳回提案'"
-      width="450px"
+      width="min(450px, 92vw)"
     >
       <el-form label-width="80px">
         <!-- 审核人自动取当前登录管理员（原为可手输任意 ID·留痕可伪造·已改只读） -->
@@ -348,7 +376,7 @@
     <el-dialog
       v-model="detailVis"
       title="提案详情"
-      width="650px"
+      width="min(650px, 92vw)"
     >
       <el-descriptions
         v-if="detail"
@@ -430,10 +458,40 @@
           <pre style="margin:0;font-size:12px;max-height:120px;overflow:auto">{{ JSON.stringify(detail.rollbackPlan || {}, null, 2) }}</pre>
         </el-descriptions-item>
         <el-descriptions-item
+          label="执行与回滚证据"
+          :span="2"
+        >
+          <div
+            v-if="inspectionEvidence"
+            style="margin-bottom:12px"
+          >
+            <p style="margin:0 0 8px">
+              {{ inspectionEvidence.anomalies > 0 ? `检查完成，仍有 ${inspectionEvidence.anomalies} 项异常需要人工处理。` : '检查完成，本轮未发现异常。' }}
+              本次只做诊断，未执行自动修复。
+            </p>
+            <p style="margin:0;overflow-wrap:anywhere">
+              报告编号：{{ inspectionEvidence.reportTaskId }}
+            </p>
+          </div>
+          <details>
+            <summary style="cursor:pointer">
+              查看技术证据
+            </summary>
+            <pre style="margin:8px 0 0;font-size:12px;max-height:220px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere">{{ JSON.stringify(detail.executionResult || {}, null, 2) }}</pre>
+          </details>
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="验收反馈"
+          :span="2"
+        >
+          {{ detail.feedbackRating == null ? '待验收' : `${detail.feedbackRating} 分：${detail.feedbackComment || '无备注'}` }}
+          <span v-if="detail.feedbackBy">（验收人：{{ detail.feedbackBy }}）</span>
+        </el-descriptions-item>
+        <el-descriptions-item
           label="审核备注"
           :span="2"
         >
-          {{ detail.reviewNote || '-' }}
+          {{ detail.reviewNote || (detail.reviewedBy === 'ai-system' ? '按低风险、高置信度规则自动批准，尚不代表已经执行' : '-') }}
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">
           {{ formatDate(detail.createdAt) }}
@@ -448,10 +506,13 @@
     <el-dialog
       v-model="rollbackVis"
       title="回滚操作"
-      width="400px"
+      width="min(400px, 92vw)"
     >
       <el-form label-width="80px">
-        <el-form-item label="原因">
+        <el-form-item
+          label="原因"
+          required
+        >
           <el-input
             v-model="rollbackReason"
             type="textarea"
@@ -470,6 +531,53 @@
           @click="confirmRollback"
         >
           确认回滚
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="feedbackVis"
+      title="验收协作执行效果"
+      width="min(500px, 92vw)"
+    >
+      <el-alert
+        title="请先核对执行证据再评分。反馈会同步到决策账本，提交后不能覆盖。"
+        type="info"
+        :closable="false"
+        style="margin-bottom:16px"
+      />
+      <el-form label-width="80px">
+        <el-form-item
+          label="实际评分"
+          required
+        >
+          <el-rate
+            v-model="feedbackForm.rating"
+            :texts="['未达预期', '较差', '一般', '良好', '达到预期']"
+            show-text
+          />
+        </el-form-item>
+        <el-form-item label="验收说明">
+          <el-input
+            v-model="feedbackForm.comment"
+            type="textarea"
+            :rows="3"
+            maxlength="1000"
+            show-word-limit
+            placeholder="核对了什么证据，是否仍需人工处理"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="feedbackVis = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="feedbackLoading"
+          @click="confirmFeedback"
+        >
+          记录验收反馈
         </el-button>
       </template>
     </el-dialog>
@@ -497,6 +605,9 @@ interface ProposalRow {
   proposedBy?: string
   reviewedBy?: string
   feedbackRating?: number
+  feedbackComment?: string
+  feedbackBy?: string
+  executionResult?: unknown
   createdAt?: string
   updatedAt?: string
   description?: string
@@ -543,6 +654,12 @@ const reviewForm = reactive({ note: '' })
 
 // 详情
 const detailVis = ref(false); const detail = ref<ProposalRow | null>(null)
+const inspectionEvidence = computed(() => {
+  const evidence = detail.value?.executionResult as { result?: Record<string, unknown> } | undefined
+  const result = evidence?.result
+  if (result?.mode !== 'diagnostic_only' || typeof result.reportTaskId !== 'string' || typeof result.anomalies !== 'number') return null
+  return { reportTaskId: result.reportTaskId, anomalies: result.anomalies }
+})
 
 // 执行
 const execId = ref('')
@@ -550,6 +667,9 @@ const execId = ref('')
 // 回滚
 const rollbackVis = ref(false); const rollbackReason = ref(''); const rollbackLoading = ref(false)
 const rollbackItem = ref<ProposalRow | null>(null)
+const feedbackVis = ref(false); const feedbackLoading = ref(false)
+const feedbackItem = ref<ProposalRow | null>(null)
+const feedbackForm = reactive({ rating: 0, comment: '' })
 
 onMounted(() => { fetchList(); fetchOverview() })
 
@@ -557,14 +677,15 @@ onMounted(() => { fetchList(); fetchOverview() })
 function riskLabel(r?: string) { const m: Record<string,string> = { low:'低', medium:'中', high:'高' }; return r ? (m[r] || r) : r }
 function riskTagType(r?: string) { const m: Record<string,string> = { low:'success', medium:'warning', high:'danger' }; return r ? (m[r] || 'info') : 'info' }
 function statusLabel(s?: string) {
-  const m: Record<string,string> = { pending_review:'待审核', approved:'已批准', executed:'已执行', rejected:'已驳回', rolled_back:'已回滚' }
+  const m: Record<string,string> = { pending_review:'待审核', approved:'已批准', executed:'已执行', rejected:'已驳回', rolled_back:'已回滚', executing:'执行中', failed:'执行失败·待核查', rolling_back:'回滚中', rollback_failed:'回滚失败·待核查', modified:'已修改·需重新提案' }
   return s ? (m[s] || s) : s
 }
 function statusTagType(s?: string) {
-  const m: Record<string,string> = { pending_review:'warning', approved:'success', executed:'primary', rejected:'danger', rolled_back:'info' }
+  const m: Record<string,string> = { pending_review:'warning', approved:'success', executed:'primary', rejected:'danger', rolled_back:'info', executing:'warning', failed:'danger', rolling_back:'warning', rollback_failed:'danger', modified:'info' }
   return s ? (m[s] || 'info') : 'info'
 }
 function formatDate(d?: string) { return d ? new Date(d).toLocaleString() : '-' }
+function resetFilters() { page.value = 1; void fetchList() }
 
 async function fetchList() {
   loading.value = true; loadErr.value = false
@@ -659,10 +780,11 @@ function rollback(item: ProposalRow) {
 }
 
 async function confirmRollback() {
-  if (!rollbackItem.value) return
+  if (!rollbackItem.value || rollbackLoading.value) return
+  if (!rollbackReason.value.trim()) { ElMessage.warning('请填写回滚原因'); return }
   rollbackLoading.value = true
   try {
-    await aiCollaborationApi.rollback(rollbackItem.value.id, rollbackReason.value || undefined)
+    await aiCollaborationApi.rollback(rollbackItem.value.id, rollbackReason.value.trim())
     ElMessage.success('已回滚')
     rollbackVis.value = false
     fetchList(); fetchOverview()
@@ -678,7 +800,31 @@ async function showDetail(item: ProposalRow) {
   try {
     const res = await aiCollaborationApi.detail(item.id)
     detail.value = res.data
-  } catch { detail.value = item }
+  } catch {
+    detailVis.value = false
+    ElMessage.error('提案详情加载失败，请重试；当前列表不能代替执行证据')
+  }
+}
+
+function openFeedback(item: ProposalRow) {
+  feedbackItem.value = item; feedbackForm.rating = 0; feedbackForm.comment = ''
+  feedbackVis.value = true
+}
+
+async function confirmFeedback() {
+  if (!feedbackItem.value || feedbackLoading.value) return
+  if (!feedbackForm.rating) { ElMessage.warning('请先核对证据并选择实际评分'); return }
+  feedbackLoading.value = true
+  try {
+    await aiCollaborationApi.feedback(feedbackItem.value.id, {
+      rating: feedbackForm.rating, comment: feedbackForm.comment.trim() || undefined,
+    })
+    ElMessage.success('验收反馈已记录并同步决策账本')
+    feedbackVis.value = false
+    await Promise.all([fetchList(), fetchOverview()])
+  } catch (e) {
+    ElMessage.error((e as ApiError)?.response?.data?.message || '反馈未保存，请重试')
+  } finally { feedbackLoading.value = false }
 }
 </script>
 

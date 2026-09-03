@@ -1,24 +1,47 @@
 <template>
   <div class="page">
     <div class="toolbar">
-      <h3>数字员工任务池</h3>
+      <div class="toolbar-heading">
+        <h3>数字员工任务池</h3>
+        <p>查看自动化执行进度，人工接管异常、高风险和待审批任务。</p>
+      </div>
       <div class="toolbar-right">
-        <el-button :loading="loading" @click="refreshAll">刷新</el-button>
-        <el-button v-if="isSuperAdmin" type="success" plain :loading="inspecting" @click="runInspection">
+        <el-button
+          :loading="loading"
+          @click="refreshAll"
+        >
+          刷新
+        </el-button>
+        <el-button
+          v-if="isSuperAdmin"
+          type="success"
+          plain
+          :loading="inspecting"
+          @click="runInspection"
+        >
           立即巡检
         </el-button>
-        <el-button type="primary" @click="openCreate">
+        <el-button
+          type="primary"
+          @click="openCreate"
+        >
           新建任务
         </el-button>
       </div>
     </div>
 
     <!-- 一键接管开关卡 -->
-    <el-card class="automation-card" shadow="never">
+    <el-card
+      class="automation-card"
+      shadow="never"
+    >
       <div class="automation-row">
         <div class="automation-info">
           <span class="automation-title">自动化总开关（一键接管）</span>
-          <el-tag :type="automationEnabled ? 'success' : 'danger'" size="small">
+          <el-tag
+            :type="automationEnabled ? 'success' : 'danger'"
+            size="small"
+          >
             {{ automationEnabled ? '自动化运行中' : '已接管（数字员工只读）' }}
           </el-tag>
           <span class="automation-tip">
@@ -34,40 +57,94 @@
           inactive-text="关"
         />
       </div>
-      <div v-if="!isSuperAdmin" class="automation-tip">
+      <div
+        v-if="!isSuperAdmin"
+        class="automation-tip"
+      >
         仅超级管理员可切换此开关
       </div>
     </el-card>
 
     <div class="overview-grid">
-      <el-card shadow="never" class="metric-card">
+      <el-card
+        shadow="never"
+        class="metric-card"
+      >
         <span>活跃任务</span><strong>{{ overview.activeTasks }}</strong>
       </el-card>
-      <el-card shadow="never" class="metric-card warning">
+      <el-card
+        shadow="never"
+        class="metric-card warning"
+      >
         <span>待审批</span><strong>{{ overview.pendingApprovals }}</strong>
       </el-card>
-      <el-card shadow="never" class="metric-card success">
+      <el-card
+        shadow="never"
+        class="metric-card success"
+      >
         <span>AI 近24小时完成</span><strong>{{ overview.aiCompleted24h }}</strong>
       </el-card>
-      <el-card shadow="never" class="metric-card primary">
+      <el-card
+        shadow="never"
+        class="metric-card primary"
+      >
         <span>AI 近24小时发现</span><strong>{{ overview.aiGenerated24h }}</strong>
       </el-card>
     </div>
 
     <!-- 筛选 -->
     <div class="filter-row">
-      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:140px" @change="resetAndFetch">
-        <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
+      <el-select
+        v-model="filterStatus"
+        placeholder="状态"
+        clearable
+        style="width:140px"
+        @change="resetAndFetch"
+      >
+        <el-option
+          v-for="s in statusOptions"
+          :key="s.value"
+          :label="s.label"
+          :value="s.value"
+        />
       </el-select>
-      <el-select v-model="filterType" placeholder="类型" clearable style="width:140px" @change="resetAndFetch">
-        <el-option v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" />
+      <el-select
+        v-model="filterType"
+        placeholder="类型"
+        clearable
+        style="width:140px"
+        @change="resetAndFetch"
+      >
+        <el-option
+          v-for="t in typeOptions"
+          :key="t.value"
+          :label="t.label"
+          :value="t.value"
+        />
       </el-select>
-      <el-select v-model="filterPriority" placeholder="优先级" clearable style="width:120px" @change="resetAndFetch">
-        <el-option label="高" value="HIGH" />
-        <el-option label="中" value="MEDIUM" />
-        <el-option label="低" value="LOW" />
+      <el-select
+        v-model="filterPriority"
+        placeholder="优先级"
+        clearable
+        style="width:120px"
+        @change="resetAndFetch"
+      >
+        <el-option
+          label="高"
+          value="HIGH"
+        />
+        <el-option
+          label="中"
+          value="MEDIUM"
+        />
+        <el-option
+          label="低"
+          value="LOW"
+        />
       </el-select>
-      <el-button @click="resetAndFetch">查询</el-button>
+      <el-button @click="resetAndFetch">
+        查询
+      </el-button>
     </div>
 
     <!-- 错误态 -->
@@ -79,56 +156,133 @@
       title="任务列表加载失败"
       style="margin-bottom:12px"
     >
-      <el-button size="small" @click="fetchTasks">重试</el-button>
+      <el-button
+        size="small"
+        @click="fetchTasks"
+      >
+        重试
+      </el-button>
     </el-alert>
 
-    <el-table v-loading="loading" :data="tasks" stripe>
+    <el-table
+      v-loading="loading"
+      :data="tasks"
+      stripe
+    >
       <template #empty>
         <el-empty description="任务池为空 — 巡检产出与人工新建的任务都会进入这里" />
       </template>
-      <el-table-column label="类型" width="90" align="center">
+      <el-table-column
+        label="类型"
+        width="90"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="typeTagType(row.type)">{{ typeLabel(row.type) }}</el-tag>
+          <el-tag
+            size="small"
+            :type="typeTagType(row.type)"
+          >
+            {{ typeLabel(row.type) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="优先级" width="80" align="center">
+      <el-table-column
+        label="优先级"
+        width="80"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="priorityTagType(row.priority)" effect="plain">{{ priorityLabel(row.priority) }}</el-tag>
+          <el-tag
+            size="small"
+            :type="priorityTagType(row.priority)"
+            effect="plain"
+          >
+            {{ priorityLabel(row.priority) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-      <el-table-column label="状态" width="110" align="center">
+      <el-table-column
+        prop="title"
+        label="标题"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="状态"
+        width="110"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+          <el-tag
+            size="small"
+            :type="statusTagType(row.status)"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="执行者" width="120">
+      <el-table-column
+        label="执行者"
+        width="120"
+      >
         <template #default="{ row }">
-          <el-tag v-if="isAiExecutor(row.executor)" size="small" type="warning" effect="plain">{{ row.executor }}</el-tag>
+          <el-tag
+            v-if="isAiExecutor(row.executor)"
+            size="small"
+            type="warning"
+            effect="plain"
+          >
+            {{ row.executor }}
+          </el-tag>
           <span v-else>{{ row.executor || '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="审批" width="110" align="center">
+      <el-table-column
+        label="审批"
+        width="110"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag v-if="row.needsApproval" size="small" :type="approvalTagType(row.approvalStatus)" effect="plain">
+          <el-tag
+            v-if="row.needsApproval"
+            size="small"
+            :type="approvalTagType(row.approvalStatus)"
+            effect="plain"
+          >
             {{ approvalLabel(row.approvalStatus) }}
           </el-tag>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="复核原因 / 结果" min-width="180">
+      <el-table-column
+        label="复核原因 / 结果"
+        min-width="180"
+      >
         <template #default="{ row }">
-          <span v-if="row.status === 'needs_review'" class="review-reason">{{ row.reviewReason || '-' }}</span>
-          <span v-else-if="row.status === 'completed'" class="result-json">{{ briefJson(row.result) }}</span>
+          <span
+            v-if="row.status === 'needs_review'"
+            class="review-reason"
+          >{{ row.reviewReason || '-' }}</span>
+          <span
+            v-else-if="row.status === 'completed'"
+            class="result-json"
+          >{{ briefJson(row.result) }}</span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" width="160">
+      <el-table-column
+        label="创建时间"
+        width="160"
+      >
         <template #default="{ row }">
           {{ formatTime(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="300" fixed="right">
+      <el-table-column
+        label="操作"
+        width="300"
+        fixed="right"
+      >
         <template #default="{ row }">
           <el-button
             v-if="row.status === 'pending' || row.status === 'needs_review'"
@@ -151,15 +305,43 @@
             >
               完成
             </el-button>
-            <el-button size="small" text type="warning" :loading="acting === row.id" @click="toReview(row)">
+            <el-button
+              size="small"
+              text
+              type="warning"
+              :loading="acting === row.id"
+              @click="toReview(row)"
+            >
               转人工复核
             </el-button>
           </template>
           <template v-if="isSuperAdmin && row.status === 'in_progress' && row.needsApproval && row.approvalStatus === 'pending'">
-            <el-button size="small" text type="success" :loading="acting === row.id" @click="reviewApproval(row, true)">审批</el-button>
-            <el-button size="small" text type="danger" :loading="acting === row.id" @click="reviewApproval(row, false)">驳回</el-button>
+            <el-button
+              size="small"
+              text
+              type="success"
+              :loading="acting === row.id"
+              @click="reviewApproval(row, true)"
+            >
+              审批
+            </el-button>
+            <el-button
+              size="small"
+              text
+              type="danger"
+              :loading="acting === row.id"
+              @click="reviewApproval(row, false)"
+            >
+              驳回
+            </el-button>
           </template>
-          <el-button size="small" text @click="openDetail(row)">详情</el-button>
+          <el-button
+            size="small"
+            text
+            @click="openDetail(row)"
+          >
+            详情
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -175,21 +357,55 @@
     </div>
 
     <!-- 新建任务 -->
-    <el-dialog v-model="createVisible" title="新建任务" width="520px">
+    <el-dialog
+      v-model="createVisible"
+      title="新建任务"
+      width="520px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="类型" required>
-          <el-select v-model="createForm.type" style="width:100%">
-            <el-option v-for="t in typeOptions" :key="t.value" :label="t.label" :value="t.value" />
+        <el-form-item
+          label="类型"
+          required
+        >
+          <el-select
+            v-model="createForm.type"
+            style="width:100%"
+          >
+            <el-option
+              v-for="t in typeOptions"
+              :key="t.value"
+              :label="t.label"
+              :value="t.value"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="标题" required>
-          <el-input v-model="createForm.title" maxlength="200" placeholder="任务标题" />
+        <el-form-item
+          label="标题"
+          required
+        >
+          <el-input
+            v-model="createForm.title"
+            maxlength="200"
+            placeholder="任务标题"
+          />
         </el-form-item>
         <el-form-item label="优先级">
-          <el-select v-model="createForm.priority" style="width:100%">
-            <el-option label="高" value="HIGH" />
-            <el-option label="中" value="MEDIUM" />
-            <el-option label="低" value="LOW" />
+          <el-select
+            v-model="createForm.priority"
+            style="width:100%"
+          >
+            <el-option
+              label="高"
+              value="HIGH"
+            />
+            <el-option
+              label="中"
+              value="MEDIUM"
+            />
+            <el-option
+              label="低"
+              value="LOW"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="数据快照">
@@ -197,47 +413,92 @@
             v-model="createForm.payloadText"
             type="textarea"
             :rows="4"
-            placeholder='payload JSON，可空，如 {"orderId":"..."}'
+            placeholder="payload JSON，可空，如 {&quot;orderId&quot;:&quot;...&quot;}"
           />
         </el-form-item>
         <el-form-item label="需审批">
-          <el-switch v-model="createForm.needsApproval" :disabled="approvalForced" />
-          <span class="automation-tip" style="margin-left:8px">修复任务及高优先级运营动作由后端强制双人审批</span>
+          <el-switch
+            v-model="createForm.needsApproval"
+            :disabled="approvalForced"
+          />
+          <span
+            class="automation-tip"
+            style="margin-left:8px"
+          >修复任务及高优先级运营动作由后端强制双人审批</span>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitCreate">创建</el-button>
+        <el-button @click="createVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="submitCreate"
+        >
+          创建
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 完成任务 -->
-    <el-dialog v-model="completeVisible" title="完成任务" width="520px">
-      <p class="dialog-task-title">{{ completeTarget?.title }}</p>
+    <el-dialog
+      v-model="completeVisible"
+      title="完成任务"
+      width="520px"
+    >
+      <p class="dialog-task-title">
+        {{ completeTarget?.title }}
+      </p>
       <el-input
         v-model="completeResultText"
         type="textarea"
         :rows="5"
-        placeholder='执行结果：填 JSON（如 {"fixed":true}）或纯文本（自动包装为 {"note":"..."}）'
+        placeholder="执行结果：填 JSON（如 {&quot;fixed&quot;:true}）或纯文本（自动包装为 {&quot;note&quot;:&quot;...&quot;}）"
       />
       <template #footer>
-        <el-button @click="completeVisible = false">取消</el-button>
-        <el-button type="success" :loading="submitting" @click="submitComplete">确认完成</el-button>
+        <el-button @click="completeVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="success"
+          :loading="submitting"
+          @click="submitComplete"
+        >
+          确认完成
+        </el-button>
       </template>
     </el-dialog>
 
-    <el-drawer v-model="detailVisible" title="任务证据与执行链" size="560px">
+    <el-drawer
+      v-model="detailVisible"
+      title="任务证据与执行链"
+      size="560px"
+    >
       <template v-if="detailTarget">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="任务">{{ detailTarget.title }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ statusLabel(detailTarget.status) }}</el-descriptions-item>
-          <el-descriptions-item label="执行者">{{ detailTarget.executor || '未认领' }}</el-descriptions-item>
-          <el-descriptions-item label="AI 来源事件">{{ detailTarget.sourceEventId || '人工创建' }}</el-descriptions-item>
+        <el-descriptions
+          :column="1"
+          border
+        >
+          <el-descriptions-item label="任务">
+            {{ detailTarget.title }}
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            {{ statusLabel(detailTarget.status) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="执行者">
+            {{ detailTarget.executor || '未认领' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="AI 来源事件">
+            {{ detailTarget.sourceEventId || '人工创建' }}
+          </el-descriptions-item>
           <el-descriptions-item label="审批链">
             {{ detailTarget.needsApproval ? `${approvalLabel(detailTarget.approvalStatus)} · ${detailTarget.approvedBy || '未审批'}` : '无需审批' }}
             <span v-if="detailTarget.approvalNote"> · {{ detailTarget.approvalNote }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="完成时间">{{ detailTarget.completedAt ? formatTime(detailTarget.completedAt) : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="完成时间">
+            {{ detailTarget.completedAt ? formatTime(detailTarget.completedAt) : '-' }}
+          </el-descriptions-item>
         </el-descriptions>
         <h4>发现证据 / 输入快照</h4>
         <pre class="evidence-block">{{ prettyJson(detailTarget.payload) }}</pre>
@@ -599,10 +860,13 @@ async function submitCreate() {
 </script>
 
 <style scoped>
-.page { padding: 20px; }
-.toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.page { padding: 0; }
+.toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+.toolbar-heading { min-width: 0; padding-left: 13px; border-left: 4px solid #5867a7; }
+.toolbar-heading h3 { margin: 0; color: var(--color-text-title); font-size: 25px; font-weight: 680; letter-spacing: -.025em; }
+.toolbar-heading p { margin: 5px 0 0; color: var(--color-text-secondary); font-size: 12px; }
 .toolbar-right { display: flex; align-items: center; gap: 12px; }
-.automation-card { margin-bottom: 16px; }
+.automation-card { margin-bottom: 16px; border-left: 3px solid #5867a7 !important; }
 .automation-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .automation-info { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .automation-title { font-weight: 600; }
@@ -611,14 +875,15 @@ async function submitCreate() {
 .metric-card :deep(.el-card__body) { display: flex; flex-direction: column; gap: 8px; }
 .metric-card span { color: var(--color-text-secondary, #606266); font-size: 13px; }
 .metric-card strong { font-size: 28px; line-height: 1; color: var(--color-text-primary, #303133); }
-.metric-card.warning { border-top: 3px solid var(--el-color-warning); }
-.metric-card.success { border-top: 3px solid var(--el-color-success); }
-.metric-card.primary { border-top: 3px solid var(--el-color-primary); }
+.metric-card.warning { box-shadow: inset 0 3px 0 rgba(183,121,31,.8), var(--shadow-sm) !important; }
+.metric-card.success { box-shadow: inset 0 3px 0 rgba(22,138,98,.75), var(--shadow-sm) !important; }
+.metric-card.primary { box-shadow: inset 0 3px 0 rgba(88,103,167,.78), var(--shadow-sm) !important; }
 .filter-row { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
 .review-reason { color: #c45656; font-size: 12px; word-break: break-all; }
 .result-json { color: #606266; font-size: 12px; font-family: monospace; word-break: break-all; }
 .dialog-task-title { margin: 0 0 12px; font-weight: 600; }
 .evidence-block { margin: 8px 0 20px; padding: 12px; max-height: 280px; overflow: auto; border-radius: 8px; background: var(--color-bg-page, #f5f7fa); color: var(--color-text-primary, #303133); font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
 .pager { margin-top: 12px; display: flex; justify-content: flex-end; }
-@media (max-width: 900px) { .overview-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); } }
+@media (max-width: 900px) { .toolbar { align-items: flex-start; flex-direction: column; } .toolbar-right { width: 100%; flex-wrap: wrap; } .overview-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); } }
+@media (max-width: 560px) { .overview-grid { grid-template-columns: 1fr; } }
 </style>

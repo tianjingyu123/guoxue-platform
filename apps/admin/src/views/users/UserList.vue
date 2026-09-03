@@ -20,6 +20,7 @@
       <template #toolbar>
         <el-input
           v-model="keyword"
+          :prefix-icon="Search"
           placeholder="搜索昵称/手机号"
           style="width:200px"
           clearable
@@ -142,21 +143,29 @@
         />
         <el-button
           type="primary"
+          :icon="Search"
           @click="onFilterChange"
         >
           查询
         </el-button>
-        <el-button @click="resetFilters">
+        <el-button
+          :icon="RefreshLeft"
+          @click="resetFilters"
+        >
           重置
         </el-button>
         <el-tooltip
           content="导出当前页已加载的数据（非全量）"
           placement="top"
         >
-          <el-button @click="exportData">
+          <el-button
+            :icon="Download"
+            @click="exportData"
+          >
             导出本页CSV
           </el-button>
         </el-tooltip>
+        <span class="filter-summary">共 {{ total.toLocaleString('zh-CN') }} 位用户</span>
       </template>
 
       <!-- 批量操作栏：勾选后才出现 -->
@@ -380,6 +389,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { Download, RefreshLeft, Search } from "@element-plus/icons-vue";
 import { api, userApi } from "@/api";
 import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
@@ -673,6 +683,10 @@ function exportData() {
 </script>
 
 <style scoped>
+.filter-summary { margin-left: auto; color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
+@media (max-width: 760px) {
+  .filter-summary { width: 100%; margin-left: 0; }
+}
 .page { padding: 0; }
 .dim { color: var(--color-text-placeholder); font-size: var(--font-size-caption); }
 .coin { color: var(--color-gold); font-weight: 500; }

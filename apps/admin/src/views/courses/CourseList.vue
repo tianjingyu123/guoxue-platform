@@ -7,7 +7,6 @@ import { ArrowDown } from "@element-plus/icons-vue";
 import { courseApi } from "@/api";
 import { exportCSV } from "@/utils/export";
 import DataTable from "@/components/DataTable.vue";
-import SearchFilter from "@/components/SearchFilter.vue";
 import { useTable } from "@/composables/useTable";
 import PageHeader from "@/components/PageHeader.vue";
 
@@ -33,19 +32,14 @@ interface CourseRow {
   _count?: { chapters?: number };
 }
 
+interface CourseListResponse {
+  items?: CourseRow[]
+  courses?: CourseRow[]
+  total?: number
+}
+
 const router = useRouter();
 const selectedIds = ref<string[]>([]);
-
-const filterDefs = [
-  { key: "auditStatus", label: "审核状态", type: "select" as const, options: [
-    { label: "草稿", value: "DRAFT" }, { label: "待审核", value: "PENDING" },
-    { label: "已通过", value: "APPROVED" }, { label: "已驳回", value: "REJECTED" },
-  ]},
-  { key: "type", label: "课程类型", type: "select" as const, options: [
-    { label: "视频", value: "VIDEO" }, { label: "音频", value: "AUDIO" },
-    { label: "文本", value: "TEXT" }, { label: "电子书", value: "EBOOK" }, { label: "组合", value: "COMBO" },
-  ]},
-];
 
 const columns = [
   { prop: "title", label: "标题", minWidth: 200, showOverflow: true },
@@ -71,12 +65,12 @@ function persistentMediaUrl(value?: string): string | undefined {
   return url && /^https?:\/\//i.test(url) ? url : undefined;
 }
 
-const { loading, tableData, pagination, filters, fetchList, handleSearch, handleReset } = useTable({
+const { loading, tableData, pagination, filters, fetchList, handleSearch } = useTable({
   fetchApi: courseApi.list,
   defaultPageSize: 20,
   // 管理端默认查看全部状态（含待审核/草稿/驳回），否则新建的 PENDING 课程不显示
   initialFilters: { auditStatus: "ALL" },
-  transformResponse: (data: any) => ({
+  transformResponse: (data: CourseListResponse) => ({
     // api 拦截器已把分页数组规范化为 data.items（原后端键 courses）；兼容两者
     items: (data.items || data.courses || []).map((c: CourseRow) => ({
       ...c,
@@ -86,22 +80,11 @@ const { loading, tableData, pagination, filters, fetchList, handleSearch, handle
       validity: (c.validityDays ?? 0) > 0 ? c.validityDays + "天" : "永久",
       author: c.user?.nickname || "-",
     })),
-    total: data.total,
+    total: data.total ?? 0,
   }),
 });
 
 const hasSelection = computed(() => selectedIds.value.length > 0);
-
-function onSearch(f: Record<string, string | undefined>) {
-  Object.assign(filters, f)
-  handleSearch()
-}
-
-function onReset() {
-  Object.keys(filters).forEach(k => { filters[k] = undefined })
-  // 状态筛选重置回"全部"，与管理端默认一致（否则回落后端 APPROVED 默认，看不到待审核课程）
-  handleReset({ auditStatus: "ALL" })
-}
 
 function onSelectionChange(rows: CourseRow[]) {
   selectedIds.value = rows.map((r) => r.id);
@@ -120,8 +103,9 @@ async function handleDelete(row: CourseRow) {
     await courseApi.remove(row.id);
     ElMessage.success("已删除");
     fetchList();
-  } catch (e: any) {
-    if (e?.response?.status === 403) {
+  } catch (error: unknown) {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    if (status === 403) {
       ElMessage.error("只能删除自己创建的课程；删除他人课程请用「更多 → 永久删除（管理员）」");
     } else {
       ElMessage.error("删除失败，请重试");

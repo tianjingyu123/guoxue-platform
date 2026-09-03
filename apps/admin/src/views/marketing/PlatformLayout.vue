@@ -8,7 +8,7 @@
  * - 区块 type 与 H5 components/layout/block-renderer.vue 对齐（小写 type）。
  * - 主内容瀑布流（课程/商品/直播等通用卡片）由 H5 系统自动展示在楼层下方，无需配置。
  */
-import { ref, reactive, computed, h } from "vue";
+import { ref, computed, h } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { marketingApi } from "@/api";
 
@@ -46,14 +46,19 @@ interface PageComponent {
   id?: string;
   type: string;
   title?: string;
-  config: Record<string, any>;
+  config: DynamicPageConfig;
   sortOrder?: number;
 }
+
+// 平台装修历史配置无固定 schema，动态字段只在此边界兼容。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DynamicPageConfig = Record<string, any>;
 interface PageRow {
   fixed: FixedPage;
   id: string | null; // 后端页 id，未配置为 null
   status: string; // '' 未配置 / 'DRAFT' / 'PUBLISHED' / 'OFFLINE'
 }
+interface MarketingPageRecord { id: string; status?: string; stationId?: string | null; route?: string }
 
 // ── 列表状态 ──
 const loading = ref(false);
@@ -75,7 +80,7 @@ async function fetchList() {
   loading.value = true;
   try {
     const { data } = await marketingApi.listPages();
-    const all: any[] = data.items || data.pages || data.data || (Array.isArray(data) ? data : []);
+    const all: MarketingPageRecord[] = data.items || data.pages || data.data || (Array.isArray(data) ? data : []);
     // 只认平台级页（stationId 为 null/空），按 route 匹配固定容器页
     rows.value = FIXED_PAGES.map((fp) => {
       const hit = all.find(
@@ -133,7 +138,7 @@ async function openEdit(row: PageRow) {
   // 拉取组件
   try {
     const { data } = await marketingApi.getPage(pageId!);
-    components.value = (data.components || []).map((c: any) => ({
+    components.value = (data.components || []).map((c: PageComponent) => ({
       id: c.id,
       type: c.type,
       title: c.title || "",
@@ -147,7 +152,7 @@ async function openEdit(row: PageRow) {
 }
 
 // 默认 config 模版
-function defaultConfig(type: string): Record<string, any> {
+function defaultConfig(type: string): DynamicPageConfig {
   switch (type) {
     case "banner":
       return { images: [{ image: "", link: "", title: "" }] };
@@ -315,7 +320,7 @@ async function openPreview(row: PageRow) {
   }
   try {
     const { data } = await marketingApi.getPage(row.id);
-    previewComps.value = (data.components || []).map((c: any) => ({
+    previewComps.value = (data.components || []).map((c: PageComponent) => ({
       id: c.id,
       type: c.type,
       title: c.title || "",
@@ -372,7 +377,7 @@ function renderBlock(comp: PageComponent) {
           ? h(
               "div",
               { style: { position: "absolute", right: "10px", bottom: "8px", display: "flex", gap: "4px" } },
-              imgs.map((_: any, i: number) =>
+              imgs.map((_: unknown, i: number) =>
                 h("div", {
                   style: {
                     width: i === 0 ? "12px" : "5px",
@@ -401,7 +406,7 @@ function renderBlock(comp: PageComponent) {
           fontSize: "13px",
         },
       },
-      `📢 ${comp.title || cfg.text || "公告文字"}`
+      comp.title || cfg.text || "公告文字"
     );
   }
 
@@ -414,7 +419,7 @@ function renderBlock(comp: PageComponent) {
       h(
         "div",
         { style: { display: "flex", flexWrap: "wrap" } },
-        (items.length ? items : [null, null, null, null, null]).map((it: any) =>
+        (items.length ? items : [null, null, null, null, null]).map((it: DynamicPageConfig | null) =>
           h(
             "div",
             { style: { width: "20%", textAlign: "center", marginBottom: "10px", fontSize: "11px" } },
@@ -467,7 +472,7 @@ function renderBlock(comp: PageComponent) {
       h(
         "div",
         { style: { display: "flex", gap: "8px", overflowX: "auto", padding: "0 12px" } },
-        (items.length ? items : [null, null]).map((it: any) =>
+        (items.length ? items : [null, null]).map((it: DynamicPageConfig | null) =>
           h(
             "div",
             {
@@ -609,9 +614,9 @@ function renderBlock(comp: PageComponent) {
 }
 
 // 手机框（编辑抽屉右侧 & 独立预览弹窗共用）
-const PhonePreview: any = {
+const PhonePreview = {
   props: { comps: { type: Array, default: () => [] }, label: { type: String, default: "" } },
-  setup(props: any) {
+  setup(props: { comps: PageComponent[]; label: string }) {
     return () =>
       h("div", { class: "pl-phone" }, [
         h("div", { class: "pl-phone-bar" }, `${props.label || "预览"} · 顶部运营楼层`),
@@ -639,7 +644,9 @@ fetchList();
   <div class="platform-layout">
     <div class="pl-header">
       <div>
-        <h2 class="pl-title">平台页面布局</h2>
+        <h2 class="pl-title">
+          平台页面布局
+        </h2>
         <p class="pl-sub">
           配置首页/发现页等容器页的<b>顶部运营楼层</b>（轮播/公告/金刚区/专栏/大卡）。
           主内容瀑布流（课程/商品/直播）由系统自动展示在楼层下方，无需配置。
@@ -648,34 +655,72 @@ fetchList();
       </div>
     </div>
 
-    <el-table :data="rows" v-loading="loading" border style="width: 100%">
-      <el-table-column label="页面" min-width="180">
+    <el-table
+      v-loading="loading"
+      :data="rows"
+      border
+      style="width: 100%"
+    >
+      <el-table-column
+        label="页面"
+        min-width="180"
+      >
         <template #default="{ row }">
-          <div class="pl-page-name">{{ row.fixed.name }}</div>
-          <div class="pl-page-desc">{{ row.fixed.desc }}（route={{ row.fixed.route }}）</div>
+          <div class="pl-page-name">
+            {{ row.fixed.name }}
+          </div>
+          <div class="pl-page-desc">
+            {{ row.fixed.desc }}（route={{ row.fixed.route }}）
+          </div>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="160">
+      <el-table-column
+        label="状态"
+        width="160"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+          <el-tag
+            :type="statusTag(row.status)"
+            size="small"
+          >
+            {{ statusText(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="320">
+      <el-table-column
+        label="操作"
+        width="320"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" @click="openPreview(row)">预览</el-button>
+          <el-button
+            size="small"
+            type="primary"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            @click="openPreview(row)"
+          >
+            预览
+          </el-button>
           <el-button
             size="small"
             type="success"
             :disabled="row.status === 'PUBLISHED'"
             @click="enablePage(row)"
-          >启用</el-button>
+          >
+            启用
+          </el-button>
           <el-button
             size="small"
             type="warning"
             :disabled="!row.id || row.status !== 'PUBLISHED'"
             @click="disablePage(row)"
-          >停用</el-button>
+          >
+            停用
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -698,10 +743,16 @@ fetchList();
               size="small"
               plain
               @click="addBlock(bt.type)"
-            >{{ bt.label }}</el-button>
+            >
+              {{ bt.label }}
+            </el-button>
           </div>
 
-          <el-empty v-if="!components.length" description="暂无区块，点上方按钮添加" :image-size="60" />
+          <el-empty
+            v-if="!components.length"
+            description="暂无区块，点上方按钮添加"
+            :image-size="60"
+          />
 
           <div class="pl-block-list">
             <div
@@ -714,89 +765,246 @@ fetchList();
               <span class="pl-block-tag">{{ blockLabel(c.type) }}</span>
               <span class="pl-block-title">{{ c.title || "（未命名）" }}</span>
               <span class="pl-block-ops">
-                <el-button link size="small" :disabled="idx === 0" @click.stop="moveUp(idx)">↑</el-button>
-                <el-button link size="small" :disabled="idx === components.length - 1" @click.stop="moveDown(idx)">↓</el-button>
-                <el-button link size="small" type="danger" @click.stop="removeBlock(idx)">删除</el-button>
+                <el-button
+                  link
+                  size="small"
+                  :disabled="idx === 0"
+                  @click.stop="moveUp(idx)"
+                >↑</el-button>
+                <el-button
+                  link
+                  size="small"
+                  :disabled="idx === components.length - 1"
+                  @click.stop="moveDown(idx)"
+                >↓</el-button>
+                <el-button
+                  link
+                  size="small"
+                  type="danger"
+                  @click.stop="removeBlock(idx)"
+                >删除</el-button>
               </span>
             </div>
           </div>
 
           <!-- 当前区块配置表单 -->
-          <div v-if="curComp" class="pl-form">
-            <el-divider content-position="left">配置：{{ blockLabel(curComp.type) }}</el-divider>
+          <div
+            v-if="curComp"
+            class="pl-form"
+          >
+            <el-divider content-position="left">
+              配置：{{ blockLabel(curComp.type) }}
+            </el-divider>
 
-            <el-form label-width="80px" size="small">
+            <el-form
+              label-width="80px"
+              size="small"
+            >
               <el-form-item
                 v-if="curComp.type !== 'notice'"
                 label="标题"
               >
-                <el-input v-model="curComp.title" placeholder="区块标题（可选）" />
+                <el-input
+                  v-model="curComp.title"
+                  placeholder="区块标题（可选）"
+                />
               </el-form-item>
 
               <!-- banner 轮播 -->
               <template v-if="curComp.type === 'banner'">
-                <div v-for="(img, i) in curComp.config.images" :key="i" class="pl-sub-item">
-                  <el-input v-model="img.image" placeholder="图片URL" class="pl-mb" />
-                  <el-input v-model="img.title" placeholder="图上标题（可选）" class="pl-mb" />
-                  <el-input v-model="img.link" placeholder="跳转链接（可选）" class="pl-mb" />
-                  <el-button link type="danger" size="small" @click="removeItem('images', i)">删除此图</el-button>
+                <div
+                  v-for="(img, i) in curComp.config.images"
+                  :key="i"
+                  class="pl-sub-item"
+                >
+                  <el-input
+                    v-model="img.image"
+                    placeholder="图片URL"
+                    class="pl-mb"
+                  />
+                  <el-input
+                    v-model="img.title"
+                    placeholder="图上标题（可选）"
+                    class="pl-mb"
+                  />
+                  <el-input
+                    v-model="img.link"
+                    placeholder="跳转链接（可选）"
+                    class="pl-mb"
+                  />
+                  <el-button
+                    link
+                    type="danger"
+                    size="small"
+                    @click="removeItem('images', i)"
+                  >
+                    删除此图
+                  </el-button>
                 </div>
-                <el-button size="small" @click="addItem('images')">+ 添加轮播图</el-button>
+                <el-button
+                  size="small"
+                  @click="addItem('images')"
+                >
+                  + 添加轮播图
+                </el-button>
               </template>
 
               <!-- notice 公告 -->
               <template v-else-if="curComp.type === 'notice'">
                 <el-form-item label="公告文字">
-                  <el-input v-model="curComp.config.text" placeholder="公告内容" />
+                  <el-input
+                    v-model="curComp.config.text"
+                    placeholder="公告内容"
+                  />
                 </el-form-item>
                 <el-form-item label="跳转链接">
-                  <el-input v-model="curComp.config.link" placeholder="点击跳转（可选）" />
+                  <el-input
+                    v-model="curComp.config.link"
+                    placeholder="点击跳转（可选）"
+                  />
                 </el-form-item>
               </template>
 
               <!-- kingkong 金刚区 -->
               <template v-else-if="curComp.type === 'kingkong'">
-                <div v-for="(it, i) in curComp.config.items" :key="i" class="pl-sub-item">
-                  <el-input v-model="it.label" placeholder="文字标签" class="pl-mb" />
-                  <el-input v-model="it.icon" placeholder="图标名（如 grid）" class="pl-mb" />
+                <div
+                  v-for="(it, i) in curComp.config.items"
+                  :key="i"
+                  class="pl-sub-item"
+                >
+                  <el-input
+                    v-model="it.label"
+                    placeholder="文字标签"
+                    class="pl-mb"
+                  />
+                  <el-input
+                    v-model="it.icon"
+                    placeholder="图标名（如 grid）"
+                    class="pl-mb"
+                  />
                   <div class="pl-color-row">
                     <span>颜色：</span><el-color-picker v-model="it.color" />
                   </div>
-                  <el-input v-model="it.link" placeholder="跳转链接" class="pl-mb" />
-                  <el-button link type="danger" size="small" @click="removeItem('items', i)">删除此项</el-button>
+                  <el-input
+                    v-model="it.link"
+                    placeholder="跳转链接"
+                    class="pl-mb"
+                  />
+                  <el-button
+                    link
+                    type="danger"
+                    size="small"
+                    @click="removeItem('items', i)"
+                  >
+                    删除此项
+                  </el-button>
                 </div>
-                <el-button size="small" @click="addItem('items')">+ 添加图标</el-button>
+                <el-button
+                  size="small"
+                  @click="addItem('items')"
+                >
+                  + 添加图标
+                </el-button>
               </template>
 
               <!-- rail 横滑专栏 -->
               <template v-else-if="curComp.type === 'rail'">
                 <el-form-item label="更多链接">
-                  <el-input v-model="curComp.config.moreLink" placeholder="「更多」跳转（可选）" />
+                  <el-input
+                    v-model="curComp.config.moreLink"
+                    placeholder="「更多」跳转（可选）"
+                  />
                 </el-form-item>
-                <div v-for="(it, i) in curComp.config.items" :key="i" class="pl-sub-item">
-                  <el-input v-model="it.cover" placeholder="封面图URL" class="pl-mb" />
-                  <el-input v-model="it.title" placeholder="卡片标题" class="pl-mb" />
-                  <el-input v-model="it.sub" placeholder="副标题（可选）" class="pl-mb" />
-                  <el-input v-model="it.price" placeholder="价格（可选）" class="pl-mb" />
-                  <el-input v-model="it.link" placeholder="跳转链接" class="pl-mb" />
-                  <el-button link type="danger" size="small" @click="removeItem('items', i)">删除此卡</el-button>
+                <div
+                  v-for="(it, i) in curComp.config.items"
+                  :key="i"
+                  class="pl-sub-item"
+                >
+                  <el-input
+                    v-model="it.cover"
+                    placeholder="封面图URL"
+                    class="pl-mb"
+                  />
+                  <el-input
+                    v-model="it.title"
+                    placeholder="卡片标题"
+                    class="pl-mb"
+                  />
+                  <el-input
+                    v-model="it.sub"
+                    placeholder="副标题（可选）"
+                    class="pl-mb"
+                  />
+                  <el-input
+                    v-model="it.price"
+                    placeholder="价格（可选）"
+                    class="pl-mb"
+                  />
+                  <el-input
+                    v-model="it.link"
+                    placeholder="跳转链接"
+                    class="pl-mb"
+                  />
+                  <el-button
+                    link
+                    type="danger"
+                    size="small"
+                    @click="removeItem('items', i)"
+                  >
+                    删除此卡
+                  </el-button>
                 </div>
-                <el-button size="small" @click="addItem('items')">+ 添加卡片</el-button>
+                <el-button
+                  size="small"
+                  @click="addItem('items')"
+                >
+                  + 添加卡片
+                </el-button>
               </template>
 
               <!-- bigCard 大卡 -->
               <template v-else-if="curComp.type === 'bigCard'">
-                <el-form-item label="封面图"><el-input v-model="curComp.config.cover" placeholder="封面图URL" /></el-form-item>
-                <el-form-item label="副标题"><el-input v-model="curComp.config.subtitle" placeholder="副标题（可选）" /></el-form-item>
-                <el-form-item label="价格"><el-input v-model="curComp.config.price" placeholder="价格（可选）" /></el-form-item>
-                <el-form-item label="角标"><el-input v-model="curComp.config.tag" placeholder="左上角标签（可选）" /></el-form-item>
-                <el-form-item label="跳转链接"><el-input v-model="curComp.config.link" placeholder="点击跳转" /></el-form-item>
+                <el-form-item label="封面图">
+                  <el-input
+                    v-model="curComp.config.cover"
+                    placeholder="封面图URL"
+                  />
+                </el-form-item>
+                <el-form-item label="副标题">
+                  <el-input
+                    v-model="curComp.config.subtitle"
+                    placeholder="副标题（可选）"
+                  />
+                </el-form-item>
+                <el-form-item label="价格">
+                  <el-input
+                    v-model="curComp.config.price"
+                    placeholder="价格（可选）"
+                  />
+                </el-form-item>
+                <el-form-item label="角标">
+                  <el-input
+                    v-model="curComp.config.tag"
+                    placeholder="左上角标签（可选）"
+                  />
+                </el-form-item>
+                <el-form-item label="跳转链接">
+                  <el-input
+                    v-model="curComp.config.link"
+                    placeholder="点击跳转"
+                  />
+                </el-form-item>
               </template>
 
               <!-- richtext 富文本 -->
               <template v-else-if="curComp.type === 'richtext'">
                 <el-form-item label="正文">
-                  <el-input v-model="curComp.config.text" type="textarea" :rows="4" placeholder="文字内容（支持换行）" />
+                  <el-input
+                    v-model="curComp.config.text"
+                    type="textarea"
+                    :rows="4"
+                    placeholder="文字内容（支持换行）"
+                  />
                 </el-form-item>
               </template>
             </el-form>
@@ -805,23 +1013,50 @@ fetchList();
 
         <!-- 右：手机预览 -->
         <div class="pl-edit-right">
-          <PhonePreview :comps="components" :label="curRow?.fixed.name" />
+          <PhonePreview
+            :comps="components"
+            :label="curRow?.fixed.name"
+          />
         </div>
       </div>
 
       <template #footer>
-        <el-button @click="editVisible = false">关闭</el-button>
-        <el-button :loading="editSaving" @click="saveOnly">仅保存草稿</el-button>
-        <el-button type="primary" :loading="editSaving" @click="savePublish">保存并启用</el-button>
+        <el-button @click="editVisible = false">
+          关闭
+        </el-button>
+        <el-button
+          :loading="editSaving"
+          @click="saveOnly"
+        >
+          仅保存草稿
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="editSaving"
+          @click="savePublish"
+        >
+          保存并启用
+        </el-button>
       </template>
     </el-drawer>
 
     <!-- ── 独立预览弹窗 ── -->
-    <el-dialog v-model="previewVisible" :title="`预览 · ${previewTitle}`" width="440px">
+    <el-dialog
+      v-model="previewVisible"
+      :title="`预览 · ${previewTitle}`"
+      width="440px"
+    >
       <div style="display: flex; justify-content: center">
-        <PhonePreview :comps="previewComps" :label="previewTitle" />
+        <PhonePreview
+          :comps="previewComps"
+          :label="previewTitle"
+        />
       </div>
-      <el-empty v-if="!previewComps.length" description="该页尚未配置区块（H5 展示系统默认布局）" :image-size="60" />
+      <el-empty
+        v-if="!previewComps.length"
+        description="该页尚未配置区块（H5 展示系统默认布局）"
+        :image-size="60"
+      />
     </el-dialog>
   </div>
 </template>

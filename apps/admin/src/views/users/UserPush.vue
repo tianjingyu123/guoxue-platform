@@ -275,10 +275,12 @@ const counted = ref(false)
 const estimatedCount = ref(0)
 
 interface TagCount { tag: string; count: number }
+interface PushHistory { createdAt?: string; sentAt?: string; tag?: string; type?: string; matchedCount?: number; targetCount?: number }
+function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null }
 const tagOptions = ref<TagCount[]>([])
 const tagsState = ref<'loading' | 'ready' | 'error'>('loading')
 
-const history = ref<any[]>([])
+const history = ref<PushHistory[]>([])
 const historyState = ref<'loading' | 'ready' | 'unavailable'>('loading')
 
 // 端点探测专用（绕过全局错误弹窗：404 属预期降级）
@@ -288,8 +290,8 @@ probe.interceptors.request.use((cfg) => {
   if (t) cfg.headers.Authorization = `Bearer ${t}`
   return cfg
 })
-function unwrapEnvelope(d: any) {
-  return d && typeof d === 'object' && 'code' in d && 'data' in d ? d.data : d
+function unwrapEnvelope(d: unknown): unknown {
+  return isRecord(d) && 'code' in d && 'data' in d ? d.data : d
 }
 
 /** 标签键 → 中文（与 UserTagCenter/后端 UserTagService 标签清单对齐；pref_* 动态兜底） */
@@ -346,7 +348,7 @@ async function loadHistory() {
   try {
     const res = await probe.get('/notifications/admin/sent', { params: { page: 1, pageSize: 20 } })
     const d = unwrapEnvelope(res.data)
-    history.value = Array.isArray(d) ? d : (d?.items || [])
+    history.value = Array.isArray(d) ? d as PushHistory[] : (isRecord(d) && Array.isArray(d.items) ? d.items as PushHistory[] : [])
     historyState.value = 'ready'
   } catch {
     // 404（端点未上线）或其他错误：一律隐藏并说明，绝不再拿管理员个人收件箱冒充推送历史
@@ -378,11 +380,11 @@ async function countUsers() {
   counting.value = true
   try {
     // 预估（dry-run，不发送）：与实际推送同口径（并行后端契约：estimate 支持 tag·tag=ALL 才全员）
-    const params: any = { tag: form.tag }
+    const params: { tag: string; memberLevel?: string; activeDays?: number } = { tag: form.tag }
     if (form.memberLevel) params.memberLevel = form.memberLevel
     if (form.minActiveDays) params.activeDays = form.minActiveDays
     const { data } = await api.get('/users/push/estimate', { params })
-    estimatedCount.value = (data as any)?.count ?? 0
+    estimatedCount.value = isRecord(data) && typeof data.count === 'number' ? data.count : 0
     counted.value = true
   } catch {
     counted.value = false
@@ -423,8 +425,8 @@ async function sendPush() {
       activeDays: form.minActiveDays,
       title: form.title.trim(),
       content: form.content.trim(),
-    } as any)
-    const matched = (data as any)?.matchedCount
+    })
+    const matched = isRecord(data) ? data.matchedCount : undefined
     ElMessage.success(typeof matched === 'number' ? `已推送给 ${matched} 人` : '推送已发送')
     estimatedCount.value = 0
     counted.value = false

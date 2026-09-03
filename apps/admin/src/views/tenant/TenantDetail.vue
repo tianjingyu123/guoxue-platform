@@ -252,10 +252,12 @@ interface ApiLog {
   ip?: string;
   createdAt?: string;
 }
+interface TenantDetail {
+  name?: string; apiKey?: string; plan?: string; quotaTotal?: number; quotaUsed?: number;
+  status?: string; expireAt?: string; createdAt?: string; usageRecords?: QuotaRecord[];
+}
 
-// tenant 详情对象在模板中直接绑定（tenant?.plan 等同时作为 planTag/statusTag 入参），
-// 收敛为接口会触发多处「possibly undefined」连锁，保留 any 更稳妥
-const tenant = ref<any>(null);
+const tenant = ref<TenantDetail | null>(null);
 const usageList = ref<QuotaRecord[]>([]);
 const logList = ref<ApiLog[]>([]);
 const loading = ref(false);
@@ -275,9 +277,9 @@ function maskKey(key?: string) {
   return `${key.slice(0, 4)}****${key.slice(-4)}`;
 }
 
-function planTag(plan: string) {
+function planTag(plan?: string) {
   const map: Record<string, string> = { BASIC: "info", PRO: "warning", ENTERPRISE: "danger" };
-  return map[plan] || "info";
+  return (plan && map[plan]) || "info";
 }
 
 function planLabel(plan?: string) {
@@ -292,14 +294,14 @@ function logStatusLabel(status?: string) {
   return (status && map[status]) || status || "-";
 }
 
-function statusTag(status: string) {
+function statusTag(status?: string) {
   const map: Record<string, string> = { ACTIVE: "success", DISABLED: "info", EXPIRED: "danger" };
-  return map[status] || "info";
+  return (status && map[status]) || "info";
 }
 
-function statusLabel(status: string) {
+function statusLabel(status?: string) {
   const map: Record<string, string> = { ACTIVE: "启用", DISABLED: "禁用", EXPIRED: "过期" };
-  return map[status] || status;
+  return (status && map[status]) || status || "-";
 }
 
 function changeTypeLabel(type: string) {
@@ -313,7 +315,7 @@ async function fetchTenant() {
   try {
     // 详情接口内联 usageRecords（配额变更记录最近 20 条）；API 调用日志走独立分页端点
     const res = await tenantAdminApi.detail(tenantId);
-    tenant.value = res.data;
+    tenant.value = res.data as TenantDetail;
     usageList.value = res.data?.usageRecords ?? [];
   } catch {
     error.value = true;

@@ -174,7 +174,7 @@ let chart: echarts.ECharts | null = null;
 const top3 = computed(() => items.value.slice(0, 3));
 const maxScore = computed(() => items.value.reduce((m, i) => Math.max(m, i.score), 0));
 
-function medal(rank: number) { return rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉"; }
+function medal(rank: number) { return rank === 1 ? "冠" : rank === 2 ? "亚" : "季"; }
 function rankClass(rank: number) { return rank <= 3 ? `rank-top rank-top-${rank}` : ""; }
 function pct(score: number) { return maxScore.value > 0 ? Math.round((score / maxScore.value) * 100) : 0; }
 

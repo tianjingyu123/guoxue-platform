@@ -30,9 +30,9 @@ test("移动端核心入口支持键盘与辅助技术", async () => {
 test("管理端登录表单具备可识别标签与安全自动填充语义", async () => {
   const source = await read("apps/admin/src/views/Login.vue");
 
-  assert.match(source, /<el-form-item label="手机号" prop="phone">/u);
+  assert.match(source, /<el-form-item\s+label="手机号"\s+prop="phone"\s*>/u);
   assert.match(source, /autocomplete="username"/u);
-  assert.match(source, /<el-form-item label="密码" prop="password">/u);
+  assert.match(source, /<el-form-item\s+label="密码"\s+prop="password"\s*>/u);
   assert.match(source, /autocomplete="current-password"/u);
   assert.match(source, /native-type="submit"/u);
   assert.match(source, /@submit\.prevent="handleLogin"/u);

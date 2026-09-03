@@ -1,8 +1,12 @@
 <template>
   <el-container class="layout">
+    <a
+      class="skip-link"
+      href="#admin-main"
+    >跳到主内容</a>
     <ConnectionStatus />
     <el-aside
-      :width="isCollapse ? '64px' : '220px'"
+      :width="isCollapse ? '76px' : '248px'"
       class="aside"
     >
       <!-- 品牌区 -->
@@ -27,7 +31,7 @@
           v-if="workspace === 'ai' && !isCollapse"
           class="ws-ai-hint"
         >
-          AI 数字员工车间 · 自动执行 + 人工兜底
+          AI 辅助协作 · 关键操作人工审核
         </div>
       </div>
 
@@ -53,7 +57,10 @@
         :aria-label="isCollapse ? '展开侧边菜单' : '收起侧边菜单'"
         @click="isCollapse = !isCollapse"
       >
-        <span class="collapse-icon">{{ isCollapse ? '»' : '«' }}</span>
+        <el-icon class="collapse-icon">
+          <Expand v-if="isCollapse" />
+          <Fold v-else />
+        </el-icon>
         <span
           v-if="!isCollapse"
           class="collapse-text"
@@ -72,9 +79,9 @@
             :aria-expanded="mobileMenuOpen"
             @click="mobileMenuOpen = !mobileMenuOpen"
           >
-            <span v-if="!mobileMenuOpen">☰</span><span v-else>✕</span>
+            <el-icon><Close v-if="mobileMenuOpen" /><Menu v-else /></el-icon>
           </button>
-          <el-breadcrumb separator="">
+          <el-breadcrumb separator="›">
             <el-breadcrumb-item :to="{ path: '/dashboard' }">
               <span class="breadcrumb-home">首页</span>
             </el-breadcrumb-item>
@@ -83,7 +90,6 @@
               v-for="(seg, i) in breadcrumbTrail"
               :key="i"
             >
-              <span class="breadcrumb-sep">/</span>
               <el-breadcrumb-item>
                 <span :class="i === breadcrumbTrail.length - 1 ? 'breadcrumb-current' : 'breadcrumb-group'">{{ seg }}</span>
               </el-breadcrumb-item>
@@ -97,10 +103,12 @@
             aria-label="搜索后台功能，快捷键 Ctrl K"
             @click="commandOpen = true"
           >
-            <span
+            <el-icon
               class="command-trigger-icon"
               aria-hidden="true"
-            >⌕</span>
+            >
+              <Search />
+            </el-icon>
             <span class="command-trigger-label">搜索功能</span>
             <kbd>Ctrl K</kbd>
           </button>
@@ -154,7 +162,7 @@
                   class="notify-btn"
                   aria-label="打开通知中心"
                 >
-                  🔔
+                  <el-icon><Bell /></el-icon>
                 </el-button>
               </el-badge>
             </template>
@@ -220,19 +228,51 @@
               </div>
             </div>
           </el-popover>
-          <span class="nickname">{{ auth.user?.nickname }}</span>
-          <el-button
-            text
-            class="logout-btn"
-            @click="logout"
+          <el-dropdown
+            trigger="click"
+            placement="bottom-end"
           >
-            退出
-          </el-button>
+            <button
+              type="button"
+              class="account-trigger"
+              aria-label="打开账户菜单"
+            >
+              <span class="account-avatar">{{ userInitial }}</span>
+              <span class="account-copy">
+                <b>{{ auth.user?.nickname || "管理员" }}</b>
+                <small>在线</small>
+              </span>
+              <el-icon class="account-chevron">
+                <ArrowDown />
+              </el-icon>
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item disabled>
+                  当前账户 · {{ auth.user?.nickname || "管理员" }}
+                </el-dropdown-item>
+                <el-dropdown-item
+                  divided
+                  @click="logout"
+                >
+                  安全退出
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-header>
 
       <!-- 主内容区 -->
-      <el-main>
+      <el-main
+        id="admin-main"
+        ref="mainContentRef"
+        tabindex="-1"
+        :aria-label="currentPageTitle"
+        :class="mainClasses"
+        :data-page-kind="pageKind"
+        :data-page-domain="pageDomain"
+      >
         <router-view v-slot="{ Component }">
           <transition
             name="fade-slide"
@@ -272,7 +312,7 @@
           v-if="workspace === 'ai'"
           class="ws-ai-hint"
         >
-          AI 数字员工车间 · 自动执行 + 人工兜底
+          AI 辅助协作 · 关键操作人工审核
         </div>
       </div>
       <div class="menu-scroll mobile-menu-scroll">
@@ -293,15 +333,17 @@
     <!-- 200+ 页面统一入口：支持 Ctrl/Cmd+K、最近访问与键盘导航 -->
     <AdminCommandPalette
       v-model="commandOpen"
-      :items="auth.menus"
+      :items="commandMenus"
+      @navigated="focusMainContent"
     />
   </el-container>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { ArrowDown, Bell, Close, Expand, Fold, Menu, Search } from "@element-plus/icons-vue";
 import { useAuthStore, type MenuItem } from "@/store/auth";
 import { filterMenusByWorkspace, pathWorkspace, type Workspace } from "@/lib/menu-structure";
 import SidebarMenu from "@/components/SidebarMenu.vue";
@@ -315,32 +357,120 @@ import { BRAND } from "@/lib/brand";
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
-const isCollapse = ref(false);
+const isCollapse = ref(localStorage.getItem("admin_sidebar_collapsed") === "1");
 const unreadCount = ref(0);
 const mobileMenuOpen = ref(false);
 const commandOpen = ref(false);
+const mainContentRef = ref<{ $el?: HTMLElement }>();
+const previewMode = computed(() => import.meta.env.DEV && route.meta?.devPreview === true);
+const userInitial = computed(() => (auth.user?.nickname || "管").trim().slice(0, 1));
+const currentPageTitle = computed(() => String(route.meta.title || "后台主要内容"));
+
+// 页面类型会驱动统一的信息密度与工作流布局，让历史页面也获得合适的交互骨架。
+const pageKind = computed(() => {
+  const path = route.path.toLowerCase();
+  // 开发验收路由统一带 Preview 后缀，剔除后再参与业务类型判断。
+  const name = String(route.name || "").toLowerCase().replace(/preview/g, "");
+  const source = `${path} ${name}`;
+
+  if (/bigscreen/.test(source)) return "immersive";
+  if (/create|edit|editor|generation|micro-page/.test(source)) return "editor";
+  if (/audit|review|approval|certification|appeal|dispute|refund/.test(source)) return "review";
+  if (/dashboard|overview|analytics|report|revenue|growth|health|perf|funnel|heatmap|stats|usage/.test(source)) return "analytics";
+  if (/config|settings|rules|permission|feature-flag|weight|gateway|webhook|brand/.test(source)) return "settings";
+  if (route.params.id || /detail/.test(source)) return "detail";
+  return "list";
+});
+
+const pageDomain = computed(() => {
+  const first = route.path.split("/").filter(Boolean)[0] || "dashboard";
+  if (["contents", "content", "articles", "classics", "videos", "lives", "courses"].includes(first)) return "content";
+  if (["users", "member", "teacher", "creator"].includes(first)) return "people";
+  if (["products", "shop", "orders", "coupons", "marketing", "bundles"].includes(first)) return "commerce";
+  if (["finance", "revenue", "withdrawals", "commission-config", "platform-fee", "recharges", "gifts"].includes(first)) return "finance";
+  if (["system", "system-settings", "audit-logs", "banners"].includes(first)) return "system";
+  if (["ai", "knowledge", "content-generation"].includes(first)) return "ai";
+  return first;
+});
+const mainClasses = computed(() => ({
+  "is-merchant-workspace": route.path.startsWith("/merchant-backend"),
+  "is-focus-workspace": route.path.includes("/edit") || route.path.includes("/create"),
+}));
+
+watch(isCollapse, (value) => {
+  localStorage.setItem("admin_sidebar_collapsed", value ? "1" : "0");
+});
 
 // 路由跳转后自动收起移动端抽屉（点菜单项即关）
 watch(
   () => route.fullPath,
-  () => { mobileMenuOpen.value = false; },
+  async () => {
+    mobileMenuOpen.value = false;
+    await nextTick();
+    const main = mainContentRef.value?.$el;
+    main?.scrollTo({ top: 0, behavior: "auto" });
+  },
 );
+
+// SPA 切换到新页面时把读屏与键盘焦点交给主内容；仅查询参数变化时不抢走表单焦点。
+watch(
+  () => route.path,
+  focusMainContent,
+);
+
+async function focusMainContent() {
+  await nextTick();
+  mainContentRef.value?.$el?.focus({ preventScroll: true });
+}
 
 // ───────── 工作区切换：人工工作区 ⇄ AI 自动化工作区（体验标准第三节） ─────────
 const WS_KEY = "admin_workspace";
 const WS_OPTIONS_FULL: Array<{ label: string; value: Workspace }> = [
-  { label: "👤 人工工作区", value: "human" },
-  { label: "🤖 AI 工作区", value: "ai" },
+  { label: "人工工作区", value: "human" },
+  { label: "AI 工作区", value: "ai" },
 ];
 // 侧栏收起（64px）时放不下文字，退化为纯图标
 const WS_OPTIONS_COMPACT: Array<{ label: string; value: Workspace }> = [
-  { label: "👤", value: "human" },
-  { label: "🤖", value: "ai" },
+  { label: "人", value: "human" },
+  { label: "AI", value: "ai" },
 ];
 const workspace = ref<Workspace>(localStorage.getItem(WS_KEY) === "ai" ? "ai" : "human");
 
 // 菜单在 Layout 层按工作区过滤（auth.menus 构建链不动·商家后台/兜底菜单缺省归人工区）
-const visibleMenus = computed<MenuItem[]>(() => filterMenusByWorkspace(auth.menus, workspace.value));
+const PREVIEW_MENUS: MenuItem[] = [
+  { title: "工作台", icon: "Grid", path: "/__qa/admin-shell" },
+  { title: "审核中心", icon: "Checked", children: [
+    { title: "内容审核", path: "/__qa/admin-shell/workflow/review" },
+    { title: "商品审核", path: "/__qa/admin-shell/workflow/review" },
+    { title: "商家入驻", path: "/__qa/admin-shell/workflow/review" },
+  ] },
+  { title: "内容运营", icon: "Document", children: [
+    { title: "圈子", path: "/__qa/admin-shell/workflow/list" },
+    { title: "课程", path: "/__qa/admin-shell/workflow/editor" },
+    { title: "短视频与直播", path: "/__qa/admin-shell/workflow/detail" },
+  ] },
+  { title: "电商", icon: "ShoppingCart", children: [
+    { title: "商品", path: "/__qa/admin-shell/workflow/list" },
+    { title: "订单与售后", path: "/__qa/admin-shell/workflow/detail" },
+  ] },
+  { title: "用户与会员", icon: "User", children: [
+    { title: "用户管理", path: "/__qa/admin-shell/workflow/detail" },
+    { title: "会员管理", path: "/__qa/admin-shell/workflow/analytics" },
+  ] },
+  { title: "数据与大屏", icon: "DataAnalysis", children: [
+    { title: "管理驾驶舱", path: "/__qa/admin-shell/workflow/analytics" },
+    { title: "平台综合大屏", path: "/__qa/platform-bigscreen" },
+  ] },
+  { title: "系统", icon: "Setting", children: [
+    { title: "系统设置", path: "/__qa/admin-shell/workflow/settings" },
+    { title: "角色权限", path: "/__qa/admin-shell/workflow/settings" },
+  ] },
+];
+const visibleMenus = computed<MenuItem[]>(() => filterMenusByWorkspace(
+  previewMode.value ? PREVIEW_MENUS : auth.menus,
+  workspace.value,
+));
+const commandMenus = computed<MenuItem[]>(() => previewMode.value ? PREVIEW_MENUS : auth.menus);
 
 watch(workspace, (ws) => {
   localStorage.setItem(WS_KEY, ws);
@@ -484,6 +614,7 @@ function humanTime(iso: string): string {
 let unreadTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(async () => {
+  if (previewMode.value) return;
   try {
     if (!auth.user) await auth.fetchProfile();
     if (auth.menus.length === 0) await auth.fetchMenus();
@@ -520,7 +651,23 @@ async function logout() {
 .layout {
   height: 100vh;
   background: var(--color-bg-page);
+  color: var(--color-text-body);
 }
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 12px;
+  z-index: 4000;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--color-primary);
+  box-shadow: var(--shadow-lg);
+  font-weight: 600;
+  transform: translateY(calc(-100% - 18px));
+  transition: transform var(--transition-fast);
+}
+.skip-link:focus-visible { transform: translateY(0); }
 
 /* ═══════════════════════ 侧边栏 ═══════════════════════ */
 .aside {
@@ -529,7 +676,7 @@ async function logout() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 2px 0 24px rgba(0, 0, 0, 0.15);
+  box-shadow: 8px 0 32px rgba(8, 24, 40, 0.12);
   position: relative;
   z-index: 20;
 }
@@ -540,8 +687,10 @@ async function logout() {
   top: 0;
   left: 0;
   right: 0;
+  width: 72px;
   height: 2px;
-  background: var(--gradient-gold);
+  right: auto;
+  background: linear-gradient(90deg, #d6b36e, rgba(214, 179, 110, 0));
   z-index: 1;
 }
 
@@ -549,24 +698,24 @@ async function logout() {
 .brand {
   display: flex;
   align-items: center;
-  padding: 20px 16px;
-  border-bottom: 1px solid rgba(201, 169, 110, 0.1);
+  padding: 22px 18px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   gap: 10px;
   cursor: default;
   user-select: none;
-  min-height: 64px;
+  min-height: 72px;
 }
 
 /* ── 工作区切换（人工 ⇄ AI·暗色侧栏适配） ── */
 .ws-switch {
-  padding: 10px 12px 8px;
-  border-bottom: 1px solid rgba(201, 169, 110, 0.1);
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.065);
 }
 .ws-segmented {
-  --el-segmented-bg-color: rgba(0, 0, 0, 0.28);
-  --el-segmented-item-selected-bg-color: rgba(201, 169, 110, 0.85);
-  --el-segmented-item-selected-color: #1a1a1a;
-  --el-segmented-color: rgba(255, 255, 255, 0.65);
+  --el-segmented-bg-color: rgba(3, 13, 24, 0.42);
+  --el-segmented-item-selected-bg-color: rgba(255, 255, 255, 0.14);
+  --el-segmented-item-selected-color: #fff;
+  --el-segmented-color: rgba(235, 241, 247, 0.62);
   --el-segmented-item-hover-color: #fff;
   --el-segmented-item-hover-bg-color: rgba(255, 255, 255, 0.08);
   --el-segmented-item-active-bg-color: rgba(255, 255, 255, 0.12);
@@ -581,9 +730,9 @@ async function logout() {
   margin-top: 8px;
   padding: 4px 8px;
   border-radius: var(--radius-md);
-  background: linear-gradient(90deg, rgba(201, 169, 110, 0.18), rgba(201, 169, 110, 0.04));
-  border: 1px solid rgba(201, 169, 110, 0.25);
-  color: var(--color-gold);
+  background: linear-gradient(90deg, rgba(67, 178, 255, 0.13), rgba(67, 178, 255, 0.035));
+  border: 1px solid rgba(95, 190, 255, 0.18);
+  color: #9ed8ff;
   font-size: 11px;
   line-height: 1.6;
   text-align: center;
@@ -595,7 +744,7 @@ async function logout() {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: var(--spacing-sm) 0;
+  padding: 10px 4px;
 }
 .menu-scroll::-webkit-scrollbar { width: 3px; }
 .menu-scroll::-webkit-scrollbar-thumb {
@@ -608,38 +757,39 @@ async function logout() {
   background: transparent !important;
 }
 .menu-scroll :deep(.el-menu-item) {
-  margin: 2px 8px;
-  border-radius: var(--radius-md);
-  height: 44px;
-  line-height: 44px;
+  margin: 3px 8px;
+  border-radius: 10px;
+  height: 42px;
+  line-height: 42px;
   font-size: var(--font-size-body);
   transition: all var(--transition-base);
 }
 .menu-scroll :deep(.el-menu-item:hover) {
-  background: rgba(201, 169, 110, 0.08) !important;
-  color: var(--color-gold) !important;
+  background: rgba(255, 255, 255, 0.065) !important;
+  color: #fff !important;
 }
 .menu-scroll :deep(.el-menu-item.is-active) {
-  background: linear-gradient(90deg, rgba(201, 169, 110, 0.18) 0%, rgba(201, 169, 110, 0.02) 100%) !important;
-  color: var(--color-gold) !important;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.065) 100%) !important;
+  color: #fff !important;
   font-weight: 600;
-  border-right: 3px solid var(--color-gold);
+  border-right: 0 !important;
+  box-shadow: inset 2px 0 0 #d2ad67, 0 8px 22px rgba(0, 0, 0, 0.08);
 }
 .menu-scroll :deep(.el-sub-menu__title) {
   margin: 2px 8px;
-  border-radius: var(--radius-md);
-  height: 44px;
-  line-height: 44px;
+  border-radius: 10px;
+  height: 42px;
+  line-height: 42px;
   font-size: var(--font-size-body);
   transition: all var(--transition-base);
 }
 .menu-scroll :deep(.el-sub-menu__title:hover) {
-  background: rgba(201, 169, 110, 0.06) !important;
-  color: var(--color-gold) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: #fff !important;
 }
 /* 子菜单展开区域 */
 .menu-scroll :deep(.el-menu--inline) {
-  background: rgba(0, 0, 0, 0.15) !important;
+  background: rgba(2, 12, 23, 0.2) !important;
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
   margin-left: 8px;
 }
@@ -662,7 +812,7 @@ async function logout() {
   border-bottom: 0;
   border-left: 0;
   background: transparent;
-  border-top: 1px solid rgba(201, 169, 110, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.065);
   cursor: pointer;
   color: rgba(255, 255, 255, 0.35);
   font-size: var(--font-size-caption);
@@ -671,11 +821,11 @@ async function logout() {
   user-select: none;
 }
 .aside-footer:hover {
-  color: var(--color-gold);
-  background: rgba(201, 169, 110, 0.04);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.045);
 }
 .collapse-icon {
-  font-size: 14px;
+  font-size: 16px;
   transition: transform var(--transition-base);
 }
 /* hover 时箭头朝动作方向微移：展开态(«)向左示意收起·收起态(»)向右示意展开
@@ -690,15 +840,16 @@ async function logout() {
 /* ═══════════════════════ 顶栏 ═══════════════════════ */
 .el-header {
   height: var(--header-height) !important;
-  background: var(--color-bg-card);
+  background: rgba(255, 255, 255, 0.82);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--color-divider);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-  padding: 0 var(--spacing-xl);
+  border-bottom: 1px solid rgba(216, 222, 231, 0.86);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  padding: 0 28px;
   z-index: 10;
   position: relative;
+  backdrop-filter: saturate(150%) blur(18px);
 }
 
 .header-left {
@@ -708,7 +859,7 @@ async function logout() {
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: 10px;
 }
 
 /* 移动端菜单开关：桌面端隐藏——此前无任何样式，桌面顶栏面包屑前裸渲染一个"☰"（2026-07-15 走查修） */
@@ -758,11 +909,6 @@ async function logout() {
 .breadcrumb-home:hover {
   color: var(--color-primary);
 }
-.breadcrumb-sep {
-  margin: 0 8px;
-  color: var(--color-divider);
-  font-size: var(--font-size-small);
-}
 .breadcrumb-group {
   color: var(--color-text-secondary);
   font-size: var(--font-size-caption);
@@ -771,11 +917,12 @@ async function logout() {
 .breadcrumb-current {
   color: var(--color-text-title);
   font-size: var(--font-size-caption);
-  font-weight: 500;
+  font-weight: 650;
 }
-/* 去除默认分隔符 */
 :deep(.el-breadcrumb__separator) {
-  display: none;
+  margin: 0 9px;
+  color: #b0b8c3;
+  font-weight: 400;
 }
 /* 面包屑项间距 */
 :deep(.el-breadcrumb__item) {
@@ -785,39 +932,40 @@ async function logout() {
 
 /* 角色标签 */
 .role-tag {
-  border-color: var(--color-gold);
-  color: var(--color-gold-dark);
-  background: var(--color-gold-lighter);
+  border-color: rgba(184, 137, 63, 0.22);
+  color: #765321;
+  background: rgba(184, 137, 63, 0.075);
   font-weight: 500;
 }
 
 /* 全局目录索引：大后台的主导航捷径 */
 .command-trigger {
-  height: 34px;
+  height: 38px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 0 8px 0 10px;
-  border: 1px solid var(--color-divider);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-paper);
+  min-width: 178px;
+  padding: 0 8px 0 12px;
+  border: 1px solid #dfe4eb;
+  border-radius: 11px;
+  background: rgba(245, 247, 249, 0.9);
   color: var(--color-text-secondary);
   font: 12px/1 var(--font-family);
   cursor: pointer;
   transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
 }
 .command-trigger:hover {
-  border-color: var(--color-gold);
-  background: var(--color-gold-lighter);
+  border-color: #bec8d4;
+  background: #fff;
   color: var(--color-text-title);
 }
-.command-trigger-icon { color: var(--color-gold-dark); font-size: 17px; }
+.command-trigger-icon { color: #66788d; font-size: 16px; }
 .command-trigger kbd {
   padding: 2px 5px;
   border: 1px solid var(--color-divider);
   border-bottom-width: 2px;
   border-radius: 4px;
-  background: #fff;
+  background: rgba(255,255,255,.8);
   color: var(--color-text-secondary);
   font: 10px/1.4 var(--font-family);
 }
@@ -829,42 +977,64 @@ async function logout() {
 
 /* 通知 */
 .notify-btn {
-  font-size: 18px;
-  padding: 4px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 11px;
+  color: #647184;
+  font-size: 17px;
+  background: #f5f7f9;
 }
 .notify-badge :deep(.el-badge__content) {
   background: var(--color-primary);
   border: none;
 }
 
-/* 用户昵称 */
-.nickname {
+.account-trigger {
+  display: grid;
+  grid-template-columns: 32px minmax(0, auto) 14px;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 4px 8px 4px 5px;
+  border: 0;
+  border-radius: 12px;
   color: var(--color-text-title);
-  font-size: var(--font-size-body);
-  font-weight: 500;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  background: transparent;
+  cursor: pointer;
+  transition: background var(--transition-fast);
 }
-
-/* 退出按钮 */
-.logout-btn {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-caption);
+.account-trigger:hover { background: #f1f3f6; }
+.account-avatar {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  background: linear-gradient(145deg, #294e70, #12243a);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
 }
-.logout-btn:hover {
-  color: var(--color-primary);
-}
+.account-copy { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.account-copy b { max-width: 92px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.account-copy small { margin-top: 1px; color: #7d8998; font-size: 10px; }
+.account-copy small::before { display: inline-block; width: 5px; height: 5px; margin-right: 4px; border-radius: 50%; background: #22a06b; content: ""; }
+.account-chevron { color: #9aa3af; font-size: 11px; }
 
 /* ═══════════════════════ 主内容区 ═══════════════════════ */
 .el-main {
   background:
-    var(--paper-texture),
-    var(--color-bg-page);
-  padding: var(--spacing-xl);
+    radial-gradient(circle at 10% 0%, rgba(43, 86, 129, 0.045), transparent 27%),
+    linear-gradient(180deg, #f3f5f8 0, #f7f8fa 100%);
+  --workspace-gutter: clamp(20px, 2.2vw, 36px);
+  padding: 28px var(--workspace-gutter) 40px;
   min-height: 0;
+  scroll-behavior: smooth;
 }
+.el-main.is-merchant-workspace { padding: 0; }
+.el-main.is-focus-workspace { background: #eef1f5; }
 
 .el-menu--collapse { width: var(--sidebar-collapsed-width); }
 
@@ -872,6 +1042,19 @@ async function logout() {
 .aside:has(.el-menu--collapse) .brand {
   justify-content: center;
   padding: 20px 12px;
+}
+
+@media (max-width: 1100px) {
+  .role-tag { display: none; }
+  .account-copy, .account-chevron { display: none; }
+  .account-trigger { grid-template-columns: 32px; padding: 4px; }
+}
+
+@media (max-width: 768px) {
+  .el-header { padding: 0 14px; }
+  .el-main { --workspace-gutter: 14px; padding: 18px var(--workspace-gutter) 30px; }
+  .command-trigger { min-width: 38px; }
+  .breadcrumb-group, .breadcrumb-sep { display: none; }
 }
 </style>
 

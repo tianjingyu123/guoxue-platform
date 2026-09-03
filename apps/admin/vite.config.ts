@@ -1,14 +1,24 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import Components from "unplugin-vue-components/vite";
+import { ElementPlusResolver } from "unplugin-vue-components/resolvers";
 import { resolve } from "path";
 
-export default defineConfig(({ command }) => ({
-  // 生产构建时部署在 /admin/ 子路径下，开发时用根路径
-  base: command === "build" ? "/admin/" : "/",
-  plugins: [vue()],
+export default defineConfig(({ command, isPreview }) => ({
+  // 生产构建及本地 production preview 均使用 /admin/，仅开发服务器使用根路径。
+  base: command === "build" || isPreview ? "/admin/" : "/",
+  plugins: [
+    vue(),
+    Components({
+      directives: true,
+      resolvers: [ElementPlusResolver({ importStyle: "css", directives: true })],
+    }),
+  ],
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
+      // VOD SDK 只用 sha1() 生成断点续传键；替换掉含 eval(Node require) 的旧版 js-sha1。
+      "js-sha1": resolve(__dirname, "src/vendor/js-sha1-browser.cjs"),
       // @guoxue/shared 直指源码，避免 CJS dist 产物导致 Rollup 无法静态分析导出
       "@guoxue/shared": resolve(__dirname, "../../packages/shared/src/index.ts"),
     },
@@ -16,6 +26,21 @@ export default defineConfig(({ command }) => ({
   server: {
     host: "0.0.0.0",
     port: 8080,
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+      "/uploads": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+    },
+  },
+  // 让本地生产构建预览具备与开发服务器一致的联调能力，便于登录后全链路验收。
+  preview: {
+    host: "127.0.0.1",
+    port: 4173,
     proxy: {
       "/api": {
         target: "http://localhost:3000",
@@ -43,6 +68,7 @@ export default defineConfig(({ command }) => ({
         },
       },
     },
-    chunkSizeWarningLimit: 1000,
+    // 当前最大公共块约 931 kB；留出有限增长空间，后续越过预算即在构建阶段告警。
+    chunkSizeWarningLimit: 950,
   },
 }));

@@ -1,15 +1,18 @@
 <template>
   <div
     v-loading="loading"
-    class="bigscreen offline"
+    class="bigscreen tech-screen offline"
     element-loading-background="rgba(13,26,18,0.6)"
   >
     <header class="bs-header">
       <div class="bs-title">
         线下驿站分布数据大屏
       </div>
-      <div class="bs-time">
-        {{ nowStr }}
+      <div class="bs-header-tools">
+        <div class="bs-time">
+          {{ nowStr }}
+        </div>
+        <BigscreenActions @resize="resizeCharts" />
       </div>
     </header>
 
@@ -31,7 +34,8 @@
 
     <div
       v-else
-      class="bs-body">
+      class="bs-body"
+    >
       <!-- 核心指标 -->
       <div class="kpi-bar">
         <div class="kpi-item">
@@ -54,7 +58,7 @@
       <div class="bs-grid-2">
         <!-- 城市分布 -->
         <div class="bs-panel">
-          <h3>🏙️ 城市驿站分布</h3>
+          <h3>城市驿站分布</h3>
           <div
             v-if="data.cityDistribution?.length"
             ref="cityChartRef"
@@ -68,7 +72,7 @@
         </div>
         <!-- 驿站列表 -->
         <div class="bs-panel">
-          <h3>📍 驿站列表</h3>
+          <h3>驿站实时名录</h3>
           <div class="station-scroll">
             <div
               v-for="s in (data.stations || [])"
@@ -102,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import BigscreenActions from "@/components/BigscreenActions.vue";
 import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
@@ -135,7 +140,7 @@ function fmt(v: unknown) { return v != null ? Number(v).toLocaleString() : "0"; 
 
 function renderCityChart() {
   if (!cityChartRef.value) return;
-  if (!cityChart) cityChart = echarts.init(cityChartRef.value);
+  if (!cityChart) cityChart = echarts.init(cityChartRef.value, "tech-screen");
   const cd = data.value.cityDistribution || [];
   cityChart.setOption({
     tooltip: { trigger: "axis" },
@@ -164,6 +169,10 @@ async function fetchData() {
   } finally {
     loading.value = false;
   }
+}
+
+function resizeCharts() {
+  cityChart?.resize();
 }
 
 onMounted(() => {

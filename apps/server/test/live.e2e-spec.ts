@@ -285,6 +285,20 @@ describe("Live E2E", () => {
         .send({ replayUrl: "https://replay.example.com/v.mp4" })
         .expect(200)
       expect(res.body.replayUrl).toBe("https://replay.example.com/v.mp4")
+      expect(prisma.liveRoom.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ replayStatus: "PUBLISHED", replayPublishedBy: "admin1" }),
+      }))
+    })
+
+    it("直播未结束不能发布回放", async () => {
+      mockAdminUser()
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "LIVING" })
+      await request(app.getHttpServer())
+        .put("/api/v1/live/rooms/r1/replay")
+        .set("Authorization", `Bearer ${adminToken}`)
+        .send({ replayUrl: "https://replay.example.com/v.mp4" })
+        .expect(400)
+      expect(prisma.liveRoom.update).not.toHaveBeenCalled()
     })
   })
 
@@ -300,6 +314,18 @@ describe("Live E2E", () => {
         .set("Authorization", `Bearer ${token}`)
         .expect(201)
       expect(res.body.booked).toBe(true)
+      expect(prisma.liveBooking.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: { roomId_userId: { roomId: "r1", userId: "u1" } },
+      }))
+    })
+
+    it("未配置开播时间不能预约", async () => {
+      prisma.liveRoom.findUnique.mockResolvedValue({ id: "r1", status: "WAITING", startTime: null })
+      await request(app.getHttpServer())
+        .post("/api/v1/live/rooms/r1/book")
+        .set("Authorization", `Bearer ${token}`)
+        .expect(400)
+      expect(prisma.liveBooking.upsert).not.toHaveBeenCalled()
     })
   })
 

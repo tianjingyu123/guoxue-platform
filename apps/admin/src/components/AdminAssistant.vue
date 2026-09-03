@@ -71,7 +71,7 @@ async function onShotFile(e: Event) {
   const inp = e.target as HTMLInputElement; const file = inp.files?.[0]; inp.value = "";
   if (!file) return;
   shotUploading.value = true;
-  try { const { data } = await uploadApi.image(file); if ((data as any)?.url) fb.value.images.push((data as any).url); }
+  try { const { data } = await uploadApi.image(file); if (data.url) fb.value.images.push(data.url); }
   catch { ElMessage.error("截图上传失败"); } finally { shotUploading.value = false; }
 }
 const categories = [
@@ -122,40 +122,98 @@ watch(open, (v) => { if (v) { scrollBottom(); if (tab.value === "mine") fetchMin
 <template>
   <div class="assistant-root">
     <!-- 悬浮按钮 -->
-    <div v-if="!open" class="fab" @click="open = true">
-      <el-icon :size="24"><ChatDotRound /></el-icon>
+    <div
+      v-if="!open"
+      class="fab"
+      @click="open = true"
+    >
+      <el-icon :size="24">
+        <ChatDotRound />
+      </el-icon>
       <span class="fab-txt">运营助手</span>
     </div>
 
     <!-- 抽屉面板 -->
-    <div v-if="open" class="panel">
+    <div
+      v-if="open"
+      class="panel"
+    >
       <div class="panel-hd">
         <div class="hd-left">
-          <el-icon :size="18"><ChatDotRound /></el-icon>
+          <el-icon :size="18">
+            <ChatDotRound />
+          </el-icon>
           <span>后台运营助手</span>
         </div>
-        <el-icon class="hd-close" @click="open = false"><i class="close-x">✕</i></el-icon>
+        <el-icon
+          class="hd-close"
+          @click="open = false"
+        >
+          <i class="close-x">✕</i>
+        </el-icon>
       </div>
       <div class="panel-tabs">
-        <div class="tab" :class="{ on: tab === 'chat' }" @click="tab = 'chat'">答疑指导</div>
-        <div class="tab" :class="{ on: tab === 'feedback' }" @click="tab = 'feedback'">反馈问题</div>
-        <div class="tab" :class="{ on: tab === 'mine' }" @click="tab = 'mine'">我的反馈</div>
+        <div
+          class="tab"
+          :class="{ on: tab === 'chat' }"
+          @click="tab = 'chat'"
+        >
+          答疑指导
+        </div>
+        <div
+          class="tab"
+          :class="{ on: tab === 'feedback' }"
+          @click="tab = 'feedback'"
+        >
+          反馈问题
+        </div>
+        <div
+          class="tab"
+          :class="{ on: tab === 'mine' }"
+          @click="tab = 'mine'"
+        >
+          我的反馈
+        </div>
       </div>
 
       <!-- 对话 -->
       <template v-if="tab === 'chat'">
         <div class="chat-toolbar">
           <span class="chat-hint">对话已自动保留，方便你回来追问</span>
-          <span class="chat-clear" @click="clearChat">清空对话</span>
+          <span
+            class="chat-clear"
+            @click="clearChat"
+          >清空对话</span>
         </div>
-        <div ref="bodyRef" class="chat-body">
-          <div v-for="(m, i) in messages" :key="i" class="msg" :class="m.role">
-            <div class="bubble">{{ m.content }}</div>
+        <div
+          ref="bodyRef"
+          class="chat-body"
+        >
+          <div
+            v-for="(m, i) in messages"
+            :key="i"
+            class="msg"
+            :class="m.role"
+          >
+            <div class="bubble">
+              {{ m.content }}
+            </div>
           </div>
-          <div v-if="sending" class="msg assistant"><div class="bubble typing">正在思考…</div></div>
+          <div
+            v-if="sending"
+            class="msg assistant"
+          >
+            <div class="bubble typing">
+              正在思考…
+            </div>
+          </div>
         </div>
         <!-- 一键把刚才的问题正式提交给管理层（解决"助手说会反馈其实没反馈"） -->
-        <div v-if="messages.length > 1" class="report-bar" @click="reportThis">
+        <div
+          v-if="messages.length > 1"
+          class="report-bar"
+          @click="reportThis"
+        >
           <el-icon><Warning /></el-icon>
           <span>这是程序问题？点这里把它反馈给管理层</span>
         </div>
@@ -168,59 +226,159 @@ watch(open, (v) => { if (v) { scrollBottom(); if (tab.value === "mine") fetchMin
             placeholder="问我怎么操作，或某功能怎么用…"
             @keyup.enter.exact.prevent="send"
           />
-          <el-button type="primary" :icon="Promotion" :loading="sending" @click="send">发送</el-button>
+          <el-button
+            type="primary"
+            :icon="Promotion"
+            :loading="sending"
+            @click="send"
+          >
+            发送
+          </el-button>
         </div>
       </template>
 
       <!-- 反馈 -->
       <template v-else-if="tab === 'feedback'">
         <div class="fb-body">
-          <div class="fb-tip"><el-icon><Warning /></el-icon> 遇到程序问题（点了没反应/报错/白屏/数据不对）请记录下来，会汇总给管理层，由技术团队处理。</div>
-          <el-form label-position="top" size="default">
+          <div class="fb-tip">
+            <el-icon><Warning /></el-icon> 遇到程序问题（点了没反应/报错/白屏/数据不对）请记录下来，会汇总给管理层，由技术团队处理。
+          </div>
+          <el-form
+            label-position="top"
+            size="default"
+          >
             <el-form-item label="问题类型">
-              <el-select v-model="fb.category" style="width:100%">
-                <el-option v-for="c in categories" :key="c.value" :label="c.label" :value="c.value" />
+              <el-select
+                v-model="fb.category"
+                style="width:100%"
+              >
+                <el-option
+                  v-for="c in categories"
+                  :key="c.value"
+                  :label="c.label"
+                  :value="c.value"
+                />
               </el-select>
             </el-form-item>
-            <el-form-item label="标题（一句话说清）" required>
-              <el-input v-model="fb.title" maxlength="80" placeholder="如：商品编辑页详情图点上传没反应" />
+            <el-form-item
+              label="标题（一句话说清）"
+              required
+            >
+              <el-input
+                v-model="fb.title"
+                maxlength="80"
+                placeholder="如：商品编辑页详情图点上传没反应"
+              />
             </el-form-item>
             <el-form-item label="详细描述">
-              <el-input v-model="fb.detail" type="textarea" :rows="4" maxlength="1000" placeholder="在哪个页面、做了什么、期望什么、实际发生了什么、有没有报错文字" />
+              <el-input
+                v-model="fb.detail"
+                type="textarea"
+                :rows="4"
+                maxlength="1000"
+                placeholder="在哪个页面、做了什么、期望什么、实际发生了什么、有没有报错文字"
+              />
             </el-form-item>
             <el-form-item label="截图（可选，截图标注问题更易定位）">
-              <input ref="shotInputRef" type="file" accept="image/*" style="display:none" @change="onShotFile">
+              <input
+                ref="shotInputRef"
+                type="file"
+                accept="image/*"
+                style="display:none"
+                @change="onShotFile"
+              >
               <div class="shot-area">
-                <div v-for="(img, i) in fb.images" :key="i" class="shot-thumb">
+                <div
+                  v-for="(img, i) in fb.images"
+                  :key="i"
+                  class="shot-thumb"
+                >
                   <img :src="img">
-                  <span class="shot-del" @click="fb.images.splice(i, 1)">✕</span>
+                  <span
+                    class="shot-del"
+                    @click="fb.images.splice(i, 1)"
+                  >✕</span>
                 </div>
-                <div v-if="fb.images.length < 6" class="shot-add" :class="{ 'is-loading': shotUploading }" @click="pickShot">
+                <div
+                  v-if="fb.images.length < 6"
+                  class="shot-add"
+                  :class="{ 'is-loading': shotUploading }"
+                  @click="pickShot"
+                >
                   <span>{{ shotUploading ? '上传中' : '+ 截图' }}</span>
                 </div>
               </div>
             </el-form-item>
-            <div class="fb-page">当前页面：{{ route.path }}（会自动附带，便于定位）</div>
-            <el-button type="primary" style="width:100%" :loading="submitting" @click="submitFeedback">提交反馈</el-button>
+            <div class="fb-page">
+              当前页面：{{ route.path }}（会自动附带，便于定位）
+            </div>
+            <el-button
+              type="primary"
+              style="width:100%"
+              :loading="submitting"
+              @click="submitFeedback"
+            >
+              提交反馈
+            </el-button>
           </el-form>
         </div>
       </template>
 
       <!-- 我的反馈（处理结果·员工可复测追问） -->
       <template v-else>
-        <div v-loading="myLoading" class="mine-body">
-          <div v-if="myList.length === 0 && !myLoading" class="mine-empty">你还没有提交过反馈。遇到程序问题可在「反馈问题」里记录，处理结果会显示在这里。</div>
-          <div v-for="f in myList" :key="f.id" class="mine-card">
+        <div
+          v-loading="myLoading"
+          class="mine-body"
+        >
+          <div
+            v-if="myList.length === 0 && !myLoading"
+            class="mine-empty"
+          >
+            你还没有提交过反馈。遇到程序问题可在「反馈问题」里记录，处理结果会显示在这里。
+          </div>
+          <div
+            v-for="f in myList"
+            :key="f.id"
+            class="mine-card"
+          >
             <div class="mine-head">
-              <el-tag :type="statusMeta[f.status]?.type || 'info'" size="small">{{ statusMeta[f.status]?.label || f.status }}</el-tag>
+              <el-tag
+                :type="statusMeta[f.status]?.type || 'info'"
+                size="small"
+              >
+                {{ statusMeta[f.status]?.label || f.status }}
+              </el-tag>
               <span class="mine-time">{{ String(f.createdAt).slice(0, 16).replace('T', ' ') }}</span>
             </div>
-            <div class="mine-title">{{ f.title }}</div>
-            <div v-if="f.images && f.images.length" class="mine-shots">
-              <el-image v-for="(img, i) in f.images" :key="i" :src="img" :preview-src-list="f.images" :initial-index="i" fit="cover" class="mine-shot" />
+            <div class="mine-title">
+              {{ f.title }}
             </div>
-            <div v-if="f.reply" class="mine-reply"><b>处理批复：</b>{{ f.reply }}</div>
-            <div v-if="f.status === 'DONE'" class="mine-retest">✅ 已优化，请到对应页面复测；若仍有问题，欢迎再提一条反馈。</div>
+            <div
+              v-if="f.images && f.images.length"
+              class="mine-shots"
+            >
+              <el-image
+                v-for="(img, i) in f.images"
+                :key="i"
+                :src="img"
+                :preview-src-list="f.images"
+                :initial-index="i"
+                fit="cover"
+                class="mine-shot"
+              />
+            </div>
+            <div
+              v-if="f.reply"
+              class="mine-reply"
+            >
+              <b>处理批复：</b>{{ f.reply }}
+            </div>
+            <div
+              v-if="f.status === 'DONE'"
+              class="mine-retest"
+            >
+              ✅ 已优化，请到对应页面复测；若仍有问题，欢迎再提一条反馈。
+            </div>
           </div>
         </div>
       </template>

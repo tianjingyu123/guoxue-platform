@@ -25,6 +25,7 @@ import { merchantBackendApi, productApi, api } from "@/api";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import ImageListUpload from "@/components/upload/ImageListUpload.vue";
 import RichEditor from "@/components/editor/RichEditor.vue";
+import SafeHtml from "@/components/SafeHtml.vue";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -506,7 +507,12 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
               </el-col>
             </el-row>
             <el-form-item label="运费模板">
-              <el-select v-model="form.freightTemplateId" clearable placeholder="平台包邮（不绑定模板）" style="width: 100%">
+              <el-select
+                v-model="form.freightTemplateId"
+                clearable
+                placeholder="平台包邮（不绑定模板）"
+                style="width: 100%"
+              >
                 <el-option
                   v-for="item in freightOptions"
                   :key="item.id"
@@ -840,14 +846,12 @@ const previewSupplement = computed(() => (htmlIsEmpty(form.supplement) ? "" : fo
                   :src="url"
                   class="pv-detail-img"
                 >
-                <!-- 预览商家自己录入的补充说明（与 RichEditor 同源内容·保存时经服务端 Sanitize） -->
-                <!-- eslint-disable vue/no-v-html -->
-                <div
+                <!-- 预览内容在前端展示前再次经过 DOMPurify，不依赖服务端消毒结果。 -->
+                <SafeHtml
                   v-if="previewSupplement"
                   class="pv-supplement"
-                  v-html="previewSupplement"
+                  :html="previewSupplement"
                 />
-                <!-- eslint-enable vue/no-v-html -->
               </template>
               <div
                 v-else

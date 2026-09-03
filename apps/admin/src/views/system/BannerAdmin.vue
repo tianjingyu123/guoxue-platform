@@ -48,7 +48,7 @@
         width="70"
       >
         <template #default="{ row }">
-          <span style="font-size:24px">{{ row.icon || '📜' }}</span>
+          <span class="banner-glyph">{{ row.icon || '文' }}</span>
         </template>
       </el-table-column>
       <el-table-column
@@ -133,7 +133,7 @@
         <el-form-item label="图标emoji">
           <el-input
             v-model="form.icon"
-            placeholder="如 📜"
+            placeholder="如：文、礼、课"
           />
         </el-form-item>
         <el-form-item
@@ -272,5 +272,6 @@ async function saveBanners() {
 .page { padding: 20px; }
 .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .header h2 { margin: 0; font-size: 18px; color: var(--color-primary); }
+.banner-glyph { display: inline-grid; width: 30px; height: 30px; place-items: center; border-radius: 9px; color: #8a6331; background: rgba(184,137,63,.1); font-size: 14px; font-weight: 700; }
 .bg-preview { padding: 4px 10px; border-radius: 4px; color: #fff; font-size: 11px; }
 </style>

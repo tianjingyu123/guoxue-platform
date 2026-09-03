@@ -7,6 +7,7 @@ import { RolesGuard } from "../../common/roles.guard";
 import { FeatureFlagGuard } from "../../common/feature-flag.guard";
 import { ActiveUserGuard } from "../../common/active-user.guard";
 import { StationIsolationGuard } from "../../common/station-isolation.guard";
+import { OptionalAuthGuard } from "../../common/optional-auth.guard";
 import { Logger } from "@nestjs/common";
 
 const mockContentSvc = {
@@ -40,6 +41,7 @@ describe("ContentController", () => {
       .overrideGuard(FeatureFlagGuard).useValue({ canActivate: () => true })
       .overrideGuard(ActiveUserGuard).useValue({ canActivate: () => true })
       .overrideGuard(StationIsolationGuard).useValue({ canActivate: () => true })
+      .overrideGuard(OptionalAuthGuard).useValue({ canActivate: () => true })
       .compile();
     ctrl = mod.get(ContentController);
   });
@@ -57,15 +59,25 @@ describe("ContentController", () => {
 
   it("GET /contents — 内容列表", async () => {
     const q: any = { type: "article", page: 1, pageSize: 20 };
-    const result: any = await ctrl.list(q);
+    const result: any = await ctrl.list(q, { user: { roles: ["SUPER_ADMIN"] } } as any);
     expect(result).toHaveLength(1);
     expect(mockContentSvc.list).toHaveBeenCalledWith(q);
   });
 
   it("GET /contents/:id — 内容详情", async () => {
-    const result: any = await ctrl.detail("ct1");
+    const result: any = await ctrl.detail("ct1", {} as any);
     expect(result.title).toBe("国学经典");
-    expect(mockContentSvc.detail).toHaveBeenCalledWith("ct1");
+    expect(mockContentSvc.detail).toHaveBeenCalledWith("ct1", false);
+  });
+
+  it.each([undefined, ["USER"], ["FINANCE_ADMIN"]])("访客或非内容管理角色 %s 不能通过筛选读取草稿", async roles => {
+    await ctrl.list({ status: "DRAFT" }, { user: roles ? { roles } : undefined } as any);
+    expect(mockContentSvc.list).toHaveBeenCalledWith({ status: "PUBLISHED" });
+  });
+
+  it("内容审核员可读取待审内容详情", async () => {
+    await ctrl.detail("ct1", { user: { roles: ["CONTENT_AUDITOR"] } } as any);
+    expect(mockContentSvc.detail).toHaveBeenCalledWith("ct1", true);
   });
 
   it("PUT /contents/:id — 更新内容", async () => {

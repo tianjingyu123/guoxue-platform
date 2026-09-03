@@ -1,6 +1,9 @@
 <template>
   <div class="page">
-    <PageHeader title="系统配置">
+    <PageHeader
+      title="系统配置"
+      description="集中维护平台运行参数；修改关键配置前请确认影响范围。"
+    >
       <template #actions>
         <el-button
           type="primary"
@@ -27,16 +30,26 @@
       </el-button>
     </el-alert>
 
+    <div class="settings-toolbar">
+      <el-input
+        v-model="configKeyword"
+        :prefix-icon="Search"
+        clearable
+        placeholder="搜索配置键、说明或配置值"
+      />
+      <span class="settings-count">{{ filteredConfigs.length }} 项配置</span>
+    </div>
+
     <el-table
       v-loading="loading"
-      :data="configs"
+      :data="filteredConfigs"
       border
       stripe
     >
       <el-table-column
         prop="configKey"
         label="配置键"
-        width="220"
+        width="190"
       >
         <template #default="{ row }">
           <span>{{ row.configKey }}</span>
@@ -96,38 +109,38 @@
           </template>
           <!-- 对象数组：摘要展示（结构化数据·N 项），可展开看格式化原文，不铺原始 JSON -->
           <template v-else-if="parseValue(row).kind === 'summary'">
-            <span class="summary-text">（结构化数据 · {{ parseValue(row).count }} 项）</span>
+            <span class="value-type">结构化数据</span>
+            <span class="summary-text">{{ parseValue(row).count }} 项</span>
             <el-button
               link
               type="primary"
               size="small"
-              @click="toggleExpand(row.configKey)"
+              @click="openEdit(row)"
             >
-              {{ expandedKeys.has(row.configKey) ? '收起' : '展开' }}
+              查看与编辑
             </el-button>
-            <pre
-              v-if="expandedKeys.has(row.configKey)"
-              class="summary-raw"
-            >{{ parseValue(row).raw }}</pre>
           </template>
-          <!-- 长文本：折叠展示 -->
+          <!-- 长文本：只显示摘要，完整内容在编辑弹窗中查看，避免单行撑高整张表 -->
           <template v-else-if="(row.configValue || '').length > 150">
-            <span>{{ expandedKeys.has(row.configKey) ? row.configValue : row.configValue.slice(0, 150) + '…' }}</span>
-            <el-button
-              link
-              type="primary"
-              size="small"
-              @click="toggleExpand(row.configKey)"
-            >
-              {{ expandedKeys.has(row.configKey) ? '收起' : '展开' }}
-            </el-button>
+            <div class="value-preview">
+              <span class="value-type">长文本</span>
+              <span class="value-preview__text">{{ row.configValue }}</span>
+              <el-button
+                link
+                type="primary"
+                size="small"
+                @click="openEdit(row)"
+              >
+                查看
+              </el-button>
+            </div>
           </template>
           <span v-else>{{ row.configValue }}</span>
         </template>
       </el-table-column>
       <el-table-column
         label="说明"
-        width="200"
+        width="180"
         show-overflow-tooltip
       >
         <template #default="{ row }">
@@ -140,7 +153,7 @@
       </el-table-column>
       <el-table-column
         label="更新时间"
-        width="170"
+        width="155"
       >
         <template #default="{ row }">
           {{ formatTime(row.updatedAt) }}
@@ -148,7 +161,7 @@
       </el-table-column>
       <el-table-column
         label="操作"
-        width="160"
+        width="132"
         fixed="right"
       >
         <template #default="{ row }">
@@ -184,7 +197,7 @@
     <el-dialog
       v-model="dialogVisible"
       :title="isEdit ? '编辑配置' : '添加配置'"
-      width="500px"
+      width="min(680px, calc(100vw - 32px))"
       :close-on-click-modal="false"
     >
       <el-form
@@ -208,7 +221,7 @@
           <el-input
             v-model="form.configValue"
             type="textarea"
-            :rows="4"
+            :rows="formValueLooksStructured ? 14 : 6"
             placeholder="配置值"
           />
         </el-form-item>
@@ -236,9 +249,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
 import { systemApi } from "@/api";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { Search } from "@element-plus/icons-vue";
 import PageHeader from "@/components/PageHeader.vue";
 import { formatDateTime } from "@/utils/datetime";
 
@@ -251,6 +265,15 @@ interface SysConfig {
 }
 
 const configs = ref<SysConfig[]>([]);
+const configKeyword = ref("");
+const filteredConfigs = computed(() => {
+  const keyword = configKeyword.value.trim().toLowerCase();
+  if (!keyword) return configs.value;
+  return configs.value.filter((item) =>
+    [item.configKey, item.configValue, item.description]
+      .some((value) => String(value || "").toLowerCase().includes(keyword)),
+  );
+});
 const loading = ref(false);
 const loadError = ref(false);
 const dialogVisible = ref(false);
@@ -258,6 +281,10 @@ const isEdit = ref(false);
 const saving = ref(false);
 const deletingKey = ref("");
 const form = ref({ configKey: "", configValue: "", description: "" });
+const formValueLooksStructured = computed(() => {
+  const value = form.value.configValue.trim();
+  return value.length > 150 || value.startsWith("{") || value.startsWith("[");
+});
 
 // 命门键白名单：删除会导致官方内容归属/结算断链，前端禁删（后端同样有保护为宜）
 const PROTECTED_KEYS = ["official_circle_id", "official_merchant_id"];
@@ -429,17 +456,21 @@ async function remove(row: SysConfig) {
 
 <style scoped>
 .page { padding: 0; }
-.summary-text { color: var(--el-text-color-secondary); }
-.summary-raw {
-  margin: 6px 0 0;
-  padding: 8px;
-  max-height: 260px;
-  overflow: auto;
-  background: var(--el-fill-color-light);
-  border-radius: 4px;
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-all;
+.settings-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 12px; border: 1px solid var(--color-divider); border-radius: 12px; background: rgba(255,255,255,.88); }
+.settings-toolbar :deep(.el-input) { width: min(420px, 100%); }
+.settings-count { margin-left: auto; color: var(--color-text-secondary); font-size: 12px; white-space: nowrap; }
+.summary-text { margin: 0 6px; color: var(--el-text-color-secondary); }
+.value-type { display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border: 1px solid rgba(154,106,36,.18); border-radius: 6px; background: rgba(183,132,53,.08); color: #7a5a22; font-size: 11px; white-space: nowrap; }
+.value-preview { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 42px; }
+.value-preview__text { display: -webkit-box; overflow: hidden; color: var(--color-text-secondary); font-size: 12px; line-height: 1.55; word-break: break-all; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.kv-box { display: grid; gap: 4px; padding: 4px 0; }
+.kv-row { display: grid; grid-template-columns: minmax(72px, .42fr) minmax(0, 1fr); gap: 8px; align-items: start; font-size: 12px; line-height: 1.5; }
+.kv-key { overflow: hidden; color: var(--color-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.kv-val { display: -webkit-box; overflow: hidden; word-break: break-all; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+:deep(.el-table .cell) { line-height: 1.5; }
+:deep(.el-textarea__inner) { font-family: inherit; line-height: 1.65; }
+@media (max-width: 640px) {
+  .settings-toolbar { align-items: stretch; flex-direction: column; }
+  .settings-count { margin-left: 0; }
 }
 </style>

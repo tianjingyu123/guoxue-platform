@@ -208,7 +208,7 @@
           <el-col :span="8">
             <div class="tip-card">
               <div class="tip-title">
-                📊 品类覆盖
+                品类覆盖
               </div>
               <div class="tip-body">
                 兴趣覆盖率 {{ stats.coverageRate || 0 }}%，{{ (stats.coverageRate || 0) >= 50 ? '用户兴趣标签覆盖良好' : '建议通过注册引导和活动提升用户兴趣标签填写率' }}
@@ -218,7 +218,7 @@
           <el-col :span="8">
             <div class="tip-card">
               <div class="tip-title">
-                🎯 热门品类
+                热门品类
               </div>
               <div class="tip-body">
                 <template v-if="topCategories">
@@ -233,7 +233,7 @@
           <el-col :span="8">
             <div class="tip-card">
               <div class="tip-title">
-                💡 个性化推荐
+                个性化推荐
               </div>
               <div class="tip-body">
                 基于用户兴趣标签可实现个性化内容推荐、首页定制、推送分群。建议开启AI推荐引擎。
@@ -253,7 +253,13 @@ import { api } from "@/api";
 import echarts from "@/utils/echarts";
 import type { EChartsType } from "echarts/core";
 
-const stats = reactive({
+interface InterestStats {
+  totalUsers: number; usersWithInterests: number; coverageRate: number;
+  distribution: Array<{ name: string; count: number; percentage: number }>;
+  behaviorTags: Array<{ tag: string; userCount: number; avgScore: number }>;
+}
+
+const stats = reactive<InterestStats>({
   totalUsers: 0, usersWithInterests: 0, coverageRate: 0,
   distribution: [] as Array<{ name: string; count: number; percentage: number }>,
   behaviorTags: [] as Array<{ tag: string; userCount: number; avgScore: number }>,
@@ -305,7 +311,7 @@ async function refresh() {
   error.value = false;
   try {
     const { data } = await api.get("/users/stats/interests");
-    const d = data as any;
+    const d = data as Partial<InterestStats>;
     if (d) Object.assign(stats, d);
     await nextTick();
     renderPie();

@@ -2,19 +2,35 @@
   <div class="customers-page">
     <section class="customer-hero">
       <div class="hero-copy">
-        <p class="eyebrow">CUSTOMER RELATIONSHIP</p>
+        <p class="eyebrow">
+          CUSTOMER RELATIONSHIP
+        </p>
         <h1>客户不是一行数据，而是一段持续经营的关系</h1>
         <p>
           只统计已付款、已发货和已完成订单。手机号保持脱敏，最近交易、客单价和退款情况集中呈现。
         </p>
       </div>
       <div class="hero-actions">
-        <el-button plain @click="router.push('/merchant-backend/reviews')">查看口碑</el-button>
-        <el-button type="primary" :loading="loading" @click="fetchList">刷新客户</el-button>
+        <el-button
+          plain
+          @click="router.push('/merchant-backend/reviews')"
+        >
+          查看口碑
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="fetchList"
+        >
+          刷新客户
+        </el-button>
       </div>
     </section>
 
-    <section class="relation-metrics" aria-label="客户关系概览">
+    <section
+      class="relation-metrics"
+      aria-label="客户关系概览"
+    >
       <article class="metric-card tone-gold">
         <span>交易客户</span>
         <strong>{{ total }}</strong>
@@ -40,7 +56,9 @@
     <section class="customer-workspace">
       <div class="workspace-head">
         <div>
-          <p class="eyebrow">RELATIONSHIP QUEUE</p>
+          <p class="eyebrow">
+            RELATIONSHIP QUEUE
+          </p>
           <h2>客户档案</h2>
         </div>
         <el-input
@@ -59,7 +77,12 @@
         sub-title="客户档案加载失败，请稍后重试"
       >
         <template #extra>
-          <el-button type="primary" @click="fetchList">重试</el-button>
+          <el-button
+            type="primary"
+            @click="fetchList"
+          >
+            重试
+          </el-button>
         </template>
       </el-result>
 
@@ -79,11 +102,18 @@
             "
           />
         </template>
-        <el-table-column label="客户" min-width="220">
+        <el-table-column
+          label="客户"
+          min-width="220"
+        >
           <template #default="{ row }">
             <div class="customer-cell">
               <div class="customer-avatar">
-                <img v-if="row.avatar" :src="row.avatar" alt="" />
+                <img
+                  v-if="row.avatar"
+                  :src="row.avatar"
+                  alt=""
+                >
                 <span v-else>{{ initials(row.nickname) }}</span>
               </div>
               <div>
@@ -93,40 +123,78 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="有效消费" width="150" align="right">
+        <el-table-column
+          label="有效消费"
+          width="150"
+          align="right"
+        >
           <template #default="{ row }">
             <strong class="money">{{ fmtMoney(row.totalSpent) }}</strong>
           </template>
         </el-table-column>
-        <el-table-column label="有效订单" width="110" align="center">
+        <el-table-column
+          label="有效订单"
+          width="110"
+          align="center"
+        >
           <template #default="{ row }">
             <span class="order-count">{{ row.orderCount ?? 0 }} 笔</span>
           </template>
         </el-table-column>
-        <el-table-column label="关系状态" width="130">
+        <el-table-column
+          label="关系状态"
+          width="130"
+        >
           <template #default="{ row }">
-            <span class="relation-tag" :class="{ repeat: Number(row.orderCount || 0) >= 2 }">
+            <span
+              class="relation-tag"
+              :class="{ repeat: Number(row.orderCount || 0) >= 2 }"
+            >
               {{ Number(row.orderCount || 0) >= 2 ? "已有复购" : "首次成交" }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="最近成交" width="170">
-          <template #default="{ row }">{{ fmtTime(row.lastOrderAt) }}</template>
-        </el-table-column>
-        <el-table-column label="客户 ID" width="130">
+        <el-table-column
+          label="最近成交"
+          width="170"
+        >
           <template #default="{ row }">
-            <el-tooltip :content="`${row.id}（点击复制）`" placement="top">
-              <button class="copy-id" type="button" @click.stop="copyId(row.id)">
+            {{ fmtTime(row.lastOrderAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="客户 ID"
+          width="130"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              :content="`${row.id}（点击复制）`"
+              placement="top"
+            >
+              <button
+                class="copy-id"
+                type="button"
+                @click.stop="copyId(row.id)"
+              >
                 {{ shortId(row.id) }}
               </button>
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column
+          label="操作"
+          width="100"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button size="small" text type="primary" @click.stop="openDetail(row)"
-              >查看档案</el-button
+            <el-button
+              size="small"
+              text
+              type="primary"
+              @click.stop="openDetail(row)"
             >
+              查看档案
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -149,13 +217,26 @@
       :with-header="false"
       class="customer-drawer"
     >
-      <div v-if="detailLoading" class="drawer-loading">
-        <el-skeleton :rows="8" animated />
+      <div
+        v-if="detailLoading"
+        class="drawer-loading"
+      >
+        <el-skeleton
+          :rows="8"
+          animated
+        />
       </div>
-      <div v-else-if="current" class="customer-file">
+      <div
+        v-else-if="current"
+        class="customer-file"
+      >
         <header class="file-head">
           <div class="customer-avatar large">
-            <img v-if="current.avatar" :src="current.avatar" alt="" />
+            <img
+              v-if="current.avatar"
+              :src="current.avatar"
+              alt=""
+            >
             <span v-else>{{ initials(current.nickname) }}</span>
           </div>
           <div class="file-title">
@@ -186,7 +267,10 @@
           <span class="value-seal">{{ Number(current.orderCount || 0) >= 2 ? "复" : "新" }}</span>
         </section>
 
-        <section class="file-kpis" aria-label="客户交易指标">
+        <section
+          class="file-kpis"
+          aria-label="客户交易指标"
+        >
           <article>
             <strong>{{ current.orderCount || 0 }}</strong>
             <span>有效订单</span>
@@ -202,7 +286,10 @@
         </section>
 
         <section class="relationship-strip">
-          <span class="pulse-dot" aria-hidden="true"></span>
+          <span
+            class="pulse-dot"
+            aria-hidden="true"
+          />
           <div>
             <strong>交易关系</strong>
             <p>
@@ -215,14 +302,25 @@
         <section class="recent-orders">
           <div class="section-head">
             <div>
-              <p class="eyebrow">RECENT ORDERS</p>
+              <p class="eyebrow">
+                RECENT ORDERS
+              </p>
               <h3>最近订单</h3>
               <span>从交付、售后到复购，沿着真实订单继续处理</span>
             </div>
-            <el-button text type="primary" @click="goCustomerOrders">查看全部</el-button>
+            <el-button
+              text
+              type="primary"
+              @click="goCustomerOrders"
+            >
+              查看全部
+            </el-button>
           </div>
 
-          <div v-if="current.recentOrders?.length" class="order-list">
+          <div
+            v-if="current.recentOrders?.length"
+            class="order-list"
+          >
             <button
               v-for="order in current.recentOrders"
               :key="order.id"
@@ -231,7 +329,11 @@
               @click="goOrder(order.id)"
             >
               <div class="order-thumb">
-                <img v-if="order.productImage" :src="order.productImage" alt="" />
+                <img
+                  v-if="order.productImage"
+                  :src="order.productImage"
+                  alt=""
+                >
                 <span v-else>单</span>
               </div>
               <div class="order-copy">
@@ -242,12 +344,23 @@
               <span class="order-arrow">›</span>
             </button>
           </div>
-          <el-empty v-else description="暂无可展示的最近订单" :image-size="72" />
+          <el-empty
+            v-else
+            description="暂无可展示的最近订单"
+            :image-size="72"
+          />
         </section>
 
         <footer class="file-actions">
-          <el-button @click="copyId(current.id)">复制客户 ID</el-button>
-          <el-button type="primary" @click="goCustomerOrders">查看全部订单</el-button>
+          <el-button @click="copyId(current.id)">
+            复制客户 ID
+          </el-button>
+          <el-button
+            type="primary"
+            @click="goCustomerOrders"
+          >
+            查看全部订单
+          </el-button>
         </footer>
       </div>
     </el-drawer>

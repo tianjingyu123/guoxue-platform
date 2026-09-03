@@ -6,6 +6,7 @@
  * Route meta roles: SUPER_ADMIN / OPERATION_ADMIN / FINANCE_ADMIN
  */
 import { ref, computed, onMounted } from 'vue'
+import type { ChartOption } from '@/utils/chart'
 import { useRouter } from 'vue-router'
 import { dashboardApi } from '@/api'
 import ChartCard from '@/components/ChartCard.vue'
@@ -24,9 +25,8 @@ const latestDate = computed(() => rows.value[rows.value.length - 1]?.date ?? '�
 const latestErrors = computed(() => rows.value[rows.value.length - 1]?.metrics.errors24h ?? 0)
 const hasHeat = ref(false)
 
-// ECharts option 为复杂联合类型，保留 any
-const heatOption = ref<any>(null)
-const errorOption = ref<any>(null)
+const heatOption = ref<ChartOption | null>(null)
+const errorOption = ref<ChartOption | null>(null)
 
 function buildView() {
   const list = rows.value

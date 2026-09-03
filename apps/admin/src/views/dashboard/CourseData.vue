@@ -12,6 +12,7 @@
  */
 import { ref } from 'vue'
 import type { Component } from 'vue'
+import { firstChartTooltipDatum, type ChartOption } from '@/utils/chart'
 import { dashboardApi, courseApi } from '@/api'
 import ChartCard from '@/components/ChartCard.vue'
 import { Reading, Avatar, Money, Goods, CircleCheckFilled, User } from '@element-plus/icons-vue'
@@ -58,10 +59,9 @@ const data = ref<CourseDashboard | null>(null)
 
 interface CardDef { label: string; value: string; icon: Component }
 const cards = ref<CardDef[]>([])
-// ECharts option 为复杂联合类型，保留 any
-const salesOption = ref<any>(null)
-const funnelOption = ref<any>(null)
-const ratingOption = ref<any>(null)
+const salesOption = ref<ChartOption | null>(null)
+const funnelOption = ref<ChartOption | null>(null)
+const ratingOption = ref<ChartOption | null>(null)
 
 // ==================== 格式化 ====================
 function fmtNum(v: number | null | undefined): string {
@@ -104,16 +104,20 @@ function buildFunnelOption(f: NonNullable<CourseDashboard['funnel']>) {
   return {
     tooltip: {
       trigger: 'item',
-      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
-      formatter: (params: any) => `${params.name}：${Number(params.value).toLocaleString()} 人`,
+      formatter: (params: unknown) => {
+        const item = firstChartTooltipDatum(params)
+        return `${item.name}：${Number(item.value ?? 0).toLocaleString()} 人`
+      },
     },
     series: [{
       type: 'funnel', left: '10%', right: '10%', top: 20, bottom: 20,
       minSize: '20%', maxSize: '100%', sort: 'descending', gap: 4,
       label: {
         show: true, position: 'inside', color: '#fff', fontSize: 13, fontWeight: 600,
-        // params 为 ECharts label 回调参数，保留 any
-        formatter: (params: any) => `${params.name}\n${params.value}人`,
+        formatter: (params: unknown) => {
+          const item = firstChartTooltipDatum(params)
+          return `${item.name}\n${String(item.value ?? 0)}人`
+        },
       },
       labelLine: { show: false },
       itemStyle: { borderColor: '#fff', borderWidth: 2 },

@@ -15,6 +15,7 @@ interface OperatorLevelRow {
   createdAt?: string
   updatedAt?: string
 }
+interface SystemConfigRow { id?: string; configKey?: string; configValue?: unknown; createdAt?: string; updatedAt?: string }
 
 const loading = ref(false)
 const saving = ref(false)
@@ -45,15 +46,14 @@ async function fetchList() {
   loadError.value = false
   try {
     const { data } = await systemApi.listConfigs()
-    const items: any[] = []
+    const items: OperatorLevelRow[] = []
     const raw = data?.configs ?? data?.data ?? []
-    // item 为后端配置原始结构（value 为序列化 JSON），结构动态，保留 any
     // 后端字段为 configKey/configValue（非 key/value）——旧写法 item.key 恒 undefined 致"保存后看不到"
-    ;(Array.isArray(raw) ? raw : []).forEach((item: any) => {
+    ;(Array.isArray(raw) ? raw as SystemConfigRow[] : []).forEach((item) => {
       if (item.configKey?.startsWith('operator.level.')) {
-        let val: any = {}
+        let val: Partial<OperatorLevelRow> = {}
         try {
-          val = typeof item.configValue === 'string' ? JSON.parse(item.configValue) : (item.configValue || {})
+          val = (typeof item.configValue === 'string' ? JSON.parse(item.configValue) : (item.configValue || {})) as Partial<OperatorLevelRow>
         } catch { val = {} }
         items.push({ ...val, _key: item.configKey, _id: item.id, createdAt: item.updatedAt || item.createdAt || val.createdAt })
       }

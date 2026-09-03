@@ -1,6 +1,9 @@
 <template>
   <div class="product-audit-page">
-    <PageHeader title="商品审核巡检">
+    <PageHeader
+      title="商品审核巡检"
+      description="抽查在售商品、处理违规风险，并保留恢复上架与警告记录。"
+    >
       <template #actions>
         <el-tag
           type="info"
@@ -222,9 +225,9 @@
           <h4 class="detail-subtitle">
             图文描述
           </h4>
-          <div
+          <SafeHtml
             class="detail-html"
-            v-html="sanitize(detailData.detail)"
+            :html="detailData.detail"
           />
         </template>
       </div>
@@ -293,9 +296,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { api } from '@/api'
-import { sanitize } from '@/utils/sanitize'
 import DataTable from '@/components/DataTable.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import SafeHtml from '@/components/SafeHtml.vue'
 
 type ModerateActionType = 'takedown' | 'restore' | 'warn'
 

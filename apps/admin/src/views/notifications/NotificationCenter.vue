@@ -23,12 +23,12 @@ probe.interceptors.request.use((c) => {
   return c;
 });
 /** 解开后端 {code,data,pagination} 包装 */
-function unwrap(d: unknown): any {
+function unwrap<T>(d: unknown): T | undefined {
   if (d && typeof d === "object" && "code" in d && "data" in d) {
     const env = d as { data: unknown; pagination?: Record<string, unknown> };
-    return env.pagination ? { items: env.data, ...env.pagination } : env.data;
+    return (env.pagination ? { items: env.data, ...env.pagination } : env.data) as T;
   }
-  return d;
+  return d as T | undefined;
 }
 
 /** 通知类型翻译（对齐 schema Notification.type 注释 + 管理端发送类型） */
@@ -142,6 +142,13 @@ interface SentRow {
   createdAt?: string;
   sentAt?: string;
 }
+interface SentListResult {
+  items?: SentRow[]
+  records?: SentRow[]
+  list?: SentRow[]
+  total?: number
+}
+interface SendResult { count?: number; sentCount?: number; total?: number }
 /** null=探测中 · true=可用 · false=端点未部署（隐藏 Tab） */
 const sentSupported = ref<boolean | null>(null);
 const sentList = ref<SentRow[]>([]);
@@ -158,9 +165,9 @@ async function fetchSent() {
     if (res.status === 404) { sentSupported.value = false; return; }
     if (res.status >= 400) { sentLoadError.value = true; return; }
     sentSupported.value = true;
-    const d = unwrap(res.data) || {};
-    sentList.value = d.items || d.records || d.list || (Array.isArray(d) ? d : []);
-    sentTotal.value = d.total || sentList.value.length;
+    const d = unwrap<SentListResult | SentRow[]>(res.data);
+    sentList.value = Array.isArray(d) ? d : d?.items || d?.records || d?.list || [];
+    sentTotal.value = (Array.isArray(d) ? d.length : d?.total) || sentList.value.length;
   } catch { sentLoadError.value = true; } finally { sentLoading.value = false; }
 }
 
@@ -263,7 +270,7 @@ async function handleSend() {
       ElMessage.error(Array.isArray(msg) ? msg.join("；") : msg);
       return;
     }
-    const d = unwrap(res.data) || {};
+    const d = unwrap<SendResult>(res.data) || {};
     const count = d.count ?? d.sentCount ?? d.total ?? (sendForm.mode === "users" ? userIds.length : undefined);
     ElMessage.success(count != null ? `发送成功，实际送达 ${count} 人` : "发送成功");
     showSend.value = false;

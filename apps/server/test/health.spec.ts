@@ -1,14 +1,20 @@
-import { Test } from "@nestjs/testing";
+import { Logger } from "@nestjs/common";
+import { Test, TestingModule } from "@nestjs/testing";
 import { HealthController } from "../src/modules/health/health.controller";
 import { HealthService } from "../src/modules/health/health.service";
 import { DegradeService } from "../src/modules/health/degrade.service";
 import { PrismaService } from "../src/prisma/prisma.service";
 import { RedisService } from "../src/redis/redis.service";
 
-const mockDegrade = { getStatus: jest.fn().mockResolvedValue({ live: false, im: false, vod: false, ai: false, pay: false }) };
+const mockDegrade = {
+  getStatus: jest
+    .fn()
+    .mockResolvedValue({ live: false, im: false, vod: false, ai: false, pay: false }),
+};
 
 describe("HealthController", () => {
   let healthController: HealthController;
+  let healthyModule: TestingModule;
 
   beforeAll(async () => {
     const mockPrisma = { $queryRaw: jest.fn().mockResolvedValue([{ 1: 1 }]) };
@@ -17,7 +23,7 @@ describe("HealthController", () => {
       get: jest.fn().mockResolvedValue("1"),
     };
 
-    const mod = await Test.createTestingModule({
+    healthyModule = await Test.createTestingModule({
       controllers: [HealthController],
       providers: [
         HealthService,
@@ -27,7 +33,11 @@ describe("HealthController", () => {
       ],
     }).compile();
 
-    healthController = mod.get(HealthController);
+    healthController = healthyModule.get(HealthController);
+  });
+
+  afterAll(async () => {
+    await healthyModule?.close();
   });
 
   it("健康检查返回 ok", async () => {
@@ -57,14 +67,23 @@ describe("HealthController", () => {
       ],
     }).compile();
     const ctrl = mod.get(HealthController);
-    await expect(ctrl.check()).rejects.toMatchObject({
-      response: {
-        status: "fail",
-        checks: {
-          db: { status: "fail" },
+    // 只捕获本用例主动注入的故障日志，并验证它确实被记录，不关闭全局日志。
+    const errorLog = jest.spyOn(Logger.prototype, "error").mockImplementation(() => undefined);
+    try {
+      await expect(ctrl.check()).rejects.toMatchObject({
+        response: {
+          status: "fail",
+          checks: {
+            db: { status: "fail" },
+          },
         },
-      },
-      status: 503,
-    });
+        status: 503,
+      });
+      expect(errorLog).toHaveBeenCalledTimes(1);
+      expect(errorLog).toHaveBeenCalledWith("DB 健康检查失败", "DB down");
+    } finally {
+      errorLog.mockRestore();
+      await mod.close();
+    }
   });
 });

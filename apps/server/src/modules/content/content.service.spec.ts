@@ -38,6 +38,24 @@ describe("ContentService", () => {
   });
 
   describe("create", () => {
+    it.each([undefined, "DRAFT"] as const)("创建状态 %s 安全落为草稿，不触发发布通知", async status => {
+      const dto = { title: "测试草稿", type: ContentType.ARTICLE, body: "正文", status };
+      mockPrisma.content.create.mockResolvedValue({ id: "draft", ...dto, status: "DRAFT" });
+      await svc.create(dto);
+      expect(mockPrisma.content.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ status: "DRAFT" }),
+      });
+      expect(mockWebhook.fire).not.toHaveBeenCalled();
+    });
+    it("显式发布才保存为 PUBLISHED 并发送发布通知", async () => {
+      const dto = { title: "明确发布", type: ContentType.ARTICLE, body: "正文", status: "PUBLISHED" as const };
+      mockPrisma.content.create.mockResolvedValue({ id: "published", ...dto });
+      await svc.create(dto);
+      expect(mockPrisma.content.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ status: "PUBLISHED" }),
+      });
+      expect(mockWebhook.fire).toHaveBeenCalledWith("CONTENT_PUBLISHED", expect.objectContaining({ contentId: "published" }));
+    });
     it("创建内容成功", async () => {
       const dto = { title: "论语", type: ContentType.CLASSIC, body: "学而时习之", tags: ["儒家"] };
       mockPrisma.content.create.mockResolvedValue({ id: "c1", ...dto });
@@ -79,8 +97,23 @@ describe("ContentService", () => {
   });
 
   describe("detail", () => {
+    it("访客不能读取未发布内容", async () => {
+      mockPrisma.content.findUnique.mockResolvedValue({ id: "draft", status: "DRAFT" });
+      await expect(svc.detail("draft")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.content.update).not.toHaveBeenCalled();
+    });
+    it("管理员先读入缓存的草稿也不能泄露给访客", async () => {
+      mockRedis.getJson.mockResolvedValue({ id: "draft", status: "DRAFT" });
+      await expect(svc.detail("draft")).rejects.toThrow(BusinessException);
+      expect(mockPrisma.content.update).not.toHaveBeenCalled();
+    });
+    it("内容管理者可以回读草稿", async () => {
+      mockRedis.getJson.mockResolvedValue({ id: "draft", status: "DRAFT" });
+      mockPrisma.content.update.mockResolvedValue({});
+      await expect(svc.detail("draft", true)).resolves.toMatchObject({ status: "DRAFT" });
+    });
     it("返回内容详情（并发放大浏览数）", async () => {
-      mockPrisma.content.findUnique.mockResolvedValue({ id: "c1", title: "论语", viewCount: 10 });
+      mockPrisma.content.findUnique.mockResolvedValue({ id: "c1", title: "论语", status: "PUBLISHED", viewCount: 10 });
       mockPrisma.content.update.mockResolvedValue({});
       const result = await svc.detail("c1");
       expect(result.title).toBe("论语");

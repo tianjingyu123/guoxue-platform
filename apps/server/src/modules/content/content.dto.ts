@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsEnum, IsInt, Min, MinLength, MaxLength } from "class-validator";
+import { IsString, IsOptional, IsArray, IsEnum, IsIn, IsInt, Min, MinLength, MaxLength } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiPropertyOptional } from "@nestjs/swagger";
 
@@ -45,6 +45,11 @@ export class CreateContentDto {
   @IsString()
   @IsOptional()
   stationId?: string;
+
+  @ApiPropertyOptional({ description: "创建状态，默认草稿", enum: ["DRAFT", "PUBLISHED"], default: "DRAFT" })
+  @IsOptional()
+  @IsIn(["DRAFT", "PUBLISHED"])
+  status?: "DRAFT" | "PUBLISHED";
 }
 
 export class UpdateContentDto {

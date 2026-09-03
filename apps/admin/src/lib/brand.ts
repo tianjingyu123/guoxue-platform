@@ -10,11 +10,11 @@
 import { reactive } from "vue";
 import { systemApi } from "@/api";
 
-const publicApiOrigin = String((import.meta as any).env?.VITE_API_URL || "")
+const publicApiOrigin = String(import.meta.env.VITE_API_URL || "")
   .trim()
   .replace(/\/+$/, "");
 const DEFAULT_H5_URL = String(
-  (import.meta as any).env?.VITE_PUBLIC_H5_URL ||
+  import.meta.env.VITE_PUBLIC_H5_URL ||
     (publicApiOrigin ? `${publicApiOrigin}/h5/` : "https://api.rebugx.cn/h5/"),
 );
 

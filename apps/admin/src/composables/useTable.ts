@@ -1,18 +1,22 @@
-import { ref, reactive, computed } from "vue";
+import { ref, reactive, computed, shallowRef } from "vue";
 import { ElMessage } from "element-plus";
 import { exportCSV } from "../utils/export";
 
-export interface UseTableOptions<T = any> {
-  fetchApi: (params: any) => Promise<any>;
+// 历史管理接口尚未统一 DTO；把动态边界集中在此处，业务组件不再重复扩散 any。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type LegacyTableApiValue = any;
+
+export interface UseTableOptions<T = LegacyTableApiValue> {
+  fetchApi: (params: Record<string, LegacyTableApiValue>) => Promise<LegacyTableApiValue>;
   defaultPageSize?: number;
   immediate?: boolean;
-  transformResponse?: (res: any) => { items: T[]; total: number };
+  transformResponse?: (res: LegacyTableApiValue) => { items: T[]; total: number };
   exportFileName?: string;
   /** 初始筛选值（在首次 immediate 拉取前预填入 filters，如管理端默认查看全部状态） */
-  initialFilters?: Record<string, any>;
+  initialFilters?: Record<string, LegacyTableApiValue>;
 }
 
-export function useTable<T = any>(options: UseTableOptions<T>) {
+export function useTable<T = LegacyTableApiValue>(options: UseTableOptions<T>) {
   const {
     fetchApi,
     defaultPageSize = 20,
@@ -23,8 +27,8 @@ export function useTable<T = any>(options: UseTableOptions<T>) {
   } = options;
 
   const loading = ref(false);
-  const tableData = ref<T[]>([]) as any;
-  const selection = ref<T[]>([]) as any;
+  const tableData = shallowRef<T[]>([]);
+  const selection = shallowRef<T[]>([]);
 
   const pagination = reactive({
     page: 1,
@@ -32,7 +36,7 @@ export function useTable<T = any>(options: UseTableOptions<T>) {
     total: 0,
   });
 
-  const filters = reactive<Record<string, any>>({ ...(initialFilters ?? {}) });
+  const filters = reactive<Record<string, LegacyTableApiValue>>({ ...(initialFilters ?? {}) });
 
   const totalPages = computed(() => Math.ceil(pagination.total / pagination.pageSize));
 
@@ -55,7 +59,7 @@ export function useTable<T = any>(options: UseTableOptions<T>) {
         tableData.value = data?.items ?? data?.list ?? data?.data ?? [];
         pagination.total = data?.total ?? data?.totalCount ?? 0;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[useTable] fetchList 失败", err);
     } finally {
       loading.value = false;
@@ -78,7 +82,7 @@ export function useTable<T = any>(options: UseTableOptions<T>) {
     fetchList();
   }
 
-  function handleReset(resetFields?: Record<string, any>) {
+  function handleReset(resetFields?: Record<string, LegacyTableApiValue>) {
     if (resetFields) {
       Object.keys(resetFields).forEach((k) => { filters[k] = resetFields[k]; });
     } else {
@@ -97,10 +101,10 @@ export function useTable<T = any>(options: UseTableOptions<T>) {
       ElMessage.warning("暂无数据可导出");
       return;
     }
-    exportCSV(exportFileName, columns, tableData.value);
+    exportCSV(exportFileName, columns, tableData.value as unknown as Record<string, unknown>[]);
   }
 
-  function setFilter(key: string, value: any) {
+  function setFilter(key: string, value: LegacyTableApiValue) {
     filters[key] = value;
   }
 

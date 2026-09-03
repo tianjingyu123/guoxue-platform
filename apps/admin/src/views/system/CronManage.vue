@@ -19,6 +19,10 @@ interface CronJob {
   manualRunnable?: boolean;
   durationMs?: number | null;
 }
+interface RegisteredCronJob { name: string; cronTime?: string; running?: boolean; lastRun?: string; nextRun?: string }
+interface ManualCronJob { name: string; label?: string; schedule?: string; lastStatus?: string; lastRunAt?: string; durationMs?: number | null }
+interface CronOverview { registered?: RegisteredCronJob[]; manual?: ManualCronJob[]; jobs?: CronJob[]; [key: string]: unknown }
+type HttpError = { response?: { status?: number; data?: { message?: string } } };
 
 const jobs = ref<CronJob[]>([]);
 const loading = ref(false);
@@ -37,8 +41,9 @@ async function fetchStatus() {
     // 优先新总览端点 /system/cron：进程内真实注册的 @Cron 任务(registered·实际在跑) + DB执行记录(recent)。
     // 修"页空转"根因——旧 /system/cron-status 只查 OperationLog(webhook触发型)，@Cron 任务不落库故永远空。
     const { data } = await systemApi.getCronJobs();
-    const registered = (data as any)?.registered ?? [];
-    const processJobs = registered.map((r: any) => ({
+    const overview = (data ?? {}) as CronOverview;
+    const registered = overview.registered ?? [];
+    const processJobs = registered.map((r) => ({
       name: r.name,
       schedule: r.cronTime,
       status: r.running ? "running" : "idle",
@@ -47,7 +52,7 @@ async function fetchStatus() {
       source: "process" as const,
       manualRunnable: false,
     }));
-    const manualJobs = ((data as any)?.manual ?? []).map((r: any) => ({
+    const manualJobs = (overview.manual ?? []).map((r) => ({
       name: r.name,
       label: r.label,
       schedule: r.schedule,
@@ -59,13 +64,13 @@ async function fetchStatus() {
     }));
     jobs.value = [...manualJobs, ...processJobs];
     status.value = data ?? {};
-  } catch (e: any) {
+  } catch (e: unknown) {
     // 404 兜底：z8 前的后端无 /system/cron，降级回旧 cron-status（webhook触发记录）
-    if (e?.response?.status === 404) {
+    if ((e as HttpError)?.response?.status === 404) {
       try {
         const { data } = await systemApi.getCronStatus();
         status.value = data ?? {};
-        jobs.value = (data as any)?.jobs ?? [];
+        jobs.value = ((data ?? {}) as CronOverview).jobs ?? [];
       } catch {
         jobs.value = [];
         notImplemented.value = true;
@@ -86,12 +91,13 @@ async function triggerJob(jobName: string) {
     await ElMessageBox.confirm(`确认手动触发 "${jobName}" 任务？`, "操作确认", { type: "warning" });
     triggering.value = jobName;
     const { data } = await systemApi.triggerCron(jobName);
-    if ((data as any)?.skipped) ElMessage.warning((data as any)?.reason || "任务已在执行，本次未重复触发");
+    const result = (data ?? {}) as { skipped?: boolean; reason?: string };
+    if (result.skipped) ElMessage.warning(result.reason || "任务已在执行，本次未重复触发");
     else ElMessage.success(`任务 ${jobName} 执行完成`);
     fetchStatus();
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error !== "cancel" && error !== "close") {
-      ElMessage.error(error?.response?.data?.message || "任务触发失败");
+      ElMessage.error((error as HttpError)?.response?.data?.message || "任务触发失败");
     }
   } finally {
     triggering.value = "";
@@ -177,12 +183,21 @@ function formatLastRun(v?: string) {
       >
         <template #default="{ row }">
           <div>{{ row.label || row.name }}</div>
-          <code v-if="row.label" style="font-size:11px;color:var(--color-text-secondary)">{{ row.name }}</code>
+          <code
+            v-if="row.label"
+            style="font-size:11px;color:var(--color-text-secondary)"
+          >{{ row.name }}</code>
         </template>
       </el-table-column>
-      <el-table-column label="来源" width="110">
+      <el-table-column
+        label="来源"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="row.source === 'webhook' ? 'warning' : 'info'">
+          <el-tag
+            size="small"
+            :type="row.source === 'webhook' ? 'warning' : 'info'"
+          >
             {{ row.source === 'webhook' ? '外部调度' : '进程内' }}
           </el-tag>
         </template>
@@ -258,7 +273,10 @@ function formatLastRun(v?: string) {
           >
             手动触发
           </el-button>
-          <span v-else style="color:var(--color-text-secondary);font-size:12px">仅自动调度</span>
+          <span
+            v-else
+            style="color:var(--color-text-secondary);font-size:12px"
+          >仅自动调度</span>
         </template>
       </el-table-column>
     </el-table>

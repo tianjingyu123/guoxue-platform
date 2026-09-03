@@ -4,16 +4,16 @@ import { ElMessage } from "element-plus";
 
 const exporting = ref("");
 const exportTypes = [
-  { key: "users", label: "用户数据", icon: "👤", desc: "导出用户列表，含昵称、手机号、注册时间等" },
-  { key: "orders", label: "订单数据", icon: "📦", desc: "导出订单列表，含金额、状态、支付时间等" },
-  { key: "contents", label: "内容数据", icon: "📝", desc: "导出内容列表，含标题、类型、发布时间等" },
-  { key: "audit-logs", label: "审计日志", icon: "📋", desc: "导出操作审计日志，含操作人、动作、时间等" },
-  { key: "earnings", label: "佣金收益", icon: "💰", desc: "导出佣金收益记录，含分站、金额、状态等" },
+  { key: "users", label: "用户数据", icon: "用", desc: "导出用户列表，含昵称、手机号、注册时间等" },
+  { key: "orders", label: "订单数据", icon: "单", desc: "导出订单列表，含金额、状态、支付时间等" },
+  { key: "contents", label: "内容数据", icon: "文", desc: "导出内容列表，含标题、类型、发布时间等" },
+  { key: "audit-logs", label: "审计日志", icon: "审", desc: "导出操作审计日志，含操作人、动作、时间等" },
+  { key: "earnings", label: "佣金收益", icon: "收", desc: "导出佣金收益记录，含分站、金额、状态等" },
 ];
 
 const excelTypes = [
-  { key: "users", label: "用户数据 (Excel)", icon: "📊" },
-  { key: "orders", label: "订单数据 (Excel)", icon: "📊" },
+  { key: "users", label: "用户数据 (Excel)", icon: "表" },
+  { key: "orders", label: "订单数据 (Excel)", icon: "表" },
 ];
 
 async function exportCsv(type: string) {

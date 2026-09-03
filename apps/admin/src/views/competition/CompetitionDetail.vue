@@ -192,19 +192,19 @@
           </el-descriptions>
 
           <el-divider>赛事描述</el-divider>
-          <div
+          <SafeHtml
             class="markdown-body"
             style="min-height:40px"
-            v-html="renderMarkdown(detail?.description || '暂无描述')"
+            :html="renderMarkdown(detail?.description || '暂无描述')"
           />
 
           <el-divider v-if="detail?.rules">
             赛事规则
           </el-divider>
-          <div
+          <SafeHtml
             v-if="detail?.rules"
             class="markdown-body"
-            v-html="renderMarkdown(detail?.rules || '')"
+            :html="renderMarkdown(detail?.rules || '')"
           />
         </el-card>
       </el-tab-pane>
@@ -631,21 +631,21 @@
                 type="danger"
                 size="small"
               >
-                🥇 1
+                第 1 名
               </el-tag>
               <el-tag
                 v-else-if="row.rank === 2"
                 type="warning"
                 size="small"
               >
-                🥈 2
+                第 2 名
               </el-tag>
               <el-tag
                 v-else-if="row.rank === 3"
                 type="success"
                 size="small"
               >
-                🥉 3
+                第 3 名
               </el-tag>
               <span v-else>{{ row.rank }}</span>
             </template>
@@ -1063,6 +1063,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import SafeHtml from "@/components/SafeHtml.vue";
 import { sanitize } from "@/utils/sanitize";
 import { competitionApi, api } from "@/api";
 
@@ -1177,7 +1178,9 @@ const rankingStatusType = (status?: string) => (status && rankingStatusTypes[sta
 const loading = ref(false);
 const error = ref(false);
 const statusChanging = ref(false);
-const detail = ref<any>(null); // 详情对象，模板大量按 detail?.type 索引标签表，保留 any
+// 详情接口仍是历史动态结构；待服务端 DTO 固化后再收紧。
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const detail = ref<any>(null);
 
 function formatDate(d: string) {
   if (!d) return "-";
@@ -1381,9 +1384,8 @@ function openQuestionDialog(row?: QuestionRow) {
 }
 
 async function saveQuestion() {
-  // options/answer 为用户输入的动态 JSON，结构不定，保留 any
-  let options: any = undefined;
-  let answer: any = undefined;
+  let options: unknown = undefined;
+  let answer: unknown = undefined;
   try {
     if (optionsJson.value.trim()) options = JSON.parse(optionsJson.value);
     if (answerJson.value.trim()) answer = JSON.parse(answerJson.value);
@@ -1542,17 +1544,19 @@ function parseCSVLine(line: string): string[] {
 async function doBatchImport() {
   batchImporting.value = true;
   try {
-    // questions/q 为用户导入的动态题目数据，字段随导入格式而定，保留 any
-    let questions: any[];
+    let questions: Record<string, unknown>[];
     if (batchFormat.value === "json") {
-      questions = JSON.parse(batchContent.value);
-      if (!Array.isArray(questions)) throw new Error("JSON必须是数组格式");
+      const parsed: unknown = JSON.parse(batchContent.value);
+      if (!Array.isArray(parsed) || !parsed.every(item => item && typeof item === "object" && !Array.isArray(item))) {
+        throw new Error("JSON必须是对象数组格式");
+      }
+      questions = parsed as Record<string, unknown>[];
     } else {
       const lines = batchContent.value.trim().split("\n");
       const headers = parseCSVLine(lines[0]);
       questions = lines.slice(1).filter(l => l.trim()).map(line => {
         const vals = parseCSVLine(line);
-        const q: any = { competitionId };
+        const q: Record<string, unknown> = { competitionId };
         headers.forEach((h, i) => {
           if (h === "options" || h === "answer") {
             q[h] = vals[i] ? JSON.parse(vals[i]) : undefined;

@@ -176,7 +176,9 @@
         用户 ID 从哪来：在「用户管理」列表搜索目标用户后复制其 ID；也可从运营活动导出的用户名单粘贴。
       </div>
       <template #footer>
-        <el-button @click="grantVisible = false">取消</el-button>
+        <el-button @click="grantVisible = false">
+          取消
+        </el-button>
         <el-button
           type="primary"
           :loading="granting"

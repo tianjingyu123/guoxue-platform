@@ -10,7 +10,7 @@ interface BehaviorLog {
   action?: string
   targetType?: string
   targetId?: string
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
   ip?: string
   deviceId?: string
   createdAt?: string

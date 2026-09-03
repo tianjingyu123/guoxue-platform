@@ -180,7 +180,9 @@
       <div
         v-if="previewRow"
         class="agreement-preview"
-      >{{ previewRow.content || '（无内容）' }}</div>
+      >
+        {{ previewRow.content || '（无内容）' }}
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -230,7 +232,7 @@ async function fetchList() {
     const data = res.data as { items?: AgreementRow[]; list?: AgreementRow[]; total?: number }
     list.value = data.items || data.list || []
     total.value = data.total || 0
-  } catch (e) {
+  } catch {
     error.value = true
   } finally { loading.value = false }
 }
@@ -284,7 +286,7 @@ async function save() {
     }
     dialogVisible.value = false
     fetchList()
-  } catch (e) {
+  } catch {
   } finally { saving.value = false }
 }
 

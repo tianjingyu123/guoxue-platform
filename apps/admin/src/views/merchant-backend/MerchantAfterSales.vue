@@ -2,18 +2,39 @@
   <div class="after-sales-page">
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">售后质检台 · SERVICE RECOVERY</p>
+        <p class="eyebrow">
+          售后质检台 · SERVICE RECOVERY
+        </p>
         <h1>把问题处理清楚，也把信任留在店里</h1>
         <p>仅退款先核证，退货退款先确认回寄；验收结果、库存回补与原路退款形成同一条可追溯记录。</p>
       </div>
       <div class="hero-actions">
-        <el-button class="ghost-btn" @click="router.push('/merchant-backend/shipping')">发货履约</el-button>
-        <el-button class="ghost-btn" @click="router.push('/merchant-backend/inventory')">库存与采购</el-button>
-        <el-button type="primary" :loading="loading" @click="fetchList">刷新数据</el-button>
+        <el-button
+          class="ghost-btn"
+          @click="router.push('/merchant-backend/shipping')"
+        >
+          发货履约
+        </el-button>
+        <el-button
+          class="ghost-btn"
+          @click="router.push('/merchant-backend/inventory')"
+        >
+          库存与采购
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="fetchList"
+        >
+          刷新数据
+        </el-button>
       </div>
     </section>
 
-    <section class="metrics" aria-label="售后状态总览">
+    <section
+      class="metrics"
+      aria-label="售后状态总览"
+    >
       <button
         v-for="item in afterSalesMetrics"
         :key="item.key"
@@ -29,7 +50,9 @@
 
     <section class="service-route">
       <div class="route-copy">
-        <p class="eyebrow dark">RECOVERY ROUTE</p>
+        <p class="eyebrow dark">
+          RECOVERY ROUTE
+        </p>
         <h2>一条售后，四步闭环</h2>
         <span>把沟通、证据、实物和资金动作对应起来。</span>
       </div>
@@ -44,229 +67,255 @@
     <section class="workspace">
       <header class="workspace-head">
         <div>
-          <p class="eyebrow dark">AFTER-SALES QUEUE</p>
+          <p class="eyebrow dark">
+            AFTER-SALES QUEUE
+          </p>
           <h2>售后处理队列</h2>
         </div>
         <div class="header-right">
-        <el-select
-          v-model="filterStatus"
-          placeholder="全部状态"
-          clearable
-          style="width:140px"
-          @change="onFilterChange"
-        >
-          <el-option
-            label="待处理"
-            value="PENDING"
-          />
-          <el-option
-            label="处理中"
-            value="PROCESSING"
-          />
-          <el-option
-            label="已同意"
-            value="APPROVED"
-          />
-          <el-option
-            label="已拒绝"
-            value="REJECTED"
-          />
-          <el-option
-            label="已取消"
-            value="CANCELLED"
-          />
-          <el-option
-            label="已完成"
-            value="COMPLETED"
-          />
-        </el-select>
-        <!-- 类型取值与 C 端真实写入一致：refund_only / refund_with_return（AfterSale.type） -->
-        <el-select
-          v-model="filterType"
-          placeholder="全部类型"
-          clearable
-          style="width:130px"
-          @change="onFilterChange"
-        >
-          <el-option
-            label="仅退款"
-            value="refund_only"
-          />
-          <el-option
-            label="退货退款"
-            value="refund_with_return"
-          />
-          <el-option label="换货" value="exchange" />
-          <el-option label="交易申诉" value="other" />
-        </el-select>
-        <el-button @click="fetchList">
-          刷新
-        </el-button>
-      </div>
+          <el-select
+            v-model="filterStatus"
+            placeholder="全部状态"
+            clearable
+            style="width:140px"
+            @change="onFilterChange"
+          >
+            <el-option
+              label="待处理"
+              value="PENDING"
+            />
+            <el-option
+              label="处理中"
+              value="PROCESSING"
+            />
+            <el-option
+              label="已同意"
+              value="APPROVED"
+            />
+            <el-option
+              label="已拒绝"
+              value="REJECTED"
+            />
+            <el-option
+              label="已取消"
+              value="CANCELLED"
+            />
+            <el-option
+              label="已完成"
+              value="COMPLETED"
+            />
+          </el-select>
+          <!-- 类型取值与 C 端真实写入一致：refund_only / refund_with_return（AfterSale.type） -->
+          <el-select
+            v-model="filterType"
+            placeholder="全部类型"
+            clearable
+            style="width:130px"
+            @change="onFilterChange"
+          >
+            <el-option
+              label="仅退款"
+              value="refund_only"
+            />
+            <el-option
+              label="退货退款"
+              value="refund_with_return"
+            />
+            <el-option
+              label="换货"
+              value="exchange"
+            />
+            <el-option
+              label="交易申诉"
+              value="other"
+            />
+          </el-select>
+          <el-button @click="fetchList">
+            刷新
+          </el-button>
+        </div>
       </header>
 
-      <div class="status-tabs" role="tablist" aria-label="售后状态筛选">
+      <div
+        class="status-tabs"
+        role="tablist"
+        aria-label="售后状态筛选"
+      >
         <button
           v-for="tab in statusTabs"
           :key="tab.value"
           type="button"
           :class="{ active: filterStatus === tab.value }"
           @click="applyStatusFilter(tab.value)"
-        >{{ tab.label }}</button>
+        >
+          {{ tab.label }}
+        </button>
       </div>
 
       <el-result
-      v-if="error"
-      icon="error"
-      title="加载失败"
-      sub-title="售后列表加载失败，请稍后重试"
-    >
-      <template #extra>
-        <el-button
-          type="primary"
-          @click="fetchList"
-        >
-          重试
-        </el-button>
-      </template>
-    </el-result>
+        v-if="error"
+        icon="error"
+        title="加载失败"
+        sub-title="售后列表加载失败，请稍后重试"
+      >
+        <template #extra>
+          <el-button
+            type="primary"
+            @click="fetchList"
+          >
+            重试
+          </el-button>
+        </template>
+      </el-result>
 
       <el-table
-      v-else
-      v-loading="loading"
-      :data="list"
-      stripe
-    >
-      <template #empty>
-        <el-empty description="暂无售后申请，买家发起售后会出现在这里" />
-      </template>
-      <el-table-column
-        prop="id"
-        label="售后单号"
-        width="180"
-        show-overflow-tooltip
-      />
-      <el-table-column
-        prop="orderId"
-        label="关联订单"
-        width="180"
-        show-overflow-tooltip
-      />
-      <el-table-column
-        label="类型"
-        width="100"
+        v-else
+        v-loading="loading"
+        :data="list"
+        stripe
       >
-        <template #default="{ row }">
-          <el-tag
-            :type="isReturnType(row.type) ? 'primary' : 'warning'"
-            size="small"
-          >
-            {{ typeLabel(row.type) }}
-          </el-tag>
+        <template #empty>
+          <el-empty description="暂无售后申请，买家发起售后会出现在这里" />
         </template>
-      </el-table-column>
-      <el-table-column
-        label="退款金额"
-        width="110"
-        align="right"
-      >
-        <template #default="{ row }">
-          {{ isRefundType(row.type) ? fmtMoney(row.amount ?? row.order?.amount) : '—' }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="状态"
-        width="90"
-      >
-        <template #default="{ row }">
-          <el-tag
-            :type="statusTagType(row.status)"
-            size="small"
-          >
-            {{ statusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="reason"
-        label="申请原因"
-        min-width="160"
-        show-overflow-tooltip
-      />
-      <el-table-column
-        label="申请时间"
-        width="150"
-      >
-        <template #default="{ row }">
-          {{ fmtTime(row.createdAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="操作"
-        width="280"
-        fixed="right"
-      >
-        <template #default="{ row }">
-          <template v-if="row.status === 'PENDING'">
+        <el-table-column
+          prop="id"
+          label="售后单号"
+          width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="orderId"
+          label="关联订单"
+          width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="类型"
+          width="100"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="isReturnType(row.type) ? 'primary' : 'warning'"
+              size="small"
+            >
+              {{ typeLabel(row.type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="退款金额"
+          width="110"
+          align="right"
+        >
+          <template #default="{ row }">
+            {{ isRefundType(row.type) ? fmtMoney(row.amount ?? row.order?.amount) : '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="状态"
+          width="90"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="statusTagType(row.status)"
+              size="small"
+            >
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="reason"
+          label="申请原因"
+          min-width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="申请时间"
+          width="150"
+        >
+          <template #default="{ row }">
+            {{ fmtTime(row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="280"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <template v-if="row.status === 'PENDING'">
+              <el-button
+                size="small"
+                text
+                type="success"
+                :disabled="submitting"
+                @click="handleAction(row, 'approve')"
+              >
+                同意
+              </el-button>
+              <el-button
+                size="small"
+                text
+                type="danger"
+                :disabled="submitting"
+                @click="handleAction(row, 'reject')"
+              >
+                拒绝
+              </el-button>
+            </template>
+            <template v-else-if="row.status === 'APPROVED' && isReturnType(row.type)">
+              <el-button
+                size="small"
+                text
+                type="danger"
+                :disabled="submitting"
+                @click="handleInspection(row, false)"
+              >
+                验收不合格
+              </el-button>
+              <el-button
+                size="small"
+                text
+                type="success"
+                :disabled="submitting"
+                @click="handleInspection(row, true)"
+              >
+                验收入库并退款
+              </el-button>
+            </template>
             <el-button
+              v-else-if="row.status === 'APPROVED' && !isRefundType(row.type)"
               size="small"
               text
               type="success"
               :disabled="submitting"
-              @click="handleAction(row, 'approve')"
+              @click="handleComplete(row)"
             >
-              同意
+              确认完成
             </el-button>
             <el-button
               size="small"
               text
-              type="danger"
-              :disabled="submitting"
-              @click="handleAction(row, 'reject')"
+              type="primary"
+              @click="openDetail(row)"
             >
-              拒绝
+              详情
             </el-button>
           </template>
-          <template v-else-if="row.status === 'APPROVED' && isReturnType(row.type)">
-            <el-button size="small" text type="danger" :disabled="submitting" @click="handleInspection(row, false)">
-              验收不合格
-            </el-button>
-            <el-button size="small" text type="success" :disabled="submitting" @click="handleInspection(row, true)">
-              验收入库并退款
-            </el-button>
-          </template>
-          <el-button
-            v-else-if="row.status === 'APPROVED' && !isRefundType(row.type)"
-            size="small"
-            text
-            type="success"
-            :disabled="submitting"
-            @click="handleComplete(row)"
-          >
-            确认完成
-          </el-button>
-          <el-button
-            size="small"
-            text
-            type="primary"
-            @click="openDetail(row)"
-          >
-            详情
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        </el-table-column>
+      </el-table>
 
       <el-pagination
-      v-if="!error"
-      v-model:current-page="page"
-      v-model:page-size="pageSize"
-      :total="total"
-      :page-sizes="[10, 20, 50, 100]"
-      layout="total, sizes, prev, pager, next"
-      style="margin-top:16px;justify-content:flex-end"
-      @current-change="fetchList"
-      @size-change="onFilterChange"
+        v-if="!error"
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next"
+        style="margin-top:16px;justify-content:flex-end"
+        @current-change="fetchList"
+        @size-change="onFilterChange"
       />
     </section>
 
@@ -305,7 +354,11 @@
         >
           {{ current.reason || "—" }}
         </el-descriptions-item>
-        <el-descriptions-item v-if="current.logistics" label="处理记录" :span="2">
+        <el-descriptions-item
+          v-if="current.logistics"
+          label="处理记录"
+          :span="2"
+        >
           {{ logisticsLabel(current.logistics) }}
         </el-descriptions-item>
       </el-descriptions>
@@ -531,7 +584,7 @@ async function fetchList() {
     list.value = data.items || data.list || data.data || [];
     if (!filterStatus.value && !filterType.value) overviewList.value = list.value;
     total.value = data.total || 0;
-  } catch (e) {
+  } catch {
     error.value = true;
   } finally { loading.value = false; }
 }

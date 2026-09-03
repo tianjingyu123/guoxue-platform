@@ -301,7 +301,16 @@ import VodUpload from "@/components/upload/VodUpload.vue";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
 import { videoApi, api } from "@/api";
 
-const list = ref<any[]>([]);
+interface VideoRow {
+  id: string; title?: string; cover?: string; coverUrl?: string; videoUrl?: string; url?: string;
+  duration?: number | string; description?: string; tags?: string[] | string; status?: string; createdAt?: string;
+  auditReason?: string; user?: { nickname?: string };
+}
+interface VideoPayload extends Record<string, unknown> {
+  title: string; cover: string; videoUrl: string; duration?: number; description: string; tags: string[];
+}
+
+const list = ref<VideoRow[]>([]);
 const loading = ref(false);
 const loadError = ref(false);
 const statusFilter = ref("");
@@ -309,7 +318,7 @@ const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 const detailVisible = ref(false);
-const detail = ref<any>(null);
+const detail = ref<VideoRow | null>(null);
 const auditingId = ref("");
 
 const STATUS_MAP: Record<string, { label: string; type: "success" | "warning" | "danger" | "info" }> = {
@@ -320,11 +329,11 @@ const STATUS_MAP: Record<string, { label: string; type: "success" | "warning" | 
   PROCESSING: { label: "处理中", type: "info" },
 };
 
-function statusLabel(s: string) {
-  return STATUS_MAP[s]?.label ?? s;
+function statusLabel(s?: string) {
+  return (s && STATUS_MAP[s]?.label) ?? s ?? "—";
 }
-function statusType(s: string) {
-  return STATUS_MAP[s]?.type ?? "info";
+function statusType(s?: string) {
+  return (s && STATUS_MAP[s]?.type) ?? "info";
 }
 
 /** 秒 → mm:ss（超过1小时为 h:mm:ss），无值显示 — */
@@ -360,7 +369,7 @@ async function fetchList() {
   try {
     // scope=all：管理端可见全部开放范围（仅圈内/全平台）的视频，公共池过滤只作用于 C 端
     // 真分页：后端 VideoListQueryDto 支持 page/pageSize（返回 { videos, total }）
-    const params: any = { page: page.value, pageSize: pageSize.value, scope: "all" };
+    const params: Record<string, string | number> = { page: page.value, pageSize: pageSize.value, scope: "all" };
     if (statusFilter.value) params.status = statusFilter.value;
     const { data } = await videoApi.list(params);
     list.value = data.items || data.videos || [];
@@ -388,7 +397,7 @@ function openCreate() {
   dialogVisible.value = true;
 }
 
-function openEdit(row: any) {
+function openEdit(row: VideoRow) {
   resetForm();
   editingId.value = row.id;
   Object.assign(form, {
@@ -405,10 +414,7 @@ function openEdit(row: any) {
 async function saveVideo() {
   saving.value = true;
   try {
-    const payload: any = { ...form };
-    if (typeof payload.tags === 'string') {
-      payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
-    }
+    const payload: VideoPayload = { ...form, tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean) };
     if (!payload.duration) delete payload.duration; // 未识别到时长则不传（后端可选）
     if (editingId.value) {
       await videoApi.update(editingId.value, payload);
@@ -419,11 +425,11 @@ async function saveVideo() {
     }
     dialogVisible.value = false;
     fetchList();
-  } catch (e: any) {
+  } catch {
   } finally { saving.value = false; }
 }
 
-async function viewDetail(row: any) {
+async function viewDetail(row: VideoRow) {
   try {
     const { data } = await videoApi.detail(row.id);
     detail.value = data;
@@ -431,7 +437,7 @@ async function viewDetail(row: any) {
   } catch { /* */ }
 }
 
-async function approve(row: any) {
+async function approve(row: VideoRow) {
   if (auditingId.value) return;
   try {
     await ElMessageBox.confirm(`确定通过视频「${row.title || row.id}」？通过后将公开发布。`, "审核通过", { type: "success" });
@@ -448,7 +454,7 @@ async function approve(row: any) {
   }
 }
 
-async function reject(row: any) {
+async function reject(row: VideoRow) {
   if (auditingId.value) return;
   let reason = "";
   try {

@@ -15,10 +15,30 @@
 
     <!-- 统计卡 -->
     <div class="stat-row">
-      <el-tag type="danger" size="large">待处理 A 级：{{ stats.open.A }}</el-tag>
-      <el-tag type="warning" size="large">待处理 B 级：{{ stats.open.B }}</el-tag>
-      <el-tag type="success" size="large">已处理：{{ stats.resolved.A + stats.resolved.B }}</el-tag>
-      <el-tag type="info" size="large">已忽略：{{ stats.ignored.A + stats.ignored.B }}</el-tag>
+      <el-tag
+        type="danger"
+        size="large"
+      >
+        待处理 A 级：{{ stats.open.A }}
+      </el-tag>
+      <el-tag
+        type="warning"
+        size="large"
+      >
+        待处理 B 级：{{ stats.open.B }}
+      </el-tag>
+      <el-tag
+        type="success"
+        size="large"
+      >
+        已处理：{{ stats.resolved.A + stats.resolved.B }}
+      </el-tag>
+      <el-tag
+        type="info"
+        size="large"
+      >
+        已忽略：{{ stats.ignored.A + stats.ignored.B }}
+      </el-tag>
       <span class="stat-tip">A 级=禁止词（建议下架/整改）；B 级=替换建议（人工确认）。古籍/诗词正文为引用豁免域，不在扫描范围。</span>
     </div>
 
@@ -34,17 +54,55 @@
 
     <!-- 筛选 -->
     <div class="filter-row">
-      <el-select v-model="filterLevel" placeholder="级别" clearable style="width:110px" @change="resetAndFetch">
-        <el-option label="A 级禁止" value="A" />
-        <el-option label="B 级替换" value="B" />
+      <el-select
+        v-model="filterLevel"
+        placeholder="级别"
+        clearable
+        style="width:110px"
+        @change="resetAndFetch"
+      >
+        <el-option
+          label="A 级禁止"
+          value="A"
+        />
+        <el-option
+          label="B 级替换"
+          value="B"
+        />
       </el-select>
-      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="resetAndFetch">
-        <el-option label="待处理" value="OPEN" />
-        <el-option label="已处理" value="RESOLVED" />
-        <el-option label="已忽略" value="IGNORED" />
+      <el-select
+        v-model="filterStatus"
+        placeholder="状态"
+        clearable
+        style="width:130px"
+        @change="resetAndFetch"
+      >
+        <el-option
+          label="待处理"
+          value="OPEN"
+        />
+        <el-option
+          label="已处理"
+          value="RESOLVED"
+        />
+        <el-option
+          label="已忽略"
+          value="IGNORED"
+        />
       </el-select>
-      <el-select v-model="filterTargetType" placeholder="内容域" clearable style="width:160px" @change="resetAndFetch">
-        <el-option v-for="t in targetTypes" :key="t.value" :label="t.label" :value="t.value" />
+      <el-select
+        v-model="filterTargetType"
+        placeholder="内容域"
+        clearable
+        style="width:160px"
+        @change="resetAndFetch"
+      >
+        <el-option
+          v-for="t in targetTypes"
+          :key="t.value"
+          :label="t.label"
+          :value="t.value"
+        />
       </el-select>
       <el-input
         v-model="filterWord"
@@ -54,7 +112,9 @@
         @keyup.enter="resetAndFetch"
         @clear="resetAndFetch"
       />
-      <el-button @click="resetAndFetch">查询</el-button>
+      <el-button @click="resetAndFetch">
+        查询
+      </el-button>
     </div>
 
     <el-alert
@@ -65,7 +125,12 @@
       title="加载失败"
       style="margin-bottom:12px"
     >
-      <el-button size="small" @click="fetchAll">重试</el-button>
+      <el-button
+        size="small"
+        @click="fetchAll"
+      >
+        重试
+      </el-button>
     </el-alert>
 
     <el-table
@@ -76,56 +141,122 @@
       <template #empty>
         <el-empty description="暂无扫描记录，点击右上角触发全站扫描" />
       </template>
-      <el-table-column label="级别" width="70" align="center">
+      <el-table-column
+        label="级别"
+        width="70"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="row.level === 'A' ? 'danger' : 'warning'">{{ row.level }}</el-tag>
+          <el-tag
+            size="small"
+            :type="row.level === 'A' ? 'danger' : 'warning'"
+          >
+            {{ row.level }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="word" label="命中词" width="120" />
-      <el-table-column label="内容域" width="130">
+      <el-table-column
+        prop="word"
+        label="命中词"
+        width="120"
+      />
+      <el-table-column
+        label="内容域"
+        width="130"
+      >
         <template #default="{ row }">
           {{ targetTypeLabel(row.targetType) }}
         </template>
       </el-table-column>
-      <el-table-column prop="field" label="字段" width="90" />
-      <el-table-column label="命中片段" min-width="220">
+      <el-table-column
+        prop="field"
+        label="字段"
+        width="90"
+      />
+      <el-table-column
+        label="命中片段"
+        min-width="220"
+      >
         <template #default="{ row }">
           <span class="snippet">{{ row.snippet || '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="处置建议" min-width="180">
+      <el-table-column
+        label="处置建议"
+        min-width="180"
+      >
         <template #default="{ row }">
           <span class="suggestion">{{ row.suggestion || '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="目标ID" width="130">
+      <el-table-column
+        label="目标ID"
+        width="130"
+      >
         <template #default="{ row }">
-          <el-tooltip :content="row.targetId" placement="top">
+          <el-tooltip
+            :content="row.targetId"
+            placement="top"
+          >
             <span class="target-id">{{ row.targetId.slice(0, 8) }}…</span>
           </el-tooltip>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="90" align="center">
+      <el-table-column
+        label="状态"
+        width="90"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+          <el-tag
+            size="small"
+            :type="statusTagType(row.status)"
+          >
+            {{ statusLabel(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="发现时间" width="160">
+      <el-table-column
+        label="发现时间"
+        width="160"
+      >
         <template #default="{ row }">
           {{ formatTime(row.scanAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="170" fixed="right">
+      <el-table-column
+        label="操作"
+        width="170"
+        fixed="right"
+      >
         <template #default="{ row }">
           <template v-if="row.status === 'OPEN'">
-            <el-button size="small" text type="success" :loading="acting === row.id" @click="mark(row, 'RESOLVED')">
+            <el-button
+              size="small"
+              text
+              type="success"
+              :loading="acting === row.id"
+              @click="mark(row, 'RESOLVED')"
+            >
               已处理
             </el-button>
-            <el-button size="small" text type="info" :loading="acting === row.id" @click="mark(row, 'IGNORED')">
+            <el-button
+              size="small"
+              text
+              type="info"
+              :loading="acting === row.id"
+              @click="mark(row, 'IGNORED')"
+            >
               忽略
             </el-button>
           </template>
-          <el-button v-else size="small" text :loading="acting === row.id" @click="mark(row, 'OPEN')">
+          <el-button
+            v-else
+            size="small"
+            text
+            :loading="acting === row.id"
+            @click="mark(row, 'OPEN')"
+          >
             重开
           </el-button>
         </template>

@@ -7,8 +7,12 @@
     >
       <div class="head-row">
         <div>
-          <div class="head-title">AI 工作总览</div>
-          <div class="head-sub">AI 数字员工自动执行 · 人工可随时接管——所有自动结论进入业务须经人工确认</div>
+          <div class="head-title">
+            AI 工作总览
+          </div>
+          <div class="head-sub">
+            AI 辅助分析与受控协作，关键业务操作由人工审核确认
+          </div>
         </div>
         <div class="head-actions">
           <el-button
@@ -45,7 +49,9 @@
             <el-tag
               size="small"
               effect="plain"
-            >协作审核</el-tag>
+            >
+              协作审核
+            </el-tag>
           </div>
           <template v-if="collab.status === 'ready' && collab.data">
             <div
@@ -94,10 +100,14 @@
             <el-tag
               size="small"
               effect="plain"
-            >数字员工</el-tag>
+            >
+              数字员工
+            </el-tag>
           </div>
           <template v-if="bots.status === 'ready' && bots.data">
-            <div class="big-num">{{ fmt(bots.data.length) }}</div>
+            <div class="big-num">
+              {{ fmt(bots.data.length) }}
+            </div>
             <div class="sub-metrics">
               <span>已配置凭证、可对话的在架智能体</span>
             </div>
@@ -136,10 +146,14 @@
             <el-tag
               size="small"
               effect="plain"
-            >图审 / TTS / 转写</el-tag>
+            >
+              图审 / TTS / 转写
+            </el-tag>
           </div>
           <template v-if="media.status === 'ready' && media.data">
-            <div class="big-num">{{ media.data.todayCapped ? `${media.data.todayCount}+` : fmt(media.data.todayCount) }}</div>
+            <div class="big-num">
+              {{ media.data.todayCapped ? `${media.data.todayCount}+` : fmt(media.data.todayCount) }}
+            </div>
             <div class="sub-metrics">
               <span>今日 token {{ media.data.todayCapped ? `${fmt(media.data.todayTokens)}+` : fmt(media.data.todayTokens) }}</span>
               <span>历史累计 {{ fmt(media.data.total) }} 条</span>
@@ -179,10 +193,14 @@
             <el-tag
               size="small"
               effect="plain"
-            >事件总线</el-tag>
+            >
+              事件总线
+            </el-tag>
           </div>
           <template v-if="events.status === 'ready' && events.data">
-            <div class="big-num">{{ fmt(events.data.count24h) }}</div>
+            <div class="big-num">
+              {{ fmt(events.data.count24h) }}
+            </div>
             <div class="sub-metrics">
               <span :class="{ 'metric-warn': events.data.pending > 0 }">待处理 {{ fmt(events.data.pending) }}</span>
               <span>已处理 {{ fmt(events.data.processed) }}</span>
@@ -233,10 +251,14 @@
             <el-tag
               size="small"
               effect="plain"
-            >自动巡检</el-tag>
+            >
+              自动巡检
+            </el-tag>
           </div>
           <template v-if="anomaly.status === 'ready' && anomaly.data">
-            <div class="big-num">{{ fmt(anomaly.data.enabledCount) }}<span class="num-unit">/ {{ fmt(anomaly.data.totalCount) }} 条规则启用</span></div>
+            <div class="big-num">
+              {{ fmt(anomaly.data.enabledCount) }}<span class="num-unit">/ {{ fmt(anomaly.data.totalCount) }} 条规则启用</span>
+            </div>
             <div class="sub-metrics">
               <span v-if="anomaly.data.criticalCount > 0">含严重级规则 {{ fmt(anomaly.data.criticalCount) }} 条</span>
               <span v-else>暂无严重级规则</span>
@@ -276,15 +298,27 @@
             <el-tag
               size="small"
               effect="plain"
-            >可追溯</el-tag>
+            >
+              可追溯
+            </el-tag>
           </div>
           <template v-if="decisions.status === 'ready' && decisions.data">
-            <div class="big-num">{{ fmt(decisions.data.total) }}<span class="num-unit">条决策留痕</span></div>
+            <div class="big-num">
+              {{ fmt(decisions.data.total) }}<span class="num-unit">条决策留痕</span>
+            </div>
             <div class="sub-metrics">
               <span>人工采纳率 {{ decisions.data.approvedRate }}%</span>
               <span>平均置信度 {{ decisions.data.avgConfidence }}</span>
             </div>
-            <div class="card-foot muted-foot">每条 AI 决策全程留痕·近 90 天可回溯</div>
+            <div class="card-foot">
+              <el-button
+                link
+                type="primary"
+                @click="$router.push('/ai/decisions')"
+              >
+                审核、追溯与复盘
+              </el-button>
+            </div>
           </template>
           <CardFallback
             v-else-if="decisions.status !== 'loading'"
@@ -330,8 +364,8 @@ const CardFallback = defineComponent({
         : h("div", { class: "card-fallback" }, [
             h("div", { class: "fallback-title" }, "加载失败"),
             h(
-              "a",
-              { class: "fallback-retry", onClick: () => emit("retry") },
+              "button",
+              { type: "button", class: "fallback-retry", onClick: () => emit("retry") },
               "重试",
             ),
           ]);
@@ -474,8 +508,10 @@ onMounted(loadAll);
 }
 
 .head-card :deep(.el-card__body) {
-  padding: 16px 20px;
+  padding: 22px 24px;
 }
+.head-card { position: relative; overflow: hidden; border-color: rgba(99,117,176,.22) !important; background: linear-gradient(122deg, #16243a 0%, #202e49 68%, #293553 100%) !important; box-shadow: 0 16px 38px rgba(18,32,56,.17) !important; }
+.head-card::after { position: absolute; top: -86px; right: -44px; width: 260px; height: 260px; border: 1px solid rgba(143,163,224,.16); border-radius: 50%; box-shadow: 0 0 0 34px rgba(143,163,224,.035), 0 0 0 72px rgba(143,163,224,.02); content: ""; pointer-events: none; }
 .head-row {
   display: flex;
   align-items: center;
@@ -484,23 +520,34 @@ onMounted(loadAll);
   flex-wrap: wrap;
 }
 .head-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-title, #303133);
+  position: relative;
+  z-index: 1;
+  font-size: 22px;
+  font-weight: 680;
+  color: #fff;
+  letter-spacing: -.02em;
 }
 .head-sub {
+  position: relative;
+  z-index: 1;
   margin-top: 4px;
   font-size: 13px;
-  color: var(--color-text-secondary, #909399);
+  color: rgba(225,231,244,.7);
 }
 .head-actions {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
+  gap: 8px;
 }
+.head-card :deep(.head-actions .el-button) { border-color: rgba(255,255,255,.18); color: rgba(255,255,255,.9); background: rgba(255,255,255,.08); }
+.head-card :deep(.head-actions .el-button:hover) { border-color: rgba(255,255,255,.34); background: rgba(255,255,255,.13); }
 
 .stat-card {
   margin-bottom: 16px;
   min-height: 168px;
+  border-color: var(--color-divider) !important;
 }
 .card-head {
   display: flex;
@@ -516,10 +563,15 @@ onMounted(loadAll);
 .big-num {
   margin-top: 14px;
   font-size: 32px;
-  font-weight: 700;
+  font-weight: 720;
   line-height: 1.2;
   color: var(--color-text-title, #303133);
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 680px) {
+  .head-row { align-items: flex-start; flex-direction: column; }
+  .head-actions { width: 100%; flex-wrap: wrap; }
 }
 .big-num.warn {
   color: var(--el-color-warning);
@@ -568,8 +620,17 @@ onMounted(loadAll);
 .stat-card :deep(.fallback-retry) {
   display: inline-block;
   margin-top: 6px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
   font-size: 13px;
   color: var(--el-color-primary);
   cursor: pointer;
+}
+.stat-card :deep(.fallback-retry:focus-visible) {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
 }
 </style>

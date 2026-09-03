@@ -22,9 +22,22 @@
         clearable
         style="width:260px"
       />
-      <el-select v-model="filterScope" placeholder="作用域筛选" clearable style="width:150px">
-        <el-option label="全部" value="" />
-        <el-option v-for="s in scopeOptions" :key="s.value" :label="s.label" :value="s.value" />
+      <el-select
+        v-model="filterScope"
+        placeholder="作用域筛选"
+        clearable
+        style="width:150px"
+      >
+        <el-option
+          label="全部"
+          value=""
+        />
+        <el-option
+          v-for="s in scopeOptions"
+          :key="s.value"
+          :label="s.label"
+          :value="s.value"
+        />
       </el-select>
     </div>
 
@@ -57,17 +70,36 @@
         label="敏感词"
         min-width="160"
       />
-      <el-table-column label="作用域" width="160">
+      <el-table-column
+        label="作用域"
+        width="160"
+      >
         <template #default="{ row }">
-          <el-tag v-for="s in row.scopes" :key="s" size="small" style="margin-right:4px" :type="scopeTagType(s)">
+          <el-tag
+            v-for="s in row.scopes"
+            :key="s"
+            size="small"
+            style="margin-right:4px"
+            :type="scopeTagType(s)"
+          >
             {{ scopeLabel(s) }}
           </el-tag>
-          <span v-if="!row.scopes?.length" style="color:#ccc">全部</span>
+          <span
+            v-if="!row.scopes?.length"
+            style="color:#ccc"
+          >全部</span>
         </template>
       </el-table-column>
-      <el-table-column label="级别" width="80" align="center">
+      <el-table-column
+        label="级别"
+        width="80"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag size="small" :type="row.level === 'HIGH' ? 'danger' : row.level === 'MEDIUM' ? 'warning' : 'info'">
+          <el-tag
+            size="small"
+            :type="row.level === 'HIGH' ? 'danger' : row.level === 'MEDIUM' ? 'warning' : 'info'"
+          >
             {{ levelLabel(row.level) }}
           </el-tag>
         </template>
@@ -124,16 +156,44 @@
         placeholder="每行一个敏感词"
       />
       <div style="margin-top:12px;display:flex;gap:12px">
-        <el-form-item label="作用域" style="margin-bottom:0">
-          <el-select v-model="addScope" multiple placeholder="选择作用域" style="width:200px">
-            <el-option v-for="s in scopeOptions" :key="s.value" :label="s.label" :value="s.value" />
+        <el-form-item
+          label="作用域"
+          style="margin-bottom:0"
+        >
+          <el-select
+            v-model="addScope"
+            multiple
+            placeholder="选择作用域"
+            style="width:200px"
+          >
+            <el-option
+              v-for="s in scopeOptions"
+              :key="s.value"
+              :label="s.label"
+              :value="s.value"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="级别" style="margin-bottom:0">
-          <el-select v-model="addLevel" style="width:120px">
-            <el-option label="高" value="HIGH" />
-            <el-option label="中" value="MEDIUM" />
-            <el-option label="低" value="LOW" />
+        <el-form-item
+          label="级别"
+          style="margin-bottom:0"
+        >
+          <el-select
+            v-model="addLevel"
+            style="width:120px"
+          >
+            <el-option
+              label="高"
+              value="HIGH"
+            />
+            <el-option
+              label="中"
+              value="MEDIUM"
+            />
+            <el-option
+              label="低"
+              value="LOW"
+            />
           </el-select>
         </el-form-item>
       </div>

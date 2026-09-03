@@ -340,11 +340,16 @@ const statusTip = computed(() => {
 });
 
 // 商户余额：queryBalance 返回汇付渠道原始报文，字段解析不保证可靠 → 解析失败诚实显示 "—"
-const balanceRaw = ref<Record<string, any> | null>(null);
+type HuifuRaw = Record<string, unknown>;
+interface SplitResult extends HuifuRaw { splitStatus?: string; status?: string; outTradeNo?: string; amount?: number | string }
+function isRecord(value: unknown): value is HuifuRaw { return typeof value === "object" && value !== null; }
+
+const balanceRaw = ref<HuifuRaw | null>(null);
 const balanceText = computed(() => {
   const d = balanceRaw.value;
   if (!d) return "—";
-  const cand = d.avl_bal ?? d.acct_bal ?? d.balance ?? d.data?.avl_bal ?? d.data?.balance;
+  const nested = isRecord(d.data) ? d.data : {};
+  const cand = d.avl_bal ?? d.acct_bal ?? d.balance ?? nested.avl_bal ?? nested.balance;
   const n = Number(String(cand ?? "").replace(/,/g, ""));
   if (cand != null && Number.isFinite(n)) {
     return "¥" + n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -357,7 +362,7 @@ const splitSubmitting = ref(false);
 const splitLoading = ref(false);
 const splitForm = reactive({ orderId: "", amount: "", receiverId: "", receiverName: "" });
 const splitQuery = reactive({ orderId: "" });
-const splitResult = ref<Record<string, any> | null>(null);
+const splitResult = ref<SplitResult | null>(null);
 const splitQueried = ref(false);
 
 const refundVisible = ref(false);
@@ -385,8 +390,8 @@ async function refreshAll() {
       huifuApi.getStatus(),
       huifuApi.getBalance().catch(() => ({ data: null })),
     ]);
-    paymentEnabled.value = !!(statusRes.data as any)?.enabled;
-    balanceRaw.value = (balanceRes.data as Record<string, any> | null) ?? null;
+    paymentEnabled.value = isRecord(statusRes.data) && statusRes.data.enabled === true;
+    balanceRaw.value = isRecord(balanceRes.data) ? balanceRes.data : null;
   } catch { loadError.value = true; } finally { loading.value = false; }
 }
 
@@ -396,7 +401,7 @@ async function querySplitResult() {
   splitResult.value = null;
   try {
     const { data } = await huifuApi.querySplit(splitQuery.orderId.trim());
-    splitResult.value = (data as Record<string, any>) ?? null;
+    splitResult.value = isRecord(data) ? data as SplitResult : null;
   } catch {
     splitResult.value = null; // 404=无该订单分账记录，空态提示
   } finally {

@@ -183,7 +183,7 @@
             style="width:100%;height:56px"
             @click="router.push('/comments')"
           >
-            💬 评论管理
+            评论管理
           </el-button>
         </el-col>
         <el-col :span="6">
@@ -199,7 +199,7 @@
             style="width:100%;height:56px"
             @click="router.push('/risk/timeline')"
           >
-            👣 用户行为轨迹
+            用户行为轨迹
           </el-button>
         </el-col>
         <el-col :span="6">
@@ -207,7 +207,7 @@
             style="width:100%;height:56px"
             @click="router.push('/risk/fraud')"
           >
-            🚫 刷单识别
+            刷单识别
           </el-button>
         </el-col>
       </el-row>

@@ -152,7 +152,10 @@
         align="center"
       >
         <template #default="{ row }">
-          <el-tag size="small" :type="row.feeExempt ? 'success' : 'info'">
+          <el-tag
+            size="small"
+            :type="row.feeExempt ? 'success' : 'info'"
+          >
             {{ row.feeExempt ? '免会费' : '当前未收款' }}
           </el-tag>
         </template>

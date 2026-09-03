@@ -38,6 +38,7 @@ COPY --from=builder /app/packages/ziwei-engine/node_modules ./packages/ziwei-eng
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
 COPY --from=builder /app/apps/server/package.json ./apps/server/
+COPY --from=builder /app/apps/server/prisma.config.ts ./apps/server/
 COPY --from=builder /app/packages/bazi-engine/dist ./packages/bazi-engine/dist
 COPY --from=builder /app/packages/bazi-engine/package.json ./packages/bazi-engine/
 COPY --from=builder /app/packages/ziwei-engine/dist ./packages/ziwei-engine/dist

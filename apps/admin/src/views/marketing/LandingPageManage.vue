@@ -3,8 +3,14 @@
     <PageHeader title="分享落地页管理" />
 
     <el-tabs v-model="activeTab">
-      <el-tab-pane label="落地页模板" name="templates" />
-      <el-tab-pane label="下载引导配置" name="download" />
+      <el-tab-pane
+        label="落地页模板"
+        name="templates"
+      />
+      <el-tab-pane
+        label="下载引导配置"
+        name="download"
+      />
     </el-tabs>
 
     <!-- 落地页模板（数据源=微页面 MarketingPage·页面内容由微页面组件构成） -->
@@ -13,7 +19,13 @@
         <template #header>
           <div class="card-header">
             <span>H5落地页模板</span>
-            <el-button size="small" type="primary" @click="showPageDialog()">新建模板</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="showPageDialog()"
+            >
+              新建模板
+            </el-button>
           </div>
         </template>
         <el-alert
@@ -34,29 +46,93 @@
           show-icon
           style="margin-bottom:12px"
         >
-          <el-button size="small" type="primary" @click="fetchPages">重试</el-button>
+          <el-button
+            size="small"
+            type="primary"
+            @click="fetchPages"
+          >
+            重试
+          </el-button>
         </el-alert>
-        <el-table :data="pages" border stripe v-loading="pageLoading">
-          <el-table-column prop="name" label="模板名称" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="route" label="路由" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="description" label="说明" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.description || '—' }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="100">
+        <el-table
+          v-loading="pageLoading"
+          :data="pages"
+          border
+          stripe
+        >
+          <el-table-column
+            prop="name"
+            label="模板名称"
+            min-width="160"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="route"
+            label="路由"
+            min-width="160"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="description"
+            label="说明"
+            min-width="160"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-tag size="small" :type="row.status === 'PUBLISHED' ? 'success' : row.status === 'OFFLINE' ? 'warning' : 'info'">
+              {{ row.description || '—' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-tag
+                size="small"
+                :type="row.status === 'PUBLISHED' ? 'success' : row.status === 'OFFLINE' ? 'warning' : 'info'"
+              >
                 {{ row.status === 'PUBLISHED' ? '使用中' : row.status === 'OFFLINE' ? '已下线' : '草稿' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="更新时间" width="150">
-            <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column
+            label="更新时间"
+            width="150"
+          >
             <template #default="{ row }">
-              <el-button size="small" text type="primary" @click="previewPage(row)">预览</el-button>
-              <el-button size="small" text type="primary" @click="showPageDialog(row)">编辑</el-button>
-              <el-button size="small" text type="danger" @click="deletePage(row)">删除</el-button>
+              {{ formatTime(row.updatedAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="200"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                text
+                type="primary"
+                @click="previewPage(row)"
+              >
+                预览
+              </el-button>
+              <el-button
+                size="small"
+                text
+                type="primary"
+                @click="showPageDialog(row)"
+              >
+                编辑
+              </el-button>
+              <el-button
+                size="small"
+                text
+                type="danger"
+                @click="deletePage(row)"
+              >
+                删除
+              </el-button>
             </template>
           </el-table-column>
           <template #empty>
@@ -72,7 +148,14 @@
         <template #header>
           <div class="card-header">
             <span>下载引导内容配置</span>
-            <el-button size="small" type="primary" @click="saveDownloadConfig" :loading="saving">保存配置</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              :loading="saving"
+              @click="saveDownloadConfig"
+            >
+              保存配置
+            </el-button>
           </div>
         </template>
         <el-alert
@@ -82,62 +165,141 @@
           style="margin-bottom:12px"
           title="此配置对所有分享出去的落地页实时生效，保存前请确认内容无误。"
         />
-        <el-form :model="downloadConfig" label-width="120px">
+        <el-form
+          :model="downloadConfig"
+          label-width="120px"
+        >
           <el-form-item label="引导标题">
-            <el-input v-model="downloadConfig.title" placeholder="如：下载国学平台App，开启你的文化之旅" />
+            <el-input
+              v-model="downloadConfig.title"
+              placeholder="如：下载国学平台App，开启你的文化之旅"
+            />
           </el-form-item>
           <el-form-item label="引导描述">
-            <el-input v-model="downloadConfig.description" type="textarea" :rows="3" placeholder="描述App的核心功能和价值" />
+            <el-input
+              v-model="downloadConfig.description"
+              type="textarea"
+              :rows="3"
+              placeholder="描述App的核心功能和价值"
+            />
           </el-form-item>
           <el-form-item label="iOS下载链接">
-            <el-input v-model="downloadConfig.iosUrl" placeholder="App Store 链接" />
+            <el-input
+              v-model="downloadConfig.iosUrl"
+              placeholder="App Store 链接"
+            />
           </el-form-item>
           <el-form-item label="Android下载链接">
-            <el-input v-model="downloadConfig.androidUrl" placeholder="应用宝/官网APK链接" />
+            <el-input
+              v-model="downloadConfig.androidUrl"
+              placeholder="应用宝/官网APK链接"
+            />
           </el-form-item>
           <el-form-item label="小程序AppID">
-            <el-input v-model="downloadConfig.miniAppId" placeholder="微信小程序AppID" />
+            <el-input
+              v-model="downloadConfig.miniAppId"
+              placeholder="微信小程序AppID"
+            />
           </el-form-item>
           <el-form-item label="引导图片">
-            <CosImageUpload v-model="downloadConfig.guideImage" tip="点击上传图片" />
+            <CosImageUpload
+              v-model="downloadConfig.guideImage"
+              tip="点击上传图片"
+            />
           </el-form-item>
         </el-form>
       </el-card>
     </template>
 
     <!-- 模板编辑弹窗 -->
-    <el-dialog v-model="pageDialogVisible" :title="editingPage?.id ? '编辑模板' : '新建模板'" width="560px">
-      <el-form :model="pageForm" label-width="100px">
-        <el-form-item label="模板名称" required>
-          <el-input v-model="pageForm.name" placeholder="如：课程分享落地页" />
+    <el-dialog
+      v-model="pageDialogVisible"
+      :title="editingPage?.id ? '编辑模板' : '新建模板'"
+      width="560px"
+    >
+      <el-form
+        :model="pageForm"
+        label-width="100px"
+      >
+        <el-form-item
+          label="模板名称"
+          required
+        >
+          <el-input
+            v-model="pageForm.name"
+            placeholder="如：课程分享落地页"
+          />
         </el-form-item>
-        <el-form-item label="路由" required>
-          <el-input v-model="pageForm.route" placeholder="如 /landing/course-share（全局唯一）" />
+        <el-form-item
+          label="路由"
+          required
+        >
+          <el-input
+            v-model="pageForm.route"
+            placeholder="如 /landing/course-share（全局唯一）"
+          />
         </el-form-item>
         <el-form-item label="说明">
-          <el-input v-model="pageForm.description" type="textarea" :rows="2" placeholder="内部备注（可选）" />
+          <el-input
+            v-model="pageForm.description"
+            type="textarea"
+            :rows="2"
+            placeholder="内部备注（可选）"
+          />
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="pageForm.status" active-value="PUBLISHED" inactive-value="DRAFT" active-text="使用" inactive-text="草稿" />
+          <el-switch
+            v-model="pageForm.status"
+            active-value="PUBLISHED"
+            inactive-value="DRAFT"
+            active-text="使用"
+            inactive-text="草稿"
+          />
         </el-form-item>
-        <div class="form-hint">页面内容（banner/秒杀/拼团/富文本等组件）请在「营销 → 微页面编辑」中配置。</div>
+        <div class="form-hint">
+          页面内容（banner/秒杀/拼团/富文本等组件）请在「营销 → 微页面编辑」中配置。
+        </div>
       </el-form>
       <template #footer>
-        <el-button @click="pageDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="pageSaving" @click="savePage">保存</el-button>
+        <el-button @click="pageDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="pageSaving"
+          @click="savePage"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 预览弹窗（结构化展示页面组件·不再当图片渲染） -->
-    <el-dialog v-model="previewVisible" title="落地页预览" width="560px">
+    <el-dialog
+      v-model="previewVisible"
+      title="落地页预览"
+      width="560px"
+    >
       <div v-loading="previewLoading">
-        <el-descriptions v-if="previewData" :column="2" border size="small" style="margin-bottom:12px">
-          <el-descriptions-item label="名称">{{ previewData.name }}</el-descriptions-item>
-          <el-descriptions-item label="路由">{{ previewData.route }}</el-descriptions-item>
+        <el-descriptions
+          v-if="previewData"
+          :column="2"
+          border
+          size="small"
+          style="margin-bottom:12px"
+        >
+          <el-descriptions-item label="名称">
+            {{ previewData.name }}
+          </el-descriptions-item>
+          <el-descriptions-item label="路由">
+            {{ previewData.route }}
+          </el-descriptions-item>
           <el-descriptions-item label="状态">
             {{ previewData.status === 'PUBLISHED' ? '使用中' : previewData.status === 'OFFLINE' ? '已下线' : '草稿' }}
           </el-descriptions-item>
-          <el-descriptions-item label="组件数">{{ (previewData.components || []).length }}</el-descriptions-item>
+          <el-descriptions-item label="组件数">
+            {{ (previewData.components || []).length }}
+          </el-descriptions-item>
         </el-descriptions>
         <el-table
           v-if="previewData && (previewData.components || []).length"
@@ -146,14 +308,31 @@
           size="small"
           max-height="360"
         >
-          <el-table-column label="顺序" width="60">
-            <template #default="{ $index }">{{ $index + 1 }}</template>
+          <el-table-column
+            label="顺序"
+            width="60"
+          >
+            <template #default="{ $index }">
+              {{ $index + 1 }}
+            </template>
           </el-table-column>
-          <el-table-column label="组件类型" width="120">
-            <template #default="{ row }">{{ componentTypeLabel(row.type) }}</template>
+          <el-table-column
+            label="组件类型"
+            width="120"
+          >
+            <template #default="{ row }">
+              {{ componentTypeLabel(row.type) }}
+            </template>
           </el-table-column>
-          <el-table-column prop="title" label="标题" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.title || '—' }}</template>
+          <el-table-column
+            prop="title"
+            label="标题"
+            min-width="140"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ row.title || '—' }}
+            </template>
           </el-table-column>
         </el-table>
         <el-empty

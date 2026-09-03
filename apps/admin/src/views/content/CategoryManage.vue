@@ -1,11 +1,14 @@
 <template>
   <div class="cat-page">
-    <div class="page-header">
-      <h3>品类标签管理</h3>
-      <div>
+    <PageHeader
+      title="品类标签管理"
+      description="看清内容覆盖与缺口，安全维护全平台品类树"
+    >
+      <template #actions>
         <el-button
           type="success"
           :loading="autoFilling"
+          :disabled="loading || error || stats.emptyCategories === 0"
           @click="autoFillAll"
         >
           一键填充空品类
@@ -19,8 +22,8 @@
         <el-button @click="refresh">
           刷新
         </el-button>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <el-alert
       v-if="error"
@@ -44,32 +47,56 @@
       :gutter="16"
       style="margin-bottom:16px"
     >
-      <el-col :span="4">
+      <el-col
+        :xs="12"
+        :sm="8"
+        :lg="4"
+      >
         <div class="stat-card">
           <span class="value">{{ stats.totalCategories }}</span><span class="label">二级品类总数</span>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col
+        :xs="12"
+        :sm="8"
+        :lg="4"
+      >
         <div class="stat-card warn">
           <span class="value">{{ stats.emptyCategories }}</span><span class="label">空品类</span>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col
+        :xs="12"
+        :sm="8"
+        :lg="4"
+      >
         <div class="stat-card info">
-          <span class="value">{{ stats.lowContentCategories }}</span><span class="label">低内容(&lt;5篇)</span>
+          <span class="value">{{ stats.lowContentCategories }}</span><span class="label">内容待补齐</span>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col
+        :xs="12"
+        :sm="8"
+        :lg="4"
+      >
         <div class="stat-card">
-          <span class="value">{{ totalPublished }}</span><span class="label">已发布内容</span>
+          <span class="value">{{ totalContent }}</span><span class="label">内容条目（不含草稿）</span>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col
+        :xs="12"
+        :sm="8"
+        :lg="4"
+      >
         <div class="stat-card">
-          <span class="value">{{ totalDraft }}</span><span class="label">草稿内容</span>
+          <span class="value">{{ totalGeneratedToday }}</span><span class="label">今日生成</span>
         </div>
       </el-col>
-      <el-col :span="4">
+      <el-col
+        :xs="12"
+        :sm="8"
+        :lg="4"
+      >
         <div class="stat-card">
           <span class="value">{{ Object.keys(categoryTree).length }}</span><span class="label">一级品类</span>
         </div>
@@ -79,10 +106,16 @@
     <!-- 品类表格 -->
     <el-card>
       <template #header>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span>品类健康度一览</span>
+        <div class="table-heading">
+          <div>
+            <span>品类健康度一览</span>
+            <p class="metric-note">
+              按基础知识 3 篇、经典精华 5 条、玩法教程 2 篇的覆盖目标计算
+            </p>
+          </div>
           <el-input
             v-model="search"
+            aria-label="搜索一级或二级品类"
             placeholder="搜索品类"
             size="small"
             style="width:240px"
@@ -95,10 +128,10 @@
         :data="filteredStats"
         stripe
         size="small"
-        row-key="key"
+        :row-key="rowKey"
       >
         <template #empty>
-          <el-empty description="暂无品类数据" />
+          <el-empty :description="search ? '没有匹配的品类，请更换关键词' : '暂无品类数据，请先配置品类树'" />
         </template>
         <el-table-column
           label="一级品类"
@@ -125,51 +158,57 @@
           <template #default="{ row }">
             <div style="display:flex;align-items:center;gap:8px">
               <el-progress
-                :percentage="row.total === 0 ? 0 : Math.min(100, Math.round(row.published / Math.max(row.total, 5) * 100))"
-                :status="row.total === 0 ? 'exception' : row.total < 5 ? 'warning' : 'success'"
+                :percentage="row.healthScore"
+                :status="row.totalCount === 0 ? 'exception' : row.healthScore < 100 ? 'warning' : 'success'"
                 :stroke-width="16"
                 style="flex:1"
               />
               <el-tag
-                v-if="row.total === 0"
+                v-if="row.totalCount === 0"
                 type="danger"
                 size="small"
               >
                 空
               </el-tag>
               <el-tag
-                v-else-if="row.total < 5"
+                v-else-if="row.healthScore < 100"
                 type="warning"
                 size="small"
               >
-                不足
+                待补齐
               </el-tag>
               <el-tag
                 v-else
                 type="success"
                 size="small"
               >
-                健康
+                达标
               </el-tag>
             </div>
           </template>
         </el-table-column>
         <el-table-column
-          label="已发布"
+          label="基础知识"
           width="90"
-          prop="published"
+          prop="knowledgeCount"
           sortable
         />
         <el-table-column
-          label="草稿"
+          label="经典精华"
           width="90"
-          prop="draft"
+          prop="classicsCount"
+          sortable
+        />
+        <el-table-column
+          label="玩法教程"
+          width="90"
+          prop="tutorialCount"
           sortable
         />
         <el-table-column
           label="合计"
           width="90"
-          prop="total"
+          prop="totalCount"
           sortable
         />
         <el-table-column
@@ -201,7 +240,9 @@
     <el-dialog
       v-model="showEditTree"
       title="编辑品类标签树"
-      width="700px"
+      width="min(700px, calc(100vw - 32px))"
+      :close-on-click-modal="false"
+      :before-close="requestCloseTree"
     >
       <div
         v-for="(subs, level1) in editTree"
@@ -211,6 +252,8 @@
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <el-input
             v-model="editLevel1Names[level1]"
+            :aria-label="`一级品类 ${level1}`"
+            maxlength="30"
             size="small"
             style="width:140px;font-weight:600"
           />
@@ -218,6 +261,7 @@
             size="small"
             type="danger"
             circle
+            :aria-label="`移除一级品类 ${editLevel1Names[level1]}`"
             @click="deleteLevel1(level1)"
           >
             ✕
@@ -233,6 +277,8 @@
           >
             <el-input
               v-model="editTree[level1][idx]"
+              :aria-label="`${editLevel1Names[level1]} 的第 ${idx + 1} 个二级品类`"
+              maxlength="30"
               size="small"
               style="width:100px;border:none"
             />
@@ -241,6 +287,7 @@
             size="small"
             type="primary"
             circle
+            :aria-label="`为 ${editLevel1Names[level1]} 添加二级品类`"
             @click="addSub(level1)"
           >
             +
@@ -256,12 +303,20 @@
         </el-button>
       </div>
       <template #footer>
-        <el-button @click="showEditTree = false">
+        <span
+          v-if="isTreeDirty"
+          class="unsaved-note"
+        >有未保存的修改</span>
+        <el-button
+          :disabled="savingTree"
+          @click="requestCloseTree()"
+        >
           取消
         </el-button>
         <el-button
           type="primary"
           :loading="savingTree"
+          :disabled="!isTreeDirty"
           @click="saveTree"
         >
           保存品类树
@@ -273,7 +328,7 @@
     <el-dialog
       v-model="showGenDialog"
       title="触发生成内容"
-      width="500px"
+      width="min(500px, calc(100vw - 32px))"
     >
       <el-descriptions
         :column="2"
@@ -286,22 +341,22 @@
         <el-descriptions-item label="二级品类">
           {{ genTarget?.level2 }}
         </el-descriptions-item>
-        <el-descriptions-item label="已发布">
-          {{ genTarget?.published }}
+        <el-descriptions-item label="内容条目">
+          {{ genTarget?.totalCount }}
         </el-descriptions-item>
-        <el-descriptions-item label="草稿">
-          {{ genTarget?.draft }}
+        <el-descriptions-item label="覆盖健康度">
+          {{ genTarget?.healthScore }}%
         </el-descriptions-item>
       </el-descriptions>
       <div style="margin-top:16px">
         <el-checkbox-group v-model="genTypes">
-          <el-checkbox label="knowledge">
+          <el-checkbox value="knowledge">
             基础知识库（3篇）
           </el-checkbox>
-          <el-checkbox label="classics">
+          <el-checkbox value="classics">
             经典精华库（5条）
           </el-checkbox>
-          <el-checkbox label="tutorial">
+          <el-checkbox value="tutorial">
             玩法教程库（2篇）
           </el-checkbox>
         </el-checkbox-group>
@@ -313,6 +368,7 @@
         <el-button
           type="primary"
           :loading="genLoading === 'target'"
+          :disabled="genTypes.length === 0"
           @click="doGenerate"
         >
           开始生成
@@ -323,44 +379,42 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { api, contentGenerationApi, systemApi } from "@/api";
+import { api, contentGenerationApi } from "@/api";
+import PageHeader from "@/components/PageHeader.vue";
+import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
+import { buildCategoryTreePayload, readCategoryTree, readContentCategoryStats } from "@/utils/category-stats";
+import type { ContentCategoryStat } from "@/utils/category-stats";
 
 const router = useRouter();
-
-// 品类健康度行（字段宽松 optional）
-interface StatRow {
-  key?: string;
-  level1: string;
-  level2: string;
-  published: number;
-  draft: number;
-  total: number;
-}
 
 const loading = ref(false);
 const error = ref(false);
 const search = ref("");
 const categoryTree = ref<Record<string, string[]>>({});
-const stats = reactive({ totalCategories: 0, emptyCategories: 0, lowContentCategories: 0 });
-const statRows = ref<StatRow[]>([]);
+const statRows = ref<ContentCategoryStat[]>([]);
+const totalGeneratedToday = ref(0);
 const autoFilling = ref(false);
 const genLoading = ref("");
 const showGenDialog = ref(false);
-const genTarget = ref<StatRow | null>(null);
+const genTarget = ref<ContentCategoryStat | null>(null);
 const genTypes = ref(["knowledge"]);
 
-const totalPublished = computed(() => statRows.value.reduce((s: number, r: StatRow) => s + r.published, 0));
-const totalDraft = computed(() => statRows.value.reduce((s: number, r: StatRow) => s + r.draft, 0));
+const stats = computed(() => ({
+  totalCategories: statRows.value.length,
+  emptyCategories: statRows.value.filter((row) => row.totalCount === 0).length,
+  lowContentCategories: statRows.value.filter((row) => row.totalCount > 0 && row.healthScore < 100).length,
+}));
+const totalContent = computed(() => statRows.value.reduce((sum, row) => sum + row.totalCount, 0));
 const filteredStats = computed(() => {
-  if (!search.value) return statRows.value;
-  const q = search.value.toLowerCase();
-  return statRows.value.filter((r: StatRow) => r.level1.includes(q) || r.level2.includes(q));
+  const q = search.value.trim().toLocaleLowerCase();
+  if (!q) return statRows.value;
+  return statRows.value.filter((row) => row.level1.toLocaleLowerCase().includes(q) || row.level2.toLocaleLowerCase().includes(q));
 });
 
-function rowKey(r: StatRow) { return `${r.level1}/${r.level2}`; }
+function rowKey(row: ContentCategoryStat) { return JSON.stringify([row.level1, row.level2]); }
 
 onMounted(() => refresh());
 
@@ -369,40 +423,23 @@ async function refresh() {
   error.value = false;
   try {
     const [treeRes, statsRes] = await Promise.all([
-      systemApi.listConfigs(),
+      contentGenerationApi.getCategories(),
       contentGenerationApi.getStats(),
     ]);
-
-    // 尝试从配置中读取品类树
-    // axios 响应 data 无类型来源
-    const configs: { configKey?: string; configValue?: string }[] = (treeRes.data as any)?.configs || [];
-    const catCfg = configs.find((c) => c.configKey === "category_tree");
-    if (catCfg?.configValue) {
-      try { categoryTree.value = JSON.parse(catCfg.configValue); } catch { /* fallback */ }
-    }
-
-    // 如果配置中没有，从 content-generation 获取
-    if (!Object.keys(categoryTree.value).length) {
-      try {
-        const catRes = await contentGenerationApi.getCategories();
-        categoryTree.value = catRes.data as any;
-      } catch { /* ignore */ }
-    }
-
-    const d = statsRes.data as any;
-    stats.totalCategories = d?.totalCategories || 0;
-    stats.emptyCategories = d?.emptyCategories || 0;
-    stats.lowContentCategories = d?.lowContentCategories || 0;
-    statRows.value = d?.stats || [];
+    categoryTree.value = readCategoryTree(treeRes.data);
+    const data = readContentCategoryStats(statsRes.data);
+    statRows.value = data.rows;
+    totalGeneratedToday.value = data.totalGeneratedToday;
   } catch {
     error.value = true;
     statRows.value = [];
+    totalGeneratedToday.value = 0;
   } finally { loading.value = false; }
 }
 
-function generateFor(row: StatRow) {
+function generateFor(row: ContentCategoryStat) {
   genTarget.value = row;
-  genTypes.value = row.total === 0 ? ["knowledge", "classics", "tutorial"] : ["knowledge"];
+  genTypes.value = row.totalCount === 0 ? ["knowledge", "classics", "tutorial"] : ["knowledge"];
   showGenDialog.value = true;
 }
 
@@ -413,7 +450,7 @@ async function doGenerate() {
     await contentGenerationApi.generate({
       categoryLevel1: genTarget.value.level1,
       categoryLevel2: genTarget.value.level2,
-      types: genTypes.value as any,
+      types: genTypes.value,
     });
     ElMessage.success(`已触发「${genTarget.value.level1} / ${genTarget.value.level2}」内容生成`);
     showGenDialog.value = false;
@@ -422,6 +459,13 @@ async function doGenerate() {
 }
 
 async function autoFillAll() {
+  try {
+    await ElMessageBox.confirm(
+      `将为 ${stats.value.emptyCategories} 个空品类发起内容生成任务，可能产生 AI 调用费用。生成结果仍需按发布规则处理，是否继续？`,
+      "批量生成确认",
+      { type: "warning", confirmButtonText: "确认生成", cancelButtonText: "暂不生成" },
+    );
+  } catch { return; }
   autoFilling.value = true;
   try {
     await contentGenerationApi.autoFill();
@@ -430,7 +474,7 @@ async function autoFillAll() {
   } finally { autoFilling.value = false; }
 }
 
-function viewContent(row: StatRow) {
+function viewContent(row: ContentCategoryStat) {
   // 真实联动：内容列表后端只支持 keyword（标题/作者 contains），不支持 level1/level2 参数
   // （content.dto.ts ContentListQueryDto 已核实）；此前带 level1/level2 跳转是假联动（列表不读也筛不了）。
   // 用 router.resolve 生成带应用 base 的地址（此前硬拼 /contents 会丢 BASE_URL 打开 404）。
@@ -443,6 +487,9 @@ const showEditTree = ref(false);
 const savingTree = ref(false);
 const editTree = ref<Record<string, string[]>>({});
 const editLevel1Names = ref<Record<string, string>>({});
+const { isDirty: isTreeDirty, captureBaseline: captureTreeBaseline } = useUnsavedChanges(
+  () => ({ tree: editTree.value, names: editLevel1Names.value }),
+);
 
 function openEditTree() {
   editTree.value = JSON.parse(JSON.stringify(categoryTree.value));
@@ -450,7 +497,28 @@ function openEditTree() {
   for (const k of Object.keys(editTree.value)) {
     editLevel1Names.value[k] = k;
   }
+  captureTreeBaseline();
   showEditTree.value = true;
+}
+
+function resetTreeEditor() {
+  showEditTree.value = false;
+  editTree.value = {};
+  editLevel1Names.value = {};
+  captureTreeBaseline();
+}
+
+async function requestCloseTree(done?: () => void) {
+  if (savingTree.value) return;
+  if (isTreeDirty.value) {
+    try {
+      await ElMessageBox.confirm("品类树有尚未保存的修改，关闭后将丢失。", "放弃品类修改？", {
+        type: "warning", confirmButtonText: "放弃修改", cancelButtonText: "继续编辑",
+      });
+    } catch { return; }
+  }
+  resetTreeEditor();
+  done?.();
 }
 
 function addSub(level1: string) {
@@ -475,11 +543,13 @@ function deleteLevel1(level1: string) {
 }
 
 async function saveTree() {
-  // 处理一级品类重命名
-  const finalTree: Record<string, string[]> = {};
-  for (const [oldKey, subs] of Object.entries(editTree.value)) {
-    const newName = editLevel1Names.value[oldKey] || oldKey;
-    finalTree[newName] = subs.filter((s) => s.trim());
+  if (savingTree.value || !isTreeDirty.value) return;
+  let finalTree: Record<string, string[]>;
+  try {
+    finalTree = buildCategoryTreePayload(editTree.value, editLevel1Names.value);
+  } catch (cause) {
+    ElMessage.warning(cause instanceof Error ? cause.message : "请检查品类名称");
+    return;
   }
   // L3 影响预告：品类树是全平台内容归类与前台分类展示的依据
   const level1Count = Object.keys(finalTree).length;
@@ -496,7 +566,7 @@ async function saveTree() {
     await api.put("/system/category-tree", finalTree);
     categoryTree.value = finalTree;
     ElMessage.success("品类树已更新");
-    showEditTree.value = false;
+    resetTreeEditor();
     refresh();
   } catch {
     ElMessage.error("品类树保存失败，请重试");
@@ -507,11 +577,16 @@ async function saveTree() {
 
 <style scoped>
 .cat-page { padding: 0; }
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
-.stat-card { background: var(--color-bg-page); border-radius: 8px; padding: 14px; text-align: center; }
-.stat-card .value { display: block; font-size: 26px; font-weight: 700; color: var(--color-text-title); }
+.stat-card { background: var(--color-bg-card); border: 1px solid var(--color-border-light); border-radius: 14px; padding: 18px 12px; margin-bottom: 12px; text-align: center; }
+.stat-card .value { display: block; font-family: var(--font-family-number); font-size: 30px; font-weight: 700; color: var(--color-text-title); }
 .stat-card .label { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 .stat-card.warn .value { color: var(--color-warning); }
 .stat-card.info .value { color: var(--color-info); }
+.table-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.metric-note { margin: 6px 0 0; color: var(--color-text-secondary); font-size: 12px; font-weight: 400; line-height: 1.6; }
+.unsaved-note { margin-right: 16px; color: var(--color-warning); font-size: 12px; }
+@media (max-width: 760px) {
+  .table-heading { align-items: flex-start; flex-direction: column; }
+  .unsaved-note { display: block; margin: 0 0 10px; }
+}
 </style>

@@ -264,9 +264,25 @@ describe("InspectionService", () => {
     it("cron 入口走 runExclusive('ops-inspection') 多实例互斥并实际执行巡检", async () => {
       await svc.dailyInspectionCron();
 
-      expect(mockRedis.runExclusive).toHaveBeenCalledWith("ops-inspection", expect.any(Number), expect.any(Function));
+      expect(mockRedis.runExclusive).toHaveBeenCalledWith("ops-inspection", expect.any(Number), expect.any(Function), { critical: true });
       // 互斥体内确实跑了一轮：报告任务已落库
       expect(mockPrisma.opsTask.create).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("纯诊断模式即使自动化总开关开启也不执行聚合修复", async () => {
+    mockPrisma.dashboardDaily.findUnique.mockResolvedValue(null);
+    const report = await svc.runInspection("MANUAL", { allowAutoFix: false });
+    expect(report.autoFixed).toBe(0);
+    expect(report.tasksCreated).toBe(1);
+    expect(mockDaily.rebuildDate).not.toHaveBeenCalled();
+    expect(mockMetric.aggregateDate).not.toHaveBeenCalled();
+  });
+
+  it("手动入口与定时入口共享分布式锁，锁不可用不能绕过", async () => {
+    mockRedis.runExclusive.mockResolvedValue(undefined);
+    await expect(svc.runInspection()).rejects.toThrow("分布式锁不可用");
+    expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
+    expect(mockPrisma.opsTask.create).not.toHaveBeenCalled();
   });
 });

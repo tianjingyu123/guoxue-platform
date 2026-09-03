@@ -54,12 +54,18 @@
           label="待处理"
           name="PENDING"
         />
-        <el-tab-pane label="退款中" name="PROCESSING" />
+        <el-tab-pane
+          label="退款中"
+          name="PROCESSING"
+        />
         <el-tab-pane
           label="已同意"
           name="APPROVED"
         />
-        <el-tab-pane label="已完成" name="COMPLETED" />
+        <el-tab-pane
+          label="已完成"
+          name="COMPLETED"
+        />
         <el-tab-pane
           label="已拒绝"
           name="REJECTED"
@@ -200,7 +206,12 @@
             </el-button>
           </template>
           <template v-else-if="activeTab === 'APPROVED' && isReturnRefundType(row.type)">
-            <el-tag type="warning" size="small">等待买家退货/商家验收</el-tag>
+            <el-tag
+              type="warning"
+              size="small"
+            >
+              等待买家退货/商家验收
+            </el-tag>
           </template>
           <el-button
             v-else-if="activeTab === 'APPROVED' && !isRefundType(row.type)"
@@ -212,8 +223,15 @@
           >
             确认完成
           </el-button>
-          <span v-else-if="row.logistics" class="reason text-muted">{{ logisticsLabel(row.logistics) }}</span>
-          <el-tag v-else :type="activeTab === 'COMPLETED' ? 'success' : activeTab === 'REJECTED' ? 'danger' : 'info'" size="small">
+          <span
+            v-else-if="row.logistics"
+            class="reason text-muted"
+          >{{ logisticsLabel(row.logistics) }}</span>
+          <el-tag
+            v-else
+            :type="activeTab === 'COMPLETED' ? 'success' : activeTab === 'REJECTED' ? 'danger' : 'info'"
+            size="small"
+          >
             {{ statusLabel(activeTab) }}
           </el-tag>
         </template>
@@ -262,10 +280,20 @@
         此操作真金退款不可逆：确认后将向用户真金退款 ¥{{ fmt(approveTarget?.amount) }}，资金原路退回支付渠道。
       </p>
       <template v-else-if="isReturnRefundType(approveTarget?.type)">
-        <p style="margin-top:12px; color:#e6a23c">同意后先由买家退货，不会立即退款；商家验收入库后才触发原路退款。</p>
-        <el-input v-model="returnAddress" type="textarea" :rows="3" placeholder="必填：收件人、电话和完整退货地址" />
+        <p style="margin-top:12px; color:#e6a23c">
+          同意后先由买家退货，不会立即退款；商家验收入库后才触发原路退款。
+        </p>
+        <el-input
+          v-model="returnAddress"
+          type="textarea"
+          :rows="3"
+          placeholder="必填：收件人、电话和完整退货地址"
+        />
       </template>
-      <p v-else style="margin-top:12px; color:#e6a23c">
+      <p
+        v-else
+        style="margin-top:12px; color:#e6a23c"
+      >
         该申请为{{ typeLabel(approveTarget?.type ?? '') }}，同意后不发生退款，仅流转售后状态。
       </p>
       <template #footer>

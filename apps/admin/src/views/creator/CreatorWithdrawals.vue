@@ -335,9 +335,11 @@ probe.interceptors.request.use((c) => {
   if (t) c.headers.Authorization = `Bearer ${t}`;
   return c;
 });
-function unwrap(d: unknown): any {
-  if (d && typeof d === "object" && "code" in d && "data" in d) return (d as { data: unknown }).data;
-  return d;
+function unwrap<T>(d: unknown): T | undefined {
+  const value = d && typeof d === "object" && "code" in d && "data" in d
+    ? (d as { data: unknown }).data
+    : d;
+  return value as T | undefined;
 }
 
 const list = ref<WithdrawalRow[]>([]);
@@ -464,7 +466,7 @@ async function fetchPayAccount() {
     const res = await probe.get(`/videos/creator/admin/withdrawals/${payRow.value.id}/payout-account`);
     if (res.status === 404) { payAccountMissing.value = true; return; }
     if (res.status >= 400) return; // 走模板里的"获取失败+重试"分支
-    payAccount.value = unwrap(res.data) || null;
+    payAccount.value = unwrap<PayoutAccount>(res.data) || null;
   } catch { /* 网络失败走"获取失败+重试"分支 */ } finally { payAccountLoading.value = false; }
 }
 

@@ -13,8 +13,28 @@ const form = reactive({
 })
 
 const loading = ref(false)
-// 排盘结果：来自 axios 响应 data 无类型来源，作为 prop 透传给 DaLiuRenBoard，保留 any
-const result = ref<any>(null)
+interface LiuRenGong { zhi: string; diPan: string; tianPan: string; tianJiang?: string; dunGan?: string; liuQin?: string; shenSha: string[] }
+interface SiKeCol { index: number; xiaZhi: string; xiaGan: string; shangZhi: string; description: string }
+interface SanChuanItem { zhi: string; dunGan?: string; liuQin?: string; tianJiang?: string; description: string }
+interface DaLiuRenResult {
+  jieQi?: string
+  gongs?: LiuRenGong[]
+  siKe?: SiKeCol[]
+  sanChuan?: { chu: SanChuanItem; zhong: SanChuanItem; mo: SanChuanItem }
+  zongMen?: string
+  zongMenDesc?: string
+  riGanZhi?: string
+  yueJiang?: string
+  zhanShi?: string
+  dayNight?: string
+  keJing?: { name: string; summary: string }[]
+}
+const EMPTY_SAN_CHUAN = {
+  chu: { zhi: '', description: '' },
+  zhong: { zhi: '', description: '' },
+  mo: { zhi: '', description: '' },
+}
+const result = ref<DaLiuRenResult | null>(null)
 const errorMsg = ref('')
 const inputCollapsed = ref(false)
 
@@ -55,15 +75,32 @@ async function doCalc() {
       <div class="input-form">
         <div class="form-section">
           <label class="form-label">占问时间</label>
-          <input v-model="form.datetime" type="datetime-local" class="form-input" />
+          <input
+            v-model="form.datetime"
+            type="datetime-local"
+            class="form-input"
+          >
         </div>
         <div class="form-section">
           <label class="form-label">起课方式</label>
-          <select v-model="form.method" class="form-select">
-            <option v-for="o in methodOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+          <select
+            v-model="form.method"
+            class="form-select"
+          >
+            <option
+              v-for="o in methodOptions"
+              :key="o.value"
+              :value="o.value"
+            >
+              {{ o.label }}
+            </option>
           </select>
         </div>
-        <button class="calc-btn" :disabled="loading" @click="doCalc">
+        <button
+          class="calc-btn"
+          :disabled="loading"
+          @click="doCalc"
+        >
           {{ loading ? '排盘中...' : '开始排盘' }}
         </button>
       </div>
@@ -71,8 +108,18 @@ async function doCalc() {
 
     <!-- PageTool 只有 input/result/bottom-bar 三个插槽，此处必须用 #result（曾误写 #output 致结果区永远空白） -->
     <template #result>
-      <div v-if="errorMsg" class="error-box">{{ errorMsg }}</div>
-      <div v-else-if="!result" class="empty-hint">请先设置参数并排盘</div>
+      <div
+        v-if="errorMsg"
+        class="error-box"
+      >
+        {{ errorMsg }}
+      </div>
+      <div
+        v-else-if="!result"
+        class="empty-hint"
+      >
+        请先设置参数并排盘
+      </div>
       <div
         v-if="result?.jieQi"
         class="jieqi-bar"
@@ -83,7 +130,7 @@ async function doCalc() {
         v-else-if="result"
         :gongs="result.gongs || []"
         :si-ke="result.siKe || []"
-        :san-chuan="result.sanChuan || { chu: {}, zhong: {}, mo: {} }"
+        :san-chuan="result.sanChuan || EMPTY_SAN_CHUAN"
         :zong-men="result.zongMen"
         :zong-men-desc="result.zongMenDesc"
         :ri-gan-zhi="result.riGanZhi"

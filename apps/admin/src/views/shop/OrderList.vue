@@ -16,14 +16,14 @@ interface OrderAddress {
 }
 /** 订单行（字段宽松 optional，仅覆盖模板/脚本实际访问字段） */
 interface OrderRow {
-  id?: string;
+  id: string;
   user?: { nickname?: string };
-  type?: string;
+  type: string;
   targetId?: string;
   amount?: number | string;
   coinAmount?: number;
   quantity?: number;
-  status?: string;
+  status: string;
   createdAt?: string;
   paidAt?: string;
   /** 下单时收货地址快照（后端 Order.shippingInfo Json：{name,phone,province,city,district,detail}） */
@@ -65,8 +65,7 @@ const detailVisible = ref(false);
 const detailLoading = ref(false);
 /** 详情数据来源：admin=新管理端详情端点 / detail=现有 /shop/orders/:id / row=仅列表行快照 */
 const detailSource = ref<"admin" | "detail" | "row">("row");
-// 详情对象在弹窗模板内多处裸访问字段，收敛为 OrderRow 会引发多处 possibly-undefined/索引报错，故保留 any。
-const detailRow = ref<any>(null);
+const detailRow = ref<OrderRow | null>(null);
 
 const statusLabels: Record<string, string> = {
   PENDING: "待支付", PAID: "已支付", SHIPPED: "已发货", COMPLETED: "已完成", REFUNDED: "已退款", CANCELLED: "已取消",
@@ -187,8 +186,8 @@ function parseShippingInfo(raw: unknown): OrderAddress | undefined {
 }
 
 /** 把订单数据归一化成详情弹窗需要的 address/items（不伪造：拼不出就留空，模板明示待后端） */
-function normalizeDetail(data: Record<string, any>): OrderRow {
-  const merged: any = { ...data };
+function normalizeDetail(data: OrderRow): OrderRow {
+  const merged: OrderRow = { ...data };
   if (!merged.address) merged.address = parseShippingInfo(merged.shippingInfo);
   if (!Array.isArray(merged.items) || merged.items.length === 0) {
     if (merged.product?.title) {

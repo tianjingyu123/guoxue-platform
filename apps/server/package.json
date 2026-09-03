@@ -16,9 +16,6 @@
     "seed:live-plaza": "ts-node prisma/seed-live-plaza.ts",
     "db:reset": "ts-node prisma/reset.ts"
   },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
-  },
   "dependencies": {
     "@apollo/server": "^4.13.0",
     "@apple/app-store-server-library": "^3.1.0",

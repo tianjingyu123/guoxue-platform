@@ -329,7 +329,10 @@
                 size="small"
               >
                 <el-form-item label="音频">
-                  <VodUpload v-model="transcribeForm.audioUrl" placeholder="音频URL·可手填，或用下方本地上传" />
+                  <VodUpload
+                    v-model="transcribeForm.audioUrl"
+                    placeholder="音频URL·可手填，或用下方本地上传"
+                  />
                 </el-form-item>
                 <el-form-item label="语言">
                   <el-select

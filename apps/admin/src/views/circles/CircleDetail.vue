@@ -2046,7 +2046,7 @@ import { ref, reactive, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
-import { circleApi, articleApi, courseApi, knowledgeApi, circleDashboardApi } from "@/api";
+import { circleApi, articleApi, knowledgeApi, circleDashboardApi } from "@/api";
 import { useAuthStore } from "@/store/auth";
 import api from "@/api";
 
@@ -2306,9 +2306,7 @@ function onTabChange(tab: string) {
 async function fetchMembers() {
   memberLoading.value = true; memberError.value = false;
   try {
-    // 这里后端需要支持更丰富的查询，暂时用现有API
-    const { data } = await circleApi.detail(circleId);
-    // 通过members端点获取
+    // 通过成员端点获取
     const res = await api.get(`/circles/${circleId}/members`, { params: { page: memberPage.value, pageSize: 20 } });
     const d = res.data;
     members.value = d?.members || d?.data || [];
@@ -2514,13 +2512,12 @@ async function fetchExperts() {
 async function updateExpertPrice(row: ExpertRow, field: string, value: number) {
   if (acting.value) return; acting.value = true;
   try {
-    // 新契约：expert/config 请求体带 userId（管理员指定达人）。setExpertConfig 类型未声明 questionTimeoutHours，as any 绕过超集字段校验
     const res = await circleApi.setExpertConfig(circleId, {
       userId: row.userId,
       questionPriceCoin: field === "question" ? value : row.questionPriceCoin,
       questionTimeoutHours: field === "timeout" ? value : row.questionTimeoutHours,
       callPricePerMinuteCoin: field === "call" ? value : row.callPricePerMinuteCoin,
-    } as any);
+    });
     // 防假成功：旧后端忽略 body.userId、按登录人落库；用返回的 userId 回显校验是否真的改到了目标达人
     const savedUserId = (res.data as { userId?: string } | undefined)?.userId;
     if (savedUserId && savedUserId !== row.userId) {

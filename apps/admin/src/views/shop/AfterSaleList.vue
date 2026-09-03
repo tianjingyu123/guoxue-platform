@@ -13,7 +13,10 @@
           label="待处理"
           value="PENDING"
         />
-        <el-option label="退款处理中" value="PROCESSING" />
+        <el-option
+          label="退款处理中"
+          value="PROCESSING"
+        />
         <el-option
           label="已同意"
           value="APPROVED"
@@ -108,7 +111,9 @@
         width="100"
       >
         <template #default="{ row }">
-          <template v-if="isRefundType(row.type)">¥{{ row.amount ? Number(row.amount).toFixed(2) : '-' }}</template>
+          <template v-if="isRefundType(row.type)">
+            ¥{{ row.amount ? Number(row.amount).toFixed(2) : '-' }}
+          </template>
           <span v-else>—</span>
         </template>
       </el-table-column>
@@ -195,7 +200,13 @@
             >
               同意
             </el-button>
-            <el-tag v-else type="warning" size="small">待运营/财务审批</el-tag>
+            <el-tag
+              v-else
+              type="warning"
+              size="small"
+            >
+              待运营/财务审批
+            </el-tag>
             <el-button
               size="small"
               type="danger"
@@ -204,7 +215,11 @@
               拒绝
             </el-button>
           </template>
-          <el-tag v-else-if="row.status === 'APPROVED' && isReturnRefundType(row.type)" type="warning" size="small">
+          <el-tag
+            v-else-if="row.status === 'APPROVED' && isReturnRefundType(row.type)"
+            type="warning"
+            size="small"
+          >
             等待退货与商家验收
           </el-tag>
           <el-button
@@ -217,8 +232,17 @@
           >
             确认完成
           </el-button>
-          <el-tag v-else-if="row.status === 'PROCESSING'" type="warning" size="small">退款处理中</el-tag>
-          <span v-else style="color:#999;font-size:12px">--</span>
+          <el-tag
+            v-else-if="row.status === 'PROCESSING'"
+            type="warning"
+            size="small"
+          >
+            退款处理中
+          </el-tag>
+          <span
+            v-else
+            style="color:#999;font-size:12px"
+          >--</span>
         </template>
       </el-table-column>
     </el-table>
@@ -261,7 +285,10 @@
           {{ typeLabel(processRow?.type ?? '') }}
         </el-descriptions-item>
         <el-descriptions-item label="申请金额">
-          <span v-if="isRefundType(processRow?.type)" class="amount-strong">
+          <span
+            v-if="isRefundType(processRow?.type)"
+            class="amount-strong"
+          >
             ¥{{ processRow?.amount ? Number(processRow.amount).toFixed(2) : '-' }}
           </span>
           <span v-else>—</span>
@@ -294,7 +321,10 @@
         此操作真金退款不可逆：同意后将向用户真金退款
         ¥{{ processRow?.amount ? Number(processRow.amount).toFixed(2) : '-' }}，资金原路退回支付渠道。
       </p>
-      <p v-if="dialogAction === 'approve' && isReturnRefundType(processRow?.type)" class="return-hint">
+      <p
+        v-if="dialogAction === 'approve' && isReturnRefundType(processRow?.type)"
+        class="return-hint"
+      >
         同意后不会立即退款。请发送完整退货地址，买家登记运单、商家验收入库后才会原路退款。
       </p>
       <el-form

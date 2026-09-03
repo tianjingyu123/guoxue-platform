@@ -252,80 +252,80 @@ function exportData() {
           width="160"
           show-overflow-tooltip
         >
-        <template #default="{ row }">
-          <el-tooltip
-            :content="row.userId || '-'"
-            placement="top"
-          >
-            <span
-              class="copyable"
-              @click="copyText(row.userId)"
-            >{{ userLabel(row) }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="类型"
-        width="100"
-      >
-        <template #default="{ row }">
-          <el-tag
-            size="small"
-            :type="typeTagType(row.type)"
-          >
-            {{ typeLabels[row.type] || row.type }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="变动币数"
-        width="110"
-        align="right"
-      >
-        <template #default="{ row }">
-          <span :class="Number(row.amountCoin) >= 0 ? 'coin-in' : 'coin-out'">{{ fmtCoin(row.amountCoin) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="变动后余额"
-        width="110"
-        align="right"
-      >
-        <template #default="{ row }">
-          {{ row.balanceAfter != null ? Number(row.balanceAfter).toLocaleString('zh-CN') : '—' }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="场景"
-        width="120"
-      >
-        <template #default="{ row }">
-          {{ sceneLabel(row.scene) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="description"
-        label="备注"
-        min-width="200"
-        show-overflow-tooltip
-      >
-        <template #default="{ row }">
-          {{ row.description || '—' }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="时间"
-        width="130"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            :content="fullTime(row.createdAt)"
-            placement="top"
-          >
-            <span>{{ formatTime(row.createdAt) }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
+          <template #default="{ row }">
+            <el-tooltip
+              :content="row.userId || '-'"
+              placement="top"
+            >
+              <span
+                class="copyable"
+                @click="copyText(row.userId)"
+              >{{ userLabel(row) }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="类型"
+          width="100"
+        >
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              :type="typeTagType(row.type)"
+            >
+              {{ typeLabels[row.type] || row.type }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="变动币数"
+          width="110"
+          align="right"
+        >
+          <template #default="{ row }">
+            <span :class="Number(row.amountCoin) >= 0 ? 'coin-in' : 'coin-out'">{{ fmtCoin(row.amountCoin) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="变动后余额"
+          width="110"
+          align="right"
+        >
+          <template #default="{ row }">
+            {{ row.balanceAfter != null ? Number(row.balanceAfter).toLocaleString('zh-CN') : '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="场景"
+          width="120"
+        >
+          <template #default="{ row }">
+            {{ sceneLabel(row.scene) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="description"
+          label="备注"
+          min-width="200"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.description || '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="时间"
+          width="130"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              :content="fullTime(row.createdAt)"
+              placement="top"
+            >
+              <span>{{ formatTime(row.createdAt) }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
       </el-table>
 
       <el-pagination

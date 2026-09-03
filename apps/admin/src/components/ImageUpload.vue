@@ -22,7 +22,9 @@
         v-else
         class="ph"
       >
-        <el-icon class="upload-icon"><Plus /></el-icon>
+        <el-icon class="upload-icon">
+          <Plus />
+        </el-icon>
         <span class="ph-text">{{ uploading ? '上传中…' : '点击上传' }}</span>
       </div>
     </div>
@@ -64,8 +66,8 @@ async function onFileChange(e: Event) {
   uploading.value = true
   try {
     const { data } = await uploadApi.image(file)
-    if ((data as any)?.url) {
-      emit("update:modelValue", (data as any).url)
+    if (data.url) {
+      emit("update:modelValue", data.url)
       ElMessage.success("上传成功")
     }
   } catch {

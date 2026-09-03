@@ -160,7 +160,7 @@ async function fetchData() {
   error.value = false;
   try {
     // 后端 getUsageStats 返回聚合结构 { calls, byType:[{apiType,_count,_sum:{cost,tokensUsed}}], days }
-    const res = await tenantAdminApi.getUsage(tenantId, { days: days.value } as any);
+    const res = await tenantAdminApi.getUsage(tenantId, { days: days.value });
     const data = res.data || {};
     totalCalls.value = data.calls ?? 0;
     const byType = Array.isArray(data.byType) ? data.byType : [];

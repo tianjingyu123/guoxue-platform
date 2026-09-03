@@ -1,8 +1,11 @@
 <template>
   <div class="page">
-    <PageHeader title="直播管理">
+    <PageHeader
+      title="直播管理"
+      description="按排期、推流、值守、回放复核的顺序管理直播全生命周期。"
+    >
       <template #actions>
-        <div>
+        <div class="live-header-actions">
           <el-select
             v-model="statusFilter"
             placeholder="状态筛选"
@@ -41,7 +44,10 @@
       </template>
     </PageHeader>
 
-    <div class="duty-strip" aria-label="直播运营值班摘要">
+    <div
+      class="duty-strip"
+      aria-label="直播运营值班摘要"
+    >
       <div><span>待开播</span><strong>{{ dutySummary.waiting }}</strong></div>
       <div><span>直播中</span><strong class="living">{{ dutySummary.living }}</strong></div>
       <div><span>回放草稿待发布</span><strong class="draft">{{ dutySummary.replayDraft }}</strong></div>
@@ -132,16 +138,34 @@
           <small v-if="row.status === 'WAITING'">{{ row.bookingCount || 0 }} 人预约</small>
         </template>
       </el-table-column>
-      <el-table-column label="形态 / 商品" width="135">
+      <el-table-column
+        label="形态 / 商品"
+        width="135"
+      >
         <template #default="{ row }">
           <div>{{ row.orientation === 'landscape' ? 'OBS 横屏' : '客户端竖屏' }}</div>
           <small>{{ row.quality || 'basic' }} · {{ row._count?.products || 0 }} 件商品</small>
         </template>
       </el-table-column>
-      <el-table-column label="回放" width="105">
+      <el-table-column
+        label="回放"
+        width="105"
+      >
         <template #default="{ row }">
-          <el-tag v-if="row.replayStatus === 'DRAFT'" size="small" type="warning">草稿</el-tag>
-          <el-tag v-else-if="row.replayStatus === 'PUBLISHED'" size="small" type="success">已发布</el-tag>
+          <el-tag
+            v-if="row.replayStatus === 'DRAFT'"
+            size="small"
+            type="warning"
+          >
+            草稿
+          </el-tag>
+          <el-tag
+            v-else-if="row.replayStatus === 'PUBLISHED'"
+            size="small"
+            type="success"
+          >
+            已发布
+          </el-tag>
           <span v-else>—</span>
         </template>
       </el-table-column>
@@ -229,7 +253,14 @@
           <CosImageUpload v-model="form.cover" />
         </el-form-item>
         <el-form-item label="直播介绍">
-          <el-input v-model="form.description" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="预约预告必填；说明主题、嘉宾和观众收益" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="3"
+            maxlength="500"
+            show-word-limit
+            placeholder="预约预告必填；说明主题、嘉宾和观众收益"
+          />
         </el-form-item>
         <el-form-item label="预约开播">
           <el-date-picker
@@ -240,10 +271,15 @@
             clearable
             style="width:100%"
           />
-          <div class="form-hint">填写排期后，封面和介绍必须完整；系统会在开播前约 15 分钟提醒已预约用户。</div>
+          <div class="form-hint">
+            填写排期后，封面和介绍必须完整；系统会在开播前约 15 分钟提醒已预约用户。
+          </div>
         </el-form-item>
         <template v-if="!editingId">
-          <el-form-item label="主播" required>
+          <el-form-item
+            label="主播"
+            required
+          >
             <el-select
               v-model="form.hostUserId"
               filterable
@@ -254,10 +290,18 @@
               placeholder="输入昵称或手机号查找主播"
               style="width:100%"
             >
-              <el-option v-for="host in hostOptions" :key="host.id" :label="`${host.nickname || '未命名'} · ${host.phone || host.id}`" :value="host.id" />
+              <el-option
+                v-for="host in hostOptions"
+                :key="host.id"
+                :label="`${host.nickname || '未命名'} · ${host.phone || host.id}`"
+                :value="host.id"
+              />
             </el-select>
           </el-form-item>
-          <el-form-item label="所属圈子" required>
+          <el-form-item
+            label="所属圈子"
+            required
+          >
             <el-select
               v-model="form.circleId"
               filterable
@@ -274,10 +318,17 @@
           </el-form-item>
           <el-form-item label="可见范围">
             <el-radio-group v-model="form.visibility">
-              <el-radio value="CIRCLE_ONLY">仅本圈</el-radio>
-              <el-radio value="PLATFORM">全平台可见</el-radio>
+              <el-radio value="CIRCLE_ONLY">
+                仅本圈
+              </el-radio>
+              <el-radio value="PLATFORM">
+                全平台可见
+              </el-radio>
             </el-radio-group>
-            <div v-if="form.visibility === 'PLATFORM'" class="form-hint">
+            <div
+              v-if="form.visibility === 'PLATFORM'"
+              class="form-hint"
+            >
               只有主动选择时才全平台可见，并受发布资格与内容审核规则约束。
             </div>
           </el-form-item>
@@ -304,45 +355,97 @@
           </el-form-item>
           <el-form-item label="回放范围">
             <el-radio-group v-model="form.replayVisibility">
-              <el-radio value="CIRCLE_ONLY">仅本圈</el-radio>
-              <el-radio value="PLATFORM">全平台</el-radio>
+              <el-radio value="CIRCLE_ONLY">
+                仅本圈
+              </el-radio>
+              <el-radio value="PLATFORM">
+                全平台
+              </el-radio>
             </el-radio-group>
-            <el-checkbox v-model="form.replayCharge" style="margin-left:16px">圈外观看收费</el-checkbox>
+            <el-checkbox
+              v-model="form.replayCharge"
+              style="margin-left:16px"
+            >
+              圈外观看收费
+            </el-checkbox>
           </el-form-item>
         </template>
         <template v-else>
           <el-form-item label="收费类型">
             <el-select v-model="form.chargeType">
-              <el-option label="免费" value="FREE" />
-              <el-option label="付费" value="PAID" />
+              <el-option
+                label="免费"
+                value="FREE"
+              />
+              <el-option
+                label="付费"
+                value="PAID"
+              />
             </el-select>
           </el-form-item>
-          <el-form-item v-if="form.chargeType === 'PAID'" label="收费价格">
-            <el-input-number v-model="form.chargePrice" :min="0.01" :precision="2" />
+          <el-form-item
+            v-if="form.chargeType === 'PAID'"
+            label="收费价格"
+          >
+            <el-input-number
+              v-model="form.chargePrice"
+              :min="0.01"
+              :precision="2"
+            />
           </el-form-item>
         </template>
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="直播形态">
               <el-radio-group v-model="form.orientation">
-                <el-radio value="portrait">客户端竖屏</el-radio>
-                <el-radio value="landscape">OBS 横屏</el-radio>
+                <el-radio value="portrait">
+                  客户端竖屏
+                </el-radio>
+                <el-radio value="landscape">
+                  OBS 横屏
+                </el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="画质档位">
-              <el-select v-model="form.quality" style="width:100%">
-                <el-option label="标清（basic）" value="basic" />
-                <el-option label="高清 720p（hd）" value="hd" />
-                <el-option label="超清 1080p（uhd）" value="uhd" />
+              <el-select
+                v-model="form.quality"
+                style="width:100%"
+              >
+                <el-option
+                  label="标清（basic）"
+                  value="basic"
+                />
+                <el-option
+                  label="高清 720p（hd）"
+                  value="hd"
+                />
+                <el-option
+                  label="超清 1080p（uhd）"
+                  value="uhd"
+                />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="带货商品">
-          <el-select v-model="form.productIds" multiple :multiple-limit="5" filterable collapse-tags :max-collapse-tags="3" placeholder="最多 5 件在售商品" style="width:100%">
-            <el-option v-for="product in productOptions" :key="product.id" :label="`${product.title || product.id} · 库存 ${product.stock ?? 0}`" :value="product.id" />
+          <el-select
+            v-model="form.productIds"
+            multiple
+            :multiple-limit="5"
+            filterable
+            collapse-tags
+            :max-collapse-tags="3"
+            placeholder="最多 5 件在售商品"
+            style="width:100%"
+          >
+            <el-option
+              v-for="product in productOptions"
+              :key="product.id"
+              :label="`${product.title || product.id} · 库存 ${product.stock ?? 0}`"
+              :value="product.id"
+            />
           </el-select>
         </el-form-item>
         <el-alert
@@ -383,7 +486,9 @@
         <p v-if="detail.cover || detail.coverUrl">
           <b>封面：</b>{{ detail.cover || detail.coverUrl }}
         </p>
-        <p v-if="detail.description"><b>介绍：</b>{{ detail.description }}</p>
+        <p v-if="detail.description">
+          <b>介绍：</b>{{ detail.description }}
+        </p>
         <p><b>直播形态：</b>{{ detail.orientation === 'landscape' ? 'OBS 横屏' : '客户端竖屏' }} · {{ detail.quality || 'basic' }}</p>
         <p><b>预约人数：</b>{{ detail.bookingCount || 0 }}</p>
         <p v-if="detail.replayUrl">
@@ -400,8 +505,16 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="streamVisible" title="开播准备与推流值班" width="720px" @closed="stopStreamPolling">
-      <div v-loading="streamLoading" class="stream-console">
+    <el-dialog
+      v-model="streamVisible"
+      title="开播准备与推流值班"
+      width="720px"
+      @closed="stopStreamPolling"
+    >
+      <div
+        v-loading="streamLoading"
+        class="stream-console"
+      >
         <el-alert
           :type="streamStatus?.status === 'online' ? 'success' : 'warning'"
           :closable="false"
@@ -414,14 +527,30 @@
           <div><span>回调状态</span><strong>{{ streamStatus?.status || 'offline' }}</strong></div>
           <div><span>最近事件</span><strong>{{ streamStatus?.lastEventAt ? streamStatus.lastEventAt.slice(0,19).replace('T',' ') : '暂无' }}</strong></div>
         </div>
-        <el-input v-if="streamInfo?.pushUrl" :model-value="streamInfo.pushUrl" readonly type="textarea" :rows="3">
-          <template #append><el-button @click="copyPushUrl">复制</el-button></template>
+        <el-input
+          v-if="streamInfo?.pushUrl"
+          :model-value="streamInfo.pushUrl"
+          readonly
+          type="textarea"
+          :rows="3"
+        >
+          <template #append>
+            <el-button @click="copyPushUrl">
+              复制
+            </el-button>
+          </template>
         </el-input>
-        <p class="secret-tip">推流地址含短期鉴权凭证，仅向本场主播/OBS 操作员提供；重新打开本窗口会重新签发。</p>
+        <p class="secret-tip">
+          推流地址含短期鉴权凭证，仅向本场主播/OBS 操作员提供；重新打开本窗口会重新签发。
+        </p>
       </div>
       <template #footer>
-        <el-button @click="refreshStreamStatus">刷新状态</el-button>
-        <el-button @click="streamVisible = false">关闭</el-button>
+        <el-button @click="refreshStreamStatus">
+          刷新状态
+        </el-button>
+        <el-button @click="streamVisible = false">
+          关闭
+        </el-button>
         <el-button
           type="primary"
           :disabled="streamRoom?.orientation === 'landscape' && streamStatus?.status !== 'online'"
@@ -432,17 +561,50 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="replayVisible" title="回放复核与发布" width="620px">
-      <el-alert type="info" :closable="false" show-icon title="录制回调只生成草稿；确认内容、可见范围与地址后，才会对观众发布。" />
-      <el-form label-position="top" style="margin-top:16px">
-        <el-form-item label="直播场次"><el-input :model-value="replayRoom?.title" disabled /></el-form-item>
-        <el-form-item label="HTTPS 回放地址" required>
-          <el-input v-model="replayUrl" type="textarea" :rows="3" placeholder="https://.../replay.mp4" />
+    <el-dialog
+      v-model="replayVisible"
+      title="回放复核与发布"
+      width="620px"
+    >
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        title="录制回调只生成草稿；确认内容、可见范围与地址后，才会对观众发布。"
+      />
+      <el-form
+        label-position="top"
+        style="margin-top:16px"
+      >
+        <el-form-item label="直播场次">
+          <el-input
+            :model-value="replayRoom?.title"
+            disabled
+          />
+        </el-form-item>
+        <el-form-item
+          label="HTTPS 回放地址"
+          required
+        >
+          <el-input
+            v-model="replayUrl"
+            type="textarea"
+            :rows="3"
+            placeholder="https://.../replay.mp4"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="replayVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="publishReplay">确认发布并进入机审</el-button>
+        <el-button @click="replayVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="publishReplay"
+        >
+          确认发布并进入机审
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -670,8 +832,8 @@ async function saveRoom() {
     }
     dialogVisible.value = false;
     fetchList();
-  } catch (e: any) {
-    if (e?.response?.status === 403) {
+  } catch (e: unknown) {
+    if ((e as { response?: { status?: number } })?.response?.status === 403) {
       ElMessage.error("当前账号没有管理该直播间的权限");
     } else {
       ElMessage.error("保存失败，请重试");
@@ -684,8 +846,11 @@ async function saveRoom() {
 // ── 推流值班台：凭证短期签发，状态以腾讯回调为准 ──
 const streamVisible = ref(false);
 const streamRoom = ref<LiveRow | null>(null);
-const streamInfo = ref<Record<string, any> | null>(null);
-const streamStatus = ref<Record<string, any> | null>(null);
+interface StreamInfo { pushUrl?: string; playUrl?: string; [key: string]: unknown }
+interface StreamStatus { status?: string; online?: boolean; lastEventAt?: string; [key: string]: unknown }
+type LiveApiError = { response?: { data?: { message?: string } } };
+const streamInfo = ref<StreamInfo | null>(null);
+const streamStatus = ref<StreamStatus | null>(null);
 const streamLoading = ref(false);
 let streamPollTimer: ReturnType<typeof setInterval> | null = null;
 function stopStreamPolling() { if (streamPollTimer) clearInterval(streamPollTimer); streamPollTimer = null; }
@@ -717,8 +882,8 @@ async function startPreparedRoom() {
       await liveApi.startRoom(streamRoom.value.id);
     }
     ElMessage.success("已开播"); streamVisible.value = false; stopStreamPolling(); fetchList();
-  } catch (e: any) {
-    if (e !== "cancel" && e !== "close") ElMessage.error(e?.response?.data?.message || "开播失败，请确认真实推流状态");
+  } catch (e: unknown) {
+    if (e !== "cancel" && e !== "close") ElMessage.error((e as LiveApiError)?.response?.data?.message || "开播失败，请确认真实推流状态");
   }
 }
 
@@ -766,6 +931,8 @@ function del(id: string) {
 </script>
 
 <style scoped>
+.live-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.live-header-actions :deep(.el-select) { margin-right: 0 !important; }
 .page { padding: 0; }
 .duty-strip { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 1px; margin: 0 0 16px; padding: 1px; color: #f7f2e6; background: #b79a62; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 24px rgba(22, 55, 43, .1); }
 .duty-strip > div { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 15px 18px; background: #173c30; }

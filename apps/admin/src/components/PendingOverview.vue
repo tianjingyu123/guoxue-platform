@@ -1,13 +1,36 @@
 <template>
   <el-card
-    v-if="items.length > 0"
+    v-if="availableQueueCount > 0"
     class="pending-overview"
+    :class="{ 'is-compact': overview.visibleItems.length === 0 }"
     shadow="never"
   >
     <template #header>
       <div class="po-header">
-        <span class="po-title">📋 待办概览</span>
-        <span class="po-sub">各审核队列实时待处理数 · 点击直达</span>
+        <span class="po-title">待办概览</span>
+        <span
+          class="po-sub"
+          role="status"
+        >
+          <template v-if="loading">正在获取审核队列…</template>
+          <template v-else-if="overview.total > 0">{{ overview.activeCount }} 个队列有 {{ overview.total }} 项待处理</template>
+          <template v-else-if="items.length > 0">已获取的 {{ items.length }} 个队列暂无待办</template>
+          <template v-else>待办数据暂不可用，请刷新重试</template>
+          <span
+            v-if="!loading && unavailableQueueCount > 0"
+            class="po-warning"
+          > · {{ unavailableQueueCount }} 个队列暂未获取</span>
+        </span>
+        <el-button
+          v-if="overview.idleCount > 0"
+          text
+          size="small"
+          :aria-expanded="expanded"
+          aria-controls="pending-queues"
+          @click="expanded = !expanded"
+        >
+          {{ expanded ? "收起空队列" : "展开全部队列" }}
+        </el-button>
         <el-button
           text
           size="small"
@@ -19,9 +42,12 @@
         </el-button>
       </div>
     </template>
-    <div class="po-grid">
+    <div
+      id="pending-queues"
+      class="po-grid"
+    >
       <button
-        v-for="it in items"
+        v-for="it in overview.visibleItems"
         :key="it.link"
         type="button"
         class="po-item"
@@ -38,15 +64,10 @@
 <script setup lang="ts">
 // 目录重构批（2026-07-11）：员工进后台第一眼知道该干啥——
 // 真连各审核队列既有列表端点取 PENDING 计数；某项请求失败/无权限则该项不显示（诚实降级）
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { api, type AdminRequestConfig } from "@/api";
-
-interface QueueItem {
-  title: string;
-  link: string;
-  count: number;
-}
+import { readPendingTotal, summarizePendingQueues, type PendingQueue } from "@/utils/pending-queues";
 
 interface QueueDef {
   title: string;
@@ -75,8 +96,12 @@ const QUEUES: QueueDef[] = [
 ];
 
 const router = useRouter();
-const items = ref<QueueItem[]>([]);
+const items = ref<PendingQueue[]>([]);
 const loading = ref(false);
+const expanded = ref(false);
+const availableQueueCount = ref(0);
+const unavailableQueueCount = ref(0);
+const overview = computed(() => summarizePendingQueues(items.value, expanded.value));
 
 /** 与路由守卫同源的角色可见性判断（超管全见） */
 function allowed(link: string): boolean {
@@ -93,28 +118,21 @@ function allowed(link: string): boolean {
   }
 }
 
-/** 兼容各队列端点的返回形态：{total} / {data:{total}} / 纯数组 / {items:[]} */
-function extractTotal(data: unknown): number | null {
-  const d = data as { total?: unknown; data?: { total?: unknown }; items?: unknown };
-  if (typeof d?.total === "number") return d.total;
-  if (typeof d?.data?.total === "number") return d.data.total;
-  if (Array.isArray(data)) return data.length;
-  if (Array.isArray(d?.items)) return (d.items as unknown[]).length;
-  return null;
-}
-
 async function load() {
+  if (loading.value) return;
   loading.value = true;
+  const queues = QUEUES.filter((q) => allowed(q.link));
+  availableQueueCount.value = queues.length;
   try {
     const results = await Promise.all(
-      QUEUES.filter((q) => allowed(q.link)).map(async (q) => {
+      queues.map(async (q) => {
         try {
           const config: AdminRequestConfig = {
             ...(q.params ? { params: q.params } : {}),
             silentError: true,
           };
           const { data } = await api.get(q.url, config);
-          const total = extractTotal(data);
+          const total = readPendingTotal(data);
           if (total === null) return null;
           return { title: q.title, link: q.link, count: total };
         } catch {
@@ -122,7 +140,8 @@ async function load() {
         }
       }),
     );
-    items.value = results.filter((x): x is QueueItem => x !== null);
+    items.value = results.filter((x): x is PendingQueue => x !== null);
+    unavailableQueueCount.value = queues.length - items.value.length;
   } finally {
     loading.value = false;
   }
@@ -137,63 +156,80 @@ onMounted(load);
 
 <style scoped>
 .pending-overview {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  border-radius: 18px !important;
 }
 .po-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
 }
 .po-title {
+  flex-shrink: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--color-text-title);
 }
 .po-sub {
   font-size: 12px;
   color: var(--color-text-secondary);
   flex: 1;
+  min-width: 180px;
+  line-height: 1.6;
+}
+.po-warning { color: var(--color-warning); }
+.pending-overview.is-compact :deep(.el-card__body) { display: none; }
+.pending-overview.is-compact :deep(.el-card__header) { border-bottom: 0; }
+.po-item:focus-visible { outline: 2px solid var(--color-tech); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .po-sub { flex-basis: calc(100% - 80px); min-width: 0; }
 }
 .po-refresh {
   flex-shrink: 0;
 }
 .po-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 8px;
 }
 .po-item {
   width: 100%;
   font: inherit;
-  text-align: center;
+  min-height: 76px;
+  text-align: left;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 12px 8px;
-  border: 1px solid var(--color-divider);
-  border-radius: 8px;
+  flex-direction: column-reverse;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
-  background: var(--color-bg-card);
+  transition: border-color var(--transition-base), background var(--transition-base), box-shadow var(--transition-base);
+  background: #f8f9fb;
 }
 .po-item:hover {
-  border-color: var(--color-gold, #c9a96e);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transform: translateY(-1px);
+  border-color: #bdc8d4;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(24,45,68,.07);
 }
 .po-count {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--color-text-secondary);
+  font-family: var(--font-family-number);
+  font-size: 23px;
+  font-weight: 650;
+  color: #657284;
+  letter-spacing: -.03em;
   line-height: 1.2;
 }
+.po-item.hot { border-color: rgba(180,35,62,.14); background: rgba(180,35,62,.035); }
 .po-item.hot .po-count {
-  color: #c0392b;
+  color: var(--color-primary);
 }
 .po-label {
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: #707c8b;
   white-space: nowrap;
 }
 </style>

@@ -11,7 +11,12 @@
       sub-title="违规记录加载失败，请稍后重试"
     >
       <template #extra>
-        <el-button type="primary" @click="fetchList">重试</el-button>
+        <el-button
+          type="primary"
+          @click="fetchList"
+        >
+          重试
+        </el-button>
       </template>
     </el-result>
 
@@ -233,7 +238,7 @@ async function fetchList() {
     const data = (res as { data?: { items?: ViolationRow[]; list?: ViolationRow[]; data?: ViolationRow[]; total?: number } }).data ?? (res as { items?: ViolationRow[]; list?: ViolationRow[]; data?: ViolationRow[]; total?: number });
     list.value = data.items || data.list || data.data || [];
     total.value = data.total || 0;
-  } catch (e) {
+  } catch {
     error.value = true;
   } finally { loading.value = false; }
 }

@@ -547,6 +547,7 @@
 import { ref, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import type { FormInstance } from "element-plus";
 import { Delete } from "@element-plus/icons-vue";
 import { competitionApi } from "@/api";
 import { useUnsavedChanges } from "@/composables/useUnsavedChanges";
@@ -574,7 +575,7 @@ interface StageForm {
 
 const step = ref(0);
 const submitting = ref(false);
-const basicFormRef = ref<any>(null); // el-form 实例引用，保留 any
+const basicFormRef = ref<FormInstance>();
 
 const form = reactive({
   title: "",

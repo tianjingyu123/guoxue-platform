@@ -132,6 +132,24 @@ describe("Shop E2E", () => {
         .expect(201)
 
       expect(res.body.id).toBe("o1")
+      expect(prisma.shippingAddress.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "addr1", userId: "u1" },
+      }))
+      expect(prisma.order.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ amount: 99, addressId: "addr1" }),
+      }))
+    })
+
+    it("实物商品缺少收货地址时不得下单", async () => {
+      const token = jwt.sign({ sub: "u1" })
+      prisma.user.findUnique.mockResolvedValue({ id: "u1", status: "ACTIVE", roles: [] })
+      prisma.product.findUnique.mockResolvedValue({ id: "p1", price: 99, status: "ON_SALE", skus: [] })
+      await request(app.getHttpServer())
+        .post("/api/v1/shop/orders")
+        .set("Authorization", `Bearer ${token}`)
+        .send({ type: "PRODUCT", targetId: "p1", amount: 99 })
+        .expect(400)
+      expect(prisma.order.create).not.toHaveBeenCalled()
     })
   })
 

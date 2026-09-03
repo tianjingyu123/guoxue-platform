@@ -3,7 +3,8 @@
  * 六爻排盘 — 管理后台可视化
  * 使用 PageTool 模板 + LiuYaoBoard 组件
  */
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
+import type { Hexagram, Yao } from '@guoxue/shared'
 import { api } from '@/api'
 import { PageTool, LiuYaoBoard } from '@/components/paipan'
 
@@ -14,8 +15,19 @@ const form = reactive({
 })
 
 const loading = ref(false)
-// 排盘结果：来自 axios 响应 data 无类型来源，作为 prop 透传给 LiuYaoBoard，保留 any
-const result = ref<any>(null)
+interface LiuYaoResult {
+  benGua?: Hexagram & { symbol?: string }
+  gua?: Hexagram & { symbol?: string }
+  bianGua?: (Hexagram & { symbol?: string }) | null
+  huGua?: (Hexagram & { symbol?: string }) | null
+  yaos?: Yao[]
+  shiYao?: number
+  yingYao?: number
+  guaGong?: string
+  wuXing?: string
+}
+const result = ref<LiuYaoResult | null>(null)
+const primaryHexagram = computed(() => result.value?.benGua ?? result.value?.gua ?? null)
 const errorMsg = ref('')
 const inputCollapsed = ref(false)
 
@@ -66,15 +78,31 @@ function toggleYao(index: number) {
       <div class="input-form">
         <div class="form-section">
           <label class="form-label">起卦时间</label>
-          <input v-model="form.datetime" type="datetime-local" class="form-input" />
+          <input
+            v-model="form.datetime"
+            type="datetime-local"
+            class="form-input"
+          >
         </div>
         <div class="form-section">
           <label class="form-label">起卦方式</label>
-          <select v-model="form.method" class="form-select">
-            <option v-for="o in methodOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+          <select
+            v-model="form.method"
+            class="form-select"
+          >
+            <option
+              v-for="o in methodOptions"
+              :key="o.value"
+              :value="o.value"
+            >
+              {{ o.label }}
+            </option>
           </select>
         </div>
-        <div v-if="form.method === 'manual'" class="form-section">
+        <div
+          v-if="form.method === 'manual'"
+          class="form-section"
+        >
           <label class="form-label">选择动爻（0-5，可多选）</label>
           <div class="yao-toggles">
             <button
@@ -83,10 +111,16 @@ function toggleYao(index: number) {
               class="yao-btn"
               :class="{ active: form.manualYao.includes(i - 1) }"
               @click="toggleYao(i - 1)"
-            >爻{{ i }}</button>
+            >
+              爻{{ i }}
+            </button>
           </div>
         </div>
-        <button class="calc-btn" :disabled="loading" @click="doCalc">
+        <button
+          class="calc-btn"
+          :disabled="loading"
+          @click="doCalc"
+        >
           {{ loading ? '排盘中...' : '开始排盘' }}
         </button>
       </div>
@@ -94,11 +128,21 @@ function toggleYao(index: number) {
 
     <!-- PageTool 只有 input/result/bottom-bar 三个插槽，此处必须用 #result（曾误写 #output 致结果区永远空白） -->
     <template #result>
-      <div v-if="errorMsg" class="error-box">{{ errorMsg }}</div>
-      <div v-else-if="!result" class="empty-hint">请先设置参数并排盘</div>
+      <div
+        v-if="errorMsg"
+        class="error-box"
+      >
+        {{ errorMsg }}
+      </div>
+      <div
+        v-else-if="!result"
+        class="empty-hint"
+      >
+        请先设置参数并排盘
+      </div>
       <LiuYaoBoard
-        v-else-if="result"
-        :ben-gua="result.benGua || result.gua"
+        v-else-if="result && primaryHexagram"
+        :ben-gua="primaryHexagram"
         :bian-gua="result.bianGua"
         :hu-gua="result.huGua"
         :yaos="result.yaos || []"

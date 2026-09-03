@@ -3,6 +3,9 @@
 # ═══════════════════════════════════════════
 FROM node:24.18.0-alpine3.23@sha256:595398b0081eacda8e1c4c5b97b76cd1020e4d58a8ebcb4843b9bca1e79e7436
 
+# 空库初始化必须有 psql；原生依赖在 Linux 镜像内构建，不复用 Windows 产物。
+RUN apk add --no-cache postgresql-client openssl python3 make g++
+
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 
 WORKDIR /app
@@ -10,6 +13,8 @@ WORKDIR /app
 # 依赖缓存层（与 Dockerfile 一致）
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/server/package.json apps/server/
+COPY apps/admin/package.json apps/admin/
+COPY apps/mobile/package.json apps/mobile/
 COPY packages/shared/package.json packages/shared/
 COPY packages/bazi-engine/package.json packages/bazi-engine/
 COPY packages/ziwei-engine/package.json packages/ziwei-engine/
@@ -20,8 +25,9 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # 构建 workspace 包
+RUN pnpm --filter @guoxue/shared build
 RUN pnpm --filter @guoxue/bazi-engine build
 RUN pnpm --filter @guoxue/ziwei-engine build
 
 # 生成 Prisma client
-RUN npx prisma generate --schema=apps/server/prisma/schema.prisma
+RUN pnpm --dir apps/server exec prisma generate --schema=prisma/schema.prisma

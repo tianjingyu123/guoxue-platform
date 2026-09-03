@@ -12,7 +12,7 @@
           ← 返回
         </el-button>
         <h2 style="display:inline-block;margin:0 0 0 8px;vertical-align:middle">
-          📡 直播间数据大屏
+          直播间数据大屏
         </h2>
         <el-tag
           v-if="overview.liveStatus"
@@ -222,7 +222,7 @@
     <!-- 复盘报告对话框 -->
     <el-dialog
       v-model="showReport"
-      title="📋 直播复盘报告"
+      title="直播复盘报告"
       width="720px"
     >
       <div v-if="reportData">
@@ -560,8 +560,7 @@ function exportReport(format: "pdf" | "excel") {
   }).catch(() => {});
 }
 
-// setInterval 句柄：初值 null 与 clearInterval 入参类型冲突，保留 any 不改运行时
-let timer: any = null;
+let timer: ReturnType<typeof setInterval> | null = null;
 
 function handleResize() {
   trendsChart?.resize();
@@ -575,7 +574,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  clearInterval(timer);
+  if (timer) clearInterval(timer);
   window.removeEventListener("resize", handleResize);
   trendsChart?.dispose();
   interChart?.dispose();

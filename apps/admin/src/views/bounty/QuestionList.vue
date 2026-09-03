@@ -121,106 +121,106 @@
           min-width="200"
           show-overflow-tooltip
         />
-      <el-table-column
-        prop="category"
-        label="分类"
-        width="90"
-      >
-        <template #default="{ row }">
-          <el-tag>{{ categoryLabel(row.category) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="bountyCoin"
-        label="赏金"
-        width="90"
-        sortable
-      >
-        <template #default="{ row }">
-          {{ row.bountyCoin }} 币
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="asker"
-        label="提问者"
-        width="130"
-      >
-        <template #default="{ row }">
-          <!-- 后端列表未 include 用户对象，仅有 ID：截断显示防撑爆列 -->
-          <el-tooltip
-            v-if="!row.asker?.nickname && row.askerId"
-            :content="row.askerId"
-            placement="top"
-          >
-            <span>{{ row.askerId.slice(0, 8) }}…</span>
-          </el-tooltip>
-          <span v-else>{{ row.asker?.nickname || '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="answerer"
-        label="回答者"
-        width="130"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            v-if="!row.answerer?.nickname && row.answererId"
-            :content="row.answererId"
-            placement="top"
-          >
-            <span>{{ row.answererId.slice(0, 8) }}…</span>
-          </el-tooltip>
-          <span v-else>{{ row.answerer?.nickname || '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="status"
-        label="状态"
-        width="100"
-      >
-        <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)">
-            {{ statusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="创建时间"
-        width="150"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            v-if="row.createdAt"
-            :content="formatDateFull(row.createdAt)"
-            placement="top"
-          >
-            <span>{{ formatDate(row.createdAt) }}</span>
-          </el-tooltip>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="操作"
-        width="120"
-        fixed="right"
-      >
-        <template #default="{ row }">
-          <el-button
-            v-if="['OPEN', 'CLAIMED'].includes(row.status || '')"
-            size="small"
-            type="danger"
-            :loading="closingId === row.id"
-            @click="handleClose(row)"
-          >
-            关闭
-          </el-button>
-          <span
-            v-else
-            style="color: var(--color-text-placeholder); font-size: 12px"
-          >—</span>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column
+          prop="category"
+          label="分类"
+          width="90"
+        >
+          <template #default="{ row }">
+            <el-tag>{{ categoryLabel(row.category) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="bountyCoin"
+          label="赏金"
+          width="90"
+          sortable
+        >
+          <template #default="{ row }">
+            {{ row.bountyCoin }} 币
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="asker"
+          label="提问者"
+          width="130"
+        >
+          <template #default="{ row }">
+            <!-- 后端列表未 include 用户对象，仅有 ID：截断显示防撑爆列 -->
+            <el-tooltip
+              v-if="!row.asker?.nickname && row.askerId"
+              :content="row.askerId"
+              placement="top"
+            >
+              <span>{{ row.askerId.slice(0, 8) }}…</span>
+            </el-tooltip>
+            <span v-else>{{ row.asker?.nickname || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="answerer"
+          label="回答者"
+          width="130"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              v-if="!row.answerer?.nickname && row.answererId"
+              :content="row.answererId"
+              placement="top"
+            >
+              <span>{{ row.answererId.slice(0, 8) }}…</span>
+            </el-tooltip>
+            <span v-else>{{ row.answerer?.nickname || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
+          <template #default="{ row }">
+            <el-tag :type="statusTag(row.status)">
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="创建时间"
+          width="150"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              v-if="row.createdAt"
+              :content="formatDateFull(row.createdAt)"
+              placement="top"
+            >
+              <span>{{ formatDate(row.createdAt) }}</span>
+            </el-tooltip>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="120"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              v-if="['OPEN', 'CLAIMED'].includes(row.status || '')"
+              size="small"
+              type="danger"
+              :loading="closingId === row.id"
+              @click="handleClose(row)"
+            >
+              关闭
+            </el-button>
+            <span
+              v-else
+              style="color: var(--color-text-placeholder); font-size: 12px"
+            >—</span>
+          </template>
+        </el-table-column>
+      </el-table>
 
       <el-pagination
         v-model:current-page="page"

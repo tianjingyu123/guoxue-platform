@@ -465,7 +465,7 @@ async function handleRecharge() {
   recharging.value = true;
   try {
     // 后端 TenantRechargeDto 字段为 quotaAmount
-    await tenantAdminApi.recharge(currentRow.value.id, { quotaAmount: rechargeAmount.value } as any);
+    await tenantAdminApi.recharge(currentRow.value.id, { quotaAmount: rechargeAmount.value });
     ElMessage.success("充值成功");
     rechargeVisible.value = false;
     fetchList();

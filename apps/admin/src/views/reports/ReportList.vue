@@ -93,7 +93,17 @@ function jumpToTarget(row: { targetType?: string; targetId?: string }) {
   if (path) router.push(path);
 }
 
-const reports = ref<any[]>([]);
+interface ReportRow {
+  id: string; targetType?: string; targetId?: string; status?: string; createdAt?: string;
+  reporter?: { nickname?: string };
+}
+interface ReportTarget {
+  found?: boolean; targetType?: string; type?: string; title?: string; content?: string;
+  author?: { nickname?: string }; extra?: { phone?: string; status?: string; auditStatus?: string };
+  createdAt?: string; reason?: string;
+}
+
+const reports = ref<ReportRow[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = ref(20);
@@ -129,9 +139,9 @@ async function fetchList() {
 const targetDialog = ref(false);
 const targetLoading = ref(false);
 const targetError = ref(false);
-const target = ref<any>(null);
+const target = ref<ReportTarget | null>(null);
 
-async function viewTarget(row: any) {
+async function viewTarget(row: ReportRow) {
   targetDialog.value = true;
   targetLoading.value = true;
   targetError.value = false;
@@ -146,7 +156,7 @@ async function viewTarget(row: any) {
   }
 }
 
-async function handleProcess(row: any) {
+async function handleProcess(row: ReportRow) {
   if (submitting.value) return;
   let result: string;
   try {
@@ -177,7 +187,7 @@ async function handleProcess(row: any) {
   }
 }
 
-async function handleDismiss(row: any) {
+async function handleDismiss(row: ReportRow) {
   if (submitting.value) return;
   let reason: string;
   try {

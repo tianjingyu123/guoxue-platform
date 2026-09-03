@@ -8,7 +8,9 @@
         @change="onFilterChange"
       >
         <el-radio-button value="open">
-          未解除<template v-if="openCount > 0">（{{ openCount }}）</template>
+          未解除<template v-if="openCount > 0">
+            （{{ openCount }}）
+          </template>
         </el-radio-button>
         <el-radio-button value="resolved">
           已解除

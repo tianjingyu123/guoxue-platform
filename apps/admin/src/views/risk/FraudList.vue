@@ -16,7 +16,7 @@ interface FraudRow {
   status?: string
   createdAt?: string
   stationId?: string
-  evidence: Record<string, any>
+  evidence: Record<string, unknown>
 }
 
 const loading = ref(false)
@@ -126,8 +126,8 @@ function maskId(id?: string): string {
 function evidenceSummary(row: FraudRow): string {
   const e = row?.evidence || {}
   const parts: string[] = []
-  if (e.deviceId) parts.push(`设备 ${maskId(e.deviceId)}`)
-  if (e.ip) parts.push(`IP ${maskIp(e.ip)}`)
+  if (typeof e.deviceId === 'string') parts.push(`设备 ${maskId(e.deviceId)}`)
+  if (typeof e.ip === 'string') parts.push(`IP ${maskIp(e.ip)}`)
   if (e.userCount != null) parts.push(`关联账号 ${e.userCount}`)
   if (Array.isArray(e.userIds) && e.userCount == null) parts.push(`关联账号 ${e.userIds.length}`)
   if (e.orderCount != null) parts.push(`下单 ${e.orderCount} 次`)
@@ -142,10 +142,10 @@ function getOrderCount(row: FraudRow): string {
 }
 
 // 证据链中含原始 IP/设备ID，展示前掩码
-function sanitizedEvidence(row: FraudRow): Record<string, any> {
+function sanitizedEvidence(row: FraudRow): Record<string, unknown> {
   const e = { ...(row?.evidence || {}) }
-  if (e.ip) e.ip = maskIp(e.ip)
-  if (e.deviceId) e.deviceId = maskId(e.deviceId)
+  if (typeof e.ip === 'string') e.ip = maskIp(e.ip)
+  if (typeof e.deviceId === 'string') e.deviceId = maskId(e.deviceId)
   return e
 }
 

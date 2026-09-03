@@ -179,7 +179,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="头像">
-          <CosImageUpload v-model="form.avatar" tip="点击上传头像" />
+          <CosImageUpload
+            v-model="form.avatar"
+            tip="点击上传头像"
+          />
         </el-form-item>
         <el-form-item label="专长标签">
           <el-input

@@ -2,23 +2,49 @@
   <div class="orders-page">
     <section class="order-hero">
       <div class="hero-copy">
-        <p class="eyebrow">订单中枢 · ORDER CONTROL</p>
+        <p class="eyebrow">
+          订单中枢 · ORDER CONTROL
+        </p>
         <h1>从下单到签收，每一步都有下一步</h1>
         <p>
           付款、备货、发货、签收与售后保持在同一条经营主线上，异常订单优先暴露，减少跨页面寻找。
         </p>
       </div>
       <div class="hero-actions">
-        <el-button plain @click="goShipping">发货履约</el-button>
-        <el-button plain @click="goAfterSales">售后质检</el-button>
-        <el-button type="primary" :loading="loading" @click="fetchList">刷新数据</el-button>
+        <el-button
+          plain
+          @click="goShipping"
+        >
+          发货履约
+        </el-button>
+        <el-button
+          plain
+          @click="goAfterSales"
+        >
+          售后质检
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="fetchList"
+        >
+          刷新数据
+        </el-button>
       </div>
     </section>
 
-    <section v-if="customerId || focusOrderId" class="customer-scope" aria-label="当前订单筛选">
-      <div class="scope-avatar">{{ (customerName || "客").slice(0, 1) }}</div>
+    <section
+      v-if="customerId || focusOrderId"
+      class="customer-scope"
+      aria-label="当前订单筛选"
+    >
+      <div class="scope-avatar">
+        {{ (customerName || "客").slice(0, 1) }}
+      </div>
       <div>
-        <p class="eyebrow">CUSTOMER ORDER TRAIL</p>
+        <p class="eyebrow">
+          CUSTOMER ORDER TRAIL
+        </p>
         <strong>
           {{
             focusOrderId
@@ -28,10 +54,19 @@
         </strong>
         <span>订单处理仍沿用同一套发货、物流与售后规则，可随时返回完整队列。</span>
       </div>
-      <el-button text type="primary" @click="clearCustomerScope">返回全部客户订单</el-button>
+      <el-button
+        text
+        type="primary"
+        @click="clearCustomerScope"
+      >
+        返回全部客户订单
+      </el-button>
     </section>
 
-    <section class="order-metrics" aria-label="订单状态总览">
+    <section
+      class="order-metrics"
+      aria-label="订单状态总览"
+    >
       <button
         v-for="item in orderMetrics"
         :key="item.key"
@@ -48,22 +83,33 @@
 
     <section class="order-route">
       <div class="route-intro">
-        <p class="eyebrow">ORDER ROUTE</p>
+        <p class="eyebrow">
+          ORDER ROUTE
+        </p>
         <h2>一张订单，四段旅程</h2>
         <span>让商家知道当前要做什么，也知道完成后流向哪里。</span>
       </div>
-      <div v-for="(step, index) in orderRoute" :key="step.title" class="route-step">
+      <div
+        v-for="(step, index) in orderRoute"
+        :key="step.title"
+        class="route-step"
+      >
         <span class="step-index">0{{ index + 1 }}</span>
         <strong>{{ step.title }}</strong>
         <small>{{ step.desc }}</small>
-        <span v-if="index < orderRoute.length - 1" class="step-arrow">›</span>
+        <span
+          v-if="index < orderRoute.length - 1"
+          class="step-arrow"
+        >›</span>
       </div>
     </section>
 
     <section class="order-workspace">
       <div class="page-header">
         <div>
-          <p class="eyebrow">ORDER QUEUE</p>
+          <p class="eyebrow">
+            ORDER QUEUE
+          </p>
           <h2>{{ customerId ? `${customerName || "该客户"}的订单` : "订单处理队列" }}</h2>
         </div>
         <div class="header-right">
@@ -75,18 +121,42 @@
             @change="onFilterChange"
           >
             <!-- 状态枚举与后端 OrderStatus 一致：PENDING/PAID/SHIPPED/COMPLETED/REFUNDED/CANCELLED -->
-            <el-option label="待付款" value="PENDING" />
-            <el-option label="已付款" value="PAID" />
-            <el-option label="已发货" value="SHIPPED" />
-            <el-option label="已完成" value="COMPLETED" />
-            <el-option label="已退款" value="REFUNDED" />
-            <el-option label="已取消" value="CANCELLED" />
+            <el-option
+              label="待付款"
+              value="PENDING"
+            />
+            <el-option
+              label="已付款"
+              value="PAID"
+            />
+            <el-option
+              label="已发货"
+              value="SHIPPED"
+            />
+            <el-option
+              label="已完成"
+              value="COMPLETED"
+            />
+            <el-option
+              label="已退款"
+              value="REFUNDED"
+            />
+            <el-option
+              label="已取消"
+              value="CANCELLED"
+            />
           </el-select>
-          <el-button @click="fetchList"> 刷新 </el-button>
+          <el-button @click="fetchList">
+            刷新
+          </el-button>
         </div>
       </div>
 
-      <div class="status-tabs" role="tablist" aria-label="订单状态筛选">
+      <div
+        class="status-tabs"
+        role="tablist"
+        aria-label="订单状态筛选"
+      >
         <button
           v-for="tab in statusTabs"
           :key="tab.value || 'all'"
@@ -105,18 +175,32 @@
         sub-title="订单数据加载失败，请稍后重试"
       >
         <template #extra>
-          <el-button type="primary" @click="fetchList"> 重试 </el-button>
+          <el-button
+            type="primary"
+            @click="fetchList"
+          >
+            重试
+          </el-button>
         </template>
       </el-result>
 
-      <el-table v-else v-loading="loading" :data="list" stripe>
+      <el-table
+        v-else
+        v-loading="loading"
+        :data="list"
+        stripe
+      >
         <template #empty>
           <el-empty description="暂无订单，买家下单后会出现在这里" />
         </template>
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="order-detail">
-              <el-descriptions :column="3" border size="small">
+              <el-descriptions
+                :column="3"
+                border
+                size="small"
+              >
                 <el-descriptions-item label="订单号">
                   {{ row.orderNo || row.id }}
                 </el-descriptions-item>
@@ -157,40 +241,72 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="订单号" width="180" show-overflow-tooltip>
+        <el-table-column
+          label="订单号"
+          width="180"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             {{ row.orderNo || row.id }}
           </template>
         </el-table-column>
-        <el-table-column label="商品" min-width="150" show-overflow-tooltip>
+        <el-table-column
+          label="商品"
+          min-width="150"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             {{ row.productTitle || "—" }}
           </template>
         </el-table-column>
-        <el-table-column label="金额" width="110" align="right">
+        <el-table-column
+          label="金额"
+          width="110"
+          align="right"
+        >
           <template #default="{ row }">
             {{ fmtMoney(row.payAmount ?? row.amount) }}
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="90">
+        <el-table-column
+          label="状态"
+          width="90"
+        >
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">
+            <el-tag
+              :type="statusType(row.status)"
+              size="small"
+            >
               {{ statusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="买家" width="130" show-overflow-tooltip>
+        <el-table-column
+          label="买家"
+          width="130"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             {{ row.buyerNickname || "—" }}
-            <span v-if="row.buyerPhone" class="buyer-phone">{{ row.buyerPhone }}</span>
+            <span
+              v-if="row.buyerPhone"
+              class="buyer-phone"
+            >{{ row.buyerPhone }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="下单时间" width="150">
+        <el-table-column
+          label="下单时间"
+          width="150"
+        >
           <template #default="{ row }">
             {{ fmtTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="90" fixed="right">
+        <el-table-column
+          label="操作"
+          width="90"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button
               v-if="row.status === 'PAID'"
@@ -201,12 +317,18 @@
             >
               发货
             </el-button>
-            <span v-else class="no-action">—</span>
+            <span
+              v-else
+              class="no-action"
+            >—</span>
           </template>
         </el-table-column>
       </el-table>
 
-      <div v-if="!error" class="list-tip">
+      <div
+        v-if="!error"
+        class="list-tip"
+      >
         买家发起的退款/退货申请，请到「售后管理」页处理（同意/拒绝在该页闭环）。
       </div>
 
@@ -224,20 +346,50 @@
     </section>
 
     <!-- 发货 -->
-    <el-dialog v-model="shipDialog" title="发货" width="450px">
+    <el-dialog
+      v-model="shipDialog"
+      title="发货"
+      width="450px"
+    >
       <el-form label-width="80px">
-        <el-form-item label="物流公司" required>
-          <el-select v-model="shipForm.company" placeholder="选择物流公司" style="width: 100%">
-            <el-option v-for="c in couriers" :key="c" :label="c" :value="c" />
+        <el-form-item
+          label="物流公司"
+          required
+        >
+          <el-select
+            v-model="shipForm.company"
+            placeholder="选择物流公司"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="c in couriers"
+              :key="c"
+              :label="c"
+              :value="c"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="快递单号" required>
-          <el-input v-model="shipForm.trackingNo" placeholder="请输入快递单号" />
+        <el-form-item
+          label="快递单号"
+          required
+        >
+          <el-input
+            v-model="shipForm.trackingNo"
+            placeholder="请输入快递单号"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="shipDialog = false"> 取消 </el-button>
-        <el-button type="primary" :loading="saving" @click="doShip"> 确认发货 </el-button>
+        <el-button @click="shipDialog = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="doShip"
+        >
+          确认发货
+        </el-button>
       </template>
     </el-dialog>
   </div>

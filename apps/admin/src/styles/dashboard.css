@@ -1,0 +1,141 @@
+/* 角色工作台统一皮肤：让 6 套岗位仪表盘拥有同一信息层级与动作语义。 */
+
+#app .dashboard {
+  width: 100%;
+  max-width: 1760px;
+  margin: 0 auto;
+}
+
+#app .dashboard :is(.section-card, .quick-actions) {
+  margin-bottom: 18px;
+  padding: 19px 22px;
+  border: 1px solid var(--color-divider);
+  border-radius: 18px;
+  background: rgba(255,255,255,.92);
+  box-shadow: var(--shadow-card);
+}
+
+#app .dashboard :is(.section-card__title, .quick-actions__title) {
+  margin-bottom: 14px;
+  color: var(--color-text-title);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+#app .dashboard :is(.qa-grid, .quick-actions__grid) {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0,1fr));
+  gap: 8px;
+}
+
+#app .dashboard :is(.qa-item, .qa-card) {
+  display: grid;
+  grid-template-columns: 36px minmax(0,1fr);
+  min-height: 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 12px;
+  color: var(--color-text-body);
+  background: #f8f9fb;
+  cursor: pointer;
+  transition: border-color var(--transition-base), background var(--transition-base), box-shadow var(--transition-base);
+}
+
+#app .dashboard :is(.qa-item, .qa-card):hover {
+  transform: none;
+  border-color: #bac5d0;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(24,45,68,.07);
+}
+
+#app .dashboard .qa-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 10px;
+  color: #335f88;
+  background: #e8eef4;
+}
+#app .dashboard .qa-label { color: #49576a; font-size: 12px; font-weight: 600; }
+
+#app .dashboard .stats-row { margin-bottom: 18px; }
+#app .dashboard .stat-card {
+  position: relative;
+  min-height: 142px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  padding: 20px 21px;
+  border: 1px solid var(--color-divider);
+  border-radius: 16px;
+  color: var(--color-text-title);
+  background: rgba(255,255,255,.94);
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base);
+}
+#app .dashboard .stat-card::after {
+  position: absolute;
+  top: -32px;
+  right: -24px;
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  background: rgba(51, 95, 136, .07);
+  content: "";
+}
+#app .dashboard .stat-card:is(.stat-card--link, [role="button"]):hover {
+  transform: translateY(-2px);
+  border-color: #b8c4d0;
+  box-shadow: var(--shadow-card-hover);
+}
+#app .dashboard .stat-card__top { position: relative; z-index: 1; margin-bottom: 14px; }
+#app .dashboard .stat-card__label { color: #758091; font-size: 12px; }
+#app .dashboard .stat-card__icon {
+  display: grid;
+  width: 35px;
+  height: 35px;
+  place-items: center;
+  border-radius: 10px;
+  color: #335f88;
+  background: #e9eff5;
+}
+#app .dashboard .stat-card__value {
+  position: relative;
+  z-index: 1;
+  color: #1b2a3d;
+  font-family: var(--font-family-number);
+  font-size: 29px;
+  font-weight: 650;
+  letter-spacing: -.035em;
+}
+#app .dashboard .stat-card__value--alert { color: var(--color-error); }
+#app .dashboard :is(.stat-card__delta, .stat-card__trend) { position: relative; z-index: 1; font-size: 11px; }
+
+#app .dashboard .charts-row { margin-bottom: 18px; }
+#app .dashboard .charts-row .el-card { height: 100%; border-radius: 18px !important; }
+
+#app .dashboard .alerts-row { gap: 10px; margin-bottom: 18px; }
+#app .dashboard .health-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; }
+#app .dashboard .health-item {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border-light);
+  border-radius: 11px;
+  background: #f8f9fb;
+}
+
+@media (max-width: 1180px) {
+  #app .dashboard :is(.qa-grid, .quick-actions__grid) { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  #app .dashboard .health-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  #app .dashboard .stats-row > .el-col { max-width: 33.333%; flex: 0 0 33.333%; }
+}
+
+@media (max-width: 680px) {
+  #app .dashboard :is(.qa-grid, .quick-actions__grid) { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  #app .dashboard .health-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  #app .dashboard :is(.section-card, .quick-actions) { padding: 15px; }
+  #app .dashboard .stats-row > .el-col,
+  #app .dashboard .charts-row > .el-col { max-width: 100%; flex: 0 0 100%; }
+}

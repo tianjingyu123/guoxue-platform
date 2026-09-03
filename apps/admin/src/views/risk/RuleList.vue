@@ -10,7 +10,7 @@ interface RiskRule {
   type?: string
   action?: string
   enabled?: boolean
-  conditions?: Record<string, any>
+  conditions?: Record<string, unknown>
   createdAt?: string
   updatedAt?: string
 }
@@ -132,9 +132,14 @@ async function save() {
     return
   }
   // 解析并校验高级 JSON（后端要求为对象），再叠加结构化输入的常用键
-  let conditions: Record<string, any>
+  let conditions: Record<string, unknown>
   try {
-    conditions = conditionsText.value.trim() ? JSON.parse(conditionsText.value) : {}
+    const parsed: unknown = conditionsText.value.trim() ? JSON.parse(conditionsText.value) : {}
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      ElMessage.error('高级 JSON 配置必须是对象')
+      return
+    }
+    conditions = parsed as Record<string, unknown>
   } catch {
     ElMessage.error('高级 JSON 配置不是合法的 JSON')
     return
@@ -446,7 +451,7 @@ async function del(id: string) {
                   v-model="conditionsText"
                   type="textarea"
                   :rows="5"
-                  placeholder='JSON 对象，例如 {"threshold": 10, "window": "24h"}'
+                  placeholder="JSON 对象，例如 {&quot;threshold&quot;: 10, &quot;window&quot;: &quot;24h&quot;}"
                 />
                 <div class="cond-hint">
                   上方结构化输入的「阈值 / 时间窗口」保存时会覆盖此处的同名 threshold / window 键

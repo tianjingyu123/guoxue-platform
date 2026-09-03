@@ -1,14 +1,17 @@
 <template>
   <div
     v-loading="loading"
-    class="bigscreen transaction"
+    class="bigscreen tech-screen transaction"
   >
     <header class="bs-header">
       <div class="bs-title">
         实时交易数据大屏
       </div>
-      <div class="bs-time">
-        {{ nowStr }}
+      <div class="bs-header-tools">
+        <div class="bs-time">
+          {{ nowStr }}
+        </div>
+        <BigscreenActions @resize="resizeCharts" />
       </div>
     </header>
 
@@ -48,7 +51,7 @@
       <div class="bs-grid-2">
         <!-- 品类占比 -->
         <div class="bs-panel">
-          <h3>📊 今日品类交易占比</h3>
+          <h3>今日品类交易占比</h3>
           <div
             v-show="data.typeBreakdown?.length"
             ref="pieChartRef"
@@ -62,7 +65,7 @@
         </div>
         <!-- 最近订单滚动 -->
         <div class="bs-panel">
-          <h3>📋 最近成交订单</h3>
+          <h3>最近成交订单</h3>
           <div class="order-scroll">
             <div
               v-for="o in data.recentOrders || []"
@@ -97,6 +100,7 @@
 </template>
 
 <script setup lang="ts">
+import BigscreenActions from "@/components/BigscreenActions.vue";
 import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
@@ -135,7 +139,7 @@ function fmtTime(t: string) { return t ? new Date(t).toLocaleTimeString("zh-CN")
 
 function renderPie() {
   if (!pieChartRef.value) return;
-  if (!pieChart) pieChart = echarts.init(pieChartRef.value);
+  if (!pieChart) pieChart = echarts.init(pieChartRef.value, "tech-screen");
   const bd = data.value.typeBreakdown || [];
   pieChart.setOption({
     tooltip: { trigger: "item", formatter: "{b}: ¥{c} ({d}%)" },
@@ -177,6 +181,10 @@ async function refresh() {
     await nextTick();
     renderPie();
   } catch { /* 静默刷新失败：保留上一次数据 */ }
+}
+
+function resizeCharts() {
+  pieChart?.resize();
 }
 
 onMounted(() => {

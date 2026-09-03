@@ -222,9 +222,9 @@
           {{ previewTarget.categoryLevel1 }}{{ previewTarget.categoryLevel2 ? ' / ' + previewTarget.categoryLevel2 : '' }}
           · {{ (previewTarget.body || previewTarget.content || '').length }}字
         </p>
-        <div
+        <SafeHtml
           class="content-body"
-          v-html="sanitize(previewTarget.body || previewTarget.content)"
+          :html="previewTarget.body || previewTarget.content"
         />
       </div>
     </el-dialog>
@@ -234,7 +234,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { sanitize } from "@/utils/sanitize";
+import SafeHtml from "@/components/SafeHtml.vue";
 import { contentApi, api } from "@/api";
 
 // 待评估/预览内容行

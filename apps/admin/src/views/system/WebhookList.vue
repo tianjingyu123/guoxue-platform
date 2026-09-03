@@ -245,7 +245,7 @@ onMounted(() => fetchList())
 async function fetchList() {
   loading.value = true
   loadError.value = false
-  try { const res = await webhookApi.list(); list.value = (res.data as any) || [] }
+  try { const res = await webhookApi.list(); list.value = Array.isArray(res.data) ? res.data as WebhookRow[] : [] }
   catch { loadError.value = true; list.value = []; ElMessage.error('加载失败，请重试') }
   finally { loading.value = false }
 }

@@ -125,7 +125,7 @@
         >
           <template #header>
             <div class="agent-header">
-              <span class="agent-icon">{{ CAT_ICONS[agent.category] || '🤖' }}</span>
+              <span class="agent-icon">{{ CAT_ICONS[agent.category] || '智' }}</span>
               <div style="flex:1;min-width:0">
                 <div class="agent-name">
                   {{ agent.name }}
@@ -335,7 +335,7 @@ interface Agent {
   todayCalls?: number;
 }
 
-const CAT_ICONS: Record<string, string> = { paipan: "🔮", customer_service: "💁", content: "📝", operation: "⚙️", knowledge: "📚", circle: "🔄" };
+const CAT_ICONS: Record<string, string> = { paipan: "排", customer_service: "客", content: "创", operation: "运", knowledge: "知", circle: "圈" };
 const CAT_LABELS: Record<string, string> = { paipan: "排盘类", customer_service: "客服类", content: "内容类", operation: "运营类", knowledge: "知识类", circle: "圈子类" };
 const CATEGORY_ORDER = ["paipan", "customer_service", "content", "knowledge", "circle"];
 

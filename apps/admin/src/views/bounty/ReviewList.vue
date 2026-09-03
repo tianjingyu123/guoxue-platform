@@ -50,112 +50,112 @@
         <template #empty>
           <el-empty :description="statusFilter ? '当前页无此状态的记录，换个筛选或翻页看看' : '暂无审核记录'" />
         </template>
-      <el-table-column
-        prop="questionTitle"
-        label="问题标题"
-        min-width="180"
-        show-overflow-tooltip
-      >
-        <template #default="{ row }">
-          {{ row.questionTitle || '--' }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="问题ID"
-        width="110"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            :content="row.questionId"
-            placement="top"
-            :disabled="!row.questionId"
-          >
-            <span
-              class="id-chip"
-              @click="copyId(row.questionId)"
-            >{{ shortId(row.questionId) }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="审核人ID"
-        width="110"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            :content="row.reviewerId"
-            placement="top"
-            :disabled="!row.reviewerId"
-          >
-            <span
-              class="id-chip"
-              @click="copyId(row.reviewerId)"
-            >{{ shortId(row.reviewerId) }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="status"
-        label="审核状态"
-        width="110"
-      >
-        <template #default="{ row }">
-          <el-tag :type="reviewStatusTag(row.status)">
-            {{ reviewStatusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        prop="reason"
-        label="原因/备注"
-        min-width="200"
-        show-overflow-tooltip
-      >
-        <template #default="{ row }">
-          {{ row.reason || '--' }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="创建时间"
-        width="150"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            :content="row.createdAt"
-            placement="top"
-            :disabled="!row.createdAt"
-          >
-            <span>{{ fmtTime(row.createdAt) }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="操作"
-        width="180"
-        fixed="right"
-      >
-        <template #default="{ row }">
-          <el-button
-            size="small"
-            type="success"
-            :disabled="row.status !== 'PENDING'"
-            :loading="processingId === row.id"
-            @click="handleApprove(row)"
-          >
-            通过
-          </el-button>
-          <el-button
-            size="small"
-            type="danger"
-            :disabled="row.status !== 'PENDING'"
-            :loading="processingId === row.id"
-            @click="handleReject(row)"
-          >
-            拒绝
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        <el-table-column
+          prop="questionTitle"
+          label="问题标题"
+          min-width="180"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.questionTitle || '--' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="问题ID"
+          width="110"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              :content="row.questionId"
+              placement="top"
+              :disabled="!row.questionId"
+            >
+              <span
+                class="id-chip"
+                @click="copyId(row.questionId)"
+              >{{ shortId(row.questionId) }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="审核人ID"
+          width="110"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              :content="row.reviewerId"
+              placement="top"
+              :disabled="!row.reviewerId"
+            >
+              <span
+                class="id-chip"
+                @click="copyId(row.reviewerId)"
+              >{{ shortId(row.reviewerId) }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="status"
+          label="审核状态"
+          width="110"
+        >
+          <template #default="{ row }">
+            <el-tag :type="reviewStatusTag(row.status)">
+              {{ reviewStatusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="reason"
+          label="原因/备注"
+          min-width="200"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.reason || '--' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="创建时间"
+          width="150"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              :content="row.createdAt"
+              placement="top"
+              :disabled="!row.createdAt"
+            >
+              <span>{{ fmtTime(row.createdAt) }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="180"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              type="success"
+              :disabled="row.status !== 'PENDING'"
+              :loading="processingId === row.id"
+              @click="handleApprove(row)"
+            >
+              通过
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              :disabled="row.status !== 'PENDING'"
+              :loading="processingId === row.id"
+              @click="handleReject(row)"
+            >
+              拒绝
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
       <el-pagination
         v-model:current-page="page"

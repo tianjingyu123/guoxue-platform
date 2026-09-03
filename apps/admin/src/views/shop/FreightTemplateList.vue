@@ -191,7 +191,7 @@
             v-model="form.regionsText"
             type="textarea"
             :rows="3"
-            placeholder='选填 JSON 对象，如 {"新疆": 20, "西藏": 20, "内蒙古": 15}（省份名: 运费元）；留空按默认运费'
+            placeholder="选填 JSON 对象，如 {&quot;新疆&quot;: 20, &quot;西藏&quot;: 20, &quot;内蒙古&quot;: 15}（省份名: 运费元）；留空按默认运费"
           />
           <div class="field-hint">
             格式：{"省份名": 运费元, ...}。填写有误将无法保存。

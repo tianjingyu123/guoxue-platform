@@ -389,7 +389,12 @@ export const circleApi = {
     api.get(`/circles/${circleId}/expert/${userId}`),
   setExpertConfig: (
     circleId: string,
-    data: { userId?: string; questionPriceCoin?: number; callPricePerMinuteCoin?: number },
+    data: {
+      userId?: string;
+      questionPriceCoin?: number;
+      questionTimeoutHours?: number;
+      callPricePerMinuteCoin?: number;
+    },
   ) => api.post(`/circles/${circleId}/expert/config`, data),
   // 付费入圈
   prepareJoin: (circleId: string, data?: Record<string, unknown>) =>
@@ -519,7 +524,7 @@ export const userApi = {
     api.get(`/users/${id}/purchases`, { params }),
   getAdminProfile: (id: string) => api.get(`/users/${id}/profile`),
   getInterestStats: () => api.get("/users/stats/interests"),
-  pushByTag: (data: { tag: string; title: string; content: string }) =>
+  pushByTag: (data: { tag: string; title: string; content: string; memberLevel?: string; activeDays?: number }) =>
     api.post("/users/push/by-tag", data),
   listWhitelist: (params?: { page?: number; pageSize?: number }) =>
     api.get("/users/whitelist", { params }),
@@ -786,17 +791,28 @@ export const offlineApi = {
   cancelBooking: (bookingId: string) => api.put(`/offline/teacher-bookings/${bookingId}/cancel`),
 };
 
+export interface UploadImageResponse {
+  url: string;
+}
+
+export type VodSignatureResponse =
+  | string
+  | {
+      signature?: string;
+      data?: { signature?: string; data?: { signature?: string } };
+    };
+
 // 文件上传
 export const uploadApi = {
   image: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    return api.post("/upload/image", fd, {
+    return api.post<UploadImageResponse>("/upload/image", fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });
   },
   // 获取 VOD 上传签名(视频直传腾讯云点播·前端用 vod-js-sdk-v6 拿此签名上传)
-  getVodSignature: () => api.post("/videos/vod/upload-signature", {}),
+  getVodSignature: () => api.post<VodSignatureResponse>("/videos/vod/upload-signature", {}),
 };
 
 // 分佣管理
@@ -1592,7 +1608,8 @@ export const revenueApi = {
   earnings: (params?: { page?: number; pageSize?: number; userId?: string }) =>
     api.get("/revenue/earnings", { params }),
   platformOverview: () => api.get("/revenue/platform/overview"),
-  platformTrends: (params?: { days?: number }) => api.get("/revenue/platform/trends", { params }),
+  platformTrends: (params?: { days?: number | "month" | "year" }) =>
+    api.get("/revenue/platform/trends", { params }),
   stats: (params?: { startDate?: string; endDate?: string }) =>
     api.get("/revenue/stats", { params }),
   breakdown: (params?: { startDate?: string; endDate?: string }) =>
@@ -1809,6 +1826,7 @@ export const articleApi = {
     tag?: string;
     isPushHome?: string;
     status?: string;
+    auditStatus?: string;
     keyword?: string;
   }) => api.get("/articles", { params }),
   stats: () => api.get("/articles/stats"),
@@ -2219,20 +2237,23 @@ export const aiCapabilityApi = {
 // ───────── AI决策账本 ─────────
 export const aiDecisionApi = {
   list: (params?: {
-    page?: number;
-    pageSize?: number;
+    limit?: number;
+    offset?: number;
     agentId?: string;
+    capabilityId?: string;
     riskLevel?: string;
     humanAction?: string;
+    startDate?: string;
+    endDate?: string;
   }) => api.get("/ai/decisions", { params }),
   overview: () => api.get("/ai/decisions/overview"),
   trace: (id: string) => api.get(`/ai/decisions/trace/${id}`),
   retrospective: (id: string) => api.get(`/ai/decisions/retrospective/${id}`),
-  review: (id: string, data: { humanAction: string; humanReviewer?: string; humanNote?: string }) =>
+  review: (id: string, data: { action: "approved" | "rejected" | "modified"; note?: string }) =>
     api.post(`/ai/decisions/${id}/review`, data),
-  outcome: (id: string, data: { outcomeMetric: string; outcomeActual: number }) =>
+  outcome: (id: string, data: { metric: string; expectedValue: number; actualValue: number }) =>
     api.post(`/ai/decisions/${id}/outcome`, data),
-  compare: (params?: { agentId1?: string; agentId2?: string; days?: number }) =>
+  compare: (params: { modelA: string; modelB: string; agentId: string }) =>
     api.get("/ai/decisions/compare", { params }),
 };
 
@@ -2383,13 +2404,13 @@ export const tenantAdminApi = {
   create: (data: Record<string, unknown>) => api.post("/admin/tenants", data),
   update: (id: string, data: Record<string, unknown>) => api.put(`/admin/tenants/${id}`, data),
   delete: (id: string) => api.delete(`/admin/tenants/${id}`),
-  recharge: (id: string, data: { amount: number }) =>
+  recharge: (id: string, data: { quotaAmount: number }) =>
     api.post(`/admin/tenants/${id}/recharge`, data),
   getUsage: (
     id: string,
-    params?: { page?: number; pageSize?: number; startDate?: string; endDate?: string },
+    params?: { page?: number; pageSize?: number; startDate?: string; endDate?: string; days?: number },
   ) => api.get(`/admin/tenants/${id}/usage`, { params }),
-  getLogs: (id: string, params?: { page?: number; pageSize?: number }) =>
+  getLogs: (id: string, params?: { page?: number; pageSize?: number; status?: string }) =>
     api.get(`/admin/tenants/${id}/logs`, { params }),
 };
 

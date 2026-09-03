@@ -1,18 +1,29 @@
 <template>
   <main class="login-page">
-    <section class="login-shell" aria-labelledby="login-title">
+    <section
+      class="login-shell"
+      aria-labelledby="login-title"
+    >
       <div class="brand-panel">
-        <BrandLogo :title="BRAND.name" subtitle="平台运营中枢" />
+        <BrandLogo
+          :title="BRAND.name"
+          subtitle="平台运营中枢"
+        />
 
         <div class="brand-statement">
-          <p class="brand-eyebrow">数字化国学馆藏 · 运营中枢</p>
+          <p class="brand-eyebrow">
+            数字化国学馆藏 · 运营中枢
+          </p>
           <h1>把文化内容，运营成可信赖的长期资产。</h1>
           <p class="brand-description">
             从内容治理到交易履约，以统一权限、审计留痕和数据洞察支撑每一次运营决策。
           </p>
         </div>
 
-        <ul class="capability-list" aria-label="平台核心治理能力">
+        <ul
+          class="capability-list"
+          aria-label="平台核心治理能力"
+        >
           <li><span>内容</span>审核、版权与发布全链路治理</li>
           <li><span>经营</span>商家、订单与履约统一协同</li>
           <li><span>安全</span>资金、权限与风险实时留痕</li>
@@ -26,12 +37,18 @@
 
       <div class="login-panel">
         <div class="mobile-logo">
-          <BrandLogo :title="BRAND.name" subtitle="管理后台" theme="light" />
+          <BrandLogo
+            :title="BRAND.name"
+            subtitle="管理后台"
+            theme="light"
+          />
         </div>
 
         <div class="login-heading">
           <p>安全登录</p>
-          <h2 id="login-title">欢迎回来</h2>
+          <h2 id="login-title">
+            欢迎回来
+          </h2>
           <span>请使用已授权的管理账号进入工作台</span>
         </div>
 
@@ -44,7 +61,10 @@
           class="login-form"
           @submit.prevent="handleLogin"
         >
-          <el-form-item label="手机号" prop="phone">
+          <el-form-item
+            label="手机号"
+            prop="phone"
+          >
             <el-input
               v-model="form.phone"
               placeholder="请输入 11 位手机号"
@@ -54,7 +74,10 @@
               clearable
             />
           </el-form-item>
-          <el-form-item label="密码" prop="password">
+          <el-form-item
+            label="密码"
+            prop="password"
+          >
             <el-input
               v-model="form.password"
               type="password"

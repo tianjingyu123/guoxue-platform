@@ -51,6 +51,7 @@ COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_mod
 COPY --from=builder /app/apps/server/dist ./apps/server/dist
 COPY --from=builder /app/apps/server/prisma ./apps/server/prisma
 COPY --from=builder /app/apps/server/package.json ./apps/server/
+COPY --from=builder /app/apps/server/prisma.config.ts ./apps/server/
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/bazi-engine/dist ./packages/bazi-engine/dist

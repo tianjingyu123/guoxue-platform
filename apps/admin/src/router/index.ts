@@ -723,6 +723,12 @@ const routes = [
         meta: { title: "AI用量统计", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
       },
       {
+        path: "ai/decisions",
+        name: "AiDecisionLedger",
+        component: () => import("@/views/ai/DecisionLedger.vue"),
+        meta: { title: "AI决策账本", roles: ["SUPER_ADMIN", "OPERATION_ADMIN"] },
+      },
+      {
         path: "ai/chat-logs",
         name: "BotChatLogs",
         component: () => import("@/views/ai/BotChatLogs.vue"),
@@ -1471,6 +1477,25 @@ const routes = [
   ...(import.meta.env.DEV
     ? [
         {
+          path: "/__qa/admin-shell",
+          component: () => import("@/views/Layout.vue"),
+          meta: { hidden: true, title: "后台工作台视觉验收", devPreview: true },
+          children: [
+            {
+              path: "",
+              name: "AdminShellPreview",
+              component: () => import("@/views/qa/AdminShellPreview.vue"),
+              meta: { hidden: true, title: "后台工作台视觉验收", devPreview: true },
+            },
+            {
+              path: "workflow/:kind",
+              name: "AdminWorkflowPreview",
+              component: () => import("@/views/qa/WorkflowPreview.vue"),
+              meta: { hidden: true, title: "后台工作流视觉验收", devPreview: true },
+            },
+          ],
+        },
+        {
           path: "/__qa/merchant-dashboard",
           name: "MerchantDashboardPreview",
           component: () => import("@/views/merchant-backend/MerchantDashboard.vue"),
@@ -1517,6 +1542,18 @@ const routes = [
           name: "AdminCommandPalettePreview",
           component: () => import("@/views/qa/AdminCommandPalettePreview.vue"),
           meta: { hidden: true, title: "运营目录索引视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/platform-bigscreen",
+          name: "PlatformBigscreenPreview",
+          component: () => import("@/views/dashboard/PlatformBigscreen.vue"),
+          meta: { hidden: true, title: "平台综合大屏视觉验收", devPreview: true },
+        },
+        {
+          path: "/__qa/cockpit",
+          name: "CockpitPreview",
+          component: () => import("@/views/dashboard/Cockpit.vue"),
+          meta: { hidden: true, title: "管理驾驶舱视觉验收", devPreview: true },
         },
       ]
     : []),

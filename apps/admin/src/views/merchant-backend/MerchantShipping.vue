@@ -2,18 +2,39 @@
   <div class="shipping-page">
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">履约控制台 · FULFILLMENT CONTROL</p>
+        <p class="eyebrow">
+          履约控制台 · FULFILLMENT CONTROL
+        </p>
         <h1>从付款到签收，每一单都有明确下一步</h1>
         <p>先处理待发货，再跟进在途运单；批量动作保留逐单结果，异常订单不会被成功订单掩盖。</p>
       </div>
       <div class="hero-actions">
-        <el-button class="ghost-btn" @click="router.push('/merchant-backend/inventory')">库存与采购</el-button>
-        <el-button class="ghost-btn" @click="router.push('/merchant-backend/after-sales')">售后质检</el-button>
-        <el-button type="primary" :loading="loading" @click="fetchList">刷新数据</el-button>
+        <el-button
+          class="ghost-btn"
+          @click="router.push('/merchant-backend/inventory')"
+        >
+          库存与采购
+        </el-button>
+        <el-button
+          class="ghost-btn"
+          @click="router.push('/merchant-backend/after-sales')"
+        >
+          售后质检
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="fetchList"
+        >
+          刷新数据
+        </el-button>
       </div>
     </section>
 
-    <section class="metrics" aria-label="发货状态总览">
+    <section
+      class="metrics"
+      aria-label="发货状态总览"
+    >
       <button
         v-for="item in shippingMetrics"
         :key="item.key"
@@ -29,7 +50,9 @@
 
     <section class="workflow">
       <div class="workflow-copy">
-        <p class="eyebrow dark">TODAY'S ROUTE</p>
+        <p class="eyebrow dark">
+          TODAY'S ROUTE
+        </p>
         <h2>今日履约路径</h2>
         <span>按承诺时间完成拣货、核址、出库和轨迹跟进。</span>
       </div>
@@ -44,190 +67,198 @@
     <section class="workspace">
       <header class="workspace-head">
         <div>
-          <p class="eyebrow dark">ORDER QUEUE</p>
+          <p class="eyebrow dark">
+            ORDER QUEUE
+          </p>
           <h2>履约订单</h2>
         </div>
-        <div class="status-tabs" role="tablist" aria-label="订单状态筛选">
+        <div
+          class="status-tabs"
+          role="tablist"
+          aria-label="订单状态筛选"
+        >
           <button
             v-for="tab in statusTabs"
             :key="tab.value"
             type="button"
             :class="{ active: filterStatus === tab.value }"
             @click="applyStatusFilter(tab.value)"
-          >{{ tab.label }}</button>
+          >
+            {{ tab.label }}
+          </button>
         </div>
       </header>
 
       <el-result
-      v-if="error"
-      icon="error"
-      title="加载失败"
-      sub-title="订单列表加载失败，请稍后重试"
-    >
-      <template #extra>
-        <el-button
-          type="primary"
-          @click="fetchList"
-        >
-          重试
-        </el-button>
-      </template>
-    </el-result>
+        v-if="error"
+        icon="error"
+        title="加载失败"
+        sub-title="订单列表加载失败，请稍后重试"
+      >
+        <template #extra>
+          <el-button
+            type="primary"
+            @click="fetchList"
+          >
+            重试
+          </el-button>
+        </template>
+      </el-result>
 
       <template v-else>
-      <!-- 批量操作栏：勾选待发货订单后出现 -->
-      <div
-        v-if="selectedShippable.length"
-        class="batch-bar"
-      >
-        <span>已选 {{ selectedShippable.length }} 个待发货订单</span>
-        <el-button
-          type="primary"
-          size="small"
-          @click="openBatchShip"
+        <!-- 批量操作栏：勾选待发货订单后出现 -->
+        <div
+          v-if="selectedShippable.length"
+          class="batch-bar"
         >
-          批量发货
-        </el-button>
-      </div>
+          <span>已选 {{ selectedShippable.length }} 个待发货订单</span>
+          <el-button
+            type="primary"
+            size="small"
+            @click="openBatchShip"
+          >
+            批量发货
+          </el-button>
+        </div>
 
-      <el-table
-        v-loading="loading"
-        :data="list"
-        stripe
-        @selection-change="handleSelection"
-      >
-        <template #empty>
-          <el-empty description="暂无订单，买家付款后待发货订单会出现在这里" />
-        </template>
-        <el-table-column
-          type="selection"
-          width="50"
-          :selectable="(row: ShipOrderRow) => row.status === 'PAID'"
-        />
-        <el-table-column
-          label="订单号"
-          width="180"
-          show-overflow-tooltip
+        <el-table
+          v-loading="loading"
+          :data="list"
+          stripe
+          @selection-change="handleSelection"
         >
-          <template #default="{ row }">
-            {{ row.orderNo || row.id }}
+          <template #empty>
+            <el-empty description="暂无订单，买家付款后待发货订单会出现在这里" />
           </template>
-        </el-table-column>
-        <el-table-column
-          label="商品"
-          min-width="140"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            {{ row.productTitle || "—" }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="金额"
-          width="110"
-          align="right"
-        >
-          <template #default="{ row }">
-            {{ fmtMoney(row.payAmount ?? row.amount) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="买家"
-          width="110"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            {{ row.buyerNickname || "—" }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="收件人"
-          width="110"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            {{ row.shippingInfo?.name || "—" }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="收货地址"
-          min-width="180"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            {{ shippingAddress(row) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="状态"
-          width="90"
-        >
-          <template #default="{ row }">
-            <el-tag
-              :type="row.status === 'PAID' ? 'warning' : row.status === 'SHIPPED' ? 'primary' : 'success'"
-              size="small"
-            >
-              {{ ({ PAID: "待发货", SHIPPED: "已发货", COMPLETED: "已完成" } as Record<string, string>)[row.status || ''] || row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="物流信息"
-          min-width="150"
-        >
-          <template #default="{ row }">
-            <span v-if="row.shipCompany || row.trackingNo">{{ row.shipCompany || "—" }} / {{ row.trackingNo || "—" }}</span>
-            <span
-              v-else
-              class="muted"
-            >—</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="下单时间"
-          width="150"
-        >
-          <template #default="{ row }">
-            {{ fmtTime(row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          width="120"
-          fixed="right"
-        >
-          <template #default="{ row }">
-            <el-button
-              v-if="row.status === 'PAID'"
-              size="small"
-              text
-              type="primary"
-              @click="openShip(row)"
-            >
-              发货
-            </el-button>
-            <el-button
-              v-if="row.trackingNo"
-              size="small"
-              text
-              type="info"
-              @click="openTrack(row)"
-            >
-              物流
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          <el-table-column
+            type="selection"
+            width="50"
+            :selectable="(row: ShipOrderRow) => row.status === 'PAID'"
+          />
+          <el-table-column
+            label="订单号"
+            width="180"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ row.orderNo || row.id }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="商品"
+            min-width="140"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ row.productTitle || "—" }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="金额"
+            width="110"
+            align="right"
+          >
+            <template #default="{ row }">
+              {{ fmtMoney(row.payAmount ?? row.amount) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="买家"
+            width="110"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ row.buyerNickname || "—" }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="收件人"
+            width="110"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ row.shippingInfo?.name || "—" }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="收货地址"
+            min-width="180"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ shippingAddress(row) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="90"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.status === 'PAID' ? 'warning' : row.status === 'SHIPPED' ? 'primary' : 'success'"
+                size="small"
+              >
+                {{ ({ PAID: "待发货", SHIPPED: "已发货", COMPLETED: "已完成" } as Record<string, string>)[row.status || ''] || row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="物流信息"
+            min-width="150"
+          >
+            <template #default="{ row }">
+              <span v-if="row.shipCompany || row.trackingNo">{{ row.shipCompany || "—" }} / {{ row.trackingNo || "—" }}</span>
+              <span
+                v-else
+                class="muted"
+              >—</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="下单时间"
+            width="150"
+          >
+            <template #default="{ row }">
+              {{ fmtTime(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="120"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                v-if="row.status === 'PAID'"
+                size="small"
+                text
+                type="primary"
+                @click="openShip(row)"
+              >
+                发货
+              </el-button>
+              <el-button
+                v-if="row.trackingNo"
+                size="small"
+                text
+                type="info"
+                @click="openTrack(row)"
+              >
+                物流
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
 
         <el-pagination
-        v-model:current-page="page"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
-        style="margin-top:16px;justify-content:flex-end"
-        @current-change="fetchList"
-        @size-change="onFilterChange"
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :total="total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next"
+          style="margin-top:16px;justify-content:flex-end"
+          @current-change="fetchList"
+          @size-change="onFilterChange"
         />
       </template>
     </section>
@@ -645,7 +676,7 @@ async function fetchList() {
     list.value = data.items || data.list || data.data || [];
     if (!filterStatus.value) overviewList.value = list.value;
     total.value = data.total || 0;
-  } catch (e) {
+  } catch {
     error.value = true;
   } finally { loading.value = false; }
 }

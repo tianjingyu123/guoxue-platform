@@ -59,7 +59,7 @@ describe("Content E2E", () => {
   describe("GET /api/v1/contents/:id", () => {
     it("返回内容详情", async () => {
       prisma.content.findUnique.mockResolvedValue({
-        id: "c1", title: "论语精选", body: "学而时习之", type: "CLASSIC",
+        id: "c1", title: "论语精选", body: "学而时习之", type: "CLASSIC", status: "PUBLISHED",
       })
 
       const res = await request(app.getHttpServer())
@@ -67,6 +67,11 @@ describe("Content E2E", () => {
         .expect(200)
 
       expect(res.body.title).toBe("论语精选")
+    })
+
+    it("匿名请求不能读取草稿详情", async () => {
+      prisma.content.findUnique.mockResolvedValue({ id: "draft1", title: "未发布", status: "DRAFT" })
+      await request(app.getHttpServer()).get("/api/v1/contents/draft1").expect(404)
     })
 
     it("内容不存在返回 404", async () => {

@@ -431,6 +431,7 @@
 import { ref, reactive, onMounted, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import type { FormInstance, InputInstance } from "element-plus";
 import { Delete } from "@element-plus/icons-vue";
 import { competitionApi } from "@/api";
 import CosImageUpload from "@/components/upload/CosImageUpload.vue";
@@ -458,7 +459,7 @@ const statusLabels: Record<string, { text: string; type: string }> = {
   FINISHED: { text: "已结束", type: "" },
 };
 
-const formRef = ref<any>(null); // el-form 实例引用，保留 any
+const formRef = ref<FormInstance>();
 const saving = ref(false);
 const statusChanging = ref(false);
 const deleting = ref(false);
@@ -496,7 +497,7 @@ const rules = {
 // 标签输入
 const tagInputVisible = ref(false);
 const tagInputValue = ref("");
-const tagInputRef = ref<any>(null); // el-input 实例引用，保留 any
+const tagInputRef = ref<InputInstance>();
 
 function showTagInput() { tagInputVisible.value = true; nextTick(() => tagInputRef.value?.focus?.()); }
 function addPrizeRow() {

@@ -28,47 +28,53 @@ defineProps<{ title: string; description?: string }>()
 <style scoped>
 .page-header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: var(--spacing-xl);
-  padding: var(--spacing-lg) var(--spacing-xl);
-  background: var(--color-bg-card);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-divider);
-  box-shadow: var(--shadow-sm);
+  gap: 24px;
+  margin-bottom: 22px;
+  padding: 2px 2px 4px;
 }
 .header-left {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
+  min-width: 0;
+  align-items: stretch;
+  gap: 13px;
 }
-/* 左侧金线装饰条 */
 .header-accent {
-  width: 3px;
-  height: 32px;
+  width: 4px;
+  min-height: 44px;
   border-radius: var(--radius-full);
-  background: var(--gradient-gold);
+  background: linear-gradient(180deg, var(--color-primary) 0 42%, var(--color-gold) 42% 100%);
   flex-shrink: 0;
 }
 .header-content {
   display: flex;
-  align-items: baseline;
-  gap: var(--spacing-md);
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
 }
 .header-title {
   margin: 0;
-  font-size: var(--font-size-title);
-  font-weight: 600;
+  font-size: 25px;
+  font-weight: 680;
+  letter-spacing: -.025em;
   color: var(--color-text-title);
 }
 .header-desc {
   color: var(--color-text-secondary);
   font-size: var(--font-size-caption);
+  line-height: 1.6;
 }
 .header-actions {
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   flex-shrink: 0;
+}
+@media (max-width: 900px) {
+  .page-header { align-items: flex-start; flex-direction: column; }
+  .header-actions { width: 100%; flex-wrap: wrap; }
+  .header-title { font-size: 22px; }
 }
 </style>

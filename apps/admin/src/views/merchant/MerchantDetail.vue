@@ -119,7 +119,10 @@
             <el-descriptions-item label="法定代表人/经营者">
               {{ merchant.legalRepresentative || '-' }}
             </el-descriptions-item>
-            <el-descriptions-item label="注册地址" :span="2">
+            <el-descriptions-item
+              label="注册地址"
+              :span="2"
+            >
               {{ merchant.registeredAddress || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="执照有效期">
@@ -128,7 +131,11 @@
             <el-descriptions-item label="下次复核">
               {{ formatDate(merchant.qualificationNextReviewAt) }}
             </el-descriptions-item>
-            <el-descriptions-item v-if="merchant.qualificationRejectReason" label="资质补正原因" :span="2">
+            <el-descriptions-item
+              v-if="merchant.qualificationRejectReason"
+              label="资质补正原因"
+              :span="2"
+            >
               <span style="color:#d03050">{{ merchant.qualificationRejectReason }}</span>
             </el-descriptions-item>
             <el-descriptions-item label="身份证正面">
@@ -885,10 +892,22 @@
           />
         </el-form-item>
         <el-form-item label="风险等级">
-          <el-select v-model="approveForm.riskLevel" style="width:100%">
-            <el-option label="低风险 · 材料完整且一致" value="LOW" />
-            <el-option label="中风险 · 需持续观察" value="MEDIUM" />
-            <el-option label="高风险 · 限制经营" value="HIGH" />
+          <el-select
+            v-model="approveForm.riskLevel"
+            style="width:100%"
+          >
+            <el-option
+              label="低风险 · 材料完整且一致"
+              value="LOW"
+            />
+            <el-option
+              label="中风险 · 需持续观察"
+              value="MEDIUM"
+            />
+            <el-option
+              label="高风险 · 限制经营"
+              value="HIGH"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="内部备注">

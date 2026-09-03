@@ -1,15 +1,17 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import ElementPlus from "element-plus";
 import { ElMessage } from "element-plus";
-import zhCn from "element-plus/es/locale/lang/zh-cn";
-import "element-plus/dist/index.css";
+import "element-plus/es/components/message/style/css";
+import "element-plus/es/components/message-box/style/css";
+import "element-plus/es/components/notification/style/css";
 import "./styles/tokens.css";
 import "./styles/global.css";
+import "./styles/experience.css";
+import "./styles/bigscreen.css";
+import "./styles/dashboard.css";
 import App from "./App.vue";
 import router from "./router";
 import permission from "./directives/permission";
-import i18n from "./locales";
 import { hydrateBrandConfig } from "./lib/brand";
 
 const app = createApp(App);
@@ -18,7 +20,7 @@ const app = createApp(App);
 app.config.errorHandler = (err, _instance, info) => {
   console.error("[全局错误]", info, err);
   // axios 错误已由 API 拦截器统一提示，此处不重复弹出
-  if ((err as any)?.response?.status) return;
+  if ((err as { response?: { status?: number } })?.response?.status) return;
   const msg = err instanceof Error ? err.message : String(err);
   ElMessage.error(`操作失败：${msg}`);
 };
@@ -33,9 +35,6 @@ window.addEventListener("unhandledrejection", (event) => {
 
 app.use(createPinia());
 app.use(router);
-app.use(i18n);
-// 全局中文化：一次性令 el-table 空态、el-pagination、el-date-picker 等内置文案走中文
-app.use(ElementPlus, { locale: zhCn });
 app.directive("permission", permission);
 // 启动时水合品牌配置（失败用内置默认值）
 hydrateBrandConfig();

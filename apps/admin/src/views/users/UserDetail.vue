@@ -663,22 +663,49 @@ import { userApi, orderApi } from '@/api'
 const route = useRoute()
 const userId = route.params.id as string
 
+interface UserInfo { id: string; nickname?: string; phone?: string; email?: string; gender?: string; birthday?: string; bio?: string; status?: string; createdAt?: string }
+interface MemberInfo { memberLevel?: string; memberExpire?: string }
+interface OrderStats { totalOrders?: number; totalAmount?: number | string }
+interface DeviceInfo { deviceId?: string; platform?: string; isTrusted?: boolean; firstSeenAt?: string; lastSeenAt?: string }
+interface LearningProgress { courseId?: string; progress?: number; completed?: boolean; updatedAt?: string }
+interface BehaviorItem { id: string; action: string; targetType?: string; targetId?: string; ip?: string; deviceId?: string; meta?: Record<string, unknown>; createdAt: string }
+interface UserProfile {
+  userInfo?: UserInfo;
+  memberInfo?: MemberInfo;
+  orderStats?: OrderStats;
+  deviceList?: DeviceInfo[];
+  learningProgress?: LearningProgress[];
+  recentBehavior?: BehaviorItem[];
+  circleCount?: number;
+  coinBalance?: number;
+}
+interface UserStats { totalCollects?: number; totalLikes?: number; followers?: number; following?: number }
+interface UserRole { roleType: string; bindId?: string }
+interface UserOrder { id: string; type: string; amount?: number | string; status: string; createdAt?: string }
+interface UserCircle { circle?: { id?: string; name?: string }; role: string; joinedAt?: string; createdAt?: string }
+type HttpError = { response?: { status?: number } }
+
+function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null }
+function rolesFrom(value: unknown): UserRole[] {
+  return isRecord(value) && Array.isArray(value.roles) ? value.roles as UserRole[] : []
+}
+
 const activeTab = ref('profile')
-const profile = ref<any>({})
-const stats = ref<any>({})
+const profile = ref<UserProfile>({})
+const stats = ref<UserStats>({})
 const pageError = ref(false)
-const userRoles = ref<any[]>([])
-const orders = ref<any[]>([])
+const userRoles = ref<UserRole[]>([])
+const orders = ref<UserOrder[]>([])
 const orderLoading = ref(false)
 const ordersLoaded = ref(false)
 const orderPage = ref(1)
 const orderPageSize = 20
 const orderTotal = ref(0)
-const circles = ref<any[]>([])
+const circles = ref<UserCircle[]>([])
 const circlesLoading = ref(false)
 // idle=未加载 ready=已加载 unavailable=端点未部署(404降级) error=其他错误可重试
 const circlesState = ref<'idle' | 'ready' | 'unavailable' | 'error'>('idle')
-const behaviors = ref<any[]>([])
+const behaviors = ref<BehaviorItem[]>([])
 const newRole = ref('')
 const assigning = ref(false)
 
@@ -689,8 +716,8 @@ probe.interceptors.request.use((cfg) => {
   if (t) cfg.headers.Authorization = `Bearer ${t}`
   return cfg
 })
-function unwrapEnvelope(d: any) {
-  return d && typeof d === 'object' && 'code' in d && 'data' in d ? d.data : d
+function unwrapEnvelope(d: unknown): unknown {
+  return isRecord(d) && 'code' in d && 'data' in d ? d.data : d
 }
 
 const availableRoles = [
@@ -775,7 +802,7 @@ function behaviorTagType(a: string) {
 }
 
 /** 行为 meta 人话化：键翻译 + 枚举值复用 BEHAVIOR_MAP/TARGET_MAP，替代 JSON 生肉 */
-function formatMeta(meta: Record<string, any>): string {
+function formatMeta(meta: Record<string, unknown>): string {
   return Object.entries(meta)
     .map(([k, v]) => {
       const key = META_KEY_MAP[k] || k
@@ -857,7 +884,7 @@ async function loadProfile() {
     profile.value = profileRes.data
     behaviors.value = profileRes.data.recentBehavior || []
     stats.value = statsRes.data || {}
-    userRoles.value = (detailRes.data as any)?.roles || []
+    userRoles.value = rolesFrom(detailRes.data)
   } catch {
     pageError.value = true
   }
@@ -892,11 +919,11 @@ async function fetchCircles() {
     // 新契约：GET /users/:id/circles → [{circle:{id,name},role,joinedAt}]（并行后端部署中，404 时降级提示）
     const res = await probe.get(`/users/${userId}/circles`)
     const d = unwrapEnvelope(res.data)
-    circles.value = Array.isArray(d) ? d : (d?.items || [])
+    circles.value = Array.isArray(d) ? d as UserCircle[] : (isRecord(d) && Array.isArray(d.items) ? d.items as UserCircle[] : [])
     circlesState.value = 'ready'
-  } catch (e: any) {
+  } catch (e: unknown) {
     circles.value = []
-    circlesState.value = e?.response?.status === 404 ? 'unavailable' : 'error'
+    circlesState.value = (e as HttpError)?.response?.status === 404 ? 'unavailable' : 'error'
   } finally { circlesLoading.value = false }
 }
 
@@ -922,7 +949,7 @@ function maskIp(ip?: string) {
 
 async function refreshRoles() {
   const { data } = await userApi.detail(userId)
-  userRoles.value = (data as any)?.roles || []
+  userRoles.value = rolesFrom(data)
 }
 
 async function assignRole() {
@@ -942,7 +969,7 @@ async function assignRole() {
   } catch { /* 取消或失败（失败已由全局拦截器提示） */ } finally { assigning.value = false }
 }
 
-async function removeRole(row: any) {
+async function removeRole(row: UserRole) {
   try {
     await ElMessageBox.confirm(
       `确定移除角色「${roleLabel(row.roleType)}」？`,
@@ -971,7 +998,7 @@ async function handleBan() {
     )
     await userApi.ban(userId, reason.trim())
     ElMessage.success('已封禁')
-    profile.value.userInfo.status = 'DISABLED'
+    if (profile.value.userInfo) profile.value.userInfo.status = 'DISABLED'
   } catch { /* 取消或失败（失败已由全局拦截器提示） */ }
 }
 
@@ -982,16 +1009,16 @@ async function handleUnban() {
     })
     await userApi.unban(userId)
     ElMessage.success('已解封')
-    profile.value.userInfo.status = 'ACTIVE'
+    if (profile.value.userInfo) profile.value.userInfo.status = 'ACTIVE'
   } catch { /* 取消或失败（失败已由全局拦截器提示） */ }
 }
 </script>
 
 <style scoped>
-.user-detail { padding: 16px; }
-.header-title { font-size: 16px; font-weight: 500; color: #333; }
+.user-detail { padding: 0; }
+.header-title { display: inline-block; max-width: min(62vw, 720px); overflow: hidden; color: var(--color-text-title); font-size: 18px; font-weight: 680; text-overflow: ellipsis; vertical-align: middle; white-space: nowrap; }
 .tabs { margin-top: 16px; }
-.tab-toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+.tab-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; background: var(--color-bg-page); }
 .tab-summary { padding: 8px 0 12px; font-size: 14px; color: #666; }
 .tab-summary b { color: #C41E3A; }
 .summary-note { display: block; margin-top: 4px; font-size: 12px; color: var(--color-text-secondary); }
@@ -1015,4 +1042,9 @@ h4 { color: var(--color-text-title); margin: 8px 0; }
 .behavior-target { color: #666; font-size: 13px; }
 .behavior-meta { color: var(--color-text-secondary); font-size: 12px; }
 .behavior-meta-detail { width: 100%; font-size: 12px; color: var(--color-text-secondary); word-break: break-all; }
+
+@media (max-width: 760px) {
+  .header-title { max-width: 72vw; font-size: 16px; }
+  .tab-toolbar { align-items: stretch; flex-direction: column; }
+}
 </style>

@@ -5,25 +5,25 @@
 
 services:
   postgres:
-    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
-    container_name: guoxue-test-pg
+    # 与正式编排使用同一摘要，空库初始化需要 vector / pg_trgm 扩展。
+    image: pgvector/pgvector:pg16@sha256:a36250871de0833b8757561c72f2477ef1ddd1101afa4e617fb552e0de514c6b
     environment:
       POSTGRES_USER: guoxue
       POSTGRES_PASSWORD: guoxue123
-      POSTGRES_DB: guoxue
+      POSTGRES_DB: guoxue_test
     ports:
-      - "5433:5432" # 避免与本地 PG 冲突
+      - "127.0.0.1:${TEST_POSTGRES_PORT:-55433}:5432" # 不占用现有业务库的 5432/5433
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U guoxue"]
+      test: ["CMD-SHELL", "pg_isready -U guoxue -d guoxue_test"]
       interval: 3s
       timeout: 3s
       retries: 10
 
   redis:
     image: redis:7-alpine@sha256:e7723ff73d963f5cc6d9c4643ea3d989527a402a319239054e9472a7fb9219a2
-    container_name: guoxue-test-redis
     ports:
-      - "6380:6379" # 避免与本地 Redis 冲突
+      - "127.0.0.1:${TEST_REDIS_PORT:-56380}:6379" # 仅本机可访问，不占用旧 Redis
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
@@ -34,12 +34,14 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.test
-    container_name: guoxue-test-runner
     environment:
-      DATABASE_URL: postgresql://guoxue:guoxue123@postgres:5432/guoxue
+      DATABASE_URL: postgresql://guoxue:guoxue123@postgres:5432/guoxue_test
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: e2e-test-jwt-secret
-      ENCRYPTION_KEY: e2e-test-key-32bytes-long!!!
+      QA_REDIS_URL: redis://redis:6379/15
+      QA_REDIS_CONFIRM: ISOLATED_TEST_REDIS
+      JWT_SECRET: e2e-test-only-jwt-secret-never-production
+      ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef"
+      BIGSCREEN_SECRET: e2e-test-only-bigscreen-never-production
       NODE_ENV: test
     depends_on:
       postgres:
@@ -49,7 +51,7 @@ services:
     # 迁移 + E2E 测试（可覆盖跑全部测试）
     command:
       - /bin/sh
-      - -c
+      - -ec
       - |
         echo "[test] 等待数据库就绪..."
         i=0
@@ -62,12 +64,14 @@ services:
             sock.on('timeout', () => { sock.destroy(); process.exit(1); });
           " && break
           i=$$((i + 1))
-          echo \"[test] 数据库未就绪, 等待中... ($$i/30)\"
+          echo "[test] 数据库未就绪, 等待中... ($$i/30)"
           sleep 2
         done
+        echo "[test] 生成 Prisma Client..."
+        pnpm --dir apps/server exec prisma generate --schema=prisma/schema.prisma
         echo "[test] 执行数据库迁移..."
         (cd apps/server && CONFIRM_EMPTY_DATABASE=YES sh prisma/migrations-deploy/bootstrap-empty-database.sh)
-        echo "[test] 生成 Prisma Client..."
-        npx prisma generate --schema=apps/server/prisma/schema.prisma
+        echo "[test] 验证真实 Redis 7 队列与失败重试..."
+        node apps/server/scripts/qa-redis-smoke.cjs
         echo "[test] 运行测试..."
-        npx jest --testPathPattern test/ --runInBand --forceExit
+        pnpm --dir apps/server exec jest --config jest.config.ts --testPathPattern test/ --runInBand

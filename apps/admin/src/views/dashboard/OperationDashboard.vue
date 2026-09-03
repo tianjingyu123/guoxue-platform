@@ -3,7 +3,7 @@
  * OperationDashboard.vue — 运营管理员面板
  * 用户增长 / 内容审核 / 活跃度监控
  */
-import { ref, computed, onMounted, onBeforeUnmount } from "vue"
+import { ref, shallowRef, computed, onMounted, onBeforeUnmount } from "vue"
 import type { Component } from "vue"
 import { useRouter } from "vue-router"
 import { api } from "@/api"
@@ -11,6 +11,7 @@ import GreetingHeader from "@/components/GreetingHeader.vue"
 import AnimatedCounter from "@/components/AnimatedCounter.vue"
 import AnomalyAlert from "@/components/AnomalyAlert.vue"
 import ChartCard from "@/components/ChartCard.vue"
+import { firstChartTooltipDatum, type ChartOption } from "@/utils/chart"
 import { useAuthStore } from "@/store/auth"
 import { Plus, Document, Edit, WarningFilled, View, User, Collection, Calendar,
   Promotion, Star, Odometer, CaretTop, CaretBottom } from "@element-plus/icons-vue"
@@ -57,15 +58,14 @@ const alerts = ref<AlertItem[]>([])
 // ==================== 统计卡片 ====================
 interface CardDelta { value: number; dir: "up" | "down" | "flat"; label: string }
 interface CardDef { label: string; value: number; icon: Component; delta?: CardDelta }
-const cards = ref<CardDef[]>([])
+const cards = shallowRef<CardDef[]>([])
 
 // ==================== 加载状态 ====================
 const loading = ref(true)
 const loadError = ref(false)
 
 // ==================== 用户增长趋势 (ECharts) ====================
-// userGrowthOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
-const userGrowthOption = ref<any>({})
+const userGrowthOption = ref<ChartOption>({})
 const hasUserGrowth = ref(false)
 
 /** 构建用户增长折线图 option */
@@ -103,9 +103,8 @@ function buildUserGrowthOption(dates: string[], values: number[]) {
       trigger: "axis", backgroundColor: "#fff",
       borderColor: "#F0F0F0", borderWidth: 1,
       textStyle: { color: "#1A1A1A", fontSize: 13 },
-      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
-      formatter: (params: any) => {
-        const p = params[0]
+      formatter: (params: unknown) => {
+        const p = firstChartTooltipDatum(params)
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
                 <div>新增用户：<span style="color:#FF6B6B;font-weight:600">${p.value}</span></div>`
       },
@@ -253,83 +252,83 @@ async function load() {
     </el-result>
 
     <template v-else>
-    <!-- 报警行 -->
-    <div
-      v-if="alerts.length"
-      class="alerts-row"
-    >
-      <AnomalyAlert
-        v-for="a in alerts"
-        :key="a.text"
-        v-bind="a"
-      />
-    </div>
-
-    <!-- 统计卡片 4×2 -->
-    <el-row
-      :gutter="20"
-      class="stats-row"
-    >
-      <el-col
-        v-for="card in cards"
-        :key="card.label"
-        :xs="24"
-        :sm="12"
-        :md="6"
+      <!-- 报警行 -->
+      <div
+        v-if="alerts.length"
+        class="alerts-row"
       >
-        <div
-          class="stat-card"
-          @click="onCardClick(card)"
+        <AnomalyAlert
+          v-for="a in alerts"
+          :key="a.text"
+          v-bind="a"
+        />
+      </div>
+
+      <!-- 统计卡片 4×2 -->
+      <el-row
+        :gutter="20"
+        class="stats-row"
+      >
+        <el-col
+          v-for="card in cards"
+          :key="card.label"
+          :xs="24"
+          :sm="12"
+          :md="6"
         >
-          <div class="stat-card__top">
-            <span class="stat-card__label">{{ card.label }}</span>
-            <div class="stat-card__icon">
-              <el-icon :size="18">
-                <component :is="card.icon" />
+          <div
+            class="stat-card"
+            @click="onCardClick(card)"
+          >
+            <div class="stat-card__top">
+              <span class="stat-card__label">{{ card.label }}</span>
+              <div class="stat-card__icon">
+                <el-icon :size="18">
+                  <component :is="card.icon" />
+                </el-icon>
+              </div>
+            </div>
+            <div
+              class="stat-card__value"
+              :class="{ 'stat-card__value--alert': (card.label === '待审核内容' || card.label === '待处理举报') && card.value > 0 }"
+            >
+              <AnimatedCounter :value="card.value" />
+            </div>
+            <div
+              v-if="card.delta"
+              class="stat-card__delta"
+              :class="`stat-card__delta--${card.delta.dir}`"
+            >
+              <el-icon :size="12">
+                <component :is="card.delta.dir === 'down' ? CaretBottom : CaretTop" />
               </el-icon>
+              <span>{{ card.delta.value }}% {{ card.delta.label }}</span>
             </div>
           </div>
-          <div
-            class="stat-card__value"
-            :class="{ 'stat-card__value--alert': (card.label === '待审核内容' || card.label === '待处理举报') && card.value > 0 }"
-          >
-            <AnimatedCounter :value="card.value" />
-          </div>
-          <div
-            v-if="card.delta"
-            class="stat-card__delta"
-            :class="`stat-card__delta--${card.delta.dir}`"
-          >
-            <el-icon :size="12">
-              <component :is="card.delta.dir === 'down' ? CaretBottom : CaretTop" />
-            </el-icon>
-            <span>{{ card.delta.value }}% {{ card.delta.label }}</span>
-          </div>
-        </div>
-      </el-col>
-    </el-row>
+        </el-col>
+      </el-row>
 
-    <!-- 用户增长趋势折线图 -->
-    <el-row
-      :gutter="20"
-      class="charts-row"
-    >
-      <el-col
-        :xs="24"
-        :md="24"
+      <!-- 用户增长趋势折线图 -->
+      <el-row
+        :gutter="20"
+        class="charts-row"
       >
-        <ChartCard
-          v-if="hasUserGrowth"
-          title="用户增长趋势 · 近30天"
-          :option="userGrowthOption"
-          :height="320"
-        />
-        <el-empty
-          v-else
-          description="暂无用户增长数据"
-        />
-      </el-col>
-    </el-row>
+        <el-col
+          :xs="24"
+          :md="24"
+        >
+          <ChartCard
+            v-if="hasUserGrowth"
+            title="用户增长趋势 · 近30天"
+            :option="userGrowthOption"
+            :height="320"
+          />
+          <el-empty
+            v-else
+            description="暂无用户增长数据"
+          />
+        </el-col>
+      </el-row>
     </template>
   </div>
 </template>

@@ -5,7 +5,7 @@
  */
 import { computed } from 'vue'
 import type { Yao, Hexagram } from '@guoxue/shared'
-import { UI_COLORS, JIXIONG } from '@guoxue/shared'
+import { UI_COLORS } from '@guoxue/shared'
 
 const props = defineProps<{
   /** 本卦 */
@@ -53,7 +53,7 @@ function liuShouLabel(shou: string): string {
 }
 
 /** 爻类型 → 视觉符号 */
-function yaoSymbol(type: Yao['type'], isDong: boolean): string {
+function yaoSymbol(type: Yao['type']): string {
   const sym: Record<string, string> = {
     shaoyang: '⚊', shaoyin: '⚋', laoyang: '◯', laoyin: '✕',
   }
@@ -66,19 +66,6 @@ function yaoTypeClass(type: Yao['type']): string {
   return 'yin'
 }
 
-/** 世应标签 */
-function shiYingOf(pos: number): string {
-  if (pos === props.shiYao) return '世'
-  if (pos === props.yingYao) return '应'
-  return ''
-}
-
-/** 动爻标记 */
-function dongMark(pos: number): string {
-  const y = props.yaos.find((y2) => y2.position === pos)
-  return y?.isDongYao ? '→' : ''
-}
-
 /** 从下到上排列的爻（初爻=1显示在最下） */
 const bottomUpYaos = computed(() => [...props.yaos].sort((a, b) => b.position - a.position))
 </script>
@@ -86,38 +73,85 @@ const bottomUpYaos = computed(() => [...props.yaos].sort((a, b) => b.position - 
 <template>
   <div class="liuyao-board">
     <!-- 卦宫 + 五行信息 -->
-    <div class="board-header" v-if="guaGong || wuXing">
-      <span v-if="guaGong" class="gua-gong">{{ guaGong }}</span>
-      <span v-if="wuXing" class="gua-wuxing" :style="{ color: wuXingColor(wuXing) }">属{{ wuXing }}</span>
-      <span v-if="dongYaoCount > 0" class="dong-count">{{ dongYaoCount }} 爻动</span>
+    <div
+      v-if="guaGong || wuXing"
+      class="board-header"
+    >
+      <span
+        v-if="guaGong"
+        class="gua-gong"
+      >{{ guaGong }}</span>
+      <span
+        v-if="wuXing"
+        class="gua-wuxing"
+        :style="{ color: wuXingColor(wuXing) }"
+      >属{{ wuXing }}</span>
+      <span
+        v-if="dongYaoCount > 0"
+        class="dong-count"
+      >{{ dongYaoCount }} 爻动</span>
     </div>
 
     <!-- 卦象三栏：本卦 | 变卦 | 互卦 -->
     <div class="hexagrams-row">
       <!-- 本卦栏 -->
       <div class="hexa-col main-hexa">
-        <div class="hexa-label">本卦</div>
-        <div class="hexa-symbol">{{ benGua.symbol || '' }}</div>
-        <div class="hexa-name">{{ benGua.name }}</div>
-        <div class="hexa-trigrams">{{ benGua.upper }} {{ benGua.lower }}</div>
+        <div class="hexa-label">
+          本卦
+        </div>
+        <div class="hexa-symbol">
+          {{ benGua.symbol || '' }}
+        </div>
+        <div class="hexa-name">
+          {{ benGua.name }}
+        </div>
+        <div class="hexa-trigrams">
+          {{ benGua.upper }} {{ benGua.lower }}
+        </div>
       </div>
 
       <!-- 变卦栏 -->
-      <div class="hexa-col" v-if="hasBianGua">
-        <div class="hexa-arrow">→</div>
-        <div class="hexa-label">变卦</div>
-        <div class="hexa-symbol">{{ bianGua?.symbol || '' }}</div>
-        <div class="hexa-name">{{ bianGua?.name }}</div>
-        <div class="hexa-trigrams">{{ bianGua?.upper }} {{ bianGua?.lower }}</div>
+      <div
+        v-if="hasBianGua"
+        class="hexa-col"
+      >
+        <div class="hexa-arrow">
+          →
+        </div>
+        <div class="hexa-label">
+          变卦
+        </div>
+        <div class="hexa-symbol">
+          {{ bianGua?.symbol || '' }}
+        </div>
+        <div class="hexa-name">
+          {{ bianGua?.name }}
+        </div>
+        <div class="hexa-trigrams">
+          {{ bianGua?.upper }} {{ bianGua?.lower }}
+        </div>
       </div>
 
       <!-- 互卦栏 -->
-      <div class="hexa-col" v-if="hasHuGua">
-        <div class="hexa-arrow">⊞</div>
-        <div class="hexa-label">互卦</div>
-        <div class="hexa-symbol">{{ huGua?.symbol || '' }}</div>
-        <div class="hexa-name">{{ huGua?.name }}</div>
-        <div class="hexa-trigrams">{{ huGua?.upper }} {{ huGua?.lower }}</div>
+      <div
+        v-if="hasHuGua"
+        class="hexa-col"
+      >
+        <div class="hexa-arrow">
+          ⊞
+        </div>
+        <div class="hexa-label">
+          互卦
+        </div>
+        <div class="hexa-symbol">
+          {{ huGua?.symbol || '' }}
+        </div>
+        <div class="hexa-name">
+          {{ huGua?.name }}
+        </div>
+        <div class="hexa-trigrams">
+          {{ huGua?.upper }} {{ huGua?.lower }}
+        </div>
       </div>
     </div>
 
@@ -126,14 +160,30 @@ const bottomUpYaos = computed(() => [...props.yaos].sort((a, b) => b.position - 
       <table class="yao-table">
         <thead>
           <tr>
-            <th class="col-pos">爻位</th>
-            <th class="col-symbol">爻象</th>
-            <th class="col-najia">纳甲</th>
-            <th class="col-liuqin">六亲</th>
-            <th class="col-liushou">六兽</th>
-            <th class="col-wuxing">五行</th>
-            <th class="col-shiying">世应</th>
-            <th class="col-dong">动变</th>
+            <th class="col-pos">
+              爻位
+            </th>
+            <th class="col-symbol">
+              爻象
+            </th>
+            <th class="col-najia">
+              纳甲
+            </th>
+            <th class="col-liuqin">
+              六亲
+            </th>
+            <th class="col-liushou">
+              六兽
+            </th>
+            <th class="col-wuxing">
+              五行
+            </th>
+            <th class="col-shiying">
+              世应
+            </th>
+            <th class="col-dong">
+              动变
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -152,24 +202,40 @@ const bottomUpYaos = computed(() => [...props.yaos].sort((a, b) => b.position - 
               <span class="pos-label">{{ ['','初','二','三','四','五','上'][yao.position] }}</span>
             </td>
             <td class="col-symbol">
-              <span class="yao-symbol" :class="yaoTypeClass(yao.type)">
-                {{ yaoSymbol(yao.type, yao.isDongYao) }}
+              <span
+                class="yao-symbol"
+                :class="yaoTypeClass(yao.type)"
+              >
+                {{ yaoSymbol(yao.type) }}
               </span>
             </td>
-            <td class="col-najia">{{ yao.naJia }}</td>
+            <td class="col-najia">
+              {{ yao.naJia }}
+            </td>
             <td class="col-liuqin">
               <span :style="{ color: liuQinColor(yao.liuQin) }">{{ yao.liuQin }}</span>
             </td>
-            <td class="col-liushou">{{ liuShouLabel(yao.liuShou) }}</td>
+            <td class="col-liushou">
+              {{ liuShouLabel(yao.liuShou) }}
+            </td>
             <td class="col-wuxing">
               <span :style="{ color: wuXingColor(yao.wuXing) }">{{ yao.wuXing }}</span>
             </td>
             <td class="col-shiying">
-              <span v-if="yao.position === shiYao" class="badge badge-shi">世</span>
-              <span v-else-if="yao.position === yingYao" class="badge badge-ying">应</span>
+              <span
+                v-if="yao.position === shiYao"
+                class="badge badge-shi"
+              >世</span>
+              <span
+                v-else-if="yao.position === yingYao"
+                class="badge badge-ying"
+              >应</span>
             </td>
             <td class="col-dong">
-              <span v-if="yao.isDongYao" class="dong-mark">● 动变</span>
+              <span
+                v-if="yao.isDongYao"
+                class="dong-mark"
+              >● 动变</span>
             </td>
           </tr>
         </tbody>

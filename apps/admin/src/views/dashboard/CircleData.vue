@@ -10,6 +10,7 @@
  * 后端 200 返回 {error:"圈子不存在"} 识别为错误态。
  */
 import { ref, type Component } from "vue"
+import type { ChartOption } from "@/utils/chart"
 import { circleApi, api } from "@/api"
 import ChartCard from "@/components/ChartCard.vue"
 import { downloadCsvRows } from "@/utils/export"
@@ -81,9 +82,8 @@ function fmtDateTime(v: string | null | undefined): string {
 }
 
 // ==================== ECharts 选项 ====================
-// echarts option 结构复杂，统一用 any（框架类型）
-const growthOption = ref<any>(null)
-const revenueOption = ref<any>(null)
+const growthOption = ref<ChartOption | null>(null)
+const revenueOption = ref<ChartOption | null>(null)
 
 function buildGrowthOption(growth: { date: string; count: number }[]) {
   return {

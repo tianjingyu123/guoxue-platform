@@ -1,7 +1,7 @@
 <template>
   <div class="bigscreen-token">
     <div class="page-header">
-      <h2>🔐 对外大屏 Token 管理</h2>
+      <h2>对外大屏 Token 管理</h2>
       <el-button
         type="primary"
         @click="showCreate = true"
@@ -44,200 +44,200 @@
     <template v-else>
       <!-- Token 列表 -->
       <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>Token 列表</span>
-          <el-button
-            size="small"
-            :loading="loading"
-            @click="fetchTokens"
+        <template #header>
+          <div class="card-header">
+            <span>Token 列表</span>
+            <el-button
+              size="small"
+              :loading="loading"
+              @click="fetchTokens"
+            >
+              刷新
+            </el-button>
+          </div>
+        </template>
+        <el-table
+          :data="tokens"
+          stripe
+        >
+          <el-table-column
+            prop="id"
+            label="ID"
+            width="60"
+          />
+          <el-table-column
+            prop="type"
+            label="大屏类型"
+            width="130"
           >
-            刷新
-          </el-button>
-        </div>
-      </template>
-      <el-table
-        :data="tokens"
-        stripe
-      >
-        <el-table-column
-          prop="id"
-          label="ID"
-          width="60"
-        />
-        <el-table-column
-          prop="type"
-          label="大屏类型"
-          width="130"
-        >
-          <template #default="{ row }">
-            <el-tag size="small">
-              {{ TYPE_LABELS[row.type] || row.type }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="token"
-          label="Token"
-          min-width="200"
-        >
-          <template #default="{ row }">
-            <div class="token-cell">
-              <code>{{ row.token?.slice(0, 24) }}...</code>
+            <template #default="{ row }">
+              <el-tag size="small">
+                {{ TYPE_LABELS[row.type] || row.type }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="token"
+            label="Token"
+            min-width="200"
+          >
+            <template #default="{ row }">
+              <div class="token-cell">
+                <code>{{ row.token?.slice(0, 24) }}...</code>
+                <el-button
+                  size="small"
+                  text
+                  @click="copyToken(row.token)"
+                >
+                  复制
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="status"
+            label="状态"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="statusType(row.status)"
+                size="small"
+              >
+                {{ STATUS_LABELS[row.status] || row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="validHours"
+            label="有效期(h)"
+            width="90"
+          />
+          <el-table-column
+            prop="validFrom"
+            label="生效时间"
+            width="160"
+          >
+            <template #default="{ row }">
+              {{ row.validFrom ? formatTime(row.validFrom) : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="validTo"
+            label="过期时间"
+            width="160"
+          >
+            <template #default="{ row }">
+              {{ row.validTo ? formatTime(row.validTo) : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="ipWhitelist"
+            label="IP白名单"
+            width="140"
+          >
+            <template #default="{ row }">
+              {{ row.ipWhitelist || '不限' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="200"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                v-if="row.status === 'PENDING'"
+                size="small"
+                type="success"
+                @click="approve(row.id)"
+              >
+                审核通过
+              </el-button>
+              <el-button
+                v-if="row.status === 'ACTIVE'"
+                size="small"
+                type="warning"
+                @click="revoke(row.id)"
+              >
+                撤销
+              </el-button>
               <el-button
                 size="small"
-                text
-                @click="copyToken(row.token)"
+                type="danger"
+                @click="del(row.id)"
               >
-                复制
+                删除
               </el-button>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="status"
-          label="状态"
-          width="100"
-        >
-          <template #default="{ row }">
-            <el-tag
-              :type="statusType(row.status)"
-              size="small"
-            >
-              {{ STATUS_LABELS[row.status] || row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="validHours"
-          label="有效期(h)"
-          width="90"
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-empty
+          v-if="!loading && tokens.length === 0"
+          description="暂无 Token，请点击「生成新 Token」创建"
         />
-        <el-table-column
-          prop="validFrom"
-          label="生效时间"
-          width="160"
-        >
-          <template #default="{ row }">
-            {{ row.validFrom ? formatTime(row.validFrom) : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="validTo"
-          label="过期时间"
-          width="160"
-        >
-          <template #default="{ row }">
-            {{ row.validTo ? formatTime(row.validTo) : '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="ipWhitelist"
-          label="IP白名单"
-          width="140"
-        >
-          <template #default="{ row }">
-            {{ row.ipWhitelist || '不限' }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          width="200"
-          fixed="right"
-        >
-          <template #default="{ row }">
-            <el-button
-              v-if="row.status === 'PENDING'"
-              size="small"
-              type="success"
-              @click="approve(row.id)"
-            >
-              审核通过
-            </el-button>
-            <el-button
-              v-if="row.status === 'ACTIVE'"
-              size="small"
-              type="warning"
-              @click="revoke(row.id)"
-            >
-              撤销
-            </el-button>
-            <el-button
-              size="small"
-              type="danger"
-              @click="del(row.id)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-empty
-        v-if="!loading && tokens.length === 0"
-        description="暂无 Token，请点击「生成新 Token」创建"
-      />
-    </el-card>
+      </el-card>
 
-    <!-- 访问日志 -->
-    <el-card style="margin-top:16px">
-      <template #header>
-        <span>访问日志</span>
-      </template>
-      <!-- 后端契约 available:false → 访问日志表尚未建立，诚实标注「功能待建」而非假装展示空表 -->
-      <el-empty
-        v-if="!logsAvailable"
-        :image-size="80"
-        description="访问日志功能待建（后端 BigScreenAccessLog 埋点表尚未上线）"
-      />
-      <el-table
-        v-else
-        :data="logs"
-        stripe
-        size="small"
-        max-height="400"
-      >
-        <template #empty>
-          <el-empty
-            description="暂无访问记录"
-            :image-size="60"
-          />
+      <!-- 访问日志 -->
+      <el-card style="margin-top:16px">
+        <template #header>
+          <span>访问日志</span>
         </template>
-        <el-table-column
-          prop="id"
-          label="ID"
-          width="60"
+        <!-- 后端契约 available:false → 访问日志表尚未建立，诚实标注「功能待建」而非假装展示空表 -->
+        <el-empty
+          v-if="!logsAvailable"
+          :image-size="80"
+          description="访问日志功能待建（后端 BigScreenAccessLog 埋点表尚未上线）"
         />
-        <el-table-column
-          prop="tokenId"
-          label="Token ID"
-          width="80"
-        />
-        <el-table-column
-          prop="ip"
-          label="访问IP"
-          width="140"
-        />
-        <el-table-column
-          prop="userAgent"
-          label="UA"
-          min-width="180"
-          show-overflow-tooltip
-        />
-        <el-table-column
-          prop="duration"
-          label="停留时长(s)"
-          width="100"
-        />
-        <el-table-column
-          prop="createdAt"
-          label="访问时间"
-          width="160"
+        <el-table
+          v-else
+          :data="logs"
+          stripe
+          size="small"
+          max-height="400"
         >
-          <template #default="{ row }">
-            {{ formatTime(row.createdAt) }}
+          <template #empty>
+            <el-empty
+              description="暂无访问记录"
+              :image-size="60"
+            />
           </template>
-        </el-table-column>
-      </el-table>
+          <el-table-column
+            prop="id"
+            label="ID"
+            width="60"
+          />
+          <el-table-column
+            prop="tokenId"
+            label="Token ID"
+            width="80"
+          />
+          <el-table-column
+            prop="ip"
+            label="访问IP"
+            width="140"
+          />
+          <el-table-column
+            prop="userAgent"
+            label="UA"
+            min-width="180"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="duration"
+            label="停留时长(s)"
+            width="100"
+          />
+          <el-table-column
+            prop="createdAt"
+            label="访问时间"
+            width="160"
+          >
+            <template #default="{ row }">
+              {{ formatTime(row.createdAt) }}
+            </template>
+          </el-table-column>
+        </el-table>
       </el-card>
     </template>
 
@@ -424,7 +424,7 @@ async function fetchLogs() {
 async function doCreate() {
   creating.value = true;
   try {
-    const { data } = await bigscreenTokenApi.create({
+    await bigscreenTokenApi.create({
       type: createForm.value.type,
       validHours: createForm.value.validHours,
       ipWhitelist: createForm.value.ipWhitelist || undefined,

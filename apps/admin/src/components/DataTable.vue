@@ -3,17 +3,35 @@
     <div
       v-if="$slots.toolbar"
       class="data-table__toolbar"
+      role="search"
+      aria-label="列表筛选与操作"
     >
       <slot name="toolbar" />
+    </div>
+    <div
+      v-if="$slots.batch"
+      class="data-table__batch"
+      role="status"
+      aria-live="polite"
+    >
+      <slot name="batch" />
     </div>
     <el-table
       v-loading="loading"
       :data="data"
+      class="data-table"
       stripe
-      border
       @sort-change="$emit('sortChange', $event)"
       @selection-change="$emit('selectionChange', $event)"
     >
+      <template #empty>
+        <slot name="empty">
+          <el-empty
+            :description="emptyText"
+            :image-size="72"
+          />
+        </slot>
+      </template>
       <el-table-column
         v-if="selectable"
         type="selection"
@@ -59,12 +77,6 @@
     </el-table>
     <div class="data-table__footer">
       <div
-        v-if="$slots.batch"
-        class="data-table__batch"
-      >
-        <slot name="batch" />
-      </div>
-      <div
         v-if="showPagination"
         class="pagination-wrap"
       >
@@ -99,6 +111,8 @@ export interface TableColumn {
 
 const props = withDefaults(defineProps<{
   columns: TableColumn[]
+  // 表格行结构由各业务页面决定，保留动态边界以兼容自动注册组件的插槽推断。
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any[]
   loading?: boolean
   total?: number
@@ -108,6 +122,7 @@ const props = withDefaults(defineProps<{
   showPagination?: boolean
   actionsWidth?: string | number
   pageSizes?: number[]
+  emptyText?: string
 }>(), {
   loading: false,
   total: 0,
@@ -117,15 +132,16 @@ const props = withDefaults(defineProps<{
   showPagination: true,
   actionsWidth: 200,
   pageSizes: () => [10, 20, 50],
+  emptyText: '暂无符合条件的数据，可调整筛选条件后重试',
 })
 
-const emit = defineEmits<{
-  change: []
-  sortChange: [value: any]
-  selectionChange: [value: any]
-  'update:page': [value: number]
-  'update:pageSize': [value: number]
-}>()
+const emit = defineEmits([
+  'change',
+  'sortChange',
+  'selectionChange',
+  'update:page',
+  'update:pageSize',
+])
 
 const currentPage = computed({
   get: () => props.page,
@@ -140,24 +156,51 @@ const currentPageSize = computed({
 <style scoped>
 .data-table-wrap {
   width: 100%;
-  background: var(--color-bg-card);
-  border-radius: var(--radius-md);
+  box-sizing: border-box;
+  overflow: hidden;
+  background: rgba(255,255,255,.96);
+  border-radius: var(--radius-xl);
   border: 1px solid var(--color-divider);
-  padding: var(--spacing-lg);
+  padding: 8px 18px 16px;
+  box-shadow: var(--shadow-card);
 }
+
 .data-table__toolbar {
-  margin-bottom: var(--spacing-lg);
+  min-height: 54px;
+  margin-bottom: 4px;
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
   flex-wrap: wrap;
 }
 .data-table__footer {
-  margin-top: var(--spacing-lg);
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-light);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-.data-table__batch { display: flex; align-items: center; gap: var(--spacing-sm); }
+.data-table__batch {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-height: 44px;
+  margin: 0 -8px 8px;
+  padding: 7px 12px;
+  border: 1px solid rgba(82,120,157,.14);
+  border-radius: 10px;
+  color: #385975;
+  background: rgba(82,120,157,.07);
+  font-size: 12px;
+  font-weight: 600;
+}
 .pagination-wrap { margin-left: auto; }
+:deep(.el-table::before) { display: none; }
+:deep(.el-table th.el-table__cell) { background: #f7f8fa !important; }
+@media (max-width: 760px) {
+  .data-table-wrap { padding: 6px 10px 12px; border-radius: var(--radius-lg); }
+  .data-table__footer { align-items: flex-start; flex-direction: column; }
+  .pagination-wrap { width: 100%; margin-left: 0; overflow-x: auto; }
+}
 </style>

@@ -29,7 +29,7 @@ async function onFileChange(e: Event) {
   uploading.value = true
   try {
     const { data } = await uploadApi.image(file)
-    emit('update:modelValue', (data as any).url)
+    emit('update:modelValue', data.url)
     ElMessage.success('上传成功')
   } catch {
     ElMessage.error('上传失败，请重试')
@@ -63,7 +63,9 @@ async function onFileChange(e: Event) {
         class="placeholder"
       >
         <el-icon><Plus /></el-icon>
-        <div class="ph-text">{{ uploading ? '上传中...' : '点击上传' }}</div>
+        <div class="ph-text">
+          {{ uploading ? '上传中...' : '点击上传' }}
+        </div>
       </div>
     </div>
     <div

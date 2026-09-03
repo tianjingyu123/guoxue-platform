@@ -2,54 +2,106 @@
   <div class="inventory-page">
     <section class="hero">
       <div>
-        <p class="eyebrow">库存经营台 · SINGLE LEDGER</p>
+        <p class="eyebrow">
+          库存经营台 · SINGLE LEDGER
+        </p>
         <h1>一套库存账，串起每一笔实物履约</h1>
-        <p class="hero-copy">采购记录商业约定，验收入库记录实物移动；销售、发货、退货全部回到同一条审计链路。</p>
+        <p class="hero-copy">
+          采购记录商业约定，验收入库记录实物移动；销售、发货、退货全部回到同一条审计链路。
+        </p>
       </div>
       <div class="hero-actions">
-        <el-button class="ghost-btn" @click="openSupplierDirectory">供应商档案</el-button>
-        <el-button class="ghost-btn" @click="router.push('/merchant-backend/shipping')">批量发货</el-button>
-        <el-button class="ghost-btn" @click="router.push('/merchant-backend/after-sales')">售后验收</el-button>
-        <el-button type="primary" @click="openPurchase()">新建采购单</el-button>
+        <el-button
+          class="ghost-btn"
+          @click="openSupplierDirectory"
+        >
+          供应商档案
+        </el-button>
+        <el-button
+          class="ghost-btn"
+          @click="router.push('/merchant-backend/shipping')"
+        >
+          批量发货
+        </el-button>
+        <el-button
+          class="ghost-btn"
+          @click="router.push('/merchant-backend/after-sales')"
+        >
+          售后验收
+        </el-button>
+        <el-button
+          type="primary"
+          @click="openPurchase()"
+        >
+          新建采购单
+        </el-button>
       </div>
     </section>
 
     <section class="daily-brief">
       <header>
         <div>
-          <p class="eyebrow dark">DAILY ACTIONS</p>
+          <p class="eyebrow dark">
+            DAILY ACTIONS
+          </p>
           <h2>今日必须处理</h2>
           <span>先解决会影响成交、履约和资金回笼的事项。</span>
         </div>
-        <div class="brief-total"><strong>{{ taskCount }}</strong><span>项待办</span></div>
+        <div class="brief-total">
+          <strong>{{ taskCount }}</strong><span>项待办</span>
+        </div>
       </header>
       <div class="brief-grid">
-        <button :class="{ urgent: overview.lowStockCount > 0 }" @click="showLowStock">
+        <button
+          :class="{ urgent: overview.lowStockCount > 0 }"
+          @click="showLowStock"
+        >
           <i>补</i><div><b>库存预警</b><span>{{ overview.lowStockCount ? `${overview.lowStockCount} 个规格需要补货` : "库存状态良好" }}</span></div><em>›</em>
         </button>
-        <button :class="{ urgent: overview.overduePurchaseCount > 0 }" @click="activate('purchase')">
+        <button
+          :class="{ urgent: overview.overduePurchaseCount > 0 }"
+          @click="activate('purchase')"
+        >
           <i>收</i><div><b>采购到货</b><span>{{ overview.overduePurchaseCount ? `${overview.overduePurchaseCount} 张采购单已逾期` : `${overview.pendingReceiptUnitCount} 件在途待收` }}</span></div><em>›</em>
         </button>
-        <button :class="{ urgent: overview.unshippedOrderCount > 0 }" @click="router.push('/merchant-backend/shipping')">
+        <button
+          :class="{ urgent: overview.unshippedOrderCount > 0 }"
+          @click="router.push('/merchant-backend/shipping')"
+        >
           <i>发</i><div><b>销售发货</b><span>{{ overview.unshippedOrderCount ? `${overview.unshippedOrderCount} 单等待出库` : "暂无待发订单" }}</span></div><em>›</em>
         </button>
-        <button :class="{ urgent: overview.pendingAfterSaleCount > 0 }" @click="router.push('/merchant-backend/after-sales')">
+        <button
+          :class="{ urgent: overview.pendingAfterSaleCount > 0 }"
+          @click="router.push('/merchant-backend/after-sales')"
+        >
           <i>退</i><div><b>售后回仓</b><span>{{ overview.pendingAfterSaleCount ? `${overview.pendingAfterSaleCount} 件等待处理` : "暂无售后待办" }}</span></div><em>›</em>
         </button>
       </div>
     </section>
 
     <section class="metrics">
-      <button class="metric" @click="activate('stock')">
+      <button
+        class="metric"
+        @click="activate('stock')"
+      >
         <span>账面现货</span><strong>{{ overview.physicalOnHandStock }}</strong><small>其中可售 {{ overview.availableStock }}</small>
       </button>
-      <button class="metric reserve" @click="activate('stock')">
+      <button
+        class="metric reserve"
+        @click="activate('stock')"
+      >
         <span>待付款占用</span><strong>{{ overview.unpaidReservedUnitCount }}</strong><small>超时取消后自动释放</small>
       </button>
-      <button class="metric reserve" @click="router.push('/merchant-backend/shipping')">
+      <button
+        class="metric reserve"
+        @click="router.push('/merchant-backend/shipping')"
+      >
         <span>待发货占用</span><strong>{{ overview.unshippedUnitCount }}</strong><small>{{ overview.unshippedOrderCount }} 张订单等待出库</small>
       </button>
-      <button class="metric" @click="activate('purchase')">
+      <button
+        class="metric"
+        @click="activate('purchase')"
+      >
         <span>在途待收</span><strong>{{ overview.pendingReceiptUnitCount }}</strong><small>{{ overview.pendingPurchaseCount }} 张采购单支持分批验收</small>
       </button>
     </section>
@@ -60,128 +112,403 @@
         <span class="chain-note">采购约定 → 到货质检 → 可售库存 → 订单出库 → 售后回仓</span>
       </div>
       <div class="chain-track">
-        <button :class="{ on: active === 'purchase' }" @click="activate('purchase')"><i>01</i><b>采购约定</b><span>供应商、价格、交期</span></button>
-        <button :class="{ on: active === 'stock' }" @click="activate('stock')"><i>02</i><b>到货入库</b><span>分批验收、盘点、损耗</span></button>
-        <button @click="router.push('/merchant-backend/shipping')"><i>03</i><b>销售出库</b><span>拣货、批量运单、轨迹</span></button>
-        <button @click="router.push('/merchant-backend/after-sales')"><i>04</i><b>售后质检</b><span>合格回补、不合格留证</span></button>
+        <button
+          :class="{ on: active === 'purchase' }"
+          @click="activate('purchase')"
+        >
+          <i>01</i><b>采购约定</b><span>供应商、价格、交期</span>
+        </button>
+        <button
+          :class="{ on: active === 'stock' }"
+          @click="activate('stock')"
+        >
+          <i>02</i><b>到货入库</b><span>分批验收、盘点、损耗</span>
+        </button>
+        <button @click="router.push('/merchant-backend/shipping')">
+          <i>03</i><b>销售出库</b><span>拣货、批量运单、轨迹</span>
+        </button>
+        <button @click="router.push('/merchant-backend/after-sales')">
+          <i>04</i><b>售后质检</b><span>合格回补、不合格留证</span>
+        </button>
       </div>
     </section>
 
     <section class="workspace">
       <div class="workspace-head">
         <div class="tabs">
-          <button :class="{ on: active === 'stock' }" @click="activate('stock')">库存</button>
-          <button :class="{ on: active === 'movement' }" @click="activate('movement')">流水</button>
-          <button :class="{ on: active === 'purchase' }" @click="activate('purchase')">采购单</button>
+          <button
+            :class="{ on: active === 'stock' }"
+            @click="activate('stock')"
+          >
+            库存
+          </button>
+          <button
+            :class="{ on: active === 'movement' }"
+            @click="activate('movement')"
+          >
+            流水
+          </button>
+          <button
+            :class="{ on: active === 'purchase' }"
+            @click="activate('purchase')"
+          >
+            采购单
+          </button>
         </div>
-        <el-button text :loading="loading" @click="loadActive">刷新数据</el-button>
+        <el-button
+          text
+          :loading="loading"
+          @click="loadActive"
+        >
+          刷新数据
+        </el-button>
       </div>
 
       <template v-if="active === 'stock'">
         <div class="filters">
-          <el-input v-model="keyword" clearable placeholder="搜索商品或规格" @keyup.enter="loadStocks" @clear="loadStocks" />
-          <el-checkbox v-model="lowOnly" @change="loadStocks">只看预警</el-checkbox>
-          <el-button type="primary" @click="loadStocks">查询</el-button>
+          <el-input
+            v-model="keyword"
+            clearable
+            placeholder="搜索商品或规格"
+            @keyup.enter="loadStocks"
+            @clear="loadStocks"
+          />
+          <el-checkbox
+            v-model="lowOnly"
+            @change="loadStocks"
+          >
+            只看预警
+          </el-checkbox>
+          <el-button
+            type="primary"
+            @click="loadStocks"
+          >
+            查询
+          </el-button>
         </div>
-        <el-table v-loading="loading" :data="stocks" stripe row-key="stockKey" class="data-table stock-table" @row-click="openStockFile">
-          <el-table-column label="商品 / 规格" min-width="260">
+        <el-table
+          v-loading="loading"
+          :data="stocks"
+          stripe
+          row-key="stockKey"
+          class="data-table stock-table"
+          @row-click="openStockFile"
+        >
+          <el-table-column
+            label="商品 / 规格"
+            min-width="260"
+          >
             <template #default="{ row }">
               <div class="product-cell">
-                <el-image v-if="row.image" :src="row.image" fit="cover" />
-                <div class="image-fallback" v-else>货</div>
+                <el-image
+                  v-if="row.image"
+                  :src="row.image"
+                  fit="cover"
+                />
+                <div
+                  v-else
+                  class="image-fallback"
+                >
+                  货
+                </div>
                 <div><b>{{ row.title }}</b><span>{{ row.skuLabel || "单规格" }}</span></div>
               </div>
             </template>
           </el-table-column>
-          <el-table-column prop="physicalOnHandStock" label="账面现货" width="110" />
-          <el-table-column prop="unpaidReservedUnitCount" label="待付款" width="100" />
-          <el-table-column prop="unshippedUnitCount" label="待发货" width="100" />
-          <el-table-column prop="availableStock" label="可售" width="100">
-            <template #default="{ row }"><strong :class="{ danger: row.lowStock }">{{ row.availableStock }}</strong></template>
-          </el-table-column>
-          <el-table-column label="预警线" width="120">
-            <template #default="{ row }">{{ row.threshold ?? "未启用" }}</template>
-          </el-table-column>
-          <el-table-column label="状态" width="120">
-            <template #default="{ row }"><el-tag :type="row.lowStock ? 'danger' : 'success'" effect="light">{{ row.availableStock === 0 ? "已售罄" : row.lowStock ? "需要补货" : "库存正常" }}</el-tag></template>
-          </el-table-column>
-          <el-table-column label="操作" min-width="270" fixed="right">
+          <el-table-column
+            prop="physicalOnHandStock"
+            label="账面现货"
+            width="110"
+          />
+          <el-table-column
+            prop="unpaidReservedUnitCount"
+            label="待付款"
+            width="100"
+          />
+          <el-table-column
+            prop="unshippedUnitCount"
+            label="待发货"
+            width="100"
+          />
+          <el-table-column
+            prop="availableStock"
+            label="可售"
+            width="100"
+          >
             <template #default="{ row }">
-              <el-button link @click.stop="openStockFile(row)">档案</el-button>
-              <el-button link type="primary" @click.stop="openAdjust(row, 'INCREASE')">补货</el-button>
-              <el-button link type="warning" @click.stop="openAdjust(row, 'DECREASE')">报损</el-button>
-              <el-button link @click.stop="openAdjust(row, 'SET')">盘点</el-button>
-              <el-button link @click.stop="openAlert(row)">预警</el-button>
-              <el-button link type="success" @click.stop="openPurchase(row)">采购</el-button>
+              <strong :class="{ danger: row.lowStock }">{{ row.availableStock }}</strong>
             </template>
           </el-table-column>
-          <template #empty><el-empty description="暂无库存记录，请先在商品管理中创建商品" /></template>
+          <el-table-column
+            label="预警线"
+            width="120"
+          >
+            <template #default="{ row }">
+              {{ row.threshold ?? "未启用" }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="120"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.lowStock ? 'danger' : 'success'"
+                effect="light"
+              >
+                {{ row.availableStock === 0 ? "已售罄" : row.lowStock ? "需要补货" : "库存正常" }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            min-width="270"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                link
+                @click.stop="openStockFile(row)"
+              >
+                档案
+              </el-button>
+              <el-button
+                link
+                type="primary"
+                @click.stop="openAdjust(row, 'INCREASE')"
+              >
+                补货
+              </el-button>
+              <el-button
+                link
+                type="warning"
+                @click.stop="openAdjust(row, 'DECREASE')"
+              >
+                报损
+              </el-button>
+              <el-button
+                link
+                @click.stop="openAdjust(row, 'SET')"
+              >
+                盘点
+              </el-button>
+              <el-button
+                link
+                @click.stop="openAlert(row)"
+              >
+                预警
+              </el-button>
+              <el-button
+                link
+                type="success"
+                @click.stop="openPurchase(row)"
+              >
+                采购
+              </el-button>
+            </template>
+          </el-table-column>
+          <template #empty>
+            <el-empty description="暂无库存记录，请先在商品管理中创建商品" />
+          </template>
         </el-table>
       </template>
 
       <template v-else-if="active === 'movement'">
         <div class="filters">
-          <el-select v-model="movementType" clearable placeholder="全部流水类型" @change="loadMovements">
-            <el-option v-for="(label, key) in movementLabels" :key="key" :label="label" :value="key" />
+          <el-select
+            v-model="movementType"
+            clearable
+            placeholder="全部流水类型"
+            @change="loadMovements"
+          >
+            <el-option
+              v-for="(label, key) in movementLabels"
+              :key="key"
+              :label="label"
+              :value="key"
+            />
           </el-select>
-          <div v-if="movementFocus" class="movement-focus">
+          <div
+            v-if="movementFocus"
+            class="movement-focus"
+          >
             <span>SKU 档案：{{ stockLabel(movementFocus) }}</span>
-            <button @click="clearMovementFocus">查看全部流水</button>
+            <button @click="clearMovementFocus">
+              查看全部流水
+            </button>
           </div>
         </div>
-        <el-table v-loading="loading" :data="visibleMovements" stripe class="data-table">
-          <el-table-column label="时间" width="180"><template #default="{ row }">{{ formatTime(row.createdAt) }}</template></el-table-column>
-          <el-table-column label="商品" min-width="240"><template #default="{ row }"><b>{{ row.metadata?.title || "库存变动" }}</b><div class="muted">{{ row.metadata?.skuLabel || "单规格" }}</div></template></el-table-column>
-          <el-table-column label="类型" width="130"><template #default="{ row }">{{ movementLabels[row.type] || row.type }}</template></el-table-column>
-          <el-table-column label="变化" width="100"><template #default="{ row }"><strong :class="row.quantity > 0 ? 'success' : 'danger'">{{ row.quantity > 0 ? "+" : "" }}{{ row.quantity }}</strong></template></el-table-column>
-          <el-table-column label="结存" width="140"><template #default="{ row }">{{ row.beforeStock }} → {{ row.afterStock }}</template></el-table-column>
-          <el-table-column prop="reason" label="原因 / 备注" min-width="220" show-overflow-tooltip />
-          <template #empty><el-empty :description="movementFocus ? '该规格暂无库存流水' : '暂无库存流水'" /></template>
+        <el-table
+          v-loading="loading"
+          :data="visibleMovements"
+          stripe
+          class="data-table"
+        >
+          <el-table-column
+            label="时间"
+            width="180"
+          >
+            <template #default="{ row }">
+              {{ formatTime(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="商品"
+            min-width="240"
+          >
+            <template #default="{ row }">
+              <b>{{ row.metadata?.title || "库存变动" }}</b><div class="muted">
+                {{ row.metadata?.skuLabel || "单规格" }}
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="类型"
+            width="130"
+          >
+            <template #default="{ row }">
+              {{ movementLabels[row.type] || row.type }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="变化"
+            width="100"
+          >
+            <template #default="{ row }">
+              <strong :class="row.quantity > 0 ? 'success' : 'danger'">{{ row.quantity > 0 ? "+" : "" }}{{ row.quantity }}</strong>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="结存"
+            width="140"
+          >
+            <template #default="{ row }">
+              {{ row.beforeStock }} → {{ row.afterStock }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="reason"
+            label="原因 / 备注"
+            min-width="220"
+            show-overflow-tooltip
+          />
+          <template #empty>
+            <el-empty :description="movementFocus ? '该规格暂无库存流水' : '暂无库存流水'" />
+          </template>
         </el-table>
       </template>
 
       <template v-else>
         <div class="filters">
-          <el-select v-model="purchaseStatus" clearable placeholder="全部采购状态" @change="loadPurchases">
-            <el-option v-for="(label, key) in purchaseLabels" :key="key" :label="label" :value="key" />
+          <el-select
+            v-model="purchaseStatus"
+            clearable
+            placeholder="全部采购状态"
+            @change="loadPurchases"
+          >
+            <el-option
+              v-for="(label, key) in purchaseLabels"
+              :key="key"
+              :label="label"
+              :value="key"
+            />
           </el-select>
-          <el-button type="primary" @click="openPurchase()">新建采购单</el-button>
+          <el-button
+            type="primary"
+            @click="openPurchase()"
+          >
+            新建采购单
+          </el-button>
         </div>
-        <div v-loading="loading" class="purchase-list">
-          <article v-for="order in purchases" :key="order.id" class="purchase-card" :class="{ overdue: isOverdue(order) }">
+        <div
+          v-loading="loading"
+          class="purchase-list"
+        >
+          <article
+            v-for="order in purchases"
+            :key="order.id"
+            class="purchase-card"
+            :class="{ overdue: isOverdue(order) }"
+          >
             <header>
               <div><span class="order-no">{{ order.orderNo }}</span><h3>{{ order.supplierName }}</h3></div>
-              <el-tag :type="isOverdue(order) ? 'danger' : purchaseTag(order.status)">{{ isOverdue(order) ? "已逾期" : (purchaseLabels[order.status] || order.status) }}</el-tag>
+              <el-tag :type="isOverdue(order) ? 'danger' : purchaseTag(order.status)">
+                {{ isOverdue(order) ? "已逾期" : (purchaseLabels[order.status] || order.status) }}
+              </el-tag>
             </header>
             <div class="purchase-meta">
               <span>合计 <b>¥{{ money(order.totalAmount) }}</b></span>
               <span>创建 {{ formatTime(order.createdAt) }}</span>
               <span v-if="order.expectedAt">预计 {{ formatDate(order.expectedAt) }} 到货</span>
             </div>
-            <div v-if="order.contactName || order.contactPhone" class="supplier-contact">
+            <div
+              v-if="order.contactName || order.contactPhone"
+              class="supplier-contact"
+            >
               <span>供应联系人</span>
               <b>{{ order.contactName || "未填写" }}{{ order.contactPhone ? ` · ${order.contactPhone}` : "" }}</b>
             </div>
             <div class="batch-line">
-              <div v-for="item in order.items" :key="item.id">
+              <div
+                v-for="item in order.items"
+                :key="item.id"
+              >
                 <span>{{ item.productTitle }}{{ item.skuLabel ? ` · ${item.skuLabel}` : "" }}</span>
                 <b>合格 {{ item.receivedQuantity }}{{ item.rejectedQuantity ? ` · 拒收 ${item.rejectedQuantity}` : "" }} / {{ item.quantity }}</b>
-                <el-progress :percentage="receivePercent(item)" :stroke-width="5" :show-text="false" />
+                <el-progress
+                  :percentage="receivePercent(item)"
+                  :stroke-width="5"
+                  :show-text="false"
+                />
               </div>
             </div>
             <footer>
-              <el-button v-if="hasReceiptHistory(order)" text type="primary" @click="openReceiptHistory(order)">验收记录</el-button>
-              <el-button v-if="order.status === 'DRAFT'" type="primary" @click="submitPurchase(order)">确认下单</el-button>
-              <el-button v-if="canReceive(order)" type="success" @click="openReceive(order)">到货验收</el-button>
-              <el-button v-if="canCancel(order)" text type="danger" @click="cancelPurchase(order)">取消采购</el-button>
+              <el-button
+                v-if="hasReceiptHistory(order)"
+                text
+                type="primary"
+                @click="openReceiptHistory(order)"
+              >
+                验收记录
+              </el-button>
+              <el-button
+                v-if="order.status === 'DRAFT'"
+                type="primary"
+                @click="submitPurchase(order)"
+              >
+                确认下单
+              </el-button>
+              <el-button
+                v-if="canReceive(order)"
+                type="success"
+                @click="openReceive(order)"
+              >
+                到货验收
+              </el-button>
+              <el-button
+                v-if="canCancel(order)"
+                text
+                type="danger"
+                @click="cancelPurchase(order)"
+              >
+                取消采购
+              </el-button>
             </footer>
           </article>
-          <el-empty v-if="!purchases.length" description="暂无采购单，可从低库存商品直接发起补货" />
+          <el-empty
+            v-if="!purchases.length"
+            description="暂无采购单，可从低库存商品直接发起补货"
+          />
         </div>
       </template>
     </section>
 
-    <el-drawer v-model="stockFileVisible" size="min(520px, 94vw)" class="stock-file-drawer" destroy-on-close>
+    <el-drawer
+      v-model="stockFileVisible"
+      size="min(520px, 94vw)"
+      class="stock-file-drawer"
+      destroy-on-close
+    >
       <template #header>
         <div class="stock-file-heading">
           <p>SKU LEDGER</p>
@@ -190,17 +517,33 @@
       </template>
       <template v-if="stockFile">
         <section class="stock-file-hero">
-          <el-image v-if="stockFile.image" :src="stockFile.image" fit="cover" />
-          <div v-else class="stock-file-fallback">货</div>
+          <el-image
+            v-if="stockFile.image"
+            :src="stockFile.image"
+            fit="cover"
+          />
+          <div
+            v-else
+            class="stock-file-fallback"
+          >
+            货
+          </div>
           <div class="stock-file-copy">
             <h3>{{ stockFile.title }}</h3>
             <p>{{ stockFile.skuLabel || "单规格" }}</p>
             <div>
-              <el-tag :type="stockFile.lowStock ? 'danger' : 'success'" effect="dark">{{ stockFile.availableStock === 0 ? "已售罄" : stockFile.lowStock ? "需要补货" : "库存正常" }}</el-tag>
+              <el-tag
+                :type="stockFile.lowStock ? 'danger' : 'success'"
+                effect="dark"
+              >
+                {{ stockFile.availableStock === 0 ? "已售罄" : stockFile.lowStock ? "需要补货" : "库存正常" }}
+              </el-tag>
               <span>预警线 {{ stockFile.threshold ?? "默认 5" }}</span>
             </div>
           </div>
-          <div class="stock-file-balance"><strong>{{ stockFile.availableStock }}</strong><span>当前可售</span></div>
+          <div class="stock-file-balance">
+            <strong>{{ stockFile.availableStock }}</strong><span>当前可售</span>
+          </div>
         </section>
         <section class="stock-file-breakdown">
           <div><span>账面现货</span><strong>{{ stockFile.physicalOnHandStock }}</strong></div>
@@ -208,18 +551,40 @@
           <div><span>待发货占用</span><strong>{{ stockFile.unshippedUnitCount }}</strong></div>
         </section>
         <section class="stock-file-actions">
-          <button @click="runStockFileAction('alert')"><i>线</i><span>预警设置</span></button>
-          <button @click="runStockFileAction('stocktake')"><i>盘</i><span>库存盘点</span></button>
-          <button @click="runStockFileAction('damage')"><i>损</i><span>报损出库</span></button>
-          <button class="primary" @click="runStockFileAction('purchase')"><i>采</i><span>发起采购</span></button>
+          <button @click="runStockFileAction('alert')">
+            <i>线</i><span>预警设置</span>
+          </button>
+          <button @click="runStockFileAction('stocktake')">
+            <i>盘</i><span>库存盘点</span>
+          </button>
+          <button @click="runStockFileAction('damage')">
+            <i>损</i><span>报损出库</span>
+          </button>
+          <button
+            class="primary"
+            @click="runStockFileAction('purchase')"
+          >
+            <i>采</i><span>发起采购</span>
+          </button>
         </section>
         <section class="stock-file-ledger">
           <header>
             <div><h3>最近变动</h3><p>来源、原因与操作前后结存均不可覆盖</p></div>
-            <button v-if="stockFileMovements.length" @click="openFocusedMovements">完整流水 ›</button>
+            <button
+              v-if="stockFileMovements.length"
+              @click="openFocusedMovements"
+            >
+              完整流水 ›
+            </button>
           </header>
-          <div v-loading="stockFileLoading" class="stock-file-list">
-            <article v-for="movement in stockFileMovements" :key="movement.id">
+          <div
+            v-loading="stockFileLoading"
+            class="stock-file-list"
+          >
+            <article
+              v-for="movement in stockFileMovements"
+              :key="movement.id"
+            >
               <i :class="{ inbound: movement.quantity > 0 }">{{ movement.quantity > 0 ? "入" : "出" }}</i>
               <div>
                 <header><b>{{ movementLabels[movement.type] || movement.type }}</b><time>{{ formatTime(movement.createdAt) }}</time></header>
@@ -228,125 +593,417 @@
               </div>
               <strong :class="movement.quantity > 0 ? 'success' : 'danger'">{{ movement.quantity > 0 ? "+" : "" }}{{ movement.quantity }}</strong>
             </article>
-            <el-empty v-if="!stockFileLoading && !stockFileMovements.length" description="暂无该规格的库存变动" :image-size="72" />
+            <el-empty
+              v-if="!stockFileLoading && !stockFileMovements.length"
+              description="暂无该规格的库存变动"
+              :image-size="72"
+            />
           </div>
         </section>
       </template>
     </el-drawer>
 
-    <el-drawer v-model="supplierVisible" title="供应商档案" size="560px" class="supplier-drawer">
+    <el-drawer
+      v-model="supplierVisible"
+      title="供应商档案"
+      size="560px"
+      class="supplier-drawer"
+    >
       <div class="supplier-toolbar">
         <div>
           <b>稳定供货关系</b>
           <span>联系人、交期、结算约定与历史采购自动沉淀</span>
         </div>
-        <el-button type="primary" @click="openSupplierEditor()">新增供应商</el-button>
+        <el-button
+          type="primary"
+          @click="openSupplierEditor()"
+        >
+          新增供应商
+        </el-button>
       </div>
-      <el-input v-model="supplierKeyword" clearable placeholder="搜索供应商、联系人或电话" @keyup.enter="loadSuppliers" @clear="loadSuppliers">
-        <template #append><el-button @click="loadSuppliers">查询</el-button></template>
+      <el-input
+        v-model="supplierKeyword"
+        clearable
+        placeholder="搜索供应商、联系人或电话"
+        @keyup.enter="loadSuppliers"
+        @clear="loadSuppliers"
+      >
+        <template #append>
+          <el-button @click="loadSuppliers">
+            查询
+          </el-button>
+        </template>
       </el-input>
-      <div v-loading="supplierLoading" class="supplier-list">
-        <article v-for="supplier in suppliers" :key="supplier.id" class="supplier-card" :class="{ inactive: supplier.status === 'INACTIVE' }">
+      <div
+        v-loading="supplierLoading"
+        class="supplier-list"
+      >
+        <article
+          v-for="supplier in suppliers"
+          :key="supplier.id"
+          class="supplier-card"
+          :class="{ inactive: supplier.status === 'INACTIVE' }"
+        >
           <header>
             <div><b>{{ supplier.name }}</b><span>{{ supplier.contactName || '未填联系人' }} · {{ supplier.contactPhone || '未填电话' }}</span></div>
-            <el-tag :type="supplier.status === 'ACTIVE' ? 'success' : 'info'" size="small">{{ supplier.status === 'ACTIVE' ? '合作中' : '已停用' }}</el-tag>
+            <el-tag
+              :type="supplier.status === 'ACTIVE' ? 'success' : 'info'"
+              size="small"
+            >
+              {{ supplier.status === 'ACTIVE' ? '合作中' : '已停用' }}
+            </el-tag>
           </header>
           <div class="supplier-facts">
             <span><small>平均交期</small>{{ supplier.leadTimeDays ? `${supplier.leadTimeDays} 天` : '待完善' }}</span>
             <span><small>采购次数</small>{{ supplier.purchaseCount }} 次</span>
             <span><small>累计采购</small>¥{{ money(supplier.totalPurchaseAmount) }}</span>
           </div>
-          <p>{{ supplier.settlementTerms || '未设置结算约定' }}<template v-if="supplier.address"> · {{ supplier.address }}</template></p>
+          <p>
+            {{ supplier.settlementTerms || '未设置结算约定' }}<template v-if="supplier.address">
+              · {{ supplier.address }}
+            </template>
+          </p>
           <footer>
-            <el-button text @click="openSupplierEditor(supplier)">编辑档案</el-button>
-            <el-button text :type="supplier.status === 'ACTIVE' ? 'danger' : 'success'" @click="toggleSupplier(supplier)">
+            <el-button
+              text
+              @click="openSupplierEditor(supplier)"
+            >
+              编辑档案
+            </el-button>
+            <el-button
+              text
+              :type="supplier.status === 'ACTIVE' ? 'danger' : 'success'"
+              @click="toggleSupplier(supplier)"
+            >
               {{ supplier.status === 'ACTIVE' ? '停用' : '启用' }}
             </el-button>
-            <el-button v-if="supplier.status === 'ACTIVE'" text type="primary" @click="useSupplierForPurchase(supplier)">用它开采购单</el-button>
+            <el-button
+              v-if="supplier.status === 'ACTIVE'"
+              text
+              type="primary"
+              @click="useSupplierForPurchase(supplier)"
+            >
+              用它开采购单
+            </el-button>
           </footer>
         </article>
-        <el-empty v-if="!supplierLoading && !suppliers.length" description="暂无供应商档案；首次采购时也会自动沉淀" :image-size="76" />
+        <el-empty
+          v-if="!supplierLoading && !suppliers.length"
+          description="暂无供应商档案；首次采购时也会自动沉淀"
+          :image-size="76"
+        />
       </div>
     </el-drawer>
 
-    <el-dialog v-model="supplierEditorVisible" :title="supplierForm.id ? '编辑供应商' : '新增供应商'" width="620px">
+    <el-dialog
+      v-model="supplierEditorVisible"
+      :title="supplierForm.id ? '编辑供应商' : '新增供应商'"
+      width="620px"
+    >
       <el-form label-position="top">
         <div class="form-grid">
-          <el-form-item label="供应商名称"><el-input v-model="supplierForm.name" maxlength="100" placeholder="必填且店铺内唯一" /></el-form-item>
-          <el-form-item label="平均交期"><el-input-number v-model="supplierForm.leadTimeDays" :min="0" :max="365" :precision="0" style="width:100%" /></el-form-item>
-          <el-form-item label="联系人"><el-input v-model="supplierForm.contactName" maxlength="40" /></el-form-item>
-          <el-form-item label="联系电话"><el-input v-model="supplierForm.contactPhone" maxlength="30" /></el-form-item>
-          <el-form-item label="结算约定"><el-input v-model="supplierForm.settlementTerms" maxlength="80" placeholder="例如：月结 30 天、货到付款" /></el-form-item>
-          <el-form-item label="联系地址"><el-input v-model="supplierForm.address" maxlength="160" /></el-form-item>
+          <el-form-item label="供应商名称">
+            <el-input
+              v-model="supplierForm.name"
+              maxlength="100"
+              placeholder="必填且店铺内唯一"
+            />
+          </el-form-item>
+          <el-form-item label="平均交期">
+            <el-input-number
+              v-model="supplierForm.leadTimeDays"
+              :min="0"
+              :max="365"
+              :precision="0"
+              style="width:100%"
+            />
+          </el-form-item>
+          <el-form-item label="联系人">
+            <el-input
+              v-model="supplierForm.contactName"
+              maxlength="40"
+            />
+          </el-form-item>
+          <el-form-item label="联系电话">
+            <el-input
+              v-model="supplierForm.contactPhone"
+              maxlength="30"
+            />
+          </el-form-item>
+          <el-form-item label="结算约定">
+            <el-input
+              v-model="supplierForm.settlementTerms"
+              maxlength="80"
+              placeholder="例如：月结 30 天、货到付款"
+            />
+          </el-form-item>
+          <el-form-item label="联系地址">
+            <el-input
+              v-model="supplierForm.address"
+              maxlength="160"
+            />
+          </el-form-item>
         </div>
-        <el-form-item label="合作备注"><el-input v-model="supplierForm.remark" type="textarea" :rows="3" maxlength="300" show-word-limit /></el-form-item>
+        <el-form-item label="合作备注">
+          <el-input
+            v-model="supplierForm.remark"
+            type="textarea"
+            :rows="3"
+            maxlength="300"
+            show-word-limit
+          />
+        </el-form-item>
       </el-form>
-      <template #footer><el-button @click="supplierEditorVisible=false">取消</el-button><el-button type="primary" :loading="submitting" @click="saveSupplier">保存档案</el-button></template>
+      <template #footer>
+        <el-button @click="supplierEditorVisible=false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="submitting"
+          @click="saveSupplier"
+        >
+          保存档案
+        </el-button>
+      </template>
     </el-dialog>
 
-    <el-dialog v-model="adjustVisible" :title="adjustTitle" width="460px">
+    <el-dialog
+      v-model="adjustVisible"
+      :title="adjustTitle"
+      width="460px"
+    >
       <el-form label-position="top">
-        <el-form-item label="商品"><el-input :model-value="selectedStockLabel" disabled /></el-form-item>
-        <el-form-item :label="adjustMode === 'SET' ? '仓库实物总数' : '本次数量'"><el-input-number v-model="adjustForm.quantity" :min="adjustMode === 'SET' ? 0 : 1" :precision="0" style="width:100%" /></el-form-item>
-        <p v-if="adjustMode === 'SET'" class="dialog-tip">请填写现场实际清点总数，包含待付款和待发货订单仍在仓内的商品；系统会自动扣除订单占用，计算可售库存。</p>
-        <el-form-item label="变动原因（必填）"><el-input v-model="adjustForm.reason" maxlength="80" show-word-limit placeholder="例如：仓库盘点、破损报废、线下补货" /></el-form-item>
+        <el-form-item label="商品">
+          <el-input
+            :model-value="selectedStockLabel"
+            disabled
+          />
+        </el-form-item>
+        <el-form-item :label="adjustMode === 'SET' ? '仓库实物总数' : '本次数量'">
+          <el-input-number
+            v-model="adjustForm.quantity"
+            :min="adjustMode === 'SET' ? 0 : 1"
+            :precision="0"
+            style="width:100%"
+          />
+        </el-form-item>
+        <p
+          v-if="adjustMode === 'SET'"
+          class="dialog-tip"
+        >
+          请填写现场实际清点总数，包含待付款和待发货订单仍在仓内的商品；系统会自动扣除订单占用，计算可售库存。
+        </p>
+        <el-form-item label="变动原因（必填）">
+          <el-input
+            v-model="adjustForm.reason"
+            maxlength="80"
+            show-word-limit
+            placeholder="例如：仓库盘点、破损报废、线下补货"
+          />
+        </el-form-item>
       </el-form>
-      <template #footer><el-button @click="adjustVisible=false">取消</el-button><el-button type="primary" :loading="submitting" @click="saveAdjust">确认并记流水</el-button></template>
+      <template #footer>
+        <el-button @click="adjustVisible=false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="submitting"
+          @click="saveAdjust"
+        >
+          确认并记流水
+        </el-button>
+      </template>
     </el-dialog>
 
-    <el-dialog v-model="alertVisible" title="库存预警" width="420px">
+    <el-dialog
+      v-model="alertVisible"
+      title="库存预警"
+      width="420px"
+    >
       <el-form label-position="top">
-        <el-form-item label="低库存阈值"><el-input-number v-model="alertThreshold" :min="0" :precision="0" style="width:100%" /></el-form-item>
-        <p class="dialog-tip">库存小于或等于该数值时，工作台会提示补货。</p>
+        <el-form-item label="低库存阈值">
+          <el-input-number
+            v-model="alertThreshold"
+            :min="0"
+            :precision="0"
+            style="width:100%"
+          />
+        </el-form-item>
+        <p class="dialog-tip">
+          库存小于或等于该数值时，工作台会提示补货。
+        </p>
       </el-form>
-      <template #footer><el-button @click="alertVisible=false">取消</el-button><el-button type="primary" :loading="submitting" @click="saveAlert">保存</el-button></template>
+      <template #footer>
+        <el-button @click="alertVisible=false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="submitting"
+          @click="saveAlert"
+        >
+          保存
+        </el-button>
+      </template>
     </el-dialog>
 
-    <el-dialog v-model="purchaseVisible" title="新建采购单" width="720px">
+    <el-dialog
+      v-model="purchaseVisible"
+      title="新建采购单"
+      width="720px"
+    >
       <el-form label-position="top">
         <el-form-item label="从供应商档案复用">
-          <el-select v-model="purchaseForm.supplierId" clearable filterable placeholder="可选；选择后自动回填联系人和建议交期" style="width:100%" @change="applySupplierToPurchase">
-            <el-option v-for="supplier in activeSuppliers" :key="supplier.id" :label="supplier.name" :value="supplier.id">
+          <el-select
+            v-model="purchaseForm.supplierId"
+            clearable
+            filterable
+            placeholder="可选；选择后自动回填联系人和建议交期"
+            style="width:100%"
+            @change="applySupplierToPurchase"
+          >
+            <el-option
+              v-for="supplier in activeSuppliers"
+              :key="supplier.id"
+              :label="supplier.name"
+              :value="supplier.id"
+            >
               <span>{{ supplier.name }}</span>
               <span class="supplier-option">{{ supplier.leadTimeDays ? `${supplier.leadTimeDays} 天交期` : '交期待完善' }}</span>
             </el-option>
           </el-select>
         </el-form-item>
         <div class="form-grid">
-          <el-form-item label="供应商名称"><el-input v-model="purchaseForm.supplierName" placeholder="必填；新名称会自动沉淀为档案" @input="syncSupplierSelection" /></el-form-item>
-          <el-form-item label="预计到货"><el-date-picker v-model="purchaseForm.expectedAt" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
-          <el-form-item label="联系人"><el-input v-model="purchaseForm.contactName" /></el-form-item>
-          <el-form-item label="联系电话"><el-input v-model="purchaseForm.contactPhone" /></el-form-item>
+          <el-form-item label="供应商名称">
+            <el-input
+              v-model="purchaseForm.supplierName"
+              placeholder="必填；新名称会自动沉淀为档案"
+              @input="syncSupplierSelection"
+            />
+          </el-form-item>
+          <el-form-item label="预计到货">
+            <el-date-picker
+              v-model="purchaseForm.expectedAt"
+              type="date"
+              value-format="YYYY-MM-DD"
+              style="width:100%"
+            />
+          </el-form-item>
+          <el-form-item label="联系人">
+            <el-input v-model="purchaseForm.contactName" />
+          </el-form-item>
+          <el-form-item label="联系电话">
+            <el-input v-model="purchaseForm.contactPhone" />
+          </el-form-item>
         </div>
         <el-form-item label="采购明细">
           <div class="purchase-editor">
-            <div v-for="(item, index) in purchaseForm.items" :key="index" class="purchase-row">
-              <el-select v-model="item.stockKey" filterable placeholder="选择商品规格" @change="syncPurchaseItem(item)">
-                <el-option v-for="stock in stocks" :key="stock.stockKey" :label="stockLabel(stock)" :value="stock.stockKey" />
+            <div
+              v-for="(item, index) in purchaseForm.items"
+              :key="index"
+              class="purchase-row"
+            >
+              <el-select
+                v-model="item.stockKey"
+                filterable
+                placeholder="选择商品规格"
+                @change="syncPurchaseItem(item)"
+              >
+                <el-option
+                  v-for="stock in stocks"
+                  :key="stock.stockKey"
+                  :label="stockLabel(stock)"
+                  :value="stock.stockKey"
+                />
               </el-select>
-              <el-input-number v-model="item.quantity" :min="1" :precision="0" controls-position="right" />
-              <el-input-number v-model="item.unitCost" :min="0" :precision="2" controls-position="right" />
-              <el-button circle text type="danger" @click="purchaseForm.items.splice(index,1)">×</el-button>
+              <el-input-number
+                v-model="item.quantity"
+                :min="1"
+                :precision="0"
+                controls-position="right"
+              />
+              <el-input-number
+                v-model="item.unitCost"
+                :min="0"
+                :precision="2"
+                controls-position="right"
+              />
+              <el-button
+                circle
+                text
+                type="danger"
+                @click="purchaseForm.items.splice(index,1)"
+              >
+                ×
+              </el-button>
             </div>
-            <div class="purchase-row row-label"><span>商品规格</span><span>数量</span><span>采购单价</span><span></span></div>
-            <el-button text type="primary" @click="addPurchaseRow">+ 添加明细</el-button>
+            <div class="purchase-row row-label">
+              <span>商品规格</span><span>数量</span><span>采购单价</span><span />
+            </div>
+            <el-button
+              text
+              type="primary"
+              @click="addPurchaseRow"
+            >
+              + 添加明细
+            </el-button>
           </div>
         </el-form-item>
-        <el-form-item label="备注"><el-input v-model="purchaseForm.remark" type="textarea" :rows="2" maxlength="200" /></el-form-item>
+        <el-form-item label="备注">
+          <el-input
+            v-model="purchaseForm.remark"
+            type="textarea"
+            :rows="2"
+            maxlength="200"
+          />
+        </el-form-item>
       </el-form>
-      <template #footer><span class="purchase-total">预计金额 ¥{{ purchaseTotal }}</span><el-button @click="purchaseVisible=false">取消</el-button><el-button type="primary" :loading="submitting" @click="createPurchase">保存草稿</el-button></template>
+      <template #footer>
+        <span class="purchase-total">预计金额 ¥{{ purchaseTotal }}</span><el-button @click="purchaseVisible=false">
+          取消
+        </el-button><el-button
+          type="primary"
+          :loading="submitting"
+          @click="createPurchase"
+        >
+          保存草稿
+        </el-button>
+      </template>
     </el-dialog>
 
-    <el-dialog v-model="receiveVisible" title="到货质检与分批入库" width="760px">
+    <el-dialog
+      v-model="receiveVisible"
+      title="到货质检与分批入库"
+      width="760px"
+    >
       <div class="qc-guide">
         <i>验</i>
         <div><b>合格品进入可售库存，拒收品只留质检记录</b><span>提交后生成独立验收批次；未到部分可在下次继续处理，重复提交不会二次入库。</span></div>
         <em>本批 {{ receiveAcceptedTotal + receiveRejectedTotal }} 件</em>
       </div>
-      <div v-for="item in receiveForm" :key="item.itemId" class="receive-row">
-        <div class="receive-copy"><b>{{ item.label }}</b><span>待验 {{ item.remaining }} 件</span></div>
-        <div class="receive-field accepted"><label>合格入库</label><el-input-number v-model="item.quantity" :min="0" :max="item.remaining - item.rejectedQuantity" :precision="0" /></div>
-        <div class="receive-field rejected"><label>拒收留痕</label><el-input-number v-model="item.rejectedQuantity" :min="0" :max="item.remaining - item.quantity" :precision="0" /></div>
+      <div
+        v-for="item in receiveForm"
+        :key="item.itemId"
+        class="receive-row"
+      >
+        <div class="receive-copy">
+          <b>{{ item.label }}</b><span>待验 {{ item.remaining }} 件</span>
+        </div>
+        <div class="receive-field accepted">
+          <label>合格入库</label><el-input-number
+            v-model="item.quantity"
+            :min="0"
+            :max="item.remaining - item.rejectedQuantity"
+            :precision="0"
+          />
+        </div>
+        <div class="receive-field rejected">
+          <label>拒收留痕</label><el-input-number
+            v-model="item.rejectedQuantity"
+            :min="0"
+            :max="item.remaining - item.quantity"
+            :precision="0"
+          />
+        </div>
         <el-input
           v-if="item.rejectedQuantity > 0"
           v-model="item.rejectionReason"
@@ -357,24 +1014,59 @@
         />
       </div>
       <div class="receive-context">
-        <el-input v-model="receiveWarehouseName" maxlength="60" placeholder="验收仓库（选填，例如杭州一号仓）" />
-        <el-input v-model="receiveRemark" maxlength="200" placeholder="批次备注（选填，例如外箱已拍照留证）" />
+        <el-input
+          v-model="receiveWarehouseName"
+          maxlength="60"
+          placeholder="验收仓库（选填，例如杭州一号仓）"
+        />
+        <el-input
+          v-model="receiveRemark"
+          maxlength="200"
+          placeholder="批次备注（选填，例如外箱已拍照留证）"
+        />
       </div>
       <template #footer>
         <span class="qc-total">合格 {{ receiveAcceptedTotal }} · 拒收 {{ receiveRejectedTotal }}</span>
-        <el-button @click="receiveVisible=false">稍后处理</el-button>
-        <el-button type="success" :loading="submitting" :disabled="receiveAcceptedTotal + receiveRejectedTotal <= 0" @click="receivePurchase">确认质检批次</el-button>
+        <el-button @click="receiveVisible=false">
+          稍后处理
+        </el-button>
+        <el-button
+          type="success"
+          :loading="submitting"
+          :disabled="receiveAcceptedTotal + receiveRejectedTotal <= 0"
+          @click="receivePurchase"
+        >
+          确认质检批次
+        </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="receiptLogVisible" title="到货质检记录" width="780px" class="receipt-log-dialog">
-      <div v-if="receiptLogOrder" class="receipt-log-hero">
+    <el-dialog
+      v-model="receiptLogVisible"
+      title="到货质检记录"
+      width="780px"
+      class="receipt-log-dialog"
+    >
+      <div
+        v-if="receiptLogOrder"
+        class="receipt-log-hero"
+      >
         <div><span>{{ receiptLogOrder.orderNo }}</span><b>{{ receiptLogOrder.supplierName }}</b></div>
         <p>独立批次记录合格入库、拒收数量、原因、仓库和操作时间，库存流水可按批次追溯。</p>
       </div>
-      <div v-loading="receiptLogLoading" class="receipt-log-list">
-        <el-empty v-if="!receiptLogLoading && !receiptLogs.length" description="尚未产生到货质检批次" />
-        <article v-for="receipt in receiptLogs" :key="receipt.id" class="receipt-log-card">
+      <div
+        v-loading="receiptLogLoading"
+        class="receipt-log-list"
+      >
+        <el-empty
+          v-if="!receiptLogLoading && !receiptLogs.length"
+          description="尚未产生到货质检批次"
+        />
+        <article
+          v-for="receipt in receiptLogs"
+          :key="receipt.id"
+          class="receipt-log-card"
+        >
           <header>
             <div><b>{{ receipt.receiptNo }}</b><span>{{ formatTime(receipt.receivedAt) }}</span></div>
             <div><strong>合格 {{ receiptTotals(receipt).accepted }}</strong><em :class="{ danger: receiptTotals(receipt).rejected > 0 }">拒收 {{ receiptTotals(receipt).rejected }}</em></div>
@@ -384,15 +1076,24 @@
             <span v-if="receipt.remark">{{ receipt.remark }}</span>
           </div>
           <div class="receipt-log-items">
-            <div v-for="item in receipt.items" :key="item.id">
+            <div
+              v-for="item in receipt.items"
+              :key="item.id"
+            >
               <span><b>{{ item.productTitle }}</b><small>{{ item.skuLabel || "单规格" }}</small></span>
               <span><strong>合格 {{ item.acceptedQuantity }}</strong><em v-if="item.rejectedQuantity">拒收 {{ item.rejectedQuantity }}</em></span>
-              <p v-if="item.rejectionReason">拒收原因：{{ item.rejectionReason }}</p>
+              <p v-if="item.rejectionReason">
+                拒收原因：{{ item.rejectionReason }}
+              </p>
             </div>
           </div>
         </article>
       </div>
-      <template #footer><el-button @click="receiptLogVisible=false">关闭</el-button></template>
+      <template #footer>
+        <el-button @click="receiptLogVisible=false">
+          关闭
+        </el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -447,8 +1148,23 @@ const stockFileVisible = ref(false); const stockFileLoading = ref(false); const 
 const movementLabels:Record<string,string>={PURCHASE_IN:"采购入库",SALE_OUT:"销售出库",ORDER_CANCEL_RETURN:"取消回补",REFUND_RETURN:"退货入库",ADJUST_IN:"人工调增",ADJUST_OUT:"人工调减",STOCKTAKE_GAIN:"盘盈",STOCKTAKE_LOSS:"盘亏"};
 const purchaseLabels:Record<string,string>={DRAFT:"草稿",ORDERED:"待到货",PARTIALLY_RECEIVED:"部分到货",RECEIVED:"已完成",CANCELLED:"已取消"};
 const rid=()=>`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
-function dataOf<T>(res:any):T { return (res?.data?.data ?? res?.data ?? res) as T; }
-function pageOf<T>(res:any):{items:T[];total:number}{ const data:any=dataOf(res); return {items:Array.isArray(data)?data:(data?.items||data?.list||data?.data||[]),total:Number(data?.total||0)}; }
+function isRecord(value:unknown):value is Record<string,unknown>{ return typeof value==="object"&&value!==null; }
+function dataOf<T>(res:unknown):T {
+  if(!isRecord(res))return res as T;
+  const first=isRecord(res.data)?res.data:res;
+  return (isRecord(first)&&"data" in first?first.data:first) as T;
+}
+function pageOf<T>(res:unknown):{items:T[];total:number}{
+  const data=dataOf<unknown>(res);
+  if(Array.isArray(data))return {items:data as T[],total:data.length};
+  if(!isRecord(data))return {items:[],total:0};
+  const candidates=[data.items,data.list,data.data];
+  const items=candidates.find(Array.isArray) as T[]|undefined;
+  return {items:items??[],total:Number(data.total??0)};
+}
+function errorMessage(error:unknown,fallback:string):string{
+  return error instanceof Error&&error.message?error.message:fallback;
+}
 function formatTime(value:string){ return value ? new Date(value).toLocaleString("zh-CN",{hour12:false}) : "—"; }
 function formatDate(value:string){ return value ? new Date(value).toLocaleDateString("zh-CN") : "—"; }
 function money(value:number|string){ return Number(value||0).toFixed(2); }
@@ -506,8 +1222,8 @@ async function loadOverview(){ if(isVisualPreview)return; Object.assign(overview
 async function loadStocks(){
   if(isVisualPreview)return;
   loading.value=true;
-  try{ const p=pageOf<any>(await merchantBackendApi.listInventoryStocks({page:1,pageSize:100,keyword:keyword.value||undefined,lowStock:lowOnly.value||undefined})); stocks.value=p.items.map((s:any)=>({...s,stockKey:`${s.productId}:${s.skuId||"PRODUCT"}`})); }
-  catch(e:any){ stocks.value=[]; ElMessage.error(e?.message||"库存加载失败"); } finally{loading.value=false;}
+  try{ const p=pageOf<Omit<Stock,"stockKey">>(await merchantBackendApi.listInventoryStocks({page:1,pageSize:100,keyword:keyword.value||undefined,lowStock:lowOnly.value||undefined})); stocks.value=p.items.map((s)=>({...s,stockKey:`${s.productId}:${s.skuId||"PRODUCT"}`})); }
+  catch(e:unknown){ stocks.value=[]; ElMessage.error(errorMessage(e,"库存加载失败")); } finally{loading.value=false;}
 }
 async function loadMovements(){
   if(isVisualPreview)return;
@@ -516,14 +1232,14 @@ async function loadMovements(){
     movements.value=pageOf<Movement>(await merchantBackendApi.listInventoryMovements({
       page:1,pageSize:100,type:movementType.value||undefined,productId:movementFocus.value?.productId||undefined,
     })).items;
-  }catch(e:any){ElMessage.error(e?.message||"流水加载失败");}finally{loading.value=false;}
+  }catch(e:unknown){ElMessage.error(errorMessage(e,"流水加载失败"));}finally{loading.value=false;}
 }
-async function loadPurchases(){ if(isVisualPreview)return; loading.value=true; try{ purchases.value=pageOf<Purchase>(await merchantBackendApi.listPurchaseOrders({page:1,pageSize:100,status:purchaseStatus.value||undefined})).items; }catch(e:any){ElMessage.error(e?.message||"采购单加载失败");}finally{loading.value=false;} }
+async function loadPurchases(){ if(isVisualPreview)return; loading.value=true; try{ purchases.value=pageOf<Purchase>(await merchantBackendApi.listPurchaseOrders({page:1,pageSize:100,status:purchaseStatus.value||undefined})).items; }catch(e:unknown){ElMessage.error(errorMessage(e,"采购单加载失败"));}finally{loading.value=false;} }
 async function loadSuppliers(){
   if(isVisualPreview)return;
   supplierLoading.value=true;
   try{suppliers.value=pageOf<Supplier>(await merchantBackendApi.listSuppliers({page:1,pageSize:100,keyword:supplierKeyword.value||undefined})).items;}
-  catch(e:any){ElMessage.error(e?.message||"供应商档案加载失败");}
+  catch(e:unknown){ElMessage.error(errorMessage(e,"供应商档案加载失败"));}
   finally{supplierLoading.value=false;}
 }
 async function loadActive(){ await Promise.allSettled([loadOverview(), active.value==="stock"?loadStocks():active.value==="movement"?loadMovements():loadPurchases()]); }
@@ -549,8 +1265,8 @@ async function openStockFile(row:Stock){
     const rows=pageOf<Movement>(await merchantBackendApi.listInventoryMovements({page:1,pageSize:100,productId:row.productId})).items;
     if(requestSeq!==stockFileRequestSeq||!stockFileVisible.value)return;
     stockFileMovements.value=rows.filter((movement)=>(movement.skuId||null)===(row.skuId||null)).slice(0,12);
-  }catch(e:any){
-    if(requestSeq===stockFileRequestSeq&&stockFileVisible.value)ElMessage.error(e?.message||"库存档案读取失败");
+  }catch(e:unknown){
+    if(requestSeq===stockFileRequestSeq&&stockFileVisible.value)ElMessage.error(errorMessage(e,"库存档案读取失败"));
   }finally{
     if(requestSeq===stockFileRequestSeq&&stockFileVisible.value)stockFileLoading.value=false;
   }
@@ -577,10 +1293,10 @@ const adjustForm=reactive({quantity:1,reason:""});
 const adjustTitle=computed(()=>adjustMode.value==="SET"?"库存盘点":adjustMode.value==="DECREASE"?"报损出库":"补充库存");
 const selectedStockLabel=computed(()=>selectedStock.value?stockLabel(selectedStock.value):"");
 function openAdjust(row:Stock,mode:typeof adjustMode.value){selectedStock.value=row;adjustMode.value=mode;adjustForm.quantity=mode==="SET"?(row.physicalOnHandStock??row.stock):1;adjustForm.reason=mode==="DECREASE"?"破损或损耗":"仓库实物盘点";adjustVisible.value=true;}
-async function saveAdjust(){ if(!selectedStock.value||!adjustForm.reason.trim())return ElMessage.warning("请填写库存变动原因"); submitting.value=true; try{await merchantBackendApi.adjustInventory({requestId:rid(),productId:selectedStock.value.productId,skuId:selectedStock.value.skuId||undefined,mode:adjustMode.value,quantity:adjustForm.quantity,reason:adjustForm.reason.trim()});ElMessage.success("库存已更新并记录流水");adjustVisible.value=false;await loadActive();}catch(e:any){ElMessage.error(e?.message||"库存调整失败");}finally{submitting.value=false;} }
+async function saveAdjust(){ if(!selectedStock.value||!adjustForm.reason.trim())return ElMessage.warning("请填写库存变动原因"); submitting.value=true; try{await merchantBackendApi.adjustInventory({requestId:rid(),productId:selectedStock.value.productId,skuId:selectedStock.value.skuId||undefined,mode:adjustMode.value,quantity:adjustForm.quantity,reason:adjustForm.reason.trim()});ElMessage.success("库存已更新并记录流水");adjustVisible.value=false;await loadActive();}catch(e:unknown){ElMessage.error(errorMessage(e,"库存调整失败"));}finally{submitting.value=false;} }
 const alertVisible=ref(false); const alertThreshold=ref(5);
 function openAlert(row:Stock){selectedStock.value=row;alertThreshold.value=row.threshold??5;alertVisible.value=true;}
-async function saveAlert(){if(!selectedStock.value)return;submitting.value=true;try{await merchantBackendApi.setInventoryAlert({productId:selectedStock.value.productId,skuId:selectedStock.value.skuId||undefined,lowStockThreshold:alertThreshold.value,enabled:true});ElMessage.success("预警线已保存");alertVisible.value=false;await loadActive();}catch(e:any){ElMessage.error(e?.message||"保存失败");}finally{submitting.value=false;}}
+async function saveAlert(){if(!selectedStock.value)return;submitting.value=true;try{await merchantBackendApi.setInventoryAlert({productId:selectedStock.value.productId,skuId:selectedStock.value.skuId||undefined,lowStockThreshold:alertThreshold.value,enabled:true});ElMessage.success("预警线已保存");alertVisible.value=false;await loadActive();}catch(e:unknown){ElMessage.error(errorMessage(e,"保存失败"));}finally{submitting.value=false;}}
 
 const supplierVisible=ref(false); const supplierEditorVisible=ref(false); const supplierLoading=ref(false); const supplierKeyword=ref("");
 const supplierForm=reactive({
@@ -611,7 +1327,7 @@ async function saveSupplier(){
     ElMessage.success("供应商档案已保存");
     supplierEditorVisible.value=false;
     await loadSuppliers();
-  }catch(e:any){ElMessage.error(e?.message||"供应商档案保存失败");}
+  }catch(e:unknown){ElMessage.error(errorMessage(e,"供应商档案保存失败"));}
   finally{submitting.value=false;}
 }
 async function toggleSupplier(supplier:Supplier){
@@ -621,7 +1337,7 @@ async function toggleSupplier(supplier:Supplier){
     await merchantBackendApi.setSupplierStatus(supplier.id,next);
     ElMessage.success(next==="ACTIVE"?"供应商已启用":"供应商已停用");
     await loadSuppliers();
-  }catch(e:any){if(e!=="cancel"&&e!=="close")ElMessage.error(e?.message||"状态更新失败");}
+  }catch(e:unknown){if(e!=="cancel"&&e!=="close")ElMessage.error(errorMessage(e,"状态更新失败"));}
 }
 
 const purchaseVisible=ref(false);
@@ -639,9 +1355,9 @@ function syncSupplierSelection(){const selected=suppliers.value.find((row)=>row.
 async function useSupplierForPurchase(supplier:Supplier){supplierVisible.value=false;await openPurchase();purchaseForm.supplierId=supplier.id;applySupplierToPurchase(supplier.id);}
 function addPurchaseRow(){purchaseForm.items.push(newPurchaseItem());}
 function syncPurchaseItem(item:PurchaseDraftItem){const stock=stocks.value.find(s=>s.stockKey===item.stockKey);if(stock){item.productId=stock.productId;item.skuId=stock.skuId||undefined;}}
-async function createPurchase(){ if(!purchaseForm.supplierName.trim())return ElMessage.warning("请填写供应商名称"); const items=purchaseForm.items.filter(i=>i.productId&&i.quantity>0);if(!items.length)return ElMessage.warning("请至少添加一条采购明细");submitting.value=true;try{await merchantBackendApi.createPurchaseOrder({supplierId:purchaseForm.supplierId||undefined,supplierName:purchaseForm.supplierName.trim(),contactName:purchaseForm.contactName||undefined,contactPhone:purchaseForm.contactPhone||undefined,expectedAt:purchaseForm.expectedAt||undefined,remark:purchaseForm.remark||undefined,items:items.map(({productId,skuId,quantity,unitCost})=>({productId,skuId,quantity,unitCost}))});ElMessage.success("采购单草稿已创建");purchaseVisible.value=false;activate("purchase");}catch(e:any){ElMessage.error(e?.message||"采购单创建失败");}finally{submitting.value=false;}}
-async function submitPurchase(order:Purchase){try{await merchantBackendApi.submitPurchaseOrder(order.id);ElMessage.success("采购单已确认");await loadActive();}catch(e:any){ElMessage.error(e?.message||"确认失败");}}
-async function cancelPurchase(order:Purchase){try{await ElMessageBox.confirm("取消后不可继续收货，确认取消该采购单？","取消采购单",{type:"warning"});await merchantBackendApi.cancelPurchaseOrder(order.id);ElMessage.success("采购单已取消");await loadActive();}catch(e:any){if(e!=="cancel"&&e!=="close")ElMessage.error(e?.message||"取消失败");}}
+async function createPurchase(){ if(!purchaseForm.supplierName.trim())return ElMessage.warning("请填写供应商名称"); const items=purchaseForm.items.filter(i=>i.productId&&i.quantity>0);if(!items.length)return ElMessage.warning("请至少添加一条采购明细");submitting.value=true;try{await merchantBackendApi.createPurchaseOrder({supplierId:purchaseForm.supplierId||undefined,supplierName:purchaseForm.supplierName.trim(),contactName:purchaseForm.contactName||undefined,contactPhone:purchaseForm.contactPhone||undefined,expectedAt:purchaseForm.expectedAt||undefined,remark:purchaseForm.remark||undefined,items:items.map(({productId,skuId,quantity,unitCost})=>({productId,skuId,quantity,unitCost}))});ElMessage.success("采购单草稿已创建");purchaseVisible.value=false;activate("purchase");}catch(e:unknown){ElMessage.error(errorMessage(e,"采购单创建失败"));}finally{submitting.value=false;}}
+async function submitPurchase(order:Purchase){try{await merchantBackendApi.submitPurchaseOrder(order.id);ElMessage.success("采购单已确认");await loadActive();}catch(e:unknown){ElMessage.error(errorMessage(e,"确认失败"));}}
+async function cancelPurchase(order:Purchase){try{await ElMessageBox.confirm("取消后不可继续收货，确认取消该采购单？","取消采购单",{type:"warning"});await merchantBackendApi.cancelPurchaseOrder(order.id);ElMessage.success("采购单已取消");await loadActive();}catch(e:unknown){if(e!=="cancel"&&e!=="close")ElMessage.error(errorMessage(e,"取消失败"));}}
 const receiptLogVisible=ref(false); const receiptLogLoading=ref(false);
 const receiptLogOrder=ref<Purchase|null>(null); const receiptLogs=ref<Receipt[]>([]);
 function receiptTotals(receipt:Receipt){return receipt.items.reduce((total,item)=>({
@@ -672,7 +1388,7 @@ async function openReceiptHistory(order:Purchase){
   }
   receiptLogLoading.value=true;
   try{receiptLogs.value=dataOf<Receipt[]>(await merchantBackendApi.listPurchaseReceipts(order.id));}
-  catch(e:any){receiptLogs.value=[];ElMessage.error(e?.message||"验收记录加载失败");}
+  catch(e:unknown){receiptLogs.value=[];ElMessage.error(errorMessage(e,"验收记录加载失败"));}
   finally{receiptLogLoading.value=false;}
 }
 type ReceiveDraftItem={itemId:string;label:string;remaining:number;quantity:number;rejectedQuantity:number;rejectionReason:string};
@@ -715,7 +1431,7 @@ async function receivePurchase(){
     ElMessage.success(receiveRejectedTotal.value?"质检批次已登记":"合格品已入库");
     receiveVisible.value=false;
     await loadActive();
-  }catch(e:any){ElMessage.error(e?.message||"质检批次提交失败");}finally{submitting.value=false;}
+  }catch(e:unknown){ElMessage.error(errorMessage(e,"质检批次提交失败"));}finally{submitting.value=false;}
 }
 
 onMounted(async()=>{

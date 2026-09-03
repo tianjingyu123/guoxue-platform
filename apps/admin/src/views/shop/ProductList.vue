@@ -270,7 +270,12 @@
           </el-col>
         </el-row>
         <el-form-item label="运费模板">
-          <el-select v-model="form.freightTemplateId" clearable placeholder="平台包邮（不绑定模板）" style="width:100%">
+          <el-select
+            v-model="form.freightTemplateId"
+            clearable
+            placeholder="平台包邮（不绑定模板）"
+            style="width:100%"
+          >
             <el-option
               v-for="item in freightTemplates"
               :key="item.id"
@@ -542,12 +547,22 @@ const uploading = ref(false)
 // 商品分类下拉数据（来自后端商品分类树 /shop/categories/tree）
 const categories = ref<Array<{ id: string; name: string }>>([])
 const freightTemplates = ref<Array<{ id: string; name: string; isActive: boolean }>>([])
+interface CategoryNode { id: string; name: string; children?: CategoryNode[] }
+function categoryNodes(value: unknown): CategoryNode[] {
+  if (Array.isArray(value)) return value as CategoryNode[]
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const nested = Array.isArray(record.items) ? record.items : record.list
+    if (Array.isArray(nested)) return nested as CategoryNode[]
+  }
+  return []
+}
 async function loadCategories() {
   try {
     const { data } = await api.get('/shop/categories/tree')
     const flat: Array<{ id: string; name: string }> = []
-    const walk = (nodes: any[]) => { (nodes || []).forEach((n: any) => { flat.push({ id: n.id, name: n.name }); if (n.children) walk(n.children) }) }
-    walk(Array.isArray(data) ? data : ((data as any)?.items || (data as any)?.list || []))
+    const walk = (nodes: CategoryNode[]) => { nodes.forEach((n) => { flat.push({ id: n.id, name: n.name }); if (n.children) walk(n.children) }) }
+    walk(categoryNodes(data))
     categories.value = flat
   } catch { /* 分类加载失败不阻断表单 */ }
 }

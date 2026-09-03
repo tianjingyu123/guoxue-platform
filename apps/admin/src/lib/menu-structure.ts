@@ -294,7 +294,7 @@ const MENU_GROUPS: Array<LeafDef | GroupDef> = [
     title: "🤝 协作与兜底",
     icon: "Checked",
     workspace: "ai",
-    children: [M("/ai/collaborations"), M("/advisor/rules")],
+    children: [M("/ai/collaborations"), M("/ai/decisions"), M("/advisor/rules")],
   },
   {
     title: "📋 任务池",

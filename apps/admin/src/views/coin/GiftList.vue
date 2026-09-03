@@ -64,7 +64,7 @@
             <!-- 坏图占位：图标链接失效时不再显示裂图 -->
             <template #error>
               <div class="icon-broken">
-                🎁
+                礼
               </div>
             </template>
           </el-image>
@@ -317,7 +317,8 @@ async function fetchList() {
   error.value = false;
   try {
     const { data } = await coinApi.getGifts();
-    const items = (data as any).gifts || (data as any).list || data || [];
+    const payload = data as { gifts?: GiftRow[]; list?: GiftRow[] } | GiftRow[] | undefined;
+    const items = Array.isArray(payload) ? payload : payload?.gifts || payload?.list || [];
     list.value = Array.isArray(items) ? items : [];
     total.value = list.value.length;
   } catch {

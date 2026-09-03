@@ -43,7 +43,7 @@ describe("Data Isolation E2E", () => {
       )
     })
 
-    it("不带 stationId 返回所有内容", async () => {
+    it("匿名查询不带 stationId 只返回各分站已发布内容", async () => {
       prisma.content.findMany.mockResolvedValue([
         { id: "c1", stationId: STATION_A },
         { id: "c2", stationId: STATION_B },
@@ -57,7 +57,7 @@ describe("Data Isolation E2E", () => {
 
       expect(res.body.total).toBe(3)
       expect(prisma.content.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: {} }),
+        expect.objectContaining({ where: { status: "PUBLISHED" } }),
       )
     })
 

@@ -3,13 +3,14 @@
  * FinanceDashboard.vue — 财务管理员面板
  * 营收概况 / 退款监控 / 月度营收柱状图
  */
-import { ref, onMounted, type Component } from "vue"
+import { ref, shallowRef, onMounted, type Component } from "vue"
 import { useRouter } from "vue-router"
 import { api } from "@/api"
 import GreetingHeader from "@/components/GreetingHeader.vue"
 import AnimatedCounter from "@/components/AnimatedCounter.vue"
 import AnomalyAlert from "@/components/AnomalyAlert.vue"
 import ChartCard from "@/components/ChartCard.vue"
+import { firstChartTooltipDatum, type ChartOption } from "@/utils/chart"
 import { Money, Goods, WarningFilled, User, Document, TrendCharts, Download, Sell,
   RefreshLeft, Wallet, Tickets, Coin, DataAnalysis, CaretTop, CaretBottom } from "@element-plus/icons-vue"
 
@@ -53,11 +54,10 @@ const alerts = ref<AlertItem[]>([])
 // ==================== 统计卡片 ====================
 interface CardDelta { value: number; dir: "up" | "down" | "flat"; label: string }
 interface CardDef { label: string; value: number; icon: Component; format?: string; delta?: CardDelta }
-const cards = ref<CardDef[]>([])
+const cards = shallowRef<CardDef[]>([])
 
 // ==================== 月度营收柱状图 (ECharts) ====================
-// echarts option 结构复杂，统一用 any（框架类型），不做精细收敛
-const monthRevenueOption = ref<any>({})
+const monthRevenueOption = ref<ChartOption>({})
 const hasMonthRevenue = ref(false)
 
 // ==================== 加载状态 ====================
@@ -100,9 +100,8 @@ function buildMonthRevenueOption(months: string[], values: number[]) {
       trigger: "axis", backgroundColor: "#fff",
       borderColor: "#F0F0F0", borderWidth: 1,
       textStyle: { color: "#1A1A1A", fontSize: 13 },
-      // echarts tooltip 回调参数类型复杂，保留 any（框架类型）
-      formatter: (params: any) => {
-        const p = params[0]
+      formatter: (params: unknown) => {
+        const p = firstChartTooltipDatum(params)
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
                 <div>营收：<span style="color:#FF6B6B;font-weight:600">¥${Number(p.value).toLocaleString()}</span></div>`
       },
@@ -246,88 +245,88 @@ async function load() {
     </el-result>
 
     <template v-else>
-    <!-- 报警行 -->
-    <div
-      v-if="alerts.length"
-      class="alerts-row"
-    >
-      <AnomalyAlert
-        v-for="a in alerts"
-        :key="a.text"
-        v-bind="a"
-      />
-    </div>
-
-    <!-- 统计卡片 4×2 -->
-    <el-row
-      :gutter="20"
-      class="stats-row"
-    >
-      <el-col
-        v-for="card in cards"
-        :key="card.label"
-        :xs="24"
-        :sm="12"
-        :md="6"
+      <!-- 报警行 -->
+      <div
+        v-if="alerts.length"
+        class="alerts-row"
       >
-        <div
-          class="stat-card"
-          @click="onCardClick(card)"
+        <AnomalyAlert
+          v-for="a in alerts"
+          :key="a.text"
+          v-bind="a"
+        />
+      </div>
+
+      <!-- 统计卡片 4×2 -->
+      <el-row
+        :gutter="20"
+        class="stats-row"
+      >
+        <el-col
+          v-for="card in cards"
+          :key="card.label"
+          :xs="24"
+          :sm="12"
+          :md="6"
         >
-          <div class="stat-card__top">
-            <span class="stat-card__label">{{ card.label }}</span>
-            <div class="stat-card__icon">
-              <el-icon :size="18">
-                <component :is="card.icon" />
+          <div
+            class="stat-card"
+            @click="onCardClick(card)"
+          >
+            <div class="stat-card__top">
+              <span class="stat-card__label">{{ card.label }}</span>
+              <div class="stat-card__icon">
+                <el-icon :size="18">
+                  <component :is="card.icon" />
+                </el-icon>
+              </div>
+            </div>
+            <div
+              class="stat-card__value"
+              :class="{ 'stat-card__value--alert': card.label === '退款率' && card.value > 5 }"
+            >
+              <!-- 金额/百分比卡走 formatCardValue（¥千分位两位小数、%），纯数量卡保留动画计数 -->
+              <span v-if="card.format === 'currency' || card.label === '退款率'">{{ formatCardValue(card) }}</span>
+              <AnimatedCounter
+                v-else
+                :value="card.value"
+              />
+            </div>
+            <div
+              v-if="card.delta"
+              class="stat-card__delta"
+              :class="`stat-card__delta--${card.delta.dir}`"
+            >
+              <el-icon :size="12">
+                <component :is="card.delta.dir === 'down' ? CaretBottom : CaretTop" />
               </el-icon>
+              <span>{{ card.delta.value }}% {{ card.delta.label }}</span>
             </div>
           </div>
-          <div
-            class="stat-card__value"
-            :class="{ 'stat-card__value--alert': card.label === '退款率' && card.value > 5 }"
-          >
-            <!-- 金额/百分比卡走 formatCardValue（¥千分位两位小数、%），纯数量卡保留动画计数 -->
-            <span v-if="card.format === 'currency' || card.label === '退款率'">{{ formatCardValue(card) }}</span>
-            <AnimatedCounter
-              v-else
-              :value="card.value"
-            />
-          </div>
-          <div
-            v-if="card.delta"
-            class="stat-card__delta"
-            :class="`stat-card__delta--${card.delta.dir}`"
-          >
-            <el-icon :size="12">
-              <component :is="card.delta.dir === 'down' ? CaretBottom : CaretTop" />
-            </el-icon>
-            <span>{{ card.delta.value }}% {{ card.delta.label }}</span>
-          </div>
-        </div>
-      </el-col>
-    </el-row>
+        </el-col>
+      </el-row>
 
-    <!-- 月度营收柱状图 -->
-    <el-row
-      :gutter="20"
-      class="charts-row"
-    >
-      <el-col
-        :xs="24"
-        :md="24"
+      <!-- 月度营收柱状图 -->
+      <el-row
+        :gutter="20"
+        class="charts-row"
       >
-        <ChartCard
-          v-if="hasMonthRevenue"
-          title="月度营收"
-          :option="monthRevenueOption"
-          :height="320"
-        />
-        <el-empty
-          v-else-if="!loading"
-          description="暂无月度营收数据"
-        />
-      </el-col>
-    </el-row>
+        <el-col
+          :xs="24"
+          :md="24"
+        >
+          <ChartCard
+            v-if="hasMonthRevenue"
+            title="月度营收"
+            :option="monthRevenueOption"
+            :height="320"
+          />
+          <el-empty
+            v-else-if="!loading"
+            description="暂无月度营收数据"
+          />
+        </el-col>
+      </el-row>
     </template>
   </div>
 </template>

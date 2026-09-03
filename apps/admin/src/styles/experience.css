@@ -1,0 +1,460 @@
+/*
+ * 后台工作流体验层
+ * 根据 Layout 标记的页面类型，为列表、详情、编辑、审核、配置与分析页面提供不同的秩序。
+ * 只管理结构和交互反馈，不覆盖业务组件的场景表达。
+ */
+
+.el-main[data-page-kind] {
+  --workspace-accent: #52789d;
+  --workspace-accent-soft: rgba(82, 120, 157, .09);
+  scroll-padding-top: 20px;
+}
+
+.el-main[data-page-domain="content"] { --workspace-accent: #9b4f5f; --workspace-accent-soft: rgba(155, 79, 95, .09); }
+.el-main[data-page-domain="people"] { --workspace-accent: #496f91; --workspace-accent-soft: rgba(73, 111, 145, .09); }
+.el-main[data-page-domain="commerce"] { --workspace-accent: #8a6331; --workspace-accent-soft: rgba(138, 99, 49, .09); }
+.el-main[data-page-domain="finance"] { --workspace-accent: #26715f; --workspace-accent-soft: rgba(38, 113, 95, .09); }
+.el-main[data-page-domain="system"] { --workspace-accent: #596477; --workspace-accent-soft: rgba(89, 100, 119, .09); }
+.el-main[data-page-domain="ai"] { --workspace-accent: #5867a7; --workspace-accent-soft: rgba(88, 103, 167, .09); }
+
+.el-main[data-page-kind] > :where(.page, .page-container, .content-page, .article-page,
+  .classic-page, .cat-page, .audit-page, .notification-page, .revenue-page,
+  .interaction-page, .huifu-page, .im-page, .km-page, .cs-page, .quality-page,
+  .marketplace-page, .mp-page, .cg-page, .user-detail, .content-edit) {
+  min-width: 0;
+}
+
+/* 少数专项页面使用独立根类，仍然纳入统一内容宽度与对齐系统。 */
+.el-main[data-page-kind]:not(.is-merchant-workspace) > * {
+  width: 100%;
+  max-width: 1760px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* Layout 已负责页面安全边距，移除历史页面重复 padding，保证全站标题和表格左边线一致。 */
+.el-main[data-page-kind] > :where(.page, .page-container, .content-page, .article-page,
+  .classic-page, .cat-page, .audit-page, .notification-page, .revenue-page,
+  .interaction-page, .huifu-page, .im-page, .km-page, .cs-page, .quality-page,
+  .marketplace-page, .mp-page, .cg-page, .user-detail) {
+  padding: 0 !important;
+}
+
+/* 历史页面常用 toolbar/header 统一为无卡片页头，避免每页标题大小和左边线漂移。 */
+.el-main[data-page-kind] > :where(.page, .page-container) > :where(.toolbar, .header) {
+  align-items: flex-end;
+  min-height: 50px;
+  margin-bottom: 20px;
+  padding: 0 2px 4px 13px;
+  border: 0;
+  border-left: 4px solid var(--workspace-accent);
+  background: transparent;
+  box-shadow: none;
+}
+
+.el-main[data-page-kind] > :where(.page, .page-container) > :where(.toolbar, .header) :where(h2, h3) {
+  margin: 0;
+  color: var(--color-text-title);
+  font-size: 25px;
+  font-weight: 680;
+  letter-spacing: -.025em;
+  line-height: 1.25;
+}
+
+/* 列表工作台：首要任务是快速定位、比较和批量处理。 */
+.el-main[data-page-kind="list"] :where(.data-table-wrap, .page > .el-table, .page-container > .el-table) {
+  box-shadow: 0 12px 34px rgba(20, 39, 62, .06);
+}
+
+.el-main[data-page-kind="list"] :where(.filter-row, .filter-bar, .filters, .filter-card, .data-table__toolbar) {
+  position: relative;
+}
+
+.el-main[data-page-kind="list"] :where(.filter-row, .filter-bar, .filters, .filter-card)::before {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--workspace-accent);
+  content: "";
+}
+
+.el-main[data-page-kind="list"] .el-table__row .el-link {
+  color: #315d83;
+  font-weight: 600;
+}
+
+.el-main[data-page-kind="list"] .el-table__row .el-button--danger.is-text,
+.el-main[data-page-kind="list"] .el-table__row .el-button--danger.is-link {
+  opacity: .72;
+}
+
+.el-main[data-page-kind="list"] .el-table__row:hover .el-button--danger.is-text,
+.el-main[data-page-kind="list"] .el-table__row:hover .el-button--danger.is-link {
+  opacity: 1;
+}
+
+/* 表格内是行级动作，不与页面主操作争夺视觉层级。 */
+.el-main[data-page-kind] .el-table__cell .el-button--primary:not(.is-text):not(.is-link),
+.el-main[data-page-kind] .el-table__cell .el-button--success:not(.is-text):not(.is-link),
+.el-main[data-page-kind] .el-table__cell .el-button--warning:not(.is-text):not(.is-link),
+.el-main[data-page-kind] .el-table__cell .el-button--danger:not(.is-text):not(.is-link) {
+  border-color: #dce3ea;
+  color: #3f5369;
+  background: #fff;
+  box-shadow: none;
+}
+
+.el-main[data-page-kind] .el-table__cell .el-button--primary:not(.is-text):not(.is-link):hover {
+  border-color: rgba(49, 93, 131, .24);
+  color: #315d83;
+  background: rgba(49, 93, 131, .06);
+}
+
+.el-main[data-page-kind] .el-table__cell .el-button--danger:not(.is-text):not(.is-link):hover {
+  border-color: rgba(180, 35, 62, .22);
+  color: var(--color-primary);
+  background: rgba(180, 35, 62, .06);
+}
+
+/* 详情页：返回路径、实体身份、关键指标和长信息区形成清楚的四层结构。 */
+.el-main[data-page-kind="detail"] .el-page-header {
+  min-height: 72px;
+  padding: 15px 18px;
+  border: 1px solid var(--color-divider);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .9);
+  box-shadow: var(--shadow-sm);
+}
+
+.el-main[data-page-kind="detail"] .el-page-header__left {
+  min-width: 92px;
+  margin-right: 20px;
+  color: var(--color-text-secondary);
+}
+
+.el-main[data-page-kind="detail"] .el-page-header__content {
+  min-width: 0;
+  color: var(--color-text-title);
+  font-size: 19px;
+  font-weight: 680;
+}
+
+.el-main[data-page-kind="detail"] :where(.stats-row, .profile-stats, .detail-stats) {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px !important;
+}
+
+.el-main[data-page-kind="detail"] :where(.stats-row, .profile-stats, .detail-stats) > :where(.stat-card, .metric-card, .stat-item) {
+  min-width: 0 !important;
+  padding: 16px !important;
+  text-align: left !important;
+  border: 1px solid var(--color-divider) !important;
+  border-radius: 13px !important;
+  background: rgba(255, 255, 255, .84) !important;
+}
+
+.el-main[data-page-kind="detail"] :where(.stat-value, .metric-value) {
+  color: var(--color-text-title) !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  letter-spacing: -.025em;
+}
+
+.el-main[data-page-kind="detail"] :where(.stat-label, .metric-label) {
+  margin-top: 5px !important;
+  color: var(--color-text-secondary) !important;
+}
+
+.el-main[data-page-kind="detail"] :where(.tabs, .detail-tabs) {
+  padding: 0 20px 20px;
+  border: 1px solid var(--color-divider);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: var(--shadow-card);
+}
+
+/* 编辑页：正文是主舞台，属性栏独立且在长页面滚动时保持可见。 */
+.el-main[data-page-kind="editor"] {
+  padding-top: 0;
+  /* 自动聚焦/校验滚动时，为固定保存栏留出可见区域。 */
+  scroll-padding-top: 120px;
+}
+
+.el-main[data-page-kind="editor"] :where(.edit-header, .editor-header, .form-header) {
+  position: sticky;
+  z-index: 8;
+  top: 0;
+  min-height: 70px;
+  margin: 0 calc(-1 * var(--workspace-gutter, 28px)) 18px;
+  padding: 14px var(--workspace-gutter, 28px);
+  border-bottom: 1px solid rgba(216, 222, 231, .9);
+  background: rgba(244, 246, 249, .88);
+  backdrop-filter: blur(18px) saturate(140%);
+}
+
+.el-main[data-page-kind="editor"] :where(.edit-header, .editor-header, .form-header) h3 {
+  font-size: 22px;
+  font-weight: 680;
+  letter-spacing: -.02em;
+}
+
+.el-main[data-page-kind="editor"] :where(.edit-body, .editor-body) {
+  width: 100%;
+  max-width: 1540px;
+  margin: 0 auto;
+}
+
+.el-main[data-page-kind="editor"] :where(.edit-main, .editor-main, .form-main) {
+  box-shadow: var(--shadow-card);
+}
+
+.el-main[data-page-kind="editor"] :where(.edit-sidebar, .editor-sidebar, .property-panel) {
+  align-self: flex-start;
+  position: sticky;
+  top: 88px;
+  box-shadow: var(--shadow-card);
+}
+
+.el-main[data-page-kind="editor"] :where(.form-actions, .editor-actions, .submit-bar) {
+  position: sticky;
+  z-index: 7;
+  bottom: -1px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--color-divider);
+  background: rgba(255, 255, 255, .92);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 -10px 28px rgba(19, 38, 59, .07);
+}
+
+/* 审核台：保持队列密度，把状态判断与主决策放在视觉前景。 */
+.el-main[data-page-kind="review"] :where(.audit-page, .review-page) {
+  padding: 0 !important;
+}
+
+.el-main[data-page-kind="review"] :where(.stat-mini, .audit-stat) {
+  min-height: 78px;
+  padding: 14px 16px !important;
+  border: 1px solid var(--color-divider);
+  border-radius: 13px !important;
+  background: rgba(255, 255, 255, .9) !important;
+  text-align: left !important;
+}
+
+.el-main[data-page-kind="review"] :where(.stat-mini, .audit-stat) .v {
+  color: var(--color-text-title);
+  font-size: 25px;
+  font-weight: 720;
+  letter-spacing: -.025em;
+}
+
+.el-main[data-page-kind="review"] :where(.stat-mini, .audit-stat) .l {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.el-main[data-page-kind="review"] .el-table__cell .el-button--success:not(.is-text):not(.is-link) {
+  border-color: rgba(22, 138, 98, .18);
+  color: #107151;
+  background: rgba(22, 138, 98, .08);
+}
+
+.el-main[data-page-kind="review"] .el-table__cell .el-button--danger:not(.is-text):not(.is-link) {
+  border-color: rgba(199, 62, 78, .18);
+  color: #aa3040;
+  background: rgba(199, 62, 78, .07);
+}
+
+/* 配置页：提高长键值、说明和风险信息的可读性。 */
+.el-main[data-page-kind="settings"] .el-table td:first-child .cell {
+  color: #28364a;
+  font-weight: 620;
+}
+
+.el-main[data-page-kind="settings"] :where(.summary-raw, pre) {
+  border: 1px solid #dfe5eb;
+  border-radius: 10px !important;
+  color: #334155;
+  background: #f6f8fa !important;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.el-main[data-page-kind="settings"] .el-alert:first-of-type {
+  border-left: 3px solid var(--workspace-accent);
+}
+
+/* 分析页：数值优先，但使用安静表面，避免与科技大屏争夺视觉。 */
+.el-main[data-page-kind="analytics"] :where(.metric-row, .stats-row, .stats-grid) {
+  row-gap: 14px;
+}
+
+.el-main[data-page-kind="analytics"] :where(.metric-card, .stat-card) {
+  height: 100%;
+  padding: 18px !important;
+  border: 1px solid var(--color-divider) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, .92) !important;
+  box-shadow: var(--shadow-sm);
+  text-align: left !important;
+}
+
+.el-main[data-page-kind="analytics"] :where(.metric-value, .stat-value) {
+  color: var(--color-text-title) !important;
+  font-size: clamp(22px, 2vw, 29px) !important;
+  font-weight: 720 !important;
+  letter-spacing: -.035em;
+}
+
+.el-main[data-page-kind="analytics"] .el-radio-group {
+  padding: 3px;
+  border: 1px solid var(--color-divider);
+  border-radius: 10px;
+  background: #eef1f4;
+}
+
+.el-main[data-page-kind="analytics"] .el-radio-button__inner {
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: transparent;
+  box-shadow: none !important;
+}
+
+.el-main[data-page-kind="analytics"] .el-radio-button__original-radio:checked + .el-radio-button__inner {
+  color: var(--color-text-title);
+  background: #fff;
+  box-shadow: 0 2px 7px rgba(24, 40, 60, .1) !important;
+}
+
+/* 所有工作流共有的状态反馈。 */
+.el-main[data-page-kind] .el-loading-mask {
+  background: rgba(248, 250, 252, .7);
+  backdrop-filter: blur(2px);
+}
+
+.el-main[data-page-kind] :where(.el-button, .el-input__wrapper, .el-select__wrapper, .el-checkbox, .el-radio):focus-visible {
+  outline: 2px solid rgba(82, 120, 157, .72);
+  outline-offset: 2px;
+}
+
+.el-main[data-page-kind] .el-button.is-disabled {
+  cursor: not-allowed;
+  filter: saturate(.55);
+}
+
+.el-main[data-page-kind] .el-form-item.is-required:not(.is-no-asterisk) > .el-form-item__label::before {
+  color: var(--color-primary);
+}
+
+.el-dialog {
+  display: flex;
+  max-height: min(84vh, 860px);
+  flex-direction: column;
+}
+
+.el-dialog__body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.el-message-box {
+  max-width: min(440px, calc(100vw - 32px));
+}
+
+.el-popconfirm__main {
+  color: var(--color-text-title);
+  line-height: 1.55;
+}
+
+.el-main[data-page-kind] .el-result {
+  min-height: 340px;
+  border: 1px dashed #d8dee6;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .68);
+}
+
+.el-main[data-page-kind] .el-empty__image {
+  opacity: .72;
+  filter: saturate(.55);
+}
+
+.el-main[data-page-kind] .el-table__fixed-right {
+  box-shadow: -10px 0 22px rgba(18, 38, 61, .04);
+}
+
+@media (max-width: 1100px) {
+  .el-main[data-page-kind="analytics"] .el-row > .el-col-6,
+  .el-main[data-page-kind="review"] .el-row > :where(.el-col-4, .el-col-5) {
+    max-width: 50%;
+    flex: 0 0 50%;
+    margin-bottom: 12px;
+  }
+
+  .el-main[data-page-kind="analytics"] .el-row > :where(.el-col-16, .el-col-8) {
+    max-width: 100%;
+    flex: 0 0 100%;
+    margin-bottom: 14px;
+  }
+}
+
+@media (max-width: 900px) {
+  .el-main[data-page-kind="editor"] {
+    scroll-padding-top: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  .el-main[data-page-kind="editor"] :where(.edit-header, .editor-header, .form-header) {
+    align-items: flex-start;
+    flex-direction: column;
+    margin: 0 -14px 14px;
+    padding: 12px 14px;
+  }
+
+  .el-main[data-page-kind="editor"] :where(.edit-header, .editor-header, .form-header) :where(.header-actions, .editor-actions) {
+    width: 100%;
+  }
+
+  .el-main[data-page-kind="editor"] :where(.edit-sidebar, .editor-sidebar, .property-panel) {
+    position: static;
+  }
+
+  .el-main[data-page-kind="editor"] .el-row > .el-col-8,
+  .el-main[data-page-kind="analytics"] .el-row > .el-col-6,
+  .el-main[data-page-kind="review"] .el-row > :where(.el-col-4, .el-col-5) {
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .el-main[data-page-kind="detail"] .el-page-header {
+    align-items: flex-start;
+  }
+
+  .el-main[data-page-kind="detail"] .el-page-header__main {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .el-main[data-page-kind="detail"] :where(.tabs, .detail-tabs) {
+    padding: 0 12px 14px;
+  }
+
+  .el-main[data-page-kind] .el-pagination {
+    justify-content: flex-start;
+    min-width: max-content;
+  }
+
+  .el-dialog {
+    width: calc(100vw - 24px) !important;
+    max-height: 88vh;
+    margin-top: 6vh !important;
+  }
+
+  .el-drawer {
+    max-width: 92vw;
+  }
+}

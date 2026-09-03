@@ -11,6 +11,7 @@
  * 后端 200 返回 {error:"分站不存在"} 识别为错误态；后端 null 字段显 "—" 不画 0。
  */
 import { ref, onMounted, type Component } from "vue"
+import type { ChartOption } from "@/utils/chart"
 import { useRoute } from "vue-router"
 import { stationApi, dashboardApi } from "@/api"
 import ChartCard from "@/components/ChartCard.vue"
@@ -83,9 +84,8 @@ function fmtDate(v: string | null | undefined): string {
 }
 
 // ==================== ECharts 选项 ====================
-// echarts option 结构复杂，统一用 any（框架类型）
-const channelOption = ref<any>(null)
-const commissionOption = ref<any>(null)
+const channelOption = ref<ChartOption | null>(null)
+const commissionOption = ref<ChartOption | null>(null)
 
 function buildChannelOption(list: NonNullable<StationDashboard["channelAnalysis"]>) {
   const items = list.filter((c) => (c.clicks ?? 0) > 0 || (c.conversions ?? 0) > 0)

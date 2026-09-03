@@ -1,7 +1,10 @@
 <template>
   <div class="content-edit">
     <div class="edit-header">
-      <h3>{{ isEdit ? '编辑内容' : '新建内容' }}</h3>
+      <div class="edit-heading">
+        <h3>{{ isEdit ? '编辑内容' : '新建内容' }}</h3>
+        <p>{{ isEdit ? '修改正文与发布属性，保存后同步更新内容库。' : '先完成正文，再确认封面、标签与发布状态。' }}</p>
+      </div>
       <div class="header-actions">
         <!-- 注意：不能写 @click="handleSave"，Vue 会把 MouseEvent 作为 status 参数传入导致提交 400 -->
         <el-button
@@ -166,6 +169,7 @@ import { ElMessage } from 'element-plus'
 import CosImageUpload from '@/components/upload/CosImageUpload.vue'
 import RichEditor from '@/components/editor/RichEditor.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
+import { normalizeRichText } from '@/utils/rich-text'
 
 const route = useRoute()
 const router = useRouter()
@@ -224,11 +228,12 @@ function addTag() {
 }
 
 async function handleSave(status?: string) {
+  if (saving.value) return
   if (!form.title.trim()) {
     ElMessage.warning('请输入标题')
     return
   }
-  if (!form.body.trim()) {
+  if (!normalizeRichText(form.body)) {
     ElMessage.warning('请输入正文')
     return
   }
@@ -237,6 +242,7 @@ async function handleSave(status?: string) {
   try {
     const payload = {
       ...form,
+      title: form.title.trim(),
       type: form.type,
       tags: form.tags || [],
     }
@@ -258,23 +264,24 @@ async function handleSave(status?: string) {
 </script>
 
 <style scoped>
-.content-edit { min-height: 100vh; background: #f5f0e6; }
+.content-edit { min-height: 100%; background: transparent; }
 
 .edit-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px;
-  background: var(--color-bg-card);
-  border-bottom: 1px solid var(--color-border);
+  gap: 20px;
 }
-.edit-header h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
+.edit-heading { min-width: 0; }
+.edit-header h3 { margin: 0; color: var(--color-text-title); }
+.edit-heading p { margin: 4px 0 0; color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }
 .header-actions { display: flex; gap: 8px; }
 
 .edit-body {
   display: flex;
-  gap: 0;
-  padding: 16px 24px;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 0;
   max-width: 1400px;
 }
 
@@ -282,30 +289,29 @@ async function handleSave(status?: string) {
   flex: 1;
   min-width: 0;
   background: var(--color-bg-card);
-  padding: 20px;
-  border-radius: 8px 0 0 8px;
-  border: 1px solid var(--color-border);
-  border-right: none;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--color-divider);
 }
 
 .edit-sidebar {
-  width: 280px;
+  width: 292px;
   flex-shrink: 0;
   background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: 0 8px 8px 0;
-  padding: 16px;
+  border: 1px solid var(--color-divider);
+  border-radius: 16px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
 }
 
 .sidebar-section h4 {
   margin: 0 0 10px;
   font-size: 14px;
   color: var(--color-text-title);
-  border-bottom: 1px solid #f0e6d3;
-  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-light);
+  padding-bottom: 9px;
 }
 
 /* 封面 */
@@ -322,8 +328,14 @@ async function handleSave(status?: string) {
 .no-tags { color: var(--color-text-placeholder); font-size: 12px; }
 
 @media (max-width: 900px) {
+  .edit-header { align-items: flex-start; flex-direction: column; }
   .edit-body { flex-direction: column; }
-  .edit-sidebar { width: 100%; border-radius: 0 0 8px 8px; border-top: none; border-left: 1px solid var(--color-border); }
-  .edit-main { border-radius: 8px 8px 0 0; border-right: 1px solid var(--color-border); }
+  .edit-sidebar { width: 100%; }
+  .edit-main { width: 100%; }
+}
+
+@media (max-width: 640px) {
+  .edit-main { padding: 16px; }
+  .header-actions { width: 100%; flex-wrap: wrap; }
 }
 </style>

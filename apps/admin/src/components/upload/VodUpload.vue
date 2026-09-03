@@ -8,7 +8,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { uploadApi } from '@/api'
-import TcVod from 'vod-js-sdk-v6'
+import { uploadVodFile } from '@/utils/vod-upload'
 
 withDefaults(
   defineProps<{
@@ -88,28 +88,8 @@ async function onFileChange(e: Event) {
     }
   })
   try {
-    const tcVod = new TcVod({
-      getSignature: async () => {
-        const res: any = await uploadApi.getVodSignature()
-        // 兼容拦截器解包差异：signature 可能在 res.signature / res.data.signature / res.data.data.signature
-        const sig =
-          typeof res === 'string'
-            ? res
-            : res?.signature ?? res?.data?.signature ?? res?.data?.data?.signature
-        if (typeof sig !== 'string' || !sig) {
-          // 暴露真实返回结构，避免腾讯云 SDK 抛出难以定位的 "signature.split is not a function"
-          console.error('[VodUpload] 签名返回非字符串：', res)
-          throw new Error('签名格式异常，请查看控制台 [VodUpload] 日志')
-        }
-        return sig
-      },
-    })
-    const uploader = tcVod.upload({ mediaFile: file })
-    uploader.on('media_progress', (info: any) => {
-      progress.value = Math.round((info.percent || 0) * 100)
-    })
-    const result: any = await uploader.done()
-    emit('update:modelValue', result?.video?.url || '')
+    const url = await uploadVodFile(file, (percent) => { progress.value = percent })
+    emit('update:modelValue', url)
     ElMessage.success('视频上传成功，已自动填入地址')
   } catch {
     ElMessage.error('视频上传失败，请重试')
@@ -171,7 +151,9 @@ async function onFileChange(e: Event) {
         :stroke-width="6"
         style="margin-top: 8px"
       />
-      <div class="vod-tip">本地视频直传，自动转码压缩；大视频建议用电脑上传</div>
+      <div class="vod-tip">
+        本地视频直传，自动转码压缩；大视频建议用电脑上传
+      </div>
     </div>
 
     <!-- 高级：手动填写视频地址（默认折叠，供已有链接/上传失败时兜底） -->

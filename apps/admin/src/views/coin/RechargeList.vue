@@ -63,104 +63,104 @@
           width="130"
           show-overflow-tooltip
         >
-        <template #default="{ row }">
-          {{ row.user?.nickname || "—" }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="手机号"
-        width="130"
-      >
-        <template #default="{ row }">
-          {{ maskPhone(row.user?.phone) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="用户ID"
-        width="110"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            :content="String(row.userId || '')"
-            placement="top"
-          >
-            <span
-              class="copyable"
-              @click="copyText(String(row.userId || ''))"
-            >{{ String(row.userId || '').slice(0, 8) }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="人民币金额"
-        width="120"
-        align="right"
-      >
-        <template #default="{ row }">
-          <span class="money">{{ fmtMoney(row.amountRmb) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="币数"
-        width="100"
-        align="right"
-      >
-        <template #default="{ row }">
-          {{ fmtInt(row.amountCoin) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="支付方式"
-        width="100"
-      >
-        <template #default="{ row }">
-          {{ payMethodLabel(row.payMethod) }}
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="支付单号"
-        width="120"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            v-if="row.orderNo"
-            :content="row.orderNo"
-            placement="top"
-          >
-            <span
-              class="copyable"
-              @click="copyText(row.orderNo!)"
-            >{{ row.orderNo.slice(0, 8) }}…</span>
-          </el-tooltip>
-          <span v-else>—</span>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="状态"
-        width="90"
-      >
-        <template #default="{ row }">
-          <el-tag
-            :type="statusType(row.status)"
-            size="small"
-          >
-            {{ statusLabel(row.status) }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column
-        label="充值时间"
-        width="150"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            :content="fullTime(row.createdAt)"
-            placement="top"
-          >
-            <span>{{ formatTime(row.createdAt) }}</span>
-          </el-tooltip>
-        </template>
-      </el-table-column>
+          <template #default="{ row }">
+            {{ row.user?.nickname || "—" }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="手机号"
+          width="130"
+        >
+          <template #default="{ row }">
+            {{ maskPhone(row.user?.phone) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="用户ID"
+          width="110"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              :content="String(row.userId || '')"
+              placement="top"
+            >
+              <span
+                class="copyable"
+                @click="copyText(String(row.userId || ''))"
+              >{{ String(row.userId || '').slice(0, 8) }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="人民币金额"
+          width="120"
+          align="right"
+        >
+          <template #default="{ row }">
+            <span class="money">{{ fmtMoney(row.amountRmb) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="币数"
+          width="100"
+          align="right"
+        >
+          <template #default="{ row }">
+            {{ fmtInt(row.amountCoin) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="支付方式"
+          width="100"
+        >
+          <template #default="{ row }">
+            {{ payMethodLabel(row.payMethod) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="支付单号"
+          width="120"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              v-if="row.orderNo"
+              :content="row.orderNo"
+              placement="top"
+            >
+              <span
+                class="copyable"
+                @click="copyText(row.orderNo!)"
+              >{{ row.orderNo.slice(0, 8) }}…</span>
+            </el-tooltip>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="状态"
+          width="90"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="statusType(row.status)"
+              size="small"
+            >
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="充值时间"
+          width="150"
+        >
+          <template #default="{ row }">
+            <el-tooltip
+              :content="fullTime(row.createdAt)"
+              placement="top"
+            >
+              <span>{{ formatTime(row.createdAt) }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
       </el-table>
 
       <div

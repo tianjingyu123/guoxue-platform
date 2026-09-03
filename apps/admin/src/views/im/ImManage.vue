@@ -561,13 +561,14 @@ async function queryGroup() {
   groupLoading.value = true;
   try {
     const { data } = await imApi.getGroupInfo(id);
-    const d = (data as any)?.group ?? (data as any) ?? {};
+    const root = data && typeof data === "object" ? data as Record<string, unknown> : {};
+    const d = root.group && typeof root.group === "object" ? root.group as Record<string, unknown> : root;
     currentGroup.value = {
-      groupId: d.groupId || d.GroupId || id,
-      name: d.name || d.Name,
-      type: d.type || d.Type,
-      memberCount: d.memberCount ?? d.MemberNum,
-      createdAt: d.createdAt,
+      groupId: String(d.groupId || d.GroupId || id),
+      name: d.name || d.Name ? String(d.name || d.Name) : undefined,
+      type: d.type || d.Type ? String(d.type || d.Type) : undefined,
+      memberCount: Number(d.memberCount ?? d.MemberNum ?? 0),
+      createdAt: d.createdAt ? String(d.createdAt) : undefined,
     };
   } catch {
     currentGroup.value = null;

@@ -401,25 +401,55 @@ async function rollbackHistory(row: FeatureFlagHistoryRow) {
         :data="historyRows"
         max-height="480"
       >
-        <el-table-column label="版本" width="80">
-          <template #default="{ row }">v{{ row.version }}</template>
+        <el-table-column
+          label="版本"
+          width="80"
+        >
+          <template #default="{ row }">
+            v{{ row.version }}
+          </template>
         </el-table-column>
-        <el-table-column label="状态" width="90">
+        <el-table-column
+          label="状态"
+          width="90"
+        >
           <template #default="{ row }">
             <el-tag :type="row.value?.enabled ? 'success' : 'info'">
               {{ row.value?.enabled ? '开启' : '关闭' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="灰度" width="80">
-          <template #default="{ row }">{{ row.value?.percentage ?? 100 }}%</template>
+        <el-table-column
+          label="灰度"
+          width="80"
+        >
+          <template #default="{ row }">
+            {{ row.value?.percentage ?? 100 }}%
+          </template>
         </el-table-column>
-        <el-table-column prop="changedBy" label="操作人" width="120" />
-        <el-table-column prop="comment" label="说明" min-width="140" />
-        <el-table-column label="时间" width="170">
-          <template #default="{ row }">{{ formatDate(row.createdAt) }}</template>
+        <el-table-column
+          prop="changedBy"
+          label="操作人"
+          width="120"
+        />
+        <el-table-column
+          prop="comment"
+          label="说明"
+          min-width="140"
+        />
+        <el-table-column
+          label="时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.createdAt) }}
+          </template>
         </el-table-column>
-        <el-table-column label="操作" width="90" fixed="right">
+        <el-table-column
+          label="操作"
+          width="90"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button
               size="small"

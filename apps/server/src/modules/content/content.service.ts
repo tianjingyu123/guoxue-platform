@@ -30,15 +30,19 @@ export class ContentService {
         cover: dto.cover,
         tags: dto.tags ?? [],
         stationId: dto.stationId || undefined,
+        // 新建必须明确选择发布；不能依赖数据库的历史 PUBLISHED 默认值。
+        status: dto.status ?? "DRAFT",
       },
     });
 
-    await this.webhook.fire("CONTENT_PUBLISHED", {
-      contentId: content.id,
-      title: content.title,
-      type: content.type,
-      stationId: dto.stationId,
-    }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+    if (content.status === "PUBLISHED") {
+      await this.webhook.fire("CONTENT_PUBLISHED", {
+        contentId: content.id,
+        title: content.title,
+        type: content.type,
+        stationId: dto.stationId,
+      }).catch((err) => this.logger.warn("Webhook 发送失败", err));
+    }
 
     this.redis.delByPattern("content:list:*").catch((err) => this.logger.warn("缓存清理失败", err));
     return content;
@@ -95,16 +99,21 @@ export class ContentService {
     return { data, total, page, pageSize };
   }
 
-  async detail(id: string): Promise<Content> {
+  async detail(id: string, includeUnpublished = false): Promise<Content> {
     const cacheKey = `content:detail:${id}`;
     const cached = await this.redis.getJson(cacheKey);
     if (cached) {
+      if (!includeUnpublished && (cached as Content).status !== "PUBLISHED") {
+        throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
+      }
       this.prisma.content.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((err) => this.logger.warn("浏览计数更新失败", err));
       return cached as Content;
     }
 
     const content = await this.prisma.content.findUnique({ where: { id } });
-    if (!content) throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
+    if (!content || (!includeUnpublished && content.status !== "PUBLISHED")) {
+      throw new BusinessException(ErrorCode.CONTENT_NOT_FOUND, "内容不存在");
+    }
 
     // 异步增加浏览数
     this.prisma.content.update({ where: { id }, data: { viewCount: { increment: 1 } } }).catch((e) => this.logger.warn(`内容 ${id} 浏览计数失败`, e));

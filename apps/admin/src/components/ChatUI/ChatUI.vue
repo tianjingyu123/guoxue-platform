@@ -107,6 +107,10 @@ function scrollToBottom() {
   })
 }
 
+function toError(value: unknown): Error {
+  return value instanceof Error ? value : new Error(String(value || '未知错误'))
+}
+
 /** 暴露：供外部添加消息 */
 function addMessage(msg: ChatMessage) {
   messages.value.push(msg)
@@ -175,7 +179,8 @@ async function send(text: string) {
         },
       },
     )
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const streamError = toError(e)
     assistantMsg.isStreaming = false
     streaming.value = false
 
@@ -188,13 +193,13 @@ async function send(text: string) {
         if (result.sources) assistantMsg.sources = result.sources
         if (result.usage) assistantMsg.usage = result.usage
         emit('messageReceived', { ...assistantMsg })
-      } catch (fallbackErr: any) {
-        assistantMsg.content = `回答失败：${fallbackErr.message || '未知错误'}`
+      } catch (fallbackErr: unknown) {
+        assistantMsg.content = `回答失败：${toError(fallbackErr).message}`
       }
     } else {
-      assistantMsg.content = e.name === 'AbortError'
+      assistantMsg.content = streamError.name === 'AbortError'
         ? '请求已取消'
-        : `流式连接异常：${e.message || '请检查网络'}`
+        : `流式连接异常：${streamError.message || '请检查网络'}`
 
       if (assistantMsg.content === '流式连接异常：不支持流式响应') {
         // 无 fallback，提示

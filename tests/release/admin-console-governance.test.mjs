@@ -232,6 +232,60 @@ test("AI协作未绑定真实动作处理器时不能伪造执行或回滚", asy
   assert.match(page, /executionCapability\?\.executionReady/);
 });
 
+test("AI决策账本具备真实审核、效果回收、追溯与模型对比闭环", async () => {
+  const [router, menu, api, page, controller, service, dto] = await Promise.all([
+    read("apps/admin/src/router/index.ts"),
+    read("apps/admin/src/lib/menu-structure.ts"),
+    read("apps/admin/src/api/index.ts"),
+    read("apps/admin/src/views/ai/DecisionLedger.vue"),
+    read("apps/server/src/modules/ai-gateway/decision-ledger.controller.ts"),
+    read("apps/server/src/modules/ai-gateway/decision-ledger.service.ts"),
+    read("apps/server/src/modules/ai-gateway/dto/ai-infra.dto.ts"),
+  ]);
+
+  assert.match(router, /path:\s*"ai\/decisions"[\s\S]{0,180}?DecisionLedger\.vue/);
+  assert.match(menu, /M\("\/ai\/decisions"\)/);
+  assert.match(api, /review:[\s\S]{0,180}?action:[\s\S]{0,120}?note\?: string/);
+  assert.match(api, /outcome:[\s\S]{0,180}?metric: string; expectedValue: number; actualValue: number/);
+  assert.match(api, /compare:[\s\S]{0,180}?modelA: string; modelB: string; agentId: string/);
+  assert.match(page, /人工审核 AI 决策/);
+  assert.match(page, /记录决策实际效果/);
+  assert.match(page, /决策追溯与复盘/);
+  assert.match(page, /模型版本对比/);
+  assert.match(controller, /async query\(@Query\(\) query: QueryDecisionDto\)/);
+  assert.match(controller, /@Post\(":id\/outcome"\)[\s\S]{0,100}?@RedLineGate\(RedLine\.COMPLIANCE\)/);
+  assert.match(dto, /class QueryDecisionDto[\s\S]{0,1500}?@Max\(100\)/);
+  assert.match(service, /where: \{ id: decisionId, humanAction: null \}/);
+  assert.match(service, /AI 决策不存在/);
+  assert.match(service, /filters\.humanAction === "pending" \? null/);
+});
+
+test("AI协作采用原子审核与回滚，并提供真实验收和安全巡检执行器", async () => {
+  const [service, controller, page, registry, opsModule, ledger, decisionPage] = await Promise.all([
+    read("apps/server/src/modules/ai-gateway/collaboration.service.ts"),
+    read("apps/server/src/modules/ai-gateway/collaboration.controller.ts"),
+    read("apps/admin/src/views/ai/CollaborationList.vue"),
+    read("apps/server/src/modules/ops/collaboration-inspection.service.ts"),
+    read("apps/server/src/modules/ops/ops.module.ts"),
+    read("apps/server/src/modules/ai-gateway/decision-ledger.service.ts"),
+    read("apps/admin/src/views/ai/DecisionLedger.vue"),
+  ]);
+  assert.match(service, /this\.prisma\.\$transaction/);
+  assert.match(service, /status: "rolling_back"/);
+  assert.match(service, /status: "rollback_failed"/);
+  assert.match(service, /feedbackRating: null/);
+  assert.match(controller, /@Post\(":id\/feedback"\)[\s\S]{0,100}?@RedLineGate\(RedLine\.COMPLIANCE\)/);
+  assert.match(page, /验收协作执行效果/);
+  assert.match(page, /detail\.executionResult/);
+  assert.match(page, /detail\.feedbackBy/);
+  assert.match(registry, /registerActionHandler/);
+  assert.match(registry, /allowAutoFix: false/);
+  assert.match(registry, /report\.reportTaskId/);
+  assert.match(opsModule, /providers:[\s\S]{0,180}?CollaborationInspectionService/);
+  assert.match(ledger, /assertStandaloneDecision/);
+  assert.match(decisionPage, /前往协作审核/);
+});
+
 test("定时任务页区分只读运行时任务和超管受控手动任务", async () => {
   const [controller, service, api, page] = await Promise.all([
     read("apps/server/src/modules/system/system.controller.ts"),

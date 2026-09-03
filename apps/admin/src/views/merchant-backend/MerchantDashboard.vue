@@ -2,19 +2,40 @@
   <main class="dashboard-page">
     <section class="hero">
       <div class="hero-copy">
-        <p class="eyebrow">经营脉搏 · BUSINESS PULSE</p>
+        <p class="eyebrow">
+          经营脉搏 · BUSINESS PULSE
+        </p>
         <h1>{{ shopName || "商家经营驾驶舱" }}</h1>
         <p>把成交、订单、商品、服务与口碑放进一张经营地图，数据不仅用于查看，也直接通往下一步行动。</p>
       </div>
-      <div class="hero-summary" aria-label="累计经营概览">
+      <div
+        class="hero-summary"
+        aria-label="累计经营概览"
+      >
         <span>累计成交</span>
         <strong>{{ fmtMoney(dashboard.totalSales) }}</strong>
         <small>{{ dashboard.totalOrders ?? "—" }} 笔订单沉淀</small>
       </div>
       <div class="hero-actions">
-        <el-button plain @click="router.push('/merchant-backend/orders')">订单中枢</el-button>
-        <el-button plain @click="router.push('/merchant-backend/inventory')">库存与采购</el-button>
-        <el-button type="primary" :loading="loading" @click="loadDashboard">刷新数据</el-button>
+        <el-button
+          plain
+          @click="router.push('/merchant-backend/orders')"
+        >
+          订单中枢
+        </el-button>
+        <el-button
+          plain
+          @click="router.push('/merchant-backend/inventory')"
+        >
+          库存与采购
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="loading"
+          @click="loadDashboard"
+        >
+          刷新数据
+        </el-button>
       </div>
     </section>
 
@@ -25,12 +46,21 @@
       sub-title="网络恢复后可重新读取，当前没有使用模拟数据覆盖真实经营结果。"
     >
       <template #extra>
-        <el-button type="primary" @click="loadDashboard">重新加载</el-button>
+        <el-button
+          type="primary"
+          @click="loadDashboard"
+        >
+          重新加载
+        </el-button>
       </template>
     </el-result>
 
     <template v-else>
-      <section v-loading="loading" class="metric-grid" aria-label="经营关键指标">
+      <section
+        v-loading="loading"
+        class="metric-grid"
+        aria-label="经营关键指标"
+      >
         <button
           v-for="card in cards"
           :key="card.label"
@@ -49,13 +79,21 @@
       <section class="route-card">
         <div class="section-lead">
           <div>
-            <p class="eyebrow dark">OPERATING ROUTE</p>
+            <p class="eyebrow dark">
+              OPERATING ROUTE
+            </p>
             <h2>今天先处理什么</h2>
           </div>
           <p>先清阻塞成交的问题，再维护履约与口碑。每个节点都可直接进入处理队列。</p>
         </div>
-        <div class="route-track" aria-label="今日经营任务">
-          <button type="button" @click="router.push('/merchant-backend/orders')">
+        <div
+          class="route-track"
+          aria-label="今日经营任务"
+        >
+          <button
+            type="button"
+            @click="router.push('/merchant-backend/orders')"
+          >
             <i>01</i>
             <span>
               <b>成交确认</b>
@@ -63,7 +101,11 @@
             </span>
             <em>查看订单 ›</em>
           </button>
-          <button type="button" :class="{ urgent: Number(pendingShip || 0) > 0 }" @click="router.push('/merchant-backend/shipping')">
+          <button
+            type="button"
+            :class="{ urgent: Number(pendingShip || 0) > 0 }"
+            @click="router.push('/merchant-backend/shipping')"
+          >
             <i>02</i>
             <span>
               <b>发货履约</b>
@@ -71,7 +113,11 @@
             </span>
             <em>去发货 ›</em>
           </button>
-          <button type="button" :class="{ urgent: Number(pendingAfterSales || 0) > 0 }" @click="router.push('/merchant-backend/after-sales')">
+          <button
+            type="button"
+            :class="{ urgent: Number(pendingAfterSales || 0) > 0 }"
+            @click="router.push('/merchant-backend/after-sales')"
+          >
             <i>03</i>
             <span>
               <b>售后止损</b>
@@ -79,7 +125,11 @@
             </span>
             <em>去质检 ›</em>
           </button>
-          <button type="button" :class="{ urgent: Number(dashboard.pendingReviews || 0) > 0 }" @click="router.push('/merchant-backend/reviews')">
+          <button
+            type="button"
+            :class="{ urgent: Number(dashboard.pendingReviews || 0) > 0 }"
+            @click="router.push('/merchant-backend/reviews')"
+          >
             <i>04</i>
             <span>
               <b>口碑维护</b>
@@ -94,7 +144,9 @@
         <article class="decision-card">
           <header>
             <div>
-              <p class="eyebrow dark">TODAY</p>
+              <p class="eyebrow dark">
+                TODAY
+              </p>
               <h2>今日经营判断</h2>
             </div>
             <span class="live-dot">实时快照</span>
@@ -104,13 +156,20 @@
             <strong>{{ fmtMoney(dashboard.todaySales) }}</strong>
           </div>
           <p>{{ todayInsight }}</p>
-          <button type="button" @click="router.push('/merchant-backend/revenue')">查看收入与结算明细 ›</button>
+          <button
+            type="button"
+            @click="router.push('/merchant-backend/revenue')"
+          >
+            查看收入与结算明细 ›
+          </button>
         </article>
 
         <article class="decision-card service-card">
           <header>
             <div>
-              <p class="eyebrow dark">SERVICE HEALTH</p>
+              <p class="eyebrow dark">
+                SERVICE HEALTH
+              </p>
               <h2>服务健康度</h2>
             </div>
             <span>{{ ratingText }}</span>
@@ -123,22 +182,35 @@
             </div>
           </div>
           <p>{{ serviceInsight }}</p>
-          <button type="button" @click="router.push('/merchant-backend/reviews')">查看评价与回复 ›</button>
+          <button
+            type="button"
+            @click="router.push('/merchant-backend/reviews')"
+          >
+            查看评价与回复 ›
+          </button>
         </article>
 
         <article class="decision-card stock-card">
           <header>
             <div>
-              <p class="eyebrow dark">MERCHANDISE</p>
+              <p class="eyebrow dark">
+                MERCHANDISE
+              </p>
               <h2>商品经营面</h2>
             </div>
             <span>{{ productDisplay }} 件商品</span>
           </header>
           <div class="stock-actions">
-            <button type="button" @click="router.push('/merchant-backend/products')">
+            <button
+              type="button"
+              @click="router.push('/merchant-backend/products')"
+            >
               <b>商品管理</b><small>上下架与内容完善</small><em>›</em>
             </button>
-            <button type="button" @click="router.push('/merchant-backend/inventory')">
+            <button
+              type="button"
+              @click="router.push('/merchant-backend/inventory')"
+            >
               <b>库存与采购</b><small>预警、盘点与补货</small><em>›</em>
             </button>
           </div>

@@ -14,6 +14,7 @@ import type { IDomEditor, IEditorConfig, IToolbarConfig } from '@wangeditor/edit
 import { ElMessage } from 'element-plus'
 import { uploadApi } from '@/api'
 import { uploadVodFile } from '@/utils/vod-upload'
+import { normalizeRichText } from '@/utils/rich-text'
 
 const props = withDefaults(
   defineProps<{
@@ -47,7 +48,7 @@ const editorConfig: Partial<IEditorConfig> = {
       async customUpload(file: File, insertFn: (url: string, alt: string, href: string) => void) {
         try {
           const { data } = await uploadApi.image(file)
-          const url = (data as any).url
+          const url = data.url
           insertFn(url, '', url)
         } catch {
           ElMessage.error('图片上传失败，请重试')
@@ -78,7 +79,8 @@ function handleCreated(editor: IDomEditor) {
 }
 
 function handleChange(editor: IDomEditor) {
-  emit('update:modelValue', editor.getHtml())
+  // 空段落、换行和空格不算正文，也不应让新建页面立即进入“未保存”状态。
+  emit('update:modelValue', normalizeRichText(editor.getHtml()))
 }
 
 onBeforeUnmount(() => {

@@ -138,11 +138,11 @@
       >
         <template #default="{ row }">
           <div class="vote-row">
-            <span class="vote-up">👍 {{ row.usefulCount ?? 0 }}</span>
+            <span class="vote-up">有用 {{ row.usefulCount ?? 0 }}</span>
             <span
               class="vote-down"
               style="margin-left:8px"
-            >👎 {{ row.uselessCount ?? 0 }}</span>
+            >无用 {{ row.uselessCount ?? 0 }}</span>
           </div>
         </template>
       </el-table-column>
@@ -160,7 +160,10 @@
           >
             异常
           </el-tag>
-          <span v-else style="color:#ccc">-</span>
+          <span
+            v-else
+            style="color:#ccc"
+          >-</span>
         </template>
       </el-table-column>
       <el-table-column

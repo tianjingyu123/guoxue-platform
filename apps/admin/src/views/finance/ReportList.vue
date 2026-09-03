@@ -41,12 +41,14 @@ function formatMoney(v: number | string | null | undefined) {
 }
 
 // 已保存的 FinancialReport 记录指标存于 data(Json)；新生成(未保存)对象指标在顶层。
-// 统一展平为一层，便于表格/详情读取真实字段。（r 为原始接口对象，结构含嵌套 data，保留 any）
-function flattenReport(r: any): ReportRow {
-  if (r && r.data && typeof r.data === 'object') {
-    return { ...r, ...r.data }
+// 统一展平为一层，便于表格/详情读取真实字段。
+function flattenReport(value: unknown): ReportRow {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const report = value as Record<string, unknown>
+  if (report.data && typeof report.data === 'object' && !Array.isArray(report.data)) {
+    return { ...report, ...(report.data as Record<string, unknown>) } as ReportRow
   }
-  return r || {}
+  return report as ReportRow
 }
 
 async function fetchList() {

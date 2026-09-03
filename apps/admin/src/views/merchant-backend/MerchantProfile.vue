@@ -86,7 +86,7 @@ async function fetchProfile() {
     form.shopName = data.shopName || "";
     form.shopLogo = data.shopLogo || "";
     form.shopIntro = data.shopIntro || "";
-  } catch (e) {
+  } catch {
     error.value = true;
   } finally {
     loading.value = false;

@@ -13,6 +13,7 @@ import { FeatureFlagService } from "../src/modules/feature-flag/feature-flag.ser
 import { ModerationService } from "../src/modules/audit/moderation.service"
 import { LiveStreamService } from "../src/modules/live/live-stream.service"
 import { RedLineGuard } from "../src/common/red-lines"
+import { createRedisPubSubMock } from "./redis-pubsub-mock"
 
 const modelMethods = [
   "findUnique", "findUniqueOrThrow", "findFirst", "findMany", "create",
@@ -134,6 +135,7 @@ function createUnionpayMock() {
 
 function createRedisMock() {
   return {
+    ...createRedisPubSubMock(),
     get: jest.fn().mockResolvedValue(null),
     set: jest.fn().mockResolvedValue("OK"),
     del: jest.fn().mockResolvedValue(1),

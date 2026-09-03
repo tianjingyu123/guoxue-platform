@@ -1,15 +1,18 @@
 <template>
   <div
     v-loading="loading"
-    class="bigscreen ai"
+    class="bigscreen tech-screen ai"
     element-loading-background="rgba(17,11,26,0.6)"
   >
     <header class="bs-header">
       <div class="bs-title">
         AI 能力数据大屏
       </div>
-      <div class="bs-time">
-        {{ nowStr }}
+      <div class="bs-header-tools">
+        <div class="bs-time">
+          {{ nowStr }}
+        </div>
+        <BigscreenActions @resize="resizeCharts" />
       </div>
     </header>
 
@@ -31,7 +34,8 @@
 
     <div
       v-else
-      class="bs-body">
+      class="bs-body"
+    >
       <!-- 核心指标 -->
       <div class="kpi-bar">
         <div class="kpi-item">
@@ -54,7 +58,7 @@
       <div class="bs-grid-2">
         <!-- 场景分布 -->
         <div class="bs-panel">
-          <h3>🎯 场景调用分布</h3>
+          <h3>场景调用分布</h3>
           <div
             v-if="data.sceneDistribution?.length"
             ref="sceneChartRef"
@@ -68,7 +72,7 @@
         </div>
         <!-- 模型分布 -->
         <div class="bs-panel">
-          <h3>🤖 模型使用分布 (本月)</h3>
+          <h3>模型使用分布 · 本月</h3>
           <div
             v-if="data.modelDistribution?.length"
             ref="modelChartRef"
@@ -91,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+import BigscreenActions from "@/components/BigscreenActions.vue";
 import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
@@ -131,7 +136,7 @@ function fmt(v: number | string | null | undefined) { return v != null ? Number(
 
 function renderCharts() {
   if (sceneChartRef.value) {
-    if (!sceneChart) sceneChart = echarts.init(sceneChartRef.value);
+    if (!sceneChart) sceneChart = echarts.init(sceneChartRef.value, "tech-screen");
     const sd: SceneItem[] = data.value.sceneDistribution || [];
     sceneChart.setOption({
       tooltip: { trigger: "axis" },
@@ -143,7 +148,7 @@ function renderCharts() {
   }
 
   if (modelChartRef.value) {
-    if (!modelChart) modelChart = echarts.init(modelChartRef.value);
+    if (!modelChart) modelChart = echarts.init(modelChartRef.value, "tech-screen");
     const md: ModelItem[] = data.value.modelDistribution || [];
     modelChart.setOption({
       tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
@@ -172,6 +177,11 @@ async function fetchData() {
   } finally {
     loading.value = false;
   }
+}
+
+function resizeCharts() {
+  sceneChart?.resize();
+  modelChart?.resize();
 }
 
 onMounted(() => {

@@ -79,108 +79,273 @@ onMounted(() => { fetchList(); fetchSummary(); });
 
 <template>
   <div class="feedback-page">
-    <PageHeader title="运营反馈" subtitle="员工经运营助手反馈的问题汇总·审阅拍板后交技术团队优化" />
+    <PageHeader
+      title="运营反馈"
+      subtitle="员工经运营助手反馈的问题汇总·审阅拍板后交技术团队优化"
+    />
 
     <!-- 汇总卡 -->
     <div class="stat-row">
       <div class="stat-card pending">
-        <div class="stat-num">{{ summary.statusCounts?.PENDING || 0 }}</div>
-        <div class="stat-label">待审处理</div>
+        <div class="stat-num">
+          {{ summary.statusCounts?.PENDING || 0 }}
+        </div>
+        <div class="stat-label">
+          待审处理
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-num">{{ summary.categoryCounts?.BUG || 0 }}</div>
-        <div class="stat-label">程序问题</div>
+        <div class="stat-num">
+          {{ summary.categoryCounts?.BUG || 0 }}
+        </div>
+        <div class="stat-label">
+          程序问题
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-num">{{ summary.categoryCounts?.OPTIMIZE || 0 }}</div>
-        <div class="stat-label">优化建议</div>
+        <div class="stat-num">
+          {{ summary.categoryCounts?.OPTIMIZE || 0 }}
+        </div>
+        <div class="stat-label">
+          优化建议
+        </div>
       </div>
       <div class="stat-card">
-        <div class="stat-num">{{ summary.statusCounts?.ADOPTED || 0 }}</div>
-        <div class="stat-label">已采纳</div>
+        <div class="stat-num">
+          {{ summary.statusCounts?.ADOPTED || 0 }}
+        </div>
+        <div class="stat-label">
+          已采纳
+        </div>
       </div>
     </div>
 
     <!-- 筛选 -->
     <div class="filter-bar">
-      <el-select v-model="filters.status" placeholder="全部状态" clearable style="width:140px" @change="onSearch">
-        <el-option v-for="s in statusOptions" :key="s" :label="statusMeta[s].label" :value="s" />
+      <el-select
+        v-model="filters.status"
+        placeholder="全部状态"
+        clearable
+        style="width:140px"
+        @change="onSearch"
+      >
+        <el-option
+          v-for="s in statusOptions"
+          :key="s"
+          :label="statusMeta[s].label"
+          :value="s"
+        />
       </el-select>
-      <el-select v-model="filters.category" placeholder="全部类型" clearable style="width:140px" @change="onSearch">
-        <el-option v-for="(m, k) in catMeta" :key="k" :label="m.label" :value="k" />
+      <el-select
+        v-model="filters.category"
+        placeholder="全部类型"
+        clearable
+        style="width:140px"
+        @change="onSearch"
+      >
+        <el-option
+          v-for="(m, k) in catMeta"
+          :key="k"
+          :label="m.label"
+          :value="k"
+        />
       </el-select>
-      <el-button @click="fetchList">刷新</el-button>
+      <el-button @click="fetchList">
+        刷新
+      </el-button>
     </div>
 
     <!-- 列表 -->
-    <el-table v-loading="loading" :data="rows" border style="width:100%">
-      <el-table-column label="类型" width="100">
+    <el-table
+      v-loading="loading"
+      :data="rows"
+      border
+      style="width:100%"
+    >
+      <el-table-column
+        label="类型"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="catMeta[row.category]?.type || 'info'" size="small">{{ catMeta[row.category]?.label || row.category }}</el-tag>
+          <el-tag
+            :type="catMeta[row.category]?.type || 'info'"
+            size="small"
+          >
+            {{ catMeta[row.category]?.label || row.category }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="detail" label="详情" min-width="240" show-overflow-tooltip />
-      <el-table-column label="页面" width="200" show-overflow-tooltip>
+      <el-table-column
+        prop="title"
+        label="标题"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="detail"
+        label="详情"
+        min-width="240"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="页面"
+        width="200"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
-          <el-link v-if="row.page" type="primary" :underline="false" @click="jumpPage(row.page)">{{ decodePath(row.page) }} ↗</el-link>
+          <el-link
+            v-if="row.page"
+            type="primary"
+            :underline="false"
+            @click="jumpPage(row.page)"
+          >
+            {{ decodePath(row.page) }} ↗
+          </el-link>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column prop="userName" label="提交人" width="110">
-        <template #default="{ row }">{{ row.userName || row.userId?.slice(0, 8) }}</template>
-      </el-table-column>
-      <el-table-column label="状态" width="90">
+      <el-table-column
+        prop="userName"
+        label="提交人"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusMeta[row.status]?.type || 'info'" size="small">{{ statusMeta[row.status]?.label || row.status }}</el-tag>
+          {{ row.userName || row.userId?.slice(0, 8) }}
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="时间" width="160">
-        <template #default="{ row }">{{ String(row.createdAt).slice(0, 16).replace('T', ' ') }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="90" fixed="right">
+      <el-table-column
+        label="状态"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="primary" link @click="openEdit(row)">处理</el-button>
+          <el-tag
+            :type="statusMeta[row.status]?.type || 'info'"
+            size="small"
+          >
+            {{ statusMeta[row.status]?.label || row.status }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="createdAt"
+        label="时间"
+        width="160"
+      >
+        <template #default="{ row }">
+          {{ String(row.createdAt).slice(0, 16).replace('T', ' ') }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="90"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="primary"
+            link
+            @click="openEdit(row)"
+          >
+            处理
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <div class="pager">
-      <el-pagination background layout="total, prev, pager, next" :total="total" :page-size="filters.pageSize" :current-page="filters.page" @current-change="onPageChange" />
+      <el-pagination
+        background
+        layout="total, prev, pager, next"
+        :total="total"
+        :page-size="filters.pageSize"
+        :current-page="filters.page"
+        @current-change="onPageChange"
+      />
     </div>
 
     <!-- 处理弹窗 -->
-    <el-dialog v-model="editing" title="处理反馈" width="560px" :close-on-click-modal="false" @close="editing = null">
+    <el-dialog
+      v-model="editing"
+      title="处理反馈"
+      width="560px"
+      :close-on-click-modal="false"
+      @close="editing = null"
+    >
       <template v-if="editing">
         <div class="detail-block">
-          <div class="d-title">{{ editing.title }}</div>
-          <div class="d-meta">
-            <el-tag :type="catMeta[editing.category]?.type || 'info'" size="small">{{ catMeta[editing.category]?.label }}</el-tag>
-            <el-link v-if="editing.page" type="primary" :underline="false" @click="jumpPage(editing.page)">{{ decodePath(editing.page) }} ↗ 打开该页面</el-link>
+          <div class="d-title">
+            {{ editing.title }}
           </div>
-          <div class="d-detail">{{ decodePath(editing.detail) || '（无详情）' }}</div>
-          <div v-if="editing.images && editing.images.length" class="d-shots">
+          <div class="d-meta">
+            <el-tag
+              :type="catMeta[editing.category]?.type || 'info'"
+              size="small"
+            >
+              {{ catMeta[editing.category]?.label }}
+            </el-tag>
+            <el-link
+              v-if="editing.page"
+              type="primary"
+              :underline="false"
+              @click="jumpPage(editing.page)"
+            >
+              {{ decodePath(editing.page) }} ↗ 打开该页面
+            </el-link>
+          </div>
+          <div class="d-detail">
+            {{ decodePath(editing.detail) || '（无详情）' }}
+          </div>
+          <div
+            v-if="editing.images && editing.images.length"
+            class="d-shots"
+          >
             <el-image
-              v-for="(img, i) in editing.images" :key="i"
-              :src="img" :preview-src-list="editing.images" :initial-index="i"
-              fit="cover" class="d-shot"
+              v-for="(img, i) in editing.images"
+              :key="i"
+              :src="img"
+              :preview-src-list="editing.images"
+              :initial-index="i"
+              fit="cover"
+              class="d-shot"
             />
           </div>
         </div>
         <el-form label-position="top">
           <el-form-item label="状态（拍板）">
-            <el-select v-model="editForm.status" style="width:100%">
-              <el-option v-for="s in statusOptions" :key="s" :label="statusMeta[s].label" :value="s" />
+            <el-select
+              v-model="editForm.status"
+              style="width:100%"
+            >
+              <el-option
+                v-for="s in statusOptions"
+                :key="s"
+                :label="statusMeta[s].label"
+                :value="s"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="批复/处理说明">
-            <el-input v-model="editForm.reply" type="textarea" :rows="3" maxlength="2000" placeholder="如：采纳，交技术优化；或：非问题，是操作方式" />
+            <el-input
+              v-model="editForm.reply"
+              type="textarea"
+              :rows="3"
+              maxlength="2000"
+              placeholder="如：采纳，交技术优化；或：非问题，是操作方式"
+            />
           </el-form-item>
         </el-form>
       </template>
       <template #footer>
-        <el-button @click="editing = null">取消</el-button>
-        <el-button type="primary" @click="saveEdit">保存</el-button>
+        <el-button @click="editing = null">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="saveEdit"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

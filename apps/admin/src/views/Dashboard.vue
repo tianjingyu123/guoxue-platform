@@ -102,7 +102,9 @@ onMounted(async () => {
       v-else-if="error"
       class="dashboard-error"
     >
-      <div class="error-icon">⚠</div>
+      <div class="error-icon">
+        ⚠
+      </div>
       <p>仪表盘加载失败：{{ error }}</p>
     </div>
     <div
@@ -111,9 +113,15 @@ onMounted(async () => {
     >
       <div class="welcome-card">
         <div class="welcome-decoration" />
-        <div class="welcome-icon">🏮</div>
-        <h1 class="welcome-title">{{ BRAND.name }}</h1>
-        <p class="welcome-subtitle">管理后台</p>
+        <div class="welcome-icon">
+          热
+        </div>
+        <h1 class="welcome-title">
+          {{ BRAND.name }}
+        </h1>
+        <p class="welcome-subtitle">
+          管理后台
+        </p>
         <hr class="gold-divider">
         <p class="welcome-text">
           欢迎使用{{ BRAND.name }}管理后台。<br>

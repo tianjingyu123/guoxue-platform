@@ -1,14 +1,17 @@
 <template>
   <div
     v-loading="loading"
-    class="bigscreen platform"
+    class="bigscreen tech-screen platform"
   >
     <header class="bs-header">
       <div class="bs-title">
         国学传统文化综合平台 · 实时数据大屏
       </div>
-      <div class="bs-time">
-        {{ nowStr }}
+      <div class="bs-header-tools">
+        <div class="bs-time">
+          {{ nowStr }}
+        </div>
+        <BigscreenActions @resize="onResize" />
       </div>
     </header>
 
@@ -115,7 +118,7 @@
 
       <!-- 内容资产构成（填充下半屏·纯数字卡补 mini 图表·仅有数据时渲染） -->
       <div class="bs-chart-panel">
-        <h3>📊 平台内容资产构成</h3>
+        <h3>平台内容资产构成</h3>
         <div
           v-show="hasComposition"
           ref="compChartRef"
@@ -137,6 +140,7 @@
 </template>
 
 <script setup lang="ts">
+import BigscreenActions from "@/components/BigscreenActions.vue";
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute } from "vue-router";
 import { bigscreenApi } from "@/api";
@@ -145,6 +149,7 @@ import echarts from "@/utils/echarts";
 import type { EChartsType } from "echarts/core";
 
 const route = useRoute();
+const previewMode = computed(() => import.meta.env.DEV && route.path.startsWith("/__qa/"));
 /** 平台综合大屏聚合数据（字段宽松 optional，仅声明模板实际访问字段） */
 interface PlatformScreen {
   totalUsers?: number;
@@ -176,7 +181,7 @@ function fmt(v: unknown) {
   return v != null ? Number(v).toLocaleString() : "0";
 }
 
-function renderComposition() {
+async function renderComposition() {
   const d = data.value;
   const items = [
     { name: "课程", value: Number(d.totalCourses || 0), color: "#36cfc9" },
@@ -191,9 +196,11 @@ function renderComposition() {
     compChart = null;
     return;
   }
+  // v-show 从隐藏切到可见需要等待布局提交，否则 ECharts 会按 0 宽容器初始化。
+  await nextTick();
   if (!compChartRef.value) return;
   if (!compChart) {
-    compChart = echarts.init(compChartRef.value);
+    compChart = echarts.init(compChartRef.value, "tech-screen");
     window.addEventListener("resize", onResize);
   }
   compChart.setOption({
@@ -222,7 +229,7 @@ async function load() {
     const { data: d } = await bigscreenApi.platform(token);
     data.value = d || {};
     await nextTick();
-    renderComposition();
+    await renderComposition();
   } catch {
     loadError.value = true;
   } finally {
@@ -238,11 +245,28 @@ async function refresh() {
     data.value = d || {};
     loadError.value = false;
     await nextTick();
-    renderComposition();
+    await renderComposition();
   } catch { /* 静默刷新失败：保留上一次数据 */ }
 }
 
 onMounted(() => {
+  if (previewMode.value) {
+    data.value = {
+      totalUsers: 286430,
+      todayNewUsers: 1286,
+      dailyActiveUsers: 38520,
+      totalCourses: 1268,
+      totalCircles: 842,
+      totalProducts: 5680,
+      totalClassicBooks: 12930,
+      totalArticles: 48620,
+      totalGmv: 86520490,
+      updatedAt: new Date().toISOString(),
+    };
+    loading.value = false;
+    nextTick(() => { void renderComposition(); });
+    return;
+  }
   load();
   timer = setInterval(refresh, 30000);
   clockTimer = setInterval(() => {

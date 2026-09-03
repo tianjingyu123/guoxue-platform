@@ -23,7 +23,12 @@
       sub-title="无法获取排盘记录，请重试"
     >
       <template #extra>
-        <el-button type="primary" @click="fetchRecords">重试</el-button>
+        <el-button
+          type="primary"
+          @click="fetchRecords"
+        >
+          重试
+        </el-button>
       </template>
     </el-result>
 
@@ -62,19 +67,19 @@
         @change="fetchRecords()"
       >
         <template #type="{ row }">
-        <el-tag
-          :type="typeTag(row.paipanType)"
-          size="small"
-        >
-          {{ typeLabel(row.paipanType) }}
-        </el-tag>
-      </template>
-      <template #user="{ row }">
-        <span>{{ row.user?.nickname || row.user?.phone || '未知' }}</span>
-      </template>
-      <template #time="{ row }">
-        <span>{{ formatDate(row.createdAt) }}</span>
-      </template>
+          <el-tag
+            :type="typeTag(row.paipanType)"
+            size="small"
+          >
+            {{ typeLabel(row.paipanType) }}
+          </el-tag>
+        </template>
+        <template #user="{ row }">
+          <span>{{ row.user?.nickname || row.user?.phone || '未知' }}</span>
+        </template>
+        <template #time="{ row }">
+          <span>{{ formatDate(row.createdAt) }}</span>
+        </template>
         <template #actions="{ row }">
           <el-button
             size="small"

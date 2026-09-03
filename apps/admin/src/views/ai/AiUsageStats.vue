@@ -37,9 +37,15 @@
         size="small"
         @change="fetchStats"
       >
-        <el-radio-button value="day">今日</el-radio-button>
-        <el-radio-button value="week">近7天</el-radio-button>
-        <el-radio-button value="month">近30天</el-radio-button>
+        <el-radio-button value="day">
+          今日
+        </el-radio-button>
+        <el-radio-button value="week">
+          近7天
+        </el-radio-button>
+        <el-radio-button value="month">
+          近30天
+        </el-radio-button>
       </el-radio-group>
       <span style="font-size:12px;color:var(--color-text-secondary)">统计口径：全平台 AI 调用记录（含排盘解析/网关调用等全场景）</span>
     </div>

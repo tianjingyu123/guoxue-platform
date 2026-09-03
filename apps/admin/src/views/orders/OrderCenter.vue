@@ -204,7 +204,13 @@ import { ElMessage } from "element-plus";
 import { orderCenterApi } from "@/api";
 import PageHeader from "@/components/PageHeader.vue";
 
-const list = ref<any[]>([]);
+interface UnifiedOrderRow {
+  id: string; orderType: string; type?: string; memberType?: string; status: string;
+  amount?: number | string; payAmount?: number | string; createdAt?: string;
+  user?: { nickname?: string };
+}
+
+const list = ref<UnifiedOrderRow[]>([]);
 const loading = ref(false);
 const error = ref(false);
 const keyword = ref("");
@@ -281,7 +287,7 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    const params: any = { page: page.value, pageSize };
+    const params: Record<string, string | number> = { page: page.value, pageSize };
     if (keyword.value) params.keyword = keyword.value;
     if (typeFilter.value) params.type = typeFilter.value;
     if (statusFilter.value) params.status = statusFilter.value;

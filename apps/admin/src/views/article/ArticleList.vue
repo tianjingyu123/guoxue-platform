@@ -230,9 +230,9 @@
           v-if="detail"
           style="margin-top:12px; background:#f8f9fb; padding:16px; border-radius:8px; max-height:340px; overflow:auto"
         >
-          <div
+          <SafeHtml
             v-if="renderedBody"
-            v-html="sanitize(renderedBody)"
+            :html="renderedBody"
           />
           <el-empty
             v-else
@@ -273,9 +273,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { sanitize } from "@/utils/sanitize";
 import { articleApi, circleApi, api } from "@/api";
 import DataTable from "@/components/DataTable.vue";
+import SafeHtml from "@/components/SafeHtml.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
 import { downloadCsvRows } from "@/utils/export";
 
@@ -379,9 +379,11 @@ async function fetchList() {
   loading.value = true;
   error.value = false;
   try {
-    // 透传 auditStatus/keyword 等动态筛选（管理端契约），articleApi.list 期望具体形状，此处保留 any
-    const params: any = { page: page.value, pageSize: pageSize.value, ...searchParams.value };
-    const { data } = await articleApi.list(params);
+    const { data } = await articleApi.list({
+      page: page.value,
+      pageSize: pageSize.value,
+      ...searchParams.value,
+    });
     const d = data as { items?: ArticleRow[]; articles?: ArticleRow[]; data?: ArticleRow[]; total?: number };
     list.value = d?.items || d?.articles || d?.data || [];
     total.value = d?.total || 0;
@@ -434,8 +436,9 @@ async function submitAudit(id: string, status: "APPROVED" | "REJECTED", reason?:
     ElMessage.success(status === "APPROVED" ? "已通过" : "已驳回");
     detailVisible.value = false;
     fetchList(); fetchStats();
-  } catch (err: any) {
-    if (err?.response?.status === 404) {
+  } catch (err: unknown) {
+    const status = (err as { response?: { status?: number } })?.response?.status;
+    if (status === 404) {
       auditSupported.value = false;
       ElMessage.warning("审核接口待后端部署，暂不可用");
     }

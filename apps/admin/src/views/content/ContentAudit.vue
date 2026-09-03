@@ -1,8 +1,11 @@
 <template>
   <div class="audit-page">
     <div class="toolbar">
-      <h3>内容审核中心</h3>
-      <div>
+      <div class="toolbar-heading">
+        <h3>内容审核中心</h3>
+        <p>集中处理平台公开内容与课程审核，优先完成待审队列。</p>
+      </div>
+      <div class="toolbar-actions">
         <template v-if="batchEnabled">
           <el-button
             type="success"
@@ -116,7 +119,7 @@
 
     <!-- 平台开放审核队列（向全平台开放必审·五类内容统一台账）-->
     <template v-if="activeTab === 'PLATFORM_OPEN'">
-      <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+      <div class="queue-context">
         <el-select
           v-model="platformStatus"
           size="small"
@@ -151,7 +154,7 @@
             :value="t"
           />
         </el-select>
-        <span style="font-size:12px;color:var(--color-text-secondary)">圈内内容自治不进此队列；只有申请「向全平台开放」的内容在此人工审核，通过后才进平台公共池</span>
+        <span class="queue-note">圈内内容自治不进此队列；只有申请「向全平台开放」的内容在此人工审核，通过后才进平台公共池</span>
       </div>
       <el-table
         v-loading="platformLoading"
@@ -676,9 +679,9 @@
         <p class="meta">
           作者：{{ currentItem._kind === 'COURSE' ? (currentItem.user?.nickname || '—') : (currentItem.author || '—') }} | {{ formatFull(currentItem.createdAt) }}
         </p>
-        <div
+        <SafeHtml
           class="content"
-          v-html="sanitize(currentItem.body || currentItem.intro || currentItem.excerpt || '暂无内容')"
+          :html="currentItem.body || currentItem.intro || currentItem.excerpt || '暂无内容'"
         />
       </div>
       <template
@@ -718,7 +721,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh as RefreshIcon } from '@element-plus/icons-vue'
-import { sanitize } from '@/utils/sanitize'
+import SafeHtml from '@/components/SafeHtml.vue'
 import { contentApi, courseApi, auditApi } from '@/api'
 
 // AI 生成内容的真实标记：内容生成管线写入的 tags（不做标题猜测）
@@ -1162,9 +1165,12 @@ function rejectFromDrawer() {
 </script>
 
 <style scoped>
-.audit-page { padding: 16px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.toolbar h3 { margin: 0; font-size: 18px; color: var(--color-text-title); }
+.audit-page { padding: 0; }
+.toolbar { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-bottom: 18px; }
+.toolbar-heading { min-width: 0; padding-left: 13px; border-left: 4px solid var(--color-primary); }
+.toolbar h3 { margin: 0; font-size: 25px; font-weight: 680; letter-spacing: -.025em; color: var(--color-text-title); }
+.toolbar-heading p { margin: 5px 0 0; color: var(--color-text-secondary); font-size: 12px; }
+.toolbar-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 .stat-mini { background: var(--color-bg-page); border-radius: 6px; padding: 8px 12px; text-align: center; height: 100%; box-sizing: border-box; }
 .stat-mini .v { display: block; font-size: 22px; font-weight: 700; color: var(--color-text-title); }
 .stat-mini .l { display: block; font-size: 11px; color: var(--color-text-secondary); }
@@ -1174,4 +1180,13 @@ function rejectFromDrawer() {
 .preview-body h2 { color: var(--color-text-title); margin-bottom: 8px; }
 .preview-body .meta { color: var(--color-text-secondary); font-size: 13px; margin-bottom: 16px; }
 .preview-body .content { line-height: 1.8; color: #444; }
+.queue-context { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 11px 12px; border: 1px solid var(--color-divider); border-radius: 11px; background: rgba(255,255,255,.78); }
+.queue-note { min-width: 220px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }
+
+@media (max-width: 760px) {
+  .toolbar { align-items: flex-start; flex-direction: column; }
+  .toolbar-actions { width: 100%; justify-content: flex-start; }
+  .queue-context { align-items: stretch; flex-direction: column; }
+  .queue-context :deep(.el-select) { width: 100% !important; }
+}
 </style>

@@ -69,12 +69,16 @@
         <el-link
           type="primary"
           @click="router.push('/finance/reports')"
-        >财务报表</el-link>；
+        >
+          财务报表
+        </el-link>；
         平台抽成请看
         <el-link
           type="primary"
           @click="router.push('/platform-fee')"
-        >平台抽成汇总</el-link>。
+        >
+          平台抽成汇总
+        </el-link>。
       </template>
     </el-alert>
 
@@ -255,14 +259,14 @@
           :span="4"
         >
           <el-button
-            style="width:100%; height:64px"
+            class="quick-link"
             @click="router.push(link.path)"
           >
-            <div>
-              <span style="font-size:18px">{{ link.icon }}</span>
-              <div style="margin-top:4px; font-size:12px">
-                {{ link.label }}
-              </div>
+            <div class="quick-link-content">
+              <el-icon class="quick-link-icon">
+                <component :is="link.icon" />
+              </el-icon>
+              <span>{{ link.label }}</span>
             </div>
           </el-button>
         </el-col>
@@ -275,6 +279,20 @@
 import { ref, reactive, onMounted, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import {
+  Coin,
+  CreditCard,
+  DataAnalysis,
+  Document,
+  DocumentChecked,
+  Lock,
+  Money,
+  RefreshLeft,
+  Setting,
+  Tickets,
+  TrendCharts,
+  Wallet,
+} from "@element-plus/icons-vue";
 import { revenueApi } from "@/api";
 import echarts from "@/utils/echarts";
 import type { EChartsType } from "echarts/core";
@@ -308,8 +326,7 @@ interface TrendPoint { date: string; rmb: number; count: number }
 
 const lastUpdate = ref("");
 const timeRange = ref("30d");
-// el-date-picker daterange 的 v-model，类型由组件维护，保留 any 避免框架类型冲突
-const customRange = ref<any>(null);
+const customRange = ref<[Date, Date] | null>(null);
 
 // 仅后端真实返回字段（platform/overview：totalRmb/totalCoin/totalCount/monthRmb/monthCount/todayRmb/todayCount）
 const metrics = reactive({
@@ -352,12 +369,12 @@ function toDateStr(d: Date) {
 }
 
 /** 趋势接口参数：days 支持 数字 | "month" | "year"（新契约） */
-function getTrendDays(): number | string {
+function getTrendDays(): number | "month" | "year" {
   if (timeRange.value === "custom" && customRange.value?.length === 2) {
     const ms = customRange.value[1].getTime() - customRange.value[0].getTime();
     return Math.max(1, Math.min(366, Math.round(ms / 86400000)));
   }
-  const map: Record<string, number | string> = { "7d": 7, "30d": 30, "90d": 90, thisMonth: "month", thisYear: "year" };
+  const map: Record<string, number | "month" | "year"> = { "7d": 7, "30d": 30, "90d": 90, thisMonth: "month", thisYear: "year" };
   return map[timeRange.value] ?? 30;
 }
 
@@ -384,11 +401,10 @@ async function refresh() {
     const [overviewRes, breakdownRes, trendsRes] = await Promise.all([
       revenueApi.platformOverview(),
       revenueApi.breakdown(getBreakdownRange()),
-      // days 契约：数字 | "month" | "year"；接口签名为 number，联合类型经 as any 透传
-      revenueApi.platformTrends({ days: getTrendDays() as any }),
+      revenueApi.platformTrends({ days: getTrendDays() }),
     ]);
 
-    const overview = overviewRes.data as Record<string, any>;
+    const overview = overviewRes.data as Record<string, unknown>;
     if (overview) {
       metrics.totalRmb = Number(overview.totalRmb || 0);
       metrics.totalCoin = Number(overview.totalCoin || 0);
@@ -400,7 +416,7 @@ async function refresh() {
     }
 
     // breakdown 返回 { 场景枚举: 金额 }，枚举翻译成中文
-    const breakdown = breakdownRes.data as Record<string, any>;
+    const breakdown = breakdownRes.data as Record<string, unknown>;
     if (breakdown && typeof breakdown === "object") {
       const entries = Object.entries(breakdown).filter(([, v]) => Number(v) > 0);
       const total = entries.reduce((s, [, v]) => s + Number(v), 0);
@@ -446,13 +462,13 @@ function renderTrendChart(trends: TrendPoint[]) {
       {
         name: "收益金额", type: "line", smooth: true, symbol: "none",
         data: trends.map((t) => Math.round(Number(t.rmb || 0) * 100) / 100),
-        areaStyle: { opacity: 0.15 }, lineStyle: { color: "#409eff" },
-        itemStyle: { color: "#409eff" },
+        areaStyle: { opacity: 0.1 }, lineStyle: { color: "#26715f", width: 2 },
+        itemStyle: { color: "#26715f" },
       },
       {
         name: "收益笔数", type: "bar", yAxisIndex: 1,
         data: trends.map((t) => Number(t.count || 0)),
-        itemStyle: { color: "#67c23a", opacity: 0.35, borderRadius: [2, 2, 0, 0] },
+        itemStyle: { color: "#b8893f", opacity: 0.46, borderRadius: [3, 3, 0, 0] },
         barMaxWidth: 12,
       },
     ],
@@ -484,18 +500,18 @@ function exportCSV() {
 }
 
 const quickLinks = [
-  { icon: "📋", label: "订单管理", path: "/orders" },
-  { icon: "💳", label: "支付流水", path: "/orders/payments" },
-  { icon: "↩️", label: "退款审核", path: "/orders/refund" },
-  { icon: "📊", label: "对账中心", path: "/finance/reconciliation" },
-  { icon: "🧾", label: "发票管理", path: "/finance/invoices" },
-  { icon: "💰", label: "结算管理", path: "/finance/settlements" },
-  { icon: "🏦", label: "提现审批", path: "/finance/withdrawals" },
-  { icon: "📈", label: "财务报表", path: "/finance/reports" },
-  { icon: "🔒", label: "资金冻结", path: "/finance/freeze" },
-  { icon: "💎", label: "充值记录", path: "/recharges" },
-  { icon: "🤝", label: "佣金配置", path: "/commission-config" },
-  { icon: "💸", label: "提现审核", path: "/withdrawals" },
+  { icon: Tickets, label: "订单管理", path: "/orders" },
+  { icon: CreditCard, label: "支付流水", path: "/orders/payments" },
+  { icon: RefreshLeft, label: "退款审核", path: "/orders/refund" },
+  { icon: DataAnalysis, label: "对账中心", path: "/finance/reconciliation" },
+  { icon: Document, label: "发票管理", path: "/finance/invoices" },
+  { icon: Money, label: "结算管理", path: "/finance/settlements" },
+  { icon: Wallet, label: "提现审批", path: "/finance/withdrawals" },
+  { icon: TrendCharts, label: "财务报表", path: "/finance/reports" },
+  { icon: Lock, label: "资金冻结", path: "/finance/freeze" },
+  { icon: Coin, label: "充值记录", path: "/recharges" },
+  { icon: Setting, label: "佣金配置", path: "/commission-config" },
+  { icon: DocumentChecked, label: "提现审核", path: "/withdrawals" },
 ];
 
 onMounted(() => refresh());
@@ -504,7 +520,7 @@ onMounted(() => refresh());
 <style scoped>
 .revenue-page { padding: 0; }
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
-.page-header h2 { margin: 0 0 4px 0; font-size: 20px; }
+.page-header h2 { margin: 0 0 4px 0; font-size: 25px; font-weight: 680; letter-spacing: -.025em; }
 .update-time { color: var(--color-text-secondary); font-size: 12px; }
 .header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 
@@ -519,4 +535,15 @@ onMounted(() => refresh());
 .metric-note { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 14px 2px; }
 
 .text-muted { color: var(--color-text-secondary); }
+.quick-link { width: 100%; height: 70px; justify-content: flex-start; padding: 0 14px; }
+.quick-link-content { display: flex; align-items: center; gap: 10px; width: 100%; color: var(--color-text-body); }
+.quick-link-icon { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 9px; color: #26715f; background: rgba(38,113,95,.09); font-size: 17px; }
+
+@media (max-width: 1100px) {
+  :deep(.el-card .el-row > .el-col-4) { max-width: 33.333%; flex: 0 0 33.333%; margin-bottom: 12px; }
+}
+
+@media (max-width: 640px) {
+  :deep(.el-card .el-row > .el-col-4) { max-width: 50%; flex: 0 0 50%; }
+}
 </style>

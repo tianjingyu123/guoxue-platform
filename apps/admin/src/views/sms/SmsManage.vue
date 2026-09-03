@@ -273,9 +273,14 @@ probe.interceptors.request.use((c) => {
   if (t) c.headers.Authorization = `Bearer ${t}`;
   return c;
 });
-function unwrap(d: unknown): any {
+function unwrap(d: unknown): unknown {
   if (d && typeof d === "object" && "code" in d && "data" in d) return (d as { data: unknown }).data;
   return d;
+}
+function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null; }
+interface SmsStatsResponse {
+  total?: number; today?: { total: number; success: number; fail: number };
+  yesterday?: number; thisMonth?: number; successRate?: string;
 }
 
 const loading = ref(false);
@@ -307,10 +312,12 @@ async function fetchConfigStatus() {
     const res = await probe.get("/sms/admin/config-status");
     if (res.status === 404) { config.state = "unknown"; return; }
     if (res.status >= 400) { config.state = "unknown"; return; }
-    const d = unwrap(res.data) || {};
+    const d = unwrap(res.data);
+    if (!isRecord(d)) { config.state = "unknown"; return; }
     config.state = d.ready === true ? "ok" : "unconfigured";
     config.retentionReady = d.retentionReady === true;
-    config.lastSuccessAt = d.lastSuccessAt ?? d.lastSuccessTime ?? d.lastSentAt ?? undefined;
+    const lastSuccessAt = d.lastSuccessAt ?? d.lastSuccessTime ?? d.lastSentAt;
+    config.lastSuccessAt = typeof lastSuccessAt === "string" ? lastSuccessAt : undefined;
   } catch { config.state = "unknown"; }
 }
 
@@ -363,7 +370,7 @@ async function refresh() {
   fetchConfigStatus();
   try {
     const statsRes = await smsApi.getAdminStats();
-    const s = statsRes.data as Record<string, any>;
+    const s = statsRes.data as SmsStatsResponse;
     if (s) {
       stats.total = s.total || 0;
       stats.today = s.today || { total: 0, success: 0, fail: 0 };
@@ -380,9 +387,10 @@ async function fetchLogs() {
   loadError.value = false;
   try {
     const { data } = await smsApi.getAdminLogs({ page: page.value, pageSize: pageSize.value, status: filterStatus.value || undefined });
-    const d = data as Record<string, any>;
-    logs.value = d?.logs || d?.data || d?.items || [];
-    total.value = d?.total || 0;
+    const d = isRecord(data) ? data : {};
+    const rows = [d.logs, d.data, d.items].find(Array.isArray);
+    logs.value = (rows ?? []) as SmsLogRow[];
+    total.value = typeof d.total === "number" ? d.total : 0;
   } catch { logs.value = []; loadError.value = true; } finally { loading.value = false; }
 }
 </script>

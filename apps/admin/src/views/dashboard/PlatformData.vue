@@ -11,6 +11,7 @@ import { api } from '@/api'
 import ChartCard from '@/components/ChartCard.vue'
 import { User, Document, Goods, Money, Plus, Coin, ChatDotRound, View } from '@element-plus/icons-vue'
 import { downloadCsvRows } from '@/utils/export'
+import { firstChartTooltipDatum, type ChartOption } from '@/utils/chart'
 
 const router = useRouter()
 const loading = ref(true)
@@ -37,8 +38,8 @@ interface ArticleRow {
   comments?: number
 }
 const cards = ref<CardDef[]>([])
-// chartOption 为 ECharts option，类型为复杂联合，框架类型不匹配，保留 any
-const chartOption = ref<any>({})
+const chartOption = ref<ChartOption>({})
+const hasGrowthTrend = ref(false)
 const topArticles = ref<ArticleRow[]>([])
 
 const cardRoutes: Record<string, string> = {
@@ -105,9 +106,8 @@ function buildGrowthOption(dates: string[], values: number[]) {
       borderColor: '#F0F0F0',
       borderWidth: 1,
       textStyle: { color: '#1A1A1A', fontSize: 13 },
-      // params 为 ECharts tooltip 回调参数（复杂联合类型），保留 any
-      formatter: (params: any) => {
-        const p = params[0]
+      formatter: (params: unknown) => {
+        const p = firstChartTooltipDatum(params)
         return `<div style="font-weight:600;margin-bottom:4px">${p.name}</div>
                 <div>用户数：<span style="color:#FF6B6B;font-weight:600">${Number(p.value).toLocaleString()}</span></div>`
       },
@@ -147,6 +147,9 @@ async function fetchData() {
     const values = t.userTrend ?? []
     if (dates.length && values.length) {
       chartOption.value = buildGrowthOption(dates, values)
+      hasGrowthTrend.value = true
+    } else {
+      hasGrowthTrend.value = false
     }
 
     // TOP10 内容
@@ -214,125 +217,125 @@ onMounted(fetchData)
     </el-result>
 
     <template v-else>
-    <!-- 统计卡片 4x2 -->
-    <el-row
-      v-if="data"
-      :gutter="20"
-      class="stats-row"
-    >
-      <el-col
-        v-for="card in cards"
-        :key="card.label"
-        :xs="24"
-        :sm="12"
-        :md="6"
+      <!-- 统计卡片 4x2 -->
+      <el-row
+        v-if="data"
+        :gutter="20"
+        class="stats-row"
       >
-        <div
-          class="stat-card"
-          @click="onCardClick(card)"
+        <el-col
+          v-for="card in cards"
+          :key="card.label"
+          :xs="24"
+          :sm="12"
+          :md="6"
         >
-          <div class="stat-card__top">
-            <span class="stat-card__label">{{ card.label }}</span>
-            <div class="stat-card__icon">
-              <el-icon :size="18">
-                <component :is="card.icon" />
-              </el-icon>
+          <div
+            class="stat-card"
+            @click="onCardClick(card)"
+          >
+            <div class="stat-card__top">
+              <span class="stat-card__label">{{ card.label }}</span>
+              <div class="stat-card__icon">
+                <el-icon :size="18">
+                  <component :is="card.icon" />
+                </el-icon>
+              </div>
+            </div>
+            <div class="stat-card__value">
+              <template v-if="card.prefix">
+                {{ card.prefix }}{{ card.value.toLocaleString() }}
+              </template>
+              <template v-else>
+                {{ card.value.toLocaleString() }}
+              </template>
             </div>
           </div>
-          <div class="stat-card__value">
-            <template v-if="card.prefix">
-              {{ card.prefix }}{{ card.value.toLocaleString() }}
-            </template>
-            <template v-else>
-              {{ card.value.toLocaleString() }}
-            </template>
-          </div>
-        </div>
-      </el-col>
-    </el-row>
+        </el-col>
+      </el-row>
 
-    <!-- 用户增长趋势折线图 -->
-    <el-row
-      v-if="data"
-      :gutter="20"
-      class="charts-row"
-    >
-      <el-col
-        :xs="24"
-        :md="24"
+      <!-- 用户增长趋势折线图 -->
+      <el-row
+        v-if="data"
+        :gutter="20"
+        class="charts-row"
       >
-        <ChartCard
-          v-if="chartOption?.series?.[0]?.data?.length"
-          title="用户增长趋势 · 近30天"
-          :option="chartOption"
-          :height="320"
-        />
-        <el-empty
-          v-else-if="!loading"
-          description="暂无用户增长数据"
-        />
-      </el-col>
-    </el-row>
-
-    <!-- TOP10 内容排行 -->
-    <div
-      v-if="data"
-      class="section-card"
-    >
-      <div class="section-card__title">
-        内容排行 TOP10
-      </div>
-      <el-table
-        :data="topArticles"
-        stripe
-        style="width:100%"
-      >
-        <template #empty>
-          <el-empty
-            description="暂无内容排行数据"
-            :image-size="48"
+        <el-col
+          :xs="24"
+          :md="24"
+        >
+          <ChartCard
+            v-if="hasGrowthTrend"
+            title="用户增长趋势 · 近30天"
+            :option="chartOption"
+            :height="320"
           />
-        </template>
-        <el-table-column
-          type="index"
-          label="排名"
-          width="64"
-        />
-        <el-table-column
-          prop="title"
-          label="标题"
-          min-width="200"
-          show-overflow-tooltip
-        />
-        <el-table-column
-          prop="pageViews"
-          label="浏览量"
-          width="120"
-          align="right"
-          sortable
-        />
-        <el-table-column
-          prop="likes"
-          label="点赞"
-          width="100"
-          align="right"
-          sortable
-        />
-        <el-table-column
-          prop="comments"
-          label="评论"
-          width="100"
-          align="right"
-          sortable
-        />
-      </el-table>
-    </div>
+          <el-empty
+            v-else-if="!loading"
+            description="暂无用户增长数据"
+          />
+        </el-col>
+      </el-row>
 
-    <el-empty
-      v-if="!data && !loading"
-      description="暂无数据"
-      :image-size="48"
-    />
+      <!-- TOP10 内容排行 -->
+      <div
+        v-if="data"
+        class="section-card"
+      >
+        <div class="section-card__title">
+          内容排行 TOP10
+        </div>
+        <el-table
+          :data="topArticles"
+          stripe
+          style="width:100%"
+        >
+          <template #empty>
+            <el-empty
+              description="暂无内容排行数据"
+              :image-size="48"
+            />
+          </template>
+          <el-table-column
+            type="index"
+            label="排名"
+            width="64"
+          />
+          <el-table-column
+            prop="title"
+            label="标题"
+            min-width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="pageViews"
+            label="浏览量"
+            width="120"
+            align="right"
+            sortable
+          />
+          <el-table-column
+            prop="likes"
+            label="点赞"
+            width="100"
+            align="right"
+            sortable
+          />
+          <el-table-column
+            prop="comments"
+            label="评论"
+            width="100"
+            align="right"
+            sortable
+          />
+        </el-table>
+      </div>
+
+      <el-empty
+        v-if="!data && !loading"
+        description="暂无数据"
+        :image-size="48"
+      />
     </template>
   </div>
 </template>

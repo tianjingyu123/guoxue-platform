@@ -241,7 +241,7 @@ const checks = [
   {
     name: "PC 库存台账以账面、占用和可售四列呈现订单占用关系",
     file: "apps/admin/src/views/merchant-backend/MerchantInventory.vue",
-    pass: hasAll(adminInventory, [
+    pass: hasAll(adminInventory.replace(/\s+/gu, " "), [
       'prop="physicalOnHandStock" label="账面现货"',
       'prop="unpaidReservedUnitCount" label="待付款"',
       'prop="unshippedUnitCount" label="待发货"',

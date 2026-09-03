@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsString, IsDateString, IsOptional, IsArray, IsNumber, IsInt, IsObject, IsIn, IsBoolean, IsNotEmpty, Min, Max, MaxLength } from "class-validator";
+import { IsString, IsDateString, IsOptional, IsArray, IsNumber, IsInt, IsObject, IsIn, IsBoolean, IsNotEmpty, Min, Max, MaxLength, ValidateNested } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 export class PublishEventDto {
@@ -171,7 +171,77 @@ export class ReviewDecisionDto {
   @ApiPropertyOptional({ description: "审核备注" })
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   note?: string;
+}
+
+export class QueryDecisionDto {
+  @ApiPropertyOptional({ description: "智能体标识" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  agentId?: string;
+
+  @ApiPropertyOptional({ description: "能力标识" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  capabilityId?: string;
+
+  @ApiPropertyOptional({ description: "风险级别", enum: ["low", "medium", "high"] })
+  @IsOptional()
+  @IsIn(["low", "medium", "high"])
+  riskLevel?: "low" | "medium" | "high";
+
+  @ApiPropertyOptional({ description: "人工审核结论", enum: ["pending", "approved", "rejected", "modified"] })
+  @IsOptional()
+  @IsIn(["pending", "approved", "rejected", "modified"])
+  humanAction?: "pending" | "approved" | "rejected" | "modified";
+
+  @ApiPropertyOptional({ description: "开始日期" })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional({ description: "结束日期" })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
+
+  @ApiPropertyOptional({ description: "每页数量", default: 50, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @ApiPropertyOptional({ description: "偏移量", default: 0, minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  offset?: number;
+}
+
+export class CompareDecisionModelsDto {
+  @ApiProperty({ description: "模型 A 标识" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  modelA: string;
+
+  @ApiProperty({ description: "模型 B 标识" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  modelB: string;
+
+  @ApiProperty({ description: "智能体标识" })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  agentId: string;
 }
 
 // ─────────── 人机协作协议 DTO ───────────
@@ -226,6 +296,21 @@ export class ProposeCollaborationDto {
   rollbackPlan?: Record<string, unknown>;
 }
 
+export class CollaborationModificationsDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  description?: string;
+
+  @IsOptional()
+  @IsObject()
+  executionPlan?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsObject()
+  rollbackPlan?: Record<string, unknown>;
+}
+
 export class ReviewCollaborationDto {
   @ApiProperty({ description: "审核动作", enum: ["approved", "rejected", "modified"] })
   @IsIn(["approved", "rejected", "modified"])
@@ -234,7 +319,9 @@ export class ReviewCollaborationDto {
   @ApiPropertyOptional({ description: "修改内容" })
   @IsOptional()
   @IsObject()
-  modifications?: Record<string, unknown>;
+  @ValidateNested()
+  @Type(() => CollaborationModificationsDto)
+  modifications?: CollaborationModificationsDto;
 
   @ApiPropertyOptional({ description: "审核备注" })
   @IsOptional()
@@ -244,16 +331,16 @@ export class ReviewCollaborationDto {
 }
 
 export class RollbackCollaborationDto {
-  @ApiPropertyOptional({ description: "回滚原因" })
-  @IsOptional()
+  @ApiProperty({ description: "回滚原因" })
   @IsString()
+  @IsNotEmpty()
   @MaxLength(500)
-  reason?: string;
+  reason: string;
 }
 
 export class FeedbackCollaborationDto {
   @ApiProperty({ description: "评分" })
-  @IsNumber()
+  @IsInt()
   @Min(1)
   @Max(5)
   rating: number;
@@ -263,6 +350,40 @@ export class FeedbackCollaborationDto {
   @IsString()
   @MaxLength(1000)
   comment?: string;
+}
+
+export class QueryCollaborationDto {
+  @IsOptional()
+  @IsIn(["pending_review", "approved", "rejected", "modified", "executing", "executed", "failed", "rolling_back", "rolled_back", "rollback_failed"])
+  status?: string;
+
+  @IsOptional()
+  @IsIn(["low", "medium", "high"])
+  riskLevel?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  type?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  proposedBy?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100000)
+  offset?: number;
 }
 
 export class RecordOutcomeDto {

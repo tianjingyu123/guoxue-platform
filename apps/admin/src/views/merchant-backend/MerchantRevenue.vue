@@ -2,20 +2,32 @@
   <div class="revenue-page">
     <section class="revenue-hero">
       <div class="hero-copy">
-        <p class="eyebrow">资金对账中心 · SETTLEMENT LEDGER</p>
+        <p class="eyebrow">
+          资金对账中心 · SETTLEMENT LEDGER
+        </p>
         <h1>每一笔成交，最终都要清楚落到账上</h1>
         <p>
           同时核对成交、商家应得、平台服务费与实际到账。商家侧只读，平台生成结算单并完成打款，
           避免把“累计收入”误解为可立即提现余额。
         </p>
         <div class="hero-actions">
-          <el-button plain @click="router.push('/merchant-backend/orders')">
+          <el-button
+            plain
+            @click="router.push('/merchant-backend/orders')"
+          >
             核对订单
           </el-button>
-          <el-button plain @click="router.push('/merchant-backend/after-sales')">
+          <el-button
+            plain
+            @click="router.push('/merchant-backend/after-sales')"
+          >
             核对售后
           </el-button>
-          <el-button type="primary" :loading="loading" @click="fetchAll">
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="fetchAll"
+          >
             刷新账目
           </el-button>
         </div>
@@ -34,14 +46,21 @@
       sub-title="请检查网络或稍后重试，现有账目不会受到影响。"
     >
       <template #extra>
-        <el-button type="primary" @click="fetchAll">
+        <el-button
+          type="primary"
+          @click="fetchAll"
+        >
           重新加载
         </el-button>
       </template>
     </el-result>
 
     <template v-else>
-      <section v-loading="loadingOverview" class="money-metrics" aria-label="资金指标总览">
+      <section
+        v-loading="loadingOverview"
+        class="money-metrics"
+        aria-label="资金指标总览"
+      >
         <article class="money-card tone-sales">
           <span>累计有效成交</span>
           <strong>{{ fmtMoney(overview.totalSales) }}</strong>
@@ -66,7 +85,9 @@
 
       <section class="settlement-policy">
         <div>
-          <p class="eyebrow">SETTLEMENT POLICY</p>
+          <p class="eyebrow">
+            SETTLEMENT POLICY
+          </p>
           <h2>当前结算规则</h2>
           <span>结算比例、账期和收款账户由平台审核维护，商家不能自行修改资金结果。</span>
         </div>
@@ -90,11 +111,17 @@
         <div class="ledger-panel">
           <header class="panel-header">
             <div>
-              <p class="eyebrow">SETTLEMENT BILLS</p>
+              <p class="eyebrow">
+                SETTLEMENT BILLS
+              </p>
               <h2>结算账单</h2>
               <span>点击账单可展开金额构成和到账信息。</span>
             </div>
-            <div class="status-tabs" role="tablist" aria-label="结算状态筛选">
+            <div
+              class="status-tabs"
+              role="tablist"
+              aria-label="结算状态筛选"
+            >
               <button
                 v-for="tab in statusTabs"
                 :key="tab.value || 'all'"
@@ -107,7 +134,10 @@
             </div>
           </header>
 
-          <div v-loading="loading" class="bill-list">
+          <div
+            v-loading="loading"
+            class="bill-list"
+          >
             <button
               v-for="row in filteredList"
               :key="row.id"
@@ -116,7 +146,10 @@
               :class="{ expanded: expandedId === row.id }"
               @click="toggle(row.id)"
             >
-              <span class="status-line" :class="statusClass(row.status)" />
+              <span
+                class="status-line"
+                :class="statusClass(row.status)"
+              />
               <span class="bill-main">
                 <span class="bill-period">{{ periodText(row) }}</span>
                 <small>{{ row.orderCount ?? 0 }} 笔订单 · {{ settlementNo(row) }}</small>
@@ -125,12 +158,18 @@
                 <small>商家应得</small>
                 <strong>{{ fmtMoney(row.settlementAmount) }}</strong>
               </span>
-              <span class="bill-status" :class="statusClass(row.status)">
+              <span
+                class="bill-status"
+                :class="statusClass(row.status)"
+              >
                 {{ statusText(row.status) }}
               </span>
               <span class="bill-arrow">{{ expandedId === row.id ? "⌃" : "⌄" }}</span>
 
-              <span v-if="expandedId === row.id" class="bill-detail">
+              <span
+                v-if="expandedId === row.id"
+                class="bill-detail"
+              >
                 <span class="detail-grid">
                   <span>
                     <small>订单成交额</small>
@@ -149,8 +188,14 @@
                     <strong>{{ fmtTime(row.paidAt) }}</strong>
                   </span>
                 </span>
-                <span v-if="row.remark" class="bill-remark">结算备注：{{ row.remark }}</span>
-                <span v-else class="bill-remark">账目说明：成交额减去平台服务费，得到本期商家应得金额。</span>
+                <span
+                  v-if="row.remark"
+                  class="bill-remark"
+                >结算备注：{{ row.remark }}</span>
+                <span
+                  v-else
+                  class="bill-remark"
+                >账目说明：成交额减去平台服务费，得到本期商家应得金额。</span>
               </span>
             </button>
 
@@ -172,7 +217,9 @@
 
         <aside class="finance-rail">
           <article class="rail-card">
-            <p class="eyebrow">MONEY ROUTE</p>
+            <p class="eyebrow">
+              MONEY ROUTE
+            </p>
             <h2>一笔钱的三段旅程</h2>
             <ol class="money-route">
               <li>
@@ -191,7 +238,9 @@
           </article>
 
           <article class="rail-card reconciliation">
-            <p class="eyebrow">RECONCILIATION</p>
+            <p class="eyebrow">
+              RECONCILIATION
+            </p>
             <h2>今日对账提醒</h2>
             <div class="reconcile-row">
               <span>待结算账期</span>
@@ -202,13 +251,18 @@
               <strong :class="{ danger: cancelledCount > 0 }">{{ cancelledCount }}</strong>
             </div>
             <p>{{ reconciliationHint }}</p>
-            <button type="button" @click="router.push('/merchant-backend/orders')">
+            <button
+              type="button"
+              @click="router.push('/merchant-backend/orders')"
+            >
               查看订单来源 ›
             </button>
           </article>
 
           <article class="rail-card safety">
-            <p class="eyebrow">ACCOUNT SAFETY</p>
+            <p class="eyebrow">
+              ACCOUNT SAFETY
+            </p>
             <h2>资金安全边界</h2>
             <ul>
               <li>商家端不提供自行改价、生成结算或确认打款入口。</li>
