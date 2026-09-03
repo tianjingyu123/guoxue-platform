@@ -109,6 +109,10 @@ export function selectedDistribution(result: ReturnType<typeof distribution>, ke
 }
 
 export interface SnapshotState<T> { data: T | null; refreshing: boolean; failed: boolean; forbidden: boolean; receivedAt?: string }
+export function isScreenAccessDenied(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } })?.response?.status
+  return status === 401 || status === 403
+}
 /** 单一数据源刷新器：去重、卸载隔离、令牌切换隔离和权限失效清空。 */
 export function createSnapshotLoader<T>(request: () => Promise<T>, changed: (state: SnapshotState<T>) => void) {
   let state: SnapshotState<T> = { data: null, refreshing: false, failed: false, forbidden: false }
@@ -126,9 +130,8 @@ export function createSnapshotLoader<T>(request: () => Promise<T>, changed: (sta
       publish({ data, failed: false, forbidden: false, receivedAt: new Date().toISOString() })
     } catch (error) {
       if (disposed || current !== generation) return
-      const status = (error as { response?: { status?: number } })?.response?.status
-      const forbidden = status === 401 || status === 403
-      publish({ failed: true, forbidden, ...(forbidden ? { data: null, receivedAt: undefined } : {}) })
+      if (isScreenAccessDenied(error)) forbid()
+      else publish({ failed: true, forbidden: false })
     } finally {
       if (!disposed && current === generation) publish({ refreshing: false })
     }
@@ -137,5 +140,10 @@ export function createSnapshotLoader<T>(request: () => Promise<T>, changed: (sta
     generation++
     if (!disposed) publish({ data: null, refreshing: false, failed: false, forbidden: false, receivedAt: undefined })
   }
-  return { refresh, reset, dispose: () => { disposed = true; generation++ } }
+  // 关联数据源发现权限失效时也必须取消尚未返回的汇总请求。
+  function forbid() {
+    generation++
+    if (!disposed) publish({ data: null, refreshing: false, failed: true, forbidden: true, receivedAt: undefined })
+  }
+  return { refresh, reset, forbid, dispose: () => { disposed = true; generation++ } }
 }

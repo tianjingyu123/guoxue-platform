@@ -1,5 +1,6 @@
 /** 独立组件验收入口，不在生产路由或构建入口中引用，不连接远端 API。 */
 import { createApp, h, ref } from 'vue'
+import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory, RouterView } from 'vue-router'
 import { AxiosError, type AxiosResponse } from 'axios'
 import { api } from '../../src/api'
@@ -55,4 +56,5 @@ const app = createApp({ setup: () => () => h('div', [
   h(RouterView),
 ]) })
 app.use(router)
+app.use(createPinia())
 void router.isReady().then(() => app.mount('#app'))

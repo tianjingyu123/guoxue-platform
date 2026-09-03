@@ -1955,7 +1955,8 @@ export const cockpitApi = {
 
 // ───────── 对外数字大屏 ─────────
 export const bigscreenApi = {
-  platform: (token?: string) => api.get("/bigscreen/platform", { params: token ? { token } : {} }),
+  platform: (token?: string, inlineError = false) =>
+    api.get("/bigscreen/platform", { params: token ? { token } : {}, inlineError, silentError: inlineError && !!token } as AdminRequestConfig),
   // 专题大屏在页面内处理失效/断线，避免自动刷新不断弹错误消息；其他调用方保持原行为。
   transactions: (token?: string, inlineError = false) =>
     api.get("/bigscreen/transactions", { params: token ? { token } : {}, inlineError, silentError: inlineError && !!token } as AdminRequestConfig),

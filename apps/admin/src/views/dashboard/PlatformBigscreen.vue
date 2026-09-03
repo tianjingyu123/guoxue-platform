@@ -42,8 +42,8 @@
       role="status"
     >
       <Connection aria-hidden="true" />
-      <h2>{{ loading ? '正在连接平台全景' : '暂时无法获取平台数据' }}</h2>
-      <p>{{ loading ? '读取数据源，请稍候' : '请检查网络或稍后重试，未获取的数据不会显示为零。' }}</p>
+      <h2>{{ forbidden ? '访问权限已失效' : loading ? '正在连接平台全景' : '暂时无法获取平台数据' }}</h2>
+      <p>{{ forbidden ? '已清空本页数据。请确认账号或大屏令牌权限后重新获取。' : loading ? '读取数据源，请稍候' : '请检查网络或稍后重试，未获取的数据不会显示为零。' }}</p>
       <button
         v-if="!loading"
         class="screen-presentation-button"
@@ -330,7 +330,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Box, Collection, Connection, Document, Reading } from '@element-plus/icons-vue'
 import BigscreenActions from '@/components/BigscreenActions.vue'
@@ -339,22 +339,36 @@ import { bigscreenApi } from '@/api'
 import { BRAND } from '@/lib/brand'
 import { useAuthStore } from '@/store/auth'
 import { usePlatformSignals } from '@/composables/usePlatformSignals'
+import { useBigscreenContext } from '@/composables/useBigscreenContext'
+import { createSnapshotLoader, type SnapshotState } from '@/utils/topic-screen'
 import { formatScreenNumber as fmt, formatScreenTime, orderTypeLabel, platformComposition, sourceLabel, type PlatformAssetKey, type PlatformScreen } from '@/utils/platform-screen'
 import '@/styles/platform-command.css'
 
 const route = useRoute()
 const auth = useAuthStore()
+const context = useBigscreenContext()
 const previewMode = computed(() => import.meta.env.DEV && route.path.startsWith('/__qa/'))
-const signalsEnabled = computed(() => !route.query.token && !previewMode.value && auth.isLogin)
-const canReadOperations = computed(() => signalsEnabled.value && auth.hasRole('SUPER_ADMIN', 'OPERATION_ADMIN'))
-const { transactions, content, ai, offline, growth, alerts, states, refresh: refreshSignals } = usePlatformSignals(() => signalsEnabled.value, () => canReadOperations.value)
 const assetIcons = { totalCourses: Reading, totalCircles: Connection, totalProducts: Box, totalClassicBooks: Collection, totalArticles: Document }
-const data = ref<PlatformScreen>({})
-const loading = ref(true)
-const refreshing = ref(false)
-const loadError = ref(false)
-const stale = ref(false)
+const snapshot = shallowRef<SnapshotState<PlatformScreen>>({ data: null, refreshing: true, failed: false, forbidden: false })
+const data = computed(() => snapshot.value.data ?? {})
+const loading = computed(() => snapshot.value.refreshing && !snapshot.value.data)
+const refreshing = computed(() => snapshot.value.refreshing)
+const loadError = computed(() => snapshot.value.failed && !snapshot.value.data)
+const stale = computed(() => snapshot.value.failed && !!snapshot.value.data)
+const forbidden = computed(() => snapshot.value.forbidden)
 const selectedKey = ref<PlatformAssetKey | null>(null)
+let clearSignals = () => {}
+const loader = createSnapshotLoader<PlatformScreen>(async () => previewMode.value
+  ? previewData : (await bigscreenApi.platform(context.token.value, true)).data, value => {
+  snapshot.value = value
+  if (value.forbidden) { selectedKey.value = null; clearSignals() }
+})
+const signalsEnabled = computed(() => !context.hasScopedToken.value && !previewMode.value && auth.isLogin && !forbidden.value)
+const canReadOperations = computed(() => signalsEnabled.value && auth.hasRole('SUPER_ADMIN', 'OPERATION_ADMIN'))
+const { transactions, content, ai, offline, growth, alerts, states, refresh: refreshSignals, reset: resetSignals } = usePlatformSignals(
+  () => signalsEnabled.value, () => canReadOperations.value, () => loader.forbid(),
+)
+clearSignals = resetSignals
 const hasData = computed(() => Object.keys(data.value).length > 0)
 const composition = computed(() => platformComposition(data.value))
 const selectedAsset = computed(() => composition.value.items.find(item => item.key === selectedKey.value))
@@ -363,7 +377,7 @@ const coreCaption = computed(() => {
   if (asset) return asset.percent === null ? '暂无占比 · 点击返回' : `占比 ${asset.percent.toFixed(1)}%`
   return composition.value.complete ? '五类资源汇总' : '等待完整数据'
 })
-const syncLabel = computed(() => loading.value || refreshing.value ? '正在同步' : stale.value ? '同步延迟' : loadError.value ? '连接失败' : '平台数据已连接')
+const syncLabel = computed(() => forbidden.value ? '访问权限已失效' : loading.value || refreshing.value ? '正在同步' : stale.value ? '同步延迟' : loadError.value ? '连接失败' : hasData.value ? '平台数据已连接' : '等待连接')
 const orderMix = computed(() => {
   const rows = (transactions.value.typeBreakdown ?? []).filter(item => Number.isFinite(item.amount) && item.amount > 0)
   const total = rows.reduce((sum, item) => sum + item.amount, 0)
@@ -374,29 +388,23 @@ let disposed = false
 function selectAsset(key: PlatformAssetKey) { selectedKey.value = selectedKey.value === key ? null : key }
 
 async function load(force = false) {
-  if (refreshing.value || disposed) return
-  if (!hasData.value) loading.value = true
-  refreshing.value = true
-  try {
-    const result = previewMode.value ? { data: previewData } : await bigscreenApi.platform(typeof route.query.token === 'string' ? route.query.token : undefined)
-    if (disposed) return
-    if (!result.data || !Object.keys(result.data).length) throw new Error('empty platform data')
-    data.value = result.data
-    loadError.value = false
-    stale.value = false
-    // 汇总成功后才读取已获权限的额外数据，不给无效令牌或未登录用户扩大请求。
-    void refreshSignals(force)
-  } catch {
-    if (!disposed) { if (hasData.value) stale.value = true; else loadError.value = true }
-  } finally {
-    if (!disposed) { loading.value = false; refreshing.value = false }
-  }
+  if (disposed) return
+  if (context.invalidScopedToken.value) { loader.forbid(); return }
+  await loader.refresh()
+  // 汇总成功后才读取额外指标，鉴权失败及陈旧请求不得重新开启数据源。
+  if (!disposed && !refreshing.value && !snapshot.value.failed && hasData.value) void refreshSignals(force)
 }
+watch(context.key, () => {
+  loader.reset()
+  clearSignals()
+  selectedKey.value = null
+  void nextTick(() => load())
+}, { flush: 'sync' })
 const previewData: PlatformScreen = {
   totalUsers: 286430, todayNewUsers: 1286, dailyActiveUsers: 38520, totalCourses: 1268,
   totalCircles: 842, totalProducts: 5680, totalClassicBooks: 12930, totalArticles: 48620,
   totalGmv: 86520490, updatedAt: new Date().toISOString(),
 }
 onMounted(() => { void load(); if (!previewMode.value) timer = setInterval(() => void load(), 30000) })
-onBeforeUnmount(() => { disposed = true; if (timer) clearInterval(timer) })
+onBeforeUnmount(() => { disposed = true; loader.dispose(); if (timer) clearInterval(timer) })
 </script>
