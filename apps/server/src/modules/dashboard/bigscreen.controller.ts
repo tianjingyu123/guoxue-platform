@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader, ApiResponse } from "@n
 import { Request } from "express";
 import { BigScreenService } from "./bigscreen.service";
 import { BigScreenAuthService } from "./bigscreen-auth.service";
-import { BigScreenAuthGuard } from "./bigscreen-auth.guard";
+import { BigScreenAuthGuard, BigScreenScope } from "./bigscreen-auth.guard";
 import { JwtAuthGuard } from "../../common/jwt-auth.guard";
 import { RolesGuard } from "../../common/roles.guard";
 import { Roles } from "../../common/roles.decorator";
@@ -18,6 +18,7 @@ export class BigScreenController {
   ) {}
 
   @Get("platform")
+  @BigScreenScope("platform")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "平台综合实力大屏" })
@@ -27,6 +28,7 @@ export class BigScreenController {
   }
 
   @Get("transactions")
+  @BigScreenScope("transactions")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "实时交易大屏" })
@@ -36,6 +38,7 @@ export class BigScreenController {
   }
 
   @Get("content-eco")
+  @BigScreenScope("content_eco")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "内容生态大屏" })
@@ -45,6 +48,7 @@ export class BigScreenController {
   }
 
   @Get("ai-capability")
+  @BigScreenScope("ai_capability")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "AI能力大屏" })
@@ -54,6 +58,7 @@ export class BigScreenController {
   }
 
   @Get("offline-map")
+  @BigScreenScope("offline_map")
   @UseGuards(BigScreenAuthGuard)
   @ApiHeader({ name: "x-bigscreen-token", required: true })
   @ApiOperation({ summary: "线下驿站分布大屏" })
