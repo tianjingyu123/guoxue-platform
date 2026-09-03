@@ -26,6 +26,49 @@
   function openNativeLocation() { openRebuAction('location') }
   function openNativeCompass() { openRebuAction('compass-start') }
 
+  function safeShareText(value, max) {
+    return typeof value === 'string' && !/https?:[/][/]|(?:token|authorization|password|secret|signature|sign|key) *[:=]/i.test(value) ? value.slice(0, max) : ''
+  }
+
+  function safeShareUrl(value, image) {
+    if (typeof value !== 'string' || value.length > 2048) return ''
+    try {
+      var url = new URL(value)
+      if (url.protocol !== 'https:' || url.href !== value || url.username || url.password || url.port || url.hash) return ''
+      if (['yrydai.cn', 'www.yrydai.cn', 'yrydai.com', 'www.yrydai.com', 'rebu.net.cn', 'www.rebu.net.cn'].indexOf(url.hostname) < 0) return ''
+      if (url.pathname.indexOf('%') >= 0 || /guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|my[.]php/i.test(url.pathname)) return ''
+      if (image && (url.search || !/[.](png|jpe?g|webp)$/i.test(url.pathname))) return ''
+      var valid = true
+      var seen = {}
+      url.searchParams.forEach(function (v, k) {
+        if (['id', 'aid', 'cid', 'tid', 'shareId', 'type', 'mod', 'm', 'c', 'a', 'page'].indexOf(k) < 0 || !/^[A-Za-z0-9_-]{1,100}$/.test(v) || seen[k]) valid = false
+        seen[k] = true
+      })
+      return valid ? url.href : ''
+    } catch (_error) { return '' }
+  }
+
+  function openLegacyShare(kind, value) {
+    var data = value && typeof value === 'object' ? value : {}
+    var payload = JSON.stringify({
+      kind: kind,
+      title: safeShareText(data.title, 80),
+      text: safeShareText(data.remark, 300),
+      url: safeShareUrl(data.path, false),
+      imageUrl: safeShareUrl(data.shareImgUrl, true),
+    })
+    openRebuAction('legacy-share?payload=' + encodeURIComponent(payload))
+  }
+
+  function shareLegacyPage(_type, _scene, _miniId, title, description) {
+    // 旧 APK 的前三个参数是类型/场景/小程序标识，不是链接或图片路径。
+    // 原生菜单明确提供当前页面截图，不伪造未配置的小程序卡片。
+    openLegacyShare('page', { title: title, remark: description })
+  }
+
+  function shareLegacyPicture(url) { openLegacyShare('image', { shareImgUrl: url }) }
+  function saveLegacyPicture(url) { openLegacyShare('save', { shareImgUrl: url }) }
+
   function openLegacyPayment(value) {
     var tradeNo = String(value || '').trim()
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(tradeNo)) {
@@ -53,7 +96,7 @@
     else if (action === 'service') openRebuAction('customer-service')
     else if (action === 'location') openNativeLocation()
     else if (action === 'compass' || action === 'opencompass') openNativeCompass()
-    else if (action === 'share') openRebuAction('unsupported')
+    else if (action === 'share') openLegacyShare('page', data.payload)
   }
 
   function installWebkitCompatibility() {
@@ -70,6 +113,12 @@
     add('openCompass', function () { openNativeCompass() })
     add('openWXmini', function () { openRebuAction('unsupported') })
     add('payWX', function (value) { openLegacyPayment(value) })
+    add('shareWX', function (value) {
+      if (Array.isArray(value)) shareLegacyPage.apply(null, value)
+      else openLegacyShare('page', value)
+    })
+    add('sharePicture', function (value) { shareLegacyPicture(value) })
+    add('savePicture', function (value) { saveLegacyPicture(value) })
   }
 
   function sameWindowOpen(url) {
@@ -87,9 +136,9 @@
       serviceWX: function () { openRebuAction('customer-service') },
       payWX: function (value) { openLegacyPayment(value) },
       openWXmini: function () { openRebuAction('unsupported') },
-      shareWX: function () { openRebuAction('unsupported') },
-      sharePicture: function () { openRebuAction('unsupported') },
-      savePicture: function () { openRebuAction('unsupported') },
+      shareWX: shareLegacyPage,
+      sharePicture: shareLegacyPicture,
+      savePicture: saveLegacyPicture,
       location: function () { openNativeLocation() },
       openCompass: function () { openNativeCompass() },
       playVoice: function () { openRebuAction('unsupported') },

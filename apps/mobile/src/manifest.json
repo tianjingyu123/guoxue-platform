@@ -88,6 +88,7 @@
                 "privacyDescription" : {
                     "NSCameraUsageDescription" : "用于主播发起视频直播，仅在用户主动开播期间采集画面。",
                     "NSMicrophoneUsageDescription" : "用于主播视频直播、直播连麦与实时语音互动，仅在用户主动开播、连麦或通话期间采集声音。",
+                    "NSPhotoLibraryAddUsageDescription" : "用于在您主动点击保存图片时，将排盘图片或当前页面截图添加到手机相册。此操作不读取您的相册。",
                     "NSLocationWhenInUseUsageDescription" : "用于排盘真太阳时读取当前位置，仅在您主动使用定位功能时访问。"
                 },
                 "capabilities" : {

@@ -6,6 +6,9 @@ import { navigateTo } from '@/utils/router'
 // #ifdef APP-PLUS
 import { LEGACY_PAYMENT_REFRESH_SCRIPT, LegacyPaymentError, parseLegacyPaymentBridgeUrl, payLegacyPaipanOrder, type LegacyPaymentOutcome } from '@/lib/legacy-paipan-payment'
 // #endif
+// #ifdef APP-PLUS
+import { captureLegacyShareImage, LegacyShareError, parseLegacyShareBridgeUrl, shareLegacyPaipan } from '@/lib/legacy-paipan-share'
+// #endif
 
 const loading = ref(true)
 const error = ref('')
@@ -22,6 +25,7 @@ let legacyPageVisible = true
 let locationRequestId = 0
 let legacyDocumentVersion = 0
 let legacyPaymentBusy = false
+let legacyShareBusy = false
 let legacyPaymentLoading = false
 let pendingLegacyPayment: { child: any; url: string; documentVersion: number; outcome: LegacyPaymentOutcome } | null = null
 // #endif
@@ -67,6 +71,38 @@ function legacyNavigationBridgeScript(): string {
     }
     function openNativeLocation(){openRebuAction('location');}
     function openNativeCompass(){openRebuAction('compass-start');}
+    function safeShareText(value,max){
+      return typeof value==='string'&&!/https?:[/][/]|(?:token|authorization|password|secret|signature|sign|key) *[:=]/i.test(value)?value.slice(0,max):'';
+    }
+    function safeShareUrl(value,image){
+      if(typeof value!=='string'||value.length>2048)return '';
+      try{
+        var url=new URL(value);
+        if(url.protocol!=='https:'||url.href!==value||url.username||url.password||url.port||url.hash)return '';
+        if(['yrydai.cn','www.yrydai.cn','yrydai.com','www.yrydai.com','rebu.net.cn','www.rebu.net.cn'].indexOf(url.hostname)<0)return '';
+        if(url.pathname.indexOf('%')>=0||/guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|my[.]php/i.test(url.pathname))return '';
+        if(image&&(url.search||!/[.](png|jpe?g|webp)$/i.test(url.pathname)))return '';
+        var valid=true;
+        var seen={};
+        url.searchParams.forEach(function(v,k){
+          if(['id','aid','cid','tid','shareId','type','mod','m','c','a','page'].indexOf(k)<0||!/^[A-Za-z0-9_-]{1,100}$/.test(v)||seen[k])valid=false;
+          seen[k]=true;
+        });
+        return valid?url.href:'';
+      }catch(_error){return '';}
+    }
+    function openLegacyShare(kind,value){
+      var data=value&&typeof value==='object'?value:{};
+      var payload=JSON.stringify({kind:kind,
+        title:safeShareText(data.title,80),text:safeShareText(data.remark,300),
+        url:safeShareUrl(data.path,false),imageUrl:safeShareUrl(data.shareImgUrl,true)});
+      openRebuAction('legacy-share?payload='+encodeURIComponent(payload));
+    }
+    function shareLegacyPage(_type,_scene,_miniId,title,description){
+      openLegacyShare('page',{title:title,remark:description});
+    }
+    function shareLegacyPicture(url){openLegacyShare('image',{shareImgUrl:url});}
+    function saveLegacyPicture(url){openLegacyShare('save',{shareImgUrl:url});}
     function openLegacyPayment(value){
       var tradeNo=String(value||'').trim();
       if(!/^[A-Za-z0-9_-]{1,128}$/.test(tradeNo)){openRebuAction('unsupported');return;}
@@ -86,7 +122,7 @@ function legacyNavigationBridgeScript(): string {
       else if(action==='service')openRebuAction('customer-service');
       else if(action==='location')openNativeLocation();
       else if(action==='compass'||action==='opencompass')openNativeCompass();
-      else if(action==='share')openRebuAction('unsupported');
+      else if(action==='share')openLegacyShare('page',data.payload);
     }
     function installWebkitCompatibility(){
       var webkit=window.webkit||(window.webkit={});
@@ -100,6 +136,12 @@ function legacyNavigationBridgeScript(): string {
       add('openCompass',function(){openNativeCompass();});
       add('openWXmini',function(){openRebuAction('unsupported');});
       add('payWX',function(value){openLegacyPayment(value);});
+      add('shareWX',function(value){
+        if(Array.isArray(value))shareLegacyPage.apply(null,value);
+        else openLegacyShare('page',value);
+      });
+      add('sharePicture',function(value){shareLegacyPicture(value);});
+      add('savePicture',function(value){saveLegacyPicture(value);});
     }
     /*
      * 旧版官方 Android APK 通过 addJavascriptInterface 注入 webviewJS；工具宫格主要调用
@@ -117,9 +159,9 @@ function legacyNavigationBridgeScript(): string {
         serviceWX:function(){openRebuAction('customer-service');},
         payWX:function(value){openLegacyPayment(value);},
         openWXmini:function(){openRebuAction('unsupported');},
-        shareWX:function(){openRebuAction('unsupported');},
-        sharePicture:function(){openRebuAction('unsupported');},
-        savePicture:function(){openRebuAction('unsupported');},
+        shareWX:shareLegacyPage,
+        sharePicture:shareLegacyPicture,
+        savePicture:saveLegacyPicture,
         location:function(){openNativeLocation();},
         openCompass:function(){openNativeCompass();},
         playVoice:function(){openRebuAction('unsupported');},
@@ -422,6 +464,34 @@ async function requestLegacyPayment(url: string, child: any) {
   }
 }
 
+async function requestLegacyShare(url: string, child: any) {
+  if (legacyShareBusy || child !== legacyChildWebview || !legacyPageVisible) return
+  let requestUrl = ''
+  try { requestUrl = String(child.getURL?.() || '') } catch { return }
+  if (!isTrustedLegacyUrl(requestUrl)) return
+  const request = parseLegacyShareBridgeUrl(url)
+  if (!request) {
+    uni.showToast({ title: '分享内容无效，请返回排盘页面重新生成', icon: 'none' })
+    return
+  }
+  const documentVersion = legacyDocumentVersion
+  const canProceed = () => {
+    try {
+      return legacyPageVisible && child === legacyChildWebview && documentVersion === legacyDocumentVersion && child.getURL?.() === requestUrl
+    } catch { return false }
+  }
+  legacyShareBusy = true
+  try {
+    const outcome = await shareLegacyPaipan(request, { canProceed, capture: () => captureLegacyShareImage(child, canProceed) })
+    if (outcome === 'saved' && canProceed()) uni.showToast({ title: '图片已保存到相册', icon: 'none' })
+    // 调起分享不代表接收方收到；取消、切页和返回均不写分享奖励或伪造成功。
+  } catch (cause) {
+    if (canProceed()) uni.showToast({
+      title: cause instanceof LegacyShareError ? cause.message : '分享暂不可用，请稍后重试', icon: 'none', duration: 3000,
+    })
+  } finally { legacyShareBusy = false }
+}
+
 function bindLegacyChildWebview(child: any) {
   if (!child) return false
   try {
@@ -465,6 +535,7 @@ function bindLegacyChildWebview(child: any) {
             else if (action === 'login') openLogin()
             else if (action === 'customer-service') navigateTo('/customer-service')
             else if (action === 'legacy-payment') void requestLegacyPayment(url, child)
+            else if (action === 'legacy-share') void requestLegacyShare(url, child)
             else if (action === 'location') requestLegacyLocation()
             else if (action === 'compass-start') startLegacyCompass()
             else if (action === 'compass-stop') stopLegacyCompass()
