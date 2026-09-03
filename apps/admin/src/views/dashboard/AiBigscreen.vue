@@ -1,224 +1,150 @@
 <template>
-  <div
-    v-loading="loading"
-    class="bigscreen tech-screen ai"
-    element-loading-background="rgba(17,11,26,0.6)"
+  <TopicScreenFrame
+    title="AI 能力观测中心"
+    subtitle="分析调用、业务场景与知识资产"
+    topic="ai"
+    :snapshot="snapshot"
+    :updated-at="data.updatedAt"
+    footer="分析记录统计，不等同于全部 AI 网关调用"
+    @refresh="refresh"
   >
-    <header class="bs-header">
-      <div class="bs-title">
-        AI 能力数据大屏
-      </div>
-      <div class="bs-header-tools">
-        <div class="bs-time">
-          {{ nowStr }}
+    <div class="ts-ai-layout">
+      <section class="ts-surface ts-ai-wing">
+        <div class="ts-section-head">
+          <div><h2>场景调用分布</h2><p>累计分析记录，按调用量排序</p></div>
         </div>
-        <BigscreenActions @resize="resizeCharts" />
-      </div>
-    </header>
-
-    <el-result
-      v-if="loadError"
-      icon="error"
-      title="数据加载失败"
-      sub-title="无法获取数据，请检查网络或稍后重试"
-    >
-      <template #extra>
-        <el-button
-          type="primary"
-          @click="fetchData"
-        >
-          重试
-        </el-button>
-      </template>
-    </el-result>
-
-    <div
-      v-else
-      class="bs-body"
-    >
-      <!-- 核心指标 -->
-      <div class="kpi-bar">
-        <div class="kpi-item">
-          <span class="kpi-label">累计调用</span><span class="kpi-value blue">{{ fmt(data.totalApiCalls) }}</span>
+        <TopicBreakdown
+          :rows="scenes.items"
+          :selected="selectedScene"
+          label="累计场景分布"
+          :empty="Array.isArray(data.sceneDistribution) ? '暂无场景分析记录' : '场景数据暂未提供'"
+          hint="业务产生分析记录后，展示各场景调用规模。"
+          @select="selectedScene = $event"
+        />
+        <p class="ts-note">
+          {{ selectedSceneItem ? `${selectedSceneItem.label}：${metric(selectedSceneItem.value)} 次，占累计场景记录 ${percent(selectedSceneItem.share)}。` : '选择一个场景查看贡献。该分布为累计数据，不与右侧本月模型数量直接比较。' }}
+        </p>
+      </section>
+      <section
+        class="ts-ai-center"
+        aria-label="分析调用规模"
+      >
+        <h2>分析调用规模</h2>
+        <div class="ts-ring">
+          <svg
+            viewBox="0 0 260 260"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle
+              cx="130"
+              cy="130"
+              r="124"
+              stroke="#84aec137"
+              stroke-dasharray="1 7"
+            />
+            <circle
+              cx="130"
+              cy="130"
+              r="106"
+              stroke="#294b60"
+              stroke-width="6"
+            />
+            <circle
+              v-if="monthShare"
+              cx="130"
+              cy="130"
+              r="106"
+              stroke="#94bfff"
+              stroke-width="6"
+              pathLength="100"
+              :stroke-dasharray="`${monthShare} ${100-monthShare}`"
+              transform="rotate(-90 130 130)"
+            />
+            <circle
+              cx="130"
+              cy="130"
+              r="89"
+              stroke="#294b60"
+              stroke-width="6"
+            />
+            <circle
+              v-if="todayShare"
+              cx="130"
+              cy="130"
+              r="89"
+              stroke="#69dfd0"
+              stroke-width="6"
+              pathLength="100"
+              :stroke-dasharray="`${todayShare} ${100-todayShare}`"
+              transform="rotate(-90 130 130)"
+            />
+            <path
+              d="M124 48h12M124 212h12M48 124v12M212 124v12"
+              stroke="#8bb6c757"
+            />
+          </svg>
+          <div class="ts-ring-label">
+            <span>累计分析调用</span><strong>{{ metric(data.totalApiCalls) }}</strong><small>条分析记录</small>
+          </div>
         </div>
-        <div class="kpi-item">
-          <span class="kpi-label">今日调用</span><span class="kpi-value green">{{ fmt(data.todayApiCalls) }}</span>
+        <div class="ts-ai-periods">
+          <dl class="ts-stat">
+            <dt>本月调用</dt><dd>{{ metric(data.monthApiCalls) }}</dd><small>外轨：占累计 {{ percent(monthShare) }}</small>
+          </dl>
+          <dl class="ts-stat">
+            <dt>今日调用</dt><dd>{{ metric(data.todayApiCalls) }}</dd><small>内轨：占本月 {{ percent(todayShare) }}</small>
+          </dl>
         </div>
-        <div class="kpi-item">
-          <span class="kpi-label">本月调用</span><span class="kpi-value orange">{{ fmt(data.monthApiCalls) }}</span>
+        <div class="ts-ai-resources">
+          <dl class="ts-stat">
+            <dt>智能体对话记录</dt><dd>{{ metric(data.botConversations) }}</dd><small>独立累计，不叠加为分析调用</small>
+          </dl>
+          <dl class="ts-stat">
+            <dt>知识库条目</dt><dd>{{ metric(data.knowledgeBaseSize) }}</dd><small>圈子知识资产规模</small>
+          </dl>
         </div>
-        <div class="kpi-item">
-          <span class="kpi-label">智能体对话</span><span class="kpi-value cyan">{{ fmt(data.botConversations) }}</span>
+      </section>
+      <section class="ts-surface ts-ai-wing">
+        <div class="ts-section-head">
+          <div><h2>模型使用分布</h2><p>本自然月分析记录，按调用量排序</p></div>
         </div>
-        <div class="kpi-item">
-          <span class="kpi-label">知识库条目</span><span class="kpi-value purple">{{ fmt(data.knowledgeBaseSize) }}</span>
-        </div>
-      </div>
-
-      <div class="bs-grid-2">
-        <!-- 场景分布 -->
-        <div class="bs-panel">
-          <h3>场景调用分布</h3>
-          <div
-            v-if="data.sceneDistribution?.length"
-            ref="sceneChartRef"
-            style="height:300px"
-          />
-          <el-empty
-            v-else
-            description="暂无数据"
-            :image-size="60"
-          />
-        </div>
-        <!-- 模型分布 -->
-        <div class="bs-panel">
-          <h3>模型使用分布 · 本月</h3>
-          <div
-            v-if="data.modelDistribution?.length"
-            ref="modelChartRef"
-            style="height:300px"
-          />
-          <el-empty
-            v-else
-            description="暂无数据"
-            :image-size="60"
-          />
-        </div>
-      </div>
+        <TopicBreakdown
+          :rows="models.items"
+          :selected="selectedModel"
+          label="本月模型分布"
+          :empty="Array.isArray(data.modelDistribution) ? '本月暂无模型记录' : '模型数据暂未提供'"
+          hint="模型标识来自实际分析记录，不等同于可用模型清单。"
+          @select="selectedModel = $event"
+        />
+        <p class="ts-note">
+          {{ selectedModelItem ? `${selectedModelItem.label}：${metric(selectedModelItem.value)} 次，占本月模型记录 ${percent(selectedModelItem.share)}。` : '选择模型查看本月使用占比。这里只呈现使用分布，不据此判断服务健康状况。' }}
+        </p>
+      </section>
     </div>
-
-    <footer class="bs-footer">
-      <span>更新：{{ data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-CN') : '--' }}</span>
-      <span class="watermark">{{ BRAND.name }} · AI大屏 · {{ nowStr.slice(0, 10) }}</span>
-    </footer>
-  </div>
+    <p class="ts-context">
+      本屏未接入成功率、响应耗时、Token 或费用数据，不作服务质量或成本推断。双轨表示时间范围占比，不表示执行进度。
+    </p>
+    <template #scope>
+      <p>累计、今日、本月调用取自分析记录；今日和本月以服务端时间为准。场景分布取累计记录，模型分布仅取本自然月；智能体对话来自对话日志，知识库来自圈子知识条目。缺失或分母为零时比例显示“—”，不会填满圆环或显示虚假成功率。</p>
+    </template>
+  </TopicScreenFrame>
 </template>
-
 <script setup lang="ts">
-import BigscreenActions from "@/components/BigscreenActions.vue";
-import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
-import { useRoute } from "vue-router";
-import { bigscreenApi } from "@/api";
-import echarts from "@/utils/echarts";
-import type { EChartsType } from "echarts/core";
-import { BRAND } from "@/lib/brand";
-
-/** 场景调用分布项 */
-interface SceneItem { scene?: string; count?: number }
-/** 模型使用分布项 */
-interface ModelItem { model?: string; count?: number }
-/** AI 能力大屏数据（字段宽松 optional，依模板/脚本实际访问声明） */
-interface AiCapabilityData {
-  totalApiCalls?: number;
-  todayApiCalls?: number;
-  monthApiCalls?: number;
-  botConversations?: number;
-  knowledgeBaseSize?: number;
-  sceneDistribution?: SceneItem[];
-  modelDistribution?: ModelItem[];
-  updatedAt?: string;
-}
-
-const route = useRoute();
-const data = ref<AiCapabilityData>({});
-const nowStr = ref(new Date().toLocaleString("zh-CN"));
-const loading = ref(true);
-const loadError = ref(false);
-
-const sceneChartRef = ref<HTMLDivElement>();
-const modelChartRef = ref<HTMLDivElement>();
-let sceneChart: EChartsType | null = null;
-let modelChart: EChartsType | null = null;
-let timer: ReturnType<typeof setInterval> | undefined = undefined;
-let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
-
-function fmt(v: number | string | null | undefined) { return v != null ? Number(v).toLocaleString() : "0"; }
-
-function renderCharts() {
-  if (sceneChartRef.value) {
-    if (!sceneChart) sceneChart = echarts.init(sceneChartRef.value, "tech-screen");
-    const sd: SceneItem[] = data.value.sceneDistribution || [];
-    sceneChart.setOption({
-      tooltip: { trigger: "axis" },
-      grid: { left: 120, right: 30, top: 10, bottom: 20 },
-      xAxis: { type: "value" },
-      yAxis: { type: "category", data: sd.map((s) => s.scene).reverse(), axisLabel: { color: "#8892b0", fontSize: 11 } },
-      series: [{ type: "bar", data: sd.map((s) => s.count).reverse(), itemStyle: { color: "#58a6ff", borderRadius: [0, 4, 4, 0] }, label: { show: true, position: "right", color: "#8892b0" } }],
-    }, true);
-  }
-
-  if (modelChartRef.value) {
-    if (!modelChart) modelChart = echarts.init(modelChartRef.value, "tech-screen");
-    const md: ModelItem[] = data.value.modelDistribution || [];
-    modelChart.setOption({
-      tooltip: { trigger: "item", formatter: "{b}: {c} ({d}%)" },
-      series: [{
-        type: "pie",
-        radius: ["50%", "78%"],
-        center: ["50%", "55%"],
-        itemStyle: { borderRadius: 4, borderColor: "transparent", borderWidth: 3 },
-        label: { color: "#8892b0", fontSize: 12 },
-        data: md.map((m) => ({ name: m.model, value: m.count })),
-      }],
-    }, true);
-  }
-}
-
-async function fetchData() {
-  try {
-    const token = (route.query.token as string) || undefined;
-    const { data: d } = await bigscreenApi.aiCapability(token);
-    data.value = d || {};
-    loadError.value = false;
-    await nextTick();
-    renderCharts();
-  } catch {
-    loadError.value = true;
-  } finally {
-    loading.value = false;
-  }
-}
-
-function resizeCharts() {
-  sceneChart?.resize();
-  modelChart?.resize();
-}
-
-onMounted(() => {
-  fetchData();
-  timer = setInterval(fetchData, 30000);
-  clockTimer = setInterval(() => { nowStr.value = new Date().toLocaleString("zh-CN"); }, 1000);
-});
-
-onBeforeUnmount(() => {
-  clearInterval(timer);
-  clearInterval(clockTimer);
-  sceneChart?.dispose();
-  modelChart?.dispose();
-});
+import { computed, ref, watch } from 'vue'
+import { bigscreenApi } from '@/api'
+import TopicScreenFrame from '@/components/TopicScreenFrame.vue'
+import TopicBreakdown from '@/components/TopicBreakdown.vue'
+import { useTopicSnapshot } from '@/composables/useTopicSnapshot'
+import { distribution, metric, percent, proportion, type AiScreen } from '@/utils/topic-screen'
+const { snapshot, data, refresh } = useTopicSnapshot<AiScreen>(token => bigscreenApi.aiCapability(token, true))
+const selectedScene = ref<string | null>(null), selectedModel = ref<string | null>(null)
+const scenes = computed(() => distribution(Array.isArray(data.value.sceneDistribution) ? data.value.sceneDistribution.map(item => ({ key: JSON.stringify(item.scene), label: item.scene || '未标注场景', value: item.count })) : undefined))
+const models = computed(() => distribution(Array.isArray(data.value.modelDistribution) ? data.value.modelDistribution.map(item => ({ key: JSON.stringify(item.model), label: item.model || '未标注模型', value: item.count })) : undefined))
+const selectedSceneItem = computed(() => scenes.value.items.find(item => item.key === selectedScene.value))
+const selectedModelItem = computed(() => models.value.items.find(item => item.key === selectedModel.value))
+const monthShare = computed(() => proportion(data.value.monthApiCalls, data.value.totalApiCalls))
+const todayShare = computed(() => proportion(data.value.todayApiCalls, data.value.monthApiCalls))
+watch(scenes, value => { if (!value.items.some(item => item.key === selectedScene.value)) selectedScene.value = null })
+watch(models, value => { if (!value.items.some(item => item.key === selectedModel.value)) selectedModel.value = null })
 </script>
-
-<style scoped>
-.bigscreen { background: linear-gradient(135deg, #110b1a 0%, #1d1130 100%); color: #e0d6f0; min-height: 100vh; }
-.bs-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 40px; border-bottom: 1px solid rgba(160,120,255,.1); }
-.bs-title { font-size: 28px; letter-spacing: 4px; color: #b39cf0; }
-.bs-time { font-size: 16px; color: #7c6b94; }
-.bs-body { padding: 24px 40px; }
-
-.kpi-bar { display: flex; gap: 20px; margin-bottom: 24px; }
-.kpi-item { flex: 1; background: rgba(160,120,255,.05); border: 1px solid rgba(160,120,255,.1); border-radius: 8px; padding: 20px; text-align: center; }
-.kpi-label { display: block; font-size: 13px; color: #7c6b94; margin-bottom: 8px; }
-.kpi-value { font-size: 30px; font-weight: 700; }
-.kpi-value.blue { color: #b39cf0; }
-.kpi-value.green { color: #5cdb8a; }
-.kpi-value.orange { color: #f0a050; }
-.kpi-value.cyan { color: #4dd9c8; }
-.kpi-value.purple { color: #e890e8; }
-
-.bs-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.bs-panel { background: rgba(160,120,255,.03); border: 1px solid rgba(160,120,255,.08); border-radius: 8px; padding: 20px; }
-.bs-panel h3 { margin: 0 0 16px; font-size: 16px; color: #cfc0f0; }
-
-.bs-footer { display: flex; justify-content: space-between; padding: 12px 40px; font-size: 13px; color: #584878; border-top: 1px solid rgba(160,120,255,.06); }
-.watermark { opacity: .25; }
-</style>

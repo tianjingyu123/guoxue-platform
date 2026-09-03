@@ -9,7 +9,7 @@ export const api = axios.create({
   timeout: 10000,
 });
 
-export type AdminRequestConfig = AxiosRequestConfig & { silentError?: boolean };
+export type AdminRequestConfig = AxiosRequestConfig & { silentError?: boolean; inlineError?: boolean };
 const SILENT_ERROR_REQUEST: AdminRequestConfig = { silentError: true };
 
 api.interceptors.request.use((config) => {
@@ -136,6 +136,9 @@ api.interceptors.response.use(
       window.location.href = loginPath;
       return Promise.reject(err);
     }
+
+    // 页面内处理错误的轮询仍保留上面的登录续期，不反复弹出全局错误提示。
+    if ((original as AdminRequestConfig | undefined)?.inlineError) return Promise.reject(err);
 
     // 网络错误：服务器不可达、超时、DNS 解析失败等
     if (!err.response) {
@@ -1953,14 +1956,15 @@ export const cockpitApi = {
 // ───────── 对外数字大屏 ─────────
 export const bigscreenApi = {
   platform: (token?: string) => api.get("/bigscreen/platform", { params: token ? { token } : {} }),
-  transactions: (token?: string) =>
-    api.get("/bigscreen/transactions", { params: token ? { token } : {} }),
-  contentEco: (token?: string) =>
-    api.get("/bigscreen/content-eco", { params: token ? { token } : {} }),
-  aiCapability: (token?: string) =>
-    api.get("/bigscreen/ai-capability", { params: token ? { token } : {} }),
-  offlineMap: (token?: string) =>
-    api.get("/bigscreen/offline-map", { params: token ? { token } : {} }),
+  // 专题大屏在页面内处理失效/断线，避免自动刷新不断弹错误消息；其他调用方保持原行为。
+  transactions: (token?: string, inlineError = false) =>
+    api.get("/bigscreen/transactions", { params: token ? { token } : {}, inlineError, silentError: inlineError && !!token } as AdminRequestConfig),
+  contentEco: (token?: string, inlineError = false) =>
+    api.get("/bigscreen/content-eco", { params: token ? { token } : {}, inlineError, silentError: inlineError && !!token } as AdminRequestConfig),
+  aiCapability: (token?: string, inlineError = false) =>
+    api.get("/bigscreen/ai-capability", { params: token ? { token } : {}, inlineError, silentError: inlineError && !!token } as AdminRequestConfig),
+  offlineMap: (token?: string, inlineError = false) =>
+    api.get("/bigscreen/offline-map", { params: token ? { token } : {}, inlineError, silentError: inlineError && !!token } as AdminRequestConfig),
 };
 
 // ───────── 对外大屏Token管理 ─────────
