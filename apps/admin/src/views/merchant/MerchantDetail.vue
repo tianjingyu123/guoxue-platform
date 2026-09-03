@@ -100,8 +100,8 @@
             资质材料
           </h4>
           <el-alert
-            :title="`资质状态：${merchant.qualificationStatus || 'DRAFT'}　风险等级：${merchant.riskLevel || 'MEDIUM'}`"
-            :type="merchant.qualificationStatus === 'APPROVED' ? 'success' : merchant.qualificationStatus === 'PENDING' ? 'warning' : 'error'"
+            :title="`资质状态：${qualificationLabel(merchant.qualificationStatus)}　风险等级：${riskLabel(merchant.riskLevel)}`"
+            :type="merchant.qualificationStatus === 'APPROVED' ? 'success' : merchant.qualificationStatus === 'PENDING' ? 'warning' : ['REJECTED', 'EXPIRED'].includes(merchant.qualificationStatus || '') ? 'error' : 'info'"
             :closable="false"
             show-icon
             style="margin-bottom:12px"
@@ -1171,6 +1171,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { merchantApi } from '@/api'
+import { qualificationLabel, riskLabel } from '@/utils/merchant-labels'
 
 const route = useRoute()
 const id = route.params.id as string

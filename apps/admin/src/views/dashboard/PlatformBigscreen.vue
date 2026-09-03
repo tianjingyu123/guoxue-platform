@@ -1,312 +1,402 @@
 <template>
   <div
-    v-loading="loading"
-    class="bigscreen tech-screen platform"
+    class="bigscreen tech-screen platform command-screen"
+    :aria-busy="loading"
   >
-    <header class="bs-header">
-      <div class="bs-title">
-        国学传统文化综合平台 · 实时数据大屏
-      </div>
-      <div class="bs-header-tools">
-        <div class="bs-time">
-          {{ nowStr }}
+    <header class="command-header">
+      <div class="command-brand">
+        <span
+          class="command-mark"
+          aria-hidden="true"
+        ><Connection /></span>
+        <div>
+          <h1>平台数据指挥中心</h1>
+          <p>{{ BRAND.platformName }} <span class="command-updated">平台更新：{{ formatScreenTime(data.updatedAt) }}</span><span class="command-cache">缓存 60 秒 · 每 30 秒同步</span></p>
         </div>
-        <BigscreenActions @resize="onResize" />
+      </div>
+      <div class="command-tools">
+        <span
+          v-if="previewMode"
+          class="preview-note"
+        >设计预览 · 示例数据</span>
+        <span
+          class="sync-state"
+          :class="{ 'is-stale': stale || loadError }"
+          role="status"
+        ><i aria-hidden="true" />{{ syncLabel }}</span>
+        <button
+          class="screen-presentation-button"
+          type="button"
+          :disabled="loading || refreshing"
+          @click="load(true)"
+        >
+          {{ refreshing ? '同步中…' : '刷新数据' }}
+        </button>
+        <BigscreenActions />
       </div>
     </header>
 
-    <el-result
-      v-if="loadError"
-      icon="error"
-      title="数据加载失败"
-      sub-title="无法获取大屏数据，请检查网络或稍后重试"
-    >
-      <template #extra>
-        <el-button
-          type="primary"
-          @click="load"
-        >
-          重试
-        </el-button>
-      </template>
-    </el-result>
-
-    <el-empty
-      v-else-if="!hasData"
-      description="暂无数据"
-    />
-
     <div
-      v-else
-      class="bs-body"
+      v-if="loading || loadError || !hasData"
+      class="command-state"
+      role="status"
     >
-      <!-- 核心数字 -->
-      <div class="stat-grid">
-        <div class="stat-card">
-          <div class="stat-label">
-            累计用户
-          </div>
-          <div class="stat-value blue">
-            {{ fmt(data.totalUsers) }}
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">
-            今日新增
-          </div>
-          <div class="stat-value green">
-            {{ fmt(data.todayNewUsers) }}
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">
-            当前在线
-          </div>
-          <div class="stat-value orange">
-            {{ fmt(data.dailyActiveUsers) }}
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">
-            课程总数
-          </div>
-          <div class="stat-value cyan">
-            {{ fmt(data.totalCourses) }}
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">
-            圈子总数
-          </div>
-          <div class="stat-value purple">
-            {{ fmt(data.totalCircles) }}
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">
-            商品总数
-          </div>
-          <div class="stat-value blue">
-            {{ fmt(data.totalProducts) }}
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">
-            古籍总数
-          </div>
-          <div class="stat-value green">
-            {{ fmt(data.totalClassicBooks) }}
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">
-            文章总数
-          </div>
-          <div class="stat-value orange">
-            {{ fmt(data.totalArticles) }}
-          </div>
-        </div>
-        <div class="stat-card accent">
-          <div class="stat-label">
-            累计交易额
-          </div>
-          <div class="stat-value gold">
-            ¥{{ (data.totalGmv || 0).toLocaleString() }}
-          </div>
-        </div>
-      </div>
-
-      <!-- 内容资产构成（填充下半屏·纯数字卡补 mini 图表·仅有数据时渲染） -->
-      <div class="bs-chart-panel">
-        <h3>平台内容资产构成</h3>
-        <div
-          v-show="hasComposition"
-          ref="compChartRef"
-          class="comp-chart"
-        />
-        <el-empty
-          v-if="!hasComposition && !loading"
-          description="暂无内容资产数据"
-          :image-size="60"
-        />
-      </div>
+      <Connection aria-hidden="true" />
+      <h2>{{ loading ? '正在连接平台全景' : '暂时无法获取平台数据' }}</h2>
+      <p>{{ loading ? '读取数据源，请稍候' : '请检查网络或稍后重试，未获取的数据不会显示为零。' }}</p>
+      <button
+        v-if="!loading"
+        class="screen-presentation-button"
+        type="button"
+        @click="load(true)"
+      >
+        重新获取
+      </button>
     </div>
+    <template v-else>
+      <p
+        v-if="stale"
+        class="command-notice"
+        role="alert"
+      >
+        平台汇总同步失败，保留上次成功数据。可点击“刷新数据”重试。
+      </p>
+      <div class="command-primary">
+        <section
+          class="command-panel audience-panel"
+          aria-labelledby="audience-title"
+        >
+          <div class="panel-heading">
+            <h2 id="audience-title">
+              用户观测
+            </h2><span>平台累计</span>
+          </div>
+          <dl class="audience-metrics">
+            <div class="hero-metric">
+              <dt>累计用户</dt><dd>{{ fmt(data.totalUsers) }}<small>人</small></dd>
+            </div>
+            <div class="split-metrics">
+              <div><dt>今日新增</dt><dd>{{ fmt(data.todayNewUsers) }}</dd></div><div><dt>当前在线</dt><dd>{{ fmt(data.dailyActiveUsers) }}</dd></div>
+            </div>
+          </dl>
+          <div
+            v-if="signalsEnabled"
+            class="content-supply"
+          >
+            <div class="panel-heading">
+              <h2>内容供给</h2><span :class="{ 'is-stale': states.content.status !== 'ready' }">{{ sourceLabel(states.content) }}</span>
+            </div>
+            <dl class="supply-metrics">
+              <div><dt>已发布帖子</dt><dd>{{ fmt(content.totalPosts) }}</dd></div>
+              <div><dt>视频总数</dt><dd>{{ fmt(content.totalVideos) }}</dd></div>
+              <div><dt>近 30 天新增文章</dt><dd>{{ fmt(content.monthGrowth?.articles) }}</dd></div>
+              <div><dt>近 30 天新增帖子</dt><dd>{{ fmt(content.monthGrowth?.posts) }}</dd></div>
+            </dl>
+          </div>
+          <p class="panel-note">
+            当前在线为连接计数；今日新增按服务端当日口径。
+          </p>
+        </section>
 
-    <footer class="bs-footer">
-      <span>数据更新时间：{{ data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-CN') : '--' }}</span>
-      <span class="watermark">{{ BRAND.name }} · 数据大屏 · {{ nowStr.slice(0, 10) }}</span>
-    </footer>
+        <section
+          class="service-network"
+          aria-label="平台资源关系图"
+        >
+          <div class="network-title">
+            <h2>平台服务网络</h2><p>五类资源的连接与构成</p>
+          </div>
+          <div class="network-stage">
+            <svg
+              class="network-lines"
+              viewBox="0 0 600 600"
+              preserveAspectRatio="none"
+              fill="none"
+              aria-hidden="true"
+            >
+              <defs>
+                <radialGradient id="network-glow"><stop
+                  stop-color="#74DDCF"
+                  stop-opacity=".15"
+                /><stop
+                  offset="1"
+                  stop-color="#74DDCF"
+                  stop-opacity="0"
+                /></radialGradient>
+                <linearGradient id="network-light"><stop
+                  stop-color="#74DDCF"
+                  stop-opacity=".65"
+                /><stop
+                  offset=".5"
+                  stop-color="#74DDCF"
+                  stop-opacity=".06"
+                /><stop
+                  offset="1"
+                  stop-color="#91BBEF"
+                  stop-opacity=".5"
+                /></linearGradient>
+              </defs>
+              <circle
+                cx="300"
+                cy="300"
+                r="285"
+                fill="url(#network-glow)"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="222"
+                stroke="url(#network-light)"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="241"
+                stroke="#74DDCF"
+                stroke-opacity=".28"
+                stroke-dasharray="1 10"
+                stroke-width="3"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="265"
+                stroke="#74DDCF"
+                stroke-opacity=".09"
+              />
+              <ellipse
+                cx="300"
+                cy="300"
+                rx="287"
+                ry="100"
+                stroke="url(#network-light)"
+                transform="rotate(-23 300 300)"
+              />
+              <path
+                d="M300 60L516 228L438 492L162 492L84 228Z"
+                stroke="#91BBEF"
+                stroke-opacity=".2"
+              />
+              <path
+                v-for="asset in composition.items"
+                :key="asset.key"
+                :d="`M300 300L${asset.x * 6} ${asset.y * 6}`"
+                :stroke="asset.color"
+                :stroke-opacity="selectedKey === asset.key ? .8 : .2"
+                :stroke-dasharray="selectedKey === asset.key ? undefined : '3 7'"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="106"
+                fill="#0b2836"
+                stroke="url(#network-light)"
+              />
+              <circle
+                cx="300"
+                cy="300"
+                r="117"
+                stroke="#74DDCF"
+                stroke-opacity=".18"
+              />
+              <path
+                d="M274 30H326M570 274V326M274 570H326M30 274V326"
+                stroke="#91BBEF"
+                stroke-opacity=".5"
+              />
+            </svg>
+            <button
+              class="network-core"
+              type="button"
+              :aria-label="selectedAsset ? '返回平台资源总览' : '平台资源总览'"
+              @click="selectedKey = null"
+            >
+              <span>{{ selectedAsset?.label ?? '平台资源总量' }}</span><strong>{{ fmt(selectedAsset ? selectedAsset.value : composition.total) }}</strong><small>{{ coreCaption }}</small>
+            </button>
+            <button
+              v-for="asset in composition.items"
+              :key="asset.key"
+              type="button"
+              class="network-node"
+              :class="{ 'is-selected': selectedKey === asset.key }"
+              :style="{ left: `${asset.x}%`, top: `${asset.y}%`, '--node-color': asset.color }"
+              :aria-pressed="selectedKey === asset.key"
+              :aria-label="`${asset.label}，${fmt(asset.value)}，查看构成`"
+              :title="asset.scope"
+              @click="selectAsset(asset.key)"
+            >
+              <span
+                class="node-icon"
+                aria-hidden="true"
+              ><component :is="assetIcons[asset.key]" /></span><span>{{ asset.label }}<b>{{ fmt(asset.value) }}</b></span>
+            </button>
+          </div>
+          <div
+            class="resource-composition"
+            aria-label="资源数量构成"
+          >
+            <div
+              class="composition-track"
+              aria-hidden="true"
+            >
+              <span
+                v-for="asset in composition.items"
+                :key="asset.key"
+                :style="{ width: `${asset.percent ?? 0}%`, background: asset.color }"
+              />
+            </div>
+            <div class="asset-legend">
+              <button
+                v-for="asset in composition.items"
+                :key="asset.key"
+                type="button"
+                :aria-pressed="selectedKey === asset.key"
+                @click="selectAsset(asset.key)"
+              >
+                <i
+                  :style="{ background: asset.color }"
+                  aria-hidden="true"
+                /><span>{{ asset.label }}<small>{{ asset.percent === null ? '—' : `${asset.percent.toFixed(1)}%` }}</small></span>
+              </button>
+            </div>
+          </div>
+          <p class="network-caption">
+            {{ composition.complete ? '节点表示资源关系，数量占比见结构条' : '部分数据暂未提供，暂停合计与占比计算' }}
+          </p>
+        </section>
+
+        <section
+          class="command-panel business-panel"
+          aria-labelledby="business-title"
+        >
+          <div class="panel-heading">
+            <h2 id="business-title">
+              经营表现
+            </h2><span>交易口径</span>
+          </div>
+          <dl>
+            <div class="hero-metric">
+              <dt>累计交易额</dt><dd><small>¥</small>{{ fmt(data.totalGmv) }}</dd>
+            </div>
+          </dl>
+          <template v-if="signalsEnabled">
+            <div class="panel-heading trade-heading">
+              <h2>今日交易</h2><span :class="{ 'is-stale': states.transactions.status !== 'ready' }">{{ sourceLabel(states.transactions) }}</span>
+            </div>
+            <dl class="today-trades">
+              <div><dt>今日成交额</dt><dd>¥ {{ fmt(transactions.todayRevenue) }}</dd></div>
+              <div class="split-metrics">
+                <div><dt>成交订单</dt><dd>{{ fmt(transactions.todayOrders) }}<small>笔</small></dd></div><div><dt>近 1 小时</dt><dd>{{ fmt(transactions.hourOrders) }}<small>笔</small></dd></div>
+              </div>
+            </dl>
+            <div class="order-mix">
+              <h3>今日成交类型</h3><div
+                v-for="row in orderMix"
+                :key="row.type"
+                class="order-mix-row"
+              >
+                <span>{{ orderTypeLabel(row.type) }}</span><b>¥ {{ fmt(row.amount) }}</b><i :style="{ width: `${row.percent}%` }" />
+              </div><p
+                v-if="!orderMix.length"
+                class="panel-note"
+              >
+                {{ states.transactions.status === 'ready' ? '当前暂无成交类型分布' : '等待交易数据' }}
+              </p>
+            </div>
+          </template>
+          <p class="panel-note">
+            已支付订单金额，不等于平台净收入。
+          </p>
+        </section>
+      </div>
+
+      <PlatformIntelligence
+        v-if="signalsEnabled"
+        :growth="growth"
+        :transactions="transactions"
+        :ai="ai"
+        :offline="offline"
+        :alerts="alerts"
+        :states="states"
+        :can-read-operations="canReadOperations"
+      />
+      <p
+        v-else-if="!previewMode"
+        class="restricted-note"
+      >
+        当前令牌视图仅显示平台汇总。更多内部运营指标需使用具备权限的后台账号。
+      </p>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import BigscreenActions from "@/components/BigscreenActions.vue";
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
-import { useRoute } from "vue-router";
-import { bigscreenApi } from "@/api";
-import { BRAND } from "@/lib/brand";
-import echarts from "@/utils/echarts";
-import type { EChartsType } from "echarts/core";
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { Box, Collection, Connection, Document, Reading } from '@element-plus/icons-vue'
+import BigscreenActions from '@/components/BigscreenActions.vue'
+import PlatformIntelligence from '@/components/PlatformIntelligence.vue'
+import { bigscreenApi } from '@/api'
+import { BRAND } from '@/lib/brand'
+import { useAuthStore } from '@/store/auth'
+import { usePlatformSignals } from '@/composables/usePlatformSignals'
+import { formatScreenNumber as fmt, formatScreenTime, orderTypeLabel, platformComposition, sourceLabel, type PlatformAssetKey, type PlatformScreen } from '@/utils/platform-screen'
+import '@/styles/platform-command.css'
 
-const route = useRoute();
-const previewMode = computed(() => import.meta.env.DEV && route.path.startsWith("/__qa/"));
-/** 平台综合大屏聚合数据（字段宽松 optional，仅声明模板实际访问字段） */
-interface PlatformScreen {
-  totalUsers?: number;
-  todayNewUsers?: number;
-  dailyActiveUsers?: number;
-  totalCourses?: number;
-  totalCircles?: number;
-  totalProducts?: number;
-  totalClassicBooks?: number;
-  totalArticles?: number;
-  totalGmv?: number;
-  updatedAt?: string;
-}
-const data = ref<PlatformScreen>({});
-const nowStr = ref(new Date().toLocaleString("zh-CN"));
-const loading = ref(true);
-const loadError = ref(false);
-const hasData = computed(() => Object.keys(data.value || {}).length > 0);
+const route = useRoute()
+const auth = useAuthStore()
+const previewMode = computed(() => import.meta.env.DEV && route.path.startsWith('/__qa/'))
+const signalsEnabled = computed(() => !route.query.token && !previewMode.value && auth.isLogin)
+const canReadOperations = computed(() => signalsEnabled.value && auth.hasRole('SUPER_ADMIN', 'OPERATION_ADMIN'))
+const { transactions, content, ai, offline, growth, alerts, states, refresh: refreshSignals } = usePlatformSignals(() => signalsEnabled.value, () => canReadOperations.value)
+const assetIcons = { totalCourses: Reading, totalCircles: Connection, totalProducts: Box, totalClassicBooks: Collection, totalArticles: Document }
+const data = ref<PlatformScreen>({})
+const loading = ref(true)
+const refreshing = ref(false)
+const loadError = ref(false)
+const stale = ref(false)
+const selectedKey = ref<PlatformAssetKey | null>(null)
+const hasData = computed(() => Object.keys(data.value).length > 0)
+const composition = computed(() => platformComposition(data.value))
+const selectedAsset = computed(() => composition.value.items.find(item => item.key === selectedKey.value))
+const coreCaption = computed(() => {
+  const asset = selectedAsset.value
+  if (asset) return asset.percent === null ? '暂无占比 · 点击返回' : `占比 ${asset.percent.toFixed(1)}%`
+  return composition.value.complete ? '五类资源汇总' : '等待完整数据'
+})
+const syncLabel = computed(() => loading.value || refreshing.value ? '正在同步' : stale.value ? '同步延迟' : loadError.value ? '连接失败' : '平台数据已连接')
+const orderMix = computed(() => {
+  const rows = (transactions.value.typeBreakdown ?? []).filter(item => Number.isFinite(item.amount) && item.amount > 0)
+  const total = rows.reduce((sum, item) => sum + item.amount, 0)
+  return rows.sort((a, b) => b.amount - a.amount).slice(0, 4).map(item => ({ ...item, percent: item.amount / total * 100 }))
+})
+let timer: ReturnType<typeof setInterval> | undefined
+let disposed = false
+function selectAsset(key: PlatformAssetKey) { selectedKey.value = selectedKey.value === key ? null : key }
 
-let timer: ReturnType<typeof setInterval> | undefined = undefined;
-let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
-
-// 内容资产构成图（填充下半屏·仅有数据时渲染）
-const compChartRef = ref<HTMLElement | null>(null);
-let compChart: EChartsType | null = null;
-const hasComposition = ref(false);
-
-function fmt(v: unknown) {
-  return v != null ? Number(v).toLocaleString() : "0";
-}
-
-async function renderComposition() {
-  const d = data.value;
-  const items = [
-    { name: "课程", value: Number(d.totalCourses || 0), color: "#36cfc9" },
-    { name: "圈子", value: Number(d.totalCircles || 0), color: "#b37feb" },
-    { name: "商品", value: Number(d.totalProducts || 0), color: "#4facfe" },
-    { name: "古籍", value: Number(d.totalClassicBooks || 0), color: "#43e97b" },
-    { name: "文章", value: Number(d.totalArticles || 0), color: "#fa8c16" },
-  ];
-  hasComposition.value = items.some((i) => i.value > 0);
-  if (!hasComposition.value) {
-    compChart?.dispose();
-    compChart = null;
-    return;
-  }
-  // v-show 从隐藏切到可见需要等待布局提交，否则 ECharts 会按 0 宽容器初始化。
-  await nextTick();
-  if (!compChartRef.value) return;
-  if (!compChart) {
-    compChart = echarts.init(compChartRef.value, "tech-screen");
-    window.addEventListener("resize", onResize);
-  }
-  compChart.setOption({
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    grid: { top: 20, right: 30, bottom: 30, left: 60 },
-    xAxis: { type: "category", data: items.map((i) => i.name), axisLabel: { color: "#8892b0" }, axisLine: { lineStyle: { color: "rgba(255,255,255,.2)" } } },
-    yAxis: { type: "value", axisLabel: { color: "#8892b0" }, splitLine: { lineStyle: { color: "rgba(255,255,255,.08)" } } },
-    series: [{
-      type: "bar", barMaxWidth: 64,
-      data: items.map((i) => ({ value: i.value, itemStyle: { color: i.color, borderRadius: [6, 6, 0, 0] } })),
-      label: { show: true, position: "top", color: "#e0e6ff", fontSize: 13 },
-    }],
-  }, true);
-}
-
-function onResize() {
-  compChart?.resize();
-}
-
-// 首次加载/重试：展示 loading 与错误态
-async function load() {
-  loading.value = true;
-  loadError.value = false;
+async function load(force = false) {
+  if (refreshing.value || disposed) return
+  if (!hasData.value) loading.value = true
+  refreshing.value = true
   try {
-    const token = (route.query.token as string) || undefined;
-    const { data: d } = await bigscreenApi.platform(token);
-    data.value = d || {};
-    await nextTick();
-    await renderComposition();
+    const result = previewMode.value ? { data: previewData } : await bigscreenApi.platform(typeof route.query.token === 'string' ? route.query.token : undefined)
+    if (disposed) return
+    if (!result.data || !Object.keys(result.data).length) throw new Error('empty platform data')
+    data.value = result.data
+    loadError.value = false
+    stale.value = false
+    // 汇总成功后才读取已获权限的额外数据，不给无效令牌或未登录用户扩大请求。
+    void refreshSignals(force)
   } catch {
-    loadError.value = true;
+    if (!disposed) { if (hasData.value) stale.value = true; else loadError.value = true }
   } finally {
-    loading.value = false;
+    if (!disposed) { loading.value = false; refreshing.value = false }
   }
 }
-
-// 定时静默刷新：失败时保留上一次数据，不打断展示
-async function refresh() {
-  try {
-    const token = (route.query.token as string) || undefined;
-    const { data: d } = await bigscreenApi.platform(token);
-    data.value = d || {};
-    loadError.value = false;
-    await nextTick();
-    await renderComposition();
-  } catch { /* 静默刷新失败：保留上一次数据 */ }
+const previewData: PlatformScreen = {
+  totalUsers: 286430, todayNewUsers: 1286, dailyActiveUsers: 38520, totalCourses: 1268,
+  totalCircles: 842, totalProducts: 5680, totalClassicBooks: 12930, totalArticles: 48620,
+  totalGmv: 86520490, updatedAt: new Date().toISOString(),
 }
-
-onMounted(() => {
-  if (previewMode.value) {
-    data.value = {
-      totalUsers: 286430,
-      todayNewUsers: 1286,
-      dailyActiveUsers: 38520,
-      totalCourses: 1268,
-      totalCircles: 842,
-      totalProducts: 5680,
-      totalClassicBooks: 12930,
-      totalArticles: 48620,
-      totalGmv: 86520490,
-      updatedAt: new Date().toISOString(),
-    };
-    loading.value = false;
-    nextTick(() => { void renderComposition(); });
-    return;
-  }
-  load();
-  timer = setInterval(refresh, 30000);
-  clockTimer = setInterval(() => {
-    nowStr.value = new Date().toLocaleString("zh-CN");
-  }, 1000);
-});
-
-onBeforeUnmount(() => {
-  clearInterval(timer);
-  clearInterval(clockTimer);
-  window.removeEventListener("resize", onResize);
-  compChart?.dispose();
-  compChart = null;
-});
+onMounted(() => { void load(); if (!previewMode.value) timer = setInterval(() => void load(), 30000) })
+onBeforeUnmount(() => { disposed = true; if (timer) clearInterval(timer) })
 </script>
-
-<style scoped>
-/* 整屏 flex 纵向铺满，body 自适应撑开，杜绝纯数字卡下方大片纯黑空白 */
-.bigscreen { background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%); color: #e0e6ff; min-height: 100vh; font-family: 'Microsoft YaHei', sans-serif; display: flex; flex-direction: column; }
-.bs-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 40px; border-bottom: 1px solid rgba(255,255,255,.1); }
-.bs-title { font-size: 28px; letter-spacing: 4px; background: linear-gradient(90deg, #4facfe, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.bs-time { font-size: 16px; color: #8892b0; }
-.bs-body { padding: 30px 40px; flex: 1; display: flex; flex-direction: column; gap: 24px; }
-.bs-chart-panel { flex: 1; min-height: 300px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 20px 24px; }
-.bs-chart-panel h3 { margin: 0 0 12px; font-size: 16px; color: #c8d2f0; font-weight: 500; }
-.comp-chart { width: 100%; height: 100%; min-height: 260px; }
-
-.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.stat-card { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; padding: 24px; text-align: center; transition: all .3s; }
-.stat-card:hover { background: rgba(255,255,255,.08); transform: translateY(-2px); }
-.stat-card.accent { grid-column: span 2; background: linear-gradient(135deg, rgba(255,193,7,.1), rgba(255,152,0,.1)); border-color: rgba(255,193,7,.3); }
-.stat-label { font-size: 15px; color: #8892b0; margin-bottom: 10px; }
-.stat-value { font-size: 36px; font-weight: 700; }
-.stat-value.blue { color: #4facfe; }
-.stat-value.green { color: #43e97b; }
-.stat-value.orange { color: #fa8c16; }
-.stat-value.cyan { color: #36cfc9; }
-.stat-value.purple { color: #b37feb; }
-.stat-value.gold { color: #ffc107; font-size: 42px; }
-
-.bs-footer { display: flex; justify-content: space-between; padding: 12px 40px; font-size: 13px; color: #5a6380; border-top: 1px solid rgba(255,255,255,.06); }
-.watermark { opacity: .3; }
-</style>

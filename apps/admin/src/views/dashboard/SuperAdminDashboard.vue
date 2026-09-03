@@ -225,11 +225,11 @@ onBeforeUnmount(() => {
         快捷操作
       </div>
       <div class="qa-grid">
-        <div
+        <router-link
           v-for="qa in quickActions"
           :key="qa.path"
           class="qa-item"
-          @click="router.push(qa.path)"
+          :to="qa.path"
         >
           <el-badge
             :value="badges[qa.path] || 0"
@@ -243,7 +243,7 @@ onBeforeUnmount(() => {
             </div>
           </el-badge>
           <span class="qa-label">{{ qa.label }}</span>
-        </div>
+        </router-link>
       </div>
     </div>
 
@@ -417,11 +417,13 @@ onBeforeUnmount(() => {
 .section-card__title { font-size: 14px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 16px; }
 .qa-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
 .qa-item {
+  text-decoration: none;
   display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 16px 8px; border-radius: 12px; cursor: pointer;
   background: var(--color-bg-page); transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .qa-item:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.qa-item:focus-visible { outline: 2px solid var(--el-color-primary); outline-offset: 3px; }
 .qa-icon {
   width: 44px; height: 44px; border-radius: 12px;
   background: rgba(255,107,107,0.1); color: #FF6B6B;

@@ -64,6 +64,14 @@ body.is-screen-presenting .layout .aside,
 body.is-screen-presenting .layout .el-header,
 body.is-screen-presenting .assistant-root { display: none !important; }
 body.is-screen-presenting .layout .el-main { padding: 0 !important; }
+/* 演示画布不能沿用工作区的 1760px 阅读宽度，否则大屏两侧仍留浅色空白。 */
+body.is-screen-presenting #admin-main > .tech-screen {
+  max-width: none;
+  min-height: 100svh;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
 .tech-screen .bs-header-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .screen-presentation-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;

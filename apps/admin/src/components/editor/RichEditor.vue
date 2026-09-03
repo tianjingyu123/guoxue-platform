@@ -8,13 +8,14 @@
  * 组件卸载/dialog 关闭时会自动销毁编辑器实例，避免内存泄漏。
  */
 import '@wangeditor/editor/dist/css/style.css'
-import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import type { IDomEditor, IEditorConfig, IToolbarConfig } from '@wangeditor/editor'
 import { ElMessage } from 'element-plus'
 import { uploadApi } from '@/api'
 import { uploadVodFile } from '@/utils/vod-upload'
 import { normalizeRichText } from '@/utils/rich-text'
+import { enhanceEditorAccessibility } from '@/utils/editor-accessibility'
 
 const props = withDefaults(
   defineProps<{
@@ -29,6 +30,8 @@ const emit = defineEmits<{ 'update:modelValue': [string] }>()
 
 // 编辑器实例：wangEditor 要求用 shallowRef 保存（非响应式深代理）
 const editorRef = shallowRef<IDomEditor>()
+const editorRoot = ref<HTMLElement>()
+let accessibilityObserver: MutationObserver | undefined
 const valueHtml = ref(props.modelValue || '')
 
 // 外部 modelValue 变化（如打开弹窗回填已有内容）时同步进编辑器
@@ -41,6 +44,8 @@ watch(
 
 const toolbarConfig: Partial<IToolbarConfig> = {}
 const editorConfig: Partial<IEditorConfig> = {
+  // 路由/弹窗负责焦点顺序，正文不要抢走标题和主内容焦点。
+  autoFocus: false,
   placeholder: props.placeholder,
   MENU_CONF: {
     // 图片上传 → COS
@@ -83,14 +88,26 @@ function handleChange(editor: IDomEditor) {
   emit('update:modelValue', normalizeRichText(editor.getHtml()))
 }
 
+onMounted(() => {
+  if (!editorRoot.value) return
+  const root = editorRoot.value
+  enhanceEditorAccessibility(root)
+  accessibilityObserver = new MutationObserver(() => enhanceEditorAccessibility(root))
+  accessibilityObserver.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-tooltip'] })
+})
+
 onBeforeUnmount(() => {
+  accessibilityObserver?.disconnect()
   editorRef.value?.destroy()
   editorRef.value = undefined
 })
 </script>
 
 <template>
-  <div class="rich-editor">
+  <div
+    ref="editorRoot"
+    class="rich-editor"
+  >
     <Toolbar
       class="rich-editor__toolbar"
       :editor="editorRef"
@@ -120,5 +137,13 @@ onBeforeUnmount(() => {
 }
 .rich-editor__body {
   overflow-y: auto;
+}
+.rich-editor :deep(button:focus-visible) {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: -2px;
+}
+/* 原分组菜单只在悬停时打开；键盘进入组按钮时也需要显示子项。 */
+.rich-editor :deep(.w-e-bar-item-group:focus-within .w-e-bar-item-menus-container) {
+  display: block;
 }
 </style>

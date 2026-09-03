@@ -107,6 +107,7 @@ declare module 'vue' {
     PageTool: typeof import('./src/components/paipan/PageTool.vue')['default']
     PageWorkspace: typeof import('./src/components/paipan/PageWorkspace.vue')['default']
     PendingOverview: typeof import('./src/components/PendingOverview.vue')['default']
+    PlatformIntelligence: typeof import('./src/components/PlatformIntelligence.vue')['default']
     ProductPicker: typeof import('./src/components/ProductPicker.vue')['default']
     QimenGongGrid: typeof import('./src/components/paipan/QimenGongGrid.vue')['default']
     RichEditor: typeof import('./src/components/editor/RichEditor.vue')['default']

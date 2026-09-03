@@ -61,14 +61,10 @@
       </div>
 
       <!-- 核心指标卡片 -->
-      <el-row
-        :gutter="16"
-        class="kpi-row"
-      >
-        <el-col
+      <div class="kpi-row">
+        <div
           v-for="card in kpiCards"
           :key="card.label"
-          :span="6"
         >
           <el-card
             class="kpi-card"
@@ -90,8 +86,8 @@
               {{ card.sub }}
             </div>
           </el-card>
-        </el-col>
-      </el-row>
+        </div>
+      </div>
 
       <!-- 图表区：收入构成 + 用户增长 -->
       <el-row
@@ -717,7 +713,10 @@ onBeforeUnmount(() => {
 .header-actions :deep(.el-tag) { border-color: rgba(230,193,116,.25); color: #f2dca7; background: rgba(230,193,116,.1); }
 .header-actions :deep(.el-switch__label) { color: rgba(255,255,255,.7); }
 
-.kpi-row { margin-bottom: 18px; }
+.kpi-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
+.kpi-row > div { min-width: 0; }
+.kpi-row .kpi-card { height: 100%; }
+@media (min-width: 1800px) { .kpi-row { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .kpi-card { position: relative; min-height: 125px; overflow: hidden; text-align: left; }
 .kpi-card::after { position: absolute; top: -34px; right: -28px; width: 110px; height: 110px; border-radius: 50%; background: rgba(45, 96, 139, .075); content: ""; }
 .kpi-label { margin-bottom: 13px; color: var(--color-text-secondary); font-size: 12px; }
@@ -753,12 +752,12 @@ onBeforeUnmount(() => {
 @media (max-width: 900px) {
   .page-header { align-items: flex-start; flex-direction: column; }
   .header-actions { width: 100%; flex-wrap: wrap; }
-  .kpi-row > :deep(.el-col) { max-width: 50%; flex: 0 0 50%; }
+  .kpi-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .chart-row > :deep(.el-col) { max-width: 100%; flex: 0 0 100%; margin-bottom: 14px; }
 }
 @media (max-width: 560px) {
   .page-header { padding: 22px 18px; }
   .hero-mark { display: none; }
-  .kpi-row > :deep(.el-col) { max-width: 100%; flex: 0 0 100%; }
+  .kpi-row { grid-template-columns: minmax(0, 1fr); }
 }
 </style>
