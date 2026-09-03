@@ -1,219 +1,146 @@
 <template>
-  <div
-    v-loading="loading"
-    class="bigscreen tech-screen offline"
-    element-loading-background="rgba(13,26,18,0.6)"
+  <TopicScreenFrame
+    title="线下服务网络"
+    subtitle="城市覆盖、驿站名录与运营规模"
+    topic="offline"
+    :snapshot="snapshot"
+    :updated-at="data.updatedAt"
+    footer="城市关系视图，不是地理投影"
+    @refresh="refresh"
   >
-    <header class="bs-header">
-      <div class="bs-title">
-        线下驿站分布数据大屏
-      </div>
-      <div class="bs-header-tools">
-        <div class="bs-time">
-          {{ nowStr }}
+    <div class="ts-offline-layout">
+      <section class="ts-surface">
+        <div class="ts-section-head">
+          <div><h2>城市覆盖结构</h2><p>选择城市，定位右侧驿站名录</p></div><button
+            v-if="selectedCity !== null"
+            class="ts-button"
+            @click="selectedCity = null"
+          >
+            全部城市
+          </button>
         </div>
-        <BigscreenActions @resize="resizeCharts" />
-      </div>
-    </header>
-
-    <el-result
-      v-if="loadError"
-      icon="error"
-      title="数据加载失败"
-      sub-title="无法获取数据，请检查网络或稍后重试"
-    >
-      <template #extra>
-        <el-button
-          type="primary"
-          @click="fetchData"
+        <div class="ts-coverage-summary">
+          <dl class="ts-stat">
+            <dt>运营中驿站</dt><dd>{{ metric(data.totalStations) }}</dd><small>当前状态为运营中</small>
+          </dl>
+          <dl class="ts-stat">
+            <dt>覆盖城市</dt><dd>{{ metric(cityCount) }}</dd><small>按已填写城市汇总，空城市不计</small>
+          </dl>
+        </div>
+        <div
+          v-if="cities.items.length"
+          class="ts-city-network"
+          tabindex="0"
+          aria-label="城市驿站分布"
         >
-          重试
-        </el-button>
-      </template>
-    </el-result>
-
-    <div
-      v-else
-      class="bs-body"
-    >
-      <!-- 核心指标 -->
-      <div class="kpi-bar">
-        <div class="kpi-item">
-          <span class="kpi-label">全国驿站</span><span class="kpi-value blue">{{ data.totalStations || 0 }}</span>
+          <button
+            v-for="city in cities.items"
+            :key="city.key"
+            :aria-pressed="selectedCity === city.key"
+            @click="selectedCity = selectedCity === city.key ? null : city.key"
+          >
+            <span>{{ city.label }}</span><b>{{ metric(city.value) }} 座<small>{{ percent(city.share) }}</small></b><span
+              class="ts-city-bar"
+              aria-hidden="true"
+            ><i :style="{ width: `${city.share ?? 0}%` }" /></span>
+          </button>
         </div>
-        <div class="kpi-item">
-          <span class="kpi-label">线下课程</span><span class="kpi-value green">{{ data.totalCourses || 0 }}</span>
+        <div
+          v-else
+          class="ts-empty"
+        >
+          <span
+            class="ts-empty-mark"
+            aria-hidden="true"
+          >⌖</span><strong>{{ Array.isArray(data.cityDistribution) ? '暂无运营中城市节点' : '城市分布暂未提供' }}</strong><p>驿站进入运营状态后会汇入网络。不使用虚构坐标填充地图。</p>
         </div>
-        <div class="kpi-item">
-          <span class="kpi-label">学员总数</span><span class="kpi-value orange">{{ fmt(data.totalStudents) }}</span>
+        <p class="ts-note">
+          连接线表达驿站按城市汇总的关系；条形长度表示驿站数量占比，不能理解为城市距离或地理位置。
+        </p>
+      </section>
+      <section class="ts-surface ts-directory">
+        <div class="ts-section-head">
+          <div><h2>驿站名录</h2><p>在当前城市范围搜索名称、城市或地址</p></div>
         </div>
-        <div class="kpi-item">
-          <span class="kpi-label">营收总额</span><span class="kpi-value cyan">¥{{ fmt(data.totalRevenue) }}</span>
+        <div class="ts-directory-tools">
+          <label class="ts-search"><span>搜索</span><input
+            v-model="query"
+            type="search"
+            placeholder="驿站名称、城市或地址"
+            aria-label="搜索驿站名称、城市或地址"
+          ></label><button
+            v-if="query || selectedCity !== null"
+            class="ts-button"
+            @click="clearFilters"
+          >
+            清空筛选
+          </button>
         </div>
-        <div class="kpi-item">
-          <span class="kpi-label">订单总数</span><span class="kpi-value purple">{{ data.totalOrders || 0 }}</span>
+        <p
+          class="ts-filter-note"
+          role="status"
+        >
+          {{ selectedCity === null ? '全部城市' : selectedCity || '未填写城市' }}，找到 {{ filtered.length }} 座驿站
+        </p>
+        <div
+          v-if="filtered.length"
+          class="ts-stations"
+          tabindex="0"
+          aria-label="筛选后的驿站名录"
+        >
+          <article
+            v-for="station in filtered"
+            :key="station.id"
+            class="ts-station"
+          >
+            <div><h3>{{ station.name || '未填写名称' }}</h3><span>{{ station.city || '未填写城市' }}</span></div><p>{{ station.address || '暂未提供地址' }}</p>
+          </article>
         </div>
-      </div>
-
-      <div class="bs-grid-2">
-        <!-- 城市分布 -->
-        <div class="bs-panel">
-          <h3>城市驿站分布</h3>
-          <div
-            v-if="data.cityDistribution?.length"
-            ref="cityChartRef"
-            style="height:320px"
-          />
-          <el-empty
-            v-else
-            description="暂无数据"
-            :image-size="60"
-          />
+        <div
+          v-else
+          class="ts-empty"
+        >
+          <span
+            class="ts-empty-mark"
+            aria-hidden="true"
+          >⌕</span><strong>{{ query || selectedCity !== null ? '没有匹配的驿站' : Array.isArray(data.stations) ? '暂无运营中驿站' : '驿站名录暂未提供' }}</strong><p>{{ query || selectedCity !== null ? '试试缩短关键词，或清空城市与搜索条件。' : '运营中的驿站会在此显示名称、城市和地址。' }}</p>
         </div>
-        <!-- 驿站列表 -->
-        <div class="bs-panel">
-          <h3>驿站实时名录</h3>
-          <div class="station-scroll">
-            <div
-              v-for="s in (data.stations || [])"
-              :key="s.id"
-              class="station-row"
-            >
-              <span class="s-name">{{ s.name }}</span>
-              <el-tag
-                size="small"
-                effect="dark"
-              >
-                {{ s.city }}
-              </el-tag>
-              <span class="s-addr">{{ s.address }}</span>
-            </div>
-            <el-empty
-              v-if="!(data.stations?.length)"
-              description="暂无驿站"
-              :image-size="60"
-            />
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
-
-    <footer class="bs-footer">
-      <span>更新：{{ data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-CN') : '--' }}</span>
-      <span class="watermark">{{ BRAND.name }} · 驿站大屏 · {{ nowStr.slice(0, 10) }}</span>
-    </footer>
-  </div>
+    <section
+      class="ts-offline-metrics"
+      aria-label="线下运营规模"
+    >
+      <dl class="ts-stat">
+        <dt>审核通过课程</dt><dd>{{ metric(data.totalCourses) }}</dd><small>运营中驿站的线下课程</small>
+      </dl>
+      <dl class="ts-stat">
+        <dt>累计报名</dt><dd>{{ metric(data.totalStudents) }}</dd><small>报名记录数，不是去重学员数</small>
+      </dl>
+      <dl class="ts-stat">
+        <dt>已支付订单</dt><dd>{{ metric(data.totalOrders) }}</dd><small>运营中驿站累计已付订单</small>
+      </dl>
+      <dl class="ts-stat">
+        <dt>累计营收</dt><dd>{{ metric(data.totalRevenue, true) }}</dd><small>客单价 {{ metric(quotient(data.totalRevenue, data.totalOrders), true) }}</small>
+      </dl>
+    </section>
+    <template #scope>
+      <p>本屏范围为当前运营中的驿站；线下课程仅计审核通过项，累计报名为这些驿站下课程的报名记录数，未去重到用户。订单和金额仅计 PAID 状态。城市以接口已填写值汇总，不进行地理坐标推测。搜索仅筛选当前返回的运营中名录，不改变运营规模指标。</p>
+    </template>
+  </TopicScreenFrame>
 </template>
-
 <script setup lang="ts">
-import BigscreenActions from "@/components/BigscreenActions.vue";
-import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
-import { useRoute } from "vue-router";
-import { bigscreenApi } from "@/api";
-import echarts from "@/utils/echarts";
-import type { EChartsType } from "echarts/core";
-import { BRAND } from "@/lib/brand";
-
-const route = useRoute();
-/** 线下驿站大屏聚合数据（字段宽松 optional，仅声明模板/脚本实际访问字段） */
-interface OfflineScreen {
-  totalStations?: number;
-  totalCourses?: number;
-  totalStudents?: number;
-  totalRevenue?: number;
-  totalOrders?: number;
-  cityDistribution?: { city?: string; count?: number }[];
-  stations?: { id?: string; name?: string; city?: string; address?: string }[];
-  updatedAt?: string;
-}
-const data = ref<OfflineScreen>({});
-const nowStr = ref(new Date().toLocaleString("zh-CN"));
-const loading = ref(true);
-const loadError = ref(false);
-
-const cityChartRef = ref<HTMLDivElement>();
-let cityChart: EChartsType | null = null;
-let timer: ReturnType<typeof setInterval> | undefined = undefined;
-let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
-
-function fmt(v: unknown) { return v != null ? Number(v).toLocaleString() : "0"; }
-
-function renderCityChart() {
-  if (!cityChartRef.value) return;
-  if (!cityChart) cityChart = echarts.init(cityChartRef.value, "tech-screen");
-  const cd = data.value.cityDistribution || [];
-  cityChart.setOption({
-    tooltip: { trigger: "axis" },
-    grid: { left: 100, right: 40, top: 10, bottom: 20 },
-    xAxis: { type: "value", axisLabel: { color: "#8892b0" } },
-    yAxis: { type: "category", data: cd.map((c) => c.city).reverse(), axisLabel: { color: "#8892b0", fontSize: 12 } },
-    series: [{
-      type: "bar",
-      data: cd.map((c) => c.count).reverse(),
-      itemStyle: { color: "#3fb950", borderRadius: [0, 4, 4, 0] },
-      label: { show: true, position: "right", color: "#8892b0" },
-    }],
-  }, true);
-}
-
-async function fetchData() {
-  try {
-    const token = (route.query.token as string) || undefined;
-    const { data: d } = await bigscreenApi.offlineMap(token);
-    data.value = d || {};
-    loadError.value = false;
-    await nextTick();
-    renderCityChart();
-  } catch {
-    loadError.value = true;
-  } finally {
-    loading.value = false;
-  }
-}
-
-function resizeCharts() {
-  cityChart?.resize();
-}
-
-onMounted(() => {
-  fetchData();
-  timer = setInterval(fetchData, 30000);
-  clockTimer = setInterval(() => { nowStr.value = new Date().toLocaleString("zh-CN"); }, 1000);
-});
-
-onBeforeUnmount(() => {
-  clearInterval(timer);
-  clearInterval(clockTimer);
-  cityChart?.dispose();
-});
+import { computed, ref, watch } from 'vue'
+import { bigscreenApi } from '@/api'
+import TopicScreenFrame from '@/components/TopicScreenFrame.vue'
+import { useTopicSnapshot } from '@/composables/useTopicSnapshot'
+import { coveredCityCount, distribution, filterStations, metric, percent, quotient, type OfflineScreen } from '@/utils/topic-screen'
+const { snapshot, data, refresh } = useTopicSnapshot<OfflineScreen>(token => bigscreenApi.offlineMap(token, true))
+const query = ref(''), selectedCity = ref<string | null>(null)
+const cityRows = computed(() => Array.isArray(data.value.cityDistribution) ? data.value.cityDistribution : undefined)
+const cities = computed(() => distribution(cityRows.value?.map(city => ({ key: city.city ?? '', label: city.city || '未填写城市', value: city.count }))))
+const cityCount = computed(() => coveredCityCount(cityRows.value))
+const filtered = computed(() => filterStations(Array.isArray(data.value.stations) ? data.value.stations : undefined, selectedCity.value, query.value))
+function clearFilters() { query.value = ''; selectedCity.value = null }
+watch(cities, value => { if (selectedCity.value !== null && !value.items.some(item => item.key === selectedCity.value)) selectedCity.value = null })
 </script>
-
-<style scoped>
-.bigscreen { background: linear-gradient(135deg, #0d1a12 0%, #14281c 100%); color: #c8e8d0; min-height: 100vh; }
-.bs-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 40px; border-bottom: 1px solid rgba(80,180,100,.1); }
-.bs-title { font-size: 28px; letter-spacing: 4px; color: #5cdb8a; }
-.bs-time { font-size: 16px; color: #5a7864; }
-.bs-body { padding: 24px 40px; }
-
-.kpi-bar { display: flex; gap: 20px; margin-bottom: 24px; }
-.kpi-item { flex: 1; background: rgba(80,180,100,.05); border: 1px solid rgba(80,180,100,.1); border-radius: 8px; padding: 20px; text-align: center; }
-.kpi-label { display: block; font-size: 13px; color: #5a7864; margin-bottom: 8px; }
-.kpi-value { font-size: 30px; font-weight: 700; }
-.kpi-value.blue { color: #7cb7ff; }
-.kpi-value.green { color: #5cdb8a; }
-.kpi-value.orange { color: #f0a050; }
-.kpi-value.cyan { color: #4dd9c8; }
-.kpi-value.purple { color: #e890e8; }
-
-.bs-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.bs-panel { background: rgba(80,180,100,.03); border: 1px solid rgba(80,180,100,.08); border-radius: 8px; padding: 20px; }
-.bs-panel h3 { margin: 0 0 16px; font-size: 16px; color: #b8dcc0; }
-
-.station-scroll { max-height: 320px; overflow-y: auto; }
-.station-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(80,180,100,.06); }
-.s-name { font-weight: 600; font-size: 14px; }
-.s-addr { color: #5a7864; font-size: 12px; margin-left: auto; }
-
-.bs-footer { display: flex; justify-content: space-between; padding: 12px 40px; font-size: 13px; color: #3d5848; border-top: 1px solid rgba(80,180,100,.06); }
-.watermark { opacity: .25; }
-</style>

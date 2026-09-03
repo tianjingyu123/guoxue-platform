@@ -1,230 +1,201 @@
 <template>
-  <div
-    v-loading="loading"
-    class="bigscreen tech-screen transaction"
+  <TopicScreenFrame
+    title="交易指挥中心"
+    subtitle="从今日成交结构，看到业务动向"
+    topic="transactions"
+    :snapshot="snapshot"
+    :updated-at="data.updatedAt"
+    :interval="15"
+    footer="今日统计按服务端日期与订单创建时间"
+    @refresh="refresh"
   >
-    <header class="bs-header">
-      <div class="bs-title">
-        实时交易数据大屏
-      </div>
-      <div class="bs-header-tools">
-        <div class="bs-time">
-          {{ nowStr }}
-        </div>
-        <BigscreenActions @resize="resizeCharts" />
-      </div>
-    </header>
-
-    <el-result
-      v-if="loadError"
-      icon="error"
-      title="数据加载失败"
-      sub-title="无法获取交易数据，请检查网络或稍后重试"
+    <section
+      class="ts-transaction-top"
+      aria-label="交易核心指标"
     >
-      <template #extra>
-        <el-button
-          type="primary"
-          @click="load"
-        >
-          重试
-        </el-button>
-      </template>
-    </el-result>
-
-    <div
-      v-else
-      class="bs-body"
-    >
-      <!-- 指标栏 -->
-      <div class="kpi-bar">
-        <div class="kpi-item">
-          <span class="kpi-label">今日订单</span><span class="kpi-value blue">{{ data.todayOrders || 0 }}</span>
-        </div>
-        <div class="kpi-item">
-          <span class="kpi-label">今日营收</span><span class="kpi-value green">¥{{ fmt(data.todayRevenue) }}</span>
-        </div>
-        <div class="kpi-item">
-          <span class="kpi-label">近1小时</span><span class="kpi-value orange">{{ data.hourOrders || 0 }}单</span>
-        </div>
-      </div>
-
-      <div class="bs-grid-2">
-        <!-- 品类占比 -->
-        <div class="bs-panel">
-          <h3>今日品类交易占比</h3>
-          <div
-            v-show="data.typeBreakdown?.length"
-            ref="pieChartRef"
-            style="height:300px"
-          />
-          <el-empty
-            v-if="!(data.typeBreakdown?.length)"
-            description="暂无品类数据"
-            :image-size="60"
-          />
-        </div>
-        <!-- 最近订单滚动 -->
-        <div class="bs-panel">
-          <h3>最近成交订单</h3>
-          <div class="order-scroll">
-            <div
-              v-for="o in data.recentOrders || []"
-              :key="o.id"
-              class="order-row"
+      <dl class="ts-stat">
+        <dt>今日成交额</dt><dd><strong class="ts-hero-number">{{ metric(data.todayRevenue, true) }}</strong></dd><small>已支付及后续有效状态订单</small>
+      </dl>
+      <dl class="ts-stat">
+        <dt>今日成交订单</dt><dd>{{ metric(data.todayOrders) }}</dd><small>单</small>
+      </dl>
+      <dl class="ts-stat">
+        <dt>近一小时订单</dt><dd>{{ metric(data.hourOrders) }}</dd><small>按订单创建时间</small>
+      </dl>
+      <dl class="ts-stat">
+        <dt>今日客单价</dt><dd>{{ metric(quotient(data.todayRevenue, data.todayOrders), true) }}</dd><small>今日成交额 ÷ 今日单量</small>
+      </dl>
+    </section>
+    <div class="ts-transaction-grid">
+      <section class="ts-surface">
+        <div class="ts-section-head">
+          <div><h2>今日成交结构</h2><p>选择品类，联动查看最近成交</p></div><div
+            class="ts-segment"
+            aria-label="构成统计方式"
+          >
+            <button
+              :aria-pressed="mode === 'amount'"
+              @click="mode = 'amount'"
             >
-              <span class="order-id">#{{ o.id?.slice(-8) }}</span>
-              <el-tag
-                size="small"
-                effect="dark"
-              >
-                {{ typeLabel(o.type) }}
-              </el-tag>
-              <span class="order-amount">¥{{ Number(o.amount).toFixed(2) }}</span>
-              <span class="order-time">{{ fmtTime(o.at) }}</span>
-            </div>
-            <el-empty
-              v-if="!(data.recentOrders?.length)"
-              description="暂无订单"
-              :image-size="60"
-            />
+              按金额
+            </button><button
+              :aria-pressed="mode === 'count'"
+              @click="mode = 'count'"
+            >
+              按单量
+            </button>
           </div>
         </div>
-      </div>
+        <div class="ts-transaction-composition">
+          <div class="ts-ring">
+            <svg
+              viewBox="0 0 240 240"
+              fill="none"
+              aria-hidden="true"
+            >
+              <circle
+                cx="120"
+                cy="120"
+                r="110"
+                stroke="#6ba5bb22"
+                stroke-dasharray="1 8"
+              />
+              <circle
+                cx="120"
+                cy="120"
+                r="90"
+                stroke="#325365"
+                stroke-width="14"
+              />
+              <circle
+                v-for="row in composition.items.filter(item => item.share)"
+                :key="row.key"
+                cx="120"
+                cy="120"
+                r="90"
+                pathLength="100"
+                :stroke="row.color"
+                stroke-width="14"
+                :stroke-dasharray="`${row.share} ${100 - row.share!}`"
+                :stroke-dashoffset="-row.offset"
+                transform="rotate(-90 120 120)"
+                :opacity="!selected || selected === row.key ? 1 : 0.25"
+              />
+            </svg>
+            <div class="ts-ring-label">
+              <span>{{ selectedItem?.label ?? '全部品类' }}</span><strong
+                :aria-label="metric(selectedItem ? selectedItem.value : composition.total, mode === 'amount')"
+                :title="metric(selectedItem ? selectedItem.value : composition.total, mode === 'amount')"
+              >{{ compactMetric(selectedItem ? selectedItem.value : composition.total, mode === 'amount') }}</strong><small>{{ mode === 'amount' ? '今日成交额' : '今日订单数' }}</small>
+            </div>
+          </div>
+          <TopicBreakdown
+            :rows="composition.items"
+            :selected="selected"
+            :money="mode === 'amount'"
+            label="今日品类构成"
+            :empty="Array.isArray(data.typeBreakdown) ? '今日暂无成交' : '品类数据暂未提供'"
+            hint="有效成交进入统计后，将显示真实构成。"
+            @select="selected = $event"
+          />
+        </div>
+        <p class="ts-context">
+          {{ selectedItem ? `${selectedItem.label}占今日${mode === 'amount' ? '成交额' : '单量'} ${percent(selectedItem.share)}。最近成交列表已按该品类筛选。` : '金额与单量提供两个观察角度。客单价不是利润，成交构成也不是全天趋势。' }}
+        </p>
+      </section>
+      <section class="ts-surface ts-ledger">
+        <div class="ts-section-head">
+          <div><h2>最近成交</h2><p>最近 20 笔中的 {{ filteredOrders.length }} 笔，不限今日</p></div><select
+            v-model="selected"
+            class="ts-select"
+            aria-label="筛选成交品类"
+          >
+            <option :value="null">
+              全部品类
+            </option><option
+              v-for="kind in kinds"
+              :key="kind"
+              :value="kind"
+            >
+              {{ typeLabel(kind) }}
+            </option>
+          </select>
+        </div>
+        <div
+          v-if="filteredOrders.length"
+          class="ts-table-scroll"
+          tabindex="0"
+          aria-label="最近成交明细"
+        >
+          <table class="ts-table">
+            <thead>
+              <tr>
+                <th scope="col">
+                  业务 / 订单尾号
+                </th><th scope="col">
+                  创建时间
+                </th><th
+                  scope="col"
+                  class="ts-align-right"
+                >
+                  成交额
+                </th>
+              </tr>
+            </thead><tbody>
+              <tr
+                v-for="order in filteredOrders"
+                :key="order.id"
+              >
+                <td>{{ typeLabel(order.type) }}<small>#{{ order.id.slice(-8) }}</small></td><td>{{ formatScreenTime(order.at) }}</td><td class="ts-align-right ts-amount">
+                  {{ metric(order.amount, true) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div
+          v-else
+          class="ts-empty"
+        >
+          <span
+            class="ts-empty-mark"
+            aria-hidden="true"
+          >∅</span><strong>{{ selected ? '最近记录中暂无该品类' : Array.isArray(data.recentOrders) ? '尚无有效成交记录' : '成交明细暂未提供' }}</strong><p>{{ selected ? '切换全部品类查看其他成交。筛选范围仅为最近 20 笔。' : '订单成交后会在此列出，当前不会用模拟流水填充。' }}</p><button
+            v-if="selected"
+            class="ts-button"
+            @click="selected = null"
+          >
+            查看全部品类
+          </button>
+        </div>
+        <p class="ts-note">
+          最新记录按创建时间排序；只显示订单尾号，不展示客户资料。
+        </p>
+      </section>
     </div>
-
-    <footer class="bs-footer">
-      <span>更新：{{ data.updatedAt ? new Date(data.updatedAt).toLocaleString('zh-CN') : '--' }}</span>
-      <span class="watermark">{{ BRAND.name }} · 交易大屏 · {{ nowStr.slice(0, 10) }}</span>
-    </footer>
-  </div>
+    <template #scope>
+      <p>今日和近一小时均按服务端订单创建时间统计，且只计入已支付及后续有效状态；最近成交最多返回 20 笔，跨日期。品类比例分别以当日各品类金额合计或单量合计为分母。缺失数据与无法计算的客单价显示“—”，不等于零。</p>
+    </template>
+  </TopicScreenFrame>
 </template>
-
 <script setup lang="ts">
-import BigscreenActions from "@/components/BigscreenActions.vue";
-import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
-import { useRoute } from "vue-router";
-import { bigscreenApi } from "@/api";
-import echarts from "@/utils/echarts";
-import type { EChartsType } from "echarts/core";
-import { BRAND } from "@/lib/brand";
+import { computed, ref, watch } from 'vue'
+import { bigscreenApi } from '@/api'
+import TopicScreenFrame from '@/components/TopicScreenFrame.vue'
+import TopicBreakdown from '@/components/TopicBreakdown.vue'
+import { useTopicSnapshot } from '@/composables/useTopicSnapshot'
+import { formatScreenTime, orderTypeLabel } from '@/utils/platform-screen'
+import { compactMetric, distribution, metric, percent, quotient, selectedDistribution, type TransactionScreen } from '@/utils/topic-screen'
 
-const route = useRoute();
-/** 交易大屏聚合数据（字段宽松 optional，仅声明模板/脚本实际访问字段） */
-interface TxnScreen {
-  todayOrders?: number;
-  todayRevenue?: number;
-  hourOrders?: number;
-  typeBreakdown?: { type: string; amount?: number }[];
-  recentOrders?: { id?: string; type: string; amount?: number; at: string }[];
-  updatedAt?: string;
-}
-const data = ref<TxnScreen>({});
-const nowStr = ref(new Date().toLocaleString("zh-CN"));
-const loading = ref(true);
-const loadError = ref(false);
-
-const pieChartRef = ref<HTMLDivElement>();
-let pieChart: EChartsType | null = null;
-let timer: ReturnType<typeof setInterval> | undefined = undefined;
-let clockTimer: ReturnType<typeof setInterval> | undefined = undefined;
-
-const TYPE_LABELS: Record<string, string> = {
-  COURSE: "课程", PRODUCT: "商品", MEMBER: "会员", CIRCLE_JOIN: "入圈",
-  BOT_SERVICE: "智能体", PAIPAN: "排盘", LIVESTREAM: "直播",
-};
-
-function typeLabel(t: string) { return TYPE_LABELS[t] || t; }
-function fmt(v: unknown) { return v != null ? Number(v).toLocaleString() : "0"; }
-function fmtTime(t: string) { return t ? new Date(t).toLocaleTimeString("zh-CN") : "--"; }
-
-function renderPie() {
-  if (!pieChartRef.value) return;
-  if (!pieChart) pieChart = echarts.init(pieChartRef.value, "tech-screen");
-  const bd = data.value.typeBreakdown || [];
-  pieChart.setOption({
-    tooltip: { trigger: "item", formatter: "{b}: ¥{c} ({d}%)" },
-    series: [{
-      type: "pie",
-      radius: ["55%", "80%"],
-      center: ["50%", "55%"],
-      itemStyle: { borderRadius: 4, borderColor: "transparent", borderWidth: 3 },
-      label: { color: "#8892b0", fontSize: 12 },
-      data: bd.map((t) => ({ name: typeLabel(t.type), value: t.amount })),
-    }],
-  }, true);
-}
-
-// 首次加载/重试：展示 loading 与错误态
-async function load() {
-  loading.value = true;
-  loadError.value = false;
-  try {
-    const token = (route.query.token as string) || undefined;
-    const { data: d } = await bigscreenApi.transactions(token);
-    data.value = d || {};
-    await nextTick();
-    renderPie();
-  } catch {
-    loadError.value = true;
-  } finally {
-    loading.value = false;
-  }
-}
-
-// 定时静默刷新：失败时保留上一次数据，不打断展示
-async function refresh() {
-  try {
-    const token = (route.query.token as string) || undefined;
-    const { data: d } = await bigscreenApi.transactions(token);
-    data.value = d || {};
-    loadError.value = false;
-    await nextTick();
-    renderPie();
-  } catch { /* 静默刷新失败：保留上一次数据 */ }
-}
-
-function resizeCharts() {
-  pieChart?.resize();
-}
-
-onMounted(() => {
-  load();
-  timer = setInterval(refresh, 15000);
-  clockTimer = setInterval(() => { nowStr.value = new Date().toLocaleString("zh-CN"); }, 1000);
-});
-
-onBeforeUnmount(() => {
-  clearInterval(timer);
-  clearInterval(clockTimer);
-  pieChart?.dispose();
-});
+const { snapshot, data, refresh } = useTopicSnapshot<TransactionScreen>(token => bigscreenApi.transactions(token, true), 15000)
+const mode = ref<'amount' | 'count'>('amount')
+const selected = ref<string | null>(null)
+const orders = computed(() => Array.isArray(data.value.recentOrders) ? data.value.recentOrders : [])
+const breakdown = computed(() => Array.isArray(data.value.typeBreakdown) ? data.value.typeBreakdown : undefined)
+const kinds = computed(() => Array.from(new Set([...(breakdown.value ?? []).map(item => item.type), ...orders.value.map(order => order.type)])))
+function typeLabel(type: string) { return ({ CIRCLE_JOIN: '入圈', BOT_SERVICE: '智能体', PAIPAN: '排盘' } as Record<string, string>)[type] ?? orderTypeLabel(type) }
+const composition = computed(() => distribution(breakdown.value?.map(item => ({ key: item.type, label: typeLabel(item.type), value: item[mode.value] }))))
+const selectedItem = computed(() => selectedDistribution(composition.value, selected.value, typeLabel(selected.value ?? '')))
+const filteredOrders = computed(() => orders.value.filter(order => !selected.value || order.type === selected.value))
+watch(kinds, values => { if (selected.value && !values.includes(selected.value)) selected.value = null })
 </script>
-
-<style scoped>
-.bigscreen { background: linear-gradient(135deg, #0d1117 0%, #161b22 100%); color: #c9d1d9; min-height: 100vh; }
-.bs-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 40px; border-bottom: 1px solid #21262d; }
-.bs-title { font-size: 28px; letter-spacing: 4px; color: #58a6ff; }
-.bs-time { font-size: 16px; color: #8b949e; }
-.bs-body { padding: 24px 40px; }
-
-.kpi-bar { display: flex; gap: 24px; margin-bottom: 24px; }
-.kpi-item { flex: 1; background: rgba(255,255,255,.03); border: 1px solid #21262d; border-radius: 8px; padding: 20px; text-align: center; }
-.kpi-label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 8px; }
-.kpi-value { font-size: 28px; font-weight: 700; }
-.kpi-value.blue { color: #58a6ff; }
-.kpi-value.green { color: #3fb950; }
-.kpi-value.orange { color: #d2991d; }
-
-.bs-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.bs-panel { background: rgba(255,255,255,.02); border: 1px solid #21262d; border-radius: 8px; padding: 20px; }
-.bs-panel h3 { margin: 0 0 16px; font-size: 16px; color: #c9d1d9; }
-
-.order-scroll { max-height: 300px; overflow-y: auto; }
-.order-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid #21262d; font-size: 14px; }
-.order-id { color: #58a6ff; font-family: monospace; width: 80px; }
-.order-amount { color: #3fb950; font-weight: 600; margin-left: auto; }
-.order-time { color: #8b949e; font-size: 12px; }
-
-.bs-footer { display: flex; justify-content: space-between; padding: 12px 40px; font-size: 13px; color: #484f58; border-top: 1px solid #21262d; }
-.watermark { opacity: .25; }
-</style>

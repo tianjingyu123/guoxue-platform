@@ -119,6 +119,8 @@ declare module 'vue' {
     SidebarMenu: typeof import('./src/components/SidebarMenu.vue')['default']
     SiZhuDisplay: typeof import('./src/components/paipan/SiZhuDisplay.vue')['default']
     StatsCard: typeof import('./src/components/StatsCard.vue')['default']
+    TopicBreakdown: typeof import('./src/components/TopicBreakdown.vue')['default']
+    TopicScreenFrame: typeof import('./src/components/TopicScreenFrame.vue')['default']
     VodUpload: typeof import('./src/components/upload/VodUpload.vue')['default']
     ZiweiBoard: typeof import('./src/components/paipan/ZiweiBoard.vue')['default']
   }
