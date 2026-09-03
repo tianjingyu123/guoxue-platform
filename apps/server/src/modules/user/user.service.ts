@@ -159,7 +159,7 @@ export class UserService {
 
   // ───────── 个人资料 ─────────
 
-  async updateProfile(userId: string, dto: { nickname?: string; avatar?: string; bio?: string; gender?: number; interestCategories?: string[] }) {
+  async updateProfile(userId: string, dto: { nickname?: string; avatar?: string; bio?: string; gender?: number; interestCategories?: string[]; interestGuideCompleted?: true }) {
     // 统一内容审核：昵称 + 个性签名，防不当昵称/签名（空串自动跳过）
     await this.audit.moderateTextOrThrow(
       [dto.nickname, dto.bio].filter(Boolean).join(" "),
@@ -176,8 +176,11 @@ export class UserService {
         ...(dto.bio !== undefined && { bio: dto.bio }),
         ...(dto.gender !== undefined && { gender: dto.gender }),
         ...(dto.interestCategories !== undefined && { interestCategories: dto.interestCategories }),
+        // 兼容旧客户端保存非空兴趣；明确跳过也完成引导，但不伪造兴趣。
+        ...((dto.interestGuideCompleted === true || (dto.interestCategories?.length ?? 0) > 0)
+          && { interestGuideCompleted: true }),
       },
-      select: { id: true, nickname: true, avatar: true, bio: true, gender: true, interestCategories: true },
+      select: { id: true, nickname: true, avatar: true, bio: true, gender: true, interestCategories: true, interestGuideCompleted: true },
     });
   }
 

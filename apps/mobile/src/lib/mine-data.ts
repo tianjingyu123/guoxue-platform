@@ -4,6 +4,7 @@
  * 主题色沿用原型 #C41E3A
  */
 import { apiGet, apiGetOptionalAuth, apiPost, apiPut, apiDelete } from '@/utils/request'
+import type { AccountInterestState } from '@/utils/interests'
 
 /* —— 头像生成辅助（沿用工程 dicebear 约定） —— */
 const AVATAR = (seed: string) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
@@ -1354,9 +1355,8 @@ export const mineApi = {
   },
 
   /** 更新用户资料 —— PUT /users/profile（nickname/avatar/bio/gender/兴趣品类） */
-  async updateProfile(_data: { nickname?: string; avatar?: string; bio?: string; gender?: number; interestCategories?: string[] }): Promise<boolean> {
-    await apiPut('/users/profile', _data)
-    return true
+  async updateProfile(_data: { nickname?: string; avatar?: string; bio?: string; gender?: number; interestCategories?: string[]; interestGuideCompleted?: true }): Promise<AccountInterestState & { nickname?: string; avatar?: string; bio?: string }> {
+    return await apiPut('/users/profile', _data)
   },
 
   /** 获取设置通知项 —— GET /users/notify-settings（后端真返 [{key,label,icon,value}]） */

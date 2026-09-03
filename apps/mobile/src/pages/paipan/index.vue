@@ -769,7 +769,7 @@ onShow(() => {
     <text class="entry-gate-title">{{ qaNotFound ? "页面不存在" : loginRequired ? "登录后使用排盘" : "排盘服务暂时不可用" }}</text>
     <text v-if="!qaNotFound" class="entry-gate-desc">{{ entryError }}</text>
     <button v-if="loginRequired" class="degraded-retry degraded-primary" @tap="openLoginForPaipan">微信或手机号快捷进入</button>
-    <button v-if="loginRequired" class="degraded-retry" @tap="browsePublicContent">先逛逛</button>
+    <button v-if="loginRequired" class="degraded-retry guest-browse" @tap="browsePublicContent">先逛逛</button>
     <button v-else-if="!qaNotFound" class="degraded-retry" @tap="loadPaipanEntry">重新连接</button>
     <button v-if="!qaNotFound && !loginRequired" class="degraded-retry" @tap="browsePublicContent">返回首页</button>
   </view>
@@ -867,6 +867,17 @@ onShow(() => {
 }
 .degraded-retry::after {
   border: 0;
+}
+.degraded-retry.guest-browse {
+  height: auto;
+  min-height: max(44px, 96rpx);
+  min-width: 160rpx;
+  padding: 12rpx 32rpx;
+  font-size: max(16px, 32rpx);
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .degraded-primary {
   background: var(--brand, #c41e3a);

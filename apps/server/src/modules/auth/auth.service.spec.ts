@@ -626,6 +626,37 @@ describe("AuthService", () => {
   });
 
   describe("getProfile", () => {
+    it.each([
+      { interestCategories: [], interestGuideCompleted: true, expected: true },
+      { interestCategories: ["经典研读"], interestGuideCompleted: false, expected: true },
+      { interestCategories: [], interestGuideCompleted: false, expected: false },
+    ])("账号完成态同时返回给登录结果和 auth/me：%j", async ({ expected, ...interests }) => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: "user-1", roles: [], ...interests });
+      mockPrisma.userRole.findMany.mockResolvedValue([]);
+      mockPrisma.merchant.findUnique.mockResolvedValue(null);
+      mockPrisma.merchantMember.findFirst.mockResolvedValue(null);
+      mockJwt.sign.mockReturnValue("local-test-token");
+      const profile = await svc.getProfile("user-1");
+      const login = await (svc as any).buildLoginResult("user-1");
+      expect(profile.interestGuideCompleted).toBe(expected);
+      expect(login.user.interestGuideCompleted).toBe(expected);
+      expect(login.user.interestCategories).toEqual(interests.interestCategories);
+      expect(mockPrisma.user.findUnique).toHaveBeenLastCalledWith(expect.objectContaining({
+        where: { id: "user-1" },
+        select: expect.objectContaining({ interestCategories: true, interestGuideCompleted: true }),
+      }));
+    });
+
+    it("不同账号的兴趣状态分别查询，不能继承前一账号完成态", async () => {
+      mockPrisma.user.findUnique.mockImplementation(async ({ where }: any) => ({
+        id: where.id, roles: [], interestCategories: [], interestGuideCompleted: where.id === "done-user",
+      }));
+      mockPrisma.merchant.findUnique.mockResolvedValue(null);
+      mockPrisma.merchantMember.findFirst.mockResolvedValue(null);
+      expect((await svc.getProfile("done-user")).interestGuideCompleted).toBe(true);
+      expect((await svc.getProfile("new-user")).interestGuideCompleted).toBe(false);
+    });
+
     it("获取用户信息成功", async () => {
       const profile = {
         id: "user-1",
@@ -645,6 +676,7 @@ describe("AuthService", () => {
       const result = await svc.getProfile("user-1");
       expect(result).toEqual({
         ...profile,
+        interestGuideCompleted: false,
         paymentPasswordSet: false,
         permissions: [],
         merchant: null,

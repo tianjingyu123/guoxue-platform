@@ -34,11 +34,11 @@
         <view
           v-if="nearCurrent(i)"
           class="vp__layer"
-          @tap="onSingleTap"
+          @tap="onLayerTap"
           @touchstart="onPressStart"
           @touchmove="onPressMove"
           @touchend="onPressEnd"
-          @touchcancel="onPressEnd"
+          @touchcancel="onPressCancel"
         >
           <!-- 封面作为播放器 poster/兜底：视频未就绪或无视频源时展示 -->
           <image lazy-load class="vp__cover" :src="v.coverUrl" mode="aspectFill" />
@@ -60,7 +60,7 @@
             @error="onVideoError"
             @timeupdate="onTimeUpdate"
             @loadedmetadata="onVideoMeta"
-            @gesture="onAppPlayerGesture"
+            @gesture="onAppPlayerGesture($event, v.id)"
           />
           <!-- #endif -->
           <!-- #ifndef APP-PLUS -->
@@ -99,8 +99,8 @@
             <text class="vp__unplayable-sub">格式暂不支持或正在转码，请稍后再试</text>
           </view>
           <!-- 中央播放按钮：未在播放（含有声自动播放被浏览器拦截）时显示，点一下开播 -->
-          <view v-if="i === currentIndex && !isPlaying && !playError" class="vp__pause">
-            <view class="vp__pause-btn">
+          <view v-if="i === currentIndex && !isPlaying && !playError" class="vp__pause" @tap.stop="resumePausedVideo">
+            <view class="vp__pause-btn" role="button" tabindex="0" aria-label="播放视频" @keydown.enter.prevent="resumePausedVideo" @keydown.space.prevent="resumePausedVideo">
               <AppIcon name="play" :size="48" color="#ffffff" :fill="true" />
             </view>
           </view>
@@ -163,7 +163,7 @@
       </view>
 
       <!-- 点赞（已赞 → 朱红实心·爆红心 scale 动效 200ms·纯 transform 无 filter） -->
-      <view class="vp__act" @tap="onLike">
+      <view class="vp__act" @tap="onLike()">
         <view class="vp__act-ico" :class="{ 'vp__act-ico--liked': currentVideo.isLiked }">
           <AppIcon name="heart" :size="58" :color="currentVideo.isLiked ? '#C41E3A' : 'rgba(255,255,255,0.94)'" :fill="currentVideo.isLiked" />
         </view>
@@ -264,13 +264,13 @@
 
     <!-- 评论面板（小红书/抖音式半屏抽屉·深色与播放页一致） -->
     <view v-if="showComments" class="cs-mask" @tap="closeComments" @touchmove.self.prevent>
-      <view class="cs" @tap.stop @touchmove.stop>
+      <view class="cs" :style="commentPanelStyle" @tap.stop @touchmove.stop>
         <view class="cs__grabber" />
         <view class="cs__head">
           <text class="cs__title">共 {{ fmt(commentTotal) }} 条评论</text>
-          <view class="cs__close" @tap="closeComments"><AppIcon name="x" :size="34" color="rgba(255,255,255,0.55)" /></view>
+          <view class="cs__close" role="button" tabindex="0" aria-label="关闭评论" @tap="closeComments" @keydown.enter.prevent="closeComments" @keydown.space.prevent="closeComments"><AppIcon name="x" :size="34" color="rgba(255,255,255,0.55)" /></view>
         </view>
-        <scroll-view scroll-y class="cs__body">
+        <scroll-view scroll-y enable-flex class="cs__body" @touchmove.stop>
           <text v-if="commentsLoading" class="cs__hint">加载中...</text>
           <view v-else-if="comments.length === 0" class="cs__empty">
             <AppIcon name="message-circle" :size="72" color="rgba(255,255,255,0.18)" />
@@ -325,7 +325,7 @@
           <view v-if="comments.length > 0" class="cs__end"><text class="cs__end-txt">— 到底啦 —</text></view>
         </scroll-view>
         <!-- 底部常驻输入条 -->
-        <view class="cs-input" :style="{ paddingBottom: 'calc(' + safeBottom + 'px + 16rpx)' }">
+        <view class="cs-input" :style="{ paddingBottom: 'calc(' + (commentKeyboardHeight > 0 ? 0 : safeBottom) + 'px + 16rpx)' }">
           <view v-if="replyTarget" class="cs-input__reply-bar">
             <text class="cs-input__reply-txt">回复 @{{ replyTarget.user }}</text>
             <view class="cs-input__reply-cancel" @tap="cancelReply"><AppIcon name="x" :size="26" color="rgba(255,255,255,0.45)" /></view>
@@ -339,6 +339,10 @@
               :placeholder="replyTarget ? `回复 @${replyTarget.user}…` : '说点什么…'"
               placeholder-class="cs-input__ph"
               confirm-type="send"
+              :adjust-position="false"
+              @focus="commentInputFocused = true"
+              @blur="commentInputFocused = false"
+              @keyboardheightchange="onCommentKeyboardHeight"
               @confirm="onPostComment"
             />
             <view class="cs-input__send" :class="{ 'cs-input__send--on': commentText.trim() && !postingComment }" @tap="onPostComment">
@@ -424,7 +428,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, getCurrentInstance, nextTick } from 'vue'
+import { ref, computed, watch, getCurrentInstance, nextTick, onBeforeUnmount } from 'vue'
 import { onLoad, onShareAppMessage, onShareTimeline, onHide } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import AppLoading from '@/components/common/app-loading.vue'
@@ -443,15 +447,56 @@ import { videoApi, formatVideoNumber as fmt, formatCommentTime as timeAgo, type 
 import { shopApi } from '@/lib/shop-data'
 import { gotoReport } from '@/lib/report-data'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
+import { videoCommentLayout } from '@/utils/video-comment-layout'
 
 interface CartItem { productId: string; quantity: number; product: VideoProduct }
 
 // ===== 系统信息 =====
 const sysInfo = uni.getSystemInfoSync()
-const isAppPlusRuntime = (sysInfo as typeof sysInfo & { uniPlatform?: string }).uniPlatform === 'app'
+let isAppPlusRuntime = false
+// #ifdef APP-PLUS
+isAppPlusRuntime = true
+// #endif
 const statusBarHeight = ref(sysInfo.statusBarHeight || 0)
 const safeBottom = ref(sysInfo.safeAreaInsets?.bottom || 0)
 const windowH = ref(sysInfo.windowHeight || 0)
+const commentBaseHeight = ref(windowH.value)
+const commentKeyboardHeight = ref(0)
+const commentInputFocused = ref(false)
+const commentPanelStyle = computed(() => {
+  const layout = videoCommentLayout(windowH.value, commentBaseHeight.value, commentKeyboardHeight.value, statusBarHeight.value)
+  return { bottom: `${layout.bottom}px`, height: `${layout.height}px` }
+})
+function onCommentKeyboardHeight(event: any) {
+  commentKeyboardHeight.value = Math.max(0, Number(event?.detail?.height) || 0)
+}
+function onVideoWindowResize(event: any) {
+  const height = Number(event?.size?.windowHeight)
+  if (!Number.isFinite(height) || height <= 0) return
+  windowH.value = height
+  if (!commentInputFocused.value && !commentKeyboardHeight.value) commentBaseHeight.value = height
+}
+// #ifdef H5
+function onCommentVisualViewport() {
+  windowH.value = window.innerHeight
+  const visual = window.visualViewport
+  if (visual && commentInputFocused.value) commentKeyboardHeight.value = Math.max(0, window.innerHeight - visual.height - visual.offsetTop)
+  else commentKeyboardHeight.value = 0
+}
+// #endif
+onMounted(() => {
+  uni.onWindowResize?.(onVideoWindowResize)
+  // #ifdef H5
+  window.visualViewport?.addEventListener('resize', onCommentVisualViewport)
+  // #endif
+})
+onBeforeUnmount(() => {
+  cancelVideoTap(); clearPressTimer(); activeAppGestureId = 0
+  uni.offWindowResize?.(onVideoWindowResize)
+  // #ifdef H5
+  window.visualViewport?.removeEventListener('resize', onCommentVisualViewport)
+  // #endif
+})
 
 // ===== 数据（真连全屏视频流）=====
 const videos = ref<VideoItem[]>([])
@@ -589,7 +634,7 @@ function onVideoError() { playError.value = true; isPlaying.value = false }
 
 // 切页/切后台时暂停视频，根除后台多音轨（点作者头像/圈子跳转时原视频不再后台出声）
 // 长按 2x 中切页：倍速一并复位（否则回来续播仍是 2x）
-onHide(() => { safePause(); isPlaying.value = false; if (speeding.value) { speeding.value = false; setPlaybackRate(1) } clearPressTimer() })
+onHide(() => { cancelVideoTap(); activeAppGestureId = 0; safePause(); isPlaying.value = false; if (speeding.value) { speeding.value = false; setPlaybackRate(1) } clearPressTimer() })
 
 // ===== 长按 2 倍速（抖音式）=====
 const speeding = ref(false)
@@ -597,6 +642,7 @@ let pressTimer: ReturnType<typeof setTimeout> | null = null
 let suppressTap = false // 长按松手后紧随的 tap 属于长按残留 → 吞掉，不触发暂停/双击
 let pressStartX = 0
 let pressStartY = 0
+let pressMoved = false
 let swipeLastX = 0
 let swipeLastY = 0
 let swipeStartAt = 0
@@ -620,6 +666,8 @@ function pressPoint(e: any, changed = false) {
 }
 function onPressStart(e: any /* uni touch 事件跨端形状不一，参数须 any */) {
   clearPressTimer()
+  suppressTap = false // 新的真实触摸不是上次滑动/长按遗留的合成 tap。
+  pressMoved = false
   const t = pressPoint(e)
   pressStartX = t.x
   pressStartY = t.y
@@ -633,6 +681,7 @@ function onPressStart(e: any /* uni touch 事件跨端形状不一，参数须 a
   // 480ms 判定长按（> 双击窗口 280ms·短按/双击在 touchend 时先清掉计时器，互不冲突）
   pressTimer = setTimeout(() => {
     pressTimer = null
+    cancelVideoTap()
     speeding.value = true
     setPlaybackRate(2)
   }, 480)
@@ -644,10 +693,11 @@ function onPressMove(e: any) {
   swipeLastY = t.y
   const dx = t.x - pressStartX
   const dy = t.y - pressStartY
-  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) clearPressTimer() // 手指位移 → 视为滑动，取消长按
+  if (Math.abs(dx) > 10 || Math.abs(dy) > 10) { pressMoved = true; clearPressTimer(); cancelVideoTap() }
 }
 function onPressEnd(e?: any) {
   clearPressTimer()
+  if (pressMoved) { suppressTap = true; setTimeout(() => { suppressTap = false }, 350) }
   if (speeding.value) {
     speeding.value = false
     setPlaybackRate(1) // touchend/touchcancel 统一恢复 1x
@@ -683,26 +733,37 @@ function onPressEnd(e?: any) {
 }
 function onPressCancel() {
   clearPressTimer()
+  cancelVideoTap()
   swipeTracking = false
   if (speeding.value) { speeding.value = false; setPlaybackRate(1) }
 }
 
-type AppPlayerGesture = { phase?: 'start' | 'move' | 'end' | 'cancel'; x?: number; y?: number }
+type AppPlayerGesture = { phase?: 'start' | 'move' | 'end' | 'cancel'; gestureId?: number; x?: number; y?: number }
+let activeAppGestureId = 0
 let appGestureStartX = 0
 let appGestureStartY = 0
-function onAppPlayerGesture(payload: AppPlayerGesture) {
+function onAppPlayerGesture(payload: AppPlayerGesture, videoId: string) {
+  if (videoId !== currentVideo.value?.id) return
+  const gestureId = Number(payload?.gestureId)
+  if (!Number.isSafeInteger(gestureId) || gestureId <= 0) return
   const x = Number(payload?.x) || 0
   const y = Number(payload?.y) || 0
   const point = { clientX: x, clientY: y }
   if (payload?.phase === 'start') {
+    if (activeAppGestureId === gestureId) return
+    activeAppGestureId = gestureId
     appGestureStartX = x
     appGestureStartY = y
     onPressStart({ touches: [point] })
+  } else if (gestureId !== activeAppGestureId) {
+    return // 忽略重复结束/已离页的迟到手势。
   } else if (payload?.phase === 'move') {
     onPressMove({ touches: [point] })
   } else if (payload?.phase === 'cancel') {
+    activeAppGestureId = 0
     onPressCancel()
   } else if (payload?.phase === 'end') {
+    activeAppGestureId = 0
     const dx = x - appGestureStartX
     const dy = y - appGestureStartY
     onPressEnd({ changedTouches: [point] })
@@ -780,6 +841,7 @@ const addedToCart = ref<string | null>(null)
 
 let heartId = 0
 let lastTapTime = 0
+let singleTapTimer: ReturnType<typeof setTimeout> | null = null
 
 const currentVideo = computed(() => videos.value[currentIndex.value])
 /** swiper-item 渲染窗口：当前±1 才渲染内容（预加载前后各一条封面） */
@@ -796,6 +858,7 @@ async function loadProducts(v: VideoItem) {
   } catch { /* 无带货/接口失败 → 保持空，不展示同款好物入口（诚实降级） */ }
 }
 watch(currentVideo, (v) => { if (v) loadProducts(v) }, { immediate: true })
+watch(() => currentVideo.value?.id, () => { cancelVideoTap(); activeAppGestureId = 0; onPressCancel() })
 
 const cartTotal = computed(() => cart.value.reduce((s, i) => s + i.quantity, 0))
 const cartAmount = computed(() => Math.round(cart.value.reduce((s, i) => s + i.quantity * i.product.price, 0) * 100) / 100)
@@ -833,12 +896,24 @@ function onSwiperChange(e: any /* uni swiper 事件经 vue-tsc 按原生签名�
 }
 
 // ===== 单击暂停 / 双击点赞 =====
+function cancelVideoTap() {
+  if (singleTapTimer !== null) clearTimeout(singleTapTimer)
+  singleTapTimer = null
+  lastTapTime = 0
+}
+function onLayerTap(e: Parameters<typeof onSingleTap>[0]) {
+  // App 真实播放器的触摸只走 renderjs；祖先合成 tap 不参与单双击判断。
+  if (isAppPlusRuntime && currentVideo.value?.videoUrl && !playError.value) return
+  onSingleTap(e)
+}
+function resumePausedVideo() { cancelVideoTap(); safePlay() }
 function onSingleTap(e: { changedTouches?: Array<{ clientX?: number; clientY?: number }>; detail?: { clientX?: number; clientY?: number } }) {
-  if (suppressTap) { suppressTap = false; return } // 长按 2x 松手残留的 tap → 吞掉
+  if (suppressTap || !currentVideo.value) return
   const now = Date.now()
-  if (now - lastTapTime < 280) {
+  const videoId = currentVideo.value.id
+  if (singleTapTimer !== null && now - lastTapTime < 280) {
     // 双击
-    lastTapTime = 0
+    cancelVideoTap()
     const touch = e.changedTouches?.[0] || e.detail || {}
     const x = touch.clientX || windowW.value / 2 // 横坐标兜底用屏宽（原误用 windowH 屏高）
     const y = touch.clientY || windowH.value / 2
@@ -847,61 +922,101 @@ function onSingleTap(e: { changedTouches?: Array<{ clientX?: number; clientY?: n
     setTimeout(() => {
       floatingHearts.value = floatingHearts.value.filter((h) => h.id !== id)
     }, 1000)
-    if (!currentVideo.value.isLiked) onLike()
+    if (currentVideo.value.isLiked !== true) void onLike(true)
     return
   }
   lastTapTime = now
-  setTimeout(() => {
-    if (lastTapTime !== 0 && Date.now() - lastTapTime >= 280) {
+  if (singleTapTimer !== null) clearTimeout(singleTapTimer)
+  singleTapTimer = setTimeout(() => {
+    singleTapTimer = null
+    if (currentVideo.value?.id === videoId && lastTapTime !== 0 && Date.now() - lastTapTime >= 280) {
       togglePlay()
       lastTapTime = 0
     }
-  }, 300)
+  }, 280)
 }
 
-// 点赞：乐观更新 UI + 真连 POST /videos/:id/like（后端去重返 {liked}）
-async function onLike() {
+const pendingInteractions = new Set<string>()
+const interactionRevisions = new Map<string, number>()
+const viewerStateRequests = new Map<string, Promise<void>>()
+async function ensureViewerState(v: VideoItem) {
+  if (typeof v.isLiked === 'boolean' && typeof v.isCollected === 'boolean' && typeof v.author.isFollowed === 'boolean') return
+  const pending = viewerStateRequests.get(v.id)
+  if (pending) return await pending
+  const request = (async () => {
+    const detail = await videoApi.getById(v.id)
+    if (detail?.id !== v.id || typeof detail.isLiked !== 'boolean' || typeof detail.isCollected !== 'boolean' || typeof detail.author.isFollowed !== 'boolean') throw new Error('互动状态暂不可用，请稍后重试')
+    v.isLiked = detail.isLiked; v.isCollected = detail.isCollected; v.author.isFollowed = detail.author.isFollowed
+    v.likes = detail.likes
+    v.collectCount = detail.collectCount
+  })()
+  viewerStateRequests.set(v.id, request)
+  try { await request } finally { viewerStateRequests.delete(v.id) }
+}
+function markVideoInteraction(v: VideoItem) {
+  interactionRevisions.set(v.id, (interactionRevisions.get(v.id) || 0) + 1)
+}
+function hasPendingVideoInteraction(v: VideoItem) {
+  return pendingInteractions.has(`like:${v.id}`) || pendingInteractions.has(`collect:${v.id}`) || pendingInteractions.has(`follow:${v.author.id}`)
+}
+// 单请求锁 + 服务端真实状态/计数；双击只加赞，不把未知状态误当未赞切换。
+async function onLike(onlyLike = false) {
   const v = currentVideo.value
   if (!v) return
-  const prev = v.isLiked
-  v.isLiked = !prev
-  v.likes += v.isLiked ? 1 : -1
+  const key = `like:${v.id}`
+  if (pendingInteractions.has(key)) return
+  pendingInteractions.add(key)
+  markVideoInteraction(v)
   try {
+    await ensureViewerState(v)
+    if (onlyLike && v.isLiked === true) return
     const res = await videoApi.like(v.id)
-    if (res.isLiked !== v.isLiked) { v.isLiked = res.isLiked; v.likes += res.isLiked ? 1 : -1 }
+    v.isLiked = res.isLiked
+    if (res.likeCount !== undefined) v.likes = res.likeCount
   } catch (e) {
-    v.isLiked = prev; v.likes += prev ? 1 : -1 // 失败回滚
     uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
-  }
+  } finally { markVideoInteraction(v); pendingInteractions.delete(key) }
 }
-// 收藏：乐观更新 + 真连 POST /videos/:id/collect
+// 收藏：成功才回写确认态，失败不改图标和计数。
 async function onCollect() {
   const v = currentVideo.value
   if (!v) return
-  const prev = v.isCollected
-  v.isCollected = !prev
+  const key = `collect:${v.id}`
+  if (pendingInteractions.has(key)) return
+  pendingInteractions.add(key)
+  markVideoInteraction(v)
   try {
+    await ensureViewerState(v)
     const res = await videoApi.collect(v.id)
     v.isCollected = res.isCollected
+    if (res.collectCount !== undefined) v.collectCount = res.collectCount
   } catch (e) {
-    v.isCollected = prev // 失败回滚
     uni.showToast({ title: (e as Error)?.message || '操作失败，请重试', icon: 'none' })
-  }
+  } finally { markVideoInteraction(v); pendingInteractions.delete(key) }
 }
-// 关注：真连 POST/DELETE /users/:id/follow（乐观切换 + 失败回滚·成功加号变√）
+// 关注：真连 POST/DELETE /users/:id/follow，成功后同步本页同作者的展示。
 async function onFollow() {
   const v = currentVideo.value
   if (!v?.author?.id) return
-  const prev = v.author.isFollowed
-  v.author.isFollowed = !prev
+  const key = `follow:${v.author.id}`
+  if (pendingInteractions.has(key)) return
+  pendingInteractions.add(key)
+  markVideoInteraction(v)
   try {
+    await ensureViewerState(v)
+    const prev = v.author.isFollowed
     if (prev) await videoApi.unfollowAuthor(v.author.id)
     else await videoApi.followAuthor(v.author.id)
+    v.author.isFollowed = !prev
+    for (const item of videos.value) {
+      if (item.author.id !== v.author.id) continue
+      item.author.isFollowed = !prev
+      markVideoInteraction(item)
+    }
     if (!prev) uni.showToast({ title: '已关注', icon: 'none' })
   } catch (e) {
-    v.author.isFollowed = prev // 失败回滚
     uni.showToast({ title: (e as Error)?.message || '操作失败，请先登录', icon: 'none' })
-  }
+  } finally { markVideoInteraction(v); pendingInteractions.delete(key) }
 }
 
 // 点头像 → 作者主页（/user/:id → pkg-circle/user/profile）
@@ -958,7 +1073,7 @@ function onNotInterested() {
   currentIndex.value = Math.max(0, ni) // 索引对应视频已变 → watch(currentVideo.id) 自动重置播放
 }
 
-// 切换视频时刷新真实关注态（后端列表默认 isFollowed=false）
+// 切换视频恢复播放；关注态由列表/详情统一提供，不另起会覆盖新操作的请求。
 watch(() => currentVideo.value?.id, async () => {
   // 切换到新视频：重置状态 + 主动播放。原实现仅靠 video 组件 autoplay + videoUrl 变化触发，
   // 但同源视频(videoUrl 不变)或移动端 autoplay 受限时不重播 → 需滑好几次。改为切换后主动 ctx.play()
@@ -982,18 +1097,26 @@ watch(() => currentVideo.value?.id, async () => {
       safePlay()
     }
   })
-  if (!v?.author?.id) return
-  try { v.author.isFollowed = await videoApi.isFollowing(v.author.id) } catch { /* 未登录/失败保持默认 */ }
 })
 
 // 瀑布流补入的精简项切到当前后再拉一次完整详情，补齐作者 id、圈子、评论计数等互动字段。
+const videoDetailsFetched = new Set<string>()
 watch(() => currentVideo.value?.id, async (id) => {
   const index = currentIndex.value
   const item = videos.value[index]
-  if (!id || !item || item.author.id) return
+  if (!id || !item || videoDetailsFetched.has(id)) return
+  const revision = interactionRevisions.get(id) || 0
   try {
     const detail = await videoApi.getById(id)
-    if (detail?.id === id && videos.value[index]?.id === id) videos.value[index] = detail
+    if (detail?.id !== id || videos.value[index] !== item) return
+    const interacted = (interactionRevisions.get(id) || 0) !== revision || hasPendingVideoInteraction(item)
+    // 懒加载详情不能覆盖请求发起后用户刚确认的互动状态，也不能换掉操作中的对象引用。
+    Object.assign(item, {
+      ...detail,
+      ...(interacted ? { isLiked: item.isLiked, isCollected: item.isCollected, likes: item.likes, collectCount: item.collectCount } : {}),
+      author: { ...detail.author, isFollowed: interacted ? item.author.isFollowed : detail.author.isFollowed },
+    })
+    videoDetailsFetched.add(id)
   } catch { /* 播放与切换不依赖详情补全；失败时保留基础项 */ }
 })
 
@@ -1024,10 +1147,16 @@ async function loadComments() {
   finally { commentsLoading.value = false }
 }
 function openComments() {
+  cancelVideoTap()
+  commentBaseHeight.value = windowH.value
+  commentKeyboardHeight.value = 0
   showComments.value = true
   loadComments()
 }
 function closeComments() {
+  uni.hideKeyboard()
+  commentInputFocused.value = false
+  commentKeyboardHeight.value = 0
   showComments.value = false
   cancelReply()
 }
@@ -1320,16 +1449,17 @@ function onBack() {
 .cs {
   position: absolute; left: 0; right: 0; bottom: 0;
   background: rgba(28,25,32,0.97); border-radius: 36rpx 36rpx 0 0;
-  height: 68vh; display: flex; flex-direction: column;
+  height: 68vh; display: flex; flex-direction: column; min-height: 0; overflow: hidden; box-sizing: border-box;
   color: #E9E4DD;
   animation: slide-up 0.28s ease-out;
 }
 .cs--share { height: auto; padding-bottom: 48rpx; }
 .cs__grabber { width: 72rpx; height: 8rpx; border-radius: 999rpx; background: rgba(255,255,255,0.22); margin: 16rpx auto 0; flex-shrink: 0; }
-.cs__head { position: relative; display: flex; align-items: center; justify-content: center; padding: 20rpx 28rpx 16rpx; flex-shrink: 0; }
+.cs__head { position: relative; display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 8rpx 120rpx; box-sizing: border-box; flex-shrink: 0; }
 .cs__title { font-size: 26rpx; font-weight: 500; color: rgba(233,228,221,0.9); }
-.cs__close { position: absolute; right: 24rpx; top: 50%; transform: translateY(-50%); width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
-.cs__body { flex: 1; min-height: 0; padding: 8rpx 28rpx 24rpx; box-sizing: border-box; }
+.cs__close { position: absolute; right: 16rpx; top: 50%; transform: translateY(-50%); width: 88rpx; height: 88rpx; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+.cs__close:focus-visible { outline: 2px solid #C9A96E; border-radius: 8rpx; }
+.cs__body { flex: 1; height: 0; min-height: 0; overflow: hidden; padding: 8rpx 28rpx 24rpx; box-sizing: border-box; }
 .cs__hint { display: block; text-align: center; font-size: 24rpx; color: rgba(255,255,255,0.4); padding: 48rpx 0; }
 .cs__empty { display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 96rpx 0; }
 .cs__empty-txt { font-size: 28rpx; color: rgba(255,255,255,0.55); }

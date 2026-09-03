@@ -5,7 +5,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { VodService } from "./vod.service";
 import { Cacheable, CacheEvict } from "../../common/cache.decorator";
 import { Prisma } from "@prisma/client";
-import { isUniqueConstraintError } from "../../common/prisma-errors";
+import { VideoInteractionStore } from "./video-interaction.store";
 import { AuditService } from "../audit/audit.service";
 import { safePagination } from "../../common/pagination";
 import { publicQuarantinedIds } from "../../common/public-content-quarantine";
@@ -143,8 +143,14 @@ export class VideoService {
     return this.prisma.video.update({ where: { id }, data });
   }
 
+  /** 公共内容可缓存；计数和当前账号互动状态每次读取，不写入共享缓存。 */
+  async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string; scope?: string }, viewerId?: string) {
+    const result = await this.listRaw(params);
+    return { ...result, videos: await this.withViewerState(result.videos, viewerId, true) };
+  }
+
   @Cacheable({ key: (args) => `video:list:v2:${JSON.stringify(args[0])}`, ttl: 60 })
-  async list(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string; scope?: string }) {
+  async listRaw(params: { circleId?: string; status?: string; page?: number; pageSize?: number; stationId?: string; scope?: string }) {
     const { circleId, status, stationId, scope } = params;
     const { page, pageSize, skip } = safePagination(params.page, params.pageSize);
     const where: Prisma.VideoWhereInput = {};
@@ -190,7 +196,32 @@ export class VideoService {
     if (!isOwner && (video.visibility === "SELF_ONLY" || video.status === "REJECTED")) {
       throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
     }
-    return video;
+    const [result] = await this.withViewerState([video], viewerId, true);
+    return result;
+  }
+
+  /** 批量按账号补态，返回副本，避免同一缓存对象在账号间串态。 */
+  private async withViewerState<T extends { id: string; userId?: string }>(videos: T[], viewerId?: string, refreshCounts = false) {
+    if (!videos.length) return [];
+    const ids = videos.map((video) => video.id);
+    const authorIds = [...new Set(videos.map((video) => video.userId).filter((id): id is string => !!id))];
+    const [likes, collects, follows, counts] = await Promise.all([
+      viewerId ? this.prisma.like.findMany({ where: { userId: viewerId, targetType: "VIDEO", targetId: { in: ids } }, select: { targetId: true } }) : [],
+      viewerId ? this.prisma.collect.findMany({ where: { userId: viewerId, targetType: "VIDEO", targetId: { in: ids } }, select: { targetId: true } }) : [],
+      viewerId && authorIds.length ? this.prisma.follow.findMany({ where: { userId: viewerId, followedUserId: { in: authorIds } }, select: { followedUserId: true } }) : [],
+      refreshCounts ? this.prisma.video.findMany({ where: { id: { in: ids } }, select: { id: true, likeCount: true, collectCount: true } }) : [],
+    ]);
+    const liked = new Set(likes.map((item) => item.targetId));
+    const collected = new Set(collects.map((item) => item.targetId));
+    const followed = new Set(follows.map((item) => item.followedUserId));
+    const currentCounts = new Map<string, { likeCount: number; collectCount: number }>(counts.map((item) => [item.id, { likeCount: item.likeCount, collectCount: item.collectCount }] as const));
+    return videos.map((video) => ({
+      ...video,
+      ...currentCounts.get(video.id),
+      isLiked: liked.has(video.id),
+      isCollected: collected.has(video.id),
+      isFollowed: !!video.userId && followed.has(video.userId),
+    }));
   }
 
   @Cacheable({ key: (args) => `video:detail:${args[0]}`, ttl: 120 })
@@ -209,46 +240,14 @@ export class VideoService {
     return this.normalizeVideoUrls(video);
   }
 
-  /** 点赞/取消点赞视频（per-user去重） */
+  /** 点赞与计数同事务完成，失败不留下半条记录。 */
   async toggleLike(userId: string, videoId: string) {
-    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
-    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
-
-    const existing = await this.prisma.like.findUnique({
-      where: { userId_targetType_targetId: { userId, targetType: "VIDEO", targetId: videoId } },
-    });
-    if (existing) {
-      await this.prisma.like.delete({ where: { id: existing.id } });
-      await this.prisma.video.update({ where: { id: videoId }, data: { likeCount: { decrement: 1 } } });
-      return { liked: false };
-    }
-    await this.prisma.like.create({ data: { userId, targetType: "VIDEO", targetId: videoId } });
-    await this.prisma.video.update({ where: { id: videoId }, data: { likeCount: { increment: 1 } } });
-    return { liked: true };
+    return new VideoInteractionStore(this.prisma).toggleLike(userId, videoId);
   }
 
   /** 收藏/取消收藏视频 */
-  @CacheEvict({ key: (args) => `video:collected:${args[0]}:*`, pattern: true })
   async toggleCollect(userId: string, videoId: string) {
-    const video = await this.prisma.video.findUnique({ where: { id: videoId } });
-    if (!video) throw new BusinessException(ErrorCode.NOT_FOUND, "视频不存在");
-
-    const existing = await this.prisma.collect.findFirst({
-      where: { userId, targetType: "VIDEO", targetId: videoId },
-    });
-    if (existing) {
-      await this.prisma.collect.delete({ where: { id: existing.id } });
-      await this.prisma.video.update({ where: { id: videoId }, data: { collectCount: { decrement: 1 } } });
-      return { collected: false };
-    }
-    try {
-      await this.prisma.collect.create({ data: { userId, targetType: "VIDEO", targetId: videoId } });
-    } catch (e: unknown) {
-      if (isUniqueConstraintError(e)) return { collected: true };
-      throw e;
-    }
-    await this.prisma.video.update({ where: { id: videoId }, data: { collectCount: { increment: 1 } } });
-    return { collected: true };
+    return new VideoInteractionStore(this.prisma).toggleCollect(userId, videoId);
   }
 
   /** 记录分享 */
@@ -452,13 +451,17 @@ export class VideoService {
       },
     });
 
-    return videos.map((v) => ({
+    const enriched = await this.withViewerState(videos, opts?.followerId);
+    return enriched.map((v) => ({
       id: v.id,
       title: v.title,
       coverUrl: VideoService.unescapeHtmlUrl(v.coverUrl),
       videoUrl: VideoService.unescapeHtmlUrl(v.videoUrl),
       duration: v.duration ?? 0,
-      author: { name: v.user.nickname, avatar: v.user.avatar ?? "" },
+      author: { id: v.userId, name: v.user.nickname, avatar: v.user.avatar ?? "", isFollowed: v.isFollowed },
+      isLiked: v.isLiked,
+      isCollected: v.isCollected,
+      isFollowed: v.isFollowed,
       likes: v.likeCount,
       plays: v.viewCount,
       hasProduct: v._count.products > 0,

@@ -264,7 +264,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { goBack, navigateTo, reLaunch } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
 import { setToken, setRefreshToken, setUserInfo, clearAuthSession } from '@/utils/storage'
-import { hasCompletedInterestGuide } from '@/utils/interests'
+import { continueAfterLogin } from '@/utils/auth-journey'
 
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
@@ -375,16 +375,11 @@ async function handleRegister() {
       nickname: nickname.value,
     })
     if (res.success && res.data?.token) {
-      clearAuthSession()
+      clearAuthSession({ preserveLoginRedirect: true })
       setToken(res.data.token)
       setRefreshToken(res.data.refreshToken || '')
       setUserInfo(res.data.user)
-      // 未完成兴趣引导 → 先走欢迎峰值页；已选择或明确跳过的用户直接进首页
-      if (hasCompletedInterestGuide()) {
-        uni.reLaunch({ url: '/pages/index/index' })
-      } else {
-        reLaunch('/welcome')
-      }
+      await continueAfterLogin()
     } else {
       uni.showToast({ title: res.message || '注册失败', icon: 'none' })
     }

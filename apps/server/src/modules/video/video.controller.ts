@@ -43,7 +43,7 @@ export class VideoController {
     const roles = (req.user as { roles?: string[] } | undefined)?.roles || [];
     const isAdmin = roles.some((r) => r === "SUPER_ADMIN" || r === "OPERATION_ADMIN" || r === "CONTENT_AUDITOR");
     const scope = q.scope === "all" && isAdmin ? "all" : undefined;
-    return this.svc.list({ circleId: q.circleId, status: q.status, page: +(q.page || 1), pageSize: +(q.pageSize || 20), stationId, scope });
+    return this.svc.list({ circleId: q.circleId, status: q.status, page: +(q.page || 1), pageSize: +(q.pageSize || 20), stationId, scope }, req.user?.id);
   }
 
   // ───────── 瀑布流列表/搜索/商品库（公开，必须在 :id 之前）─────────

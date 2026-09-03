@@ -277,14 +277,14 @@
 import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
-import { goBack, navigateTo, reLaunch } from '@/utils/router'
+import { goBack, navigateTo } from '@/utils/router'
 import { authApi } from '@/lib/auth-data'
 import { setToken, setRefreshToken, setUserInfo, clearAuthSession } from '@/utils/storage'
 // #ifdef APP-PLUS
 import { hydrateRemoteConfig, isClientFeatureEnabled } from '@/lib/remote-config'
 // #endif
 import { BRAND } from '@/lib/brand'
-import { hasCompletedInterestGuide } from '@/utils/interests'
+import { continueAfterLogin } from '@/utils/auth-journey'
 
 const statusBarHeight = ref(0)
 try { statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 0 } catch {}
@@ -474,7 +474,7 @@ async function completeH5WechatLogin(query: Record<string, string | undefined>):
       setToken(loginData.token)
       setRefreshToken(loginData.refreshToken || '')
       setUserInfo(loginData.user)
-      goAfterLogin()
+      await goAfterLogin()
       return
     }
     if (paipanEntry.value && /尚未关联|手机号验证/u.test(res.message || '')) {
@@ -530,50 +530,9 @@ async function handleSendCode() {
   }
 }
 
-/**
- * 登录成功后的统一去向：
- * 1) 未完成兴趣引导 → 仍先走欢迎峰值页（welcome→兴趣引导），不被回跳打断注册引导流；
- * 2) 有 login:redirect（401 被踢时 request.ts 记录的原页面完整路径·含 query）→ reLaunch 回原页
- *    （项目为自定义底部导航非原生 tabBar，主 tab 页与普通页统一走 reLaunch，无需 switchTab 分叉）；
- * 3) 无 redirect → 维持原行为回首页。
- * 🔴 消费顺序：读取时不删。只在「真正 reLaunch 回原页」的分支里才 remove（一次性凭证被用掉）；
- * welcome 分支与非法值分支属明确放弃，也 remove（防残留下次登录误跳），但绝不"先删后判"——
- * 原实现读到即删，命中 welcome 分支时 redirect 已删未用，纯属白丢。
- * 拒绝 pkg-auth 自身路径防回跳成环。
- */
-function goAfterLogin() {
-  // SWR 首页 feed 缓存跨账号防串号：登录成功即清（覆盖"未退出直接换号"路径，
-  // 与 settings 退出登录处的清理成对；两处都清=双保险）。key 与首页 FEED_CACHE_KEY 同名。
-  try { uni.removeStorageSync('feed:home:cache') } catch { /* 清缓存失败不阻断登录流 */ }
-  let redirect = ''
-  try {
-    redirect = uni.getStorageSync('login:redirect') || ''
-  } catch {
-    // 读取失败按无 redirect 处理
-  }
-  const consumeRedirect = () => {
-    try { uni.removeStorageSync('login:redirect') } catch { /* 清除失败不阻断跳转 */ }
-  }
-  if (!hasCompletedInterestGuide()) {
-    // 欢迎峰值页优先于回跳：此处是「明确放弃」redirect（预期行为·引导流不被打断），
-    // 放弃时同样 remove，避免残留到下次登录被误消费
-    if (redirect) consumeRedirect()
-    reLaunch('/welcome')
-    return
-  }
-  if (redirect && redirect.startsWith('/') && !redirect.startsWith('/pkg-auth/')) {
-    // 唯一「真正消费」redirect 的分支：到这里才 remove（一次性）
-    consumeRedirect()
-    uni.reLaunch({
-      url: redirect,
-      // 回跳失败（目标页被下架等）兜底回首页，不让用户卡在登录页
-      fail: () => uni.reLaunch({ url: '/pages/index/index' }),
-    })
-    return
-  }
-  // redirect 为空或非法（非 / 开头 / pkg-auth 自身路径被拒）：非法值也清掉，防脏数据长期滞留
-  if (redirect) consumeRedirect()
-  uni.reLaunch({ url: '/pages/index/index' })
+/** 所有登录方式共享服务端兴趣状态和安全回跳，不在欢迎页丢弃目标。 */
+async function goAfterLogin() {
+  await continueAfterLogin()
 }
 
 /** 置灰按钮点击不再静默：按填写顺序提示第一个缺项（校验口径与 canSubmit 完全一致） */
@@ -617,7 +576,7 @@ async function handleLogin() {
         if (!bound) uni.showToast({ title: '已登录，微信快捷进入可稍后再试', icon: 'none' })
       }
       // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
-      goAfterLogin()
+      await goAfterLogin()
     } else {
       error.value = res.message || '登录失败'
     }
@@ -687,7 +646,7 @@ async function handleThirdParty(_type: 'wechat') {
       setRefreshToken(loginData.refreshToken || '')
       setUserInfo(loginData.user)
       // 新用户先走欢迎峰值页；老用户优先回被 401 打断的原页面，无则回首页（goAfterLogin 统一处理）
-      goAfterLogin()
+      await goAfterLogin()
     } else if (paipanEntry.value && /尚未关联|手机号验证/u.test(res.message || '')) {
       bindWechatAfterPhone.value = true
       loginType.value = 'phone'
@@ -744,7 +703,7 @@ async function handleAppleLogin() {
       setToken(loginData.token)
       setRefreshToken(loginData.refreshToken || '')
       setUserInfo(loginData.user)
-      goAfterLogin()
+      await goAfterLogin()
       return
     }
     error.value = res.message || 'Apple 登录失败'
@@ -1048,12 +1007,14 @@ onUnmounted(() => {
   margin-left: 8rpx;
 }
 .guest-entry {
-  min-height: 72rpx;
+  min-height: max(44px, 96rpx);
+  padding: 8rpx 24rpx;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #76695f;
-  font-size: 27rpx;
+  font-size: max(16px, 32rpx);
   text-decoration: underline;
   text-underline-offset: 6rpx;
 }

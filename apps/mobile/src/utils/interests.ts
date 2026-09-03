@@ -1,10 +1,9 @@
 /**
  * 用户兴趣主题（T4 新手旅程 · 2026-07-03 董事长拍板）
  * 六大主题替代原 24 个碎片标签：一步选完（1-3 个），驱动首页「今日学一点」个性化。
- * 存储：本地 storage 为真源（未登录也可用）；同时上报埋点供后端个性化演进。
+ * 真源为服务端当前账号资料；本机只读取已登录账号缓存，不继承历史全局兴趣键。
  */
-import { getStorage, setStorage } from '@/utils/storage'
-import { track } from '@/composables/useTrack'
+import { getToken, getUserInfo, setUserInfo } from '@/utils/storage'
 
 export interface InterestTheme {
   key: string
@@ -23,25 +22,58 @@ export const INTEREST_THEMES: InterestTheme[] = [
   { key: 'yayi', label: '琴棋雅艺', desc: '古琴 · 香道 · 雅集', icon: 'music', tags: ['古典音乐', '琴棋书画'] },
 ]
 
-const KEY = 'user_interest_themes'
-const GUIDE_COMPLETED_KEY = 'user_interest_guide_completed'
+export interface AccountInterestState {
+  id?: string
+  interestCategories?: string[]
+  interestGuideCompleted?: boolean
+}
 
-/** 保存所选主题（key 列表），并上报埋点供个性化演进 */
-export function saveInterestThemes(keys: string[]): void {
-  const valid = keys.filter((k) => INTEREST_THEMES.some((t) => t.key === k)).slice(0, 3)
-  setStorage(KEY, valid)
-  if (valid.length > 0) setStorage(GUIDE_COMPLETED_KEY, true)
-  try {
-    track.custom('interests_selected', { themes: valid })
-  } catch {
-    /* 埋点失败不影响主流程 */
+export type InterestGuideStatus = 'complete' | 'pending' | 'unknown'
+
+/** 非空历史兴趣也视为完成；缺字段不能被误判成首次登录。 */
+export function interestGuideStatus(user: AccountInterestState | null | undefined): InterestGuideStatus {
+  if (!user?.id) return 'unknown'
+  if (user.interestCategories !== undefined && !Array.isArray(user.interestCategories)) return 'unknown'
+  if (user.interestGuideCompleted === true || user.interestCategories?.some((value) => typeof value === 'string' && value.trim())) return 'complete'
+  return user.interestGuideCompleted === false ? 'pending' : 'unknown'
+}
+
+/** 引导保存主题名称，资料页复用同一词表；兼容历史细分标签。 */
+export function interestCategoriesForThemes(keys: string[]): string[] {
+  return INTEREST_THEMES.filter((theme) => keys.includes(theme.key)).slice(0, 3).map((theme) => theme.label)
+}
+
+const LEGACY_THEME_TAGS: Record<string, string[]> = {
+  yixue: ['易经', '风水', '八字', '梅花易数', '六爻', '面相', '手相', '姓名学', '择日', '阴宅', '阳宅', '命理', '占卜', '周易'],
+  jingdian: ['国学', '道学', '儒学'],
+}
+
+export function interestThemesForCategories(categories: string[]): string[] {
+  return INTEREST_THEMES.filter((theme) => [theme.key, theme.label, ...theme.tags, ...(LEGACY_THEME_TAGS[theme.key] || [])]
+    .some((tag) => categories.includes(tag))).map((theme) => theme.key)
+}
+
+/** 只更新同一已登录账号；迟到响应不得覆盖另一账号资料。 */
+export function hydrateAccountInterests(user: AccountInterestState): boolean {
+  const current = getUserInfo<AccountInterestState>()
+  if (!getToken() || !user.id || current?.id !== user.id || interestGuideStatus(user) === 'unknown') return false
+  setUserInfo({ ...current, interestCategories: user.interestCategories || [], interestGuideCompleted: interestGuideStatus(user) === 'complete' })
+  return true
+}
+
+/** 写入必须由服务端明确确认，不能把 HTTP 200 或请求参数当作持久化证据。 */
+export function hydrateConfirmedInterestSave(user: AccountInterestState | null | undefined, accountId: string): void {
+  if (user?.id !== accountId || user.interestGuideCompleted !== true || !Array.isArray(user.interestCategories)
+    || !user.interestCategories.every((value) => typeof value === 'string') || !hydrateAccountInterests(user)) {
+    throw new Error('兴趣保存尚未确认，请稍后重试')
   }
 }
 
 /** 读取所选主题 key 列表（未选过返回空数组） */
 export function getInterestThemes(): string[] {
-  const v = getStorage<string[]>(KEY, [])
-  return Array.isArray(v) ? v : []
+  if (!getToken()) return []
+  const user = getUserInfo<AccountInterestState>()
+  return user?.id && Array.isArray(user.interestCategories) ? interestThemesForCategories(user.interestCategories) : []
 }
 
 /** 是否已完成兴趣选择（welcome 页据此决定是否进入引导） */
@@ -49,19 +81,9 @@ export function hasSelectedInterests(): boolean {
   return getInterestThemes().length > 0
 }
 
-/** 记录用户主动跳过；不伪造兴趣，首页继续使用按日期/时段轮换的默认主题。 */
-export function markInterestGuideSkipped(): void {
-  setStorage(GUIDE_COMPLETED_KEY, true)
-  try {
-    track.custom('interests_skipped', {})
-  } catch {
-    /* 埋点失败不影响主流程 */
-  }
-}
-
 /** 是否已经完成过兴趣引导（选过或明确跳过），避免每次登录重复拦截。 */
 export function hasCompletedInterestGuide(): boolean {
-  return hasSelectedInterests() || getStorage<boolean>(GUIDE_COMPLETED_KEY, false) === true
+  return !!getToken() && interestGuideStatus(getUserInfo<AccountInterestState>()) === 'complete'
 }
 
 /** 一年中的第几天（稳定的「每日轮换」随机源，每天变化一次） */

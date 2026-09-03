@@ -13,6 +13,7 @@ import { Prisma } from "@prisma/client";
 import { isUniqueConstraintError } from "../../common/prisma-errors";
 import { resolveTargets, targetKey } from "./target-resolver";
 import { safePagination } from "../../common/pagination";
+import { VideoInteractionStore } from "../video/video-interaction.store";
 
 @Injectable()
 export class InteractionService {
@@ -37,6 +38,12 @@ export class InteractionService {
 
   async toggleLike(userId: string, dto: LikeDto) {
     this.assertGenericInteractionTarget(dto.targetType, dto.targetId);
+    if (dto.targetType === "VIDEO") {
+      const result = await new VideoInteractionStore(this.prisma).toggleLike(userId, dto.targetId);
+      // 保留通用入口既有推荐行为记录，只在互动事务成功且为新增点赞时记录。
+      if (result.liked) this.prisma.userBehavior.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId, behavior: "LIKE", weight: 1 } }).catch((err) => this.logger.warn("用户行为记录失败", err));
+      return result;
+    }
     const where = { userId_targetType_targetId: { userId, targetType: dto.targetType, targetId: dto.targetId } };
     const existing = await this.prisma.like.findUnique({ where });
 
@@ -67,6 +74,7 @@ export class InteractionService {
     if (like.userId !== userId) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "只能取消自己的点赞");
     }
+    if (like.targetType === "VIDEO") return new VideoInteractionStore(this.prisma).removeLike(userId, like.targetId, likeId);
     await this.prisma.like.delete({ where: { id: likeId } });
     return { success: true };
   }
@@ -236,6 +244,11 @@ export class InteractionService {
   // ═══════════════════ 收藏 ═══════════════════
 
   async toggleCollect(userId: string, dto: CollectDto) {
+    if (dto.targetType === "VIDEO") {
+      const result = await new VideoInteractionStore(this.prisma).toggleCollect(userId, dto.targetId);
+      if (result.collected) this.prisma.userBehavior.create({ data: { userId, targetType: dto.targetType, targetId: dto.targetId, behavior: "COLLECT", weight: 2 } }).catch((err) => this.logger.warn("用户行为记录失败", err));
+      return result;
+    }
     const where = { userId_targetType_targetId: { userId, targetType: dto.targetType, targetId: dto.targetId } };
     const existing = await this.prisma.collect.findUnique({ where });
 

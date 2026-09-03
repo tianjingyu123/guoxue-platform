@@ -51,6 +51,8 @@ const mockPrisma = {
   },
   video: {
     findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn(),
+    update: jest.fn(),
   },
   product: {
     findMany: jest.fn().mockResolvedValue([]),
@@ -71,6 +73,7 @@ const mockPrisma = {
   userBehavior: {
     create: jest.fn().mockResolvedValue({}),
   },
+  $transaction: jest.fn(),
 }
 
 const mockNotification = { send: jest.fn().mockResolvedValue({}) }
@@ -91,6 +94,7 @@ describe("InteractionService", () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPrisma.$transaction.mockImplementation(async (operation) => operation(mockPrisma))
   })
 
   // ═══════════════════ 点赞 ═══════════════════
@@ -119,6 +123,31 @@ describe("InteractionService", () => {
   })
 
   describe("removeLike", () => {
+    it("取消视频点赞同步扣减视频计数，且不创建反向点赞", async () => {
+      mockPrisma.like.findUnique.mockResolvedValue({ id: "l1", userId: "u1", targetType: "VIDEO", targetId: "v1" })
+      mockPrisma.video.findUnique.mockResolvedValue({ id: "v1", likeCount: 5 })
+      mockPrisma.video.update.mockResolvedValue({ likeCount: 4 })
+      expect(await svc.removeLike("u1", "l1")).toEqual({ success: true })
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+      expect(mockPrisma.video.update).toHaveBeenCalledWith({ where: { id: "v1" }, data: { likeCount: 4 } })
+      expect(mockPrisma.like.create).not.toHaveBeenCalled()
+    })
+
+    it("视频已删除仍可取消自己的历史点赞", async () => {
+      mockPrisma.like.findUnique.mockResolvedValue({ id: "l1", userId: "u1", targetType: "VIDEO", targetId: "v1" })
+      mockPrisma.video.findUnique.mockResolvedValue(null)
+      await svc.removeLike("u1", "l1")
+      expect(mockPrisma.like.delete).toHaveBeenCalledWith({ where: { id: "l1" } })
+      expect(mockPrisma.video.update).not.toHaveBeenCalled()
+    })
+
+    it("事务内再次校验记录归属，拒绝检查后记录漂移", async () => {
+      mockPrisma.like.findUnique.mockResolvedValueOnce({ id: "l1", userId: "u1", targetType: "VIDEO", targetId: "v1" })
+        .mockResolvedValueOnce({ id: "l1", userId: "other", targetType: "VIDEO", targetId: "v1" })
+      await expect(svc.removeLike("u1", "l1")).rejects.toThrow(BusinessException)
+      expect(mockPrisma.like.delete).not.toHaveBeenCalled()
+    })
+
     it("按记录 ID 删除自己的点赞", async () => {
       mockPrisma.like.findUnique.mockResolvedValue({ id: "l1", userId: "u1", targetType: "ARTICLE", targetId: "a1" })
       mockPrisma.like.delete.mockResolvedValue({})

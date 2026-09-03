@@ -22,6 +22,7 @@
       class="ig-skip"
       role="button"
       aria-label="跳过兴趣选择"
+      :aria-disabled="saving ? 'true' : 'false'"
       tabindex="0"
       hover-class="ig-skip-hover"
       @tap="handleSkip"
@@ -70,17 +71,18 @@
 
     <!-- 底部操作区 -->
     <view class="ig-footer">
+      <text v-if="saveError" class="ig-save-error" role="alert">{{ saveError }}</text>
       <view
         class="ig-submit"
         :class="{ 'is-active': selected.length > 0 }"
         role="button"
-        :aria-disabled="selected.length === 0 ? 'true' : 'false'"
+        :aria-disabled="saving || selected.length === 0 ? 'true' : 'false'"
         tabindex="0"
         @tap="handleSubmit"
         @keydown="activateOnKeyboard($event, handleSubmit)"
       >
         <text class="ig-submit-text" :class="{ 'is-active': selected.length > 0 }">
-          {{ selected.length > 0 ? '开启我的国学之旅' : '至少选 1 个' }}
+          {{ saving ? '正在保存…' : selected.length > 0 ? '开启我的国学之旅' : '至少选 1 个' }}
         </text>
         <AppIcon v-if="selected.length > 0" name="arrow-right" :size="32" color="#FFFFFF" />
       </view>
@@ -92,8 +94,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
-import { reLaunch } from '@/utils/router'
-import { INTEREST_THEMES, markInterestGuideSkipped, saveInterestThemes } from '@/utils/interests'
+import { INTEREST_THEMES, getInterestThemes } from '@/utils/interests'
+import { completeAccountInterestGuide } from '@/lib/interest-data'
+import { finishAuthJourney } from '@/utils/auth-journey'
 
 const DECO_SYMBOLS = ['☯', '☷', '☵', '☳', '☴']
 const MAX_SELECT = 3
@@ -101,7 +104,9 @@ const MAX_SELECT = 3
 // 六大主题卡数据（共享真源，勿在页面内复制）
 const themes = INTEREST_THEMES
 
-const selected = ref<string[]>([])
+const selected = ref<string[]>(getInterestThemes().slice(0, MAX_SELECT))
+const saving = ref(false)
+const saveError = ref('')
 // 防重复：提交/跳过后不再响应任何操作
 let navigated = false
 
@@ -116,7 +121,7 @@ function isSelected(key: string) {
 }
 
 function toggleTheme(key: string) {
-  if (navigated) return
+  if (navigated || saving.value) return
   if (isSelected(key)) {
     selected.value = selected.value.filter((k) => k !== key)
     return
@@ -128,22 +133,28 @@ function toggleTheme(key: string) {
   selected.value = [...selected.value, key]
 }
 
-// 保存所选主题并进首页
-function handleSubmit() {
-  if (navigated) return
+async function handleSubmit() {
   if (selected.value.length === 0) return
-  navigated = true
-  saveInterestThemes(selected.value)
-  // 用完整页面路径（'/' 在 ROUTE_MAP 无映射会原样透传，小程序端不可达）
-  reLaunch('/pages/index/index')
+  await saveAndContinue(selected.value)
 }
 
-// 跳过：不保存，直接进首页
-function handleSkip() {
-  if (navigated) return
-  navigated = true
-  markInterestGuideSkipped()
-  reLaunch('/pages/index/index')
+async function handleSkip() {
+  await saveAndContinue()
+}
+
+async function saveAndContinue(keys?: string[]) {
+  if (navigated || saving.value) return
+  saving.value = true
+  saveError.value = ''
+  try {
+    await completeAccountInterestGuide(keys)
+    navigated = true
+    finishAuthJourney()
+  } catch (error) {
+    saveError.value = (error as Error)?.message || '保存失败，请重试；本次设置尚未完成'
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 
@@ -336,6 +347,7 @@ function handleSkip() {
   color: #bbbbbb;
   margin-top: 20rpx;
 }
+.ig-save-error { display: block; margin-bottom: 16rpx; color: #a21931; font-size: 28rpx; line-height: 1.5; }
 
 @media (prefers-reduced-motion: reduce) {
   .ig-card,

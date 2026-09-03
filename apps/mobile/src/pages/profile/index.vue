@@ -359,7 +359,11 @@ function applyRole(role: string) {
         </view>
         <view class="id-info">
           <view class="id-name-row">
-            <text class="id-name" role="heading" aria-level="1">{{ displayName }}</text>
+            <view v-if="isGuest" class="id-login" role="link" tabindex="0" aria-label="登录或注册"
+              @tap="go('/mine/edit-profile')" @keydown="activateOnKeyboard($event, () => go('/mine/edit-profile'))">
+              <text class="id-name">{{ displayName }}</text>
+            </view>
+            <text v-else class="id-name" role="heading" aria-level="1">{{ displayName }}</text>
             <AppIcon v-if="userData.isVerified" name="shield" :size="28" color="#4A90D9" />
             <view
               v-if="equippedTitle"
@@ -636,6 +640,8 @@ function applyRole(role: string) {
 .id-info { flex: 1; min-width: 0; }
 .id-name-row { display: flex; align-items: center; gap: 12rpx; }
 .id-name { font-size: 34rpx; font-weight: 700; color: #2B2620; }
+.id-login { display: flex; align-items: center; min-height: 44px; min-width: 44px; padding: 4rpx 0; }
+.id-login:focus-visible { outline: 2px solid #C41E3A; outline-offset: 4px; border-radius: 4px; }
 .title-chip { padding: 2rpx 12rpx; border: 2rpx solid #C41E3A; border-radius: 8rpx; background: rgba(196,30,58,0.06); }
 .title-chip-txt { font-family: var(--font-serif); font-size: 24rpx; font-weight: 600; color: #C41E3A; letter-spacing: 2rpx; }
 .id-sign { display: block; font-size: 26rpx; color: #8A8578; margin-top: 10rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

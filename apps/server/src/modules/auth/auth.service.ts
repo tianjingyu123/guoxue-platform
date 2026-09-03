@@ -566,6 +566,7 @@ export class AuthService {
           birthday: true,
           bio: true,
           interestCategories: true,
+          interestGuideCompleted: true,
           identityVerified: true,
           paymentPasswordHash: true,
           memberLevel: true,
@@ -602,6 +603,7 @@ export class AuthService {
     ];
     return {
       ...rest,
+      interestGuideCompleted: user?.interestGuideCompleted === true || (user?.interestCategories?.length ?? 0) > 0,
       roles: mergedRoles,
       paymentPasswordSet: !!paymentPasswordHash,
       permissions,
@@ -1004,6 +1006,8 @@ export class AuthService {
           phone: true,
           memberLevel: true,
           memberExpire: true,
+          interestCategories: true,
+          interestGuideCompleted: true,
         },
       }),
       this.prisma.userRole.findMany({
@@ -1016,7 +1020,11 @@ export class AuthService {
     return {
       accessToken: tokenPair.accessToken,
       refreshToken: tokenPair.refreshToken,
-      user: { ...user, roles },
+      user: {
+        ...user,
+        interestGuideCompleted: user?.interestGuideCompleted === true || (user?.interestCategories?.length ?? 0) > 0,
+        roles,
+      },
     };
   }
 

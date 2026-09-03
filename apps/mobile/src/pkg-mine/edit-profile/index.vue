@@ -122,12 +122,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartAvatar from '@/components/common/smart-avatar.vue'
 import { mineApi } from '@/lib/mine-data'
-import { getUserInfo, setUserInfo } from '@/utils/storage'
+import { getToken, getUserInfo, setUserInfo } from '@/utils/storage'
 import { uploadImage } from '@/utils/request'
+import { INTEREST_THEMES, hydrateConfirmedInterestSave } from '@/utils/interests'
 
 interface UserProfile {
   avatar: string
@@ -136,14 +137,9 @@ interface UserProfile {
   interests: string[]
 }
 
-const defaultInterests = [
-  '易经', '风水', '八字', '梅花易数', '六爻',
-  '奇门遁甲', '紫微斗数', '面相', '手相', '姓名学',
-  '择日', '阴宅', '阳宅', '命理', '占卜',
-  '国学', '道学', '佛学', '儒学', '周易',
-]
-
 const profile = ref<UserProfile>({ avatar: '', nickname: '', bio: '', interests: [] })
+// 新选择与首次引导共用主题；历史细分标签保留，用户可主动移除，不静默丢弃。
+const defaultInterests = computed(() => [...new Set([...INTEREST_THEMES.map((theme) => theme.label), ...profile.value.interests])])
 const loading = ref(true)
 const loadError = ref('')
 const saving = ref(false)
@@ -242,20 +238,26 @@ function validate() {
 async function handleSave() {
   if (saving.value || avatarUploading.value) return
   if (!validate()) return
+  const account = getUserInfo<{ id?: string }>()
+  const token = getToken()
+  if (!token || !account?.id) return
   saving.value = true
   try {
-    await mineApi.updateProfile({
+    const saved = await mineApi.updateProfile({
       nickname: profile.value.nickname,
       avatar: profile.value.avatar,
       bio: profile.value.bio,
       interestCategories: profile.value.interests,
+      interestGuideCompleted: true,
     })
+    if (getToken() !== token || getUserInfo<{ id?: string }>()?.id !== account.id) return
+    hydrateConfirmedInterestSave(saved, account.id)
     // 回写本地 userInfo 缓存，使全站（海报/证书/IM/短视频等）用 getUserInfo() 的展示位即时同步新昵称/头像/简介
     setUserInfo({
       ...(getUserInfo() || {}),
-      nickname: profile.value.nickname,
-      avatar: profile.value.avatar,
-      bio: profile.value.bio,
+      ...(typeof saved.nickname === 'string' ? { nickname: saved.nickname } : {}),
+      ...(typeof saved.avatar === 'string' ? { avatar: saved.avatar } : {}),
+      ...(typeof saved.bio === 'string' ? { bio: saved.bio } : {}),
     })
     uni.showToast({ title: '保存成功', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 600)

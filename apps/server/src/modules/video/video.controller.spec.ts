@@ -61,6 +61,11 @@ describe("VideoController", () => {
     expect(mockVideoSvc.list).toHaveBeenCalled();
   });
 
+  it("视频列表使用认证账号补态，不从查询参数读取账号", async () => {
+    await ctrl.list({ user: { id: "viewer-1", roles: [] } } as any, { page: 1, pageSize: 20, userId: "other" } as any);
+    expect(mockVideoSvc.list).toHaveBeenCalledWith(expect.not.objectContaining({ userId: "other" }), "viewer-1");
+  });
+
   it("GET /videos/:id — 视频详情", async () => {
     const result: any = await ctrl.detail("v1", { user: undefined } as any);
     expect(result.title).toBe("国学讲座");

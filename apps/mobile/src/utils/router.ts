@@ -575,6 +575,12 @@ export function resolveRoute(url: string): string {
   return u
 }
 
+/** 登录回跳仅接收已登记的站内页面；不依赖原生路由失败来阻止任意地址。 */
+export function isRegisteredAppRoute(path: string): boolean {
+  return MAIN_TABS.includes(path) || Object.values(ROUTE_MAP).some((target) => target.split('?')[0] === path)
+    || DYNAMIC_ROUTES.some(([, target]) => target.split('?')[0] === path)
+}
+
 export function toastComingSoon() {
   uni.showToast({ title: '功能开发中', icon: 'none' })
 }

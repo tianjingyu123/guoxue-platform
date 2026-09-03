@@ -78,6 +78,8 @@ export default {
       removalObserver: null,
       lastCommandSeq: -1,
       lastTimeEventAt: 0,
+      gestureSequence: 0,
+      activeGestureId: 0,
     }
   },
   mounted() {
@@ -86,6 +88,7 @@ export default {
   },
   methods: {
     disposeVideo() {
+      this.activeGestureId = 0
       this.removalObserver && this.removalObserver.disconnect()
       this.removalObserver = null
       if (!this.video) return
@@ -158,25 +161,31 @@ export default {
       }
       host.addEventListener('touchstart', (event) => {
         event.stopPropagation()
+        this.activeGestureId = ++this.gestureSequence
         const point = gesturePoint(event, false)
-        this.emitToOwner('gesture', { phase: 'start', ...point })
+        this.emitToOwner('gesture', { phase: 'start', gestureId: this.activeGestureId, ...point })
       }, { passive: true })
       host.addEventListener('touchmove', (event) => {
         event.stopPropagation()
         event.preventDefault()
         const point = gesturePoint(event, false)
-        this.emitToOwner('gesture', { phase: 'move', ...point })
+        if (this.activeGestureId) this.emitToOwner('gesture', { phase: 'move', gestureId: this.activeGestureId, ...point })
       }, { passive: false })
       host.addEventListener('touchend', (event) => {
         event.stopPropagation()
+        if (!this.activeGestureId) return
         const point = gesturePoint(event, true)
-        this.emitToOwner('gesture', { phase: 'end', ...point })
+        this.emitToOwner('gesture', { phase: 'end', gestureId: this.activeGestureId, ...point })
+        this.activeGestureId = 0
       }, { passive: true })
       host.addEventListener('touchcancel', (event) => {
         event.stopPropagation()
         const point = gesturePoint(event, true)
-        this.emitToOwner('gesture', { phase: 'cancel', ...point })
+        if (this.activeGestureId) this.emitToOwner('gesture', { phase: 'cancel', gestureId: this.activeGestureId, ...point })
+        this.activeGestureId = 0
       }, { passive: true })
+      // 触摸已经由桥派发；阻止同一宿主随后合成的 click 再冒泡成祖先 tap。
+      host.addEventListener('click', (event) => { event.stopPropagation(); event.preventDefault() })
       host.appendChild(video)
       this.video = video
       // renderjs 不支持 beforeUnmount/beforeDestroy，观察宿主移除后确定性释放解码器。

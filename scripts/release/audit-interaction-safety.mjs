@@ -361,7 +361,7 @@ const checks = [
         'role="group"',
         'role="checkbox"',
         ':aria-checked="isSelected(theme.key) ? \'true\' : \'false\'"',
-        ':aria-disabled="selected.length === 0 ? \'true\' : \'false\'"',
+        ':aria-disabled="saving || selected.length === 0 ? \'true\' : \'false\'"',
         'aria-live="polite"',
         "@media (prefers-reduced-motion: reduce)",
       ]) &&

@@ -56,6 +56,7 @@ import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo, reLaunch } from '@/utils/router'
 import { BRAND } from '@/lib/brand'
 import { hasCompletedInterestGuide } from '@/utils/interests'
+import { finishAuthJourney } from '@/utils/auth-journey'
 
 const logoSrc = ref('/static/logo.webp')
 const slogan = BRAND.slogan
@@ -81,10 +82,9 @@ function handleNavigate() {
   if (navigated) return
   navigated = true
   if (countdownTimer) clearInterval(countdownTimer)
-  // 本地真源判断：已完成兴趣引导（选择或跳过）直接进首页，否则进入单步 6 主题卡
+  // 当前账号缓存来自服务端；欢迎页不消费安全回跳目标。
   if (hasCompletedInterestGuide()) {
-    // 用完整页面路径（'/' 在 ROUTE_MAP 无映射会原样透传，小程序端不可达）
-    reLaunch('/pages/index/index')
+    finishAuthJourney()
   } else {
     navigateTo('/interests-guide')
   }

@@ -198,6 +198,36 @@ describe("UserService", () => {
   // ═══════════════════ updateProfile ═══════════════════
 
   describe("updateProfile", () => {
+    it("主动跳过仅完成兴趣引导，不伪造兴趣或修改其他账号", async () => {
+      mockPrisma.user.update.mockResolvedValue({ id: "u1", interestCategories: [], interestGuideCompleted: true });
+      const result = await svc.updateProfile("u1", { interestGuideCompleted: true });
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: "u1" }, data: { interestGuideCompleted: true },
+        select: expect.objectContaining({ interestCategories: true, interestGuideCompleted: true }),
+      }));
+      expect(result.interestGuideCompleted).toBe(true);
+      expect(result.interestCategories).toEqual([]);
+    });
+
+    it("旧客户端保存非空兴趣也持久化完成态", async () => {
+      mockPrisma.user.update.mockResolvedValue({ id: "u1", interestCategories: ["经典研读"], interestGuideCompleted: true });
+      await svc.updateProfile("u1", { interestCategories: ["经典研读"] });
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+        data: { interestCategories: ["经典研读"], interestGuideCompleted: true },
+      }));
+    });
+
+    it("编辑清空兴趣不重置已完成状态", async () => {
+      mockPrisma.user.update.mockResolvedValue({ id: "u1", interestCategories: [], interestGuideCompleted: true });
+      await svc.updateProfile("u1", { interestCategories: [] });
+      expect(mockPrisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ data: { interestCategories: [] } }));
+    });
+
+    it("写库失败不得返回完成成功", async () => {
+      mockPrisma.user.update.mockRejectedValueOnce(new Error("写入失败"));
+      await expect(svc.updateProfile("u1", { interestGuideCompleted: true })).rejects.toThrow("写入失败");
+    });
+
     it("更新完整资料", async () => {
       mockPrisma.user.update.mockResolvedValue({
         id: "u1", nickname: "新昵称", avatar: "av.jpg", bio: "简介", gender: 1,

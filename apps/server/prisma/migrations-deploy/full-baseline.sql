@@ -174,6 +174,7 @@ CREATE TABLE "User" (
     "memberAutoRenew" BOOLEAN NOT NULL DEFAULT false,
     "paymentPasswordHash" TEXT,
     "interestCategories" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "interestGuideCompleted" BOOLEAN NOT NULL DEFAULT false,
     "identityVerified" BOOLEAN NOT NULL DEFAULT false,
     "identityVerifiedAt" TIMESTAMP(3),
     "identityLevel" "IdentityLevel" NOT NULL DEFAULT 'NONE',

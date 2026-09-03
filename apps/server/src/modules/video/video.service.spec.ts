@@ -18,6 +18,7 @@ const mockPrisma = {
   },
   like: {
     findUnique: jest.fn(),
+    findMany: jest.fn(),
     create: jest.fn(),
     delete: jest.fn(),
   },
@@ -35,6 +36,8 @@ const mockPrisma = {
   configSystem: {
     findUnique: jest.fn().mockResolvedValue(null), // 官方圈未配置：circleId 缺省保持 undefined
   },
+  follow: { findMany: jest.fn() },
+  $transaction: jest.fn(),
 };
 
 const mockVod = {
@@ -76,7 +79,14 @@ describe("VideoService", () => {
     svc = mod.get(VideoService);
   });
 
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockPrisma.like.findMany.mockResolvedValue([]);
+    mockPrisma.collect.findMany.mockResolvedValue([]);
+    mockPrisma.follow.findMany.mockResolvedValue([]);
+    mockPrisma.video.findMany.mockResolvedValue([]);
+    mockPrisma.$transaction.mockImplementation(async (operation) => operation(mockPrisma));
+  });
 
   describe("create", () => {
     it("创建视频成功", async () => {

@@ -37,7 +37,7 @@ export interface VideoAuthor {
   id: string
   name: string
   avatar: string
-  isFollowed: boolean
+  isFollowed?: boolean
   followers: number
   verified: boolean
 }
@@ -51,8 +51,9 @@ export interface VideoItem {
   likes: number
   comments: number
   shares: number
-  isLiked: boolean
-  isCollected: boolean
+  isLiked?: boolean
+  isCollected?: boolean
+  collectCount?: number
   music: string
   products: VideoProduct[]
   hotComments: VideoHotComment[]
@@ -239,11 +240,14 @@ export interface VideoListItem {
   coverUrl: string
   videoUrl?: string
   duration: number
-  author: { name: string; avatar: string }
+  author: { id?: string; name: string; avatar: string; isFollowed?: boolean }
   likes: number
   plays: number
   hasProduct: boolean
   isHot: boolean
+  isLiked?: boolean
+  isCollected?: boolean
+  isFollowed?: boolean
 }
 
 // ===== 搜索页（/videos/search）数据 —— 照搬原型 app/videos/search/page.tsx =====
@@ -313,6 +317,7 @@ interface RawVideo {
   coverUrl?: string; videoUrl?: string
   likeCount?: number; likes?: number; commentCount?: number; comments?: number; shareCount?: number; shares?: number
   products?: RawVideoProduct[]
+  isLiked?: boolean; isCollected?: boolean; isFollowed?: boolean; collectCount?: number
   /** 来源圈子（后端 /videos 与 /videos/:id 均 include circle:{id,name}） */
   circle?: { id?: string; name?: string } | null
 }
@@ -373,7 +378,7 @@ function adaptVideoItem(v: RawVideo): VideoItem {
       id: v.user?.id || '',
       name: v.user?.nickname || '',
       avatar: v.user?.avatar || '',
-      isFollowed: false,
+      isFollowed: knownInteractionState(v.isFollowed),
       followers: 0,
       verified: false,
     },
@@ -382,8 +387,9 @@ function adaptVideoItem(v: RawVideo): VideoItem {
     likes: v.likeCount ?? v.likes ?? 0,
     comments: v.commentCount ?? v.comments ?? 0,
     shares: v.shareCount ?? v.shares ?? 0,
-    isLiked: false,
-    isCollected: false,
+    isLiked: knownInteractionState(v.isLiked),
+    isCollected: knownInteractionState(v.isCollected),
+    collectCount: interactionCount(v.collectCount),
     music: '原声',
     // id 取 productId（VideoProduct 关联行的 id 是关联表主键，非商品 id·购买/加购要用商品 id）
     products: Array.isArray(v.products)
@@ -401,10 +407,10 @@ function adaptVideoListItem(v: VideoListItem): VideoItem {
     id: v.id,
     title: v.title,
     author: {
-      id: '',
+      id: v.author?.id || '',
       name: v.author?.name || '',
       avatar: v.author?.avatar || '',
-      isFollowed: false,
+      isFollowed: knownInteractionState(v.isFollowed ?? v.author?.isFollowed),
       followers: 0,
       verified: false,
     },
@@ -413,12 +419,20 @@ function adaptVideoListItem(v: VideoListItem): VideoItem {
     likes: v.likes ?? 0,
     comments: 0,
     shares: 0,
-    isLiked: false,
-    isCollected: false,
+    isLiked: knownInteractionState(v.isLiked),
+    isCollected: knownInteractionState(v.isCollected),
     music: '原声',
     products: [],
     hotComments: [],
   }
+}
+
+/** 缺字段保持未知，不将历史接口/畸形数据伪装成“未点赞”。 */
+function knownInteractionState(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined
+}
+function interactionCount(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
 }
 
 export const videoApi = {
@@ -502,9 +516,10 @@ export const videoApi = {
   },
 
   /** 收藏切换 — POST /videos/:id/collect（后端返回 {collected}） */
-  async collect(id: string): Promise<{ success: boolean; isCollected: boolean }> {
-    const res = await apiPost<{ collected: boolean }>(`/videos/${id}/collect`)
-    return { success: true, isCollected: !!res?.collected }
+  async collect(id: string): Promise<{ success: boolean; isCollected: boolean; collectCount?: number }> {
+    const res = await apiPost<{ collected: boolean; collectCount?: number }>(`/videos/${id}/collect`)
+    if (typeof res?.collected !== 'boolean') throw new Error('收藏状态暂不可用，请稍后重试')
+    return { success: true, isCollected: res.collected, collectCount: interactionCount(res.collectCount) }
   },
 
   /** 记录分享 — POST /videos/:id/share */
@@ -523,10 +538,11 @@ export const videoApi = {
     return { success: true, message: '删除成功' }
   },
 
-  /** 点赞切换 — POST /videos/:id/like（后端返回 {liked}，计数由页面本地维护） */
-  async like(id: string): Promise<{ success: boolean; isLiked: boolean }> {
-    const res = await apiPost<{ liked: boolean }>(`/videos/${id}/like`)
-    return { success: true, isLiked: !!res?.liked }
+  /** 点赞切换 — 使用后端确认状态和计数，不按本机旧缓存猜计数。 */
+  async like(id: string): Promise<{ success: boolean; isLiked: boolean; likeCount?: number }> {
+    const res = await apiPost<{ liked: boolean; likeCount?: number }>(`/videos/${id}/like`)
+    if (typeof res?.liked !== 'boolean') throw new Error('点赞状态暂不可用，请稍后重试')
+    return { success: true, isLiked: res.liked, likeCount: interactionCount(res.likeCount) }
   },
 
   /**

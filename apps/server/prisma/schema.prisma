@@ -48,6 +48,7 @@ model User {
   memberAutoRenew      Boolean       @default(false) // 连续包年标记（papay 代扣就绪前=到期提醒按续费价续费）
   paymentPasswordHash  String?
   interestCategories   String[]      @default([]) // 用户兴趣品类
+  interestGuideCompleted Boolean     @default(false) // 首次兴趣引导已选择或主动跳过，按账号持久化
   identityVerified     Boolean       @default(false) // 实名认证状态
   identityVerifiedAt   DateTime? // 实名认证通过时间
   identityLevel        IdentityLevel @default(NONE) // NONE / L1身份证核验 / L2人脸核身

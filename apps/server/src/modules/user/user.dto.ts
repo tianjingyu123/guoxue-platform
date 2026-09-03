@@ -70,6 +70,10 @@ export class UpdateProfileDto {
 
   @IsOptional() @IsArray() @IsString({ each: true })
   interestCategories?: string[];
+
+  // 完成态只能单向置真，编辑或清空兴趣不得重新触发首次引导。
+  @IsOptional() @IsIn([true])
+  interestGuideCompleted?: true;
 }
 
 export class UpdateUserStatusDto {

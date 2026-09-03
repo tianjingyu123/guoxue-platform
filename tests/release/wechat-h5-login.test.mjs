@@ -28,7 +28,7 @@ test("H5 微信 OAuth 使用一次性 state、十分钟时限并在换码前清�
   assert.match(loginPage, /WECHAT_OAUTH_MAX_AGE_MS\s*=\s*10 \* 60 \* 1000/u);
   assert.match(loginPage, /crypto\?\.getRandomValues/u);
   assert.match(loginPage, /attempt\.state === receivedState/u);
-  assert.match(loginPage, /clearWechatCallbackParams\(\)[\s\S]*authApi\.wechatLogin\(oauthCode, 'h5'\)/u);
+  assert.match(loginPage, /clearWechatCallbackParams\(\)[\s\S]*authApi\.wechatLogin\(oauthCode, 'h5', \{ createIfMissing: !paipanEntry\.value \}\)/u);
   assert.match(loginPage, /searchParams\.delete\('code'\)/u);
   assert.match(loginPage, /sessionStorage\.removeItem\(WECHAT_OAUTH_ATTEMPT_KEY\)/u);
 });

@@ -14,6 +14,8 @@ export interface UserInfo {
   avatar: string
   phone: string
   token: string
+  interestCategories?: string[]
+  interestGuideCompleted?: boolean
 }
 
 export interface AuthResponse {
