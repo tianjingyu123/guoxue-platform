@@ -317,10 +317,23 @@ test("管理员关闭悬赏按业务单号原子解冻并保留关闭证据", as
   assert.match(page, /\['OPEN', 'CLAIMED'\]\.includes/);
 });
 
-test("移动端数据大屏的顶部操作满足44px触控目标", async () => {
-  const styles = await read("apps/admin/src/styles/bigscreen.css");
+test("移动端后台与数据大屏关键操作满足44px触控目标", async () => {
+  const [styles, layout, pending, command, topic] = await Promise.all([
+    read("apps/admin/src/styles/bigscreen.css"),
+    read("apps/admin/src/views/Layout.vue"),
+    read("apps/admin/src/components/PendingOverview.vue"),
+    read("apps/admin/src/styles/platform-command.css"),
+    read("apps/admin/src/styles/topic-screen.css"),
+  ]);
   assert.match(
     styles,
     /@media \(max-width: 560px\) \{[\s\S]{0,180}?\.screen-presentation-button \{[^}]*min-height: 44px/,
   );
+  assert.match(layout, /\.skip-link \{[\s\S]{0,220}?min-height: 44px/);
+  assert.match(layout, /\.command-trigger \{ width: 44px; height: 44px/);
+  assert.match(layout, /\.notify-btn \{ width: 44px; height: 44px/);
+  assert.match(pending, /\.po-header :deep\(\.el-button\) \{ min-height: 44px/);
+  assert.match(command, /\.period-switch button \{ min-width: 44px; min-height: 44px/);
+  assert.match(command, /\.operations-strip a \{[^}]*min-height: 44px/);
+  assert.match(topic, /\.topic-screen \.ts-button,[\s\S]{0,160}?min-height: 44px/);
 });

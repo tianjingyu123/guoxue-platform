@@ -184,6 +184,7 @@ onMounted(load);
 .po-item:focus-visible { outline: 2px solid var(--color-tech); outline-offset: 3px; }
 @media (max-width: 600px) {
   .po-sub { flex-basis: calc(100% - 80px); min-width: 0; }
+  .po-header :deep(.el-button) { min-height: 44px; padding-block: 8px; }
 }
 .po-refresh {
   flex-shrink: 0;
