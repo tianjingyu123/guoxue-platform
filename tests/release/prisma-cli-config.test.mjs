@@ -79,3 +79,14 @@ test("生产与开发镜像运行阶段保留新 Prisma CLI 配置", () => {
     );
   }
 });
+
+test("开发镜像具备原生依赖编译工具链", () => {
+  const dockerfile = read("docker/Dockerfile.dev");
+
+  assert.match(dockerfile, /AS builder[\s\S]*apk add --no-cache python3 make g\+\+/u);
+  assert.ok(
+    dockerfile.indexOf("apk add --no-cache python3 make g++") <
+      dockerfile.indexOf("pnpm install --frozen-lockfile"),
+    "原生依赖工具链必须在安装依赖前就绪",
+  );
+});
