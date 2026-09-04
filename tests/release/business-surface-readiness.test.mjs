@@ -115,10 +115,17 @@ test("旧生产库补齐迁移只增加对象并先于依赖它们的手工迁�
     /ADD COLUMN IF NOT EXISTS "rejectedQuantity" INTEGER NOT NULL DEFAULT 0/u,
   );
 
-  assert.equal((enums.match(/^CREATE TYPE /gmu) ?? []).length, 3);
+  assert.equal((enums.match(/\bCREATE TYPE /gmu) ?? []).length, 3);
+  for (const enumName of ["TeamTaskType", "TeamTaskStatus", "MarketingContentKind"]) {
+    assert.match(
+      enums,
+      new RegExp(`IF NOT EXISTS \\(SELECT 1 FROM pg_type WHERE typname = '${enumName}'\\)`, "u"),
+      `枚举 ${enumName} 必须兼容生产库已存在状态`,
+    );
+  }
   assert.equal((enums.match(/ADD VALUE IF NOT EXISTS/gmu) ?? []).length, 11);
-  assert.equal((schema.match(/^CREATE TABLE /gmu) ?? []).length, 92);
-  assert.equal((schema.match(/ADD COLUMN/gmu) ?? []).length, 119);
+  const schemaExecutable = schema.replace(/^--.*$/gmu, "").trim().replace(/\r/gu, "");
+  assert.equal(schemaExecutable, "BEGIN;\nCOMMIT;");
   assert.match(schema, /^BEGIN;$/mu);
   assert.match(schema, /^COMMIT;$/mu);
 

@@ -1,14 +1,20 @@
 -- 生产旧库长期缺失当前模型依赖的枚举和值。
 -- 仅新增，不删除或重命名任何既有枚举值；IF NOT EXISTS 便于安全恢复。
 
--- CreateEnum
-CREATE TYPE "TeamTaskType" AS ENUM ('PROMOTE', 'RECRUIT', 'SALES', 'CUSTOM');
-
--- CreateEnum
-CREATE TYPE "TeamTaskStatus" AS ENUM ('OPEN', 'CLOSED');
-
--- CreateEnum
-CREATE TYPE "MarketingContentKind" AS ENUM ('SHORT_VIDEO', 'MOMENTS', 'XIAOHONGSHU');
+-- 真实生产库可能已经由手工 DDL 创建这些枚举，但尚未登记对应迁移。
+-- 用存在性判断兼容该历史状态，避免重复创建中断后续增量迁移。
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'TeamTaskType') THEN
+    CREATE TYPE "TeamTaskType" AS ENUM ('PROMOTE', 'RECRUIT', 'SALES', 'CUSTOM');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'TeamTaskStatus') THEN
+    CREATE TYPE "TeamTaskStatus" AS ENUM ('OPEN', 'CLOSED');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'MarketingContentKind') THEN
+    CREATE TYPE "MarketingContentKind" AS ENUM ('SHORT_VIDEO', 'MOMENTS', 'XIAOHONGSHU');
+  END IF;
+END $$;
 
 -- AlterEnum
 -- This migration adds more than one value to an enum.
