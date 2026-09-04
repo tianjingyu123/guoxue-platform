@@ -118,6 +118,10 @@ export function createCompass(opts: CompassOptions): CompassHandle {
   }
   // #endif
 
+  // #ifdef APP-PLUS
+  let appOrientationWatchId: number | null = null
+  // #endif
+
   const start = () => {
     if (running) return
     running = true
@@ -146,14 +150,30 @@ export function createCompass(opts: CompassOptions): CompassHandle {
     try {
       // 部分平台 onCompassChange 已自动 start，这里显式 start 做兜底
       uni.startCompass({
-        fail: () => {
-          if (!gotReading) opts.onStatus('unavailable')
-        },
+        // App 端还会并行监听 HTML5+ Orientation；单一来源失败不能提前宣告不可用。
+        fail: () => {},
       })
     } catch {
       // 防御：个别运行时 startCompass 缺失/抛错，仍等 onCompassChange 回调
     }
     armFallback()
+    // #endif
+
+    // #ifdef APP-PLUS
+    try {
+      const orientation = typeof plus === 'undefined' ? null : (plus as any).orientation
+      if (orientation?.watchOrientation) {
+        appOrientationWatchId = orientation.watchOrientation((reading: {
+          magneticHeading?: number
+          trueHeading?: number
+          alpha?: number
+        }) => {
+          const heading = [reading?.magneticHeading, reading?.trueHeading, reading?.alpha]
+            .find((value) => typeof value === 'number' && Number.isFinite(value))
+          if (typeof heading === 'number') emit(heading)
+        }, () => { /* 继续等待 uni 罗盘或统一超时 */ }, { frequency: interval })
+      }
+    } catch { /* 继续等待 uni 罗盘或统一超时 */ }
     // #endif
   }
 
@@ -203,6 +223,13 @@ export function createCompass(opts: CompassOptions): CompassHandle {
       u.stopCompass?.({})
     } catch {
       // 防御
+    }
+    // #endif
+
+    // #ifdef APP-PLUS
+    if (appOrientationWatchId !== null) {
+      try { (plus as any).orientation?.clearWatch?.(appOrientationWatchId) } catch { /* 已停止时忽略 */ }
+      appOrientationWatchId = null
     }
     // #endif
   }

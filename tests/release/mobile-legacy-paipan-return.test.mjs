@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
 import vm from 'node:vm'
-import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -14,6 +13,8 @@ const legacyData = fs.readFileSync('apps/mobile/src/lib/legacy-paipan-data.ts', 
 const pages = fs.readFileSync('apps/mobile/src/pages.json', 'utf8')
 const videoPage = fs.readFileSync('apps/mobile/src/pkg-video/detail/index.vue', 'utf8')
 const manifest = fs.readFileSync('apps/mobile/src/manifest.json', 'utf8')
+const nativeCompass = fs.readFileSync('apps/mobile/src/pkg-paipan3/luopan/compass.ts', 'utf8')
+const nativeCompassPage = fs.readFileSync('apps/mobile/src/pkg-paipan3/luopan/index.vue', 'utf8')
 
 test('H5 旧排盘由用户手势新窗口打开并保留可见返回入口', () => {
   assert.match(page, /window\.open\('', '_blank'\)/u)
@@ -72,12 +73,14 @@ test('App 旧排盘只在受信域名内兼容新窗口工具，并保留子页�
   assert.match(page, /bottom: '0px'/u)
   assert.match(page, /__rebuNativeSafeBottom/u)
   assert.match(page, /data-rebu-native-bottom/u)
-  assert.match(page, /padding-bottom',inset\+'px','important'/u)
+  assert.match(page, /Math\.max\(bodyPadding,inset\)/u)
+  assert.match(page, /style\.position==='fixed'\|\|style\.position==='absolute'/u)
+  assert.match(page, /looksLikeActionBar/u)
   assert.match(page, /plusrequire: 'none'/u)
   assert.match(page, /\$scope\?\.\$getAppWebview\?\.\(\)/u)
   assert.match(page, /page\?\.\$getAppWebview\?\.\(\)/u)
   assert.doesNotMatch(page, /plus\.webview\.currentWebview\(\)/u)
-  assert.match(page, /child\.addEventListener\?\.\('loading', \(\) => \{[\s\S]*stopLegacyCompass\(\)[\s\S]*reinject\(\)/u)
+  assert.match(page, /child\.addEventListener\?\.\('loading', \(\) => \{[\s\S]*pendingLegacyPayment = null[\s\S]*reinject\(\)/u)
   assert.match(page, /child\.addEventListener\?\.\('loaded', reveal\)/u)
   assert.match(page, /child\.addEventListener\?\.\('error',/u)
   assert.match(page, /if \(!reinject\(\)\) return[\s\S]*setContentVisible\?\.\(true\)[\s\S]*legacyAppMounted\.value = true/u)
@@ -115,16 +118,16 @@ test('App 预载桥在旧站首屏执行前补齐旧 APK 的 webviewJS 导航接
   assert.doesNotMatch(preload, /console\./u)
 })
 
-test('旧排盘按官方 App 协议恢复定位和罗盘，并声明最小系统权限', () => {
+test('旧排盘保留定位桥，电子罗盘改为平台自有原生页面', () => {
   assert.match(page, /uni\.getLocation\(\{/u)
   assert.match(page, /window\.setLocation/u)
   assert.match(page, /callback\(\$\{latitude\},\$\{longitude\}\)/u)
-  assert.match(page, /uni\.startCompass\(\{/u)
-  assert.match(page, /uni\.onCompassChange\(legacyCompassHandler\)/u)
-  assert.match(page, /window\.compassChange/u)
-  assert.match(page, /callback\(\$\{direction\}\)/u)
   assert.match(page, /else if \(action === 'location'\) requestLegacyLocation\(\)/u)
-  assert.match(page, /else if \(action === 'compass-start'\) startLegacyCompass\(\)/u)
+  assert.match(page, /else if \(action === 'compass-start'\) openNativeCompass\(child\)/u)
+  assert.match(page, /url: '\/pkg-paipan3\/luopan\/index\?source=paipan'/u)
+  assert.match(nativeCompassPage, /createCompass\(\{/u)
+  assert.match(nativeCompass, /uni\.onCompassChange\(mpHandler\)/u)
+  assert.match(nativeCompass, /orientation\.watchOrientation/u)
   assert.match(manifest, /"Geolocation"\s*:\s*\{\}/u)
   assert.match(manifest, /"Orientation"\s*:\s*\{\}/u)
   assert.match(manifest, /android\.permission\.ACCESS_COARSE_LOCATION/u)
@@ -137,6 +140,49 @@ test('系统底部安全区兼容旧版与新版字段，并传给排盘子窗�
   assert.match(page, /getSafeAreaInsets/u)
   assert.match(page, /insets\?\.deviceBottom/u)
   assert.match(page, /__rebuNativeSafeBottom/u)
+})
+
+test('第三方绝对定位与 fixed 购买栏都会抬到真实 WebView 安全区内', () => {
+  const bridge = page.match(/function legacyNavigationBridgeScript\(\): string \{\s*return `([\s\S]*?)`\s*\}/u)[1]
+  const makeBar = position => {
+    const values = new Map()
+    return {
+      values,
+      attrs: new Map(),
+      style: { setProperty: (key, value) => values.set(key, value) },
+      getAttribute(key) { return this.attrs.get(key) || '' },
+      setAttribute(key, value) { this.attrs.set(key, value) },
+      getBoundingClientRect: () => ({ bottom: 800, width: 360, height: 56 }),
+      computed: { position, bottom: '0px', paddingBottom: '0px' },
+    }
+  }
+  const fixed = makeBar('fixed')
+  const absolute = makeBar('absolute')
+  const ordinary = makeBar('static')
+  const bodyValues = new Map()
+  const body = { style: { setProperty: (key, value) => bodyValues.set(key, value) }, computed: { paddingBottom: '12px' } }
+  const rootValues = new Map()
+  const document = {
+    body,
+    documentElement: { clientHeight: 800, clientWidth: 360, style: { setProperty: (key, value) => rootValues.set(key, value) } },
+    querySelectorAll: selector => selector === 'body *' ? [fixed, absolute, ordinary] : [],
+    addEventListener: () => {},
+  }
+  const window = {
+    __rebuNativeSafeBottom: 34,
+    innerHeight: 800,
+    innerWidth: 360,
+    location: { href: 'https://www.yrydai.cn/member' },
+    history: { length: 1 },
+    getComputedStyle: node => node.computed,
+  }
+  window.window = window
+  vm.runInNewContext(bridge, { URL, window, document })
+  assert.equal(fixed.values.get('bottom'), '34px')
+  assert.equal(absolute.values.get('bottom'), '34px')
+  assert.equal(ordinary.values.has('bottom'), false)
+  assert.equal(bodyValues.get('padding-bottom'), '34px')
+  assert.equal(rootValues.get('--rebu-native-safe-bottom'), '34px')
 })
 
 test('预载桥只允许排盘官方 HTTPS 导航，支付交易号交给独立原生桥', () => {
@@ -273,13 +319,12 @@ test('排盘兼容桥真实接管新窗口、原支付和 iOS 双侧边缘返回
   assert.equal(backCount, 2)
 })
 
-test('排盘传感器离开页面停止，异步定位不泄露给后续第三方收银页', () => {
-  assert.match(page, /onHide\(\(\) => \{[\s\S]*?legacyPageVisible = false[\s\S]*?stopLegacyCompass\(false\)/u)
-  assert.match(page, /onShow\(\(\) => \{[\s\S]*?legacyCompassWanted\) startLegacyCompass\(\)/u)
+test('异步定位不泄露给后续第三方收银页，原生罗盘自行管理传感器生命周期', () => {
+  assert.match(page, /onHide\(\(\) => \{[\s\S]*?legacyPageVisible = false[\s\S]*?locationRequestId \+= 1/u)
   assert.match(page, /requestId !== locationRequestId[\s\S]*?child\.getURL\?\.\(\) !== requestUrl/u)
   assert.match(page, /child\.addEventListener\?\.\('loading', \(\) => \{[\s\S]*?locationRequestId \+= 1/u)
   assert.match(page, /function evalLegacyLocation[\s\S]*?isTrustedLegacyUrl\(String\(child\.getURL/u)
-  assert.match(page, /function evalLegacyCompass[\s\S]*?isTrustedLegacyUrl\(String\(child\.getURL/u)
+  assert.doesNotMatch(page, /function evalLegacyCompass|function startLegacyCompass/u)
 })
 
 test('空链接和锚点确认控件不被兼容桥拦成不支持，外链限制仍保留', () => {
@@ -318,105 +363,13 @@ test('空链接和锚点确认控件不被兼容桥拦成不支持，外链限�
   }
 })
 
-function compassRuntime({ throwOnSubscribe = false } = {}) {
-  const script = page.slice(page.indexOf('function stopLegacyCompass('), page.indexOf('function installLegacyNavigationBridge('))
-  const ts = createRequire(resolve('apps/mobile/package.json'))('typescript')
-  const timers = new Map()
-  const callbacks = []
-  const startOptions = []
-  const headings = []
-  const modals = []
-  let nextTimer = 0
-  const sandbox = {
-    legacyCompassHandler: null, legacyOrientationWatchId: null, legacyCompassTimer: null, legacyCompassSession: 0,
-    legacyCompassWanted: false, legacyPageVisible: true,
-    findLegacyChildWebview: () => ({ getURL: () => 'https://www.yrydai.cn/compass' }),
-    isTrustedLegacyUrl: () => true,
-    evalLegacyCompass: (value) => headings.push(value),
-    setTimeout: (fn, delay) => { const id = ++nextTimer; timers.set(id, { fn, delay }); return id },
-    clearTimeout: (id) => timers.delete(id),
-    uni: {
-      onCompassChange: (fn) => { if (throwOnSubscribe) throw new Error('NO_SENSOR'); callbacks.push(fn) },
-      offCompassChange: () => {}, stopCompass: () => {},
-      startCompass: (options) => startOptions.push(options),
-      showModal: (options) => modals.push(options),
-    },
-  }
-  vm.runInNewContext(ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText, sandbox)
-  return { sandbox, timers, callbacks, startOptions, headings, modals }
-}
-
-test('App 优先使用 HTML5+ 原生方向传感器并把磁北方向回传页面', () => {
-  const r = compassRuntime()
-  let orientationCallback
-  let cleared = null
-  r.sandbox.plus = {
-    orientation: {
-      watchOrientation: (callback, _fail, options) => {
-        orientationCallback = callback
-        assert.equal(options.frequency, 100)
-        return 73
-      },
-      clearWatch: id => { cleared = id },
-    },
-  }
-  r.sandbox.startLegacyCompass()
-  assert.equal(r.callbacks.length, 0, '原生方向服务可用时不重复启动 uni 罗盘')
-  orientationCallback({ magneticHeading: 361, trueHeading: 20, alpha: 30 })
-  assert.deepEqual(r.headings, [1])
-  r.sandbox.stopLegacyCompass()
-  assert.equal(cleared, 73)
-})
-
-test('罗盘无首帧数据会超时退出，不把无响应误报成缺少方向权限', () => {
-  const r = compassRuntime()
-  r.sandbox.startLegacyCompass()
-  const timer = [...r.timers.values()][0]
-  assert.equal(timer.delay, 8000)
-  timer.fn()
-  assert.equal(r.modals.length, 1)
-  assert.doesNotMatch(r.modals[0].content, /应用管理|打开方向权限|允许方向权限/u)
-  assert.equal(r.sandbox.legacyCompassWanted, false)
-  assert.equal(r.sandbox.legacyCompassHandler, null)
-  assert.equal(r.timers.size, 0)
-  r.startOptions[0].fail()
-  assert.equal(r.modals.length, 1, '已结束会话的迟到失败不能重复弹窗')
-})
-
-test('罗盘只回传有效数值，收到首帧后取消超时并归一化方向', () => {
-  const r = compassRuntime()
-  r.sandbox.startLegacyCompass()
-  for (const direction of [null, undefined, '90', NaN, Infinity]) r.callbacks[0]({ direction })
-  assert.deepEqual(r.headings, [])
-  assert.equal(r.timers.size, 1)
-  for (const direction of [0, -10, 370]) r.callbacks[0]({ direction })
-  assert.deepEqual(r.headings, [0, 350, 10])
-  assert.equal(r.timers.size, 0)
-})
-
-test('罗盘离页及新会话拒绝旧回调，失败不修改系统权限', () => {
-  const r = compassRuntime()
-  r.sandbox.startLegacyCompass()
-  r.sandbox.legacyPageVisible = false
-  r.sandbox.stopLegacyCompass(false)
-  r.callbacks[0]({ direction: 80 })
-  r.startOptions[0].fail()
-  assert.deepEqual(r.headings, [])
-  assert.deepEqual(r.modals, [])
-  assert.equal(r.sandbox.legacyCompassWanted, true, '保留用户此前请求供回页恢复')
-  r.sandbox.legacyPageVisible = true
-  r.sandbox.startLegacyCompass()
-  r.callbacks[0]({ direction: 80 })
-  r.callbacks[1]({ direction: 90 })
-  assert.deepEqual(r.headings, [90])
-})
-
-test('罗盘原生接口同步不可用时有明确反馈并清理监听定时器', () => {
-  const r = compassRuntime({ throwOnSubscribe: true })
-  assert.doesNotThrow(() => r.sandbox.startLegacyCompass())
-  assert.equal(r.modals.length, 1)
-  assert.equal(r.timers.size, 0)
-  assert.equal(r.sandbox.legacyCompassHandler, null)
+test('原生罗盘并行监听 uni 与 HTML5+，且离页清理两条数据源', () => {
+  assert.match(nativeCompass, /uni\.onCompassChange\(mpHandler\)/u)
+  assert.match(nativeCompass, /orientation\.watchOrientation/u)
+  assert.match(nativeCompass, /magneticHeading[\s\S]*trueHeading[\s\S]*alpha/u)
+  assert.match(nativeCompass, /u\.offCompassChange\?\.\(mpHandler\)/u)
+  assert.match(nativeCompass, /orientation\?\.clearWatch\?\.\(appOrientationWatchId\)/u)
+  assert.match(nativeCompass, /if \(!gotReading\) opts\.onStatus\('unavailable'\)/u)
 })
 
 test('小程序构建排除 App 原生预载桥，不删其他运行时静态文件', () => {

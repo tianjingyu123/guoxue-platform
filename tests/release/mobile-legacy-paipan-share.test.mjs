@@ -22,6 +22,7 @@ function runtime(overrides = {}, plusOverrides = {}) {
     showActionSheet: o => { calls.push(['menu', o.itemList]); o.success({ tapIndex: 0 }) },
     showModal: o => { calls.push(['confirm']); o.success({ confirm: true }) },
     share: o => { calls.push(['share', o]); o.success() },
+    setClipboardData: o => { calls.push(['copy', o.data]); o.success() },
     saveImageToPhotosAlbum: o => { calls.push(['save', o.filePath]); o.success() },
     downloadFile: o => { calls.push(['download', o]); o.success({ statusCode: 200, tempFilePath: '_doc/fixture-download.jpg' }) },
     getFileInfo: o => o.success({ size: 1024 }),
@@ -140,9 +141,18 @@ test('取消菜单和取消微信均不复制、不保存、不换渠道或重�
   ]) {
     const { api, calls, options } = runtime(overrides)
     assert.equal(await api.shareLegacyPaipan(fixture(), options), 'cancelled')
-    assert.equal(calls.some(x => ['save', 'system', 'download'].includes(x[0])), false)
+    assert.equal(calls.some(x => ['copy', 'save', 'system', 'download'].includes(x[0])), false)
   }
-  assert.doesNotMatch(source, /setClipboardData|setStorage|console\./u)
+  assert.match(source, /setClipboardData/u)
+  assert.doesNotMatch(source, /setStorage|console\./u)
+})
+
+test('复制完整 H5 链接是独立用户动作，不依赖微信 SDK 或截图', async () => {
+  const { api, calls, options } = runtime({ showActionSheet: o => o.success({ tapIndex: 6 }) })
+  const request = api.parseLegacyShareBridgeUrl(bridgeUrl(fixture()))
+  assert.equal(await api.shareLegacyPaipan(request, options), 'copied')
+  assert.deepEqual(calls.find(x => x[0] === 'copy'), ['copy', 'https://api.rebugx.cn/h5/pages/paipan/index'])
+  assert.equal(calls.some(x => ['capture', 'share', 'save', 'system'].includes(x[0])), false)
 })
 
 test('公开链接使用系统支持的text类型，不生成图片、不带网页签名', async () => {
@@ -164,7 +174,7 @@ test('公开页面优先提供微信好友和朋友圈可打开网页，不把�
     assert.equal(native.type, 0)
     assert.equal(native.scene, scene)
     assert.equal(native.href, request.url)
-    assert.equal(native.imageUrl, undefined)
+    assert.equal(native.imageUrl, '/static/logo.webp')
     assert.equal(calls.some(x => ['capture', 'save', 'system'].includes(x[0])), false)
   }
 })

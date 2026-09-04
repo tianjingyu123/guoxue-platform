@@ -17,11 +17,6 @@ const loginRequired = ref(false)
 let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
 let legacyChildWebview: any | null = null
 // #ifdef APP-PLUS
-let legacyCompassHandler: ((event: { direction?: number }) => void) | null = null
-let legacyOrientationWatchId: number | null = null
-let legacyCompassTimer: ReturnType<typeof setTimeout> | null = null
-let legacyCompassSession = 0
-let legacyCompassWanted = false
 let legacyPageVisible = true
 let locationRequestId = 0
 let legacyDocumentVersion = 0
@@ -224,14 +219,23 @@ function legacyNavigationBridgeScript(): string {
       var inset=Math.max(0,Math.round(Number(window.__rebuNativeSafeBottom)||0));
       if(!inset)return;
       document.documentElement.style.setProperty('--rebu-native-safe-bottom',inset+'px');
-      document.body&&document.body.style.setProperty('padding-bottom',inset+'px','important');
+      if(document.body){
+        var bodyPadding=parseFloat(window.getComputedStyle(document.body).paddingBottom)||0;
+        document.body.style.setProperty('padding-bottom',Math.max(bodyPadding,inset)+'px','important');
+      }
+      var viewportHeight=window.innerHeight||document.documentElement.clientHeight||0;
+      var viewportWidth=window.innerWidth||document.documentElement.clientWidth||0;
       var nodes=document.querySelectorAll('body *');
       for(var i=0;i<nodes.length;i++){
         var node=nodes[i];
         if(node.getAttribute('data-rebu-native-bottom')==='1')continue;
         var style=window.getComputedStyle(node);
         var bottom=parseFloat(style.bottom);
-        if(style.position==='fixed'&&Number.isFinite(bottom)&&bottom<=4){
+        var rect=node.getBoundingClientRect&&node.getBoundingClientRect();
+        var anchored=style.position==='fixed'||style.position==='absolute';
+        var touchesViewportBottom=rect&&viewportHeight>0&&rect.bottom>=viewportHeight-4;
+        var looksLikeActionBar=rect&&viewportWidth>0&&rect.width>=viewportWidth*0.5&&rect.height>0&&rect.height<=Math.max(240,viewportHeight*0.35);
+        if(anchored&&Number.isFinite(bottom)&&bottom<=4&&touchesViewportBottom&&looksLikeActionBar){
           node.setAttribute('data-rebu-native-bottom','1');
           node.style.setProperty('bottom',inset+'px','important');
         }
@@ -357,16 +361,6 @@ function evalLegacyLocation(latitude: number, longitude: number) {
   } catch { return false }
 }
 
-function evalLegacyCompass(direction: number) {
-  const child = findLegacyChildWebview()
-  if (!child || !Number.isFinite(direction)) return false
-  try {
-    if (!legacyPageVisible || !isTrustedLegacyUrl(String(child.getURL?.() || ''))) return false
-    child.evalJS(`;(function(){var callback=window.compassChange;if(typeof callback==='function')callback(${direction});})();`)
-    return true
-  } catch { return false }
-}
-
 function requestLegacyLocation() {
   const child = findLegacyChildWebview()
   const requestUrl = String(child?.getURL?.() || '')
@@ -394,77 +388,18 @@ function requestLegacyLocation() {
   })
 }
 
-function stopLegacyCompass(clearRequest = true) {
-  legacyCompassSession += 1
-  if (clearRequest) legacyCompassWanted = false
-  if (legacyCompassTimer !== null) clearTimeout(legacyCompassTimer)
-  legacyCompassTimer = null
-  if (legacyCompassHandler) {
-    try { (uni as any).offCompassChange?.(legacyCompassHandler) } catch { /* 旧运行时不支持注销时继续停止传感器 */ }
-  }
-  legacyCompassHandler = null
-  if (legacyOrientationWatchId !== null) {
-    try {
-      const orientation = typeof plus === 'undefined' ? null : (plus as any).orientation
-      orientation?.clearWatch?.(legacyOrientationWatchId)
-    } catch { /* 监听未启动时无需处理 */ }
-  }
-  legacyOrientationWatchId = null
-  try { uni.stopCompass() } catch { /* 尚未启动时无需处理 */ }
-}
-
-function showLegacyCompassUnavailable() {
-  stopLegacyCompass()
-  if (!legacyPageVisible) return
-  uni.showModal({
-    title: '罗盘暂不可用',
-    content: '暂未收到有效方向数据，请返回后重试。若仍无响应，请更新应用或联系客服；这不表示您漏开了“方向权限”。',
-    showCancel: false,
-  })
-}
-
-function startLegacyCompass() {
-  stopLegacyCompass()
-  const child = findLegacyChildWebview()
-  if (!legacyPageVisible || !isTrustedLegacyUrl(String(child?.getURL?.() || ''))) return
-  legacyCompassWanted = true
-  const session = legacyCompassSession
-  const fail = () => {
-    if (session === legacyCompassSession) showLegacyCompassUnavailable()
-  }
-  legacyCompassHandler = (event) => {
-    if (session !== legacyCompassSession || !legacyPageVisible) return
-    const direction = event?.direction
-    // 不把 null、字符串或无效值伪装成朝北；首个有效数据到达才视为传感器可用。
-    if (typeof direction !== 'number' || !Number.isFinite(direction)) return
-    if (legacyCompassTimer !== null) clearTimeout(legacyCompassTimer)
-    legacyCompassTimer = null
-    evalLegacyCompass(((direction % 360) + 360) % 360)
-  }
-  legacyCompassTimer = setTimeout(fail, 8000)
+function openNativeCompass(child: any) {
+  if (child !== legacyChildWebview || !legacyPageVisible) return
   try {
-    const orientation = typeof plus === 'undefined' ? null : (plus as any).orientation
-    if (orientation?.watchOrientation) {
-      legacyOrientationWatchId = orientation.watchOrientation((rotation: {
-        alpha?: number
-        magneticHeading?: number
-        trueHeading?: number
-      }) => {
-        if (session !== legacyCompassSession || !legacyPageVisible) return
-        const candidates = [rotation?.magneticHeading, rotation?.trueHeading, rotation?.alpha]
-        const direction = candidates.find((value) => typeof value === 'number' && Number.isFinite(value))
-        if (typeof direction !== 'number') return
-        if (legacyCompassTimer !== null) clearTimeout(legacyCompassTimer)
-        legacyCompassTimer = null
-        evalLegacyCompass(((direction % 360) + 360) % 360)
-      }, fail, { frequency: 100 })
-      return
-    }
-    uni.onCompassChange(legacyCompassHandler)
-    uni.startCompass({ fail })
-  } catch {
-    fail()
-  }
+    // 第三方网页罗盘无法稳定接收 App 传感器；回退其历史后打开平台自有原生罗盘。
+    child.canBack?.((event: { canBack?: boolean }) => {
+      if (event?.canBack && child === legacyChildWebview) child.back?.()
+    })
+  } catch { /* 子页无历史时直接打开原生罗盘 */ }
+  uni.navigateTo({
+    url: '/pkg-paipan3/luopan/index?source=paipan',
+    fail: () => uni.showToast({ title: '电子罗盘暂时无法打开，请稍后重试', icon: 'none' }),
+  })
 }
 
 function installLegacyNavigationBridge(child = findLegacyChildWebview()) {
@@ -559,6 +494,7 @@ async function requestLegacyShare(url: string, child: any) {
   try {
     const outcome = await shareLegacyPaipan(request, { canProceed, capture: () => captureLegacyShareImage(child, canProceed) })
     if (outcome === 'saved' && canProceed()) uni.showToast({ title: '图片已保存到相册', icon: 'none' })
+    if (outcome === 'copied' && canProceed()) uni.showToast({ title: '完整 H5 链接已复制，可粘贴给好友', icon: 'none' })
     // 调起分享不代表接收方收到；取消、切页和返回均不写分享奖励或伪造成功。
   } catch (cause) {
     if (canProceed()) uni.showToast({
@@ -588,12 +524,10 @@ function bindLegacyChildWebview(child: any) {
         legacyDocumentVersion += 1
         locationRequestId += 1
         pendingLegacyPayment = null
-        stopLegacyCompass()
         reinject()
       })
       child.addEventListener?.('loaded', reveal)
       child.addEventListener?.('error', () => {
-        stopLegacyCompass()
         try { child.setContentVisible?.(false) } catch { /* 失败页保持隐藏 */ }
         try { child.close?.('none') } catch { /* 父窗口仍会兜底回收 */ }
         if (legacyChildWebview === child) legacyChildWebview = null
@@ -612,8 +546,8 @@ function bindLegacyChildWebview(child: any) {
             else if (action === 'legacy-payment') void requestLegacyPayment(url, child)
             else if (action === 'legacy-share') void requestLegacyShare(url, child)
             else if (action === 'location') requestLegacyLocation()
-            else if (action === 'compass-start') startLegacyCompass()
-            else if (action === 'compass-stop') stopLegacyCompass()
+            else if (action === 'compass-start') openNativeCompass(child)
+            else if (action === 'compass-stop') { /* 原生罗盘自行管理传感器生命周期 */ }
             else if (action === 'unsupported') {
               uni.showToast({ title: '该功能暂不支持', icon: 'none' })
             }
@@ -770,12 +704,10 @@ onHide(() => {
   legacyPageVisible = false
   hideLegacyPaymentLoading()
   locationRequestId += 1
-  stopLegacyCompass(false)
 })
 onShow(() => {
   legacyPageVisible = true
   flushLegacyPaymentResult()
-  if (legacyCompassWanted) startLegacyCompass()
 })
 // #endif
 onReady(() => {
@@ -792,7 +724,6 @@ onUnmounted(() => {
   pendingLegacyPayment = null
   hideLegacyPaymentLoading()
   locationRequestId += 1
-  stopLegacyCompass()
   // #endif
   bridgeTimers.forEach(clearTimeout)
   bridgeTimers = []

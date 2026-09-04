@@ -16,6 +16,8 @@ export class LegacyShareError extends Error {
 
 /** 不包含会话、订单或签名参数的正式排盘入口，所有“页面分享”至少回落到此地址。 */
 export const PUBLIC_PAIPAN_SHARE_URL = 'https://api.rebugx.cn/h5/pages/paipan/index'
+/** 微信网页卡片需要稳定缩略图；使用随包只读品牌资源，不依赖第三方页面临时图片。 */
+export const LEGACY_SHARE_THUMBNAIL = '/static/logo.webp'
 
 /** 宁可提供明确的截图选项，也不把 App 登录入口、签名、订单或会话链接分享出去。 */
 export function publicLegacyShareUrl(value: unknown, image = false): string {
@@ -69,7 +71,7 @@ export function parseLegacyShareBridgeUrl(value: string): LegacyShareRequest | n
   } catch { return null }
 }
 
-type ShareOutcome = 'requested' | 'saved' | 'cancelled'
+type ShareOutcome = 'requested' | 'saved' | 'copied' | 'cancelled'
 type ShareOptions = { canProceed: () => boolean; capture: () => Promise<string> }
 let activeShare = false
 
@@ -156,7 +158,7 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
     if (!['android', 'ios'].includes(uni.getSystemInfoSync().platform)) {
       throw new LegacyShareError('UNAVAILABLE', '请在热卜 App 中使用原生分享')
     }
-    let action: 'friend-page' | 'timeline-page' | 'friend-image' | 'timeline-image' | 'save' | 'link'
+    let action: 'copy-page' | 'friend-page' | 'timeline-page' | 'friend-image' | 'timeline-image' | 'save' | 'link'
     if (request.kind === 'save') {
       const decision = await callback<{ confirm: boolean }>((ok, fail) => uni.showModal({
         title: '保存排盘图片', content: request.imageUrl ? '将这张排盘图片保存到手机相册？' : '将当前页面的可见内容保存到手机相册？',
@@ -181,11 +183,16 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
       actions.push('save')
       items.push(`保存${source}`)
       if (request.url) { actions.push('link'); items.push('系统分享公开链接') }
+      if (request.url) { actions.push('copy-page'); items.push('复制可打开的 H5 页面链接') }
       const decision = await callback<{ tapIndex: number }>((ok, fail) => uni.showActionSheet({ itemList: items, success: ok, fail }), 0)
       if (!Number.isInteger(decision.tapIndex) || decision.tapIndex < 0 || decision.tapIndex >= items.length) return 'cancelled'
       action = actions[decision.tapIndex]
     }
     assertCurrent(options)
+    if (action === 'copy-page') {
+      await callback<void>((ok, fail) => uni.setClipboardData({ data: request.url, success: () => ok(), fail }), 0)
+      return 'copied'
+    }
     if (action === 'friend-page' || action === 'timeline-page') {
       await callback<void>((ok, fail) => uni.share({
         provider: 'weixin',
@@ -194,6 +201,7 @@ export async function shareLegacyPaipan(request: LegacyShareRequest, options: Sh
         href: request.url,
         title: request.title,
         summary: request.text || '打开热卜排盘',
+        imageUrl: LEGACY_SHARE_THUMBNAIL,
         success: () => ok(),
         fail,
       }), 0)
