@@ -40,13 +40,27 @@ test("上线迁移包含分站、运营商和研究院最小启动数据", async
   }
 });
 
-test("会员中心具备真实套餐基础数据且错误态不会伪报网络异常", async () => {
-  const [migration, bootstrap, vipPage, recordsPage] = await Promise.all([
+test("会员中心先补齐套餐字段，再写入真实套餐基础数据", async () => {
+  const [schemaMigration, migration, bootstrap, vipPage, recordsPage] = await Promise.all([
+    read("apps/server/prisma/migrations/20260828120000_prepare_member_plan_columns/migration.sql"),
     read("apps/server/prisma/migrations/20260829100000_bootstrap_member_plans/migration.sql"),
     read("apps/server/prisma/migrations-deploy/bootstrap-empty-database.sh"),
     read("apps/mobile/src/pkg-profile/vip/index.vue"),
     read("apps/mobile/src/pkg-profile/vip/records/index.vue"),
   ]);
+
+  for (const requiredColumn of ["memberAutoRenew", "monthlyPoints", "monthlyCouponId", "sort"]) {
+    assert.match(
+      schemaMigration,
+      new RegExp(`ADD COLUMN IF NOT EXISTS "${requiredColumn}"`, "u"),
+      `会员前置迁移缺少 ${requiredColumn}`,
+    );
+  }
+  assert.match(schemaMigration, /ALTER TYPE "MemberLevel" ADD VALUE IF NOT EXISTS 'QUARTERLY'/u);
+  assert.ok(
+    "20260828120000_prepare_member_plan_columns" < "20260829100000_bootstrap_member_plans",
+    "会员字段迁移必须先于套餐数据迁移",
+  );
 
   for (const level of ["MONTHLY", "QUARTERLY", "YEARLY", "YEARLY_AUTO"]) {
     assert.ok(migration.includes(`'${level}'`), `会员基础迁移缺少 ${level}`);
@@ -55,8 +69,8 @@ test("会员中心具备真实套餐基础数据且错误态不会伪报网络�
   assert.doesNotMatch(migration, /付费精品电子书|优惠券/u);
   assert.match(bootstrap, /MEMBER_PLANS_DML=.*20260829100000_bootstrap_member_plans/u);
   assert.match(bootstrap, /--file="\$MEMBER_PLANS_DML"/u);
-  assert.match(vipPage, /title="会员中心暂不可用"[\s\S]*:desc="error"/u);
-  assert.match(recordsPage, /title="开通记录加载失败"[\s\S]*:desc="error"/u);
+  assert.match(vipPage, /title="会员服务暂不可用"[\s\S]*:desc="error"/u);
+  assert.match(recordsPage, /title="购买记录暂不可用"[\s\S]*:desc="error"/u);
   assert.doesNotMatch(`${vipPage}\n${recordsPage}`, /<app-error[^>]*:message=/u);
 });
 
