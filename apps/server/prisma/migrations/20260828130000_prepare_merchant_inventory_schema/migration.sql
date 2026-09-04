@@ -112,6 +112,10 @@ CREATE TABLE IF NOT EXISTS "PurchaseOrder" (
   CONSTRAINT "PurchaseOrder_pkey" PRIMARY KEY ("id")
 );
 
+-- 历史生产库可能已有不含供应商关联字段的采购单表；必须先补字段再创建索引。
+ALTER TABLE "PurchaseOrder"
+  ADD COLUMN IF NOT EXISTS "supplierId" TEXT;
+
 CREATE UNIQUE INDEX IF NOT EXISTS "PurchaseOrder_orderNo_key"
   ON "PurchaseOrder"("orderNo");
 CREATE INDEX IF NOT EXISTS "PurchaseOrder_merchantId_status_createdAt_idx"
@@ -136,6 +140,10 @@ CREATE TABLE IF NOT EXISTS "PurchaseOrderItem" (
   "updatedAt" TIMESTAMP(3) NOT NULL,
   CONSTRAINT "PurchaseOrderItem_pkey" PRIMARY KEY ("id")
 );
+
+-- 历史采购明细只记录到货数量，补齐拒收数量且以 0 安全回填存量记录。
+ALTER TABLE "PurchaseOrderItem"
+  ADD COLUMN IF NOT EXISTS "rejectedQuantity" INTEGER NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS "PurchaseOrderItem_purchaseOrderId_idx"
   ON "PurchaseOrderItem"("purchaseOrderId");

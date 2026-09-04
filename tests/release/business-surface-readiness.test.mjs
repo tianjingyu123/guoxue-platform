@@ -103,6 +103,18 @@ test("旧生产库补齐迁移只增加对象并先于依赖它们的手工迁�
     assert.ok(prerequisite.includes(requiredObject), `前置迁移缺少 ${requiredObject}`);
   }
 
+  const supplierColumn = 'ADD COLUMN IF NOT EXISTS "supplierId" TEXT';
+  const supplierIndex = 'CREATE INDEX IF NOT EXISTS "PurchaseOrder_supplierId_createdAt_idx"';
+  assert.ok(prerequisite.includes(supplierColumn), "前置迁移必须兼容已有但缺少 supplierId 的采购单表");
+  assert.ok(
+    prerequisite.indexOf(supplierColumn) < prerequisite.indexOf(supplierIndex),
+    "supplierId 必须先补字段再创建索引",
+  );
+  assert.match(
+    prerequisite,
+    /ADD COLUMN IF NOT EXISTS "rejectedQuantity" INTEGER NOT NULL DEFAULT 0/u,
+  );
+
   assert.equal((enums.match(/^CREATE TYPE /gmu) ?? []).length, 3);
   assert.equal((enums.match(/ADD VALUE IF NOT EXISTS/gmu) ?? []).length, 11);
   assert.equal((schema.match(/^CREATE TABLE /gmu) ?? []).length, 92);
