@@ -316,3 +316,11 @@ test("管理员关闭悬赏按业务单号原子解冻并保留关闭证据", as
   assert.match(controller, /@Body\(\) body: CloseBountyQuestionDto/);
   assert.match(page, /\['OPEN', 'CLAIMED'\]\.includes/);
 });
+
+test("移动端数据大屏的顶部操作满足44px触控目标", async () => {
+  const styles = await read("apps/admin/src/styles/bigscreen.css");
+  assert.match(
+    styles,
+    /@media \(max-width: 560px\) \{[\s\S]{0,180}?\.screen-presentation-button \{[^}]*min-height: 44px/,
+  );
+});

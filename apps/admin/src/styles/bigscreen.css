@@ -372,6 +372,7 @@ body.is-screen-presenting .platform .comp-chart { height: clamp(180px, 28vh, 360
 }
 
 @media (max-width: 560px) {
+  .screen-presentation-button { min-height: 44px; padding-inline: 14px; }
   .tech-screen .bs-title { font-size: 19px !important; }
   .tech-screen .bs-title::after { font-size: 8px; letter-spacing: .12em; }
   .bigscreen.tech-screen .kpi-bar,
