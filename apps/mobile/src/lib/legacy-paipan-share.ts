@@ -14,10 +14,13 @@ export class LegacyShareError extends Error {
   }
 }
 
+/** 不包含会话、订单或签名参数的正式排盘入口，所有“页面分享”至少回落到此地址。 */
+export const PUBLIC_PAIPAN_SHARE_URL = 'https://api.rebugx.cn/h5/pages/paipan/index'
+
 /** 宁可提供明确的截图选项，也不把 App 登录入口、签名、订单或会话链接分享出去。 */
 export function publicLegacyShareUrl(value: unknown, image = false): string {
   if (typeof value !== 'string' || value.length > 2048) return ''
-  if (!image && value === 'https://api.rebugx.cn/h5/#/pages/paipan/index') return value
+  if (!image && value === PUBLIC_PAIPAN_SHARE_URL) return value
   const match = value.match(/^https:\/\/((?:www\.)?(?:yrydai\.(?:cn|com)|rebu\.net\.cn))(\/[A-Za-z0-9_./-]*)(?:\?([^#]*))?$/iu)
   if (!match || /(?:^|\/)(?:\.{1,2})(?:\/|$)/u.test(match[2])) return ''
   if (/guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|\/my\.php/iu.test(match[2])) return ''
@@ -53,11 +56,14 @@ export function parseLegacyShareBridgeUrl(value: string): LegacyShareRequest | n
     const imageUrl = publicLegacyShareUrl(data.imageUrl, true)
     // 图片接口不得借本地路径、任意域名或签名地址读取文件。
     if ((data.kind === 'image' || data.kind === 'save') && data.imageUrl && !imageUrl) return null
+    const kind = data.kind as LegacyShareRequest['kind']
     return {
-      kind: data.kind as LegacyShareRequest['kind'],
+      kind,
       title: text(data.title, 80) || '排盘分享',
       text: text(data.text, 300),
-      url: publicLegacyShareUrl(data.url),
+      // 旧站存在多套分享桥，部分“分享”按钮实际调用 sharePicture。
+      // page/image 都保留可打开的公开 H5 卡片，同时保留图片/海报选项；save 仍只保存图片。
+      url: publicLegacyShareUrl(data.url) || (kind !== 'save' ? PUBLIC_PAIPAN_SHARE_URL : ''),
       imageUrl,
     }
   } catch { return null }

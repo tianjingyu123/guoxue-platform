@@ -126,9 +126,17 @@ test('旧排盘按官方 App 协议恢复定位和罗盘，并声明最小系统
   assert.match(page, /else if \(action === 'location'\) requestLegacyLocation\(\)/u)
   assert.match(page, /else if \(action === 'compass-start'\) startLegacyCompass\(\)/u)
   assert.match(manifest, /"Geolocation"\s*:\s*\{\}/u)
+  assert.match(manifest, /"Orientation"\s*:\s*\{\}/u)
   assert.match(manifest, /android\.permission\.ACCESS_COARSE_LOCATION/u)
   assert.match(manifest, /android\.permission\.ACCESS_FINE_LOCATION/u)
   assert.match(manifest, /"NSLocationWhenInUseUsageDescription"/u)
+})
+
+test('系统底部安全区兼容旧版与新版字段，并传给排盘子窗口', () => {
+  assert.match(page, /screenHeight > 0 && safeAreaBottom > 0 \? screenHeight - safeAreaBottom : 0/u)
+  assert.match(page, /getSafeAreaInsets/u)
+  assert.match(page, /insets\?\.deviceBottom/u)
+  assert.match(page, /__rebuNativeSafeBottom/u)
 })
 
 test('预载桥只允许排盘官方 HTTPS 导航，支付交易号交给独立原生桥', () => {

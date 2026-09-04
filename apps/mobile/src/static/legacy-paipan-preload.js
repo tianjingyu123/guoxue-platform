@@ -35,7 +35,7 @@
     try {
       var url = new URL(value)
       if (url.protocol !== 'https:' || url.href !== value || url.username || url.password || url.port) return ''
-      if (url.href === 'https://api.rebugx.cn/h5/#/pages/paipan/index') return url.href
+      if (url.href === 'https://api.rebugx.cn/h5/pages/paipan/index') return url.href
       if (url.hash) return ''
       if (['yrydai.cn', 'www.yrydai.cn', 'yrydai.com', 'www.yrydai.com', 'rebu.net.cn', 'www.rebu.net.cn'].indexOf(url.hostname) < 0) return ''
       if (url.pathname.indexOf('%') >= 0 || /guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|my[.]php/i.test(url.pathname)) return ''
@@ -52,11 +52,13 @@
 
   function openLegacyShare(kind, value) {
     var data = value && typeof value === 'object' ? value : {}
+    var publicEntry = 'https://api.rebugx.cn/h5/pages/paipan/index'
     var payload = JSON.stringify({
       kind: kind,
       title: safeShareText(data.title, 80),
       text: safeShareText(data.remark, 300),
-      url: safeShareUrl(data.path, false),
+      // 旧页面的“分享”有时调用 sharePicture；原生菜单仍要同时提供 H5 卡片与图片/海报。
+      url: safeShareUrl(data.path, false) || (kind !== 'save' ? publicEntry : ''),
       imageUrl: safeShareUrl(data.shareImgUrl, true),
     })
     openRebuAction('legacy-share?payload=' + encodeURIComponent(payload))
@@ -65,7 +67,7 @@
   function shareLegacyPage(_type, _scene, _miniId, title, description) {
     // 旧 APK 的前三个参数是类型/场景/小程序标识，不是链接或图片路径。
     // 原生菜单明确提供当前页面截图，不伪造未配置的小程序卡片。
-    var publicEntry = 'https://api.rebugx.cn/h5/#/pages/paipan/index'
+    var publicEntry = 'https://api.rebugx.cn/h5/pages/paipan/index'
     openLegacyShare('page', {
       title: title,
       remark: description,

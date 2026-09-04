@@ -39,8 +39,21 @@ const safeBottom = ref(0)
 try {
   const systemInfo = uni.getSystemInfoSync()
   safeTop.value = Math.max(0, systemInfo.statusBarHeight || 0, systemInfo.safeAreaInsets?.top || 0)
-  safeBottom.value = Math.max(0, systemInfo.safeAreaInsets?.bottom || 0)
+  const safeAreaBottom = Number(systemInfo.safeArea?.bottom || 0)
+  const screenHeight = Number(systemInfo.screenHeight || 0)
+  safeBottom.value = Math.max(
+    0,
+    Number(systemInfo.safeAreaInsets?.bottom || 0),
+    screenHeight > 0 && safeAreaBottom > 0 ? screenHeight - safeAreaBottom : 0,
+  )
 } catch { /* 系统安全区不可用时使用零值降级 */ }
+
+// #ifdef APP-PLUS
+try {
+  const insets = plus.navigator?.getSafeAreaInsets?.()
+  safeBottom.value = Math.max(safeBottom.value, Number(insets?.bottom || 0), Number(insets?.deviceBottom || 0))
+} catch { /* 旧运行时继续使用 systemInfo 结果 */ }
+// #endif
 
 /** 只允许对排盘服务官方域名的子 WebView 注入兼容桥，避免影响其他页面。 */
 function isTrustedLegacyUrl(url: string): boolean {
@@ -80,7 +93,7 @@ function legacyNavigationBridgeScript(): string {
       try{
         var url=new URL(value);
         if(url.protocol!=='https:'||url.href!==value||url.username||url.password||url.port)return '';
-        if(url.href==='https://api.rebugx.cn/h5/#/pages/paipan/index')return url.href;
+        if(url.href==='https://api.rebugx.cn/h5/pages/paipan/index')return url.href;
         if(url.hash)return '';
         if(['yrydai.cn','www.yrydai.cn','yrydai.com','www.yrydai.com','rebu.net.cn','www.rebu.net.cn'].indexOf(url.hostname)<0)return '';
         if(url.pathname.indexOf('%')>=0||/guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|my[.]php/i.test(url.pathname))return '';
@@ -96,13 +109,14 @@ function legacyNavigationBridgeScript(): string {
     }
     function openLegacyShare(kind,value){
       var data=value&&typeof value==='object'?value:{};
+      var publicEntry='https://api.rebugx.cn/h5/pages/paipan/index';
       var payload=JSON.stringify({kind:kind,
         title:safeShareText(data.title,80),text:safeShareText(data.remark,300),
-        url:safeShareUrl(data.path,false),imageUrl:safeShareUrl(data.shareImgUrl,true)});
+        url:safeShareUrl(data.path,false)||(kind!=='save'?publicEntry:''),imageUrl:safeShareUrl(data.shareImgUrl,true)});
       openRebuAction('legacy-share?payload='+encodeURIComponent(payload));
     }
     function shareLegacyPage(_type,_scene,_miniId,title,description){
-      var publicEntry='https://api.rebugx.cn/h5/#/pages/paipan/index';
+      var publicEntry='https://api.rebugx.cn/h5/pages/paipan/index';
       openLegacyShare('page',{title:title,remark:description,path:safeShareUrl(window.location.href,false)||publicEntry});
     }
     function shareLegacyPicture(url){openLegacyShare('image',{shareImgUrl:url});}

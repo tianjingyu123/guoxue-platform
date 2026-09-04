@@ -71,7 +71,7 @@ test('桥参数尺寸/结构受限，元信息不能携带登录链接，图片�
   assert.equal(api.parseLegacyShareBridgeUrl('rebu://legacy-share?payload=%'), null)
   assert.equal(api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), text: 'a'.repeat(25000) })), null)
   const result = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), title: 'https://www.yrydai.cn/?token=SECRET', text: 'access_token=SECRET', url: 'https://www.yrydai.cn/guoxueApp.php?key=SECRET' }))
-  assert.equal(result.url, '')
+  assert.equal(result.url, 'https://api.rebugx.cn/h5/pages/paipan/index')
   assert.doesNotMatch(JSON.stringify(result), /SECRET|access_token/u)
   const printable = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), title: '八字\u0000测试\u001f分享\u007f' }))
   assert.equal(printable.title, '八字 测试 分享')
@@ -88,7 +88,7 @@ test('双桥转发正确协议，不把旧APK的类型/场景/小程序ID错当�
     assert.doesNotMatch(assigned.at(-1), /SECRET|guoxueApp|key/u)
     let result = api.parseLegacyShareBridgeUrl(assigned.at(-1))
     assert.equal(result.title, '八字')
-    assert.equal(result.url, 'https://api.rebugx.cn/h5/#/pages/paipan/index')
+    assert.equal(result.url, 'https://api.rebugx.cn/h5/pages/paipan/index')
     assert.equal(result.kind, 'page')
     window.webUni.postMessage({ data: { action: 'share', payload: { title: '奇门', remark: '说明', path: 'https://www.yrydai.cn/share.php?id=1', shareImgUrl: 'https://www.yrydai.cn/images/result.jpg' } } })
     result = api.parseLegacyShareBridgeUrl(assigned.at(-1))
@@ -109,10 +109,21 @@ test('双桥转发正确协议，不把旧APK的类型/场景/小程序ID错当�
 })
 
 for (const platform of ['ios', 'android']) {
-  test(`${platform} 先菜单再截图和微信SDK，发送图片而不是签名URL`, async () => {
-    const { api, calls, options } = runtime({ getSystemInfoSync: () => ({ platform }) })
-    assert.equal(await api.shareLegacyPaipan(fixture(), options), 'requested')
+  test(`${platform} 旧图片分享入口同时提供H5卡片和海报，选海报时才截图`, async () => {
+    const { api, calls, options } = runtime({
+      getSystemInfoSync: () => ({ platform }),
+      showActionSheet: o => {
+        calls.push(['menu', o.itemList])
+        o.success({ tapIndex: 2 })
+      },
+    })
+    const request = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), kind: 'image' }))
+    assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
     assert.deepEqual(calls.map(x => x[0]), ['services', 'menu', 'capture', 'share', 'remove'])
+    assert.deepEqual(plain(calls.find(x => x[0] === 'menu')[1].slice(0, 4)), [
+      '微信好友（可打开页面）', '朋友圈（可打开页面）',
+      '微信好友（当前页图片）', '朋友圈（当前页图片）',
+    ])
     const native = calls.find(x => x[0] === 'share')[1]
     assert.equal(native.provider, 'weixin')
     assert.equal(native.scene, 'WXSceneSession')
@@ -147,7 +158,7 @@ test('公开链接使用系统支持的text类型，不生成图片、不带网�
 test('公开页面优先提供微信好友和朋友圈可打开网页，不把截图冒充页面分享', async () => {
   for (const [tapIndex, scene] of [[0, 'WXSceneSession'], [1, 'WXSceneTimeline']]) {
     const { api, calls, options } = runtime({ showActionSheet: o => o.success({ tapIndex }) })
-    const request = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), url: 'https://api.rebugx.cn/h5/#/pages/paipan/index' }))
+    const request = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), url: 'https://api.rebugx.cn/h5/pages/paipan/index' }))
     assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
     const native = calls.find(x => x[0] === 'share')[1]
     assert.equal(native.type, 0)
@@ -156,6 +167,29 @@ test('公开页面优先提供微信好友和朋友圈可打开网页，不把�
     assert.equal(native.imageUrl, undefined)
     assert.equal(calls.some(x => ['capture', 'save', 'system'].includes(x[0])), false)
   }
+})
+
+test('旧页面不传链接时仍回落到可打开的正式 H5 排盘入口', async () => {
+  const { api, calls, options } = runtime()
+  const request = api.parseLegacyShareBridgeUrl(bridgeUrl(fixture()))
+  assert.equal(request.url, 'https://api.rebugx.cn/h5/pages/paipan/index')
+  assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
+  const menu = calls.find(x => x[0] === 'menu')[1]
+  assert.deepEqual(plain(menu.slice(0, 2)), ['微信好友（可打开页面）', '朋友圈（可打开页面）'])
+  const native = calls.find(x => x[0] === 'share')[1]
+  assert.equal(native.type, 0)
+  assert.equal(native.href, request.url)
+})
+
+test('旧页面调用图片桥时不再只能分享图片', async () => {
+  const { api, calls, options } = runtime()
+  const request = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), kind: 'image' }))
+  assert.equal(request.url, 'https://api.rebugx.cn/h5/pages/paipan/index')
+  assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
+  assert.deepEqual(plain(calls.find(x => x[0] === 'menu')[1].slice(0, 2)), ['微信好友（可打开页面）', '朋友圈（可打开页面）'])
+  const native = calls.find(x => x[0] === 'share')[1]
+  assert.equal(native.type, 0)
+  assert.equal(native.href, request.url)
 })
 
 test('微信未安装或能力检测失败时隐藏微信入口，取消时不截图或改权限', async () => {
@@ -199,7 +233,7 @@ test('保存图片必须二次确认，取消时没有文件或相册写入', as
 })
 
 test('图片仅用受信公开地址，下载不携带账号Token并验证大小/像素', async () => {
-  const { api, calls, options } = runtime()
+  const { api, calls, options } = runtime({ showActionSheet: o => { calls.push(['menu', o.itemList]); o.success({ tapIndex: 2 }) } })
   const request = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), kind: 'image', imageUrl: 'https://www.yrydai.cn/images/test.jpg' }))
   assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
   const download = calls.find(x => x[0] === 'download')[1]
@@ -210,7 +244,7 @@ test('图片仅用受信公开地址，下载不携带账号Token并验证大小
     { getFileInfo: o => o.success({ size: 10 * 1024 * 1024 }) },
     { getImageInfo: o => o.success({ width: 100000, height: 100000 }) },
   ]) {
-    const failed = runtime(overrides)
+    const failed = runtime({ ...overrides, showActionSheet: o => o.success({ tapIndex: 2 }) })
     await assert.rejects(failed.api.shareLegacyPaipan(request, failed.options), e => e.code === 'IMAGE_FAILED')
     assert.equal(failed.calls.some(x => x[0] === 'share'), false)
     assert.equal(failed.calls.filter(x => x[0] === 'remove').length, 1)
