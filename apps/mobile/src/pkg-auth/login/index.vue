@@ -225,6 +225,18 @@
           <text class="divider-text">其他登录方式</text>
           <view class="divider-line" />
         </view>
+        <!-- #ifdef MP-WEIXIN -->
+        <button
+          class="mini-phone-login-btn"
+          :open-type="agreedTerms ? 'getPhoneNumber' : ''"
+          :disabled="isLoading"
+          @tap="handleMiniPhoneTap"
+          @getphonenumber="handleMiniPhoneLogin"
+        >
+          <text>{{ isLoading ? '登录中...' : '手机号快捷登录' }}</text>
+        </button>
+        <text class="mini-phone-login-hint">需本人授权，仅用于登录及安全绑定账号</text>
+        <!-- #endif -->
         <!-- #ifdef APP-PLUS -->
         <view
           v-if="showAppleLogin"
@@ -596,6 +608,63 @@ async function requestWechatLoginCode(): Promise<string> {
     })
   })
 }
+
+// #ifdef MP-WEIXIN
+interface MiniPhoneEventDetail {
+  code?: string
+  encryptedData?: string
+  iv?: string
+  errMsg?: string
+}
+
+function handleMiniPhoneTap() {
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+  }
+}
+
+/** 用户主动授权后，用当次手机号 code 与新的 wx.login code 完成登录/注册。 */
+async function handleMiniPhoneLogin(event: { detail?: MiniPhoneEventDetail }) {
+  if (isLoading.value) return
+  if (!agreedTerms.value) {
+    uni.showToast({ title: '请先阅读并同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+
+  const detail = event?.detail || {}
+  const denied = /deny|fail/u.test(String(detail.errMsg || ''))
+  const phoneCode = String(detail.code || detail.encryptedData || '')
+  if (denied || !phoneCode) {
+    uni.showToast({ title: '未获得手机号授权，可继续使用其他登录方式', icon: 'none' })
+    return
+  }
+
+  isLoading.value = true
+  error.value = ''
+  try {
+    const wxCode = await requestWechatLoginCode()
+    const result = await authApi.miniPhoneLogin(
+      wxCode,
+      phoneCode,
+      detail.code ? undefined : detail.iv,
+    )
+    const loginData = result.data
+    if (!result.success || !loginData?.token) {
+      error.value = result.message || '手机号快捷登录失败'
+      return
+    }
+    clearAuthSession({ preserveLoginRedirect: true })
+    setToken(loginData.token)
+    setRefreshToken(loginData.refreshToken || '')
+    setUserInfo(loginData.user)
+    await goAfterLogin()
+  } catch (e) {
+    error.value = (e as Error)?.message || '手机号快捷登录失败'
+  } finally {
+    isLoading.value = false
+  }
+}
+// #endif
 
 async function bindCurrentWechatIdentity(): Promise<boolean> {
   // #if defined(MP-WEIXIN) || defined(APP-PLUS)
@@ -1047,6 +1116,35 @@ onUnmounted(() => {
 }
 .third-icons-after-apple {
   margin-top: 32rpx;
+}
+.mini-phone-login-btn {
+  width: 100%;
+  min-height: 88rpx;
+  margin: 0;
+  padding: 0 32rpx;
+  border: 0;
+  border-radius: 12rpx;
+  background: #07c160;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 88rpx;
+}
+.mini-phone-login-btn::after {
+  border: 0;
+}
+.mini-phone-login-btn[disabled] {
+  background: #9ddfba;
+  color: #ffffff;
+}
+.mini-phone-login-hint {
+  display: block;
+  margin-top: 14rpx;
+  margin-bottom: 32rpx;
+  text-align: center;
+  color: #8b8178;
+  font-size: 22rpx;
+  line-height: 1.5;
 }
 .apple-login-btn {
   width: 100%;

@@ -137,6 +137,26 @@ export const authApi = {
     }
   },
 
+  /**
+   * 小程序手机号快捷登录。
+   * phoneCode 只能来自用户主动点击 getPhoneNumber 后的当次授权结果，
+   * 客户端不缓存手机号明文，也不把该能力扩展到 APP/H5。
+   */
+  async miniPhoneLogin(wxCode: string, phoneCode: string, iv?: string): Promise<AuthResponse> {
+    try {
+      const data = await apiPost<RawAuthData>('/auth/login/mini-phone', {
+        wxCode,
+        phoneCode,
+        ...(iv ? { iv } : {}),
+        clientKey: getWechatClientKey(),
+        referrerCode: getTempReferrer(),
+      })
+      return adaptAuthResult(data)
+    } catch (e: any) {
+      return { success: false, message: e?.message || '手机号快捷登录失败' }
+    }
+  },
+
   /** 将当前已登录手机号账号与微信身份绑定，后续可一键进入排盘。 */
   async bindWechat(code: string, loginType: 'miniprogram' | 'app' | 'h5' = 'miniprogram'): Promise<{ success: boolean; message: string }> {
     try {

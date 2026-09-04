@@ -24,6 +24,21 @@ test("H5 与小程序公开微信登录入口，App 入口由运行时开关放�
   assert.match(loginPage, /provider:\s*'weixin'/u);
 });
 
+test("小程序手机号快捷登录只在用户同意条款并主动授权后执行", () => {
+  assert.match(loginPage, /#ifdef MP-WEIXIN[\s\S]*:open-type="agreedTerms \? 'getPhoneNumber' : ''"/u);
+  assert.match(loginPage, /@getphonenumber="handleMiniPhoneLogin"/u);
+  assert.match(loginPage, /if \(!agreedTerms\.value\)[\s\S]*请先阅读并同意用户协议和隐私政策/u);
+  assert.match(loginPage, /const wxCode = await requestWechatLoginCode\(\)/u);
+  assert.match(loginPage, /authApi\.miniPhoneLogin\([\s\S]*wxCode,[\s\S]*phoneCode/u);
+  assert.match(authData, /\/auth\/login\/mini-phone/u);
+  assert.match(authData, /clientKey:\s*getWechatClientKey\(\)/u);
+  assert.match(authData, /referrerCode:\s*getTempReferrer\(\)/u);
+  const buttonStart = loginPage.indexOf('<button\n          class="mini-phone-login-btn"');
+  const buttonEnd = loginPage.indexOf('<!-- #endif -->', buttonStart);
+  assert.ok(buttonStart >= 0 && buttonEnd > buttonStart);
+  assert.match(loginPage.slice(buttonStart, buttonEnd), /:open-type="agreedTerms \? 'getPhoneNumber' : ''"/u);
+});
+
 test("H5 微信 OAuth 使用一次性 state、十分钟时限并在换码前清理地址栏", () => {
   assert.match(loginPage, /WECHAT_OAUTH_MAX_AGE_MS\s*=\s*10 \* 60 \* 1000/u);
   assert.match(loginPage, /crypto\?\.getRandomValues/u);
