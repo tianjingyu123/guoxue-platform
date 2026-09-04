@@ -74,6 +74,54 @@ test("会员中心先补齐套餐字段，再写入真实套餐基础数据", as
   assert.doesNotMatch(`${vipPage}\n${recordsPage}`, /<app-error[^>]*:message=/u);
 });
 
+test("旧生产库补齐迁移只增加对象并先于依赖它们的手工迁移", async () => {
+  const [prerequisite, enums, schema] = await Promise.all([
+    read(
+      "apps/server/prisma/migrations/20260828130000_prepare_merchant_inventory_schema/migration.sql",
+    ),
+    read(
+      "apps/server/prisma/migrations/20260828140000_prepare_legacy_production_enums/migration.sql",
+    ),
+    read(
+      "apps/server/prisma/migrations/20260828150000_prepare_legacy_production_schema/migration.sql",
+    ),
+  ]);
+
+  const executableSql = `${prerequisite}\n${enums}\n${schema}`.replace(/^--.*$/gmu, "");
+  assert.doesNotMatch(
+    executableSql,
+    /\b(?:DROP TABLE|DROP COLUMN|DROP INDEX|TRUNCATE|DELETE FROM)\b/iu,
+  );
+
+  for (const requiredObject of [
+    '"OpsTask"',
+    '"InventoryMovement"',
+    '"InventoryAlertSetting"',
+    '"PurchaseOrder"',
+    '"PurchaseOrderItem"',
+  ]) {
+    assert.ok(prerequisite.includes(requiredObject), `前置迁移缺少 ${requiredObject}`);
+  }
+
+  assert.equal((enums.match(/^CREATE TYPE /gmu) ?? []).length, 3);
+  assert.equal((enums.match(/ADD VALUE IF NOT EXISTS/gmu) ?? []).length, 11);
+  assert.equal((schema.match(/^CREATE TABLE /gmu) ?? []).length, 92);
+  assert.equal((schema.match(/ADD COLUMN/gmu) ?? []).length, 119);
+  assert.match(schema, /^BEGIN;$/mu);
+  assert.match(schema, /^COMMIT;$/mu);
+
+  for (const migration of [
+    "manual_add_merchant_suppliers",
+    "manual_add_ops_task_approval_evidence",
+    "manual_add_purchase_receipts",
+  ]) {
+    assert.ok(
+      "20260828150000_prepare_legacy_production_schema" < migration,
+      `旧库补齐迁移必须先于 ${migration}`,
+    );
+  }
+});
+
 test("驿站空态和个人中心商家入驻均有正确后续路径", async () => {
   const [offlineSource, merchantSource] = await Promise.all([
     read("apps/mobile/src/pkg-offline/stations/index.vue"),
