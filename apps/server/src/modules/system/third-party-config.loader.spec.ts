@@ -29,7 +29,8 @@ describe("ThirdPartyConfigLoader", () => {
     delete process.env.APPLE_IAP_PRODUCTS_JSON;
     for (const key of [
       "WECHAT_PAY_APP_ID", "WECHAT_PAY_MCH_ID", "WECHAT_PAY_ALLOWED_MCH_ID", "WECHAT_PAY_API_V3_KEY",
-      "WECHAT_PAY_SERIAL_NO", "WECHAT_PAY_PRIVATE_KEY", "WECHAT_PAY_NOTIFY_URL", "WECHAT_PAY_REFUND_NOTIFY_URL",
+      "WECHAT_PAY_SERIAL_NO", "WECHAT_PAY_PRIVATE_KEY", "WECHAT_PAY_PUBLIC_KEY", "WECHAT_PAY_PUBLIC_KEY_ID",
+      "WECHAT_PAY_NOTIFY_URL", "WECHAT_PAY_REFUND_NOTIFY_URL",
       "ALIPAY_APP_ID", "ALIPAY_PRIVATE_KEY", "ALIPAY_PUBLIC_KEY", "ALIPAY_NOTIFY_URL",
       "HUIFU_MERCHANT_ID", "HUIFU_APP_ID", "HUIFU_PRODUCT_ID", "HUIFU_RSA_PRIVATE_KEY", "HUIFU_RSA_PUBLIC_KEY", "HUIFU_NOTIFY_URL",
       "UNIONPAY_MER_ID", "UNIONPAY_PFX_PATH", "UNIONPAY_PFX_PASSWORD", "UNIONPAY_PUBLIC_KEY", "UNIONPAY_NOTIFY_URL",
@@ -212,6 +213,28 @@ describe("ThirdPartyConfigLoader", () => {
     expect(wechat.missingFields).toEqual(expect.arrayContaining(["APIv3 密钥", "商户私钥（内容或路径）"]));
     expect(wechat.invalidFields.join(" ")).toContain("白名单");
     expect(wechat.invalidFields.join(" ")).toContain("公网 HTTPS");
+  });
+
+  it("微信支付公钥模式缺少公钥 ID 时保持未就绪", async () => {
+    const stored = encrypt(JSON.stringify({
+      appId: "wx-current",
+      mchId: "1748964663",
+      allowedMchId: "1748964663",
+      serialNo: "SERIAL_CURRENT",
+      apiV3Key: "12345678901234567890123456789012",
+      privateKey: "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
+      publicKey: "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----",
+      notifyUrl: "https://api.example.com/api/v1/shop/pay/notify",
+      refundNotifyUrl: "https://api.example.com/api/v1/shop/refund/notify",
+    }));
+    mockPrisma.configSystem.findMany.mockResolvedValue([{ configKey: "third_party.wechat_pay", configValue: stored, updatedAt: new Date() }]);
+
+    const result = await loader.getPaymentReadiness();
+    const wechat = result.items.find((item) => item.key === "wechat_pay")!;
+
+    expect(wechat.configurationStatus).toBe("INCOMPLETE");
+    expect(wechat.missingFields).toContain("微信支付公钥 ID");
+    expect(JSON.stringify(result)).not.toContain("BEGIN PUBLIC KEY");
   });
 
   it("Apple IAP 配置从数据库同步到运行时并保持私钥掩码", async () => {
