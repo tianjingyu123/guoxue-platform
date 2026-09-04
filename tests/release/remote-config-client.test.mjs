@@ -8,10 +8,27 @@ const uiConfig = fs.readFileSync('apps/mobile/src/lib/ui-config-data.ts', 'utf8'
 const appUpdate = fs.readFileSync('apps/mobile/src/lib/app-update.ts', 'utf8')
 
 test('远程配置在冷启动和热启动接入，且失败不会阻断应用', () => {
-  assert.match(app, /hydrateRemoteConfig\(\)\.then\(notifyMaintenanceIfNeeded\)/)
+  assert.match(app, /hydrateRemoteConfig\(\)\.then\(\(snapshot\) => \{/)
+  assert.match(app, /setTimeout\(enforceCurrentClientModule, 0\)/)
   assert.match(remoteConfig, /\.catch\(\(\) => current\)/)
   assert.match(remoteConfig, /OFFLINE_CACHE_MAX_AGE/)
+  assert.match(remoteConfig, /SENSITIVE_FEATURE_CACHE_MAX_AGE/)
+  assert.match(remoteConfig, /snapshot\.features\[key\] = false/)
   assert.match(remoteConfig, /defaultSnapshot\(\)/)
+})
+
+test('审核敏感模块使用安全默认值、入口过滤与深链停用页，不下载可执行代码', () => {
+  const policy = fs.readFileSync('apps/mobile/src/lib/client-module-policy.ts', 'utf8')
+  const router = fs.readFileSync('apps/mobile/src/utils/router.ts', 'utf8')
+  const disabledPage = fs.readFileSync('apps/mobile/src/pkg-common/feature-unavailable/index.vue', 'utf8')
+  for (const key of ['live', 'merchant', 'shop', 'member', 'video', 'circle', 'ai']) {
+    assert.match(remoteConfig, new RegExp(`client_module_${key}: false`))
+  }
+  assert.match(policy, /client_module_\$\{module\}/)
+  assert.match(router, /applyClientModuleGate\(resolveRoute\(url\)\)/)
+  assert.match(router, /enforceCurrentClientModule/)
+  assert.match(disabledPage, /历史订单和已有权益不受影响/)
+  assert.doesNotMatch(remoteConfig + policy + router, /new\s+Function|\beval\s*\(|import\(\s*https?:/)
 })
 
 test('远程配置严格校验环境、版本、功能键和样式白名单', () => {

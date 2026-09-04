@@ -8,6 +8,8 @@ import helmet from "helmet";
 import { AppGraphqlModule } from "./app-graphql.module";
 import { RedisThrottleGuard } from "./common/redis-throttle.guard";
 import { RedLineGuard } from "./common/red-lines";
+import { ClientModuleGuard } from "./common/client-module.guard";
+import { FeatureFlagService } from "./modules/feature-flag/feature-flag.service";
 import { RedisIoAdapter } from "./common/redis-io.adapter";
 import { serverConfig } from "./config/server-config";
 import { cryptoSelfTest, setDecryptAlertHandler } from "./common/crypto.util";
@@ -144,6 +146,7 @@ async function bootstrap() {
   app.useGlobalGuards(
     new RedisThrottleGuard(app.get(RedisService)),
     new RedLineGuard(app.get(Reflector)),
+    new ClientModuleGuard(app.get(FeatureFlagService)),
   );
 
   // websocket 跨实例广播（H2·cluster 前提）：Redis adapter 接入，不可用时降级单实例

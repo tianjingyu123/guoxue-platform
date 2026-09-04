@@ -9,8 +9,13 @@ import { requestParentContentLayerClose } from '@/utils/content-detail-layer'
 import { checkForAppUpdate } from '@/lib/app-update'
 import { hydrateRemoteConfig, notifyMaintenanceIfNeeded } from '@/lib/remote-config'
 import { parseAppEntryLink } from '@/utils/app-entry-link'
-import { resolveRoute } from '@/utils/router'
+import { enforceCurrentClientModule, resolveRoute } from '@/utils/router'
 import { hydratePaipanRuntime } from '@/lib/paipan-runtime'
+import {
+  clientFeatureUnavailableRoute,
+  clientModuleForRoute,
+  isClientModuleEnabled,
+} from '@/lib/client-module-policy'
 
 type GxWindow = Window & { __gxBackGestureInstalled?: boolean }
 
@@ -355,7 +360,10 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: 
   // 品牌配置水合（租-T0）：从后端拉取站名/标语/主色等，失败静默用内置默认值
   hydrateBrandConfig()
   // 远程配置 V1：失败时自动使用最近有效快照/内置默认值，绝不阻断启动。
-  void hydrateRemoteConfig().then(notifyMaintenanceIfNeeded)
+  void hydrateRemoteConfig().then((snapshot) => {
+    notifyMaintenanceIfNeeded(snapshot)
+    setTimeout(enforceCurrentClientModule, 0)
+  })
   // 排盘模式只在排盘承接页决策；这里仅预热快照。
   // 禁止在 App 全局路由层 reLaunch，否则旧版回滚开关会销毁当前页面栈，
   // 进而波及视频、商城、圈子等与排盘无关的返回和恢复体验。
@@ -381,6 +389,10 @@ onLaunch((options?: { path?: string; query?: Record<string, unknown>; appLink?: 
         } catch {
           /* 失败静默忽略 */
         }
+        // 兜住未使用统一 router 的历史页面：关闭板块后任何站内跳转都只能到合规停用页。
+        const target = resolveRoute(String(args?.url || ''))
+        const module = clientModuleForRoute(target)
+        if (module && !isClientModuleEnabled(module)) args.url = clientFeatureUnavailableRoute(module)
         // 不返回 false，正常放行跳转
       },
     })
@@ -401,7 +413,10 @@ onShow((options?: { query?: Record<string, unknown>; appLink?: unknown; appSchem
   // 网络失败不阻断启动，强制更新由服务端版本策略控制。
   void checkForAppUpdate()
   // 热启动按服务端 TTL 复检；命中缓存不会重复发请求。
-  void hydrateRemoteConfig().then(notifyMaintenanceIfNeeded)
+  void hydrateRemoteConfig().then((snapshot) => {
+    notifyMaintenanceIfNeeded(snapshot)
+    setTimeout(enforceCurrentClientModule, 0)
+  })
   void hydratePaipanRuntime()
 })
 // 切后台主动 flush 埋点队列，避免残留事件丢失

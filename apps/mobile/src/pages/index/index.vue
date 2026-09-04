@@ -26,6 +26,7 @@ import {
 } from "@/lib/feed-data";
 import { getPublishedLayout, type LayoutBlock } from "@/lib/page-layout-data";
 import BlockRenderer from "@/components/layout/block-renderer.vue";
+import { isClientContentTypeEnabled } from "@/lib/client-module-policy";
 
 // 自定义导航栏留白
 const statusBarHeight = ref(0);
@@ -93,7 +94,7 @@ async function loadFeed(reset = false): Promise<boolean | "stale"> {
   if (seq !== feedReqSeq) return "stale";
   loadError.value = false;
   // 智能体钩子现已统一转换为真实 BotConfig id，可以与其他内容卡正常混排并直达对话。
-  const real = items;
+  const real = items.filter((item) => isClientContentTypeEnabled(item.type));
   if (reset) {
     feed.value = real;
     // SWR 缓存：只存推荐频道的首页第一页（控制体积），后续页不写
@@ -141,7 +142,7 @@ async function init() {
     /* 读缓存失败按未命中处理 */
   }
   if (cached.length > 0) {
-    feed.value = cached;
+    feed.value = cached.filter((item) => isClientContentTypeEnabled(item.type));
     loading.value = false;
     // 后台静默刷新：loadFeed(true) 成功后整批替换 feed（一次性赋值不闪跳）；
     // 失败时 loadError 置位但 feed.length>0，错误态模板不触发，旧内容留存

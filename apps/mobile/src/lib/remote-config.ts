@@ -8,6 +8,7 @@
  * - 未识别字段自动忽略，保证 N/N-1 客户端兼容。
  */
 import { apiGetOptionalAuth } from '@/utils/request'
+import { ref } from 'vue'
 
 export type ClientEnvironment = 'development' | 'staging' | 'production'
 
@@ -33,6 +34,7 @@ interface CachedRemoteConfig {
 }
 
 const OFFLINE_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000
+const SENSITIVE_FEATURE_CACHE_MAX_AGE = 5 * 60 * 1000
 const FEATURE_KEY_RE = /^[a-z][a-z0-9._-]{1,63}$/
 const COLOR_CLASS_RE = /^g-[a-z0-9-]{1,32}$/
 
@@ -49,11 +51,19 @@ const MAINTENANCE_NOTICE_KEY = `client:maintenance:last-revision:${EXPECTED_ENVI
 
 const DEFAULT_FEATURES: Record<string, boolean> = {
   client_wechat_app_login: false,
+  client_module_live: false,
+  client_module_merchant: false,
+  client_module_shop: false,
+  client_module_member: false,
+  client_module_video: false,
+  client_module_circle: false,
+  client_module_ai: false,
   live_start: true,
   member_purchase: true,
   merchant_onboarding: false,
   shop_checkout: true,
 }
+const SENSITIVE_FEATURE_KEYS = Object.keys(DEFAULT_FEATURES).filter((key) => key.startsWith('client_module_'))
 
 const DEFAULT_UI: RemoteUiConfig = {
   home: { bigCardInterval: 6 },
@@ -83,6 +93,8 @@ function defaultSnapshot(): RemoteConfigSnapshot {
 let current = defaultSnapshot()
 let fetchedAt = 0
 let inflight: Promise<RemoteConfigSnapshot> | null = null
+// 让依赖 isClientFeatureEnabled 的 computed 在远端快照更新后自动重算。
+const configEpoch = ref(0)
 
 function finiteInt(value: unknown, fallback: number, min: number, max: number): number {
   const parsed = Number(value)
@@ -145,6 +157,10 @@ function readCache(): CachedRemoteConfig | null {
     if (!parsed || !Number.isFinite(parsed.fetchedAt)) return null
     if (Date.now() - parsed.fetchedAt > OFFLINE_CACHE_MAX_AGE) return null
     const snapshot = sanitizeSnapshot(parsed.snapshot)
+    if (snapshot && Date.now() - parsed.fetchedAt > SENSITIVE_FEATURE_CACHE_MAX_AGE) {
+      // 普通样式可离线沿用七天；审核敏感板块的“开启”状态最多信任五分钟，超时即安全关闭。
+      for (const key of SENSITIVE_FEATURE_KEYS) snapshot.features[key] = false
+    }
     return snapshot ? { fetchedAt: parsed.fetchedAt, snapshot } : null
   } catch {
     return null
@@ -165,6 +181,7 @@ function applyCacheIfNeeded(): void {
   if (!cached) return
   current = cached.snapshot
   fetchedAt = cached.fetchedAt
+  configEpoch.value += 1
 }
 
 export function getRemoteConfig(): RemoteConfigSnapshot {
@@ -173,6 +190,7 @@ export function getRemoteConfig(): RemoteConfigSnapshot {
 }
 
 export function isClientFeatureEnabled(key: string, fallback?: boolean): boolean {
+  void configEpoch.value
   const features = getRemoteConfig().features
   return typeof features[key] === 'boolean' ? features[key] : (fallback ?? false)
 }
@@ -189,6 +207,7 @@ export function hydrateRemoteConfig(force = false): Promise<RemoteConfigSnapshot
       if (!snapshot) return current
       current = snapshot
       fetchedAt = Date.now()
+      configEpoch.value += 1
       persist(snapshot, fetchedAt)
       return current
     })

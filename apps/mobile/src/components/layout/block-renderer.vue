@@ -11,6 +11,7 @@ import { navigateTo } from '@/utils/router'
 import AppIcon from '@/components/common/app-icon.vue'
 import SmartCover from '@/components/common/smart-cover.vue'
 import type { LayoutBlock } from '@/lib/page-layout-data'
+import { isClientRouteEnabled } from '@/lib/client-module-policy'
 
 defineProps<{ blocks: LayoutBlock[] }>()
 
@@ -27,22 +28,28 @@ function str(v: unknown): string {
 function kkItems(b: LayoutBlock): Array<{ icon: string; label: string; color: string; link: string }> {
   return asArr(b.config.items).map((it) => ({
     icon: str(it.icon) || 'grid', label: str(it.label), color: str(it.color) || '#C41E3A', link: str(it.link),
-  }))
+  })).filter((item) => !item.link || isClientRouteEnabled(item.link))
 }
 // 横滑专栏卡：config.items = [{ cover, title, sub, price, link }]
 function railItems(b: LayoutBlock): Array<{ cover: string; title: string; sub: string; price: string; link: string }> {
   return asArr(b.config.items).map((it) => ({
     cover: str(it.cover) || str(it.image), title: str(it.title), sub: str(it.sub) || str(it.subtitle),
     price: str(it.price), link: str(it.link),
-  }))
+  })).filter((item) => !item.link || isClientRouteEnabled(item.link))
 }
 function bannerItems(b: LayoutBlock): Array<{ image: string; link: string; title: string }> {
   const imgs = asArr(b.config.images)
   if (imgs.length) {
     return imgs.map((it) => ({ image: str(it.image) || str(it.cover), link: str(it.link), title: str(it.title) }))
+      .filter((item) => !item.link || isClientRouteEnabled(item.link))
   }
   const single = str(b.config.image) || str(b.config.cover)
-  return single ? [{ image: single, link: str(b.config.link), title: str(b.config.title) }] : []
+  const item = single ? { image: single, link: str(b.config.link), title: str(b.config.title) } : null
+  return item && (!item.link || isClientRouteEnabled(item.link)) ? [item] : []
+}
+function visibleLink(value: unknown): boolean {
+  const link = str(value)
+  return !link || isClientRouteEnabled(link)
 }
 function go(link: string) {
   if (link) navigateTo(link)
@@ -104,7 +111,7 @@ function onBannerChange(id: string, e: { detail?: { current?: number } }) {
       </view>
 
       <!-- notice 公告条 -->
-      <view v-else-if="b.type === 'notice'" class="blk-notice" hover-class="blk-press" @tap="go(str(b.config.link))">
+      <view v-else-if="b.type === 'notice' && visibleLink(b.config.link)" class="blk-notice" hover-class="blk-press" @tap="go(str(b.config.link))">
         <text class="blk-notice-t">{{ b.title || str(b.config.text) }}</text>
       </view>
 
@@ -150,7 +157,7 @@ function onBannerChange(id: string, e: { detail?: { current?: number } }) {
       </view>
 
       <!-- bigCard 2:1 大卡（运营重点位·config: cover/title/subtitle/price/tag/link）-->
-      <view v-else-if="b.type === 'bigCard'" class="blk-big-wrap">
+      <view v-else-if="b.type === 'bigCard' && visibleLink(b.config.link)" class="blk-big-wrap">
         <view class="blk-big" hover-class="blk-press" @tap="go(str(b.config.link))">
           <view class="blk-big-ratio">
             <image class="blk-big-img" :src="str(b.config.cover) || str(b.config.image)" mode="aspectFill" lazy-load />

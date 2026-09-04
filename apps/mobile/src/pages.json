@@ -2758,6 +2758,12 @@
             "navigationStyle": "custom",
             "disableScroll": true
           }
+        },
+        {
+          "path": "feature-unavailable/index",
+          "style": {
+            "navigationStyle": "custom"
+          }
         }
       ]
     },

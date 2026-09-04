@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { coreEntries } from '@/lib/discover-data'
 import { navigateTo } from '@/utils/router'
+import { isClientRouteEnabled } from '@/lib/client-module-policy'
+
+const visibleEntries = computed(() => coreEntries.filter((entry) => isClientRouteEnabled(entry.href)))
 
 function openEntry(href: string) {
   navigateTo(href)
@@ -11,7 +15,7 @@ function openEntry(href: string) {
 <template>
   <view class="core-entry-grid" role="navigation" aria-label="核心功能">
     <view
-      v-for="entry in coreEntries"
+      v-for="entry in visibleEntries"
       :key="entry.id"
       class="core-entry"
       role="link"

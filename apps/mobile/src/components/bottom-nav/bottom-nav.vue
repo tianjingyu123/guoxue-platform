@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 // #ifdef APP-PLUS
 import AppRootBackGesture from '@/components/common/app-root-back-gesture.vue'
 // #endif
 import { redirectTo } from '@/utils/router'
+import { isClientRouteEnabled } from '@/lib/client-module-policy'
 
 /** active: home | circle | paipan | discover | profile */
 const props = defineProps<{ active: string }>()
@@ -44,6 +45,7 @@ const tabs = [
   { id: 'discover', label: '发现', icon: 'compass', url: '/pages/discover/index' },
   { id: 'profile', label: '我的', icon: 'user', url: '/pages/profile/index' },
 ]
+const visibleTabs = computed(() => tabs.filter((tab) => isClientRouteEnabled(tab.url)))
 
 const isActive = (id: string) => props.active === id
 function go(url: string, id: string) {
@@ -69,7 +71,7 @@ function onNavKeydown(event: KeyboardEvent, url: string, id: string) {
   <view v-if="visible" class="bottom-nav" role="navigation" aria-label="主导航">
     <view class="nav-inner">
       <view
-        v-for="tab in tabs"
+        v-for="tab in visibleTabs"
         :key="tab.id"
         class="nav-item"
         role="link"

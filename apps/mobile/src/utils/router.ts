@@ -11,6 +11,7 @@
  */
 
 import { requestParentContentLayerClose, tryOpenContentDetailLayer } from '@/utils/content-detail-layer'
+import { clientFeatureUnavailableRoute, clientModuleForRoute, isClientModuleEnabled } from '@/lib/client-module-policy'
 
 const MAIN_TABS = ['/pages/index/index', '/pages/circles/index', '/pages/paipan/index', '/pages/discover/index', '/pages/profile/index']
 
@@ -585,8 +586,23 @@ export function toastComingSoon() {
   uni.showToast({ title: '功能开发中', icon: 'none' })
 }
 
+function applyClientModuleGate(target: string): string {
+  const module = clientModuleForRoute(target)
+  return module && !isClientModuleEnabled(module) ? clientFeatureUnavailableRoute(module) : target
+}
+
+/** 冷启动、收藏和外部深链可能绕过 navigateTo；远端关闭时统一落合规停用页。 */
+export function enforceCurrentClientModule(): void {
+  const pages = getCurrentPages()
+  const route = pages[pages.length - 1]?.route
+  if (!route) return
+  const currentPath = `/${route}`
+  const module = clientModuleForRoute(currentPath)
+  if (module && !isClientModuleEnabled(module)) uni.reLaunch({ url: clientFeatureUnavailableRoute(module) })
+}
+
 export function navigateTo(url: string) {
-  const target = resolveRoute(url)
+  const target = applyClientModuleGate(resolveRoute(url))
   const path = target.split('?')[0]
   // 五个主页面使用自定义底部导航，并非原生 tabBar。连续 reLaunch 会反复销毁并重建
   // App 页面 WebView，iOS 真机表现为页面先出现、随后白屏；redirectTo 只替换当前页，
@@ -596,12 +612,12 @@ export function navigateTo(url: string) {
 }
 /** 内容卡专用：H5 从来源卡片原位打开详情层；其他终端自动走普通详情页。 */
 export function navigateToContent(url: string, source?: unknown) {
-  const target = resolveRoute(url)
+  const target = applyClientModuleGate(resolveRoute(url))
   if (tryOpenContentDetailLayer(target, source)) return
   uni.navigateTo({ url: target, fail: () => toastComingSoon() })
 }
-export function redirectTo(url: string) { uni.redirectTo({ url: resolveRoute(url), fail: () => toastComingSoon() }) }
-export function reLaunch(url: string) { uni.reLaunch({ url: resolveRoute(url) }) }
+export function redirectTo(url: string) { uni.redirectTo({ url: applyClientModuleGate(resolveRoute(url)), fail: () => toastComingSoon() }) }
+export function reLaunch(url: string) { uni.reLaunch({ url: applyClientModuleGate(resolveRoute(url)) }) }
 export function navigateBack(delta = 1) {
   if (requestParentContentLayerClose()) return
   uni.navigateBack({ delta })

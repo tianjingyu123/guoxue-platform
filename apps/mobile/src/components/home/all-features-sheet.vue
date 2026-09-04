@@ -1,22 +1,19 @@
 <script setup lang="ts">
 /** 全部功能面板：首页金刚区"更多"点击弹出，平铺所有功能入口（复用发现页的功能分类数据），
  *  替代原来"更多→跳发现页"(两套导航不一致、看不到首页分类)的困惑体验。 */
+import { computed } from 'vue'
 import AppIcon from '@/components/common/app-icon.vue'
 import { navigateTo } from '@/utils/router'
 import { coreEntries, serviceGroups } from '@/lib/discover-data'
 import { useOverlayScrollLock } from '@/composables/use-overlay-scroll-lock'
-import { isClientFeatureEnabled } from '@/lib/remote-config'
+import { isClientRouteEnabled } from '@/lib/client-module-policy'
 
 const emit = defineEmits<{ close: [] }>()
 
-const visibleServiceGroups = serviceGroups
-  .map((group) => ({
-    ...group,
-    items: group.items.filter((item) =>
-      item.id !== 'merchant' || isClientFeatureEnabled('merchant_onboarding', false),
-    ),
-  }))
-  .filter((group) => group.items.length > 0)
+const visibleCoreEntries = computed(() => coreEntries.filter((item) => isClientRouteEnabled(item.href)))
+const visibleServiceGroups = computed(() => serviceGroups
+  .map((group) => ({ ...group, items: group.items.filter((item) => isClientRouteEnabled(item.href)) }))
+  .filter((group) => group.items.length > 0))
 
 useOverlayScrollLock(
   () => true,
@@ -59,7 +56,7 @@ function activateOnKeyboard(event: KeyboardEvent, action: () => void) {
           <view class="af-group-head"><view class="af-bar" /><text class="af-group-title">常用功能</text></view>
           <view class="af-grid">
             <view
-              v-for="e in coreEntries"
+              v-for="e in visibleCoreEntries"
               :key="e.id"
               class="af-item"
               role="link"

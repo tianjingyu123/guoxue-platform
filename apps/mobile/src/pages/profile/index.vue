@@ -13,6 +13,7 @@ import { recommendApi } from '@/lib/recommend-data'
 import { growthApi } from '@/lib/growth-data'
 import type { RecommendItem } from '@/components/common/recommend-section.vue'
 import { getToken } from '@/utils/storage'
+import { isClientModuleEnabled, isClientRouteEnabled } from '@/lib/client-module-policy'
 
 const loading = ref(true)
 const error = ref('')
@@ -87,7 +88,7 @@ const ownedRoleMap = computed(() => {
 })
 // 身份成长区渲染项（合并加入态/申请态）
 const roleRows = computed(() =>
-  ROLE_SPECS.map((spec) => {
+  ROLE_SPECS.filter((spec) => spec.applyType !== 'merchant' || isClientModuleEnabled('merchant')).map((spec) => {
     const owned = spec.ownType ? ownedRoleMap.value.get(spec.ownType) : undefined
     return {
       ...spec,
@@ -123,7 +124,7 @@ const assetCells = computed(() => [
   { key: 'coins', label: '国学币', value: metricText(userData.value.coins), href: '/pkg-mine/wallet/index' },
   { key: 'coupons', label: '优惠券', value: metricText(userData.value.coupons), href: '/pkg-shop/coupons/index' },
   { key: 'points', label: '积分', value: metricText(userData.value.points), href: '/pkg-mine/points/index' },
-])
+].filter((item) => isClientRouteEnabled(item.href)))
 
 /* ===== 订单条 ===== */
 const orderStatus = computed(() => [
@@ -138,7 +139,7 @@ const orderStatus = computed(() => [
    笔记 / 直播 / 申请 / 收货地址 / 创作中心 / 讲师工作台 / 资质 ——
    这些页面全是"做完了但没人跳得进去"的孤岛，用户体感就是"这个没做"。
    （lib/profile-data 里那份 quickFunctions 是死常量、没人读，已删。） */
-const matrixItems: { icon: string; label: string; href: string; star?: boolean }[] = [
+const ALL_MATRIX_ITEMS: { icon: string; label: string; href: string; star?: boolean }[] = [
   { icon: 'compass', label: '我的排盘记录', href: '/pages/paipan/index?target=account', star: true },
   { icon: 'book-open', label: '我的课程', href: '/courses/my-learning' },
   // 我的圈子 → 圈子板块「我的」门户 /pkg-circle/circles/me（与圈子页右上角头像入口指向同一页）
@@ -159,6 +160,7 @@ const matrixItems: { icon: string; label: string; href: string; star?: boolean }
   // 收货地址此前全项目零入口：买了实体商品的用户只能在结算时被动选，改不了地址
   { icon: 'map-pin', label: '收货地址', href: '/shop/addresses' },
 ]
+const matrixItems = computed(() => ALL_MATRIX_ITEMS.filter((item) => isClientRouteEnabled(item.href)))
 
 async function fetchData() {
   if (!getToken()) {
@@ -172,7 +174,7 @@ async function fetchData() {
     const data = await profileApi.getProfile()
     userData.value = data
     // 猜你喜欢（getForScene 已内置降级，无需 try/catch）
-    recItems.value = await recommendApi.getForScene('guess_like')
+    recItems.value = (await recommendApi.getForScene('guess_like')).filter((item) => isClientRouteEnabled(item.href))
   } catch (e) {
     error.value = (e as Error)?.message || '加载失败，请重试'
   } finally {
@@ -405,7 +407,7 @@ function applyRole(role: string) {
 
       <!-- 会员金卡条：会员=暖金渐变金底深字 / 非会员=宣纸衬底金描边 -->
       <view
-        v-if="userData.isVip"
+        v-if="isClientModuleEnabled('member') && userData.isVip"
         class="gold-bar gold-bar--member card-press"
         role="link"
         tabindex="0"
@@ -421,7 +423,7 @@ function applyRole(role: string) {
         <view class="gb-cta gb-cta--member"><text class="gb-cta-txt gb-cta-txt--member">续费</text></view>
       </view>
       <view
-        v-else
+        v-else-if="isClientModuleEnabled('member')"
         class="gold-bar gold-bar--guest card-press"
         role="link"
         tabindex="0"
@@ -501,7 +503,7 @@ function applyRole(role: string) {
     </view>
 
     <!-- ===== ④ 订单条 ===== -->
-    <view class="orders">
+    <view v-if="isClientModuleEnabled('shop')" class="orders">
       <view class="orders-head">
         <text class="orders-title">我的订单</text>
         <text class="orders-more" role="link" tabindex="0" aria-label="查看全部订单" @tap="go('/pkg-order/list/index')" @keydown="activateOnKeyboard($event, () => go('/pkg-order/list/index'))">全部订单 ›</text>
@@ -592,7 +594,7 @@ function applyRole(role: string) {
 
     <!-- ===== ⑦ 服务与设置 ===== -->
     <view class="svc">
-      <view class="svc-item tap-press" role="link" tabindex="0" aria-label="查看AI会话记录" @tap="go('/agents/history')" @keydown="activateOnKeyboard($event, () => go('/agents/history'))">
+      <view v-if="isClientModuleEnabled('ai')" class="svc-item tap-press" role="link" tabindex="0" aria-label="查看AI会话记录" @tap="go('/agents/history')" @keydown="activateOnKeyboard($event, () => go('/agents/history'))">
         <AppIcon name="message-circle" :size="40" color="#2B2620" /><text class="svc-label">AI会话</text>
       </view>
       <view class="svc-item tap-press" role="link" tabindex="0" aria-label="联系智能客服" @tap="go('/agent/customer-service')" @keydown="activateOnKeyboard($event, () => go('/agent/customer-service'))">

@@ -28,6 +28,7 @@ const relocatedComponentDirectory = "shared-components";
 // 分包复制，可在不复制业务源码、不改变运行时行为的前提下释放主包空间。
 // 若未来主包新增引用，末尾的完整引用校验会直接让构建失败，避免误删后带病发布。
 const relocatableNamespaces = [
+  "agent",
   "bazi",
   "qimen",
   "cards",

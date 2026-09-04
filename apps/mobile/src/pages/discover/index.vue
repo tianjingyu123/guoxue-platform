@@ -12,7 +12,7 @@
  * 追加「有返回但不足一页」才判到底（空返回可能是网络失败，保留按钮可重试）。
  * 首屏三态：骨架（.skeleton 微光）→ 六类全空视为整页错误给重试 → 正常分区。
  */
-import { ref, reactive, onMounted } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { onPullDownRefresh } from '@dcloudio/uni-app'
 import AppIcon from '@/components/common/app-icon.vue'
 import PlatformSupportActions from '@/components/common/platform-support-actions.vue'
@@ -24,6 +24,8 @@ import BlockRenderer from '@/components/layout/block-renderer.vue'
 import StationPinnedRail from '@/components/station/station-pinned-rail.vue'
 import BusinessEntryGrid from '@/components/navigation/business-entry-grid.vue'
 import { getCategoryFeed, isRenderablePublicFeedItem, type FeedEnvelope } from '@/lib/feed-data'
+import { hydrateRemoteConfig } from '@/lib/remote-config'
+import { isClientContentTypeEnabled } from '@/lib/client-module-policy'
 
 // 状态栏适配：照首页模式动态取 statusBarHeight（原来写死 padding-top:96rpx，
 // 刘海屏会顶进状态栏、H5 无状态栏又留大白），搜索行 padding-top = 状态栏高 + 8px 呼吸位
@@ -49,6 +51,7 @@ const CATEGORIES: CategoryDef[] = [
   { type: 'article', title: '热门文章',   more: '/pkg-circle/articles/index' },
   { type: 'product', title: '掌柜好物',   more: '/pkg-mall/home/index' },
 ]
+const visibleCategories = computed(() => CATEGORIES.filter((category) => isClientContentTypeEnabled(category.type)))
 const SECTION_PAGE_SIZE = 4
 
 /** 每个分区独立维护：items + page + loading + 是否到底 */
@@ -85,7 +88,7 @@ function writeSectionsCache() {
   try {
     const snap: Record<string, FeedEnvelope[]> = {}
     let hasAny = false
-    CATEGORIES.forEach((c) => {
+    visibleCategories.value.forEach((c) => {
       const first = sections[c.type].items.slice(0, SECTION_PAGE_SIZE)
       if (first.length) hasAny = true
       snap[c.type] = first
@@ -100,7 +103,7 @@ function restoreSectionsCache(): boolean {
   try {
     const raw = uni.getStorageSync(DISCOVER_CACHE_KEY) as unknown
     if (raw && typeof raw === 'object') {
-      CATEGORIES.forEach((c) => {
+      visibleCategories.value.forEach((c) => {
         const list = (raw as Record<string, unknown>)[c.type]
         if (Array.isArray(list) && list.length) {
           const s = sections[c.type]
@@ -120,10 +123,10 @@ function restoreSectionsCache(): boolean {
 /** 首屏加载：各分区并行拉第一页 4 张，返回空则该区不渲染 */
 async function loadFirstPages() {
   // 已有内容时（下拉刷新）不回骨架，静默重拉
-  const hadAny = CATEGORIES.some((c) => sections[c.type].items.length > 0)
+  const hadAny = visibleCategories.value.some((c) => sections[c.type].items.length > 0)
   if (!hadAny) firstLoading.value = true
   await Promise.all(
-    CATEGORIES.map(async (c) => {
+    visibleCategories.value.map(async (c) => {
       const s = sections[c.type]
       const list = await getCategoryFeed(c.type, 1, SECTION_PAGE_SIZE)
       // 刷新失败（lib 层吞错返回 []）时保留已有内容，不把整区清空
@@ -138,7 +141,7 @@ async function loadFirstPages() {
   firstLoading.value = false
   // lib 层 getCategoryFeed 吞错返回 []，页面区分不了「全失败」与「六类真的全空」；
   // 生产上六类同时为空几乎只可能是断网/接口挂 → 视为加载失败给整页重试（部分成功则正常显示成功分区）
-  loadError.value = CATEGORIES.every((c) => sections[c.type].items.length === 0)
+  loadError.value = visibleCategories.value.every((c) => sections[c.type].items.length === 0)
   // SWR：刷新成功（非全空）后落盘各分区首页快照，供下次进 tab 秒开
   if (!loadError.value) writeSectionsCache()
 }
@@ -171,7 +174,8 @@ async function loadMore(type: string) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await hydrateRemoteConfig()
   // SWR：先恢复上次七分区首屏缓存——命中则立即上屏（跳过骨架屏），
   // 随后 loadFirstPages 静默刷新（hadAny=true 不回骨架，失败保留已上屏内容）；未命中走原骨架流程
   if (restoreSectionsCache()) firstLoading.value = false
@@ -240,7 +244,7 @@ function goEntry(href: string) { navigateTo(href) }
 
     <!-- ④ 按类别分区：每区= 标题 + 更多› + 双列瀑布流 + 查看更多 -->
     <template v-else>
-    <template v-for="cat in CATEGORIES" :key="cat.type">
+    <template v-for="cat in visibleCategories" :key="cat.type">
       <view v-if="sections[cat.type].loaded && sections[cat.type].items.length" class="cat-section">
         <view class="sec">
           <text class="sec-title">{{ cat.title }}</text>
