@@ -19,11 +19,11 @@ export type LegacyPaymentOutcome = 'submitted' | 'cancelled' | 'unconfirmed'
 type PaymentErrorCode = 'INVALID_ORDER' | 'UNAVAILABLE' | 'STALE_PAGE' | 'BUSY' | 'INVALID_RESPONSE'
 
 const paymentMessages: Record<PaymentErrorCode, string> = {
-  INVALID_ORDER: '旧排盘订单无效，请返回订单页重新操作',
-  UNAVAILABLE: '旧排盘微信支付暂时不可用，请确认已安装微信及最新应用后重试',
+  INVALID_ORDER: '排盘订单无效，请返回订单页重新操作',
+  UNAVAILABLE: '排盘微信支付暂时不可用，请确认已安装微信及最新应用后重试',
   STALE_PAGE: '当前排盘页面已变化，请在原订单页重新操作',
-  BUSY: '已有旧排盘支付正在处理，请勿重复点击',
-  INVALID_RESPONSE: '旧排盘支付参数暂不可用，请稍后在原订单页重试',
+  BUSY: '已有排盘支付正在处理，请勿重复点击',
+  INVALID_RESPONSE: '排盘支付参数暂不可用，请稍后在原订单页重试',
 }
 
 export class LegacyPaymentError extends Error {

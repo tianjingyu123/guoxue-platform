@@ -18,6 +18,7 @@ let bridgeTimers: Array<ReturnType<typeof setTimeout>> = []
 let legacyChildWebview: any | null = null
 // #ifdef APP-PLUS
 let legacyCompassHandler: ((event: { direction?: number }) => void) | null = null
+let legacyOrientationWatchId: number | null = null
 let legacyCompassTimer: ReturnType<typeof setTimeout> | null = null
 let legacyCompassSession = 0
 let legacyCompassWanted = false
@@ -78,7 +79,9 @@ function legacyNavigationBridgeScript(): string {
       if(typeof value!=='string'||value.length>2048)return '';
       try{
         var url=new URL(value);
-        if(url.protocol!=='https:'||url.href!==value||url.username||url.password||url.port||url.hash)return '';
+        if(url.protocol!=='https:'||url.href!==value||url.username||url.password||url.port)return '';
+        if(url.href==='https://api.rebugx.cn/h5/#/pages/paipan/index')return url.href;
+        if(url.hash)return '';
         if(['yrydai.cn','www.yrydai.cn','yrydai.com','www.yrydai.com','rebu.net.cn','www.rebu.net.cn'].indexOf(url.hostname)<0)return '';
         if(url.pathname.indexOf('%')>=0||/guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|my[.]php/i.test(url.pathname))return '';
         if(image&&(url.search||!/[.](png|jpe?g|webp)$/i.test(url.pathname)))return '';
@@ -99,12 +102,20 @@ function legacyNavigationBridgeScript(): string {
       openRebuAction('legacy-share?payload='+encodeURIComponent(payload));
     }
     function shareLegacyPage(_type,_scene,_miniId,title,description){
-      openLegacyShare('page',{title:title,remark:description});
+      var publicEntry='https://api.rebugx.cn/h5/#/pages/paipan/index';
+      openLegacyShare('page',{title:title,remark:description,path:safeShareUrl(window.location.href,false)||publicEntry});
     }
     function shareLegacyPicture(url){openLegacyShare('image',{shareImgUrl:url});}
     function saveLegacyPicture(url){openLegacyShare('save',{shareImgUrl:url});}
-    function openLegacyPayment(value){
+    function legacyTradeNo(value){
+      if(value&&typeof value==='object'){
+        value=value.trade_no||value.tradeNo||value.order_no||value.orderNo||'';
+      }
       var tradeNo=String(value||'').trim();
+      return /^[A-Za-z0-9_-]{1,128}$/.test(tradeNo)?tradeNo:'';
+    }
+    function openLegacyPayment(value){
+      var tradeNo=legacyTradeNo(value);
       if(!/^[A-Za-z0-9_-]{1,128}$/.test(tradeNo)){openRebuAction('unsupported');return;}
       openRebuAction('legacy-payment?trade_no='+tradeNo);
     }
@@ -193,6 +204,30 @@ function legacyNavigationBridgeScript(): string {
       var forms=document.querySelectorAll('form[target="_blank"],form[target="_new"]');
       for(var j=0;j<forms.length;j++)forms[j].setAttribute('target','_self');
     }
+    var safeBottomScheduled=false;
+    function normalizeSafeBottom(){
+      safeBottomScheduled=false;
+      var inset=Math.max(0,Math.round(Number(window.__rebuNativeSafeBottom)||0));
+      if(!inset)return;
+      document.documentElement.style.setProperty('--rebu-native-safe-bottom',inset+'px');
+      document.body&&document.body.style.setProperty('padding-bottom',inset+'px','important');
+      var nodes=document.querySelectorAll('body *');
+      for(var i=0;i<nodes.length;i++){
+        var node=nodes[i];
+        if(node.getAttribute('data-rebu-native-bottom')==='1')continue;
+        var style=window.getComputedStyle(node);
+        var bottom=parseFloat(style.bottom);
+        if(style.position==='fixed'&&Number.isFinite(bottom)&&bottom<=4){
+          node.setAttribute('data-rebu-native-bottom','1');
+          node.style.setProperty('bottom',inset+'px','important');
+        }
+      }
+    }
+    function scheduleNormalizeSafeBottom(){
+      if(safeBottomScheduled)return;
+      safeBottomScheduled=true;
+      (window.requestAnimationFrame||function(callback){callback();return 0;})(normalizeSafeBottom);
+    }
     document.addEventListener('click',function(event){
       var node=event.target;
       while(node&&node.tagName!=='A')node=node.parentNode;
@@ -247,8 +282,9 @@ function legacyNavigationBridgeScript(): string {
       }
     },true);
     normalize();
+    normalizeSafeBottom();
     if(window.MutationObserver){
-      new MutationObserver(normalize).observe(document.documentElement,{childList:true,subtree:true});
+      new MutationObserver(function(){normalize();scheduleNormalizeSafeBottom();}).observe(document.documentElement,{childList:true,subtree:true});
     }
   })();`
 }
@@ -353,6 +389,13 @@ function stopLegacyCompass(clearRequest = true) {
     try { (uni as any).offCompassChange?.(legacyCompassHandler) } catch { /* 旧运行时不支持注销时继续停止传感器 */ }
   }
   legacyCompassHandler = null
+  if (legacyOrientationWatchId !== null) {
+    try {
+      const orientation = typeof plus === 'undefined' ? null : (plus as any).orientation
+      orientation?.clearWatch?.(legacyOrientationWatchId)
+    } catch { /* 监听未启动时无需处理 */ }
+  }
+  legacyOrientationWatchId = null
   try { uni.stopCompass() } catch { /* 尚未启动时无需处理 */ }
 }
 
@@ -386,6 +429,23 @@ function startLegacyCompass() {
   }
   legacyCompassTimer = setTimeout(fail, 8000)
   try {
+    const orientation = typeof plus === 'undefined' ? null : (plus as any).orientation
+    if (orientation?.watchOrientation) {
+      legacyOrientationWatchId = orientation.watchOrientation((rotation: {
+        alpha?: number
+        magneticHeading?: number
+        trueHeading?: number
+      }) => {
+        if (session !== legacyCompassSession || !legacyPageVisible) return
+        const candidates = [rotation?.magneticHeading, rotation?.trueHeading, rotation?.alpha]
+        const direction = candidates.find((value) => typeof value === 'number' && Number.isFinite(value))
+        if (typeof direction !== 'number') return
+        if (legacyCompassTimer !== null) clearTimeout(legacyCompassTimer)
+        legacyCompassTimer = null
+        evalLegacyCompass(((direction % 360) + 360) % 360)
+      }, fail, { frequency: 100 })
+      return
+    }
     uni.onCompassChange(legacyCompassHandler)
     uni.startCompass({ fail })
   } catch {
@@ -397,6 +457,7 @@ function installLegacyNavigationBridge(child = findLegacyChildWebview()) {
   if (!child) return false
   try {
     if (!isTrustedLegacyUrl(String(child.getURL?.() || ''))) return false
+    child.evalJS(`window.__rebuNativeSafeBottom=${Math.max(0, Math.round(safeBottom.value))};`)
     child.evalJS(legacyNavigationBridgeScript())
     return true
   } catch { return false }
@@ -416,9 +477,9 @@ function flushLegacyPaymentResult() {
     if (pending.child !== legacyChildWebview || pending.documentVersion !== legacyDocumentVersion
       || pending.child.getURL?.() !== pending.url || !isTrustedLegacyUrl(pending.url)) return
     pending.child.evalJS(LEGACY_PAYMENT_REFRESH_SCRIPT)
-    const title = pending.outcome === 'cancelled' ? '已取消支付，可在旧排盘订单中继续查看'
-      : pending.outcome === 'submitted' ? '已返回排盘，正在由旧系统确认支付结果'
-        : '支付结果尚未确认，请在旧排盘订单中查看'
+    const title = pending.outcome === 'cancelled' ? '已取消支付，可在排盘订单中继续查看'
+      : pending.outcome === 'submitted' ? '已返回排盘，正在确认支付结果'
+        : '支付结果尚未确认，请在排盘订单中查看'
     uni.showToast({ title, icon: 'none', duration: 3000 })
   } catch { /* 页面已关闭时不把结果交给新页面 */ }
 }
@@ -430,7 +491,7 @@ async function requestLegacyPayment(url: string, child: any) {
   if (!isTrustedLegacyUrl(requestUrl)) return
   const tradeNo = parseLegacyPaymentBridgeUrl(url)
   if (!tradeNo) {
-    uni.showToast({ title: '旧排盘订单无效，请返回订单页重新操作', icon: 'none' })
+    uni.showToast({ title: '排盘订单无效，请返回订单页重新操作', icon: 'none' })
     return
   }
   const documentVersion = legacyDocumentVersion
@@ -442,7 +503,7 @@ async function requestLegacyPayment(url: string, child: any) {
   legacyPaymentBusy = true
   try {
     legacyPaymentLoading = true
-    uni.showLoading({ title: '正在准备旧排盘支付', mask: true })
+    uni.showLoading({ title: '正在准备支付', mask: true })
     const outcome = await payLegacyPaipanOrder(tradeNo, {
       canProceed: () => legacyPageVisible && sameDocument(),
       beforeNativePay: hideLegacyPaymentLoading,
@@ -454,7 +515,7 @@ async function requestLegacyPayment(url: string, child: any) {
   } catch (cause) {
     if (!sameDocument() || !legacyPageVisible) return
     uni.showToast({
-      title: cause instanceof LegacyPaymentError ? cause.message : '旧排盘支付暂不可用，请稍后在订单页重试',
+      title: cause instanceof LegacyPaymentError ? cause.message : '排盘支付暂不可用，请稍后在订单页重试',
       icon: 'none',
       duration: 3000,
     })
@@ -566,7 +627,9 @@ function mountLegacyAppWebview() {
   try {
     const childStyle: any = {
       top: `${safeTop.value}px`,
-      bottom: `${safeBottom.value}px`,
+      // 子 WebView 延伸到窗口底部，再由桥接把 fixed 底栏抬到系统安全区之上。
+      // 直接缩短 WebView 会令第三方页面仍按整屏布局，导致分享/购买按钮被裁掉。
+      bottom: '0px',
       background: '#FAF8F5',
       scrollIndicator: 'none',
       plusrequire: 'none',

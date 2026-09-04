@@ -69,7 +69,10 @@ test('App 旧排盘只在受信域名内兼容新窗口工具，并保留子页�
   assert.match(page, /parent\.append\(child\)/u)
   assert.match(page, /child\.loadURL\(legacyUrl\.value\)/u)
   assert.match(page, /top: `\$\{safeTop\.value\}px`/u)
-  assert.match(page, /bottom: `\$\{safeBottom\.value\}px`/u)
+  assert.match(page, /bottom: '0px'/u)
+  assert.match(page, /__rebuNativeSafeBottom/u)
+  assert.match(page, /data-rebu-native-bottom/u)
+  assert.match(page, /padding-bottom',inset\+'px','important'/u)
   assert.match(page, /plusrequire: 'none'/u)
   assert.match(page, /\$scope\?\.\$getAppWebview\?\.\(\)/u)
   assert.match(page, /page\?\.\$getAppWebview\?\.\(\)/u)
@@ -317,7 +320,7 @@ function compassRuntime({ throwOnSubscribe = false } = {}) {
   const modals = []
   let nextTimer = 0
   const sandbox = {
-    legacyCompassHandler: null, legacyCompassTimer: null, legacyCompassSession: 0,
+    legacyCompassHandler: null, legacyOrientationWatchId: null, legacyCompassTimer: null, legacyCompassSession: 0,
     legacyCompassWanted: false, legacyPageVisible: true,
     findLegacyChildWebview: () => ({ getURL: () => 'https://www.yrydai.cn/compass' }),
     isTrustedLegacyUrl: () => true,
@@ -334,6 +337,28 @@ function compassRuntime({ throwOnSubscribe = false } = {}) {
   vm.runInNewContext(ts.transpileModule(script, { compilerOptions: { target: ts.ScriptTarget.ES2020 } }).outputText, sandbox)
   return { sandbox, timers, callbacks, startOptions, headings, modals }
 }
+
+test('App 优先使用 HTML5+ 原生方向传感器并把磁北方向回传页面', () => {
+  const r = compassRuntime()
+  let orientationCallback
+  let cleared = null
+  r.sandbox.plus = {
+    orientation: {
+      watchOrientation: (callback, _fail, options) => {
+        orientationCallback = callback
+        assert.equal(options.frequency, 100)
+        return 73
+      },
+      clearWatch: id => { cleared = id },
+    },
+  }
+  r.sandbox.startLegacyCompass()
+  assert.equal(r.callbacks.length, 0, '原生方向服务可用时不重复启动 uni 罗盘')
+  orientationCallback({ magneticHeading: 361, trueHeading: 20, alpha: 30 })
+  assert.deepEqual(r.headings, [1])
+  r.sandbox.stopLegacyCompass()
+  assert.equal(cleared, 73)
+})
 
 test('罗盘无首帧数据会超时退出，不把无响应误报成缺少方向权限', () => {
   const r = compassRuntime()

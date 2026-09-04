@@ -34,7 +34,9 @@
     if (typeof value !== 'string' || value.length > 2048) return ''
     try {
       var url = new URL(value)
-      if (url.protocol !== 'https:' || url.href !== value || url.username || url.password || url.port || url.hash) return ''
+      if (url.protocol !== 'https:' || url.href !== value || url.username || url.password || url.port) return ''
+      if (url.href === 'https://api.rebugx.cn/h5/#/pages/paipan/index') return url.href
+      if (url.hash) return ''
       if (['yrydai.cn', 'www.yrydai.cn', 'yrydai.com', 'www.yrydai.com', 'rebu.net.cn', 'www.rebu.net.cn'].indexOf(url.hostname) < 0) return ''
       if (url.pathname.indexOf('%') >= 0 || /guoxueApp|app_login|login|oauth|callback|payment|getTrade|token|auth|member|order|trade|my[.]php/i.test(url.pathname)) return ''
       if (image && (url.search || !/[.](png|jpe?g|webp)$/i.test(url.pathname))) return ''
@@ -63,14 +65,27 @@
   function shareLegacyPage(_type, _scene, _miniId, title, description) {
     // 旧 APK 的前三个参数是类型/场景/小程序标识，不是链接或图片路径。
     // 原生菜单明确提供当前页面截图，不伪造未配置的小程序卡片。
-    openLegacyShare('page', { title: title, remark: description })
+    var publicEntry = 'https://api.rebugx.cn/h5/#/pages/paipan/index'
+    openLegacyShare('page', {
+      title: title,
+      remark: description,
+      path: safeShareUrl(window.location.href, false) || publicEntry,
+    })
   }
 
   function shareLegacyPicture(url) { openLegacyShare('image', { shareImgUrl: url }) }
   function saveLegacyPicture(url) { openLegacyShare('save', { shareImgUrl: url }) }
 
-  function openLegacyPayment(value) {
+  function legacyTradeNo(value) {
+    if (value && typeof value === 'object') {
+      value = value.trade_no || value.tradeNo || value.order_no || value.orderNo || ''
+    }
     var tradeNo = String(value || '').trim()
+    return /^[A-Za-z0-9_-]{1,128}$/.test(tradeNo) ? tradeNo : ''
+  }
+
+  function openLegacyPayment(value) {
+    var tradeNo = legacyTradeNo(value)
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(tradeNo)) {
       openRebuAction('unsupported')
       return

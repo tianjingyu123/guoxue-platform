@@ -88,7 +88,7 @@ test('双桥转发正确协议，不把旧APK的类型/场景/小程序ID错当�
     assert.doesNotMatch(assigned.at(-1), /SECRET|guoxueApp|key/u)
     let result = api.parseLegacyShareBridgeUrl(assigned.at(-1))
     assert.equal(result.title, '八字')
-    assert.equal(result.url, '')
+    assert.equal(result.url, 'https://api.rebugx.cn/h5/#/pages/paipan/index')
     assert.equal(result.kind, 'page')
     window.webUni.postMessage({ data: { action: 'share', payload: { title: '奇门', remark: '说明', path: 'https://www.yrydai.cn/share.php?id=1', shareImgUrl: 'https://www.yrydai.cn/images/result.jpg' } } })
     result = api.parseLegacyShareBridgeUrl(assigned.at(-1))
@@ -135,13 +135,27 @@ test('取消菜单和取消微信均不复制、不保存、不换渠道或重�
 })
 
 test('公开链接使用系统支持的text类型，不生成图片、不带网页签名', async () => {
-  const { api, calls, options } = runtime({ showActionSheet: o => o.success({ tapIndex: 3 }) })
+  const { api, calls, options } = runtime({ showActionSheet: o => o.success({ tapIndex: 5 }) })
   const request = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), url: 'https://www.yrydai.cn/share.php?id=1' }))
   assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
   const message = calls.find(x => x[0] === 'system')[1]
   assert.equal(message.type, 'text')
   assert.equal(message.href, request.url)
   assert.equal(calls.some(x => ['capture', 'share', 'save'].includes(x[0])), false)
+})
+
+test('公开页面优先提供微信好友和朋友圈可打开网页，不把截图冒充页面分享', async () => {
+  for (const [tapIndex, scene] of [[0, 'WXSceneSession'], [1, 'WXSceneTimeline']]) {
+    const { api, calls, options } = runtime({ showActionSheet: o => o.success({ tapIndex }) })
+    const request = api.parseLegacyShareBridgeUrl(bridgeUrl({ ...fixture(), url: 'https://api.rebugx.cn/h5/#/pages/paipan/index' }))
+    assert.equal(await api.shareLegacyPaipan(request, options), 'requested')
+    const native = calls.find(x => x[0] === 'share')[1]
+    assert.equal(native.type, 0)
+    assert.equal(native.scene, scene)
+    assert.equal(native.href, request.url)
+    assert.equal(native.imageUrl, undefined)
+    assert.equal(calls.some(x => ['capture', 'save', 'system'].includes(x[0])), false)
+  }
 })
 
 test('微信未安装或能力检测失败时隐藏微信入口，取消时不截图或改权限', async () => {
@@ -156,7 +170,7 @@ test('微信未安装或能力检测失败时隐藏微信入口，取消时不�
       showActionSheet: o => { items = o.itemList; o.fail({ errMsg: 'cancel' }) },
     }, { share: { getServices } })
     assert.equal(await api.shareLegacyPaipan(fixture(), options), 'cancelled')
-    assert.deepEqual(plain(items), ['保存当前页截图'])
+    assert.deepEqual(plain(items), ['保存当前页图片'])
     assert.equal(calls.some(x => ['capture', 'share', 'download', 'save'].includes(x[0])), false)
   }
   assert.doesNotMatch(source, /openSetting|authorize\(|requestPermissions/u)
